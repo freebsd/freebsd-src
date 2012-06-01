@@ -1,0 +1,17 @@
+The following is a demonstration of the xcallsbypid.d script,
+
+   # xcallsbypid.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+      PID CMD                        XCALLS
+      215 utmpd                           3
+     6350 bash                            3
+     6351 bash                            3
+     6350 ls                             24
+        0 sched                          48
+     6349 dtrace                         93
+     6351 find                         5718
+
+In the above output, we can see the find command with PID 6351 has caused
+5718 cross calls.
+

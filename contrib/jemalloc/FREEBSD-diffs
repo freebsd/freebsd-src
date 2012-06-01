@@ -45,7 +45,7 @@ index 877c500..7d659a7 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 268cd14..cfb1fb9 100644
+index 268cd14..2acd2eb 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
@@ -67,6 +67,21 @@ index 268cd14..cfb1fb9 100644
  #define	JEMALLOC_NO_DEMANGLE
  #include "../jemalloc@install_suffix@.h"
  
+@@ -95,13 +101,7 @@ static const bool config_fill =
+     false
+ #endif
+     ;
+-static const bool config_lazy_lock =
+-#ifdef JEMALLOC_LAZY_LOCK
+-    true
+-#else
+-    false
+-#endif
+-    ;
++static const bool config_lazy_lock = true;
+ static const bool config_prof =
+ #ifdef JEMALLOC_PROF
+     true
 diff --git a/include/jemalloc/internal/mutex.h b/include/jemalloc/internal/mutex.h
 index de44e14..564d604 100644
 --- a/include/jemalloc/internal/mutex.h

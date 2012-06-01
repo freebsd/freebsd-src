@@ -1,0 +1,129 @@
+The following are examples of sh_flow.d.
+
+This is a simple script to trace the flow of Bourne shell functions, 
+builtins and external commands. Here it traces the example program,
+Code/Shell/func_abc.sh.
+
+   # sh_flow.d 
+     C TIME(us)         FILE             -- NAME
+     0 3060274370505    func_abc.sh      -> func_a
+     0 3060274370529    func_abc.sh        > echo
+     0 3060274372742    func_abc.sh        | sleep
+     0 3060275381634    func_abc.sh        -> func_b
+     0 3060275381660    func_abc.sh          > echo
+     0 3060275383852    func_abc.sh          | sleep
+     0 3060276391653    func_abc.sh          -> func_c
+     0 3060276391679    func_abc.sh            > echo
+     0 3060276393671    func_abc.sh            | sleep
+     0 3060277401753    func_abc.sh          <- func_c
+     0 3060277401767    func_abc.sh        <- func_b
+     0 3060277401775    func_abc.sh      <- func_a
+   ^C
+
+As each function is entered, the third column is indented by 2 spaces. This
+shows which function is calling who - the output abovebegins by showing that
+func_a() began, and then called func_b().
+
+If the output looks shuffled, check the CPU "C" and "TIME" columns, and 
+post sort based on TIME if necessary.
+
+See Notes/ALLflow_notes.txt for important notes about reading flow outputs.
+
+
+
+The following traces the firefox startup script.
+
+# sh_flow.d
+  C TIME(us)         FILE             -- NAME
+  0 3060321598138    firefox          > test
+  0 3060321603730    firefox          > [
+  0 3060321603796    firefox          > cd
+  0 3060321603878    firefox          > [
+  0 3060321603900    firefox          > [
+  0 3060321604099    firefox          > [
+  0 3060321609050    firefox          > echo
+  0 3060321620601    firefox          > echo
+  0 3060321626369    firefox          > [
+  0 3060321626432    firefox          > export
+  0 3060321626459    firefox          -> moz_pis_startstop_scripts
+  0 3060321626519    firefox            > export
+  0 3060321626966    firefox            > [
+  0 3060321627031    firefox            > .
+  0 3060321628446    firefox            -> moz_spc_verbose_echo
+  0 3060321628458    firefox              > :
+  0 3060321628467    firefox            <- moz_spc_verbose_echo
+  0 3060321636461    firefox            > [
+  0 3060321636738    firefox            -> moz_spc_verbose_echo
+  0 3060321636751    firefox              > :
+  0 3060321636760    firefox            <- moz_spc_verbose_echo
+  0 3060321636778    firefox            > [
+  0 3060321636793    firefox            > [
+  0 3060321636817    firefox            > [
+  0 3060321637126    firefox            -> moz_spc_verbose_echo
+  0 3060321637136    firefox              > :
+  0 3060321637143    firefox            <- moz_spc_verbose_echo
+  0 3060321666922    firefox            -> moz_spc_verbose_echo
+  0 3060321666952    firefox              > :
+  0 3060321666964    firefox            <- moz_spc_verbose_echo
+  0 3060321674929    firefox          > [
+  0 3060321680246    firefox            > [
+  0 3060321680312    firefox            -> moz_spc_verbose_echo
+  0 3060321680323    firefox              > :
+  0 3060321680331    firefox            <- moz_spc_verbose_echo
+  0 3060321680356    firefox            -> moz_spc_verbose_echo
+  0 3060321680363    firefox              > :
+  0 3060321680370    firefox            <- moz_spc_verbose_echo
+  0 3060321680396    firefox            > [
+  0 3060321680428    firefox          <- moz_pis_startstop_scripts
+  0 3060321680525    firefox          > [
+  0 3060321680580    firefox          > [
+  0 3060321685358    firefox          | /usr/lib/firefox/run-mozilla.sh
+  0 3060321700731    run-mozilla.sh   > [
+  0 3060321700950    run-mozilla.sh   > break
+  0 3060321703259    run-mozilla.sh   > [
+  0 3060321703292    run-mozilla.sh   > shift
+  0 3060321703382    run-mozilla.sh   > [
+  0 3060321703421    run-mozilla.sh   > [
+  0 3060321703493    run-mozilla.sh   > [
+  0 3060321703642    run-mozilla.sh   > [
+  0 3060321703669    run-mozilla.sh   > export
+  0 3060321703706    run-mozilla.sh   > [
+  0 3060321703725    run-mozilla.sh   > [
+  0 3060321703857    run-mozilla.sh   > [
+  0 3060321703880    run-mozilla.sh   > export
+  0 3060321703925    run-mozilla.sh   > export
+  0 3060321703954    run-mozilla.sh   > [
+  0 3060321703982    run-mozilla.sh   -> moz_run_program
+  0 3060321704013    run-mozilla.sh     > [
+  0 3060321704049    run-mozilla.sh     -> moz_test_binary
+  0 3060321704065    run-mozilla.sh       > [
+  0 3060321704097    run-mozilla.sh       > [
+  0 3060321704127    run-mozilla.sh       > return
+  0 3060321704137    run-mozilla.sh     <- moz_test_binary
+  0 3060321704151    run-mozilla.sh     > [
+  0 3060321709953    run-mozilla.sh   > type
+  0 3060321724260    run-mozilla.sh     > [
+  0 3060321724559    run-mozilla.sh     > [
+  0 3060321724574    run-mozilla.sh     > [
+  0 3060321727396    run-mozilla.sh     | /usr/lib/firefox/firefox-bin
+  0 3060325513871    run-mozilla.sh     > [
+  0 3060325513898    run-mozilla.sh     > [
+  0 3060325513929    run-mozilla.sh     > [
+  0 3060325513940    run-mozilla.sh   <- moz_run_program
+  0 3060325513967    run-mozilla.sh   > exit
+  0 3060325515113    firefox          -> moz_pis_startstop_scripts
+  0 3060325515189    firefox            > export
+  0 3060325515431    firefox            > [
+  0 3060325515466    firefox            > [
+  0 3060325515487    firefox          <- moz_pis_startstop_scripts
+  0 3060325515503    firefox          > exit
+
+This shows the flow, incluing the handover between the "firefox" script
+and the "run-mozilla.sh" script.
+
+There is a point in the output where flow appears to reverse (at time
+3060321709953, with the entry "> type"). This is due to another instance
+of the run-mozilla.sh script running, which is indistinguishable from
+the other lines in the output. To confirm this for yourself, add a PID
+column to the flow script (or use sh_flowinfo.d).
+

@@ -1080,6 +1080,9 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	else if (path->device->protocol == PROTO_ATA ||
 	    path->device->protocol == PROTO_SATAPM)
 		ata_print_ident(&path->device->ident_data);
+	else if (path->device->protocol == PROTO_SEMB)
+		semb_print_ident(
+		    (struct sep_identify_data *)&path->device->ident_data);
 	else
 		printf("Unknown protocol device\n");
 	if (bootverbose && path->device->serial_num_len > 0) {
@@ -2902,17 +2905,13 @@ xpt_action_default(union ccb *start_ccb)
 
 		if ((crs->release_flags & RELSIM_ADJUST_OPENINGS) != 0) {
 
- 			if (INQ_DATA_TQ_ENABLED(&dev->inq_data)) {
-				/* Don't ever go below one opening */
-				if (crs->openings > 0) {
-					xpt_dev_ccbq_resize(path,
-							    crs->openings);
-
-					if (bootverbose) {
-						xpt_print(path,
-						    "tagged openings now %d\n",
-						    crs->openings);
-					}
+			/* Don't ever go below one opening */
+			if (crs->openings > 0) {
+				xpt_dev_ccbq_resize(path, crs->openings);
+				if (bootverbose) {
+					xpt_print(path,
+					    "number of openings is now %d\n",
+					    crs->openings);
 				}
 			}
 		}
@@ -4716,6 +4715,7 @@ xpt_start_tags(struct cam_path *path)
 		newopenings = min(device->maxtags,
 				  sim->max_tagged_dev_openings);
 	xpt_dev_ccbq_resize(path, newopenings);
+	xpt_async(AC_GETDEV_CHANGED, path, NULL);
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
@@ -4740,6 +4740,7 @@ xpt_stop_tags(struct cam_path *path)
 	xpt_freeze_devq(path, /*count*/1);
 	device->inq_flags &= ~SID_CmdQue;
 	xpt_dev_ccbq_resize(path, sim->max_dev_openings);
+	xpt_async(AC_GETDEV_CHANGED, path, NULL);
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
@@ -4859,7 +4860,8 @@ xpt_finishconfig_task(void *context, int pending)
 	 * attached.  For any devices like that, announce the
 	 * passthrough driver so the user will see something.
 	 */
-	xpt_for_all_devices(xptpassannouncefunc, NULL);
+	if (!bootverbose)
+		xpt_for_all_devices(xptpassannouncefunc, NULL);
 
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(xsoftc.xpt_config_hook);

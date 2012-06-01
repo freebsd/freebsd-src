@@ -56,7 +56,6 @@ static int	zfs_stat(struct open_file *f, struct stat *sb);
 static int	zfs_readdir(struct open_file *f, struct dirent *d);
 
 struct devsw zfs_dev;
-struct devsw zfs_dev_compat;
 
 struct fs_ops zfs_fsops = {
 	"zfs",
@@ -90,7 +89,7 @@ zfs_open(const char *upath, struct open_file *f)
 	struct file *fp;
 	int rc;
 
-	if (f->f_dev != &zfs_dev && f->f_dev != &zfs_dev_compat)
+	if (f->f_dev != &zfs_dev)
 		return (EINVAL);
 
 	/* allocate file system specific data structure */
@@ -128,7 +127,7 @@ zfs_close(struct open_file *f)
 static int
 zfs_read(struct open_file *f, void *start, size_t size, size_t *resid	/* out */)
 {
-	spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
+	const spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct stat sb;
 	size_t n;
@@ -202,7 +201,7 @@ zfs_seek(struct open_file *f, off_t offset, int where)
 static int
 zfs_stat(struct open_file *f, struct stat *sb)
 {
-	spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
+	const spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
 	struct file *fp = (struct file *)f->f_fsdata;
 
 	return (zfs_dnode_stat(spa, &fp->f_dnode, sb));
@@ -211,7 +210,7 @@ zfs_stat(struct open_file *f, struct stat *sb)
 static int
 zfs_readdir(struct open_file *f, struct dirent *d)
 {
-	spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
+	const spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
 	struct file *fp = (struct file *)f->f_fsdata;
 	mzap_ent_phys_t mze;
 	struct stat sb;
@@ -418,37 +417,13 @@ zfs_dev_print(int verbose)
  * Attempt to open the pool described by (dev) for use by (f).
  */
 static int
-zfs_dev_open_spa(struct open_file *f, spa_t *spa, uint64_t root_guid)
-{
-	struct zfsmount	*mount;
-	int		rv;
-
-	rv = zfs_spa_init(spa);
-	if (rv != 0)
-		return (rv);
-	mount = malloc(sizeof(*mount));
-	rv = zfs_mount(spa, root_guid, mount);
-	if (rv != 0) {
-		free(mount);
-		return (rv);
-	}
-	if (mount->objset.os_type != DMU_OST_ZFS) {
-		printf("Unexpected object set type %llu\n",
-		    mount->objset.os_type);
-		free(mount);
-		return (EIO);
-	}
-	f->f_devdata = mount;
-	return (0);
-}
-
-static int
 zfs_dev_open(struct open_file *f, ...)
 {
-	va_list			args;
+	va_list		args;
 	struct zfs_devdesc	*dev;
-	spa_t			*spa;
-	int			rv;
+	struct zfsmount	*mount;
+	spa_t		*spa;
+	int		rv;
 
 	va_start(args, f);
 	dev = va_arg(args, struct zfs_devdesc *);
@@ -457,31 +432,22 @@ zfs_dev_open(struct open_file *f, ...)
 	spa = spa_find_by_guid(dev->pool_guid);
 	if (!spa)
 		return (ENXIO);
-	rv = zfs_dev_open_spa(f, spa, dev->root_guid);
+	rv = zfs_spa_init(spa);
 	if (rv != 0)
 		return (rv);
-	free(dev);
-	return (0);
-}
-
-static int
-zfs_dev_open_compat(struct open_file *f, ...)
-{
-	va_list		args;
-	struct devdesc	*dev;
-	spa_t		*spa;
-	int		rv;
-
-	va_start(args, f);
-	dev = va_arg(args, struct devdesc *);
-	va_end(args);
-
-	spa = spa_find_by_unit(dev->d_unit);
-	if (!spa)
-		return (ENXIO);
-	rv = zfs_dev_open_spa(f, spa, 0);
-	if (rv != 0)
+	mount = malloc(sizeof(*mount));
+	rv = zfs_mount(spa, dev->root_guid, mount);
+	if (rv != 0) {
+		free(mount);
 		return (rv);
+	}
+	if (mount->objset.os_type != DMU_OST_ZFS) {
+		printf("Unexpected object set type %ju\n",
+		    (uintmax_t)mount->objset.os_type);
+		free(mount);
+		return (EIO);
+	}
+	f->f_devdata = mount;
 	free(dev);
 	return (0);
 }
@@ -508,18 +474,6 @@ struct devsw zfs_dev = {
 	.dv_init = zfs_dev_init,
 	.dv_strategy = zfs_dev_strategy,
 	.dv_open = zfs_dev_open,
-	.dv_close = zfs_dev_close,
-	.dv_ioctl = noioctl,
-	.dv_print = zfs_dev_print,
-	.dv_cleanup = NULL
-};
-
-struct devsw zfs_dev_compat = {
-	.dv_name = "zfs",
-	.dv_type = DEVT_ZFS,
-	.dv_init = zfs_dev_init,
-	.dv_strategy = zfs_dev_strategy,
-	.dv_open = zfs_dev_open_compat,
 	.dv_close = zfs_dev_close,
 	.dv_ioctl = noioctl,
 	.dv_print = zfs_dev_print,

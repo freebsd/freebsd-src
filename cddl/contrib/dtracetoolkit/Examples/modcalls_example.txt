@@ -1,0 +1,47 @@
+The following is an example of the modcalls.d oneliner,
+
+
+Here we run it for a few seconds then hit Ctrl-C,
+
+   # modcalls.d
+   dtrace: script './modcalls.d' matched 18437 probes
+   ^C
+   
+     ptm                                                               2
+     mntfs                                                             2
+     pool                                                              2
+     kcf                                                               4
+     pts                                                               5
+     portfs                                                            6
+     pset                                                              6
+     ttcompat                                                          9
+     ptem                                                              9
+     devfs                                                            13
+     ipf                                                              15
+     namefs                                                           20
+     ctfs                                                             22
+     procfs                                                           22
+     ldterm                                                           23
+     ipgpc                                                            48
+     sockfs                                                           58
+     flowacct                                                         69
+     ata                                                              70
+     gld                                                              75
+     rtls                                                             76
+     specfs                                                           83
+     ip                                                              201
+     uhci                                                            294
+     TS                                                              333
+     tmpfs                                                           694
+     doorfs                                                          897
+     ufs                                                            1329
+     uppc                                                           5617
+     unix                                                          49794
+     genunix                                                       53445
+
+The output lists kernel modules, and the number of function calls for
+each module. For example, "rtls" - the network driver, called 76 functions.
+
+This script may be useful to determine whether drivers are "thinking" when
+troubleshooting driver issues.
+

@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #define SMALL_NODE(sl) ((sl)->tosort_num < 5)
 
 /* are we sorting in reverse order ? */
-static bool reverse_sort = false;
+static bool reverse_sort;
 
 /* sort sub-levels array size */
 static const size_t slsz = 256 * sizeof(struct sort_level*);
@@ -77,14 +77,14 @@ struct level_stack {
 	struct sort_level	 *sl;
 };
 
-static struct level_stack *g_ls = NULL;
+static struct level_stack *g_ls;
 
 #if defined(SORT_THREADS)
 /* stack guarding mutex */
 static pthread_mutex_t g_ls_mutex;
 
 /* counter: how many items are left */
-static size_t sort_left = 0;
+static size_t sort_left;
 /* guarding mutex */
 static pthread_mutex_t sort_left_mutex;
 
@@ -609,7 +609,17 @@ run_top_sort_level(struct sort_level *sl)
 			pthread_attr_setdetachstate(&attr,
 			    PTHREAD_DETACHED);
 
-			pthread_create(&pth, &attr, sort_thread, NULL);
+			for (;;) {
+				int res = pthread_create(&pth, &attr,
+				    sort_thread, NULL);
+				if (res >= 0)
+					break;
+				if (errno == EAGAIN) {
+					pthread_yield();
+					continue;
+				}
+				err(2, NULL);
+			}
 
 			pthread_attr_destroy(&attr);
 		}
@@ -626,6 +636,10 @@ run_sort(struct sort_list_item **base, size_t nmemb)
 	struct sort_level *sl;
 
 #if defined(SORT_THREADS)
+	size_t nthreads_save = nthreads;
+	if (nmemb < MT_SORT_THRESHOLD)
+		nthreads = 1;
+
 	if (nthreads > 1) {
 		pthread_mutexattr_t mattr;
 
@@ -663,6 +677,7 @@ run_sort(struct sort_list_item **base, size_t nmemb)
 		pthread_mutex_destroy(&g_ls_mutex);
 		pthread_mutex_destroy(&sort_left_mutex);
 	}
+	nthreads = nthreads_save;
 #endif
 }
 

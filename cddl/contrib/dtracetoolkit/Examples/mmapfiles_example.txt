@@ -1,0 +1,109 @@
+The following is a demonstration of the mmapfiles.d script.
+
+Here we run mmapfiles.d while in another window a new bash shell is started.
+The files that were mapped in aren't suprising, they are the common shared
+librarios,
+
+   # mmapfiles.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   MMAPS CMD              PATHNAME
+       1 bash             /lib/libdl.so.1
+       3 bash             /lib/libsocket.so.1
+       3 bash             /lib/libnsl.so.1
+       3 bash             /lib/libc.so.1
+       3 bash             /lib/libcurses.so.1
+
+
+
+Now we examine zsh. This time a number of extra libraries are mapped,
+
+   # mmapfiles.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   MMAPS CMD              PATHNAME
+       1 zsh              /lib/libdl.so.1
+       3 getent           /lib/libc.so.1
+       3 getent           /lib/libnsl.so.1
+       3 getent           /lib/libsocket.so.1
+       3 zsh              /usr/sfw/lib/zsh/4.2.1/zsh/parameter.so
+       3 zsh              /usr/sfw/lib/zsh/4.2.1/zsh/zutil.so
+       3 zsh              /usr/sfw/lib/zsh/4.2.1/zsh/complete.so
+       3 zsh              /usr/sfw/lib/zsh/4.2.1/zsh/stat.so
+       3 zsh              /usr/sfw/lib/zsh/4.2.1/zsh/zle.so
+       3 tset             /lib/libc.so.1
+       3 tset             /opt/sfw/lib/libncurses.so.5.2
+       3 zsh              /lib/libc.so.1
+       3 zsh              /lib/libm.so.2
+       3 zsh              /lib/libcurses.so.1
+       3 zsh              /lib/libnsl.so.1
+       3 zsh              /usr/sfw/lib/zsh/4.2.1/zsh/complist.so
+       3 zsh              /lib/libsocket.so.1
+
+
+
+Sometimes the output can be quite suprising. The following shows the mmaps
+caused by the "sdtaudiocontrol" tool, a java tool to change the volume levels
+on Solaris,
+
+   # mmapfiles.d
+   Tracing... Hit Ctrl-C to end.
+   
+   MMAPS CMD              PATHNAME
+       1 java             /usr/jdk/packages/jmf/lib/ext/jmplay.jar
+       1 java             /usr/dt/appconfig/sdtaudiocontrol/classes/SDtAudioControl.jar
+       1 java             /usr/dt/classes/xservices.jar
+       1 java             /usr/dt/classes/jhall.jar
+       1 java             /usr/dt/classes/jsearch.jar
+       1 java             /usr/jdk/packages/jmf/lib/ext/mp3plugin.jar
+       1 java             /usr/jdk/packages/jmf/lib/ext/jmfmp3.jar
+       1 java             /usr/jdk/packages/jmf/lib/ext/multiplayer.jar
+       1 java             /usr/jdk/packages/jmf/lib/ext/mediaplayer.jar
+       1 java             /usr/jdk/packages/jmf/lib/ext/jmf.jar
+       1 java             /usr/jdk/packages/jai-imageio/lib/ext/jai_imageio.jar
+       1 java             /usr/jdk/packages/jai-imageio/lib/ext/clibwrapper_jiio.jar
+       1 java             /usr/jdk/packages/jai/lib/ext/mlibwrapper_jai.jar
+       1 java             /usr/jdk/packages/jai/lib/ext/jai_core.jar
+       1 java             /usr/jdk/packages/jai/lib/ext/jai_codec.jar
+       1 java             /usr/jdk/packages/javax.help-2.0/lib/jhall.jar
+       1 java             /usr/jdk/instances/jdk1.5.0/jre/lib/ext/sunpkcs11.jar
+       1 java             /usr/jdk/instances/jdk1.5.0/jre/lib/ext/sunjce_provider.jar
+       1 java             /usr/jdk/instances/jdk1.5.0/jre/lib/ext/localedata.jar
+       1 java             /usr/jdk/instances/jdk1.5.0/jre/lib/ext/dnsns.jar
+       1 java             /tmp/hsperfdata_root/6464
+       1 java             /tmp/hsperfdata_root/6455
+       2 java             /usr/lib/libsched.so.1
+       2 java             /usr/jdk/instances/jdk1.5.0/jre/lib/charsets.jar
+       2 java             /usr/jdk/instances/jdk1.5.0/jre/lib/jce.jar
+       2 java             /usr/jdk/instances/jdk1.5.0/jre/lib/jsse.jar
+       2 java             /usr/jdk/instances/jdk1.5.0/jre/lib/rt.jar
+       3 sdtaudiocontrol  /lib/libc.so.1
+       3 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/headless/libmawt.so
+       3 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/libmlib_image.so
+       3 ls               /lib/libc.so.1
+       3 rm               /lib/libc.so.1
+       3 java             /usr/dt/appconfig/sdtaudiocontrol/lib/libAudioControl.so
+       3 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/libawt.so
+       4 java             /lib/libdl.so.1
+       6 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/libzip.so
+       6 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/libjava.so
+       6 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/libverify.so
+       6 java             /lib/libscf.so.1
+       6 java             /usr/lib/libCrun.so.1
+       6 java             /lib/libnsl.so.1
+       6 java             /lib/libm.so.1
+       6 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/client/libjvm.so
+       6 java             /lib/libsocket.so.1
+       6 java             /lib/libuutil.so.1
+       6 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/native_threads/libhpi.so
+       6 java             /lib/libmp.so.2
+       6 java             /lib/libmd5.so.1
+       6 java             /lib/libm.so.2
+       6 java             /lib/libdoor.so.1
+       8 java             /usr/jdk/instances/jdk1.5.0/jre/lib/i386/client/classes.jsa
+       8 java             /lib/libthread.so.1
+      12 java             /lib/libc.so.1
+      21 awk              /lib/libm.so.2
+      21 awk              /lib/libc.so.1
+      65 java             /devices/pseudo/mm@0:zero
+

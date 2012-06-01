@@ -427,3 +427,140 @@ ENTRY(savectx)
 
 	ret
 END(savectx)
+
+/*
+ * suspendctx(pcb)
+ * Update pcb, suspending current processor state.
+ */
+ENTRY(suspendctx)
+	/* Fetch PCB. */
+	movl	4(%esp),%ecx
+
+	/* Save context by calling savectx(). */
+	pushl	%ecx
+	call	savectx
+	addl	$4,%esp
+
+	/* Fetch PCB again. */
+	movl	4(%esp),%ecx
+
+	/* Update caller's return address and stack pointer. */
+	movl	(%esp),%eax
+	movl	%eax,PCB_EIP(%ecx)
+	movl	%esp,PCB_ESP(%ecx)
+
+	/* Save other registers and descriptor tables. */
+	movl	%cr0,%eax
+	movl	%eax,PCB_CR0(%ecx)
+	movl	%cr2,%eax
+	movl	%eax,PCB_CR2(%ecx)
+	movl	%cr4,%eax
+	movl	%eax,PCB_CR4(%ecx)
+
+	movl	%dr0,%eax
+	movl	%eax,PCB_DR0(%ecx)
+	movl	%dr1,%eax
+	movl	%eax,PCB_DR1(%ecx)
+	movl	%dr2,%eax
+	movl	%eax,PCB_DR2(%ecx)
+	movl	%dr3,%eax
+	movl	%eax,PCB_DR3(%ecx)
+	movl	%dr6,%eax
+	movl	%eax,PCB_DR6(%ecx)
+	movl	%dr7,%eax
+	movl	%eax,PCB_DR7(%ecx)
+
+	mov	%ds,PCB_DS(%ecx)
+	mov	%es,PCB_ES(%ecx)
+	mov	%fs,PCB_FS(%ecx)
+	mov	%ss,PCB_SS(%ecx)
+	
+	sgdt	PCB_GDT(%ecx)
+	sidt	PCB_IDT(%ecx)
+	sldt	PCB_LDT(%ecx)
+	str	PCB_TR(%ecx)
+
+	movl	$1,%eax
+	ret
+END(suspendctx)
+
+/*
+ * resumectx(pcb in %esi)
+ * Resuming processor state from pcb.
+ */
+ENTRY(resumectx)
+	/* Fetch PCB. */
+	movl	%esi,%ecx
+
+	/* Restore GDT. */
+	lgdt	PCB_GDT(%ecx)
+
+	/* Restore segment registers */
+	movzwl	PCB_DS(%ecx),%eax
+	mov	%ax,%ds
+	movzwl	PCB_ES(%ecx),%eax
+	mov	%ax,%es
+	movzwl	PCB_FS(%ecx),%eax
+	mov	%ax,%fs
+	movzwl	PCB_GS(%ecx),%eax
+	movw	%ax,%gs
+	movzwl	PCB_SS(%ecx),%eax
+	mov	%ax,%ss
+
+	/* Restore CR2, CR4, CR3 and CR0 */
+	movl	PCB_CR2(%ecx),%eax
+	movl	%eax,%cr2
+	movl	PCB_CR4(%ecx),%eax
+	movl	%eax,%cr4
+	movl	PCB_CR3(%ecx),%eax
+	movl	%eax,%cr3
+	movl	PCB_CR0(%ecx),%eax
+	movl	%eax,%cr0
+	jmp	1f
+1:
+
+	/* Restore descriptor tables */
+	lidt	PCB_IDT(%ecx)
+	lldt	PCB_LDT(%ecx)
+
+#define SDT_SYS386TSS	9
+#define SDT_SYS386BSY	11
+	/* Clear "task busy" bit and reload TR */
+	movl	PCPU(TSS_GDT),%eax
+	andb	$(~SDT_SYS386BSY | SDT_SYS386TSS),5(%eax)
+	movzwl	PCB_TR(%ecx),%eax
+	ltr	%ax
+#undef SDT_SYS386TSS
+#undef SDT_SYS386BSY
+
+	/* Restore debug registers */
+	movl	PCB_DR0(%ecx),%eax
+	movl	%eax,%dr0
+	movl	PCB_DR1(%ecx),%eax
+	movl	%eax,%dr1
+	movl	PCB_DR2(%ecx),%eax
+	movl	%eax,%dr2
+	movl	PCB_DR3(%ecx),%eax
+	movl	%eax,%dr3
+	movl	PCB_DR6(%ecx),%eax
+	movl	%eax,%dr6
+	movl	PCB_DR7(%ecx),%eax
+	movl	%eax,%dr7
+
+#ifdef DEV_NPX
+	/* XXX FIX ME */
+#endif
+
+	/* Restore other registers */
+	movl	PCB_EDI(%ecx),%edi
+	movl	PCB_ESI(%ecx),%esi
+	movl	PCB_EBP(%ecx),%ebp
+	movl	PCB_ESP(%ecx),%esp
+	movl	PCB_EBX(%ecx),%ebx
+
+	/* reload code selector by turning return into intersegmental return */
+	pushl	PCB_EIP(%ecx)
+	movl	$KCSEL,4(%esp)
+	xorl	%eax,%eax
+	lret
+END(resumectx)

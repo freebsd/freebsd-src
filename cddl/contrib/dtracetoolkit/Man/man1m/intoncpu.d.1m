@@ -1,0 +1,42 @@
+.TH intoncpu.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+intoncpu.d \- print interrput on-cpu usage. Uses DTrace.
+.SH SYNOPSIS
+.B intoncpu.d
+.SH DESCRIPTION
+This prints a distribution of the on-cpu time for interrput threads.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the sdt provider interrupt probes.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B intoncpu.d
+.PP
+.SH FIELDS
+.TP
+value
+Time interrupt thread was on-cpu, ns
+.TP
+count
+Number of occurrences of at least this time
+.PP
+.SH BASED ON
+/usr/demo/dtrace/intr.d
+.PP
+.SH DOCUMENTATION
+DTrace Guide "sdt Provider" chapter (docs.sun.com)
+
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+intoncpu.d will sample until Ctrl\-C is hit.
+.SH SEE ALSO
+intrstat(1M), dtrace(1M)
+

@@ -1,0 +1,242 @@
+The following are examples of sh_flowinfo.d.
+
+This is a simple script to trace the flow of Bourne shell functions,
+builtins and external commands. Here it traces the example program,
+Code/Shell/func_abc.sh.
+
+   # sh_flowinfo.d
+     C    PID  DELTA(us)              FILE:LINE TYPE     -- NAME
+     0  19634          2       func_abc.sh:23   func     -> func_a
+     0  19634         24       func_abc.sh:18   builtin    -> echo
+     0  19634         41       func_abc.sh:-    builtin    <- echo
+     0  19634       5873       func_abc.sh:19   cmd        -> sleep
+     0  19634     999373       func_abc.sh:-    cmd        <- sleep
+     0  19634         39       func_abc.sh:20   func       -> func_b
+     0  19634         22       func_abc.sh:11   builtin      -> echo
+     0  19634         40       func_abc.sh:-    builtin      <- echo
+     0  19634       4661       func_abc.sh:12   cmd          -> sleep
+     0  19634    1005349       func_abc.sh:-    cmd          <- sleep
+     0  19634         49       func_abc.sh:13   func         -> func_c
+     0  19634         22       func_abc.sh:5    builtin        -> echo
+     0  19634         38       func_abc.sh:-    builtin        <- echo
+     0  19634       4949       func_abc.sh:6    cmd            -> sleep
+     0  19634    1004817       func_abc.sh:-    cmd            <- sleep
+     0  19634         36       func_abc.sh:-    func         <- func_c
+     0  19634         14       func_abc.sh:-    func       <- func_b
+     0  19634          8       func_abc.sh:-    func     <- func_a
+
+As each function is entered, the third column is indented by 2 spaces. This
+shows which function is calling who - the output abovebegins by showing that
+func_a() began, and then called func_b().
+
+The DELTA(us) column shows time from that line to the previous line, and
+so can be a bit tricky to read. For example, the fifth line of data output
+(skipping the header) reads as "the time from the command sleep beginning
+to ending was 999373 us, or 1.0 seconds".
+
+The LINE column shows the line in the file what was being executed. Refer
+to the source program to see what this line refers to.
+
+If the output looks shuffled, check the CPU "C" column - if it changes,
+then the output is probably shuffled. See Notes/ALLsnoop_notes.txt for
+details and suggested workarounds.
+
+See Notes/ALLflow_notes.txt for important notes about reading flow outputs.
+
+
+The following traces the firefox startup script.
+
+# sh_flowinfo.d
+  C    PID  DELTA(us)              FILE:LINE TYPE     -- NAME
+  0 156789          1           firefox:-    subsh    -> pid 156790
+  0 156789         20           firefox:-    subsh    <- = 0
+  0 156789      31651           firefox:-    subsh    -> pid 156791
+  0 156789         20           firefox:-    subsh    <- = 0
+  0 156789      10502           firefox:109  builtin  -> test
+  0 156789         59           firefox:-    builtin  <- test
+  0 156789       3804           firefox:-    subsh    -> pid 156792
+  0 156789         21           firefox:-    subsh    <- = 0
+  0 156789      22029           firefox:114  builtin  -> [
+  0 156789         57           firefox:-    builtin  <- [
+  0 156789      90910           firefox:-    subsh    -> pid 156793
+  0 156789         22           firefox:-    subsh    <- = 0
+  0 156789     159492           firefox:-    subsh    -> pid 156794
+  0 156789         22           firefox:-    subsh    <- = 0
+  0 156789        127           firefox:116  builtin  -> cd
+  0 156789         54           firefox:-    builtin  <- cd
+  0 156789     209757           firefox:-    subsh    -> pid 156795
+  0 156789         23           firefox:-    subsh    <- = 0
+  0 156795     206160           firefox:-    subsh    -> pid 156796
+  0 156795          9           firefox:-    subsh    <- = 0
+  0 156789      12115           firefox:118  builtin  -> [
+  0 156789         61           firefox:-    builtin  <- [
+  0 156789     200529           firefox:-    subsh    -> pid 156797
+  0 156789         24           firefox:-    subsh    <- = 0
+  0 156789        136           firefox:123  builtin  -> [
+  0 156789         58           firefox:-    builtin  <- [
+  0 156789         21           firefox:124  builtin  -> cd
+  0 156789         19           firefox:-    builtin  <- cd
+  0 156798        175           firefox:1    builtin  -> pwd
+  0 156798         65           firefox:-    builtin  <- pwd
+  0 156789     108835           firefox:-    subsh    -> pid 156798
+  0 156789         18           firefox:-    subsh    <- = 0
+  0 156789        119           firefox:128  builtin  -> break
+  0 156789         15           firefox:-    builtin  <- break
+  0 156789         21           firefox:131  builtin  -> cd
+  0 156789         26           firefox:-    builtin  <- cd
+  0 156789         61           firefox:133  builtin  -> [
+  0 156789          9           firefox:-    builtin  <- [
+  0 156789      73508           firefox:147  builtin  -> [
+  0 156789         25           firefox:-    builtin  <- [
+  0 156800        184           firefox:1    builtin  -> echo
+  0 156800        175           firefox:-    builtin  <- echo
+  0 156789      15966           firefox:-    subsh    -> pid 156799
+  0 156789         22           firefox:-    subsh    <- = 0
+  0 156799      12091           firefox:-    subsh    -> pid 156800
+  0 156799         10           firefox:-    subsh    <- = 0
+  0 156802        178           firefox:1    builtin  -> echo
+  0 156802        167           firefox:-    builtin  <- echo
+  0 156789      13822           firefox:-    subsh    -> pid 156801
+  0 156789         18           firefox:-    subsh    <- = 0
+  0 156801      81683           firefox:-    subsh    -> pid 156802
+  0 156801         21           firefox:-    subsh    <- = 0
+  0 156789      78324           firefox:158  builtin  -> [
+  0 156789         37           firefox:-    builtin  <- [
+  0 156789         54           firefox:194  builtin  -> export
+  0 156789          9           firefox:-    builtin  <- export
+  0 156789         26           firefox:197  func     -> moz_pis_startstop_scripts
+  0 156789         61           firefox:62   builtin    -> export
+  0 156789          9           firefox:-    builtin    <- export
+  0 156789        413           firefox:67   builtin    -> [
+  0 156789         34           firefox:-    builtin    <- [
+  0 156789         40           firefox:69   builtin    -> .
+  0 156789      20833           firefox:18   func         -> moz_spc_verbose_echo
+  0 156789         26           firefox:15   builtin        -> :
+  0 156789         16           firefox:-    builtin        <- :
+  0 156789         15           firefox:-    func         <- moz_spc_verbose_echo
+  0 156789     105106           firefox:-    subsh        -> pid 156803
+  0 156789         22           firefox:-    subsh        <- = 0
+  0 156789        129           firefox:19   builtin      -> [
+  0 156789         17           firefox:-    builtin      <- [
+  0 156789         33           firefox:20   func         -> moz_spc_verbose_echo
+  0 156789         14           firefox:15   builtin        -> :
+  0 156789          7           firefox:-    builtin        <- :
+  0 156789          9           firefox:-    func         <- moz_spc_verbose_echo
+  0 156789         21           firefox:23   builtin      -> [
+  0 156789          8           firefox:-    builtin      <- [
+  0 156789         16           firefox:26   builtin      -> [
+  0 156789          8           firefox:-    builtin      <- [
+  0 156789         24           firefox:29   builtin      -> [
+  0 156789         43           firefox:-    builtin      <- [
+  0 156789         77           firefox:36   func         -> moz_spc_verbose_echo
+  0 156789          9           firefox:15   builtin        -> :
+  0 156789          8           firefox:-    builtin        <- :
+  0 156789          8           firefox:-    func         <- moz_spc_verbose_echo
+  0 156789     158947           firefox:-    subsh        -> pid 156804
+  0 156789         22           firefox:-    subsh        <- = 0
+  0 156789     210112           firefox:-    subsh        -> pid 156805
+  0 156789         22           firefox:-    subsh        <- = 0
+  0 156805     205500           firefox:-    subsh    -> pid 156806
+  0 156805         10           firefox:-    subsh    <- = 0
+  0 156805     200987           firefox:-    subsh    -> pid 156807
+  0 156805         20           firefox:-    subsh    <- = 0
+  0 156789     363564           firefox:40   func         -> moz_spc_verbose_echo
+  0 156789         26           firefox:15   builtin        -> :
+  0 156789         17           firefox:-    builtin        <- :
+  0 156789         15           firefox:-    func         <- moz_spc_verbose_echo
+  0 156809        234           firefox:1    builtin  -> [
+  0 156809         70           firefox:-    builtin  <- [
+  0 156789      46950           firefox:-    subsh        -> pid 156808
+  0 156789         22           firefox:-    subsh        <- = 0
+  0 156808      42371           firefox:-    subsh    -> pid 156809
+  0 156808         10           firefox:-    subsh    <- = 0
+  0 156789      27278           firefox:43   builtin      -> [
+  0 156789         26           firefox:-    builtin      <- [
+  0 156789         62           firefox:44   func         -> moz_spc_verbose_echo
+  0 156789         15           firefox:15   builtin        -> :
+  0 156789          8           firefox:-    builtin        <- :
+  0 156789         10           firefox:-    func         <- moz_spc_verbose_echo
+  0 156789         30           firefox:67   func         -> moz_spc_verbose_echo
+  0 156789          9           firefox:15   builtin        -> :
+  0 156789          8           firefox:-    builtin        <- :
+  0 156789          7           firefox:-    func         <- moz_spc_verbose_echo
+  0 156789          8           firefox:-    builtin    <- .
+  0 156789         28           firefox:67   builtin    -> [
+  0 156789         31           firefox:-    builtin    <- [
+  0 156789          8           firefox:-    func     <- moz_pis_startstop_scripts
+  0 156789         97           firefox:199  builtin  -> [
+  0 156789         35           firefox:-    builtin  <- [
+  0 156789         29           firefox:205  builtin  -> [
+  0 156789          9           firefox:-    builtin  <- [
+  0 156789      72519           firefox:209  cmd      -> /usr/lib/firefox/run-mozilla.sh
+  0 156810          1    run-mozilla.sh:-    subsh    -> pid 156811
+  0 156810         15    run-mozilla.sh:-    subsh    <- = 0
+  0 156810     129474    run-mozilla.sh:-    subsh    -> pid 156812
+  0 156810         24    run-mozilla.sh:-    subsh    <- = 0
+  0 156810        743    run-mozilla.sh:258  builtin  -> [
+  0 156810         28    run-mozilla.sh:-    builtin  <- [
+  0 156810        212    run-mozilla.sh:275  builtin  -> break
+  0 156810         10    run-mozilla.sh:-    builtin  <- break
+  0 156810         31    run-mozilla.sh:283  builtin  -> [
+  0 156810         10    run-mozilla.sh:-    builtin  <- [
+  0 156810         16    run-mozilla.sh:286  builtin  -> shift
+  0 156810          9    run-mozilla.sh:-    builtin  <- shift
+  0 156810         55    run-mozilla.sh:291  builtin  -> [
+  0 156810          9    run-mozilla.sh:-    builtin  <- [
+  0 156810         36    run-mozilla.sh:317  builtin  -> [
+  0 156810         34    run-mozilla.sh:-    builtin  <- [
+  0 156810         37    run-mozilla.sh:327  builtin  -> [
+  0 156810          9    run-mozilla.sh:-    builtin  <- [
+  0 156810        142    run-mozilla.sh:362  builtin  -> [
+  0 156810          9    run-mozilla.sh:-    builtin  <- [
+  0 156810         26    run-mozilla.sh:366  builtin  -> export
+  0 156810          9    run-mozilla.sh:-    builtin  <- export
+  0 156810         37    run-mozilla.sh:369  builtin  -> [
+  0 156810          9    run-mozilla.sh:-    builtin  <- [
+  0 156810         18    run-mozilla.sh:371  builtin  -> [
+  0 156810         19    run-mozilla.sh:-    builtin  <- [
+  0 156810        112    run-mozilla.sh:379  builtin  -> [
+  0 156810         10    run-mozilla.sh:-    builtin  <- [
+  0 156810         23    run-mozilla.sh:418  builtin  -> export
+  0 156810          9    run-mozilla.sh:-    builtin  <- export
+  0 156810         45    run-mozilla.sh:419  builtin  -> export
+  0 156810         10    run-mozilla.sh:-    builtin  <- export
+  0 156810         27    run-mozilla.sh:421  builtin  -> [
+  0 156810          9    run-mozilla.sh:-    builtin  <- [
+  0 156810         29    run-mozilla.sh:425  func     -> moz_run_program
+  0 156810         32    run-mozilla.sh:137  builtin    -> [
+  0 156810         25    run-mozilla.sh:-    builtin    <- [
+  0 156810         20    run-mozilla.sh:145  func       -> moz_test_binary
+  0 156810         17    run-mozilla.sh:97   builtin      -> [
+  0 156810         23    run-mozilla.sh:-    builtin      <- [
+  0 156810         15    run-mozilla.sh:99   builtin      -> [
+  0 156810         26    run-mozilla.sh:-    builtin      <- [
+  0 156810         13    run-mozilla.sh:101  builtin      -> return
+  0 156810          9    run-mozilla.sh:-    builtin      <- return
+  0 156810         11    run-mozilla.sh:-    func       <- moz_test_binary
+  0 156810         18    run-mozilla.sh:146  builtin    -> [
+  0 156810          9    run-mozilla.sh:-    builtin    <- [
+  0 156814        185    run-mozilla.sh:1    builtin  -> type
+  0 156814     118188    run-mozilla.sh:-    builtin  <- type
+  0 156810     167284    run-mozilla.sh:-    subsh      -> pid 156813
+  0 156810         23    run-mozilla.sh:-    subsh      <- = 0
+  0 156813     162135    run-mozilla.sh:-    subsh    -> pid 156814
+  0 156813         12    run-mozilla.sh:-    subsh    <- = 0
+  0 156813     200125    run-mozilla.sh:-    subsh    -> pid 156815
+  0 156813         22    run-mozilla.sh:-    subsh    <- = 0
+  0 156810     203465    run-mozilla.sh:152  builtin    -> [
+  0 156810         51    run-mozilla.sh:-    builtin    <- [
+  0 156810         21    run-mozilla.sh:156  builtin    -> [
+  0 156810          9    run-mozilla.sh:-    builtin    <- [
+  0 156810         15    run-mozilla.sh:159  builtin    -> [
+  0 156810         14    run-mozilla.sh:-    builtin    <- [
+  0 156810      65752    run-mozilla.sh:-    subsh      -> pid 156816
+  0 156810         24    run-mozilla.sh:-    subsh      <- = 0
+  0 156816     251788    run-mozilla.sh:-    subsh    -> pid 156817
+  0 156816         22    run-mozilla.sh:-    subsh    <- = 0
+  0 156810     299677    run-mozilla.sh:167  cmd        -> /usr/lib/firefox/firefox-bin
+  0 156810    5124906    run-mozilla.sh:-    cmd        <- /usr/lib/firefox/firefox-bin
+  0 156789    5993798           firefox:-    cmd      <- /usr/lib/firefox/run-mozilla.sh
+
+Now latencies can investigated by line number.
+

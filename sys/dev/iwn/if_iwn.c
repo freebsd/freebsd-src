@@ -92,6 +92,9 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, 0x0885, "Intel Centrino Wireless-N + WiMAX 6150"	},
 	{ 0x8086, 0x0886, "Intel Centrino Wireless-N + WiMAX 6150"	},
 	{ 0x8086, 0x0896, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x0887, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x08ae, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, 0x08af, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, 0x4229, "Intel Wireless WiFi Link 4965"		},
 	{ 0x8086, 0x422b, "Intel Centrino Ultimate-N 6300"		},
 	{ 0x8086, 0x422c, "Intel Centrino Advanced-N 6200"		},
@@ -2764,7 +2767,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	struct mbuf *m;
 	struct iwn_node *wn;
 	struct ieee80211_node *ni;
-	struct ieee80211vap *vap;
 	struct ieee80211_tx_ampdu *tap;
 	uint64_t bitmap;
 	uint32_t *status = stat;
@@ -2823,7 +2825,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		bus_dmamap_unload(ring->data_dmat, data->map);
 		m = data->m, data->m = NULL;
 		ni = data->ni, data->ni = NULL;
-		vap = ni->ni_vap;
 
 		if (m->m_flags & M_TXCB)
 			ieee80211_process_callback(ni, m, 1);
@@ -3310,6 +3311,11 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	ac = M_WME_GETAC(m);
 	if (m->m_flags & M_AMPDU_MPDU) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
+
+		if (!IEEE80211_AMPDU_RUNNING(tap)) {
+			m_freem(m);
+			return EINVAL;
+		}
 
 		ac = *(int *)tap->txa_private;
 		*(uint16_t *)wh->i_seq =

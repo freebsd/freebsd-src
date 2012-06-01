@@ -1,0 +1,54 @@
+.TH rwbytype.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+rwbytype.d \- read/write bytes by vnode type. Uses DTrace.
+.SH SYNOPSIS
+.B rwbytype.d
+.SH DESCRIPTION
+This program identifies the vnode type of read/write activity - whether
+that is for regular files, sockets, character special devices, etc. This
+is measuring at the application level, so file activity may well be 
+cached by the system.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - this script uses fbt provider probes which may change for
+future updates of the OS, invalidating this script. Please read
+Docs/Notes/ALLfbt_notes.txt for further details about these fbt scripts.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B rwbytype.d
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+CMD
+process name
+.TP
+VNODE
+vnode type (describes I/O type)
+.TP
+DIR
+direction, Read or Write
+.TP
+BYTES
+total bytes
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+rwbytype.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+rwbypid.d(1M), rwbbypid.d(1M), dtrace(1M)
+

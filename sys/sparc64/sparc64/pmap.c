@@ -135,6 +135,11 @@ vm_offset_t vm_max_kernel_address;
 struct pmap kernel_pmap_store;
 
 /*
+ * Global tte list lock
+ */
+struct rwlock tte_list_global_lock;
+
+/*
  * Allocate physical memory for use in pmap_bootstrap.
  */
 static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size, uint32_t colors);
@@ -174,11 +179,6 @@ extern int tl1_immu_miss_patch_tsb_1[];
 extern int tl1_immu_miss_patch_tsb_2[];
 extern int tl1_immu_miss_patch_tsb_mask_1[];
 extern int tl1_immu_miss_patch_tsb_mask_2[];
-
-/*
- * MD page read/write lock.
- */
-struct rwlock md_page_rwlock;
 
 /*
  * If user pmap is processed with pmap_remove and with pmap_remove and the
@@ -672,10 +672,10 @@ pmap_bootstrap(u_int cpu_impl)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
 	CPU_FILL(&pm->pm_active);
 
-	/*
-	 * Initialize the MD page lock.
+ 	/*
+	 * Initialize the global tte list lock.
 	 */
-	rw_init(&md_page_rwlock, "MD page");
+	rw_init(&tte_list_global_lock, "tte list global");
 
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
@@ -887,7 +887,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	struct tte *tp;
 	int color;
 
-	MDPAGE_ASSERT_WLOCKED();
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_cache_enter: fake page"));
 	PMAP_STATS_INC(pmap_ncache_enter);
@@ -962,7 +962,7 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 	struct tte *tp;
 	int color;
 
-	MDPAGE_ASSERT_WLOCKED();
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	CTR3(KTR_PMAP, "pmap_cache_remove: m=%p va=%#lx c=%d", m, va,
 	    m->md.colors[DCACHE_COLOR(va)]);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
@@ -1037,7 +1037,7 @@ pmap_kenter(vm_offset_t va, vm_page_t m)
 	vm_page_t om;
 	u_long data;
 
-	MDPAGE_ASSERT_WLOCKED();
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_STATS_INC(pmap_nkenter);
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
@@ -1099,7 +1099,7 @@ pmap_kremove(vm_offset_t va)
 	struct tte *tp;
 	vm_page_t m;
 
-	MDPAGE_ASSERT_WLOCKED();
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_STATS_INC(pmap_nkremove);
 	tp = tsb_kvtotte(va);
 	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
@@ -1153,13 +1153,13 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 
 	PMAP_STATS_INC(pmap_nqenter);
 	va = sva;
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	while (count-- > 0) {
 		pmap_kenter(va, *m);
 		va += PAGE_SIZE;
 		m++;
 	}
-	MDPAGE_WUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	tlb_range_demap(kernel_pmap, sva, va);
 }
 
@@ -1174,12 +1174,12 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	PMAP_STATS_INC(pmap_nqremove);
 	va = sva;
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	while (count-- > 0) {
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	MDPAGE_WUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	tlb_range_demap(kernel_pmap, sva, va);
 }
 
@@ -1327,7 +1327,7 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 	vm_page_t m;
 	u_long data;
 
-	MDPAGE_ASSERT_WLOCKED();
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	data = atomic_readandclear_long(&tp->tte_data);
 	if ((data & TD_FAKE) == 0) {
 		m = PHYS_TO_VM_PAGE(TD_PA(data));
@@ -1364,7 +1364,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 	    pm->pm_context[curcpu], start, end);
 	if (PMAP_REMOVE_DONE(pm))
 		return;
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	PMAP_LOCK(pm);
 	if (end - start > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, start, end, pmap_remove_tte);
@@ -1377,7 +1377,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 		tlb_range_demap(pm, start, end - 1);
 	}
 	PMAP_UNLOCK(pm);
-	MDPAGE_WUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 }
 
 void
@@ -1390,7 +1390,7 @@ pmap_remove_all(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	for (tp = TAILQ_FIRST(&m->md.tte_list); tp != NULL; tp = tpn) {
 		tpn = TAILQ_NEXT(tp, tte_link);
 		if ((tp->tte_data & TD_PV) == 0)
@@ -1412,8 +1412,8 @@ pmap_remove_all(vm_page_t m)
 		TTE_ZERO(tp);
 		PMAP_UNLOCK(pm);
 	}
-	MDPAGE_WUNLOCK();
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
+	rw_wunlock(&tte_list_global_lock);
 }
 
 static int
@@ -1475,11 +1475,11 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
 
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	PMAP_LOCK(pm);
 	pmap_enter_locked(pm, va, m, prot, wired);
+	rw_wunlock(&tte_list_global_lock);
 	PMAP_UNLOCK(pm);
-	MDPAGE_WUNLOCK();
 }
 
 /*
@@ -1498,7 +1498,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_page_t real;
 	u_long data;
 
-	MDPAGE_ASSERT_WLOCKED();
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
 	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
 	    VM_OBJECT_LOCKED(m->object),
@@ -1641,27 +1641,27 @@ pmap_enter_object(pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+	rw_wunlock(&tte_list_global_lock);
 	PMAP_UNLOCK(pm);
-	MDPAGE_WUNLOCK();
 }
 
 void
 pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	PMAP_LOCK(pm);
 	pmap_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
 	    FALSE);
+	rw_wunlock(&tte_list_global_lock);
 	PMAP_UNLOCK(pm);
-	MDPAGE_WUNLOCK();
 }
 
 void
@@ -1706,8 +1706,6 @@ pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp,
 	vm_page_t m;
 	u_long data;
 
-	MDPAGE_ASSERT_WLOCKED();
-
 	if ((tp->tte_data & TD_FAKE) != 0)
 		return (1);
 	if (tsb_tte_lookup(dst_pmap, va) == NULL) {
@@ -1728,7 +1726,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 
 	if (dst_addr != src_addr)
 		return;
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	if (dst_pmap < src_pmap) {
 		PMAP_LOCK(dst_pmap);
 		PMAP_LOCK(src_pmap);
@@ -1746,9 +1744,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 				pmap_copy_tte(src_pmap, dst_pmap, tp, va);
 		tlb_range_demap(dst_pmap, src_addr, src_addr + len - 1);
 	}
+	rw_wunlock(&tte_list_global_lock);
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
-	MDPAGE_WUNLOCK();
 }
 
 void
@@ -1945,7 +1943,7 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	loops = 0;
 	rv = FALSE;
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
@@ -1956,7 +1954,7 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 		if (++loops >= 16)
 			break;
 	}
-	MDPAGE_RUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	return (rv);
 }
 
@@ -1973,11 +1971,11 @@ pmap_page_wired_mappings(vm_page_t m)
 	count = 0;
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
 		if ((tp->tte_data & (TD_PV | TD_WIRED)) == (TD_PV | TD_WIRED))
 			count++;
-	MDPAGE_RUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	return (count);
 }
 
@@ -2004,13 +2002,13 @@ pmap_page_is_mapped(vm_page_t m)
 	rv = FALSE;
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (rv);
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
 		if ((tp->tte_data & TD_PV) != 0) {
 			rv = TRUE;
 			break;
 		}
-	MDPAGE_RUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	return (rv);
 }
 
@@ -2036,7 +2034,7 @@ pmap_ts_referenced(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	count = 0;
-	MDPAGE_WLOCK();
+	rw_wlock(&tte_list_global_lock);
 	if ((tp = TAILQ_FIRST(&m->md.tte_list)) != NULL) {
 		tpf = tp;
 		do {
@@ -2050,7 +2048,7 @@ pmap_ts_referenced(vm_page_t m)
 				break;
 		} while ((tp = tpn) != NULL && tp != tpf);
 	}
-	MDPAGE_WUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	return (count);
 }
 
@@ -2058,7 +2056,6 @@ boolean_t
 pmap_is_modified(vm_page_t m)
 {
 	struct tte *tp;
-	pmap_t pmap;
 	boolean_t rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -2074,19 +2071,16 @@ pmap_is_modified(vm_page_t m)
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		pmap = TTE_GET_PMAP(tp);
-		PMAP_LOCK(pmap);
-		if ((tp->tte_data & TD_W) != 0)
+		if ((tp->tte_data & TD_W) != 0) {
 			rv = TRUE;
-		PMAP_UNLOCK(pmap);
-		if (rv)
 			break;
+		}
 	}
-	MDPAGE_RUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	return (rv);
 }
 
@@ -2120,7 +2114,7 @@ pmap_is_referenced(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
 	rv = FALSE;
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
@@ -2129,7 +2123,7 @@ pmap_is_referenced(vm_page_t m)
 			break;
 		}
 	}
-	MDPAGE_RUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 	return (rv);
 }
 
@@ -2152,7 +2146,7 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
@@ -2160,7 +2154,7 @@ pmap_clear_modify(vm_page_t m)
 		if ((data & TD_W) != 0)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
-	MDPAGE_RUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 }
 
 void
@@ -2171,7 +2165,7 @@ pmap_clear_reference(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_reference: page %p is not managed", m));
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
@@ -2179,14 +2173,13 @@ pmap_clear_reference(vm_page_t m)
 		if ((data & TD_REF) != 0)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
-	MDPAGE_RUNLOCK();
+	rw_wunlock(&tte_list_global_lock);
 }
 
 void
 pmap_remove_write(vm_page_t m)
 {
 	struct tte *tp;
-	pmap_t pmap;
 	u_long data;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -2201,21 +2194,18 @@ pmap_remove_write(vm_page_t m)
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
-	MDPAGE_RLOCK();
+	rw_wlock(&tte_list_global_lock);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		pmap = TTE_GET_PMAP(tp);
-		PMAP_LOCK(pmap);
 		data = atomic_clear_long(&tp->tte_data, TD_SW | TD_W);
 		if ((data & TD_W) != 0) {
 			vm_page_dirty(m);
-			tlb_page_demap(pmap, TTE_GET_VA(tp));
+			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
-		PMAP_UNLOCK(pmap);
 	}
-	MDPAGE_RUNLOCK();
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
+	rw_wunlock(&tte_list_global_lock);
 }
 
 int

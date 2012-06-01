@@ -51,6 +51,10 @@ BIND 9
         For up-to-date release notes and errata, see
         http://www.isc.org/software/bind9/releasenotes
 
+BIND 9.8.3
+
+	BIND 9.8.3 is a maintenance release.
+
 BIND 9.8.2
 
 	BIND 9.8.2 includes a number of bug fixes and prevents a security

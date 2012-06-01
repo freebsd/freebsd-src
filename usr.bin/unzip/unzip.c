@@ -865,19 +865,14 @@ unzip(const char *fn)
 {
 	struct archive *a;
 	struct archive_entry *e;
-	int fd, ret;
+	int ret;
 	uintmax_t total_size, file_count, error_count;
-
-	if (strcmp(fn, "-") == 0)
-		fd = STDIN_FILENO;
-	else if ((fd = open(fn, O_RDONLY)) < 0)
-		error("%s", fn);
 
 	if ((a = archive_read_new()) == NULL)
 		error("archive_read_new failed");
 
 	ac(archive_read_support_format_zip(a));
-	ac(archive_read_open_fd(a, fd, 8192));
+	ac(archive_read_open_filename(a, fn, 8192));
 
 	if (!zipinfo_mode) {
 		if (!p_opt && !q_opt)
@@ -932,9 +927,6 @@ unzip(const char *fn)
 
 	ac(archive_read_close(a));
 	(void)archive_read_finish(a);
-
-	if (fd != STDIN_FILENO && close(fd) != 0)
-		error("%s", fn);
 
 	if (t_opt) {
 		if (error_count > 0) {
@@ -1060,6 +1052,9 @@ main(int argc, char *argv[])
 	if (argc <= nopts)
 		usage();
 	zipfile = argv[nopts++];
+
+	if (strcmp(zipfile, "-") == 0)
+		zipfile = NULL; /* STDIN */
 
 	while (nopts < argc && *argv[nopts] != '-')
 		add_pattern(&include, argv[nopts++]);

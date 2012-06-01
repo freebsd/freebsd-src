@@ -176,7 +176,6 @@ INCS=	hx509-private.h \
 
 SRCS=	ca.c \
 	cert.c \
-	char_map.h \
 	cms.c \
 	collector.c \
 	crypto.c \
@@ -184,12 +183,7 @@ SRCS=	ca.c \
 	error.c \
 	env.c \
 	file.c \
-	hx509-private.h \
-	hx509-protos.h \
-	hx509.h \
-	hx_locl.h \
 	sel.c \
-	sel.h \
 	sel-gram.y \
 	sel-lex.l \
 	keyset.c \
@@ -205,7 +199,6 @@ SRCS=	ca.c \
 	peer.c \
 	print.c \
 	softp11.c \
-	ref/pkcs11.h \
 	req.c \
 	revoke.c
 

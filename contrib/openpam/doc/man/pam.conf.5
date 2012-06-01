@@ -26,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: pam.conf.5 485 2011-11-03 16:57:37Z des $
+.\" $Id: pam.conf.5 610 2012-05-26 14:03:45Z des $
 .\"
-.Dd November 3, 2011
+.Dd May 26, 2012
 .Dt PAM.CONF 5
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ decreasing order of preference:
 .Pp
 If none of these locations contains a policy for the given service,
 the
-.Dv default
+.Dq Dv other
 policy is used instead, if it exists.
 .Pp
 Entries in per-service policy files must be of one of the two forms
@@ -177,5 +177,5 @@ DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Pp
-This manual page was written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq des@des.no .

@@ -33,7 +33,7 @@
 .\"
 .\"     @(#)sort.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd May 6, 2012
+.Dd May 25, 2012
 .Dt SORT 1
 .Os
 .Sh NAME
@@ -358,6 +358,9 @@ This sort algorithm cannot be used with
 .Fl u
 and
 .Fl s .
+.It Fl Fl mmap
+Try to use file memory mapping system call.
+It may increase speed in some cases.
 .El
 .Pp
 The following operands are available:
@@ -498,27 +501,6 @@ option is still supported, except for
 which has no
 .Fl k
 equivalent.
-.Sh EXIT STATUS
-The
-.Nm
-utility shall exit with one of the following values:
-.Pp
-.Bl -tag -width flag -compact
-.It 0
-Successfully sorted the input files or if used with
-.Fl c
-or
-.Fl C ,
-the input file already met the sorting criteria.
-.It 1
-On disorder (or non-uniqueness) with the
-.Fl c
-or
-.Fl C
-options.
-.It 2
-An error occurred.
-.El
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
 .It Ev LC_COLLATE
@@ -574,6 +556,27 @@ This environment variable enables the old behavior.
 Temporary files.
 .It Pa /dev/random
 Default seed file for the random sort.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility shall exit with one of the following values:
+.Pp
+.Bl -tag -width flag -compact
+.It 0
+Successfully sorted the input files or if used with
+.Fl c
+or
+.Fl C ,
+the input file already met the sorting criteria.
+.It 1
+On disorder (or non-uniqueness) with the
+.Fl c
+or
+.Fl C
+options.
+.It 2
+An error occurred.
 .El
 .Sh SEE ALSO
 .Xr comm 1 ,

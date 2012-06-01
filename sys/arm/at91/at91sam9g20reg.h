@@ -29,10 +29,6 @@
 #ifndef AT91SAM9G20REG_H_
 #define AT91SAM9G20REG_H_
 
-#ifndef AT91SAM9G20_MASTER_CLOCK
-#define AT91SAM9G20_MASTER_CLOCK ((18432000 * 43)/6)
-#endif
-
 /* Chip Specific limits */
 #define SAM9G20_PLL_A_MIN_IN_FREQ	  2000000 /*   2 Mhz */
 #define SAM9G20_PLL_A_MAX_IN_FREQ	 32000000 /*  32 Mhz */

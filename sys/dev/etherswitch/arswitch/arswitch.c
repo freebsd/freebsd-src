@@ -220,6 +220,15 @@ arswitch_attach(device_t dev)
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "is_gmii", &sc->is_gmii);
 
+	/*
+	 * This requires much more setup depending upon each chip, including:
+	 *
+	 * + Proper reinitialisation of the PHYs;
+	 * + Initialising the VLAN table;
+	 * + Initialising the port access table and CPU flood/broadcast
+	 *   configuration;
+	 * + Other things I haven't yet thought of.
+	 */
 #ifdef NOTYET
 	arswitch_writereg(dev, AR8X16_REG_MASK_CTRL,
 	    AR8X16_MASK_CTRL_SOFT_RESET);
@@ -229,9 +238,6 @@ arswitch_attach(device_t dev)
 		device_printf(dev, "unable to reset switch\n");
 		return (ENXIO);
 	}
-	arswitch_modifyreg(dev, AR8X16_REG_GLOBAL_CTRL,
-	    AR8X16_FLOOD_MASK_BCAST_TO_CPU,
-	    AR8X16_FLOOD_MASK_BCAST_TO_CPU);
 #endif
 
 	err = sc->hal.arswitch_hw_setup(sc);

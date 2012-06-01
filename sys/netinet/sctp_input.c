@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,8 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_input.c,v 1.27 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -300,8 +298,8 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 				asoc->send_queue_cnt--;
 				if (chk->data != NULL) {
 					sctp_free_bufspace(stcb, asoc, chk, 1);
-					sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-					    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, SCTP_SO_NOT_LOCKED);
+					sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb,
+					    0, chk, SCTP_SO_NOT_LOCKED);
 					if (chk->data) {
 						sctp_m_freem(chk->data);
 						chk->data = NULL;
@@ -318,8 +316,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 					TAILQ_REMOVE(&outs->outqueue, sp, next);
 					asoc->stream_queue_cnt--;
 					sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL,
-					    stcb, SCTP_NOTIFY_DATAGRAM_UNSENT,
-					    sp, SCTP_SO_NOT_LOCKED);
+					    stcb, 0, sp, SCTP_SO_NOT_LOCKED);
 					if (sp->data) {
 						sctp_m_freem(sp->data);
 						sp->data = NULL;
@@ -428,7 +425,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    &abort_flag, (struct sctp_chunkhdr *)cp, &nat_friendly);
 	if (abort_flag) {
 		/* Send an abort and notify peer */
-		sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_CAUSE_PROTOCOL_VIOLATION, op_err, SCTP_SO_NOT_LOCKED);
+		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		*abort_no_unlock = 1;
 		return (-1);
 	}
@@ -632,7 +629,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	if (!(r_net->dest_state & SCTP_ADDR_REACHABLE)) {
 		r_net->dest_state |= SCTP_ADDR_REACHABLE;
 		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
-		    SCTP_HEARTBEAT_SUCCESS, (void *)r_net, SCTP_SO_NOT_LOCKED);
+		    0, (void *)r_net, SCTP_SO_NOT_LOCKED);
 	}
 	if (r_net->dest_state & SCTP_ADDR_PF) {
 		r_net->dest_state &= ~SCTP_ADDR_PF;
@@ -739,7 +736,7 @@ sctp_handle_nat_missing_state(struct sctp_tcb *stcb,
 
 
 static void
-sctp_handle_abort(struct sctp_abort_chunk *cp,
+sctp_handle_abort(struct sctp_abort_chunk *abort,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -747,43 +744,42 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 
 #endif
 	uint16_t len;
+	uint16_t error;
 
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_abort: handling ABORT\n");
 	if (stcb == NULL)
 		return;
 
-	len = ntohs(cp->ch.chunk_length);
+	len = ntohs(abort->ch.chunk_length);
 	if (len > sizeof(struct sctp_chunkhdr)) {
 		/*
 		 * Need to check the cause codes for our two magic nat
 		 * aborts which don't kill the assoc necessarily.
 		 */
-		struct sctp_abort_chunk *cpnext;
 		struct sctp_missing_nat_state *natc;
-		uint16_t cause;
 
-		cpnext = cp;
-		cpnext++;
-		natc = (struct sctp_missing_nat_state *)cpnext;
-		cause = ntohs(natc->cause);
-		if (cause == SCTP_CAUSE_NAT_COLLIDING_STATE) {
+		natc = (struct sctp_missing_nat_state *)(abort + 1);
+		error = ntohs(natc->cause);
+		if (error == SCTP_CAUSE_NAT_COLLIDING_STATE) {
 			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
-			    cp->ch.chunk_flags);
+			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_colliding_state(stcb)) {
 				return;
 			}
-		} else if (cause == SCTP_CAUSE_NAT_MISSING_STATE) {
+		} else if (error == SCTP_CAUSE_NAT_MISSING_STATE) {
 			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags:%x\n",
-			    cp->ch.chunk_flags);
+			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_missing_state(stcb, net)) {
 				return;
 			}
 		}
+	} else {
+		error = 0;
 	}
 	/* stop any receive timers */
 	sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
 	/* notify user of the abort and clean up... */
-	sctp_abort_notification(stcb, 0, SCTP_SO_NOT_LOCKED);
+	sctp_abort_notification(stcb, 1, error, abort, SCTP_SO_NOT_LOCKED);
 	/* free the tcb */
 	SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 	if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
@@ -1007,7 +1003,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
 	    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
-		sctp_report_all_outbound(stcb, 0, SCTP_SO_NOT_LOCKED);
+		sctp_report_all_outbound(stcb, 0, 0, SCTP_SO_NOT_LOCKED);
 	}
 	/* stop the timer */
 	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_9);
@@ -1113,7 +1109,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 {
 	int chklen;
 	struct sctp_paramhdr *phdr;
-	uint16_t error_type;
+	uint16_t error, error_type;
 	uint16_t error_len;
 	struct sctp_association *asoc;
 	int adjust;
@@ -1128,6 +1124,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 	phdr = (struct sctp_paramhdr *)((caddr_t)ch +
 	    sizeof(struct sctp_chunkhdr));
 	chklen = ntohs(ch->chunk_length) - sizeof(struct sctp_chunkhdr);
+	error = 0;
 	while ((size_t)chklen >= sizeof(struct sctp_paramhdr)) {
 		/* Process an Error Cause */
 		error_type = ntohs(phdr->param_type);
@@ -1137,6 +1134,10 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			SCTPDBG(SCTP_DEBUG_INPUT1, "Bogus length in error param- chunk left:%d errorlen:%d\n",
 			    chklen, error_len);
 			return (0);
+		}
+		if (error == 0) {
+			/* report the first error cause */
+			error = error_type;
 		}
 		switch (error_type) {
 		case SCTP_CAUSE_INVALID_STREAM:
@@ -1174,7 +1175,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 				asoc->stale_cookie_count++;
 				if (asoc->stale_cookie_count >
 				    asoc->max_init_times) {
-					sctp_abort_notification(stcb, 0, SCTP_SO_NOT_LOCKED);
+					sctp_abort_notification(stcb, 0, 0, NULL, SCTP_SO_NOT_LOCKED);
 					/* now free the asoc */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 					so = SCTP_INP_SO(stcb->sctp_ep);
@@ -1254,6 +1255,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 		chklen -= adjust;
 		phdr = (struct sctp_paramhdr *)((caddr_t)phdr + adjust);
 	}
+	sctp_ulp_notify(SCTP_NOTIFY_REMOTE_ERROR, stcb, error, ch, SCTP_SO_NOT_LOCKED);
 	return (0);
 }
 
@@ -1890,7 +1892,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		/* send up all the data */
 		SCTP_TCB_SEND_LOCK(stcb);
 
-		sctp_report_all_outbound(stcb, 1, SCTP_SO_NOT_LOCKED);
+		sctp_report_all_outbound(stcb, 0, 1, SCTP_SO_NOT_LOCKED);
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].next_sequence_sent = 0;
@@ -3177,7 +3179,7 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp SCTP_UNUSE
 		if (!TAILQ_EMPTY(&asoc->send_queue) ||
 		    !TAILQ_EMPTY(&asoc->sent_queue) ||
 		    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
-			sctp_report_all_outbound(stcb, 0, SCTP_SO_NOT_LOCKED);
+			sctp_report_all_outbound(stcb, 0, 0, SCTP_SO_NOT_LOCKED);
 		}
 	}
 	/* stop the timer */

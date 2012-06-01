@@ -1358,7 +1358,7 @@ dns64_reverse(dns_view_t *view, isc_mem_t *mctx, isc_netaddr_t *na,
 {
 	char *cp;
 	char reverse[48+sizeof("ip6.arpa.")];
-	const char *dns64_dbtype[4] = { "_builtin", "dns64", ".", "." };
+	const char *dns64_dbtype[4] = { "_dns64", "dns64", ".", "." };
 	const char *sep = ": view ";
 	const char *viewname = view->name;
 	const unsigned char *s6;

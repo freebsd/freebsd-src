@@ -134,7 +134,9 @@ cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
-cam/scsi/scsi_ses.c		optional ses
+cam/scsi/scsi_enc.c		optional ses
+cam/scsi/scsi_enc_ses.c		optional ses
+cam/scsi/scsi_enc_safte.c	optional ses
 cam/scsi/scsi_sg.c		optional sg
 cam/scsi/scsi_targ_bh.c		optional targbh
 cam/scsi/scsi_target.c		optional targ
@@ -710,6 +712,8 @@ dev/ath/if_ath_ahb.c		optional ath_ahb \
 #
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_beacon.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_keycache.c	optional ath \
@@ -720,7 +724,11 @@ dev/ath/if_ath_tx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx_ht.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_tdma.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_sysctl.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_rx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1217,6 +1225,7 @@ dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_pci.c		optional fdt pci
+dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static
 dev/fdt/fdtbus.c		optional fdt
 dev/fdt/simplebus.c		optional fdt
@@ -1513,7 +1522,7 @@ dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/ixgbe.c		optional ixgbe inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP -DIXGBE_FDIR"
 dev/ixgbe/ixv.c			optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \
@@ -1660,6 +1669,21 @@ dev/mxge/mxge_ethp_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
+dev/nand/nand.c			optional nand
+dev/nand/nand_bbt.c		optional nand
+dev/nand/nand_cdev.c		optional nand
+dev/nand/nand_generic.c		optional nand
+dev/nand/nand_geom.c		optional nand
+dev/nand/nand_id.c		optional nand
+dev/nand/nandbus.c		optional nand
+dev/nand/nandbus_if.m		optional nand
+dev/nand/nand_if.m		optional nand
+dev/nand/nandsim.c		optional nandsim nand
+dev/nand/nandsim_chip.c		optional nandsim nand
+dev/nand/nandsim_ctrl.c		optional nandsim nand
+dev/nand/nandsim_log.c		optional nandsim nand
+dev/nand/nandsim_swap.c		optional nandsim nand
+dev/nand/nfc_if.m		optional nand
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
@@ -2252,6 +2276,20 @@ fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
 fs/msdosfs/msdosfs_vnops.c	optional msdosfs
+fs/nandfs/bmap.c		optional nandfs
+fs/nandfs/nandfs_alloc.c	optional nandfs
+fs/nandfs/nandfs_bmap.c		optional nandfs
+fs/nandfs/nandfs_buffer.c	optional nandfs
+fs/nandfs/nandfs_cleaner.c	optional nandfs
+fs/nandfs/nandfs_cpfile.c	optional nandfs
+fs/nandfs/nandfs_dat.c		optional nandfs
+fs/nandfs/nandfs_dir.c		optional nandfs
+fs/nandfs/nandfs_ifile.c	optional nandfs
+fs/nandfs/nandfs_segment.c	optional nandfs
+fs/nandfs/nandfs_subr.c		optional nandfs
+fs/nandfs/nandfs_sufile.c	optional nandfs
+fs/nandfs/nandfs_vfsops.c	optional nandfs
+fs/nandfs/nandfs_vnops.c	optional nandfs
 fs/nfs/nfs_commonkrpc.c		optional nfscl | nfsd
 fs/nfs/nfs_commonsubs.c		optional nfscl | nfsd
 fs/nfs/nfs_commonport.c		optional nfscl | nfsd
@@ -2353,6 +2391,7 @@ geom/geom_disk.c		standard
 geom/geom_dump.c		standard
 geom/geom_event.c		standard
 geom/geom_fox.c			optional geom_fox
+geom/geom_flashmap.c		optional fdt cfi | fdt nand
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
 geom/geom_map.c			optional geom_map
@@ -2523,6 +2562,7 @@ kern/kern_priv.c		standard
 kern/kern_proc.c		standard
 kern/kern_prot.c		standard
 kern/kern_racct.c		standard
+kern/kern_rangelock.c		standard
 kern/kern_rctl.c		standard
 kern/kern_resource.c		standard
 kern/kern_rmlock.c		standard

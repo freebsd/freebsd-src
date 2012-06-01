@@ -67,4 +67,22 @@ extern void ath_tx_update_ratectrl(struct ath_softc *sc,
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
 
+extern void ath_txqmove(struct ath_txq *dst, struct ath_txq *src);
+
+extern void ath_mode_init(struct ath_softc *sc);
+
+extern void ath_setdefantenna(struct ath_softc *sc, u_int antenna);
+
+extern void ath_setslottime(struct ath_softc *sc);
+
+/*
+ * This is only here so that the RX proc function can call it.
+ * It's very likely that the "start TX after RX" call should be
+ * done via something in if_ath.c, moving "rx tasklet" into
+ * if_ath.c and do the ath_start() call there.  Once that's done,
+ * we can kill this.
+ */
+extern void ath_start(struct ifnet *ifp);
+
+
 #endif

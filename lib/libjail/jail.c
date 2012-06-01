@@ -853,7 +853,7 @@ jailparam_free(struct jailparam *jp, unsigned njp)
 static int
 jailparam_type(struct jailparam *jp)
 {
-	char *p, *nname;
+	char *p, *name, *nname;
 	size_t miblen, desclen;
 	int i, isarray;
 	struct {
@@ -863,7 +863,8 @@ jailparam_type(struct jailparam *jp)
 	int mib[CTL_MAXNAME];
 
 	/* The "lastjid" parameter isn't real. */
-	if (!strcmp(jp->jp_name, "lastjid")) {
+	name = jp->jp_name;
+	if (!strcmp(name, "lastjid")) {
 		jp->jp_valuelen = sizeof(int);
 		jp->jp_ctltype = CTLTYPE_INT | CTLFLAG_WR;
 		return (0);
@@ -872,19 +873,19 @@ jailparam_type(struct jailparam *jp)
 	/* Find the sysctl that describes the parameter. */
 	mib[0] = 0;
 	mib[1] = 3;
-	snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", jp->jp_name);
+	snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", name);
 	miblen = sizeof(mib) - 2 * sizeof(int);
 	if (sysctl(mib, 2, mib + 2, &miblen, desc.s, strlen(desc.s)) < 0) {
 		if (errno != ENOENT) {
 			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-			    "sysctl(0.3.%s): %s", jp->jp_name, strerror(errno));
+			    "sysctl(0.3.%s): %s", name, strerror(errno));
 			return (-1);
 		}
 		/*
 		 * The parameter probably doesn't exist.  But it might be
 		 * the "no" counterpart to a boolean.
 		 */
-		nname = nononame(jp->jp_name);
+		nname = nononame(name);
 		if (nname == NULL) {
 		unknown_parameter:
 			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
@@ -892,8 +893,10 @@ jailparam_type(struct jailparam *jp)
 			errno = ENOENT;
 			return (-1);
 		}
-		snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", nname);
+		name = alloca(strlen(nname) + 1);
+		strcpy(name, nname);
 		free(nname);
+		snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", name);
 		miblen = sizeof(mib) - 2 * sizeof(int);
 		if (sysctl(mib, 2, mib + 2, &miblen, desc.s,
 		    strlen(desc.s)) < 0)
@@ -906,7 +909,7 @@ jailparam_type(struct jailparam *jp)
 	if (sysctl(mib, (miblen / sizeof(int)) + 2, &desc, &desclen,
 	    NULL, 0) < 0) {
 		snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-		    "sysctl(0.4.%s): %s", jp->jp_name, strerror(errno));
+		    "sysctl(0.4.%s): %s", name, strerror(errno));
 		return (-1);
 	}
 	jp->jp_ctltype = desc.i;
@@ -952,7 +955,7 @@ jailparam_type(struct jailparam *jp)
 		if (sysctl(mib + 2, miblen / sizeof(int), desc.s, &desclen,
 		    NULL, 0) < 0) {
 			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-			    "sysctl(" SJPARAM ".%s): %s", jp->jp_name,
+			    "sysctl(" SJPARAM ".%s): %s", name,
 			    strerror(errno));
 			return (-1);
 		}
@@ -970,7 +973,7 @@ jailparam_type(struct jailparam *jp)
 			if (sysctl(mib + 2, miblen / sizeof(int),
 			    NULL, &jp->jp_valuelen, NULL, 0) < 0) {
 				snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-				    "sysctl(" SJPARAM ".%s): %s", jp->jp_name,
+				    "sysctl(" SJPARAM ".%s): %s", name,
 				    strerror(errno));
 				return (-1);
 			}
@@ -995,10 +998,9 @@ jailparam_type(struct jailparam *jp)
 				    "sysctl(0.1): %s", strerror(errno));
 				return (-1);
 			}
-			if (desclen ==
-			    sizeof(SJPARAM) + strlen(jp->jp_name) + 2 &&
+			if (desclen == sizeof(SJPARAM) + strlen(name) + 2 &&
 			    memcmp(SJPARAM ".", desc.s, sizeof(SJPARAM)) == 0 &&
-			    memcmp(jp->jp_name, desc.s + sizeof(SJPARAM),
+			    memcmp(name, desc.s + sizeof(SJPARAM),
 			    desclen - sizeof(SJPARAM) - 2) == 0 &&
 			    desc.s[desclen - 2] == '.')
 				goto mib_desc;

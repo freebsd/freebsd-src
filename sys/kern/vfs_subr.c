@@ -1027,6 +1027,7 @@ alloc:
 		if ((mp->mnt_kern_flag & MNTK_NOKNOTE) != 0)
 			vp->v_vflag |= VV_NOKNOTE;
 	}
+	rangelock_init(&vp->v_rl);
 
 	*vpp = vp;
 	return (0);
@@ -2468,6 +2469,7 @@ vdropl(struct vnode *vp)
 	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
 #endif
+	rangelock_destroy(&vp->v_rl);
 	lockdestroy(vp->v_vnlock);
 	mtx_destroy(&vp->v_interlock);
 	mtx_destroy(BO_MTX(bo));

@@ -148,6 +148,7 @@ struct vfsopt {
  * Lock reference:
  *	m - mountlist_mtx
  *	i - interlock
+ *	v - vnode freelist mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
@@ -164,8 +165,8 @@ struct mount {
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
-	struct vnodelst	mnt_activevnodelist;	/* (i) list of active vnodes */
-	int		mnt_activevnodelistsize;/* (i) # of active vnodes */
+	struct vnodelst	mnt_activevnodelist;	/* (v) list of active vnodes */
+	int		mnt_activevnodelistsize;/* (v) # of active vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */
@@ -369,6 +370,9 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
 #define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
+#define	MNTK_NO_IOPF	0x00000100	/* Disallow page faults during reads
+					   and writes. Filesystem shall properly
+					   handle i/o state on EFAULT. */
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */

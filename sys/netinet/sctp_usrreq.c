@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,10 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_usrreq.c,v 1.48 2005/03/07 23:26:08 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 #include <netinet/sctp_os.h>
 #include <sys/proc.h>
 #include <netinet/sctp_pcb.h>
@@ -229,11 +228,9 @@ sctp_notify(struct sctp_inpcb *inp,
 	struct socket *so;
 
 #endif
-	/* protection */
-	int reason;
 	struct icmp *icmph;
 
-
+	/* protection */
 	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
 	    (sh == NULL) || (to == NULL)) {
 		if (stcb)
@@ -272,7 +269,7 @@ sctp_notify(struct sctp_inpcb *inp,
 			net->dest_state &= ~SCTP_ADDR_REACHABLE;
 			net->dest_state &= ~SCTP_ADDR_PF;
 			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-			    stcb, SCTP_FAILED_THRESHOLD,
+			    stcb, 0,
 			    (void *)net, SCTP_SO_NOT_LOCKED);
 		}
 		SCTP_TCB_UNLOCK(stcb);
@@ -285,8 +282,7 @@ sctp_notify(struct sctp_inpcb *inp,
 		 * now is dead. In either case treat it like a OOTB abort
 		 * with no TCB
 		 */
-		reason = SCTP_PEER_FAULTY;
-		sctp_abort_notification(stcb, reason, SCTP_SO_NOT_LOCKED);
+		sctp_abort_notification(stcb, 1, 0, NULL, SCTP_SO_NOT_LOCKED);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(inp);
 		atomic_add_int(&stcb->asoc.refcnt, 1);
@@ -1098,7 +1094,6 @@ sctp_shutdown(struct socket *so)
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
-				    SCTP_RESPONSE_TO_USER_REQ,
 				    op_err, SCTP_SO_LOCKED);
 				goto skip_unlock;
 			} else {
@@ -4830,12 +4825,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						if (net->dest_state & SCTP_ADDR_REACHABLE) {
 							if (net->error_count > paddrp->spp_pathmaxrxt) {
 								net->dest_state &= ~SCTP_ADDR_REACHABLE;
-								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, 0, net, SCTP_SO_LOCKED);
 							}
 						} else {
 							if (net->error_count <= paddrp->spp_pathmaxrxt) {
 								net->dest_state |= SCTP_ADDR_REACHABLE;
-								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, 0, net, SCTP_SO_LOCKED);
 							}
 						}
 						net->failure_threshold = paddrp->spp_pathmaxrxt;
@@ -4873,12 +4868,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 							if (net->dest_state & SCTP_ADDR_REACHABLE) {
 								if (net->error_count > paddrp->spp_pathmaxrxt) {
 									net->dest_state &= ~SCTP_ADDR_REACHABLE;
-									sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+									sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, 0, net, SCTP_SO_LOCKED);
 								}
 							} else {
 								if (net->error_count <= paddrp->spp_pathmaxrxt) {
 									net->dest_state |= SCTP_ADDR_REACHABLE;
-									sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+									sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, 0, net, SCTP_SO_LOCKED);
 								}
 							}
 							net->failure_threshold = paddrp->spp_pathmaxrxt;
@@ -5684,12 +5679,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					if (net->dest_state & SCTP_ADDR_REACHABLE) {
 						if (net->failure_threshold > thlds->spt_pathmaxrxt) {
 							net->dest_state &= ~SCTP_ADDR_REACHABLE;
-							sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+							sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, 0, net, SCTP_SO_LOCKED);
 						}
 					} else {
 						if (net->failure_threshold <= thlds->spt_pathmaxrxt) {
 							net->dest_state |= SCTP_ADDR_REACHABLE;
-							sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+							sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, 0, net, SCTP_SO_LOCKED);
 						}
 					}
 					net->failure_threshold = thlds->spt_pathmaxrxt;
@@ -5713,12 +5708,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						if (net->dest_state & SCTP_ADDR_REACHABLE) {
 							if (net->failure_threshold > thlds->spt_pathmaxrxt) {
 								net->dest_state &= ~SCTP_ADDR_REACHABLE;
-								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN, stcb, 0, net, SCTP_SO_LOCKED);
 							}
 						} else {
 							if (net->failure_threshold <= thlds->spt_pathmaxrxt) {
 								net->dest_state |= SCTP_ADDR_REACHABLE;
-								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, SCTP_RESPONSE_TO_USER_REQ, net, SCTP_SO_LOCKED);
+								sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb, 0, net, SCTP_SO_LOCKED);
 							}
 						}
 						net->failure_threshold = thlds->spt_pathmaxrxt;

@@ -52,6 +52,8 @@ struct ipspec {
 extern FILE *yyin;
 extern int yynerrs;
 
+extern int yyparse(void);
+
 struct cfjails cfjails = TAILQ_HEAD_INITIALIZER(cfjails);
 
 static void free_param(struct cfparams *pp, struct cfparam *p);

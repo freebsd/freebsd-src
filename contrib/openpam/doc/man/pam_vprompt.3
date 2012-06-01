@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_VPROMPT 3
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Fn pam_vprompt "const pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "va_list ap"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_vprompt
 function constructs a string from the
 .Fa fmt
 and
@@ -93,7 +93,7 @@ If they do, they may be truncated.
 .Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_vprompt
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_BUF_ERR
@@ -114,15 +114,15 @@ System error.
 .Xr vsnprintf 3
 .Sh STANDARDS
 The
-.Nm
+.Fn pam_vprompt
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_vprompt
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

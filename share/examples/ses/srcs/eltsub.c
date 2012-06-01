@@ -33,10 +33,13 @@
  */
 
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_enc.h>
 
 #include "eltsub.h"
 
@@ -46,79 +49,82 @@ geteltnm(int type)
 	static char rbuf[132];
 
 	switch (type) {
-	case SESTYP_UNSPECIFIED:
+	case ELMTYP_UNSPECIFIED:
 		sprintf(rbuf, "Unspecified");
 		break;
-	case SESTYP_DEVICE:
-		sprintf(rbuf, "Device");
+	case ELMTYP_DEVICE:
+		sprintf(rbuf, "Device Slot");
 		break;
-	case SESTYP_POWER:
-		sprintf(rbuf, "Power supply");
+	case ELMTYP_POWER:
+		sprintf(rbuf, "Power Supply");
 		break;
-	case SESTYP_FAN:
-		sprintf(rbuf, "Cooling element");
+	case ELMTYP_FAN:
+		sprintf(rbuf, "Cooling");
 		break;
-	case SESTYP_THERM:
-		sprintf(rbuf, "Temperature sensors");
+	case ELMTYP_THERM:
+		sprintf(rbuf, "Temperature Sensors");
 		break;
-	case SESTYP_DOORLOCK:
+	case ELMTYP_DOORLOCK:
 		sprintf(rbuf, "Door Lock");
 		break;
-	case SESTYP_ALARM:
+	case ELMTYP_ALARM:
 		sprintf(rbuf, "Audible alarm");
 		break;
-	case SESTYP_ESCC:
-		sprintf(rbuf, "Enclosure services controller electronics");
+	case ELMTYP_ESCC:
+		sprintf(rbuf, "Enclosure Eervices Controller Electronics");
 		break;
-	case SESTYP_SCC:
-		sprintf(rbuf, "SCC controller electronics");
+	case ELMTYP_SCC:
+		sprintf(rbuf, "SCC Controller Electronics");
 		break;
-	case SESTYP_NVRAM:
-		sprintf(rbuf, "Nonvolatile cache");
+	case ELMTYP_NVRAM:
+		sprintf(rbuf, "Nonvolatile Cache");
 		break;
-	case SESTYP_UPS:
-		sprintf(rbuf, "Uninterruptible power supply");
+	case ELMTYP_INV_OP_REASON:
+		sprintf(rbuf, "Invalid Operation Reason");
 		break;
-	case SESTYP_DISPLAY:
+	case ELMTYP_UPS:
+		sprintf(rbuf, "Uninterruptible Power Supply");
+		break;
+	case ELMTYP_DISPLAY:
 		sprintf(rbuf, "Display");
 		break;
-	case SESTYP_KEYPAD:
-		sprintf(rbuf, "Key pad entry device");
+	case ELMTYP_KEYPAD:
+		sprintf(rbuf, "Key Pad Entry");
 		break;
-	case SESTYP_ENCLOSURE:
+	case ELMTYP_ENCLOSURE:
 		sprintf(rbuf, "Enclosure");
 		break;
-	case SESTYP_SCSIXVR:
-		sprintf(rbuf, "SCSI port/transceiver");
+	case ELMTYP_SCSIXVR:
+		sprintf(rbuf, "SCSI Port/Transceiver");
 		break;
-	case SESTYP_LANGUAGE:
+	case ELMTYP_LANGUAGE:
 		sprintf(rbuf, "Language");
 		break;
-	case SESTYP_COMPORT:
+	case ELMTYP_COMPORT:
 		sprintf(rbuf, "Communication Port");
 		break;
-	case SESTYP_VOM:
+	case ELMTYP_VOM:
 		sprintf(rbuf, "Voltage Sensor");
 		break;
-	case SESTYP_AMMETER:
+	case ELMTYP_AMMETER:
 		sprintf(rbuf, "Current Sensor");
 		break;
-	case SESTYP_SCSI_TGT:
-		sprintf(rbuf, "SCSI target port");
+	case ELMTYP_SCSI_TGT:
+		sprintf(rbuf, "SCSI Target Port");
 		break;
-	case SESTYP_SCSI_INI:
-		sprintf(rbuf, "SCSI initiator port");
+	case ELMTYP_SCSI_INI:
+		sprintf(rbuf, "SCSI Initiator Port");
 		break;
-	case SESTYP_SUBENC:
-		sprintf(rbuf, "Simple sub-enclosure");
+	case ELMTYP_SUBENC:
+		sprintf(rbuf, "Simple Subenclosure");
 		break;
-	case SESTYP_ARRAY:
-		sprintf(rbuf, "Array device");
+	case ELMTYP_ARRAY_DEV:
+		sprintf(rbuf, "Array Device Slot");
 		break;
-	case SESTYP_SASEXPANDER:
+	case ELMTYP_SAS_EXP:
 		sprintf(rbuf, "SAS Expander");
 		break;
-	case SESTYP_SASCONNECTOR:
+	case ELMTYP_SAS_CONN:
 		sprintf(rbuf, "SAS Connector");
 		break;
 	default:
@@ -134,31 +140,34 @@ scode2ascii(u_char code)
 	static char rbuf[32];
 	switch (code & 0xf) {
 	case SES_OBJSTAT_UNSUPPORTED:
-		sprintf(rbuf, "status not supported");
+		sprintf(rbuf, "Unsupported");
 		break;
 	case SES_OBJSTAT_OK:
-		sprintf(rbuf, "ok");
+		sprintf(rbuf, "OK");
 		break;
 	case SES_OBJSTAT_CRIT:
-		sprintf(rbuf, "critical");
+		sprintf(rbuf, "Critical");
 		break;
 	case SES_OBJSTAT_NONCRIT:
-		sprintf(rbuf, "non-critical");
+		sprintf(rbuf, "Noncritical");
 		break;
 	case SES_OBJSTAT_UNRECOV:
-		sprintf(rbuf, "unrecoverable");
+		sprintf(rbuf, "Unrecoverable");
 		break;
 	case SES_OBJSTAT_NOTINSTALLED:
-		sprintf(rbuf, "not installed");
+		sprintf(rbuf, "Not Installed");
 		break;
 	case SES_OBJSTAT_UNKNOWN:
-		sprintf(rbuf, "unknown status");
+		sprintf(rbuf, "Unknown");
 		break;
 	case SES_OBJSTAT_NOTAVAIL:
-		sprintf(rbuf, "status not available");
+		sprintf(rbuf, "Not Available");
+		break;
+	case SES_OBJSTAT_NOACCESS:
+		sprintf(rbuf, "No Access Allowed");
 		break;
 	default:
-		sprintf(rbuf, "unknown status code %x", code & 0xf);
+		sprintf(rbuf, "<Status 0x%x>", code & 0xf);
 		break;
 	}
 	return (rbuf);
@@ -171,7 +180,7 @@ stat2ascii(int eletype __unused, u_char *cstat)
 	static char ebuf[256], *scode;
 
 	scode = scode2ascii(cstat[0]);
-	sprintf(ebuf, "Status=%s (bytes=0x%02x 0x%02x 0x%02x 0x%02x)",
+	sprintf(ebuf, "status: %s (0x%02x 0x%02x 0x%02x 0x%02x)",
 	    scode, cstat[0], cstat[1], cstat[2], cstat[3]);
 	return (ebuf);
 }

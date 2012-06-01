@@ -66,6 +66,12 @@ nllookup( address )
 		    printf( "[nllookup] %d (%d) probes\n" , probes , nname-1 );
 		}
 #	    endif /* DEBUG */
+#if defined(__arm__)
+	if (nl[middle].name[0] == '$' &&
+	    nl[middle-1].value == nl[middle].value)
+		middle--;
+#endif
+
 	    return &nl[ middle ];
 	}
 	if ( nl[ middle ].value > address ) {

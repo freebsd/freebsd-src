@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "gen-private.h"
+
 #define	ISDOT(dp) \
 	(dp->d_name[0] == '.' && (dp->d_name[1] == '\0' || \
 	    (dp->d_name[1] == '.' && dp->d_name[2] == '\0')))
@@ -117,7 +119,7 @@ getcwd(pt, size)
 
 	for (first = 1;; first = 0) {
 		/* Stat the current level. */
-		if (dir != NULL ? _fstat(dirfd(dir), &s) : lstat(".", &s))
+		if (dir != NULL ? _fstat(_dirfd(dir), &s) : lstat(".", &s))
 			goto err;
 
 		/* Save current node values. */
@@ -139,13 +141,13 @@ getcwd(pt, size)
 		}
 
 		/* Open and stat parent directory. */
-		fd = _openat(dir != NULL ? dirfd(dir) : AT_FDCWD,
+		fd = _openat(dir != NULL ? _dirfd(dir) : AT_FDCWD,
 				"..", O_RDONLY);
 		if (fd == -1)
 			goto err;
 		if (dir)
 			(void) closedir(dir);
-		if (!(dir = fdopendir(fd)) || _fstat(dirfd(dir), &s)) {
+		if (!(dir = fdopendir(fd)) || _fstat(_dirfd(dir), &s)) {
 			_close(fd);
 			goto err;
 		}
@@ -171,7 +173,7 @@ getcwd(pt, size)
 					continue;
 
 				/* Save the first error for later. */
-				if (fstatat(dirfd(dir), dp->d_name, &s,
+				if (fstatat(_dirfd(dir), dp->d_name, &s,
 				    AT_SYMLINK_NOFOLLOW)) {
 					if (!save_errno)
 						save_errno = errno;

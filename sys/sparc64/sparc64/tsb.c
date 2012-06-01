@@ -132,7 +132,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 			PMAP_STATS_INC(tsb_nenter_u_oc);
 	}
 
-	MDPAGE_ASSERT_WLOCKED();
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
 	if (pm == kernel_pmap) {
 		PMAP_STATS_INC(tsb_nenter_k);

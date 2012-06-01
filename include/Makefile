@@ -43,7 +43,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/ofw \
 	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
-	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/ntfs fs/nullfs \
+	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
@@ -157,7 +157,7 @@ copies:
 	done
 .endif
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/acpica:Ndev/bktr} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/acpica:Ndev/bktr:Ndev/nand} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
@@ -168,6 +168,13 @@ copies:
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/bktr
+.if ${MK_NAND} != "no"
+	cd ${.CURDIR}/../sys/dev/nand; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nandsim.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/nand
+.endif
 	cd ${.CURDIR}/../sys/contrib/altq/altq; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/altq
@@ -224,7 +231,7 @@ symlinks:
 		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/acpica:Ndev/bktr}
+.for i in ${LSUBDIRS:Ndev/acpica:Ndev/bktr:Ndev/nand}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -240,6 +247,13 @@ symlinks:
 		ln -fs ../../../../sys/dev/bktr/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/bktr; \
 	done
+.if ${MK_NAND} != "no"
+	cd ${.CURDIR}/../sys/dev/nand; \
+	for h in nandsim.h nand_dev.h; do \
+		ln -fs ../../../../sys/dev/nand/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
+	done
+.endif
 .for i in ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \

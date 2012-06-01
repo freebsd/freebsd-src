@@ -492,5 +492,7 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 /* Use the device logging level for ktr(4). */
 #define	KTR_ACPI		KTR_DEV
 
+SYSCTL_DECL(_debug_acpi);
+
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

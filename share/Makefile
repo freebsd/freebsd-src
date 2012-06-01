@@ -8,6 +8,7 @@
 SUBDIR=	${_colldef} \
 	${_dict} \
 	${_doc} \
+	dtrace \
 	${_examples} \
 	${_i18n} \
 	${_man} \

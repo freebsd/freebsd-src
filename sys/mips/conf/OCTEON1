@@ -135,7 +135,7 @@ device		da		# Direct Access (disks)
 device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
-device		ses		# SCSI Environmental Services (and SAF-TE)
+device		ses		# Enclosure Services (SES and SAF-TE)
 
 # RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID

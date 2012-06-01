@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "coll.h"
 #include "vsort.h"
 
-struct key_specs *keys = NULL;
+struct key_specs *keys;
 size_t keys_num = 0;
 
 wchar_t symbol_decimal_point = L'.';

@@ -1,0 +1,34 @@
+The following is a demonstration of the zvmstat command, which provides 
+vmstat style info per zone using DTrace.
+
+Here we run zvmstat with an interval of 5 seconds. This is a server that
+only has two zones, "global" and "workzone1",
+
+ # zvmstat 5
+      ZONE   re    mf   fr    sr  epi  epo  epf  api  apo  apf  fpi  fpo  fpf
+     global   62   340    0     0    0    0    0    0    0    0    0    0    0
+  workzone1    4     2    0     0    0    0    0    0    0    0    0    0    0
+       ZONE   re    mf   fr    sr  epi  epo  epf  api  apo  apf  fpi  fpo  fpf
+     global 1132   484    0     0    2    0    0    0    0    0  832    0    0
+  workzone1    0     0    0     0    0    0    0    0    0    0    0    0    0
+       ZONE   re    mf   fr    sr  epi  epo  epf  api  apo  apf  fpi  fpo  fpf
+     global   50   319    2     0    2    0    0    0    0    0  579    2    2
+  workzone1    0     0    0     0    0    0    0    0    0    0    0    0    0
+       ZONE   re    mf   fr    sr  epi  epo  epf  api  apo  apf  fpi  fpo  fpf
+     global   54   317    0     0    0    0    0    0    0    0    0    0    0
+  workzone1    0     0    0     0    0    0    0    0    0    0    0    0    0
+       ZONE   re    mf   fr    sr  epi  epo  epf  api  apo  apf  fpi  fpo  fpf
+     global   54   316    1     0    0    0    0    0    0    0    0    1    1
+  workzone1    0     0    0     0    0    0    0    0    0    0    0    0    0
+       ZONE   re    mf   fr    sr  epi  epo  epf  api  apo  apf  fpi  fpo  fpf
+     global  157   659    1     0   10    0    0    0    0    0    3    2    1
+  workzone1  770  1085    0     0   48    0    0    0    0    0  928    0    0
+       ZONE   re    mf   fr    sr  epi  epo  epf  api  apo  apf  fpi  fpo  fpf
+     global   56   317    0     0    6    0    0    0    0    0    2    0    0
+  workzone1 1478    21    0     0    0    0    0    0    0    0 1635    0    0
+
+During the first few samples, some filesystem activity can be observed in 
+the global zone, created by a "find /" in the global. In the last few samples,
+filesystem activity can be seen in the non-global zone "workzone1" - this 
+time created by running a "find /" within the non-global zone,
+

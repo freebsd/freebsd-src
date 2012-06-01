@@ -63,7 +63,7 @@ int	vm_radix_lookupn(struct vm_radix *, vm_pindex_t, vm_pindex_t, int,
 	    void **, int, vm_pindex_t *);
 void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t, int);
 void	vm_radix_reclaim_allnodes(struct vm_radix *);
-void	*vm_radix_remove(struct vm_radix *, vm_pindex_t, int);
+void	vm_radix_remove(struct vm_radix *, vm_pindex_t, int);
 
 /*
  * Look up any entry at a position greater or equal to index.

@@ -1,3 +1,56 @@
+	--- 9.8.3 released ---
+
+3318.	[tuning]	Reduce the amount of work performed while holding a
+			bucket lock when finshed with a fetch context.
+			[RT #29239]
+
+3314.	[bug]		The masters list could be updated while refesh_callback
+			and stub_callback were using it. [RT #26732]
+
+3313.	[protocol]	Add TLSA record type. [RT #28989]
+
+3312.	[bug]		named-checkconf didn't detect a bad dns64 clients acl.
+			[RT #27631]
+
+3311.	[bug]		Abort the zone dump if zone->db is NULL in
+			zone.c:zone_gotwritehandle. [RT #29028]
+
+3310.	[test]		Increase table size for mutex profiling. [RT #28809]
+
+3309.	[bug]		resolver.c:fctx_finddone() was not threadsafe.
+			[RT #27995]
+
+3307.	[bug]		Add missing ISC_LANG_BEGINDECLS and ISC_LANG_ENDDECLS.
+			[RT #28956]
+
+3306.	[bug]		Improve DNS64 reverse zone performance. [RT #28563]
+
+3305.	[func]		Add wire format lookup method to sdb. [RT #28563]
+
+3304.	[bug]		Use hmctx, not mctx when freeing rbtdb->heaps.
+			[RT #28571]
+
+3302.	[bug]		dns_dnssec_findmatchingkeys could fail to find
+			keys if the zone name contained character that
+			required special mappings. [RT #28600]
+
+3301.	[contrib]	Update queryperf to build on darwin.  Add -R flag
+			for non-recursive queries. [RT #28565]
+
+3300.	[bug]		Named could die if gssapi was enabled in named.conf
+			but was not compiled in. [RT #28338]
+
+3299.	[bug]		Make SDB handle errors from database drivers better.
+			[RT #28534]
+
+3232.	[bug]		Zero zone->curmaster before return in
+			dns_zone_setmasterswithkeys(). [RT #26732]
+
+3183.	[bug]		Added RTLD_GLOBAL flag to dlopen call. [RT #26301]
+
+3197.	[bug]		Don't try to log the filename and line number when
+			the config parser can't open a file. [RT #22263]
+
 	--- 9.8.2 released ---
 
 3298.	[bug]		Named could dereference a NULL pointer in
@@ -58,9 +111,9 @@
 3274.	[bug]		Log when a zone is not reusable.  Only set loadtime
 			on successful loads.  [RT #27650]
 
-3273.   [bug]           AAAA responses could be returned in the additional
-                        section even when filter-aaaa-on-v4 was in use.
-                        [RT #27292]
+3273.	[bug]		AAAA responses could be returned in the additional
+			section even when filter-aaaa-on-v4 was in use.
+			[RT #27292]
 
 3271.	[port]		darwin: mksymtbl is not always stable, loop several
 			times before giving up.  mksymtbl was using non

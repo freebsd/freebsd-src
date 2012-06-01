@@ -47,7 +47,7 @@
  * 802.11n requires more TX and RX buffers to do AMPDU.
  */
 #ifdef	ATH_ENABLE_11N
-#define	ATH_TXBUF	128
+#define	ATH_TXBUF	512
 #define	ATH_RXBUF	512
 #endif
 
@@ -106,6 +106,7 @@ struct ath_tid {
 	TAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
 	int			paused;	/* >0 if the TID has been paused */
+	int			addba_tx_pending;	/* TX ADDBA pending */
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
 
@@ -237,7 +238,6 @@ struct ath_buf {
 		int bfs_txpower;	/* tx power */
 		int bfs_txantenna;	/* TX antenna config */
 		enum ieee80211_protmode bfs_protmode;
-		HAL_11N_RATE_SERIES bfs_rc11n[ATH_RC_NUM];	/* 11n TX series */
 		int bfs_ctsrate;	/* CTS rate */
 		int bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
 		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
@@ -351,7 +351,7 @@ struct ath_softc {
 	struct ath_stats	sc_stats;	/* interface statistics */
 	struct ath_tx_aggr_stats	sc_aggr_stats;
 	struct ath_intr_stats	sc_intr_stats;
-	int			sc_debug;
+	uint64_t		sc_debug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
 	int			sc_nmeshvaps;	/* # mbss vaps */
@@ -993,6 +993,14 @@ void	ath_intr(void *);
 	((*(_ah)->ah_gpioGet)((_ah), (_gpio)))
 #define	ath_hal_gpiosetintr(_ah, _gpio, _b) \
 	((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
+
+/*
+ * PCIe suspend/resume/poweron/poweroff related macros
+ */
+#define	ath_hal_enablepcie(_ah, _restore, _poweroff) \
+	((*(_ah)->ah_configPCIE)((_ah), (_restore), (_poweroff)))
+#define	ath_hal_disablepcie(_ah) \
+	((*(_ah)->ah_disablePCIE)((_ah)))
 
 /*
  * This is badly-named; you need to set the correct parameters
