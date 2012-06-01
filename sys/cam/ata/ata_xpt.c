@@ -413,6 +413,7 @@ negotiate:
 			path->device->inq_flags &= ~SID_DMA;
 		else
 			path->device->inq_flags |= SID_DMA;
+		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
@@ -1018,6 +1019,7 @@ noerror:
 			}
 
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		}
 		if (ident_buf->satacapabilities & ATA_SUPPORT_NCQ) {
 			path->device->mintags = 2;

@@ -4715,6 +4715,7 @@ xpt_start_tags(struct cam_path *path)
 		newopenings = min(device->maxtags,
 				  sim->max_tagged_dev_openings);
 	xpt_dev_ccbq_resize(path, newopenings);
+	xpt_async(AC_GETDEV_CHANGED, path, NULL);
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
@@ -4739,6 +4740,7 @@ xpt_stop_tags(struct cam_path *path)
 	xpt_freeze_devq(path, /*count*/1);
 	device->inq_flags &= ~SID_CmdQue;
 	xpt_dev_ccbq_resize(path, sim->max_dev_openings);
+	xpt_async(AC_GETDEV_CHANGED, path, NULL);
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
