@@ -252,7 +252,6 @@ pfattach(void)
 	int error;
 
 	pf_initialize();
-	pfr_initialize();
 	pfi_initialize();
 	pf_osfp_initialize();
 	pf_normalize_init();

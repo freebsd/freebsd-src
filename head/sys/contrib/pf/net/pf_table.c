@@ -122,14 +122,10 @@ VNET_DEFINE(uma_zone_t,			pfr_ktable_z);
 VNET_DEFINE(uma_zone_t,			pfr_kentry_z);
 VNET_DEFINE(uma_zone_t,			pfr_kcounters_z);
 #define	V_pfr_kcounters_z		VNET(pfr_kcounters_z)
-VNET_DEFINE(struct sockaddr_in,		pfr_sin);
-#define	V_pfr_sin			VNET(pfr_sin)
-VNET_DEFINE(struct sockaddr_in6,	pfr_sin6);
-#define	V_pfr_sin6			VNET(pfr_sin6)
-VNET_DEFINE(union sockaddr_union,	pfr_mask);
-#define	V_pfr_mask			VNET(pfr_mask)
-VNET_DEFINE(struct pf_addr,		pfr_ffaddr);
-#define	V_pfr_ffaddr			VNET(pfr_ffaddr)
+
+static struct pf_addr	 pfr_ffaddr = {
+	.addr32 = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }
+};
 
 static void		 pfr_copyout_addr(struct pfr_addr *,
 			    struct pfr_kentry *ke);
@@ -188,17 +184,6 @@ static RB_GENERATE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
 struct pfr_ktablehead	 pfr_ktables;
 struct pfr_table	 pfr_nulltable;
 int			 pfr_ktable_cnt;
-
-void
-pfr_initialize(void)
-{
-	V_pfr_sin.sin_len = sizeof(V_pfr_sin);
-	V_pfr_sin.sin_family = AF_INET;
-	V_pfr_sin6.sin6_len = sizeof(V_pfr_sin6);
-	V_pfr_sin6.sin6_family = AF_INET6;
-
-	memset(&V_pfr_ffaddr, 0xff, sizeof(V_pfr_ffaddr));
-}
 
 int
 pfr_clr_addrs(struct pfr_table *tbl, int *ndel, int flags)
@@ -1029,24 +1014,28 @@ pfr_walktree(struct radix_node *rn, void *arg)
 		}
 		break;
 	case PFRW_DYNADDR_UPDATE:
+	    {
+		union sockaddr_union	pfr_mask;
+
 		if (ke->pfrke_af == AF_INET) {
 			if (w->pfrw_dyn->pfid_acnt4++ > 0)
 				break;
-			pfr_prepare_network(&V_pfr_mask, AF_INET, ke->pfrke_net);
-			w->pfrw_dyn->pfid_addr4 = *SUNION2PF(
-			    &ke->pfrke_sa, AF_INET);
-			w->pfrw_dyn->pfid_mask4 = *SUNION2PF(
-			    &V_pfr_mask, AF_INET);
+			pfr_prepare_network(&pfr_mask, AF_INET, ke->pfrke_net);
+			w->pfrw_dyn->pfid_addr4 = *SUNION2PF(&ke->pfrke_sa,
+			    AF_INET);
+			w->pfrw_dyn->pfid_mask4 = *SUNION2PF(&pfr_mask,
+			    AF_INET);
 		} else if (ke->pfrke_af == AF_INET6){
 			if (w->pfrw_dyn->pfid_acnt6++ > 0)
 				break;
-			pfr_prepare_network(&V_pfr_mask, AF_INET6, ke->pfrke_net);
-			w->pfrw_dyn->pfid_addr6 = *SUNION2PF(
-			    &ke->pfrke_sa, AF_INET6);
-			w->pfrw_dyn->pfid_mask6 = *SUNION2PF(
-			    &V_pfr_mask, AF_INET6);
+			pfr_prepare_network(&pfr_mask, AF_INET6, ke->pfrke_net);
+			w->pfrw_dyn->pfid_addr6 = *SUNION2PF(&ke->pfrke_sa,
+			    AF_INET6);
+			w->pfrw_dyn->pfid_mask6 = *SUNION2PF(&pfr_mask,
+			    AF_INET6);
 		}
 		break;
+	    }
 	}
 	return (0);
 }
@@ -1886,19 +1875,31 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		V_pfr_sin.sin_addr.s_addr = a->addr32[0];
-		ke = (struct pfr_kentry *)rn_match(&V_pfr_sin, kt->pfrkt_ip4);
+	    {
+		struct sockaddr_in sin;
+
+		sin.sin_len = sizeof(sin);
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = a->addr32[0];
+		ke = (struct pfr_kentry *)rn_match(&sin, kt->pfrkt_ip4);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
+	    }
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		bcopy(a, &V_pfr_sin6.sin6_addr, sizeof(V_pfr_sin6.sin6_addr));
-		ke = (struct pfr_kentry *)rn_match(&V_pfr_sin6, kt->pfrkt_ip6);
+	    {
+		struct sockaddr_in6 sin6;
+
+		sin6.sin6_len = sizeof(sin6);
+		sin6.sin6_family = AF_INET6;
+		bcopy(a, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
+		ke = (struct pfr_kentry *)rn_match(&sin6, kt->pfrkt_ip6);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
+	     }
 #endif /* INET6 */
 	}
 	match = (ke && !ke->pfrke_not);
@@ -1923,19 +1924,31 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		V_pfr_sin.sin_addr.s_addr = a->addr32[0];
-		ke = (struct pfr_kentry *)rn_match(&V_pfr_sin, kt->pfrkt_ip4);
+	    {
+		struct sockaddr_in sin;
+
+		sin.sin_len = sizeof(sin);
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = a->addr32[0];
+		ke = (struct pfr_kentry *)rn_match(&sin, kt->pfrkt_ip4);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
+	     }
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		bcopy(a, &V_pfr_sin6.sin6_addr, sizeof(V_pfr_sin6.sin6_addr));
-		ke = (struct pfr_kentry *)rn_match(&V_pfr_sin6, kt->pfrkt_ip6);
+	    {
+		struct sockaddr_in6 sin6;
+
+		sin6.sin6_len = sizeof(sin6);
+		sin6.sin6_family = AF_INET6;
+		bcopy(a, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
+		ke = (struct pfr_kentry *)rn_match(&sin6, kt->pfrkt_ip6);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
+	    }
 #endif /* INET6 */
 	default:
 		;
@@ -2011,17 +2024,25 @@ pfr_detach_table(struct pfr_ktable *kt)
 
 int
 pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
-    struct pf_addr **raddr, struct pf_addr **rmask, sa_family_t af)
+    sa_family_t af)
 {
+	struct pf_addr		 *addr, *cur, *mask;
+	union sockaddr_union	 uaddr, umask;
 	struct pfr_kentry	*ke, *ke2 = NULL;
-	struct pf_addr		*addr = NULL;
-	union sockaddr_union	 mask;
 	int			 idx = -1, use_counter = 0;
 
-	if (af == AF_INET)
-		addr = (struct pf_addr *)&V_pfr_sin.sin_addr;
-	else if (af == AF_INET6)
-		addr = (struct pf_addr *)&V_pfr_sin6.sin6_addr;
+	switch (af) {
+	case AF_INET:
+		uaddr.sin.sin_len = sizeof(struct sockaddr_in);
+		uaddr.sin.sin_family = AF_INET;
+		break;
+	case AF_INET6:
+		uaddr.sin6.sin6_len = sizeof(struct sockaddr_in6);
+		uaddr.sin6.sin6_family = AF_INET6;
+		break;
+	}
+	addr = SUNION2PF(&uaddr, af);
+
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE) && kt->pfrkt_root != NULL)
 		kt = kt->pfrkt_root;
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE))
@@ -2040,13 +2061,13 @@ _next_block:
 		kt->pfrkt_nomatch++;
 		return (1);
 	}
-	pfr_prepare_network(&V_pfr_mask, af, ke->pfrke_net);
-	*raddr = SUNION2PF(&ke->pfrke_sa, af);
-	*rmask = SUNION2PF(&V_pfr_mask, af);
+	pfr_prepare_network(&umask, af, ke->pfrke_net);
+	cur = SUNION2PF(&ke->pfrke_sa, af);
+	mask = SUNION2PF(&umask, af);
 
 	if (use_counter) {
 		/* is supplied address within block? */
-		if (!PF_MATCHA(0, *raddr, *rmask, counter, af)) {
+		if (!PF_MATCHA(0, cur, mask, counter, af)) {
 			/* no, go to next block in table */
 			idx++;
 			use_counter = 0;
@@ -2055,7 +2076,7 @@ _next_block:
 		PF_ACPY(addr, counter, af);
 	} else {
 		/* use first address of block */
-		PF_ACPY(addr, *raddr, af);
+		PF_ACPY(addr, cur, af);
 	}
 
 	if (!KENTRY_NETWORK(ke)) {
@@ -2067,12 +2088,16 @@ _next_block:
 	}
 	for (;;) {
 		/* we don't want to use a nested block */
-		if (af == AF_INET)
-			ke2 = (struct pfr_kentry *)rn_match(&V_pfr_sin,
+		switch (af) {
+		case AF_INET:
+			ke2 = (struct pfr_kentry *)rn_match(&uaddr,
 			    kt->pfrkt_ip4);
-		else if (af == AF_INET6)
-			ke2 = (struct pfr_kentry *)rn_match(&V_pfr_sin6,
+			break;
+		case AF_INET6:
+			ke2 = (struct pfr_kentry *)rn_match(&uaddr,
 			    kt->pfrkt_ip6);
+			break;
+		}
 		/* no need to check KENTRY_RNF_ROOT() here */
 		if (ke2 == ke) {
 			/* lookup return the same block - perfect */
@@ -2083,10 +2108,10 @@ _next_block:
 		}
 
 		/* we need to increase the counter past the nested block */
-		pfr_prepare_network(&mask, AF_INET, ke2->pfrke_net);
-		PF_POOLMASK(addr, addr, SUNION2PF(&mask, af), &V_pfr_ffaddr, af);
+		pfr_prepare_network(&umask, AF_INET, ke2->pfrke_net);
+		PF_POOLMASK(addr, addr, SUNION2PF(&umask, af), &pfr_ffaddr, af);
 		PF_AINC(addr, af);
-		if (!PF_MATCHA(0, *raddr, *rmask, addr, af)) {
+		if (!PF_MATCHA(0, cur, mask, addr, af)) {
 			/* ok, we reached the end of our main block */
 			/* go to next block in table */
 			idx++;
