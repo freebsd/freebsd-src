@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2007
+.Dd June 1, 2012
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l Op Fl bcv
+.Fl l Op Fl bcev
 .Nm
 .Fl a Ar selector
 .Nm
@@ -165,6 +165,15 @@ prefix is the extended capability ID in hexadecimal.
 The second value in the square brackets is the offset of the extended
 capability in config space in hexadecimal.
 The format of the text after the equals sign is capability-specific.
+.Pp
+If the
+.Fl e
+option is supplied,
+.Nm
+will list any errors reported for this device in standard PCI error registers.
+Errors are checked for in the PCI status register,
+the PCI-express device status register,
+and the Advanced Error Reporting status registers.
 .Pp
 If the
 .Fl v
