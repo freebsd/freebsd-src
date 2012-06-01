@@ -69,11 +69,6 @@ __FBSDID("$FreeBSD$");
 
 #define BBSZ	512
 
-/*
- * Note:  This driver only supports the SlotA card.  No attempt has been made
- * to support SlotB.
- */
-
 struct at91_mci_softc {
 	void *intrhand;			/* Interrupt handle */
 	device_t dev;
@@ -249,13 +244,6 @@ at91_mci_attach(device_t dev)
 
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps = 0;
-	/*
-	 * The in-tree Linux driver doesn't allow 4-wire operation for the
-	 * at91rm9200, but does for other members of the family.  The atmel
-	 * patches to this do allow it, or have in the past.  It is unclear
-	 * that the hardware even works, but my boot loader uses 4-bit bus
-	 * in polling mode successfully.
-	 */
 	if (sc->sc_cap & CAP_HAS_4WIRE)
 		sc->host.caps |= MMC_CAP_4_BIT_DATA;
 	child = device_add_child(dev, "mmc", 0);
@@ -375,9 +363,9 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 			clkdiv = (at91_master_clock / ios->clock) / 2;
 	}
 	if (ios->bus_width == bus_width_4)
-		WR4(sc, MCI_SDCR, MCI_SDCR_SDCBUS);
+		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) | MCI_SDCR_SDCBUS);
 	else
-		WR4(sc, MCI_SDCR, 0);
+		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) & ~MCI_SDCR_SDCBUS);
 	WR4(sc, MCI_MR, (RD4(sc, MCI_MR) & ~MCI_MR_CLKDIV) | clkdiv);
 	/* Do we need a settle time here? */
 	/* XXX We need to turn the device on/off here with a GPIO pin */
@@ -419,9 +407,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	if (!data) {
 		// The no data case is fairly simple
 		at91_mci_pdc_disable(sc);
-#ifdef AT91_MCI_DEBUG
-		printf("CMDR %x ARGR %x\n", cmdr, cmd->arg);
-#endif
+//		printf("CMDR %x ARGR %x\n", cmdr, cmd->arg);
 		WR4(sc, MCI_ARGR, cmd->arg);
 		WR4(sc, MCI_CMDR, cmdr);
 		WR4(sc, MCI_IER, MCI_SR_ERROR | MCI_SR_CMDRDY);
@@ -493,9 +479,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 			ier = MCI_SR_TXBUFE;
 		}
 	}
-#ifdef AT91_MCI_DEBUG
-	printf("CMDR %x ARGR %x with data\n", cmdr, cmd->arg);
-#endif
+//	printf("CMDR %x ARGR %x with data\n", cmdr, cmd->arg);
 	WR4(sc, MCI_ARGR, cmd->arg);
 	if (cmdr & MCI_CMDR_TRCMD_START) {
 		if (cmdr & MCI_CMDR_TRDIR) {
@@ -534,14 +518,6 @@ at91_mci_start(struct at91_mci_softc *sc)
 	sc->req = NULL;
 	sc->curcmd = NULL;
 	req->done(req);
-	/*
-	 * Attempted hack-a-round for the DMA bug for multiple reads.
-	 */
-	if (req->cmd->opcode == MMC_READ_MULTIPLE_BLOCK) {
-		at91_mci_fini(sc->dev);
-		at91_mci_init(sc->dev);
-		at91_mci_update_ios(sc->dev, NULL);
-	}
 }
 
 static int
@@ -602,9 +578,7 @@ at91_mci_read_done(struct at91_mci_softc *sc)
 	uint32_t *walker;
 	struct mmc_command *cmd;
 	int i, len;
-#ifdef AT91_MCI_DEBUG
-	char *w2;
-#endif
+
 	cmd = sc->curcmd;
 	bus_dmamap_sync(sc->dmatag, sc->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->dmatag, sc->map);
@@ -615,15 +589,6 @@ at91_mci_read_done(struct at91_mci_softc *sc)
 		for (i = 0; i < len; i++)
 			walker[i] = bswap32(walker[i]);
 	}
-#ifdef AT91_MCI_DEBUG
-	printf("Read data\n");
-	for (i = 0, w2 = cmd->data->data; i < cmd->data->len; i++) {
-		if (i % 16 == 0)
-			printf("%08x  ", cmd->arg + i);
-		printf("%02x%s", w2[i], (i + 1) % 16 ? " " : "\n");
-	}
-	printf("\n");
-#endif
 	// Finish up the sequence...
 	WR4(sc, MCI_IDR, MCI_SR_ENDRX);
 	WR4(sc, MCI_IER, MCI_SR_RXBUFF);
@@ -659,19 +624,14 @@ at91_mci_intr(void *arg)
 		if ((sr & MCI_SR_RCRCE) && (cmd->opcode == MMC_SEND_OP_COND ||
 		    cmd->opcode == ACMD_SD_SEND_OP_COND))
 			cmd->error = MMC_ERR_NONE;
-		else if (sr & (MCI_SR_RTOE | MCI_SR_DTOE)) {
-			printf("TIMEOUT %#x\n", sr);
+		else if (sr & (MCI_SR_RTOE | MCI_SR_DTOE))
 			cmd->error = MMC_ERR_TIMEOUT;
-		} else if (sr & (MCI_SR_RCRCE | MCI_SR_DCRCE)) {
-			printf("CRC %#x\n", sr);
+		else if (sr & (MCI_SR_RCRCE | MCI_SR_DCRCE))
 			cmd->error = MMC_ERR_BADCRC;
-		} else if (sr & (MCI_SR_OVRE | MCI_SR_UNRE)) {
-			printf("FIFO %#x\n", sr);
+		else if (sr & (MCI_SR_OVRE | MCI_SR_UNRE))
 			cmd->error = MMC_ERR_FIFO;
-		} else {
-			printf("FAILED %#x\n", sr);
+		else
 			cmd->error = MMC_ERR_FAILED;
-		}
 		done = 1;
 		if (sc->mapped && cmd->error) {
 			bus_dmamap_unload(sc->dmatag, sc->map);
@@ -783,7 +743,7 @@ at91_mci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = 1024;
+		*(int *)result = 1;
 		break;
 	}
 	return (0);
