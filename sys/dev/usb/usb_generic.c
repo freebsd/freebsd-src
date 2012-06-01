@@ -2166,7 +2166,16 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			break;
 		}
 
+		/*
+		 * Detach the currently attached driver.
+		 */
 		usb_detach_device(f->udev, n, 0);
+
+		/*
+		 * Set parent to self, this should keep attach away
+		 * until the next set configuration event.
+		 */
+		usbd_set_parent_iface(f->udev, n, n);
 		break;
 
 	case USB_SET_POWER_MODE:
