@@ -458,13 +458,11 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	case PF_POOL_ROUNDROBIN:
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			if (!pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter,
-			    &raddr, &rmask, af))
+			    &rpool->tblidx, &rpool->counter, af))
 				goto get_addr;
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			if (!pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter,
-			    &raddr, &rmask, af))
+			    &rpool->tblidx, &rpool->counter, af))
 				goto get_addr;
 		} else if (pf_match_addr(0, raddr, rmask, &rpool->counter, af))
 			goto get_addr;
@@ -475,8 +473,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter,
-			    &raddr, &rmask, af)) {
+			    &rpool->tblidx, &rpool->counter, af)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
@@ -485,8 +482,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter,
-			    &raddr, &rmask, af)) {
+			    &rpool->tblidx, &rpool->counter, af)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
