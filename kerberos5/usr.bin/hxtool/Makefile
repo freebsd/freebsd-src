@@ -11,7 +11,7 @@ LDADD=	-lhx509 -lroken -lasn1 -lcrypto -lcrypt ${LIBSL} ${LIBVERS} -ledit
 SRCS=	hxtool.c hxtool-commands.c hxtool-commands.h
 
 hxtool-commands.h: hxtool-commands.in
-	slc ${.ALLSRC:M*.in}
+	${SLC} ${.ALLSRC:M*.in}
 
 .for ext in c o
 hxtool-commands.${ext}: hxtool-commands.h

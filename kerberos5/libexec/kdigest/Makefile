@@ -14,7 +14,7 @@ SRCS=	kdigest.c \
 	kdigest-commands.h
 
 kdigest-commands.h: kdigest-commands.in
-	slc ${.ALLSRC:M*.in}
+	${SLC} ${.ALLSRC:M*.in}
 
 .for ext in c o
 kdigest-commands.${ext}: kdigest-commands.h
