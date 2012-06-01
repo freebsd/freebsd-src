@@ -546,6 +546,13 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 	if (r == NULL)
 		return (NULL);
 
+	switch (r->action) {
+	case PF_NONAT:
+	case PF_NOBINAT:
+	case PF_NORDR:
+		return (NULL);
+	}
+
 	*skp = pf_state_key_setup(pd, saddr, daddr, sport, dport);
 	if (*skp == NULL)
 		return (NULL);
@@ -561,10 +568,6 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 	nport = &(*nkp)->port[1];
 
 	switch (r->action) {
-	case PF_NONAT:
-	case PF_NOBINAT:
-	case PF_NORDR:
-		return (NULL);
 	case PF_NAT:
 		if (pf_get_sport(pd->af, pd->proto, r, saddr, daddr, dport,
 		    naddr, nport, r->rpool.proxy_port[0],
@@ -572,7 +575,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    r->rpool.proxy_port[0], r->rpool.proxy_port[1]));
-			return (NULL);
+			goto notrans;
 		}
 		break;
 	case PF_BINAT:
@@ -584,7 +587,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 				case AF_INET:
 					if (r->rpool.cur->addr.p.dyn->
 					    pfid_acnt4 < 1)
-						return (NULL);
+						goto notrans;
 					PF_POOLMASK(naddr,
 					    &r->rpool.cur->addr.p.dyn->
 					    pfid_addr4,
@@ -596,7 +599,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 				case AF_INET6:
 					if (r->rpool.cur->addr.p.dyn->
 					    pfid_acnt6 < 1)
-						return (NULL);
+						goto notrans;
 					PF_POOLMASK(naddr,
 					    &r->rpool.cur->addr.p.dyn->
 					    pfid_addr6,
@@ -617,7 +620,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 #ifdef INET
 				case AF_INET:
 					if (r->src.addr.p.dyn-> pfid_acnt4 < 1)
-						return (NULL);
+						goto notrans;
 					PF_POOLMASK(naddr,
 					    &r->src.addr.p.dyn->pfid_addr4,
 					    &r->src.addr.p.dyn->pfid_mask4,
@@ -627,7 +630,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 #ifdef INET6
 				case AF_INET6:
 					if (r->src.addr.p.dyn->pfid_acnt6 < 1)
-						return (NULL);
+						goto notrans;
 					PF_POOLMASK(naddr,
 					    &r->src.addr.p.dyn->pfid_addr6,
 					    &r->src.addr.p.dyn->pfid_mask6,
@@ -643,7 +646,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		break;
 	case PF_RDR: {
 		if (pf_map_addr(pd->af, r, saddr, naddr, NULL, sn))
-			return (NULL);
+			goto notrans;
 		if ((r->rpool.opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)
 			PF_POOLMASK(naddr, naddr, &r->rpool.cur->addr.v.a.mask,
 			    daddr, pd->af);
@@ -667,13 +670,14 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		panic("%s: unknown action %u", __func__, r->action);
 	}
 
-	if (!bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp))) {
-		/* Translation was a NOP. Pretend there was no match. */
-		uma_zfree(V_pf_state_key_z, *nkp);
-		uma_zfree(V_pf_state_key_z, *skp);
-		*skp = *nkp = NULL;
-		return (NULL);
-	}
+	/* Return success only if translation really happened. */
+	if (bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp)))
+		return (r);
 
-	return (r);
+notrans:
+	uma_zfree(V_pf_state_key_z, *nkp);
+	uma_zfree(V_pf_state_key_z, *skp);
+	*skp = *nkp = NULL;
+
+	return (NULL);
 }
