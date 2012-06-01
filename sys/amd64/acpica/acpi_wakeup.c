@@ -76,6 +76,10 @@ static struct pcb	**susppcbs;
 static void		**suspfpusave;
 #endif
 
+#ifdef SMP
+static cpuset_t		suspcpus;
+#endif
+
 int			acpi_restorecpu(uint64_t, vm_offset_t);
 
 static void		*acpi_alloc_wakeup_handler(void);
@@ -220,21 +224,14 @@ acpi_wakeup_cpus(struct acpi_softc *sc, const cpuset_t *wakeup_cpus)
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
-#ifdef SMP
-	cpuset_t	wakeup_cpus;
-#endif
-	register_t	rf;
 	ACPI_STATUS	status;
-	int		ret;
-
-	ret = -1;
 
 	if (sc->acpi_wakeaddr == 0ul)
-		return (ret);
+		return (-1);	/* couldn't alloc wake memory */
 
 #ifdef SMP
-	wakeup_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &wakeup_cpus);
+	suspcpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &suspcpus);
 #endif
 
 	if (acpi_resume_beep != 0)
@@ -242,16 +239,15 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
-	rf = intr_disable();
 	intr_suspend();
 
 	if (savectx(susppcbs[0])) {
 		ctx_fpusave(suspfpusave[0]);
 #ifdef SMP
-		if (!CPU_EMPTY(&wakeup_cpus) &&
-		    suspend_cpus(wakeup_cpus) == 0) {
+		if (!CPU_EMPTY(&suspcpus) &&
+		    suspend_cpus(suspcpus) == 0) {
 			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
-			goto out;
+			return (0);	/* couldn't sleep */
 		}
 #endif
 
@@ -276,41 +272,54 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			device_printf(sc->acpi_dev,
 			    "AcpiEnterSleepState failed - %s\n",
 			    AcpiFormatException(status));
-			goto out;
+			return (0);	/* couldn't sleep */
 		}
 
 		for (;;)
 			ia32_pause();
-	} else {
-		pmap_init_pat();
-		load_cr3(susppcbs[0]->pcb_cr3);
-		initializecpu();
-		PCPU_SET(switchtime, 0);
-		PCPU_SET(switchticks, ticks);
-#ifdef SMP
-		if (!CPU_EMPTY(&wakeup_cpus))
-			acpi_wakeup_cpus(sc, &wakeup_cpus);
-#endif
-		ret = 0;
 	}
 
-out:
+	return (1);	/* wakeup successfully */
+}
+
+int
+acpi_wakeup_machdep(struct acpi_softc *sc, int state,
+    int sleep_result, int intr_enabled)
+{
+
+	if (sleep_result == -1)
+		return (sleep_result);
+
+	if (intr_enabled == 0) {
+		/* Wakeup MD procedures in interrupt disabled context */
+		if (sleep_result == 1) {
+			pmap_init_pat();
+			load_cr3(susppcbs[0]->pcb_cr3);
+			initializecpu();
+			PCPU_SET(switchtime, 0);
+			PCPU_SET(switchticks, ticks);
 #ifdef SMP
-	if (!CPU_EMPTY(&wakeup_cpus))
-		restart_cpus(wakeup_cpus);
+			if (!CPU_EMPTY(&suspcpus))
+				acpi_wakeup_cpus(sc, &suspcpus);
 #endif
+		}
 
-	mca_resume();
-	intr_resume();
-	intr_restore(rf);
+#ifdef SMP
+		if (!CPU_EMPTY(&suspcpus))
+			restart_cpus(suspcpus);
+#endif
+		mca_resume();
+		intr_resume();
+	} else {
+		/* Wakeup MD procedures in interrupt enabled context */
+		AcpiSetFirmwareWakingVector(0);
 
-	AcpiSetFirmwareWakingVector(0);
+		if (sleep_result == 1 && mem_range_softc.mr_op != NULL &&
+		    mem_range_softc.mr_op->reinit != NULL)
+			mem_range_softc.mr_op->reinit(&mem_range_softc);
+	}
 
-	if (ret == 0 && mem_range_softc.mr_op != NULL &&
-	    mem_range_softc.mr_op->reinit != NULL)
-		mem_range_softc.mr_op->reinit(&mem_range_softc);
-
-	return (ret);
+	return (sleep_result);
 }
 
 static void *

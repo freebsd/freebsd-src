@@ -74,6 +74,10 @@ extern struct pcb	**susppcbs;
 static struct pcb	**susppcbs;
 #endif
 
+#ifdef SMP
+static cpuset_t		suspcpus;
+#endif
+
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
 
@@ -212,22 +216,14 @@ acpi_wakeup_cpus(struct acpi_softc *sc, const cpuset_t *wakeup_cpus)
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
-#ifdef SMP
-	cpuset_t	wakeup_cpus;
-#endif
-	register_t	cr3, rf;
 	ACPI_STATUS	status;
-	struct pmap	*pm;
-	int		ret;
-
-	ret = -1;
 
 	if (sc->acpi_wakeaddr == 0ul)
-		return (ret);
+		return (-1);	/* couldn't alloc wake memory */
 
 #ifdef SMP
-	wakeup_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &wakeup_cpus);
+	suspcpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &suspcpus);
 #endif
 
 	if (acpi_resume_beep != 0)
@@ -235,28 +231,14 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
-	rf = intr_disable();
 	intr_suspend();
-
-	/*
-	 * Temporarily switch to the kernel pmap because it provides
-	 * an identity mapping (setup at boot) for the low physical
-	 * memory region containing the wakeup code.
-	 */
-	pm = kernel_pmap;
-	cr3 = rcr3();
-#ifdef PAE
-	load_cr3(vtophys(pm->pm_pdpt));
-#else
-	load_cr3(vtophys(pm->pm_pdir));
-#endif
 
 	if (suspendctx(susppcbs[0])) {
 #ifdef SMP
-		if (!CPU_EMPTY(&wakeup_cpus) &&
-		    suspend_cpus(wakeup_cpus) == 0) {
+		if (!CPU_EMPTY(&suspcpus) &&
+		    suspend_cpus(suspcpus) == 0) {
 			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
-			goto out;
+			return (0);	/* couldn't sleep */
 		}
 #endif
 
@@ -264,8 +246,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 		WAKECODE_FIXUP(wakeup_cr4, register_t, susppcbs[0]->pcb_cr4);
-		WAKECODE_FIXUP(wakeup_cr3, register_t, susppcbs[0]->pcb_cr3);
-
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
 
 		/* Call ACPICA to enter the desired sleep state */
@@ -278,41 +258,54 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			device_printf(sc->acpi_dev,
 			    "AcpiEnterSleepState failed - %s\n",
 			    AcpiFormatException(status));
-			goto out;
+			return (0);	/* couldn't sleep */
 		}
 
 		for (;;)
 			ia32_pause();
-	} else {
-		pmap_init_pat();
-		initializecpu();
-		PCPU_SET(switchtime, 0);
-		PCPU_SET(switchticks, ticks);
-#ifdef SMP
-		if (!CPU_EMPTY(&wakeup_cpus))
-			acpi_wakeup_cpus(sc, &wakeup_cpus);
-#endif
-		ret = 0;
 	}
 
-out:
+	return (1);	/* wakeup successfully */
+}
+
+int
+acpi_wakeup_machdep(struct acpi_softc *sc, int state,
+    int sleep_result, int intr_enabled)
+{
+
+	if (sleep_result == -1)
+		return (sleep_result);
+
+	if (intr_enabled == 0) {
+		/* Wakeup MD procedures in interrupt disabled context */
+		if (sleep_result == 1) {
+			pmap_init_pat();
+			load_cr3(susppcbs[0]->pcb_cr3);
+			initializecpu();
+			PCPU_SET(switchtime, 0);
+			PCPU_SET(switchticks, ticks);
 #ifdef SMP
-	if (!CPU_EMPTY(&wakeup_cpus))
-		restart_cpus(wakeup_cpus);
+			if (!CPU_EMPTY(&suspcpus))
+				acpi_wakeup_cpus(sc, &suspcpus);
 #endif
+		}
 
-	load_cr3(cr3);
-	mca_resume();
-	intr_resume();
-	intr_restore(rf);
+#ifdef SMP
+		if (!CPU_EMPTY(&suspcpus))
+			restart_cpus(suspcpus);
+#endif
+		mca_resume();
+		intr_resume();
+	} else {
+		/* Wakeup MD procedures in interrupt enabled context */
+		AcpiSetFirmwareWakingVector(0);
 
-	AcpiSetFirmwareWakingVector(0);
+		if (sleep_result == 1 && mem_range_softc.mr_op != NULL &&
+		    mem_range_softc.mr_op->reinit != NULL)
+			mem_range_softc.mr_op->reinit(&mem_range_softc);
+	}
 
-	if (ret == 0 && mem_range_softc.mr_op != NULL &&
-	    mem_range_softc.mr_op->reinit != NULL)
-		mem_range_softc.mr_op->reinit(&mem_range_softc);
-
-	return (ret);
+	return (sleep_result);
 }
 
 static void *
@@ -373,6 +366,16 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
+	/*
+	 * Temporarily switch to the kernel pmap because it provides
+	 * an identity mapping (setup at boot) for the low physical
+	 * memory region containing the wakeup code.
+	 */
+#ifdef PAE
+	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
+#else
+	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));
+#endif
 
 	if (bootverbose)
 		device_printf(sc->acpi_dev, "wakeup code va %#x pa %#jx\n",
