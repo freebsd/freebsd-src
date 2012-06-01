@@ -309,28 +309,30 @@ _revnetgr_lookup(char* lookupdom, char* map, const char* str,
 
 	for (rot = 0; ; rot++) {
 		switch (rot) {
-		case(0):
+		case 0:
 			snprintf(key, MAXHOSTNAMELEN, "%s.%s", str,
 			    dom ? dom : lookupdom);
 			break;
-		case(1):
+		case 1:
 			snprintf(key, MAXHOSTNAMELEN, "%s.*", str);
 			break;
-		case(2):
+		case 2:
 			snprintf(key, MAXHOSTNAMELEN, "*.%s",
 			    dom ? dom : lookupdom);
 			break;
-		case(3):
+		case 3:
 			snprintf(key, MAXHOSTNAMELEN, "*.*");
 			break;
-		default: return (0);
+		default:
+			return (0);
 		}
 		y = yp_match(lookupdom, map, key, strlen(key), &result,
-			     &resultlen);
+		    &resultlen);
 		if (y == 0) {
 			rv = _listmatch(result, group, resultlen);
 			free(result);
-			if (rv) return (1);
+			if (rv)
+				return (1);
 		} else if (y != YPERR_KEY) {
 			/*
 			 * If we get an error other than 'no
@@ -417,14 +419,14 @@ innetgr(const char *group, const char *host, const char *user, const char *dom)
 static int
 parse_netgrp(const char *group)
 {
-	char *spos, *epos;
-	int len, strpos;
+	struct netgrp *grp;
+	struct linelist *lp = linehead;
+	char **ng;
+	char *epos, *gpos, *pos, *spos;
+	int freepos, len, strpos;
 #ifdef DEBUG
 	int fields;
 #endif
-	char *pos, *gpos;
-	struct netgrp *grp;
-	struct linelist *lp = linehead;
 
 	/*
 	 * First, see if the line has already been read in.
@@ -454,49 +456,48 @@ parse_netgrp(const char *group)
 	/* Watch for null pointer dereferences, dammit! */
 	while (pos != NULL && *pos != '\0') {
 		if (*pos == '(') {
-			grp = (struct netgrp *)malloc(sizeof (struct netgrp));
+			grp = malloc(sizeof(*grp));
 			if (grp == NULL)
 				return (1);
-			bzero((char *)grp, sizeof (struct netgrp));
+			ng = grp->ng_str;
+			bzero(grp, sizeof(*grp));
 			pos++;
 			gpos = strsep(&pos, ")");
 #ifdef DEBUG
 			fields = 0;
 #endif
 			for (strpos = 0; strpos < 3; strpos++) {
-				if ((spos = strsep(&gpos, ","))) {
-#ifdef DEBUG
-					fields++;
-#endif
-					while (*spos == ' ' || *spos == '\t')
-						spos++;
-					if ((epos = strpbrk(spos, " \t"))) {
-						*epos = '\0';
-						len = epos - spos;
-					} else
-						len = strlen(spos);
-					if (len > 0) {
-						grp->ng_str[strpos] =  (char *)
-							malloc(len + 1);
-						if (grp->ng_str[strpos] == NULL) {
-							int freepos;
-							for (freepos = 0; freepos < strpos; freepos++)
-								free(grp->ng_str[freepos]);
-							free(grp);
-							return (1);
-						}
-						bcopy(spos, grp->ng_str[strpos],
-							len + 1);
-					}
-				} else {
+				if ((spos = strsep(&gpos, ",")) == NULL) {
 					/*
 					 * All other systems I've tested
 					 * return NULL for empty netgroup
 					 * fields. It's up to user programs
 					 * to handle the NULLs appropriately.
 					 */
-					grp->ng_str[strpos] = NULL;
+					ng[strpos] = NULL;
+					continue;
 				}
+#ifdef DEBUG
+				fields++;
+#endif
+				while (*spos == ' ' || *spos == '\t')
+					spos++;
+				if ((epos = strpbrk(spos, " \t"))) {
+					*epos = '\0';
+					len = epos - spos;
+				} else
+					len = strlen(spos);
+				if (len <= 0)
+					continue;
+				ng[strpos] = malloc(len + 1);
+				if (ng[strpos] == NULL) {
+					for (freepos = 0; freepos < strpos;
+					    freepos++)
+						free(ng[freepos]);
+					free(grp);
+					return (1);
+				}
+				bcopy(spos, ng[strpos], len + 1);
 			}
 			grp->ng_next = grouphead.gr;
 			grouphead.gr = grp;
@@ -507,14 +508,15 @@ parse_netgrp(const char *group)
 			 * can catch bad entries and report them, we should
 			 * stay silent by default for compatibility's sake.
 			 */
-			if (fields < 3)
-					fprintf(stderr, "Bad entry (%s%s%s%s%s) in netgroup \"%s\"\n",
-						grp->ng_str[NG_HOST] == NULL ? "" : grp->ng_str[NG_HOST],
-						grp->ng_str[NG_USER] == NULL ? "" : ",",
-						grp->ng_str[NG_USER] == NULL ? "" : grp->ng_str[NG_USER],
-						grp->ng_str[NG_DOM] == NULL ? "" : ",",
-						grp->ng_str[NG_DOM] == NULL ? "" : grp->ng_str[NG_DOM],
-						lp->l_groupname);
+			if (fields < 3) {
+				fprintf(stderr,
+				"Bad entry (%s%s%s%s%s) in netgroup \"%s\"\n",
+				    ng[NG_HOST] == NULL ? "" : ng[NG_HOST],
+				    ng[NG_USER] == NULL ? "" : ",",
+				    ng[NG_USER] == NULL ? "" : ng[NG_USER],
+				    ng[NG_DOM] == NULL ? "" : ",",
+				    ng[NG_DOM] == NULL ? "" : ng[NG_DOM],
+				    lp->l_groupname);
 #endif
 		} else {
 			spos = strsep(&pos, ", \t");
@@ -552,7 +554,7 @@ read_for_group(const char *group)
 				if(yp_get_default_domain(&_netgr_yp_domain))
 					continue;
 			if (yp_match(_netgr_yp_domain, "netgroup", group,
-					strlen(group), &result, &resultlen)) {
+			    strlen(group), &result, &resultlen)) {
 				free(result);
 				if (_use_only_yp)
 					return ((struct linelist *)0);
@@ -613,7 +615,7 @@ read_for_group(const char *group)
 				} else
 					cont = 0;
 				if (len > 0) {
-					linep = (char *)reallocf(linep, olen + len + 1);
+					linep = reallocf(linep, olen + len + 1);
 					if (linep == NULL) {
 						free(lp->l_groupname);
 						free(lp);
