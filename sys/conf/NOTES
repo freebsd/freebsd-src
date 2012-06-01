@@ -1603,7 +1603,7 @@ options 	ISP_TARGET_MODE=1
 #
 #	ISP_INTERNAL_TARGET		(trivial internal disk target, for testing)
 #
-options 	ISP_DEFAULT_ROLES=2
+options 	ISP_DEFAULT_ROLES=0
 
 # Options used in dev/sym/ (Symbios SCSI driver).
 #options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
