@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
  * SCTP_DEBUG_ASCONF1: protocol info, general info and errors
  * SCTP_DEBUG_ASCONF2: detailed info
  */
-#ifdef SCTP_DEBUG
-#endif				/* SCTP_DEBUG */
 
 
 static void
