@@ -39,7 +39,7 @@ LDFLAGS=${LDAPLDFLAGS}
 .include <bsd.prog.mk>
 
 kadmin-commands.h: ${KRB5DIR}/kadmin/kadmin-commands.in
-	slc ${.ALLSRC:M*.in}
+	${SLC} ${.ALLSRC:M*.in}
 
 .for ext in o c
 kadmin-commands.${ext}: kadmin-commands.h
