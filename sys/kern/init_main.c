@@ -158,6 +158,24 @@ sysinit_add(struct sysinit **set, struct sysinit **set_end)
 	newsysinit_end = newset + count;
 }
 
+#if defined (DDB) && defined(VERBOSE_SYSINIT)
+static const char *
+symbol_name(vm_offset_t va, db_strategy_t strategy)
+{
+	const char *name;
+	c_db_sym_t sym;
+	db_expr_t  offset;
+
+	if (va == 0)
+		return (NULL);
+	sym = db_search_symbol(va, strategy, &offset);
+	if (offset != 0)
+		return (NULL);
+	db_symbol_values(sym, &name, NULL);
+	return (name);
+}
+#endif
+
 /*
  * System startup; initialize the world, create process 0, mount root
  * filesystem, and fork to create init and pagedaemon.  Most of the
@@ -238,15 +256,16 @@ restart:
 		}
 		if (verbose) {
 #if defined(DDB)
-			const char *name;
-			c_db_sym_t sym;
-			db_expr_t  offset;
+			const char *func, *data;
 
-			sym = db_search_symbol((vm_offset_t)(*sipp)->func,
-			    DB_STGY_PROC, &offset);
-			db_symbol_values(sym, &name, NULL);
-			if (name != NULL)
-				printf("   %s(%p)... ", name, (*sipp)->udata);
+			func = symbol_name((vm_offset_t)(*sipp)->func,
+			    DB_STGY_PROC);
+			data = symbol_name((vm_offset_t)(*sipp)->udata,
+			    DB_STGY_ANY);
+			if (func != NULL && data != NULL)
+				printf("   %s(&%s)... ", func, data);
+			else if (func != NULL)
+				printf("   %s(%p)... ", func, (*sipp)->udata);
 			else
 #endif
 				printf("   %p(%p)... ", (*sipp)->func,
