@@ -25,15 +25,13 @@ dev/usb/controller/ohci_atmelarm.c	optional	ohci
 #
 # All the "systems on a chip" we support
 #
-arm/at91/at91sam9260.c		optional	at91sam9260
 arm/at91/at91sam9g20.c		optional	at91sam9g20
-arm/at91/at91sam9x25.c		optional	at91sam9x25
+arm/at91/at91sam9260.c		optional	at91sam9260
 #
 #
 # All the boards we support
 #
 arm/at91/board_ethernut5.c	optional	at91_board_ethernut5
 arm/at91/board_hl201.c		optional	at91_board_hl201
-arm/at91/board_qila9g20.c	optional	at91_board_qila9g20
 arm/at91/board_sam9g20ek.c	optional	at91_board_sam9g20ek
-arm/at91/board_sam9x25ek.c	optional	at91_board_sam9x25ek
+arm/at91/board_qila9g20.c	optional	at91_board_qila9g20
