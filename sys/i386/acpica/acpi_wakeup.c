@@ -70,12 +70,9 @@ extern int		acpi_reset_video;
 
 #ifdef SMP
 extern struct pcb	**susppcbs;
+static cpuset_t		suspcpus;
 #else
 static struct pcb	**susppcbs;
-#endif
-
-#ifdef SMP
-static cpuset_t		suspcpus;
 #endif
 
 static void		*acpi_alloc_wakeup_handler(void);
@@ -83,7 +80,7 @@ static void		acpi_stop_beep(void *);
 
 #ifdef SMP
 static int		acpi_wakeup_ap(struct acpi_softc *, int);
-static void		acpi_wakeup_cpus(struct acpi_softc *, const cpuset_t *);
+static void		acpi_wakeup_cpus(struct acpi_softc *);
 #endif
 
 #define ACPI_PAGETABLES	0
@@ -176,7 +173,7 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 #define	BIOS_WARM		(0x0a)
 
 static void
-acpi_wakeup_cpus(struct acpi_softc *sc, const cpuset_t *wakeup_cpus)
+acpi_wakeup_cpus(struct acpi_softc *sc)
 {
 	uint32_t	mpbioswarmvec;
 	int		cpu;
@@ -195,7 +192,7 @@ acpi_wakeup_cpus(struct acpi_softc *sc, const cpuset_t *wakeup_cpus)
 
 	/* Wake up each AP. */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-		if (!CPU_ISSET(cpu, wakeup_cpus))
+		if (!CPU_ISSET(cpu, &suspcpus))
 			continue;
 		if (acpi_wakeup_ap(sc, cpu) == 0) {
 			/* restore the warmstart vector */
@@ -235,8 +232,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	if (suspendctx(susppcbs[0])) {
 #ifdef SMP
-		if (!CPU_EMPTY(&suspcpus) &&
-		    suspend_cpus(suspcpus) == 0) {
+		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
 			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
 			return (0);	/* couldn't sleep */
 		}
@@ -286,7 +282,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			PCPU_SET(switchticks, ticks);
 #ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
-				acpi_wakeup_cpus(sc, &suspcpus);
+				acpi_wakeup_cpus(sc);
 #endif
 		}
 
