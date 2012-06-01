@@ -25,7 +25,7 @@ LDADD=	-lkadm5clnt -lkrb5 ${LIBSL} -lroken ${LIBVERS} \
 .include <bsd.prog.mk>
 
 ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in
-	slc ${.ALLSRC:M*.in}
+	${SLC} ${.ALLSRC:M*.in}
 
 .for ext in c o
 ktutil-commands.${ext}: ktutil-commands.h

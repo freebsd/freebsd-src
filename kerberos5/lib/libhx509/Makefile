@@ -269,8 +269,6 @@ CLEANFILES= ${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} ocsp_asn1_files \
 
 INCS+=	ocsp_asn1.h pkcs10_asn1.h crmf_asn1.h
 
-ASN1_COMPILE=	asn1_compile
-
 ${GEN_OCSP}: ocsp.asn1 ocsp.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
 	 ${.ALLSRC:M*.asn1} ocsp_asn1
