@@ -1498,13 +1498,23 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	struct bpf_program32 *fp32;
 	struct bpf_program fp_swab;
 
-	if (cmd == BIOCSETWF32 || cmd == BIOCSETF32 || cmd == BIOCSETFNR32) {
+	switch (cmd) {
+	case BIOCSETF32:
+	case BIOCSETWF32:
+	case BIOCSETFNR32:
 		fp32 = (struct bpf_program32 *)fp;
 		fp_swab.bf_len = fp32->bf_len;
 		fp_swab.bf_insns = (struct bpf_insn *)(uintptr_t)fp32->bf_insns;
 		fp = &fp_swab;
-		if (cmd == BIOCSETWF32)
+		switch (cmd) {
+		case BIOCSETF32:
+			cmd = BIOCSETF;
+			break;
+		case BIOCSETWF32:
 			cmd = BIOCSETWF;
+			break;
+		}
+		break;
 	}
 #endif
 	if (cmd == BIOCSETWF) {
