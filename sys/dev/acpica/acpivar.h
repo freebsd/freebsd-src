@@ -273,7 +273,7 @@ acpi_get_type(device_t dev)
 
     if ((h = acpi_get_handle(dev)) == NULL)
 	return (ACPI_TYPE_NOT_FOUND);
-    if (AcpiGetType(h, &t) != AE_OK)
+    if (ACPI_FAILURE(AcpiGetType(h, &t)))
 	return (ACPI_TYPE_NOT_FOUND);
     return (t);
 }
