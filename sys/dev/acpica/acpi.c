@@ -2438,15 +2438,29 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 
 #if defined(__amd64__) || defined(__i386__)
 static void
+acpi_sleep_force_task(void *context)
+{
+    struct acpi_softc *sc = (struct acpi_softc *)context;
+
+    if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
+	device_printf(sc->acpi_dev, "force sleep state S%d failed\n",
+	    sc->acpi_next_sstate);
+}
+
+static void
 acpi_sleep_force(void *arg)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
 
     device_printf(sc->acpi_dev,
 	"suspend request timed out, forcing sleep now\n");
-    if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
-	device_printf(sc->acpi_dev, "force sleep state S%d failed\n",
-	    sc->acpi_next_sstate);
+    /*
+     * XXX Suspending from callout cause the freeze in DEVICE_SUSPEND().
+     * Suspend from acpi_task thread in stead.
+     */
+    if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
+	acpi_sleep_force_task, sc)))
+	device_printf(sc->acpi_dev, "AcpiOsExecute() for sleeping failed\n");
 }
 #endif
 
@@ -2745,10 +2759,10 @@ backout:
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
     }
-    if (slp_state >= ACPI_SS_SLP_PREP)
-	AcpiLeaveSleepState(state);
     if (slp_state >= ACPI_SS_DEV_SUSPEND)
 	DEVICE_RESUME(root_bus);
+    if (slp_state >= ACPI_SS_SLP_PREP)
+	AcpiLeaveSleepState(state);
     if (slp_state >= ACPI_SS_SLEPT) {
 	acpi_resync_clock(sc);
 	acpi_enable_fixed_events(sc);
