@@ -52,9 +52,11 @@ struct ncp_nlstables {
 #define	NCP_NLS_AS_IS		1
 #define	NCP_NLS_AS_IS_NAME	"asis"
 #define	NCP_NLS_KOI_866		2
-#define	NCP_NLS_SE		3
 #define	NCP_NLS_KOI_866_NAME	"koi2cp866"
+#define	NCP_NLS_SE		3
 #define	NCP_NLS_SE_NAME		"se"
+#define	NCP_NLS_DE		4
+#define	NCP_NLS_DE_NAME		"de"
 
 extern struct ncp_nlstables ncp_nls;	/* active nls */
 
