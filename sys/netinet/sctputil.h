@@ -381,7 +381,5 @@ sctp_auditing(int, struct sctp_inpcb *, struct sctp_tcb *,
 void sctp_audit_log(uint8_t, uint8_t);
 
 #endif
-
-
 #endif				/* _KERNEL */
 #endif
