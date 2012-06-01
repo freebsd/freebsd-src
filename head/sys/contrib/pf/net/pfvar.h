@@ -452,7 +452,6 @@ struct pf_pool {
 	struct pf_addr		 counter;
 	int			 tblidx;
 	u_int16_t		 proxy_port[2];
-	u_int8_t		 port_op;
 	u_int8_t		 opts;
 };
 
