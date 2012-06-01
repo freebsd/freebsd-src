@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
+#include <net/vnet.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -370,10 +371,14 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	switch (eh_type) {
 #ifdef INET6
 	case ETHERTYPE_IPV6:
+	{
+		CURVNET_SET(lc->ifp->if_vnet);
 		if (V_ip6_forwarding != 0) {
 			/* XXX-BZ stats but changing lro_ctrl is a problem. */
+			CURVNET_RESTORE();
 			return (TCP_LRO_CANNOT);
 		}
+		CURVNET_RESTORE();
 		l3hdr = ip6 = (struct ip6_hdr *)(eh + 1);
 		error = tcp_lro_rx_ipv6(lc, m, ip6, &th);
 		if (error != 0)
@@ -381,13 +386,18 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		tcp_data_len = ntohs(ip6->ip6_plen);
 		ip_len = sizeof(*ip6) + tcp_data_len;
 		break;
+	}
 #endif
 #ifdef INET
 	case ETHERTYPE_IP:
+	{
+		CURVNET_SET(lc->ifp->if_vnet);
 		if (V_ipforwarding != 0) {
 			/* XXX-BZ stats but changing lro_ctrl is a problem. */
+			CURVNET_RESTORE();
 			return (TCP_LRO_CANNOT);
 		}
+		CURVNET_RESTORE();
 		l3hdr = ip4 = (struct ip *)(eh + 1);
 		error = tcp_lro_rx_ipv4(lc, m, ip4, &th);
 		if (error != 0)
@@ -395,6 +405,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		ip_len = ntohs(ip4->ip_len);
 		tcp_data_len = ip_len - sizeof(*ip4);
 		break;
+	}
 #endif
 	/* XXX-BZ what happens in case of VLAN(s)? */
 	default:
