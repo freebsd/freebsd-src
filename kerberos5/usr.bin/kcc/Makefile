@@ -20,7 +20,7 @@ SRCS=	kcc.c \
 	copy_cred_cache.c
 
 kcc-commands.h: kcc-commands.in
-	slc ${.ALLSRC:M*.in}
+	${SLC} ${.ALLSRC:M*.in}
 
 .for ext in c o
 kcc-commands.${ext}: kcc-commands.h

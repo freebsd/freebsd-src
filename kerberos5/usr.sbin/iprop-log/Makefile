@@ -14,7 +14,7 @@ LDADD=	-lkadm5srv -lhdb -lkrb5 -lasn1 -lcrypto -lcrypt ${LIBSL} -lroken \
 	${LIBVERS} -ledit
 
 iprop-commands.h: iprop-commands.in
-	slc ${.ALLSRC:M*.in}
+	${SLC} ${.ALLSRC:M*.in}
 
 .for ext in c o
 iprop-commands.${ext}: iprop-commands.h
