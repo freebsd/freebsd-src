@@ -310,10 +310,10 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 #endif
 		mca_resume();
 		intr_resume();
+
+		AcpiSetFirmwareWakingVector(0);
 	} else {
 		/* Wakeup MD procedures in interrupt enabled context */
-		AcpiSetFirmwareWakingVector(0);
-
 		if (sleep_result == 1 && mem_range_softc.mr_op != NULL &&
 		    mem_range_softc.mr_op->reinit != NULL)
 			mem_range_softc.mr_op->reinit(&mem_range_softc);
