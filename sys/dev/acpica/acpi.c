@@ -2746,8 +2746,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (sc->acpi_sleep_delay > 0)
 	DELAY(sc->acpi_sleep_delay * 1000000);
 
+    intr = intr_disable();
     if (state != ACPI_STATE_S1) {
-	intr = intr_disable();
 	sleep_result = acpi_sleep_machdep(sc, state);
 	acpi_wakeup_machdep(sc, state, sleep_result, 0);
 	AcpiLeaveSleepStatePrep(state, acpi_sleep_flags);
@@ -2763,8 +2763,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	if (state == ACPI_STATE_S4)
 	    AcpiEnable();
     } else {
-	intr = intr_disable();
 	status = AcpiEnterSleepState(state, acpi_sleep_flags);
+	AcpiLeaveSleepStatePrep(state, acpi_sleep_flags);
 	intr_restore(intr);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
