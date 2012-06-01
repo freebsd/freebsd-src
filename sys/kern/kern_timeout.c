@@ -261,6 +261,8 @@ callout_cpu_init(struct callout_cpu *cc)
 		c->c_flags = CALLOUT_LOCAL_ALLOC;
 		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
 	}
+	cc->cc_softticks.sec = 0;
+	cc->cc_softticks.frac = 0;
 }
 
 #ifdef SMP
@@ -342,15 +344,17 @@ start_softclock(void *dummy)
 
 SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
 
-static int
-get_bucket(struct bintime *bt) 
+static inline int
+callout_hash(struct bintime *bt) 
 {
-	time_t sec;
-	uint64_t frac;
-	sec = bt->sec;
-	frac = bt->frac;
-	return (int) (((sec<<10)+(frac>>54)) & callwheelmask);
+	return (int) ((bt->sec<<10)+(bt->frac>>54));
 } 
+
+static inline int
+get_bucket(struct bintime *bt)
+{
+	return callout_hash(bt) & callwheelmask;
+}
 
 void
 callout_tick(void)
@@ -359,8 +363,8 @@ callout_tick(void)
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
 	struct bintime now;
-	int need_softclock;
-	int bucket;
+	struct bintime bt;
+	int need_softclock, first, last;
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the
@@ -370,8 +374,29 @@ callout_tick(void)
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	binuptime(&now);
-	for (bucket = 0; bucket < callwheelsize; ++bucket) {
-		sc = &cc->cc_callwheel[bucket];
+	/* 
+	 * Get binuptime() may be inaccurate and return time up to 1/HZ in the past. 
+	 * In order to avoid the possible loss of one or more events look back 1/HZ
+	 * in the past from the time we last checked.
+	 */	
+	FREQ2BT(hz,&bt);
+	bintime_sub(&cc->cc_softticks,&bt);
+	first = callout_hash(&cc->cc_softticks);
+	last = callout_hash(&now);
+	/* 
+	 * Check if we wrapped around the entire wheel from the last scan.
+	 * In case, we need to scan entirely the wheel for pending callouts.
+	 */
+	if (last - first >= callwheelsize) { 
+		first &= callwheelmask;
+		last = (first - 1) & callwheelmask;
+	}
+	else {
+		first &= callwheelmask;
+		last &= callwheelmask;
+	}
+	for (;;) {	
+		sc = &cc->cc_callwheel[first];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
 			if (bintime_cmp(&tmp->c_time,&now, <=)) {
 				TAILQ_INSERT_TAIL(cc->cc_localexp,tmp,c_staiter);
@@ -380,6 +405,9 @@ callout_tick(void)
 				need_softclock = 1;
 			}	
 		}
+		first = (first + 1) & callwheelmask;
+		if (first == last)
+			break;
 	}
 	cc->cc_softticks = now;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
