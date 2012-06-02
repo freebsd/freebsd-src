@@ -165,7 +165,7 @@ struct vnode {
 	 */
 	struct vpollinfo *v_pollinfo;		/* i Poll events, p for *v_pi */
 	struct label *v_label;			/* MAC label for vnode */
-	struct lockf *v_lockf;			/* Byte-level lock list */
+	struct lockf *v_lockf;		/* Byte-level advisory lock list */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
