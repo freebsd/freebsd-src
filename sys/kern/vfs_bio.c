@@ -3995,7 +3995,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	}
 
 	db_printf("buf at %p\n", bp);
-	db_printf("b_flags = 0x%b b_xflags=0x%b b_vflags=0x%b\n",
+	db_printf("b_flags = 0x%b, b_xflags=0x%b, b_vflags=0x%b\n",
 	    (u_int)bp->b_flags, PRINT_BUF_FLAGS, (u_int)bp->b_xflags,
 	    PRINT_BUF_XFLAGS, (u_int)bp->b_vflags, PRINT_BUF_VFLAGS);
 	db_printf(
