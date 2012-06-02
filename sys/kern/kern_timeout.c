@@ -373,9 +373,9 @@ callout_tick(void)
 	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	binuptime(&now);
+	getbinuptime(&now);
 	/* 
-	 * Get binuptime() may be inaccurate and return time up to 1/HZ in the past. 
+	 * getbinuptime() may be inaccurate and return time up to 1/HZ in the past. 
 	 * In order to avoid the possible loss of one or more events look back 1/HZ
 	 * in the past from the time we last checked.
 	 */	
@@ -405,9 +405,9 @@ callout_tick(void)
 				need_softclock = 1;
 			}	
 		}
-		first = (first + 1) & callwheelmask;
 		if (first == last)
 			break;
+		first = (first + 1) & callwheelmask;
 	}
 	cc->cc_softticks = now;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
