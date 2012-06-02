@@ -270,14 +270,15 @@ vm_pager_object_lookup(struct pagerlst *pg_list, void *handle)
 	vm_object_t object;
 
 	TAILQ_FOREACH(object, pg_list, pager_object_list) {
-		VM_OBJECT_LOCK(object);
-		if (object->handle == handle &&
-		    (object->flags & OBJ_DEAD) == 0) {
-			vm_object_reference_locked(object);
+		if (object->handle == handle) {
+			VM_OBJECT_LOCK(object);
+			if ((object->flags & OBJ_DEAD) == 0) {
+				vm_object_reference_locked(object);
+				VM_OBJECT_UNLOCK(object);
+				break;
+			}
 			VM_OBJECT_UNLOCK(object);
-			break;
 		}
-		VM_OBJECT_UNLOCK(object);
 	}
 	return (object);
 }
