@@ -234,10 +234,17 @@ main(int argc, char **argv)
 		remotepkg = temppackageroot;
 		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' &&
 			(ptr[2] == 'b' || ptr[2] == 'g' || ptr[2] == 'x') &&
-			ptr[3] == 'z' && !ptr[4]))
-		    if (strlcat(remotepkg, ".tbz",
-			sizeof(temppackageroot)) >= sizeof(temppackageroot))
-			errx(1, "package name too long");
+			ptr[3] == 'z' && !ptr[4])) {
+    		    if (getenv("PACKAGESUFFIX")) {
+		       if (strlcat(remotepkg, getenv("PACKAGESUFFIX"),
+			   sizeof(temppackageroot)) >= sizeof(temppackageroot))
+			   errx(1, "package name too long");
+		    } else {
+		       if (strlcat(remotepkg, ".tbz",
+			   sizeof(temppackageroot)) >= sizeof(temppackageroot))
+			   errx(1, "package name too long");
+		    }
+		}
     	    }
 	    if (!strcmp(*argv, "-"))	/* stdin? */
 		pkgs[ch] = (char *)"-";
