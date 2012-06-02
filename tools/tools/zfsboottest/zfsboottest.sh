@@ -52,8 +52,7 @@ if [ $? -ne 0 ]; then
 fi
 bootfs=`zpool get bootfs "${pool}" | tail -1 | awk '{print $3}'`
 if [ "${bootfs}" = "-" ]; then
-	echo "The \"bootfs\" property is not configured for pool \"${pool}\"." >&2
-	exit 1
+	bootfs="${pool}"
 fi
 # Dataset's mountpoint property should be set to 'legacy'.
 if [ "`zfs get -H -o value mountpoint ${bootfs}`" != "legacy" ]; then
