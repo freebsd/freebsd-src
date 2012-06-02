@@ -30,14 +30,11 @@
 
 #include <sys/_cpuset.h>
 
-struct trapframe;
 struct timecounter;
-/*
- * Hooks downward into hardware functionality.
- */
 
-void platform_halt(void);
-void platform_intr(struct trapframe *);
+/*
+ * Hooks downward into platform functionality.
+ */
 void platform_reset(void);
 void platform_start(__register_t, __register_t,  __register_t, __register_t);
 
@@ -48,7 +45,6 @@ unsigned platform_get_timecount(struct timecounter *);
 
 /* For hardware specific CPU initialization */
 void platform_cpu_init(void);
-void platform_secondary_init(void);
 
 #ifdef SMP
 
@@ -100,6 +96,6 @@ extern void platform_cpu_mask(cpuset_t *mask);
  */
 struct cpu_group *platform_smp_topo(void);
 
-
 #endif	/* SMP */
+
 #endif /* !_MACHINE_HWFUNC_H_ */

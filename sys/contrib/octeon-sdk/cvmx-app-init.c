@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -47,6 +47,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "executive-config.h"
 #include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-spinlock.h"
@@ -60,8 +61,12 @@
 #include "cvmx-ebt3000.h"
 #include "cvmx-sim-magic.h"
 #include "cvmx-debug.h"
-#include "../../bootloader/u-boot/include/octeon_mem_map.h"
-
+#include "cvmx-qlm.h"
+#include "cvmx-scratch.h"
+#include "cvmx-helper-cfg.h"
+#include "cvmx-helper-jtag.h"
+#include <octeon_mem_map.h>
+#include "libfdt.h"
 int cvmx_debug_uart = -1;
 
 /**
@@ -184,6 +189,20 @@ static void process_boot_desc_ver_6(octeon_boot_descriptor_t *app_desc_ptr, cvmx
                (int)cvmx_bootinfo_ptr->major_version, (int)cvmx_bootinfo_ptr->minor_version);
         exit(-1);
     }
+    if ((cvmx_bootinfo_ptr->minor_version >= 3) && (cvmx_bootinfo_ptr->fdt_addr != 0))
+    {
+        sys_info_ptr->fdt_addr = UNMAPPED_PTR(cvmx_bootinfo_ptr->fdt_addr);
+        if (fdt_check_header((const void *)sys_info_ptr->fdt_addr))
+        {
+            printf("ERROR : Corrupt Device Tree.\n");
+            exit(-1);
+        }
+        printf("Using device tree\n");
+    }
+    else
+    {
+        sys_info_ptr->fdt_addr = 0;
+    }
 }
 
 
@@ -211,18 +230,18 @@ static void process_break_interrupt(int irq_number, uint64_t registers[32], void
         {
             register uint64_t tmp;
 
-	    /* Wait for an another Control-C if right now we have no
-	       access to the console.  After this point we hold the
-	       lock and use a different lock to synchronize between
-	       the memfile dumps from different cores.  As a
-	       consequence regular printfs *don't* work after this
-	       point! */
-	    if (__octeon_uart_trylock () == 1)
-		return;
+            /* Wait for an another Control-C if right now we have no
+               access to the console.  After this point we hold the
+               lock and use a different lock to synchronize between
+               the memfile dumps from different cores.  As a
+               consequence regular printfs *don't* work after this
+               point! */
+            if (__octeon_uart_trylock () == 1)
+                return;
 
             /* Pulse MCD0 signal on Ctrl-C to stop all the cores. Also
-	       set the MCD0 to be not masked by this core so we know
-	       the signal is received by someone */
+               set the MCD0 to be not masked by this core so we know
+               the signal is received by someone */
             asm volatile (
                 "dmfc0 %0, $22\n"
                 "ori   %0, %0, 0x1110\n"
@@ -270,6 +289,7 @@ char octeon_rev_signature[] =
     "Compiled for Octeon processor id: "OMS;
 #endif
 
+#define OCTEON_BL_FLAG_HPLUG_CORES (1 << 6)
 void __cvmx_app_init(uint64_t app_desc_addr)
 {
     /* App descriptor used by bootloader */
@@ -279,8 +299,16 @@ void __cvmx_app_init(uint64_t app_desc_addr)
     cvmx_sysinfo_t *sys_info_ptr = cvmx_sysinfo_get();
     int breakflag = 0;
 
+    //printf("coremask=%08x flags=%08x \n", app_desc_ptr->core_mask, app_desc_ptr->flags);
     if (cvmx_coremask_first_core(app_desc_ptr->core_mask))
     {
+        /* Intialize the bootmem allocator with the descriptor that was provided by
+        * the bootloader
+        * IMPORTANT:  All printfs must happen after this since PCI console uses named
+        * blocks.
+        */
+        cvmx_bootmem_init(CASTPTR(cvmx_bootinfo_t, app_desc_ptr->cvmx_desc_vaddr)->phy_mem_desc_addr);
+
         /* do once per application setup  */
         if (app_desc_ptr->desc_version < 6)
         {
@@ -297,8 +325,34 @@ void __cvmx_app_init(uint64_t app_desc_addr)
             process_boot_desc_ver_6(app_desc_ptr,sys_info_ptr);
 
         }
+
+        /*
+         * set up the feature map and config.
+         */
+        octeon_feature_init();
+
+        __cvmx_helper_cfg_init();
     }
-    cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
+    /* The flags varibale get copied over at some places and tracing the origins
+       found that
+       ** In octeon_setup_boot_desc_block
+         . cvmx_bootinfo_array[core].flags is initialized and the various bits are set
+         . cvmx_bootinfo_array[core].flags gets copied to  boot_desc[core].flags
+         . Then boot_desc then get copied over to the end of the application heap and
+            boot_info_block_array[core].boot_descr_addr is set to point to the boot_desc
+            in heap.
+       ** In start_app boot_vect->boot_info_addr->boot_desc_addr is referenced and passed on
+       to octeon_setup_crt0_tlb() and this puts it into r16
+       ** In ctr0.S of the toolchain r16 is picked up and passed on as a parameter to
+       __cvmx_app_init
+
+       Note : boot_vect->boot_info_addr points to  boot_info_block_array[core] and this
+       pointer is setup in octeon_setup_boot_vector()
+    */
+
+    if (!(app_desc_ptr->flags & OCTEON_BL_FLAG_HPLUG_CORES))
+        cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
+
 
     breakflag = sys_info_ptr->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_BREAK;
 
@@ -311,20 +365,12 @@ void __cvmx_app_init(uint64_t app_desc_addr)
         /* Make sure we can properly run on this chip */
         octeon_model_version_check(chip_id);
     }
-
     cvmx_interrupt_initialize();
-
     if (cvmx_coremask_first_core(sys_info_ptr->core_mask))
     {
         int break_uart = 0;
         unsigned int i;
 
-        /* Intialize the bootmem allocator with the descriptor that was provided by
-         * the bootloader
-         * IMPORTANT:  All printfs must happen after this since PCI console uses named
-         * blocks.
-         */
-        cvmx_bootmem_init(sys_info_ptr->phy_mem_desc_addr);
         if (breakflag && cvmx_debug_booted())
         {
             printf("ERROR: Using debug and break together in not supported.\n");
@@ -350,8 +396,8 @@ void __cvmx_app_init(uint64_t app_desc_addr)
             cvmx_uart_enable_intr(break_uart, process_break_interrupt);
         }
     }
-
-    cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
+    if ( !(app_desc_ptr->flags & OCTEON_BL_FLAG_HPLUG_CORES))
+         cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
 
     /* Clear BEV now that we have installed exception handlers. */
     uint64_t tmp;
@@ -375,13 +421,13 @@ void __cvmx_app_init(uint64_t app_desc_addr)
         "dmtc0 %0, $22, 0\n" : "=r" (tmp));
 
     CVMX_SYNC;
-
     /* Now intialize the debug exception handler as BEV is cleared. */
-    if (!breakflag)
+    if ((!breakflag) && (!(app_desc_ptr->flags & OCTEON_BL_FLAG_HPLUG_CORES)))
         cvmx_debug_init();
 
     /* Synchronise all cores at this point */
-    cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
+     if ( !(app_desc_ptr->flags & OCTEON_BL_FLAG_HPLUG_CORES))
+         cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
 
 }
 
@@ -396,11 +442,11 @@ int cvmx_user_app_init(void)
 
     /* Put message on LED display */
     if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM)
-      ebt3000_str_write("CVMX    ");
+        ebt3000_str_write("CVMX    ");
 
     /* Check BIST results for COP0 registers, some values only meaningful in pass 2 */
     CVMX_MF_CACHE_ERR(bist_val);
-    mask = (1ULL<<32) | (1ULL<<33) | (1ULL<<34) | (1ULL<<35) | (1ULL<<36);
+    mask = (0x3fULL<<32); // Icache;BHT;AES;HSH/GFM;LRU;register file
     bist_val &= mask;
     if (bist_val)
     {
@@ -429,6 +475,17 @@ int cvmx_user_app_init(void)
     }
     CVMX_MT_CVM_MEM_CTL(tmp);
 
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_X))
+    {
+        /* Clear the lines of scratch memory configured, for
+        ** 63XX pass 2 errata Core-15169. */
+        uint64_t addr;
+        unsigned  num_lines;
+        CVMX_MF_CVM_MEM_CTL(tmp);
+        num_lines = tmp & 0x3f;
+        for (addr = 0; addr < CVMX_CACHE_LINE_SIZE * num_lines; addr += 8)
+            cvmx_scratch_write64(addr, 0);
+    }
 
 #if CVMX_USE_1_TO_1_TLB_MAPPINGS
 
@@ -475,7 +532,7 @@ int cvmx_user_app_init(void)
                 printf("ERROR adding 1-1 TLB mapping for address 0x%llx\n", (unsigned long long)base_addr);
                 /* Exit from here, as expected memory mappings aren't set
                    up if this fails */
-		exit(-1);
+                exit(-1);
             }
         }
     }
@@ -507,6 +564,10 @@ int cvmx_user_app_init(void)
     cvmx_sysinfo_t *sys_info_ptr = cvmx_sysinfo_get();
     cvmx_bootmem_init(sys_info_ptr->phy_mem_desc_addr);
 
+    /* Initialize QLM and JTAG settings. Also apply any erratas. */
+    if (cvmx_coremask_first_core(cvmx_sysinfo_get()->core_mask))
+        cvmx_qlm_init();
+
     return(0);
 }
 
@@ -516,7 +577,7 @@ void __cvmx_app_exit(void)
 
     if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
     {
-	CVMX_BREAK;
+        CVMX_BREAK;
     }
     /* Hang forever, until more appropriate stand alone simple executive
        exit() is implemented */

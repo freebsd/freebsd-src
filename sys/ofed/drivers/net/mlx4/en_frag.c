@@ -31,7 +31,10 @@
  *
  */
 
+#include "opt_inet.h"
 #include "mlx4_en.h"
+
+#ifdef INET
 
 #include <net/ethernet.h>
 #include <netinet/ip.h>
@@ -186,3 +189,4 @@ void mlx4_en_flush_frags(struct mlx4_en_priv *priv,
 			flush_session(priv, session, IP_MF);
 	}
 }
+#endif

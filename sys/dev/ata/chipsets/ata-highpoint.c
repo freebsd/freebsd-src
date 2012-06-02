@@ -72,8 +72,8 @@ static int
 ata_highpoint_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
-    static struct ata_chip_id ids[] =
+    const struct ata_chip_id *idx;
+    static const struct ata_chip_id const ids[] =
     {{ ATA_HPT374, 0x07, HPT_374, 0,       ATA_UDMA6, "HPT374" },
      { ATA_HPT372, 0x02, HPT_372, 0,       ATA_UDMA6, "HPT372N" },
      { ATA_HPT372, 0x01, HPT_372, 0,       ATA_UDMA6, "HPT372" },
@@ -163,8 +163,8 @@ ata_highpoint_setmode(device_t dev, int target, int mode)
 	struct ata_pci_controller *ctlr = device_get_softc(parent);
 	struct ata_channel *ch = device_get_softc(dev);
 	int devno = (ch->unit << 1) + target;
-	u_int32_t timings33[][4] = {
-    /*    HPT366      HPT370      HPT372      HPT374               mode */
+	static const uint32_t timings33[][4] = {
+	/*    HPT366      HPT370      HPT372      HPT374           mode */
 	{ 0x40d0a7aa, 0x06914e57, 0x0d029d5e, 0x0ac1f48a },     /* PIO 0 */
 	{ 0x40d0a7a3, 0x06914e43, 0x0d029d26, 0x0ac1f465 },     /* PIO 1 */
 	{ 0x40d0a753, 0x06514e33, 0x0c829ca6, 0x0a81f454 },     /* PIO 2 */

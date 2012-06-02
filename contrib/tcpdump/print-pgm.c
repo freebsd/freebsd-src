@@ -72,6 +72,12 @@ struct pgm_nak {
     /* ... options */
 };
 
+struct pgm_ack {
+    u_int32_t	pgma_rx_max_seq;
+    u_int32_t	pgma_bitmap;
+    /* ... options */
+};
+
 struct pgm_poll {
     u_int32_t	pgmp_seq;
     u_int16_t	pgmp_round;
@@ -133,6 +139,9 @@ typedef enum _pgm_type {
 #define PGM_OPT_RST             0x0F
 #define PGM_OPT_CR		0x10
 #define PGM_OPT_CRQST		0x11
+
+#define PGM_OPT_PGMCC_DATA	0x12
+#define PGM_OPT_PGMCC_FEEDBACK	0x13
      
 #define PGM_OPT_MASK		0x7f
 
@@ -446,6 +455,17 @@ pgm_print(register const u_char *bp, register u_int length,
 	    break;
 	}
 
+	case PGM_ACK: {
+	    struct pgm_ack *ack;
+
+	    ack = (struct pgm_ack *)(pgm + 1);
+	    TCHECK(*ack);
+	    (void)printf("ACK seq %u",
+			 EXTRACT_32BITS(&ack->pgma_rx_max_seq));
+	    bp = (u_char *) (ack + 1);
+	    break;
+	}
+
 	case PGM_SPMR:
 	    (void)printf("SPMR");
 	    break;
@@ -734,6 +754,74 @@ pgm_print(register const u_char *bp, register u_int length,
 		    flags2 = *bp++;
 		    (void)printf(" CRQST");
 		    opts_len -= 4;
+		    break;
+
+		case PGM_OPT_PGMCC_DATA:
+		    flags1 = *bp++;
+		    flags2 = *bp++;
+		    offset = EXTRACT_32BITS(bp);
+		    bp += sizeof(u_int32_t);
+		    switch (EXTRACT_16BITS(bp)) {
+		    case AFI_IP:
+			addr_size = sizeof(struct in_addr);
+			nla_af = AF_INET;
+			break;
+#ifdef INET6
+		    case AFI_IP6:
+			addr_size = sizeof(struct in6_addr);
+			nla_af = AF_INET6;
+			break;
+#endif
+		    default:
+			goto trunc;
+			break;
+		    }
+		    bp += (2 * sizeof(u_int16_t));
+		    if (opt_len != 12 + addr_size) {
+			(void)printf("[Bad OPT_PGMCC_DATA option, length %u != 12 + address size]", opt_len);
+			return;
+		    }
+		    TCHECK2(*bp, addr_size);
+		    nla = bp;
+		    bp += addr_size;
+
+		    inet_ntop(nla_af, nla, nla_buf, sizeof(nla_buf));
+		    (void)printf(" PGMCC DATA %u %s", offset, (char*)nla);
+		    opts_len -= 16;
+		    break;
+
+		case PGM_OPT_PGMCC_FEEDBACK:
+		    flags1 = *bp++;
+		    flags2 = *bp++;
+		    offset = EXTRACT_32BITS(bp);
+		    bp += sizeof(u_int32_t);
+		    switch (EXTRACT_16BITS(bp)) {
+		    case AFI_IP:
+			addr_size = sizeof(struct in_addr);
+			nla_af = AF_INET;
+			break;
+#ifdef INET6
+		    case AFI_IP6:
+			addr_size = sizeof(struct in6_addr);
+			nla_af = AF_INET6;
+			break;
+#endif
+		    default:
+			goto trunc;
+			break;
+		    }
+		    bp += (2 * sizeof(u_int16_t));
+		    if (opt_len != 12 + addr_size) {
+			(void)printf("[Bad OPT_PGMCC_FEEDBACK option, length %u != 12 + address size]", opt_len);
+			return;
+		    }
+		    TCHECK2(*bp, addr_size);
+		    nla = bp;
+		    bp += addr_size;
+
+		    inet_ntop(nla_af, nla, nla_buf, sizeof(nla_buf));
+		    (void)printf(" PGMCC FEEDBACK %u %s", offset, (char*)nla);
+		    opts_len -= 16;
 		    break;
 
 		default:

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsec.c,v 1.7 2010-12-09 00:54:34 marka Exp $ */
+/* $Id: tsec.c,v 1.7 2010/12/09 00:54:34 marka Exp $ */
 
 #include <config.h>
 

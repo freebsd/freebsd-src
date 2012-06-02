@@ -139,7 +139,7 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 };
 
 /*
- * As speeds for umodem deivces increase, these numbers will need to
+ * As speeds for umodem devices increase, these numbers will need to
  * be increased. They should be good for G3 speeds and below.
  *
  * TODO: The TTY buffers should be increased!
@@ -317,7 +317,7 @@ umodem_attach(device_t dev)
 
 		cud = usbd_find_descriptor(uaa->device, NULL,
 		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
-		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
+		    0xFF, UDESCSUB_CDC_UNION, 0xFF);
 
 		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
 			DPRINTF("Missing descriptor. "
@@ -702,7 +702,7 @@ umodem_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			    "%d bytes\n", actlen);
 			goto tr_setup;
 		}
-		if (actlen > sizeof(pkt)) {
+		if (actlen > (int)sizeof(pkt)) {
 			DPRINTF("truncating message\n");
 			actlen = sizeof(pkt);
 		}
@@ -842,7 +842,7 @@ static void *
 umodem_get_desc(struct usb_attach_arg *uaa, uint8_t type, uint8_t subtype)
 {
 	return (usbd_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
-	    type, 0 - 1, subtype, 0 - 1));
+	    type, 0xFF, subtype, 0xFF));
 }
 
 static usb_error_t

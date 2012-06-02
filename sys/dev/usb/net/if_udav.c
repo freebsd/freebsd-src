@@ -642,7 +642,7 @@ udav_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen < sizeof(stat) + ETHER_CRC_LEN) {
+		if (actlen < (int)(sizeof(stat) + ETHER_CRC_LEN)) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}

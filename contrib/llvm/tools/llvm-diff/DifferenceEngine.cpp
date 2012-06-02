@@ -319,15 +319,19 @@ class FunctionDifferenceEngine {
       bool Difference = false;
 
       DenseMap<ConstantInt*,BasicBlock*> LCases;
-      for (unsigned I = 1, E = LI->getNumCases(); I != E; ++I)
-        LCases[LI->getCaseValue(I)] = LI->getSuccessor(I);
-      for (unsigned I = 1, E = RI->getNumCases(); I != E; ++I) {
-        ConstantInt *CaseValue = RI->getCaseValue(I);
+      
+      for (SwitchInst::CaseIt I = LI->case_begin(), E = LI->case_end();
+           I != E; ++I)
+        LCases[I.getCaseValue()] = I.getCaseSuccessor();
+        
+      for (SwitchInst::CaseIt I = RI->case_begin(), E = RI->case_end();
+           I != E; ++I) {
+        ConstantInt *CaseValue = I.getCaseValue();
         BasicBlock *LCase = LCases[CaseValue];
         if (LCase) {
-          if (TryUnify) tryUnify(LCase, RI->getSuccessor(I));
+          if (TryUnify) tryUnify(LCase, I.getCaseSuccessor());
           LCases.erase(CaseValue);
-        } else if (!Difference) {
+        } else if (Complain || !Difference) {
           if (Complain)
             Engine.logf("right switch has extra case %r") << CaseValue;
           Difference = true;
@@ -627,6 +631,8 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
 }
 
 }
+
+void DifferenceEngine::Oracle::anchor() { }
 
 void DifferenceEngine::diff(Function *L, Function *R) {
   Context C(*this, L, R);

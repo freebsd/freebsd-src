@@ -161,9 +161,9 @@ which is specified.
 .Pp
 If
 .Ar value
-is specified, then the debug level is set to 
+is specified, then the debug level is set to
 .Ar value .
-The debug level is a bitmask implemented in 
+The debug level is a bitmask implemented in
 .Pa src/libexec/tftpd/tftp-utils.h .
 Valid values are 0 (DEBUG_NONE), 1 (DEBUG_PACKETS), 2, (DEBUG_SIMPLE),
 4 (DEBUG_OPTIONS), and 8 (DEBUG_ACCESS).  Multiple debug values can be combined
@@ -238,20 +238,16 @@ option.
 .Pp
 The following RFC's are supported:
 .Rs
-RFC 1350
-.%T The TFTP Protocol (Revision 2)
+.%T RFC 1350: The TFTP Protocol (Revision 2)
 .Re
 .Rs
-RFC 2347
-.%T TFTP Option Extension
+.%T RFC 2347: TFTP Option Extension
 .Re
 .Rs
-RFC 2348
-.%T TFTP Blocksize Option
+.%T RFC 2348: TFTP Blocksize Option
 .Re
 .Rs
-RFC 2349
-.%T TFTP Timeout Interval and Transfer Size Options
+.%T RFC 2349: TFTP Timeout Interval and Transfer Size Options
 .Re
 .Pp
 The non-standard
@@ -262,7 +258,7 @@ TFTP options are mentioned here:
 .Rs
 .%T Extending TFTP
 .%U http://www.compuphase.com/tftp.htm
-.Re 
+.Re
 .Sh HISTORY
 The
 .Nm

@@ -29,10 +29,10 @@ LIBDEPS=llvmasmparser \
 	llvmanalysis \
 	llvmmcjit \
 	llvmruntimedyld \
-	llvmobject \
 	llvmexecutionengine \
 	llvmtarget \
 	llvmmc \
+	llvmobject \
 	llvmcore \
 	llvmsupport
 

@@ -360,3 +360,4 @@ extern void _gss_load_mech(void);
 extern struct _gss_mech_switch *_gss_find_mech_switch(gss_OID);
 extern void _gss_mg_error(struct _gss_mech_switch *m, OM_uint32 maj,
     OM_uint32 min);
+extern void _gss_mg_collect_error(gss_OID mech, OM_uint32 maj, OM_uint32 min);

@@ -9,6 +9,8 @@ SRCS+=	opt_cam.h opt_compat.h
 SRCS+=	device_if.h bus_if.h pci_if.h
 
 #CFLAGS += -DMPS_DEBUG
-DEBUG_FLAGS += -g
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.mps_sas.c=	${NO_WUNNEEDED_INTERNAL_DECL}
+CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}

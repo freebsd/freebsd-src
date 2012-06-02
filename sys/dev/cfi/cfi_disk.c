@@ -182,19 +182,19 @@ cfi_disk_read(struct cfi_softc *sc, struct bio *bp)
 	if (sc->sc_width == 1) {
 		uint8_t *dp = (uint8_t *)bp->bio_data;
 		while (resid > 0 && bp->bio_offset < sc->sc_size) {
-			*dp++ = cfi_read(sc, bp->bio_offset);
+			*dp++ = cfi_read_raw(sc, bp->bio_offset);
 			bp->bio_offset += 1, resid -= 1;
 		}
 	} else if (sc->sc_width == 2) {
 		uint16_t *dp = (uint16_t *)bp->bio_data;
 		while (resid > 0 && bp->bio_offset < sc->sc_size) {
-			*dp++ = cfi_read(sc, bp->bio_offset);
+			*dp++ = cfi_read_raw(sc, bp->bio_offset);
 			bp->bio_offset += 2, resid -= 2;
 		}
 	} else {
 		uint32_t *dp = (uint32_t *)bp->bio_data;
 		while (resid > 0 && bp->bio_offset < sc->sc_size) {
-			*dp++ = cfi_read(sc, bp->bio_offset);
+			*dp++ = cfi_read_raw(sc, bp->bio_offset);
 			bp->bio_offset += 4, resid -= 4;
 		}
 	}

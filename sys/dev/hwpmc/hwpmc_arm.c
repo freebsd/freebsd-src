@@ -38,38 +38,47 @@ __FBSDID("$FreeBSD$");
 struct pmc_mdep *
 pmc_md_initialize()
 {
+#ifdef CPU_XSCALE_IXP425
 	if (cpu_class == CPU_CLASS_XSCALE)
 		return pmc_xscale_initialize();
 	else
+#endif
 		return NULL;
 }
 
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
+#ifdef CPU_XSCALE_IXP425
 	if (cpu_class == CPU_CLASS_XSCALE)
 		pmc_xscale_finalize(md);
 	else
 		KASSERT(0, ("[arm,%d] Unknown CPU Class 0x%x", __LINE__,
 		    cpu_class));
+#endif
+}
+
+static int
+pmc_save_callchain(uintptr_t *cc, int maxsamples,
+    struct trapframe *tf)
+{
+
+	*cc = PMC_TRAPFRAME_TO_PC(tf);
+	return (1);
 }
 
 int
 pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
-	(void) cc;
-	(void) maxsamples;
-	(void) tf;
-	return (0);
+
+	return pmc_save_callchain(cc, maxsamples, tf);
 }
 
 int
 pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
-	(void) cc;
-	(void) maxsamples;
-	(void) tf;
-	return (0);
+
+	return pmc_save_callchain(cc, maxsamples, tf);
 }

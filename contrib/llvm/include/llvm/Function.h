@@ -146,7 +146,7 @@ public:
   /// The particular intrinsic functions which correspond to this value are
   /// defined in llvm/Intrinsics.h.
   ///
-  unsigned getIntrinsicID() const LLVM_ATTRIBUTE_READONLY;
+  unsigned getIntrinsicID() const LLVM_READONLY;
   bool isIntrinsic() const { return getIntrinsicID() != 0; }
 
   /// getCallingConv()/setCallingConv(CC) - These method get and set the
@@ -424,6 +424,12 @@ public:
   /// offending user for diagnostic purposes.
   ///
   bool hasAddressTaken(const User** = 0) const;
+
+  /// isDefTriviallyDead - Return true if it is trivially safe to remove
+  /// this function definition from the module (because it isn't externally
+  /// visible, does not have its address taken, and has no callers).  To make
+  /// this more accurate, call removeDeadConstantUsers first.
+  bool isDefTriviallyDead() const;
 
   /// callsFunctionThatReturnsTwice - Return true if the function has a call to
   /// setjmp or other function that gcc recognizes as "returning twice".

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights 
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights 
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.  
@@ -26,7 +26,7 @@
  * countries. 
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS" 
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -103,7 +103,7 @@ LEAF(cvmx_interrupt_stage2)
         ** error bit */
         dmfc0   k0, $27, 1
         sd      k0, 272(sp)
-        /* Store DEPC for GCC's frame unwinder. */
+        /* Store EPC for GCC's frame unwinder. */
         dmfc0   k0, $14
         sd      k0, 280(sp)
 
@@ -184,6 +184,13 @@ not_dcache_error:
 	sd	k0, ICACHE_ERROR_COUNT($0)	// Store the icache error count
 not_icache_error:
 	ld	k0, K0_STORE_LOCATION($0)	// Restore K0 since we might have been in an exception
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop					// Keep the ERET 8 instructions away
+	nop					// from a branch target.
 	eret					// Return from the Icache exception
 	.set pop
 END(cvmx_interrupt_cache_error)

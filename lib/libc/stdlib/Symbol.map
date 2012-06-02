@@ -47,14 +47,6 @@ FBSD_1.0 {
 	lldiv;
 	lsearch;
 	lfind;
-	_malloc_options;
-	_malloc_message;
-	malloc;
-	posix_memalign;
-	calloc;
-	realloc;
-	free;
-	malloc_usable_size;
 	mergesort;
 	putenv;
 	qsort_r;
@@ -93,7 +85,6 @@ FBSD_1.0 {
 };
 
 FBSD_1.3 {
-	aligned_alloc;
 	at_quick_exit;
 	atof_l;
 	atoi_l;
@@ -114,9 +105,6 @@ FBSD_1.3 {
 };
 
 FBSDprivate_1.0 {
-	_malloc_thread_cleanup;
-	_malloc_prefork;
-	_malloc_postfork;
 	__system;
 	_system;
 };

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: serial.h,v 1.18 2009-01-18 23:48:14 tbox Exp $ */
+/* $Id: serial.h,v 1.18 2009/01/18 23:48:14 tbox Exp $ */
 
 #ifndef ISC_SERIAL_H
 #define ISC_SERIAL_H 1

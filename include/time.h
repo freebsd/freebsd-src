@@ -184,7 +184,7 @@ time_t timelocal(struct tm * const);
 time_t timegm(struct tm * const);
 #endif /* __BSD_VISIBLE */
 
-#if __POSIX_VISIBLE >= 200809
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
 #include <xlocale/_time.h>
 #endif
 __END_DECLS

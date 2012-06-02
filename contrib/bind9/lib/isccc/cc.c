@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cc.c,v 1.18 2007-08-28 07:20:43 tbox Exp $ */
+/* $Id: cc.c,v 1.18 2007/08/28 07:20:43 tbox Exp $ */
 
 /*! \file */
 
@@ -403,16 +403,17 @@ table_fromwire(isccc_region_t *source, isccc_region_t *secret,
 
 	if (secret != NULL) {
 		if (checksum_rstart != NULL)
-			return (verify(alist, checksum_rstart,
-				       (source->rend - checksum_rstart),
-				       secret));
-		return (ISCCC_R_BADAUTH);
-	}
-
-	return (ISC_R_SUCCESS);
+			result = verify(alist, checksum_rstart,
+					(source->rend - checksum_rstart),
+					secret);
+		else
+			result = ISCCC_R_BADAUTH;
+	} else
+		result = ISC_R_SUCCESS;
 
  bad:
-	isccc_sexpr_free(&alist);
+	if (result != ISC_R_SUCCESS)
+		isccc_sexpr_free(&alist);
 
 	return (result);
 }
@@ -439,7 +440,7 @@ list_fromwire(isccc_region_t *source, isccc_sexpr_t **listp)
 	}
 
 	*listp = list;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -455,8 +456,8 @@ isccc_cc_fromwire(isccc_region_t *source, isccc_sexpr_t **alistp,
 		return (ISC_R_UNEXPECTEDEND);
 	GET32(version, source->rstart);
 	if (version != 1)
-		return (ISCCC_R_UNKNOWNVERSION);	
-	
+		return (ISCCC_R_UNKNOWNVERSION);
+
 	return (table_fromwire(source, secret, alistp));
 }
 
@@ -507,7 +508,7 @@ createmessage(isc_uint32_t version, const char *from, const char *to,
 	if (to != NULL &&
 	    isccc_cc_definestring(_ctrl, "_to", to) == NULL)
 		goto bad;
-		
+
 	*alistp = alist;
 
 	return (ISC_R_SUCCESS);

@@ -1,0 +1,44 @@
+Following are examples of running sh_stat.d on Shell scripts. 
+
+sh_stat.d shows you the number of events per second that have happened since
+the last line output.  The default interval is 1 second, but you can specify 
+other intervals as arguments to the script.
+
+This shows the sh_stat.d script reflecting the Code/Shell/func_slow.sh script.
+
+   # sh_stat.d
+   TIME                   EXEC/s  FUNCS/s BLTINS/s SUB-SH/s    CMD/s
+   2007 Sep 17 03:29:02        1        1       50       96        0
+   2007 Sep 17 03:29:03        0        1      151      300        0
+   2007 Sep 17 03:29:04        0        1      142      280        0
+   2007 Sep 17 03:29:05        0        0      132      262        0
+   2007 Sep 17 03:29:06        0        0      122      245        0
+   2007 Sep 17 03:29:07        0        0        9       17        0
+   2007 Sep 17 03:29:08        0        0        0        0        0
+   2007 Sep 17 03:29:09        0        0        0        0        0
+   ^C
+
+We can see that at 2007 Sep 17 03:29:04 there were 0 Bourne shells executed,
+one function called, 142 built-in commands called, 280 sub-shells created and
+0 external commands called.
+
+
+Here the script runs when Mozilla Firefox is started.
+
+   # sh_stat.d 
+   TIME                   EXEC/s  FUNCS/s BLTINS/s SUB-SH/s    CMD/s
+   2007 Sep 17 03:29:52        1        9       52       38        2
+   2007 Sep 17 03:29:53        0        0        0        0        0
+   2007 Sep 17 03:29:54        0        0        0        0        0
+   2007 Sep 17 03:29:55        0        0        0        0        0
+   2007 Sep 17 03:29:56        0        0        0        0        0
+   2007 Sep 17 03:29:57        0        0        0        0        0
+   2007 Sep 17 03:29:58        0        0        0        0        0
+   2007 Sep 17 03:29:59        0        0        0        0        0
+   2007 Sep 17 03:30:00        0        0        0        0        0
+   2007 Sep 17 03:30:01        1        1        8        0        0
+   2007 Sep 17 03:30:02        0        0        0        0        0
+   2007 Sep 17 03:30:03        0        0        0        0        0
+   2007 Sep 17 03:30:04        0        0        0        0        0
+   ^C
+

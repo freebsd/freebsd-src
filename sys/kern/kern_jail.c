@@ -130,6 +130,7 @@ static char *prison_path(struct prison *pr1, struct prison *pr2);
 static void prison_remove_one(struct prison *pr);
 #ifdef RACCT
 static void prison_racct_attach(struct prison *pr);
+static void prison_racct_modify(struct prison *pr);
 static void prison_racct_detach(struct prison *pr);
 #endif
 #ifdef INET
@@ -1810,6 +1811,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
+#ifdef RACCT
+	if (!created) {
+		sx_sunlock(&allprison_lock);
+		prison_racct_modify(pr);
+		sx_slock(&allprison_lock);
+	}
+#endif
+
+	td->td_retval[0] = pr->pr_id;
+
 	/*
 	 * Now that it is all there, drop the temporary reference from existing
 	 * prisons.  Or add a reference to newly created persistent prisons
@@ -1830,7 +1841,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		if (!(flags & JAIL_ATTACH))
 			sx_sunlock(&allprison_lock);
 	}
-	td->td_retval[0] = pr->pr_id;
+
 	goto done_errmsg;
 
  done_deref_locked:
@@ -4427,24 +4438,32 @@ prison_racct_hold(struct prison_racct *prr)
 	refcount_acquire(&prr->prr_refcount);
 }
 
+static void
+prison_racct_free_locked(struct prison_racct *prr)
+{
+
+	sx_assert(&allprison_lock, SA_XLOCKED);
+
+	if (refcount_release(&prr->prr_refcount)) {
+		racct_destroy(&prr->prr_racct);
+		LIST_REMOVE(prr, prr_next);
+		free(prr, M_PRISON_RACCT);
+	}
+}
+
 void
 prison_racct_free(struct prison_racct *prr)
 {
 	int old;
+
+	sx_assert(&allprison_lock, SA_UNLOCKED);
 
 	old = prr->prr_refcount;
 	if (old > 1 && atomic_cmpset_int(&prr->prr_refcount, old, old - 1))
 		return;
 
 	sx_xlock(&allprison_lock);
-	if (refcount_release(&prr->prr_refcount)) {
-		racct_destroy(&prr->prr_racct);
-		LIST_REMOVE(prr, prr_next);
-		sx_xunlock(&allprison_lock);
-		free(prr, M_PRISON_RACCT);
-
-		return;
-	}
+	prison_racct_free_locked(prr);
 	sx_xunlock(&allprison_lock);
 }
 
@@ -4454,15 +4473,66 @@ prison_racct_attach(struct prison *pr)
 {
 	struct prison_racct *prr;
 
+	sx_assert(&allprison_lock, SA_XLOCKED);
+
 	prr = prison_racct_find_locked(pr->pr_name);
 	KASSERT(prr != NULL, ("cannot find prison_racct"));
 
 	pr->pr_prison_racct = prr;
 }
 
+/*
+ * Handle jail renaming.  From the racct point of view, renaming means
+ * moving from one prison_racct to another.
+ */
+static void
+prison_racct_modify(struct prison *pr)
+{
+	struct proc *p;
+	struct ucred *cred;
+	struct prison_racct *oldprr;
+
+	sx_slock(&allproc_lock);
+	sx_xlock(&allprison_lock);
+
+	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0) {
+		sx_xunlock(&allprison_lock);
+		sx_sunlock(&allproc_lock);
+		return;
+	}
+
+	oldprr = pr->pr_prison_racct;
+	pr->pr_prison_racct = NULL;
+
+	prison_racct_attach(pr);
+
+	/*
+	 * Move resource utilisation records.
+	 */
+	racct_move(pr->pr_prison_racct->prr_racct, oldprr->prr_racct);
+
+	/*
+	 * Force rctl to reattach rules to processes.
+	 */
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		cred = crhold(p->p_ucred);
+		PROC_UNLOCK(p);
+		racct_proc_ucred_changed(p, cred, cred);
+		crfree(cred);
+	}
+
+	sx_sunlock(&allproc_lock);
+	prison_racct_free_locked(oldprr);
+	sx_xunlock(&allprison_lock);
+}
+
 static void
 prison_racct_detach(struct prison *pr)
 {
+
+	sx_assert(&allprison_lock, SA_UNLOCKED);
+
 	prison_racct_free(pr->pr_prison_racct);
 	pr->pr_prison_racct = NULL;
 }

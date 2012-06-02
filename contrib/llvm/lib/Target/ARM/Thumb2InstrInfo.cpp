@@ -1,4 +1,4 @@
-//===- Thumb2InstrInfo.cpp - Thumb-2 Instruction Information ----*- C++ -*-===//
+//===-- Thumb2InstrInfo.cpp - Thumb-2 Instruction Information -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,13 +15,11 @@
 #include "ARM.h"
 #include "ARMConstantPoolValue.h"
 #include "ARMMachineFunctionInfo.h"
-#include "Thumb2InstrInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
-#include "llvm/CodeGen/PseudoSourceValue.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
@@ -33,6 +31,13 @@ OldT2IfCvt("old-thumb2-ifcvt", cl::Hidden,
 
 Thumb2InstrInfo::Thumb2InstrInfo(const ARMSubtarget &STI)
   : ARMBaseInstrInfo(STI), RI(*this, STI) {
+}
+
+/// getNoopForMachoTarget - Return the noop instruction to use for a noop.
+void Thumb2InstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
+  NopInst.setOpcode(ARM::tNOP);
+  NopInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
+  NopInst.addOperand(MCOperand::CreateReg(0));
 }
 
 unsigned Thumb2InstrInfo::getUnindexedOpcode(unsigned Opc) const {
@@ -53,7 +58,7 @@ Thumb2InstrInfo::ReplaceTailWithBranchTo(MachineBasicBlock::iterator Tail,
   // If the first instruction of Tail is predicated, we may have to update
   // the IT instruction.
   unsigned PredReg = 0;
-  ARMCC::CondCodes CC = llvm::getInstrPredicate(Tail, PredReg);
+  ARMCC::CondCodes CC = getInstrPredicate(Tail, PredReg);
   MachineBasicBlock::iterator MBBI = Tail;
   if (CC != ARMCC::AL)
     // Expecting at least the t2IT instruction before it.
@@ -101,7 +106,7 @@ Thumb2InstrInfo::isLegalToSplitMBBAt(MachineBasicBlock &MBB,
   }
 
   unsigned PredReg = 0;
-  return llvm::getITInstrPredicate(MBBI, PredReg) == ARMCC::AL;
+  return getITInstrPredicate(MBBI, PredReg) == ARMCC::AL;
 }
 
 void Thumb2InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
@@ -130,8 +135,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     MachineFunction &MF = *MBB.getParent();
     MachineFrameInfo &MFI = *MF.getFrameInfo();
     MachineMemOperand *MMO =
-      MF.getMachineMemOperand(
-                      MachinePointerInfo(PseudoSourceValue::getFixedStack(FI)),
+      MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FI),
                               MachineMemOperand::MOStore,
                               MFI.getObjectSize(FI),
                               MFI.getObjectAlignment(FI));
@@ -158,8 +162,7 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     MachineFunction &MF = *MBB.getParent();
     MachineFrameInfo &MFI = *MF.getFrameInfo();
     MachineMemOperand *MMO =
-      MF.getMachineMemOperand(
-                      MachinePointerInfo(PseudoSourceValue::getFixedStack(FI)),
+      MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FI),
                               MachineMemOperand::MOLoad,
                               MFI.getObjectSize(FI),
                               MFI.getObjectAlignment(FI));
@@ -570,7 +573,7 @@ Thumb2InstrInfo::scheduleTwoAddrSource(MachineInstr *SrcMI,
     return;
 
   unsigned PredReg = 0;
-  ARMCC::CondCodes CC = llvm::getInstrPredicate(UseMI, PredReg);
+  ARMCC::CondCodes CC = getInstrPredicate(UseMI, PredReg);
   if (CC == ARMCC::AL || PredReg != ARM::CPSR)
     return;
 
@@ -586,10 +589,10 @@ Thumb2InstrInfo::scheduleTwoAddrSource(MachineInstr *SrcMI,
       continue;
 
     MachineInstr *NMI = &*MBBI;
-    ARMCC::CondCodes NCC = llvm::getInstrPredicate(NMI, PredReg);
+    ARMCC::CondCodes NCC = getInstrPredicate(NMI, PredReg);
     if (!(NCC == CC || NCC == OCC) ||
         NMI->modifiesRegister(SrcReg, &TRI) ||
-        NMI->definesRegister(ARM::CPSR))
+        NMI->modifiesRegister(ARM::CPSR, &TRI))
       break;
     if (++NumInsts == 4)
       // Too many in a row!
@@ -607,5 +610,5 @@ llvm::getITInstrPredicate(const MachineInstr *MI, unsigned &PredReg) {
   unsigned Opc = MI->getOpcode();
   if (Opc == ARM::tBcc || Opc == ARM::t2Bcc)
     return ARMCC::AL;
-  return llvm::getInstrPredicate(MI, PredReg);
+  return getInstrPredicate(MI, PredReg);
 }

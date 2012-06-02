@@ -293,9 +293,12 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 
 	case _FIO_SEEK_DATA:
 	case _FIO_SEEK_HOLE:
+#ifdef sun
 		if (ddi_copyin((void *)data, &off, sizeof (off), flag))
 			return (EFAULT);
-
+#else
+		off = *(offset_t *)data;
+#endif
 		zp = VTOZ(vp);
 		zfsvfs = zp->z_zfsvfs;
 		ZFS_ENTER(zfsvfs);
@@ -306,8 +309,12 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 		ZFS_EXIT(zfsvfs);
 		if (error)
 			return (error);
+#ifdef sun
 		if (ddi_copyout(&off, (void *)data, sizeof (off), flag))
 			return (EFAULT);
+#else
+		*(offset_t *)data = off;
+#endif
 		return (0);
 	}
 	return (ENOTTY);
@@ -338,10 +345,9 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 			vm_page_busy(pp);
 			vm_page_undirty(pp);
 		} else {
-			if (__predict_false(obj->cache != NULL)) {
+			if (vm_page_is_cached(obj, OFF_TO_IDX(start)))
 				vm_page_cache_free(obj, OFF_TO_IDX(start),
 				    OFF_TO_IDX(start) + 1);
-			}
 			pp = NULL;
 		}
 		break;
@@ -830,6 +836,12 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		 * so that we can re-write the block safely.
 		 */
 		rl = zfs_range_lock(zp, woff, n, RL_WRITER);
+	}
+
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td)) {
+		zfs_range_unlock(rl);
+		ZFS_EXIT(zfsvfs);
+		return (EFBIG);
 	}
 
 	if (woff >= limit) {
@@ -4550,7 +4562,7 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		ASSERT(vp->v_count <= 1);
 		vp->v_count = 0;
 		VI_UNLOCK(vp);
-		vrecycle(vp, curthread);
+		vrecycle(vp);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
 		return;
 	}
@@ -5689,9 +5701,6 @@ zfs_freebsd_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-
-	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
-		return (EFBIG);
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
 	    ap->a_cred, NULL));

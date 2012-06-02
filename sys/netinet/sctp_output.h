@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_output.h,v 1.14 2005/03/06 16:04:18 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_output_h__
-#define __sctp_output_h__
+#ifndef _NETINET_SCTP_OUTPUT_H_
+#define _NETINET_SCTP_OUTPUT_H_
 
 #include <netinet/sctp_header.h>
 
@@ -194,15 +192,13 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
 
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
-    int number_entries,
-    uint16_t * list,
+    int number_entries, uint16_t * list,
     uint8_t send_out_req,
-    uint32_t resp_seq,
     uint8_t send_in_req,
     uint8_t send_tsn_req,
-    uint8_t add_str,
-    uint16_t adding);
-
+    uint8_t add_stream,
+    uint16_t adding_o,
+    uint16_t adding_i, uint8_t from_peer);
 
 void
 sctp_send_abort(struct mbuf *, int, struct sctphdr *, uint32_t,

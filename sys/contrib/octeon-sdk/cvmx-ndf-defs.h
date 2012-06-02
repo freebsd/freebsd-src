@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,14 +49,14 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_NDF_TYPEDEFS_H__
-#define __CVMX_NDF_TYPEDEFS_H__
+#ifndef __CVMX_NDF_DEFS_H__
+#define __CVMX_NDF_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_NDF_BT_PG_INFO CVMX_NDF_BT_PG_INFO_FUNC()
 static inline uint64_t CVMX_NDF_BT_PG_INFO_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_BT_PG_INFO not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000018ull);
 }
@@ -67,7 +67,7 @@ static inline uint64_t CVMX_NDF_BT_PG_INFO_FUNC(void)
 #define CVMX_NDF_CMD CVMX_NDF_CMD_FUNC()
 static inline uint64_t CVMX_NDF_CMD_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_CMD not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000000ull);
 }
@@ -78,7 +78,7 @@ static inline uint64_t CVMX_NDF_CMD_FUNC(void)
 #define CVMX_NDF_DRBELL CVMX_NDF_DRBELL_FUNC()
 static inline uint64_t CVMX_NDF_DRBELL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_DRBELL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000030ull);
 }
@@ -89,7 +89,7 @@ static inline uint64_t CVMX_NDF_DRBELL_FUNC(void)
 #define CVMX_NDF_ECC_CNT CVMX_NDF_ECC_CNT_FUNC()
 static inline uint64_t CVMX_NDF_ECC_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_ECC_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000010ull);
 }
@@ -100,7 +100,7 @@ static inline uint64_t CVMX_NDF_ECC_CNT_FUNC(void)
 #define CVMX_NDF_INT CVMX_NDF_INT_FUNC()
 static inline uint64_t CVMX_NDF_INT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_INT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000020ull);
 }
@@ -111,7 +111,7 @@ static inline uint64_t CVMX_NDF_INT_FUNC(void)
 #define CVMX_NDF_INT_EN CVMX_NDF_INT_EN_FUNC()
 static inline uint64_t CVMX_NDF_INT_EN_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_INT_EN not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000028ull);
 }
@@ -122,7 +122,7 @@ static inline uint64_t CVMX_NDF_INT_EN_FUNC(void)
 #define CVMX_NDF_MISC CVMX_NDF_MISC_FUNC()
 static inline uint64_t CVMX_NDF_MISC_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_MISC not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000008ull);
 }
@@ -133,7 +133,7 @@ static inline uint64_t CVMX_NDF_MISC_FUNC(void)
 #define CVMX_NDF_ST_REG CVMX_NDF_ST_REG_FUNC()
 static inline uint64_t CVMX_NDF_ST_REG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_NDF_ST_REG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001070001000038ull);
 }
@@ -158,12 +158,10 @@ static inline uint64_t CVMX_NDF_ST_REG_FUNC(void)
  *
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  */
-union cvmx_ndf_bt_pg_info
-{
+union cvmx_ndf_bt_pg_info {
 	uint64_t u64;
-	struct cvmx_ndf_bt_pg_info_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_bt_pg_info_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_11_63               : 53;
 	uint64_t t_mult                       : 4;  /**< Boot time TIM_MULT[3:0] field of SET__TM_PAR[63:0]
                                                          command */
@@ -179,6 +177,9 @@ union cvmx_ndf_bt_pg_info
 	struct cvmx_ndf_bt_pg_info_s          cn52xx;
 	struct cvmx_ndf_bt_pg_info_s          cn63xx;
 	struct cvmx_ndf_bt_pg_info_s          cn63xxp1;
+	struct cvmx_ndf_bt_pg_info_s          cn66xx;
+	struct cvmx_ndf_bt_pg_info_s          cn68xx;
+	struct cvmx_ndf_bt_pg_info_s          cn68xxp1;
 };
 typedef union cvmx_ndf_bt_pg_info cvmx_ndf_bt_pg_info_t;
 
@@ -193,12 +194,10 @@ typedef union cvmx_ndf_bt_pg_info cvmx_ndf_bt_pg_info_t;
  *
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  */
-union cvmx_ndf_cmd
-{
+union cvmx_ndf_cmd {
 	uint64_t u64;
-	struct cvmx_ndf_cmd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_cmd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t nf_cmd                       : 64; /**< 8 Command Bytes */
 #else
 	uint64_t nf_cmd                       : 64;
@@ -207,6 +206,9 @@ union cvmx_ndf_cmd
 	struct cvmx_ndf_cmd_s                 cn52xx;
 	struct cvmx_ndf_cmd_s                 cn63xx;
 	struct cvmx_ndf_cmd_s                 cn63xxp1;
+	struct cvmx_ndf_cmd_s                 cn66xx;
+	struct cvmx_ndf_cmd_s                 cn68xx;
+	struct cvmx_ndf_cmd_s                 cn68xxp1;
 };
 typedef union cvmx_ndf_cmd cvmx_ndf_cmd_t;
 
@@ -232,12 +234,10 @@ typedef union cvmx_ndf_cmd cvmx_ndf_cmd_t;
  *
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  */
-union cvmx_ndf_drbell
-{
+union cvmx_ndf_drbell {
 	uint64_t u64;
-	struct cvmx_ndf_drbell_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_drbell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t cnt                          : 8;  /**< Doorbell count register, 2's complement 8 bit value */
 #else
@@ -248,6 +248,9 @@ union cvmx_ndf_drbell
 	struct cvmx_ndf_drbell_s              cn52xx;
 	struct cvmx_ndf_drbell_s              cn63xx;
 	struct cvmx_ndf_drbell_s              cn63xxp1;
+	struct cvmx_ndf_drbell_s              cn66xx;
+	struct cvmx_ndf_drbell_s              cn68xx;
+	struct cvmx_ndf_drbell_s              cn68xxp1;
 };
 typedef union cvmx_ndf_drbell cvmx_ndf_drbell_t;
 
@@ -261,12 +264,10 @@ typedef union cvmx_ndf_drbell cvmx_ndf_drbell_t;
  *
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  */
-union cvmx_ndf_ecc_cnt
-{
+union cvmx_ndf_ecc_cnt {
 	uint64_t u64;
-	struct cvmx_ndf_ecc_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_ecc_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t xor_ecc                      : 24; /**< result of XOR of ecc read bytes and ecc genarated
                                                          bytes. The value pertains to the last 1 bit ecc err */
@@ -281,6 +282,9 @@ union cvmx_ndf_ecc_cnt
 	struct cvmx_ndf_ecc_cnt_s             cn52xx;
 	struct cvmx_ndf_ecc_cnt_s             cn63xx;
 	struct cvmx_ndf_ecc_cnt_s             cn63xxp1;
+	struct cvmx_ndf_ecc_cnt_s             cn66xx;
+	struct cvmx_ndf_ecc_cnt_s             cn68xx;
+	struct cvmx_ndf_ecc_cnt_s             cn68xxp1;
 };
 typedef union cvmx_ndf_ecc_cnt cvmx_ndf_ecc_cnt_t;
 
@@ -295,12 +299,10 @@ typedef union cvmx_ndf_ecc_cnt cvmx_ndf_ecc_cnt_t;
  *
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  */
-union cvmx_ndf_int
-{
+union cvmx_ndf_int {
 	uint64_t u64;
-	struct cvmx_ndf_int_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_int_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t ovrf                         : 1;  /**< NDF_CMD write when fifo is full. Generally a
                                                          fatal error. */
@@ -324,6 +326,9 @@ union cvmx_ndf_int
 	struct cvmx_ndf_int_s                 cn52xx;
 	struct cvmx_ndf_int_s                 cn63xx;
 	struct cvmx_ndf_int_s                 cn63xxp1;
+	struct cvmx_ndf_int_s                 cn66xx;
+	struct cvmx_ndf_int_s                 cn68xx;
+	struct cvmx_ndf_int_s                 cn68xxp1;
 };
 typedef union cvmx_ndf_int cvmx_ndf_int_t;
 
@@ -334,12 +339,10 @@ typedef union cvmx_ndf_int cvmx_ndf_int_t;
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  *
  */
-union cvmx_ndf_int_en
-{
+union cvmx_ndf_int_en {
 	uint64_t u64;
-	struct cvmx_ndf_int_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_int_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t ovrf                         : 1;  /**< Wrote to a full command fifo */
 	uint64_t ecc_mult                     : 1;  /**< Multi bit ECC error detected during boot */
@@ -362,6 +365,9 @@ union cvmx_ndf_int_en
 	struct cvmx_ndf_int_en_s              cn52xx;
 	struct cvmx_ndf_int_en_s              cn63xx;
 	struct cvmx_ndf_int_en_s              cn63xxp1;
+	struct cvmx_ndf_int_en_s              cn66xx;
+	struct cvmx_ndf_int_en_s              cn68xx;
+	struct cvmx_ndf_int_en_s              cn68xxp1;
 };
 typedef union cvmx_ndf_int_en cvmx_ndf_int_en_t;
 
@@ -409,12 +415,10 @@ typedef union cvmx_ndf_int_en cvmx_ndf_int_en_t;
  *
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  */
-union cvmx_ndf_misc
-{
+union cvmx_ndf_misc {
 	uint64_t u64;
-	struct cvmx_ndf_misc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_misc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t mb_dis                       : 1;  /**< Disable multibit error hangs and allow boot loads
                                                          or boot dma's proceed as if no multi bit errors
@@ -451,9 +455,8 @@ union cvmx_ndf_misc
 	uint64_t reserved_28_63               : 36;
 #endif
 	} s;
-	struct cvmx_ndf_misc_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_misc_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t nbr_hwm                      : 3;  /**< Hi Water mark for NBR fifo or load/stores */
 	uint64_t wait_cnt                     : 6;  /**< WAIT input filter count */
@@ -488,6 +491,9 @@ union cvmx_ndf_misc
 	} cn52xx;
 	struct cvmx_ndf_misc_s                cn63xx;
 	struct cvmx_ndf_misc_s                cn63xxp1;
+	struct cvmx_ndf_misc_s                cn66xx;
+	struct cvmx_ndf_misc_s                cn68xx;
+	struct cvmx_ndf_misc_s                cn68xxp1;
 };
 typedef union cvmx_ndf_misc cvmx_ndf_misc_t;
 
@@ -498,12 +504,10 @@ typedef union cvmx_ndf_misc cvmx_ndf_misc_t;
  * This CSR aggregates all state machines used in nand flash controller for debug.
  * Like all NDF_... registers, 64-bit operations must be used to access this register
  */
-union cvmx_ndf_st_reg
-{
+union cvmx_ndf_st_reg {
 	uint64_t u64;
-	struct cvmx_ndf_st_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_ndf_st_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t exe_idle                     : 1;  /**< Command Execution status 1=IDLE, 0=Busy
                                                          1 means execution of command sequence is complete
@@ -528,6 +532,9 @@ union cvmx_ndf_st_reg
 	struct cvmx_ndf_st_reg_s              cn52xx;
 	struct cvmx_ndf_st_reg_s              cn63xx;
 	struct cvmx_ndf_st_reg_s              cn63xxp1;
+	struct cvmx_ndf_st_reg_s              cn66xx;
+	struct cvmx_ndf_st_reg_s              cn68xx;
+	struct cvmx_ndf_st_reg_s              cn68xxp1;
 };
 typedef union cvmx_ndf_st_reg cvmx_ndf_st_reg_t;
 

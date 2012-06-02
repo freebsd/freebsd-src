@@ -140,7 +140,7 @@ option, which enables routing renumbering protocol support.
 .It Fl p
 Specify an alternative file in which to store the process ID.
 The default is
-.Pa /var/run/rtadvd.pid.
+.Pa /var/run/rtadvd.pid .
 .It Fl R
 Accept router renumbering requests.
 If you enable it, certain IPsec setup is suggested for security reasons.
@@ -158,7 +158,7 @@ to reload the configuration file
 .Pa /etc/rtadvd.conf .
 If an invalid parameter is found in the configuration file upon the reload,
 the entry will be ignored and the old configuration will be used.
-When parameters in an existing entry are updated, 
+When parameters in an existing entry are updated,
 .Nm
 will send Router Advertisement messages with the old configuration but
 zero router lifetime to the interface first, and then start to send a new

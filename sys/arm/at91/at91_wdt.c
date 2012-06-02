@@ -24,9 +24,9 @@
  */
 
 /*
- * The sam9 watchdog hardware can be programed only once. So we set the hardware
- * watchdog to 16s in wdt_attach and only reset it in the wdt_tick
- * handler. The watchdog is halted in processor debug mode.
+ * The SAM9 watchdog hardware can be programed only once. So we set the
+ * hardware watchdog to 16 s in wdt_attach and only reset it in the wdt_tick
+ * handler.  The watchdog is halted in processor debug mode.
  */
 
 #include <sys/cdefs.h>
@@ -52,19 +52,21 @@ struct wdt_softc {
 	struct callout	tick_ch;
 	eventhandler_tag sc_wet;
 	void		*intrhand;
-	u_int 		cmd;
-	u_int 		interval;
+	u_int		cmd;
+	u_int		interval;
 };
 
 static inline uint32_t
 RD4(struct wdt_softc *sc, bus_size_t off)
 {
+
 	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
 WR4(struct wdt_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_write_4(sc->mem_res, off, val);
 }
 
@@ -130,7 +132,7 @@ static int
 wdt_probe(device_t dev)
 {
 
-	if (at91_is_sam9()) {
+	if (at91_is_sam9() || at91_is_sam9xe()) {
 		device_set_desc(dev, "WDT");
 		return (0);
 	}
@@ -157,7 +159,7 @@ wdt_attach(device_t dev)
 	    RF_ACTIVE);
 
 	if (sc->mem_res == NULL)
-	       panic("couldn't allocate wdt register resources");
+		panic("couldn't allocate wdt register resources");
 
 	wdt_mr = RD4(sc, WDT_MR);
 	if ((wdt_mr & WDT_WDRSTEN) == 0)
@@ -172,9 +174,11 @@ wdt_attach(device_t dev)
 		WR4(sc, WDT_MR, WDT_WDDBGHLT | WDT_WDD(0xC00)|
 		    WDT_WDFIEN| WDT_WDV(0xFFF));
 #endif
-		/* This may have been set by Boot ROM so register value
-		 * may not be  what we just requested since this is a
-		 * write once register. */
+		/*
+		 * This may have been set by Boot ROM so register value may
+		 * not be what we just requested since this is a write once
+		 * register.
+		 */
 		wdt_mr = RD4(sc, WDT_MR);
 		if (wdt_mr & WDT_WDFIEN) {
 			rid = 0;
@@ -184,15 +188,15 @@ wdt_attach(device_t dev)
 				panic("could not allocate interrupt.\n");
 
 			err = bus_setup_intr(dev, irq, INTR_TYPE_CLK, wdt_intr,
-				NULL, sc, &sc->intrhand);
+			    NULL, sc, &sc->intrhand);
 		}
 
 		/* interval * hz */
 		sc->interval = (((wdt_mr & WDT_WDV(~0)) + 1) * WDT_DIV) /
-			(WDT_CLOCK/hz);
+		    (WDT_CLOCK/hz);
 
 		device_printf(dev, "watchdog timeout: %d seconds\n",
-		     sc->interval/hz);
+		    sc->interval / hz);
 
 		/* Slightly less than 1/2 of watchdog hardware timeout */
 		sc->interval = (sc->interval/2) - (sc->interval/20);
@@ -208,7 +212,7 @@ wdt_attach(device_t dev)
 static device_method_t wdt_methods[] = {
 	DEVMETHOD(device_probe, wdt_probe),
 	DEVMETHOD(device_attach, wdt_attach),
-	{0,0},
+	DEVMETHOD_END
 };
 
 static driver_t wdt_driver = {
@@ -219,4 +223,4 @@ static driver_t wdt_driver = {
 
 static devclass_t wdt_devclass;
 
-DRIVER_MODULE(at91_wdt, atmelarm, wdt_driver, wdt_devclass, 0, 0);
+DRIVER_MODULE(at91_wdt, atmelarm, wdt_driver, wdt_devclass, NULL, NULL);

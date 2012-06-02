@@ -66,6 +66,7 @@ extern int ncl_numasync;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int newnfs_directio_enable;
+extern int nfs_keep_dirty_on_error;
 
 int ncl_pbuf_freecnt = -1;	/* start out unlimited */
 
@@ -280,7 +281,11 @@ ncl_putpages(struct vop_putpages_args *ap)
 	vp = ap->a_vp;
 	np = VTONFS(vp);
 	td = curthread;				/* XXX */
-	cred = curthread->td_ucred;		/* XXX */
+	/* Set the cred to n_writecred for the write rpcs. */
+	if (np->n_writecred != NULL)
+		cred = crhold(np->n_writecred);
+	else
+		cred = crhold(curthread->td_ucred);	/* XXX */
 	nmp = VFSTONFS(vp->v_mount);
 	pages = ap->a_m;
 	count = ap->a_count;
@@ -344,13 +349,16 @@ ncl_putpages(struct vop_putpages_args *ap)
 	    iomode = NFSWRITE_FILESYNC;
 
 	error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit, 0);
+	crfree(cred);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &ncl_pbuf_freecnt);
 
-	vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
-	if (must_commit)
-		ncl_clearcommit(vp->v_mount);
+	if (error == 0 || !nfs_keep_dirty_on_error) {
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
+		if (must_commit)
+			ncl_clearcommit(vp->v_mount);
+	}
 	return rtvals[0];
 }
 
@@ -1170,7 +1178,7 @@ again:
 		 * significant cache coherency problems with multiple clients,
 		 * especially if locking is implemented later on.
 		 *
-		 * as an optimization we could theoretically maintain
+		 * As an optimization we could theoretically maintain
 		 * a linked list of discontinuous areas, but we would still
 		 * have to commit them separately so there isn't much
 		 * advantage to it except perhaps a bit of asynchronization.
@@ -1814,7 +1822,7 @@ ncl_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 		 * truncation point.  We may have a B_DELWRI and/or B_CACHE
 		 * buffer that now needs to be truncated.
 		 */
-		error = vtruncbuf(vp, cred, td, nsize, biosize);
+		error = vtruncbuf(vp, cred, nsize, biosize);
 		lbn = nsize / biosize;
 		bufsize = nsize & (biosize - 1);
 		bp = nfs_getcacheblk(vp, lbn, bufsize, td);

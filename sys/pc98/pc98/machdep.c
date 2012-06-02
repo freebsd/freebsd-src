@@ -40,7 +40,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_apic.h"
 #include "opt_atalk.h"
+#include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
@@ -132,6 +134,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
+#ifdef DEV_APIC
+#include <machine/apicvar.h>
+#endif
+
 #ifdef DEV_ISA
 #include <x86/isa/icu.h>
 #endif
@@ -145,7 +151,6 @@ extern void dblfault_handler(void);
 extern void printcpuinfo(void);	/* XXX header file */
 extern void finishidentcpu(void);
 extern void panicifcpuunsupported(void);
-extern void initializecpu(void);
 
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
@@ -265,6 +270,11 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 	cpu_setregs();
+
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
 }
 
 /*
@@ -2296,7 +2306,21 @@ init386(first)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 #ifdef DEV_ISA
+#ifdef DEV_ATPIC
 	atpic_startup();
+#else
+	/* Reset and mask the atpics and leave them shut down. */
+	atpic_reset();
+
+	/*
+	 * Point the ICU spurious interrupt vectors at the APIC spurious
+	 * interrupt handler.
+	 */
+	setidt(IDT_IO_INTS + 7, IDTVEC(spuriousint), SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IDT_IO_INTS + 15, IDTVEC(spuriousint), SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
 #endif
 
 #ifdef DDB

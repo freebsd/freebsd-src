@@ -7,7 +7,7 @@ cpu		I686_CPU
 ident		XEN
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm hptmv ida malo mps mwl nve sound sym trm xfs"
+makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm drm2 hptmv ida malo mps mwl nve sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -78,7 +78,6 @@ device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		tun		# Packet tunnel.
-device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)

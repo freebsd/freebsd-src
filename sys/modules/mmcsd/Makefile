@@ -3,6 +3,6 @@
 .PATH: ${.CURDIR}/../../dev/mmc
 
 KMOD=	mmcsd
-SRCS=	mmcsd.c mmcbus_if.h device_if.h bus_if.h
+SRCS=	bus_if.h device_if.h mmcbr_if.h mmcbus_if.h mmcsd.c
 
 .include <bsd.kmod.mk>

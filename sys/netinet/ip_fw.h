@@ -37,10 +37,10 @@
 #define	IPFW_DEFAULT_RULE	65535
 
 /*
- * The number of ipfw tables.  The maximum allowed table number is the
- * (IPFW_TABLES_MAX - 1).
+ * Default number of ipfw tables.
  */
-#define	IPFW_TABLES_MAX		128
+#define	IPFW_TABLES_MAX		65535
+#define	IPFW_TABLES_DEFAULT	128
 
 /*
  * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit
@@ -61,6 +61,19 @@
  * Call stack currently is an uint16_t array with rule numbers.
  */
 #define	IPFW_CALLSTACK_SIZE	16
+
+/* IP_FW3 header/opcodes */
+typedef struct _ip_fw3_opheader {
+	uint16_t opcode;	/* Operation opcode */
+	uint16_t reserved[3];	/* Align to 64-bit boundary */
+} ip_fw3_opheader;
+
+
+/* IPFW extented tables support */
+#define	IP_FW_TABLE_XADD	86	/* add entry */
+#define	IP_FW_TABLE_XDEL	87	/* delete entry */
+#define	IP_FW_TABLE_XGETSIZE	88	/* get table size */
+#define	IP_FW_TABLE_XLIST	89	/* list table contents */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -581,6 +594,11 @@ struct _ipfw_dyn_rule {
 /*
  * These are used for lookup tables.
  */
+
+#define	IPFW_TABLE_CIDR		1	/* Table for holding IPv4/IPv6 prefixes */
+#define	IPFW_TABLE_INTERFACE	2	/* Table for holding interface names */
+#define	IPFW_TABLE_MAXTYPE	2	/* Maximum valid number */
+
 typedef struct	_ipfw_table_entry {
 	in_addr_t	addr;		/* network address		*/
 	u_int32_t	value;		/* value			*/
@@ -588,11 +606,33 @@ typedef struct	_ipfw_table_entry {
 	u_int8_t	masklen;	/* mask length			*/
 } ipfw_table_entry;
 
+typedef struct	_ipfw_table_xentry {
+	uint16_t	len;		/* Total entry length		*/
+	uint8_t		type;		/* entry type			*/
+	uint8_t		masklen;	/* mask length			*/
+	uint16_t	tbl;		/* table number			*/
+	uint32_t	value;		/* value			*/
+	union {
+		/* Longest field needs to be aligned by 4-byte boundary	*/
+		struct in6_addr	addr6;	/* IPv6 address 		*/
+		char	iface[IF_NAMESIZE];	/* interface name	*/
+	} k;
+} ipfw_table_xentry;
+
 typedef struct	_ipfw_table {
 	u_int32_t	size;		/* size of entries in bytes	*/
 	u_int32_t	cnt;		/* # of entries			*/
 	u_int16_t	tbl;		/* table number			*/
 	ipfw_table_entry ent[0];	/* entries			*/
 } ipfw_table;
+
+typedef struct	_ipfw_xtable {
+	ip_fw3_opheader	opheader;	/* eXtended tables are controlled via IP_FW3 */
+	uint32_t	size;		/* size of entries in bytes	*/
+	uint32_t	cnt;		/* # of entries			*/
+	uint16_t	tbl;		/* table number			*/
+	uint8_t		type;		/* table type			*/
+	ipfw_table_xentry xent[0];	/* entries			*/
+} ipfw_xtable;
 
 #endif /* _IPFW2_H */

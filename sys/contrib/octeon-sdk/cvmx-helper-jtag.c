@@ -1,6 +1,6 @@
 
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -16,7 +16,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -27,7 +27,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -72,7 +72,11 @@ void cvmx_helper_qlm_jtag_init(void)
 {
     cvmx_ciu_qlm_jtgc_t jtgc;
     int clock_div = 0;
-    int divisor = cvmx_clock_get_rate(CVMX_CLOCK_SCLK) / (25 * 1000000);
+    int divisor;
+
+    divisor = cvmx_clock_get_rate(CVMX_CLOCK_SCLK) / (1000000 *
+        (OCTEON_IS_MODEL(OCTEON_CN68XX) ? 10 : 25));
+
     divisor = (divisor-1)>>2;
     /* Convert the divisor into a power of 2 shift */
     while (divisor)
@@ -87,10 +91,12 @@ void cvmx_helper_qlm_jtag_init(void)
     jtgc.s.mux_sel = 0;
     if (OCTEON_IS_MODEL(OCTEON_CN52XX))
         jtgc.s.bypass = 0x3;
-    else if (OCTEON_IS_MODEL(OCTEON_CN63XX))
+    else if (OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX))
         jtgc.s.bypass = 0x7;
     else
         jtgc.s.bypass = 0xf;
+    if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+        jtgc.s.bypass_ext = 1;
     cvmx_write_csr(CVMX_CIU_QLM_JTGC, jtgc.u64);
     cvmx_read_csr(CVMX_CIU_QLM_JTGC);
 }
@@ -118,7 +124,7 @@ uint32_t cvmx_helper_qlm_jtag_shift(int qlm, int bits, uint32_t data)
 
     jtgc.u64 = cvmx_read_csr(CVMX_CIU_QLM_JTGC);
     jtgc.s.mux_sel = qlm;
-    if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+    if (!OCTEON_IS_MODEL(OCTEON_CN6XXX) && !OCTEON_IS_MODEL(OCTEON_CNF7XXX))
         jtgc.s.bypass = 1<<qlm;
     cvmx_write_csr(CVMX_CIU_QLM_JTGC, jtgc.u64);
     cvmx_read_csr(CVMX_CIU_QLM_JTGC);
@@ -175,7 +181,7 @@ void cvmx_helper_qlm_jtag_update(int qlm)
 
     jtgc.u64 = cvmx_read_csr(CVMX_CIU_QLM_JTGC);
     jtgc.s.mux_sel = qlm;
-    if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+    if (!OCTEON_IS_MODEL(OCTEON_CN6XXX) && !OCTEON_IS_MODEL(OCTEON_CNF7XXX))
         jtgc.s.bypass = 1<<qlm;
 
     cvmx_write_csr(CVMX_CIU_QLM_JTGC, jtgc.u64);
@@ -206,7 +212,7 @@ void cvmx_helper_qlm_jtag_capture(int qlm)
 
     jtgc.u64 = cvmx_read_csr(CVMX_CIU_QLM_JTGC);
     jtgc.s.mux_sel = qlm;
-    if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+    if (!OCTEON_IS_MODEL(OCTEON_CN6XXX) && !OCTEON_IS_MODEL(OCTEON_CNF7XXX))
         jtgc.s.bypass = 1<<qlm;
 
     cvmx_write_csr(CVMX_CIU_QLM_JTGC, jtgc.u64);
@@ -222,4 +228,3 @@ void cvmx_helper_qlm_jtag_capture(int qlm)
         jtgd.u64 = cvmx_read_csr(CVMX_CIU_QLM_JTGD);
     } while (jtgd.s.capture);
 }
-

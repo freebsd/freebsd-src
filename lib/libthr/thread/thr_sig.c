@@ -458,7 +458,7 @@ _thr_signal_prefork(void)
 {
 	int i;
 
-	for (i = 1; i < _SIG_MAXSIG; ++i)
+	for (i = 1; i <= _SIG_MAXSIG; ++i)
 		_thr_rwl_rdlock(&_thr_sigact[i-1].lock);
 }
 
@@ -467,7 +467,7 @@ _thr_signal_postfork(void)
 {
 	int i;
 
-	for (i = 1; i < _SIG_MAXSIG; ++i)
+	for (i = 1; i <= _SIG_MAXSIG; ++i)
 		_thr_rwl_unlock(&_thr_sigact[i-1].lock);
 }
 
@@ -476,7 +476,7 @@ _thr_signal_postfork_child(void)
 {
 	int i;
 
-	for (i = 1; i < _SIG_MAXSIG; ++i)
+	for (i = 1; i <= _SIG_MAXSIG; ++i)
 		bzero(&_thr_sigact[i-1].lock, sizeof(struct urwlock));
 }
 

@@ -17,8 +17,6 @@ opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
 .endif
 
-opt_route.h:
-	echo "#define ROUTETABLES RT_MAXFIBS" > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>

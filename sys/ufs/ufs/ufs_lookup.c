@@ -1133,7 +1133,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
 #endif
 		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
-		    IO_NORMAL | IO_SYNC, cr, td);
+		    IO_NORMAL | IO_SYNC, cr);
 		if (tvp != NULL)
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
 	}

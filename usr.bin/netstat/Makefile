@@ -8,9 +8,6 @@ SRCS=	if.c inet.c main.c mbuf.c mroute.c netisr.c route.c \
 	unix.c atalk.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c
 
 WARNS?=	3
-# XXX: Work around a clang false positive with format string warnings
-# and ntohs macros (see LLVM PR 11313).
-NO_WFORMAT.clang=
 CFLAGS+=-fno-strict-aliasing
 
 CFLAGS+=-DIPSEC

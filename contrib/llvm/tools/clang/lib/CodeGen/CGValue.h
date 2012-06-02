@@ -16,6 +16,7 @@
 #define CLANG_CODEGEN_CGVALUE_H
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/AST/Type.h"
 
 namespace llvm {
@@ -24,9 +25,8 @@ namespace llvm {
 }
 
 namespace clang {
-  class ObjCPropertyRefExpr;
-
 namespace CodeGen {
+  class AggValueSlot;
   class CGBitFieldInfo;
 
 /// RValue - This trivial value class is used to represent the result of an
@@ -105,9 +105,7 @@ class LValue {
     Simple,       // This is a normal l-value, use getAddress().
     VectorElt,    // This is a vector element l-value (V[i]), use getVector*
     BitField,     // This is a bitfield l-value, use getBitfield*.
-    ExtVectorElt, // This is an extended vector subset, use getExtVectorComp
-    PropertyRef   // This is an Objective-C property reference, use
-                  // getPropertyRefExpr
+    ExtVectorElt  // This is an extended vector subset, use getExtVectorComp
   } LVType;
 
   llvm::Value *V;
@@ -121,9 +119,6 @@ class LValue {
 
     // BitField start bit and size
     const CGBitFieldInfo *BitFieldInfo;
-
-    // Obj-C property reference expression
-    const ObjCPropertyRefExpr *PropertyRefExpr;
   };
 
   QualType Type;
@@ -131,7 +126,8 @@ class LValue {
   // 'const' is unused here
   Qualifiers Quals;
 
-  /// The alignment to use when accessing this lvalue.
+  // The alignment to use when accessing this lvalue.  (For vector elements,
+  // this is the alignment of the whole vector.)
   unsigned short Alignment;
 
   // objective-c's ivar
@@ -156,12 +152,14 @@ class LValue {
   llvm::MDNode *TBAAInfo;
 
 private:
-  void Initialize(QualType Type, Qualifiers Quals, unsigned Alignment = 0,
+  void Initialize(QualType Type, Qualifiers Quals,
+                  CharUnits Alignment = CharUnits(),
                   llvm::MDNode *TBAAInfo = 0) {
     this->Type = Type;
     this->Quals = Quals;
-    this->Alignment = Alignment;
-    assert(this->Alignment == Alignment && "Alignment exceeds allowed max!");
+    this->Alignment = Alignment.getQuantity();
+    assert(this->Alignment == Alignment.getQuantity() &&
+           "Alignment exceeds allowed max!");
 
     // Initialize Objective-C flags.
     this->Ivar = this->ObjIsArray = this->NonGC = this->GlobalObjCRef = false;
@@ -175,7 +173,6 @@ public:
   bool isVectorElt() const { return LVType == VectorElt; }
   bool isBitField() const { return LVType == BitField; }
   bool isExtVectorElt() const { return LVType == ExtVectorElt; }
-  bool isPropertyRef() const { return LVType == PropertyRef; }
 
   bool isVolatileQualified() const { return Quals.hasVolatile(); }
   bool isRestrictQualified() const { return Quals.hasRestrict(); }
@@ -226,7 +223,8 @@ public:
 
   unsigned getAddressSpace() const { return Quals.getAddressSpace(); }
 
-  unsigned getAlignment() const { return Alignment; }
+  CharUnits getAlignment() const { return CharUnits::fromQuantity(Alignment); }
+  void setAlignment(CharUnits A) { Alignment = A.getQuantity(); }
 
   // simple lvalue
   llvm::Value *getAddress() const { assert(isSimple()); return V; }
@@ -256,18 +254,8 @@ public:
     return *BitFieldInfo;
   }
 
-  // property ref lvalue
-  llvm::Value *getPropertyRefBaseAddr() const {
-    assert(isPropertyRef());
-    return V;
-  }
-  const ObjCPropertyRefExpr *getPropertyRefExpr() const {
-    assert(isPropertyRef());
-    return PropertyRefExpr;
-  }
-
   static LValue MakeAddr(llvm::Value *address, QualType type,
-                         unsigned alignment, ASTContext &Context,
+                         CharUnits alignment, ASTContext &Context,
                          llvm::MDNode *TBAAInfo = 0) {
     Qualifiers qs = type.getQualifiers();
     qs.setObjCGCAttr(Context.getObjCGCAttrKind(type));
@@ -280,22 +268,22 @@ public:
   }
 
   static LValue MakeVectorElt(llvm::Value *Vec, llvm::Value *Idx,
-                              QualType type) {
+                              QualType type, CharUnits Alignment) {
     LValue R;
     R.LVType = VectorElt;
     R.V = Vec;
     R.VectorIdx = Idx;
-    R.Initialize(type, type.getQualifiers());
+    R.Initialize(type, type.getQualifiers(), Alignment);
     return R;
   }
 
   static LValue MakeExtVectorElt(llvm::Value *Vec, llvm::Constant *Elts,
-                                 QualType type) {
+                                 QualType type, CharUnits Alignment) {
     LValue R;
     R.LVType = ExtVectorElt;
     R.V = Vec;
     R.VectorElts = Elts;
-    R.Initialize(type, type.getQualifiers());
+    R.Initialize(type, type.getQualifiers(), Alignment);
     return R;
   }
 
@@ -316,17 +304,9 @@ public:
     return R;
   }
 
-  // FIXME: It is probably bad that we aren't emitting the target when we build
-  // the lvalue. However, this complicates the code a bit, and I haven't figured
-  // out how to make it go wrong yet.
-  static LValue MakePropertyRef(const ObjCPropertyRefExpr *E,
-                                llvm::Value *Base) {
-    LValue R;
-    R.LVType = PropertyRef;
-    R.V = Base;
-    R.PropertyRefExpr = E;
-    R.Initialize(QualType(), Qualifiers());
-    return R;
+  RValue asAggregateRValue() const {
+    // FIMXE: Alignment
+    return RValue::getAggregate(getAddress(), isVolatileQualified());
   }
 };
 
@@ -337,6 +317,8 @@ class AggValueSlot {
 
   // Qualifiers
   Qualifiers Quals;
+
+  unsigned short Alignment;
 
   /// DestructedFlag - This is set to true if some external code is
   /// responsible for setting up a destructor for the slot.  Otherwise
@@ -376,11 +358,8 @@ public:
   /// ignored - Returns an aggregate value slot indicating that the
   /// aggregate value is being ignored.
   static AggValueSlot ignored() {
-    AggValueSlot AV;
-    AV.Addr = 0;
-    AV.Quals = Qualifiers();
-    AV.DestructedFlag = AV.ObjCGCFlag = AV.ZeroedFlag = AV.AliasedFlag = false;
-    return AV;
+    return forAddr(0, CharUnits(), Qualifiers(), IsNotDestructed,
+                   DoesNotNeedGCBarriers, IsNotAliased);
   }
 
   /// forAddr - Make a slot for an aggregate value.
@@ -393,13 +372,15 @@ public:
   ///   for calling destructors on this object
   /// \param needsGC - true if the slot is potentially located
   ///   somewhere that ObjC GC calls should be emitted for
-  static AggValueSlot forAddr(llvm::Value *addr, Qualifiers quals,
+  static AggValueSlot forAddr(llvm::Value *addr, CharUnits align,
+                              Qualifiers quals,
                               IsDestructed_t isDestructed,
                               NeedsGCBarriers_t needsGC,
                               IsAliased_t isAliased,
                               IsZeroed_t isZeroed = IsNotZeroed) {
     AggValueSlot AV;
     AV.Addr = addr;
+    AV.Alignment = align.getQuantity();
     AV.Quals = quals;
     AV.DestructedFlag = isDestructed;
     AV.ObjCGCFlag = needsGC;
@@ -412,8 +393,8 @@ public:
                                 NeedsGCBarriers_t needsGC,
                                 IsAliased_t isAliased,
                                 IsZeroed_t isZeroed = IsNotZeroed) {
-    return forAddr(LV.getAddress(), LV.getQuals(),
-                   isDestructed, needsGC, isAliased, isZeroed);
+    return forAddr(LV.getAddress(), LV.getAlignment(),
+                   LV.getQuals(), isDestructed, needsGC, isAliased, isZeroed);
   }
 
   IsDestructed_t isExternallyDestructed() const {
@@ -445,14 +426,19 @@ public:
     return Addr == 0;
   }
 
+  CharUnits getAlignment() const {
+    return CharUnits::fromQuantity(Alignment);
+  }
+
   IsAliased_t isPotentiallyAliased() const {
     return IsAliased_t(AliasedFlag);
   }
 
+  // FIXME: Alignment?
   RValue asRValue() const {
     return RValue::getAggregate(getAddr(), isVolatile());
   }
-  
+
   void setZeroed(bool V = true) { ZeroedFlag = V; }
   IsZeroed_t isZeroed() const {
     return IsZeroed_t(ZeroedFlag);

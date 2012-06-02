@@ -61,7 +61,7 @@ parameter specifies the operation to accomplish and
 is an operation-specific argument.
 .Pp
 The possible operations are the following:
-.Bl -tag -width -indent
+.Bl -tag -width indent
 .It ICONV_TRIVIALP
 In this case
 .Fa argument
@@ -110,6 +110,7 @@ variable, which is passed to
 via
 .Fa argument
 by its address.
+.El
 .\" XXX: fallbacks are unimplemented and trying to set them will always
 .\"      return EOPNOTSUPP but definitions are provided for source-level
 .\"      compatibility.
@@ -140,6 +141,7 @@ Unknown or unimplemented operation.
 The conversion descriptor specified by
 .Fa cd
 is invalid.
+.El
 .Sh SEE ALSO
 .Xr iconv 1 ,
 .Xr iconv 3

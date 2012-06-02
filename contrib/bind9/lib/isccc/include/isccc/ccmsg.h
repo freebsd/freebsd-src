@@ -29,7 +29,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ccmsg.h,v 1.11 2007-08-28 07:20:43 tbox Exp $ */
+/* $Id: ccmsg.h,v 1.11 2007/08/28 07:20:43 tbox Exp $ */
 
 #ifndef ISCCC_CCMSG_H
 #define ISCCC_CCMSG_H 1

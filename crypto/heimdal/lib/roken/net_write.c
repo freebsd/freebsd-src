@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,14 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: net_write.c 21005 2007-06-08 01:54:35Z lha $");
-#endif
-
-#include <sys/types.h>
-#include <unistd.h>
-#include <errno.h>
 
 #include "roken.h"
 
@@ -46,18 +39,58 @@ RCSID("$Id: net_write.c 21005 2007-06-08 01:54:35Z lha $");
  * Like write but never return partial data.
  */
 
-ssize_t ROKEN_LIB_FUNCTION
-net_write (int fd, const void *buf, size_t nbytes)
+#ifndef _WIN32
+
+ROKEN_LIB_FUNCTION ssize_t ROKEN_LIB_CALL
+net_write (rk_socket_t fd, const void *buf, size_t nbytes)
 {
     const char *cbuf = (const char *)buf;
     ssize_t count;
     size_t rem = nbytes;
 
     while (rem > 0) {
-#ifdef WIN32
-	count = send (fd, cbuf, rem, 0);
-#else
 	count = write (fd, cbuf, rem);
+	if (count < 0) {
+	    if (errno == EINTR)
+		continue;
+	    else
+		return count;
+	}
+	cbuf += count;
+	rem -= count;
+    }
+    return nbytes;
+}
+
+#else
+
+ROKEN_LIB_FUNCTION ssize_t ROKEN_LIB_CALL
+net_write(rk_socket_t sock, const void *buf, size_t nbytes)
+{
+    const char *cbuf = (const char *)buf;
+    ssize_t count;
+    size_t rem = nbytes;
+#ifdef SOCKET_IS_NOT_AN_FD
+    int use_write = 0;
+#endif
+
+    while (rem > 0) {
+#ifdef SOCKET_IS_NOT_AN_FD
+	if (use_write)
+	    count = _write (sock, cbuf, rem);
+	else
+	    count = send (sock, cbuf, rem, 0);
+
+	if (use_write == 0 &&
+	    rk_IS_SOCKET_ERROR(count) &&
+	    (rk_SOCK_ERRNO == WSANOTINITIALISED ||
+             rk_SOCK_ERRNO == WSAENOTSOCK)) {
+	    use_write = 1;
+
+	    count = _write (sock, cbuf, rem);
+	}
+#else
+	count = send (sock, cbuf, rem, 0);
 #endif
 	if (count < 0) {
 	    if (errno == EINTR)
@@ -70,3 +103,5 @@ net_write (int fd, const void *buf, size_t nbytes)
     }
     return nbytes;
 }
+
+#endif

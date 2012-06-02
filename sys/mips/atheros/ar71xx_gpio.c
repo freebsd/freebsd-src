@@ -329,7 +329,7 @@ ar71xx_gpio_attach(device_t dev)
 	struct ar71xx_gpio_softc *sc = device_get_softc(dev);
 	int error = 0;
 	int i, j, maxpin;
-	int mask;
+	int mask, pinon;
 	int old = 0;
 
 	KASSERT((device_get_unit(dev) == 0),
@@ -394,6 +394,9 @@ ar71xx_gpio_attach(device_t dev)
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "pinmask", &mask) != 0)
 		mask = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "pinon", &pinon) != 0)
+		pinon = 0;
 	device_printf(dev, "gpio pinmask=0x%x\n", mask);
 	for (i = 0, j = 0; j < maxpin; j++) {
 		if ((mask & (1 << j)) == 0)
@@ -407,6 +410,11 @@ ar71xx_gpio_attach(device_t dev)
 		i++;
 	}
 	sc->gpio_npins = i;
+	for (i = 0; i < sc->gpio_npins; i++) {
+		j = sc->gpio_pins[i].gp_pin;
+		if ((pinon & (1 << j)) != 0)
+			ar71xx_gpio_pin_set(dev, j, 1);
+	}
 	device_add_child(dev, "gpioc", device_get_unit(dev));
 	device_add_child(dev, "gpiobus", device_get_unit(dev));
 	return (bus_generic_attach(dev));

@@ -106,36 +106,12 @@ platform_cpu_init()
 }
 
 void
-platform_halt(void)
-{
-
-}
-
-void
-platform_identify(void)
-{
-
-}
-
-void
 platform_reset(void)
 {
 	ar71xx_device_stop(RST_RESET_FULL_CHIP);
 	/* Wait for reset */
 	while(1)
 		;
-}
-
-void
-platform_trap_enter(void)
-{
-
-}
-
-void
-platform_trap_exit(void)
-{
-
 }
 
 /*

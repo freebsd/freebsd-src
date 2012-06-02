@@ -1,9 +1,7 @@
 /* include/config.h.  Generated from config.h.in by configure.  */
-/* include/config.h.in.  Generated from configure.in by autoheader.  */
+/* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* $FreeBSD$ */
-
-#include <osreldate.h>
 
 #ifndef RCSID
 #define RCSID(msg) \
@@ -17,22 +15,45 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 
 #ifdef BUILD_KRB5_LIB
-#ifndef KRB5_LIB_FUNCTION
+#ifndef KRB5_LIB
 #ifdef _WIN32_
-#define KRB5_LIB_FUNCTION _export _stdcall
+#define KRB5_LIB_FUNCTION __declspec(dllexport)
+#define KRB5_LIB_CALL __stdcall
+#define KRB5_LIB_VARIABLE __declspec(dllexport)
 #else
 #define KRB5_LIB_FUNCTION
+#define KRB5_LIB_CALL
+#define KRB5_LIB_VARIABLE
 #endif
 #endif
 #endif
 
 
 #ifdef BUILD_ROKEN_LIB
-#ifndef ROKEN_LIB_FUNCTION
+#ifndef ROKEN_LIB
 #ifdef _WIN32_
-#define ROKEN_LIB_FUNCTION _export _stdcall
+#define ROKEN_LIB_FUNCTION __declspec(dllexport)
+#define ROKEN_LIB_CALL __stdcall
+#define ROKEN_LIB_VARIABLE __declspec(dllexport)
 #else
 #define ROKEN_LIB_FUNCTION
+#define ROKEN_LIB_CALL
+#define ROKEN_LIB_VARIABLE
+#endif
+#endif
+#endif
+
+
+#ifdef BUILD_GSSAPI_LIB
+#ifndef GSSAPI_LIB
+#ifdef _WIN32_
+#define GSSAPI_LIB_FUNCTION __declspec(dllexport)
+#define GSSAPI_LIB_CALL __stdcall
+#define GSSAPI_LIB_VARIABLE __declspec(dllexport)
+#else
+#define GSSAPI_LIB_FUNCTION
+#define GSSAPI_LIB_CALL
+#define GSSAPI_LIB_VARIABLE
 #endif
 #endif
 #endif
@@ -56,11 +77,14 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define this to enable diagnostics in telnet. */
 #define DIAGNOSTICS 1
 
+/* Define to enable DIGEST. */
+#define DIGEST 1
+
 /* Define if want to use the weak AFS string to key functions. */
 #define ENABLE_AFS_STRING_TO_KEY 1
 
 /* Define if you want have a thread safe libraries */
-/* #undef ENABLE_PTHREAD_SUPPORT */
+#define ENABLE_PTHREAD_SUPPORT 1
 
 /* Define if you want encryption support in telnet. */
 #define ENCRYPTION 1
@@ -73,7 +97,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* define if prototype of gethostbyaddr is compatible with struct hostent
    *gethostbyaddr(const void *, size_t, int) */
-#define GETHOSTBYADDR_PROTO_COMPATIBLE 1
+/* #undef GETHOSTBYADDR_PROTO_COMPATIBLE */
 
 /* define if prototype of gethostbyname is compatible with struct hostent
    *gethostbyname(const char *) */
@@ -105,6 +129,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the <arpa/telnet.h> header file. */
 #define HAVE_ARPA_TELNET_H 1
 
+/* Define to 1 if you have the <asl.h> header file. */
+/* #undef HAVE_ASL_H */
+
 /* Define to 1 if you have the `asnprintf' function. */
 /* #undef HAVE_ASNPRINTF */
 
@@ -113,6 +140,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the `atexit' function. */
 #define HAVE_ATEXIT 1
+
+/* Define to 1 if you have the `backtrace' function. */
+/* #undef HAVE_BACKTRACE */
 
 /* Define to 1 if you have the <bind/bitypes.h> header file. */
 /* #undef HAVE_BIND_BITYPES_H */
@@ -129,6 +159,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the <capability.h> header file. */
 /* #undef HAVE_CAPABILITY_H */
 
+/* whether capng is available for privilege reduction */
+/* #undef HAVE_CAPNG */
+
 /* Define to 1 if you have the `cap_set_proc' function. */
 /* #undef HAVE_CAP_SET_PROC */
 
@@ -139,7 +172,13 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_CHOWN 1
 
 /* Define if you have the function `closefrom'. */
-#define HAVE_CLOSEFROM
+#define HAVE_CLOSEFROM 1
+
+/* Define to 1 if you have the <CommonCrypto/CommonCryptor.h> header file. */
+/* #undef HAVE_COMMONCRYPTO_COMMONCRYPTOR_H */
+
+/* Define to 1 if you have the <CommonCrypto/CommonDigest.h> header file. */
+/* #undef HAVE_COMMONCRYPTO_COMMONDIGEST_H */
 
 /* Define to 1 if you have the <config.h> header file. */
 /* #undef HAVE_CONFIG_H */
@@ -162,7 +201,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* define if you have a berkeley db1/2 library */
 #define HAVE_DB1 1
 
-/* define if you have a berkeley db3/4 library */
+/* define if you have a berkeley db3/4/5 library */
 /* #undef HAVE_DB3 */
 
 /* Define to 1 if you have the <db3/db.h> header file. */
@@ -170,6 +209,12 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the <db4/db.h> header file. */
 /* #undef HAVE_DB4_DB_H */
+
+/* Define to 1 if you have the <db5/db.h> header file. */
+/* #undef HAVE_DB5_DB_H */
+
+/* Define if you have user supplied header location */
+/* #undef HAVE_DBHEADER */
 
 /* Define to 1 if you have the `dbm_firstkey' function. */
 #define HAVE_DBM_FIRSTKEY 1
@@ -179,9 +224,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the `dbopen' function. */
 #define HAVE_DBOPEN 1
-
-/* Define to 1 if you have the <db_185.h> header file. */
-/* #undef HAVE_DB_185_H */
 
 /* Define to 1 if you have the `db_create' function. */
 /* #undef HAVE_DB_CREATE */
@@ -243,11 +285,29 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
+/* have a dirfd function/macro */
+#define HAVE_DIRFD 1
+
+/* Define if DIR has field dd_fd. */
+#define HAVE_DIR_DD_FD 1
+
+/* Define to 1 if you have the `dispatch_async_f' function. */
+/* #undef HAVE_DISPATCH_ASYNC_F */
+
+/* Define to 1 if you have the <dispatch/dispatch.h> header file. */
+/* #undef HAVE_DISPATCH_DISPATCH_H */
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the `dlopen' function. */
 #define HAVE_DLOPEN 1
+
+/* Define to 1 if you have the <dns.h> header file. */
+/* #undef HAVE_DNS_H */
+
+/* Define to 1 if you have the `dns_search' function. */
+/* #undef HAVE_DNS_SEARCH */
 
 /* Define to 1 if you have the `dn_expand' function. */
 #define HAVE_DN_EXPAND 1
@@ -257,9 +317,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define if you have the function `ecalloc'. */
 /* #undef HAVE_ECALLOC */
-
-/* Define to 1 if you have the `el_init' function. */
-#define HAVE_EL_INIT 1
 
 /* Define if you have the function `emalloc'. */
 /* #undef HAVE_EMALLOC */
@@ -282,6 +339,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you have the function `estrdup'. */
 /* #undef HAVE_ESTRDUP */
 
+/* Define to 1 if you have the <execinfo.h> header file. */
+/* #undef HAVE_EXECINFO_H */
+
 /* Define if you have the function `fchown'. */
 #define HAVE_FCHOWN 1
 
@@ -300,9 +360,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the <fnmatch.h> header file. */
 #define HAVE_FNMATCH_H 1
 
-/* Define if el_init takes four arguments. */
-#define HAVE_FOUR_VALUED_EL_INIT 1
-
 /* Have -framework Security */
 /* #undef HAVE_FRAMEWORK_SECURITY */
 
@@ -314,6 +371,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the `gai_strerror' function. */
 #define HAVE_GAI_STRERROR 1
+
+/* Define if os support gcd. */
+/* #undef HAVE_GCD */
 
 /* Define to 1 if you have the <gdbm/ndbm.h> header file. */
 /* #undef HAVE_GDBM_NDBM_H */
@@ -445,9 +505,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you have the function `initgroups'. */
 #define HAVE_INITGROUPS 1
 
-/* Define to 1 if you have the `initstate' function. */
-#define HAVE_INITSTATE 1
-
 /* Define if you have the function `innetgr'. */
 #define HAVE_INNETGR 1
 
@@ -490,14 +547,17 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the `loadquery' function. */
 /* #undef HAVE_LOADQUERY */
 
+/* Define to 1 if you have the <locale.h> header file. */
+#define HAVE_LOCALE_H 1
+
 /* Define if you have the function `localtime_r'. */
 #define HAVE_LOCALTIME_R 1
 
 /* Define to 1 if you have the `logout' function. */
-#define HAVE_LOGOUT 1
+/* #undef HAVE_LOGOUT */
 
 /* Define to 1 if you have the `logwtmp' function. */
-#define HAVE_LOGWTMP 1
+/* #undef HAVE_LOGWTMP */
 
 /* Define to 1 if the system has the type `long long'. */
 #define HAVE_LONG_LONG 1
@@ -559,12 +619,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #define HAVE_NETINET_TCP_H 1
 
-/* Define if you want to use Netinfo instead of krb5.conf. */
-/* #undef HAVE_NETINFO */
-
-/* Define to 1 if you have the <netinfo/ni.h> header file. */
-/* #undef HAVE_NETINFO_NI_H */
-
 /* Define to 1 if you have the <net/if.h> header file. */
 #define HAVE_NET_IF_H 1
 
@@ -622,6 +676,13 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you have a readline compatible library. */
 #define HAVE_READLINE 1
 
+/* Define to 1 if you have the
+   <[readline.h])[][]_AH_CHECK_HEADER([readline/readline.h]> header file. */
+/* #undef HAVE_READLINE_H */
+
+/* Define to 1 if you have the <readline/readline.h > header file. */
+/* #undef HAVE_READLINE_READLINE_H_ */
+
 /* Define if you have the function `readv'. */
 #define HAVE_READV 1
 
@@ -651,6 +712,12 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if the system has the type `sa_family_t'. */
 #define HAVE_SA_FAMILY_T 1
+
+/* Define if you want support for cache in sqlite. */
+#undef HAVE_SCC
+
+/* Define to 1 if you have the <search.h> header file. */
+#define HAVE_SEARCH_H 1
 
 /* Define to 1 if you have the <security/pam_modules.h> header file. */
 #define HAVE_SECURITY_PAM_MODULES_H 1
@@ -709,9 +776,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the `setsockopt' function. */
 #define HAVE_SETSOCKOPT 1
 
-/* Define to 1 if you have the `setstate' function. */
-#define HAVE_SETSTATE 1
-
 /* Define to 1 if you have the `setutent' function. */
 /* #undef HAVE_SETUTENT */
 
@@ -719,7 +783,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef HAVE_SGI_GETCAPABILITYBYNAME */
 
 /* Define to 1 if you have the <sgtty.h> header file. */
-#define HAVE_SGTTY_H 1
+/* #undef HAVE_SGTTY_H */
 
 /* Define to 1 if you have the <shadow.h> header file. */
 /* #undef HAVE_SHADOW_H */
@@ -742,6 +806,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if the system has the type `socklen_t'. */
 #define HAVE_SOCKLEN_T 1
 
+/* Define if you want support for sqlite in Heimdal. */
+#define HAVE_SQLITE3 1
+
 /* Define to 1 if the system has the type `ssize_t'. */
 #define HAVE_SSIZE_T 1
 
@@ -762,6 +829,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define if you have the function `strerror'. */
 #define HAVE_STRERROR 1
+
+/* Define if you have the function strerror_r. */
+#define HAVE_STRERROR_R 1
 
 /* Define if you have the function `strftime'. */
 #define HAVE_STRFTIME 1
@@ -788,7 +858,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_STRNDUP 1
 
 /* Define if you have the function `strnlen'. */
-/* #undef HAVE_STRNLEN */
+#define HAVE_STRNLEN 1
 
 /* Define to 1 if you have the <stropts.h> header file. */
 /* #undef HAVE_STROPTS_H */
@@ -807,6 +877,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the `strsvis' function. */
 /* #undef HAVE_STRSVIS */
+
+/* Define to 1 if you have the `strsvisx' function. */
+/* #undef HAVE_STRSVISX */
 
 /* Define if you have the function `strtok_r'. */
 #define HAVE_STRTOK_R 1
@@ -844,8 +917,29 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if struct utmpx has field ut_exit. */
 /* #undef HAVE_STRUCT_UTMPX_UT_EXIT */
 
+/* Define if struct utmpx has field ut_host. */
+#define HAVE_STRUCT_UTMPX_UT_HOST 1
+
+/* Define if struct utmpx has field ut_id. */
+#define HAVE_STRUCT_UTMPX_UT_ID 1
+
+/* Define if struct utmpx has field ut_line. */
+#define HAVE_STRUCT_UTMPX_UT_LINE 1
+
+/* Define if struct utmpx has field ut_pid. */
+#define HAVE_STRUCT_UTMPX_UT_PID 1
+
 /* Define if struct utmpx has field ut_syslen. */
 /* #undef HAVE_STRUCT_UTMPX_UT_SYSLEN */
+
+/* Define if struct utmpx has field ut_tv. */
+#define HAVE_STRUCT_UTMPX_UT_TV 1
+
+/* Define if struct utmpx has field ut_type. */
+#define HAVE_STRUCT_UTMPX_UT_TYPE 1
+
+/* Define if struct utmpx has field ut_user. */
+#define HAVE_STRUCT_UTMPX_UT_USER 1
 
 /* Define if struct utmp has field ut_addr. */
 /* #undef HAVE_STRUCT_UTMP_UT_ADDR */
@@ -905,7 +999,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef HAVE_SYS_BSWAP_H */
 
 /* Define to 1 if you have the <sys/capability.h> header file. */
-/* #undef HAVE_SYS_CAPABILITY_H */
+#define HAVE_SYS_CAPABILITY_H 1
 
 /* Define to 1 if you have the <sys/category.h> header file. */
 /* #undef HAVE_SYS_CATEGORY_H */
@@ -1006,6 +1100,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
 
+/* Define to 1 if you have the `tdelete' function. */
+#define HAVE_TDELETE 1
+
 /* Define to 1 if you have the <termcap.h> header file. */
 #define HAVE_TERMCAP_H 1
 
@@ -1017,6 +1114,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the <term.h> header file. */
 #define HAVE_TERM_H 1
+
+/* Define to 1 if you have the `tfind' function. */
+#define HAVE_TFIND 1
 
 /* Define to 1 if you have the `tgetent' function. */
 #define HAVE_TGETENT 1
@@ -1033,11 +1133,17 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the <tmpdir.h> header file. */
 /* #undef HAVE_TMPDIR_H */
 
+/* Define if you have the function `tsearch'. */
+#define HAVE_TSEARCH 1
+
 /* Define to 1 if you have the `ttyname' function. */
 #define HAVE_TTYNAME 1
 
 /* Define to 1 if you have the `ttyslot' function. */
-#define HAVE_TTYSLOT 1
+/* #undef HAVE_TTYSLOT */
+
+/* Define to 1 if you have the `twalk' function. */
+#define HAVE_TWALK 1
 
 /* Define to 1 if you have the <udb.h> header file. */
 /* #undef HAVE_UDB_H */
@@ -1085,10 +1191,10 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef HAVE_UTIL_H */
 
 /* Define to 1 if you have the <utmpx.h> header file. */
-/* #undef HAVE_UTMPX_H */
+#define HAVE_UTMPX_H 1
 
 /* Define to 1 if you have the <utmp.h> header file. */
-#define HAVE_UTMP_H 1
+/* #undef HAVE_UTMP_H */
 
 /* Define to 1 if the system has the type `u_int16_t'. */
 #define HAVE_U_INT16_T 1
@@ -1141,8 +1247,14 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you have the function `warnx'. */
 #define HAVE_WARNX 1
 
+/* Define to 1 if you have the <winsock2.h> header file. */
+/* #undef HAVE_WINSOCK2_H */
+
 /* Define if you have the function `writev'. */
 #define HAVE_WRITEV 1
+
+/* Define to 1 if you have the <ws2tcpip.h> header file. */
+/* #undef HAVE_WS2TCPIP_H */
 
 /* define if struct winsize has ws_xpixel */
 #define HAVE_WS_XPIXEL 1
@@ -1177,23 +1289,43 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you have the `__progname' variable. */
 #define HAVE___PROGNAME 1
 
+/* have __sync_add_and_fetch */
+#if defined(__FreeBSD__) && (defined(__arm__) || defined(__mips__))
+#undef HAVE___SYNC_ADD_AND_FETCH	/* Not supported on FreeBSD/arm */
+#else
+#define HAVE___SYNC_ADD_AND_FETCH 1
+#endif
+
+/* Define if you want support for weak crypto */
+#define HEIM_WEAK_CRYPTO 1
+
 /* Define if you have the hesiod package. */
 /* #undef HESIOD */
-
-/* Define if you are running IRIX 4. */
-/* #undef IRIX4 */
 
 /* Enable Kerberos 5 support in applications. */
 #define KRB5 1
 
+/* Define to enable kx509. */
+#define KX509 1
+
 /* path to lib */
 #define LIBDIR "/usr/lib"
+
+/* Define if you have the libedit package. */
+/* #undef LIBEDIT */
 
 /* path to libexec */
 #define LIBEXECDIR "/usr/libexec"
 
+/* Define if you have the libintl package. */
+/* #undef LIBINTL */
+
 /* path to localstate */
 #define LOCALSTATEDIR "/var/heimdal"
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#define LT_OBJDIR ".libs/"
 
 /* define if the system is missing a prototype for asnprintf() */
 #define NEED_ASNPRINTF_PROTO 1
@@ -1228,6 +1360,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* define if the system is missing a prototype for mkstemp() */
 /* #undef NEED_MKSTEMP_PROTO */
 
+/* if your qsort is not a stable sort */
+/* #undef NEED_QSORT */
+
 /* define if the system is missing a prototype for SecKeyGetCSPHandle() */
 /* #undef NEED_SECKEYGETCSPHANDLE_PROTO */
 
@@ -1238,10 +1373,13 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef NEED_SNPRINTF_PROTO */
 
 /* define if the system is missing a prototype for strndup() */
-#define NEED_STRNDUP_PROTO 1
+/* #undef NEED_STRNDUP_PROTO */
 
 /* define if the system is missing a prototype for strsep() */
 /* #undef NEED_STRSEP_PROTO */
+
+/* define if the system is missing a prototype for strsvisx() */
+#define NEED_STRSVISX_PROTO 1
 
 /* define if the system is missing a prototype for strsvis() */
 #define NEED_STRSVIS_PROTO 1
@@ -1314,13 +1452,16 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define PACKAGE_NAME "Heimdal"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Heimdal 1.1"
+#define PACKAGE_STRING "Heimdal 1.5.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "heimdal"
 
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
+
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.1"
+#define PACKAGE_VERSION "1.5.2"
 
 /* Define to enable PKINIT. */
 #define PKINIT 1
@@ -1329,7 +1470,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef POSIX_GETLOGIN */
 
 /* Define if getpwnam_r has POSIX flavour. */
-/* #undef POSIX_GETPWNAM_R */
+#define POSIX_GETPWNAM_R 1
 
 /* Define if you have the readline package. */
 /* #undef READLINE */
@@ -1343,11 +1484,24 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you want to use samba socket wrappers. */
 /* #undef SOCKET_WRAPPER_REPLACE */
 
+/* Define if you have the sqlite3 package. */
+/* #undef SQLITE3 */
+
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Define if you have streams ptys. */
 /* #undef STREAMSPTY */
+
+/* define if prototype of strerror_r is compatible with int strerror_r(int,
+   char *, size_t) */
+#define STRERROR_R_PROTO_COMPATIBLE 1
+
+/* Define if os support want to detach is daemonens. */
+#define SUPPORT_DETACH 1
+
+/* Enable use of inetd style startup. */
+#define SUPPORT_INETD 1
 
 /* path to sysconf */
 #define SYSCONFDIR "/etc"
@@ -1362,7 +1516,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "1.1"
+#define VERSION "1.5.2"
 
 /* Define if signal handlers return void. */
 #define VOID_RETSIGTYPE 1
@@ -1377,6 +1531,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
    `char[]'. */
 #define YYTEXT_POINTER 1
 
+/* Required for functional/sane headers on AIX */
+/* #undef _ALL_SOURCE */
+
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
 
@@ -1385,6 +1542,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */
+
+/* Define to get POSIX getpwnam_r in some systems. */
+/* #undef _POSIX_PTHREAD_SEMANTICS */
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
@@ -1407,6 +1567,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef pid_t */
 
+/* Path name delimiter */
+#define rk_PATH_DELIM '/'
+
 /* Define this to what the type sig_atomic_t should be. */
 /* #undef sig_atomic_t */
 
@@ -1415,6 +1578,18 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
+
+#if _AIX
+/* XXX this is gross, but kills about a gazillion warnings */
+struct ether_addr;
+struct sockaddr;
+struct sockaddr_dl;
+struct sockaddr_in;
+#endif
+
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#endif
 
 #ifdef ROKEN_RENAME
 #include "roken_rename.h"
@@ -1431,7 +1606,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #endif
 
 
-#if ENDIANESS_IN_SYS_PARAM_H
+#ifdef ENDIANESS_IN_SYS_PARAM_H
 #  include <sys/types.h>
 #  include <sys/param.h>
 #  if BYTE_ORDER == BIG_ENDIAN
@@ -1440,26 +1615,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #endif
 
 
-#if _AIX
-#define _ALL_SOURCE
-/* XXX this is gross, but kills about a gazillion warnings */
-struct ether_addr;
-struct sockaddr;
-struct sockaddr_dl;
-struct sockaddr_in;
-#endif
 
-
-/* IRIX 4 braindamage */
-#if IRIX == 4 && !defined(__STDC__)
-#define __STDC__ 0
-#endif
-
-
-
-#if defined(ENCRYPTION) && !defined(AUTHENTICATION)
-#define AUTHENTICATION 1
-#endif
 
 /* Set this to the default system lead string for telnetd 
  * can contain %-escapes: %s=sysname, %m=machine, %r=os-release

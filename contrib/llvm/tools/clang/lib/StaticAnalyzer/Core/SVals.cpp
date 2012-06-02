@@ -54,13 +54,16 @@ const FunctionDecl *SVal::getAsFunctionDecl() const {
       return CTR->getDecl();
   }
 
-  return NULL;
+  return 0;
 }
 
-/// getAsLocSymbol - If this SVal is a location (subclasses Loc) and
-///  wraps a symbol, return that SymbolRef.  Otherwise return 0.
-// FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
+/// \brief If this SVal is a location (subclasses Loc) and wraps a symbol,
+/// return that SymbolRef.  Otherwise return 0.
+///
+/// Implicit casts (ex: void* -> char*) can turn Symbolic region into Element
+/// region. If that is the case, gets the underlining region.
 SymbolRef SVal::getAsLocSymbol() const {
+  // FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
   if (const nonloc::LocAsInteger *X = dyn_cast<nonloc::LocAsInteger>(this))
     return X->getLoc().getAsLocSymbol();
 
@@ -69,7 +72,7 @@ SymbolRef SVal::getAsLocSymbol() const {
     if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(R))
       return SymR->getSymbol();
   }
-  return NULL;
+  return 0;
 }
 
 /// Get the symbol in the SVal or its base region.
@@ -91,16 +94,14 @@ SymbolRef SVal::getLocSymbolInBase() const {
   return 0;
 }
 
-/// getAsSymbol - If this Sval wraps a symbol return that SymbolRef.
+// TODO: The next 3 functions have to be simplified.
+
+/// \brief If this SVal wraps a symbol return that SymbolRef.
 ///  Otherwise return 0.
-// FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
 SymbolRef SVal::getAsSymbol() const {
+  // FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
   if (const nonloc::SymbolVal *X = dyn_cast<nonloc::SymbolVal>(this))
     return X->getSymbol();
-
-  if (const nonloc::SymExprVal *X = dyn_cast<nonloc::SymExprVal>(this))
-    if (SymbolRef Y = dyn_cast<SymbolData>(X->getSymbolicExpression()))
-      return Y;
 
   return getAsLocSymbol();
 }
@@ -108,10 +109,17 @@ SymbolRef SVal::getAsSymbol() const {
 /// getAsSymbolicExpression - If this Sval wraps a symbolic expression then
 ///  return that expression.  Otherwise return NULL.
 const SymExpr *SVal::getAsSymbolicExpression() const {
-  if (const nonloc::SymExprVal *X = dyn_cast<nonloc::SymExprVal>(this))
-    return X->getSymbolicExpression();
+  if (const nonloc::SymbolVal *X = dyn_cast<nonloc::SymbolVal>(this))
+    return X->getSymbol();
 
   return getAsSymbol();
+}
+
+const SymExpr* SVal::getAsSymExpr() const {
+  const SymExpr* Sym = getAsSymbol();
+  if (!Sym)
+    Sym = getAsSymbolicExpression();
+  return Sym;
 }
 
 const MemRegion *SVal::getAsRegion() const {
@@ -128,50 +136,6 @@ const MemRegion *SVal::getAsRegion() const {
 const MemRegion *loc::MemRegionVal::stripCasts() const {
   const MemRegion *R = getRegion();
   return R ?  R->StripCasts() : NULL;
-}
-
-bool SVal::symbol_iterator::operator==(const symbol_iterator &X) const {
-  return itr == X.itr;
-}
-
-bool SVal::symbol_iterator::operator!=(const symbol_iterator &X) const {
-  return itr != X.itr;
-}
-
-SVal::symbol_iterator::symbol_iterator(const SymExpr *SE) {
-  itr.push_back(SE);
-  while (!isa<SymbolData>(itr.back())) expand();
-}
-
-SVal::symbol_iterator &SVal::symbol_iterator::operator++() {
-  assert(!itr.empty() && "attempting to iterate on an 'end' iterator");
-  assert(isa<SymbolData>(itr.back()));
-  itr.pop_back();
-  if (!itr.empty())
-    while (!isa<SymbolData>(itr.back())) expand();
-  return *this;
-}
-
-SymbolRef SVal::symbol_iterator::operator*() {
-  assert(!itr.empty() && "attempting to dereference an 'end' iterator");
-  return cast<SymbolData>(itr.back());
-}
-
-void SVal::symbol_iterator::expand() {
-  const SymExpr *SE = itr.back();
-  itr.pop_back();
-
-  if (const SymIntExpr *SIE = dyn_cast<SymIntExpr>(SE)) {
-    itr.push_back(SIE->getLHS());
-    return;
-  }
-  else if (const SymSymExpr *SSE = dyn_cast<SymSymExpr>(SE)) {
-    itr.push_back(SSE->getLHS());
-    itr.push_back(SSE->getRHS());
-    return;
-  }
-
-  llvm_unreachable("unhandled expansion case");
 }
 
 const void *nonloc::LazyCompoundVal::getStore() const {
@@ -281,8 +245,6 @@ void SVal::dumpToStream(raw_ostream &os) const {
     case UndefinedKind:
       os << "Undefined";
       break;
-    default:
-      assert (false && "Invalid SVal.");
   }
 }
 
@@ -298,13 +260,8 @@ void NonLoc::dumpToStream(raw_ostream &os) const {
          << C.getValue().getBitWidth() << 'b';
       break;
     }
-    case nonloc::SymbolValKind:
-      os << '$' << cast<nonloc::SymbolVal>(this)->getSymbol();
-      break;
-    case nonloc::SymExprValKind: {
-      const nonloc::SymExprVal& C = *cast<nonloc::SymExprVal>(this);
-      const SymExpr *SE = C.getSymbolicExpression();
-      os << SE;
+    case nonloc::SymbolValKind: {
+      os << cast<nonloc::SymbolVal>(this)->getSymbol();
       break;
     }
     case nonloc::LocAsIntegerKind: {

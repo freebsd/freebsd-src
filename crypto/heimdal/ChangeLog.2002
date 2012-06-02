@@ -663,7 +663,7 @@
 
 	* lib/krb5/keytab_keyfile.c (akf_add_entry): don't create the file
 	before we need to write to it
-	(from Åke Sandgren)
+	(from Ã…ke Sandgren)
 
 2002-02-14  Johan Danielsson  <joda@pdc.kth.se>
 

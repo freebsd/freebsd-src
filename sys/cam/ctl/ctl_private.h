@@ -421,6 +421,9 @@ struct ctl_softc {
 	int num_luns;
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
+	int inquiry_pq_no_lun;
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
 	struct ctl_ioctl_info ioctl_info;
 	struct ctl_lun lun;
 	struct ctl_io_pool *internal_pool;

@@ -16,24 +16,27 @@
 #define LLVM_CLANG_FRONTEND_TEXT_DIAGNOSTIC_PRINTER_H_
 
 #include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/OwningPtr.h"
 
 namespace clang {
 class DiagnosticOptions;
 class LangOptions;
+class TextDiagnostic;
 
 class TextDiagnosticPrinter : public DiagnosticConsumer {
   raw_ostream &OS;
   const LangOptions *LangOpts;
   const DiagnosticOptions *DiagOpts;
+  const SourceManager *SM;
 
-  SourceLocation LastWarningLoc;
-  FullSourceLoc LastLoc;
-  unsigned LastCaretDiagnosticWasNote : 1;
-  unsigned OwnsOutputStream : 1;
+  /// \brief Handle to the currently active text diagnostic emitter.
+  OwningPtr<TextDiagnostic> TextDiag;
 
   /// A string to prefix to error messages.
   std::string Prefix;
+
+  unsigned OwnsOutputStream : 1;
 
 public:
   TextDiagnosticPrinter(raw_ostream &os, const DiagnosticOptions &diags,
@@ -45,27 +48,10 @@ public:
   /// used.
   void setPrefix(std::string Value) { Prefix = Value; }
 
-  void BeginSourceFile(const LangOptions &LO, const Preprocessor *PP) {
-    LangOpts = &LO;
-  }
-
-  void EndSourceFile() {
-    LangOpts = 0;
-  }
-
-  void PrintIncludeStack(DiagnosticsEngine::Level Level, SourceLocation Loc,
-                         const SourceManager &SM);
-
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level Level,
-                                const Diagnostic &Info);
-
+  void BeginSourceFile(const LangOptions &LO, const Preprocessor *PP);
+  void EndSourceFile();
+  void HandleDiagnostic(DiagnosticsEngine::Level Level, const Diagnostic &Info);
   DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const;
-
-private:
-  void EmitDiagnosticLoc(DiagnosticsEngine::Level Level,
-                         const Diagnostic &Info,
-                         const SourceManager &SM,
-                         PresumedLoc PLoc);
 };
 
 } // end namespace clang

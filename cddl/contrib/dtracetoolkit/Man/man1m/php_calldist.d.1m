@@ -1,0 +1,49 @@
+.TH php_calldist.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+php_calldist.d - measure PHP elapsed times for functions.
+.SH SYNOPSIS
+.B php_calldist.d
+
+.SH DESCRIPTION
+This traces PHP activity from all programs running on the system with
+PHP provider support.
+
+This script prints distribution plots of elapsed time for PHP
+operations. Use php_calltime.d for summary reports.
+
+Filename and function names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Php provider, which may change 
+as additional features are introduced. Check Php/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B php_calldist.d
+.PP
+.SH FIELDS
+.TP
+1
+Filename of the PHP program
+.TP
+2
+Type of call (func)
+.TP
+3
+Name of call
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+php_calldist.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

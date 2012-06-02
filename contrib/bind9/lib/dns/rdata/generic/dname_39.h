@@ -18,7 +18,7 @@
 #ifndef GENERIC_DNAME_39_H
 #define GENERIC_DNAME_39_H 1
 
-/* $Id: dname_39.h,v 1.21 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: dname_39.h,v 1.21 2007/06/19 23:47:17 tbox Exp $ */
 
 /*! 
  *  \brief per RFC2672 */

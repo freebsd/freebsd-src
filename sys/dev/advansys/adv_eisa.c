@@ -171,9 +171,8 @@ adv_eisa_attach(device_t dev)
 		 * Allocate a parent dmatag for all tags created
 		 * by the MI portions of the advansys driver
 		 */
-		/* XXX Should be a child of the PCI bus dma tag */
 		error = bus_dma_tag_create(
-				/* parent	*/ NULL,
+				/* parent	*/ bus_get_dma_tag(dev),
 				/* alignment	*/ 1,
 				/* boundary	*/ 0,
 				/* lowaddr	*/ ADV_EISA_MAX_DMA_ADDR,
@@ -211,9 +210,8 @@ adv_eisa_attach(device_t dev)
 		 * Allocate a parent dmatag for all tags created
 		 * by the MI portions of the advansys driver
 		 */
-		/* XXX Should be a child of the PCI bus dma tag */
 		error = bus_dma_tag_create(
-				/* parent	*/ NULL,
+				/* parent	*/ bus_get_dma_tag(dev),
 				/* alignment	*/ 1,
 				/* boundary	*/ 0,
 				/* lowaddr	*/ ADV_EISA_MAX_DMA_ADDR,

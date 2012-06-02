@@ -1279,7 +1279,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 {
 	struct in_llentry *lle;
 
-	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_DONTWAIT | M_ZERO);
+	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 

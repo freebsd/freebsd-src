@@ -39,6 +39,8 @@ template class llvm::SymbolTableListTraits<BasicBlock, Function>;
 // Argument Implementation
 //===----------------------------------------------------------------------===//
 
+void Argument::anchor() { }
+
 Argument::Argument(Type *Ty, const Twine &Name, Function *Par)
   : Value(Ty, Value::ArgumentVal) {
   Parent = 0;
@@ -359,7 +361,7 @@ std::string Intrinsic::getName(ID id, ArrayRef<Type*> Tys) {
 FunctionType *Intrinsic::getType(LLVMContext &Context,
                                        ID id, ArrayRef<Type*> Tys) {
   Type *ResultTy = NULL;
-  std::vector<Type*> ArgTys;
+  SmallVector<Type*, 8> ArgTys;
   bool IsVarArg = false;
   
 #define GET_INTRINSIC_GENERATOR
@@ -370,13 +372,9 @@ FunctionType *Intrinsic::getType(LLVMContext &Context,
 }
 
 bool Intrinsic::isOverloaded(ID id) {
-  static const bool OTable[] = {
-    false,
 #define GET_INTRINSIC_OVERLOAD_TABLE
 #include "llvm/Intrinsics.gen"
 #undef GET_INTRINSIC_OVERLOAD_TABLE
-  };
-  return OTable[id];
 }
 
 /// This defines the "Intrinsic::getAttributes(ID id)" method.
@@ -402,6 +400,7 @@ Function *Intrinsic::getDeclaration(Module *M, ID id, ArrayRef<Type*> Tys) {
 bool Function::hasAddressTaken(const User* *PutOffender) const {
   for (Value::const_use_iterator I = use_begin(), E = use_end(); I != E; ++I) {
     const User *U = *I;
+    // FIXME: Check for blockaddress, which does not take the address.
     if (!isa<CallInst>(U) && !isa<InvokeInst>(U))
       return PutOffender ? (*PutOffender = U, true) : true;
     ImmutableCallSite CS(cast<Instruction>(U));
@@ -411,41 +410,30 @@ bool Function::hasAddressTaken(const User* *PutOffender) const {
   return false;
 }
 
+bool Function::isDefTriviallyDead() const {
+  // Check the linkage
+  if (!hasLinkOnceLinkage() && !hasLocalLinkage() &&
+      !hasAvailableExternallyLinkage())
+    return false;
+
+  // Check if the function is used by anything other than a blockaddress.
+  for (Value::const_use_iterator I = use_begin(), E = use_end(); I != E; ++I)
+    if (!isa<BlockAddress>(*I))
+      return false;
+
+  return true;
+}
+
 /// callsFunctionThatReturnsTwice - Return true if the function has a call to
 /// setjmp or other function that gcc recognizes as "returning twice".
-///
-/// FIXME: Remove after <rdar://problem/8031714> is fixed.
-/// FIXME: Is the above FIXME valid?
 bool Function::callsFunctionThatReturnsTwice() const {
-  static const char *const ReturnsTwiceFns[] = {
-    "_setjmp",
-    "setjmp",
-    "sigsetjmp",
-    "setjmp_syscall",
-    "savectx",
-    "qsetjmp",
-    "vfork",
-    "getcontext"
-  };
-
-  for (const_inst_iterator I = inst_begin(this), E = inst_end(this); I != E;
-       ++I) {
+  for (const_inst_iterator
+         I = inst_begin(this), E = inst_end(this); I != E; ++I) {
     const CallInst* callInst = dyn_cast<CallInst>(&*I);
     if (!callInst)
       continue;
     if (callInst->canReturnTwice())
       return true;
-
-    // check for known function names.
-    // FIXME: move this to clang.
-    Function *F = callInst->getCalledFunction();
-    if (!F)
-      continue;
-    StringRef Name = F->getName();
-    for (unsigned J = 0, e = array_lengthof(ReturnsTwiceFns); J != e; ++J) {
-      if (Name == ReturnsTwiceFns[J])
-        return true;
-    }
   }
 
   return false;

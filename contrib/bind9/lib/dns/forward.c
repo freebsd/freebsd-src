@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: forward.c,v 1.14 2009-09-02 23:48:02 tbox Exp $ */
+/* $Id: forward.c,v 1.14 2009/09/02 23:48:02 tbox Exp $ */
 
 /*! \file */
 

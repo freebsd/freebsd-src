@@ -374,7 +374,7 @@ usb_make_config_desc(struct usb_temp_setup *temp,
 
 	/* Reset some counters */
 
-	temp->bInterfaceNumber = 0 - 1;
+	temp->bInterfaceNumber = 0xFF;
 	temp->bAlternateSetting = 0;
 
 	/* Scan all the USB interfaces */

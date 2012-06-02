@@ -48,7 +48,6 @@
 
 #include <vm/uma.h>
 
-#include <fs/fifofs/fifo.h>
 #include <fs/udf/ecma167-udf.h>
 #include <fs/udf/osta.h>
 #include <fs/udf/udf.h>

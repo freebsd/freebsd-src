@@ -486,7 +486,7 @@ juniper_ggsn_print(const struct pcap_pkthdr *h, register const u_char *p)
             break;
 #ifdef INET6
         case JUNIPER_PROTO_IPV6:
-            ip6_print(p, l2info.length);
+            ip6_print(gndo, p, l2info.length);
             break;
 #endif /* INET6 */
         default:
@@ -647,7 +647,7 @@ juniper_pppoe_print(const struct pcap_pkthdr *h, register const u_char *p)
 
         p+=l2info.header_len;
         /* this DLT contains nothing but raw ethernet frames */
-        ether_print(p, l2info.length, l2info.caplen, NULL, NULL);
+        ether_print(gndo, p, l2info.length, l2info.caplen, NULL, NULL);
         return l2info.header_len;
 }
 #endif
@@ -664,7 +664,7 @@ juniper_ether_print(const struct pcap_pkthdr *h, register const u_char *p)
 
         p+=l2info.header_len;
         /* this DLT contains nothing but raw Ethernet frames */
-        ether_print(p, l2info.length, l2info.caplen, NULL, NULL);
+        ether_print(gndo, p, l2info.length, l2info.caplen, NULL, NULL);
         return l2info.header_len;
 }
 #endif
@@ -736,7 +736,7 @@ juniper_pppoe_atm_print(const struct pcap_pkthdr *h, register const u_char *p)
         extracted_ethertype = EXTRACT_16BITS(p);
         /* this DLT contains nothing but raw PPPoE frames,
          * prepended with a type field*/
-        if (ethertype_print(extracted_ethertype,
+        if (ethertype_print(gndo, extracted_ethertype,
                               p+ETHERTYPE_LEN,
                               l2info.length-ETHERTYPE_LEN,
                               l2info.caplen-ETHERTYPE_LEN) == 0)
@@ -779,7 +779,7 @@ juniper_mlppp_print(const struct pcap_pkthdr *h, register const u_char *p)
             return l2info.header_len;
 #ifdef INET6
         case JUNIPER_LSQ_L3_PROTO_IPV6:
-            ip6_print(p,l2info.length);
+            ip6_print(gndo, p,l2info.length);
             return l2info.header_len;
 #endif
         case JUNIPER_LSQ_L3_PROTO_MPLS:
@@ -834,7 +834,7 @@ juniper_mfr_print(const struct pcap_pkthdr *h, register const u_char *p)
                 return l2info.header_len;
 #ifdef INET6
             case JUNIPER_LSQ_L3_PROTO_IPV6:
-                ip6_print(p,l2info.length);
+                ip6_print(gndo, p,l2info.length);
                 return l2info.header_len;
 #endif
             case JUNIPER_LSQ_L3_PROTO_MPLS:
@@ -987,7 +987,7 @@ juniper_atm2_print(const struct pcap_pkthdr *h, register const u_char *p)
 
         if (l2info.direction != JUNIPER_BPF_PKT_IN && /* ether-over-1483 encaps ? */
             (EXTRACT_32BITS(l2info.cookie) & ATM2_GAP_COUNT_MASK)) {
-            ether_print(p, l2info.length, l2info.caplen, NULL, NULL);
+            ether_print(gndo, p, l2info.length, l2info.caplen, NULL, NULL);
             return l2info.header_len;
         }
 
@@ -1073,7 +1073,7 @@ ip_heuristic_guess(register const u_char *p, u_int length) {
     case 0x6d:
     case 0x6e:
     case 0x6f:
-        ip6_print(p, length);
+        ip6_print(gndo, p, length);
         break;
 #endif
     default:

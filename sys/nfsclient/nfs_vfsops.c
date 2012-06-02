@@ -1452,24 +1452,21 @@ nfs_sync(struct mount *mp, int waitfor)
 		MNT_IUNLOCK(mp);
 		return (EBADF);
 	}
+	MNT_IUNLOCK(mp);
 
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
 loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/* XXX Racy bv_cnt check. */
 		if (VOP_ISLOCKED(vp) || vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		error = VOP_FSYNC(vp, waitfor, td);
@@ -1477,10 +1474,7 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (allerror);
 }
 

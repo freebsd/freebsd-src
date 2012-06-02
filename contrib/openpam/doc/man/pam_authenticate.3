@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_AUTHENTICATE 3
 .Os
 .Sh NAME
@@ -49,14 +49,14 @@
 .Fn pam_authenticate "pam_handle_t *pamh" "int flags"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_authenticate
 function attempts to authenticate the user
 associated with the pam context specified by the
 .Fa pamh
 argument.
 .Pp
 The application is free to call
-.Nm
+.Fn pam_authenticate
 as many times as it
 wishes, but some modules may maintain an internal retry counter and
 return
@@ -75,12 +75,12 @@ Fail if the user's authentication token is null.
 .El
 .Pp
 If any other bits are set,
-.Nm
+.Fn pam_authenticate
 will return
 .Dv PAM_SYMBOL_ERR .
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_authenticate
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_ABORT
@@ -118,11 +118,11 @@ Unknown user.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_authenticate
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

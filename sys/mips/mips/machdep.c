@@ -42,7 +42,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include "opt_md.h"
 
@@ -347,16 +346,15 @@ mips_vector_init(void)
 	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
-/* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
-	bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
+#if defined(__mips_n64) || defined(CPU_RMI) || defined(CPU_NLM)
+	bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 #endif
 
-	bcopy(MipsException, (void *)MIPS3_GEN_EXC_VEC,
+	bcopy(MipsException, (void *)MIPS_GEN_EXC_VEC,
 	      MipsExceptionEnd - MipsException);
 
-	bcopy(MipsCache, (void *)MIPS3_CACHE_ERR_EXC_VEC,
+	bcopy(MipsCache, (void *)MIPS_CACHE_ERR_EXC_VEC,
 	      MipsCacheEnd - MipsCache);
 
 	/*
@@ -382,6 +380,51 @@ mips_vector_init(void)
 void
 mips_postboot_fixup(void)
 {
+	static char fake_preload[256];
+	caddr_t preload_ptr = (caddr_t)&fake_preload[0];
+	size_t size = 0;
+
+#define PRELOAD_PUSH_VALUE(type, value) do {		\
+	*(type *)(preload_ptr + size) = (value);	\
+	size += sizeof(type);				\
+} while (0);
+
+	/*
+	 * Provide kernel module file information
+	 */
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_NAME);
+	PRELOAD_PUSH_VALUE(uint32_t, strlen("kernel") + 1);
+	strcpy((char*)(preload_ptr + size), "kernel");
+	size += strlen("kernel") + 1;
+	size = roundup(size, sizeof(u_long));
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
+	PRELOAD_PUSH_VALUE(uint32_t, strlen("elf kernel") + 1);
+	strcpy((char*)(preload_ptr + size), "elf kernel");
+	size += strlen("elf kernel") + 1;
+	size = roundup(size, sizeof(u_long));
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_ADDR);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
+	PRELOAD_PUSH_VALUE(vm_offset_t, KERNLOADADDR);
+	size = roundup(size, sizeof(u_long));
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_SIZE);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
+	PRELOAD_PUSH_VALUE(size_t, (size_t)&end - KERNLOADADDR);
+	size = roundup(size, sizeof(u_long));
+
+	/* End marker */
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+
+#undef	PRELOAD_PUSH_VALUE
+
+	KASSERT((size < sizeof(fake_preload)),
+		("fake preload size is more thenallocated"));
+
+	preload_metadata = (void *)fake_preload;
+
 #ifdef DDB
 	Elf_Size *trampoline_data = (Elf_Size*)kernel_kseg0_end;
 	Elf_Size symtabsize = 0;
@@ -396,17 +439,6 @@ mips_postboot_fixup(void)
 		ksym_end = kernel_kseg0_end;
 	}
 #endif
-}
-
-/*
- * Many SoCs have a means to reset the core itself.  Others do not, or
- * the method is unknown to us.  For those cases, we jump to the mips
- * reset vector and hope for the best.  This works well in practice.
- */
-void
-mips_generic_reset()
-{
-	((void(*)(void))(intptr_t)MIPS_VEC_RESET)();
 }
 
 #ifdef SMP

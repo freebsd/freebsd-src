@@ -67,7 +67,7 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                              DAG.getNode(ISD::ADD, dl, MVT::i32, Src,
                                          DAG.getConstant(SrcOff, MVT::i32)),
                              SrcPtrInfo.getWithOffset(SrcOff), isVolatile,
-                             false, 0);
+                             false, false, 0);
       TFOps[i] = Loads[i].getValue(1);
       SrcOff += VTSize;
     }
@@ -105,7 +105,8 @@ ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
     Loads[i] = DAG.getLoad(VT, dl, Chain,
                            DAG.getNode(ISD::ADD, dl, MVT::i32, Src,
                                        DAG.getConstant(SrcOff, MVT::i32)),
-                           SrcPtrInfo.getWithOffset(SrcOff), false, false, 0);
+                           SrcPtrInfo.getWithOffset(SrcOff),
+                           false, false, false, 0);
     TFOps[i] = Loads[i].getValue(1);
     ++i;
     SrcOff += VTSize;
@@ -144,8 +145,8 @@ EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                         SDValue Src, SDValue Size,
                         unsigned Align, bool isVolatile,
                         MachinePointerInfo DstPtrInfo) const {
-  // Use default for non AAPCS subtargets
-  if (!Subtarget->isAAPCS_ABI())
+  // Use default for non AAPCS (or Darwin) subtargets
+  if (!Subtarget->isAAPCS_ABI() || Subtarget->isTargetDarwin())
     return SDValue();
 
   const ARMTargetLowering &TLI =
@@ -188,6 +189,7 @@ EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                     0,     // number of fixed arguments
                     TLI.getLibcallCallingConv(RTLIB::MEMSET), // call conv
                     false, // is tail call
+                    false, // does not return
                     false, // is return val used
                     DAG.getExternalSymbol(TLI.getLibcallName(RTLIB::MEMSET),
                                           TLI.getPointerTy()), // callee

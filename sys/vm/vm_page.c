@@ -121,10 +121,10 @@ struct vpglocks vm_page_queue_free_lock;
 
 struct vpglocks	pa_lock[PA_LOCK_COUNT];
 
-vm_page_t vm_page_array = 0;
-int vm_page_array_size = 0;
-long first_page = 0;
-int vm_page_zero_count = 0;
+vm_page_t vm_page_array;
+long vm_page_array_size;
+long first_page;
+int vm_page_zero_count;
 
 static int boot_pages = UMA_BOOT_PAGES;
 TUNABLE_INT("vm.boot_pages", &boot_pages);
@@ -633,6 +633,30 @@ vm_page_unhold_pages(vm_page_t *ma, int count)
 		mtx_unlock(mtx);
 }
 
+vm_page_t
+PHYS_TO_VM_PAGE(vm_paddr_t pa)
+{
+	vm_page_t m;
+
+#ifdef VM_PHYSSEG_SPARSE
+	m = vm_phys_paddr_to_vm_page(pa);
+	if (m == NULL)
+		m = vm_phys_fictitious_to_vm_page(pa);
+	return (m);
+#elif defined(VM_PHYSSEG_DENSE)
+	long pi;
+
+	pi = atop(pa);
+	if (pi >= first_page && (pi - first_page) < vm_page_array_size) {
+		m = &vm_page_array[pi - first_page];
+		return (m);
+	}
+	return (vm_phys_fictitious_to_vm_page(pa));
+#else
+#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
+#endif
+}
+
 /*
  *	vm_page_getfake:
  *
@@ -646,6 +670,22 @@ vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 	vm_page_t m;
 
 	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
+	vm_page_initfake(m, paddr, memattr);
+	return (m);
+}
+
+void
+vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
+{
+
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		/*
+		 * The page's memattr might have changed since the
+		 * previous initialization.  Update the pmap to the
+		 * new memattr.
+		 */
+		goto memattr;
+	}
 	m->phys_addr = paddr;
 	m->queue = PQ_NONE;
 	/* Fictitious pages don't use "segind". */
@@ -653,8 +693,8 @@ vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 	/* Fictitious pages don't use "order" or "pool". */
 	m->oflags = VPO_BUSY | VPO_UNMANAGED;
 	m->wire_count = 1;
+memattr:
 	pmap_page_set_memattr(m, memattr);
-	return (m);
 }
 
 /*
@@ -666,6 +706,7 @@ void
 vm_page_putfake(vm_page_t m)
 {
 
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0, ("managed %p", m));
 	KASSERT((m->flags & PG_FICTITIOUS) != 0,
 	    ("vm_page_putfake: bad page %p", m));
 	uma_zfree(fakepg_zone, m);
@@ -1181,7 +1222,7 @@ vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
  *
  *	The free page queue must be locked.
  */
-void
+static void
 vm_page_cache_remove(vm_page_t m)
 {
 	vm_object_t object;
@@ -1282,6 +1323,33 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 		    " with cached pages", new_object));
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
+}
+
+/*
+ *	Returns TRUE if a cached page is associated with the given object and
+ *	offset, and FALSE otherwise.
+ *
+ *	The object must be locked.
+ */
+boolean_t
+vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	/*
+	 * Insertion into an object's collection of cached pages requires the
+	 * object to be locked.  Therefore, if the object is locked and the
+	 * object's collection is empty, there is no need to acquire the free
+	 * page queues lock in order to prove that the specified page doesn't
+	 * exist.
+	 */
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (__predict_true(object->cache == NULL))
+		return (FALSE);
+	mtx_lock(&vm_page_queue_free_mtx);
+	m = vm_page_cache_lookup(object, pindex);
+	mtx_unlock(&vm_page_queue_free_mtx);
+	return (m != NULL);
 }
 
 /*
@@ -2128,13 +2196,10 @@ vm_page_unwire(vm_page_t m, int activate)
 			if ((m->oflags & VPO_UNMANAGED) != 0 ||
 			    m->object == NULL)
 				return;
-			vm_page_lock_queues();
-			if (activate)
-				vm_page_enqueue(PQ_ACTIVE, m);
-			else {
+			if (!activate)
 				m->flags &= ~PG_WINATCFLS;
-				vm_page_enqueue(PQ_INACTIVE, m);
-			}
+			vm_page_lock_queues();
+			vm_page_enqueue(activate ? PQ_ACTIVE : PQ_INACTIVE, m);
 			vm_page_unlock_queues();
 		}
 	} else
@@ -2174,8 +2239,8 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	if ((queue = m->queue) == PQ_INACTIVE)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		vm_page_lock_queues();
 		m->flags &= ~PG_WINATCFLS;
+		vm_page_lock_queues();
 		if (queue != PQ_NONE)
 			vm_page_queue_remove(queue, m);
 		if (athead)

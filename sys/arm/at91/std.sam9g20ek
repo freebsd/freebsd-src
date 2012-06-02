@@ -7,9 +7,4 @@ makeoptions	KERNVIRTADDR=0xc0000000
 options		KERNPHYSADDR=0x20000000	
 options		KERNVIRTADDR=0xc0000000
 
-#SAM9G20 w/ 18.432 Mhz Clock
-#options	AT91C_MASTER_CLOCK=((18432000*43)/6)
-#SAM9260 w/ 18.432 Mhz Clock
-#options	AT91C_MASTER_CLOCK=((18432000*97)/18)
-
 device		at91_board_sam9g20ek

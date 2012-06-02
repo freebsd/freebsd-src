@@ -38,6 +38,7 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/mutex.h>
+#include <sys/rangelock.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
@@ -156,7 +157,7 @@ struct vnode {
 	/*
 	 * The machinery of being a vnode
 	 */
-	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
+	TAILQ_ENTRY(vnode) v_actfreelist;	/* f vnode active/free lists */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 
 	/*
@@ -164,7 +165,8 @@ struct vnode {
 	 */
 	struct vpollinfo *v_pollinfo;		/* i Poll events, p for *v_pi */
 	struct label *v_label;			/* MAC label for vnode */
-	struct lockf *v_lockf;			/* Byte-level lock list */
+	struct lockf *v_lockf;		/* Byte-level advisory lock list */
+	struct rangelock v_rl;			/* Byte-range lock */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
@@ -232,6 +234,7 @@ struct xvnode {
 #define	VI_AGE		0x0040	/* Insert vnode at head of free list */
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
+#define	VI_ACTIVE	0x0200	/* This vnode is on the active list */
 #define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
 #define	VI_OWEINACT	0x1000	/* Need to call inactive */
 
@@ -380,7 +383,6 @@ extern int		vttoif_tab[];
 #define	SKIPSYSTEM	0x0001	/* vflush: skip vnodes marked VSYSTEM */
 #define	FORCECLOSE	0x0002	/* vflush: force file closure */
 #define	WRITECLOSE	0x0004	/* vflush: only close writable files */
-#define	DOCLOSE		0x0008	/* vclean: close active files */
 #define	V_SAVE		0x0001	/* vinvalbuf: sync file first */
 #define	V_ALT		0x0002	/* vinvalbuf: invalidate only alternate bufs */
 #define	V_NORMAL	0x0004	/* vinvalbuf: invalidate only regular bufs */
@@ -627,19 +629,21 @@ void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
-void	vdestroy(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
 void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
+void	vinactive(struct vnode *, struct thread *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
-int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
-	    off_t length, int blksize);
+int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
+	    int blksize);
 void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
 #define vprint(label, vp) vn_printf((vp), "%s\n", (label))
-int	vrecycle(struct vnode *vp, struct thread *td);
+int	vrecycle(struct vnode *vp);
+int	vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off,
+	    struct ucred *cred);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);
@@ -677,6 +681,17 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
 
+int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
+
+#define	vn_rangelock_unlock(vp, cookie)					\
+	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
+#define	vn_rangelock_unlock_range(vp, cookie, start, end)		\
+	rangelock_unlock_range(&(vp)->v_rl, (cookie), (start), (end), 	\
+	    VI_MTX(vp))
+#define	vn_rangelock_rlock(vp, start, end)				\
+	rangelock_rlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+#define	vn_rangelock_wlock(vp, start, end)				\
+	rangelock_wlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
 
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
@@ -781,6 +796,9 @@ extern struct vop_vector default_vnodeops;
 #define VOP_EINVAL	((void*)(uintptr_t)vop_einval)
 #define VOP_ENOENT	((void*)(uintptr_t)vop_enoent)
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
+
+/* fifo_vnops.c */
+int	fifo_printinfo(struct vnode *);
 
 /* vfs_hash.c */
 typedef int vfs_hash_cmp_t(struct vnode *vp, void *arg);

@@ -1,4 +1,4 @@
-//===-- MSP430MCInstLower.h - Lower MachineInstr to MCInst ----------------===//
+//===-- MSP430MCInstLower.h - Lower MachineInstr to MCInst ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,7 +14,6 @@
 
 namespace llvm {
   class AsmPrinter;
-  class MCAsmInfo;
   class MCContext;
   class MCInst;
   class MCOperand;

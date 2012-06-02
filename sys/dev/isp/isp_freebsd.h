@@ -129,8 +129,10 @@ typedef struct tstate {
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
 	uint32_t hold;
-	int atio_count;
-	int inot_count;
+	uint32_t
+		enabled		: 1,
+		atio_count	: 15,
+		inot_count	: 15;
 	inot_private_data_t *	restart_queue;
 	inot_private_data_t *	ntfree;
 	inot_private_data_t	ntpool[ATPDPSIZE];

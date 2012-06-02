@@ -773,6 +773,8 @@ MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 knlist_destroy.9 \
 	kqueue.9 knlist_empty.9 \
 	kqueue.9 knlist_init.9 \
+	kqueue.9 knlist_init_mtx.9 \
+	kqueue.9 knlist_init_rw_reader.9 \
 	kqueue.9 knlist_remove.9 \
 	kqueue.9 knlist_remove_inevent.9 \
 	kqueue.9 knote_fdclose.9 \
@@ -1248,6 +1250,7 @@ MLINKS+=store.9 subyte.9 \
 	store.9 suword32.9 \
 	store.9 suword64.9
 MLINKS+=swi.9 swi_add.9 \
+	swi.9 swi_remove.9 \
 	swi.9 swi_sched.9
 MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_destroy.9 \

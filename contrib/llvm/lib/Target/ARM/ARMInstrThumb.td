@@ -1,4 +1,4 @@
-//===- ARMInstrThumb.td - Thumb support for ARM ------------*- tablegen -*-===//
+//===-- ARMInstrThumb.td - Thumb support for ARM -----------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -89,6 +89,12 @@ def t_imm0_508s4_asmoperand: AsmOperandClass { let Name = "Imm0_508s4"; }
 def t_imm0_508s4 : Operand<i32> {
   let PrintMethod = "printThumbS4ImmOperand";
   let ParserMatchClass = t_imm0_508s4_asmoperand;
+  let OperandType = "OPERAND_IMMEDIATE";
+}
+// Alias use only, so no printer is necessary.
+def t_imm0_508s4_neg_asmoperand: AsmOperandClass { let Name = "Imm0_508s4Neg"; }
+def t_imm0_508s4_neg : Operand<i32> {
+  let ParserMatchClass = t_imm0_508s4_neg_asmoperand;
   let OperandType = "OPERAND_IMMEDIATE";
 }
 
@@ -345,6 +351,11 @@ def tSUBspi : T1pIt<(outs GPRsp:$Rdn), (ins GPRsp:$Rn, t_imm0_508s4:$imm),
   let DecoderMethod = "DecodeThumbAddSPImm";
 }
 
+def : tInstAlias<"add${p} sp, $imm",
+                 (tSUBspi SP, t_imm0_508s4_neg:$imm, pred:$p)>;
+def : tInstAlias<"add${p} sp, sp, $imm",
+                 (tSUBspi SP, t_imm0_508s4_neg:$imm, pred:$p)>;
+
 // Can optionally specify SP as a three operand instruction.
 def : tInstAlias<"add${p} sp, sp, $imm",
                  (tADDspi SP, t_imm0_508s4:$imm, pred:$p)>;
@@ -387,6 +398,7 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
     bits<4> Rm;
     let Inst{6-3} = Rm;
     let Inst{2-0} = 0b000;
+    let Unpredictable{2-0} = 0b111;
   }
 }
 
@@ -404,15 +416,13 @@ let isReturn = 1, isTerminator = 1, isBarrier = 1 in {
 // prevent stack-pointer assignments that appear immediately before calls from
 // potentially appearing dead.
 let isCall = 1,
-  // On non-Darwin platforms R9 is callee-saved.
-  Defs = [R0,  R1,  R2,  R3,  R12, LR, QQQQ0, QQQQ2, QQQQ3, CPSR, FPSCR],
-  Uses = [SP] in {
+  Defs = [LR], Uses = [SP] in {
   // Also used for Thumb2
   def tBL  : TIx2<0b11110, 0b11, 1,
                   (outs), (ins pred:$p, t_bltarget:$func, variable_ops), IIC_Br,
                   "bl${p}\t$func",
                   [(ARMtcall tglobaladdr:$func)]>,
-             Requires<[IsThumb, IsNotDarwin]> {
+             Requires<[IsThumb]> {
     bits<22> func;
     let Inst{26} = func{21};
     let Inst{25-16} = func{20-11};
@@ -426,7 +436,7 @@ let isCall = 1,
                  (outs), (ins pred:$p, t_blxtarget:$func, variable_ops), IIC_Br,
                    "blx${p}\t$func",
                    [(ARMcall tglobaladdr:$func)]>,
-              Requires<[IsThumb, HasV5T, IsNotDarwin]> {
+              Requires<[IsThumb, HasV5T]> {
     bits<21> func;
     let Inst{25-16} = func{20-11};
     let Inst{13} = 1;
@@ -439,7 +449,7 @@ let isCall = 1,
   def tBLXr : TI<(outs), (ins pred:$p, GPR:$func, variable_ops), IIC_Br,
                   "blx${p}\t$func",
                   [(ARMtcall GPR:$func)]>,
-              Requires<[IsThumb, HasV5T, IsNotDarwin]>,
+              Requires<[IsThumb, HasV5T]>,
               T1Special<{1,1,1,?}> { // A6.2.3 & A8.6.24;
     bits<4> func;
     let Inst{6-3} = func;
@@ -450,38 +460,7 @@ let isCall = 1,
   def tBX_CALL : tPseudoInst<(outs), (ins tGPR:$func, variable_ops),
                   4, IIC_Br,
                   [(ARMcall_nolink tGPR:$func)]>,
-            Requires<[IsThumb, IsThumb1Only, IsNotDarwin]>;
-}
-
-let isCall = 1,
-  // On Darwin R9 is call-clobbered.
-  // R7 is marked as a use to prevent frame-pointer assignments from being
-  // moved above / below calls.
-  Defs = [R0,  R1,  R2,  R3,  R9,  R12, LR, QQQQ0, QQQQ2, QQQQ3, CPSR, FPSCR],
-  Uses = [R7, SP] in {
-  // Also used for Thumb2
-  def tBLr9 : tPseudoExpand<(outs), (ins pred:$p, t_bltarget:$func, variable_ops),
-                          4, IIC_Br, [(ARMtcall tglobaladdr:$func)],
-                          (tBL pred:$p, t_bltarget:$func)>,
-              Requires<[IsThumb, IsDarwin]>;
-
-  // ARMv5T and above, also used for Thumb2
-  def tBLXi_r9 : tPseudoExpand<(outs), (ins pred:$p, t_blxtarget:$func, variable_ops),
-                      4, IIC_Br, [(ARMcall tglobaladdr:$func)],
-                      (tBLXi pred:$p, t_blxtarget:$func)>,
-                 Requires<[IsThumb, HasV5T, IsDarwin]>;
-
-  // Also used for Thumb2
-  def tBLXr_r9 : tPseudoExpand<(outs), (ins pred:$p, GPR:$func, variable_ops),
-                    2, IIC_Br, [(ARMtcall GPR:$func)],
-                    (tBLXr pred:$p, GPR:$func)>,
-                 Requires<[IsThumb, HasV5T, IsDarwin]>;
-
-  // ARMv4T
-  def tBXr9_CALL : tPseudoInst<(outs), (ins tGPR:$func, variable_ops),
-                   4, IIC_Br,
-                   [(ARMcall_nolink tGPR:$func)]>,
-              Requires<[IsThumb, IsThumb1Only, IsDarwin]>;
+            Requires<[IsThumb, IsThumb1Only]>;
 }
 
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
@@ -523,28 +502,22 @@ let isBranch = 1, isTerminator = 1 in
 
 // Tail calls
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in {
-  // Darwin versions.
-  let Defs = [R0, R1, R2, R3, R9, R12, QQQQ0, QQQQ2, QQQQ3, PC],
-      Uses = [SP] in {
-    // tTAILJMPd: Darwin version uses a Thumb2 branch (no Thumb1 tail calls
-    // on Darwin), so it's in ARMInstrThumb2.td.
+  // IOS versions.
+  let Uses = [SP] in {
     def tTAILJMPr : tPseudoExpand<(outs), (ins tcGPR:$dst, variable_ops),
                      4, IIC_Br, [],
                      (tBX GPR:$dst, (ops 14, zero_reg))>,
-                     Requires<[IsThumb, IsDarwin]>;
+                     Requires<[IsThumb]>;
   }
-  // Non-Darwin versions (the difference is R9).
-  let Defs = [R0, R1, R2, R3, R12, QQQQ0, QQQQ2, QQQQ3, PC],
-      Uses = [SP] in {
+  // tTAILJMPd: IOS version uses a Thumb2 branch (no Thumb1 tail calls
+  // on IOS), so it's in ARMInstrThumb2.td.
+  // Non-IOS version:
+  let Uses = [SP] in {
     def tTAILJMPdND : tPseudoExpand<(outs),
                    (ins t_brtarget:$dst, pred:$p, variable_ops),
                    4, IIC_Br, [],
                    (tB t_brtarget:$dst, pred:$p)>,
-                 Requires<[IsThumb, IsNotDarwin]>;
-    def tTAILJMPrND : tPseudoExpand<(outs), (ins tcGPR:$dst, variable_ops),
-                     4, IIC_Br, [],
-                     (tBX GPR:$dst, (ops 14, zero_reg))>,
-                     Requires<[IsThumb, IsNotDarwin]>;
+                 Requires<[IsThumb, IsNotIOS]>;
   }
 }
 
@@ -652,7 +625,7 @@ def tLDRspi : T1pIs<(outs tGPR:$Rt), (ins t_addrmode_sp:$addr), IIC_iLoad_i,
 }
 
 // Load tconstpool
-// FIXME: Use ldr.n to work around a Darwin assembler bug.
+// FIXME: Use ldr.n to work around a darwin assembler bug.
 let canFoldAsLoad = 1, isReMaterializable = 1, isCodeGenOnly = 1 in
 def tLDRpci : T1pIs<(outs tGPR:$Rt), (ins t_addrmode_pc:$addr), IIC_iLoad_i,
                   "ldr", ".n\t$Rt, $addr",
@@ -666,10 +639,9 @@ def tLDRpci : T1pIs<(outs tGPR:$Rt), (ins t_addrmode_pc:$addr), IIC_iLoad_i,
 }
 
 // FIXME: Remove this entry when the above ldr.n workaround is fixed.
-// For disassembly use only.
-def tLDRpciDIS : T1pIs<(outs tGPR:$Rt), (ins t_addrmode_pc:$addr), IIC_iLoad_i,
-                       "ldr", "\t$Rt, $addr",
-                       [/* disassembly only */]>,
+// For assembly/disassembly use only.
+def tLDRpciASM : T1pIs<(outs tGPR:$Rt), (ins t_addrmode_pc:$addr), IIC_iLoad_i,
+                       "ldr", "\t$Rt, $addr", []>,
                  T1Encoding<{0,1,0,0,1,?}> {
   // A6.2 & A8.6.59
   bits<3> Rt;
@@ -1131,9 +1103,6 @@ def tRSB :                      // A8.6.141
                "rsb", "\t$Rd, $Rn, #0",
                [(set tGPR:$Rd, (ineg tGPR:$Rn))]>;
 
-def : tInstAlias<"neg${s}${p} $Rd, $Rm",
-                 (tRSB tGPR:$Rd, s_cc_out:$s, tGPR:$Rm, pred:$p)>;
-
 // Subtract with carry register
 let Uses = [CPSR] in
 def tSBC :                      // A8.6.151
@@ -1259,19 +1228,24 @@ def tTPsoft : tPseudoInst<(outs), (ins), 4, IIC_Br,
 // preserve all of the callee-saved resgisters, which is exactly what we want.
 // $val is a scratch register for our use.
 let Defs = [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7, R12, CPSR ],
-    hasSideEffects = 1, isBarrier = 1, isCodeGenOnly = 1 in
+    hasSideEffects = 1, isBarrier = 1, isCodeGenOnly = 1,
+    usesCustomInserter = 1 in
 def tInt_eh_sjlj_setjmp : ThumbXI<(outs),(ins tGPR:$src, tGPR:$val),
                                   AddrModeNone, 0, NoItinerary, "","",
                           [(set R0, (ARMeh_sjlj_setjmp tGPR:$src, tGPR:$val))]>;
 
-// FIXME: Non-Darwin version(s)
+// FIXME: Non-IOS version(s)
 let isBarrier = 1, hasSideEffects = 1, isTerminator = 1, isCodeGenOnly = 1,
     Defs = [ R7, LR, SP ] in
 def tInt_eh_sjlj_longjmp : XI<(outs), (ins GPR:$src, GPR:$scratch),
                               AddrModeNone, 0, IndexModeNone,
                               Pseudo, NoItinerary, "", "",
                               [(ARMeh_sjlj_longjmp GPR:$src, GPR:$scratch)]>,
-                             Requires<[IsThumb, IsDarwin]>;
+                             Requires<[IsThumb, IsIOS]>;
+
+let Defs = [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7, R12, CPSR ],
+    isBarrier = 1 in
+def tInt_eh_sjlj_dispatchsetup : PseudoInst<(outs), (ins), NoItinerary, []>;
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
@@ -1309,20 +1283,14 @@ def : T1Pat<(ARMWrapperJT tjumptable:$dst, imm:$id),
 
 // Direct calls
 def : T1Pat<(ARMtcall texternalsym:$func), (tBL texternalsym:$func)>,
-      Requires<[IsThumb, IsNotDarwin]>;
-def : T1Pat<(ARMtcall texternalsym:$func), (tBLr9 texternalsym:$func)>,
-      Requires<[IsThumb, IsDarwin]>;
+      Requires<[IsThumb]>;
 
 def : Tv5Pat<(ARMcall texternalsym:$func), (tBLXi texternalsym:$func)>,
-      Requires<[IsThumb, HasV5T, IsNotDarwin]>;
-def : Tv5Pat<(ARMcall texternalsym:$func), (tBLXi_r9 texternalsym:$func)>,
-      Requires<[IsThumb, HasV5T, IsDarwin]>;
+      Requires<[IsThumb, HasV5T]>;
 
 // Indirect calls to ARM routines
 def : Tv5Pat<(ARMcall GPR:$dst), (tBLXr GPR:$dst)>,
-      Requires<[IsThumb, HasV5T, IsNotDarwin]>;
-def : Tv5Pat<(ARMcall GPR:$dst), (tBLXr_r9 GPR:$dst)>,
-      Requires<[IsThumb, HasV5T, IsDarwin]>;
+      Requires<[IsThumb, HasV5T]>;
 
 // zextload i1 -> zextload i8
 def : T1Pat<(zextloadi1 t_addrmode_rrs1:$addr),
@@ -1434,3 +1402,16 @@ def : InstAlias<"nop", (tMOVr R8, R8, 14, 0)>,Requires<[IsThumb, IsThumb1Only]>;
 // nothing).
 def : tInstAlias<"cps$imod", (tCPS imod_op:$imod, 0)>;
 def : tInstAlias<"cps$imod", (tCPS imod_op:$imod, 0)>;
+
+// "neg" is and alias for "rsb rd, rn, #0"
+def : tInstAlias<"neg${s}${p} $Rd, $Rm",
+                 (tRSB tGPR:$Rd, s_cc_out:$s, tGPR:$Rm, pred:$p)>;
+
+
+// Implied destination operand forms for shifts.
+def : tInstAlias<"lsl${s}${p} $Rdm, $imm",
+             (tLSLri tGPR:$Rdm, cc_out:$s, tGPR:$Rdm, imm0_31:$imm, pred:$p)>;
+def : tInstAlias<"lsr${s}${p} $Rdm, $imm",
+             (tLSRri tGPR:$Rdm, cc_out:$s, tGPR:$Rdm, imm_sr:$imm, pred:$p)>;
+def : tInstAlias<"asr${s}${p} $Rdm, $imm",
+             (tASRri tGPR:$Rdm, cc_out:$s, tGPR:$Rdm, imm_sr:$imm, pred:$p)>;

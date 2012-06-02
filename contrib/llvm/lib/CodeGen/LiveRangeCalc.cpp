@@ -65,7 +65,7 @@ void LiveRangeCalc::extend(LiveInterval *LI,
   assert(DomTree && "Missing dominator tree");
 
   MachineBasicBlock *KillMBB = Indexes->getMBBFromIndex(Kill.getPrevSlot());
-  assert(Kill && "No MBB at Kill");
+  assert(KillMBB && "No MBB at Kill");
 
   // Is there a def in the same MBB we can extend?
   if (LI->extendInBlock(Indexes->getMBBStartIdx(KillMBB), Kill))
@@ -237,7 +237,7 @@ void LiveRangeCalc::updateSSA(SlotIndexes *Indexes,
         assert(Alloc && "Need VNInfo allocator to create PHI-defs");
         SlotIndex Start, End;
         tie(Start, End) = Indexes->getMBBRange(MBB);
-        VNInfo *VNI = I->LI->getNextValue(Start, 0, *Alloc);
+        VNInfo *VNI = I->LI->getNextValue(Start, *Alloc);
         VNI->setIsPHIDef(true);
         I->Value = VNI;
         // This block is done, we know the final value.

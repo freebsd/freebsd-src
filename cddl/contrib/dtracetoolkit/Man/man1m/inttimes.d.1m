@@ -1,0 +1,43 @@
+.TH inttimes.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+inttimes.d \- print interrput on-cpu time total. Uses DTrace.
+.SH SYNOPSIS
+.B inttimes.d
+.SH DESCRIPTION
+This prints the total time each driver instance has spent servicing
+interrupts.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the sdt provider interrupt probes.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B inttimes.d
+.PP
+.SH FIELDS
+.TP
+DEVICE
+instance name of the device driver
+.TP
+TIME (ns)
+sum of time spent servicing interrupt (nanoseconds)
+.PP
+.SH BASED ON
+/usr/demo/dtrace/intr.d
+.PP
+.SH DOCUMENTATION
+DTrace Guide "sdt Provider" chapter (docs.sun.com)
+
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+inttimes.d will sample until Ctrl\-C is hit.
+.SH SEE ALSO
+intrstat(1M), dtrace(1M)
+

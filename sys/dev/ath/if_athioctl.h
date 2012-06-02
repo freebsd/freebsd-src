@@ -43,6 +43,11 @@ struct ath_tx_aggr_stats {
 	u_int32_t	aggr_baw_closed_single_pkt;
 	u_int32_t	aggr_low_hwq_single_pkt;
 	u_int32_t	aggr_sched_nopkt;
+	u_int32_t	aggr_rts_aggr_limited;
+};
+
+struct ath_intr_stats {
+	u_int32_t	sync_intr[32];
 };
 
 struct ath_stats {
@@ -155,7 +160,8 @@ struct ath_stats {
 	u_int32_t	ast_rx_intr;
 	u_int32_t	ast_tx_aggr_ok;		/* aggregate TX ok */
 	u_int32_t	ast_tx_aggr_fail;	/* aggregate TX failed */
-	u_int32_t	ast_pad[2];
+	u_int32_t	ast_tx_mcastq_overflow;	/* multicast queue overflow */
+	u_int32_t	ast_pad[1];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

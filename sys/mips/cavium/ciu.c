@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 
 /*
  * This bus sits between devices/buses and nexus and handles CIU interrupts
@@ -53,12 +53,12 @@ __FBSDID("$FreeBSD$");
 
 #define	CIU_IRQ_HARD		(0)
 
-#define	CIU_IRQ_EN0_BEGIN	CVMX_IRQ_WORKQ0
-#define	CIU_IRQ_EN0_END		CVMX_IRQ_BOOTDMA
+#define	CIU_IRQ_EN0_BEGIN	OCTEON_IRQ_WORKQ0
+#define	CIU_IRQ_EN0_END		OCTEON_IRQ_BOOTDMA
 #define	CIU_IRQ_EN0_COUNT	((CIU_IRQ_EN0_END - CIU_IRQ_EN0_BEGIN) + 1)
 
-#define	CIU_IRQ_EN1_BEGIN	CVMX_IRQ_WDOG0
-#define	CIU_IRQ_EN1_END		CVMX_IRQ_DFM
+#define	CIU_IRQ_EN1_BEGIN	OCTEON_IRQ_WDOG0
+#define	CIU_IRQ_EN1_END		OCTEON_IRQ_DFM
 #define	CIU_IRQ_EN1_COUNT	((CIU_IRQ_EN1_END - CIU_IRQ_EN1_BEGIN) + 1)
 
 struct ciu_softc {

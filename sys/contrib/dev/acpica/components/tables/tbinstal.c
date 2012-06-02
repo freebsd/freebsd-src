@@ -510,8 +510,10 @@ AcpiTbDeleteTable (
         ACPI_FREE (TableDesc->Pointer);
         break;
 
+    /* Not mapped or allocated, there is nothing we can do */
+
     default:
-        break;
+        return;
     }
 
     TableDesc->Pointer = NULL;

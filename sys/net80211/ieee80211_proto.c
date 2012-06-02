@@ -105,6 +105,7 @@ static void parent_updown(void *, int);
 static void update_mcast(void *, int);
 static void update_promisc(void *, int);
 static void update_channel(void *, int);
+static void update_chw(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 static int ieee80211_new_state_locked(struct ieee80211vap *,
 	enum ieee80211_state, int);
@@ -144,6 +145,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	TASK_INIT(&ic->ic_promisc_task, 0, update_promisc, ic);
 	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
 	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
+	TASK_INIT(&ic->ic_chw_task, 0, update_chw, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
 		AGGRESSIVE_MODE_SWITCH_HYSTERESIS;
@@ -1147,6 +1149,17 @@ update_channel(void *arg, int npending)
 	ieee80211_radiotap_chan_change(ic);
 }
 
+static void
+update_chw(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	/*
+	 * XXX should we defer the channel width _config_ update until now?
+	 */
+	ic->ic_update_chw(ic);
+}
+
 /*
  * Block until the parent is in a known state.  This is
  * used after any operations that dispatch a task (e.g.
@@ -1161,6 +1174,7 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 	ieee80211_draintask(ic, &ic->ic_promisc_task);
 	ieee80211_draintask(ic, &ic->ic_chan_task);
 	ieee80211_draintask(ic, &ic->ic_bmiss_task);
+	ieee80211_draintask(ic, &ic->ic_chw_task);
 	taskqueue_unblock(ic->ic_tq);
 }
 

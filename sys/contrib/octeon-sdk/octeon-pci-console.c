@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -57,12 +57,16 @@
 
 #include "cvmx.h"
 #include "cvmx-spinlock.h"
-#define	MIN(a,b) (((a)<(b))?(a):(b))
+#ifndef MIN
+# define	MIN(a,b) (((a)<(b))?(a):(b))
+#endif
 
 #include "cvmx-bootmem.h"
 #include "octeon-pci-console.h"
 #endif
-
+#ifdef __U_BOOT__
+#include <watchdog.h>
+#endif
 
 #if defined(__linux__) && !defined(__KERNEL__) && !defined(OCTEON_TARGET)
 #include "octeon-pci.h"
@@ -105,7 +109,7 @@ int  __cvmx_pci_console_write (int fd, char *buf, int nbytes)
 #endif
 
 
-#if !defined(CONFIG_OCTEON_U_BOOT) || (defined(CONFIG_OCTEON_U_BOOT) && defined(CFG_PCI_CONSOLE))
+#if !defined(CONFIG_OCTEON_U_BOOT) || (defined(CONFIG_OCTEON_U_BOOT) && (defined(CFG_PCI_CONSOLE) || defined(CONFIG_SYS_PCI_CONSOLE)))
 int octeon_pci_console_buffer_free_bytes(uint32_t buffer_size, uint32_t wr_idx, uint32_t rd_idx)
 {
     if (rd_idx >= buffer_size || wr_idx >= buffer_size)
@@ -283,7 +287,7 @@ int octeon_pci_console_host_read_avail(uint64_t console_desc_addr, unsigned int 
 
 /* This code is only available in a kernel or CVMX standalone. It can't be used
     from userspace */
-#if (!defined(CONFIG_OCTEON_U_BOOT) && (!defined(__linux__) || defined(__KERNEL__))) || (defined(CONFIG_OCTEON_U_BOOT) && defined(CFG_PCI_CONSOLE))
+#if (!defined(CONFIG_OCTEON_U_BOOT) && (!defined(__linux__) || defined(__KERNEL__))) || (defined(CONFIG_OCTEON_U_BOOT) && (defined(CFG_PCI_CONSOLE) || defined(CONFIG_SYS_PCI_CONSOLE)))
 
 static octeon_pci_console_t *octeon_pci_console_get_ptr(uint64_t console_desc_addr, unsigned int console_num)
 {
@@ -340,6 +344,9 @@ int octeon_pci_console_write(uint64_t console_desc_addr, unsigned int console_nu
             if (flags & OCT_PCI_CON_FLAG_NONBLOCK)
                 goto done;
 
+#ifdef __U_BOOT__
+            WATCHDOG_RESET();
+#endif
             cvmx_wait(1000000);  /* Delay if we are spinning */
         }
         else
@@ -378,7 +385,12 @@ int octeon_pci_console_read(uint64_t console_desc_addr, unsigned int console_num
     {
         /* Wait for some data to be available */
         while (0 == (bytes_available = octeon_pci_console_buffer_avail_bytes(cons_ptr->buf_size, cons_ptr->input_write_index, cons_ptr->input_read_index)))
+        {
             cvmx_wait(1000000);
+#ifdef __U_BOOT__
+            WATCHDOG_RESET();
+#endif
+        }
     }
 
     bytes_read = 0;
@@ -433,9 +445,7 @@ int octeon_pci_console_read_avail(uint64_t console_desc_addr, unsigned int conso
 
 
 /* This code can only be used in the bootloader */
-#if defined(CONFIG_OCTEON_U_BOOT) && defined(CFG_PCI_CONSOLE)
-#define DDR0_TOP        0x10000000
-#define DDR2_BASE       0x20000000
+#if defined(CONFIG_OCTEON_U_BOOT) && (defined(CFG_PCI_CONSOLE) || defined(CONFIG_SYS_PCI_CONSOLE))
 uint64_t  octeon_pci_console_init(int num_consoles, int buffer_size)
 {
     octeon_pci_console_desc_t *cons_desc_ptr;
@@ -447,9 +457,9 @@ uint64_t  octeon_pci_console_init(int num_consoles, int buffer_size)
     /* Allocate memory for the consoles.  This must be in the range addresssible by the bootloader.
     ** Try to do so in a manner which minimizes fragmentation.  We try to put it at the top of DDR0 or bottom of
     ** DDR2 first, and only do generic allocation if those fail */
-    int64_t console_block_addr = cvmx_bootmem_phy_named_block_alloc(alloc_size, DDR0_TOP - alloc_size - 128, DDR0_TOP, 128, OCTEON_PCI_CONSOLE_BLOCK_NAME, CVMX_BOOTMEM_FLAG_END_ALLOC);
+    int64_t console_block_addr = cvmx_bootmem_phy_named_block_alloc(alloc_size, OCTEON_DDR0_SIZE - alloc_size - 128, OCTEON_DDR0_SIZE, 128, OCTEON_PCI_CONSOLE_BLOCK_NAME, CVMX_BOOTMEM_FLAG_END_ALLOC);
     if (console_block_addr < 0)
-        console_block_addr = cvmx_bootmem_phy_named_block_alloc(alloc_size, DDR2_BASE + 1, DDR2_BASE + alloc_size + 128, 128, OCTEON_PCI_CONSOLE_BLOCK_NAME, CVMX_BOOTMEM_FLAG_END_ALLOC);
+        console_block_addr = cvmx_bootmem_phy_named_block_alloc(alloc_size, OCTEON_DDR2_BASE + 1, OCTEON_DDR2_BASE + alloc_size + 128, 128, OCTEON_PCI_CONSOLE_BLOCK_NAME, CVMX_BOOTMEM_FLAG_END_ALLOC);
     if (console_block_addr < 0)
         console_block_addr = cvmx_bootmem_phy_named_block_alloc(alloc_size, 0, 0x7fffffff, 128, OCTEON_PCI_CONSOLE_BLOCK_NAME, CVMX_BOOTMEM_FLAG_END_ALLOC);
     if (console_block_addr < 0)

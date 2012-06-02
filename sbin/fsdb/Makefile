@@ -9,8 +9,6 @@ SRCS=	fsdb.c fsdbutil.c \
 	pass5.c setup.c utilities.c ffs_subr.c ffs_tables.c
 CFLAGS+= -I${.CURDIR}/../fsck_ffs
 WARNS?= 2
-# Work around a problem with format string warnings and ntohs macros.
-NO_WFORMAT.clang=
 LDADD=	-ledit -ltermcap
 DPADD=	${LIBEDIT} ${LIBTERMCAP}
 .PATH:	${.CURDIR}/../fsck_ffs ${.CURDIR}/../../sys/ufs/ffs

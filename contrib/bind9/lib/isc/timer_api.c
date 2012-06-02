@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer_api.c,v 1.4 2009-09-02 23:48:02 tbox Exp $ */
+/* $Id: timer_api.c,v 1.4 2009/09/02 23:48:02 tbox Exp $ */
 
 #include <config.h>
 

@@ -1,4 +1,4 @@
--- $Id: pkcs8.asn1 16060 2005-09-13 19:41:29Z lha $ --
+-- $Id$ --
 
 PKCS8 DEFINITIONS ::=
 
@@ -24,7 +24,7 @@ PKCS8EncryptedData ::= OCTET STRING
 
 PKCS8EncryptedPrivateKeyInfo ::= SEQUENCE {
     encryptionAlgorithm AlgorithmIdentifier,
-    encryptedData PKCS8EncryptedData 
+    encryptedData PKCS8EncryptedData
 }
 
 END

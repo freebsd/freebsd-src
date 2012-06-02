@@ -650,7 +650,7 @@ blkfront_initialize(struct xb_softc *sc)
 	sc->max_request_blocks = BLKIF_SEGS_TO_BLOCKS(sc->max_request_segments);
 
 	/* Allocate datastructures based on negotiated values. */
-	error = bus_dma_tag_create(NULL,		/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->xb_dev),	/* parent */
 				   512, PAGE_SIZE,	/* algnmnt, boundary */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
@@ -698,21 +698,25 @@ blkfront_initialize(struct xb_softc *sc)
 		return;
 
 	/* Support both backend schemes for relaying ring page limits. */
-	error = xs_printf(XST_NIL, node_path,
-			 "num-ring-pages","%u", sc->ring_pages);
-	if (error) {
-		xenbus_dev_fatal(sc->xb_dev, error,
-				 "writing %s/num-ring-pages",
-				 node_path);
-		return;
-	}
-	error = xs_printf(XST_NIL, node_path,
-			 "ring-page-order","%u", fls(sc->ring_pages) - 1);
-	if (error) {
-		xenbus_dev_fatal(sc->xb_dev, error,
-				 "writing %s/ring-page-order",
-				 node_path);
-		return;
+	if (sc->ring_pages > 1) {
+		error = xs_printf(XST_NIL, node_path,
+				 "num-ring-pages","%u", sc->ring_pages);
+		if (error) {
+			xenbus_dev_fatal(sc->xb_dev, error,
+					 "writing %s/num-ring-pages",
+					 node_path);
+			return;
+		}
+
+		error = xs_printf(XST_NIL, node_path,
+				 "ring-page-order", "%u",
+				 fls(sc->ring_pages) - 1);
+		if (error) {
+			xenbus_dev_fatal(sc->xb_dev, error,
+					 "writing %s/ring-page-order",
+					 node_path);
+			return;
+		}
 	}
 
 	error = xs_printf(XST_NIL, node_path,

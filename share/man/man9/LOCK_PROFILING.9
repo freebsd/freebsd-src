@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2006
+.Dd March 7, 2012
 .Dt LOCK_PROFILING 9
 .Os
 .Sh NAME
@@ -82,32 +82,6 @@ Enable or disable the lock profiling code.
 This defaults to 0 (off).
 .It Va debug.lock.prof.reset
 Reset the current lock profiling buffers.
-.It Va debug.lock.prof.acquisitions
-The total number of lock acquisitions recorded.
-.It Va debug.lock.prof.records
-The total number of acquisition points recorded.
-Note that only active acquisition points (i.e., points that have been
-reached at least once) are counted.
-.It Va debug.lock.prof.maxrecords
-The maximum number of acquisition points the profiling code is capable
-of monitoring.
-Since it would not be possible to call
-.Xr malloc 9
-from within the lock profiling code, this is a static limit.
-The number of records can be changed with the
-.Dv LPROF_BUFFERS
-kernel option.
-.It Va debug.lock.prof.rejected
-The number of acquisition points that were ignored after the table
-filled up.
-.It Va debug.lock.prof.hashsize
-The size of the hash table used to map acquisition points to
-statistics records.
-The hash size can be changed with the
-.Dv LPROF_HASH_SIZE
-kernel option.
-.It Va debug.lock.prof.collisions
-The number of hash collisions in the acquisition point hash table.
 .It Va debug.lock.prof.stats
 The actual profiling statistics in plain text.
 The columns are as follows, from left to right:
@@ -138,6 +112,14 @@ reached.
 The name of the acquisition point, derived from the source file name
 and line number, followed by the name of the lock in parentheses.
 .El
+.It Va debug.lock.prof.rejected
+The number of acquisition points that were ignored after the table
+filled up.
+.It Va debug.lock.prof.skipspin
+Disable or enable the lock profiling code for the spin locks.
+This defaults to 0 (do profiling for the spin locks).
+.It Va debug.lock.prof.skipcount
+Do sampling approximately every N lock acquisitions.
 .El
 .Sh SEE ALSO
 .Xr sysctl 8 ,

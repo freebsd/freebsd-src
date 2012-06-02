@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: rndc-confgen.docbook,v 1.4 2009-06-15 23:47:59 tbox Exp $ -->
+<!-- $Id: rndc-confgen.docbook,v 1.4 2009/06/15 23:47:59 tbox Exp $ -->
 <refentry id="man.rndc-confgen">
   <refentryinfo>
     <date>Aug 27, 2001</date>

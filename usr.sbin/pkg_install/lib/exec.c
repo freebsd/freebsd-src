@@ -47,6 +47,7 @@ vsystem(const char *fmt, ...)
     va_start(args, fmt);
     if (vsnprintf(cmd, maxargs, fmt, args) > maxargs) {
 	warnx("vsystem args are too long");
+	va_end(args);
 	return 1;
     }
 #ifdef DEBUG
@@ -82,6 +83,7 @@ vpipe(const char *fmt, ...)
     va_start(args, fmt);
     if (vsnprintf(cmd, maxargs, fmt, args) > maxargs) {
 	warnx("vsystem args are too long");
+	va_end(args);
 	return NULL;
     }
 #ifdef DEBUG

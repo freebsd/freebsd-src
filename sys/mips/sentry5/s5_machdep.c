@@ -144,19 +144,6 @@ mips_init(void)
 }
 
 void
-platform_halt(void)
-{
-
-}
-
-
-void
-platform_identify(void)
-{
-
-}
-
-void
 platform_reset(void)
 {
 
@@ -165,18 +152,6 @@ platform_reset(void)
 #else
 	*((volatile uint8_t *)MIPS_PHYS_TO_KSEG1(SENTRY5_EXTIFADR)) = 0x80;
 #endif
-}
-
-void
-platform_trap_enter(void)
-{
-
-}
-
-void
-platform_trap_exit(void)
-{
-
 }
 
 void

@@ -1,39 +1,41 @@
 /*
- * Copyright (c) 1997, 1999, 2000, 2003 - 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997, 1999, 2000, 2003 - 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_glue.c 15617 2005-07-12 06:27:42Z lha $");
+RCSID("$Id$");
 
 static void
 generate_2int (const Type *t, const char *gen_name)
@@ -70,7 +72,8 @@ generate_int2 (const Type *t, const char *gen_name)
     fprintf (codefile,
 	     "%s int2%s(unsigned n)\n"
 	     "{\n"
-	     "\t%s flags;\n\n",
+	     "\t%s flags;\n\n"
+	     "\tmemset(&flags, 0, sizeof(flags));\n\n",
 	     gen_name, gen_name, gen_name);
 
     if(t->members) {
@@ -92,9 +95,17 @@ generate_units (const Type *t, const char *gen_name)
 {
     Member *m;
 
-    fprintf (headerfile,
-	     "const struct units * asn1_%s_units(void);",
-	     gen_name);
+    if (template_flag) {
+	fprintf (headerfile,
+		 "extern const struct units *asn1_%s_table_units;\n",
+		 gen_name);
+	fprintf (headerfile, "#define asn1_%s_units() (asn1_%s_table_units)\n",
+		 gen_name, gen_name);
+    } else {
+	fprintf (headerfile,
+		 "const struct units * asn1_%s_units(void);\n",
+		 gen_name);
+    }
 
     fprintf (codefile,
 	     "static struct units %s_units[] = {\n",
@@ -103,7 +114,7 @@ generate_units (const Type *t, const char *gen_name)
     if(t->members) {
 	ASN1_TAILQ_FOREACH_REVERSE(m, t->members, memhead, members) {
 	    fprintf (codefile,
-		     "\t{\"%s\",\t1U << %d},\n", m->gen_name, m->val);
+		     "\t{\"%s\",\t1U << %d},\n", m->name, m->val);
 	}
     }
 
@@ -111,11 +122,16 @@ generate_units (const Type *t, const char *gen_name)
 	     "\t{NULL,\t0}\n"
 	     "};\n\n");
 
-    fprintf (codefile,
-	     "const struct units * asn1_%s_units(void){\n"
-	     "return %s_units;\n"
-	     "}\n\n",
-	     gen_name, gen_name);
+    if (template_flag)
+	fprintf (codefile,
+		 "const struct units * asn1_%s_table_units = %s_units;\n",
+		 gen_name, gen_name);
+    else
+	fprintf (codefile,
+		 "const struct units * asn1_%s_units(void){\n"
+		 "return %s_units;\n"
+		 "}\n\n",
+		 gen_name, gen_name);
 
 
 }

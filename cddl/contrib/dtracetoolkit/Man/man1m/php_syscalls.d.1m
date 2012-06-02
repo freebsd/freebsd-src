@@ -1,0 +1,54 @@
+.TH php_syscalls.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+php_syscalls.d - count PHP function calls and syscalls using DTrace.
+.SH SYNOPSIS
+.B php_syscalls.d
+
+.SH DESCRIPTION
+This traces syscalls that occured during a PHP function call.
+
+Filename and function names are printed if available.
+The filename for syscalls may be printed as "php", if the program
+was invoked using the form "php filename" rather than running the
+program with an interpreter line.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Php provider, which may change 
+as additional features are introduced. Check Php/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B php_syscalls.d
+.PP
+.SH FIELDS
+.TP
+PID
+Process ID
+.TP
+FILE
+Filename of the PHP program
+.TP
+TYPE
+Type of call (func/syscall)
+.TP
+NAME
+Name of call
+.TP
+COUNT
+Number of calls during sample
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+php_syscalls.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

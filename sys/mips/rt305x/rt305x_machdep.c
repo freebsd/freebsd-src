@@ -118,36 +118,11 @@ mips_init(void)
 }
 
 void
-platform_halt(void)
-{
-
-}
-
-
-void
-platform_identify(void)
-{
-
-}
-
-void
 platform_reset(void)
 {
 
 	__asm __volatile("li	$25, 0xbf000000");
 	__asm __volatile("j	$25");
-}
-
-void
-platform_trap_enter(void)
-{
-
-}
-
-void
-platform_trap_exit(void)
-{
-
 }
 
 void

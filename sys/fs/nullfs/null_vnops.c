@@ -678,7 +678,6 @@ static int
 null_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
 
 	vp->v_object = NULL;
 
@@ -686,7 +685,7 @@ null_inactive(struct vop_inactive_args *ap)
 	 * If this is the last reference, then free up the vnode
 	 * so as not to tie up the lower vnodes.
 	 */
-	vrecycle(vp, td);
+	vrecycle(vp);
 
 	return (0);
 }

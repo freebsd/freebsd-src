@@ -933,7 +933,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		p_tot = rup->ru_inblock + rup->ru_oublock + rup->ru_majflt;
 		s_tot = total_inblock + total_oublock + total_majflt;
 
-		sprintf(fmt, io_Proc_format,
+		snprintf(fmt, sizeof(fmt), io_Proc_format,
 		    pp->ki_pid,
 		    jid_buf,
 		    namelength, namelength, (*get_userid)(pp->ki_ruid),
@@ -961,7 +961,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		snprintf(thr_buf, sizeof(thr_buf), "%*d ",
 		    sizeof(thr_buf) - 2, pp->ki_numthreads);
 
-	sprintf(fmt, proc_fmt,
+	snprintf(fmt, sizeof(fmt), proc_fmt,
 	    pp->ki_pid,
 	    jid_buf,
 	    namelength, namelength, (*get_userid)(pp->ki_ruid),

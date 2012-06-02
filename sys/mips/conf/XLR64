@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-machine 	mips mips64eb
+machine 	mips mips64
 ident 		XLR64
 include		"../rmi/std.xlr"
 
@@ -25,8 +25,6 @@ makeoptions	MODULES_OVERRIDE=""
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
 makeoptions	KERNLOADADDR=0xffffffff80100000
-
-options		ISA_MIPS64
 
 #profile		2
 
@@ -88,7 +86,6 @@ device 		uart
 device 		loop
 device 		random
 device 		md
-device 		pty
 device		bpf
 
 # Network

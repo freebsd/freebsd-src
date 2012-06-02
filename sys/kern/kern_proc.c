@@ -309,6 +309,30 @@ pfind(pid)
 	return (p);
 }
 
+static struct proc *
+pfind_tid(pid_t tid)
+{
+	struct proc *p;
+	struct thread *td;
+
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (td->td_tid == tid)
+				goto found;
+		}
+		PROC_UNLOCK(p);
+	}
+found:
+	sx_sunlock(&allproc_lock);
+	return (p);
+}
+
 /*
  * Locate a process group by number.
  * The caller must hold proctree_lock.
@@ -339,7 +363,12 @@ pget(pid_t pid, int flags, struct proc **pp)
 	struct proc *p;
 	int error;
 
-	p = pfind(pid);
+	if (pid <= PID_MAX)
+		p = pfind(pid);
+	else if ((flags & PGET_NOTID) == 0)
+		p = pfind_tid(pid);
+	else
+		p = NULL;
 	if (p == NULL)
 		return (ESRCH);
 	if ((flags & PGET_CANSEE) != 0) {
@@ -849,6 +878,9 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_childtime = kp->ki_childstime;
 	timevaladd(&kp->ki_childtime, &kp->ki_childutime);
 
+	FOREACH_THREAD_IN_PROC(p, td0)
+		kp->ki_cow += td0->td_cow;
+
 	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
@@ -961,6 +993,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		kp->ki_runtime = cputick2usec(td->td_rux.rux_runtime);
 		kp->ki_pctcpu = sched_pctcpu(td);
 		kp->ki_estcpu = td->td_estcpu;
+		kp->ki_cow = td->td_cow;
 	}
 
 	/* We can't get this anymore but ps etc never used it anyway. */
@@ -1103,6 +1136,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_estcpu);
 	CP(*ki, *ki32, ki_slptime);
 	CP(*ki, *ki32, ki_swtime);
+	CP(*ki, *ki32, ki_cow);
 	CP(*ki, *ki32, ki_runtime);
 	TV_CP(*ki, *ki32, ki_start);
 	TV_CP(*ki, *ki32, ki_childtime);
@@ -2499,6 +2533,52 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * This sysctl allows a process to set and retrieve binary osreldate of
+ * another process.
+ */
+static int
+sysctl_kern_proc_osrel(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	int flags, error, osrel;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	if (req->newptr != NULL && req->newlen != sizeof(osrel))
+		return (EINVAL);
+
+	flags = PGET_HOLD | PGET_NOTWEXIT;
+	if (req->newptr != NULL)
+		flags |= PGET_CANDEBUG;
+	else
+		flags |= PGET_CANSEE;
+	error = pget((pid_t)name[0], flags, &p);
+	if (error != 0)
+		return (error);
+
+	error = SYSCTL_OUT(req, &p->p_osrel, sizeof(p->p_osrel));
+	if (error != 0)
+		goto errout;
+
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &osrel, sizeof(osrel));
+		if (error != 0)
+			goto errout;
+		if (osrel < 0) {
+			error = EINVAL;
+			goto errout;
+		}
+		p->p_osrel = osrel;
+	}
+errout:
+	PRELE(p);
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2603,3 +2683,7 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings, CTLFLAG_RD |
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_UMASK, umask, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_umask, "Process umask");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OSREL, osrel, CTLFLAG_RW |
+	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_osrel,
+	"Process binary osreldate");

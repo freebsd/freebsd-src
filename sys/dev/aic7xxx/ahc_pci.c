@@ -105,7 +105,6 @@ ahc_pci_attach(device_t dev)
                 ahc->flags |= AHC_39BIT_ADDRESSING;
 
 	/* Allocate a dmatag for our SCB DMA maps */
-	/* XXX Should be a child of the PCI bus dma tag */
 	error = aic_dma_tag_create(ahc, /*parent*/bus_get_dma_tag(dev),
 				   /*alignment*/1, /*boundary*/0,
 				   (ahc->flags & AHC_39BIT_ADDRESSING)

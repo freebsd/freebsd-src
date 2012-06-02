@@ -73,8 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include "opt_cputype.h"
-
 #include <machine/cpuinfo.h>
 #include <machine/cache.h>
 

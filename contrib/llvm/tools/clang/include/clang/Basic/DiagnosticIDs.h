@@ -31,14 +31,15 @@ namespace clang {
   namespace diag {
     // Start position for diagnostics.
     enum {
-      DIAG_START_DRIVER   =                        300,
-      DIAG_START_FRONTEND = DIAG_START_DRIVER   +  100,
-      DIAG_START_LEX      = DIAG_START_FRONTEND +  120,
-      DIAG_START_PARSE    = DIAG_START_LEX      +  300,
-      DIAG_START_AST      = DIAG_START_PARSE    +  300,
-      DIAG_START_SEMA     = DIAG_START_AST      +  100,
-      DIAG_START_ANALYSIS = DIAG_START_SEMA     + 3000,
-      DIAG_UPPER_LIMIT    = DIAG_START_ANALYSIS +  100
+      DIAG_START_DRIVER        =                               300,
+      DIAG_START_FRONTEND      = DIAG_START_DRIVER          +  100,
+      DIAG_START_SERIALIZATION = DIAG_START_FRONTEND        +  100,
+      DIAG_START_LEX           = DIAG_START_SERIALIZATION   +  120,
+      DIAG_START_PARSE         = DIAG_START_LEX             +  300,
+      DIAG_START_AST           = DIAG_START_PARSE           +  400,
+      DIAG_START_SEMA          = DIAG_START_AST             +  100,
+      DIAG_START_ANALYSIS      = DIAG_START_SEMA            + 3000,
+      DIAG_UPPER_LIMIT         = DIAG_START_ANALYSIS        +  100
     };
 
     class CustomDiagInfo;
@@ -49,7 +50,7 @@ namespace clang {
     // Get typedefs for common diagnostics.
     enum {
 #define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,\
-             SFINAE,ACCESS,CATEGORY,NOWERROR,SHOWINSYSHEADER,BRIEF,FULL) ENUM,
+             SFINAE,ACCESS,CATEGORY,NOWERROR,SHOWINSYSHEADER) ENUM,
 #include "clang/Basic/DiagnosticCommonKinds.inc"
       NUM_BUILTIN_COMMON_DIAGNOSTICS
 #undef DIAG
@@ -108,7 +109,7 @@ public:
 
 /// \brief Used for handling and querying diagnostic IDs. Can be used and shared
 /// by multiple Diagnostics for multiple translation units.
-class DiagnosticIDs : public llvm::RefCountedBase<DiagnosticIDs> {
+class DiagnosticIDs : public RefCountedBase<DiagnosticIDs> {
 public:
   /// Level - The level of the diagnostic, after it has been through mapping.
   enum Level {
@@ -182,6 +183,10 @@ public:
   /// category.
   static StringRef getCategoryNameFromID(unsigned CategoryID);
   
+  /// isARCDiagnostic - Return true if a given diagnostic falls into an
+  /// ARC diagnostic category;
+  static bool isARCDiagnostic(unsigned DiagID);
+
   /// \brief Enumeration describing how the the emission of a diagnostic should
   /// be treated when it occurs during C++ template argument deduction.
   enum SFINAEResponse {
@@ -218,45 +223,19 @@ public:
   /// are not SFINAE errors.
   static SFINAEResponse getDiagnosticSFINAEResponse(unsigned DiagID);
 
-  /// getName - Given a diagnostic ID, return its name
-  static StringRef getName(unsigned DiagID);
-  
-  /// getIdFromName - Given a diagnostic name, return its ID, or 0
-  static unsigned getIdFromName(StringRef Name);
-  
-  /// getBriefExplanation - Given a diagnostic ID, return a brief explanation
-  /// of the issue
-  static StringRef getBriefExplanation(unsigned DiagID);
-
-  /// getFullExplanation - Given a diagnostic ID, return a full explanation
-  /// of the issue
-  static StringRef getFullExplanation(unsigned DiagID);
-  
-  /// Iterator class used for traversing all statically declared
-  /// diagnostics.
-  class diag_iterator {
-    const void *impl;
-
-    friend class DiagnosticIDs;    
-    diag_iterator(const void *im) : impl(im) {}
-  public:
-    diag_iterator &operator++();
-    bool operator==(const diag_iterator &x) const { return impl == x.impl; }
-    bool operator!=(const diag_iterator &x) const { return impl != x.impl; }
-    
-    llvm::StringRef getDiagName() const;
-    unsigned getDiagID() const;    
-  };
-
-  static diag_iterator diags_begin();
-  static diag_iterator diags_end();
-
   /// \brief Get the set of all diagnostic IDs in the group with the given name.
   ///
   /// \param Diags [out] - On return, the diagnostics in the group.
   /// \returns True if the given group is unknown, false otherwise.
   bool getDiagnosticsInGroup(StringRef Group,
                              llvm::SmallVectorImpl<diag::kind> &Diags) const;
+
+  /// \brief Get the set of all diagnostic IDs.
+  void getAllDiagnostics(llvm::SmallVectorImpl<diag::kind> &Diags) const;
+
+  /// \brief Get the warning option with the closest edit distance to the given
+  /// group name.
+  static StringRef getNearestWarningOption(StringRef Group);
 
 private:
   /// \brief Get the set of all diagnostic IDs in the given group.

@@ -33,7 +33,7 @@
  *	@(#)extern.h	8.3 (Berkeley) 10/9/94
  */
 
-/* $Id: extern.h 9075 2000-09-19 13:15:12Z assar $ */
+/* $Id$ */
 
 #include <setjmp.h>
 #include <stdlib.h>
@@ -117,7 +117,7 @@ void    reset (int, char **);
 void	restart (int, char **);
 void	rmthelp (int, char **);
 void	rmtstatus (int, char **);
-int	ruserpass (char *, char **, char **, char **);
+int	ruserpassword (char *, char **, char **, char **);
 void    sendrequest (char *, char *, char *, char *, int);
 void	setascii (int, char **);
 void	setbell (int, char **);

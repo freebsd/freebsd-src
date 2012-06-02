@@ -85,7 +85,6 @@ device		"7seg"
 
 # SCSI Controllers
 
-device		pty
 #options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 #options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug

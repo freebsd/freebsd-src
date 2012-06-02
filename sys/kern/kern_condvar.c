@@ -103,7 +103,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
@@ -140,7 +140,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, cv_wmesg(cvp));
 #endif
 	PICKUP_GIANT();
 	if (lock != &Giant.lock_object) {
@@ -162,7 +162,7 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	td = curthread;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
@@ -197,7 +197,7 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, cv_wmesg(cvp));
 #endif
 	PICKUP_GIANT();
 }
@@ -220,7 +220,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
@@ -258,7 +258,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, cv_wmesg(cvp));
 #endif
 	PICKUP_GIANT();
 	if (lock != &Giant.lock_object) {
@@ -286,7 +286,7 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
@@ -324,7 +324,7 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, cv_wmesg(cvp));
 #endif
 	PICKUP_GIANT();
 	if (lock != &Giant.lock_object) {
@@ -353,7 +353,7 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
@@ -392,7 +392,7 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, cv_wmesg(cvp));
 #endif
 	PICKUP_GIANT();
 	if (lock != &Giant.lock_object) {

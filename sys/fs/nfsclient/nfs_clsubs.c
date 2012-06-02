@@ -367,17 +367,10 @@ ncl_clearcommit(struct mount *mp)
 	struct buf *bp, *nbp;
 	struct bufobj *bo;
 
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
 		bo = &vp->v_bufobj;
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
 		vholdl(vp);
 		VI_UNLOCK(vp);
-		MNT_IUNLOCK(mp);
 		BO_LOCK(bo);
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (!BUF_ISLOCKED(bp) &&
@@ -387,9 +380,7 @@ ncl_clearcommit(struct mount *mp)
 		}
 		BO_UNLOCK(bo);
 		vdrop(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 }
 
 /*

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Interface to the CN31XX, CN38XX, and CN58XX hardware DFA engine.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_DFA_H__
@@ -486,7 +486,7 @@ typedef union
     uint64_t u64;
     struct {
 #define CVMX_DFA_STATE_TICKET_BIT_POS 16
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
 	// NOTE:  must clear LSB of base_address_div16 due to ticket overflow
 	uint32_t		base_address_div16;  /**< Current DFA instruction queue chunck base address/16 (clear LSB). */
 	uint8_t			ticket_loops;	     /**< bits [15:8] of total number of tickets requested. */
@@ -503,7 +503,7 @@ typedef union
 #endif
     } s;
     struct {	// a bitfield version of the same thing to extract base address while clearing carry.
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t		base_address_div32	: 31;	/**< Current DFA instruction queue chunck base address/32. */
 	uint64_t		carry			: 1;	/**< Carry out from total_tickets. */
 	uint64_t		total_tickets		: 16;	/**< Total tickets. */

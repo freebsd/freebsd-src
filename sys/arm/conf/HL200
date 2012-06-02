@@ -65,7 +65,6 @@ options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 device		random
-device		pty
 device		loop
 device		ether
 device		uart

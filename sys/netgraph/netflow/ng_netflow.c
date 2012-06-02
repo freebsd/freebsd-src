@@ -225,6 +225,11 @@ ng_netflow_constructor(node_p node)
 	/* Initialize private data */
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
+	/* Initialize fib data */
+	priv->maxfibs = rt_numfibs;
+	priv->fib_data = malloc(sizeof(fib_export_p) * priv->maxfibs,
+	    M_NETGRAPH, M_WAITOK | M_ZERO);
+
 	/* Make node and its data point at each other */
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
@@ -901,8 +906,10 @@ loopend:
 	
 	/* Check packet FIB */
 	fib = M_GETFIB(m);
-	if (fib >= RT_NUMFIBS) {
-		CTR2(KTR_NET, "ng_netflow_rcvdata(): packet fib %d is out of range of available fibs: 0 .. %d", fib, RT_NUMFIBS);
+	if (fib >= priv->maxfibs) {
+		CTR2(KTR_NET, "ng_netflow_rcvdata(): packet fib %d is out of "
+		    "range of available fibs: 0 .. %d",
+		    fib, priv->maxfibs);
 		goto bypass;
 	}
 
@@ -973,6 +980,7 @@ ng_netflow_rmnode(node_p node)
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(priv->node);
 
+	free(priv->fib_data, M_NETGRAPH);
 	free(priv, M_NETGRAPH);
 
 	return (0);

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,13 +49,53 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_POW_TYPEDEFS_H__
-#define __CVMX_POW_TYPEDEFS_H__
+#ifndef __CVMX_POW_DEFS_H__
+#define __CVMX_POW_DEFS_H__
 
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_BIST_STAT CVMX_POW_BIST_STAT_FUNC()
+static inline uint64_t CVMX_POW_BIST_STAT_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_BIST_STAT not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x00016700000003F8ull);
+}
+#else
 #define CVMX_POW_BIST_STAT (CVMX_ADD_IO_SEG(0x00016700000003F8ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_DS_PC CVMX_POW_DS_PC_FUNC()
+static inline uint64_t CVMX_POW_DS_PC_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_DS_PC not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000398ull);
+}
+#else
 #define CVMX_POW_DS_PC (CVMX_ADD_IO_SEG(0x0001670000000398ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_ECC_ERR CVMX_POW_ECC_ERR_FUNC()
+static inline uint64_t CVMX_POW_ECC_ERR_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_ECC_ERR not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000218ull);
+}
+#else
 #define CVMX_POW_ECC_ERR (CVMX_ADD_IO_SEG(0x0001670000000218ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_INT_CTL CVMX_POW_INT_CTL_FUNC()
+static inline uint64_t CVMX_POW_INT_CTL_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_INT_CTL not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000220ull);
+}
+#else
 #define CVMX_POW_INT_CTL (CVMX_ADD_IO_SEG(0x0001670000000220ull))
+#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_POW_IQ_CNTX(unsigned long offset)
 {
@@ -67,19 +107,32 @@ static inline uint64_t CVMX_POW_IQ_CNTX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 7))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 7)))))
 		cvmx_warn("CVMX_POW_IQ_CNTX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001670000000340ull) + ((offset) & 7) * 8;
 }
 #else
 #define CVMX_POW_IQ_CNTX(offset) (CVMX_ADD_IO_SEG(0x0001670000000340ull) + ((offset) & 7) * 8)
 #endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_IQ_COM_CNT CVMX_POW_IQ_COM_CNT_FUNC()
+static inline uint64_t CVMX_POW_IQ_COM_CNT_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_IQ_COM_CNT not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000388ull);
+}
+#else
 #define CVMX_POW_IQ_COM_CNT (CVMX_ADD_IO_SEG(0x0001670000000388ull))
+#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_POW_IQ_INT CVMX_POW_IQ_INT_FUNC()
 static inline uint64_t CVMX_POW_IQ_INT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_POW_IQ_INT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001670000000238ull);
 }
@@ -90,7 +143,7 @@ static inline uint64_t CVMX_POW_IQ_INT_FUNC(void)
 #define CVMX_POW_IQ_INT_EN CVMX_POW_IQ_INT_EN_FUNC()
 static inline uint64_t CVMX_POW_IQ_INT_EN_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_POW_IQ_INT_EN not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001670000000240ull);
 }
@@ -103,20 +156,43 @@ static inline uint64_t CVMX_POW_IQ_THRX(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 7))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 7)))))
 		cvmx_warn("CVMX_POW_IQ_THRX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00016700000003A0ull) + ((offset) & 7) * 8;
 }
 #else
 #define CVMX_POW_IQ_THRX(offset) (CVMX_ADD_IO_SEG(0x00016700000003A0ull) + ((offset) & 7) * 8)
 #endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_NOS_CNT CVMX_POW_NOS_CNT_FUNC()
+static inline uint64_t CVMX_POW_NOS_CNT_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_NOS_CNT not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000228ull);
+}
+#else
 #define CVMX_POW_NOS_CNT (CVMX_ADD_IO_SEG(0x0001670000000228ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_NW_TIM CVMX_POW_NW_TIM_FUNC()
+static inline uint64_t CVMX_POW_NW_TIM_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_NW_TIM not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000210ull);
+}
+#else
 #define CVMX_POW_NW_TIM (CVMX_ADD_IO_SEG(0x0001670000000210ull))
+#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_POW_PF_RST_MSK CVMX_POW_PF_RST_MSK_FUNC()
 static inline uint64_t CVMX_POW_PF_RST_MSK_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_POW_PF_RST_MSK not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001670000000230ull);
 }
@@ -134,7 +210,10 @@ static inline uint64_t CVMX_POW_PP_GRP_MSKX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 3))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 11))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 15))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 9))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 3)))))
 		cvmx_warn("CVMX_POW_PP_GRP_MSKX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001670000000000ull) + ((offset) & 15) * 8;
 }
@@ -152,7 +231,10 @@ static inline uint64_t CVMX_POW_QOS_RNDX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 7))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 7)))))
 		cvmx_warn("CVMX_POW_QOS_RNDX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00016700000001C0ull) + ((offset) & 7) * 8;
 }
@@ -170,15 +252,38 @@ static inline uint64_t CVMX_POW_QOS_THRX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 7))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 7)))))
 		cvmx_warn("CVMX_POW_QOS_THRX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001670000000180ull) + ((offset) & 7) * 8;
 }
 #else
 #define CVMX_POW_QOS_THRX(offset) (CVMX_ADD_IO_SEG(0x0001670000000180ull) + ((offset) & 7) * 8)
 #endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_TS_PC CVMX_POW_TS_PC_FUNC()
+static inline uint64_t CVMX_POW_TS_PC_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_TS_PC not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000390ull);
+}
+#else
 #define CVMX_POW_TS_PC (CVMX_ADD_IO_SEG(0x0001670000000390ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_WA_COM_PC CVMX_POW_WA_COM_PC_FUNC()
+static inline uint64_t CVMX_POW_WA_COM_PC_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_WA_COM_PC not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000380ull);
+}
+#else
 #define CVMX_POW_WA_COM_PC (CVMX_ADD_IO_SEG(0x0001670000000380ull))
+#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_POW_WA_PCX(unsigned long offset)
 {
@@ -190,14 +295,27 @@ static inline uint64_t CVMX_POW_WA_PCX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 7))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 7))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 7))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 7)))))
 		cvmx_warn("CVMX_POW_WA_PCX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001670000000300ull) + ((offset) & 7) * 8;
 }
 #else
 #define CVMX_POW_WA_PCX(offset) (CVMX_ADD_IO_SEG(0x0001670000000300ull) + ((offset) & 7) * 8)
 #endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_WQ_INT CVMX_POW_WQ_INT_FUNC()
+static inline uint64_t CVMX_POW_WQ_INT_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_WQ_INT not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000200ull);
+}
+#else
 #define CVMX_POW_WQ_INT (CVMX_ADD_IO_SEG(0x0001670000000200ull))
+#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_POW_WQ_INT_CNTX(unsigned long offset)
 {
@@ -209,14 +327,27 @@ static inline uint64_t CVMX_POW_WQ_INT_CNTX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 15))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 15))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 15))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 15)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 15)))))
 		cvmx_warn("CVMX_POW_WQ_INT_CNTX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001670000000100ull) + ((offset) & 15) * 8;
 }
 #else
 #define CVMX_POW_WQ_INT_CNTX(offset) (CVMX_ADD_IO_SEG(0x0001670000000100ull) + ((offset) & 15) * 8)
 #endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_POW_WQ_INT_PC CVMX_POW_WQ_INT_PC_FUNC()
+static inline uint64_t CVMX_POW_WQ_INT_PC_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_POW_WQ_INT_PC not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x0001670000000208ull);
+}
+#else
 #define CVMX_POW_WQ_INT_PC (CVMX_ADD_IO_SEG(0x0001670000000208ull))
+#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_POW_WQ_INT_THRX(unsigned long offset)
 {
@@ -228,7 +359,10 @@ static inline uint64_t CVMX_POW_WQ_INT_THRX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 15))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 15))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 15))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 15)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 15)))))
 		cvmx_warn("CVMX_POW_WQ_INT_THRX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001670000000080ull) + ((offset) & 15) * 8;
 }
@@ -246,7 +380,10 @@ static inline uint64_t CVMX_POW_WS_PCX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 15))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset <= 15))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((offset <= 15))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 15)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 15))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 15)))))
 		cvmx_warn("CVMX_POW_WS_PCX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001670000000280ull) + ((offset) & 15) * 8;
 }
@@ -264,12 +401,10 @@ static inline uint64_t CVMX_POW_WS_PCX(unsigned long offset)
  * Also contains the BIST status for the PP's.  Each bit in the PP field is the OR of all BIST
  * results for the corresponding physical PP ('0' = pass, '1' = fail).
  */
-union cvmx_pow_bist_stat
-{
+union cvmx_pow_bist_stat {
 	uint64_t u64;
-	struct cvmx_pow_bist_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_bist_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t pp                           : 16; /**< Physical PP BIST status */
 	uint64_t reserved_0_15                : 16;
@@ -279,9 +414,8 @@ union cvmx_pow_bist_stat
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
-	struct cvmx_pow_bist_stat_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_bist_stat_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t pp                           : 1;  /**< Physical PP BIST status */
 	uint64_t reserved_9_15                : 7;
@@ -309,9 +443,8 @@ union cvmx_pow_bist_stat
 	uint64_t reserved_17_63               : 47;
 #endif
 	} cn30xx;
-	struct cvmx_pow_bist_stat_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_bist_stat_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t pp                           : 2;  /**< Physical PP BIST status */
 	uint64_t reserved_9_15                : 7;
@@ -339,9 +472,8 @@ union cvmx_pow_bist_stat
 	uint64_t reserved_18_63               : 46;
 #endif
 	} cn31xx;
-	struct cvmx_pow_bist_stat_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_bist_stat_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t pp                           : 16; /**< Physical PP BIST status */
 	uint64_t reserved_10_15               : 6;
@@ -373,9 +505,8 @@ union cvmx_pow_bist_stat
 	} cn38xx;
 	struct cvmx_pow_bist_stat_cn38xx      cn38xxp2;
 	struct cvmx_pow_bist_stat_cn31xx      cn50xx;
-	struct cvmx_pow_bist_stat_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_bist_stat_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t pp                           : 4;  /**< Physical PP BIST status */
 	uint64_t reserved_9_15                : 7;
@@ -404,9 +535,8 @@ union cvmx_pow_bist_stat
 #endif
 	} cn52xx;
 	struct cvmx_pow_bist_stat_cn52xx      cn52xxp1;
-	struct cvmx_pow_bist_stat_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_bist_stat_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t pp                           : 12; /**< Physical PP BIST status */
 	uint64_t reserved_10_15               : 6;
@@ -439,9 +569,33 @@ union cvmx_pow_bist_stat
 	struct cvmx_pow_bist_stat_cn56xx      cn56xxp1;
 	struct cvmx_pow_bist_stat_cn38xx      cn58xx;
 	struct cvmx_pow_bist_stat_cn38xx      cn58xxp1;
-	struct cvmx_pow_bist_stat_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_bist_stat_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_20_63               : 44;
+	uint64_t pp                           : 4;  /**< Physical PP BIST status */
+	uint64_t reserved_12_15               : 4;
+	uint64_t cam                          : 1;  /**< POW CAM BIST status */
+	uint64_t nbr                          : 3;  /**< NCB receiver memory BIST status */
+	uint64_t nbt                          : 4;  /**< NCB transmitter memory BIST status */
+	uint64_t index                        : 1;  /**< Index memory BIST status */
+	uint64_t fidx                         : 1;  /**< Forward index memory BIST status */
+	uint64_t pend                         : 1;  /**< Pending switch memory BIST status */
+	uint64_t adr                          : 1;  /**< Address memory BIST status */
+#else
+	uint64_t adr                          : 1;
+	uint64_t pend                         : 1;
+	uint64_t fidx                         : 1;
+	uint64_t index                        : 1;
+	uint64_t nbt                          : 4;
+	uint64_t nbr                          : 3;
+	uint64_t cam                          : 1;
+	uint64_t reserved_12_15               : 4;
+	uint64_t pp                           : 4;
+	uint64_t reserved_20_63               : 44;
+#endif
+	} cn61xx;
+	struct cvmx_pow_bist_stat_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t pp                           : 6;  /**< Physical PP BIST status */
 	uint64_t reserved_12_15               : 4;
@@ -466,6 +620,32 @@ union cvmx_pow_bist_stat
 #endif
 	} cn63xx;
 	struct cvmx_pow_bist_stat_cn63xx      cn63xxp1;
+	struct cvmx_pow_bist_stat_cn66xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_26_63               : 38;
+	uint64_t pp                           : 10; /**< Physical PP BIST status */
+	uint64_t reserved_12_15               : 4;
+	uint64_t cam                          : 1;  /**< POW CAM BIST status */
+	uint64_t nbr                          : 3;  /**< NCB receiver memory BIST status */
+	uint64_t nbt                          : 4;  /**< NCB transmitter memory BIST status */
+	uint64_t index                        : 1;  /**< Index memory BIST status */
+	uint64_t fidx                         : 1;  /**< Forward index memory BIST status */
+	uint64_t pend                         : 1;  /**< Pending switch memory BIST status */
+	uint64_t adr                          : 1;  /**< Address memory BIST status */
+#else
+	uint64_t adr                          : 1;
+	uint64_t pend                         : 1;
+	uint64_t fidx                         : 1;
+	uint64_t index                        : 1;
+	uint64_t nbt                          : 4;
+	uint64_t nbr                          : 3;
+	uint64_t cam                          : 1;
+	uint64_t reserved_12_15               : 4;
+	uint64_t pp                           : 10;
+	uint64_t reserved_26_63               : 38;
+#endif
+	} cn66xx;
+	struct cvmx_pow_bist_stat_cn61xx      cnf71xx;
 };
 typedef union cvmx_pow_bist_stat cvmx_pow_bist_stat_t;
 
@@ -476,12 +656,10 @@ typedef union cvmx_pow_bist_stat cvmx_pow_bist_stat_t;
  *
  * Counts the number of de-schedule requests.  Write to clear.
  */
-union cvmx_pow_ds_pc
-{
+union cvmx_pow_ds_pc {
 	uint64_t u64;
-	struct cvmx_pow_ds_pc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_ds_pc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ds_pc                        : 32; /**< De-schedule performance counter */
 #else
@@ -500,8 +678,11 @@ union cvmx_pow_ds_pc
 	struct cvmx_pow_ds_pc_s               cn56xxp1;
 	struct cvmx_pow_ds_pc_s               cn58xx;
 	struct cvmx_pow_ds_pc_s               cn58xxp1;
+	struct cvmx_pow_ds_pc_s               cn61xx;
 	struct cvmx_pow_ds_pc_s               cn63xx;
 	struct cvmx_pow_ds_pc_s               cn63xxp1;
+	struct cvmx_pow_ds_pc_s               cn66xx;
+	struct cvmx_pow_ds_pc_s               cnf71xx;
 };
 typedef union cvmx_pow_ds_pc cvmx_pow_ds_pc_t;
 
@@ -536,12 +717,10 @@ typedef union cvmx_pow_ds_pc cvmx_pow_ds_pc_t;
  * <11> Received DBG load from PP with DBG load pending
  * <12> Received CSR load from PP with CSR load pending
  */
-union cvmx_pow_ecc_err
-{
+union cvmx_pow_ecc_err {
 	uint64_t u64;
-	struct cvmx_pow_ecc_err_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_ecc_err_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_45_63               : 19;
 	uint64_t iop_ie                       : 13; /**< Illegal operation interrupt enables */
 	uint64_t reserved_29_31               : 3;
@@ -572,9 +751,8 @@ union cvmx_pow_ecc_err
 #endif
 	} s;
 	struct cvmx_pow_ecc_err_s             cn30xx;
-	struct cvmx_pow_ecc_err_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_ecc_err_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t rpe_ie                       : 1;  /**< Remote pointer error interrupt enable */
 	uint64_t rpe                          : 1;  /**< Remote pointer error */
@@ -605,8 +783,11 @@ union cvmx_pow_ecc_err
 	struct cvmx_pow_ecc_err_s             cn56xxp1;
 	struct cvmx_pow_ecc_err_s             cn58xx;
 	struct cvmx_pow_ecc_err_s             cn58xxp1;
+	struct cvmx_pow_ecc_err_s             cn61xx;
 	struct cvmx_pow_ecc_err_s             cn63xx;
 	struct cvmx_pow_ecc_err_s             cn63xxp1;
+	struct cvmx_pow_ecc_err_s             cn66xx;
+	struct cvmx_pow_ecc_err_s             cnf71xx;
 };
 typedef union cvmx_pow_ecc_err cvmx_pow_ecc_err_t;
 
@@ -622,12 +803,10 @@ typedef union cvmx_pow_ecc_err cvmx_pow_ecc_err_t;
  * NBR_THR = Assert ncb__busy when the number of remaining coherent bus NBR credits equals is less
  * than or equal to this value.
  */
-union cvmx_pow_int_ctl
-{
+union cvmx_pow_int_ctl {
 	uint64_t u64;
-	struct cvmx_pow_int_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_int_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t pfr_dis                      : 1;  /**< High-perf pre-fetch reset mode disable */
 	uint64_t nbr_thr                      : 5;  /**< NBR busy threshold */
@@ -648,8 +827,11 @@ union cvmx_pow_int_ctl
 	struct cvmx_pow_int_ctl_s             cn56xxp1;
 	struct cvmx_pow_int_ctl_s             cn58xx;
 	struct cvmx_pow_int_ctl_s             cn58xxp1;
+	struct cvmx_pow_int_ctl_s             cn61xx;
 	struct cvmx_pow_int_ctl_s             cn63xx;
 	struct cvmx_pow_int_ctl_s             cn63xxp1;
+	struct cvmx_pow_int_ctl_s             cn66xx;
+	struct cvmx_pow_int_ctl_s             cnf71xx;
 };
 typedef union cvmx_pow_int_ctl cvmx_pow_int_ctl_t;
 
@@ -660,12 +842,10 @@ typedef union cvmx_pow_int_ctl cvmx_pow_int_ctl_t;
  *
  * Contains a read-only count of the number of work queue entries for each QOS level.
  */
-union cvmx_pow_iq_cntx
-{
+union cvmx_pow_iq_cntx {
 	uint64_t u64;
-	struct cvmx_pow_iq_cntx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_iq_cntx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t iq_cnt                       : 32; /**< Input queue count for QOS level X */
 #else
@@ -684,8 +864,11 @@ union cvmx_pow_iq_cntx
 	struct cvmx_pow_iq_cntx_s             cn56xxp1;
 	struct cvmx_pow_iq_cntx_s             cn58xx;
 	struct cvmx_pow_iq_cntx_s             cn58xxp1;
+	struct cvmx_pow_iq_cntx_s             cn61xx;
 	struct cvmx_pow_iq_cntx_s             cn63xx;
 	struct cvmx_pow_iq_cntx_s             cn63xxp1;
+	struct cvmx_pow_iq_cntx_s             cn66xx;
+	struct cvmx_pow_iq_cntx_s             cnf71xx;
 };
 typedef union cvmx_pow_iq_cntx cvmx_pow_iq_cntx_t;
 
@@ -696,12 +879,10 @@ typedef union cvmx_pow_iq_cntx cvmx_pow_iq_cntx_t;
  *
  * Contains a read-only count of the total number of work queue entries in all QOS levels.
  */
-union cvmx_pow_iq_com_cnt
-{
+union cvmx_pow_iq_com_cnt {
 	uint64_t u64;
-	struct cvmx_pow_iq_com_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_iq_com_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t iq_cnt                       : 32; /**< Input queue combined count */
 #else
@@ -720,8 +901,11 @@ union cvmx_pow_iq_com_cnt
 	struct cvmx_pow_iq_com_cnt_s          cn56xxp1;
 	struct cvmx_pow_iq_com_cnt_s          cn58xx;
 	struct cvmx_pow_iq_com_cnt_s          cn58xxp1;
+	struct cvmx_pow_iq_com_cnt_s          cn61xx;
 	struct cvmx_pow_iq_com_cnt_s          cn63xx;
 	struct cvmx_pow_iq_com_cnt_s          cn63xxp1;
+	struct cvmx_pow_iq_com_cnt_s          cn66xx;
+	struct cvmx_pow_iq_com_cnt_s          cnf71xx;
 };
 typedef union cvmx_pow_iq_com_cnt cvmx_pow_iq_com_cnt_t;
 
@@ -733,12 +917,10 @@ typedef union cvmx_pow_iq_com_cnt cvmx_pow_iq_com_cnt_t;
  * Contains the bits (1 per QOS level) that can trigger the input queue interrupt.  An IQ_INT bit
  * will be set if POW_IQ_CNT#QOS# changes and the resulting value is equal to POW_IQ_THR#QOS#.
  */
-union cvmx_pow_iq_int
-{
+union cvmx_pow_iq_int {
 	uint64_t u64;
-	struct cvmx_pow_iq_int_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_iq_int_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t iq_int                       : 8;  /**< Input queue interrupt bits */
 #else
@@ -750,8 +932,11 @@ union cvmx_pow_iq_int
 	struct cvmx_pow_iq_int_s              cn52xxp1;
 	struct cvmx_pow_iq_int_s              cn56xx;
 	struct cvmx_pow_iq_int_s              cn56xxp1;
+	struct cvmx_pow_iq_int_s              cn61xx;
 	struct cvmx_pow_iq_int_s              cn63xx;
 	struct cvmx_pow_iq_int_s              cn63xxp1;
+	struct cvmx_pow_iq_int_s              cn66xx;
+	struct cvmx_pow_iq_int_s              cnf71xx;
 };
 typedef union cvmx_pow_iq_int cvmx_pow_iq_int_t;
 
@@ -762,12 +947,10 @@ typedef union cvmx_pow_iq_int cvmx_pow_iq_int_t;
  *
  * Contains the bits (1 per QOS level) that enable the input queue interrupt.
  */
-union cvmx_pow_iq_int_en
-{
+union cvmx_pow_iq_int_en {
 	uint64_t u64;
-	struct cvmx_pow_iq_int_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_iq_int_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t int_en                       : 8;  /**< Input queue interrupt enable bits */
 #else
@@ -779,8 +962,11 @@ union cvmx_pow_iq_int_en
 	struct cvmx_pow_iq_int_en_s           cn52xxp1;
 	struct cvmx_pow_iq_int_en_s           cn56xx;
 	struct cvmx_pow_iq_int_en_s           cn56xxp1;
+	struct cvmx_pow_iq_int_en_s           cn61xx;
 	struct cvmx_pow_iq_int_en_s           cn63xx;
 	struct cvmx_pow_iq_int_en_s           cn63xxp1;
+	struct cvmx_pow_iq_int_en_s           cn66xx;
+	struct cvmx_pow_iq_int_en_s           cnf71xx;
 };
 typedef union cvmx_pow_iq_int_en cvmx_pow_iq_int_en_t;
 
@@ -791,12 +977,10 @@ typedef union cvmx_pow_iq_int_en cvmx_pow_iq_int_en_t;
  *
  * Threshold value for triggering input queue interrupts.
  */
-union cvmx_pow_iq_thrx
-{
+union cvmx_pow_iq_thrx {
 	uint64_t u64;
-	struct cvmx_pow_iq_thrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_iq_thrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t iq_thr                       : 32; /**< Input queue threshold for QOS level X */
 #else
@@ -808,8 +992,11 @@ union cvmx_pow_iq_thrx
 	struct cvmx_pow_iq_thrx_s             cn52xxp1;
 	struct cvmx_pow_iq_thrx_s             cn56xx;
 	struct cvmx_pow_iq_thrx_s             cn56xxp1;
+	struct cvmx_pow_iq_thrx_s             cn61xx;
 	struct cvmx_pow_iq_thrx_s             cn63xx;
 	struct cvmx_pow_iq_thrx_s             cn63xxp1;
+	struct cvmx_pow_iq_thrx_s             cn66xx;
+	struct cvmx_pow_iq_thrx_s             cnf71xx;
 };
 typedef union cvmx_pow_iq_thrx cvmx_pow_iq_thrx_t;
 
@@ -820,12 +1007,10 @@ typedef union cvmx_pow_iq_thrx cvmx_pow_iq_thrx_t;
  *
  * Contains the number of work queue entries on the no-schedule list.
  */
-union cvmx_pow_nos_cnt
-{
+union cvmx_pow_nos_cnt {
 	uint64_t u64;
-	struct cvmx_pow_nos_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_nos_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t nos_cnt                      : 12; /**< # of work queue entries on the no-schedule list */
 #else
@@ -833,9 +1018,8 @@ union cvmx_pow_nos_cnt
 	uint64_t reserved_12_63               : 52;
 #endif
 	} s;
-	struct cvmx_pow_nos_cnt_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_nos_cnt_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t nos_cnt                      : 7;  /**< # of work queue entries on the no-schedule list */
 #else
@@ -843,9 +1027,8 @@ union cvmx_pow_nos_cnt
 	uint64_t reserved_7_63                : 57;
 #endif
 	} cn30xx;
-	struct cvmx_pow_nos_cnt_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_nos_cnt_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t nos_cnt                      : 9;  /**< # of work queue entries on the no-schedule list */
 #else
@@ -856,9 +1039,8 @@ union cvmx_pow_nos_cnt
 	struct cvmx_pow_nos_cnt_s             cn38xx;
 	struct cvmx_pow_nos_cnt_s             cn38xxp2;
 	struct cvmx_pow_nos_cnt_cn31xx        cn50xx;
-	struct cvmx_pow_nos_cnt_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_nos_cnt_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t nos_cnt                      : 10; /**< # of work queue entries on the no-schedule list */
 #else
@@ -871,9 +1053,9 @@ union cvmx_pow_nos_cnt
 	struct cvmx_pow_nos_cnt_s             cn56xxp1;
 	struct cvmx_pow_nos_cnt_s             cn58xx;
 	struct cvmx_pow_nos_cnt_s             cn58xxp1;
-	struct cvmx_pow_nos_cnt_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_nos_cnt_cn52xx        cn61xx;
+	struct cvmx_pow_nos_cnt_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_11_63               : 53;
 	uint64_t nos_cnt                      : 11; /**< # of work queue entries on the no-schedule list */
 #else
@@ -882,6 +1064,8 @@ union cvmx_pow_nos_cnt
 #endif
 	} cn63xx;
 	struct cvmx_pow_nos_cnt_cn63xx        cn63xxp1;
+	struct cvmx_pow_nos_cnt_cn63xx        cn66xx;
+	struct cvmx_pow_nos_cnt_cn52xx        cnf71xx;
 };
 typedef union cvmx_pow_nos_cnt cvmx_pow_nos_cnt_t;
 
@@ -918,12 +1102,10 @@ typedef union cvmx_pow_nos_cnt cvmx_pow_nos_cnt_t;
  * de-schedules occuring, it's possible for the new work timer to expire (resulting in NO_WORK
  * responses) before the pre-fetch engine is able to get very deep into the work queues.
  */
-union cvmx_pow_nw_tim
-{
+union cvmx_pow_nw_tim {
 	uint64_t u64;
-	struct cvmx_pow_nw_tim_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_nw_tim_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t nw_tim                       : 10; /**< New work timer period */
 #else
@@ -942,8 +1124,11 @@ union cvmx_pow_nw_tim
 	struct cvmx_pow_nw_tim_s              cn56xxp1;
 	struct cvmx_pow_nw_tim_s              cn58xx;
 	struct cvmx_pow_nw_tim_s              cn58xxp1;
+	struct cvmx_pow_nw_tim_s              cn61xx;
 	struct cvmx_pow_nw_tim_s              cn63xx;
 	struct cvmx_pow_nw_tim_s              cn63xxp1;
+	struct cvmx_pow_nw_tim_s              cn66xx;
+	struct cvmx_pow_nw_tim_s              cnf71xx;
 };
 typedef union cvmx_pow_nw_tim cvmx_pow_nw_tim_t;
 
@@ -956,12 +1141,10 @@ typedef union cvmx_pow_nw_tim cvmx_pow_nw_tim_t;
  * work arrives or when the work is reloaded from an external buffer) for an enabled QOS level
  * (1 bit per QOS level).
  */
-union cvmx_pow_pf_rst_msk
-{
+union cvmx_pow_pf_rst_msk {
 	uint64_t u64;
-	struct cvmx_pow_pf_rst_msk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_pf_rst_msk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t rst_msk                      : 8;  /**< Prefetch engine reset mask */
 #else
@@ -976,8 +1159,11 @@ union cvmx_pow_pf_rst_msk
 	struct cvmx_pow_pf_rst_msk_s          cn56xxp1;
 	struct cvmx_pow_pf_rst_msk_s          cn58xx;
 	struct cvmx_pow_pf_rst_msk_s          cn58xxp1;
+	struct cvmx_pow_pf_rst_msk_s          cn61xx;
 	struct cvmx_pow_pf_rst_msk_s          cn63xx;
 	struct cvmx_pow_pf_rst_msk_s          cn63xxp1;
+	struct cvmx_pow_pf_rst_msk_s          cn66xx;
+	struct cvmx_pow_pf_rst_msk_s          cnf71xx;
 };
 typedef union cvmx_pow_pf_rst_msk cvmx_pow_pf_rst_msk_t;
 
@@ -996,12 +1182,10 @@ typedef union cvmx_pow_pf_rst_msk cvmx_pow_pf_rst_msk_t;
  * Priority values 0x8 through 0xe are reserved and should not be used.  For a given PP, priorities
  * should begin at 0x0 and remain contiguous throughout the range.
  */
-union cvmx_pow_pp_grp_mskx
-{
+union cvmx_pow_pp_grp_mskx {
 	uint64_t u64;
-	struct cvmx_pow_pp_grp_mskx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_pp_grp_mskx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t qos7_pri                     : 4;  /**< PPX priority for QOS level 7 */
 	uint64_t qos6_pri                     : 4;  /**< PPX priority for QOS level 6 */
@@ -1025,9 +1209,8 @@ union cvmx_pow_pp_grp_mskx
 	uint64_t reserved_48_63               : 16;
 #endif
 	} s;
-	struct cvmx_pow_pp_grp_mskx_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_pp_grp_mskx_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t grp_msk                      : 16; /**< PPX group mask */
 #else
@@ -1045,8 +1228,11 @@ union cvmx_pow_pp_grp_mskx
 	struct cvmx_pow_pp_grp_mskx_s         cn56xxp1;
 	struct cvmx_pow_pp_grp_mskx_s         cn58xx;
 	struct cvmx_pow_pp_grp_mskx_s         cn58xxp1;
+	struct cvmx_pow_pp_grp_mskx_s         cn61xx;
 	struct cvmx_pow_pp_grp_mskx_s         cn63xx;
 	struct cvmx_pow_pp_grp_mskx_s         cn63xxp1;
+	struct cvmx_pow_pp_grp_mskx_s         cn66xx;
+	struct cvmx_pow_pp_grp_mskx_s         cnf71xx;
 };
 typedef union cvmx_pow_pp_grp_mskx cvmx_pow_pp_grp_mskx_t;
 
@@ -1063,12 +1249,10 @@ typedef union cvmx_pow_pp_grp_mskx cvmx_pow_pp_grp_mskx_t;
  * bit in the round mask.  Note: setting a QOS level to all zeroes in all issue round registers will
  * prevent work from being issued from that QOS level.
  */
-union cvmx_pow_qos_rndx
-{
+union cvmx_pow_qos_rndx {
 	uint64_t u64;
-	struct cvmx_pow_qos_rndx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_qos_rndx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t rnd_p3                       : 8;  /**< Round mask for round Xx4+3 */
 	uint64_t rnd_p2                       : 8;  /**< Round mask for round Xx4+2 */
@@ -1093,8 +1277,11 @@ union cvmx_pow_qos_rndx
 	struct cvmx_pow_qos_rndx_s            cn56xxp1;
 	struct cvmx_pow_qos_rndx_s            cn58xx;
 	struct cvmx_pow_qos_rndx_s            cn58xxp1;
+	struct cvmx_pow_qos_rndx_s            cn61xx;
 	struct cvmx_pow_qos_rndx_s            cn63xx;
 	struct cvmx_pow_qos_rndx_s            cn63xxp1;
+	struct cvmx_pow_qos_rndx_s            cn66xx;
+	struct cvmx_pow_qos_rndx_s            cnf71xx;
 };
 typedef union cvmx_pow_qos_rndx cvmx_pow_qos_rndx_t;
 
@@ -1111,12 +1298,10 @@ typedef union cvmx_pow_qos_rndx cvmx_pow_qos_rndx_t;
  * allocated to this QOS level (BUF_CNT), and the total number of buffers on the de-schedule list
  * (DES_CNT) (which is not the same as the total number of de-scheduled buffers).
  */
-union cvmx_pow_qos_thrx
-{
+union cvmx_pow_qos_thrx {
 	uint64_t u64;
-	struct cvmx_pow_qos_thrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_qos_thrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t des_cnt                      : 12; /**< # of buffers on de-schedule list */
 	uint64_t buf_cnt                      : 12; /**< # of internal buffers allocated to QOS level X */
@@ -1136,9 +1321,8 @@ union cvmx_pow_qos_thrx
 	uint64_t reserved_60_63               : 4;
 #endif
 	} s;
-	struct cvmx_pow_qos_thrx_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_qos_thrx_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_55_63               : 9;
 	uint64_t des_cnt                      : 7;  /**< # of buffers on de-schedule list */
 	uint64_t reserved_43_47               : 5;
@@ -1162,9 +1346,8 @@ union cvmx_pow_qos_thrx
 	uint64_t reserved_55_63               : 9;
 #endif
 	} cn30xx;
-	struct cvmx_pow_qos_thrx_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_qos_thrx_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_57_63               : 7;
 	uint64_t des_cnt                      : 9;  /**< # of buffers on de-schedule list */
 	uint64_t reserved_45_47               : 3;
@@ -1191,9 +1374,8 @@ union cvmx_pow_qos_thrx
 	struct cvmx_pow_qos_thrx_s            cn38xx;
 	struct cvmx_pow_qos_thrx_s            cn38xxp2;
 	struct cvmx_pow_qos_thrx_cn31xx       cn50xx;
-	struct cvmx_pow_qos_thrx_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_qos_thrx_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_58_63               : 6;
 	uint64_t des_cnt                      : 10; /**< # of buffers on de-schedule list */
 	uint64_t reserved_46_47               : 2;
@@ -1222,9 +1404,9 @@ union cvmx_pow_qos_thrx
 	struct cvmx_pow_qos_thrx_s            cn56xxp1;
 	struct cvmx_pow_qos_thrx_s            cn58xx;
 	struct cvmx_pow_qos_thrx_s            cn58xxp1;
-	struct cvmx_pow_qos_thrx_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_qos_thrx_cn52xx       cn61xx;
+	struct cvmx_pow_qos_thrx_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_59_63               : 5;
 	uint64_t des_cnt                      : 11; /**< # of buffers on de-schedule list */
 	uint64_t reserved_47_47               : 1;
@@ -1249,6 +1431,8 @@ union cvmx_pow_qos_thrx
 #endif
 	} cn63xx;
 	struct cvmx_pow_qos_thrx_cn63xx       cn63xxp1;
+	struct cvmx_pow_qos_thrx_cn63xx       cn66xx;
+	struct cvmx_pow_qos_thrx_cn52xx       cnf71xx;
 };
 typedef union cvmx_pow_qos_thrx cvmx_pow_qos_thrx_t;
 
@@ -1259,12 +1443,10 @@ typedef union cvmx_pow_qos_thrx cvmx_pow_qos_thrx_t;
  *
  * Counts the number of tag switch requests.  Write to clear.
  */
-union cvmx_pow_ts_pc
-{
+union cvmx_pow_ts_pc {
 	uint64_t u64;
-	struct cvmx_pow_ts_pc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_ts_pc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ts_pc                        : 32; /**< Tag switch performance counter */
 #else
@@ -1283,8 +1465,11 @@ union cvmx_pow_ts_pc
 	struct cvmx_pow_ts_pc_s               cn56xxp1;
 	struct cvmx_pow_ts_pc_s               cn58xx;
 	struct cvmx_pow_ts_pc_s               cn58xxp1;
+	struct cvmx_pow_ts_pc_s               cn61xx;
 	struct cvmx_pow_ts_pc_s               cn63xx;
 	struct cvmx_pow_ts_pc_s               cn63xxp1;
+	struct cvmx_pow_ts_pc_s               cn66xx;
+	struct cvmx_pow_ts_pc_s               cnf71xx;
 };
 typedef union cvmx_pow_ts_pc cvmx_pow_ts_pc_t;
 
@@ -1295,12 +1480,10 @@ typedef union cvmx_pow_ts_pc cvmx_pow_ts_pc_t;
  *
  * Counts the number of add new work requests for all QOS levels.  Write to clear.
  */
-union cvmx_pow_wa_com_pc
-{
+union cvmx_pow_wa_com_pc {
 	uint64_t u64;
-	struct cvmx_pow_wa_com_pc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wa_com_pc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t wa_pc                        : 32; /**< Work add combined performance counter */
 #else
@@ -1319,8 +1502,11 @@ union cvmx_pow_wa_com_pc
 	struct cvmx_pow_wa_com_pc_s           cn56xxp1;
 	struct cvmx_pow_wa_com_pc_s           cn58xx;
 	struct cvmx_pow_wa_com_pc_s           cn58xxp1;
+	struct cvmx_pow_wa_com_pc_s           cn61xx;
 	struct cvmx_pow_wa_com_pc_s           cn63xx;
 	struct cvmx_pow_wa_com_pc_s           cn63xxp1;
+	struct cvmx_pow_wa_com_pc_s           cn66xx;
+	struct cvmx_pow_wa_com_pc_s           cnf71xx;
 };
 typedef union cvmx_pow_wa_com_pc cvmx_pow_wa_com_pc_t;
 
@@ -1331,12 +1517,10 @@ typedef union cvmx_pow_wa_com_pc cvmx_pow_wa_com_pc_t;
  *
  * Counts the number of add new work requests for each QOS level.  Write to clear.
  */
-union cvmx_pow_wa_pcx
-{
+union cvmx_pow_wa_pcx {
 	uint64_t u64;
-	struct cvmx_pow_wa_pcx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wa_pcx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t wa_pc                        : 32; /**< Work add performance counter for QOS level X */
 #else
@@ -1355,8 +1539,11 @@ union cvmx_pow_wa_pcx
 	struct cvmx_pow_wa_pcx_s              cn56xxp1;
 	struct cvmx_pow_wa_pcx_s              cn58xx;
 	struct cvmx_pow_wa_pcx_s              cn58xxp1;
+	struct cvmx_pow_wa_pcx_s              cn61xx;
 	struct cvmx_pow_wa_pcx_s              cn63xx;
 	struct cvmx_pow_wa_pcx_s              cn63xxp1;
+	struct cvmx_pow_wa_pcx_s              cn66xx;
+	struct cvmx_pow_wa_pcx_s              cnf71xx;
 };
 typedef union cvmx_pow_wa_pcx cvmx_pow_wa_pcx_t;
 
@@ -1369,12 +1556,10 @@ typedef union cvmx_pow_wa_pcx cvmx_pow_wa_pcx_t;
  * interrupts.  Also contains the input queue interrupt temporary disable bits (1 per group).  For
  * more information regarding this register, see the interrupt section.
  */
-union cvmx_pow_wq_int
-{
+union cvmx_pow_wq_int {
 	uint64_t u64;
-	struct cvmx_pow_wq_int_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t iq_dis                       : 16; /**< Input queue interrupt temporary disable mask
                                                          Corresponding WQ_INT<*> bit cannot be set due to
@@ -1416,8 +1601,11 @@ union cvmx_pow_wq_int
 	struct cvmx_pow_wq_int_s              cn56xxp1;
 	struct cvmx_pow_wq_int_s              cn58xx;
 	struct cvmx_pow_wq_int_s              cn58xxp1;
+	struct cvmx_pow_wq_int_s              cn61xx;
 	struct cvmx_pow_wq_int_s              cn63xx;
 	struct cvmx_pow_wq_int_s              cn63xxp1;
+	struct cvmx_pow_wq_int_s              cn66xx;
+	struct cvmx_pow_wq_int_s              cnf71xx;
 };
 typedef union cvmx_pow_wq_int cvmx_pow_wq_int_t;
 
@@ -1429,12 +1617,10 @@ typedef union cvmx_pow_wq_int cvmx_pow_wq_int_t;
  * Contains a read-only copy of the counts used to trigger work queue interrupts.  For more
  * information regarding this register, see the interrupt section.
  */
-union cvmx_pow_wq_int_cntx
-{
+union cvmx_pow_wq_int_cntx {
 	uint64_t u64;
-	struct cvmx_pow_wq_int_cntx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_cntx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t tc_cnt                       : 4;  /**< Time counter current value for group X
                                                          HW sets TC_CNT to POW_WQ_INT_THR*[TC_THR] whenever:
@@ -1459,9 +1645,8 @@ union cvmx_pow_wq_int_cntx
 	uint64_t reserved_28_63               : 36;
 #endif
 	} s;
-	struct cvmx_pow_wq_int_cntx_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_cntx_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t tc_cnt                       : 4;  /**< Time counter current value for group X
                                                          HW sets TC_CNT to POW_WQ_INT_THR*[TC_THR] whenever:
@@ -1490,9 +1675,8 @@ union cvmx_pow_wq_int_cntx
 	uint64_t reserved_28_63               : 36;
 #endif
 	} cn30xx;
-	struct cvmx_pow_wq_int_cntx_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_cntx_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t tc_cnt                       : 4;  /**< Time counter current value for group X
                                                          HW sets TC_CNT to POW_WQ_INT_THR*[TC_THR] whenever:
@@ -1524,9 +1708,8 @@ union cvmx_pow_wq_int_cntx
 	struct cvmx_pow_wq_int_cntx_s         cn38xx;
 	struct cvmx_pow_wq_int_cntx_s         cn38xxp2;
 	struct cvmx_pow_wq_int_cntx_cn31xx    cn50xx;
-	struct cvmx_pow_wq_int_cntx_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_cntx_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t tc_cnt                       : 4;  /**< Time counter current value for group X
                                                          HW sets TC_CNT to POW_WQ_INT_THR*[TC_THR] whenever:
@@ -1560,9 +1743,9 @@ union cvmx_pow_wq_int_cntx
 	struct cvmx_pow_wq_int_cntx_s         cn56xxp1;
 	struct cvmx_pow_wq_int_cntx_s         cn58xx;
 	struct cvmx_pow_wq_int_cntx_s         cn58xxp1;
-	struct cvmx_pow_wq_int_cntx_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_cntx_cn52xx    cn61xx;
+	struct cvmx_pow_wq_int_cntx_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t tc_cnt                       : 4;  /**< Time counter current value for group X
                                                          HW sets TC_CNT to POW_WQ_INT_THR*[TC_THR] whenever:
@@ -1592,6 +1775,8 @@ union cvmx_pow_wq_int_cntx
 #endif
 	} cn63xx;
 	struct cvmx_pow_wq_int_cntx_cn63xx    cn63xxp1;
+	struct cvmx_pow_wq_int_cntx_cn63xx    cn66xx;
+	struct cvmx_pow_wq_int_cntx_cn52xx    cnf71xx;
 };
 typedef union cvmx_pow_wq_int_cntx cvmx_pow_wq_int_cntx_t;
 
@@ -1604,12 +1789,10 @@ typedef union cvmx_pow_wq_int_cntx cvmx_pow_wq_int_cntx_t;
  * copy of the periodic counter.  For more information regarding this register, see the interrupt
  * section.
  */
-union cvmx_pow_wq_int_pc
-{
+union cvmx_pow_wq_int_pc {
 	uint64_t u64;
-	struct cvmx_pow_wq_int_pc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_pc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t pc                           : 28; /**< Work queue interrupt periodic counter */
 	uint64_t reserved_28_31               : 4;
@@ -1634,8 +1817,11 @@ union cvmx_pow_wq_int_pc
 	struct cvmx_pow_wq_int_pc_s           cn56xxp1;
 	struct cvmx_pow_wq_int_pc_s           cn58xx;
 	struct cvmx_pow_wq_int_pc_s           cn58xxp1;
+	struct cvmx_pow_wq_int_pc_s           cn61xx;
 	struct cvmx_pow_wq_int_pc_s           cn63xx;
 	struct cvmx_pow_wq_int_pc_s           cn63xxp1;
+	struct cvmx_pow_wq_int_pc_s           cn66xx;
+	struct cvmx_pow_wq_int_pc_s           cnf71xx;
 };
 typedef union cvmx_pow_wq_int_pc cvmx_pow_wq_int_pc_t;
 
@@ -1647,18 +1833,16 @@ typedef union cvmx_pow_wq_int_pc cvmx_pow_wq_int_pc_t;
  * Contains the thresholds for enabling and setting work queue interrupts.  For more information
  * regarding this register, see the interrupt section.
  *
- * Note: Up to 8 of the POW's internal storage buffers can be allocated for hardware use and are
+ * Note: Up to 4 of the POW's internal storage buffers can be allocated for hardware use and are
  * therefore not available for incoming work queue entries.  Additionally, any PP that is not in the
- * NULL_NULL state consumes a buffer.  Thus in a 6 PP system, it is not advisable to set either
- * IQ_THR or DS_THR to greater than 1024 - 8 - 6 = 1010.  Doing so may prevent the interrupt from
+ * NULL_NULL state consumes a buffer.  Thus in a 4 PP system, it is not advisable to set either
+ * IQ_THR or DS_THR to greater than 512 - 4 - 4 = 504.  Doing so may prevent the interrupt from
  * ever triggering.
  */
-union cvmx_pow_wq_int_thrx
-{
+union cvmx_pow_wq_int_thrx {
 	uint64_t u64;
-	struct cvmx_pow_wq_int_thrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_thrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t tc_en                        : 1;  /**< Time counter interrupt enable for group X
                                                          TC_EN must be zero when TC_THR==0 */
@@ -1680,9 +1864,8 @@ union cvmx_pow_wq_int_thrx
 	uint64_t reserved_29_63               : 35;
 #endif
 	} s;
-	struct cvmx_pow_wq_int_thrx_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_thrx_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t tc_en                        : 1;  /**< Time counter interrupt enable for group X
                                                          TC_EN must be zero when TC_THR==0 */
@@ -1704,9 +1887,8 @@ union cvmx_pow_wq_int_thrx
 	uint64_t reserved_29_63               : 35;
 #endif
 	} cn30xx;
-	struct cvmx_pow_wq_int_thrx_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_thrx_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t tc_en                        : 1;  /**< Time counter interrupt enable for group X
                                                          TC_EN must be zero when TC_THR==0 */
@@ -1731,9 +1913,8 @@ union cvmx_pow_wq_int_thrx
 	struct cvmx_pow_wq_int_thrx_s         cn38xx;
 	struct cvmx_pow_wq_int_thrx_s         cn38xxp2;
 	struct cvmx_pow_wq_int_thrx_cn31xx    cn50xx;
-	struct cvmx_pow_wq_int_thrx_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_thrx_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t tc_en                        : 1;  /**< Time counter interrupt enable for group X
                                                          TC_EN must be zero when TC_THR==0 */
@@ -1760,9 +1941,9 @@ union cvmx_pow_wq_int_thrx
 	struct cvmx_pow_wq_int_thrx_s         cn56xxp1;
 	struct cvmx_pow_wq_int_thrx_s         cn58xx;
 	struct cvmx_pow_wq_int_thrx_s         cn58xxp1;
-	struct cvmx_pow_wq_int_thrx_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_wq_int_thrx_cn52xx    cn61xx;
+	struct cvmx_pow_wq_int_thrx_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t tc_en                        : 1;  /**< Time counter interrupt enable for group X
                                                          TC_EN must be zero when TC_THR==0 */
@@ -1785,6 +1966,8 @@ union cvmx_pow_wq_int_thrx
 #endif
 	} cn63xx;
 	struct cvmx_pow_wq_int_thrx_cn63xx    cn63xxp1;
+	struct cvmx_pow_wq_int_thrx_cn63xx    cn66xx;
+	struct cvmx_pow_wq_int_thrx_cn52xx    cnf71xx;
 };
 typedef union cvmx_pow_wq_int_thrx cvmx_pow_wq_int_thrx_t;
 
@@ -1795,12 +1978,10 @@ typedef union cvmx_pow_wq_int_thrx cvmx_pow_wq_int_thrx_t;
  *
  * Counts the number of work schedules for each group.  Write to clear.
  */
-union cvmx_pow_ws_pcx
-{
+union cvmx_pow_ws_pcx {
 	uint64_t u64;
-	struct cvmx_pow_ws_pcx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pow_ws_pcx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ws_pc                        : 32; /**< Work schedule performance counter for group X */
 #else
@@ -1819,8 +2000,11 @@ union cvmx_pow_ws_pcx
 	struct cvmx_pow_ws_pcx_s              cn56xxp1;
 	struct cvmx_pow_ws_pcx_s              cn58xx;
 	struct cvmx_pow_ws_pcx_s              cn58xxp1;
+	struct cvmx_pow_ws_pcx_s              cn61xx;
 	struct cvmx_pow_ws_pcx_s              cn63xx;
 	struct cvmx_pow_ws_pcx_s              cn63xxp1;
+	struct cvmx_pow_ws_pcx_s              cn66xx;
+	struct cvmx_pow_ws_pcx_s              cnf71xx;
 };
 typedef union cvmx_pow_ws_pcx cvmx_pow_ws_pcx_t;
 

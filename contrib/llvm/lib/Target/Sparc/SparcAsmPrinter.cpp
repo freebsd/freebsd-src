@@ -23,7 +23,6 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -63,6 +62,8 @@ namespace {
     
     virtual bool isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB)
                        const;
+
+    virtual MachineLocation getDebugValueLocation(const MachineInstr *MI) const;
   };
 } // end of anonymous namespace
 
@@ -82,7 +83,7 @@ void SparcAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
   }
   switch (MO.getType()) {
   case MachineOperand::MO_Register:
-    O << "%" << LowercaseString(getRegisterName(MO.getReg()));
+    O << "%" << StringRef(getRegisterName(MO.getReg())).lower();
     break;
 
   case MachineOperand::MO_Immediate:
@@ -141,13 +142,13 @@ bool SparcAsmPrinter::printGetPCX(const MachineInstr *MI, unsigned opNum,
   std::string operand = "";
   const MachineOperand &MO = MI->getOperand(opNum);
   switch (MO.getType()) {
-  default: assert(0 && "Operand is not a register ");
+  default: llvm_unreachable("Operand is not a register");
   case MachineOperand::MO_Register:
     assert(TargetRegisterInfo::isPhysicalRegister(MO.getReg()) &&
            "Operand is not a physical register ");
     assert(MO.getReg() != SP::O7 && 
            "%o7 is assigned as destination for getpcx!");
-    operand = "%" + LowercaseString(getRegisterName(MO.getReg()));
+    operand = "%" + StringRef(getRegisterName(MO.getReg())).lower();
     break;
   }
 
@@ -237,12 +238,19 @@ isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB) const {
   
   // Check if the last terminator is an unconditional branch.
   MachineBasicBlock::const_iterator I = Pred->end();
-  while (I != Pred->begin() && !(--I)->getDesc().isTerminator())
+  while (I != Pred->begin() && !(--I)->isTerminator())
     ; // Noop
-  return I == Pred->end() || !I->getDesc().isBarrier();
+  return I == Pred->end() || !I->isBarrier();
 }
 
-
+MachineLocation SparcAsmPrinter::
+getDebugValueLocation(const MachineInstr *MI) const {
+  assert(MI->getNumOperands() == 4 && "Invalid number of operands!");
+  assert(MI->getOperand(0).isReg() && MI->getOperand(1).isImm() &&
+         "Unexpected MachineOperand types");
+  return MachineLocation(MI->getOperand(0).getReg(),
+                         MI->getOperand(1).getImm());
+}
 
 // Force static initialization.
 extern "C" void LLVMInitializeSparcAsmPrinter() { 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2004 - 2006 Kungliga Tekniska Högskolan
+# Copyright (c) 2004 - 2006 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: test_chain.in 21278 2007-06-25 04:54:43Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -186,6 +186,20 @@ ${hxtool} verify \
     cert:FILE:$srcdir/data/revoke.crt \
     anchor:FILE:$srcdir/data/ca.crt \
     crl:FILE:$srcdir/data/crl1.der > /dev/null && exit 1
+
+if ${hxtool} info | grep 'ecdsa: hcrypto null' > /dev/null ; then
+    echo "not testing ECDSA since hcrypto doesnt support ECDSA"
+else
+    echo "eccert -> root"
+    ${hxtool} verify --missing-revoke \
+    	cert:FILE:$srcdir/data/secp160r2TestServer.cert.pem \
+    	anchor:FILE:$srcdir/data/secp160r1TestCA.cert.pem > /dev/null || exit 1
+    
+    echo "eccert -> root"
+    ${hxtool} verify --missing-revoke \
+    	cert:FILE:$srcdir/data/secp160r2TestClient.cert.pem \
+    	anchor:FILE:$srcdir/data/secp160r1TestCA.cert.pem > /dev/null || exit 1
+fi
 
 echo "proxy cert"
 ${hxtool} verify --missing-revoke \

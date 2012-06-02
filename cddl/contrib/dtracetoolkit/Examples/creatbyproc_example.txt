@@ -1,0 +1,23 @@
+The following is an example of the creatbyproc.d script,
+
+
+Here we run creatbyproc.d for several seconds,
+
+   # ./creatbyproc.d
+   dtrace: script './creatbyproc.d' matched 2 probes
+   CPU     ID                    FUNCTION:NAME
+     0   5438                    creat64:entry touch /tmp/newfile
+     0   5438                    creat64:entry sh /tmp/mpLaaOik
+     0   5438                    creat64:entry sh /dev/null
+   ^C
+
+In another window, the following commands were run,
+
+	touch /tmp/newfile
+	man ls
+
+The file creation activity caused by these commands can be seen in the
+output by creatbyproc.d
+
+
+

@@ -3,32 +3,58 @@
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH.c:${HOSTAPD_DISTDIR} \
-	${WPA_DISTDIR}/src/ap \
-	${WPA_DISTDIR}/src/eap_server \
-	${WPA_DISTDIR}/src/eap_common \
-	${WPA_DISTDIR}/src/eapol_auth \
-	${WPA_DISTDIR}/src/drivers \
-	${WPA_DISTDIR}/src/radius \
-	${WPA_DISTDIR}
+	${WPA_DISTDIR}/src/drivers
 
 PROG=	hostapd
-SRCS=	accounting.c aes-wrap.c ap_config.c \
-	ap_drv_ops.c ap_mlme.c authsrv.c \
-	chap.c common.c config_file.c ctrl_iface.c crypto_openssl.c \
-	ctrl_iface_ap.c drivers.c drv_callbacks.c dump_state.c \
-	eap_common.c eap_peap_common.c eap_register.c eap_server.c \
-	eap_server_gtc.c eap_server_identity.c eap_server_md5.c \
-	eap_server_methods.c eap_server_mschapv2.c eap_server_peap.c \
-	eap_server_tls.c eap_server_tls_common.c eap_server_ttls.c \
-	eapol_auth_dump.c eapol_auth_sm.c eloop.c hostapd.c ieee802_11_auth.c \
-	ieee802_11_common.c ieee802_11_ht.c ieee802_1x.c ip_addr.c \
-	md5.c main.c ms_funcs.c peerkey_auth.c pmksa_cache_auth.c \
-	preauth_auth.c radius.c radius_client.c sta_info.c \
-	sha1-pbkdf2.c sha1-tlsprf.c sha1-tprf.c sha1.c \
-	tkip_countermeasures.c utils.c \
-	vlan_init.c wpa_auth.c wpa_auth_glue.c wpa_auth_ie.c wpa_common.c \
-	wpa_debug.c wpabuf.c
-SRCS+=	l2_packet_freebsd.c driver_freebsd.c os_unix.c
+SRCS=	accounting.c \
+	aes-wrap.c \
+	ap_config.c \
+	ap_drv_ops.c \
+	ap_mlme.c \
+	authsrv.c \
+	base64.c \
+	chap.c \
+	common.c \
+	config_file.c \
+	ctrl_iface.c \
+	ctrl_iface_ap.c \
+	drivers.c \
+	drv_callbacks.c \
+	eap_common.c \
+	eap_peap_common.c \
+	eap_register.c \
+	eapol_auth_dump.c \
+	eapol_auth_sm.c \
+	eap_server.c \
+	eap_server_methods.c \
+	eloop.c \
+	hostapd.c \
+	ieee802_11_auth.c \
+	ieee802_11_common.c \
+	ieee802_1x.c \
+	ip_addr.c \
+	main.c \
+	md5.c \
+	ms_funcs.c \
+	os_unix.c \
+	peerkey_auth.c \
+	pmksa_cache_auth.c \
+	preauth_auth.c \
+	radius.c \
+	radius_client.c \
+	sha1-pbkdf2.c \
+	sha1.c \
+	sta_info.c \
+	tkip_countermeasures.c \
+	utils.c \
+	vlan_init.c \
+	wpa_auth.c \
+	wpa_auth_glue.c \
+	wpa_auth_ie.c \
+	wpa_common.c \
+	wpa_debug.c \
+	wpabuf.c
+SRCS+=	l2_packet_freebsd.c driver_freebsd.c
 
 MAN=	hostapd.8 hostapd.conf.5
 
@@ -38,16 +64,17 @@ FILESDIR= ${SHAREDIR}/examples/hostapd
 FILES=	hostapd.conf hostapd.eap_user hostapd.wpa_psk
 .endif
 
-CFLAGS+= -I${HOSTAPD_DISTDIR} -I${WPA_DISTDIR}/src/drivers
-
-CFLAGS+= -DCONFIG_DRIVER_BSD -DHOSTAPD
-CFLAGS+= -DCONFIG_DRIVER_RADIUS_ACL
+CFLAGS+=-DCONFIG_DRIVER_BSD \
+	-DHOSTAPD \
+	-DCONFIG_DRIVER_RADIUS_ACL \
+	-DCONFIG_RSN_PREAUTH \
+	-DCONFIG_PEERKEY
 .if ${MK_INET6} != "no"
 CFLAGS+= -DCONFIG_IPV6
 .endif
 #CFLAGS+= -g
-DPADD+=	${LIBPCAP} ${LIBSSL}
-LDADD+=	-lpcap -lssl
+DPADD+=	${LIBPCAP}
+LDADD+=	-lpcap
 
 # User customizations for wpa_supplicant/hostapd build environment
 CFLAGS+=${HOSTAPD_CFLAGS}
@@ -55,74 +82,63 @@ CFLAGS+=${HOSTAPD_CFLAGS}
 LDADD+=${HOSTAPD_LDADD}
 #LDFLAGS+=${HOSTAPD_LDFLAGS}
 
-.if !empty(CFLAGS:M*-DEAP_SERVER)
-#SRCS+=	eap.c eap_methods.c eap_identity.c
+CFLAGS+=-DDPKCS12_FUNCS \
+	-DEAP_SERVER \
+	-DEAP_SERVER_GTC \
+	-DEAP_SERVER_IDENTITY \
+	-DEAP_SERVER_MD5 \
+	-DEAP_SERVER_MSCHAPV2 \
+	-DEAP_SERVER_PEAP \
+	-DEAP_SERVER_TLS \
+	-DEAP_SERVER_TTLS \
+	-DEAP_TLS_FUNCS \
+	-DCONFIG_NO_DUMP_STATE
+SRCS+=	dump_state.c \
+	eap_server_gtc.c \
+	eap_server_identity.c \
+	eap_server_md5.c \
+	eap_server_mschapv2.c \
+	eap_server_peap.c \
+	eap_server_tls.c \
+	eap_server_tls_common.c \
+	eap_server_ttls.c
+TLS_FUNCS=y
+NEED_SHA256=y
 
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
-
-CFLAGS+=-DEAP_TLS -DEAP_PEAP -DEAP_MSCHAPv2 -DEAP_PSK \
-	-DEAP_TLS_FUNCS -DEAP_TLS_OPENSSL
-SRCS+=	crypto_openssl.c
-SRCS+=	eap_tls.c eap_peap.c eap_peap_common.c eap_mschapv2.c \
-	eap_psk.c eap_psk_common.c \
-	eap_tls_common.c tls_openssl.c ms_funcs.c chap.c
-
-CFLAGS+=-DEAP_TTLS -DEAP_MD5
-SRCS+=	eap_ttls.c eap_md5.c
-
-.if !empty(CFLAGS:M*-DEAP_GTC)
-SRCS+=	eap_gtc.c
+.if !empty(CFLAGS:M*-DEAP_SERVER_AKA)
+SRCS+=	eap_server_aka.c
+NEED_SIM_COMMON=y
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_AKA)
-NEED_SIM_COMMON=	true
-SRCS+=	eap_aka.c
-.endif
-
-.if !empty(CFLAGS:M*-DEAP_SIM)
-NEED_SIM_COMMON=	true
-SRCS+=	eap_sim.c
+.if !empty(CFLAGS:M*-DEAP_SERVER_SIM)
+SRCS+=	eap_server_sim.c
+NEED_SIM_COMMON=y
 .endif
 
 .if defined(NEED_SIM_COMMON)
-SRCS+=	eap_sim_common.c eap_sim_db.c
+SRCS+=	eap_sim_common.c \
+	eap_sim_db.c
+NEED_AES_CBC=y
+NEED_FIPS186_2_PRF=y
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_GPSK)
+.if !empty(CFLAGS:M*-DEAP_SERVER_GPSK)
 CFLAGS+=-DEAP_GPSK_SHA256
-SRCS+=	eap_gpsk.c eap_gpsk_common.c
-NEED_SHA256=	true
+SRCS+=	eap_server_gpsk.c \
+	eap_gpsk_common.c
+NEED_AES_OMAC1=y
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_PAX)
-SRCS+=	eap_pax.c eap_pax_common.c
+.if !empty(CFLAGS:M*-DEAP_SERVER_PAX)
+SRCS+=	eap_server_pax.c \
+	eap_pax_common.c
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_SAKE)
-SRCS+=	eap_sake.c eap_sake_common.c
+.if !empty(CFLAGS:M*-DEAP_SERVER_SAKE)
+SRCS+=	eap_server_sake.c \
+	eap_sake_common.c
 .endif
 
-DPADD+= ${LIBSSL} ${LIBCRYPTO}
-LDADD+= -lssl -lcrypto
-.else
-NEED_TLS_NONE=	true
-.endif
-
-.else
-NEED_TLS_NONE=	true
-.endif
-
-.if defined(NEED_SHA256)
-CFLAGS+=-DINTERNAL_SHA256
-SRCS+=	sha256.c
-.endif
-
-.if defined(NEED_TLS_NONE)
-CFLAGS+= -DEAP_TLS_NONE
-CFLAGS+= -DINTERNAL_AES
-CFLAGS+= -DINTERNAL_SHA1
-CFLAGS+= -DINTERNAL_MD5
-SRCS+=	tls_none.c
-.endif
+.include "${.CURDIR}/../Makefile.crypto"
 
 .include <bsd.prog.mk>

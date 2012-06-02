@@ -38,7 +38,7 @@
 #endif
 #include "getarg.h"
 
-RCSID("$Id: ftpd.c 21222 2007-06-20 10:11:14Z lha $");
+RCSID("$Id$");
 
 static char version[] = "Version 6.00";
 
@@ -91,6 +91,7 @@ char	tmpline[10240];
 char	hostname[MaxHostNameLen];
 char	remotehost[MaxHostNameLen];
 static char ttyline[20];
+int     paranoid = 1;
 
 #define AUTH_PLAIN	(1 << 0) /* allow sending passwords */
 #define AUTH_OTP	(1 << 1) /* passwords are one-time */
@@ -190,7 +191,7 @@ parse_auth_level(char *str)
 	else
 	    warnx("bad value for -a: `%s'", p);
     }
-    return ret;	    
+    return ret;
 }
 
 /*
@@ -225,7 +226,7 @@ struct getargs args[] = {
     { "builtin-ls", 'B', arg_flag, &use_builtin_ls, "use built-in ls to list files" },
     { "good-chars", 0, arg_string, &good_chars, "allowed anonymous upload filename chars" },
     { "insecure-oob", 'I', arg_negative_flag, &allow_insecure_oob, "don't allow insecure OOB ABOR/STAT" },
-#ifdef KRB5    
+#ifdef KRB5
     { "gss-bindings", 0,  arg_flag, &ftp_do_gss_bindings, "Require GSS-API bindings", NULL},
 #endif
     { "version", 0, arg_flag, &version_flag },
@@ -271,22 +272,12 @@ main(int argc, char **argv)
 
     setprogname (argv[0]);
 
-    /* detach from any tickets and tokens */
-    {
-#ifdef KRB4
-	char tkfile[1024];
-	snprintf(tkfile, sizeof(tkfile),
-		 "/tmp/ftp_%u", (unsigned)getpid());
-	krb_set_tkt_string(tkfile);
-#endif
-    }
-
     if(getarg(args, num_args, argc, argv, &optind))
 	usage(1);
 
     if(help_flag)
 	usage(0);
-	
+
     if(version_flag) {
 	print_version(NULL);
 	exit(0);
@@ -297,7 +288,7 @@ main(int argc, char **argv)
     {
 	char *p;
 	long val = 0;
-	    
+
 	if(guest_umask_string) {
 	    val = strtol(guest_umask_string, &p, 8);
 	    if (*p != '\0' || val < 0)
@@ -328,7 +319,7 @@ main(int argc, char **argv)
 	    else
 		warnx("bad value for -p");
     }
-		    
+
     if (maxtimeout < ftpd_timeout)
 	maxtimeout = ftpd_timeout;
 
@@ -338,7 +329,7 @@ main(int argc, char **argv)
 #endif
 
     if(interactive_flag)
-	mini_inetd (port);
+	mini_inetd(port, NULL);
 
     /*
      * LOG_NDELAY sets up the logging connection immediately,
@@ -355,14 +346,9 @@ main(int argc, char **argv)
 	syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
 	exit(1);
     }
-#if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-    {
-	int tos = IPTOS_LOWDELAY;
-
-	if (setsockopt(STDIN_FILENO, IPPROTO_IP, IP_TOS,
-		       (void *)&tos, sizeof(int)) < 0)
-	    syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
-    }
+#if defined(IP_TOS)
+    if (ctrl_addr->sa_family == AF_INET)
+	socket_set_tos(STDIN_FILENO, IP_TOS);
 #endif
     data_source->sa_family = ctrl_addr->sa_family;
     socket_set_port (data_source,
@@ -410,20 +396,14 @@ main(int argc, char **argv)
     show_file(_PATH_FTPWELCOME, 220);
     /* reply(220,) must follow */
     gethostname(hostname, sizeof(hostname));
-	
+
     reply(220, "%s FTP server (%s"
 #ifdef KRB5
-	  "+%s"
-#endif
-#ifdef KRB4
 	  "+%s"
 #endif
 	  ") ready.", hostname, version
 #ifdef KRB5
 	  ,heimdal_version
-#endif
-#ifdef KRB4
-	  ,krb4_version
 #endif
 	  );
 
@@ -528,7 +508,7 @@ user(char *name)
 	guest = 0;
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
 	    if ((auth_level & AUTH_FTP) == 0 ||
-		checkaccess("ftp") || 
+		checkaccess("ftp") ||
 		checkaccess("anonymous"))
 		reply(530, "User %s access denied.", name);
 	    else if ((pw = sgetpwnam("ftp")) != NULL) {
@@ -661,7 +641,7 @@ checkuser(char *fname, char *name)
 
 
 /*
- * Determine whether a user has access, based on information in 
+ * Determine whether a user has access, based on information in
  * _PATH_FTPUSERS. The users are listed one per line, with `allow'
  * or `deny' after the username. If anything other than `allow', or
  * just nothing, is given after the username, `deny' is assumed.
@@ -689,9 +669,9 @@ checkaccess(char *name)
     int allowed = ALLOWED;
     char *user, *perm, line[BUFSIZ];
     char *foo;
-    
+
     fd = fopen(_PATH_FTPUSERS, "r");
-    
+
     if(fd == NULL)
 	return allowed;
 
@@ -724,7 +704,7 @@ int do_login(int code, char *passwd)
 	return -1;
     }
     initgroups(pw->pw_name, pw->pw_gid);
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
     if(k_hasafs())
 	k_setpag();
 #endif
@@ -799,7 +779,7 @@ int do_login(int code, char *passwd)
 				 sizeof(data_addr));
 
 	    syslog(LOG_INFO, "ANONYMOUS FTP LOGIN FROM %s(%s), %s",
-		   remotehost, 
+		   remotehost,
 		   data_addr,
 		   passwd);
 	}
@@ -850,11 +830,11 @@ end_login(void)
 static int
 krb5_verify(struct passwd *pwd, char *passwd)
 {
-   krb5_context context;  
+   krb5_context context;
    krb5_ccache  id;
    krb5_principal princ;
    krb5_error_code ret;
-  
+
    ret = krb5_init_context(&context);
    if(ret)
         return ret;
@@ -864,7 +844,7 @@ krb5_verify(struct passwd *pwd, char *passwd)
         krb5_free_context(context);
         return ret;
   }
-  ret = krb5_cc_gen_new(context, &krb5_mcc_ops, &id);
+  ret = krb5_cc_new_unique(context, "MEMORY", NULL, &id);
   if(ret){
         krb5_free_principal(context, princ);
         krb5_free_context(context);
@@ -882,7 +862,7 @@ krb5_verify(struct passwd *pwd, char *passwd)
   }
   krb5_cc_destroy(context, id);
   krb5_free_context (context);
-  if(ret) 
+  if(ret)
       return ret;
   return 0;
 }
@@ -916,21 +896,6 @@ pass(char *passwd)
 		else if((auth_level & AUTH_OTP) == 0) {
 #ifdef KRB5
 		    rval = krb5_verify(pw, passwd);
-#endif
-#ifdef KRB4
-		    if (rval) {
-			char realm[REALM_SZ];
-			if((rval = krb_get_lrealm(realm, 1)) == KSUCCESS)
-			    rval = krb_verify_user(pw->pw_name,
-						   "", realm, 
-						   passwd, 
-						   KRB_VERIFY_SECURE, NULL);
-			if (rval == KSUCCESS ) {
-			    chown (tkt_string(), pw->pw_uid, pw->pw_gid);
-			    if(k_hasafs())
-				krb_afslog(0, 0);
-			}
-		    }
 #endif
 		    if (rval)
 			rval = unix_verify_user(pw->pw_name, passwd);
@@ -977,7 +942,7 @@ pass(char *passwd)
 	}
 	if(!do_login(230, passwd))
 	  return;
-	
+
 	/* Forget all about it... */
 	end_login();
 }
@@ -1013,7 +978,7 @@ retrieve(const char *cmd, char *name)
 		    for(p = cmds; p->ext; p++){
 			char *tail = name + strlen(name) - strlen(p->ext);
 			char c = *tail;
-			
+
 			if(strcmp(tail, p->ext) == 0 &&
 			   (*tail  = 0) == 0 &&
 			   access(name, R_OK) == 0){
@@ -1037,7 +1002,7 @@ retrieve(const char *cmd, char *name)
 			        free(ext);
 			    }
 			}
-			
+
 		    }
 		    if(p->ext){
 			fin = ftpd_popen(line, "r", 0, 0);
@@ -1106,7 +1071,7 @@ done:
 
 /* filename sanity check */
 
-int 
+int
 filename_check(char *filename)
 {
     char *p;
@@ -1127,7 +1092,7 @@ filename_check(char *filename)
     lreply(553, "\"%s\" is not an acceptable filename.", filename);
     lreply(553, "The filename must start with an alphanumeric "
 	   "character and must only");
-    reply(553, "consist of alphanumeric characters or any of the following: %s", 
+    reply(553, "consist of alphanumeric characters or any of the following: %s",
 	  good_chars);
     return 1;
 }
@@ -1141,10 +1106,14 @@ do_store(char *name, char *mode, int unique)
 
 	if(guest && filename_check(name))
 	    return;
-	if (unique && stat(name, &st) == 0 &&
-	    (name = gunique(name)) == NULL) {
-		LOGCMD(*mode == 'w' ? "put" : "append", name);
-		return;
+	if (unique) {
+	    char *uname;
+	    if (stat(name, &st) == 0) {
+		if ((uname = gunique(name)) == NULL)
+		    return;
+		name = uname;
+	    }
+	    LOGCMD(*mode == 'w' ? "put" : "append", name);
 	}
 
 	if (restart_point)
@@ -1252,7 +1221,7 @@ bad:
 }
 
 static int
-accept_with_timeout(int socket, 
+accept_with_timeout(int socket,
 		    struct sockaddr *address,
 		    socklen_t *address_len,
 		    struct timeval *timeout)
@@ -1302,13 +1271,9 @@ dataconn(const char *name, off_t size, const char *mode)
 		}
 		close(pdata);
 		pdata = s;
-#if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-		{
-		    int tos = IPTOS_THROUGHPUT;
-		    
-		    setsockopt(s, IPPROTO_IP, IP_TOS, (void *)&tos,
-			       sizeof(tos));
-		}
+#if defined(IPTOS_THROUGHPUT)
+		if (from->sa_family == AF_INET)
+		    socket_set_tos(s, IPTOS_THROUGHPUT);
 #endif
 		reply(150, "Opening %s mode data connection for '%s'%s.",
 		     type == TYPE_A ? "ASCII" : "BINARY", name, sizebuf);
@@ -1323,7 +1288,7 @@ dataconn(const char *name, off_t size, const char *mode)
 	if (usedefault)
 		data_dest = his_addr;
 	usedefault = 1;
-	/* 
+	/*
 	 * Default to using the same socket type as the ctrl address,
 	 * unless we know the type of the data address.
 	 */
@@ -1399,7 +1364,7 @@ send_data(FILE *instr, FILE *outstr)
 		goto data_err;
 	    reply(226, "Transfer complete.");
 	    return;
-		
+
 	case TYPE_I:
 	case TYPE_L:
 #if 0 /* XXX handle urg flag */
@@ -1411,7 +1376,7 @@ send_data(FILE *instr, FILE *outstr)
 		struct stat st;
 		char *chunk;
 		int in = fileno(instr);
-		if(fstat(in, &st) == 0 && S_ISREG(st.st_mode) 
+		if(fstat(in, &st) == 0 && S_ISREG(st.st_mode)
 		   && st.st_size > 0) {
 		    /*
 		     * mmap zero bytes has potential of loosing, don't do it.
@@ -1505,7 +1470,7 @@ receive_data(FILE *instr, FILE *outstr)
 	perror_reply(451, "Local resource failure: malloc");
 	return -1;
     }
-    
+
     switch (type) {
 
     case TYPE_I:
@@ -1534,7 +1499,7 @@ receive_data(FILE *instr, FILE *outstr)
 	char *p, *q;
 	int cr_flag = 0;
 	while ((cnt = sec_read(fileno(instr),
-				buf + cr_flag, 
+				buf + cr_flag,
 				bufsize - cr_flag)) > 0){
 	    if (urgflag && handleoobcmd())
 		return (-1);
@@ -1583,13 +1548,13 @@ receive_data(FILE *instr, FILE *outstr)
 	urgflag = 0;
 	return (-1);
     }
-	
+
 data_err:
     transflag = 0;
     urgflag = 0;
     perror_reply(426, "Data Connection");
     return (-1);
-	
+
 file_err:
     transflag = 0;
     urgflag = 0;
@@ -1772,7 +1737,7 @@ do_delete(char *name)
 		perror_reply(550, name);
 		return;
 	}
-	if ((st.st_mode&S_IFMT) == S_IFDIR) {
+	if (S_ISDIR(st.st_mode)) {
 		if (rmdir(name) < 0) {
 			perror_reply(550, name);
 			return;
@@ -1788,7 +1753,7 @@ done:
 }
 
 void
-cwd(char *path)
+cwd(const char *path)
 {
 
 	if (chdir(path) < 0)
@@ -1831,7 +1796,7 @@ pwd(void)
     char *ret;
 
     /* SunOS has a broken getcwd that does popen(pwd) (!!!), this
-     * failes miserably when running chroot 
+     * failes miserably when running chroot
      */
     ret = getcwd(path, sizeof(path));
     if (ret == NULL)
@@ -1902,7 +1867,7 @@ dologout(int status)
     transflag = 0;
     urgflag = 0;
     if (logged_in) {
-#if KRB4 || KRB5
+#if KRB5
 	cond_kdestroy();
 #endif
 	seteuid((uid_t)0); /* No need to check, we call exit() below */
@@ -1913,7 +1878,7 @@ dologout(int status)
     exit(status);
 #else
     _exit(status);
-#endif	
+#endif
 }
 
 void abor(void)
@@ -2017,8 +1982,8 @@ pasv(void)
 	socket_set_address_and_port (pasv_addr,
 				     socket_get_address (ctrl_addr),
 				     0);
-	socket_set_portrange(pdata, restricted_data_ports, 
-	    pasv_addr->sa_family); 
+	socket_set_portrange(pdata, restricted_data_ports,
+	    pasv_addr->sa_family);
 	if (seteuid(0) < 0)
 		fatal("Failed to seteuid");
 	if (bind(pdata, pasv_addr, socket_sockaddr_size (pasv_addr)) < 0) {
@@ -2064,8 +2029,8 @@ epsv(char *proto)
 	socket_set_address_and_port (pasv_addr,
 				     socket_get_address (ctrl_addr),
 				     0);
-	socket_set_portrange(pdata, restricted_data_ports, 
-	    pasv_addr->sa_family); 
+	socket_set_portrange(pdata, restricted_data_ports,
+	    pasv_addr->sa_family);
 	if (seteuid(0) < 0)
 		fatal("Failed to seteuid");
 	if (bind(pdata, pasv_addr, socket_sockaddr_size (pasv_addr)) < 0) {
@@ -2123,7 +2088,7 @@ eprt(char *str)
 	case 2 :
 	    data_dest->sa_family = AF_INET6;
 	    break;
-#endif		
+#endif
 	case 1 :
 	    data_dest->sa_family = AF_INET;
 		break;
@@ -2154,7 +2119,18 @@ eprt(char *str)
 		reply(500, "Bad port syntax in EPRT");
 		return;
 	}
+	if (port < IPPORT_RESERVED) {
+		reply(500, "Bad port in invalid range in EPRT");
+		return;
+	}
 	socket_set_port (data_dest, htons(port));
+
+	if (paranoid &&
+	    (data_dest->sa_family != his_addr->sa_family ||
+	     memcmp(socket_get_address(data_dest), socket_get_address(his_addr), socket_sockaddr_size(data_dest)) != 0))
+	{
+		reply(500, "Bad address in EPRT");
+	}
 	reply(200, "EPRT command successful.");
 }
 
@@ -2353,15 +2329,13 @@ out:
     transflag = 0;
     if (dout != NULL){
 	sec_write(fileno(dout), buf, 0); /* XXX flush */
-	    
+
 	fclose(dout);
     }
     data = -1;
     pdata = -1;
-    if (freeglob) {
-	freeglob = 0;
+    if (freeglob)
 	globfree(&gl);
-    }
 }
 
 

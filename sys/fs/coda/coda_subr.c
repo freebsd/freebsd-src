@@ -365,13 +365,7 @@ coda_checkunmounting(struct mount *mp)
 	struct cnode *cp;
 	int count = 0, bad = 0;
 
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
 		cp = VTOC(vp);
 		count++;
 		if (!(cp->c_flags & C_UNMOUNTING)) {
@@ -381,7 +375,6 @@ coda_checkunmounting(struct mount *mp)
 		}
 		VI_UNLOCK(vp);
 	}
-	MNT_IUNLOCK(mp);
 }
 
 void

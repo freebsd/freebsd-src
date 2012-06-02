@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/bus.h>
 #include <machine/xbox.h>
-#include <machine/legacyvar.h>
+#include <x86/legacyvar.h>
 #include <dev/fb/fbreg.h>
 #include <dev/fb/gfb.h>
 #include <dev/syscons/syscons.h>

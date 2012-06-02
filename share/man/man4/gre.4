@@ -37,16 +37,14 @@
 .Nd encapsulating network device
 .Sh SYNOPSIS
 To compile the
-.Ns Nm
-device into the kernel, place the following line in the kernel
+driver into the kernel, place the following line in the kernel
 configuration file:
 .Bd -ragged -offset indent
 .Cd "device gre"
 .Ed
 .Pp
 Alternatively, to load the
-.Ns Nm
-device as a module at boot time, place the following line in
+driver as a module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_gre_load="YES"
@@ -337,4 +335,4 @@ Incoming packets with a different key or without a key will be treated as if the
 would belong to this interface.
 .Pp
 RFC1701 is not fully supported, however all unsupported features have been
-deprecated in RFC2784. 
+deprecated in RFC2784.

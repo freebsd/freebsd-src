@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ufs/quota.h>
 
-static MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
+MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
@@ -2744,6 +2744,10 @@ setfflags(td, vp, flags)
 	struct mount *mp;
 	struct vattr vattr;
 
+	/* We can't support the value matching VNOVAL. */
+	if (flags == VNOVAL)
+		return (EOPNOTSUPP);
+
 	/*
 	 * Prevent non-root users from setting flags on devices.  When
 	 * a device is reused, users can retain ownership of the device
@@ -4132,7 +4136,8 @@ sys_getdirentries(td, uap)
 	long base;
 	int error;
 
-	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
+	    NULL, UIO_USERSPACE);
 	if (error)
 		return (error);
 	if (uap->basep != NULL)
@@ -4142,7 +4147,7 @@ sys_getdirentries(td, uap)
 
 int
 kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
-    long *basep)
+    long *basep, ssize_t *residp, enum uio_seg bufseg)
 {
 	struct vnode *vp;
 	struct file *fp;
@@ -4153,9 +4158,9 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	int error, eofflag;
 
 	AUDIT_ARG_FD(fd);
-	auio.uio_resid = count;
-	if (auio.uio_resid > IOSIZE_MAX)
+	if (count > IOSIZE_MAX)
 		return (EINVAL);
+	auio.uio_resid = count;
 	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_READ | CAP_SEEK,
 	    &fp)) != 0)
 		return (error);
@@ -4176,7 +4181,7 @@ unionread:
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_segflg = bufseg;
 	auio.uio_td = td;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
@@ -4209,6 +4214,8 @@ unionread:
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	*basep = loff;
+	if (residp != NULL)
+		*residp = auio.uio_resid;
 	td->td_retval[0] = count - auio.uio_resid;
 fail:
 	fdrop(fp, td);
@@ -4591,16 +4598,22 @@ sys_fhopen(td, uap)
 	if (error)
 		goto bad;
 
-	if (fmode & FWRITE)
+	if (fmode & FWRITE) {
 		vp->v_writecount++;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+		    __func__, vp, vp->v_writecount);
+	}
 
 	/*
 	 * end of vn_open code
 	 */
 
 	if ((error = falloc(td, &nfp, &indx, fmode)) != 0) {
-		if (fmode & FWRITE)
+		if (fmode & FWRITE) {
 			vp->v_writecount--;
+			CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+			    __func__, vp, vp->v_writecount);
+		}
 		goto bad;
 	}
 	/* An extra reference on `nfp' has been held for us by falloc(). */
@@ -4669,16 +4682,28 @@ sys_fhstat(td, uap)
 	} */ *uap;
 {
 	struct stat sb;
-	fhandle_t fh;
+	struct fhandle fh;
+	int error;
+
+	error = copyin(uap->u_fhp, &fh, sizeof(fh));
+	if (error != 0)
+		return (error);
+	error = kern_fhstat(td, fh, &sb);
+	if (error != 0)
+		return (error);
+	error = copyout(&sb, uap->sb, sizeof(sb));
+	return (error);
+}
+
+int
+kern_fhstat(struct thread *td, struct fhandle fh, struct stat *sb)
+{
 	struct mount *mp;
 	struct vnode *vp;
 	int vfslocked;
 	int error;
 
 	error = priv_check(td, PRIV_VFS_FHSTAT);
-	if (error)
-		return (error);
-	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
 	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
@@ -4690,12 +4715,9 @@ sys_fhstat(td, uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
+	error = vn_stat(vp, sb, td->td_ucred, NOCRED, td);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	if (error)
-		return (error);
-	error = copyout(&sb, uap->sb, sizeof(sb));
 	return (error);
 }
 

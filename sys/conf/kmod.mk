@@ -61,7 +61,7 @@
 #
 
 # backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
@@ -354,7 +354,7 @@ MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	kern/bus_if.m kern/clock_if.m \
 	kern/cpufreq_if.m kern/device_if.m kern/serdev_if.m \
 	libkern/iconv_converter_if.m opencrypto/cryptodev_if.m \
-	pc98/pc98/canbus_if.m
+	pc98/pc98/canbus_if.m dev/etherswitch/mdio_if.m
 
 .for _srcsrc in ${MFILES}
 .for _ext in c h

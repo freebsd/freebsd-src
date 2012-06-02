@@ -235,7 +235,7 @@ programs to determine the order in which file system and quota
 checks are done at reboot time.
 The
 .Fa fs_passno
-field can be any value between 0 and 
+field can be any value between 0 and
 .Ql INT_MAX Ns -1 .
 .Pp
 The root file system should be specified with a
@@ -245,7 +245,7 @@ of 1, and other file systems should have a
 of 2 or greater.
 A file system with a
 .Fa fs_passno
-value of 1 is always checked sequentially and be completed before 
+value of 1 is always checked sequentially and be completed before
 another file system is processed, and it will be processed before
 all file systems with a larger
 .Fa fs_passno .
@@ -269,7 +269,7 @@ will assume that the file system does not need to be checked.
 .Pp
 The
 .Fa fs_passno
-field can be used to implement finer control when 
+field can be used to implement finer control when
 the system utilities may determine that the file system resides
 on a different physical device, when it actually does not, as with a
 .Xr ccd 4

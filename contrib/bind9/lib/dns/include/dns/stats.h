@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stats.h,v 1.20 2009-01-27 23:47:54 tbox Exp $ */
+/* $Id$ */
 
 #ifndef DNS_STATS_H
 #define DNS_STATS_H 1
@@ -146,6 +146,8 @@ typedef void (*dns_generalstats_dumper_t)(isc_statscounter_t, isc_uint64_t,
 typedef void (*dns_rdatatypestats_dumper_t)(dns_rdatastatstype_t, isc_uint64_t,
 					    void *);
 typedef void (*dns_opcodestats_dumper_t)(dns_opcode_t, isc_uint64_t, void *);
+
+ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_generalstats_create(isc_mem_t *mctx, dns_stats_t **statsp, int ncounters);

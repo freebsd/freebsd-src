@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base64.c,v 1.34 2009-10-21 23:48:05 tbox Exp $ */
+/* $Id: base64.c,v 1.34 2009/10/21 23:48:05 tbox Exp $ */
 
 /*! \file */
 

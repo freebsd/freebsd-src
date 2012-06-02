@@ -42,7 +42,7 @@
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER | MIPS_SR_BEV) ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER | MIPS_SR_BEV) ; \
 	and     a0, a0, a2              ; \
         mtc0    a0, MIPS_COP_0_STATUS
 #elif defined(__mips_n64)

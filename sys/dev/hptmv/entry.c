@@ -108,6 +108,7 @@ static devclass_t	hpt_devclass;
 
 #define __DRIVER_MODULE(p1, p2, p3, p4, p5, p6) DRIVER_MODULE(p1, p2, p3, p4, p5, p6)
 __DRIVER_MODULE(PROC_DIR_NAME, pci, hpt_pci_driver, hpt_devclass, 0, 0);
+MODULE_DEPEND(PROC_DIR_NAME, cam, 1, 1, 1);
 
 #define ccb_ccb_ptr spriv_ptr0
 #define ccb_adapter ccb_h.spriv_ptr1
@@ -1326,7 +1327,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	_vbus_p->OsExt = (void *)pAdapter; 
 	pMvSataAdapter->IALData = pAdapter;
 
-	if (bus_dma_tag_create(NULL,/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(pAdapter->hpt_dev),/* parent */
 			4,	/* alignment */
 			BUS_SPACE_MAXADDR_32BIT+1, /* boundary */
 			BUS_SPACE_MAXADDR,	/* lowaddr */

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -99,7 +99,8 @@ typedef enum
     CVMX_SRIO_DOORBELL_NONE,    /**< There wasn't an outstanding doorbell */
     CVMX_SRIO_DOORBELL_BUSY,    /**< The doorbell is still processing */
     CVMX_SRIO_DOORBELL_RETRY,   /**< The doorbell needs to be retried */
-    CVMX_SRIO_DOORBELL_ERROR    /**< The doorbell failed with an error */
+    CVMX_SRIO_DOORBELL_ERROR,   /**< The doorbell failed with an error */
+    CVMX_SRIO_DOORBELL_TMOUT    /**< The doorbell failed due to timeout */
 } cvmx_srio_doorbell_status_t;
 
 /**
@@ -114,7 +115,7 @@ typedef struct
         uint64_t u64;
         struct
         {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
             uint64_t prio   : 2; /**< The sRIO prio (priority) field in the
                                     first sRIO message segment received for the
                                     message. */
@@ -182,7 +183,7 @@ typedef struct
         uint64_t u64;
         struct
         {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
             uint64_t r      : 1; /**< When set, WORD1[R]/PKT_INST_HDR[R] selects
                                     either RAWFULL or RAWSCHED special PIP
                                     instruction form. WORD1[R] may commonly be
@@ -311,7 +312,7 @@ typedef union
     uint64_t u64;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t prio   : 2;    /**< The sRIO prio (priority) field for all
                                     segments in the message. */
         uint64_t tt     : 1;    /**< When set, the sRIO message segments use a
@@ -368,6 +369,15 @@ typedef union
 #endif
     } s;
 } cvmx_srio_tx_message_header_t;
+
+/**
+ * Reset SRIO to link partner
+ *
+ * @param srio_port  SRIO port to initialize
+ *
+ * @return Zero on success
+ */
+int cvmx_srio_link_rst(int srio_port);
 
 /**
  * Initialize a SRIO port for use.
@@ -517,6 +527,24 @@ uint64_t cvmx_srio_physical_map(int srio_port, cvmx_srio_write_mode_t write_op,
  * @return Zero on success, negative on failure.
  */
 int cvmx_srio_physical_unmap(uint64_t physical_address, uint64_t size);
+
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+/**
+ * fill out outbound message descriptor
+ *
+ * @param buf_ptr     pointer to a buffer pointer. the buffer pointer points
+ *                    to a chain of buffers that hold an outbound srio packet.
+ *                    the packet can take the format of (1) a pip/ipd inbound
+ *                    message or (2) an application-generated outbound message
+ * @param desc_ptr    pointer to an outbound message descriptor. should be null
+ *                    if *buf_ptr is in the format (1)
+ *
+ * @return           0 on success; negative of failure.
+ */
+int cvmx_srio_omsg_desc (uint64_t port, cvmx_buf_ptr_t *buf_ptr,
+                         cvmx_srio_tx_message_header_t *desc_ptr);
+#endif
+
 
 #ifdef	__cplusplus
 }

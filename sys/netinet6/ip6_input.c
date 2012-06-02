@@ -146,6 +146,9 @@ RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
 static void ip6_init2(void *);
 static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
+static struct ip6aux *ip6_addaux(struct mbuf *);
+static struct ip6aux *ip6_findaux(struct mbuf *m);
+static void ip6_delaux (struct mbuf *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
@@ -327,6 +330,83 @@ ip6_init2(void *dummy)
 /* cheat */
 /* This must be after route_init(), which is now SI_ORDER_THIRD */
 SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ip6_init2, NULL);
+
+static int
+ip6_input_hbh(struct mbuf *m, uint32_t *plen, uint32_t *rtalert, int *off,
+    int *nxt, int *ours)
+{
+	struct ip6_hdr *ip6;
+	struct ip6_hbh *hbh;
+
+	if (ip6_hopopts_input(plen, rtalert, &m, off)) {
+#if 0	/*touches NULL pointer*/
+		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
+#endif
+		goto out;	/* m have already been freed */
+	}
+
+	/* adjust pointer */
+	ip6 = mtod(m, struct ip6_hdr *);
+
+	/*
+	 * if the payload length field is 0 and the next header field
+	 * indicates Hop-by-Hop Options header, then a Jumbo Payload
+	 * option MUST be included.
+	 */
+	if (ip6->ip6_plen == 0 && *plen == 0) {
+		/*
+		 * Note that if a valid jumbo payload option is
+		 * contained, ip6_hopopts_input() must set a valid
+		 * (non-zero) payload length to the variable plen.
+		 */
+		V_ip6stat.ip6s_badoptions++;
+		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
+		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
+		icmp6_error(m, ICMP6_PARAM_PROB,
+			    ICMP6_PARAMPROB_HEADER,
+			    (caddr_t)&ip6->ip6_plen - (caddr_t)ip6);
+		goto out;
+	}
+#ifndef PULLDOWN_TEST
+	/* ip6_hopopts_input() ensures that mbuf is contiguous */
+	hbh = (struct ip6_hbh *)(ip6 + 1);
+#else
+	IP6_EXTHDR_GET(hbh, struct ip6_hbh *, m, sizeof(struct ip6_hdr),
+		sizeof(struct ip6_hbh));
+	if (hbh == NULL) {
+		V_ip6stat.ip6s_tooshort++;
+		goto out;
+	}
+#endif
+	*nxt = hbh->ip6h_nxt;
+
+	/*
+	 * If we are acting as a router and the packet contains a
+	 * router alert option, see if we know the option value.
+	 * Currently, we only support the option value for MLD, in which
+	 * case we should pass the packet to the multicast routing
+	 * daemon.
+	 */
+	if (*rtalert != ~0) {
+		switch (*rtalert) {
+		case IP6OPT_RTALERT_MLD:
+			if (V_ip6_forwarding)
+				*ours = 1;
+			break;
+		default:
+			/*
+			 * RFC2711 requires unrecognized values must be
+			 * silently ignored.
+			 */
+			break;
+		}
+	}
+
+	return (0);
+
+out:
+	return (1);
+}
 
 void
 ip6_input(struct mbuf *m)
@@ -822,71 +902,11 @@ passin:
 	 */
 	plen = (u_int32_t)ntohs(ip6->ip6_plen);
 	if (ip6->ip6_nxt == IPPROTO_HOPOPTS) {
-		struct ip6_hbh *hbh;
+		int error;
 
-		if (ip6_hopopts_input(&plen, &rtalert, &m, &off)) {
-#if 0	/*touches NULL pointer*/
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
-#endif
-			goto out;	/* m have already been freed */
-		}
-
-		/* adjust pointer */
-		ip6 = mtod(m, struct ip6_hdr *);
-
-		/*
-		 * if the payload length field is 0 and the next header field
-		 * indicates Hop-by-Hop Options header, then a Jumbo Payload
-		 * option MUST be included.
-		 */
-		if (ip6->ip6_plen == 0 && plen == 0) {
-			/*
-			 * Note that if a valid jumbo payload option is
-			 * contained, ip6_hopopts_input() must set a valid
-			 * (non-zero) payload length to the variable plen.
-			 */
-			V_ip6stat.ip6s_badoptions++;
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
-			icmp6_error(m, ICMP6_PARAM_PROB,
-				    ICMP6_PARAMPROB_HEADER,
-				    (caddr_t)&ip6->ip6_plen - (caddr_t)ip6);
+		error = ip6_input_hbh(m, &plen, &rtalert, &off, &nxt, &ours);
+		if (error != 0)
 			goto out;
-		}
-#ifndef PULLDOWN_TEST
-		/* ip6_hopopts_input() ensures that mbuf is contiguous */
-		hbh = (struct ip6_hbh *)(ip6 + 1);
-#else
-		IP6_EXTHDR_GET(hbh, struct ip6_hbh *, m, sizeof(struct ip6_hdr),
-			sizeof(struct ip6_hbh));
-		if (hbh == NULL) {
-			V_ip6stat.ip6s_tooshort++;
-			goto out;
-		}
-#endif
-		nxt = hbh->ip6h_nxt;
-
-		/*
-		 * If we are acting as a router and the packet contains a
-		 * router alert option, see if we know the option value.
-		 * Currently, we only support the option value for MLD, in which
-		 * case we should pass the packet to the multicast routing
-		 * daemon.
-		 */
-		if (rtalert != ~0) {
-			switch (rtalert) {
-			case IP6OPT_RTALERT_MLD:
-				if (V_ip6_forwarding)
-					ours = 1;
-				break;
-			default:
-				/*
-				 * RFC2711 requires unrecognized values must be
-				 * silently ignored.
-				 */
-				break;
-			}
-		}
 	} else
 		nxt = ip6->ip6_nxt;
 
@@ -1772,7 +1792,7 @@ ip6_lasthdr(struct mbuf *m, int off, int proto, int *nxtp)
 	}
 }
 
-struct ip6aux *
+static struct ip6aux *
 ip6_addaux(struct mbuf *m)
 {
 	struct m_tag *mtag;
@@ -1789,7 +1809,7 @@ ip6_addaux(struct mbuf *m)
 	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
 }
 
-struct ip6aux *
+static struct ip6aux *
 ip6_findaux(struct mbuf *m)
 {
 	struct m_tag *mtag;
@@ -1798,7 +1818,7 @@ ip6_findaux(struct mbuf *m)
 	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
 }
 
-void
+static void
 ip6_delaux(struct mbuf *m)
 {
 	struct m_tag *mtag;

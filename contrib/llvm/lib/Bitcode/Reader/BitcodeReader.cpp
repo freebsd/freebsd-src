@@ -22,10 +22,18 @@
 #include "llvm/AutoUpgrade.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/DataStream.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/OperandTraits.h"
 using namespace llvm;
+
+void BitcodeReader::materializeForwardReferencedFunctions() {
+  while (!BlockAddrFwdRefs.empty()) {
+    Function *F = BlockAddrFwdRefs.begin()->first;
+    F->Materialize();
+  }
+}
 
 void BitcodeReader::FreeState() {
   if (BufferOwned)
@@ -394,21 +402,13 @@ Type *BitcodeReader::getTypeByID(unsigned ID) {
   // The type table size is always specified correctly.
   if (ID >= TypeList.size())
     return 0;
-  
+
   if (Type *Ty = TypeList[ID])
     return Ty;
 
   // If we have a forward reference, the only possible case is when it is to a
   // named struct.  Just create a placeholder for now.
   return TypeList[ID] = StructType::create(Context);
-}
-
-/// FIXME: Remove in LLVM 3.1, only used by ParseOldTypeTable.
-Type *BitcodeReader::getTypeByIDOrNull(unsigned ID) {
-  if (ID >= TypeList.size())
-    TypeList.resize(ID+1);
-  
-  return TypeList[ID];
 }
 
 
@@ -462,8 +462,8 @@ bool BitcodeReader::ParseAttributeBlock() {
       // If Function attributes are using index 0 then transfer them
       // to index ~0. Index 0 is used for return value attributes but used to be
       // used for function attributes.
-      Attributes RetAttribute = Attribute::None;
-      Attributes FnAttribute = Attribute::None;
+      Attributes RetAttribute;
+      Attributes FnAttribute;
       for (unsigned i = 0, e = Record.size(); i != e; i += 2) {
         // FIXME: remove in LLVM 3.0
         // The alignment is stored as a 16-bit raw value from bits 31--16.
@@ -473,23 +473,24 @@ bool BitcodeReader::ParseAttributeBlock() {
         if (Alignment && !isPowerOf2_32(Alignment))
           return Error("Alignment is not a power of two.");
 
-        Attributes ReconstitutedAttr = Record[i+1] & 0xffff;
+        Attributes ReconstitutedAttr(Record[i+1] & 0xffff);
         if (Alignment)
           ReconstitutedAttr |= Attribute::constructAlignmentFromInt(Alignment);
-        ReconstitutedAttr |= (Record[i+1] & (0xffffull << 32)) >> 11;
-        Record[i+1] = ReconstitutedAttr;
+        ReconstitutedAttr |=
+            Attributes((Record[i+1] & (0xffffull << 32)) >> 11);
 
+        Record[i+1] = ReconstitutedAttr.Raw();
         if (Record[i] == 0)
-          RetAttribute = Record[i+1];
+          RetAttribute = ReconstitutedAttr;
         else if (Record[i] == ~0U)
-          FnAttribute = Record[i+1];
+          FnAttribute = ReconstitutedAttr;
       }
 
-      unsigned OldRetAttrs = (Attribute::NoUnwind|Attribute::NoReturn|
+      Attributes OldRetAttrs = (Attribute::NoUnwind|Attribute::NoReturn|
                               Attribute::ReadOnly|Attribute::ReadNone);
 
       if (FnAttribute == Attribute::None && RetAttribute != Attribute::None &&
-          (RetAttribute & OldRetAttrs) != 0) {
+          (RetAttribute & OldRetAttrs)) {
         if (FnAttribute == Attribute::None) { // add a slot so they get added.
           Record.push_back(~0U);
           Record.push_back(0);
@@ -506,8 +507,9 @@ bool BitcodeReader::ParseAttributeBlock() {
         } else if (Record[i] == ~0U) {
           if (FnAttribute != Attribute::None)
             Attrs.push_back(AttributeWithIndex::get(~0U, FnAttribute));
-        } else if (Record[i+1] != Attribute::None)
-          Attrs.push_back(AttributeWithIndex::get(Record[i], Record[i+1]));
+        } else if (Attributes(Record[i+1]) != Attribute::None)
+          Attrs.push_back(AttributeWithIndex::get(Record[i],
+                                                  Attributes(Record[i+1])));
       }
 
       MAttributes.push_back(AttrListPtr::get(Attrs.begin(), Attrs.end()));
@@ -521,7 +523,7 @@ bool BitcodeReader::ParseAttributeBlock() {
 bool BitcodeReader::ParseTypeTable() {
   if (Stream.EnterSubBlock(bitc::TYPE_BLOCK_ID_NEW))
     return Error("Malformed block record");
-  
+
   return ParseTypeTableBody();
 }
 
@@ -533,7 +535,7 @@ bool BitcodeReader::ParseTypeTableBody() {
   unsigned NumRecords = 0;
 
   SmallString<64> TypeName;
-  
+
   // Read all the records for this type table.
   while (1) {
     unsigned Code = Stream.ReadCode();
@@ -572,6 +574,9 @@ bool BitcodeReader::ParseTypeTableBody() {
       continue;
     case bitc::TYPE_CODE_VOID:      // VOID
       ResultTy = Type::getVoidTy(Context);
+      break;
+    case bitc::TYPE_CODE_HALF:     // HALF
+      ResultTy = Type::getHalfTy(Context);
       break;
     case bitc::TYPE_CODE_FLOAT:     // FLOAT
       ResultTy = Type::getFloatTy(Context);
@@ -615,12 +620,12 @@ bool BitcodeReader::ParseTypeTableBody() {
       ResultTy = PointerType::get(ResultTy, AddressSpace);
       break;
     }
-    case bitc::TYPE_CODE_FUNCTION: {
+    case bitc::TYPE_CODE_FUNCTION_OLD: {
       // FIXME: attrid is dead, remove it in LLVM 3.0
       // FUNCTION: [vararg, attrid, retty, paramty x N]
       if (Record.size() < 3)
         return Error("Invalid FUNCTION type record");
-      std::vector<Type*> ArgTys;
+      SmallVector<Type*, 8> ArgTys;
       for (unsigned i = 3, e = Record.size(); i != e; ++i) {
         if (Type *T = getTypeByID(Record[i]))
           ArgTys.push_back(T);
@@ -635,10 +640,29 @@ bool BitcodeReader::ParseTypeTableBody() {
       ResultTy = FunctionType::get(ResultTy, ArgTys, Record[0]);
       break;
     }
+    case bitc::TYPE_CODE_FUNCTION: {
+      // FUNCTION: [vararg, retty, paramty x N]
+      if (Record.size() < 2)
+        return Error("Invalid FUNCTION type record");
+      SmallVector<Type*, 8> ArgTys;
+      for (unsigned i = 2, e = Record.size(); i != e; ++i) {
+        if (Type *T = getTypeByID(Record[i]))
+          ArgTys.push_back(T);
+        else
+          break;
+      }
+      
+      ResultTy = getTypeByID(Record[1]);
+      if (ResultTy == 0 || ArgTys.size() < Record.size()-2)
+        return Error("invalid type in function type");
+
+      ResultTy = FunctionType::get(ResultTy, ArgTys, Record[0]);
+      break;
+    }
     case bitc::TYPE_CODE_STRUCT_ANON: {  // STRUCT: [ispacked, eltty x N]
       if (Record.size() < 1)
         return Error("Invalid STRUCT type record");
-      std::vector<Type*> EltTys;
+      SmallVector<Type*, 8> EltTys;
       for (unsigned i = 1, e = Record.size(); i != e; ++i) {
         if (Type *T = getTypeByID(Record[i]))
           EltTys.push_back(T);
@@ -725,247 +749,6 @@ bool BitcodeReader::ParseTypeTableBody() {
     assert(ResultTy && "Didn't read a type?");
     assert(TypeList[NumRecords] == 0 && "Already read type?");
     TypeList[NumRecords++] = ResultTy;
-  }
-}
-
-// FIXME: Remove in LLVM 3.1
-bool BitcodeReader::ParseOldTypeTable() {
-  if (Stream.EnterSubBlock(bitc::TYPE_BLOCK_ID_OLD))
-    return Error("Malformed block record");
-
-  if (!TypeList.empty())
-    return Error("Multiple TYPE_BLOCKs found!");
-  
-  
-  // While horrible, we have no good ordering of types in the bc file.  Just
-  // iteratively parse types out of the bc file in multiple passes until we get
-  // them all.  Do this by saving a cursor for the start of the type block.
-  BitstreamCursor StartOfTypeBlockCursor(Stream);
-  
-  unsigned NumTypesRead = 0;
-  
-  SmallVector<uint64_t, 64> Record;
-RestartScan:
-  unsigned NextTypeID = 0;
-  bool ReadAnyTypes = false;
-  
-  // Read all the records for this type table.
-  while (1) {
-    unsigned Code = Stream.ReadCode();
-    if (Code == bitc::END_BLOCK) {
-      if (NextTypeID != TypeList.size())
-        return Error("Invalid type forward reference in TYPE_BLOCK_ID_OLD");
-      
-      // If we haven't read all of the types yet, iterate again.
-      if (NumTypesRead != TypeList.size()) {
-        // If we didn't successfully read any types in this pass, then we must
-        // have an unhandled forward reference.
-        if (!ReadAnyTypes)
-          return Error("Obsolete bitcode contains unhandled recursive type");
-        
-        Stream = StartOfTypeBlockCursor;
-        goto RestartScan;
-      }
-      
-      if (Stream.ReadBlockEnd())
-        return Error("Error at end of type table block");
-      return false;
-    }
-    
-    if (Code == bitc::ENTER_SUBBLOCK) {
-      // No known subblocks, always skip them.
-      Stream.ReadSubBlockID();
-      if (Stream.SkipBlock())
-        return Error("Malformed block record");
-      continue;
-    }
-    
-    if (Code == bitc::DEFINE_ABBREV) {
-      Stream.ReadAbbrevRecord();
-      continue;
-    }
-    
-    // Read a record.
-    Record.clear();
-    Type *ResultTy = 0;
-    switch (Stream.ReadRecord(Code, Record)) {
-    default: return Error("unknown type in type table");
-    case bitc::TYPE_CODE_NUMENTRY: // TYPE_CODE_NUMENTRY: [numentries]
-      // TYPE_CODE_NUMENTRY contains a count of the number of types in the
-      // type list.  This allows us to reserve space.
-      if (Record.size() < 1)
-        return Error("Invalid TYPE_CODE_NUMENTRY record");
-      TypeList.resize(Record[0]);
-      continue;
-    case bitc::TYPE_CODE_VOID:      // VOID
-      ResultTy = Type::getVoidTy(Context);
-      break;
-    case bitc::TYPE_CODE_FLOAT:     // FLOAT
-      ResultTy = Type::getFloatTy(Context);
-      break;
-    case bitc::TYPE_CODE_DOUBLE:    // DOUBLE
-      ResultTy = Type::getDoubleTy(Context);
-      break;
-    case bitc::TYPE_CODE_X86_FP80:  // X86_FP80
-      ResultTy = Type::getX86_FP80Ty(Context);
-      break;
-    case bitc::TYPE_CODE_FP128:     // FP128
-      ResultTy = Type::getFP128Ty(Context);
-      break;
-    case bitc::TYPE_CODE_PPC_FP128: // PPC_FP128
-      ResultTy = Type::getPPC_FP128Ty(Context);
-      break;
-    case bitc::TYPE_CODE_LABEL:     // LABEL
-      ResultTy = Type::getLabelTy(Context);
-      break;
-    case bitc::TYPE_CODE_METADATA:  // METADATA
-      ResultTy = Type::getMetadataTy(Context);
-      break;
-    case bitc::TYPE_CODE_X86_MMX:   // X86_MMX
-      ResultTy = Type::getX86_MMXTy(Context);
-      break;
-    case bitc::TYPE_CODE_INTEGER:   // INTEGER: [width]
-      if (Record.size() < 1)
-        return Error("Invalid Integer type record");
-      ResultTy = IntegerType::get(Context, Record[0]);
-      break;
-    case bitc::TYPE_CODE_OPAQUE:    // OPAQUE
-      if (NextTypeID < TypeList.size() && TypeList[NextTypeID] == 0)
-        ResultTy = StructType::create(Context);
-      break;
-    case bitc::TYPE_CODE_STRUCT_OLD: {// STRUCT_OLD
-      if (NextTypeID >= TypeList.size()) break;
-      // If we already read it, don't reprocess.
-      if (TypeList[NextTypeID] &&
-          !cast<StructType>(TypeList[NextTypeID])->isOpaque())
-        break;
-
-      // Set a type.
-      if (TypeList[NextTypeID] == 0)
-        TypeList[NextTypeID] = StructType::create(Context);
-
-      std::vector<Type*> EltTys;
-      for (unsigned i = 1, e = Record.size(); i != e; ++i) {
-        if (Type *Elt = getTypeByIDOrNull(Record[i]))
-          EltTys.push_back(Elt);
-        else
-          break;
-      }
-
-      if (EltTys.size() != Record.size()-1)
-        break;      // Not all elements are ready.
-      
-      cast<StructType>(TypeList[NextTypeID])->setBody(EltTys, Record[0]);
-      ResultTy = TypeList[NextTypeID];
-      TypeList[NextTypeID] = 0;
-      break;
-    }
-    case bitc::TYPE_CODE_POINTER: { // POINTER: [pointee type] or
-      //          [pointee type, address space]
-      if (Record.size() < 1)
-        return Error("Invalid POINTER type record");
-      unsigned AddressSpace = 0;
-      if (Record.size() == 2)
-        AddressSpace = Record[1];
-      if ((ResultTy = getTypeByIDOrNull(Record[0])))
-        ResultTy = PointerType::get(ResultTy, AddressSpace);
-      break;
-    }
-    case bitc::TYPE_CODE_FUNCTION: {
-      // FIXME: attrid is dead, remove it in LLVM 3.0
-      // FUNCTION: [vararg, attrid, retty, paramty x N]
-      if (Record.size() < 3)
-        return Error("Invalid FUNCTION type record");
-      std::vector<Type*> ArgTys;
-      for (unsigned i = 3, e = Record.size(); i != e; ++i) {
-        if (Type *Elt = getTypeByIDOrNull(Record[i]))
-          ArgTys.push_back(Elt);
-        else
-          break;
-      }
-      if (ArgTys.size()+3 != Record.size())
-        break;  // Something was null.
-      if ((ResultTy = getTypeByIDOrNull(Record[2])))
-        ResultTy = FunctionType::get(ResultTy, ArgTys, Record[0]);
-      break;
-    }
-    case bitc::TYPE_CODE_ARRAY:     // ARRAY: [numelts, eltty]
-      if (Record.size() < 2)
-        return Error("Invalid ARRAY type record");
-      if ((ResultTy = getTypeByIDOrNull(Record[1])))
-        ResultTy = ArrayType::get(ResultTy, Record[0]);
-      break;
-    case bitc::TYPE_CODE_VECTOR:    // VECTOR: [numelts, eltty]
-      if (Record.size() < 2)
-        return Error("Invalid VECTOR type record");
-      if ((ResultTy = getTypeByIDOrNull(Record[1])))
-        ResultTy = VectorType::get(ResultTy, Record[0]);
-      break;
-    }
-    
-    if (NextTypeID >= TypeList.size())
-      return Error("invalid TYPE table");
-    
-    if (ResultTy && TypeList[NextTypeID] == 0) {
-      ++NumTypesRead;
-      ReadAnyTypes = true;
-      
-      TypeList[NextTypeID] = ResultTy;
-    }
-    
-    ++NextTypeID;
-  }
-}
-
-
-bool BitcodeReader::ParseOldTypeSymbolTable() {
-  if (Stream.EnterSubBlock(bitc::TYPE_SYMTAB_BLOCK_ID_OLD))
-    return Error("Malformed block record");
-
-  SmallVector<uint64_t, 64> Record;
-
-  // Read all the records for this type table.
-  std::string TypeName;
-  while (1) {
-    unsigned Code = Stream.ReadCode();
-    if (Code == bitc::END_BLOCK) {
-      if (Stream.ReadBlockEnd())
-        return Error("Error at end of type symbol table block");
-      return false;
-    }
-
-    if (Code == bitc::ENTER_SUBBLOCK) {
-      // No known subblocks, always skip them.
-      Stream.ReadSubBlockID();
-      if (Stream.SkipBlock())
-        return Error("Malformed block record");
-      continue;
-    }
-
-    if (Code == bitc::DEFINE_ABBREV) {
-      Stream.ReadAbbrevRecord();
-      continue;
-    }
-
-    // Read a record.
-    Record.clear();
-    switch (Stream.ReadRecord(Code, Record)) {
-    default:  // Default behavior: unknown type.
-      break;
-    case bitc::TST_CODE_ENTRY:    // TST_ENTRY: [typeid, namechar x N]
-      if (ConvertToString(Record, 1, TypeName))
-        return Error("Invalid TST_ENTRY record");
-      unsigned TypeID = Record[0];
-      if (TypeID >= TypeList.size())
-        return Error("Invalid Type ID in TST_ENTRY record");
-
-      // Only apply the type name to a struct type with no name.
-      if (StructType *STy = dyn_cast<StructType>(TypeList[TypeID]))
-        if (!STy->isLiteral() && !STy->hasName())
-          STy->setName(TypeName);
-      TypeName.clear();
-      break;
-    }
   }
 }
 
@@ -1262,7 +1045,9 @@ bool BitcodeReader::ParseConstants() {
     case bitc::CST_CODE_FLOAT: {    // FLOAT: [fpval]
       if (Record.empty())
         return Error("Invalid FLOAT record");
-      if (CurTy->isFloatTy())
+      if (CurTy->isHalfTy())
+        V = ConstantFP::get(Context, APFloat(APInt(16, (uint16_t)Record[0])));
+      else if (CurTy->isFloatTy())
         V = ConstantFP::get(Context, APFloat(APInt(32, (uint32_t)Record[0])));
       else if (CurTy->isDoubleTy())
         V = ConstantFP::get(Context, APFloat(APInt(64, Record[0])));
@@ -1286,7 +1071,7 @@ bool BitcodeReader::ParseConstants() {
         return Error("Invalid CST_AGGREGATE record");
 
       unsigned Size = Record.size();
-      std::vector<Constant*> Elts;
+      SmallVector<Constant*, 16> Elts;
 
       if (StructType *STy = dyn_cast<StructType>(CurTy)) {
         for (unsigned i = 0; i != Size; ++i)
@@ -1308,35 +1093,78 @@ bool BitcodeReader::ParseConstants() {
       }
       break;
     }
-    case bitc::CST_CODE_STRING: { // STRING: [values]
-      if (Record.empty())
-        return Error("Invalid CST_AGGREGATE record");
-
-      ArrayType *ATy = cast<ArrayType>(CurTy);
-      Type *EltTy = ATy->getElementType();
-
-      unsigned Size = Record.size();
-      std::vector<Constant*> Elts;
-      for (unsigned i = 0; i != Size; ++i)
-        Elts.push_back(ConstantInt::get(EltTy, Record[i]));
-      V = ConstantArray::get(ATy, Elts);
-      break;
-    }
+    case bitc::CST_CODE_STRING:    // STRING: [values]
     case bitc::CST_CODE_CSTRING: { // CSTRING: [values]
       if (Record.empty())
-        return Error("Invalid CST_AGGREGATE record");
-
-      ArrayType *ATy = cast<ArrayType>(CurTy);
-      Type *EltTy = ATy->getElementType();
+        return Error("Invalid CST_STRING record");
 
       unsigned Size = Record.size();
-      std::vector<Constant*> Elts;
+      SmallString<16> Elts;
       for (unsigned i = 0; i != Size; ++i)
-        Elts.push_back(ConstantInt::get(EltTy, Record[i]));
-      Elts.push_back(Constant::getNullValue(EltTy));
-      V = ConstantArray::get(ATy, Elts);
+        Elts.push_back(Record[i]);
+      V = ConstantDataArray::getString(Context, Elts,
+                                       BitCode == bitc::CST_CODE_CSTRING);
       break;
     }
+    case bitc::CST_CODE_DATA: {// DATA: [n x value]
+      if (Record.empty())
+        return Error("Invalid CST_DATA record");
+      
+      Type *EltTy = cast<SequentialType>(CurTy)->getElementType();
+      unsigned Size = Record.size();
+      
+      if (EltTy->isIntegerTy(8)) {
+        SmallVector<uint8_t, 16> Elts(Record.begin(), Record.end());
+        if (isa<VectorType>(CurTy))
+          V = ConstantDataVector::get(Context, Elts);
+        else
+          V = ConstantDataArray::get(Context, Elts);
+      } else if (EltTy->isIntegerTy(16)) {
+        SmallVector<uint16_t, 16> Elts(Record.begin(), Record.end());
+        if (isa<VectorType>(CurTy))
+          V = ConstantDataVector::get(Context, Elts);
+        else
+          V = ConstantDataArray::get(Context, Elts);
+      } else if (EltTy->isIntegerTy(32)) {
+        SmallVector<uint32_t, 16> Elts(Record.begin(), Record.end());
+        if (isa<VectorType>(CurTy))
+          V = ConstantDataVector::get(Context, Elts);
+        else
+          V = ConstantDataArray::get(Context, Elts);
+      } else if (EltTy->isIntegerTy(64)) {
+        SmallVector<uint64_t, 16> Elts(Record.begin(), Record.end());
+        if (isa<VectorType>(CurTy))
+          V = ConstantDataVector::get(Context, Elts);
+        else
+          V = ConstantDataArray::get(Context, Elts);
+      } else if (EltTy->isFloatTy()) {
+        SmallVector<float, 16> Elts;
+        for (unsigned i = 0; i != Size; ++i) {
+          union { uint32_t I; float F; };
+          I = Record[i];
+          Elts.push_back(F);
+        }
+        if (isa<VectorType>(CurTy))
+          V = ConstantDataVector::get(Context, Elts);
+        else
+          V = ConstantDataArray::get(Context, Elts);
+      } else if (EltTy->isDoubleTy()) {
+        SmallVector<double, 16> Elts;
+        for (unsigned i = 0; i != Size; ++i) {
+          union { uint64_t I; double F; };
+          I = Record[i];
+          Elts.push_back(F);
+        }
+        if (isa<VectorType>(CurTy))
+          V = ConstantDataVector::get(Context, Elts);
+        else
+          V = ConstantDataArray::get(Context, Elts);
+      } else {
+        return Error("Unknown element type in CE_DATA");
+      }
+      break;
+    }
+
     case bitc::CST_CODE_CE_BINOP: {  // CE_BINOP: [opcode, opval, opval]
       if (Record.size() < 3) return Error("Invalid CE_BINOP record");
       int Opc = GetDecodedBinaryOpcode(Record[0], CurTy);
@@ -1517,6 +1345,50 @@ bool BitcodeReader::ParseConstants() {
   return false;
 }
 
+bool BitcodeReader::ParseUseLists() {
+  if (Stream.EnterSubBlock(bitc::USELIST_BLOCK_ID))
+    return Error("Malformed block record");
+
+  SmallVector<uint64_t, 64> Record;
+  
+  // Read all the records.
+  while (1) {
+    unsigned Code = Stream.ReadCode();
+    if (Code == bitc::END_BLOCK) {
+      if (Stream.ReadBlockEnd())
+        return Error("Error at end of use-list table block");
+      return false;
+    }
+    
+    if (Code == bitc::ENTER_SUBBLOCK) {
+      // No known subblocks, always skip them.
+      Stream.ReadSubBlockID();
+      if (Stream.SkipBlock())
+        return Error("Malformed block record");
+      continue;
+    }
+    
+    if (Code == bitc::DEFINE_ABBREV) {
+      Stream.ReadAbbrevRecord();
+      continue;
+    }
+    
+    // Read a use list record.
+    Record.clear();
+    switch (Stream.ReadRecord(Code, Record)) {
+    default:  // Default behavior: unknown type.
+      break;
+    case bitc::USELIST_CODE_ENTRY: { // USELIST_CODE_ENTRY: TBD.
+      unsigned RecordLength = Record.size();
+      if (RecordLength < 1)
+        return Error ("Invalid UseList reader!");
+      UseListRecords.push_back(Record);
+      break;
+    }
+    }
+  }
+}
+
 /// RememberAndSkipFunctionBody - When we see the block for a function body,
 /// remember where it is and then skip it.  This lets us lazily deserialize the
 /// functions.
@@ -1538,8 +1410,36 @@ bool BitcodeReader::RememberAndSkipFunctionBody() {
   return false;
 }
 
-bool BitcodeReader::ParseModule() {
-  if (Stream.EnterSubBlock(bitc::MODULE_BLOCK_ID))
+bool BitcodeReader::GlobalCleanup() {
+  // Patch the initializers for globals and aliases up.
+  ResolveGlobalAndAliasInits();
+  if (!GlobalInits.empty() || !AliasInits.empty())
+    return Error("Malformed global initializer set");
+
+  // Look for intrinsic functions which need to be upgraded at some point
+  for (Module::iterator FI = TheModule->begin(), FE = TheModule->end();
+       FI != FE; ++FI) {
+    Function *NewFn;
+    if (UpgradeIntrinsicFunction(FI, NewFn))
+      UpgradedIntrinsics.push_back(std::make_pair(FI, NewFn));
+  }
+
+  // Look for global variables which need to be renamed.
+  for (Module::global_iterator
+         GI = TheModule->global_begin(), GE = TheModule->global_end();
+       GI != GE; ++GI)
+    UpgradeGlobalVariable(GI);
+  // Force deallocation of memory for these vectors to favor the client that
+  // want lazy deserialization.
+  std::vector<std::pair<GlobalVariable*, unsigned> >().swap(GlobalInits);
+  std::vector<std::pair<GlobalAlias*, unsigned> >().swap(AliasInits);
+  return false;
+}
+
+bool BitcodeReader::ParseModule(bool Resume) {
+  if (Resume)
+    Stream.JumpToBit(NextUnreadBit);
+  else if (Stream.EnterSubBlock(bitc::MODULE_BLOCK_ID))
     return Error("Malformed block record");
 
   SmallVector<uint64_t, 64> Record;
@@ -1553,33 +1453,7 @@ bool BitcodeReader::ParseModule() {
       if (Stream.ReadBlockEnd())
         return Error("Error at end of module block");
 
-      // Patch the initializers for globals and aliases up.
-      ResolveGlobalAndAliasInits();
-      if (!GlobalInits.empty() || !AliasInits.empty())
-        return Error("Malformed global initializer set");
-      if (!FunctionsWithBodies.empty())
-        return Error("Too few function bodies found");
-
-      // Look for intrinsic functions which need to be upgraded at some point
-      for (Module::iterator FI = TheModule->begin(), FE = TheModule->end();
-           FI != FE; ++FI) {
-        Function* NewFn;
-        if (UpgradeIntrinsicFunction(FI, NewFn))
-          UpgradedIntrinsics.push_back(std::make_pair(FI, NewFn));
-      }
-
-      // Look for global variables which need to be renamed.
-      for (Module::global_iterator
-             GI = TheModule->global_begin(), GE = TheModule->global_end();
-           GI != GE; ++GI)
-        UpgradeGlobalVariable(GI);
-
-      // Force deallocation of memory for these vectors to favor the client that
-      // want lazy deserialization.
-      std::vector<std::pair<GlobalVariable*, unsigned> >().swap(GlobalInits);
-      std::vector<std::pair<GlobalAlias*, unsigned> >().swap(AliasInits);
-      std::vector<Function*>().swap(FunctionsWithBodies);
-      return false;
+      return GlobalCleanup();
     }
 
     if (Code == bitc::ENTER_SUBBLOCK) {
@@ -1600,17 +1474,10 @@ bool BitcodeReader::ParseModule() {
         if (ParseTypeTable())
           return true;
         break;
-      case bitc::TYPE_BLOCK_ID_OLD:
-        if (ParseOldTypeTable())
-          return true;
-        break;
-      case bitc::TYPE_SYMTAB_BLOCK_ID_OLD:
-        if (ParseOldTypeSymbolTable())
-          return true;
-        break;
       case bitc::VALUE_SYMTAB_BLOCK_ID:
         if (ParseValueSymbolTable())
           return true;
+        SeenValueSymbolTable = true;
         break;
       case bitc::CONSTANTS_BLOCK_ID:
         if (ParseConstants() || ResolveGlobalAndAliasInits())
@@ -1623,12 +1490,28 @@ bool BitcodeReader::ParseModule() {
       case bitc::FUNCTION_BLOCK_ID:
         // If this is the first function body we've seen, reverse the
         // FunctionsWithBodies list.
-        if (!HasReversedFunctionsWithBodies) {
+        if (!SeenFirstFunctionBody) {
           std::reverse(FunctionsWithBodies.begin(), FunctionsWithBodies.end());
-          HasReversedFunctionsWithBodies = true;
+          if (GlobalCleanup())
+            return true;
+          SeenFirstFunctionBody = true;
         }
 
         if (RememberAndSkipFunctionBody())
+          return true;
+        // For streaming bitcode, suspend parsing when we reach the function
+        // bodies. Subsequent materialization calls will resume it when
+        // necessary. For streaming, the function bodies must be at the end of
+        // the bitcode. If the bitcode file is old, the symbol table will be
+        // at the end instead and will not have been seen yet. In this case,
+        // just finish the parse now.
+        if (LazyStreamer && SeenValueSymbolTable) {
+          NextUnreadBit = Stream.GetCurrentBitNo();
+          return false;
+        }
+        break;
+      case bitc::USELIST_BLOCK_ID:
+        if (ParseUseLists())
           return true;
         break;
       }
@@ -1784,8 +1667,10 @@ bool BitcodeReader::ParseModule() {
 
       // If this is a function with a body, remember the prototype we are
       // creating now, so that we can match up the body with them later.
-      if (!isProto)
+      if (!isProto) {
         FunctionsWithBodies.push_back(Func);
+        if (LazyStreamer) DeferredFunctionInfo[Func] = 0;
+      }
       break;
     }
     // ALIAS: [alias type, aliasee val#, linkage]
@@ -1824,24 +1709,7 @@ bool BitcodeReader::ParseModule() {
 bool BitcodeReader::ParseBitcodeInto(Module *M) {
   TheModule = 0;
 
-  unsigned char *BufPtr = (unsigned char *)Buffer->getBufferStart();
-  unsigned char *BufEnd = BufPtr+Buffer->getBufferSize();
-
-  if (Buffer->getBufferSize() & 3) {
-    if (!isRawBitcode(BufPtr, BufEnd) && !isBitcodeWrapper(BufPtr, BufEnd))
-      return Error("Invalid bitcode signature");
-    else
-      return Error("Bitcode stream should be a multiple of 4 bytes in length");
-  }
-
-  // If we have a wrapper header, parse it and ignore the non-bc file contents.
-  // The magic number is 0x0B17C0DE stored in little endian.
-  if (isBitcodeWrapper(BufPtr, BufEnd))
-    if (SkipBitcodeWrapperHeader(BufPtr, BufEnd))
-      return Error("Invalid bitcode wrapper header");
-
-  StreamFile.init(BufPtr, BufEnd);
-  Stream.init(StreamFile);
+  if (InitStream()) return true;
 
   // Sniff for the signature.
   if (Stream.Read(8) != 'B' ||
@@ -1883,8 +1751,9 @@ bool BitcodeReader::ParseBitcodeInto(Module *M) {
       if (TheModule)
         return Error("Multiple MODULE_BLOCKs in same stream");
       TheModule = M;
-      if (ParseModule())
+      if (ParseModule(false))
         return true;
+      if (LazyStreamer) return false;
       break;
     default:
       if (Stream.SkipBlock())
@@ -1952,20 +1821,7 @@ bool BitcodeReader::ParseModuleTriple(std::string &Triple) {
 }
 
 bool BitcodeReader::ParseTriple(std::string &Triple) {
-  if (Buffer->getBufferSize() & 3)
-    return Error("Bitcode stream should be a multiple of 4 bytes in length");
-
-  unsigned char *BufPtr = (unsigned char *)Buffer->getBufferStart();
-  unsigned char *BufEnd = BufPtr+Buffer->getBufferSize();
-
-  // If we have a wrapper header, parse it and ignore the non-bc file contents.
-  // The magic number is 0x0B17C0DE stored in little endian.
-  if (isBitcodeWrapper(BufPtr, BufEnd))
-    if (SkipBitcodeWrapperHeader(BufPtr, BufEnd))
-      return Error("Invalid bitcode wrapper header");
-
-  StreamFile.init(BufPtr, BufEnd);
-  Stream.init(StreamFile);
+  if (InitStream()) return true;
 
   // Sniff for the signature.
   if (Stream.Read(8) != 'B' ||
@@ -2517,10 +2373,6 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       InstructionList.push_back(I);
       break;
     }
-    case bitc::FUNC_CODE_INST_UNWIND: // UNWIND
-      I = new UnwindInst(Context);
-      InstructionList.push_back(I);
-      break;
     case bitc::FUNC_CODE_INST_UNREACHABLE: // UNREACHABLE
       I = new UnreachableInst(Context);
       InstructionList.push_back(I);
@@ -2845,6 +2697,19 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
   return false;
 }
 
+/// FindFunctionInStream - Find the function body in the bitcode stream
+bool BitcodeReader::FindFunctionInStream(Function *F,
+       DenseMap<Function*, uint64_t>::iterator DeferredFunctionInfoIterator) {
+  while (DeferredFunctionInfoIterator->second == 0) {
+    if (Stream.AtEndOfStream())
+      return Error("Could not find Function in stream");
+    // ParseModule will parse the next body in the stream and set its
+    // position in the DeferredFunctionInfo map.
+    if (ParseModule(true)) return true;
+  }
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 // GVMaterializer implementation
 //===----------------------------------------------------------------------===//
@@ -2865,6 +2730,10 @@ bool BitcodeReader::Materialize(GlobalValue *GV, std::string *ErrInfo) {
 
   DenseMap<Function*, uint64_t>::iterator DFII = DeferredFunctionInfo.find(F);
   assert(DFII != DeferredFunctionInfo.end() && "Deferred function not found!");
+  // If its position is recorded as 0, its body is somewhere in the stream
+  // but we haven't seen it yet.
+  if (DFII->second == 0)
+    if (LazyStreamer && FindFunctionInStream(F, DFII)) return true;
 
   // Move the bit stream to the saved position of the deferred function body.
   Stream.JumpToBit(DFII->second);
@@ -2920,6 +2789,12 @@ bool BitcodeReader::MaterializeModule(Module *M, std::string *ErrInfo) {
         Materialize(F, ErrInfo))
       return true;
 
+  // At this point, if there are any function bodies, the current bit is
+  // pointing to the END_BLOCK record after them. Now make sure the rest
+  // of the bits in the module have been read.
+  if (NextUnreadBit)
+    ParseModule(true);
+
   // Upgrade any intrinsic calls that slipped through (should not happen!) and
   // delete the old functions to clean up. We can't do this unless the entire
   // module is materialized because there could always be another function body
@@ -2939,15 +2814,60 @@ bool BitcodeReader::MaterializeModule(Module *M, std::string *ErrInfo) {
   }
   std::vector<std::pair<Function*, Function*> >().swap(UpgradedIntrinsics);
 
-  // Upgrade to new EH scheme. N.B. This will go away in 3.1.
-  UpgradeExceptionHandling(M);
+  return false;
+}
 
-  // Check debug info intrinsics.
-  CheckDebugInfoIntrinsics(TheModule);
+bool BitcodeReader::InitStream() {
+  if (LazyStreamer) return InitLazyStream();
+  return InitStreamFromBuffer();
+}
+
+bool BitcodeReader::InitStreamFromBuffer() {
+  const unsigned char *BufPtr = (unsigned char *)Buffer->getBufferStart();
+  const unsigned char *BufEnd = BufPtr+Buffer->getBufferSize();
+
+  if (Buffer->getBufferSize() & 3) {
+    if (!isRawBitcode(BufPtr, BufEnd) && !isBitcodeWrapper(BufPtr, BufEnd))
+      return Error("Invalid bitcode signature");
+    else
+      return Error("Bitcode stream should be a multiple of 4 bytes in length");
+  }
+
+  // If we have a wrapper header, parse it and ignore the non-bc file contents.
+  // The magic number is 0x0B17C0DE stored in little endian.
+  if (isBitcodeWrapper(BufPtr, BufEnd))
+    if (SkipBitcodeWrapperHeader(BufPtr, BufEnd, true))
+      return Error("Invalid bitcode wrapper header");
+
+  StreamFile.reset(new BitstreamReader(BufPtr, BufEnd));
+  Stream.init(*StreamFile);
 
   return false;
 }
 
+bool BitcodeReader::InitLazyStream() {
+  // Check and strip off the bitcode wrapper; BitstreamReader expects never to
+  // see it.
+  StreamingMemoryObject *Bytes = new StreamingMemoryObject(LazyStreamer);
+  StreamFile.reset(new BitstreamReader(Bytes));
+  Stream.init(*StreamFile);
+
+  unsigned char buf[16];
+  if (Bytes->readBytes(0, 16, buf, NULL) == -1)
+    return Error("Bitcode stream must be at least 16 bytes in length");
+
+  if (!isBitcode(buf, buf + 16))
+    return Error("Invalid bitcode signature");
+
+  if (isBitcodeWrapper(buf, buf + 4)) {
+    const unsigned char *bitcodeStart = buf;
+    const unsigned char *bitcodeEnd = buf + 16;
+    SkipBitcodeWrapperHeader(bitcodeStart, bitcodeEnd, false);
+    Bytes->dropLeadingBytes(bitcodeStart - buf);
+    Bytes->setKnownObjectSize(bitcodeEnd - bitcodeStart);
+  }
+  return false;
+}
 
 //===----------------------------------------------------------------------===//
 // External interface
@@ -2970,6 +2890,27 @@ Module *llvm::getLazyBitcodeModule(MemoryBuffer *Buffer,
   }
   // Have the BitcodeReader dtor delete 'Buffer'.
   R->setBufferOwned(true);
+
+  R->materializeForwardReferencedFunctions();
+
+  return M;
+}
+
+
+Module *llvm::getStreamedBitcodeModule(const std::string &name,
+                                       DataStreamer *streamer,
+                                       LLVMContext &Context,
+                                       std::string *ErrMsg) {
+  Module *M = new Module(name, Context);
+  BitcodeReader *R = new BitcodeReader(streamer, Context);
+  M->setMaterializer(R);
+  if (R->ParseBitcodeInto(M)) {
+    if (ErrMsg)
+      *ErrMsg = R->getErrorString();
+    delete M;  // Also deletes R.
+    return 0;
+  }
+  R->setBufferOwned(false); // no buffer to delete
   return M;
 }
 
@@ -2989,6 +2930,9 @@ Module *llvm::ParseBitcodeFile(MemoryBuffer *Buffer, LLVMContext& Context,
     delete M;
     return 0;
   }
+
+  // TODO: Restore the use-lists to the in-memory state when the bitcode was
+  // written.  We must defer until the Module has been fully materialized.
 
   return M;
 }

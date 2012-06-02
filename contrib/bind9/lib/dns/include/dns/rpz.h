@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rpz.h,v 1.3 2011-01-13 04:59:26 tbox Exp $ */
+/* $Id$ */
 
 #ifndef DNS_RPZ_H
 #define DNS_RPZ_H 1
@@ -37,21 +37,24 @@ typedef enum {
 	DNS_RPZ_TYPE_BAD,
 	DNS_RPZ_TYPE_QNAME,
 	DNS_RPZ_TYPE_IP,
-	DNS_RPZ_TYPE_NSIP,
-	DNS_RPZ_TYPE_NSDNAME
+	DNS_RPZ_TYPE_NSDNAME,
+	DNS_RPZ_TYPE_NSIP
 } dns_rpz_type_t;
 
 /*
- * Require DNS_RPZ_POLICY_NO_OP < DNS_RPZ_POLICY_NXDOMAIN <
- *	   DNS_RPZ_POLICY_NODATA < DNS_RPZ_POLICY_CNAME.
+ * Require DNS_RPZ_POLICY_PASSTHRU < DNS_RPZ_POLICY_NXDOMAIN <
+ * DNS_RPZ_POLICY_NODATA < DNS_RPZ_POLICY_CNAME to choose among competing
+ * policies.
  */
 typedef enum {
-	DNS_RPZ_POLICY_GIVEN = 0,	/* 'given': what something else says */
-	DNS_RPZ_POLICY_NO_OP = 1,	/* 'no-op': do not rewrite */
-	DNS_RPZ_POLICY_NXDOMAIN = 2,	/* 'nxdomain': answer with NXDOMAIN */
-	DNS_RPZ_POLICY_NODATA = 3,	/* 'nodata': answer with ANCOUNT=0 */
-	DNS_RPZ_POLICY_CNAME = 4,	/* 'cname x': answer with x's rrsets */
-	DNS_RPZ_POLICY_RECORD = 5,
+	DNS_RPZ_POLICY_GIVEN = 0,	/* 'given': what policy record says */
+	DNS_RPZ_POLICY_DISABLED = 1,	/* 'cname x': answer with x's rrsets */
+	DNS_RPZ_POLICY_PASSTHRU = 2,	/* 'passthru': do not rewrite */
+	DNS_RPZ_POLICY_NXDOMAIN = 3,	/* 'nxdomain': answer with NXDOMAIN */
+	DNS_RPZ_POLICY_NODATA = 4,	/* 'nodata': answer with ANCOUNT=0 */
+	DNS_RPZ_POLICY_CNAME = 5,	/* 'cname x': answer with x's rrsets */
+	DNS_RPZ_POLICY_RECORD,
+	DNS_RPZ_POLICY_WILDCNAME,
 	DNS_RPZ_POLICY_MISS,
 	DNS_RPZ_POLICY_ERROR
 } dns_rpz_policy_t;
@@ -65,10 +68,9 @@ struct dns_rpz_zone {
 	ISC_LINK(dns_rpz_zone_t) link;
 	int			 num;
 	dns_name_t		 origin;  /* Policy zone name */
-	dns_name_t		 nsdname; /* RPZ_NSDNAME_ZONE.origin */
-	dns_rpz_policy_t	 policy;  /* RPZ_POLICY_GIVEN or override */
-	dns_name_t		 cname;	  /* override name for
-					     RPZ_POLICY_CNAME */
+	dns_name_t		 nsdname; /* DNS_RPZ_NSDNAME_ZONE.origin */
+	dns_rpz_policy_t	 policy;  /* DNS_RPZ_POLICY_GIVEN or override */
+	dns_name_t		 cname;	  /* override value for ..._CNAME */
 };
 
 /*
@@ -82,13 +84,15 @@ typedef struct dns_rpz_cidr	dns_rpz_cidr_t;
 typedef struct {
 	unsigned int		state;
 # define DNS_RPZ_REWRITTEN	0x0001
-# define DNS_RPZ_DONE_QNAME	0x0002
-# define DNS_RPZ_DONE_A	 	0x0004
-# define DNS_RPZ_RECURSING	0x0008
-# define DNS_RPZ_HAVE_IP 	0x0010
-# define DNS_RPZ_HAVE_NSIPv4	0x0020
-# define DNS_RPZ_HAVE_NSIPv6	0x0040
-# define DNS_RPZ_HAD_NSDNAME	0x0080
+# define DNS_RPZ_DONE_QNAME	0x0002	/* qname checked */
+# define DNS_RPZ_DONE_QNAME_IP	0x0004	/* IP addresses of qname checked */
+# define DNS_RPZ_DONE_NSDNAME	0x0008	/* NS name missed; checking addresses */
+# define DNS_RPZ_DONE_IPv4 	0x0010
+# define DNS_RPZ_RECURSING	0x0020
+# define DNS_RPZ_HAVE_IP 	0x0040	/* a policy zone has IP addresses */
+# define DNS_RPZ_HAVE_NSIPv4	0x0080	/*		  IPv4 NISP addresses */
+# define DNS_RPZ_HAVE_NSIPv6	0x0100	/*		  IPv6 NISP addresses */
+# define DNS_RPZ_HAVE_NSDNAME	0x0200	/*		  NS names */
 	/*
 	 * Best match so far.
 	 */
@@ -101,11 +105,12 @@ typedef struct {
 		isc_result_t		result;
 		dns_zone_t		*zone;
 		dns_db_t		*db;
+		dns_dbversion_t		*version;
 		dns_dbnode_t		*node;
 		dns_rdataset_t		*rdataset;
 	} m;
 	/*
-	 * State for chasing NS names and addresses including recursion.
+	 * State for chasing IP addresses and NS names including recursion.
 	 */
 	struct {
 		unsigned int		label;
@@ -114,7 +119,7 @@ typedef struct {
 		dns_rdatatype_t		r_type;
 		isc_result_t		r_result;
 		dns_rdataset_t		*r_rdataset;
-	} ns;
+	} r;
 	/*
 	 * State of real query while recursing for NSIP or NSDNAME.
 	 */
@@ -146,12 +151,16 @@ typedef struct {
 #define DNS_RPZ_INFO_LEVEL	ISC_LOG_INFO
 #define DNS_RPZ_DEBUG_LEVEL1	ISC_LOG_DEBUG(1)
 #define DNS_RPZ_DEBUG_LEVEL2	ISC_LOG_DEBUG(2)
+#define DNS_RPZ_DEBUG_LEVEL3	ISC_LOG_DEBUG(3)
 
 const char *
 dns_rpz_type2str(dns_rpz_type_t type);
 
 dns_rpz_policy_t
 dns_rpz_str2policy(const char *str);
+
+const char *
+dns_rpz_policy2str(dns_rpz_policy_t policy);
 
 void
 dns_rpz_set_need(isc_boolean_t need);
@@ -184,6 +193,8 @@ dns_rpz_cidr_find(dns_rpz_cidr_t *cidr, const isc_netaddr_t *netaddr,
 
 dns_rpz_policy_t
 dns_rpz_decode_cname(dns_rdataset_t *, dns_name_t *selfname);
+
+ISC_LANG_ENDDECLS
 
 #endif /* DNS_RPZ_H */
 

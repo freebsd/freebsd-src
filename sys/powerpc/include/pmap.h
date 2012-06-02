@@ -94,7 +94,7 @@ typedef	struct pmap *pmap_t;
 struct pvo_entry {
 	LIST_ENTRY(pvo_entry) pvo_vlink;	/* Link to common virt page */
 	LIST_ENTRY(pvo_entry) pvo_olink;	/* Link to overflow entry */
-	LIST_ENTRY(pvo_entry) pvo_plink;	/* Link to pmap entries */
+	RB_ENTRY(pvo_entry) pvo_plink;	/* Link to pmap entries */
 	union {
 		struct	pte pte;		/* 32 bit PTE */
 		struct	lpte lpte;		/* 64 bit PTE */
@@ -104,6 +104,9 @@ struct pvo_entry {
 	uint64_t	pvo_vpn;		/* Virtual page number */
 };
 LIST_HEAD(pvo_head, pvo_entry);
+RB_HEAD(pvo_tree, pvo_entry);
+int pvo_vaddr_compare(struct pvo_entry *, struct pvo_entry *);
+RB_PROTOTYPE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
 
 #define	PVO_PTEGIDX_MASK	0x007UL		/* which PTEG slot */
 #define	PVO_PTEGIDX_VALID	0x008UL		/* slot is valid */
@@ -136,7 +139,7 @@ struct	pmap {
 
 	struct pmap	*pmap_phys;
 	struct		pmap_statistics	pm_stats;
-	struct pvo_head pmap_pvo;
+	struct pvo_tree pmap_pvo;
 };
 
 struct	md_page {
@@ -212,24 +215,25 @@ extern	struct pmap kernel_pmap_store;
 #define	PMAP_LOCK_ASSERT(pmap, type) \
 				mtx_assert(&(pmap)->pm_mtx, (type))
 #define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
-				    NULL, MTX_DEF)
+#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, \
+				    (pmap == kernel_pmap) ? "kernelpmap" : \
+				    "pmap", NULL, MTX_DEF)
 #define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
-void		pmap_kenter(vm_offset_t va, vm_offset_t pa);
+void		pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void		pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t);
 void		pmap_kremove(vm_offset_t);
-void		*pmap_mapdev(vm_offset_t, vm_size_t);
+void		*pmap_mapdev(vm_paddr_t, vm_size_t);
 void		*pmap_mapdev_attr(vm_offset_t, vm_size_t, vm_memattr_t);
 void		pmap_unmapdev(vm_offset_t, vm_size_t);
 void		pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 void		pmap_deactivate(struct thread *);
-vm_offset_t	pmap_kextract(vm_offset_t);
-int		pmap_dev_direct_mapped(vm_offset_t, vm_size_t);
+vm_paddr_t	pmap_kextract(vm_offset_t);
+int		pmap_dev_direct_mapped(vm_paddr_t, vm_size_t);
 boolean_t	pmap_mmu_install(char *name, int prio);
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))

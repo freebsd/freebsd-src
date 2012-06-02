@@ -2714,7 +2714,7 @@ en_dmaprobe(struct en_softc *sc)
 	 * Allocate some DMA-able memory.
 	 * We need 3 times the max burst size aligned to the max burst size.
 	 */
-	err = bus_dma_tag_create(NULL, MIDDMA_MAXBURST, 0,
+	err = bus_dma_tag_create(bus_get_dma_tag(sc->dev), MIDDMA_MAXBURST, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    3 * MIDDMA_MAXBURST, 1, 3 * MIDDMA_MAXBURST, 0,
 	    NULL, NULL, &tag);
@@ -2927,7 +2927,7 @@ en_attach(struct en_softc *sc)
 	MGET(sc->padbuf, M_WAIT, MT_DATA);
 	bzero(sc->padbuf->m_data, MLEN);
 
-	if (bus_dma_tag_create(NULL, 1, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    EN_TXSZ * 1024, EN_MAX_DMASEG, EN_TXSZ * 1024, 0,
 	    NULL, NULL, &sc->txtag))

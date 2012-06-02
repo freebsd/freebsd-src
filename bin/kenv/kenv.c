@@ -42,15 +42,17 @@ static int	ksetenv(char *, char *);
 static int	kunsetenv(char *);
 
 static int hflag = 0;
+static int Nflag = 0;
 static int qflag = 0;
 static int uflag = 0;
+static int vflag = 0;
 
 static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: kenv [-hq]",
-	    "       kenv [-q] variable[=value]",
+	    "usage: kenv [-hNq]",
+	    "       kenv [-qv] variable[=value]",
 	    "       kenv [-q] -u variable");
 	exit(1);
 }
@@ -64,16 +66,22 @@ main(int argc, char **argv)
 	error = 0;
 	val = NULL;
 	env = NULL;
-	while ((ch = getopt(argc, argv, "hqu")) != -1) {
+	while ((ch = getopt(argc, argv, "hNquv")) != -1) {
 		switch (ch) {
 		case 'h':
 			hflag++;
+			break;
+		case 'N':
+			Nflag++;
 			break;
 		case 'q':
 			qflag++;
 			break;
 		case 'u':
 			uflag++;
+			break;
+		case 'v':
+			vflag++;
 			break;
 		default:
 			usage();
@@ -91,9 +99,9 @@ main(int argc, char **argv)
 		argv++;
 		argc--;
 	}
-	if (hflag && (env != NULL))
+	if ((hflag || Nflag) && env != NULL)
 		usage();
-	if ((argc > 0) || (uflag && (env == NULL)))
+	if (argc > 0 || ((uflag || vflag) && env == NULL))
 		usage();
 	if (env == NULL) {
 		error = kdumpenv();
@@ -152,7 +160,10 @@ kdumpenv(void)
 		if (cp == NULL)
 			continue;
 		*cp++ = '\0';
-		printf("%s=\"%s\"\n", buf, cp);
+		if (Nflag)
+			printf("%s\n", buf);
+		else
+			printf("%s=\"%s\"\n", buf, cp);
 		buf = cp;
 	}
 	return (0);
@@ -167,7 +178,10 @@ kgetenv(char *env)
 	ret = kenv(KENV_GET, env, buf, sizeof(buf));
 	if (ret == -1)
 		return (ret);
-	printf("%s\n", buf);
+	if (vflag)
+		printf("%s=\"%s\"\n", env, buf);
+	else
+		printf("%s\n", buf);
 	return (0);
 }
 

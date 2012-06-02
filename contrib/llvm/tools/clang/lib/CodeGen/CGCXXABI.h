@@ -42,17 +42,17 @@ namespace CodeGen {
 class CGCXXABI {
 protected:
   CodeGenModule &CGM;
-  llvm::OwningPtr<MangleContext> MangleCtx;
+  OwningPtr<MangleContext> MangleCtx;
 
   CGCXXABI(CodeGenModule &CGM)
     : CGM(CGM), MangleCtx(CGM.getContext().createMangleContext()) {}
 
 protected:
   ImplicitParamDecl *&getThisDecl(CodeGenFunction &CGF) {
-    return CGF.CXXThisDecl;
+    return CGF.CXXABIThisDecl;
   }
   llvm::Value *&getThisValue(CodeGenFunction &CGF) {
-    return CGF.CXXThisValue;
+    return CGF.CXXABIThisValue;
   }
 
   ImplicitParamDecl *&getVTTDecl(CodeGenFunction &CGF) {
@@ -100,16 +100,16 @@ public:
                                                     llvm::Value *MemPtr,
                                             const MemberPointerType *MPT);
 
-  /// Perform a derived-to-base or base-to-derived member pointer
-  /// conversion.
+  /// Perform a derived-to-base, base-to-derived, or bitcast member
+  /// pointer conversion.
   virtual llvm::Value *EmitMemberPointerConversion(CodeGenFunction &CGF,
                                                    const CastExpr *E,
                                                    llvm::Value *Src);
 
-  /// Perform a derived-to-base or base-to-derived member pointer
-  /// conversion on a constant member pointer.
-  virtual llvm::Constant *EmitMemberPointerConversion(llvm::Constant *C,
-                                                      const CastExpr *E);
+  /// Perform a derived-to-base, base-to-derived, or bitcast member
+  /// pointer conversion on a constant value.
+  virtual llvm::Constant *EmitMemberPointerConversion(const CastExpr *E,
+                                                      llvm::Constant *Src);
 
   /// Return true if the given member pointer can be zero-initialized
   /// (in the C++ sense) with an LLVM zeroinitializer.
@@ -125,6 +125,9 @@ public:
   virtual llvm::Constant *EmitMemberDataPointer(const MemberPointerType *MPT,
                                                 CharUnits offset);
 
+  /// Create a member pointer for the given member pointer constant.
+  virtual llvm::Constant *EmitMemberPointer(const APValue &MP, QualType MPT);
+
   /// Emit a comparison between two member pointers.  Returns an i1.
   virtual llvm::Value *
   EmitMemberPointerComparison(CodeGenFunction &CGF,
@@ -139,6 +142,15 @@ public:
                              llvm::Value *MemPtr,
                              const MemberPointerType *MPT);
 
+protected:
+  /// A utility method for computing the offset required for the given
+  /// base-to-derived or derived-to-base member-pointer conversion.
+  /// Does not handle virtual conversions (in case we ever fully
+  /// support an ABI that allows this).  Returns null if no adjustment
+  /// is required.
+  llvm::Constant *getMemberPointerAdjustment(const CastExpr *E);
+
+public:
   /// Build the signature of the given constructor variant by adding
   /// any required parameters.  For convenience, ResTy has been
   /// initialized to 'void', and ArgTys has been initialized with the
@@ -228,12 +240,14 @@ public:
 
   /// Emits the guarded initializer and destructor setup for the given
   /// variable, given that it couldn't be emitted as a constant.
+  /// If \p PerformInit is false, the initialization has been folded to a
+  /// constant and should not be performed.
   ///
   /// The variable may be:
   ///   - a static local variable
   ///   - a static data member of a class template instantiation
   virtual void EmitGuardedInit(CodeGenFunction &CGF, const VarDecl &D,
-                               llvm::GlobalVariable *DeclPtr);
+                               llvm::GlobalVariable *DeclPtr, bool PerformInit);
 
 };
 

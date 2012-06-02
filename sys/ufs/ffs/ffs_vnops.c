@@ -184,7 +184,7 @@ ffs_fsync(struct vop_fsync_args *ap)
 	vp = ap->a_vp;
 	bo = &vp->v_bufobj;
 retry:
-	error = ffs_syncvnode(vp, ap->a_waitfor);
+	error = ffs_syncvnode(vp, ap->a_waitfor, 0);
 	if (error)
 		return (error);
 	if (ap->a_waitfor == MNT_WAIT && DOINGSOFTDEP(vp)) {
@@ -209,17 +209,15 @@ retry:
 }
 
 int
-ffs_syncvnode(struct vnode *vp, int waitfor)
+ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 {
 	struct inode *ip;
 	struct bufobj *bo;
 	struct buf *bp;
 	struct buf *nbp;
 	ufs_lbn_t lbn;
-	int error, wait, passes, noupdate;
+	int error, wait, passes;
 
-	noupdate = waitfor & NO_INO_UPDT;
-	waitfor &= ~NO_INO_UPDT;
 	ip = VTOI(vp);
 	ip->i_flag &= ~IN_NEEDSYNC;
 	bo = &vp->v_bufobj;
@@ -302,10 +300,10 @@ next:
 	}
 	if (waitfor != MNT_WAIT) {
 		BO_UNLOCK(bo);
-		if (noupdate)
+		if ((flags & NO_INO_UPDT) != 0)
 			return (0);
 		else
-			return (ffs_update(vp, waitfor));
+			return (ffs_update(vp, 0));
 	}
 	/* Drain IO to see if we're done. */
 	bufobj_wwait(bo, 0, 0);
@@ -322,9 +320,9 @@ next:
 	 */
 	if (bo->bo_dirty.bv_cnt > 0) {
 		/* Write the inode after sync passes to flush deps. */
-		if (wait && DOINGSOFTDEP(vp) && noupdate == 0) {
+		if (wait && DOINGSOFTDEP(vp) && (flags & NO_INO_UPDT) == 0) {
 			BO_UNLOCK(bo);
-			ffs_update(vp, MNT_WAIT);
+			ffs_update(vp, 1);
 			BO_LOCK(bo);
 		}
 		/* switch between sync/async. */
@@ -338,8 +336,8 @@ next:
 	}
 	BO_UNLOCK(bo);
 	error = 0;
-	if (noupdate == 0)
-		error = ffs_update(vp, MNT_WAIT);
+	if ((flags & NO_INO_UPDT) == 0)
+		error = ffs_update(vp, 1);
 	if (DOINGSUJ(vp))
 		softdep_journal_fsync(VTOI(vp));
 	return (error);
@@ -409,7 +407,6 @@ ffs_lock(ap)
 /*
  * Vnode op for reading.
  */
-/* ARGSUSED */
 static int
 ffs_read(ap)
 	struct vop_read_args /* {
@@ -570,7 +567,7 @@ ffs_read(ap)
 			xfersize = size;
 		}
 
-		error = uiomove((char *)bp->b_data + blkoffset,
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
 		    (int)xfersize, uio);
 		if (error)
 			break;
@@ -741,8 +738,8 @@ ffs_write(ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
+		    (int)xfersize, uio);
 		/*
 		 * If the buffer is not already filled and we encounter an
 		 * error while trying to fill it, we have to clear out any
@@ -815,8 +812,7 @@ ffs_write(ap)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_NORMAL | (ioflag & IO_SYNC),
-			    ap->a_cred, uio->uio_td);
+			    IO_NORMAL | (ioflag & IO_SYNC), ap->a_cred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -1138,7 +1134,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_EXT | (ioflag&IO_SYNC), ucred, uio->uio_td);
+			    IO_EXT | (ioflag&IO_SYNC), ucred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -1329,7 +1325,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 		luio.uio_td = td;
 		/* XXX: I'm not happy about truncating to zero size */
 		if (ip->i_ea_len < dp->di_extsize)
-			error = ffs_truncate(vp, 0, IO_EXT, cred, td);
+			error = ffs_truncate(vp, 0, IO_EXT, cred);
 		error = ffs_extwrite(vp, &luio, IO_EXT | IO_SYNC, cred);
 	}
 	if (--ip->i_ea_refs == 0) {

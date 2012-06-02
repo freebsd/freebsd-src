@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-gpio.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 
 #include <mips/cavium/octeon_gpiovar.h>
 
@@ -389,7 +389,7 @@ octeon_gpio_attach(device_t dev)
 	for ( i = 0; i < OCTEON_GPIO_IRQS; i++) {
 		if ((sc->gpio_irq_res[i] = bus_alloc_resource(dev, 
 		    SYS_RES_IRQ, &sc->gpio_irq_rid[i], 
-		    CVMX_IRQ_GPIO0 + i, CVMX_IRQ_GPIO0 + i, 1, 
+		    OCTEON_IRQ_GPIO0 + i, OCTEON_IRQ_GPIO0 + i, 1, 
 		    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 			device_printf(dev, "unable to allocate IRQ resource\n");
 			return (ENXIO);

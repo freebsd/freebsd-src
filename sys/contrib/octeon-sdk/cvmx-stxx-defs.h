@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_STXX_TYPEDEFS_H__
-#define __CVMX_STXX_TYPEDEFS_H__
+#ifndef __CVMX_STXX_DEFS_H__
+#define __CVMX_STXX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_STXX_ARB_CTL(unsigned long block_id)
@@ -261,12 +261,10 @@ static inline uint64_t CVMX_STXX_STAT_PKT_XMT(unsigned long block_id)
  * sequences at any point during transmission and could be arbitrarily
  * small.  This mode is only for use in Spi4 mode.
  */
-union cvmx_stxx_arb_ctl
-{
+union cvmx_stxx_arb_ctl {
 	uint64_t u64;
-	struct cvmx_stxx_arb_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_arb_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t mintrn                       : 1;  /**< Hold off training cycles until STX_MIN_BST[MINB]
                                                          is satisfied */
@@ -309,12 +307,10 @@ typedef union cvmx_stxx_arb_ctl cvmx_stxx_arb_ctl_t;
  * This register will be cleared when software writes all '1's to
  * the STX_BCKPRS_CNT.
  */
-union cvmx_stxx_bckprs_cnt
-{
+union cvmx_stxx_bckprs_cnt {
 	uint64_t u64;
-	struct cvmx_stxx_bckprs_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_bckprs_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Number of cycles when back-pressure is received
                                                          for port defined in STX_STAT_CTL[BCKPRS] */
@@ -342,12 +338,10 @@ typedef union cvmx_stxx_bckprs_cnt cvmx_stxx_bckprs_cnt_t;
  * completely setup before writing the Interface enable (INF_EN) and
  * Status channel enabled (ST_EN) asserted.
  */
-union cvmx_stxx_com_ctl
-{
+union cvmx_stxx_com_ctl {
 	uint64_t u64;
-	struct cvmx_stxx_com_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_com_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t st_en                        : 1;  /**< Status channel enabled */
 	uint64_t reserved_1_2                 : 2;
@@ -380,12 +374,10 @@ typedef union cvmx_stxx_com_ctl cvmx_stxx_com_ctl_t;
  *   states.  The expected range is 1-15 cycles with the value of 0 meaning
  *   disabled.
  */
-union cvmx_stxx_dip_cnt
-{
+union cvmx_stxx_dip_cnt {
 	uint64_t u64;
-	struct cvmx_stxx_dip_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_dip_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t frmmax                       : 4;  /**< Number of consecutive unexpected framing patterns
                                                          before loss of sync */
@@ -410,12 +402,10 @@ typedef union cvmx_stxx_dip_cnt cvmx_stxx_dip_cnt_t;
  * STX_IGN_CAL - Ignore Calendar Status from Spi4 Status Channel
  *
  */
-union cvmx_stxx_ign_cal
-{
+union cvmx_stxx_ign_cal {
 	uint64_t u64;
-	struct cvmx_stxx_ign_cal_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_ign_cal_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t igntpa                       : 16; /**< Ignore Calendar Status from Spi4 Status Channel
                                                           per Spi4 port
@@ -440,12 +430,10 @@ typedef union cvmx_stxx_ign_cal cvmx_stxx_ign_cal_t;
  * If the bit is enabled, then the coresponding exception condition will
  * result in an interrupt to the system.
  */
-union cvmx_stxx_int_msk
-{
+union cvmx_stxx_int_msk {
 	uint64_t u64;
-	struct cvmx_stxx_int_msk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_int_msk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t frmerr                       : 1;  /**< FRMCNT has exceeded STX_DIP_CNT[MAXFRM] */
 	uint64_t unxfrm                       : 1;  /**< Unexpected framing sequence */
@@ -535,12 +523,10 @@ typedef union cvmx_stxx_int_msk cvmx_stxx_int_msk_t;
  *   NOSYNC, and FRMERR error conditions all have their bits set in the
  *   STX_INT_SYNC register.
  */
-union cvmx_stxx_int_reg
-{
+union cvmx_stxx_int_reg {
 	uint64_t u64;
-	struct cvmx_stxx_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t syncerr                      : 1;  /**< Interface encountered a fatal error */
 	uint64_t frmerr                       : 1;  /**< FRMCNT has exceeded STX_DIP_CNT[MAXFRM] */
@@ -585,12 +571,10 @@ typedef union cvmx_stxx_int_reg cvmx_stxx_int_reg_t;
  * synchronize the bus on other conditions, but this is the minimum
  * recommended set.
  */
-union cvmx_stxx_int_sync
-{
+union cvmx_stxx_int_sync {
 	uint64_t u64;
-	struct cvmx_stxx_int_sync_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_int_sync_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t frmerr                       : 1;  /**< FRMCNT has exceeded STX_DIP_CNT[MAXFRM] */
 	uint64_t unxfrm                       : 1;  /**< Unexpected framing sequence */
@@ -625,12 +609,10 @@ typedef union cvmx_stxx_int_sync cvmx_stxx_int_sync_t;
  * STX_MIN_BST - Min Burst to enforce when inserting training sequence
  *
  */
-union cvmx_stxx_min_bst
-{
+union cvmx_stxx_min_bst {
 	uint64_t u64;
-	struct cvmx_stxx_min_bst_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_min_bst_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t minb                         : 9;  /**< When STX_ARB_CTL[MINTRN] is set, MINB indicates
                                                          the number of 8B blocks to send before inserting
@@ -675,12 +657,10 @@ typedef union cvmx_stxx_min_bst cvmx_stxx_min_bst_t;
  *     completely setup before writing the Interface enable (INF_EN) and
  *     Status channel enabled (ST_EN) asserted.
  */
-union cvmx_stxx_spi4_calx
-{
+union cvmx_stxx_spi4_calx {
 	uint64_t u64;
-	struct cvmx_stxx_spi4_calx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_spi4_calx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t oddpar                       : 1;  /**< Odd parity over STX_SPI4_CAL[15:0]
                                                          (^STX_SPI4_CAL[16:0] === 1'b1)                  |   $NS       NS */
@@ -734,12 +714,10 @@ typedef union cvmx_stxx_spi4_calx cvmx_stxx_spi4_calx_t;
  *      sequences at any point during transmission and could be arbitrarily
  *      small.  This mode is only for use in Spi4 mode.
  */
-union cvmx_stxx_spi4_dat
-{
+union cvmx_stxx_spi4_dat {
 	uint64_t u64;
-	struct cvmx_stxx_spi4_dat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_spi4_dat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t alpha                        : 16; /**< alpha (from spi4.2 spec) */
 	uint64_t max_t                        : 16; /**< DATA_MAX_T (from spi4.2 spec) */
@@ -772,12 +750,10 @@ typedef union cvmx_stxx_spi4_dat cvmx_stxx_spi4_dat_t;
  *
  * Current rev will only support LVTTL status IO.
  */
-union cvmx_stxx_spi4_stat
-{
+union cvmx_stxx_spi4_stat {
 	uint64_t u64;
-	struct cvmx_stxx_spi4_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_spi4_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t m                            : 8;  /**< CALENDAR_M (from spi4.2 spec) */
 	uint64_t reserved_7_7                 : 1;
@@ -799,12 +775,10 @@ typedef union cvmx_stxx_spi4_stat cvmx_stxx_spi4_stat_t;
 /**
  * cvmx_stx#_stat_bytes_hi
  */
-union cvmx_stxx_stat_bytes_hi
-{
+union cvmx_stxx_stat_bytes_hi {
 	uint64_t u64;
-	struct cvmx_stxx_stat_bytes_hi_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_stat_bytes_hi_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Number of bytes sent (CNT[63:32]) */
 #else
@@ -822,12 +796,10 @@ typedef union cvmx_stxx_stat_bytes_hi cvmx_stxx_stat_bytes_hi_t;
 /**
  * cvmx_stx#_stat_bytes_lo
  */
-union cvmx_stxx_stat_bytes_lo
-{
+union cvmx_stxx_stat_bytes_lo {
 	uint64_t u64;
-	struct cvmx_stxx_stat_bytes_lo_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_stat_bytes_lo_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Number of bytes sent (CNT[31:0]) */
 #else
@@ -845,12 +817,10 @@ typedef union cvmx_stxx_stat_bytes_lo cvmx_stxx_stat_bytes_lo_t;
 /**
  * cvmx_stx#_stat_ctl
  */
-union cvmx_stxx_stat_ctl
-{
+union cvmx_stxx_stat_ctl {
 	uint64_t u64;
-	struct cvmx_stxx_stat_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_stat_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t clr                          : 1;  /**< Clear all statistics counters
                                                          - STX_STAT_PKT_XMT
@@ -873,12 +843,10 @@ typedef union cvmx_stxx_stat_ctl cvmx_stxx_stat_ctl_t;
 /**
  * cvmx_stx#_stat_pkt_xmt
  */
-union cvmx_stxx_stat_pkt_xmt
-{
+union cvmx_stxx_stat_pkt_xmt {
 	uint64_t u64;
-	struct cvmx_stxx_stat_pkt_xmt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_stxx_stat_pkt_xmt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Number of packets sent */
 #else

@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/malloc.h>
 
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_periph.h>
+
 #include <dev/isci/scil/sci_memory_descriptor_list.h>
 #include <dev/isci/scil/sci_memory_descriptor_list_decorator.h>
 
@@ -198,6 +201,7 @@ void isci_controller_construct(struct ISCI_CONTROLLER *controller,
 
 	controller->is_started = FALSE;
 	controller->is_frozen = FALSE;
+	controller->release_queued_ccbs = FALSE;
 	controller->sim = NULL;
 	controller->initial_discovery_mask = 0;
 
@@ -299,6 +303,16 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 	uint32_t io_shortage = 0;
 	TUNABLE_INT_FETCH("hw.isci.io_shortage", &io_shortage);
 	controller->sim_queue_depth += io_shortage;
+
+	/* Attach to CAM using xpt_bus_register now, then immediately freeze
+	 *  the simq.  It will get released later when initial domain discovery
+	 *  is complete.
+	 */
+	controller->has_been_scanned = FALSE;
+	mtx_lock(&controller->lock);
+	isci_controller_attach_to_cam(controller);
+	xpt_freeze_simq(controller->sim, 1);
+	mtx_unlock(&controller->lock);
 
 	return (scif_controller_initialize(controller->scif_controller_handle));
 }
@@ -417,7 +431,21 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 		remote_device->frozen_lun_mask = 0;
 		sci_fast_list_element_init(remote_device,
 		    &remote_device->pending_device_reset_element);
-		sci_pool_put(controller->remote_device_pool, remote_device);
+		TAILQ_INIT(&remote_device->queued_ccbs);
+		remote_device->release_queued_ccb = FALSE;
+		remote_device->queued_ccb_in_progress = NULL;
+
+		/*
+		 * For the first SCI_MAX_DOMAINS device objects, do not put
+		 *  them in the pool, rather assign them to each domain.  This
+		 *  ensures that any device attached directly to port "i" will
+		 *  always get CAM target id "i".
+		 */
+		if (i < SCI_MAX_DOMAINS)
+			controller->domain[i].da_remote_device = remote_device;
+		else
+			sci_pool_put(controller->remote_device_pool,
+			    remote_device);
 		remote_device_memory_ptr += remote_device_size;
 	}
 
@@ -441,13 +469,13 @@ void isci_controller_start(void *controller_handle)
 void isci_controller_domain_discovery_complete(
     struct ISCI_CONTROLLER *isci_controller, struct ISCI_DOMAIN *isci_domain)
 {
-	if (isci_controller->sim == NULL)
+	if (!isci_controller->has_been_scanned)
 	{
-		/* Controller has not been attached to CAM yet.  We'll clear
+		/* Controller has not been scanned yet.  We'll clear
 		 *  the discovery bit for this domain, then check if all bits
 		 *  are now clear.  That would indicate that all domains are
-		 *  done with discovery and we can then attach the controller
-		 *  to CAM.
+		 *  done with discovery and we can then proceed with initial
+		 *  scan.
 		 */
 
 		isci_controller->initial_discovery_mask &=
@@ -457,7 +485,25 @@ void isci_controller_domain_discovery_complete(
 			struct isci_softc *driver = isci_controller->isci;
 			uint8_t next_index = isci_controller->index + 1;
 
-			isci_controller_attach_to_cam(isci_controller);
+			isci_controller->has_been_scanned = TRUE;
+
+			/* Unfreeze simq to allow initial scan to proceed. */
+			xpt_release_simq(isci_controller->sim, TRUE);
+
+#if __FreeBSD_version < 800000
+			/* When driver is loaded after boot, we need to
+			 *  explicitly rescan here for versions <8.0, because
+			 *  CAM only automatically scans new buses at boot
+			 *  time.
+			 */
+			union ccb *ccb = xpt_alloc_ccb_nowait();
+
+			xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			    cam_sim_path(isci_controller->sim),
+			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
+
+			xpt_rescan(ccb);
+#endif
 
 			if (next_index < driver->controller_count) {
 				/*  There are more controllers that need to
@@ -651,3 +697,47 @@ void isci_action(struct cam_sim *sim, union ccb *ccb)
 	}
 }
 
+/*
+ * Unfortunately, SCIL doesn't cleanly handle retry conditions.
+ *  CAM_REQUEUE_REQ works only when no one is using the pass(4) interface.  So
+ *  when SCIL denotes an I/O needs to be retried (typically because of mixing
+ *  tagged/non-tagged ATA commands, or running out of NCQ slots), we queue
+ *  these I/O internally.  Once SCIL completes an I/O to this device, or we get
+ *  a ready notification, we will retry the first I/O on the queue.
+ *  Unfortunately, SCIL also doesn't cleanly handle starting the new I/O within
+ *  the context of the completion handler, so we need to retry these I/O after
+ *  the completion handler is done executing.
+ */
+void
+isci_controller_release_queued_ccbs(struct ISCI_CONTROLLER *controller)
+{
+	struct ISCI_REMOTE_DEVICE *dev;
+	struct ccb_hdr *ccb_h;
+	int dev_idx;
+
+	KASSERT(mtx_owned(&controller->lock), ("controller lock not owned"));
+
+	controller->release_queued_ccbs = FALSE;
+	for (dev_idx = 0;
+	     dev_idx < SCI_MAX_REMOTE_DEVICES;
+	     dev_idx++) {
+
+		dev = controller->remote_device[dev_idx];
+		if (dev != NULL &&
+		    dev->release_queued_ccb == TRUE &&
+		    dev->queued_ccb_in_progress == NULL) {
+			dev->release_queued_ccb = FALSE;
+			ccb_h = TAILQ_FIRST(&dev->queued_ccbs);
+
+			if (ccb_h == NULL)
+				continue;
+
+			isci_log_message(1, "ISCI", "release %p %x\n", ccb_h,
+			    ((union ccb *)ccb_h)->csio.cdb_io.cdb_bytes[0]);
+
+			dev->queued_ccb_in_progress = (union ccb *)ccb_h;
+			isci_io_request_execute_scsi_io(
+			    (union ccb *)ccb_h, controller);
+		}
+	}
+}

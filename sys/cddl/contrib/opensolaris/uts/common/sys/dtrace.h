@@ -251,6 +251,10 @@ typedef enum dtrace_probespec {
 #define	DIF_VAR_ERRNO		0x0120	/* thread errno */
 #define	DIF_VAR_EXECARGS	0x0121	/* process arguments */
 
+#if !defined(sun)
+#define	DIF_VAR_CPU		0x0200
+#endif
+
 #define	DIF_SUBR_RAND			0
 #define	DIF_SUBR_MUTEX_OWNED		1
 #define	DIF_SUBR_MUTEX_OWNER		2

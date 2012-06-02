@@ -25,7 +25,6 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
-#include "llvm/ADT/VectorExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
@@ -51,7 +50,7 @@ static bool CC_Sparc_Assign_f64(unsigned &ValNo, MVT &ValVT,
                                 MVT &LocVT, CCValAssign::LocInfo &LocInfo,
                                 ISD::ArgFlagsTy &ArgFlags, CCState &State)
 {
-  static const unsigned RegList[] = {
+  static const uint16_t RegList[] = {
     SP::I0, SP::I1, SP::I2, SP::I3, SP::I4, SP::I5
   };
   //Try to get first reg
@@ -175,7 +174,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
       SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
       SDValue Arg = DAG.getLoad(MVT::i32, dl, Chain, FIPtr,
                                 MachinePointerInfo(),
-                                false, false, 0);
+                                false, false, false, 0);
       InVals.push_back(Arg);
       continue;
     }
@@ -197,7 +196,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
           SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
           LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr,
                               MachinePointerInfo(),
-                              false, false, 0);
+                              false, false, false, 0);
         } else {
           unsigned loReg = MF.addLiveIn(NextVA.getLocReg(),
                                         &SP::IntRegsRegClass);
@@ -237,7 +236,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
         SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy());
         SDValue Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
                                    MachinePointerInfo(),
-                                   false,false, 0);
+                                   false,false, false, 0);
         InVals.push_back(Load);
         continue;
       }
@@ -248,7 +247,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy());
       SDValue HiVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr,
                                   MachinePointerInfo(),
-                                  false, false, 0);
+                                  false, false, false, 0);
       int FI2 = MF.getFrameInfo()->CreateFixedObject(4,
                                                      Offset+4,
                                                      true);
@@ -256,7 +255,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
 
       SDValue LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr2,
                                   MachinePointerInfo(),
-                                  false, false, 0);
+                                  false, false, false, 0);
 
       SDValue WholeValue =
         DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, LoVal, HiVal);
@@ -273,7 +272,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
     if (VA.getValVT() == MVT::i32 || VA.getValVT() == MVT::f32) {
       Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
                          MachinePointerInfo(),
-                         false, false, 0);
+                         false, false, false, 0);
     } else {
       ISD::LoadExtType LoadOp = ISD::SEXTLOAD;
       // Sparc is big endian, so add an offset based on the ObjectVT.
@@ -302,11 +301,11 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
 
   // Store remaining ArgRegs to the stack if this is a varargs function.
   if (isVarArg) {
-    static const unsigned ArgRegs[] = {
+    static const uint16_t ArgRegs[] = {
       SP::I0, SP::I1, SP::I2, SP::I3, SP::I4, SP::I5
     };
     unsigned NumAllocated = CCInfo.getFirstUnallocated(ArgRegs, 6);
-    const unsigned *CurArgReg = ArgRegs+NumAllocated, *ArgRegEnd = ArgRegs+6;
+    const uint16_t *CurArgReg = ArgRegs+NumAllocated, *ArgRegEnd = ArgRegs+6;
     unsigned ArgOffset = CCInfo.getNextStackOffset();
     if (NumAllocated == 6)
       ArgOffset += StackOffset;
@@ -348,7 +347,7 @@ SparcTargetLowering::LowerFormalArguments(SDValue Chain,
 SDValue
 SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                CallingConv::ID CallConv, bool isVarArg,
-                               bool &isTailCall,
+                               bool doesNotRet, bool &isTailCall,
                                const SmallVectorImpl<ISD::OutputArg> &Outs,
                                const SmallVectorImpl<SDValue> &OutVals,
                                const SmallVectorImpl<ISD::InputArg> &Ins,
@@ -467,13 +466,13 @@ SparcTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                    false, false, 0);
       // Sparc is big-endian, so the high part comes first.
       SDValue Hi = DAG.getLoad(MVT::i32, dl, Store, StackPtr,
-                               MachinePointerInfo(), false, false, 0);
+                               MachinePointerInfo(), false, false, false, 0);
       // Increment the pointer to the other half.
       StackPtr = DAG.getNode(ISD::ADD, dl, StackPtr.getValueType(), StackPtr,
                              DAG.getIntPtrConstant(4));
       // Load the low part.
       SDValue Lo = DAG.getLoad(MVT::i32, dl, Store, StackPtr,
-                               MachinePointerInfo(), false, false, 0);
+                               MachinePointerInfo(), false, false, false, 0);
 
       if (VA.isRegLoc()) {
         RegsToPass.push_back(std::make_pair(VA.getLocReg(), Hi));
@@ -763,7 +762,9 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM)
   setOperationAction(ISD::FMA  , MVT::f32, Expand);
   setOperationAction(ISD::CTPOP, MVT::i32, Expand);
   setOperationAction(ISD::CTTZ , MVT::i32, Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i32, Expand);
   setOperationAction(ISD::CTLZ , MVT::i32, Expand);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i32, Expand);
   setOperationAction(ISD::ROTL , MVT::i32, Expand);
   setOperationAction(ISD::ROTR , MVT::i32, Expand);
   setOperationAction(ISD::BSWAP, MVT::i32, Expand);
@@ -831,22 +832,19 @@ const char *SparcTargetLowering::getTargetNodeName(unsigned Opcode) const {
 /// be zero. Op is expected to be a target specific node. Used by DAG
 /// combiner.
 void SparcTargetLowering::computeMaskedBitsForTargetNode(const SDValue Op,
-                                                         const APInt &Mask,
                                                          APInt &KnownZero,
                                                          APInt &KnownOne,
                                                          const SelectionDAG &DAG,
                                                          unsigned Depth) const {
   APInt KnownZero2, KnownOne2;
-  KnownZero = KnownOne = APInt(Mask.getBitWidth(), 0);   // Don't know anything.
+  KnownZero = KnownOne = APInt(KnownZero.getBitWidth(), 0);
 
   switch (Op.getOpcode()) {
   default: break;
   case SPISD::SELECT_ICC:
   case SPISD::SELECT_FCC:
-    DAG.ComputeMaskedBits(Op.getOperand(1), Mask, KnownZero, KnownOne,
-                          Depth+1);
-    DAG.ComputeMaskedBits(Op.getOperand(0), Mask, KnownZero2, KnownOne2,
-                          Depth+1);
+    DAG.ComputeMaskedBits(Op.getOperand(1), KnownZero, KnownOne, Depth+1);
+    DAG.ComputeMaskedBits(Op.getOperand(0), KnownZero2, KnownOne2, Depth+1);
     assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?");
     assert((KnownZero2 & KnownOne2) == 0 && "Bits known to be one AND zero?");
 
@@ -897,7 +895,7 @@ SDValue SparcTargetLowering::LowerGlobalAddress(SDValue Op,
   SDValue AbsAddr = DAG.getNode(ISD::ADD, dl, MVT::i32,
                                 GlobalBase, RelAddr);
   return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(),
-                     AbsAddr, MachinePointerInfo(), false, false, 0);
+                     AbsAddr, MachinePointerInfo(), false, false, false, 0);
 }
 
 SDValue SparcTargetLowering::LowerConstantPool(SDValue Op,
@@ -918,7 +916,7 @@ SDValue SparcTargetLowering::LowerConstantPool(SDValue Op,
   SDValue AbsAddr = DAG.getNode(ISD::ADD, dl, MVT::i32,
                                 GlobalBase, RelAddr);
   return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(),
-                     AbsAddr, MachinePointerInfo(), false, false, 0);
+                     AbsAddr, MachinePointerInfo(), false, false, false, 0);
 }
 
 static SDValue LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) {
@@ -1026,7 +1024,7 @@ static SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG) {
   const Value *SV = cast<SrcValueSDNode>(Node->getOperand(2))->getValue();
   DebugLoc dl = Node->getDebugLoc();
   SDValue VAList = DAG.getLoad(MVT::i32, dl, InChain, VAListPtr,
-                               MachinePointerInfo(SV), false, false, 0);
+                               MachinePointerInfo(SV), false, false, false, 0);
   // Increment the pointer, VAList, to the next vaarg
   SDValue NextPtr = DAG.getNode(ISD::ADD, dl, MVT::i32, VAList,
                                   DAG.getConstant(VT.getSizeInBits()/8,
@@ -1038,11 +1036,11 @@ static SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG) {
   // f64 load.
   if (VT != MVT::f64)
     return DAG.getLoad(VT, dl, InChain, VAList, MachinePointerInfo(),
-                       false, false, 0);
+                       false, false, false, 0);
 
   // Otherwise, load it as i64, then do a bitconvert.
   SDValue V = DAG.getLoad(MVT::i64, dl, InChain, VAList, MachinePointerInfo(),
-                          false, false, 0);
+                          false, false, false, 0);
 
   // Bit-Convert the value to f64.
   SDValue Ops[2] = {
@@ -1103,7 +1101,7 @@ static SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) {
       FrameAddr = DAG.getLoad(MVT::i32, dl,
                               Chain,
                               Ptr,
-                              MachinePointerInfo(), false, false, 0);
+                              MachinePointerInfo(), false, false, false, 0);
     }
   }
   return FrameAddr;
@@ -1135,7 +1133,7 @@ static SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) {
       RetAddr = DAG.getLoad(MVT::i32, dl,
                             Chain,
                             Ptr,
-                            MachinePointerInfo(), false, false, 0);
+                            MachinePointerInfo(), false, false, false, 0);
     }
   }
   return RetAddr;

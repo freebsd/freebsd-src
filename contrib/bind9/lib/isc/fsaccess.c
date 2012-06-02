@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.c,v 1.10 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: fsaccess.c,v 1.10 2007/06/19 23:47:17 tbox Exp $ */
 
 /*! \file
  * \brief

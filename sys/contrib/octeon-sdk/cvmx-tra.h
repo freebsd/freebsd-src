@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -152,9 +152,10 @@
  * - Fields marked as '*' are first filled with '0' at XMC time and may be filled with real data later at XMD time.  Note that the
  * XMD write may be dropped if the shallow FIFO overflows which leaves the '*' fields as '0'.
  * - 2 bits (sta) are used not to trace, but to return global state information with each read, encoded as follows:
- * 0x0-0x1=not valid
- * 0x2=valid, no discontinuity
- * 0x3=valid,    discontinuity
+ * 0x0=not valid
+ * 0x1=valid, no discontinuity
+ * 0x2=not valid, discontinuity
+ * 0x3=valid, discontinuity
  * - commands are encoded as follows:
  * 0x0=DWB
  * 0x1=PL2
@@ -218,13 +219,14 @@
  * 13-31 = illegal
  * @endverbatim
  *
- * <hr>$Revision: 49484 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_TRA_H__
 #define __CVMX_TRA_H__
 
 #include "cvmx.h"
+#include "cvmx-l2c.h"
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include "cvmx-tra-defs.h"
 #endif
@@ -366,7 +368,7 @@ typedef union
 {
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t  datahi;
         uint64_t  data;
 #else
@@ -377,7 +379,7 @@ typedef union
 
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
@@ -401,7 +403,7 @@ typedef union
     } cmn; /**< for DWB, PL2, PSL1, LDD, LDI, LDT */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
@@ -425,7 +427,7 @@ typedef union
     } store; /**< STC, STF, STP, STT */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
@@ -451,7 +453,7 @@ typedef union
     } iobld; /**< for IOBLD8, IOBLD16, IOBLD32, IOBLD64, IOBST, SAA */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
@@ -476,10 +478,10 @@ typedef union
 
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved1   : 59;
-        uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
         uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
         uint64_t    addresslo   : 35;  /* and lower 64-bits. */
         uint64_t    reserved    : 10;
@@ -493,17 +495,17 @@ typedef union
         uint64_t    reserved    : 10;
         uint64_t    addresslo   : 35;
         uint64_t    addresshi   : 3;
-        uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
         uint64_t    reserved1   : 59;
 #endif
-    } cmn2; /**< for LDT, LDI, PL2, RPL2, DWB, WBL2, SET*, CLR*, INCR*, DECR* */
+    } cmn2; /**< for LDT, LDI, PL2, RPL2, DWB, WBL2, WBIL2i, LTGL2i, STGL2i, INVL2, WBIL2, LCKL2, SET*, CLR*, INCR*, DECR* */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved1   : 59;
-        uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
         uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
         uint64_t    addresslo   : 35;  /* and lower 64-bits */
         uint64_t    reserved    : 2;
@@ -519,17 +521,17 @@ typedef union
         uint64_t    reserved    : 2;
         uint64_t    addresslo   : 35;
         uint64_t    addresshi   : 3;
-        uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
         uint64_t    reserved1   : 59;
 #endif
-    } store2; /**< for STC, STF, STP, STT, LDD, PSL1, SAA32, SAA64, FAA32, FAA64, FAS32, FAS64 */
+    } store2; /**< for STC, STF, STP, STT, LDD, PSL1, SAA32, SAA64, FAA32, FAA64, FAS32, FAS64, STTIL1, STFIL1 */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved1   : 59;
-        uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
         uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
         uint64_t    addresslo   : 35;  /* and lower 64-bits */
         uint64_t    reserved    : 2;
@@ -547,17 +549,17 @@ typedef union
         uint64_t    reserved    : 2;
         uint64_t    addresslo   : 35;
         uint64_t    addresshi   : 3;
-        uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
         uint64_t    reserved1   : 59;
 #endif
     } iobld2; /**< for IOBLD8, IOBLD16, IOBLD32, IOBLD64, IOBST64, IOBST32, IOBST16, IOBST8 */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved1   : 59;
-        uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
         uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
         uint64_t    addresslo   : 32;  /* and lower 64-bits */
         uint64_t    mask        : 8;
@@ -573,13 +575,15 @@ typedef union
         uint64_t    mask        : 8;
         uint64_t    addresslo   : 32;
 	uint64_t    addresshi   : 3;
-        uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
         uint64_t    reserved1   : 59;
 #endif
     } iob2; /**< for IOBDMA */
 } cvmx_tra_data_t;
 
+/* The trace buffer number to use. */
+extern int _cvmx_tra_unit;
 
 /**
  * Setup the TRA buffer for use
@@ -597,6 +601,24 @@ typedef union
 extern void cvmx_tra_setup(cvmx_tra_ctl_t control, cvmx_tra_filt_t filter,
                            cvmx_tra_sid_t source_filter, cvmx_tra_did_t dest_filter,
                            uint64_t address, uint64_t address_mask);
+
+/**
+ * Setup each TRA buffer for use
+ *
+ * @param tra     Which TRA buffer to use (0-3)
+ * @param control TRA control setup
+ * @param filter  Which events to log
+ * @param source_filter
+ *                Source match
+ * @param dest_filter
+ *                Destination match
+ * @param address Address compare
+ * @param address_mask
+ *                Address mask
+ */
+extern void cvmx_tra_setup_v2(int tra, cvmx_tra_ctl_t control, cvmx_tra_filt_t filter,
+                             cvmx_tra_sid_t source_filter, cvmx_tra_did_t dest_filter,
+                             uint64_t address, uint64_t address_mask);
 
 /**
  * Setup a TRA trigger. How the triggers are used should be
@@ -617,12 +639,40 @@ extern void cvmx_tra_trig_setup(uint64_t trigger, cvmx_tra_filt_t filter,
                                 uint64_t address, uint64_t address_mask);
 
 /**
+ * Setup each TRA trigger. How the triggers are used should be
+ * setup using cvmx_tra_setup.
+ *
+ * @param tra     Which TRA buffer to use (0-3)
+ * @param trigger Trigger to setup (0 or 1)
+ * @param filter  Which types of events to trigger on
+ * @param source_filter
+ *                Source trigger match
+ * @param dest_filter
+ *                Destination trigger match
+ * @param address Trigger address compare
+ * @param address_mask
+ *                Trigger address mask
+ */
+extern void cvmx_tra_trig_setup_v2(int tra, uint64_t trigger, cvmx_tra_filt_t filter,
+                                cvmx_tra_sid_t source_filter, cvmx_tra_did_t dest_filter,
+                                uint64_t address, uint64_t address_mask);
+
+/**
  * Read an entry from the TRA buffer. The trace buffer format is
  * different in Octeon2, need to read twice from TRA_READ_DAT.
  *
  * @return Value return. High bit will be zero if there wasn't any data
  */
 extern cvmx_tra_data_t cvmx_tra_read(void);
+
+/**
+ * Read an entry from the TRA buffer from a given TRA unit.
+ *
+ * @param tra_unit  Trace buffer unit to read
+ *
+ * @return Value return. High bit will be zero if there wasn't any data
+ */
+cvmx_tra_data_t cvmx_tra_read_v2(int tra_unit);
 
 /**
  * Decode a TRA entry into human readable output
@@ -641,17 +691,53 @@ extern void cvmx_tra_decode_text(cvmx_tra_ctl_t tra_ctl, cvmx_tra_data_t data);
 extern void cvmx_tra_display(void);
 
 /**
- * Enable or disable the TRA hardware
+ * Display the entire trace buffer. It is advised that you
+ * disable the trace buffer before calling this routine
+ * otherwise it could infinitely loop displaying trace data
+ * that it created.
+ *
+ * @param tra_unit   Which TRA buffer to use.
+ */
+extern void cvmx_tra_display_v2(int tra_unit);
+
+/**
+ * Enable or disable the TRA hardware, by default enables all TRAs.
  *
  * @param enable 1=enable, 0=disable
  */
 static inline void cvmx_tra_enable(int enable)
 {
     cvmx_tra_ctl_t control;
-    control.u64 = cvmx_read_csr(CVMX_TRA_CTL);
+    int tad;
+
+    for (tad = 0; tad < CVMX_L2C_TADS; tad++)
+    {    
+        control.u64 = cvmx_read_csr(CVMX_TRAX_CTL(tad));
+        control.s.ena = enable;
+        cvmx_write_csr(CVMX_TRAX_CTL(tad), control.u64);
+        cvmx_read_csr(CVMX_TRAX_CTL(tad));
+    }
+}
+
+/**
+ * Enable or disable a particular TRA hardware
+ *
+ * @param enable  1=enable, 0=disable
+ * @param tra     which TRA to enable, CN68XX has 4.
+ */
+static inline void cvmx_tra_enable_v2(int enable, int tra)
+{
+    cvmx_tra_ctl_t control;
+
+    if ((tra + 1) > CVMX_L2C_TADS)
+    {
+        cvmx_dprintf("cvmx_tra_enable: Invalid TRA(%d), max allowed are %d\n", tra, CVMX_L2C_TADS - 1);
+        tra = 0;
+    }
+    control.u64 = cvmx_read_csr(CVMX_TRAX_CTL(tra));
     control.s.ena = enable;
-    cvmx_write_csr(CVMX_TRA_CTL, control.u64);
-    cvmx_read_csr(CVMX_TRA_CTL);
+    cvmx_write_csr(CVMX_TRAX_CTL(tra), control.u64);
+    cvmx_read_csr(CVMX_TRAX_CTL(tra));
 }
 
 #ifdef	__cplusplus

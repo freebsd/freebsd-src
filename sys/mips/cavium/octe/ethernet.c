@@ -234,8 +234,8 @@ static void cvm_oct_configure_common_hw(device_t bus)
 	/* Register an IRQ hander for to receive POW interrupts */
         rid = 0;
         sc->sc_rx_irq = bus_alloc_resource(bus, SYS_RES_IRQ, &rid,
-					   CVMX_IRQ_WORKQ0 + pow_receive_group,
-					   CVMX_IRQ_WORKQ0 + pow_receive_group,
+					   OCTEON_IRQ_WORKQ0 + pow_receive_group,
+					   OCTEON_IRQ_WORKQ0 + pow_receive_group,
 					   1, RF_ACTIVE);
         if (sc->sc_rx_irq == NULL) {
                 device_printf(bus, "could not allocate workq irq");

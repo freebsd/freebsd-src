@@ -56,8 +56,8 @@ driver provides support for USB printers that follow the printer
 bi- or uni-directional protocol.
 The bits in the minor number select various features of the driver.
 .Bl -column "Minor Bit" "Functionxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -offset indent
-.Em "Minor Bit	Function"
-64	Do not initialize (reset) the device on the port.
+.It Em "Minor Bit" Ta Em "Function"
+.It "64" Ta "Do not initialize (reset) the device on the port."
 .El
 .Pp
 Some printers cannot handle the reset on open; in case of problems try the

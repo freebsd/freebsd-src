@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011, Chelsio Inc
+.\" Copyright (c) 2011-2012, Chelsio Inc
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -145,10 +145,9 @@ dev.cxgbe.X.holdoff_tmr_idx sysctl.
 The packet-count index value to use to delay interrupts.
 The packet-count list has the values 1, 8, 16, and 32 by default
 and the index selects a value from this list.
-The default value is 2 for both 10Gb and 1Gb ports, which means 16
-packets (or the holdoff timer going off) before an interrupt is
-generated.
--1 disables packet counting.
+The default value is -1 for both 10Gb and 1Gb ports, which means packet
+counting is disabled and interrupts are generated based solely on the
+holdoff timer value.
 Different cxgbe interfaces can be assigned different values via the
 dev.cxgbe.X.holdoff_pktc_idx sysctl.
 This sysctl works only when the interface has never been marked up (as done by
@@ -221,7 +220,7 @@ email all the specific information related to the issue to
 The
 .Nm
 device driver first appeared in
-.Fx 9.0
+.Fx 9.0 .
 .Sh AUTHORS
 .An -nosplit
 The

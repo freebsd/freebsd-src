@@ -89,12 +89,12 @@ __FBSDID("$FreeBSD$");
 #ifdef ATH_DEBUG
 #include <dev/ath/if_ath_debug.h>
 
-int ath_debug = 0;
+uint64_t ath_debug = 0;
 
 SYSCTL_DECL(_hw_ath);
-SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
+SYSCTL_QUAD(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.ath.debug", &ath_debug);
+TUNABLE_QUAD("hw.ath.debug", &ath_debug);
 
 void
 ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
@@ -135,19 +135,22 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 	printf("Q%u[%3u]", qnum, ix);
 	while (bf != NULL) {
 		for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-			printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:%04x%s\n"
-			       "        TXF: %04x Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n"
-			       "        %08x %08x %08x %08x %08x %08x\n",
+			printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:%04x%s\n",
 			    ds, (const struct ath_desc *)bf->bf_daddr + i,
-			    ds->ds_link, ds->ds_data, bf->bf_txflags,
-			    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
-			    bf->bf_state.bfs_flags,
+			    ds->ds_link, ds->ds_data, bf->bf_state.bfs_txflags,
+			    !done ? "" : (ts->ts_status == 0) ? " *" : " !");
+			printf("        Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
 			    bf->bf_state.bfs_seqno,
 			    bf->bf_state.bfs_retries,
 			    bf->bf_state.bfs_addedbaw,
-			    bf->bf_state.bfs_dobaw,
+			    bf->bf_state.bfs_dobaw);
+			printf("        SEQNO_ASSIGNED: %d, NEED_SEQNO: %d\n",
+			    bf->bf_state.bfs_seqno_assigned,
+			    bf->bf_state.bfs_need_seqno);
+			printf("        %08x %08x %08x %08x %08x %08x\n",
 			    ds->ds_ctl0, ds->ds_ctl1,
-			    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
+			    ds->ds_hw[0], ds->ds_hw[1],
+			    ds->ds_hw[2], ds->ds_hw[3]);
 			if (ah->ah_magic == 0x20065416) {
 				printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
 				    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],

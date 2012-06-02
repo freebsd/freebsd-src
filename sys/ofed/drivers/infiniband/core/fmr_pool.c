@@ -150,7 +150,7 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 
 #ifdef DEBUG
 		if (fmr->ref_count !=0) {
-			printk(KERN_WARNING PFX "Unmapping FMR 0x%08x with ref count %d\n",
+			printk(KERN_WARNING PFX "Unmapping FMR %p with ref count %d\n",
 			       fmr, fmr->ref_count);
 		}
 #endif

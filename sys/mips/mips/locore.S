@@ -98,20 +98,20 @@ VECTOR(_locore, unknown)
         li	t1, (MIPS_SR_COP_0_BIT | MIPS_SR_PX | MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_SX | MIPS_SR_BEV)
 
 	/* Reset these bits */
-        li	t0, ~(MIPS_SR_DE | MIPS_SR_SOFT_RESET | MIPS_SR_ERL | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS_SR_COP_2_BIT)
+        li	t0, ~(MIPS_SR_DE | MIPS_SR_SR | MIPS_SR_ERL | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS_SR_COP_2_BIT)
 #elif defined (CPU_RMI) || defined (CPU_NLM) 
 	/* Set these bits */
         li	t1, (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT | MIPS_SR_KX | MIPS_SR_UX)
 
 	/* Reset these bits */
-        li	t0, ~(MIPS_SR_BEV | MIPS_SR_SOFT_RESET | MIPS_SR_INT_IE)
+        li	t0, ~(MIPS_SR_BEV | MIPS_SR_SR | MIPS_SR_INT_IE)
 #else
 	/*
 	 * t0: Bits to preserve if set:
 	 * 	Soft reset
 	 *	Boot exception vectors (firmware-provided)
 	 */
-	li	t0, (MIPS_SR_BEV | MIPS_SR_SOFT_RESET)
+	li	t0, (MIPS_SR_BEV | MIPS_SR_SR)
 	/*
 	 * t1: Bits to set explicitly:
 	 *	Enable FPU

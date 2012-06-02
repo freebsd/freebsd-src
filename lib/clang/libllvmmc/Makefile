@@ -23,7 +23,6 @@ SRCS=	ELFObjectWriter.cpp \
 	MCInst.cpp \
 	MCInstPrinter.cpp \
 	MCInstrAnalysis.cpp \
-	MCLoggingStreamer.cpp \
 	MCMachOStreamer.cpp \
 	MCMachObjectTargetWriter.cpp \
 	MCNullStreamer.cpp \

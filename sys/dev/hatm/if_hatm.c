@@ -1722,7 +1722,7 @@ hatm_attach(device_t dev)
 	/*
 	 * ALlocate a DMA tag for subsequent allocations
 	 */
-	if (bus_dma_tag_create(NULL, 1, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    BUS_SPACE_MAXSIZE_32BIT, 1,
@@ -1751,7 +1751,7 @@ hatm_attach(device_t dev)
 	 * but this would not work. So make the maximum number of TPDs
 	 * occupied by one packet a configuration parameter.
 	 */
-	if (bus_dma_tag_create(NULL, 1, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    HE_MAX_PDU, 3 * HE_CONFIG_MAX_TPD_PER_PACKET, HE_MAX_PDU, 0,
 	    NULL, NULL, &sc->tx_tag)) {

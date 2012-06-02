@@ -1,4 +1,4 @@
-//===-- MLxExpansionPass.cpp - Expand MLx instrs to avoid hazards ----------=//
+//===-- MLxExpansionPass.cpp - Expand MLx instrs to avoid hazards ---------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -139,7 +139,7 @@ bool MLxExpansion::hasRAWHazard(unsigned Reg, MachineInstr *MI) const {
   // FIXME: Detect integer instructions properly.
   const MCInstrDesc &MCID = MI->getDesc();
   unsigned Domain = MCID.TSFlags & ARMII::DomainMask;
-  if (MCID.mayStore())
+  if (MI->mayStore())
     return false;
   unsigned Opcode = MCID.getOpcode();
   if (Opcode == ARM::VMOVRS || Opcode == ARM::VMOVRRD)
@@ -222,14 +222,14 @@ MLxExpansion::ExpandFPMLxInstruction(MachineBasicBlock &MBB, MachineInstr *MI,
   const MCInstrDesc &MCID2 = TII->get(AddSubOpc);
   unsigned TmpReg = MRI->createVirtualRegister(TII->getRegClass(MCID1, 0, TRI));
 
-  MachineInstrBuilder MIB = BuildMI(MBB, *MI, MI->getDebugLoc(), MCID1, TmpReg)
+  MachineInstrBuilder MIB = BuildMI(MBB, MI, MI->getDebugLoc(), MCID1, TmpReg)
     .addReg(Src1Reg, getKillRegState(Src1Kill))
     .addReg(Src2Reg, getKillRegState(Src2Kill));
   if (HasLane)
     MIB.addImm(LaneImm);
   MIB.addImm(Pred).addReg(PredReg);
 
-  MIB = BuildMI(MBB, *MI, MI->getDebugLoc(), MCID2)
+  MIB = BuildMI(MBB, MI, MI->getDebugLoc(), MCID2)
     .addReg(DstReg, getDefRegState(true) | getDeadRegState(DstDead));
 
   if (NegAcc) {
@@ -274,7 +274,7 @@ bool MLxExpansion::ExpandFPMLxInstructions(MachineBasicBlock &MBB) {
     }
 
     const MCInstrDesc &MCID = MI->getDesc();
-    if (MCID.isBarrier()) {
+    if (MI->isBarrier()) {
       clearStack();
       Skip = 0;
       ++MII;

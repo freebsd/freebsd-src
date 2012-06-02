@@ -1,4 +1,4 @@
-//===- MipsCallingConv.td - Calling Conventions for Mips ---*- tablegen -*-===//
+//===-- MipsCallingConv.td - Calling Conventions for Mips --*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -35,12 +35,18 @@ def RetCC_MipsO32 : CallingConv<[
 //===----------------------------------------------------------------------===//
 
 def CC_MipsN : CallingConv<[
-  // FIXME: Handle byval, complex and float double parameters.
+   // Handles byval parameters.
+  CCIfByVal<CCCustom<"CC_Mips64Byval">>,
 
-  // Promote i8/i16/i32 arguments to i64.
-  CCIfType<[i8, i16, i32], CCPromoteToType<i64>>,
+  // Promote i8/i16 arguments to i32.
+  CCIfType<[i8, i16], CCPromoteToType<i32>>,
 
   // Integer arguments are passed in integer registers.
+  CCIfType<[i32], CCAssignToRegWithShadow<[A0, A1, A2, A3,
+                                           T0, T1, T2, T3],
+                                          [F12, F13, F14, F15,
+                                           F16, F17, F18, F19]>>,
+
   CCIfType<[i64], CCAssignToRegWithShadow<[A0_64, A1_64, A2_64, A3_64,
                                            T0_64, T1_64, T2_64, T3_64],
                                           [D12_64, D13_64, D14_64, D15_64,
@@ -59,13 +65,30 @@ def CC_MipsN : CallingConv<[
                                            T0_64, T1_64, T2_64, T3_64]>>,
 
   // All stack parameter slots become 64-bit doublewords and are 8-byte aligned.
-  CCIfType<[i64, f64], CCAssignToStack<8, 8>>,
-  CCIfType<[f32], CCAssignToStack<4, 8>>
+  CCIfType<[i32, f32], CCAssignToStack<4, 8>>,
+  CCIfType<[i64, f64], CCAssignToStack<8, 8>>
+]>;
+
+// N32/64 variable arguments.
+// All arguments are passed in integer registers.
+def CC_MipsN_VarArg : CallingConv<[
+   // Handles byval parameters.
+  CCIfByVal<CCCustom<"CC_Mips64Byval">>,
+
+  // Promote i8/i16 arguments to i32.
+  CCIfType<[i8, i16], CCPromoteToType<i32>>,
+
+  CCIfType<[i32, f32], CCAssignToReg<[A0, A1, A2, A3, T0, T1, T2, T3]>>,
+
+  CCIfType<[i64, f64], CCAssignToReg<[A0_64, A1_64, A2_64, A3_64,
+                                      T0_64, T1_64, T2_64, T3_64]>>,
+
+  // All stack parameter slots become 64-bit doublewords and are 8-byte aligned.
+  CCIfType<[i32, f32], CCAssignToStack<4, 8>>,
+  CCIfType<[i64, f64], CCAssignToStack<8, 8>>
 ]>;
 
 def RetCC_MipsN : CallingConv<[
-  // FIXME: Handle complex and float double return values.
-
   // i32 are returned in registers V0, V1
   CCIfType<[i32], CCAssignToReg<[V0, V1]>>,
 
@@ -137,3 +160,20 @@ def RetCC_Mips : CallingConv<[
   CCIfSubtarget<"isABI_N64()", CCDelegateTo<RetCC_MipsN>>,
   CCDelegateTo<RetCC_MipsO32>
 ]>;
+
+//===----------------------------------------------------------------------===//
+// Callee-saved register lists.
+//===----------------------------------------------------------------------===//
+
+def CSR_SingleFloatOnly : CalleeSavedRegs<(add (sequence "F%u", 31, 20), RA, FP,
+                                               (sequence "S%u", 7, 0))>;
+
+def CSR_O32 : CalleeSavedRegs<(add (sequence "D%u", 15, 10), RA, FP,
+                                   (sequence "S%u", 7, 0))>;
+
+def CSR_N32 : CalleeSavedRegs<(add D31_64, D29_64, D27_64, D25_64, D24_64,
+                                   D23_64, D22_64, D21_64, RA_64, FP_64, GP_64,
+                                   (sequence "S%u_64", 7, 0))>;
+
+def CSR_N64 : CalleeSavedRegs<(add (sequence "D%u_64", 31, 24), RA_64, FP_64,
+                                   GP_64, (sequence "S%u_64", 7, 0))>;

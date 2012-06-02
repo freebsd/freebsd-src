@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_global.h"
 #include "opt_ktrace.h"
+#include "opt_kdtrace.h"
 
 #define	NO_REG_DEFS	1	/* Prevent asm.h from including regdef.h */
 #include <sys/param.h>
@@ -83,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/mips_opcode.h>
 #include <machine/frame.h>
 #include <machine/regnum.h>
+#include <machine/tls.h>
 #include <machine/asm.h>
 
 #ifdef DDB
@@ -90,6 +92,33 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+/*
+ * This is a hook which is initialised by the dtrace module
+ * to handle traps which might occur during DTrace probe
+ * execution.
+ */
+dtrace_trap_func_t	dtrace_trap_func;
+
+dtrace_doubletrap_func_t	dtrace_doubletrap_func;
+
+/*
+ * This is a hook which is initialised by the systrace module
+ * when it is loaded. This keeps the DTrace syscall provider
+ * implementation opaque. 
+ */
+systrace_probe_func_t	systrace_probe_func;
+
+/*
+ * These hooks are necessary for the pid, usdt and fasttrap providers.
+ */
+dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
+dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
+dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
 #ifdef TRAP_DEBUG
@@ -260,6 +289,20 @@ static int allow_unaligned_acc = 1;
 
 SYSCTL_INT(_vm, OID_AUTO, allow_unaligned_acc, CTLFLAG_RW,
     &allow_unaligned_acc, 0, "Allow unaligned accesses");
+
+/*
+ * FP emulation is assumed to work on O32, but the code is outdated and crufty
+ * enough that it's a more sensible default to have it disabled when using
+ * other ABIs.  At the very least, it needs a lot of help in using
+ * type-semantic ABI-oblivious macros for everything it does.
+ */
+#if defined(__mips_o32)
+static int emulate_fp = 1;
+#else
+static int emulate_fp = 0;
+#endif
+SYSCTL_INT(_machdep, OID_AUTO, emulate_fp, CTLFLAG_RW,
+    &allow_unaligned_acc, 0, "Emulate unimplemented FPU instructions");
 
 static int emulate_unaligned_access(struct trapframe *frame, int mode);
 
@@ -457,7 +500,7 @@ trap(struct trapframe *trapframe)
 
 	trapdebug_enter(trapframe, 0);
 	
-	type = (trapframe->cause & MIPS3_CR_EXC_CODE) >> MIPS_CR_EXC_CODE_SHIFT;
+	type = (trapframe->cause & MIPS_CR_EXC_CODE) >> MIPS_CR_EXC_CODE_SHIFT;
 	if (TRAPF_USERMODE(trapframe)) {
 		type |= T_USER;
 		usermode = 1;
@@ -528,6 +571,29 @@ trap(struct trapframe *trapframe)
 		}
 	}
 #endif
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * A trap can occur while DTrace executes a probe. Before
+	 * executing the probe, DTrace blocks re-scheduling and sets
+	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * want to fault. On returning from the probe, the no-fault
+	 * flag is cleared and finally re-scheduling is enabled.
+	 *
+	 * If the DTrace kernel module has registered a trap handler,
+	 * call it and if it returns non-zero, assume that it has
+	 * handled the trap and modified the trap frame so that this
+	 * function can return normally.
+	 */
+	/*
+	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
+	 */
+	if (!usermode) {
+		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(trapframe, type))
+			return (trapframe->pc);
+	}
+#endif
+
 	switch (type) {
 	case T_MCHECK:
 #ifdef DDB
@@ -632,6 +698,9 @@ dofault:
 			PROC_LOCK(p);
 			--p->p_lock;
 			PROC_UNLOCK(p);
+			/*
+			 * XXXDTRACE: add dtrace_doubletrap_func here?
+			 */
 #ifdef VMFAULT_TRACE
 			printf("vm_fault(%p (pmap %p), %p (%p), %x, %d) -> %x at pc %p\n",
 			    map, &vm->vm_pmap, (void *)va, (void *)(intptr_t)trapframe->badvaddr,
@@ -813,6 +882,12 @@ dofault:
 					if (inst.RType.rd == 29) {
 						frame_regs = &(trapframe->zero);
 						frame_regs[inst.RType.rt] = (register_t)(intptr_t)td->td_md.md_tls;
+#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
+						if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+							frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE32;
+						else
+#endif
+						frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE;
 						trapframe->pc += sizeof(int);
 						goto out;
 					}
@@ -927,6 +1002,11 @@ dofault:
 #endif
 
 	case T_FPE + T_USER:
+		if (!emulate_fp) {
+			i = SIGILL;
+			addr = trapframe->pc;
+			break;
+		}
 		MipsFPTrap(trapframe->sr, trapframe->cause, trapframe->pc);
 		goto out;
 
@@ -1039,7 +1119,7 @@ trapDump(char *msg)
 			break;
 
 		printf("%s: ADR %jx PC %jx CR %jx SR %jx\n",
-		    trap_type[(trp->cause & MIPS3_CR_EXC_CODE) >> 
+		    trap_type[(trp->cause & MIPS_CR_EXC_CODE) >> 
 			MIPS_CR_EXC_CODE_SHIFT],
 		    (intmax_t)trp->vadr, (intmax_t)trp->pc,
 		    (intmax_t)trp->cause, (intmax_t)trp->status);
@@ -1312,15 +1392,19 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 	pt_entry_t *ptep;
 	pd_entry_t *pdep;
 	unsigned int *addr;
-	struct proc *p = curproc;
+	struct thread *td;
+	struct proc *p;
 	register_t pc;
+
+	td = curthread;
+	p = td->td_proc;
 
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
 	pc = frame->pc + (DELAYBRANCH(frame->cause) ? 4 : 0);
-	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc %#jx ra %#jx\n",
-	    msg, p->p_pid, p->p_comm,
+	log(LOG_ERR, "%s: pid %d tid %ld (%s), uid %d: pc %#jx ra %#jx\n",
+	    msg, p->p_pid, (long)td->td_tid, p->p_comm,
 	    p->p_ucred ? p->p_ucred->cr_uid : -1,
 	    (intmax_t)pc,
 	    (intmax_t)frame->ra);
@@ -1357,11 +1441,15 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	pt_entry_t *ptep;
 	pd_entry_t *pdep;
 	unsigned int *addr;
-	struct proc *p = curproc;
+	struct thread *td;
+	struct proc *p;
 	char *read_or_write;
 	register_t pc;
 
 	trap_type &= ~T_USER;
+
+	td = curthread;
+	p = td->td_proc;
 
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
@@ -1381,8 +1469,8 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	}
 
 	pc = frame->pc + (DELAYBRANCH(frame->cause) ? 4 : 0);
-	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc %#jx got a %s fault at %#jx\n",
-	    msg, p->p_pid, p->p_comm,
+	log(LOG_ERR, "%s: pid %d tid %ld (%s), uid %d: pc %#jx got a %s fault at %#jx\n",
+	    msg, p->p_pid, (long)td->td_tid, p->p_comm,
 	    p->p_ucred ? p->p_ucred->cr_uid : -1,
 	    (intmax_t)pc,
 	    read_or_write,

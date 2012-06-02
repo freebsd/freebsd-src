@@ -55,17 +55,28 @@ struct g_command class_commands[] = {
 		"create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 		{
 			{ 'A', "active_active", NULL, G_TYPE_BOOL },
+			{ 'R', "active_read", NULL, G_TYPE_BOOL },
 			G_OPT_SENTINEL
 		},
-		"[-vA] name prov ..."
+		"[-vAR] name prov ..."
 	},
 	{
 		"label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, mp_main,
 		{
 			{ 'A', "active_active", NULL, G_TYPE_BOOL },
+			{ 'R', "active_read", NULL, G_TYPE_BOOL },
 			G_OPT_SENTINEL
 		},
-		"[-vA] name prov ..."
+		"[-vAR] name prov ..."
+	},
+	{ "configure", G_FLAG_VERBOSE, NULL,
+		{
+			{ 'A', "active_active", NULL, G_TYPE_BOOL },
+			{ 'P', "active_passive", NULL, G_TYPE_BOOL },
+			{ 'R', "active_read", NULL, G_TYPE_BOOL },
+			G_OPT_SENTINEL
+		},
+		"[-vAPR] name"
 	},
 	{
 		"add", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
@@ -196,6 +207,8 @@ mp_label(struct gctl_req *req)
 	}
 	strlcpy(md.md_uuid, ptr, sizeof (md.md_uuid));
 	md.md_active_active = gctl_get_int(req, "active_active");
+	if (gctl_get_int(req, "active_read"))
+		md.md_active_active = 2;
 	free(ptr);
 
 	/*

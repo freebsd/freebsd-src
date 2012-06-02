@@ -2,16 +2,13 @@
 
 LIB=	vers
 INTERNALLIB=
-SRCS=	print_version.c print_version.h
-CFLAGS+=-I.
+SRCS=	print_version.c roken.h
+CFLAGS+=-I. -I${KRB5DIR}/lib/roken
 
-CLEANFILES= print_version.h
+CLEANFILES= roken.h
 
-print_version.h: ../../tools/make-print-version/make-print-version
-	../../tools/make-print-version/make-print-version ${.TARGET}
-
-../../tools/make-print-version/make-print-version:
-	cd ${.CURDIR}/../../tools/make-print-version && ${MAKE}
+roken.h:
+	${MAKE_ROKEN} > ${.TARGET}
 
 .include <bsd.lib.mk>
 

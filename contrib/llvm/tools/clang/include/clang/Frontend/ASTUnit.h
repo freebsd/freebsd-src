@@ -14,12 +14,12 @@
 #ifndef LLVM_CLANG_FRONTEND_ASTUNIT_H
 #define LLVM_CLANG_FRONTEND_ASTUNIT_H
 
-#include "clang/Index/ASTLocation.h"
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/PreprocessingRecord.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemOptions.h"
@@ -45,6 +45,7 @@ class ASTContext;
 class ASTReader;
 class CodeCompleteConsumer;
 class CompilerInvocation;
+class CompilerInstance;
 class Decl;
 class DiagnosticsEngine;
 class FileEntry;
@@ -55,41 +56,33 @@ class SourceManager;
 class TargetInfo;
 class ASTFrontendAction;
 
-using namespace idx;
-  
-/// \brief Allocator for a cached set of global code completions.
-class GlobalCodeCompletionAllocator 
-  : public CodeCompletionAllocator,
-    public llvm::RefCountedBase<GlobalCodeCompletionAllocator> 
-{
-
-};
-  
 /// \brief Utility class for loading a ASTContext from an AST file.
 ///
 class ASTUnit : public ModuleLoader {
 private:
-  llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diagnostics;
-  llvm::IntrusiveRefCntPtr<FileManager>       FileMgr;
-  llvm::IntrusiveRefCntPtr<SourceManager>     SourceMgr;
-  llvm::OwningPtr<HeaderSearch>               HeaderInfo;
-  llvm::IntrusiveRefCntPtr<TargetInfo>        Target;
-  llvm::IntrusiveRefCntPtr<Preprocessor>      PP;
-  llvm::IntrusiveRefCntPtr<ASTContext>        Ctx;
+  IntrusiveRefCntPtr<LangOptions>       LangOpts;
+  IntrusiveRefCntPtr<DiagnosticsEngine> Diagnostics;
+  IntrusiveRefCntPtr<FileManager>       FileMgr;
+  IntrusiveRefCntPtr<SourceManager>     SourceMgr;
+  OwningPtr<HeaderSearch>               HeaderInfo;
+  IntrusiveRefCntPtr<TargetInfo>        Target;
+  IntrusiveRefCntPtr<Preprocessor>      PP;
+  IntrusiveRefCntPtr<ASTContext>        Ctx;
+  ASTReader *Reader;
 
   FileSystemOptions FileSystemOpts;
 
   /// \brief The AST consumer that received information about the translation
   /// unit as it was parsed or loaded.
-  llvm::OwningPtr<ASTConsumer> Consumer;
+  OwningPtr<ASTConsumer> Consumer;
   
   /// \brief The semantic analysis object used to type-check the translation
   /// unit.
-  llvm::OwningPtr<Sema> TheSema;
+  OwningPtr<Sema> TheSema;
   
   /// Optional owned invocation, just used to make the invocation used in
   /// LoadFromCommandLine available.
-  llvm::IntrusiveRefCntPtr<CompilerInvocation> Invocation;
+  IntrusiveRefCntPtr<CompilerInvocation> Invocation;
   
   /// \brief The set of target features.
   ///
@@ -126,12 +119,17 @@ private:
   // source. In the long term we should make the Index library use efficient and
   // more scalable search mechanisms.
   std::vector<Decl*> TopLevelDecls;
+
+  /// \brief Sorted (by file offset) vector of pairs of file offset/Decl.
+  typedef SmallVector<std::pair<unsigned, Decl *>, 64> LocDeclsTy;
+  typedef llvm::DenseMap<FileID, LocDeclsTy *> FileDeclsTy;
+
+  /// \brief Map from FileID to the file-level declarations that it contains.
+  /// The files and decls are only local (and non-preamble) ones.
+  FileDeclsTy FileDecls;
   
   /// The name of the original source file used to generate this ASTUnit.
   std::string OriginalSourceFile;
-
-  // Critical optimization when using clang_getCursor().
-  ASTLocation LastLoc;
 
   /// \brief The set of diagnostics produced when creating the preamble.
   SmallVector<StoredDiagnostic, 4> PreambleDiagnostics;
@@ -140,16 +138,16 @@ private:
   /// translation unit.
   SmallVector<StoredDiagnostic, 4> StoredDiagnostics;
 
+  /// \brief The set of diagnostics produced when failing to parse, e.g. due
+  /// to failure to load the PCH.
+  SmallVector<StoredDiagnostic, 4> FailedParseDiagnostics;
+
   /// \brief The number of stored diagnostics that come from the driver
   /// itself.
   ///
   /// Diagnostics that come from the driver are retained from one parse to
   /// the next.
   unsigned NumStoredDiagnosticsFromDriver;
-  
-  /// \brief Temporary files that should be removed when the ASTUnit is 
-  /// destroyed.
-  SmallVector<llvm::sys::Path, 4> TemporaryFiles;
   
   /// \brief Counter that determines when we want to try building a
   /// precompiled preamble.
@@ -161,10 +159,7 @@ private:
   /// building the precompiled preamble fails, we won't try again for
   /// some number of calls.
   unsigned PreambleRebuildCounter;
-  
-  /// \brief The file in which the precompiled preamble is stored.
-  std::string PreambleFile;
-  
+
 public:
   class PreambleData {
     const FileEntry *File;
@@ -254,15 +249,11 @@ private:
   
   /// \brief Whether we should be caching code-completion results.
   bool ShouldCacheCodeCompletionResults;
-  
-  /// \brief Whether we want to include nested macro expansions in the
-  /// detailed preprocessing record.
-  bool NestedMacroExpansions;
  
   /// \brief The language options used when we load an AST file.
   LangOptions ASTFileLangOpts;
 
-  static void ConfigureDiags(llvm::IntrusiveRefCntPtr<DiagnosticsEngine> &Diags,
+  static void ConfigureDiags(IntrusiveRefCntPtr<DiagnosticsEngine> &Diags,
                              const char **ArgBegin, const char **ArgEnd,
                              ASTUnit &AST, bool CaptureDiagnostics);
 
@@ -270,6 +261,8 @@ private:
                                   SourceManager &SrcMan,
                       const SmallVectorImpl<StoredDiagnostic> &Diags,
                             SmallVectorImpl<StoredDiagnostic> &Out);
+
+  void clearFileLevelDecls();
 
 public:
   /// \brief A cached code-completion result, which may be introduced in one of
@@ -318,29 +311,24 @@ public:
   }
   
   /// \brief Retrieve the allocator used to cache global code completions.
-  llvm::IntrusiveRefCntPtr<GlobalCodeCompletionAllocator> 
+  IntrusiveRefCntPtr<GlobalCodeCompletionAllocator>
   getCachedCompletionAllocator() {
     return CachedCompletionAllocator;
   }
-  
-  /// \brief Retrieve the allocator used to cache global code completions.
-  /// Creates the allocator if it doesn't already exist.
-  llvm::IntrusiveRefCntPtr<GlobalCodeCompletionAllocator>
-  getCursorCompletionAllocator() {
-    if (!CursorCompletionAllocator.getPtr()) {
-      CursorCompletionAllocator = new GlobalCodeCompletionAllocator;
-    }
-    return CursorCompletionAllocator;
+
+  CodeCompletionTUInfo &getCodeCompletionTUInfo() {
+    if (!CCTUInfo)
+      CCTUInfo.reset(new CodeCompletionTUInfo(
+                                            new GlobalCodeCompletionAllocator));
+    return *CCTUInfo;
   }
-  
+
 private:
   /// \brief Allocator used to store cached code completions.
-  llvm::IntrusiveRefCntPtr<GlobalCodeCompletionAllocator>
+  IntrusiveRefCntPtr<GlobalCodeCompletionAllocator>
     CachedCompletionAllocator;
   
-  /// \brief Allocator used to store code completions for arbitrary cursors.
-  llvm::IntrusiveRefCntPtr<GlobalCodeCompletionAllocator>
-    CursorCompletionAllocator;
+  OwningPtr<CodeCompletionTUInfo> CCTUInfo;
 
   /// \brief The set of cached code-completion results.
   std::vector<CachedCodeCompletionResult> CachedCompletionResults;
@@ -395,7 +383,11 @@ private:
                                                      bool AllowRebuild = true,
                                                         unsigned MaxLines = 0);
   void RealizeTopLevelDeclsFromPreamble();
-  
+
+  /// \brief Transfers ownership of the objects (like SourceManager) from
+  /// \param CI to this ASTUnit.
+  void transferASTDataFromCompilerInstance(CompilerInstance &CI);
+
   /// \brief Allows us to assert that ASTUnit is not being used concurrently,
   /// which is not supported.
   ///
@@ -451,6 +443,7 @@ public:
         ASTContext &getASTContext()       { return *Ctx; }
 
   void setASTContext(ASTContext *ctx) { Ctx = ctx; }
+  void setPreprocessor(Preprocessor *pp);
 
   bool hasSema() const { return TheSema; }
   Sema &getSema() const { 
@@ -468,18 +461,12 @@ public:
   /// \brief Add a temporary file that the ASTUnit depends on.
   ///
   /// This file will be erased when the ASTUnit is destroyed.
-  void addTemporaryFile(const llvm::sys::Path &TempFile) {
-    TemporaryFiles.push_back(TempFile);
-  }
+  void addTemporaryFile(const llvm::sys::Path &TempFile);
                         
   bool getOnlyLocalDecls() const { return OnlyLocalDecls; }
 
   bool getOwnsRemappedFileBuffers() const { return OwnsRemappedFileBuffers; }
   void setOwnsRemappedFileBuffers(bool val) { OwnsRemappedFileBuffers = val; }
-
-  void setLastASTLocation(ASTLocation ALoc) { LastLoc = ALoc; }
-  ASTLocation getLastASTLocation() const { return LastLoc; }
-
 
   StringRef getMainFileName() const;
 
@@ -514,6 +501,15 @@ public:
     TopLevelDecls.push_back(D);
   }
 
+  /// \brief Add a new local file-level declaration.
+  void addFileLevelDecl(Decl *D);
+
+  /// \brief Get the decls that are contained in a file in the Offset/Length
+  /// range. \arg Length can be 0 to indicate a point at \arg Offset instead of
+  /// a range. 
+  void findFileRegionDecls(FileID File, unsigned Offset, unsigned Length,
+                           SmallVectorImpl<Decl *> &Decls);
+
   /// \brief Add a new top-level declaration, identified by its ID in
   /// the precompiled preamble.
   void addTopLevelDeclFromPreamble(serialization::DeclID D) {
@@ -546,6 +542,11 @@ public:
   /// preamble, otherwise it returns \arg Loc.
   SourceLocation mapLocationToPreamble(SourceLocation Loc);
 
+  bool isInPreambleFileID(SourceLocation Loc);
+  bool isInMainFileID(SourceLocation Loc);
+  SourceLocation getStartOfMainFileID();
+  SourceLocation getEndOfPreambleFileID();
+
   /// \brief \see mapLocationFromPreamble.
   SourceRange mapRangeFromPreamble(SourceRange R) {
     return SourceRange(mapLocationFromPreamble(R.getBegin()),
@@ -559,17 +560,26 @@ public:
   }
   
   // Retrieve the diagnostics associated with this AST
-  typedef const StoredDiagnostic *stored_diag_iterator;
-  stored_diag_iterator stored_diag_begin() const { 
+  typedef StoredDiagnostic *stored_diag_iterator;
+  typedef const StoredDiagnostic *stored_diag_const_iterator;
+  stored_diag_const_iterator stored_diag_begin() const { 
     return StoredDiagnostics.begin(); 
   }
-  stored_diag_iterator stored_diag_end() const { 
+  stored_diag_iterator stored_diag_begin() { 
+    return StoredDiagnostics.begin(); 
+  }
+  stored_diag_const_iterator stored_diag_end() const { 
+    return StoredDiagnostics.end(); 
+  }
+  stored_diag_iterator stored_diag_end() { 
     return StoredDiagnostics.end(); 
   }
   unsigned stored_diag_size() const { return StoredDiagnostics.size(); }
-  
-  SmallVector<StoredDiagnostic, 4> &getStoredDiagnostics() { 
-    return StoredDiagnostics; 
+
+  stored_diag_iterator stored_diag_afterDriver_begin() {
+    if (NumStoredDiagnosticsFromDriver > StoredDiagnostics.size())
+      NumStoredDiagnosticsFromDriver = 0;
+    return StoredDiagnostics.begin() + NumStoredDiagnosticsFromDriver; 
   }
 
   typedef std::vector<CachedCodeCompletionResult>::iterator
@@ -601,7 +611,8 @@ public:
 
   /// \brief Create a ASTUnit. Gets ownership of the passed CompilerInvocation. 
   static ASTUnit *create(CompilerInvocation *CI,
-                         llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags);
+                         IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+                         bool CaptureDiagnostics = false);
 
   /// \brief Create a ASTUnit from an AST file.
   ///
@@ -612,12 +623,13 @@ public:
   ///
   /// \returns - The initialized ASTUnit or null if the AST failed to load.
   static ASTUnit *LoadFromASTFile(const std::string &Filename,
-                              llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+                              IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                                   const FileSystemOptions &FileSystemOpts,
                                   bool OnlyLocalDecls = false,
                                   RemappedFile *RemappedFiles = 0,
                                   unsigned NumRemappedFiles = 0,
-                                  bool CaptureDiagnostics = false);
+                                  bool CaptureDiagnostics = false,
+                                  bool AllowPCHWithCompilerErrors = false);
 
 private:
   /// \brief Helper function for \c LoadFromCompilerInvocation() and
@@ -646,10 +658,28 @@ public:
   ///
   /// \param Unit - optionally an already created ASTUnit. Its ownership is not
   /// transfered.
+  ///
+  /// \param Persistent - if true the returned ASTUnit will be complete.
+  /// false means the caller is only interested in getting info through the
+  /// provided \see Action.
+  ///
+  /// \param ErrAST - If non-null and parsing failed without any AST to return
+  /// (e.g. because the PCH could not be loaded), this accepts the ASTUnit
+  /// mainly to allow the caller to see the diagnostics.
+  /// This will only receive an ASTUnit if a new one was created. If an already
+  /// created ASTUnit was passed in \param Unit then the caller can check that.
+  ///
   static ASTUnit *LoadFromCompilerInvocationAction(CompilerInvocation *CI,
-                              llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+                              IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                                              ASTFrontendAction *Action = 0,
-                                             ASTUnit *Unit = 0);
+                                             ASTUnit *Unit = 0,
+                                             bool Persistent = true,
+                                      StringRef ResourceFilesPath = StringRef(),
+                                             bool OnlyLocalDecls = false,
+                                             bool CaptureDiagnostics = false,
+                                             bool PrecompilePreamble = false,
+                                       bool CacheCodeCompletionResults = false,
+                                       OwningPtr<ASTUnit> *ErrAST = 0);
 
   /// LoadFromCompilerInvocation - Create an ASTUnit from a source file, via a
   /// CompilerInvocation object.
@@ -663,13 +693,12 @@ public:
   // FIXME: Move OnlyLocalDecls, UseBumpAllocator to setters on the ASTUnit, we
   // shouldn't need to specify them at construction time.
   static ASTUnit *LoadFromCompilerInvocation(CompilerInvocation *CI,
-                              llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+                              IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                                              bool OnlyLocalDecls = false,
                                              bool CaptureDiagnostics = false,
                                              bool PrecompilePreamble = false,
                                       TranslationUnitKind TUKind = TU_Complete,
-                                       bool CacheCodeCompletionResults = false,
-                                       bool NestedMacroExpansions = true);
+                                       bool CacheCodeCompletionResults = false);
 
   /// LoadFromCommandLine - Create an ASTUnit from a vector of command line
   /// arguments, which must specify exactly one source file.
@@ -682,12 +711,16 @@ public:
   /// lifetime is expected to extend past that of the returned ASTUnit.
   ///
   /// \param ResourceFilesPath - The path to the compiler resource files.
-  //
+  ///
+  /// \param ErrAST - If non-null and parsing failed without any AST to return
+  /// (e.g. because the PCH could not be loaded), this accepts the ASTUnit
+  /// mainly to allow the caller to see the diagnostics.
+  ///
   // FIXME: Move OnlyLocalDecls, UseBumpAllocator to setters on the ASTUnit, we
   // shouldn't need to specify them at construction time.
   static ASTUnit *LoadFromCommandLine(const char **ArgBegin,
                                       const char **ArgEnd,
-                              llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+                              IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                                       StringRef ResourceFilesPath,
                                       bool OnlyLocalDecls = false,
                                       bool CaptureDiagnostics = false,
@@ -697,7 +730,9 @@ public:
                                       bool PrecompilePreamble = false,
                                       TranslationUnitKind TUKind = TU_Complete,
                                       bool CacheCodeCompletionResults = false,
-                                      bool NestedMacroExpansions = true);
+                                      bool AllowPCHWithCompilerErrors = false,
+                                      bool SkipFunctionBodies = false,
+                                      OwningPtr<ASTUnit> *ErrAST = 0);
   
   /// \brief Reparse the source files using the same command-line options that
   /// were originally used to produce this translation unit.
@@ -743,9 +778,9 @@ public:
   /// \returns True if an error occurred, false otherwise.
   bool serialize(raw_ostream &OS);
   
-  virtual ModuleKey loadModule(SourceLocation ImportLoc, 
-                               IdentifierInfo &ModuleName,
-                               SourceLocation ModuleNameLoc) {
+  virtual Module *loadModule(SourceLocation ImportLoc, ModuleIdPath Path,
+                             Module::NameVisibilityKind Visibility,
+                             bool IsInclusionDirective) {
     // ASTUnit doesn't know how to load modules (not that this matters).
     return 0;
   }

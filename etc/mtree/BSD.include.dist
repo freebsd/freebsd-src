@@ -88,7 +88,7 @@
         ..
     ..
     clang
-        3.0
+        3.1
         ..
     ..
     crypto
@@ -122,6 +122,8 @@
             mpilib
             ..
         ..
+        nand
+        ..
         ofw
         ..
         pbio
@@ -152,9 +154,9 @@
         ..
         fdescfs
         ..
-        fifofs
-        ..
         msdosfs
+        ..
+        nandfs
         ..
         nfs
         ..
@@ -234,6 +236,8 @@
         ..
     ..
     kadm5
+    ..
+    krb5
     ..
     libmilter
     ..

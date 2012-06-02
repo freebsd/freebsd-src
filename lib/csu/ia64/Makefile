@@ -24,7 +24,7 @@ crtbrand.s: crtbrand.c
 	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
 
 crtbrand.o: crtbrand.s
-	${CC} ${CFLAGS} -c -o ${.TARGET} crtbrand.s
+	${CC} ${ACFLAGS} -c -o ${.TARGET} crtbrand.s
 
 crt1.o: crt1_.o crtbrand.o
 	${LD} ${LDFLAGS} -r -o ${.TARGET} crt1_.o crtbrand.o
@@ -37,7 +37,7 @@ gcrtbrand.s: crtbrand.c
 	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
 
 gcrtbrand.o: gcrtbrand.s
-	${CC} ${CFLAGS} -c -o ${.TARGET} gcrtbrand.s
+	${CC} ${ACFLAGS} -c -o ${.TARGET} gcrtbrand.s
 
 gcrt1.o: gcrt1_.o gcrtbrand.o
 	${LD} ${LDFLAGS} -r -o ${.TARGET} ${.ALLSRC}
@@ -50,7 +50,7 @@ Scrtbrand.s: crtbrand.c
 	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
 
 Scrtbrand.o: Scrtbrand.s
-	${CC} ${CFLAGS} -c -o ${.TARGET} Scrtbrand.s
+	${CC} ${ACFLAGS} -c -o ${.TARGET} Scrtbrand.s
 
 Scrt1.o: Scrt1_.o Scrtbrand.o
 	${LD} ${LDFLAGS} -r -o ${.TARGET} ${.ALLSRC}

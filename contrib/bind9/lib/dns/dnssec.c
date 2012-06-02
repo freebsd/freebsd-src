@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.119.170.4 2011-05-06 21:07:50 each Exp $
+ * $Id$
  */
 
 /*! \file */
@@ -1134,16 +1134,14 @@ dns_dnsseckey_destroy(isc_mem_t *mctx, dns_dnsseckey_t **dkp) {
 }
 
 static void
-get_hints(dns_dnsseckey_t *key) {
+get_hints(dns_dnsseckey_t *key, isc_stdtime_t now) {
 	isc_result_t result;
-	isc_stdtime_t now, publish, active, revoke, inactive, delete;
+	isc_stdtime_t publish, active, revoke, inactive, delete;
 	isc_boolean_t pubset = ISC_FALSE, actset = ISC_FALSE;
 	isc_boolean_t revset = ISC_FALSE, inactset = ISC_FALSE;
 	isc_boolean_t delset = ISC_FALSE;
 
 	REQUIRE(key != NULL && key->key != NULL);
-
-	isc_stdtime_get(&now);
 
 	result = dst_key_gettime(key->key, DST_TIME_PUBLISH, &publish);
 	if (result == ISC_R_SUCCESS)
@@ -1241,13 +1239,14 @@ dns_dnssec_findmatchingkeys(dns_name_t *origin, const char *directory,
 	char namebuf[DNS_NAME_FORMATSIZE], *p;
 	isc_buffer_t b;
 	unsigned int len;
+	isc_stdtime_t now;
 
 	REQUIRE(keylist != NULL);
 	ISC_LIST_INIT(list);
 	isc_dir_init(&dir);
 
 	isc_buffer_init(&b, namebuf, sizeof(namebuf) - 1);
-	RETERR(dns_name_totext(origin, ISC_FALSE, &b));
+	RETERR(dns_name_tofilenametext(origin, ISC_FALSE, &b));
 	len = isc_buffer_usedlength(&b);
 	namebuf[len] = '\0';
 
@@ -1255,6 +1254,8 @@ dns_dnssec_findmatchingkeys(dns_name_t *origin, const char *directory,
 		directory = ".";
 	RETERR(isc_dir_open(&dir, directory));
 	dir_open = ISC_TRUE;
+
+	isc_stdtime_get(&now);
 
 	while (isc_dir_read(&dir) == ISC_R_SUCCESS) {
 		if (dir.entry.name[0] == 'K' &&
@@ -1286,7 +1287,7 @@ dns_dnssec_findmatchingkeys(dns_name_t *origin, const char *directory,
 
 			RETERR(dns_dnsseckey_create(mctx, &dstkey, &key));
 			key->source = dns_keysource_repository;
-			get_hints(key);
+			get_hints(key, now);
 
 			if (key->legacy) {
 				dns_dnsseckey_destroy(mctx, &key);

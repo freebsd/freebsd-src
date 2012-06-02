@@ -73,7 +73,7 @@ typedef struct __mcontext32 {
 	int		mc_fpused;
 	int32_t		mc_fpregs[33];
 	int32_t		mc_fpc_eir;
-	void		*mc_tls;
+	int32_t		mc_tls;
 	int		__spare__[8];
 } mcontext32_t;
 

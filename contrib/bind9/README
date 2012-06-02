@@ -48,6 +48,18 @@ BIND 9
 	For a detailed list of user-visible changes from
 	previous releases, see the CHANGES file.
 
+        For up-to-date release notes and errata, see
+        http://www.isc.org/software/bind9/releasenotes
+
+BIND 9.8.3
+
+	BIND 9.8.3 is a maintenance release.
+
+BIND 9.8.2
+
+	BIND 9.8.2 includes a number of bug fixes and prevents a security
+	problem described in CVE-2011-4313
+
 BIND 9.8.1
 
         BIND 9.8.1 includes a number of bug fixes and enhancements from
@@ -314,6 +326,7 @@ Building
 	libraries.  sh-utils-1.16 provides a "printf" which compiles
 	on SunOS 4.
 
+
 Documentation
 
 	The BIND 9 Administrator Reference Manual is included with the
@@ -334,6 +347,48 @@ Documentation
 
         Additional information on various subjects can be found
         in the other README files.
+
+
+Change Log
+
+	A detailed list of all changes to BIND 9 is included in the 
+	file CHANGES, with the most recent changes listed first.
+	Change notes include tags indicating the category of the
+	change that was made; these categories are:
+
+	   [func]	  New feature
+
+	   [bug]	  General bug fix
+
+	   [security]	  Fix for a significant security flaw
+
+	   [experimental] Used for new features when the syntax
+	   		  or other aspects of the design are still
+			  in flux and may change
+
+	   [port]	  Portability enhancement
+
+	   [maint]	  Updates to built-in data such as root
+			  server addresses and keys
+
+	   [tuning]	  Changes to built-in configuration defaults
+	   		  and constants to improve performanceo
+
+	   [protocol]	  Updates to the DNS protocol such as new
+			  RR types
+
+           [test]         Changes to the automatic tests, not
+                          affecting server functionality
+
+           [cleanup]      Minor corrections and refactoring
+
+	   [doc]	  Documentation
+
+	In general, [func] and [experimental] tags will only appear
+	in new-feature releases (i.e., those with version numbers
+	ending in zero).  Some new functionality may be backported to
+	older releases on a case-by-case basis.  All other change
+	types may be applied to all currently-supported releases.
 
 
 Bug Reports and Mailing Lists

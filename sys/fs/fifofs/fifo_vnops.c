@@ -52,7 +52,6 @@
 #include <sys/un.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <fs/fifofs/fifo.h>
 
 /*
  * This structure is associated with the FIFO vnode and stores
@@ -60,14 +59,22 @@
  * Notes about locking:
  *   - fi_pipe is invariant since init time.
  *   - fi_readers and fi_writers are protected by the vnode lock.
- *   - fi_wgen is protected by the pipe mutex.
+ *   - fi_wgen and fi_seqcount are protected by the pipe mutex.
  */
 struct fifoinfo {
 	struct pipe *fi_pipe;
 	long	fi_readers;
 	long	fi_writers;
 	int	fi_wgen;
+	int	fi_seqcount;
 };
+
+#define FIFO_UPDWGEN(fip, pip)	do { \
+	if ((fip)->fi_wgen == (fip)->fi_seqcount) 			\
+		(pip)->pipe_state |= PIPE_SAMEWGEN;			\
+	else								\
+		(pip)->pipe_state &= ~PIPE_SAMEWGEN;			\
+} while (0)
 
 static vop_print_t	fifo_print;
 static vop_open_t	fifo_open;
@@ -174,7 +181,8 @@ fifo_open(ap)
 			if (fip->fi_writers > 0)
 				wakeup(&fip->fi_writers);
 		}
-		fp->f_seqcount = fip->fi_wgen - fip->fi_writers;
+		fip->fi_seqcount = fip->fi_wgen - fip->fi_writers;
+		FIFO_UPDWGEN(fip, fpipe);
 	}
 	if (ap->a_mode & FWRITE) {
 		if ((ap->a_mode & O_NONBLOCK) && fip->fi_readers == 0) {
@@ -228,6 +236,7 @@ fifo_open(ap)
 					if (fpipe->pipe_state & PIPE_WANTR)
 						wakeup(fpipe);
 					fip->fi_wgen++;
+					FIFO_UPDWGEN(fip, fpipe);
 					PIPE_UNLOCK(fpipe);
 					fifo_cleanup(vp);
 				}
@@ -287,6 +296,7 @@ fifo_close(ap)
 			if (cpipe->pipe_state & PIPE_WANTR)
 				wakeup(cpipe);
 			fip->fi_wgen++;
+			FIFO_UPDWGEN(fip, cpipe);
 			PIPE_UNLOCK(cpipe);
 		}
 	}
@@ -371,17 +381,5 @@ fifo_advlock(ap)
 {
 
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
-}
-
-int
-fifo_iseof(struct file *fp)
-{
-	struct fifoinfo *fip;
-
-	KASSERT(fp->f_vnode != NULL, ("fifo_iseof: no vnode info"));
-	KASSERT(fp->f_vnode->v_fifoinfo != NULL, ("fifo_iseof: no fifoinfo"));
-	fip = fp->f_vnode->v_fifoinfo;
-	PIPE_LOCK_ASSERT(fip->fi_pipe, MA_OWNED);
-	return (fp->f_seqcount == fip->fi_wgen);
 }
 

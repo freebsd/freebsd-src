@@ -1,4 +1,4 @@
-//=====-- PTXMCAsmInfo.h - PTX asm properties -----------------*- C++ -*--====//
+//===-- PTXMCAsmInfo.h - PTX asm properties --------------------*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,7 +20,9 @@ namespace llvm {
   class Target;
   class StringRef;
 
-  struct PTXMCAsmInfo : public MCAsmInfo {
+  class PTXMCAsmInfo : public MCAsmInfo {
+    virtual void anchor();
+  public:
     explicit PTXMCAsmInfo(const Target &T, const StringRef &TT);
   };
 } // namespace llvm

@@ -1,38 +1,40 @@
 /*
- * Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
+#define HC_DEPRECATED_CRYPTO
+
 #include "kuser_locl.h"
-RCSID("$Id: kdigest.c 22158 2007-12-04 20:04:01Z lha $");
+
 #include <kdigest-commands.h>
 #include <hex.h>
 #include <base64.h>
@@ -98,7 +100,7 @@ digest_server_init(struct digest_server_init_options *opt,
 	krb5_err(context, 1, ret, "krb5_digest_set_type");
 
     if (opt->cb_type_string && opt->cb_value_string) {
-	ret = krb5_digest_set_server_cb(context, digest, 
+	ret = krb5_digest_set_server_cb(context, digest,
 					opt->cb_type_string,
 					opt->cb_value_string);
 	if (ret)
@@ -112,7 +114,7 @@ digest_server_init(struct digest_server_init_options *opt,
 	krb5_err(context, 1, ret, "krb5_digest_init_request");
 
     printf("type=%s\n", opt->type_string);
-    printf("server-nonce=%s\n", 
+    printf("server-nonce=%s\n",
 	   krb5_digest_get_server_nonce(context, digest));
     {
 	const char *s = krb5_digest_get_identifier(context, digest);
@@ -121,11 +123,13 @@ digest_server_init(struct digest_server_init_options *opt,
     }
     printf("opaque=%s\n", krb5_digest_get_opaque(context, digest));
 
+    krb5_digest_free(digest);
+
     return 0;
 }
 
 int
-digest_server_request(struct digest_server_request_options *opt, 
+digest_server_request(struct digest_server_request_options *opt,
 		      int argc, char **argv)
 {
     krb5_error_code ret;
@@ -150,7 +154,7 @@ digest_server_request(struct digest_server_request_options *opt,
 	if (opt->server_identifier_string == NULL)
 	    errx(1, "server identifier missing");
 
-	ret = krb5_digest_set_identifier(context, digest, 
+	ret = krb5_digest_set_identifier(context, digest,
 					 opt->server_identifier_string);
 	if (ret)
 	    krb5_err(context, 1, ret, "krb5_digest_set_type");
@@ -164,13 +168,13 @@ digest_server_request(struct digest_server_request_options *opt,
     if (ret)
 	krb5_err(context, 1, ret, "krb5_digest_set_username");
 
-    ret = krb5_digest_set_server_nonce(context, digest, 
+    ret = krb5_digest_set_server_nonce(context, digest,
 				       opt->server_nonce_string);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_digest_set_server_nonce");
 
     if(opt->client_nonce_string) {
-	ret = krb5_digest_set_client_nonce(context, digest, 
+	ret = krb5_digest_set_client_nonce(context, digest,
 					   opt->client_nonce_string);
 	if (ret)
 	    krb5_err(context, 1, ret, "krb5_digest_set_client_nonce");
@@ -181,7 +185,7 @@ digest_server_request(struct digest_server_request_options *opt,
     if (ret)
 	krb5_err(context, 1, ret, "krb5_digest_set_opaque");
 
-    ret = krb5_digest_set_responseData(context, digest, 
+    ret = krb5_digest_set_responseData(context, digest,
 				       opt->client_response_string);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_digest_set_responseData");
@@ -213,6 +217,8 @@ digest_server_request(struct digest_server_request_options *opt,
 	free(key);
     }
 
+    krb5_digest_free(digest);
+
     return 0;
 }
 
@@ -221,15 +227,19 @@ client_chap(const void *server_nonce, size_t snoncelen,
 	    unsigned char server_identifier,
 	    const char *password)
 {
-    MD5_CTX ctx;
+    EVP_MD_CTX *ctx;
     unsigned char md[MD5_DIGEST_LENGTH];
     char *h;
 
-    MD5_Init(&ctx);
-    MD5_Update(&ctx, &server_identifier, 1);
-    MD5_Update(&ctx, password, strlen(password));
-    MD5_Update(&ctx, server_nonce, snoncelen);
-    MD5_Final(md, &ctx);
+    ctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(ctx, EVP_md5(), NULL);
+
+    EVP_DigestUpdate(ctx, &server_identifier, 1);
+    EVP_DigestUpdate(ctx, password, strlen(password));
+    EVP_DigestUpdate(ctx, server_nonce, snoncelen);
+    EVP_DigestFinal_ex(ctx, md, NULL);
+
+    EVP_MD_CTX_destroy(ctx);
 
     hex_encode(md, 16, &h);
 
@@ -262,27 +272,31 @@ client_mschapv2(const void *server_nonce, size_t snoncelen,
 		const char *username,
 		const char *password)
 {
-    SHA_CTX ctx;
-    MD4_CTX hctx;
-    unsigned char md[SHA_DIGEST_LENGTH], challange[SHA_DIGEST_LENGTH];
+    EVP_MD_CTX *hctx, *ctx;
+    unsigned char md[SHA_DIGEST_LENGTH], challenge[SHA_DIGEST_LENGTH];
     unsigned char hmd[MD4_DIGEST_LENGTH];
     struct ntlm_buf answer;
     int i, len, ret;
     char *h;
 
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, client_nonce, cnoncelen);
-    SHA1_Update(&ctx, server_nonce, snoncelen);
-    SHA1_Update(&ctx, username, strlen(username));
-    SHA1_Final(md, &ctx);
+    ctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
 
-    MD4_Init(&hctx);
+    EVP_DigestUpdate(ctx, client_nonce, cnoncelen);
+    EVP_DigestUpdate(ctx, server_nonce, snoncelen);
+    EVP_DigestUpdate(ctx, username, strlen(username));
+    EVP_DigestFinal_ex(ctx, md, NULL);
+
+
+    hctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(hctx, EVP_md4(), NULL);
     len = strlen(password);
     for (i = 0; i < len; i++) {
-	MD4_Update(&hctx, &password[i], 1);
-	MD4_Update(&hctx, &password[len], 1);
-    }	
-    MD4_Final(hmd, &hctx);
+	EVP_DigestUpdate(hctx, &password[i], 1);
+	EVP_DigestUpdate(hctx, &password[len], 1);
+    }
+    EVP_DigestFinal_ex(hctx, hmd, NULL);
+
 
     /* ChallengeResponse */
     ret = heim_ntlm_calculate_ntlm1(hmd, sizeof(hmd), md, &answer);
@@ -294,51 +308,55 @@ client_mschapv2(const void *server_nonce, size_t snoncelen,
     free(h);
 
     /* PasswordHash */
-    MD4_Init(&hctx);
-    MD4_Update(&hctx, hmd, sizeof(hmd));
-    MD4_Final(hmd, &hctx);
+    EVP_DigestInit_ex(hctx, EVP_md4(), NULL);
+    EVP_DigestUpdate(hctx, hmd, sizeof(hmd));
+    EVP_DigestFinal_ex(hctx, hmd, NULL);
+
 
     /* GenerateAuthenticatorResponse */
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, hmd, sizeof(hmd));
-    SHA1_Update(&ctx, answer.data, answer.length);
-    SHA1_Update(&ctx, ms_chap_v2_magic1, sizeof(ms_chap_v2_magic1));
-    SHA1_Final(md, &ctx);
-    
-    /* ChallengeHash */
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, client_nonce, cnoncelen);
-    SHA1_Update(&ctx, server_nonce, snoncelen);
-    SHA1_Update(&ctx, username, strlen(username));
-    SHA1_Final(challange, &ctx);
+    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
+    EVP_DigestUpdate(ctx, hmd, sizeof(hmd));
+    EVP_DigestUpdate(ctx, answer.data, answer.length);
+    EVP_DigestUpdate(ctx, ms_chap_v2_magic1, sizeof(ms_chap_v2_magic1));
+    EVP_DigestFinal_ex(ctx, md, NULL);
 
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, md, sizeof(md));
-    SHA1_Update(&ctx, challange, 8);
-    SHA1_Update(&ctx, ms_chap_v2_magic2, sizeof(ms_chap_v2_magic2));
-    SHA1_Final(md, &ctx);
+    /* ChallengeHash */
+    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
+    EVP_DigestUpdate(ctx, client_nonce, cnoncelen);
+    EVP_DigestUpdate(ctx, server_nonce, snoncelen);
+    EVP_DigestUpdate(ctx, username, strlen(username));
+    EVP_DigestFinal_ex(ctx, challenge, NULL);
+
+    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
+    EVP_DigestUpdate(ctx, md, sizeof(md));
+    EVP_DigestUpdate(ctx, challenge, 8);
+    EVP_DigestUpdate(ctx, ms_chap_v2_magic2, sizeof(ms_chap_v2_magic2));
+    EVP_DigestFinal_ex(ctx, md, NULL);
 
     hex_encode(md, sizeof(md), &h);
     printf("AuthenticatorResponse=%s\n", h);
     free(h);
 
     /* get_master, rfc 3079 3.4 */
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, hmd, sizeof(hmd));
-    SHA1_Update(&ctx, answer.data, answer.length);
-    SHA1_Update(&ctx, ms_rfc3079_magic1, sizeof(ms_rfc3079_magic1));
-    SHA1_Final(md, &ctx);
+    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
+    EVP_DigestUpdate(ctx, hmd, sizeof(hmd));
+    EVP_DigestUpdate(ctx, answer.data, answer.length);
+    EVP_DigestUpdate(ctx, ms_rfc3079_magic1, sizeof(ms_rfc3079_magic1));
+    EVP_DigestFinal_ex(ctx, md, NULL);
 
     free(answer.data);
 
     hex_encode(md, 16, &h);
     printf("session-key=%s\n", h);
     free(h);
+
+    EVP_MD_CTX_destroy(hctx);
+    EVP_MD_CTX_destroy(ctx);
 }
 
 
 int
-digest_client_request(struct digest_client_request_options *opt, 
+digest_client_request(struct digest_client_request_options *opt,
 		      int argc, char **argv)
 {
     char *server_nonce, *client_nonce = NULL, server_identifier;
@@ -358,7 +376,7 @@ digest_client_request(struct digest_client_request_options *opt,
 	errx(1, "server_nonce");
 
     snoncelen = hex_decode(opt->server_nonce_string, server_nonce, snoncelen);
-    if (snoncelen <= 0) 
+    if (snoncelen <= 0)
 	errx(1, "server nonce wrong");
 
     if (opt->client_nonce_string) {
@@ -366,10 +384,10 @@ digest_client_request(struct digest_client_request_options *opt,
 	client_nonce = malloc(cnoncelen);
 	if (client_nonce == NULL)
 	    errx(1, "client_nonce");
-	
-	cnoncelen = hex_decode(opt->client_nonce_string, 
+
+	cnoncelen = hex_decode(opt->client_nonce_string,
 			       client_nonce, cnoncelen);
-	if (cnoncelen <= 0) 
+	if (cnoncelen <= 0)
 	    errx(1, "client nonce wrong");
     }
 
@@ -385,7 +403,7 @@ digest_client_request(struct digest_client_request_options *opt,
 	if (opt->server_identifier_string == NULL)
 	    errx(1, "server identifier missing");
 
-	client_chap(server_nonce, snoncelen, server_identifier, 
+	client_chap(server_nonce, snoncelen, server_identifier,
 		    opt->password_string);
 
     } else if (strcasecmp(opt->type_string, "MS-CHAP-V2") == 0) {
@@ -395,11 +413,13 @@ digest_client_request(struct digest_client_request_options *opt,
 	    errx(1, "client nonce missing");
 
 	client_mschapv2(server_nonce, snoncelen,
-			client_nonce, cnoncelen, 
+			client_nonce, cnoncelen,
 			opt->username_string,
 			opt->password_string);
     }
-	
+    if (client_nonce)
+	free(client_nonce);
+    free(server_nonce);
 
     return 0;
 }
@@ -413,9 +433,10 @@ ntlm_server_init(struct ntlm_server_init_options *opt,
     krb5_error_code ret;
     krb5_ntlm ntlm;
     struct ntlm_type2 type2;
-    krb5_data challange, opaque;
+    krb5_data challenge, opaque;
     struct ntlm_buf data;
     char *s;
+    static char zero2[] = "\x00\x00";
 
     memset(&type2, 0, sizeof(type2));
 
@@ -423,7 +444,7 @@ ntlm_server_init(struct ntlm_server_init_options *opt,
     if (ret)
 	krb5_err(context, 1, ret, "krb5_ntlm_alloc");
 
-    ret = krb5_ntlm_init_request(context, 
+    ret = krb5_ntlm_init_request(context,
 				 ntlm,
 				 opt->kerberos_realm_string,
 				 id,
@@ -437,29 +458,29 @@ ntlm_server_init(struct ntlm_server_init_options *opt,
      *
      */
 
-    ret = krb5_ntlm_init_get_challange(context, ntlm, &challange);
+    ret = krb5_ntlm_init_get_challange(context, ntlm, &challenge);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_ntlm_init_get_challange");
 
-    if (challange.length != sizeof(type2.challange))
-	krb5_errx(context, 1, "ntlm challange have wrong length");
-    memcpy(type2.challange, challange.data, sizeof(type2.challange));
-    krb5_data_free(&challange);
+    if (challenge.length != sizeof(type2.challenge))
+	krb5_errx(context, 1, "ntlm challenge have wrong length");
+    memcpy(type2.challenge, challenge.data, sizeof(type2.challenge));
+    krb5_data_free(&challenge);
 
     ret = krb5_ntlm_init_get_flags(context, ntlm, &type2.flags);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_ntlm_init_get_flags");
 
     krb5_ntlm_init_get_targetname(context, ntlm, &type2.targetname);
-    type2.targetinfo.data = "\x00\x00";
+    type2.targetinfo.data = zero2;
     type2.targetinfo.length = 2;
-	
+
     ret = heim_ntlm_encode_type2(&type2, &data);
     if (ret)
 	krb5_errx(context, 1, "heim_ntlm_encode_type2");
 
     free(type2.targetname);
-	
+
     /*
      *
      */
@@ -519,7 +540,7 @@ main(int argc, char **argv)
 
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 

@@ -429,7 +429,9 @@ pmcstat_image_get_aout_params(struct pmcstat_image *image)
 
 	if ((fd = open(buffer, O_RDONLY, 0)) < 0 ||
 	    (nbytes = read(fd, &ex, sizeof(ex))) < 0) {
-		warn("WARNING: Cannot determine type of \"%s\"", path);
+		if (args.pa_verbosity >= 2)
+			warn("WARNING: Cannot determine type of \"%s\"",
+			    path);
 		image->pi_type = PMCSTAT_IMAGE_INDETERMINABLE;
 		if (fd != -1)
 			(void) close(fd);
@@ -639,8 +641,9 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	if ((fd = open(buffer, O_RDONLY, 0)) < 0 ||
 	    (e = elf_begin(fd, ELF_C_READ, NULL)) == NULL ||
 	    (elf_kind(e) != ELF_K_ELF)) {
-		warnx("WARNING: Cannot determine the type of \"%s\".",
-		    buffer);
+		if (args.pa_verbosity >= 2)
+			warnx("WARNING: Cannot determine the type of \"%s\".",
+			    buffer);
 		goto done;
 	}
 
@@ -697,8 +700,8 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 				        ph.p_offset);
 				break;
 			case PT_LOAD:
-				if (ph.p_offset == 0)
-					image->pi_vaddr = ph.p_vaddr;
+				if ((ph.p_offset & (-ph.p_align)) == 0)
+					image->pi_vaddr = ph.p_vaddr & (-ph.p_align);
 				break;
 			}
 		}
@@ -946,6 +949,7 @@ pmcstat_image_addr2line(struct pmcstat_image *image, uintfptr_t addr,
     char *funcname, size_t funcname_len)
 {
 	static int addr2line_warn = 0;
+	unsigned l;
 
 	char *sep, cmdline[PATH_MAX], imagepath[PATH_MAX];
 	int fd;
@@ -961,6 +965,11 @@ pmcstat_image_addr2line(struct pmcstat_image *image, uintfptr_t addr,
 			    pmcstat_string_unintern(image->pi_fullpath));
 		} else
 			close(fd);
+		/*
+		 * New addr2line support recursive inline function with -i
+		 * but the format does not add a marker when no more entries
+		 * are available.
+		 */
 		snprintf(cmdline, sizeof(cmdline), "addr2line -Cfe \"%s\"",
 		    imagepath);
 		image->pi_addr2line = popen(cmdline, "r+");
@@ -1002,10 +1011,10 @@ pmcstat_image_addr2line(struct pmcstat_image *image, uintfptr_t addr,
 		return (0);
 	}
 	*sep = '\0';
-	*sourceline = atoi(sep+1);
-	if (*sourceline == 0)
+	l = atoi(sep+1);
+	if (l == 0)
 		return (0);
-
+	*sourceline = l;
 	return (1);
 }
 
@@ -1482,6 +1491,15 @@ pmcstat_analyze_log(void)
 			    pmcstat_string_intern(ev.pl_u.pl_a.pl_evname));
 			break;
 
+		case PMCLOG_TYPE_PMCALLOCATEDYN:
+			/*
+			 * Record the association pmc id between this
+			 * PMC and its name.
+			 */
+			pmcstat_pmcid_add(ev.pl_u.pl_ad.pl_pmcid,
+			    pmcstat_string_intern(ev.pl_u.pl_ad.pl_evname));
+			break;
+
 		case PMCLOG_TYPE_PROCEXEC:
 
 			/*
@@ -1631,6 +1649,12 @@ pmcstat_print_log(void)
 			    ev.pl_u.pl_a.pl_pmcid,
 			    ev.pl_u.pl_a.pl_evname,
 			    ev.pl_u.pl_a.pl_flags);
+			break;
+		case PMCLOG_TYPE_PMCALLOCATEDYN:
+			PMCSTAT_PRINT_ENTRY("allocatedyn","0x%x \"%s\" 0x%x",
+			    ev.pl_u.pl_ad.pl_pmcid,
+			    ev.pl_u.pl_ad.pl_evname,
+			    ev.pl_u.pl_ad.pl_flags);
 			break;
 		case PMCLOG_TYPE_PMCATTACH:
 			PMCSTAT_PRINT_ENTRY("attach","0x%x %d \"%s\"",

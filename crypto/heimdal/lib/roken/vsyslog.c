@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,10 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: vsyslog.c 14773 2005-04-12 11:29:18Z lha $");
-#endif
 
 #ifndef HAVE_VSYSLOG
 
@@ -61,12 +58,13 @@ simple_vsyslog(int pri, const char *fmt, va_list ap)
  * do like syslog but with a `va_list'
  */
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 vsyslog(int pri, const char *fmt, va_list ap)
 {
     char *fmt2;
     const char *p;
     char *p2;
+    int ret;
     int saved_errno = errno;
     int fmt_len  = strlen (fmt);
     int fmt2_len = fmt_len;
@@ -103,9 +101,9 @@ vsyslog(int pri, const char *fmt, va_list ap)
     }
     *p2 = '\0';
 
-    vasprintf (&buf, fmt2, ap);
+    ret = vasprintf (&buf, fmt2, ap);
     free (fmt2);
-    if (buf == NULL) {
+    if (ret < 0 || buf == NULL) {
 	simple_vsyslog (pri, fmt, ap);
 	return;
     }

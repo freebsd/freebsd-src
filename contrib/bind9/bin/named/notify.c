@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: notify.c,v 1.37 2007-06-19 23:46:59 tbox Exp $ */
+/* $Id: notify.c,v 1.37 2007/06/19 23:46:59 tbox Exp $ */
 
 #include <config.h>
 

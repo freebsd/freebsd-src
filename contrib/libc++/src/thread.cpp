@@ -12,7 +12,7 @@
 #include "vector"
 #include "future"
 #include <sys/types.h>
-#if !_WIN32
+#if !_WIN32 && !__sun__
 #include <sys/sysctl.h>
 #endif // _WIN32
 
@@ -55,7 +55,7 @@ unsigned
 thread::hardware_concurrency()
 {
 #if defined(CTL_HW) && defined(HW_NCPU)
-    int n;
+    unsigned n;
     int mib[2] = {CTL_HW, HW_NCPU};
     std::size_t s = sizeof(n);
     sysctl(mib, 2, &n, &s, 0, 0);

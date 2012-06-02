@@ -30,6 +30,3 @@ options 	NATIVE
 device		atpic
 
 options 	NEW_PCIB
-
-# Allow mounting non-MPSAFE filesystems
-options		VFS_ALLOW_NONMPSAFE

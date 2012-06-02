@@ -476,7 +476,7 @@ msdosfs_setattr(ap)
 			 */
 			break;
 		}
-		error = detrunc(dep, vap->va_size, 0, cred, td);
+		error = detrunc(dep, vap->va_size, 0, cred);
 		if (error)
 			return error;
 	}
@@ -835,11 +835,11 @@ msdosfs_write(ap)
 errexit:
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			detrunc(dep, osize, ioflag & IO_SYNC, NOCRED, NULL);
+			detrunc(dep, osize, ioflag & IO_SYNC, NOCRED);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		} else {
-			detrunc(dep, dep->de_FileSize, ioflag & IO_SYNC, NOCRED, NULL);
+			detrunc(dep, dep->de_FileSize, ioflag & IO_SYNC, NOCRED);
 			if (uio->uio_resid != resid)
 				error = 0;
 		}
@@ -1429,7 +1429,6 @@ msdosfs_rmdir(ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
 	struct denode *ip, *dp;
-	struct thread *td = cnp->cn_thread;
 	int error;
 
 	ip = VTODE(vp);
@@ -1467,7 +1466,7 @@ msdosfs_rmdir(ap)
 	/*
 	 * Truncate the directory that is being deleted.
 	 */
-	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, td);
+	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred);
 	cache_purge(vp);
 
 out:

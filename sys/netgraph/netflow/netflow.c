@@ -630,7 +630,7 @@ ng_netflow_cache_flush(priv_p priv)
 		free(priv->hash6, M_NETFLOW_HASH);
 #endif
 
-	for (i = 0; i < RT_NUMFIBS; i++) {
+	for (i = 0; i < priv->maxfibs; i++) {
 		if ((fe = priv_to_fib(priv, i)) == NULL)
 			continue;
 

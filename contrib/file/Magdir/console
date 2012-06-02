@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: console,v 1.18 2010/09/20 19:19:17 rrt Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 #    ines:  file(1) magic for Marat's iNES Nintendo Entertainment System
@@ -163,9 +165,13 @@
 # Atari Lynx cartridge dump (EXE/BLL header)
 # From: "Stefan A. Haubenthal" <polluks@web.de>
 
-0	beshort		0x8008		Lynx cartridge,
->2	beshort		x		RAM start $%04x
->6	string		BS93
+# Double-check that the image type matches too, 0x8008 conflicts with
+# 8 character OMF-86 object file headers.
+0	beshort		0x8008		
+>6	string		BS93		Lynx homebrew cartridge
+>>2	beshort		x		\b, RAM start $%04x
+>6	string		LYNX		Lynx cartridge
+>>2	beshort		x		\b, RAM start $%04x
 
 # Opera file system that is used on the 3DO console
 # From: Serge van den Boom <svdb@stack.nl>
@@ -252,3 +258,7 @@
 >>>(0x18.l-26)	lelong		x	CRC32 0x%08x
 >>>(0x18.l-23)	string		x	"%s"
 
+# Type: scummVM savegame files
+# From: Sven Hartge <debian@ds9.argh.org>
+0	string	SCVM	ScummVM savegame
+>12	string	>\0	"%s"

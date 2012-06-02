@@ -21,6 +21,12 @@ options		GEOM_PART_BSD
 options		GEOM_PART_MBR
 options		MSDOSFS
 
+# For etherswitch support
+options		ARGE_MDIO
+device		miiproxy
+device		etherswitch
+device		arswitch
+
 # Boot off of flash
 options		ROOTDEVNAME=\"ufs:redboot/rootfs.uzip\"
 

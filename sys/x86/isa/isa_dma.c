@@ -237,8 +237,6 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	caddr_t newaddr;
 	int dma_range_checked;
 
-	/* translate to physical */
-	phys = pmap_extract(kernel_pmap, (vm_offset_t)addr);
 	dma_range_checked = isa_dmarangecheck(addr, nbytes, chan);
 
 #ifdef DIAGNOSTIC
@@ -280,6 +278,9 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 			bcopy(addr, newaddr, nbytes);
 		addr = newaddr;
 	}
+
+	/* translate to physical */
+	phys = pmap_extract(kernel_pmap, (vm_offset_t)addr);
 
 	if (flags & ISADMA_RAW) {
 	    dma_auto_mode |= (1 << chan);

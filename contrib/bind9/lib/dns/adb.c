@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.254.14.4 2011-03-13 03:36:47 marka Exp $ */
+/* $Id$ */
 
 /*! \file
  *
@@ -254,6 +254,7 @@ struct dns_adbentry {
 
 	ISC_LIST(dns_adblameinfo_t)     lameinfo;
 	ISC_LINK(dns_adbentry_t)        plink;
+
 };
 
 /*

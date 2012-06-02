@@ -2309,6 +2309,11 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 	/* reply to a read command */
 	default:
 		dlen = hdr->len - sizeof(*hdr);
+		if (dlen < 0) {
+			device_printf(sc->sc_dev,
+			    "Invalid header length %d\n", dlen);
+			return;
+		}
 		DPRINTF(sc, UATH_DEBUG_RX_PROC | UATH_DEBUG_RECV_ALL,
 		    "%s: code %d data len %u\n",
 		    __func__, hdr->code & 0xff, dlen);
@@ -2334,7 +2339,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			 * number of bytes--unless it's 0 in which
 			 * case a single 32-bit word should be present.
 			 */
-			if (dlen >= sizeof(uint32_t)) {
+			if (dlen >= (int)sizeof(uint32_t)) {
 				olen = be32toh(rp[0]);
 				dlen -= sizeof(uint32_t);
 				if (olen == 0) {
@@ -2346,7 +2351,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 				olen = 0;
 			if (cmd->odata != NULL) {
 				/* NB: cmd->olen validated in uath_cmd */
-				if (olen > cmd->olen) {
+				if (olen > (u_int)cmd->olen) {
 					/* XXX complain? */
 					device_printf(sc->sc_dev,
 					    "%s: cmd 0x%x olen %u cmd olen %u\n",
@@ -2354,7 +2359,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 					    cmd->olen);
 					olen = cmd->olen;
 				}
-				if (olen > dlen) {
+				if (olen > (u_int)dlen) {
 					/* XXX complain, shouldn't happen */
 					device_printf(sc->sc_dev,
 					    "%s: cmd 0x%x olen %u dlen %u\n",
@@ -2376,7 +2381,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			return;
 		}
 		dlen = hdr->len - sizeof(*hdr);
-		if (dlen != sizeof(uint32_t)) {
+		if (dlen != (int)sizeof(uint32_t)) {
 			/* XXX something wrong */
 			return;
 		}
@@ -2423,7 +2428,7 @@ uath_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		STAILQ_INSERT_TAIL(&sc->sc_cmd_inactive, cmd, next);
 		UATH_STAT_INC(sc, st_cmd_inactive);
 
-		KASSERT(actlen >= sizeof(struct uath_cmd_hdr),
+		KASSERT(actlen >= (int)sizeof(struct uath_cmd_hdr),
 		    ("short xfer error"));
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, cmd->buf, actlen);
@@ -2542,7 +2547,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
-	if (actlen < UATH_MIN_RXBUFSZ) {
+	if (actlen < (int)UATH_MIN_RXBUFSZ) {
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
 		    "%s: wrong xfer size (len=%d)\n", __func__, actlen);
 		ifp->if_ierrors++;
@@ -2888,9 +2893,9 @@ static device_method_t uath_methods[] = {
 	{ 0, 0 }
 };
 static driver_t uath_driver = {
-	"uath",
-	uath_methods,
-	sizeof(struct uath_softc)
+	.name = "uath",
+	.methods = uath_methods,
+	.size = sizeof(struct uath_softc)
 };
 static devclass_t uath_devclass;
 

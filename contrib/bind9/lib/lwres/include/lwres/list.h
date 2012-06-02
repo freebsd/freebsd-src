@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: list.h,v 1.14 2007-06-19 23:47:23 tbox Exp $ */
+/* $Id: list.h,v 1.14 2007/06/19 23:47:23 tbox Exp $ */
 
 #ifndef LWRES_LIST_H
 #define LWRES_LIST_H 1

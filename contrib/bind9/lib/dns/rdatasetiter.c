@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatasetiter.c,v 1.16 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: rdatasetiter.c,v 1.16 2007/06/19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

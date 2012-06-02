@@ -13,14 +13,15 @@
 
 #include "llvm/Object/Archive.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 using namespace llvm;
 using namespace object;
 
-namespace {
-const StringRef Magic = "!<arch>\n";
+static const char *Magic = "!<arch>\n";
 
+namespace {
 struct ArchiveMemberHeader {
   char Name[16];
   char LastModified[12];
@@ -32,7 +33,11 @@ struct ArchiveMemberHeader {
 
   ///! Get the name without looking up long names.
   StringRef getName() const {
-    char EndCond = Name[0] == '/' ? ' ' : '/';
+    char EndCond;
+    if (Name[0] == '/' || Name[0] == '#')
+      EndCond = ' ';
+    else
+      EndCond = '/';
     StringRef::size_type end = StringRef(Name, sizeof(Name)).find(EndCond);
     if (end == StringRef::npos)
       end = sizeof(Name);
@@ -47,11 +52,29 @@ struct ArchiveMemberHeader {
     return ret.getZExtValue();
   }
 };
+}
 
-const ArchiveMemberHeader *ToHeader(const char *base) {
+static const ArchiveMemberHeader *ToHeader(const char *base) {
   return reinterpret_cast<const ArchiveMemberHeader *>(base);
 }
+
+
+static bool isInternalMember(const ArchiveMemberHeader &amh) {
+  const char *internals[] = {
+    "/",
+    "//",
+    "#_LLVM_SYM_TAB_#"
+    };
+
+  StringRef name = amh.getName();
+  for (std::size_t i = 0; i < sizeof(internals) / sizeof(*internals); ++i) {
+    if (name == internals[i])
+      return true;
+  }
+  return false;
 }
+
+void Archive::anchor() { }
 
 Archive::Child Archive::Child::getNext() const {
   size_t SpaceToSkip = sizeof(ArchiveMemberHeader) +
@@ -101,6 +124,11 @@ error_code Archive::Child::getName(StringRef &Result) const {
       return object_error::parse_failed;
     Result = addr;
     return object_error::success;
+  } else if (name.startswith("#1/")) {
+    APInt name_size;
+    name.substr(3).getAsInteger(10, name_size);
+    Result = Data.substr(0, name_size.getZExtValue());
+    return object_error::success;
   }
   // It's a simple name.
   if (name[name.size() - 1] == '/')
@@ -111,14 +139,27 @@ error_code Archive::Child::getName(StringRef &Result) const {
 }
 
 uint64_t Archive::Child::getSize() const {
-  return ToHeader(Data.data())->getSize();
+  uint64_t size = ToHeader(Data.data())->getSize();
+  // Don't include attached name.
+  StringRef name =  ToHeader(Data.data())->getName();
+  if (name.startswith("#1/")) {
+    APInt name_size;
+    name.substr(3).getAsInteger(10, name_size);
+    size -= name_size.getZExtValue();
+  }
+  return size;
 }
 
 MemoryBuffer *Archive::Child::getBuffer() const {
   StringRef name;
   if (getName(name)) return NULL;
-  return MemoryBuffer::getMemBuffer(Data.substr(sizeof(ArchiveMemberHeader),
-                                                getSize()),
+  int size = sizeof(ArchiveMemberHeader);
+  if (name.startswith("#1/")) {
+    APInt name_size;
+    name.substr(3).getAsInteger(10, name_size);
+    size += name_size.getZExtValue();
+  }
+  return MemoryBuffer::getMemBuffer(Data.substr(size, getSize()),
                                     name,
                                     false);
 }
@@ -133,8 +174,7 @@ error_code Archive::Child::getAsBinary(OwningPtr<Binary> &Result) const {
 }
 
 Archive::Archive(MemoryBuffer *source, error_code &ec)
-  : Binary(Binary::isArchive, source)
-  , StringTable(Child(this, StringRef(0, 0))) {
+  : Binary(Binary::ID_Archive, source) {
   // Check for sufficient magic.
   if (!source || source->getBufferSize()
                  < (8 + sizeof(ArchiveMemberHeader) + 2) // Smallest archive.
@@ -143,30 +183,90 @@ Archive::Archive(MemoryBuffer *source, error_code &ec)
     return;
   }
 
-  // Get the string table. It's the 3rd member.
-  child_iterator StrTable = begin_children();
+  // Get the special members.
+  child_iterator i = begin_children(false);
   child_iterator e = end_children();
-  for (int i = 0; StrTable != e && i < 2; ++StrTable, ++i) {}
 
-  // Check to see if there were 3 members, or the 3rd member wasn't named "//".
-  StringRef name;
-  if (StrTable != e && !StrTable->getName(name) && name == "//")
-    StringTable = StrTable;
+  if (i != e) ++i; // Nobody cares about the first member.
+  if (i != e) {
+    SymbolTable = i;
+    ++i;
+  }
+  if (i != e) {
+    StringTable = i;
+  }
 
   ec = object_error::success;
 }
 
-Archive::child_iterator Archive::begin_children() const {
-  const char *Loc = Data->getBufferStart() + Magic.size();
+Archive::child_iterator Archive::begin_children(bool skip_internal) const {
+  const char *Loc = Data->getBufferStart() + strlen(Magic);
   size_t Size = sizeof(ArchiveMemberHeader) +
     ToHeader(Loc)->getSize();
-  return Child(this, StringRef(Loc, Size));
+  Child c(this, StringRef(Loc, Size));
+  // Skip internals at the beginning of an archive.
+  if (skip_internal && isInternalMember(*ToHeader(Loc)))
+    return c.getNext();
+  return c;
 }
 
 Archive::child_iterator Archive::end_children() const {
   return Child(this, StringRef(0, 0));
 }
 
-namespace llvm {
+error_code Archive::Symbol::getName(StringRef &Result) const {
+  Result =
+    StringRef(Parent->SymbolTable->getBuffer()->getBufferStart() + StringIndex);
+  return object_error::success;
+}
 
-} // end namespace llvm
+error_code Archive::Symbol::getMember(child_iterator &Result) const {
+  const char *buf = Parent->SymbolTable->getBuffer()->getBufferStart();
+  uint32_t member_count = *reinterpret_cast<const support::ulittle32_t*>(buf);
+  const char *offsets = buf + 4;
+  buf += 4 + (member_count * 4); // Skip offsets.
+  const char *indicies = buf + 4;
+
+  uint16_t offsetindex =
+    *(reinterpret_cast<const support::ulittle16_t*>(indicies)
+      + SymbolIndex);
+
+  uint32_t offset = *(reinterpret_cast<const support::ulittle32_t*>(offsets)
+                      + (offsetindex - 1));
+
+  const char *Loc = Parent->getData().begin() + offset;
+  size_t Size = sizeof(ArchiveMemberHeader) +
+    ToHeader(Loc)->getSize();
+  Result = Child(Parent, StringRef(Loc, Size));
+
+  return object_error::success;
+}
+
+Archive::Symbol Archive::Symbol::getNext() const {
+  Symbol t(*this);
+  // Go to one past next null.
+  t.StringIndex =
+    Parent->SymbolTable->getBuffer()->getBuffer().find('\0', t.StringIndex) + 1;
+  ++t.SymbolIndex;
+  return t;
+}
+
+Archive::symbol_iterator Archive::begin_symbols() const {
+  const char *buf = SymbolTable->getBuffer()->getBufferStart();
+  uint32_t member_count = *reinterpret_cast<const support::ulittle32_t*>(buf);
+  buf += 4 + (member_count * 4); // Skip offsets.
+  uint32_t symbol_count = *reinterpret_cast<const support::ulittle32_t*>(buf);
+  buf += 4 + (symbol_count * 2); // Skip indices.
+  uint32_t string_start_offset =
+    buf - SymbolTable->getBuffer()->getBufferStart();
+  return symbol_iterator(Symbol(this, 0, string_start_offset));
+}
+
+Archive::symbol_iterator Archive::end_symbols() const {
+  const char *buf = SymbolTable->getBuffer()->getBufferStart();
+  uint32_t member_count = *reinterpret_cast<const support::ulittle32_t*>(buf);
+  buf += 4 + (member_count * 4); // Skip offsets.
+  uint32_t symbol_count = *reinterpret_cast<const support::ulittle32_t*>(buf);
+  return symbol_iterator(
+    Symbol(this, symbol_count, 0));
+}

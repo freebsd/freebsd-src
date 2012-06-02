@@ -115,6 +115,9 @@ kproc_create(void (*func)(void *), void *arg,
 	va_start(ap, fmt);
 	vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 	va_end(ap);
+#ifdef KTR
+	sched_clear_tdname(td);
+#endif
 
 	/* call the processes' main()... */
 	cpu_set_fork_handler(td, func, arg);
@@ -268,7 +271,6 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
-/* XXX check if we should zero. */
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 
@@ -292,7 +294,6 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	/* this code almost the same as create_thread() in kern_thr.c */
 	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
-	newtd->td_sigmask = oldtd->td_sigmask; /* XXX dubious */
 	thread_link(newtd, p);
 	thread_lock(oldtd);
 	/* let the scheduler know about these things. */
@@ -453,6 +454,9 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 		va_start(ap, fmt);
 		vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 		va_end(ap);
+#ifdef KTR
+		sched_clear_tdname(td);
+#endif
 		return (0); 
 	}
 	va_start(ap, fmt);

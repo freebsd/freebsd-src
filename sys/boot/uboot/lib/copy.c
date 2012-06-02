@@ -29,32 +29,64 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <stdint.h>
+
+#include "api_public.h"
+#include "glue.h"
 
 /*
  * MD primitives supporting placement of module data 
- *
- * XXX should check load address/size against memory top.
  */
+
+void *
+uboot_vm_translate(vm_offset_t o) {
+	struct sys_info *si;
+	static uintptr_t start = 0;
+	static size_t size = 0;
+	int i;
+
+	if (size == 0) {
+		if ((si = ub_get_sys_info()) == NULL)
+			panic("could not retrieve system info");
+
+		/* Find start/size of largest DRAM block. */
+		for (i = 0; i < si->mr_no; i++) {
+			if (si->mr[i].flags == MR_ATTR_DRAM
+			    && si->mr[i].size > size) {
+				start = si->mr[i].start;
+				size = si->mr[i].size;
+			}
+		}
+
+		if (size <= 0)
+			panic("No suitable DRAM?\n");
+		/*
+		printf("Loading into memory region 0x%08X-0x%08X (%d MiB)\n",
+		    start, start + size, size / 1024 / 1024);
+		*/
+	}
+	if (o > size)
+		panic("Address 0x%08jX bigger than size 0x%08X\n",
+		      (intmax_t)o, size);
+	return (void *)(start + o);
+}
 
 ssize_t
 uboot_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
-
-	bcopy(src, (void *)dest, len);
+	bcopy(src, uboot_vm_translate(dest), len);
 	return (len);
 }
 
 ssize_t
 uboot_copyout(const vm_offset_t src, void *dest, const size_t len)
 {
-
-	bcopy((void *)src, dest, len);
+	bcopy(uboot_vm_translate(src), dest, len);
 	return (len);
 }
 
 ssize_t
 uboot_readin(const int fd, vm_offset_t dest, const size_t len)
 {
-
-	return (read(fd, (void *) dest, len));
+	return (read(fd, uboot_vm_translate(dest), len));
 }

@@ -51,20 +51,11 @@ public:
 /// StringMapImpl - This is the base class of StringMap that is shared among
 /// all of its instantiations.
 class StringMapImpl {
-public:
-  /// ItemBucket - The hash table consists of an array of these.  If Item is
-  /// non-null, this is an extant entry, otherwise, it is a hole.
-  struct ItemBucket {
-    /// FullHashValue - This remembers the full hash value of the key for
-    /// easy scanning.
-    unsigned FullHashValue;
-
-    /// Item - This is a pointer to the actual item object.
-    StringMapEntryBase *Item;
-  };
-
 protected:
-  ItemBucket *TheTable;
+  // Array of NumBuckets pointers to entries, null pointers are holes.
+  // TheTable[NumBuckets] contains a sentinel value for easy iteration. Follwed
+  // by an array of the actual hash values as unsigned integers.
+  StringMapEntryBase **TheTable;
   unsigned NumBuckets;
   unsigned NumItems;
   unsigned NumTombstones;
@@ -238,8 +229,9 @@ public:
 template<typename ValueTy, typename AllocatorTy = MallocAllocator>
 class StringMap : public StringMapImpl {
   AllocatorTy Allocator;
-  typedef StringMapEntry<ValueTy> MapEntryTy;
 public:
+  typedef StringMapEntry<ValueTy> MapEntryTy;
+  
   StringMap() : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))) {}
   explicit StringMap(unsigned InitialSize)
     : StringMapImpl(InitialSize, static_cast<unsigned>(sizeof(MapEntryTy))) {}
@@ -247,7 +239,7 @@ public:
   explicit StringMap(AllocatorTy A)
     : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))), Allocator(A) {}
 
-  explicit StringMap(const StringMap &RHS)
+  StringMap(const StringMap &RHS)
     : StringMapImpl(static_cast<unsigned>(sizeof(MapEntryTy))) {
     assert(RHS.empty() &&
            "Copy ctor from non-empty stringmap not implemented yet!");
@@ -289,13 +281,13 @@ public:
   iterator find(StringRef Key) {
     int Bucket = FindKey(Key);
     if (Bucket == -1) return end();
-    return iterator(TheTable+Bucket);
+    return iterator(TheTable+Bucket, true);
   }
 
   const_iterator find(StringRef Key) const {
     int Bucket = FindKey(Key);
     if (Bucket == -1) return end();
-    return const_iterator(TheTable+Bucket);
+    return const_iterator(TheTable+Bucket, true);
   }
 
    /// lookup - Return the entry for the specified key, or a default
@@ -320,13 +312,13 @@ public:
   /// insert it and return true.
   bool insert(MapEntryTy *KeyValue) {
     unsigned BucketNo = LookupBucketFor(KeyValue->getKey());
-    ItemBucket &Bucket = TheTable[BucketNo];
-    if (Bucket.Item && Bucket.Item != getTombstoneVal())
+    StringMapEntryBase *&Bucket = TheTable[BucketNo];
+    if (Bucket && Bucket != getTombstoneVal())
       return false;  // Already exists in map.
 
-    if (Bucket.Item == getTombstoneVal())
+    if (Bucket == getTombstoneVal())
       --NumTombstones;
-    Bucket.Item = KeyValue;
+    Bucket = KeyValue;
     ++NumItems;
     assert(NumItems + NumTombstones <= NumBuckets);
 
@@ -340,10 +332,11 @@ public:
 
     // Zap all values, resetting the keys back to non-present (not tombstone),
     // which is safe because we're removing all elements.
-    for (ItemBucket *I = TheTable, *E = TheTable+NumBuckets; I != E; ++I) {
-      if (I->Item && I->Item != getTombstoneVal()) {
-        static_cast<MapEntryTy*>(I->Item)->Destroy(Allocator);
-        I->Item = 0;
+    for (unsigned I = 0, E = NumBuckets; I != E; ++I) {
+      StringMapEntryBase *&Bucket = TheTable[I];
+      if (Bucket && Bucket != getTombstoneVal()) {
+        static_cast<MapEntryTy*>(Bucket)->Destroy(Allocator);
+        Bucket = 0;
       }
     }
 
@@ -357,21 +350,21 @@ public:
   template <typename InitTy>
   MapEntryTy &GetOrCreateValue(StringRef Key, InitTy Val) {
     unsigned BucketNo = LookupBucketFor(Key);
-    ItemBucket &Bucket = TheTable[BucketNo];
-    if (Bucket.Item && Bucket.Item != getTombstoneVal())
-      return *static_cast<MapEntryTy*>(Bucket.Item);
+    StringMapEntryBase *&Bucket = TheTable[BucketNo];
+    if (Bucket && Bucket != getTombstoneVal())
+      return *static_cast<MapEntryTy*>(Bucket);
 
     MapEntryTy *NewItem =
       MapEntryTy::Create(Key.begin(), Key.end(), Allocator, Val);
 
-    if (Bucket.Item == getTombstoneVal())
+    if (Bucket == getTombstoneVal())
       --NumTombstones;
     ++NumItems;
     assert(NumItems + NumTombstones <= NumBuckets);
 
     // Fill in the bucket for the hash table.  The FullHashValue was already
     // filled in by LookupBucketFor.
-    Bucket.Item = NewItem;
+    Bucket = NewItem;
 
     RehashTable();
     return *NewItem;
@@ -410,21 +403,21 @@ public:
 template<typename ValueTy>
 class StringMapConstIterator {
 protected:
-  StringMapImpl::ItemBucket *Ptr;
+  StringMapEntryBase **Ptr;
 public:
   typedef StringMapEntry<ValueTy> value_type;
 
-  explicit StringMapConstIterator(StringMapImpl::ItemBucket *Bucket,
+  explicit StringMapConstIterator(StringMapEntryBase **Bucket,
                                   bool NoAdvance = false)
   : Ptr(Bucket) {
     if (!NoAdvance) AdvancePastEmptyBuckets();
   }
 
   const value_type &operator*() const {
-    return *static_cast<StringMapEntry<ValueTy>*>(Ptr->Item);
+    return *static_cast<StringMapEntry<ValueTy>*>(*Ptr);
   }
   const value_type *operator->() const {
-    return static_cast<StringMapEntry<ValueTy>*>(Ptr->Item);
+    return static_cast<StringMapEntry<ValueTy>*>(*Ptr);
   }
 
   bool operator==(const StringMapConstIterator &RHS) const {
@@ -445,7 +438,7 @@ public:
 
 private:
   void AdvancePastEmptyBuckets() {
-    while (Ptr->Item == 0 || Ptr->Item == StringMapImpl::getTombstoneVal())
+    while (*Ptr == 0 || *Ptr == StringMapImpl::getTombstoneVal())
       ++Ptr;
   }
 };
@@ -453,15 +446,15 @@ private:
 template<typename ValueTy>
 class StringMapIterator : public StringMapConstIterator<ValueTy> {
 public:
-  explicit StringMapIterator(StringMapImpl::ItemBucket *Bucket,
+  explicit StringMapIterator(StringMapEntryBase **Bucket,
                              bool NoAdvance = false)
     : StringMapConstIterator<ValueTy>(Bucket, NoAdvance) {
   }
   StringMapEntry<ValueTy> &operator*() const {
-    return *static_cast<StringMapEntry<ValueTy>*>(this->Ptr->Item);
+    return *static_cast<StringMapEntry<ValueTy>*>(*this->Ptr);
   }
   StringMapEntry<ValueTy> *operator->() const {
-    return static_cast<StringMapEntry<ValueTy>*>(this->Ptr->Item);
+    return static_cast<StringMapEntry<ValueTy>*>(*this->Ptr);
   }
 };
 

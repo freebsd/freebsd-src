@@ -19,4 +19,8 @@ _dtruss=	dtruss
 _lockstat=	lockstat
 .endif
 
+.if ${MACHINE_CPUARCH} == "mips"
+_dtrace=	dtrace
+.endif
+
 .include <bsd.subdir.mk>

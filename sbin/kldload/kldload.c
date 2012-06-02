@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define	PATHCTL	"kern.module_path"
 
@@ -129,7 +130,7 @@ path_check(const char *kldname, int quiet)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: kldload [-qv] file ...\n");
+	fprintf(stderr, "usage: kldload [-nqv] file ...\n");
 	exit(1);
 }
 
@@ -141,12 +142,14 @@ main(int argc, char** argv)
 	int fileid;
 	int verbose;
 	int quiet;
+	int check_loaded;
 
 	errors = 0;
 	verbose = 0;
 	quiet = 0;
+	check_loaded = 0;
     
-	while ((c = getopt(argc, argv, "qv")) != -1) {
+	while ((c = getopt(argc, argv, "nqv")) != -1) {
 		switch (c) {
 		case 'q':
 			quiet = 1;
@@ -155,6 +158,9 @@ main(int argc, char** argv)
 		case 'v':
 			verbose = 1;
 			quiet = 0;
+			break;
+		case 'n':
+			check_loaded = 1;
 			break;
 		default:
 			usage();
@@ -170,8 +176,14 @@ main(int argc, char** argv)
 		if (path_check(argv[0], quiet) == 0) {
 			fileid = kldload(argv[0]);
 			if (fileid < 0) {
-				warn("can't load %s", argv[0]);
-				errors++;
+				if (check_loaded != 0 && errno == EEXIST) {
+					if (verbose)
+						printf("%s is already "
+						    "loaded\n", argv[0]);
+				} else {
+					warn("can't load %s", argv[0]);
+					errors++;
+				}
 			} else {
 				if (verbose)
 					printf("Loaded %s, id=%d\n", argv[0],

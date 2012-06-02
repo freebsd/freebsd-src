@@ -270,6 +270,8 @@ void swap(vector<T,Allocator>& x, vector<T,Allocator>& y)
 #include <__split_buffer>
 #include <__functional_base>
 
+#include <__undef_min_max>
+
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
@@ -364,7 +366,7 @@ protected:
 
     _LIBCPP_INLINE_VISIBILITY
     void __destruct_at_end(const_pointer __new_last) _NOEXCEPT
-        {__destruct_at_end(__new_last, is_trivially_destructible<value_type>());}
+        {__destruct_at_end(__new_last, false_type());}
     _LIBCPP_INLINE_VISIBILITY
     void __destruct_at_end(const_pointer __new_last, false_type) _NOEXCEPT;
     _LIBCPP_INLINE_VISIBILITY
@@ -404,7 +406,7 @@ private:
         }
 
     _LIBCPP_INLINE_VISIBILITY
-    void __copy_assign_alloc(const __vector_base& __c, false_type)
+    void __copy_assign_alloc(const __vector_base&, false_type)
         {}
 
     _LIBCPP_INLINE_VISIBILITY
@@ -415,7 +417,7 @@ private:
         }
 
     _LIBCPP_INLINE_VISIBILITY
-    void __move_assign_alloc(__vector_base& __c, false_type)
+    void __move_assign_alloc(__vector_base&, false_type)
         _NOEXCEPT
         {}
 
@@ -427,7 +429,7 @@ private:
             swap(__x, __y);
         }
     _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(allocator_type& __x, allocator_type& __y, false_type)
+    static void __swap_alloc(allocator_type&, allocator_type&, false_type)
         _NOEXCEPT
         {}
 };
@@ -437,7 +439,7 @@ _LIBCPP_INLINE_VISIBILITY inline
 void
 __vector_base<_Tp, _Allocator>::__destruct_at_end(const_pointer __new_last, false_type) _NOEXCEPT
 {
-    while (__new_last < __end_)
+    while (__new_last != __end_)
         __alloc_traits::destroy(__alloc(), const_cast<pointer>(--__end_));
 }
 
@@ -674,7 +676,7 @@ public:
 
     _LIBCPP_INLINE_VISIBILITY void push_back(const_reference __x);
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-    void push_back(value_type&& __x);
+    _LIBCPP_INLINE_VISIBILITY void push_back(value_type&& __x);
 #ifndef _LIBCPP_HAS_NO_VARIADICS
     template <class... _Args>
         void emplace_back(_Args&&... __args);
@@ -787,14 +789,25 @@ private:
 #endif
         __base::__destruct_at_end(__new_last);
     }
+    template <class _Up>
+        void
+#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+        __push_back_slow_path(_Up&& __x);
+#else
+        __push_back_slow_path(_Up& __x);
+#endif
+#if !defined(_LIBCPP_HAS_NO_VARIADICS) && !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES)
+    template <class... _Args>
+        void
+        __emplace_back_slow_path(_Args&&... __args);
+#endif
 };
 
 template <class _Tp, class _Allocator>
 void
 vector<_Tp, _Allocator>::__swap_out_circular_buffer(__split_buffer<value_type, allocator_type&>& __v)
 {
-    for (pointer __p = this->__end_; this->__begin_ < __p;)
-        __v.push_front(_VSTD::move_if_noexcept(*--__p));
+    __alloc_traits::__construct_backward(this->__alloc(), this->__begin_, this->__end_, __v.__begin_);
     _VSTD::swap(this->__begin_, __v.__begin_);
     _VSTD::swap(this->__end_, __v.__end_);
     _VSTD::swap(this->__end_cap(), __v.__end_cap());
@@ -807,10 +820,8 @@ typename vector<_Tp, _Allocator>::pointer
 vector<_Tp, _Allocator>::__swap_out_circular_buffer(__split_buffer<value_type, allocator_type&>& __v, pointer __p)
 {
     pointer __r = __v.__begin_;
-    for (pointer __i = __p; this->__begin_ < __i;)
-        __v.push_front(_VSTD::move_if_noexcept(*--__i));
-    for (pointer __i = __p; __i < this->__end_; ++__i)
-        __v.push_back(_VSTD::move_if_noexcept(*__i));
+    __alloc_traits::__construct_backward(this->__alloc(), this->__begin_, __p, __v.__begin_);
+    __alloc_traits::__construct_forward(this->__alloc(), __p, this->__end_, __v.__end_);
     _VSTD::swap(this->__begin_, __v.__begin_);
     _VSTD::swap(this->__end_, __v.__end_);
     _VSTD::swap(this->__end_cap(), __v.__end_cap());
@@ -1144,8 +1155,8 @@ vector<_Tp, _Allocator>::vector(vector&& __x, const allocator_type& __a)
     }
     else
     {
-        typedef move_iterator<iterator> _I;
-        assign(_I(__x.begin()), _I(__x.end()));
+        typedef move_iterator<iterator> _Ip;
+        assign(_Ip(__x.begin()), _Ip(__x.end()));
     }
 }
 
@@ -1201,8 +1212,8 @@ vector<_Tp, _Allocator>::__move_assign(vector& __c, false_type)
 {
     if (__base::__alloc() != __c.__alloc())
     {
-        typedef move_iterator<iterator> _I;
-        assign(_I(__c.begin()), _I(__c.end()));
+        typedef move_iterator<iterator> _Ip;
+        assign(_Ip(__c.begin()), _Ip(__c.end()));
     }
     else
         __move_assign(__c, true_type());
@@ -1436,27 +1447,40 @@ vector<_Tp, _Allocator>::shrink_to_fit() _NOEXCEPT
 }
 
 template <class _Tp, class _Allocator>
+template <class _Up>
+void
+#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+vector<_Tp, _Allocator>::__push_back_slow_path(_Up&& __x)
+#else
+vector<_Tp, _Allocator>::__push_back_slow_path(_Up& __x)
+#endif
+{
+    allocator_type& __a = this->__alloc();
+    __split_buffer<value_type, allocator_type&> __v(__recommend(size() + 1), size(), __a);
+    // __v.push_back(_VSTD::forward<_Up>(__x));
+    __alloc_traits::construct(__a, _VSTD::__to_raw_pointer(__v.__end_++), _VSTD::forward<_Up>(__x));
+    __swap_out_circular_buffer(__v);
+}
+
+template <class _Tp, class _Allocator>
+_LIBCPP_INLINE_VISIBILITY inline
 void
 vector<_Tp, _Allocator>::push_back(const_reference __x)
 {
-    if (this->__end_ < this->__end_cap())
+    if (this->__end_ != this->__end_cap())
     {
         __alloc_traits::construct(this->__alloc(),
                                   _VSTD::__to_raw_pointer(this->__end_), __x);
         ++this->__end_;
     }
     else
-    {
-        allocator_type& __a = this->__alloc();
-        __split_buffer<value_type, allocator_type&> __v(__recommend(size() + 1), size(), __a);
-        __v.push_back(__x);
-        __swap_out_circular_buffer(__v);
-    }
+        __push_back_slow_path(__x);
 }
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
 
 template <class _Tp, class _Allocator>
+_LIBCPP_INLINE_VISIBILITY inline
 void
 vector<_Tp, _Allocator>::push_back(value_type&& __x)
 {
@@ -1468,18 +1492,26 @@ vector<_Tp, _Allocator>::push_back(value_type&& __x)
         ++this->__end_;
     }
     else
-    {
-        allocator_type& __a = this->__alloc();
-        __split_buffer<value_type, allocator_type&> __v(__recommend(size() + 1), size(), __a);
-        __v.push_back(_VSTD::move(__x));
-        __swap_out_circular_buffer(__v);
-    }
+        __push_back_slow_path(_VSTD::move(__x));
 }
 
 #ifndef _LIBCPP_HAS_NO_VARIADICS
 
 template <class _Tp, class _Allocator>
 template <class... _Args>
+void
+vector<_Tp, _Allocator>::__emplace_back_slow_path(_Args&&... __args)
+{
+    allocator_type& __a = this->__alloc();
+    __split_buffer<value_type, allocator_type&> __v(__recommend(size() + 1), size(), __a);
+//    __v.emplace_back(_VSTD::forward<_Args>(__args)...);
+    __alloc_traits::construct(__a, _VSTD::__to_raw_pointer(__v.__end_++), _VSTD::forward<_Args>(__args)...);
+    __swap_out_circular_buffer(__v);
+}
+
+template <class _Tp, class _Allocator>
+template <class... _Args>
+_LIBCPP_INLINE_VISIBILITY inline
 void
 vector<_Tp, _Allocator>::emplace_back(_Args&&... __args)
 {
@@ -1491,12 +1523,7 @@ vector<_Tp, _Allocator>::emplace_back(_Args&&... __args)
         ++this->__end_;
     }
     else
-    {
-        allocator_type& __a = this->__alloc();
-        __split_buffer<value_type, allocator_type&> __v(__recommend(size() + 1), size(), __a);
-        __v.emplace_back(_VSTD::forward<_Args>(__args)...);
-        __swap_out_circular_buffer(__v);
-    }
+        __emplace_back_slow_path(_VSTD::forward<_Args>(__args)...);
 }
 
 #endif  // _LIBCPP_HAS_NO_VARIADICS
@@ -2239,7 +2266,7 @@ private:
         }
 
     _LIBCPP_INLINE_VISIBILITY
-    void __copy_assign_alloc(const vector& __c, false_type)
+    void __copy_assign_alloc(const vector&, false_type)
         {}
 
     void __move_assign(vector& __c, false_type);
@@ -2260,7 +2287,7 @@ private:
         }
 
     _LIBCPP_INLINE_VISIBILITY
-    void __move_assign_alloc(vector& __c, false_type)
+    void __move_assign_alloc(vector&, false_type)
         _NOEXCEPT
         {}
 
@@ -2280,7 +2307,7 @@ private:
             swap(__x, __y);
         }
     _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(__storage_allocator& __x, __storage_allocator& __y, false_type)
+    static void __swap_alloc(__storage_allocator&, __storage_allocator&, false_type)
         _NOEXCEPT
         {}
 

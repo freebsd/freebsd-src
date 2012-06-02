@@ -35,6 +35,7 @@ namespace clang {
     UTT_IsConst,
     UTT_IsEmpty,
     UTT_IsEnum,
+    UTT_IsFinal,
     UTT_IsFloatingPoint,
     UTT_IsFunction,
     UTT_IsFundamental,
@@ -67,7 +68,8 @@ namespace clang {
     BTT_IsConvertible,
     BTT_IsConvertibleTo,
     BTT_IsSame,
-    BTT_TypeCompatible
+    BTT_TypeCompatible,
+    BTT_IsTriviallyAssignable
   };
 
   /// ArrayTypeTrait - Names for the array type traits.
@@ -82,6 +84,12 @@ namespace clang {
     UETT_AlignOf,
     UETT_VecStep
   };
+  
+  /// \brief Names for type traits that operate specifically on types.
+  enum TypeTrait {
+    TT_IsTriviallyConstructible
+  };
+  
 }
 
 #endif

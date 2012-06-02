@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"
 #include "opt_global.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_sched.h"
 
@@ -74,6 +75,11 @@ __FBSDID("$FreeBSD$");
 
 #if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 #define	ADAPTIVE_MUTEXES
+#endif
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+PMC_SOFT_DEFINE( , , lock, failed);
 #endif
 
 /*
@@ -364,6 +370,9 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		return;
 	}
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
 	lock_profile_obtain_lock_failed(&m->lock_object,
 		    &contested, &waittime);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
@@ -529,6 +538,9 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
 	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
 	while (!_mtx_obtain_lock(m, tid)) {
 
@@ -600,6 +612,9 @@ retry:
 				m->mtx_recurse++;
 				break;
 			}
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&m->lock_object,
 			    &contested, &waittime);
 			/* Give interrupts a chance while we spin. */

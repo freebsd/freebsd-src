@@ -1,0 +1,165 @@
+The following are examples of j_syscalls.d.
+
+This is a simple script to count executed Java methods and system calls.
+Here it traces an example program, Code/Java/Func_abc.
+
+# j_syscalls.d -c 'java -XX:+ExtendedDTraceProbes Func_abc'
+Tracing... Hit Ctrl-C to end.
+Function A
+Function B
+Function C
+    PID TYPE     NAME                                                    COUNT
+ 311536 method   Func_abc.func_a                                             1
+ 311536 method   Func_abc.func_b                                             1
+ 311536 method   Func_abc.func_c                                             1
+ 311536 method   Func_abc.main                                               1
+ 311536 method   java/io/BufferedInputStream.<clinit>                        1
+ 311536 method   java/io/BufferedReader.<clinit>                             1
+ 311536 method   java/io/BufferedReader.close                                1
+ 311536 method   java/io/BufferedWriter.<clinit>                             1
+ 311536 method   java/io/Console$1$1.<init>                                  1
+ 311536 method   java/io/Console$1$1.run                                     1
+ 311536 method   java/io/Console$1.<init>                                    1
+ 311536 method   java/io/Console$1.consoleRestoreHook                        1
+ 311536 method   java/io/Console.<clinit>                                    1
+ 311536 method   java/io/Console.access$600                                  1
+ 311536 method   java/io/DataInputStream.<init>                              1
+ 311536 method   java/io/DataInputStream.readFully                           1
+ 311536 method   java/io/DeleteOnExitHook.<clinit>                           1
+ 311536 method   java/io/DeleteOnExitHook.<init>                             1
+ 311536 method   java/io/DeleteOnExitHook.hook                               1
+ 311536 method   java/io/DeleteOnExitHook.run                                1
+[... 900 lines truncated ...]
+ 311536 method   java/io/ExpiringCache.get                                  18
+ 311536 method   java/lang/Class.desiredAssertionStatus                     18
+ 311536 method   java/lang/Class.desiredAssertionStatus0                    18
+ 311536 method   java/lang/ClassLoader.findLoadedClass                      18
+ 311536 method   java/lang/ClassLoader.findLoadedClass0                     18
+ 311536 method   java/io/BufferedReader.ensureOpen                          19
+ 311536 method   java/lang/System.currentTimeMillis                         19
+ 311536 method   java/nio/Buffer.limit                                      19
+ 311536 method   java/util/Locale.<init>                                    19
+ 311536 method   java/util/Locale.createSingleton                           19
+ 311536 method   java/util/concurrent/ConcurrentHashMap$Segment.put         19
+ 311536 method   java/util/concurrent/ConcurrentHashMap.put                 19
+ 311536 method   java/util/concurrent/locks/AbstractQueuedSynchronizer.compareAndSetState       19
+ 311536 method   java/util/concurrent/locks/AbstractQueuedSynchronizer.release       19
+ 311536 method   java/util/concurrent/locks/AbstractQueuedSynchronizer.setState       19
+ 311536 method   java/util/concurrent/locks/ReentrantLock$NonfairSync.lock       19
+ 311536 method   java/util/concurrent/locks/ReentrantLock$Sync.tryRelease       19
+ 311536 method   java/util/concurrent/locks/ReentrantLock.lock              19
+ 311536 method   java/util/concurrent/locks/ReentrantLock.unlock            19
+ 311536 method   java/io/ObjectStreamField.<init>                           20
+ 311536 method   java/nio/ByteBuffer.array                                  20
+ 311536 method   java/util/AbstractList.<init>                              20
+ 311536 method   java/util/BitSet.get                                       20
+ 311536 method   java/util/concurrent/ConcurrentHashMap.hash                20
+ 311536 method   java/util/concurrent/ConcurrentHashMap.segmentFor          20
+ 311536 method   sun/misc/VM.isBooted                                       20
+ 311536 syscall  memcntl                                                    20
+ 311536 method   java/io/File.getName                                       21
+ 311536 method   java/io/UnixFileSystem.getBooleanAttributes                21
+ 311536 method   java/io/UnixFileSystem.getBooleanAttributes0               21
+ 311536 method   java/lang/StringBuffer.append                              21
+ 311536 method   java/nio/charset/Charset.atBugLevel                        21
+ 311536 method   java/util/concurrent/ConcurrentHashMap$HashEntry.newArray       22
+ 311536 method   sun/misc/Unsafe.compareAndSwapInt                          22
+ 311536 method   java/util/HashMap.<init>                                   23
+ 311536 method   java/util/concurrent/ConcurrentHashMap$HashEntry.<init>       23
+ 311536 syscall  stat64                                                     23
+ 311536 method   java/nio/charset/CoderResult.isUnderflow                   24
+ 311536 method   java/util/AbstractMap.<init>                               24
+ 311536 method   java/util/Vector.elementAt                                 24
+ 311536 syscall  munmap                                                     24
+ 311536 method   java/lang/Class.getClassLoader                             25
+ 311536 syscall  lwp_sigmask                                                25
+ 311536 syscall  sigaction                                                  25
+ 311536 method   java/util/AbstractCollection.<init>                        26
+ 311536 method   java/util/ArrayList.add                                    26
+ 311536 method   java/util/ArrayList.ensureCapacity                         26
+ 311536 method   java/lang/ClassLoader.loadClass                            27
+ 311536 method   java/net/URL.<init>                                        27
+ 311536 method   java/lang/ClassLoader.check                                28
+ 311536 method   java/lang/ClassLoader.checkName                            28
+ 311536 method   java/lang/ref/Reference.<init>                             28
+ 311536 method   java/lang/String.endsWith                                  29
+ 311536 method   sun/misc/VM.allowArraySyntax                               29
+ 311536 method   java/io/ExpiringCache.entryFor                             30
+ 311536 method   java/io/UnixFileSystem.resolve                             30
+ 311536 method   java/util/HashMap$Entry.<init>                             30
+ 311536 method   java/util/LinkedHashMap.get                                30
+ 311536 syscall  priocntlsys                                                30
+ 311536 method   java/util/HashMap.put                                      33
+ 311536 method   java/util/Vector.<init>                                    33
+ 311536 method   java/io/UnixFileSystem.normalize                           34
+ 311536 method   java/lang/Class.getClassLoader0                            34
+ 311536 method   java/lang/String.toLowerCase                               34
+ 311536 method   sun/security/action/GetPropertyAction.run                  34
+ 311536 method   java/nio/CharBuffer.arrayOffset                            36
+ 311536 method   java/util/HashMap.getEntry                                 36
+ 311536 method   java/io/File.<init>                                        37
+ 311536 method   java/io/UnixFileSystem.prefixLength                        37
+ 311536 method   java/io/BufferedReader.readLine                            38
+ 311536 method   java/util/concurrent/locks/AbstractOwnableSynchronizer.setExclusiveOwnerThread       38
+ 311536 syscall  resolvepath                                                38
+ 311536 method   java/lang/CharacterDataLatin1.toLowerCase                  41
+ 311536 method   java/lang/CharacterDataLatin1.getProperties                43
+ 311536 method   java/security/AccessController.doPrivileged                43
+ 311536 method   java/util/Vector.size                                      43
+ 311536 method   java/nio/Buffer.position                                   44
+ 311536 method   java/nio/ByteBuffer.arrayOffset                            44
+ 311536 method   java/lang/System.getProperty                               48
+ 311536 method   java/util/Properties.getProperty                           50
+ 311536 method   java/util/BitSet.expandTo                                  51
+ 311536 method   java/util/BitSet.set                                       51
+ 311536 syscall  pollsys                                                    55
+ 311536 method   java/lang/System.checkKey                                  56
+ 311536 method   java/lang/Thread.currentThread                             57
+ 311536 method   java/util/Hashtable$Entry.<init>                           57
+ 311536 method   java/util/Hashtable.get                                    59
+ 311536 method   java/util/Hashtable.put                                    63
+ 311536 method   java/util/BitSet.checkInvariants                           71
+ 311536 method   java/util/BitSet.wordIndex                                 72
+ 311536 method   java/lang/StringBuilder.<init>                             73
+ 311536 method   java/lang/StringBuilder.toString                           73
+ 311536 method   java/lang/AbstractStringBuilder.expandCapacity             81
+ 311536 method   java/util/HashMap.hash                                     81
+ 311536 method   java/util/HashMap.indexFor                                 81
+ 311536 method   java/lang/AbstractStringBuilder.<init>                     82
+ 311536 method   java/lang/Character.toLowerCase                            82
+ 311536 method   java/lang/String.startsWith                                83
+ 311536 method   java/util/Arrays.copyOf                                    87
+ 311536 method   java/lang/String.lastIndexOf                               90
+ 311536 method   java/lang/String.substring                                 94
+ 311536 syscall  brk                                                       102
+ 311536 syscall  ioctl                                                     103
+ 311536 method   java/util/Arrays.copyOfRange                              107
+ 311536 syscall  mmap                                                      127
+ 311536 syscall  open                                                      129
+ 311536 syscall  close                                                     133
+ 311536 method   java/lang/String.getChars                                 156
+ 311536 method   java/lang/System.getSecurityManager                       174
+ 311536 method   java/lang/String.<init>                                   175
+ 311536 syscall  xstat                                                     188
+ 311536 method   java/lang/String.equals                                   202
+ 311536 method   java/lang/Math.min                                        208
+ 311536 method   java/lang/String.hashCode                                 213
+ 311536 syscall  lwp_exit                                                  291
+ 311536 method   java/lang/String.indexOf                                  302
+ 311536 method   java/lang/System.arraycopy                                360
+ 311536 method   java/lang/StringBuilder.append                            545
+ 311536 method   java/lang/AbstractStringBuilder.append                    561
+ 311536 syscall  llseek                                                    664
+ 311536 syscall  read                                                      668
+ 311536 method   java/lang/Object.<init>                                   823
+ 311536 method   java/lang/String.charAt                                  1987
+
+While tracing there were numerous system calls made, including 668 reads()'s,
+and 664 llseek()'s.  Many Java methods were also called, with 1987
+java/lang/String.charAt being the most of a particular kind.
+
+This script can provide an insight to how an application is interacting
+with the system, by providing both application method calls and
+system calls in the same output.
+
+

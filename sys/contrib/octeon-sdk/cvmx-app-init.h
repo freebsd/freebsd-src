@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -46,7 +46,7 @@
  * @file
  * Header file for simple executive application initialization.  This defines
  * part of the ABI between the bootloader and the application.
- * <hr>$Revision: 52004 $<hr>
+ * <hr>$Revision: 70327 $<hr>
  *
  */
 
@@ -62,7 +62,7 @@ extern "C" {
 ** from the bootloader to the application.  This is versioned so that applications
 ** can properly handle multiple bootloader versions. */
 #define CVMX_BOOTINFO_MAJ_VER 1
-#define CVMX_BOOTINFO_MIN_VER 2
+#define CVMX_BOOTINFO_MIN_VER 3
 
 
 #if (CVMX_BOOTINFO_MAJ_VER == 1)
@@ -76,6 +76,7 @@ extern "C" {
 ** to 0.
 */
 struct cvmx_bootinfo {
+#ifdef __BIG_ENDIAN_BITFIELD
     uint32_t major_version;
     uint32_t minor_version;
 
@@ -120,8 +121,70 @@ struct cvmx_bootinfo {
     uint32_t config_flags;  /**< flags indicating various configuration options.  These flags supercede
                             ** the 'flags' variable and should be used instead if available */
 #endif
+#if (CVMX_BOOTINFO_MIN_VER >= 3)
+    uint64_t fdt_addr;  /**< Address of the OF Flattened Device Tree structure describing the board. */
+#endif
+#else /* __BIG_ENDIAN */
+	/*
+	 * Little-Endian: When the CPU mode is switched to
+	 * little-endian, the view of the structure has some of the
+	 * fields swapped.
+	 */
+	uint32_t minor_version;
+	uint32_t major_version;
 
+	uint64_t stack_top;
+	uint64_t heap_base;
+	uint64_t heap_end;
+	uint64_t desc_vaddr;
 
+	uint32_t stack_size;
+	uint32_t exception_base_addr;
+
+	uint32_t core_mask;
+	uint32_t flags;
+
+	uint32_t phy_mem_desc_addr;
+	uint32_t dram_size;
+
+	uint32_t eclock_hz;
+	uint32_t debugger_flags_base_addr;
+
+	uint32_t reserved0;
+	uint32_t dclock_hz;
+
+	uint8_t reserved3;
+	uint8_t reserved2;
+	uint16_t reserved1;
+	uint8_t board_rev_minor;
+	uint8_t board_rev_major;
+	uint16_t board_type;
+
+	union cvmx_bootinfo_scramble {
+		/* Must byteswap these four words so that...*/
+		uint64_t s[4];
+		/* ... this strucure has the proper data arrangement. */
+		struct {
+			char board_serial_number[CVMX_BOOTINFO_OCTEON_SERIAL_LEN];
+			uint8_t mac_addr_base[6];
+			uint8_t mac_addr_count;
+			uint8_t pad[5];
+		} le;
+	} scramble1;
+
+#if (CVMX_BOOTINFO_MIN_VER >= 1)
+	uint64_t compact_flash_common_base_addr;
+	uint64_t compact_flash_attribute_base_addr;
+	uint64_t led_display_base_addr;
+#endif
+#if (CVMX_BOOTINFO_MIN_VER >= 2)
+	uint32_t config_flags;
+	uint32_t dfa_ref_clock_hz;
+#endif
+#if (CVMX_BOOTINFO_MIN_VER >= 3)
+	uint64_t fdt_addr;
+#endif
+#endif
 };
 
 typedef struct cvmx_bootinfo cvmx_bootinfo_t;
@@ -145,7 +208,7 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_EBT3000        =  2,
     CVMX_BOARD_TYPE_KODAMA         =  3,
     CVMX_BOARD_TYPE_NIAGARA        =  4,	/* Obsolete, no longer supported */
-    CVMX_BOARD_TYPE_NAC38          =  5,	/* formerly NAO38 */
+    CVMX_BOARD_TYPE_NAC38          =  5,	/* Obsolete, no longer supported */
     CVMX_BOARD_TYPE_THUNDER        =  6,
     CVMX_BOARD_TYPE_TRANTOR        =  7,	/* Obsolete, no longer supported */
     CVMX_BOARD_TYPE_EBH3000        =  8,
@@ -178,7 +241,18 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_LANAI2_G       = 35,
     CVMX_BOARD_TYPE_EBT5810        = 36,
     CVMX_BOARD_TYPE_NIC10E         = 37,
+    CVMX_BOARD_TYPE_EP6300C        = 38,
+    CVMX_BOARD_TYPE_EBB6800        = 39,
+    CVMX_BOARD_TYPE_NIC4E          = 40,
+    CVMX_BOARD_TYPE_NIC2E          = 41,
+    CVMX_BOARD_TYPE_EBB6600        = 42,
+    CVMX_BOARD_TYPE_REDWING        = 43,
+    CVMX_BOARD_TYPE_NIC68_4        = 44,
+    CVMX_BOARD_TYPE_NIC10E_66      = 45,
+    CVMX_BOARD_TYPE_EBB6100        = 46,
+    CVMX_BOARD_TYPE_EVB7100        = 47,
     CVMX_BOARD_TYPE_MAX,
+    /* NOTE:  256-257 are being used by a customer. */
 
     /* The range from CVMX_BOARD_TYPE_MAX to CVMX_BOARD_TYPE_CUST_DEFINED_MIN is reserved
     ** for future SDK use. */
@@ -239,7 +313,7 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_MODULE_EBB5600_QLM1 = 30008,
     CVMX_BOARD_TYPE_MODULE_EBB5600_QLM2 = 30009,
     CVMX_BOARD_TYPE_MODULE_EBB5600_QLM3 = 30010,
-    CVMX_BOARD_TYPE_MODULE_MAX          = 31000,
+    CVMX_BOARD_TYPE_MODULE_MAX          = 31000
 
     /* The remaining range is reserved for future use. */
 };
@@ -247,7 +321,7 @@ enum cvmx_chip_types_enum {
     CVMX_CHIP_TYPE_NULL = 0,
     CVMX_CHIP_SIM_TYPE_DEPRECATED = 1,
     CVMX_CHIP_TYPE_OCTEON_SAMPLE = 2,
-    CVMX_CHIP_TYPE_MAX,
+    CVMX_CHIP_TYPE_MAX
 };
 
 /* Compatability alias for NAC38 name change, planned to be removed from SDK 1.7 */
@@ -297,6 +371,16 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_LANAI2_G)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBT5810)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NIC10E)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EP6300C)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBB6800)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NIC4E)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NIC2E)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBB6600)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_REDWING)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NIC68_4)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NIC10E_66)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBB6100)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EVB7100)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MAX)
 
         /* Customer boards listed here */

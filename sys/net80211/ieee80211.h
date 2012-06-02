@@ -333,6 +333,8 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_BA		3	/* BA */
 #define	IEEE80211_ACTION_CAT_HT		7	/* HT */
 #define	IEEE80211_ACTION_CAT_MESH	13	/* Mesh */
+#define	IEEE80211_ACTION_CAT_SELF_PROT	15	/* Self-protected */
+/* 16 - 125 reserved */
 #define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
@@ -732,7 +734,7 @@ enum {
 	IEEE80211_ELEMID_MESHAWAKEW	= 119,
 	IEEE80211_ELEMID_MESHBEACONT	= 120,
 	/* 121-124 MMCAOP not implemented yet */
-	IEEE80211_ELEMID_MESHPANN	= 125, /* XXX: is GANN now, not used */
+	IEEE80211_ELEMID_MESHGANN	= 125,
 	IEEE80211_ELEMID_MESHRANN	= 126,
 	/* 127 Extended Capabilities */
 	/* 128-129 reserved */

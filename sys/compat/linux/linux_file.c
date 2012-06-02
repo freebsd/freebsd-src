@@ -69,6 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
 
+/* XXX */
+int	do_pipe(struct thread *td, int fildes[2], int flags);
+
 int
 linux_creat(struct thread *td, struct linux_creat_args *args)
 {
@@ -1574,4 +1577,50 @@ linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 		return (EINVAL);
 	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
 	    advice));
+}
+
+int
+linux_pipe(struct thread *td, struct linux_pipe_args *args)
+{
+	int fildes[2];
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(pipe))
+		printf(ARGS(pipe, "*"));
+#endif
+
+	error = do_pipe(td, fildes, 0);
+	if (error)
+		return (error);
+
+	/* XXX: Close descriptors on error. */
+	return (copyout(fildes, args->pipefds, sizeof(fildes)));
+}
+
+int
+linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
+{
+	int fildes[2];
+	int error, flags;
+
+#ifdef DEBUG
+	if (ldebug(pipe2))
+		printf(ARGS(pipe2, "*, %d"), args->flags);
+#endif
+
+	if ((args->flags & ~(LINUX_O_NONBLOCK | LINUX_O_CLOEXEC)) != 0)
+		return (EINVAL);
+
+	flags = 0;
+	if ((args->flags & LINUX_O_NONBLOCK) != 0)
+		flags |= O_NONBLOCK;
+	if ((args->flags & LINUX_O_CLOEXEC) != 0)
+		flags |= O_CLOEXEC;
+	error = do_pipe(td, fildes, flags);
+	if (error)
+		return (error);
+
+	/* XXX: Close descriptors on error. */
+	return (copyout(fildes, args->pipefds, sizeof(fildes)));
 }

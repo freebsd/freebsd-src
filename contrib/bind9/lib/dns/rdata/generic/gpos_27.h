@@ -18,7 +18,7 @@
 #ifndef GENERIC_GPOS_27_H
 #define GENERIC_GPOS_27_H 1
 
-/* $Id: gpos_27.h,v 1.17 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: gpos_27.h,v 1.17 2007/06/19 23:47:17 tbox Exp $ */
 
 /*!
  *  \brief per RFC1712 */

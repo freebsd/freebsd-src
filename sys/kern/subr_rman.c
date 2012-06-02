@@ -161,6 +161,7 @@ int
 rman_manage_region(struct rman *rm, u_long start, u_long end)
 {
 	struct resource_i *r, *s, *t;
+	int rv = 0;
 
 	DPRINTF(("rman_manage_region: <%s> request: start %#lx, end %#lx\n",
 	    rm->rm_descr, start, end));
@@ -188,13 +189,17 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 		TAILQ_INSERT_TAIL(&rm->rm_list, r, r_link);
 	} else {
 		/* Check for any overlap with the current region. */
-		if (r->r_start <= s->r_end && r->r_end >= s->r_start)
-			return EBUSY;
+		if (r->r_start <= s->r_end && r->r_end >= s->r_start) {
+			rv = EBUSY;
+			goto out;
+		}
 
 		/* Check for any overlap with the next region. */
 		t = TAILQ_NEXT(s, r_link);
-		if (t && r->r_start <= t->r_end && r->r_end >= t->r_start)
-			return EBUSY;
+		if (t && r->r_start <= t->r_end && r->r_end >= t->r_start) {
+			rv = EBUSY;
+			goto out;
+		}
 
 		/*
 		 * See if this region can be merged with the next region.  If
@@ -225,9 +230,9 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 			TAILQ_INSERT_BEFORE(s, r, r_link);
 		}
 	}
-
+out:
 	mtx_unlock(rm->rm_mtx);
-	return 0;
+	return rv;
 }
 
 int

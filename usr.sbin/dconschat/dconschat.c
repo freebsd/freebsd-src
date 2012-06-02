@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
@@ -160,7 +161,9 @@ dconschat_reset_target(struct dcons_state *dc, struct dcons_port *p)
 	if (dc->reset == 0)
 		return;
 
-	snprintf(buf, PAGE_SIZE, "\r\n[dconschat reset target(addr=0x%zx)...]\r\n", dc->reset);
+	snprintf(buf, PAGE_SIZE,
+	    "\r\n[dconschat reset target(addr=0x%jx)...]\r\n",
+	    (intmax_t)dc->reset);
 	write(p->outfd, buf, strlen(buf));
 	bzero(&buf[0], PAGE_SIZE);
 	dwrite(dc, (void *)buf, PAGE_SIZE, dc->reset);

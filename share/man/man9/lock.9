@@ -230,7 +230,7 @@ and
 The
 .Fn lockmgr_disown
 function switches the owner from the current thread to be
-.Dv LK_KERNPROC,
+.Dv LK_KERNPROC ,
 if the lock is already held.
 .Pp
 The
@@ -299,7 +299,6 @@ Assert that the current thread has a recursed lock on
 Assert that the current thread does not have a recursed lock on
 .Fa lkp .
 .El
-.Pp
 .Sh RETURN VALUES
 The
 .Fn lockmgr
@@ -364,7 +363,7 @@ or
 the
 .Fa ilk
 must be held prior to calling
-.Fn lockmgr 
+.Fn lockmgr
 or
 .Fn lockmgr_rw ,
 and will be returned unlocked.

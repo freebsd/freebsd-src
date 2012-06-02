@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2012
+.Dd April 28, 2012
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -692,7 +692,6 @@ This variable should be set in
 Specifies how many kernel threads should be used for doing software
 cryptography.
 Its purpose is to increase performance on SMP systems.
-If hardware acceleration is available, only one thread will be started.
 If set to 0, a CPU-pinned thread will be started for every active CPU.
 .It Va kern.geom.eli.batch : No 0
 When set to 1, can speed-up crypto operations by using batching.
@@ -925,6 +924,9 @@ will not protect your data against replay attacks.
 It is recommended to write to the whole provider before first use,
 in order to make sure that all sectors and their corresponding
 checksums are properly initialized into a consistent state.
+One can safely ignore data authentication errors that occur immediately
+after the first time a provider is attached and before it is
+initialized in this way.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr gbde 4 ,
@@ -946,7 +948,6 @@ block cipher is implemented by Yoshisato Yanagisawa in
 Highest
 .Nm GELI
 metadata version supported by the given FreeBSD version:
-.Pp
 .Bl -column -offset indent ".Sy FreeBSD" ".Sy version"
 .It Sy FreeBSD Ta Sy GELI
 .It Sy version Ta Sy version
@@ -969,6 +970,5 @@ metadata version supported by the given FreeBSD version:
 .Pp
 .It Li 9.0 Ta 6
 .El
-.Pp
 .Sh AUTHORS
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org

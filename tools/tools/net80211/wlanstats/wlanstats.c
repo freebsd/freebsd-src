@@ -372,6 +372,12 @@ static const struct fmt wlanstats[] = {
 	{ 5,	"signal",	"sig",		"current signal (dBm)" },
 #define	S_BEACON_BAD		AFTER(S_SIGNAL)
 	{ 9,	"beacon_bad",	"beaconbad",	"bad beacons received" },
+#define	S_AMPDU_BARTX		AFTER(S_BEACON_BAD)
+	{ 5,	"ampdu_bartx",	"bartx",	"BAR frames sent" },
+#define	S_AMPDU_BARTX_FAIL	AFTER(S_AMPDU_BARTX)
+	{ 9,	"ampdu_bartxfail",	"bartx_fail",	"BAR frames failed to send" },
+#define	S_AMPDU_BARTX_RETRY	AFTER(S_AMPDU_BARTX_FAIL)
+	{ 10,	"ampdu_bartxretry",	"bartx_retry",	"BAR frames retried" },
 };
 
 struct wlanstatfoo_p {
@@ -817,6 +823,9 @@ wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_UCAST:	NSTAT(tx_ucast);
 	case S_TX_MCAST:	NSTAT(tx_mcast);
 	case S_BEACON_BAD:	STAT(beacon_bad);
+	case S_AMPDU_BARTX:	STAT(ampdu_bar_tx);
+	case S_AMPDU_BARTX_RETRY:	STAT(ampdu_bar_tx_retry);
+	case S_AMPDU_BARTX_FAIL:	STAT(ampdu_bar_tx_fail);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT
@@ -976,6 +985,9 @@ wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_UCAST:	NSTAT(tx_ucast);
 	case S_TX_MCAST:	NSTAT(tx_mcast);
 	case S_BEACON_BAD:	STAT(beacon_bad);
+	case S_AMPDU_BARTX:	STAT(ampdu_bar_tx);
+	case S_AMPDU_BARTX_RETRY:	STAT(ampdu_bar_tx_retry);
+	case S_AMPDU_BARTX_FAIL:	STAT(ampdu_bar_tx_fail);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT

@@ -200,6 +200,10 @@
                 ..
             ..
         ..
+        dtrace
+            toolkit
+            ..
+        ..  
         examples
             BSD_daemon
             ..
@@ -208,6 +212,8 @@
             IPv6
             ..
             bootforth
+            ..
+            csh
             ..
             cvs
                 contrib

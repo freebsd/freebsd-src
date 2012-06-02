@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sample-update.c,v 1.10 2010-12-09 00:54:34 marka Exp $ */
+/* $Id: sample-update.c,v 1.10 2010/12/09 00:54:34 marka Exp $ */
 
 #include <config.h>
 

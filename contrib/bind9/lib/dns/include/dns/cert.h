@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert.h,v 1.19 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: cert.h,v 1.19 2007/06/19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_CERT_H
 #define DNS_CERT_H 1

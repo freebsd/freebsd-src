@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: opensslgost_link.c,v 1.5 2011-01-19 23:47:12 tbox Exp $ */
+/* $Id: opensslgost_link.c,v 1.5 2011/01/19 23:47:12 tbox Exp $ */
 
 #include <config.h>
 

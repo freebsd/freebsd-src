@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-settime.8,v 1.14.70.1 2011-03-22 02:37:44 tbox Exp $
+.\" $Id$
 .\"
 .hy 0
 .ad l
@@ -52,7 +52,7 @@ simply prints the key timing metadata already stored in the key.
 .PP
 When key metadata fields are changed, both files of a key pair (\fIKnnnn.+aaa+iiiii.key\fR
 and
-\fIKnnnn.+aaa+iiiii.private\fR) are regenerated. Metadata fields are stored in the private file. A human\-readable description of the metadata is also placed in comments in the key file.
+\fIKnnnn.+aaa+iiiii.private\fR) are regenerated. Metadata fields are stored in the private file. A human\-readable description of the metadata is also placed in comments in the key file. The private file's permissions are always set to be inaccessible to anyone other than the owner (mode 0600).
 .SH "OPTIONS"
 .PP
 \-f

@@ -50,7 +50,7 @@
 
 /* Local prototypes */
 
-static FILE *
+FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename);
@@ -81,12 +81,12 @@ AslAbort (
     void)
 {
 
-    AePrintErrorLog (ASL_FILE_STDOUT);
+    AePrintErrorLog (ASL_FILE_STDERR);
     if (Gbl_DebugFlag)
     {
-        /* Print error summary to the debug file */
+        /* Print error summary to stdout also */
 
-        AePrintErrorLog (ASL_FILE_STDERR);
+        AePrintErrorLog (ASL_FILE_STDOUT);
     }
 
     exit (1);
@@ -363,14 +363,13 @@ FlCloseFile (
     }
 
     Error = fclose (Gbl_Files[FileId].Handle);
-    Gbl_Files[FileId].Handle = NULL;
-
     if (Error)
     {
         FlFileError (FileId, ASL_MSG_CLOSE);
         AslAbort ();
     }
 
+    Gbl_Files[FileId].Handle = NULL;
     return;
 }
 
@@ -389,11 +388,38 @@ FlCloseFile (
 
 void
 FlSetLineNumber (
-    ACPI_PARSE_OBJECT       *Op)
+    UINT32                  LineNumber)
 {
 
-    Gbl_CurrentLineNumber = (UINT32) Op->Asl.Value.Integer;
-    Gbl_LogicalLineNumber = (UINT32) Op->Asl.Value.Integer;
+    DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New line number %u (old %u)\n",
+         LineNumber, Gbl_LogicalLineNumber);
+
+    Gbl_CurrentLineNumber = LineNumber;
+    Gbl_LogicalLineNumber = LineNumber;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlSetFilename
+ *
+ * PARAMETERS:  Op        - Parse node for the LINE asl statement
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Set the current filename
+ *
+ ******************************************************************************/
+
+void
+FlSetFilename (
+    char                    *Filename)
+{
+
+    DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New filename %s (old %s)\n",
+         Filename, Gbl_Files[ASL_FILE_INPUT].Filename);
+
+    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
 }
 
 
@@ -466,6 +492,107 @@ FlAddIncludeDirectory (
 
 /*******************************************************************************
  *
+ * FUNCTION:    FlMergePathnames
+ *
+ * PARAMETERS:  PrefixDir       - Prefix directory pathname. Can be NULL or
+ *                                a zero length string.
+ *              FilePathname    - The include filename from the source ASL.
+ *
+ * RETURN:      Merged pathname string
+ *
+ * DESCRIPTION: Merge two pathnames that (probably) have common elements, to
+ *              arrive at a minimal length string. Merge can occur if the
+ *              FilePathname is relative to the PrefixDir.
+ *
+ ******************************************************************************/
+
+char *
+FlMergePathnames (
+    char                    *PrefixDir,
+    char                    *FilePathname)
+{
+    char                    *CommonPath;
+    char                    *Pathname;
+    char                    *LastElement;
+
+
+    DbgPrint (ASL_PARSE_OUTPUT, "Include: Prefix path - \"%s\"\n"
+        "Include: FilePathname - \"%s\"\n",
+         PrefixDir, FilePathname);
+
+    /*
+     * If there is no prefix directory or if the file pathname is absolute,
+     * just return the original file pathname
+     */
+    if (!PrefixDir || (!*PrefixDir) ||
+        (*FilePathname == '/') ||
+         (FilePathname[1] == ':'))
+    {
+        Pathname = ACPI_ALLOCATE (strlen (FilePathname) + 1);
+        strcpy (Pathname, FilePathname);
+        goto ConvertBackslashes;
+    }
+
+    /* Need a local copy of the prefix directory path */
+
+    CommonPath = ACPI_ALLOCATE (strlen (PrefixDir) + 1);
+    strcpy (CommonPath, PrefixDir);
+
+    /*
+     * Walk forward through the file path, and simultaneously backward
+     * through the prefix directory path until there are no more
+     * relative references at the start of the file path.
+     */
+    while (*FilePathname && (!strncmp (FilePathname, "../", 3)))
+    {
+        /* Remove last element of the prefix directory path */
+
+        LastElement = strrchr (CommonPath, '/');
+        if (!LastElement)
+        {
+            goto ConcatenatePaths;
+        }
+
+        *LastElement = 0;   /* Terminate CommonPath string */
+        FilePathname += 3;  /* Point to next path element */
+    }
+
+    /*
+     * Remove the last element of the prefix directory path (it is the same as
+     * the first element of the file pathname), and build the final merged
+     * pathname.
+     */
+    LastElement = strrchr (CommonPath, '/');
+    if (LastElement)
+    {
+        *LastElement = 0;
+    }
+
+    /* Build the final merged pathname */
+
+ConcatenatePaths:
+    Pathname = ACPI_ALLOCATE_ZEROED (strlen (CommonPath) + strlen (FilePathname) + 2);
+    if (LastElement && *CommonPath)
+    {
+        strcpy (Pathname, CommonPath);
+        strcat (Pathname, "/");
+    }
+    strcat (Pathname, FilePathname);
+    ACPI_FREE (CommonPath);
+
+    /* Convert all backslashes to normal slashes */
+
+ConvertBackslashes:
+    UtConvertBackslashes (Pathname);
+
+    DbgPrint (ASL_PARSE_OUTPUT, "Include: Merged Pathname - \"%s\"\n",
+         Pathname);
+    return (Pathname);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    FlOpenIncludeWithPrefix
  *
  * PARAMETERS:  PrefixDir       - Prefix directory pathname. Can be a zero
@@ -478,7 +605,7 @@ FlAddIncludeDirectory (
  *
  ******************************************************************************/
 
-static FILE *
+FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename)
@@ -489,12 +616,9 @@ FlOpenIncludeWithPrefix (
 
     /* Build the full pathname to the file */
 
-    Pathname = ACPI_ALLOCATE (strlen (PrefixDir) + strlen (Filename) + 1);
+    Pathname = FlMergePathnames (PrefixDir, Filename);
 
-    strcpy (Pathname, PrefixDir);
-    strcat (Pathname, Filename);
-
-    DbgPrint (ASL_PARSE_OUTPUT, "\nAttempt to open include file: path %s\n\n",
+    DbgPrint (ASL_PARSE_OUTPUT, "Include: Opening file - \"%s\"\n\n",
         Pathname);
 
     /* Attempt to open the file, push if successful */
@@ -549,7 +673,7 @@ FlOpenIncludeFile (
      * Flush out the "include ()" statement on this line, start
      * the actual include file on the next line
      */
-    ResetCurrentLineBuffer ();
+    AslResetCurrentLineBuffer ();
     FlPrintFile (ASL_FILE_SOURCE_OUTPUT, "\n");
     Gbl_CurrentLineOffset++;
 
@@ -740,6 +864,13 @@ FlOpenMiscOutputFiles (
         Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
             freopen (Filename, "w+t", stderr);
 
+        if (!Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_DEBUG_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
         AslCompilerSignon (ASL_FILE_DEBUG_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_DEBUG_OUTPUT);
     }
@@ -764,12 +895,29 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_LISTING_OUTPUT);
     }
 
+    /* Create the preprocessor output file if preprocessor enabled */
+
+    if (Gbl_PreprocessFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROCESSOR);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_PREPROCESSOR_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+b");
+    }
+
+    /* All done for data table compiler */
+
     if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         return (AE_OK);
     }
 
-    /* Create/Open a combined source output file */
+   /* Create/Open a combined source output file */
 
     Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_SOURCE);
     if (!Filename)
@@ -786,6 +934,10 @@ FlOpenMiscOutputFiles (
      */
     FlOpenFile (ASL_FILE_SOURCE_OUTPUT, Filename, "w+b");
 
+/*
+// TBD: TEMP
+//    AslCompilerin = Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
+*/
     /* Create/Open a assembly code source output file if asked */
 
     if (Gbl_AsmOutputFlag)

@@ -146,6 +146,7 @@ void *bootstacks[MAXCPU];
 static void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
+struct pcb **susppcbs = NULL;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -587,6 +588,9 @@ cpu_mp_start(void)
 	setidt(IPI_STOP, IDTVEC(cpustop),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
+	/* Install an inter-CPU IPI for CPU suspend/resume */
+	setidt(IPI_SUSPEND, IDTVEC(cpususpend),
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
@@ -819,8 +823,6 @@ init_secondary(void)
  * We tell the I/O APIC code about all the CPUs we want to receive
  * interrupts.  If we don't want certain CPUs to receive IRQs we
  * can simply not tell the I/O APIC code about them in this function.
- * We also do not tell it about the BSP since it tells itself about
- * the BSP internally to work with UP kernels and on UP machines.
  */
 static void
 set_interrupt_apic_ids(void)
@@ -830,8 +832,6 @@ set_interrupt_apic_ids(void)
 	for (i = 0; i < MAXCPU; i++) {
 		apic_id = cpu_apic_ids[i];
 		if (apic_id == -1)
-			continue;
-		if (cpu_info[apic_id].cpu_bsp)
 			continue;
 		if (cpu_info[apic_id].cpu_disabled)
 			continue;
@@ -1502,6 +1502,38 @@ cpustop_handler(void)
 }
 
 /*
+ * Handle an IPI_SUSPEND by saving our current context and spinning until we
+ * are resumed.
+ */
+void
+cpususpend_handler(void)
+{
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+
+	if (suspendctx(susppcbs[cpu])) {
+		wbinvd();
+		CPU_SET_ATOMIC(cpu, &stopped_cpus);
+	} else {
+		pmap_init_pat();
+		PCPU_SET(switchtime, 0);
+		PCPU_SET(switchticks, ticks);
+		susppcbs[cpu]->pcb_eip = 0;
+	}
+
+	/* Wait for resume */
+	while (!CPU_ISSET(cpu, &started_cpus))
+		ia32_pause();
+
+	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+
+	/* Resume MCA and local APIC */
+	mca_resume();
+	lapic_setup(0);
+}
+/*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
  */
@@ -1534,6 +1566,8 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_invlrng_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:invlpg", i);
 		intrcnt_add(buf, &ipi_invlpg_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:invlcache", i);
+		intrcnt_add(buf, &ipi_invlcache_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:preempt", i);
 		intrcnt_add(buf, &ipi_preempt_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:ast", i);

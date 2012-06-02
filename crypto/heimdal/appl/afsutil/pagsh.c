@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995 - 2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -35,7 +35,7 @@
 #include <config.h>
 #endif
 
-RCSID("$Id: pagsh.c 14574 2005-02-12 14:23:28Z lha $");
+RCSID("$Id$");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,9 +54,6 @@ RCSID("$Id: pagsh.c 14574 2005-02-12 14:23:28Z lha $");
 
 #ifdef KRB5
 #include <krb5.h>
-#endif
-#ifdef KRB4
-#include <krb.h>
 #endif
 #include <kafs.h>
 
@@ -106,7 +103,7 @@ main(int argc, char **argv)
 
     char *path;
     char **args;
-    int i;
+    unsigned int i;
     int optind = 0;
 
     setprogname(argv[0]);
@@ -124,7 +121,6 @@ main(int argc, char **argv)
 
 #ifdef KRB5
     {
-	const krb5_cc_ops *type;
 	krb5_error_code ret;
 	krb5_context context;
 	krb5_ccache id;
@@ -134,29 +130,7 @@ main(int argc, char **argv)
 	if (ret) /* XXX should this really call exit ? */
 	    errx(1, "no kerberos 5 support");
 
-	if (typename_arg == NULL) {
-	    char *s;
-
-	    name = krb5_cc_default_name(context);
-	    if (name == NULL)
-		krb5_errx(context, 1, "Failed getting default "
-			  "credential cache type");
-	    
-	    typename_arg = strdup(name);
-	    if (typename_arg == NULL)
-		errx(1, "strdup");
-	    
-	    s = strchr(typename_arg, ':');
-	    if (s)
-		*s = '\0';
-	}
-
-	type = krb5_cc_get_prefix_ops(context, typename_arg);
-	if (type == NULL)
-	    krb5_err(context, 1, ret, "Failed getting ops for %s "
-		     "credential cache", typename_arg);
-     
-	ret = krb5_cc_gen_new(context, type, &id);
+	ret = krb5_cc_new_unique(context, typename_arg, NULL, &id);
 	if (ret)
 	    krb5_err(context, 1, ret, "Failed generating credential cache");
 
@@ -164,7 +138,7 @@ main(int argc, char **argv)
 	if (name == NULL)
 	    krb5_errx(context, 1, "Generated credential cache have no name");
 
-	snprintf(tf, sizeof(tf), "%s:%s", typename_arg, name);
+	snprintf(tf, sizeof(tf), "%s:%s", krb5_cc_get_type(context, id), name);
 
 	ret = krb5_cc_close(context, id);
 	if (ret)
@@ -190,11 +164,13 @@ main(int argc, char **argv)
     if (args == NULL)
 	errx (1, "Out of memory allocating %lu bytes",
 	      (unsigned long)((argc + 10)*sizeof(char *)));
-  
+
     if(*argv == NULL) {
 	path = getenv("SHELL");
 	if(path == NULL){
 	    struct passwd *pw = k_getpwuid(geteuid());
+	    if (pw == NULL)
+		errx(1, "no such user: %d", (int)geteuid());
 	    path = strdup(pw->pw_shell);
 	}
     } else {
@@ -202,7 +178,7 @@ main(int argc, char **argv)
     }
     if (path == NULL)
 	errx (1, "Out of memory copying path");
-  
+
     p=strrchr(path, '/');
     if(p)
 	args[i] = strdup(p+1);
@@ -211,7 +187,7 @@ main(int argc, char **argv)
 
     if (args[i++] == NULL)
 	errx (1, "Out of memory copying arguments");
-  
+
     while(*argv)
 	args[i++] = *argv++;
 
@@ -224,7 +200,7 @@ main(int argc, char **argv)
     execvp(path, args);
     if (errno == ENOENT || c_flag) {
 	char **sh_args = malloc ((i + 2) * sizeof(char *));
-	int j;
+	unsigned int j;
 
 	if (sh_args == NULL)
 	    errx (1, "Out of memory copying sh arguments");

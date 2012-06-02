@@ -402,7 +402,7 @@ aac_pci_attach(device_t dev)
 	 *
 	 * Note that some of these controllers are 64-bit capable.
 	 */
-	if (bus_dma_tag_create(NULL, 			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->aac_dev), /* parent */
 			       PAGE_SIZE, 0,		/* algnmnt, boundary */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */

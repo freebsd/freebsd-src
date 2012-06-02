@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 - 2004 Kungliga Tekniska Högskolan
+.\" Copyright (c) 2003 - 2004 Kungliga Tekniska HÃ¶gskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden).
 .\" All rights reserved.
 .\"
@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: kadm5_pwcheck.3 15237 2005-05-25 13:16:27Z lha $
+.\" $Id$
 .\"
 .Dd February 29, 2004
 .Dt KADM5_PWCHECK 3
@@ -77,16 +77,17 @@ library.
 .Pp
 There are two versions of the shared object API; the old version (0)
 is deprecated, but still supported.  The new version (1) supports
-multiple password quality checking modules in the same shared object.
+multiple password quality checking policies in the same shared object.
 See below for details.
 .Pp
-The password quality checker will run over all tests that are
-configured by the user.
+The password quality checker will run all policies that are
+configured by the user.  If any policy rejects the password, the password
+will be rejected.
 .Pp
-Module names are of the form
-.Ql vendor:test-name
-or, if the the test name is unique enough, just
-.Ql test-name .
+Policy names are of the form
+.Ql module-name:policy-name
+or, if the the policy name is unique enough, just
+.Ql policy-name .
 .Sh IMPLEMENTING A PASSWORD QUALITY CHECKING SHARED OBJECT
 (This refers to the version 1 API only.)
 .Pp
@@ -101,10 +102,16 @@ Its
 .Ft name
 and
 .Ft vendor
-fields should be contain the obvious information and
+fields should contain the obvious information.
+.Ft name
+must match the
+.Ql module-name
+portion of the policy name (the part before the colon), if the policy name
+contains a colon, or the policy will not be run.
 .Ft version
 should be
 .Dv KADM5_PASSWD_VERSION_V1 .
+.Pp
 .Ft funcs
 contains an array of
 .Ft "struct kadm5_pw_policy_check_func"
@@ -113,8 +120,14 @@ structures that is terminated with an entry whose
 component is
 .Dv NULL .
 The
+.Ft name
+field of the array must match the
+.Ql policy-name
+portion of a policy name (the part after the colon, or the complete policy
+name if there is no colon) specified by the user or the policy will not be
+run.  The
 .Ft func
-Fields of the array elements are functions that are exported by the
+fields of the array elements are functions that are exported by the
 module to be called to check the password.  They get the following
 arguments:  the Kerberos context, principal, password, a tuning parameter, and
 a pointer to a message buffer and its length.  The tuning parameter

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.c,v 1.18 2011-01-04 23:47:14 tbox Exp $ */
+/* $Id: mutex.c,v 1.18 2011/01/04 23:47:14 tbox Exp $ */
 
 /*! \file */
 
@@ -78,7 +78,7 @@ struct isc_mutexstats {
 };
 
 #ifndef ISC_MUTEX_PROFTABLESIZE
-#define ISC_MUTEX_PROFTABLESIZE (16 * 1024)
+#define ISC_MUTEX_PROFTABLESIZE (1024 * 1024)
 #endif
 static isc_mutexstats_t stats[ISC_MUTEX_PROFTABLESIZE];
 static int stats_next = 0;
@@ -200,24 +200,24 @@ isc_mutex_statsprofile(FILE *fp) {
 
 	fprintf(fp, "Mutex stats (in us)\n");
 	for (i = 0; i < stats_next; i++) {
-		fprintf(fp, "%-12s %4d: %10u  %lu.%06lu %lu.%06lu\n",
+		fprintf(fp, "%-12s %4d: %10u  %lu.%06lu %lu.%06lu %5d\n",
 			stats[i].file, stats[i].line, stats[i].count,
 			stats[i].locked_total.tv_sec,
 			stats[i].locked_total.tv_usec,
 			stats[i].wait_total.tv_sec,
-			stats[i].wait_total.tv_usec
-			);
+			stats[i].wait_total.tv_usec,
+			i);
 		for (j = 0; j < ISC_MUTEX_MAX_LOCKERS; j++) {
 			locker = &stats[i].lockers[j];
 			if (locker->file == NULL)
 				continue;
-			fprintf(fp, " %-11s %4d: %10u  %lu.%06lu %lu.%06lu\n",
+			fprintf(fp, " %-11s %4d: %10u  %lu.%06lu %lu.%06lu %5d\n",
 				locker->file, locker->line, locker->count,
 				locker->locked_total.tv_sec,
 				locker->locked_total.tv_usec,
 				locker->wait_total.tv_sec,
-				locker->wait_total.tv_usec
-				);
+				locker->wait_total.tv_usec,
+				i);
 		}
 	}
 }

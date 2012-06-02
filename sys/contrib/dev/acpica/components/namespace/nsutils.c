@@ -405,7 +405,7 @@ AcpiNsBuildInternalName (
         if (!AcpiNsValidPathSeparator (*ExternalName) &&
             (*ExternalName != 0))
         {
-            return_ACPI_STATUS (AE_BAD_PARAMETER);
+            return_ACPI_STATUS (AE_BAD_PATHNAME);
         }
 
         /* Move on the next segment */

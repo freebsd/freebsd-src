@@ -100,10 +100,7 @@ __shared_weak_count::lock() _NOEXCEPT
         if (__sync_bool_compare_and_swap(&__shared_owners_,
                                          object_owners,
                                          object_owners+1))
-        {
-            __add_weak();
             return this;
-        }
         object_owners = __shared_owners_;
     }
     return 0;
@@ -154,7 +151,7 @@ align(size_t alignment, size_t size, void*& ptr, size_t& space)
     {
         char* p1 = static_cast<char*>(ptr);
         char* p2 = (char*)((size_t)(p1 + (alignment - 1)) & -alignment);
-        ptrdiff_t d = p2 - p1;
+        size_t d = static_cast<size_t>(p2 - p1);
         if (d <= space - size)
         {
             r = p2;

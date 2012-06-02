@@ -16,13 +16,12 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/VectorExtras.h"
 #include <map>
 #include <algorithm>
 #include <functional>
+#include <set>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -50,7 +49,6 @@ public:
   }
 };
 } // end anonymous namespace.
-
 
 static std::string
 getCategoryFromDiagGroup(const Record *Group,
@@ -120,8 +118,44 @@ namespace {
     iterator begin() { return CategoryStrings.begin(); }
     iterator end() { return CategoryStrings.end(); }
   };
+
+  struct GroupInfo {
+    std::vector<const Record*> DiagsInGroup;
+    std::vector<std::string> SubGroups;
+    unsigned IDNo;
+  };
 } // end anonymous namespace.
 
+/// \brief Invert the 1-[0/1] mapping of diags to group into a one to many
+/// mapping of groups to diags in the group.
+static void groupDiagnostics(const std::vector<Record*> &Diags,
+                             const std::vector<Record*> &DiagGroups,
+                             std::map<std::string, GroupInfo> &DiagsInGroup) {
+  for (unsigned i = 0, e = Diags.size(); i != e; ++i) {
+    const Record *R = Diags[i];
+    DefInit *DI = dynamic_cast<DefInit*>(R->getValueInit("Group"));
+    if (DI == 0) continue;
+    std::string GroupName = DI->getDef()->getValueAsString("GroupName");
+    DiagsInGroup[GroupName].DiagsInGroup.push_back(R);
+  }
+  
+  // Add all DiagGroup's to the DiagsInGroup list to make sure we pick up empty
+  // groups (these are warnings that GCC supports that clang never produces).
+  for (unsigned i = 0, e = DiagGroups.size(); i != e; ++i) {
+    Record *Group = DiagGroups[i];
+    GroupInfo &GI = DiagsInGroup[Group->getValueAsString("GroupName")];
+    
+    std::vector<Record*> SubGroups = Group->getValueAsListOfDefs("SubGroups");
+    for (unsigned j = 0, e = SubGroups.size(); j != e; ++j)
+      GI.SubGroups.push_back(SubGroups[j]->getValueAsString("GroupName"));
+  }
+  
+  // Assign unique ID numbers to the groups.
+  unsigned IDNo = 0;
+  for (std::map<std::string, GroupInfo>::iterator
+       I = DiagsInGroup.begin(), E = DiagsInGroup.end(); I != E; ++I, ++IDNo)
+    I->second.IDNo = IDNo;
+}
 
 //===----------------------------------------------------------------------===//
 // Warning Tables (.inc file) generation.
@@ -130,7 +164,7 @@ namespace {
 void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
   // Write the #if guard
   if (!Component.empty()) {
-    std::string ComponentName = UppercaseString(Component);
+    std::string ComponentName = StringRef(Component).upper();
     OS << "#ifdef " << ComponentName << "START\n";
     OS << "__" << ComponentName << "START = DIAG_START_" << ComponentName
        << ",\n";
@@ -140,7 +174,13 @@ void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
 
   const std::vector<Record*> &Diags =
     Records.getAllDerivedDefinitions("Diagnostic");
-  
+
+  std::vector<Record*> DiagGroups
+    = Records.getAllDerivedDefinitions("DiagGroup");
+
+  std::map<std::string, GroupInfo> DiagsInGroup;
+  groupDiagnostics(Diags, DiagGroups, DiagsInGroup);
+
   DiagCategoryIDMap CategoryIDs(Records);
   DiagGroupParentMap DGParentMap(Records);
 
@@ -158,12 +198,15 @@ void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
     OS << ", \"";
     OS.write_escaped(R.getValueAsString("Text")) << '"';
     
-    // Warning associated with the diagnostic.
+    // Warning associated with the diagnostic. This is stored as an index into
+    // the alphabetically sorted warning table.
     if (DefInit *DI = dynamic_cast<DefInit*>(R.getValueInit("Group"))) {
-      OS << ", \"";
-      OS.write_escaped(DI->getDef()->getValueAsString("GroupName")) << '"';
+      std::map<std::string, GroupInfo>::iterator I =
+          DiagsInGroup.find(DI->getDef()->getValueAsString("GroupName"));
+      assert(I != DiagsInGroup.end());
+      OS << ", " << I->second.IDNo;
     } else {
-      OS << ", \"\"";
+      OS << ", 0";
     }
 
     // SFINAE bit
@@ -196,14 +239,6 @@ void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
   
     // Category number.
     OS << ", " << CategoryIDs.getID(getDiagnosticCategory(&R, DGParentMap));
-
-    // Brief
-    OS << ", \"";
-    OS.write_escaped(R.getValueAsString("Brief")) << '"';
-
-    // Explanation 
-    OS << ", \"";
-    OS.write_escaped(R.getValueAsString("Explanation")) << '"';
     OS << ")\n";
   }
 }
@@ -215,56 +250,24 @@ void ClangDiagsDefsEmitter::run(raw_ostream &OS) {
 static std::string getDiagCategoryEnum(llvm::StringRef name) {
   if (name.empty())
     return "DiagCat_None";
-  llvm::SmallString<256> enumName = llvm::StringRef("DiagCat_");
+  SmallString<256> enumName = llvm::StringRef("DiagCat_");
   for (llvm::StringRef::iterator I = name.begin(), E = name.end(); I != E; ++I)
     enumName += isalnum(*I) ? *I : '_';
   return enumName.str();
 }
 
-namespace {
-struct GroupInfo {
-  std::vector<const Record*> DiagsInGroup;
-  std::vector<std::string> SubGroups;
-  unsigned IDNo;
-};
-} // end anonymous namespace.
-
 void ClangDiagGroupsEmitter::run(raw_ostream &OS) {
   // Compute a mapping from a DiagGroup to all of its parents.
   DiagGroupParentMap DGParentMap(Records);
   
-  // Invert the 1-[0/1] mapping of diags to group into a one to many mapping of
-  // groups to diags in the group.
-  std::map<std::string, GroupInfo> DiagsInGroup;
-  
   std::vector<Record*> Diags =
     Records.getAllDerivedDefinitions("Diagnostic");
-  for (unsigned i = 0, e = Diags.size(); i != e; ++i) {
-    const Record *R = Diags[i];
-    DefInit *DI = dynamic_cast<DefInit*>(R->getValueInit("Group"));
-    if (DI == 0) continue;
-    std::string GroupName = DI->getDef()->getValueAsString("GroupName");
-    DiagsInGroup[GroupName].DiagsInGroup.push_back(R);
-  }
   
-  // Add all DiagGroup's to the DiagsInGroup list to make sure we pick up empty
-  // groups (these are warnings that GCC supports that clang never produces).
   std::vector<Record*> DiagGroups
     = Records.getAllDerivedDefinitions("DiagGroup");
-  for (unsigned i = 0, e = DiagGroups.size(); i != e; ++i) {
-    Record *Group = DiagGroups[i];
-    GroupInfo &GI = DiagsInGroup[Group->getValueAsString("GroupName")];
-    
-    std::vector<Record*> SubGroups = Group->getValueAsListOfDefs("SubGroups");
-    for (unsigned j = 0, e = SubGroups.size(); j != e; ++j)
-      GI.SubGroups.push_back(SubGroups[j]->getValueAsString("GroupName"));
-  }
-  
-  // Assign unique ID numbers to the groups.
-  unsigned IDNo = 0;
-  for (std::map<std::string, GroupInfo>::iterator
-       I = DiagsInGroup.begin(), E = DiagsInGroup.end(); I != E; ++I, ++IDNo)
-    I->second.IDNo = IDNo;
+
+  std::map<std::string, GroupInfo> DiagsInGroup;
+  groupDiagnostics(Diags, DiagGroups, DiagsInGroup);
   
   // Walk through the groups emitting an array for each diagnostic of the diags
   // that are mapped to.
@@ -304,6 +307,10 @@ void ClangDiagGroupsEmitter::run(raw_ostream &OS) {
     OS << "  { ";
     OS << I->first.size() << ", ";
     OS << "\"";
+    if (I->first.find_first_not_of("abcdefghijklmnopqrstuvwxyz"
+                                   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                   "0123456789!@#$%^*-+=:?")!=std::string::npos)
+      throw "Invalid character in diagnostic group '" + I->first + "'";
     OS.write_escaped(I->first) << "\","
                                << std::string(MaxLen-I->first.size()+1, ' ');
     

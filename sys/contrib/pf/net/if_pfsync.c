@@ -48,7 +48,10 @@
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
  * 1.128 - cleanups
+ * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
+ * 1.126, 1.142 - deferred packets processing
+ * 1.173 - correct expire time processing
  */
 
 #ifdef __FreeBSD__
@@ -261,6 +264,7 @@ struct pfsync_softc {
 
 	struct pfsync_upd_reqs	 sc_upd_req_list;
 
+	int			 sc_defer;
 	struct pfsync_deferrals	 sc_deferrals;
 	u_int			 sc_deferred;
 
@@ -786,11 +790,20 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->creation = time_uptime - ntohl(sp->creation);
 	st->expire = time_second;
 	if (sp->expire) {
-		/* XXX No adaptive scaling. */
-		st->expire -= r->timeout[sp->timeout] - ntohl(sp->expire);
+		uint32_t timeout;
+
+		timeout = r->timeout[sp->timeout];
+		if (!timeout)
+#ifdef __FreeBSD__
+			timeout = V_pf_default_rule.timeout[sp->timeout];
+#else
+			timeout = pf_default_rule.timeout[sp->timeout];
+#endif
+
+		/* sp->expire may have been adaptively scaled by export. */
+		st->expire -= timeout - ntohl(sp->expire);
 	}
 
-	st->expire = ntohl(sp->expire) + time_second;
 	st->direction = sp->direction;
 	st->log = sp->log;
 	st->timeout = sp->timeout;
@@ -1288,7 +1301,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
 		pf_state_peer_ntoh(&sp->src, &st->src);
 		pf_state_peer_ntoh(&sp->dst, &st->dst);
-		st->expire = ntohl(sp->expire) + time_second;
+		st->expire = time_second;
 		st->timeout = sp->timeout;
 		st->pfsync_time = time_uptime;
 	}
@@ -1394,7 +1407,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
 		pf_state_peer_ntoh(&up->src, &st->src);
 		pf_state_peer_ntoh(&up->dst, &st->dst);
-		st->expire = ntohl(up->expire) + time_second;
+		st->expire = time_second;
 		st->timeout = up->timeout;
 		st->pfsync_time = time_uptime;
 	}
@@ -1804,6 +1817,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		pfsyncr.pfsyncr_syncpeer = sc->sc_sync_peer;
 		pfsyncr.pfsyncr_maxupdates = sc->sc_maxupdates;
+		pfsyncr.pfsyncr_defer = sc->sc_defer;
 		return (copyout(&pfsyncr, ifr->ifr_data, sizeof(pfsyncr)));
 
 	case SIOCSETPFSYNC:
@@ -1839,6 +1853,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 #endif
 		sc->sc_maxupdates = pfsyncr.pfsyncr_maxupdates;
+		sc->sc_defer = pfsyncr.pfsyncr_defer;
 
 		if (pfsyncr.pfsyncr_syncdev[0] == 0) {
 			sc->sc_sync_if = NULL;
@@ -2011,19 +2026,12 @@ pfsync_out_upd_c(struct pf_state *st, struct mbuf *m, int offset)
 {
 	struct pfsync_upd_c *up = (struct pfsync_upd_c *)(m->m_data + offset);
 
+	bzero(up, sizeof(*up));
 	up->id = st->id;
 	pf_state_peer_hton(&st->src, &up->src);
 	pf_state_peer_hton(&st->dst, &up->dst);
 	up->creatorid = st->creatorid;
-
-	up->expire = pf_state_expires(st);
-	if (up->expire <= time_second)
-		up->expire = htonl(0);
-	else
-		up->expire = htonl(up->expire - time_second);
 	up->timeout = st->timeout;
-
-	bzero(up->_pad, sizeof(up->_pad)); /* XXX */
 
 	return (sizeof(*up));
 }
@@ -2378,10 +2386,7 @@ pfsync_insert_state(struct pf_state *st)
 
 	pfsync_q_ins(st, PFSYNC_S_INS);
 
-	if (ISSET(st->state_flags, PFSTATE_ACK))
-		schednetisr(NETISR_PFSYNC);
-	else
-		st->sync_updates = 0;
+	st->sync_updates = 0;
 }
 
 int defer = 10;
@@ -2401,6 +2406,9 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 #else
 	splassert(IPL_SOFTNET);
 #endif
+
+	if (!sc->sc_defer || m->m_flags & (M_BCAST|M_MCAST))
+		return (0);
 
 	if (sc->sc_deferred >= 128)
 		pfsync_undefer(TAILQ_FIRST(&sc->sc_deferrals), 0);
@@ -2429,6 +2437,8 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 	timeout_set(&pd->pd_tmo, pfsync_defer_tmo, pd);
 	timeout_add(&pd->pd_tmo, defer);
 #endif
+
+	swi_sched(V_pfsync_swi_cookie, 0);
 
 	return (1);
 }

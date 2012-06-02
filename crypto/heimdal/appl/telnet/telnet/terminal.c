@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: terminal.c 9733 2001-03-06 20:10:14Z assar $");
+RCSID("$Id$");
 
 Ring		ttyoring, ttyiring;
 unsigned char	ttyobuf[2*BUFSIZ], ttyibuf[BUFSIZ];
@@ -195,7 +195,7 @@ setconnmode(force)
     newmode = getconnmode()|(force?MODE_FORCE:0);
 
     TerminalNewMode(newmode);
-    
+
 #ifdef  ENCRYPTION
     if ((newmode & (MODE_ECHO|MODE_EDIT)) == MODE_EDIT) {
 	if (my_want_state_is_will(TELOPT_ENCRYPT)

@@ -188,7 +188,7 @@ isci_task_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 
 	isci_remote_device->is_resetting = FALSE;
 
-	switch (completion_status) {
+	switch ((int)completion_status) {
 	case SCI_TASK_SUCCESS:
 	case SCI_TASK_FAILURE_RESPONSE_VALID:
 		break;

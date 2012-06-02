@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.193.12.3 2011-05-23 22:12:14 each Exp $ */
+/* $Id: nsupdate.c,v 1.193.12.4 2011/11/03 04:30:09 each Exp $ */
 
 /*! \file */
 
@@ -2280,6 +2280,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		dns_message_destroy(&soaquery);
 		ddebug("Out of recvsoa");
 		done_update();
+		seenerror = ISC_TRUE;
 		return;
 	}
 

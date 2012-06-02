@@ -4,4 +4,3 @@
 files	"../idt/files.idt"
 
 machine		mips mipsel
-options		ISA_MIPS32

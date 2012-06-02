@@ -425,7 +425,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				s->loc_size = dval & mask;
 				break;
 			case 8:
-				hid_switch_rid(s, c, dval);
+				hid_switch_rid(s, c, dval & mask);
 				break;
 			case 9:
 				/* mask because value is unsigned */
@@ -612,7 +612,7 @@ hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
  *	hid_locate
  *------------------------------------------------------------------------*/
 int
-hid_locate(const void *desc, usb_size_t size, uint32_t u, enum hid_kind k,
+hid_locate(const void *desc, usb_size_t size, int32_t u, enum hid_kind k,
     uint8_t index, struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
@@ -742,7 +742,7 @@ hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
  *	hid_is_collection
  *------------------------------------------------------------------------*/
 int
-hid_is_collection(const void *desc, usb_size_t size, uint32_t usage)
+hid_is_collection(const void *desc, usb_size_t size, int32_t usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;

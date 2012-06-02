@@ -20,6 +20,7 @@
 namespace llvm {
   class Value;
   class TargetData;
+  class TargetLibraryInfo;
   
   /// CastToCStr - Return V if it is an i8*, otherwise cast it to i8*.
   Value *CastToCStr(Value *V, IRBuilder<> &B);
@@ -68,7 +69,7 @@ namespace llvm {
   /// 'Op' and returns one value with the same type.  If 'Op' is a long double,
   /// 'l' is added as the suffix of name, if 'Op' is a float, we add a 'f'
   /// suffix.
-  Value *EmitUnaryFloatFnCall(Value *Op, const char *Name, IRBuilder<> &B,
+  Value *EmitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
                               const AttrListPtr &Attrs);
 
   /// EmitPutChar - Emit a call to the putchar function.  This assumes that Char
@@ -86,12 +87,13 @@ namespace llvm {
 
   /// EmitFPutS - Emit a call to the puts function.  Str is required to be a
   /// pointer and File is a pointer to FILE.
-  void EmitFPutS(Value *Str, Value *File, IRBuilder<> &B, const TargetData *TD);
+  void EmitFPutS(Value *Str, Value *File, IRBuilder<> &B, const TargetData *TD,
+                 const TargetLibraryInfo *TLI);
 
   /// EmitFWrite - Emit a call to the fwrite function.  This assumes that Ptr is
   /// a pointer, Size is an 'intptr_t', and File is a pointer to FILE.
   void EmitFWrite(Value *Ptr, Value *Size, Value *File, IRBuilder<> &B,
-                  const TargetData *TD);
+                  const TargetData *TD, const TargetLibraryInfo *TLI);
 
   /// SimplifyFortifiedLibCalls - Helper class for folding checked library
   /// calls (e.g. __strcpy_chk) into their unchecked counterparts.

@@ -1,37 +1,37 @@
 /*
- * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-/* $Id: rsh_locl.h 21553 2007-07-15 09:04:52Z lha $ */
+/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -96,22 +96,23 @@
 #include <err.h>
 #include <roken.h>
 #include <getarg.h>
-#ifdef KRB4
-#include <krb.h>
-#include <prot.h>
-#endif
 #ifdef KRB5
 #include <krb5.h>
 /* XXX */
+struct hx509_certs_data;
 struct krb5_pk_identity;
 struct krb5_pk_cert;
 struct ContentInfo;
+struct AlgorithmIdentifier;
 struct _krb5_krb_auth_data;
 struct krb5_dh_moduli;
+struct _krb5_key_data;
+struct _krb5_encryption_type;
+struct _krb5_key_type;
 #include "crypto-headers.h"
 #include <krb5-private.h> /* for _krb5_{get,put}_int */
 #endif
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 #include <kafs.h>
 #endif
 
@@ -129,7 +130,7 @@ struct krb5_dh_moduli;
  *
  */
 
-enum auth_method { AUTH_KRB4, AUTH_KRB5, AUTH_BROKEN };
+enum auth_method { AUTH_KRB5, AUTH_BROKEN };
 
 extern enum auth_method auth_method;
 extern int do_encrypt;
@@ -141,10 +142,6 @@ extern int key_usage;
 extern void *ivec_in[2];
 extern void *ivec_out[2];
 void init_ivecs(int, int);
-#endif
-#ifdef KRB4
-extern des_key_schedule schedule;
-extern des_cblock iv;
 #endif
 
 #define KCMD_OLD_VERSION "KCMDV0.1"
@@ -160,7 +157,7 @@ extern des_cblock iv;
 
 #define PATH_RSH BINDIR "/rsh"
 
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 ssize_t do_read (int, void*, size_t, void*);
 ssize_t do_write (int, void*, size_t, void*);
 #else

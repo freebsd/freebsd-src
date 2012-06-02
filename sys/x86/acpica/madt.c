@@ -50,12 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 /* These two arrays are indexed by APIC IDs. */
-struct ioapic_info {
+static struct {
 	void *io_apic;
 	UINT32 io_vector;
-} ioapics[MAX_APIC_ID + 1];
+} *ioapics;
 
-struct lapic_info {
+static struct lapic_info {
 	u_int la_enabled:1;
 	u_int la_acpi_id:8;
 } lapics[MAX_APIC_ID + 1];
@@ -162,7 +162,10 @@ madt_setup_io(void)
 		printf("Try disabling either ACPI or apic support.\n");
 		panic("Using MADT but ACPI doesn't work");
 	}
-		    
+
+	ioapics = malloc(sizeof(*ioapics) * (MAX_APIC_ID + 1), M_MADT,
+	    M_WAITOK | M_ZERO);
+
 	/* First, we run through adding I/O APIC's. */
 	madt_walk_table(madt_parse_apics, NULL);
 
@@ -193,6 +196,9 @@ madt_setup_io(void)
 
 	/* Finally, we throw the switch to enable the I/O APIC's. */
 	acpi_SetDefaultIntrModel(ACPI_INTR_APIC);
+
+	free(ioapics, M_MADT);
+	ioapics = NULL;
 
 	return (0);
 }

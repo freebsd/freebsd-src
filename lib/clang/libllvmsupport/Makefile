@@ -10,6 +10,7 @@ SRCS=	APFloat.cpp \
 	APSInt.cpp \
 	Allocator.cpp \
 	Atomic.cpp \
+	BlockFrequency.cpp \
 	BranchProbability.cpp \
 	CommandLine.cpp \
 	ConstantRange.cpp \
@@ -24,12 +25,17 @@ SRCS=	APFloat.cpp \
 	FoldingSet.cpp \
 	FormattedStream.cpp \
 	GraphWriter.cpp \
+	Hashing.cpp \
 	Host.cpp \
 	IntervalMap.cpp \
 	IntEqClasses.cpp \
+	IntrusiveRefCntPtr.cpp \
+	Locale.cpp \
+	LockFileManager.cpp \
 	ManagedStatic.cpp \
 	Memory.cpp \
 	MemoryBuffer.cpp \
+	MemoryObject.cpp \
 	Mutex.cpp \
 	Path.cpp \
 	PathV2.cpp \
@@ -45,6 +51,7 @@ SRCS=	APFloat.cpp \
 	SmallVector.cpp \
 	SourceMgr.cpp \
 	Statistic.cpp \
+	StreamableMemoryObject.cpp \
 	StringExtras.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
@@ -73,6 +80,7 @@ LLVM_REQUIRES_RTTI=
 SRCS+=	BlockFrequency.cpp \
 	BranchProbability.cpp \
 	DataExtractor.cpp \
+	DataStream.cpp \
 	Disassembler.cpp \
 	FileUtilities.cpp \
 	MemoryObject.cpp \

@@ -594,12 +594,10 @@ ar5210SetResetReg(struct ath_hal *ah, uint32_t resetMask, u_int delay)
         if ((resetMask & AR_RC_RMAC) == 0) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
-			mask = INIT_CONFIG_STATUS |
-				AR_CFG_SWTD | AR_CFG_SWRD | AR_CFG_SWRG;
-			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWTD | AR_CFG_SWRD;
+			OS_REG_WRITE(ah, AR_CFG, mask);
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}

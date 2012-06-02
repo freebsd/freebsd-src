@@ -1425,6 +1425,13 @@ target_resize_to_sections (struct target_ops *target, int num_added)
 	      (*t)->to_sections_end = target->to_sections_end;
 	    }
 	}
+      /* There is a flattened view of the target stack in current_target,
+	 so its to_sections pointer might also need updating. */
+      if (current_target.to_sections == old_value)
+	{
+	  current_target.to_sections = target->to_sections;
+	  current_target.to_sections_end = target->to_sections_end;
+	}
     }
   
   return old_count;

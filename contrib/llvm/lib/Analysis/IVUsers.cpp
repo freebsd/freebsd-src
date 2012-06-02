@@ -79,10 +79,44 @@ static bool isInteresting(const SCEV *S, const Instruction *I, const Loop *L,
   return false;
 }
 
-/// AddUsersIfInteresting - Inspect the specified instruction.  If it is a
+/// Return true if all loop headers that dominate this block are in simplified
+/// form.
+static bool isSimplifiedLoopNest(BasicBlock *BB, const DominatorTree *DT,
+                                 const LoopInfo *LI,
+                                 SmallPtrSet<Loop*,16> &SimpleLoopNests) {
+  Loop *NearestLoop = 0;
+  for (DomTreeNode *Rung = DT->getNode(BB);
+       Rung; Rung = Rung->getIDom()) {
+    BasicBlock *DomBB = Rung->getBlock();
+    Loop *DomLoop = LI->getLoopFor(DomBB);
+    if (DomLoop && DomLoop->getHeader() == DomBB) {
+      // If the domtree walk reaches a loop with no preheader, return false.
+      if (!DomLoop->isLoopSimplifyForm())
+        return false;
+      // If we have already checked this loop nest, stop checking.
+      if (SimpleLoopNests.count(DomLoop))
+        break;
+      // If we have not already checked this loop nest, remember the loop
+      // header nearest to BB. The nearest loop may not contain BB.
+      if (!NearestLoop)
+        NearestLoop = DomLoop;
+    }
+  }
+  if (NearestLoop)
+    SimpleLoopNests.insert(NearestLoop);
+  return true;
+}
+
+/// AddUsersImpl - Inspect the specified instruction.  If it is a
 /// reducible SCEV, recursively add its users to the IVUsesByStride set and
 /// return true.  Otherwise, return false.
-bool IVUsers::AddUsersIfInteresting(Instruction *I) {
+bool IVUsers::AddUsersImpl(Instruction *I,
+                           SmallPtrSet<Loop*,16> &SimpleLoopNests) {
+  // Add this IV user to the Processed set before returning false to ensure that
+  // all IV users are members of the set. See IVUsers::isIVUserOrOperand.
+  if (!Processed.insert(I))
+    return true;    // Instruction already handled.
+
   if (!SE->isSCEVable(I->getType()))
     return false;   // Void and FP expressions cannot be reduced.
 
@@ -92,9 +126,6 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
   uint64_t Width = SE->getTypeSizeInBits(I->getType());
   if (Width > 64 || (TD && !TD->isLegalInteger(Width)))
     return false;
-
-  if (!Processed.insert(I))
-    return true;    // Instruction already handled.
 
   // Get the symbolic expression for this instruction.
   const SCEV *ISE = SE->getSCEV(I);
@@ -115,6 +146,18 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     if (isa<PHINode>(User) && Processed.count(User))
       continue;
 
+    // Only consider IVUsers that are dominated by simplified loop
+    // headers. Otherwise, SCEVExpander will crash.
+    BasicBlock *UseBB = User->getParent();
+    // A phi's use is live out of its predecessor block.
+    if (PHINode *PHI = dyn_cast<PHINode>(User)) {
+      unsigned OperandNo = UI.getOperandNo();
+      unsigned ValNo = PHINode::getIncomingValueNumForOperand(OperandNo);
+      UseBB = PHI->getIncomingBlock(ValNo);
+    }
+    if (!isSimplifiedLoopNest(UseBB, DT, LI, SimpleLoopNests))
+      return false;
+
     // Descend recursively, but not into PHI nodes outside the current loop.
     // It's important to see the entire expression outside the loop to get
     // choices that depend on addressing mode use right, although we won't
@@ -124,12 +167,12 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     bool AddUserToIVUsers = false;
     if (LI->getLoopFor(User->getParent()) != L) {
       if (isa<PHINode>(User) || Processed.count(User) ||
-          !AddUsersIfInteresting(User)) {
+          !AddUsersImpl(User, SimpleLoopNests)) {
         DEBUG(dbgs() << "FOUND USER in other loop: " << *User << '\n'
                      << "   OF SCEV: " << *ISE << '\n');
         AddUserToIVUsers = true;
       }
-    } else if (Processed.count(User) || !AddUsersIfInteresting(User)) {
+    } else if (Processed.count(User) || !AddUsersImpl(User, SimpleLoopNests)) {
       DEBUG(dbgs() << "FOUND USER: " << *User << '\n'
                    << "   OF SCEV: " << *ISE << '\n');
       AddUserToIVUsers = true;
@@ -151,6 +194,15 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     }
   }
   return true;
+}
+
+bool IVUsers::AddUsersIfInteresting(Instruction *I) {
+  // SCEVExpander can only handle users that are dominated by simplified loop
+  // entries. Keep track of all loops that are only dominated by other simple
+  // loops so we don't traverse the domtree for each user.
+  SmallPtrSet<Loop*,16> SimpleLoopNests;
+
+  return AddUsersImpl(I, SimpleLoopNests);
 }
 
 IVStrideUse &IVUsers::AddUser(Instruction *User, Value *Operand) {
@@ -268,6 +320,7 @@ void IVStrideUse::transformToPostInc(const Loop *L) {
 
 void IVStrideUse::deleted() {
   // Remove this user from the list.
+  Parent->Processed.erase(this->getUser());
   Parent->IVUses.erase(this);
   // this now dangles!
 }

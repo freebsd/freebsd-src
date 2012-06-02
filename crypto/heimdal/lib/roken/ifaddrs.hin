@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,16 +31,18 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ifaddrs.hin 19309 2006-12-11 18:58:15Z lha $ */
+/* $Id$ */
 
 #ifndef __ifaddrs_h__
 #define __ifaddrs_h__
 
 #ifndef ROKEN_LIB_FUNCTION
 #ifdef _WIN32
-#define ROKEN_LIB_FUNCTION _stdcall
+#define ROKEN_LIB_FUNCTION
+#define ROKEN_LIB_CALL _stdcall
 #else
 #define ROKEN_LIB_FUNCTION
+#define ROKEN_LIB_CALL
 #endif
 #endif
 

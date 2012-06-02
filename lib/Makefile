@@ -33,7 +33,6 @@ SUBDIR_ORDERED=	${_csu} \
 	libc \
 	libbsm \
 	libauditd \
-	libcom_err \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
@@ -51,6 +50,10 @@ SUBDIR_ORDERED=	${_csu} \
 	${_libypclnt} \
 	${_libcxxrt} \
 	${_libcplusplus}
+
+.if ${MK_KERBEROS_SUPPORT} != "no"
+SUBDIR_ORDERED+=	libcom_err
+.endif
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
@@ -85,6 +88,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libmemstat \
 	${_libmilter} \
 	${_libmp} \
+	${_libnandfs} \
 	${_libncp} \
 	${_libngatm} \
 	libopie \
@@ -101,6 +105,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
+	libstdbuf \
 	libstdthreads \
 	${_libtelnet} \
 	${_libthr} \
@@ -171,6 +176,10 @@ _libipx=	libipx
 _libthr=	libthr
 .endif
 
+.if ${MK_NAND} != "no"
+_libnandfs=	libnandfs
+.endif
+
 .if ${MK_NETGRAPH} != "no"
 _libnetgraph=	libnetgraph
 .endif
@@ -192,6 +201,11 @@ _librtld_db=	librtld_db
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"

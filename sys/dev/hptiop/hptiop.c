@@ -1268,6 +1268,7 @@ static driver_t hptiop_pci_driver = {
 };
 
 DRIVER_MODULE(hptiop, pci, hptiop_pci_driver, hptiop_devclass, 0, 0);
+MODULE_DEPEND(hptiop, cam, 1, 1, 1);
 
 static int hptiop_probe(device_t dev)
 {
@@ -1358,7 +1359,7 @@ static int hptiop_attach(device_t dev)
 	mtx_init(&hba->lock, "hptioplock", NULL, MTX_DEF);
 #endif
 
-	if (bus_dma_tag_create(NULL,/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),/* PCI parent */
 			1,  /* alignment */
 			0, /* boundary */
 			BUS_SPACE_MAXADDR,  /* lowaddr */

@@ -1,0 +1,36 @@
+.TH dispqlen.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+dispqlen.d \- dispatcher queue length by CPU. Uses DTrace.
+.SH SYNOPSIS
+.B dispqlen.d
+.SH DESCRIPTION
+The dispatcher queue length is an indication of CPU saturation.
+It is not an indicatior of utilisation - the CPUs may or may not be
+utilised when the dispatcher queue reports a length of zero.
+
+This script measures this activity by sampling at 1000 Hertz per CPU.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - walks private kernel structs.
+.SH EXAMPLES
+.TP
+Print dispatcher queue length by CPU.
+# 
+.B dispqlen.d
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+dispqlen.d will sample until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+uptime(1), dtrace(1M)
+

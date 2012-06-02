@@ -11,6 +11,8 @@ SUBDIR=	${_3dfx} \
 	accf_data \
 	accf_dns \
 	accf_http \
+	acl_nfs4 \
+	acl_posix1e \
 	${_acpi} \
 	ae \
 	${_aesni} \
@@ -85,6 +87,7 @@ SUBDIR=	${_3dfx} \
 	${_dpms} \
 	${_dpt} \
 	${_drm} \
+	${_drm2} \
 	${_dtrace} \
 	dummynet \
 	${_ed} \
@@ -215,6 +218,8 @@ SUBDIR=	${_3dfx} \
 	${_mwlfw} \
 	mxge \
 	my \
+	${_nandfs} \
+	${_nandsim} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
@@ -395,6 +400,11 @@ _ipdivert=	ipdivert
 _ipfw=		ipfw
 .endif
 
+.if ${MK_NAND} != "no" || defined(ALL_MODULES)
+_nandfs=	nandfs
+_nandsim=	nandsim
+.endif
+
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
 _netgraph=	netgraph
 .endif
@@ -452,6 +462,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
@@ -621,6 +632,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif

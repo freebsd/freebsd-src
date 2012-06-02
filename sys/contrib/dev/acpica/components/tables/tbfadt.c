@@ -52,12 +52,13 @@
 
 /* Local prototypes */
 
-static ACPI_INLINE void
+static void
 AcpiTbInitGenericAddress (
     ACPI_GENERIC_ADDRESS    *GenericAddress,
     UINT8                   SpaceId,
     UINT8                   ByteWidth,
-    UINT64                  Address);
+    UINT64                  Address,
+    char                    *RegisterName);
 
 static void
 AcpiTbConvertFadt (
@@ -202,13 +203,30 @@ static ACPI_FADT_PM_INFO    FadtPmInfoTable[] =
  *
  ******************************************************************************/
 
-static ACPI_INLINE void
+static void
 AcpiTbInitGenericAddress (
     ACPI_GENERIC_ADDRESS    *GenericAddress,
     UINT8                   SpaceId,
     UINT8                   ByteWidth,
-    UINT64                  Address)
+    UINT64                  Address,
+    char                    *RegisterName)
 {
+    UINT8                   BitWidth;
+
+
+    /* Bit width field in the GAS is only one byte long, 255 max */
+
+    BitWidth = (UINT8) (ByteWidth * 8);
+
+    if (ByteWidth > 31) /* (31*8)=248 */
+    {
+        ACPI_ERROR ((AE_INFO,
+            "%s - 32-bit FADT register is too long (%u bytes, %u bits) "
+            "to convert to GAS struct - 255 bits max, truncating",
+            RegisterName, ByteWidth, (ByteWidth * 8)));
+
+        BitWidth = 255;
+    }
 
     /*
      * The 64-bit Address field is non-aligned in the byte packed
@@ -219,7 +237,7 @@ AcpiTbInitGenericAddress (
     /* All other fields are byte-wide */
 
     GenericAddress->SpaceId = SpaceId;
-    GenericAddress->BitWidth = (UINT8) ACPI_MUL_8 (ByteWidth);
+    GenericAddress->BitWidth = BitWidth;
     GenericAddress->BitOffset = 0;
     GenericAddress->AccessWidth = 0; /* Access width ANY */
 }
@@ -400,10 +418,6 @@ AcpiTbConvertFadt (
     UINT32                  i;
 
 
-    /* Update the local FADT table header length */
-
-    AcpiGbl_FADT.Header.Length = sizeof (ACPI_TABLE_FADT);
-
     /*
      * Expand the 32-bit FACS and DSDT addresses to 64-bit as necessary.
      * Later code will always use the X 64-bit field.
@@ -435,6 +449,13 @@ AcpiTbConvertFadt (
         AcpiGbl_FADT.CstControl = 0;
         AcpiGbl_FADT.BootFlags = 0;
     }
+
+    /*
+     * Now we can update the local FADT length to the length of the
+     * current FADT version as defined by the ACPI specification.
+     * Thus, we will have a common FADT internally.
+     */
+    AcpiGbl_FADT.Header.Length = sizeof (ACPI_TABLE_FADT);
 
     /*
      * Expand the ACPI 1.0 32-bit addresses to the ACPI 2.0 64-bit "X"
@@ -481,7 +502,7 @@ AcpiTbConvertFadt (
              */
             AcpiTbInitGenericAddress (Address64, ACPI_ADR_SPACE_SYSTEM_IO,
                 *ACPI_ADD_PTR (UINT8, &AcpiGbl_FADT, FadtInfoTable[i].Length),
-                (UINT64) Address32);
+                (UINT64) Address32, FadtInfoTable[i].Name);
         }
     }
 }
@@ -697,7 +718,8 @@ AcpiTbSetupFadtRegisters (
             AcpiTbInitGenericAddress (FadtPmInfoTable[i].Target,
                 Source64->SpaceId, Pm1RegisterByteWidth,
                 Source64->Address +
-                    (FadtPmInfoTable[i].RegisterNum * Pm1RegisterByteWidth));
+                    (FadtPmInfoTable[i].RegisterNum * Pm1RegisterByteWidth),
+                "PmRegisters");
         }
     }
 }

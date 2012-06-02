@@ -2703,7 +2703,7 @@ bsnmpd_get_usm_stats(void)
 void
 bsnmpd_reset_usm_stats(void)
 {
-	memset(&snmpd_usmstats, 0, sizeof(&snmpd_usmstats));
+	memset(&snmpd_usmstats, 0, sizeof(snmpd_usmstats));
 }
 
 struct usm_user *

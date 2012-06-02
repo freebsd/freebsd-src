@@ -28,7 +28,7 @@
 .\"	@(#)msync.2	8.2 (Berkeley) 6/21/94
 .\" $FreeBSD$
 .\"
-.Dd June 21, 1994
+.Dd March 18, 2012
 .Dt MSYNC 2
 .Os
 .Sh NAME
@@ -98,6 +98,9 @@ The
 argument
 was both MS_ASYNC and MS_INVALIDATE.
 Only one of these flags is allowed.
+.It Bq Er EIO
+ An error occurred while writing at least one of the pages in
+the specified region.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,
@@ -113,7 +116,7 @@ system call first appeared in
 .Sh BUGS
 The
 .Fn msync
-system call is obsolete since
+system call is usually not needed since
 .Bx
 implements a coherent file system buffer cache.
 However, it may be used to associate dirty VM pages with file system

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.47 2009-12-18 23:49:03 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -44,6 +44,7 @@ LIBDNS_EXTERNAL_DATA isc_logcategory_t dns_categories[] = {
 	{ "lame-servers", 0 },
 	{ "delegation-only", 0 },
 	{ "edns-disabled", 0 },
+	{ "rpz",	0 },
 	{ NULL, 	0 }
 };
 

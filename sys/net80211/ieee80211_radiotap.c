@@ -67,7 +67,7 @@ ieee80211_radiotap_attach(struct ieee80211com *ic,
 	else if (tx_radiotap & B(IEEE80211_RADIOTAP_XCHANNEL))
 		off = radiotap_offset(th, IEEE80211_RADIOTAP_XCHANNEL);
 	if (off == -1) {
-		if_printf(ic->ic_ifp, "%s: no tx channel, radiotap 0x%x",
+		if_printf(ic->ic_ifp, "%s: no tx channel, radiotap 0x%x\n",
 		    __func__, tx_radiotap);
 		/* NB: we handle this case but data will have no chan spec */
 	} else
@@ -83,7 +83,7 @@ ieee80211_radiotap_attach(struct ieee80211com *ic,
 	else if (rx_radiotap & B(IEEE80211_RADIOTAP_XCHANNEL))
 		off = radiotap_offset(rh, IEEE80211_RADIOTAP_XCHANNEL);
 	if (off == -1) {
-		if_printf(ic->ic_ifp, "%s: no rx channel, radiotap 0x%x",
+		if_printf(ic->ic_ifp, "%s: no rx channel, radiotap 0x%x\n",
 		    __func__, rx_radiotap);
 		/* NB: we handle this case but data will have no chan spec */
 	} else

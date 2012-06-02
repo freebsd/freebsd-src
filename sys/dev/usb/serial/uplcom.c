@@ -606,7 +606,7 @@ uplcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	    &req, NULL, 0, 1000);
 }
 
-static const int32_t uplcom_rates[] = {
+static const uint32_t uplcom_rates[] = {
 	75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400,
 	19200, 28800, 38400, 57600, 115200,
 	/*

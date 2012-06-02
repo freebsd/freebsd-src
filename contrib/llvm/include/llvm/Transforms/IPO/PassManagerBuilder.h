@@ -60,6 +60,10 @@ public:
     /// out of the frontend.
     EP_EarlyAsPossible,
 
+    /// EP_ModuleOptimizerEarly - This extension point allows adding passes
+    /// just before the main module-level optimization passes.
+    EP_ModuleOptimizerEarly,
+
     /// EP_LoopOptimizerEnd - This extension point allows adding loop passes to
     /// the end of the loop optimizer.
     EP_LoopOptimizerEnd,
@@ -67,7 +71,16 @@ public:
     /// EP_ScalarOptimizerLate - This extension point allows adding optimization
     /// passes after most of the main optimizations, but before the last
     /// cleanup-ish optimizations.
-    EP_ScalarOptimizerLate
+    EP_ScalarOptimizerLate,
+
+    /// EP_OptimizerLast -- This extension point allows adding passes that
+    /// run after everything else.
+    EP_OptimizerLast,
+
+    /// EP_EnabledOnOptLevel0 - This extension point allows adding passes that
+    /// should not be disabled by O0 optimization level. The passes will be
+    /// inserted after the inlining pass.
+    EP_EnabledOnOptLevel0
   };
 
   /// The Optimization Level - Specify the basic optimization level.
@@ -90,6 +103,7 @@ public:
   bool DisableSimplifyLibCalls;
   bool DisableUnitAtATime;
   bool DisableUnrollLoops;
+  bool Vectorize;
 
 private:
   /// ExtensionList - This is list of all of the extensions that are registered.
@@ -117,8 +131,9 @@ public:
   /// populateModulePassManager - This sets up the primary pass manager.
   void populateModulePassManager(PassManagerBase &MPM);
   void populateLTOPassManager(PassManagerBase &PM, bool Internalize,
-                              bool RunInliner);
+                              bool RunInliner, bool DisableGVNLoadPRE = false);
 };
+
 /// Registers a function for adding a standard set of passes.  This should be
 /// used by optimizer plugins to allow all front ends to transparently use
 /// them.  Create a static instance of this class in your plugin, providing a
@@ -129,5 +144,6 @@ struct RegisterStandardPasses {
     PassManagerBuilder::addGlobalExtension(Ty, Fn);
   }
 };
+
 } // end namespace llvm
 #endif

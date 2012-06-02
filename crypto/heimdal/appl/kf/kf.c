@@ -1,38 +1,38 @@
 /*
- * Copyright (c) 1997 - 2000, 2002 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2000, 2002 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kf_locl.h"
-RCSID("$Id: kf.c 11400 2002-09-05 15:00:03Z joda $");
+RCSID("$Id$");
 
 krb5_context context;
 static int help_flag;
@@ -72,16 +72,16 @@ client_setup(krb5_context *context, int *argc, char **argv)
     int status;
 
     setprogname (argv[0]);
- 
+
     status = krb5_init_context (context);
     if (status)
 	errx(1, "krb5_init_context failed: %d", status);
- 
+
     forwardable = krb5_config_get_bool (*context, NULL,
 					"libdefaults",
 					"forwardable",
-					NULL); 
- 
+					NULL);
+
     if (getarg (args, num_args, *argc, argv, &optind))
 	usage(1, args, num_args);
 
@@ -91,7 +91,7 @@ client_setup(krb5_context *context, int *argc, char **argv)
 	print_version(NULL);
 	exit(0);
     }
-    
+
     if(port_str) {
 	struct servent *s = roken_getservbyname(port_str, "tcp");
 	if(s)
@@ -108,7 +108,7 @@ client_setup(krb5_context *context, int *argc, char **argv)
 
     if (port == 0)
 	port = krb5_getportbyname (*context, KF_PORT_NAME, "tcp", KF_PORT_NUM);
-   
+
     if(*argc - optind < 1)
         usage(1, args, num_args);
     *argc = optind;
@@ -146,6 +146,7 @@ proto (int sock, const char *hostname, const char *service,
 					     auth_context,
 					     &sock);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_auth_con_setaddr");
 	return 1;
     }
@@ -156,6 +157,7 @@ proto (int sock, const char *hostname, const char *service,
 				      KRB5_NT_SRV_HST,
 				      &server);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_sname_to_principal");
 	return 1;
     }
@@ -174,6 +176,7 @@ proto (int sock, const char *hostname, const char *service,
 			    NULL,
 			    NULL);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn(context, status, "krb5_sendauth");
 	return 1;
     }
@@ -185,6 +188,7 @@ proto (int sock, const char *hostname, const char *service,
     data_send.length = strlen(remote_name) + 1;
     status = krb5_write_priv_message(context, auth_context, &sock, &data_send);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_write_message");
 	return 1;
     }
@@ -192,6 +196,7 @@ proto (int sock, const char *hostname, const char *service,
     data_send.length = strlen(ccache_name)+1;
     status = krb5_write_priv_message(context, auth_context, &sock, &data_send);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_write_message");
 	return 1;
     }
@@ -200,18 +205,20 @@ proto (int sock, const char *hostname, const char *service,
 
     status = krb5_cc_default (context, &ccache);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_cc_default");
 	return 1;
     }
 
     status = krb5_cc_get_principal (context, ccache, &principal);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_cc_get_principal");
 	return 1;
     }
 
     creds.client = principal;
-    
+
     status = krb5_make_principal (context,
 				  &creds.server,
 				  principal->realm,
@@ -220,6 +227,7 @@ proto (int sock, const char *hostname, const char *service,
 				  NULL);
 
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_make_principal");
 	return 1;
     }
@@ -238,6 +246,7 @@ proto (int sock, const char *hostname, const char *service,
 				       &creds,
 				       &data);
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_get_forwarded_creds");
 	return 1;
     }
@@ -245,13 +254,15 @@ proto (int sock, const char *hostname, const char *service,
     status = krb5_write_priv_message(context, auth_context, &sock, &data);
 
     if (status) {
+	krb5_auth_con_free(context, auth_context);
 	krb5_warn (context, status, "krb5_mk_priv");
 	return 1;
     }
-    
+
     krb5_data_free (&data);
 
     status = krb5_read_priv_message(context, auth_context, &sock, &data);
+    krb5_auth_con_free(context, auth_context);
     if (status) {
 	krb5_warn (context, status, "krb5_mk_priv");
 	return 1;
@@ -270,7 +281,7 @@ proto (int sock, const char *hostname, const char *service,
 }
 
 static int
-doit (const char *hostname, int port, const char *service, 
+doit (const char *hostname, int port, const char *service,
       char *message, size_t len)
 {
     struct addrinfo *ai, *a;
@@ -313,7 +324,7 @@ main(int argc, char **argv)
 {
     int argcc,port,i;
     int ret=0;
- 
+
     argcc = argc;
     port = client_setup(&context, &argcc, argv);
 

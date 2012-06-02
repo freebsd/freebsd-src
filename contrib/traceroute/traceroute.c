@@ -1406,8 +1406,7 @@ tcp_prep(struct outdata *outdata)
 
 	tcp->th_sport = htons(ident);
 	tcp->th_dport = htons(port + (fixedPort ? 0 : outdata->seq));
-	tcp->th_seq = (tcp->th_sport << 16) | (tcp->th_dport +
-	    (fixedPort ? outdata->seq : 0));
+	tcp->th_seq = (tcp->th_sport << 16) | tcp->th_dport;
 	tcp->th_ack = 0;
 	tcp->th_off = 5;
 	tcp->th_flags = TH_SYN;
@@ -1425,8 +1424,8 @@ tcp_check(const u_char *data, int seq)
 	struct tcphdr *const tcp = (struct tcphdr *) data;
 
 	return (ntohs(tcp->th_sport) == ident
-	    && ntohs(tcp->th_dport) == port + (fixedPort ? 0 : seq))
-	    && tcp->th_seq == (((tcp_seq)ident << 16) | (port + seq));
+	    && ntohs(tcp->th_dport) == port + (fixedPort ? 0 : seq)
+	    && tcp->th_seq == (tcp_seq)((tcp->th_sport << 16) | tcp->th_dport));
 }
 
 void

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: logconf.h,v 1.17 2007-06-19 23:46:59 tbox Exp $ */
+/* $Id: logconf.h,v 1.17 2007/06/19 23:46:59 tbox Exp $ */
 
 #ifndef NAMED_LOGCONF_H
 #define NAMED_LOGCONF_H 1

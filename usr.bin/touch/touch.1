@@ -51,27 +51,27 @@ utility sets the modification and access times of files.
 If any file does not exist, it is created with default permissions.
 .Pp
 By default,
-.Nm 
+.Nm
 changes both modification and access times.  The
 .Fl a
-and 
+and
 .Fl m
 flags may be used to select the access time or the modification time
 individually.
 Selecting both is equivalent to the default.
 By default, the timestamps are set to the current time.
-The 
+The
 .Fl t
 flag explicitly specifies a different time, and the
 .Fl r
 flag specifies to set the times those of the specified file.
-The 
+The
 .Fl A
 flag adjusts the values by a specified amount.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
-.It Fl A 
+.It Fl A
 Adjust the access and modification time stamps for the file by the
 specified value.
 This flag is intended for use in modifying files with incorrectly set
@@ -95,7 +95,7 @@ The number of seconds, from 00 to 59.
 .Pp
 The
 .Fl A
-flag implies the 
+flag implies the
 .Fl c
 flag: if any file specified does not exist, it will be silently ignored.
 .It Fl a

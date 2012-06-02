@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -44,13 +44,12 @@
 #include <asm/octeon/cvmx-clock.h>
 #include <asm/octeon/cvmx-uart.h>
 #else
-#include "executive-config.h"
 #include "cvmx.h"
 #include "cvmx-uart.h"
 #include "cvmx-interrupt.h"
 #endif
 
-#ifndef __OCTEON_NEWLIB__
+#ifndef CVMX_BUILD_FOR_TOOLCHAIN
 void cvmx_uart_enable_intr(int uart, cvmx_uart_intr_handler_t handler)
 {
 #ifndef CVMX_BUILD_FOR_LINUX_KERNEL
@@ -69,7 +68,7 @@ void cvmx_uart_enable_intr(int uart, cvmx_uart_intr_handler_t handler)
 
 static int cvmx_uart_simulator_p(void)
 {
-#ifndef __OCTEON_NEWLIB__
+#ifndef CVMX_BUILD_FOR_TOOLCHAIN
   return cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM;
 #else
   extern int __octeon_simulator_p;

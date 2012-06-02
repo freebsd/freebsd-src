@@ -52,7 +52,8 @@ __FBSDID("$FreeBSD$");
 #define	CORE_CPUID_EDX			0x3
 
 #define	IAF_PMC_CAPS			\
-	(PMC_CAP_READ | PMC_CAP_WRITE | PMC_CAP_INTERRUPT)
+	(PMC_CAP_READ | PMC_CAP_WRITE | PMC_CAP_INTERRUPT | \
+	 PMC_CAP_USER | PMC_CAP_SYSTEM)
 #define	IAF_RI_TO_MSR(RI)		((RI) + (1 << 30))
 
 #define	IAP_PMC_CAPS (PMC_CAP_INTERRUPT | PMC_CAP_USER | PMC_CAP_SYSTEM | \
@@ -2021,7 +2022,7 @@ iap_read_pmc(int cpu, int ri, pmc_value_t *v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = iap_perfctr_value_to_reload_count(tmp);
 	else
-		*v = tmp;
+		*v = tmp & ((1ULL << core_iap_width) - 1);
 
 	PMCDBG(MDP,REA,1, "iap-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    ri, *v);
@@ -2239,7 +2240,7 @@ core_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		error = pmc_process_interrupt(cpu, pm, tf,
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
 
 		v = pm->pm_sc.pm_reloadcount;
@@ -2326,7 +2327,7 @@ core2_intr(int cpu, struct trapframe *tf)
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			continue;
 
-		error = pmc_process_interrupt(cpu, pm, tf,
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
 		if (error)
 			intrenable &= ~flag;
@@ -2354,7 +2355,7 @@ core2_intr(int cpu, struct trapframe *tf)
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			continue;
 
-		error = pmc_process_interrupt(cpu, pm, tf,
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
 		if (error)
 			intrenable &= ~flag;
@@ -2406,8 +2407,12 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 	PMCDBG(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
 	    md->pmd_cputype, maxcpu, ipa_version);
 
-	if (ipa_version < 1 || ipa_version > 3)	/* Unknown PMC architecture. */
+	if (ipa_version < 1 || ipa_version > 3) {
+		/* Unknown PMC architecture. */
+		printf("hwpc_core: unknown PMC architecture: %d\n",
+		    ipa_version);
 		return (EPROGMISMATCH);
+	}
 
 	core_cputype = md->pmd_cputype;
 

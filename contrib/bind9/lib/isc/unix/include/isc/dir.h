@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dir.h,v 1.21 2007-06-19 23:47:19 tbox Exp $ */
+/* $Id: dir.h,v 1.21 2007/06/19 23:47:19 tbox Exp $ */
 
 /* Principal Authors: DCL */
 

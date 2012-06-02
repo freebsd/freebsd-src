@@ -223,6 +223,11 @@ SUBDIR+=	lpr
 SUBDIR+=	manctl
 .endif
 
+.if ${MK_NAND} != "no"
+SUBDIR+=	nandsim
+SUBDIR+=	nandtool
+.endif
+
 .if ${MK_NETGRAPH} != "no"
 SUBDIR+=	flowctl
 SUBDIR+=	lmcconfig
@@ -256,6 +261,7 @@ SUBDIR+=	ftp-proxy
 
 .if ${MK_PKGTOOLS} != "no"
 SUBDIR+=	pkg_install
+SUBDIR+=	pkg
 .endif
 
 # XXX MK_TOOLCHAIN?

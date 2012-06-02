@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,7 +49,7 @@
  * Interface to the SMI/MDIO hardware, including support for both IEEE 802.3
  * clause 22 and clause 45 operations.
  *
- * <hr>$Revision: 52004 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_MIO_H__
@@ -308,7 +308,7 @@ typedef union
 #define MDIO_CLAUSE_45_READ_INC 2
 #define MDIO_CLAUSE_45_READ     3
 
-/* MMD identifiers, mostly for accessing devices withing XENPAK modules. */
+/* MMD identifiers, mostly for accessing devices within XENPAK modules. */
 #define CVMX_MMD_DEVICE_PMA_PMD      1
 #define CVMX_MMD_DEVICE_WIS          2
 #define CVMX_MMD_DEVICE_PCS          3
@@ -382,7 +382,7 @@ static inline int cvmx_mdio_read(int bus_id, int phy_id, int location)
 	struct mii_bus *bus;
 	int rv;
 
-	BUG_ON(bus_id > 1 || bus_id < 0);
+	BUG_ON(bus_id > 3 || bus_id < 0);
 
 	bus = octeon_mdiobuses[bus_id];
 	if (bus == NULL)
@@ -434,7 +434,7 @@ static inline int cvmx_mdio_write(int bus_id, int phy_id, int location, int val)
 	struct mii_bus *bus;
 	int rv;
 
-	BUG_ON(bus_id > 1 || bus_id < 0);
+	BUG_ON(bus_id > 3 || bus_id < 0);
 
 	bus = octeon_mdiobuses[bus_id];
 	if (bus == NULL)

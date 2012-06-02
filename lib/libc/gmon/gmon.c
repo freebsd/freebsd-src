@@ -157,7 +157,12 @@ _mcleanup(void)
 	}
 
 	moncontrol(0);
-	snprintf(outname, sizeof(outname), "%s.gmon", _getprogname());
+	if (getenv("PROFIL_USE_PID"))
+		snprintf(outname, sizeof(outname), "%s.%d.gmon",
+		    _getprogname(), getpid());
+	else
+		snprintf(outname, sizeof(outname), "%s.gmon", _getprogname());
+
 	fd = _open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 	if (fd < 0) {
 		_warn("_mcleanup: %s", outname);

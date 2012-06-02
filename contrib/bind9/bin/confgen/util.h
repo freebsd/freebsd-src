@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: util.h,v 1.4 2009-09-29 15:06:05 fdupont Exp $ */
+/* $Id: util.h,v 1.4 2009/09/29 15:06:05 fdupont Exp $ */
 
 #ifndef RNDC_UTIL_H
 #define RNDC_UTIL_H 1

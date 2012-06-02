@@ -61,6 +61,16 @@
 #define EXT2_NODUMP		0x00000040	/* do not dump file */
 #define EXT2_NOATIME		0x00000080	/* do not update atime */
 
+/*
+ * Definitions for nanosecond timestamps.
+ * Ext3 inode versioning, 2006-12-13.
+ */
+#define EXT3_EPOCH_BITS	2
+#define EXT3_EPOCH_MASK	((1 << EXT3_EPOCH_BITS) - 1)
+#define EXT3_NSEC_MASK	(~0UL << EXT3_EPOCH_BITS)
+
+#define E2DI_HAS_XTIME(ip)	(EXT2_INODE_SIZE((ip)->i_e2fs) > \
+				    E2FS_REV0_INODE_SIZE)
 
 /*
  * Structure of an inode on the disk
@@ -77,7 +87,7 @@ struct ext2fs_dinode {
 	uint16_t	e2di_nlink;	/*  26: File link count */
 	uint32_t	e2di_nblock;	/*  28: Blocks count */
 	uint32_t	e2di_flags;	/*  32: Status flags (chflags) */
-	uint32_t	e2di_linux_reserved1; /* 36 */
+	uint32_t	e2di_version;	/*  36: Low 32 bits inode version */
 	uint32_t	e2di_blocks[EXT2_N_BLOCKS]; /* 40: disk blocks */
 	uint32_t	e2di_gen;	/* 100: generation number */
 	uint32_t	e2di_facl;	/* 104: file ACL (not implemented) */
@@ -91,6 +101,12 @@ struct ext2fs_dinode {
 	uint32_t	e2di_linux_reserved3; /* 124 */
 	uint16_t	e2di_extra_isize;
 	uint16_t	e2di_pad1;
+	uint32_t        e2di_ctime_extra; /* Extra change time */
+	uint32_t        e2di_mtime_extra; /* Extra modification time */
+	uint32_t        e2di_atime_extra; /* Extra access time */
+	uint32_t        e2di_crtime;	  /* Creation (birth)time */
+	uint32_t        e2di_crtime_extra; /* Extra creation (birth)time */
+	uint32_t        e2di_version_hi;  /* High 30 bits of inode version */
 };
 
 #endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */

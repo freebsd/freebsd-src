@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 1996
+.Dd March 8, 2012
 .Dt ADJKERNTZ 8
 .Os
 .Sh NAME
 .Nm adjkerntz
-.Nd "adjust local time CMOS clock to reflect time zone changes and keep current timezone offset for the kernel"
+.Nd adjust the local time CMOS clock to reflect time zone changes and keep the current timezone offset for the kernel
 .Sh SYNOPSIS
 .Nm
 .Fl i
@@ -39,23 +39,21 @@
 The
 .Nm
 utility maintains the proper relationship between the kernel clock, which
-is always set to UTC, and the CMOS clock, which may be set to local
-time.
+is always set to UTC and the CMOS clock, which may be set to local time.
 The
 .Nm
-utility also informs the kernel about machine timezone shifts to
+utility also informs the kernel about machine timezone shifts in order to
 maintain proper timestamps for local time file systems such as the MS-DOS
 file system.
-The main purpose of this thing is not general fixing of
-initially broken MS-DOS file timestamp idea but keeping
-the same timestamps between
+The main purpose of maintaining these timestamps properly is to keep the
+timestamps of a
 .Fx
-MS-DOS file system
-and MS-DOS operating system installed on the same
-machine.
+MS-DOS file system and an MS-DOS operating system synchronized when they are
+installed on the same system rather than fixing broken MS-DOS file
+timestamps.
 If the file
 .Pa /etc/wall_cmos_clock
-exists, it means that CMOS clock keeps local time (MS-DOS and MS-Windows
+exists, it means that the CMOS clock keeps local time (MS-DOS and MS-Windows
 compatible mode).
 If that file does not exist, it means that the CMOS clock keeps UTC time.
 The
@@ -86,7 +84,7 @@ reads the local time from it
 and sets the kernel clock to the corresponding UTC time.
 The
 .Nm
-utility also stores the local time zone offset into the
+utility also stores the local time zone offset in the
 .Pa machdep.adjkerntz
 kernel variable, for use by subsequent invocations of
 .Em "'adjkerntz -a'"
@@ -94,7 +92,7 @@ and by local time file systems.
 .Pp
 For a local time CMOS clock
 .Em "'adjkerntz -i'"
-pauses, and remains inactive as a background daemon until it
+pauses and remains inactive as a background daemon until it
 receives a SIGTERM.
 The SIGTERM will normally be sent by
 .Xr init 8
@@ -120,7 +118,7 @@ time zone offset, and the changed time zone rule to
 calculate a new time zone offset.
 It stores the new offset into the
 .Pa machdep.adjkerntz
-kernel variable, and updates the wall CMOS clock to the new local time.
+kernel variable and updates the wall CMOS clock to the new local time.
 If
 .Em "'adjkerntz -a'"
 was started at a nonexistent time (during a timezone change), it exits

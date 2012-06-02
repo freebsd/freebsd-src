@@ -103,7 +103,6 @@ device		mii		# NB: required by npe
 device		ether
 device		bpf
 
-device		pty
 device		loop
 device		if_bridge
 

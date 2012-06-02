@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_L2T_TYPEDEFS_H__
-#define __CVMX_L2T_TYPEDEFS_H__
+#ifndef __CVMX_L2T_DEFS_H__
+#define __CVMX_L2T_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2T_ERR CVMX_L2T_ERR_FUNC()
@@ -71,12 +71,10 @@ static inline uint64_t CVMX_L2T_ERR_FUNC(void)
  *
  * Description: L2 Tag ECC SEC/DED Errors and Interrupt Enable
  */
-union cvmx_l2t_err
-{
+union cvmx_l2t_err {
 	uint64_t u64;
-	struct cvmx_l2t_err_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2t_err_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t fadru                        : 1;  /**< Failing L2 Tag Upper Address Bit (Index[10])
                                                          When L2T_ERR[SEC_ERR] or L2T_ERR[DED_ERR] are set,
@@ -171,9 +169,8 @@ union cvmx_l2t_err
 	uint64_t reserved_29_63               : 35;
 #endif
 	} s;
-	struct cvmx_l2t_err_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2t_err_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t lck_intena2                  : 1;  /**< L2 Tag Lock Error2 Interrupt Enable bit */
 	uint64_t lckerr2                      : 1;  /**< HW detected a case where a Rd/Wr Miss from PP#n
@@ -268,9 +265,8 @@ union cvmx_l2t_err
 	uint64_t reserved_28_63               : 36;
 #endif
 	} cn30xx;
-	struct cvmx_l2t_err_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2t_err_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t lck_intena2                  : 1;  /**< L2 Tag Lock Error2 Interrupt Enable bit */
 	uint64_t lckerr2                      : 1;  /**< HW detected a case where a Rd/Wr Miss from PP#n
@@ -364,9 +360,8 @@ union cvmx_l2t_err
 	uint64_t reserved_28_63               : 36;
 #endif
 	} cn31xx;
-	struct cvmx_l2t_err_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2t_err_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t lck_intena2                  : 1;  /**< L2 Tag Lock Error2 Interrupt Enable bit */
 	uint64_t lckerr2                      : 1;  /**< HW detected a case where a Rd/Wr Miss from PP#n
@@ -457,9 +452,8 @@ union cvmx_l2t_err
 #endif
 	} cn38xx;
 	struct cvmx_l2t_err_cn38xx            cn38xxp2;
-	struct cvmx_l2t_err_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2t_err_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t lck_intena2                  : 1;  /**< L2 Tag Lock Error2 Interrupt Enable bit */
 	uint64_t lckerr2                      : 1;  /**< HW detected a case where a Rd/Wr Miss from PP#n
@@ -551,9 +545,8 @@ union cvmx_l2t_err
 	uint64_t reserved_28_63               : 36;
 #endif
 	} cn50xx;
-	struct cvmx_l2t_err_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2t_err_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t lck_intena2                  : 1;  /**< L2 Tag Lock Error2 Interrupt Enable bit */
 	uint64_t lckerr2                      : 1;  /**< HW detected a case where a Rd/Wr Miss from PP#n

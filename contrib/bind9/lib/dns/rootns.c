@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.c,v 1.40 2010-06-18 05:36:24 marka Exp $ */
+/* $Id: rootns.c,v 1.40 2010/06/18 05:36:24 marka Exp $ */
 
 /*! \file */
 

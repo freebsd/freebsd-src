@@ -253,7 +253,6 @@ ahc_isa_attach(device_t dev)
 	ahc_set_unit(ahc, device_get_unit(dev));
 
 	/* Allocate a dmatag for our SCB DMA maps */
-	/* XXX Should be a child of the VLB/ISA bus dma tag */
 	error = aic_dma_tag_create(ahc, /*parent*/bus_get_dma_tag(dev),
 				   /*alignment*/1, /*boundary*/0,
 				   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,

@@ -1,4 +1,4 @@
-//===-- MBLazeMCInstLower.cpp - Convert MBlaze MachineInstr to an MCInst---===//
+//===-- MBlazeMCInstLower.cpp - Convert MBlaze MachineInstr to an MCInst---===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -85,9 +85,7 @@ GetConstantPoolIndexSymbol(const MachineOperand &MO) const {
 MCSymbol *MBlazeMCInstLower::
 GetBlockAddressSymbol(const MachineOperand &MO) const {
   switch (MO.getTargetFlags()) {
-  default:
-      assert(0 && "Unknown target flag on GV operand");
-
+  default: llvm_unreachable("Unknown target flag on GV operand");
   case 0: break;
   }
 
@@ -150,7 +148,7 @@ void MBlazeMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
     case MachineOperand::MO_BlockAddress:
       MCOp = LowerSymbolOperand(MO, GetBlockAddressSymbol(MO));
       break;
-    case MachineOperand::MO_FPImmediate:
+    case MachineOperand::MO_FPImmediate: {
       bool ignored;
       APFloat FVal = MO.getFPImm()->getValueAPF();
       FVal.convert(APFloat::IEEEsingle, APFloat::rmTowardZero, &ignored);
@@ -159,6 +157,9 @@ void MBlazeMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
       uint64_t Val = *IVal.getRawData();
       MCOp = MCOperand::CreateImm(Val);
       break;
+    }
+    case MachineOperand::MO_RegisterMask:
+      continue;
     }
 
     OutMI.addOperand(MCOp);

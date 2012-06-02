@@ -1989,7 +1989,9 @@
 /* Misc. config register */
 #define	BGE_MISCCFG_RESET_CORE_CLOCKS	0x00000001
 #define	BGE_MISCCFG_TIMER_PRESCALER	0x000000FE
-#define	BGE_MISCCFG_BOARD_ID		0x0001E000
+#define	BGE_MISCCFG_BOARD_ID_MASK	0x0001E000
+#define	BGE_MISCCFG_BOARD_ID_5704	0x00000000
+#define	BGE_MISCCFG_BOARD_ID_5704CIOBE	0x00004000
 #define	BGE_MISCCFG_BOARD_ID_5788	0x00010000
 #define	BGE_MISCCFG_BOARD_ID_5788M	0x00018000
 #define	BGE_MISCCFG_EPHY_IDDQ		0x00200000
@@ -2691,16 +2693,6 @@ struct bge_gib {
 #define	BGE_DMA_MAXADDR		0xFFFFFFFFFF
 #endif
 
-#ifdef PAE
-#define	BGE_DMA_BNDRY		0x80000000
-#else
-#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
-#define	BGE_DMA_BNDRY		0x100000000
-#else
-#define	BGE_DMA_BNDRY		0
-#endif
-#endif
-
 /*
  * Ring structures. Most of these reside in host memory and we tell
  * the NIC where they are via the ring control blocks. The exceptions
@@ -2828,6 +2820,7 @@ struct bge_softc {
 #define	BGE_FLAG_RX_ALIGNBUG	0x04000000
 #define	BGE_FLAG_SHORT_DMA_BUG	0x08000000
 #define	BGE_FLAG_4K_RDMA_BUG	0x10000000
+#define	BGE_FLAG_MBOX_REORDER	0x20000000
 	uint32_t		bge_phy_flags;
 #define	BGE_PHY_NO_WIRESPEED	0x00000001
 #define	BGE_PHY_ADC_BUG		0x00000002
@@ -2868,6 +2861,8 @@ struct bge_softc {
 	int			bge_csum_features;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;
+	uint32_t		bge_rx_inerrs;
+	uint32_t		bge_rx_nobds;
 	uint32_t		bge_tx_discards;
 	uint32_t		bge_tx_collisions;
 #ifdef DEVICE_POLLING

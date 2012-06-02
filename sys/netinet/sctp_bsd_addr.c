@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,8 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_output.c,v 1.46 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -180,9 +178,11 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 	case IFT_SLIP:
 	case IFT_GIF:
 	case IFT_L2VLAN:
+	case IFT_STF:
 	case IFT_IP:
 	case IFT_IPOVERCDLC:
 	case IFT_IPOVERCLAW:
+	case IFT_PROPVIRTUAL:	/* NetGraph Virtual too */
 	case IFT_VIRTUALIPADDRESS:
 		result = 1;
 		break;
@@ -481,7 +481,7 @@ again_locked:
 	}
 	/* Sanity check */
 	if (thisend >= SCTP_PACKET_LOG_SIZE) {
-		printf("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
+		SCTP_PRINTF("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
 		    thisbegin,
 		    thisend,
 		    SCTP_BASE_VAR(packet_log_writers),

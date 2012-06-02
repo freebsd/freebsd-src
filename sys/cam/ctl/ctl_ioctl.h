@@ -397,7 +397,8 @@ struct ctl_be_arg {
 
 typedef enum {
 	CTL_LUNREQ_CREATE,
-	CTL_LUNREQ_RM
+	CTL_LUNREQ_RM,
+	CTL_LUNREQ_MODIFY,
 } ctl_lunreq_type;
 
 
@@ -471,12 +472,27 @@ struct ctl_lun_rm_params {
 };
 
 /*
+ * LUN modification parameters:
+ *
+ * lun_id:		The number of the LUN to modify.  This must be set.
+ *			The LUN must be backed by the given backend.
+ *
+ * lun_size_bytes:	The size of the LUN in bytes.  If zero, update
+ * 			the size using the backing file size, if possible.
+ */
+struct ctl_lun_modify_params {
+	uint32_t		lun_id;
+	uint64_t		lun_size_bytes;
+};
+
+/*
  * Union of request type data.  Fill in the appropriate union member for
  * the request type.
  */
 union ctl_lunreq_data {
 	struct ctl_lun_create_params	create;
 	struct ctl_lun_rm_params	rm;
+	struct ctl_lun_modify_params	modify;
 };
 
 /*

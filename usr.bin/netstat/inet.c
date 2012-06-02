@@ -1068,7 +1068,7 @@ icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
  * Dump IGMP statistics structure (pre 8.x kernel).
  */
 static void
-igmp_stats_live_old(u_long off, const char *name)
+igmp_stats_live_old(const char *name)
 {
 	struct oigmpstat oigmpstat, zerostat;
 	size_t len = sizeof(oigmpstat);
@@ -1128,7 +1128,7 @@ igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 		if (len < sizeof(igmpstat)) {
-			igmp_stats_live_old(off, name);
+			igmp_stats_live_old(name);
 			return;
 		}
 	}

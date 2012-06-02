@@ -92,6 +92,7 @@
 #define	SDT_PROBE_DEFINE4(prov, mod, func, name, sname, arg0, arg1, arg2, arg3)
 #define	SDT_PROBE_DEFINE5(prov, mod, func, name, sname, arg0, arg1, arg2, arg3, arg4)
 
+#define	SDT_PROBE0(prov, mod, func, name)
 #define	SDT_PROBE1(prov, mod, func, name, arg0)
 #define	SDT_PROBE2(prov, mod, func, name, arg0, arg1)
 #define	SDT_PROBE3(prov, mod, func, name, arg0, arg1, arg2)
@@ -231,6 +232,8 @@ struct sdt_provider {
 	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
 	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4)
 
+#define	SDT_PROBE0(prov, mod, func, name)				\
+	SDT_PROBE(prov, mod, func, name, 0, 0, 0, 0, 0)
 #define	SDT_PROBE1(prov, mod, func, name, arg0)				\
 	SDT_PROBE(prov, mod, func, name, arg0, 0, 0, 0, 0)
 #define	SDT_PROBE2(prov, mod, func, name, arg0, arg1)			\
@@ -257,6 +260,10 @@ void sdt_probe_stub(u_int32_t, uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
 int sdt_argtype_listall(struct sdt_probe *, sdt_argtype_listall_func_t, void *);
 int sdt_probe_listall(struct sdt_provider *, sdt_probe_listall_func_t, void *);
 int sdt_provider_listall(sdt_provider_listall_func_t,void *);
+
+void sdt_register_callbacks(sdt_provider_listall_func_t, void *,
+    sdt_provider_listall_func_t, void *, sdt_probe_listall_func_t, void *);
+void sdt_deregister_callbacks(void);
 
 #endif /* KDTRACE_HOOKS */
 

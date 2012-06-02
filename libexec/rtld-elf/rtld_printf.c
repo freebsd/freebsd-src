@@ -36,7 +36,6 @@
  */
 
 #include <sys/param.h>
-#include <ctype.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -90,8 +89,10 @@ snprintf_func(int ch, struct snprintf_arg *const info)
 	}
 }
 
-static char const hex2ascii_data[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-#define	hex2ascii(hex)	(hex2ascii_data[hex])
+static char const hex2ascii_lower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+static char const hex2ascii_upper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+#define	hex2ascii(hex)	(hex2ascii_lower[hex])
+#define	hex2ascii_upper(hex)	(hex2ascii_upper[hex])
 
 static __inline int
 imax(int a, int b)
@@ -108,8 +109,9 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
 	p = nbuf;
 	*p = '\0';
 	do {
-		c = hex2ascii(num % base);
-		*++p = upper ? toupper(c) : c;
+		c = upper ? hex2ascii_upper(num % base) :
+		    hex2ascii(num % base);
+		*++p = c;
 	} while (num /= base);
 	if (lenp)
 		*lenp = p - nbuf;

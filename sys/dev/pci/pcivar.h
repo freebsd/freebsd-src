@@ -127,6 +127,19 @@ struct pcicfg_ht {
 struct pcicfg_pcie {
     uint8_t	pcie_location;	/* Offset of PCI-e capability registers. */
     uint8_t	pcie_type;	/* Device type. */
+    uint16_t	pcie_flags;	/* Device capabilities register. */
+    uint16_t	pcie_device_ctl; /* Device control register. */
+    uint16_t	pcie_link_ctl;	/* Link control register. */
+    uint16_t	pcie_slot_ctl;	/* Slot control register. */
+    uint16_t	pcie_root_ctl;	/* Root control register. */
+    uint16_t	pcie_device_ctl2; /* Second device control register. */
+    uint16_t	pcie_link_ctl2;	/* Second link control register. */
+    uint16_t	pcie_slot_ctl2;	/* Second slot control register. */
+};
+
+struct pcicfg_pcix {
+    uint16_t	pcix_command;
+    uint8_t	pcix_location;	/* Offset of PCI-X capability registers. */
 };
 
 /* config header information common to all header types */
@@ -171,6 +184,7 @@ typedef struct pcicfg {
     struct pcicfg_msix msix;	/* PCI MSI-X */
     struct pcicfg_ht ht;	/* HyperTransport */
     struct pcicfg_pcie pcie;	/* PCI Express */
+    struct pcicfg_pcix pcix;	/* PCI-X */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */

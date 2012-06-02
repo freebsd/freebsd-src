@@ -392,7 +392,7 @@ mly_pci_attach(struct mly_softc *sc)
      * 
      * Note that all of these controllers are 64-bit capable.
      */
-    if (bus_dma_tag_create(NULL, 			/* parent */
+    if (bus_dma_tag_create(bus_get_dma_tag(sc->mly_dev),/* PCI parent */
 			   1, 0, 			/* alignment, boundary */
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */

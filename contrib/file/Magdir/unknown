@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: unknown,v 1.7 2009/09/19 16:28:13 christos Exp $
 # unknown:  file(1) magic for unknown machines
 #
 # XXX - this probably should be pruned, as it'll match PDP-11 and

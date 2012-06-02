@@ -216,6 +216,7 @@ dialog --backtitle "FreeBSD Installer" --title "Manual Configuration" \
     --yesno "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
 if [ $? -eq 0 ]; then
 	clear
+	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
 	echo This shell is operating in a chroot in the new system. \
 	    When finished making configuration changes, type \"exit\".
 	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1

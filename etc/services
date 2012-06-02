@@ -2219,6 +2219,8 @@ iscsi-target	3260/tcp   # iSCSI port
 iscsi-target	3260/udp   # iSCSI port
 ccmail		3264/tcp   #cc:mail/lotus
 ccmail		3264/udp   #cc:mail/lotus
+mysql		3306/tcp   #MySQL
+mysql		3306/udp   #MySQL
 dec-notes	3333/tcp   #DEC Notes
 dec-notes	3333/udp   #DEC Notes
 rdp		3389/tcp   #Microsoft Remote Desktop Protocol

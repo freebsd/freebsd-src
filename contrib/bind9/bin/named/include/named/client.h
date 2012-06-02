@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.91 2009-10-26 23:14:53 each Exp $ */
+/* $Id: client.h,v 1.91.278.2 2012/01/31 23:46:39 tbox Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -141,6 +141,9 @@ struct ns_client {
 	isc_netaddr_t		destaddr;
 	struct in6_pktinfo	pktinfo;
 	isc_event_t		ctlevent;
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+	dns_v4_aaaa_t		filter_aaaa;
+#endif
 	/*%
 	 * Information about recent FORMERR response(s), for
 	 * FORMERR loop avoidance.  This is separate for each

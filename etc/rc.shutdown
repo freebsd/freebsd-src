@@ -32,7 +32,7 @@
 # Output and errors are directed to console by init, and the
 # console is the controlling terminal.
 
-stty status '^T'
+stty status '^T' 2> /dev/null
 
 # Set shell to ignore SIGINT (2), but not children;
 # shell catches SIGQUIT (3) and returns to single user after fsck.

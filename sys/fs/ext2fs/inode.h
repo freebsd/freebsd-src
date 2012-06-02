@@ -77,8 +77,6 @@ struct inode {
 	uint32_t i_block_group;
 	uint32_t i_next_alloc_block;
 	uint32_t i_next_alloc_goal;
-	uint32_t i_prealloc_block;
-	uint32_t i_prealloc_count;
 
 	/* Fields from struct dinode in UFS. */
 	uint16_t	i_mode;		/* IFMT, permissions; see below. */

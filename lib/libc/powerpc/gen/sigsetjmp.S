@@ -80,7 +80,6 @@ ENTRY(siglongjmp)
 	mr	%r6,%r4
 	mtlr	%r11
 	mtcr	%r12
-	mr	%r2,%r9
 	mr	%r1,%r10
 	or.	%r7,%r7,%r7
 	beq	1f

@@ -79,7 +79,7 @@ int	isrune(int);
 int	isspecial(int);
 #endif
 
-#if __POSIX_VISIBLE >= 200809
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
 #include <xlocale/_ctype.h>
 #endif
 __END_DECLS

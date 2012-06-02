@@ -111,7 +111,7 @@ static int
 ofw_pcibus_probe(device_t dev)
 {
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 	device_set_desc(dev, "OFW PCI bus");
 

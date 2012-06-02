@@ -17,10 +17,9 @@
 #
 # $FreeBSD$
 
-machine 	mips mipseb
+machine 	mips mips
 ident           XLP
 
-options		ISA_MIPS32
 makeoptions	KERNLOADADDR=0x80100000
 
 include		"std.XLP"

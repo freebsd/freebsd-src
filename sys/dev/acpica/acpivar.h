@@ -217,6 +217,11 @@ extern int	acpi_quirks;
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 
 /*
+ * Sleep flags.  See actypes.h for available flags.
+ */
+extern int	acpi_sleep_flags;
+
+/*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
@@ -268,7 +273,7 @@ acpi_get_type(device_t dev)
 
     if ((h = acpi_get_handle(dev)) == NULL)
 	return (ACPI_TYPE_NOT_FOUND);
-    if (AcpiGetType(h, &t) != AE_OK)
+    if (ACPI_FAILURE(AcpiGetType(h, &t)))
 	return (ACPI_TYPE_NOT_FOUND);
     return (t);
 }
@@ -434,6 +439,8 @@ int		acpi_disabled(char *subsys);
 int		acpi_machdep_init(device_t dev);
 void		acpi_install_wakeup_handler(struct acpi_softc *sc);
 int		acpi_sleep_machdep(struct acpi_softc *sc, int state);
+int		acpi_wakeup_machdep(struct acpi_softc *sc, int state,
+		    int sleep_result, int intr_enabled);
 int		acpi_table_quirks(int *quirks);
 int		acpi_machdep_quirks(int *quirks);
 
@@ -486,6 +493,8 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /* Use the device logging level for ktr(4). */
 #define	KTR_ACPI		KTR_DEV
+
+SYSCTL_DECL(_debug_acpi);
 
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

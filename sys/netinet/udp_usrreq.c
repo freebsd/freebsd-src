@@ -105,9 +105,9 @@ __FBSDID("$FreeBSD$");
  * packets that would otherwise be discarded due to bad checksums, and may
  * cause problems (especially for NFS data blocks).
  */
-static int	udp_cksum = 1;
-SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW, &udp_cksum,
-    0, "compute udp checksum");
+VNET_DEFINE(int, udp_cksum) = 1;
+SYSCTL_VNET_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
+    &VNET_NAME(udp_cksum), 0, "compute udp checksum");
 
 int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
@@ -971,12 +971,14 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	src.sin_family = 0;
+	INP_RLOCK(inp);
 	if (control != NULL) {
 		/*
 		 * XXX: Currently, we assume all the optional information is
 		 * stored in a single mbuf.
 		 */
 		if (control->m_next) {
+			INP_RUNLOCK(inp);
 			m_freem(control);
 			m_freem(m);
 			return (EINVAL);
@@ -1018,6 +1020,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		m_freem(control);
 	}
 	if (error) {
+		INP_RUNLOCK(inp);
 		m_freem(m);
 		return (error);
 	}
@@ -1039,7 +1042,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * XXXRW: Check that hash locking update here is correct.
 	 */
 	sin = (struct sockaddr_in *)addr;
-	INP_RLOCK(inp);
 	if (sin != NULL &&
 	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
 		INP_RUNLOCK(inp);
@@ -1212,7 +1214,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	/*
 	 * Set up checksum and output datagram.
 	 */
-	if (udp_cksum) {
+	if (V_udp_cksum) {
 		if (inp->inp_flags & INP_ONESBCAST)
 			faddr.s_addr = INADDR_BROADCAST;
 		ui->ui_sum = in_pseudo(ui->ui_src.s_addr, faddr.s_addr,

@@ -158,3 +158,47 @@ bool ConversionFixItGenerator::tryToFixConversion(const Expr *FullExpr,
 
   return false;
 }
+
+static bool isMacroDefined(const Sema &S, StringRef Name) {
+  return S.PP.getMacroInfo(&S.getASTContext().Idents.get(Name));
+}
+
+const char *Sema::getFixItZeroInitializerForType(QualType T) const {
+  if (T->isScalarType()) {
+    // Suggest " = 0" for non-enumeration scalar types, unless we can find a
+    // better initializer.
+    if (T->isEnumeralType())
+      return 0;
+    if ((T->isObjCObjectPointerType() || T->isBlockPointerType()) &&
+        isMacroDefined(*this, "nil"))
+      return " = nil";
+    if (T->isRealFloatingType())
+      return " = 0.0";
+    if (T->isBooleanType() && LangOpts.CPlusPlus)
+      return " = false";
+    if (T->isPointerType() || T->isMemberPointerType()) {
+      if (LangOpts.CPlusPlus0x)
+        return " = nullptr";
+      else if (isMacroDefined(*this, "NULL"))
+        return " = NULL";
+    }
+    if (T->isCharType())
+      return " = '\\0'";
+    if (T->isWideCharType())
+      return " = L'\\0'";
+    if (T->isChar16Type())
+      return " = u'\\0'";
+    if (T->isChar32Type())
+      return " = U'\\0'";
+    return " = 0";
+  }
+
+  const CXXRecordDecl *RD = T->getAsCXXRecordDecl();
+  if (!RD || !RD->hasDefinition())
+    return 0;
+  if (LangOpts.CPlusPlus0x && !RD->hasUserProvidedDefaultConstructor())
+    return "{}";
+  if (RD->isAggregate())
+    return " = {}";
+  return 0;
+}

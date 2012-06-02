@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-revoke.docbook,v 1.7 2009-11-03 21:44:46 each Exp $ -->
+<!-- $Id: dnssec-revoke.docbook,v 1.7.266.2 2011/10/20 23:46:27 tbox Exp $ -->
 <refentry id="man.dnssec-revoke">
   <refentryinfo>
     <date>June 1, 2009</date>
@@ -37,6 +37,7 @@
   <docinfo>
     <copyright>
       <year>2009</year>
+      <year>2011</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -49,6 +50,7 @@
       <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
       <arg><option>-f</option></arg>
+      <arg><option>-R</option></arg>
       <arg choice="req">keyfile</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -120,6 +122,16 @@
             Force overwrite: Causes <command>dnssec-revoke</command> to
             write the new key pair even if a file already exists matching
             the algorithm and key ID of the revoked key.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-R</term>
+        <listitem>
+          <para>
+	    Print the key tag of the key with the REVOKE bit set but do
+	    not revoke the key.
           </para>
         </listitem>
       </varlistentry>

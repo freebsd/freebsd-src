@@ -16,6 +16,7 @@
 #include "llvm/TableGen/Record.h"
 #include <algorithm>
 #include <cctype>
+#include <set>
 
 using namespace llvm;
 
@@ -33,8 +34,6 @@ getValueAsListOfStrings(Record &R, StringRef FieldName) {
     assert(*i && "Got a null element in a ListInit");
     if (StringInit *S = dynamic_cast<StringInit *>(*i))
       Strings.push_back(S->getValue());
-    else if (CodeInit *C = dynamic_cast<CodeInit *>(*i))
-      Strings.push_back(C->getValue());
     else
       assert(false && "Got a non-string, non-code element in a ListInit");
   }
@@ -67,6 +66,30 @@ static std::string WritePCHRecord(StringRef type, StringRef name) {
     .Default("Record.push_back(" + std::string(name) + ");\n");
 }
 
+// Normalize attribute name by removing leading and trailing
+// underscores. For example, __foo, foo__, __foo__ would
+// become foo.
+static StringRef NormalizeAttrName(StringRef AttrName) {
+  if (AttrName.startswith("__"))
+    AttrName = AttrName.substr(2, AttrName.size());
+
+  if (AttrName.endswith("__"))
+    AttrName = AttrName.substr(0, AttrName.size() - 2);
+
+  return AttrName;
+}
+
+// Normalize attribute spelling only if the spelling has both leading
+// and trailing underscores. For example, __ms_struct__ will be 
+// normalized to "ms_struct"; __cdecl will remain intact.
+static StringRef NormalizeAttrSpelling(StringRef AttrSpelling) {
+  if (AttrSpelling.startswith("__") && AttrSpelling.endswith("__")) {
+    AttrSpelling = AttrSpelling.substr(2, AttrSpelling.size() - 4);
+  }
+
+  return AttrSpelling;
+}
+
 namespace {
   class Argument {
     std::string lowerName, upperName;
@@ -91,6 +114,8 @@ namespace {
     virtual void writeAccessors(raw_ostream &OS) const = 0;
     virtual void writeAccessorDefinitions(raw_ostream &OS) const {}
     virtual void writeCloneArgs(raw_ostream &OS) const = 0;
+    virtual void writeTemplateInstantiationArgs(raw_ostream &OS) const = 0;
+    virtual void writeTemplateInstantiation(raw_ostream &OS) const {}
     virtual void writeCtorBody(raw_ostream &OS) const {}
     virtual void writeCtorInitializers(raw_ostream &OS) const = 0;
     virtual void writeCtorParameters(raw_ostream &OS) const = 0;
@@ -98,6 +123,7 @@ namespace {
     virtual void writePCHReadArgs(raw_ostream &OS) const = 0;
     virtual void writePCHReadDecls(raw_ostream &OS) const = 0;
     virtual void writePCHWrite(raw_ostream &OS) const = 0;
+    virtual void writeValue(raw_ostream &OS) const = 0;
   };
 
   class SimpleArgument : public Argument {
@@ -108,6 +134,8 @@ namespace {
       : Argument(Arg, Attr), type(T)
     {}
 
+    std::string getType() const { return type; }
+
     void writeAccessors(raw_ostream &OS) const {
       OS << "  " << type << " get" << getUpperName() << "() const {\n";
       OS << "    return " << getLowerName() << ";\n";
@@ -115,6 +143,9 @@ namespace {
     }
     void writeCloneArgs(raw_ostream &OS) const {
       OS << getLowerName();
+    }
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      OS << "A->get" << getUpperName() << "()";
     }
     void writeCtorInitializers(raw_ostream &OS) const {
       OS << getLowerName() << "(" << getUpperName() << ")";
@@ -135,6 +166,19 @@ namespace {
     void writePCHWrite(raw_ostream &OS) const {
       OS << "    " << WritePCHRecord(type, "SA->get" +
                                            std::string(getUpperName()) + "()");
+    }
+    void writeValue(raw_ostream &OS) const {
+      if (type == "FunctionDecl *") {
+        OS << "\" << get" << getUpperName() << "()->getNameInfo().getAsString() << \"";
+      } else if (type == "IdentifierInfo *") {
+        OS << "\" << get" << getUpperName() << "()->getName() << \"";
+      } else if (type == "QualType") {
+        OS << "\" << get" << getUpperName() << "().getAsString() << \"";
+      } else if (type == "SourceLocation") {
+        OS << "\" << get" << getUpperName() << "().getRawEncoding() << \"";
+      } else {
+        OS << "\" << get" << getUpperName() << "() << \"";
+      }
     }
   };
 
@@ -164,6 +208,9 @@ namespace {
     void writeCloneArgs(raw_ostream &OS) const {
       OS << "get" << getUpperName() << "()";
     }
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      OS << "A->get" << getUpperName() << "()";
+    }
     void writeCtorBody(raw_ostream &OS) const {
       OS << "      std::memcpy(" << getLowerName() << ", " << getUpperName()
          << ".data(), " << getLowerName() << "Length);";
@@ -189,6 +236,9 @@ namespace {
     }
     void writePCHWrite(raw_ostream &OS) const {
       OS << "    AddString(SA->get" << getUpperName() << "(), Record);\n";
+    }
+    void writeValue(raw_ostream &OS) const {
+      OS << "\\\"\" << get" << getUpperName() << "() << \"\\\"";
     }
   };
 
@@ -251,6 +301,10 @@ namespace {
          << "Expr) : " << getLowerName()
          << "Type";
     }
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      // FIXME: move the definition in Sema::InstantiateAttrs to here.
+      // In the meantime, aligned attributes are cloned.
+    }
     void writeCtorBody(raw_ostream &OS) const {
       OS << "    if (is" << getLowerName() << "Expr)\n";
       OS << "       " << getLowerName() << "Expr = reinterpret_cast<Expr *>("
@@ -293,6 +347,9 @@ namespace {
       OS << "      AddTypeSourceInfo(SA->get" << getUpperName()
          << "Type(), Record);\n";
     }
+    void writeValue(raw_ostream &OS) const {
+      OS << "\" << get" << getUpperName() << "(Ctx) << \"";
+    }
   };
 
   class VariadicArgument : public Argument {
@@ -317,11 +374,16 @@ namespace {
          << "Size;\n";
       OS << "  }\n";
       OS << "  unsigned " << getLowerName() << "_size() const {\n"
-         << "    return " << getLowerName() << "Size;\n;";
+         << "    return " << getLowerName() << "Size;\n";
       OS << "  }";
     }
     void writeCloneArgs(raw_ostream &OS) const {
       OS << getLowerName() << ", " << getLowerName() << "Size";
+    }
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      // This isn't elegant, but we have to go through public methods...
+      OS << "A->" << getLowerName() << "_begin(), "
+         << "A->" << getLowerName() << "_size()";
     }
     void writeCtorBody(raw_ostream &OS) const {
       // FIXME: memcpy is not safe on non-trivial types.
@@ -362,6 +424,18 @@ namespace {
          << getLowerName() << "_end(); i != e; ++i)\n";
       OS << "      " << WritePCHRecord(type, "(*i)");
     }
+    void writeValue(raw_ostream &OS) const {
+      OS << "\";\n";
+      OS << "  bool isFirst = true;\n"
+         << "  for (" << getAttrName() << "Attr::" << getLowerName()
+         << "_iterator i = " << getLowerName() << "_begin(), e = "
+         << getLowerName() << "_end(); i != e; ++i) {\n"
+         << "    if (isFirst) isFirst = false;\n"
+         << "    else OS << \", \";\n"
+         << "    OS << *i;\n"
+         << "  }\n";
+      OS << "  OS << \"";
+    }
   };
 
   class EnumArgument : public Argument {
@@ -381,6 +455,9 @@ namespace {
     }
     void writeCloneArgs(raw_ostream &OS) const {
       OS << getLowerName();
+    }
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      OS << "A->get" << getUpperName() << "()";
     }
     void writeCtorInitializers(raw_ostream &OS) const {
       OS << getLowerName() << "(" << getUpperName() << ")";
@@ -422,6 +499,9 @@ namespace {
     void writePCHWrite(raw_ostream &OS) const {
       OS << "Record.push_back(SA->get" << getUpperName() << "());\n";
     }
+    void writeValue(raw_ostream &OS) const {
+      OS << "\" << get" << getUpperName() << "() << \"";
+    }
   };
 
   class VersionArgument : public Argument {
@@ -441,6 +521,9 @@ namespace {
     }
     void writeCloneArgs(raw_ostream &OS) const {
       OS << "get" << getUpperName() << "()";
+    }
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      OS << "A->get" << getUpperName() << "()";
     }
     void writeCtorBody(raw_ostream &OS) const {
     }
@@ -463,6 +546,64 @@ namespace {
     void writePCHWrite(raw_ostream &OS) const {
       OS << "    AddVersionTuple(SA->get" << getUpperName() << "(), Record);\n";
     }
+    void writeValue(raw_ostream &OS) const {
+      OS << getLowerName() << "=\" << get" << getUpperName() << "() << \"";
+    }
+  };
+
+  class ExprArgument : public SimpleArgument {
+  public:
+    ExprArgument(Record &Arg, StringRef Attr)
+      : SimpleArgument(Arg, Attr, "Expr *")
+    {}
+
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      OS << "tempInst" << getUpperName();
+    }
+
+    void writeTemplateInstantiation(raw_ostream &OS) const {
+      OS << "      " << getType() << " tempInst" << getUpperName() << ";\n";
+      OS << "      {\n";
+      OS << "        EnterExpressionEvaluationContext "
+         << "Unevaluated(S, Sema::Unevaluated);\n";
+      OS << "        ExprResult " << "Result = S.SubstExpr("
+         << "A->get" << getUpperName() << "(), TemplateArgs);\n";
+      OS << "        tempInst" << getUpperName() << " = "
+         << "Result.takeAs<Expr>();\n";
+      OS << "      }\n";
+    }
+  };
+
+  class VariadicExprArgument : public VariadicArgument {
+  public:
+    VariadicExprArgument(Record &Arg, StringRef Attr)
+      : VariadicArgument(Arg, Attr, "Expr *")
+    {}
+
+    void writeTemplateInstantiationArgs(raw_ostream &OS) const {
+      OS << "tempInst" << getUpperName() << ", "
+         << "A->" << getLowerName() << "_size()";
+    }
+
+    void writeTemplateInstantiation(raw_ostream &OS) const {
+      OS << "      " << getType() << " *tempInst" << getUpperName()
+         << " = new (C, 16) " << getType()
+         << "[A->" << getLowerName() << "_size()];\n";
+      OS << "      {\n";
+      OS << "        EnterExpressionEvaluationContext "
+         << "Unevaluated(S, Sema::Unevaluated);\n";
+      OS << "        " << getType() << " *TI = tempInst" << getUpperName()
+         << ";\n";
+      OS << "        " << getType() << " *I = A->" << getLowerName()
+         << "_begin();\n";
+      OS << "        " << getType() << " *E = A->" << getLowerName()
+         << "_end();\n";
+      OS << "        for (; I != E; ++I, ++TI) {\n";
+      OS << "          ExprResult Result = S.SubstExpr(*I, TemplateArgs);\n";
+      OS << "          *TI = Result.takeAs<Expr>();\n";
+      OS << "        }\n";
+      OS << "      }\n";
+    }
   };
 }
 
@@ -476,8 +617,7 @@ static Argument *createArgument(Record &Arg, StringRef Attr,
 
   if (ArgName == "AlignedArgument") Ptr = new AlignedArgument(Arg, Attr);
   else if (ArgName == "EnumArgument") Ptr = new EnumArgument(Arg, Attr);
-  else if (ArgName == "ExprArgument") Ptr = new SimpleArgument(Arg, Attr,
-                                                               "Expr *");
+  else if (ArgName == "ExprArgument") Ptr = new ExprArgument(Arg, Attr);
   else if (ArgName == "FunctionArgument")
     Ptr = new SimpleArgument(Arg, Attr, "FunctionDecl *");
   else if (ArgName == "IdentifierArgument")
@@ -495,7 +635,7 @@ static Argument *createArgument(Record &Arg, StringRef Attr,
   else if (ArgName == "VariadicUnsignedArgument")
     Ptr = new VariadicArgument(Arg, Attr, "unsigned");
   else if (ArgName == "VariadicExprArgument")
-    Ptr = new VariadicArgument(Arg, Attr, "Expr *");
+    Ptr = new VariadicExprArgument(Arg, Attr);
   else if (ArgName == "VersionArgument")
     Ptr = new VersionArgument(Arg, Attr);
 
@@ -509,6 +649,15 @@ static Argument *createArgument(Record &Arg, StringRef Attr,
     }
   }
   return Ptr;
+}
+
+static void writeAvailabilityValue(raw_ostream &OS) {
+  OS << "\" << getPlatform()->getName();\n"
+     << "  if (!getIntroduced().empty()) OS << \", introduced=\" << getIntroduced();\n"
+     << "  if (!getDeprecated().empty()) OS << \", deprecated=\" << getDeprecated();\n"
+     << "  if (!getObsoleted().empty()) OS << \", obsoleted=\" << getObsoleted();\n"
+     << "  if (getUnavailable()) OS << \", unavailable\";\n"
+     << "  OS << \"";
 }
 
 void ClangAttrClassEmitter::run(raw_ostream &OS) {
@@ -571,19 +720,25 @@ void ClangAttrClassEmitter::run(raw_ostream &OS) {
     OS << "  }\n\n";
 
     OS << "  virtual " << R.getName() << "Attr *clone (ASTContext &C) const;\n";
+    OS << "  virtual void printPretty(llvm::raw_ostream &OS, ASTContext &Ctx) const;\n";
 
     for (ai = Args.begin(); ai != ae; ++ai) {
       (*ai)->writeAccessors(OS);
       OS << "\n\n";
     }
 
-    OS << R.getValueAsCode("AdditionalMembers");
+    OS << R.getValueAsString("AdditionalMembers");
     OS << "\n\n";
 
     OS << "  static bool classof(const Attr *A) { return A->getKind() == "
        << "attr::" << R.getName() << "; }\n";
     OS << "  static bool classof(const " << R.getName()
        << "Attr *) { return true; }\n";
+
+    bool LateParsed = R.getValueAsBit("LateParsed");
+    OS << "  virtual bool isLateParsed() const { return "
+       << LateParsed << "; }\n";
+
     OS << "};\n\n";
   }
 
@@ -600,6 +755,7 @@ void ClangAttrImplEmitter::run(raw_ostream &OS) {
   for (; i != e; ++i) {
     Record &R = **i;
     std::vector<Record*> ArgRecords = R.getValueAsListOfDefs("Args");
+    std::vector<StringRef> Spellings = getValueAsListOfStrings(R, "Spellings");
     std::vector<Argument*> Args;
     for (ri = ArgRecords.begin(), re = ArgRecords.end(); ri != re; ++ri)
       Args.push_back(createArgument(**ri, R.getName()));
@@ -615,6 +771,24 @@ void ClangAttrImplEmitter::run(raw_ostream &OS) {
       (*ai)->writeCloneArgs(OS);
     }
     OS << ");\n}\n\n";
+
+    OS << "void " << R.getName() << "Attr::printPretty("
+       << "llvm::raw_ostream &OS, ASTContext &Ctx) const {\n";
+    if (Spellings.begin() != Spellings.end()) {
+      OS << "  OS << \" __attribute__((" << *Spellings.begin();
+      if (Args.size()) OS << "(";
+      if (*Spellings.begin()=="availability") {
+        writeAvailabilityValue(OS);
+      } else {
+        for (ai = Args.begin(); ai != ae; ++ai) {
+          if (ai!=Args.begin()) OS <<", ";
+          (*ai)->writeValue(OS);
+        }
+      }
+      if (Args.size()) OS << ")";
+      OS << "))\";\n";
+    }
+    OS << "}\n\n";
   }
 }
 
@@ -786,3 +960,133 @@ void ClangAttrLateParsedListEmitter::run(raw_ostream &OS) {
     }
   }
 }
+
+
+void ClangAttrTemplateInstantiateEmitter::run(raw_ostream &OS) {
+  OS << "// This file is generated by TableGen. Do not edit.\n\n";
+
+  std::vector<Record*> Attrs = Records.getAllDerivedDefinitions("Attr");
+
+  OS << "namespace clang {\n"
+     << "namespace sema {\n\n"
+     << "Attr *instantiateTemplateAttribute(const Attr *At, ASTContext &C, "
+     << "Sema &S,\n"
+     << "        const MultiLevelTemplateArgumentList &TemplateArgs) {\n"
+     << "  switch (At->getKind()) {\n"
+     << "    default:\n"
+     << "      break;\n";
+
+  for (std::vector<Record*>::iterator I = Attrs.begin(), E = Attrs.end();
+       I != E; ++I) {
+    Record &R = **I;
+
+    OS << "    case attr::" << R.getName() << ": {\n";
+    OS << "      const " << R.getName() << "Attr *A = cast<"
+       << R.getName() << "Attr>(At);\n";
+    bool TDependent = R.getValueAsBit("TemplateDependent");
+
+    if (!TDependent) {
+      OS << "      return A->clone(C);\n";
+      OS << "    }\n";
+      continue;
+    }
+
+    std::vector<Record*> ArgRecords = R.getValueAsListOfDefs("Args");
+    std::vector<Argument*> Args;
+    std::vector<Argument*>::iterator ai, ae;
+    Args.reserve(ArgRecords.size());
+
+    for (std::vector<Record*>::iterator ri = ArgRecords.begin(),
+                                        re = ArgRecords.end();
+         ri != re; ++ri) {
+      Record &ArgRecord = **ri;
+      Argument *Arg = createArgument(ArgRecord, R.getName());
+      assert(Arg);
+      Args.push_back(Arg);
+    }
+    ae = Args.end();
+
+    for (ai = Args.begin(); ai != ae; ++ai) {
+      (*ai)->writeTemplateInstantiation(OS);
+    }
+    OS << "      return new (C) " << R.getName() << "Attr(A->getLocation(), C";
+    for (ai = Args.begin(); ai != ae; ++ai) {
+      OS << ", ";
+      (*ai)->writeTemplateInstantiationArgs(OS);
+    }
+    OS << ");\n    }\n";
+  }
+  OS << "  } // end switch\n"
+     << "  llvm_unreachable(\"Unknown attribute!\");\n"
+     << "  return 0;\n"
+     << "}\n\n"
+     << "} // end namespace sema\n"
+     << "} // end namespace clang\n";
+}
+
+void ClangAttrParsedAttrListEmitter::run(raw_ostream &OS) {
+  OS << "// This file is generated by TableGen. Do not edit.\n\n";
+  
+  OS << "#ifndef PARSED_ATTR\n";
+  OS << "#define PARSED_ATTR(NAME) NAME\n";
+  OS << "#endif\n\n";
+  
+  std::vector<Record*> Attrs = Records.getAllDerivedDefinitions("Attr");
+  std::set<StringRef> ProcessedAttrs;
+
+  for (std::vector<Record*>::iterator I = Attrs.begin(), E = Attrs.end();
+       I != E; ++I) {
+    Record &Attr = **I;
+    
+    bool SemaHandler = Attr.getValueAsBit("SemaHandler");
+    
+    if (SemaHandler) {
+      std::vector<StringRef> Spellings =
+        getValueAsListOfStrings(Attr, "Spellings");
+      
+      for (std::vector<StringRef>::const_iterator I = Spellings.begin(),
+           E = Spellings.end(); I != E; ++I) {
+        StringRef AttrName = *I;
+
+        AttrName = NormalizeAttrName(AttrName);
+        // skip if a normalized version has been processed.
+        if (ProcessedAttrs.find(AttrName) != ProcessedAttrs.end())
+          continue;
+        else
+          ProcessedAttrs.insert(AttrName);
+
+        OS << "PARSED_ATTR(" << AttrName << ")\n";
+      }
+    }
+  }
+}
+
+void ClangAttrParsedAttrKindsEmitter::run(raw_ostream &OS) {
+  OS << "// This file is generated by TableGen. Do not edit.\n\n";
+
+  std::vector<Record*> Attrs = Records.getAllDerivedDefinitions("Attr");
+
+  for (std::vector<Record*>::iterator I = Attrs.begin(), E = Attrs.end();
+       I != E; ++I) {
+    Record &Attr = **I;
+    
+    bool SemaHandler = Attr.getValueAsBit("SemaHandler");
+    
+    if (SemaHandler) {
+      std::vector<StringRef> Spellings =
+        getValueAsListOfStrings(Attr, "Spellings");
+
+      for (std::vector<StringRef>::const_iterator I = Spellings.begin(),
+           E = Spellings.end(); I != E; ++I) {
+       StringRef AttrName = *I, Spelling = *I;
+       
+       AttrName = NormalizeAttrName(AttrName);
+       Spelling = NormalizeAttrSpelling(Spelling);
+
+       OS << ".Case(\"" << Spelling << "\", " << "AT_" << AttrName << ")\n";
+      }
+    }
+  }
+}
+
+

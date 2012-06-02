@@ -82,9 +82,7 @@ static struct glue *lastglue = &uglue;
 
 static struct glue *	moreglue(int);
 
-static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
-#define THREAD_LOCK()	if (__isthreaded) _SPINLOCK(&thread_lock)
-#define THREAD_UNLOCK()	if (__isthreaded) _SPINUNLOCK(&thread_lock)
+spinlock_t __stdio_thread_lock = _SPINLOCK_INITIALIZER;
 
 #if NOT_YET
 #define	SET_GLUE_PTR(ptr, val)	atomic_set_rel_ptr(&(ptr), (uintptr_t)(val))
@@ -127,22 +125,22 @@ __sfp()
 	/*
 	 * The list must be locked because a FILE may be updated.
 	 */
-	THREAD_LOCK();
+	STDIO_THREAD_LOCK();
 	for (g = &__sglue; g != NULL; g = g->next) {
 		for (fp = g->iobs, n = g->niobs; --n >= 0; fp++)
 			if (fp->_flags == 0)
 				goto found;
 	}
-	THREAD_UNLOCK();	/* don't hold lock while malloc()ing. */
+	STDIO_THREAD_UNLOCK();	/* don't hold lock while malloc()ing. */
 	if ((g = moreglue(NDYNAMIC)) == NULL)
 		return (NULL);
-	THREAD_LOCK();		/* reacquire the lock */
+	STDIO_THREAD_LOCK();	/* reacquire the lock */
 	SET_GLUE_PTR(lastglue->next, g); /* atomically append glue to list */
 	lastglue = g;		/* not atomic; only accessed when locked */
 	fp = g->iobs;
 found:
 	fp->_flags = 1;		/* reserve this slot; caller sets real flags */
-	THREAD_UNLOCK();
+	STDIO_THREAD_UNLOCK();
 	fp->_p = NULL;		/* no current pointer */
 	fp->_w = 0;		/* nothing to read or write */
 	fp->_r = 0;
@@ -183,10 +181,10 @@ f_prealloc(void)
 	for (g = &__sglue; (n -= g->niobs) > 0 && g->next; g = g->next)
 		/* void */;
 	if ((n > 0) && ((g = moreglue(n)) != NULL)) {
-		THREAD_LOCK();
+		STDIO_THREAD_LOCK();
 		SET_GLUE_PTR(lastglue->next, g);
 		lastglue = g;
-		THREAD_UNLOCK();
+		STDIO_THREAD_UNLOCK();
 	}
 }
 

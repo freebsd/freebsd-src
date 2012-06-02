@@ -153,6 +153,7 @@ private:
 /// LexicalScope - This class is used to track scope information.
 ///
 class LexicalScope {
+  virtual void anchor();
 
 public:
   LexicalScope(LexicalScope *P, const MDNode *D, const MDNode *I, bool A)
@@ -208,7 +209,7 @@ public:
       Parent->closeInsnRange(NewScope);
   }
 
-  /// dominates - Return true if current scope dominsates given lexical scope.
+  /// dominates - Return true if current scope dominates given lexical scope.
   bool dominates(const LexicalScope *S) const {
     if (S == this)
       return true;

@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.512.8.12 $)
+AC_REVISION($Revision: 1.512.8.15 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
@@ -62,6 +62,25 @@ It is available from http://www.isc.org as a separate download.])
 		;;
 esac
 
+AC_ARG_ENABLE(developer, [  --enable-developer     enable developer build settings])
+case "$enable_developer" in
+yes)
+	test "${enable_fixed_rrset+set}" = set || enable_fixed_rrset=yes
+	test "${with_atf+set}" = set || with_atf=yes
+	test "${enable_filter_aaaa+set}" = set || enable_filter_aaaa=yes
+	test "${enable_rpz_nsip+set}" = set || enable_rpz_nsip=yes
+	test "${enable_rpz_nsdname+set}" = set || enable_rpz_nsdname=yes
+	test "${with_dlz_filesystem+set}" = set || with_dlz_filesystem=yes
+	case "$host" in
+	*-darwin*)
+		test "${enable_exportlib+set}" = set || enable_exportlib=yes
+		;;
+	*-linux*)
+		test "${enable_exportlib+set}" = set || enable_exportlib=yes
+		;;
+	esac
+	;;
+esac
 #
 # Make very sure that these are the first files processed by
 # config.status, since we use the processed output as the input for
@@ -263,7 +282,7 @@ case "$host" in
 	# as it breaks how the two halves (Basic and Advanced) of the IPv6
 	# Socket API were designed to be used but we have to live with it.
 	# Define _GNU_SOURCE to pull in the IPv6 Advanced Socket API.
-	*-linux*)
+	*-linux* | *-kfreebsd*-gnu)
 		STD_CDEFINES="$STD_CDEFINES -D_GNU_SOURCE"
 		CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 		;;
@@ -501,7 +520,6 @@ AC_SUBST(LWRES_PLATFORM_NEEDSYSSELECTH)
 # Find the machine's endian flavor.
 #
 AC_C_BIGENDIAN
-
 
 #
 # was --with-openssl specified?
@@ -1437,9 +1455,9 @@ case $use_libtool in
 		O=lo
 		A=la
 		LIBTOOL_MKDEP_SED='s;\.o;\.lo;'
-		LIBTOOL_MODE_COMPILE='--mode=compile'
-		LIBTOOL_MODE_INSTALL='--mode=install'
-		LIBTOOL_MODE_LINK='--mode=link'
+		LIBTOOL_MODE_COMPILE='--mode=compile --tag=CC'
+		LIBTOOL_MODE_INSTALL='--mode=install --tag=CC'
+		LIBTOOL_MODE_LINK='--mode=link --tag=CC'
 		case "$host" in
 		*) LIBTOOL_ALLOW_UNDEFINED= ;;
 		esac

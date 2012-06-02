@@ -1,4 +1,4 @@
-2007-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pagsh.1,afslog.1: - options must be lexicographically ordered;
 	  again, options without arguments must be placed before options
@@ -8,11 +8,11 @@
 	
 	From Igor Sobrado.
 	
-2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add man_MANS to EXTRA_DIST
 	
-2006-01-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afslog.1: Document options to allow select principal or
 	credential cache when doing afslog.
@@ -20,7 +20,7 @@
 	* afslog.c: Add options to allow select principal or credential
 	cache when doing afslog.
 	
-2005-02-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-02-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: man_MANS += pagsh.1
 
@@ -30,12 +30,12 @@
 
 	* pagsh.1: manpage for pagsh
 
-2004-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-09-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afslog.c: use negative string help string for arg_negative_flag
 	Pointed out by Harald Barth
 	
-2004-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-07-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pagsh.c: use setprogname, if we stripped off -c, try use the
 	fallback code
@@ -44,22 +44,22 @@
 
 	* pagsh.c: mkstemp formats must end in exactly six X's
 
-2003-07-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-07-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afslog.c (do_afslog): is cell is unset, set it "<default cell>"
 	for error printing
 
 	* pagsh.c: unconditionally set KRBTKFILE
 	
-2003-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afslog.c (log_func): drop the error number
 	
-2003-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afslog.c: set kafs log function if verbose is turned on
 	
-2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-03-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am (LDADD): use LIB_kafs
 	

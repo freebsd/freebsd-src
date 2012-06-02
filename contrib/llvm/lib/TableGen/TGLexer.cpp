@@ -15,7 +15,6 @@
 #include "llvm/TableGen/Error.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Config/config.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Twine.h"
 #include <cctype>
@@ -23,6 +22,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
+
+#include "llvm/Config/config.h" // for strtoull()/strtoll() define
+
 using namespace llvm;
 
 TGLexer::TGLexer(SourceMgr &SM) : SrcMgr(SM) {
@@ -80,6 +82,10 @@ int TGLexer::getNextChar() {
   }  
 }
 
+int TGLexer::peekNextChar(int Index) {
+  return *(CurPtr + Index);
+}
+
 tgtok::TokKind TGLexer::LexToken() {
   TokStart = CurPtr;
   // This always consumes at least one character.
@@ -87,10 +93,10 @@ tgtok::TokKind TGLexer::LexToken() {
 
   switch (CurChar) {
   default:
-    // Handle letters: [a-zA-Z_#]
-    if (isalpha(CurChar) || CurChar == '_' || CurChar == '#')
+    // Handle letters: [a-zA-Z_]
+    if (isalpha(CurChar) || CurChar == '_')
       return LexIdentifier();
-      
+
     // Unknown character, emit an error.
     return ReturnError(TokStart, "Unexpected character");
   case EOF: return tgtok::Eof;
@@ -107,6 +113,7 @@ tgtok::TokKind TGLexer::LexToken() {
   case ')': return tgtok::r_paren;
   case '=': return tgtok::equal;
   case '?': return tgtok::question;
+  case '#': return tgtok::paste;
       
   case 0:
   case ' ':
@@ -128,8 +135,44 @@ tgtok::TokKind TGLexer::LexToken() {
     return LexToken();
   case '-': case '+':
   case '0': case '1': case '2': case '3': case '4': case '5': case '6':
-  case '7': case '8': case '9':  
+  case '7': case '8': case '9': {
+    int NextChar = 0;
+    if (isdigit(CurChar)) {
+      // Allow identifiers to start with a number if it is followed by
+      // an identifier.  This can happen with paste operations like
+      // foo#8i.
+      int i = 0;
+      do {
+        NextChar = peekNextChar(i++);
+      } while (isdigit(NextChar));
+
+      if (NextChar == 'x' || NextChar == 'b') {
+        // If this is [0-9]b[01] or [0-9]x[0-9A-fa-f] this is most
+        // likely a number.
+        int NextNextChar = peekNextChar(i);
+        switch (NextNextChar) {
+        default:
+          break;
+        case '0': case '1': 
+          if (NextChar == 'b')
+            return LexNumber();
+          // Fallthrough
+        case '2': case '3': case '4': case '5':
+        case '6': case '7': case '8': case '9':
+        case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
+        case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+          if (NextChar == 'x')
+            return LexNumber();
+          break;
+        }
+      }
+    }
+
+    if (isalpha(NextChar) || NextChar == '_')
+      return LexIdentifier();
+
     return LexNumber();
+  }
   case '"': return LexString();
   case '$': return LexVarName();
   case '[': return LexBracket();
@@ -210,8 +253,7 @@ tgtok::TokKind TGLexer::LexIdentifier() {
   const char *IdentStart = TokStart;
 
   // Match the rest of the identifier regex: [0-9a-zA-Z_#]*
-  while (isalpha(*CurPtr) || isdigit(*CurPtr) || *CurPtr == '_' ||
-         *CurPtr == '#')
+  while (isalpha(*CurPtr) || isdigit(*CurPtr) || *CurPtr == '_')
     ++CurPtr;
 
   // Check to see if this identifier is a keyword.
@@ -232,6 +274,7 @@ tgtok::TokKind TGLexer::LexIdentifier() {
     .Case("dag", tgtok::Dag)
     .Case("class", tgtok::Class)
     .Case("def", tgtok::Def)
+    .Case("foreach", tgtok::Foreach)
     .Case("defm", tgtok::Defm)
     .Case("multiclass", tgtok::MultiClass)
     .Case("field", tgtok::Field)

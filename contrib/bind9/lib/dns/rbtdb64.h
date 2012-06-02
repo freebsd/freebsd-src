@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb64.h,v 1.17 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: rbtdb64.h,v 1.17 2007/06/19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_RBTDB64_H
 #define DNS_RBTDB64_H 1

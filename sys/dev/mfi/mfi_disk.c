@@ -130,10 +130,17 @@ mfi_disk_attach(device_t dev)
 		state = "unknown";
 		break;
 	}
-	device_printf(dev, "%juMB (%ju sectors) RAID volume '%s' is %s\n",
-		      sectors / (1024 * 1024 / secsize), sectors,
-		      ld_info->ld_config.properties.name,
-		      state);
+
+        if ( strlen(ld_info->ld_config.properties.name) == 0 ) {
+                device_printf(dev, 
+                      "%juMB (%ju sectors) RAID volume (no label) is %s\n",
+                      sectors / (1024 * 1024 / secsize), sectors, state);
+        } else { 
+                device_printf(dev, 
+                      "%juMB (%ju sectors) RAID volume '%s' is %s\n",
+                      sectors / (1024 * 1024 / secsize), sectors,
+                      ld_info->ld_config.properties.name, state);
+        }
 
 	sc->ld_disk = disk_alloc();
 	sc->ld_disk->d_drv1 = sc;
@@ -224,7 +231,7 @@ mfi_disk_disable(struct mfi_disk *sc)
 	if (sc->ld_flags & MFI_DISK_FLAGS_OPEN) {
 		if (sc->ld_controller->mfi_delete_busy_volumes)
 			return (0);
-		device_printf(sc->ld_dev, "Unable to delete busy device\n");
+		device_printf(sc->ld_dev, "Unable to delete busy ld device\n");
 		return (EBUSY);
 	}
 	sc->ld_flags |= MFI_DISK_FLAGS_DISABLED;
@@ -246,6 +253,7 @@ mfi_disk_strategy(struct bio *bio)
 	struct mfi_softc *controller;
 
 	sc = bio->bio_disk->d_drv1;
+	controller = sc->ld_controller;
 
 	if (sc == NULL) {
 		bio->bio_error = EINVAL;
@@ -255,8 +263,24 @@ mfi_disk_strategy(struct bio *bio)
 		return;
 	}
 
-	controller = sc->ld_controller;
+	if (controller->adpreset) {
+		bio->bio_error = EBUSY;
+		return;
+	}
+
+	if (controller->hw_crit_error) {
+		bio->bio_error = EBUSY;
+		return;
+	}
+
+	if (controller->issuepend_done == 0) {
+		bio->bio_error = EBUSY;
+		return;
+	}
+
 	bio->bio_driver1 = (void *)(uintptr_t)sc->ld_id;
+	/* Mark it as LD IO */
+	bio->bio_driver2 = (void *)MFI_LD_IO;
 	mtx_lock(&controller->mfi_io_lock);
 	mfi_enqueue_bio(controller, bio);
 	mfi_startio(controller);

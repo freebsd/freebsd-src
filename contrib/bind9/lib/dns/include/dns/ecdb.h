@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ecdb.h,v 1.3 2009-09-02 23:48:02 tbox Exp $ */
+/* $Id: ecdb.h,v 1.3 2009/09/02 23:48:02 tbox Exp $ */
 
 #ifndef DNS_ECDB_H
 #define DNS_ECDB_H 1
@@ -38,6 +38,8 @@
 /***
  *** Functions
  ***/
+
+ISC_LANG_BEGINDECLS
 
 /* TBD: describe those */
 

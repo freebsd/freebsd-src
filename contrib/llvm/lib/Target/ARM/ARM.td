@@ -1,4 +1,4 @@
-//===- ARM.td - Describe the ARM Target Machine ------------*- tablegen -*-===//
+//===-- ARM.td - Describe the ARM Target Machine -----------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -23,9 +23,6 @@ include "llvm/Target/Target.td"
 def ModeThumb  : SubtargetFeature<"thumb-mode", "InThumbMode", "true",
                                   "Thumb mode">;
 
-def ModeNaCl   : SubtargetFeature<"nacl-mode", "InNaClMode", "true",
-                                  "Native client mode">;
-
 //===----------------------------------------------------------------------===//
 // ARM Subtarget features.
 //
@@ -35,6 +32,9 @@ def FeatureVFP2 : SubtargetFeature<"vfp2", "HasVFPv2", "true",
 def FeatureVFP3 : SubtargetFeature<"vfp3", "HasVFPv3", "true",
                                    "Enable VFP3 instructions",
                                    [FeatureVFP2]>;
+def FeatureVFP4 : SubtargetFeature<"vfp4", "HasVFPv4", "true",
+                                   "Enable VFP4 instructions",
+                                   [FeatureVFP3]>;
 def FeatureNEON : SubtargetFeature<"neon", "HasNEON", "true",
                                    "Enable NEON instructions",
                                    [FeatureVFP3]>;
@@ -85,6 +85,11 @@ def FeaturePref32BitThumb : SubtargetFeature<"32bit", "Pref32BitThumb", "true",
 def FeatureAvoidPartialCPSR : SubtargetFeature<"avoid-partial-cpsr",
                                                "AvoidCPSRPartialUpdate", "true",
                                  "Avoid CPSR partial update for OOO execution">;
+
+// Some processors perform return stack prediction. CodeGen should avoid issue
+// "normal" call instructions to callees which do not return.
+def FeatureHasRAS : SubtargetFeature<"ras", "HasRAS", "true",
+                                     "Has return address stack">;
 
 /// Some M architectures don't have the DSP extension (v7E-M vs. v7M)
 def FeatureDSPThumb2 : SubtargetFeature<"t2dsp", "Thumb2DSP", "true",
@@ -201,13 +206,14 @@ def : Processor<"arm1156t2f-s",     ARMV6Itineraries, [HasV6T2Ops, FeatureVFP2,
 // V7a Processors.
 def : Processor<"cortex-a8",        CortexA8Itineraries,
                                     [ProcA8, HasV7Ops, FeatureNEON, FeatureDB,
-                                     FeatureDSPThumb2]>;
+                                     FeatureDSPThumb2, FeatureHasRAS]>;
 def : Processor<"cortex-a9",        CortexA9Itineraries,
                                     [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
-                                     FeatureDSPThumb2]>;
+                                     FeatureDSPThumb2, FeatureHasRAS]>;
 def : Processor<"cortex-a9-mp",     CortexA9Itineraries,
                                     [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
-                                     FeatureDSPThumb2, FeatureMP]>;
+                                     FeatureDSPThumb2, FeatureMP,
+                                     FeatureHasRAS]>;
 
 // V7M Processors.
 def : ProcNoItin<"cortex-m3",       [HasV7Ops,

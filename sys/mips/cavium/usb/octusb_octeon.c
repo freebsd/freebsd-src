@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 #include <contrib/octeon-sdk/cvmx-usb.h>
 
 #include <mips/cavium/usb/octusb.h>
@@ -116,7 +116,7 @@ octusb_octeon_attach(device_t dev)
 		rid = 0;
 		sc->sc_dci.sc_irq_res[i] =
 		    bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-			       CVMX_IRQ_USB0 + i, CVMX_IRQ_USB0 + i, 1, RF_ACTIVE);
+			       OCTEON_IRQ_USB0 + i, OCTEON_IRQ_USB0 + i, 1, RF_ACTIVE);
 		if (!(sc->sc_dci.sc_irq_res[i])) {
 			goto error;
 		}

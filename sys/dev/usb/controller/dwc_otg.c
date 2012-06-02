@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 
 #define	DWC_OTG_MSK_GINT_ENABLED	\
    (DWC_OTG_MSK_GINT_ENUM_DONE |	\
+   DWC_OTG_MSK_GINT_USB_RESET |		\
    DWC_OTG_MSK_GINT_USB_SUSPEND |	\
    DWC_OTG_MSK_GINT_INEP |		\
    DWC_OTG_MSK_GINT_RXFLVL |		\
@@ -730,7 +731,10 @@ repeat:
 		}
 	}
 
-	/* check if no packets have been transferred */
+	if (!to--)
+		goto not_complete;
+
+	/* check if not all packets have been transferred */
 	temp = DWC_OTG_READ_4(sc, DWC_OTG_REG_DIEPTSIZ(td->ep_no));
 
 	if (DWC_OTG_MSK_DXEPTSIZ_GET_NPKT(temp) != 0) {
@@ -812,9 +816,7 @@ repeat:
 
 		/* else we need to transmit a short packet */
 	}
-
-	if (--to)
-		goto repeat;
+	goto repeat;
 
 not_complete:
 	return (1);			/* not complete */
@@ -927,7 +929,6 @@ repeat:
 
 		if (sc->sc_last_rx_status != 0) {
 
-			uint32_t temp;
 			uint8_t ep_no;
 
 			temp = DWC_OTG_MSK_GRXSTS_GET_BYTE_CNT(
@@ -1042,6 +1043,18 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 
 	DPRINTFN(14, "GINTSTS=0x%08x\n", status);
 
+	if (status & DWC_OTG_MSK_GINT_USB_RESET) {
+
+		/* set correct state */
+		sc->sc_flags.status_bus_reset = 0;
+		sc->sc_flags.status_suspend = 0;
+		sc->sc_flags.change_suspend = 0;
+		sc->sc_flags.change_connect = 1;
+
+		/* complete root HUB interrupt endpoint */
+		dwc_otg_root_intr(sc);
+	}
+
 	/* check for any bus state change interrupts */
 	if (status & DWC_OTG_MSK_GINT_ENUM_DONE) {
 
@@ -1115,6 +1128,7 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 	}
 	/* check VBUS */
 	if (status & (DWC_OTG_MSK_GINT_USB_SUSPEND |
+	    DWC_OTG_MSK_GINT_USB_RESET |
 	    DWC_OTG_MSK_GINT_SESSREQINT)) {
 		uint32_t temp;
 
@@ -1133,9 +1147,10 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 
 		for (x = 0; x != sc->sc_dev_in_ep_max; x++) {
 			temp = DWC_OTG_READ_4(sc, DWC_OTG_REG_DIEPINT(x));
-			if (temp == 0)
-				continue;
-			DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DIEPINT(x), temp);
+			if (temp & DWC_OTG_MSK_DIEP_XFER_COMPLETE) {
+				DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DIEPINT(x),
+				    DWC_OTG_MSK_DIEP_XFER_COMPLETE);
+			}
 		}
 	}
 
@@ -1773,17 +1788,25 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 	sc->sc_irq_mask = DWC_OTG_MSK_GINT_ENABLED;
 	DWC_OTG_WRITE_4(sc, DWC_OTG_REG_GINTMSK, sc->sc_irq_mask);
 
-	/*
-	 * Disable all endpoint interrupts,
-	 * we use the SOF IRQ for transmit:
-	 */
-
 	/* enable all endpoint interrupts */
-	DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DIEPMSK,
-	    /* DWC_OTG_MSK_DIEP_FIFO_EMPTY | */
-	    DWC_OTG_MSK_DIEP_XFER_COMPLETE);
-	DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DOEPMSK, 0);
-	DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DAINTMSK, 0xFFFF);
+	temp = DWC_OTG_READ_4(sc, DWC_OTG_REG_GHWCFG2);
+	if (temp & DWC_OTG_MSK_GHWCFG2_MPI) {
+		uint8_t x;
+
+		DPRINTF("Multi Process Interrupts\n");
+
+		for (x = 0; x != sc->sc_dev_in_ep_max; x++) {
+			DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DIEPEACHMSK(x),
+			    DWC_OTG_MSK_DIEP_XFER_COMPLETE);
+			DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DOEPEACHMSK(x), 0);
+		}
+		DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DEACHINTMSK, 0xFFFF);
+	} else {
+		DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DIEPMSK,
+		    DWC_OTG_MSK_DIEP_XFER_COMPLETE);
+		DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DOEPMSK, 0);
+		DWC_OTG_WRITE_4(sc, DWC_OTG_REG_DAINTMSK, 0xFFFF);
+	}
 
 	/* enable global IRQ */
 	DWC_OTG_WRITE_4(sc, DWC_OTG_REG_GAHBCFG,
@@ -2034,14 +2057,13 @@ static const struct dwc_otg_config_desc dwc_otg_confd = {
 	},
 };
 
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
+
 static const struct usb_hub_descriptor_min dwc_otg_hubd = {
 	.bDescLength = sizeof(dwc_otg_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
-	.wHubCharacteristics[0] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
-	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 8,
+	HSETW(.wHubCharacteristics, (UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL)),
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */

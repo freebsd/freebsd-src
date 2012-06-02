@@ -15,17 +15,19 @@
 #ifndef LLVM_EXECUTION_ENGINE_H
 #define LLVM_EXECUTION_ENGINE_H
 
-#include <vector>
-#include <map>
-#include <string>
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ValueMap.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include <vector>
+#include <map>
+#include <string>
 
 namespace llvm {
 
@@ -41,6 +43,7 @@ class MachineCodeInfo;
 class Module;
 class MutexGuard;
 class TargetData;
+class Triple;
 class Type;
 
 /// \brief Helper class for helping synchronize access to the global address map
@@ -132,14 +135,12 @@ protected:
     Module *M,
     std::string *ErrorStr,
     JITMemoryManager *JMM,
-    CodeGenOpt::Level OptLevel,
     bool GVsWithCode,
     TargetMachine *TM);
   static ExecutionEngine *(*MCJITCtor)(
     Module *M,
     std::string *ErrorStr,
     JITMemoryManager *JMM,
-    CodeGenOpt::Level OptLevel,
     bool GVsWithCode,
     TargetMachine *TM);
   static ExecutionEngine *(*InterpCtor)(Module *M, std::string *ErrorStr);
@@ -227,6 +228,26 @@ public:
   /// and return the result.
   virtual GenericValue runFunction(Function *F,
                                 const std::vector<GenericValue> &ArgValues) = 0;
+
+  /// getPointerToNamedFunction - This method returns the address of the
+  /// specified function by using the dlsym function call.  As such it is only
+  /// useful for resolving library symbols, not code generated symbols.
+  ///
+  /// If AbortOnFailure is false and no function with the given name is
+  /// found, this function silently returns a null pointer. Otherwise,
+  /// it prints a message to stderr and aborts.
+  ///
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true) = 0;
+
+  /// mapSectionAddress - map a section to its target address space value.
+  /// Map the address of a JIT section as returned from the memory manager
+  /// to the address in the target process as the running code will see it.
+  /// This is the address which will be used for relocation resolution.
+  virtual void mapSectionAddress(void *LocalAddress, uint64_t TargetAddress) {
+    llvm_unreachable("Re-mapping of section addresses not supported with this "
+                     "EE!");
+  }
 
   /// runStaticConstructorsDestructors - This method is used to execute all of
   /// the static constructors or destructors for a program.
@@ -462,6 +483,7 @@ private:
   CodeGenOpt::Level OptLevel;
   JITMemoryManager *JMM;
   bool AllocateGVsWithCode;
+  TargetOptions Options;
   Reloc::Model RelocModel;
   CodeModel::Model CMModel;
   std::string MArch;
@@ -475,6 +497,7 @@ private:
     ErrorStr = NULL;
     OptLevel = CodeGenOpt::Default;
     JMM = NULL;
+    Options = TargetOptions();
     AllocateGVsWithCode = false;
     RelocModel = Reloc::Default;
     CMModel = CodeModel::JITDefault;
@@ -515,6 +538,13 @@ public:
   /// defaults to CodeGenOpt::Default.
   EngineBuilder &setOptLevel(CodeGenOpt::Level l) {
     OptLevel = l;
+    return *this;
+  }
+
+  /// setTargetOptions - Set the target options that the ExecutionEngine
+  /// target is using. Defaults to TargetOptions().
+  EngineBuilder &setTargetOptions(const TargetOptions &Opts) {
+    Options = Opts;
     return *this;
   }
 
@@ -572,17 +602,20 @@ public:
     return *this;
   }
 
+  TargetMachine *selectTarget();
+
   /// selectTarget - Pick a target either via -march or by guessing the native
   /// arch.  Add any CPU features specified via -mcpu or -mattr.
-  static TargetMachine *selectTarget(Module *M,
-                                     StringRef MArch,
-                                     StringRef MCPU,
-                                     const SmallVectorImpl<std::string>& MAttrs,
-                                     Reloc::Model RM,
-                                     CodeModel::Model CM,
-                                     std::string *Err);
+  TargetMachine *selectTarget(const Triple &TargetTriple,
+                              StringRef MArch,
+                              StringRef MCPU,
+                              const SmallVectorImpl<std::string>& MAttrs);
 
-  ExecutionEngine *create();
+  ExecutionEngine *create() {
+    return create(selectTarget());
+  }
+
+  ExecutionEngine *create(TargetMachine *TM);
 };
 
 } // End llvm namespace

@@ -72,10 +72,10 @@ unmount_all_filesystems()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'`    
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
-    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
+    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d '#' -f 4`"
 
     if [ "${PARTENC}" = "ON" ]
     then
@@ -168,9 +168,9 @@ unmount_all_filesystems_failure()
     for PART in `ls ${PARTDIR}`
     do
       PARTDEV=`echo $PART | sed 's|-|/|g'` 
-      PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-      PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-      PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
+      PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+      PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+      PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 
       if [ "${PARTFS}" = "SWAP" ]
       then

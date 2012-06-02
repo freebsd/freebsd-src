@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/sysarch.h>
+#include <x86/sysarch.h>

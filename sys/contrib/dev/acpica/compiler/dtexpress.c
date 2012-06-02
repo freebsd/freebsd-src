@@ -142,7 +142,7 @@ DtDoOperator (
         if (!RightValue)
         {
             DtError (ASL_ERROR, ASL_MSG_DIVIDE_BY_ZERO,
-                Gbl_CurrentField, Gbl_CurrentField->Value);
+                Gbl_CurrentField, NULL);
             return (0);
         }
         Result = LeftValue / RightValue;
@@ -152,7 +152,7 @@ DtDoOperator (
         if (!RightValue)
         {
             DtError (ASL_ERROR, ASL_MSG_DIVIDE_BY_ZERO,
-                Gbl_CurrentField, Gbl_CurrentField->Value);
+                Gbl_CurrentField, NULL);
             return (0);
         }
         Result = LeftValue % RightValue;
@@ -191,7 +191,7 @@ DtDoOperator (
         break;
 
     case EXPOP_EQUAL:
-        Result = LeftValue = RightValue;
+        Result = LeftValue == RightValue;
         break;
 
     case EXPOP_NOT_EQUAL:
@@ -223,13 +223,12 @@ DtDoOperator (
         /* Unknown operator */
 
         DtFatal (ASL_MSG_INVALID_EXPRESSION,
-            Gbl_CurrentField, Gbl_CurrentField->Value);
+            Gbl_CurrentField, NULL);
         return (0);
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT,
-        "IntegerEval: %s (%8.8X%8.8X %s %8.8X%8.8X) = %8.8X%8.8X\n",
-        Gbl_CurrentField->Value,
+        "IntegerEval: (%8.8X%8.8X %s %8.8X%8.8X) = %8.8X%8.8X\n",
         ACPI_FORMAT_UINT64 (LeftValue),
         DtGetOpName (Operator),
         ACPI_FORMAT_UINT64 (RightValue),

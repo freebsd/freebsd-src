@@ -39,7 +39,7 @@ WARNS=          0
 CXXFLAGS+=      -I${HDRDIR} -I${LIBCXXRTDIR} -std=c++0x -nostdlib -DLIBCXXRT
 
 DPADD=          ${LIBCXXRT}
-LDADD=          -L${.OBJDIR}/../libcxxrt/ -lcxxrt
+LDADD=          -lcxxrt
 LDFLAGS+=       --verbose
 INCSGROUPS=     STD EXT
 
@@ -58,6 +58,7 @@ STD_HEADERS=    __bit_reference\
                 __tree\
                 __tuple\
                 __tuple_03\
+                __undef_min_max\
                 algorithm\
                 array\
                 atomic\

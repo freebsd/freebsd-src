@@ -1,4 +1,4 @@
-//=====- PPCFrameLowering.cpp - PPC Frame Information -----------*- C++ -*-===//
+//===-- PPCFrameLowering.cpp - PPC Frame Information ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -38,7 +38,7 @@ using namespace llvm;
 
 /// VRRegNo - Map from a numbered VR register to its enum value.
 ///
-static const unsigned short VRRegNo[] = {
+static const uint16_t VRRegNo[] = {
  PPC::V0 , PPC::V1 , PPC::V2 , PPC::V3 , PPC::V4 , PPC::V5 , PPC::V6 , PPC::V7 ,
  PPC::V8 , PPC::V9 , PPC::V10, PPC::V11, PPC::V12, PPC::V13, PPC::V14, PPC::V15,
  PPC::V16, PPC::V17, PPC::V18, PPC::V19, PPC::V20, PPC::V21, PPC::V22, PPC::V23,
@@ -64,7 +64,7 @@ static void RemoveVRSaveCode(MachineInstr *MI) {
   // epilog blocks.
   for (MachineFunction::iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
     // If last instruction is a return instruction, add an epilogue
-    if (!I->empty() && I->back().getDesc().isReturn()) {
+    if (!I->empty() && I->back().isReturn()) {
       bool FoundIt = false;
       for (MBBI = I->end(); MBBI != I->begin(); ) {
         --MBBI;
@@ -244,8 +244,10 @@ bool PPCFrameLowering::needsFP(const MachineFunction &MF) const {
   if (MF.getFunction()->hasFnAttr(Attribute::Naked))
     return false;
 
-  return DisableFramePointerElim(MF) || MFI->hasVarSizedObjects() ||
-    (GuaranteedTailCallOpt && MF.getInfo<PPCFunctionInfo>()->hasFastCall());
+  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
+    MFI->hasVarSizedObjects() ||
+    (MF.getTarget().Options.GuaranteedTailCallOpt &&
+     MF.getInfo<PPCFunctionInfo>()->hasFastCall());
 }
 
 
@@ -365,8 +367,8 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
         .addReg(PPC::R0, RegState::Kill)
         .addImm(NegFrameSize);
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STWUX))
-        .addReg(PPC::R1)
-        .addReg(PPC::R1)
+        .addReg(PPC::R1, RegState::Kill)
+        .addReg(PPC::R1, RegState::Define)
         .addReg(PPC::R0);
     } else if (isInt<16>(NegFrameSize)) {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STWU), PPC::R1)
@@ -380,8 +382,8 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
         .addReg(PPC::R0, RegState::Kill)
         .addImm(NegFrameSize & 0xFFFF);
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STWUX))
-        .addReg(PPC::R1)
-        .addReg(PPC::R1)
+        .addReg(PPC::R1, RegState::Kill)
+        .addReg(PPC::R1, RegState::Define)
         .addReg(PPC::R0);
     }
   } else {    // PPC64.
@@ -398,8 +400,8 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
         .addReg(PPC::X0)
         .addImm(NegFrameSize);
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STDUX))
-        .addReg(PPC::X1)
-        .addReg(PPC::X1)
+        .addReg(PPC::X1, RegState::Kill)
+        .addReg(PPC::X1, RegState::Define)
         .addReg(PPC::X0);
     } else if (isInt<16>(NegFrameSize)) {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STDU), PPC::X1)
@@ -413,8 +415,8 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
         .addReg(PPC::X0, RegState::Kill)
         .addImm(NegFrameSize & 0xFFFF);
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STDUX))
-        .addReg(PPC::X1)
-        .addReg(PPC::X1)
+        .addReg(PPC::X1, RegState::Kill)
+        .addReg(PPC::X1, RegState::Define)
         .addReg(PPC::X0);
     }
   }
@@ -655,7 +657,7 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
 
   // Callee pop calling convention. Pop parameter/linkage area. Used for tail
   // call optimization
-  if (GuaranteedTailCallOpt && RetOpcode == PPC::BLR &&
+  if (MF.getTarget().Options.GuaranteedTailCallOpt && RetOpcode == PPC::BLR &&
       MF.getFunction()->getCallingConv() == CallingConv::Fast) {
      PPCFunctionInfo *FI = MF.getInfo<PPCFunctionInfo>();
      unsigned CallerAllocatedAmt = FI->getMinReservedArea();
@@ -758,7 +760,8 @@ PPCFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
 
   // Reserve stack space to move the linkage area to in case of a tail call.
   int TCSPDelta = 0;
-  if (GuaranteedTailCallOpt && (TCSPDelta = FI->getTailCallSPDelta()) < 0) {
+  if (MF.getTarget().Options.GuaranteedTailCallOpt &&
+      (TCSPDelta = FI->getTailCallSPDelta()) < 0) {
     MFI->CreateFixedObject(-1 * TCSPDelta, TCSPDelta, true);
   }
 
@@ -769,7 +772,7 @@ PPCFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   // FIXME: doesn't detect whether or not we need to spill vXX, which requires
   //        r0 for now.
 
-  if (RegInfo->requiresRegisterScavenging(MF)) // FIXME (64-bit): Enable.
+  if (RegInfo->requiresRegisterScavenging(MF))
     if (needsFP(MF) || spillsCR(MF)) {
       const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
       const TargetRegisterClass *G8RC = &PPC::G8RCRegClass;
@@ -863,7 +866,8 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
 
   // Take into account stack space reserved for tail calls.
   int TCSPDelta = 0;
-  if (GuaranteedTailCallOpt && (TCSPDelta = PFI->getTailCallSPDelta()) < 0) {
+  if (MF.getTarget().Options.GuaranteedTailCallOpt &&
+      (TCSPDelta = PFI->getTailCallSPDelta()) < 0) {
     LowerBound = TCSPDelta;
   }
 

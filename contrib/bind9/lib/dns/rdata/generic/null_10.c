@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: null_10.c,v 1.44 2009-12-04 22:06:37 tbox Exp $ */
+/* $Id$ */
 
 /* Reviewed: Thu Mar 16 13:57:50 PST 2000 by explorer */
 
@@ -43,11 +43,7 @@ static inline isc_result_t
 totext_null(ARGS_TOTEXT) {
 	REQUIRE(rdata->type == 10);
 
-	UNUSED(rdata);
-	UNUSED(tctx);
-	UNUSED(target);
-
-	return (DNS_R_SYNTAX);
+	return (unknown_totext(rdata, tctx, target));
 }
 
 static inline isc_result_t

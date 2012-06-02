@@ -113,6 +113,7 @@ static struct pci_id pci_ns8250_ids[] = {
 { 0x14e4, 0x4344, 0xffff, 0, "Sony Ericsson GC89 PC Card", 0x10},
 { 0x151f, 0x0000, 0xffff, 0, "TOPIC Semiconductor TP560 56k modem", 0x10 },
 { 0x8086, 0x1c3d, 0xffff, 0, "Intel AMT - KT Controller", 0x10 },
+{ 0x8086, 0x2e17, 0xffff, 0, "4 Series Chipset Serial KT Controller", 0x10 },
 { 0x8086, 0x3b67, 0xffff, 0, "5 Series/3400 Series Chipset KT Controller",
 	0x10 },
 { 0x8086, 0x8811, 0xffff, 0, "Intel EG20T Serial Port 0", 0x10 },
@@ -126,6 +127,8 @@ static struct pci_id pci_ns8250_ids[] = {
 	"MosChip MCS9900 PCIe to Peripheral Controller", 0x10 },
 { 0x9710, 0x9901, 0xa000, 0x1000,
 	"MosChip MCS9901 PCIe to Peripheral Controller", 0x10 },
+{ 0x9710, 0x9904, 0xa000, 0x1000,
+	"MosChip MCS9904 PCIe to Peripheral Controller", 0x10 },
 { 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
 { 0xffff, 0, 0xffff, 0, NULL, 0, 0}
 };

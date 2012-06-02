@@ -74,13 +74,12 @@ scif_cb_remote_device_ready(SCI_CONTROLLER_HANDLE_T controller,
 		isci_controller->remote_device[device_index] =
 		    isci_remote_device;
 
-		if (isci_controller->sim != NULL) {
-			/* The sim object is not NULL, meaning we have attached
-			 *  the controller to CAM already.  In that case, create
-			 *  a CCB to instruct CAM to rescan this device.
-			 * If the sim object is NULL, this device will get
-			 *  scanned as part of the initial scan when the
-			 *  controller is attached to CAM.
+		if (isci_controller->has_been_scanned) {
+			/* The sim object has been scanned at least once
+			 *  already.  In that case, create a CCB to instruct
+			 *  CAM to rescan this device.
+			 * If the sim object has not been scanned, this device
+			 *  will get scanned as part of the initial scan.
 			 */
 			union ccb *ccb = xpt_alloc_ccb_nowait();
 
@@ -290,9 +289,26 @@ isci_remote_device_release_lun_queue(struct ISCI_REMOTE_DEVICE *remote_device,
 
 void
 isci_remote_device_release_device_queue(
-    struct ISCI_REMOTE_DEVICE *remote_device)
+    struct ISCI_REMOTE_DEVICE *device)
 {
-	lun_id_t lun;
-	for (lun = 0; lun < ISCI_MAX_LUN; lun++)
-		isci_remote_device_release_lun_queue(remote_device, lun);
+	if (TAILQ_EMPTY(&device->queued_ccbs)) {
+		lun_id_t lun;
+
+		for (lun = 0; lun < ISCI_MAX_LUN; lun++)
+			isci_remote_device_release_lun_queue(device, lun);
+	} else {
+		/*
+		 * We cannot unfreeze the devq, because there are still
+		 *  CCBs in our internal queue that need to be processed
+		 *  first.  Mark this device, and the controller, so that
+		 *  the first CCB in this device's internal queue will be
+		 *  resubmitted after the current completion context
+		 *  unwinds.
+		 */
+		device->release_queued_ccb = TRUE;
+		device->domain->controller->release_queued_ccbs = TRUE;
+
+		isci_log_message(1, "ISCI", "schedule %p for release\n",
+		    device);
+	}
 }
