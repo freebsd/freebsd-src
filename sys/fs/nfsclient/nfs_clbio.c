@@ -1165,7 +1165,7 @@ again:
 		 * significant cache coherency problems with multiple clients,
 		 * especially if locking is implemented later on.
 		 *
-		 * as an optimization we could theoretically maintain
+		 * As an optimization we could theoretically maintain
 		 * a linked list of discontinuous areas, but we would still
 		 * have to commit them separately so there isn't much
 		 * advantage to it except perhaps a bit of asynchronization.
