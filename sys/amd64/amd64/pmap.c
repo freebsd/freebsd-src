@@ -200,12 +200,22 @@ static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
 static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
 
 /*
+ * Isolate the global pv list lock from data and other locks to prevent false
+ * sharing within the cache.
+ */
+static struct {
+	struct rwlock	lock;
+	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
+} pvh_global __aligned(CACHE_LINE_SIZE);
+
+#define	pvh_global_lock	pvh_global.lock
+
+/*
  * Data for the pv entry allocation mechanism
  */
 static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
 static long pv_entry_count;
 static struct md_page *pv_table;
-static struct rwlock pvh_global_lock;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
