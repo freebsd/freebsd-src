@@ -65,6 +65,7 @@ struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
 	u_int8_t quirks;
 #define	CAM_QUIRK_MAXTAGS	0x01
+	u_int mintags;
 	u_int maxtags;
 };
 
@@ -153,7 +154,7 @@ static struct ata_quirk_entry ata_quirk_table[] =
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
 		  /*vendor*/"*", /*product*/"*", /*revision*/"*"
 		},
-		/*quirks*/0, /*maxtags*/0
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
 };
 
@@ -412,6 +413,7 @@ negotiate:
 			path->device->inq_flags &= ~SID_DMA;
 		else
 			path->device->inq_flags |= SID_DMA;
+		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
@@ -1017,9 +1019,11 @@ noerror:
 			}
 
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		}
 		if (ident_buf->satacapabilities & ATA_SUPPORT_NCQ) {
-			path->device->mintags = path->device->maxtags =
+			path->device->mintags = 2;
+			path->device->maxtags =
 			    ATA_QUEUE_LEN(ident_buf->queue) + 1;
 		}
 		ata_find_quirk(path->device);
@@ -1327,9 +1331,9 @@ done:
 		done_ccb->ccb_h.status = found ? CAM_REQ_CMP : CAM_REQ_CMP_ERR;
 		xpt_done(done_ccb);
 	}
+	cam_periph_invalidate(periph);
 	cam_release_devq(periph->path,
 	    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
-	cam_periph_invalidate(periph);
 	cam_periph_release_locked(periph);
 }
 
@@ -1355,8 +1359,10 @@ ata_find_quirk(struct cam_ed *device)
 
 	quirk = (struct ata_quirk_entry *)match;
 	device->quirk = quirk;
-	if (quirk->quirks & CAM_QUIRK_MAXTAGS)
-		device->mintags = device->maxtags = quirk->maxtags;
+	if (quirk->quirks & CAM_QUIRK_MAXTAGS) {
+		device->mintags = quirk->mintags;
+		device->maxtags = quirk->maxtags;
+	}
 }
 
 typedef struct {
@@ -1580,12 +1586,17 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	}
 
 	if ((old_periph = cam_periph_find(path, "aprobe")) != NULL) {
-		probe_softc *softc;
+		if ((old_periph->flags & CAM_PERIPH_INVALID) == 0) {
+			probe_softc *softc;
 
-		softc = (probe_softc *)old_periph->softc;
-		TAILQ_INSERT_TAIL(&softc->request_ccbs, &request_ccb->ccb_h,
-				  periph_links.tqe);
-		softc->restart = 1;
+			softc = (probe_softc *)old_periph->softc;
+			TAILQ_INSERT_TAIL(&softc->request_ccbs,
+				&request_ccb->ccb_h, periph_links.tqe);
+			softc->restart = 1;
+		} else {
+			request_ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(request_ccb);
+		}
 	} else {
 		status = cam_periph_alloc(proberegister, NULL, probecleanup,
 					  probestart, "aprobe",

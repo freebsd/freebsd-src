@@ -129,8 +129,8 @@ static struct dsk {
     int init;
 } dsk;
 static char cmd[512], cmddup[512], knamebuf[1024];
-static const char *kname = NULL;
-static uint32_t opts = 0;
+static const char *kname;
+static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;

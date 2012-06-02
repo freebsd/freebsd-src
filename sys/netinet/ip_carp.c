@@ -696,7 +696,7 @@ carp_prepare_ad(struct mbuf *m, struct carp_softc *sc, struct carp_header *ch)
 		CARPSTATS_INC(carps_onomem);
 		return (ENOMEM);
 	}
-	bcopy(&sc, (caddr_t)(mtag + 1), sizeof(struct carp_softc *));
+	bcopy(&sc, mtag + 1, sizeof(sc));
 	m_tag_prepend(m, mtag);
 
 	return (0);
@@ -1061,13 +1061,12 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 			IF_ADDR_RUNLOCK(ifp);
 
 			mtag = m_tag_get(PACKET_TAG_CARP,
-			    sizeof(struct ifnet *), M_NOWAIT);
+			    sizeof(struct carp_softc *), M_NOWAIT);
 			if (mtag == NULL)
 				/* Better a bit than nothing. */
 				return (LLADDR(&sc->sc_addr));
 
-			bcopy(&ifp, (caddr_t)(mtag + 1),
-			    sizeof(struct ifnet *));
+			bcopy(&sc, mtag + 1, sizeof(sc));
 			m_tag_prepend(m, mtag);
 
 			return (LLADDR(&sc->sc_addr));
@@ -1391,7 +1390,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa)
 	if (mtag == NULL)
 		return (0);
 
-	bcopy(mtag + 1, &sc, sizeof(struct carp_softc *));
+	bcopy(mtag + 1, &sc, sizeof(sc));
 
 	/* Set the source MAC address to the Virtual Router MAC Address. */
 	switch (ifp->if_type) {

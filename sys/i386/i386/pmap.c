@@ -286,8 +286,9 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 	   "Number of times pmap_pte_quick didn't change PMAP1");
 static struct mtx PMAP2mutex;
 
+static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
-static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
+static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static void	pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
@@ -2152,6 +2153,7 @@ pmap_growkernel(vm_offset_t addr)
 
 CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
 CTASSERT(_NPCM == 11);
+CTASSERT(_NPCPV == 336);
 
 static __inline struct pv_chunk *
 pv_to_chunk(pv_entry_t pv)
@@ -2165,7 +2167,7 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE0_9	0xfffffffful	/* Free values for index 0 through 9 */
 #define	PC_FREE10	0x0000fffful	/* Free values for index 10 */
 
-static uint32_t pc_freemask[11] = {
+static uint32_t pc_freemask[_NPCM] = {
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
@@ -2336,14 +2338,12 @@ out:
 	return (m_pc);
 }
 
-
 /*
  * free the pv_entry back to the free list
  */
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
-	vm_page_t m;
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
@@ -2364,6 +2364,14 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 			TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 			return;
 		}
+	free_pv_chunk(pc);
+}
+
+static void
+free_pv_chunk(struct pv_chunk *pc)
+{
+	vm_page_t m;
+
  	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
@@ -2381,7 +2389,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
  * when needed.
  */
 static pv_entry_t
-get_pv_entry(pmap_t pmap, int try)
+get_pv_entry(pmap_t pmap, boolean_t try)
 {
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
@@ -2428,8 +2436,8 @@ retry:
 		}
 	}
 	/*
-	 * Access to the ptelist "pv_vafree" is synchronized by the page
-	 * queues lock.  If "pv_vafree" is currently non-empty, it will
+	 * Access to the ptelist "pv_vafree" is synchronized by the pvh
+	 * global lock.  If "pv_vafree" is currently non-empty, it will
 	 * remain non-empty until pmap_ptelist_alloc() completes.
 	 */
 	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
@@ -4445,16 +4453,8 @@ pmap_remove_pages(pmap_t pmap)
 			}
 		}
 		if (allfree) {
-			PV_STAT(pv_entry_spare -= _NPCPV);
-			PV_STAT(pc_chunk_count--);
-			PV_STAT(pc_chunk_frees++);
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
-			m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-			pmap_qremove((vm_offset_t)pc, 1);
-			vm_page_unwire(m, 0);
-			vm_page_free(m);
-			pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
+			free_pv_chunk(pc);
 		}
 	}
 	sched_unpin();

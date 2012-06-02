@@ -2265,14 +2265,20 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		IF_ADDR_RUNLOCK(ifp);
 		return (struct in6_ifaddr *)ifa;
 	}
-	IF_ADDR_RUNLOCK(ifp);
 
 	/* use the last-resort values, that are, deprecated addresses */
-	if (dep[0])
+	if (dep[0]) {
+		ifa_ref((struct ifaddr *)dep[0]);
+		IF_ADDR_RUNLOCK(ifp);
 		return dep[0];
-	if (dep[1])
+	}
+	if (dep[1]) {
+		ifa_ref((struct ifaddr *)dep[1]);
+		IF_ADDR_RUNLOCK(ifp);
 		return dep[1];
+	}
 
+	IF_ADDR_RUNLOCK(ifp);
 	return NULL;
 }
 

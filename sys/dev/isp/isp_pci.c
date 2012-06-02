@@ -372,6 +372,8 @@ static driver_t isp_pci_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
+MODULE_DEPEND(isp, cam, 1, 1, 1);
+MODULE_DEPEND(isp, firmware, 1, 1, 1);
 
 static int
 isp_pci_probe(device_t dev)
