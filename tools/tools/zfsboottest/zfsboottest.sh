@@ -72,11 +72,11 @@ fi
 # or vfs.root.mountfrom variable set in /boot/loader.conf.
 egrep -q '^'"${bootfs}"'[[:space:]]+/[[:space:]]+zfs[[:space:]]+' "${mountpoint}/etc/fstab" 2>/dev/null
 if [ $? -ne 0 ]; then
-	egrep -q 'vfs.root.mountfrom="?'"${bootfs}"'"?[[:space:]]*$' "${mountpoint}/boot/loader.conf" 2>/dev/null
+	egrep -q 'vfs.root.mountfrom="?'"zfs:${bootfs}"'"?[[:space:]]*$' "${mountpoint}/boot/loader.conf" 2>/dev/null
 	if [ $? -ne 0 ]; then
 		echo "To be able to boot from \"${bootfs}\", you need to declare" >&2
 		echo "\"${bootfs}\" as being root file system in ${mountpoint}/etc/fstab" >&2
-		echo "or add \"vfs.root.mountfrom\" variable set to \"${bootfs}\" to" >&2
+		echo "or add \"vfs.root.mountfrom\" variable set to \"zfs:${bootfs}\" to" >&2
 		echo "${mountpoint}/boot/loader.conf." >&2
 		exit 1
 	fi
