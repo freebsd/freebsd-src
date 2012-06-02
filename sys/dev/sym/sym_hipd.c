@@ -1623,6 +1623,7 @@ struct sym_hcb {
 	u_int	features;	/* Chip features map		*/
 	u_char	myaddr;		/* SCSI id of the adapter	*/
 	u_char	maxburst;	/* log base 2 of dwords burst	*/
+	u_char	maxsegcnt;	/* Max DMA S/G segments		*/
 	u_char	maxwide;	/* Maximum transfer width	*/
 	u_char	minsync;	/* Min sync period factor (ST)	*/
 	u_char	maxsync;	/* Max sync period factor (ST)	*/
@@ -7988,10 +7989,7 @@ sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp,
 
 /*
  *  Scatter a SG list with physical addresses into bus addressable chunks.
- *  We need to ensure 16MB boundaries not to be crossed during DMA of
- *  each segment, due to some chips being flawed.
  */
-#define BOUND_MASK ((1UL<<24)-1)
 static int
 sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 {
@@ -8007,7 +8005,7 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 	pe = ps + psegs[t].ds_len;
 
 	while (s >= 0) {
-		pn = (pe - 1) & ~BOUND_MASK;
+		pn = (pe - 1) & ~(SYM_CONF_DMA_BOUNDARY - 1);
 		if (pn <= ps)
 			pn = ps;
 		k = pe - pn;
@@ -8032,17 +8030,21 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 
 	return t >= 0 ? -1 : 0;
 }
-#undef BOUND_MASK
 
 /*
  *  SIM action for non performance critical stuff.
  */
 static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 {
+	union ccb *abort_ccb;
+	struct ccb_hdr *ccb_h;
+	struct ccb_pathinq *cpi;
+	struct ccb_trans_settings *cts;
+	struct sym_trans *tip;
 	hcb_p	np;
 	tcb_p	tp;
 	lcb_p	lp;
-	struct	ccb_hdr  *ccb_h;
+	u_char dflags;
 
 	/*
 	 *  Retrieve our controller data structure.
@@ -8055,9 +8057,6 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb_h->func_code) {
 	case XPT_SET_TRAN_SETTINGS:
-	{
-		struct ccb_trans_settings *cts;
-
 		cts  = &ccb->cts;
 		tp = &np->target[ccb_h->target_id];
 
@@ -8079,13 +8078,7 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
-	}
 	case XPT_GET_TRAN_SETTINGS:
-	{
-		struct ccb_trans_settings *cts;
-		struct sym_trans *tip;
-		u_char dflags;
-
 		cts = &ccb->cts;
 		tp = &np->target[ccb_h->target_id];
 		lp = sym_lp(np, tp, ccb_h->target_lun);
@@ -8129,16 +8122,12 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 #undef	cts__scsi
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
-	}
 	case XPT_CALC_GEOMETRY:
-	{
 		cam_calc_geometry(&ccb->ccg, /*extended*/1);
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
-	}
 	case XPT_PATH_INQ:
-	{
-		struct ccb_pathinq *cpi = &ccb->cpi;
+		cpi = &ccb->cpi;
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_MDP_ABLE|PI_SDTR_ABLE|PI_TAG_ABLE;
 		if ((np->features & FE_WIDE) != 0)
@@ -8173,12 +8162,11 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 			cpi->xport_specific.spi.ppr_options =
 			    SID_SPI_CLOCK_DT_ST;
 		}
+		cpi->maxio = np->maxsegcnt * SYM_CONF_DMA_BOUNDARY;
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
-	}
 	case XPT_ABORT:
-	{
-		union ccb *abort_ccb = ccb->cab.abort_ccb;
+		abort_ccb = ccb->cab.abort_ccb;
 		switch(abort_ccb->ccb_h.func_code) {
 		case XPT_SCSI_IO:
 			if (sym_abort_scsiio(np, abort_ccb, 0) == 0) {
@@ -8190,14 +8178,10 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 		break;
-	}
 	case XPT_RESET_DEV:
-	{
 		sym_reset_dev(np, ccb);
 		break;
-	}
 	case XPT_RESET_BUS:
-	{
 		sym_reset_scsi_bus(np, 0);
 		if (sym_verbose) {
 			xpt_print_path(np->path);
@@ -8206,7 +8190,6 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		sym_init (np, 1);
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
-	}
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
 	case XPT_EN_LUN:
@@ -8362,7 +8345,7 @@ sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 static device_method_t sym_pci_methods[] = {
 	DEVMETHOD(device_probe,	 sym_pci_probe),
 	DEVMETHOD(device_attach, sym_pci_attach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sym_pci_driver = {
@@ -8373,7 +8356,7 @@ static driver_t sym_pci_driver = {
 
 static devclass_t sym_devclass;
 
-DRIVER_MODULE(sym, pci, sym_pci_driver, sym_devclass, 0, 0);
+DRIVER_MODULE(sym, pci, sym_pci_driver, sym_devclass, NULL, NULL);
 MODULE_DEPEND(sym, cam, 1, 1, 1);
 MODULE_DEPEND(sym, pci, 1, 1, 1);
 
@@ -8586,15 +8569,16 @@ sym_pci_attach(device_t dev)
 	/*
 	 *  Allocate a tag for the DMA of user data.
 	 */
-	if (bus_dma_tag_create(np->bus_dmat, 1, (1<<24),
-				BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-				NULL, NULL,
-				BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG,
-				(1<<24), 0, busdma_lock_mutex, &np->mtx,
-				&np->data_dmat)) {
+	np->maxsegcnt = MIN(SYM_CONF_MAX_SG,
+	    (MAXPHYS / SYM_CONF_DMA_BOUNDARY) + 1);
+	if (bus_dma_tag_create(np->bus_dmat, 1, SYM_CONF_DMA_BOUNDARY,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE, np->maxsegcnt, SYM_CONF_DMA_BOUNDARY,
+	    BUS_DMA_ALLOCNOW, busdma_lock_mutex, &np->mtx, &np->data_dmat)) {
 		device_printf(dev, "failed to create DMA tag.\n");
 		goto attach_failed;
 	}
+
 	/*
 	 *  Read and apply some fix-ups to the PCI COMMAND
 	 *  register. We want the chip to be enabled for:
@@ -8603,9 +8587,8 @@ sym_pci_attach(device_t dev)
 	 *  - Write And Invalidate.
 	 */
 	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	command |= PCIM_CMD_BUSMASTEREN;
-	command |= PCIM_CMD_PERRESPEN;
-	command |= /* PCIM_CMD_MWIEN */ 0x0010;
+	command |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_PERRESPEN |
+	    PCIM_CMD_MWRICEN;
 	pci_write_config(dev, PCIR_COMMAND, command, 2);
 
 	/*
