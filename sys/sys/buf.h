@@ -251,7 +251,7 @@ struct buf {
 #define	BV_BKGRDWAIT	0x00000004	/* Background write waiting */
 #define	BV_INFREECNT	0x80000000	/* buf is counted in numfreebufs */
 
-#define	PRINT_BUF_VFLAGS "\20\40infreecnt\3bkrgwait\2bkgrdinprog\1scanned"
+#define	PRINT_BUF_VFLAGS "\20\40infreecnt\3bkgrdwait\2bkgrdinprog\1scanned"
 
 #ifdef _KERNEL
 /*
