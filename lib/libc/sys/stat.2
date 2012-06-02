@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2011
+.Dd June 2, 2012
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -431,7 +431,7 @@ system call appeared in
 .Sh BUGS
 Applying
 .Fn fstat
-to a socket (and thus to a pipe)
+to a socket
 returns a zeroed buffer,
 except for the blocksize field,
 and a unique device and inode number.
