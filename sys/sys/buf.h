@@ -224,8 +224,8 @@ struct buf {
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_REMFREE	0x80000000	/* Delayed bremfree */
 
-#define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34b27" \
-	"\33paging\32b25\31b24\30b23\27relbuf\26dirty\25b20" \
+#define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
+	"\33paging\32needsgiant\31nocopy\30b23\27relbuf\26dirty\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
 	"\15b12\14b11\13eintr\12done\11persist\10delwri\7validsuspwrt" \
 	"\6cache\5deferred\4direct\3async\2needcommit\1age"
@@ -239,6 +239,8 @@ struct buf {
 #define BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
 #define	BX_ALTDATA	0x00000040	/* Holds extended data */
 
+#define	PRINT_BUF_XFLAGS "\20\7altdata\6bkgrdmarker\5bkgrdwrite\2clean\1dirty"
+
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
 /*
@@ -248,6 +250,8 @@ struct buf {
 #define	BV_BKGRDINPROG	0x00000002	/* Background write in progress */
 #define	BV_BKGRDWAIT	0x00000004	/* Background write waiting */
 #define	BV_INFREECNT	0x80000000	/* buf is counted in numfreebufs */
+
+#define	PRINT_BUF_VFLAGS "\20\40infreecnt\3bkrgwait\2bkgrdinprog\1scanned"
 
 #ifdef _KERNEL
 /*
