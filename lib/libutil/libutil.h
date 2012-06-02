@@ -152,6 +152,7 @@ int	pw_equal(const struct passwd *_pw1, const struct passwd *_pw2);
 void	pw_fini(void);
 int	pw_init(const char *_dir, const char *_master);
 char	*pw_make(const struct passwd *_pw);
+char	*pw_make_v7(const struct passwd *_pw);
 int	pw_mkdb(const char *_user);
 int	pw_lock(void);
 struct passwd *pw_scan(const char *_line, int _flags);
@@ -160,9 +161,15 @@ int	pw_tmp(int _mfd);
 #endif
 
 #ifdef _GRP_H_
-int	gr_equal(const struct group *gr1, const struct group *gr2);
-char	*gr_make(const struct group *gr);
+int 	gr_copy(int __ffd, int _tfd, const struct group *_gr, struct group *_old_gr);
 struct group *gr_dup(const struct group *gr);
+int	gr_equal(const struct group *gr1, const struct group *gr2);
+void	gr_fini(void);
+int	gr_init(const char *_dir, const char *_master);
+int	gr_lock(void);
+char	*gr_make(const struct group *gr);
+int	gr_mkdb(void);
+int	gr_tmp(int _mdf);
 struct group *gr_scan(const char *line);
 #endif
 
