@@ -191,6 +191,22 @@ _busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t align,
 	return (0);
 }
 
+static struct busdma_md *
+_busdma_md_create(struct busdma_tag *tag, u_int flags)
+{
+	struct busdma_md *md;
+	size_t mdsz;
+
+	mdsz = sizeof(struct busdma_md) +
+	    sizeof(struct busdma_md_seg) * tag->dt_nsegs;
+	md = malloc(mdsz, M_BUSDMA_MD, M_NOWAIT | M_ZERO);
+	if (md != NULL) {
+		md->md_tag = tag;  
+		md->md_flags = flags;
+	}
+	return (md);
+}
+
 int
 busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
     bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
@@ -247,15 +263,28 @@ busdma_tag_destroy(struct busdma_tag *tag)
 int
 busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 {
+	struct busdma_md *md;
 
-	return (ENOSYS);
+	md = _busdma_md_create(tag, 0);
+	if (md == NULL)
+		return (ENOMEM);
+
+	_busdma_md_dump(__func__, md);
+	*md_p = md;
+	return (0);
 }
 
 int
 busdma_md_destroy(struct busdma_md *md)
 {
 
-	return (ENOSYS);
+	if ((md->md_flags & BUSDMA_MD_FLAG_ALLOCATED) != 0)
+		return (EINVAL);
+	if (md->md_nsegs > 0)
+		return (EBUSY);
+
+	free(md, M_BUSDMA_MD);
+	return (0);
 }
 
 bus_addr_t
@@ -310,7 +339,10 @@ busdma_md_load_linear(struct busdma_md *md, void *buf, size_t len,
     busdma_callback_f cb, void *arg, u_int flags)
 {
 
-	return (ENOSYS);
+	printf("XXX: %s: md=%p, buf=%p, len=%lx\n", __func__,
+	    md, buf, (u_long)len);
+	(*cb)(arg, md, ENOSYS);
+	return (0);
 }
 
 int
@@ -325,14 +357,12 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 {
 	struct busdma_md *md;
 	struct busdma_md_seg *seg;
-	size_t mdsz;
 	vm_size_t maxsz;
 	u_int idx;
 
-	mdsz = sizeof(struct busdma_md) +
-	    sizeof(struct busdma_md_seg) * tag->dt_nsegs;
-	md = malloc(mdsz, M_BUSDMA_MD, M_NOWAIT | M_ZERO);
-	md->md_tag = tag;
+	md = _busdma_md_create(tag, BUSDMA_MD_FLAG_ALLOCATED);
+	if (md == NULL)
+		return (ENOMEM);
 
 	idx = 0;
 	maxsz = tag->dt_maxsz;
@@ -371,7 +401,14 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 int
 busdma_mem_free(struct busdma_md *md)
 {
+	u_int idx;
 
+	if ((md->md_flags & BUSDMA_MD_FLAG_ALLOCATED) == 0)
+		return (EINVAL);
+
+	for (idx = 0; idx < md->md_nsegs; idx++)
+		kmem_free(kernel_map, md->md_seg[idx].mds_vaddr,
+		    md->md_seg[idx].mds_size);
 	free(md, M_BUSDMA_MD);
 	return (0);
 }
