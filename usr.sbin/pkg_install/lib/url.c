@@ -73,7 +73,10 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 		*(cp + 1) = '\0';
 		strcat(cp, "All/");
 		strcat(cp, spec);
-		strcat(cp, ".tbz");
+		if (getenv("PACKAGESUFFIX"))
+		   strcat(cp, getenv("PACKAGESUFFIX"));
+                else
+		   strcat(cp, ".tbz");
 	    }
 	    else
 		return NULL;
@@ -85,7 +88,10 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	     */
 	    strcpy(fname, hint);
 	    strcat(fname, spec);
-	    strcat(fname, ".tbz");
+	    if (getenv("PACKAGESUFFIX"))
+	       strcat(fname, getenv("PACKAGESUFFIX"));
+            else
+	       strcat(fname, ".tbz");
 	}
     }
     else
