@@ -138,9 +138,16 @@ STD_HEADERS=	__bit_reference\
 		utility\
 		valarray\
 		vector
+RT_HEADERS=	cxxabi.h\
+		unwind.h\
+		unwind-arm.h\
+		unwind-itanium.h
 
 .for hdr in ${STD_HEADERS}
 STD+=		${HDRDIR}/${hdr}
+.endfor
+.for hdr in ${RT_HEADERS}
+STD+=		${LIBCXXRTDIR}/${hdr}
 .endfor
 STDDIR=		${CXXINCLUDEDIR}
 
