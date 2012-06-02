@@ -224,7 +224,7 @@ mmc_acquire_bus(device_t busdev, device_t dev)
 	sc = device_get_softc(busdev);
 	MMC_LOCK(sc);
 	if (sc->owner)
-		panic("mmc: host bridge didn't seralize us.");
+		panic("mmc: host bridge didn't serialize us.");
 	sc->owner = dev;
 	MMC_UNLOCK(sc);
 
@@ -859,7 +859,7 @@ mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 	if (v == 0) {
 		m = mmc_get_bits(raw_csd, 128, 115, 4);
 		e = mmc_get_bits(raw_csd, 128, 112, 3);
-		csd->tacc = exp[e] * mant[m] + 9 / 10;
+		csd->tacc = (exp[e] * mant[m] + 9) / 10;
 		csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
 		m = mmc_get_bits(raw_csd, 128, 99, 4);
 		e = mmc_get_bits(raw_csd, 128, 96, 3);
@@ -887,7 +887,7 @@ mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 	} else if (v == 1) {
 		m = mmc_get_bits(raw_csd, 128, 115, 4);
 		e = mmc_get_bits(raw_csd, 128, 112, 3);
-		csd->tacc = exp[e] * mant[m] + 9 / 10;
+		csd->tacc = (exp[e] * mant[m] + 9) / 10;
 		csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
 		m = mmc_get_bits(raw_csd, 128, 99, 4);
 		e = mmc_get_bits(raw_csd, 128, 96, 3);
@@ -1002,7 +1002,7 @@ mmc_all_send_cid(struct mmc_softc *sc, uint32_t *rawcid)
 }
 
 static int
-mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcid)
+mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcsd)
 {
 	struct mmc_command cmd;
 	int err;
@@ -1012,7 +1012,7 @@ mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcid)
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 	cmd.data = NULL;
 	err = mmc_wait_for_cmd(sc, &cmd, 0);
-	memcpy(rawcid, cmd.resp, 4 * sizeof(uint32_t));
+	memcpy(rawcsd, cmd.resp, 4 * sizeof(uint32_t));
 	return (err);
 }
 
@@ -1121,6 +1121,35 @@ mmc_send_relative_addr(struct mmc_softc *sc, uint32_t *resp)
 	return (err);
 }
 
+static int
+mmc_send_status(struct mmc_softc *sc, uint16_t rca, uint32_t *status)
+{
+	struct mmc_command cmd;
+	int err;
+
+	cmd.opcode = MMC_SEND_STATUS;
+	cmd.arg = rca << 16;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	cmd.data = NULL;
+	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	*status = cmd.resp[0];
+	return (err);
+}
+
+static int
+mmc_set_blocklen(struct mmc_softc *sc, uint32_t len)
+{
+	struct mmc_command cmd;
+	int err;
+
+	cmd.opcode = MMC_SET_BLOCKLEN;
+	cmd.arg = len;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	cmd.data = NULL;
+	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	return (err);
+}
+
 static void
 mmc_log_card(device_t dev, struct mmc_ivars *ivar, int newcard)
 {
@@ -1144,8 +1173,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 	struct mmc_ivars *ivar = NULL;
 	device_t *devlist;
 	int err, i, devcount, newcard;
-	uint32_t raw_cid[4];
-	uint32_t resp, sec_count;
+	uint32_t raw_cid[4], resp, sec_count, status;
 	device_t child;
 	uint16_t rca = 2;
 	u_char switch_res[64];
@@ -1194,6 +1222,12 @@ mmc_discover_cards(struct mmc_softc *sc)
 			ivar->rca = resp >> 16;
 			/* Get card CSD. */
 			mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
+			if (bootverbose || mmc_debug)
+				device_printf(sc->dev,
+				    "%sard detected (CSD %08x%08x%08x%08x)\n",
+				    newcard ? "New c" : "C", ivar->raw_csd[0],
+				    ivar->raw_csd[1], ivar->raw_csd[2],
+				    ivar->raw_csd[3]);
 			mmc_decode_csd_sd(ivar->raw_csd, &ivar->csd);
 			ivar->sec_count = ivar->csd.capacity / MMC_SECTOR_SIZE;
 			if (ivar->csd.csd_structure > 0)
@@ -1201,6 +1235,19 @@ mmc_discover_cards(struct mmc_softc *sc)
 			ivar->tran_speed = ivar->csd.tran_speed;
 			ivar->erase_sector = ivar->csd.erase_sector * 
 			    ivar->csd.write_bl_len / MMC_SECTOR_SIZE;
+			
+			err = mmc_send_status(sc, ivar->rca, &status);
+			if (err != MMC_ERR_NONE) {
+				device_printf(sc->dev,
+				    "Error reading card status %d\n", err);
+				break;
+			}
+			if ((status & R1_CARD_IS_LOCKED) != 0) {
+				device_printf(sc->dev,
+				    "Card is password protected, skipping.\n");
+				break;
+			}
+
 			/* Get card SCR. Card must be selected to fetch it. */
 			mmc_select_card(sc, ivar->rca);
 			mmc_app_send_scr(sc, ivar->rca, ivar->raw_scr);
@@ -1228,7 +1275,22 @@ mmc_discover_cards(struct mmc_softc *sc)
 			if ((mmcbr_get_caps(sc->dev) & MMC_CAP_4_BIT_DATA) &&
 			    (ivar->scr.bus_widths & SD_SCR_BUS_WIDTH_4))
 				ivar->bus_width = bus_width_4;
+
+			/*
+			 * Some cards that report maximum I/O block sizes
+			 * greater than 512 require the block length to be
+			 * set to 512, even though that is supposed to be
+			 * the default.  Example:
+			 *
+			 * Transcend 2GB SDSC card, CID:
+			 * mid=0x1b oid=0x534d pnm="00000" prv=1.0 mdt=00.2000
+			 */
+			if (ivar->csd.read_bl_len != MMC_SECTOR_SIZE ||
+			    ivar->csd.write_bl_len != MMC_SECTOR_SIZE)
+				mmc_set_blocklen(sc, MMC_SECTOR_SIZE);
+
 			mmc_format_card_id_string(ivar);
+
 			if (bootverbose || mmc_debug)
 				mmc_log_card(sc->dev, ivar, newcard);
 			if (newcard) {
@@ -1243,11 +1305,31 @@ mmc_discover_cards(struct mmc_softc *sc)
 		mmc_set_relative_addr(sc, ivar->rca);
 		/* Get card CSD. */
 		mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
+		if (bootverbose || mmc_debug)
+			device_printf(sc->dev,
+			    "%sard detected (CSD %08x%08x%08x%08x)\n",
+			    newcard ? "New c" : "C", ivar->raw_csd[0],
+			    ivar->raw_csd[1], ivar->raw_csd[2],
+			    ivar->raw_csd[3]);
+
 		mmc_decode_csd_mmc(ivar->raw_csd, &ivar->csd);
 		ivar->sec_count = ivar->csd.capacity / MMC_SECTOR_SIZE;
 		ivar->tran_speed = ivar->csd.tran_speed;
 		ivar->erase_sector = ivar->csd.erase_sector * 
 		    ivar->csd.write_bl_len / MMC_SECTOR_SIZE;
+
+		err = mmc_send_status(sc, ivar->rca, &status);
+		if (err != MMC_ERR_NONE) {
+			device_printf(sc->dev,
+			    "Error reading card status %d\n", err);
+			break;
+		}
+		if ((status & R1_CARD_IS_LOCKED) != 0) {
+			device_printf(sc->dev,
+			    "Card is password protected, skipping.\n");
+			break;
+		}
+
 		/* Only MMC >= 4.x cards support EXT_CSD. */
 		if (ivar->csd.spec_vers >= 4) {
 			/* Card must be selected to fetch EXT_CSD. */
@@ -1286,7 +1368,21 @@ mmc_discover_cards(struct mmc_softc *sc)
 			ivar->bus_width = bus_width_1;
 			ivar->timing = bus_timing_normal;
 		}
+
+		/*
+		 * Some cards that report maximum I/O block sizes greater
+		 * than 512 require the block length to be set to 512, even
+		 * though that is supposed to be the default.  Example:
+		 *
+		 * Transcend 2GB SDSC card, CID:
+		 * mid=0x1b oid=0x534d pnm="00000" prv=1.0 mdt=00.2000
+		 */
+		if (ivar->csd.read_bl_len != MMC_SECTOR_SIZE ||
+		    ivar->csd.write_bl_len != MMC_SECTOR_SIZE)
+			mmc_set_blocklen(sc, MMC_SECTOR_SIZE);
+
 		mmc_format_card_id_string(ivar);
+
 		if (bootverbose || mmc_debug)
 			mmc_log_card(sc->dev, ivar, newcard);
 		if (newcard) {
@@ -1362,8 +1458,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		err = mmc_send_if_cond(sc, 1);
 		if ((bootverbose || mmc_debug) && err == 0)
 			device_printf(sc->dev, "SD 2.0 interface conditions: OK\n");
-		if (mmc_send_app_op_cond(sc, err ? 0 : MMC_OCR_CCS, &ocr) !=
-		    MMC_ERR_NONE) {
+		if (mmc_send_app_op_cond(sc, 0, &ocr) != MMC_ERR_NONE) {
 			if (bootverbose || mmc_debug)
 				device_printf(sc->dev, "SD probe: failed\n");
 			/*
@@ -1534,7 +1629,6 @@ mmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 	 */
 	return (EINVAL);
 }
-
 
 static void
 mmc_delayed_attach(void *xsc)
