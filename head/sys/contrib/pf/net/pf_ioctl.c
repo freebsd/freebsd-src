@@ -212,7 +212,6 @@ static volatile VNET_DEFINE(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
 VNET_DEFINE(int,		pf_end_threads);
 
-struct mtx			pf_mtx;
 struct rwlock			pf_rules_lock;
 
 /* pfsync */
@@ -231,7 +230,6 @@ static void
 init_pf_mutex(void)
 {
 
-	mtx_init(&pf_mtx, "pf Giant", NULL, MTX_DEF);
 	rw_init(&pf_rules_lock, "pf rulesets");
 	sx_init(&V_pf_consistency_lock, "pfioctl");
 }
@@ -240,7 +238,6 @@ static void
 destroy_pf_mutex(void)
 {
 
-	mtx_destroy(&pf_mtx);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&V_pf_consistency_lock);
 }
@@ -1121,21 +1118,20 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 	switch (cmd) {
 	case DIOCSTART:
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		if (V_pf_status.running)
 			error = EEXIST;
 		else {
 			int cpu;
 
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = hook_pf();
-			PF_LOCK();
 			if (error) {
 				DPFPRINTF(PF_DEBUG_MISC,
-				    ("pf: pfil registeration fail\n"));
-				PF_UNLOCK();
+				    ("pf: pfil registration failed\n"));
 				break;
 			}
+			PF_RULES_WLOCK();
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
 
@@ -1144,27 +1140,27 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
 		}
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 
 	case DIOCSTOP:
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		if (!V_pf_status.running)
 			error = ENOENT;
 		else {
 			V_pf_status.running = 0;
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = dehook_pf();
-			PF_LOCK();
 			if (error) {
 				V_pf_status.running = 1;
 				DPFPRINTF(PF_DEBUG_MISC,
-				    ("pf: pfil unregisteration failed\n"));
+				    ("pf: pfil unregistration failed\n"));
 			}
+			PF_RULES_WLOCK();
 			V_pf_status.since = time_second;
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 
 	case DIOCADDRULE: {
@@ -1633,7 +1629,6 @@ DIOCCHANGERULE_error:
 		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
 		u_int			 i, killed = 0;
 
-		PF_LOCK();
 		for (i = 0; i <= V_pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
@@ -1657,7 +1652,6 @@ relock_DIOCCLRSTATES:
 		psk->psk_killed = killed;
 		if (pfsync_clear_states_ptr != NULL)
 			pfsync_clear_states_ptr(V_pf_status.hostid, psk->psk_ifname);
-		PF_UNLOCK();
 		break;
 	}
 
@@ -1669,7 +1663,6 @@ relock_DIOCCLRSTATES:
 		struct pfioc_state_kill	*psk = (struct pfioc_state_kill *)addr;
 		u_int			 i, killed = 0;
 
-		PF_LOCK();
 		if (psk->psk_pfcmp.id) {
 			if (psk->psk_pfcmp.creatorid == 0)
 				psk->psk_pfcmp.creatorid = V_pf_status.hostid;
@@ -1678,7 +1671,6 @@ relock_DIOCCLRSTATES:
 				pf_unlink_state(s, PF_ENTER_LOCKED);
 				psk->psk_killed = 1;
 			}
-			PF_UNLOCK();
 			break;
 		}
 
@@ -1734,7 +1726,6 @@ relock_DIOCKILLSTATES:
 			}
 			PF_HASHROW_UNLOCK(ih);
 		}
-		PF_UNLOCK();
 		psk->psk_killed = killed;
 		break;
 	}
@@ -1761,17 +1752,14 @@ relock_DIOCKILLSTATES:
 		struct pfioc_state	*ps = (struct pfioc_state *)addr;
 		struct pf_state		*s;
 
-		PF_LOCK();
 		s = pf_find_state_byid(ps->state.id, ps->state.creatorid);
 		if (s == NULL) {
-			PF_UNLOCK();
 			error = ENOENT;
 			break;
 		}
 
 		pfsync_state_export(&ps->state, s);
 		PF_STATE_UNLOCK(s);
-		PF_UNLOCK();
 		break;
 	}
 
@@ -1824,36 +1812,35 @@ DIOCGETSTATES_full:
 
 	case DIOCGETSTATUS: {
 		struct pf_status *s = (struct pf_status *)addr;
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		bcopy(&V_pf_status, s, sizeof(struct pf_status));
 		pfi_update_status(s->ifname, s);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
 	case DIOCSETSTATUSIF: {
 		struct pfioc_if	*pi = (struct pfioc_if *)addr;
 
-		PF_LOCK();
 		if (pi->ifname[0] == 0) {
 			bzero(V_pf_status.ifname, IFNAMSIZ);
-			PF_UNLOCK();
 			break;
 		}
+		PF_RULES_WLOCK();
 		strlcpy(V_pf_status.ifname, pi->ifname, IFNAMSIZ);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
 	case DIOCCLRSTATUS: {
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		bzero(V_pf_status.counters, sizeof(V_pf_status.counters));
 		bzero(V_pf_status.fcounters, sizeof(V_pf_status.fcounters));
 		bzero(V_pf_status.scounters, sizeof(V_pf_status.scounters));
 		V_pf_status.since = time_second;
 		if (*V_pf_status.ifname)
 			pfi_update_status(V_pf_status.ifname, NULL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -1865,7 +1852,6 @@ DIOCGETSTATES_full:
 		int			 m = 0, direction = pnl->direction;
 		int			 sidx, didx;
 
-		PF_LOCK();
 		/* NATLOOK src and dst are reversed, so reverse sidx/didx */
 		sidx = (direction == PF_IN) ? 1 : 0;
 		didx = (direction == PF_IN) ? 0 : 1;
@@ -1899,7 +1885,6 @@ DIOCGETSTATES_full:
 			} else
 				error = ENOENT;
 		}
-		PF_UNLOCK();
 		break;
 	}
 
@@ -1912,7 +1897,7 @@ DIOCGETSTATES_full:
 			error = EINVAL;
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		old = V_pf_default_rule.timeout[pt->timeout];
 		if (pt->timeout == PFTM_INTERVAL && pt->seconds == 0)
 			pt->seconds = 1;
@@ -1920,7 +1905,7 @@ DIOCGETSTATES_full:
 		if (pt->timeout == PFTM_INTERVAL && pt->seconds < old)
 			wakeup(pf_purge_thread);
 		pt->seconds = old;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -1931,7 +1916,9 @@ DIOCGETSTATES_full:
 			error = EINVAL;
 			break;
 		}
+		PF_RULES_RLOCK();
 		pt->seconds = V_pf_default_rule.timeout[pt->timeout];
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -1942,7 +1929,9 @@ DIOCGETSTATES_full:
 			error = EINVAL;
 			break;
 		}
+		PF_RULES_RLOCK();
 		pl->limit = V_pf_limits[pl->index].limit;
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -1950,10 +1939,10 @@ DIOCGETSTATES_full:
 		struct pfioc_limit	*pl = (struct pfioc_limit *)addr;
 		int			 old_limit;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		if (pl->index < 0 || pl->index >= PF_LIMIT_MAX ||
 		    V_pf_limits[pl->index].zone == NULL) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
@@ -1961,14 +1950,16 @@ DIOCGETSTATES_full:
 		old_limit = V_pf_limits[pl->index].limit;
 		V_pf_limits[pl->index].limit = pl->limit;
 		pl->limit = old_limit;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
 	case DIOCSETDEBUG: {
 		u_int32_t	*level = (u_int32_t *)addr;
 
+		PF_RULES_WLOCK();
 		V_pf_status.debug = *level;
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -2874,17 +2865,17 @@ DIOCCHANGEADDR_error:
 
 	case DIOCOSFPADD: {
 		struct pf_osfp_ioctl *io = (struct pf_osfp_ioctl *)addr;
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pf_osfp_add(io);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
 	case DIOCOSFPGET: {
 		struct pf_osfp_ioctl *io = (struct pf_osfp_ioctl *)addr;
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		error = pf_osfp_get(io);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -3194,11 +3185,9 @@ DIOCCHANGEADDR_error:
 
 	case DIOCCLRSRCNODES: {
 
-		PF_LOCK();
 		pf_clear_srcnodes(NULL);
 		pf_purge_expired_src_nodes();
 		V_pf_status.src_nodes = 0;
-		PF_UNLOCK();
 		break;
 	}
 
@@ -3245,19 +3234,19 @@ DIOCCHANGEADDR_error:
 	case DIOCSETHOSTID: {
 		u_int32_t	*hostid = (u_int32_t *)addr;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		if (*hostid == 0)
 			V_pf_status.hostid = arc4random();
 		else
 			V_pf_status.hostid = *hostid;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
 	case DIOCOSFPFLUSH:
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pf_osfp_flush();
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 
 	case DIOCIGETIFACES: {
@@ -3676,8 +3665,6 @@ hook_pf(void)
 	struct pfil_head *pfh_inet6;
 #endif
 
-	PF_UNLOCK_ASSERT();
-
 	if (V_pf_pfil_hooked)
 		return (0); 
 
@@ -3716,8 +3703,6 @@ dehook_pf(void)
 #ifdef INET6
 	struct pfil_head *pfh_inet6;
 #endif
-
-	PF_UNLOCK_ASSERT();
 
 	if (V_pf_pfil_hooked == 0)
 		return (0);
@@ -3790,9 +3775,9 @@ pf_unload(void)
 {
 	int error = 0;
 
-	PF_LOCK();
+	PF_RULES_WLOCK();
 	V_pf_status.running = 0;
-	PF_UNLOCK();
+	PF_RULES_WUNLOCK();
 	m_addr_chg_pf_p = NULL;
 	swi_remove(V_pf_swi_cookie);
 	error = dehook_pf();
@@ -3805,19 +3790,19 @@ pf_unload(void)
 		printf("%s : pfil unregisteration fail\n", __FUNCTION__);
 		return error;
 	}
-	PF_LOCK();
+	PF_RULES_WLOCK();
 	shutdown_pf();
 	V_pf_end_threads = 1;
 	while (V_pf_end_threads < 2) {
 		wakeup_one(pf_purge_thread);
-		msleep(pf_purge_thread, &pf_mtx, 0, "pftmo", hz);
+		tsleep(pf_purge_thread, PWAIT, "pftmo", hz);
 	}
 	pf_normalize_cleanup();
 	pfi_cleanup();
 	pf_osfp_flush();
 	pf_osfp_cleanup();
 	pf_cleanup();
-	PF_UNLOCK();
+	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	destroy_pf_mutex();
 
