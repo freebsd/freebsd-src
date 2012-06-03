@@ -80,7 +80,6 @@ int	callout_schedule_on(struct callout *, int, int);
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
 void	callout_tick(void);
-struct bintime callout_tickstofirst(void);
 extern void (*callout_new_inserted)(int cpu, struct bintime bt);
 
 #endif

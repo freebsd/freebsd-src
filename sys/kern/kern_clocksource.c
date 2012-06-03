@@ -72,9 +72,7 @@ static int		round_freq(struct eventtimer *et, int freq);
 static void		getnextcpuevent(struct bintime *event, int idle);
 static void		getnextevent(struct bintime *event);
 static int		handleevents(struct bintime *now, int fake);
-#ifdef SMP
 static void		cpu_new_callout(int cpu, struct bintime bt);
-#endif
 
 static struct mtx	et_hw_mtx;
 
@@ -274,24 +272,28 @@ handleevents(struct bintime *now, int fake)
 static void
 getnextcpuevent(struct bintime *event, int idle)
 {
-	struct bintime tmp;
 	struct pcpu_state *state;
-
+	struct bintime tmp;
+	int hardfreq;
+	
 	state = DPCPU_PTR(timerstate);
-	/* Handle hardclock() events. */
+	/* Handle hardclock() events, skipping some is CPU is idle. */
 	*event = state->nexthard;
-	/* Handle callout events. */
-	tmp = callout_tickstofirst();
-	if (state->nextcall.sec == -1)
-		state->nextcall = tmp;
-	if (bintime_cmp(&tmp, &state->nextcall, <) && 	
-	    (tmp.sec != -1)) {
-		state->nextcall = tmp;
-	}	
-	if (bintime_cmp(event, &state->nextcall, >) && 
-	    (state->nextcall.sec != -1)) {
-		*event = state->nextcall;
+	if (idle || (!activetick && !profiling &&
+	    (timer->et_flags & ET_FLAGS_PERCPU) == 0)) {
+		hardfreq = idle ? 4 : (stathz / 2);
+		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > hardfreq)
+			hardfreq = tc_min_ticktock_freq;
+		if (hz > hardfreq) {
+			tmp = hardperiod;
+			bintime_mul(&tmp, hz / hardfreq - 1);
+			bintime_add(event, &tmp);
+		}
 	}
+	/* Handle callout events. */
+	if (state->nextcall.sec != -1 &&
+	    bintime_cmp(event, &state->nextcall, >))
+		*event = state->nextcall;
 	if (!idle) { /* If CPU is active - handle other types of events. */
 		if (bintime_cmp(event, &state->nextstat, >))
 			*event = state->nextstat;
@@ -634,9 +636,7 @@ cpu_initclocks_bsp(void)
 #endif
 		state->nextcall.sec = -1;
 	}
-#ifdef SMP
 	callout_new_inserted = cpu_new_callout;
-#endif
 	periodic = want_periodic;
 	/* Grab requested timer or the best of present. */
 	if (timername[0])
@@ -864,74 +864,48 @@ clocksource_cyc_set(const struct bintime *t)
 }
 #endif
 
-#ifdef SMP
 static void
 cpu_new_callout(int cpu, struct bintime bt)
 {
 	struct bintime now;
 	struct pcpu_state *state;
 
-	CTR3(KTR_SPARE2, "new co at %d:    on %d in %d",
-	    curcpu, cpu, ticks);
+	CTR4(KTR_SPARE2, "new co at %d:    on %d at %d.%08x%08x",
+	    curcpu, cpu, (unsigned int)(bt.frac >> 32),
+			 (unsigned int)(bt.frac & 0xffffffff));
 	state = DPCPU_ID_PTR(cpu, timerstate);
 	ET_HW_LOCK(state);
-	if (state->idle == 0 || busy) {
+
+	/* If there is callout time already set earlier -- do nothing. */
+	if (state->nextcall.sec != -1 &&
+	    bintime_cmp(&bt, &state->nextcall, >=)) {
 		ET_HW_UNLOCK(state);
 		return;
 	}
-	/*
-	 * If timer is periodic - just update next event time for target CPU.
-	 * If timer is global - there is chance it is already programmed.
-	 */
-	if (periodic || (timer->et_flags & ET_FLAGS_PERCPU) == 0) {
-		/* 
-		 * Update next callout time. We can do this only if 
-		 * this one on which we're running is the target CPU.
-		 */
-		if (!periodic) {
-			if (bintime_cmp(&bt, &state->nextcall, ==)) {
-				ET_HW_UNLOCK(state);
-				return;
-			}
-			if (state->nextcall.sec == -1 ||
-			    bintime_cmp(&bt, &state->nextcall, <))
-				state->nextcall = bt;
-			if (bintime_cmp(&state->nextcall, &state->nextevent, >=)) {
-				ET_HW_UNLOCK(state);
-				return;
-			}	
-			state->nextevent = state->nextcall;
-			if (cpu == curcpu) {
-				loadtimer(&now, 0);
-				ET_HW_UNLOCK(state);
-			}
-			else
-				goto out;
-		}
-		if (bintime_cmp(&state->nexthard, &state->nextevent, <))
-			state->nextevent = state->nexthard;
-		if (periodic ||
-		    bintime_cmp(&state->nextevent, &nexttick, >=)) {
-			ET_HW_UNLOCK(state);
-			return;
-		}
+	state->nextcall = bt;
+	/* If there is some some other event set earlier -- do nothing. */
+	if (bintime_cmp(&state->nextcall, &state->nextevent, >=)) {
+		ET_HW_UNLOCK(state);
+		return;
 	}
-out:
-	/*
-	 * Otherwise we have to wake that CPU up, as we can't get present
-	 * bintime to reprogram global timer from here. If timer is per-CPU,
-	 * we by definition can't do it from here.
-	 */
+	state->nextevent = state->nextcall;
+	/* If timer is periodic -- there is nothing to reprogram. */
+	if (periodic) {
+		ET_HW_UNLOCK(state);
+		return;
+	}
+	/* If timer is global or of the current CPU -- reprogram it. */
+	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 || cpu == curcpu) {
+		binuptime(&now);
+		loadtimer(&now, 0);
+		ET_HW_UNLOCK(state);
+		return;
+	}
+	/* Otherwise make other CPU to reprogram it. */
+	state->handle = 1;
 	ET_HW_UNLOCK(state);
-	if (timer->et_flags & ET_FLAGS_PERCPU) {
-		state->handle = 1;
-		ipi_cpu(cpu, IPI_HARDCLOCK);
-	} else {
-		if (!cpu_idle_wakeup(cpu))
-			ipi_cpu(cpu, IPI_AST);
-	}
+	ipi_cpu(cpu, IPI_HARDCLOCK);
 }
-#endif
 
 /*
  * Report or change the active event timers hardware.

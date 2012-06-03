@@ -364,7 +364,9 @@ callout_tick(void)
 	struct callout_tailq *sc;
 	struct bintime now;
 	struct bintime bt;
-	int need_softclock, first, last;
+	struct bintime limit;
+	struct bintime next;
+	int cpu, first, flag, future, last, need_softclock; 
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the
@@ -373,7 +375,7 @@ callout_tick(void)
 	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	getbinuptime(&now);
+	binuptime(&now);
 	/* 
 	 * getbinuptime() may be inaccurate and return time up to 1/HZ in the past. 
 	 * In order to avoid the possible loss of one or more events look back 1/HZ
@@ -395,20 +397,46 @@ callout_tick(void)
 		first &= callwheelmask;
 		last &= callwheelmask;
 	}
+	cpu = curcpu;
+	next.sec = -1;
+	next .frac = -1;
+	limit.sec = 0;
+	limit.frac = 4611686018427250000; /* 1/4 sec */
+	bintime_add(&limit,&now);
+	future = get_bucket(&limit);
+	flag = 0;
 	for (;;) {	
 		sc = &cc->cc_callwheel[first];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
-			if (bintime_cmp(&tmp->c_time,&now, <=)) {
+			if ((!flag || flag == 1) && 
+			    bintime_cmp(&tmp->c_time, &now, <=)) {
 				TAILQ_INSERT_TAIL(cc->cc_localexp,tmp,c_staiter);
 				TAILQ_REMOVE(sc, tmp, c_links.tqe);
 				tmp->c_flags |= CALLOUT_PROCESSED;
 				need_softclock = 1;
 			}	
+			if ((flag == 1 || flag == 2)  && 
+			    bintime_cmp(&tmp->c_time, &now, >)) {
+				if (next.sec == -1 ||
+				    bintime_cmp(&tmp->c_time, &next, <)) {
+					next = tmp->c_time;
+					cpu = tmp->c_cpu;
+				}
+			}
 		}
+		if (first == ((last - 1) & callwheelmask)) 
+			flag = 1;
 		if (first == last)
+			flag = 2;
+		if (first == future || next.sec != -1)
 			break;
 		first = (first + 1) & callwheelmask;
 	}
+	if (next.sec == -1)  
+		next = limit;
+	if (callout_new_inserted != NULL) 
+	(*callout_new_inserted)(cpu,
+	    next);
 	cc->cc_softticks = now;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	/*
@@ -418,43 +446,6 @@ callout_tick(void)
 	if (need_softclock) {
 		swi_sched(cc->cc_cookie, 0);
 	}
-}
-
-struct bintime
-callout_tickstofirst(void)
-{
-	struct callout_cpu *cc;
-	struct callout *c;
-	struct callout_tailq *sc;
-	struct bintime tmp;
-	struct bintime now;
-	int bucket;
-
-	tmp.sec = 0;
-	tmp.frac = 0;
-	cc = CC_SELF();
-	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	binuptime(&now);
-	for (bucket = 0; bucket < callwheelsize; ++bucket) {
-		sc = &cc->cc_callwheel[bucket];
-		TAILQ_FOREACH( c, sc, c_links.tqe ) {
-			if (tmp.sec == 0 && tmp.frac == 0) 
-				tmp = c->c_time;
-			if (bintime_cmp(&c->c_time, &now, <)) 
-				tmp = now;
-			if (bintime_cmp(&c->c_time, &tmp, <=)) 
-				tmp = c->c_time;
-			
-		}
-	}
-	if (tmp.sec == 0 && tmp.frac == 0) {
-		cc->cc_firsttick.sec = -1;
-		cc->cc_firsttick.frac = -1;
-	}
-	else
-		cc->cc_firsttick = tmp;
-	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	return (cc->cc_firsttick);
 }
 
 static struct callout_cpu *
@@ -854,7 +845,7 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 	 */
 
 	FREQ2BT(hz,&bt);
-	binuptime(&now);
+	getbinuptime(&now);
 	bintime_mul(&bt,to_ticks);
 	bintime_add(&bt,&now);
 	/*
