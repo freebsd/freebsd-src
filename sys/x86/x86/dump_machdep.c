@@ -36,9 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
-#ifdef SW_WATCHDOG
 #include <sys/watchdog.h>
-#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/elf.h>
@@ -198,9 +196,9 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 			a = pa + i * PAGE_SIZE;
 			va = pmap_kenter_temporary(trunc_page(a), i);
 		}
-#ifdef SW_WATCHDOG
+
 		wdog_kern_pat(WD_LASTVAL);
-#endif
+
 		error = dump_write(di, va, 0, dumplo, sz);
 		if (error)
 			break;
