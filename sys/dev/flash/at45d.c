@@ -390,6 +390,7 @@ at45d_task(void *arg)
 				berr = EIO;
 				goto out;
 			}
+#ifdef notyet /* May cause physwr to hang for reasons unknown. */
 			if (bp->bio_cmd == BIO_WRITE) {
 				addr = page << sc->pageoffset;
 				txBuf[0] = BUFFER_COMPARE;
@@ -408,6 +409,7 @@ at45d_task(void *arg)
 					goto out;
 				}
 			}
+#endif
 			page++;
 			buf += len;
 			offset = 0;
