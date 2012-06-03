@@ -220,6 +220,9 @@ static int		 pf_modulate_sack(struct mbuf *, int, struct pf_pdesc *,
 #ifdef INET6
 static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int8_t);
+static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
+			    struct ifnet *, struct pf_state *,
+			    struct pf_pdesc *);
 #endif /* INET6 */
 static void		 pf_change_icmp(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, struct pf_addr *, u_int16_t,
@@ -273,9 +276,6 @@ static int		 pf_test_state_icmp(struct pf_state **, int,
 static int		 pf_test_state_other(struct pf_state **, int,
 			    struct pfi_kif *, struct mbuf *, struct pf_pdesc *);
 static void		 pf_route(struct mbuf **, struct pf_rule *, int,
-			    struct ifnet *, struct pf_state *,
-			    struct pf_pdesc *);
-static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
 			    struct ifnet *, struct pf_state *,
 			    struct pf_pdesc *);
 static u_int8_t		 pf_get_wscale(struct mbuf *, int, u_int16_t,
@@ -1266,21 +1266,25 @@ pf_intr(void *v)
 
 	STAILQ_FOREACH_SAFE(pfse, &queue, pfse_next, next) {
 		switch (pfse->pfse_type) {
+#ifdef INET
 		case PFSE_IP:
 			ip_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL);
-			break;
-		case PFSE_IP6:
-			ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL,
-			    NULL);
 			break;
 		case PFSE_ICMP:
 			icmp_error(pfse->pfse_m, pfse->pfse_icmp_type,
 			    pfse->pfse_icmp_code, 0, pfse->pfse_icmp_mtu);
 			break;
+#endif /* INET */
+#ifdef INET6
+		case PFSE_IP6:
+			ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL,
+			    NULL);
+			break;
 		case PFSE_ICMP6:
 			icmp6_error(pfse->pfse_m, pfse->pfse_icmp_type,
 			    pfse->pfse_icmp_code, pfse->pfse_icmp_mtu);
 			break;
+#endif /* INET6 */
 		default:
 			panic("%s: unknown type", __func__);
 		}
