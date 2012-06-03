@@ -431,7 +431,7 @@ sshd_exchange_identification(int sock_in, int sock_out)
 		minor = PROTOCOL_MINOR_1;
 	}
 	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s%s", major, minor,
-	    SSH_RELEASE, newline);
+	    ssh_version_get(options.hpn_disabled), newline);
 	server_version_string = xstrdup(buf);
 
 	/* Send our protocol version identification. */
@@ -860,7 +860,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s, %s\n",
-	    SSH_RELEASE, SSLeay_version(SSLEAY_VERSION));
+	    ssh_version_get(0), SSLeay_version(SSLEAY_VERSION));
 	fprintf(stderr,
 "usage: sshd [-46DdeiqTt] [-b bits] [-C connection_spec] [-c host_cert_file]\n"
 "            [-f config_file] [-g login_grace_time] [-h host_key_file]\n"
@@ -1550,7 +1550,7 @@ main(int ac, char **av)
 		exit(1);
 	}
 
-	debug("sshd version %.100s", SSH_RELEASE);
+	debug("sshd version %.100s", ssh_version_get(options.hpn_disabled));
 
 	/* Store privilege separation user for later use if required. */
 	if ((privsep_pw = getpwnam(SSH_PRIVSEP_USER)) == NULL) {
