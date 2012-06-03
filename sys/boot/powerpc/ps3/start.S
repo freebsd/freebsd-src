@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#define LOCORE
+
 #include <machine/trap_aim.h>
 
 /*
