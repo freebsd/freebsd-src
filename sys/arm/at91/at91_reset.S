@@ -18,7 +18,6 @@ __FBSDID("$FreeBSD$");
  * the data until the clock restarts. 
  * 
  * If the User reset is programed to assert a general reset, the data
- * If the User reset is programed to assert a general reset, the data
  * maintained by the SDRAM leads to a data bus conflict and adversly affects
  * the boot memories connected to the EBI:
  *  + NAND Flash boot functionality, if the system boots out of internal ROM.
