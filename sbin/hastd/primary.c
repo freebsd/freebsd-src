@@ -990,36 +990,33 @@ reqlog(int loglevel, int debuglevel, struct g_gate_ctl_io *ggio, const char *fmt
 {
 	char msg[1024];
 	va_list ap;
-	int len;
 
 	va_start(ap, fmt);
-	len = vsnprintf(msg, sizeof(msg), fmt, ap);
+	(void)vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
-	if ((size_t)len < sizeof(msg)) {
-		switch (ggio->gctl_cmd) {
-		case BIO_READ:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "READ(%ju, %ju).", (uintmax_t)ggio->gctl_offset,
-			    (uintmax_t)ggio->gctl_length);
-			break;
-		case BIO_DELETE:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "DELETE(%ju, %ju).", (uintmax_t)ggio->gctl_offset,
-			    (uintmax_t)ggio->gctl_length);
-			break;
-		case BIO_FLUSH:
-			(void)snprintf(msg + len, sizeof(msg) - len, "FLUSH.");
-			break;
-		case BIO_WRITE:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "WRITE(%ju, %ju).", (uintmax_t)ggio->gctl_offset,
-			    (uintmax_t)ggio->gctl_length);
-			break;
-		default:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "UNKNOWN(%u).", (unsigned int)ggio->gctl_cmd);
-			break;
-		}
+	switch (ggio->gctl_cmd) {
+	case BIO_READ:
+		(void)snprlcat(msg, sizeof(msg), "READ(%ju, %ju).",
+		    (uintmax_t)ggio->gctl_offset,
+		    (uintmax_t)ggio->gctl_length);
+		break;
+	case BIO_DELETE:
+		(void)snprlcat(msg, sizeof(msg), "DELETE(%ju, %ju).",
+		    (uintmax_t)ggio->gctl_offset,
+		    (uintmax_t)ggio->gctl_length);
+		break;
+	case BIO_FLUSH:
+		(void)snprlcat(msg, sizeof(msg), "FLUSH.");
+		break;
+	case BIO_WRITE:
+		(void)snprlcat(msg, sizeof(msg), "WRITE(%ju, %ju).",
+		    (uintmax_t)ggio->gctl_offset,
+		    (uintmax_t)ggio->gctl_length);
+		break;
+	default:
+		(void)snprlcat(msg, sizeof(msg), "UNKNOWN(%u).",
+		    (unsigned int)ggio->gctl_cmd);
+		break;
 	}
 	pjdlog_common(loglevel, debuglevel, -1, "%s", msg);
 }
