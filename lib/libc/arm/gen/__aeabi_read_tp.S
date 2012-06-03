@@ -39,6 +39,8 @@ ENTRY(__aeabi_read_tp)
 #endif
 	RET
 
+#ifdef ARM_TP_ADDRESS
 .Larm_tp_address:
 	.word ARM_TP_ADDRESS
+#endif
 
