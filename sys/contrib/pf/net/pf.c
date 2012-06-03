@@ -1304,14 +1304,11 @@ pf_purge_thread(void *v)
 	for (;;) {
 		tsleep(pf_purge_thread, PWAIT, "pftm", hz / 10);
 
-		PF_LOCK();
-
 		if (V_pf_end_threads) {
 			pf_purge_expired_states(V_pf_hashmask + 1);
 			pf_purge_expired_fragments();
 			pf_purge_expired_src_nodes();
 			V_pf_end_threads++;
-			PF_UNLOCK();
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
 		}
@@ -1332,8 +1329,6 @@ pf_purge_thread(void *v)
 			pf_purge_unlinked_rules();
 			pfi_kif_purge();
 		}
-
-		PF_UNLOCK();
 	}
 	/* not reached */
 	CURVNET_RESTORE();
@@ -2635,7 +2630,6 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 		saddr = pd->dst;
 		daddr = pd->src;
 	}
-	PF_UNLOCK();
 	switch (pd->af) {
 #ifdef INET
 	case AF_INET:
@@ -2679,7 +2673,7 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 	pd->lookup.uid = inp->inp_cred->cr_uid;
 	pd->lookup.gid = inp->inp_cred->cr_groups[0];
 	INP_RUNLOCK(inp);
-	PF_LOCK();
+
 	return (1);
 }
 
@@ -5101,14 +5095,12 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if ((m0 = m_dup(*m, M_NOWAIT)) == NULL) {
 			if (s)
 				PF_STATE_UNLOCK(s);
-			PF_UNLOCK();
 			return;
 		}
 	} else {
 		if ((r->rt == PF_REPLYTO) == (r->direction == dir)) {
 			if (s)
 				PF_STATE_UNLOCK(s);
-			PF_UNLOCK();
 			return;
 		}
 		m0 = *m;
@@ -5126,7 +5118,6 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 		if (s)
 			PF_STATE_UNLOCK(s);
-		PF_UNLOCK();
 		rt = rtalloc1_fib(sintosa(&dst), 0, 0, M_GETFIB(m0));
 		if (rt == NULL) {
 			RTFREE_LOCKED(rt);
@@ -5154,14 +5145,12 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 				dst.sin_addr.s_addr = naddr.v4.s_addr;
 			ifp = r->rpool.cur->kif ?
 			    r->rpool.cur->kif->pfik_ifp : NULL;
-			PF_UNLOCK();
 		} else {
 			if (!PF_AZERO(&s->rt_addr, AF_INET))
 				dst.sin_addr.s_addr =
 				    s->rt_addr.v4.s_addr;
 			ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
 			PF_STATE_UNLOCK(s);
-			PF_UNLOCK();
 		}
 	}
 	if (ifp == NULL)
@@ -5256,7 +5245,6 @@ done:
 bad_locked:
 	if (s)
 		PF_STATE_UNLOCK(s);
-	PF_UNLOCK();
 bad:
 	m_freem(m0);
 	goto done;
@@ -5289,14 +5277,12 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if ((m0 = m_dup(*m, M_NOWAIT)) == NULL) {
 			if (s)
 				PF_STATE_UNLOCK(s);
-			PF_UNLOCK();
 			return;
 		}
 	} else {
 		if ((r->rt == PF_REPLYTO) == (r->direction == dir)) {
 			if (s)
 				PF_STATE_UNLOCK(s);
-			PF_UNLOCK();
 			return;
 		}
 		m0 = *m;
@@ -5313,7 +5299,6 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (r->rt == PF_FASTROUTE) {
 		if (s)
 			PF_STATE_UNLOCK(s);
-		PF_UNLOCK();
 		m0->m_flags |= M_SKIP_FIREWALL;
 		ip6_output(m0, NULL, NULL, 0, NULL, NULL, NULL);
 		return;
@@ -5340,7 +5325,6 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	if (s)
 		PF_STATE_UNLOCK(s);
-	PF_UNLOCK();
 
 	if (ifp == NULL)
 		goto bad;
@@ -5386,7 +5370,6 @@ done:
 bad_locked:
 	if (s)
 		PF_STATE_UNLOCK(s);
-	PF_UNLOCK();
 bad:
 	m_freem(m0);
 	goto done;
@@ -5571,11 +5554,9 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_SHORT);
 		log = 1;
-		PF_LOCK();
 		goto done;
 	}
 
-	PF_LOCK();
 	PF_RULES_RLOCK();
 
 	if (ip_divert_ptr != NULL &&
@@ -5786,7 +5767,6 @@ done:
 
 			if (s)
 				PF_STATE_UNLOCK(s);
-			PF_UNLOCK();
 
 			m_tag_prepend(m, ipfwtag);
 			if (m->m_flags & M_FASTFWD_OURS) {
@@ -5884,7 +5864,6 @@ done:
 	}
 	if (s)
 		PF_STATE_UNLOCK(s);
-	PF_UNLOCK();
 
 	return (action);
 }
@@ -5932,11 +5911,9 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_SHORT);
 		log = 1;
-		PF_LOCK();
 		goto done;
 	}
 
-	PF_LOCK();
 	PF_RULES_RLOCK();
 
 	/* We do IP header normalization and packet reassembly here */
@@ -6268,7 +6245,7 @@ done:
 
 	if (s)
 		PF_STATE_UNLOCK(s);
-	PF_UNLOCK();
+
 	return (action);
 }
 #endif /* INET6 */

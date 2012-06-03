@@ -269,14 +269,14 @@ pflog_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		pflogattach(1);
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pflog_packet_ptr = pflog_packet;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	case MOD_UNLOAD:
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pflog_packet_ptr = NULL;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		if_clone_detach(&pflog_cloner);
 		break;
 	default:

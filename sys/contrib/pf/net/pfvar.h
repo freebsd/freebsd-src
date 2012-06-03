@@ -198,12 +198,6 @@ struct pfi_dynaddr {
 
 #define	PF_NAME		"pf"
 
-extern struct mtx pf_mtx;
-#define	PF_LOCK_ASSERT()	mtx_assert(&pf_mtx, MA_OWNED)
-#define	PF_UNLOCK_ASSERT()	mtx_assert(&pf_mtx, MA_NOTOWNED)
-#define	PF_LOCK()		mtx_lock(&pf_mtx)
-#define	PF_UNLOCK()		mtx_unlock(&pf_mtx)
-
 #define	PF_HASHROW_ASSERT(h)	mtx_assert(&(h)->lock, MA_OWNED)
 #define	PF_HASHROW_LOCK(h)	mtx_lock(&(h)->lock)
 #define	PF_HASHROW_UNLOCK(h)	mtx_unlock(&(h)->lock)
