@@ -350,11 +350,8 @@ int
 pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
     struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_src_node **sn)
 {
-	unsigned char		 hash[16];
 	struct pf_pool		*rpool = &r->rpool;
-	struct pf_addr		*raddr = &rpool->cur->addr.v.a.addr;
-	struct pf_addr		*rmask = &rpool->cur->addr.v.a.mask;
-	struct pf_pooladdr	*acur = rpool->cur;
+	struct pf_addr		*raddr = NULL, *rmask = NULL;
 
 	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
 	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
@@ -452,10 +449,38 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 		}
 		break;
 	case PF_POOL_SRCHASH:
+	    {
+		unsigned char hash[16];
+
 		pf_hash(saddr, (struct pf_addr *)&hash, &rpool->key, af);
 		PF_POOLMASK(naddr, raddr, rmask, (struct pf_addr *)&hash, af);
 		break;
+	    }
 	case PF_POOL_ROUNDROBIN:
+	    {
+		struct pf_pooladdr *acur = rpool->cur;
+
+		/*
+		 * XXXGL: in the round-robin case we need to store
+		 * the round-robin machine state in the rule, thus
+		 * forwarding thread needs to modify rule.
+		 *
+		 * This is done w/o locking, because performance is assumed
+		 * more importand than round-robin precision.
+		 *
+		 * In the simpliest case we just update the "rpool->cur"
+		 * pointer. However, if pool contains tables or dynamic
+		 * addresses, then "tblidx" is also used to store machine
+		 * state. Since "tblidx" is int, concurrent access to it can't
+		 * lead to inconsistence, only to lost of precision.
+		 *
+		 * Things get worse, if table contains not hosts, but
+		 * prefixes. In this case counter also stores machine state,
+		 * and for IPv6 address, counter can be updated atomically.
+		 * Probably, using round-robin on a table containing IPv6
+		 * prefixes (or even IPv4) would cause a panic.
+		 */
+
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			if (!pfr_pool_get(rpool->cur->addr.p.tbl,
 			    &rpool->tblidx, &rpool->counter, af))
@@ -468,8 +493,10 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 			goto get_addr;
 
 	try_next:
-		if ((rpool->cur = TAILQ_NEXT(rpool->cur, entries)) == NULL)
+		if (TAILQ_NEXT(rpool->cur, entries) == NULL)
 			rpool->cur = TAILQ_FIRST(&rpool->list);
+		else
+			rpool->cur = TAILQ_NEXT(rpool->cur, entries);
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
@@ -500,6 +527,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 			PF_ACPY(init_addr, naddr, af);
 		PF_AINC(&rpool->counter, af);
 		break;
+	    }
 	}
 	if (*sn != NULL)
 		PF_ACPY(&(*sn)->raddr, naddr, af);
