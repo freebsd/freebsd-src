@@ -225,7 +225,7 @@ static const struct pmap_devmap ixp435_devmap[] = {
 extern vm_offset_t xscale_cache_clean_addr;
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 #define	next_chunk2(a,b)	(((a) + (b)) &~ ((b)-1))
 #define	next_page(a)		next_chunk2(a,PAGE_SIZE)

@@ -201,7 +201,7 @@ cpu_reset()
 #define CPU_SA110_CACHE_CLEAN_SIZE (0x4000 * 2)
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 	struct pcpu *pc;
 	struct pv_addr  kernel_l1pt;
