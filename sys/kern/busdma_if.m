@@ -31,25 +31,14 @@
 
 INTERFACE busdma;
 
-busdma_mmu_t {
-	void *		cookie;
-	vm_paddr_t	minaddr;
-	vm_paddr_t	maxaddr;
-	vm_size_t	maxsz;
-	vm_paddr_t	align;
-	vm_paddr_t	bndry;
-}
-
-METHOD int iommu_alloc {
+METHOD int iommu_xlate {
 	device_t	dev;
-	busdma_md_t	md;
-	busdma_mmu_t	*mmu;
+	busdma_mtag_t	mtag;
 };
 
 METHOD int iommu_map {
 	device_t	dev;
 	busdma_md_t	md;
-	busdma_mmu_t	*mmu;
 };
 
 METHOD int iommu_unmap {

@@ -37,6 +37,15 @@ typedef struct busdma_tag *busdma_tag_t;
 struct busdma_md;
 typedef struct busdma_md *busdma_md_t;
 
+struct busdma_mtag {
+	vm_paddr_t	dmt_minaddr;
+	vm_paddr_t	dmt_maxaddr;
+	vm_size_t	dmt_maxsz;
+	vm_paddr_t	dmt_align;
+	vm_paddr_t	dmt_bndry;
+};
+typedef struct busdma_mtag *busdma_mtag_t;
+
 /*
  * busdma_tag_create
  * returns:		errno value

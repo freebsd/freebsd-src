@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
+#include "busdma_if.h"
+
 struct busdma_tag {
 	struct busdma_tag *dt_chain;
 	struct busdma_tag *dt_child;
@@ -357,21 +359,35 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 {
 	struct busdma_md *md;
 	struct busdma_md_seg *seg;
+	struct busdma_mtag mtag;
+	device_t bus;
 	vm_size_t maxsz;
 	u_int idx;
+	int error;
 
 	md = _busdma_md_create(tag, BUSDMA_MD_FLAG_ALLOCATED);
 	if (md == NULL)
 		return (ENOMEM);
 
+	mtag.dmt_minaddr = tag->dt_minaddr;
+	mtag.dmt_maxaddr = tag->dt_maxaddr;
+	mtag.dmt_maxsz = tag->dt_maxsegsz;
+	mtag.dmt_align = tag->dt_align;
+	mtag.dmt_bndry = tag->dt_bndry;
+
+	bus = device_get_parent(tag->dt_device);
+	error = BUSDMA_IOMMU_XLATE(bus, &mtag);
+	if (error)
+		printf("BUSDMA_IOMMU_XLATE: error=%d\n", error);
+
 	idx = 0;
 	maxsz = tag->dt_maxsz;
 	while (maxsz > 0 && idx < tag->dt_nsegs) {
 		seg = &md->md_seg[idx];
-		seg->mds_size = MIN(maxsz, tag->dt_maxsegsz);
+		seg->mds_size = MIN(maxsz, mtag.dmt_maxsz);
 		seg->mds_vaddr = kmem_alloc_contig(kernel_map, seg->mds_size,
-		    0, tag->dt_minaddr, tag->dt_maxaddr, tag->dt_align,
-		    tag->dt_bndry, VM_MEMATTR_DEFAULT);
+		    0, mtag.dmt_minaddr, mtag.dmt_maxaddr, mtag.dmt_align,
+		    mtag.dmt_bndry, VM_MEMATTR_DEFAULT);
 		if (seg->mds_vaddr == 0) {
 			/* TODO: try a smaller segment size */
 			goto fail;
@@ -383,6 +399,9 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	}
 	if (maxsz == 0) {
 		md->md_nsegs = idx;
+		error = BUSDMA_IOMMU_MAP(bus, md);
+		if (error)
+			printf("BUSDMA_IOMMU_MAP: error=%d\n", error);
 		_busdma_md_dump(__func__, md);
 		*md_p = md;
 		return (0);
@@ -401,10 +420,17 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 int
 busdma_mem_free(struct busdma_md *md)
 {
+	device_t bus;
 	u_int idx;
+	int error;
 
 	if ((md->md_flags & BUSDMA_MD_FLAG_ALLOCATED) == 0)
 		return (EINVAL);
+
+	bus = device_get_parent(md->md_tag->dt_device);
+	error = BUSDMA_IOMMU_UNMAP(bus, md);
+	if (error)
+		printf("BUSDMA_IOMMU_UNMAP: error=%d\n", error);
 
 	for (idx = 0; idx < md->md_nsegs; idx++)
 		kmem_free(kernel_map, md->md_seg[idx].mds_vaddr,
