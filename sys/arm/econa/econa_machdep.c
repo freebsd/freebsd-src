@@ -123,9 +123,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
-static void *boot_arg1;
-static void *boot_arg2;
-
 static struct trapframe proc0_tf;
 
 /* Static device mappings. */
@@ -186,7 +183,7 @@ static const struct pmap_devmap econa_devmap[] = {
 
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr  kernel_l1pt;
 	volatile uint32_t * ddr = (uint32_t *)0x4000000C;
@@ -198,9 +195,6 @@ initarm(void *arg, void *arg2)
 	uint32_t memsize;
 	int mem_info;
 
-
-	boot_arg1 = arg;
-	boot_arg2 = arg2;
 	boothowto = RB_VERBOSE;
 
 	set_cpufuncs();
