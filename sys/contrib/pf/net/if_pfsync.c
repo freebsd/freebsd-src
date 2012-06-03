@@ -205,6 +205,7 @@ struct pfsync_softc {
 #define	PFSYNCF_DEFER		0x00000002
 	uint8_t			sc_maxupdates;
 	struct ip		sc_template;
+	struct callout		sc_tmo;
 	struct mtx		sc_mtx;
 
 	/* Queued data */
@@ -246,6 +247,7 @@ static VNET_DEFINE(struct pfsyncstats, pfsyncstats);
 static VNET_DEFINE(int, pfsync_carp_adj) = CARP_MAXSKEW;
 #define	V_pfsync_carp_adj	VNET(pfsync_carp_adj)
 
+static void	pfsync_timeout(void *);
 static void	pfsyncintr(void *);
 static int	pfsync_multicast_setup(struct pfsync_softc *, struct ifnet *,
 		    void *);
@@ -334,6 +336,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_mtu = ETHERMTU;
 	mtx_init(&sc->sc_mtx, "pfsync", NULL, MTX_DEF);
 	mtx_init(&sc->sc_bulk_mtx, "pfsync bulk", NULL, MTX_DEF);
+	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
 	callout_init_mtx(&sc->sc_bulk_tmo, &sc->sc_bulk_mtx, 0);
 	callout_init_mtx(&sc->sc_bulkfail_tmo, &sc->sc_bulk_mtx, 0);
 
@@ -376,6 +379,7 @@ relock:
 		}
 	}
 
+	callout_drain(&sc->sc_tmo);
 	callout_drain(&sc->sc_bulkfail_tmo);
 	callout_drain(&sc->sc_bulk_tmo);
 
@@ -1662,7 +1666,7 @@ pfsync_insert_state(struct pf_state *st)
 
 	PFSYNC_LOCK(sc);
 	if (sc->sc_len == PFSYNC_MINPKT)
-		swi_sched(V_pfsync_swi_cookie, 0);
+		callout_reset(&sc->sc_tmo, 1 * hz, pfsync_timeout, V_pfsyncif);
 
 	pfsync_q_ins(st, PFSYNC_S_INS);
 	PFSYNC_UNLOCK(sc);
@@ -1800,7 +1804,7 @@ pfsync_update_state(struct pf_state *st)
 	}
 
 	if (sc->sc_len == PFSYNC_MINPKT)
-		sync = 1;
+		callout_reset(&sc->sc_tmo, 1 * hz, pfsync_timeout, V_pfsyncif);
 
 	switch (st->sync_state) {
 	case PFSYNC_S_UPD_C:
@@ -1908,7 +1912,6 @@ static void
 pfsync_delete_state(struct pf_state *st)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
-	int schedswi = 0;
 
 	PFSYNC_LOCK(sc);
 	if (st->state_flags & PFSTATE_ACK)
@@ -1921,7 +1924,7 @@ pfsync_delete_state(struct pf_state *st)
 	}
 
 	if (sc->sc_len == PFSYNC_MINPKT)
-		schedswi = 1;
+		callout_reset(&sc->sc_tmo, 1 * hz, pfsync_timeout, V_pfsyncif);
 
 	switch (st->sync_state) {
 	case PFSYNC_S_INS:
@@ -1943,9 +1946,6 @@ pfsync_delete_state(struct pf_state *st)
 		panic("%s: unexpected sync state %d", __func__, st->sync_state);
 	}
 	PFSYNC_UNLOCK(sc);
-
-	if (schedswi)
-		swi_sched(V_pfsync_swi_cookie, 0);
 }
 
 static void
@@ -2175,6 +2175,18 @@ pfsync_send_plus(void *plus, size_t pluslen)
 	pfsync_sendout(1);
 }
 
+static void
+pfsync_timeout(void *arg)
+{
+#ifdef VIMAGE
+	struct pfsync_softc *sc = arg;
+#endif
+
+	CURVNET_SET(sc->sc_ifp->if_vnet);
+	swi_sched(V_pfsync_swi_cookie, 0);
+	CURVNET_RESTORE();
+}
+
 /* this is a softnet/netisr handler */
 static void
 pfsyncintr(void *arg)
@@ -2338,8 +2350,8 @@ pfsync_uninit()
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		swi_remove(V_pfsync_swi_cookie);
 		if_clone_detach(&V_pfsync_cloner);
+		swi_remove(V_pfsync_swi_cookie);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK();
