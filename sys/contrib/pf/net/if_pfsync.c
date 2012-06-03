@@ -203,6 +203,7 @@ struct pfsync_softc {
 	uint32_t		sc_flags;
 #define	PFSYNCF_OK		0x00000001
 #define	PFSYNCF_DEFER		0x00000002
+#define	PFSYNCF_PUSH		0x00000004
 	uint8_t			sc_maxupdates;
 	struct ip		sc_template;
 	struct callout		sc_tmo;
@@ -248,6 +249,7 @@ static VNET_DEFINE(int, pfsync_carp_adj) = CARP_MAXSKEW;
 #define	V_pfsync_carp_adj	VNET(pfsync_carp_adj)
 
 static void	pfsync_timeout(void *);
+static void	pfsync_push(struct pfsync_softc *);
 static void	pfsyncintr(void *);
 static int	pfsync_multicast_setup(struct pfsync_softc *, struct ifnet *,
 		    void *);
@@ -417,6 +419,7 @@ pfsync_alloc_scrub_memory(struct pfsync_state_peer *s,
 static int
 pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 {
+	struct pfsync_softc *sc = V_pfsyncif;
 	struct pf_state	*st = NULL;
 	struct pf_state_key *skw = NULL, *sks = NULL;
 	struct pf_rule *r = NULL;
@@ -546,7 +549,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 		st->state_flags &= ~PFSTATE_NOSYNC;
 		if (st->state_flags & PFSTATE_ACK) {
 			pfsync_q_ins(st, PFSYNC_S_IACK);
-			swi_sched(V_pfsync_swi_cookie, 0);
+			pfsync_push(sc);
 		}
 	}
 	st->state_flags &= ~PFSTATE_ACK;
@@ -826,6 +829,7 @@ pfsync_upd_tcp(struct pf_state *st, struct pfsync_state_peer *src,
 static int
 pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
+	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_state *sa, *sp;
 	struct pf_state_key *sk;
 	struct pf_state *st;
@@ -866,9 +870,9 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		}
 
 		if (st->state_flags & PFSTATE_ACK) {
-			PFSYNC_LOCK(V_pfsyncif);
+			PFSYNC_LOCK(sc);
 			pfsync_undefer_state(st, 1);
-			PFSYNC_UNLOCK(V_pfsyncif);
+			PFSYNC_UNLOCK(sc);
 		}
 
 		sk = st->key[PF_SK_WIRE];	/* XXX right one? */
@@ -898,7 +902,9 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 			pfsync_update_state(st);
 			PF_STATE_UNLOCK(st);
-			swi_sched(V_pfsync_swi_cookie, 0);
+			PFSYNC_LOCK(sc);
+			pfsync_push(sc);
+			PFSYNC_UNLOCK(sc);
 			continue;
 		}
 		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
@@ -916,6 +922,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 static int
 pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
+	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_upd_c *ua, *up;
 	struct pf_state_key *sk;
 	struct pf_state *st;
@@ -952,16 +959,16 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		st = pf_find_state_byid(up->id, up->creatorid);
 		if (st == NULL) {
 			/* We don't have this state. Ask for it. */
-			PFSYNC_LOCK(V_pfsyncif);
+			PFSYNC_LOCK(sc);
 			pfsync_request_update(up->creatorid, up->id);
-			PFSYNC_UNLOCK(V_pfsyncif);
+			PFSYNC_UNLOCK(sc);
 			continue;
 		}
 
 		if (st->state_flags & PFSTATE_ACK) {
-			PFSYNC_LOCK(V_pfsyncif);
+			PFSYNC_LOCK(sc);
 			pfsync_undefer_state(st, 1);
-			PFSYNC_UNLOCK(V_pfsyncif);
+			PFSYNC_UNLOCK(sc);
 		}
 
 		sk = st->key[PF_SK_WIRE]; /* XXX right one? */
@@ -990,7 +997,9 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 			pfsync_update_state(st);
 			PF_STATE_UNLOCK(st);
-			swi_sched(V_pfsync_swi_cookie, 0);
+			PFSYNC_LOCK(sc);
+			pfsync_push(sc);
+			PFSYNC_UNLOCK(sc);
 			continue;
 		}
 		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
@@ -1712,7 +1721,7 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 	callout_init_mtx(&pd->pd_tmo, &sc->sc_mtx, CALLOUT_RETURNUNLOCKED);
 	callout_reset(&pd->pd_tmo, 10, pfsync_defer_tmo, pd);
 
-	swi_sched(V_pfsync_swi_cookie, 0);
+	pfsync_push(sc);
 
 	return (1);
 }
@@ -1736,7 +1745,7 @@ pfsync_undefer(struct pfsync_deferral *pd, int drop)
 		m_freem(m);
 	else {
 		_IF_ENQUEUE(&sc->sc_ifp->if_snd, m);
-		swi_sched(V_pfsync_swi_cookie, 0);
+		pfsync_push(sc);
 	}
 }
 
@@ -1829,10 +1838,11 @@ pfsync_update_state(struct pf_state *st)
 	default:
 		panic("%s: unexpected sync state %d", __func__, st->sync_state);
 	}
-	PFSYNC_UNLOCK(sc);
 
 	if (sync || (time_uptime - st->pfsync_time) < 2)
-		swi_sched(V_pfsync_swi_cookie, 0);
+		pfsync_push(sc);
+
+	PFSYNC_UNLOCK(sc);
 }
 
 static void
@@ -1868,7 +1878,7 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 	TAILQ_INSERT_TAIL(&sc->sc_upd_req_list, item, ur_entry);
 	sc->sc_len += nlen;
 
-	swi_sched(V_pfsync_swi_cookie, 0);
+	pfsync_push(sc);
 }
 
 static void
@@ -1892,7 +1902,7 @@ pfsync_update_state_req(struct pf_state *st)
 		pfsync_q_del(st);
 	case PFSYNC_S_NONE:
 		pfsync_q_ins(st, PFSYNC_S_UPD);
-		swi_sched(V_pfsync_swi_cookie, 0);
+		pfsync_push(sc);
 		break;
 
 	case PFSYNC_S_INS:
@@ -2178,16 +2188,23 @@ pfsync_send_plus(void *plus, size_t pluslen)
 static void
 pfsync_timeout(void *arg)
 {
-#ifdef VIMAGE
 	struct pfsync_softc *sc = arg;
-#endif
 
 	CURVNET_SET(sc->sc_ifp->if_vnet);
-	swi_sched(V_pfsync_swi_cookie, 0);
+	pfsync_push(sc);
 	CURVNET_RESTORE();
 }
 
-/* this is a softnet/netisr handler */
+static void
+pfsync_push(struct pfsync_softc *sc)
+{
+
+	PFSYNC_LOCK_ASSERT(sc);
+
+	sc->sc_flags |= PFSYNCF_PUSH;
+	swi_sched(V_pfsync_swi_cookie, 0);
+}
+
 static void
 pfsyncintr(void *arg)
 {
@@ -2197,8 +2214,10 @@ pfsyncintr(void *arg)
 	CURVNET_SET(sc->sc_ifp->if_vnet);
 
 	PFSYNC_LOCK(sc);
-	if (sc->sc_len > PFSYNC_MINPKT)
+	if ((sc->sc_flags & PFSYNCF_PUSH) && sc->sc_len > PFSYNC_MINPKT) {
 		pfsync_sendout(0);
+		sc->sc_flags &= ~PFSYNCF_PUSH;
+	}
 	_IF_DEQUEUE_ALL(&sc->sc_ifp->if_snd, m);
 	PFSYNC_UNLOCK(sc);
 
