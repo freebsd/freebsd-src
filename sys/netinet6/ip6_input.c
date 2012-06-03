@@ -879,19 +879,23 @@ passin:
 	 * as our interface address (e.g. multicast addresses, addresses
 	 * within FAITH prefixes and such).
 	 */
-	if (deliverifp && !ip6_getdstifaddr(m)) {
+	if (deliverifp) {
 		struct in6_ifaddr *ia6;
 
-		ia6 = in6_ifawithifp(deliverifp, &ip6->ip6_dst);
-		if (ia6) {
-			if (!ip6_setdstifaddr(m, ia6)) {
-				/*
-				 * XXX maybe we should drop the packet here,
-				 * as we could not provide enough information
-				 * to the upper layers.
-				 */
-			}
+ 		if ((ia6 = ip6_getdstifaddr(m)) != NULL) {
 			ifa_free(&ia6->ia_ifa);
+		} else {
+			ia6 = in6_ifawithifp(deliverifp, &ip6->ip6_dst);
+			if (ia6) {
+				if (!ip6_setdstifaddr(m, ia6)) {
+					/*
+					 * XXX maybe we should drop the packet here,
+					 * as we could not provide enough information
+					 * to the upper layers.
+					 */
+				}
+				ifa_free(&ia6->ia_ifa);
+			}
 		}
 	}
 
