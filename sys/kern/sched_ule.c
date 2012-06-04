@@ -212,7 +212,7 @@ static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_BATCH;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 16;
+static int sched_idlespinthresh = -1;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -1410,6 +1410,8 @@ sched_initticks(void *dummy)
 	steal_thresh = min(fls(mp_ncpus) - 1, 3);
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
+	if (sched_idlespinthresh < 0)
+		sched_idlespinthresh = max(16, 2 * hz / realstathz);
 }
 
 
