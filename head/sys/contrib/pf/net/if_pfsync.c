@@ -2191,7 +2191,9 @@ pfsync_timeout(void *arg)
 	struct pfsync_softc *sc = arg;
 
 	CURVNET_SET(sc->sc_ifp->if_vnet);
+	PFSYNC_LOCK(sc);
 	pfsync_push(sc);
+	PFSYNC_UNLOCK(sc);
 	CURVNET_RESTORE();
 }
 
