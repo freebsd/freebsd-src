@@ -429,7 +429,7 @@ at91_pmc_sense_main_clock(void)
 	 * measure it correctly, and that any error can be adequately
 	 * compensated for by roudning to the nearest 500Hz.  Users
 	 * with fast, or odd-ball clocks will need to set
-	 * AT91C_MASTER_CLOCK in the kernel config file.
+	 * AT91C_MAIN_CLOCK in the kernel config file.
 	 */
 	if (ckgr_val >= 21000000)
 		return ((ckgr_val + 250) / 500 * 500);
