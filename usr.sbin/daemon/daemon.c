@@ -217,6 +217,10 @@ wait_child(pid_t pid, sigset_t *mask)
 		}
 		switch (signo) {
 		case SIGCHLD:
+			if (waitpid(pid, NULL, WNOHANG) == -1) {
+				warn("waitpid");
+				return (-1);
+			}
 			return (terminate);
 		case SIGTERM:
 			terminate = 1;
