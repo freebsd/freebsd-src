@@ -158,6 +158,7 @@ VNET_DEFINE(struct pf_tags, pf_tags);
 #define	V_pf_qids		VNET(pf_qids)
 VNET_DEFINE(struct pf_tags, pf_qids);
 MALLOC_DEFINE(M_PFTAG, "pf tags", "pf tags");
+MALLOC_DEFINE(M_PFALTQ, "pf(4) altq", "pf(4) altq configuration db");
 
 #if (PF_QNAME_SIZE != PF_TAG_NAME_SIZE)
 #error PF_QNAME_SIZE must be equal to PF_TAG_NAME_SIZE
@@ -538,7 +539,7 @@ pf_begin_altq(u_int32_t *ticket)
 			error = altq_remove(altq);
 		} else
 			pf_qid_unref(altq->qid);
-		uma_zfree(V_pf_altq_z, altq);
+		free(altq, M_PFALTQ);
 	}
 	if (error)
 		return (error);
@@ -566,7 +567,7 @@ pf_rollback_altq(u_int32_t ticket)
 			error = altq_remove(altq);
 		} else
 			pf_qid_unref(altq->qid);
-		uma_zfree(V_pf_altq_z, altq);
+		free(altq, M_PFALTQ);
 	}
 	V_altqs_inactive_open = 0;
 	return (error);
@@ -619,7 +620,7 @@ pf_commit_altq(u_int32_t ticket)
 				error = err;
 		} else
 			pf_qid_unref(altq->qid);
-		uma_zfree(V_pf_altq_z, altq);
+		free(altq, M_PFALTQ);
 	}
 
 	V_altqs_inactive_open = 0;
@@ -695,7 +696,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 
 	/* Copy the current active set */
 	TAILQ_FOREACH(a1, V_pf_altqs_active, entries) {
-		a2 = uma_zalloc(V_pf_altq_z, M_NOWAIT);
+		a2 = malloc(sizeof(*a2), M_PFALTQ, M_NOWAIT);
 		if (a2 == NULL) {
 			error = ENOMEM;
 			break;
@@ -705,7 +706,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 		if (a2->qname[0] != 0) {
 			if ((a2->qid = pf_qname2qid(a2->qname)) == 0) {
 				error = EBUSY;
-				uma_zfree(V_pf_altq_z, a2);
+				free(a2, M_PFALTQ);
 				break;
 			}
 			a2->altq_disc = NULL;
@@ -729,7 +730,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 				error = EBUSY;
 
 			if (error) {
-				uma_zfree(V_pf_altq_z, a2);
+				free(a2, M_PFALTQ);
 				break;
 			}
 		}
@@ -2039,14 +2040,14 @@ DIOCGETSTATES_full:
 		struct pf_altq		*altq, *a;
 		struct ifnet		*ifp;
 
-		altq = uma_zalloc(V_pf_altq_z, M_WAITOK);
+		altq = malloc(sizeof(*altq), M_PFALTQ, M_WAITOK);
 		bcopy(&pa->altq, altq, sizeof(struct pf_altq));
 		altq->local_flags = 0;
 
 		PF_RULES_WLOCK();
 		if (pa->ticket != V_ticket_altqs_inactive) {
 			PF_RULES_WUNLOCK();
-			uma_zfree(V_pf_altq_z, altq);
+			free(altq, M_PFALTQ);
 			error = EBUSY;
 			break;
 		}
@@ -2059,7 +2060,7 @@ DIOCGETSTATES_full:
 			if ((altq->qid = pf_qname2qid(altq->qname)) == 0) {
 				PF_RULES_WUNLOCK();
 				error = EBUSY;
-				uma_zfree(V_pf_altq_z, altq);
+				free(altq, M_PFALTQ);
 				break;
 			}
 			altq->altq_disc = NULL;
@@ -2079,7 +2080,7 @@ DIOCGETSTATES_full:
 
 		if (error) {
 			PF_RULES_WUNLOCK();
-			uma_zfree(V_pf_altq_z, altq);
+			free(altq, M_PFALTQ);
 			break;
 		}
 

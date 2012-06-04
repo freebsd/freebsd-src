@@ -195,7 +195,6 @@ VNET_DEFINE(uma_zone_t,	 pf_rule_z);
 VNET_DEFINE(uma_zone_t,	 pf_pooladdr_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
-VNET_DEFINE(uma_zone_t,	 pf_altq_z);
 
 #define	V_pf_sources_z	VNET(pf_sources_z)
 
@@ -704,8 +703,6 @@ pf_initialize()
 		mtx_init(&sh->lock, "pf_srchash", NULL, MTX_DEF);
 
 	/* ALTQ */
-	V_pf_altq_z = uma_zcreate("pf altq", sizeof(struct pf_altq),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	TAILQ_INIT(&V_pf_altqs[0]);
 	TAILQ_INIT(&V_pf_altqs[1]);
 	TAILQ_INIT(&V_pf_pabuf);
@@ -776,7 +773,6 @@ pf_cleanup()
 	uma_zdestroy(V_pf_rule_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
-	uma_zdestroy(V_pf_altq_z);
 	uma_zdestroy(V_pf_pooladdr_z);
 	uma_zdestroy(V_pfr_ktable_z);
 	uma_zdestroy(V_pfr_kentry_z);
