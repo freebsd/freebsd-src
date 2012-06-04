@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
 
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
 
+#include "busdma_if.h"
 #include "pcib_if.h"
 
 #include <vm/vm.h>
@@ -94,6 +96,8 @@ static uint32_t sgisn_pcib_cfgread(device_t, u_int, u_int, u_int, u_int, int);
 static void sgisn_pcib_cfgwrite(device_t, u_int, u_int, u_int, u_int, uint32_t,
     int);
 
+static int sgisn_pcib_iommu_xlate(device_t, busdma_mtag_t);
+
 /*
  * Bus interface definitions.
  */
@@ -122,6 +126,9 @@ static device_method_t sgisn_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config,	sgisn_pcib_cfgread),
 	DEVMETHOD(pcib_write_config,	sgisn_pcib_cfgwrite),
 	DEVMETHOD(pcib_route_interrupt,	pcib_route_interrupt),
+
+	/* busdma interface */
+	DEVMETHOD(busdma_iommu_xlate,	sgisn_pcib_iommu_xlate),
 
 	{ 0, 0 }
 };
@@ -424,4 +431,17 @@ sgisn_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 		return (0);
 	}
 	return (ENOENT);
+}
+
+static int
+sgisn_pcib_iommu_xlate(device_t dev, busdma_mtag_t mtag)
+{
+
+	/*
+	 * Use a 31-bit direct-mapped window for PCI devices that are not
+	 * 64-bit capable.
+	 */
+	if (mtag->dmt_maxaddr < ~0UL)
+		mtag->dmt_maxaddr &= 0x7fffffffUL;
+	return (0);
 }

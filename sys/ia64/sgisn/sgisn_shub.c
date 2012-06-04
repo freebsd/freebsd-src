@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/actables.h>
 #include <dev/acpica/acpivar.h>
 
+#include "busdma_if.h"
+
 #include <ia64/sgisn/sgisn_shub.h>
 
 struct sgisn_shub_softc {
@@ -60,7 +62,6 @@ struct sgisn_shub_softc {
 	bus_addr_t	sc_mmraddr;
 	bus_space_tag_t sc_tag;
 	bus_space_handle_t sc_hndl;
-	busdma_tag_t	sc_dmatag;
 	u_int		sc_domain;
 	u_int		sc_hubtype;	/* SHub type (0=SHub1, 1=SHub2) */
 	u_int		sc_nasid_mask;
@@ -86,6 +87,8 @@ static int sgisn_shub_set_resource(device_t, device_t, int, int, u_long,
     u_long);
 static int sgisn_shub_write_ivar(device_t, device_t, int, uintptr_t);
 
+static int sgisn_shub_iommu_xlate(device_t, busdma_mtag_t);
+
 /*
  * Bus interface definitions.
  */
@@ -108,6 +111,9 @@ static device_method_t sgisn_shub_methods[] = {
 	DEVMETHOD(bus_set_resource,	sgisn_shub_set_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	/* busdma interface */
+	DEVMETHOD(busdma_iommu_xlate,	sgisn_shub_iommu_xlate),
 
 	{ 0, 0 }
 };
@@ -353,7 +359,6 @@ sgisn_shub_attach(device_t dev)
 	void *ptr;
 	u_long addr;
 	u_int bus, seg, wdgt;
-	int error;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -396,15 +401,6 @@ sgisn_shub_attach(device_t dev)
 
 	if (bootverbose)
 		device_printf(dev, "NASID=%#x\n", sc->sc_nasid);
-
-	/*
-	 * Create a DMA tag to contribute constraints for our children.
-	 */
-	addr = 1UL << (sc->sc_nasid_shft - 2);
-	error = busdma_tag_create(dev, addr - 1UL, 1, 0, addr, ~0U, addr, 0,
-	    &sc->sc_dmatag);
-	if (error)
-		return (error);
 
 	/*
 	 * Allocate contiguous memory, local to the SHub, for collecting
@@ -486,5 +482,30 @@ sgisn_shub_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 		    value);
 	device_printf(dev, "XXX: %s: child=%p, event=%lx, mask=%lx\n",
 	    __func__, child, ev, value);
+	return (0);
+}
+
+static int
+sgisn_shub_iommu_xlate(device_t dev, busdma_mtag_t mtag)
+{
+	struct sgisn_shub_softc *sc;
+	vm_paddr_t maxaddr;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Always limit the maximum address to the maximum offset within
+	 * this node's cacheable memory space.
+	 */
+	maxaddr = (1UL << (sc->sc_nasid_shft - 2)) - 1;
+	if (mtag->dmt_maxaddr > maxaddr)
+		mtag->dmt_maxaddr = maxaddr;
+
+	/*
+	 * Transpose the address range into the current node's cacheable
+	 * memory space.
+	 */
+	mtag->dmt_minaddr += sc->sc_membase;
+	mtag->dmt_maxaddr += sc->sc_membase;
 	return (0);
 }
