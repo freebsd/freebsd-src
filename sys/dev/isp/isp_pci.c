@@ -354,7 +354,7 @@ struct isp_pcisoftc {
 	int				rgd;
 	void *				ih;
 	int16_t				pci_poff[_NREG_BLKS];
-	bus_dma_tag_t			dmat;
+	busdma_tag_t			dmat;
 	int				msicount;
 };
 
@@ -1436,75 +1436,14 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 	}
 }
 
-
-struct imush {
-	ispsoftc_t *isp;
-	caddr_t vbase;
-	int chan;
-	int error;
-};
-
-static void imc(void *, bus_dma_segment_t *, int, int);
-static void imc1(void *, bus_dma_segment_t *, int, int);
-
-static void
-imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct imush *imushp = (struct imush *) arg;
-
-	if (error) {
-		imushp->error = error;
-		return;
-	}
-	if (nseg != 1) {
-		imushp->error = EINVAL;
-		return;
-	}
-	isp_prt(imushp->isp, ISP_LOGDEBUG0, "request/result area @ 0x%jx/0x%jx", (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
-	imushp->isp->isp_rquest = imushp->vbase;
-	imushp->isp->isp_rquest_dma = segs->ds_addr;
-	segs->ds_addr += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(imushp->isp));
-	imushp->vbase += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(imushp->isp));
-	imushp->isp->isp_result_dma = segs->ds_addr;
-	imushp->isp->isp_result = imushp->vbase;
-
-#ifdef	ISP_TARGET_MODE
-	if (IS_24XX(imushp->isp)) {
-		segs->ds_addr += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
-		imushp->vbase += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
-		imushp->isp->isp_atioq_dma = segs->ds_addr;
-		imushp->isp->isp_atioq = imushp->vbase;
-	}
-#endif
-}
-
-static void
-imc1(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct imush *imushp = (struct imush *) arg;
-	if (error) {
-		imushp->error = error;
-		return;
-	}
-	if (nseg != 1) {
-		imushp->error = EINVAL;
-		return;
-	}
-	isp_prt(imushp->isp, ISP_LOGDEBUG0, "scdma @ 0x%jx/0x%jx", (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
-	FCPARAM(imushp->isp, imushp->chan)->isp_scdma = segs->ds_addr;
-	FCPARAM(imushp->isp, imushp->chan)->isp_scratch = imushp->vbase;
-}
-
 static int
 isp_pci_mbxdma(ispsoftc_t *isp)
 {
-	caddr_t base;
 	uint32_t len;
 	int i, error, ns, cmap = 0;
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
 	bus_addr_t hlim;	/* high limit of unavailable dma */
-	struct imush im;
 
 	/*
 	 * Already been here? If so, leave...
@@ -1553,11 +1492,13 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 #endif
 
-	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &isp->isp_osinfo.dmat)) {
+	error = busdma_tag_create(ISP_PCD(isp), 1, slim, llim,
+	    BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &isp->isp_osinfo.dmat);
+	if (error) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		ISP_LOCK(isp);
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
-		return (1);
+		return (error);
 	}
 
 	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
@@ -1606,7 +1547,9 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	 * Create a tag for the control spaces. We don't always need this
 	 * to be 32 bits, but we do this for simplicity and speed's sake.
 	 */
-	if (isp_dma_tag_derive(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, ns, slim, 0, &isp->isp_osinfo.cdmat)) {
+	error = busdma_tag_derive(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
+	    BUS_SPACE_MAXADDR_32BIT, len, ns, slim, 0, &isp->isp_osinfo.cdmat);
+	if (error) {
 		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
@@ -1614,62 +1557,65 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		free(isp->isp_tgtlist, M_DEVBUF);
 #endif
 		ISP_LOCK(isp);
-		return (1);
+		return (error);
 	}
 
-	if (bus_dmamem_alloc(isp->isp_osinfo.cdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &isp->isp_osinfo.cdmap) != 0) {
+	error = busdma_mem_alloc(isp->isp_osinfo.cdmat, 0,
+	    &isp->isp_osinfo.cdmd);
+	if (error != 0) {
 		isp_prt(isp, ISP_LOGERR, "cannot allocate %d bytes of CCB memory", len);
-		bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
+		busdma_tag_destroy(isp->isp_osinfo.cdmat);
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
 #ifdef	ISP_TARGET_MODE
 		free(isp->isp_tgtlist, M_DEVBUF);
 #endif
 		ISP_LOCK(isp);
-		return (1);
+		return (error);
 	}
 
-	im.isp = isp;
-	im.chan = 0;
-	im.vbase = base;
-	im.error = 0;
+	isp->isp_rquest = (void *)busdma_md_get_vaddr(isp->isp_osinfo.cdmd, 0);
+	isp->isp_rquest_dma = busdma_md_get_busaddr(isp->isp_osinfo.cdmd, 0);
+	isp->isp_result_dma = isp->isp_rquest_dma + ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
+	isp->isp_result = (char *)isp->isp_rquest + ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
 
-	bus_dmamap_load(isp->isp_osinfo.cdmat, isp->isp_osinfo.cdmap, base, len, imc, &im, 0);
-	if (im.error) {
-		isp_prt(isp, ISP_LOGERR, "error %d loading dma map for control areas", im.error);
-		goto bad;
+#ifdef  ISP_TARGET_MODE
+	if (IS_24XX(isp)) {
+		isp->isp_atioq_dma = isp->isp_result_dma + ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
+		isp->isp_atioq = (char *)isp->isp_result + ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 	}
+#endif
 
 	if (IS_FC(isp)) {
 		for (cmap = 0; cmap < isp->isp_nchan; cmap++) {
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
-			if (isp_dma_tag_derive(isp->isp_osinfo.dmat, 64, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, ISP_FC_SCRLEN, 1, slim, 0, &fc->tdmat)) {
+			error = busdma_tag_derive(isp->isp_osinfo.dmat, 64,
+			    slim, BUS_SPACE_MAXADDR_32BIT, ISP_FC_SCRLEN, 1,
+			    slim, 0, &fc->tdmat);
+			if (error)
+				goto bad;
+			error = busdma_mem_alloc(fc->tdmat, 0, &fc->tdmd);
+			if (error) {
+				busdma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
-			if (bus_dmamem_alloc(fc->tdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &fc->tdmap) != 0) {
-				bus_dma_tag_destroy(fc->tdmat);
-				goto bad;
-			}
-			im.isp = isp;
-			im.chan = cmap;
-			im.vbase = base;
-			im.error = 0;
-			bus_dmamap_load(fc->tdmat, fc->tdmap, base, ISP_FC_SCRLEN, imc1, &im, 0);
-			if (im.error) {
-				bus_dmamem_free(fc->tdmat, base, fc->tdmap);
-				bus_dma_tag_destroy(fc->tdmat);
-				goto bad;
-			}
+			isp_prt(isp, ISP_LOGDEBUG0, "scdma @ 0x%jx/0x%jx",
+			    (uintmax_t)busdma_md_get_busaddr(fc->tdmd, 0),
+			    (uintmax_t)busdma_md_get_size(fc->tdmd, 0));
+			FCPARAM(isp, cmap)->isp_scdma =
+			    busdma_md_get_busaddr(fc->tdmd, 0);
+			FCPARAM(isp, cmap)->isp_scratch =
+			    (void *)busdma_md_get_vaddr(fc->tdmd, 0);
 		}
 	}
 
 	for (i = 0; i < isp->isp_maxcmds; i++) {
 		struct isp_pcmd *pcmd = &isp->isp_osinfo.pcmd_pool[i];
-		error = bus_dmamap_create(isp->isp_osinfo.dmat, 0, &pcmd->dmap);
+		error = busdma_md_create(isp->isp_osinfo.dmat, 0, &pcmd->dmap);
 		if (error) {
 			isp_prt(isp, ISP_LOGERR, "error %d creating per-cmd DMA maps", error);
 			while (--i >= 0) {
-				bus_dmamap_destroy(isp->isp_osinfo.dmat, isp->isp_osinfo.pcmd_pool[i].dmap);
+				busdma_md_destroy(isp->isp_osinfo.pcmd_pool[i].dmap);
 			}
 			goto bad;
 		}
@@ -1687,11 +1633,11 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 bad:
 	while (--cmap >= 0) {
 		struct isp_fc *fc = ISP_FC_PC(isp, cmap);
-		bus_dmamem_free(fc->tdmat, base, fc->tdmap);
-		bus_dma_tag_destroy(fc->tdmat);
+		busdma_mem_free(fc->tdmd);
+		busdma_tag_destroy(fc->tdmat);
 	}
-	bus_dmamem_free(isp->isp_osinfo.cdmat, base, isp->isp_osinfo.cdmap);
-	bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
+	busdma_mem_free(isp->isp_osinfo.cdmd);
+	busdma_tag_destroy(isp->isp_osinfo.cdmat);
 	free(isp->isp_xflist, M_DEVBUF);
 #ifdef	ISP_TARGET_MODE
 	free(isp->isp_tgtlist, M_DEVBUF);
@@ -1713,26 +1659,16 @@ typedef struct {
 #define	MUSHERR_NOQENTRIES	-2
 
 #ifdef	ISP_TARGET_MODE
-static void tdma2_2(void *, bus_dma_segment_t *, int, bus_size_t, int);
-static void tdma2(void *, bus_dma_segment_t *, int, int);
 
 static void
-tdma2_2(void *arg, bus_dma_segment_t *dm_segs, int nseg, bus_size_t mapsize, int error)
-{
-	mush_t *mp;
-	mp = (mush_t *)arg;
-	mp->mapsize = mapsize;
-	tdma2(arg, dm_segs, nseg, error);
-}
-
-static void
-tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+tdma_cb(void *arg, busdma_md_t md, int error)
 {
 	mush_t *mp;
 	ispsoftc_t *isp;
 	struct ccb_scsiio *csio;
 	isp_ddir_t ddir;
 	ispreq_t *rq;
+	u_int nseg;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1742,6 +1678,8 @@ tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	csio = mp->cmd_token;
 	isp = mp->isp;
 	rq = mp->rq;
+	ddir = ISP_NOXFR;
+	nseg = busdma_md_get_nsegs(md);
 	if (nseg) {
 		if (sizeof (bus_addr_t) > 4) {
 			if (nseg >= ISP_NSEG64_MAX) {
@@ -1760,48 +1698,30 @@ tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			}
 		}
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
+			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
 			ddir = ISP_TO_DEVICE;
 		} else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
+			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
 			ddir = ISP_FROM_DEVICE;
-		} else {
-			dm_segs = NULL;
-			nseg = 0;
-			ddir = ISP_NOXFR;
 		}
-	} else {
-		dm_segs = NULL;
-		nseg = 0;
-		ddir = ISP_NOXFR;
 	}
 
-	if (isp_send_tgt_cmd(isp, rq, dm_segs, nseg, XS_XFRLEN(csio), ddir, &csio->sense_data, csio->sense_len) != CMD_QUEUED) {
+	if (isp_send_tgt_cmd(isp, rq, md, XS_XFRLEN(csio), ddir,
+	    &csio->sense_data, csio->sense_len) != CMD_QUEUED) {
 		mp->error = MUSHERR_NOQENTRIES;
 	}
 }
 #endif
 
-static void dma2_2(void *, bus_dma_segment_t *, int, bus_size_t, int);
-static void dma2(void *, bus_dma_segment_t *, int, int);
-
 static void
-dma2_2(void *arg, bus_dma_segment_t *dm_segs, int nseg, bus_size_t mapsize, int error)
-{
-	mush_t *mp;
-	mp = (mush_t *)arg;
-	mp->mapsize = mapsize;
-	dma2(arg, dm_segs, nseg, error);
-}
-
-static void
-dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+dma_cb(void *arg, busdma_md_t md, int error)
 {
 	mush_t *mp;
 	ispsoftc_t *isp;
 	struct ccb_scsiio *csio;
 	isp_ddir_t ddir;
 	ispreq_t *rq;
+	u_int nseg;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1811,6 +1731,8 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	csio = mp->cmd_token;
 	isp = mp->isp;
 	rq = mp->rq;
+	ddir = ISP_NOXFR;
+	nseg = busdma_md_get_nsegs(md);
 	if (nseg) {
 		if (sizeof (bus_addr_t) > 4) {
 			if (nseg >= ISP_NSEG64_MAX) {
@@ -1831,21 +1753,15 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			}
 		}
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
+			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
 			ddir = ISP_FROM_DEVICE;
 		} else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
+			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
 			ddir = ISP_TO_DEVICE;
-		} else {
-			ddir = ISP_NOXFR;
 		}
-	} else {
-		dm_segs = NULL;
-		nseg = 0;
-		ddir = ISP_NOXFR;
 	}
 
-	if (isp_send_cmd(isp, rq, dm_segs, nseg, XS_XFRLEN(csio), ddir) != CMD_QUEUED) {
+	if (isp_send_cmd(isp, rq, md, XS_XFRLEN(csio), ddir) != CMD_QUEUED) {
 		mp->error = MUSHERR_NOQENTRIES;
 	}
 }
@@ -1854,8 +1770,7 @@ static int
 isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 {
 	mush_t mush, *mp;
-	void (*eptr)(void *, bus_dma_segment_t *, int, int);
-	void (*eptr2)(void *, bus_dma_segment_t *, int, bus_size_t, int);
+	busdma_callback_f cbf;
 
 	mp = &mush;
 	mp->isp = isp;
@@ -1865,47 +1780,43 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	mp->mapsize = 0;
 
 #ifdef	ISP_TARGET_MODE
-	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO) {
-		eptr = tdma2;
-		eptr2 = tdma2_2;
-	} else
+	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO)
+		cbf = tdma_cb;
+	else
 #endif
-	{
-		eptr = dma2;
-		eptr2 = dma2_2;
-	}
+		cbf = dma_cb;
 
-
-	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE || (csio->dxfer_len == 0)) {
-		(*eptr)(mp, NULL, 0, 0);
+	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE ||
+	    (csio->dxfer_len == 0)) {
+		(*cbf)(mp, NULL, 0);
 	} else if ((csio->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
+		int error;
 		if ((csio->ccb_h.flags & CAM_DATA_PHYS) == 0) {
-			int error;
-			error = bus_dmamap_load(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, csio->data_ptr, csio->dxfer_len, eptr, mp, 0);
-#if 0
-			xpt_print(csio->ccb_h.path, "%s: bus_dmamap_load " "ptr %p len %d returned %d\n", __func__, csio->data_ptr, csio->dxfer_len, error);
-#endif
-
-			if (error == EINPROGRESS) {
-				bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
-				mp->error = EINVAL;
-				isp_prt(isp, ISP_LOGERR, "deferred dma allocation not supported");
-			} else if (error && mp->error == 0) {
-#ifdef	DIAGNOSTIC
-				isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
-#endif
-				mp->error = error;
-			}
+			error = busdma_md_load_linear(PISP_PCMD(csio)->dmap,
+			    csio->data_ptr, csio->dxfer_len, cbf, mp, 0);
 		} else {
-			/* Pointer to physical buffer */
-			struct bus_dma_segment seg;
-			seg.ds_addr = (bus_addr_t)(vm_offset_t)csio->data_ptr;
-			seg.ds_len = csio->dxfer_len;
-			(*eptr)(mp, &seg, 1, 0);
+			error = busdma_md_load_phys(PISP_PCMD(csio)->dmap,
+			    (uintptr_t)csio->data_ptr, csio->dxfer_len, cbf,
+			    mp, 0);
+		}
+#if 0
+		xpt_print(csio->ccb_h.path, "%s: busdma_md_load ptr %p len %d "
+		    "returned %d\n", __func__, csio->data_ptr, csio->dxfer_len,
+		    error);
+#endif
+		if (error == EINPROGRESS) {
+			busdma_md_unload(PISP_PCMD(csio)->dmap);
+			mp->error = EINVAL;
+			isp_prt(isp, ISP_LOGERR,
+			    "deferred dma allocation not supported");
+		} else if (error && mp->error == 0) {
+#ifdef	DIAGNOSTIC
+			isp_prt(isp, ISP_LOGERR,
+			    "error %d in dma mapping code", error);
+#endif
+			mp->error = error;
 		}
 	} else {
-		struct bus_dma_segment *segs;
-
 		if ((csio->ccb_h.flags & CAM_DATA_PHYS) != 0) {
 			isp_prt(isp, ISP_LOGERR, "Physical segment pointers unsupported");
 			mp->error = EINVAL;
@@ -1929,16 +1840,16 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 			sguio.uio_resid = csio->dxfer_len;
 			sguio.uio_segflg = UIO_SYSSPACE;
 
-			error = bus_dmamap_load_uio(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, &sguio, eptr2, mp, 0);
+			error = busdma_md_load_uio(PISP_PCMD(csio)->dmap,
+			    &sguio, cbf, mp, 0);
 
 			if (error != 0 && mp->error == 0) {
 				isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
 				mp->error = error;
 			}
 		} else {
-			/* Just use the segments provided */
-			segs = (struct bus_dma_segment *) csio->data_ptr;
-			(*eptr)(mp, segs, csio->sglist_cnt, 0);
+			isp_prt(isp, ISP_LOGERR, "Physical segment pointers unsupported");
+			mp->error = EINVAL;
 		}
 	}
 	if (mp->error) {

@@ -36,7 +36,7 @@
  * stuff figured out, you can make all the code in one spot.
  */
 typedef enum { ISP_TO_DEVICE, ISP_FROM_DEVICE, ISP_NOXFR} isp_ddir_t;
-int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t);
+int isp_send_cmd(ispsoftc_t *, void *, busdma_md_t, uint32_t, isp_ddir_t);
 
 /*
  * Handle management functions.
@@ -155,7 +155,7 @@ void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 #include "isp_target.h"
 #endif
 
-int isp_send_tgt_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, void *, uint32_t);
+int isp_send_tgt_cmd(ispsoftc_t *, void *, busdma_md_t, uint32_t, isp_ddir_t, void *, uint32_t);
 
 int isp_allocate_xs_tgt(ispsoftc_t *, void *, uint32_t *);
 void *isp_find_xs_tgt(ispsoftc_t *, uint32_t);

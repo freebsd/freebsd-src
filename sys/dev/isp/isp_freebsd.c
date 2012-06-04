@@ -5795,11 +5795,11 @@ void
 isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
 {
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_POSTREAD);
+		busdma_sync(PISP_PCMD(csio)->dmap, BUSDMA_SYNC_POSTREAD);
 	} else {
-		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_POSTWRITE);
+		busdma_sync(PISP_PCMD(csio)->dmap, BUSDMA_SYNC_POSTWRITE);
 	}
-	bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
+	busdma_md_unload(PISP_PCMD(csio)->dmap);
 }
 
 void

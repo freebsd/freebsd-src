@@ -42,6 +42,7 @@
 
 #include <sys/proc.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
@@ -150,7 +151,7 @@ typedef struct tstate {
  */
 struct isp_pcmd {
 	struct isp_pcmd *	next;
-	bus_dmamap_t 		dmap;	/* dma map for this command */
+	busdma_md_t 		dmap;	/* dma map for this command */
 	struct ispsoftc *	isp;	/* containing isp */
 	struct callout		wdog;	/* watchdog timer */
 };
@@ -167,8 +168,8 @@ struct isp_fc {
 	struct cam_path *path;
 	struct ispsoftc *isp;
 	struct proc *kproc;
-	bus_dma_tag_t tdmat;
-	bus_dmamap_t tdmap;
+	busdma_tag_t tdmat;
+	busdma_md_t tdmd;
 	uint64_t def_wwpn;
 	uint64_t def_wwnn;
 	uint32_t loop_down_time;
@@ -245,10 +246,10 @@ struct isposinfo {
 	 * DMA related sdtuff
 	 */
 	bus_space_tag_t		bus_tag;
-	bus_dma_tag_t		dmat;
 	bus_space_handle_t	bus_handle;
-	bus_dma_tag_t		cdmat;
-	bus_dmamap_t		cdmap;
+	busdma_tag_t		dmat;
+	busdma_tag_t		cdmat;
+	busdma_md_t		cdmd;
 
 	/*
 	 * Command and transaction related related stuff
@@ -358,25 +359,21 @@ switch (type) {							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
-	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
+	busdma_sync(fc->tdmd, BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE); \
 	break;							\
 }								\
 case SYNC_REQUEST:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
-	   isp->isp_osinfo.cdmap, 				\
+	busdma_sync(isp->isp_osinfo.cdmd,			\
 	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
 	break;							\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
-	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
+	busdma_sync(fc->tdmd, BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE); \
 	break;							\
 }								\
 case SYNC_RESULT:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
-	   isp->isp_osinfo.cdmap,				\
+	busdma_sync(isp->isp_osinfo.cdmd,			\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
@@ -411,24 +408,22 @@ default:							\
 
 #define	XS_T			struct ccb_scsiio
 #define	XS_DMA_ADDR_T		bus_addr_t
-#define XS_GET_DMA64_SEG(a, b, c)		\
-{						\
-	ispds64_t *d = a;			\
-	bus_dma_segment_t *e = b;		\
-	uint32_t f = c;				\
-	e += f;					\
-        d->ds_base = DMA_LO32(e->ds_addr);	\
-        d->ds_basehi = DMA_HI32(e->ds_addr);	\
-        d->ds_count = e->ds_len;		\
+#define XS_GET_DMA64_SEG(a, md, c)			\
+{							\
+	ispds64_t *_d = a;				\
+	u_int _n = c;					\
+	bus_addr_t _a = busdma_md_get_busaddr(md, _n);	\
+	_d->ds_base = DMA_LO32(_a);			\
+	_d->ds_basehi = DMA_HI32(_a);			\
+	_d->ds_count = busdma_md_get_size(md, _n);	\
 }
-#define XS_GET_DMA_SEG(a, b, c)			\
-{						\
-	ispds_t *d = a;				\
-	bus_dma_segment_t *e = b;		\
-	uint32_t f = c;				\
-	e += f;					\
-        d->ds_base = DMA_LO32(e->ds_addr);	\
-        d->ds_count = e->ds_len;		\
+#define XS_GET_DMA_SEG(a, md, c)			\
+{							\
+	ispds_t *_d = a;				\
+	u_int _n = c;					\
+	bus_addr_t _a = busdma_md_get_busaddr(md, _n);	\
+	_d->ds_base = DMA_LO32(_a);			\
+	_d->ds_count = busdma_md_get_size(md, _n);	\
 }
 #define	XS_ISP(ccb)		cam_sim_softc(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
@@ -660,26 +655,7 @@ void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
 /*
  * Platform Version specific defines
  */
-#ifdef ISP_USE_BUSDMA
 #include <sys/busdma.h>
-
-#define	BUS_DMA_ROOTARG(x)	x
-#define	isp_dma_tag_create(dev, align, bndry, lowaddr, hiaddr, filter,	\
-		f_arg, maxsize, nsegs, maxsegsz, flags, tag_p)		\
-	busdma_tag_create(dev, lowaddr, align, bndry, maxsize, nsegs,	\
-	    maxsegsz, flags, (busdma_tag_t *)tag_p)
-
-#define	isp_dma_tag_derive(parent, align, bndry, lowaddr, highaddr,	\
-		filter, f_arg, maxsize, nsegs, maxsegsz, flags, tag_p)	\
-	busdma_tag_derive((busdma_tag_t)parent, lowaddr, align, bndry,	\
-	    maxsize, nsegs, maxsegsz, flags, (busdma_tag_t *)tag_p)
-#else
-#define	BUS_DMA_ROOTARG(x)	bus_get_dma_tag(x)
-#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
-	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
-	busdma_lock_mutex, &isp->isp_osinfo.lock, z)
-#define	isp_dma_tag_derive	isp_dma_tag_create
-#endif /* ISP_USE_BUSDMA */
 
 #define	isp_setup_intr	bus_setup_intr
 

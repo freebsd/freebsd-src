@@ -58,7 +58,8 @@ const char *isp_class3_roles[4] = {
  * Called with the first queue entry at least partially filled out.
  */
 int
-isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t totalcnt, isp_ddir_t ddir)
+isp_send_cmd(ispsoftc_t *isp, void *fqe, busdma_md_t md, uint32_t totalcnt,
+    isp_ddir_t ddir)
 {
 	uint8_t storage[QENTRY_LEN];
 	uint8_t type, nqe;
@@ -66,6 +67,7 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 	ispds_t *dsp = NULL;
 	ispds64_t *dsp64 = NULL;
 	void *qe0, *qe1;
+	u_int nsegs;
 
 	qe0 = isp_getrqentry(isp);
 	if (qe0 == NULL) {
@@ -75,6 +77,7 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 
 	type = ((isphdr_t *)fqe)->rqs_entry_type;
 	nqe = 1;
+	nsegs = busdma_md_get_nsegs(md);
 
 	/*
 	 * If we have no data to transmit, just copy the first IOCB and start it up.
@@ -131,9 +134,9 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 
 	for (seg = curseg = 0; curseg < seglim; curseg++) {
 		if (dsp64) {
-			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
+			XS_GET_DMA64_SEG(dsp64++, md, seg++);
 		} else {
-			XS_GET_DMA_SEG(dsp++, segp, seg++);
+			XS_GET_DMA_SEG(dsp++, md, seg++);
 		}
 	}
 
@@ -167,9 +170,9 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 		}
 		for (curseg = 0; curseg < seglim; curseg++) {
 			if (dsp64) {
-				XS_GET_DMA64_SEG(dsp64++, segp, seg++);
+				XS_GET_DMA64_SEG(dsp64++, md, seg++);
 			} else {
-				XS_GET_DMA_SEG(dsp++, segp, seg++);
+				XS_GET_DMA_SEG(dsp++, md, seg++);
 			}
 		}
 		if (dsp64) {
@@ -2007,7 +2010,8 @@ isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *src, ct_hdr_t *dst)
  * Called with the first queue entry at least partially filled out.
  */
 int
-isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t totalcnt, isp_ddir_t ddir, void *snsptr, uint32_t snslen)
+isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, busdma_md_t md, uint32_t totalcnt,
+    isp_ddir_t ddir, void *snsptr, uint32_t snslen)
 {
 	uint8_t storage[QENTRY_LEN], storage2[QENTRY_LEN];
 	uint8_t type, nqe;
@@ -2015,6 +2019,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 	ispds_t *dsp = NULL;
 	ispds64_t *dsp64 = NULL;
 	void *qe0, *qe1, *sqe = NULL;
+	u_int nsegs;
 
 	qe0 = isp_getrqentry(isp);
 	if (qe0 == NULL) {
@@ -2025,6 +2030,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 	type = ((isphdr_t *)fqe)->rqs_entry_type;
 	nqe = 1;
 	seglim = 0;
+	nsegs = busdma_md_get_nsegs(md);
 
 	/*
 	 * If we have no data to transmit, just copy the first IOCB and start it up.
@@ -2140,9 +2146,9 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 
 	for (seg = curseg = 0; curseg < seglim; curseg++) {
 		if (dsp64) {
-			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
+			XS_GET_DMA64_SEG(dsp64++, md, seg++);
 		} else {
-			XS_GET_DMA_SEG(dsp++, segp, seg++);
+			XS_GET_DMA_SEG(dsp++, md, seg++);
 		}
 	}
 
@@ -2181,9 +2187,9 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 		}
 		for (curseg = 0; curseg < seglim; curseg++) {
 			if (dsp64) {
-				XS_GET_DMA64_SEG(dsp64++, segp, seg++);
+				XS_GET_DMA64_SEG(dsp64++, md, seg++);
 			} else {
-				XS_GET_DMA_SEG(dsp++, segp, seg++);
+				XS_GET_DMA_SEG(dsp++, md, seg++);
 			}
 		}
 		if (dsp64) {
