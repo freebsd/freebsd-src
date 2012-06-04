@@ -249,7 +249,6 @@ pfattach(void)
 
 	pf_initialize();
 	pfi_initialize();
-	pf_osfp_initialize();
 	pf_normalize_init();
 
 	V_pf_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
@@ -3782,7 +3781,6 @@ pf_unload(void)
 	pf_normalize_cleanup();
 	pfi_cleanup();
 	pf_osfp_flush();
-	pf_osfp_cleanup();
 	pf_cleanup();
 	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);

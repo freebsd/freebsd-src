@@ -1962,8 +1962,6 @@ struct pf_osfp_enlist *
 #endif /* _KERNEL */
 void	pf_osfp_flush(void);
 int	pf_osfp_get(struct pf_osfp_ioctl *);
-void	pf_osfp_initialize(void);
-void	pf_osfp_cleanup(void);
 int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 
 #ifdef _KERNEL
