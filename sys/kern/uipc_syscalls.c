@@ -2184,12 +2184,10 @@ retry_space:
 			/* Append to mbuf chain. */
 			if (mtail != NULL) {
 				mtail->m_next = m0;
-			} else {
-				if (m != NULL)
-					m_cat(m, m0);
-				else
-					m = m0;
-			}
+			} else if (m != NULL)
+				m_last(m)->m_next = m0;
+			else
+				m = m0;
 			mtail = m0;
 
 			/* Keep track of bits processed. */
