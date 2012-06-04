@@ -250,14 +250,12 @@ pfattach(void)
 	int error;
 
 	pf_initialize();
+	pfr_initialize();
 	pfi_initialize();
 	pf_normalize_init();
 
 	V_pf_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
 	V_pf_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
-	V_pf_limits[PF_LIMIT_TABLES].limit = PFR_KTABLE_HIWAT;
-	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].zone = V_pfr_kentry_z;
-	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].limit = PFR_KENTRY_HIWAT;
 
 	RB_INIT(&V_pf_anchors);
 	pf_init_ruleset(&pf_main_ruleset);
@@ -3782,6 +3780,7 @@ pf_unload(void)
 	}
 	pf_normalize_cleanup();
 	pfi_cleanup();
+	pfr_cleanup();
 	pf_osfp_flush();
 	pf_cleanup();
 	PF_RULES_WUNLOCK();

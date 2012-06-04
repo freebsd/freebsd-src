@@ -118,10 +118,11 @@ struct pfr_walktree {
 
 #define	senderr(e)	do { rv = (e); goto _bad; } while (0)
 
-VNET_DEFINE(uma_zone_t,			pfr_ktable_z);
-VNET_DEFINE(uma_zone_t,			pfr_kentry_z);
-VNET_DEFINE(uma_zone_t,			pfr_kcounters_z);
-#define	V_pfr_kcounters_z		VNET(pfr_kcounters_z)
+static MALLOC_DEFINE(M_PFTABLE, "pf(4) table", "pf(4) tables structures");
+static VNET_DEFINE(uma_zone_t, pfr_kentry_z);
+#define	V_pfr_kentry_z		VNET(pfr_kentry_z)
+static VNET_DEFINE(uma_zone_t, pfr_kcounters_z);
+#define	V_pfr_kcounters_z	VNET(pfr_kcounters_z)
 
 static struct pf_addr	 pfr_ffaddr = {
 	.addr32 = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }
@@ -184,6 +185,28 @@ static RB_GENERATE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
 struct pfr_ktablehead	 pfr_ktables;
 struct pfr_table	 pfr_nulltable;
 int			 pfr_ktable_cnt;
+
+void
+pfr_initialize(void)
+{
+
+	V_pfr_kentry_z = uma_zcreate("pf table entries",
+	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pfr_kcounters_z = uma_zcreate("pf table counters",
+	    sizeof(struct pfr_kcounters), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].zone = V_pfr_kentry_z;
+	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].limit = PFR_KENTRY_HIWAT;
+}
+
+void
+pfr_cleanup(void)
+{
+
+	uma_zdestroy(V_pfr_kentry_z);
+	uma_zdestroy(V_pfr_kcounters_z);
+}
 
 int
 pfr_clr_addrs(struct pfr_table *tbl, int *ndel, int flags)
@@ -1776,7 +1799,7 @@ pfr_create_ktable(struct pfr_table *tbl, long tzero, int attachruleset)
 
 	PF_RULES_WASSERT();
 
-	kt = uma_zalloc(V_pfr_ktable_z, M_NOWAIT|M_ZERO);
+	kt = malloc(sizeof(*kt), M_PFTABLE, M_NOWAIT|M_ZERO);
 	if (kt == NULL)
 		return (NULL);
 	kt->pfrkt_t = *tbl;
@@ -1838,7 +1861,7 @@ pfr_destroy_ktable(struct pfr_ktable *kt, int flushaddr)
 		kt->pfrkt_rs->tables--;
 		pf_remove_if_empty_ruleset(kt->pfrkt_rs);
 	}
-	uma_zfree(V_pfr_ktable_z, kt);
+	free(kt, M_PFTABLE);
 }
 
 static int

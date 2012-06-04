@@ -144,7 +144,6 @@ static const struct {
 	{ "states",		PF_LIMIT_STATES },
 	{ "src-nodes",		PF_LIMIT_SRC_NODES },
 	{ "frags",		PF_LIMIT_FRAGS },
-	{ "tables",		PF_LIMIT_TABLES },
 	{ "table-entries",	PF_LIMIT_TABLE_ENTRIES },
 	{ NULL,			0 }
 };
@@ -1581,7 +1580,6 @@ pfctl_init_options(struct pfctl *pf)
 	pf->limit[PF_LIMIT_STATES] = PFSTATE_HIWAT;
 	pf->limit[PF_LIMIT_FRAGS] = PFFRAG_FRENT_HIWAT;
 	pf->limit[PF_LIMIT_SRC_NODES] = PFSNODE_HIWAT;
-	pf->limit[PF_LIMIT_TABLES] = PFR_KTABLE_HIWAT;
 	pf->limit[PF_LIMIT_TABLE_ENTRIES] = PFR_KENTRY_HIWAT;
 
 	mib[0] = CTL_HW;

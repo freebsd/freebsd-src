@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 29 2012
+.Dd June 4 2012
 .Dt PF 4
 .Os
 .Sh NAME
@@ -492,7 +492,7 @@ struct pfioc_limit {
 };
 
 enum	{ PF_LIMIT_STATES, PF_LIMIT_SRC_NODES, PF_LIMIT_FRAGS,
-	  PF_LIMIT_TABLES, PF_LIMIT_TABLE_ENTRIES, PF_LIMIT_MAX };
+	  PF_LIMIT_TABLE_ENTRIES, PF_LIMIT_MAX };
 .Ed
 .It Dv DIOCGETLIMIT Fa "struct pfioc_limit *pl"
 Get the hard
