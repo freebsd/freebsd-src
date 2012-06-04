@@ -159,6 +159,7 @@ VNET_DEFINE(struct pf_tags, pf_tags);
 VNET_DEFINE(struct pf_tags, pf_qids);
 static MALLOC_DEFINE(M_PFTAG, "pf(4) tag", "pf(4) tag names");
 static MALLOC_DEFINE(M_PFALTQ, "pf(4) altq", "pf(4) altq configuration db");
+static MALLOC_DEFINE(M_PFRULE, "pf(4) rules", "pf(4) rules");
 
 #if (PF_QNAME_SIZE != PF_TAG_NAME_SIZE)
 #error PF_QNAME_SIZE must be equal to PF_TAG_NAME_SIZE
@@ -381,7 +382,7 @@ pf_empty_pool(struct pf_palist *poola)
 		if (pa->kif)
 			pfi_kif_unref(pa->kif);
 		TAILQ_REMOVE(poola, pa, entries);
-		uma_zfree(V_pf_pooladdr_z, pa);
+		free(pa, M_PFRULE);
 	}
 }
 
@@ -436,7 +437,7 @@ pf_free_rule(struct pf_rule *rule)
 		pfi_kif_unref(rule->kif);
 	pf_anchor_remove(rule);
 	pf_empty_pool(&rule->rpool.list);
-	uma_zfree(V_pf_rule_z, rule);
+	free(rule, M_PFRULE);
 }
 
 static u_int16_t
@@ -1185,7 +1186,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 #endif /* INET6 */
 
-		rule = uma_zalloc(V_pf_rule_z, M_WAITOK);
+		rule = malloc(sizeof(*rule), M_PFRULE, M_WAITOK);
 		bcopy(&pr->rule, rule, sizeof(struct pf_rule));
 		if (rule->ifname[0])
 			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
@@ -1307,7 +1308,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #undef ERROUT
 DIOCADDRULE_error:
 		PF_RULES_WUNLOCK();
-		uma_zfree(V_pf_rule_z, rule);
+		free(rule, M_PFRULE);
 		if (kif)
 			free(kif, PFI_MTYPE);
 		break;
@@ -1434,7 +1435,7 @@ DIOCADDRULE_error:
 				break;
 			}
 #endif /* INET6 */
-			newrule = uma_zalloc(V_pf_rule_z, M_WAITOK);
+			newrule = malloc(sizeof(*newrule), M_PFRULE, M_WAITOK);
 			bcopy(&pcr->rule, newrule, sizeof(struct pf_rule));
 			newrule->cuid = td->td_ucred->cr_ruid;
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
@@ -1615,7 +1616,7 @@ DIOCADDRULE_error:
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
 		if (newrule != NULL)
-			uma_zfree(V_pf_rule_z, newrule);
+			free(newrule, M_PFRULE);
 		if (kif != NULL)
 			free(kif, PFI_MTYPE);
 		break;
@@ -2208,16 +2209,16 @@ DIOCGETSTATES_full:
 			error = EINVAL;
 			break;
 		}
-		pa = uma_zalloc(V_pf_pooladdr_z, M_WAITOK);
+		pa = malloc(sizeof(*pa), M_PFRULE, M_WAITOK);
 		bcopy(&pp->addr, pa, sizeof(struct pf_pooladdr));
 		if (pa->ifname[0])
 			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 		PF_RULES_WLOCK();
 		if (pp->ticket != V_ticket_pabuf) {
 			PF_RULES_WUNLOCK();
-			uma_zfree(V_pf_pooladdr_z, pa);
 			if (pa->ifname[0])
 				free(kif, PFI_MTYPE);
+			free(pa, M_PFRULE);
 			error = EBUSY;
 			break;
 		}
@@ -2231,7 +2232,7 @@ DIOCGETSTATES_full:
 			if (pa->ifname[0])
 				pfi_kif_unref(pa->kif);
 			PF_RULES_WUNLOCK();
-			uma_zfree(V_pf_pooladdr_z, pa);
+			free(pa, M_PFRULE);
 			break;
 		}
 		TAILQ_INSERT_TAIL(&V_pf_pabuf, pa, entries);
@@ -2321,7 +2322,7 @@ DIOCGETSTATES_full:
 				break;
 			}
 #endif /* INET6 */
-			newpa = uma_zalloc(V_pf_pooladdr_z, M_WAITOK);
+			newpa = malloc(sizeof(*newpa), M_PFRULE, M_WAITOK);
 			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 			if (newpa->ifname[0])
 				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
@@ -2361,7 +2362,7 @@ DIOCGETSTATES_full:
 				if (newpa->kif)
 					pfi_kif_unref(newpa->kif);
 				PF_RULES_WUNLOCK();
-				uma_zfree(V_pf_pooladdr_z, newpa);
+				free(newpa, M_PFRULE);
 				break;
 			}
 		}
@@ -2397,7 +2398,7 @@ DIOCGETSTATES_full:
 			}
 			if (oldpa->kif)
 				pfi_kif_unref(oldpa->kif);
-			uma_zfree(V_pf_pooladdr_z, oldpa);
+			free(oldpa, M_PFRULE);
 		} else {
 			if (oldpa == NULL)
 				TAILQ_INSERT_TAIL(&pool->list, newpa, entries);
@@ -2419,7 +2420,7 @@ DIOCGETSTATES_full:
 DIOCCHANGEADDR_error:
 		PF_RULES_WUNLOCK();
 		if (newpa != NULL)
-			uma_zfree(V_pf_pooladdr_z, newpa);
+			free(newpa, M_PFRULE);
 		if (kif != NULL)
 			free(kif, PFI_MTYPE);
 		break;
