@@ -830,24 +830,14 @@ callout_handle_init(struct callout_handle *handle)
  * callout_pending() - returns truth if callout is still waiting for timeout
  * callout_deactivate() - marks the callout as having been serviced
  */
-int
-callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
+int 
+callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
     void *arg, int cpu)
 {
 	struct callout_cpu *cc;
-	struct bintime bt;
-	struct bintime now;
 	int cancelled = 0;
-	int bucket; 
-	
-	/*
-	 * Convert ticks to struct bintime.
-	 */
+	int bucket;
 
-	FREQ2BT(hz,&bt);
-	getbinuptime(&now);
-	bintime_mul(&bt,to_ticks);
-	bintime_add(&bt,&now);
 	/*
 	 * Don't allow migration of pre-allocated callouts lest they
 	 * become unbalanced.
@@ -922,6 +912,19 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 	CC_UNLOCK(cc);
 
 	return (cancelled);
+}
+
+int
+callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
+    void *arg, int cpu)
+{
+	struct bintime bt, now;
+	
+	FREQ2BT(hz,&bt);
+	getbinuptime(&now);
+	bintime_mul(&bt,to_ticks);
+	bintime_add(&bt,&now);
+	return (callout_reset_bt_on(c, bt, ftn, arg, cpu));
 }
 
 /*
