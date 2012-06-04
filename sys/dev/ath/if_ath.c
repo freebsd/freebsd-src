@@ -373,6 +373,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		"%s taskq", ifp->if_xname);
 
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_tasklet, sc);
+	TASK_INIT(&sc->sc_txstarttask, 0, ath_tx_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
@@ -2325,6 +2326,15 @@ void
 ath_start(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_txstarttask);
+}
+
+void
+ath_tx_tasklet(void *arg, int npending)
+{
+	struct ath_softc *sc = (struct ath_softc *) arg;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
@@ -3499,7 +3509,8 @@ ath_tx_proc_q0(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	// ath_start(ifp);
+	ath_tx_tasklet(sc, 1);
 }
 
 /*
@@ -3549,7 +3560,8 @@ ath_tx_proc_q0123(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	//ath_start(ifp);
+	ath_tx_tasklet(sc, 1);
 }
 
 /*
@@ -3592,7 +3604,8 @@ ath_tx_proc(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	//ath_start(ifp);
+	ath_tx_tasklet(sc, 1);
 }
 #undef	TXQACTIVE
 

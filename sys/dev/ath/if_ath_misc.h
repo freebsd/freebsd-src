@@ -83,6 +83,7 @@ extern void ath_setslottime(struct ath_softc *sc);
  * we can kill this.
  */
 extern void ath_start(struct ifnet *ifp);
+extern void ath_tx_tasklet(void *arg, int npending);
 
 
 #endif
