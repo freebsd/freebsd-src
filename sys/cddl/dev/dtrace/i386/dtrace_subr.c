@@ -447,7 +447,7 @@ dtrace_gethrtime()
 	 * (see nsec_scale calculations) taking into account 32-bit shift of
 	 * the higher half and finally add.
 	 */
-	tsc = rdtsc() + tsc_skew[curcpu];
+	tsc = rdtsc() - tsc_skew[curcpu];
 	lo = tsc;
 	hi = tsc >> 32;
 	return (((lo * nsec_scale) >> SCALE_SHIFT) +
