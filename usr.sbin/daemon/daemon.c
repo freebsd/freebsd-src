@@ -240,7 +240,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cf] [-p pidfile] [-u user] command "
+	    "usage: daemon [-cfr] [-p pidfile] [-u user] command "
 		"arguments ...\n");
 	exit(1);
 }
