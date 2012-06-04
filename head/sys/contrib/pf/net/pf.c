@@ -191,8 +191,6 @@ VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
 struct mtx pf_unlnkdrules_mtx;
 
 VNET_DEFINE(uma_zone_t,	 pf_sources_z);
-VNET_DEFINE(uma_zone_t,	 pf_rule_z);
-VNET_DEFINE(uma_zone_t,	 pf_pooladdr_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 
@@ -718,11 +716,6 @@ pf_initialize()
 	mtx_init(&pf_unlnkdrules_mtx, "pf unlinked rules", NULL, MTX_DEF);
 
 	/* XXXGL: sort this out */
-	V_pf_rule_z = uma_zcreate("pf rules", sizeof(struct pf_rule),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_pooladdr_z = uma_zcreate("pf pool addresses",
-	    sizeof(struct pf_pooladdr), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    0);
 	V_pfr_ktable_z = uma_zcreate("pf tables",
 	    sizeof(struct pfr_ktable), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
@@ -770,10 +763,8 @@ pf_cleanup()
 	mtx_destroy(&pf_unlnkdrules_mtx);
 
 	uma_zdestroy(V_pf_sources_z);
-	uma_zdestroy(V_pf_rule_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
-	uma_zdestroy(V_pf_pooladdr_z);
 	uma_zdestroy(V_pfr_ktable_z);
 	uma_zdestroy(V_pfr_kentry_z);
 }

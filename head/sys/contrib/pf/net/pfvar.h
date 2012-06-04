@@ -1728,14 +1728,10 @@ extern void			 pf_calc_skip_steps(struct pf_rulequeue *);
 #ifdef ALTQ
 extern	void			 pf_altq_ifnet_event(struct ifnet *, int);
 #endif
-VNET_DECLARE(uma_zone_t,	 pf_rule_z);
-#define	V_pf_rule_z		 VNET(pf_rule_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_z);
 #define	V_pf_state_z		 VNET(pf_state_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_key_z);
 #define	V_pf_state_key_z	 VNET(pf_state_key_z)
-VNET_DECLARE(uma_zone_t,	 pf_pooladdr_z);
-#define	V_pf_pooladdr_z		 VNET(pf_pooladdr_z)
 VNET_DECLARE(uma_zone_t,	 pfr_ktable_z);
 #define	V_pfr_ktable_z		 VNET(pfr_ktable_z)
 VNET_DECLARE(uma_zone_t,	 pfr_kentry_z);
