@@ -3,8 +3,6 @@
 cpu		ITANIUM2
 ident		ALTIX
 
-options 	ISP_USE_BUSDMA
-
 makeoptions	DEBUG=-g
 makeoptions	MODULES_OVERRIDE=""
 
