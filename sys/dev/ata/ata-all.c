@@ -886,7 +886,7 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 {
     device_t child;
 
-    if ((child = device_add_child(parent, NULL, unit))) {
+    if ((child = device_add_child(parent, (unit < 0) ? NULL : "ad", unit))) {
 	device_set_softc(child, atadev);
 	device_quiet(child);
 	atadev->dev = child;
