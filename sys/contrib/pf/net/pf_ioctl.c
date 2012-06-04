@@ -134,7 +134,6 @@ static int		 pf_commit_rules(u_int32_t, int, char *);
 static int		 pf_addr_setup(struct pf_ruleset *,
 			    struct pf_addr_wrap *, sa_family_t);
 static void		 pf_addr_copyout(struct pf_addr_wrap *);
-static void		 pf_pkt_addr_changed(struct mbuf *);
 
 VNET_DEFINE(struct pf_rule,	pf_default_rule);
 VNET_DEFINE(struct sx,		pf_consistency_lock);
@@ -306,8 +305,6 @@ pfattach(void)
 	    INTR_MPSAFE, &V_pf_swi_cookie)) != 0)
 		/* XXXGL: leaked all above. */
 		return (error);
-
-	m_addr_chg_pf_p = pf_pkt_addr_changed;
 
 	return (0);
 }
@@ -3730,20 +3727,6 @@ dehook_pf(void)
 	return (0);
 }
 
-/*
- * Must be called whenever any addressing information such as
- * address, port, protocol has changed.
- */
-static void
-pf_pkt_addr_changed(struct mbuf *m)
-{
-#if 0	/* XXXGL */
-	struct pf_mtag	*pf_tag;
-	if ((pf_tag = pf_find_mtag(m)) != NULL)
-		pf_tag->statekey = NULL;
-#endif
-}
-
 static int
 pf_load(void)
 {
@@ -3778,7 +3761,6 @@ pf_unload(void)
 	PF_RULES_WLOCK();
 	V_pf_status.running = 0;
 	PF_RULES_WUNLOCK();
-	m_addr_chg_pf_p = NULL;
 	swi_remove(V_pf_swi_cookie);
 	error = dehook_pf();
 	if (error) {

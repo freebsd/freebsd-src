@@ -778,9 +778,6 @@ struct pf_state_key {
 
 	LIST_ENTRY(pf_state_key) entry;
 	TAILQ_HEAD(, pf_state)	 states[2];
-#if 0	/* XXXGL: TODO */
-	struct pf_state_key	*reverse;
-#endif
 };
 
 /* Keep synced with struct pf_state. */

@@ -292,10 +292,6 @@ static void		 pf_print_state_parts(struct pf_state *,
 			    struct pf_state_key *, struct pf_state_key *);
 static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
 			    struct pf_addr_wrap *);
-#if 0
-static int		 pf_compare_state_keys(struct pf_state_key *,
-			    struct pf_state_key *, struct pfi_kif *, u_int);
-#endif
 static struct pf_state	*pf_find_state(struct pfi_kif *,
 			    struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_state **);
@@ -955,10 +951,6 @@ pf_state_key_detach(struct pf_state *s, int idx)
 
 	if (TAILQ_EMPTY(&sk->states[0]) && TAILQ_EMPTY(&sk->states[1])) {
 		LIST_REMOVE(sk, entry);
-#if 0	/* XXXGL: TODO */
-		if (sk->reverse)
-			sk->reverse->reverse = NULL;
-#endif
 		uma_zfree(V_pf_state_key_z, sk);
 	}
 }
@@ -1089,39 +1081,6 @@ pf_find_state_byid(uint64_t id, uint32_t creatorid)
 	return (s);
 }
 
-#if 0
-/* XXX debug function, intended to be removed one day */
-static int
-pf_compare_state_keys(struct pf_state_key *a, struct pf_state_key *b,
-    struct pfi_kif *kif, u_int dir)
-{
-	/* a (from hdr) and b (new) must be exact opposites of each other */
-	if (a->af == b->af && a->proto == b->proto &&
-	    PF_AEQ(&a->addr[0], &b->addr[1], a->af) &&
-	    PF_AEQ(&a->addr[1], &b->addr[0], a->af) &&
-	    a->port[0] == b->port[1] &&
-	    a->port[1] == b->port[0])
-		return (0);
-	else {
-		/* mismatch. must not happen. */
-		printf("pf: state key linking mismatch! dir=%s, "
-		    "if=%s, stored af=%u, a0: ",
-		    dir == PF_OUT ? "OUT" : "IN", kif->pfik_name, a->af);
-		pf_print_host(&a->addr[0], a->port[0], a->af);
-		printf(", a1: ");
-		pf_print_host(&a->addr[1], a->port[1], a->af);
-		printf(", proto=%u", a->proto);
-		printf(", found af=%u, a0: ", b->af);
-		pf_print_host(&b->addr[0], b->port[0], b->af);
-		printf(", a1: ");
-		pf_print_host(&b->addr[1], b->port[1], b->af);
-		printf(", proto=%u", b->proto);
-		printf(".\n");
-		return (-1);
-	}
-}
-#endif
-
 /*
  * Find state by key.
  * Returns with ID hash slot locked on success.
@@ -1136,27 +1095,6 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir)
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
-#if 0 /* XXXGL: to do reverse */
-	if (dir == PF_OUT && pftag->statekey &&
-	    ((struct pf_state_key *)pftag->statekey)->reverse)
-		sk = ((struct pf_state_key *)pftag->statekey)->reverse;
-	else {
-		if ((sk = RB_FIND(pf_state_tree, &V_pf_statetbl,
-		    (struct pf_state_key *)key)) == NULL) {
-			return (NULL);
-		}
-		if (dir == PF_OUT && pftag->statekey &&
-		    pf_compare_state_keys(pftag->statekey, sk,
-		    kif, dir) == 0) {
-			((struct pf_state_key *)
-			    pftag->statekey)->reverse = sk;
-			sk->reverse = pftag->statekey;
-		}
-	}
-
-	if (dir == PF_OUT)
-		pftag->statekey = NULL;
-#endif
 	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
 
 	PF_HASHROW_LOCK(kh);
@@ -5726,11 +5664,6 @@ done:
 	if ((s && s->tag) || r->rtableid >= 0)
 		pf_tag_packet(m, s ? s->tag : 0, r->rtableid, pd.pf_mtag);
 
-#if 0	/* XXXGL: to do reverse */
-	if (dir == PF_IN && s && s->key[PF_SK_STACK])
-		pd.pf_mtag->statekey = s->key[PF_SK_STACK];
-#endif
-
 #ifdef ALTQ
 	if (action == PF_PASS && r->qid) {
 		if (pqid || (pd.tos & IPTOS_LOWDELAY))
@@ -6141,11 +6074,6 @@ done:
 
 	if ((s && s->tag) || r->rtableid >= 0)
 		pf_tag_packet(m, s ? s->tag : 0, r->rtableid, pd.pf_mtag);
-
-#if 0	/* XXXGL: to do reverse */
-	if (dir == PF_IN && s && s->key[PF_SK_STACK])
-		pd.pf_mtag->statekey = s->key[PF_SK_STACK];
-#endif
 
 #ifdef ALTQ
 	if (action == PF_PASS && r->qid) {
