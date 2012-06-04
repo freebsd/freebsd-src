@@ -341,8 +341,29 @@ busdma_md_load_linear(struct busdma_md *md, void *buf, size_t len,
     busdma_callback_f cb, void *arg, u_int flags)
 {
 
-	printf("XXX: %s: md=%p, buf=%p, len=%lx\n", __func__,
-	    md, buf, (u_long)len);
+	printf("XXX: %s: md=%p, buf=%p, len=%lx\n", __func__, md,
+	    buf, (u_long)len);
+	(*cb)(arg, md, ENOSYS);
+	return (0);
+}
+
+int
+busdma_md_load_phys(struct busdma_md *md, vm_paddr_t buf, size_t len,
+    busdma_callback_f cb, void *arg, u_int flags)
+{
+
+	printf("XXX: %s: md=%p, buf=%#jx, len=%lx\n", __func__, md,
+	    (uintmax_t)buf, (u_long)len);
+	(*cb)(arg, md, ENOSYS);
+	return (0);
+}
+
+int
+busdma_md_load_uio(struct busdma_md *md, struct uio *uio,
+    busdma_callback_f cb, void *arg, u_int flags)
+{
+
+	printf("XXX: %s: md=%p, uio=%p\n", __func__, md, uio);
 	(*cb)(arg, md, ENOSYS);
 	return (0);
 }
