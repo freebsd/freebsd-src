@@ -118,7 +118,7 @@ struct pfr_walktree {
 
 #define	senderr(e)	do { rv = (e); goto _bad; } while (0)
 
-static MALLOC_DEFINE(M_PFTABLE, "pf(4) table", "pf(4) tables structures");
+static MALLOC_DEFINE(M_PFTABLE, "pf_table", "pf(4) tables structures");
 static VNET_DEFINE(uma_zone_t, pfr_kentry_z);
 #define	V_pfr_kentry_z		VNET(pfr_kentry_z)
 static VNET_DEFINE(uma_zone_t, pfr_kcounters_z);

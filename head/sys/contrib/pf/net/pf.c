@@ -155,7 +155,7 @@ VNET_DEFINE(struct pf_anchor_stackframe, pf_anchor_stack[64]);
 /*
  * Queue for pf_intr() sends.
  */
-static MALLOC_DEFINE(M_PFTEMP, "pf(4) temp", "pf(4) temporary allocations");
+static MALLOC_DEFINE(M_PFTEMP, "pf_temp", "pf(4) temporary allocations");
 struct pf_send_entry {
 	STAILQ_ENTRY(pf_send_entry)	pfse_next;
 	struct mbuf			*pfse_m;
@@ -348,7 +348,7 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 		s->rule.ptr->states_cur--;		\
 	} while (0)
 
-static MALLOC_DEFINE(M_PFHASH, "pf(4) hash", "pf(4) hash header structures");
+static MALLOC_DEFINE(M_PFHASH, "pf_hash", "pf(4) hash header structures");
 /* XXXGL: make static? */
 VNET_DEFINE(struct pf_keyhash *, pf_keyhash);
 VNET_DEFINE(struct pf_idhash *, pf_idhash);
