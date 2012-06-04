@@ -131,15 +131,17 @@ _busdma_tag_dump(const char *func, device_t dev, struct busdma_tag *tag)
 }
 
 static void
-_busdma_md_dump(const char *func, struct busdma_md *md) 
+_busdma_md_dump(const char *func, device_t dev, struct busdma_md *md) 
 {
 	struct busdma_tag *tag;
 	struct busdma_md_seg *seg;
 	int idx;
 
 	tag = md->md_tag;
+	if (dev == NULL)
+		dev = tag->dt_device;
 	printf("[%s: %s: md=%p (tag=%p, flags=%x, nsegs=%u)", func,
-	    device_get_nameunit(tag->dt_device), md, tag, md->md_flags,
+	    device_get_nameunit(dev), md, tag, md->md_flags,
 	    md->md_nsegs);
 	if (md->md_nsegs == 0) {
 		printf(" -- UNUSED]\n");
@@ -221,18 +223,58 @@ _busdma_md_create(struct busdma_tag *tag, u_int flags)
 }
 
 static int
-_busdma_iommu_xlate(device_t dev, struct busdma_mtag *mtag)
+_busdma_iommu_xlate(device_t leaf, struct busdma_mtag *mtag)
 {
+	device_t dev;
 	int error;
 
 	error = 0;
-	while (!error && dev != NULL) {
+	dev = device_get_parent(leaf);
+	while (!error && dev != root_bus) {
 		_busdma_mtag_dump(__func__, dev, mtag);
 		error = BUSDMA_IOMMU_XLATE(dev, mtag);
 		if (!error)
 			dev = device_get_parent(dev);
 	}
 	_busdma_mtag_dump(__func__, dev, mtag);
+	return (error);
+}
+
+static int
+_busdma_iommu_map_r(device_t dev, struct busdma_md *md)
+{
+	struct busdma_md_seg *seg;
+	u_int idx;
+	int error;
+
+	if (dev == root_bus) {
+		/*
+		 * A bus address and a physical address are one and the same
+		 * at this level.
+		 */
+		for (idx = 0; idx < md->md_nsegs; idx++) {
+			seg = &md->md_seg[idx];
+			seg->mds_busaddr = seg->mds_paddr;
+		}
+		_busdma_md_dump(__func__, dev, md);
+		return (0);
+	}
+
+	error = _busdma_iommu_map_r(device_get_parent(dev), md);
+	if (!error) {
+		error = BUSDMA_IOMMU_MAP(dev, md);
+		_busdma_md_dump(__func__, dev, md);
+	}
+	return (error);
+}
+
+static int
+_busdma_iommu_map(device_t leaf, struct busdma_md *md)
+{
+	int error;
+ 
+	_busdma_md_dump(__func__, leaf, md);
+	error = _busdma_iommu_map_r(device_get_parent(leaf), md);
 	return (error);
 }
 
@@ -298,7 +340,7 @@ busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	if (md == NULL)
 		return (ENOMEM);
 
-	_busdma_md_dump(__func__, md);
+	_busdma_md_dump(__func__, NULL, md);
 	*md_p = md;
 	return (0);
 }
@@ -442,16 +484,14 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 			goto fail;
 		}
 		seg->mds_paddr = pmap_kextract(seg->mds_vaddr);
-		seg->mds_busaddr = seg->mds_paddr;
 		maxsz -= seg->mds_size;
 		idx++;
 	}
 	if (maxsz == 0) {
 		md->md_nsegs = idx;
-		error = BUSDMA_IOMMU_MAP(tag->dt_device, md);
+		error = _busdma_iommu_map(tag->dt_device, md);
 		if (error)
-			printf("BUSDMA_IOMMU_MAP: error=%d\n", error);
-		_busdma_md_dump(__func__, md);
+			printf("_busdma_iommu_map: error=%d\n", error);
 		*md_p = md;
 		return (0);
 	}
