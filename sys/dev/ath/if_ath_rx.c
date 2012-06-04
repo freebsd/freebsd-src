@@ -899,7 +899,8 @@ rx_proc_next:
 		ieee80211_ff_age_all(ic, 100);
 #endif
 		if (!IFQ_IS_EMPTY(&ifp->if_snd))
-			ath_start(ifp);
+			ath_tx_tasklet(sc, 1);
+			//ath_start(ifp);
 	}
 #undef PA2DESC
 
