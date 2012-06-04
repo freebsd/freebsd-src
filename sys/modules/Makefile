@@ -105,6 +105,7 @@ SUBDIR=	${_3dfx} \
 	fdc \
 	fdescfs \
 	${_fe} \
+	${_filemon} \
 	firewire \
 	firmware \
 	${_fxp} \
@@ -359,6 +360,7 @@ SUBDIR=	${_3dfx} \
 
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_CPUARCH} != "mips"
+_filemon=	filemon
 _syscons=	syscons
 _vpo=		vpo
 .endif
