@@ -490,7 +490,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 
 			dev_chg = (struct ac_device_changed *)ac->contract_data;
 
-			printf("%s: WWPN %#jx port %u path %u target %u %s\n",
+			printf("%s: WWPN %#jx port 0x%06x path %u target %u %s\n",
 			       __func__, dev_chg->wwpn, dev_chg->port,
 			       xpt_path_path_id(path), dev_chg->target,
 			       (dev_chg->arrived == 0) ?  "left" : "arrived");
@@ -582,7 +582,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		union ccb *new_ccb;
 
 		new_ccb = (union ccb *)malloc(sizeof(*new_ccb), M_CTLFE,
-					      M_NOWAIT);
+					      M_ZERO|M_NOWAIT);
 		if (new_ccb == NULL) {
 			status = CAM_RESRC_UNAVAIL;
 			break;
@@ -616,7 +616,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		union ccb *new_ccb;
 
 		new_ccb = (union ccb *)malloc(sizeof(*new_ccb), M_CTLFE,
-					      M_NOWAIT);
+					      M_ZERO|M_NOWAIT);
 		if (new_ccb == NULL) {
 			status = CAM_RESRC_UNAVAIL;
 			break;

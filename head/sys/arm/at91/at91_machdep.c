@@ -132,9 +132,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
-static void *boot_arg1;
-static void *boot_arg2;
-
 static struct trapframe proc0_tf;
 
 /* Static device mappings. */
@@ -209,12 +206,11 @@ const struct pmap_devmap at91_devmap[] = {
 long
 at91_ramsize(void)
 {
-	uint32_t *SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
 	uint32_t cr, mr;
 	int banks, rows, cols, bw;
 
 	if (at91_is_rm92()) {
-		SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
+		uint32_t *SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
 		cr = SDRAMC[AT91RM92_SDRAMC_CR / 4];
 		mr = SDRAMC[AT91RM92_SDRAMC_MR / 4];
 		banks = (cr & AT91RM92_SDRAMC_CR_NB_4) ? 2 : 1;
@@ -222,9 +218,9 @@ at91_ramsize(void)
 		cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
 		bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
 	} else {
-		/* This should be good for the 9260, 9261 and 9G20 as addresses
+		/* This should be good for the 9260, 9261, 9G20, 9G35 and 9X25 as addresses
 		 * and registers are the same */
-		SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G20_SDRAMC_BASE);
+		uint32_t *SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G20_SDRAMC_BASE);
 		cr = SDRAMC[AT91SAM9G20_SDRAMC_CR / 4];
 		mr = SDRAMC[AT91SAM9G20_SDRAMC_MR / 4];
 		banks = (cr & AT91SAM9G20_SDRAMC_CR_NB_4) ? 2 : 1;
@@ -237,7 +233,7 @@ at91_ramsize(void)
 }
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr  dpcpu;
@@ -248,8 +244,6 @@ initarm(void *arg, void *arg2)
 	uint32_t memsize;
 	vm_offset_t lastaddr;
 
-	boot_arg1 = arg;
-	boot_arg2 = arg2;
 	set_cpufuncs();
 	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
@@ -361,11 +355,13 @@ initarm(void *arg, void *arg2)
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 
-	cninit();
+	/* Initialize all the clocks, so that the console can work */
+	at91_pmc_init_clock();
 
 	/* Get chip id so device drivers know about differences */
-	at91_chip_id = *(volatile uint32_t *)
-		(AT91_BASE + AT91_DBGU_BASE + DBGU_C1R);
+	at91_chip_id = *(uint32_t *)(AT91_BASE + AT91_DBGU_BASE + DBGU_C1R);
+
+	cninit();
 
 	memsize = board_init();
 	physmem = memsize / PAGE_SIZE;

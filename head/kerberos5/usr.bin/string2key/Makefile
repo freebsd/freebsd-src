@@ -10,7 +10,6 @@ CFLAGS+=	-I${KRB5DIR}/kdc \
 DPADD=	${LIBHDB} ${LIBKRB5} ${LIBROKEN} ${LIBASN1} ${LIBCRYPTO} \
 	${LIBCRYPT} ${LIBVERS}
 LDADD=	-lhdb -lkrb5 -lroken -lasn1 -lcrypto -lcrypt ${LIBVERS}
-SRCS=	string2key.c headers.h
 
 .include <bsd.prog.mk>
 

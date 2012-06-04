@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2011
+.Dd May 06, 2012
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -319,6 +319,9 @@ character in its pathname relative to
 .Dq Pa \&.
 for security reasons.
 Depth-first traversal processing is implied by this option.
+The
+.Ic -delete
+primary will fail to delete a directory if it is not empty.
 Following symlinks is incompatible with this option.
 .It Ic -depth
 Always true;

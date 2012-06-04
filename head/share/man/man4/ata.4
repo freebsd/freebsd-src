@@ -102,7 +102,8 @@ limits the initial ATA mode for every device on the specified channel.
 controls SATA interface Power Management for the specified channel,
 allowing some power savings at the cost of additional command latency.
 Possible values:
-.Bl -tag -compact
+.Pp
+.Bl -tag -width 4n -offset indent -compact
 .It 0
 Interface Power Management is disabled.
 This is the default value.
@@ -113,6 +114,7 @@ The host initiates a PARTIAL PM state transition every time a port becomes idle.
 .It 3
 host initiates SLUMBER PM state transition every time port becomes idle.
 .El
+.Pp
 Modes 2 and 3 are only supported for AHCI.
 .El
 .Sh DESCRIPTION

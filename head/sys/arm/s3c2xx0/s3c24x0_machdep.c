@@ -234,7 +234,7 @@ bus_dma_get_range_nb(void)
 }
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr	kernel_l1pt;
 	int loop;

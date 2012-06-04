@@ -176,7 +176,6 @@ INCS=	hx509-private.h \
 
 SRCS=	ca.c \
 	cert.c \
-	char_map.h \
 	cms.c \
 	collector.c \
 	crypto.c \
@@ -184,12 +183,7 @@ SRCS=	ca.c \
 	error.c \
 	env.c \
 	file.c \
-	hx509-private.h \
-	hx509-protos.h \
-	hx509.h \
-	hx_locl.h \
 	sel.c \
-	sel.h \
 	sel-gram.y \
 	sel-lex.l \
 	keyset.c \
@@ -205,7 +199,6 @@ SRCS=	ca.c \
 	peer.c \
 	print.c \
 	softp11.c \
-	ref/pkcs11.h \
 	req.c \
 	revoke.c
 
@@ -275,8 +268,6 @@ CLEANFILES= ${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} ocsp_asn1_files \
 	pkcs10_asn1-template.[ch]* crmf_asn1-template.[ch]*
 
 INCS+=	ocsp_asn1.h pkcs10_asn1.h crmf_asn1.h
-
-ASN1_COMPILE=	asn1_compile
 
 ${GEN_OCSP}: ocsp.asn1 ocsp.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \

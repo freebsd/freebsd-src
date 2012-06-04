@@ -52,7 +52,8 @@ The following tunables are settable from the
 .Bl -ohang
 .It Va hint.ahci. Ns Ar X Ns Va .msi
 controls Message Signaled Interrupts (MSI) usage by the specified controller.
-.Bl -tag -compact
+.Pp
+.Bl -tag -width 4n -offset indent -compact
 .It 0
 MSI disabled;
 .It 1
@@ -72,7 +73,8 @@ controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command
 latency.
 Possible values:
-.Bl -tag -compact
+.Pp
+.Bl -tag -width 4n -offset indent -compact
 .It 0
 interface Power Management is disabled (default);
 .It 1
@@ -86,6 +88,7 @@ driver initiates PARTIAL PM state transition 1ms after port becomes idle;
 .It 5
 driver initiates SLUMBER PM state transition 125ms after port becomes idle.
 .El
+.Pp
 Some controllers, such as ICH8, do not implement modes 2 and 3 with NCQ used.
 Because of artificial entering latency, performance degradation in modes
 4 and 5 is much smaller then in modes 2 and 3.
