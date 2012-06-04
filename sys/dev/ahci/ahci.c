@@ -1458,7 +1458,9 @@ ahci_ch_intr_locked(void *data)
 	struct ahci_channel *ch = device_get_softc(dev);
 
 	mtx_lock(&ch->mtx);
+	xpt_batch_start(ch->sim);
 	ahci_ch_intr(data);
+	xpt_batch_done(ch->sim);
 	mtx_unlock(&ch->mtx);
 }
 
