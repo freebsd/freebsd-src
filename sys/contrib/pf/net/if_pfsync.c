@@ -238,7 +238,7 @@ struct pfsync_softc {
 #define	PFSYNC_BUNLOCK(sc)	mtx_unlock(&(sc)->sc_bulk_mtx)
 #define	PFSYNC_BLOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_bulk_mtx, MA_OWNED)
 
-static MALLOC_DEFINE(M_PFSYNC, "pfsync", "pfsync data");
+static MALLOC_DEFINE(M_PFSYNC, "pfsync(4)", "pfsync(4) data");
 static VNET_DEFINE(struct pfsync_softc	*, pfsyncif) = NULL;
 #define	V_pfsyncif		VNET(pfsyncif)
 static VNET_DEFINE(void *, pfsync_swi_cookie) = NULL;

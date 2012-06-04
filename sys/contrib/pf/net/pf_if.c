@@ -110,7 +110,7 @@ static VNET_DEFINE(struct pfi_ifhead, pfi_ifs);
 #define	V_pfi_ifs	VNET(pfi_ifs)
 
 #define	PFI_BUFFER_MAX		0x10000
-MALLOC_DEFINE(PFI_MTYPE, "pf ifnets", "pf interface database");
+MALLOC_DEFINE(PFI_MTYPE, "pf(4) ifnets", "pf(4) interface database");
 
 LIST_HEAD(pfi_list, pfi_kif);
 static VNET_DEFINE(struct pfi_list, pfi_unlinked_kifs);
