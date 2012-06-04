@@ -615,32 +615,34 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 	cpuset_t cpumask;
 	struct cpu_group *child;
 	struct tdq *tdq;
-	int cpu, i, hload, lload, load, total, rnd;
+	int cpu, i, hload, lload, load, total, rnd, *rndptr;
 
 	total = 0;
 	cpumask = cg->cg_mask;
 	if (match & CPU_SEARCH_LOWEST) {
 		lload = INT_MAX;
-		low->cs_load = INT_MAX;
 		lgroup = *low;
 	}
 	if (match & CPU_SEARCH_HIGHEST) {
-		hload = -1;
-		high->cs_load = -1;
+		hload = INT_MIN;
 		hgroup = *high;
 	}
 
 	/* Iterate through the child CPU groups and then remaining CPUs. */
-	for (i = 0, cpu = 0; i <= cg->cg_children; ) {
-		if (i >= cg->cg_children) {
-			while (cpu <= mp_maxid && !CPU_ISSET(cpu, &cpumask))
-				cpu++;
-			if (cpu > mp_maxid)
+	for (i = cg->cg_children, cpu = mp_maxid; i >= 0; ) {
+		if (i == 0) {
+			while (cpu >= 0 && !CPU_ISSET(cpu, &cpumask))
+				cpu--;
+			if (cpu < 0)
 				break;
 			child = NULL;
 		} else
-			child = &cg->cg_child[i];
+			child = &cg->cg_child[i - 1];
 
+		if (match & CPU_SEARCH_LOWEST)
+			lgroup.cs_cpu = -1;
+		if (match & CPU_SEARCH_HIGHEST)
+			hgroup.cs_cpu = -1;
 		if (child) {			/* Handle child CPU group. */
 			CPU_NAND(&cpumask, &child->cg_mask);
 			switch (match) {
@@ -657,23 +659,23 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 		} else {			/* Handle child CPU. */
 			tdq = TDQ_CPU(cpu);
 			load = tdq->tdq_load * 256;
-			rnd = DPCPU_SET(randomval,
-			    DPCPU_GET(randomval) * 69069 + 5) >> 26;
+			rndptr = DPCPU_PTR(randomval);
+			rnd = (*rndptr = *rndptr * 69069 + 5) >> 26;
 			if (match & CPU_SEARCH_LOWEST) {
 				if (cpu == low->cs_prefer)
 					load -= 64;
 				/* If that CPU is allowed and get data. */
-				if (CPU_ISSET(cpu, &lgroup.cs_mask) &&
-				    tdq->tdq_lowpri > lgroup.cs_pri &&
-				    tdq->tdq_load <= lgroup.cs_limit) {
+				if (tdq->tdq_lowpri > lgroup.cs_pri &&
+				    tdq->tdq_load <= lgroup.cs_limit &&
+				    CPU_ISSET(cpu, &lgroup.cs_mask)) {
 					lgroup.cs_cpu = cpu;
 					lgroup.cs_load = load - rnd;
 				}
 			}
 			if (match & CPU_SEARCH_HIGHEST)
-				if (CPU_ISSET(cpu, &hgroup.cs_mask) &&
-				    tdq->tdq_load >= hgroup.cs_limit &&
-				    tdq->tdq_transferable) {
+				if (tdq->tdq_load >= hgroup.cs_limit &&
+				    tdq->tdq_transferable &&
+				    CPU_ISSET(cpu, &hgroup.cs_mask)) {
 					hgroup.cs_cpu = cpu;
 					hgroup.cs_load = load - rnd;
 				}
@@ -682,7 +684,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 
 		/* We have info about child item. Compare it. */
 		if (match & CPU_SEARCH_LOWEST) {
-			if (lgroup.cs_load != INT_MAX &&
+			if (lgroup.cs_cpu >= 0 &&
 			    (load < lload ||
 			     (load == lload && lgroup.cs_load < low->cs_load))) {
 				lload = load;
@@ -691,17 +693,19 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 			}
 		}
 		if (match & CPU_SEARCH_HIGHEST)
-			if (hgroup.cs_load >= 0 &&
+			if (hgroup.cs_cpu >= 0 &&
 			    (load > hload ||
 			     (load == hload && hgroup.cs_load > high->cs_load))) {
 				hload = load;
 				high->cs_cpu = hgroup.cs_cpu;
 				high->cs_load = hgroup.cs_load;
 			}
-		if (child)
-			i++;
-		else
-			cpu++;
+		if (child) {
+			i--;
+			if (i == 0 && CPU_EMPTY(&cpumask))
+				break;
+		} else
+			cpu--;
 	}
 	return (total);
 }
