@@ -113,7 +113,7 @@ enum	{ PFTM_TCP_FIRST_PACKET, PFTM_TCP_OPENING, PFTM_TCP_ESTABLISHED,
 
 enum	{ PF_NOPFROUTE, PF_FASTROUTE, PF_ROUTETO, PF_DUPTO, PF_REPLYTO };
 enum	{ PF_LIMIT_STATES, PF_LIMIT_SRC_NODES, PF_LIMIT_FRAGS,
-	  PF_LIMIT_TABLES, PF_LIMIT_TABLE_ENTRIES, PF_LIMIT_MAX };
+	  PF_LIMIT_TABLE_ENTRIES, PF_LIMIT_MAX };
 #define PF_POOL_IDMASK		0x0f
 enum	{ PF_POOL_NONE, PF_POOL_BITMASK, PF_POOL_RANDOM,
 	  PF_POOL_SRCHASH, PF_POOL_ROUNDROBIN };
@@ -1412,7 +1412,6 @@ struct pf_divert {
 #define PFFRAG_FRCENT_HIWAT	50000	/* Number of fragment cache entries */
 #define PFFRAG_FRCACHE_HIWAT	10000	/* Number of fragment descriptors */
 
-#define PFR_KTABLE_HIWAT	1000	/* Number of tables */
 #define PFR_KENTRY_HIWAT	200000	/* Number of table entries */
 #define PFR_KENTRY_HIWAT_SMALL	100000	/* Number of table entries (tiny hosts) */
 
@@ -1732,10 +1731,6 @@ VNET_DECLARE(uma_zone_t,	 pf_state_z);
 #define	V_pf_state_z		 VNET(pf_state_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_key_z);
 #define	V_pf_state_key_z	 VNET(pf_state_key_z)
-VNET_DECLARE(uma_zone_t,	 pfr_ktable_z);
-#define	V_pfr_ktable_z		 VNET(pfr_ktable_z)
-VNET_DECLARE(uma_zone_t,	 pfr_kentry_z);
-#define	V_pfr_kentry_z		 VNET(pfr_kentry_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_scrub_z);
 #define	V_pf_state_scrub_z	 VNET(pf_state_scrub_z)
 
@@ -1852,6 +1847,8 @@ int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *,
 	    int);
 int	pf_socket_lookup(int, struct pf_pdesc *);   
 struct pf_state_key *pf_alloc_state_key(int);
+void	pfr_initialize(void);
+void	pfr_cleanup(void);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
 void	pfr_update_stats(struct pfr_ktable *, struct pf_addr *, sa_family_t,
 	    u_int64_t, int, int, int);

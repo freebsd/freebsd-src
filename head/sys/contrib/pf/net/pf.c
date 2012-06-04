@@ -714,16 +714,6 @@ pf_initialize()
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
 	mtx_init(&pf_unlnkdrules_mtx, "pf unlinked rules", NULL, MTX_DEF);
-
-	/* XXXGL: sort this out */
-	V_pfr_ktable_z = uma_zcreate("pf tables",
-	    sizeof(struct pfr_ktable), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    0);
-	V_pf_limits[PF_LIMIT_TABLES].zone = V_pfr_ktable_z;
-	V_pfr_kentry_z = uma_zcreate("pf table entries",
-	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    0);
-	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].zone = V_pfr_kentry_z;
 }
 
 void
@@ -765,8 +755,6 @@ pf_cleanup()
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
-	uma_zdestroy(V_pfr_ktable_z);
-	uma_zdestroy(V_pfr_kentry_z);
 }
 
 static int
