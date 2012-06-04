@@ -107,6 +107,17 @@ static MALLOC_DEFINE(M_BUSDMA_MD, "busdma_md", "DMA memory descriptors");
 static MALLOC_DEFINE(M_BUSDMA_TAG, "busdma_tag", "DMA tags");
 
 static void
+_busdma_mtag_dump(const char *func, device_t dev, struct busdma_mtag *mtag)
+{
+
+	printf("[%s: %s: min=%#lx, max=%#lx, size=%#lx, align=%#lx, "
+	    "bndry=%#lx]\n", __func__,
+	    (dev != NULL) ? device_get_nameunit(dev) : "*",
+	    mtag->dmt_minaddr, mtag->dmt_maxaddr, mtag->dmt_maxsz,
+	    mtag->dmt_align, mtag->dmt_bndry);
+}
+
+static void
 _busdma_tag_dump(const char *func, device_t dev, struct busdma_tag *tag)
 {
 
@@ -207,6 +218,22 @@ _busdma_md_create(struct busdma_tag *tag, u_int flags)
 		md->md_flags = flags;
 	}
 	return (md);
+}
+
+static int
+_busdma_iommu_xlate(device_t dev, struct busdma_mtag *mtag)
+{
+	int error;
+
+	error = 0;
+	while (!error && dev != NULL) {
+		_busdma_mtag_dump(__func__, dev, mtag);
+		error = BUSDMA_IOMMU_XLATE(dev, mtag);
+		if (!error)
+			dev = device_get_parent(dev);
+	}
+	_busdma_mtag_dump(__func__, dev, mtag);
+	return (error);
 }
 
 int
@@ -381,7 +408,6 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	struct busdma_md *md;
 	struct busdma_md_seg *seg;
 	struct busdma_mtag mtag;
-	device_t bus;
 	vm_size_t maxsz;
 	u_int idx;
 	int error;
@@ -390,18 +416,20 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	if (md == NULL)
 		return (ENOMEM);
 
+	idx = 0;
+
 	mtag.dmt_minaddr = tag->dt_minaddr;
 	mtag.dmt_maxaddr = tag->dt_maxaddr;
 	mtag.dmt_maxsz = tag->dt_maxsegsz;
 	mtag.dmt_align = tag->dt_align;
 	mtag.dmt_bndry = tag->dt_bndry;
 
-	bus = device_get_parent(tag->dt_device);
-	error = BUSDMA_IOMMU_XLATE(bus, &mtag);
-	if (error)
-		printf("BUSDMA_IOMMU_XLATE: error=%d\n", error);
+	error = _busdma_iommu_xlate(tag->dt_device, &mtag);
+	if (error) {
+		printf("_busdma_iommu_xlate: error=%d\n", error);
+		goto fail;
+	}
 
-	idx = 0;
 	maxsz = tag->dt_maxsz;
 	while (maxsz > 0 && idx < tag->dt_nsegs) {
 		seg = &md->md_seg[idx];
@@ -420,7 +448,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	}
 	if (maxsz == 0) {
 		md->md_nsegs = idx;
-		error = BUSDMA_IOMMU_MAP(bus, md);
+		error = BUSDMA_IOMMU_MAP(tag->dt_device, md);
 		if (error)
 			printf("BUSDMA_IOMMU_MAP: error=%d\n", error);
 		_busdma_md_dump(__func__, md);

@@ -31,10 +31,19 @@
 
 INTERFACE busdma;
 
+# Default implementations
+CODE {
+	static int
+	default_iommu_xlate(device_t dev, busdma_mtag_t mtag)
+	{
+		return (0);
+	}
+};
+
 METHOD int iommu_xlate {
 	device_t	dev;
 	busdma_mtag_t	mtag;
-};
+} DEFAULT default_iommu_xlate;
 
 METHOD int iommu_map {
 	device_t	dev;
