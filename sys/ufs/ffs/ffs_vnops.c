@@ -567,7 +567,7 @@ ffs_read(ap)
 			xfersize = size;
 		}
 
-		error = uiomove((char *)bp->b_data + blkoffset,
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
 		    (int)xfersize, uio);
 		if (error)
 			break;
@@ -738,8 +738,8 @@ ffs_write(ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
+		    (int)xfersize, uio);
 		/*
 		 * If the buffer is not already filled and we encounter an
 		 * error while trying to fill it, we have to clear out any

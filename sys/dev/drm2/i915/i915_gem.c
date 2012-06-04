@@ -1421,7 +1421,7 @@ unlocked_vmobj:
 
 	if ((m->flags & VPO_BUSY) != 0) {
 		DRM_UNLOCK(dev);
-		vm_page_sleep_if_busy(m, false, "915pbs");
+		vm_page_sleep(m, "915pbs");
 		goto retry;
 	}
 	m->valid = VM_PAGE_BITS_ALL;

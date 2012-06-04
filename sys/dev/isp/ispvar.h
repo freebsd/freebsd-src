@@ -724,7 +724,16 @@ struct ispsoftc {
 #define	ISP_ROLE_BOTH		(ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
 #define	ISP_ROLE_EITHER		ISP_ROLE_BOTH
 #ifndef	ISP_DEFAULT_ROLES
+/*
+ * Counterintuitively, we prefer to default to role 'none'
+ * if we are enable target mode support. This gives us the
+ * maximum flexibility as to which port will do what.
+ */
+#ifdef	ISP_TARGET_MODE
+#define	ISP_DEFAULT_ROLES	ISP_ROLE_NONE
+#else
 #define	ISP_DEFAULT_ROLES	ISP_ROLE_INITIATOR
+#endif
 #endif
 
 

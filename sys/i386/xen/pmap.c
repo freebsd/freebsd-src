@@ -179,7 +179,6 @@ __FBSDID("$FreeBSD$");
 #define PMAP_INLINE
 #endif
 
-#define PV_STATS
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
 #else
@@ -230,6 +229,7 @@ static int pat_works;			/* Is page attribute table sane? */
 /*
  * Data for the pv entry allocation mechanism
  */
+static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int shpgperproc = PMAP_SHPGPERPROC;
 
@@ -277,8 +277,9 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 	   "Number of times pmap_pte_quick didn't change PMAP1");
 static struct mtx PMAP2mutex;
 
+static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
-static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
+static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
 static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
@@ -1914,6 +1915,7 @@ pmap_growkernel(vm_offset_t addr)
 
 CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
 CTASSERT(_NPCM == 11);
+CTASSERT(_NPCPV == 336);
 
 static __inline struct pv_chunk *
 pv_to_chunk(pv_entry_t pv)
@@ -1927,7 +1929,7 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE0_9	0xfffffffful	/* Free values for index 0 through 9 */
 #define	PC_FREE10	0x0000fffful	/* Free values for index 10 */
 
-static uint32_t pc_freemask[11] = {
+static const uint32_t pc_freemask[_NPCM] = {
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
@@ -1958,66 +1960,133 @@ SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_allocs, CTLFLAG_RD, &pv_entry_allocs, 0
 	"Current number of pv entry allocs");
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
 	"Current number of spare pv entries");
-
-static int pmap_collect_inactive, pmap_collect_active;
-
-SYSCTL_INT(_vm_pmap, OID_AUTO, pmap_collect_inactive, CTLFLAG_RD, &pmap_collect_inactive, 0,
-	"Current number times pmap_collect called on inactive queue");
-SYSCTL_INT(_vm_pmap, OID_AUTO, pmap_collect_active, CTLFLAG_RD, &pmap_collect_active, 0,
-	"Current number times pmap_collect called on active queue");
 #endif
 
 /*
  * We are in a serious low memory condition.  Resort to
  * drastic measures to free some pages so we can allocate
- * another pv entry chunk.  This is normally called to
- * unmap inactive pages, and if necessary, active pages.
+ * another pv entry chunk.
  */
-static void
-pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
+static vm_page_t
+pmap_pv_reclaim(pmap_t locked_pmap)
 {
+	struct pch newtail;
+	struct pv_chunk *pc;
 	pmap_t pmap;
 	pt_entry_t *pte, tpte;
-	pv_entry_t next_pv, pv;
+	pv_entry_t pv;
 	vm_offset_t va;
-	vm_page_t m, free;
+	vm_page_t free, m, m_pc;
+	uint32_t inuse;
+	int bit, field, freed;
 
+	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
+	pmap = NULL;
+	free = m_pc = NULL;
+	TAILQ_INIT(&newtail);
 	sched_pin();
-	TAILQ_FOREACH(m, &vpq->pl, pageq) {
-		if ((m->flags & PG_MARKER) != 0 || m->hold_count || m->busy)
-			continue;
-		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
-			va = pv->pv_va;
-			pmap = PV_PMAP(pv);
+	while ((pc = TAILQ_FIRST(&pv_chunks)) != NULL && (pv_vafree == 0 ||
+	    free == NULL)) {
+		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+		if (pmap != pc->pc_pmap) {
+			if (pmap != NULL) {
+				pmap_invalidate_all(pmap);
+				if (pmap != locked_pmap)
+					PMAP_UNLOCK(pmap);
+			}
+			pmap = pc->pc_pmap;
 			/* Avoid deadlock and lock recursion. */
 			if (pmap > locked_pmap)
 				PMAP_LOCK(pmap);
-			else if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap))
+			else if (pmap != locked_pmap && !PMAP_TRYLOCK(pmap)) {
+				pmap = NULL;
+				TAILQ_INSERT_TAIL(&newtail, pc, pc_lru);
 				continue;
-			pmap->pm_stats.resident_count--;
-			pte = pmap_pte_quick(pmap, va);
-			tpte = pte_load_clear(pte);
-			KASSERT((tpte & PG_W) == 0,
-			    ("pmap_collect: wired pte %#jx", (uintmax_t)tpte));
-			if (tpte & PG_A)
-				vm_page_aflag_set(m, PGA_REFERENCED);
-			if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
-				vm_page_dirty(m);
-			free = NULL;
-			pmap_unuse_pt(pmap, va, &free);
-			pmap_invalidate_page(pmap, va);
-			pmap_free_zero_pages(free);
-			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-			free_pv_entry(pmap, pv);
-			if (pmap != locked_pmap)
-				PMAP_UNLOCK(pmap);
+			}
 		}
-		if (TAILQ_EMPTY(&m->md.pv_list))
-			vm_page_aflag_clear(m, PGA_WRITEABLE);
-	}
-	sched_unpin();
-}
 
+		/*
+		 * Destroy every non-wired, 4 KB page mapping in the chunk.
+		 */
+		freed = 0;
+		for (field = 0; field < _NPCM; field++) {
+			for (inuse = ~pc->pc_map[field] & pc_freemask[field];
+			    inuse != 0; inuse &= ~(1UL << bit)) {
+				bit = bsfl(inuse);
+				pv = &pc->pc_pventry[field * 32 + bit];
+				va = pv->pv_va;
+				pte = pmap_pte_quick(pmap, va);
+				if ((*pte & PG_W) != 0)
+					continue;
+				tpte = pte_load_clear(pte);
+				if ((tpte & PG_G) != 0)
+					pmap_invalidate_page(pmap, va);
+				m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
+				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+					vm_page_dirty(m);
+				if ((tpte & PG_A) != 0)
+					vm_page_aflag_set(m, PGA_REFERENCED);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+				if (TAILQ_EMPTY(&m->md.pv_list))
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
+				pc->pc_map[field] |= 1UL << bit;
+				pmap_unuse_pt(pmap, va, &free);
+				freed++;
+			}
+		}
+		if (freed == 0) {
+			TAILQ_INSERT_TAIL(&newtail, pc, pc_lru);
+			continue;
+		}
+		/* Every freed mapping is for a 4 KB page. */
+		pmap->pm_stats.resident_count -= freed;
+		PV_STAT(pv_entry_frees += freed);
+		PV_STAT(pv_entry_spare += freed);
+		pv_entry_count -= freed;
+		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+		for (field = 0; field < _NPCM; field++)
+			if (pc->pc_map[field] != pc_freemask[field]) {
+				TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc,
+				    pc_list);
+				TAILQ_INSERT_TAIL(&newtail, pc, pc_lru);
+
+				/*
+				 * One freed pv entry in locked_pmap is
+				 * sufficient.
+				 */
+				if (pmap == locked_pmap)
+					goto out;
+				break;
+			}
+		if (field == _NPCM) {
+			PV_STAT(pv_entry_spare -= _NPCPV);
+			PV_STAT(pc_chunk_count--);
+			PV_STAT(pc_chunk_frees++);
+			/* Entire chunk is free; return it. */
+			m_pc = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
+			pmap_qremove((vm_offset_t)pc, 1);
+			pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
+			break;
+		}
+	}
+out:
+	sched_unpin();
+	TAILQ_CONCAT(&pv_chunks, &newtail, pc_lru);
+	if (pmap != NULL) {
+		pmap_invalidate_all(pmap);
+		if (pmap != locked_pmap)
+			PMAP_UNLOCK(pmap);
+	}
+	if (m_pc == NULL && pv_vafree != 0 && free != NULL) {
+		m_pc = free;
+		free = m_pc->right;
+		/* Recycle a freed page table page. */
+		m_pc->wire_count = 1;
+		atomic_add_int(&cnt.v_wire_count, 1);
+	}
+	pmap_free_zero_pages(free);
+	return (m_pc);
+}
 
 /*
  * free the pv_entry back to the free list
@@ -2025,7 +2094,6 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
-	vm_page_t m;
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
@@ -2039,13 +2107,30 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	field = idx / 32;
 	bit = idx % 32;
 	pc->pc_map[field] |= 1ul << bit;
-	/* move to head of list */
-	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	for (idx = 0; idx < _NPCM; idx++)
 		if (pc->pc_map[idx] != pc_freemask[idx]) {
-			TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+			/*
+			 * 98% of the time, pc is already at the head of the
+			 * list.  If it isn't already, move it to the head.
+			 */
+			if (__predict_false(TAILQ_FIRST(&pmap->pm_pvchunk) !=
+			    pc)) {
+				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+				TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc,
+				    pc_list);
+			}
 			return;
 		}
+	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+	free_pv_chunk(pc);
+}
+
+static void
+free_pv_chunk(struct pv_chunk *pc)
+{
+	vm_page_t m;
+
+ 	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
@@ -2062,11 +2147,10 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
  * when needed.
  */
 static pv_entry_t
-get_pv_entry(pmap_t pmap, int try)
+get_pv_entry(pmap_t pmap, boolean_t try)
 {
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
-	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
 	struct pv_chunk *pc;
@@ -2081,7 +2165,6 @@ get_pv_entry(pmap_t pmap, int try)
 			printf("Approaching the limit on PV entries, consider "
 			    "increasing either the vm.pmap.shpgperproc or the "
 			    "vm.pmap.pv_entry_max tunable.\n");
-	pq = NULL;
 retry:
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
@@ -2111,29 +2194,16 @@ retry:
 	 * queues lock.  If "pv_vafree" is currently non-empty, it will
 	 * remain non-empty until pmap_ptelist_alloc() completes.
 	 */
-	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, (pq ==
-	    &vm_page_queues[PQ_ACTIVE] ? VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL) |
+	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 		if (try) {
 			pv_entry_count--;
 			PV_STAT(pc_chunk_tryfail++);
 			return (NULL);
 		}
-		/*
-		 * Reclaim pv entries: At first, destroy mappings to
-		 * inactive pages.  After that, if a pv chunk entry
-		 * is still needed, destroy mappings to active pages.
-		 */
-		if (pq == NULL) {
-			PV_STAT(pmap_collect_inactive++);
-			pq = &vm_page_queues[PQ_INACTIVE];
-		} else if (pq == &vm_page_queues[PQ_INACTIVE]) {
-			PV_STAT(pmap_collect_active++);
-			pq = &vm_page_queues[PQ_ACTIVE];
-		} else
-			panic("get_pv_entry: increase vm.pmap.shpgperproc");
-		pmap_collect(pmap, pq);
-		goto retry;
+		m = pmap_pv_reclaim(pmap);
+		if (m == NULL)
+			goto retry;
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
@@ -2145,6 +2215,7 @@ retry:
 	pc->pc_map[0] = pc_freemask[0] & ~1ul;	/* preallocated bit 0 */
 	for (field = 1; field < _NPCM; field++)
 		pc->pc_map[field] = pc_freemask[field];
+	TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_lru);
 	pv = &pc->pc_pventry[0];
 	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 	PV_STAT(pv_entry_spare += _NPCPV - 1);
@@ -3470,7 +3541,7 @@ pmap_remove_pages(pmap_t pmap)
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
 		for (field = 0; field < _NPCM; field++) {
-			inuse = (~(pc->pc_map[field])) & pc_freemask[field];
+			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
 				bit = bsfl(inuse);
 				bitmask = 1UL << bit;
@@ -3531,15 +3602,8 @@ pmap_remove_pages(pmap_t pmap)
 		}
 		PT_UPDATES_FLUSH();
 		if (allfree) {
-			PV_STAT(pv_entry_spare -= _NPCPV);
-			PV_STAT(pc_chunk_count--);
-			PV_STAT(pc_chunk_frees++);
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-			pmap_qremove((vm_offset_t)pc, 1);
-			vm_page_unwire(m, 0);
-			vm_page_free(m);
-			pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
+			free_pv_chunk(pc);
 		}
 	}
 	PT_UPDATES_FLUSH();

@@ -76,7 +76,7 @@ static int bare_smp_start_cpu(platform_t, struct pcpu *cpu);
 static void booke_reset(platform_t);
 
 static platform_method_t bare_methods[] = {
-	PLATFORMMETHOD(platform_probe, 		bare_probe),
+	PLATFORMMETHOD(platform_probe,		bare_probe),
 	PLATFORMMETHOD(platform_mem_regions,	bare_mem_regions),
 	PLATFORMMETHOD(platform_timebase_freq,	bare_timebase_freq),
 
@@ -143,9 +143,9 @@ bare_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
 	int i, rv;
 
 	rv = fdt_get_mem_regions(avail_regions, availsz, &memsize);
-
 	if (rv != 0)
-		return;
+		panic("%s: could not retrieve mem regions from the 'memory' "
+		    "node, error: %d", __func__, rv);
 
 	for (i = 0; i < *availsz; i++) {
 		if (avail_regions[i].mr_start < 1048576) {

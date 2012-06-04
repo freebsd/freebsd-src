@@ -7,7 +7,6 @@ FILES=	README \
 	cron \
 	ftpd \
 	imap \
-	kde \
 	login \
 	other \
 	passwd pop3 \

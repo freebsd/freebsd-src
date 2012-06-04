@@ -1,5 +1,9 @@
 #$FreeBSD$
+
+.include <bsd.own.mk>
+
 .PATH:  ${.CURDIR}/../../dev/ixgbe
+
 KMOD    = ixgbe
 SRCS    = device_if.h bus_if.h pci_if.h
 SRCS	+= opt_inet.h opt_inet6.h

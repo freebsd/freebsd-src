@@ -65,6 +65,7 @@ struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
 	u_int8_t quirks;
 #define	CAM_QUIRK_MAXTAGS	0x01
+	u_int mintags;
 	u_int maxtags;
 };
 
@@ -153,7 +154,7 @@ static struct ata_quirk_entry ata_quirk_table[] =
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
 		  /*vendor*/"*", /*product*/"*", /*revision*/"*"
 		},
-		/*quirks*/0, /*maxtags*/0
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
 };
 
@@ -164,9 +165,7 @@ static cam_status	proberegister(struct cam_periph *periph,
 				      void *arg);
 static void	 probeschedule(struct cam_periph *probe_periph);
 static void	 probestart(struct cam_periph *periph, union ccb *start_ccb);
-//static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
-//static int       proberequestbackoff(struct cam_periph *periph,
-//				     struct cam_ed *device);
+static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
 static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
 static void	 probecleanup(struct cam_periph *periph);
 static void	 ata_find_quirk(struct cam_ed *device);
@@ -179,6 +178,7 @@ static struct cam_ed *
 		 ata_alloc_device(struct cam_eb *bus, struct cam_et *target,
 				   lun_id_t lun_id);
 static void	 ata_device_transport(struct cam_path *path);
+static void	 ata_get_transfer_settings(struct ccb_trans_settings *cts);
 static void	 ata_set_transfer_settings(struct ccb_trans_settings *cts,
 					    struct cam_ed *device,
 					    int async_update);
@@ -412,6 +412,7 @@ negotiate:
 			path->device->inq_flags &= ~SID_DMA;
 		else
 			path->device->inq_flags |= SID_DMA;
+		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
@@ -660,7 +661,7 @@ negotiate:
 	}
 	xpt_action(start_ccb);
 }
-#if 0
+
 static void
 proberequestdefaultnegotiation(struct cam_periph *periph)
 {
@@ -670,119 +671,14 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_USER_SETTINGS;
 	xpt_action((union ccb *)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		return;
-	}
+	cts.xport_specific.valid = 0;
 	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb *)&cts);
 }
 
-/*
- * Backoff Negotiation Code- only pertinent for SPI devices.
- */
-static int
-proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
-{
-	struct ccb_trans_settings cts;
-	struct ccb_trans_settings_spi *spi;
-
-	memset(&cts, 0, sizeof (cts));
-	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	cts.type = CTS_TYPE_CURRENT_SETTINGS;
-	xpt_action((union ccb *)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if (bootverbose) {
-			xpt_print(periph->path,
-			    "failed to get current device settings\n");
-		}
-		return (0);
-	}
-	if (cts.transport != XPORT_SPI) {
-		if (bootverbose) {
-			xpt_print(periph->path, "not SPI transport\n");
-		}
-		return (0);
-	}
-	spi = &cts.xport_specific.spi;
-
-	/*
-	 * We cannot renegotiate sync rate if we don't have one.
-	 */
-	if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0) {
-		if (bootverbose) {
-			xpt_print(periph->path, "no sync rate known\n");
-		}
-		return (0);
-	}
-
-	/*
-	 * We'll assert that we don't have to touch PPR options- the
-	 * SIM will see what we do with period and offset and adjust
-	 * the PPR options as appropriate.
-	 */
-
-	/*
-	 * A sync rate with unknown or zero offset is nonsensical.
-	 * A sync period of zero means Async.
-	 */
-	if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0
-	 || spi->sync_offset == 0 || spi->sync_period == 0) {
-		if (bootverbose) {
-			xpt_print(periph->path, "no sync rate available\n");
-		}
-		return (0);
-	}
-
-	if (device->flags & CAM_DEV_DV_HIT_BOTTOM) {
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-		    ("hit async: giving up on DV\n"));
-		return (0);
-	}
-
-
-	/*
-	 * Jump sync_period up by one, but stop at 5MHz and fall back to Async.
-	 * We don't try to remember 'last' settings to see if the SIM actually
-	 * gets into the speed we want to set. We check on the SIM telling
-	 * us that a requested speed is bad, but otherwise don't try and
-	 * check the speed due to the asynchronous and handshake nature
-	 * of speed setting.
-	 */
-	spi->valid = CTS_SPI_VALID_SYNC_RATE | CTS_SPI_VALID_SYNC_OFFSET;
-	for (;;) {
-		spi->sync_period++;
-		if (spi->sync_period >= 0xf) {
-			spi->sync_period = 0;
-			spi->sync_offset = 0;
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-			    ("setting to async for DV\n"));
-			/*
-			 * Once we hit async, we don't want to try
-			 * any more settings.
-			 */
-			device->flags |= CAM_DEV_DV_HIT_BOTTOM;
-		} else if (bootverbose) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-			    ("DV: period 0x%x\n", spi->sync_period));
-			printf("setting period to 0x%x\n", spi->sync_period);
-		}
-		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-		cts.type = CTS_TYPE_CURRENT_SETTINGS;
-		xpt_action((union ccb *)&cts);
-		if ((cts.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			break;
-		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-		    ("DV: failed to set period 0x%x\n", spi->sync_period));
-		if (spi->sync_period == 0) {
-			return (0);
-		}
-	}
-	return (1);
-}
-#endif
 static void
 probedone(struct cam_periph *periph, union ccb *done_ccb)
 {
@@ -1017,9 +913,11 @@ noerror:
 			}
 
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
+			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		}
 		if (ident_buf->satacapabilities & ATA_SUPPORT_NCQ) {
-			path->device->mintags = path->device->maxtags =
+			path->device->mintags = 2;
+			path->device->maxtags =
 			    ATA_QUEUE_LEN(ident_buf->queue) + 1;
 		}
 		ata_find_quirk(path->device);
@@ -1040,10 +938,10 @@ noerror:
 				cts.xport_specific.sata.tags = path->device->maxtags;
 				cts.xport_specific.sata.valid = CTS_SATA_VALID_TAGS;
 				xpt_action((union ccb *)&cts);
-				/* Reconfigure queues for tagged queueing. */
-				xpt_start_tags(path);
 			}
 		}
+		if (changed)
+			proberequestdefaultnegotiation(periph);
 		ata_device_transport(path);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
@@ -1327,9 +1225,9 @@ done:
 		done_ccb->ccb_h.status = found ? CAM_REQ_CMP : CAM_REQ_CMP_ERR;
 		xpt_done(done_ccb);
 	}
+	cam_periph_invalidate(periph);
 	cam_release_devq(periph->path,
 	    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
-	cam_periph_invalidate(periph);
 	cam_periph_release_locked(periph);
 }
 
@@ -1355,8 +1253,10 @@ ata_find_quirk(struct cam_ed *device)
 
 	quirk = (struct ata_quirk_entry *)match;
 	device->quirk = quirk;
-	if (quirk->quirks & CAM_QUIRK_MAXTAGS)
-		device->mintags = device->maxtags = quirk->maxtags;
+	if (quirk->quirks & CAM_QUIRK_MAXTAGS) {
+		device->mintags = quirk->mintags;
+		device->maxtags = quirk->maxtags;
+	}
 }
 
 typedef struct {
@@ -1580,12 +1480,17 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	}
 
 	if ((old_periph = cam_periph_find(path, "aprobe")) != NULL) {
-		probe_softc *softc;
+		if ((old_periph->flags & CAM_PERIPH_INVALID) == 0) {
+			probe_softc *softc;
 
-		softc = (probe_softc *)old_periph->softc;
-		TAILQ_INSERT_TAIL(&softc->request_ccbs, &request_ccb->ccb_h,
-				  periph_links.tqe);
-		softc->restart = 1;
+			softc = (probe_softc *)old_periph->softc;
+			TAILQ_INSERT_TAIL(&softc->request_ccbs,
+				&request_ccb->ccb_h, periph_links.tqe);
+			softc->restart = 1;
+		} else {
+			request_ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(request_ccb);
+		}
 	} else {
 		status = cam_periph_alloc(proberegister, NULL, probecleanup,
 					  probestart, "aprobe",
@@ -1818,10 +1723,7 @@ ata_action(union ccb *start_ccb)
 		break;
 	case XPT_GET_TRAN_SETTINGS:
 	{
-		struct cam_sim *sim;
-
-		sim = start_ccb->ccb_h.path->bus->sim;
-		(*(sim->sim_action))(sim, start_ccb);
+		ata_get_transfer_settings(&start_ccb->cts);
 		break;
 	}
 	case XPT_SCSI_IO:
@@ -1860,14 +1762,48 @@ ata_action(union ccb *start_ccb)
 }
 
 static void
+ata_get_transfer_settings(struct ccb_trans_settings *cts)
+{
+	struct	ccb_trans_settings_ata *ata;
+	struct	ccb_trans_settings_scsi *scsi;
+	struct	cam_ed *device;
+	struct	cam_sim *sim;
+
+	device = cts->ccb_h.path->device;
+	sim = cts->ccb_h.path->bus->sim;
+	(*(sim->sim_action))(sim, (union ccb *)cts);
+
+	if (cts->protocol == PROTO_ATA) {
+		ata = &cts->proto_specific.ata;
+		if ((ata->valid & CTS_ATA_VALID_TQ) == 0) {
+			ata->valid |= CTS_ATA_VALID_TQ;
+			if (cts->type == CTS_TYPE_USER_SETTINGS ||
+			    (device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0 ||
+			    (device->inq_flags & SID_CmdQue) != 0)
+				ata->flags |= CTS_ATA_FLAGS_TAG_ENB;
+		}
+	}
+	if (cts->protocol == PROTO_SCSI) {
+		scsi = &cts->proto_specific.scsi;
+		if ((scsi->valid & CTS_SCSI_VALID_TQ) == 0) {
+			scsi->valid |= CTS_SCSI_VALID_TQ;
+			if (cts->type == CTS_TYPE_USER_SETTINGS ||
+			    (device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0 ||
+			    (device->inq_flags & SID_CmdQue) != 0)
+				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+		}
+	}
+}
+
+static void
 ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			   int async_update)
 {
 	struct	ccb_pathinq cpi;
-	struct	ccb_trans_settings cur_cts;
+	struct	ccb_trans_settings_ata *ata;
 	struct	ccb_trans_settings_scsi *scsi;
-	struct	ccb_trans_settings_scsi *cur_scsi;
 	struct	cam_sim *sim;
+	struct	ata_params *ident_data;
 	struct	scsi_inquiry_data *inq_data;
 
 	if (device == NULL) {
@@ -1927,95 +1863,63 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	}
 
 	sim = cts->ccb_h.path->bus->sim;
-
-	/*
-	 * Nothing more of interest to do unless
-	 * this is a device connected via the
-	 * SCSI protocol.
-	 */
-	if (cts->protocol != PROTO_SCSI) {
-		if (async_update == FALSE)
-			(*(sim->sim_action))(sim, (union ccb *)cts);
-		return;
-	}
-
+	ident_data = &device->ident_data;
 	inq_data = &device->inq_data;
-	scsi = &cts->proto_specific.scsi;
+	if (cts->protocol == PROTO_ATA)
+		ata = &cts->proto_specific.ata;
+	else
+		ata = NULL;
+	if (cts->protocol == PROTO_SCSI)
+		scsi = &cts->proto_specific.scsi;
+	else
+		scsi = NULL;
 	xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
-	/* SCSI specific sanity checking */
+	/* Sanity checking */
 	if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0
-	 || (INQ_DATA_TQ_ENABLED(inq_data)) == 0
+	 || (ata && (ident_data->satacapabilities & ATA_SUPPORT_NCQ) == 0)
+	 || (scsi && (INQ_DATA_TQ_ENABLED(inq_data)) == 0)
 	 || (device->queue_flags & SCP_QUEUE_DQUE) != 0
 	 || (device->mintags == 0)) {
 		/*
 		 * Can't tag on hardware that doesn't support tags,
 		 * doesn't have it enabled, or has broken tag support.
 		 */
-		scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-	}
-
-	if (async_update == FALSE) {
-		/*
-		 * Perform sanity checking against what the
-		 * controller and device can do.
-		 */
-		xpt_setup_ccb(&cur_cts.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
-		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-		cur_cts.type = cts->type;
-		xpt_action((union ccb *)&cur_cts);
-		if ((cur_cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			return;
-		}
-		cur_scsi = &cur_cts.proto_specific.scsi;
-		if ((scsi->valid & CTS_SCSI_VALID_TQ) == 0) {
-			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-			scsi->flags |= cur_scsi->flags & CTS_SCSI_FLAGS_TAG_ENB;
-		}
-		if ((cur_scsi->valid & CTS_SCSI_VALID_TQ) == 0)
+		if (ata)
+			ata->flags &= ~CTS_ATA_FLAGS_TAG_ENB;
+		if (scsi)
 			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
 	}
 
-	if (cts->type == CTS_TYPE_CURRENT_SETTINGS
-	 && (scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
-		int device_tagenb;
+	/* Start/stop tags use. */
+	if (cts->type == CTS_TYPE_CURRENT_SETTINGS &&
+	    ((ata && (ata->valid & CTS_ATA_VALID_TQ) != 0) ||
+	     (scsi && (scsi->valid & CTS_SCSI_VALID_TQ) != 0))) {
+		int nowt, newt = 0;
 
-		/*
-		 * If we are transitioning from tags to no-tags or
-		 * vice-versa, we need to carefully freeze and restart
-		 * the queue so that we don't overlap tagged and non-tagged
-		 * commands.  We also temporarily stop tags if there is
-		 * a change in transfer negotiation settings to allow
-		 * "tag-less" negotiation.
-		 */
-		if ((device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
-		 || (device->inq_flags & SID_CmdQue) != 0)
-			device_tagenb = TRUE;
-		else
-			device_tagenb = FALSE;
+		nowt = ((device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0 ||
+			(device->inq_flags & SID_CmdQue) != 0);
+		if (ata)
+			newt = (ata->flags & CTS_ATA_FLAGS_TAG_ENB) != 0;
+		if (scsi)
+			newt = (scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0;
 
-		if (((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0
-		  && device_tagenb == FALSE)
-		 || ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) == 0
-		  && device_tagenb == TRUE)) {
-
-			if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0) {
-				/*
-				 * Delay change to use tags until after a
-				 * few commands have gone to this device so
-				 * the controller has time to perform transfer
-				 * negotiations without tagged messages getting
-				 * in the way.
-				 */
-				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
-				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
-			} else {
-				xpt_stop_tags(cts->ccb_h.path);
-			}
-		}
+		if (newt && !nowt) {
+			/*
+			 * Delay change to use tags until after a
+			 * few commands have gone to this device so
+			 * the controller has time to perform transfer
+			 * negotiations without tagged messages getting
+			 * in the way.
+			 */
+			device->tag_delay_count = CAM_TAG_DELAY_COUNT;
+			device->flags |= CAM_DEV_TAG_AFTER_COUNT;
+		} else if (nowt && !newt)
+			xpt_stop_tags(cts->ccb_h.path);
 	}
+
 	if (async_update == FALSE)
 		(*(sim->sim_action))(sim, (union ccb *)cts);
 }
@@ -2105,11 +2009,11 @@ ata_announce_periph(struct cam_periph *periph)
 	/* Report connection speed */
 	speed = cpi.base_transfer_speed;
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
-		struct	ccb_trans_settings_ata *ata =
+		struct	ccb_trans_settings_pata *pata =
 		    &cts.xport_specific.ata;
 
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			speed = ata_mode2speed(ata->mode);
+		if (pata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(pata->mode);
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
 		struct	ccb_trans_settings_sata *sata =
@@ -2128,16 +2032,16 @@ ata_announce_periph(struct cam_periph *periph)
 		       periph->unit_number, speed);
 	/* Report additional information about connection */
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
+		struct ccb_trans_settings_pata *pata =
 		    &cts.xport_specific.ata;
 
 		printf(" (");
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			printf("%s, ", ata_mode2string(ata->mode));
-		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
-			printf("ATAPI %dbytes, ", ata->atapi);
-		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO %dbytes", ata->bytecount);
+		if (pata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(pata->mode));
+		if ((pata->valid & CTS_ATA_VALID_ATAPI) && pata->atapi != 0)
+			printf("ATAPI %dbytes, ", pata->atapi);
+		if (pata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf("PIO %dbytes", pata->bytecount);
 		printf(")");
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
