@@ -2021,7 +2021,7 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE1	0xfffffffffffffffful
 #define	PC_FREE2	0x000000fffffffffful
 
-static uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
+static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
 SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 	"Current number of pv entries");
@@ -2070,7 +2070,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 	pv_entry_t pv;
 	vm_offset_t va;
 	vm_page_t free, m, m_pc;
-	uint64_t inuse, freemask;
+	uint64_t inuse;
 	int bit, field, freed;
 	
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
@@ -2102,7 +2102,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 		 */
 		freed = 0;
 		for (field = 0; field < _NPCM; field++) {
-			freemask = 0;
 			for (inuse = ~pc->pc_map[field] & pc_freemask[field];
 			    inuse != 0; inuse &= ~(1UL << bit)) {
 				bit = bsfq(inuse);
@@ -2131,16 +2130,16 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 						    PGA_WRITEABLE);
 					}
 				}
+				pc->pc_map[field] |= 1UL << bit;
 				pmap_unuse_pt(pmap, va, *pde, &free);	
-				freemask |= 1UL << bit;
 				freed++;
 			}
-			pc->pc_map[field] |= freemask;
 		}
 		if (freed == 0) {
 			TAILQ_INSERT_TAIL(&newtail, pc, pc_lru);
 			continue;
 		}
+		/* Every freed mapping is for a 4 KB page. */
 		pmap_resident_count_dec(pmap, freed);
 		PV_STAT(pv_entry_frees += freed);
 		PV_STAT(pv_entry_spare += freed);
@@ -2260,10 +2259,6 @@ retry:
 				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc,
 				    pc_list);
-			}
-			if (pc != TAILQ_LAST(&pv_chunks, pch)) {
-				TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
-				TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_lru);
 			}
 			pv_entry_count++;
 			PV_STAT(pv_entry_spare--);
@@ -4137,7 +4132,7 @@ pmap_remove_pages(pmap_t pmap)
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
 		for (field = 0; field < _NPCM; field++) {
-			inuse = (~(pc->pc_map[field])) & pc_freemask[field];
+			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
 				bit = bsfq(inuse);
 				bitmask = 1UL << bit;
