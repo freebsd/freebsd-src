@@ -157,9 +157,9 @@ TAILQ_HEAD(pf_tags, pf_tagname);
 VNET_DEFINE(struct pf_tags, pf_tags);
 #define	V_pf_qids		VNET(pf_qids)
 VNET_DEFINE(struct pf_tags, pf_qids);
-static MALLOC_DEFINE(M_PFTAG, "pf(4) tag", "pf(4) tag names");
-static MALLOC_DEFINE(M_PFALTQ, "pf(4) altq", "pf(4) altq configuration db");
-static MALLOC_DEFINE(M_PFRULE, "pf(4) rules", "pf(4) rules");
+static MALLOC_DEFINE(M_PFTAG, "pf_tag", "pf(4) tag names");
+static MALLOC_DEFINE(M_PFALTQ, "pf_altq", "pf(4) altq configuration db");
+static MALLOC_DEFINE(M_PFRULE, "pf_rule", "pf(4) rules");
 
 #if (PF_QNAME_SIZE != PF_TAG_NAME_SIZE)
 #error PF_QNAME_SIZE must be equal to PF_TAG_NAME_SIZE

@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
 
-static MALLOC_DEFINE(M_PFOSFP, "pf(4) osfp", "pf(4) operating system fingerprints");
+static MALLOC_DEFINE(M_PFOSFP, "pf_osfp", "pf(4) operating system fingerprints");
 #define	DPFPRINTF(format, x...)		\
 	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
