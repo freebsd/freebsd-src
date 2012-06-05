@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2010
+.Dd May 25, 2012
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -301,7 +301,7 @@ one of the synchronization primitives discussed:
 .It mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
 .It sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
 .It rwlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
-.It rmlock    Ta \&ok Ta \&ok Ta \&ok-5 Ta \&ok Ta \&ok-2 Ta \&ok-5
+.It rmlock    Ta \&ok Ta \&ok Ta \&no-5 Ta \&ok Ta \&ok-2 Ta \&no-5
 .El
 .Pp
 .Em *1
