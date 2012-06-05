@@ -1408,12 +1408,7 @@ struct pf_divert {
 };
 
 #define PFFRAG_FRENT_HIWAT	5000	/* Number of fragment entries */
-#define PFFRAG_FRAG_HIWAT	1000	/* Number of fragmented packets */
-#define PFFRAG_FRCENT_HIWAT	50000	/* Number of fragment cache entries */
-#define PFFRAG_FRCACHE_HIWAT	10000	/* Number of fragment descriptors */
-
 #define PFR_KENTRY_HIWAT	200000	/* Number of table entries */
-#define PFR_KENTRY_HIWAT_SMALL	100000	/* Number of table entries (tiny hosts) */
 
 /*
  * ioctl parameter structures
