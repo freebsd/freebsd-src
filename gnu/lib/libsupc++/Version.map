@@ -126,11 +126,19 @@ CXXABI_1.3 {
     # __gnu_cxx::_verbose_terminate_handler()
     _ZN9__gnu_cxx27__verbose_terminate_handlerEv;
 
-    # new / delete operators
+    # operator new and new[], 32-bit size_t
     _Znaj;
     _ZnajRKSt9nothrow_t;
     _Znwj;
     _ZnwjRKSt9nothrow_t;
+
+    # operator new and new[], 64-bit size_t
+    _Znam;
+    _ZnamRKSt9nothrow_t;
+    _Znwm;
+    _ZnwmRKSt9nothrow_t;
+
+    # operator delete and delete[]
     _ZdaPv;
     _ZdaPvRKSt9nothrow_t;
     _ZdlPv;
