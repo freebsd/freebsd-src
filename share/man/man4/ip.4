@@ -165,7 +165,7 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
@@ -184,7 +184,7 @@ structure followed by the
 address.
 The cmsghdr fields should have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_SENDSRCADDR
 .Ed
@@ -279,7 +279,7 @@ that contains a cmsghdr structure followed by the
 .Tn TTL .
 The cmsghdr fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(u_char)
+cmsg_len = CMSG_LEN(sizeof(u_char))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVTTL
 .Ed
@@ -307,7 +307,7 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct sockaddr_dl)
+cmsg_len = CMSG_LEN(sizeof(struct sockaddr_dl))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVIF
 .Ed
