@@ -54,7 +54,7 @@ realpath(const char * __restrict path, char * __restrict resolved)
 	char *p, *q, *s;
 	size_t left_len, resolved_len;
 	unsigned symlinks;
-	int m, serrno, slen;
+	int m, slen;
 	char left[PATH_MAX], next_token[PATH_MAX], symlink[PATH_MAX];
 
 	if (path == NULL) {
@@ -82,11 +82,9 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		left_len = strlcpy(left, path + 1, sizeof(left));
 	} else {
 		if (getcwd(resolved, PATH_MAX) == NULL) {
-			if (m) {
-				serrno = errno;
+			if (m)
 				free(resolved);
-				errno = serrno;
-			} else {
+			else {
 				resolved[0] = '.';
 				resolved[1] = '\0';
 			}
@@ -144,11 +142,8 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			 * occurence to not implement lookahead.
 			 */
 			if (lstat(resolved, &sb) != 0) {
-				if (m) {
-					serrno = errno;
+				if (m)
 					free(resolved);
-					errno = serrno;
-				}
 				return (NULL);
 			}
 			if (!S_ISDIR(sb.st_mode)) {
@@ -188,11 +183,8 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		if (lstat(resolved, &sb) != 0) {
 			if (errno != ENOENT || p != NULL)
 				errno = ENOTDIR;
-			if (m) {
-				serrno = errno;
+			if (m)
 				free(resolved);
-				errno = serrno;
-			}
 			return (NULL);
 		}
 		if (S_ISLNK(sb.st_mode)) {
@@ -204,11 +196,8 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			}
 			slen = readlink(resolved, symlink, sizeof(symlink) - 1);
 			if (slen < 0) {
-				if (m) {
-					serrno = errno;
+				if (m)
 					free(resolved);
-					errno = serrno;
-				}
 				return (NULL);
 			}
 			symlink[slen] = '\0';
