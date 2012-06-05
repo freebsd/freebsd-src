@@ -104,7 +104,7 @@ xen_pfn_t *xen_phys_machine;
 #define	PHYSMAP_SIZE	(2 * VM_PHYSSEG_MAX)
 vm_offset_t pa_index = 0;
 vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
-vm_paddr_t dump_avail[0]; /* XXX: todo */
+vm_paddr_t dump_avail[2] = {0, 0}; /* XXX: todo */
 
 struct pcpu __pcpu[MAXCPU];
 
@@ -113,6 +113,10 @@ __aligned(PAGE_SIZE); /* vcpu0 global descriptor tables */
 
 struct mtx icu_lock;
 struct mtx dt_lock;	/* lock for GDT and LDT */ /* XXX : please review its use */
+
+/* Event callback prototypes */
+void Xhypervisor_callback(void);
+void failsafe_callback(void);
 
 vm_paddr_t initxen(struct start_info *);
 
@@ -253,6 +257,25 @@ init_exception_table(void)
 
 	PANIC_IF(HYPERVISOR_set_trap_table(exception_table));
 
+}
+
+static void init_event_callbacks(void)
+{
+	struct callback_register event = {
+		.type = CALLBACKTYPE_event,
+		.address = (unsigned long)Xhypervisor_callback
+	};
+
+	struct callback_register failsafe = {
+		.type = CALLBACKTYPE_failsafe,
+		.address = (unsigned long)failsafe_callback
+	};
+
+	PANIC_IF(HYPERVISOR_callback_op(CALLBACKOP_register, &event));
+
+	PANIC_IF(HYPERVISOR_callback_op(CALLBACKOP_register, &failsafe));
+
+	/* XXX: syscall */
 }
 
 #define XEN_CPUID_LEAF_HYPERCALL XEN_CPUID_LEAF(3 - 1)
@@ -405,6 +428,9 @@ initxen(struct start_info *si)
 
 	/* exception handling */
 	init_exception_table();
+
+	/* Event handling */
+	init_event_callbacks();
 
 	identify_cpu();		/* Final stage of CPU initialization */
 

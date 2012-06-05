@@ -40,6 +40,8 @@
 
 #include "assym.s"
 
+#define T_EVENT T_RESERVED /* XXX: */
+
 /*
  * We're guaranteed that sizeof(struct vcpu_info) == 64 bytes.
  * log2(64) == 6;
@@ -142,6 +144,11 @@
 	cld			; \
 	movq	%rsp, %rdi	; \
 	call	trap
+
+#define EVENT_UPCALL \
+	cld			; \
+	movq	%rsp, %rdi	; \
+	call	evtchn_do_upcall
 
 #define DO_AST_MAYBE \
 	testb	$SEL_RPL_MASK, TF_CS(%rsp) /* are we returning to user mode? */	; \
@@ -473,3 +480,20 @@ ENTRY(fork_trampoline)
 	INTR_EXIT		;
 	/* XXX: more work required - %rsp offset calc etc. */
 
+IDTVEC(hypervisor_callback)	/* Xen only */
+	TRAP_FRAME_ENTER_NOERR	;
+	TRAP_PROLOGUE(T_EVENT)	;
+	SAVE_SEGMENT_REGS	;
+	SAVE_GENERAL_REGS	;
+	DO_STI_MAYBE		;
+	EVENT_UPCALL		;
+	DO_AST_MAYBE		;
+	RESTORE_GENERAL_REGS	;
+	RESTORE_SEGMENT_REGS	;
+	TRAP_FRAME_EXIT_NOERR   ;
+	INTR_EXIT		;
+
+ENTRY(failsafe_callback)
+	movq	msgfailsafe, %rdi ;
+	call	panic		; /* panic("..."); */
+msgfailsafe:	.asciz	"Failsafe upcall triggered\n"
