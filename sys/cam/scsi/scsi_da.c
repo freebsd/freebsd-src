@@ -942,9 +942,8 @@ daopen(struct disk *dp)
 	softc = (struct da_softc *)periph->softc;
 	softc->flags |= DA_FLAG_OPEN;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("daopen: disk=%s%d (unit %d)\n", dp->d_name, dp->d_unit,
-	     unit));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("daopen\n"));
 
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
 		/* Invalidate our pack information. */
@@ -998,6 +997,9 @@ daclose(struct disk *dp)
 	}
 
 	softc = (struct da_softc *)periph->softc;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("daclose\n"));
 
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0
 	 && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
@@ -1108,7 +1110,9 @@ dastrategy(struct bio *bp)
 		biofinish(bp, NULL, ENXIO);
 		return;
 	}
-	
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dastrategy(%p)\n", bp));
+
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
@@ -1724,6 +1728,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct da_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dastart\n"));
+
 	switch (softc->state) {
 	case DA_STATE_NORMAL:
 	{
@@ -1732,7 +1738,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 		/* Execute immediate CCB if waiting. */
 		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
 			start_ccb->ccb_h.ccb_state = DA_CCB_WAITING;
 			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
@@ -2064,6 +2070,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct da_softc *)periph->softc;
 	priority = done_ccb->ccb_h.pinfo.priority;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone\n"));
+
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) {
 	case DA_CCB_BUFFER_IO:
