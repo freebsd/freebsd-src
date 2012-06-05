@@ -83,7 +83,17 @@ extern void ath_setslottime(struct ath_softc *sc);
  * we can kill this.
  */
 extern void ath_start(struct ifnet *ifp);
-extern void ath_tx_tasklet(void *arg, int npending);
 
+static inline void
+ath_tx_kick(struct ath_softc *sc)
+{
+
+	/*
+	 * Use a taskqueue to schedule a TX completion task,
+	 * even if we're in taskqueue context.  That way this can
+	 * be called from any context.
+	 */
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_txstarttask);
+}
 
 #endif
