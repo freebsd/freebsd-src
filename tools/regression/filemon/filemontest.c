@@ -54,22 +54,27 @@ main(void) {
 	if ((fm_log = mkstemp(log_name)) == -1)
 		err(1, "mkstemp(%s)", log_name);
 
-	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) < 0)
+	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) == -1)
 		err(1, "Cannot set filemon log file descriptor");
 
 	/* Set up these two fd's to close on exec. */
 	(void)fcntl(fm_fd, F_SETFD, FD_CLOEXEC);
 	(void)fcntl(fm_log, F_SETFD, FD_CLOEXEC);
 
-	if ((child = fork()) == 0) {
+	switch (child = fork()) {
+	case 0:
+		child = getpid();
+		if (ioctl(fm_fd, FILEMON_SET_PID, &child) == -1)
+			err(1, "Cannot set filemon PID to %d", child);
 		system("./test_script.sh");
-		return 0;
-	} else {
-		if (ioctl(fm_fd, FILEMON_SET_PID, &child) < 0)
-			err(1, "Cannot set filemon PID");
+		break;
+	case -1:
+		err(1, "Cannot fork");
+	default:
 		wait(&child);
 		close(fm_fd);
 //		printf("Results in %s\n", log_name);
+		break;
 	}
 	return 0;
 }
