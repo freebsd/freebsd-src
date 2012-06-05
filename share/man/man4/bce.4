@@ -213,57 +213,57 @@ Enable/Disable strict RX frame size checking (default 0).
 Enable/Disable frame header/payload splitting (default 1).
 .It Va hw.bce.rx_pages
 Set the number of memory pages assigned to recieve packets by the driver.
-Due to alignment issues, this value can only be of the set 
+Due to alignment issues, this value can only be of the set
 1, 2, 4 or 8 (default 2).
 .It Va hw.bce.tx_pages
-Set the number of memory pages assigned to transmit packets 
+Set the number of memory pages assigned to transmit packets
 by the driver.
-Due to alignment issues, this value can only be of the set 
+Due to alignment issues, this value can only be of the set
 1, 2, 4 or 8 (default 2).
 .It Va hw.bce.rx_ticks
-Time in microsecond ticks to wait before generating a status 
+Time in microsecond ticks to wait before generating a status
 block updates due to RX processing activity.
 Values from 0-100 are valid.
 A value of 0 disables this status block update.
-Cannot be set to 0 if hw.bce.rx_quick_cons_trip is also 0 
+Cannot be set to 0 if hw.bce.rx_quick_cons_trip is also 0
 (default 18).
 .It Va hw.bce.rx_ticks_int
-Time in microsecond ticks to wait during RX interrupt 
+Time in microsecond ticks to wait during RX interrupt
 processing before generating a status block update.
 Values from 0-100 are valid.
 Valid values are in the range from 0-100.
 A value of 0 disables this status block update (default 18).
 .It Va hw.bce.rx_quick_cons_trip
-Number of RX Quick BD Chain entries that must be completed 
+Number of RX Quick BD Chain entries that must be completed
 before a status block is generated.
 Values from 0-256 are valid.
 A value of 0 disables this status block update.
 Cannot be set to 0 if hw.bce.rx_ticks is also 0 (default 6).
 .It Va hw.bce.rx_quick_cons_trip_int
-Number of RX quick BD entries that must be completed before 
+Number of RX quick BD entries that must be completed before
 a status block is generated duing interrupt processing.
 Values from 0-256 are valid.
 A value of 0 disables this status block update (default 6).
 .It Va hw.bce.tx_ticks
-Time in microsecond ticks to wait before a status block 
+Time in microsecond ticks to wait before a status block
 update is generated due to TX activitiy.
 Values from 0-100 are valid.
 A value of 0 disables this status block update.
-Cannot be set to 0 if hw.bce.tx_quick_cons_trip is also 0 
+Cannot be set to 0 if hw.bce.tx_quick_cons_trip is also 0
 (default 80).
 .It Va hw.bce.tx_ticks_int
-Time in microsecond ticks to wait in interrupt processing 
+Time in microsecond ticks to wait in interrupt processing
 before a status block update is generated due to TX activity
 Values from 0-100 are valid.
 A value of 0 disables this status block update (default 80).
 .It Va hw.bce.tx_cons_trip
-How many TX Quick BD Chain entries that must be completed 
+How many TX Quick BD Chain entries that must be completed
 before a status block is generated.
 Values from 0-100 are valid.
 A value of 0 disables this status block update.
 Cannot be set to 0 if hw.bce.tx_ticks is also 0 (default 20).
 .It Va hw.bce.tx_cons_trip_int
-How many TX Quick BD Chain entries that must be completed 
+How many TX Quick BD Chain entries that must be completed
 before a status block is generated during an interrupt.
 Values from 0-100 are valid.
 A value of 0 disables this status block update (default 20).
