@@ -142,6 +142,7 @@ static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
+static void	ath_tx_tasklet(void *arg, int npending);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
@@ -2330,7 +2331,7 @@ ath_start(struct ifnet *ifp)
 	taskqueue_enqueue(sc->sc_tq, &sc->sc_txstarttask);
 }
 
-void
+static void
 ath_tx_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
@@ -3509,8 +3510,7 @@ ath_tx_proc_q0(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	// ath_start(ifp);
-	ath_tx_tasklet(sc, 1);
+	ath_tx_kick(sc);
 }
 
 /*
@@ -3560,8 +3560,7 @@ ath_tx_proc_q0123(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	//ath_start(ifp);
-	ath_tx_tasklet(sc, 1);
+	ath_tx_kick(sc);
 }
 
 /*
@@ -3604,8 +3603,7 @@ ath_tx_proc(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	//ath_start(ifp);
-	ath_tx_tasklet(sc, 1);
+	ath_tx_kick(sc);
 }
 #undef	TXQACTIVE
 
