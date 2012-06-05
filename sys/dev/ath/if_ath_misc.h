@@ -88,12 +88,7 @@ static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
-	/*
-	 * Use a taskqueue to schedule a TX completion task,
-	 * even if we're in taskqueue context.  That way this can
-	 * be called from any context.
-	 */
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txstarttask);
+	ath_start(sc->sc_ifp);
 }
 
 #endif

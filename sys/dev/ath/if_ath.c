@@ -142,7 +142,6 @@ static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
-static void	ath_tx_tasklet(void *arg, int npending);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
@@ -374,7 +373,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		"%s taskq", ifp->if_xname);
 
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_tasklet, sc);
-	TASK_INIT(&sc->sc_txstarttask, 0, ath_tx_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
@@ -2327,15 +2325,6 @@ void
 ath_start(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
-
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txstarttask);
-}
-
-static void
-ath_tx_tasklet(void *arg, int npending)
-{
-	struct ath_softc *sc = (struct ath_softc *) arg;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
