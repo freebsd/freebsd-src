@@ -3226,13 +3226,8 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 				("running device %p\n", device));
 
 		drvq = &device->drvq;
-
-#ifdef CAMDEBUG
-		if (drvq->entries <= 0) {
-			panic("xpt_run_dev_allocq: "
-			      "Device on queue without any work to do");
-		}
-#endif
+		KASSERT(drvq->entries > 0, ("xpt_run_dev_allocq: "
+		    "Device on queue without any work to do"));
 		if ((work_ccb = xpt_get_ccb(device)) != NULL) {
 			devq->alloc_openings--;
 			devq->alloc_active++;
