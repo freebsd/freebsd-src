@@ -89,19 +89,21 @@ struct mmcsd_softc {
 };
 
 /* bus entry points */
-static int mmcsd_probe(device_t dev);
 static int mmcsd_attach(device_t dev);
 static int mmcsd_detach(device_t dev);
+static int mmcsd_probe(device_t dev);
 
 /* disk routines */
-static int mmcsd_open(struct disk *dp);
 static int mmcsd_close(struct disk *dp);
-static void mmcsd_strategy(struct bio *bp);
 static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
 	off_t offset, size_t length);
+static int mmcsd_open(struct disk *dp);
+static void mmcsd_strategy(struct bio *bp);
 static void mmcsd_task(void *arg);
 
 static int mmcsd_bus_bit_width(device_t dev);
+static daddr_t mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp);
+static daddr_t mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp);
 
 #define MMCSD_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMCSD_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
@@ -256,12 +258,14 @@ mmcsd_resume(device_t dev)
 static int
 mmcsd_open(struct disk *dp)
 {
+
 	return (0);
 }
 
 static int
 mmcsd_close(struct disk *dp)
 {
+
 	return (0);
 }
 
@@ -521,6 +525,7 @@ out:
 static int
 mmcsd_bus_bit_width(device_t dev)
 {
+
 	if (mmc_get_bus_width(dev) == bus_width_1)
 		return (1);
 	if (mmc_get_bus_width(dev) == bus_width_4)
