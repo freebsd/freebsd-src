@@ -2010,8 +2010,6 @@ iwn_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 	return 0;
 }
 
-#define nitems(_a)	(sizeof((_a)) / sizeof((_a)[0]))
-
 static void
 iwn_read_eeprom_enhinfo(struct iwn_softc *sc)
 {
