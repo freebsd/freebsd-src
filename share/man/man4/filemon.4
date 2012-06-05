@@ -127,18 +127,19 @@ open_filemon(void)
 	    O_CREAT | O_WRONLY | O_TRUNC, DEFFILEMODE)) == -1)
 		err(1, "open(filemon.out)");
 
-	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) < 0)
+	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) == -1)
 		err(1, "Cannot set filemon log file descriptor");
 	/* Set up these two fd's to close on exec. */
 	(void)fcntl(fm_fd, F_SETFD, FD_CLOEXEC);
 	(void)fcntl(fm_log, F_SETFD, FD_CLOEXEC);
 
 	if ((child = fork()) == 0) {
+		child = getpid();
+		if (ioctl(fm_fd, FILEMON_SET_PID, &child) == -1)
+			err(1, "Cannot set filemon PID");
 		/* Do something here. */
 		return 0;
 	} else {
-		if (ioctl(fm_fd, FILEMON_SET_PID, &child) < 0)
-			err(1, "Cannot set filemon PID");
 		wait(&child);
 		close(fm_fd);
 	}
