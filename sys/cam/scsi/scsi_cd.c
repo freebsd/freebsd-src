@@ -1014,6 +1014,9 @@ cdopen(struct disk *dp)
 		return (error);
 	}
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("cdopen\n"));
+
 	/*
 	 * Check for media, and set the appropriate flags.  We don't bail
 	 * if we don't have media, but then we don't allow anything but the
@@ -1050,6 +1053,9 @@ cdclose(struct disk *dp)
 
 	cam_periph_lock(periph);
 	cam_periph_hold(periph, PRIBIO);
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("cdclose\n"));
 
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) != 0)
 		cdprevent(periph, PR_ALLOW);
@@ -1395,7 +1401,8 @@ cdstrategy(struct bio *bp)
 	}
 
 	cam_periph_lock(periph);
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdstrategy\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
+	    ("cdstrategy(%p)\n", bp));
 
 	softc = (struct cd_softc *)periph->softc;
 
@@ -1861,12 +1868,11 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 		return(ENXIO);	
 
 	cam_periph_lock(periph);
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdioctl\n"));
 
 	softc = (struct cd_softc *)periph->softc;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, 
-		  ("trying to do ioctl %#lx\n", cmd));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
+	    ("cdioctl(%#lx)\n", cmd));
 
 	if ((error = cam_periph_hold(periph, PRIBIO | PCATCH)) != 0) {
 		cam_periph_unlock(periph);
