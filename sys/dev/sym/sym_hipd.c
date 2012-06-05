@@ -8411,9 +8411,6 @@ static const struct sym_pci_chip sym_pci_dev_table[] = {
  FE_RAM|FE_IO256|FE_LEDC}
 };
 
-#define sym_pci_num_devs \
-	(sizeof(sym_pci_dev_table) / sizeof(sym_pci_dev_table[0]))
-
 /*
  *  Look up the chip table.
  *
@@ -8434,7 +8431,7 @@ sym_find_pci_chip(device_t dev)
 	device_id = pci_get_device(dev);
 	revision  = pci_get_revid(dev);
 
-	for (i = 0; i < sym_pci_num_devs; i++) {
+	for (i = 0; i < nitems(sym_pci_dev_table); i++) {
 		chip = &sym_pci_dev_table[i];
 		if (device_id != chip->device_id)
 			continue;
