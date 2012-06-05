@@ -564,6 +564,8 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 	}
 
 	image->pi_symcount += newsyms;
+	if (image->pi_symcount == 0)
+		return;
 
 	assert(newsyms <= nfuncsyms);
 
