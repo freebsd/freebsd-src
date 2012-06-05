@@ -50,64 +50,70 @@ responds to two
 calls.
 .Pp
 System calls are denoted using the following single letters:
+.Pp
 .Bl -tag -width indent -compact
-.It Dq Li C
+.It Ql C
 .Xr chdir 2
-.It Dq Li D
+.It Ql D
 .Xr unlink 2
-.It Dq Li E
+.It Ql E
 .Xr exec 2
-.It Dq Li F
+.It Ql F
 .Xr fork 2 ,
 .Xr vfork 2
-.It Dq Li L
+.It Ql L
 .Xr link 2 ,
 .Xr linkat 2 ,
 .Xr symlink 2 ,
 .Xr symlinkat 2
-.It Dq Li M
+.It Ql M
 .Xr rename 2
-.It Dq Li R
+.It Ql R
 .Xr open 2
 for read
-.It Dq Li S
+.It Ql S
 .Xr stat 2
-.It Dq Li W
+.It Ql W
 .Xr open 2
 for write
-.It Dq Li X
+.It Ql X
 .Xr _exit 2
 .El
 .Pp
 Note that
-.Dq R
+.Ql R
 following
-.Dq W
+.Ql W
 records can represent a single
 .Xr open 2
 for R/W,
 or two seperate
 .Xr open 2
 calls, one for
-R
+.Ql R
 and one for
-W.
+.Ql W .
 .Sh IOCTLS
 User mode programs communicate with the
-.Nm filemon
-driver through a
-number of ioctls which are described below.
+.Nm
+driver through a number of ioctls which are described below.
 Each takes a single argument.
-.Bl -tag -width FILEMON_SET_PID
+.Bl -tag -width ".Dv FILEMON_SET_PID"
 .It Dv FILEMON_SET_FD
 Write the internal tracing buffer to the supplied open file descriptor.
 .It Dv FILEMON_SET_PID
 Child process ID to trace.
 .El
 .Sh RETURN VALUES
-The ioctl returns zero on success and non-zero on failure.
+.\" .Rv -std ioctl
+The
+.Fn ioctl
+function returns the value 0 if successful;
+otherwise the value \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
 .Sh FILES
-.Bl -tag -width /dev/zero
+.Bl -tag -width ".Pa /dev/filemon"
 .It Pa /dev/filemon
 .El
 .Sh EXAMPLES
@@ -127,7 +133,7 @@ open_filemon(void)
 	int fm_fd, fm_log;
 
 	if ((fm_fd = open("/dev/filemon", O_RDWR)) == -1)
-		err(1, "open(\"/dev/filemon\", O_RDWR)");
+		err(1, "open(\e"/dev/filemon\e", O_RDWR)");
 	if ((fm_log = open("filemon.out",
 	    O_CREAT | O_WRONLY | O_TRUNC, DEFFILEMODE)) == -1)
 		err(1, "open(filemon.out)");
@@ -156,7 +162,9 @@ Creates a file named
 .Pa filemon.out
 and configures the
 .Nm
-device to write the filemon buffer contents to it.
+device to write the
+.Nm
+buffer contents to it.
 .Sh SEE ALSO
 .Xr dtrace 1 ,
 .Xr ktrace 1 ,
