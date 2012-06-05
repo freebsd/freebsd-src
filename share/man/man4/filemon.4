@@ -93,20 +93,25 @@ R
 and one for
 W.
 .Sh IOCTLS
-User mode programs communicate with the filemon driver through a
+User mode programs communicate with the
+.Nm filemon
+driver through a
 number of ioctls which are described below.
 Each takes a single argument.
 .Bl -tag -width FILEMON_SET_PID
 .It Dv FILEMON_SET_FD
 Write the internal tracing buffer to the supplied open file descriptor.
-.It Dv FILEMON_SET_PID .
+.It Dv FILEMON_SET_PID
 Child process ID to trace.
 .El
-.Pp
 .Sh RETURN VALUES
 The ioctl returns zero on success and non-zero on failure.
+.Sh FILES
+.Bl -tag -width /dev/zero
+.It Pa /dev/filemon
+.El
 .Sh EXAMPLES
-.Bd -literal -offset indent
+.Bd -literal
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -152,10 +157,6 @@ Creates a file named
 and configures the
 .Nm
 device to write the filemon buffer contents to it.
-.Sh FILES
-.Bl -tag -width /dev/zero
-.It Pa /dev/filemon
-.El
 .Sh SEE ALSO
 .Xr dtrace 1 ,
 .Xr ktrace 1 ,
