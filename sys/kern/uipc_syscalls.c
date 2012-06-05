@@ -2182,9 +2182,9 @@ retry_space:
 			m0->m_len = xfsize;
 
 			/* Append to mbuf chain. */
-			if (mtail != NULL) {
+			if (mtail != NULL)
 				mtail->m_next = m0;
-			} else if (m != NULL)
+			else if (m != NULL)
 				m_last(m)->m_next = m0;
 			else
 				m = m0;
