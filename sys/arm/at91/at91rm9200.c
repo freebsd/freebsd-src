@@ -197,7 +197,7 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (at91_cpu_is(AT91_CPU_RM9200)) {
+	if (at91_cpu_is(AT91_T_RM9200)) {
 		at91_add_child(parent, 0, "at91rm920", 0, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
 	}
@@ -207,11 +207,8 @@ static int
 at91_probe(device_t dev)
 {
 
-	if (at91_cpu_is(AT91_CPU_RM9200)) {
-		device_set_desc(dev, "AT91RM9200");
-		return (0);
-	}
-	return (ENXIO);
+	device_set_desc(dev, soc_data.name);
+	return (0);
 }
 
 static int
