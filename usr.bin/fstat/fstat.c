@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #define	_WANT_FILE
 #include <sys/file.h>
 #include <sys/conf.h>
+#include <sys/mman.h>
 #define	_KERNEL
 #include <sys/pipe.h>
 #include <sys/mount.h>
@@ -155,6 +156,7 @@ char *getmnton(struct mount *m);
 void pipetrans(struct pipe *pi, int i, int flag);
 void socktrans(struct socket *sock, int i);
 void ptstrans(struct tty *tp, int i, int flag);
+void shmtrans(struct shmfd *shmp, int i, int flag);
 void getinetproto(int number);
 int  getfname(const char *filename);
 void usage(void);
@@ -416,6 +418,12 @@ dofiles(struct kinfo_proc *kp)
 		else if (file.f_type == DTYPE_PTS) {
 			if (checkfile == 0)
 				ptstrans(file.f_data, i, file.f_flag);
+		}
+#endif
+#ifdef DTYPE_SHM
+		else if (file.f_type == DTYPE_SHM) {
+			if (checkfile == 0)
+				shmtrans(file.f_data, i, file.f_flag);
 		}
 #endif
 		else {
@@ -933,6 +941,55 @@ ptstrans(struct tty *tp, int i, int flag)
 	printf(" %2s\n", rw);
 
 	free(name);
+
+	return;
+bad:
+	printf("* error\n");
+}
+
+void
+shmtrans(struct shmfd *shmp, int i, int flag)
+{
+	struct shmfd shm;
+	char name[MAXPATHLEN];
+	char mode[15];
+	char rw[3];
+	unsigned j;
+
+	PREFIX(i);
+
+	if (!KVM_READ(shmp, &shm, sizeof(struct shmfd))) {
+		dprintf(stderr, "can't read shm at %p\n", shmp);
+		goto bad;
+	}
+
+	if (shm.shm_path != NULL) {
+		for (j = 0; j < sizeof(name) - 1; j++) {
+			if (!KVM_READ(shm.shm_path + j, name + j, 1))
+				break;
+			if (name[j] == '\0')
+				break;
+		}
+		name[j] = '\0';
+	} else
+		name[0] = '\0';
+
+	rw[0] = '\0';
+	if (flag & FREAD)
+		strcat(rw, "r");
+	if (flag & FWRITE)
+		strcat(rw, "w");
+
+	shm.shm_mode |= S_IFREG;
+	if (nflg) {
+		printf("             ");
+		(void)snprintf(mode, sizeof(mode), "%o", shm.shm_mode);
+	} else {
+		printf(" %-15s", name[0] != '\0' ? name : "-");
+		strmode(shm.shm_mode, mode);
+	}
+	printf(" %10s %6ju", mode, shm.shm_size);
+	printf(" %2s\n", rw);
 
 	return;
 bad:
