@@ -232,6 +232,156 @@ at91_ramsize(void)
 	return (1 << (cols + rows + banks + bw));
 }
 
+const char *soc_type_name[] = {
+	[AT91_T_CAP9] = "at91cap9",
+	[AT91_T_RM9200] = "at91rm9200",
+	[AT91_T_SAM9260] = "at91sam9260",
+	[AT91_T_SAM9261] = "at91sam9261",
+	[AT91_T_SAM9263] = "at91sam9263",
+	[AT91_T_SAM9G10] = "at91sam9g10",
+	[AT91_T_SAM9G20] = "at91sam9g20",
+	[AT91_T_SAM9G45] = "at91sam9g45",
+	[AT91_T_SAM9N12] = "at91sam9n12",
+	[AT91_T_SAM9RL] = "at91sam9rl",
+	[AT91_T_SAM9X5] = "at91sam9x5",
+	[AT91_T_NONE] = "UNKNOWN"
+};
+	
+const char *soc_subtype_name[] = {
+	[AT91_ST_NONE] = "UNKNOWN",
+	[AT91_ST_RM9200_BGA] = "at91rm9200_bga",
+	[AT91_ST_RM9200_PQFP] = "at91rm9200_pqfp",
+	[AT91_ST_SAM9XE] = "at91sam9xe",
+	[AT91_ST_SAM9G45] = "at91sam9g45",
+	[AT91_ST_SAM9M10] = "at91sam9m10",
+	[AT91_ST_SAM9G46] = "at91sam9g46",
+	[AT91_ST_SAM9M11] = "at91sam9m11",
+	[AT91_ST_SAM9G15] = "at91sam9g15",
+	[AT91_ST_SAM9G25] = "at91sam9g25",
+	[AT91_ST_SAM9G35] = "at91sam9g35",
+	[AT91_ST_SAM9X25] = "at91sam9x25",
+	[AT91_ST_SAM9X35] = "at91sam9x35",
+};
+
+#define AT91_DBGU0	0x0ffff200	/* Most */
+#define AT91_DBGU1	0x0fffee00	/* SAM9263, CAP9, and SAM9G45 */
+
+struct at91_soc_info soc_data;
+
+/*
+ * Read the SoC ID from the CIDR register and try to match it against the
+ * values we know.  If we find a good one, we return true.  If not, we
+ * return false.  When we find a good one, we also find the subtype
+ * and CPU family.
+ */
+static int
+at91_try_id(uint32_t dbgu_base)
+{
+	uint32_t socid;
+
+	soc_data.cidr = *(volatile uint32_t *)(AT91_BASE + dbgu_base + DBGU_C1R);
+	socid = soc_data.cidr & ~AT91_CPU_VERSION_MASK;
+
+	soc_data.type = AT91_T_NONE;
+	soc_data.subtype = AT91_ST_NONE;
+	soc_data.family = (soc_data.cidr & AT91_CPU_FAMILY_MASK) >> 20;
+	soc_data.exid = *(volatile uint32_t *)(AT91_BASE + dbgu_base + DBGU_C2R);
+
+	switch (socid) {
+	case AT91_CPU_CAP9:
+		soc_data.type = AT91_T_CAP9;
+		break;
+	case AT91_CPU_RM9200:
+		soc_data.type = AT91_T_RM9200;
+		break;
+	case AT91_CPU_SAM9XE128:
+	case AT91_CPU_SAM9XE256:
+	case AT91_CPU_SAM9XE512:
+	case AT91_CPU_SAM9260:
+		soc_data.type = AT91_T_SAM9260;
+		if (soc_data.family == AT91_FAMILY_SAM9XE)
+			soc_data.subtype = AT91_ST_SAM9XE;
+		break;
+	case AT91_CPU_SAM9261:
+		soc_data.type = AT91_T_SAM9261;
+		break;
+	case AT91_CPU_SAM9263:
+		soc_data.type = AT91_T_SAM9263;
+		break;
+	case AT91_CPU_SAM9G10:
+		soc_data.type = AT91_T_SAM9G10;
+		break;
+	case AT91_CPU_SAM9G20:
+		soc_data.type = AT91_T_SAM9G20;
+		break;
+	case AT91_CPU_SAM9G45:
+		soc_data.type = AT91_T_SAM9G45;
+		break;
+	case AT91_CPU_SAM9N12:
+		soc_data.type = AT91_T_SAM9N12;
+		break;
+	case AT91_CPU_SAM9RL64:
+		soc_data.type = AT91_T_SAM9RL;
+		break;
+	case AT91_CPU_SAM9X5:
+		soc_data.type = AT91_T_SAM9X5;
+		break;
+	default:
+		return 0;
+	}
+
+	switch (soc_data.type) {
+	case AT91_T_SAM9G45:
+		switch (soc_data.exid) {
+		case AT91_EXID_SAM9G45:
+			soc_data.subtype = AT91_ST_SAM9G45;
+			break;
+		case AT91_EXID_SAM9G46:
+			soc_data.subtype = AT91_ST_SAM9G46;
+			break;
+		case AT91_EXID_SAM9M10:
+			soc_data.subtype = AT91_ST_SAM9M10;
+			break;
+		case AT91_EXID_SAM9M11:
+			soc_data.subtype = AT91_ST_SAM9M11;
+			break;
+		}
+		break;
+	case AT91_T_SAM9X5:
+		switch (soc_data.exid) {
+		case AT91_EXID_SAM9G15:
+			soc_data.subtype = AT91_ST_SAM9G15;
+			break;
+		case AT91_EXID_SAM9G25:
+			soc_data.subtype = AT91_ST_SAM9G25;
+			break;
+		case AT91_EXID_SAM9G35:
+			soc_data.subtype = AT91_ST_SAM9G35;
+			break;
+		case AT91_EXID_SAM9X25:
+			soc_data.subtype = AT91_ST_SAM9X25;
+			break;
+		case AT91_EXID_SAM9X35:
+			soc_data.subtype = AT91_ST_SAM9X35;
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+        snprintf(soc_data.name, sizeof(soc_data.name), "%s%s%s", soc_type_name[soc_data.type],
+	    soc_data.subtype == AT91_ST_NONE ? "" : " subtype ",
+	    soc_data.subtype == AT91_ST_NONE ? "" : soc_subtype_name[soc_data.subtype]);
+	return 1;
+}
+
+static void
+at91_soc_id(void)
+{
+	if (!at91_try_id(AT91_DBGU0))
+		at91_try_id(AT91_DBGU1);
+}
+
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -355,11 +505,10 @@ initarm(struct arm_boot_params *abp)
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 
+	at91_soc_id();
+
 	/* Initialize all the clocks, so that the console can work */
 	at91_pmc_init_clock();
-
-	/* Get chip id so device drivers know about differences */
-	at91_chip_id = *(uint32_t *)(AT91_BASE + AT91_DBGU_BASE + DBGU_C1R);
 
 	cninit();
 
