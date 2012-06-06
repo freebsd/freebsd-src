@@ -200,7 +200,6 @@ at91_identify(driver_t *drv, device_t parent)
 	if (soc_data.type == AT91_CPU_SAM9260) {
 		at91_add_child(parent, 0, "at91sam9260", 0, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
-		break;
 	}
 }
 
