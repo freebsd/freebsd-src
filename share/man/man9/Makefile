@@ -237,6 +237,7 @@ MAN=	accept_filter.9 \
 	sema.9 \
 	sf_buf.9 \
 	sglist.9 \
+	shm_map.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
@@ -1156,6 +1157,7 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_reset.9 \
 	sglist.9 sglist_slice.9 \
 	sglist.9 sglist_split.9
+MLINKS+=shm_map.9 shm_unmap.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
