@@ -236,14 +236,14 @@ ucom_unit_free(int unit)
  */
 int
 ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
-    uint32_t subunits, void *parent,
+    int subunits, void *parent,
     const struct ucom_callback *callback, struct mtx *mtx)
 {
-	uint32_t subunit;
+	int subunit;
 	int error = 0;
 
 	if ((sc == NULL) ||
-	    (subunits == 0) ||
+	    (subunits <= 0) ||
 	    (callback == NULL)) {
 		return (EINVAL);
 	}
@@ -287,7 +287,7 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 void
 ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
-	uint32_t subunit;
+	int subunit;
 
 	if (ssc->sc_subunits == 0)
 		return;		/* not initialized */
@@ -1056,11 +1056,6 @@ ucom_param(struct tty *tp, struct termios *t)
 	DPRINTF("sc = %p\n", sc);
 
 	/* Check requested parameters. */
-	if (t->c_ospeed < 0) {
-		DPRINTF("negative ospeed\n");
-		error = EINVAL;
-		goto done;
-	}
 	if (t->c_ispeed && (t->c_ispeed != t->c_ospeed)) {
 		DPRINTF("mismatch ispeed and ospeed\n");
 		error = EINVAL;

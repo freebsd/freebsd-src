@@ -113,9 +113,9 @@ struct usb_audio_streaming_type1_descriptor {
 	uByte	bSamFreqType;
 #define	UA_SAMP_CONTNUOUS 0
 	uByte	tSamFreq[0];
-#define	UA_GETSAMP(p, n) (((p)->tSamFreq[((n)*3)+0]) |	    \
+#define	UA_GETSAMP(p, n) ((uint32_t)((((p)->tSamFreq[((n)*3)+0]) | \
 			  ((p)->tSamFreq[((n)*3)+1] << 8) | \
-			  ((p)->tSamFreq[((n)*3)+2] << 16))
+			  ((p)->tSamFreq[((n)*3)+2] << 16))))
 #define	UA_SAMP_LO(p) UA_GETSAMP(p, 0)
 #define	UA_SAMP_HI(p) UA_GETSAMP(p, 1)
 } __packed;

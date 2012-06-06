@@ -466,7 +466,6 @@ usb_handle_request(struct usb_xfer *xfer)
 	uint16_t rem;			/* data remainder */
 	uint16_t max_len;		/* max fragment length */
 	uint16_t wValue;
-	uint16_t wIndex;
 	uint8_t state;
 	uint8_t is_complete = 1;
 	usb_error_t err;
@@ -532,11 +531,10 @@ usb_handle_request(struct usb_xfer *xfer)
 	/* get some request fields decoded */
 
 	wValue = UGETW(req.wValue);
-	wIndex = UGETW(req.wIndex);
 
 	DPRINTF("req 0x%02x 0x%02x 0x%04x 0x%04x "
 	    "off=0x%x rem=0x%x, state=%d\n", req.bmRequestType,
-	    req.bRequest, wValue, wIndex, off, rem, state);
+	    req.bRequest, wValue, UGETW(req.wIndex), off, rem, state);
 
 	/* demultiplex the control request */
 

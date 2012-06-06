@@ -1036,7 +1036,7 @@ axe_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 	error = 0;
 	if ((sc->sc_flags & AXE_FLAG_STD_FRAME) != 0) {
 		while (pos < actlen) {
-			if ((pos + sizeof(hdr)) > actlen) {
+			if ((int)(pos + sizeof(hdr)) > actlen) {
 				/* too little data */
 				error = EINVAL;
 				break;
@@ -1060,7 +1060,7 @@ axe_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 		}
 	} else if ((sc->sc_flags & AXE_FLAG_CSUM_FRAME) != 0) {
 		while (pos < actlen) {
-			if ((pos + sizeof(csum_hdr)) > actlen) {
+			if ((int)(pos + sizeof(csum_hdr)) > actlen) {
 				/* too little data */
 				error = EINVAL;
 				break;

@@ -1653,7 +1653,7 @@ usb_fifo_check_methods(struct usb_fifo_methods *pm)
 int
 usb_fifo_attach(struct usb_device *udev, void *priv_sc,
     struct mtx *priv_mtx, struct usb_fifo_methods *pm,
-    struct usb_fifo_sc *f_sc, uint16_t unit, uint16_t subunit,
+    struct usb_fifo_sc *f_sc, uint16_t unit, int16_t subunit,
     uint8_t iface_index, uid_t uid, gid_t gid, int mode)
 {
 	struct usb_fifo *f_tx;
@@ -1730,7 +1730,7 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 		if (pm->basename[n] == NULL) {
 			continue;
 		}
-		if (subunit == 0xFFFF) {
+		if (subunit < 0) {
 			if (snprintf(devname, sizeof(devname),
 			    "%s%u%s", pm->basename[n],
 			    unit, pm->postfix[n] ?
@@ -1739,7 +1739,7 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 			}
 		} else {
 			if (snprintf(devname, sizeof(devname),
-			    "%s%u.%u%s", pm->basename[n],
+			    "%s%u.%d%s", pm->basename[n],
 			    unit, subunit, pm->postfix[n] ?
 			    pm->postfix[n] : "")) {
 				/* ignore */
