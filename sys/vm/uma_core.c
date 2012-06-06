@@ -267,10 +267,7 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 static void
 bucket_enable(void)
 {
-	if (cnt.v_free_count < cnt.v_free_min)
-		bucketdisable = 1;
-	else
-		bucketdisable = 0;
+	bucketdisable = vm_page_count_min();
 }
 
 /*
