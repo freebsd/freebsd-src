@@ -14,3 +14,7 @@ FBSD_1.2 {
 	procstat_open_kvm;
 	procstat_open_sysctl;
 };
+
+FBSD_1.3 {
+	procstat_get_shm_info;
+};
