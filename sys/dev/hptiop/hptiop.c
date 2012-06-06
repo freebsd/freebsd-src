@@ -1279,6 +1279,7 @@ static driver_t hptiop_pci_driver = {
 };
 
 DRIVER_MODULE(hptiop, pci, hptiop_pci_driver, hptiop_devclass, 0, 0);
+MODULE_DEPEND(hptiop, cam, 1, 1, 1);
 
 static int hptiop_probe(device_t dev)
 {
