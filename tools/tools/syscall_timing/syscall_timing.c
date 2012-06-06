@@ -142,6 +142,22 @@ test_clock_gettime(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_gettimeofday(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	struct timeval tv;
+	uintmax_t i;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)gettimeofday(&tv, NULL);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	int fd[2], i;
@@ -608,6 +624,7 @@ static const struct test tests[] = {
 	{ "getuid", test_getuid },
 	{ "getppid", test_getppid },
 	{ "clock_gettime", test_clock_gettime },
+	{ "gettimeofday", test_gettimeofday },
 	{ "pipe", test_pipe },
 	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
 	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
