@@ -136,6 +136,7 @@ struct da_softc {
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
+	uint64_t wwpn;
 };
 
 struct da_quirk_entry {
@@ -1312,6 +1313,7 @@ dasysctlinit(void *context, int pending)
 	struct cam_periph *periph;
 	struct da_softc *softc;
 	char tmpstr[80], tmpstr2[80];
+	struct ccb_trans_settings cts;
 
 	periph = (struct cam_periph *)context;
 	/*
@@ -1338,14 +1340,38 @@ dasysctlinit(void *context, int pending)
 	}
 
 	/*
-	 * Now register the sysctl handler, so the user can the value on
+	 * Now register the sysctl handler, so the user can change the value on
 	 * the fly.
 	 */
-	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
 
+	/*
+	 * Add some addressing info.
+	 */
+	memset(&cts, 0, sizeof (cts));
+	xpt_setup_ccb(&cts.ccb_h, periph->path, /*priority*/1);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	cam_periph_lock(periph);
+	xpt_action((union ccb *)&cts);
+	cam_periph_unlock(periph);
+	if (cts.ccb_h.status != CAM_REQ_CMP) {
+		cam_periph_release(periph);
+		return;
+	}
+	if (cts.protocol == PROTO_SCSI && cts.transport == XPORT_FC) {
+		struct ccb_trans_settings_fc *fc = &cts.xport_specific.fc;
+		if (fc->valid & CTS_FC_VALID_WWPN) {
+			softc->wwpn = fc->wwpn;
+			SYSCTL_ADD_XLONG(&softc->sysctl_ctx,
+			    SYSCTL_CHILDREN(softc->sysctl_tree),
+			    OID_AUTO, "wwpn", CTLTYPE_QUAD | CTLFLAG_RD,
+			    &softc->wwpn, "World Wide Port Name");
+		}
+	}
 	cam_periph_release(periph);
 }
 
