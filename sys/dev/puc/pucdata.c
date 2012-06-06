@@ -887,6 +887,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_syba
 	},
 
+	{    0x5372, 0x6873, 0xffff, 0,
+	     "Sun 1040 PCI Quad Serial",
+	     DEFAULT_RCLK,
+	     PUC_PORT_4S, 0x10, 4, 0,
+	},
+
 	{   0x6666, 0x0001, 0xffff, 0,
 	    "Decision Computer Inc, PCCOM 4-port serial",
 	    DEFAULT_RCLK,
