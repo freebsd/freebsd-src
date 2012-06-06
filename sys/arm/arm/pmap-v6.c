@@ -809,6 +809,12 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 	pte = *ptep;
 
+	cpu_idcache_wbinv_range(va, PAGE_SIZE);
+#ifdef ARM_L2_PIPT
+	cpu_l2cache_wbinv_range(pte & L2_S_FRAME, PAGE_SIZE);
+#else
+	cpu_l2cache_wbinv_range(va, PAGE_SIZE);
+#endif
 	if ((pte & L2_S_CACHE_MASK) != pte_l2_s_cache_mode_pt) {
 		/*
 		 * Page tables must have the cache-mode set to
