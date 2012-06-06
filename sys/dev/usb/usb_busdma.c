@@ -108,7 +108,7 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 			res->length = USB_PAGE_SIZE - offset;
 			res->physaddr = page->physaddr + offset;
 		} else {
-			res->length = 0 - 1;
+			res->length = (usb_size_t)-1;
 			res->physaddr = page->physaddr + offset;
 		}
 		if (!pc->buffer) {
@@ -123,7 +123,7 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 	/* Case 2 - Plain PIO */
 
 	res->buffer = USB_ADD_BYTES(pc->buffer, offset);
-	res->length = 0 - 1;
+	res->length = (usb_size_t)-1;
 #if USB_HAVE_BUSDMA
 	res->physaddr = 0;
 #endif

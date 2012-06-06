@@ -3020,13 +3020,8 @@ static const struct ehci_config_desc ehci_confd = {
 static const
 struct usb_hub_descriptor ehci_hubd =
 {
-	0,				/* dynamic length */
-	UDESC_HUB,
-	0,
-	{0, 0},
-	0,
-	0,
-	{0},
+	.bDescLength = 0,		/* dynamic length */
+	.bDescriptorType = UDESC_HUB,
 };
 
 static void

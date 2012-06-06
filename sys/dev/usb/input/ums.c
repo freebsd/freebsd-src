@@ -201,7 +201,7 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(6, "sc=%p actlen=%d\n", sc, len);
 
-		if (len > sizeof(sc->sc_temp)) {
+		if (len > (int)sizeof(sc->sc_temp)) {
 			DPRINTFN(6, "truncating large packet to %zu bytes\n",
 			    sizeof(sc->sc_temp));
 			len = sizeof(sc->sc_temp);
@@ -612,7 +612,7 @@ ums_attach(device_t dev)
 		/* Some wheels need the Z axis reversed. */
 		info->sc_flags |= UMS_FLAG_REVZ;
 	}
-	if (isize > usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT])) {
+	if (isize > (int)usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT])) {
 		DPRINTF("WARNING: report size, %d bytes, is larger "
 		    "than interrupt size, %d bytes!\n", isize,
 		    usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT]));
@@ -666,7 +666,7 @@ ums_attach(device_t dev)
 
 	err = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ums_fifo_methods, &sc->sc_fifo,
-	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    device_get_unit(dev), -1, uaa->info.bIfaceIndex,
   	    UID_ROOT, GID_OPERATOR, 0644);
 	if (err) {
 		goto detach;

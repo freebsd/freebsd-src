@@ -419,7 +419,8 @@ static void
 bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
-	int actlen, sumlen;
+	int actlen;
+	int sumlen;
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
@@ -428,7 +429,7 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* very simple status check */
 
-		if (actlen < sizeof(sc->csw)) {
+		if (actlen < (int)sizeof(sc->csw)) {
 			bbb_done(sc, USB_ERR_SHORT_XFER);
 		} else if (sc->csw.bCSWStatus == CSWSTATUS_GOOD) {
 			bbb_done(sc, 0);	/* success */

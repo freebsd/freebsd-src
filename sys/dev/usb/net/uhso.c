@@ -482,9 +482,9 @@ static device_method_t uhso_methods[] = {
 };
 
 static driver_t uhso_driver = {
-	"uhso",
-	uhso_methods,
-	sizeof(struct uhso_softc)
+	.name = "uhso",
+	.methods = uhso_methods,
+	.size = sizeof(struct uhso_softc)
 };
 
 static devclass_t uhso_devclass;
@@ -1366,7 +1366,7 @@ uhso_bs_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			UHSO_DPRINTF(0, "UCDC notification too short: %d\n", actlen);
 			goto tr_setup;
 		}
-		else if (actlen > sizeof(struct usb_cdc_notification)) {
+		else if (actlen > (int)sizeof(struct usb_cdc_notification)) {
 			UHSO_DPRINTF(0, "UCDC notification too large: %d\n", actlen);
 			actlen = sizeof(struct usb_cdc_notification);
 		}

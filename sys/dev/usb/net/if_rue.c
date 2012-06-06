@@ -638,7 +638,7 @@ rue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 
 		if (ifp && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-		    actlen >= sizeof(pkt)) {
+		    actlen >= (int)sizeof(pkt)) {
 
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));

@@ -822,7 +822,7 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 		offset = td_event - td->td_self;
 
 		if (offset >= 0 &&
-		    offset < sizeof(td->td_trb)) {
+		    offset < (int64_t)sizeof(td->td_trb)) {
 
 			usb_pc_cpu_invalidate(td->page_cache);
 
@@ -2828,7 +2828,7 @@ struct usb_pipe_methods xhci_device_generic_methods =
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
 
-#define	HSETW(ptr, val) ptr[0] = (uint8_t)(val), ptr[1] = (uint8_t)((val) >> 8)
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
 
 static const
 struct usb_device_descriptor xhci_devd =
@@ -2871,8 +2871,7 @@ struct xhci_bos_desc xhci_bosd = {
 		HSETW(.wSpeedsSupported, 0x000C),
 		.bFunctionalitySupport = 8,
 		.bU1DevExitLat = 255,	/* dummy - not used */
-		.wU2DevExitLat[0] = 0x00,
-		.wU2DevExitLat[1] = 0x08,
+		.wU2DevExitLat = { 0x00, 0x08 },
 	},
 	.cidd = {
 		.bLength = sizeof(xhci_bosd.cidd),
