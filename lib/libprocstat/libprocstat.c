@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #define	_WANT_FILE
 #include <sys/file.h>
 #include <sys/conf.h>
+#include <sys/mman.h>
 #define	_KERNEL
 #include <sys/mount.h>
 #include <sys/pipe.h>
@@ -114,6 +115,10 @@ static int	procstat_get_pts_info_sysctl(struct filestat *fst,
     struct ptsstat *pts, char *errbuf);
 static int	procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
     struct ptsstat *pts, char *errbuf);
+static int	procstat_get_shm_info_sysctl(struct filestat *fst,
+    struct shmstat *shm, char *errbuf);
+static int	procstat_get_shm_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct shmstat *shm, char *errbuf);
 static int	procstat_get_socket_info_sysctl(struct filestat *fst,
     struct sockstat *sock, char *errbuf);
 static int	procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
@@ -469,6 +474,10 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 			data = file.f_data;
 			break;
 #endif
+		case DTYPE_SHM:
+			type = PS_FST_TYPE_SHM;
+			data = file.f_data;
+			break;
 		default:
 			continue;
 		}
@@ -845,6 +854,69 @@ procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
 		return (0);
 	pts->dev = kif->kf_un.kf_pts.kf_pts_dev;
 	strlcpy(pts->devname, kif->kf_path, sizeof(pts->devname));
+	return (0);
+}
+
+int
+procstat_get_shm_info(struct procstat *procstat, struct filestat *fst,
+    struct shmstat *shm, char *errbuf)
+{
+
+	assert(shm);
+	if (procstat->type == PROCSTAT_KVM) {
+		return (procstat_get_shm_info_kvm(procstat->kd, fst, shm,
+		    errbuf));
+	} else if (procstat->type == PROCSTAT_SYSCTL) {
+		return (procstat_get_shm_info_sysctl(fst, shm, errbuf));
+	} else {
+		warnx("unknown access method: %d", procstat->type);
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		return (1);
+	}
+}
+
+static int
+procstat_get_shm_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct shmstat *shm, char *errbuf)
+{
+	struct shmfd shmfd;
+	void *shmfdp;
+
+	assert(kd);
+	assert(shm);
+	assert(fst);
+	bzero(shm, sizeof(*shm));
+	shmfdp = fst->fs_typedep;
+	if (shmfdp == NULL)
+		goto fail;
+	if (!kvm_read_all(kd, (unsigned long)shmfdp, &shmfd,
+	    sizeof(struct shmfd))) {
+		warnx("can't read shmfd at %p", (void *)shmfdp);
+		goto fail;
+	}
+	shm->mode = S_IFREG | shmfd.shm_mode;
+	shm->size = shmfd.shm_size;
+	return (0);
+
+fail:
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+static int
+procstat_get_shm_info_sysctl(struct filestat *fst, struct shmstat *shm,
+    char *errbuf __unused)
+{
+	struct kinfo_file *kif;
+
+	assert(shm);
+	assert(fst);
+	bzero(shm, sizeof(*shm));
+	kif = fst->fs_typedep;
+	if (kif == NULL)
+		return (0);
+	shm->size = kif->kf_un.kf_file.kf_file_size;
+	shm->mode = kif->kf_un.kf_file.kf_file_mode;
 	return (0);
 }
 
