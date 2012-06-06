@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mqueue.h>
 #include <sys/mutex.h>
@@ -2742,6 +2743,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct kinfo_ofile *kif;
 	struct filedesc *fdp;
 	int error, i, *name;
+	struct shmfd *shmfd;
 	struct socket *so;
 	struct vnode *vp;
 	struct file *fp;
@@ -2779,6 +2781,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		vp = NULL;
 		so = NULL;
 		tp = NULL;
+		shmfd = NULL;
 		kif->kf_fd = i;
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
@@ -2814,6 +2817,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SHM:
 			kif->kf_type = KF_TYPE_SHM;
+			shmfd = fp->f_data;
 			break;
 
 		case DTYPE_SEM:
@@ -2921,6 +2925,8 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			strlcpy(kif->kf_path, tty_devname(tp),
 			    sizeof(kif->kf_path));
 		}
+		if (shmfd != NULL)
+			shm_path(shmfd, kif->kf_path, sizeof(kif->kf_path));
 		error = SYSCTL_OUT(req, kif, sizeof(*kif));
 		if (error)
 			break;
@@ -2995,6 +3001,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	struct kinfo_file *kif;
 	struct filedesc *fdp;
 	int error, i, *name;
+	struct shmfd *shmfd;
 	struct socket *so;
 	struct vnode *vp;
 	struct file *fp;
@@ -3032,6 +3039,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		vp = NULL;
 		so = NULL;
 		tp = NULL;
+		shmfd = NULL;
 		kif->kf_fd = i;
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
@@ -3067,6 +3075,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SHM:
 			kif->kf_type = KF_TYPE_SHM;
+			shmfd = fp->f_data;
 			break;
 
 		case DTYPE_SEM:
@@ -3174,6 +3183,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			strlcpy(kif->kf_path, tty_devname(tp),
 			    sizeof(kif->kf_path));
 		}
+		if (shmfd != NULL)
+			shm_path(shmfd, kif->kf_path, sizeof(kif->kf_path));
 		/* Pack record size down */
 		kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 		    strlen(kif->kf_path) + 1;

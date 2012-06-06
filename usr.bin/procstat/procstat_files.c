@@ -277,13 +277,6 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			printf("%7c ", '-');
 
 		switch (kif->kf_type) {
-		case KF_TYPE_VNODE:
-		case KF_TYPE_FIFO:
-		case KF_TYPE_PTS:
-			printf("%-3s ", "-");
-			printf("%-18s", kif->kf_path);
-			break;
-
 		case KF_TYPE_SOCKET:
 			printf("%-3s ",
 			    protocol_to_string(kif->kf_sock_domain,
@@ -312,7 +305,8 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 
 		default:
 			printf("%-3s ", "-");
-			printf("%-18s", "-");
+			printf("%-18s", kif->kf_path[0] != '\0' ?
+			    kif->kf_path : "-");
 		}
 
 		printf("\n");
