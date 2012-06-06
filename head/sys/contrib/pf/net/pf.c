@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 
 #include <sys/md5.h>
 
@@ -184,8 +185,29 @@ static VNET_DEFINE(struct pf_send_head, pf_sendqueue);
 #define	V_pf_sendqueue	VNET(pf_sendqueue)
 
 static struct mtx pf_sendqueue_mtx;
-#define	PF_QUEUE_LOCK()		mtx_lock(&pf_sendqueue_mtx)
-#define	PF_QUEUE_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
+#define	PF_SENDQ_LOCK()		mtx_lock(&pf_sendqueue_mtx)
+#define	PF_SENDQ_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
+
+/*
+ * Queue for pf_flush_task() tasks.
+ */
+struct pf_flush_entry {
+	SLIST_ENTRY(pf_flush_entry)	next;
+	struct pf_addr  		addr;
+	sa_family_t     		af;
+	uint8_t         		dir;
+	struct pf_rule  		*rule;  /* never dereferenced */
+};
+
+SLIST_HEAD(pf_flush_head, pf_flush_entry);
+static VNET_DEFINE(struct pf_flush_head, pf_flushqueue);
+#define V_pf_flushqueue	VNET(pf_flushqueue)
+static VNET_DEFINE(struct task, pf_flushtask);
+#define	V_pf_flushtask	VNET(pf_flushtask)
+
+static struct mtx pf_flushqueue_mtx;
+#define	PF_FLUSHQ_LOCK()	mtx_lock(&pf_flushqueue_mtx)
+#define	PF_FLUSHQ_UNLOCK()	mtx_unlock(&pf_flushqueue_mtx)
 
 VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
 struct mtx pf_unlnkdrules_mtx;
@@ -292,6 +314,7 @@ static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
 static struct pf_state	*pf_find_state(struct pfi_kif *,
 			    struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_state **);
+static void		 pf_flush_task(void *c, int pending);
 static int		 pf_insert_src_node(struct pf_src_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
 static int		 pf_purge_expired_states(int);
@@ -466,7 +489,11 @@ pf_check_threshold(struct pf_threshold *threshold)
 static int
 pf_src_connlimit(struct pf_state **state)
 {
+	struct pfr_addr p;
+	struct pf_flush_entry *pffe;
 	int bad = 0;
+
+	PF_STATE_LOCK_ASSERT(*state);
 
 	(*state)->src_node->conn++;
 	(*state)->src.tcp_est = 1;
@@ -488,86 +515,103 @@ pf_src_connlimit(struct pf_state **state)
 	if (!bad)
 		return (0);
 
-	if ((*state)->rule.ptr->overload_tbl) {
-		struct pfr_addr p;
-		u_int32_t	killed = 0;
-
-		V_pf_status.lcounters[LCNT_OVERLOAD_TABLE]++;
-		if (V_pf_status.debug >= PF_DEBUG_MISC) {
-			printf("pf_src_connlimit: blocking address ");
-			pf_print_host(&(*state)->src_node->addr, 0,
-			    (*state)->key[PF_SK_WIRE]->af);
-		}
-
-		bzero(&p, sizeof(p));
-		p.pfra_af = (*state)->key[PF_SK_WIRE]->af;
-		switch ((*state)->key[PF_SK_WIRE]->af) {
-#ifdef INET
-		case AF_INET:
-			p.pfra_net = 32;
-			p.pfra_ip4addr = (*state)->src_node->addr.v4;
-			break;
-#endif /* INET */
-#ifdef INET6
-		case AF_INET6:
-			p.pfra_net = 128;
-			p.pfra_ip6addr = (*state)->src_node->addr.v6;
-			break;
-#endif /* INET6 */
-		}
-
-		pfr_insert_kentry((*state)->rule.ptr->overload_tbl,
-		    &p, time_second);
-
-		/* kill existing states if that's required. */
-		if ((*state)->rule.ptr->flush) {
-
-			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
-			/* XXXGL: this cycle should go into a separate taskq */
-			for (int i = 0; i <= V_pf_hashmask; i++) {
-				struct pf_idhash *ih = &V_pf_idhash[i];
-				struct pf_state_key *sk;
-				struct pf_state *s;
-
-				PF_HASHROW_LOCK(ih);
-				LIST_FOREACH(s, &ih->states, entry) {
-					sk = s->key[PF_SK_WIRE];
-					/*
-					 * Kill states from this source.
-					 * (Only those from the same rule if
-					 * PF_FLUSH_GLOBAL is not set)
-					 */
-					if (sk->af ==
-					    (*state)->key[PF_SK_WIRE]->af &&
-					    (((*state)->direction == PF_OUT &&
-					    PF_AEQ(&(*state)->src_node->addr,
-						&sk->addr[0], sk->af)) ||
-					    ((*state)->direction == PF_IN &&
-					    PF_AEQ(&(*state)->src_node->addr,
-						&sk->addr[1], sk->af))) &&
-					    ((*state)->rule.ptr->flush &
-					    PF_FLUSH_GLOBAL ||
-					    (*state)->rule.ptr == s->rule.ptr))
-					{
-						s->timeout = PFTM_PURGE;
-						s->src.state = s->dst.state =
-						    TCPS_CLOSED;
-						killed++;
-					}
-				}
-				PF_HASHROW_UNLOCK(ih);
-			}
-			if (V_pf_status.debug >= PF_DEBUG_MISC)
-				printf(", %u states killed", killed);
-		}
-		if (V_pf_status.debug >= PF_DEBUG_MISC)
-			printf("\n");
-	}
-
-	/* kill this state */
+	/* Kill this state. */
 	(*state)->timeout = PFTM_PURGE;
 	(*state)->src.state = (*state)->dst.state = TCPS_CLOSED;
+
+	if ((*state)->rule.ptr->overload_tbl == NULL)
+		return (1);
+
+	V_pf_status.lcounters[LCNT_OVERLOAD_TABLE]++;
+	if (V_pf_status.debug >= PF_DEBUG_MISC) {
+		printf("%s: blocking address ", __func__);
+		pf_print_host(&(*state)->src_node->addr, 0,
+		    (*state)->key[PF_SK_WIRE]->af);
+		printf("\n");
+	}
+
+	bzero(&p, sizeof(p));
+	p.pfra_af = (*state)->key[PF_SK_WIRE]->af;
+	switch ((*state)->key[PF_SK_WIRE]->af) {
+#ifdef INET
+	case AF_INET:
+		p.pfra_net = 32;
+		p.pfra_ip4addr = (*state)->src_node->addr.v4;
+		break;
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		p.pfra_net = 128;
+		p.pfra_ip6addr = (*state)->src_node->addr.v6;
+		break;
+#endif /* INET6 */
+	}
+
+	pfr_insert_kentry((*state)->rule.ptr->overload_tbl, &p, time_second);
+
+	if ((*state)->rule.ptr->flush == 0)
+		return (1);
+
+	/* Schedule flushing task. */
+	pffe = malloc(sizeof(*pffe), M_PFTEMP, M_NOWAIT);
+	if (pffe == NULL)
+		return (1);	/* too bad :( */
+
+	bcopy(&(*state)->src_node->addr, &pffe->addr, sizeof(pffe->addr));
+	pffe->af = (*state)->key[PF_SK_WIRE]->af;
+	pffe->dir = (*state)->direction;
+	if ((*state)->rule.ptr->flush & PF_FLUSH_GLOBAL)
+		pffe->rule = NULL;
+	else
+		pffe->rule = (*state)->rule.ptr;
+	PF_FLUSHQ_LOCK();
+	SLIST_INSERT_HEAD(&V_pf_flushqueue, pffe, next);
+	PF_FLUSHQ_UNLOCK();
+	taskqueue_enqueue(taskqueue_swi, &V_pf_flushtask);
+
 	return (1);
+}
+
+static void
+pf_flush_task(void *c, int pending)
+{
+	struct pf_flush_head queue;
+	struct pf_flush_entry *pffe, *pffe1;
+	uint32_t killed = 0;
+
+	PF_FLUSHQ_LOCK();
+	queue = *(struct pf_flush_head *)c;
+	SLIST_INIT((struct pf_flush_head *)c);
+	PF_FLUSHQ_UNLOCK();
+
+	V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
+
+	for (int i = 0; i <= V_pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+		struct pf_state_key *sk;
+		struct pf_state *s;
+
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+		    sk = s->key[PF_SK_WIRE];
+		    SLIST_FOREACH(pffe, &queue, next)
+			if (sk->af == pffe->af && (pffe->rule == NULL ||
+			    pffe->rule == s->rule.ptr) &&
+			    ((pffe->dir == PF_OUT &&
+			    PF_AEQ(&pffe->addr, &sk->addr[1], sk->af)) ||
+			    (pffe->dir == PF_IN &&
+			    PF_AEQ(&pffe->addr, &sk->addr[0], sk->af)))) {
+				s->timeout = PFTM_PURGE;
+				s->src.state = s->dst.state = TCPS_CLOSED;
+				killed++;
+			}
+		}
+		PF_HASHROW_UNLOCK(ih);
+	}
+	SLIST_FOREACH_SAFE(pffe, &queue, next, pffe1)
+		free(pffe, M_PFTEMP);
+	if (V_pf_status.debug >= PF_DEBUG_MISC)
+		printf("%s: %u states killed", __func__, killed);
 }
 
 /*
@@ -707,9 +751,12 @@ pf_initialize()
 	V_pf_altqs_active = &V_pf_altqs[0];
 	V_pf_altqs_inactive = &V_pf_altqs[1];
 
-	/* Send queue. */
+	/* Send & flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
+	SLIST_INIT(&V_pf_flushqueue);
+	TASK_INIT(&V_pf_flushtask, 0, pf_flush_task, &V_pf_flushqueue);
 	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
+	mtx_init(&pf_flushqueue_mtx, "pf flush queue", NULL, MTX_DEF);
 
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
@@ -748,8 +795,9 @@ pf_cleanup()
 		m_freem(pfse->pfse_m);
 		free(pfse, M_PFTEMP);
 	}
-	mtx_destroy(&pf_sendqueue_mtx);
 
+	mtx_destroy(&pf_sendqueue_mtx);
+	mtx_destroy(&pf_flushqueue_mtx);
 	mtx_destroy(&pf_unlnkdrules_mtx);
 
 	uma_zdestroy(V_pf_sources_z);
@@ -1157,9 +1205,9 @@ static void
 pf_send(struct pf_send_entry *pfse)
 {
 
-	PF_QUEUE_LOCK();
+	PF_SENDQ_LOCK();
 	STAILQ_INSERT_TAIL(&V_pf_sendqueue, pfse, pfse_next);
-	PF_QUEUE_UNLOCK();
+	PF_SENDQ_UNLOCK();
 	swi_sched(V_pf_swi_cookie, 0);
 }
 
@@ -1172,10 +1220,10 @@ pf_intr(void *v)
 
 	CURVNET_SET((struct vnet *)v);
 
-	PF_QUEUE_LOCK();
+	PF_SENDQ_LOCK();
 	queue = V_pf_sendqueue;
 	STAILQ_INIT(&V_pf_sendqueue);
-	PF_QUEUE_UNLOCK();
+	PF_SENDQ_UNLOCK();
 
 	STAILQ_FOREACH_SAFE(pfse, &queue, pfse_next, next) {
 		switch (pfse->pfse_type) {
