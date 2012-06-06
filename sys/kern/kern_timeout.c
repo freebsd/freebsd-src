@@ -363,7 +363,6 @@ callout_tick(void)
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
 	struct bintime now;
-	struct bintime bt;
 	struct bintime limit;
 	struct bintime next;
 	int cpu, first, flag, future, last, need_softclock; 
@@ -376,13 +375,6 @@ callout_tick(void)
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	binuptime(&now);
-	/* 
-	 * getbinuptime() may be inaccurate and return time up to 1/HZ in the past. 
-	 * In order to avoid the possible loss of one or more events look back 1/HZ
-	 * in the past from the time we last checked.
-	 */	
-	FREQ2BT(hz,&bt);
-	bintime_sub(&cc->cc_softticks,&bt);
 	first = callout_hash(&cc->cc_softticks);
 	last = callout_hash(&now);
 	/* 
@@ -477,16 +469,10 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
     struct bintime to_bintime, void (*func)(void *), void *arg, int cpu)
 {
 	int bucket;	
-	struct bintime now;
-	struct bintime tmp;
 	
-	tmp.sec = 1;
-	tmp.frac = 0;
 	CC_LOCK_ASSERT(cc);
-	binuptime(&now);
-	if (bintime_cmp(&to_bintime, &now, <)) {
-		bintime_add(&now, &tmp);
-		to_bintime = now;
+	if (bintime_cmp(&to_bintime, &cc->cc_softticks, <)) {
+		to_bintime = cc->cc_softticks;
 	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
