@@ -306,6 +306,7 @@ MAXSSIZ		opt_param.h
 # Generic SCSI options.
 CAM_MAX_HIGHPOWER	opt_cam.h
 CAMDEBUG		opt_cam.h
+CAM_DEBUG_COMPILE	opt_cam.h
 CAM_DEBUG_DELAY		opt_cam.h
 CAM_DEBUG_BUS		opt_cam.h
 CAM_DEBUG_TARGET	opt_cam.h
