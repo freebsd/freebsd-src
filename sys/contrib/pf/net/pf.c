@@ -1183,6 +1183,15 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir)
 		if (s->kif == V_pfi_all || s->kif == kif) {
 			PF_STATE_LOCK(s);
 			PF_HASHROW_UNLOCK(kh);
+			if (s->timeout == PFTM_UNLINKED) {
+				/*
+				 * State is being processed
+				 * by pf_unlink_state() in
+				 * an other thread.
+				 */
+				PF_STATE_UNLOCK(s);
+				return (NULL);
+			}
 			return (s);
 		}
 	PF_HASHROW_UNLOCK(kh);
@@ -1464,14 +1473,15 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 		if (export_pflow_ptr != NULL)
 			export_pflow_ptr(s);
 #endif
-	if (pfsync_delete_state_ptr != NULL)
-		pfsync_delete_state_ptr(s);
 	s->timeout = PFTM_UNLINKED;
 	pf_src_tree_remove_state(s);
 	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
 	refcount_release(&s->refs);
+
+	if (pfsync_delete_state_ptr != NULL)
+		pfsync_delete_state_ptr(s);
 
 	return (pf_release_state(s));
 }
