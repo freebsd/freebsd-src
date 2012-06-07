@@ -1817,9 +1817,6 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 {
 	struct tty *tp;
 	struct file *fp;
-#ifdef CAPABILITIES
-	struct file *fp_cap;
-#endif
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
@@ -1838,8 +1835,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	}
 
 #ifdef CAPABILITIES
-	fp_cap = fp;
-	error = cap_funwrap(fp_cap, CAP_TTYHOOK, &fp);
+	error = cap_funwrap(fp, CAP_TTYHOOK, &fp);
 	if (error)
 		goto done1;
 #endif
