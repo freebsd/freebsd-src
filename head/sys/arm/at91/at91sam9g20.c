@@ -137,8 +137,8 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 
 	kid = device_add_child_ordered(dev, prio, name, unit);
 	if (kid == NULL) {
-	    printf("Can't add child %s%d ordered\n", name, unit);
-	    return;
+		printf("Can't add child %s%d ordered\n", name, unit);
+		return;
 	}
 	ivar = malloc(sizeof(*ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ivar == NULL) {
@@ -204,7 +204,7 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (at91_cpu_is(AT91_CPU_SAM9G20)) {
+	if (at91_cpu_is(AT91_T_SAM9G20)) {
 		at91_add_child(parent, 0, "at91sam", 9, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
 	}
@@ -214,11 +214,8 @@ static int
 at91_probe(device_t dev)
 {
 
-	if (at91_cpu_is(AT91_CPU_SAM9G20)) {
-		device_set_desc(dev, "AT91SAM9G20");
-		return (0);
-	}
-	return (ENXIO);
+	device_set_desc(dev, soc_data.name);
+	return (0);
 }
 
 static int
