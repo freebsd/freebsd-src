@@ -1841,7 +1841,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	fp_cap = fp;
 	error = cap_funwrap(fp_cap, CAP_TTYHOOK, &fp);
 	if (error)
-		return (error);
+		goto done1;
 #endif
 
 	/*
