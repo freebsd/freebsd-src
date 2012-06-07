@@ -1718,6 +1718,8 @@ VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 void				 pf_initialize(void);
 void				 pf_cleanup(void);
 
+struct pf_mtag			*pf_get_mtag(struct mbuf *);
+
 extern void			 pf_calc_skip_steps(struct pf_rulequeue *);
 #ifdef ALTQ
 extern	void			 pf_altq_ifnet_event(struct ifnet *, int);

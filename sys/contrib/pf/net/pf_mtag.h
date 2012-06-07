@@ -48,9 +48,6 @@ struct pf_mtag {
 	u_int8_t	 routed;
 };
 
-static __inline struct pf_mtag *pf_find_mtag(struct mbuf *);
-static __inline struct pf_mtag *pf_get_mtag(struct mbuf *);
-
 static __inline struct pf_mtag *
 pf_find_mtag(struct mbuf *m)
 {
@@ -58,23 +55,6 @@ pf_find_mtag(struct mbuf *m)
 
 	if ((mtag = m_tag_find(m, PACKET_TAG_PF, NULL)) == NULL)
 		return (NULL);
-
-	return ((struct pf_mtag *)(mtag + 1));
-}
-
-static __inline struct pf_mtag *
-pf_get_mtag(struct mbuf *m)
-{
-	struct m_tag	*mtag;
-
-	if ((mtag = m_tag_find(m, PACKET_TAG_PF, NULL)) == NULL) {
-		mtag = m_tag_get(PACKET_TAG_PF, sizeof(struct pf_mtag),
-		    M_NOWAIT);
-		if (mtag == NULL)
-			return (NULL);
-		bzero(mtag + 1, sizeof(struct pf_mtag));
-		m_tag_prepend(m, mtag);
-	}
 
 	return ((struct pf_mtag *)(mtag + 1));
 }
