@@ -7,8 +7,6 @@ CFLAGS+=-I. -I${KRB5DIR}/lib/roken
 
 CLEANFILES= roken.h
 
-MAKE_ROKEN=	make-roken
-
 roken.h:
 	${MAKE_ROKEN} > ${.TARGET}
 

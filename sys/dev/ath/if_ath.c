@@ -3499,7 +3499,7 @@ ath_tx_proc_q0(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	ath_tx_kick(sc);
 }
 
 /*
@@ -3549,7 +3549,7 @@ ath_tx_proc_q0123(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	ath_tx_kick(sc);
 }
 
 /*
@@ -3592,7 +3592,7 @@ ath_tx_proc(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	ath_tx_kick(sc);
 }
 #undef	TXQACTIVE
 

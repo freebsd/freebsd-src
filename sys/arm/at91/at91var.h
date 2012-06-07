@@ -59,7 +59,59 @@ struct cpu_devs
 	const char *parent_clk;
 };
 
-extern uint32_t at91_chip_id;
+enum at91_soc_type {
+	AT91_T_NONE = 0,
+	AT91_T_CAP9,
+	AT91_T_RM9200,
+	AT91_T_SAM9260,
+	AT91_T_SAM9261,
+	AT91_T_SAM9263,
+	AT91_T_SAM9G10,
+	AT91_T_SAM9G20,
+	AT91_T_SAM9G45,
+	AT91_T_SAM9N12,
+	AT91_T_SAM9RL,
+	AT91_T_SAM9X5,
+};
+
+enum at91_soc_subtype {
+	AT91_ST_NONE = 0,
+	/* AT91RM9200 */
+	AT91_ST_RM9200_BGA,
+	AT91_ST_RM9200_PQFP,
+	/* AT91SAM9260 */
+	AT91_ST_SAM9XE,
+	/* AT91SAM9G45 */
+	AT91_ST_SAM9G45,
+	AT91_ST_SAM9M10,
+	AT91_ST_SAM9G46,
+	AT91_ST_SAM9M11,
+	/* AT91SAM9X5 */
+	AT91_ST_SAM9G15,
+	AT91_ST_SAM9G25,
+	AT91_ST_SAM9G35,
+	AT91_ST_SAM9X25,
+	AT91_ST_SAM9X35,
+};
+
+enum at91_soc_family {
+	AT91_FAMILY_SAM9 = 0x19,
+	AT91_FAMILY_SAM9XE = 0x29,
+	AT91_FAMILY_RM92 = 0x92,
+};
+
+#define AT91_SOC_NAME_MAX 50
+
+struct at91_soc_info {
+	enum at91_soc_type type;
+	enum at91_soc_subtype subtype;
+	enum at91_soc_family family;
+	uint32_t cidr;
+	uint32_t exid;
+	char name[AT91_SOC_NAME_MAX];
+};
+
+extern struct at91_soc_info soc_data;
 
 static inline int at91_is_rm92(void);
 static inline int at91_is_sam9(void);
@@ -70,33 +122,32 @@ static inline int
 at91_is_rm92(void)
 {
 
-	return (AT91_ARCH(at91_chip_id) == AT91_ARCH_RM92);
+	return (soc_data.type == AT91_T_RM9200);
 }
 
 static inline int
 at91_is_sam9(void)
 {
 
-	return (AT91_ARCH(at91_chip_id) == AT91_ARCH_SAM9);
+	return (soc_data.family == AT91_FAMILY_SAM9);
 }
 
 static inline int
 at91_is_sam9xe(void)
 {
 
-	return (AT91_ARCH(at91_chip_id) == AT91_ARCH_SAM9XE);
+	return (soc_data.family == AT91_FAMILY_SAM9XE);
 }
 
 static inline int
 at91_cpu_is(u_int cpu)
 {
 
-	return (AT91_CPU(at91_chip_id) == cpu);
+	return (soc_data.type == cpu);
 }
 
 extern uint32_t at91_irq_system;
 extern uint32_t at91_master_clock;
-
 void at91_pmc_init_clock(void);
 
 #endif /* _AT91VAR_H_ */

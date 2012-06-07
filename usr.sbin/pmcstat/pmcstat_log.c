@@ -554,6 +554,14 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 		if ((fnname = elf_strptr(e, sh->sh_link, sym.st_name))
 		    == NULL)
 			continue;
+#ifdef __arm__
+		/* Remove spurious ARM function name. */
+		if (fnname[0] == '$' &&
+		    (fnname[1] == 'a' || fnname[1] == 't' ||
+		    fnname[1] == 'd') &&
+		    fnname[2] == '\0')
+			continue;
+#endif
 
 		symptr->ps_name  = pmcstat_string_intern(fnname);
 		symptr->ps_start = sym.st_value - image->pi_vaddr;
@@ -564,6 +572,8 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 	}
 
 	image->pi_symcount += newsyms;
+	if (image->pi_symcount == 0)
+		return;
 
 	assert(newsyms <= nfuncsyms);
 

@@ -881,6 +881,8 @@ procstat_get_shm_info_kvm(kvm_t *kd, struct filestat *fst,
 {
 	struct shmfd shmfd;
 	void *shmfdp;
+	char *path;
+	int i;
 
 	assert(kd);
 	assert(shm);
@@ -896,6 +898,21 @@ procstat_get_shm_info_kvm(kvm_t *kd, struct filestat *fst,
 	}
 	shm->mode = S_IFREG | shmfd.shm_mode;
 	shm->size = shmfd.shm_size;
+	if (fst->fs_path == NULL && shmfd.shm_path != NULL) {
+		path = malloc(MAXPATHLEN);
+		for (i = 0; i < MAXPATHLEN - 1; i++) {
+			if (!kvm_read_all(kd, (unsigned long)shmfd.shm_path + i,
+			    path + i, 1))
+				break;
+			if (path[i] == '\0')
+				break;
+		}
+		path[i] = '\0';
+		if (i == 0)
+			free(path);
+		else
+			fst->fs_path = path;
+	}
 	return (0);
 
 fail:

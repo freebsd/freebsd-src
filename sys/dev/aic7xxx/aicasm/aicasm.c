@@ -530,7 +530,7 @@ output_listing(char *ifilename)
 	int instrptr;
 	unsigned int line;
 	int func_count;
-	int skip_addr;
+	unsigned int skip_addr;
 
 	instrcount = 0;
 	instrptr = 0;

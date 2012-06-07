@@ -2183,12 +2183,6 @@ int		scsi_sense_sbuf(struct ccb_scsiio *csio, struct sbuf *sb,
 char *		scsi_sense_string(struct ccb_scsiio *csio,
 				  char *str, int str_len);
 void		scsi_sense_print(struct ccb_scsiio *csio);
-int		scsi_interpret_sense(union ccb *ccb, 
-				     u_int32_t sense_flags,
-				     u_int32_t *relsim_flags, 
-				     u_int32_t *reduction,
-				     u_int32_t *timeout,
-				     scsi_sense_action error_action);
 #else /* _KERNEL */
 int		scsi_command_string(struct cam_device *device,
 				    struct ccb_scsiio *csio, struct sbuf *sb);
@@ -2200,13 +2194,6 @@ char *		scsi_sense_string(struct cam_device *device,
 				  char *str, int str_len);
 void		scsi_sense_print(struct cam_device *device, 
 				 struct ccb_scsiio *csio, FILE *ofile);
-int		scsi_interpret_sense(struct cam_device *device,
-				     union ccb *ccb,
-				     u_int32_t sense_flags,
-				     u_int32_t *relsim_flags, 
-				     u_int32_t *reduction,
-				     u_int32_t *timeout,
-				     scsi_sense_action error_action);
 #endif /* _KERNEL */
 
 #define	SF_RETRY_UA	0x01

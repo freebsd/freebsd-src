@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/resourcevar.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>
@@ -696,6 +697,12 @@ unlock:
 }
 
 static const int io_hold_cnt = 16;
+static int vn_io_fault_enable = 1;
+SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RW,
+    &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
+static unsigned long vn_io_faults_cnt;
+SYSCTL_LONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
+    &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
 
 /*
  * The vn_io_fault() is a wrapper around vn_read() and vn_write() to
@@ -755,7 +762,8 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	vp = fp->f_vnode;
 	if (uio->uio_segflg != UIO_USERSPACE || vp->v_type != VREG ||
 	    ((mp = vp->v_mount) != NULL &&
-	    (mp->mnt_kern_flag & MNTK_NO_IOPF) == 0))
+	    (mp->mnt_kern_flag & MNTK_NO_IOPF) == 0) ||
+	    !vn_io_fault_enable)
 		return (doio(fp, uio, active_cred, flags, td));
 
 	/*
@@ -793,6 +801,7 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	if (error != EFAULT)
 		goto out;
 
+	atomic_add_long(&vn_io_faults_cnt, 1);
 	uio_clone->uio_segflg = UIO_NOCOPY;
 	uiomove(NULL, resid - uio->uio_resid, uio_clone);
 	uio_clone->uio_segflg = uio->uio_segflg;

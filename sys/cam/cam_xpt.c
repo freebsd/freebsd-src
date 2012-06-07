@@ -188,21 +188,15 @@ static struct cdevsw xpt_cdevsw = {
 };
 
 /* Storage for debugging datastructures */
-#ifdef	CAMDEBUG
 struct cam_path *cam_dpath;
-#ifdef	CAM_DEBUG_FLAGS
 u_int32_t cam_dflags = CAM_DEBUG_FLAGS;
-#else
-u_int32_t cam_dflags = CAM_DEBUG_NONE;
-#endif
 TUNABLE_INT("kern.cam.dflags", &cam_dflags);
 SYSCTL_UINT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RW,
-	&cam_dflags, 0, "Cam Debug Flags");
-u_int32_t cam_debug_delay;
+	&cam_dflags, 0, "Enabled debug flags");
+u_int32_t cam_debug_delay = CAM_DEBUG_DELAY;
 TUNABLE_INT("kern.cam.debug_delay", &cam_debug_delay);
 SYSCTL_UINT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RW,
-	&cam_debug_delay, 0, "Cam Debug Flags");
-#endif
+	&cam_debug_delay, 0, "Delay in us after each debug message");
 
 /* Our boot-time initialization hook */
 static int cam_module_event_handler(module_t, int /*modeventtype_t*/, void *);
@@ -2472,9 +2466,7 @@ xpt_action(union ccb *start_ccb)
 void
 xpt_action_default(union ccb *start_ccb)
 {
-#ifdef CAMDEBUG
 	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
-#endif
 	struct cam_path *path;
 
 	path = start_ccb->ccb_h.path;
@@ -2980,16 +2972,17 @@ xpt_action_default(union ccb *start_ccb)
 		break;
 	}
 	case XPT_DEBUG: {
-#ifdef CAMDEBUG
-#ifdef CAM_DEBUG_DELAY
-		cam_debug_delay = CAM_DEBUG_DELAY;
-#endif
+		/* Check that all request bits are supported. */
+		if (start_ccb->cdbg.flags & ~(CAM_DEBUG_COMPILE)) {
+			start_ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+			break;
+		}
+
 		cam_dflags = start_ccb->cdbg.flags;
 		if (cam_dpath != NULL) {
 			xpt_free_path(cam_dpath);
 			cam_dpath = NULL;
 		}
-
 		if (cam_dflags != CAM_DEBUG_NONE) {
 			if (xpt_create_path(&cam_dpath, xpt_periph,
 					    start_ccb->ccb_h.path_id,
@@ -3007,9 +3000,6 @@ xpt_action_default(union ccb *start_ccb)
 			cam_dpath = NULL;
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 		}
-#else /* !CAMDEBUG */
-		start_ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-#endif /* CAMDEBUG */
 		break;
 	}
 	case XPT_FREEZE_QUEUE:
@@ -3226,13 +3216,8 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 				("running device %p\n", device));
 
 		drvq = &device->drvq;
-
-#ifdef CAMDEBUG
-		if (drvq->entries <= 0) {
-			panic("xpt_run_dev_allocq: "
-			      "Device on queue without any work to do");
-		}
-#endif
+		KASSERT(drvq->entries > 0, ("xpt_run_dev_allocq: "
+		    "Device on queue without any work to do"));
 		if ((work_ccb = xpt_get_ccb(device)) != NULL) {
 			devq->alloc_openings--;
 			devq->alloc_active++;
@@ -4048,6 +4033,28 @@ xptpathid(const char *sim_name, int sim_unit, int sim_bus)
 	return (pathid);
 }
 
+static const char *
+xpt_async_string(u_int32_t async_code)
+{
+
+	switch (async_code) {
+	case AC_BUS_RESET: return ("AC_BUS_RESET");
+	case AC_UNSOL_RESEL: return ("AC_UNSOL_RESEL");
+	case AC_SCSI_AEN: return ("AC_SCSI_AEN");
+	case AC_SENT_BDR: return ("AC_SENT_BDR");
+	case AC_PATH_REGISTERED: return ("AC_PATH_REGISTERED");
+	case AC_PATH_DEREGISTERED: return ("AC_PATH_DEREGISTERED");
+	case AC_FOUND_DEVICE: return ("AC_FOUND_DEVICE");
+	case AC_LOST_DEVICE: return ("AC_LOST_DEVICE");
+	case AC_TRANSFER_NEG: return ("AC_TRANSFER_NEG");
+	case AC_INQ_CHANGED: return ("AC_INQ_CHANGED");
+	case AC_GETDEV_CHANGED: return ("AC_GETDEV_CHANGED");
+	case AC_CONTRACT: return ("AC_CONTRACT");
+	case AC_ADVINFO_CHANGED: return ("AC_ADVINFO_CHANGED");
+	}
+	return ("AC_UNKNOWN");
+}
+
 void
 xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 {
@@ -4056,8 +4063,8 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 	struct cam_ed *device, *next_device;
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-
-	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_async\n"));
+	CAM_DEBUG(path, CAM_DEBUG_TRACE | CAM_DEBUG_INFO,
+	    ("xpt_async(%s)\n", xpt_async_string(async_code)));
 
 	/*
 	 * Most async events come from a CAM interrupt context.  In
@@ -4765,9 +4772,7 @@ xpt_config(void *arg)
 	 * Now that interrupts are enabled, go find our devices
 	 */
 
-#ifdef CAMDEBUG
-	/* Setup debugging flags and path */
-#ifdef CAM_DEBUG_BUS
+	/* Setup debugging path */
 	if (cam_dflags != CAM_DEBUG_NONE) {
 		/*
 		 * Locking is specifically omitted here.  No SIMs have
@@ -4784,10 +4789,6 @@ xpt_config(void *arg)
 		}
 	} else
 		cam_dpath = NULL;
-#else /* !CAM_DEBUG_BUS */
-	cam_dpath = NULL;
-#endif /* CAM_DEBUG_BUS */
-#endif /* CAMDEBUG */
 
 	periphdriver_init(1);
 	xpt_hold_boot();
@@ -5064,10 +5065,16 @@ camisr_runqueue(void *V_queue)
 			ccb_h->path->bus->sim->devq->send_openings++;
 			runq = TRUE;
 
-			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
-			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)
-			 || ((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
+			if (((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
 			  && (dev->ccbq.dev_active == 0))) {
+				dev->flags &= ~CAM_DEV_REL_ON_QUEUE_EMPTY;
+				xpt_release_devq(ccb_h->path, /*count*/1,
+						 /*run_queue*/FALSE);
+			}
+
+			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
+			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)) {
+				dev->flags &= ~CAM_DEV_REL_ON_COMPLETE;
 				xpt_release_devq(ccb_h->path, /*count*/1,
 						 /*run_queue*/FALSE);
 			}
