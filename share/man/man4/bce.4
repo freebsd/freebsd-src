@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2009
+.Dd June 4, 2012
 .Dt BCE 4
 .Os
 .Sh NAME
@@ -200,9 +200,73 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va hw.bce.verbose
+Enable/Disable verbose logging and output to the console.
+Useful for debugging (default 0).
 .It Va hw.bce.msi_enable
-Whether or not MSI support is enabled in the driver.
-The default value is 1.
+Enable/Disable MSI support (default 1).
+.It Va hw.bce.tso_enable
+Enable/Disable TSO support (default 1).
+.It Va hw.bce.strict_rx_mtu
+Enable/Disable strict RX frame size checking (default 0).
+.It Va hw.bce.hdr_split
+Enable/Disable frame header/payload splitting (default 1).
+.It Va hw.bce.rx_pages
+Set the number of memory pages assigned to recieve packets by the driver.
+Due to alignment issues, this value can only be of the set
+1, 2, 4 or 8 (default 2).
+.It Va hw.bce.tx_pages
+Set the number of memory pages assigned to transmit packets
+by the driver.
+Due to alignment issues, this value can only be of the set
+1, 2, 4 or 8 (default 2).
+.It Va hw.bce.rx_ticks
+Time in microsecond ticks to wait before generating a status
+block updates due to RX processing activity.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.rx_quick_cons_trip is also 0
+(default 18).
+.It Va hw.bce.rx_ticks_int
+Time in microsecond ticks to wait during RX interrupt
+processing before generating a status block update.
+Values from 0-100 are valid.
+Valid values are in the range from 0-100.
+A value of 0 disables this status block update (default 18).
+.It Va hw.bce.rx_quick_cons_trip
+Number of RX Quick BD Chain entries that must be completed
+before a status block is generated.
+Values from 0-256 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.rx_ticks is also 0 (default 6).
+.It Va hw.bce.rx_quick_cons_trip_int
+Number of RX quick BD entries that must be completed before
+a status block is generated duing interrupt processing.
+Values from 0-256 are valid.
+A value of 0 disables this status block update (default 6).
+.It Va hw.bce.tx_ticks
+Time in microsecond ticks to wait before a status block
+update is generated due to TX activitiy.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.tx_quick_cons_trip is also 0
+(default 80).
+.It Va hw.bce.tx_ticks_int
+Time in microsecond ticks to wait in interrupt processing
+before a status block update is generated due to TX activity
+Values from 0-100 are valid.
+A value of 0 disables this status block update (default 80).
+.It Va hw.bce.tx_cons_trip
+How many TX Quick BD Chain entries that must be completed
+before a status block is generated.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.tx_ticks is also 0 (default 20).
+.It Va hw.bce.tx_cons_trip_int
+How many TX Quick BD Chain entries that must be completed
+before a status block is generated during an interrupt.
+Values from 0-100 are valid.
+A value of 0 disables this status block update (default 20).
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -266,7 +330,7 @@ address space.
 .It "bce%d: Could not allocate TX descriptor chain DMA tag!"
 The driver could not allocate a DMA tag for the controller's
 TX chain.
-.It "bce%d: Could not allocate TX descriptor chain DMA memory!
+.It "bce%d: Could not allocate TX descriptor chain DMA memory!"
 The driver could not allocate DMA addressable memory for the controller's
 TX chain.
 .It "bce%d: Could not map TX descriptor chain DMA memory!"
@@ -346,6 +410,10 @@ with the cable connection, or a driver logic problem has occurred..
 A controller hardware failure has occurred.
 If the problem continues replace the controller.
 .El
+.Sh SUPPORT
+For general information and support,
+go to the Broadcom NIC Open Source Developer Resource Site:
+.Pa http://www.broadcom.com/support/ethernet_nic/open_source.php .
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
