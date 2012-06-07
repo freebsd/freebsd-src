@@ -464,7 +464,7 @@ getaddrinfo(const char *hostname, const char *servname,
 		}
 		error = get_portmatch(pai, servname);
 		if (error)
-			ERR(error);
+			goto bad;
 
 		*pai = ai0;
 	}

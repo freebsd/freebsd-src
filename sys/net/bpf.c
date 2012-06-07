@@ -1704,6 +1704,14 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 /*
  * Set d's packet filter program to fp.  If this file already has a filter,
  * free it and replace it.  Returns EINVAL for bogus requests.
+ *
+ * Note we need global lock here to serialize bpf_setf() and bpf_setif() calls
+ * since reading d->bd_bif can't be protected by d or interface lock due to
+ * lock order.
+ *
+ * Additionally, we have to acquire interface write lock due to bpf_mtap() uses
+ * interface read lock to read all filers.
+ *
  */
 static int
 bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
@@ -2535,20 +2543,32 @@ bpfdetach(struct ifnet *ifp)
 }
 
 /*
- * Interface departure handler
+ * Interface departure handler.
+ * Note departure event does not guagantee interface is going down.
  */
 static void
 bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
 	struct bpf_if *bp;
 
-	if ((bp = ifp->if_bpf) == NULL)
+	BPF_LOCK();
+	if ((bp = ifp->if_bpf) == NULL) {
+		BPF_UNLOCK();
 		return;
+	}
+
+	/* Check if bpfdetach() was called previously */
+	if ((bp->flags & BPFIF_FLAG_DYING) == 0) {
+		BPF_UNLOCK();
+		return;
+	}
 
 	CTR3(KTR_NET, "%s: freing BPF instance %p for interface %p",
 	    __func__, bp, ifp);
 
 	ifp->if_bpf = NULL;
+	BPF_UNLOCK();
+
 	rw_destroy(&bp->bif_lock);
 	free(bp, M_BPF);
 }

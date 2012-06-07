@@ -942,9 +942,8 @@ daopen(struct disk *dp)
 	softc = (struct da_softc *)periph->softc;
 	softc->flags |= DA_FLAG_OPEN;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("daopen: disk=%s%d (unit %d)\n", dp->d_name, dp->d_unit,
-	     unit));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("daopen\n"));
 
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
 		/* Invalidate our pack information. */
@@ -999,6 +998,9 @@ daclose(struct disk *dp)
 
 	softc = (struct da_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("daclose\n"));
+
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0
 	 && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
 		union	ccb *ccb;
@@ -1014,30 +1016,9 @@ daclose(struct disk *dp)
 				       SSD_FULL_SIZE,
 				       5 * 60 * 1000);
 
-		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA,
+		cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+				  /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 				  softc->disk->d_devstat);
-
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR) {
-				int asc, ascq;
-				int sense_key, error_code;
-
-				scsi_extract_sense_len(&ccb->csio.sense_data,
-				    ccb->csio.sense_len - ccb->csio.sense_resid,
-				    &error_code, &sense_key, &asc, &ascq,
-				    /*show_errors*/ 1);
-				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
-					scsi_sense_print(&ccb->csio);
-			} else {
-				xpt_print(periph->path, "Synchronize cache "
-				    "failed, status == 0x%x, scsi status == "
-				    "0x%x\n", ccb->csio.ccb_h.status,
-				    ccb->csio.scsi_status);
-			}
-		}
-
 		xpt_release_ccb(ccb);
 
 	}
@@ -1108,7 +1089,9 @@ dastrategy(struct bio *bp)
 		biofinish(bp, NULL, ENXIO);
 		return;
 	}
-	
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dastrategy(%p)\n", bp));
+
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
@@ -1724,6 +1707,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct da_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dastart\n"));
+
 	switch (softc->state) {
 	case DA_STATE_NORMAL:
 	{
@@ -1732,7 +1717,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 		/* Execute immediate CCB if waiting. */
 		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
 			start_ccb->ccb_h.ccb_state = DA_CCB_WAITING;
 			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
@@ -2064,6 +2049,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct da_softc *)periph->softc;
 	priority = done_ccb->ccb_h.pinfo.priority;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone\n"));
+
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) {
 	case DA_CCB_BUFFER_IO:
@@ -2532,8 +2520,8 @@ daprevent(struct cam_periph *periph, int action)
 		     SSD_FULL_SIZE,
 		     5000);
 
-	error = cam_periph_runccb(ccb, /*error_routine*/NULL, CAM_RETRY_SELTO,
-				  SF_RETRY_UA, softc->disk->d_devstat);
+	error = cam_periph_runccb(ccb, daerror, CAM_RETRY_SELTO,
+	    SF_RETRY_UA | SF_QUIET_IR, softc->disk->d_devstat);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)

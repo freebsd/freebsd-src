@@ -96,6 +96,7 @@ typedef enum {
 	PROBE_PM_PRV,
 	PROBE_IDENTIFY_SES,
 	PROBE_IDENTIFY_SAFTE,
+	PROBE_DONE,
 	PROBE_INVALID
 } probe_action;
 
@@ -115,6 +116,7 @@ static char *probe_action_text[] = {
 	"PROBE_PM_PRV",
 	"PROBE_IDENTIFY_SES",
 	"PROBE_IDENTIFY_SAFTE",
+	"PROBE_DONE",
 	"PROBE_INVALID"
 };
 
@@ -122,7 +124,7 @@ static char *probe_action_text[] = {
 do {									\
 	char **text;							\
 	text = probe_action_text;					\
-	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_INFO,		\
+	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_PROBE,		\
 	    ("Probe %s to %s\n", text[(softc)->action],			\
 	    text[(newaction)]));					\
 	(softc)->action = (newaction);					\
@@ -251,6 +253,8 @@ proberegister(struct cam_periph *periph, void *arg)
 	if (status != CAM_REQ_CMP) {
 		return (status);
 	}
+	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
+
 	/*
 	 * Ensure nobody slip in until probe finish.
 	 */
@@ -653,11 +657,8 @@ negotiate:
 		ata_28bit_cmd(ataio, ATA_SEP_ATTN, 0xEC, 0x00,
 		    sizeof(softc->ident_data) / 4);
 		break;
-	case PROBE_INVALID:
-		CAM_DEBUG(path, CAM_DEBUG_INFO,
-		    ("probestart: invalid action state\n"));
 	default:
-		break;
+		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
 	xpt_action(start_ccb);
 }
@@ -776,6 +777,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 			xpt_async(AC_LOST_DEVICE, path, NULL);
+		PROBE_SET_ACTION(softc, PROBE_INVALID);
 		found = 0;
 		goto done;
 	}
@@ -787,8 +789,8 @@ noerror:
 	{
 		int sign = (done_ccb->ataio.res.lba_high << 8) +
 		    done_ccb->ataio.res.lba_mid;
-		if (bootverbose)
-			xpt_print(path, "SIGNATURE: %04x\n", sign);
+		CAM_DEBUG(path, CAM_DEBUG_PROBE,
+		    ("SIGNATURE: %04x\n", sign));
 		if (sign == 0x0000 &&
 		    done_ccb->ccb_h.target_id != 15) {
 			path->device->protocol = PROTO_ATA;
@@ -940,9 +942,9 @@ noerror:
 				xpt_action((union ccb *)&cts);
 			}
 		}
+		ata_device_transport(path);
 		if (changed)
 			proberequestdefaultnegotiation(periph);
-		ata_device_transport(path);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
@@ -1053,6 +1055,7 @@ notsata:
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 			    done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
@@ -1094,6 +1097,7 @@ notsata:
 			xpt_action(done_ccb);
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path, done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
 	}
 	case PROBE_PM_PID:
@@ -1119,6 +1123,9 @@ notsata:
 		snprintf(ident_buf->revision, sizeof(ident_buf->revision),
 		    "%04x", softc->pm_prv);
 		path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
+		ata_device_transport(path);
+		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED)
+			proberequestdefaultnegotiation(periph);
 		/* Set supported bits. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
@@ -1162,6 +1169,7 @@ notsata:
 			xpt_action(done_ccb);
 			xpt_async(AC_SCSI_AEN, done_ccb->ccb_h.path, done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
 	case PROBE_IDENTIFY_SES:
 	case PROBE_IDENTIFY_SAFTE:
@@ -1195,6 +1203,9 @@ notsata:
 
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
 		}
+		ata_device_transport(path);
+		if (changed)
+			proberequestdefaultnegotiation(periph);
 
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
@@ -1204,12 +1215,10 @@ notsata:
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 			    done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
-	case PROBE_INVALID:
-		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_INFO,
-		    ("probedone: invalid action state\n"));
 	default:
-		break;
+		panic("probedone: invalid action state 0x%x\n", softc->action);
 	}
 done:
 	if (softc->restart) {
@@ -1219,6 +1228,7 @@ done:
 		return;
 	}
 	xpt_release_ccb(done_ccb);
+	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
 	while ((done_ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs))) {
 		TAILQ_REMOVE(&softc->request_ccbs,
 		    &done_ccb->ccb_h, periph_links.tqe);
@@ -1773,6 +1783,12 @@ ata_get_transfer_settings(struct ccb_trans_settings *cts)
 	sim = cts->ccb_h.path->bus->sim;
 	(*(sim->sim_action))(sim, (union ccb *)cts);
 
+	if (cts->protocol == PROTO_UNKNOWN ||
+	    cts->protocol == PROTO_UNSPECIFIED) {
+		cts->protocol = device->protocol;
+		cts->protocol_version = device->protocol_version;
+	}
+
 	if (cts->protocol == PROTO_ATA) {
 		ata = &cts->proto_specific.ata;
 		if ((ata->valid & CTS_ATA_VALID_TQ) == 0) {
@@ -1792,6 +1808,12 @@ ata_get_transfer_settings(struct ccb_trans_settings *cts)
 			    (device->inq_flags & SID_CmdQue) != 0)
 				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
 		}
+	}
+
+	if (cts->transport == XPORT_UNKNOWN ||
+	    cts->transport == XPORT_UNSPECIFIED) {
+		cts->transport = device->transport;
+		cts->transport_version = device->transport_version;
 	}
 }
 

@@ -54,8 +54,6 @@ static void at91_eoi(void *);
 
 extern const struct pmap_devmap at91_devmap[];
 
-uint32_t at91_chip_id;
-
 uint32_t at91_master_clock;
 
 static int
