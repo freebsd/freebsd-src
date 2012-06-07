@@ -988,7 +988,7 @@ shmtrans(struct shmfd *shmp, int i, int flag)
 		printf(" %-15s", name[0] != '\0' ? name : "-");
 		strmode(shm.shm_mode, mode);
 	}
-	printf(" %10s %6ju", mode, shm.shm_size);
+	printf(" %10s %6zu", mode, shm.shm_size);
 	printf(" %2s\n", rw);
 
 	return;
