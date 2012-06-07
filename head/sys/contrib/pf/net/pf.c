@@ -2088,10 +2088,7 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 	pf_mtag->tag = rtag;
 
 	if (r != NULL && r->rtableid >= 0)
-	{
 		M_SETFIB(m, r->rtableid);
-		pf_mtag->rtableid = r->rtableid;
-	}
 
 #ifdef ALTQ
 	if (r != NULL && r->qid) {
@@ -2212,10 +2209,7 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	m0->m_flags |= M_SKIP_FIREWALL;
 
 	if (r->rtableid >= 0)
-	{
 		M_SETFIB(m0, r->rtableid);
-		pf_mtag->rtableid = r->rtableid;
-	}
 
 #ifdef ALTQ
 	if (r->qid) {
