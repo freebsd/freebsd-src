@@ -23,6 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 DEY Storage Systems, Inc.  All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
@@ -2319,6 +2320,17 @@ zfs_prop_get(zfs_handle_t *zhp, zfs_prop_t prop, char *propbuf, size_t proplen,
 			propbuf[0] = '\0';
 #endif	/* !sun */
 		}
+		break;
+
+	case ZFS_PROP_GUID:
+		/*
+		 * GUIDs are stored as numbers, but they are identifiers.
+		 * We don't want them to be pretty printed, because pretty
+		 * printing mangles the ID into a truncated and useless value.
+		 */
+		if (get_numeric_property(zhp, prop, src, &source, &val) != 0)
+			return (-1);
+		(void) snprintf(propbuf, proplen, "%llu", (u_longlong_t)val);
 		break;
 
 	default:
