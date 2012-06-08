@@ -117,6 +117,10 @@ static int nfsrpc_writeds(vnode_t, struct uio *, int *, int *,
     struct nfsfh *, int, struct ucred *, NFSPROC_T *);
 static enum nfsclds_state nfscl_getsameserver(struct nfsmount *,
     struct nfsclds *, struct nfsclds **);
+#ifdef notyet
+static int nfsrpc_commitds(vnode_t, uint64_t, int, struct nfsclds *,
+    struct nfsfh *, struct ucred *, NFSPROC_T *, void *);
+#endif
 
 /*
  * nfs null call from vfs.
@@ -816,7 +820,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	nfsquad_t confirm;
 	u_int32_t lease;
 	static u_int32_t rev = 0;
-	struct nfsclds *dsp;
+	struct nfsclds *dsp, *ndsp, *tdsp;
 
 	if (nfsboottime.tv_sec == 0)
 		NFSSETBOOTTIME(nfsboottime);
@@ -827,11 +831,14 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 if (error) printf("exch=%d\n",error);
 		if (error == 0) {
 			error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
+			    &nmp->nm_sockreq,
 			    dsp->nfsclds_sess.nfsess_sequenceid, 1, cred, p);
 			if (error == 0) {
-				KASSERT(TAILQ_FIRST(&nmp->nm_sess) == NULL,
-				    ("nfscl session non-NULL"));
 				NFSLOCKMNT(nmp);
+				TAILQ_FOREACH_SAFE(tdsp, &nmp->nm_sess,
+				    nfsclds_list, ndsp)
+					nfscl_freenfsclds(tdsp);
+				TAILQ_INIT(&nmp->nm_sess);
 				TAILQ_INSERT_HEAD(&nmp->nm_sess, dsp,
 				    nfsclds_list);
 				NFSUNLOCKMNT(nmp);
@@ -842,7 +849,8 @@ if (error) printf("aft crs=%d\n",error);
 		if (error == 0 && reclaim == 0) {
 			error = nfsrpc_reclaimcomplete(nmp, cred, p);
 if (error) printf("aft reclcom=%d\n",error);
-			if (error == NFSERR_COMPLETEALREADY)
+			if (error == NFSERR_COMPLETEALREADY ||
+			    error == NFSERR_NOTSUPP)
 				/* Ignore this error. */
 				error = 0;
 		}
@@ -4159,27 +4167,34 @@ nfsmout:
  * This function performs the Renew RPC.
  */
 APPLESTATIC int
-nfsrpc_renew(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
+nfsrpc_renew(struct nfsclclient *clp, struct nfsclds *dsp, struct ucred *cred,
+    NFSPROC_T *p)
 {
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	struct nfsmount *nmp;
 	int error;
+	struct nfssockreq *nrp;
 
 	nmp = clp->nfsc_nmp;
 	if (nmp == NULL)
 		return (0);
-	nfscl_reqstart(nd, NFSPROC_RENEW, nmp, NULL, 0, NULL, NULL);
+	nfscl_reqstart(nd, NFSPROC_RENEW, nmp, NULL, 0, NULL,
+	    &dsp->nfsclds_sess);
 	if (!NFSHASNFSV4N(nmp)) {
 		/* NFSv4.1 just uses a Sequence Op and not a Renew. */
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		*tl++ = NFSMNT_MDSSESSION(nmp)->nfsess_clientid.lval[0];
 		*tl = NFSMNT_MDSSESSION(nmp)->nfsess_clientid.lval[1];
 	}
+	nrp = dsp->nfsclds_sockp;
+	if (nrp == NULL)
+		/* If NULL, use the MDS socket. */
+		nrp = &nmp->nm_sockreq;
 	nd->nd_flag |= ND_USEGSSNAME;
-	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-		NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
+	error = newnfs_request(nd, nmp, NULL, nrp, NULL, p, cred,
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
 	if (error)
 		return (error);
 	error = nd->nd_repstat;
@@ -4441,20 +4456,24 @@ printf("exch err=%d reps=%d\n",error,nd->nd_repstat);
 	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
+printf("x1\n");
 		NFSM_DISSECT(tl, uint32_t *, 6 * NFSX_UNSIGNED + NFSX_HYPER);
 		len = fxdr_unsigned(int, *(tl + 7));
 printf("servlen=%d\n", len);
-		if (len < 1 || len > NFSV4_OPAQUELIMIT) {
+		if (len < 0 || len > NFSV4_OPAQUELIMIT) {
 			error = NFSERR_BADXDR;
 			goto nfsmout;
 		}
 		dsp = malloc(sizeof(struct nfsclds) + len, M_NFSCLDS,
 		    M_WAITOK | M_ZERO);
+		dsp->nfsclds_expire = NFSD_MONOSEC + clp->nfsc_renew;
 		dsp->nfsclds_servownlen = len;
 		dsp->nfsclds_sess.nfsess_clientid.lval[0] = *tl++;
 		dsp->nfsclds_sess.nfsess_clientid.lval[1] = *tl++;
+printf("sess 0x%x 0x%x\n",dsp->nfsclds_sess.nfsess_clientid.lval[0],dsp->nfsclds_sess.nfsess_clientid.lval[1]);
 		dsp->nfsclds_sess.nfsess_sequenceid =
 		    fxdr_unsigned(uint32_t, *tl++);
+printf("sess seq=%d\n",dsp->nfsclds_sess.nfsess_sequenceid);
 		v41flags = fxdr_unsigned(uint32_t, *tl);
 printf("v41fl=0x%x nmfl=0x%x\n", v41flags, nmp->nm_flag);
 		if ((v41flags & NFSV4EXCH_USEPNFSMDS) != 0 &&
@@ -4467,7 +4486,10 @@ printf("set PNFS\n");
 		}
 		if ((v41flags & NFSV4EXCH_USEPNFSDS) != 0)
 			dsp->nfsclds_flags |= NFSCLDS_DS;
-		nd->nd_repstat = nfsrv_mtostr(nd, dsp->nfsclds_serverown, len);
+		if (len > 0)
+			nd->nd_repstat = nfsrv_mtostr(nd,
+			    dsp->nfsclds_serverown, len);
+{ int xxxx; for (xxxx=0; xxxx < len; xxxx++) printf("0x%x ", dsp->nfsclds_serverown[xxxx]); printf("\n"); }
 		if (nd->nd_repstat == 0) {
 			mtx_init(&dsp->nfsclds_mtx, "nfsds", NULL, MTX_DEF);
 			mtx_init(&dsp->nfsclds_sess.nfsess_mtx, "nfssession",
@@ -4488,7 +4510,8 @@ nfsmout:
  */
 int
 nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
-    uint32_t sequenceid, int mds, struct ucred *cred, NFSPROC_T *p)
+    struct nfssockreq *nrp, uint32_t sequenceid, int mds, struct ucred *cred,
+    NFSPROC_T *p)
 {
 	uint32_t crflags, *tl;
 	struct nfsrv_descript nfsd;
@@ -4499,10 +4522,11 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = sep->nfsess_clientid.lval[0];
 	*tl++ = sep->nfsess_clientid.lval[1];
+printf("crs clid 0x%x 0x%x\n",sep->nfsess_clientid.lval[0],sep->nfsess_clientid.lval[1]);
 	*tl++ = txdr_unsigned(sequenceid);
 printf("clseq0=0x%x\n",sequenceid);
 	crflags = (NFSMNT_RDONLY(nmp->nm_mountp) ? 0 : NFSV4CRSESS_PERSIST);
-	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0 && mds != 0)
+	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0)
 		crflags |= NFSV4CRSESS_CONNBACKCHAN;
 	*tl = txdr_unsigned(crflags);
 
@@ -4538,8 +4562,8 @@ printf("clseq0=0x%x\n",sequenceid);
 	*tl++ = 0;				/* Gid == 0 */
 	*tl = 0;				/* No additional gids */
 	nd->nd_flag |= ND_USEGSSNAME;
-	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
+	error = newnfs_request(nd, nmp, NULL, nrp, NULL, p, cred, NFS_PROG,
+	    NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
@@ -4560,7 +4584,9 @@ printf("crfl=0x%x\n",crflags);
 		/* Get the fore channel slot count. */
 		NFSM_DISSECT(tl, uint32_t *, 7 * NFSX_UNSIGNED);
 printf("cr %d %d %d %d %d\n",fxdr_unsigned(uint32_t, *tl),fxdr_unsigned(uint32_t, *(tl+1)),fxdr_unsigned(uint32_t, *(tl+2)),fxdr_unsigned(uint32_t, *(tl+3)),fxdr_unsigned(uint32_t, *(tl+4)));
-		tl += 5;		/* Skip the other counts. */		
+		tl += 3;		/* Skip the other counts. */		
+		sep->nfsess_maxcache = fxdr_unsigned(int, *tl++);
+		tl++;
 		sep->nfsess_foreslots = fxdr_unsigned(uint16_t, *tl++);
 printf("fore slots=%d\n", sep->nfsess_foreslots);
 		irdcnt = fxdr_unsigned(int, *tl);
@@ -4637,19 +4663,20 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
  */
 int
 nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
-    uint64_t offset, uint64_t len, uint64_t minlen, nfsv4stateid_t *stateidp,
-    int *retonclosep, struct nfsclflayouthead *flhp, struct ucred *cred,
-    NFSPROC_T *p, void *stuff)
+    uint64_t offset, uint64_t len, uint64_t minlen, int layoutlen,
+    nfsv4stateid_t *stateidp, int *retonclosep, struct nfsclflayouthead *flhp,
+    struct ucred *cred, NFSPROC_T *p, void *stuff)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	struct nfsfh *nfhp;
 	struct nfsclflayout *flp, *prevflp, *tflp;
-	int cnt, error, fhcnt, nfhlen, i, j;
+	int cnt, error, gotiomode, fhcnt, nfhlen, i, j;
 	uint8_t *cp;
 	uint64_t retlen;
 
 	flp = NULL;
+	gotiomode = -1;
 	nfscl_reqstart(nd, NFSPROC_LAYOUTGET, nmp, fhp, fhlen, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
 	    NFSX_STATEID);
@@ -4667,7 +4694,7 @@ printf("layget seq=%d\n", stateidp->seqid);
 	*tl++ = stateidp->other[0];
 	*tl++ = stateidp->other[1];
 	*tl++ = stateidp->other[2];
-	*tl = txdr_unsigned(100000);	/* take a large layout list */
+	*tl = txdr_unsigned(layoutlen);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
@@ -4712,6 +4739,7 @@ printf("fhcnt=%d\n", fhcnt);
 				    M_NFSFLAYOUT, M_WAITOK);
 			flp->nfsfl_flags = 0;
 			flp->nfsfl_fhcnt = 0;
+			flp->nfsfl_devp = NULL;
 			flp->nfsfl_off = fxdr_hyper(tl); tl += 2;
 			retlen = fxdr_hyper(tl); tl += 2;
 			if (flp->nfsfl_off + retlen < flp->nfsfl_off)
@@ -4719,7 +4747,9 @@ printf("fhcnt=%d\n", fhcnt);
 			else
 				flp->nfsfl_end = flp->nfsfl_off + retlen;
 			flp->nfsfl_iomode = fxdr_unsigned(int, *tl++);
-printf("layg iom=%d\n", iomode);
+			if (gotiomode == -1)
+				gotiomode = flp->nfsfl_iomode;
+printf("layg reqiom=%d retiom=%d\n", iomode, flp->nfsfl_iomode);
 			if (fxdr_unsigned(int, *tl++) !=
 			    NFSLAYOUT_NFSV4_1_FILES) {
 				printf("NFSv4.1: got non-files layout\n");
@@ -4751,7 +4781,7 @@ printf("layg iom=%d\n", iomode);
 				NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(nfhlen));
 				NFSBCOPY(cp, nfhp->nfh_fh, nfhlen);
 			}
-			if (flp->nfsfl_iomode == iomode) {
+			if (flp->nfsfl_iomode == gotiomode) {
 				/* Keep the list in increasing offset order. */
 				tflp = LIST_FIRST(flhp);
 				prevflp = NULL;
@@ -5082,7 +5112,8 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 	struct nfsclflayout *flp;
 	struct nfscldevinfo *dip;
 	struct nfsclflayouthead flh;
-	int error = 0, recalled, retonclose;
+	int error = 0, layoutlen, recalled, retonclose;
+	nfsv4stateid_t stateid;
 
 	*lypp = NULL;
 	lyp = nfscl_getlayout(nmp->nm_clp, nfhp->nfh_fh, nfhp->nfh_len,
@@ -5091,9 +5122,16 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 		if (recalled != 0)
 			return (EIO);
 		LIST_INIT(&flh);
+		layoutlen = NFSMNT_MDSSESSION(nmp)->nfsess_maxcache -
+		    (NFSX_STATEID + 3 * NFSX_UNSIGNED);
+printf("layoutlen=%d\n", layoutlen);
+		stateid.seqid = 0;
+		stateid.other[0] = stateidp->other[0];
+		stateid.other[1] = stateidp->other[1];
+		stateid.other[2] = stateidp->other[2];
 		error = nfsrpc_layoutget(nmp, nfhp->nfh_fh, nfhp->nfh_len,
-		    iomode, (uint64_t)0, INT64_MAX, (uint64_t)0,
-		    stateidp, &retonclose, &flh, cred, p, NULL);
+		    iomode, (uint64_t)0, INT64_MAX, (uint64_t)0, layoutlen,
+		    &stateid, &retonclose, &flh, cred, p, NULL);
 		if (error == 0)
 			LIST_FOREACH(flp, &flh, nfsfl_list) {
 				error = nfscl_adddevinfo(nmp, NULL, flp);
@@ -5112,7 +5150,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 			}
 		if (error == 0)
 			error = nfscl_layout(nmp, vp, nfhp->nfh_fh,
-			    nfhp->nfh_len, stateidp, retonclose, &flh, &lyp,
+			    nfhp->nfh_len, &stateid, retonclose, &flh, &lyp,
 			    cred, p);
 	}
 	if (lyp != NULL) {
@@ -5138,7 +5176,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	struct nfsclclient *clp;
 	struct nfssockreq *nrp;
 	struct nfsclds *dsp, *tdsp;
-	int error, same_as_mds;
+	int error;
 	enum nfsclds_state retv;
 	uint32_t sequenceid;
 
@@ -5149,52 +5187,90 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	NFSUNLOCKCLSTATE();
 	if (clp == NULL)
 		return (EPERM);
-	same_as_mds = 0;
-	nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
 	if (ssp->ss_family == AF_INET) {
 		ssd = (struct sockaddr_in *)ssp;
+printf("ds addr=0x%x ", ssd->sin_addr.s_addr);
+		NFSLOCKMNT(nmp);
+
+		/*
+		 * Check to see if we already have a session for this
+		 * address that is usable for a DS.
+		 * Note that the MDS's address is in a different place
+		 * than the sessions already acquired for DS's.
+		 */
+		msad = (struct sockaddr_in *)nmp->nm_sockreq.nr_nam;
+if (msad != NULL) printf("maddr=0x%x", msad->sin_addr.s_addr);
+printf("\n");
+		tdsp = TAILQ_FIRST(&nmp->nm_sess);
+		while (tdsp != NULL) {
+			if (msad != NULL && msad->sin_family == AF_INET &&
+			    ssd->sin_addr.s_addr == msad->sin_addr.s_addr &&
+			    ssd->sin_port == msad->sin_port &&
+			    (tdsp->nfsclds_flags & NFSCLDS_DS) != 0) {
+				*dspp = tdsp;
+				NFSUNLOCKMNT(nmp);
+printf("fnd same addr\n");
+				return (0);
+			}
+			tdsp = TAILQ_NEXT(tdsp, nfsclds_list);
+			if (tdsp != NULL && tdsp->nfsclds_sockp != NULL)
+				msad = (struct sockaddr_in *)
+				    tdsp->nfsclds_sockp->nr_nam;
+			else
+				msad = NULL;
+		}
+		NFSUNLOCKMNT(nmp);
+
+		/* No IP address match, so look for new/trunked one. */
 		sad = malloc(sizeof(*sad), M_SONAME, M_WAITOK | M_ZERO);
 		sad->sin_len = sizeof(*sad);
 		sad->sin_family = AF_INET;
 		sad->sin_port = ssd->sin_port;
 		sad->sin_addr.s_addr = ssd->sin_addr.s_addr;
+		nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
 		nrp->nr_nam = (struct sockaddr *)sad;
-		/* Now check to see if this address is the same as the MDS. */
-		msad = (struct sockaddr_in *)nmp->nm_sockreq.nr_nam;
-		if (msad != NULL && msad->sin_family == AF_INET &&
-		    sad->sin_addr.s_addr == msad->sin_addr.s_addr &&
-		    sad->sin_port == msad->sin_port)
-			same_as_mds = 1;
 	} else if (ssp->ss_family == AF_INET6) {
 		ssd6 = (struct sockaddr_in6 *)ssp;
+		NFSLOCKMNT(nmp);
+
+		/*
+		 * Check to see if we already have a session for this
+		 * address that is usable for a DS.
+		 * Note that the MDS's address is in a different place
+		 * than the sessions already acquired for DS's.
+		 */
+		msad6 = (struct sockaddr_in6 *)nmp->nm_sockreq.nr_nam;
+		tdsp = TAILQ_FIRST(&nmp->nm_sess);
+		while (tdsp != NULL) {
+			if (msad6 != NULL && msad6->sin6_family == AF_INET6 &&
+			    IN6_ARE_ADDR_EQUAL(&ssd6->sin6_addr,
+			    &msad6->sin6_addr) &&
+			    ssd6->sin6_port == msad6->sin6_port &&
+			    (tdsp->nfsclds_flags & NFSCLDS_DS) != 0) {
+				*dspp = tdsp;
+				NFSUNLOCKMNT(nmp);
+				return (0);
+			}
+			tdsp = TAILQ_NEXT(tdsp, nfsclds_list);
+			if (tdsp != NULL && tdsp->nfsclds_sockp != NULL)
+				msad6 = (struct sockaddr_in6 *)
+				    tdsp->nfsclds_sockp->nr_nam;
+			else
+				msad6 = NULL;
+		}
+		NFSUNLOCKMNT(nmp);
+
+		/* No IP address match, so look for new/trunked one. */
 		sad6 = malloc(sizeof(*sad6), M_SONAME, M_WAITOK | M_ZERO);
 		sad6->sin6_len = sizeof(*sad6);
 		sad6->sin6_family = AF_INET6;
 		sad6->sin6_port = ssd6->sin6_port;
 		NFSBCOPY(&ssd6->sin6_addr, &sad6->sin6_addr,
 		    sizeof(struct in6_addr));
+		nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
 		nrp->nr_nam = (struct sockaddr *)sad6;
-		/* Now check to see if this address is the same as the MDS. */
-		msad6 = (struct sockaddr_in6 *)nmp->nm_sockreq.nr_nam;
-		if (msad6 != NULL && msad6->sin6_family == AF_INET6 &&
-		    IN6_ARE_ADDR_EQUAL(&sad6->sin6_addr, &msad6->sin6_addr) &&
-		    sad6->sin6_port == msad6->sin6_port)
-			same_as_mds = 1;
-	} else {
-		free(nrp, M_NFSSOCKREQ);
+	} else
 		return (EPERM);
-	}
-
-	/*
-	 * If same address as the MDS and the MDS is a DS, use the MDS session.
-	 */
-	if (same_as_mds != 0 &&
-	    (TAILQ_FIRST(&nmp->nm_sess)->nfsclds_flags & NFSCLDS_DS) != 0) {
-		free(nrp->nr_nam, M_SONAME);
-		free(nrp, M_NFSSOCKREQ);
-		*dspp = TAILQ_FIRST(&nmp->nm_sess);
-		return (0);
-	}
 
 	nrp->nr_sotype = SOCK_STREAM;
 	mtx_init(&nrp->nr_mtx, "nfssock", NULL, MTX_DEF);
@@ -5210,15 +5286,18 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	 */
 	nrp->nr_cred = crhold(nmp->nm_sockreq.nr_cred);
 	error = newnfs_connect(nmp, nrp, NULL, p, 0);
+printf("ds conn=%d\n", error);
 
 	/* Now, do the exchangeid and create session. */
 	if (error == 0)
 		error = nfsrpc_exchangeid(nmp, clp, nrp, NFSV4EXCH_USEPNFSDS,
 		    &dsp, nrp->nr_cred, p);
+printf("ds exch=%d\n", error);
 	if (error == 0) {
 		dsp->nfsclds_sockp = nrp;
 		NFSLOCKMNT(nmp);
 		retv = nfscl_getsameserver(nmp, dsp, &tdsp);
+printf("getsame ret=%d\n", retv);
 		if (retv == NFSDSP_USETHISSESSION) {
 			NFSUNLOCKMNT(nmp);
 			/*
@@ -5230,14 +5309,14 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 			*dspp = tdsp;
 			return (0);
 		}
-		if (retv == NFSDSP_SEQTHISSESSION) {
-			tdsp->nfsclds_sess.nfsess_sequenceid++;
+		if (retv == NFSDSP_SEQTHISSESSION)
 			sequenceid = tdsp->nfsclds_sess.nfsess_sequenceid;
-		} else
+		else
 			sequenceid = dsp->nfsclds_sess.nfsess_sequenceid;
 		NFSUNLOCKMNT(nmp);
 		error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
-		    sequenceid, 0, nrp->nr_cred, p);
+		    nrp, sequenceid, 0, nrp->nr_cred, p);
+printf("dscrsess=%d\n", error);
 	} else {
 		NFSFREECRED(nrp->nr_cred);
 		NFSFREEMUTEX(&nrp->nr_mtx);
@@ -5245,6 +5324,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		free(nrp, M_NFSSOCKREQ);
 	}
 	if (error == 0) {
+printf("add dssess\n");
 		/*
 		 * Put it at the end of the list. That way the list
 		 * is ordered by when the entry was added. This matters
@@ -5342,7 +5422,6 @@ if (error == 2) printf("rwacc=0x%x\n", rwaccess);
 	    np->n_fhp->nfh_len, &recalled);
 	if (layp == NULL) {
 		/* Try and get a Layout, if it is supported. */
-		stateid.seqid = 0;
 		if (rwaccess == NFSV4OPEN_ACCESSWRITE ||
 		    (np->n_flag & NWRITEOPENED) != 0)
 			iolaymode = NFSLAYOUTIOMODE_RW;
@@ -5710,8 +5789,9 @@ nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
 	cur_dsp = NULL;
 	TAILQ_FOREACH(dsp, &nmp->nm_sess, nfsclds_list) {
 		if (dsp->nfsclds_servownlen == newdsp->nfsclds_servownlen &&
+		    dsp->nfsclds_servownlen != 0 &&
 		    !NFSBCMP(dsp->nfsclds_serverown, newdsp->nfsclds_serverown,
-		     dsp->nfsclds_servownlen)) {
+		    dsp->nfsclds_servownlen)) {
 printf("fnd same fdsp=%p dsp=%p flg=0x%x\n", TAILQ_FIRST(&nmp->nm_sess), dsp, dsp->nfsclds_flags);
 			/* Server major id matches. */
 			if ((dsp->nfsclds_flags & NFSCLDS_DS) != 0) {
@@ -5733,4 +5813,49 @@ printf("fnd same fdsp=%p dsp=%p flg=0x%x\n", TAILQ_FIRST(&nmp->nm_sess), dsp, ds
 	}
 	return (NFSDSP_NOTFOUND);
 }
+
+#ifdef notyet
+/*
+ * NFS commit rpc to a DS.
+ */
+static int
+nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
+    struct nfsfh *fhp, struct ucred *cred, NFSPROC_T *p, void *stuff)
+{
+	uint32_t *tl;
+	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfssockreq *nrp;
+	int error;
+	
+	nfscl_reqstart(nd, NFSPROC_COMMITDS, nmp, fhp->nfh_fh, fhp->nfh_len,
+	    NULL, &dsp->nfsclds_sess);
+	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + NFSX_UNSIGNED);
+	txdr_hyper(offset, tl);
+	tl += 2;
+	*tl = txdr_unsigned(cnt);
+	nrp = dsp->nfsclds_sockp;
+	if (nrp == NULL)
+		/* If NULL, use the MDS socket. */
+		nrp = &nmp->nm_sockreq;
+	error = newnfs_request(nd, nmp, NULL, nrp, vp, p, cred,
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+	if (error)
+		return (error);
+	if (nd->nd_repstat == 0) {
+		NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
+		NFSLOCKDS(dsp);
+		if (NFSBCMP(tl, dsp->nfsclds_verf, NFSX_VERF)) {
+			NFSBCOPY(tl, dsp->nfsclds_verf, NFSX_VERF);
+			error = NFSERR_STALEWRITEVERF;
+		}
+		NFSUNLOCKDS(dsp);
+	}
+nfsmout:
+	if (error == 0 && nd->nd_repstat != 0)
+		error = nd->nd_repstat;
+	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+#endif
 

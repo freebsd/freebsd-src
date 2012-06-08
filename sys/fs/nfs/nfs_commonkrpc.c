@@ -837,39 +837,13 @@ if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) printf("failed seq=%d\n", j)
 				if (retseq != sep->nfsess_slotseq[slot])
 					printf("retseq diff 0x%x\n", retseq);
 				retval = fxdr_unsigned(uint32_t, *++tl);
-#ifdef notyet
 				if ((retval + 1) < sep->nfsess_foreslots)
 					sep->nfsess_foreslots = (retval + 1);
 				else if ((retval + 1) > sep->nfsess_foreslots)
 					sep->nfsess_foreslots = (retval < 64) ?
 					    (retval + 1) : 64;
-#else
-				/*
-				 * There seems to be some confusion with
-				 * respect to whether this value is the
-				 * largest slot number to be used, numbered
-				 * 0<->N-1 or the size of the slot table.
-				 * In other words, is it N or N-1?
-				 * For now, play it safe and assume the
-				 * worst cases of the above, such that
-				 * nfsess_foreslots might be one less than the
-				 * server specified. This is safe, whereas
-				 * setting nfsess_foreslots one greater than
-				 * the server intended could cause grief.
-				 */
-				if (retval < sep->nfsess_foreslots)
-{
-printf("foreslots shrinking %d\n", retval);
-					sep->nfsess_foreslots = retval;
-}
-				else if (retval > sep->nfsess_foreslots)
-{
-printf("foreslots growing %d\n", retval);
-					sep->nfsess_foreslots = (retval < 64) ?
-					    retval : 64;
-}
-#endif	/* notyet */
 				mtx_unlock(&sep->nfsess_mtx);
+{ static int yyuuii = 0; int yuiop; yuiop = fxdr_unsigned(int, *++tl); if (yuiop != yyuuii) { yyuuii = yuiop; printf("seqfl=0x%x\n", yuiop); } }
 
 				/* Grab the op and status for the next one. */
 				if (opcnt > 1) {

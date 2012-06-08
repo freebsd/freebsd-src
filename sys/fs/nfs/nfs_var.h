@@ -426,7 +426,7 @@ int nfsrpc_fsinfo(vnode_t, struct nfsfsinfo *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, void *);
 int nfsrpc_pathconf(vnode_t, struct nfsv3_pathconf *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
-int nfsrpc_renew(struct nfsclclient *, struct ucred *,
+int nfsrpc_renew(struct nfsclclient *, struct nfsclds *, struct ucred *,
     NFSPROC_T *);
 int nfsrpc_rellockown(struct nfsmount *, struct nfscllockowner *, uint8_t *,
     int, struct ucred *, NFSPROC_T *);
@@ -440,13 +440,13 @@ int nfsrpc_exchangeid(struct nfsmount *, struct nfsclclient *,
     struct nfssockreq *, uint32_t, struct nfsclds **, struct ucred *,
     NFSPROC_T *);
 int nfsrpc_createsession(struct nfsmount *, struct nfsclsession *,
-    uint32_t, int, struct ucred *, NFSPROC_T *);
+    struct nfssockreq *, uint32_t, int, struct ucred *, NFSPROC_T *);
 int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t, uint64_t,
-    uint64_t, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
+    uint64_t, int, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
     struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
     struct nfscldevinfo **, struct ucred *, NFSPROC_T *);

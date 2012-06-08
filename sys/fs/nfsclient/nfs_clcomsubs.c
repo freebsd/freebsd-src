@@ -111,6 +111,7 @@ static struct {
 	{ NFSV4OP_RECLAIMCOMPL, 1, "ReclaimComplete", 15, },
 	{ NFSV4OP_WRITE, 1, "WriteDS", 7, },
 	{ NFSV4OP_READ, 1, "ReadDS", 6, },
+	{ NFSV4OP_COMMIT, 1, "CommitDS", 8, },
 };
 
 /*
@@ -119,7 +120,7 @@ static struct {
 static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 0
+	0, 0, 0, 0, 0, 0, 1, 0, 0
 };
 
 /*
@@ -175,10 +176,12 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 				 * Sequence Op.
 				 */
 				opcnt = 1;
-			else if (procnum == NFSPROC_WRITEDS)
+			else if (procnum == NFSPROC_WRITEDS ||
+			    procnum == NFSPROC_COMMITDS)
 				/*
-				 * For the special case of a Write to a DS,
-				 * the opcnt == 3, for Sequence, PutFH, Write.
+				 * For the special case of a Writeor Commit to
+				 * a DS, the opcnt == 3, for Sequence, PutFH,
+				 * Write/Commit.
 				 */
 				opcnt = 3;
 		}
@@ -211,7 +214,8 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 			*tl = txdr_unsigned(NFSV4OP_PUTFH);
 			(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
 			if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh
-			    == 2 && procnum != NFSPROC_WRITEDS) {
+			    == 2 && procnum != NFSPROC_WRITEDS &&
+			    procnum != NFSPROC_COMMITDS) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 				*tl = txdr_unsigned(NFSV4OP_GETATTR);
 				NFSWCCATTR_ATTRBIT(&attrbits);

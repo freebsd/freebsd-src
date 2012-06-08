@@ -1887,7 +1887,8 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	struct nfsreq *rep;
 	u_int64_t len;
 	u_int32_t delegtype = NFSV4OPEN_DELEGATEWRITE, mode;
-	int igotlock = 0, error, trycnt, firstlock, s;
+	int i, igotlock = 0, error, trycnt, firstlock, s;
+	struct nfscllayout *lyp, *nlyp;
 
 	/*
 	 * First, lock the client structure, so everyone else will
@@ -1904,6 +1905,17 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	nmp = clp->nfsc_nmp;
 	if (nmp == NULL)
 		panic("nfscl recover");
+
+	/*
+	 * For now, just get rid of all layouts. There may be a need
+	 * to do LayoutCommit Ops with reclaim == true later.
+	 */
+	TAILQ_FOREACH_SAFE(lyp, &clp->nfsc_layout, nfsly_list, nlyp)
+		nfscl_freelayout(lyp);
+	TAILQ_INIT(&clp->nfsc_layout);
+	for (i = 0; i < NFSCLLAYOUTHASHSIZE; i++)
+		LIST_INIT(&clp->nfsc_layouthash[i]);
+
 	trycnt = 5;
 	do {
 		error = nfsrpc_setclient(nmp, clp, 1, cred, p);
@@ -2443,6 +2455,7 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	struct nfscldevinfo *dip, *ndip;
 	struct nfscllayouthead rlh;
 	struct nfsclrecalllayout *recallp;
+	struct nfsclds *dsp;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
@@ -2470,7 +2483,8 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 		    (clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID)) {
 			clp->nfsc_expire = NFSD_MONOSEC + clp->nfsc_renew;
 			clidrev = clp->nfsc_clientidrev;
-			error = nfsrpc_renew(clp, cred, p);
+			error = nfsrpc_renew(clp,
+			    TAILQ_FIRST(&clp->nfsc_nmp->nm_sess), cred, p);
 			if (error == NFSERR_CBPATHDOWN)
 			    cbpathdown = 1;
 			else if (error == NFSERR_STALECLIENTID ||
@@ -2481,6 +2495,25 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 			} else if (error == NFSERR_EXPIRED)
 			    (void) nfscl_hasexpired(clp, clidrev, p);
 		}
+
+		/* Do renews for any DS sessions. */
+checkdsrenew:
+		NFSLOCKMNT(clp->nfsc_nmp);
+		/* Skip first entry, since the MDS is handled above. */
+		dsp = TAILQ_FIRST(&clp->nfsc_nmp->nm_sess);
+		if (dsp != NULL)
+			dsp = TAILQ_NEXT(dsp, nfsclds_list);
+		while (dsp != NULL) {
+			if (dsp->nfsclds_expire <= NFSD_MONOSEC) {
+				dsp->nfsclds_expire = NFSD_MONOSEC +
+				    clp->nfsc_renew;
+				NFSUNLOCKMNT(clp->nfsc_nmp);
+				(void)nfsrpc_renew(clp, dsp, cred, p);
+				goto checkdsrenew;
+			}
+			dsp = TAILQ_NEXT(dsp, nfsclds_list);
+		}
+		NFSUNLOCKMNT(clp->nfsc_nmp);
 
 		TAILQ_INIT(&dh);
 		NFSLOCKCLSTATE();
@@ -2609,24 +2642,27 @@ printf("layrec io=%d\n", lyp->nfsly_refcnt);
 				}
 
 				/* Handle any layout commits. */
-				LIST_FOREACH(flp, &lyp->nfsly_flayrw,
-				    nfsfl_list) {
-					if ((flp->nfsfl_flags & NFSFL_WRITTEN)
-					    != 0) {
-						lyp->nfsly_refcnt++;
-						flp->nfsfl_flags &=
-						    ~NFSFL_WRITTEN;
-						NFSUNLOCKCLSTATE();
+				if (!NFSHASNOLAYOUTCOMMIT(clp->nfsc_nmp)) {
+					LIST_FOREACH(flp, &lyp->nfsly_flayrw,
+					    nfsfl_list) {
+						if ((flp->nfsfl_flags &
+						    NFSFL_WRITTEN) != 0) {
+							lyp->nfsly_refcnt++;
+							flp->nfsfl_flags &=
+							    ~NFSFL_WRITTEN;
+							NFSUNLOCKCLSTATE();
 printf("do layoutcommit\n");
-						nfscl_dolayoutcommit(
-						    clp->nfsc_nmp, lyp, flp,
-						    cred, p);
-						NFSLOCKCLSTATE();
-						lyp->nfsly_refcnt--;
-						if (lyp->nfsly_refcnt == 0)
-							wakeup(
-							    &lyp->nfsly_refcnt);
-						goto tryagain2;
+							nfscl_dolayoutcommit(
+							    clp->nfsc_nmp, lyp,
+							    flp, cred, p);
+							NFSLOCKCLSTATE();
+							lyp->nfsly_refcnt--;
+							if (lyp->nfsly_refcnt ==
+							    0)
+							    wakeup(&lyp->
+								nfsly_refcnt);
+							goto tryagain2;
+						}
 					}
 				}
 
@@ -5061,8 +5097,8 @@ static void
 nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
     struct nfsclflayout *flp, struct ucred *cred, NFSPROC_T *p)
 {
-	int error;
 	uint64_t len;
+	int error;
 
 	if (flp->nfsfl_end == UINT64_MAX)
 		len = UINT64_MAX;
@@ -5071,6 +5107,12 @@ nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
 	error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh, lyp->nfsly_fhlen,
 	    0, flp->nfsfl_off, len, lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
 	    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
+	if (error == NFSERR_NOTSUPP) {
+		/* If the server doesn't want it, don't bother doing it. */
+		NFSLOCKMNT(nmp);
+		nmp->nm_state |= NFSSTA_NOLAYOUTCOMMIT;
+		NFSUNLOCKMNT(nmp);
+	}
 }
 
 /*
@@ -5083,9 +5125,12 @@ nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
 	struct nfscllayout *lyp;
 	struct nfsclflayout *flp;
 	struct nfsnode *np = VTONFS(vp);
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 
+	if (NFSHASNOLAYOUTCOMMIT(nmp))
+		return (0);
 	NFSLOCKCLSTATE();
-	clp = VFSTONFS(vnode_mount(vp))->nm_clp;
+	clp = nmp->nm_clp;
 	if (clp == NULL) {
 		NFSUNLOCKCLSTATE();
 		return (EPERM);

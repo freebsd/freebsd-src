@@ -60,6 +60,7 @@ struct nfsclsession {
 	uint32_t	nfsess_slotseq[64];	/* Max for 64bit nm_slots */
 	uint64_t	nfsess_slots;
 	uint32_t	nfsess_sequenceid;
+	uint32_t	nfsess_maxcache;	/* Max size for cached reply. */
 	uint16_t	nfsess_foreslots;
 	uint16_t	nfsess_backslots;
 	uint8_t		nfsess_sessionid[NFSX_V4SESSIONID];
@@ -75,6 +76,7 @@ struct nfsclds {
 	struct nfsclsession	nfsclds_sess;
 	struct mtx		nfsclds_mtx;
 	struct nfssockreq	*nfsclds_sockp;
+	time_t			nfsclds_expire;
 	uint16_t		nfsclds_flags;
 	uint16_t		nfsclds_servownlen;
 	uint8_t			nfsclds_verf[NFSX_VERF];

@@ -316,11 +316,12 @@
 #define	NFSPROC_RECLAIMCOMPL	50
 #define	NFSPROC_WRITEDS		51
 #define	NFSPROC_READDS		52
+#define	NFSPROC_COMMITDS	53
 
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		53
+#define	NFSV41_NPROCS		54
 
 #endif	/* NFS_V3NPROCS */
 
