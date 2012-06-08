@@ -2000,9 +2000,10 @@ chn_setformat(struct pcm_channel *c, uint32_t format)
 	int ret;
 
 	/* XXX force stereo */
-	if (format & AFMT_PASSTHROUGH)
+	if ((format & AFMT_PASSTHROUGH) && AFMT_CHANNEL(format) < 2) {
 		format = SND_FORMAT(format, AFMT_PASSTHROUGH_CHANNEL,
 		    AFMT_PASSTHROUGH_EXTCHANNEL);
+	}
 
 	oldformat = c->format;
 	oldspeed = c->speed;
