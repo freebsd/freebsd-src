@@ -74,13 +74,23 @@
 #define HDAA_AMP_LEFT_MUTED(v)	((v) & (HDAA_AMP_MUTE_LEFT))
 #define HDAA_AMP_RIGHT_MUTED(v)	(((v) & HDAA_AMP_MUTE_RIGHT) >> 1)
 
+/* Widget in playback receiving signal from recording. */
 #define HDAA_ADC_MONITOR		(1 << 0)
+/* Input mixer widget needs volume control as destination. */
+#define HDAA_IMIX_AS_DST		(2 << 0)
 
 #define HDAA_CTL_OUT		1
 #define HDAA_CTL_IN		2
 
 #define HDA_MAX_CONNS	32
 #define HDA_MAX_NAMELEN	32
+
+struct hdaa_audio_as;
+struct hdaa_audio_ctl;
+struct hdaa_chan;
+struct hdaa_devinfo;
+struct hdaa_pcm_devinfo;
+struct hdaa_widget;
 
 struct hdaa_widget {
 	nid_t nid;
@@ -93,9 +103,12 @@ struct hdaa_widget {
 	int bindseqmask;
 	int ossdev;
 	uint32_t ossmask;
+	int unsol;
 	nid_t conns[HDA_MAX_CONNS];
 	u_char connsenable[HDA_MAX_CONNS];
 	char name[HDA_MAX_NAMELEN];
+	uint8_t	*eld;
+	int	eld_len;
 	struct hdaa_devinfo *devinfo;
 	struct {
 		uint32_t widget_cap;
@@ -112,7 +125,11 @@ struct hdaa_widget {
 			uint32_t newconf;
 			uint32_t cap;
 			uint32_t ctrl;
+			int	connected;
 		} pin;
+		struct {
+			uint8_t	stripecap;
+		} conv;
 	} wclass;
 };
 
@@ -123,7 +140,10 @@ struct hdaa_audio_ctl {
 	int mute, step, size, offset;
 	int left, right, forcemute;
 	uint32_t muted;
-	uint32_t ossmask, possmask;
+	uint32_t ossmask;	/* OSS devices that may affect control. */
+	int	devleft[SOUND_MIXER_NRDEVICES]; /* Left ampl in 1/4dB. */
+	int	devright[SOUND_MIXER_NRDEVICES]; /* Right ampl in 1/4dB. */
+	int	devmute[SOUND_MIXER_NRDEVICES]; /* Mutes per OSS device. */
 };
 
 /* Association is a group of pins bound for some special function. */
@@ -140,22 +160,28 @@ struct hdaa_audio_as {
 	nid_t dacs[2][16];
 	int num_chans;
 	int chans[2];
-	int unsol;
 	int location;	/* Pins location, if all have the same */
 	int mixed;	/* Mixed/multiplexed recording, not multichannel. */
+	struct hdaa_pcm_devinfo *pdevinfo;
 };
 
 struct hdaa_pcm_devinfo {
 	device_t dev;
 	struct hdaa_devinfo *devinfo;
+	struct	snd_mixer *mixer;
 	int	index;
 	int	registered;
 	int	playas, recas;
 	u_char	left[SOUND_MIXER_NRDEVICES];
 	u_char	right[SOUND_MIXER_NRDEVICES];
+	int	minamp[SOUND_MIXER_NRDEVICES]; /* Minimal amps in 1/4dB. */
+	int	maxamp[SOUND_MIXER_NRDEVICES]; /* Maximal amps in 1/4dB. */
 	int	chan_size;
 	int	chan_blkcnt;
 	u_char	digital;
+	uint32_t	ossmask;	/* Mask of supported OSS devices. */
+	uint32_t	recsrc;		/* Mask of supported OSS sources. */
+	int		autorecsrc;
 };
 
 struct hdaa_devinfo {
@@ -197,9 +223,9 @@ struct hdaa_chan {
 	struct pcmchan_caps caps;
 	struct hdaa_devinfo *devinfo;
 	struct hdaa_pcm_devinfo *pdevinfo;
-	uint32_t spd, fmt, fmtlist[16], pcmrates[16];
+	uint32_t spd, fmt, fmtlist[32], pcmrates[16];
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
-	uint32_t ptr, prevptr, blkcnt, blksz;
+	uint32_t blkcnt, blksz;
 	uint32_t *dmapos;
 	uint32_t flags;
 	int dir;
@@ -210,15 +236,33 @@ struct hdaa_chan {
 	int as;		/* Number of association. */
 	int asindex;	/* Index within association. */
 	nid_t io[16];
+	uint8_t	stripecap;	/* AND of stripecap of all ios. */
+	uint8_t	stripectl;	/* stripe to use to all ios. */
 };
+
+#define MINQDB(ctl)							\
+	((0 - (ctl)->offset) * ((ctl)->size + 1))
+
+#define MAXQDB(ctl)							\
+	(((ctl)->step - (ctl)->offset) * ((ctl)->size + 1))
+
+#define RANGEQDB(ctl)							\
+	((ctl)->step * ((ctl)->size + 1))
+
+#define VAL2QDB(ctl, val) 						\
+	(((ctl)->size + 1) * ((int)(val) - (ctl)->offset))
+
+#define QDB2VAL(ctl, qdb) 						\
+	imax(imin((((qdb) + (ctl)->size / 2 * ((qdb) > 0 ? 1 : -1)) /	\
+	 ((ctl)->size + 1) + (ctl)->offset), (ctl)->step), 0)
 
 #define hdaa_codec_id(devinfo)						\
 		(((uint32_t)hda_get_vendor_id(devinfo->dev) << 16) +	\
 		hda_get_device_id(devinfo->dev))
 
 #define hdaa_subvendor_id(devinfo)					\
-		(((uint32_t)hda_get_subvendor_id(devinfo->dev) << 16) +	\
-		hda_get_subdevice_id(devinfo->dev))
+		(((uint32_t)hda_get_subdevice_id(devinfo->dev) << 16) +	\
+		hda_get_subvendor_id(devinfo->dev))
 
 struct hdaa_widget	*hdaa_widget_get(struct hdaa_devinfo *, nid_t);
 uint32_t		hdaa_widget_pin_patch(uint32_t config, const char *str);

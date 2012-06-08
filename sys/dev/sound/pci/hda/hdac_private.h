@@ -155,6 +155,8 @@ struct hdac_stream {
 	int		stream;
 	int		blksz;
 	int		running;
+	int		bw;
+	int		stripe;
 	uint16_t	format;
 };
 
@@ -206,6 +208,8 @@ struct hdac_softc {
 	int		unsolq_st;
 	uint32_t	unsolq[HDAC_UNSOLQ_MAX];
 
+	int			sdo_bw_used;
+
 	struct hdac_stream	*streams;
 
 	struct {
@@ -216,6 +220,7 @@ struct hdac_softc {
 		uint8_t		stepping_id;
 		int		pending;
 		uint32_t	response;
+		int		sdi_bw_used;
 	} codecs[HDAC_CODEC_MAX];
 };
 

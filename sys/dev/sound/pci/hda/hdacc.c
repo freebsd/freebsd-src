@@ -92,6 +92,8 @@ static const struct {
 	{ HDA_CODEC_ALC662, 0,		"Realtek ALC662" },
 	{ HDA_CODEC_ALC663, 0,		"Realtek ALC663" },
 	{ HDA_CODEC_ALC665, 0,		"Realtek ALC665" },
+	{ HDA_CODEC_ALC670, 0,		"Realtek ALC670" },
+	{ HDA_CODEC_ALC680, 0,		"Realtek ALC680" },
 	{ HDA_CODEC_ALC861, 0x0340,	"Realtek ALC660" },
 	{ HDA_CODEC_ALC861, 0,		"Realtek ALC861" },
 	{ HDA_CODEC_ALC861VD, 0,	"Realtek ALC861-VD" },
@@ -123,7 +125,12 @@ static const struct {
 	{ HDA_CODEC_AD1988B, 0,		"Analog Devices AD1988B" },
 	{ HDA_CODEC_AD1989A, 0,		"Analog Devices AD1989A" },
 	{ HDA_CODEC_AD1989B, 0,		"Analog Devices AD1989B" },
+	{ HDA_CODEC_CA0110, 0,		"Creative CA0110-IBG" },
+	{ HDA_CODEC_CA0110_2, 0,	"Creative CA0110-IBG" },
+	{ HDA_CODEC_CA0132, 0,		"Creative CA0132" },
+	{ HDA_CODEC_SB0880, 0,		"Creative SB0880 X-Fi" },
 	{ HDA_CODEC_CMI9880, 0,		"CMedia CMI9880" },
+	{ HDA_CODEC_CMI98802, 0,	"CMedia CMI9880" },
 	{ HDA_CODEC_CXD9872RDK, 0,	"Sigmatel CXD9872RD/K" },
 	{ HDA_CODEC_CXD9872AKD, 0,	"Sigmatel CXD9872AKD" },
 	{ HDA_CODEC_STAC9200D, 0,	"Sigmatel STAC9200D" },
@@ -148,6 +155,10 @@ static const struct {
 	{ HDA_CODEC_STAC9230D, 0,	"Sigmatel STAC9230D" },
 	{ HDA_CODEC_STAC9250, 0, 	"Sigmatel STAC9250" },
 	{ HDA_CODEC_STAC9251, 0, 	"Sigmatel STAC9251" },
+	{ HDA_CODEC_STAC9255, 0, 	"Sigmatel STAC9255" },
+	{ HDA_CODEC_STAC9255D, 0, 	"Sigmatel STAC9255D" },
+	{ HDA_CODEC_STAC9254, 0, 	"Sigmatel STAC9254" },
+	{ HDA_CODEC_STAC9254D, 0, 	"Sigmatel STAC9254D" },
 	{ HDA_CODEC_STAC9271X, 0,	"Sigmatel STAC9271X" },
 	{ HDA_CODEC_STAC9271D, 0,	"Sigmatel STAC9271D" },
 	{ HDA_CODEC_STAC9272X, 0,	"Sigmatel STAC9272X" },
@@ -163,11 +174,28 @@ static const struct {
 	{ HDA_CODEC_IDT92HD005D, 0,	"IDT 92HD005D" },
 	{ HDA_CODEC_IDT92HD206X, 0,	"IDT 92HD206X" },
 	{ HDA_CODEC_IDT92HD206D, 0,	"IDT 92HD206D" },
+	{ HDA_CODEC_IDT92HD66B1X5, 0,	"IDT 92HD66B1X5" },
+	{ HDA_CODEC_IDT92HD66B2X5, 0,	"IDT 92HD66B2X5" },
+	{ HDA_CODEC_IDT92HD66B3X5, 0,	"IDT 92HD66B3X5" },
+	{ HDA_CODEC_IDT92HD66C1X5, 0,	"IDT 92HD66C1X5" },
+	{ HDA_CODEC_IDT92HD66C2X5, 0,	"IDT 92HD66C2X5" },
+	{ HDA_CODEC_IDT92HD66C3X5, 0,	"IDT 92HD66C3X5" },
+	{ HDA_CODEC_IDT92HD66B1X3, 0,	"IDT 92HD66B1X3" },
+	{ HDA_CODEC_IDT92HD66B2X3, 0,	"IDT 92HD66B2X3" },
+	{ HDA_CODEC_IDT92HD66B3X3, 0,	"IDT 92HD66B3X3" },
+	{ HDA_CODEC_IDT92HD66C1X3, 0,	"IDT 92HD66C1X3" },
+	{ HDA_CODEC_IDT92HD66C2X3, 0,	"IDT 92HD66C2X3" },
+	{ HDA_CODEC_IDT92HD66C3_65, 0,	"IDT 92HD66C3_65" },
 	{ HDA_CODEC_IDT92HD700X, 0,	"IDT 92HD700X" },
 	{ HDA_CODEC_IDT92HD700D, 0,	"IDT 92HD700D" },
 	{ HDA_CODEC_IDT92HD71B5, 0,	"IDT 92HD71B5" },
+	{ HDA_CODEC_IDT92HD71B5_2, 0,	"IDT 92HD71B5" },
+	{ HDA_CODEC_IDT92HD71B6, 0,	"IDT 92HD71B6" },
+	{ HDA_CODEC_IDT92HD71B6_2, 0,	"IDT 92HD71B6" },
 	{ HDA_CODEC_IDT92HD71B7, 0,	"IDT 92HD71B7" },
+	{ HDA_CODEC_IDT92HD71B7_2, 0,	"IDT 92HD71B7" },
 	{ HDA_CODEC_IDT92HD71B8, 0,	"IDT 92HD71B8" },
+	{ HDA_CODEC_IDT92HD71B8_2, 0,	"IDT 92HD71B8" },
 	{ HDA_CODEC_IDT92HD73C1, 0,	"IDT 92HD73C1" },
 	{ HDA_CODEC_IDT92HD73D1, 0,	"IDT 92HD73D1" },
 	{ HDA_CODEC_IDT92HD73E1, 0,	"IDT 92HD73E1" },
@@ -177,6 +205,28 @@ static const struct {
 	{ HDA_CODEC_IDT92HD81B1X, 0,	"IDT 92HD81B1X" },
 	{ HDA_CODEC_IDT92HD83C1C, 0,	"IDT 92HD83C1C" },
 	{ HDA_CODEC_IDT92HD83C1X, 0,	"IDT 92HD83C1X" },
+	{ HDA_CODEC_IDT92HD87B1_3, 0,	"IDT 92HD87B1/3" },
+	{ HDA_CODEC_IDT92HD87B2_4, 0,	"IDT 92HD87B2/4" },
+	{ HDA_CODEC_IDT92HD89C3, 0,	"IDT 92HD89C3" },
+	{ HDA_CODEC_IDT92HD89C2, 0,	"IDT 92HD89C2" },
+	{ HDA_CODEC_IDT92HD89C1, 0,	"IDT 92HD89C1" },
+	{ HDA_CODEC_IDT92HD89B3, 0,	"IDT 92HD89B3" },
+	{ HDA_CODEC_IDT92HD89B2, 0,	"IDT 92HD89B2" },
+	{ HDA_CODEC_IDT92HD89B1, 0,	"IDT 92HD89B1" },
+	{ HDA_CODEC_IDT92HD89E3, 0,	"IDT 92HD89E3" },
+	{ HDA_CODEC_IDT92HD89E2, 0,	"IDT 92HD89E2" },
+	{ HDA_CODEC_IDT92HD89E1, 0,	"IDT 92HD89E1" },
+	{ HDA_CODEC_IDT92HD89D3, 0,	"IDT 92HD89D3" },
+	{ HDA_CODEC_IDT92HD89D2, 0,	"IDT 92HD89D2" },
+	{ HDA_CODEC_IDT92HD89D1, 0,	"IDT 92HD89D1" },
+	{ HDA_CODEC_IDT92HD89F3, 0,	"IDT 92HD89F3" },
+	{ HDA_CODEC_IDT92HD89F2, 0,	"IDT 92HD89F2" },
+	{ HDA_CODEC_IDT92HD89F1, 0,	"IDT 92HD89F1" },
+	{ HDA_CODEC_IDT92HD90BXX, 0,	"IDT 92HD90BXX" },
+	{ HDA_CODEC_IDT92HD91BXX, 0,	"IDT 92HD91BXX" },
+	{ HDA_CODEC_IDT92HD93BXX, 0,	"IDT 92HD93BXX" },
+	{ HDA_CODEC_IDT92HD98BXX, 0,	"IDT 92HD98BXX" },
+	{ HDA_CODEC_IDT92HD99BXX, 0,	"IDT 92HD99BXX" },
 	{ HDA_CODEC_CX20549, 0,		"Conexant CX20549 (Venice)" },
 	{ HDA_CODEC_CX20551, 0,		"Conexant CX20551 (Waikiki)" },
 	{ HDA_CODEC_CX20561, 0,		"Conexant CX20561 (Hermosa)" },
@@ -250,6 +300,8 @@ static const struct {
 	{ HDA_CODEC_NVIDIAMCP73, 0,	"NVIDIA MCP73" },
 	{ HDA_CODEC_NVIDIAMCP78, 0,	"NVIDIA MCP78" },
 	{ HDA_CODEC_NVIDIAMCP78_2, 0,	"NVIDIA MCP78" },
+	{ HDA_CODEC_NVIDIAMCP78_3, 0,	"NVIDIA MCP78" },
+	{ HDA_CODEC_NVIDIAMCP78_4, 0,	"NVIDIA MCP78" },
 	{ HDA_CODEC_NVIDIAMCP7A, 0,	"NVIDIA MCP7A" },
 	{ HDA_CODEC_NVIDIAGT220, 0,	"NVIDIA GT220" },
 	{ HDA_CODEC_NVIDIAGT21X, 0,	"NVIDIA GT21x" },
@@ -266,43 +318,25 @@ static const struct {
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
 	/* Unknown CODECs */
-	{ HDA_CODEC_ALCXXXX, 0,		"Realtek (Unknown)" },
-	{ HDA_CODEC_ADXXXX, 0,		"Analog Devices (Unknown)" },
-	{ HDA_CODEC_CSXXXX, 0,		"Cirrus Logic (Unknown)" },
-	{ HDA_CODEC_CMIXXXX, 0,		"CMedia (Unknown)" },
-	{ HDA_CODEC_STACXXXX, 0,	"Sigmatel (Unknown)" },
-	{ HDA_CODEC_SIIXXXX, 0,		"Silicon Image (Unknown)" },
-	{ HDA_CODEC_AGEREXXXX, 0,	"Lucent/Agere Systems (Unknown)" },
-	{ HDA_CODEC_CXXXXX, 0,		"Conexant (Unknown)" },
-	{ HDA_CODEC_VTXXXX, 0,		"VIA (Unknown)" },
-	{ HDA_CODEC_ATIXXXX, 0,		"ATI (Unknown)" },
-	{ HDA_CODEC_NVIDIAXXXX, 0,	"NVIDIA (Unknown)" },
-	{ HDA_CODEC_INTELXXXX, 0,	"Intel (Unknown)" },
-	{ HDA_CODEC_IDTXXXX, 0,		"IDT (Unknown)" },
+	{ HDA_CODEC_ADXXXX, 0,		"Analog Devices" },
+	{ HDA_CODEC_AGEREXXXX, 0,	"Lucent/Agere Systems" },
+	{ HDA_CODEC_ALCXXXX, 0,		"Realtek" },
+	{ HDA_CODEC_ATIXXXX, 0,		"ATI" },
+	{ HDA_CODEC_CAXXXX, 0,		"Creative" },
+	{ HDA_CODEC_CMIXXXX, 0,		"CMedia" },
+	{ HDA_CODEC_CMIXXXX2, 0,	"CMedia" },
+	{ HDA_CODEC_CSXXXX, 0,		"Cirrus Logic" },
+	{ HDA_CODEC_CXXXXX, 0,		"Conexant" },
+	{ HDA_CODEC_CHXXXX, 0,		"Chrontel" },
+	{ HDA_CODEC_IDTXXXX, 0,		"IDT" },
+	{ HDA_CODEC_INTELXXXX, 0,	"Intel" },
+	{ HDA_CODEC_MOTOXXXX, 0,	"Motorola" },
+	{ HDA_CODEC_NVIDIAXXXX, 0,	"NVIDIA" },
+	{ HDA_CODEC_SIIXXXX, 0,		"Silicon Image" },
+	{ HDA_CODEC_STACXXXX, 0,	"Sigmatel" },
+	{ HDA_CODEC_VTXXXX, 0,		"VIA" },
 };
 #define HDACC_CODECS_LEN	(sizeof(hdacc_codecs) / sizeof(hdacc_codecs[0]))
-
-
-/****************************************************************************
- * Function prototypes
- ****************************************************************************/
-
-static char *
-hdacc_codec_name(uint32_t id, uint16_t revid)
-{
-	int i;
-
-	for (i = 0; i < HDACC_CODECS_LEN; i++) {
-		if (!HDA_DEV_MATCH(hdacc_codecs[i].id, id))
-			continue;
-		if (hdacc_codecs[i].revid != 0 &&
-		    hdacc_codecs[i].revid != revid)
-			continue;
-		return (hdacc_codecs[i].name);
-	}
-
-	return ((id == 0x00000000) ? "NULL CODEC" : "Unknown CODEC");
-}
 
 static int
 hdacc_suspend(device_t dev)
@@ -337,10 +371,28 @@ hdacc_probe(device_t dev)
 {
 	uint32_t id, revid;
 	char buf[128];
+	int i;
 
 	id = ((uint32_t)hda_get_vendor_id(dev) << 16) + hda_get_device_id(dev);
 	revid = ((uint32_t)hda_get_revision_id(dev) << 8) + hda_get_stepping_id(dev);
-	snprintf(buf, sizeof(buf), "%s HDA CODEC", hdacc_codec_name(id, revid));
+
+	for (i = 0; i < HDACC_CODECS_LEN; i++) {
+		if (!HDA_DEV_MATCH(hdacc_codecs[i].id, id))
+			continue;
+		if (hdacc_codecs[i].revid != 0 &&
+		    hdacc_codecs[i].revid != revid)
+			continue;
+		break;
+	}
+	if (i < HDACC_CODECS_LEN) {
+		if ((hdacc_codecs[i].id & 0xffff) != 0xffff)
+			strlcpy(buf, hdacc_codecs[i].name, sizeof(buf));
+		else
+			snprintf(buf, sizeof(buf), "%s (0x%04x)",
+			    hdacc_codecs[i].name, hda_get_device_id(dev));
+	} else
+		snprintf(buf, sizeof(buf), "Generic (0x%04x)", id);
+	strlcat(buf, " HDA CODEC", sizeof(buf));
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
@@ -503,13 +555,13 @@ hdacc_codec_command(device_t dev, device_t child, uint32_t verb)
 
 static int
 hdacc_stream_alloc(device_t dev, device_t child, int dir, int format,
-    uint32_t **dmapos)
+    int stripe, uint32_t **dmapos)
 {
 	struct hdacc_softc *codec = device_get_softc(dev);
 	int stream;
 
 	stream = HDAC_STREAM_ALLOC(device_get_parent(dev), dev,
-	    dir, format, dmapos);
+	    dir, format, stripe, dmapos);
 	if (stream > 0)
 		codec->streams[dir][stream] = child;
 	return (stream);
@@ -560,7 +612,7 @@ hdacc_stream_intr(device_t dev, int dir, int stream)
 	struct hdacc_softc *codec = device_get_softc(dev);
 	device_t child;
 
-	if ((child = codec->streams[dir][stream]) != NULL);
+	if ((child = codec->streams[dir][stream]) != NULL)
 		HDAC_STREAM_INTR(child, dir, stream);
 }
 

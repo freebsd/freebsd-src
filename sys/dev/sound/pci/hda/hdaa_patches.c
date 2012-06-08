@@ -620,9 +620,9 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0x7e7, 0));
 	if (id == HDA_CODEC_ALC269) {
-		if (subid == 0x104316e3 || subid == 0x1043831a ||
-		    subid == 0x1043834a || subid == 0x10438398 ||
-		    subid == 0x104383ce) {
+		if (subid == 0x16e31043 || subid == 0x831a1043 ||
+		    subid == 0x834a1043 || subid == 0x83981043 ||
+		    subid == 0x83ce1043) {
 			/*
 			 * The ditital mics on some Asus laptops produce
 			 * differential signals instead of expected stereo.
