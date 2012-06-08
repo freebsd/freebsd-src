@@ -901,6 +901,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_syba
 	},
 
+	{   0x1fd4, 0x1999, 0xffff, 0,
+	    "Sunix SER5437A",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
 	{    0x5372, 0x6873, 0xffff, 0,
 	     "Sun 1040 PCI Quad Serial",
 	     DEFAULT_RCLK,
