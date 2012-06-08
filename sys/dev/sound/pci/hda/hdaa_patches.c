@@ -1,0 +1,638 @@
+/*-
+ * Copyright (c) 2006 Stephane E. Potvin <sepotvin@videotron.ca>
+ * Copyright (c) 2006 Ariff Abdullah <ariff@FreeBSD.org>
+ * Copyright (c) 2008-2012 Alexander Motin <mav@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ * Intel High Definition Audio (Audio function quirks) driver for FreeBSD.
+ */
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
+#include <dev/sound/pcm/sound.h>
+
+#include <sys/ctype.h>
+
+#include <dev/sound/pci/hda/hdac.h>
+#include <dev/sound/pci/hda/hdaa.h>
+#include <dev/sound/pci/hda/hda_reg.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
+
+static const struct {
+	uint32_t model;
+	uint32_t id;
+	uint32_t set, unset;
+	uint32_t gpio;
+} hdac_quirks[] = {
+	/*
+	 * XXX Force stereo quirk. Monoural recording / playback
+	 *     on few codecs (especially ALC880) seems broken or
+	 *     perhaps unsupported.
+	 */
+	{ HDA_MATCH_ALL, HDA_MATCH_ALL,
+	    HDAA_QUIRK_FORCESTEREO | HDAA_QUIRK_IVREF, 0,
+	    0 },
+	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ ASUS_G2K_SUBVENDOR, HDA_CODEC_ALC660,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ ASUS_A7M_SUBVENDOR, HDA_CODEC_ALC880,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ ASUS_A7T_SUBVENDOR, HDA_CODEC_ALC882,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ ASUS_W2J_SUBVENDOR, HDA_CODEC_ALC882,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
+	    HDAA_QUIRK_EAPDINV, 0,
+	    0 },
+	{ ASUS_A8X_SUBVENDOR, HDA_CODEC_AD1986A,
+	    HDAA_QUIRK_EAPDINV, 0,
+	    0 },
+	{ ASUS_F3JC_SUBVENDOR, HDA_CODEC_ALC861,
+	    HDAA_QUIRK_OVREF, 0,
+	    0 },
+	{ UNIWILL_9075_SUBVENDOR, HDA_CODEC_ALC861,
+	    HDAA_QUIRK_OVREF, 0,
+	    0 },
+	/*{ ASUS_M2N_SUBVENDOR, HDA_CODEC_AD1988,
+	    HDAA_QUIRK_IVREF80, HDAA_QUIRK_IVREF50 | HDAA_QUIRK_IVREF100,
+	    0 },*/
+	{ MEDION_MD95257_SUBVENDOR, HDA_CODEC_ALC880,
+	    0, 0,
+	    HDAA_GPIO_SET(1) },
+	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A,
+	    HDAA_QUIRK_EAPDINV | HDAA_QUIRK_SENSEINV, 0,
+	    0 },
+	{ SAMSUNG_Q1_SUBVENDOR, HDA_CODEC_AD1986A,
+	    HDAA_QUIRK_EAPDINV, 0,
+	    0 },
+	{ APPLE_MB3_SUBVENDOR, HDA_CODEC_ALC885,
+	    HDAA_QUIRK_OVREF50, 0,
+	    HDAA_GPIO_SET(0) },
+	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221,
+	    0, 0,
+	    HDAA_GPIO_SET(0) | HDAA_GPIO_SET(1) },
+	{ APPLE_MACBOOKPRO55, HDA_CODEC_CS4206,
+	    0, 0,
+	    HDAA_GPIO_SET(1) | HDAA_GPIO_SET(3) },
+	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205X,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ DELL_V1400_SUBVENDOR, HDA_CODEC_STAC9228X,
+	    0, 0,
+	    HDAA_GPIO_SET(2) },
+	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205X,
+	    0, 0,
+	    HDAA_GPIO_SET(0) },
+	{ HDA_MATCH_ALL, HDA_CODEC_AD1988,
+	    HDAA_QUIRK_IVREF80, HDAA_QUIRK_IVREF50 | HDAA_QUIRK_IVREF100,
+	    0 },
+	{ HDA_MATCH_ALL, HDA_CODEC_AD1988B,
+	    HDAA_QUIRK_IVREF80, HDAA_QUIRK_IVREF50 | HDAA_QUIRK_IVREF100,
+	    0 },
+	{ HDA_MATCH_ALL, HDA_CODEC_CX20549,
+	    0, HDAA_QUIRK_FORCESTEREO,
+	    0 }
+};
+#define HDAC_QUIRKS_LEN (sizeof(hdac_quirks) / sizeof(hdac_quirks[0]))
+
+static void
+hdac_pin_patch(struct hdaa_widget *w)
+{
+	const char *patch = NULL;
+	uint32_t config, orig, id, subid;
+	nid_t nid = w->nid;
+
+	config = orig = w->wclass.pin.config;
+	id = hdaa_codec_id(w->devinfo);
+	subid = hdaa_subvendor_id(w->devinfo);
+
+	/* XXX: Old patches require complete review.
+	 * Now they may create more problem then solve due to
+	 * incorrect associations.
+	 */
+	if (id == HDA_CODEC_ALC880 && subid == LG_LW20_SUBVENDOR) {
+		switch (nid) {
+		case 26:
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN;
+			break;
+		case 27:
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT;
+			break;
+		default:
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC880 &&
+	    (subid == CLEVO_D900T_SUBVENDOR ||
+	    subid == ASUS_M5200_SUBVENDOR)) {
+		/*
+		 * Super broken BIOS
+		 */
+		switch (nid) {
+		case 24:	/* MIC1 */
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN;
+			break;
+		case 25:	/* XXX MIC2 */
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN;
+			break;
+		case 26:	/* LINE1 */
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN;
+			break;
+		case 27:	/* XXX LINE2 */
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN;
+			break;
+		case 28:	/* CD */
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_CD;
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC883 &&
+	    (subid == MSI_MS034A_SUBVENDOR ||
+	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, subid))) {
+		switch (nid) {
+		case 25:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		case 28:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_CD |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		}
+	} else if (id == HDA_CODEC_CX20549 && subid ==
+	    HP_V3000_SUBVENDOR) {
+		switch (nid) {
+		case 18:
+			config &= ~HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE;
+			break;
+		case 20:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		case 21:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_CD |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		}
+	} else if (id == HDA_CODEC_CX20551 && subid ==
+	    HP_DV5000_SUBVENDOR) {
+		switch (nid) {
+		case 20:
+		case 21:
+			config &= ~HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE;
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC861 && subid ==
+	    ASUS_W6F_SUBVENDOR) {
+		switch (nid) {
+		case 11:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_OUT |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		case 12:
+		case 14:
+		case 16:
+		case 31:
+		case 32:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		case 15:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK);
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC861 && subid ==
+	    UNIWILL_9075_SUBVENDOR) {
+		switch (nid) {
+		case 15:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK);
+			break;
+		}
+	}
+
+	/* New patches */
+	if (id == HDA_CODEC_AD1986A &&
+	    (subid == ASUS_M2NPVMX_SUBVENDOR ||
+	    subid == ASUS_A8NVMCSM_SUBVENDOR ||
+	    subid == ASUS_P5PL2_SUBVENDOR)) {
+		switch (nid) {
+		case 26: /* Headphones with redirection */
+			patch = "as=1 seq=15";
+			break;
+		case 28: /* 5.1 out => 2.0 out + 1 input */
+			patch = "device=Line-in as=8 seq=1";
+			break;
+		case 29: /* Can't use this as input, as the only available mic
+			  * preamplifier is busy by front panel mic (nid 31).
+			  * If you want to use this rear connector as mic input,
+			  * you have to disable the front panel one. */
+			patch = "as=0";
+			break;
+		case 31: /* Lot of inputs configured with as=15 and unusable */
+			patch = "as=8 seq=3";
+			break;
+		case 32:
+			patch = "as=8 seq=4";
+			break;
+		case 34:
+			patch = "as=8 seq=5";
+			break;
+		case 36:
+			patch = "as=8 seq=6";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC260 &&
+	    HDA_DEV_MATCH(SONY_S5_SUBVENDOR, subid)) {
+		switch (nid) {
+		case 16:
+			patch = "seq=15 device=Headphones";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC268) {
+	    if (subid == ACER_T5320_SUBVENDOR) {
+		switch (nid) {
+		case 20: /* Headphones Jack */
+			patch = "as=1 seq=15";
+			break;
+		}
+	    }
+	} else if (id == HDA_CODEC_CX20561 &&
+	    subid == LENOVO_B450_SUBVENDOR) {
+		switch (nid) {
+		case 22:
+			patch = "as=1 seq=15";
+			break;
+		}
+	}
+
+	if (patch != NULL)
+		config = hdaa_widget_pin_patch(config, patch);
+	HDA_BOOTVERBOSE(
+		if (config != orig)
+			device_printf(w->devinfo->dev,
+			    "Patching pin config nid=%u 0x%08x -> 0x%08x\n",
+			    nid, orig, config);
+	);
+	w->wclass.pin.config = config;
+}
+
+static void
+hdaa_widget_patch(struct hdaa_widget *w)
+{
+	struct hdaa_devinfo *devinfo = w->devinfo;
+	uint32_t orig;
+	nid_t beeper = -1;
+
+	orig = w->param.widget_cap;
+	/* On some codecs beeper is an input pin, but it is not recordable
+	   alone. Also most of BIOSes does not declare beeper pin.
+	   Change beeper pin node type to beeper to help parser. */
+	switch (hdaa_codec_id(devinfo)) {
+	case HDA_CODEC_AD1882:
+	case HDA_CODEC_AD1883:
+	case HDA_CODEC_AD1984:
+	case HDA_CODEC_AD1984A:
+	case HDA_CODEC_AD1984B:
+	case HDA_CODEC_AD1987:
+	case HDA_CODEC_AD1988:
+	case HDA_CODEC_AD1988B:
+	case HDA_CODEC_AD1989B:
+		beeper = 26;
+		break;
+	case HDA_CODEC_ALC260:
+		beeper = 23;
+		break;
+	}
+	if (hda_get_vendor_id(devinfo->dev) == REALTEK_VENDORID &&
+	    hdaa_codec_id(devinfo) != HDA_CODEC_ALC260)
+		beeper = 29;
+	if (w->nid == beeper) {
+		w->param.widget_cap &= ~HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_MASK;
+		w->param.widget_cap |= HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET <<
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_SHIFT;
+		w->waspin = 1;
+	}
+	HDA_BOOTVERBOSE(
+		if (w->param.widget_cap != orig) {
+			device_printf(w->devinfo->dev,
+			    "Patching widget caps nid=%u 0x%08x -> 0x%08x\n",
+			    w->nid, orig, w->param.widget_cap);
+		}
+	);
+
+	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+		hdac_pin_patch(w);
+}
+
+void
+hdaa_patch(struct hdaa_devinfo *devinfo)
+{
+	struct hdaa_widget *w;
+	uint32_t id, subid;
+	int i;
+
+	id = hdaa_codec_id(devinfo);
+	subid = hdaa_subvendor_id(devinfo);
+
+	/*
+	 * Quirks
+	 */
+	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
+		if (!(HDA_DEV_MATCH(hdac_quirks[i].model, subid) &&
+		    HDA_DEV_MATCH(hdac_quirks[i].id, id)))
+			continue;
+		if (hdac_quirks[i].set != 0)
+			devinfo->quirks |=
+			    hdac_quirks[i].set;
+		if (hdac_quirks[i].unset != 0)
+			devinfo->quirks &=
+			    ~(hdac_quirks[i].unset);
+	}
+
+	/* Apply per-widget patch. */
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		w = hdaa_widget_get(devinfo, i);
+		if (w == NULL)
+			continue;
+		hdaa_widget_patch(w);
+	}
+
+	switch (id) {
+	case HDA_CODEC_AD1983:
+		/*
+		 * This CODEC has several possible usages, but none
+		 * fit the parser best. Help parser to choose better.
+		 */
+		/* Disable direct unmixed playback to get pcm volume. */
+		w = hdaa_widget_get(devinfo, 5);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdaa_widget_get(devinfo, 6);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdaa_widget_get(devinfo, 11);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		/* Disable mic and line selectors. */
+		w = hdaa_widget_get(devinfo, 12);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdaa_widget_get(devinfo, 13);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		/* Disable recording from mono playback mix. */
+		w = hdaa_widget_get(devinfo, 20);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+		break;
+	case HDA_CODEC_AD1986A:
+		/*
+		 * This CODEC has overcomplicated input mixing.
+		 * Make some cleaning there.
+		 */
+		/* Disable input mono mixer. Not needed and not supported. */
+		w = hdaa_widget_get(devinfo, 43);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable any with any input mixing mesh. Use separately. */
+		w = hdaa_widget_get(devinfo, 39);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdaa_widget_get(devinfo, 40);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdaa_widget_get(devinfo, 41);
+		if (w != NULL)
+			w->enable = 0;
+		w = hdaa_widget_get(devinfo, 42);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable duplicate mixer node connector. */
+		w = hdaa_widget_get(devinfo, 15);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+		/* There is only one mic preamplifier, use it effectively. */
+		w = hdaa_widget_get(devinfo, 31);
+		if (w != NULL) {
+			if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) ==
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN) {
+				w = hdaa_widget_get(devinfo, 16);
+				if (w != NULL)
+				    w->connsenable[2] = 0;
+			} else {
+				w = hdaa_widget_get(devinfo, 15);
+				if (w != NULL)
+				    w->connsenable[0] = 0;
+			}
+		}
+		w = hdaa_widget_get(devinfo, 32);
+		if (w != NULL) {
+			if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) ==
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN) {
+				w = hdaa_widget_get(devinfo, 16);
+				if (w != NULL)
+				    w->connsenable[0] = 0;
+			} else {
+				w = hdaa_widget_get(devinfo, 15);
+				if (w != NULL)
+				    w->connsenable[1] = 0;
+			}
+		}
+
+		if (subid == ASUS_A8X_SUBVENDOR) {
+			/*
+			 * This is just plain ridiculous.. There
+			 * are several A8 series that share the same
+			 * pci id but works differently (EAPD).
+			 */
+			w = hdaa_widget_get(devinfo, 26);
+			if (w != NULL && w->type ==
+			    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+			    (w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) !=
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE)
+				devinfo->quirks &=
+				    ~HDAA_QUIRK_EAPDINV;
+		}
+		break;
+	case HDA_CODEC_AD1981HD:
+		/*
+		 * This CODEC has very unusual design with several
+		 * points inappropriate for the present parser.
+		 */
+		/* Disable recording from mono playback mix. */
+		w = hdaa_widget_get(devinfo, 21);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+		/* Disable rear to front mic mixer, use separately. */
+		w = hdaa_widget_get(devinfo, 31);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable direct playback, use mixer. */
+		w = hdaa_widget_get(devinfo, 5);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdaa_widget_get(devinfo, 6);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdaa_widget_get(devinfo, 9);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdaa_widget_get(devinfo, 24);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		break;
+	case HDA_CODEC_CX20582:
+	case HDA_CODEC_CX20583:
+	case HDA_CODEC_CX20584:
+	case HDA_CODEC_CX20585:
+	case HDA_CODEC_CX20590:
+		/*
+		 * These codecs have extra connectivity on record side
+		 * too reach for the present parser.
+		 */
+		w = hdaa_widget_get(devinfo, 20);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdaa_widget_get(devinfo, 21);
+		if (w != NULL)
+			w->connsenable[1] = 0;
+		w = hdaa_widget_get(devinfo, 22);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		break;
+	case HDA_CODEC_VT1708S_0:
+	case HDA_CODEC_VT1708S_1:
+	case HDA_CODEC_VT1708S_2:
+	case HDA_CODEC_VT1708S_3:
+	case HDA_CODEC_VT1708S_4:
+	case HDA_CODEC_VT1708S_5:
+	case HDA_CODEC_VT1708S_6:
+	case HDA_CODEC_VT1708S_7:
+		/*
+		 * These codecs have hidden mic boost controls.
+		 */
+		w = hdaa_widget_get(devinfo, 26);
+		if (w != NULL)
+			w->param.inamp_cap =
+			    (40 << HDA_PARAM_OUTPUT_AMP_CAP_STEPSIZE_SHIFT) |
+			    (3 << HDA_PARAM_OUTPUT_AMP_CAP_NUMSTEPS_SHIFT) |
+			    (0 << HDA_PARAM_OUTPUT_AMP_CAP_OFFSET_SHIFT);
+		w = hdaa_widget_get(devinfo, 30);
+		if (w != NULL)
+			w->param.inamp_cap =
+			    (40 << HDA_PARAM_OUTPUT_AMP_CAP_STEPSIZE_SHIFT) |
+			    (3 << HDA_PARAM_OUTPUT_AMP_CAP_NUMSTEPS_SHIFT) |
+			    (0 << HDA_PARAM_OUTPUT_AMP_CAP_OFFSET_SHIFT);
+		break;
+	}
+}
+
+void
+hdaa_patch_direct(struct hdaa_devinfo *devinfo)
+{
+	device_t dev = devinfo->dev;
+	uint32_t id, subid, val;
+
+	id = hdaa_codec_id(devinfo);
+	subid = hdaa_subvendor_id(devinfo);
+
+	switch (id) {
+	case HDA_CODEC_VT1708S_0:
+	case HDA_CODEC_VT1708S_1:
+	case HDA_CODEC_VT1708S_2:
+	case HDA_CODEC_VT1708S_3:
+	case HDA_CODEC_VT1708S_4:
+	case HDA_CODEC_VT1708S_5:
+	case HDA_CODEC_VT1708S_6:
+	case HDA_CODEC_VT1708S_7:
+		/* Enable Mic Boost Volume controls. */
+		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
+		    0xf98, 0x01));
+		/* Don't bypass mixer. */
+		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
+		    0xf88, 0xc0));
+		break;
+	}
+	if (subid == APPLE_INTEL_MAC)
+		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
+		    0x7e7, 0));
+	if (id == HDA_CODEC_ALC269) {
+		if (subid == 0x104316e3 || subid == 0x1043831a ||
+		    subid == 0x1043834a || subid == 0x10438398 ||
+		    subid == 0x104383ce) {
+			/*
+			 * The ditital mics on some Asus laptops produce
+			 * differential signals instead of expected stereo.
+			 * That results in silence if downmix it to mono.
+			 * To workaround, make codec to handle signal as mono.
+			 */
+			hda_command(dev, HDA_CMD_SET_COEFF_INDEX(0, 0x20, 0x07));
+			val = hda_command(dev, HDA_CMD_GET_PROCESSING_COEFF(0, 0x20));
+			hda_command(dev, HDA_CMD_SET_COEFF_INDEX(0, 0x20, 0x07));
+			hda_command(dev, HDA_CMD_SET_PROCESSING_COEFF(0, 0x20, val|0x80));
+		}
+	}
+}
