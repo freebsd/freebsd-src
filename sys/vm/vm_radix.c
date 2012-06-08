@@ -99,12 +99,14 @@
 #define	KSPLT64H(x)	((u_long)(((x) >> 32) & 0xFFFFFFFF))
 #endif
 
+CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
+CTASSERT((sizeof(u_int) * NBBY) >= VM_RADIX_LIMIT);
+
 struct vm_radix_node {
 	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
 	volatile uint32_t rn_count;			/* Valid children. */
 };
 
-CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
 
 static uma_zone_t vm_radix_node_zone;
@@ -354,101 +356,6 @@ vm_radix_reclaim_allnodes_internal(struct vm_radix_node *rnode, int level)
 }
 
 /*
- * Remove the specified index from the tree.  If possible the height of the
- * tree is adjusted after deletion. May be used to cleanup intermediate
- * nodes of the path if the key is not entirely present.
- */
-static void
-vm_radix_sweep(struct vm_radix *rtree, vm_pindex_t index, int color, int hard)
-{
-	struct vm_radix_node *stack[VM_RADIX_LIMIT];
-	struct vm_radix_node *rnode, *root;
-	int level;
-	int slot;
-
-	level = vm_radix_height(rtree, &root);
-	KASSERT(index <= VM_RADIX_MAX(level),
-	    ("vm_radix_sweep: %p index out of range %jd.", rtree,
-	    VM_RADIX_MAX(level)));
-	rnode = root;
-	level--;
-	/*
-	 * Find the node and record the path in stack.
-	 */
-	while (level && rnode) {
-		stack[level] = rnode;
-		slot = vm_radix_slot(index, level);
-		CTR6(KTR_VM,
-	    "remove: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR4(KTR_VM, "remove: tree %p, rnode %p, child %p, count %u",
-		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
-		rnode = rnode->rn_child[slot];
-		level--;
-	}
-	if (rnode == NULL) {
-		if (hard)
-			panic("vm_radix_sweep: index not present.\n");
-
-		/*
-		 * Almost certainly it got an half-constructed tree it was
-		 * expected.
-		 */
-		KASSERT(level < (VM_RADIX_LIMIT - 1),
-		    ("vm_radix_sweep: level %d not consistent.\n", level));
-		++level;
-		rnode = stack[level];
-		slot = vm_radix_slot(index, level);
-	} else {
-		slot = vm_radix_slot(index, 0);
-		if (hard &&
-		    vm_radix_match(rnode->rn_child[slot], color) == NULL)
-			panic("vm_radix_sweep: index not present as leaf.\n");
-	}
-
-	for (;;) {
-		CTR6(KTR_VM,
-"remove: resetting tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR4(KTR_VM,
-		    "remove: resetting tree %p, rnode %p, child %p, count %u",
-		    rtree, rnode,
-		    (rnode != NULL) ? rnode->rn_child[slot] : NULL,
-		    (rnode != NULL) ? rnode->rn_count : 0);
-		rnode->rn_child[slot] = NULL;
-		/*
-		 * Use atomics for the last level since red and black
-		 * will both adjust it.
-		 * Use a write memory barrier here in order to avoid
-		 * rn_count reaching 0 before to fetch the actual pointer.
-		 * Concurrent black removal, infact, may want to reclaim
-		 * the radix node itself before to read it.
-		 */
-		MPASS(rnode->rn_count != 0);
-		if (level == 0)
-			atomic_add_rel_32(&rnode->rn_count, -1);
-		else
-			rnode->rn_count--;
-
-		/*
-		 * Only allow black removes to prune the tree.
-		 */
-		if ((color & VM_RADIX_BLACK) == 0 || rnode->rn_count > 0)
-			break;
-		vm_radix_node_put(rnode);
-		if (rnode == root) {
-			vm_radix_setroot(rtree, NULL, 0);
-			break;
-		}
-		rnode = stack[++level];
-		slot = vm_radix_slot(index, level);
-			
-	}
-}
-
-/*
  * Inserts the key-value pair in to the radix tree.  Returns errno.
  * Panics if the key already exists.
  */
@@ -456,7 +363,8 @@ int
 vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 {
 	struct vm_radix_node *iroot, *rnode, *root;
-	int ilevel, level, slot;
+	u_int allocmsk;
+	int clev, ilevel, level, slot;
 
 	CTR4(KTR_VM,
 	    "insert: tree %p, " KFRMT64(index) ", val %p", rtree,
@@ -509,17 +417,13 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	}
 
 	/* Now that the tree is tall enough, fill in the path to the index. */
+	allocmsk = 0;
+	clev = level;
 	rnode = root;
 	for (level = level - 1; level > 0; level--) {
 		slot = vm_radix_slot(index, level);
 		/* Add the required intermidiate nodes. */
 		if (rnode->rn_child[slot] == NULL) {
-
-			/*
-			 * In case of failed allocation, the vm_radix_sweep()
-			 * will unwind back rn_count appropriately.
-			 */
-			rnode->rn_count++;
 			rnode->rn_child[slot] = vm_radix_node_get();
     			if (rnode->rn_child[slot] == NULL) {
 				CTR6(KTR_VM,
@@ -530,17 +434,35 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 			"insert: tree %p, rnode %p, child %p, count %u ENOMEM",
 		    		    rtree, rnode, rnode->rn_child[slot],
 				    rnode->rn_count);
-				vm_radix_sweep(rtree, index, VM_RADIX_BLACK, 0);
-
-				/*
-				 * vm_radix_sweep() may have changed the shape
-				 * of the tree, refetch the root.
-				 */
-				vm_radix_height(rtree, &root);
+				MPASS(level != clev || allocmsk == 0);
+				while (allocmsk != 0) {
+					rnode = root;
+					level = clev;
+					level--;
+					slot = vm_radix_slot(index, level);
+					CTR4(KTR_VM,
+		    "insert: unwind root %p, level %d, slot %d, allocmsk: 0x%x",
+					    root, level, slot, allocmsk);
+					MPASS(level >= (ffs(allocmsk) - 1));
+					while (level > (ffs(allocmsk) - 1)) {
+						MPASS(level > 0);
+						slot = vm_radix_slot(index,
+						    level);
+						rnode = rnode->rn_child[slot];
+						level--;
+					}
+					MPASS((allocmsk & (1 << level)) != 0);
+					allocmsk &= ~(1 << level);
+					rnode->rn_count--;
+				vm_radix_node_put(rnode->rn_child[slot]);
+					rnode->rn_child[slot] = NULL;
+				}
 				vm_radix_unwind_heightup(rtree, root, iroot,
 				    ilevel);
 		    		return (ENOMEM);
 			}
+			rnode->rn_count++;
+			allocmsk |= (1 << level);
 	    	}
 		CTR6(KTR_VM,
 	    "insert: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
@@ -890,13 +812,86 @@ restart:
 }
 
 /*
- * Remove an entry from the tree. Expects the entry to be already present.
+ * Remove the specified index from the tree.  If possible the height of the
+ * tree is adjusted after deletion.  The value stored at index is returned
+ * panics if the key is not present.
  */
-void
+void *
 vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 {
+	struct vm_radix_node *stack[VM_RADIX_LIMIT];
+	struct vm_radix_node *rnode, *root;
+	void *val;
+	int level;
+	int slot;
 
-	vm_radix_sweep(rtree, index, color, 1);
+	level = vm_radix_height(rtree, &root);
+	KASSERT(index <= VM_RADIX_MAX(level),
+	    ("vm_radix_remove: %p index out of range %jd.", rtree,
+	    VM_RADIX_MAX(level)));
+	rnode = root;
+	val = NULL;
+	level--;
+	/*
+	 * Find the node and record the path in stack.
+	 */
+	while (level && rnode) {
+		stack[level] = rnode;
+		slot = vm_radix_slot(index, level);
+		CTR6(KTR_VM,
+	    "remove: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
+		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
+		    rnode);
+		CTR4(KTR_VM, "remove: tree %p, rnode %p, child %p, count %u",
+		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
+		rnode = rnode->rn_child[slot];
+		level--;
+	}
+	KASSERT(rnode != NULL,
+		("vm_radix_remove: index not present in the tree.\n"));
+	slot = vm_radix_slot(index, 0);
+	val = vm_radix_match(rnode->rn_child[slot], color);
+	KASSERT(val != NULL,
+		("vm_radix_remove: index not present in the tree.\n"));
+
+	for (;;) {
+		CTR6(KTR_VM,
+"remove: resetting tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
+		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
+		    rnode);
+		CTR4(KTR_VM,
+		    "remove: resetting tree %p, rnode %p, child %p, count %u",
+		    rtree, rnode,
+		    (rnode != NULL) ? rnode->rn_child[slot] : NULL,
+		    (rnode != NULL) ? rnode->rn_count : 0);
+		rnode->rn_child[slot] = NULL;
+		/*
+		 * Use atomics for the last level since red and black
+		 * will both adjust it.
+		 * Use a write memory barrier here in order to avoid
+		 * rn_count reaching 0 before to fetch the actual pointer.
+		 * Concurrent black removal, infact, may want to reclaim
+		 * the radix node itself before to read it.
+		 */
+		if (level == 0)
+			atomic_add_rel_32(&rnode->rn_count, -1);
+		else
+			rnode->rn_count--;
+		/*
+		 * Only allow black removes to prune the tree.
+		 */
+		if ((color & VM_RADIX_BLACK) == 0 || rnode->rn_count > 0)
+			break;
+		vm_radix_node_put(rnode);
+		if (rnode == root) {
+			vm_radix_setroot(rtree, NULL, 0);
+			break;
+		}
+		rnode = stack[++level];
+		slot = vm_radix_slot(index, level);
+			
+	}
+	return (val);
 }
 
 /*
