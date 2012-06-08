@@ -108,7 +108,8 @@ vn_open(ndp, flagp, cmode, fp)
 }
 
 /*
- * Common code for vnode open operations.
+ * Common code for vnode open operations via a name lookup.
+ * Lookup the vnode and invoke VOP_CREATE if needed.
  * Check permissions, and call the VOP_OPEN or VOP_CREATE routine.
  * 
  * Note that this does NOT free nameidata for the successful case,
@@ -124,7 +125,6 @@ vn_open_cred(struct nameidata *ndp, int *flagp, int cmode, u_int vn_open_flags,
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int fmode, error;
-	accmode_t accmode;
 	int vfslocked, mpsafe;
 
 	mpsafe = ndp->ni_cnd.cn_flags & MPSAFE;
@@ -205,24 +205,44 @@ restart:
 		vfslocked = NDHASGIANT(ndp);
 		vp = ndp->ni_vp;
 	}
-	if (vp->v_type == VLNK) {
-		error = EMLINK;
+	error = vn_open_vnode(vp, fmode, cred, td, fp);
+	if (error)
 		goto bad;
-	}
-	if (vp->v_type == VSOCK) {
-		error = EOPNOTSUPP;
-		goto bad;
-	}
-	if (vp->v_type != VDIR && fmode & O_DIRECTORY) {
-		error = ENOTDIR;
-		goto bad;
-	}
+	*flagp = fmode;
+	if (!mpsafe)
+		VFS_UNLOCK_GIANT(vfslocked);
+	return (0);
+bad:
+	NDFREE(ndp, NDF_ONLY_PNBUF);
+	vput(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+	*flagp = fmode;
+	ndp->ni_vp = NULL;
+	return (error);
+}
+
+/*
+ * Common code for vnode open operations once a vnode is located.
+ * Check permissions, and call the VOP_OPEN routine.
+ */
+int
+vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
+    struct thread *td, struct file *fp)
+{
+	accmode_t accmode;
+	int error;
+
+	VFS_ASSERT_GIANT(vp->v_mount);
+	if (vp->v_type == VLNK)
+		return (EMLINK);
+	if (vp->v_type == VSOCK)
+		return (EOPNOTSUPP);
+	if (vp->v_type != VDIR && fmode & O_DIRECTORY)
+		return (ENOTDIR);
 	accmode = 0;
 	if (fmode & (FWRITE | O_TRUNC)) {
-		if (vp->v_type == VDIR) {
-			error = EISDIR;
-			goto bad;
-		}
+		if (vp->v_type == VDIR)
+			return (EISDIR);
 		accmode |= VWRITE;
 	}
 	if (fmode & FREAD)
@@ -234,40 +254,30 @@ restart:
 #ifdef MAC
 	error = mac_vnode_check_open(cred, vp, accmode);
 	if (error)
-		goto bad;
+		return (error);
 #endif
 	if ((fmode & O_CREAT) == 0) {
 		if (accmode & VWRITE) {
 			error = vn_writechk(vp);
 			if (error)
-				goto bad;
+				return (error);
 		}
 		if (accmode) {
 		        error = VOP_ACCESS(vp, accmode, cred, td);
 			if (error)
-				goto bad;
+				return (error);
 		}
 	}
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fp)) != 0)
-		goto bad;
+		return (error);
 
 	if (fmode & FWRITE) {
 		vp->v_writecount++;
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
-	*flagp = fmode;
-	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
-	if (!mpsafe)
-		VFS_UNLOCK_GIANT(vfslocked);
+	ASSERT_VOP_LOCKED(vp, "vn_open_vnode");
 	return (0);
-bad:
-	NDFREE(ndp, NDF_ONLY_PNBUF);
-	vput(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
-	*flagp = fmode;
-	ndp->ni_vp = NULL;
-	return (error);
 }
 
 /*
