@@ -792,7 +792,8 @@ cmpsuffix(unsigned char si1, unsigned char si2)
  * Implements numeric sort for -n and -h.
  */
 static int
-numcoll_impl(struct key_value *kv1, struct key_value *kv2, size_t offset, bool use_suffix)
+numcoll_impl(struct key_value *kv1, struct key_value *kv2,
+    size_t offset __unused, bool use_suffix)
 {
 	struct bwstring *s1, *s2;
 	wchar_t sfrac1[MAX_NUM_SIZE + 1], sfrac2[MAX_NUM_SIZE + 1];
@@ -809,8 +810,6 @@ numcoll_impl(struct key_value *kv1, struct key_value *kv2, size_t offset, bool u
 
 	cmp_res = 0;
 	key1_read = key2_read = false;
-
-	UNUSED_ARG(offset);
 
 	if (debug_sort) {
 		bwsprintf(stdout, s1, "; k1=<", ">");
@@ -968,13 +967,12 @@ hnumcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
  * Implements random sort (-R).
  */
 static int
-randomcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
+randomcoll(struct key_value *kv1, struct key_value *kv2,
+    size_t offset __unused)
 {
 	struct bwstring *s1, *s2;
 	MD5_CTX ctx1, ctx2;
 	char *b1, *b2;
-
-	UNUSED_ARG(offset);
 
 	s1 = kv1->k;
 	s2 = kv2->k;
@@ -1022,11 +1020,10 @@ randomcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
  * Implements version sort (-V).
  */
 static int
-versioncoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
+versioncoll(struct key_value *kv1, struct key_value *kv2,
+    size_t offset __unused)
 {
 	struct bwstring *s1, *s2;
-
-	UNUSED_ARG(offset);
 
 	s1 = kv1->k;
 	s2 = kv2->k;
@@ -1098,7 +1095,8 @@ cmp_nans(double d1, double d2)
  * Implements general numeric sort (-g).
  */
 static int
-gnumcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
+gnumcoll(struct key_value *kv1, struct key_value *kv2,
+    size_t offset __unused)
 {
 	double d1, d2;
 	int err1, err2;
@@ -1107,8 +1105,6 @@ gnumcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
 	d1 = d2 = 0;
 	err1 = err2 = 0;
 	key1_read = key2_read = false;
-
-	UNUSED_ARG(offset);
 
 	if (debug_sort) {
 		bwsprintf(stdout, kv1->k, "; k1=<", ">");
@@ -1256,15 +1252,13 @@ gnumcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
  * Implements month sort (-M).
  */
 static int
-monthcoll(struct key_value *kv1, struct key_value *kv2, size_t offset)
+monthcoll(struct key_value *kv1, struct key_value *kv2, size_t offset __unused)
 {
 	int val1, val2;
 	bool key1_read, key2_read;
 
 	val1 = val2 = 0;
 	key1_read = key2_read = false;
-
-	UNUSED_ARG(offset);
 
 	if (debug_sort) {
 		bwsprintf(stdout, kv1->k, "; k1=<", ">");

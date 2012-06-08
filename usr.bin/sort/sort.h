@@ -41,8 +41,6 @@
 
 #define	VERSION	"2.3-FreeBSD"
 
-#define	UNUSED_ARG(A) do { (void)(A); } while(0)
-
 #ifdef WITHOUT_NLS
 #define	getstr(n)	 nlsstr[n]
 #else
