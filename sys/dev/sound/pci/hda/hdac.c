@@ -295,6 +295,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define LENOVO_VENDORID		0x17aa
 #define LENOVO_3KN100_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x2066)
 #define LENOVO_3KN200_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x384e)
+#define LENOVO_B450_SUBVENDOR HDA_MODEL_CONSTRUCT(LENOVO, 0x3a0d)
 #define LENOVO_TCA55_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x1015)
 #define LENOVO_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0xffff)
 
@@ -2582,6 +2583,13 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			break;
 		}
 	    }
+	} else if (id == HDA_CODEC_CX20561 &&
+	    sc->pci_subvendor == LENOVO_B450_SUBVENDOR) {
+		switch (nid) {
+		case 22:
+			patch = "as=1 seq=15";
+			break;
+		}
 	}
 
 	if (patch != NULL)
