@@ -124,6 +124,7 @@ SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RW,
 	&chn_vpc_autoreset, 0, "automatically reset channels volume to 0db");
 
 static int chn_vol_0db_pcm = SND_VOL_0DB_PCM;
+TUNABLE_INT("hw.snd.vpc_0db", &chn_vol_0db_pcm);
 
 static void
 chn_vpc_proc(int reset, int db)
