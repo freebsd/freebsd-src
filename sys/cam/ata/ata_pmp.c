@@ -126,8 +126,13 @@ static	void		pmpdone(struct cam_periph *periph,
 #define	PMP_DEFAULT_RETRY	1
 #endif
 
+#ifndef	PMP_DEFAULT_HIDE_SPECIAL
+#define	PMP_DEFAULT_HIDE_SPECIAL	1
+#endif
+
 static int pmp_retry_count = PMP_DEFAULT_RETRY;
 static int pmp_default_timeout = PMP_DEFAULT_TIMEOUT;
+static int pmp_hide_special = PMP_DEFAULT_HIDE_SPECIAL;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -137,6 +142,9 @@ TUNABLE_INT("kern.cam.pmp.retry_count", &pmp_retry_count);
 SYSCTL_INT(_kern_cam_pmp, OID_AUTO, default_timeout, CTLFLAG_RW,
            &pmp_default_timeout, 0, "Normal I/O timeout (in seconds)");
 TUNABLE_INT("kern.cam.pmp.default_timeout", &pmp_default_timeout);
+SYSCTL_INT(_kern_cam_pmp, OID_AUTO, hide_special, CTLFLAG_RW,
+           &pmp_hide_special, 0, "Hide extra ports");
+TUNABLE_INT("kern.cam.pmp.hide_special", &pmp_hide_special);
 
 static struct periph_driver pmpdriver =
 {
@@ -583,23 +591,33 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		    (ataio->res.lba_mid << 16) +
 		    (ataio->res.lba_low << 8) +
 		    ataio->res.sector_count;
-		/* This PMP declares 6 ports, while only 5 of them are real.
-		 * Port 5 is enclosure management bridge port, which has implementation
-		 * problems, causing probe faults. Hide it for now. */
-		if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
-			softc->pm_ports = 5;
-		/* This PMP declares 7 ports, while only 5 of them are real.
-		 * Port 5 is some fake "Config  Disk" with 640 sectors size,
-		 * port 6 is enclosure management bridge port.
-		 * Both fake ports has implementation problems, causing
-		 * probe faults. Hide them for now. */
-		if (softc->pm_pid == 0x47261095 && softc->pm_ports == 7)
-			softc->pm_ports = 5;
-		/* These PMPs declare one more port then actually have,
-		 * for configuration purposes. Hide it for now. */
-		if (softc->pm_pid == 0x57231095 || softc->pm_pid == 0x57331095 ||
-		    softc->pm_pid == 0x57341095 || softc->pm_pid == 0x57441095)
-			softc->pm_ports--;
+		if (pmp_hide_special) {
+			/*
+			 * This PMP declares 6 ports, while only 5 of them
+			 * are real. Port 5 is a SEMB port, probing which
+			 * causes timeouts if external SEP is not connected
+			 * to PMP over I2C.
+			 */
+			if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
+				softc->pm_ports = 5;
+
+			/*
+			 * This PMP declares 7 ports, while only 5 of them
+			 * are real. Port 5 is a fake "Config  Disk" with
+			 * 640 sectors size. Port 6 is a SEMB port.
+			 */
+			if (softc->pm_pid == 0x47261095 && softc->pm_ports == 7)
+				softc->pm_ports = 5;
+
+			/*
+			 * These PMPs have extra configuration port.
+			 */
+			if (softc->pm_pid == 0x57231095 ||
+			    softc->pm_pid == 0x57331095 ||
+			    softc->pm_pid == 0x57341095 ||
+			    softc->pm_pid == 0x57441095)
+				softc->pm_ports--;
+		}
 		printf("%s%d: %d fan-out ports\n",
 		    periph->periph_name, periph->unit_number,
 		    softc->pm_ports);
