@@ -85,7 +85,6 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 	vm_map_entry_t entry;
 	vm_pindex_t upindex;
 	vm_prot_t prot;
-	vm_page_bits_t vbits;
 	boolean_t wired;
 
 	KASSERT((uaddr & PAGE_MASK) == 0,
@@ -96,7 +95,6 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 	 * unwired in sf_buf_mext().
 	 */
 	kern_pg = PHYS_TO_VM_PAGE(vtophys(kaddr));
-	vbits = kern_pg->valid;
 	kern_pg->valid = VM_PAGE_BITS_ALL;
 	KASSERT(kern_pg->queue == PQ_NONE && kern_pg->wire_count == 1,
 	    ("vm_pgmoveco: kern_pg is not correctly wired"));
@@ -107,13 +105,6 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 		return(EFAULT);
 	}
 	VM_OBJECT_LOCK(uobject);
-	if (vm_page_insert(kern_pg, uobject, upindex) != 0) {
-		kern_pg->valid = vbits;
-		VM_OBJECT_UNLOCK(uobject);
-		vm_map_lookup_done(map, entry);
-		return(ENOMEM);
-	}
-	vm_page_dirty(kern_pg);
 retry:
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
 		if (vm_page_sleep_if_busy(user_pg, TRUE, "vm_pgmoveco"))
@@ -131,6 +122,8 @@ retry:
 		if (uobject->backing_object != NULL)
 			pmap_remove(map->pmap, uaddr, uaddr + PAGE_SIZE);
 	}
+	vm_page_insert(kern_pg, uobject, upindex);
+	vm_page_dirty(kern_pg);
 	VM_OBJECT_UNLOCK(uobject);
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);

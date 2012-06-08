@@ -762,7 +762,9 @@ vnode_locked:
 				 * process'es object.  The page is 
 				 * automatically made dirty.
 				 */
+				vm_page_lock(fs.m);
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
+				vm_page_unlock(fs.m);
 				vm_page_busy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;

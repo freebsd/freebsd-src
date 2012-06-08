@@ -109,7 +109,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
-#include <machine/cpu.h>
 #include <machine/md_var.h>
 
 /*
@@ -819,15 +818,13 @@ vm_page_dirty(vm_page_t m)
  *	The object and page must be locked.
  *	This routine may not block.
  */
-int
+void
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t neighbor;
-	vm_pindex_t cpindex;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (m->object != NULL)
 		panic("vm_page_insert: page already inserted");
-	cpindex = m->pindex;
 
 	/*
 	 * Record the object/offset pair in this page
@@ -848,13 +845,8 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 		} else 
 			TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	}
-
-	if (vm_radix_insert(&object->rtree, pindex, m) != 0) {
-		TAILQ_REMOVE(&object->memq, m, listq);
-		m->object = NULL;
-		m->pindex = cpindex;
-		return (ENOMEM);
-	}
+	if (vm_radix_insert(&object->rtree, pindex, m) != 0)
+		panic("vm_page_insert: unable to insert the new page");
 
 	/*
 	 * show that the object has one more resident page.
@@ -872,7 +864,6 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	 */
 	if (m->aflags & PGA_WRITEABLE)
 		vm_object_set_writeable_dirty(object);
-	return (0);
 }
 
 /*
@@ -1017,20 +1008,9 @@ vm_page_prev(vm_page_t m)
 void
 vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 {
-	u_int i;
 
-	MPASS(m->object != NULL);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
-
-	vm_page_lock(m);
 	vm_page_remove(m);
-	vm_page_unlock(m);
-	while (vm_page_insert(m, new_object, new_pindex) != 0) {
-		pagedaemon_wakeup();
-		for (i = 0; i < 10000000; i++)
-			cpu_spinwait();
-	}
+	vm_page_insert(m, new_object, new_pindex);
 	vm_page_dirty(m);
 }
 
@@ -1311,19 +1291,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		if (object->memattr != VM_MEMATTR_DEFAULT &&
 		    object->type != OBJT_DEVICE && object->type != OBJT_SG)
 			pmap_page_set_memattr(m, object->memattr);
-		if (vm_page_insert(m, object, pindex) != 0) {
-
-			/* See the comment below about hold count handling. */
-			if (vp != NULL)
-				vdrop(vp);
-			vm_page_lock(m);
-			if (req & VM_ALLOC_WIRED)
-				vm_page_unwire(m, 0);
-			vm_page_free(m);
-			vm_page_unlock(m);
-			pagedaemon_wakeup();
-			return (NULL);
-		}
+		vm_page_insert(m, object, pindex);
 	} else
 		m->pindex = pindex;
 
@@ -1390,7 +1358,6 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 {
 	struct vnode *drop;
 	vm_page_t deferred_vdrop_list, m, m_ret;
-	vm_pindex_t cpindex;
 	u_int flags, oflags;
 	int req_class;
 
@@ -1477,7 +1444,6 @@ retry:
 		    memattr == VM_MEMATTR_DEFAULT)
 			memattr = object->memattr;
 	}
-	cpindex = pindex;
 	for (m = m_ret; m < &m_ret[npages]; m++) {
 		m->aflags = 0;
 		m->flags &= flags;
@@ -1487,29 +1453,11 @@ retry:
 		m->oflags = oflags;
 		if (memattr != VM_MEMATTR_DEFAULT)
 			pmap_page_set_memattr(m, memattr);
+		if (object != NULL)
+			vm_page_insert(m, object, pindex);
+		else
+			m->pindex = pindex;
 		pindex++;
-	}
-	for (m = m_ret; m < &m_ret[npages]; m++) {
-		if (object != NULL) {
-			if (vm_page_insert(m, object, cpindex) != 0) {
-				while (deferred_vdrop_list != NULL) {
-		vdrop((struct vnode *)deferred_vdrop_list->pageq.tqe_prev);
-					deferred_vdrop_list =
-					    deferred_vdrop_list->pageq.tqe_next;
-				}
-				for (m = m_ret; m < &m_ret[npages]; m++) {
-					vm_page_lock(m);
-					if (req & VM_ALLOC_WIRED)
-						vm_page_unwire(m, 0);
-					vm_page_free(m);
-					vm_page_unlock(m);
-				}
-				pagedaemon_wakeup();
-				return (NULL);
-			}
-		} else
-			m->pindex = cpindex;
-		cpindex++;
 	}
 	while (deferred_vdrop_list != NULL) {
 		vdrop((struct vnode *)deferred_vdrop_list->pageq.tqe_prev);
@@ -2732,8 +2680,11 @@ vm_page_cowfault(vm_page_t m)
 	pindex = m->pindex;
 
  retry_alloc:
+	pmap_remove_all(m);
+	vm_page_remove(m);
 	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (mnew == NULL) {
+		vm_page_insert(m, object, pindex);
 		vm_page_unlock(m);
 		VM_OBJECT_UNLOCK(object);
 		VM_WAIT;
@@ -2759,9 +2710,8 @@ vm_page_cowfault(vm_page_t m)
 		vm_page_lock(mnew);
 		vm_page_free(mnew);
 		vm_page_unlock(mnew);
+		vm_page_insert(m, object, pindex);
 	} else { /* clear COW & copy page */
-		pmap_remove_all(m);
-		vm_page_remove(m);
 		if (!so_zerocp_fullpage)
 			pmap_copy_page(m, mnew);
 		mnew->valid = VM_PAGE_BITS_ALL;

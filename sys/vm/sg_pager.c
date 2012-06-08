@@ -179,10 +179,6 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	/* Construct a new fake page. */
 	page = vm_page_getfake(paddr, memattr);
 	VM_OBJECT_LOCK(object);
-	if (vm_page_insert(page, object, offset) != 0) {
-		vm_page_putfake(page);
-		return (VM_PAGER_FAIL);
-	}
 	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, pageq);
 
 	/* Free the original pages and insert this fake page into the object. */
@@ -191,6 +187,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		vm_page_free(m[i]);
 		vm_page_unlock(m[i]);
 	}
+	vm_page_insert(page, object, offset);
 	m[reqpage] = page;
 	page->valid = VM_PAGE_BITS_ALL;
 

@@ -1418,7 +1418,9 @@ retry:
 			vm_reserv_rename(m, new_object, orig_object,
 			    offidxstart);
 #endif
+			vm_page_lock(m);
 			vm_page_rename(m, new_object, idx);
+			vm_page_unlock(m);
 			/*
 			 * page automatically made dirty by rename and
 			 * cache handled
@@ -1673,7 +1675,9 @@ restart:
 			 * If the page was mapped to a process, it can remain 
 			 * mapped through the rename.
 			 */
+			vm_page_lock(p);
 			vm_page_rename(p, object, new_pindex);
+			vm_page_unlock(p);
 			/* page automatically made dirty by rename */
 		}
 	}
