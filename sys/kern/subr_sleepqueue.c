@@ -361,6 +361,22 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
  * Sets a timeout that will remove the current thread from the specified
  * sleep queue after timo ticks if the thread has not already been awakened.
  */
+void 
+sleepq_set_timeout_bt(void *wchan, struct bintime bt)
+{
+
+	struct sleepqueue_chain *sc;
+	struct thread *td;
+
+	td = curthread;
+	sc = SC_LOOKUP(wchan);
+	mtx_assert(&sc->sc_lock, MA_OWNED);
+	MPASS(TD_ON_SLEEPQ(td));
+	MPASS(td->td_sleepqueue == NULL);
+	MPASS(wchan != NULL);
+	callout_reset_bt_on(&td->td_slpcallout, bt, sleepq_timeout, td, PCPU_GET(cpuid));
+}
+
 void
 sleepq_set_timeout(void *wchan, int timo)
 {
