@@ -1312,7 +1312,7 @@ g_multipath_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (sc == NULL)
 		return;
 	if (cp != NULL) {
-		sbuf_printf(sb, "%s<State>%s</State>", indent,
+		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    (cp->index & MP_NEW) ? "NEW" :
 		    (cp->index & MP_LOST) ? "LOST" :
 		    (cp->index & MP_FAIL) ? "FAIL" :
@@ -1321,17 +1321,17 @@ g_multipath_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		     sc->sc_active_active == 2 ? "READ" : "PASSIVE");
 	} else {
 		good = g_multipath_good(gp);
-		sbuf_printf(sb, "%s<State>%s</State>", indent,
+		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    good == 0 ? "BROKEN" :
 		    (good != sc->sc_ndisks || sc->sc_ndisks == 1) ?
 		    "DEGRADED" : "OPTIMAL");
 	}
 	if (cp == NULL && pp == NULL) {
-		sbuf_printf(sb, "%s<UUID>%s</UUID>", indent, sc->sc_uuid);
-		sbuf_printf(sb, "%s<Mode>Active/%s</Mode>", indent,
+		sbuf_printf(sb, "%s<UUID>%s</UUID>\n", indent, sc->sc_uuid);
+		sbuf_printf(sb, "%s<Mode>Active/%s</Mode>\n", indent,
 		    sc->sc_active_active == 2 ? "Read" :
 		    sc->sc_active_active == 1 ? "Active" : "Passive");
-		sbuf_printf(sb, "%s<Type>%s</Type>", indent,
+		sbuf_printf(sb, "%s<Type>%s</Type>\n", indent,
 		    sc->sc_uuid[0] == 0 ? "MANUAL" : "AUTOMATIC");
 	}
 }
