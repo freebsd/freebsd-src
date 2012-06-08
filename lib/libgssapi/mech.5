@@ -39,17 +39,17 @@ The
 file contains a list of installed GSS-API security mechanisms.
 Each line of the file either contains a comment if the first character
 is '#' or it contains five fields with the following meanings:
-.Bl -tag
+.Bl -tag -width ".It Object identifier"
 .It Name
 The name of this GSS-API mechanism.
 .It Object identifier
 The OID for this mechanism.
 .It Library
 A shared library containing the implementation of this mechanism.
-.It Kernel module (optional)
-A kernel module containing the implementation of this mechanism (not
+.It Kernel module
+Optional kernel module containing the implementation of this mechanism (not
 yet supported in FreeBSD).
-.It Library options (optional)
+.It Library options
 Optional parameters interpreted by the mechanism. Library options
 must be enclosed in brackets ([ ]) to differentiate them from the
 optional kernel module entry.
@@ -68,7 +68,7 @@ file contains a list of Quality of Protection values for use with
 GSS-API.
 Each line of the file either contains a comment if the first character
 is '#' or it contains three fields with the following meanings:
-.Bl -tag
+.Bl -tag -width ".It Mechanism name"
 .It QOP string
 The name of this Quality of Protection algorithm.
 .It QOP value

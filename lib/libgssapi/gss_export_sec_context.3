@@ -100,7 +100,7 @@ providing it also sets the
 parameter to
 .Dv GSS_C_NO_CONTEXT .
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It interprocess_token"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -112,7 +112,7 @@ after use with a call to
 .Fn gss_release_buffer .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CONTEXT_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_CONTEXT_EXPIRED
@@ -126,7 +126,7 @@ The operation is not supported
 .Xr gss_import_sec_context 3 ,
 .Xr gss_release_buffer 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
