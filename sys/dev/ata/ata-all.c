@@ -1786,7 +1786,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
 			d = &ch->user[ccb->ccb_h.target_id];
-		cts->protocol = PROTO_ATA;
+		cts->protocol = PROTO_UNSPECIFIED;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		if (ch->flags & ATA_SATA) {
 			cts->transport = XPORT_SATA;
@@ -1873,7 +1873,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		else
 			cpi->transport = XPORT_ATA;
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
-		cpi->protocol = PROTO_ATA;
+		cpi->protocol = PROTO_UNSPECIFIED;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
 		cpi->ccb_h.status = CAM_REQ_CMP;
