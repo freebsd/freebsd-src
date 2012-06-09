@@ -1845,7 +1845,6 @@ void
 fdfree(struct thread *td)
 {
 	struct filedesc *fdp;
-	struct file **fpp;
 	int i, locked;
 	struct filedesc_to_leader *fdtol;
 	struct file *fp;
