@@ -70,6 +70,7 @@ FBSDprivate_1.0 {
 	__divdf3;
 	__floatsisf;
 	__floatsidf;
+	__flt_rounds;
 	__fixsfsi;
 	__fixdfsi;
 	__fixunssfsi;
