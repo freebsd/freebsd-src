@@ -844,6 +844,14 @@ struct ccb_trans_settings_scsi
 #define	CTS_SCSI_FLAGS_TAG_ENB		0x01
 };
 
+struct ccb_trans_settings_ata
+{
+	u_int	valid;	/* Which fields to honor */
+#define	CTS_ATA_VALID_TQ		0x01
+	u_int	flags;
+#define	CTS_ATA_FLAGS_TAG_ENB		0x01
+};
+
 struct ccb_trans_settings_spi
 {
 	u_int	  valid;	/* Which fields to honor */
@@ -878,7 +886,7 @@ struct ccb_trans_settings_sas {
 	u_int32_t 	bitrate;	/* Mbps */
 };
 
-struct ccb_trans_settings_ata {
+struct ccb_trans_settings_pata {
 	u_int     	valid;		/* Which fields to honor */
 #define	CTS_ATA_VALID_MODE		0x01
 #define	CTS_ATA_VALID_BYTECOUNT		0x02
@@ -924,6 +932,7 @@ struct ccb_trans_settings {
 	u_int	  transport_version;
 	union {
 		u_int  valid;	/* Which fields to honor */
+		struct ccb_trans_settings_ata ata;
 		struct ccb_trans_settings_scsi scsi;
 	} proto_specific;
 	union {
@@ -931,7 +940,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_spi spi;
 		struct ccb_trans_settings_fc fc;
 		struct ccb_trans_settings_sas sas;
-		struct ccb_trans_settings_ata ata;
+		struct ccb_trans_settings_pata ata;
 		struct ccb_trans_settings_sata sata;
 	} xport_specific;
 };

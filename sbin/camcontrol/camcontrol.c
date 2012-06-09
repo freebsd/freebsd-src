@@ -1025,11 +1025,11 @@ camxferrate(struct cam_device *device)
 		if (sas->valid & CTS_SAS_VALID_SPEED)
 			speed = sas->bitrate;
 	} else if (ccb->cts.transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
+		struct ccb_trans_settings_pata *pata =
 		    &ccb->cts.xport_specific.ata;
 
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			speed = ata_mode2speed(ata->mode);
+		if (pata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(pata->mode);
 	} else if (ccb->cts.transport == XPORT_SATA) {
 		struct	ccb_trans_settings_sata *sata =
 		    &ccb->cts.xport_specific.sata;
@@ -1072,16 +1072,16 @@ camxferrate(struct cam_device *device)
 			fprintf(stdout, ")");
 		}
 	} else if (ccb->cts.transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
+		struct ccb_trans_settings_pata *pata =
 		    &ccb->cts.xport_specific.ata;
 
 		printf(" (");
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			printf("%s, ", ata_mode2string(ata->mode));
-		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
-			printf("ATAPI %dbytes, ", ata->atapi);
-		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO %dbytes", ata->bytecount);
+		if (pata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(pata->mode));
+		if ((pata->valid & CTS_ATA_VALID_ATAPI) && pata->atapi != 0)
+			printf("ATAPI %dbytes, ", pata->atapi);
+		if (pata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf("PIO %dbytes", pata->bytecount);
 		printf(")");
 	} else if (ccb->cts.transport == XPORT_SATA) {
 		struct ccb_trans_settings_sata *sata =
@@ -2891,21 +2891,45 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				"enabled" : "disabled");
 		}
 	}
+	if (cts->transport == XPORT_FC) {
+		struct ccb_trans_settings_fc *fc =
+		    &cts->xport_specific.fc;
+
+		if (fc->valid & CTS_FC_VALID_WWNN)
+			fprintf(stdout, "%sWWNN: 0x%llx", pathstr,
+			    (long long) fc->wwnn);
+		if (fc->valid & CTS_FC_VALID_WWPN)
+			fprintf(stdout, "%sWWPN: 0x%llx", pathstr,
+			    (long long) fc->wwpn);
+		if (fc->valid & CTS_FC_VALID_PORT)
+			fprintf(stdout, "%sPortID: 0x%x", pathstr, fc->port);
+		if (fc->valid & CTS_FC_VALID_SPEED)
+			fprintf(stdout, "%stransfer speed: %d.%03dMB/s\n",
+			    pathstr, fc->bitrate / 1000, fc->bitrate % 1000);
+	}
+	if (cts->transport == XPORT_SAS) {
+		struct ccb_trans_settings_sas *sas =
+		    &cts->xport_specific.sas;
+
+		if (sas->valid & CTS_SAS_VALID_SPEED)
+			fprintf(stdout, "%stransfer speed: %d.%03dMB/s\n",
+			    pathstr, sas->bitrate / 1000, sas->bitrate % 1000);
+	}
 	if (cts->transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
+		struct ccb_trans_settings_pata *pata =
 		    &cts->xport_specific.ata;
 
-		if ((ata->valid & CTS_ATA_VALID_MODE) != 0) {
+		if ((pata->valid & CTS_ATA_VALID_MODE) != 0) {
 			fprintf(stdout, "%sATA mode: %s\n", pathstr,
-				ata_mode2string(ata->mode));
+				ata_mode2string(pata->mode));
 		}
-		if ((ata->valid & CTS_ATA_VALID_ATAPI) != 0) {
+		if ((pata->valid & CTS_ATA_VALID_ATAPI) != 0) {
 			fprintf(stdout, "%sATAPI packet length: %d\n", pathstr,
-				ata->atapi);
+				pata->atapi);
 		}
-		if ((ata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
+		if ((pata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
 			fprintf(stdout, "%sPIO transaction length: %d\n",
-				pathstr, ata->bytecount);
+				pathstr, pata->bytecount);
 		}
 	}
 	if (cts->transport == XPORT_SATA) {
@@ -2941,12 +2965,22 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				sata->caps);
 		}
 	}
+	if (cts->protocol == PROTO_ATA) {
+		struct ccb_trans_settings_ata *ata=
+		    &cts->proto_specific.ata;
+
+		if (ata->valid & CTS_ATA_VALID_TQ) {
+			fprintf(stdout, "%stagged queueing: %s\n", pathstr,
+				(ata->flags & CTS_ATA_FLAGS_TAG_ENB) ?
+				"enabled" : "disabled");
+		}
+	}
 	if (cts->protocol == PROTO_SCSI) {
 		struct ccb_trans_settings_scsi *scsi=
 		    &cts->proto_specific.scsi;
 
 		if (scsi->valid & CTS_SCSI_VALID_TQ) {
-			fprintf(stdout, "%stagged queueing is %s\n", pathstr,
+			fprintf(stdout, "%stagged queueing: %s\n", pathstr,
 				(scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) ?
 				"enabled" : "disabled");
 		}
@@ -3384,16 +3418,19 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 	if (change_settings) {
 		int didsettings = 0;
 		struct ccb_trans_settings_spi *spi = NULL;
-		struct ccb_trans_settings_ata *ata = NULL;
+		struct ccb_trans_settings_pata *pata = NULL;
 		struct ccb_trans_settings_sata *sata = NULL;
+		struct ccb_trans_settings_ata *ata = NULL;
 		struct ccb_trans_settings_scsi *scsi = NULL;
 
 		if (ccb->cts.transport == XPORT_SPI)
 			spi = &ccb->cts.xport_specific.spi;
 		if (ccb->cts.transport == XPORT_ATA)
-			ata = &ccb->cts.xport_specific.ata;
+			pata = &ccb->cts.xport_specific.ata;
 		if (ccb->cts.transport == XPORT_SATA)
 			sata = &ccb->cts.xport_specific.sata;
+		if (ccb->cts.protocol == PROTO_ATA)
+			ata = &ccb->cts.proto_specific.ata;
 		if (ccb->cts.protocol == PROTO_SCSI)
 			scsi = &ccb->cts.proto_specific.scsi;
 		ccb->cts.xport_specific.valid = 0;
@@ -3406,19 +3443,28 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
 			didsettings++;
 		}
-		if (scsi && tag_enable != -1) {
+		if (tag_enable != -1) {
 			if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0) {
 				warnx("HBA does not support tagged queueing, "
 				      "so you cannot modify tag settings");
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-			scsi->valid |= CTS_SCSI_VALID_TQ;
-			if (tag_enable == 0)
-				scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-			else
-				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
-			didsettings++;
+			if (ata) {
+				ata->valid |= CTS_SCSI_VALID_TQ;
+				if (tag_enable == 0)
+					ata->flags &= ~CTS_ATA_FLAGS_TAG_ENB;
+				else
+					ata->flags |= CTS_ATA_FLAGS_TAG_ENB;
+				didsettings++;
+			} else if (scsi) {
+				scsi->valid |= CTS_SCSI_VALID_TQ;
+				if (tag_enable == 0)
+					scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+				else
+					scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+				didsettings++;
+			}
 		}
 		if (spi && offset != -1) {
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
@@ -3465,6 +3511,12 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
+			if  (!user_settings) {
+				warnx("You can modify only user rate "
+				    "settings for SATA");
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
 			sata->revision = ata_speed2revision(syncrate * 100);
 			if (sata->revision < 0) {
 				warnx("Invalid rate %f", syncrate);
@@ -3474,16 +3526,22 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			sata->valid |= CTS_SATA_VALID_REVISION;
 			didsettings++;
 		}
-		if ((ata || sata) && mode != -1) {
+		if ((pata || sata) && mode != -1) {
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
 				warnx("HBA is not capable of changing "
 				      "transfer rates");
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-			if (ata) {
-				ata->mode = mode;
-				ata->valid |= CTS_ATA_VALID_MODE;
+			if  (!user_settings) {
+				warnx("You can modify only user mode "
+				    "settings for ATA/SATA");
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			if (pata) {
+				pata->mode = mode;
+				pata->valid |= CTS_ATA_VALID_MODE;
 			} else {
 				sata->mode = mode;
 				sata->valid |= CTS_SATA_VALID_MODE;
@@ -3530,11 +3588,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		if  (didsettings == 0) {
 			goto ratecontrol_bailout;
 		}
-		if  (!user_settings && (ata || sata)) {
-			warnx("You can modify only user settings for ATA/SATA");
-			retval = 1;
-			goto ratecontrol_bailout;
-		}
 		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		if (cam_send_ccb(device, ccb) < 0) {
 			perror("error sending XPT_SET_TRAN_SETTINGS CCB");
@@ -3566,13 +3619,10 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				fprintf(stderr, "Test Unit Ready failed\n");
 			goto ratecontrol_bailout;
 		}
-		/*
-		 * If the user wants things quiet, there's no sense in
-		 * getting the transfer settings, if we're not going
-		 * to print them.
-		 */
-		if (quiet != 0)
-			goto ratecontrol_bailout;
+	}
+	if ((change_settings || send_tur) && !quiet &&
+	    (ccb->cts.transport == XPORT_ATA ||
+	     ccb->cts.transport == XPORT_SATA || send_tur)) {
 		fprintf(stdout, "New parameters:\n");
 		retval = get_print_cts(device, user_settings, 0, NULL);
 	}
