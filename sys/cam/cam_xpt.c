@@ -5053,10 +5053,16 @@ camisr_runqueue(void *V_queue)
 			ccb_h->path->bus->sim->devq->send_openings++;
 			runq = TRUE;
 
-			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
-			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)
-			 || ((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
+			if (((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
 			  && (dev->ccbq.dev_active == 0))) {
+				dev->flags &= ~CAM_DEV_REL_ON_QUEUE_EMPTY;
+				xpt_release_devq(ccb_h->path, /*count*/1,
+						 /*run_queue*/FALSE);
+			}
+
+			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
+			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)) {
+				dev->flags &= ~CAM_DEV_REL_ON_COMPLETE;
 				xpt_release_devq(ccb_h->path, /*count*/1,
 						 /*run_queue*/FALSE);
 			}
