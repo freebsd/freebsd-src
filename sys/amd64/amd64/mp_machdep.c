@@ -100,7 +100,6 @@ void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
 struct pcb **susppcbs;
-void **suspfpusave;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -1415,15 +1414,19 @@ cpususpend_handler(void)
 	cpu = PCPU_GET(cpuid);
 
 	if (savectx(susppcbs[cpu])) {
-		ctx_fpusave(suspfpusave[cpu]);
+		ctx_fpusave(susppcbs[cpu]->pcb_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
+		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
 		pmap_init_pat();
+#if 0
 		load_cr3(susppcbs[cpu]->pcb_cr3);
+#endif
 		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
+		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
 	/* Wait for resume */

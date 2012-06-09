@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
- * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
+ * Copyright (c) 2001-2012 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
  * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
@@ -70,14 +70,10 @@ extern int		acpi_reset_video;
 
 #ifdef SMP
 extern struct pcb	**susppcbs;
-extern void		**suspfpusave;
 static cpuset_t		suspcpus;
 #else
 static struct pcb	**susppcbs;
-static void		**suspfpusave;
 #endif
-
-int			acpi_restorecpu(uint64_t, vm_offset_t);
 
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
@@ -87,8 +83,14 @@ static int		acpi_wakeup_ap(struct acpi_softc *, int);
 static void		acpi_wakeup_cpus(struct acpi_softc *);
 #endif
 
-#define	WAKECODE_VADDR(sc)	((sc)->acpi_wakeaddr + (3 * PAGE_SIZE))
-#define	WAKECODE_PADDR(sc)	((sc)->acpi_wakephys + (3 * PAGE_SIZE))
+#ifdef __amd64__
+#define ACPI_PAGETABLES	3
+#else
+#define ACPI_PAGETABLES	0
+#endif
+
+#define	WAKECODE_VADDR(sc)	((sc)->acpi_wakeaddr + (ACPI_PAGETABLES * PAGE_SIZE))
+#define	WAKECODE_PADDR(sc)	((sc)->acpi_wakephys + (ACPI_PAGETABLES * PAGE_SIZE))
 #define	WAKECODE_FIXUP(offset, type, val) do	{	\
 	type	*addr;					\
 	addr = (type *)(WAKECODE_VADDR(sc) + offset);	\
@@ -112,11 +114,9 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 	int		ms;
 
 	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[cpu]);
-	WAKECODE_FIXUP(wakeup_fpusave, void *, suspfpusave[cpu]);
 	WAKECODE_FIXUP(wakeup_gdt, uint16_t, susppcbs[cpu]->pcb_gdt.rd_limit);
 	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
 	    susppcbs[cpu]->pcb_gdt.rd_base);
-	WAKECODE_FIXUP(wakeup_cpu, int, cpu);
 
 	/* do an INIT IPI: assert RESET */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
@@ -162,9 +162,9 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 	lapic_ipi_wait(-1);
 	DELAY(200);		/* wait ~200uS */
 
-	/* Wait up to 5 seconds for it to start. */
+	/* Wait up to 5 seconds for it to resume. */
 	for (ms = 0; ms < 5000; ms++) {
-		if (*(int *)(WAKECODE_VADDR(sc) + wakeup_cpu) == 0)
+		if (!CPU_ISSET(cpu, &suspended_cpus))
 			return (1);	/* return SUCCESS */
 		DELAY(1000);
 	}
@@ -239,7 +239,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	intr_suspend();
 
 	if (savectx(susppcbs[0])) {
-		ctx_fpusave(suspfpusave[0]);
+#ifdef __amd64__
+		ctx_fpusave(susppcbs[0]->pcb_fpususpend);
+#endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
 			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
@@ -250,13 +252,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
+		WAKECODE_FIXUP(wakeup_cr4, register_t, susppcbs[0]->pcb_cr4);
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
-		WAKECODE_FIXUP(wakeup_fpusave, void *, suspfpusave[0]);
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t,
 		    susppcbs[0]->pcb_gdt.rd_limit);
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
 		    susppcbs[0]->pcb_gdt.rd_base);
-		WAKECODE_FIXUP(wakeup_cpu, int, 0);
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
@@ -289,7 +290,9 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 		/* Wakeup MD procedures in interrupt disabled context */
 		if (sleep_result == 1) {
 			pmap_init_pat();
+#if 0
 			load_cr3(susppcbs[0]->pcb_cr3);
+#endif
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
@@ -330,8 +333,8 @@ acpi_alloc_wakeup_handler(void)
 	 * and ROM area (0xa0000 and above).  The temporary page tables must be
 	 * page-aligned.
 	 */
-	wakeaddr = contigmalloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK, 0x500,
-	    0xa0000, PAGE_SIZE, 0ul);
+	wakeaddr = contigmalloc((ACPI_PAGETABLES + 1) * PAGE_SIZE, M_DEVBUF,
+	    M_WAITOK, 0x500, 0xa0000, PAGE_SIZE, 0ul);
 	if (wakeaddr == NULL) {
 		printf("%s: can't alloc wake memory\n", __func__);
 		return (NULL);
@@ -339,14 +342,15 @@ acpi_alloc_wakeup_handler(void)
 	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
 	    EVENTHANDLER_PRI_LAST) == NULL) {
 		printf("%s: can't register event handler\n", __func__);
-		contigfree(wakeaddr, 4 * PAGE_SIZE, M_DEVBUF);
+		contigfree(wakeaddr, (ACPI_PAGETABLES + 1) * PAGE_SIZE, M_DEVBUF);
 		return (NULL);
 	}
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
-	suspfpusave = malloc(mp_ncpus * sizeof(void *), M_DEVBUF, M_WAITOK);
 	for (i = 0; i < mp_ncpus; i++) {
 		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
-		suspfpusave[i] = alloc_fpusave(M_WAITOK);
+#ifdef __amd64__
+		susppcbs[i]->pcb_fpususpend = alloc_fpusave(M_WAITOK);
+#endif
 	}
 
 	return (wakeaddr);
@@ -356,8 +360,10 @@ void
 acpi_install_wakeup_handler(struct acpi_softc *sc)
 {
 	static void	*wakeaddr = NULL;
+#ifdef __amd64__
 	uint64_t	*pt4, *pt3, *pt2;
 	int		i;
+#endif
 
 	if (wakeaddr != NULL)
 		return;
@@ -371,27 +377,30 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 
 	bcopy(wakecode, (void *)WAKECODE_VADDR(sc), sizeof(wakecode));
 
-	/* Patch GDT base address, ljmp targets and page table base address. */
+	/* Patch GDT base address, ljmp targets. */
 	WAKECODE_FIXUP((bootgdtdesc + 2), uint32_t,
 	    WAKECODE_PADDR(sc) + bootgdt);
 	WAKECODE_FIXUP((wakeup_sw32 + 2), uint32_t,
 	    WAKECODE_PADDR(sc) + wakeup_32);
+#ifdef __amd64__
 	WAKECODE_FIXUP((wakeup_sw64 + 1), uint32_t,
 	    WAKECODE_PADDR(sc) + wakeup_64);
 	WAKECODE_FIXUP(wakeup_pagetables, uint32_t, sc->acpi_wakephys);
+#endif
 
 	/* Save pointers to some global data. */
-	WAKECODE_FIXUP(wakeup_retaddr, void *, acpi_restorecpu);
-	WAKECODE_FIXUP(wakeup_kpml4, uint64_t, KPML4phys);
-	WAKECODE_FIXUP(wakeup_ctx, vm_offset_t,
-	    WAKECODE_VADDR(sc) + wakeup_ctx);
-	WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER));
-	WAKECODE_FIXUP(wakeup_star, uint64_t, rdmsr(MSR_STAR));
-	WAKECODE_FIXUP(wakeup_lstar, uint64_t, rdmsr(MSR_LSTAR));
-	WAKECODE_FIXUP(wakeup_cstar, uint64_t, rdmsr(MSR_CSTAR));
-	WAKECODE_FIXUP(wakeup_sfmask, uint64_t, rdmsr(MSR_SF_MASK));
-	WAKECODE_FIXUP(wakeup_xsmask, uint64_t, xsave_mask);
+	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
+#ifdef __amd64__
+	WAKECODE_FIXUP(wakeup_cr3, uint64_t, KPML4phys);
+#else
+#ifdef PAE
+	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
+#else
+	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));
+#endif
+#endif
 
+#ifdef __amd64__
 	/* Build temporary page tables below realmode code. */
 	pt4 = wakeaddr;
 	pt3 = pt4 + (PAGE_SIZE) / sizeof(uint64_t);
@@ -417,8 +426,9 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 		pt2[i] = i * (2 * 1024 * 1024);
 		pt2[i] |= PG_V | PG_RW | PG_PS | PG_U;
 	}
+#endif
 
 	if (bootverbose)
-		device_printf(sc->acpi_dev, "wakeup code va %p pa %p\n",
-		    (void *)sc->acpi_wakeaddr, (void *)sc->acpi_wakephys);
+		device_printf(sc->acpi_dev, "wakeup code va %#jx pa %#jx\n",
+		    (uintmax_t)sc->acpi_wakeaddr, (uintmax_t)sc->acpi_wakephys);
 }
