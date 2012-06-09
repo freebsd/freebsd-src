@@ -79,7 +79,11 @@
 /*
  * The physical address space is densely populated.
  */
+#ifndef XEN
 #define	VM_PHYSSEG_DENSE
+#else /* XEN */
+#define	VM_PHYSSEG_SPARSE
+#endif
 
 /*
  * The number of PHYSSEG entries must be one greater than the number
