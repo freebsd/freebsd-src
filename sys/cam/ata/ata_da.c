@@ -742,6 +742,7 @@ static void
 adaasync(void *callback_arg, u_int32_t code,
 	struct cam_path *path, void *arg)
 {
+	struct ccb_getdev cgd;
 	struct cam_periph *periph;
 	struct ada_softc *softc;
 
@@ -776,6 +777,32 @@ adaasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 		break;
 	}
+	case AC_GETDEV_CHANGED:
+	{
+		softc = (struct ada_softc *)periph->softc;
+		xpt_setup_ccb(&cgd.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)&cgd);
+
+		if ((cgd.ident_data.capabilities1 & ATA_SUPPORT_DMA) &&
+		    (cgd.inq_flags & SID_DMA))
+			softc->flags |= ADA_FLAG_CAN_DMA;
+		else
+			softc->flags &= ~ADA_FLAG_CAN_DMA;
+		if ((cgd.ident_data.satacapabilities & ATA_SUPPORT_NCQ) &&
+		    (cgd.inq_flags & SID_DMA) && (cgd.inq_flags & SID_CmdQue))
+			softc->flags |= ADA_FLAG_CAN_NCQ;
+		else
+			softc->flags &= ~ADA_FLAG_CAN_NCQ;
+		if ((cgd.ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) &&
+		    (cgd.inq_flags & SID_DMA))
+			softc->flags |= ADA_FLAG_CAN_TRIM;
+		else
+			softc->flags &= ~ADA_FLAG_CAN_TRIM;
+
+		cam_periph_async(periph, code, path, arg);
+		break;
+	}
 	case AC_ADVINFO_CHANGED:
 	{
 		uintptr_t buftype;
@@ -793,8 +820,6 @@ adaasync(void *callback_arg, u_int32_t code,
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 	{
-		struct ccb_getdev cgd;
-
 		softc = (struct ada_softc *)periph->softc;
 		cam_periph_async(periph, code, path, arg);
 		if (softc->state != ADA_STATE_NORMAL)
@@ -933,7 +958,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	bioq_init(&softc->bio_queue);
 	bioq_init(&softc->trim_queue);
 
-	if (cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA &&
+	if ((cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA) &&
 	    (cgd->inq_flags & SID_DMA))
 		softc->flags |= ADA_FLAG_CAN_DMA;
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48)
@@ -942,10 +967,11 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->flags |= ADA_FLAG_CAN_FLUSHCACHE;
 	if (cgd->ident_data.support.command1 & ATA_SUPPORT_POWERMGT)
 		softc->flags |= ADA_FLAG_CAN_POWERMGT;
-	if (cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ &&
+	if ((cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ) &&
 	    (cgd->inq_flags & SID_DMA) && (cgd->inq_flags & SID_CmdQue))
 		softc->flags |= ADA_FLAG_CAN_NCQ;
-	if (cgd->ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) {
+	if ((cgd->ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) &&
+	    (cgd->inq_flags & SID_DMA)) {
 		softc->flags |= ADA_FLAG_CAN_TRIM;
 		softc->trim_max_ranges = TRIM_MAX_RANGES;
 		if (cgd->ident_data.max_dsm_blocks != 0) {
@@ -1103,7 +1129,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * not attach the device on failure.
 	 */
 	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE |
-	    AC_ADVINFO_CHANGED, adaasync, periph, periph->path);
+	    AC_GETDEV_CHANGED | AC_ADVINFO_CHANGED,
+	    adaasync, periph, periph->path);
 
 	/*
 	 * Schedule a periodic event to occasionally send an
