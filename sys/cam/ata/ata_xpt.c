@@ -940,9 +940,9 @@ noerror:
 				xpt_action((union ccb *)&cts);
 			}
 		}
+		ata_device_transport(path);
 		if (changed)
 			proberequestdefaultnegotiation(periph);
-		ata_device_transport(path);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
@@ -1119,6 +1119,9 @@ notsata:
 		snprintf(ident_buf->revision, sizeof(ident_buf->revision),
 		    "%04x", softc->pm_prv);
 		path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
+		ata_device_transport(path);
+		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED)
+			proberequestdefaultnegotiation(periph);
 		/* Set supported bits. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
@@ -1195,6 +1198,9 @@ notsata:
 
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
 		}
+		ata_device_transport(path);
+		if (changed)
+			proberequestdefaultnegotiation(periph);
 
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
@@ -1773,6 +1779,12 @@ ata_get_transfer_settings(struct ccb_trans_settings *cts)
 	sim = cts->ccb_h.path->bus->sim;
 	(*(sim->sim_action))(sim, (union ccb *)cts);
 
+	if (cts->protocol == PROTO_UNKNOWN ||
+	    cts->protocol == PROTO_UNSPECIFIED) {
+		cts->protocol = device->protocol;
+		cts->protocol_version = device->protocol_version;
+	}
+
 	if (cts->protocol == PROTO_ATA) {
 		ata = &cts->proto_specific.ata;
 		if ((ata->valid & CTS_ATA_VALID_TQ) == 0) {
@@ -1792,6 +1804,12 @@ ata_get_transfer_settings(struct ccb_trans_settings *cts)
 			    (device->inq_flags & SID_CmdQue) != 0)
 				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
 		}
+	}
+
+	if (cts->transport == XPORT_UNKNOWN ||
+	    cts->transport == XPORT_UNSPECIFIED) {
+		cts->transport = device->transport;
+		cts->transport_version = device->transport_version;
 	}
 }
 

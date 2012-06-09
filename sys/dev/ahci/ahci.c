@@ -2881,7 +2881,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
 			d = &ch->user[ccb->ccb_h.target_id];
-		cts->protocol = PROTO_ATA;
+		cts->protocol = PROTO_UNSPECIFIED;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
@@ -2967,7 +2967,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->transport = XPORT_SATA;
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
-		cpi->protocol = PROTO_ATA;
+		cpi->protocol = PROTO_UNSPECIFIED;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = MAXPHYS;
 		/* ATI SB600 can't handle 256 sectors with FPDMA (NCQ). */
