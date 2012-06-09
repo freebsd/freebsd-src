@@ -402,10 +402,18 @@ callout_tick(void)
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
 			if ((!flag || flag == 1) && 
 			    bintime_cmp(&tmp->c_time, &now, <=)) {
-				TAILQ_INSERT_TAIL(cc->cc_localexp,tmp,c_staiter);
-				TAILQ_REMOVE(sc, tmp, c_links.tqe);
-				tmp->c_flags |= CALLOUT_PROCESSED;
-				need_softclock = 1;
+				if (tmp->c_flags & CALLOUT_DIRECT) {
+					tmp->c_func(tmp->c_arg);
+					TAILQ_REMOVE(sc, tmp, c_links.tqe);
+			                tmp->c_flags &= ~CALLOUT_PENDING;
+				}
+				else {
+					TAILQ_INSERT_TAIL(cc->cc_localexp,
+					    tmp,c_staiter);
+					TAILQ_REMOVE(sc, tmp, c_links.tqe);
+					tmp->c_flags |= CALLOUT_PROCESSED;
+					need_softclock = 1;
+				}
 			}	
 			if ((flag == 1 || flag == 2)  && 
 			    bintime_cmp(&tmp->c_time, &now, >)) {
@@ -466,7 +474,7 @@ callout_lock(struct callout *c)
 
 static void
 callout_cc_add(struct callout *c, struct callout_cpu *cc, 
-    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu)
+    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu, int direct)
 {
 	int bucket;	
 	
@@ -476,6 +484,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
+	if (direct)
+		c->c_flags |= CALLOUT_DIRECT;
 	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
 	c->c_time = to_bintime; 
@@ -654,7 +664,7 @@ skip:
 		 */
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		callout_cc_add(c, new_cc, new_time, new_func, new_arg,
-		    new_cpu);
+		    new_cpu, 0);
 		CC_UNLOCK(new_cc);
 		CC_LOCK(cc);
 #else
@@ -818,7 +828,7 @@ callout_handle_init(struct callout_handle *handle)
  */
 int 
 callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
-    void *arg, int cpu)
+    void *arg, int cpu, int direct)
 {
 	struct callout_cpu *cc;
 	int cancelled = 0;
@@ -892,7 +902,7 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
 	}
 #endif
 
-	callout_cc_add(c, cc, bt, ftn, arg, cpu);
+	callout_cc_add(c, cc, bt, ftn, arg, cpu, direct);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %ld %ld",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg, bt.sec, bt.frac);
 	CC_UNLOCK(cc);
@@ -910,7 +920,7 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 	getbinuptime(&now);
 	bintime_mul(&bt,to_ticks);
 	bintime_add(&bt,&now);
-	return (callout_reset_bt_on(c, bt, ftn, arg, cpu));
+	return (callout_reset_bt_on(c, bt, ftn, arg, cpu, 0));
 }
 
 /*

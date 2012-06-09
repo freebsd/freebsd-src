@@ -374,7 +374,7 @@ sleepq_set_timeout_bt(void *wchan, struct bintime bt)
 	MPASS(TD_ON_SLEEPQ(td));
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
-	callout_reset_bt_on(&td->td_slpcallout, bt, sleepq_timeout, td, PCPU_GET(cpuid));
+	callout_reset_bt_on(&td->td_slpcallout, bt, sleepq_timeout, td, PCPU_GET(cpuid), 0);
 }
 
 void
