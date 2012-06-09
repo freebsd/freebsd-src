@@ -1570,7 +1570,6 @@ fdavail(struct thread *td, int n)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = td->td_proc->p_fd;
-	struct file **fpp;
 	int i, lim, last;
 
 	FILEDESC_LOCK_ASSERT(fdp);
@@ -1586,9 +1585,8 @@ fdavail(struct thread *td, int n)
 	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
 		return (1);
 	last = min(fdp->fd_nfiles, lim);
-	fpp = &fdp->fd_ofiles[fdp->fd_freefile];
-	for (i = last - fdp->fd_freefile; --i >= 0; fpp++) {
-		if (*fpp == NULL && --n <= 0)
+	for (i = fdp->fd_freefile; i < last; i++) {
+		if (fdp->fd_ofiles[i] == NULL && --n <= 0)
 			return (1);
 	}
 	return (0);
@@ -1874,13 +1872,10 @@ fdfree(struct thread *td)
 			 fdtol->fdl_refcount));
 		if (fdtol->fdl_refcount == 1 &&
 		    (td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
-			for (i = 0, fpp = fdp->fd_ofiles;
-			     i <= fdp->fd_lastfile;
-			     i++, fpp++) {
-				if (*fpp == NULL ||
-				    (*fpp)->f_type != DTYPE_VNODE)
+			for (i = 0; i <= fdp->fd_lastfile; i++) {
+				fp = fdp->fd_ofiles[i];
+				if (fp == NULL || fp->f_type != DTYPE_VNODE)
 					continue;
-				fp = *fpp;
 				fhold(fp);
 				FILEDESC_XUNLOCK(fdp);
 				lf.l_whence = SEEK_SET;
@@ -1898,7 +1893,6 @@ fdfree(struct thread *td)
 				VFS_UNLOCK_GIANT(locked);
 				FILEDESC_XLOCK(fdp);
 				fdrop(fp, td);
-				fpp = fdp->fd_ofiles + i;
 			}
 		}
 	retry:
@@ -1943,12 +1937,11 @@ fdfree(struct thread *td)
 	if (i > 0)
 		return;
 
-	fpp = fdp->fd_ofiles;
-	for (i = fdp->fd_lastfile; i-- >= 0; fpp++) {
-		if (*fpp) {
+	for (i = 0; i <= fdp->fd_lastfile; i++) {
+		fp = fdp->fd_ofiles[i];
+		if (fp != NULL) {
 			FILEDESC_XLOCK(fdp);
-			fp = *fpp;
-			*fpp = NULL;
+			fdp->fd_ofiles[i] = NULL;
 			FILEDESC_XUNLOCK(fdp);
 			(void) closef(fp, td);
 		}
