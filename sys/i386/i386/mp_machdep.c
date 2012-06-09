@@ -1512,14 +1512,15 @@ cpususpend_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 
-	if (suspendctx(susppcbs[cpu])) {
+	if (savectx(susppcbs[cpu])) {
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
+		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
 		pmap_init_pat();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
-		susppcbs[cpu]->pcb_eip = 0;
+		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
 	/* Wait for resume */

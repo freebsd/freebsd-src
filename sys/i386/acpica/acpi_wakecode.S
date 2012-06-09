@@ -202,4 +202,7 @@ wakeup_pcb:
 	.long	0
 wakeup_ret:
 	.long	0
+wakeup_gdt:		/* not used */
+	.word	0
+	.long	0
 dummy:
