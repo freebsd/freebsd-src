@@ -1267,6 +1267,8 @@ struct scsi_vpd_id_descriptor
 #define	SCSI_PROTO_RDMA		0x04
 #define SCSI_PROTO_iSCSI	0x05
 #define	SCSI_PROTO_SAS		0x06
+#define	SCSI_PROTO_ADT		0x07
+#define	SCSI_PROTO_ATA		0x08
 #define	SVPD_ID_PROTO_SHIFT	4
 #define	SVPD_ID_CODESET_BINARY	0x01
 #define	SVPD_ID_CODESET_ASCII	0x02
@@ -1398,6 +1400,13 @@ struct scsi_service_action_in
 	uint8_t service_action;
 	uint8_t action_dependent[13];
 	uint8_t control;
+};
+
+struct scsi_diag_page {
+	uint8_t page_code;
+	uint8_t page_specific_flags;
+	uint8_t length[2];
+	uint8_t params[0];
 };
 
 struct scsi_read_capacity
@@ -2341,6 +2350,20 @@ void scsi_send_diagnostic(struct ccb_scsiio *csio, u_int32_t retries,
 			  int self_test_code, uint8_t *data_ptr,
 			  uint16_t param_list_length, uint8_t sense_len,
 			  uint32_t timeout);
+
+void scsi_read_buffer(struct ccb_scsiio *csio, u_int32_t retries,
+			void (*cbfcnp)(struct cam_periph *, union ccb*),
+			uint8_t tag_action, int mode,
+			uint8_t buffer_id, u_int32_t offset,
+			uint8_t *data_ptr, uint32_t allocation_length,
+			uint8_t sense_len, uint32_t timeout);
+
+void scsi_write_buffer(struct ccb_scsiio *csio, u_int32_t retries,
+			void (*cbfcnp)(struct cam_periph *, union ccb *),
+			uint8_t tag_action, int mode,
+			uint8_t buffer_id, u_int32_t offset,
+			uint8_t *data_ptr, uint32_t param_list_length,
+			uint8_t sense_len, uint32_t timeout);
 
 void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
