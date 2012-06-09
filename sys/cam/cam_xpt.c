@@ -1080,6 +1080,9 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	else if (path->device->protocol == PROTO_ATA ||
 	    path->device->protocol == PROTO_SATAPM)
 		ata_print_ident(&path->device->ident_data);
+	else if (path->device->protocol == PROTO_SEMB)
+		semb_print_ident(
+		    (struct sep_identify_data *)&path->device->ident_data);
 	else
 		printf("Unknown protocol device\n");
 	if (bootverbose && path->device->serial_num_len > 0) {
@@ -4848,7 +4851,8 @@ xpt_finishconfig_task(void *context, int pending)
 	 * attached.  For any devices like that, announce the
 	 * passthrough driver so the user will see something.
 	 */
-	xpt_for_all_devices(xptpassannouncefunc, NULL);
+	if (!bootverbose)
+		xpt_for_all_devices(xptpassannouncefunc, NULL);
 
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(xsoftc.xpt_config_hook);
