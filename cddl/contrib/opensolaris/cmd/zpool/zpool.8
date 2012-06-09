@@ -189,7 +189,7 @@ for information on managing datasets.
 A
 .Qq virtual device
 .Pq No vdev
-describes a single device or a collection of devices organized according to 
+describes a single device or a collection of devices organized according to
 certain performance and fault characteristics. The following virtual devices
 are supported:
 .Bl -tag
@@ -237,7 +237,7 @@ A
 group can have single-, double- , or triple parity, meaning that the
 .No raidz
 group can sustain one, two, or three failures, respectively, without
-losing any data. The 
+losing any data. The
 .Sy raidz1 No vdev
 type specifies a single-parity
 .No raidz
@@ -287,7 +287,7 @@ writes are load-balanced between devices. Log devices can be mirrored. However,
 .No raidz
 .No vdev
 types are not supported for the intent log. For more information,
-see the 
+see the
 .Qq Sx Intent Log
 section.
 .It Sy cache
@@ -309,13 +309,13 @@ A pool can have any number of virtual devices at the top of the configuration
 (known as
 .Qq root
 .No vdev Ns s).
-Data is dynamically distributed across all top-level devices to balance data 
+Data is dynamically distributed across all top-level devices to balance data
 among devices. As new virtual devices are added,
 .Tn ZFS
 automatically places data on the newly available devices.
 .Pp
 Virtual devices are specified one at a time on the command line, separated by
-whitespace. The keywords 
+whitespace. The keywords
 .Qq mirror
 and
 .Qq raidz
@@ -428,7 +428,7 @@ allows devices to be associated with pools as
 .Qq hot spares .
 These devices are not actively used in the pool, but when an active device
 fails, it is automatically replaced by a hot spare. To create a pool with hot
-spares, specify a 
+spares, specify a
 .Qq spare
 .No vdev
 with any number of devices. For example,
@@ -458,7 +458,7 @@ pools.
 .Pp
 Spares cannot replace log devices.
 .Ss Intent Log
-The 
+The
 .Tn ZFS
 Intent Log
 .Pq Tn ZIL
@@ -582,7 +582,7 @@ the typical paths are not valid.
 .Sy altroot
 is not a persistent property. It is valid only while the system is up.
 Setting
-.Sy altroot 
+.Sy altroot
 defaults to using
 .Cm cachefile=none ,
 though this may be overridden using an explicit setting.
@@ -627,9 +627,9 @@ This property can also be referred to by its shortened column name,
 .It Sy autoreplace Ns = Ns Cm on No | Cm off
 Controls automatic device replacement. If set to
 .Qq Cm off ,
-device replacement must be initiated by the administrator by using the 
+device replacement must be initiated by the administrator by using the
 .Qq Nm Cm replace
-command. If set to 
+command. If set to
 .Qq Cm on ,
 any new device, found in the same
 physical location as a device that previously belonged to the pool, is
@@ -650,7 +650,7 @@ pool configuration in a different location that can later be imported with
 .Qq Nm Cm import Fl c .
 Setting it to the special value
 .Qq Cm none
-creates a temporary pool that is never cached, and the special value 
+creates a temporary pool that is never cached, and the special value
 .Cm ''
 (empty string) uses the default location.
 .It Sy dedupditto Ns = Ns Ar number
@@ -861,7 +861,7 @@ root dataset cannot be mounted. This can be overridden with the
 option.
 .Bl -tag -width indent
 .It Fl f
-Forces use of 
+Forces use of
 .Ar vdev Ns s,
 even if they appear in use or specify a conflicting replication level.
 Not all devices can be overridden in this manner.
@@ -897,7 +897,7 @@ or
 .Qq Cm altroot Ns Pa /pool
 if
 .Sy altroot
-is specified. The mount point must be an absolute path, 
+is specified. The mount point must be an absolute path,
 .Qq Cm legacy ,
 or
 .Qq Cm none .
@@ -1234,7 +1234,7 @@ seconds until
 .Sy Ctrl-C
 is pressed. If no
 .Ar pools
-are specified, statistics for every pool in the system is shown. If 
+are specified, statistics for every pool in the system is shown. If
 .Ar count
 is specified, the command exits after
 .Ar count
@@ -1292,7 +1292,7 @@ When given an interval, the output is printed every
 .Ar interval
 seconds until
 .Sy Ctrl-C
-is pressed. If 
+is pressed. If
 .Ar count
 is specified, the command exits after
 .Ar count
@@ -1396,7 +1396,7 @@ This is equivalent to attaching
 waiting for it to resilver, and then detaching
 .Ar old_device .
 .Pp
-The size of 
+The size of
 .Ar new_device
 must be greater than or equal to the minimum size
 of all the devices in a mirror or
@@ -1407,7 +1407,7 @@ configuration.
 is required if the pool is not redundant. If
 .Ar new_device
 is not specified, it defaults to
-.Ar old_device . 
+.Ar old_device .
 This form of replacement is useful after an existing disk has failed and has
 been physically replaced. In this case, the new disk may have the same
 .Pa /dev
@@ -1494,12 +1494,12 @@ unless overridden by a device specification on the command line.
 .Pp
 When using a
 .Ar device
-argument, 
+argument,
 .Cm split
-includes the specified device(s) in a new pool and, should any devices remain 
+includes the specified device(s) in a new pool and, should any devices remain
 unspecified, assigns the last device in each mirror
 .No vdev
-to that pool, as it does normally. If you are uncertain about the outcome of a 
+to that pool, as it does normally. If you are uncertain about the outcome of a
 .Cm split
 command, use the
 .Fl n
@@ -1552,7 +1552,7 @@ When given an interval, the output is printed every
 .Ar interval
 seconds until
 .Sy Ctrl-C
-is pressed. If 
+is pressed. If
 .Ar count
 is specified, the command exits after
 .Ar count
