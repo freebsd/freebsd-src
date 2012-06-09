@@ -747,7 +747,7 @@ again:
 	case PROBE_DV_EXIT:
 	{
 		scsi_test_unit_ready(csio,
-				     /*retries*/10,
+				     /*retries*/4,
 				     probedone,
 				     MSG_SIMPLE_Q_TAG,
 				     SSD_FULL_SIZE,
@@ -1596,14 +1596,11 @@ probe_device_check:
 		break;
 	}
 	case PROBE_TUR_FOR_NEGOTIATION:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			DELAY(500000);
-			if (cam_periph_error(done_ccb, 0, SF_RETRY_UA,
-			    NULL) == ERESTART)
-				return;
-		}
-	/* FALLTHROUGH */
 	case PROBE_DV_EXIT:
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			cam_periph_error(done_ccb, 0,
+			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1651,6 +1648,10 @@ probe_device_check:
 		struct scsi_inquiry_data *nbuf;
 		struct ccb_scsiio *csio;
 
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			cam_periph_error(done_ccb, 0,
+			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
