@@ -71,20 +71,24 @@ alarm_handler(int signum)
 static void
 benchmark_start(void)
 {
+	int error;
 
 	alarm_fired = 0;
 	if (alarm_timeout) {
 		signal(SIGALRM, alarm_handler);
 		alarm(alarm_timeout);
 	}
-	assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
+	error = clock_gettime(CLOCK_REALTIME, &ts_start);
+	assert(error == 0);
 }
 
 static void
 benchmark_stop(void)
 {
+	int error;
 
-	assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
+	error = clock_gettime(CLOCK_REALTIME, &ts_end);
+	assert(error == 0);
 }
   
 uintmax_t
@@ -687,7 +691,7 @@ main(int argc, char *argv[])
 	const char *path;
 	long long ll;
 	char *endp;
-	int ch, i, j, k;
+	int ch, error, i, j, k;
 	uintmax_t iterations, loops;
 
 	alarm_timeout = 1;
@@ -756,7 +760,8 @@ main(int argc, char *argv[])
 		}
 	}
 
-	assert(clock_getres(CLOCK_REALTIME, &ts_res) == 0);
+	error = clock_getres(CLOCK_REALTIME, &ts_res);
+	assert(error == 0);
 	printf("Clock resolution: %ju.%09ju\n", (uintmax_t)ts_res.tv_sec,
 	    (uintmax_t)ts_res.tv_nsec);
 	printf("test\tloop\ttime\titerations\tperiteration\n");
