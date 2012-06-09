@@ -1556,14 +1556,19 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			hostid = IFA_IN6(ifa);
 
 			/* prefixlen must be <= 64. */
-			if (64 < iflr->prefixlen)
+			if (64 < iflr->prefixlen) {
+				if (ifa != NULL)
+					ifa_free(ifa);
 				return EINVAL;
+			}
 			prefixlen = iflr->prefixlen;
 
 			/* hostid part must be zero. */
 			sin6 = (struct sockaddr_in6 *)&iflr->addr;
 			if (sin6->sin6_addr.s6_addr32[2] != 0 ||
 			    sin6->sin6_addr.s6_addr32[3] != 0) {
+				if (ifa != NULL)
+					ifa_free(ifa);
 				return EINVAL;
 			}
 		} else
