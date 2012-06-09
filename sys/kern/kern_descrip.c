@@ -1554,7 +1554,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	 */
 	KASSERT(!fdisused(fdp, fd),
 	    ("fd_first_free() returned non-free descriptor"));
-	KASSERT(fdp->fd_ofiles[fd] == NULL, ("free descriptor isn't"));
+	KASSERT(fdp->fd_ofiles[fd] == NULL, ("file descriptor isn't free"));
 	KASSERT(fdp->fd_ofileflags[fd] == 0, ("file flags are set"));
 	fdused(fdp, fd);
 	*result = fd;
