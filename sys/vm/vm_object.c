@@ -211,6 +211,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	LIST_INIT(&object->shadow_head);
 
 	object->rtree.rt_root = 0;
+	object->cache.rt_root = 0;
 	object->type = type;
 	object->size = size;
 	object->generation = 1;
@@ -773,6 +774,7 @@ vm_object_terminate(vm_object_t object)
 			break;
 	}
 	vm_radix_reclaim_allnodes(&object->rtree);
+	vm_radix_reclaim_allnodes(&object->cache);
 	/*
 	 * If the object contained any pages, then reset it to an empty state.
 	 * None of the object's fields, including "resident_page_count", were

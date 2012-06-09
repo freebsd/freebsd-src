@@ -90,6 +90,7 @@ struct vm_object {
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
 	struct vm_radix rtree;	/* root of the resident page radix index tree */
+	struct vm_radix cache;	/* root of the cache page radix index tree */
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
