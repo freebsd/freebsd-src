@@ -1428,9 +1428,7 @@ out:
 }
 
 /*
- * Grow the file table to accomodate (at least) nfd descriptors.  This may
- * block and drop the filedesc lock, but it will reacquire it before
- * returning.
+ * Grow the file table to accomodate (at least) nfd descriptors.
  */
 static void
 fdgrowtable(struct filedesc *fdp, int nfd)
@@ -1456,7 +1454,6 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		return;
 
 	/* allocate a new table and (if required) new bitmaps */
-	FILEDESC_XUNLOCK(fdp);
 	ntable = malloc((nnfiles * OFILESIZE) + sizeof(struct freetable),
 	    M_FILEDESC, M_ZERO | M_WAITOK);
 	nfileflags = (char *)&ntable[nnfiles];
@@ -1465,20 +1462,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		    M_FILEDESC, M_ZERO | M_WAITOK);
 	else
 		nmap = NULL;
-	FILEDESC_XLOCK(fdp);
 
-	/*
-	 * We now have new tables ready to go.  Since we dropped the
-	 * filedesc lock to call malloc(), watch out for a race.
-	 */
-	onfiles = fdp->fd_nfiles;
-	if (onfiles >= nnfiles) {
-		/* we lost the race, but that's OK */
-		free(ntable, M_FILEDESC);
-		if (nmap != NULL)
-			free(nmap, M_FILEDESC);
-		return;
-	}
 	bcopy(fdp->fd_ofiles, ntable, onfiles * sizeof(*ntable));
 	bcopy(fdp->fd_ofileflags, nfileflags, onfiles);
 	otable = fdp->fd_ofiles;
