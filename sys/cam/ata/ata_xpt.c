@@ -162,8 +162,6 @@ static cam_status	proberegister(struct cam_periph *periph,
 static void	 probeschedule(struct cam_periph *probe_periph);
 static void	 probestart(struct cam_periph *periph, union ccb *start_ccb);
 static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
-//static int       proberequestbackoff(struct cam_periph *periph,
-//				     struct cam_ed *device);
 static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
 static void	 probecleanup(struct cam_periph *periph);
 static void	 ata_find_quirk(struct cam_ed *device);
@@ -651,112 +649,6 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 	xpt_action((union ccb *)&cts);
 }
 
-#if 0
-/*
- * Backoff Negotiation Code- only pertinent for SPI devices.
- */
-static int
-proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
-{
-	struct ccb_trans_settings cts;
-	struct ccb_trans_settings_spi *spi;
-
-	memset(&cts, 0, sizeof (cts));
-	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	cts.type = CTS_TYPE_CURRENT_SETTINGS;
-	xpt_action((union ccb *)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if (bootverbose) {
-			xpt_print(periph->path,
-			    "failed to get current device settings\n");
-		}
-		return (0);
-	}
-	if (cts.transport != XPORT_SPI) {
-		if (bootverbose) {
-			xpt_print(periph->path, "not SPI transport\n");
-		}
-		return (0);
-	}
-	spi = &cts.xport_specific.spi;
-
-	/*
-	 * We cannot renegotiate sync rate if we don't have one.
-	 */
-	if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0) {
-		if (bootverbose) {
-			xpt_print(periph->path, "no sync rate known\n");
-		}
-		return (0);
-	}
-
-	/*
-	 * We'll assert that we don't have to touch PPR options- the
-	 * SIM will see what we do with period and offset and adjust
-	 * the PPR options as appropriate.
-	 */
-
-	/*
-	 * A sync rate with unknown or zero offset is nonsensical.
-	 * A sync period of zero means Async.
-	 */
-	if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0
-	 || spi->sync_offset == 0 || spi->sync_period == 0) {
-		if (bootverbose) {
-			xpt_print(periph->path, "no sync rate available\n");
-		}
-		return (0);
-	}
-
-	if (device->flags & CAM_DEV_DV_HIT_BOTTOM) {
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-		    ("hit async: giving up on DV\n"));
-		return (0);
-	}
-
-
-	/*
-	 * Jump sync_period up by one, but stop at 5MHz and fall back to Async.
-	 * We don't try to remember 'last' settings to see if the SIM actually
-	 * gets into the speed we want to set. We check on the SIM telling
-	 * us that a requested speed is bad, but otherwise don't try and
-	 * check the speed due to the asynchronous and handshake nature
-	 * of speed setting.
-	 */
-	spi->valid = CTS_SPI_VALID_SYNC_RATE | CTS_SPI_VALID_SYNC_OFFSET;
-	for (;;) {
-		spi->sync_period++;
-		if (spi->sync_period >= 0xf) {
-			spi->sync_period = 0;
-			spi->sync_offset = 0;
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-			    ("setting to async for DV\n"));
-			/*
-			 * Once we hit async, we don't want to try
-			 * any more settings.
-			 */
-			device->flags |= CAM_DEV_DV_HIT_BOTTOM;
-		} else if (bootverbose) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-			    ("DV: period 0x%x\n", spi->sync_period));
-			printf("setting period to 0x%x\n", spi->sync_period);
-		}
-		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-		cts.type = CTS_TYPE_CURRENT_SETTINGS;
-		xpt_action((union ccb *)&cts);
-		if ((cts.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			break;
-		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-		    ("DV: failed to set period 0x%x\n", spi->sync_period));
-		if (spi->sync_period == 0) {
-			return (0);
-		}
-	}
-	return (1);
-}
-#endif
 static void
 probedone(struct cam_periph *periph, union ccb *done_ccb)
 {
