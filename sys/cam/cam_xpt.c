@@ -2860,17 +2860,13 @@ xpt_action_default(union ccb *start_ccb)
 
 		if ((crs->release_flags & RELSIM_ADJUST_OPENINGS) != 0) {
 
- 			if (INQ_DATA_TQ_ENABLED(&dev->inq_data)) {
-				/* Don't ever go below one opening */
-				if (crs->openings > 0) {
-					xpt_dev_ccbq_resize(path,
-							    crs->openings);
-
-					if (bootverbose) {
-						xpt_print(path,
-						    "tagged openings now %d\n",
-						    crs->openings);
-					}
+			/* Don't ever go below one opening */
+			if (crs->openings > 0) {
+				xpt_dev_ccbq_resize(path, crs->openings);
+				if (bootverbose) {
+					xpt_print(path,
+					    "number of openings is now %d\n",
+					    crs->openings);
 				}
 			}
 		}
