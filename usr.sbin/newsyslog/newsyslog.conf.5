@@ -155,12 +155,17 @@ The particular format of the time in restricted
 .Tn ISO 8601
 is:
 .Sm off
+.Oo Oo Oo Oo Oo
+.Va cc Oc
+.Va yy Oc
+.Va mm Oc
+.Va dd Oc
 .Oo
-.Op Oo Oo Oo Va cc Oc Va yy Oc Va mm Oc Va dd
-.Oo
-.Li T
-.Op Va hh Oo Va mm Oo Va ss Oc Oc Oc
-.Oc .
+.Li T Oo
+.Va hh Oo
+.Va mm Oo
+.Va ss
+.Oc Oc Oc Oc Oc .
 .Sm on
 Optional date fields default to the appropriate component of the
 current date; optional time fields default to midnight; hence if today
