@@ -1609,9 +1609,9 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	done_ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(done_ccb);
 	if (TAILQ_FIRST(&softc->request_ccbs) == NULL) {
+		cam_periph_invalidate(periph);
 		cam_release_devq(periph->path,
 		    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
-		cam_periph_invalidate(periph);
 		cam_periph_release_locked(periph);
 	} else {
 		probeschedule(periph);
@@ -2177,11 +2177,16 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	}
 
 	if ((old_periph = cam_periph_find(path, "probe")) != NULL) {
-		probe_softc *softc;
+		if ((old_periph->flags & CAM_PERIPH_INVALID) == 0) {
+			probe_softc *softc;
 
-		softc = (probe_softc *)old_periph->softc;
-		TAILQ_INSERT_TAIL(&softc->request_ccbs, &request_ccb->ccb_h,
-				  periph_links.tqe);
+			softc = (probe_softc *)old_periph->softc;
+			TAILQ_INSERT_TAIL(&softc->request_ccbs,
+			    &request_ccb->ccb_h, periph_links.tqe);
+		} else {
+			request_ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(request_ccb);
+		}
 	} else {
 		status = cam_periph_alloc(proberegister, NULL, probecleanup,
 					  probestart, "probe",
