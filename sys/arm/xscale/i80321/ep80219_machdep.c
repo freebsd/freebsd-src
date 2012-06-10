@@ -225,7 +225,6 @@ initarm(struct arm_boot_params *abp)
 			kernel_pt_table[loop].pv_va = 
 			    kernel_pt_table[loop].pv_pa + 0x20000000;
 		}
-		i++;
 	}
 	freemem_pt = freemempos;
 	freemempos = 0xa0100000;
