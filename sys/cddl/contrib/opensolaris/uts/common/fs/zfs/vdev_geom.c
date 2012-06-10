@@ -21,6 +21,8 @@
 /*
  * Copyright (c) 2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
+ *
+ * Portions Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>
  */
 
 #include <sys/zfs_context.h>
@@ -405,7 +407,8 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 }
 
 static int
-vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
+vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
+    uint64_t *ashift)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
@@ -488,7 +491,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	/*
 	 * Determine the actual size of the device.
 	 */
-	*psize = pp->mediasize;
+	*max_psize = *psize = pp->mediasize;
 
 	/*
 	 * Determine the device's minimum transfer size.
