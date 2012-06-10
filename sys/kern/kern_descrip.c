@@ -922,8 +922,13 @@ do_dup(struct thread *td, int flags, int old, int new,
 	 */
 	if (delfp != NULL) {
 		knote_fdclose(td, new);
-		if (delfp->f_type == DTYPE_MQUEUE)
-			mq_fdclose(td, new, delfp);
+		/*
+		 * When we're closing an fd with a capability, we need to
+		 * notify mqueue if the underlying object is of type mqueue.
+		 */
+		(void)cap_funwrap(delfp, 0, &fp);
+		if (fp->f_type == DTYPE_MQUEUE)
+			mq_fdclose(td, new, fp);
 		FILEDESC_XUNLOCK(fdp);
 		(void) closef(delfp, td);
 		if (holdleaders) {
