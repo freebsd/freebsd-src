@@ -136,7 +136,7 @@ Note, the default is
 .Em not
 a breadth-first traversal.
 .Pp
-This option is equivalent to the
+This option is the BSD-specific equivalent of the
 .Ic -depth
 primary of
 .St -p1003.1-2001 .
@@ -301,7 +301,7 @@ Please refer to the
 .Ic -atime
 primary description for information on supported time units.
 .It Ic -d
-Same as
+Non-portable, BSD-specific version of
 .Ic depth .
 GNU find implements this as a primary in mistaken emulation of
 .Fx
@@ -325,9 +325,10 @@ primary will fail to delete a directory if it is not empty.
 Following symlinks is incompatible with this option.
 .It Ic -depth
 Always true;
-same as the
+same as the non-portable
 .Fl d
-option.
+option.  Refer to the primary description of
+.Ic -depth for full information.
 .It Ic -depth Ar n
 True if the depth of the file relative to the starting point of the traversal
 is
