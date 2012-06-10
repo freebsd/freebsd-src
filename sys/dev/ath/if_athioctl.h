@@ -166,6 +166,7 @@ struct ath_stats {
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
 #define	SIOCZATHSTATS	_IOWR('i', 139, struct ifreq)
+#define	SIOCGATHAGSTATS	_IOWR('i', 141, struct ifreq)
 
 struct ath_diag {
 	char	ad_name[IFNAMSIZ];	/* if name, e.g. "ath0" */
