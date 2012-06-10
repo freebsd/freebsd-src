@@ -147,7 +147,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-static struct trapframe proc0_tf;
 
 /* Static device mappings. */
 static const struct pmap_devmap assabet_devmap[] = {
@@ -387,12 +386,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Set stack for exception handlers */
 	
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
+	init_proc0(kernelstack.pv_va);
 	
 	
 	/* Enable MMU, I-cache, D-cache, write buffer. */
