@@ -3528,7 +3528,7 @@ Retry:
 		}
 
 		rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
-		    p->p_sysent->sv_stackprot, VM_PROT_ALL, 0);
+		    next_entry->protection, next_entry->max_protection, 0);
 
 		/* Adjust the available stack space by the amount we grew. */
 		if (rv == KERN_SUCCESS) {
