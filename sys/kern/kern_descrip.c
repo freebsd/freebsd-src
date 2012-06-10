@@ -430,13 +430,13 @@ sys_fcntl(struct thread *td, struct fcntl_args *uap)
 static inline struct file *
 fdtofp(int fd, struct filedesc *fdp)
 {
-	struct file *fp;
 
 	FILEDESC_LOCK_ASSERT(fdp);
-	if ((unsigned)fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL)
+
+	if ((unsigned)fd >= fdp->fd_nfiles)
 		return (NULL);
-	return (fp);
+
+	return (fdp->fd_ofiles[fd]);
 }
 
 static inline int
