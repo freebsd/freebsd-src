@@ -24,7 +24,7 @@
  * All rights reserved.
  * Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org>
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
@@ -4125,6 +4125,22 @@ zfs_ioc_clear(zfs_cmd_t *zc)
 	return (error);
 }
 
+static int
+zfs_ioc_pool_reopen(zfs_cmd_t *zc)
+{
+	spa_t *spa;
+	int error;
+
+	error = spa_open(zc->zc_name, &spa, FTAG);
+	if (error)
+		return (error);
+
+	spa_vdev_state_enter(spa, SCL_NONE);
+	vdev_reopen(spa->spa_root_vdev);
+	(void) spa_vdev_state_exit(spa, NULL, 0);
+	spa_close(spa, FTAG);
+	return (0);
+}
 /*
  * inputs:
  * zc_name	name of filesystem
@@ -4994,7 +5010,9 @@ static zfs_ioc_vec_t zfs_ioc_vec[] = {
 	{ zfs_ioc_space_snaps, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
 	    B_TRUE },
 	{ zfs_ioc_send_progress, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_FALSE }
+	    B_FALSE },
+	{ zfs_ioc_pool_reopen, zfs_secpolicy_config, POOL_NAME, B_TRUE,
+	    B_TRUE },
 };
 
 int
