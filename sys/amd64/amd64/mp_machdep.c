@@ -1416,7 +1416,6 @@ cpususpend_handler(void)
 	if (savectx(susppcbs[cpu])) {
 		ctx_fpusave(susppcbs[cpu]->pcb_fpususpend);
 		wbinvd();
-		CPU_SET_ATOMIC(cpu, &stopped_cpus);
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
 		pmap_init_pat();
@@ -1426,6 +1425,8 @@ cpususpend_handler(void)
 		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
+
+		/* Indicate that we are resumed */
 		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
@@ -1434,7 +1435,6 @@ cpususpend_handler(void)
 		ia32_pause();
 
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
-	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 
 	/* Resume MCA and local APIC */
 	mca_resume();

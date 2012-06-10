@@ -381,7 +381,6 @@ acpi_wakedata.h			optional acpi				\
 	no-obj no-implicit-rule	before-depend				\
 	clean		"acpi_wakedata.h"
 #
-x86/acpica/acpi_wakeup.c	optional acpi
 i386/bios/apm.c			optional apm
 i386/bios/mca_machdep.c		optional mca
 i386/bios/smapi.c		optional smapi
@@ -505,6 +504,7 @@ compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 #
 x86/acpica/OsdEnvironment.c	optional acpi
 x86/acpica/acpi_apm.c		optional acpi
+x86/acpica/acpi_wakeup.c	optional acpi
 x86/acpica/madt.c		optional acpi apic
 x86/acpica/srat.c		optional acpi
 x86/bios/smbios.c		optional smbios
