@@ -230,7 +230,6 @@ initarm(struct arm_boot_params *abp)
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
-		i++;
 	}
 	/*
 	 * Allocate a page for the system page mapped to V0x00000000
