@@ -135,8 +135,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
-static struct trapframe proc0_tf;
-
 /* Static device mappings. */
 static const struct pmap_devmap iq81342_devmap[] = {
 	    {
@@ -353,13 +351,7 @@ initarm(struct arm_boot_params *abp)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 	
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 

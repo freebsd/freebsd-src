@@ -92,6 +92,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <machine/sysarch.h>
 
+static struct trapframe proc0_tf;
+
 uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
@@ -709,3 +711,19 @@ fake_preload_metadata(void)
 
 	return (lastaddr);
 }
+
+/*
+ * Initialize proc0
+ */
+void
+init_proc0(vm_offset_t kstack)
+{
+	proc_linkup0(&proc0, &thread0);
+	thread0.td_kstack = kstack;
+	thread0.td_pcb = (struct pcb *)
+		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_pcb->pcb_flags = 0;
+	thread0.td_frame = &proc0_tf;
+	pcpup->pc_curpcb = thread0.td_pcb;
+}
+
