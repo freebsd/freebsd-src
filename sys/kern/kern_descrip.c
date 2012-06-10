@@ -884,8 +884,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 		fdrop(fp, td);
 		return (EBADF);
 	}
-	KASSERT(old != new,
-	    ("new fd is same as old"));
+	KASSERT(old != new, ("new fd is same as old"));
 
 	/*
 	 * Save info on the descriptor being overwritten.  We cannot close
@@ -896,19 +895,17 @@ do_dup(struct thread *td, int flags, int old, int new,
 	 */
 	delfp = fdp->fd_ofiles[new];
 	holdleaders = 0;
-	if (delfp != NULL) {
-		if (td->td_proc->p_fdtol != NULL) {
-			/*
-			 * Ask fdfree() to sleep to ensure that all relevant
-			 * process leaders can be traversed in closef().
-			 */
-			fdp->fd_holdleaderscount++;
-			holdleaders = 1;
-		}
+	if (delfp != NULL && td->td_proc->p_fdtol != NULL) {
+		/*
+		 * Ask fdfree() to sleep to ensure that all relevant
+		 * process leaders can be traversed in closef().
+		 */
+		fdp->fd_holdleaderscount++;
+		holdleaders = 1;
 	}
 
 	/*
-	 * Duplicate the source descriptor
+	 * Duplicate the source descriptor.
 	 */
 	fdp->fd_ofiles[new] = fp;
 	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
