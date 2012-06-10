@@ -57,6 +57,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/imgact.h>
 #include <sys/linker.h>
@@ -65,6 +66,7 @@
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/reboot.h> /* XXX: remove with RB_XXX */
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>
@@ -104,7 +106,7 @@ xen_pfn_t *xen_phys_machine;
 #define	PHYSMAP_SIZE	(2 * VM_PHYSSEG_MAX)
 vm_offset_t pa_index = 0;
 vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
-vm_paddr_t dump_avail[2] = {0, 0}; /* XXX: todo */
+vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 
 struct pcpu __pcpu[MAXCPU];
 
@@ -307,6 +309,7 @@ initxen(struct start_info *si)
 	physmem = si->nr_pages;
 	Maxmem = si->nr_pages + 1;
 	memset(phys_avail, 0, sizeof phys_avail);
+	memset(dump_avail, 0 , sizeof dump_avail);
 
 	/* 
 	 * Setup kernel tls registers. pcpu needs them, and other
@@ -329,6 +332,9 @@ initxen(struct start_info *si)
 	/* Address of lowest unused page */
 	physfree = VTOP(si->pt_base + si->nr_pt_frames * PAGE_SIZE);
 
+	/* Init basic tunables, hz, msgbufsize etc */
+	init_param1();
+
 	/* page tables */
 	pmap_bootstrap(&physfree);
 
@@ -346,8 +352,11 @@ initxen(struct start_info *si)
 		("Attempt to use unmapped va\n"));
 
 	/* Register the rest of free physical memory with phys_avail[] */
-	phys_avail[pa_index++] = physfree;
+	/* dump_avail[] starts at index 1 */
+	phys_avail[pa_index++] = physfree; 
+	dump_avail[pa_index] = physfree;
 	phys_avail[pa_index++] = ptoa(physmem);
+	dump_avail[pa_index] = ptoa(physmem);
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -375,8 +384,6 @@ initxen(struct start_info *si)
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 #endif
-	/* Init basic tunables, hz etc */
-	init_param1();
 
 	/* gdt */
 	vm_paddr_t gdt0_frame = phystomach(VTOP(gdt));
@@ -432,7 +439,12 @@ initxen(struct start_info *si)
 	/* Event handling */
 	init_event_callbacks();
 
+
+	cninit();		/* Console subsystem init */
+
 	identify_cpu();		/* Final stage of CPU initialization */
+
+	init_param2(physmem);
 
 	//msgbufinit(msgbufp, msgbufsize);
 	//fpuinit();
@@ -453,8 +465,6 @@ initxen(struct start_info *si)
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
-
-	gdtset = 1;
 
 	/* console */
 	printk("Hello world!\n");

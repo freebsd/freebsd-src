@@ -345,7 +345,11 @@ extern vm_paddr_t dump_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
+#ifdef XEN
+#define	pmap_page_get_memattr(m) VM_MEMATTR_DEFAULT /* XXX: review */
+#else
 #define	pmap_page_get_memattr(m)	((vm_memattr_t)(m)->md.pat_mode)
+#endif
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev((va), (sz))
 
 void	pmap_bootstrap(vm_paddr_t *);

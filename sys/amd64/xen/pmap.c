@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 
 #ifdef SMP
@@ -128,6 +129,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
@@ -198,7 +200,6 @@ vallocpages(vm_paddr_t *firstaddr, int n)
 	/* Make sure we are still inside of available mapped va. */
 	KASSERT(PTOV(*firstaddr) <= (xenstack + 512 * 1024), 
 		("Attempt to use unmapped va\n"));
-
 	return (ret);
 }
 
@@ -495,8 +496,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	KASSERT(pa_index == 0, 
 		("reclaimed page table pages are not the lowest available!"));
 
-	phys_avail[pa_index] = VTOP(xen_start_info->pt_base);
-	phys_avail[pa_index + 1] = phys_avail[pa_index] +
+	dump_avail[pa_index + 1] = phys_avail[pa_index] = VTOP(xen_start_info->pt_base);
+	dump_avail[pa_index + 2] = phys_avail[pa_index + 1] = phys_avail[pa_index] +
 		ptoa(xen_start_info->nr_pt_frames - 1);
 	pa_index += 2;
 
@@ -519,8 +520,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/* XXX: Check we don't overlap xen pgdir entries. */
 	virtual_end = VM_MAX_KERNEL_ADDRESS; 
 
-	virtual_avail =  xenstack + 1052 * 1024;
-
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
@@ -532,36 +531,70 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	tsz = mmu_map_t_size();
 
-#if 0
-	/* XXX test */
-	vm_offset_t va = virtual_avail + 4096 * 1024;
+	/* Steal some memory (backing physical pages, and kva) */
+	physmem -= atop(round_page(msgbufsize));
 
-	vm_paddr_t pa = phys_avail[pa_index - 1];
-
-	pmap_kenter(va, pa);
-
-	memset((void *)va, 0, PAGE_SIZE);
-	while(1);
-	/* test XXX */
-#endif
+	msgbufp = (void *) pmap_map(&virtual_avail,
+				    ptoa(physmem), ptoa(physmem) + round_page(msgbufsize),
+				    VM_PROT_READ | VM_PROT_WRITE);
 }
 
 void
 pmap_page_init(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	/* XXX: TODO - pv_lists */
+
 }
 
+/* 
+ * Map in backing memory from kernel_vm_end to addr, 
+ * and update kernel_vm_end.
+ */
 void
 pmap_growkernel(vm_offset_t addr)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(kernel_vm_end < addr, ("trying to shrink kernel VA!"));
+
+	addr = trunc_page(addr);
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+
+	mmu_map_t_init(tptr, &mb);
+
+	for (;addr <= kernel_vm_end;addr += PAGE_SIZE) {
+		
+		if (mmu_map_inspect_va(kernel_pmap, tptr, addr)) {
+			continue;
+		}
+		int pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
+		vm_page_t m = vm_page_alloc(NULL, 0, pflags);
+		KASSERT(m != NULL, ("Backing page alloc failed!"));
+		vm_paddr_t pa =m->phys_addr;
+
+		pmap_kenter(addr, pa);
+	}
+
+	mmu_map_t_fini(tptr);
 }
 
 void
 pmap_init(void)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	/* XXX: review the use of gdtset for the purpose below */
+	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
+
+	/* XXX: switch the mmu_map.c backend to something more sane */
 }
 
 void
@@ -602,10 +635,36 @@ pmap_lazyfix_action(void)
 }
 #endif /* SMP */
 
+/*
+ * Add a list of wired pages to the kva
+ * this routine is only used for temporary
+ * kernel mappings that do not need to have
+ * page modification or references recorded.
+ * Note that old mappings are simply written
+ * over.  The page *must* be wired.
+ * XXX: TODO SMP.
+ * Note: SMP coherent.  Uses a ranged shootdown IPI.
+ */
+
 void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(count > 0, ("count > 0"));
+	KASSERT(sva == trunc_page(sva),
+		("sva not page aligned"));
+	KASSERT(ma != NULL, ("ma != NULL"));
+	vm_page_t m;
+	vm_paddr_t pa;
+
+	while (count--) {
+		m = *ma++;
+		pa = VM_PAGE_TO_PHYS(m);
+		pmap_kenter(sva, pa);
+		sva += PAGE_SIZE;
+	}
+	// XXX: TODO: pmap_invalidate_range(kernel_pmap, sva, sva + count *
+	//	      PAGE_SIZE);
+
 }
 
 void
@@ -710,13 +769,11 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	}
 
 	/* Backing page tables are in place, let xen do the maths */
-
 	PT_SET_MA(va, xpmap_ptom(pa) | PG_RW | PG_V | PG_U);
 	PT_UPDATES_FLUSH();
 
 	mmu_map_release_va(kernel_pmap, tptr, va);
 	mmu_map_t_fini(tptr);
-
 }
 
 /*
@@ -754,33 +811,29 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	vm_offset_t va, sva;
 
 	va = sva = *virt;
+
 	CTR4(KTR_PMAP, "pmap_map: va=0x%x start=0x%jx end=0x%jx prot=0x%x",
 	    va, start, end, prot);
 
 	while (start < end) {
-#if 0
-		if (PTOV(start) < xenstack + 512 * 1024) { /* XXX:
-							      remove me */
-			continue;
-		}
-#endif
-	
 		pmap_kenter(va, start);
 		va += PAGE_SIZE;
 		start += PAGE_SIZE;
-
-		while(1);
 	}
 
 	// XXX: pmap_invalidate_range(kernel_pmap, sva, va);
 	*virt = va;
+
 	return (sva);
 }
 
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	/* 
+	 * XXX: TODO - ignore for now - we need to revisit this as
+	 * soon as  kdb is up.
+	 */
 }
 
 void
@@ -811,7 +864,12 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 void
 pmap_zero_page(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	vm_offset_t va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+
+	/* XXX: temp fix, dmap not yet implemented. */
+	pmap_kenter(va, m->phys_addr);
+
+	pagezero((void *)va);
 }
 
 void
