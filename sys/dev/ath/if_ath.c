@@ -4848,6 +4848,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_stats.ast_tx_rate |= IEEE80211_RATE_MCS;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
+	case SIOCGATHAGSTATS:
+		return copyout(&sc->sc_aggr_stats,
+		    ifr->ifr_data, sizeof (sc->sc_aggr_stats));
 	case SIOCZATHSTATS:
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error == 0) {
