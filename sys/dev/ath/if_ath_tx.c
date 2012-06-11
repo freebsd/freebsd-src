@@ -1171,6 +1171,15 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_node *an;
 	u_int pri;
 
+	/*
+	 * To ensure that both sequence numbers and the CCMP PN handling
+	 * is "correct", make sure that the relevant TID queue is locked.
+	 * Otherwise the CCMP PN and seqno may appear out of order, causing
+	 * re-ordered frames to have out of order CCMP PN's, resulting
+	 * in many, many frame drops.
+	 */
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	wh = mtod(m0, struct ieee80211_frame *);
 	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
@@ -1506,11 +1515,18 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* XXX should just bzero the bf_state? */
 	bf->bf_state.bfs_dobaw = 0;
 
+	/*
+	 * Acquire the TXQ lock early, so both the encap and seqno
+	 * are allocated together.
+	 */
+	ATH_TXQ_LOCK(txq);
+
 	/* A-MPDU TX? Manually set sequence number */
-	/* Don't do it whilst pending; the net80211 layer still assigns them */
-	/* XXX do we need locking here? */
+	/*
+	 * Don't do it whilst pending; the net80211 layer still
+	 * assigns them.
+	 */
 	if (is_ampdu_tx) {
-		ATH_TXQ_LOCK(txq);
 		/*
 		 * Always call; this function will
 		 * handle making sure that null data frames
@@ -1526,7 +1542,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL) {
 			bf->bf_state.bfs_dobaw = 1;
 		}
-		ATH_TXQ_UNLOCK(txq);
 	}
 
 	/*
@@ -1545,7 +1560,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	r = ath_tx_normal_setup(sc, ni, bf, m0, txq);
 
 	if (r != 0)
-		return r;
+		goto done;
 
 	/* At this point m0 could have changed! */
 	m0 = bf->bf_m;
@@ -1570,16 +1585,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (txq == &avp->av_mcastq) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: bf=%p: mcastq: TX'ing\n", __func__, bf);
-		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
-		ATH_TXQ_UNLOCK(txq);
 	} else if (type == IEEE80211_FC0_TYPE_CTL &&
 		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: BAR: TX'ing direct\n", __func__);
-		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
-		ATH_TXQ_UNLOCK(txq);
 	} else {
 		/* add to software queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX,
@@ -1591,10 +1602,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
 	 */
-	ATH_TXQ_LOCK(txq);
 	ath_tx_xmit_normal(sc, txq, bf);
-	ATH_TXQ_UNLOCK(txq);
 #endif
+done:
+	ATH_TXQ_UNLOCK(txq);
 
 	return 0;
 }
@@ -1630,9 +1641,28 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
 
-
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: ismcast=%d\n",
 	    __func__, ismcast);
+
+	pri = params->ibp_pri & 3;
+	/* Override pri if the frame isn't a QoS one */
+	if (! IEEE80211_QOS_HAS_SEQ(wh))
+		pri = ath_tx_getac(sc, m0);
+
+	/* XXX If it's an ADDBA, override the correct queue */
+	do_override = ath_tx_action_frame_override_queue(sc, ni, m0, &o_tid);
+
+	/* Map ADDBA to the correct priority */
+	if (do_override) {
+#if 0
+		device_printf(sc->sc_dev,
+		    "%s: overriding tid %d pri %d -> %d\n",
+		    __func__, o_tid, pri, TID_TO_WME_AC(o_tid));
+#endif
+		pri = TID_TO_WME_AC(o_tid);
+	}
+
+	ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 
 	/* Handle encryption twiddling if needed */
 	if (! ath_tx_tag_crypto(sc, ni,
@@ -1687,11 +1717,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA))
 		bf->bf_state.bfs_ctsrate0 = params->ibp_ctsrate;
-
-	pri = params->ibp_pri & 3;
-	/* Override pri if the frame isn't a QoS one */
-	if (! IEEE80211_QOS_HAS_SEQ(wh))
-		pri = ath_tx_getac(sc, m0);
 
 	/*
 	 * NB: we mark all packets as type PSPOLL so the h/w won't
@@ -1774,19 +1799,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* NB: no buffered multicast in power save support */
 
-	/* XXX If it's an ADDBA, override the correct queue */
-	do_override = ath_tx_action_frame_override_queue(sc, ni, m0, &o_tid);
-
-	/* Map ADDBA to the correct priority */
-	if (do_override) {
-#if 0
-		device_printf(sc->sc_dev,
-		    "%s: overriding tid %d pri %d -> %d\n",
-		    __func__, o_tid, pri, TID_TO_WME_AC(o_tid));
-#endif
-		pri = TID_TO_WME_AC(o_tid);
-	}
-
 	/*
 	 * If we're overiding the ADDBA destination, dump directly
 	 * into the hardware queue, right after any pending
@@ -1796,13 +1808,12 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	    __func__, do_override);
 
 	if (do_override) {
-		ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 	} else {
 		/* Queue to software queue */
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
 	}
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 
 	return 0;
 }
@@ -2032,6 +2043,15 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_isretried)
 		return;
 
+	if (! bf->bf_state.bfs_dobaw) {
+		device_printf(sc->sc_dev,
+		    "%s: dobaw=0, seqno=%d, window %d:%d\n",
+		    __func__,
+		    SEQNO(bf->bf_state.bfs_seqno),
+		    tap->txa_start,
+		    tap->txa_wnd);
+	}
+
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	if (bf->bf_state.bfs_addedbaw)
@@ -2041,6 +2061,20 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 		    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
 		    tap->txa_start, tap->txa_wnd, tid->baw_head,
 		    tid->baw_tail);
+
+	/*
+	 * Verify that the given sequence number is not outside of the
+	 * BAW.  Complain loudly if that's the case.
+	 */
+	if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
+	    SEQNO(bf->bf_state.bfs_seqno))) {
+		device_printf(sc->sc_dev,
+		    "%s: bf=%p: outside of BAW?? tid=%d, seqno %d; window %d:%d; "
+		    "baw head=%d tail=%d\n",
+		    __func__, bf, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
+		    tap->txa_start, tap->txa_wnd, tid->baw_head,
+		    tid->baw_tail);
+	}
 
 	/*
 	 * ni->ni_txseqs[] is the currently allocated seqno.
@@ -2265,6 +2299,8 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (! IEEE80211_QOS_HAS_SEQ(wh))
 		return -1;
 
+	ATH_TID_LOCK_ASSERT(sc, &(ATH_NODE(ni)->an_tid[tid]));
+
 	/*
 	 * Is it a QOS NULL Data frame? Give it a sequence number from
 	 * the default TID (IEEE80211_NONQOS_TID.)
@@ -2276,6 +2312,7 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 	if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL) {
+		/* XXX no locking for this TID? This is a bit of a problem. */
 		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID];
 		INCR(ni->ni_txseqs[IEEE80211_NONQOS_TID], IEEE80211_SEQ_RANGE);
 	} else {
@@ -2369,6 +2406,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	int pri, tid;
 	struct mbuf *m0 = bf->bf_m;
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	/* Fetch the TID - non-QoS frames get assigned to TID 16 */
 	wh = mtod(m0, struct ieee80211_frame *);
 	pri = ath_tx_getac(sc, m0);
@@ -2391,7 +2430,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	 * If the TID is paused or the traffic it outside BAW, software
 	 * queue it.
 	 */
-	ATH_TXQ_LOCK(txq);
 	if (atid->paused) {
 		/* TID is paused, queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: paused\n", __func__);
@@ -2439,7 +2477,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 		ath_tx_tid_sched(sc, atid);
 	}
-	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
