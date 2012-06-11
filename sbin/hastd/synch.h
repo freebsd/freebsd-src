@@ -168,7 +168,7 @@ cv_timedwait(pthread_cond_t *cv, pthread_mutex_t *lock, int timeout)
 		return (false);
 	}
 
-	error = clock_gettime(CLOCK_REALTIME, &ts);
+	error = clock_gettime(CLOCK_MONOTONIC, &ts);
 	PJDLOG_ASSERT(error == 0);
 	ts.tv_sec += timeout;
 	error = pthread_cond_timedwait(cv, lock, &ts);
