@@ -607,8 +607,8 @@ pmap_init(void)
 
 	vm_offset_t va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
 	KASSERT(va != 0, ("Could not allocate KVA for console page!\n"));
-	PT_SET_MA(va, console_ma | PG_RW | PG_V | PG_U);
 
+	pmap_kenter(va, xpmap_mtop(console_ma));
 	console_page = (void *)va;
 }
 
