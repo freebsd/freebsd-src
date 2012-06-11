@@ -245,7 +245,7 @@ fd_last_used(struct filedesc *fdp, int low, int size)
 static int
 fdisused(struct filedesc *fdp, int fd)
 {
-        KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
+        KASSERT((unsigned int)fd < fdp->fd_nfiles,
             ("file descriptor %d out of range (0, %d)", fd, fdp->fd_nfiles));
 	return ((fdp->fd_map[NDSLOT(fd)] & NDBIT(fd)) != 0);
 }
@@ -2212,7 +2212,7 @@ fget_unlocked(struct filedesc *fdp, int fd)
 	struct file *fp;
 	u_int count;
 
-	if (fd < 0 || fd >= fdp->fd_nfiles)
+	if ((unsigned int)fd >= fdp->fd_nfiles)
 		return (NULL);
 	/*
 	 * Fetch the descriptor locklessly.  We avoid fdrop() races by
@@ -2598,7 +2598,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 	 * closed, then reject.
 	 */
 	FILEDESC_XLOCK(fdp);
-	if (dfd < 0 || dfd >= fdp->fd_nfiles ||
+	if ((unsigned int)dfd >= fdp->fd_nfiles ||
 	    (wfp = fdp->fd_ofiles[dfd]) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
