@@ -56,6 +56,10 @@ vm_page_t vm_phys_alloc_contig(unsigned long npages,
 vm_page_t vm_phys_alloc_freelist_pages(int flind, int pool, int order);
 vm_page_t vm_phys_alloc_pages(int pool, int order);
 vm_paddr_t vm_phys_bootstrap_alloc(vm_size_t size, unsigned long alignment);
+int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
+    vm_memattr_t memattr);
+void vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end);
+vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
 void vm_phys_set_pool(int pool, vm_page_t m, int order);
