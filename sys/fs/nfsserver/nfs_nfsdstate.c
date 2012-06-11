@@ -331,11 +331,13 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 * Must wait until any outstanding callback on the old clp
 		 * completes.
 		 */
+		NFSLOCKSTATE();
 		while (clp->lc_cbref) {
 			clp->lc_flags |= LCL_WAKEUPWANTED;
-			(void) tsleep((caddr_t)clp, PZERO - 1,
+			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1,
 			    "nfsd clp", 10 * hz);
 		}
+		NFSUNLOCKSTATE();
 		nfsrv_zapclient(clp, p);
 		*new_clpp = NULL;
 		goto out;
@@ -385,10 +387,13 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	 * Must wait until any outstanding callback on the old clp
 	 * completes.
 	 */
+	NFSLOCKSTATE();
 	while (clp->lc_cbref) {
 		clp->lc_flags |= LCL_WAKEUPWANTED;
-		(void) tsleep((caddr_t)clp, PZERO - 1, "nfsd clp", 10 * hz);
+		(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1, "nfsd clp",
+		    10 * hz);
 	}
+	NFSUNLOCKSTATE();
 	nfsrv_zapclient(clp, p);
 	*new_clpp = NULL;
 
@@ -3816,11 +3821,9 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	clp->lc_cbref--;
 	if ((clp->lc_flags & LCL_WAKEUPWANTED) && clp->lc_cbref == 0) {
 		clp->lc_flags &= ~LCL_WAKEUPWANTED;
-		NFSUNLOCKSTATE();
-		wakeup((caddr_t)clp);
-	} else {
-		NFSUNLOCKSTATE();
+		wakeup(clp);
 	}
+	NFSUNLOCKSTATE();
 
 	NFSEXITCODE(error);
 	return (error);
