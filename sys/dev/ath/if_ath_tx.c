@@ -2309,7 +2309,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 
 	/* paused? queue */
 	if (tid->paused) {
-		ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
+		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 		/* XXX don't sched - we're paused! */
 		return;
 	}
