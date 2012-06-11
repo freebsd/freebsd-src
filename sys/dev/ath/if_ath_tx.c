@@ -2043,6 +2043,8 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_isretried)
 		return;
 
+	tap = ath_tx_get_tx_tid(an, tid->tid);
+
 	if (! bf->bf_state.bfs_dobaw) {
 		device_printf(sc->sc_dev,
 		    "%s: dobaw=0, seqno=%d, window %d:%d\n",
@@ -2051,8 +2053,6 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 		    tap->txa_start,
 		    tap->txa_wnd);
 	}
-
-	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	if (bf->bf_state.bfs_addedbaw)
 		device_printf(sc->sc_dev,
