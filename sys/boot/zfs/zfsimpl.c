@@ -49,6 +49,13 @@ struct zfsmount {
  */
 static vdev_list_t zfs_vdevs;
 
+ /*
+ * List of ZFS features supported for read
+ */
+static const char *features_for_read[] = {
+	NULL
+};
+
 /*
  * List of all pools, chained through spa_link.
  */
@@ -196,6 +203,57 @@ nvlist_find(const unsigned char *nvlist, const char *name, int type,
 	}
 
 	return (EIO);
+}
+
+static int
+nvlist_check_features_for_read(const unsigned char *nvlist)
+{
+	const unsigned char *p, *pair;
+	int junk;
+	int encoded_size, decoded_size;
+	int rc;
+
+	rc = 0;
+
+	p = nvlist;
+	xdr_int(&p, &junk);
+	xdr_int(&p, &junk);
+
+	pair = p;
+	xdr_int(&p, &encoded_size);
+	xdr_int(&p, &decoded_size);
+	while (encoded_size && decoded_size) {
+		int namelen, pairtype;
+		const char *pairname;
+		int i, found;
+
+		found = 0;
+
+		xdr_int(&p, &namelen);
+		pairname = (const char*) p;
+		p += roundup(namelen, 4);
+		xdr_int(&p, &pairtype);
+
+		for (i = 0; features_for_read[i] != NULL; i++) {
+			if (!memcmp(pairname, features_for_read[i], namelen)) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			printf("ZFS: unsupported feature: %s\n", pairname);
+			rc = EIO;
+		}
+
+		p = pair + encoded_size;
+
+		pair = p;
+		xdr_int(&p, &encoded_size);
+		xdr_int(&p, &decoded_size);
+	}
+
+	return (rc);
 }
 
 /*
@@ -788,6 +846,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	uint64_t is_log;
 	const char *pool_name;
 	const unsigned char *vdevs;
+	const unsigned char *features;
 	int i, rc, is_newer;
 	char *upbuf;
 	const struct uberblock *up;
@@ -822,11 +881,17 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 
-	if (val > SPA_VERSION) {
+	if (!SPA_VERSION_IS_SUPPORTED(val)) {
 		printf("ZFS: unsupported ZFS version %u (should be %u)\n",
 		    (unsigned) val, (unsigned) SPA_VERSION);
 		return (EIO);
 	}
+
+	/* Check ZFS features for read */
+	rc = nvlist_find(nvlist, ZPOOL_CONFIG_FEATURES_FOR_READ,
+			 DATA_TYPE_NVLIST, 0, &features);
+	if (nvlist_check_features_for_read(features) != 0)
+		return (EIO);
 
 	if (nvlist_find(nvlist,
 			ZPOOL_CONFIG_POOL_STATE,

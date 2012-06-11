@@ -1,5 +1,5 @@
 '\" te
-.\" Copyright (c) 2011, Martin Matuska <mm@FreeBSD.org>.
+.\" Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>.
 .\" All Rights Reserved.
 .\"
 .\" The contents of this file are subject to the terms of the
@@ -20,6 +20,7 @@
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright 2011, Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2011, Justin T. Gibbs <gibbs@FreeBSD.org>
+.\" Copyright (c) 2012 by Delphix. All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
@@ -47,7 +48,7 @@
 .Op Ar device
 .Nm
 .Cm create
-.Op Fl fn
+.Op Fl fnd
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ...
 .Op Fl O Ar file-system-property Ns = Ns Ar value
@@ -537,6 +538,16 @@ value of 1.76 indicates that 1.76 units of data were stored but only 1 unit of d
 for a description of the deduplication feature.
 .It Sy free
 Number of blocks within the pool that are not allocated.
+.It Sy freeing
+After a file system or snapshot is destroyed, the space it was using is
+returned to the pool asynchronously.
+.Sy freeing
+is the amount of space remaining to be reclaimed.
+Over time
+.Sy freeing
+will decrease while
+.Sy free
+increases.
 .It Sy expandsize
 This property has currently no value on FreeBSD.
 .It Sy guid
@@ -552,11 +563,16 @@ or
 .Qq Sy UNAVAIL .
 .It Sy size
 Total size of the storage pool.
+.It Sy unsupported@ Ns Ar feature_guid
+Information about unsupported features that are enabled on the pool.
+See
+.Xr zpool-features 5
+for details.
 .It Sy used
 Amount of storage space used within the pool.
 .El
 .Pp
-These space usage properties report actual physical space available to the
+The space usage properties report actual physical space available to the
 storage pool. The physical space can be different from the total amount of
 space that any contained datasets can actually use. The amount of space used in
 a
@@ -653,6 +669,11 @@ Setting it to the special value
 creates a temporary pool that is never cached, and the special value
 .Cm ''
 (empty string) uses the default location.
+.It Sy comment Ns = Ns Ar text
+A text string consisting of printable ASCII characters that will be stored
+such that it is available even if the pool becomes faulted.
+An administrator can provide additional information about a pool using this
+property.
 .It Sy dedupditto Ns = Ns Ar number
 Threshold for the number of block ditto copies. If the reference count for a
 deduplicated block increases above this number, a new ditto copy of this block
@@ -686,6 +707,17 @@ requests that have yet to be committed to disk would be blocked.
 .It Sy panic
 Prints out a message to the console and generates a system crash dump.
 .El
+.It Sy feature@ Ns Ar feature_name Ns = Ns Sy enabled
+The value of this property is the current state of
+.Ar feature_name .
+The only valid value when setting this property is
+.Sy enabled
+which moves
+.Ar feature_name
+to the enabled state.
+See
+.Xr zpool-features 5
+for details on feature states.
 .It Sy listsnaps Ns = Ns Cm on No | Cm off
 Controls whether information about snapshots associated with this pool is
 output when
@@ -699,9 +731,9 @@ The current on-disk version of the pool. This can be increased, but never
 decreased. The preferred method of updating pools is with the
 .Qq Nm Cm upgrade
 command, though this property can be used when a specific version is needed
-for backwards compatibility. This property can be any number between 1 and the
-current version reported by
-.Qo Ic zpool upgrade -v Qc .
+for backwards compatibility. 
+Once feature flags is enabled on a pool this property will no longer have a
+value.
 .El
 .Sh SUBCOMMANDS
 All subcommands that modify state are logged persistently to the pool in their
@@ -810,7 +842,7 @@ do not actually discard any transactions.
 .It Xo
 .Nm
 .Cm create
-.Op Fl fn
+.Op Fl fnd
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ...
 .Op Fl O Ar file-system-property Ns = Ns Ar value
@@ -859,6 +891,10 @@ The mount point must not exist or must be empty, or else the
 root dataset cannot be mounted. This can be overridden with the
 .Fl m
 option.
+.Pp
+By default all supported features are enabled on the new pool unless the
+.Fl d
+option is specified.
 .Bl -tag -width indent
 .It Fl f
 Forces use of
@@ -869,6 +905,17 @@ Not all devices can be overridden in this manner.
 Displays the configuration that would be used without actually creating the
 pool. The actual pool creation can still fail due to insufficient privileges or
 device sharing.
+.It Fl d
+Do not enable any features on the new pool.
+Individual features can be enabled by setting their corresponding properties
+to
+.Sy enabled
+with the
+.Fl o
+option.
+See
+.Xr zpool-features 5
+for details about feature properties.
 .It Xo
 .Fl o Ar property Ns = Ns Ar value
 .Op Fl o Ar property Ns = Ns Ar value
@@ -1873,6 +1920,7 @@ Invalid command line options were specified.
 .El
 .Sh SEE ALSO
 .Xr zfs 8
+.Xr zpool-features 5
 .Sh AUTHORS
 This manual page is a
 .Xr mdoc 7
