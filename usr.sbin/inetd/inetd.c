@@ -684,11 +684,11 @@ main(int argc, char **argv)
 		     */
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
-				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
+				(void)clock_gettime(CLOCK_MONOTONIC_FAST, &sep->se_time);
 			    else if (toomany > 0 && sep->se_count >= toomany) {
-				struct timeval now;
+				struct timespec now;
 
-				(void)gettimeofday(&now, (struct timezone *)NULL);
+				(void)clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 				if (now.tv_sec - sep->se_time.tv_sec >
 				    CNT_INTVL) {
 					sep->se_time = now;
