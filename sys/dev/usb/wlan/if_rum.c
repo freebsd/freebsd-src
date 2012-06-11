@@ -726,6 +726,12 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
+			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
+				RUM_UNLOCK(sc);
+				IEEE80211_LOCK(ic);
+				ieee80211_free_node(ni);
+				return (-1);
+			}
 			rum_update_slot(ic->ic_ifp);
 			rum_enable_mrr(sc);
 			rum_set_txpreamble(sc);
@@ -2135,11 +2141,12 @@ rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 
 	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
 		return;
+	if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
+		return;
 
 	m0 = ieee80211_beacon_alloc(vap->iv_bss, &RUM_VAP(vap)->bo);
-	if (m0 == NULL) {
+	if (m0 == NULL)
 		return;
-	}
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
 	rum_setup_tx_desc(sc, &desc, RT2573_TX_TIMESTAMP, RT2573_TX_HWSEQ,
