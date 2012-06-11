@@ -801,7 +801,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	struct proc *p;
 	struct file *fp;
 	struct file *delfp;
-	int error, holdleaders, maxfd;
+	int error, maxfd;
 
 	p = td->td_proc;
 	fdp = p->p_fd;
@@ -877,7 +877,6 @@ do_dup(struct thread *td, int flags, int old, int new,
 	KASSERT(old != new, ("new fd is same as old"));
 
 	delfp = fdp->fd_ofiles[new];
-
 	/*
 	 * Duplicate the source descriptor.
 	 */
@@ -887,55 +886,13 @@ do_dup(struct thread *td, int flags, int old, int new,
 		fdp->fd_lastfile = new;
 	*retval = new;
 
-	/*
-	 * Save info on the descriptor being overwritten.  We cannot close
-	 * it without introducing an ownership race for the slot, since we
-	 * need to drop the filedesc lock to call closef().
-	 *
-	 * XXX this duplicates parts of close().
-	 */
 	if (delfp != NULL) {
-		if (td->td_proc->p_fdtol != NULL) {
-			/*
-			 * Ask fdfree() to sleep to ensure that all relevant
-			 * process leaders can be traversed in closef().
-			 */
-			fdp->fd_holdleaderscount++;
-			holdleaders = 1;
-		} else {
-			holdleaders = 0;
-		}
-
-		/*
-		 * If we dup'd over a valid file, we now own the reference to it
-		 * and must dispose of it using closef() semantics (as if a
-		 * close() were performed on it).
-		 *
-		 * XXX this duplicates parts of close().
-		 */
-		knote_fdclose(td, new);
-		/*
-		 * When we're closing an fd with a capability, we need to
-		 * notify mqueue if the underlying object is of type mqueue.
-		 */
-		(void)cap_funwrap(delfp, 0, &fp);
-		if (fp->f_type == DTYPE_MQUEUE)
-			mq_fdclose(td, new, fp);
-		FILEDESC_XUNLOCK(fdp);
-		(void) closef(delfp, td);
-		if (holdleaders) {
-			FILEDESC_XLOCK(fdp);
-			fdp->fd_holdleaderscount--;
-			if (fdp->fd_holdleaderscount == 0 &&
-			    fdp->fd_holdleaderswakeup != 0) {
-				fdp->fd_holdleaderswakeup = 0;
-				wakeup(&fdp->fd_holdleaderscount);
-			}
-			FILEDESC_XUNLOCK(fdp);
-		}
+		(void) closefp(fdp, new, delfp, td);
+		/* closefp() drops the FILEDESC lock for us. */
 	} else {
 		FILEDESC_XUNLOCK(fdp);
 	}
+
 	return (0);
 }
 
@@ -1235,12 +1192,8 @@ kern_close(td, fd)
 	int fd;
 {
 	struct filedesc *fdp;
-	struct file *fp, *fp_object;
-	int error;
-	int holdleaders;
+	struct file *fp;
 
-	error = 0;
-	holdleaders = 0;
 	fdp = td->td_proc->p_fd;
 
 	AUDIT_SYSCLOSE(td, fd);
@@ -1254,44 +1207,9 @@ kern_close(td, fd)
 	fdp->fd_ofiles[fd] = NULL;
 	fdp->fd_ofileflags[fd] = 0;
 	fdunused(fdp, fd);
-	if (td->td_proc->p_fdtol != NULL) {
-		/*
-		 * Ask fdfree() to sleep to ensure that all relevant
-		 * process leaders can be traversed in closef().
-		 */
-		fdp->fd_holdleaderscount++;
-		holdleaders = 1;
-	}
 
-	/*
-	 * We now hold the fp reference that used to be owned by the
-	 * descriptor array.  We have to unlock the FILEDESC *AFTER*
-	 * knote_fdclose to prevent a race of the fd getting opened, a knote
-	 * added, and deleteing a knote for the new fd.
-	 */
-	knote_fdclose(td, fd);
-
-	/*
-	 * When we're closing an fd with a capability, we need to notify
-	 * mqueue if the underlying object is of type mqueue.
-	 */
-	(void)cap_funwrap(fp, 0, &fp_object);
-	if (fp_object->f_type == DTYPE_MQUEUE)
-		mq_fdclose(td, fd, fp_object);
-	FILEDESC_XUNLOCK(fdp);
-
-	error = closef(fp, td);
-	if (holdleaders) {
-		FILEDESC_XLOCK(fdp);
-		fdp->fd_holdleaderscount--;
-		if (fdp->fd_holdleaderscount == 0 &&
-		    fdp->fd_holdleaderswakeup != 0) {
-			fdp->fd_holdleaderswakeup = 0;
-			wakeup(&fdp->fd_holdleaderscount);
-		}
-		FILEDESC_XUNLOCK(fdp);
-	}
-	return (error);
+	/* closefp() drops the FILEDESC lock for us. */
+	return (closefp(fdp, fd, fp, td));
 }
 
 /*
