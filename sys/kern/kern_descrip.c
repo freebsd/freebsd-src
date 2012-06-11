@@ -874,23 +874,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	KASSERT(fp == fdp->fd_ofiles[old], ("old fd has been modified"));
 	KASSERT(old != new, ("new fd is same as old"));
 
-	/*
-	 * Save info on the descriptor being overwritten.  We cannot close
-	 * it without introducing an ownership race for the slot, since we
-	 * need to drop the filedesc lock to call closef().
-	 *
-	 * XXX this duplicates parts of close().
-	 */
 	delfp = fdp->fd_ofiles[new];
-	holdleaders = 0;
-	if (delfp != NULL && td->td_proc->p_fdtol != NULL) {
-		/*
-		 * Ask fdfree() to sleep to ensure that all relevant
-		 * process leaders can be traversed in closef().
-		 */
-		fdp->fd_holdleaderscount++;
-		holdleaders = 1;
-	}
 
 	/*
 	 * Duplicate the source descriptor.
@@ -900,6 +884,23 @@ do_dup(struct thread *td, int flags, int old, int new,
 	if (new > fdp->fd_lastfile)
 		fdp->fd_lastfile = new;
 	*retval = new;
+
+	/*
+	 * Save info on the descriptor being overwritten.  We cannot close
+	 * it without introducing an ownership race for the slot, since we
+	 * need to drop the filedesc lock to call closef().
+	 *
+	 * XXX this duplicates parts of close().
+	 */
+	holdleaders = 0;
+	if (delfp != NULL && td->td_proc->p_fdtol != NULL) {
+		/*
+		 * Ask fdfree() to sleep to ensure that all relevant
+		 * process leaders can be traversed in closef().
+		 */
+		fdp->fd_holdleaderscount++;
+		holdleaders = 1;
+	}
 
 	/*
 	 * If we dup'd over a valid file, we now own the reference to it
