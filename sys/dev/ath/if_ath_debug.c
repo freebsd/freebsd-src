@@ -144,9 +144,6 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 			    bf->bf_state.bfs_retries,
 			    bf->bf_state.bfs_addedbaw,
 			    bf->bf_state.bfs_dobaw);
-			printf("        SEQNO_ASSIGNED: %d, NEED_SEQNO: %d\n",
-			    bf->bf_state.bfs_seqno_assigned,
-			    bf->bf_state.bfs_need_seqno);
 			printf("        %08x %08x %08x %08x %08x %08x\n",
 			    ds->ds_ctl0, ds->ds_ctl1,
 			    ds->ds_hw[0], ds->ds_hw[1],
