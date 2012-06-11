@@ -130,7 +130,10 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 
 	if (nmount(iov, iovlen, mntflags) == -1) {
-		warn("%s: %s", dev, errmsg);
+		if (*errmsg != '\0')
+			warn("%s: %s", dev, errmsg);
+		else
+			warn("%s", dev);
 		return (1);
 	}
 	return (0);
