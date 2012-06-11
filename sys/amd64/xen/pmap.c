@@ -129,8 +129,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
+#include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
 #include <machine/md_var.h>
@@ -188,6 +191,7 @@ static vm_paddr_t ptmb_vtop(vm_offset_t v)
 }
 
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
+extern char *console_page; /* The shared ring for console i/o */
 
 /* return kernel virtual address of  'n' claimed physical pages at boot. */
 static vm_offset_t
@@ -198,6 +202,9 @@ vallocpages(vm_paddr_t *firstaddr, int n)
 	*firstaddr += n * PAGE_SIZE;
 
 	/* Make sure we are still inside of available mapped va. */
+	if (PTOV(*firstaddr) > (xenstack + 512 * 1024)) {
+		printk("Attempt to use unmapped va\n");
+	}
 	KASSERT(PTOV(*firstaddr) <= (xenstack + 512 * 1024), 
 		("Attempt to use unmapped va\n"));
 	return (ret);
@@ -409,10 +416,9 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 
 /* 
  *
- * Map in the xen provided shared pages. They are:
- * - shared info page
- * - console page (XXX:)
- * - XXX:
+ * Map in the xen provided share page. Note: The console page is
+ * mapped in later in the boot process, when kmem_alloc*() is
+ * available. 
  */
 
 static void
@@ -580,7 +586,7 @@ pmap_growkernel(vm_offset_t addr)
 		int pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
 		vm_page_t m = vm_page_alloc(NULL, 0, pflags);
 		KASSERT(m != NULL, ("Backing page alloc failed!"));
-		vm_paddr_t pa =m->phys_addr;
+		vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 
 		pmap_kenter(addr, pa);
 	}
@@ -595,6 +601,15 @@ pmap_init(void)
 	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
 
 	/* XXX: switch the mmu_map.c backend to something more sane */
+
+	/* Get a va for console and map the console mfn into it */
+	vm_paddr_t console_ma = xen_start_info->console.domU.mfn << PAGE_SHIFT;
+
+	vm_offset_t va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	KASSERT(va != 0, ("Could not allocate KVA for console page!\n"));
+	PT_SET_MA(va, console_ma | PG_RW | PG_V | PG_U);
+
+	console_page = (void *)va;
 }
 
 void
@@ -673,11 +688,36 @@ pmap_qremove(vm_offset_t sva, int count)
 	KASSERT(0, ("XXX: TODO\n"));
 }
 
+/*
+ *	Insert the given physical page (p) at
+ *	the specified virtual address (v) in the
+ *	target physical map with the protection requested.
+ *
+ *	If specified, the page will be wired down, meaning
+ *	that the related pte can not be reclaimed.
+ *
+ *	NB:  This is the only routine which MAY NOT lazy-evaluate
+ *	or lose information.  That is, this routine must actually
+ *	insert this page into the given map NOW.
+ */
+
 void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	va = trunc_page(va);
+	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
+	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
+	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
+	    va));
+	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
+	    VM_OBJECT_LOCKED(m->object),
+	    ("pmap_enter: page %p is not busy", m));
+
+	pmap_kenter(va, VM_PAGE_TO_PHYS(m)); /* Shim to keep bootup
+					      * happy for now */
+
+	/* XXX: TODO: */
 }
 
 void
@@ -760,7 +800,6 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 		ptmb_ptov,
 		ptmb_vtop
 	};
-
 	mmu_map_t_init(tptr, &mb);
 
 	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
@@ -867,7 +906,7 @@ pmap_zero_page(vm_page_t m)
 	vm_offset_t va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
 	/* XXX: temp fix, dmap not yet implemented. */
-	pmap_kenter(va, m->phys_addr);
+	pmap_kenter(va, VM_PAGE_TO_PHYS(m));
 
 	pagezero((void *)va);
 }
@@ -975,11 +1014,28 @@ pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	KASSERT(0, ("XXX: TODO\n"));
 }
 
+/*
+ *	Increase the starting virtual address of the given mapping if a
+ *	different alignment might result in more superpage mappings.
+ */
 void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	vm_offset_t superpage_offset;
+
+	if (size < NBPDR)
+		return;
+	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
+		offset += ptoa(object->pg_color);
+	superpage_offset = offset & PDRMASK;
+	if (size - ((NBPDR - superpage_offset) & PDRMASK) < NBPDR ||
+	    (*addr & PDRMASK) == superpage_offset)
+		return;
+	if ((*addr & PDRMASK) < superpage_offset)
+		*addr = (*addr & ~PDRMASK) + superpage_offset;
+	else
+		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
 int
