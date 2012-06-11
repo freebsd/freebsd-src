@@ -665,6 +665,7 @@ void
 vm_page_putfake(vm_page_t m)
 {
 
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0, ("managed %p", m));
 	KASSERT((m->flags & PG_FICTITIOUS) != 0,
 	    ("vm_page_putfake: bad page %p", m));
 	uma_zfree(fakepg_zone, m);
