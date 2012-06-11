@@ -116,7 +116,7 @@ static uma_zone_t file_zone;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
     struct thread *td);
-static int do_dup(struct thread *td, int flags, int old, int new,
+static int	do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval);
 static int	fd_first_free(struct filedesc *, int, int);
 static int	fd_last_used(struct filedesc *, int, int);
