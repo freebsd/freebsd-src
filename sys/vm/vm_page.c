@@ -121,10 +121,10 @@ struct vpglocks vm_page_queue_free_lock;
 
 struct vpglocks	pa_lock[PA_LOCK_COUNT];
 
-vm_page_t vm_page_array = 0;
-int vm_page_array_size = 0;
-long first_page = 0;
-int vm_page_zero_count = 0;
+vm_page_t vm_page_array;
+long vm_page_array_size;
+long first_page;
+int vm_page_zero_count;
 
 static int boot_pages = UMA_BOOT_PAGES;
 TUNABLE_INT("vm.boot_pages", &boot_pages);
