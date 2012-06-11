@@ -13,6 +13,7 @@ device		bpf
 device		da
 device		ether
 device		firmware
+device		ioc4
 device		isp
 device		loop
 device		md
