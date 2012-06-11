@@ -312,7 +312,7 @@ struct vnode;
 extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
-extern int vm_page_array_size;		/* number of vm_page_t's */
+extern long vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
 
 #define	VM_PAGE_IS_FREE(m)	(((m)->flags & PG_FREE) != 0)
