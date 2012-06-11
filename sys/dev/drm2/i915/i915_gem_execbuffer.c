@@ -1090,7 +1090,7 @@ DRM_DEBUG("batchbuffer does not end by MI_BATCH_BUFFER_END, overwriting last bo 
 	pmap_unmapdev((vm_offset_t)mkva, 2 * PAGE_SIZE);
 }
 
-int i915_fix_mi_batchbuffer_end = 1;
+int i915_fix_mi_batchbuffer_end = 0;
 
  static int
 i915_reset_gen7_sol_offsets(struct drm_device *dev,
