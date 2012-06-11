@@ -61,6 +61,7 @@ static void dev_pager_putpages(vm_object_t, vm_page_t *, int,
 		boolean_t, int *);
 static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *,
 		int *);
+static void dev_pager_free_page(vm_object_t object, vm_page_t m);
 
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
@@ -69,6 +70,14 @@ static struct mtx dev_pager_mtx;
 
 struct pagerops devicepagerops = {
 	.pgo_init =	dev_pager_init,
+	.pgo_alloc =	dev_pager_alloc,
+	.pgo_dealloc =	dev_pager_dealloc,
+	.pgo_getpages =	dev_pager_getpages,
+	.pgo_putpages =	dev_pager_putpages,
+	.pgo_haspage =	dev_pager_haspage,
+};
+
+struct pagerops mgtdevicepagerops = {
 	.pgo_alloc =	dev_pager_alloc,
 	.pgo_dealloc =	dev_pager_dealloc,
 	.pgo_getpages =	dev_pager_getpages,
@@ -114,7 +123,7 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 	vm_pindex_t pindex;
 	u_short color;
 
-	if (tp != OBJT_DEVICE)
+	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE)
 		return (NULL);
 
 	/*
@@ -195,6 +204,24 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (object->type == OBJT_MGTDEVICE) {
+		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
+		pmap_remove_all(m);
+		vm_page_lock(m);
+		vm_page_remove(m);
+		vm_page_unlock(m);
+	} else if (object->type == OBJT_DEVICE)
+		dev_pager_free_page(object, m);
+}
+
+static void
+dev_pager_free_page(vm_object_t object, vm_page_t m)
+{
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT((object->type == OBJT_DEVICE &&
+	    (m->oflags & VPO_UNMANAGED) != 0),
+	    ("Managed device or page obj %p m %p", object, m));
 	TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
 	vm_page_putfake(m);
 }
@@ -212,11 +239,15 @@ dev_pager_dealloc(object)
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
 	mtx_unlock(&dev_pager_mtx);
 	VM_OBJECT_LOCK(object);
-	/*
-	 * Free up our fake pages.
-	 */
-	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != NULL)
-		cdev_pager_free_page(object, m);
+
+	if (object->type == OBJT_DEVICE) {
+		/*
+		 * Free up our fake pages.
+		 */
+		while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist))
+		    != NULL)
+			dev_pager_free_page(object, m);
+	}
 }
 
 static int
@@ -239,8 +270,15 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
 	}
 
 	if (error == VM_PAGER_OK) {
-		TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
-		    ma[reqpage], pageq);
+		KASSERT((object->type == OBJT_DEVICE &&
+		     (ma[reqpage]->oflags & VPO_UNMANAGED) != 0) ||
+		    (object->type == OBJT_MGTDEVICE &&
+		     (ma[reqpage]->oflags & VPO_UNMANAGED) == 0),
+		    ("Wrong page type %p %p", ma[reqpage], object));
+		if (object->type == OBJT_DEVICE) {
+			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
+			    ma[reqpage], pageq);
+		}
 	}
 
 	return (error);
