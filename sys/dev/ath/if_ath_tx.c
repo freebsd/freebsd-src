@@ -2030,6 +2030,7 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	struct ieee80211_tx_ampdu *tap;
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	if (bf->bf_state.bfs_isretried)
 		return;
@@ -2102,6 +2103,7 @@ ath_tx_switch_baw_buf(struct ath_softc *sc, struct ath_node *an,
 	int seqno = SEQNO(old_bf->bf_state.bfs_seqno);
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
@@ -2304,6 +2306,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	struct ieee80211_tx_ampdu *tap;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
@@ -2373,6 +2376,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	pri = ath_tx_getac(sc, m0);
 	tid = ath_tx_gettid(sc, m0);
 	atid = &an->an_tid[tid];
+
+	ATH_TID_LOCK_ASSERT(sc, atid);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p, pri=%d, tid=%d, qos=%d\n",
 	    __func__, bf, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
