@@ -4337,12 +4337,10 @@ getvnode(struct filedesc *fdp, int fd, cap_rights_t rights,
 	struct file *fp;
 #ifdef CAPABILITIES
 	struct file *fp_fromcap;
-#endif
 	int error;
+#endif
 
-	error = 0;
-	fp = NULL;
-	if ((fdp == NULL) || (fp = fget_unlocked(fdp, fd)) == NULL)
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
 		return (EBADF);
 #ifdef CAPABILITIES
 	/*
