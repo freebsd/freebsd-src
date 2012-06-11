@@ -1478,29 +1478,33 @@ fdalloc(struct thread *td, int minfd, int *result)
 	/*
 	 * Search the bitmap for a free descriptor.  If none is found, try
 	 * to grow the file table.  Keep at it until we either get a file
-	 * descriptor or run into process or system limits; fdgrowtable()
-	 * may drop the filedesc lock, so we're in a race.
+	 * descriptor or run into process or system limits.
 	 */
-	for (;;) {
-		fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
-		if (fd >= maxfd)
-			return (EMFILE);
-		if (fd < fdp->fd_nfiles)
-			break;
+	fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
+	if (fd >= maxfd)
+		return (EMFILE);
+	if (fd >= fdp->fd_nfiles) {
 #ifdef RACCT
 		PROC_LOCK(p);
-		error = racct_set(p, RACCT_NOFILE, min(fdp->fd_nfiles * 2, maxfd));
+		error = racct_set(p, RACCT_NOFILE,
+		    min(fdp->fd_nfiles * 2, maxfd));
 		PROC_UNLOCK(p);
 		if (error != 0)
 			return (EMFILE);
 #endif
 		fdgrowtable(fdp, min(fdp->fd_nfiles * 2, maxfd));
+		/* Retry... */
+		fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
+		if (fd >= maxfd)
+			return (EMFILE);
 	}
 
 	/*
 	 * Perform some sanity checks, then mark the file descriptor as
 	 * used and return it to the caller.
 	 */
+	KASSERT((unsigned int)fd < min(maxfd, fdp->fd_nfiles),
+	    ("invalid descriptor %d", fd));
 	KASSERT(!fdisused(fdp, fd),
 	    ("fd_first_free() returned non-free descriptor"));
 	KASSERT(fdp->fd_ofiles[fd] == NULL, ("file descriptor isn't free"));
