@@ -871,19 +871,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 		}
 	}
 
-	/*
-	 * If the old file changed out from under us then treat it as a
-	 * bad file descriptor.  Userland should do its own locking to
-	 * avoid this case.
-	 */
-	if (fdp->fd_ofiles[old] != fp) {
-		/* we've allocated a descriptor which we won't use */
-		if (fdp->fd_ofiles[new] == NULL)
-			fdunused(fdp, new);
-		FILEDESC_XUNLOCK(fdp);
-		fdrop(fp, td);
-		return (EBADF);
-	}
+	KASSERT(fp == fdp->fd_ofiles[old], ("old fd has been modified"));
 	KASSERT(old != new, ("new fd is same as old"));
 
 	/*
