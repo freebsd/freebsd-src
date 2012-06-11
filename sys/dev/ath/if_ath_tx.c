@@ -2402,7 +2402,22 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		/* XXX sched? */
 	} else if (ath_tx_ampdu_running(sc, an, tid)) {
 		/* AMPDU running, attempt direct dispatch if possible */
+
+		/*
+		 * Always queue the frame to the tail of the list.
+		 */
+		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+
+		/*
+		 * If the hardware queue isn't busy, direct dispatch
+		 * the head frame in the list.  Don't schedule the
+		 * TID - let it build some more frames first?
+		 *
+		 * Otherwise, schedule the TID.
+		 */
 		if (txq->axq_depth < sc->sc_hwq_limit) {
+			bf = TAILQ_FIRST(&atid->axq_q);
+			ATH_TXQ_REMOVE(atid, bf, bf_list);
 			ath_tx_xmit_aggr(sc, an, bf);
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
 			    "%s: xmit_aggr\n",
@@ -2411,7 +2426,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
 			    "%s: ampdu; swq'ing\n",
 			    __func__);
-			ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 			ath_tx_tid_sched(sc, atid);
 		}
 	} else if (txq->axq_depth < sc->sc_hwq_limit) {
