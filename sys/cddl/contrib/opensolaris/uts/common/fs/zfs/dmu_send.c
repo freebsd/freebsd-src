@@ -20,11 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
- */
-/*
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
@@ -1117,8 +1114,8 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 	void *data = NULL;
 
 	if (drro->drr_type == DMU_OT_NONE ||
-	    drro->drr_type >= DMU_OT_NUMTYPES ||
-	    drro->drr_bonustype >= DMU_OT_NUMTYPES ||
+	    !DMU_OT_IS_VALID(drro->drr_type) ||
+	    !DMU_OT_IS_VALID(drro->drr_bonustype) ||
 	    drro->drr_checksumtype >= ZIO_CHECKSUM_FUNCTIONS ||
 	    drro->drr_compress >= ZIO_COMPRESS_FUNCTIONS ||
 	    P2PHASE(drro->drr_blksz, SPA_MINBLOCKSIZE) ||
@@ -1183,7 +1180,9 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 		ASSERT3U(db->db_size, >=, drro->drr_bonuslen);
 		bcopy(data, db->db_data, drro->drr_bonuslen);
 		if (ra->byteswap) {
-			dmu_ot[drro->drr_bonustype].ot_byteswap(db->db_data,
+			dmu_object_byteswap_t byteswap =
+			    DMU_OT_BYTESWAP(drro->drr_bonustype);
+			dmu_ot_byteswap[byteswap].ob_func(db->db_data,
 			    drro->drr_bonuslen);
 		}
 		dmu_buf_rele(db, FTAG);
@@ -1226,7 +1225,7 @@ restore_write(struct restorearg *ra, objset_t *os,
 	int err;
 
 	if (drrw->drr_offset + drrw->drr_length < drrw->drr_offset ||
-	    drrw->drr_type >= DMU_OT_NUMTYPES)
+	    !DMU_OT_IS_VALID(drrw->drr_type))
 		return (EINVAL);
 
 	data = restore_read(ra, drrw->drr_length);
@@ -1245,8 +1244,11 @@ restore_write(struct restorearg *ra, objset_t *os,
 		dmu_tx_abort(tx);
 		return (err);
 	}
-	if (ra->byteswap)
-		dmu_ot[drrw->drr_type].ot_byteswap(data, drrw->drr_length);
+	if (ra->byteswap) {
+		dmu_object_byteswap_t byteswap =
+		    DMU_OT_BYTESWAP(drrw->drr_type);
+		dmu_ot_byteswap[byteswap].ob_func(data, drrw->drr_length);
+	}
 	dmu_write(os, drrw->drr_object,
 	    drrw->drr_offset, drrw->drr_length, data, tx);
 	dmu_tx_commit(tx);
