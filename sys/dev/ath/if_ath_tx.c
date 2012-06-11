@@ -1518,18 +1518,15 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * TID and thus mess with the BAW.
 		 */
 		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
+
+		/*
+		 * Don't add QoS NULL frames to the BAW.
+		 */
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
 		    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL) {
 			bf->bf_state.bfs_dobaw = 1;
 		}
 		ATH_TXQ_UNLOCK(txq);
-	} else {
-		/* No AMPDU TX, we've been assigned a sequence number. */
-		if (IEEE80211_QOS_HAS_SEQ(wh)) {
-			/* XXX we should store the frag+seqno in bfs_seqno */
-			bf->bf_state.bfs_seqno =
-			    M_SEQNO_GET(m0) << IEEE80211_SEQ_SEQ_SHIFT;
-		}
 	}
 
 	/*
