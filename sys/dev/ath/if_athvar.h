@@ -216,9 +216,7 @@ struct ath_buf {
 		    bfs_istxfrag:1,	/* is fragmented */
 		    bfs_ismrr:1,	/* do multi-rate TX retry */
 		    bfs_doprot:1,	/* do RTS/CTS based protection */
-		    bfs_doratelookup:1,	/* do rate lookup before each TX */
-		    bfs_need_seqno:1,	/* need to assign a seqno for aggr */
-		    bfs_seqno_assigned:1;	/* seqno has been assigned */
+		    bfs_doratelookup:1;	/* do rate lookup before each TX */
 
 		int bfs_nfl;		/* next fragment length */
 
