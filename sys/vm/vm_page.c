@@ -645,6 +645,22 @@ vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 	vm_page_t m;
 
 	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
+	vm_page_initfake(m, paddr, memattr);
+	return (m);
+}
+
+void
+vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
+{
+
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		/*
+		 * The page's memattr might have changed since the
+		 * previous initialization.  Update the pmap to the
+		 * new memattr.
+		 */
+		goto memattr;
+	}
 	m->phys_addr = paddr;
 	m->queue = PQ_NONE;
 	/* Fictitious pages don't use "segind". */
@@ -652,8 +668,8 @@ vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 	/* Fictitious pages don't use "order" or "pool". */
 	m->oflags = VPO_BUSY | VPO_UNMANAGED;
 	m->wire_count = 1;
+memattr:
 	pmap_page_set_memattr(m, memattr);
-	return (m);
 }
 
 /*
