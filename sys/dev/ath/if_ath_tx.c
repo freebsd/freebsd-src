@@ -2149,6 +2149,7 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 	int seqno = SEQNO(bf->bf_state.bfs_seqno);
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
