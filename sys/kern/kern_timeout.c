@@ -434,9 +434,9 @@ callout_tick(void)
 	}
 	if (next.sec == -1)  
 		next = limit;
+	cc->cc_firsttick = next;
 	if (callout_new_inserted != NULL) 
-	(*callout_new_inserted)(cpu,
-	    next);
+		(*callout_new_inserted)(cpu, next);
 	cc->cc_softticks = now;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	/*
@@ -496,9 +496,12 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * Inform the eventtimers(4) subsystem there's a new callout 
 	 * that has been inserted.
 	 */
-	if (callout_new_inserted != NULL)
-	(*callout_new_inserted)(cpu,
-	    to_bintime);
+	if (callout_new_inserted != NULL && 
+	    (bintime_cmp(&to_bintime, &cc->cc_firsttick, <) ||
+	    (cc->cc_firsttick.sec == 0 && cc->cc_firsttick.frac == 0))) {
+		cc->cc_firsttick = to_bintime;
+		(*callout_new_inserted)(cpu, to_bintime);
+	}
 }
 
 static void
