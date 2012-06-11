@@ -14,7 +14,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2005
+.Dd October 7, 2010
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -233,6 +233,13 @@ printed.
 Do not actually display the man pages, but do print the location(s) of
 the files that would be formatted or displayed.
 .El
+.Ss Displaying Specific Manual Files
+The
+.Nm
+utility also supports displaying a specific manual page if passed a path
+to the file as long as it contains a
+.Sq /
+character.
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev MACHINE_ARCH"
 .It Ev LC_ALL , LC_CTYPE , LANG
