@@ -114,6 +114,8 @@ static uma_zone_t file_zone;
 #define DUP_FIXED	0x1	/* Force fixed allocation */
 #define DUP_FCNTL	0x2	/* fcntl()-style errors */
 
+static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
+    struct thread *td);
 static int do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval);
 static int	fd_first_free(struct filedesc *, int, int);
@@ -1154,6 +1156,59 @@ fgetown(sigiop)
 	pgid = (*sigiop != NULL) ? (*sigiop)->sio_pgid : 0;
 	SIGIO_UNLOCK();
 	return (pgid);
+}
+
+/*
+ * Function drops the filedesc lock on return.
+ */
+static int
+closefp(struct filedesc *fdp, int fd, struct file *fp, struct thread *td)
+{
+	struct file *fp_object;
+	int error, holdleaders;
+
+	FILEDESC_XLOCK_ASSERT(fdp);
+
+	if (td->td_proc->p_fdtol != NULL) {
+		/*
+		 * Ask fdfree() to sleep to ensure that all relevant
+		 * process leaders can be traversed in closef().
+		 */
+		fdp->fd_holdleaderscount++;
+		holdleaders = 1;
+	} else {
+		holdleaders = 0;
+	}
+
+	/*
+	 * We now hold the fp reference that used to be owned by the
+	 * descriptor array.  We have to unlock the FILEDESC *AFTER*
+	 * knote_fdclose to prevent a race of the fd getting opened, a knote
+	 * added, and deleteing a knote for the new fd.
+	 */
+	knote_fdclose(td, fd);
+
+	/*
+	 * When we're closing an fd with a capability, we need to notify
+	 * mqueue if the underlying object is of type mqueue.
+	 */
+	(void)cap_funwrap(fp, 0, &fp_object);
+	if (fp_object->f_type == DTYPE_MQUEUE)
+		mq_fdclose(td, fd, fp_object);
+	FILEDESC_XUNLOCK(fdp);
+
+	error = closef(fp, td);
+	if (holdleaders) {
+		FILEDESC_XLOCK(fdp);
+		fdp->fd_holdleaderscount--;
+		if (fdp->fd_holdleaderscount == 0 &&
+		    fdp->fd_holdleaderswakeup != 0) {
+			fdp->fd_holdleaderswakeup = 0;
+			wakeup(&fdp->fd_holdleaderscount);
+		}
+		FILEDESC_XUNLOCK(fdp);
+	}
+	return (error);
 }
 
 /*
