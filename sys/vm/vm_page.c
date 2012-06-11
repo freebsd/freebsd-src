@@ -632,6 +632,30 @@ vm_page_unhold_pages(vm_page_t *ma, int count)
 		mtx_unlock(mtx);
 }
 
+vm_page_t
+PHYS_TO_VM_PAGE(vm_paddr_t pa)
+{
+	vm_page_t m;
+
+#ifdef VM_PHYSSEG_SPARSE
+	m = vm_phys_paddr_to_vm_page(pa);
+	if (m == NULL)
+		m = vm_phys_fictitious_to_vm_page(pa);
+	return (m);
+#elif defined(VM_PHYSSEG_DENSE)
+	long pi;
+
+	pi = atop(pa);
+	if (pi >= first_page && (pi - first_page) < vm_page_array_size) {
+		m = &vm_page_array[pi - first_page];
+		return (m);
+	}
+	return (vm_phys_fictitious_to_vm_page(pa));
+#else
+#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
+#endif
+}
+
 /*
  *	vm_page_getfake:
  *

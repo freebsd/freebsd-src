@@ -321,19 +321,7 @@ extern long first_page;			/* first physical page number */
 
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 
-static __inline vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
-
-static __inline vm_page_t
-PHYS_TO_VM_PAGE(vm_paddr_t pa)
-{
-#ifdef VM_PHYSSEG_SPARSE
-	return (vm_phys_paddr_to_vm_page(pa));
-#elif defined(VM_PHYSSEG_DENSE)
-	return (&vm_page_array[atop(pa) - first_page]);
-#else
-#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
-#endif
-}
+vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 extern struct vpglocks vm_page_queue_lock;
 
