@@ -892,24 +892,25 @@ do_dup(struct thread *td, int flags, int old, int new,
 	 *
 	 * XXX this duplicates parts of close().
 	 */
-	holdleaders = 0;
-	if (delfp != NULL && td->td_proc->p_fdtol != NULL) {
-		/*
-		 * Ask fdfree() to sleep to ensure that all relevant
-		 * process leaders can be traversed in closef().
-		 */
-		fdp->fd_holdleaderscount++;
-		holdleaders = 1;
-	}
-
-	/*
-	 * If we dup'd over a valid file, we now own the reference to it
-	 * and must dispose of it using closef() semantics (as if a
-	 * close() were performed on it).
-	 *
-	 * XXX this duplicates parts of close().
-	 */
 	if (delfp != NULL) {
+		if (td->td_proc->p_fdtol != NULL) {
+			/*
+			 * Ask fdfree() to sleep to ensure that all relevant
+			 * process leaders can be traversed in closef().
+			 */
+			fdp->fd_holdleaderscount++;
+			holdleaders = 1;
+		} else {
+			holdleaders = 0;
+		}
+
+		/*
+		 * If we dup'd over a valid file, we now own the reference to it
+		 * and must dispose of it using closef() semantics (as if a
+		 * close() were performed on it).
+		 *
+		 * XXX this duplicates parts of close().
+		 */
 		knote_fdclose(td, new);
 		/*
 		 * When we're closing an fd with a capability, we need to
