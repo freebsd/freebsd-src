@@ -896,8 +896,9 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
 			cc->cc_migration_arg = arg;
 			c->c_flags |= CALLOUT_DFRMIGRATION;
 			CTR6(KTR_CALLOUT,
-		    "migration of %p func %p arg %p in %ld %ld to %u deferred",
-			    c, c->c_func, c->c_arg, bt.sec, bt.frac, cpu);
+		    "migration of %p func %p arg %p in %d.%08x to %u deferred",
+			    c, c->c_func, c->c_arg, (int)(bt.sec), 
+			    (u_int)(bt.frac >> 32), cpu);
 			CC_UNLOCK(cc);
 			return (cancelled);
 		}
@@ -906,8 +907,9 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
 #endif
 
 	callout_cc_add(c, cc, bt, ftn, arg, cpu, direct);
-	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %ld %ld",
-	    cancelled ? "re" : "", c, c->c_func, c->c_arg, bt.sec, bt.frac);
+	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
+	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(bt.sec), 
+	    (u_int)(bt.frac >> 32));
 	CC_UNLOCK(cc);
 
 	return (cancelled);
