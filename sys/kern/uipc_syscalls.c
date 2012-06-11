@@ -2302,11 +2302,11 @@ sctp_peeloff(td, uap)
 		goto done2;
 	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
 		error = EOPNOTSUPP;
-		goto done2;
+		goto done;
 	}
 	error = sctp_can_peel_off(head, (sctp_assoc_t)uap->name);
 	if (error)
-		goto done2;
+		goto done;
 	/*
 	 * At this point we know we do have a assoc to pull
 	 * we proceed to get the fd setup. This may block
