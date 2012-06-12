@@ -1,9 +1,10 @@
 # $FreeBSD$
 
+SHLIBDIR?=	/lib
+
 .include <bsd.own.mk>
 
 LIB=		kiconv
-SHLIBDIR?=	/lib
 SRCS=		kiconv_sysctl.c xlat16_iconv.c xlat16_sysctl.c
 SRCS+=		quirks.c
 
