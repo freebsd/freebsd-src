@@ -1370,6 +1370,8 @@ in6_purgeaddr(struct ifaddr *ifa)
 	}
 
 cleanup:
+	if (ifa0 != NULL)
+		ifa_free(ifa0);
 
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
 	if ((ia->ia_flags & IFA_ROUTE) && plen == 128) {
@@ -1394,8 +1396,6 @@ cleanup:
 			return;
 		ia->ia_flags &= ~IFA_ROUTE;
 	}
-	if (ifa0 != NULL)
-		ifa_free(ifa0);
 
 	in6_unlink_ifa(ia, ifp);
 }
@@ -1549,14 +1549,19 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			hostid = IFA_IN6(ifa);
 
 			/* prefixlen must be <= 64. */
-			if (64 < iflr->prefixlen)
+			if (64 < iflr->prefixlen) {
+				if (ifa != NULL)
+					ifa_free(ifa);
 				return EINVAL;
+			}
 			prefixlen = iflr->prefixlen;
 
 			/* hostid part must be zero. */
 			sin6 = (struct sockaddr_in6 *)&iflr->addr;
 			if (sin6->sin6_addr.s6_addr32[2] != 0 ||
 			    sin6->sin6_addr.s6_addr32[3] != 0) {
+				if (ifa != NULL)
+					ifa_free(ifa);
 				return EINVAL;
 			}
 		} else
@@ -2144,14 +2149,20 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		IN6_IFADDR_RUNLOCK();
 		return (struct in6_ifaddr *)ifa;
 	}
-	IN6_IFADDR_RUNLOCK();
 
 	/* use the last-resort values, that are, deprecated addresses */
-	if (dep[0])
+	if (dep[0]) {
+		ifa_ref((struct ifaddr *)dep[0]);
+		IN6_IFADDR_RUNLOCK();
 		return dep[0];
-	if (dep[1])
+	}
+	if (dep[1]) {
+		ifa_ref((struct ifaddr *)dep[1]);
+		IN6_IFADDR_RUNLOCK();
 		return dep[1];
+	}
 
+	IN6_IFADDR_RUNLOCK();
 	return NULL;
 }
 
