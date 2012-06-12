@@ -1382,12 +1382,13 @@ ae_pm_init(ae_softc_t *sc)
 	/*
 	 * Configure PME.
 	 */
-	pci_find_extcap(sc->dev, PCIY_PMG, &pmc);
-	pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-	if ((ifp->if_capenable & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+	if (pci_find_extcap(sc->dev, PCIY_PMG, &pmc) == 0) {
+		pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
+		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+		if ((ifp->if_capenable & IFCAP_WOL) != 0)
+			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+	}
 }
 
 static int
