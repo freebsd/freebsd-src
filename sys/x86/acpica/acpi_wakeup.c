@@ -118,49 +118,7 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
 	    susppcbs[cpu]->pcb_gdt.rd_base);
 
-	/* do an INIT IPI: assert RESET */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-
-	/* wait for pending status end */
-	lapic_ipi_wait(-1);
-
-	/* do an INIT IPI: deassert RESET */
-	lapic_ipi_raw(APIC_DEST_ALLESELF | APIC_TRIGMOD_LEVEL |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, 0);
-
-	/* wait for pending status end */
-	DELAY(10000);		/* wait ~10mS */
-	lapic_ipi_wait(-1);
-
-	/*
-	 * next we do a STARTUP IPI: the previous INIT IPI might still be
-	 * latched, (P5 bug) this 1st STARTUP would then terminate
-	 * immediately, and the previously started INIT IPI would continue. OR
-	 * the previous INIT IPI has already run. and this STARTUP IPI will
-	 * run. OR the previous INIT IPI was ignored. and this STARTUP IPI
-	 * will run.
-	 */
-
-	/* do a STARTUP IPI */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
-	    vector, apic_id);
-	lapic_ipi_wait(-1);
-	DELAY(200);		/* wait ~200uS */
-
-	/*
-	 * finally we do a 2nd STARTUP IPI: this 2nd STARTUP IPI should run IF
-	 * the previous STARTUP IPI was cancelled by a latched INIT IPI. OR
-	 * this STARTUP IPI will be ignored, as only ONE STARTUP IPI is
-	 * recognized after hardware RESET or INIT IPI.
-	 */
-
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
-	    vector, apic_id);
-	lapic_ipi_wait(-1);
-	DELAY(200);		/* wait ~200uS */
+	ipi_startup(apic_id, vector);
 
 	/* Wait up to 5 seconds for it to resume. */
 	for (ms = 0; ms < 5000; ms++) {
