@@ -1964,7 +1964,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->transport = XPORT_SATA;
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
-		cpi->protocol = PROTO_UNSPECIFIED;
+		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		cpi->maxio = MAXPHYS;
