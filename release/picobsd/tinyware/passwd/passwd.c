@@ -64,10 +64,6 @@ int yp_errno = YP_TRUE;
 extern int yp_passwd( char * );
 #endif
 
-#ifdef KERBEROS
-#include "krb.h"
-#endif
-
 #include "extern.h"
 
 static void usage(void);
@@ -81,25 +77,11 @@ main(argc, argv)
 {
 	int ch;
 	char *uname;
-#ifdef KERBEROS
-	char *iflag = 0, *rflag = 0, *uflag = 0;
-	char *k;
-#endif
 
 #ifdef YP
-#ifdef KERBEROS
-	char realm[REALM_SZ];
-#define OPTIONS "d:h:lysfoi:r:u:"
-#else
 #define OPTIONS "d:h:lysfo"
-#endif
-#else
-#ifdef KERBEROS
-	char realm[REALM_SZ];
-#define OPTIONS "li:r:u:"
 #else
 #define OPTIONS "l"
-#endif
 #endif
 
 #ifdef YP
@@ -113,17 +95,6 @@ main(argc, argv)
 		case 'l':		/* change local password file */
 			use_local_passwd = 1;
 			break;
-#ifdef KERBEROS
-		case 'i':
-			iflag = optarg;
-			break;
-		case 'r':
-			rflag = optarg;
-			break;
-		case 'u':
-			uflag = optarg;
-			break;
-#endif /* KERBEROS */
 #ifdef	YP
 		case 'y':			/* Change NIS password */
 			__use_yp = 1;
@@ -182,46 +153,29 @@ main(argc, argv)
 	/*
 	 * If NIS is turned on in the password database, use it, else punt.
 	 */
-#ifdef KERBEROS
-	if (__use_yp || (iflag == NULL && rflag == NULL && uflag == NULL)) {
-#endif
-		res = use_yp(uname, 0, 0);
-		if (res == USER_YP_ONLY) {
-			if (!use_local_passwd) {
-				exit(yp_passwd(uname));
-			} else {
+	res = use_yp(uname, 0, 0);
+	if (res == USER_YP_ONLY) {
+		if (!use_local_passwd) {
+			exit(yp_passwd(uname));
+		} else {
 			/*
 			 * Reject -l flag if NIS is turned on and the user
 			 * doesn't exist in the local password database.
 			 */
-				errx(1, "unknown local user: %s", uname);
-			}
-		} else if (res == USER_LOCAL_ONLY) {
-			/*
-			 * Reject -y flag if user only exists locally.
-			 */
-			if (__use_yp)
-				errx(1, "unknown NIS user: %s", uname);
-		} else if (res == USER_YP_AND_LOCAL) {
-			if (!use_local_passwd && (yp_in_pw_file || __use_yp))
-				exit(yp_passwd(uname));
+			errx(1, "unknown local user: %s", uname);
 		}
-#ifdef KERBEROS
+	} else if (res == USER_LOCAL_ONLY) {
+		/*
+		 * Reject -y flag if user only exists locally.
+		 */
+		if (__use_yp)
+			errx(1, "unknown NIS user: %s", uname);
+	} else if (res == USER_YP_AND_LOCAL) {
+		if (!use_local_passwd && (yp_in_pw_file || __use_yp))
+			exit(yp_passwd(uname));
 	}
-#endif
 #endif
 
-	if (!use_local_passwd) {
-#ifdef	KERBEROS
-		k = auth_getval("auth_list");
-		if (k && strstr(k, "kerberos"))
-		if(krb_get_lrealm(realm, 0) == KSUCCESS) {
-			setuid(getuid());
-			fprintf(stderr, "realm %s\n", realm);
-			exit(krb_passwd(argv[0], iflag, rflag, uflag));
-		}
-#endif
-	}
 	exit(local_passwd(uname));
 }
 
@@ -230,21 +184,10 @@ usage()
 {
 
 #ifdef	YP
-#ifdef	KERBEROS
-	fprintf(stderr, "%s\n%s\n",
-		"usage: passwd [-l] [-i instance] [-r realm] [-u fullname]",
-		"       passwd [-l] [-y] [-o] [-d domain [-h host]] [user]");
-#else
 	(void)fprintf(stderr,
 		"usage: passwd [-l] [-y] [-o] [-d domain [-h host]] [user]\n");
-#endif
 #else
-#ifdef	KERBEROS
-	fprintf(stderr,
-		"usage: passwd [-l] [-i instance] [-r realm] [-u fullname] [user]\n");
-#else
-	(void)fprintf(stderr, "usage: passwd user\n");
-#endif
+	(void)fprintf(stderr, "usage: passwd [-l] user\n");
 #endif
 	exit(1);
 }
