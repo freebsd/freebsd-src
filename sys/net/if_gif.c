@@ -385,8 +385,9 @@ keep_going:
 		    m->m_pkthdr.len -= GIF_HDR_LEN6;
 #endif
 #endif
-		/* Now pull back the af in packet that
-		 * was saved in the address location.
+		/* 
+		 * Now pull back the af that we
+		 * stashed in the csum_data.
 		 */
 		af = m->m_pkthdr.csum_data;
 		
@@ -504,9 +505,12 @@ gif_output(ifp, m, dst, ro)
 		dst->sa_family = af;
 	}
 	af = dst->sa_family;
-	/* Now save the af in the inbound pkt csum
-	 * data, this is a cheat since really
-	 * gif tunnels don't do offload.
+	/* 
+	 * Now save the af in the inbound pkt csum
+	 * data, this is a cheat since we are using
+	 * the inbound csum_data field to carry the
+	 * af over to the gif_start() routine, avoiding
+	 * using yet another mtag. 
 	 */
 	m->m_pkthdr.csum_data = af;
 	if (!(ifp->if_flags & IFF_UP) ||
@@ -516,7 +520,8 @@ gif_output(ifp, m, dst, ro)
 		goto end;
 	}
 #ifdef ALTQ
-	/* Make altq aware of the bytes we will add 
+	/*
+	 * Make altq aware of the bytes we will add 
 	 * when we actually send it.
 	 */
 #ifdef INET
