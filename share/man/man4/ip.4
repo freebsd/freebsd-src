@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2011
+.Dd June 12, 2012
 .Dt IP 4
 .Os
 .Sh NAME
@@ -282,6 +282,29 @@ The cmsghdr fields have the following values:
 cmsg_len = CMSG_LEN(sizeof(u_char))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVTTL
+.Ed
+.\"
+.Pp
+If the
+.Dv IP_RECVTOS
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TOS
+(type of service) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn TOS .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(u_char))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTOS
 .Ed
 .\"
 .Pp
