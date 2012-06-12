@@ -135,6 +135,8 @@ mvs_attach(device_t dev)
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
+	if (ATA_INL(ctlr->r_mem, PORT_BASE(0) + SATA_PHYCFG_OFS) != 0)
+		ctlr->quirks |= MVS_Q_SOC65;
 	/* Setup our own memory management for channels. */
 	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
 	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);
