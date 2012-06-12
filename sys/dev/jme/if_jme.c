@@ -1669,7 +1669,7 @@ jme_resume(device_t dev)
 	sc = device_get_softc(dev);
 
 	JME_LOCK(sc);
-	if (pci_find_extcap(sc->jme_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_extcap(sc->jme_dev, PCIY_PMG, &pmc) == 0) {
 		pmstat = pci_read_config(sc->jme_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
 		/* Disable PME clear PME status. */
