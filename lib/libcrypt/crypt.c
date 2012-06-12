@@ -79,23 +79,23 @@ static const struct {
 	}
 };
 
+#ifdef HAS_DES
+#define CRYPT_DEFAULT	"des"
+#else
+#define CRYPT_DEFAULT	"md5"
+#endif
+
 static int crypt_type = -1;
 
 static void
 crypt_setdefault(void)
 {
-	char *def;
 	size_t i;
 
 	if (crypt_type != -1)
 		return;
-	def = auth_getval("crypt_default");
-	if (def == NULL) {
-		crypt_type = 0;
-		return;
-	}
 	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
-		if (strcmp(def, crypt_types[i].name) == 0) {
+		if (strcmp(CRYPT_DEFAULT, crypt_types[i].name) == 0) {
 			crypt_type = (int)i;
 			return;
 		}
