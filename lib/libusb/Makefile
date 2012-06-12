@@ -18,6 +18,9 @@ NOGCCERROR=
 
 WARNS?=		2
 
+DPADD=		${LIBPTHREAD}
+LDADD=		-lpthread
+
 MLINKS+=	libusb.3 usb.3
 
 # libusb 0.1 compat
