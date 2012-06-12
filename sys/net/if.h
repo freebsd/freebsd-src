@@ -153,7 +153,7 @@ struct if_data {
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
-
+#define IFF_GIF_WANTED	0x1000000	/* (n) The gif tunnel is wanted */
 /*
  * Old names for driver flags so that user space tools can continue to use
  * the old (portable) names.
