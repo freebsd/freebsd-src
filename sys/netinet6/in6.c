@@ -1548,14 +1548,19 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			hostid = IFA_IN6(ifa);
 
 			/* prefixlen must be <= 64. */
-			if (64 < iflr->prefixlen)
+			if (64 < iflr->prefixlen) {
+				if (ifa != NULL)
+					ifa_free(ifa);
 				return EINVAL;
+			}
 			prefixlen = iflr->prefixlen;
 
 			/* hostid part must be zero. */
 			sin6 = (struct sockaddr_in6 *)&iflr->addr;
 			if (sin6->sin6_addr.s6_addr32[2] != 0 ||
 			    sin6->sin6_addr.s6_addr32[3] != 0) {
+				if (ifa != NULL)
+					ifa_free(ifa);
 				return EINVAL;
 			}
 		} else
@@ -2148,14 +2153,20 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		IF_ADDR_UNLOCK(ifp);
 		return (struct in6_ifaddr *)ifa;
 	}
-	IF_ADDR_UNLOCK(ifp);
 
 	/* use the last-resort values, that are, deprecated addresses */
-	if (dep[0])
+	if (dep[0]) {
+		ifa_ref((struct ifaddr *)dep[0]);
+		IF_ADDR_UNLOCK(ifp);
 		return dep[0];
-	if (dep[1])
+	}
+	if (dep[1]) {
+		ifa_ref((struct ifaddr *)dep[1]);
+		IF_ADDR_UNLOCK(ifp);
 		return dep[1];
+	}
 
+	IF_ADDR_UNLOCK(ifp);
 	return NULL;
 }
 

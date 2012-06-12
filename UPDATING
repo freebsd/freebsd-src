@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20120612:	p3	FreeBSD-SA-12:03.bind
+			FreeBSD-SA-12:04.sysret
+			FreeBSD-EN-12:02.ipv6refcount
+	Fix a problem where zero-length RDATA fields can cause named to crash.
+	[12:03]
+
+	Correct a privilege escalation when returning from kernel if
+	running FreeBSD/amd64 on non-AMD processors. [12:04]
+
+	Fix reference count errors in IPv6 code. [EN-12:02]
+
 20120530:	p2	FreeBSD-SA-12:01.openssl (revised),
 			FreeBSD-SA-12:02.crypt
 	Update the previous openssl fix. [12:01]
