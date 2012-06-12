@@ -981,6 +981,60 @@ start_ap(int apic_id)
 	/* used as a watchpoint to signal AP startup */
 	cpus = mp_naps;
 
+	ipi_startup(apic_id, vector);
+
+	/* Wait up to 5 seconds for it to start. */
+	for (ms = 0; ms < 5000; ms++) {
+		if (mp_naps > cpus)
+			return 1;	/* return SUCCESS */
+		DELAY(1000);
+	}
+	return 0;		/* return FAILURE */
+}
+
+#ifdef COUNT_XINVLTLB_HITS
+u_int xhits_gbl[MAXCPU];
+u_int xhits_pg[MAXCPU];
+u_int xhits_rng[MAXCPU];
+static SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
+    sizeof(xhits_gbl), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,
+    sizeof(xhits_pg), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, range, CTLFLAG_RW, &xhits_rng,
+    sizeof(xhits_rng), "IU", "");
+
+u_int ipi_global;
+u_int ipi_page;
+u_int ipi_range;
+u_int ipi_range_size;
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_global, CTLFLAG_RW, &ipi_global, 0, "");
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_page, CTLFLAG_RW, &ipi_page, 0, "");
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_range, CTLFLAG_RW, &ipi_range, 0, "");
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_range_size, CTLFLAG_RW,
+    &ipi_range_size, 0, "");
+
+u_int ipi_masked_global;
+u_int ipi_masked_page;
+u_int ipi_masked_range;
+u_int ipi_masked_range_size;
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_global, CTLFLAG_RW,
+    &ipi_masked_global, 0, "");
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_page, CTLFLAG_RW,
+    &ipi_masked_page, 0, "");
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
+    &ipi_masked_range, 0, "");
+SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
+    &ipi_masked_range_size, 0, "");
+#endif /* COUNT_XINVLTLB_HITS */
+
+/*
+ * Init and startup IPI.
+ */
+void
+ipi_startup(int apic_id, int vector)
+{
+
 	/*
 	 * first we do an INIT/RESET IPI this INIT IPI might be run, reseting
 	 * and running the target CPU. OR this INIT IPI might be latched (P5
@@ -1031,51 +1085,7 @@ start_ap(int apic_id)
 	    vector, apic_id);
 	lapic_ipi_wait(-1);
 	DELAY(200);		/* wait ~200uS */
-
-	/* Wait up to 5 seconds for it to start. */
-	for (ms = 0; ms < 5000; ms++) {
-		if (mp_naps > cpus)
-			return 1;	/* return SUCCESS */
-		DELAY(1000);
-	}
-	return 0;		/* return FAILURE */
 }
-
-#ifdef COUNT_XINVLTLB_HITS
-u_int xhits_gbl[MAXCPU];
-u_int xhits_pg[MAXCPU];
-u_int xhits_rng[MAXCPU];
-static SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
-SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
-    sizeof(xhits_gbl), "IU", "");
-SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,
-    sizeof(xhits_pg), "IU", "");
-SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, range, CTLFLAG_RW, &xhits_rng,
-    sizeof(xhits_rng), "IU", "");
-
-u_int ipi_global;
-u_int ipi_page;
-u_int ipi_range;
-u_int ipi_range_size;
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_global, CTLFLAG_RW, &ipi_global, 0, "");
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_page, CTLFLAG_RW, &ipi_page, 0, "");
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_range, CTLFLAG_RW, &ipi_range, 0, "");
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_range_size, CTLFLAG_RW,
-    &ipi_range_size, 0, "");
-
-u_int ipi_masked_global;
-u_int ipi_masked_page;
-u_int ipi_masked_range;
-u_int ipi_masked_range_size;
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_global, CTLFLAG_RW,
-    &ipi_masked_global, 0, "");
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_page, CTLFLAG_RW,
-    &ipi_masked_page, 0, "");
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
-    &ipi_masked_range, 0, "");
-SYSCTL_UINT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
-    &ipi_masked_range_size, 0, "");
-#endif /* COUNT_XINVLTLB_HITS */
 
 /*
  * Send an IPI to specified CPU handling the bitmap logic.
