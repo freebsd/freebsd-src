@@ -128,6 +128,11 @@ isc_result_t
 dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 			   isc_region_t *region, unsigned int reservelen)
 {
+	/*
+	 * Use &removed as a sentinal pointer for duplicate
+	 * rdata as rdata.data == NULL is valid.
+	 */
+	static unsigned char removed;
 	struct xrdata  *x;
 	unsigned char  *rawbuf;
 #if DNS_RDATASET_FIXED
@@ -166,6 +171,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		INSIST(result == ISC_R_SUCCESS);
 		dns_rdata_init(&x[i].rdata);
 		dns_rdataset_current(rdataset, &x[i].rdata);
+		INSIST(x[i].rdata.data != &removed);
 #if DNS_RDATASET_FIXED
 		x[i].order = i;
 #endif
@@ -198,8 +204,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	 */
 	for (i = 1; i < nalloc; i++) {
 		if (compare_rdata(&x[i-1].rdata, &x[i].rdata) == 0) {
-			x[i-1].rdata.data = NULL;
-			x[i-1].rdata.length = 0;
+			x[i-1].rdata.data = &removed;
 #if DNS_RDATASET_FIXED
 			/*
 			 * Preserve the least order so A, B, A -> A, B
@@ -275,7 +280,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 #endif
 
 	for (i = 0; i < nalloc; i++) {
-		if (x[i].rdata.data == NULL)
+		if (x[i].rdata.data == &removed)
 			continue;
 #if DNS_RDATASET_FIXED
 		offsettable[x[i].order] = rawbuf - offsetbase;

@@ -8,6 +8,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20120612:	p9	FreeBSD-SA-12:03.bind
+			FreeBSD-SA-12:04.sysret
+	Fix a problem where zero-length RDATA fields can cause named to crash.
+	[12:03]
+
+	Correct a privilege escalation when returning from kernel if
+	running FreeBSD/amd64 on non-AMD processors. [12:04]
+
 20120530:	p8	FreeBSD-SA-12:01.openssl (revised),
 			FreeBSD-SA-12:02.crypt
 	Update the previous openssl fix. [12:01]
