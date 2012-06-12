@@ -1480,10 +1480,12 @@ fdalloc(struct thread *td, int minfd, int *result)
 	 * to grow the file table.  Keep at it until we either get a file
 	 * descriptor or run into process or system limits.
 	 */
-	fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
-	if (fd >= maxfd)
-		return (EMFILE);
-	if (fd >= fdp->fd_nfiles) {
+	for (;;) {
+		fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
+		if (fd >= maxfd)
+			return (EMFILE);
+		if (fd < fdp->fd_nfiles)
+			break;
 #ifdef RACCT
 		PROC_LOCK(p);
 		error = racct_set(p, RACCT_NOFILE,
@@ -1493,10 +1495,6 @@ fdalloc(struct thread *td, int minfd, int *result)
 			return (EMFILE);
 #endif
 		fdgrowtable(fdp, min(fdp->fd_nfiles * 2, maxfd));
-		/* Retry... */
-		fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
-		if (fd >= maxfd)
-			return (EMFILE);
 	}
 
 	/*
