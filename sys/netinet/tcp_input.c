@@ -543,6 +543,8 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
 		return IPPROTO_DONE;
 	}
+	if (ia6)
+		ifa_free(&ia6->ia_ifa);
 
 	tcp_input(m, *offp);
 	return IPPROTO_DONE;
@@ -1253,7 +1255,8 @@ relocked:
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
-			ifa_free(&ia6->ia_ifa);
+			if (ia6)
+				ifa_free(&ia6->ia_ifa);
 		}
 #endif /* INET6 */
 		/*
