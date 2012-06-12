@@ -1,3 +1,8 @@
+2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com>
+
+	* doc/invoke.texi: Fix typo, 'AMD Family 10h core' instead of 
+	'AMD Family 10 core'.
+
 2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r124339)
  
 	* config/i386/i386.c (override_options): Accept k8-sse3, opteron-sse3 
@@ -5,9 +10,38 @@
 	with SSE3 instruction set support.
 	* doc/invoke.texi: Likewise.
 
+2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com>
+
+	* config/i386/i386.c (override_options): Tuning 32-byte loop
+	alignment for amdfam10 architecture. Increasing the max loop
+	alignment to 24 bytes.
+
+2007-04-12  Richard Guenther  <rguenther@suse.de>
+
+	PR tree-optimization/24689
+	PR tree-optimization/31307
+	* fold-const.c (operand_equal_p): Compare INTEGER_CST array
+	indices by value.
+	* gimplify.c (canonicalize_addr_expr): To be consistent with
+	gimplify_compound_lval only set operands two and three of
+	ARRAY_REFs if they are not gimple_min_invariant.  This makes
+	it never at this place.
+	* tree-ssa-ccp.c (maybe_fold_offset_to_array_ref): Likewise.
+
 2007-04-07  H.J. Lu  <hongjiu.lu@intel.com> (r123639)
 
 	* config/i386/i386.c (ix86_handle_option): Handle SSSE3.
+
+2007-03-28  Dwarakanath Rajagopal  <dwarak.rajagopal@amd.com>
+
+	* config.gcc: Accept barcelona as a variant of amdfam10.
+	* config/i386/i386.c (override_options): Likewise.
+	* doc/invoke.texi: Likewise.
+
+2007-02-09  Dwarakanath Rajagopal  <dwarak.rajagopal@amd.com>
+
+	* config/i386/driver-i386.c: Turn on -mtune=native for AMDFAM10.
+	(bit_SSE4a): New.
 
 2007-02-08  Harsha Jagasia  <harsha.jagasia@amd.com> (r121726)
 
@@ -25,6 +59,173 @@
 2007-02-07  Jakub Jelinek  <jakub@redhat.com> (r121687)
 
 	* config/i386/i386.c (override_options): Set PTA_SSSE3 for core2.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/athlon.md (athlon_fldxf_k8, athlon_fld_k8,
+	athlon_fstxf_k8, athlon_fst_k8, athlon_fist, athlon_fmov,
+	athlon_fadd_load, athlon_fadd_load_k8, athlon_fadd, athlon_fmul,
+	athlon_fmul_load, athlon_fmul_load_k8, athlon_fsgn,
+	athlon_fdiv_load, athlon_fdiv_load_k8, athlon_fdiv_k8,
+	athlon_fpspc_load, athlon_fpspc, athlon_fcmov_load,
+	athlon_fcmov_load_k8, athlon_fcmov_k8, athlon_fcomi_load_k8,
+	athlon_fcomi, athlon_fcom_load_k8, athlon_fcom): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/i386.md (x86_sahf_1, cmpfp_i_mixed, cmpfp_i_sse,
+	cmpfp_i_i387, cmpfp_iu_mixed, cmpfp_iu_sse, cmpfp_iu_387,
+	swapsi, swaphi_1, swapqi_1, swapdi_rex64, fix_truncsfdi_sse,
+	fix_truncdfdi_sse, fix_truncsfsi_sse, fix_truncdfsi_sse,
+	x86_fldcw_1, floatsisf2_mixed, floatsisf2_sse, floatdisf2_mixed,
+	floatdisf2_sse, floatsidf2_mixed, floatsidf2_sse,
+	floatdidf2_mixed, floatdidf2_sse, muldi3_1_rex64, mulsi3_1,
+	mulsi3_1_zext, mulhi3_1, mulqi3_1, umulqihi3_1, mulqihi3_insn,
+	umulditi3_insn, umulsidi3_insn, mulditi3_insn, mulsidi3_insn,
+	umuldi3_highpart_rex64, umulsi3_highpart_insn,
+	umulsi3_highpart_zext, smuldi3_highpart_rex64,
+	smulsi3_highpart_insn, smulsi3_highpart_zext, x86_64_shld,
+	x86_shld_1, x86_64_shrd, sqrtsf2_mixed, sqrtsf2_sse,
+	sqrtsf2_i387, sqrtdf2_mixed, sqrtdf2_sse, sqrtdf2_i387,
+	sqrtextendsfdf2_i387, sqrtxf2, sqrtextendsfxf2_i387,
+	sqrtextenddfxf2_i387): Added amdfam10_decode.
+
+	* config/i386/athlon.md (athlon_idirect_amdfam10,
+	athlon_ivector_amdfam10, athlon_idirect_load_amdfam10,
+	athlon_ivector_load_amdfam10, athlon_idirect_both_amdfam10,
+	athlon_ivector_both_amdfam10, athlon_idirect_store_amdfam10,
+	athlon_ivector_store_amdfam10): New define_insn_reservation.
+	(athlon_idirect_loadmov, athlon_idirect_movstore): Added
+	amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/athlon.md (athlon_call_amdfam10,
+	athlon_pop_amdfam10, athlon_lea_amdfam10): New
+	define_insn_reservation.
+	(athlon_branch, athlon_push, athlon_leave_k8, athlon_imul_k8,
+	athlon_imul_k8_DI, athlon_imul_mem_k8, athlon_imul_mem_k8_DI,
+	athlon_idiv, athlon_idiv_mem, athlon_str): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/athlon.md (athlon_sseld_amdfam10,
+	athlon_mmxld_amdfam10, athlon_ssest_amdfam10,
+	athlon_mmxssest_short_amdfam10): New define_insn_reservation.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/athlon.md (athlon_sseins_amdfam10): New
+	define_insn_reservation.
+	* config/i386/i386.md (sseins): Added sseins to define_attr type
+	and define_attr unit.
+	* config/i386/sse.md: Set type attribute to sseins for insertq
+	and insertqi.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/athlon.md (sselog_load_amdfam10, sselog_amdfam10,
+	ssecmpvector_load_amdfam10, ssecmpvector_amdfam10,
+	ssecomi_load_amdfam10, ssecomi_amdfam10,
+	sseaddvector_load_amdfam10, sseaddvector_amdfam10): New
+	define_insn_reservation.
+	(ssecmp_load_k8, ssecmp, sseadd_load_k8, seadd): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/athlon.md (cvtss2sd_load_amdfam10,
+	cvtss2sd_amdfam10, cvtps2pd_load_amdfam10, cvtps2pd_amdfam10,
+	cvtsi2sd_load_amdfam10, cvtsi2ss_load_amdfam10,
+	cvtsi2sd_amdfam10, cvtsi2ss_amdfam10, cvtsd2ss_load_amdfam10,
+	cvtsd2ss_amdfam10, cvtpd2ps_load_amdfam10, cvtpd2ps_amdfam10,
+	cvtsX2si_load_amdfam10, cvtsX2si_amdfam10): New
+	define_insn_reservation.
+
+	* config/i386/sse.md (cvtsi2ss, cvtsi2ssq, cvtss2si,
+	cvtss2siq, cvttss2si, cvttss2siq, cvtsi2sd, cvtsi2sdq,
+	cvtsd2si, cvtsd2siq, cvttsd2si, cvttsd2siq,
+	cvtpd2dq, cvttpd2dq, cvtsd2ss, cvtss2sd,
+	cvtpd2ps, cvtps2pd): Added amdfam10_decode attribute.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/athlon.md (athlon_ssedivvector_amdfam10,
+	athlon_ssedivvector_load_amdfam10, athlon_ssemulvector_amdfam10,
+	athlon_ssemulvector_load_amdfam10): New define_insn_reservation.
+	(athlon_ssediv, athlon_ssediv_load_k8, athlon_ssemul,
+	athlon_ssemul_load_k8): Added amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/i386.h (TARGET_SSE_UNALIGNED_MOVE_OPTIMAL): New macro.
+	(x86_sse_unaligned_move_optimal): New variable.
+
+	* config/i386/i386.c (x86_sse_unaligned_move_optimal): Enable for
+	m_AMDFAM10.
+	(ix86_expand_vector_move_misalign): Add code to generate movupd/movups
+	for unaligned vector SSE double/single precision loads for AMDFAM10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/i386.h (TARGET_AMDFAM10): New macro.
+	(TARGET_CPU_CPP_BUILTINS): Add code for amdfam10.
+	Define TARGET_CPU_DEFAULT_amdfam10.
+	(TARGET_CPU_DEFAULT_NAMES): Add amdfam10.
+	(processor_type): Add PROCESSOR_AMDFAM10.
+
+	* config/i386/i386.md: Add amdfam10 as a new cpu attribute to match
+	processor_type in config/i386/i386.h.
+	Enable imul peepholes for TARGET_AMDFAM10.
+
+	* config.gcc: Add support for --with-cpu option for amdfam10.
+
+	* config/i386/i386.c (amdfam10_cost): New variable.
+	(m_AMDFAM10): New macro.
+	(m_ATHLON_K8_AMDFAM10): New macro.
+	(x86_use_leave, x86_push_memory, x86_movx, x86_unroll_strlen,
+	x86_cmove, x86_3dnow_a, x86_deep_branch, x86_use_simode_fiop,
+	x86_promote_QImode, x86_integer_DFmode_moves,
+	x86_partial_reg_dependency, x86_memory_mismatch_stall,
+	x86_accumulate_outgoing_args, x86_arch_always_fancy_math_387,
+	x86_sse_partial_reg_dependency, x86_sse_typeless_stores,
+	x86_use_ffreep, x86_use_incdec, x86_four_jump_limit,
+	x86_schedule, x86_use_bt, x86_cmpxchg16b, x86_pad_returns):
+	Enable/disable for amdfam10.
+	(override_options): Add amdfam10_cost to processor_target_table.
+	Set up PROCESSOR_AMDFAM10 for amdfam10 entry in
+	processor_alias_table.
+	(ix86_issue_rate): Add PROCESSOR_AMDFAM10.
+	(ix86_adjust_cost): Add code for amdfam10.
+
+2007-02-05  Harsha Jagasia  <harsha.jagasia@amd.com>
+
+	* config/i386/i386.opt: Add new Advanced Bit Manipulation (-mabm)
+	instruction set feature flag. Add new (-mpopcnt) flag for popcnt
+	instruction. Add new SSE4A (-msse4a) instruction set feature flag.
+	* config/i386/i386.h: Add builtin definition for SSE4A.
+	* config/i386/i386.md: Add support for ABM instructions
+	(popcnt and lzcnt).
+	* config/i386/sse.md: Add support for SSE4A instructions
+	(movntss, movntsd, extrq, insertq).
+	* config/i386/i386.c: Add support for ABM and SSE4A builtins.
+	Add -march=amdfam10 flag.
+	* config/i386/ammintrin.h: Add support for SSE4A intrinsics.
+	* doc/invoke.texi: Add documentation on flags for sse4a, abm, popcnt
+	and amdfam10.
+	* doc/extend.texi: Add documentation for SSE4A builtins.
+
+2007-01-24  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/i386/i386.h (x86_cmpxchg16b): Remove const.
+	(TARGET_CMPXCHG16B): Define to x86_cmpxchg16b.
+	* config/i386/i386.c (x86_cmpxchg16b): Remove const.
+	(override_options): Add PTA_CX16 flag.  Set x86_cmpxchg16b
+	for CPUs that have PTA_CX16 set.
+
+2007-01-18  Michael Meissner  <michael.meissner@amd.com>
+
+	* config/i386/i386.c (ix86_compute_frame_layout): Make fprintf's
+	in #if 0 code type correct.
 
 2007-01-17  Eric Christopher  <echristo@apple.com> (r120846)
 
@@ -62,7 +263,30 @@
 	x86_pad_returns): Add m_CORE2.
 	(override_options): Add entries for Core2.
 	(ix86_issue_rate): Add case for Core2.
+
+2006-10-28  Uros Bizjak  <uros@kss-loka.si>
+
+	* config/i386/i386.h (GENERAL_REGNO_P): Use STACK_POINTER_REGNUM.
+	(NON_QI_REG_P): Use IN_RANGE.
+	(REX_INT_REGNO_P): Use IN_RANGE.
+	(FP_REGNO_P): Use IN_RANGE.
+	(SSE_REGNO_P): Use IN_RANGE.
+	(REX_SSE_REGNO_P): Use IN_RANGE.
+	(MMX_REGNO_P): Use IN_RANGE.
+	(STACK_REGNO_P): New macro.
+	(STACK_REG_P): Use STACK_REGNO_P.
+	(NON_STACK_REG_P): Use STACK_REGNO_P.
+	(REGNO_OK_FOR_INDEX_P): Use REX_INT_REGNO_P.
+	(REGNO_OK_FOR_BASE_P): Use GENERAL_REGNO_P.
+	(REG_OK_FOR_INDEX_NONSTRICT_P): Use REX_INT_REGNO_P.
+	(REG_OK_FOR_BASE_NONSTRICT_P): Use GENERAL_REGNO_P.
+	(HARD_REGNO_RENAME_OK): Use !IN_RANGE.
 	
+2006-10-28 Uros Bizjak <uros@kss-loka.si>
+
+	* config/i386/i386.c (output_387_ffreep): Create output from a
+	template string for !HAVE_AS_IX86_FFREEP.
+
 2006-10-27  Vladimir Makarov  <vmakarov@redhat.com> (r118090)
 
 	* config/i386/i386.h (TARGET_GEODE):
@@ -95,7 +319,31 @@
 	* config/i386/geode.md: New file.
 
 	* doc/invoke.texi: Add entry about geode processor.
-    
+
+2006-10-24  Uros Bizjak  <uros@kss-loka.si>
+
+	* config/i386/i386.h (FIRST_PSEUDO_REGISTER): Define to 54.
+	(FIXED_REGISTERS, CALL_USED_REGISTERS): Add fpcr register.
+	(REG_ALLOC_ORDER): Add one element to allocate fpcr register.
+	(FRAME_POINTER_REGNUM): Update register number to 21.
+	(REG_CLASS_CONTENTS): Update contents for added fpcr register.
+	(HI_REGISTER_NAMES): Add "fpcr" for fpcr register.
+
+	* config/i386/i386.c (regclass_map): Add fpcr entry.
+	(dbx_register_map, dbx64_register_map, svr4_dbx_register_map):
+	Add fpcr entry.
+	(print_reg): Assert REGNO (x) != FPCR_REG.
+
+	* config/i386/i386.md (FPCR_REG, R11_REG): New constants.
+	(DIRFLAG_REG): Renumber.
+	(x86_fnstcw_1, x86_fldcw_1): Use FPCR_REG instead of FPSR_REG.
+	(*sibcall_1_rex64_v, *sibcall_value_1_rex64_v): Use R11_REG.
+	(sse_prologue_save, *sse_prologue_save_insn): Renumber
+	hardcoded SSE register numbers.
+
+	* config/i386/mmx.md (mmx_emms, mmx_femms): Renumber
+	hardcoded MMX register numbers.
+
 2006-10-24  Richard Guenther  <rguenther@suse.de>
 
 	PR middle-end/28796
@@ -103,6 +351,17 @@
 	and HONOR_NANS instead of MODE_HAS_INFINITIES and MODE_HAS_NANS
 	for deciding optimizations in consistency with fold-const.c
 	(fold_builtin_unordered_cmp): Likewise.
+
+2006-10-24  Richard Guenther  <rguenther@suse.de>
+
+	* builtins.c (fold_builtin_floor): Fold floor (x) where
+	x is nonnegative to trunc (x).
+	(fold_builtin_int_roundingfn): Fold lfloor (x) where x is
+	nonnegative to FIX_TRUNC_EXPR.
+
+2006-10-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/tmmintrin.h: Remove the duplicated content.
 
 2006-10-22  H.J. Lu  <hongjiu.lu@intel.com> (r117958)
 
@@ -169,6 +428,18 @@
 	* doc/extend.texi: Document SSSE3 built-in functions.
 
 	* doc/invoke.texi: Document -mssse3/-mno-ssse3 switches.
+
+2006-10-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/i386.md (UNSPEC_LDQQU): Renamed to ...
+	(UNSPEC_LDDQU): This.
+	* config/i386/sse.md (sse3_lddqu): Updated.
+
+2006-10-21  Richard Guenther  <rguenther@suse.de>
+
+	PR tree-optimization/3511
+	* tree-ssa-pre.c (phi_translate): Fold CALL_EXPRs that
+	got new invariant arguments during PHI translation.
 
 2006-10-21  Richard Guenther  <rguenther@suse.de>
 
