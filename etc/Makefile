@@ -7,8 +7,7 @@
 SUBDIR=	sendmail
 .endif
 
-BIN1=	auth.conf \
-	crontab \
+BIN1=	crontab \
 	devd.conf \
 	devfs.conf \
 	ddb.conf \
