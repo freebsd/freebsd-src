@@ -388,7 +388,8 @@ keep_going:
 		/* Now pull back the af in packet that
 		 * was saved in the address location.
 		 */
-		bcopy(m->m_pkthdr.src_mac_addr, &af, sizeof(af));
+		af = m->m_pkthdr.csum_data;
+		
 		if (ifp->if_bridge)
 			af = AF_LINK;
 
@@ -503,10 +504,11 @@ gif_output(ifp, m, dst, ro)
 		dst->sa_family = af;
 	}
 	af = dst->sa_family;
-	/* Now save the af in the inbound pkt mac
-	 * address location.
+	/* Now save the af in the inbound pkt csum
+	 * data, this is a cheat since really
+	 * gif tunnels don't do offload.
 	 */
-	bcopy(&af, m->m_pkthdr.src_mac_addr, sizeof(af));
+	m->m_pkthdr.csum_data = af;
 	if (!(ifp->if_flags & IFF_UP) ||
 	    sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
 		m_freem(m);
