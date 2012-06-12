@@ -1789,6 +1789,20 @@ cg_trunc(struct suj_cg *sc)
 	}
 }
 
+static void
+cg_adj_blk(struct suj_cg *sc)
+{
+	struct suj_ino *sino;
+	int i;
+
+	for (i = 0; i < SUJ_HASHSIZE; i++) {
+		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next) {
+			if (sino->si_blkadj)
+				ino_adjblks(sino);
+		}
+	}
+}
+
 /*
  * Free any partially allocated blocks and then resolve inode block
  * counts.
@@ -2720,6 +2734,7 @@ suj_check(const char *filesys)
 		printf("** Processing journal entries.\n");
 		cg_apply(cg_trunc);
 		cg_apply(cg_check_blk);
+		cg_apply(cg_adj_blk);
 		cg_apply(cg_check_ino);
 	}
 	if (preen == 0 && (jrecs > 0 || jbytes > 0) && reply("WRITE CHANGES") == 0)
