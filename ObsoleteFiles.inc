@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120613: auth.conf removed
+OLD_FILES+=/etc/auth.conf
+OLD_FILES+=/usr/share/man/man3/auth.3.gz
+OLD_FILES+=/usr/share/man/man5/auth.conf.5.gz
 # 20120530: kde pam lives now in ports
 OLD_FILES+=/etc/pam.d/kde
 # 20120505: new clang import installed a redundant internal header
