@@ -394,12 +394,13 @@ ENTRY(savectx)
 END(savectx)
 
 /*
- * resumectx(pcb, cr3)
+ * resumectx(pcb)
  * Resuming processor state from pcb.
  */     
 ENTRY(resumectx)
 	/* Switch to KPML4phys. */
-	movq	%rsi,%cr3
+	movq	KPML4phys,%rax
+	movq	%rax,%cr3
 
 	/* Force kernel segment registers. */
 	movl	$KDSEL,%eax
