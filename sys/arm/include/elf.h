@@ -99,8 +99,8 @@ __ElfType(Auxinfo);
 #define	ELF_TARG_MACH	EM_ARM
 #define	ELF_TARG_VER	1
 
-/* 
- * Magic number for the elf trampoline, chosen wisely to be an immediate 
+/*
+ * Magic number for the elf trampoline, chosen wisely to be an immediate
  * value.
  */
 #define MAGIC_TRAMP_NUMBER	0x5c000003

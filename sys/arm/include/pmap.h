@@ -58,7 +58,7 @@
 #define PTE_NOCACHE	0
 #define PTE_CACHE	1
 #define PTE_PAGETABLE	2
- 
+
 #ifndef LOCORE
 
 #include <sys/queue.h>
@@ -413,7 +413,7 @@ extern pt_entry_t		pte_l2_s_cache_mode_pt;
 extern pt_entry_t		pte_l2_s_prot_u;
 extern pt_entry_t		pte_l2_s_prot_w;
 extern pt_entry_t		pte_l2_s_prot_mask;
- 
+
 extern pt_entry_t		pte_l1_s_proto;
 extern pt_entry_t		pte_l1_c_proto;
 extern pt_entry_t		pte_l2_s_proto;
