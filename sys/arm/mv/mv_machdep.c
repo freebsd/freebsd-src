@@ -285,7 +285,7 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		/* 
+		/*
 		 * We should not map the page at PA 0x0000000, the VM can't
 		 * handle it, as pmap_extract() == 0 means failure.
 		 */
