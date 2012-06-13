@@ -2593,6 +2593,9 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 	struct file *wfp;
 	struct file *fp;
 
+	KASSERT(error == ENODEV || error == ENXIO,
+	    ("unexpected error %d in %s", error, __func__));
+
 	/*
 	 * If the to-be-dup'd fd number is greater than the allowed number
 	 * of file descriptors, or the fd to be dup'd has already been
@@ -2612,9 +2615,8 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 	 *
 	 * For ENXIO steal away the file structure from (dfd) and store it in
 	 * (indx).  (dfd) is effectively closed by this operation.
-	 *
-	 * Any other error code is just returned.
 	 */
+	fp = fdp->fd_ofiles[indx];
 	switch (error) {
 	case ENODEV:
 		/*
@@ -2625,48 +2627,28 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 			FILEDESC_XUNLOCK(fdp);
 			return (EACCES);
 		}
-		fp = fdp->fd_ofiles[indx];
 		fdp->fd_ofiles[indx] = wfp;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
-		if (fp == NULL)
-			fdused(fdp, indx);
 		fhold(wfp);
-		FILEDESC_XUNLOCK(fdp);
-		if (fp != NULL)
-			/*
-			 * We now own the reference to fp that the ofiles[]
-			 * array used to own.  Release it.
-			 */
-			fdrop(fp, td);
-		return (0);
-
+		break;
 	case ENXIO:
 		/*
 		 * Steal away the file pointer from dfd and stuff it into indx.
 		 */
-		fp = fdp->fd_ofiles[indx];
-		fdp->fd_ofiles[indx] = fdp->fd_ofiles[dfd];
+		fdp->fd_ofiles[indx] = wfp;
 		fdp->fd_ofiles[dfd] = NULL;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
 		fdp->fd_ofileflags[dfd] = 0;
 		fdunused(fdp, dfd);
-		if (fp == NULL)
-			fdused(fdp, indx);
-		FILEDESC_XUNLOCK(fdp);
-
-		/*
-		 * We now own the reference to fp that the ofiles[] array
-		 * used to own.  Release it.
-		 */
-		if (fp != NULL)
-			fdrop(fp, td);
-		return (0);
-
-	default:
-		FILEDESC_XUNLOCK(fdp);
-		return (error);
+		break;
 	}
-	/* NOTREACHED */
+	FILEDESC_XUNLOCK(fdp);
+	/*
+	 * We now own the reference to fp that the ofiles[] array used to own.
+	 * Release it.
+	 */
+	fdrop(fp, td);
+	return (0);
 }
 
 /*
