@@ -394,7 +394,7 @@ ENTRY(savectx)
 END(savectx)
 
 /*
- * resumectx(pcb in %rdi, cr3 in %rsi)
+ * resumectx(pcb, cr3)
  * Resuming processor state from pcb.
  */     
 ENTRY(resumectx)

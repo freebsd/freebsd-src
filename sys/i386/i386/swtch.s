@@ -460,13 +460,10 @@ ENTRY(savectx)
 END(savectx)
 
 /*
- * resumectx(pcb in %esi)
+ * resumectx(pcb) __fastcall
  * Resuming processor state from pcb.
  */
 ENTRY(resumectx)
-	/* Fetch PCB. */
-	movl	%esi,%ecx
-
 	/* Restore GDT. */
 	lgdt	PCB_GDT(%ecx)
 
