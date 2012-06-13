@@ -243,7 +243,7 @@ fd_last_used(struct filedesc *fdp, int size)
 static int
 fdisused(struct filedesc *fdp, int fd)
 {
-        KASSERT((unsigned int)fd < fdp->fd_nfiles,
+        KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
             ("file descriptor %d out of range (0, %d)", fd, fdp->fd_nfiles));
 	return ((fdp->fd_map[NDSLOT(fd)] & NDBIT(fd)) != 0);
 }
@@ -433,7 +433,7 @@ fdtofp(int fd, struct filedesc *fdp)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	if ((unsigned)fd >= fdp->fd_nfiles)
+	if (fd < 0 || fd >= fdp->fd_nfiles)
 		return (NULL);
 
 	return (fdp->fd_ofiles[fd]);
@@ -677,7 +677,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		vfslocked = 0;
 		/* Check for race with close */
 		FILEDESC_SLOCK(fdp);
-		if ((unsigned) fd >= fdp->fd_nfiles ||
+		if (fd < 0 || fd >= fdp->fd_nfiles ||
 		    fp != fdp->fd_ofiles[fd]) {
 			FILEDESC_SUNLOCK(fdp);
 			flp->l_whence = SEEK_SET;
@@ -1197,7 +1197,7 @@ kern_close(td, fd)
 	AUDIT_SYSCLOSE(td, fd);
 
 	FILEDESC_XLOCK(fdp);
-	if ((unsigned)fd >= fdp->fd_nfiles ||
+	if (fd < 0 || fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
@@ -1500,7 +1500,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	 * Perform some sanity checks, then mark the file descriptor as
 	 * used and return it to the caller.
 	 */
-	KASSERT((unsigned int)fd < min(maxfd, fdp->fd_nfiles),
+	KASSERT(fd >= 0 && fd < min(maxfd, fdp->fd_nfiles),
 	    ("invalid descriptor %d", fd));
 	KASSERT(!fdisused(fdp, fd),
 	    ("fd_first_free() returned non-free descriptor"));
@@ -2213,7 +2213,7 @@ fget_unlocked(struct filedesc *fdp, int fd)
 	struct file *fp;
 	u_int count;
 
-	if ((unsigned int)fd >= fdp->fd_nfiles)
+	if (fd < 0 || fd >= fdp->fd_nfiles)
 		return (NULL);
 	/*
 	 * Fetch the descriptor locklessly.  We avoid fdrop() races by
@@ -2602,7 +2602,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode, int opener
 	 * closed, then reject.
 	 */
 	FILEDESC_XLOCK(fdp);
-	if ((unsigned int)dfd >= fdp->fd_nfiles ||
+	if (dfd < 0 || dfd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[dfd]) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
