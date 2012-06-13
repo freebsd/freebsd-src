@@ -44,6 +44,14 @@
 #define	ATH_TIMEOUT		1000
 
 /*
+ * There is a separate TX ath_buf pool for management frames.
+ * This ensures that management frames such as probe responses
+ * and BAR frames can be transmitted during periods of high
+ * TX activity.
+ */
+#define	ATH_MGMT_TXBUF		32
+
+/*
  * 802.11n requires more TX and RX buffers to do AMPDU.
  */
 #ifdef	ATH_ENABLE_11N
@@ -172,6 +180,11 @@ struct ath_node {
 	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
 #define	ATH_RSSI(x)		ATH_EP_RND(x, HAL_RSSI_EP_MULTIPLIER)
 
+typedef enum {
+	ATH_BUFTYPE_NORMAL	= 0,
+	ATH_BUFTYPE_MGMT	= 1,
+} ath_buf_type_t;
+
 struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_list;
 	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
@@ -243,6 +256,7 @@ struct ath_buf {
 };
 typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 
+#define	ATH_BUF_MGMT	0x00000001	/* (tx) desc is a mgmt desc */
 #define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
 
 /*
@@ -487,6 +501,8 @@ struct ath_softc {
 
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
+	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */
+	ath_bufhead		sc_txbuf_mgmt;	/* mgmt transmit buffer */
 	struct mtx		sc_txbuflock;	/* txbuf lock */
 	char			sc_txname[12];	/* e.g. "ath0_buf" */
 	u_int			sc_txqsetup;	/* h/w queues setup */
