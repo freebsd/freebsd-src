@@ -2358,7 +2358,7 @@ ath_start(struct ifnet *ifp)
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
 			ATH_TXBUF_LOCK(sc);
-			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			ath_returnbuf_head(sc, bf);
 			ATH_TXBUF_UNLOCK(sc);
 			break;
 		}
@@ -2401,7 +2401,7 @@ ath_start(struct ifnet *ifp)
 			bf->bf_m = NULL;
 			bf->bf_node = NULL;
 			ATH_TXBUF_LOCK(sc);
-			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			ath_returnbuf_head(sc, bf);
 			ath_txfrag_cleanup(sc, &frags, ni);
 			ATH_TXBUF_UNLOCK(sc);
 			if (ni != NULL)
@@ -3631,6 +3631,24 @@ ath_txq_sched_tasklet(void *arg, int npending)
 	ATH_PCU_UNLOCK(sc);
 }
 
+void
+ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf)
+{
+
+	ATH_TXBUF_LOCK_ASSERT(sc);
+
+	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+}
+
+void
+ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf)
+{
+
+	ATH_TXBUF_LOCK_ASSERT(sc);
+
+	TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+}
+
 /*
  * Return a buffer to the pool and update the 'busy' flag on the
  * previous 'tail' entry.
@@ -3653,7 +3671,7 @@ ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TXBUF_LOCK(sc);
 	ath_tx_update_busy(sc);
-	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ath_returnbuf_tail(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
 }
 
