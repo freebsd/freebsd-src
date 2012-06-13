@@ -1250,7 +1250,6 @@ bad_unlocked:
 	if (indx != -1)
 		fdclose(fdp, fp, indx, td);
 	fdrop(fp, td);
-	td->td_retval[0] = -1;
 	return (error);
 }
 
