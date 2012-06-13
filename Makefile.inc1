@@ -1244,6 +1244,9 @@ _startup_libs+=	lib/libcxxrt
 .endif
 
 gnu/lib/libgcc__L: lib/libc__L
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libcxxrt__L: gnu/lib/libgcc__L
+.endif
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
 		${_kerberos5_lib_libheimntlm} \
