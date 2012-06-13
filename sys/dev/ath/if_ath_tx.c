@@ -203,7 +203,8 @@ ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
 
 	ATH_TXBUF_LOCK(sc);
 	for (m = m0->m_nextpkt; m != NULL; m = m->m_nextpkt) {
-		bf = _ath_getbuf_locked(sc);
+		/* XXX non-management? */
+		bf = _ath_getbuf_locked(sc, ATH_BUFTYPE_NORMAL);
 		if (bf == NULL) {	/* out of buffers, cleanup */
 			device_printf(sc->sc_dev, "%s: no buffer?\n",
 			    __func__);
@@ -1878,7 +1879,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/*
 	 * Grab a TX buffer and associated resources.
 	 */
-	bf = ath_getbuf(sc);
+	bf = ath_getbuf(sc, ATH_BUFTYPE_MGMT);
 	if (bf == NULL) {
 		sc->sc_stats.ast_tx_nobuf++;
 		m_freem(m);

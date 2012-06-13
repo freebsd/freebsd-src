@@ -246,6 +246,10 @@ static	int ath_txbuf = ATH_TXBUF;		/* # tx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
+static	int ath_txbuf_mgmt = ATH_MGMT_TXBUF;	/* # mgmt tx buffers to allocate */
+SYSCTL_INT(_hw_ath, OID_AUTO, txbuf_mgmt, CTLFLAG_RW, &ath_txbuf_mgmt,
+	    0, "tx (mgmt) buffers allocated");
+TUNABLE_INT("hw.ath.txbuf_mgmt", &ath_txbuf_mgmt);
 
 int ath_bstuck_threshold = 4;		/* max missed beacons */
 SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
@@ -2212,13 +2216,17 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 }
 
 struct ath_buf *
-_ath_getbuf_locked(struct ath_softc *sc)
+_ath_getbuf_locked(struct ath_softc *sc, ath_buf_type_t btype)
 {
 	struct ath_buf *bf;
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	bf = TAILQ_FIRST(&sc->sc_txbuf);
+	if (btype == ATH_BUFTYPE_MGMT)
+		bf = TAILQ_FIRST(&sc->sc_txbuf_mgmt);
+	else
+		bf = TAILQ_FIRST(&sc->sc_txbuf);
+
 	if (bf == NULL) {
 		sc->sc_stats.ast_tx_getnobuf++;
 	} else {
@@ -2228,17 +2236,28 @@ _ath_getbuf_locked(struct ath_softc *sc)
 		}
 	}
 
-	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0)
-		TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
-	else
+	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0) {
+		if (btype == ATH_BUFTYPE_MGMT)
+			TAILQ_REMOVE(&sc->sc_txbuf_mgmt, bf, bf_list);
+		else
+			TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
+	} else
 		bf = NULL;
 
 	if (bf == NULL) {
+		/* XXX should check which list, mgmt or otherwise */
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
 		    TAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
 		return NULL;
 	}
+
+	/* XXX TODO: should do this at buffer list initialisation */
+	/* XXX (then, ensure the buffer has the right flag set) */
+	if (btype == ATH_BUFTYPE_MGMT)
+		bf->bf_flags |= ATH_BUF_MGMT;
+	else
+		bf->bf_flags &= (~ATH_BUF_MGMT);
 
 	/* Valid bf here; clear some basic fields */
 	bf->bf_next = NULL;	/* XXX just to be sure */
@@ -2274,7 +2293,9 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 {
 	struct ath_buf *tbf;
 
-	tbf = ath_getbuf(sc);
+	tbf = ath_getbuf(sc,
+	    (bf->bf_flags & ATH_BUF_MGMT) ?
+	     ATH_BUFTYPE_MGMT : ATH_BUFTYPE_NORMAL);
 	if (tbf == NULL)
 		return NULL;	/* XXX failure? Why? */
 
@@ -2302,12 +2323,18 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 }
 
 struct ath_buf *
-ath_getbuf(struct ath_softc *sc)
+ath_getbuf(struct ath_softc *sc, ath_buf_type_t btype)
 {
 	struct ath_buf *bf;
 
 	ATH_TXBUF_LOCK(sc);
-	bf = _ath_getbuf_locked(sc);
+	bf = _ath_getbuf_locked(sc, btype);
+	/*
+	 * If a mgmt buffer was requested but we're out of those,
+	 * try requesting a normal one.
+	 */
+	if (bf == NULL && btype == ATH_BUFTYPE_MGMT)
+		bf = _ath_getbuf_locked(sc, ATH_BUFTYPE_NORMAL);
 	ATH_TXBUF_UNLOCK(sc);
 	if (bf == NULL) {
 		struct ifnet *ifp = sc->sc_ifp;
@@ -2351,7 +2378,7 @@ ath_start(struct ifnet *ifp)
 		/*
 		 * Grab a TX buffer and associated resources.
 		 */
-		bf = ath_getbuf(sc);
+		bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
 		if (bf == NULL)
 			break;
 
@@ -2857,11 +2884,26 @@ ath_desc_alloc(struct ath_softc *sc)
 		return error;
 	}
 
+	error = ath_descdma_setup(sc, &sc->sc_txdma_mgmt, &sc->sc_txbuf_mgmt,
+			"tx_mgmt", ath_txbuf_mgmt, ATH_TXDESC);
+	if (error != 0) {
+		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
+		return error;
+	}
+
+	/*
+	 * XXX mark txbuf_mgmt frames with ATH_BUF_MGMT, so the
+	 * flag doesn't have to be set in ath_getbuf_locked().
+	 */
+
 	error = ath_descdma_setup(sc, &sc->sc_bdma, &sc->sc_bbuf,
 			"beacon", ATH_BCBUF, 1);
 	if (error != 0) {
-		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
+		    &sc->sc_txbuf_mgmt);
 		return error;
 	}
 	return 0;
@@ -2877,6 +2919,9 @@ ath_desc_free(struct ath_softc *sc)
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+	if (sc->sc_txdma_mgmt.dd_desc_len != 0)
+		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
+		    &sc->sc_txbuf_mgmt);
 }
 
 static struct ieee80211_node *
@@ -3323,11 +3368,13 @@ ath_tx_update_busy(struct ath_softc *sc)
 	 * descriptor.
 	 */
 	ATH_TXBUF_LOCK_ASSERT(sc);
+	last = TAILQ_LAST(&sc->sc_txbuf_mgmt, ath_bufhead_s);
+	if (last != NULL)
+		last->bf_flags &= ~ATH_BUF_BUSY;
 	last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
 	if (last != NULL)
 		last->bf_flags &= ~ATH_BUF_BUSY;
 }
-
 
 /*
  * Process completed xmit descriptors from the specified queue.
@@ -3637,7 +3684,10 @@ ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	if (bf->bf_flags & ATH_BUF_MGMT)
+		TAILQ_INSERT_TAIL(&sc->sc_txbuf_mgmt, bf, bf_list);
+	else
+		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 }
 
 void
@@ -3646,7 +3696,10 @@ ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+	if (bf->bf_flags & ATH_BUF_MGMT)
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf_mgmt, bf, bf_list);
+	else
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
 }
 
 /*
@@ -3725,6 +3778,9 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	 */
 	ATH_TXBUF_LOCK(sc);
 	bf = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
+	if (bf != NULL)
+		bf->bf_flags &= ~ATH_BUF_BUSY;
+	bf = TAILQ_LAST(&sc->sc_txbuf_mgmt, ath_bufhead_s);
 	if (bf != NULL)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
