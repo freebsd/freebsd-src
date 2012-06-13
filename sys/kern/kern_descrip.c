@@ -119,7 +119,7 @@ static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 static int	do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval);
 static int	fd_first_free(struct filedesc *, int, int);
-static int	fd_last_used(struct filedesc *, int, int);
+static int	fd_last_used(struct filedesc *, int);
 static void	fdgrowtable(struct filedesc *, int);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
@@ -217,18 +217,15 @@ fd_first_free(struct filedesc *fdp, int low, int size)
 }
 
 /*
- * Find the highest non-zero bit in the given bitmap, starting at low and
- * not exceeding size - 1.
+ * Find the highest non-zero bit in the given bitmap, starting at 0 and
+ * not exceeding size - 1. Return -1 if not found.
  */
 static int
-fd_last_used(struct filedesc *fdp, int low, int size)
+fd_last_used(struct filedesc *fdp, int size)
 {
 	NDSLOTTYPE *map = fdp->fd_map;
 	NDSLOTTYPE mask;
 	int off, minoff;
-
-	if (low >= size)
-		return (-1);
 
 	off = NDSLOT(size);
 	if (size % NDENTRIES) {
@@ -237,10 +234,10 @@ fd_last_used(struct filedesc *fdp, int low, int size)
 			return (off * NDENTRIES + flsl(mask) - 1);
 		--off;
 	}
-	for (minoff = NDSLOT(low); off >= minoff; --off)
+	for (minoff = NDSLOT(0); off >= minoff; --off)
 		if (map[off] != 0)
 			return (off * NDENTRIES + flsl(map[off]) - 1);
-	return (low - 1);
+	return (-1);
 }
 
 static int
@@ -286,7 +283,7 @@ fdunused(struct filedesc *fdp, int fd)
 	if (fd < fdp->fd_freefile)
 		fdp->fd_freefile = fd;
 	if (fd == fdp->fd_lastfile)
-		fdp->fd_lastfile = fd_last_used(fdp, 0, fd);
+		fdp->fd_lastfile = fd_last_used(fdp, fd);
 }
 
 /*
