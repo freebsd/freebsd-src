@@ -102,7 +102,7 @@ static struct avila_gpio_pin avila_gpio_pins[] = {
 /*
  * Helpers
  */
-static void avila_gpio_pin_configure(struct avila_gpio_softc *sc, 
+static void avila_gpio_pin_configure(struct avila_gpio_softc *sc,
     struct gpio_pin *pin, uint32_t flags);
 static int  avila_gpio_pin_flags(struct avila_gpio_softc *sc, uint32_t pin);
 

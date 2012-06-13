@@ -206,7 +206,7 @@ static const uint8_t digitmap[] = {
 	SEG_D|SEG_E,
 };
 
-static uint8_t 
+static uint8_t
 iq80321_7seg_xlate(char c)
 {
 	uint8_t rv;
@@ -336,7 +336,7 @@ static const uint8_t snakemap[][2] = {
 
 static SYSCTL_NODE(_hw, OID_AUTO, sevenseg, CTLFLAG_RD, 0, "7 seg");
 static int freq = 20;
-SYSCTL_INT(_hw_sevenseg, OID_AUTO, freq, CTLFLAG_RW, &freq, 0, 
+SYSCTL_INT(_hw_sevenseg, OID_AUTO, freq, CTLFLAG_RW, &freq, 0,
     "7 Seg update frequency");
 static void
 iq31244_7seg_snake(void)
