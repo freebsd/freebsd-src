@@ -40,7 +40,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -238,8 +238,8 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t lastaddr;
 	uint32_t memsize;
 
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();		/* NB: sets cputype */
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
@@ -283,7 +283,7 @@ initarm(struct arm_boot_params *abp)
 			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_va = 
+			kernel_pt_table[loop].pv_va =
 			    kernel_pt_table[loop].pv_pa +
 				(KERNVIRTADDR - KERNPHYSADDR);
 		}
@@ -364,7 +364,7 @@ initarm(struct arm_boot_params *abp)
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
-	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
+	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 #ifdef ARM_USE_SMALL_ALLOC
@@ -372,7 +372,7 @@ initarm(struct arm_boot_params *abp)
 		arm_add_smallalloc_pages((void *)(freemem_after),
 		    (void*)(freemem_after + PAGE_SIZE),
 		    afterkern - (freemem_after + PAGE_SIZE), 0);
-		    
+		
 	}
 #endif
 

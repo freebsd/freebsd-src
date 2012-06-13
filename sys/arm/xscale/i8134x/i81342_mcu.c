@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i8134x/i81342var.h>
 
 void
-i81342_sdram_bounds(bus_space_tag_t bt, bus_space_handle_t bh, 
+i81342_sdram_bounds(bus_space_tag_t bt, bus_space_handle_t bh,
     vm_paddr_t *start, vm_size_t *size)
 {
 	uint32_t reg;

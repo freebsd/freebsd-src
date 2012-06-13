@@ -40,7 +40,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -141,7 +141,7 @@ static void	pxa_probe_sdram(bus_space_tag_t, bus_space_handle_t,
 
 /* Static device mappings. */
 static const struct pmap_devmap pxa_devmap[] = {
-	/* 
+	/*
 	 * Map the on-board devices up into the KVA region so we don't muck
 	 * up user-space.
 	 */
@@ -174,9 +174,8 @@ initarm(struct arm_boot_params *abp)
 	int i, j;
 	uint32_t memsize[PXA2X0_SDRAM_BANKS], memstart[PXA2X0_SDRAM_BANKS];
 
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
@@ -205,7 +204,7 @@ initarm(struct arm_boot_params *abp)
 			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_va = 
+			kernel_pt_table[loop].pv_va =
 			    kernel_pt_table[loop].pv_pa + 0x20000000;
 		}
 	}
@@ -280,7 +279,7 @@ initarm(struct arm_boot_params *abp)
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
-	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
+	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 #ifdef ARM_USE_SMALL_ALLOC

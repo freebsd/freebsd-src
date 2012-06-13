@@ -260,7 +260,7 @@ i81342_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 	panic("i81342_io_bs_alloc(): not implemented");
 }
 
-void    
+void
 i81342_io_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 
@@ -337,7 +337,7 @@ i81342_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 	panic("i81342_mem_bs_alloc(): not implemented");
 }
 
-void    
+void
 i81342_mem_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 

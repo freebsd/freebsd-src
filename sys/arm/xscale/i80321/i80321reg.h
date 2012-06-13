@@ -38,8 +38,8 @@
  *
  */
 
-#ifndef _ARM_XSCALE_I80321REG_H_ 
-#define _ARM_XSCALE_I80321REG_H_ 
+#ifndef _ARM_XSCALE_I80321REG_H_
+#define _ARM_XSCALE_I80321REG_H_
 
 /*
  * Register definitions for the Intel 80321 (``Verde'') I/O processor,
@@ -102,7 +102,7 @@
 #if defined(CPU_XSCALE_80321)
 #define	VERDE_AAU_BASE			0x0800
 #define	VERDE_AAU_SIZE			0x0100
-#endif 
+#endif
 
 #define	VERDE_I2C_BASE			0x1680
 #define	VERDE_I2C_BASE0			(VERDE_I2C_BASE + 0x00)
