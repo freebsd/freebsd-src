@@ -1093,7 +1093,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct file *fp;
 	struct vnode *vp;
 	int cmode;
-	int type, indx = -1, error, error_open;
+	int type, indx = -1, error;
 	struct flock lf;
 	struct nameidata nd;
 	int vfslocked;
@@ -1143,9 +1143,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 			goto success;
 
 		/*
-		 * Handle special fdopen() case. bleh. dupfdopen() is
-		 * responsible for dropping the old contents of ofiles[indx]
-		 * if it succeeds.
+		 * Handle special fdopen() case. bleh.
 		 *
 		 * Don't do this for relative (capability) lookups; we don't
 		 * understand exactly what would happen, and we don't think
@@ -1154,14 +1152,12 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		if (nd.ni_strictrelative == 0 &&
 		    (error == ENODEV || error == ENXIO) &&
 		    td->td_dupfd >= 0) {
-			/* XXX from fdopen */
-			error_open = error;
-			if ((error = finstall(td, fp, &indx, flags)) != 0)
-				goto bad_unlocked;
-			if ((error = dupfdopen(td, fdp, indx, td->td_dupfd,
-			    flags, error_open)) == 0)
+			error = dupfdopen(td, fdp, td->td_dupfd, flags, error,
+			    &indx);
+			if (error == 0)
 				goto success;
 		}
+
 		if (error == ERESTART)
 			error = EINTR;
 		goto bad_unlocked;
@@ -4514,11 +4510,11 @@ sys_fhopen(td, uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-
 	/*
 	 * An extra reference on `fp' has been held for us by
 	 * falloc_noinstall().
 	 */
+
 #ifdef INVARIANTS
 	td->td_dupfd = -1;
 #endif

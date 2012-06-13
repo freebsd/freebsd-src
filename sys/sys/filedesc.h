@@ -109,8 +109,8 @@ struct filedesc_to_leader {
 struct thread;
 
 int	closef(struct file *fp, struct thread *td);
-int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
-	    int mode, int error);
+int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
+	    int openerror, int *indxp);
 int	falloc(struct thread *td, struct file **resultfp, int *resultfd,
 	    int flags);
 int	falloc_noinstall(struct thread *td, struct file **resultfp);
