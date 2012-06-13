@@ -1237,8 +1237,7 @@ success:
 bad:
 	VFS_UNLOCK_GIANT(vfslocked);
 bad_unlocked:
-	if (indx != -1)
-		fdclose(fdp, fp, indx, td);
+	KASSERT(indx == -1, ("indx=%d, should be -1", indx));
 	fdrop(fp, td);
 	return (error);
 }
