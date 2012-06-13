@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
+#include <sys/gpio.h>
 
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_scm.h>
@@ -65,16 +66,22 @@ __FBSDID("$FreeBSD$");
 #define SLEWCTRL	(0x01 << 6) /* faster(0) or slower(1) slew rate. */
 #define RXACTIVE	(0x01 << 5) /* Input enable value for the Pad */
 #define PULLTYPESEL	(0x01 << 4) /* Pad pullup/pulldown type selection */
-#define PULLUDEN	(0x01 << 3) /* Pullup/pulldown enabled */
+#define PULLUDEN	(0x01 << 3) /* Pullup/pulldown disabled */
+
+#define PADCONF_OUTPUT			(0)
+#define PADCONF_OUTPUT_PULLUP		(PULLTYPESEL)
+#define PADCONF_INPUT			(RXACTIVE | PULLUDEN)
+#define PADCONF_INPUT_PULLUP		(RXACTIVE | PULLTYPESEL)
+#define PADCONF_INPUT_PULLDOWN		(RXACTIVE)
+#define PADCONF_INPUT_PULLUP_SLOW	(PADCONF_INPUT_PULLUP | SLEWCTRL)
 
 const struct ti_scm_padstate ti_padstate_devmap[] = {
-	{"output",			0 },
-	{"output_pullup",		PULLTYPESEL },
-	{"input",			RXACTIVE },
-	{"input_pulldown",		RXACTIVE | PULLUDEN },
-	{"input_pullup",		RXACTIVE | PULLUDEN | PULLTYPESEL },
-	{"input_pullup_inact",		RXACTIVE | PULLTYPESEL },
-	{"input_pullup_inact_slow",	RXACTIVE | PULLTYPESEL | SLEWCTRL },
+	{"output",		PADCONF_OUTPUT },
+	{"output_pullup",	PADCONF_OUTPUT_PULLUP },
+	{"input",		PADCONF_INPUT },
+	{"input_pulldown",	PADCONF_INPUT_PULLDOWN },
+	{"input_pullup",	PADCONF_INPUT_PULLUP },
+	{"i2c",			PADCONF_INPUT_PULLUP_SLOW },
 	{ .state = NULL }
 };
 
@@ -101,10 +108,12 @@ const struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PIN(0x848, "gpmc_a2",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x84C, "gpmc_a3",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x850, "gpmc_a4",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x854, "gpmc_a5",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x858, "gpmc_a6",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x85C, "gpmc_a7",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x860, "gpmc_a8",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+#endif
+	_PIN(0x854, "GPMC_A5",		 53, 7, "gpmc_a5", "gmii2_txd0", "rgmii2_td0", "rmii2_txd0", "gpmc_a21", "pr1_mii1_rxd3", "eQEP1B_in", "gpio1_21"),
+	_PIN(0x858, "GPMC_A6",		 54, 7, "gpmc_a6", "gmii2_txclk", "rgmii2_tclk", "mmc2_dat4", "gpmc_a22", "pr1_mii1_rxd2", "eQEP1_index", "gpio1_22"),
+	_PIN(0x85C, "GPMC_A7",		 55, 7, "gpmc_a7", "gmii2_rxclk", "rgmii2_rclk", "mmc2_dat5", "gpmc_a23", "pr1_mii1_rxd1", "eQEP1_strobe", "gpio1_23"),
+	_PIN(0x860, "GPMC_A8",		 56, 7, "gpmc_a8", "gmii2_rxd3", "rgmii2_rd3", "mmc2_dat6", "gpmc_a24", "pr1_mii1_rxd0", "mcasp0_aclkx", "gpio1_24"),
+#if 0
 	_PIN(0x864, "gpmc_a9",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x868, "gpmc_a10",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x86C, "gpmc_a11",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
@@ -178,8 +187,10 @@ const struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PIN(0x96c, "uart0_rtsn",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x970, "uart0_rxd",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x974, "uart0_txd",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x978, "uart1_ctsn",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x97c, "uart1_rtsn",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+#endif
+	_PIN(0x978, "uart1_ctsn",	 12, 7, "uart1_ctsn", "timer6_mux1", "dcan0_tx", "I2C2_SDA", "spi1_cs0", "pr1_uart0_cts_n", "pr1_edc_latch0_in", "gpio0_12"),
+	_PIN(0x97c, "uart1_rtsn",	 13, 7, "uart1_rtsn", "timer5_mux1", "dcan0_rx", "I2C2_SCL", "spi1_cs1", "pr1_uart0_rts_n	", "pr1_edc_latch1_in", "gpio0_13"),
+#if 0
 	_PIN(0x980, "uart1_rxd",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x984, "uart1_txd",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 #endif
@@ -313,13 +324,50 @@ const struct ti_scm_device ti_scm_dev = {
 int
 ti_scm_padconf_set_gpioflags(uint32_t gpio, uint32_t flags)
 {
-	/* TODO */
-	return (EINVAL);
+	unsigned int state = 0;
+	if (flags & GPIO_PIN_OUTPUT) {
+		if (flags & GPIO_PIN_PULLUP)
+			state = PADCONF_OUTPUT_PULLUP;
+		else
+			state = PADCONF_OUTPUT;
+	} else if (flags & GPIO_PIN_INPUT) {
+		if (flags & GPIO_PIN_PULLUP)
+			state = PADCONF_INPUT_PULLUP;
+		else if (flags & GPIO_PIN_PULLDOWN)
+			state = PADCONF_INPUT_PULLDOWN;
+		else
+			state = PADCONF_INPUT;
+	}
+	return ti_scm_padconf_set_gpiomode(gpio, state);
 }
 
 void
 ti_scm_padconf_get_gpioflags(uint32_t gpio, uint32_t *flags)
 {
-	/* TODO */
+	unsigned int state;
+	if (ti_scm_padconf_get_gpiomode(gpio, &state) != 0)
+		*flags = 0;
+	else {
+		switch (state) {
+			case PADCONF_OUTPUT:
+				*flags = GPIO_PIN_OUTPUT;
+				break;
+			case PADCONF_OUTPUT_PULLUP:
+				*flags = GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP;
+				break;
+			case PADCONF_INPUT:
+				*flags = GPIO_PIN_INPUT;
+				break;
+			case PADCONF_INPUT_PULLUP:
+				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
+				break;
+			case PADCONF_INPUT_PULLDOWN:
+				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
+				break;
+			default:
+				*flags = 0;
+				break;
+		}
+	}
 }
 

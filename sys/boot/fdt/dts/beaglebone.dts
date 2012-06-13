@@ -65,31 +65,31 @@
 			/* Set of triplets < padname, muxname, padstate> */
 			scm-pad-config =
 				/* I2C0 */
-				"I2C0_SDA", "I2C0_SDA","input_pullup_inact_slow",
-				"I2C0_SCL", "I2C0_SCL","input_pullup_inact_slow",
+				"I2C0_SDA", "I2C0_SDA","i2c",
+				"I2C0_SCL", "I2C0_SCL","i2c",
 				/* Ethernet */
-				"MII1_RX_ER", "gmii1_rxerr", "input",
+				"MII1_RX_ER", "gmii1_rxerr", "input_pulldown",
 				"MII1_TX_EN", "gmii1_txen", "output",
-				"MII1_RX_DV", "gmii1_rxdv", "input",
+				"MII1_RX_DV", "gmii1_rxdv", "input_pulldown",
 				"MII1_TXD3", "gmii1_txd3", "output",
 				"MII1_TXD2", "gmii1_txd2", "output",
 				"MII1_TXD1", "gmii1_txd1", "output",
 				"MII1_TXD0", "gmii1_txd0", "output",
-				"MII1_TX_CLK", "gmii1_txclk", "input",
-				"MII1_RX_CLK", "gmii1_rxclk", "input",
-				"MII1_RXD3", "gmii1_rxd3", "input",
-				"MII1_RXD2", "gmii1_rxd2", "input",
-				"MII1_RXD1", "gmii1_rxd1",  "input",
-				"MII1_RXD0", "gmii1_rxd0",  "input",
-				"MDIO", "mdio_data", "input_pullup_inact",
+				"MII1_TX_CLK", "gmii1_txclk", "input_pulldown",
+				"MII1_RX_CLK", "gmii1_rxclk", "input_pulldown",
+				"MII1_RXD3", "gmii1_rxd3", "input_pulldown",
+				"MII1_RXD2", "gmii1_rxd2", "input_pulldown",
+				"MII1_RXD1", "gmii1_rxd1",  "input_pulldown",
+				"MII1_RXD0", "gmii1_rxd0",  "input_pulldown",
+				"MDIO", "mdio_data", "input_pullup",
 				"MDC", "mdio_clk", "output_pullup",
 				/* MMCSD0 */
-				"MMC0_CMD", "mmc0_cmd", "input_pullup_inact",
-				"MMC0_CLK", "mmc0_clk", "input_pullup_inact",
-				"MMC0_DAT0", "mmc0_dat0", "input_pullup_inact",
-				"MMC0_DAT1", "mmc0_dat1", "input_pullup_inact",
-				"MMC0_DAT2", "mmc0_dat2", "input_pullup_inact",
-				"MMC0_DAT3", "mmc0_dat3", "input_pullup_inact";
+				"MMC0_CMD", "mmc0_cmd", "input_pullup",
+				"MMC0_CLK", "mmc0_clk", "input_pullup",
+				"MMC0_DAT0", "mmc0_dat0", "input_pullup",
+				"MMC0_DAT1", "mmc0_dat1", "input_pullup",
+				"MMC0_DAT2", "mmc0_dat2", "input_pullup",
+				"MMC0_DAT3", "mmc0_dat3", "input_pullup";
 		};
 
 		prcm@44E00000 {
