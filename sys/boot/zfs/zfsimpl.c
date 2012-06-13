@@ -888,9 +888,10 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	}
 
 	/* Check ZFS features for read */
-	rc = nvlist_find(nvlist, ZPOOL_CONFIG_FEATURES_FOR_READ,
-			 DATA_TYPE_NVLIST, 0, &features);
-	if (nvlist_check_features_for_read(features) != 0)
+	if (nvlist_find(nvlist,
+			ZPOOL_CONFIG_FEATURES_FOR_READ,
+			DATA_TYPE_NVLIST, 0, &features) == 0
+	    && nvlist_check_features_for_read(features) != 0)
 		return (EIO);
 
 	if (nvlist_find(nvlist,
