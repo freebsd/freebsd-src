@@ -438,7 +438,6 @@ static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, HAL_11N_RATE_SERIES *series)
 {
-#define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_BOOL shortPreamble = AH_FALSE;
@@ -528,7 +527,6 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			    rt, pktlen, rc[i].rix, shortPreamble);
 		}
 	}
-#undef	HT_RC_2_STREAMS
 }
 
 #if 0
