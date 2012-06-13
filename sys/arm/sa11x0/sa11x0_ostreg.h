@@ -32,7 +32,7 @@
  */
 
 /*
- * SA-11x0 OS Timer Register 
+ * SA-11x0 OS Timer Register
  */
 
 /* OS Timer Match Register */
