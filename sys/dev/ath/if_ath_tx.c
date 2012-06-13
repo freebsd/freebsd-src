@@ -3137,7 +3137,7 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 		 * the list.)
 		 */
 		ATH_TXBUF_LOCK(sc);
-		ath_returnbuf_head(sc, bf);
+		ath_returnbuf_head(sc, nbf);
 		ATH_TXBUF_UNLOCK(sc);
 		return NULL;
 	}
