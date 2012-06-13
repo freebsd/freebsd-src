@@ -2588,13 +2588,13 @@ done2:
  * Duplicate the specified descriptor to a free descriptor.
  */
 int
-dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, int error)
+dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode, int openerror, int *indxp)
 {
-	struct file *wfp;
 	struct file *fp;
+	int error, indx;
 
-	KASSERT(error == ENODEV || error == ENXIO,
-	    ("unexpected error %d in %s", error, __func__));
+	KASSERT(openerror == ENODEV || openerror == ENXIO,
+	    ("unexpected error %d in %s", openerror, __func__));
 
 	/*
 	 * If the to-be-dup'd fd number is greater than the allowed number
@@ -2603,9 +2603,15 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 	 */
 	FILEDESC_XLOCK(fdp);
 	if ((unsigned int)dfd >= fdp->fd_nfiles ||
-	    (wfp = fdp->fd_ofiles[dfd]) == NULL) {
+	    (fp = fdp->fd_ofiles[dfd]) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
+	}
+
+	error = fdalloc(td, 0, &indx);
+	if (error != 0) {
+		FILEDESC_XUNLOCK(fdp);
+		return (error);
 	}
 
 	/*
@@ -2616,26 +2622,26 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 	 * For ENXIO steal away the file structure from (dfd) and store it in
 	 * (indx).  (dfd) is effectively closed by this operation.
 	 */
-	fp = fdp->fd_ofiles[indx];
-	switch (error) {
+	switch (openerror) {
 	case ENODEV:
 		/*
 		 * Check that the mode the file is being opened for is a
 		 * subset of the mode of the existing descriptor.
 		 */
-		if (((mode & (FREAD|FWRITE)) | wfp->f_flag) != wfp->f_flag) {
+		if (((mode & (FREAD|FWRITE)) | fp->f_flag) != fp->f_flag) {
+			fdunused(fdp, indx);
 			FILEDESC_XUNLOCK(fdp);
 			return (EACCES);
 		}
-		fdp->fd_ofiles[indx] = wfp;
+		fdp->fd_ofiles[indx] = fp;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
-		fhold(wfp);
+		fhold(fp);
 		break;
 	case ENXIO:
 		/*
 		 * Steal away the file pointer from dfd and stuff it into indx.
 		 */
-		fdp->fd_ofiles[indx] = wfp;
+		fdp->fd_ofiles[indx] = fp;
 		fdp->fd_ofiles[dfd] = NULL;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
 		fdp->fd_ofileflags[dfd] = 0;
@@ -2643,11 +2649,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		break;
 	}
 	FILEDESC_XUNLOCK(fdp);
-	/*
-	 * We now own the reference to fp that the ofiles[] array used to own.
-	 * Release it.
-	 */
-	fdrop(fp, td);
+	*indxp = indx;
 	return (0);
 }
 
