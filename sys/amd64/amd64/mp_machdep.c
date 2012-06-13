@@ -1429,9 +1429,6 @@ cpususpend_handler(void)
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
 		pmap_init_pat();
-#if 0
-		load_cr3(susppcbs[cpu]->pcb_cr3);
-#endif
 		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
