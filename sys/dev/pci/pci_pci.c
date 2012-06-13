@@ -893,9 +893,9 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	if (start < rman_get_start(w->res)) {
 		if (rman_first_free_region(&w->rman, &start_free, &end_free) !=
 		    0 || start_free != rman_get_start(w->res))
-			end_free = rman_get_start(w->res) - 1;
+			end_free = rman_get_start(w->res);
 		if (end_free > end)
-			end_free = end;
+			end_free = end + 1;
 
 		/* Move end_free down until it is properly aligned. */
 		end_free &= ~(align - 1);
@@ -913,7 +913,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 			if (bootverbose)
 				printf("\tfront candidate range: %#lx-%#lx\n",
 				    front, end_free);
-			front &= (1ul << w->step) - 1;
+			front &= ~(1ul << w->step) - 1;
 			front = rman_get_start(w->res) - front;
 		} else
 			front = 0;
