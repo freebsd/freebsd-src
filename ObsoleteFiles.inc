@@ -40,6 +40,7 @@
 
 # 20120613: auth.conf removed
 OLD_FILES+=etc/auth.conf
+OLD_FILES+=usr/share/examples/etc/auth.conf
 OLD_FILES+=usr/share/man/man3/auth.3.gz
 OLD_FILES+=usr/share/man/man5/auth.conf.5.gz
 # 20120530: kde pam lives now in ports
