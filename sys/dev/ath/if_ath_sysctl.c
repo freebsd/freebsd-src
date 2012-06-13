@@ -377,6 +377,19 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	printf("Total TX buffers: %d; Total TX buffers busy: %d\n",
 	    t, i);
 
+	i = t = 0;
+	ATH_TXBUF_LOCK(sc);
+	TAILQ_FOREACH(bf, &sc->sc_txbuf_mgmt, bf_list) {
+		if (bf->bf_flags & ATH_BUF_BUSY) {
+			printf("Busy: %d\n", t);
+			i++;
+		}
+		t++;
+	}
+	ATH_TXBUF_UNLOCK(sc);
+	printf("Total mgmt TX buffers: %d; Total mgmt TX buffers busy: %d\n",
+	    t, i);
+
 	return 0;
 }
 
