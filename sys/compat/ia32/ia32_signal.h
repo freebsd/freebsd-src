@@ -32,6 +32,12 @@
 #ifndef	_COMPAT_IA32_IA32_SIGNAL_H
 #define	_COMPAT_IA32_IA32_SIGNAL_H
 
+#define	_MC_IA32_HASSEGS	0x1
+#define	_MC_IA32_HASBASES	0x2
+#define	_MC_IA32_HASFPXSTATE	0x4
+#define	_MC_IA32_FLAG_MASK	\
+    (_MC_IA32_HASSEGS | _MC_IA32_HASBASES | _MC_IA32_HASFPXSTATE)
+
 struct ia32_mcontext {
 	u_int32_t	mc_onstack;		/* XXX - sigcontext compat. */
 	u_int32_t	mc_gs;			/* machine state (struct trapframe) */
@@ -57,14 +63,16 @@ struct ia32_mcontext {
 	/* We use the same values for fpformat and ownedfp */
 	u_int32_t	mc_fpformat;
 	u_int32_t	mc_ownedfp;
-	u_int32_t	mc_spare1[1];		/* align next field to 16 bytes */
+	u_int32_t	mc_flags;
 	/*
 	 * See <i386/include/npx.h> for the internals of mc_fpstate[].
 	 */
 	u_int32_t	mc_fpstate[128] __aligned(16);
 	u_int32_t	mc_fsbase;
 	u_int32_t	mc_gsbase;
-	u_int32_t	mc_spare2[6];
+	u_int32_t	mc_xfpustate;
+	u_int32_t	mc_xfpustate_len;
+	u_int32_t	mc_spare2[4];
 };
 
 struct ia32_ucontext {

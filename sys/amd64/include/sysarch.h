@@ -48,12 +48,14 @@
 #define	I386_SET_FSBASE		8
 #define	I386_GET_GSBASE		9
 #define	I386_SET_GSBASE		10
+#define	I386_GET_XFPUSTATE	11
 
 /* Leave space for 0-127 for to avoid translating syscalls */
 #define	AMD64_GET_FSBASE	128
 #define	AMD64_SET_FSBASE	129
 #define	AMD64_GET_GSBASE	130
 #define	AMD64_SET_GSBASE	131
+#define	AMD64_GET_XFPUSTATE	132
 
 struct i386_ldt_args {
 	unsigned int start;
@@ -65,6 +67,16 @@ struct i386_ioperm_args {
 	unsigned int start;
 	unsigned int length;
 	int	enable;
+};
+
+struct i386_get_xfpustate {
+	unsigned int addr;
+	int len;
+};
+
+struct amd64_get_xfpustate {
+	void *addr;
+	int len;
 };
 
 #ifndef _KERNEL

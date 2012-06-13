@@ -103,7 +103,10 @@ struct sigcontext {
 	long	sc_fsbase;
 	long	sc_gsbase;
 
-	long	sc_spare[6];
+	long	sc_xfpustate;
+	long	sc_xfpustate_len;
+
+	long	sc_spare[4];
 };
 #endif /* __BSD_VISIBLE */
 

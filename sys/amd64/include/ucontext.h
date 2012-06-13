@@ -37,7 +37,8 @@
  */
 #define	_MC_HASSEGS	0x1
 #define	_MC_HASBASES	0x2
-#define	_MC_FLAG_MASK	(_MC_HASSEGS | _MC_HASBASES)
+#define	_MC_HASFPXSTATE	0x4
+#define	_MC_FLAG_MASK	(_MC_HASSEGS | _MC_HASBASES | _MC_HASFPXSTATE)
 
 typedef struct __mcontext {
 	/*
@@ -92,7 +93,10 @@ typedef struct __mcontext {
 	__register_t	mc_fsbase;
 	__register_t	mc_gsbase;
 
-	long	mc_spare[6];
+	__register_t	mc_xfpustate;
+	__register_t	mc_xfpustate_len;
+
+	long	mc_spare[4];
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */

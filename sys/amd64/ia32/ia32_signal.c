@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32.h>
 #include <compat/ia32/ia32_signal.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
@@ -83,15 +84,15 @@ __FBSDID("$FreeBSD$");
 #ifdef COMPAT_FREEBSD4
 static void freebsd4_ia32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
 #endif
-static void ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp);
-static int ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp);
 
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
 static void
-ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
+ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
+    char *xfpusave, size_t xfpusave_len)
 {
+	size_t max_len, len;
 
 	/*
 	 * XXX Format of 64bit and 32bit FXSAVE areas differs. FXSAVE
@@ -100,28 +101,43 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
 	 * for now, it should be irrelevant for most applications.
 	 */
 	mcp->mc_ownedfp = fpugetregs(td);
-	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate,
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
+	if (!use_xsave || xfpusave_len == 0)
+		return;
+	max_len = cpu_max_ext_state_size - sizeof(struct savefpu);
+	len = xfpusave_len;
+	if (len > max_len) {
+		len = max_len;
+		bzero(xfpusave + max_len, len - max_len);
+	}
+	mcp->mc_flags |= _MC_HASFPXSTATE;
+	mcp->mc_xfpustate_len = len;
+	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
 }
 
 static int
-ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
+ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp,
+    char *xfpustate, size_t xfpustate_len)
 {
+	int error;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
 	else if (mcp->mc_fpformat != _MC_FPFMT_XMM)
 		return (EINVAL);
-	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE)
+	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE) {
 		/* We don't care what state is left in the FPU or PCB. */
 		fpstate_drop(td);
-	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
+		error = 0;
+	} else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+		error = fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate,
+		    xfpustate, xfpustate_len);
 	} else
 		return (EINVAL);
-	return (0);
+	return (error);
 }
 
 /*
@@ -164,10 +180,12 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_esp = tp->tf_rsp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
-	ia32_get_fpcontext(td, mcp);
+	mcp->mc_flags = tp->tf_flags;
+	ia32_get_fpcontext(td, mcp, NULL, 0);
 	mcp->mc_fsbase = pcb->pcb_fsbase;
 	mcp->mc_gsbase = pcb->pcb_gsbase;
-	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	mcp->mc_xfpustate = 0;
+	mcp->mc_xfpustate_len = 0;
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
@@ -183,6 +201,7 @@ static int
 ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
 {
 	struct trapframe *tp;
+	char *xfpustate;
 	long rflags;
 	int ret;
 
@@ -191,7 +210,18 @@ ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
 		return (EINVAL);
 	rflags = (mcp->mc_eflags & PSL_USERCHANGE) |
 	    (tp->tf_rflags & ~PSL_USERCHANGE);
-	ret = ia32_set_fpcontext(td, mcp);
+	if (mcp->mc_flags & _MC_IA32_HASFPXSTATE) {
+		if (mcp->mc_xfpustate_len > cpu_max_ext_state_size -
+		    sizeof(struct savefpu))
+			return (EINVAL);
+		xfpustate = __builtin_alloca(mcp->mc_xfpustate_len);
+		ret = copyin(PTRIN(mcp->mc_xfpustate), xfpustate,
+		    mcp->mc_xfpustate_len);
+		if (ret != 0)
+			return (ret);
+	} else
+		xfpustate = NULL;
+	ret = ia32_set_fpcontext(td, mcp, xfpustate, mcp->mc_xfpustate_len);
 	if (ret != 0)
 		return (ret);
 	tp->tf_gs = mcp->mc_gs;
@@ -425,6 +455,8 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigacts *psp;
 	char *sp;
 	struct trapframe *regs;
+	char *xfpusave;
+	size_t xfpusave_len;
 	int oonstack;
 	int sig;
 
@@ -443,6 +475,14 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
+
+	if (cpu_max_ext_state_size > sizeof(struct savefpu) && use_xsave) {
+		xfpusave_len = cpu_max_ext_state_size - sizeof(struct savefpu);
+		xfpusave = __builtin_alloca(xfpusave_len);
+	} else {
+		xfpusave_len = 0;
+		xfpusave = NULL;
+	}
 
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
@@ -472,7 +512,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_fs = regs->tf_fs;
 	sf.sf_uc.uc_mcontext.mc_gs = regs->tf_gs;
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
-	ia32_get_fpcontext(td, &sf.sf_uc.uc_mcontext);
+	ia32_get_fpcontext(td, &sf.sf_uc.uc_mcontext, xfpusave, xfpusave_len);
 	fpstate_drop(td);
 	sf.sf_uc.uc_mcontext.mc_fsbase = td->td_pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = td->td_pcb->pcb_gsbase;
@@ -480,11 +520,16 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size - sizeof(sf);
-	} else
-		sp = (char *)regs->tf_rsp - sizeof(sf);
+	    SIGISMEMBER(psp->ps_sigonstack, sig))
+		sp = td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
+	else
+		sp = (char *)regs->tf_rsp;
+	if (xfpusave != NULL) {
+		sp -= xfpusave_len;
+		sp = (char *)((unsigned long)sp & ~0x3Ful);
+		sf.sf_uc.uc_mcontext.mc_xfpustate = (register_t)sp;
+	}
+	sp -= sizeof(sf);
 	/* Align to 16 bytes. */
 	sfp = (struct ia32_sigframe *)((uintptr_t)sp & ~0xF);
 	PROC_UNLOCK(p);
@@ -516,7 +561,10 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Copy the sigframe out to the user's stack.
 	 */
-	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
+	if (copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
+	    (xfpusave != NULL && copyout(xfpusave,
+	    PTRIN(sf.sf_uc.uc_mcontext.mc_xfpustate), xfpusave_len)
+	    != 0)) {
 #ifdef DEBUG
 		printf("process %ld has trashed its stack\n", (long)p->p_pid);
 #endif
@@ -644,6 +692,8 @@ freebsd32_sigreturn(td, uap)
 	struct ia32_ucontext uc;
 	struct trapframe *regs;
 	struct ia32_ucontext *ucp;
+	char *xfpustate;
+	size_t xfpustate_len;
 	int cs, eflags, error, ret;
 	ksiginfo_t ksi;
 
@@ -690,9 +740,34 @@ freebsd32_sigreturn(td, uap)
 		return (EINVAL);
 	}
 
-	ret = ia32_set_fpcontext(td, &ucp->uc_mcontext);
-	if (ret != 0)
+	if ((ucp->uc_mcontext.mc_flags & _MC_HASFPXSTATE) != 0) {
+		xfpustate_len = uc.uc_mcontext.mc_xfpustate_len;
+		if (xfpustate_len > cpu_max_ext_state_size -
+		    sizeof(struct savefpu)) {
+			uprintf("pid %d (%s): sigreturn xfpusave_len = 0x%zx\n",
+			    td->td_proc->p_pid, td->td_name, xfpustate_len);
+			return (EINVAL);
+		}
+		xfpustate = __builtin_alloca(xfpustate_len);
+		error = copyin(PTRIN(ucp->uc_mcontext.mc_xfpustate),
+		    xfpustate, xfpustate_len);
+		if (error != 0) {
+			uprintf(
+	"pid %d (%s): sigreturn copying xfpustate failed\n",
+			    td->td_proc->p_pid, td->td_name);
+			return (error);
+		}
+	} else {
+		xfpustate = NULL;
+		xfpustate_len = 0;
+	}
+	ret = ia32_set_fpcontext(td, &ucp->uc_mcontext, xfpustate,
+	    xfpustate_len);
+	if (ret != 0) {
+		uprintf("pid %d (%s): sigreturn set_fpcontext err %d\n",
+		    td->td_proc->p_pid, td->td_name, ret);
 		return (ret);
+	}
 
 	regs->tf_rdi = ucp->uc_mcontext.mc_edi;
 	regs->tf_rsi = ucp->uc_mcontext.mc_esi;

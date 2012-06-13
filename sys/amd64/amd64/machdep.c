@@ -149,8 +149,10 @@ extern void panicifcpuunsupported(void);
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
 static void cpu_startup(void *);
-static void get_fpcontext(struct thread *td, mcontext_t *mcp);
-static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
+static void get_fpcontext(struct thread *td, mcontext_t *mcp,
+    char *xfpusave, size_t xfpusave_len);
+static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
+    char *xfpustate, size_t xfpustate_len);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 #ifdef DDB
@@ -305,6 +307,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigacts *psp;
 	char *sp;
 	struct trapframe *regs;
+	char *xfpusave;
+	size_t xfpusave_len;
 	int sig;
 	int oonstack;
 
@@ -318,6 +322,14 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
 
+	if (cpu_max_ext_state_size > sizeof(struct savefpu) && use_xsave) {
+		xfpusave_len = cpu_max_ext_state_size - sizeof(struct savefpu);
+		xfpusave = __builtin_alloca(xfpusave_len);
+	} else {
+		xfpusave_len = 0;
+		xfpusave = NULL;
+	}
+
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
@@ -327,7 +339,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_rdi, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
-	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
+	get_fpcontext(td, &sf.sf_uc.uc_mcontext, xfpusave, xfpusave_len);
 	fpstate_drop(td);
 	sf.sf_uc.uc_mcontext.mc_fsbase = pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = pcb->pcb_gsbase;
@@ -338,13 +350,18 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size - sizeof(struct sigframe);
+		sp = td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
-		sp = (char *)regs->tf_rsp - sizeof(struct sigframe) - 128;
+		sp = (char *)regs->tf_rsp - 128;
+	if (xfpusave != NULL) {
+		sp -= xfpusave_len;
+		sp = (char *)((unsigned long)sp & ~0x3Ful);
+		sf.sf_uc.uc_mcontext.mc_xfpustate = (register_t)sp;
+	}
+	sp -= sizeof(struct sigframe);
 	/* Align to 16 bytes. */
 	sfp = (struct sigframe *)((unsigned long)sp & ~0xFul);
 
@@ -377,7 +394,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Copy the sigframe out to the user's stack.
 	 */
-	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
+	if (copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
+	    (xfpusave != NULL && copyout(xfpusave,
+	    (void *)sf.sf_uc.uc_mcontext.mc_xfpustate, xfpusave_len)
+	    != 0)) {
 #ifdef DEBUG
 		printf("process %ld has trashed its stack\n", (long)p->p_pid);
 #endif
@@ -422,6 +442,8 @@ sigreturn(td, uap)
 	struct proc *p;
 	struct trapframe *regs;
 	ucontext_t *ucp;
+	char *xfpustate;
+	size_t xfpustate_len;
 	long rflags;
 	int cs, error, ret;
 	ksiginfo_t ksi;
@@ -480,7 +502,28 @@ sigreturn(td, uap)
 		return (EINVAL);
 	}
 
-	ret = set_fpcontext(td, &ucp->uc_mcontext);
+	if ((uc.uc_mcontext.mc_flags & _MC_HASFPXSTATE) != 0) {
+		xfpustate_len = uc.uc_mcontext.mc_xfpustate_len;
+		if (xfpustate_len > cpu_max_ext_state_size -
+		    sizeof(struct savefpu)) {
+			uprintf("pid %d (%s): sigreturn xfpusave_len = 0x%zx\n",
+			    p->p_pid, td->td_name, xfpustate_len);
+			return (EINVAL);
+		}
+		xfpustate = __builtin_alloca(xfpustate_len);
+		error = copyin((const void *)uc.uc_mcontext.mc_xfpustate,
+		    xfpustate, xfpustate_len);
+		if (error != 0) {
+			uprintf(
+	"pid %d (%s): sigreturn copying xfpustate failed\n",
+			    p->p_pid, td->td_name);
+			return (error);
+		}
+	} else {
+		xfpustate = NULL;
+		xfpustate_len = 0;
+	}
+	ret = set_fpcontext(td, &ucp->uc_mcontext, xfpustate, xfpustate_len);
 	if (ret != 0) {
 		uprintf("pid %d (%s): sigreturn set_fpcontext err %d\n",
 		    p->p_pid, td->td_name, ret);
@@ -1543,6 +1586,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	int gsel_tss, x;
 	struct pcpu *pc;
 	struct nmi_pcpu *np;
+	struct xstate_hdr *xhdr;
 	u_int64_t msr;
 	char *env;
 	size_t kstack0_sz;
@@ -1552,7 +1596,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
 	bzero((void *)thread0.td_kstack, kstack0_sz);
 	physfree += kstack0_sz;
-	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -1601,7 +1644,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	physfree += DPCPU_SIZE;
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
-	PCPU_SET(curpcb, thread0.td_pcb);
 	PCPU_SET(tssp, &common_tss[0]);
 	PCPU_SET(commontssp, &common_tss[0]);
 	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
@@ -1693,13 +1735,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	initializecpu();	/* Initialize CPU registers */
 	initializecpucache();
 
-	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	common_tss[0].tss_rsp0 = thread0.td_kstack +
-	    kstack0_sz - sizeof(struct pcb);
-	/* Ensure the stack is aligned to 16 bytes */
-	common_tss[0].tss_rsp0 &= ~0xFul;
-	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
-
 	/* doublefault stack space, runs on ist1 */
 	common_tss[0].tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
 
@@ -1735,6 +1770,25 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	msgbufinit(msgbufp, msgbufsize);
 	fpuinit();
+
+	/*
+	 * Set up thread0 pcb after fpuinit calculated pcb + fpu save
+	 * area size.  Zero out the extended state header in fpu save
+	 * area.
+	 */
+	thread0.td_pcb = get_pcb_td(&thread0);
+	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
+	if (use_xsave) {
+		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
+		    1);
+		xhdr->xstate_bv = xsave_mask;
+	}
+	/* make an initial tss so cpu can get interrupt stack on syscall! */
+	common_tss[0].tss_rsp0 = (vm_offset_t)thread0.td_pcb;
+	/* Ensure the stack is aligned to 16 bytes */
+	common_tss[0].tss_rsp0 &= ~0xFul;
+	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
+	PCPU_SET(curpcb, thread0.td_pcb);
 
 	/* transfer to user mode */
 
@@ -2006,7 +2060,7 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 	    P_SHOULDSTOP(td->td_proc),
 	    ("not suspended thread %p", td));
 	fpugetregs(td);
-	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);
+	fill_fpregs_xmm(get_pcb_user_save_td(td), fpregs);
 	return (0);
 }
 
@@ -2015,7 +2069,7 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_user_save);
+	set_fpregs_xmm(fpregs, get_pcb_user_save_td(td));
 	fpuuserinited(td);
 	return (0);
 }
@@ -2066,9 +2120,11 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_gs = tp->tf_gs;
 	mcp->mc_flags = tp->tf_flags;
 	mcp->mc_len = sizeof(*mcp);
-	get_fpcontext(td, mcp);
+	get_fpcontext(td, mcp, NULL, 0);
 	mcp->mc_fsbase = pcb->pcb_fsbase;
 	mcp->mc_gsbase = pcb->pcb_gsbase;
+	mcp->mc_xfpustate = 0;
+	mcp->mc_xfpustate_len = 0;
 	bzero(mcp->mc_spare, sizeof(mcp->mc_spare));
 	return (0);
 }
@@ -2084,6 +2140,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
 	struct pcb *pcb;
 	struct trapframe *tp;
+	char *xfpustate;
 	long rflags;
 	int ret;
 
@@ -2094,7 +2151,18 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		return (EINVAL);
 	rflags = (mcp->mc_rflags & PSL_USERCHANGE) |
 	    (tp->tf_rflags & ~PSL_USERCHANGE);
-	ret = set_fpcontext(td, mcp);
+	if (mcp->mc_flags & _MC_HASFPXSTATE) {
+		if (mcp->mc_xfpustate_len > cpu_max_ext_state_size -
+		    sizeof(struct savefpu))
+			return (EINVAL);
+		xfpustate = __builtin_alloca(mcp->mc_xfpustate_len);
+		ret = copyin((void *)mcp->mc_xfpustate, xfpustate,
+		    mcp->mc_xfpustate_len);
+		if (ret != 0)
+			return (ret);
+	} else
+		xfpustate = NULL;
+	ret = set_fpcontext(td, mcp, xfpustate, mcp->mc_xfpustate_len);
 	if (ret != 0)
 		return (ret);
 	tp->tf_r15 = mcp->mc_r15;
@@ -2132,35 +2200,51 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 }
 
 static void
-get_fpcontext(struct thread *td, mcontext_t *mcp)
+get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
+    size_t xfpusave_len)
 {
+	size_t max_len, len;
 
 	mcp->mc_ownedfp = fpugetregs(td);
-	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate,
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
+	if (!use_xsave || xfpusave_len == 0)
+		return;
+	max_len = cpu_max_ext_state_size - sizeof(struct savefpu);
+	len = xfpusave_len;
+	if (len > max_len) {
+		len = max_len;
+		bzero(xfpusave + max_len, len - max_len);
+	}
+	mcp->mc_flags |= _MC_HASFPXSTATE;
+	mcp->mc_xfpustate_len = len;
+	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
 }
 
 static int
-set_fpcontext(struct thread *td, const mcontext_t *mcp)
+set_fpcontext(struct thread *td, const mcontext_t *mcp, char *xfpustate,
+    size_t xfpustate_len)
 {
 	struct savefpu *fpstate;
+	int error;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
 	else if (mcp->mc_fpformat != _MC_FPFMT_XMM)
 		return (EINVAL);
-	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE)
+	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE) {
 		/* We don't care what state is left in the FPU or PCB. */
 		fpstate_drop(td);
-	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
+		error = 0;
+	} else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
 		fpstate = (struct savefpu *)&mcp->mc_fpstate;
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
-		fpusetregs(td, fpstate);
+		error = fpusetregs(td, fpstate, xfpustate, xfpustate_len);
 	} else
 		return (EINVAL);
-	return (0);
+	return (error);
 }
 
 void

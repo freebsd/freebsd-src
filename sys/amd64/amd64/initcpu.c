@@ -72,6 +72,7 @@ u_int	cpu_vendor_id;		/* CPU vendor ID */
 u_int	cpu_fxsr;		/* SSE enabled */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
 u_int	cpu_clflush_line_size = 32;
+u_int	cpu_max_ext_state_size;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
 	&via_feature_rng, 0, "VIA C3/C7 RNG feature available in CPU");

@@ -270,6 +270,8 @@ wakeup_pcb:
 wakeup_gdt:
 	.word	0
 	.quad	0
+wakeup_fpusave:
+	.quad	0
 
 	ALIGN_DATA
 wakeup_efer:

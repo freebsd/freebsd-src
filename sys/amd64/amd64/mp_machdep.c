@@ -105,7 +105,8 @@ extern pt_entry_t *KPTphys;
 extern pt_entry_t *SMPpt;
 
 struct pcb stoppcbs[MAXCPU];
-struct pcb **susppcbs = NULL;
+struct pcb **susppcbs;
+void **suspfpusave;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -1351,6 +1352,7 @@ cpususpend_handler(void)
 	cr3 = rcr3();
 
 	if (savectx(susppcbs[cpu])) {
+		ctx_fpusave(suspfpusave[cpu]);
 		wbinvd();
 		atomic_set_int(&stopped_cpus, cpumask);
 	} else {
