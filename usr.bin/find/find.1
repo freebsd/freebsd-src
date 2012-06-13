@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2012
+.Dd June 13, 2012
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -126,36 +126,15 @@ as an effective alternative.
 .It Fl d
 Cause
 .Nm
-to perform a depth-first traversal, i.e., directories
-are visited in post-order and all entries in a directory will be acted
-on before the directory itself.
-By default,
-.Nm
-visits directories in pre-order, i.e., before their contents.
-Note, the default is
-.Em not
-a breadth-first traversal.
+to perform a depth-first traversal.
 .Pp
-This option is the BSD-specific equivalent of the
+This option is a BSD-specific equivalent of the
 .Ic -depth
-primary of
+primary specified by
 .St -p1003.1-2001 .
-The
-.Fl d
-option
-can be useful when
-.Nm
-is used with
-.Xr cpio 1
-to process files that are contained in directories with unusual permissions.
-It ensures that you have write permission while you are placing files in a
-directory, then sets the directory's permissions as the last thing.
-.It Fl f
-Specify a file hierarchy for
-.Nm
-to traverse.
-File hierarchies may also be specified as the operands immediately
-following the options.
+Refer to its description under
+.Sx PRIMARIES
+for more information.
 .It Fl s
 Cause
 .Nm
@@ -327,8 +306,29 @@ Following symlinks is incompatible with this option.
 Always true;
 same as the non-portable
 .Fl d
-option.  Refer to the primary description of
-.Ic -depth for full information.
+option.
+Cause
+.Nm
+to perform a depth-first traversal, i.e., directories
+are visited in post-order and all entries in a directory will be acted
+on before the directory itself.
+By default,
+.Nm
+visits directories in pre-order, i.e., before their contents.
+Note, the default is
+.Em not
+a breadth-first traversal.
+.Pp
+The
+.Ic -depth
+primary
+can be useful when
+.Nm
+is used with
+.Xr cpio 1
+to process files that are contained in directories with unusual permissions.
+It ensures that you have write permission while you are placing files in a
+directory, then sets the directory's permissions as the last thing.
 .It Ic -depth Ar n
 True if the depth of the file relative to the starting point of the traversal
 is
