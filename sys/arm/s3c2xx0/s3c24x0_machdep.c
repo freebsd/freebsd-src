@@ -38,7 +38,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -150,42 +150,42 @@ static const struct pmap_devmap s3c24x0_devmap[] = {
 		_A(S3C24X0_CLKMAN_BASE),
 		_A(S3C24X0_CLKMAN_PA_BASE),
 		_S(S3C24X0_CLKMAN_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE, 
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_GPIO_BASE),
 		_A(S3C24X0_GPIO_PA_BASE),
 		_S(S3C2410_GPIO_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_INTCTL_BASE),
 		_A(S3C24X0_INTCTL_PA_BASE),
 		_S(S3C24X0_INTCTL_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE, 
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_TIMER_BASE),
 		_A(S3C24X0_TIMER_PA_BASE),
 		_S(S3C24X0_TIMER_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_UART0_BASE),
 		_A(S3C24X0_UART0_PA_BASE),
 		_S(S3C24X0_UART_PA_BASE(3) - S3C24X0_UART0_PA_BASE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_WDT_BASE),
 		_A(S3C24X0_WDT_PA_BASE),
 		_S(S3C24X0_WDT_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
@@ -281,7 +281,7 @@ initarm(struct arm_boot_params *abp)
 			kernel_pt_table[loop].pv_va = freemempos -
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_pa = 
+			kernel_pt_table[loop].pv_pa =
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
@@ -315,7 +315,7 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
+	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE
 	    - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * L1_S_SIZE,
