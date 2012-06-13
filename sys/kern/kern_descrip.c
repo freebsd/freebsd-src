@@ -189,8 +189,9 @@ void	(*mq_fdclose)(struct thread *td, int fd, struct file *fp);
 static struct mtx	fdesc_mtx;
 
 /*
- * Find the first zero bit in the given bitmap, starting at low and not
- * exceeding size - 1.
+ * If low >= size, just return low. Otherwise find the first zero bit in the
+ * given bitmap, starting at low and not exceeding size - 1. Return size if
+ * not found.
  */
 static int
 fd_first_free(struct filedesc *fdp, int low, int size)
@@ -1461,7 +1462,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
-	int fd = -1, maxfd;
+	int fd = -1, maxfd, allocfd;
 #ifdef RACCT
 	int error;
 #endif
@@ -1476,25 +1477,26 @@ fdalloc(struct thread *td, int minfd, int *result)
 	PROC_UNLOCK(p);
 
 	/*
-	 * Search the bitmap for a free descriptor.  If none is found, try
-	 * to grow the file table.  Keep at it until we either get a file
-	 * descriptor or run into process or system limits.
+	 * Search the bitmap for a free descriptor starting at minfd.
+	 * If none is found, grow the file table.
 	 */
-	for (;;) {
-		fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
-		if (fd >= maxfd)
-			return (EMFILE);
-		if (fd < fdp->fd_nfiles)
-			break;
+	fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
+	if (fd >= maxfd)
+		return (EMFILE);
+	if (fd >= fdp->fd_nfiles) {
+		allocfd = min(fd * 2, maxfd);
 #ifdef RACCT
 		PROC_LOCK(p);
-		error = racct_set(p, RACCT_NOFILE,
-		    min(fdp->fd_nfiles * 2, maxfd));
+		error = racct_set(p, RACCT_NOFILE, allocfd);
 		PROC_UNLOCK(p);
 		if (error != 0)
 			return (EMFILE);
 #endif
-		fdgrowtable(fdp, min(fdp->fd_nfiles * 2, maxfd));
+		/*
+		 * fd is already equal to first free descriptor >= minfd, so
+		 * we only need to grow the table and we are done.
+		 */
+		fdgrowtable(fdp, allocfd);
 	}
 
 	/*
