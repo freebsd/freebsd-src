@@ -142,8 +142,8 @@ wakeup_32:
 	mov	%ax, %ds
 
 	/* Get PCB and return address. */
-	movl	wakeup_pcb - wakeup_start(%ebx), %esi
-	movl	wakeup_ret - wakeup_start(%ebx), %edi
+	movl	wakeup_pcb - wakeup_start(%ebx), %ecx
+	movl	wakeup_ret - wakeup_start(%ebx), %edx
 
 	/* Restore CR4 and CR3. */
 	movl	wakeup_cr4 - wakeup_start(%ebx), %eax
@@ -166,7 +166,7 @@ wakeup_32:
 	jmp	1f
 1:
 	/* Jump to return address. */
-	jmp	*%edi
+	jmp	*%edx
 
 	.data
 

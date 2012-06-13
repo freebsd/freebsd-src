@@ -97,7 +97,7 @@ struct trapframe;
 
 void	makectx(struct trapframe *, struct pcb *);
 int	savectx(struct pcb *) __returns_twice;
-void	resumectx(struct pcb *);
+void	resumectx(struct pcb *) __fastcall;
 #endif
 
 #endif /* _I386_PCB_H_ */
