@@ -184,7 +184,7 @@ ath_txfrag_cleanup(struct ath_softc *sc,
 	TAILQ_FOREACH_SAFE(bf, frags, bf_list, next) {
 		/* NB: bf assumed clean */
 		TAILQ_REMOVE(frags, bf, bf_list);
-		TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+		ath_returnbuf_head(sc, bf);
 		ieee80211_node_decref(ni);
 	}
 }
@@ -1916,7 +1916,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad2:
 	ATH_TXBUF_LOCK(sc);
-	TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+	ath_returnbuf_head(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
 bad:
 	ATH_PCU_LOCK(sc);
@@ -3137,7 +3137,7 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 		 * the list.)
 		 */
 		ATH_TXBUF_LOCK(sc);
-		TAILQ_INSERT_HEAD(&sc->sc_txbuf, nbf, bf_list);
+		ath_returnbuf_head(sc, bf);
 		ATH_TXBUF_UNLOCK(sc);
 		return NULL;
 	}
