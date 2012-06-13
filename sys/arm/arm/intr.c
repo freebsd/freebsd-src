@@ -40,7 +40,7 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/syslog.h> 
+#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
@@ -62,7 +62,7 @@ void	arm_handler_execute(struct trapframe *, int);
 void (*arm_post_filter)(void *) = NULL;
 
 void
-arm_setup_irqhandler(const char *name, driver_filter_t *filt, 
+arm_setup_irqhandler(const char *name, driver_filter_t *filt,
     void (*hand)(void*), void *arg, int irq, int flags, void **cookiep)
 {
 	struct intr_event *event;
@@ -78,7 +78,7 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		if (error)
 			return;
 		intr_events[irq] = event;
-		last_printed += 
+		last_printed +=
 		    snprintf(intrnames + last_printed,
 		    MAXCOMLEN + 1,
 		    "irq%d: %s", irq, name);
