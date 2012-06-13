@@ -1093,7 +1093,6 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct file *fp;
 	struct vnode *vp;
 	int cmode;
-	struct file *nfp;
 	int type, indx = -1, error, error_open;
 	struct flock lf;
 	struct nameidata nd;
@@ -1120,11 +1119,13 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	/*
 	 * Allocate the file descriptor, but don't install a descriptor yet.
 	 */
-	error = falloc_noinstall(td, &nfp);
+	error = falloc_noinstall(td, &fp);
 	if (error)
 		return (error);
-	/* An extra reference on `nfp' has been held for us by falloc_noinstall(). */
-	fp = nfp;
+	/*
+	 * An extra reference on `fp' has been held for us by
+	 * falloc_noinstall().
+	 */
 	/* Set the flags early so the finit in devfs can pick them up. */
 	fp->f_flag = flags & FMASK;
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
@@ -4480,7 +4481,6 @@ sys_fhopen(td, uap)
 	struct flock lf;
 	struct file *fp;
 	int fmode, error, type;
-	struct file *nfp;
 	int vfslocked;
 	int indx;
 
@@ -4508,15 +4508,17 @@ sys_fhopen(td, uap)
 		return (error);
 	}
 
-	error = falloc_noinstall(td, &nfp);
+	error = falloc_noinstall(td, &fp);
 	if (error) {
 		vput(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
- 	}
+	}
 
-	/* An extra reference on `nfp' has been held for us by falloc(). */
-	fp = nfp;
+	/*
+	 * An extra reference on `fp' has been held for us by
+	 * falloc_noinstall().
+	 */
 #ifdef INVARIANTS
 	td->td_dupfd = -1;
 #endif
@@ -4549,7 +4551,7 @@ sys_fhopen(td, uap)
 		if ((fmode & FNONBLOCK) == 0)
 			type |= F_WAIT;
 		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
-			    type)) != 0)
+		    type)) != 0)
 			goto bad;
 		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
