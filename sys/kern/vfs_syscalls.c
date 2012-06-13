@@ -1113,7 +1113,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 			return (EINVAL);
 	} else if ((flags & O_ACCMODE) == O_ACCMODE) {
 		return (EINVAL);
-	} else
+	} else {
 		flags = FFLAGS(flags);
 	}
 
