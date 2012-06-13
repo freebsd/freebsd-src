@@ -371,6 +371,7 @@ FBSD_1.2 {
 
 FBSD_1.3 {
 	__FreeBSD_libc_enter_restricted_mode;
+	getcontextx;
 };
 
 FBSDprivate_1.0 {
@@ -487,4 +488,6 @@ FBSDprivate_1.0 {
 	_wait;
 	__waitpid;
 	_waitpid;
+	__fillcontextx;
+	__getcontextx_size;
 };

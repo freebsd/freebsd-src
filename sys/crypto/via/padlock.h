@@ -76,7 +76,7 @@ struct padlock_session {
 	int		ses_used;
 	uint32_t	ses_id;
 	TAILQ_ENTRY(padlock_session) ses_next;
-	struct fpu_kern_ctx ses_fpu_ctx;
+	struct fpu_kern_ctx *ses_fpu_ctx;
 };
 
 #define	PADLOCK_ALIGN(p)	(void *)(roundup2((uintptr_t)(p), 16))

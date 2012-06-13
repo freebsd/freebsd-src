@@ -114,13 +114,16 @@ struct sigcontext {
 	 */
 	int	sc_fpformat;
 	int	sc_ownedfp;
-	int	sc_spare1[1];
+	int	sc_flags;
 	int	sc_fpstate[128] __aligned(16);
 
 	int	sc_fsbase;
 	int	sc_gsbase;
 
-	int	sc_spare2[6];
+	int	sc_xfpustate;
+	int	sc_xfpustate_len;
+
+	int	sc_spare2[4];
 };
 
 #define	sc_sp		sc_esp

@@ -583,8 +583,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sdp = &td->td_pcb->pcb_gsd;
 	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
-	bzero(sf.sf_uc.uc_mcontext.mc_spare1,
-	    sizeof(sf.sf_uc.uc_mcontext.mc_spare1));
+	sf.sf_uc.uc_mcontext.mc_flags = 0;
 	bzero(sf.sf_uc.uc_mcontext.mc_spare2,
 	    sizeof(sf.sf_uc.uc_mcontext.mc_spare2));
 	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
@@ -2634,7 +2633,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
-	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	mcp->mc_flags = 0;
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	return (0);
 }
