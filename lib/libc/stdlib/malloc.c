@@ -5790,6 +5790,9 @@ MALLOC_OUT:
 #ifdef MALLOC_DSS
 	malloc_mutex_init(&dss_mtx);
 	dss_base = sbrk(0);
+	i = (uintptr_t)dss_base & QUANTUM_MASK;
+	if (i != 0)
+		dss_base = sbrk(QUANTUM - i);
 	dss_prev = dss_base;
 	dss_max = dss_base;
 	extent_tree_szad_new(&dss_chunks_szad);
