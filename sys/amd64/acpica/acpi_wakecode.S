@@ -220,7 +220,6 @@ wakeup_64:
 	mov	%ax, %ds
 
 	/* Restore arguments. */
-	movq	wakeup_cr3 - wakeup_start(%rbx), %rsi
 	movq	wakeup_pcb - wakeup_start(%rbx), %rdi
 	movq	wakeup_ret - wakeup_start(%rbx), %rax
 
@@ -273,10 +272,6 @@ bootgdtdesc:
 	.long	bootgdt - wakeup_start	/* Offset plus %ds << 4 */
 
 	ALIGN_DATA
-wakeup_cr4:		/* not used */
-	.quad	0
-wakeup_cr3:
-	.quad	0
 wakeup_pcb:
 	.quad	0
 wakeup_ret:

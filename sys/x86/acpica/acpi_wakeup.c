@@ -89,9 +89,11 @@ static void		acpi_wakeup_cpus(struct acpi_softc *);
 #define ACPI_PAGETABLES	0
 #endif
 
-#define	WAKECODE_VADDR(sc)	((sc)->acpi_wakeaddr + (ACPI_PAGETABLES * PAGE_SIZE))
-#define	WAKECODE_PADDR(sc)	((sc)->acpi_wakephys + (ACPI_PAGETABLES * PAGE_SIZE))
-#define	WAKECODE_FIXUP(offset, type, val) do	{	\
+#define	WAKECODE_VADDR(sc)				\
+    ((sc)->acpi_wakeaddr + (ACPI_PAGETABLES * PAGE_SIZE))
+#define	WAKECODE_PADDR(sc)				\
+    ((sc)->acpi_wakephys + (ACPI_PAGETABLES * PAGE_SIZE))
+#define	WAKECODE_FIXUP(offset, type, val)	do {	\
 	type	*addr;					\
 	addr = (type *)(WAKECODE_VADDR(sc) + offset);	\
 	*addr = val;					\
@@ -210,7 +212,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
+#ifndef __amd64__
 		WAKECODE_FIXUP(wakeup_cr4, register_t, susppcbs[0]->pcb_cr4);
+#endif
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t,
 		    susppcbs[0]->pcb_gdt.rd_limit);
@@ -248,9 +252,6 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 		/* Wakeup MD procedures in interrupt disabled context */
 		if (sleep_result == 1) {
 			pmap_init_pat();
-#if 0
-			load_cr3(susppcbs[0]->pcb_cr3);
-#endif
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
@@ -300,7 +301,8 @@ acpi_alloc_wakeup_handler(void)
 	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
 	    EVENTHANDLER_PRI_LAST) == NULL) {
 		printf("%s: can't register event handler\n", __func__);
-		contigfree(wakeaddr, (ACPI_PAGETABLES + 1) * PAGE_SIZE, M_DEVBUF);
+		contigfree(wakeaddr, (ACPI_PAGETABLES + 1) * PAGE_SIZE,
+		    M_DEVBUF);
 		return (NULL);
 	}
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
@@ -348,17 +350,14 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
-#ifdef __amd64__
-	WAKECODE_FIXUP(wakeup_cr3, uint64_t, KPML4phys);
-#else
+#ifndef __amd64__
 #ifdef PAE
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
 #else
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));
 #endif
-#endif
 
-#ifdef __amd64__
+#else
 	/* Build temporary page tables below realmode code. */
 	pt4 = wakeaddr;
 	pt3 = pt4 + (PAGE_SIZE) / sizeof(uint64_t);
