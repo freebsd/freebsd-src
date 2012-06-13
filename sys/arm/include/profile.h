@@ -38,7 +38,7 @@
 #define	_MACHINE_PROFILE_H_
 
 /*
- * Config generates something to tell the compiler to align functions on 32 
+ * Config generates something to tell the compiler to align functions on 32
  * byte boundaries.  A strict alignment is good for keeping the tables small.
  */
 #define	FUNCTION_ALIGNMENT	16

@@ -148,7 +148,7 @@ struct switchframe {
 	u_int	sf_r7;
 	u_int	sf_pc;
 };
- 
+
 /*
  * Stack frame. Used during stack traces (db_trace.c)
  */
@@ -162,5 +162,3 @@ struct frame {
 #endif /* !_LOCORE */
 
 #endif /* _MACHINE_FRAME_H_ */
-  
-/* End of frame.h */
