@@ -1111,13 +1111,14 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	if (flags & O_EXEC) {
 		if (flags & O_ACCMODE)
 			return (EINVAL);
-	} else if ((flags & O_ACCMODE) == O_ACCMODE)
+	} else if ((flags & O_ACCMODE) == O_ACCMODE) {
 		return (EINVAL);
-	else
+	} else
 		flags = FFLAGS(flags);
+	}
 
 	/*
-	 * allocate the file descriptor, but don't install a descriptor yet
+	 * Allocate the file descriptor, but don't install a descriptor yet.
 	 */
 	error = falloc_noinstall(td, &nfp);
 	if (error)
@@ -1141,7 +1142,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 			goto success;
 
 		/*
-		 * handle special fdopen() case.  bleh.  dupfdopen() is
+		 * Handle special fdopen() case. bleh. dupfdopen() is
 		 * responsible for dropping the old contents of ofiles[indx]
 		 * if it succeeds.
 		 *
@@ -1149,9 +1150,9 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		 * understand exactly what would happen, and we don't think
 		 * that it ever should.
 		 */
-		if ((nd.ni_strictrelative == 0) &&
+		if (nd.ni_strictrelative == 0 &&
 		    (error == ENODEV || error == ENXIO) &&
-		    (td->td_dupfd >= 0)) {
+		    td->td_dupfd >= 0) {
 			/* XXX from fdopen */
 			error_open = error;
 			if ((error = finstall(td, fp, &indx, flags)) != 0)
@@ -1206,7 +1207,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		if ((flags & FNONBLOCK) == 0)
 			type |= F_WAIT;
 		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
-			    type)) != 0)
+		    type)) != 0)
 			goto bad;
 		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
