@@ -124,7 +124,7 @@ struct ieee_double {
 	u_int	dbl_sign:1;
 #if _IEEE_WORD_ORDER == _BIG_ENDIAN
 	u_int   dbl_fracl;
-#endif  
+#endif
 #endif
 };
 
