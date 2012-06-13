@@ -1161,17 +1161,9 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 			    flags, error_open)) == 0)
 				goto success;
 		}
-		/*
-		 * Clean up the descriptor, but only if another thread hadn't
-		 * replaced or closed it.
-		 */
-		if (indx != -1)
-			fdclose(fdp, fp, indx, td);
-		fdrop(fp, td);
-
 		if (error == ERESTART)
 			error = EINTR;
-		return (error);
+		goto bad_unlocked;
 	}
 	td->td_dupfd = 0;
 	vfslocked = NDHASGIANT(&nd);
