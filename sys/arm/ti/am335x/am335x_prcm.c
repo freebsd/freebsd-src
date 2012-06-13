@@ -387,10 +387,10 @@ am335x_clk_gpio_activate(struct ti_clock_dev *clkdev)
 	/* set *_CLKCTRL register MODULEMODE[1:0] to enable(2) */
 	/* set *_CLKCTRL register OPTFCLKEN_GPIO_1_G DBCLK[18] to FCLK_EN(1) */
 	prcm_write_4(clk_details->clkctrl_reg, 2 | (1 << 18));
-	while ((prcm_read_4(clk_details->clkctrl_reg) & (3 | (1 << 18) )) != (2 | (1 << 18)))
+	while ((prcm_read_4(clk_details->clkctrl_reg) & 
+	    (3 | (1 << 18) )) != (2 | (1 << 18)))
 		DELAY(10);
 
-	printf("%s: reg=0x%08x val=0x%08x\n",__func__, clk_details->clkctrl_reg, prcm_read_4(clk_details->clkctrl_reg) );
 	return (0);
 }
 
