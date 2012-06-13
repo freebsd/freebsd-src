@@ -7355,12 +7355,6 @@ fold_builtin_ceil (tree fndecl, tree arglist)
 	}
     }
 
-  /* Fold floor (x) where x is nonnegative to trunc (x).  */
-  if (tree_expr_nonnegative_p (arg))
-    return build_function_call_expr (mathfn_built_in (TREE_TYPE (arg),
-						      BUILT_IN_TRUNC),
-				     arglist);
-
   return fold_trunc_transparent_mathfn (fndecl, arglist);
 }
 
@@ -7446,18 +7440,6 @@ fold_builtin_int_roundingfn (tree fndecl, tree arglist)
 	  if (int_fits_type_p (result, itype))
 	    return fold_convert (itype, result);
 	}
-    }
-
-  switch (DECL_FUNCTION_CODE (fndecl))
-    {
-    CASE_FLT_FN (BUILT_IN_LFLOOR):
-    CASE_FLT_FN (BUILT_IN_LLFLOOR):
-      /* Fold lfloor (x) where x is nonnegative to FIX_TRUNC (x).  */
-      if (tree_expr_nonnegative_p (arg))
-	return fold_build1 (FIX_TRUNC_EXPR, TREE_TYPE (TREE_TYPE (fndecl)),
-			    arg);
-      break;
-    default:;
     }
 
   return fold_fixed_mathfn (fndecl, arglist);
