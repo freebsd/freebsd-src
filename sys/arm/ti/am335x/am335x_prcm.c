@@ -118,6 +118,7 @@ static struct resource_spec am335x_prcm_spec[] = {
 static struct am335x_prcm_softc *am335x_prcm_sc = NULL;
 
 static int am335x_clk_generic_activate(struct ti_clock_dev *clkdev);
+static int am335x_clk_gpio_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
 static int am335x_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,  unsigned int *freq);
@@ -130,6 +131,15 @@ static int am335x_clk_musb0_activate(struct ti_clock_dev *clkdev);
 #define AM335X_GENERIC_CLOCK_DEV(i) \
 	{	.id = (i), \
 		.clk_activate = am335x_clk_generic_activate, \
+		.clk_deactivate = am335x_clk_generic_deactivate, \
+		.clk_set_source = am335x_clk_generic_set_source, \
+		.clk_accessible = NULL, \
+		.clk_get_source_freq = NULL \
+	}
+
+#define AM335X_GPIO_CLOCK_DEV(i) \
+	{	.id = (i), \
+		.clk_activate = am335x_clk_gpio_activate, \
 		.clk_deactivate = am335x_clk_generic_deactivate, \
 		.clk_set_source = am335x_clk_generic_set_source, \
 		.clk_accessible = NULL, \
@@ -189,10 +199,10 @@ struct ti_clock_dev ti_clk_devmap[] = {
 	AM335X_GENERIC_CLOCK_DEV(DMTIMER7_CLK),
 
 	/* GPIO */
-	AM335X_GENERIC_CLOCK_DEV(GPIO0_CLK),
-	AM335X_GENERIC_CLOCK_DEV(GPIO1_CLK),
-	AM335X_GENERIC_CLOCK_DEV(GPIO2_CLK),
-	AM335X_GENERIC_CLOCK_DEV(GPIO3_CLK),
+	AM335X_GPIO_CLOCK_DEV(GPIO0_CLK),
+	AM335X_GPIO_CLOCK_DEV(GPIO1_CLK),
+	AM335X_GPIO_CLOCK_DEV(GPIO2_CLK),
+	AM335X_GPIO_CLOCK_DEV(GPIO3_CLK),
 
 	/* I2C */
 	AM335X_GENERIC_CLOCK_DEV(I2C0_CLK),
@@ -357,6 +367,30 @@ am335x_clk_generic_activate(struct ti_clock_dev *clkdev)
 	while ((prcm_read_4(clk_details->clkctrl_reg) & 0x3) != 2)
 		DELAY(10);
 
+	return (0);
+}
+
+static int
+am335x_clk_gpio_activate(struct ti_clock_dev *clkdev)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
+	struct am335x_clk_details* clk_details;
+
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_details = am335x_clk_details(clkdev->id);
+
+	if (clk_details == NULL)
+		return (ENXIO);
+
+	/* set *_CLKCTRL register MODULEMODE[1:0] to enable(2) */
+	/* set *_CLKCTRL register OPTFCLKEN_GPIO_1_G DBCLK[18] to FCLK_EN(1) */
+	prcm_write_4(clk_details->clkctrl_reg, 2 | (1 << 18));
+	while ((prcm_read_4(clk_details->clkctrl_reg) & (3 | (1 << 18) )) != (2 | (1 << 18)))
+		DELAY(10);
+
+	printf("%s: reg=0x%08x val=0x%08x\n",__func__, clk_details->clkctrl_reg, prcm_read_4(clk_details->clkctrl_reg) );
 	return (0);
 }
 
