@@ -81,7 +81,7 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
  * TODO:
  *	allocate more timeout table slots when table overflows.
  */
-int callwheelsize, callwheelbits, callwheelmask;
+int callwheelsize, callwheelmask;
 
 /*
  * The callout cpu migration entity represents informations necessary for
@@ -225,10 +225,9 @@ kern_timeout_callwheel_alloc(caddr_t v)
 	/*
 	 * Calculate callout wheel size
 	 */
-	for (callwheelsize = 1, callwheelbits = 0;
-	     callwheelsize < ncallout;
-	     callwheelsize <<= 1, ++callwheelbits)
-		;
+	callwheelsize = 1;
+	while (callwheelsize < ncallout) 
+		callwheelsize <<= 1;
 	callwheelmask = callwheelsize - 1;
 
 	cc->cc_callout = (struct callout *)v;
