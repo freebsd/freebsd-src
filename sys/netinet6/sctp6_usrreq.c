@@ -84,6 +84,8 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	uint8_t ecn_bits;
 	struct sctp_tcb *stcb = NULL;
 	int pkt_len = 0;
+	uint32_t mflowid;
+	uint8_t use_mflowid;
 
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint32_t check, calc_check;
@@ -103,6 +105,13 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 #ifdef  SCTP_PACKET_LOGGING
 	sctp_packet_log(m, pkt_len);
 #endif
+	if (m->m_flags & M_FLOWID) {
+		mflowid = m->m_pkthdr.flowid;
+		use_mflowid = 1;
+	} else {
+		mflowid = 0;
+		use_mflowid = 0;
+	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	/* Ensure that (sctphdr + sctp_chunkhdr) in a row. */
 	IP6_EXTHDR_GET(sh, struct sctphdr *, m, off,
@@ -164,8 +173,8 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 			}
 			net->port = port;
 		}
-		if ((net != NULL) && (m->m_flags & M_FLOWID)) {
-			net->flowid = m->m_pkthdr.flowid;
+		if ((net != NULL) && (use_mflowid != 0)) {
+			net->flowid = mflowid;
 #ifdef INVARIANTS
 			net->flowidset = 1;
 #endif
@@ -198,8 +207,8 @@ sctp_skip_csum:
 		}
 		net->port = port;
 	}
-	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
-		net->flowid = m->m_pkthdr.flowid;
+	if ((net != NULL) && (use_mflowid != 0)) {
+		net->flowid = mflowid;
 #ifdef INVARIANTS
 		net->flowidset = 1;
 #endif
@@ -224,7 +233,9 @@ sctp_skip_csum:
 				sh->v_tag = 0;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			sctp_send_shutdown_complete2(m, sh, vrf_id, port);
+			sctp_send_shutdown_complete2(m, sh,
+			    use_mflowid, mflowid,
+			    vrf_id, port);
 			goto bad;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
@@ -234,7 +245,9 @@ sctp_skip_csum:
 			if ((SCTP_BASE_SYSCTL(sctp_blackhole) == 0) ||
 			    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
 			    (ch->chunk_type != SCTP_INIT))) {
-				sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id, port);
+				sctp_send_abort(m, iphlen, sh, 0, NULL,
+				    use_mflowid, mflowid,
+				    vrf_id, port);
 			}
 		}
 		goto bad;
@@ -264,7 +277,9 @@ sctp_skip_csum:
 
 	/* sa_ignore NO_NULL_CHK */
 	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
-	    in6p, stcb, net, ecn_bits, vrf_id, port);
+	    in6p, stcb, net, ecn_bits,
+	    use_mflowid, mflowid,
+	    vrf_id, port);
 	/* inp's ref-count reduced && stcb unlocked */
 	/* XXX this stuff below gets moved to appropriate parts later... */
 	if (m)
