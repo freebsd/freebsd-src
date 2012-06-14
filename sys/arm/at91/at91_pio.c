@@ -165,7 +165,7 @@ at91_pio_attach(device_t dev)
 		goto out;
 	}
 	sc->cdev->si_drv1 = sc;
-out:;
+out:
 	if (err)
 		at91_pio_deactivate(dev);
 	return (err);
