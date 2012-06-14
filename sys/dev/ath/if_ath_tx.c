@@ -1308,7 +1308,28 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		return EIO;
 	}
 
-	/* Check if the TXQ wouldn't match what the hardware TXQ is! */
+	/*
+	 * There are two known scenarios where the frame AC doesn't match
+	 * what the destination TXQ is.
+	 *
+	 * + non-QoS frames (eg management?) that the net80211 stack has
+	 *   assigned a higher AC to, but since it's a non-QoS TID, it's
+	 *   being thrown into TID 16.  TID 16 gets the AC_BE queue.
+	 *   It's quite possible that management frames should just be
+	 *   direct dispatched to hardware rather than go via the software
+	 *   queue; that should be investigated in the future.  There are
+	 *   some specific scenarios where this doesn't make sense, mostly
+	 *   surrounding ADDBA request/response - hence why that is special
+	 *   cased.
+	 *
+	 * + Multicast frames going into the VAP mcast queue.  That shows up
+	 *   as "TXQ 11".
+	 *
+	 * This driver should eventually support separate TID and TXQ locking,
+	 * allowing for arbitrary AC frames to appear on arbitrary software
+	 * queues, being queued to the "correct" hardware queue when needed.
+	 */
+#if 0
 	if (txq != sc->sc_ac2q[pri]) {
 		device_printf(sc->sc_dev,
 		    "%s: txq=%p (%d), pri=%d, pri txq=%p (%d)\n",
@@ -1319,6 +1340,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		    sc->sc_ac2q[pri],
 		    sc->sc_ac2q[pri]->axq_qnum);
 	}
+#endif
 
 	/*
 	 * Calculate miscellaneous flags.
