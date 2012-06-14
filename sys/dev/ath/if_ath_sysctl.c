@@ -374,8 +374,8 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 		t++;
 	}
 	ATH_TXBUF_UNLOCK(sc);
-	printf("Total TX buffers: %d; Total TX buffers busy: %d\n",
-	    t, i);
+	printf("Total TX buffers: %d; Total TX buffers busy: %d (%d)\n",
+	    t, i, sc->sc_txbuf_cnt);
 
 	i = t = 0;
 	ATH_TXBUF_LOCK(sc);
@@ -620,12 +620,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
 
-#if 0
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
 		0, "Minimum free buffers before adding a data frame"
 		" to the TX queue");
-#endif
+
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_mcastq_maxdepth", CTLFLAG_RW,
 		&sc->sc_txq_mcastq_maxdepth, 0,

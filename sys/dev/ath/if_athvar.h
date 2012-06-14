@@ -501,6 +501,7 @@ struct ath_softc {
 
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
+	int			sc_txbuf_cnt;	/* how many buffers avail */
 	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */
 	ath_bufhead		sc_txbuf_mgmt;	/* mgmt transmit buffer */
 	struct mtx		sc_txbuflock;	/* txbuf lock */
