@@ -194,9 +194,8 @@ initarm(struct arm_boot_params *abp)
 	int mem_info;
 
 	boothowto = RB_VERBOSE;
-
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 

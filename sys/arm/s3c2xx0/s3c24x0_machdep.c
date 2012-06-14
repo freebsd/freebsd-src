@@ -244,10 +244,9 @@ initarm(struct arm_boot_params *abp)
 	int i;
 	uint32_t memsize;
 
+	boothowto = 0;  /* Likely not needed */
+	lastaddr = parse_boot_param(abp);
 	i = 0;
-
-	boothowto = 0;
-
 	set_cpufuncs();
 	cpufuncs.cf_sleep = s3c24x0_sleep;
 	lastaddr = fake_preload_metadata();

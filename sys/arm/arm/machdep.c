@@ -666,7 +666,7 @@ makectx(struct trapframe *tf, struct pcb *pcb)
  * Fake up a boot descriptor table
  */
 vm_offset_t
-fake_preload_metadata(void)
+fake_preload_metadata(struct arm_boot_params *abp __unused)
 {
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
@@ -711,6 +711,23 @@ fake_preload_metadata(void)
 
 	return (lastaddr);
 }
+
+/*
+ * Stub version of the boot parameter parsing routine.  We are
+ * called early in initarm, before even VM has been initialized.
+ * This routine needs to preserve any data that the boot loader
+ * has passed in before the kernel starts to grow past the end
+ * of the BSS, traditionally the place boot-loaders put this data.
+ *
+ * Since this is called so early, things that depend on the vm system
+ * being setup (including access to some SoC's serial ports), about
+ * all that can be done in this routine is to copy the arguments.
+ *
+ * This is the default boot parameter parsing routine.  Individual
+ * kernels/boards can override this weak function with one of their
+ * own.  We just fake metadata...
+ */
+__weak_reference(fake_preload_metadata, parse_boot_param);
 
 /*
  * Initialize proc0

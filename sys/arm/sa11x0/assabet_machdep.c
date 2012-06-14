@@ -215,10 +215,10 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize = 32 * 1024 * 1024;
 	sa1110_uart_vaddr = SACOM1_VBASE;
 
-	boothowto = RB_VERBOSE | RB_SINGLE;
+	boothowto = RB_VERBOSE | RB_SINGLE;     /* Default value */
+	lastaddr = parse_boot_param(abp);
 	cninit();
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	physmem = memsize / PAGE_SIZE;
 	pc = &__pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
