@@ -2373,7 +2373,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	 * Transfer the first page's pv entry for this mapping to the
 	 * 2mpage's pv list.  Aside from avoiding the cost of a call
 	 * to get_pv_entry(), a transfer avoids the possibility that
-	 * get_pv_entry() calls pmap_collect() and that pmap_collect()
+	 * get_pv_entry() calls pmap_pv_reclaim() and that pmap_pv_reclaim()
 	 * removes one of the mappings that is being promoted.
 	 */
 	m = PHYS_TO_VM_PAGE(pa);
@@ -2588,7 +2588,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	/*
 	 * Demote the pv entry.  This depends on the earlier demotion
 	 * of the mapping.  Specifically, the (re)creation of a per-
-	 * page pv entry might trigger the execution of pmap_collect(),
+	 * page pv entry might trigger the execution of pmap_pv_reclaim(),
 	 * which might reclaim a newly (re)created per-page pv entry
 	 * and destroy the associated mapping.  In order to destroy
 	 * the mapping, the PDE must have already changed from mapping
