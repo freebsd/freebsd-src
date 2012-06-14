@@ -445,6 +445,8 @@ static inline int
 fdunwrap(int fd, cap_rights_t rights, struct filedesc *fdp, struct file **fpp)
 {
 
+	FILEDESC_LOCK_ASSERT(fdp);
+
 	*fpp = fdtofp(fd, fdp);
 	if (*fpp == NULL)
 		return (EBADF);
