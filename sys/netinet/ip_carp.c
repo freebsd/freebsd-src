@@ -100,7 +100,6 @@ struct carp_softc {
 #ifdef INET6
 	struct in6_ifaddr 	*sc_ia6;	/* primary iface address v6 */
 	struct ip6_moptions 	 sc_im6o;
-	struct in6_ifaddr	*sc_llia;
 #endif /* INET6 */
 	TAILQ_ENTRY(carp_softc)	 sc_list;
 
@@ -1240,16 +1239,6 @@ carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
-		if (IN6_ARE_ADDR_EQUAL(taddr,
-			    &vh->sc_llia->ia_addr.sin6_addr) &&
-		    (SC2IFP(vh)->if_flags & IFF_UP) &&
-		    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
-		    vh->sc_state == MASTER) {
-			ifa = &vh->sc_llia->ia_addr;
-			ifa_ref(ifa);
-			CARP_UNLOCK(cif);
-			return (ifa);
-		}
 		IF_ADDR_RLOCK(SC2IFP(vh));
 		TAILQ_FOREACH(ifa, &SC2IFP(vh)->if_addrlist, ifa_list) {
 			if (IN6_ARE_ADDR_EQUAL(taddr,
@@ -1281,28 +1270,6 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(sc, &cif->vhif_vrs, sc_list) {
-		if (IN6_ARE_ADDR_EQUAL(taddr,
-			    sc->sc_llia->ia_addr.sin6_addr) &&
-		    (SC2IFP(sc)->if_flags & IFF_UP) &&
-		    (SC2IFP(sc)->if_drv_flags & IFF_DRV_RUNNING) &&
-		    sc->sc_state == MASTER) {
-			struct ifnet *ifp = SC2IFP(sc);
-			mtag = m_tag_get(PACKET_TAG_CARP,
-			    sizeof(struct ifnet *), M_NOWAIT);
-			if (mtag == NULL) {
-				/* better a bit than nothing */
-				IF_ADDR_RUNLOCK(SC2IFP(sc));
-				CARP_UNLOCK(cif);
-				return (IF_LLADDR(sc->sc_ifp));
-			}
-			bcopy(&ifp, (caddr_t)(mtag + 1),
-			    sizeof(struct ifnet *));
-			m_tag_prepend(m, mtag);
-
-			IF_ADDR_RUNLOCK(SC2IFP(sc));
-			CARP_UNLOCK(cif);
-			return (IF_LLADDR(sc->sc_ifp));
-		}
 		IF_ADDR_RLOCK(SC2IFP(sc));
 		TAILQ_FOREACH(ifa, &SC2IFP(sc)->if_addrlist, ifa_list) {
 			if (IN6_ARE_ADDR_EQUAL(taddr,
@@ -1782,33 +1749,6 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 			goto cleanup;
 		im6o->im6o_membership[1] = in6m;
 		im6o->im6o_num_memberships++;
-
-		/* Add link local */
-		bzero(&ifra, sizeof(ifra));
-		ifra.ifra_addr.sin6_family = AF_INET6;
-		ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
-		ifra.ifra_addr.sin6_addr.s6_addr32[0] = htonl(0xfe800000);
-		ifra.ifra_addr.sin6_addr.s6_addr32[1] = 0;
-		if ((error = in6_get_hw_ifid(sc->sc_ifp, NULL, &ifra.ifra_addr.sin6_addr)) != 0)
-			goto cleanup;
-		if ((error = in6_setscope(&ifra.ifra_addr.sin6_addr, ifp, NULL)))
-			goto cleanup;
-		ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
-		ifra.ifra_prefixmask.sin6_family = AF_INET6;
-		ifra.ifra_prefixmask.sin6_addr = in6mask64;
-		/* link-local addresses should NEVER expire. */
-		ifra.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
-		ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
-
-		if ((error = in6_update_ifa(ifp, &ifra, NULL,
-				    IN6_IFAUPDATE_DADDELAY)) != 0)
-			goto cleanup;
-		sc->sc_llia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr);
-		if (sc->sc_llia == NULL) {
-			error = ESRCH;
-			goto cleanup;
-		}
-		ifa_free(&sc->sc_llia->ia_ifa);
 	}
 
 	if (!ifp->if_carp) {
