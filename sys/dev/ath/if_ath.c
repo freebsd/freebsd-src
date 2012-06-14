@@ -524,7 +524,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
+#ifndef	ATH_ENABLE_11N
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
+#endif
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 #ifdef	ATH_ENABLE_DFS
 		| IEEE80211_C_DFS		/* Enable radar detection */
@@ -659,12 +661,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		    tx_chainmask);
 		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
-
-	/*
-	 * The if_ath 11n support is completely not ready for normal use.
-	 * Enabling this option will likely break everything and everything.
-	 * Don't think of doing that unless you know what you're doing.
-	 */
 
 #ifdef	ATH_ENABLE_11N
 	/*
