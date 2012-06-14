@@ -1206,6 +1206,7 @@ MLINKS+=store.9 subyte.9 \
 	store.9 suword32.9 \
 	store.9 suword64.9
 MLINKS+=swi.9 swi_add.9 \
+	swi.9 swi_remove.9 \
 	swi.9 swi_sched.9
 MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_destroy.9 \
