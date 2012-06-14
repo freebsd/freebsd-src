@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_FILEDESC, "filedesc", "Open file descriptor table");
 static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "filedesc_to_leader",
-		     "file desc to leader structures");
+    "file desc to leader structures");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
 MALLOC_DECLARE(M_FADVISE);
@@ -114,22 +114,21 @@ static uma_zone_t file_zone;
 #define DUP_FIXED	0x1	/* Force fixed allocation */
 #define DUP_FCNTL	0x2	/* fcntl()-style errors */
 
-static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
+static int closefp(struct filedesc *fdp, int fd, struct file *fp,
     struct thread *td, int holdleaders);
-static int	do_dup(struct thread *td, int flags, int old, int new,
+static int do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval);
-static int	fd_first_free(struct filedesc *, int, int);
-static int	fd_last_used(struct filedesc *, int);
-static void	fdgrowtable(struct filedesc *, int);
-static void	fdunused(struct filedesc *fdp, int fd);
-static void	fdused(struct filedesc *fdp, int fd);
-static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
-static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
-static int	fill_pts_info(struct tty *tp, struct kinfo_file *kif);
-static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
-static int	fill_procdesc_info(struct procdesc *pdp,
-    struct kinfo_file *kif);
-static int	fill_shm_info(struct file *fp, struct kinfo_file *kif);
+static int fd_first_free(struct filedesc *fdp, int low, int size);
+static int fd_last_used(struct filedesc *fdp, int size);
+static void fdgrowtable(struct filedesc *fdp, int nfd);
+static void fdunused(struct filedesc *fdp, int fd);
+static void fdused(struct filedesc *fdp, int fd);
+static int fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
+static int fill_procdesc_info(struct procdesc *pdp, struct kinfo_file *kif);
+static int fill_pts_info(struct tty *tp, struct kinfo_file *kif);
+static int fill_shm_info(struct file *fp, struct kinfo_file *kif);
+static int fill_socket_info(struct socket *so, struct kinfo_file *kif);
+static int fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
 
 /*
  * A process is initially started out with NDFILE descriptors stored within
@@ -183,10 +182,10 @@ struct filedesc0 {
  */
 volatile int openfiles;			/* actual number of open files */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
-void	(*mq_fdclose)(struct thread *td, int fd, struct file *fp);
+void (*mq_fdclose)(struct thread *td, int fd, struct file *fp);
 
 /* A mutex to protect the association between a proc and filedesc. */
-static struct mtx	fdesc_mtx;
+static struct mtx fdesc_mtx;
 
 /*
  * If low >= size, just return low. Otherwise find the first zero bit in the
