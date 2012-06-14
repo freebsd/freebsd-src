@@ -211,14 +211,15 @@ struct ath_buf {
 
 	/* This state is kept to support software retries and aggregation */
 	struct {
-		int bfs_seqno;		/* sequence number of this packet */
-		int bfs_retries;	/* retry count */
-		uint16_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
-		uint16_t bfs_pri;	/* packet AC priority */
-		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
-		uint16_t bfs_pktdur;	/* packet duration (at current rate?) */
-		uint16_t bfs_nframes;	/* number of frames in aggregate */
+		uint16_t bfs_seqno;	/* sequence number of this packet */
 		uint16_t bfs_ndelim;	/* number of delims for padding */
+
+		uint8_t bfs_retries;	/* retry count */
+		uint8_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
+		uint8_t bfs_nframes;	/* number of frames in aggregate */
+		uint8_t bfs_pri;	/* packet AC priority */
+
+		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
 
 		u_int32_t bfs_aggr:1,		/* part of aggregate? */
 		    bfs_aggrburst:1,	/* part of aggregate burst? */
