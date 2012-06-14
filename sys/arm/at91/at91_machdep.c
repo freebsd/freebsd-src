@@ -552,19 +552,8 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
-
-	/*
-	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
-	dump_avail[0] = PHYSADDR;
-	dump_avail[1] = PHYSADDR + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
-	pmap_bootstrap(freemempos,
-	    KERNVIRTADDR + 3 * memsize,
-	    &kernel_l1pt);
+	arm_dump_avail_init(memsize, sizeof(dump_avail)/sizeof(dump_avail[0]));
+	pmap_bootstrap(freemempos, KERNVIRTADDR + 3 * memsize, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
