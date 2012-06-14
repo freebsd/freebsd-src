@@ -429,25 +429,13 @@ sys_fcntl(struct thread *td, struct fcntl_args *uap)
 	return (error);
 }
 
-static inline struct file *
-fdtofp(int fd, struct filedesc *fdp)
-{
-
-	FILEDESC_LOCK_ASSERT(fdp);
-
-	if (fd < 0 || fd >= fdp->fd_nfiles)
-		return (NULL);
-
-	return (fdp->fd_ofiles[fd]);
-}
-
 static inline int
 fdunwrap(int fd, cap_rights_t rights, struct filedesc *fdp, struct file **fpp)
 {
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	*fpp = fdtofp(fd, fdp);
+	*fpp = fget_locked(fdp, fd);
 	if (*fpp == NULL)
 		return (EBADF);
 
@@ -496,7 +484,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETFD:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		if ((fp = fget_locked(fdp, fd)) == NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			error = EBADF;
 			break;
@@ -508,7 +496,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETFD:
 		FILEDESC_XLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		if ((fp = fget_locked(fdp, fd)) == NULL) {
 			FILEDESC_XUNLOCK(fdp);
 			error = EBADF;
 			break;
@@ -681,7 +669,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		vfslocked = 0;
 		/* Check for race with close */
 		FILEDESC_SLOCK(fdp);
-		if (fdtofp(fd, fdp) != fp) {
+		if (fget_locked(fdp, fd) != fp) {
 			FILEDESC_SUNLOCK(fdp);
 			flp->l_whence = SEEK_SET;
 			flp->l_start = 0;
@@ -746,7 +734,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		/* FALLTHROUGH */
 	case F_READAHEAD:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
+		if ((fp = fget_locked(fdp, fd)) == NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			error = EBADF;
 			break;
@@ -823,7 +811,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 
 	FILEDESC_XLOCK(fdp);
-	if (fdtofp(old, fdp) == NULL) {
+	if (fget_locked(fdp, old) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
@@ -1202,7 +1190,7 @@ kern_close(td, fd)
 	AUDIT_SYSCLOSE(td, fd);
 
 	FILEDESC_XLOCK(fdp);
-	if ((fp = fdtofp(fd, fdp)) == NULL) {
+	if ((fp = fget_locked(fdp, fd)) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
@@ -2596,7 +2584,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode, int opener
 	 * closed, then reject.
 	 */
 	FILEDESC_XLOCK(fdp);
-	if ((fp = fdtofp(dfd, fdp)) == NULL) {
+	if ((fp = fget_locked(fdp, dfd)) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
