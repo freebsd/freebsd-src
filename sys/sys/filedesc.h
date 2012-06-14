@@ -142,7 +142,12 @@ static __inline struct file *
 fget_locked(struct filedesc *fdp, int fd)
 {
 
-	return (fd < 0 || fd >= fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	if (fd < 0 || fd >= fdp->fd_nfiles)
+		return (NULL);
+
+	return (fdp->fd_ofiles[fd]);
 }
 
 #endif /* _KERNEL */
