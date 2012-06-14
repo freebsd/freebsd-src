@@ -243,8 +243,10 @@ static int
 fdisused(struct filedesc *fdp, int fd)
 {
 
-        KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
-            ("file descriptor %d out of range (0, %d)", fd, fdp->fd_nfiles));
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
+	    ("file descriptor %d out of range (0, %d)", fd, fdp->fd_nfiles));
 
 	return ((fdp->fd_map[NDSLOT(fd)] & NDBIT(fd)) != 0);
 }
