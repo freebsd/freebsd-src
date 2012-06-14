@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/armreg.h>
+#include <machine/atags.h>
 #include <machine/cpu.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
@@ -108,6 +109,20 @@ int _min_bzero_size = 0;
 extern int *end;
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
+#endif
+
+#if defined(LINUX_BOOT_ABI)
+#define LBABI_MAX_BANKS	10
+
+uint32_t board_id;
+struct arm_lbabi_tag *atag_list;
+uint32_t revision;
+uint64_t serial;
+char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
+char atags[LBABI_MAX_COMMAND_LINE * 2];
+uint32_t memstart[LBABI_MAX_BANKS];
+uint32_t memsize[LBABI_MAX_BANKS];
+uint32_t membanks;
 #endif
 
 void
@@ -712,11 +727,73 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	return (lastaddr);
 }
 
+#if defined(LINUX_BOOT_ABI)
 vm_offset_t
-default_parse_boot_param(struct arm_boot_params *abp)
+linux_parse_boot_param(struct arm_boot_params *abp)
 {
-	vm_offset_t lastaddr;
+	struct arm_lbabi_tag *walker;
+
+	/*
+	 * Linux boot ABI: r0 = 0, r1 is the board type (!= 0) and r2
+	 * is atags or dtb pointer.  If all of these aren't satisfied,
+	 * then punt.
+	 */
+	if (!(abp->abp_r0 == 0 && abp->abp_r1 != 0 && abp->abp_r2 != 0))
+		return 0;
+
+	board_id = abp->abp_r1;
+	walker = (struct arm_lbabi_tag *)
+	    (abp->abp_r2 + KERNVIRTADDR - KERNPHYSADDR);
+
+	/* xxx - Need to also look for binary device tree */
+	if (ATAG_TAG(walker) != ATAG_CORE)
+		return 0;
+
+	atag_list = walker;
+	while (ATAG_TAG(walker) != ATAG_NONE) {
+		switch (ATAG_TAG(walker)) {
+		case ATAG_CORE:
+			break;
+		case ATAG_MEM:
+			if (membanks < LBABI_MAX_BANKS) {
+				memstart[membanks] = walker->u.tag_mem.start;
+				memsize[membanks] = walker->u.tag_mem.size;
+			}
+			membanks++;
+			break;
+		case ATAG_INITRD2:
+			break;
+		case ATAG_SERIAL:
+			serial = walker->u.tag_sn.low |
+			    ((uint64_t)walker->u.tag_sn.high << 32);
+			break;
+		case ATAG_REVISION:
+			revision = walker->u.tag_rev.rev;
+			break;
+		case ATAG_CMDLINE:
+			/* XXX open question: Parse this for boothowto? */
+			bcopy(walker->u.tag_cmd.command, linux_command_line,
+			      ATAG_SIZE(walker));
+			break;
+		default:
+			break;
+		}
+		walker = ATAG_NEXT(walker);
+	}
+
+	/* Save a copy for later */
+	bcopy(atag_list, atags,
+	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
+
+	return fake_preload_metadata(abp);
+}
+#endif
+
 #if defined(FREEBSD_BOOT_LOADER)
+vm_offset_t
+freebsd_parse_boot_param(struct arm_boot_params *abp)
+{
+	vm_offset_t lastaddr = 0;
 	void *mdp;
 	void *kmdp;
 
@@ -724,32 +801,45 @@ default_parse_boot_param(struct arm_boot_params *abp)
 	 * Mask metadata pointer: it is supposed to be on page boundary. If
 	 * the first argument (mdp) doesn't point to a valid address the
 	 * bootloader must have passed us something else than the metadata
-	 * ptr... In this case we want to fall back to some built-in settings.
+	 * ptr, so we give up.  Also give up if we cannot find metadta section
+	 * the loader creates that we get all this data out of.
 	 */
-	mdp = (void *)(abp->abp_r0 & ~PAGE_MASK);
 
-	kmdp = NULL;
-	/* Parse metadata and fetch parameters (move to common machdep.c?) */
-	if (mdp != NULL) {
-		preload_metadata = mdp;
-		kmdp = preload_search_by_type("elf kernel");
-		if (kmdp != NULL) {
-			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
-			    vm_offset_t);
+	if ((mdp = (void *)(abp->abp_r0 & ~PAGE_MASK)) == NULL)
+		return 0;
+	preload_metadata = mdp;
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		return 0;
+
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
-			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 #endif
-		} else
-			lastaddr = fake_preload_metadata(abp);
+	preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
+	return lastaddr;
+}
+#endif
 
-		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
-	} else
+vm_offset_t
+default_parse_boot_param(struct arm_boot_params *abp)
+{
+	vm_offset_t lastaddr;
+
+#if defined(LINUX_BOOT_ABI)
+	if ((lastaddr = linux_parse_boot_param(abp)) != 0)
+		return lastaddr;
 #endif
-		/* Fall back to hardcoded metadata. */
-		lastaddr = fake_preload_metadata(abp);
+#if defined(FREEBSD_BOOT_LOADER)
+	if ((lastaddr = freebsd_parse_boot_param(abp)) != 0)
+		return lastaddr;
+#endif
+	/* Fall back to hardcoded metadata. */
+	lastaddr = fake_preload_metadata(abp);
+
 	return lastaddr;
 }
 
