@@ -3859,13 +3859,13 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
     uint16_t dest_port,
     uint32_t v_tag,
     uint16_t port,
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
-    int so_locked SCTP_UNUSED,
-#else
-    int so_locked,
-#endif
     union sctp_sockstore *over_addr,
-    struct mbuf *init
+    uint8_t use_mflowid, uint32_t mflowid,
+#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
+    int so_locked SCTP_UNUSED
+#else
+    int so_locked
+#endif
 )
 /* nofragment_flag to tell if IP_DF should be set (IPv4 only) */
 {
@@ -3951,8 +3951,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				m->m_pkthdr.flowid = net->flowid;
 				m->m_flags |= M_FLOWID;
 			} else {
-				if ((init != NULL) && (init->m_flags & M_FLOWID)) {
-					m->m_pkthdr.flowid = init->m_pkthdr.flowid;
+				if (use_mflowid != 0) {
+					m->m_pkthdr.flowid = mflowid;
 					m->m_flags |= M_FLOWID;
 				}
 			}
@@ -4243,8 +4243,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				m->m_pkthdr.flowid = net->flowid;
 				m->m_flags |= M_FLOWID;
 			} else {
-				if ((init != NULL) && (init->m_flags & M_FLOWID)) {
-					m->m_pkthdr.flowid = init->m_pkthdr.flowid;
+				if (use_mflowid != 0) {
+					m->m_pkthdr.flowid = mflowid;
 					m->m_flags |= M_FLOWID;
 				}
 			}
@@ -4841,7 +4841,9 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m, 0, NULL, 0, 0, 0, 0,
 	    inp->sctp_lport, stcb->rport, htonl(0),
-	    net->port, so_locked, NULL, NULL);
+	    net->port, NULL,
+	    0, 0,
+	    so_locked);
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "lowlevel_output - %d\n", ret);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
@@ -5370,8 +5372,10 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
  */
 void
 sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct mbuf *init_pkt, int iphlen, int offset, struct sctphdr *sh,
-    struct sctp_init_chunk *init_chk, uint32_t vrf_id, uint16_t port, int hold_inp_lock)
+    struct mbuf *init_pkt, int iphlen, int offset,
+    struct sctphdr *sh, struct sctp_init_chunk *init_chk,
+    uint8_t use_mflowid, uint32_t mflowid,
+    uint32_t vrf_id, uint16_t port, int hold_inp_lock)
 {
 	struct sctp_association *asoc;
 	struct mbuf *m, *m_at, *m_tmp, *m_cookie, *op_err, *mp_last;
@@ -5422,7 +5426,9 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * though we even set the T bit and copy in the 0 tag.. this
 		 * looks no different than if no listener was present.
 		 */
-		sctp_send_abort(init_pkt, iphlen, sh, 0, NULL, vrf_id, port);
+		sctp_send_abort(init_pkt, iphlen, sh, 0, NULL,
+		    use_mflowid, mflowid,
+		    vrf_id, port);
 		return;
 	}
 	abort_flag = 0;
@@ -5432,7 +5438,9 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (abort_flag) {
 do_a_abort:
 		sctp_send_abort(init_pkt, iphlen, sh,
-		    init_chk->init.initiate_tag, op_err, vrf_id, port);
+		    init_chk->init.initiate_tag, op_err,
+		    use_mflowid, mflowid,
+		    vrf_id, port);
 		return;
 	}
 	m = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
@@ -6034,7 +6042,9 @@ do_a_abort:
 	(void)sctp_lowlevel_chunk_output(inp, NULL, NULL, to, m, 0, NULL, 0, 0,
 	    0, 0,
 	    inp->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
-	    port, SCTP_SO_NOT_LOCKED, over_addr, init_pkt);
+	    port, over_addr,
+	    use_mflowid, mflowid,
+	    SCTP_SO_NOT_LOCKED);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
 
@@ -8116,7 +8126,9 @@ again_one_more_time:
 					    no_fragmentflg, 0, asconf,
 					    inp->sctp_lport, stcb->rport,
 					    htonl(stcb->asoc.peer_vtag),
-					    net->port, so_locked, NULL, NULL))) {
+					    net->port, NULL,
+					    0, 0,
+					    so_locked))) {
 						if (error == ENOBUFS) {
 							asoc->ifp_had_enobuf = 1;
 							SCTP_STAT_INCR(sctps_lowlevelerr);
@@ -8388,7 +8400,9 @@ again_one_more_time:
 					    no_fragmentflg, 0, asconf,
 					    inp->sctp_lport, stcb->rport,
 					    htonl(stcb->asoc.peer_vtag),
-					    net->port, so_locked, NULL, NULL))) {
+					    net->port, NULL,
+					    0, 0,
+					    so_locked))) {
 						if (error == ENOBUFS) {
 							asoc->ifp_had_enobuf = 1;
 							SCTP_STAT_INCR(sctps_lowlevelerr);
@@ -8727,7 +8741,9 @@ no_data_fill:
 			    asconf,
 			    inp->sctp_lport, stcb->rport,
 			    htonl(stcb->asoc.peer_vtag),
-			    net->port, so_locked, NULL, NULL))) {
+			    net->port, NULL,
+			    0, 0,
+			    so_locked))) {
 				/* error, we could not output */
 				if (error == ENOBUFS) {
 					SCTP_STAT_INCR(sctps_lowlevelerr);
@@ -9429,7 +9445,9 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		    auth_offset, auth, stcb->asoc.authinfo.active_keyid,
 		    no_fragmentflg, 0, 0,
 		    inp->sctp_lport, stcb->rport, htonl(stcb->asoc.peer_vtag),
-		    chk->whoTo->port, so_locked, NULL, NULL))) {
+		    chk->whoTo->port, NULL,
+		    0, 0,
+		    so_locked))) {
 			SCTP_STAT_INCR(sctps_lowlevelerr);
 			return (error);
 		}
@@ -9694,7 +9712,9 @@ one_chunk_around:
 			    auth_offset, auth, auth_keyid,
 			    no_fragmentflg, 0, 0,
 			    inp->sctp_lport, stcb->rport, htonl(stcb->asoc.peer_vtag),
-			    net->port, so_locked, NULL, NULL))) {
+			    net->port, NULL,
+			    0, 0,
+			    so_locked))) {
 				/* error, we could not output */
 				SCTP_STAT_INCR(sctps_lowlevelerr);
 				return (error);
@@ -10812,7 +10832,9 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_out, auth_offset, auth, stcb->asoc.authinfo.active_keyid, 1, 0, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport, htonl(stcb->asoc.peer_vtag),
-	    stcb->asoc.primary_destination->port, so_locked, NULL, NULL);
+	    stcb->asoc.primary_destination->port, NULL,
+	    0, 0,
+	    so_locked);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
 
@@ -10849,14 +10871,18 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 	    m_shutdown_comp, 0, NULL, 0, 1, 0, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport,
 	    htonl(vtag),
-	    net->port, SCTP_SO_NOT_LOCKED, NULL, NULL);
+	    net->port, NULL,
+	    0, 0,
+	    SCTP_SO_NOT_LOCKED);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	return;
 }
 
 static void
 sctp_send_resp_msg(struct mbuf *m, struct sctphdr *sh, uint32_t vtag,
-    uint8_t type, struct mbuf *cause, uint32_t vrf_id, uint16_t port)
+    uint8_t type, struct mbuf *cause,
+    uint8_t use_mflowid, uint32_t mflowid,
+    uint32_t vrf_id, uint16_t port)
 {
 	struct mbuf *o_pak;
 	struct mbuf *mout;
@@ -10929,8 +10955,8 @@ sctp_send_resp_msg(struct mbuf *m, struct sctphdr *sh, uint32_t vtag,
 	SCTP_BUF_RESV_UF(mout, max_linkhdr);
 	SCTP_BUF_LEN(mout) = len;
 	SCTP_BUF_NEXT(mout) = cause;
-	if (m->m_flags & M_FLOWID) {
-		mout->m_pkthdr.flowid = m->m_pkthdr.flowid;
+	if (use_mflowid != 0) {
+		mout->m_pkthdr.flowid = mflowid;
 		mout->m_flags |= M_FLOWID;
 	}
 #ifdef INET
@@ -11110,9 +11136,12 @@ sctp_send_resp_msg(struct mbuf *m, struct sctphdr *sh, uint32_t vtag,
 
 void
 sctp_send_shutdown_complete2(struct mbuf *m, struct sctphdr *sh,
+    uint8_t use_mflowid, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
-	sctp_send_resp_msg(m, sh, 0, SCTP_SHUTDOWN_COMPLETE, NULL, vrf_id, port);
+	sctp_send_resp_msg(m, sh, 0, SCTP_SHUTDOWN_COMPLETE, NULL,
+	    use_mflowid, mflowid,
+	    vrf_id, port);
 }
 
 void
@@ -11944,7 +11973,9 @@ skip_stuff:
 
 void
 sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
-    struct mbuf *cause, uint32_t vrf_id, uint16_t port)
+    struct mbuf *cause,
+    uint8_t use_mflowid, uint32_t mflowid,
+    uint32_t vrf_id, uint16_t port)
 {
 	/* Don't respond to an ABORT with an ABORT. */
 	if (sctp_is_there_an_abort_here(m, iphlen, &vtag)) {
@@ -11952,15 +11983,21 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 			sctp_m_freem(cause);
 		return;
 	}
-	sctp_send_resp_msg(m, sh, vtag, SCTP_ABORT_ASSOCIATION, cause, vrf_id, port);
+	sctp_send_resp_msg(m, sh, vtag, SCTP_ABORT_ASSOCIATION, cause,
+	    use_mflowid, mflowid,
+	    vrf_id, port);
 	return;
 }
 
 void
 sctp_send_operr_to(struct mbuf *m, struct sctphdr *sh, uint32_t vtag,
-    struct mbuf *cause, uint32_t vrf_id, uint16_t port)
+    struct mbuf *cause,
+    uint8_t use_mflowid, uint32_t mflowid,
+    uint32_t vrf_id, uint16_t port)
 {
-	sctp_send_resp_msg(m, sh, vtag, SCTP_OPERATION_ERROR, cause, vrf_id, port);
+	sctp_send_resp_msg(m, sh, vtag, SCTP_OPERATION_ERROR, cause,
+	    use_mflowid, mflowid,
+	    vrf_id, port);
 	return;
 }
 
