@@ -115,7 +115,7 @@ static uma_zone_t file_zone;
 #define DUP_FCNTL	0x2	/* fcntl()-style errors */
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
-    struct thread *td);
+    struct thread *td, int holdleaders);
 static int	do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval);
 static int	fd_first_free(struct filedesc *, int, int);
@@ -885,7 +885,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	*retval = new;
 
 	if (delfp != NULL) {
-		(void) closefp(fdp, new, delfp, td);
+		(void) closefp(fdp, new, delfp, td, 1);
 		/* closefp() drops the FILEDESC lock for us. */
 	} else {
 		FILEDESC_XUNLOCK(fdp);
@@ -1117,22 +1117,24 @@ fgetown(sigiop)
  * Function drops the filedesc lock on return.
  */
 static int
-closefp(struct filedesc *fdp, int fd, struct file *fp, struct thread *td)
+closefp(struct filedesc *fdp, int fd, struct file *fp, struct thread *td,
+    int holdleaders)
 {
 	struct file *fp_object;
-	int error, holdleaders;
+	int error;
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
-	if (td->td_proc->p_fdtol != NULL) {
-		/*
-		 * Ask fdfree() to sleep to ensure that all relevant
-		 * process leaders can be traversed in closef().
-		 */
-		fdp->fd_holdleaderscount++;
-		holdleaders = 1;
-	} else {
-		holdleaders = 0;
+	if (holdleaders) {
+		if (td->td_proc->p_fdtol != NULL) {
+			/*
+			 * Ask fdfree() to sleep to ensure that all relevant
+			 * process leaders can be traversed in closef().
+			 */
+			fdp->fd_holdleaderscount++;
+		} else {
+			holdleaders = 0;
+		}
 	}
 
 	/*
@@ -1207,7 +1209,7 @@ kern_close(td, fd)
 	fdunused(fdp, fd);
 
 	/* closefp() drops the FILEDESC lock for us. */
-	return (closefp(fdp, fd, fp, td));
+	return (closefp(fdp, fd, fp, td, 1));
 }
 
 /*
@@ -2025,7 +2027,7 @@ void
 fdcloseexec(struct thread *td)
 {
 	struct filedesc *fdp;
-	struct file *fp, *fp_object;
+	struct file *fp;
 	int i;
 
 	/* Certain daemons might not have file descriptors. */
@@ -2042,24 +2044,11 @@ fdcloseexec(struct thread *td)
 		fp = fdp->fd_ofiles[i];
 		if (fp != NULL && (fp->f_type == DTYPE_MQUEUE ||
 		    (fdp->fd_ofileflags[i] & UF_EXCLOSE))) {
-			/*
-			 * NULL-out descriptor prior to close to avoid
-			 * a race while close blocks.
-			 */
 			fdp->fd_ofiles[i] = NULL;
 			fdp->fd_ofileflags[i] = 0;
 			fdunused(fdp, i);
-			knote_fdclose(td, i);
-			/*
-			 * When we're closing an fd with a capability, we need
-			 * to notify mqueue if the underlying object is of type
-			 * mqueue.
-			 */
-			(void)cap_funwrap(fp, 0, &fp_object);
-			if (fp_object->f_type == DTYPE_MQUEUE)
-				mq_fdclose(td, i, fp_object);
-			FILEDESC_XUNLOCK(fdp);
-			(void) closef(fp, td);
+			(void) closefp(fdp, i, fp, td, 0);
+			/* closefp() drops the FILEDESC lock. */
 			FILEDESC_XLOCK(fdp);
 		}
 	}
