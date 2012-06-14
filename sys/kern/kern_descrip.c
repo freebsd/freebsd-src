@@ -2025,7 +2025,7 @@ void
 fdcloseexec(struct thread *td)
 {
 	struct filedesc *fdp;
-	struct file *fp;
+	struct file *fp, *fp_object;
 	int i;
 
 	/* Certain daemons might not have file descriptors. */
@@ -2050,8 +2050,14 @@ fdcloseexec(struct thread *td)
 			fdp->fd_ofileflags[i] = 0;
 			fdunused(fdp, i);
 			knote_fdclose(td, i);
-			if (fp->f_type == DTYPE_MQUEUE)
-				mq_fdclose(td, i, fp);
+			/*
+			 * When we're closing an fd with a capability, we need
+			 * to notify mqueue if the underlying object is of type
+			 * mqueue.
+			 */
+			(void)cap_funwrap(fp, 0, &fp_object);
+			if (fp_object->f_type == DTYPE_MQUEUE)
+				mq_fdclose(td, i, fp_object);
 			FILEDESC_XUNLOCK(fdp);
 			(void) closef(fp, td);
 			FILEDESC_XLOCK(fdp);
