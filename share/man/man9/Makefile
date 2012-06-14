@@ -1096,6 +1096,7 @@ MLINKS+=store.9 subyte.9 \
 	store.9 suword.9
 MLINKS+=suser.9 suser_cred.9
 MLINKS+=swi.9 swi_add.9 \
+	swi.9 swi_remove.9 \
 	swi.9 swi_sched.9
 MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_destroy.9 \

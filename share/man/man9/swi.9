@@ -24,25 +24,25 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2000
+.Dd April 19, 2012
 .Dt SWI 9
 .Os
 .Sh NAME
 .Nm swi_add ,
+.Nm swi_remove ,
 .Nm swi_sched
 .Nd register and schedule software interrupt handlers
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/bus.h
 .In sys/interrupt.h
-.Vt "extern struct ithd *tty_ithd" ;
-.Vt "extern struct ithd *clk_ithd" ;
-.Vt "extern void *net_ih" ;
+.Vt "extern struct intr_event *tty_intr_event" ;
+.Vt "extern struct intr_event *clk_intr_event" ;
 .Vt "extern void *softclock_ih" ;
 .Vt "extern void *vm_ih" ;
 .Ft int
 .Fo swi_add
-.Fa "struct ithd **ithdp"
+.Fa "struct intr_event **eventp"
 .Fa "const char *name"
 .Fa "driver_intr_t handler"
 .Fa "void *arg"
@@ -50,6 +50,8 @@
 .Fa "enum intr_type flags"
 .Fa "void **cookiep"
 .Fc
+.Ft int
+.Fn swi_remove "void *cookie"
 .Ft void
 .Fn swi_sched "void *cookie" "int flags"
 .Sh DESCRIPTION
@@ -67,20 +69,21 @@ time, and that they can be run via a lightweight context switch.
 .Pp
 The
 .Fn swi_add
-function is used to register a new software interrupt handler.
+function is used to add a new software interrupt handler to a specified
+interrupt event.
 The
-.Fa ithdp
+.Fa eventp
 argument is an optional pointer to a
-.Vt struct ithd
+.Vt struct intr_event
 pointer.
-If this argument points to an existing software interrupt thread, then this
-handler will be attached to that thread.
-Otherwise a new thread will be created, and if
-.Fa ithdp
+If this argument points to an existing event that holds a list of
+interrupt handlers, then this handler will be attached to that event.
+Otherwise a new event will be created, and if
+.Fa eventp
 is not
 .Dv NULL ,
 then the pointer at that address to will be modified to point to the
-newly created thread.
+newly created event.
 The
 .Fa name
 argument is used to associate a name with a specific handler.
@@ -99,7 +102,7 @@ The
 .Fa pri
 value specifies the priority of this interrupt handler relative to other
 software interrupt handlers.
-If an interrupt thread is created, then this value is used as the vector,
+If an interrupt event is created, then this value is used as the vector,
 and the
 .Fa flags
 argument is used to specify the attributes of a handler such as
@@ -111,6 +114,14 @@ argument points to a
 cookie.
 This cookie will be set to a value that uniquely identifies this handler,
 and is used to schedule the handler for execution later on.
+.Pp
+The
+.Fn swi_remove
+function is used to teardown an interrupt handler pointed to by the
+.Fa cookie
+argument.
+It detaches the interrupt handler from the associated interrupt event
+and frees its memory.
 .Pp
 The
 .Fn swi_sched
@@ -140,30 +151,31 @@ in earlier versions of
 .El
 .Pp
 The
-.Va tty_ithd
+.Va tty_intr_event
 and
-.Va clk_ithd
-variables contain pointers to the software interrupt threads for the tty and
+.Va clk_intr_event
+variables contain pointers to the software interrupt handlers for the tty and
 clock software interrupts, respectively.
-.Va tty_ithd
+.Va tty_intr_event
 is used to hang tty software interrupt handlers off of the same thread.
-.Va clk_ithd
+.Va clk_intr_event
 is used to hang delayed handlers off of the clock software interrupt thread so
 that the functionality of
 .Fn setdelayed
 can be obtained in conjunction with
 .Dv SWI_DELAY .
 The
-.Va net_ih ,
-.Va softclock_ih ,
+.Va softclock_ih
 and
 .Va vm_ih
 handler cookies are used to schedule software interrupt threads to run for the
-networking stack, clock interrupt, and VM subsystem respectively.
+clock interrupt and VM subsystem respectively.
 .Sh RETURN VALUES
 The
 .Fn swi_add
-function returns zero on success and non-zero on failure.
+and
+.Fn swi_remove
+functions return zero on success and non-zero on failure.
 .Sh ERRORS
 The
 .Fn swi_add
@@ -185,7 +197,7 @@ or
 .Dv INTR_FAST .
 .It Bq Er EINVAL
 The
-.Fa ithdp
+.Fa eventp
 argument points to a hardware interrupt thread.
 .It Bq Er EINVAL
 Either of the
@@ -197,10 +209,21 @@ arguments are
 .It Bq Er EINVAL
 The
 .Dv INTR_EXCL
-flag is specified and the interrupt thread pointed to by
-.Fa ithdp
-already has at least one handler, or the interrupt thread already has an
+flag is specified and the interrupt event pointed to by
+.Fa eventp
+already has at least one handler, or the interrupt event already has an
 exclusive handler.
+.El
+.Pp
+The
+.Fn swi_remove
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A software interrupt handler pointed to by
+.Fa cookie
+is
+.Dv NULL .
 .El
 .Sh SEE ALSO
 .Xr ithread 9 ,
@@ -222,6 +245,10 @@ and
 .Fn schedsoft*
 functions which date back to at least
 .Bx 4.4 .
+The
+.Fn swi_remove
+function first appeared in
+.Fx 6.1 .
 .Sh BUGS
 Most of the global variables described in this manual page should not be
 global, or at the very least should not be declared in
