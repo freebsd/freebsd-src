@@ -487,6 +487,7 @@ vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor MEDELI		0x0a67	Medeli
 vendor GEOCAST		0x0a79	Geocast Network Systems
+vendor EGO		0x0a92	EGO systems
 vendor IDQUANTIQUE	0x0aba	id Quantique
 vendor ZYDAS		0x0ace	Zydas Technology Corporation
 vendor NEODIO		0x0aec	Neodio
@@ -611,6 +612,7 @@ vendor INITIO		0x13fd	Initio Corporation
 vendor EMTEC		0x13fe	Emtec
 vendor NOVATEL		0x1410	Novatel Wireless
 vendor MERLIN		0x1416	Merlin
+vendor REDOCTANE	0x1430	RedOctane
 vendor WISTRONNEWEB	0x1435	Wistron NeWeb
 vendor RADIOSHACK	0x1453	Radio Shack
 vendor HUAWEI3COM	0x1472	Huawei-3Com
@@ -633,6 +635,7 @@ vendor FIBERLINE	0x1582	Fiberline
 vendor SPARKLAN		0x15a9	SparkLAN
 vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
 vendor AMIT2		0x15c5	AMIT
+vendor TEXTECH		0x15ca	Textech International Ltd.
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
@@ -723,6 +726,7 @@ vendor MARVELL		0x9e88	Marvell Technology Group Ltd.
 vendor 3COM3		0xa727	3Com
 vendor DATAAPEX		0xdaae	DataApex
 vendor HP2		0xf003	Hewlett Packard
+vendor LOGILINK		0xfc08	LogiLink
 vendor USRP		0xfffe	GNU Radio USRP
 
 /*
@@ -1472,6 +1476,10 @@ product EGALAX TPANEL		0x0001	Touch Panel
 product EGALAX TPANEL2		0x0002	Touch Panel
 product EGALAX2 TPANEL		0x0001	Touch Panel
 
+/* EGO Products */
+product EGO DUMMY		0x0000	Dummy Product
+product EGO M4U			0x1020	ESI M4U
+
 /* Eicon Networks */
 product EICON DIVA852		0x4905	Diva 852 ISDN TA
 
@@ -2089,6 +2097,10 @@ product LINKSYS4 WUSB54GCV2	0x0073	WUSB54GC v2
 product LINKSYS4 WUSB54GCV3	0x0077	WUSB54GC v3
 product LINKSYS4 RT3070		0x0078	RT3070
 product LINKSYS4 WUSB600NV2	0x0079	WUSB600N v2
+
+/* Logilink products */
+product LOGILINK DUMMY		0x0000	Dummy product
+product LOGILINK U2M		0x0101	LogiLink USB MIDI Cable
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
@@ -2813,6 +2825,10 @@ product REALTEK RTL8187B_0	0x8189	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_1	0x8197	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_2	0x8198	RTL8187B Wireless Adapter
 
+/* RedOctane products */
+product REDOCTANE DUMMY		0x0000	Dummy product
+product REDOCTANE GHMIDI	0x474b	GH MIDI INTERFACE
+
 /* Renesas products */
 product RENESAS RX610		0x0053	RX610 RX-Stick
 
@@ -3249,6 +3265,11 @@ product	SYNTECH CYPHERLAB100	0x1000	CipherLab USB Barcode Scanner
 /* Teclast products */
 product TECLAST TLC300		0x3203	USB Media Player
 
+/* TexTech products */
+product TEXTECH DUMMY		0x0000	Dummy product
+product TEXTECH U2M_1		0x0101	Textech USB MIDI cable
+product TEXTECH U2M_2		0x1806	Textech USB MIDI cable
+
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
 product DIAMOND2 SUPRA2890	0x0b4a	SupraMax 2890 56K Modem
@@ -3421,7 +3442,9 @@ product WAVESENSE JAZZ		0xaaaa	Jazz blood glucose meter
 
 /* WCH products */
 product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
+product WCH2 DUMMY		0x0000	Dummy product
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
+product WCH2 U2M		0X752d	CH345 USB2.0-MIDI
 
 /* Western Digital products */
 product WESTERN COMBO		0x0200	Firewire USB Combo
