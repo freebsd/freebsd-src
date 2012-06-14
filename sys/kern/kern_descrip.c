@@ -679,8 +679,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		vfslocked = 0;
 		/* Check for race with close */
 		FILEDESC_SLOCK(fdp);
-		if (fd < 0 || fd >= fdp->fd_nfiles ||
-		    fp != fdp->fd_ofiles[fd]) {
+		if (fdtofp(fd, fdp) != fp) {
 			FILEDESC_SUNLOCK(fdp);
 			flp->l_whence = SEEK_SET;
 			flp->l_start = 0;
@@ -822,7 +821,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 
 	FILEDESC_XLOCK(fdp);
-	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
+	if (fdtofp(old, fdp) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
@@ -1201,8 +1200,7 @@ kern_close(td, fd)
 	AUDIT_SYSCLOSE(td, fd);
 
 	FILEDESC_XLOCK(fdp);
-	if (fd < 0 || fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL) {
+	if ((fp = fdtofp(fd, fdp)) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
@@ -2596,8 +2594,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode, int opener
 	 * closed, then reject.
 	 */
 	FILEDESC_XLOCK(fdp);
-	if (dfd < 0 || dfd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[dfd]) == NULL) {
+	if ((fp = fdtofp(dfd, fdp)) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
