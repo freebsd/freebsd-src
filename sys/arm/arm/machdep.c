@@ -712,6 +712,47 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	return (lastaddr);
 }
 
+vm_offset_t
+default_parse_boot_param(struct arm_boot_params *abp)
+{
+	vm_offset_t lastaddr;
+#if defined(FREEBSD_BOOT_LOADER)
+	void *mdp;
+	void *kmdp;
+
+	/*
+	 * Mask metadata pointer: it is supposed to be on page boundary. If
+	 * the first argument (mdp) doesn't point to a valid address the
+	 * bootloader must have passed us something else than the metadata
+	 * ptr... In this case we want to fall back to some built-in settings.
+	 */
+	mdp = (void *)(abp->abp_r0 & ~PAGE_MASK);
+
+	kmdp = NULL;
+	/* Parse metadata and fetch parameters (move to common machdep.c?) */
+	if (mdp != NULL) {
+		preload_metadata = mdp;
+		kmdp = preload_search_by_type("elf kernel");
+		if (kmdp != NULL) {
+			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
+			    vm_offset_t);
+#ifdef DDB
+			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
+		} else
+			lastaddr = fake_preload_metadata(abp);
+
+		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
+	} else
+#endif
+		/* Fall back to hardcoded metadata. */
+		lastaddr = fake_preload_metadata(abp);
+	return lastaddr;
+}
+
 /*
  * Stub version of the boot parameter parsing routine.  We are
  * called early in initarm, before even VM has been initialized.
@@ -727,7 +768,7 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
  * kernels/boards can override this weak function with one of their
  * own.  We just fake metadata...
  */
-__weak_reference(fake_preload_metadata, parse_boot_param);
+__weak_reference(default_parse_boot_param, parse_boot_param);
 
 /*
  * Initialize proc0
