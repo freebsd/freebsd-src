@@ -392,8 +392,8 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize;
 	vm_offset_t lastaddr;
 
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
