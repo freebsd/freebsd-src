@@ -678,6 +678,47 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 }
 
 /*
+ * Make a standard dump_avail array.  Can't make the phys_avail
+ * since we need to do that after we call pmap_bootstrap, but this
+ * is needed before pmap_boostrap.
+ *
+ * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
+ * calling pmap_bootstrap.
+ */
+void
+arm_dump_avail_init(vm_offset_t memsize, size_t max)
+{
+#ifdef LINUX_BOOT_ABI
+	/*
+	 * Linux boot loader passes us the actual banks of memory, so use them
+	 * to construct the dump_avail array.
+	 */
+	if (membanks > 0) 
+	{
+		int i, j;
+
+		if (max < (membanks + 1) * 2)
+			panic("dump_avail[%d] too small for %d banks\n",
+			    max, membanks);
+		for (j = 0, i = 0; i < membanks; i++) {
+			dump_avail[j++] = round_page(memstart[i]);
+			dump_avail[j++] = trunc_page(memstart[i] + memsize[i]);
+		}
+		dump_avail[j++] = 0;
+		dump_avail[j++] = 0;
+		return;
+	}
+#endif
+	if (max < 4)
+		panic("dump_avail too small\n");
+
+	dump_avail[0] = round_page(PHYSADDR);
+	dump_avail[1] = trunc_page(PHYSADDR + memsize);
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
+}
+
+/*
  * Fake up a boot descriptor table
  */
 vm_offset_t
