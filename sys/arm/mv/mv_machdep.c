@@ -331,7 +331,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	mdp = (void *)((uint32_t)mdp & ~PAGE_MASK);
 
-	/* Parse metadata and fetch parameters */
+	/* Parse metadata and fetch parameters (move to common machdep.c?) */
 	if (mdp != NULL) {
 		preload_metadata = mdp;
 		kmdp = preload_search_by_type("elf kernel");
@@ -350,7 +350,7 @@ initarm(struct arm_boot_params *abp)
 		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
 	} else {
 		/* Fall back to hardcoded metadata. */
-		lastaddr = fake_preload_metadata();
+		lastaddr = fake_preload_metadata(abp);
 	}
 
 #if defined(FDT_DTB_STATIC)
