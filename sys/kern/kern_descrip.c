@@ -242,8 +242,10 @@ fd_last_used(struct filedesc *fdp, int size)
 static int
 fdisused(struct filedesc *fdp, int fd)
 {
+
         KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
             ("file descriptor %d out of range (0, %d)", fd, fdp->fd_nfiles));
+
 	return ((fdp->fd_map[NDSLOT(fd)] & NDBIT(fd)) != 0);
 }
 
@@ -255,8 +257,8 @@ fdused(struct filedesc *fdp, int fd)
 {
 
 	FILEDESC_XLOCK_ASSERT(fdp);
-	KASSERT(!fdisused(fdp, fd),
-	    ("fd already used"));
+
+	KASSERT(!fdisused(fdp, fd), ("fd=%d is already used", fd));
 
 	fdp->fd_map[NDSLOT(fd)] |= NDBIT(fd);
 	if (fd > fdp->fd_lastfile)
@@ -273,10 +275,9 @@ fdunused(struct filedesc *fdp, int fd)
 {
 
 	FILEDESC_XLOCK_ASSERT(fdp);
-	KASSERT(fdisused(fdp, fd),
-	    ("fd is already unused"));
-	KASSERT(fdp->fd_ofiles[fd] == NULL,
-	    ("fd is still in use"));
+
+	KASSERT(fdisused(fdp, fd), ("fd=%d is already unused", fd));
+	KASSERT(fdp->fd_ofiles[fd] == NULL, ("fd=%d is still in use", fd));
 
 	fdp->fd_map[NDSLOT(fd)] &= ~NDBIT(fd);
 	if (fd < fdp->fd_freefile)
