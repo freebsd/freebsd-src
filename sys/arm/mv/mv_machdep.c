@@ -311,47 +311,22 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
 	uint32_t memsize, l2size;
 	void *kmdp;
-	void *mdp;
 	u_int l1pagetable;
 	int i = 0, j = 0, err_devmap = 0;
 
-	mdp = (void *)abp->abp_r0;
-	kmdp = NULL;
-	lastaddr = 0;
+        lastaddr = parse_boot_param(abp);
 	memsize = 0;
-	dtbp = (vm_offset_t)NULL;
-
 	set_cpufuncs();
 
 	/*
-	 * Mask metadata pointer: it is supposed to be on page boundary. If
-	 * the first argument (mdp) doesn't point to a valid address the
-	 * bootloader must have passed us something else than the metadata
-	 * ptr... In this case we want to fall back to some built-in settings.
+	 * Find the dtb passed in by the boot loader.
 	 */
-	mdp = (void *)((uint32_t)mdp & ~PAGE_MASK);
-
-	/* Parse metadata and fetch parameters (move to common machdep.c?) */
-	if (mdp != NULL) {
-		preload_metadata = mdp;
-		kmdp = preload_search_by_type("elf kernel");
-		if (kmdp != NULL) {
-			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
-			    vm_offset_t);
-#ifdef DDB
-			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-#endif
-		}
-
-		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
-	} else {
-		/* Fall back to hardcoded metadata. */
-		lastaddr = fake_preload_metadata(abp);
-	}
+        kmdp = preload_search_by_type("elf kernel");
+        if (kmdp != NULL)
+		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	else
+		dtbp = (vm_offset_t)NULL;
+		
 
 #if defined(FDT_DTB_STATIC)
 	/*
