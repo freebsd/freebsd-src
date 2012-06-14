@@ -355,7 +355,7 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
 	struct timespec ts;
 	struct bintime bt, bt2, tmp;
-	int catch = 0, error;
+	int error;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
@@ -368,22 +368,20 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 		sleepq_lock(&nanowait);	
 		sleepq_add(&nanowait, NULL, "nanslp", PWAIT | PCATCH, 0);
 		sleepq_set_timeout_bt(&nanowait,bt);
-		error = sleepq_timedwait_sig(&nanowait,catch);
+		error = sleepq_timedwait_sig(&nanowait, PWAIT | PCATCH);
 		binuptime(&bt2);
-		if (catch) { 
-			if (error != EWOULDBLOCK) {
-				if (error == ERESTART)
-					error = EINTR;
-				if (rmt != NULL) {
-					tmp = bt;
-					bintime_sub(&tmp, &bt2);	
-					bintime2timespec(&tmp,&ts);
-					if (ts.tv_sec < 0)
-						timespecclear(&ts);
-					*rmt = ts;
-				}
-			return (error);
+		if (error != EWOULDBLOCK) {
+			if (error == ERESTART)
+				error = EINTR;
+			if (rmt != NULL) {
+				tmp = bt;
+				bintime_sub(&tmp, &bt2);	
+				bintime2timespec(&tmp, &ts);
+				if (ts.tv_sec < 0)
+					timespecclear(&ts);
+				*rmt = ts;
 			}
+			return (error);
 		}
 		if (bintime_cmp(&bt2, &bt, >=))
 			return (0);
