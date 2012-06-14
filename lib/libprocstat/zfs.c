@@ -35,6 +35,7 @@
 
 #undef lbolt
 #undef lbolt64
+#undef gethrestime
 #undef gethrestime_sec
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
