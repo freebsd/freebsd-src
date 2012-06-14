@@ -686,7 +686,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			flp->l_type = F_UNLCK;
 			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
-					   F_UNLCK, flp, F_POSIX);
+			    F_UNLCK, flp, F_POSIX);
 			VFS_UNLOCK_GIANT(vfslocked);
 			vfslocked = 0;
 		} else
@@ -1370,6 +1370,7 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 	vp = fp->f_vnode;
 	if (vp != NULL) {
 		int vfslocked;
+
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
@@ -1380,7 +1381,7 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 			error = EINVAL;
 		} else {
 			td->td_retval[0] = PIPE_BUF;
-		error = 0;
+			error = 0;
 		}
 	} else {
 		error = EOPNOTSUPP;
@@ -1834,11 +1835,8 @@ fdfree(struct thread *td)
 				vp = fp->f_vnode;
 				locked = VFS_LOCK_GIANT(vp->v_mount);
 				(void) VOP_ADVLOCK(vp,
-						   (caddr_t)td->td_proc->
-						   p_leader,
-						   F_UNLCK,
-						   &lf,
-						   F_POSIX);
+				    (caddr_t)td->td_proc->p_leader, F_UNLCK,
+				    &lf, F_POSIX);
 				VFS_UNLOCK_GIANT(locked);
 				FILEDESC_XLOCK(fdp);
 				fdrop(fp, td);
@@ -2027,6 +2025,7 @@ void
 fdcloseexec(struct thread *td)
 {
 	struct filedesc *fdp;
+	struct file *fp;
 	int i;
 
 	/* Certain daemons might not have file descriptors. */
@@ -2034,27 +2033,23 @@ fdcloseexec(struct thread *td)
 	if (fdp == NULL)
 		return;
 
-	FILEDESC_XLOCK(fdp);
-
 	/*
 	 * We cannot cache fd_ofiles or fd_ofileflags since operations
 	 * may block and rip them out from under us.
 	 */
+	FILEDESC_XLOCK(fdp);
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
-		if (fdp->fd_ofiles[i] != NULL &&
-		    (fdp->fd_ofiles[i]->f_type == DTYPE_MQUEUE ||
+		fp = fdp->fd_ofiles[i];
+		if (fp != NULL && (fp->f_type == DTYPE_MQUEUE ||
 		    (fdp->fd_ofileflags[i] & UF_EXCLOSE))) {
-			struct file *fp;
-
-			knote_fdclose(td, i);
 			/*
 			 * NULL-out descriptor prior to close to avoid
 			 * a race while close blocks.
 			 */
-			fp = fdp->fd_ofiles[i];
 			fdp->fd_ofiles[i] = NULL;
 			fdp->fd_ofileflags[i] = 0;
 			fdunused(fdp, i);
+			knote_fdclose(td, i);
 			if (fp->f_type == DTYPE_MQUEUE)
 				mq_fdclose(td, i, fp);
 			FILEDESC_XUNLOCK(fdp);
@@ -2139,7 +2134,7 @@ closef(struct file *fp, struct thread *td)
 	 * node, not the capability itself.
 	 */
 	(void)cap_funwrap(fp, 0, &fp_object);
-	if ((fp_object->f_type == DTYPE_VNODE) && (td != NULL)) {
+	if (fp_object->f_type == DTYPE_VNODE && td != NULL) {
 		int vfslocked;
 
 		vp = fp_object->f_vnode;
@@ -2150,7 +2145,7 @@ closef(struct file *fp, struct thread *td)
 			lf.l_len = 0;
 			lf.l_type = F_UNLCK;
 			(void) VOP_ADVLOCK(vp, (caddr_t)td->td_proc->p_leader,
-					   F_UNLCK, &lf, F_POSIX);
+			    F_UNLCK, &lf, F_POSIX);
 		}
 		fdtol = td->td_proc->p_fdtol;
 		if (fdtol != NULL) {
@@ -2174,8 +2169,8 @@ closef(struct file *fp, struct thread *td)
 				lf.l_type = F_UNLCK;
 				vp = fp_object->f_vnode;
 				(void) VOP_ADVLOCK(vp,
-						   (caddr_t)fdtol->fdl_leader,
-						   F_UNLCK, &lf, F_POSIX);
+				    (caddr_t)fdtol->fdl_leader, F_UNLCK, &lf,
+				    F_POSIX);
 				FILEDESC_XLOCK(fdp);
 				fdtol->fdl_holdcount--;
 				if (fdtol->fdl_holdcount == 0 &&
