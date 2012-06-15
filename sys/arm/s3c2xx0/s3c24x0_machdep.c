@@ -249,7 +249,6 @@ initarm(struct arm_boot_params *abp)
 	i = 0;
 	set_cpufuncs();
 	cpufuncs.cf_sleep = s3c24x0_sleep;
-	lastaddr = fake_preload_metadata();
 
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
