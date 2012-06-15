@@ -201,11 +201,22 @@ const struct pmap_devmap at91_devmap[] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
+#ifdef LINUX_BOOT_ABI
+extern int membanks;
+extern int memstart[];
+extern int memsize[];
+#endif
+
 long
 at91_ramsize(void)
 {
 	uint32_t cr, mr;
 	int banks, rows, cols, bw;
+#ifdef LINUX_BOOT_ABI
+	// If we found any ATAGs that were for memory, return the first bank.
+	if (membanks > 0)
+		return memsize[0];
+#endif
 
 	if (at91_is_rm92()) {
 		uint32_t *SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
@@ -592,4 +603,20 @@ void
 cpu_initclocks(void)
 {
 
+}
+
+void
+DELAY(int n)
+{
+	if (soc_data.delay)
+		soc_data.delay(n);
+}
+
+void
+cpu_reset(void)
+{
+	if (soc_data.reset)
+		soc_data.reset();
+	while (1)
+		continue;
 }
