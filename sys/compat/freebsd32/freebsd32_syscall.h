@@ -80,7 +80,7 @@
 				/* 71 is obsolete ommap */
 #define	FREEBSD32_SYS_vadvise	72
 #define	FREEBSD32_SYS_munmap	73
-#define	FREEBSD32_SYS_mprotect	74
+#define	FREEBSD32_SYS_freebsd32_mprotect	74
 #define	FREEBSD32_SYS_madvise	75
 				/* 76 is obsolete vhangup */
 				/* 77 is obsolete vlimit */

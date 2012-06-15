@@ -76,6 +76,11 @@ struct freebsd32_execve_args {
 	char argv_l_[PADL_(u_int32_t *)]; u_int32_t * argv; char argv_r_[PADR_(u_int32_t *)];
 	char envv_l_[PADL_(u_int32_t *)]; u_int32_t * envv; char envv_r_[PADR_(u_int32_t *)];
 };
+struct freebsd32_mprotect_args {
+	char addr_l_[PADL_(const void *)]; const void * addr; char addr_r_[PADR_(const void *)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
+};
 struct freebsd32_setitimer_args {
 	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
 	char itv_l_[PADL_(struct itimerval32 *)]; struct itimerval32 * itv; char itv_r_[PADR_(struct itimerval32 *)];
@@ -593,6 +598,7 @@ int	freebsd32_recvfrom(struct thread *, struct freebsd32_recvfrom_args *);
 int	freebsd32_sigaltstack(struct thread *, struct freebsd32_sigaltstack_args *);
 int	freebsd32_ioctl(struct thread *, struct freebsd32_ioctl_args *);
 int	freebsd32_execve(struct thread *, struct freebsd32_execve_args *);
+int	freebsd32_mprotect(struct thread *, struct freebsd32_mprotect_args *);
 int	freebsd32_setitimer(struct thread *, struct freebsd32_setitimer_args *);
 int	freebsd32_getitimer(struct thread *, struct freebsd32_getitimer_args *);
 int	freebsd32_select(struct thread *, struct freebsd32_select_args *);
@@ -952,6 +958,7 @@ int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_
 #define	FREEBSD32_SYS_AUE_freebsd32_execve	AUE_EXECVE
 #define	FREEBSD32_SYS_AUE_ofreebsd32_fstat	AUE_FSTAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_getpagesize	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_mprotect	AUE_MPROTECT
 #define	FREEBSD32_SYS_AUE_freebsd32_setitimer	AUE_SETITIMER
 #define	FREEBSD32_SYS_AUE_freebsd32_getitimer	AUE_GETITIMER
 #define	FREEBSD32_SYS_AUE_freebsd32_select	AUE_SELECT
