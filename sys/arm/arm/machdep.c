@@ -686,7 +686,7 @@ makectx(struct trapframe *tf, struct pcb *pcb)
  * calling pmap_bootstrap.
  */
 void
-arm_dump_avail_init(vm_offset_t memsize, size_t max)
+arm_dump_avail_init(vm_offset_t ramsize, size_t max)
 {
 #ifdef LINUX_BOOT_ABI
 	/*
@@ -713,7 +713,7 @@ arm_dump_avail_init(vm_offset_t memsize, size_t max)
 		panic("dump_avail too small\n");
 
 	dump_avail[0] = round_page(PHYSADDR);
-	dump_avail[1] = trunc_page(PHYSADDR + memsize);
+	dump_avail[1] = trunc_page(PHYSADDR + ramsize);
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 }
