@@ -15,7 +15,7 @@
 #	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
-#	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries
+#	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
 #	TARGET="machine" to crossbuild world for a different machine type
