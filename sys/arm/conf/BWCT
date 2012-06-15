@@ -21,7 +21,6 @@ ident		BWCT
 
 options 	VERBOSE_INIT_ARM
 
-options 	AT91_BWCT
 include		"../at91/std.bwct"
 
 #To statically compile in device wiring instead of /boot/device.hints
