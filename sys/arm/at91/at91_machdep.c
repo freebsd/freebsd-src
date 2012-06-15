@@ -572,3 +572,24 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
+
+/*
+ * These functions are handled elsewhere, so make them nops here.
+ */
+void
+cpu_startprofclock(void)
+{
+
+}
+
+void
+cpu_stopprofclock(void)
+{
+
+}
+
+void
+cpu_initclocks(void)
+{
+
+}
