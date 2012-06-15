@@ -206,24 +206,3 @@ DELAY(int us)
 		last = piv;
 	}
 }
-
-/*
- * The 3 next functions must be implement with the future PLL code.
- */
-void
-cpu_startprofclock(void)
-{
-
-}
-
-void
-cpu_stopprofclock(void)
-{
-
-}
-
-void
-cpu_initclocks(void)
-{
-
-}
