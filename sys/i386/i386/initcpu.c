@@ -649,6 +649,8 @@ enable_sse(void)
 #endif
 }
 
+extern int elf32_nxstack;
+
 void
 initializecpu(void)
 {
@@ -738,6 +740,7 @@ initializecpu(void)
 			msr = rdmsr(MSR_EFER) | EFER_NXE;
 			wrmsr(MSR_EFER, msr);
 			pg_nx = PG_NX;
+			elf32_nxstack = 1;
 		}
 #endif
 		break;
