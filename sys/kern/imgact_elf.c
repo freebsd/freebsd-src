@@ -118,7 +118,12 @@ static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
 
-static int __elfN(nxstack) = 0;
+int __elfN(nxstack) =
+#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */
+	1;
+#else
+	0;
+#endif
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     nxstack, CTLFLAG_RW, &__elfN(nxstack), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");

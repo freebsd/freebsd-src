@@ -1448,6 +1448,8 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	return (void *)va;
 }
 
+extern int elf32_nxstack;
+
 void
 moea64_init(mmu_t mmu)
 {
@@ -1466,6 +1468,8 @@ moea64_init(mmu_t mmu)
 		uma_zone_set_allocf(moea64_upvo_zone,moea64_uma_page_alloc);
 		uma_zone_set_allocf(moea64_mpvo_zone,moea64_uma_page_alloc);
 	}
+
+	elf32_nxstack = 1;
 
 	moea64_initialized = TRUE;
 }
