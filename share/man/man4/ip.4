@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2012
+.Dd June 15, 2012
 .Dt IP 4
 .Os
 .Sh NAME
@@ -227,7 +227,7 @@ configured with the broadcast address 192.168.2.255:
 .Bd -literal
 char msg[512];
 struct sockaddr_in sin;
-u_char onesbcast = 1;	/* 0 = disable (default), 1 = enable */
+int onesbcast = 1;	/* 0 = disable (default), 1 = enable */
 
 setsockopt(s, IPPROTO_IP, IP_ONESBCAST, &onesbcast, sizeof(onesbcast));
 sin.sin_addr.s_addr = inet_addr("192.168.2.255");
