@@ -45,4 +45,6 @@ struct at91_ivar {
 
 extern uint32_t at91_master_clock;
 
+#define at91_is_rm92() (1)	/* Only support AT91RM9200 atm -- helps with MFCs */
+
 #endif /* _AT91VAR_H_ */
