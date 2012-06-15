@@ -114,21 +114,22 @@ static uma_zone_t file_zone;
 #define DUP_FIXED	0x1	/* Force fixed allocation */
 #define DUP_FCNTL	0x2	/* fcntl()-style errors */
 
-static int closefp(struct filedesc *fdp, int fd, struct file *fp,
-    struct thread *td, int holdleaders);
-static int do_dup(struct thread *td, int flags, int old, int new,
-    register_t *retval);
-static int fd_first_free(struct filedesc *fdp, int low, int size);
-static int fd_last_used(struct filedesc *fdp, int size);
-static void fdgrowtable(struct filedesc *fdp, int nfd);
-static void fdunused(struct filedesc *fdp, int fd);
-static void fdused(struct filedesc *fdp, int fd);
-static int fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
-static int fill_procdesc_info(struct procdesc *pdp, struct kinfo_file *kif);
-static int fill_pts_info(struct tty *tp, struct kinfo_file *kif);
-static int fill_shm_info(struct file *fp, struct kinfo_file *kif);
-static int fill_socket_info(struct socket *so, struct kinfo_file *kif);
-static int fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
+static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
+		    struct thread *td, int holdleaders);
+static int	do_dup(struct thread *td, int flags, int old, int new,
+		    register_t *retval);
+static int	fd_first_free(struct filedesc *fdp, int low, int size);
+static int	fd_last_used(struct filedesc *fdp, int size);
+static void	fdgrowtable(struct filedesc *fdp, int nfd);
+static void	fdunused(struct filedesc *fdp, int fd);
+static void	fdused(struct filedesc *fdp, int fd);
+static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
+static int	fill_procdesc_info(struct procdesc *pdp,
+		    struct kinfo_file *kif);
+static int	fill_pts_info(struct tty *tp, struct kinfo_file *kif);
+static int	fill_shm_info(struct file *fp, struct kinfo_file *kif);
+static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
+static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
 
 /*
  * A process is initially started out with NDFILE descriptors stored within
