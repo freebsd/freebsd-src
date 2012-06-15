@@ -60,6 +60,7 @@ static struct at91st_softc {
 	bus_space_write_4(timer_softc->sc_st, timer_softc->sc_sh, (off), (val))
 
 static void at91st_watchdog(void *, u_int, int *);
+static void at91st_initclocks(struct at91st_softc *);
 
 static inline int
 st_crtr(void)
@@ -114,8 +115,11 @@ at91st_attach(device_t dev)
 
 	timer_softc->sc_wet = EVENTHANDLER_REGISTER(watchdog_list,
 	  at91st_watchdog, dev, 0);
+
 	device_printf(dev,
 	  "watchdog registered, timeout intervall max. 64 sec\n");
+
+	at91st_initclocks(timer_softc);
 	return (0);
 }
 
@@ -183,14 +187,14 @@ clock_intr(void *arg)
 	return (FILTER_STRAY);
 }
 
-void
-cpu_initclocks(void)
+static void
+at91st_initclocks(struct at91st_softc *sc)
 {
 	int rel_value;
 	struct resource *irq;
 	int rid = 0;
 	void *ih;
-	device_t dev = timer_softc->sc_dev;
+	device_t dev = sc->sc_dev;
 
 	rel_value = 32768 / hz;
 	if (rel_value < 1)
@@ -250,14 +254,4 @@ cpu_reset(void)
 	WR4(ST_CR, ST_CR_WDRST);
 	while (1)
 		continue;
-}
-
-void
-cpu_startprofclock(void)
-{
-}
-
-void
-cpu_stopprofclock(void)
-{
 }
