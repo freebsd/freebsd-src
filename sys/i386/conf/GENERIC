@@ -285,6 +285,8 @@ device		ath		# Atheros NIC's
 device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_AR5416_INTERRUPT_MITIGATION	# AR5416 interrupt mitigation
+options 	ATH_SUPPORT_11N	# Enable 802.11n support for AR5416 and later
 device		ath_rate_sample	# SampleRate tx rate control for ath
 #device		bwi		# Broadcom BCM430x/BCM431x wireless NICs.
 #device		bwn		# Broadcom BCM43xx wireless NICs.
