@@ -114,6 +114,7 @@ __FBSDID("$FreeBSD$");
  * correct.
  */
 
+#include "opt_compat.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -1469,7 +1470,9 @@ moea64_init(mmu_t mmu)
 		uma_zone_set_allocf(moea64_mpvo_zone,moea64_uma_page_alloc);
 	}
 
+#ifdef COMPAT_FREEBSD32
 	elf32_nxstack = 1;
+#endif
 
 	moea64_initialized = TRUE;
 }
