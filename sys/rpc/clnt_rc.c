@@ -367,6 +367,7 @@ static bool_t
 clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 {
 	struct rc_data *rc = (struct rc_data *)cl->cl_private;
+	SVCXPRT *xprt;
 
 	if (info == NULL) {
 		return (FALSE);
@@ -449,6 +450,10 @@ clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 		break;
 
 	case CLSET_BACKCHANNEL:
+printf("clntrc reg backch\n");
+		xprt = (SVCXPRT *)info;
+		SVC_ACQUIRE(xprt);
+		xprt_register(xprt);
 		rc->rc_backchannel = info;
 		break;
 
@@ -488,9 +493,16 @@ static void
 clnt_reconnect_destroy(CLIENT *cl)
 {
 	struct rc_data *rc = (struct rc_data *)cl->cl_private;
+	SVCXPRT *xprt;
 
 	if (rc->rc_client)
 		CLNT_DESTROY(rc->rc_client);
+	if (rc->rc_backchannel) {
+printf("clntrc dereg backch\n");
+		xprt = (SVCXPRT *)rc->rc_backchannel;
+		xprt_unregister(xprt);
+		SVC_RELEASE(xprt);
+	}
 	crfree(rc->rc_ucred);
 	mtx_destroy(&rc->rc_lock);
 	mem_free(rc, sizeof(*rc));
