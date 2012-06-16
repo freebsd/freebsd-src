@@ -637,6 +637,7 @@ rx_accept:
 	}
 
 	ifp->if_ipackets++;
+	ifp->if_ibytes += m->m_pkthdr.len;
 	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
 	/*
