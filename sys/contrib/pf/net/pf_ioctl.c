@@ -3248,19 +3248,19 @@ DIOCCHANGEADDR_error:
 	case DIOCIGETIFACES: {
 		struct pfioc_iface *io = (struct pfioc_iface *)addr;
 		struct pfi_kif *ifstore;
+		size_t bufsiz;
 
 		if (io->pfiio_esize != sizeof(struct pfi_kif)) {
 			error = ENODEV;
 			break;
 		}
 
-		ifstore = malloc(io->pfiio_size * sizeof(struct pfi_kif),
-		    M_TEMP, M_WAITOK);
+		bufsiz = io->pfiio_size * sizeof(struct pfi_kif);
+		ifstore = malloc(bufsiz, M_TEMP, M_WAITOK);
 		PF_RULES_RLOCK();
 		pfi_get_ifaces(io->pfiio_name, ifstore, &io->pfiio_size);
 		PF_RULES_RUNLOCK();
-		error = copyout(ifstore, io->pfiio_buffer, io->pfiio_size *
-		    sizeof(struct pfi_kif));
+		error = copyout(ifstore, io->pfiio_buffer, bufsiz);
 		free(ifstore, M_TEMP);
 		break;
 	}
