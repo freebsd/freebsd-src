@@ -237,20 +237,22 @@ extern struct vpglocks pa_lock[];
 #endif
 
 #define	vm_page_queue_free_mtx	vm_page_queue_free_lock.data
+
 /*
  * These are the flags defined for vm_page.
  *
- * aflags are updated by atomic accesses. Use the vm_page_aflag_set()
+ * aflags are updated by atomic accesses.  Use the vm_page_aflag_set()
  * and vm_page_aflag_clear() functions to set and clear the flags.
  *
  * PGA_REFERENCED may be cleared only if the object containing the page is
- * locked.
+ * locked.  It is set by both the MI and MD VM layers.
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
- * does so, the page must be VPO_BUSY.
+ * does so, the page must be VPO_BUSY.  The MI VM layer must never access this
+ * flag directly.  Instead, it should call pmap_page_is_write_mapped().
  *
  * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
- * at least one executable mapping. It is not consumed by the VM layer.
+ * at least one executable mapping.  It is not consumed by the MI VM layer.
  */
 #define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x02		/* page has been referenced */
@@ -262,12 +264,12 @@ extern struct vpglocks pa_lock[];
  */
 #define	PG_CACHED	0x01		/* page is cached */
 #define	PG_FREE		0x02		/* page is free */
-#define	PG_FICTITIOUS	0x04		/* physical page doesn't exist (O) */
+#define	PG_FICTITIOUS	0x04		/* physical page doesn't exist */
 #define	PG_ZERO		0x08		/* page is zeroed */
 #define	PG_MARKER	0x10		/* special queue marker page */
 #define	PG_SLAB		0x20		/* object pointer is actually a slab */
 #define	PG_WINATCFLS	0x40		/* flush dirty page on inactive q */
-#define	PG_NODUMP	0x80		/* don't include this page in the dump */
+#define	PG_NODUMP	0x80		/* don't include this page in a dump */
 
 /*
  * Misc constants.
