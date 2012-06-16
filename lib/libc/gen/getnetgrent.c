@@ -538,7 +538,7 @@ parse_netgrp(const char *group)
 static struct linelist *
 read_for_group(const char *group)
 {
-	char *pos, *spos, *linep;
+	char *linep, *olinep, *pos, *spos;
 	int len, olen;
 	int cont;
 	struct linelist *lp;
@@ -615,15 +615,20 @@ read_for_group(const char *group)
 				} else
 					cont = 0;
 				if (len > 0) {
-					linep = reallocf(linep, olen + len + 1);
+					linep = malloc(olen + len + 1);
 					if (linep == NULL) {
 						free(lp->l_groupname);
 						free(lp);
 						return (NULL);
 					}
+					if (olen > 0) {
+						bcopy(olinep, linep, olen);
+						free(olinep);
+					}
 					bcopy(pos, linep + olen, len);
 					olen += len;
 					*(linep + olen) = '\0';
+					olinep = linep;
 				}
 				if (cont) {
 					if (fgets(line, LINSIZ, netf)) {
