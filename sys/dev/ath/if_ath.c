@@ -663,7 +663,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 
 	device_printf(sc->sc_dev, "%s: sizeof(ath_buf) = %d bytes\n",
-	    __func__, sizeof(struct ath_buf));
+	    __func__, (int)sizeof(struct ath_buf));
 
 #ifdef	ATH_ENABLE_11N
 	/*
