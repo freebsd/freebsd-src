@@ -236,20 +236,32 @@ struct ath_buf {
 		 * These fields are passed into the
 		 * descriptor setup functions.
 		 */
+
+		/* Make this an 8 bit value? */
 		HAL_PKT_TYPE bfs_atype;	/* packet type */
-		int bfs_pktlen;		/* length of this packet */
-		int bfs_hdrlen;		/* length of this packet header */
+
+		uint32_t bfs_pktlen;	/* length of this packet */
+
+		uint16_t bfs_hdrlen;	/* length of this packet header */
 		uint16_t bfs_al;	/* length of aggregate */
-		int bfs_txflags;	/* HAL (tx) descriptor flags */
-		int bfs_txrate0;	/* first TX rate */
-		int bfs_try0;		/* first try count */
+
+		uint16_t bfs_txflags;	/* HAL (tx) descriptor flags */
+		uint8_t bfs_txrate0;	/* first TX rate */
+		uint8_t bfs_try0;		/* first try count */
+
+		uint16_t bfs_txpower;	/* tx power */
 		uint8_t bfs_ctsrate0;	/* Non-zero - use this as ctsrate */
-		int bfs_keyix;		/* crypto key index */
-		int bfs_txpower;	/* tx power */
-		int bfs_txantenna;	/* TX antenna config */
+		uint8_t bfs_ctsrate;	/* CTS rate */
+
+		/* 16 bit? */
+		int32_t bfs_keyix;		/* crypto key index */
+		int32_t bfs_txantenna;	/* TX antenna config */
+
+		/* Make this an 8 bit value? */
 		enum ieee80211_protmode bfs_protmode;
-		int bfs_ctsrate;	/* CTS rate */
-		int bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
+
+		/* 16 bit? */
+		uint32_t bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
 		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
 	} bf_state;
 };
