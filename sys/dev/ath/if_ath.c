@@ -662,9 +662,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
 
-	device_printf(sc->sc_dev, "%s: sizeof(ath_buf) = %d bytes\n",
-	    __func__, (int)sizeof(struct ath_buf));
-
 #ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
