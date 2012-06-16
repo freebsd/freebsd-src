@@ -970,10 +970,6 @@ syscall(struct trapframe *frame)
 	}
 
 	/*
-	 * Traced syscall.
-	 */
-
-	/*
 	 * If the user-supplied value of %rip is not a canonical
 	 * address, then some CPUs will trigger a ring 0 #GP during
 	 * the sysret instruction.  However, the fault handler would
@@ -989,6 +985,10 @@ syscall(struct trapframe *frame)
 		ksi.ksi_addr = (void *)td->td_frame->tf_rip;
 		trapsignal(td, &ksi);
 	}
+
+	/*
+	 * Traced syscall.
+	 */
 	if (orig_tf_rflags & PSL_T) {
 		frame->tf_rflags &= ~PSL_T;
 		ksiginfo_init_trap(&ksi);
