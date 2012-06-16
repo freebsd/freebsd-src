@@ -2104,9 +2104,6 @@ closef(struct file *fp, struct thread *td)
 	struct filedesc *fdp;
 	struct file *fp_object;
 
-	fdp = td->td_proc->p_fd;
-	FILEDESC_UNLOCK_ASSERT(fdp);
-
 	/*
 	 * POSIX record locking dictates that any close releases ALL
 	 * locks owned by this process.  This is handled by setting
@@ -2142,6 +2139,7 @@ closef(struct file *fp, struct thread *td)
 			 * Handle special case where file descriptor table is
 			 * shared between multiple process leaders.
 			 */
+			fdp = td->td_proc->p_fd;
 			FILEDESC_XLOCK(fdp);
 			for (fdtol = fdtol->fdl_next;
 			     fdtol != td->td_proc->p_fdtol;
