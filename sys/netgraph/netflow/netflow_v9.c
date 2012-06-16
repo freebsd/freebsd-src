@@ -222,7 +222,7 @@ export9_send(priv_p priv, fib_export_p fe, item_p item, struct netflow_v9_packet
 	header->unix_secs  = htonl(ts.tv_sec);
 	header->seq_num = htonl(atomic_fetchadd_32(&fe->flow9_seq, 1));
 	header->count = htons(t->count);
-	header->source_id = htonl(NG_NODE_ID(priv->node));
+	header->source_id = htonl(fe->domain_id);
 
 	if (priv->export9 != NULL)
 		NG_FWD_ITEM_HOOK_FLAGS(error, item, priv->export9, flags);
