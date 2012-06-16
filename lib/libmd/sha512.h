@@ -1,7 +1,6 @@
-/* LINTLIBRARY */
-/*
- * Copyright (c) 1999
- *      Mark Murray.  All rights reserved.
+/*-
+ * Copyright 2005 Colin Percival
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY MARK MURRAY AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL MARK MURRAY OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,19 +24,27 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
 
-/* magic sizes */
-#define MD4_SIZE 16
-#define MD5_SIZE 16
+#ifndef _SHA512_H_
+#define _SHA512_H_
 
-char *crypt_des(const char *pw, const char *salt);
-char *crypt_md5(const char *pw, const char *salt);
-char *crypt_nthash(const char *pw, const char *salt);
-char *crypt_blowfish(const char *pw, const char *salt);
-char *crypt_sha256 (const char *pw, const char *salt);
-char *crypt_sha512 (const char *pw, const char *salt);
+#include <sys/types.h>
 
-extern void _crypt_to64(char *s, u_long v, int n);
-extern void b64_from_24bit(uint8_t B2, uint8_t B1, uint8_t B0, int n, int *buflen, char **cp);
+typedef struct SHA512Context {
+	uint64_t state[8];
+	uint64_t count[2];
+	unsigned char buf[128];
+} SHA512_CTX;
+
+__BEGIN_DECLS
+void	SHA512_Init(SHA512_CTX *);
+void	SHA512_Update(SHA512_CTX *, const void *, size_t);
+void	SHA512_Final(unsigned char [64], SHA512_CTX *);
+char   *SHA512_End(SHA512_CTX *, char *);
+char   *SHA512_File(const char *, char *);
+char   *SHA512_FileChunk(const char *, char *, off_t, off_t);
+char   *SHA512_Data(const void *, unsigned int, char *);
+__END_DECLS
+
+#endif /* !_SHA512_H_ */
