@@ -232,8 +232,6 @@ struct ath_buf {
 		    bfs_doprot:1,	/* do RTS/CTS based protection */
 		    bfs_doratelookup:1;	/* do rate lookup before each TX */
 
-		int bfs_nfl;		/* next fragment length */
-
 		/*
 		 * These fields are passed into the
 		 * descriptor setup functions.
