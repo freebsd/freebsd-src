@@ -246,6 +246,10 @@ static	int ath_txbuf = ATH_TXBUF;		/* # tx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
+static	int ath_txbuf_mgmt = ATH_MGMT_TXBUF;	/* # mgmt tx buffers to allocate */
+SYSCTL_INT(_hw_ath, OID_AUTO, txbuf_mgmt, CTLFLAG_RW, &ath_txbuf_mgmt,
+	    0, "tx (mgmt) buffers allocated");
+TUNABLE_INT("hw.ath.txbuf_mgmt", &ath_txbuf_mgmt);
 
 int ath_bstuck_threshold = 4;		/* max missed beacons */
 SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
@@ -520,7 +524,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
+#ifndef	ATH_ENABLE_11N
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
+#endif
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 #ifdef	ATH_ENABLE_DFS
 		| IEEE80211_C_DFS		/* Enable radar detection */
@@ -656,11 +662,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
 
-	/*
-	 * The if_ath 11n support is completely not ready for normal use.
-	 * Enabling this option will likely break everything and everything.
-	 * Don't think of doing that unless you know what you're doing.
-	 */
+	device_printf(sc->sc_dev, "%s: sizeof(ath_buf) = %d bytes\n",
+	    __func__, sizeof(struct ath_buf));
 
 #ifdef	ATH_ENABLE_11N
 	/*
@@ -1310,8 +1313,13 @@ ath_suspend(struct ath_softc *sc)
 
 	sc->sc_resume_up = (ifp->if_flags & IFF_UP) != 0;
 	if (ic->ic_opmode == IEEE80211_M_STA)
+	/*
+	 * This has been disabled - see PR kern/169084.
+	 */
+#if 0
 		ath_stop(ifp);
 	else
+#endif
 		ieee80211_suspend_all(ic);
 	/*
 	 * NB: don't worry about putting the chip in low power
@@ -1379,6 +1387,15 @@ ath_resume(struct ath_softc *sc)
 	ath_hal_setledstate(ah, HAL_LED_INIT);
 
 	if (sc->sc_resume_up) {
+		/*
+		 * This particular feature doesn't work at the present,
+		 * at least on the 802.11n chips.  It's quite possible
+		 * that the STA Beacon timers aren't being configured
+		 * properly.
+		 *
+		 * See PR kern/169084.
+		 */
+#if 0
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
 			ath_hal_setledstate(ah, HAL_LED_RUN);
@@ -1392,7 +1409,9 @@ ath_resume(struct ath_softc *sc)
 			 */
 			ath_beacon_config(sc, NULL);
 			sc->sc_syncbeacon = 1;
+			ieee80211_resume_all(ic);
 		} else
+#endif
 			ieee80211_resume_all(ic);
 	}
 
@@ -2212,13 +2231,17 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 }
 
 struct ath_buf *
-_ath_getbuf_locked(struct ath_softc *sc)
+_ath_getbuf_locked(struct ath_softc *sc, ath_buf_type_t btype)
 {
 	struct ath_buf *bf;
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	bf = TAILQ_FIRST(&sc->sc_txbuf);
+	if (btype == ATH_BUFTYPE_MGMT)
+		bf = TAILQ_FIRST(&sc->sc_txbuf_mgmt);
+	else
+		bf = TAILQ_FIRST(&sc->sc_txbuf);
+
 	if (bf == NULL) {
 		sc->sc_stats.ast_tx_getnobuf++;
 	} else {
@@ -2228,17 +2251,42 @@ _ath_getbuf_locked(struct ath_softc *sc)
 		}
 	}
 
-	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0)
-		TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
-	else
+	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0) {
+		if (btype == ATH_BUFTYPE_MGMT)
+			TAILQ_REMOVE(&sc->sc_txbuf_mgmt, bf, bf_list);
+		else {
+			TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
+			sc->sc_txbuf_cnt--;
+
+			/*
+			 * This shuldn't happen; however just to be
+			 * safe print a warning and fudge the txbuf
+			 * count.
+			 */
+			if (sc->sc_txbuf_cnt < 0) {
+				device_printf(sc->sc_dev,
+				    "%s: sc_txbuf_cnt < 0?\n",
+				    __func__);
+				sc->sc_txbuf_cnt = 0;
+			}
+		}
+	} else
 		bf = NULL;
 
 	if (bf == NULL) {
+		/* XXX should check which list, mgmt or otherwise */
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
 		    TAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
 		return NULL;
 	}
+
+	/* XXX TODO: should do this at buffer list initialisation */
+	/* XXX (then, ensure the buffer has the right flag set) */
+	if (btype == ATH_BUFTYPE_MGMT)
+		bf->bf_flags |= ATH_BUF_MGMT;
+	else
+		bf->bf_flags &= (~ATH_BUF_MGMT);
 
 	/* Valid bf here; clear some basic fields */
 	bf->bf_next = NULL;	/* XXX just to be sure */
@@ -2274,7 +2322,9 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 {
 	struct ath_buf *tbf;
 
-	tbf = ath_getbuf(sc);
+	tbf = ath_getbuf(sc,
+	    (bf->bf_flags & ATH_BUF_MGMT) ?
+	     ATH_BUFTYPE_MGMT : ATH_BUFTYPE_NORMAL);
 	if (tbf == NULL)
 		return NULL;	/* XXX failure? Why? */
 
@@ -2302,12 +2352,18 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 }
 
 struct ath_buf *
-ath_getbuf(struct ath_softc *sc)
+ath_getbuf(struct ath_softc *sc, ath_buf_type_t btype)
 {
 	struct ath_buf *bf;
 
 	ATH_TXBUF_LOCK(sc);
-	bf = _ath_getbuf_locked(sc);
+	bf = _ath_getbuf_locked(sc, btype);
+	/*
+	 * If a mgmt buffer was requested but we're out of those,
+	 * try requesting a normal one.
+	 */
+	if (bf == NULL && btype == ATH_BUFTYPE_MGMT)
+		bf = _ath_getbuf_locked(sc, ATH_BUFTYPE_NORMAL);
 	ATH_TXBUF_UNLOCK(sc);
 	if (bf == NULL) {
 		struct ifnet *ifp = sc->sc_ifp;
@@ -2340,6 +2396,7 @@ ath_start(struct ifnet *ifp)
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
 		ATH_PCU_UNLOCK(sc);
 		IF_LOCK(&ifp->if_snd);
+		sc->sc_stats.ast_tx_qstop++;
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		IF_UNLOCK(&ifp->if_snd);
 		return;
@@ -2348,17 +2405,28 @@ ath_start(struct ifnet *ifp)
 	ATH_PCU_UNLOCK(sc);
 
 	for (;;) {
+		ATH_TXBUF_LOCK(sc);
+		if (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree) {
+			/* XXX increment counter? */
+			ATH_TXBUF_UNLOCK(sc);
+			IF_LOCK(&ifp->if_snd);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IF_UNLOCK(&ifp->if_snd);
+			break;
+		}
+		ATH_TXBUF_UNLOCK(sc);
+		
 		/*
 		 * Grab a TX buffer and associated resources.
 		 */
-		bf = ath_getbuf(sc);
+		bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
 		if (bf == NULL)
 			break;
 
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
 			ATH_TXBUF_LOCK(sc);
-			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			ath_returnbuf_head(sc, bf);
 			ATH_TXBUF_UNLOCK(sc);
 			break;
 		}
@@ -2401,7 +2469,7 @@ ath_start(struct ifnet *ifp)
 			bf->bf_m = NULL;
 			bf->bf_node = NULL;
 			ATH_TXBUF_LOCK(sc);
-			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			ath_returnbuf_head(sc, bf);
 			ath_txfrag_cleanup(sc, &frags, ni);
 			ATH_TXBUF_UNLOCK(sc);
 			if (ni != NULL)
@@ -2856,12 +2924,28 @@ ath_desc_alloc(struct ath_softc *sc)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 		return error;
 	}
+	sc->sc_txbuf_cnt = ath_txbuf;
+
+	error = ath_descdma_setup(sc, &sc->sc_txdma_mgmt, &sc->sc_txbuf_mgmt,
+			"tx_mgmt", ath_txbuf_mgmt, ATH_TXDESC);
+	if (error != 0) {
+		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
+		return error;
+	}
+
+	/*
+	 * XXX mark txbuf_mgmt frames with ATH_BUF_MGMT, so the
+	 * flag doesn't have to be set in ath_getbuf_locked().
+	 */
 
 	error = ath_descdma_setup(sc, &sc->sc_bdma, &sc->sc_bbuf,
 			"beacon", ATH_BCBUF, 1);
 	if (error != 0) {
-		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
+		    &sc->sc_txbuf_mgmt);
 		return error;
 	}
 	return 0;
@@ -2877,6 +2961,9 @@ ath_desc_free(struct ath_softc *sc)
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+	if (sc->sc_txdma_mgmt.dd_desc_len != 0)
+		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
+		    &sc->sc_txbuf_mgmt);
 }
 
 static struct ieee80211_node *
@@ -3323,11 +3410,13 @@ ath_tx_update_busy(struct ath_softc *sc)
 	 * descriptor.
 	 */
 	ATH_TXBUF_LOCK_ASSERT(sc);
+	last = TAILQ_LAST(&sc->sc_txbuf_mgmt, ath_bufhead_s);
+	if (last != NULL)
+		last->bf_flags &= ~ATH_BUF_BUSY;
 	last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
 	if (last != NULL)
 		last->bf_flags &= ~ATH_BUF_BUSY;
 }
-
 
 /*
  * Process completed xmit descriptors from the specified queue.
@@ -3631,6 +3720,48 @@ ath_txq_sched_tasklet(void *arg, int npending)
 	ATH_PCU_UNLOCK(sc);
 }
 
+void
+ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf)
+{
+
+	ATH_TXBUF_LOCK_ASSERT(sc);
+
+	if (bf->bf_flags & ATH_BUF_MGMT)
+		TAILQ_INSERT_TAIL(&sc->sc_txbuf_mgmt, bf, bf_list);
+	else {
+		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+		sc->sc_txbuf_cnt++;
+		if (sc->sc_txbuf_cnt > ath_txbuf) {
+			device_printf(sc->sc_dev,
+			    "%s: sc_txbuf_cnt > %d?\n",
+			    __func__,
+			    ath_txbuf);
+			sc->sc_txbuf_cnt = ath_txbuf;
+		}
+	}
+}
+
+void
+ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf)
+{
+
+	ATH_TXBUF_LOCK_ASSERT(sc);
+
+	if (bf->bf_flags & ATH_BUF_MGMT)
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf_mgmt, bf, bf_list);
+	else {
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+		sc->sc_txbuf_cnt++;
+		if (sc->sc_txbuf_cnt > ATH_TXBUF) {
+			device_printf(sc->sc_dev,
+			    "%s: sc_txbuf_cnt > %d?\n",
+			    __func__,
+			    ATH_TXBUF);
+			sc->sc_txbuf_cnt = ATH_TXBUF;
+		}
+	}
+}
+
 /*
  * Return a buffer to the pool and update the 'busy' flag on the
  * previous 'tail' entry.
@@ -3653,7 +3784,7 @@ ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TXBUF_LOCK(sc);
 	ath_tx_update_busy(sc);
-	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ath_returnbuf_tail(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
 }
 
@@ -3707,6 +3838,9 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	 */
 	ATH_TXBUF_LOCK(sc);
 	bf = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
+	if (bf != NULL)
+		bf->bf_flags &= ~ATH_BUF_BUSY;
+	bf = TAILQ_LAST(&sc->sc_txbuf_mgmt, ath_bufhead_s);
 	if (bf != NULL)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
@@ -4848,6 +4982,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_stats.ast_tx_rate |= IEEE80211_RATE_MCS;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
+	case SIOCGATHAGSTATS:
+		return copyout(&sc->sc_aggr_stats,
+		    ifr->ifr_data, sizeof (sc->sc_aggr_stats));
 	case SIOCZATHSTATS:
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error == 0) {

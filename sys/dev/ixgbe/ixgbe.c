@@ -1152,7 +1152,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		 * from the Intel linux driver 3.8.21.
 		 * Prefetching enables tx line rate even with 1 queue.
 		 */
-		txdctl |= (16 << 0) | (1 << 8);
+		txdctl |= (32 << 0) | (1 << 8);
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(i), txdctl);
 	}
 

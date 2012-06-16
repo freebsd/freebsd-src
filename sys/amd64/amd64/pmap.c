@@ -2436,7 +2436,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	 * Transfer the first page's pv entry for this mapping to the
 	 * 2mpage's pv list.  Aside from avoiding the cost of a call
 	 * to get_pv_entry(), a transfer avoids the possibility that
-	 * get_pv_entry() calls pmap_collect() and that pmap_collect()
+	 * get_pv_entry() calls pmap_pv_reclaim() and that pmap_pv_reclaim()
 	 * removes one of the mappings that is being promoted.
 	 */
 	m = PHYS_TO_VM_PAGE(pa);
@@ -2651,7 +2651,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	/*
 	 * Demote the pv entry.  This depends on the earlier demotion
 	 * of the mapping.  Specifically, the (re)creation of a per-
-	 * page pv entry might trigger the execution of pmap_collect(),
+	 * page pv entry might trigger the execution of pmap_pv_reclaim(),
 	 * which might reclaim a newly (re)created per-page pv entry
 	 * and destroy the associated mapping.  In order to destroy
 	 * the mapping, the PDE must have already changed from mapping
@@ -4260,7 +4260,8 @@ pmap_remove_pages(pmap_t pmap)
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
-							if (TAILQ_EMPTY(&mt->md.pv_list))
+							if ((mt->aflags & PGA_WRITEABLE) != 0 &&
+							    TAILQ_EMPTY(&mt->md.pv_list))
 								vm_page_aflag_clear(mt, PGA_WRITEABLE);
 					}
 					mpte = pmap_lookup_pt_page(pmap, pv->pv_va);
@@ -4276,7 +4277,8 @@ pmap_remove_pages(pmap_t pmap)
 				} else {
 					pmap_resident_count_dec(pmap, 1);
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
-					if (TAILQ_EMPTY(&m->md.pv_list) &&
+					if ((m->aflags & PGA_WRITEABLE) != 0 &&
+					    TAILQ_EMPTY(&m->md.pv_list) &&
 					    (m->flags & PG_FICTITIOUS) == 0) {
 						pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 						if (TAILQ_EMPTY(&pvh->pv_list))
@@ -4469,8 +4471,9 @@ small_mappings:
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_write: found"
-		    " a 2mpage in page %p's pv list", m));
+		KASSERT((*pde & PG_PS) == 0,
+		    ("pmap_remove_write: found a 2mpage in page %p's pv list",
+		    m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
 retry:
 		oldpte = *pte;

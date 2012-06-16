@@ -134,8 +134,7 @@ getsock_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
 	int error;
 #endif
 
-	fp = NULL;
-	if ((fdp == NULL) || ((fp = fget_unlocked(fdp, fd)) == NULL))
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
 		return (EBADF);
 #ifdef CAPABILITIES
 	/*
@@ -179,7 +178,6 @@ sys_socket(td, uap)
 		int	protocol;
 	} */ *uap;
 {
-	struct filedesc *fdp;
 	struct socket *so;
 	struct file *fp;
 	int fd, error;
@@ -191,7 +189,6 @@ sys_socket(td, uap)
 	if (error)
 		return (error);
 #endif
-	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
@@ -199,7 +196,7 @@ sys_socket(td, uap)
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
 	    td->td_ucred, td);
 	if (error) {
-		fdclose(fdp, fp, fd, td);
+		fdclose(td->td_proc->p_fd, fp, fd, td);
 	} else {
 		finit(fp, FREAD | FWRITE, DTYPE_SOCKET, so, &socketops);
 		td->td_retval[0] = fd;
@@ -2313,25 +2310,23 @@ sys_sctp_peeloff(td, uap)
 	} */ *uap;
 {
 #if (defined(INET) || defined(INET6)) && defined(SCTP)
-	struct filedesc *fdp;
 	struct file *nfp = NULL;
 	int error;
 	struct socket *head, *so;
 	int fd;
 	u_int fflag;
 
-	fdp = td->td_proc->p_fd;
 	AUDIT_ARG_FD(uap->sd);
 	error = fgetsock(td, uap->sd, CAP_PEELOFF, &head, &fflag);
 	if (error)
 		goto done2;
 	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
 		error = EOPNOTSUPP;
-		goto done2;
+		goto done;
 	}
 	error = sctp_can_peel_off(head, (sctp_assoc_t)uap->name);
 	if (error)
-		goto done2;
+		goto done;
 	/*
 	 * At this point we know we do have a assoc to pull
 	 * we proceed to get the fd setup. This may block
@@ -2378,7 +2373,7 @@ noconnection:
 	 * out from under us.
 	 */
 	if (error)
-		fdclose(fdp, nfp, fd, td);
+		fdclose(td->td_proc->p_fd, nfp, fd, td);
 
 	/*
 	 * Release explicitly held references before returning.

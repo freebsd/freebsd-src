@@ -24,6 +24,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20120611:
+	A new version of ZFS (pool version 5000) has been merged to -HEAD.
+	Starting with this version the old system of ZFS pool versioning
+	is superseded by "feature flags". This concept enables forward
+	compatibility against certain future changes in functionality of ZFS
+	pools. The first read-only compatible "feature flag" for ZFS pools
+	is named "com.delphix:async_destroy". For more information
+	read the new zpool-features(5) manual page.
+	Please refer to the "ZFS notes" section of this file for information
+	on upgrading boot ZFS pools.
+
 20120417:
 	The malloc(3) implementation embedded in libc now uses sources imported
 	as contrib/jemalloc.  The most disruptive API change is to

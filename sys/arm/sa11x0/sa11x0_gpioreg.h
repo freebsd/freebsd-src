@@ -32,7 +32,7 @@
  */
 
 /*
- * SA-11x0 GPIO Register 
+ * SA-11x0 GPIO Register
  */
 
 #define SAGPIO_NPORTS	8

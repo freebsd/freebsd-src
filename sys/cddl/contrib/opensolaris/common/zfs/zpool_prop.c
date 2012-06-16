@@ -79,6 +79,8 @@ zpool_prop_init(void)
 	    ZFS_TYPE_POOL, "<size>", "SIZE");
 	zprop_register_number(ZPOOL_PROP_FREE, "free", 0, PROP_READONLY,
 	    ZFS_TYPE_POOL, "<size>", "FREE");
+	zprop_register_number(ZPOOL_PROP_FREEING, "freeing", 0, PROP_READONLY,
+	    ZFS_TYPE_POOL, "<size>", "FREEING");
 	zprop_register_number(ZPOOL_PROP_ALLOCATED, "allocated", 0,
 	    PROP_READONLY, ZFS_TYPE_POOL, "<size>", "ALLOC");
 	zprop_register_number(ZPOOL_PROP_EXPANDSZ, "expandsize", 0,
@@ -164,6 +166,26 @@ uint64_t
 zpool_prop_default_numeric(zpool_prop_t prop)
 {
 	return (zpool_prop_table[prop].pd_numdefault);
+}
+
+/*
+ * Returns true if this is a valid feature@ property.
+ */
+boolean_t
+zpool_prop_feature(const char *name)
+{
+	static const char *prefix = "feature@";
+	return (strncmp(name, prefix, strlen(prefix)) == 0);
+}
+
+/*
+ * Returns true if this is a valid unsupported@ property.
+ */
+boolean_t
+zpool_prop_unsupported(const char *name)
+{
+	static const char *prefix = "unsupported@";
+	return (strncmp(name, prefix, strlen(prefix)) == 0);
 }
 
 int

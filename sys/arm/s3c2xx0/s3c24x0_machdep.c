@@ -38,7 +38,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -138,8 +138,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
-static struct trapframe proc0_tf;
-
 #define	_A(a)	((a) & ~L1_S_OFFSET)
 #define	_S(s)	(((s) + L1_S_SIZE - 1) & ~(L1_S_SIZE-1))
 
@@ -152,42 +150,42 @@ static const struct pmap_devmap s3c24x0_devmap[] = {
 		_A(S3C24X0_CLKMAN_BASE),
 		_A(S3C24X0_CLKMAN_PA_BASE),
 		_S(S3C24X0_CLKMAN_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE, 
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_GPIO_BASE),
 		_A(S3C24X0_GPIO_PA_BASE),
 		_S(S3C2410_GPIO_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_INTCTL_BASE),
 		_A(S3C24X0_INTCTL_PA_BASE),
 		_S(S3C24X0_INTCTL_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE, 
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_TIMER_BASE),
 		_A(S3C24X0_TIMER_PA_BASE),
 		_S(S3C24X0_TIMER_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_UART0_BASE),
 		_A(S3C24X0_UART0_PA_BASE),
 		_S(S3C24X0_UART_PA_BASE(3) - S3C24X0_UART0_PA_BASE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		_A(S3C24X0_WDT_BASE),
 		_A(S3C24X0_WDT_PA_BASE),
 		_S(S3C24X0_WDT_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
@@ -246,13 +244,11 @@ initarm(struct arm_boot_params *abp)
 	int i;
 	uint32_t memsize;
 
+	boothowto = 0;  /* Likely not needed */
+	lastaddr = parse_boot_param(abp);
 	i = 0;
-
-	boothowto = 0;
-
 	set_cpufuncs();
 	cpufuncs.cf_sleep = s3c24x0_sleep;
-	lastaddr = fake_preload_metadata();
 
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -283,7 +279,7 @@ initarm(struct arm_boot_params *abp)
 			kernel_pt_table[loop].pv_va = freemempos -
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_pa = 
+			kernel_pt_table[loop].pv_pa =
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
@@ -317,7 +313,7 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
+	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE
 	    - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * L1_S_SIZE,
@@ -406,30 +402,14 @@ initarm(struct arm_boot_params *abp)
 	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
-				
-	proc_linkup(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	
+	init_proc0(kernelstack.pv_va);			
 	
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + 0x100000 * (KERNEL_PT_KERN_NUM - 1);
-	/*
-	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
-	dump_avail[0] = PHYSADDR;
-	dump_avail[1] = PHYSADDR + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-					
-	pmap_bootstrap(freemempos,
-	    KERNVIRTADDR + 3 * memsize,
-	    &kernel_l1pt);
+	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
+	pmap_bootstrap(freemempos, KERNVIRTADDR + 3 * memsize, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
