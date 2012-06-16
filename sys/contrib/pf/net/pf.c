@@ -1477,11 +1477,11 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	pf_src_tree_remove_state(s);
 	PF_HASHROW_UNLOCK(ih);
 
-	pf_detach_state(s);
-	refcount_release(&s->refs);
-
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(s);
+
+	pf_detach_state(s);
+	refcount_release(&s->refs);
 
 	return (pf_release_state(s));
 }
