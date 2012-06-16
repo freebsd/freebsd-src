@@ -416,16 +416,14 @@ get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **t
 		 * Check if we need to insert templates into packet
 		 */
 		
-		struct timespec ts;
 		struct netflow_v9_flowset_header	*fl;
 	
-		getnanotime(&ts);
-		if ((ts.tv_sec >= priv->templ_time + fe->templ_last_ts) ||
+		if ((time_uptime >= priv->templ_time + fe->templ_last_ts) ||
 				(fe->sent_packets >= priv->templ_packets + fe->templ_last_pkt)) {
 
-			atomic_store_rel_32(&fe->templ_last_ts, ts.tv_sec);
-			atomic_store_rel_32(&fe->templ_last_pkt, fe->sent_packets);
-	
+			fe->templ_last_ts = time_uptime;
+			fe->templ_last_pkt = fe->sent_packets;
+
 			fl = priv->v9_flowsets[0];
 			m_append(m, ntohs(fl->length), (void *)fl);
 			t->flow_header = m->m_len;
