@@ -161,7 +161,6 @@ is not zero,
 .Fa v.octetstring.octets
 points to a string allocated by
 .Xr malloc 3 .
-.Pp
 .Bd -literal -offset indent
 #define	SNMP_ENGINE_ID_SIZ		32
 
@@ -176,7 +175,6 @@ struct snmp_engine {
 .Pp
 This structure represents an SNMP engine as specified by the SNMP Management
 Architecture described in RFC 3411.
-.Pp
 .Bd -literal -offset indent
 #define	SNMP_ADM_STR32_SIZ		(32 + 1)
 #define	SNMP_AUTH_KEY_SIZ		40
@@ -225,7 +223,6 @@ enum snmp_privacy {
 and
 .Fa priv_key
 contain the authentication and privacy keys for the user.
-.Pp
 .Bd -literal -offset indent
 #define SNMP_COMMUNITY_MAXLEN		128
 #define SNMP_MAX_BINDINGS		100
