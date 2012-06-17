@@ -448,8 +448,6 @@ typedef struct {
 typedef struct {
 	uint32_t
 				link_active	: 1,
-				npiv_fabric	: 1,
-				inorder		: 1,
 				sendmarker	: 1,
 				role		: 2,
 				isp_gbspeed	: 4,
@@ -469,6 +467,7 @@ typedef struct {
 	uint16_t		isp_sns_hdl;		/* N-port handle for SNS */
 	uint16_t		isp_lasthdl;		/* only valid for channel 0 */
 	uint16_t		isp_maxalloc;
+	uint16_t		isp_fabric_params;
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
 
@@ -562,10 +561,12 @@ struct ispsoftc {
 	 */
 
 	void * 			isp_param;	/* type specific */
+	uint64_t		isp_fwattr;	/* firmware attributes */
 	uint16_t		isp_fwrev[3];	/* Loaded F/W revision */
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
+	uint16_t		isp_nchan;	/* number of channels */
 	uint32_t		isp_maxluns;	/* maximum luns supported */
 
 	uint32_t		isp_clock	: 8,	/* input clock */
@@ -576,8 +577,6 @@ struct ispsoftc {
 				isp_loaded_fw	: 1,	/* loaded firmware */
 				isp_dblev	: 16;	/* debug log mask */
 
-	uint16_t		isp_fwattr;	/* firmware attributes */
-	uint16_t		isp_nchan;	/* number of channels */
 
 	uint32_t		isp_confopts;	/* config options */
 
@@ -617,7 +616,7 @@ struct ispsoftc {
 	volatile uint32_t	isp_resodx;	/* index of next result */
 	volatile uint32_t	isp_obits;	/* mailbox command output */
 	volatile uint32_t	isp_serno;	/* rolling serial number */
-	volatile uint16_t	isp_mboxtmp[MAILBOX_STORAGE];
+	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile uint16_t	isp_mbxwrk0;
 	volatile uint16_t	isp_mbxwrk1;
@@ -695,6 +694,7 @@ struct ispsoftc {
 #define	ISP_CFG_OWNLOOPID	0x800	/* override NVRAM loopid */
 #define	ISP_CFG_OWNEXCTHROTTLE	0x1000	/* override NVRAM execution throttle */
 #define	ISP_CFG_FOURGB		0x2000	/* force 4GB connection (24XX only) */
+#define	ISP_CFG_EIGHTGB		0x4000	/* force 8GB connection (25XX only) */
 
 /*
  * For each channel, the outer layers should know what role that channel
@@ -1039,6 +1039,8 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	FC_SCRATCH_ACQUIRE(ispsoftc_t *, chan)	acquire lock on FC scratch area
  *						return -1 if you cannot
  *	FC_SCRATCH_RELEASE(ispsoftc_t *, chan)	acquire lock on FC scratch area
+ *
+ *	FCP_NEXT_CRN(ispsoftc_t *, XS_T *, rslt, channel, target, lun)	generate the next command reference number. XS_T * may be null.
  *
  *	SCSI_GOOD	SCSI 'Good' Status
  *	SCSI_CHECK	SCSI 'Check Condition' Status
