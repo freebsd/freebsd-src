@@ -105,10 +105,10 @@ ata_ite_chipinit(device_t dev)
 
 	ctlr->setmode = ata_ite_821x_setmode;
 	/* No timing restrictions initally. */
-	ctlr->chipset_data = (void *)0;
+	ctlr->chipset_data = NULL;
     }
     ctlr->ch_attach = ata_ite_ch_attach;
-    return 0;
+    return (0);
 }
 
 static int
@@ -119,6 +119,9 @@ ata_ite_ch_attach(device_t dev)
  
 	error = ata_pci_ch_attach(dev);
 	ch->flags |= ATA_CHECKS_CABLE;
+#ifdef ATA_CAM
+	ch->flags |= ATA_NO_ATAPI_DMA;
+#endif
 	return (error);
 }
 
