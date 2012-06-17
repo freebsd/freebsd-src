@@ -1830,6 +1830,11 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			struct ieee80211_node *ni;
 
+			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
+				RUN_UNLOCK(sc);
+				IEEE80211_LOCK(ic);
+				return (-1);
+			}
 			run_updateslot(ic->ic_ifp);
 			run_enable_mrr(sc);
 			run_set_txpreamble(sc);
@@ -2523,8 +2528,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 		struct run_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
-		tap->wr_chan_freq = htole16(ic->ic_bsschan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_bsschan->ic_flags);
+		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wr_antsignal = rssi;
 		tap->wr_antenna = ant;
 		tap->wr_dbm_antsignal = run_rssi2dbm(sc, rssi, ant);
@@ -2778,8 +2783,8 @@ tr_setup:
 
 			tap->wt_flags = 0;
 			tap->wt_rate = rt2860_rates[data->ridx].rate;
-			tap->wt_chan_freq = htole16(vap->iv_bss->ni_chan->ic_freq);
-			tap->wt_chan_flags = htole16(vap->iv_bss->ni_chan->ic_flags);
+			tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+			tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 			tap->wt_hwqueue = index;
 			if (le16toh(txwi->phy) & RT2860_PHY_SHPRE)
 				tap->wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
@@ -3966,6 +3971,8 @@ run_update_beacon_cb(void *arg)
 	uint8_t ridx;
 
 	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+		return;
+	if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
 		return;
 
 	/*

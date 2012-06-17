@@ -279,7 +279,7 @@ i80321_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 	panic("i80321_io_bs_alloc(): not implemented");
 }
 
-void    
+void
 i80321_io_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 
@@ -299,7 +299,7 @@ i80321_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	endpa = round_page(bpa + size);
 
 	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
-		       
+		
 	return (0);
 }
 
@@ -324,7 +324,7 @@ i80321_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 	panic("i80321_mem_bs_alloc(): not implemented");
 }
 
-void    
+void
 i80321_mem_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 

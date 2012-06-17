@@ -40,7 +40,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -135,8 +135,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
-static struct trapframe proc0_tf;
-
 /* Static device mappings. */
 static const struct pmap_devmap iq81342_devmap[] = {
 	    {
@@ -164,7 +162,7 @@ static const struct pmap_devmap iq81342_devmap[] = {
 		    VM_PROT_READ|VM_PROT_WRITE,
 		    PTE_NOCACHE,
 	    },
-	    {	    
+	    {	
 		    0,
 		    0,
 		    0,
@@ -178,7 +176,7 @@ static const struct pmap_devmap iq81342_devmap[] = {
 extern vm_offset_t xscale_cache_clean_addr;
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr  dpcpu;
@@ -191,8 +189,8 @@ initarm(void *arg, void *arg2)
 	vm_offset_t lastaddr;
 	uint32_t memsize, memstart;
 
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
@@ -221,7 +219,7 @@ initarm(void *arg, void *arg2)
 			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_va = 
+			kernel_pt_table[loop].pv_va =
 			    kernel_pt_table[loop].pv_pa + 0xc0000000;
 		}
 	}
@@ -280,7 +278,7 @@ initarm(void *arg, void *arg2)
 	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
+	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE
 	    - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
@@ -293,7 +291,7 @@ initarm(void *arg, void *arg2)
 		arm_add_smallalloc_pages((void *)(freemem_after),
 		    (void*)(freemem_after + PAGE_SIZE),
 		    afterkern - (freemem_after + PAGE_SIZE), 0);
-		    
+		
 	}
 #endif
 
@@ -321,7 +319,7 @@ initarm(void *arg, void *arg2)
 	 * of the stack memory.
 	 */
 
-				   
+				
 	set_stackptr(PSR_IRQ32_MODE,
 	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
 	set_stackptr(PSR_ABT32_MODE,
@@ -353,13 +351,7 @@ initarm(void *arg, void *arg2)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 	
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
@@ -373,7 +365,7 @@ initarm(void *arg, void *arg2)
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 					
-	pmap_bootstrap(pmap_curmaxkvaddr, 
+	pmap_bootstrap(pmap_curmaxkvaddr,
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

@@ -429,7 +429,7 @@ at91_pmc_sense_main_clock(void)
 	 * measure it correctly, and that any error can be adequately
 	 * compensated for by roudning to the nearest 500Hz.  Users
 	 * with fast, or odd-ball clocks will need to set
-	 * AT91C_MASTER_CLOCK in the kernel config file.
+	 * AT91C_MAIN_CLOCK in the kernel config file.
 	 */
 	if (ckgr_val >= 21000000)
 		return ((ckgr_val + 250) / 500 * 500);
@@ -471,7 +471,7 @@ at91_pmc_init_clock(void)
 
 	at91_pmc_pll_rate(&plla, RD4(sc, CKGR_PLLAR));
 
-	if (at91_cpu_is(AT91_CPU_SAM9G45) && (mckr & PMC_MCKR_PLLADIV2))
+	if (at91_cpu_is(AT91_T_SAM9G45) && (mckr & PMC_MCKR_PLLADIV2))
 		plla.hz /= 2;
 
 	/*
@@ -512,7 +512,7 @@ at91_pmc_init_clock(void)
 		mck.hz /= (1 + mdiv);
 
 	/* Only found on SAM9G20 */
-	if (at91_cpu_is(AT91_CPU_SAM9G20))
+	if (at91_cpu_is(AT91_T_SAM9G20))
 		cpu.hz /= (mckr & PMC_MCKR_PDIV) ?  2 : 1;
 
 	at91_master_clock = mck.hz;

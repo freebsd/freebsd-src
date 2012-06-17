@@ -200,12 +200,22 @@ static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
 static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
 
 /*
+ * Isolate the global pv list lock from data and other locks to prevent false
+ * sharing within the cache.
+ */
+static struct {
+	struct rwlock	lock;
+	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
+} pvh_global __aligned(CACHE_LINE_SIZE);
+
+#define	pvh_global_lock	pvh_global.lock
+
+/*
  * Data for the pv entry allocation mechanism
  */
 static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
 static long pv_entry_count;
 static struct md_page *pv_table;
-static struct rwlock pvh_global_lock;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -218,6 +228,7 @@ caddr_t CADDR1 = 0;
  */
 static caddr_t crashdumpmap;
 
+static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
@@ -2010,7 +2021,7 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE1	0xfffffffffffffffful
 #define	PC_FREE2	0x000000fffffffffful
 
-static uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
+static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
 SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 	"Current number of pv entries");
@@ -2059,7 +2070,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 	pv_entry_t pv;
 	vm_offset_t va;
 	vm_page_t free, m, m_pc;
-	uint64_t inuse, freemask;
+	uint64_t inuse;
 	int bit, field, freed;
 	
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
@@ -2091,7 +2102,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 		 */
 		freed = 0;
 		for (field = 0; field < _NPCM; field++) {
-			freemask = 0;
 			for (inuse = ~pc->pc_map[field] & pc_freemask[field];
 			    inuse != 0; inuse &= ~(1UL << bit)) {
 				bit = bsfq(inuse);
@@ -2120,16 +2130,16 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 						    PGA_WRITEABLE);
 					}
 				}
+				pc->pc_map[field] |= 1UL << bit;
 				pmap_unuse_pt(pmap, va, *pde, &free);	
-				freemask |= 1UL << bit;
 				freed++;
 			}
-			pc->pc_map[field] |= freemask;
 		}
 		if (freed == 0) {
 			TAILQ_INSERT_TAIL(&newtail, pc, pc_lru);
 			continue;
 		}
+		/* Every freed mapping is for a 4 KB page. */
 		pmap_resident_count_dec(pmap, freed);
 		PV_STAT(pv_entry_frees += freed);
 		PV_STAT(pv_entry_spare += freed);
@@ -2174,7 +2184,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
-	vm_page_t m;
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
@@ -2198,6 +2207,14 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 		return;
 	}
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+	free_pv_chunk(pc);
+}
+
+static void
+free_pv_chunk(struct pv_chunk *pc)
+{
+	vm_page_t m;
+
  	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
@@ -2242,10 +2259,6 @@ retry:
 				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc,
 				    pc_list);
-			}
-			if (pc != TAILQ_LAST(&pv_chunks, pch)) {
-				TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
-				TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_lru);
 			}
 			pv_entry_count++;
 			PV_STAT(pv_entry_spare--);
@@ -2360,7 +2373,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	 * Transfer the first page's pv entry for this mapping to the
 	 * 2mpage's pv list.  Aside from avoiding the cost of a call
 	 * to get_pv_entry(), a transfer avoids the possibility that
-	 * get_pv_entry() calls pmap_collect() and that pmap_collect()
+	 * get_pv_entry() calls pmap_pv_reclaim() and that pmap_pv_reclaim()
 	 * removes one of the mappings that is being promoted.
 	 */
 	m = PHYS_TO_VM_PAGE(pa);
@@ -2575,7 +2588,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	/*
 	 * Demote the pv entry.  This depends on the earlier demotion
 	 * of the mapping.  Specifically, the (re)creation of a per-
-	 * page pv entry might trigger the execution of pmap_collect(),
+	 * page pv entry might trigger the execution of pmap_pv_reclaim(),
 	 * which might reclaim a newly (re)created per-page pv entry
 	 * and destroy the associated mapping.  In order to destroy
 	 * the mapping, the PDE must have already changed from mapping
@@ -4119,7 +4132,7 @@ pmap_remove_pages(pmap_t pmap)
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
 		for (field = 0; field < _NPCM; field++) {
-			inuse = (~(pc->pc_map[field])) & pc_freemask[field];
+			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
 				bit = bsfq(inuse);
 				bitmask = 1UL << bit;
@@ -4184,7 +4197,8 @@ pmap_remove_pages(pmap_t pmap)
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_list);
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
-							if (TAILQ_EMPTY(&mt->md.pv_list))
+							if ((mt->aflags & PGA_WRITEABLE) != 0 &&
+							    TAILQ_EMPTY(&mt->md.pv_list))
 								vm_page_aflag_clear(mt, PGA_WRITEABLE);
 					}
 					mpte = pmap_lookup_pt_page(pmap, pv->pv_va);
@@ -4200,7 +4214,8 @@ pmap_remove_pages(pmap_t pmap)
 				} else {
 					pmap_resident_count_dec(pmap, 1);
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-					if (TAILQ_EMPTY(&m->md.pv_list) &&
+					if ((m->aflags & PGA_WRITEABLE) != 0 &&
+					    TAILQ_EMPTY(&m->md.pv_list) &&
 					    (m->flags & PG_FICTITIOUS) == 0) {
 						pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 						if (TAILQ_EMPTY(&pvh->pv_list))
@@ -4211,15 +4226,8 @@ pmap_remove_pages(pmap_t pmap)
 			}
 		}
 		if (allfree) {
-			PV_STAT(pv_entry_spare -= _NPCPV);
-			PV_STAT(pc_chunk_count--);
-			PV_STAT(pc_chunk_frees++);
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
-			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
-			dump_drop_page(m->phys_addr);
-			vm_page_unwire(m, 0);
-			vm_page_free(m);
+			free_pv_chunk(pc);
 		}
 	}
 	pmap_invalidate_all(pmap);
@@ -4400,8 +4408,9 @@ small_mappings:
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_write: found"
-		    " a 2mpage in page %p's pv list", m));
+		KASSERT((*pde & PG_PS) == 0,
+		    ("pmap_remove_write: found a 2mpage in page %p's pv list",
+		    m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
 retry:
 		oldpte = *pte;

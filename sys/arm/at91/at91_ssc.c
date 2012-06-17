@@ -214,7 +214,7 @@ at91_ssc_intr(void *xsc)
 	return;
 }
 
-static int 
+static int
 at91_ssc_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct at91_ssc_softc *sc;

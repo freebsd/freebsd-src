@@ -712,7 +712,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		if (ip->ip_v == IP6VERSION) {
 			/* IPv6 packet */
 			ip = NULL;
-			M_CHECK(sizeof(struct ip6_hdr));
+			M_CHECK(sizeof(struct ip6_hdr) - sizeof(struct ip));
 			ip6 = mtod(m, struct ip6_hdr *);
 		}
 #endif

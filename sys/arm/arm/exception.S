@@ -189,7 +189,7 @@ Laddress_exception_msg:
  * This function uses PULLFRAMEFROMSVCANDEXIT and
  * DO_AST
  * only be called if the exception handler used PUSHFRAMEINSVC
- * 
+ *
  */
 
 exception_exit:

@@ -80,10 +80,11 @@ struct pmap_statistics {
 typedef struct pmap_statistics *pmap_statistics_t;
 
 /*
- * Each machine dependent implementation is expected to provide:
+ * Each machine-dependent implementation is required to provide:
  *
  * vm_memattr_t	pmap_page_get_memattr(vm_page_t);
  * boolean_t	pmap_page_is_mapped(vm_page_t);
+ * boolean_t	pmap_page_is_write_mapped(vm_page_t);
  * void		pmap_page_set_memattr(vm_page_t, vm_memattr_t);
  */
 #include <machine/pmap.h>

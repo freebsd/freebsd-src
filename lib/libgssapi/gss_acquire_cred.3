@@ -126,7 +126,7 @@ immediately following the call of
 must return valid credential data,
 and may therefore incur the overhead of a deferred credential acquisition.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It output_cred_handle"
 .It desired_name
 Name of principal whose credential should be acquired.
 .It time_req
@@ -174,7 +174,7 @@ Specify NULL if not required.
 Mechanism specific status code.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CREDENTIALS_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion.
 .It GSS_S_BAD_MECH
@@ -196,7 +196,7 @@ No credentials were found for the specified name.
 .Xr gss_release_cred 3 ,
 .Xr gss_release_oid_set 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

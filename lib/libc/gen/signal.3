@@ -38,20 +38,11 @@
 .Lb libc
 .Sh SYNOPSIS
 .In signal.h
-.\" XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
-.\" The prototype for signal(3) cannot be cleanly marked up in -mdoc
-.\" without the following lower-level tweak.
-.nr in-synopsis-section 0
+.\" The following is Quite Ugly, but syntactically correct.
+.\" Don't try to fix it.
+.Ft void
+.Fn \*(lp*signal "int sig" "void \*(lp*func\*(rp\*(lpint\*(rp\*(rp\*(rp\*(lpint"
 .Pp
-.Ft "void \*(lp*" Ns
-.Fo signal
-.Fa "int sig"
-.Fa "void \*(lp*func\*(rp\*(lpint\*(rp"
-.Fc Ns
-.Ft "\*(rp\*(lpint\*(rp" ;
-.Pp
-.nr in-synopsis-section 1
-.\" XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
 or in
 .Fx Ap s
 equivalent but easier to read typedef'd version:
@@ -98,7 +89,7 @@ an interrupt.
 These signals are defined in the file
 .In signal.h :
 .Bl -column No ".Dv SIGVTALRM" "create core image"
-.It Sy "No	Name	Default Action	Description"
+.It Sy "Num" Ta Sy "Name" Ta Sy "Default Action" Ta Sy "Description"
 .It 1 Ta Dv SIGHUP Ta "terminate process" Ta "terminal line hangup"
 .It 2 Ta Dv SIGINT Ta "terminate process" Ta "interrupt program"
 .It 3 Ta Dv SIGQUIT Ta "create core image" Ta "quit program"
