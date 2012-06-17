@@ -1309,15 +1309,8 @@ ath_suspend(struct ath_softc *sc)
 		__func__, ifp->if_flags);
 
 	sc->sc_resume_up = (ifp->if_flags & IFF_UP) != 0;
-	if (ic->ic_opmode == IEEE80211_M_STA)
-	/*
-	 * This has been disabled - see PR kern/169084.
-	 */
-#if 0
-		ath_stop(ifp);
-	else
-#endif
-		ieee80211_suspend_all(ic);
+
+	ieee80211_suspend_all(ic);
 	/*
 	 * NB: don't worry about putting the chip in low power
 	 * mode; pci will power off our socket on suspend and
@@ -1383,34 +1376,8 @@ ath_resume(struct ath_softc *sc)
 	ath_led_config(sc);
 	ath_hal_setledstate(ah, HAL_LED_INIT);
 
-	if (sc->sc_resume_up) {
-		/*
-		 * This particular feature doesn't work at the present,
-		 * at least on the 802.11n chips.  It's quite possible
-		 * that the STA Beacon timers aren't being configured
-		 * properly.
-		 *
-		 * See PR kern/169084.
-		 */
-#if 0
-		if (ic->ic_opmode == IEEE80211_M_STA) {
-			ath_init(sc);
-			ath_hal_setledstate(ah, HAL_LED_RUN);
-			/*
-			 * Program the beacon registers using the last rx'd
-			 * beacon frame and enable sync on the next beacon
-			 * we see.  This should handle the case where we
-			 * wakeup and find the same AP and also the case where
-			 * we wakeup and need to roam.  For the latter we
-			 * should get bmiss events that trigger a roam.
-			 */
-			ath_beacon_config(sc, NULL);
-			sc->sc_syncbeacon = 1;
-			ieee80211_resume_all(ic);
-		} else
-#endif
-			ieee80211_resume_all(ic);
-	}
+	if (sc->sc_resume_up)
+		ieee80211_resume_all(ic);
 
 	/* XXX beacons ? */
 }
