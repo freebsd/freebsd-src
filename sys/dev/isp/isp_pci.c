@@ -483,6 +483,7 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp, int *nvp)
 	if (bootverbose) {
 		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
 	}
+	tval = 0;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "vports", &tval);
 	if (tval > 0 && tval < 127) {
 		*nvp =  tval;
