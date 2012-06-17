@@ -28,9 +28,30 @@ modules-${target}:
 .endif
 .endfor
 
-# Handle out of tree ports 
+# Handle ports (as defined by the user) that build kernel modules
 .if !defined(NO_MODULES) && defined(PORTS_MODULES)
-PORTSMODULESENV=SYSDIR=${SYSDIR}
+#
+# The ports tree needs some environment variables defined to match the new kernel
+#
+# Ports search for some dependencies in PATH, so add the location of the installed files
+LOCALBASE?=	/usr/local
+# SRC_BASE is how the ports tree refers to the location of the base source files
+.if !defined(SRC_BASE)
+SRC_BASE!=	realpath "${SYSDIR:H}/"
+.endif
+# OSVERSION is used by some ports to determine build options
+.if !defined(OSRELDATE)
+# Definition copied from src/Makefile.inc1
+OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+		    ${MAKEOBJDIRPREFIX}${SRC_BASE}/include/osreldate.h
+.endif
+# Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
+WRKDIRPREFIX?=	${MAKEOBJDIRPREFIX}${SRC_BASE}/sys/${KERNCONF}
+PORTSMODULESENV=\
+	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
+	SRC_BASE=${SRC_BASE} \
+	OSVERSION=${OSRELDATE} \
+	WRKDIRPREFIX=${WRKDIRPREFIX}
 .for __target in all install reinstall clean
 ${__target}: ports-${__target}
 ports-${__target}:
