@@ -847,8 +847,12 @@ typedef struct {
 #define	ISP2400_FW_ATTR_SB2	0x0008
 #define	ISP2400_FW_ATTR_T10CRC	0x0010
 #define	ISP2400_FW_ATTR_VI	0x0020
+#define	ISP2400_FW_ATTR_VP0	0x1000
 #define	ISP2400_FW_ATTR_EXPFW	0x2000
+#define	ISP2400_FW_ATTR_EXTNDED	0x8000
 
+#define	ISP_CAP_FCTAPE(isp)	\
+	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_FCTAPE))
 #define	ISP_CAP_TMODE(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_TMODE))
 #define	ISP_CAP_SCCFW(isp)	\
@@ -985,7 +989,9 @@ typedef struct {
 #define	ICB2400_OPT1_FAIRNESS		0x00000002
 #define	ICB2400_OPT1_HARD_ADDRESS	0x00000001
 
+#define	ICB2400_OPT2_TPRLIC		0x00004000
 #define	ICB2400_OPT2_FCTAPE		0x00001000
+#define	ICB2400_OPT2_FCSP		0x00000800
 #define	ICB2400_OPT2_CLASS2_ACK0	0x00000200
 #define	ICB2400_OPT2_CLASS2		0x00000100
 #define	ICB2400_OPT2_NO_PLAY		0x00000080
@@ -993,8 +999,7 @@ typedef struct {
 #define	ICB2400_OPT2_LOOP_ONLY		0x00000000
 #define	ICB2400_OPT2_PTP_ONLY		0x00000010
 #define	ICB2400_OPT2_LOOP_2_PTP		0x00000020
-#define	ICB2400_OPT2_PTP_2_LOOP		0x00000030
-#define	ICB2400_OPT2_TIMER_MASK		0x00000007
+#define	ICB2400_OPT2_TIMER_MASK		0x0000000f
 #define	ICB2400_OPT2_ZIO		0x00000005
 #define	ICB2400_OPT2_ZIO1		0x00000006
 
@@ -1137,7 +1142,9 @@ typedef struct {
     ICB2400_VPINFO_OFF + 			\
     sizeof (isp_icb_2400_vpinfo_t) + ((chan - 1) * ICB2400_VPOPT_WRITE_SIZE)
 
-#define	ICB2400_VPGOPT_MID_DISABLE	0x02
+#define	ICB2400_VPGOPT_FCA		0x01	/* Assume Clean Address bit in FLOGI ACC set (works only in static configurations) */
+#define	ICB2400_VPGOPT_MID_DISABLE	0x02	/* when set, connection mode2 will work with NPIV-capable switched */
+#define	ICB2400_VPGOPT_VP0_DECOUPLE	0x04	/* Allow VP0 decoupling if firmware supports it */
 
 typedef struct {
 	isphdr_t	vp_ctrl_hdr;
