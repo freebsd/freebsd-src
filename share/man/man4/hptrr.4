@@ -50,8 +50,8 @@ hptrr_load="YES"
 The following tunables are settable from the loader:
 .Bl -ohang
 .It Va hw.hptrr.attach_generic
-set to 0 to deny driver attach to chips with generic Marvell (non-HighPoint)
-PCI identification. These chips are also supported by ata(4).
+set to 1 to permit driver attach to chips with generic Marvell (non-HighPoint)
+PCI identification. These chips are also supported by ata(4) and mvs(4).
 Some vendors are using same chips, but without providing RAID BIOS.
 .El
 .Sh DESCRIPTION
@@ -112,7 +112,8 @@ This driver supersedes the older rr232x driver.
 .Xr ata 4 ,
 .Xr cam 4 ,
 .Xr hptmv 4 ,
-.Xr loader 8
+.Xr loader 8 ,
+.Xr mvs 4
 .Sh HISTORY
 The
 .Nm
