@@ -159,6 +159,8 @@ void
 isp_reset(ispsoftc_t *isp, int do_load_defaults)
 {
 	mbreg_t mbs;
+	char *buf;
+	uint64_t fwt;
 	uint32_t code_org, val;
 	int loops, i, dodnld = 1;
 	const char *btype = "????";
@@ -685,9 +687,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * Do some sanity checking by running a NOP command.
 	 * If it succeeds, the ROM firmware is now running.
 	 */
-	ISP_MEMZERO(&mbs, sizeof (mbs));
-	mbs.param[0] = MBOX_NO_OP;
-	mbs.logval = MBLOGALL;
+	MBSINIT(&mbs, MBOX_NO_OP, MBLOGALL, 0);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		isp_prt(isp, ISP_LOGERR, "NOP command failed (%x)", mbs.param[0]);
@@ -700,29 +700,32 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 */
 
 	if (IS_SCSI(isp) || IS_24XX(isp)) {
-		ISP_MEMZERO(&mbs, sizeof (mbs));
-		mbs.param[0] = MBOX_MAILBOX_REG_TEST;
-		mbs.param[1] = 0xdead;
-		mbs.param[2] = 0xbeef;
-		mbs.param[3] = 0xffff;
-		mbs.param[4] = 0x1111;
-		mbs.param[5] = 0xa5a5;
-		mbs.param[6] = 0x0000;
-		mbs.param[7] = 0x0000;
-		mbs.logval = MBLOGALL;
+		static const uint16_t patterns[MAX_MAILBOX] = {
+			0x0000, 0xdead, 0xbeef, 0xffff,
+			0xa5a5, 0x5a5a, 0x7f7f, 0x7ff7,
+			0x3421, 0xabcd, 0xdcba, 0xfeef,
+			0xbead, 0xdebe, 0x2222, 0x3333,
+			0x5555, 0x6666, 0x7777, 0xaaaa,
+			0xffff, 0xdddd, 0x9999, 0x1fbc,
+			0x6666, 0x6677, 0x1122, 0x33ff,
+			0x0000, 0x0001, 0x1000, 0x1010,
+		};
+		MBSINIT(&mbs, MBOX_MAILBOX_REG_TEST, MBLOGALL, 0);
+		for (i = 1; i < ISP_NMBOX(isp); i++) {
+			mbs.param[i] = patterns[i];
+		}
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			ISP_RESET0(isp);
 			return;
 		}
-		if (mbs.param[1] != 0xdead || mbs.param[2] != 0xbeef ||
-		    mbs.param[3] != 0xffff || mbs.param[4] != 0x1111 ||
-		    mbs.param[5] != 0xa5a5) {
-			ISP_RESET0(isp);
-			isp_prt(isp, ISP_LOGERR, "Register Test Failed (0x%x 0x%x 0x%x 0x%x 0x%x)", mbs.param[1], mbs.param[2], mbs.param[3], mbs.param[4], mbs.param[5]);
-			return;
+		for (i = 1; i < ISP_NMBOX(isp); i++) {
+			if (mbs.param[i] != patterns[i]) {
+				ISP_RESET0(isp);
+				isp_prt(isp, ISP_LOGERR, "Register Test Failed at Register %d: should have 0x%04x but got 0x%04x", i, patterns[i], mbs.param[i]);
+				return;
+			}
 		}
-
 	}
 
 	/*
@@ -780,7 +783,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				}
 				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
 	again:
-				ISP_MEMZERO(&mbs, sizeof (mbs));
+				MBSINIT(&mbs, 0, MBLOGALL, 0);
 				if (la < 0x10000 && nw < 0x10000) {
 					mbs.param[0] = MBOX_LOAD_RISC_RAM_2100;
 					mbs.param[1] = la;
@@ -818,7 +821,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					mbs.param[8] = la >> 16;
 					isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM %u words at load address 0x%x", nw, la);
 				}
-				mbs.logval = MBLOGALL;
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 					if (mbs.param[0] == MBOX_HOST_INTERFACE_ERROR) {
@@ -872,7 +874,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					wl--;
 				}
 				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
-				ISP_MEMZERO(&mbs, sizeof (mbs));
+				MBSINIT(&mbs, 0, MBLOGALL, 0);
 				if (la < 0x10000) {
 					mbs.param[0] = MBOX_LOAD_RISC_RAM_2100;
 					mbs.param[1] = la;
@@ -893,7 +895,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					mbs.param[8] = la >> 16;
 					isp_prt(isp, ISP_LOGDEBUG1, "LOAD RISC RAM %u words at load address 0x%x\n", nw, la);
 				}
-				mbs.logval = MBLOGALL;
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
@@ -933,11 +934,9 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp->isp_mbxworkp = &ucd.np[1];
 		isp->isp_mbxwrk0 = ucd.np[3] - 1;
 		isp->isp_mbxwrk1 = code_org + 1;
-		ISP_MEMZERO(&mbs, sizeof (mbs));
-		mbs.param[0] = MBOX_WRITE_RAM_WORD;
+		MBSINIT(&mbs, MBOX_WRITE_RAM_WORD, MBLOGNONE, 0);
 		mbs.param[1] = code_org;
 		mbs.param[2] = ucd.np[0];
-		mbs.logval = MBLOGNONE;
 		isp_prt(isp, ISP_LOGDEBUG1, "WRITE RAM %u words at load address 0x%x\n", ucd.np[3], code_org);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -954,7 +953,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * If we loaded firmware, verify its checksum
 	 */
 	if (isp->isp_loaded_fw) {
-		ISP_MEMZERO(&mbs, sizeof (mbs));
+		MBSINIT(&mbs, MBOX_VERIFY_CHECKSUM, MBLOGNONE, 0);
 		mbs.param[0] = MBOX_VERIFY_CHECKSUM;
 		if (IS_24XX(isp)) {
 			mbs.param[1] = code_org >> 16;
@@ -978,7 +977,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 */
 
 
-	MBSINIT(&mbs, MBOX_EXEC_FIRMWARE, MBLOGALL, 1000000);
+	MBSINIT(&mbs, MBOX_EXEC_FIRMWARE, MBLOGALL, 5000000);
 	if (IS_24XX(isp)) {
 		mbs.param[1] = code_org >> 16;
 		mbs.param[2] = code_org;
@@ -1071,9 +1070,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp->isp_fwrev[2] = mbs.param[3];
 	}
 
-	isp_prt(isp, ISP_LOGCONFIG, "Board Type %s, Chip Revision 0x%x, %s F/W Revision %d.%d.%d",
-	    btype, isp->isp_revision, dodnld? "loaded" : "resident", isp->isp_fwrev[0], isp->isp_fwrev[1], isp->isp_fwrev[2]);
-
 	if (IS_FC(isp)) {
 		/*
 		 * We do not believe firmware attributes for 2100 code less
@@ -1090,14 +1086,106 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 #endif
 		} else {
 			isp->isp_fwattr = mbs.param[6];
-			isp_prt(isp, ISP_LOGDEBUG0, "Firmware Attributes = 0x%x", mbs.param[6]);
 		}
-	} else {
+		if (IS_24XX(isp) && (isp->isp_fwattr & ISP2400_FW_ATTR_EXTNDED)) {
+			isp->isp_fwattr ^= ISP2400_FW_ATTR_EXTNDED;
+			isp->isp_fwattr |= (((uint64_t) mbs.param[15]) << 16) | (((uint64_t) mbs.param[16]) << 32) | (((uint64_t) mbs.param[17]) << 48);
+		}
+	} else if (IS_SCSI(isp)) {
 #ifndef	ISP_TARGET_MODE
 		isp->isp_fwattr = ISP_FW_ATTR_TMODE;
 #else
 		isp->isp_fwattr = 0;
 #endif
+	}
+
+	isp_prt(isp, ISP_LOGCONFIG, "Board Type %s, Chip Revision 0x%x, %s F/W Revision %d.%d.%d",
+	    btype, isp->isp_revision, dodnld? "loaded" : "resident", isp->isp_fwrev[0], isp->isp_fwrev[1], isp->isp_fwrev[2]);
+
+	fwt = isp->isp_fwattr;
+	if (IS_24XX(isp)) {
+		buf = FCPARAM(isp, 0)->isp_scratch;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "Attributes:");
+		if (fwt & ISP2400_FW_ATTR_CLASS2) {
+			fwt ^=ISP2400_FW_ATTR_CLASS2;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s Class2", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_IP) {
+			fwt ^=ISP2400_FW_ATTR_IP;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s IP", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_MULTIID) {
+			fwt ^=ISP2400_FW_ATTR_MULTIID;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s MultiID", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_SB2) {
+			fwt ^=ISP2400_FW_ATTR_SB2;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s SB2", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_T10CRC) {
+			fwt ^=ISP2400_FW_ATTR_T10CRC;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s T10CRC", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_VI) {
+			fwt ^=ISP2400_FW_ATTR_VI;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VI", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_VP0) {
+			fwt ^= ISP2400_FW_ATTR_VP0;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VP0_Decoupling", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_EXPFW) {
+			fwt ^= ISP2400_FW_ATTR_EXPFW;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (Experimental)", buf);
+		}
+		fwt &= ~ISP2400_FW_ATTR_EXTNDED;
+		if (fwt) {
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%jx)", buf, (uintmax_t)fwt);
+		}
+		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
+	} else if (IS_FC(isp)) {
+		buf = FCPARAM(isp, 0)->isp_scratch;
+		ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "Attributes:");
+		if (fwt & ISP_FW_ATTR_TMODE) {
+			fwt ^=ISP_FW_ATTR_TMODE;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s TargetMode", buf);
+		}
+		if (fwt & ISP_FW_ATTR_SCCLUN) {
+			fwt ^=ISP_FW_ATTR_SCCLUN;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s SCC-Lun", buf);
+		}
+		if (fwt & ISP_FW_ATTR_FABRIC) {
+			fwt ^=ISP_FW_ATTR_FABRIC;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s Fabric", buf);
+		}
+		if (fwt & ISP_FW_ATTR_CLASS2) {
+			fwt ^=ISP_FW_ATTR_CLASS2;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s Class2", buf);
+		}
+		if (fwt & ISP_FW_ATTR_FCTAPE) {
+			fwt ^=ISP_FW_ATTR_FCTAPE;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s FC-Tape", buf);
+		}
+		if (fwt & ISP_FW_ATTR_IP) {
+			fwt ^=ISP_FW_ATTR_IP;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s IP", buf);
+		}
+		if (fwt & ISP_FW_ATTR_VI) {
+			fwt ^=ISP_FW_ATTR_VI;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VI", buf);
+		}
+		if (fwt & ISP_FW_ATTR_VI_SOLARIS) {
+			fwt ^=ISP_FW_ATTR_VI_SOLARIS;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VI_SOLARIS", buf);
+		}
+		if (fwt & ISP_FW_ATTR_2KLOGINS) {
+			fwt ^=ISP_FW_ATTR_2KLOGINS;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s 2K-Login", buf);
+		}
+		if (fwt != 0) {
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%jx)", buf, (uintmax_t)fwt);
+		}
+		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 	}
 
 	if (!IS_24XX(isp)) {
@@ -1768,6 +1856,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	isp_icb_2400_t local, *icbp = &local;
 	mbreg_t mbs;
 	int chan;
+	int ownloopid = 0;
 
 	/*
 	 * Check to see whether all channels have *some* kind of role
@@ -1831,7 +1920,6 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		 * Get current resource count
 		 */
 		MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
-		mbs.obits = 0x4cf;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			return;
@@ -1840,27 +1928,18 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	}
 
 
+	ownloopid = (isp->isp_confopts & ISP_CFG_OWNLOOPID) != 0;
 	icbp->icb_hardaddr = fcp->isp_loopid;
 	if (icbp->icb_hardaddr >= LOCAL_LOOP_LIM) {
 		icbp->icb_hardaddr = 0;
+		ownloopid = 0;
 	}
 
-	/*
-	 * Force this on.
-	 */
-	icbp->icb_fwoptions1 |= ICB2400_OPT1_HARD_ADDRESS;
+	if (ownloopid)
+		icbp->icb_fwoptions1 |= ICB2400_OPT1_HARD_ADDRESS;
 
 	icbp->icb_fwoptions2 = fcp->isp_xfwoptions;
 	switch (isp->isp_confopts & ISP_CFG_PORT_PREF) {
-#if	0
-	case ISP_CFG_NPORT:
-		/*
-		 * XXX: This causes the f/w to crash.
-		 */
-		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
-		icbp->icb_fwoptions2 |= ICB2400_OPT2_PTP_2_LOOP;
-		break;
-#endif
 	case ISP_CFG_NPORT_ONLY:
 		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_PTP_ONLY;
@@ -1870,13 +1949,11 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_LOOP_ONLY;
 		break;
 	default:
+		/* ISP_CFG_PTP_2_LOOP not available in 24XX/25XX */
 		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_LOOP_2_PTP;
 		break;
 	}
-
-	/* force this on for now */
-	icbp->icb_fwoptions2 |= ICB2400_OPT2_ZIO;
 
 	switch (icbp->icb_fwoptions2 & ICB2400_OPT2_TIMER_MASK) {
 	case ICB2400_OPT2_ZIO:
@@ -1891,12 +1968,10 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		break;
 	}
 
-	/*
-	 * We don't support FCTAPE, so clear it.
-	 */
-	icbp->icb_fwoptions2 &= ~ICB2400_OPT2_FCTAPE;
-
 	icbp->icb_fwoptions3 = fcp->isp_zfwoptions;
+	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RSPSZ_24;
+	}
 	icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_AUTO;
 	if (isp->isp_confopts & ISP_CFG_ONEGB) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_ONEGB;
@@ -1904,11 +1979,12 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_TWOGB;
 	} else if (isp->isp_confopts & ISP_CFG_FOURGB) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_FOURGB;
+	} else if (IS_25XX(isp) && (isp->isp_confopts & ISP_CFG_EIGHTGB)) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_EIGHTGB;
 	} else {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
 	}
-
-	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0) {
+	if (ownloopid == 0) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_SOFTID;
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
@@ -2569,11 +2645,7 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 	 * Get our Loop ID and Port ID.
 	 */
 	MBSINIT(&mbs, MBOX_GET_LOOP_ID, MBLOGALL, 0);
-	if (ISP_CAP_MULTI_ID(isp)) {
-		mbs.param[9] = chan;
-		mbs.ibits = (1 << 9);
-		mbs.obits = (1 << 7);
-	}
+	mbs.param[9] = chan;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return (-1);
@@ -2676,12 +2748,14 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		lp->new_portid = lp->portid;
 		lp->new_roles = lp->roles;
 		if (IS_24XX(isp)) {
-			fcp->inorder = (mbs.param[7] & ISP24XX_INORDER) != 0;
-			if (ISP_FW_NEWER_THAN(isp, 4, 0, 27)) {
-				fcp->npiv_fabric = (mbs.param[7] & ISP24XX_NPIV_SAN) != 0;
-				if (fcp->npiv_fabric) {
-					isp_prt(isp, ISP_LOGCONFIG, "fabric supports NP-IV");
-				}
+			if (check_for_fabric) {
+				/*
+				 * The mbs is still hanging out from the MBOX_GET_LOOP_ID above.
+				 */
+				fcp->isp_fabric_params = mbs.param[7];
+				isp_prt(isp, ISP_LOGCONFIG, "fabric params 0x%x", mbs.param[7]);
+			} else {
+				fcp->isp_fabric_params = 0;
 			}
 			if (chan) {
 				fcp->isp_sns_hdl = NPH_SNS_HDLBASE + chan;
@@ -4427,6 +4501,7 @@ isp_start(XS_T *xs)
 			t7->req_lun[0] |= 0x40;
 		}
 		t7->req_lun[1] = XS_LUN(xs);
+		FCP_NEXT_CRN(isp, xs, t7->req_crn, XS_CHANNEL(xs), XS_TGT(xs), XS_LUN(xs));
 		tptr = &t7->req_time;
 		cdbp = t7->req_cdb;
 		cdblen = ISP_MIN(cdblen, sizeof (t7->req_cdb));
@@ -4907,7 +4982,7 @@ again:
 			if (isp->isp_mboxbsy) {
 				int obits = isp->isp_obits;
 				isp->isp_mboxtmp[0] = mbox;
-				for (i = 1; i < MAX_MAILBOX(isp); i++) {
+				for (i = 1; i < ISP_NMBOX(isp); i++) {
 					if ((obits & (1 << i)) == 0) {
 						continue;
 					}
@@ -6667,105 +6742,106 @@ isp_mbox_continue(ispsoftc_t *isp)
 	return (0);
 }
 
-#define	HIWRD(x)			((x) >> 16)
-#define	LOWRD(x)			((x)  & 0xffff)
-#define	ISPOPMAP(a, b)			(((a) << 16) | (b))
-static const uint32_t mbpscsi[] = {
-	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
-	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
-	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
-	ISPOPMAP(0x1f, 0x01),	/* 0x03: MBOX_DUMP_RAM */
-	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
-	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
-	ISPOPMAP(0x3f, 0x3f),	/* 0x06: MBOX_MAILBOX_REG_TEST */
-	ISPOPMAP(0x07, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
-	ISPOPMAP(0x01, 0x0f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
-	ISPOPMAP(0x00, 0x00),	/* 0x09: */
-	ISPOPMAP(0x00, 0x00),	/* 0x0a: */
-	ISPOPMAP(0x00, 0x00),	/* 0x0b: */
-	ISPOPMAP(0x00, 0x00),	/* 0x0c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x0d: */
-	ISPOPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
-	ISPOPMAP(0x00, 0x00),	/* 0x0f: */
-	ISPOPMAP(0x1f, 0x1f),	/* 0x10: MBOX_INIT_REQ_QUEUE */
-	ISPOPMAP(0x3f, 0x3f),	/* 0x11: MBOX_INIT_RES_QUEUE */
-	ISPOPMAP(0x0f, 0x0f),	/* 0x12: MBOX_EXECUTE_IOCB */
-	ISPOPMAP(0x03, 0x03),	/* 0x13: MBOX_WAKE_UP	*/
-	ISPOPMAP(0x01, 0x3f),	/* 0x14: MBOX_STOP_FIRMWARE */
-	ISPOPMAP(0x0f, 0x0f),	/* 0x15: MBOX_ABORT */
-	ISPOPMAP(0x03, 0x03),	/* 0x16: MBOX_ABORT_DEVICE */
-	ISPOPMAP(0x07, 0x07),	/* 0x17: MBOX_ABORT_TARGET */
-	ISPOPMAP(0x07, 0x07),	/* 0x18: MBOX_BUS_RESET */
-	ISPOPMAP(0x03, 0x07),	/* 0x19: MBOX_STOP_QUEUE */
-	ISPOPMAP(0x03, 0x07),	/* 0x1a: MBOX_START_QUEUE */
-	ISPOPMAP(0x03, 0x07),	/* 0x1b: MBOX_SINGLE_STEP_QUEUE */
-	ISPOPMAP(0x03, 0x07),	/* 0x1c: MBOX_ABORT_QUEUE */
-	ISPOPMAP(0x03, 0x4f),	/* 0x1d: MBOX_GET_DEV_QUEUE_STATUS */
-	ISPOPMAP(0x00, 0x00),	/* 0x1e: */
-	ISPOPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
-	ISPOPMAP(0x01, 0x07),	/* 0x20: MBOX_GET_INIT_SCSI_ID */
-	ISPOPMAP(0x01, 0x07),	/* 0x21: MBOX_GET_SELECT_TIMEOUT */
-	ISPOPMAP(0x01, 0xc7),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
-	ISPOPMAP(0x01, 0x07),	/* 0x23: MBOX_GET_TAG_AGE_LIMIT */
-	ISPOPMAP(0x01, 0x03),	/* 0x24: MBOX_GET_CLOCK_RATE */
-	ISPOPMAP(0x01, 0x07),	/* 0x25: MBOX_GET_ACT_NEG_STATE */
-	ISPOPMAP(0x01, 0x07),	/* 0x26: MBOX_GET_ASYNC_DATA_SETUP_TIME */
-	ISPOPMAP(0x01, 0x07),	/* 0x27: MBOX_GET_PCI_PARAMS */
-	ISPOPMAP(0x03, 0x4f),	/* 0x28: MBOX_GET_TARGET_PARAMS */
-	ISPOPMAP(0x03, 0x0f),	/* 0x29: MBOX_GET_DEV_QUEUE_PARAMS */
-	ISPOPMAP(0x01, 0x07),	/* 0x2a: MBOX_GET_RESET_DELAY_PARAMS */
-	ISPOPMAP(0x00, 0x00),	/* 0x2b: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2d: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2e: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2f: */
-	ISPOPMAP(0x03, 0x03),	/* 0x30: MBOX_SET_INIT_SCSI_ID */
-	ISPOPMAP(0x07, 0x07),	/* 0x31: MBOX_SET_SELECT_TIMEOUT */
-	ISPOPMAP(0xc7, 0xc7),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
-	ISPOPMAP(0x07, 0x07),	/* 0x33: MBOX_SET_TAG_AGE_LIMIT */
-	ISPOPMAP(0x03, 0x03),	/* 0x34: MBOX_SET_CLOCK_RATE */
-	ISPOPMAP(0x07, 0x07),	/* 0x35: MBOX_SET_ACT_NEG_STATE */
-	ISPOPMAP(0x07, 0x07),	/* 0x36: MBOX_SET_ASYNC_DATA_SETUP_TIME */
-	ISPOPMAP(0x07, 0x07),	/* 0x37: MBOX_SET_PCI_CONTROL_PARAMS */
-	ISPOPMAP(0x4f, 0x4f),	/* 0x38: MBOX_SET_TARGET_PARAMS */
-	ISPOPMAP(0x0f, 0x0f),	/* 0x39: MBOX_SET_DEV_QUEUE_PARAMS */
-	ISPOPMAP(0x07, 0x07),	/* 0x3a: MBOX_SET_RESET_DELAY_PARAMS */
-	ISPOPMAP(0x00, 0x00),	/* 0x3b: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3d: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3e: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3f: */
-	ISPOPMAP(0x01, 0x03),	/* 0x40: MBOX_RETURN_BIOS_BLOCK_ADDR */
-	ISPOPMAP(0x3f, 0x01),	/* 0x41: MBOX_WRITE_FOUR_RAM_WORDS */
-	ISPOPMAP(0x03, 0x07),	/* 0x42: MBOX_EXEC_BIOS_IOCB */
-	ISPOPMAP(0x00, 0x00),	/* 0x43: */
-	ISPOPMAP(0x00, 0x00),	/* 0x44: */
-	ISPOPMAP(0x03, 0x03),	/* 0x45: SET SYSTEM PARAMETER */
-	ISPOPMAP(0x01, 0x03),	/* 0x46: GET SYSTEM PARAMETER */
-	ISPOPMAP(0x00, 0x00),	/* 0x47: */
-	ISPOPMAP(0x01, 0xcf),	/* 0x48: GET SCAM CONFIGURATION */
-	ISPOPMAP(0xcf, 0xcf),	/* 0x49: SET SCAM CONFIGURATION */
-	ISPOPMAP(0x03, 0x03),	/* 0x4a: MBOX_SET_FIRMWARE_FEATURES */
-	ISPOPMAP(0x01, 0x03),	/* 0x4b: MBOX_GET_FIRMWARE_FEATURES */
-	ISPOPMAP(0x00, 0x00),	/* 0x4c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x4d: */
-	ISPOPMAP(0x00, 0x00),	/* 0x4e: */
-	ISPOPMAP(0x00, 0x00),	/* 0x4f: */
-	ISPOPMAP(0xdf, 0xdf),	/* 0x50: LOAD RAM A64 */
-	ISPOPMAP(0xdf, 0xdf),	/* 0x51: DUMP RAM A64 */
-	ISPOPMAP(0xdf, 0xff),	/* 0x52: INITIALIZE REQUEST QUEUE A64 */
-	ISPOPMAP(0xef, 0xff),	/* 0x53: INITIALIZE RESPONSE QUEUE A64 */
-	ISPOPMAP(0xcf, 0x01),	/* 0x54: EXECUCUTE COMMAND IOCB A64 */
-	ISPOPMAP(0x07, 0x01),	/* 0x55: ENABLE TARGET MODE */
-	ISPOPMAP(0x03, 0x0f),	/* 0x56: GET TARGET STATUS */
-	ISPOPMAP(0x00, 0x00),	/* 0x57: */
-	ISPOPMAP(0x00, 0x00),	/* 0x58: */
-	ISPOPMAP(0x00, 0x00),	/* 0x59: */
-	ISPOPMAP(0x03, 0x03),	/* 0x5a: SET DATA OVERRUN RECOVERY MODE */
-	ISPOPMAP(0x01, 0x03),	/* 0x5b: GET DATA OVERRUN RECOVERY MODE */
-	ISPOPMAP(0x0f, 0x0f),	/* 0x5c: SET HOST DATA */
-	ISPOPMAP(0x01, 0x01)	/* 0x5d: GET NOST DATA */
+#define	ISP_SCSI_IBITS(op)		(mbpscsi[((op)<<1)])
+#define	ISP_SCSI_OBITS(op)		(mbpscsi[((op)<<1) + 1])
+#define	ISP_SCSI_OPMAP(in, out)		in, out
+static const uint8_t mbpscsi[] = {
+	ISP_SCSI_OPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
+	ISP_SCSI_OPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
+	ISP_SCSI_OPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISP_SCSI_OPMAP(0x1f, 0x01),	/* 0x03: MBOX_DUMP_RAM */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
+	ISP_SCSI_OPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
+	ISP_SCSI_OPMAP(0x3f, 0x3f),	/* 0x06: MBOX_MAILBOX_REG_TEST */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
+	ISP_SCSI_OPMAP(0x01, 0x0f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x09: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x0a: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x0b: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x0c: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x0d: */
+	ISP_SCSI_OPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x0f: */
+	ISP_SCSI_OPMAP(0x1f, 0x1f),	/* 0x10: MBOX_INIT_REQ_QUEUE */
+	ISP_SCSI_OPMAP(0x3f, 0x3f),	/* 0x11: MBOX_INIT_RES_QUEUE */
+	ISP_SCSI_OPMAP(0x0f, 0x0f),	/* 0x12: MBOX_EXECUTE_IOCB */
+	ISP_SCSI_OPMAP(0x03, 0x03),	/* 0x13: MBOX_WAKE_UP	*/
+	ISP_SCSI_OPMAP(0x01, 0x3f),	/* 0x14: MBOX_STOP_FIRMWARE */
+	ISP_SCSI_OPMAP(0x0f, 0x0f),	/* 0x15: MBOX_ABORT */
+	ISP_SCSI_OPMAP(0x03, 0x03),	/* 0x16: MBOX_ABORT_DEVICE */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x17: MBOX_ABORT_TARGET */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x18: MBOX_BUS_RESET */
+	ISP_SCSI_OPMAP(0x03, 0x07),	/* 0x19: MBOX_STOP_QUEUE */
+	ISP_SCSI_OPMAP(0x03, 0x07),	/* 0x1a: MBOX_START_QUEUE */
+	ISP_SCSI_OPMAP(0x03, 0x07),	/* 0x1b: MBOX_SINGLE_STEP_QUEUE */
+	ISP_SCSI_OPMAP(0x03, 0x07),	/* 0x1c: MBOX_ABORT_QUEUE */
+	ISP_SCSI_OPMAP(0x03, 0x4f),	/* 0x1d: MBOX_GET_DEV_QUEUE_STATUS */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x1e: */
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x20: MBOX_GET_INIT_SCSI_ID */
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x21: MBOX_GET_SELECT_TIMEOUT */
+	ISP_SCSI_OPMAP(0x01, 0xc7),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x23: MBOX_GET_TAG_AGE_LIMIT */
+	ISP_SCSI_OPMAP(0x01, 0x03),	/* 0x24: MBOX_GET_CLOCK_RATE */
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x25: MBOX_GET_ACT_NEG_STATE */
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x26: MBOX_GET_ASYNC_DATA_SETUP_TIME */
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x27: MBOX_GET_PCI_PARAMS */
+	ISP_SCSI_OPMAP(0x03, 0x4f),	/* 0x28: MBOX_GET_TARGET_PARAMS */
+	ISP_SCSI_OPMAP(0x03, 0x0f),	/* 0x29: MBOX_GET_DEV_QUEUE_PARAMS */
+	ISP_SCSI_OPMAP(0x01, 0x07),	/* 0x2a: MBOX_GET_RESET_DELAY_PARAMS */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x2b: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x2c: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x2d: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x2e: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x2f: */
+	ISP_SCSI_OPMAP(0x03, 0x03),	/* 0x30: MBOX_SET_INIT_SCSI_ID */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x31: MBOX_SET_SELECT_TIMEOUT */
+	ISP_SCSI_OPMAP(0xc7, 0xc7),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x33: MBOX_SET_TAG_AGE_LIMIT */
+	ISP_SCSI_OPMAP(0x03, 0x03),	/* 0x34: MBOX_SET_CLOCK_RATE */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x35: MBOX_SET_ACT_NEG_STATE */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x36: MBOX_SET_ASYNC_DATA_SETUP_TIME */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x37: MBOX_SET_PCI_CONTROL_PARAMS */
+	ISP_SCSI_OPMAP(0x4f, 0x4f),	/* 0x38: MBOX_SET_TARGET_PARAMS */
+	ISP_SCSI_OPMAP(0x0f, 0x0f),	/* 0x39: MBOX_SET_DEV_QUEUE_PARAMS */
+	ISP_SCSI_OPMAP(0x07, 0x07),	/* 0x3a: MBOX_SET_RESET_DELAY_PARAMS */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x3b: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x3c: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x3d: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x3e: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x3f: */
+	ISP_SCSI_OPMAP(0x01, 0x03),	/* 0x40: MBOX_RETURN_BIOS_BLOCK_ADDR */
+	ISP_SCSI_OPMAP(0x3f, 0x01),	/* 0x41: MBOX_WRITE_FOUR_RAM_WORDS */
+	ISP_SCSI_OPMAP(0x03, 0x07),	/* 0x42: MBOX_EXEC_BIOS_IOCB */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x43: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x44: */
+	ISP_SCSI_OPMAP(0x03, 0x03),	/* 0x45: SET SYSTEM PARAMETER */
+	ISP_SCSI_OPMAP(0x01, 0x03),	/* 0x46: GET SYSTEM PARAMETER */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x47: */
+	ISP_SCSI_OPMAP(0x01, 0xcf),	/* 0x48: GET SCAM CONFIGURATION */
+	ISP_SCSI_OPMAP(0xcf, 0xcf),	/* 0x49: SET SCAM CONFIGURATION */
+	ISP_SCSI_OPMAP(0x03, 0x03),	/* 0x4a: MBOX_SET_FIRMWARE_FEATURES */
+	ISP_SCSI_OPMAP(0x01, 0x03),	/* 0x4b: MBOX_GET_FIRMWARE_FEATURES */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x4c: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x4d: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x4e: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x4f: */
+	ISP_SCSI_OPMAP(0xdf, 0xdf),	/* 0x50: LOAD RAM A64 */
+	ISP_SCSI_OPMAP(0xdf, 0xdf),	/* 0x51: DUMP RAM A64 */
+	ISP_SCSI_OPMAP(0xdf, 0xff),	/* 0x52: INITIALIZE REQUEST QUEUE A64 */
+	ISP_SCSI_OPMAP(0xef, 0xff),	/* 0x53: INITIALIZE RESPONSE QUEUE A64 */
+	ISP_SCSI_OPMAP(0xcf, 0x01),	/* 0x54: EXECUCUTE COMMAND IOCB A64 */
+	ISP_SCSI_OPMAP(0x07, 0x01),	/* 0x55: ENABLE TARGET MODE */
+	ISP_SCSI_OPMAP(0x03, 0x0f),	/* 0x56: GET TARGET STATUS */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x57: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x58: */
+	ISP_SCSI_OPMAP(0x00, 0x00),	/* 0x59: */
+	ISP_SCSI_OPMAP(0x03, 0x03),	/* 0x5a: SET DATA OVERRUN RECOVERY MODE */
+	ISP_SCSI_OPMAP(0x01, 0x03),	/* 0x5b: GET DATA OVERRUN RECOVERY MODE */
+	ISP_SCSI_OPMAP(0x0f, 0x0f),	/* 0x5c: SET HOST DATA */
+	ISP_SCSI_OPMAP(0x01, 0x01)	/* 0x5d: GET NOST DATA */
 };
+#define	MAX_SCSI_OPCODE	0x5d
 
 static const char *scsi_mbcmd_names[] = {
 	"NO-OP",
@@ -6864,135 +6940,142 @@ static const char *scsi_mbcmd_names[] = {
 	"GET NOST DATA",
 };
 
+#define	ISP_FC_IBITS(op)	((mbpfc[((op)<<3) + 0] << 24) | (mbpfc[((op)<<3) + 1] << 16) | (mbpfc[((op)<<3) + 2] << 8) | (mbpfc[((op)<<3) + 3]))
+#define	ISP_FC_OBITS(op)	((mbpfc[((op)<<3) + 4] << 24) | (mbpfc[((op)<<3) + 5] << 16) | (mbpfc[((op)<<3) + 6] << 8) | (mbpfc[((op)<<3) + 7]))
+
+#define	ISP_FC_OPMAP(in0, out0)							  0,   0,   0, in0,    0,    0,    0, out0
+#define	ISP_FC_OPMAP_HALF(in1, in0, out1, out0)					  0,   0, in1, in0,    0,    0, out1, out0
+#define	ISP_FC_OPMAP_FULL(in3, in2, in1, in0, out3, out2, out1, out0)		in3, in2, in1, in0, out3, out2, out1, out0
 static const uint32_t mbpfc[] = {
-	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
-	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
-	ISPOPMAP(0x0f, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
-	ISPOPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
-	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
-	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
-	ISPOPMAP(0xff, 0xff),	/* 0x06: MBOX_MAILBOX_REG_TEST */
-	ISPOPMAP(0x07, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
-	ISPOPMAP(0x01, 0x4f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
-	ISPOPMAP(0xdf, 0x01),	/* 0x09: MBOX_LOAD_RISC_RAM_2100 */
-	ISPOPMAP(0xdf, 0x01),	/* 0x0a: DUMP RAM */
-	ISPOPMAP(0x1ff, 0x01),	/* 0x0b: MBOX_LOAD_RISC_RAM */
-	ISPOPMAP(0x00, 0x00),	/* 0x0c: */
-	ISPOPMAP(0x10f, 0x01),	/* 0x0d: MBOX_WRITE_RAM_WORD_EXTENDED */
-	ISPOPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
-	ISPOPMAP(0x103, 0x0d),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED */
-	ISPOPMAP(0x1f, 0x11),	/* 0x10: MBOX_INIT_REQ_QUEUE */
-	ISPOPMAP(0x2f, 0x21),	/* 0x11: MBOX_INIT_RES_QUEUE */
-	ISPOPMAP(0x0f, 0x01),	/* 0x12: MBOX_EXECUTE_IOCB */
-	ISPOPMAP(0x03, 0x03),	/* 0x13: MBOX_WAKE_UP	*/
-	ISPOPMAP(0x01, 0xff),	/* 0x14: MBOX_STOP_FIRMWARE */
-	ISPOPMAP(0x4f, 0x01),	/* 0x15: MBOX_ABORT */
-	ISPOPMAP(0x07, 0x01),	/* 0x16: MBOX_ABORT_DEVICE */
-	ISPOPMAP(0x07, 0x01),	/* 0x17: MBOX_ABORT_TARGET */
-	ISPOPMAP(0x03, 0x03),	/* 0x18: MBOX_BUS_RESET */
-	ISPOPMAP(0x07, 0x05),	/* 0x19: MBOX_STOP_QUEUE */
-	ISPOPMAP(0x07, 0x05),	/* 0x1a: MBOX_START_QUEUE */
-	ISPOPMAP(0x07, 0x05),	/* 0x1b: MBOX_SINGLE_STEP_QUEUE */
-	ISPOPMAP(0x07, 0x05),	/* 0x1c: MBOX_ABORT_QUEUE */
-	ISPOPMAP(0x07, 0x03),	/* 0x1d: MBOX_GET_DEV_QUEUE_STATUS */
-	ISPOPMAP(0x00, 0x00),	/* 0x1e: */
-	ISPOPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
-	ISPOPMAP(0x01, 0x4f),	/* 0x20: MBOX_GET_LOOP_ID */
-	ISPOPMAP(0x00, 0x00),	/* 0x21: */
-	ISPOPMAP(0x01, 0x07),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
-	ISPOPMAP(0x00, 0x00),	/* 0x23: */
-	ISPOPMAP(0x00, 0x00),	/* 0x24: */
-	ISPOPMAP(0x00, 0x00),	/* 0x25: */
-	ISPOPMAP(0x00, 0x00),	/* 0x26: */
-	ISPOPMAP(0x00, 0x00),	/* 0x27: */
-	ISPOPMAP(0x01, 0x03),	/* 0x28: MBOX_GET_FIRMWARE_OPTIONS */
-	ISPOPMAP(0x03, 0x07),	/* 0x29: MBOX_GET_PORT_QUEUE_PARAMS */
-	ISPOPMAP(0x00, 0x00),	/* 0x2a: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2b: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2d: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2e: */
-	ISPOPMAP(0x00, 0x00),	/* 0x2f: */
-	ISPOPMAP(0x00, 0x00),	/* 0x30: */
-	ISPOPMAP(0x00, 0x00),	/* 0x31: */
-	ISPOPMAP(0x07, 0x07),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
-	ISPOPMAP(0x00, 0x00),	/* 0x33: */
-	ISPOPMAP(0x00, 0x00),	/* 0x34: */
-	ISPOPMAP(0x00, 0x00),	/* 0x35: */
-	ISPOPMAP(0x00, 0x00),	/* 0x36: */
-	ISPOPMAP(0x00, 0x00),	/* 0x37: */
-	ISPOPMAP(0x0f, 0x01),	/* 0x38: MBOX_SET_FIRMWARE_OPTIONS */
-	ISPOPMAP(0x0f, 0x07),	/* 0x39: MBOX_SET_PORT_QUEUE_PARAMS */
-	ISPOPMAP(0x00, 0x00),	/* 0x3a: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3b: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3d: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3e: */
-	ISPOPMAP(0x00, 0x00),	/* 0x3f: */
-	ISPOPMAP(0x03, 0x01),	/* 0x40: MBOX_LOOP_PORT_BYPASS */
-	ISPOPMAP(0x03, 0x01),	/* 0x41: MBOX_LOOP_PORT_ENABLE */
-	ISPOPMAP(0x03, 0x07),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
-	ISPOPMAP(0x01, 0x01),	/* 0x43: MBOX_REQUEST_OFFLINE_MODE */
-	ISPOPMAP(0x00, 0x00),	/* 0x44: */
-	ISPOPMAP(0x00, 0x00),	/* 0x45: */
-	ISPOPMAP(0x00, 0x00),	/* 0x46: */
-	ISPOPMAP(0xcf, 0x03),	/* 0x47: GET PORT_DATABASE ENHANCED */
-	ISPOPMAP(0xcd, 0x01),	/* 0x48: MBOX_INIT_FIRMWARE_MULTI_ID */
-	ISPOPMAP(0xcd, 0x01),	/* 0x49: MBOX_GET_VP_DATABASE */
-	ISPOPMAP(0x2cd, 0x01),	/* 0x4a: MBOX_GET_VP_DATABASE_ENTRY */
-	ISPOPMAP(0x00, 0x00),	/* 0x4b: */
-	ISPOPMAP(0x00, 0x00),	/* 0x4c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x4d: */
-	ISPOPMAP(0x00, 0x00),	/* 0x4e: */
-	ISPOPMAP(0x00, 0x00),	/* 0x4f: */
-	ISPOPMAP(0x00, 0x00),	/* 0x50: */
-	ISPOPMAP(0x00, 0x00),	/* 0x51: */
-	ISPOPMAP(0x00, 0x00),	/* 0x52: */
-	ISPOPMAP(0x00, 0x00),	/* 0x53: */
-	ISPOPMAP(0xcf, 0x01),	/* 0x54: EXECUTE IOCB A64 */
-	ISPOPMAP(0x00, 0x00),	/* 0x55: */
-	ISPOPMAP(0x00, 0x00),	/* 0x56: */
-	ISPOPMAP(0x00, 0x00),	/* 0x57: */
-	ISPOPMAP(0x00, 0x00),	/* 0x58: */
-	ISPOPMAP(0x00, 0x00),	/* 0x59: */
-	ISPOPMAP(0x00, 0x00),	/* 0x5a: */
-	ISPOPMAP(0x03, 0x01),	/* 0x5b: MBOX_DRIVER_HEARTBEAT */
-	ISPOPMAP(0xcf, 0x01),	/* 0x5c: MBOX_FW_HEARTBEAT */
-	ISPOPMAP(0x07, 0x03),	/* 0x5d: MBOX_GET_SET_DATA_RATE */
-	ISPOPMAP(0x00, 0x00),	/* 0x5e: */
-	ISPOPMAP(0x00, 0x00),	/* 0x5f: */
-	ISPOPMAP(0xcd, 0x01),	/* 0x60: MBOX_INIT_FIRMWARE */
-	ISPOPMAP(0x00, 0x00),	/* 0x61: */
-	ISPOPMAP(0x01, 0x01),	/* 0x62: MBOX_INIT_LIP */
-	ISPOPMAP(0xcd, 0x03),	/* 0x63: MBOX_GET_FC_AL_POSITION_MAP */
-	ISPOPMAP(0xcf, 0x01),	/* 0x64: MBOX_GET_PORT_DB */
-	ISPOPMAP(0x07, 0x01),	/* 0x65: MBOX_CLEAR_ACA */
-	ISPOPMAP(0x07, 0x01),	/* 0x66: MBOX_TARGET_RESET */
-	ISPOPMAP(0x07, 0x01),	/* 0x67: MBOX_CLEAR_TASK_SET */
-	ISPOPMAP(0x07, 0x01),	/* 0x68: MBOX_ABORT_TASK_SET */
-	ISPOPMAP(0x01, 0x07),	/* 0x69: MBOX_GET_FW_STATE */
-	ISPOPMAP(0x03, 0xcf),	/* 0x6a: MBOX_GET_PORT_NAME */
-	ISPOPMAP(0xcf, 0x01),	/* 0x6b: MBOX_GET_LINK_STATUS */
-	ISPOPMAP(0x0f, 0x01),	/* 0x6c: MBOX_INIT_LIP_RESET */
-	ISPOPMAP(0x00, 0x00),	/* 0x6d: */
-	ISPOPMAP(0xcf, 0x03),	/* 0x6e: MBOX_SEND_SNS */
-	ISPOPMAP(0x0f, 0x07),	/* 0x6f: MBOX_FABRIC_LOGIN */
-	ISPOPMAP(0x03, 0x01),	/* 0x70: MBOX_SEND_CHANGE_REQUEST */
-	ISPOPMAP(0x03, 0x03),	/* 0x71: MBOX_FABRIC_LOGOUT */
-	ISPOPMAP(0x0f, 0x0f),	/* 0x72: MBOX_INIT_LIP_LOGIN */
-	ISPOPMAP(0x00, 0x00),	/* 0x73: */
-	ISPOPMAP(0x07, 0x01),	/* 0x74: LOGIN LOOP PORT */
-	ISPOPMAP(0xcf, 0x03),	/* 0x75: GET PORT/NODE NAME LIST */
-	ISPOPMAP(0x4f, 0x01),	/* 0x76: SET VENDOR ID */
-	ISPOPMAP(0xcd, 0x01),	/* 0x77: INITIALIZE IP MAILBOX */
-	ISPOPMAP(0x00, 0x00),	/* 0x78: */
-	ISPOPMAP(0x00, 0x00),	/* 0x79: */
-	ISPOPMAP(0x00, 0x00),	/* 0x7a: */
-	ISPOPMAP(0x00, 0x00),	/* 0x7b: */
-	ISPOPMAP(0x4f, 0x03),	/* 0x7c: Get ID List */
-	ISPOPMAP(0xcf, 0x01),	/* 0x7d: SEND LFA */
-	ISPOPMAP(0x0f, 0x01)	/* 0x7e: LUN RESET */
+	ISP_FC_OPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
+	ISP_FC_OPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
+	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
+	ISP_FC_OPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
+	ISP_FC_OPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
+	ISP_FC_OPMAP_FULL(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff),	/* 0x06: MBOX_MAILBOX_REG_TEST */
+	ISP_FC_OPMAP(0x07, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
+	ISP_FC_OPMAP_FULL(0x0, 0x0, 0x0, 0x01, 0x0, 0x3, 0x80, 0x4f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
+	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x09: MBOX_LOAD_RISC_RAM_2100 */
+	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x0a: DUMP RAM */
+	ISP_FC_OPMAP_HALF(0x1, 0xff, 0x0, 0x01),	/* 0x0b: MBOX_LOAD_RISC_RAM */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x0c: */
+	ISP_FC_OPMAP_HALF(0x1, 0x0f, 0x0, 0x01),	/* 0x0d: MBOX_WRITE_RAM_WORD_EXTENDED */
+	ISP_FC_OPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
+	ISP_FC_OPMAP_HALF(0x1, 0x03, 0x0, 0x0d),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED */
+	ISP_FC_OPMAP(0x1f, 0x11),	/* 0x10: MBOX_INIT_REQ_QUEUE */
+	ISP_FC_OPMAP(0x2f, 0x21),	/* 0x11: MBOX_INIT_RES_QUEUE */
+	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x12: MBOX_EXECUTE_IOCB */
+	ISP_FC_OPMAP(0x03, 0x03),	/* 0x13: MBOX_WAKE_UP	*/
+	ISP_FC_OPMAP(0x01, 0xff),	/* 0x14: MBOX_STOP_FIRMWARE */
+	ISP_FC_OPMAP(0x4f, 0x01),	/* 0x15: MBOX_ABORT */
+	ISP_FC_OPMAP(0x07, 0x01),	/* 0x16: MBOX_ABORT_DEVICE */
+	ISP_FC_OPMAP(0x07, 0x01),	/* 0x17: MBOX_ABORT_TARGET */
+	ISP_FC_OPMAP(0x03, 0x03),	/* 0x18: MBOX_BUS_RESET */
+	ISP_FC_OPMAP(0x07, 0x05),	/* 0x19: MBOX_STOP_QUEUE */
+	ISP_FC_OPMAP(0x07, 0x05),	/* 0x1a: MBOX_START_QUEUE */
+	ISP_FC_OPMAP(0x07, 0x05),	/* 0x1b: MBOX_SINGLE_STEP_QUEUE */
+	ISP_FC_OPMAP(0x07, 0x05),	/* 0x1c: MBOX_ABORT_QUEUE */
+	ISP_FC_OPMAP(0x07, 0x03),	/* 0x1d: MBOX_GET_DEV_QUEUE_STATUS */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x1e: */
+	ISP_FC_OPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
+	ISP_FC_OPMAP_HALF(0x2, 0x01, 0x0, 0xcf),	/* 0x20: MBOX_GET_LOOP_ID */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x21: */
+	ISP_FC_OPMAP(0x01, 0x07),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x23: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x24: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x25: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x26: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x27: */
+	ISP_FC_OPMAP(0x01, 0x03),	/* 0x28: MBOX_GET_FIRMWARE_OPTIONS */
+	ISP_FC_OPMAP(0x03, 0x07),	/* 0x29: MBOX_GET_PORT_QUEUE_PARAMS */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2a: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2b: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2c: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2d: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2e: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2f: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x30: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x31: */
+	ISP_FC_OPMAP(0x07, 0x07),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x33: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x34: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x35: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x36: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x37: */
+	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x38: MBOX_SET_FIRMWARE_OPTIONS */
+	ISP_FC_OPMAP(0x0f, 0x07),	/* 0x39: MBOX_SET_PORT_QUEUE_PARAMS */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3a: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3b: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3c: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3d: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3e: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3f: */
+	ISP_FC_OPMAP(0x03, 0x01),	/* 0x40: MBOX_LOOP_PORT_BYPASS */
+	ISP_FC_OPMAP(0x03, 0x01),	/* 0x41: MBOX_LOOP_PORT_ENABLE */
+	ISP_FC_OPMAP_HALF(0x3, 0xcf, 0x0, 0x07),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
+	ISP_FC_OPMAP(0x01, 0x01),	/* 0x43: MBOX_REQUEST_OFFLINE_MODE */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x44: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x45: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x46: */
+	ISP_FC_OPMAP(0xcf, 0x03),	/* 0x47: GET PORT_DATABASE ENHANCED */
+	ISP_FC_OPMAP(0xcd, 0x01),	/* 0x48: MBOX_INIT_FIRMWARE_MULTI_ID */
+	ISP_FC_OPMAP(0xcd, 0x01),	/* 0x49: MBOX_GET_VP_DATABASE */
+	ISP_FC_OPMAP_HALF(0x2, 0xcd, 0x0, 0x01),	/* 0x4a: MBOX_GET_VP_DATABASE_ENTRY */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x4b: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x4c: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x4d: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x4e: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x4f: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x50: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x51: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x52: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x53: */
+	ISP_FC_OPMAP(0xcf, 0x01),	/* 0x54: EXECUTE IOCB A64 */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x55: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x56: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x57: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x58: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x59: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x5a: */
+	ISP_FC_OPMAP(0x03, 0x01),	/* 0x5b: MBOX_DRIVER_HEARTBEAT */
+	ISP_FC_OPMAP(0xcf, 0x01),	/* 0x5c: MBOX_FW_HEARTBEAT */
+	ISP_FC_OPMAP(0x07, 0x03),	/* 0x5d: MBOX_GET_SET_DATA_RATE */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x5e: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x5f: */
+	ISP_FC_OPMAP(0xcd, 0x01),	/* 0x60: MBOX_INIT_FIRMWARE */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x61: */
+	ISP_FC_OPMAP(0x01, 0x01),	/* 0x62: MBOX_INIT_LIP */
+	ISP_FC_OPMAP(0xcd, 0x03),	/* 0x63: MBOX_GET_FC_AL_POSITION_MAP */
+	ISP_FC_OPMAP(0xcf, 0x01),	/* 0x64: MBOX_GET_PORT_DB */
+	ISP_FC_OPMAP(0x07, 0x01),	/* 0x65: MBOX_CLEAR_ACA */
+	ISP_FC_OPMAP(0x07, 0x01),	/* 0x66: MBOX_TARGET_RESET */
+	ISP_FC_OPMAP(0x07, 0x01),	/* 0x67: MBOX_CLEAR_TASK_SET */
+	ISP_FC_OPMAP(0x07, 0x01),	/* 0x68: MBOX_ABORT_TASK_SET */
+	ISP_FC_OPMAP(0x01, 0x07),	/* 0x69: MBOX_GET_FW_STATE */
+	ISP_FC_OPMAP(0x03, 0xcf),	/* 0x6a: MBOX_GET_PORT_NAME */
+	ISP_FC_OPMAP(0xcf, 0x01),	/* 0x6b: MBOX_GET_LINK_STATUS */
+	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x6c: MBOX_INIT_LIP_RESET */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x6d: */
+	ISP_FC_OPMAP(0xcf, 0x03),	/* 0x6e: MBOX_SEND_SNS */
+	ISP_FC_OPMAP(0x0f, 0x07),	/* 0x6f: MBOX_FABRIC_LOGIN */
+	ISP_FC_OPMAP(0x03, 0x01),	/* 0x70: MBOX_SEND_CHANGE_REQUEST */
+	ISP_FC_OPMAP(0x03, 0x03),	/* 0x71: MBOX_FABRIC_LOGOUT */
+	ISP_FC_OPMAP(0x0f, 0x0f),	/* 0x72: MBOX_INIT_LIP_LOGIN */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x73: */
+	ISP_FC_OPMAP(0x07, 0x01),	/* 0x74: LOGIN LOOP PORT */
+	ISP_FC_OPMAP(0xcf, 0x03),	/* 0x75: GET PORT/NODE NAME LIST */
+	ISP_FC_OPMAP(0x4f, 0x01),	/* 0x76: SET VENDOR ID */
+	ISP_FC_OPMAP(0xcd, 0x01),	/* 0x77: INITIALIZE IP MAILBOX */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x78: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x79: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x7a: */
+	ISP_FC_OPMAP(0x00, 0x00),	/* 0x7b: */
+	ISP_FC_OPMAP(0x4f, 0x03),	/* 0x7c: Get ID List */
+	ISP_FC_OPMAP(0xcf, 0x01),	/* 0x7d: SEND LFA */
+	ISP_FC_OPMAP(0x0f, 0x01)	/* 0x7e: LUN RESET */
 };
+#define	MAX_FC_OPCODE	0x7e
 /*
  * Footnotes
  *
@@ -7136,19 +7219,18 @@ static void
 isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
 {
 	unsigned int ibits, obits, box, opcode;
-	const uint32_t *mcp;
 
-	if (IS_FC(isp)) {
-		mcp = mbpfc;
-	} else {
-		mcp = mbpscsi;
-	}
 	opcode = mbp->param[0];
-	ibits = HIWRD(mcp[opcode]) & NMBOX_BMASK(isp);
-	obits = LOWRD(mcp[opcode]) & NMBOX_BMASK(isp);
+	if (IS_FC(isp)) {
+		ibits = ISP_FC_IBITS(opcode);
+		obits = ISP_FC_OBITS(opcode);
+	} else {
+		ibits = ISP_SCSI_IBITS(opcode);
+		obits = ISP_SCSI_OBITS(opcode);
+	}
 	ibits |= mbp->ibits;
 	obits |= mbp->obits;
-	for (box = 0; box < MAX_MAILBOX(isp); box++) {
+	for (box = 0; box < ISP_NMBOX(isp); box++) {
 		if (ibits & (1 << box)) {
 			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
 		}
@@ -7181,25 +7263,26 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 {
 	const char *cname, *xname;
 	char tname[16], mname[16];
-	unsigned int lim, ibits, obits, box, opcode;
-	const uint32_t *mcp;
+	unsigned int ibits, obits, box, opcode;
 
+	opcode = mbp->param[0];
 	if (IS_FC(isp)) {
-		mcp = mbpfc;
-		lim = (sizeof (mbpfc) / sizeof (mbpfc[0]));
+		if (opcode > MAX_FC_OPCODE) {
+			mbp->param[0] = MBOX_INVALID_COMMAND;
+			isp_prt(isp, ISP_LOGERR, "Unknown Command 0x%x", opcode);
+			return;
+		}
+		ibits = ISP_FC_IBITS(opcode);
+		obits = ISP_FC_OBITS(opcode);
 	} else {
-		mcp = mbpscsi;
-		lim = (sizeof (mbpscsi) / sizeof (mbpscsi[0]));
+		if (opcode > MAX_SCSI_OPCODE) {
+			mbp->param[0] = MBOX_INVALID_COMMAND;
+			isp_prt(isp, ISP_LOGERR, "Unknown Command 0x%x", opcode);
+			return;
+		}
+		ibits = ISP_SCSI_IBITS(opcode);
+		obits = ISP_SCSI_OBITS(opcode);
 	}
-
-	if ((opcode = mbp->param[0]) >= lim) {
-		mbp->param[0] = MBOX_INVALID_COMMAND;
-		isp_prt(isp, ISP_LOGERR, "Unknown Command 0x%x", opcode);
-		return;
-	}
-
-	ibits = HIWRD(mcp[opcode]) & NMBOX_BMASK(isp);
-	obits = LOWRD(mcp[opcode]) & NMBOX_BMASK(isp);
 
 	/*
 	 * Pick up any additional bits that the caller might have set.
@@ -7221,7 +7304,7 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 		goto out;
 	}
 
-	for (box = 0; box < MAX_MAILBOX(isp); box++) {
+	for (box = 0; box < ISP_NMBOX(isp); box++) {
 		if (ibits & (1 << box)) {
 			isp_prt(isp, ISP_LOGDEBUG3, "IN mbox %d = 0x%04x", box,
 			    mbp->param[box]);
@@ -7264,7 +7347,7 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 	/*
 	 * Copy back output registers.
 	 */
-	for (box = 0; box < MAX_MAILBOX(isp); box++) {
+	for (box = 0; box < ISP_NMBOX(isp); box++) {
 		if (obits & (1 << box)) {
 			mbp->param[box] = isp->isp_mboxtmp[box];
 			isp_prt(isp, ISP_LOGDEBUG3, "OUT mbox %d = 0x%04x", box,
@@ -7964,8 +8047,7 @@ isp_parse_nvram_1020(ispsoftc_t *isp, uint8_t *nvram_data)
 		(ISP_NVRAM_FIFO_THRESHOLD_128(nvram_data) << 2);
 
 	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0)
-		sdp->isp_initiator_id =
-			ISP_NVRAM_INITIATOR_ID(nvram_data);
+		sdp->isp_initiator_id = ISP_NVRAM_INITIATOR_ID(nvram_data);
 
 	sdp->isp_bus_reset_delay =
 		ISP_NVRAM_BUS_RESET_DELAY(nvram_data);
@@ -8076,8 +8158,7 @@ isp_parse_nvram_1080(ispsoftc_t *isp, int bus, uint8_t *nvram_data)
 	    ISP1080_NVRAM_FIFO_THRESHOLD(nvram_data);
 
 	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0)
-		sdp->isp_initiator_id =
-		    ISP1080_NVRAM_INITIATOR_ID(nvram_data, bus);
+		sdp->isp_initiator_id = ISP1080_NVRAM_INITIATOR_ID(nvram_data, bus);
 
 	sdp->isp_bus_reset_delay =
 	    ISP1080_NVRAM_BUS_RESET_DELAY(nvram_data, bus);
@@ -8152,8 +8233,7 @@ isp_parse_nvram_12160(ispsoftc_t *isp, int bus, uint8_t *nvram_data)
 	    ISP12160_NVRAM_FIFO_THRESHOLD(nvram_data);
 
 	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0)
-		sdp->isp_initiator_id =
-		    ISP12160_NVRAM_INITIATOR_ID(nvram_data, bus);
+		sdp->isp_initiator_id = ISP12160_NVRAM_INITIATOR_ID(nvram_data, bus);
 
 	sdp->isp_bus_reset_delay =
 	    ISP12160_NVRAM_BUS_RESET_DELAY(nvram_data, bus);
