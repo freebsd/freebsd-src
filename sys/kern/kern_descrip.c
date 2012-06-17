@@ -668,6 +668,10 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		}
 		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = 0;
+		if (error != 0) {
+			fdrop(fp, td);
+			break;
+		}
 		/* Check for race with close */
 		FILEDESC_SLOCK(fdp);
 		if (fget_locked(fdp, fd) != fp) {
