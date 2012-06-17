@@ -369,6 +369,25 @@ ar9285ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 	uint32_t val;
 
+	/*
+	 * This workaround needs some integration work with the HAL
+	 * config parameters and the if_ath_pci.c glue.
+	 * Specifically, read the value of the PCI register 0x70c
+	 * (4 byte PCI config space register) and store it in ath_hal_war70c.
+	 * Then if it's non-zero, the below WAR would override register
+	 * 0x570c upon suspend/resume.
+	 */
+#if 0
+	if (AR_SREV_9285E_20(ah)) {
+		val = AH_PRIVATE(ah)->ah_config.ath_hal_war70c;
+		if (val) {
+			val &= 0xffff00ff;
+			val |= 0x6f00;
+			OS_REG_WRITE(ah, 0x570c, val);
+		}
+	}
+#endif
+
 	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
 		OS_DELAY(1000);
