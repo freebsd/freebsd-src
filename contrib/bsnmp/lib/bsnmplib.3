@@ -386,7 +386,7 @@ If successfull, a plain text scoped PDU is stored in the buffer.
 The function
 .Fn snmp_pdu_init_secparams
 calculates the initialization vector for the privacy protocol in use before
-the PDU pointed to by 
+the PDU pointed to by
 .Fa pdu
 may be encrypted or decrypted.
 .Pp
@@ -501,7 +501,7 @@ the cryptographic functions from
 The library may optionally be built without references to the
 .Xr crypto 3
 library. In such case only plain text SNMPv3 PDUs without message digests
-may be proccessed correctly. 
+may be proccessed correctly.
 .Sh STANDARDS
 This implementation conforms to the applicable IETF RFCs and ITU-T
 recommendations.
