@@ -2277,6 +2277,11 @@ isp_port_login(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 	}
 }
 
+/*
+ * Pre-24XX fabric port logout
+ *
+ * Note that portid is not used
+ */
 static int
 isp_port_logout(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 {
@@ -2721,7 +2726,7 @@ not_on_fabric:
  * layer appropriately).
  *
  * We also do initiator map target id assignment here for new initiator
- * devices and refresh old ones ot make sure that they point to the corret
+ * devices and refresh old ones ot make sure that they point to the correct
  * entities.
  */
 static int
