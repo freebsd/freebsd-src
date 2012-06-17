@@ -342,7 +342,8 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
  * a signal was caught.
  */
 int
-_cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
+_cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, 
+    struct bintime *bt, int timo) 
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -379,7 +380,10 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
-	sleepq_set_timeout(cvp, timo);
+	if (bt == NULL)	
+		sleepq_set_timeout(cvp, timo);
+	else
+		sleepq_set_timeout_bt(cvp, *bt);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);

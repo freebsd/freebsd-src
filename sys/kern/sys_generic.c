@@ -102,7 +102,7 @@ static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 static void	seltdinit(struct thread *);
-static int	seltdwait(struct thread *, int);
+static int	seltdwait(struct thread *, struct bintime *, int);
 static void	seltdclear(struct thread *);
 
 /*
@@ -902,7 +902,8 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
-	struct timeval atv, rtv, ttv;
+	struct bintime abt, rbt;
+	struct timeval atv;
 	int error, lf, ndu, timo;
 	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
 
@@ -996,33 +997,34 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 
 	if (tvp != NULL) {
 		atv = *tvp;
-		if (itimerfix(&atv)) {
+		if (atv.tv_sec < 0 || atv.tv_usec < 0 || 
+		    atv.tv_usec >= 1000000) {
 			error = EINVAL;
 			goto done;
 		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
+		binuptime(&rbt);
+		timeval2bintime(&atv, &abt);
+		bintime_add(&abt, &rbt);
 	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
+		abt.sec = 0;
+		abt.frac = 0;
 	}
-	timo = 0;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = selscan(td, ibits, obits, nd);
 		if (error || td->td_retval[0] != 0)
 			break;
-		if (atv.tv_sec || atv.tv_usec) {
-			getmicrouptime(&rtv);
-			if (timevalcmp(&rtv, &atv, >=))
+		if (abt.sec || abt.frac) {
+			binuptime(&rbt);
+			if (bintime_cmp(&rbt, &abt, >=))
 				break;
-			ttv = atv;
-			timevalsub(&ttv, &rtv);
-			timo = ttv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&ttv);
+			error = seltdwait(td, &abt, 0);
 		}
-		error = seltdwait(td, timo);
+		else {
+			timo = 0;
+			error = seltdwait(td, NULL, timo);
+		}
 		if (error)
 			break;
 		error = selrescan(td, ibits, obits);
@@ -1254,8 +1256,9 @@ sys_poll(td, uap)
 {
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
-	struct timeval atv, rtv, ttv;
-	int error = 0, timo;
+	struct bintime abt, rbt;
+	struct timeval atv;
+	int error, timo;
 	u_int nfds;
 	size_t ni;
 
@@ -1273,33 +1276,33 @@ sys_poll(td, uap)
 	if (uap->timeout != INFTIM) {
 		atv.tv_sec = uap->timeout / 1000;
 		atv.tv_usec = (uap->timeout % 1000) * 1000;
-		if (itimerfix(&atv)) {
+		if (atv.tv_sec < 0 || atv.tv_usec < 0 || 
+		    atv.tv_usec >= 1000000) {
 			error = EINVAL;
 			goto done;
 		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
+		binuptime(&rbt);
+		timeval2bintime(&atv, &abt);
+		bintime_add(&abt, &rbt);
 	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
+		abt.sec = 0;
+		abt.frac = 0;
 	}
-	timo = 0;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = pollscan(td, bits, nfds);
 		if (error || td->td_retval[0] != 0)
 			break;
-		if (atv.tv_sec || atv.tv_usec) {
-			getmicrouptime(&rtv);
-			if (timevalcmp(&rtv, &atv, >=))
+		if (abt.sec || abt.frac) {
+			binuptime(&rbt);
+			if (bintime_cmp(&rbt, &abt, >=))
 				break;
-			ttv = atv;
-			timevalsub(&ttv, &rtv);
-			timo = ttv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&ttv);
+			error = seltdwait(td, &abt, 0);
+		} else { 
+			timo = 0;
+			error = seltdwait(td, NULL, timo);
 		}
-		error = seltdwait(td, timo);
 		if (error)
 			break;
 		error = pollrescan(td);
@@ -1518,7 +1521,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 			timo = ttv.tv_sec > 24 * 60 * 60 ?
 			    24 * 60 * 60 * hz : tvtohz(&ttv);
 		}
-		error = seltdwait(td, timo);
+		error = seltdwait(td, NULL, timo);
 		seltdclear(td);
 		if (error)
 			break;
@@ -1697,7 +1700,7 @@ out:
 }
 
 static int
-seltdwait(struct thread *td, int timo)
+seltdwait(struct thread *td, struct bintime *bt, int timo)
 {
 	struct seltd *stp;
 	int error;
@@ -1716,9 +1719,11 @@ seltdwait(struct thread *td, int timo)
 		mtx_unlock(&stp->st_mtx);
 		return (0);
 	}
-	if (timo > 0)
+	if (bt == NULL && timo > 0) 
 		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
-	else
+	else if (bt != NULL)
+		error = cv_timedwait_bt_sig(&stp->st_wait, &stp->st_mtx, *bt);
+	else	
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
 	mtx_unlock(&stp->st_mtx);
 
