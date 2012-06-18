@@ -241,40 +241,44 @@ _busdma_iommu_xlate(device_t leaf, struct busdma_mtag *mtag)
 }
 
 static int
-_busdma_iommu_map_r(device_t dev, struct busdma_md *md)
+_busdma_iommu_map_r(device_t dev, struct busdma_md *md, u_int idx,
+    bus_addr_t *ba_p)
 {
-	struct busdma_md_seg *seg;
-	u_int idx;
 	int error;
 
-	if (dev == root_bus) {
-		/*
-		 * A bus address and a physical address are one and the same
-		 * at this level.
-		 */
-		for (idx = 0; idx < md->md_nsegs; idx++) {
-			seg = &md->md_seg[idx];
-			seg->mds_busaddr = seg->mds_paddr;
-		}
-		_busdma_md_dump(__func__, dev, md);
+	if (dev == root_bus)
 		return (0);
-	}
 
-	error = _busdma_iommu_map_r(device_get_parent(dev), md);
-	if (!error) {
-		error = BUSDMA_IOMMU_MAP(dev, md);
-		_busdma_md_dump(__func__, dev, md);
-	}
+	error = _busdma_iommu_map_r(device_get_parent(dev), md, idx, ba_p);
+	if (!error)
+		error = BUSDMA_IOMMU_MAP(dev, md, idx, ba_p);
 	return (error);
 }
 
 static int
 _busdma_iommu_map(device_t leaf, struct busdma_md *md)
 {
+	struct busdma_md_seg *seg;
+	device_t dev;
+	u_int idx;
 	int error;
  
-	_busdma_md_dump(__func__, leaf, md);
-	error = _busdma_iommu_map_r(device_get_parent(leaf), md);
+	_busdma_md_dump(__func__, root_bus, md);
+	dev = device_get_parent(leaf);
+	error = 0;
+	for (idx = 0; idx < md->md_nsegs; idx++) {
+		seg = &md->md_seg[idx];
+		/*
+		 * A bus address and a physical address are one and the same
+		 * at this level.
+		 */
+		seg->mds_busaddr = seg->mds_paddr;
+		error = _busdma_iommu_map_r(dev, md, idx, &seg->mds_busaddr);
+		if (error)
+			break;
+	}
+	if (!error)
+		_busdma_md_dump(__func__, leaf, md);
 	return (error);
 }
 

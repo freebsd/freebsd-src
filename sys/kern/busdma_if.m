@@ -40,7 +40,14 @@ CODE {
 	}
 
 	static int
-	default_iommu_map_unmap(device_t dev, busdma_md_t md)
+	default_iommu_map(device_t dev, busdma_md_t md, u_int idx,
+	    bus_addr_t *ba_p)
+	{
+		return (0);
+	}
+
+	static int
+	default_iommu_unmap(device_t dev, busdma_md_t md)
 	{
 		return (0);
 	}
@@ -54,9 +61,11 @@ METHOD int iommu_xlate {
 METHOD int iommu_map {
 	device_t	dev;
 	busdma_md_t	md;
-} DEFAULT default_iommu_map_unmap;
+	u_int		idx;
+	bus_addr_t	*ba_p;
+} DEFAULT default_iommu_map;
 
 METHOD int iommu_unmap {
 	device_t	dev;
 	busdma_md_t	md;
-} DEFAULT default_iommu_map_unmap;
+} DEFAULT default_iommu_unmap;
