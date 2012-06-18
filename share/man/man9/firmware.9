@@ -159,7 +159,7 @@ argument may be set to
 to indicate that
 firmware_put is free to reclaim resources associated with
 the firmware image if this is the last reference.
-By default a firmware image will be deferred to a 
+By default a firmware image will be deferred to a
 .Xr taskqueue 9
 thread so the call may be done while holding a lock.
 In certain cases, such as on driver detach, this cannot be allowed.
