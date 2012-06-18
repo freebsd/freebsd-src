@@ -39,6 +39,7 @@
 static __inline void
 copyw(uint16_t *src, uint16_t *dst, size_t size)
 {
+	size >>= 1;
 	while (size--)
 		*dst++ = *src++;
 }
