@@ -994,13 +994,13 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 	if (tmpdir == NULL)
 		tmpdir = _PATH_TMP;
 	strncpy(tmpstr, tmpdir, sizeof(tmpstr));
-	strncat(tmpstr, "/acpidump.", sizeof(tmpstr) - strlen(tmpdir));
 	if (realpath(tmpstr, buf) == NULL) {
-		perror("realpath tmp file");
+		perror("realpath tmp dir");
 		return;
 	}
 	strncpy(tmpstr, buf, sizeof(tmpstr));
-	len = strlen(buf);
+	strncat(tmpstr, "/acpidump.", sizeof(tmpstr) - strlen(buf));
+	len = strlen(tmpstr);
 	tmpext = tmpstr + len;
 	strncpy(tmpext, "XXXXXX", sizeof(tmpstr) - len);
 	fd = mkstemp(tmpstr);
