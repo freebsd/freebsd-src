@@ -358,13 +358,11 @@ get_bucket(struct bintime *bt)
 void
 callout_tick(void)
 {
+	struct bintime limit, next, now;
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
-	struct bintime now;
-	struct bintime limit;
-	struct bintime next;
-	int cpu, first, flag, future, last, need_softclock; 
+	int cpu, first, future, last, need_softclock; 
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the
@@ -374,8 +372,12 @@ callout_tick(void)
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	binuptime(&now);
+	cpu = curcpu;
 	first = callout_hash(&cc->cc_softticks);
 	last = callout_hash(&now);
+	next.sec = -1;
+	next.frac = -1;
+	future = ((last + hz/4) & callwheelmask); 
 	/* 
 	 * Check if we wrapped around the entire wheel from the last scan.
 	 * In case, we need to scan entirely the wheel for pending callouts.
@@ -388,19 +390,10 @@ callout_tick(void)
 		first &= callwheelmask;
 		last &= callwheelmask;
 	}
-	cpu = curcpu;
-	next.sec = -1;
-	next .frac = -1;
-	limit.sec = 0;
-	limit.frac = 4611686018427250000; /* 1/4 sec */
-	bintime_add(&limit,&now);
-	future = get_bucket(&limit);
-	flag = 0;
 	for (;;) {	
 		sc = &cc->cc_callwheel[first];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
-			if ((!flag || flag == 1) && 
-			    bintime_cmp(&tmp->c_time, &now, <=)) {
+			if (bintime_cmp(&tmp->c_time, &now, <=)) {
 				if (tmp->c_flags & CALLOUT_DIRECT) {
 					tmp->c_func(tmp->c_arg);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
@@ -414,8 +407,18 @@ callout_tick(void)
 					need_softclock = 1;
 				}
 			}	
-			if ((flag == 1 || flag == 2)  && 
-			    bintime_cmp(&tmp->c_time, &now, >)) {
+		}	
+		if (first == last)
+			break;
+		first = ((first + 1) & callwheelmask);
+	}
+	limit.sec = 0;
+	limit.frac = (uint64_t)1 << (64 - 2);
+	bintime_add(&limit, &now);		
+	for (;;) {
+		sc = &cc->cc_callwheel[last];
+		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
+			if (bintime_cmp(&tmp->c_time, &limit, <=)) {
 				if (next.sec == -1 ||
 				    bintime_cmp(&tmp->c_time, &next, <)) {
 					next = tmp->c_time;
@@ -423,16 +426,15 @@ callout_tick(void)
 				}
 			}
 		}
-		if (first == ((last - 1) & callwheelmask)) 
-			flag = 1;
-		if (first == last)
-			flag = 2;
-		if (first == future || next.sec != -1)
+		if ((last == future) || (next.sec != -1))
 			break;
-		first = (first + 1) & callwheelmask;
+		last = ((last + 1) & callwheelmask);
+	}	
+	if (next.sec == -1) { 
+		next.sec = 0;	
+		next.frac = (uint64_t)1 << (64 - 2);	
+		bintime_add(&next, &now);
 	}
-	if (next.sec == -1)  
-		next = limit;
 	cc->cc_firsttick = next;
 	if (callout_new_inserted != NULL) 
 		(*callout_new_inserted)(cpu, next);
