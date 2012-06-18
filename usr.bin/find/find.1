@@ -302,7 +302,7 @@ Please refer to the
 .Ic -atime
 primary description for information on supported time units.
 .It Ic -d
-Same as 
+Same as
 .Ic depth .
 GNU find implements this as a primary in mistaken emulation of
 .Fx
@@ -451,12 +451,12 @@ is being executed and the latter matches any file system which is
 mounted read-only.
 .It Ic -gid Ar gname
 The same thing as
-.Ar -group Ar gname 
+.Ar -group Ar gname
 for compatibility with GNU find.
 GNU find imposes a restriction that
-.Ar gname 
+.Ar gname
 is numeric, while
-.Xr find 1 
+.Xr find 1
 does not.
 .It Ic -group Ar gname
 True if the file belongs to the group
@@ -489,7 +489,7 @@ Like
 .Ic -regex ,
 but the match is case insensitive.
 .It Ic -iwholename Ar pattern
-The same thing as 
+The same thing as
 .Ic -ipath ,
 for GNU find compatibility.
 .It Ic -links Ar n
@@ -545,7 +545,7 @@ minutes.
 Same as
 .Ic -newer .
 .It Ic -mount
-The same thing as 
+The same thing as
 .Ic -xdev ,
 for GNU find compatibility.
 .It Ic -mtime Ar n Ns Op Cm smhdw
@@ -618,7 +618,7 @@ True if the file belongs to an unknown group.
 This option is for GNU find compatibility and is ignored.
 .It Ic -noleaf
 This option is for GNU find compatibility.
-In GNU find it disables an optimization not relevant to 
+In GNU find it disables an optimization not relevant to
 .Xr find 1 ,
 so it is ignored.
 .It Ic -nouser
@@ -754,7 +754,7 @@ True if the file is a hard link to
 If the command option
 .Ic -L
 is specified, it is also true if the file is a symbolic link and
-points to 
+points to
 .Ar name .
 .It Ic -size Ar n Ns Op Cm ckMGTP
 True if the file's size, rounded up, in 512-byte blocks is
@@ -807,12 +807,12 @@ socket
 .El
 .It Ic -uid Ar uname
 The same thing as
-.Ar -user Ar uname 
+.Ar -user Ar uname
 for compatibility with GNU find.
 GNU find imposes a restriction that
-.Ar uname 
+.Ar uname
 is numeric, while
-.Xr find 1 
+.Xr find 1
 does not.
 .It Ic -user Ar uname
 True if the file belongs to the user
@@ -823,7 +823,7 @@ is numeric and there is no such user name, then
 .Ar uname
 is treated as a user ID.
 .It Ic -wholename Ar pattern
-The same thing as 
+The same thing as
 .Ic -path ,
 for GNU find compatibility.
 .El

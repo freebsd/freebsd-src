@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2007
+.Dd January 10, 2012
 .Dt BSNMPGET 1
 .Os
 .Sh NAME
@@ -102,7 +102,7 @@
 and
 .Nm bsnmpset
 are simple tools for retrieving management information from and setting
-management information to a Simple Network Managment Protocol (SNMP) agent.
+management information to a Simple Network Management Protocol (SNMP) agent.
 .Pp
 Depending on the options
 .Nm bsnmpget
@@ -112,16 +112,15 @@ objects whose values will be retrived, waits for a response and prints it if
 received successfully.
 .Pp
 .Nm Bsnmpwalk
-queries an agent with SMNP GetNextRequest packets,
+queries an agent with ether SMNP GetNextRequest or GetBulkRequest packets,
 asking for values of OID instances that are a part of the object subtree
 rooted at the provided OIDs.
 .Pp
 .Nm Bsnmpset
 constructs a SMNP SetRequest packet, fills in the OIDs (object identifiers),
 syntaxes and values of the objects whose values are to be set and waits for a
-responce from server.
+response from server.
 .Sh OPTIONS
-.Pp
 The options are as follows (not all apply to all three programs):
 .Bl -tag -width ".It Fl D Ar options"
 .It Fl A Ar options
@@ -165,7 +164,7 @@ terminal.
 Retry on error.
 If an error is returned in the response PDU, resend the request removing the
 variable that caused the error until a valid response is received.
-This is only usefull for a GetRequest- and a GetNextRequest-PDU.
+This is only useful for a GetRequest- and a GetNextRequest-PDU.
 .It Fl h
 Print a short help text with default values for various options.
 .It Fl I Ar options
@@ -220,7 +219,7 @@ The path of the posix local (unix domain) socket if local
 transport is used.
 .It Fl M Ar max-repetitions
 The value for the max-repetitions field in a GetBulk PDU.
-Default is 1.
+Default is 10.
 .It Fl N Ar non-repeaters
 The value for the non-repeaters field in a GetBulk PDU.
 Default is 0.
@@ -251,8 +250,17 @@ A binary localized privacy key to use when encypting/decrypting SNMPv3 PDU data.
 By default plain text SNMPv3 PDUs are sent.
 .It Fl p Ar [get|getnext|getbulk]
 The PDU type to send by
-.Nm bsmpget .
-Default is get.
+.Nm bsmpget
+and
+.Nm bsnmpwalk .
+Default is get
+for
+.Nm bsmpget
+and getnext for
+.Nm bsnmpwalk .
+Getbulk allows executing the so called SNMP "bulkwalks" allowing the values of
+multiple columns to be retrived in a single PDU by
+.Nm bsnmpwalk .
 .It Fl r Ar retries
 Number of resends of request packets before giving up if the agent does
 not respond after the first try.

@@ -1,7 +1,7 @@
-.\" 
+.\"
 .\" Copyright (c) 2010 Spectra Logic Corporation
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -13,7 +13,7 @@
 .\"    ("Disclaimer") and any redistribution must be conditioned upon
 .\"    including a substantially similar Disclaimer requirement for further
 .\"    binary redistribution.
-.\" 
+.\"
 .\" NO WARRANTY
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,7 +26,7 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGES.
-.\" 
+.\"
 .\" mps driver man page.
 .\"
 .\" Author: Ken Merry <ken@FreeBSD.org>
@@ -117,7 +117,7 @@ dev.mps.X.disable_msix=1
 .Ed
 .Pp
 To set the maximum number of DMA chains allocated for all adapters,
-set the following variable in 
+set the following variable in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 hw.mps.max_chains=NNNN
@@ -207,7 +207,7 @@ This driver has a couple of known shortcomings:
 .It
 Not endian safe.
 It only works on little endian machines (e.g. amd64 and i386).
-.It 
+.It
 No userland utility available (e.g.
 .Xr mptutil 8 ) .
 .It

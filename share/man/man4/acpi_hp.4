@@ -93,7 +93,7 @@ WWAN on air status changed to 1 (on air)
 .El
 .Ss Xr devfs 8 Ss Device
 You can read /dev/hpcmi to see your current BIOS settings.
-The detail level can be adjusted by setting the sysctl 
+The detail level can be adjusted by setting the sysctl
 .Va cmi_detail
 as described below.
 .Sh SYSCTL VARIABLES
@@ -101,7 +101,7 @@ The following sysctls are currently implemented:
 .Ss WLAN:
 .Bl -tag -width indent
 .It Va dev.acpi_hp.0.wlan_enabled
-Toggle WLAN chip activity. 
+Toggle WLAN chip activity.
 .It Va dev.acpi_hp.0.wlan_radio
 (read-only)
 WLAN radio status (controlled by hardware switch)
@@ -116,7 +116,7 @@ If set to 1, the WLAN chip will be disabled if the radio is turned off
 .Ss Bluetooth:
 .Bl -tag -width indent
 .It Va dev.acpi_hp.0.bt_enabled
-Toggle Bluetooth chip activity. 
+Toggle Bluetooth chip activity.
 .It Va dev.acpi_hp.0.bt_radio
 (read-only)
 Bluetooth radio status (controlled by hardware switch)
@@ -131,7 +131,7 @@ If set to 1, the Bluetooth chip will be disabled if the radio is turned off
 .Ss WWAN:
 .Bl -tag -width indent
 .It Va dev.acpi_hp.0.wwan_enabled
-Toggle WWAN chip activity. 
+Toggle WWAN chip activity.
 .It Va dev.acpi_hp.0.wwan_radio
 (read-only)
 WWAN radio status (controlled by hardware switch)
@@ -229,14 +229,14 @@ Get BIOS settings:
 .Bd -literal -offset indent
 cat /dev/hpcmi
 
-Serial Port                                Disable              
-Infrared Port                              Enable               
-Parallel Port                              Disable              
-Flash Media Reader                         Disable              
-USB Ports including Express Card slot      Enable               
-1394 Port                                  Enable               
-Cardbus Slot                               Disable              
-Express Card Slot                          Disable   
+Serial Port                                Disable
+Infrared Port                              Enable
+Parallel Port                              Disable
+Flash Media Reader                         Disable
+USB Ports including Express Card slot      Enable
+1394 Port                                  Enable
+Cardbus Slot                               Disable
+Express Card Slot                          Disable
 (...)
 .Ed
 .Pp

@@ -38,9 +38,9 @@
 .Fo DB_COMMAND
 .Fa command_name
 .Fa command_function
-.Fc 
-.Fn DB_SHOW_COMMAND "command_name" "command_function" 
-.Fn DB_SHOW_ALL_COMMAND "command_name" "command_function" 
+.Fc
+.Fn DB_SHOW_COMMAND "command_name" "command_function"
+.Fn DB_SHOW_ALL_COMMAND "command_name" "command_function"
 .Sh DESCRIPTION
 .Pp
 The
@@ -48,9 +48,9 @@ The
 macro adds
 .Fa command_name
 to the list of top-level commands.
-Invoking 
+Invoking
 .Fa command_name
-from ddb will call 
+from ddb will call
 .Fa command_function .
 .Pp
 The
@@ -61,14 +61,14 @@ are roughly equivalent to
 .Fn DB_COMMAND
 but in these cases,
 .Fa command_name
-is a sub-command of the ddb 
+is a sub-command of the ddb
 .Sy show
 command and
 .Sy show all
 command, respectively.
 .Pp
 The general command syntax:
-.Cm command Ns Op Li \&/ Ns Ar modifier 
+.Cm command Ns Op Li \&/ Ns Ar modifier
 .Ar address Ns Op Li , Ns Ar count ,
 translates into the following parameters for
 .Fa command_function :
