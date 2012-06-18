@@ -168,6 +168,14 @@ __FBSDID("$FreeBSD$");
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
 
+#define	NPV_LIST_LOCKS	MAXCPU
+
+#define	PHYS_TO_PV_LIST_LOCK(pa)	\
+			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
+
+#define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
+			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
+
 struct pmap kernel_pmap_store;
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
@@ -214,7 +222,8 @@ static struct {
  * Data for the pv entry allocation mechanism
  */
 static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
-static long pv_entry_count;
+static struct mtx pv_chunks_mutex;
+static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 static struct md_page *pv_table;
 
 /*
@@ -761,6 +770,17 @@ pmap_init(void)
 		    ("pmap_init: can't assign to pagesizes[1]"));
 		pagesizes[1] = NBPDR;
 	}
+
+	/*
+	 * Initialize the pv chunk list mutex.
+	 */
+	mtx_init(&pv_chunks_mutex, "pv chunk list", NULL, MTX_DEF);
+
+	/*
+	 * Initialize the pool of pv list locks.
+	 */
+	for (i = 0; i < NPV_LIST_LOCKS; i++)
+		rw_init(&pv_list_locks[i], "pv list");
 
 	/*
 	 * Calculate the size of the pv head table for superpages.
@@ -2023,6 +2043,7 @@ pv_to_chunk(pv_entry_t pv)
 
 static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
+static long pv_entry_count;
 SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 	"Current number of pv entries");
 
@@ -2215,10 +2236,12 @@ free_pv_chunk(struct pv_chunk *pc)
 {
 	vm_page_t m;
 
+	mtx_lock(&pv_chunks_mutex);
  	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
-	PV_STAT(pv_entry_spare -= _NPCPV);
-	PV_STAT(pc_chunk_count--);
-	PV_STAT(pc_chunk_frees++);
+	mtx_unlock(&pv_chunks_mutex);
+	PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
+	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
+	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
@@ -4000,6 +4023,7 @@ boolean_t
 pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	struct md_page *pvh;
+	struct rwlock *lock;
 	pv_entry_t pv;
 	int loops = 0;
 	boolean_t rv;
@@ -4007,7 +4031,9 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	rv = FALSE;
-	rw_wlock(&pvh_global_lock);
+	rw_rlock(&pvh_global_lock);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	rw_rlock(lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (PV_PMAP(pv) == pmap) {
 			rv = TRUE;
@@ -4029,7 +4055,8 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 				break;
 		}
 	}
-	rw_wunlock(&pvh_global_lock);
+	rw_runlock(lock);
+	rw_runlock(&pvh_global_lock);
 	return (rv);
 }
 
@@ -4088,15 +4115,19 @@ pmap_pvh_wired_mappings(struct md_page *pvh, int count)
 boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
+	struct rwlock *lock;
 	boolean_t rv;
 
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (FALSE);
-	rw_wlock(&pvh_global_lock);
+	rw_rlock(&pvh_global_lock);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	rw_rlock(lock);
 	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
 	    ((m->flags & PG_FICTITIOUS) == 0 &&
 	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list));
-	rw_wunlock(&pvh_global_lock);
+	rw_runlock(lock);
+	rw_runlock(&pvh_global_lock);
 	return (rv);
 }
 
@@ -4118,19 +4149,21 @@ pmap_remove_pages(pmap_t pmap)
 	pv_entry_t pv;
 	struct md_page *pvh;
 	struct pv_chunk *pc, *npc;
-	int field, idx;
+	struct rwlock *lock, *new_lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
-	int allfree;
+	int allfree, field, freed, idx;
 
 	if (pmap != PCPU_GET(curpmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
-	rw_wlock(&pvh_global_lock);
+	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
+	lock = NULL;
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
+		freed = 0;
 		for (field = 0; field < _NPCM; field++) {
 			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
@@ -4186,10 +4219,15 @@ pmap_remove_pages(pmap_t pmap)
 						vm_page_dirty(m);
 				}
 
+				new_lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+				if (new_lock != lock) {
+					if (lock != NULL)
+						rw_wunlock(lock);
+					lock = new_lock;
+					rw_wlock(lock);
+				}
+
 				/* Mark free */
-				PV_STAT(pv_entry_frees++);
-				PV_STAT(pv_entry_spare++);
-				pv_entry_count--;
 				pc->pc_map[field] |= bitmask;
 				if ((tpte & PG_PS) != 0) {
 					pmap_resident_count_dec(pmap, NBPDR / PAGE_SIZE);
@@ -4223,15 +4261,25 @@ pmap_remove_pages(pmap_t pmap)
 					}
 				}
 				pmap_unuse_pt(pmap, pv->pv_va, ptepde, &free);
+				freed++;
 			}
 		}
+		PV_STAT(atomic_add_long(&pv_entry_frees, freed));
+		PV_STAT(atomic_add_int(&pv_entry_spare, freed));
+		atomic_subtract_long(&pv_entry_count, freed);
 		if (allfree) {
+			if (lock != NULL) {
+				rw_wunlock(lock);
+				lock = NULL;
+			}
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 			free_pv_chunk(pc);
 		}
 	}
+	if (lock != NULL)
+		rw_wunlock(lock);
 	pmap_invalidate_all(pmap);
-	rw_wunlock(&pvh_global_lock);
+	rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(free);
 }
