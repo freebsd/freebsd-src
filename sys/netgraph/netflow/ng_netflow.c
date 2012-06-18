@@ -560,7 +560,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	struct ip6_hdr *ip6 = NULL;
 	struct m_tag *mtag;
 	int pullup_len = 0, off;
-	uint8_t acct = 0, bypass = 0, is_frag = 0, upper_proto = 0;
+	uint8_t acct = 0, bypass = 0, flags = 0, upper_proto = 0;
 	int error = 0, l3_off = 0;
 	unsigned int src_if_index;
 	caddr_t upper_ptr = NULL;
@@ -618,6 +618,9 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			m_tag_prepend(NGI_M(item), mtag);
 		}
 	}
+
+	/* Import configuration flags related to flow creation */
+	flags = iface->info.conf & NG_NETFLOW_FLOW_FLAGS;
 
 	NGI_GET_M(item, m);
 	m_old = m;
@@ -759,7 +762,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		}
 	} else if (ip != NULL) {
 		/* Nothing to save except upper layer proto, since this is packet fragment */
-		is_frag = 1;
+		flags |= NG_NETFLOW_IS_FRAG;
 		upper_proto = ip->ip_p;
 		if ((ip->ip_v != IPVERSION) ||
 		    ((ip->ip_hl << 2) < sizeof(struct ip)))
@@ -821,7 +824,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 				upper_proto = ip6f->ip6f_nxt;
 				hdr_off = sizeof(struct ip6_frag);
 				off += hdr_off;
-				is_frag = 1;
+				flags |= NG_NETFLOW_IS_FRAG;
 				goto loopend;
 
 #if 0				
@@ -886,10 +889,10 @@ loopend:
 	}
 
 	if (ip != NULL)
-		error = ng_netflow_flow_add(priv, fe, ip, upper_ptr, upper_proto, is_frag, src_if_index);
+		error = ng_netflow_flow_add(priv, fe, ip, upper_ptr, upper_proto, flags, src_if_index);
 #ifdef INET6		
 	else if (ip6 != NULL)
-		error = ng_netflow_flow6_add(priv, fe, ip6, upper_ptr, upper_proto, is_frag, src_if_index);
+		error = ng_netflow_flow6_add(priv, fe, ip6, upper_ptr, upper_proto, flags, src_if_index);
 #endif
 	else
 		goto bypass;
