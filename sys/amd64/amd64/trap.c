@@ -972,23 +972,6 @@ syscall(struct trapframe *frame)
 		ksi.ksi_code = TRAP_TRACE;
 		ksi.ksi_addr = (void *)frame->tf_rip;
 		trapsignal(td, &ksi);
-
-	/*
-	 * If the user-supplied value of %rip is not a canonical
-	 * address, then some CPUs will trigger a ring 0 #GP during
-	 * the sysret instruction.  However, the fault handler would
-	 * execute with the user's %gs and %rsp in ring 0 which would
-	 * not be safe.  Instead, preemptively kill the thread with a
-	 * SIGBUS.
-	 */
-	if (td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS) {
-		ksiginfo_init_trap(&ksi);
-		ksi.ksi_signo = SIGBUS;
-		ksi.ksi_code = BUS_OBJERR;
-		ksi.ksi_trapno = T_PROTFLT;
-		ksi.ksi_addr = (void *)td->td_frame->tf_rip;
-		trapsignal(td, &ksi);
-	}
 	}
 
 	/*
@@ -1027,4 +1010,21 @@ syscall(struct trapframe *frame)
 	STOPEVENT(p, S_SCX, sa.code);
 
 	PTRACESTOP_SC(p, td, S_PT_SCX);
+
+	/*
+	 * If the user-supplied value of %rip is not a canonical
+	 * address, then some CPUs will trigger a ring 0 #GP during
+	 * the sysret instruction.  However, the fault handler would
+	 * execute with the user's %gs and %rsp in ring 0 which would
+	 * not be safe.  Instead, preemptively kill the thread with a
+	 * SIGBUS.
+	 */
+	if (td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS) {
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = T_PROTFLT;
+		ksi.ksi_addr = (void *)td->td_frame->tf_rip;
+		trapsignal(td, &ksi);
+	}
 }
