@@ -31,8 +31,8 @@ $FreeBSD$
 
 #ifndef _IWCH_CM_H_
 #define _IWCH_CM_H_
-#include <contrib/rdma/ib_verbs.h>
-#include <contrib/rdma/iw_cm.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/iw_cm.h>
 #include <sys/refcount.h>
 #include <sys/condvar.h>
 #include <sys/proc.h>
@@ -42,21 +42,21 @@ $FreeBSD$
 #define MPA_KEY_REP "MPA ID Rep Frame"
 
 #define MPA_MAX_PRIVATE_DATA	256
-#define MPA_REV		o0	/* XXX - amso1100 uses rev 0 ! */
+#define MPA_REV			0	/* XXX - amso1100 uses rev 0 ! */
 #define MPA_REJECT		0x20
 #define MPA_CRC			0x40
 #define MPA_MARKERS		0x80
 #define MPA_FLAGS_MASK		0xE0
 
 #define put_ep(ep) { \
-	CTR4(KTR_IW_CXGB, "put_ep (via %s:%u) ep %p refcnt %d\n", __FUNCTION__, __LINE__,  \
+	CTR4(KTR_IW_CXGB, "put_ep (via %s:%u) ep %p refcnt %d", __FUNCTION__, __LINE__,  \
 	     ep, atomic_load_acq_int(&((ep)->refcount))); \
 	if (refcount_release(&((ep)->refcount)))  \
 		__free_ep(ep); \
 }
 
 #define get_ep(ep) { \
-	CTR4(KTR_IW_CXGB, "get_ep (via %s:%u) ep %p, refcnt %d\n", __FUNCTION__, __LINE__, \
+	CTR4(KTR_IW_CXGB, "get_ep (via %s:%u) ep %p, refcnt %d", __FUNCTION__, __LINE__, \
 	     ep, atomic_load_acq_int(&((ep)->refcount))); \
 	refcount_acquire(&((ep)->refcount));	  \
 }
@@ -148,7 +148,7 @@ struct iwch_ep_common {
 	TAILQ_ENTRY(iwch_ep_common) entry;
 	struct iw_cm_id *cm_id;
 	struct iwch_qp *qp;
-	struct t3cdev *tdev;
+	struct toedev *tdev;
 	enum iwch_ep_state state;
 	u_int refcount;
 	struct cv waitq;
@@ -176,7 +176,6 @@ struct iwch_ep {
 	u32 snd_seq;
 	u32 rcv_seq;
 	struct l2t_entry *l2t;
-	struct rtentry *dst;
 	struct mbuf *mpa_mbuf;
 	struct iwch_mpa_attributes mpa_attr;
 	unsigned int mpa_pkt_len;
@@ -237,13 +236,13 @@ int iwch_destroy_listen(struct iw_cm_id *cm_id);
 int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, int flags);
-int iwch_quiesce_tid(struct iwch_ep *ep);
-int iwch_resume_tid(struct iwch_ep *ep);
 void __free_ep(struct iwch_ep_common *ep);
 void iwch_rearp(struct iwch_ep *ep);
 int iwch_ep_redirect(void *ctx, struct rtentry *old, struct rtentry *new, struct l2t_entry *l2t);
 
 int iwch_cm_init(void);
 void iwch_cm_term(void);
+void iwch_cm_init_cpl(struct adapter *);
+void iwch_cm_term_cpl(struct adapter *);
 
 #endif				/* _IWCH_CM_H_ */

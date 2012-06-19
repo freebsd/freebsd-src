@@ -37,6 +37,13 @@ struct iwch_cq;
 struct iwch_qp;
 struct iwch_mr;
 
+enum t3ctype {
+        T3A = 0,
+        T3B,
+        T3C
+};
+
+#define PAGE_MASK_IWARP (~(PAGE_SIZE-1))
 
 struct iwch_rnic_attributes {
 	u32 vendor_id;
@@ -57,6 +64,7 @@ struct iwch_rnic_attributes {
 	 * size (4k)^i.  Phys block list mode unsupported.
 	 */
 	u32 mem_pgsizes_bitmask;
+	u64 max_mr_size;
 	u8 can_resize_wq;
 
 	/*
@@ -97,9 +105,9 @@ struct iwch_dev {
 	struct cxio_rdev rdev;
 	u32 device_cap_flags;
 	struct iwch_rnic_attributes attr;
-	struct kvl cqidr;
-	struct kvl qpidr;
-	struct kvl mmidr;
+	struct idr cqidr;
+	struct idr qpidr;
+	struct idr mmidr;
 	struct mtx lock;
 	TAILQ_ENTRY(iwch_dev) entry;
 };
@@ -113,40 +121,43 @@ static inline struct iwch_dev *to_iwch_dev(struct ib_device *ibdev)
 	return container_of(ibdev, struct iwch_dev, ibdev);
 }
 
-static inline int t3b_device(const struct iwch_dev *rhp)
+static inline int t3b_device(const struct iwch_dev *rhp __unused)
 {
-	return rhp->rdev.t3cdev_p->type == T3B;
+	return (0);
 }
 
-static inline int t3a_device(const struct iwch_dev *rhp)
+static inline int t3a_device(const struct iwch_dev *rhp __unused)
 {
-	return rhp->rdev.t3cdev_p->type == T3A;
+	return (0);
 }
 
 static inline struct iwch_cq *get_chp(struct iwch_dev *rhp, u32 cqid)
 {
-	return kvl_lookup(&rhp->cqidr, cqid);
+	return idr_find(&rhp->cqidr, cqid);
 }
 
 static inline struct iwch_qp *get_qhp(struct iwch_dev *rhp, u32 qpid)
 {
-	return kvl_lookup(&rhp->qpidr, qpid);
+	return idr_find(&rhp->qpidr, qpid);
 }
 
 static inline struct iwch_mr *get_mhp(struct iwch_dev *rhp, u32 mmid)
 {
-	return kvl_lookup(&rhp->mmidr, mmid);
+	return idr_find(&rhp->mmidr, mmid);
 }
 
-static inline int insert_handle(struct iwch_dev *rhp, struct kvl *kvlp,
+static inline int insert_handle(struct iwch_dev *rhp, struct idr *idr,
 				void *handle, u32 id)
 {
 	int ret;
 	u32 newid;
 
 	do {
+		if (!idr_pre_get(idr, GFP_KERNEL)) {
+                        return -ENOMEM;
+                }
 		mtx_lock(&rhp->lock);
-		ret = kvl_alloc_above(kvlp, handle, id, &newid);
+		ret = idr_get_new_above(idr, handle, id, &newid);
 		WARN_ON(ret != 0);
 		WARN_ON(!ret && newid != id);
 		mtx_unlock(&rhp->lock);
@@ -155,14 +166,12 @@ static inline int insert_handle(struct iwch_dev *rhp, struct kvl *kvlp,
 	return ret;
 }
 
-static inline void remove_handle(struct iwch_dev *rhp, struct kvl *kvlp, u32 id)
+static inline void remove_handle(struct iwch_dev *rhp, struct idr *idr, u32 id)
 {
 	mtx_lock(&rhp->lock);
-	kvl_delete(kvlp, id);
+	idr_remove(idr, id);
 	mtx_unlock(&rhp->lock);
 }
 
-extern struct cxgb_client t3c_client;
-extern cxgb_cpl_handler_func t3c_handlers[NUM_CPL_CMDS];
-extern void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct mbuf *m);
+void iwch_ev_dispatch(struct iwch_dev *, struct mbuf *);
 #endif
