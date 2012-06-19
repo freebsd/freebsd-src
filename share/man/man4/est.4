@@ -66,8 +66,8 @@ Attempt to infer information from direct probing of the msr.
 Should only be used in diagnostic cases
 .Pq default 0
 .It hw.est.strict
-Do not allow different cpus to be set to different frequencies.
-It appears that this will only work on i386 systems
+Validate frequency requested is accepted by the cpu when set.
+It appears that this will only work on single core cpus.
 .Pq default 0
 .El
 .Sh DIAGNOSTICS
