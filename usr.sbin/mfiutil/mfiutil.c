@@ -95,7 +95,7 @@ static int
 version(int ac, char **av)
 {
 
-	printf("mfiutil version 1.0.13");
+	printf("mfiutil version 1.0.14");
 #ifdef DEBUG
 	printf(" (DEBUG)");
 #endif
