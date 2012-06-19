@@ -197,7 +197,7 @@ gzFile gz_open(path, fd, mode)
     gzFile gz;
     int ret;
 
-    gz = malloc(sizeof(gzFile));
+    gz = malloc(sizeof(struct gzFile_s));
     if (gz == NULL)
         return NULL;
     gz->write = strchr(mode, 'w') != NULL;
