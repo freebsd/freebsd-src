@@ -152,7 +152,7 @@ mfi_config_lookup_volume(struct mfi_config_data *config, uint8_t target_id)
 }
 
 static int
-clear_config(int ac, char **av)
+clear_config(int ac __unused, char **av __unused)
 {
 	struct mfi_ld_list list;
 	int ch, error, fd;
@@ -411,7 +411,7 @@ find_next_volume(struct config_id_state *state)
 
 /* Populate an array with drives. */
 static void
-build_array(int fd, char *arrayp, struct array_info *array_info,
+build_array(int fd __unused, char *arrayp, struct array_info *array_info,
     struct config_id_state *state, int verbose)
 {
 	struct mfi_array *ar = (struct mfi_array *)arrayp;

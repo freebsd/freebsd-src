@@ -75,7 +75,7 @@ patrol_get_props(int fd, struct mfi_pr_properties *prop)
 }
 
 static int
-show_patrol(int ac, char **av)
+show_patrol(int ac __unused, char **av __unused)
 {
 	struct mfi_pr_properties prop;
 	struct mfi_pr_status status;
@@ -193,7 +193,7 @@ show_patrol(int ac, char **av)
 MFI_COMMAND(show, patrol, show_patrol);
 
 static int
-start_patrol(int ac, char **av)
+start_patrol(int ac __unused, char **av __unused)
 {
 	int error, fd;
 
@@ -219,7 +219,7 @@ start_patrol(int ac, char **av)
 MFI_COMMAND(start, patrol, start_patrol);
 
 static int
-stop_patrol(int ac, char **av)
+stop_patrol(int ac __unused, char **av __unused)
 {
 	int error, fd;
 
