@@ -161,8 +161,7 @@ setnetgrent(const char *group)
 	if (group == NULL || !strlen(group))
 		return;
 
-	if (grouphead.gr == (struct netgrp *)0 ||
-		strcmp(group, grouphead.grname)) {
+	if (grouphead.gr == NULL || strcmp(group, grouphead.grname)) {
 		endnetgrent();
 #ifdef YP
 		/* Presumed guilty until proven innocent. */
@@ -172,7 +171,7 @@ setnetgrent(const char *group)
 		 * use NIS exclusively.
 		 */
 		if (((stat(_PATH_NETGROUP, &_yp_statp) < 0) &&
-			errno == ENOENT) || _yp_statp.st_size == 0)
+		    errno == ENOENT) || _yp_statp.st_size == 0)
 			_use_only_yp = _netgr_yp_enabled = 1;
 		if ((netf = fopen(_PATH_NETGROUP,"r")) != NULL ||_use_only_yp){
 		/*
@@ -247,27 +246,24 @@ endnetgrent(void)
 		lp = lp->l_next;
 		free(olp->l_groupname);
 		free(olp->l_line);
-		free((char *)olp);
+		free(olp);
 	}
-	linehead = (struct linelist *)0;
+	linehead = NULL;
 	if (grouphead.grname) {
 		free(grouphead.grname);
-		grouphead.grname = (char *)0;
+		grouphead.grname = NULL;
 	}
 	gp = grouphead.gr;
 	while (gp) {
 		ogp = gp;
 		gp = gp->ng_next;
-		if (ogp->ng_str[NG_HOST])
-			free(ogp->ng_str[NG_HOST]);
-		if (ogp->ng_str[NG_USER])
-			free(ogp->ng_str[NG_USER]);
-		if (ogp->ng_str[NG_DOM])
-			free(ogp->ng_str[NG_DOM]);
-		free((char *)ogp);
+		free(ogp->ng_str[NG_HOST]);
+		free(ogp->ng_str[NG_USER]);
+		free(ogp->ng_str[NG_DOM]);
+		free(ogp);
 	}
-	grouphead.gr = (struct netgrp *)0;
-	nextgrp = (struct netgrp *)0;
+	grouphead.gr = NULL;
+	nextgrp = NULL;
 #ifdef YP
 	_netgr_yp_enabled = 0;
 #endif
@@ -282,7 +278,7 @@ _listmatch(const char *list, const char *group, int len)
 	int glen = strlen(group);
 
 	/* skip possible leading whitespace */
-	while(isspace((unsigned char)*ptr))
+	while (isspace((unsigned char)*ptr))
 		ptr++;
 
 	while (ptr < list + len) {
@@ -291,7 +287,7 @@ _listmatch(const char *list, const char *group, int len)
 			ptr++;
 		if (strncmp(cptr, group, glen) == 0 && glen == (ptr - cptr))
 			return (1);
-		while(*ptr == ','  || isspace((unsigned char)*ptr))
+		while (*ptr == ','  || isspace((unsigned char)*ptr))
 			ptr++;
 	}
 
@@ -436,8 +432,7 @@ parse_netgrp(const char *group)
 			break;
 		lp = lp->l_next;
 	}
-	if (lp == (struct linelist *)0 &&
-	    (lp = read_for_group(group)) == (struct linelist *)0)
+	if (lp == NULL && (lp = read_for_group(group)) == NULL)
 		return (1);
 	if (lp->l_parsed) {
 #ifdef DEBUG
