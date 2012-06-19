@@ -31,15 +31,6 @@
 #define _MVEC_H_
 #include <machine/bus.h>
 
-#define	M_DDP		0x200000	/* direct data placement mbuf */
-#define	EXT_PHYS	10		/* physical/bus address  */
-
-#define m_cur_offset	m_ext.ext_size		/* override to provide ddp offset */
-#define m_seq		m_pkthdr.csum_data	/* stored sequence */
-#define m_ddp_gl	m_ext.ext_buf		/* ddp list	*/
-#define m_ddp_flags	m_pkthdr.csum_flags	/* ddp flags	*/
-#define m_ulp_mode	m_pkthdr.tso_segsz	/* upper level protocol	*/
-
 static __inline void
 busdma_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
     struct mbuf *m, bus_dma_segment_t *seg)
@@ -58,17 +49,6 @@ int busdma_map_sg_collapse(bus_dma_tag_t tag, bus_dmamap_t map,
     struct mbuf **m, bus_dma_segment_t *segs, int *nsegs);
 void busdma_map_sg_vec(bus_dma_tag_t tag, bus_dmamap_t map,
     struct mbuf *m, bus_dma_segment_t *segs, int *nsegs);
-static __inline int
-busdma_map_sgl(bus_dma_segment_t *vsegs, bus_dma_segment_t *segs, int count) 
-{
-	while (count--) {
-		segs->ds_addr = pmap_kextract((vm_offset_t)vsegs->ds_addr);
-		segs->ds_len = vsegs->ds_len;
-		segs++;
-		vsegs++;
-	}
-	return (0);
-}
 
 static __inline void
 m_freem_list(struct mbuf *m)
@@ -83,6 +63,5 @@ m_freem_list(struct mbuf *m)
 		m = n;
 	}	
 }
-
 
 #endif /* _MVEC_H_ */
