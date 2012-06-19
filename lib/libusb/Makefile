@@ -16,6 +16,9 @@ MAN=		libusb.3 libusb20.3
 MKLINT=		no
 NOGCCERROR=
 
+DPADD=		${LIBPTHREAD}
+LDADD=		-lpthread
+
 MLINKS+=	libusb.3 usb.3
 
 # libusb 0.1 compat
