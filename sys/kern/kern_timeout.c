@@ -475,7 +475,8 @@ callout_lock(struct callout *c)
 
 static void
 callout_cc_add(struct callout *c, struct callout_cpu *cc, 
-    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu, int direct)
+    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu, 
+    int flags)
 {
 	int bucket;	
 	
@@ -485,7 +486,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
-	if (direct)
+	if (flags & C_DIRECT)
 		c->c_flags |= CALLOUT_DIRECT;
 	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
@@ -831,13 +832,22 @@ callout_handle_init(struct callout_handle *handle)
  * callout_deactivate() - marks the callout as having been serviced
  */
 int 
-callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
-    void *arg, int cpu, int direct)
+_callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks, 
+    void (*ftn)(void *), void *arg, int cpu, int flags)
 {
+	struct bintime now, to_bt;
 	struct callout_cpu *cc;
 	int cancelled = 0;
 	int bucket;
 
+	if (bt == NULL) {	
+		FREQ2BT(hz,&to_bt);
+		getbinuptime(&now);
+		bintime_mul(&to_bt,to_ticks);
+		bintime_add(&to_bt,&now);
+	}
+	else
+		to_bt = *bt;
 	/*
 	 * Don't allow migration of pre-allocated callouts lest they
 	 * become unbalanced.
@@ -892,14 +902,14 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
 	if (c->c_cpu != cpu) {
 		if (cc->cc_curr == c) {
 			cc->cc_migration_cpu = cpu;
-			cc->cc_migration_time = bt;
+			cc->cc_migration_time = to_bt;
 			cc->cc_migration_func = ftn;
 			cc->cc_migration_arg = arg;
 			c->c_flags |= CALLOUT_DFRMIGRATION;
 			CTR6(KTR_CALLOUT,
 		    "migration of %p func %p arg %p in %d.%08x to %u deferred",
-			    c, c->c_func, c->c_arg, (int)(bt.sec), 
-			    (u_int)(bt.frac >> 32), cpu);
+			    c, c->c_func, c->c_arg, (int)(to_bt.sec), 
+			    (u_int)(to_bt.frac >> 32), cpu);
 			CC_UNLOCK(cc);
 			return (cancelled);
 		}
@@ -907,26 +917,13 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, void (*ftn)(void *),
 	}
 #endif
 
-	callout_cc_add(c, cc, bt, ftn, arg, cpu, direct);
+	callout_cc_add(c, cc, to_bt, ftn, arg, cpu, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
-	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(bt.sec), 
-	    (u_int)(bt.frac >> 32));
+	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_bt.sec), 
+	    (u_int)(to_bt.frac >> 32));
 	CC_UNLOCK(cc);
 
 	return (cancelled);
-}
-
-int
-callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
-    void *arg, int cpu)
-{
-	struct bintime bt, now;
-	
-	FREQ2BT(hz,&bt);
-	getbinuptime(&now);
-	bintime_mul(&bt,to_ticks);
-	bintime_add(&bt,&now);
-	return (callout_reset_bt_on(c, bt, ftn, arg, cpu, 0));
 }
 
 /*

@@ -378,7 +378,7 @@ _sleepq_set_timeout(void *wchan, struct bintime *bt, int timo)
 		callout_reset_curcpu(&td->td_slpcallout, timo, 
 		    sleepq_timeout, td);
 	else
-		callout_reset_bt_on(&td->td_slpcallout, *bt, 
+		callout_reset_bt_on(&td->td_slpcallout, bt, 
 		    sleepq_timeout, td, PCPU_GET(cpuid), 0); 
 }
 

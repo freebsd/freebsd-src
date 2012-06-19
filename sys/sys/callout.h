@@ -54,6 +54,8 @@ struct callout_handle {
 	struct callout *callout;
 };
 
+#define	C_DIRECT		0x0001 /* direct execution of callout */
+
 #ifdef _KERNEL
 extern int ncallout;
 
@@ -69,9 +71,16 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-int	callout_reset_bt_on(struct callout *, struct bintime, void(*)(void *),
-	    void *, int, int);
-int	callout_reset_on(struct callout *, int, void (*)(void *), void *, int);
+int	_callout_reset_on(struct callout *, struct bintime *, int,
+	    void (*)(void *), void *, int, int);
+#define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
+    _callout_reset_on((c), (NULL), (to_ticks), (fn), (arg), (cpu),	\
+        (0))
+#define callout_reset_flags_on(c, to_ticks, fn, arg, cpu, flags)	\
+    _callout_reset_on((c), (NULL), (to_ticks), (fn), (arg), (cpu),	\
+        (flags))			
+#define callout_reset_bt_on(c, bt, fn, arg, cpu, flags)			\
+    _callout_reset_on((c), (bt), (0), (fn), (arg), (cpu), (flags)) 
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\
