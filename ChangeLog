@@ -1,6 +1,68 @@
 
                 ChangeLog file for zlib
 
+Changes in 1.2.7 (2 May 2012)
+- Replace use of memmove() with a simple copy for portability
+- Test for existence of strerror
+- Restore gzgetc_ for backward compatibility with 1.2.6
+- Fix build with non-GNU make on Solaris
+- Require gcc 4.0 or later on Mac OS X to use the hidden attribute
+- Include unistd.h for Watcom C
+- Use __WATCOMC__ instead of __WATCOM__
+- Do not use the visibility attribute if NO_VIZ defined
+- Improve the detection of no hidden visibility attribute
+- Avoid using __int64 for gcc or solo compilation
+- Cast to char * in gzprintf to avoid warnings [Zinser]
+- Fix make_vms.com for VAX [Zinser]
+- Don't use library or built-in byte swaps
+- Simplify test and use of gcc hidden attribute
+- Fix bug in gzclose_w() when gzwrite() fails to allocate memory
+- Add "x" (O_EXCL) and "e" (O_CLOEXEC) modes support to gzopen()
+- Fix bug in test/minigzip.c for configure --solo
+- Fix contrib/vstudio project link errors [Mohanathas]
+- Add ability to choose the builder in make_vms.com [Schweda]
+- Add DESTDIR support to mingw32 win32/Makefile.gcc
+- Fix comments in win32/Makefile.gcc for proper usage
+- Allow overriding the default install locations for cmake
+- Generate and install the pkg-config file with cmake
+- Build both a static and a shared version of zlib with cmake
+- Include version symbols for cmake builds
+- If using cmake with MSVC, add the source directory to the includes
+- Remove unneeded EXTRA_CFLAGS from win32/Makefile.gcc [Truta]
+- Move obsolete emx makefile to old [Truta]
+- Allow the use of -Wundef when compiling or using zlib
+- Avoid the use of the -u option with mktemp
+- Improve inflate() documentation on the use of Z_FINISH
+- Recognize clang as gcc
+- Add gzopen_w() in Windows for wide character path names
+- Rename zconf.h in CMakeLists.txt to move it out of the way
+- Add source directory in CMakeLists.txt for building examples
+- Look in build directory for zlib.pc in CMakeLists.txt
+- Remove gzflags from zlibvc.def in vc9 and vc10
+- Fix contrib/minizip compilation in the MinGW environment
+- Update ./configure for Solaris, support --64 [Mooney]
+- Remove -R. from Solaris shared build (possible security issue)
+- Avoid race condition for parallel make (-j) running example
+- Fix type mismatch between get_crc_table() and crc_table
+- Fix parsing of version with "-" in CMakeLists.txt [Snider, Ziegler]
+- Fix the path to zlib.map in CMakeLists.txt
+- Force the native libtool in Mac OS X to avoid GNU libtool [Beebe]
+- Add instructions to win32/Makefile.gcc for shared install [Torri]
+
+Changes in 1.2.6.1 (12 Feb 2012)
+- Avoid the use of the Objective-C reserved name "id"
+- Include io.h in gzguts.h for Microsoft compilers
+- Fix problem with ./configure --prefix and gzgetc macro
+- Include gz_header definition when compiling zlib solo
+- Put gzflags() functionality back in zutil.c
+- Avoid library header include in crc32.c for Z_SOLO
+- Use name in GCC_CLASSIC as C compiler for coverage testing, if set
+- Minor cleanup in contrib/minizip/zip.c [Vollant]
+- Update make_vms.com [Zinser]
+- Remove unnecessary gzgetc_ function
+- Use optimized byte swap operations for Microsoft and GNU [Snyder]
+- Fix minor typo in zlib.h comments [Rzesniowiecki]
+
 Changes in 1.2.6 (29 Jan 2012)
 - Update the Pascal interface in contrib/pascal
 - Fix function numbers for gzgetc_ in zlibvc.def files
