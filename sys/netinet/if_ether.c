@@ -180,6 +180,17 @@ arptimer(void *arg)
 		    callout_active(&lle->la_timer)) {
 			callout_stop(&lle->la_timer);
 			LLE_REMREF(lle);
+
+			if (lle->la_flags != LLE_DELETED) {
+				int evt;
+
+				if (lle->la_flags & LLE_VALID)
+					evt = LLENTRY_EXPIRED;
+				else
+					evt = LLENTRY_TIMEDOUT;
+				EVENTHANDLER_INVOKE(lle_event, lle, evt);
+			}
+
 			pkts_dropped = llentry_free(lle);
 			ARPSTAT_ADD(dropped, pkts_dropped);
 			ARPSTAT_INC(timeouts);
@@ -726,7 +737,7 @@ match:
 		(void)memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
 		la->la_flags |= LLE_VALID;
 
-		EVENTHANDLER_INVOKE(arp_update_event, la);
+		EVENTHANDLER_INVOKE(lle_event, la, LLENTRY_RESOLVED);
 
 		if (!(la->la_flags & LLE_STATIC)) {
 			int canceled;
