@@ -64,7 +64,7 @@ mfi_get_events(int fd, struct mfi_evt_list *list, int num_events,
 }
 
 static int
-show_logstate(int ac, char **av)
+show_logstate(int ac, char **av __unused)
 {
 	struct mfi_evt_log_state info;
 	int error, fd;
