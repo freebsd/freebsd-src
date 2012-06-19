@@ -913,7 +913,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 			if (bootverbose)
 				printf("\tfront candidate range: %#lx-%#lx\n",
 				    front, end_free);
-			front &= ~(1ul << w->step) - 1;
+			front &= ~((1ul << w->step) - 1);
 			front = rman_get_start(w->res) - front;
 		} else
 			front = 0;
@@ -941,7 +941,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 			if (bootverbose)
 				printf("\tback candidate range: %#lx-%#lx\n",
 				    start_free, back);
-			back = roundup2(back + 1, 1ul << w->step) - 1;
+			back |= (1ul << w->step) - 1;
 			back -= rman_get_end(w->res);
 		} else
 			back = 0;
