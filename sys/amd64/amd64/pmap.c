@@ -2043,10 +2043,6 @@ pv_to_chunk(pv_entry_t pv)
 
 static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
-static long pv_entry_count;
-SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
-	"Current number of pv entries");
-
 #ifdef PV_STATS
 static int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
 
@@ -2059,13 +2055,15 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_frees, CTLFLAG_RD, &pc_chunk_frees, 0,
 SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_tryfail, CTLFLAG_RD, &pc_chunk_tryfail, 0,
 	"Number of times tried to get a chunk page but failed.");
 
-static long pv_entry_frees, pv_entry_allocs;
+static long pv_entry_frees, pv_entry_allocs, pv_entry_count;
 static int pv_entry_spare;
 
 SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_frees, CTLFLAG_RD, &pv_entry_frees, 0,
 	"Current number of pv entry frees");
 SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_allocs, CTLFLAG_RD, &pv_entry_allocs, 0,
 	"Current number of pv entry allocs");
+SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
+	"Current number of pv entries");
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
 	"Current number of spare pv entries");
 #endif
@@ -2164,7 +2162,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 		pmap_resident_count_dec(pmap, freed);
 		PV_STAT(pv_entry_frees += freed);
 		PV_STAT(pv_entry_spare += freed);
-		pv_entry_count -= freed;
+		PV_STAT(atomic_subtract_long(&pv_entry_count, freed));
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 		if (pc->pc_map[0] == PC_FREE0 && pc->pc_map[1] == PC_FREE1 &&
 		    pc->pc_map[2] == PC_FREE2) {
@@ -2212,7 +2210,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(pv_entry_frees++);
 	PV_STAT(pv_entry_spare++);
-	pv_entry_count--;
+	PV_STAT(atomic_subtract_long(&pv_entry_count, 1));
 	pc = pv_to_chunk(pv);
 	idx = pv - &pc->pc_pventry[0];
 	field = idx / 64;
@@ -2261,9 +2259,9 @@ get_pv_entry(pmap_t pmap, boolean_t try)
 	struct pv_chunk *pc;
 	vm_page_t m;
 
-	rw_assert(&pvh_global_lock, RA_WLOCKED);
+	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	PV_STAT(pv_entry_allocs++);
+	PV_STAT(atomic_add_long(&pv_entry_allocs, 1));
 retry:
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
@@ -2283,8 +2281,8 @@ retry:
 				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc,
 				    pc_list);
 			}
-			pv_entry_count++;
-			PV_STAT(pv_entry_spare--);
+			PV_STAT(atomic_add_long(&pv_entry_count, 1));
+			PV_STAT(atomic_subtract_int(&pv_entry_spare, 1));
 			return (pv);
 		}
 	}
@@ -2300,19 +2298,21 @@ retry:
 		if (m == NULL)
 			goto retry;
 	}
-	PV_STAT(pc_chunk_count++);
-	PV_STAT(pc_chunk_allocs++);
+	PV_STAT(atomic_add_int(&pc_chunk_count, 1));
+	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
 	dump_add_page(m->phys_addr);
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
 	pc->pc_map[1] = PC_FREE1;
 	pc->pc_map[2] = PC_FREE2;
+	mtx_lock(&pv_chunks_mutex);
 	TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_lru);
+	mtx_unlock(&pv_chunks_mutex);
 	pv = &pc->pc_pventry[0];
 	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
-	pv_entry_count++;
-	PV_STAT(pv_entry_spare += _NPCPV - 1);
+	PV_STAT(atomic_add_long(&pv_entry_count, 1));
+	PV_STAT(atomic_add_int(&pv_entry_spare, _NPCPV - 1));
 	return (pv);
 }
 
@@ -4266,7 +4266,7 @@ pmap_remove_pages(pmap_t pmap)
 		}
 		PV_STAT(atomic_add_long(&pv_entry_frees, freed));
 		PV_STAT(atomic_add_int(&pv_entry_spare, freed));
-		atomic_subtract_long(&pv_entry_count, freed);
+		PV_STAT(atomic_subtract_long(&pv_entry_count, freed));
 		if (allfree) {
 			if (lock != NULL) {
 				rw_wunlock(lock);
