@@ -307,12 +307,16 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 		    &ctx->ctx_lock);
 		return (0);
 	}
-	err = clock_gettime(CLOCK_REALTIME, &ts);
+	err = clock_gettime(CLOCK_MONOTONIC, &ts);
 	if (err < 0)
 		return (LIBUSB_ERROR_OTHER);
 
-	ts.tv_sec = tv->tv_sec;
-	ts.tv_nsec = tv->tv_usec * 1000;
+	/*
+	 * The "tv" arguments points to a relative time structure and
+	 * not an absolute time structure.
+	 */
+	ts.tv_sec += tv->tv_sec;
+	ts.tv_nsec += tv->tv_usec * 1000;
 	if (ts.tv_nsec >= 1000000000) {
 		ts.tv_nsec -= 1000000000;
 		ts.tv_sec++;
