@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <err.h>
+#include <fcntl.h>
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,7 +62,7 @@ show_adapter(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -148,7 +149,7 @@ show_battery(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -320,7 +321,7 @@ show_config(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -421,7 +422,7 @@ show_volumes(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -504,7 +505,7 @@ show_drives(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -612,7 +613,7 @@ show_firmware(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -672,7 +673,7 @@ show_progress(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

@@ -35,6 +35,7 @@
 #endif
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libutil.h>
 #ifdef DEBUG
 #include <stdint.h>
@@ -157,7 +158,7 @@ clear_config(int ac, char **av)
 	int ch, error, fd;
 	u_int i;
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -575,7 +576,7 @@ create_volume(int ac, char **av)
 	narrays = 0;
 	error = 0;
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -857,7 +858,7 @@ delete_volume(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -925,7 +926,7 @@ add_spare(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1050,7 +1051,7 @@ remove_spare(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1196,7 +1197,7 @@ debug_config(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1233,7 +1234,7 @@ dump(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
