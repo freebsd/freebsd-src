@@ -157,6 +157,7 @@ enum {
 	INTR_DIRECT	= (1 << 2),	/* direct interrupts for everything */
 	MASTER_PF	= (1 << 3),
 	ADAP_SYSCTL_CTX	= (1 << 4),
+	TOM_INIT_DONE	= (1 << 5),
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -199,7 +200,7 @@ struct port_info {
 	int first_txq;	/* index of first tx queue */
 	int nrxq;	/* # of rx queues */
 	int first_rxq;	/* index of first rx queue */
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	int nofldtxq;		/* # of offload tx queues */
 	int first_ofld_txq;	/* index of first offload tx queue */
 	int nofldrxq;		/* # of offload rx queues */
@@ -212,6 +213,8 @@ struct port_info {
 
 	struct link_config link_cfg;
 	struct port_stats stats;
+
+	eventhandler_tag vlan_c;
 
 	struct callout tick;
 	struct sysctl_ctx_list ctx;	/* from ifconfig up to driver detach */
@@ -296,7 +299,7 @@ struct sge_iq {
 enum {
 	EQ_CTRL		= 1,
 	EQ_ETH		= 2,
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	EQ_OFLD		= 3,
 #endif
 
@@ -422,13 +425,35 @@ struct sge_rxq {
 
 } __aligned(CACHE_LINE_SIZE);
 
-#ifndef TCP_OFFLOAD_DISABLE
+static inline struct sge_rxq *
+iq_to_rxq(struct sge_iq *iq)
+{
+
+	return (member2struct(sge_rxq, iq, iq));
+}
+
+
+#ifdef TCP_OFFLOAD
 /* ofld_rxq: SGE ingress queue + SGE free list + miscellaneous items */
 struct sge_ofld_rxq {
 	struct sge_iq iq;	/* MUST be first */
 	struct sge_fl fl;	/* MUST follow iq */
 } __aligned(CACHE_LINE_SIZE);
+
+static inline struct sge_ofld_rxq *
+iq_to_ofld_rxq(struct sge_iq *iq)
+{
+
+	return (member2struct(sge_ofld_rxq, iq, iq));
+}
 #endif
+
+struct wrqe {
+	STAILQ_ENTRY(wrqe) link;
+	struct sge_wrq *wrq;
+	int wr_len;
+	uint64_t wr[] __aligned(16);
+};
 
 /*
  * wrq: SGE egress queue that is given prebuilt work requests.  Both the control
@@ -438,8 +463,9 @@ struct sge_wrq {
 	struct sge_eq eq;	/* MUST be first */
 
 	struct adapter *adapter;
-	struct mbuf *head;	/* held up due to lack of descriptors */
-	struct mbuf *tail;	/* valid only if head is valid */
+
+	/* List of WRs held up due to lack of tx descriptors */
+	STAILQ_HEAD(, wrqe) wr_list;
 
 	/* stats for common events first */
 
@@ -457,7 +483,7 @@ struct sge {
 
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	int nofldrxq;	/* total # of TOE rx queues */
 	int nofldtxq;	/* total # of TOE tx queues */
 #endif
@@ -469,7 +495,7 @@ struct sge {
 	struct sge_wrq *ctrlq;	/* Control queues */
 	struct sge_txq *txq;	/* NIC tx queues */
 	struct sge_rxq *rxq;	/* NIC rx queues */
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	struct sge_wrq *ofld_txq;	/* TOE tx queues */
 	struct sge_ofld_rxq *ofld_rxq;	/* TOE rx queues */
 #endif
@@ -483,6 +509,7 @@ struct sge {
 struct rss_header;
 typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
+typedef int (*an_handler_t)(struct sge_iq *, const struct rsp_ctrl *);
 
 struct adapter {
 	SLIST_ENTRY(adapter) link;
@@ -519,15 +546,15 @@ struct adapter {
 	uint8_t chan_map[NCHAN];
 	uint32_t filter_mode;
 
-#ifndef TCP_OFFLOAD_DISABLE
-	struct uld_softc tom;
+#ifdef TCP_OFFLOAD
+	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
 #endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
 	int open_device_map;
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	int offload_map;
 #endif
 	int flags;
@@ -554,7 +581,8 @@ struct adapter {
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
 
-	cpl_handler_t cpl_handler[256] __aligned(CACHE_LINE_SIZE);
+	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
+	cpl_handler_t cpl_handler[256];
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
@@ -609,82 +637,96 @@ struct adapter {
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
 {
+
 	return bus_space_read_4(sc->bt, sc->bh, reg);
 }
 
 static inline void
 t4_write_reg(struct adapter *sc, uint32_t reg, uint32_t val)
 {
+
 	bus_space_write_4(sc->bt, sc->bh, reg, val);
 }
 
 static inline uint64_t
 t4_read_reg64(struct adapter *sc, uint32_t reg)
 {
+
 	return t4_bus_space_read_8(sc->bt, sc->bh, reg);
 }
 
 static inline void
 t4_write_reg64(struct adapter *sc, uint32_t reg, uint64_t val)
 {
+
 	t4_bus_space_write_8(sc->bt, sc->bh, reg, val);
 }
 
 static inline void
 t4_os_pci_read_cfg1(struct adapter *sc, int reg, uint8_t *val)
 {
+
 	*val = pci_read_config(sc->dev, reg, 1);
 }
 
 static inline void
 t4_os_pci_write_cfg1(struct adapter *sc, int reg, uint8_t val)
 {
+
 	pci_write_config(sc->dev, reg, val, 1);
 }
 
 static inline void
 t4_os_pci_read_cfg2(struct adapter *sc, int reg, uint16_t *val)
 {
+
 	*val = pci_read_config(sc->dev, reg, 2);
 }
 
 static inline void
 t4_os_pci_write_cfg2(struct adapter *sc, int reg, uint16_t val)
 {
+
 	pci_write_config(sc->dev, reg, val, 2);
 }
 
 static inline void
 t4_os_pci_read_cfg4(struct adapter *sc, int reg, uint32_t *val)
 {
+
 	*val = pci_read_config(sc->dev, reg, 4);
 }
 
 static inline void
 t4_os_pci_write_cfg4(struct adapter *sc, int reg, uint32_t val)
 {
+
 	pci_write_config(sc->dev, reg, val, 4);
 }
 
 static inline struct port_info *
 adap2pinfo(struct adapter *sc, int idx)
 {
+
 	return (sc->port[idx]);
 }
 
 static inline void
 t4_os_set_hw_addr(struct adapter *sc, int idx, uint8_t hw_addr[])
 {
+
 	bcopy(hw_addr, sc->port[idx]->hw_addr, ETHER_ADDR_LEN);
 }
 
 static inline bool is_10G_port(const struct port_info *pi)
 {
+
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
 static inline int tx_resume_threshold(struct sge_eq *eq)
 {
+
 	return (eq->qsize / 4);
 }
 
@@ -698,6 +740,7 @@ void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
+int t4_register_an_handler(struct adapter *, an_handler_t);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
@@ -714,21 +757,45 @@ void t4_intr_all(void *);
 void t4_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
-int t4_mgmt_tx(struct adapter *, struct mbuf *);
-int t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct mbuf *);
+void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
 int can_resume_tx(struct sge_eq *);
 
-static inline int t4_wrq_tx(struct adapter *sc, struct sge_wrq *wrq, struct mbuf *m)
+static inline struct wrqe *
+alloc_wrqe(int wr_len, struct sge_wrq *wrq)
 {
-	int rc;
+	int len = offsetof(struct wrqe, wr) + wr_len;
+	struct wrqe *wr;
 
-	TXQ_LOCK(wrq);
-	rc = t4_wrq_tx_locked(sc, wrq, m);
-	TXQ_UNLOCK(wrq);
-	return (rc);
+	wr = malloc(len, M_CXGBE, M_NOWAIT);
+	if (__predict_false(wr == NULL))
+		return (NULL);
+	wr->wr_len = wr_len;
+	wr->wrq = wrq;
+	return (wr);
 }
 
+static inline void *
+wrtod(struct wrqe *wr)
+{
+	return (&wr->wr[0]);
+}
+
+static inline void
+free_wrqe(struct wrqe *wr)
+{
+	free(wr, M_CXGBE);
+}
+
+static inline void
+t4_wrq_tx(struct adapter *sc, struct wrqe *wr)
+{
+	struct sge_wrq *wrq = wr->wrq;
+
+	TXQ_LOCK(wrq);
+	t4_wrq_tx_locked(sc, wrq, wr);
+	TXQ_UNLOCK(wrq);
+}
 
 #endif

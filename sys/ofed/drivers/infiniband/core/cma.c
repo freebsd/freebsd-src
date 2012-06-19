@@ -59,10 +59,10 @@ static int tavor_quirk = 0;
 module_param_named(tavor_quirk, tavor_quirk, int, 0644);
 MODULE_PARM_DESC(tavor_quirk, "Tavor performance quirk: limit MTU to 1K if > 0");
 
-int unify_tcp_port_space = 0;
+int unify_tcp_port_space = 1;
 module_param(unify_tcp_port_space, int, 0644);
 MODULE_PARM_DESC(unify_tcp_port_space, "Unify the host TCP and RDMA port "
-		 "space allocation (default=0)");
+		 "space allocation (default=1)");
 
 #define CMA_CM_RESPONSE_TIMEOUT 20
 #define CMA_MAX_CM_RETRIES 15
@@ -1478,6 +1478,7 @@ static int cma_iw_listen(struct rdma_id_private *id_priv, int backlog)
 	struct sockaddr_in *sin;
 
 	id_priv->cm_id.iw = iw_create_cm_id(id_priv->id.device,
+					    id_priv->sock,
 					    iw_conn_req_handler,
 					    id_priv);
 	if (IS_ERR(id_priv->cm_id.iw))
@@ -2055,7 +2056,16 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 				((struct sockaddr_in6 *) dst_addr)->sin6_scope_id;
 		}
 	}
-	return rdma_bind_addr(id, src_addr);
+	if (!cma_any_addr(src_addr))
+		return rdma_bind_addr(id, src_addr);
+	else {
+		struct sockaddr_in addr_in;
+
+        	memset(&addr_in, 0, sizeof addr_in);
+        	addr_in.sin_family = dst_addr->sa_family;
+        	addr_in.sin_len = sizeof addr_in;
+        	return rdma_bind_addr(id, (struct sockaddr *) &addr_in);
+	}
 }
 
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
@@ -2247,6 +2257,7 @@ static int cma_get_tcp_port(struct rdma_id_private *id_priv)
 		sock_release(sock);
 		return ret;
 	}
+
 	size = ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr);
 	ret = sock_getname(sock,
 			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
@@ -2255,6 +2266,7 @@ static int cma_get_tcp_port(struct rdma_id_private *id_priv)
 		sock_release(sock);
 		return ret;
 	}
+
 	id_priv->sock = sock;
 	return 0;
 }
@@ -2604,7 +2616,8 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 	int ret;
 	struct iw_cm_conn_param iw_param;
 
-	cm_id = iw_create_cm_id(id_priv->id.device, cma_iw_handler, id_priv);
+	cm_id = iw_create_cm_id(id_priv->id.device, id_priv->sock,
+				cma_iw_handler, id_priv);
 	if (IS_ERR(cm_id)) {
 		ret = PTR_ERR(cm_id);
 		goto out;

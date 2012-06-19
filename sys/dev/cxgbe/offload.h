@@ -31,12 +31,6 @@
 #ifndef __T4_OFFLOAD_H__
 #define __T4_OFFLOAD_H__
 
-/* XXX: flagrant misuse of mbuf fields (during tx by TOM) */
-#define MBUF_EQ(m)		(*((void **)(&(m)->m_pkthdr.rcvif)))
-/* These have to work for !M_PKTHDR so we use a field from m_hdr. */
-#define MBUF_TX_CREDITS(m)	((m)->m_hdr.pad[0])
-#define MBUF_DMA_MAPPED(m)	((m)->m_hdr.pad[1])
-
 #define INIT_ULPTX_WR(w, wrlen, atomic, tid) do { \
 	(w)->wr.wr_hi = htonl(V_FW_WR_OP(FW_ULPTX_WR) | V_FW_WR_ATOMIC(atomic)); \
 	(w)->wr.wr_mid = htonl(V_FW_WR_LEN16(DIV_ROUND_UP(wrlen, 16)) | \
@@ -119,7 +113,7 @@ struct t4_virt_res {                      /* virtualized HW resources */
 	struct t4_range ocq;
 };
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 enum {
 	ULD_TOM = 1,
 };
@@ -130,13 +124,8 @@ struct uld_info {
 	SLIST_ENTRY(uld_info) link;
 	int refcount;
 	int uld_id;
-	int (*attach)(struct adapter *, void **);
-	int (*detach)(void *);
-};
-
-struct uld_softc {
-	struct uld_info *uld;
-	void *softc;
+	int (*activate)(struct adapter *);
+	int (*deactivate)(struct adapter *);
 };
 
 struct tom_tunables {
@@ -148,6 +137,8 @@ struct tom_tunables {
 
 int t4_register_uld(struct uld_info *);
 int t4_unregister_uld(struct uld_info *);
+int t4_activate_uld(struct adapter *, int);
+int t4_deactivate_uld(struct adapter *, int);
 #endif
 
 #endif
