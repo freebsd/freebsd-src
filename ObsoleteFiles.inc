@@ -677,6 +677,8 @@ OLD_LIBS+=usr/lib32/pam_tacplus.so.4
 OLD_LIBS+=usr/lib32/pam_unix.so.4
 # 20090718: the gdm pam.d file is no longer required.
 OLD_FILES+=etc/pam.d/gdm
+# 20090714: net_add_domain(9) renamed to domain_add(9)
+OLD_FILES+=usr/share/man/man9/net_add_domain.9.gz
 # 20090713: vimage container structs removed.
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h
