@@ -1121,6 +1121,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	u_int	    secsize;
 	struct	    ccb_scsiio csio;
 	struct	    disk *dp;
+	int	    error = 0;
 
 	dp = arg;
 	periph = dp->d_drv1;
@@ -1139,7 +1140,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_read_write(&csio,
-				/*retries*/1,
+				/*retries*/0,
 				dadone,
 				MSG_ORDERED_Q_TAG,
 				/*read*/FALSE,
@@ -1152,19 +1153,16 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*sense_len*/SSD_FULL_SIZE,
 				da_default_timeout * 1000);
 		xpt_polled_action((union ccb *)&csio);
-		cam_periph_unlock(periph);
 
-		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		error = cam_periph_error((union ccb *)&csio,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
-			if ((csio.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(&csio);
-			else
-				printf("status == 0x%x, scsi status == 0x%x\n",
-				       csio.ccb_h.status, csio.scsi_status);
-			return(EIO);
-		}
-		return(0);
+		cam_periph_unlock(periph);
+		return (error);
 	}
 		
 	/*
@@ -1175,7 +1173,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&csio,
-				       /*retries*/1,
+				       /*retries*/0,
 				       /*cbfcnp*/dadone,
 				       MSG_SIMPLE_Q_TAG,
 				       /*begin_lba*/0,/* Cover the whole disk */
@@ -1184,28 +1182,16 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				       5 * 60 * 1000);
 		xpt_polled_action((union ccb *)&csio);
 
-		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if ((csio.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR) {
-				int asc, ascq;
-				int sense_key, error_code;
-
-				scsi_extract_sense_len(&csio.sense_data,
-				    csio.sense_len - csio.sense_resid,
-				    &error_code, &sense_key, &asc, &ascq,
-				    /*show_errors*/ 1);
-				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
-					scsi_sense_print(&csio);
-			} else {
-				xpt_print(periph->path, "Synchronize cache "
-				    "failed, status == 0x%x, scsi status == "
-				    "0x%x\n", csio.ccb_h.status,
-				    csio.scsi_status);
-			}
-		}
+		error = cam_periph_error((union ccb *)&csio,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR, NULL);
+		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
+			xpt_print(periph->path, "Synchronize cache failed\n");
 	}
 	cam_periph_unlock(periph);
-	return (0);
+	return (error);
 }
 
 static int
@@ -2727,6 +2713,7 @@ dashutdown(void * arg, int howto)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
+	int error;
 
 	TAILQ_FOREACH(periph, &dadriver.units, unit_links) {
 		union ccb ccb;
@@ -2748,7 +2735,7 @@ dashutdown(void * arg, int howto)
 
 		ccb.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&ccb.csio,
-				       /*retries*/1,
+				       /*retries*/0,
 				       /*cbfcnp*/dadone,
 				       MSG_SIMPLE_Q_TAG,
 				       /*begin_lba*/0, /* whole disk */
@@ -2758,32 +2745,13 @@ dashutdown(void * arg, int howto)
 
 		xpt_polled_action(&ccb);
 
-		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if (((ccb.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR)
-			 && (ccb.csio.scsi_status == SCSI_STATUS_CHECK_COND)){
-				int error_code, sense_key, asc, ascq;
-
-				scsi_extract_sense(&ccb.csio.sense_data,
-						   &error_code, &sense_key,
-						   &asc, &ascq);
-
-				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
-					scsi_sense_print(&ccb.csio);
-			} else {
-				xpt_print(periph->path, "Synchronize "
-				    "cache failed, status == 0x%x, scsi status "
-				    "== 0x%x\n", ccb.ccb_h.status,
-				    ccb.csio.scsi_status);
-			}
-		}
-
+		error = cam_periph_error(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR, NULL);
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
+			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
+			xpt_print(periph->path, "Synchronize cache failed\n");
 		cam_periph_unlock(periph);
 	}
 }
