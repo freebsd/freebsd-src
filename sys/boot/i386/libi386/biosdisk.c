@@ -96,6 +96,7 @@ static struct bdinfo
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
 
+#define	BD(od)		(bdinfo[(od)->od_dkunit])
 #define	BDSZ(od)	(bdinfo[(od)->od_dkunit].bd_sectors)
 #define	BDSECSZ(od)	(bdinfo[(od)->od_dkunit].bd_sectorsize)
 
@@ -525,18 +526,18 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
     int			blks;
-#ifdef BD_SUPPORT_FRAGS
+#ifdef BD_SUPPORT_FRAGS /* XXX: sector size */
     char		fragbuf[BIOSDISK_SECSIZE];
     size_t		fragsize;
 
     fragsize = size % BIOSDISK_SECSIZE;
 #else
-    if (size % BIOSDISK_SECSIZE)
+    if (size % BDSECSZ(od))
 	panic("bd_strategy: %d bytes I/O not multiple of block size", size);
 #endif
 
     DEBUG("open_disk %p", od);
-    blks = size / BIOSDISK_SECSIZE;
+    blks = size / BDSECSZ(od);
     if (rsize)
 	*rsize = 0;
 
@@ -548,7 +549,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
 	    DEBUG("read error");
 	    return (EIO);
 	}
-#ifdef BD_SUPPORT_FRAGS
+#ifdef BD_SUPPORT_FRAGS /* XXX: sector size */
 	DEBUG("bd_strategy: frag read %d from %d+%d to %p",
 	    fragsize, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
 	if (fragsize && bd_read(od, dblk + blks, 1, fragsize)) {
@@ -614,12 +615,12 @@ bd_chs_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 {
     u_int	x, bpc, cyl, hd, sec;
 
-    bpc = (od->od_sec * od->od_hds);	/* blocks per cylinder */
+    bpc = BD(od).bd_sec * BD(od).bd_hds;	/* blocks per cylinder */
     x = dblk;
     cyl = x / bpc;			/* block # / blocks per cylinder */
     x %= bpc;				/* block offset into cylinder */
-    hd = x / od->od_sec;		/* offset / blocks per track */
-    sec = x % od->od_sec;		/* offset into track */
+    hd = x / BD(od).bd_sec;		/* offset / blocks per track */
+    sec = x % BD(od).bd_sec;		/* offset into track */
 
     /* correct sector number for 1-based BIOS numbering */
     sec++;
@@ -657,7 +658,7 @@ bd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 
     /* Decide whether we have to bounce */
     if (VTOP(dest) >> 20 != 0 || ((od->od_unit < 0x80) && 
-	((VTOP(dest) >> 16) != (VTOP(dest + blks * BIOSDISK_SECSIZE) >> 16)))) {
+	((VTOP(dest) >> 16) != (VTOP(dest + blks * BDSECSZ(od)) >> 16)))) {
 
 	/* 
 	 * There is a 64k physical boundary somewhere in the
@@ -668,12 +669,12 @@ bd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 	 * there, in which case we use the top half.
 	 */
 	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
-	bbuf = alloca(x * 2 * BIOSDISK_SECSIZE);
+	bbuf = alloca(x * 2 * BDSECSZ(od));
 	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) ==
-	    ((u_int32_t)VTOP(bbuf + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
+	    ((u_int32_t)VTOP(bbuf + x * BDSECSZ(od)) & 0xffff0000)) {
 	    breg = bbuf;
 	} else {
-	    breg = bbuf + x * BIOSDISK_SECSIZE;
+	    breg = bbuf + x * BDSECSZ(od);
 	}
 	maxfer = x;		/* limit transfers to bounce region size */
     } else {
@@ -686,8 +687,8 @@ bd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 	 * Play it safe and don't cross track boundaries.
 	 * (XXX this is probably unnecessary)
 	 */
-	sec = dblk % od->od_sec;	/* offset into track */
-	x = min(od->od_sec - sec, resid);
+	sec = dblk % BD(od).bd_sec;	/* offset into track */
+	x = min(BD(od).bd_sec - sec, resid);
 	if (maxfer > 0)
 	    x = min(x, maxfer);		/* fit bounce buffer */
 
@@ -699,7 +700,7 @@ bd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 	 * Put your Data In, and shake it all about 
 	 */
 	if (write && bbuf != NULL)
-	    bcopy(p, breg, x * BIOSDISK_SECSIZE);
+	    bcopy(p, breg, x * BDSECSZ(od));
 
 	/*
 	 * Loop retrying the operation a couple of times.  The BIOS
@@ -733,13 +734,13 @@ bd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 	    return(-1);
 	}
 	if (!write && bbuf != NULL)
-	    bcopy(breg, p, x * BIOSDISK_SECSIZE);
-	p += (x * BIOSDISK_SECSIZE);
+	    bcopy(breg, p, x * BDSECSZ(od));
+	p += (x * BDSECSZ(od));
 	dblk += x;
 	resid -= x;
     }
 
-/*    hexdump(dest, (blks * BIOSDISK_SECSIZE)); */
+/*    hexdump(dest, (blks * BDSECSZ(od))); */
     return(0);
 }
 
