@@ -96,7 +96,6 @@ static struct bdinfo
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
 
-static int bd_getgeom(struct open_disk *od);
 static int bd_read(struct open_disk *od, daddr_t dblk, int blks,
     caddr_t dest);
 static int bd_write(struct open_disk *od, daddr_t dblk, int blks,
@@ -134,58 +133,59 @@ static void bd_closedisk(struct open_disk *od);
 int
 bd_bios2unit(int biosdev)
 {
-    int		i;
-    
-    DEBUG("looking for bios device 0x%x", biosdev);
-    for (i = 0; i < nbdinfo; i++) {
-	DEBUG("bd unit %d is BIOS device 0x%x", i, bdinfo[i].bd_unit);
-	if (bdinfo[i].bd_unit == biosdev)
-	    return(i);
-    }
-    return(-1);
+	int i;
+
+	DEBUG("looking for bios device 0x%x", biosdev);
+	for (i = 0; i < nbdinfo; i++) {
+		DEBUG("bd unit %d is BIOS device 0x%x", i, bdinfo[i].bd_unit);
+		if (bdinfo[i].bd_unit == biosdev)
+			return (i);
+	}
+	return (-1);
 }
 
 int
 bd_unit2bios(int unit)
 {
-    if ((unit >= 0) && (unit < nbdinfo))
-	return(bdinfo[unit].bd_unit);
-    return(-1);
+	if ((unit >= 0) && (unit < nbdinfo))
+		return (bdinfo[unit].bd_unit);
+	return (-1);
 }
 
-/*    
+/*
  * Quiz the BIOS for disk devices, save a little info about them.
  */
 static int
-bd_init(void) 
+bd_init(void)
 {
-    int		base, unit, nfd = 0;
+	int base, unit, nfd = 0;
 
-    /* sequence 0, 0x80 */
-    for (base = 0; base <= 0x80; base += 0x80) {
-	for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
+	/* sequence 0, 0x80 */
+	for (base = 0; base <= 0x80; base += 0x80) {
+		for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
 #ifndef VIRTUALBOX
-	    /* check the BIOS equipment list for number of fixed disks */
-	    if((base == 0x80) &&
-	       (nfd >= *(unsigned char *)PTOV(BIOS_NUMDRIVES)))
-		break;
+			/*
+			 * Check the BIOS equipment list for number
+			 * of fixed disks.
+			 */
+			if(base == 0x80 &&
+			    (nfd >= *(unsigned char *)PTOV(BIOS_NUMDRIVES)))
+				break;
 #endif
+			bdinfo[nbdinfo].bd_unit = unit;
+			bdinfo[nbdinfo].bd_flags = unit < 0x80 ? BD_FLOPPY: 0;
+			if (!bd_int13probe(&bdinfo[nbdinfo]))
+				break;
 
-	    bdinfo[nbdinfo].bd_unit = unit;
-	    bdinfo[nbdinfo].bd_flags = (unit < 0x80) ? BD_FLOPPY : 0;
-
-	    if (!bd_int13probe(&bdinfo[nbdinfo]))
-		break;
-
-	    /* XXX we need "disk aliases" to make this simpler */
-	    printf("BIOS drive %c: is disk%d\n", 
-		   (unit < 0x80) ? ('A' + unit) : ('C' + unit - 0x80), nbdinfo);
-	    nbdinfo++;
-	    if (base == 0x80)
-	        nfd++;
+			/* XXX we need "disk aliases" to make this simpler */
+			printf("BIOS drive %c: is disk%d\n", (unit < 0x80) ?
+			    ('A' + unit): ('C' + unit - 0x80), nbdinfo);
+			nbdinfo++;
+			if (base == 0x80)
+				nfd++;
+		}
 	}
-    }
-    return(0);
+	return(0);
 }
 
 /*
@@ -194,36 +194,60 @@ bd_init(void)
 static int
 bd_int13probe(struct bdinfo *bd)
 {
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x13;
-    v86.eax = 0x800;
-    v86.edx = bd->bd_unit;
-    v86int();
-    
-    if (!(V86_CY(v86.efl)) &&				/* carry clear */
-	((v86.edx & 0xff) > ((unsigned)bd->bd_unit & 0x7f))) {	/* unit # OK */
-	if ((v86.ecx & 0x3f) == 0) {			/* absurd sector size */
-		DEBUG("Invalid geometry for unit %d", bd->bd_unit);
-		return(0);				/* skip device */
-	}
-	bd->bd_flags |= BD_MODEINT13;
+	struct edd_params params;
+
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0x800;
+	v86.edx = bd->bd_unit;
+	v86int();
+
+	if (V86_CY(v86.efl) ||	/* carry set */
+	    (v86.ecx & 0x3f) == 0 || /* absurd sector number */
+	    (v86.edx & 0xff) <= (unsigned)(od->od_unit & 0x7f))	/* unit # bad */
+		return (0);	/* skip device */
+
+	/* Convert max cyl # -> # of cylinders */
+	bd->bd_cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
+	/* Convert max head # -> # of heads */
+	bd->bd_hds = ((v86.edx & 0xff00) >> 8) + 1;
+	bd->bd_sec = v86.ecx & 0x3f;
 	bd->bd_type = v86.ebx & 0xff;
+	bd->bd_flags |= BD_MODEINT13;
+
+	/* Calculate sectors count from the geometry */
+	bd->bd_sectors = bd->bd_cyl * bd->bd_hds * bd->bd_sec;
+	bd->bd_sectorsize = BIOSDISK_SECSIZE;
+	DEBUG("unit 0x%x geometry %d/%d/%d", bd->bd_unit, bd->bd_cyl,
+	    bd->bd_hds, bd->bd_sec);
 
 	/* Determine if we can use EDD with this device. */
 	v86.eax = 0x4100;
 	v86.edx = bd->bd_unit;
 	v86.ebx = 0x55aa;
 	v86int();
-	if (!(V86_CY(v86.efl)) &&			/* carry clear */
-	    ((v86.ebx & 0xffff) == 0xaa55) &&		/* signature */
-	    (v86.ecx & EDD_INTERFACE_FIXED_DISK)) {	/* packets mode ok */
-	    bd->bd_flags |= BD_MODEEDD1;
-	    if ((v86.eax & 0xff00) >= 0x3000)
-	        bd->bd_flags |= BD_MODEEDD3;
+	if (V86_CY(v86.efl) ||	/* carry set */
+	    (v86.ebx & 0xffff) != 0xaa55 || /* signature */
+	    (v86.ecx & EDD_INTERFACE_FIXED_DISK) == 0)
+		return (1);
+	/* EDD supported */
+	bd->bd_flags |= BD_MODEEDD1;
+	if ((v86.eax & 0xff00) >= 0x3000)
+		bd->bd_flags |= BD_MODEEDD3;
+	/* Get disk params */
+	params.len = sizeof(struct edd_params);
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0x4800;
+	v86.edx = bd->bd_unit;
+	v86.ds = VTOPSEG(&params);
+	v86.esi = VTOPOFF(&params);
+	v86int();
+	if (!V86_CY(v86.efl)) {
+		bd->bd_sectors = params.sectors;
+		bd->bd_sectorsize = params.sector_size;
 	}
-	return(1);
-    }
-    return(0);
+	return (1);
 }
 
 /*
@@ -646,30 +670,6 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 {
 
     return (bd_io(od, dblk, blks, dest, 1));
-}
-
-static int
-bd_getgeom(struct open_disk *od)
-{
-
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x13;
-    v86.eax = 0x800;
-    v86.edx = od->od_unit;
-    v86int();
-
-    if ((V86_CY(v86.efl)) ||				/* carry set */
-	((v86.edx & 0xff) <= (unsigned)(od->od_unit & 0x7f)))	/* unit # bad */
-	return(1);
-    
-    /* convert max cyl # -> # of cylinders */
-    od->od_cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
-    /* convert max head # -> # of heads */
-    od->od_hds = ((v86.edx & 0xff00) >> 8) + 1;
-    od->od_sec = v86.ecx & 0x3f;
-
-    DEBUG("unit 0x%x geometry %d/%d/%d", od->od_unit, od->od_cyl, od->od_hds, od->od_sec);
-    return(0);
 }
 
 /*
