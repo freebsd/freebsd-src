@@ -96,6 +96,7 @@ typedef enum {
 	PROBE_PM_PRV,
 	PROBE_IDENTIFY_SES,
 	PROBE_IDENTIFY_SAFTE,
+	PROBE_DONE,
 	PROBE_INVALID
 } probe_action;
 
@@ -115,6 +116,7 @@ static char *probe_action_text[] = {
 	"PROBE_PM_PRV",
 	"PROBE_IDENTIFY_SES",
 	"PROBE_IDENTIFY_SAFTE",
+	"PROBE_DONE",
 	"PROBE_INVALID"
 };
 
@@ -122,7 +124,7 @@ static char *probe_action_text[] = {
 do {									\
 	char **text;							\
 	text = probe_action_text;					\
-	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_INFO,		\
+	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_PROBE,		\
 	    ("Probe %s to %s\n", text[(softc)->action],			\
 	    text[(newaction)]));					\
 	(softc)->action = (newaction);					\
@@ -251,6 +253,8 @@ proberegister(struct cam_periph *periph, void *arg)
 	if (status != CAM_REQ_CMP) {
 		return (status);
 	}
+	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
+
 	/*
 	 * Ensure nobody slip in until probe finish.
 	 */
@@ -653,11 +657,8 @@ negotiate:
 		ata_28bit_cmd(ataio, ATA_SEP_ATTN, 0xEC, 0x00,
 		    sizeof(softc->ident_data) / 4);
 		break;
-	case PROBE_INVALID:
-		CAM_DEBUG(path, CAM_DEBUG_INFO,
-		    ("probestart: invalid action state\n"));
 	default:
-		break;
+		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
 	xpt_action(start_ccb);
 }
@@ -776,6 +777,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 			xpt_async(AC_LOST_DEVICE, path, NULL);
+		PROBE_SET_ACTION(softc, PROBE_INVALID);
 		found = 0;
 		goto done;
 	}
@@ -787,8 +789,8 @@ noerror:
 	{
 		int sign = (done_ccb->ataio.res.lba_high << 8) +
 		    done_ccb->ataio.res.lba_mid;
-		if (bootverbose)
-			xpt_print(path, "SIGNATURE: %04x\n", sign);
+		CAM_DEBUG(path, CAM_DEBUG_PROBE,
+		    ("SIGNATURE: %04x\n", sign));
 		if (sign == 0x0000 &&
 		    done_ccb->ccb_h.target_id != 15) {
 			path->device->protocol = PROTO_ATA;
@@ -1053,6 +1055,7 @@ notsata:
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 			    done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
@@ -1094,6 +1097,7 @@ notsata:
 			xpt_action(done_ccb);
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path, done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
 	}
 	case PROBE_PM_PID:
@@ -1165,6 +1169,7 @@ notsata:
 			xpt_action(done_ccb);
 			xpt_async(AC_SCSI_AEN, done_ccb->ccb_h.path, done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
 	case PROBE_IDENTIFY_SES:
 	case PROBE_IDENTIFY_SAFTE:
@@ -1210,12 +1215,10 @@ notsata:
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 			    done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
-	case PROBE_INVALID:
-		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_INFO,
-		    ("probedone: invalid action state\n"));
 	default:
-		break;
+		panic("probedone: invalid action state 0x%x\n", softc->action);
 	}
 done:
 	if (softc->restart) {
@@ -1225,6 +1228,7 @@ done:
 		return;
 	}
 	xpt_release_ccb(done_ccb);
+	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
 	while ((done_ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs))) {
 		TAILQ_REMOVE(&softc->request_ccbs,
 		    &done_ccb->ccb_h, periph_links.tqe);
