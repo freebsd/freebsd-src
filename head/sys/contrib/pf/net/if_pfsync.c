@@ -362,7 +362,6 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	 * drain callouts.
 	 */
 relock:
-	PFSYNC_LOCK(sc);
 	while (sc->sc_deferred > 0) {
 		struct pfsync_deferral *pd = TAILQ_FIRST(&sc->sc_deferrals);
 	
@@ -374,7 +373,6 @@ relock:
 			free(pd, M_PFSYNC);
 		} else {
 			pd->pd_refs++;
-			PFSYNC_UNLOCK(sc);
 			callout_drain(&pd->pd_tmo);
 			free(pd, M_PFSYNC);
 			goto relock;
