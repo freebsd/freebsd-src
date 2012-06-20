@@ -446,7 +446,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 
 		/* Try to read BSD label */
 		od->od_ptable = ptable_open(od, part.end - part.start + 1,
-		    SECSZ(od), diskread);
+		    BDSECSZ(od), diskread);
 		if (od->od_ptable == NULL) {
 			DEBUG("Can't read BSD label");
 			error = ENXIO;
