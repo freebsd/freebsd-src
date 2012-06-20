@@ -612,7 +612,7 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
     Elf_Addr v, p, p_stop;
 
     if (__elfN(lookup_symbol)(fp, ef, "__start_set_modmetadata_set", &sym) != 0)
-	return ENOENT;
+	return 0;
     p = sym.st_value + ef->off;
     if (__elfN(lookup_symbol)(fp, ef, "__stop_set_modmetadata_set", &sym) != 0)
 	return ENOENT;
