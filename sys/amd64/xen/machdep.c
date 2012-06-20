@@ -367,7 +367,7 @@ initxen(struct start_info *si)
 
 	if (si->mod_start != 0) { /* we have a ramdisk or kernel module */
 		preload_metadata = (caddr_t)(si->mod_start);
-		// preload_bootstrap_relocate(KERNBASE); XXX: not sure this is needed.
+		preload_bootstrap_relocate(KERNBASE);
 	}
 
 	kmdp = preload_search_by_type("elf kernel");
@@ -376,8 +376,7 @@ initxen(struct start_info *si)
 
 #ifdef notyet
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *); // XXX: +
-						    // KERNBASE;
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 #endif /* notyet */
 
 #ifdef DDB
@@ -446,8 +445,8 @@ initxen(struct start_info *si)
 
 	init_param2(physmem);
 
-	//msgbufinit(msgbufp, msgbufsize);
-	//fpuinit();
+	msgbufinit(msgbufp, msgbufsize);
+	//fpuinit(); XXX: TODO
 
 	/*
 	 * Set up thread0 pcb after fpuinit calculated pcb + fpu save
@@ -465,9 +464,6 @@ initxen(struct start_info *si)
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
-
-	/* console */
-	printk("Hello world!\n");
 
 	return (u_int64_t) thread0.td_pcb;
 }
@@ -1053,19 +1049,30 @@ printk(const char *fmt, ...)
 
 
 static __inline void
-cpu_write_rflags(u_int ef)
+cpu_write_rflags(u_long rf)
 {
-	__asm __volatile("pushl %0; popfl" : : "r" (ef));
+	__asm __volatile("pushq %0; popfq" : : "r" (rf));
 }
 
-static __inline u_int
+static __inline u_long
 cpu_read_rflags(void)
 {
-	u_int	ef;
+	u_long	rf;
 
-	__asm __volatile("pushfl; popl %0" : "=r" (ef));
-	return (ef);
+	__asm __volatile("pushfq; popq %0" : "=r" (rf));
+	return (rf);
 }
+
+#ifdef KTR
+static __inline u_long
+rrbp(void)
+{
+	u_long	data;
+
+	__asm __volatile("movq 4(%%rbp),%0" : "=r" (data));	
+	return (data);
+}
+#endif
 
 u_long
 read_rflags(void)
@@ -1082,6 +1089,17 @@ read_rflags(void)
 }
 
 void
+write_rflags(u_long rflags)
+{
+	u_int intr;
+
+	CTR2(KTR_SPARE2, "%x xen_restore_flags rflags %x", rrbp(), rflags);
+	intr = ((rflags & PSL_I) == 0);
+	__restore_flags(intr);
+	_write_rflags(rflags);
+}
+
+void
 xen_cli(void)
 {
 	CTR1(KTR_SPARE2, "%x xen_cli disabling interrupts", rrbp());
@@ -1093,6 +1111,13 @@ xen_sti(void)
 {
 	CTR1(KTR_SPARE2, "%x xen_sti enabling interrupts", rrbp());
 	__sti();
+}
+
+u_long
+xen_rcr2(void)
+{
+
+	return (HYPERVISOR_shared_info->vcpu_info[curcpu].arch.cr2);
 }
 
 char *console_page;

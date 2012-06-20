@@ -158,6 +158,12 @@ xen_invlpg(vm_offset_t va)
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
 
+inline void
+xen_load_cr3(u_long val)
+{
+	xen_pt_switch(val);
+}
+
 void
 xen_pt_switch(vm_paddr_t kpml4phys)
 {
@@ -195,8 +201,10 @@ _xen_queue_pt_update(vm_paddr_t ptr, vm_paddr_t val, char *file, int line)
 {
 	SET_VCPU();
 
+#ifdef revisit
 	if (__predict_true(gdtset))	
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+#endif
 
 	KASSERT((ptr & 7) == 0, ("misaligned update"));
 	

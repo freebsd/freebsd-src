@@ -46,9 +46,11 @@
 #ifdef XEN
 extern void xen_cli(void);
 extern void xen_sti(void);
-extern void xen_load_cr3(u_int data);
+extern u_long xen_rcr2(void);
+extern void xen_load_cr3(u_long data);
 extern void xen_tlb_flush(void);
 extern void xen_invlpg(vm_offset_t addr);
+extern void write_rflags(u_long rflags);
 extern u_long read_rflags(void);
 #endif /* XEN */
 
@@ -118,7 +120,11 @@ clflush(u_long addr)
 static __inline void
 disable_intr(void)
 {
+#ifdef XEN
+	xen_cli();
+#else
 	__asm __volatile("cli" : : : "memory");
+#endif
 }
 
 static __inline void
@@ -355,7 +361,11 @@ wbinvd(void)
 }
 
 static __inline void
+#ifdef XEN
+_write_rflags(u_long rf)
+#else
 write_rflags(u_long rf)
+#endif
 {
 	__asm __volatile("pushq %0;  popfq" : : "r" (rf));
 }
@@ -391,6 +401,9 @@ rcr2(void)
 {
 	u_long	data;
 
+#ifdef XEN
+	return (xen_rcr2());
+#endif
 	__asm __volatile("movq %%cr2,%0" : "=r" (data));
 	return (data);
 }
@@ -398,8 +411,11 @@ rcr2(void)
 static __inline void
 load_cr3(u_long data)
 {
-
+#ifdef XEN
+	xen_load_cr3(data);
+#else
 	__asm __volatile("movq %0,%%cr3" : : "r" (data) : "memory");
+#endif
 }
 
 static __inline u_long
@@ -443,8 +459,11 @@ invltlb(void)
 static __inline void
 invlpg(u_long addr)
 {
-
+#ifdef XEN
+	xen_invlpg(addr);
+#else
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
+#endif
 }
 
 static __inline u_short
