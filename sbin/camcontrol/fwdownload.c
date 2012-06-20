@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 #include <camlib.h>
 
+#include "progress.h"
+
 #include "camcontrol.h"
 
 #define	CMD_TIMEOUT 50000	/* 50 seconds */
@@ -73,6 +75,7 @@ typedef enum {
 	VENDOR_HP,
 	VENDOR_IBM,
 	VENDOR_PLEXTOR,
+	VENDOR_QUALSTAR,
 	VENDOR_QUANTUM,
 	VENDOR_SEAGATE,
 	VENDOR_UNKNOWN
@@ -93,17 +96,43 @@ static const struct fw_vendor vendors_list[] = {
 	{VENDOR_HP,		"HP",		0x8000, 0x07, 0x07, 0, 1},
 	{VENDOR_IBM,		"IBM",		0x8000, 0x05, 0x05, 1, 0},
 	{VENDOR_PLEXTOR,	"PLEXTOR",	0x2000, 0x04, 0x05, 0, 1},
+	{VENDOR_QUALSTAR,	"QUALSTAR",	0x2030, 0x05, 0x05, 0, 0},
 	{VENDOR_QUANTUM,	"QUANTUM",	0x2000, 0x04, 0x05, 0, 1},
 	{VENDOR_SEAGATE,	"SEAGATE",	0x8000, 0x07, 0x07, 0, 1},
+	/* the next 2 are SATA disks going through SAS HBA */
+	{VENDOR_SEAGATE,	"ATA ST",	0x8000, 0x07, 0x07, 0, 1},
+	{VENDOR_HITACHI,	"ATA HDS",	0x8000, 0x05, 0x05, 1, 0},
 	{VENDOR_UNKNOWN,	NULL,		0x0000, 0x00, 0x00, 0, 0}
 };
+
+#ifndef ATA_DOWNLOAD_MICROCODE
+#define ATA_DOWNLOAD_MICROCODE	0x92
+#endif
+
+#define USE_OFFSETS_FEATURE	0x3
+
+#ifndef LOW_SECTOR_SIZE
+#define LOW_SECTOR_SIZE		512
+#endif
+
+#define ATA_MAKE_LBA(o, p)	\
+	((((((o) / LOW_SECTOR_SIZE) >> 8) & 0xff) << 16) | \
+	  ((((o) / LOW_SECTOR_SIZE) & 0xff) << 8) | \
+	  ((((p) / LOW_SECTOR_SIZE) >> 8) & 0xff))
+
+#define ATA_MAKE_SECTORS(p)	(((p) / 512) & 0xff)
+
+#ifndef UNKNOWN_MAX_PKT_SIZE
+#define UNKNOWN_MAX_PKT_SIZE	0x8000
+#endif
 
 static const struct fw_vendor *fw_get_vendor(struct cam_device *cam_dev);
 static char	*fw_read_img(const char *fw_img_path,
 		    const struct fw_vendor *vp, int *num_bytes);
 static int	 fw_download_img(struct cam_device *cam_dev,
 		    const struct fw_vendor *vp, char *buf, int img_size,
-		    int sim_mode, int verbose, int retry_count, int timeout);
+		    int sim_mode, int verbose, int retry_count, int timeout,
+		    const char */*name*/, const char */*type*/);
 
 /*
  * Find entry in vendors list that belongs to
@@ -173,6 +202,9 @@ fw_read_img(const char *fw_img_path, const struct fw_vendor *vp, int *num_bytes)
 		    (img_size % 512 == 80))
 			skip_bytes = 80;
 		break;
+	case VENDOR_QUALSTAR:
+		skip_bytes = img_size % 1030;
+		break;
 	default:
 		break;
 	}
@@ -207,26 +239,57 @@ bailout1:
 static int
 fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
     char *buf, int img_size, int sim_mode, int verbose, int retry_count,
-    int timeout)
+    int timeout, const char *imgname, const char *type)
 {
 	struct scsi_write_buffer cdb;
+	progress_t progress;
+	int size;
 	union ccb *ccb;
 	int pkt_count = 0;
+	int max_pkt_size;
 	u_int32_t pkt_size = 0;
 	char *pkt_ptr = buf;
 	u_int32_t offset;
 	int last_pkt = 0;
+	int16_t *ptr;
 
 	if ((ccb = cam_getccb(cam_dev)) == NULL) {
 		warnx("Could not allocate CCB");
 		return (1);
 	}
-	scsi_test_unit_ready(&ccb->csio, 0, NULL, MSG_SIMPLE_Q_TAG,
-	    SSD_FULL_SIZE, 5000);
+	if (strcmp(type, "scsi") == 0) {
+		scsi_test_unit_ready(&ccb->csio, 0, NULL, MSG_SIMPLE_Q_TAG,
+		    SSD_FULL_SIZE, 5000);
+	} else if (strcmp(type, "ata") == 0) {
+		/* cam_getccb cleans up the header, caller has to zero the payload */
+		bzero(&(&ccb->ccb_h)[1],
+		      sizeof(struct ccb_ataio) - sizeof(struct ccb_hdr));
+
+		ptr = (uint16_t *)malloc(sizeof(struct ata_params));
+
+		if (ptr == NULL) {
+			cam_freeccb(ccb);
+			warnx("can't malloc memory for identify\n");
+			return(1);
+		}
+		bzero(ptr, sizeof(struct ata_params));
+		cam_fill_ataio(&ccb->ataio,
+                      1,
+                      NULL,
+                      /*flags*/CAM_DIR_IN,
+                      MSG_SIMPLE_Q_TAG,
+                      /*data_ptr*/(uint8_t *)ptr,
+                      /*dxfer_len*/sizeof(struct ata_params),
+                      timeout ? timeout : 30 * 1000);
+		ata_28bit_cmd(&ccb->ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
+	} else {
+		warnx("weird disk type '%s'", type);
+		return 1;
+	}
 	/* Disable freezing the device queue. */
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
 	if (cam_send_ccb(cam_dev, ccb) < 0) {
-		warnx("Error sending test unit ready");
+		warnx("Error sending identify/test unit ready");
 		if (verbose)
 			cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
 			    CAM_EPF_ALL, stderr);
@@ -241,60 +304,82 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 		cam_freeccb(ccb);
 		return (1);
 	}
-	pkt_size = vp->max_pkt_size;
-	if (verbose || sim_mode) {
-		fprintf(stdout,
-		    "--------------------------------------------------\n");
-		fprintf(stdout,
-		    "PktNo.	PktSize	       BytesRemaining	LastPkt\n");
-		fprintf(stdout,
-		    "--------------------------------------------------\n");
+	max_pkt_size = vp->max_pkt_size;
+	if (vp->max_pkt_size == 0 && strcmp(type, "ata") == 0) {
+		max_pkt_size = UNKNOWN_MAX_PKT_SIZE;
 	}
+	pkt_size = vp->max_pkt_size;
+	progress_init(&progress, imgname, size = img_size);
 	/* Download single fw packets. */
 	do {
-		if (img_size <= vp->max_pkt_size) {
+		if (img_size <= max_pkt_size) {
 			last_pkt = 1;
 			pkt_size = img_size;
 		}
-		if (verbose || sim_mode)
-			fprintf(stdout, "%3u   %5u (0x%05X)   %7u (0x%06X)   "
-			    "%d\n", pkt_count, pkt_size, pkt_size,
-			    img_size - pkt_size, img_size - pkt_size,
-			    last_pkt);
+		progress_update(&progress, size - img_size);
+		progress_draw(&progress);
 		bzero(&cdb, sizeof(cdb));
-		cdb.opcode  = WRITE_BUFFER;
-		cdb.control = 0;
-		/* Parameter list length. */
-		scsi_ulto3b(pkt_size, &cdb.length[0]);
-		offset = vp->inc_cdb_offset ? (pkt_ptr - buf) : 0;
-		scsi_ulto3b(offset, &cdb.offset[0]);
-		cdb.byte2 = last_pkt ? vp->cdb_byte2_last : vp->cdb_byte2;
-		cdb.buffer_id = vp->inc_cdb_buffer_id ? pkt_count : 0;
-		/* Zero out payload of ccb union after ccb header. */
-		bzero((u_char *)ccb + sizeof(struct ccb_hdr),
-		    sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
-		/* Copy previously constructed cdb into ccb_scsiio struct. */
-		bcopy(&cdb, &ccb->csio.cdb_io.cdb_bytes[0],
-		    sizeof(struct scsi_write_buffer));
-		/* Fill rest of ccb_scsiio struct. */
+		if (strcmp(type, "scsi") == 0) {
+			cdb.opcode  = WRITE_BUFFER;
+			cdb.control = 0;
+			/* Parameter list length. */
+			scsi_ulto3b(pkt_size, &cdb.length[0]);
+			offset = vp->inc_cdb_offset ? (pkt_ptr - buf) : 0;
+			scsi_ulto3b(offset, &cdb.offset[0]);
+			cdb.byte2 = last_pkt ? vp->cdb_byte2_last : vp->cdb_byte2;
+			cdb.buffer_id = vp->inc_cdb_buffer_id ? pkt_count : 0;
+			/* Zero out payload of ccb union after ccb header. */
+			bzero((u_char *)ccb + sizeof(struct ccb_hdr),
+			    sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+			/* Copy previously constructed cdb into ccb_scsiio struct. */
+			bcopy(&cdb, &ccb->csio.cdb_io.cdb_bytes[0],
+			    sizeof(struct scsi_write_buffer));
+			/* Fill rest of ccb_scsiio struct. */
+			if (!sim_mode) {
+				cam_fill_csio(&ccb->csio,		/* ccb_scsiio	*/
+				    retry_count,			/* retries	*/
+				    NULL,				/* cbfcnp	*/
+				    CAM_DIR_OUT | CAM_DEV_QFRZDIS,	/* flags	*/
+				    CAM_TAG_ACTION_NONE,		/* tag_action	*/
+				    (u_char *)pkt_ptr,			/* data_ptr	*/
+				    pkt_size,				/* dxfer_len	*/
+				    SSD_FULL_SIZE,			/* sense_len	*/
+				    sizeof(struct scsi_write_buffer),	/* cdb_len	*/
+				    timeout ? timeout : CMD_TIMEOUT);	/* timeout	*/
+			}
+		} else if (strcmp(type, "ata") == 0) {
+			bzero(&(&ccb->ccb_h)[1],
+			      sizeof(struct ccb_ataio) - sizeof(struct ccb_hdr));
+			if (!sim_mode) {
+				uint32_t	off;
+
+				cam_fill_ataio(&ccb->ataio,
+					(last_pkt) ? 256 : retry_count,
+					NULL,
+					/*flags*/CAM_DIR_OUT | CAM_DEV_QFRZDIS,
+					CAM_TAG_ACTION_NONE,
+					/*data_ptr*/(uint8_t *)pkt_ptr,
+					/*dxfer_len*/pkt_size,
+					timeout ? timeout : 30 * 1000);
+				off = (uint32_t)(pkt_ptr - buf);
+				ata_28bit_cmd(&ccb->ataio, ATA_DOWNLOAD_MICROCODE,
+					USE_OFFSETS_FEATURE,
+					ATA_MAKE_LBA(off, pkt_size),
+					ATA_MAKE_SECTORS(pkt_size));
+			}
+		}
 		if (!sim_mode) {
-			cam_fill_csio(&ccb->csio,		/* ccb_scsiio	*/
-			    retry_count,			/* retries	*/
-			    NULL,				/* cbfcnp	*/
-			    CAM_DIR_OUT | CAM_DEV_QFRZDIS,	/* flags	*/
-			    CAM_TAG_ACTION_NONE,		/* tag_action	*/
-			    (u_char *)pkt_ptr,			/* data_ptr	*/
-			    pkt_size,				/* dxfer_len	*/
-			    SSD_FULL_SIZE,			/* sense_len	*/
-			    sizeof(struct scsi_write_buffer),	/* cdb_len	*/
-			    timeout ? timeout : CMD_TIMEOUT);	/* timeout	*/
 			/* Execute the command. */
 			if (cam_send_ccb(cam_dev, ccb) < 0) {
 				warnx("Error writing image to device");
 				if (verbose)
 					cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
-					    CAM_EPF_ALL, stderr);
+						   CAM_EPF_ALL, stderr);
 				goto bailout;
+			}
+			if (ccb->ataio.res.status != 0 /*&& !last_pkt*/) {
+				cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
+					   CAM_EPF_ALL, stderr);
 			}
 		}
 		/* Prepare next round. */
@@ -302,22 +387,19 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 		pkt_ptr += pkt_size;
 		img_size -= pkt_size;
 	} while(!last_pkt);
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if (verbose)
-			cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
-			    CAM_EPF_ALL, stderr);
-		goto bailout;
-	}
+	progress_complete(&progress, size - img_size);
 	cam_freeccb(ccb);
 	return (0);
 bailout:
+	progress_complete(&progress, size - img_size);
 	cam_freeccb(ccb);
 	return (1);
 }
 
 int
 fwdownload(struct cam_device *device, int argc, char **argv,
-    char *combinedopt, int verbose, int retry_count, int timeout)
+    char *combinedopt, int verbose, int retry_count, int timeout,
+    const char *type)
 {
 	const struct fw_vendor *vp;
 	char *fw_img_path = NULL;
@@ -345,12 +427,13 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 	}
 
 	if (fw_img_path == NULL)
-		errx(1,
-		    "you must specify a firmware image file using -f option");
+		errx(1, "you must specify a firmware image file using -f option");
 
 	vp = fw_get_vendor(device);
-	if (vp == NULL || vp->type == VENDOR_UNKNOWN)
-		errx(1, "Unsupported device");
+	if (vp == NULL)
+		errx(1, "NULL vendor");
+	if (vp->type == VENDOR_UNKNOWN)
+		warnx("Unsupported device - flashing through an HBA?");
 
 	buf = fw_read_img(fw_img_path, vp, &img_size);
 	if (buf == NULL)
@@ -360,11 +443,6 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 		fprintf(stdout, "You are about to download firmware image (%s)"
 		    " into the following device:\n",
 		    fw_img_path);
-		if (scsidoinquiry(device, argc, argv, combinedopt, 0,
-		    5000) != 0) {
-			warnx("Error sending inquiry");
-			goto fail;
-		}
 		fprintf(stdout, "\nIt may damage your drive. ");
 		if (!get_confirmation())
 			goto fail;
@@ -373,10 +451,11 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 		fprintf(stdout, "Running in simulation mode\n");
 
 	if (fw_download_img(device, vp, buf, img_size, sim_mode, verbose,
-	    retry_count, timeout) != 0) {
+	    retry_count, timeout, fw_img_path, type) != 0) {
 		fprintf(stderr, "Firmware download failed\n");
 		goto fail;
-	} else 
+	}
+	else 
 		fprintf(stdout, "Firmware download successful\n");
 
 	free(buf);
