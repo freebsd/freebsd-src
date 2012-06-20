@@ -188,21 +188,15 @@ static struct cdevsw xpt_cdevsw = {
 };
 
 /* Storage for debugging datastructures */
-#ifdef	CAMDEBUG
 struct cam_path *cam_dpath;
-#ifdef	CAM_DEBUG_FLAGS
 u_int32_t cam_dflags = CAM_DEBUG_FLAGS;
-#else
-u_int32_t cam_dflags = CAM_DEBUG_NONE;
-#endif
 TUNABLE_INT("kern.cam.dflags", &cam_dflags);
 SYSCTL_UINT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RW,
-	&cam_dflags, 0, "Cam Debug Flags");
-u_int32_t cam_debug_delay;
+	&cam_dflags, 0, "Enabled debug flags");
+u_int32_t cam_debug_delay = CAM_DEBUG_DELAY;
 TUNABLE_INT("kern.cam.debug_delay", &cam_debug_delay);
 SYSCTL_UINT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RW,
-	&cam_debug_delay, 0, "Cam Debug Flags");
-#endif
+	&cam_debug_delay, 0, "Delay in us after each debug message");
 
 /* Our boot-time initialization hook */
 static int cam_module_event_handler(module_t, int /*modeventtype_t*/, void *);
@@ -2472,9 +2466,7 @@ xpt_action(union ccb *start_ccb)
 void
 xpt_action_default(union ccb *start_ccb)
 {
-#ifdef CAMDEBUG
 	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
-#endif
 	struct cam_path *path;
 
 	path = start_ccb->ccb_h.path;
@@ -2980,16 +2972,17 @@ xpt_action_default(union ccb *start_ccb)
 		break;
 	}
 	case XPT_DEBUG: {
-#ifdef CAMDEBUG
-#ifdef CAM_DEBUG_DELAY
-		cam_debug_delay = CAM_DEBUG_DELAY;
-#endif
+		/* Check that all request bits are supported. */
+		if (start_ccb->cdbg.flags & ~CAM_DEBUG_COMPILE) {
+			start_ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+			break;
+		}
+
 		cam_dflags = start_ccb->cdbg.flags;
 		if (cam_dpath != NULL) {
 			xpt_free_path(cam_dpath);
 			cam_dpath = NULL;
 		}
-
 		if (cam_dflags != CAM_DEBUG_NONE) {
 			if (xpt_create_path(&cam_dpath, xpt_periph,
 					    start_ccb->ccb_h.path_id,
@@ -3007,9 +3000,6 @@ xpt_action_default(union ccb *start_ccb)
 			cam_dpath = NULL;
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 		}
-#else /* !CAMDEBUG */
-		start_ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-#endif /* CAMDEBUG */
 		break;
 	}
 	case XPT_FREEZE_QUEUE:
@@ -4749,9 +4739,7 @@ xpt_config(void *arg)
 	 * Now that interrupts are enabled, go find our devices
 	 */
 
-#ifdef CAMDEBUG
-	/* Setup debugging flags and path */
-#ifdef CAM_DEBUG_BUS
+	/* Setup debugging path */
 	if (cam_dflags != CAM_DEBUG_NONE) {
 		/*
 		 * Locking is specifically omitted here.  No SIMs have
@@ -4768,10 +4756,6 @@ xpt_config(void *arg)
 		}
 	} else
 		cam_dpath = NULL;
-#else /* !CAM_DEBUG_BUS */
-	cam_dpath = NULL;
-#endif /* CAM_DEBUG_BUS */
-#endif /* CAMDEBUG */
 
 	periphdriver_init(1);
 	xpt_hold_boot();
