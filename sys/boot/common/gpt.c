@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "gpt.h"
 
 #define	MAXTBLENTS	128
+#define	GEOM_MAGIC	"GEOM::"
 
 static struct gpt_hdr hdr_primary, hdr_backup, *gpthdr;
 static uint64_t hdr_primary_lba, hdr_backup_lba;
@@ -345,8 +346,18 @@ gptread(const uuid_t *uuid, struct dsk *dskp, char *buf)
 		altlba = hdr_primary.hdr_lba_alt;
 	} else {
 		altlba = drvsize(dskp);
-		if (altlba > 0)
-			altlba--;
+		if (altlba > 0) {
+			do {
+				altlba--;
+				/*
+				 * Check GEOM metadata and decrement
+				 * the altlba if found.
+				 */
+				if (drvread(dskp, secbuf, altlba, 1) != 0)
+					break;
+			} while (memcmp(secbuf, GEOM_MAGIC,
+			    sizeof(GEOM_MAGIC) - 1) == 0);
+		}
 	}
 	if (altlba == 0)
 		printf("%s: unable to locate backup GPT header\n", BOOTPROG);
