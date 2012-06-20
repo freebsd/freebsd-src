@@ -426,9 +426,8 @@ adaopen(struct disk *dp)
 	softc = (struct ada_softc *)periph->softc;
 	softc->flags |= ADA_FLAG_OPEN;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("adaopen: disk=%s%d (unit %d)\n", dp->d_name, dp->d_unit,
-	     periph->unit_number));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("adaopen\n"));
 
 	if ((softc->flags & ADA_FLAG_PACK_INVALID) != 0) {
 		/* Invalidate our pack information. */
@@ -459,6 +458,10 @@ adaclose(struct disk *dp)
 	}
 
 	softc = (struct ada_softc *)periph->softc;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("adaclose\n"));
+
 	/* We only sync the cache if the drive is capable of it. */
 	if ((softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
 	    (softc->flags & ADA_FLAG_PACK_INVALID) == 0) {
@@ -531,6 +534,8 @@ adastrategy(struct bio *bp)
 	softc = (struct ada_softc *)periph->softc;
 
 	cam_periph_lock(periph);
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adastrategy(%p)\n", bp));
 
 	/*
 	 * If the device has been made invalid, error out
@@ -1113,6 +1118,8 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
 	struct ccb_ataio *ataio = &start_ccb->ataio;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adastart\n"));
+
 	switch (softc->state) {
 	case ADA_STATE_NORMAL:
 	{
@@ -1121,7 +1128,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 
 		/* Execute immediate CCB if waiting. */
 		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
 			start_ccb->ccb_h.ccb_state = ADA_CCB_WAITING;
 			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
@@ -1413,6 +1420,9 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct ada_softc *)periph->softc;
 	ataio = &done_ccb->ataio;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adadone\n"));
+
 	switch (ataio->ccb_h.ccb_state & ADA_CCB_TYPE_MASK) {
 	case ADA_CCB_BUFFER_IO:
 	case ADA_CCB_TRIM:
