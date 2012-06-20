@@ -638,7 +638,7 @@ wb_attach(device_t dev)
 	 */
 	sc->reg_1 &= ~(WB_LDN8_CRF5_KEYB_P20);
 	write_efir_1(sc, WB_LDN8_CRF5);
-	write_efir_1(sc, sc->reg_1);
+	write_efdr_1(sc, sc->reg_1);
 
 	sc->reg_2 &= ~WB_LDN8_CRF7_CLEAR_MASK;
 	write_efir_1(sc, WB_LDN8_CRF7);
