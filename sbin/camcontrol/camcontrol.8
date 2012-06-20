@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2010
+.Dd June 4, 2012
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -138,6 +138,7 @@
 .Op Fl S
 .Op Fl X
 .Op Fl c
+.Op Fl p
 .Aq all|off|bus Ns Op :target Ns Op :lun
 .Nm
 .Ic tags
@@ -581,6 +582,8 @@ Enable CAM_DEBUG_XPT printfs.
 Enable CAM_DEBUG_CDB printfs.
 This will cause the kernel to print out the
 SCSI CDBs sent to the specified device(s).
+.It Fl p
+Enable CAM_DEBUG_PROBE printfs.
 .It all
 Enable debugging for all devices.
 .It off
