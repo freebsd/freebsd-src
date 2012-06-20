@@ -302,7 +302,6 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		break;
 	case TARGIOCDEBUG:
 	{
-#ifdef	CAMDEBUG
 		struct ccb_debug cdbg;
 
 		/* If no periph available, disallow debugging changes */
@@ -323,9 +322,6 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		xpt_action((union ccb *)&cdbg);
 		cam_periph_unlock(softc->periph);
 		status = cdbg.ccb_h.status & CAM_STATUS_MASK;
-#else
-		status = CAM_FUNC_NOTAVAIL;
-#endif
 		break;
 	}
 	default:
