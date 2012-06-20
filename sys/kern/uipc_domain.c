@@ -220,7 +220,7 @@ domain_add(void *data)
 	domains = dp;
 
 	KASSERT(domain_init_status >= 1,
-	    ("attempt to net_add_domain(%s) before domaininit()",
+	    ("attempt to domain_add(%s) before domaininit()",
 	    dp->dom_name));
 #ifndef INVARIANTS
 	if (domain_init_status < 1)
