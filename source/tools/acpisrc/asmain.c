@@ -245,10 +245,18 @@ AsDisplayStats (
     printf ("%8u Lines of non-comment whitespace\n", Gbl_WhiteLines);
     printf ("%8u Lines of comments\n", Gbl_CommentLines);
     printf ("%8u Long lines found\n", Gbl_LongLines);
-    printf ("%8.1f Ratio of code to whitespace\n",
-        ((float) Gbl_SourceLines / (float) Gbl_WhiteLines));
-    printf ("%8.1f Ratio of code to comments\n",
-        ((float) Gbl_SourceLines / (float) (Gbl_CommentLines + Gbl_NonAnsiComments)));
+
+    if (Gbl_WhiteLines > 0)
+    {
+        printf ("%8.1f Ratio of code to whitespace\n",
+            ((float) Gbl_SourceLines / (float) Gbl_WhiteLines));
+    }
+
+    if ((Gbl_CommentLines + Gbl_NonAnsiComments) > 0)
+    {
+        printf ("%8.1f Ratio of code to comments\n",
+            ((float) Gbl_SourceLines / (float) (Gbl_CommentLines + Gbl_NonAnsiComments)));
+    }
 
     if (!Gbl_TotalLines)
     {

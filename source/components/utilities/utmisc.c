@@ -53,6 +53,7 @@
         ACPI_MODULE_NAME    ("utmisc")
 
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 /*******************************************************************************
  *
  * FUNCTION:    UtConvertBackslashes
@@ -86,6 +87,7 @@ UtConvertBackslashes (
         Pathname++;
     }
 }
+#endif
 
 
 /*******************************************************************************
@@ -1330,5 +1332,3 @@ AcpiUtWalkPackageTree (
 
     return_ACPI_STATUS (AE_AML_INTERNAL);
 }
-
-

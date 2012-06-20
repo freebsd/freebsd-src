@@ -92,19 +92,23 @@ static void
 AslDoLineDirective (
     void)
 {
-    char                    c;
+    UINT8                   c;
     char                    *Token;
     UINT32                  LineNumber;
     char                    *Filename;
+    UINT32                  i;
 
 
     /* Eat the entire line that contains the #line directive */
 
-    while ((c = (char) input()) != '\n' && c != EOF)
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+
+    while ((c = (UINT8) input()) != '\n' && c != EOF)
     {
-        AslInsertLineBuffer (c);
+        *Gbl_LineBufPtr = c;
+        Gbl_LineBufPtr++;
     }
-    AslInsertLineBuffer (0);
+    *Gbl_LineBufPtr = 0;
 
     /* First argument is the actual line number */
 
@@ -114,10 +118,23 @@ AslDoLineDirective (
         goto ResetAndExit;
     }
 
-    /* Convert line number. Subtract one to handle _this_ line */
+    /* First argument is the line number */
 
     LineNumber = (UINT32) UtDoConstant (Token);
-    FlSetLineNumber (LineNumber - 1);
+
+    /* Emit the appropriate number of newlines */
+
+    Gbl_CurrentColumn = 0;
+    if (LineNumber > Gbl_CurrentLineNumber)
+    {
+        for (i = 0; i < (LineNumber - Gbl_CurrentLineNumber); i++)
+        {
+            FlWriteFile (ASL_FILE_SOURCE_OUTPUT, "\n", 1);
+            Gbl_CurrentColumn++;
+        }
+    }
+
+    FlSetLineNumber (LineNumber);
 
     /* Second argument is the optional filename (in double quotes) */
 
@@ -132,7 +149,12 @@ AslDoLineDirective (
     /* Third argument is not supported at this time */
 
 ResetAndExit:
-    AslResetCurrentLineBuffer ();
+
+    /* Reset globals for a new line */
+
+    Gbl_CurrentLineOffset += Gbl_CurrentColumn;
+    Gbl_CurrentColumn = 0;
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
 }
 
 
