@@ -193,6 +193,19 @@ bd_init(void)
 	return(0);
 }
 
+static void
+bd_cleanup(void)
+{
+	int i;
+
+	for (i = 0; i < nbdinfo; i++) {
+		if (bdinfo[i].bd_ptable != NULL) {
+			ptable_close(bdinfo[i].bd_ptable);
+			bdinfo[i].bd_ptable = NULL;
+		}
+	}
+}
+
 /*
  * Try to detect a device supported by the legacy int13 BIOS
  */
