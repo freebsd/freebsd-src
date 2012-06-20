@@ -122,6 +122,7 @@ typedef enum {
 	CAM_ARG_DEBUG_CDB	= 0x08000000,
 	CAM_ARG_DEBUG_XPT	= 0x10000000,
 	CAM_ARG_DEBUG_PERIPH	= 0x20000000,
+	CAM_ARG_DEBUG_PROBE	= 0x40000000,
 } cam_argmask;
 
 struct camcontrol_opts {
@@ -175,7 +176,7 @@ struct camcontrol_opts option_table[] = {
 	{"tags", CAM_CMD_TAG, CAM_ARG_NONE, "N:q"},
 	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
-	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXc"},
+	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXcp"},
 	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qrwy"},
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
@@ -2640,6 +2641,10 @@ camdebug(int argc, char **argv, char *combinedopt)
 			arglist |= CAM_ARG_DEBUG_CDB;
 			ccb.cdbg.flags |= CAM_DEBUG_CDB;
 			break;
+		case 'p':
+			arglist |= CAM_ARG_DEBUG_PROBE;
+			ccb.cdbg.flags |= CAM_DEBUG_PROBE;
+			break;
 		default:
 			break;
 		}
@@ -2669,7 +2674,7 @@ camdebug(int argc, char **argv, char *combinedopt)
 		ccb.cdbg.flags = CAM_DEBUG_NONE;
 		arglist &= ~(CAM_ARG_DEBUG_INFO|CAM_ARG_DEBUG_PERIPH|
 			     CAM_ARG_DEBUG_TRACE|CAM_ARG_DEBUG_SUBTRACE|
-			     CAM_ARG_DEBUG_XPT);
+			     CAM_ARG_DEBUG_XPT|CAM_ARG_DEBUG_PROBE);
 	} else if (strncmp(tstr, "all", 3) != 0) {
 		tmpstr = (char *)strtok(tstr, ":");
 		if ((tmpstr != NULL) && (*tmpstr != '\0')){
