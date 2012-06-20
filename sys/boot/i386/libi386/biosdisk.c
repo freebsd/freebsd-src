@@ -96,6 +96,9 @@ static struct bdinfo
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
 
+#define	BDSZ(od)	(bdinfo[(od)->od_dkunit].bd_sectors)
+#define	BDSECSZ(od)	(bdinfo[(od)->od_dkunit].bd_sectorsize)
+
 static int bd_read(struct open_disk *od, daddr_t dblk, int blks,
     caddr_t dest);
 static int bd_write(struct open_disk *od, daddr_t dblk, int blks,
@@ -362,49 +365,123 @@ bd_open(struct open_file *f, ...)
 }
 
 static int
+diskread(void *dev, void *buf, size_t blocks, off_t offset)
+{
+
+	return (bd_read(dev, offset, blocks, buf));
+}
+
+static int
 bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 {
-    struct open_disk		*od;
-    int				error;
+	struct open_disk *od;
+	struct ptable_entry part;
+	int error;
 
-    if (dev->d_unit >= nbdinfo) {
-	DEBUG("attempt to open nonexistent disk");
-	return(ENXIO);
-    }
-    
-    od = (struct open_disk *)malloc(sizeof(struct open_disk));
-    if (!od) {
-	DEBUG("no memory");
-	return (ENOMEM);
-    }
+	if (dev->d_unit >= nbdinfo) {
+		DEBUG("attempt to open nonexistent disk");
+		return (ENXIO);
+	}
+	od = (struct open_disk *)malloc(sizeof(struct open_disk));
+	if (!od) {
+		DEBUG("no memory");
+		return (ENOMEM);
+	}
 
-    /* Look up BIOS unit number, initalise open_disk structure */
-    od->od_dkunit = dev->d_unit;
-    od->od_unit = bdinfo[od->od_dkunit].bd_unit;
-    od->od_flags = bdinfo[od->od_dkunit].bd_flags;
-    od->od_boff = 0;
-    error = 0;
-    DEBUG("open '%s', unit 0x%x slice %d partition %d",
-	     i386_fmtdev(dev), dev->d_unit, 
-	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition);
+	/* Look up BIOS unit number, initalize open_disk structure */
+	od->od_dkunit = dev->d_unit;
+	od->od_unit = bdinfo[od->od_dkunit].bd_unit;
+	od->od_ptable = bdinfo[od->od_dkunit].bd_ptable;
+	od->od_slice = 0;
+	od->od_boff = 0;
+	error = 0;
+	DEBUG("open '%s', unit 0x%x slice %d partition %d",
+	    i386_fmtdev(dev), dev->d_unit, dev->d_kind.biosdisk.slice,
+	    dev->d_kind.biosdisk.partition);
 
-    /* Get geometry for this open (removable device may have changed) */
-    if (bd_getgeom(od)) {
-	DEBUG("can't get geometry");
-	error = ENXIO;
-	goto out;
-    }
+	/* Determine disk layout. */
+	if (od->od_ptable == NULL) {
+		od->od_ptable = ptable_open(od, BDSZ(od), BDSECSZ(od),
+		    diskread);
+		if (od->od_ptable == NULL) {
+			DEBUG("Can't read partition table");
+			error = ENXIO;
+			goto out;
+		}
+		/* Save the result */
+		bdinfo[od->od_dkunit].bd_ptable = od->od_ptable;
+	}
+	/*
+	 * What we want to open:
+	 * a whole disk:
+	 *	slice = -1
+	 *
+	 * a MBR slice:
+	 *	slice = 1 .. 4
+	 *	partition = -1
+	 *
+	 * an EBR slice:
+	 *	slice = 5 .. N
+	 *	partition = -1
+	 *
+	 * a GPT partition:
+	 *	slice = 1 .. N
+	 *	partition = 255
+	 *
+	 * BSD partition within an MBR slice:
+	 *	slice = 1 .. N
+	 *	partition = 0 .. 19
+	 */
+	if (dev->d_kind.biosdisk.slice > 0) {
+		/* Try to get information about partition */
+		error = ptable_getpart(od->od_ptable, &part,
+		    dev->d_kind.biosdisk.slice);
+		if (error != 0) /* Partition isn't exists */
+			goto out;
+		/* Adjust open_disk's offset within the biosdisk */
+		od->od_boff = part.start;
+		if (dev->d_kind.biosdisk.partition == -1 ||
+		    dev->d_kind.biosdisk.partition == 255)
+			goto out; /* Nothing more to do */
 
-    /* Determine disk layout. */
-	error = bd_open_mbr(od, dev);
-    
- out:
-    if (error) {
-	free(od);
-    } else {
-	*odp = od;	/* return the open disk */
-    }
-    return(error);
+		/* Try to read BSD label */
+		od->od_ptable = ptable_open(od, part.end - part.start + 1,
+		    SECSZ(od), diskread);
+		if (od->od_ptable == NULL) {
+			DEBUG("Can't read BSD label");
+			error = ENXIO;
+			/* Keep parent partition table opened */
+			goto out;
+		}
+		/* Save the slice number of the parent partition */
+		od->od_slice = part.index;
+		error = ptable_getpart(od->od_ptable, &part,
+		    dev->d_kind.biosdisk.partition);
+		if (error != 0) {
+			/*
+			 * Keep parent partition table opened, but
+			 * close this one (BSD label).
+			 */
+			ptable_close(od->od_ptable);
+			goto out;
+		}
+		/* Adjust open_disk's offset within the biosdisk */
+		od->od_boff += part.start;
+	} else if (dev->d_kind.biosdisk.slice == 0) {
+		error = ptable_getbestpart(od->od_ptable, &part);
+		if (error != 0)
+			goto out;
+		/* Save the slice number of best partition to dev */
+		dev->d_kind.biosdisk.slice = part.index;
+		od->od_boff = part.start;
+	}
+out:
+	if (error != 0) {
+		free(od);
+	} else {
+		*odp = od;	/* return the open disk */
+	}
+	return (error);
 }
 
 static int
@@ -421,8 +498,12 @@ bd_close(struct open_file *f)
 static void
 bd_closedisk(struct open_disk *od)
 {
-    DEBUG("open_disk %p", od);
-    free(od);
+
+	DEBUG("close_disk %p", od);
+	/* Close only nested ptables */
+	if (od->od_slice != 0 && od->od_ptable != NULL)
+		ptable_close(od->od_ptable);
+	free(od);
 }
 
 static int
