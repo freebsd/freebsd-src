@@ -240,6 +240,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 		goto failure;
 
 	init_level++;
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph created\n"));
 
 	status = periph_ctor(periph, arg);
 
@@ -252,6 +253,7 @@ failure:
 		/* Initialized successfully */
 		break;
 	case 3:
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 		xpt_remove_periph(periph);
 		/* FALLTHROUGH */
 	case 2:
@@ -572,6 +574,7 @@ void
 cam_periph_invalidate(struct cam_periph *periph)
 {
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.
@@ -610,6 +613,7 @@ camperiphfree(struct cam_periph *periph)
 	if (periph->periph_dtor != NULL)
 		periph->periph_dtor(periph);
 	xpt_remove_periph(periph);
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
 		union ccb ccb;
