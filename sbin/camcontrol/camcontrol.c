@@ -3071,6 +3071,26 @@ get_cgd_bailout:
 	return(retval);
 }
 
+/* return the type of disk (really the command type) */
+static const char *
+get_disk_type(struct cam_device *device)
+{
+	struct ccb_getdev	cgd;
+
+	(void) memset(&cgd, 0x0, sizeof(cgd));
+	get_cgd(device, &cgd);
+	switch(cgd.protocol) {
+	case PROTO_SCSI:
+		return "scsi";
+	case PROTO_ATA:
+	case PROTO_ATAPI:
+	case PROTO_SATAPM:
+		return "ata";
+	default:
+		return "unknown";
+	}
+}
+
 static void
 cpi_print(struct ccb_pathinq *cpi)
 {
@@ -6197,7 +6217,8 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_DOWNLOAD_FW:
 			error = fwdownload(cam_dev, argc, argv, combinedopt,
-			    arglist & CAM_ARG_VERBOSE, retry_count, timeout);
+			    arglist & CAM_ARG_VERBOSE, retry_count, timeout,
+			    get_disk_type(cam_dev));
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:
