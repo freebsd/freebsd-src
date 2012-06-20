@@ -301,10 +301,16 @@ rm_tree(char **argv)
 				if (fflag)
 					continue;
 				/* FALLTHROUGH */
-			default:
+
+			case FTS_F:
+			case FTS_NSOK:
 				if (Pflag)
-					if (!rm_overwrite(p->fts_accpath, NULL))
+					if (!rm_overwrite(p->fts_accpath, p->fts_info ==
+					    FTS_NSOK ? NULL : p->fts_statp))
 						continue;
+				/* FALLTHROUGH */
+
+			default:
 				rval = unlink(p->fts_accpath);
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
