@@ -3037,6 +3037,10 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 					    sizeof(cdb_str)));
 	}
 
+#ifdef _KERNEL
+	xpt_free_ccb((union ccb *)cgd);
+#endif
+
 	return(0);
 }
 
