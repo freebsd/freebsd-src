@@ -1017,30 +1017,9 @@ daclose(struct disk *dp)
 				       SSD_FULL_SIZE,
 				       5 * 60 * 1000);
 
-		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA,
+		cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+				  /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 				  softc->disk->d_devstat);
-
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR) {
-				int asc, ascq;
-				int sense_key, error_code;
-
-				scsi_extract_sense_len(&ccb->csio.sense_data,
-				    ccb->csio.sense_len - ccb->csio.sense_resid,
-				    &error_code, &sense_key, &asc, &ascq,
-				    /*show_errors*/ 1);
-				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
-					scsi_sense_print(&ccb->csio);
-			} else {
-				xpt_print(periph->path, "Synchronize cache "
-				    "failed, status == 0x%x, scsi status == "
-				    "0x%x\n", ccb->csio.ccb_h.status,
-				    ccb->csio.scsi_status);
-			}
-		}
-
 		xpt_release_ccb(ccb);
 
 	}
@@ -2498,8 +2477,8 @@ daprevent(struct cam_periph *periph, int action)
 		     SSD_FULL_SIZE,
 		     5000);
 
-	error = cam_periph_runccb(ccb, /*error_routine*/NULL, CAM_RETRY_SELTO,
-				  SF_RETRY_UA, softc->disk->d_devstat);
+	error = cam_periph_runccb(ccb, daerror, CAM_RETRY_SELTO,
+	    SF_RETRY_UA | SF_QUIET_IR, softc->disk->d_devstat);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)
