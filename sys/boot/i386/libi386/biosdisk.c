@@ -147,6 +147,7 @@ bd_bios2unit(int biosdev)
 int
 bd_unit2bios(int unit)
 {
+
 	if ((unit >= 0) && (unit < nbdinfo))
 		return (bdinfo[unit].bd_unit);
 	return (-1);
@@ -340,26 +341,24 @@ display_size(uint64_t size)
  *  sliced - are they after the first BSD slice, or the DOS
  *  slice before it?)
  */
-static int 
+static int
 bd_open(struct open_file *f, ...)
 {
-    va_list			ap;
-    struct i386_devdesc		*dev;
-    struct open_disk		*od;
-    int				error;
+	struct i386_devdesc *dev;
+	struct open_disk *od;
+	va_list ap;
+	int error;
 
-    va_start(ap, f);
-    dev = va_arg(ap, struct i386_devdesc *);
-    va_end(ap);
-    if ((error = bd_opendisk(&od, dev)))
-	return(error);
-    
-    /*
-     * Save our context
-     */
-    ((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data = od;
-    DEBUG("open_disk %p, partition at 0x%x", od, od->od_boff);
-    return(0);
+	va_start(ap, f);
+	dev = va_arg(ap, struct i386_devdesc *);
+	va_end(ap);
+	if ((error = bd_opendisk(&od, dev)) != 0)
+		return (error);
+
+	/* Save our context */
+	((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data = od;
+	DEBUG("open_disk %p, partition at 0x%x", od, od->od_boff);
+	return (0);
 }
 
 static int
@@ -408,13 +407,15 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     return(error);
 }
 
-static int 
+static int
 bd_close(struct open_file *f)
 {
-    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
+	struct open_disk *od;
 
-    bd_closedisk(od);
-    return(0);
+	od = (struct open_disk *)
+	    (((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
+	bd_closedisk(od);
+	return (0);
 }
 
 static void
@@ -424,15 +425,18 @@ bd_closedisk(struct open_disk *od)
     free(od);
 }
 
-static int 
+static int
 bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
-    struct bcache_devdata	bcd;
-    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
+	struct bcache_devdata bcd;
+	struct open_disk *od;
 
-    bcd.dv_strategy = bd_realstrategy;
-    bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, od->od_unit, rw, dblk+od->od_boff, size, buf, rsize));
+	od = (struct open_disk *)
+	    (((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
+	bcd.dv_strategy = bd_realstrategy;
+	bcd.dv_devdata = devdata;
+	return (bcache_strategy(&bcd, od->od_unit, rw, dblk + od->od_boff,
+	    size, buf, rsize));
 }
 
 static int 
@@ -662,14 +666,14 @@ static int
 bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 {
 
-    return (bd_io(od, dblk, blks, dest, 0));
+	return (bd_io(od, dblk, blks, dest, 0));
 }
 
 static int
 bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 {
 
-    return (bd_io(od, dblk, blks, dest, 1));
+	return (bd_io(od, dblk, blks, dest, 1));
 }
 
 /*
