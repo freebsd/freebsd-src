@@ -239,8 +239,10 @@ eval_clean()
 	if [ -n "${TEST_CLEANUP}" ] ; then
 		. ${SRC_DIR}/cleanup
 	fi
-	rm -rf ${WORK_DIR}
-	rm -rf ${OUTPUT_DIR}
+	if [ -z "${NO_TEST_CLEANUP}" ] ; then
+		rm -rf ${WORK_DIR}
+		rm -rf ${OUTPUT_DIR}
+	fi
 }
 
 #
