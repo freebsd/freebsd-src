@@ -658,9 +658,12 @@ AeMiscellaneousTests (
     AE_CHECK_OK (AcpiSetupGpeForWake, Status);
 
     Status = AcpiSetGpeWakeMask (NULL, 5, ACPI_GPE_ENABLE);
-    AE_CHECK_OK (AcpiGpeWakeup, Status);
+    AE_CHECK_OK (AcpiSetGpeWakeMask, Status);
 
     Status = AcpiSetupGpeForWake (Handle, NULL, 6);
+    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
+
+    Status = AcpiSetupGpeForWake (ACPI_ROOT_OBJECT, NULL, 6);
     AE_CHECK_OK (AcpiSetupGpeForWake, Status);
 
     Status = AcpiSetupGpeForWake (Handle, NULL, 9);

@@ -79,5 +79,6 @@
 
 #endif
 
+/*! [End] no source code translation !*/
 
 #endif /* __ACWIN_H__ */

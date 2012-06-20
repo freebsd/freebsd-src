@@ -103,14 +103,6 @@ typedef struct ah_asl_keyword
 
 } AH_ASL_KEYWORD;
 
-typedef struct ah_predefined_name
-{
-    char            *Name;
-    char            *Description;
-    char            *Action;
-
-} AH_PREDEFINED_NAME;
-
 typedef struct ah_device_id
 {
     char            *Name;
@@ -122,7 +114,6 @@ typedef struct ah_device_id
 extern const AH_AML_OPCODE          AmlOpcodeInfo[];
 extern const AH_ASL_OPERATOR        AslOperatorInfo[];
 extern const AH_ASL_KEYWORD         AslKeywordInfo[];
-extern const AH_PREDEFINED_NAME     AslPredefinedInfo[];
 extern BOOLEAN                      AhDisplayAll;
 
 void

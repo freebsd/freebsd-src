@@ -443,7 +443,7 @@ AsConvertFile (
 
         case CVT_MIXED_CASE_TO_UNDERSCORES:
 
-            AsMixedCaseToUnderscores (FileBuffer);
+            AsMixedCaseToUnderscores (FileBuffer, Filename);
             break;
 
 

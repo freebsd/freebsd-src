@@ -77,6 +77,7 @@ OBJECTS = \
 	adfile.o \
 	adisasm.o \
 	adwalk.o \
+	ahpredef.o \
 	aslanalyze.o \
 	aslbtypes.o \
 	aslcodegen.o \
