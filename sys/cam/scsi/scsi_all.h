@@ -74,9 +74,6 @@ typedef enum {
 	SS_TUR      = 0x040000,	/* Send a Test Unit Ready command to the
 				 * device, then retry the original command.
 				 */
-	SS_REQSENSE = 0x050000,	/* Send a RequestSense command to the
-				 * device, then retry the original command.
-				 */
 	SS_MASK     = 0xff0000
 } scsi_sense_action;
 
@@ -2184,12 +2181,6 @@ char *		scsi_sense_string(struct cam_device *device,
 void		scsi_sense_print(struct cam_device *device, 
 				 struct ccb_scsiio *csio, FILE *ofile);
 #endif /* _KERNEL */
-
-#define	SF_RETRY_UA	0x01
-#define	SF_NO_PRINT	0x02
-#define	SF_QUIET_IR	0x04	/* Be quiet about Illegal Request reponses */
-#define	SF_PRINT_ALWAYS	0x08
-
 
 const char *	scsi_op_desc(u_int16_t opcode, 
 			     struct scsi_inquiry_data *inq_data);
