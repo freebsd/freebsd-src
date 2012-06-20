@@ -153,6 +153,9 @@ ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
 	case IPFW_TABLE_CIDR:
 		if (plen == sizeof(in_addr_t)) {
 #ifdef INET
+			/* IPv4 case */
+			if (mlen > 32)
+				return (EINVAL);
 			ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 			ent->value = value;
 			/* Set 'total' structure length */
