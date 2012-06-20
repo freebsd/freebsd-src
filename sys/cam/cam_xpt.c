@@ -2928,7 +2928,7 @@ xpt_action_default(union ccb *start_ccb)
 	}
 	case XPT_DEBUG: {
 		/* Check that all request bits are supported. */
-		if (start_ccb->cdbg.flags & ~CAM_DEBUG_COMPILE) {
+		if (start_ccb->cdbg.flags & ~(CAM_DEBUG_COMPILE)) {
 			start_ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			break;
 		}
@@ -3992,6 +3992,27 @@ xptpathid(const char *sim_name, int sim_unit, int sim_bus)
 	return (pathid);
 }
 
+static const char *
+xpt_async_string(u_int32_t async_code)
+{
+
+	switch (async_code) {
+	case AC_BUS_RESET: return ("AC_BUS_RESET");
+	case AC_UNSOL_RESEL: return ("AC_UNSOL_RESEL");
+	case AC_SCSI_AEN: return ("AC_SCSI_AEN");
+	case AC_SENT_BDR: return ("AC_SENT_BDR");
+	case AC_PATH_REGISTERED: return ("AC_PATH_REGISTERED");
+	case AC_PATH_DEREGISTERED: return ("AC_PATH_DEREGISTERED");
+	case AC_FOUND_DEVICE: return ("AC_FOUND_DEVICE");
+	case AC_LOST_DEVICE: return ("AC_LOST_DEVICE");
+	case AC_TRANSFER_NEG: return ("AC_TRANSFER_NEG");
+	case AC_INQ_CHANGED: return ("AC_INQ_CHANGED");
+	case AC_GETDEV_CHANGED: return ("AC_GETDEV_CHANGED");
+	case AC_CONTRACT: return ("AC_CONTRACT");
+	}
+	return ("AC_UNKNOWN");
+}
+
 void
 xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 {
@@ -4000,8 +4021,8 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 	struct cam_ed *device, *next_device;
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-
-	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_async\n"));
+	CAM_DEBUG(path, CAM_DEBUG_TRACE | CAM_DEBUG_INFO,
+	    ("xpt_async(%s)\n", xpt_async_string(async_code)));
 
 	/*
 	 * Most async events come from a CAM interrupt context.  In
