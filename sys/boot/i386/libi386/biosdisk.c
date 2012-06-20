@@ -268,85 +268,79 @@ bd_int13probe(struct bdinfo *bd)
 	return (1);
 }
 
+/* Convert the size to a human-readable number. */
+static char *
+display_size(uint64_t size, uint16_t sectorsize)
+{
+	static char buf[80];
+	char unit;
+
+	size = size * sectorsize / 1024;
+	unit = 'K';
+	if (size >= 10485760000LL) {
+		size /= 1073741824;
+		unit = 'T';
+	} else if (size >= 10240000) {
+		size /= 1048576;
+		unit = 'G';
+	} else if (size >= 10000) {
+		size /= 1024;
+		unit = 'M';
+	}
+	sprintf(buf, "%.6ld%cB", (long)size, unit);
+	return (buf);
+}
+
+static void
+printpartition(void *arg, const char *pname, const struct ptable_entry *part)
+{
+	struct open_disk *od, *bsd;
+	struct i386_devdesc dev;
+	static char line[80];
+
+	od = (struct open_disk *)arg;
+	sprintf(line, "\tdisk%d%s: %s %s\n", od->od_dkunit, pname,
+	    parttype2str(part->type),
+	    display_size(part->end - part->start + 1, BDSECSZ(od)));
+	pager_output(line);
+	if (part->type == PART_FREEBSD) {
+		/* Open slice with BSD label */
+		dev.d_unit = od->od_dkunit;
+		dev.d_kind.biosdisk.slice = part->index;
+		dev.d_kind.biosdisk.partition = -1;
+		if (!bd_opendisk(&bsd, &dev)) {
+			ptable_iterate(bsd->od_ptable, bsd, printpartition);
+			bd_closedisk(bsd);
+		}
+	}
+}
 /*
  * Print information about disks
  */
 static void
 bd_print(int verbose)
 {
-    int				i, j;
-    char			line[80];
-    struct i386_devdesc		dev;
-    struct open_disk		*od;
-    struct dos_partition	*dptr;
-    
-    for (i = 0; i < nbdinfo; i++) {
-	sprintf(line, "    disk%d:   BIOS drive %c:\n", i, 
-		(bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit) : ('C' + bdinfo[i].bd_unit - 0x80));
-	pager_output(line);
+	static char line[80];
+	struct i386_devdesc dev;
+	struct open_disk *od;
+	int i;
 
-	/* try to open the whole disk */
-	dev.d_unit = i;
-	dev.d_kind.biosdisk.slice = -1;
-	dev.d_kind.biosdisk.partition = -1;
-	
-	if (!bd_opendisk(&od, &dev)) {
+	for (i = 0; i < nbdinfo; i++) {
+		sprintf(line, "    disk%d:   BIOS drive %c:\n", i,
+		    (bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit):
+		    ('C' + bdinfo[i].bd_unit - 0x80));
+		pager_output(line);
 
-#ifdef LOADER_GPT_SUPPORT
-	    /* Do we have a GPT table? */
-	    if (od->od_flags & BD_GPTOK) {
-		for (j = 0; j < od->od_nparts; j++) {
-		    sprintf(line, "      disk%dp%d", i,
-			od->od_partitions[j].gp_index);
-		    bd_printgptpart(od, &od->od_partitions[j], line, verbose);
+		/* try to open the whole disk */
+		dev.d_unit = i;
+		dev.d_kind.biosdisk.slice = -1;
+		dev.d_kind.biosdisk.partition = -1;
+		if (!bd_opendisk(&od, &dev)) {
+			ptable_iterate(od->od_ptable, od, printpartition);
+			bd_closedisk(od);
 		}
-	    } else
-#endif
-	    /* Do we have a partition table? */
-	    if (od->od_flags & BD_PARTTABOK) {
-		dptr = &od->od_slicetab[0];
-
-		/* Check for a "dedicated" disk */
-		if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
-		    (dptr[3].dp_start == 0) &&
-		    (dptr[3].dp_size == 50000)) {
-		    sprintf(line, "      disk%d", i);
-		    bd_printbsdslice(od, 0, line, verbose);
-		} else {
-		    for (j = 0; j < od->od_nslices; j++) {
-		        sprintf(line, "      disk%ds%d", i, j + 1);
-			bd_printslice(od, &dptr[j], line, verbose);
-                    }
-                }
-	    }
-	    bd_closedisk(od);
 	}
-    }
 }
-
-/* Given a size in 512 byte sectors, convert it to a human-readable number. */
-static char *
-display_size(uint64_t size)
-{
-    static char buf[80];
-    char unit;
-
-    size /= 2;
-    unit = 'K';
-    if (size >= 10485760000LL) {
-	size /= 1073741824;
-	unit = 'T';
-    } else if (size >= 10240000) {
-	size /= 1048576;
-	unit = 'G';
-    } else if (size >= 10000) {
-	size /= 1024;
-	unit = 'M';
-    }
-    sprintf(buf, "%.6ld%cB", (long)size, unit);
-    return (buf);
-}
-
 
 /*
  * Attempt to open the disk described by (dev) for use by (f).
