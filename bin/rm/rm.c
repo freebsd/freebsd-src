@@ -408,7 +408,7 @@ rm_file(char **argv)
 int
 rm_overwrite(char *file, struct stat *sbp)
 {
-	struct stat sb;
+	struct stat sb, sb2;
 	struct statfs fsb;
 	off_t len;
 	int bsize, fd, wlen;
@@ -427,8 +427,15 @@ rm_overwrite(char *file, struct stat *sbp)
 		    file, sbp->st_ino);
 		return (0);
 	}
-	if ((fd = open(file, O_WRONLY, 0)) == -1)
+	if ((fd = open(file, O_WRONLY|O_NONBLOCK|O_NOFOLLOW, 0)) == -1)
 		goto err;
+	if (fstat(fd, &sb2))
+		goto err;
+	if (sb2.st_dev != sbp->st_dev || sb2.st_ino != sbp->st_ino ||
+	    !S_ISREG(sb2.st_mode)) {
+		errno = EPERM;
+		goto err;
+	}
 	if (fstatfs(fd, &fsb) == -1)
 		goto err;
 	bsize = MAX(fsb.f_iosize, 1024);
