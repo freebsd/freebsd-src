@@ -1323,7 +1323,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		struct ip_moptions *imo = &sc->sc_imo;
 		struct ifnet *sifp;
 		struct ip *ip;
-		void *mship;
+		void *mship = NULL;
 
 		if ((error = priv_check(curthread, PRIV_NETINET_PF)) != 0)
 			return (error);
@@ -1338,8 +1338,9 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if ((sifp = ifunit_ref(pfsyncr.pfsyncr_syncdev)) == NULL)
 			return (EINVAL);
 
-		mship = malloc((sizeof(struct in_multi *) *
-		    IP_MIN_MEMBERSHIPS), M_PFSYNC, M_WAITOK | M_ZERO);
+		if (pfsyncr.pfsyncr_syncpeer.s_addr == 0 && sifp != NULL)
+			mship = malloc((sizeof(struct in_multi *) *
+			    IP_MIN_MEMBERSHIPS), M_PFSYNC, M_WAITOK | M_ZERO);
 
 		PFSYNC_LOCK(sc);
 		if (pfsyncr.pfsyncr_syncpeer.s_addr == 0)
@@ -1364,7 +1365,6 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (imo->imo_membership)
 				pfsync_multicast_cleanup(sc);
 			PFSYNC_UNLOCK(sc);
-			free(mship, M_PFSYNC);
 			break;
 		}
 
