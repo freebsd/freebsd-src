@@ -1317,14 +1317,16 @@ pf_purge_thread(void *v)
 
 	CURVNET_SET((struct vnet *)v);
 
+	PF_RULES_RLOCK();
 	for (;;) {
-		tsleep(pf_purge_thread, PWAIT, "pftm", hz / 10);
+		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftm", hz / 10);
 
 		if (V_pf_end_threads) {
 			pf_purge_expired_states(V_pf_hashmask + 1);
 			pf_purge_expired_fragments();
 			pf_purge_expired_src_nodes();
 			V_pf_end_threads++;
+			PF_RULES_RUNLOCK();
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
 		}
