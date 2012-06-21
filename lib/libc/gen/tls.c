@@ -66,11 +66,12 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 #error TLS_TCB_ALIGN undefined for target architecture
 #endif
 
-#if defined(__ia64__) || defined(__powerpc__)
+#if defined(__arm__) || defined(__ia64__) || \
+    defined(__powerpc__)
 #define TLS_VARIANT_I
 #endif
 #if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
-    defined(__arm__) || defined(__mips__)
+    defined(__mips__)
 #define TLS_VARIANT_II
 #endif
 
@@ -307,6 +308,13 @@ _init_tls()
 			tls_init = (void*) phdr[i].p_vaddr;
 		}
 	}
+
+#ifdef TLS_VARIANT_I
+	/*
+	 * tls_static_space should include space for TLS structure
+	 */
+	tls_static_space += TLS_TCB_SIZE;
+#endif
 
 	tls = _rtld_allocate_tls(NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN);
 
