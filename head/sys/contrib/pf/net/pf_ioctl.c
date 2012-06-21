@@ -136,8 +136,6 @@ static int		 pf_addr_setup(struct pf_ruleset *,
 static void		 pf_addr_copyout(struct pf_addr_wrap *);
 
 VNET_DEFINE(struct pf_rule,	pf_default_rule);
-VNET_DEFINE(struct sx,		pf_consistency_lock);
-#define V_pf_consistency_lock	VNET(pf_consistency_lock)
 
 #ifdef ALTQ
 static VNET_DEFINE(int,		pf_altq_running);
@@ -226,22 +224,6 @@ pfsync_defer_t			*pfsync_defer_ptr = NULL;
 export_pflow_t			*export_pflow_ptr = NULL;
 /* pflog */
 pflog_packet_t			*pflog_packet_ptr = NULL;
-
-static void
-init_pf_mutex(void)
-{
-
-	rw_init(&pf_rules_lock, "pf rulesets");
-	sx_init(&V_pf_consistency_lock, "pfioctl");
-}
-
-static void
-destroy_pf_mutex(void)
-{
-
-	rw_destroy(&pf_rules_lock);
-	sx_destroy(&V_pf_consistency_lock);
-}
 
 static int
 pfattach(void)
@@ -1109,8 +1091,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		default:
 			return (EACCES);
 		}
-
-	sx_xlock(&V_pf_consistency_lock);
 
 	switch (cmd) {
 	case DIOCSTART:
@@ -3288,7 +3268,6 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 fail:
-	sx_xunlock(&V_pf_consistency_lock);
 	CURVNET_RESTORE();
 
 	return (error);
@@ -3744,7 +3723,8 @@ pf_load(void)
 	}
 	VNET_LIST_RUNLOCK();
 
-	init_pf_mutex();
+	rw_init(&pf_rules_lock, "pf rulesets");
+
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
 	if ((error = pfattach()) != 0)
 		return (error);
@@ -3785,7 +3765,7 @@ pf_unload(void)
 	pf_cleanup();
 	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
-	destroy_pf_mutex();
+	rw_destroy(&pf_rules_lock);
 
 	return (error);
 }
