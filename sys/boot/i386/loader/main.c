@@ -355,26 +355,18 @@ isa_outb(int port, int value)
 static void
 i386_zfs_probe(void)
 {
-    char devname[32];
-    int unit, slice;
+	char devname[32];
+	int unit;
 
-    /*
-     * Open all the disks we can find and see if we can reconstruct
-     * ZFS pools from them. Bogusly assumes that the disks are named
-     * diskN, diskNpM or diskNsM.
-     */
-    for (unit = 0; unit < MAXBDDEV; unit++) {
-	sprintf(devname, "disk%d:", unit);
-	if (zfs_probe_dev(devname, NULL) == ENXIO)
-	    continue;
-	for (slice = 1; slice <= 128; slice++) {
-	    sprintf(devname, "disk%dp%d:", unit, slice);
-	    zfs_probe_dev(devname, NULL);
+	/*
+	 * Open all the disks we can find and see if we can reconstruct
+	 * ZFS pools from them.
+	 */
+	for (unit = 0; unit < MAXBDDEV; unit++) {
+		if (bd_unit2bios(unit) == -1)
+			break;
+		sprintf(devname, "disk%d:", unit);
+		zfs_probe_dev(devname, NULL);
 	}
-	for (slice = 1; slice <= 4; slice++) {
-	    sprintf(devname, "disk%ds%d:", unit, slice);
-	    zfs_probe_dev(devname, NULL);
-	}
-    }
 }
 #endif
