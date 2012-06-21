@@ -116,6 +116,12 @@ static int bd_open(struct open_file *f, ...);
 static int bd_close(struct open_file *f);
 static void bd_print(int verbose);
 
+struct bd_print_args {
+	struct open_disk	*od;
+	const char		*prefix;
+	int			verbose;
+};
+
 struct devsw biosdisk = {
 	"disk",
 	DEVT_DISK,
@@ -294,23 +300,27 @@ display_size(uint64_t size, uint16_t sectorsize)
 static void
 printpartition(void *arg, const char *pname, const struct ptable_entry *part)
 {
-	struct open_disk *od, *bsd;
+	struct bd_print_args *pa, bsd;
 	struct i386_devdesc dev;
-	static char line[80];
+	char line[80];
 
-	od = (struct open_disk *)arg;
-	sprintf(line, "\tdisk%d%s: %s %s\n", od->od_dkunit, pname,
-	    parttype2str(part->type),
-	    display_size(part->end - part->start + 1, BDSECSZ(od)));
+	pa = (struct bd_print_args *)arg;
+	sprintf(line, "  %s%s: %s %s\n", pa->prefix, pname,
+	    parttype2str(part->type), pa->verbose == 0 ? "":
+	    display_size(part->end - part->start + 1, BDSECSZ(pa->od)));
 	pager_output(line);
 	if (part->type == PART_FREEBSD) {
 		/* Open slice with BSD label */
-		dev.d_unit = od->od_dkunit;
+		dev.d_unit = pa->od->od_dkunit;
 		dev.d_kind.biosdisk.slice = part->index;
 		dev.d_kind.biosdisk.partition = -1;
-		if (!bd_opendisk(&bsd, &dev)) {
-			ptable_iterate(bsd->od_ptable, bsd, printpartition);
-			bd_closedisk(bsd);
+		if (!bd_opendisk(&bsd.od, &dev)) {
+			sprintf(line, "  %s%s", pa->prefix, pname);
+			bsd.prefix = line;
+			bsd.verbose = pa->verbose;
+			ptable_iterate(bsd.od->od_ptable, &bsd,
+			    printpartition);
+			bd_closedisk(bsd.od);
 		}
 	}
 }
@@ -320,9 +330,9 @@ printpartition(void *arg, const char *pname, const struct ptable_entry *part)
 static void
 bd_print(int verbose)
 {
+	struct bd_print_args pa;
 	static char line[80];
 	struct i386_devdesc dev;
-	struct open_disk *od;
 	int i;
 
 	for (i = 0; i < nbdinfo; i++) {
@@ -335,9 +345,13 @@ bd_print(int verbose)
 		dev.d_unit = i;
 		dev.d_kind.biosdisk.slice = -1;
 		dev.d_kind.biosdisk.partition = -1;
-		if (!bd_opendisk(&od, &dev)) {
-			ptable_iterate(od->od_ptable, od, printpartition);
-			bd_closedisk(od);
+		if (!bd_opendisk(&pa.od, &dev)) {
+			sprintf(line, "    disk%d", i);
+			pa.prefix = line;
+			pa.verbose = verbose;
+			ptable_iterate(pa.od->od_ptable, &pa,
+			    printpartition);
+			bd_closedisk(pa.od);
 		}
 	}
 }
