@@ -722,7 +722,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	    };
 
 	    if (n > 0) {
-		    error = uiomove(bp->b_data + on, (int)n, uio);
+		    error = vn_io_fault_uiomove(bp->b_data + on, (int)n, uio);
 	    }
 	    if (vp->v_type == VLNK)
 		n = 0;
@@ -1203,7 +1203,7 @@ again:
 		}
 
 		local_resid = uio->uio_resid;
-		error = uiomove((char *)bp->b_data + on, n, uio);
+		error = vn_io_fault_uiomove((char *)bp->b_data + on, n, uio);
 
 		if (error != 0 && !bp_cached) {
 			/*
