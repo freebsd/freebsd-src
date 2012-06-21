@@ -375,8 +375,9 @@ bd_open(struct open_file *f, ...)
 static int
 diskread(void *dev, void *buf, size_t blocks, off_t offset)
 {
+	struct open_disk *od = dev;
 
-	return (bd_read(dev, offset, blocks, buf));
+	return (bd_read(dev, offset + od->od_boff, blocks, buf));
 }
 
 static int
@@ -448,8 +449,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 			goto out;
 		/* Adjust open_disk's offset within the biosdisk */
 		od->od_boff = part.start;
-		if (dev->d_kind.biosdisk.partition == -1 ||
-		    dev->d_kind.biosdisk.partition == 255)
+		if (dev->d_kind.biosdisk.partition == 255)
 			goto out; /* Nothing more to do */
 
 		/* Try to read BSD label */
@@ -463,6 +463,8 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 		}
 		/* Save the slice number of the parent partition */
 		od->od_slice = part.index;
+		if (dev->d_kind.biosdisk.partition == -1)
+			goto out; /* Nothing more to do */
 		error = ptable_getpart(od->od_ptable, &part,
 		    dev->d_kind.biosdisk.partition);
 		if (error != 0) {
