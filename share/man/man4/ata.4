@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2010
+.Dd June 18, 2012
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -90,10 +90,14 @@ APIs and periperal drivers):
 .Pp
 The following tunables are settable from the loader:
 .Bl -ohang
+.It Va hw.ahci.force
+set to nonzero value for forcing drivers to attach to some known AHCI-capable
+chips even if they are configured for legacy IDE emulation (the default is 1,
+force the attach).
 .It Va hw.ata.ata_dma
 set to 1 for DMA access, 0 for PIO (default is DMA).
 .It Va hw.ata.ata_dma_check_80pin
-set to 0 to disable the 80pin cable check (default is 1, check the cable) 
+set to 0 to disable the 80pin cable check (default is 1, check the cable).
 .It Va hw.ata.atapi_dma
 set to 1 for DMA access, 0 for PIO (default is DMA).
 .It Va hw.ata.wc
