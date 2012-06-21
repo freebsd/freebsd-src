@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+#include <sys/disk.h>
 #include <stand.h>
 #include <machine/bootinfo.h>
 
@@ -114,6 +115,7 @@ static int bd_realstrategy(void *devdata, int flag, daddr_t dblk,
     size_t size, char *buf, size_t *rsize);
 static int bd_open(struct open_file *f, ...);
 static int bd_close(struct open_file *f);
+static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
 static void bd_print(int verbose);
 
 struct bd_print_args {
@@ -516,6 +518,26 @@ bd_close(struct open_file *f)
 	od = (struct open_disk *)
 	    (((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
 	bd_closedisk(od);
+	return (0);
+}
+
+static int
+bd_ioctl(struct open_file *f, u_long cmd, void *data)
+{
+	struct open_disk *od;
+
+	od = (struct open_disk *)
+	    (((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
+	switch (cmd) {
+	case DIOCGSECTORSIZE:
+		*(u_int *)data = BDSECSZ(od);
+		break;
+	case DIOCGMEDIASIZE:
+		*(off_t *)data = BDSZ(od) * BDSECSZ(od);
+		break;
+	default:
+		return (ENOTTY);
+	}
 	return (0);
 }
 
