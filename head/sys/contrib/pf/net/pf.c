@@ -1317,19 +1317,45 @@ pf_purge_thread(void *v)
 
 	CURVNET_SET((struct vnet *)v);
 
-	PF_RULES_RLOCK();
 	for (;;) {
+		PF_RULES_RLOCK();
 		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftm", hz / 10);
 
 		if (V_pf_end_threads) {
+			/*
+			 * To cleanse up all kifs and rules we need
+			 * two runs: first one clears reference flags,
+			 * then pf_purge_expired_states() doesn't
+			 * raise them, and then second run frees.
+			 */
+			PF_RULES_RUNLOCK();
+			pf_purge_unlinked_rules();
+			pfi_kif_purge();
+
+			/*
+			 * Now purge everything.
+			 */
 			pf_purge_expired_states(V_pf_hashmask + 1);
 			pf_purge_expired_fragments();
 			pf_purge_expired_src_nodes();
+
+			/*
+			 * Now all kifs & rules should be unreferenced,
+			 * thus should be successfully freed.
+			 */
+			pf_purge_unlinked_rules();
+			pfi_kif_purge();
+
+			/*
+			 * Announce success and exit.
+			 */
+			PF_RULES_RLOCK();
 			V_pf_end_threads++;
 			PF_RULES_RUNLOCK();
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
 		}
+		PF_RULES_RUNLOCK();
 
 		/* Process 1/interval fraction of the state table every run. */
 		fullrun = pf_purge_expired_states(V_pf_hashmask /
