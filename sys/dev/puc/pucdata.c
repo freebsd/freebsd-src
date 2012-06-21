@@ -575,12 +575,6 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_8S, 0x14, 0, 0x200,
 	},
 
-	{   0x1393, 0x1322, 0xffff, 0,
-	    "Moxa Technologies, Smartio CP-132EL/PCIe",
-	    DEFAULT_RCLK * 8,
-	    PUC_PORT_2S, 0x14, 0, 0x200,
-	},
-
 	{   0x1393, 0x1680, 0xffff, 0,
 	    "Moxa Technologies, C168H/PCI",
 	    DEFAULT_RCLK * 8,
