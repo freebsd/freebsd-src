@@ -1037,12 +1037,19 @@ void
 printk(const char *fmt, ...)
 {
         __va_list ap;
+
+        va_start(ap, fmt);
+	vprintk(fmt, ap);
+        va_end(ap);
+}
+
+void
+vprintk(const char *fmt, __va_list ap)
+{
         int retval;
         static char buf[PRINTK_BUFSIZE];
 
-        va_start(ap, fmt);
         retval = vsnprintf(buf, PRINTK_BUFSIZE - 1, fmt, ap);
-        va_end(ap);
         buf[retval] = 0;
         (void)HYPERVISOR_console_write(buf, retval);
 }

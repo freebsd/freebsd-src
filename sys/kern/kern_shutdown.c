@@ -616,10 +616,18 @@ panic(const char *fmt, ...)
 		panicstr = buf;
 		cngrab();
 		printf("panic: %s\n", buf);
+#ifdef XEN
+		printk("panic: %s\n", buf);
+#endif
 	} else {
 		printf("panic: ");
 		vprintf(fmt, ap);
 		printf("\n");
+#ifdef XEN
+		printk("panic: ");
+		vprintk(fmt, ap);
+		printk("\n");
+#endif
 	}
 	va_end(ap);
 #ifdef SMP
