@@ -10,6 +10,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "machine/sysarch.h"
+
 #include "debug.h"
 #include "rtld.h"
 
@@ -235,6 +238,63 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
 			dbg("COPY (avoid in main)");
 			break;
 
+		case R_ARM_TLS_DTPOFF32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			tmp = (Elf_Addr)(def->st_value);
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+
+			dbg("TLS_DTPOFF32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+
+			break;
+		case R_ARM_TLS_DTPMOD32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			tmp = (Elf_Addr)(defobj->tlsindex);
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+
+			dbg("TLS_DTPMOD32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+
+			break;
+
+		case R_ARM_TLS_TPOFF32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			if (!defobj->tls_done && allocate_tls_offset(obj))
+				return -1;
+
+			/* XXX: FIXME */
+			tmp = (Elf_Addr)def->st_value + defobj->tlsoffset +
+			    TLS_TCB_SIZE;
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+			dbg("TLS_TPOFF32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+			break;
+
+
 		default:
 			dbg("sym = %lu, type = %lu, offset = %p, "
 			    "contents = %p, symbol = %s",
@@ -373,11 +433,26 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
-	
+	void **_tp = (void **)ARM_TP_ADDRESS;
+
+	/*
+	* Fix the size of the static TLS block by using the maximum
+	* offset allocated so far and adding a bit for dynamic modules to
+	* use.
+	*/
+
+	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+
+	(*_tp) = (void *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8);
 }
 
 void *
 __tls_get_addr(tls_index* ti)
 {
-	return (NULL);
+	void **_tp = (void **)ARM_TP_ADDRESS;
+	char *p;
+
+	p = tls_get_addr_common((Elf_Addr **)(*_tp), ti->ti_module, ti->ti_offset);
+
+	return (p);
 }
