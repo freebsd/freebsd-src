@@ -1048,14 +1048,19 @@ mvs_crbq_intr(device_t dev)
 		 * Handle only successfull completions here.
 		 * Errors will be handled by main intr handler.
 		 */
+#if defined(__i386__) || defined(__amd64__)
 		if (crpb->id == 0xffff && crpb->rspflg == 0xffff) {
 			device_printf(dev, "Unfilled CRPB "
 			    "%d (%d->%d) tag %d flags %04x rs %08x\n",
 			    cin_idx, fin_idx, in_idx, slot, flags, ch->rslots);
-		} else if (ch->numtslots != 0 ||
+		} else
+#endif
+		if (ch->numtslots != 0 ||
 		    (flags & EDMA_IE_EDEVERR) == 0) {
+#if defined(__i386__) || defined(__amd64__)
 			crpb->id = 0xffff;
 			crpb->rspflg = 0xffff;
+#endif
 			if (ch->slot[slot].state >= MVS_SLOT_RUNNING) {
 				ccb = ch->slot[slot].ccb;
 				ccb->ataio.res.status =
@@ -1999,6 +2004,39 @@ mvs_reset_to(void *arg)
 }
 
 static void
+mvs_errata(device_t dev)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+	uint32_t val;
+
+	if (ch->quirks & MVS_Q_SOC65) {
+		val = ATA_INL(ch->r_mem, SATA_PHYM3);
+		val &= ~(0x3 << 27);	/* SELMUPF = 1 */
+		val |= (0x1 << 27);
+		val &= ~(0x3 << 29);	/* SELMUPI = 1 */
+		val |= (0x1 << 29);
+		ATA_OUTL(ch->r_mem, SATA_PHYM3, val);
+
+		val = ATA_INL(ch->r_mem, SATA_PHYM4);
+		val &= ~0x1;		/* SATU_OD8 = 0 */
+		val |= (0x1 << 16);	/* reserved bit 16 = 1 */
+		ATA_OUTL(ch->r_mem, SATA_PHYM4, val);
+
+		val = ATA_INL(ch->r_mem, SATA_PHYM9_GEN2);
+		val &= ~0xf;		/* TXAMP[3:0] = 8 */
+		val |= 0x8;
+		val &= ~(0x1 << 14);	/* TXAMP[4] = 0 */
+		ATA_OUTL(ch->r_mem, SATA_PHYM9_GEN2, val);
+
+		val = ATA_INL(ch->r_mem, SATA_PHYM9_GEN1);
+		val &= ~0xf;		/* TXAMP[3:0] = 8 */
+		val |= 0x8;
+		val &= ~(0x1 << 14);	/* TXAMP[4] = 0 */
+		ATA_OUTL(ch->r_mem, SATA_PHYM9_GEN1, val);
+	}
+}
+
+static void
 mvs_reset(device_t dev)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
@@ -2044,6 +2082,7 @@ mvs_reset(device_t dev)
 	ATA_OUTL(ch->r_mem, EDMA_CMD, EDMA_CMD_EATARST);
 	DELAY(25);
 	ATA_OUTL(ch->r_mem, EDMA_CMD, 0);
+	mvs_errata(dev);
 	/* Reset and reconnect PHY, */
 	if (!mvs_sata_phy_reset(dev)) {
 		if (bootverbose)
