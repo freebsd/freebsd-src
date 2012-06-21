@@ -3756,7 +3756,7 @@ pf_unload(void)
 	V_pf_end_threads = 1;
 	while (V_pf_end_threads < 2) {
 		wakeup_one(pf_purge_thread);
-		tsleep(pf_purge_thread, PWAIT, "pftmo", hz);
+		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
 	}
 	pf_normalize_cleanup();
 	pfi_cleanup();
