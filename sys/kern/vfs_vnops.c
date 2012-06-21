@@ -527,6 +527,66 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 	return (error);
 }
 
+static void
+foffset_lock(struct file *fp, struct uio *uio, int flags)
+{
+	struct mtx *mtxp;
+
+	if ((flags & FOF_OFFSET) != 0)
+		return;
+
+	/*
+	 * According to McKusick the vn lock was protecting f_offset here.
+	 * It is now protected by the FOFFSET_LOCKED flag.
+	 */
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+	mtx_lock(mtxp);
+	while (fp->f_vnread_flags & FOFFSET_LOCKED) {
+		fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
+		msleep(&fp->f_vnread_flags, mtxp, PUSER -1,
+		    "vnread offlock", 0);
+	}
+	fp->f_vnread_flags |= FOFFSET_LOCKED;
+	uio->uio_offset = fp->f_offset;
+	mtx_unlock(mtxp);
+}
+
+static int
+get_advice(struct file *fp, struct uio *uio)
+{
+	struct mtx *mtxp;
+	int ret;
+
+	ret = POSIX_FADV_NORMAL;
+	if (fp->f_advice == NULL)
+		return (ret);
+
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+	mtx_lock(mtxp);
+	if (uio->uio_offset >= fp->f_advice->fa_start &&
+	    uio->uio_offset + uio->uio_resid <= fp->f_advice->fa_end)
+		ret = fp->f_advice->fa_advice;
+	mtx_unlock(mtxp);
+	return (ret);
+}
+
+static void
+foffset_unlock(struct file *fp, struct uio *uio, int flags)
+{
+	struct mtx *mtxp;
+
+	if ((flags & FOF_OFFSET) != 0)
+		return;
+
+	fp->f_offset = uio->uio_offset;
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+	mtx_lock(mtxp);
+	if (fp->f_vnread_flags & FOFFSET_LOCK_WAITING)
+		wakeup(&fp->f_vnread_flags);
+	fp->f_vnread_flags = 0;
+	mtx_unlock(mtxp);
+}
+
 /*
  * File table vnode read routine.
  */
@@ -539,44 +599,22 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct thread *td;
 {
 	struct vnode *vp;
-	int error, ioflag;
 	struct mtx *mtxp;
+	int error, ioflag;
 	int advice, vfslocked;
 	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
-	mtxp = NULL;
+	KASSERT(flags & FOF_OFFSET, ("No FOF_OFFSET"));
 	vp = fp->f_vnode;
 	ioflag = 0;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	advice = POSIX_FADV_NORMAL;
+	advice = get_advice(fp, uio);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	/*
-	 * According to McKusick the vn lock was protecting f_offset here.
-	 * It is now protected by the FOFFSET_LOCKED flag.
-	 */
-	if ((flags & FOF_OFFSET) == 0 || fp->f_advice != NULL) {
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if ((flags & FOF_OFFSET) == 0) {
-			while (fp->f_vnread_flags & FOFFSET_LOCKED) {
-				fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
-				msleep(&fp->f_vnread_flags, mtxp, PUSER -1,
-				    "vnread offlock", 0);
-			}
-			fp->f_vnread_flags |= FOFFSET_LOCKED;
-			uio->uio_offset = fp->f_offset;
-		}
-		if (fp->f_advice != NULL &&
-		    uio->uio_offset >= fp->f_advice->fa_start &&
-		    uio->uio_offset + uio->uio_resid <= fp->f_advice->fa_end)
-			advice = fp->f_advice->fa_advice;
-		mtx_unlock(mtxp);
-	}
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	switch (advice) {
@@ -596,14 +634,6 @@ vn_read(fp, uio, active_cred, flags, td)
 	if (error == 0)
 #endif
 		error = VOP_READ(vp, uio, ioflag, fp->f_cred);
-	if ((flags & FOF_OFFSET) == 0) {
-		fp->f_offset = uio->uio_offset;
-		mtx_lock(mtxp);
-		if (fp->f_vnread_flags & FOFFSET_LOCK_WAITING)
-			wakeup(&fp->f_vnread_flags);
-		fp->f_vnread_flags = 0;
-		mtx_unlock(mtxp);
-	}
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
@@ -625,6 +655,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		 */
 		start = offset;
 		end = uio->uio_offset - 1;
+		mtxp = mtx_pool_find(mtxpool_sleep, fp);
 		mtx_lock(mtxp);
 		if (fp->f_advice != NULL &&
 		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
@@ -656,13 +687,14 @@ vn_write(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	int error, ioflag, lock_flags;
 	struct mtx *mtxp;
+	int error, ioflag, lock_flags;
 	int advice, vfslocked;
 	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
+	KASSERT(flags & FOF_OFFSET, ("No FOF_OFFSET"));
 	vp = fp->f_vnode;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type == VREG)
@@ -681,6 +713,8 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR &&
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
+
+	advice = get_advice(fp, uio);
  
 	if ((MNT_SHARED_WRITES(mp) ||
 	    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) &&
@@ -691,19 +725,6 @@ vn_write(fp, uio, active_cred, flags, td)
 	}
 
 	vn_lock(vp, lock_flags | LK_RETRY);
-	if ((flags & FOF_OFFSET) == 0)
-		uio->uio_offset = fp->f_offset;
-	advice = POSIX_FADV_NORMAL;
-	mtxp = NULL;
-	if (fp->f_advice != NULL) {
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if (fp->f_advice != NULL &&
-		    uio->uio_offset >= fp->f_advice->fa_start &&
-		    uio->uio_offset + uio->uio_resid <= fp->f_advice->fa_end)
-			advice = fp->f_advice->fa_advice;
-		mtx_unlock(mtxp);
-	}
 	switch (advice) {
 	case POSIX_FADV_NORMAL:
 	case POSIX_FADV_SEQUENTIAL:
@@ -721,8 +742,6 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (error == 0)
 #endif
 		error = VOP_WRITE(vp, uio, ioflag, fp->f_cred);
-	if ((flags & FOF_OFFSET) == 0)
-		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0);
 	if (vp->v_type != VCHR)
@@ -761,6 +780,7 @@ vn_write(fp, uio, active_cred, flags, td)
 		 */
 		start = offset;
 		end = uio->uio_offset - 1;
+		mtxp = mtx_pool_find(mtxpool_sleep, fp);
 		mtx_lock(mtxp);
 		if (fp->f_advice != NULL &&
 		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
@@ -845,11 +865,15 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	else
 		doio = vn_write;
 	vp = fp->f_vnode;
+	foffset_lock(fp, uio, flags);
+
 	if (uio->uio_segflg != UIO_USERSPACE || vp->v_type != VREG ||
 	    ((mp = vp->v_mount) != NULL &&
 	    (mp->mnt_kern_flag & MNTK_NO_IOPF) == 0) ||
-	    !vn_io_fault_enable)
-		return (doio(fp, uio, active_cred, flags, td));
+	    !vn_io_fault_enable) {
+		error = doio(fp, uio, active_cred, flags | FOF_OFFSET, td);
+		goto out_last;
+	}
 
 	/*
 	 * The UFS follows IO_UNIT directive and replays back both
@@ -882,7 +906,7 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	}
 
 	save = vm_fault_disable_pagefaults();
-	error = doio(fp, uio, active_cred, flags, td);
+	error = doio(fp, uio, active_cred, flags | FOF_OFFSET, td);
 	if (error != EFAULT)
 		goto out;
 
@@ -933,7 +957,8 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		td->td_ma = ma;
 		td->td_ma_cnt = cnt;
 
-		error = doio(fp, &short_uio, active_cred, flags, td);
+		error = doio(fp, &short_uio, active_cred, flags | FOF_OFFSET,
+		    td);
 		vm_page_unhold_pages(ma, cnt);
 		adv = len - short_uio.uio_resid;
 
@@ -956,6 +981,8 @@ out:
 	vm_fault_enable_pagefaults(save);
 	vn_rangelock_unlock(vp, rl_cookie);
 	free(uio_clone, M_IOV);
+out_last:
+	foffset_unlock(fp, uio, flags);
 	return (error);
 }
 
