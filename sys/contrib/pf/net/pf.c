@@ -744,7 +744,7 @@ pf_initialize()
 	V_pf_srchash = malloc((PF_HASHSIZ / 4) * sizeof(struct pf_srchash),
 	  M_PFHASH, M_WAITOK|M_ZERO);
 	V_pf_srchashmask = (PF_HASHSIZ / 4) - 1;
-	for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask; i++, sh++)
+	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++)
 		mtx_init(&sh->lock, "pf_srchash", NULL, MTX_DEF);
 
 	/* ALTQ */
@@ -1397,7 +1397,7 @@ pf_purge_expired_src_nodes()
 	struct pf_src_node	*cur, *next;
 	int i;
 
-	for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask; i++, sh++) {
+	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next) 
 		if (cur->states <= 0 && cur->expire <= time_uptime) {

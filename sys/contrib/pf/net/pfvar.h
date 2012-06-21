@@ -39,7 +39,6 @@
 #include <sys/queue.h>
 #include <sys/tree.h>
 #include <sys/lock.h>
-#include <sys/sx.h>
 
 #include <net/radix.h>
 #include <net/route.h>
