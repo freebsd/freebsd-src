@@ -131,7 +131,7 @@ struct devsw biosdisk = {
 	bd_strategy,
 	bd_open,
 	bd_close,
-	noioctl,
+	bd_ioctl,
 	bd_print,
 	bd_cleanup
 };
