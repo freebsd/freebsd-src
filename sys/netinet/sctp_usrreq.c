@@ -6476,7 +6476,6 @@ sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 	return (0);
 }
 
-#ifdef INET
 struct pr_usrreqs sctp_usrreqs = {
 	.pru_abort = sctp_abort,
 	.pru_accept = sctp_accept,
@@ -6498,5 +6497,4 @@ struct pr_usrreqs sctp_usrreqs = {
 	.pru_soreceive = sctp_soreceive
 };
 
-#endif
 #endif
