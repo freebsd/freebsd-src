@@ -35,7 +35,8 @@ enum ptable_type {
 	PTABLE_NONE,
 	PTABLE_BSD,
 	PTABLE_MBR,
-	PTABLE_GPT
+	PTABLE_GPT,
+	PTABLE_VTOC8
 };
 
 enum partition_type {

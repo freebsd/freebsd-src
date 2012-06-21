@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/endian.h>
 #include <sys/gpt.h>
+#include <sys/stddef.h>
 #include <sys/queue.h>
+#include <sys/vtoc.h>
 
 #include <crc32.h>
 #include <part.h>
@@ -69,6 +71,7 @@ struct pentry {
 		uint8_t bsd;
 		uint8_t	mbr;
 		uuid_t	gpt;
+		uint16_t vtoc8;
 	} type;
 	STAILQ_ENTRY(pentry)	entry;
 };
@@ -478,6 +481,83 @@ out:
 	return (table);
 }
 
+#ifdef LOADER_VTOC8_SUPPORT
+static enum partition_type
+vtoc8_parttype(uint16_t type)
+{
+
+	switch (type) {
+	case VTOC_TAG_FREEBSD_SWAP:
+		return (PART_FREEBSD_SWAP);
+	case VTOC_TAG_FREEBSD_UFS:
+		return (PART_FREEBSD_UFS);
+	case VTOC_TAG_FREEBSD_VINUM:
+		return (PART_FREEBSD_VINUM);
+	case VTOC_TAG_FREEBSD_ZFS:
+		return (PART_FREEBSD_ZFS);
+	};
+	return (PART_UNKNOWN);
+}
+
+static struct ptable*
+ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
+{
+	struct pentry *entry;
+	struct vtoc8 *dl;
+	u_char *buf;
+	uint16_t sum, heads, sectors;
+	int i;
+
+	if (table->sectorsize != sizeof(struct vtoc8))
+		return (table);
+	buf = malloc(table->sectorsize);
+	if (dread(dev, buf, 1, 0) != 0) {
+		DEBUG("read failed");
+		ptable_close(table);
+		table = NULL;
+		goto out;
+	}
+	dl = (struct vtoc8 *)buf;
+	/* Check the sum */
+	for (i = sum = 0; i < sizeof(struct vtoc8); i += sizeof(sum))
+		sum ^= be16dec(buf + i);
+	if (sum != 0) {
+		DEBUG("incorrect checksum");
+		goto out;
+	}
+	if (be16toh(dl->nparts) != VTOC8_NPARTS) {
+		DEBUG("invalid number of entries");
+		goto out;
+	}
+	sectors = be16toh(dl->nsecs);
+	heads = be16toh(dl->nheads);
+	if (sectors * heads == 0) {
+		DEBUG("invalid geometry");
+		goto out;
+	}
+	for (i = 0; i < VTOC8_NPARTS; i++) {
+		dl->part[i].tag = be16toh(dl->part[i].tag);
+		if (i == VTOC_RAW_PART ||
+		    dl->part[i].tag == VTOC_TAG_UNASSIGNED)
+			continue;
+		entry = malloc(sizeof(*entry));
+		entry->part.start = be32toh(dl->map[i].cyl) * heads * sectors;
+		entry->part.end = be32toh(dl->map[i].nblks) +
+		    entry->part.start - 1;
+		entry->part.type = vtoc8_parttype(dl->part[i].tag);
+		entry->part.index = i; /* starts from zero */
+		entry->type.vtoc8 = dl->part[i].tag;
+		STAILQ_INSERT_TAIL(&table->entries, entry, entry);
+		DEBUG("new VTOC8 partition added");
+	}
+	table->type = PTABLE_VTOC8;
+out:
+	free(buf);
+	return (table);
+
+}
+#endif /* LOADER_VTOC8_SUPPORT */
+
 struct ptable*
 ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
     diskread_t *dread)
@@ -505,6 +585,16 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	table->type = PTABLE_NONE;
 	STAILQ_INIT(&table->entries);
 
+#ifdef LOADER_VTOC8_SUPPORT
+	if (be16dec(buf + offsetof(struct vtoc8, magic)) == VTOC_MAGIC) {
+		if (ptable_vtoc8read(table, dev, dread) == NULL) {
+			/* Read error. */
+			table = NULL;
+			goto out;
+		} else if (table->type == PTABLE_VTOC8)
+			goto out;
+	}
+#endif
 	/* Check the BSD label. */
 	if (ptable_bsdread(table, dev, dread) == NULL) { /* Read error. */
 		table = NULL;
@@ -578,7 +668,7 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 		/* FALLTHROUGH */
 	}
 #endif /* LOADER_MBR_SUPPORT */
-#endif
+#endif /* LOADER_MBR_SUPPORT || LOADER_GPT_SUPPORT */
 out:
 	free(buf);
 	return (table);
@@ -715,6 +805,12 @@ ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 #ifdef LOADER_GPT_SUPPORT
 		if (table->type == PTABLE_GPT)
 			sprintf(name, "p%d", entry->part.index);
+		else
+#endif
+#ifdef LOADER_VTOC8_SUPPORT
+		if (table->type == PTABLE_VTOC8)
+			sprintf(name, "%c", (u_char) 'a' +
+			    entry->part.index);
 		else
 #endif
 		if (table->type == PTABLE_BSD)
