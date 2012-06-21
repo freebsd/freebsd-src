@@ -919,7 +919,7 @@ static	struct freefrag *allocindir_merge(struct allocindir *,
 static	int bmsafemap_find(struct bmsafemap_hashhead *, struct mount *, int,
 	    struct bmsafemap **);
 static	struct bmsafemap *bmsafemap_lookup(struct mount *, struct buf *,
-	    int cg);
+	    int cg, struct bmsafemap *);
 static	int newblk_find(struct newblk_hashhead *, struct mount *, ufs2_daddr_t,
 	    int, struct newblk **);
 static	int newblk_lookup(struct mount *, ufs2_daddr_t, int, struct newblk **);
@@ -4707,12 +4707,26 @@ softdep_setup_inomapdep(bp, ip, newinum, mode)
 	 * Panic if it already exists as something is seriously wrong.
 	 * Otherwise add it to the dependency list for the buffer holding
 	 * the cylinder group map from which it was allocated.
+	 *
+	 * We have to preallocate a bmsafemap entry in case it is needed
+	 * in bmsafemap_lookup since once we allocate the inodedep, we
+	 * have to finish initializing it before we can FREE_LOCK().
+	 * By preallocating, we avoid FREE_LOCK() while doing a malloc
+	 * in bmsafemap_lookup. We cannot call bmsafemap_lookup before
+	 * creating the inodedep as it can be freed during the time
+	 * that we FREE_LOCK() while allocating the inodedep. We must
+	 * call workitem_alloc() before entering the locked section as
+	 * it also acquires the lock and we must avoid trying doing so
+	 * recursively.
 	 */
+	bmsafemap = malloc(sizeof(struct bmsafemap),
+	    M_BMSAFEMAP, M_SOFTDEP_FLAGS);
+	workitem_alloc(&bmsafemap->sm_list, D_BMSAFEMAP, mp);
 	ACQUIRE_LOCK(&lk);
 	if ((inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep)))
 		panic("softdep_setup_inomapdep: dependency %p for new"
 		    "inode already exists", inodedep);
-	bmsafemap = bmsafemap_lookup(mp, bp, ino_to_cg(fs, newinum));
+	bmsafemap = bmsafemap_lookup(mp, bp, ino_to_cg(fs, newinum), bmsafemap);
 	if (jaddref) {
 		LIST_INSERT_HEAD(&bmsafemap->sm_jaddrefhd, jaddref, ja_bmdeps);
 		TAILQ_INSERT_TAIL(&inodedep->id_inoreflst, &jaddref->ja_ref,
@@ -4786,7 +4800,7 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 	if (newblk_lookup(mp, newblkno, DEPALLOC, &newblk) != 0)
 		panic("softdep_setup_blkmapdep: found block");
 	newblk->nb_bmsafemap = bmsafemap = bmsafemap_lookup(mp, bp,
-	    dtog(fs, newblkno));
+	    dtog(fs, newblkno), NULL);
 	if (jnewblk) {
 		jnewblk->jn_dep = (struct worklist *)newblk;
 		LIST_INSERT_HEAD(&bmsafemap->sm_jnewblkhd, jnewblk, jn_deps);
@@ -4827,13 +4841,16 @@ bmsafemap_find(bmsafemaphd, mp, cg, bmsafemapp)
  * Find the bmsafemap associated with a cylinder group buffer.
  * If none exists, create one. The buffer must be locked when
  * this routine is called and this routine must be called with
- * splbio interrupts blocked.
+ * the softdep lock held. To avoid giving up the lock while
+ * allocating a new bmsafemap, a preallocated bmsafemap may be
+ * provided. If it is provided but not needed, it is freed.
  */
 static struct bmsafemap *
-bmsafemap_lookup(mp, bp, cg)
+bmsafemap_lookup(mp, bp, cg, newbmsafemap)
 	struct mount *mp;
 	struct buf *bp;
 	int cg;
+	struct bmsafemap *newbmsafemap;
 {
 	struct bmsafemap_hashhead *bmsafemaphd;
 	struct bmsafemap *bmsafemap, *collision;
@@ -4843,16 +4860,27 @@ bmsafemap_lookup(mp, bp, cg)
 	mtx_assert(&lk, MA_OWNED);
 	if (bp)
 		LIST_FOREACH(wk, &bp->b_dep, wk_list)
-			if (wk->wk_type == D_BMSAFEMAP)
+			if (wk->wk_type == D_BMSAFEMAP) {
+				if (newbmsafemap)
+					WORKITEM_FREE(newbmsafemap,D_BMSAFEMAP);
 				return (WK_BMSAFEMAP(wk));
+			}
 	fs = VFSTOUFS(mp)->um_fs;
 	bmsafemaphd = BMSAFEMAP_HASH(fs, cg);
-	if (bmsafemap_find(bmsafemaphd, mp, cg, &bmsafemap) == 1)
+	if (bmsafemap_find(bmsafemaphd, mp, cg, &bmsafemap) == 1) {
+		if (newbmsafemap)
+			WORKITEM_FREE(newbmsafemap, D_BMSAFEMAP);
 		return (bmsafemap);
-	FREE_LOCK(&lk);
-	bmsafemap = malloc(sizeof(struct bmsafemap),
-		M_BMSAFEMAP, M_SOFTDEP_FLAGS);
-	workitem_alloc(&bmsafemap->sm_list, D_BMSAFEMAP, mp);
+	}
+	if (newbmsafemap) {
+		bmsafemap = newbmsafemap;
+	} else {
+		FREE_LOCK(&lk);
+		bmsafemap = malloc(sizeof(struct bmsafemap),
+			M_BMSAFEMAP, M_SOFTDEP_FLAGS);
+		workitem_alloc(&bmsafemap->sm_list, D_BMSAFEMAP, mp);
+		ACQUIRE_LOCK(&lk);
+	}
 	bmsafemap->sm_buf = bp;
 	LIST_INIT(&bmsafemap->sm_inodedephd);
 	LIST_INIT(&bmsafemap->sm_inodedepwr);
@@ -4862,7 +4890,6 @@ bmsafemap_lookup(mp, bp, cg)
 	LIST_INIT(&bmsafemap->sm_jnewblkhd);
 	LIST_INIT(&bmsafemap->sm_freehd);
 	LIST_INIT(&bmsafemap->sm_freewr);
-	ACQUIRE_LOCK(&lk);
 	if (bmsafemap_find(bmsafemaphd, mp, cg, &collision) == 1) {
 		WORKITEM_FREE(bmsafemap, D_BMSAFEMAP);
 		return (collision);
@@ -10221,7 +10248,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 	ACQUIRE_LOCK(&lk);
 	/* Lookup the bmsafemap so we track when it is dirty. */
 	fs = VFSTOUFS(mp)->um_fs;
-	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno));
+	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno), NULL);
 	/*
 	 * Detach any jnewblks which have been canceled.  They must linger
 	 * until the bitmap is cleared again by ffs_blkfree() to prevent
@@ -10267,7 +10294,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 	 * allocation dependency.
 	 */
 	fs = VFSTOUFS(mp)->um_fs;
-	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno));
+	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno), NULL);
 	end = blkno + frags;
 	LIST_FOREACH(jnewblk, &bmsafemap->sm_jnewblkhd, jn_deps) {
 		/*
