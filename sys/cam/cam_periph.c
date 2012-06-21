@@ -440,6 +440,10 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 			cam_periph_release_locked(periph);
 			return (error);
 		}
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			cam_periph_release_locked(periph);
+			return (ENXIO);
+		}
 	}
 
 	periph->flags |= CAM_PERIPH_LOCKED;
