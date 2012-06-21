@@ -808,7 +808,7 @@ bd_getdev(struct i386_devdesc *dev)
     int 			major;
     int				rootdev;
     char			*nip, *cp;
-    int				unitofs = 0, i, unit;
+    int				i, unit;
 
     biosdev = bd_unit2bios(dev->d_unit);
     DEBUG("unit %d BIOS device %d", dev->d_unit, biosdev);
@@ -827,24 +827,11 @@ bd_getdev(struct i386_devdesc *dev)
 	    major = FDMAJOR;
 	}
     } else {
-	/* harddisk */
-	if ((od->od_flags & BD_LABELOK) && (od->od_disklabel.d_type == DTYPE_SCSI)) {
-	    /* label OK, disk labelled as SCSI */
-	    major = DAMAJOR;
-	    /* check for unit number correction hint, now deprecated */
-	    if ((nip = getenv("num_ide_disks")) != NULL) {
-		i = strtol(nip, &cp, 0);
-		/* check for parse error */
-		if ((cp != nip) && (*cp == 0))
-		    unitofs = i;
-	    }
-	} else {
 	    /* assume an IDE disk */
 	    major = WDMAJOR;
-	}
     }
     /* default root disk unit number */
-    unit = (biosdev & 0x7f) - unitofs;
+    unit = biosdev & 0x7f;
 
     /* XXX a better kludge to set the root disk unit number */
     if ((nip = getenv("root_disk_unit")) != NULL) {
