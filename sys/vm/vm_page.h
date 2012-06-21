@@ -360,7 +360,6 @@ void vm_page_hold(vm_page_t mem);
 void vm_page_unhold(vm_page_t mem);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
-void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_remove(vm_page_t m);
@@ -414,6 +413,7 @@ void vm_page_cowfault (vm_page_t);
 int vm_page_cowsetup(vm_page_t);
 void vm_page_cowclear (vm_page_t);
 
+void vm_page_dirty_KBI(vm_page_t m);
 void vm_page_lock_KBI(vm_page_t m, const char *file, int line);
 void vm_page_unlock_KBI(vm_page_t m, const char *file, int line);
 int vm_page_trylock_KBI(vm_page_t m, const char *file, int line);
@@ -427,6 +427,28 @@ void vm_page_object_lock_assert(vm_page_t m);
 #else
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
 #endif
+
+/*
+ *	vm_page_dirty:
+ *
+ *	Set all bits in the page's dirty field.
+ *
+ *	The object containing the specified page must be locked if the
+ *	call is made from the machine-independent layer.
+ *
+ *	See vm_page_clear_dirty_mask().
+ */
+static __inline void
+vm_page_dirty(vm_page_t m)
+{
+
+	/* Use vm_page_dirty_KBI() under INVARIANTS to save memory. */
+#if defined(KLD_MODULE) || defined(INVARIANTS)
+	vm_page_dirty_KBI(m);
+#else
+	m->dirty = VM_PAGE_BITS_ALL;
+#endif
+}
 
 /*
  *	vm_page_sleep_if_busy:
