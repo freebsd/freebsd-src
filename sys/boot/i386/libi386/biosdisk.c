@@ -222,7 +222,7 @@ bd_int13probe(struct bdinfo *bd)
 
 	if (V86_CY(v86.efl) ||	/* carry set */
 	    (v86.ecx & 0x3f) == 0 || /* absurd sector number */
-	    (v86.edx & 0xff) <= (unsigned)(od->od_unit & 0x7f))	/* unit # bad */
+	    (v86.edx & 0xff) <= (unsigned)(bd->bd_unit & 0x7f))	/* unit # bad */
 		return (0);	/* skip device */
 
 	/* Convert max cyl # -> # of cylinders */
@@ -723,7 +723,7 @@ bd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 		v86int();
 	    }
 
-	    if (od->od_flags & BD_MODEEDD1)
+	    if (BD(od).bd_flags & BD_MODEEDD1)
 		result = bd_edd_io(od, dblk, x, xp, write);
 	    else
 		result = bd_chs_io(od, dblk, x, xp, write);
