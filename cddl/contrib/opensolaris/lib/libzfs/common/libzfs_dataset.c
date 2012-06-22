@@ -1485,11 +1485,13 @@ zfs_prop_set(zfs_handle_t *zhp, const char *propname, const char *propval)
 
 	/*
 	 * If the dataset's canmount property is being set to noauto,
+	 * or being set to on and the dataset is already mounted,
 	 * then we want to prevent unmounting & remounting it.
 	 */
 	do_prefix = !((prop == ZFS_PROP_CANMOUNT) &&
 	    (zprop_string_to_index(prop, propval, &idx,
-	    ZFS_TYPE_DATASET) == 0) && (idx == ZFS_CANMOUNT_NOAUTO));
+	    ZFS_TYPE_DATASET) == 0) && (idx == ZFS_CANMOUNT_NOAUTO ||
+	    (idx == ZFS_CANMOUNT_ON && zfs_is_mounted(zhp, NULL))));
 
 	if (do_prefix && (ret = changelist_prefix(cl)) != 0)
 		goto error;
