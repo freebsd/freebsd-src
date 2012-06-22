@@ -89,7 +89,6 @@ struct pmc_md_ucp_op_pmcallocate {
 #define	UC_GLOBAL_CTRL				0x391
 #define	UC_GLOBAL_OVF_CTRL			0x393
 
-
 #define	UC_GLOBAL_STATUS_FLAG_CLRCHG		(1ULL << 63)
 #define	UC_GLOBAL_STATUS_FLAG_OVFPMI		(1ULL << 61)
 #define	UC_GLOBAL_CTRL_FLAG_FRZ			(1ULL << 63)
