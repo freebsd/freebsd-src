@@ -1195,7 +1195,7 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct wrqe *wr)
 /* Header of a tx LSO WR, before SGL of first packet (in flits) */
 #define TXPKT_LSO_WR_HDR ((\
     sizeof(struct fw_eth_tx_pkt_wr) + \
-    sizeof(struct cpl_tx_pkt_lso) + \
+    sizeof(struct cpl_tx_pkt_lso_core) + \
     sizeof(struct cpl_tx_pkt_core) \
     ) / 8 )
 
@@ -2757,7 +2757,7 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	ctrl = sizeof(struct cpl_tx_pkt_core);
 	if (m->m_pkthdr.tso_segsz) {
 		nflits = TXPKT_LSO_WR_HDR;
-		ctrl += sizeof(struct cpl_tx_pkt_lso);
+		ctrl += sizeof(struct cpl_tx_pkt_lso_core);
 	} else
 		nflits = TXPKT_WR_HDR;
 	if (sgl->nsegs > 0)
@@ -2787,7 +2787,7 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	wr->r3 = 0;
 
 	if (m->m_pkthdr.tso_segsz) {
-		struct cpl_tx_pkt_lso *lso = (void *)(wr + 1);
+		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
 		struct ether_header *eh;
 		struct ip *ip;
 		struct tcphdr *tcp;
