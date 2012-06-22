@@ -1308,10 +1308,12 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 	iaq->nrxq10g = nrxq10g = t4_nrxq10g;
 	iaq->nrxq1g = nrxq1g = t4_nrxq1g;
 #ifdef TCP_OFFLOAD
-	iaq->nofldtxq10g = t4_nofldtxq10g;
-	iaq->nofldtxq1g = t4_nofldtxq1g;
-	iaq->nofldrxq10g = nofldrxq10g = t4_nofldrxq10g;
-	iaq->nofldrxq1g = nofldrxq1g = t4_nofldrxq1g;
+	if (is_offload(sc)) {
+		iaq->nofldtxq10g = t4_nofldtxq10g;
+		iaq->nofldtxq1g = t4_nofldtxq1g;
+		iaq->nofldrxq10g = nofldrxq10g = t4_nofldrxq10g;
+		iaq->nofldrxq1g = nofldrxq1g = t4_nofldrxq1g;
+	}
 #endif
 
 	for (itype = INTR_MSIX; itype; itype >>= 1) {
@@ -1380,7 +1382,8 @@ restart:
 				}
 				iaq->nrxq10g = min(n, nrxq10g);
 #ifdef TCP_OFFLOAD
-				iaq->nofldrxq10g = min(n, nofldrxq10g);
+				if (is_offload(sc))
+					iaq->nofldrxq10g = min(n, nofldrxq10g);
 #endif
 			}
 
@@ -1395,7 +1398,8 @@ restart:
 				}
 				iaq->nrxq1g = min(n, nrxq1g);
 #ifdef TCP_OFFLOAD
-				iaq->nofldrxq1g = min(n, nofldrxq1g);
+				if (is_offload(sc))
+					iaq->nofldrxq1g = min(n, nofldrxq1g);
 #endif
 			}
 
@@ -1408,7 +1412,8 @@ restart:
 		 */
 		iaq->nirq = iaq->nrxq10g = iaq->nrxq1g = 1;
 #ifdef TCP_OFFLOAD
-		iaq->nofldrxq10g = iaq->nofldrxq1g = 1;
+		if (is_offload(sc))
+			iaq->nofldrxq10g = iaq->nofldrxq1g = 1;
 #endif
 
 allocate:

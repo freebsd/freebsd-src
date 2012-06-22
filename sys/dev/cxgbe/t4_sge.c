@@ -1031,7 +1031,7 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 static int
 t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 {
-	struct sge_rxq *rxq = (void *)iq;
+	struct sge_rxq *rxq = iq_to_rxq(iq);
 	struct ifnet *ifp = rxq->ifp;
 	const struct cpl_rx_pkt *cpl = (const void *)(rss + 1);
 #ifdef INET
