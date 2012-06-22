@@ -68,6 +68,9 @@ __FBSDID("$FreeBSD$");
  * ANSI and traditional C compilers.
  */
 #include <machine/stdarg.h>
+#ifdef XEN
+#include <machine/xen/xen-os.h>
+#endif
 
 #define TOCONS	0x01
 #define TOTTY	0x02
@@ -388,6 +391,10 @@ vprintf(const char *fmt, va_list ap)
 	pca.p_bufr = NULL;
 #endif
 
+#ifdef XEN
+	/* Redirect the vprintf() output also to the emergency console. */
+	vprintk(fmt, ap);
+#endif
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 
 #ifdef PRINTF_BUFR_SIZE

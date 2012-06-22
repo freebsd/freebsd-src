@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/stdarg.h>
+#ifdef XEN
+#include <machine/xen/xen-os.h>
+#endif
 
 #include <ddb/ddb.h>
 #include <ddb/db_output.h>
@@ -337,6 +340,11 @@ db_printf(const char *fmt, ...)
 #endif
 
 	va_start(listp, fmt);
+
+#ifdef XEN
+	/* Redirect the db_printf() output also to the emergency console. */
+	vprintk(fmt, listp);
+#endif
 	retval = kvprintf (fmt, db_putchar, &dca, db_radix, listp);
 	va_end(listp);
 
