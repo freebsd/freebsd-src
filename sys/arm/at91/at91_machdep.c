@@ -281,9 +281,6 @@ static const char *soc_subtype_name[] = {
 	[AT91_ST_SAM9X35] = "at91sam9x35",
 };
 
-#define AT91_DBGU0	0x0ffff200	/* Most */
-#define AT91_DBGU1	0x0fffee00	/* SAM9263, CAP9, and SAM9G45 */
-
 struct at91_soc_info soc_data;
 
 /*
