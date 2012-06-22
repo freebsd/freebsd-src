@@ -1,4 +1,4 @@
-.\"	$NetBSD: editrc.5,v 1.20 2006/08/21 12:45:30 christos Exp $
+.\"	$NetBSD: editrc.5,v 1.24 2009/04/11 22:17:52 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -89,16 +89,8 @@ shell.
 .Pp
 The following builtin commands are available:
 .Bl -tag -width 4n
-.It Ic bind Xo
-.Op Fl a
-.Op Fl e
-.Op Fl k
-.Op Fl l
-.Op Fl r
-.Op Fl s
-.Op Fl v
-.Op Ar key Op Ar command
-.Xc
+.It Ic bind Oo Fl a Oc Oo Fl e Oc Oo Fl k Oc Oo Fl l Oc Oo Fl r Oc \
+Oo Fl s Oc Oo Fl v Oc Oo Ar key Op Ar command Oc
 Without options, list all bound keys, and the editor command to which
 each is bound.
 If
@@ -192,11 +184,7 @@ if it has any, notably
 .Sq \e
 and
 .Sq ^ .
-.It Ic echotc Xo
-.Op Fl sv
-.Ar arg
-.Ar ...
-.Xc
+.It Ic echotc Oo Fl sv Oc Ar arg Ar ...
 Exercise terminal capabilities given in
 .Ar arg Ar ... .
 If
@@ -252,16 +240,8 @@ to
 as defined in
 .Xr termcap 5 .
 No sanity checking is done.
-.It Ic setty Xo
-.Op Fl a
-.Op Fl d
-.Op Fl q
-.Op Fl x
-.Op Ar +mode
-.Op Ar -mode
-.Op Ar mode
-.Op Ar char=c
-.Xc
+.It Ic setty Oo Fl a Oc Oo Fl d Oc Oo Fl q Oc Oo Fl x Oc Oo Ar +mode Oc \
+Oo Ar -mode Oc Oo Ar mode Oc Oo Ar char=c Oc
 Control which tty modes that
 .Nm
 will not allow the user to change.
