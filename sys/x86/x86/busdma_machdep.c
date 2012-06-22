@@ -147,7 +147,7 @@ int _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 
 #ifdef XEN
 #undef pmap_kextract
-#define pmap_kextract pmap_kextract_ma
+#define pmap_kextract(va) pmap_kextract_ma((va))
 #endif
 
 /*

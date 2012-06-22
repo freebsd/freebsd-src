@@ -303,7 +303,7 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 	/* Fill in the underlying page table pages */
 	for (i = 0; ptoa(i) < ptoa(nkmapped); i++) {
 		((pt_entry_t *)KPTphys)[i] = phystomach(i << PAGE_SHIFT);
-		((pt_entry_t *)KPTphys)[i] |= PG_V | PG_G | PG_U;
+		((pt_entry_t *)KPTphys)[i] |= PG_V | PG_U;
 		((pt_entry_t *)KPTphys)[i] |= 
 			pmap_xen_kernel_vaflags(PTOV(i << PAGE_SHIFT));	
 	}
@@ -773,6 +773,45 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return 0;
 }
 
+vm_paddr_t
+pmap_kextract(vm_offset_t va)
+{
+	return xpmap_mtop(pmap_kextract_ma(va));
+}
+
+vm_paddr_t
+pmap_kextract_ma(vm_offset_t va)
+{
+	vm_paddr_t ma;
+
+	/* Walk the PT hierarchy to get the ma */
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+	mmu_map_t_init(tptr, &mb);
+
+	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
+		ma = 0;
+		goto nomapping;
+	}
+
+	ma = mmu_map_pt(tptr)[(~PDRMASK & PAGE_MASK & va) >> PAGE_SHIFT];
+
+	mmu_map_t_fini(tptr);
+
+nomapping:
+	return ma;
+}
+
 /***************************************************
  * Low level mapping routines.....
  ***************************************************/
@@ -786,6 +825,12 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 
 void 
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
+{
+	pmap_kenter_ma(va, xpmap_ptom(pa));
+}
+
+void 
+pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
 {
 
 	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
@@ -808,7 +853,7 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	}
 
 	/* Backing page tables are in place, let xen do the maths */
-	PT_SET_MA(va, xpmap_ptom(pa) | PG_RW | PG_V | PG_U);
+	PT_SET_MA(va, ma | PG_RW | PG_V | PG_U);
 	PT_UPDATES_FLUSH();
 
 	mmu_map_release_va(kernel_pmap, tptr, va);
@@ -1036,6 +1081,18 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		*addr = (*addr & ~PDRMASK) + superpage_offset;
 	else
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
+}
+
+void
+pmap_suspend()
+{
+	KASSERT(0, ("XXX: TODO\n"));
+}
+
+void
+pmap_resume()
+{
+	KASSERT(0, ("XXX: TODO\n"));
 }
 
 int

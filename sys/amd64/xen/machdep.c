@@ -102,6 +102,8 @@ start_info_t *xen_start_info;
 shared_info_t *HYPERVISOR_shared_info;
 xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
+xen_pfn_t *xen_pfn_to_mfn_frame_list[16]; /* XXX: TODO init for suspend/resume */
+xen_pfn_t *xen_pfn_to_mfn_frame_list_list; /* XXX: TODO init for suspend/resume */
 
 #define	PHYSMAP_SIZE	(2 * VM_PHYSSEG_MAX)
 vm_offset_t pa_index = 0;

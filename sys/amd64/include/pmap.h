@@ -241,21 +241,7 @@ pte_store(pt_entry_t *ptep, pt_entry_t pte)
 #define VM_PAGE_TO_MACH(m) xpmap_ptom(VM_PAGE_TO_PHYS((m)))
 
 #define VTOM(va) xpmap_ptom(VTOP(va))
-
-static __inline vm_paddr_t
-pmap_kextract_ma(vm_offset_t va)
-{
-        vm_paddr_t ma = 0;
-	KASSERT(0, ("XXX: Please implement"));
-        return ma;
-}
-
-static __inline vm_paddr_t
-pmap_kextract(vm_offset_t va)
-{
-        return xpmap_mtop(pmap_kextract_ma(va));
-}
-
+vm_paddr_t pmap_kextract_ma(vm_offset_t);
 #define vtomach(va)     pmap_kextract_ma(((vm_offset_t) (va)))
 
 vm_paddr_t pmap_extract_ma(struct pmap *pmap, vm_offset_t va);
@@ -358,9 +344,7 @@ void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
 void	pmap_init_pat(void);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
-#ifndef XEN
 vm_paddr_t pmap_kextract(vm_offset_t);
-#endif /* XEN */
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
