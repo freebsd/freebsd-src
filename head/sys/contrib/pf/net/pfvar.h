@@ -1902,9 +1902,8 @@ void		 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
 int		 pfi_set_flags(const char *, int);
 int		 pfi_clear_flags(const char *, int);
 
-int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *,
-		    struct pf_mtag *);
-int		 pf_tag_packet(struct mbuf *, int, int, struct pf_mtag *);
+int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *, int);
+int		 pf_tag_packet(struct mbuf *, struct pf_pdesc *, int);
 void		 pf_qid2qname(u_int32_t, char *);
 
 VNET_DECLARE(struct pf_status,		 pf_status);
