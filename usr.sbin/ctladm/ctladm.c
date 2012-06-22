@@ -764,7 +764,6 @@ static int
 cctl_delay(int fd, int target, int lun, int argc, char **argv,
 	   char *combinedopt)
 {
-	int datamove_delay;
 	struct ctl_io_delay_info delay_info;
 	char *delayloc = NULL;
 	char *delaytype = NULL;
@@ -773,7 +772,6 @@ cctl_delay(int fd, int target, int lun, int argc, char **argv,
 	int c;
 
 	retval = 0;
-	datamove_delay = 0;
 
 	memset(&delay_info, 0, sizeof(delay_info));
 
@@ -3708,7 +3706,7 @@ CTL_DEFAULT_DEV);
 int
 main(int argc, char **argv)
 {
-	int option_index, c;
+	int c;
 	ctladm_cmdfunction command;
 	ctladm_cmdargs cmdargs;
 	ctladm_optret optreturn;
@@ -3719,10 +3717,9 @@ main(int argc, char **argv)
 	int target, lun;
 	int optstart = 2;
 	int retval, fd;
-	int retries, timeout;
+	int retries;
 	int initid;
 
-	option_index = 0;
 	retval = 0;
 	cmdargs = CTLADM_ARG_NONE;
 	command = CTLADM_CMD_HELP;
@@ -3731,7 +3728,6 @@ main(int argc, char **argv)
 	retries = 0;
 	target = 0;
 	lun = 0;
-	timeout = 0;
 	initid = 7;
 
 	if (argc < 2) {
