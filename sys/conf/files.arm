@@ -79,6 +79,7 @@ libkern/umoddi3.c		standard
 #libkern/arm/strcmp.S		standard
 #libkern/arm/strncmp.S		standard
 #
+kern/subr_dummy_vdso_tc.c	standard
 board_id.h			standard				   \
 	dependency	"$S/arm/conf/genboardid.awk $S/arm/conf/mach-types" \
 	compile-with	"${AWK} -f $S/arm/conf/genboardid.awk $S/arm/conf/mach-types > board_id.h" \

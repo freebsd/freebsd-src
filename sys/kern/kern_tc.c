@@ -16,6 +16,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ntp.h"
 #include "opt_ffclock.h"
 
@@ -30,8 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/timeffc.h>
 #include <sys/timepps.h>
+#include <sys/taskqueue.h>
 #include <sys/timetc.h>
 #include <sys/timex.h>
+#include <sys/vdso.h>
 
 /*
  * A large step happens on boot.  This constant detects such steps.
@@ -118,7 +121,11 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
 
 static void tc_windup(void);
+static void tc_windup_push_vdso(void *ctx, int pending);
 static void cpu_tick_calibrate(int);
+
+static struct task tc_windup_push_vdso_task = TASK_INITIALIZER(0,
+    tc_windup_push_vdso,  0);
 
 static int
 sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
@@ -1360,6 +1367,7 @@ tc_windup(void)
 #endif
 
 	timehands = th;
+	taskqueue_enqueue_fast(taskqueue_fast, &tc_windup_push_vdso_task);
 }
 
 /* Report or change the active timecounter hardware. */
@@ -1386,6 +1394,7 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 		(void)newtc->tc_get_timecount(newtc);
 
 		timecounter = newtc;
+		EVENTHANDLER_INVOKE(tc_windup);
 		return (0);
 	}
 	return (EINVAL);
@@ -1844,3 +1853,78 @@ cputick2usec(uint64_t tick)
 }
 
 cpu_tick_f	*cpu_ticks = tc_cpu_ticks;
+
+static int vdso_th_enable = 1;
+static int
+sysctl_fast_gettime(SYSCTL_HANDLER_ARGS)
+{
+	int old_vdso_th_enable, error;
+
+	old_vdso_th_enable = vdso_th_enable;
+	error = sysctl_handle_int(oidp, &old_vdso_th_enable, 0, req);
+	if (error != 0)
+		return (error);
+	vdso_th_enable = old_vdso_th_enable;
+	EVENTHANDLER_INVOKE(tc_windup);
+	return (0);
+}
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, fast_gettime,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_fast_gettime, "I", "Enable fast time of day");
+
+uint32_t
+tc_fill_vdso_timehands(struct vdso_timehands *vdso_th)
+{
+	struct timehands *th;
+	uint32_t enabled;
+	int gen;
+
+	do {
+		th = timehands;
+		gen = th->th_generation;
+		vdso_th->th_algo = VDSO_TH_ALGO_1;
+		vdso_th->th_scale = th->th_scale;
+		vdso_th->th_offset_count = th->th_offset_count;
+		vdso_th->th_counter_mask = th->th_counter->tc_counter_mask;
+		vdso_th->th_offset = th->th_offset;
+		vdso_th->th_boottime = boottimebin;
+		enabled = cpu_fill_vdso_timehands(vdso_th);
+	} while (gen == 0 || timehands->th_generation != gen);
+	if (!vdso_th_enable)
+		enabled = 0;
+	return (enabled);
+}
+
+#ifdef COMPAT_FREEBSD32
+uint32_t
+tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
+{
+	struct timehands *th;
+	uint32_t enabled;
+	int gen;
+
+	do {
+		th = timehands;
+		gen = th->th_generation;
+		vdso_th32->th_algo = VDSO_TH_ALGO_1;
+		*(uint64_t *)&vdso_th32->th_scale[0] = th->th_scale;
+		vdso_th32->th_offset_count = th->th_offset_count;
+		vdso_th32->th_counter_mask = th->th_counter->tc_counter_mask;
+		vdso_th32->th_offset.sec = th->th_offset.sec;
+		*(uint64_t *)&vdso_th32->th_offset.frac[0] = th->th_offset.frac;
+		vdso_th32->th_boottime.sec = boottimebin.sec;
+		*(uint64_t *)&vdso_th32->th_boottime.frac[0] = boottimebin.frac;
+		enabled = cpu_fill_vdso_timehands32(vdso_th32);
+	} while (gen == 0 || timehands->th_generation != gen);
+	if (!vdso_th_enable)
+		enabled = 0;
+	return (enabled);
+}
+#endif
+
+static void
+tc_windup_push_vdso(void *ctx, int pending)
+{
+
+	EVENTHANDLER_INVOKE(tc_windup);
+}

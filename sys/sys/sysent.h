@@ -124,6 +124,10 @@ struct sysentvec {
 	vm_offset_t	sv_shared_page_base;
 	vm_offset_t	sv_shared_page_len;
 	vm_offset_t	sv_sigcode_base;
+	vm_offset_t	sv_timekeep_base;
+	int		sv_timekeep_off;
+	int		sv_timekeep_curr;
+	uint32_t	sv_timekeep_gen;
 	void		*sv_shared_page_obj;
 	void		(*sv_schedtail)(struct thread *);
 };
