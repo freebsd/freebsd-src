@@ -61,7 +61,7 @@ typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
 TAILQ_HEAD(mutex_queue, pthread_mutex);
 
 /* Signal to do cancellation */
-#define	SIGCANCEL		32
+#define	SIGCANCEL		SIGTHR
 
 /*
  * Kernel fatal error handler macro.
