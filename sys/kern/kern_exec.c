@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
+#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
@@ -64,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
+#include <sys/vdso.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #ifdef KTRACE
@@ -1608,10 +1610,76 @@ shared_page_init(void *dummy __unused)
 SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
     NULL);
 
+static void
+timehands_update(void *arg)
+{
+	struct sysentvec *sv;
+	struct sf_buf *sf;
+	struct vdso_timehands th;
+	struct vdso_timekeep *tk;
+	uint32_t enabled, idx;
+
+	sv = arg;
+	sx_xlock(&shared_page_alloc_sx);
+	enabled = tc_fill_vdso_timehands(&th);
+	sf = shared_page_write_start(sv->sv_timekeep_off);
+	tk = (void *)(sf_buf_kva(sf) + (sv->sv_timekeep_off & PAGE_MASK));
+	idx = sv->sv_timekeep_curr;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, 0);
+	if (++idx >= VDSO_TH_NUM)
+		idx = 0;
+	sv->sv_timekeep_curr = idx;
+	if (++sv->sv_timekeep_gen == 0)
+		sv->sv_timekeep_gen = 1;
+	th.th_gen = 0;
+	if (enabled)
+		tk->tk_th[idx] = th;
+	tk->tk_enabled = enabled;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
+	tk->tk_current = idx;
+	shared_page_write_end(sf);
+	sx_xunlock(&shared_page_alloc_sx);
+}
+
+#ifdef COMPAT_FREEBSD32
+static void
+timehands_update32(void *arg)
+{
+	struct sysentvec *sv;
+	struct sf_buf *sf;
+	struct vdso_timekeep32 *tk;
+	struct vdso_timehands32 th;
+	uint32_t enabled, idx;
+
+	sv = arg;
+	sx_xlock(&shared_page_alloc_sx);
+	enabled = tc_fill_vdso_timehands32(&th);
+	sf = shared_page_write_start(sv->sv_timekeep_off);
+	tk = (void *)(sf_buf_kva(sf) + (sv->sv_timekeep_off & PAGE_MASK));
+	idx = sv->sv_timekeep_curr;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, 0);
+	if (++idx >= VDSO_TH_NUM)
+		idx = 0;
+	sv->sv_timekeep_curr = idx;
+	if (++sv->sv_timekeep_gen == 0)
+		sv->sv_timekeep_gen = 1;
+	th.th_gen = 0;
+	if (enabled)
+		tk->tk_th[idx] = th;
+	tk->tk_enabled = enabled;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
+	tk->tk_current = idx;
+	shared_page_write_end(sf);
+	sx_xunlock(&shared_page_alloc_sx);
+}
+#endif
+
 void
 exec_sysvec_init(void *param)
 {
 	struct sysentvec *sv;
+	int tk_base;
+	uint32_t tk_ver;
 
 	sv = (struct sysentvec *)param;
 
@@ -1620,4 +1688,29 @@ exec_sysvec_init(void *param)
 	sv->sv_shared_page_obj = shared_page_obj;
 	sv->sv_sigcode_base = sv->sv_shared_page_base +
 	    shared_page_fill(*(sv->sv_szsigcode), 16, sv->sv_sigcode);
+	tk_ver = VDSO_TK_VER_CURR;
+#ifdef COMPAT_FREEBSD32
+	if ((sv->sv_flags & SV_ILP32) != 0) {
+		tk_base = shared_page_alloc(sizeof(struct vdso_timekeep32) +
+		    sizeof(struct vdso_timehands32) * VDSO_TH_NUM, 16);
+		KASSERT(tk_base != -1, ("tk_base -1 for 32bit"));
+		EVENTHANDLER_REGISTER(tc_windup, timehands_update32, sv,
+		    EVENTHANDLER_PRI_ANY);
+		shared_page_write(tk_base + offsetof(struct vdso_timekeep32,
+		    tk_ver), sizeof(uint32_t), &tk_ver);
+	} else {
+#endif
+		tk_base = shared_page_alloc(sizeof(struct vdso_timekeep) +
+		    sizeof(struct vdso_timehands) * VDSO_TH_NUM, 16);
+		KASSERT(tk_base != -1, ("tk_base -1 for native"));
+		EVENTHANDLER_REGISTER(tc_windup, timehands_update, sv,
+		    EVENTHANDLER_PRI_ANY);
+		shared_page_write(tk_base + offsetof(struct vdso_timekeep,
+		    tk_ver), sizeof(uint32_t), &tk_ver);
+#ifdef COMPAT_FREEBSD32
+	}
+#endif
+	sv->sv_timekeep_base = sv->sv_shared_page_base + tk_base;
+	sv->sv_timekeep_off = tk_base;
+	EVENTHANDLER_INVOKE(tc_windup);
 }
