@@ -471,7 +471,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 		 * forwarding thread needs to modify rule.
 		 *
 		 * This is done w/o locking, because performance is assumed
-		 * more importand than round-robin precision.
+		 * more important than round-robin precision.
 		 *
 		 * In the simpliest case we just update the "rpool->cur"
 		 * pointer. However, if pool contains tables or dynamic
@@ -481,7 +481,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 		 *
 		 * Things get worse, if table contains not hosts, but
 		 * prefixes. In this case counter also stores machine state,
-		 * and for IPv6 address, counter can be updated atomically.
+		 * and for IPv6 address, counter can't be updated atomically.
 		 * Probably, using round-robin on a table containing IPv6
 		 * prefixes (or even IPv4) would cause a panic.
 		 */
