@@ -479,4 +479,14 @@ ACPI_EXTERN UINT32                      AcpiGbl_SizeOfAcpiObjects;
 
 #endif /* ACPI_DEBUGGER */
 
+
+/*****************************************************************************
+ *
+ * Info/help support
+ *
+ ****************************************************************************/
+
+extern const AH_PREDEFINED_NAME     AslPredefinedInfo[];
+
+
 #endif /* __ACGLOBAL_H__ */
