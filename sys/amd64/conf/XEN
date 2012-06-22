@@ -46,6 +46,7 @@ options 	AUDIT			# Security event auditing
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Show backtrace when inovking KDB.
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
