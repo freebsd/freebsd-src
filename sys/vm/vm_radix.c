@@ -768,9 +768,8 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 	    "lookupn: tree %p " KFRMT64(index) " slot %d found child %p",
 			    rtree, KSPLT64L(start), KSPLT64H(start), slot, val);
 			out[outidx] = val;
-			if (++outidx == cnt)
-				goto out;
-			if ((VM_RADIX_MAXVAL - start) == 0) {
+			if (++outidx == cnt ||
+			    (VM_RADIX_MAXVAL - start) == 0) {
 				start++;
 				goto out;
 			}
