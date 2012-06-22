@@ -51,15 +51,18 @@
 #define	ALLSIGS		\
 	_DO(SIGINT)	\
 	_DO(SIGTSTP)	\
-	_DO(SIGSTOP)	\
 	_DO(SIGQUIT)	\
 	_DO(SIGHUP)	\
 	_DO(SIGTERM)	\
 	_DO(SIGCONT)	\
 	_DO(SIGWINCH)
+#define ALLSIGSNO	7
 
-typedef void (*el_signalhandler_t)(int);
-typedef el_signalhandler_t *el_signal_t;
+typedef struct {
+	struct sigaction sig_action[ALLSIGSNO];
+	sigset_t sig_set;
+	volatile sig_atomic_t sig_no;
+} *el_signal_t;
 
 protected void	sig_end(EditLine*);
 protected int	sig_init(EditLine*);
