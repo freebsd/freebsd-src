@@ -221,8 +221,10 @@ AcpiDmNormalizeParentPrefix (
      */
     ACPI_STRCAT (Fullpath, ParentPath);
 
-    /* Add dot separator (don't need dot if parent fullpath is a single "\") */
-
+    /*
+     * Add dot separator
+     * (don't need dot if parent fullpath is a single backslash)
+     */
     if (ParentPath[1])
     {
         ACPI_STRCAT (Fullpath, ".");

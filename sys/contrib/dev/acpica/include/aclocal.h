@@ -462,6 +462,15 @@ typedef struct acpi_gpe_handler_info
 
 } ACPI_GPE_HANDLER_INFO;
 
+/* Notify info for implicit notify, multiple device objects */
+
+typedef struct acpi_gpe_notify_info
+{
+    ACPI_NAMESPACE_NODE             *DeviceNode;    /* Device to be notified */
+    struct acpi_gpe_notify_info     *Next;
+
+} ACPI_GPE_NOTIFY_INFO;
+
 /*
  * GPE dispatch info. At any time, the GPE can have at most one type
  * of dispatch - Method, Handler, or Implicit Notify.
@@ -469,8 +478,8 @@ typedef struct acpi_gpe_handler_info
 typedef union acpi_gpe_dispatch_info
 {
     ACPI_NAMESPACE_NODE             *MethodNode;    /* Method node for this GPE level */
-    struct acpi_gpe_handler_info    *Handler;       /* Installed GPE handler */
-    ACPI_NAMESPACE_NODE             *DeviceNode;    /* Parent _PRW device for implicit notify */
+    ACPI_GPE_HANDLER_INFO           *Handler;       /* Installed GPE handler */
+    ACPI_GPE_NOTIFY_INFO            *NotifyList;    /* List of _PRW devices for implicit notifies */
 
 } ACPI_GPE_DISPATCH_INFO;
 
@@ -480,7 +489,7 @@ typedef union acpi_gpe_dispatch_info
  */
 typedef struct acpi_gpe_event_info
 {
-    union acpi_gpe_dispatch_info    Dispatch;       /* Either Method or Handler */
+    union acpi_gpe_dispatch_info    Dispatch;       /* Either Method, Handler, or NotifyList */
     struct acpi_gpe_register_info   *RegisterInfo;  /* Backpointer to register info */
     UINT8                           Flags;          /* Misc info about this GPE */
     UINT8                           GpeNumber;      /* This GPE */
@@ -960,6 +969,7 @@ typedef struct acpi_parse_state
 #define ACPI_PARSEOP_IGNORE             0x01
 #define ACPI_PARSEOP_PARAMLIST          0x02
 #define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
+#define ACPI_PARSEOP_PREDEF_CHECKED     0x08
 #define ACPI_PARSEOP_SPECIAL            0x10
 
 
@@ -1310,5 +1320,21 @@ typedef struct acpi_debug_mem_block
 #define ACPI_MEM_LIST_MAX               1
 #define ACPI_NUM_MEM_LISTS              2
 
+
+/*****************************************************************************
+ *
+ * Info/help support
+ *
+ ****************************************************************************/
+
+typedef struct ah_predefined_name
+{
+    char            *Name;
+    char            *Description;
+#ifndef ACPI_ASL_COMPILER
+    char            *Action;
+#endif
+
+} AH_PREDEFINED_NAME;
 
 #endif /* __ACLOCAL_H__ */
