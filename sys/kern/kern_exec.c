@@ -1512,33 +1512,81 @@ exec_unregister(execsw_arg)
 	return (0);
 }
 
+static struct sx shared_page_alloc_sx;
 static vm_object_t shared_page_obj;
 static int shared_page_free;
 
-int
-shared_page_fill(int size, int align, const char *data)
+struct sf_buf *
+shared_page_write_start(int base)
 {
 	vm_page_t m;
 	struct sf_buf *s;
-	vm_offset_t sk;
-	int res;
 
 	VM_OBJECT_LOCK(shared_page_obj);
-	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_RETRY);
+	m = vm_page_grab(shared_page_obj, OFF_TO_IDX(base), VM_ALLOC_RETRY);
+	VM_OBJECT_UNLOCK(shared_page_obj);
+	s = sf_buf_alloc(m, SFB_DEFAULT);
+	return (s);
+}
+
+void
+shared_page_write_end(struct sf_buf *sf)
+{
+	vm_page_t m;
+
+	m = sf_buf_page(sf);
+	sf_buf_free(sf);
+	VM_OBJECT_LOCK(shared_page_obj);
+	vm_page_wakeup(m);
+	VM_OBJECT_UNLOCK(shared_page_obj);
+}
+
+void
+shared_page_write(int base, int size, const void *data)
+{
+	struct sf_buf *sf;
+	vm_offset_t sk;
+
+	sf = shared_page_write_start(base);
+	sk = sf_buf_kva(sf);
+	bcopy(data, (void *)(sk + (base & PAGE_MASK)), size);
+	shared_page_write_end(sf);
+}
+
+static int
+shared_page_alloc_locked(int size, int align)
+{
+	int res;
+
 	res = roundup(shared_page_free, align);
 	if (res + size >= IDX_TO_OFF(shared_page_obj->size))
 		res = -1;
-	else {
-		VM_OBJECT_UNLOCK(shared_page_obj);
-		s = sf_buf_alloc(m, SFB_DEFAULT);
-		sk = sf_buf_kva(s);
-		bcopy(data, (void *)(sk + res), size);
+	else
 		shared_page_free = res + size;
-		sf_buf_free(s);
-		VM_OBJECT_LOCK(shared_page_obj);
-	}
-	vm_page_wakeup(m);
-	VM_OBJECT_UNLOCK(shared_page_obj);
+	return (res);
+}
+
+int
+shared_page_alloc(int size, int align)
+{
+	int res;
+
+	sx_xlock(&shared_page_alloc_sx);
+	res = shared_page_alloc_locked(size, align);
+	sx_xunlock(&shared_page_alloc_sx);
+	return (res);
+}
+
+int
+shared_page_fill(int size, int align, const void *data)
+{
+	int res;
+
+	sx_xlock(&shared_page_alloc_sx);
+	res = shared_page_alloc_locked(size, align);
+	if (res != -1)
+		shared_page_write(res, size, data);
+	sx_xunlock(&shared_page_alloc_sx);
 	return (res);
 }
 
@@ -1547,6 +1595,7 @@ shared_page_init(void *dummy __unused)
 {
 	vm_page_t m;
 
+	sx_init(&shared_page_alloc_sx, "shpsx");
 	shared_page_obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
 	    VM_PROT_DEFAULT, 0, NULL);
 	VM_OBJECT_LOCK(shared_page_obj);
