@@ -173,6 +173,22 @@ __FBSDID("$FreeBSD$");
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
 			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
 
+#define	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa)	do {	\
+	struct rwlock **_lockp = (lockp);		\
+	struct rwlock *_new_lock;			\
+							\
+	_new_lock = PHYS_TO_PV_LIST_LOCK(pa);		\
+	if (_new_lock != *_lockp) {			\
+		if (*_lockp != NULL)			\
+			rw_wunlock(*_lockp);		\
+		*_lockp = _new_lock;			\
+		rw_wlock(*_lockp);			\
+	}						\
+} while (0)
+
+#define	CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m)	\
+			CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, VM_PAGE_TO_PHYS(m))
+
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
@@ -2436,20 +2452,13 @@ static boolean_t
 pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct rwlock **lockp)
 {
-	struct rwlock *new_lock;
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
-		new_lock = VM_PAGE_TO_PV_LIST_LOCK(m);
-		if (new_lock != *lockp) {
-			if (*lockp != NULL)
-				rw_wunlock(*lockp);
-			*lockp = new_lock;
-			rw_wlock(*lockp);
-		}
+		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 		return (TRUE);
 	} else
@@ -2464,19 +2473,12 @@ pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
     struct rwlock **lockp)
 {
 	struct md_page *pvh;
-	struct rwlock *new_lock;
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	if ((pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
-		new_lock = PHYS_TO_PV_LIST_LOCK(pa);
-		if (new_lock != *lockp) {
-			if (*lockp != NULL)
-				rw_wunlock(*lockp);
-			*lockp = new_lock;
-			rw_wlock(*lockp);
-		}
+		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 		pvh = pa_to_pvh(pa);
 		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_list);
 		return (TRUE);
@@ -4159,7 +4161,7 @@ pmap_remove_pages(pmap_t pmap)
 	pv_entry_t pv;
 	struct md_page *pvh;
 	struct pv_chunk *pc, *npc;
-	struct rwlock *lock, *new_lock;
+	struct rwlock *lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
 	int allfree, field, freed, idx;
@@ -4229,13 +4231,7 @@ pmap_remove_pages(pmap_t pmap)
 						vm_page_dirty(m);
 				}
 
-				new_lock = VM_PAGE_TO_PV_LIST_LOCK(m);
-				if (new_lock != lock) {
-					if (lock != NULL)
-						rw_wunlock(lock);
-					lock = new_lock;
-					rw_wlock(lock);
-				}
+				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
 
 				/* Mark free */
 				pc->pc_map[field] |= bitmask;
