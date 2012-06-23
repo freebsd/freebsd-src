@@ -956,14 +956,13 @@ daclose(struct disk *dp)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
-	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (0);	
 
 	cam_periph_lock(periph);
-	if ((error = cam_periph_hold(periph, PRIBIO)) != 0) {
+	if (cam_periph_hold(periph, PRIBIO) != 0) {
 		cam_periph_unlock(periph);
 		cam_periph_release(periph);
 		return (0);
