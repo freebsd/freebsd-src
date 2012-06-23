@@ -776,7 +776,7 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 			if (++outidx == cnt ||
 			    (VM_RADIX_MAXVAL - start) == 0) {
 				start++;
-				if (end == 0)
+				if ((VM_RADIX_MAXVAL - start) == 0 && end == 0)
 					*exhausted = 1;
 				goto out;
 			}
