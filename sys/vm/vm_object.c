@@ -1972,7 +1972,7 @@ restart:
 				continue;
 			}
 			if (vm_page_sleep_if_busy(p, TRUE, "vmopar")) {
-				start = 0;
+				start = p->pindex;
 				goto restart;
 			}
 			KASSERT((p->flags & PG_FICTITIOUS) == 0,
