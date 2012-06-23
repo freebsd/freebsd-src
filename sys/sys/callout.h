@@ -50,11 +50,14 @@
 #define	CALLOUT_PROCESSED	0x0080 /* callout in wheel or processing list? */
 #define	CALLOUT_DIRECT 		0x1000 /* allow exec from hw int context */
 
+#define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
+#define	C_10US			0x0002 /* precision field */
+#define	C_100US			0x0004 /* precision field */	
+#define	C_1MS			0x0008 /* precision field */	
+
 struct callout_handle {
 	struct callout *callout;
 };
-
-#define	C_DIRECT		0x0001 /* direct execution of callout */
 
 #ifdef _KERNEL
 extern int ncallout;

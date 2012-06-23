@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -358,7 +359,7 @@ get_bucket(struct bintime *bt)
 void
 callout_tick(void)
 {
-	struct bintime limit, next, now;
+	struct bintime limit, max, min, next, now, tmp_max, tmp_min;
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
@@ -375,25 +376,21 @@ callout_tick(void)
 	cpu = curcpu;
 	first = callout_hash(&cc->cc_softticks);
 	last = callout_hash(&now);
-	next.sec = -1;
-	next.frac = -1;
-	future = ((last + hz/4) & callwheelmask); 
 	/* 
 	 * Check if we wrapped around the entire wheel from the last scan.
 	 * In case, we need to scan entirely the wheel for pending callouts.
 	 */
-	if (last - first >= callwheelsize) { 
-		first &= callwheelmask;
-		last = (first - 1) & callwheelmask;
-	}
-	else {
-		first &= callwheelmask;
-		last &= callwheelmask;
-	}
+	last = (last - first >= callwheelsize) ? (first - 1) & callwheelmask : 
+	    last & callwheelmask;
+	first &= callwheelmask;
 	for (;;) {	
 		sc = &cc->cc_callwheel[first];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
 			if (bintime_cmp(&tmp->c_time, &now, <=)) {
+				/* 
+				 * Consumer told us the callout may be run
+				 * directly from hardware interrupt context.
+				 */
 				if (tmp->c_flags & CALLOUT_DIRECT) {
 					tmp->c_func(tmp->c_arg);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
@@ -410,30 +407,68 @@ callout_tick(void)
 		}	
 		if (first == last)
 			break;
-		first = ((first + 1) & callwheelmask);
+		first = (first + 1) & callwheelmask;
 	}
+	future = ((last + hz/4) & callwheelmask); 
+	max.sec = max.frac = INT_MAX;
+	min.sec = min.frac = INT_MAX;
 	limit.sec = 0;
 	limit.frac = (uint64_t)1 << (64 - 2);
 	bintime_add(&limit, &now);		
-	for (;;) {
+	/* 
+	 * Look for the first bucket in the future that contains some event,
+	 * up to some point,  so that we can look for aggregation. 
+	 */ 
+	for (;;) { 
 		sc = &cc->cc_callwheel[last];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
-			if (bintime_cmp(&tmp->c_time, &limit, <=)) {
-				if (next.sec == -1 ||
-				    bintime_cmp(&tmp->c_time, &next, <)) {
-					next = tmp->c_time;
-					cpu = tmp->c_cpu;
-				}
+			tmp_max = tmp_min = tmp->c_time; 
+			bintime_add(&tmp_max, &tmp->c_precision);
+			bintime_sub(&tmp_min, &tmp->c_precision);
+			/*
+			 * This is the fist event we're going to process or 
+			 * event maximal time is less than present minimal. 
+			 * In both cases, take it.
+			 */
+			 if (bintime_cmp(&tmp_max, &min, <)) {
+				max = tmp_max;
+				min = tmp_min;
+				continue;	
 			}
-		}
-		if ((last == future) || (next.sec != -1))
+			/*
+			 * Event minimal time is bigger than present maximal  
+		 	 * time, so it cannot be aggregated.
+			 */
+			if (bintime_cmp(&tmp_min, &max, >))
+				continue;
+			/*
+			 * If neither of the two previous happened, just take 
+			 * the intersection of events.
+			 */	
+			min = (bintime_cmp(&tmp_min, &min, >)) ? tmp_min : min;
+			max = (bintime_cmp(&tmp_max, &max, >)) ? tmp_max : max;
+		}		
+		if (last == future || 
+		    (max.sec != INT_MAX && min.sec != INT_MAX))
 			break;
-		last = ((last + 1) & callwheelmask);
-	}	
-	if (next.sec == -1) { 
+		last = (last + 1) & callwheelmask;
+	}
+	if (max.sec == INT_MAX && min.sec == INT_MAX) { 
 		next.sec = 0;	
 		next.frac = (uint64_t)1 << (64 - 2);	
 		bintime_add(&next, &now);
+	}
+	/*
+	 * Now that we found something to aggregate, schedule an interrupt in 
+	 * the middle of the previously calculated range.
+	 */
+	else {
+		bintime_add(&max, &min);
+		next = max;
+		next.frac >>= 1;
+		if (next.sec & 1)	
+			next.frac |= ((uint64_t)1 << 63);
+		next.sec >>= 1;
 	}
 	cc->cc_firsttick = next;
 	if (callout_new_inserted != NULL) 
@@ -478,6 +513,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
     struct bintime to_bintime, void (*func)(void *), void *arg, int cpu, 
     int flags)
 {
+	struct timeval tv;
 	int bucket;	
 	
 	CC_LOCK_ASSERT(cc);
@@ -486,11 +522,28 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
-	if (flags & C_DIRECT)
+	if (flags & C_DIRECT_EXEC)
 		c->c_flags |= CALLOUT_DIRECT;
 	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
 	c->c_time = to_bintime; 
+	tv.tv_sec = 0;
+	if (flags & C_10US) { 
+		tv.tv_usec = 10;
+		timeval2bintime(&tv, &c->c_precision);
+	}
+	else if (flags & C_100US) {
+		tv.tv_usec = 100;
+		timeval2bintime(&tv, &c->c_precision);
+	} 
+	else if (flags & C_1MS) {
+		tv.tv_usec = 1000;
+		timeval2bintime(&tv, &c->c_precision);
+	} 
+	else { 
+		c->c_precision.sec = 0;
+		c->c_precision.frac = 0;
+	}
 	bucket = get_bucket(&c->c_time);	
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket & callwheelmask], 
 	    c, c_links.tqe);
