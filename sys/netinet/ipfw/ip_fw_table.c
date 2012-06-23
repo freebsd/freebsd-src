@@ -568,7 +568,8 @@ ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
 		break;
 
 	case IPFW_TABLE_INTERFACE:
-		KEY_LEN(iface) = strlcpy(iface.ifname, (char *)paddr, IF_NAMESIZE);
+		KEY_LEN(iface) = KEY_LEN_IFACE +
+		    strlcpy(iface.ifname, (char *)paddr, IF_NAMESIZE);
 		/* Assume direct match */
 		/* FIXME: Add interface pattern matching */
 		xent = (struct table_xentry *)(rnh->rnh_lookup(&iface, NULL, rnh));
