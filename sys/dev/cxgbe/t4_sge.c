@@ -70,12 +70,8 @@ enum {
 	FL_PKTSHIFT = 2
 };
 
-#define FL_ALIGN	min(CACHE_LINE_SIZE, 32)
-#if CACHE_LINE_SIZE > 64
-#define SPG_LEN		128
-#else
-#define SPG_LEN		64
-#endif
+static int fl_pad = CACHE_LINE_SIZE;
+static int spg_len = 64;
 
 /* Used to track coalesced tx work request */
 struct txpkts {
@@ -167,6 +163,10 @@ static int handle_fw_rpl(struct sge_iq *, const struct rss_header *,
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 
+#if defined(__i386__) || defined(__amd64__)
+extern u_int cpu_clflush_line_size;
+#endif
+
 /*
  * Called on MOD_LOAD and fills up fl_buf_info[].
  */
@@ -188,6 +188,11 @@ t4_sge_modload(void)
 		FL_BUF_TYPE(i) = m_gettype(bufsize[i]);
 		FL_BUF_ZONE(i) = m_getzone(bufsize[i]);
 	}
+
+#if defined(__i386__) || defined(__amd64__)
+	fl_pad = max(cpu_clflush_line_size, 32);
+	spg_len = cpu_clflush_line_size > 64 ? 128 : 64;
+#endif
 }
 
 /**
@@ -209,8 +214,8 @@ t4_sge_init(struct adapter *sc)
 	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) |
 	    F_EGRSTATUSPAGESIZE;
 	ctrl_val = V_PKTSHIFT(FL_PKTSHIFT) | F_RXPKTCPLMODE |
-	    V_INGPADBOUNDARY(ilog2(FL_ALIGN) - 5) |
-	    V_EGRSTATUSPAGESIZE(SPG_LEN == 128);
+	    V_INGPADBOUNDARY(ilog2(fl_pad) - 5) |
+	    V_EGRSTATUSPAGESIZE(spg_len == 128);
 
 	hpsize = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF1(PAGE_SHIFT - 10) |
@@ -1372,8 +1377,8 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 	int i, bufsize;
 
 	/* large enough for a frame even when VLAN extraction is disabled */
-	bufsize = FL_PKTSHIFT + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN +
-	    ifp->if_mtu;
+	bufsize = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ifp->if_mtu;
+	bufsize = roundup(bufsize + FL_PKTSHIFT, fl_pad);
 	for_each_rxq(pi, i, rxq) {
 		fl = &rxq->fl;
 
@@ -1570,7 +1575,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			return (rc);
 
 		/* Allocate space for one software descriptor per buffer. */
-		fl->cap = (fl->qsize - SPG_LEN / RX_FL_ESIZE) * 8;
+		fl->cap = (fl->qsize - spg_len / RX_FL_ESIZE) * 8;
 		FL_LOCK(fl);
 		rc = alloc_fl_sdesc(fl);
 		FL_UNLOCK(fl);
@@ -2070,7 +2075,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 	if (rc)
 		return (rc);
 
-	eq->cap = eq->qsize - SPG_LEN / EQ_ESIZE;
+	eq->cap = eq->qsize - spg_len / EQ_ESIZE;
 	eq->spg = (void *)&eq->desc[eq->cap];
 	eq->avail = eq->cap - 1;	/* one less to avoid cidx = pidx */
 	eq->pidx = eq->cidx = 0;
