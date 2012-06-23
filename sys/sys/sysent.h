@@ -265,8 +265,6 @@ int shared_page_alloc(int size, int align);
 int shared_page_fill(int size, int align, const void *data);
 void shared_page_write(int base, int size, const void *data);
 void exec_sysvec_init(void *param);
-struct sf_buf *shared_page_write_start(int base);
-void shared_page_write_end(struct sf_buf *sf);
 
 #define INIT_SYSENTVEC(name, sv)					\
     SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY,				\
