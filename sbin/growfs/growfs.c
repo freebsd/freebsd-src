@@ -50,7 +50,6 @@ All rights reserved.\n";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/disk.h>
@@ -115,7 +114,6 @@ union dinode {
 static ufs2_daddr_t 	inoblk;			/* inode block address */
 static char		inobuf[MAXBSIZE];	/* inode block */
 static ino_t		maxino;			/* last valid inode */
-static int		unlabeled; /* unlabeled partition, e.g. vinum volume */
 
 /*
  * An array of elements of type struct gfs_bpp describes all blocks to
@@ -143,8 +141,6 @@ static void	setblock(struct fs *, unsigned char *, int);
 static void	initcg(int, time_t, int, unsigned int);
 static void	updjcg(int, time_t, int, int, unsigned int);
 static void	updcsloc(time_t, int, int, unsigned int);
-static struct disklabel	*get_disklabel(int);
-static void	return_disklabel(int, struct disklabel *, unsigned int);
 static union dinode *ginode(ino_t, int, int);
 static void	frag_adjust(ufs2_daddr_t, int);
 static int	cond_bl_upd(ufs2_daddr_t *, struct gfs_bpp *, int, int,
@@ -1814,8 +1810,7 @@ charsperline(void)
 }
 
 /*
- * Get the size of the partition if we can't figure it out from the disklabel,
- * e.g. from vinum volumes.
+ * Get the size of the partition.
  */
 static void
 get_dev_size(int fd, int *size)
@@ -1841,8 +1836,7 @@ get_dev_size(int fd, int *size)
  * and it does some basic checkings. The old file system size is determined
  * and after some more checks like we can really access the new last block
  * on the disk etc. we calculate the new parameters for the superblock. After
- * having done this we just call growfs() which will do the work.  Before
- * we finish the only thing left is to update the disklabel.
+ * having done this we just call growfs() which will do the work.
  * We still have to provide support for snapshots. Therefore we first have to
  * understand what data structures are always replicated in the snapshot on
  * creation, for all other blocks we touch during our procedure, we have to
@@ -1860,15 +1854,13 @@ int
 main(int argc, char **argv)
 {
 	DBG_FUNC("main")
-	char *device, *special, *cp;
+	char *device, *special;
 	int ch;
 	unsigned int size = 0;
 	size_t len;
 	unsigned int Nflag = 0;
 	int ExpertFlag = 0;
 	struct stat st;
-	struct disklabel *lp;
-	struct partition *pp;
 	int i, fsi, fso;
 	u_int32_t p_size;
 	char reply[5];
@@ -1960,24 +1952,11 @@ main(int argc, char **argv)
 		err(1, "%s", device);
 
 	/*
-	 * Try to read a label and guess the slice if not specified. This
-	 * code should guess the right thing and avoid to bother the user
-	 * with the task of specifying the option -v on vinum volumes.
+	 * Try to guess the slice if not specified. This code should guess
+	 * the right thing and avoid to bother the user with the task
+	 * of specifying the option -v on vinum volumes.
 	 */
-	cp = device + strlen(device) - 1;
-	lp = get_disklabel(fsi);
-	pp = NULL;
-	if (lp != NULL) {
-		if (isdigit(*cp))
-			pp = &lp->d_partitions[2];
-		else if (*cp>='a' && *cp<='h')
-			pp = &lp->d_partitions[*cp - 'a'];
-		else
-			errx(1, "unknown device");
-		p_size = pp->p_size;
-	} else {
-		get_dev_size(fsi, &p_size);
-	}
+	get_dev_size(fsi, &p_size);
 
 	/*
 	 * Check if that partition is suitable for growing a file system.
@@ -2007,8 +1986,7 @@ main(int argc, char **argv)
 	DBG_DUMP_FS(&sblock, "old sblock");
 
 	/*
-	 * Determine size to grow to. Default to the full size specified in
-	 * the disk label.
+	 * Determine size to grow to. Default to the device size.
 	 */
 	sblock.fs_size = dbtofsb(&osblock, p_size);
 	if (size != 0) {
@@ -2068,7 +2046,7 @@ main(int argc, char **argv)
 	/*
 	 * Now calculate new superblock values and check for reasonable
 	 * bound for new file system size:
-	 *     fs_size:    is derived from label or user input
+	 *     fs_size:    is derived from user input
 	 *     fs_dsize:   should get updated in the routines creating or
 	 *                 updating the cylinder groups on the fly
 	 *     fs_cstotal: should get updated in the routines creating or
@@ -2120,18 +2098,6 @@ main(int argc, char **argv)
 	 */
 	growfs(fsi, fso, Nflag);
 
-	/*
-	 * Update the disk label.
-	 */
-	if (!unlabeled) {
-		pp->p_fsize = sblock.fs_fsize;
-		pp->p_frag = sblock.fs_frag;
-		pp->p_cpg = sblock.fs_fpg;
-
-		return_disklabel(fso, lp, Nflag);
-		DBG_PRINT0("label rewritten\n");
-	}
-
 	close(fsi);
 	if (fso > -1)
 		close(fso);
@@ -2141,68 +2107,6 @@ main(int argc, char **argv)
 	DBG_LEAVE;
 	return 0;
 }
-
-/*
- * Write the updated disklabel back to disk.
- */
-static void
-return_disklabel(int fd, struct disklabel *lp, unsigned int Nflag)
-{
-	DBG_FUNC("return_disklabel")
-	u_short	sum;
-	u_short	*ptr;
-
-	DBG_ENTER;
-
-	if (!lp) {
-		DBG_LEAVE;
-		return;
-	}
-	if (!Nflag) {
-		lp->d_checksum = 0;
-		sum = 0;
-		ptr = (u_short *)lp;
-
-		/*
-		 * recalculate checksum
-		 */
-		while (ptr < (u_short *)&lp->d_partitions[lp->d_npartitions])
-			sum ^= *ptr++;
-		lp->d_checksum=sum;
-
-		if (ioctl(fd, DIOCWDINFO, (char *)lp) < 0)
-			errx(1, "DIOCWDINFO failed");
-	}
-	free(lp);
-
-	DBG_LEAVE;
-	return ;
-}
-
-/*
- * Read the disklabel from disk.
- */
-static struct disklabel *
-get_disklabel(int fd)
-{
-	DBG_FUNC("get_disklabel")
-	static struct disklabel *lab;
-
-	DBG_ENTER;
-
-	lab = (struct disklabel *)malloc(sizeof(struct disklabel));
-	if (!lab)
-		errx(1, "malloc failed");
-
-	if (!ioctl(fd, DIOCGDINFO, (char *)lab))
-		return (lab);
-
-	unlabeled++;
-
-	DBG_LEAVE;
-	return (NULL);
-}
-
 
 /*
  * Dump a line of usage.
