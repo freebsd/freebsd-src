@@ -256,6 +256,8 @@ static caddr_t crashdumpmap;
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
+static int	popcnt_pc_map_elem(uint64_t elem);
+static void	reserve_pv_entry(pmap_t pmap, int needed);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 		    struct rwlock **lockp);
@@ -2331,6 +2333,85 @@ retry:
 }
 
 /*
+ * Returns the number of one bits within the given PV chunk map element.
+ */
+static int
+popcnt_pc_map_elem(uint64_t elem)
+{
+	int count;
+
+	/*
+	 * This simple method of counting the one bits performs well because
+	 * the given element typically contains more zero bits than one bits.
+	 */
+	count = 0;
+	for (; elem != 0; elem &= elem - 1)
+		count++;
+	return (count);
+}
+
+/*
+ * Ensure that the number of spare PV entries in the specified pmap meets or
+ * exceeds the given count, "needed".
+ */
+static void
+reserve_pv_entry(pmap_t pmap, int needed)
+{
+	struct pch new_tail;
+	struct pv_chunk *pc;
+	int avail, free;
+	vm_page_t m;
+
+	rw_assert(&pvh_global_lock, RA_LOCKED);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	/*
+	 * Newly allocated PV chunks must be stored in a private list until
+	 * the required number of PV chunks have been allocated.  Otherwise,
+	 * pmap_pv_reclaim() could recycle one of these chunks.  In contrast,
+	 * these chunks must be added to the pmap upon allocation.
+	 */
+	TAILQ_INIT(&new_tail);
+retry:
+	avail = 0;
+	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
+		free = popcnt_pc_map_elem(pc->pc_map[0]);
+		free += popcnt_pc_map_elem(pc->pc_map[1]);
+		free += popcnt_pc_map_elem(pc->pc_map[2]);
+		if (free == 0)
+			break;
+		avail += free;
+		if (avail >= needed)
+			break;
+	}
+	for (; avail < needed; avail += _NPCPV) {
+		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+		    VM_ALLOC_WIRED);
+		if (m == NULL) {
+			m = pmap_pv_reclaim(pmap);
+			if (m == NULL)
+				goto retry;
+		}
+		PV_STAT(atomic_add_int(&pc_chunk_count, 1));
+		PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
+		dump_add_page(m->phys_addr);
+		pc = (void *)PHYS_TO_DMAP(m->phys_addr);
+		pc->pc_pmap = pmap;
+		pc->pc_map[0] = PC_FREE0;
+		pc->pc_map[1] = PC_FREE1;
+		pc->pc_map[2] = PC_FREE2;
+		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
+		PV_STAT(atomic_add_int(&pv_entry_spare, _NPCPV));
+	}
+	if (!TAILQ_EMPTY(&new_tail)) {
+		mtx_lock(&pv_chunks_mutex);
+		TAILQ_CONCAT(&pv_chunks, &new_tail, pc_lru);
+		mtx_unlock(&pv_chunks_mutex);
+	}
+}
+
+/*
  * First find and then remove the pv entry for the specified pmap and virtual
  * address from the specified pv list.  Returns the pv entry if found and NULL
  * otherwise.  This operation can be performed on pv lists for either 4KB or
@@ -2367,6 +2448,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	KASSERT((pa & PDRMASK) == 0,
 	    ("pmap_pv_demote_pde: pa is not 2mpage aligned"));
+	reserve_pv_entry(pmap, NPTEPG - 1);
 
 	/*
 	 * Transfer the 2mpage's pv entry for this mapping to the first
@@ -2385,7 +2467,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("pmap_pv_demote_pde: page %p is not managed", m));
 		va += PAGE_SIZE;
-		pv = get_pv_entry(pmap, FALSE);
+		pv = get_pv_entry(pmap, TRUE);
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	} while (va < va_last);
