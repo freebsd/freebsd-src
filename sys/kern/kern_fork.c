@@ -921,8 +921,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		 */
 		*procp = newproc;
 #ifdef PROCDESC
-		if (flags & RFPROCDESC)
+		if (flags & RFPROCDESC) {
 			procdesc_finit(newproc->p_procdesc, fp_procdesc);
+			fdrop(fp_procdesc, td);
+		}
 #endif
 		racct_proc_fork_done(newproc);
 		return (0);
@@ -944,8 +946,10 @@ fail1:
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 #ifdef PROCDESC
-	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL))
+	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL)) {
+		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
 		fdrop(fp_procdesc, td);
+	}
 #endif
 	pause("fork", hz / 2);
 	return (error);

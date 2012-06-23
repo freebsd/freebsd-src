@@ -1026,7 +1026,7 @@ xpt_add_periph(struct cam_periph *periph)
 }
 
 void
-xpt_remove_periph(struct cam_periph *periph)
+xpt_remove_periph(struct cam_periph *periph, int topology_lock_held)
 {
 	struct cam_ed *device;
 
@@ -1047,9 +1047,13 @@ xpt_remove_periph(struct cam_periph *periph)
 		SLIST_REMOVE(periph_head, periph, cam_periph, periph_links);
 	}
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	if (topology_lock_held == 0)
+		mtx_lock(&xsoftc.xpt_topo_lock);
+
 	xsoftc.xpt_generation++;
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+
+	if (topology_lock_held == 0)
+		mtx_unlock(&xsoftc.xpt_topo_lock);
 }
 
 
@@ -5001,8 +5005,8 @@ camisr(void *dummy)
 		while ((sim = TAILQ_FIRST(&queue)) != NULL) {
 			TAILQ_REMOVE(&queue, sim, links);
 			CAM_SIM_LOCK(sim);
-			sim->flags &= ~CAM_SIM_ON_DONEQ;
 			camisr_runqueue(&sim->sim_doneq);
+			sim->flags &= ~CAM_SIM_ON_DONEQ;
 			CAM_SIM_UNLOCK(sim);
 		}
 		mtx_lock(&cam_simq_lock);

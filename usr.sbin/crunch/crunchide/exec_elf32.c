@@ -238,7 +238,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	Elf_Shdr *shdrp = NULL, *symtabshdr, *strtabshdr;
 	Elf_Sym *symtabp = NULL;
 	char *strtabp = NULL;
-	Elf_Size  nsyms, nlocalsyms, ewi;
+	Elf_Size  nsyms, ewi;
 	ssize_t shdrsize;
 	int rv, i, weird;
 	size_t nstrtab_size, nstrtab_nextoff, fn_size;
@@ -327,7 +327,6 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 
 	/* Prepare data structures for symbol movement. */
 	nsyms = xewtoh(symtabshdr->sh_size) / xewtoh(symtabshdr->sh_entsize);
-	nlocalsyms = xe32toh(symtabshdr->sh_info);
 
 	/* move symbols, making them local */
 	for (ewi = 0; ewi < nsyms; ewi++) {

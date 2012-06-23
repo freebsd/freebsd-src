@@ -66,6 +66,7 @@ __init_elf_aux_vector(void)
 static pthread_once_t aux_once = PTHREAD_ONCE_INIT;
 static int pagesize, osreldate, canary_len, ncpus, pagesizes_len;
 static char *canary, *pagesizes;
+static void *timekeep;
 
 static void
 init_aux(void)
@@ -100,6 +101,10 @@ init_aux(void)
 
 		case AT_NCPUS:
 			ncpus = aux->a_un.a_val;
+			break;
+
+		case AT_TIMEKEEP:
+			timekeep = aux->a_un.a_ptr;
 			break;
 		}
 	}
@@ -157,6 +162,16 @@ _elf_aux_info(int aux, void *buf, int buflen)
 		if (buflen == sizeof(int)) {
 			if (ncpus != 0) {
 				*(int *)buf = ncpus;
+				res = 0;
+			} else
+				res = ENOENT;
+		} else
+			res = EINVAL;
+		break;
+	case AT_TIMEKEEP:
+		if (buflen == sizeof(void *)) {
+			if (timekeep != NULL) {
+				*(void **)buf = timekeep;
 				res = 0;
 			} else
 				res = ENOENT;

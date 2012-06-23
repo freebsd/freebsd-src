@@ -258,7 +258,7 @@ failure:
 		break;
 	case 3:
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
-		xpt_remove_periph(periph);
+		xpt_remove_periph(periph, /*topology_lock_held*/ 0);
 		/* FALLTHROUGH */
 	case 2:
 		xpt_lock_buses();
@@ -440,6 +440,10 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 			cam_periph_release_locked(periph);
 			return (error);
 		}
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			cam_periph_release_locked(periph);
+			return (ENXIO);
+		}
 	}
 
 	periph->flags |= CAM_PERIPH_LOCKED;
@@ -610,13 +614,38 @@ camperiphfree(struct cam_periph *periph)
 		return;
 	}
 
-	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
-	(*p_drv)->generation++;
+	/*
+	 * The peripheral destructor semantics dictate calling with only the
+	 * SIM mutex held.  Since it might sleep, it should not be called
+	 * with the topology lock held.
+	 */
 	xpt_unlock_buses();
 
+	/*
+	 * We need to call the peripheral destructor prior to removing the
+	 * peripheral from the list.  Otherwise, we risk running into a
+	 * scenario where the peripheral unit number may get reused
+	 * (because it has been removed from the list), but some resources
+	 * used by the peripheral are still hanging around.  In particular,
+	 * the devfs nodes used by some peripherals like the pass(4) driver
+	 * aren't fully cleaned up until the destructor is run.  If the
+	 * unit number is reused before the devfs instance is fully gone,
+	 * devfs will panic.
+	 */
 	if (periph->periph_dtor != NULL)
 		periph->periph_dtor(periph);
-	xpt_remove_periph(periph);
+
+	/*
+	 * The peripheral list is protected by the topology lock.
+	 */
+	xpt_lock_buses();
+
+	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
+	(*p_drv)->generation++;
+
+	xpt_remove_periph(periph, /*topology_lock_held*/ 1);
+
+	xpt_unlock_buses();
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
@@ -1325,6 +1354,7 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 			}
 			*timeout = 0;
 			error = ERESTART;
+			*print = 0;
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1654,8 +1684,10 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		} else if (sense_flags & SF_NO_RETRY) {
 			error = EIO;
 			action_string = "Retry was blocked";
-		} else
+		} else {
 			error = ERESTART;
+			print = 0;
+		}
 		break;
 	case CAM_RESRC_UNAVAIL:
 		/* Wait a bit for the resource shortage to abate. */

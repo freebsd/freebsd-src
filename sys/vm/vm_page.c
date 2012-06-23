@@ -784,7 +784,7 @@ vm_page_sleep(vm_page_t m, const char *msg)
 }
 
 /*
- *	vm_page_dirty:
+ *	vm_page_dirty_KBI:		[ internal use only ]
  *
  *	Set all bits in the page's dirty field.
  *
@@ -792,11 +792,14 @@ vm_page_sleep(vm_page_t m, const char *msg)
  *	call is made from the machine-independent layer.
  *
  *	See vm_page_clear_dirty_mask().
+ *
+ *	This function should only be called by vm_page_dirty().
  */
 void
-vm_page_dirty(vm_page_t m)
+vm_page_dirty_KBI(vm_page_t m)
 {
 
+	/* These assertions refer to this operation by its public name. */
 	KASSERT((m->flags & PG_CACHED) == 0,
 	    ("vm_page_dirty: page in cache!"));
 	KASSERT(!VM_PAGE_IS_FREE(m),
@@ -870,7 +873,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	 * Since we are inserting a new and possibly dirty page,
 	 * update the object's OBJ_MIGHTBEDIRTY flag.
 	 */
-	if (m->aflags & PGA_WRITEABLE)
+	if (pmap_page_is_write_mapped(m))
 		vm_object_set_writeable_dirty(object);
 	return (0);
 }
@@ -2434,11 +2437,11 @@ vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits)
 
 	/*
 	 * If the object is locked and the page is neither VPO_BUSY nor
-	 * PGA_WRITEABLE, then the page's dirty field cannot possibly be
+	 * write mapped, then the page's dirty field cannot possibly be
 	 * set by a concurrent pmap operation.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if ((m->oflags & VPO_BUSY) == 0 && (m->aflags & PGA_WRITEABLE) == 0)
+	if ((m->oflags & VPO_BUSY) == 0 && !pmap_page_is_write_mapped(m))
 		m->dirty &= ~pagebits;
 	else {
 		/*
