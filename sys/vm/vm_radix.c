@@ -726,7 +726,8 @@ out:
  */
 int
 vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
-    vm_pindex_t end, int color, void **out, int cnt, vm_pindex_t *next)
+    vm_pindex_t end, int color, void **out, int cnt, vm_pindex_t *next,
+    u_int *exhausted)
 {
 	struct vm_radix_node *rnode;
 	void *val;
@@ -736,6 +737,8 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 	CTR5(KTR_VM, "lookupn: tree %p, " KFRMT64(start) ", " KFRMT64(end),
 	    rtree, KSPLT64L(start), KSPLT64H(start), KSPLT64L(end),
 	    KSPLT64H(end));
+	if (end == 0)
+		*exhausted = 0;
 	if (rtree->rt_root == 0)
 		return (0);
 	outidx = 0;
@@ -760,6 +763,8 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 				 */
 				if ((VM_RADIX_MAXVAL - start) == 0) {
 					start++;
+					if (end == 0)
+						*exhausted = 1;
 					goto out;
 				}
 				continue;
@@ -771,6 +776,8 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 			if (++outidx == cnt ||
 			    (VM_RADIX_MAXVAL - start) == 0) {
 				start++;
+				if (end == 0)
+					*exhausted = 1;
 				goto out;
 			}
 		} 

@@ -679,6 +679,7 @@ vm_object_terminate(vm_object_t object)
 	vm_page_t pa[VM_RADIX_STACK];
 	vm_page_t p;
 	vm_pindex_t start;
+	u_int exhausted;
 	int n, i;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
@@ -725,8 +726,10 @@ vm_object_terminate(vm_object_t object)
 	 * the object, the page and object are reset to any empty state. 
 	 */
 	start = 0;
-	while ((n = vm_radix_lookupn(&object->rtree, start, 0, VM_RADIX_ANY,
-	    (void **)pa, VM_RADIX_STACK, &start)) != 0) {
+	exhausted = 0;
+	while (exhausted == 0 && (n = vm_radix_lookupn(&object->rtree, start,
+	    0, VM_RADIX_ANY, (void **)pa, VM_RADIX_STACK, &start,
+	    &exhausted)) != 0) {
 		for (i = 0; i < n; i++) {
 			p = pa[i];
 			/*
@@ -1315,6 +1318,7 @@ vm_object_split(vm_map_entry_t entry)
 	vm_object_t orig_object, new_object, source;
 	vm_pindex_t idx, offidxstart, start;
 	vm_size_t size;
+	u_int exhausted;
 	int i, n;
 
 	orig_object = entry->object.vm_object;
@@ -1370,9 +1374,10 @@ vm_object_split(vm_map_entry_t entry)
 	}
 	start = offidxstart;
 retry:
-	while ((n = vm_radix_lookupn(&orig_object->rtree, start,
-	    offidxstart + size, VM_RADIX_ANY, (void **)ma, VM_RADIX_STACK,
-	    &start)) != 0) {
+	exhausted = 0;
+	while (exhausted == 0 && (n = vm_radix_lookupn(&orig_object->rtree,
+	    start, offidxstart + size, VM_RADIX_ANY, (void **)ma,
+	    VM_RADIX_STACK, &start, &exhausted)) != 0) {
 		for (i = 0; i < n; i++) {
 			m = ma[i];
 			idx = m->pindex - offidxstart;
@@ -1457,6 +1462,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 	vm_object_t backing_object;
 	vm_pindex_t backing_offset_index, new_pindex;
 	vm_pindex_t start;
+	u_int exhausted;
 	int color, i, n;
 	int r = 1;
 
@@ -1495,13 +1501,15 @@ vm_object_backing_scan(vm_object_t object, int op)
 restart:
 	start = 0;
 	i = n = VM_RADIX_STACK;
+	exhausted = 0;
 	for (;;) {
 		if (i == n) {
 			if (n < VM_RADIX_STACK)
 				break;
-			if ((n = vm_radix_lookupn(&backing_object->rtree,
+			if (exhausted != 0 &&
+			    (n = vm_radix_lookupn(&backing_object->rtree,
 			    start, 0, color, (void **)pa, VM_RADIX_STACK,
-			    &start)) == 0)
+			    &start, &exhausted)) == 0)
 				break;
 			i = 0;
 		}
@@ -1909,6 +1917,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	struct vnode *vp;
 	vm_page_t pa[VM_RADIX_STACK];
 	vm_page_t p;
+	u_int exhausted;
 	int i, n;
 	int wirings;
 
@@ -1921,8 +1930,10 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	vp = NULL;
 	vm_object_pip_add(object, 1);
 restart:
-	while ((n = vm_radix_lookupn(&object->rtree, start, end, VM_RADIX_ANY,
-	    (void **)pa, VM_RADIX_STACK, &start)) != 0) {
+	exhausted = 0;
+	while (exhausted == 0 && (n = vm_radix_lookupn(&object->rtree, start,
+	    end, VM_RADIX_ANY, (void **)pa, VM_RADIX_STACK, &start,
+	    &exhausted)) != 0) {
 		for (i = 0; i < n; i++) {
 			p = pa[i];
 			/*
