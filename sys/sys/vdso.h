@@ -29,7 +29,6 @@
 #define	_SYS_VDSO_H
 
 #include <sys/types.h>
-#include <sys/eventhandler.h>
 #include <machine/vdso.h>
 
 struct vdso_timehands {
@@ -74,6 +73,8 @@ u_int __vdso_gettc(const struct vdso_timehands *vdso_th);
 
 #ifdef _KERNEL
 
+void timekeep_push_vdso(void);
+
 uint32_t tc_fill_vdso_timehands(struct vdso_timehands *vdso_th);
 
 /*
@@ -85,9 +86,6 @@ uint32_t tc_fill_vdso_timehands(struct vdso_timehands *vdso_th);
  * after cpu_fill_vdso_timehands() call is made.
  */
 uint32_t cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th);
-
-typedef void (*tc_windup_fn)(void *);
-EVENTHANDLER_DECLARE(tc_windup, tc_windup_fn);
 
 #define	VDSO_TH_NUM	4
 
