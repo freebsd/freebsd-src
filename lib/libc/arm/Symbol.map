@@ -33,6 +33,10 @@ FBSD_1.0 {
 	sbrk;
 };
 
+FBSD_1.3 {
+	__flt_rounds;
+};
+
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
 	__sys_getlogin;
@@ -70,7 +74,6 @@ FBSDprivate_1.0 {
 	__divdf3;
 	__floatsisf;
 	__floatsidf;
-	__flt_rounds;
 	__fixsfsi;
 	__fixdfsi;
 	__fixunssfsi;
