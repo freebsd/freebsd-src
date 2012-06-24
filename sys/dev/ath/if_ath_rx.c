@@ -536,7 +536,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 				    bf->bf_dmamap,
 				    BUS_DMASYNC_POSTREAD);
 				/* Now pass it to the radar processing code */
-				ath_dfs_process_phy_err(sc, mtod(m, char *), rstamp, rs);
+				ath_dfs_process_phy_err(sc, m, rstamp, rs);
 			}
 
 			/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
