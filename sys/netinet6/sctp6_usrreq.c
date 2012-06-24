@@ -100,10 +100,12 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 		return (-1);
 	}
 	m = SCTP_HEADER_TO_CHAIN(*i_pak);
-	pkt_len = SCTP_HEADER_LEN((*i_pak));
+	pkt_len = SCTP_HEADER_LEN(*i_pak);
 
-#ifdef  SCTP_PACKET_LOGGING
-	sctp_packet_log(m, pkt_len);
+#ifdef SCTP_PACKET_LOGGING
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING) {
+		sctp_packet_log(m);
+	}
 #endif
 	if (m->m_flags & M_FLOWID) {
 		mflowid = m->m_pkthdr.flowid;

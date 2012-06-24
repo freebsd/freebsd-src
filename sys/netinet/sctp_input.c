@@ -5932,9 +5932,9 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 		}
 	}
 #endif
-#ifdef  SCTP_PACKET_LOGGING
+#ifdef SCTP_PACKET_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
-		sctp_packet_log(m, mlen);
+		sctp_packet_log(m);
 #endif
 	if (m->m_flags & M_FLOWID) {
 		mflowid = m->m_pkthdr.flowid;
