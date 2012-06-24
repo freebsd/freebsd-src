@@ -723,6 +723,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #endif
 
 	/*
+	 * Initial aggregation settings.
+	 */
+	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
+	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
+	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
+
+	/*
 	 * Check if the hardware requires PCI register serialisation.
 	 * Some of the Owl based MACs require this.
 	 */
@@ -1822,13 +1829,6 @@ ath_init(void *arg)
 	 * things transition to the RUN state.
 	 */
 	sc->sc_beacons = 0;
-
-	/*
-	 * Initial aggregation settings.
-	 */
-	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
-	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
-	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
 
 	/*
 	 * Setup the hardware after reset: the key cache
