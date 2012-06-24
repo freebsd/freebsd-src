@@ -11312,21 +11312,15 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 
 void
 sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
-    struct mbuf *m, int iphlen, int bad_crc)
+    struct mbuf *m, int len, int iphlen, int bad_crc)
 {
 	struct sctp_association *asoc;
 	struct sctp_pktdrop_chunk *drp;
 	struct sctp_tmit_chunk *chk;
 	uint8_t *datap;
-	int len;
 	int was_trunc = 0;
 	struct ip *iph;
-
-#ifdef INET6
-	struct ip6_hdr *ip6h;
-
-#endif
-	int fullsz = 0, extra = 0;
+	int fullsz = 0;
 	long spc;
 	int offset;
 	struct sctp_chunkhdr *ch, chunk_buf;
@@ -11356,23 +11350,8 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 		sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 		return;
 	}
-	switch (iph->ip_v) {
-#ifdef INET
-	case IPVERSION:
-		/* IPv4 */
-		len = chk->send_size = iph->ip_len;
-		break;
-#endif
-#ifdef INET6
-	case IPV6_VERSION >> 4:
-		/* IPv6 */
-		ip6h = mtod(m, struct ip6_hdr *);
-		len = chk->send_size = htons(ip6h->ip6_plen);
-		break;
-#endif
-	default:
-		return;
-	}
+	len -= iphlen;
+	chk->send_size = len;
 	/* Validate that we do not have an ABORT in here. */
 	offset = iphlen + sizeof(struct sctphdr);
 	ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, offset,
@@ -11408,7 +11387,7 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 		/*
 		 * only send 1 mtu worth, trim off the excess on the end.
 		 */
-		fullsz = len - extra;
+		fullsz = len;
 		len = min(stcb->asoc.smallest_mtu, MCLBYTES) - SCTP_MAX_OVERHEAD;
 		was_trunc = 1;
 	}
