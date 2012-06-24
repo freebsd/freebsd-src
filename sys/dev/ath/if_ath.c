@@ -799,11 +799,26 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_update_chw = ath_update_chw;
 #endif	/* ATH_ENABLE_11N */
 
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+	/*
+	 * There's one vendor bitmap entry in the RX radiotap
+	 * header; make sure that's taken into account.
+	 */
+	ieee80211_radiotap_attachv(ic,
+	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th), 0,
+		ATH_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th), 1,
+		ATH_RX_RADIOTAP_PRESENT);
+#else
+	/*
+	 * No vendor bitmap/extensions are present.
+	 */
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
 		ATH_TX_RADIOTAP_PRESENT,
 	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th),
 		ATH_RX_RADIOTAP_PRESENT);
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 
 	/*
 	 * Setup dynamic sysctl's now that country code and
