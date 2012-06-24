@@ -257,15 +257,6 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
 
-	if (NFS_ISV4(vp) && vp->v_type == VREG)
-		/*
-		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
-		 * Close operations are delayed until ncl_inactive().
-		 * However, since VOP_INACTIVE() is not guaranteed to be
-		 * called, we need to do it again here.
-		 */
-		(void) nfsrpc_close(vp, 1, ap->a_td);
-
 	/*
 	 * If the NLM is running, give it a chance to abort pending
 	 * locks.
@@ -277,6 +268,15 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	 * Destroy the vm object and flush associated pages.
 	 */
 	vnode_destroy_vobject(vp);
+
+	if (NFS_ISV4(vp) && vp->v_type == VREG)
+		/*
+		 * We can now safely close any remaining NFSv4 Opens for
+		 * this file. Most opens will have already been closed by
+		 * ncl_inactive(), but there are cases where it is not
+		 * called, so we need to do it again here.
+		 */
+		(void) nfsrpc_close(vp, 1, ap->a_td);
 
 	vfs_hash_remove(vp);
 
