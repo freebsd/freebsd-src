@@ -351,6 +351,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->start = mp->start;
 	gp->spoiled = mp->spoiled;
 	gp->attrchanged = mp->attrchanged;
+	gp->providergone = mp->providergone;
 	gp->dumpconf = mp->dumpconf;
 	gp->access = mp->access;
 	gp->orphan = mp->orphan;
@@ -634,6 +635,13 @@ g_destroy_provider(struct g_provider *pp)
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
 	devstat_remove_entry(pp->stat);
+	/*
+	 * If a callback was provided, send notification that the provider
+	 * is now gone.
+	 */
+	if (gp->providergone != NULL)
+		gp->providergone(pp);
+
 	g_free(pp);
 	if ((gp->flags & G_GEOM_WITHER))
 		g_do_wither();
