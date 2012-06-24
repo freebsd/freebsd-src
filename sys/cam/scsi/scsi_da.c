@@ -76,7 +76,6 @@ typedef enum {
 	DA_FLAG_NEW_PACK	= 0x002,
 	DA_FLAG_PACK_LOCKED	= 0x004,
 	DA_FLAG_PACK_REMOVABLE	= 0x008,
-	DA_FLAG_TAGGED_QUEUING	= 0x010,
 	DA_FLAG_NEED_OTAG	= 0x020,
 	DA_FLAG_WENT_IDLE	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
@@ -1445,8 +1444,6 @@ daregister(struct cam_periph *periph, void *arg)
 	bioq_init(&softc->bio_queue);
 	if (SID_IS_REMOVABLE(&cgd->inq_data))
 		softc->flags |= DA_FLAG_PACK_REMOVABLE;
-	if ((cgd->inq_data.flags & SID_CmdQue) != 0)
-		softc->flags |= DA_FLAG_TAGGED_QUEUING;
 
 	periph->softc = softc;
 
