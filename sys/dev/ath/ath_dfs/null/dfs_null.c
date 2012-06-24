@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 /*
  * This implements an empty DFS module.
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 
