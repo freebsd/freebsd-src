@@ -1506,7 +1506,7 @@ restart:
 		if (i == n) {
 			if (n < VM_RADIX_STACK)
 				break;
-			if (exhausted != 0 &&
+			if (exhausted != 0 ||
 			    (n = vm_radix_lookupn(&backing_object->rtree,
 			    start, 0, color, (void **)pa, VM_RADIX_STACK,
 			    &start, &exhausted)) == 0)
