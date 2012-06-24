@@ -65,6 +65,7 @@ SRCS+=	sys/elf32.h sys/elf64.h sys/elf_common.h
 
 GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
 CLEANFILES=	${GENSRCS}
+CLEANDIRS=	sys
 CFLAGS+=	-I${.CURDIR} -I.
 
 sys/elf32.h sys/elf64.h sys/elf_common.h: sys
