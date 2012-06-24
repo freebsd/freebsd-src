@@ -164,6 +164,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
+	no="$no -DWITHOUT_CLANG"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
@@ -441,7 +442,7 @@ do_kernel() {		# OK
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
 	${BINMAKE} ${o_par} KERNCONF=${l_kernconf}	\
 		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
-	fail $? missing_kernel
+	    fail $? missing_kernel
 }
 
 # Populate the variable part of the floppy filesystem. Must be done before
@@ -591,7 +592,7 @@ find_progs() {	# programs
 		if [ "$old_libs" = "$i" ] ; then
 			log "libraries for: $my_progs ($u_progs) are ($i) $u_libs"
 			log "--- done find_progs ---"
-	return 0
+			return 0
 		else
 			# logverbose "old--- $old_libs --- new +++ $i +++"
 		fi
@@ -881,11 +882,11 @@ fill_floppy_image() {
     fi
     log "Compress with kgzip and copy to floppy image"
 
-	mkdir -p  ${dst}/boot/kernel
+    mkdir -p  ${dst}/boot/kernel
     # XXX update loader.conf
-	echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
-	echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
-	cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
+    echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
+    echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
+    cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
     gzip -c kernel > ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
 
     # now transfer the floppy tree. If it is already in mfs, dont bother.
