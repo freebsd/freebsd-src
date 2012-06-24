@@ -231,8 +231,9 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 
 		/*
 		 * The AR5416 sometimes sets both AR_CRCErr and AR_PHYErr
-		 * when reporting radar pulses.  In this instance,
-		 * clear HAL_RXERR_CRC and set HAL_RXERR_PHY.
+		 * when reporting radar pulses.  In this instance
+		 * set HAL_RXERR_PHY as well as HAL_RXERR_CRC and
+		 * let the driver layer figure out what to do.
 		 *
 		 * See PR kern/169362.
 		 */
@@ -242,7 +243,9 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 			rs->rs_status |= HAL_RXERR_PHY;
 			phyerr = MS(ads->ds_rxstatus8, AR_PHYErrCode);
 			rs->rs_phyerr = phyerr;
-		} else if (ads->ds_rxstatus8 & AR_CRCErr)
+		}
+
+		if (ads->ds_rxstatus8 & AR_CRCErr)
 			rs->rs_status |= HAL_RXERR_CRC;
 		else if (ads->ds_rxstatus8 & AR_DecryptCRCErr)
 			rs->rs_status |= HAL_RXERR_DECRYPT;
