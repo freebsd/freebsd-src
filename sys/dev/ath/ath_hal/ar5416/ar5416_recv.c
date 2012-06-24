@@ -228,15 +228,23 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		 * Consequently we filter them out here so we don't
 		 * confuse and/or complicate drivers.
 		 */
-		if (ads->ds_rxstatus8 & AR_CRCErr)
-			rs->rs_status |= HAL_RXERR_CRC;
-		else if (ads->ds_rxstatus8 & AR_PHYErr) {
+
+		/*
+		 * The AR5416 sometimes sets both AR_CRCErr and AR_PHYErr
+		 * when reporting radar pulses.  In this instance,
+		 * clear HAL_RXERR_CRC and set HAL_RXERR_PHY.
+		 *
+		 * See PR kern/169362.
+		 */
+		if (ads->ds_rxstatus8 & AR_PHYErr) {
 			u_int phyerr;
 
 			rs->rs_status |= HAL_RXERR_PHY;
 			phyerr = MS(ads->ds_rxstatus8, AR_PHYErrCode);
 			rs->rs_phyerr = phyerr;
-		} else if (ads->ds_rxstatus8 & AR_DecryptCRCErr)
+		} else if (ads->ds_rxstatus8 & AR_CRCErr)
+			rs->rs_status |= HAL_RXERR_CRC;
+		else if (ads->ds_rxstatus8 & AR_DecryptCRCErr)
 			rs->rs_status |= HAL_RXERR_DECRYPT;
 		else if (ads->ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= HAL_RXERR_MIC;
