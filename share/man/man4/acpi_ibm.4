@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2010
+.Dd June 24, 2012
 .Dt ACPI_IBM 4
 .Os
 .Sh NAME
@@ -335,6 +335,17 @@ Built-in battery
 .It
 UltraBay battery
 .El
+.It Va dev.acpi_ibm.0.handlerevents
+.Xr devd 8
+events handled by
+.Nm
+when
+.Va events
+is set to 1.
+Events are specified as a whitespace-separated list of event code in
+hexadecimal or decimal form.
+Note that the event maybe handled twice (eg. Brightness up/down) if ACPI BIOS
+already handled the event.
 .El
 .Pp
 Defaults for these sysctls can be set in
@@ -435,6 +446,19 @@ then
         ${ECHO} ${MESSAGE} >> ${DISPLAY_PIPE} &
 fi
 exit 0
+.Ed
+.Pp
+The following example specify that event code 0x04 (Suspend to RAM),
+0x10 (Brightness up) and 0x11 (Brightness down) are handled by
+.Nm .
+.Bd -literal -offset indent
+sysctl dev.acpi_ibm.0.handlerevents='0x04 0x10 0x11'
+.Ed
+.Pp
+in
+.Xr sysctl.conf 5 :
+.Bd -literal -offset indent
+dev.acpi_ibm.0.handlerevents=0x04\\ 0x10\\ 0x11
 .Ed
 .Sh SEE ALSO
 .Xr acpi 4 ,
