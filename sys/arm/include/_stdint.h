@@ -149,12 +149,6 @@
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT32_MAX
 
-#ifndef WCHAR_MIN /* Also possibly defined in <wchar.h> */
-/* Limits of wchar_t. */
-#define	WCHAR_MIN	INT32_MIN
-#define	WCHAR_MAX	INT32_MAX
-#endif
-
 /* Limits of wint_t. */
 #define	WINT_MIN	INT32_MIN
 #define	WINT_MAX	INT32_MAX
