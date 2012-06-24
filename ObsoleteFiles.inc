@@ -22,6 +22,8 @@ OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
 OLD_FILES+=usr/share/man/man9/vgonel.9.gz
 # 20101025: catch up with vm_page_sleep_if_busy rename
 OLD_FILES+=usr/share/man/man9/vm_page_sleep_busy.9.gz
+# 20100815: retired last traces of chooseproc(9)
+OLD_FILES+=usr/share/man/man9/chooseproc.9.gz
 # 20091129: pecoff image activator removed
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/pecoff_machdep.h
