@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
 int
 ath_dfs_attach(struct ath_softc *sc)
 {
-	return 1;
+	return (1);
 }
 
 /*
@@ -111,11 +111,12 @@ ath_dfs_attach(struct ath_softc *sc)
 int
 ath_dfs_detach(struct ath_softc *sc)
 {
-	return 1;
+	return (1);
 }
 
 /*
- * Enable radar check
+ * Enable radar check.  Return 1 if the driver should
+ * enable radar PHY errors, or 0 if not.
  */
 int
 ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
@@ -163,9 +164,12 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 /*
  * Process DFS related PHY errors
+ *
+ * The mbuf is not "ours" and if we want a copy, we have
+ * to take a copy.  It'll be freed after this function returns.
  */
 void
-ath_dfs_process_phy_err(struct ath_softc *sc, const char *buf,
+ath_dfs_process_phy_err(struct ath_softc *sc, struct mbuf *m,
     uint64_t tsf, struct ath_rx_status *rxstat)
 {
 
@@ -182,7 +186,7 @@ int
 ath_dfs_process_radar_event(struct ath_softc *sc,
     struct ieee80211_channel *chan)
 {
-	return 0;
+	return (0);
 }
 
 /*
@@ -195,7 +199,7 @@ ath_dfs_process_radar_event(struct ath_softc *sc,
 int
 ath_dfs_tasklet_needed(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
-	return 0;
+	return (0);
 }
 
 /*
@@ -272,7 +276,7 @@ bad:
 		free(indata, M_TEMP);
 	if ((ad->ad_id & ATH_DIAG_DYN) && outdata != NULL)
 		free(outdata, M_TEMP);
-	return error;
+	return (error);
 }
 
 /*
@@ -282,5 +286,5 @@ int
 ath_dfs_get_thresholds(struct ath_softc *sc, HAL_PHYERR_PARAM *param)
 {
 	ath_hal_getdfsthresh(sc->sc_ah, param);
-	return 1;
+	return (1);
 }
