@@ -92,6 +92,7 @@ char outmkname[MAXPATHLEN], outcfname[MAXPATHLEN], execfname[MAXPATHLEN];
 char tempfname[MAXPATHLEN], cachename[MAXPATHLEN], curfilename[MAXPATHLEN];
 char outhdrname[MAXPATHLEN] ;	/* user-supplied header for *.mk */
 char *objprefix;		/* where are the objects ? */
+char *path_make;
 int linenum = -1;
 int goterror = 0;
 
@@ -126,6 +127,10 @@ int main(int argc, char **argv)
 	verbose = 1;
 	readcache = 1;
 	*outmkname = *outcfname = *execfname = '\0';
+
+	path_make = getenv("MAKE");
+	if (path_make == NULL || *path_make == '\0')
+		path_make = "make";
 
 	p = getenv("MAKEOBJDIRPREFIX");
 	if (p == NULL || *p == '\0')
@@ -599,7 +604,8 @@ void gen_outputs(void)
 	gen_output_makefile();
 	status("");
 	fprintf(stderr,
-	    "Run \"make -f %s\" to build crunched binary.\n", outmkname);
+	    "Run \"%s -f %s\" to build crunched binary.\n",
+	    path_make, outmkname);
 }
 
 /*
@@ -720,16 +726,16 @@ void fillin_program_objs(prog_t *p, char *path)
 	fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
 
 	fprintf(f, "crunchgen_objs:\n"
-	    "\t@cd %s && make -f %s $(BUILDOPTS) $(%s_OPTS)",
-	    p->srcdir, tempfname, p->ident);
+	    "\t@cd %s && %s -f %s $(BUILDOPTS) $(%s_OPTS)",
+	    p->srcdir, path_make, tempfname, p->ident);
 	for (s = p->buildopts; s != NULL; s = s->next)
 		fprintf(f, " %s", s->str);
 	fprintf(f, " loop\n");
 
 	fclose(f);
 
-	snprintf(line, MAXLINELEN, "cd %s && make -f %s -B crunchgen_objs",
-	    p->srcdir, tempfname);
+	snprintf(line, MAXLINELEN, "cd %s && %s -f %s -B crunchgen_objs",
+	     p->srcdir, path_make, tempfname);
 	if ((f = popen(line, "r")) == NULL) {
 		warn("submake pipe");
 		goterror = 1;
