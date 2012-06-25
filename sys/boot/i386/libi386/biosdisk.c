@@ -854,6 +854,8 @@ bd_getdev(struct i386_devdesc *dev)
 	return(-1);
     if (bd_opendisk(&od, dev) != 0)		/* oops, not a viable device */
 	return(-1);
+    else
+	bd_closedisk(od);
 
     if (biosdev < 0x80) {
 	/* floppy (or emulated floppy) or ATAPI device */
