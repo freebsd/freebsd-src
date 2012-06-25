@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.199 2012/04/24 20:35:04 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.200 2012/06/12 19:21:51 joerg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.199 2012/04/24 20:35:04 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.200 2012/06/12 19:21:51 joerg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.199 2012/04/24 20:35:04 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.200 2012/06/12 19:21:51 joerg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -180,7 +180,7 @@ static char *		Check_Cwd_av(int, char **, int);
 #endif
 static void		MainParseArgs(int, char **);
 static int		ReadMakefile(const void *, const void *);
-static void		usage(void) __dead;
+static void		usage(void) MAKE_ATTR_DEAD;
 
 static Boolean		ignorePWD;	/* if we use -C, PWD is meaningless */
 static char objdir[MAXPATHLEN + 1];	/* where we chdir'ed to */
@@ -736,7 +736,7 @@ str2Lst_Append(Lst lp, char *str, const char *sep)
 #ifdef SIGINFO
 /*ARGSUSED*/
 static void
-siginfo(int signo __unused)
+siginfo(int signo MAKE_ATTR_UNUSED)
 {
 	char dir[MAXPATHLEN];
 	char str[2 * MAXPATHLEN];
@@ -1340,7 +1340,7 @@ main(int argc, char **argv)
  *	lots
  */
 static int
-ReadMakefile(const void *p, const void *q __unused)
+ReadMakefile(const void *p, const void *q MAKE_ATTR_UNUSED)
 {
 	const char *fname = p;		/* makefile to read */
 	int fd;

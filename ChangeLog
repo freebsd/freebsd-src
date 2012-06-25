@@ -1,3 +1,24 @@
+2012-06-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120620
+	  Merge with NetBSD make, pick up
+	  o make_malloc.c: avoid including make_malloc.h again
+
+	* Makefile.in: avoid bmake only syntax or protect with
+	  .if defined(.MAKE.LEVEL)
+	* bsd.after-import.mk: replace .-include with .sinclude
+	  ensure? SRCTOP gets a value
+	* configure.in: look for filemon.h in /usr/include/dev/filemon first.
+
+2012-06-19  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120612
+	  Merge with NetBSD make, pick up
+	  o use MAKE_ATTR_* rather than those defined by cdefs.h or compiler
+	    for greater portability.
+	  o unit-tests/forloop: check that .for works as expected wrt
+	    number of times and with "quoted strings".
+	
 2012-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile.in (MAKE_VERSION): bump version to 20120606

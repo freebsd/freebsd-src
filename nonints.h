@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.63 2011/09/16 15:38:04 joerg Exp $	*/
+/*	$NetBSD: nonints.h,v 1.64 2012/06/12 19:21:51 joerg Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -72,11 +72,6 @@
  *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
  */
 
-#ifndef MAKE_NATIVE
-#undef __attribute__
-#define __attribute__(x)
-#endif
-
 /* arch.c */
 ReturnStatus Arch_ParseArchive(char **, Lst, GNode *);
 void Arch_Touch(GNode *);
@@ -116,21 +111,18 @@ void Main_ParseArgLine(const char *);
 void MakeMode(const char *);
 int main(int, char **);
 char *Cmd_Exec(const char *, const char **);
-void Error(const char *, ...) __attribute__((__format__(__printf__, 1, 2)));
-void Fatal(const char *, ...)
-    __attribute__((__format__(__printf__, 1, 2),__noreturn__));
-void Punt(const char *, ...)
-    __attribute__((__format__(__printf__, 1, 2),__noreturn__));
-void DieHorribly(void) __attribute__((__noreturn__));
+void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
+void Fatal(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
+void Punt(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
+void DieHorribly(void) MAKE_ATTR_DEAD;
 int PrintAddr(void *, void *);
-void Finish(int) __dead;
+void Finish(int) MAKE_ATTR_DEAD;
 int eunlink(const char *);
 void execError(const char *, const char *);
 char *getTmpdir(void);
 
 /* parse.c */
-void Parse_Error(int, const char *, ...)
-     __attribute__((__format__(__printf__, 2, 3)));
+void Parse_Error(int, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
 Boolean Parse_AnyExport(void);
 Boolean Parse_IsVar(char *);
 void Parse_DoVar(char *, GNode *);
