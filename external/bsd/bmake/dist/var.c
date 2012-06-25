@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.170 2012/06/04 20:34:20 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.170 2012/06/04 20:34:20 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.170 2012/06/04 20:34:20 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1145,7 +1145,7 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarHead(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarHead(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	char *word, Boolean addSpace, Buffer *buf,
 	void *dummy)
 {
@@ -1193,7 +1193,7 @@ VarHead(GNode *ctx __unused, Var_Parse_State *vpstate,
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarTail(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarTail(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	char *word, Boolean addSpace, Buffer *buf,
 	void *dummy)
 {
@@ -1235,7 +1235,7 @@ VarTail(GNode *ctx __unused, Var_Parse_State *vpstate,
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarSuffix(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarSuffix(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	  char *word, Boolean addSpace, Buffer *buf,
 	  void *dummy)
 {
@@ -1276,7 +1276,7 @@ VarSuffix(GNode *ctx __unused, Var_Parse_State *vpstate,
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarRoot(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarRoot(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	char *word, Boolean addSpace, Buffer *buf,
 	void *dummy)
 {
@@ -1320,7 +1320,7 @@ VarRoot(GNode *ctx __unused, Var_Parse_State *vpstate,
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarMatch(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarMatch(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	 char *word, Boolean addSpace, Buffer *buf,
 	 void *pattern)
 {
@@ -1411,7 +1411,7 @@ VarSYSVMatch(GNode *ctx, Var_Parse_State *vpstate,
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarNoMatch(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarNoMatch(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	   char *word, Boolean addSpace, Buffer *buf,
 	   void *pattern)
 {
@@ -1448,7 +1448,7 @@ VarNoMatch(GNode *ctx __unused, Var_Parse_State *vpstate,
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarSubstitute(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarSubstitute(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	      char *word, Boolean addSpace, Buffer *buf,
 	      void *patternp)
 {
@@ -1644,7 +1644,8 @@ VarREError(int errnum, regex_t *pat, const char *str)
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarRESubstitute(GNode *ctx __unused, Var_Parse_State *vpstate __unused,
+VarRESubstitute(GNode *ctx MAKE_ATTR_UNUSED,
+		Var_Parse_State *vpstate MAKE_ATTR_UNUSED,
 		char *word, Boolean addSpace, Buffer *buf,
 		void *patternp)
 {
@@ -1784,7 +1785,8 @@ VarRESubstitute(GNode *ctx __unused, Var_Parse_State *vpstate __unused,
  *-----------------------------------------------------------------------
  */
 static Boolean
-VarLoopExpand(GNode *ctx __unused, Var_Parse_State *vpstate __unused,
+VarLoopExpand(GNode *ctx MAKE_ATTR_UNUSED,
+	      Var_Parse_State *vpstate MAKE_ATTR_UNUSED,
 	      char *word, Boolean addSpace, Buffer *buf,
 	      void *loopp)
 {
@@ -1827,7 +1829,7 @@ VarLoopExpand(GNode *ctx __unused, Var_Parse_State *vpstate __unused,
  *-----------------------------------------------------------------------
  */
 static char *
-VarSelectWords(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarSelectWords(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	       const char *str, VarSelectWords_t *seldata)
 {
     Buffer  	  buf;		    /* Buffer for the new string */
@@ -1902,9 +1904,9 @@ VarSelectWords(GNode *ctx __unused, Var_Parse_State *vpstate,
  *	if successful.
  */
 static Boolean
-VarRealpath(GNode *ctx __unused, Var_Parse_State *vpstate,
+VarRealpath(GNode *ctx MAKE_ATTR_UNUSED, Var_Parse_State *vpstate,
 	    char *word, Boolean addSpace, Buffer *buf,
-	    void *patternp __unused)
+	    void *patternp MAKE_ATTR_UNUSED)
 {
 	struct stat st;
 	char rbuf[MAXPATHLEN];
@@ -2127,7 +2129,7 @@ VarUniq(const char *str)
  *-----------------------------------------------------------------------
  */
 static char *
-VarGetPattern(GNode *ctxt, Var_Parse_State *vpstate __unused,
+VarGetPattern(GNode *ctxt, Var_Parse_State *vpstate MAKE_ATTR_UNUSED,
 	      int errnum, const char **tstr, int delim, int *flags,
 	      int *length, VarPattern *pattern)
 {

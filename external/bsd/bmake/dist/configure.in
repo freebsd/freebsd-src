@@ -1,10 +1,10 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.44 2012/06/06 17:48:14 sjg Exp $
+dnl	$Id: configure.in,v 1.45 2012/06/20 22:43:41 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
-AC_INIT([bmake], [20120606], [sjg@NetBSD.org])
+AC_INIT([bmake], [20120620], [sjg@NetBSD.org])
 AC_CONFIG_HEADER(config.h)
 
 dnl
@@ -39,7 +39,7 @@ AC_ARG_WITH(filemon,
 esac],
 [
 OS=`uname -s`
-for d in "$srcdir/filemon" "$srcdir/../filemon" "$srcdir/../../sys/dev/filemon"
+for d in "/usr/include/dev/filemon" "$prefix/include/dev/filemon" "$srcdir/filemon" "$srcdir/../filemon" "$srcdir/../../sys/dev/filemon"
 do
 	for x in "/$OS" ""
 	do
