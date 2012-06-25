@@ -239,7 +239,7 @@ handleevents(struct bintime *now, int fake)
 	if (bintime_cmp(now, &state->nextcall, >=) &&
 		(state->nextcall.sec != -1)) {
 		state->nextcall.sec = -1;
-		callout_tick();
+		callout_process();
 	}
 
 #ifdef KDTRACE_HOOKS

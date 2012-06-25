@@ -459,7 +459,7 @@ hardclock_cpu(int usermode)
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
-	callout_tick();
+	callout_process();
 }
 
 /*

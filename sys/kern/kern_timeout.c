@@ -102,35 +102,21 @@ struct cc_mig_ent {
 /*
  * There is one struct callout_cpu per cpu, holding all relevant
  * state for the callout processing thread on the individual CPU.
- * In particular:
- *	cc_ticks is incremented once per tick in callout_cpu().
- *	It tracks the global 'ticks' but in a way that the individual
- *	threads should not worry about races in the order in which
- *	hardclock() and hardclock_cpu() run on the various CPUs.
- *	cc_softclock is advanced in callout_cpu() to point to the
- *	first entry in cc_callwheel that may need handling. In turn,
- *	a softclock() is scheduled so it can serve the various entries i
- *	such that cc_softclock <= i <= cc_ticks .
- *	XXX maybe cc_softclock and cc_ticks should be volatile ?
- *
- *	cc_ticks is also used in callout_reset_cpu() to determine
- *	when the callout should be served.
  */
 struct callout_cpu {
 	struct cc_mig_ent	cc_migrating_entity;
 	struct mtx		cc_lock;
 	struct callout		*cc_callout;
 	struct callout_tailq	*cc_callwheel;
+	struct callout_tailq	*cc_localexp;		  
 	struct callout_list	cc_callfree;
 	struct callout		*cc_next;
 	struct callout		*cc_curr;
+	struct bintime 		cc_firstevent;
+	struct bintime 		cc_lastscan;
 	void			*cc_cookie;
-	struct bintime 		cc_ticks;
-	struct bintime 		cc_softticks;
 	int			cc_cancel;
 	int			cc_waiting;
-	struct bintime 		cc_firsttick;
-	struct callout_tailq	*cc_localexp;		  
 };
 
 #ifdef SMP
@@ -165,19 +151,19 @@ static MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 
 /**
  * Locked by cc_lock:
- *   cc_curr         - If a callout is in progress, it is curr_callout.
- *                     If curr_callout is non-NULL, threads waiting in
+ *   cc_curr         - If a callout is in progress, it is cc_curr.
+ *                     If cc_curr is non-NULL, threads waiting in
  *                     callout_drain() will be woken up as soon as the
  *                     relevant callout completes.
- *   cc_cancel       - Changing to 1 with both callout_lock and c_lock held
+ *   cc_cancel       - Changing to 1 with both callout_lock and cc_lock held
  *                     guarantees that the current callout will not run.
  *                     The softclock() function sets this to 0 before it
  *                     drops callout_lock to acquire c_lock, and it calls
  *                     the handler only if curr_cancelled is still 0 after
- *                     c_lock is successfully acquired.
+ *                     cc_lock is successfully acquired.
  *   cc_waiting      - If a thread is waiting in callout_drain(), then
  *                     callout_wait is nonzero.  Set only when
- *                     curr_callout is non-NULL.
+ *                     cc_curr is non-NULL.
  */
 
 /*
@@ -261,8 +247,6 @@ callout_cpu_init(struct callout_cpu *cc)
 		c->c_flags = CALLOUT_LOCAL_ALLOC;
 		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
 	}
-	cc->cc_softticks.sec = 0;
-	cc->cc_softticks.frac = 0;
 }
 
 #ifdef SMP
@@ -357,7 +341,7 @@ get_bucket(struct bintime *bt)
 }
 
 void
-callout_tick(void)
+callout_process(void)
 {
 	struct bintime limit, max, min, next, now, tmp_max, tmp_min;
 	struct callout *tmp;
@@ -374,7 +358,7 @@ callout_tick(void)
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	binuptime(&now);
 	cpu = curcpu;
-	first = callout_hash(&cc->cc_softticks);
+	first = callout_hash(&cc->cc_lastscan);
 	last = callout_hash(&now);
 	/* 
 	 * Check if we wrapped around the entire wheel from the last scan.
@@ -470,10 +454,10 @@ callout_tick(void)
 			next.frac |= ((uint64_t)1 << 63);
 		next.sec >>= 1;
 	}
-	cc->cc_firsttick = next;
+	cc->cc_firstevent = next;
 	if (callout_new_inserted != NULL) 
 		(*callout_new_inserted)(cpu, next);
-	cc->cc_softticks = now;
+	cc->cc_lastscan = now;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	/*
 	 * swi_sched acquires the thread lock, so we don't want to call it
@@ -517,8 +501,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	int bucket;	
 	
 	CC_LOCK_ASSERT(cc);
-	if (bintime_cmp(&to_bintime, &cc->cc_softticks, <)) {
-		to_bintime = cc->cc_softticks;
+	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <)) {
+		to_bintime = cc->cc_lastscan;
 	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
@@ -552,9 +536,9 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * that has been inserted.
 	 */
 	if (callout_new_inserted != NULL && 
-	    (bintime_cmp(&to_bintime, &cc->cc_firsttick, <) ||
-	    (cc->cc_firsttick.sec == 0 && cc->cc_firsttick.frac == 0))) {
-		cc->cc_firsttick = to_bintime;
+	    (bintime_cmp(&to_bintime, &cc->cc_firstevent, <) ||
+	    (cc->cc_firstevent.sec == 0 && cc->cc_firstevent.frac == 0))) {
+		cc->cc_firstevent = to_bintime;
 		(*callout_new_inserted)(cpu, to_bintime);
 	}
 }
