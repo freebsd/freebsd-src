@@ -47,7 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <btxv86.h>
 #include <edd.h>
+#include "disk.h"
 #include "libi386.h"
+
+CTASSERT(sizeof(struct i386_devdesc) >= sizeof(struct disk_devdesc));
 
 #define BIOS_NUMDRIVES		0x475
 #define BIOSDISK_SECSIZE	512

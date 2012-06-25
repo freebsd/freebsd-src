@@ -84,7 +84,7 @@ struct disk_devdesc
 	void		*d_opendata;
 	int		d_slice;
 	int		d_partition;
-	int		d_offset;
+	off_t		d_offset;
 };
 
 /*
