@@ -1078,7 +1078,7 @@ mfi_tbolt_build_mpt_cmd(struct mfi_softc *sc, struct mfi_command *cmd)
 	if (!req_desc)
 		return NULL;
 
-	bzero(req_desc, sizeof(req_desc));
+	bzero(req_desc, sizeof(*req_desc));
 	req_desc->header.RequestFlags = (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
 	    MFI_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	req_desc->header.SMID = index;

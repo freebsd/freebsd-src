@@ -198,7 +198,7 @@ firmware_register(const char *imagename, const void *data, size_t datasize,
 		free(str, M_TEMP);
 		return NULL;
 	}
-	bzero(frp, sizeof(frp));	/* start from a clean record */
+	bzero(frp, sizeof(*frp));	/* start from a clean record */
 	frp->fw.name = str;
 	frp->fw.data = data;
 	frp->fw.datasize = datasize;
