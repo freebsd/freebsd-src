@@ -437,6 +437,9 @@ balloon_init_watcher(void *arg)
 {
 	int err;
 
+	if (!is_running_on_xen())
+		return;
+
 	err = xs_register_watch(&target_watch);
 	if (err)
 		printf("Failed to set balloon watcher\n");
