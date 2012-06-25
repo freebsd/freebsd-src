@@ -103,12 +103,11 @@ struct g_class {
 	g_start_t		*start;
 	g_spoiled_t		*spoiled;
 	g_attrchanged_t		*attrchanged;
-	g_provgone_t		*providergone;
 	g_dumpconf_t		*dumpconf;
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
-	void			*spare1;
+	g_provgone_t		*providergone;
 	void			*spare2;
 	/*
 	 * The remaining elements are private
@@ -135,12 +134,11 @@ struct g_geom {
 	g_start_t		*start;
 	g_spoiled_t		*spoiled;
 	g_attrchanged_t		*attrchanged;
-	g_provgone_t		*providergone;
 	g_dumpconf_t		*dumpconf;
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
-	void			*spare0;
+	g_provgone_t		*providergone;
 	void			*spare1;
 	void			*softc;
 	unsigned		flags;
