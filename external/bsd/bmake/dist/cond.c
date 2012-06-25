@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.63 2012/05/21 06:30:02 sjg Exp $	*/
+/*	$NetBSD: cond.c,v 1.64 2012/06/12 19:21:50 joerg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: cond.c,v 1.63 2012/05/21 06:30:02 sjg Exp $";
+static char rcsid[] = "$NetBSD: cond.c,v 1.64 2012/06/12 19:21:50 joerg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cond.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: cond.c,v 1.63 2012/05/21 06:30:02 sjg Exp $");
+__RCSID("$NetBSD: cond.c,v 1.64 2012/06/12 19:21:50 joerg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -327,7 +327,7 @@ CondGetArg(char **linePtr, char **argPtr, const char *func)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoDefined(int argLen __unused, const char *arg)
+CondDoDefined(int argLen MAKE_ATTR_UNUSED, const char *arg)
 {
     char    *p1;
     Boolean result;
@@ -376,7 +376,7 @@ CondStrMatch(const void *string, const void *pattern)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoMake(int argLen __unused, const char *arg)
+CondDoMake(int argLen MAKE_ATTR_UNUSED, const char *arg)
 {
     return Lst_Find(create, arg, CondStrMatch) != NULL;
 }
@@ -395,7 +395,7 @@ CondDoMake(int argLen __unused, const char *arg)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoExists(int argLen __unused, const char *arg)
+CondDoExists(int argLen MAKE_ATTR_UNUSED, const char *arg)
 {
     Boolean result;
     char    *path;
@@ -428,7 +428,7 @@ CondDoExists(int argLen __unused, const char *arg)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoTarget(int argLen __unused, const char *arg)
+CondDoTarget(int argLen MAKE_ATTR_UNUSED, const char *arg)
 {
     GNode   *gn;
 
@@ -452,7 +452,7 @@ CondDoTarget(int argLen __unused, const char *arg)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoCommands(int argLen __unused, const char *arg)
+CondDoCommands(int argLen MAKE_ATTR_UNUSED, const char *arg)
 {
     GNode   *gn;
 
@@ -790,7 +790,7 @@ done:
 }
 
 static int
-get_mpt_arg(char **linePtr, char **argPtr, const char *func __unused)
+get_mpt_arg(char **linePtr, char **argPtr, const char *func MAKE_ATTR_UNUSED)
 {
     /*
      * Use Var_Parse to parse the spec in parens and return
@@ -831,7 +831,7 @@ get_mpt_arg(char **linePtr, char **argPtr, const char *func __unused)
 }
 
 static Boolean
-CondDoEmpty(int arglen, const char *arg __unused)
+CondDoEmpty(int arglen, const char *arg MAKE_ATTR_UNUSED)
 {
     return arglen == 1;
 }

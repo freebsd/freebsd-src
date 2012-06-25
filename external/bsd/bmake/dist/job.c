@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.161 2012/04/07 18:29:08 christos Exp $	*/
+/*	$NetBSD: job.c,v 1.162 2012/06/12 19:21:50 joerg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.161 2012/04/07 18:29:08 christos Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.162 2012/06/12 19:21:50 joerg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.161 2012/04/07 18:29:08 christos Exp $");
+__RCSID("$NetBSD: job.c,v 1.162 2012/06/12 19:21:50 joerg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -365,7 +365,7 @@ static int JobStart(GNode *, int);
 static char *JobOutput(Job *, char *, char *, int);
 static void JobDoOutput(Job *, Boolean);
 static Shell *JobMatchShell(const char *);
-static void JobInterrupt(int, int) __dead;
+static void JobInterrupt(int, int) MAKE_ATTR_DEAD;
 static void JobRestartJobs(void);
 static void JobTokenAdd(void);
 static void JobSigLock(sigset_t *);
@@ -488,7 +488,7 @@ JobCondPassSig(int signo)
  *-----------------------------------------------------------------------
  */
 static void
-JobChildSig(int signo __unused)
+JobChildSig(int signo MAKE_ATTR_UNUSED)
 {
     write(childExitJob.outPipe, CHILD_EXIT, 1);
 }
@@ -511,7 +511,7 @@ JobChildSig(int signo __unused)
  *-----------------------------------------------------------------------
  */
 static void
-JobContinueSig(int signo __unused)
+JobContinueSig(int signo MAKE_ATTR_UNUSED)
 {
     /*
      * Defer sending to SIGCONT to our stopped children until we return
@@ -536,14 +536,14 @@ JobContinueSig(int signo __unused)
  *
  *-----------------------------------------------------------------------
  */
-__dead static void
+MAKE_ATTR_DEAD static void
 JobPassSig_int(int signo)
 {
     /* Run .INTERRUPT target then exit */
     JobInterrupt(TRUE, signo);
 }
 
-__dead static void
+MAKE_ATTR_DEAD static void
 JobPassSig_term(int signo)
 {
     /* Dont run .INTERRUPT target then exit */
