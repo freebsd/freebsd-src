@@ -531,7 +531,7 @@ struct sctp_sysctl {
 #endif
 
 
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 #define SCTPCTL_OUTPUT_UNLOCKED_DESC	"Unlock socket when sending packets down to IP."
 #define SCTPCTL_OUTPUT_UNLOCKED_MIN	0
 #define SCTPCTL_OUTPUT_UNLOCKED_MAX	1
