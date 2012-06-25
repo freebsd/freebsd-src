@@ -712,6 +712,8 @@ drbr_inuse(struct ifnet *ifp, struct buf_ring *br)
 #define	IF_MINMTU	72
 #define	IF_MAXMTU	65535
 
+#define	TOEDEV(ifp)	((ifp)->if_llsoftc)
+
 #endif /* _KERNEL */
 
 /*

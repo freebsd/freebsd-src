@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_clock.h"
 
 #include <sys/param.h>
@@ -41,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/power.h>
 #include <sys/smp.h>
+#include <sys/vdso.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -604,3 +606,23 @@ tsc_get_timecount_low(struct timecounter *tc)
 	: "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
 	return (rv);
 }
+
+uint32_t
+cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th)
+{
+
+	vdso_th->th_x86_shift = (int)(intptr_t)timecounter->tc_priv;
+	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
+	return (timecounter == &tsc_timecounter);
+}
+
+#ifdef COMPAT_FREEBSD32
+uint32_t
+cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
+{
+
+	vdso_th32->th_x86_shift = (int)(intptr_t)timecounter->tc_priv;
+	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
+	return (timecounter == &tsc_timecounter);
+}
+#endif

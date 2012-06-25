@@ -54,7 +54,7 @@ denotes an anonymous principal,
 the routines should indicate that the two names do not refer to the
 same identity.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width "minor_status"
 .It minor_status
 Mechanism specific status code.
 .It name1
@@ -62,7 +62,7 @@ Internal-form name.
 .It name2
 Internal-form name.
 .It name_equal
-.Bl -tag
+.Bl -tag -width "non-zero"
 .It non-zero
 Names refer to same entity
 .It zero
@@ -71,7 +71,7 @@ to refer to the same identity).
 .El
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_BAD_NAMETYPE"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_BAD_NAMETYPE
@@ -80,7 +80,7 @@ The two names were of incomparable types.
 One or both of name1 or name2 was ill-formed.
 .El
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

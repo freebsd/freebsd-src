@@ -197,39 +197,17 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	switch (AT91_CPU(at91_chip_id)) {
-	case AT91_CPU_SAM9260:
-	case AT91_CPU_SAM9XE128:
-	case AT91_CPU_SAM9XE256:
-	case AT91_CPU_SAM9XE512:
+	if (soc_data.type == AT91_T_SAM9260) {
 		at91_add_child(parent, 0, "at91sam9260", 0, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
-		break;
 	}
 }
 
 static int
 at91_probe(device_t dev)
 {
-	const char *desc;
 
-	switch (AT91_CPU(at91_chip_id)) {
-	case AT91_CPU_SAM9260:
-		desc = "AT91SAM9260";
-		break;
-	case AT91_CPU_SAM9XE128:
-		desc = "AT91SAM9XE128";
-		break;
-	case AT91_CPU_SAM9XE256:
-		desc = "AT91SAM9XE256";
-		break;
-	case AT91_CPU_SAM9XE512:
-		desc = "AT91SAM9XE512";
-		break;
-	default:
-		return (ENXIO);
-	}
-	device_set_desc(dev, desc);
+	device_set_desc(dev, soc_data.name);
 	return (0);
 }
 
@@ -288,7 +266,7 @@ at91_attach(device_t dev)
 	    &sc->sc_matrix_sh) != 0)
 		panic("Enable to map matrix registers");
 
-	/* activate NAND*/
+	/* activate NAND */
 	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
 	    AT91SAM9260_EBICSA);
 	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,

@@ -28,7 +28,7 @@
 #ifndef ARM_AT91_AT91PITREG_H
 #define ARM_AT91_AT91PITREG_H
 
-#define PIT_MR		0x0 
+#define PIT_MR		0x0
 #define PIT_SR		0x4
 #define PIT_PIVR	0x8
 #define PIT_PIIR	0xc

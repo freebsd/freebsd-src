@@ -58,7 +58,7 @@
 #define PTE_NOCACHE	0
 #define PTE_CACHE	1
 #define PTE_PAGETABLE	2
- 
+
 #ifndef LOCORE
 
 #include <sys/queue.h>
@@ -78,6 +78,7 @@
 
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
 /*
@@ -413,7 +414,7 @@ extern pt_entry_t		pte_l2_s_cache_mode_pt;
 extern pt_entry_t		pte_l2_s_prot_u;
 extern pt_entry_t		pte_l2_s_prot_w;
 extern pt_entry_t		pte_l2_s_prot_mask;
- 
+
 extern pt_entry_t		pte_l1_s_proto;
 extern pt_entry_t		pte_l1_c_proto;
 extern pt_entry_t		pte_l2_s_proto;

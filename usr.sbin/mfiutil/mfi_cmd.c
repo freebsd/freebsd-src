@@ -301,12 +301,12 @@ mfi_ctrl_get_info(int fd, struct mfi_ctrl_info *info, uint8_t *statusp)
 }
 
 int
-mfi_open(int unit)
+mfi_open(int unit, int acs)
 {
 	char path[MAXPATHLEN];
 
 	snprintf(path, sizeof(path), "/dev/mfi%d", unit);
-	return (open(path, O_RDWR));
+	return (open(path, acs));
 }
 
 void

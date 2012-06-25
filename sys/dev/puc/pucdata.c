@@ -507,6 +507,18 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_quatech
 	},
 
+	{   0x1393, 0x1024, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-102E/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x14, 0, 0x200
+	},
+
+	{   0x1393, 0x1025, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-102EL/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x14, 0, 0x200,
+	},
+
 	{   0x1393, 0x1040, 0xffff, 0,
 	    "Moxa Technologies, Smartio C104H/PCI",
 	    DEFAULT_RCLK * 8,
@@ -550,6 +562,19 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x18, 0, 8,
 	},
 
+	{   0x1393, 0x1144, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-114EL/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x14, 0, -1,
+		.config_function = puc_config_moxa
+	},
+
+	{   0x1393, 0x1182, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-118EL-A/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x14, 0, 0x200,
+	},
+
 	{   0x1393, 0x1680, 0xffff, 0,
 	    "Moxa Technologies, C168H/PCI",
 	    DEFAULT_RCLK * 8,
@@ -566,6 +591,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Moxa Technologies, CP-168EL/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_8S, 0x18, 0, 8,
+	},
+
+	{   0x1393, 0x1683, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-168EL-A/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x14, 0, 0x200,
 	},
 
 	{   0x13a8, 0x0152, 0xffff, 0,
@@ -901,6 +932,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_syba
 	},
 
+	{   0x1fd4, 0x1999, 0xffff, 0,
+	    "Sunix SER5437A",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
 	{    0x5372, 0x6873, 0xffff, 0,
 	     "Sun 1040 PCI Quad Serial",
 	     DEFAULT_RCLK,
@@ -1121,9 +1158,7 @@ static int
 puc_config_moxa(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
     intptr_t *res)
 {
-	const struct puc_cfg *cfg = sc->sc_cfg;
-	
-	if (cmd == PUC_CFG_GET_OFS && cfg->device == 0x1045) {
+	if (cmd == PUC_CFG_GET_OFS) {
 		*res = ((port == 3) ? 7 : port) * 0x200;
 		return 0;
 	}

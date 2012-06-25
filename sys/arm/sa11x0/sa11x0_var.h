@@ -58,7 +58,7 @@ typedef void *sa11x0_chipset_tag_t;
 
 extern struct bus_space sa11x0_bs_tag;
 
-void *sa11x0_intr_establish(sa11x0_chipset_tag_t, int, int, int, 
+void *sa11x0_intr_establish(sa11x0_chipset_tag_t, int, int, int,
 			    int (*)(void *), void *);
 void sa11x0_intr_disestablish(sa11x0_chipset_tag_t, void *);
 

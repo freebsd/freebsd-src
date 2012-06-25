@@ -425,8 +425,8 @@ i81342_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-i81342_setup_intr(device_t dev, device_t child, struct resource *ires, 
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+i81342_setup_intr(device_t dev, device_t child, struct resource *ires,
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
 	int error;

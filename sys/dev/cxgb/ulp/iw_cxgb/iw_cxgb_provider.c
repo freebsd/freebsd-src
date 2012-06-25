@@ -29,11 +29,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
+#ifdef TCP_OFFLOAD
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
 #include <sys/pciio.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
@@ -62,9 +64,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <contrib/rdma/ib_verbs.h>
-#include <contrib/rdma/ib_umem.h>
-#include <contrib/rdma/ib_user_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_umem.h>
+#include <rdma/ib_user_verbs.h>
+#include <linux/idr.h>
+#include <ulp/iw_cxgb/iw_cxgb_ib_intfc.h>
+
 
 #include <cxgb_include.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
@@ -180,6 +185,8 @@ iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 	struct iwch_create_cq_resp uresp;
 	struct iwch_create_cq_req ureq;
 	struct iwch_ucontext *ucontext = NULL;
+	static int warned;
+	size_t resplen;
 
 	CTR3(KTR_IW_CXGB, "%s ib_dev %p entries %d", __FUNCTION__, ibdev, entries);
 	rhp = to_iwch_dev(ibdev);
@@ -214,7 +221,7 @@ iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 	entries = roundup_pow_of_two(entries);
 	chp->cq.size_log2 = ilog2(entries);
 
-	if (cxio_create_cq(&rhp->rdev, &chp->cq)) {
+	if (cxio_create_cq(&rhp->rdev, &chp->cq, !ucontext)) {
 		cxfree(chp);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -222,7 +229,11 @@ iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 	chp->ibcq.cqe = 1 << chp->cq.size_log2;
 	mtx_init(&chp->lock, "cxgb cq", NULL, MTX_DEF|MTX_DUPOK);
 	chp->refcnt = 1;
-	insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid);
+	if (insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid)) {
+		cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
+		cxfree(chp);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	if (ucontext) {
 		struct iwch_mm_entry *mm;
@@ -238,15 +249,27 @@ iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 		uresp.key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
 		mtx_unlock(&ucontext->mmap_lock);
-		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
+		mm->key = uresp.key;
+		mm->addr = vtophys(chp->cq.queue);
+               	if (udata->outlen < sizeof uresp) {
+                	if (!warned++)
+                        	CTR1(KTR_IW_CXGB, "%s Warning - "
+                                	"downlevel libcxgb3 (non-fatal).\n",
+					__func__);
+                       	mm->len = PAGE_ALIGN((1UL << uresp.size_log2) *
+                       				sizeof(struct t3_cqe));
+                       	resplen = sizeof(struct iwch_create_cq_resp_v0);
+               	} else {
+                	mm->len = PAGE_ALIGN(((1UL << uresp.size_log2) + 1) *
+                        			sizeof(struct t3_cqe));
+                       	uresp.memsize = mm->len;
+                      	resplen = sizeof uresp;
+               	}
+              	if (ib_copy_to_udata(udata, &uresp, resplen)) {
 			cxfree(mm);
 			iwch_destroy_cq(&chp->ibcq);
 			return ERR_PTR(-EFAULT);
 		}
-		mm->key = uresp.key;
-		mm->addr = vtophys(chp->cq.queue);
-		mm->len = PAGE_ALIGN((1UL << uresp.size_log2) *
-					     sizeof (struct t3_cqe));
 		insert_mmap(ucontext, mm);
 	}
 	CTR4(KTR_IW_CXGB, "created cqid 0x%0x chp %p size 0x%0x, dma_addr 0x%0llx",
@@ -256,72 +279,11 @@ iwch_create_cq(struct ib_device *ibdev, int entries, int vector,
 }
 
 static int
-iwch_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
+iwch_resize_cq(struct ib_cq *cq __unused, int cqe __unused,
+    struct ib_udata *udata __unused)
 {
-#ifdef notyet
-	struct iwch_cq *chp = to_iwch_cq(cq);
-	struct t3_cq oldcq, newcq;
-	int ret;
 
-	CTR3(KTR_IW_CXGB, "%s ib_cq %p cqe %d", __FUNCTION__, cq, cqe);
-
-	/* We don't downsize... */
-	if (cqe <= cq->cqe)
-		return 0;
-
-	/* create new t3_cq with new size */
-	cqe = roundup_pow_of_two(cqe+1);
-	newcq.size_log2 = ilog2(cqe);
-
-	/* Dont allow resize to less than the current wce count */
-	if (cqe < Q_COUNT(chp->cq.rptr, chp->cq.wptr)) {
-		return (-ENOMEM);
-	}
-
-	/* Quiesce all QPs using this CQ */
-	ret = iwch_quiesce_qps(chp);
-	if (ret) {
-		return (ret);
-	}
-
-	ret = cxio_create_cq(&chp->rhp->rdev, &newcq);
-	if (ret) {
-		return (ret);
-	}
-
-	/* copy CQEs */
-	memcpy(newcq.queue, chp->cq.queue, (1 << chp->cq.size_log2) *
-				        sizeof(struct t3_cqe));
-
-	/* old iwch_qp gets new t3_cq but keeps old cqid */
-	oldcq = chp->cq;
-	chp->cq = newcq;
-	chp->cq.cqid = oldcq.cqid;
-
-	/* resize new t3_cq to update the HW context */
-	ret = cxio_resize_cq(&chp->rhp->rdev, &chp->cq);
-	if (ret) {
-		chp->cq = oldcq;
-		return ret;
-	}
-	chp->ibcq.cqe = (1<<chp->cq.size_log2) - 1;
-
-	/* destroy old t3_cq */
-	oldcq.cqid = newcq.cqid;
-	ret = cxio_destroy_cq(&chp->rhp->rdev, &oldcq);
-	if (ret) {
-		log(LOG_ERR, "%s - cxio_destroy_cq failed %d\n",
-			__FUNCTION__, ret);
-	}
-
-	/* add user hooks here */
-
-	/* resume qps */
-	ret = iwch_resume_qps(chp);
-	return ret;
-#else
 	return (-ENOSYS);
-#endif
 }
 
 static int
@@ -357,67 +319,12 @@ iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	return err;
 }
 
-#ifdef notyet
 static int
-iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
+iwch_mmap(struct ib_ucontext *context __unused, struct vm_area_struct *vma __unused)
 {
-#ifdef notyet	
-	int len = vma->vm_end - vma->vm_start;
-	u32 key = vma->vm_pgoff << PAGE_SHIFT;
-	struct cxio_rdev *rdev_p;
-	int ret = 0;
-	struct iwch_mm_entry *mm;
-	struct iwch_ucontext *ucontext;
-	u64 addr;
 
-	CTR4(KTR_IW_CXGB, "%s pgoff 0x%lx key 0x%x len %d", __FUNCTION__, vma->vm_pgoff,
-	     key, len);
-
-	if (vma->vm_start & (PAGE_SIZE-1)) {
-	        return (-EINVAL);
-	}
-
-	rdev_p = &(to_iwch_dev(context->device)->rdev);
-	ucontext = to_iwch_ucontext(context);
-
-	mm = remove_mmap(ucontext, key, len);
-	if (!mm)
-		return (-EINVAL);
-	addr = mm->addr;
-	cxfree(mm);
-
-	if ((addr >= rdev_p->rnic_info.udbell_physbase) &&
-	    (addr < (rdev_p->rnic_info.udbell_physbase +
-		       rdev_p->rnic_info.udbell_len))) {
-
-		/*
-		 * Map T3 DB register.
-		 */
-		if (vma->vm_flags & VM_READ) {
-			return (-EPERM);
-		}
-
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
-		vma->vm_flags &= ~VM_MAYREAD;
-		ret = io_remap_pfn_range(vma, vma->vm_start,
-					 addr >> PAGE_SHIFT,
-				         len, vma->vm_page_prot);
-	} else {
-
-		/*
-		 * Map WQ or CQ contig dma memory...
-		 */
-		ret = remap_pfn_range(vma, vma->vm_start,
-				      addr >> PAGE_SHIFT,
-				      len, vma->vm_page_prot);
-	}
-
-	return ret;
-#endif
-	return (0);
+	return (-ENOSYS);
 }
-#endif
 
 static int iwch_deallocate_pd(struct ib_pd *pd)
 {
@@ -470,7 +377,7 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 
 	CTR2(KTR_IW_CXGB, "%s ib_mr %p", __FUNCTION__, ib_mr);
 	/* There can be no memory windows */
-	if (atomic_load_acq_int(&ib_mr->usecnt))
+	if (atomic_load_acq_int(&ib_mr->usecnt.counter))
 		return (-EINVAL);
 
 	mhp = to_iwch_mr(ib_mr);
@@ -478,6 +385,7 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 	mmid = mhp->attr.stag >> 8;
 	cxio_dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
 		       mhp->attr.pbl_addr);
+	iwch_free_pbl(mhp);
 	remove_handle(rhp, &rhp->mmidr, mmid);
 	if (mhp->kva)
 		cxfree((void *) (unsigned long) mhp->kva);
@@ -511,6 +419,8 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 
+	mhp->rhp = rhp;
+
 	/* First check that we have enough alignment */
 	if ((*iova_start & ~PAGE_MASK) != (buffer_list[0].addr & ~PAGE_MASK)) {
 		ret = -EINVAL;
@@ -528,7 +438,17 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 	if (ret)
 		goto err;
 
-	mhp->rhp = rhp;
+	ret = iwch_alloc_pbl(mhp, npages);
+	if (ret) {
+		cxfree(page_list);
+		goto err_pbl;
+	}
+
+	ret = iwch_write_pbl(mhp, page_list, npages, 0);
+	cxfree(page_list);
+	if (ret)
+		goto err;
+
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
 
@@ -538,15 +458,18 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 
 	mhp->attr.len = (u32) total_size;
 	mhp->attr.pbl_size = npages;
-	ret = iwch_register_mem(rhp, php, mhp, shift, page_list);
-	cxfree(page_list);
-	if (ret) {
-		goto err;
-	}
+	ret = iwch_register_mem(rhp, php, mhp, shift);
+	if (ret)
+		goto err_pbl;
+
 	return &mhp->ibmr;
+
+err_pbl:
+	iwch_free_pbl(mhp);
+
 err:
 	cxfree(mhp);
-	return ERR_PTR(-ret);
+	return ERR_PTR(ret);
 
 }
 
@@ -570,7 +493,7 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 	CTR3(KTR_IW_CXGB, "%s ib_mr %p ib_pd %p", __FUNCTION__, mr, pd);
 
 	/* There can be no memory windows */
-	if (atomic_load_acq_int(&mr->usecnt))
+	if (atomic_load_acq_int(&mr->usecnt.counter))
 		return (-EINVAL);
 
 	mhp = to_iwch_mr(mr);
@@ -596,7 +519,7 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 			return ret;
 	}
 
-	ret = iwch_reregister_mem(rhp, php, &mh, shift, page_list, npages);
+	ret = iwch_reregister_mem(rhp, php, &mh, shift, npages);
 	cxfree(page_list);
 	if (ret) {
 		return ret;
@@ -640,7 +563,9 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 
-	mhp->umem = ib_umem_get(pd->uobject->context, start, length, acc);
+	mhp->rhp = rhp;
+
+	mhp->umem = ib_umem_get(pd->uobject->context, start, length, acc, 0);
 	if (IS_ERR(mhp->umem)) {
 		err = PTR_ERR(mhp->umem);
 		cxfree(mhp);
@@ -650,18 +575,22 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	shift = ffs(mhp->umem->page_size) - 1;
 
 	n = 0;
-	TAILQ_FOREACH(chunk, &mhp->umem->chunk_list, entry)
+	list_for_each_entry(chunk, &mhp->umem->chunk_list, list)
 		n += chunk->nents;
 
-	pages = kmalloc(n * sizeof(u64), M_NOWAIT);
+	err = iwch_alloc_pbl(mhp, n);
+	if (err)
+		goto err;
+
+	pages = (__be64 *) kmalloc(n * sizeof(u64), M_NOWAIT);
 	if (!pages) {
 		err = -ENOMEM;
-		goto err;
+		goto err_pbl;
 	}
 
 	i = n = 0;
 
-#if 0	
+#ifdef notyet
 	TAILQ_FOREACH(chunk, &mhp->umem->chunk_list, entry)
 		for (j = 0; j < chunk->nmap; ++j) {
 			len = sg_dma_len(&chunk->page_list[j]) >> shift;
@@ -669,21 +598,36 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				pages[i++] = htobe64(sg_dma_address(
 					&chunk->page_list[j]) +
 					mhp->umem->page_size * k);
+				if (i == PAGE_SIZE / sizeof *pages) {
+					err = iwch_write_pbl(mhp, pages, i, n);
+					if (err)
+						goto pbl_done;
+					n += i;
+					i = 0;
+				}
 			}
 		}
 #endif
-	mhp->rhp = rhp;
+
+	if (i)
+		err = iwch_write_pbl(mhp, pages, i, n);
+#ifdef notyet
+pbl_done:
+#endif
+	cxfree(pages);
+	if (err)
+		goto err_pbl;
+
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.zbva = 0;
 	mhp->attr.perms = iwch_ib_to_tpt_access(acc);
 	mhp->attr.va_fbo = virt;
 	mhp->attr.page_size = shift - 12;
 	mhp->attr.len = (u32) length;
-	mhp->attr.pbl_size = i;
-	err = iwch_register_mem(rhp, php, mhp, shift, pages);
-	cxfree(pages);
+	
+	err = iwch_register_mem(rhp, php, mhp, shift);
 	if (err)
-		goto err;
+		goto err_pbl;
 
 	if (udata && !t3a_device(rhp)) {
 		uresp.pbl_addr = (mhp->attr.pbl_addr -
@@ -699,6 +643,9 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	return &mhp->ibmr;
+
+err_pbl:
+	iwch_free_pbl(mhp);
 
 err:
 	ib_umem_release(mhp->umem);
@@ -748,7 +695,12 @@ static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
 	mhp->attr.type = TPT_MW;
 	mhp->attr.stag = stag;
 	mmid = (stag) >> 8;
-	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
+	mhp->ibmw.rkey = stag;
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+		cxio_deallocate_window(&rhp->rdev, mhp->attr.stag);
+		cxfree(mhp);
+		return ERR_PTR(-ENOMEM);
+	}	
 	CTR4(KTR_IW_CXGB, "%s mmid 0x%x mhp %p stag 0x%x", __FUNCTION__, mmid, mhp, stag);
 	return &(mhp->ibmw);
 }
@@ -893,7 +845,13 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 
 	mtx_init(&qhp->lock, "cxgb qp", NULL, MTX_DEF|MTX_DUPOK);
 	qhp->refcnt = 1;
-	insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.qpid);
+
+	if (insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.qpid)) {
+		cxio_destroy_qp(&rhp->rdev, &qhp->wq,
+			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
+		cxfree(qhp);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	if (udata) {
 
@@ -1023,12 +981,14 @@ static int iwch_query_gid(struct ib_device *ibdev, u8 port,
 {
 	struct iwch_dev *dev;
 	struct port_info *pi;
+	struct adapter *sc;
 
 	CTR5(KTR_IW_CXGB, "%s ibdev %p, port %d, index %d, gid %p",
 	       __FUNCTION__, ibdev, port, index, gid);
 	dev = to_iwch_dev(ibdev);
+	sc = dev->rdev.adap;
 	PANIC_IF(port == 0 || port > 2);
-	pi = ((struct port_info *)dev->rdev.port_info.lldevs[port-1]->if_softc);
+	pi = &sc->port[port - 1];
 	memset(&(gid->raw[0]), 0, sizeof(gid->raw));
 	memcpy(&(gid->raw[0]), pi->hw_addr, 6);
 	return 0;
@@ -1037,21 +997,20 @@ static int iwch_query_gid(struct ib_device *ibdev, u8 port,
 static int iwch_query_device(struct ib_device *ibdev,
 			     struct ib_device_attr *props)
 {
-
 	struct iwch_dev *dev;
+	struct adapter *sc;
+
 	CTR2(KTR_IW_CXGB, "%s ibdev %p", __FUNCTION__, ibdev);
 
 	dev = to_iwch_dev(ibdev);
+	sc = dev->rdev.adap;
 	memset(props, 0, sizeof *props);
-#ifdef notyet	
-	memcpy(&props->sys_image_guid, dev->rdev.t3cdev_p->lldev->if_addr.ifa_addr, 6);
-#endif	
+	memcpy(&props->sys_image_guid, sc->port[0].hw_addr, 6);
 	props->device_cap_flags = dev->device_cap_flags;
-#ifdef notyet
-	props->vendor_id = (u32)dev->rdev.rnic_info.pdev->vendor;
-	props->vendor_part_id = (u32)dev->rdev.rnic_info.pdev->device;
-#endif
-	props->max_mr_size = ~0ull;
+	props->page_size_cap = dev->attr.mem_pgsizes_bitmask;
+	props->vendor_id = pci_get_vendor(sc->dev);
+	props->vendor_part_id = pci_get_device(sc->dev);
+	props->max_mr_size = dev->attr.max_mr_size;
 	props->max_qp = dev->attr.max_qps;
 	props->max_qp_wr = dev->attr.max_wrs;
 	props->max_sge = dev->attr.max_sge_per_wr;
@@ -1071,13 +1030,10 @@ static int iwch_query_port(struct ib_device *ibdev,
 			   u8 port, struct ib_port_attr *props)
 {
 	CTR2(KTR_IW_CXGB, "%s ibdev %p", __FUNCTION__, ibdev);
+	memset(props, 0, sizeof(struct ib_port_attr));
 	props->max_mtu = IB_MTU_4096;
-	props->lid = 0;
-	props->lmc = 0;
-	props->sm_lid = 0;
-	props->sm_sl = 0;
+	props->active_mtu = IB_MTU_2048;
 	props->state = IB_PORT_ACTIVE;
-	props->phys_state = 0;
 	props->port_cap_flags =
 	    IB_PORT_CM_SUP |
 	    IB_PORT_SNMP_TUNNEL_SUP |
@@ -1086,7 +1042,6 @@ static int iwch_query_port(struct ib_device *ibdev,
 	    IB_PORT_VENDOR_CLASS_SUP | IB_PORT_BOOT_MGMT_SUP;
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
-	props->qkey_viol_cntr = 0;
 	props->active_width = 2;
 	props->active_speed = 2;
 	props->max_msg_sz = -1;
@@ -1094,80 +1049,18 @@ static int iwch_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
-#ifdef notyet
-static ssize_t show_rev(struct class_device *cdev, char *buf)
-{
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
-	CTR2(KTR_IW_CXGB, "%s class dev 0x%p", __FUNCTION__, cdev);
-	return sprintf(buf, "%d\n", dev->rdev.t3cdev_p->type);
-}
-
-static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
-{
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
-	struct ethtool_drvinfo info;
-	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
-
-	CTR2(KTR_IW_CXGB, "%s class dev 0x%p", __FUNCTION__, cdev);
-	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	return sprintf(buf, "%s\n", info.fw_version);
-}
-
-static ssize_t show_hca(struct class_device *cdev, char *buf)
-{
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
-	struct ethtool_drvinfo info;
-	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
-
-	CTR2(KTR_IW_CXGB, "%s class dev 0x%p", __FUNCTION__, cdev);
-	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	return sprintf(buf, "%s\n", info.driver);
-}
-
-static ssize_t show_board(struct class_device *cdev, char *buf)
-{
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
-	CTR2(KTR_IW_CXGB, "%s class dev 0x%p", __FUNCTION__, dev);
-#ifdef notyet
-	return sprintf(buf, "%x.%x\n", dev->rdev.rnic_info.pdev->vendor,
-		                       dev->rdev.rnic_info.pdev->device);
-#else
-	return sprintf(buf, "%x.%x\n", 0xdead, 0xbeef);	 /* XXX */
-#endif
-}
-
-static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static CLASS_DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
-static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
-
-static struct class_device_attribute *iwch_class_attributes[] = {
-	&class_device_attr_hw_rev,
-	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type,
-	&class_device_attr_board_id
-};
-#endif
-
 int iwch_register_device(struct iwch_dev *dev)
 {
 	int ret;
-#ifdef notyet	
-	int i;
-#endif
+	struct adapter *sc = dev->rdev.adap;
+
 	CTR2(KTR_IW_CXGB, "%s iwch_dev %p", __FUNCTION__, dev);
 	strlcpy(dev->ibdev.name, "cxgb3_%d", IB_DEVICE_NAME_MAX);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
-#ifdef notyet	
-	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
-#endif	
+	memcpy(&dev->ibdev.node_guid, sc->port[0].hw_addr, 6);
 	dev->device_cap_flags =
-	    (IB_DEVICE_ZERO_STAG |
-	     IB_DEVICE_SEND_W_INV | IB_DEVICE_MEM_WINDOW);
+		(IB_DEVICE_LOCAL_DMA_LKEY |
+		 IB_DEVICE_MEM_WINDOW);
 
 	dev->ibdev.uverbs_cmd_mask =
 	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -1189,9 +1082,9 @@ int iwch_register_device(struct iwch_dev *dev)
 	    (1ull << IB_USER_VERBS_CMD_POST_RECV);
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	memcpy(dev->ibdev.node_desc, IWCH_NODE_DESC, sizeof(IWCH_NODE_DESC));
-	dev->ibdev.phys_port_cnt = dev->rdev.port_info.nports;
+	dev->ibdev.phys_port_cnt = sc->params.nports;
 	dev->ibdev.num_comp_vectors = 1;
-	dev->ibdev.dma_device = dev->rdev.rnic_info.pdev;
+	dev->ibdev.dma_device = dev->rdev.adap->dev;
 	dev->ibdev.query_device = iwch_query_device;
 	dev->ibdev.query_port = iwch_query_port;
 	dev->ibdev.modify_port = iwch_modify_port;
@@ -1199,9 +1092,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.query_gid = iwch_query_gid;
 	dev->ibdev.alloc_ucontext = iwch_alloc_ucontext;
 	dev->ibdev.dealloc_ucontext = iwch_dealloc_ucontext;
-#ifdef notyet	
 	dev->ibdev.mmap = iwch_mmap;
-#endif	
 	dev->ibdev.alloc_pd = iwch_allocate_pd;
 	dev->ibdev.dealloc_pd = iwch_deallocate_pd;
 	dev->ibdev.create_ah = iwch_ah_create;
@@ -1229,11 +1120,13 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.req_notify_cq = iwch_arm_cq;
 	dev->ibdev.post_send = iwch_post_send;
 	dev->ibdev.post_recv = iwch_post_receive;
-
+	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
 
 	dev->ibdev.iwcm =
-	    (struct iw_cm_verbs *) kmalloc(sizeof(struct iw_cm_verbs),
-					   M_NOWAIT);
+	    kmalloc(sizeof(struct iw_cm_verbs), M_NOWAIT);
+	if (!dev->ibdev.iwcm)
+		return (ENOMEM);
+
 	dev->ibdev.iwcm->connect = iwch_connect;
 	dev->ibdev.iwcm->accept = iwch_accept_cr;
 	dev->ibdev.iwcm->reject = iwch_reject_cr;
@@ -1246,35 +1139,19 @@ int iwch_register_device(struct iwch_dev *dev)
 	ret = ib_register_device(&dev->ibdev);
 	if (ret)
 		goto bail1;
-#ifdef notyet
-	for (i = 0; i < ARRAY_SIZE(iwch_class_attributes); ++i) {
-		ret = class_device_create_file(&dev->ibdev.class_dev,
-					       iwch_class_attributes[i]);
-		if (ret) {
-			goto bail2;
-		}
-	}
-#endif	
-	return 0;
-#ifdef notyet	
-bail2:
-#endif	
-	ib_unregister_device(&dev->ibdev);
+
+	return (0);
+
 bail1:
-	return ret;
+	cxfree(dev->ibdev.iwcm);
+	return (ret);
 }
 
 void iwch_unregister_device(struct iwch_dev *dev)
 {
-#ifdef notyet
-	int i;
 
-	CTR2(KTR_IW_CXGB, "%s iwch_dev %p", __FUNCTION__, dev);
-
-	for (i = 0; i < ARRAY_SIZE(iwch_class_attributes); ++i)
-		class_device_remove_file(&dev->ibdev.class_dev,
-					 iwch_class_attributes[i]);
-#endif	
 	ib_unregister_device(&dev->ibdev);
+	cxfree(dev->ibdev.iwcm);
 	return;
 }
+#endif

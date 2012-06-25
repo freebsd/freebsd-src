@@ -436,9 +436,8 @@ adaopen(struct disk *dp)
 	softc = (struct ada_softc *)periph->softc;
 	softc->flags |= ADA_FLAG_OPEN;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("adaopen: disk=%s%d (unit %d)\n", dp->d_name, dp->d_unit,
-	     periph->unit_number));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("adaopen\n"));
 
 	if ((softc->flags & ADA_FLAG_PACK_INVALID) != 0) {
 		/* Invalidate our pack information. */
@@ -469,6 +468,10 @@ adaclose(struct disk *dp)
 	}
 
 	softc = (struct ada_softc *)periph->softc;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
+	    ("adaclose\n"));
+
 	/* We only sync the cache if the drive is capable of it. */
 	if ((softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
 	    (softc->flags & ADA_FLAG_PACK_INVALID) == 0) {
@@ -487,7 +490,7 @@ adaclose(struct disk *dp)
 			ata_48bit_cmd(&ccb->ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
 			ata_28bit_cmd(&ccb->ataio, ATA_FLUSHCACHE, 0, 0, 0);
-		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
+		cam_periph_runccb(ccb, adaerror, /*cam_flags*/0,
 		    /*sense_flags*/0, softc->disk->d_devstat);
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
@@ -542,6 +545,8 @@ adastrategy(struct bio *bp)
 
 	cam_periph_lock(periph);
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adastrategy(%p)\n", bp));
+
 	/*
 	 * If the device has been made invalid, error out
 	 */
@@ -579,6 +584,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	struct	    disk *dp;
 	uint64_t    lba;
 	uint16_t    count;
+	int	    error = 0;
 
 	dp = arg;
 	periph = dp->d_drv1;
@@ -617,13 +623,16 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		}
 		xpt_polled_action(&ccb);
 
-		if ((ccb.ataio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		error = cam_periph_error(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
-			cam_periph_unlock(periph);
-			return(EIO);
-		}
+
 		cam_periph_unlock(periph);
-		return(0);
+		return (error);
 	}
 
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) {
@@ -631,7 +640,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
-				    1,
+				    0,
 				    adadone,
 				    CAM_DIR_NONE,
 				    0,
@@ -645,18 +654,16 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 			ata_28bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
 		xpt_polled_action(&ccb);
 
-		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-			xpt_print(periph->path, "Synchronize cache failed\n");
-
+		error = cam_periph_error(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
+			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
+			xpt_print(periph->path, "Synchronize cache failed\n");
 	}
 	cam_periph_unlock(periph);
-	return (0);
+	return (error);
 }
 
 static void
@@ -1167,6 +1174,8 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
 	struct ccb_ataio *ataio = &start_ccb->ataio;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adastart\n"));
+
 	switch (softc->state) {
 	case ADA_STATE_NORMAL:
 	{
@@ -1175,7 +1184,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 
 		/* Execute immediate CCB if waiting. */
 		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
 			start_ccb->ccb_h.ccb_state = ADA_CCB_WAITING;
 			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
@@ -1467,6 +1476,9 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct ada_softc *)periph->softc;
 	ataio = &done_ccb->ataio;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adadone\n"));
+
 	switch (ataio->ccb_h.ccb_state & ADA_CCB_TYPE_MASK) {
 	case ADA_CCB_BUFFER_IO:
 	case ADA_CCB_TRIM:
@@ -1706,6 +1718,7 @@ adaflush(void)
 {
 	struct cam_periph *periph;
 	struct ada_softc *softc;
+	int error;
 
 	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
 		union ccb ccb;
@@ -1729,7 +1742,7 @@ adaflush(void)
 
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
-				    1,
+				    0,
 				    adadone,
 				    CAM_DIR_NONE,
 				    0,
@@ -1743,15 +1756,13 @@ adaflush(void)
 			ata_28bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
 		xpt_polled_action(&ccb);
 
-		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-			xpt_print(periph->path, "Synchronize cache failed\n");
-
+		error = cam_periph_error(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
+			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
+			xpt_print(periph->path, "Synchronize cache failed\n");
 		cam_periph_unlock(periph);
 	}
 }
@@ -1761,6 +1772,7 @@ adaspindown(uint8_t cmd, int flags)
 {
 	struct cam_periph *periph;
 	struct ada_softc *softc;
+	int error;
 
 	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
 		union ccb ccb;
@@ -1785,7 +1797,7 @@ adaspindown(uint8_t cmd, int flags)
 
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
-				    1,
+				    0,
 				    adadone,
 				    CAM_DIR_NONE | flags,
 				    0,
@@ -1796,15 +1808,13 @@ adaspindown(uint8_t cmd, int flags)
 		ata_28bit_cmd(&ccb.ataio, cmd, 0, 0, 0);
 		xpt_polled_action(&ccb);
 
-		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-			xpt_print(periph->path, "Spin-down disk failed\n");
-
+		error = cam_periph_error(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
+			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
+			xpt_print(periph->path, "Spin-down disk failed\n");
 		cam_periph_unlock(periph);
 	}
 }

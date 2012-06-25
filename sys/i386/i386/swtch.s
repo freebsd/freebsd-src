@@ -386,6 +386,36 @@ ENTRY(savectx)
 	pushfl
 	popl	PCB_PSL(%ecx)
 
+	movl	%cr0,%eax
+	movl	%eax,PCB_CR0(%ecx)
+	movl	%cr2,%eax
+	movl	%eax,PCB_CR2(%ecx)
+	movl	%cr4,%eax
+	movl	%eax,PCB_CR4(%ecx)
+
+	movl	%dr0,%eax
+	movl	%eax,PCB_DR0(%ecx)
+	movl	%dr1,%eax
+	movl	%eax,PCB_DR1(%ecx)
+	movl	%dr2,%eax
+	movl	%eax,PCB_DR2(%ecx)
+	movl	%dr3,%eax
+	movl	%eax,PCB_DR3(%ecx)
+	movl	%dr6,%eax
+	movl	%eax,PCB_DR6(%ecx)
+	movl	%dr7,%eax
+	movl	%eax,PCB_DR7(%ecx)
+
+	mov	%ds,PCB_DS(%ecx)
+	mov	%es,PCB_ES(%ecx)
+	mov	%fs,PCB_FS(%ecx)
+	mov	%ss,PCB_SS(%ecx)
+	
+	sgdt	PCB_GDT(%ecx)
+	sidt	PCB_IDT(%ecx)
+	sldt	PCB_LDT(%ecx)
+	str	PCB_TR(%ecx)
+
 #ifdef DEV_NPX
 	/*
 	 * If fpcurthread == NULL, then the npx h/w state is irrelevant and the
@@ -425,73 +455,15 @@ ENTRY(savectx)
 	popfl
 #endif	/* DEV_NPX */
 
+	movl	$1,%eax
 	ret
 END(savectx)
 
 /*
- * suspendctx(pcb)
- * Update pcb, suspending current processor state.
- */
-ENTRY(suspendctx)
-	/* Fetch PCB. */
-	movl	4(%esp),%ecx
-
-	/* Save context by calling savectx(). */
-	pushl	%ecx
-	call	savectx
-	addl	$4,%esp
-
-	/* Fetch PCB again. */
-	movl	4(%esp),%ecx
-
-	/* Update caller's return address and stack pointer. */
-	movl	(%esp),%eax
-	movl	%eax,PCB_EIP(%ecx)
-	movl	%esp,PCB_ESP(%ecx)
-
-	/* Save other registers and descriptor tables. */
-	movl	%cr0,%eax
-	movl	%eax,PCB_CR0(%ecx)
-	movl	%cr2,%eax
-	movl	%eax,PCB_CR2(%ecx)
-	movl	%cr4,%eax
-	movl	%eax,PCB_CR4(%ecx)
-
-	movl	%dr0,%eax
-	movl	%eax,PCB_DR0(%ecx)
-	movl	%dr1,%eax
-	movl	%eax,PCB_DR1(%ecx)
-	movl	%dr2,%eax
-	movl	%eax,PCB_DR2(%ecx)
-	movl	%dr3,%eax
-	movl	%eax,PCB_DR3(%ecx)
-	movl	%dr6,%eax
-	movl	%eax,PCB_DR6(%ecx)
-	movl	%dr7,%eax
-	movl	%eax,PCB_DR7(%ecx)
-
-	mov	%ds,PCB_DS(%ecx)
-	mov	%es,PCB_ES(%ecx)
-	mov	%fs,PCB_FS(%ecx)
-	mov	%ss,PCB_SS(%ecx)
-	
-	sgdt	PCB_GDT(%ecx)
-	sidt	PCB_IDT(%ecx)
-	sldt	PCB_LDT(%ecx)
-	str	PCB_TR(%ecx)
-
-	movl	$1,%eax
-	ret
-END(suspendctx)
-
-/*
- * resumectx(pcb in %esi)
+ * resumectx(pcb) __fastcall
  * Resuming processor state from pcb.
  */
 ENTRY(resumectx)
-	/* Fetch PCB. */
-	movl	%esi,%ecx
-
 	/* Restore GDT. */
 	lgdt	PCB_GDT(%ecx)
 

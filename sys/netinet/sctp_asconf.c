@@ -856,70 +856,20 @@ send_reply:
 		 * this could happen if the source address was just newly
 		 * added
 		 */
-		struct ip *iph;
-		struct sctphdr *sh;
-		struct sockaddr_storage from_store;
-		struct sockaddr *from = (struct sockaddr *)&from_store;
+		struct sockaddr_storage addr;
+		struct sockaddr *src = (struct sockaddr *)&addr;
 
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: looking up net for IP source address\n");
-		/* pullup already done, IP options already stripped */
-		iph = mtod(m, struct ip *);
-		switch (iph->ip_v) {
-#ifdef INET
-		case IPVERSION:
-			{
-				struct sockaddr_in *from4;
-
-				sh = (struct sctphdr *)((caddr_t)iph + sizeof(*iph));
-				from4 = (struct sockaddr_in *)&from_store;
-				bzero(from4, sizeof(*from4));
-				from4->sin_family = AF_INET;
-				from4->sin_len = sizeof(struct sockaddr_in);
-				from4->sin_addr.s_addr = iph->ip_src.s_addr;
-				from4->sin_port = sh->src_port;
-				break;
-			}
-#endif
-#ifdef INET6
-		case IPV6_VERSION >> 4:
-			{
-				struct ip6_hdr *ip6;
-				struct sockaddr_in6 *from6;
-
-				ip6 = mtod(m, struct ip6_hdr *);
-				sh = (struct sctphdr *)((caddr_t)ip6 + sizeof(*ip6));
-				from6 = (struct sockaddr_in6 *)&from_store;
-				bzero(from6, sizeof(*from6));
-				from6->sin6_family = AF_INET6;
-				from6->sin6_len = sizeof(struct sockaddr_in6);
-				from6->sin6_addr = ip6->ip6_src;
-				from6->sin6_port = sh->src_port;
-				/*
-				 * Get the scopes in properly to the sin6
-				 * addr's
-				 */
-				/* we probably don't need these operations */
-				(void)sa6_recoverscope(from6);
-				sa6_embedscope(from6,
-				    MODULE_GLOBAL(ip6_use_defzone));
-
-				break;
-			}
-#endif
-		default:
-			/* unknown address type */
-			from = NULL;
-		}
-		if (from != NULL) {
-			SCTPDBG(SCTP_DEBUG_ASCONF1, "Looking for IP source: ");
-			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, from);
-			/* look up the from address */
-			stcb->asoc.last_control_chunk_from = sctp_findnet(stcb, from);
+		sctp_asconf_get_source_ip(m, src);
+		SCTPDBG(SCTP_DEBUG_ASCONF1, "Looking for IP source: ");
+		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, src);
+		/* look up the from address */
+		stcb->asoc.last_control_chunk_from = sctp_findnet(stcb, src);
 #ifdef SCTP_DEBUG
-			if (stcb->asoc.last_control_chunk_from == NULL)
-				SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: IP source address not found?!\n");
-#endif
+		if (stcb->asoc.last_control_chunk_from == NULL) {
+			SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: IP source address not found?!\n");
 		}
+#endif
 	}
 }
 

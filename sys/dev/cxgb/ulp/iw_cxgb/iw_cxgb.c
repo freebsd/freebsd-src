@@ -29,11 +29,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
 #include <sys/pciio.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
@@ -54,20 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/eventhandler.h>
 
-#if __FreeBSD_version < 800044
-#define V_ifnet ifnet
-#endif
-
-#include <net/if.h>
-#include <net/if_var.h>
-#if __FreeBSD_version >= 800056
-#include <net/vnet.h>
-#endif
-
 #include <netinet/in.h>
+#include <netinet/toecore.h>
 
-#include <contrib/rdma/ib_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <linux/idr.h>
+#include <ulp/iw_cxgb/iw_cxgb_ib_intfc.h>
 
+#ifdef TCP_OFFLOAD
 #include <cxgb_include.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
 #include <ulp/iw_cxgb/iw_cxgb_hal.h>
@@ -75,26 +70,21 @@ __FBSDID("$FreeBSD$");
 #include <ulp/iw_cxgb/iw_cxgb_cm.h>
 #include <ulp/iw_cxgb/iw_cxgb.h>
 
-/*
- * XXX :-/
- * 
- */
+static int iwch_mod_load(void);
+static int iwch_mod_unload(void);
+static int iwch_activate(struct adapter *);
+static int iwch_deactivate(struct adapter *);
 
-#define idr_init(x)
-
-cxgb_cpl_handler_func t3c_handlers[NUM_CPL_CMDS];
-
-static void open_rnic_dev(struct t3cdev *);
-static void close_rnic_dev(struct t3cdev *);
-
-static TAILQ_HEAD( ,iwch_dev) dev_list;
-static struct mtx dev_mutex;
-static eventhandler_tag event_tag;
+static struct uld_info iwch_uld_info = {
+	.uld_id = ULD_IWARP,
+	.activate = iwch_activate,
+	.deactivate = iwch_deactivate,
+};
 
 static void
 rnic_init(struct iwch_dev *rnicp)
 {
-	CTR2(KTR_IW_CXGB, "%s iwch_dev %p", __FUNCTION__,  rnicp);
+
 	idr_init(&rnicp->cqidr);
 	idr_init(&rnicp->qpidr);
 	idr_init(&rnicp->mmidr);
@@ -103,15 +93,16 @@ rnic_init(struct iwch_dev *rnicp)
 	rnicp->attr.vendor_id = 0x168;
 	rnicp->attr.vendor_part_id = 7;
 	rnicp->attr.max_qps = T3_MAX_NUM_QP - 32;
-	rnicp->attr.max_wrs = (1UL << 24) - 1;
+	rnicp->attr.max_wrs = T3_MAX_QP_DEPTH;
 	rnicp->attr.max_sge_per_wr = T3_MAX_SGE;
 	rnicp->attr.max_sge_per_rdma_write_wr = T3_MAX_SGE;
 	rnicp->attr.max_cqs = T3_MAX_NUM_CQ - 1;
-	rnicp->attr.max_cqes_per_cq = (1UL << 24) - 1;
+	rnicp->attr.max_cqes_per_cq = T3_MAX_CQ_DEPTH;
 	rnicp->attr.max_mem_regs = cxio_num_stags(&rnicp->rdev);
 	rnicp->attr.max_phys_buf_entries = T3_MAX_PBL_SIZE;
 	rnicp->attr.max_pds = T3_MAX_NUM_PD - 1;
-	rnicp->attr.mem_pgsizes_bitmask = 0x7FFF;	/* 4KB-128MB */
+	rnicp->attr.mem_pgsizes_bitmask = T3_PAGESIZE_MASK;
+	rnicp->attr.max_mr_size = T3_MAX_MR_SIZE;
 	rnicp->attr.can_resize_wq = 0;
 	rnicp->attr.max_rdma_reads_per_qp = 8;
 	rnicp->attr.max_rdma_read_resources =
@@ -127,170 +118,183 @@ rnic_init(struct iwch_dev *rnicp)
 	rnicp->attr.zbva_support = 1;
 	rnicp->attr.local_invalidate_fence = 1;
 	rnicp->attr.cq_overflow_detection = 1;
+
 	return;
 }
 
 static void
-open_rnic_dev(struct t3cdev *tdev)
+rnic_uninit(struct iwch_dev *rnicp)
+{
+	idr_destroy(&rnicp->cqidr);
+	idr_destroy(&rnicp->qpidr);
+	idr_destroy(&rnicp->mmidr);
+	mtx_destroy(&rnicp->lock);
+}
+
+static int
+iwch_activate(struct adapter *sc)
 {
 	struct iwch_dev *rnicp;
-	static int vers_printed;
+	int rc;
 
-	CTR2(KTR_IW_CXGB, "%s t3cdev %p", __FUNCTION__,  tdev);
-	if (!vers_printed++)
-		printf("Chelsio T3 RDMA Driver - version x.xx\n");
+	KASSERT(!isset(&sc->offload_map, MAX_NPORTS),
+	    ("%s: iWARP already activated on %s", __func__,
+	    device_get_nameunit(sc->dev)));
+
 	rnicp = (struct iwch_dev *)ib_alloc_device(sizeof(*rnicp));
-	if (!rnicp) {
-		printf("Cannot allocate ib device\n");
-		return;
-	}
-	rnicp->rdev.ulp = rnicp;
-	rnicp->rdev.t3cdev_p = tdev;
+	if (rnicp == NULL)
+		return (ENOMEM);
 
-	mtx_lock(&dev_mutex);
+	sc->iwarp_softc = rnicp;
+	rnicp->rdev.adap = sc;
 
-	if (cxio_rdev_open(&rnicp->rdev)) {
-		mtx_unlock(&dev_mutex);
+	cxio_hal_init(sc);
+	iwch_cm_init_cpl(sc);
+
+	rc = cxio_rdev_open(&rnicp->rdev);
+	if (rc != 0) {
 		printf("Unable to open CXIO rdev\n");
-		ib_dealloc_device(&rnicp->ibdev);
-		return;
+		goto err1;
 	}
 
 	rnic_init(rnicp);
 
-	TAILQ_INSERT_TAIL(&dev_list, rnicp, entry);
-	mtx_unlock(&dev_mutex);
-
-	if (iwch_register_device(rnicp)) {
+	rc = iwch_register_device(rnicp);
+	if (rc != 0) {
 		printf("Unable to register device\n");
-		close_rnic_dev(tdev);
+		goto err2;
 	}
-#ifdef notyet	
-	printf("Initialized device %s\n",
-	       pci_name(rnicp->rdev.rnic_info.pdev));
-#endif	
-	return;
+
+	return (0);
+
+err2:
+	rnic_uninit(rnicp);
+	cxio_rdev_close(&rnicp->rdev);
+err1:
+	cxio_hal_uninit(sc);
+	iwch_cm_term_cpl(sc);
+	sc->iwarp_softc = NULL;
+
+	return (rc);
 }
-
-static void
-close_rnic_dev(struct t3cdev *tdev)
-{
-	struct iwch_dev *dev, *tmp;
-	CTR2(KTR_IW_CXGB, "%s t3cdev %p", __FUNCTION__,  tdev);
-	mtx_lock(&dev_mutex);
-
-	TAILQ_FOREACH_SAFE(dev, &dev_list, entry, tmp) {
-		if (dev->rdev.t3cdev_p == tdev) {
-#ifdef notyet			
-			list_del(&dev->entry);
-			iwch_unregister_device(dev);
-			cxio_rdev_close(&dev->rdev);
-			idr_destroy(&dev->cqidr);
-			idr_destroy(&dev->qpidr);
-			idr_destroy(&dev->mmidr);
-			ib_dealloc_device(&dev->ibdev);
-#endif			
-			break;
-		}
-	}
-	mtx_unlock(&dev_mutex);
-}
-
-static ifaddr_event_handler_t
-ifaddr_event_handler(void *arg, struct ifnet *ifp)
-{
-	printf("%s if name %s \n", __FUNCTION__, ifp->if_xname);
-	if (ifp->if_capabilities & IFCAP_TOE4) {
-		KASSERT(T3CDEV(ifp) != NULL, ("null t3cdev ptr!"));
-		if (cxio_hal_find_rdev_by_t3cdev(T3CDEV(ifp)) == NULL)
-			open_rnic_dev(T3CDEV(ifp));
-	}
-	return 0;
-}
-
 
 static int
-iwch_init_module(void)
+iwch_deactivate(struct adapter *sc)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
-	int err;
-	struct ifnet *ifp;
+	struct iwch_dev *rnicp;
 
-	printf("%s enter\n", __FUNCTION__);
-	TAILQ_INIT(&dev_list);
-	mtx_init(&dev_mutex, "iwch dev_list lock", NULL, MTX_DEF);
-	
-	err = cxio_hal_init();
-	if (err)
-		return err;
-	err = iwch_cm_init();
-	if (err)
-		return err;
-	cxio_register_ev_cb(iwch_ev_dispatch);
+	rnicp = sc->iwarp_softc;
 
-	/* Register for ifaddr events to dynamically add TOE devs */
-	event_tag = EVENTHANDLER_REGISTER(ifaddr_event, ifaddr_event_handler,
-			NULL, EVENTHANDLER_PRI_ANY);
+	iwch_unregister_device(rnicp);
+	rnic_uninit(rnicp);
+	cxio_rdev_close(&rnicp->rdev);
+	cxio_hal_uninit(sc);
+	iwch_cm_term_cpl(sc);
+	ib_dealloc_device(&rnicp->ibdev);
 
-	/* Register existing TOE interfaces by walking the ifnet chain */
-	IFNET_RLOCK();
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter); /* XXX CURVNET_SET_QUIET() ? */
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link)
-			(void)ifaddr_event_handler(NULL, ifp);
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK();
-	IFNET_RUNLOCK();
-	return 0;
+	sc->iwarp_softc = NULL;
+
+	return (0);
 }
 
 static void
-iwch_exit_module(void)
+iwch_activate_all(struct adapter *sc, void *arg __unused)
 {
-	EVENTHANDLER_DEREGISTER(ifaddr_event, event_tag);
-	cxio_unregister_ev_cb(iwch_ev_dispatch);
+	ADAPTER_LOCK(sc);
+	if ((sc->open_device_map & sc->offload_map) != 0 &&
+	    t3_activate_uld(sc, ULD_IWARP) == 0)
+		setbit(&sc->offload_map, MAX_NPORTS);
+	ADAPTER_UNLOCK(sc);
+}
+
+static void
+iwch_deactivate_all(struct adapter *sc, void *arg __unused)
+{
+	ADAPTER_LOCK(sc);
+	if (isset(&sc->offload_map, MAX_NPORTS) &&
+	    t3_deactivate_uld(sc, ULD_IWARP) == 0)
+		clrbit(&sc->offload_map, MAX_NPORTS);
+	ADAPTER_UNLOCK(sc);
+}
+
+static int
+iwch_mod_load(void)
+{
+	int rc;
+
+	rc = iwch_cm_init();
+	if (rc != 0)
+		return (rc);
+
+	rc = t3_register_uld(&iwch_uld_info);
+	if (rc != 0) {
+		iwch_cm_term();
+		return (rc);
+	}
+
+	t3_iterate(iwch_activate_all, NULL);
+
+	return (rc);
+}
+
+static int
+iwch_mod_unload(void)
+{
+	t3_iterate(iwch_deactivate_all, NULL);
+
 	iwch_cm_term();
-	cxio_hal_exit();
-}
 
-static int 
-iwch_load(module_t mod, int cmd, void *arg)
+	if (t3_unregister_uld(&iwch_uld_info) == EBUSY)
+		return (EBUSY);
+
+	return (0);
+}
+#endif	/* TCP_OFFLOAD */
+
+#undef MODULE_VERSION
+#include <sys/module.h>
+
+static int
+iwch_modevent(module_t mod, int cmd, void *arg)
 {
-        int err = 0;
+	int rc = 0;
 
-        switch (cmd) {
-        case MOD_LOAD:
-                printf("Loading iw_cxgb.\n");
+#ifdef TCP_OFFLOAD
+	switch (cmd) {
+	case MOD_LOAD:
+		rc = iwch_mod_load();
+		if(rc)
+			printf("iw_cxgb: Chelsio T3 RDMA Driver failed to load\n");
+		else
+			printf("iw_cxgb: Chelsio T3 RDMA Driver loaded\n");
+		break;
 
-                iwch_init_module();
-                break;
-        case MOD_QUIESCE:
-                break;
-        case MOD_UNLOAD:
-                printf("Unloading iw_cxgb.\n");
-		iwch_exit_module();
-                break;
-        case MOD_SHUTDOWN:
-                break;
-        default:
-                err = EOPNOTSUPP;
-                break;
-        }
+	case MOD_UNLOAD:
+		rc = iwch_mod_unload();
+		if(rc)
+			printf("iw_cxgb: Chelsio T3 RDMA Driver failed to unload\n");
+		else
+			printf("iw_cxgb: Chelsio T3 RDMA Driver unloaded\n");
+		break;
 
-        return (err);
+	default:
+		rc = EINVAL;
+	}
+#else
+	printf("iw_cxgb: compiled without TCP_OFFLOAD support.\n");
+	rc = EOPNOTSUPP;
+#endif
+	return (rc);
 }
 
-static moduledata_t mod_data = {
+static moduledata_t iwch_mod_data = {
 	"iw_cxgb",
-	iwch_load,
+	iwch_modevent,
 	0
 };
 
 MODULE_VERSION(iw_cxgb, 1);
-DECLARE_MODULE(iw_cxgb, mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
-MODULE_DEPEND(iw_cxgb, rdma_core, 1, 1, 1);
-MODULE_DEPEND(iw_cxgb, if_cxgb, 1, 1, 1);
+DECLARE_MODULE(iw_cxgb, iwch_mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
+MODULE_DEPEND(t3_tom, cxgbc, 1, 1, 1);
+MODULE_DEPEND(iw_cxgb, toecore, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, t3_tom, 1, 1, 1);
-

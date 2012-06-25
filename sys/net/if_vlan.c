@@ -746,8 +746,8 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_trunk_cap_p = NULL;
 		vlan_trunkdev_p = NULL;
 		vlan_tag_p = NULL;
-		vlan_cookie_p = vlan_cookie;
-		vlan_setcookie_p = vlan_setcookie;
+		vlan_cookie_p = NULL;
+		vlan_setcookie_p = NULL;
 		vlan_devat_p = NULL;
 		VLAN_LOCK_DESTROY();
 		if (bootverbose)
@@ -1502,6 +1502,22 @@ vlan_capabilities(struct ifvlan *ifv)
 	} else {
 		ifp->if_capenable &= ~(p->if_capenable & IFCAP_TSO);
 		ifp->if_hwassist &= ~(p->if_hwassist & CSUM_TSO);
+	}
+
+	/*
+	 * If the parent interface can offload TCP connections over VLANs then
+	 * propagate its TOE capability to the VLAN interface.
+	 *
+	 * All TOE drivers in the tree today can deal with VLANs.  If this
+	 * changes then IFCAP_VLAN_TOE should be promoted to a full capability
+	 * with its own bit.
+	 */
+#define	IFCAP_VLAN_TOE IFCAP_TOE
+	if (p->if_capabilities & IFCAP_VLAN_TOE)
+		ifp->if_capabilities |= p->if_capabilities & IFCAP_TOE;
+	if (p->if_capenable & IFCAP_VLAN_TOE) {
+		TOEDEV(ifp) = TOEDEV(p);
+		ifp->if_capenable |= p->if_capenable & IFCAP_TOE;
 	}
 }
 

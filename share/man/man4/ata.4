@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2011
+.Dd June 18, 2012
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -89,8 +89,12 @@ subsystem module.
 The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
+.It Va hw.ahci.force
+set to nonzero value for forcing drivers to attach to some known AHCI-capable
+chips even if they are configured for legacy IDE emulation (the default is 1,
+force the attach).
 .It Va hw.ata.ata_dma_check_80pin
-set to 0 to disable the 80pin cable check (the default is 1, check the cable)
+set to 0 to disable the 80pin cable check (the default is 1, check the cable).
 .It Va hint.atapci.X.msi
 set to 1 to allow Message Signalled Interrupts (MSI) to be used by the
 specified PCI ATA controller, if supported.
@@ -102,7 +106,8 @@ limits the initial ATA mode for every device on the specified channel.
 controls SATA interface Power Management for the specified channel,
 allowing some power savings at the cost of additional command latency.
 Possible values:
-.Bl -tag -compact
+.Pp
+.Bl -tag -width 4n -offset indent -compact
 .It 0
 Interface Power Management is disabled.
 This is the default value.
@@ -113,6 +118,7 @@ The host initiates a PARTIAL PM state transition every time a port becomes idle.
 .It 3
 host initiates SLUMBER PM state transition every time port becomes idle.
 .El
+.Pp
 Modes 2 and 3 are only supported for AHCI.
 .El
 .Sh DESCRIPTION

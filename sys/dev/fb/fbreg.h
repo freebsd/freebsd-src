@@ -35,9 +35,17 @@
 
 /* some macros */
 #if defined(__amd64__) || defined(__i386__)
-#define bcopy_io(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_toio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_fromio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
+
+static __inline void
+copyw(uint16_t *src, uint16_t *dst, size_t size)
+{
+	size >>= 1;
+	while (size--)
+		*dst++ = *src++;
+}
+#define bcopy_io(s, d, c)	copyw((void*)(s), (void*)(d), (c))
+#define bcopy_toio(s, d, c)	copyw((void*)(s), (void*)(d), (c))
+#define bcopy_fromio(s, d, c)	copyw((void*)(s), (void*)(d), (c))
 #define bzero_io(d, c)		bzero((void *)(d), (c))
 #define fill_io(p, d, c)	fill((p), (void *)(d), (c))
 #define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))

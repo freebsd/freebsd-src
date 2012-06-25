@@ -285,7 +285,6 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 	return (start);
 }
 
-	    
 #endif /* _KERNEL */
 
 static __inline int

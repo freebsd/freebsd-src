@@ -38,6 +38,8 @@ enum {
 	SERNUM_LEN     = 24,    /* Serial # length */
 	EC_LEN         = 16,    /* E/C length */
 	ID_LEN         = 16,    /* ID length */
+	PN_LEN         = 16,    /* Part Number length */
+	MACADDR_LEN    = 12,    /* MAC Address length */
 };
 
 enum { MEM_EDC0, MEM_EDC1, MEM_MC };
@@ -62,8 +64,8 @@ enum {
 };
 
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 4
-#define FW_VERSION_MICRO 16
+#define FW_VERSION_MINOR 5
+#define FW_VERSION_MICRO 2
 
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
@@ -219,6 +221,8 @@ struct vpd_params {
 	u8 ec[EC_LEN + 1];
 	u8 sn[SERNUM_LEN + 1];
 	u8 id[ID_LEN + 1];
+	u8 pn[PN_LEN + 1];
+	u8 na[MACADDR_LEN + 1];
 };
 
 struct pci_params {
@@ -356,6 +360,8 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 		       unsigned int data_reg, const u32 *vals,
 		       unsigned int nregs, unsigned int start_idx);
 
+u32 t4_hw_pci_read_cfg4(adapter_t *adapter, int reg);
+
 struct fw_filter_wr;
 
 void t4_intr_enable(struct adapter *adapter);
@@ -374,7 +380,7 @@ int t4_seeprom_wp(struct adapter *adapter, int enable);
 int t4_read_flash(struct adapter *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
-int t4_load_boot(struct adapter *adap, const u8 *boot_data,
+int t4_load_boot(struct adapter *adap, u8 *boot_data,
                  unsigned int boot_addr, unsigned int size);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
@@ -431,6 +437,9 @@ int t4_mem_read(struct adapter *adap, int mtype, u32 addr, u32 size,
 		__be32 *data);
 
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
+void t4_get_port_stats_offset(struct adapter *adap, int idx,
+		struct port_stats *stats,
+		struct port_stats *offset);
 void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p);
 void t4_clr_port_stats(struct adapter *adap, int idx);
 
@@ -472,6 +481,10 @@ int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 		enum dev_master master, enum dev_state *state);
 int t4_fw_bye(struct adapter *adap, unsigned int mbox);
 int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset);
+int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force);
+int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset);
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force);
 int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
@@ -484,6 +497,10 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		unsigned int rxqi, unsigned int rxq, unsigned int tc,
 		unsigned int vi, unsigned int cmask, unsigned int pmask,
 		unsigned int exactf, unsigned int rcaps, unsigned int wxcaps);
+int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
+		     unsigned int port, unsigned int pf, unsigned int vf,
+		     unsigned int nmac, u8 *mac, unsigned int *rss_size,
+		     unsigned int portfunc, unsigned int idstype);
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
 		unsigned int *rss_size);
@@ -524,5 +541,10 @@ int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
 		   enum ctxt_type ctype, u32 *data);
 int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type ctype,
 		      u32 *data);
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
+int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 val);
+int t4_config_scheduler(struct adapter *adapter, int mode, int level, int pktsize,
+                        int sched_class, int port, int rate, int unit,
+			int weight, int minrate, int maxrate);
 #endif /* __CHELSIO_COMMON_H */

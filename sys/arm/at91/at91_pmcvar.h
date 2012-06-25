@@ -28,7 +28,7 @@
 #ifndef ARM_AT91_AT91_PMCVAR_H
 #define ARM_AT91_AT91_PMCVAR_H
 
-struct at91_pmc_clock 
+struct at91_pmc_clock
 {
 	char		*name;
 	uint32_t	hz;

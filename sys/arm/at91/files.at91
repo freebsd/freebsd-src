@@ -8,25 +8,38 @@ arm/at91/at91_mci.c		optional	at91_mci
 arm/at91/at91_nand.c		optional	nand
 arm/at91/at91_pio.c		standard
 arm/at91/at91_pmc.c		standard
+arm/at91/at91_pit.c		optional	at91sam9
+arm/at91/at91_reset.S		optional	at91sam9
+arm/at91/at91_rst.c		optional	at91sam9
 arm/at91/at91_rtc.c		optional	at91_rtc
 arm/at91/at91_spi.c		optional	at91_spi		\
 	dependency	"spibus_if.h"
 arm/at91/at91_ssc.c		optional	at91_ssc
-arm/at91/at91_st.c		standard
+arm/at91/at91_st.c		optional	at91rm9200
 arm/at91/at91_tc.c		optional	at91_tc
 arm/at91/at91_twi.c		optional	at91_twi
+arm/at91/at91_wdt.c		optional	at91_wdt
 arm/at91/if_ate.c		optional	ate
+arm/at91/if_macb.c		optional	macb
 arm/at91/uart_bus_at91usart.c	optional	uart
 arm/at91/uart_cpu_at91rm9200usart.c	optional	uart
 arm/at91/uart_dev_at91usart.c	optional	uart
 #
 # All the "systems on a chip" we support
 #
-arm/at91/at91rm9200.c		standard
+arm/at91/at91rm9200.c		optional	at91rm9200
+arm/at91/at91sam9260.c		optional	at91sam9260
+arm/at91/at91sam9g20.c		optional	at91sam9g20
+arm/at91/at91sam9x25.c		optional	at91sam9x25
 #
 # All the boards we support
 #
 arm/at91/board_bwct.c		optional	at91_board_bwct
+arm/at91/board_ethernut5.c	optional	at91_board_ethernut5
 arm/at91/board_hl200.c		optional	at91_board_hl200
+arm/at91/board_hl201.c		optional	at91_board_hl201
 arm/at91/board_kb920x.c		optional	at91_board_kb920x
+arm/at91/board_qila9g20.c	optional	at91_board_qila9g20
+arm/at91/board_sam9g20ek.c	optional	at91_board_sam9g20ek
+arm/at91/board_sam9x25ek.c	optional	at91_board_sam9x25ek
 arm/at91/board_tsc4370.c	optional	at91_board_tsc4370

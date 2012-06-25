@@ -879,19 +879,23 @@ passin:
 	 * as our interface address (e.g. multicast addresses, addresses
 	 * within FAITH prefixes and such).
 	 */
-	if (deliverifp && !ip6_getdstifaddr(m)) {
+	if (deliverifp) {
 		struct in6_ifaddr *ia6;
 
-		ia6 = in6_ifawithifp(deliverifp, &ip6->ip6_dst);
-		if (ia6) {
-			if (!ip6_setdstifaddr(m, ia6)) {
-				/*
-				 * XXX maybe we should drop the packet here,
-				 * as we could not provide enough information
-				 * to the upper layers.
-				 */
-			}
+ 		if ((ia6 = ip6_getdstifaddr(m)) != NULL) {
 			ifa_free(&ia6->ia_ifa);
+		} else {
+			ia6 = in6_ifawithifp(deliverifp, &ip6->ip6_dst);
+			if (ia6) {
+				if (!ip6_setdstifaddr(m, ia6)) {
+					/*
+					 * XXX maybe we should drop the packet here,
+					 * as we could not provide enough information
+					 * to the upper layers.
+					 */
+				}
+				ifa_free(&ia6->ia_ifa);
+			}
 		}
 	}
 
@@ -1317,19 +1321,28 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 	}
 #endif
 
-	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
-		if (v4only != NULL)
-			*v4only = 1;
-		return (mp);
-	}
-
 #define IS2292(inp, x, y)	(((inp)->inp_flags & IN6P_RFC2292) ? (x) : (y))
 	/* RFC 2292 sec. 5 */
 	if ((inp->inp_flags & IN6P_PKTINFO) != 0) {
 		struct in6_pktinfo pi6;
 
-		bcopy(&ip6->ip6_dst, &pi6.ipi6_addr, sizeof(struct in6_addr));
-		in6_clearscope(&pi6.ipi6_addr);	/* XXX */
+		if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
+#ifdef INET
+			struct ip *ip;
+
+			ip = mtod(m, struct ip *);
+			pi6.ipi6_addr.s6_addr32[0] = 0;
+			pi6.ipi6_addr.s6_addr32[1] = 0;
+			pi6.ipi6_addr.s6_addr32[2] = IPV6_ADDR_INT32_SMP;
+			pi6.ipi6_addr.s6_addr32[3] = ip->ip_dst.s_addr;
+#else
+			/* We won't hit this code */
+			bzero(&pi6.ipi6_addr, sizeof(struct in6_addr));
+#endif
+		} else {	
+			bcopy(&ip6->ip6_dst, &pi6.ipi6_addr, sizeof(struct in6_addr));
+			in6_clearscope(&pi6.ipi6_addr);	/* XXX */
+		}
 		pi6.ipi6_ifindex =
 		    (m && m->m_pkthdr.rcvif) ? m->m_pkthdr.rcvif->if_index : 0;
 
@@ -1341,8 +1354,21 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 	}
 
 	if ((inp->inp_flags & IN6P_HOPLIMIT) != 0) {
-		int hlim = ip6->ip6_hlim & 0xff;
+		int hlim;
 
+		if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
+#ifdef INET
+			struct ip *ip;
+
+			ip = mtod(m, struct ip *);
+			hlim = ip->ip_ttl;
+#else
+			/* We won't hit this code */
+			hlim = 0;
+#endif
+		} else {
+			hlim = ip6->ip6_hlim & 0xff;
+		}
 		*mp = sbcreatecontrol((caddr_t) &hlim, sizeof(int),
 		    IS2292(inp, IPV6_2292HOPLIMIT, IPV6_HOPLIMIT),
 		    IPPROTO_IPV6);
@@ -1350,8 +1376,40 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			mp = &(*mp)->m_next;
 	}
 
-	if (v4only != NULL)
-		*v4only = 0;
+	if ((inp->inp_flags & IN6P_TCLASS) != 0) {
+		int tclass;
+
+		if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
+#ifdef INET
+			struct ip *ip;
+
+			ip = mtod(m, struct ip *);
+			tclass = ip->ip_tos;
+#else
+			/* We won't hit this code */
+			tclass = 0;
+#endif
+		} else {
+			u_int32_t flowinfo;
+
+			flowinfo = (u_int32_t)ntohl(ip6->ip6_flow & IPV6_FLOWINFO_MASK);
+			flowinfo >>= 20;
+			tclass = flowinfo & 0xff;
+		}
+		*mp = sbcreatecontrol((caddr_t) &tclass, sizeof(int),
+		    IPV6_TCLASS, IPPROTO_IPV6);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
+
+	if (v4only != NULL) {
+		if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
+			*v4only = 1;
+		} else {
+			*v4only = 0;
+		}
+	}
+
 	return (mp);
 }
 
@@ -1364,20 +1422,6 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 	mp = ip6_savecontrol_v4(in6p, m, mp, &v4only);
 	if (v4only)
 		return;
-
-	if ((in6p->inp_flags & IN6P_TCLASS) != 0) {
-		u_int32_t flowinfo;
-		int tclass;
-
-		flowinfo = (u_int32_t)ntohl(ip6->ip6_flow & IPV6_FLOWINFO_MASK);
-		flowinfo >>= 20;
-
-		tclass = flowinfo & 0xff;
-		*mp = sbcreatecontrol((caddr_t) &tclass, sizeof(tclass),
-		    IPV6_TCLASS, IPPROTO_IPV6);
-		if (*mp)
-			mp = &(*mp)->m_next;
-	}
 
 	/*
 	 * IPV6_HOPOPTS socket option.  Recall that we required super-user

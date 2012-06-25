@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 	int len;
 	int raw;
 
-	memset(&s_in, 0, sizeof(&s_in));
+	memset(&s_in, 0, sizeof(s_in));
 	s_in.sin_family = PF_INET;
 	s_in.sin_port = htons(666);
 	s_in.sin_addr.s_addr = INADDR_ANY;
