@@ -100,6 +100,7 @@ unit-tests/dotwait
 unit-tests/error
 unit-tests/export
 unit-tests/export-all
+unit-tests/forloop
 unit-tests/forsubst
 unit-tests/hash
 unit-tests/misc
