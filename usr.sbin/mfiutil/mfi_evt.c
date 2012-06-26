@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -63,7 +64,7 @@ mfi_get_events(int fd, struct mfi_evt_list *list, int num_events,
 }
 
 static int
-show_logstate(int ac, char **av)
+show_logstate(int ac, char **av __unused)
 {
 	struct mfi_evt_log_state info;
 	int error, fd;
@@ -73,7 +74,7 @@ show_logstate(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -541,7 +542,7 @@ show_events(int ac, char **av)
 	int ch, error, fd, num_events, verbose;
 	u_int i;
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
