@@ -145,6 +145,7 @@ LESSKEY(1)                                                          LESSKEY(1)
             w         back-window
             \e\40          forw-screen-force
             F         forw-forever
+            \eF       forw-until-hilite
             R         repaint-flush
             r         repaint
             ^R        repaint
@@ -329,7 +330,7 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 2000-2011  Mark Nudelman
+       Copyright (C) 2000-2012  Mark Nudelman
 
        lesskey is part of the GNU project and is free software; you can redis-
        tribute it and/or modify it under the terms of the GNU  General  Public
@@ -347,11 +348,11 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 [1mAUTHOR[0m
-       Mark Nudelman <markn@greenwoodsoftware.com>
+       Mark Nudelman <bug-less@gnu.org>
        Send  bug  reports  or  comments  to  the  above  address  or  to  bug-
        less@gnu.org.
 
 
 
 
-                           Version 444: 09 Jun 2011                 LESSKEY(1)
+                           Version 449: 26 Jun 2012                 LESSKEY(1)
