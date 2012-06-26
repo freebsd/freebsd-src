@@ -427,6 +427,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     ICONV \
     IDEA \
+    INSTALL_AS_USER \
     LIBCPLUSPLUS \
     NAND \
     OFED \
@@ -644,6 +645,17 @@ CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
+
+.if ${MK_INSTALL_AS_USER} != "no"
+_uid!=	id -un
+.if ${_uid} != 0
+_gid!=	id -gn
+.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+$xOWN=	${_uid}
+$xGRP=	${_gid}
+.endfor
+.endif
+.endif
 
 .endif # !_WITHOUT_SRCCONF
 
