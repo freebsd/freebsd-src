@@ -670,45 +670,43 @@ void
 tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer, struct xtcp_timer *xtimer)
 {
 	struct bintime now;
-	struct bintime tmp;
+	struct bintime bt;
 	
 	bzero(xtimer, sizeof(struct xtcp_timer));
 	if (timer == NULL)
 		return;
-	
+	getbinuptime(&now);	
+	bt.sec = 0;
+	bt.frac = 0;
+
 	if (callout_active(&timer->tt_delack)) {
-		binuptime(&now);
-		tmp = timer->tt_delack.c_time;		
-		bintime_sub(&tmp,&now);
-		xtimer->tt_delack = bintime_to_msecs(tmp);
+		bt = timer->tt_delack.c_time;		
+		bintime_sub(&bt,&now);
+		xtimer->tt_delack = bintime_to_msecs(bt);
 	}
 	
 	if (callout_active(&timer->tt_rexmt)) {
-		binuptime(&now);
-		tmp = timer->tt_rexmt.c_time;
-		bintime_sub(&tmp,&now);
-		xtimer->tt_rexmt = bintime_to_msecs(tmp);
+		bt = timer->tt_rexmt.c_time;
+		bintime_sub(&bt,&now);
+		xtimer->tt_rexmt = bintime_to_msecs(bt);
 	}
 	
 	if (callout_active(&timer->tt_persist)) {
-		binuptime(&now);
-		tmp = timer->tt_persist.c_time;
-		bintime_sub(&tmp,&now);
-		xtimer->tt_persist = bintime_to_msecs(tmp);
+		bt = timer->tt_persist.c_time;
+		bintime_sub(&bt,&now);
+		xtimer->tt_persist = bintime_to_msecs(bt);
 	}
 	
 	if (callout_active(&timer->tt_keep)) {
-		binuptime(&now);
-		tmp = timer->tt_keep.c_time;
-		bintime_sub(&tmp,&now); 
-		xtimer->tt_keep = bintime_to_msecs(tmp);
+		bt = timer->tt_keep.c_time;
+		bintime_sub(&bt,&now); 
+		xtimer->tt_keep = bintime_to_msecs(bt);
 	}
 
 	if (callout_active(&timer->tt_2msl)) {
-		binuptime(&now);
-		tmp = timer->tt_2msl.c_time;
-		bintime_sub(&tmp,&now);
-		xtimer->tt_2msl = bintime_to_msecs(tmp);
+		bt = timer->tt_2msl.c_time;
+		bintime_sub(&bt,&now);
+		xtimer->tt_2msl = bintime_to_msecs(bt);
 	}
 
 	xtimer->t_rcvtime = ticks_to_msecs(ticks - tp->t_rcvtime);
