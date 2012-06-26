@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 #define NEWBOT 1
@@ -485,10 +484,13 @@ struct textlist
 #define	CH_KEEPOPEN	002
 #define	CH_POPENED	004
 #define	CH_HELPFILE	010
+#define	CH_NODATA  	020	/* Special case for zero length files */
+
 
 #define	ch_zero()	((POSITION)0)
 
 #define	FAKE_HELPFILE	"@/\\less/\\help/\\file/\\@"
+#define FAKE_EMPTYFILE	"@/\\less/\\empty/\\file/\\@"
 
 /* Flags for cvt_text */
 #define	CVT_TO_LC	01	/* Convert upper-case to lower-case */

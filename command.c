@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -36,6 +35,7 @@ extern int ignore_eoi;
 extern int secure;
 extern int hshift;
 extern int show_attn;
+extern POSITION highest_hilite;
 extern char *every_first_cmd;
 extern char *curr_altfilename;
 extern char version[];
@@ -102,8 +102,8 @@ cmd_exec()
 	static void
 start_mca(action, prompt, mlist, cmdflags)
 	int action;
-	char *prompt;
-	void *mlist;
+	constant char *prompt;
+	constant void *mlist;
 	int cmdflags;
 {
 	mca = action;
@@ -680,7 +680,7 @@ make_display()
 	static void
 prompt()
 {
-	register char *p;
+	register constant char *p;
 
 	if (ungot != NULL)
 	{
@@ -956,6 +956,44 @@ multi_search(pattern, n)
 }
 
 /*
+ * Forward forever, or until a highlighted line appears.
+ */
+	static int
+forw_loop(until_hilite)
+	int until_hilite;
+{
+	POSITION curr_len;
+
+	if (ch_getflags() & CH_HELPFILE)
+		return (A_NOACTION);
+
+	cmd_exec();
+	jump_forw();
+	curr_len = ch_length();
+	highest_hilite = until_hilite ? curr_len : NULL_POSITION;
+	ignore_eoi = 1;
+	while (!sigs)
+	{
+		if (until_hilite && highest_hilite > curr_len)
+		{
+			bell();
+			break;
+		}
+		make_display();
+		forward(1, 0, 0);
+	}
+	ignore_eoi = 0;
+
+	/*
+	 * This gets us back in "F mode" after processing 
+	 * a non-abort signal (e.g. window-change).  
+	 */
+	if (sigs && !ABORT_SIGS())
+		return (A_F_FOREVER);
+	return (A_NOACTION);
+}
+
+/*
  * Main command processor.
  * Accept and execute commands until a quit command.
  */
@@ -973,6 +1011,7 @@ commands()
 	IFILE old_ifile;
 	IFILE new_ifile;
 	char *tagfile;
+	int until_hilite = 0;
 
 	search_type = SRCH_FORW;
 	wscroll = (sc_height + 1) / 2;
@@ -1200,23 +1239,11 @@ commands()
 			/*
 			 * Forward forever, ignoring EOF.
 			 */
-			if (ch_getflags() & CH_HELPFILE)
-				break;
-			cmd_exec();
-			jump_forw();
-			ignore_eoi = 1;
-			while (!sigs)
-			{
-				make_display();
-				forward(1, 0, 0);
-			}
-			ignore_eoi = 0;
-			/*
-			 * This gets us back in "F mode" after processing 
-			 * a non-abort signal (e.g. window-change).  
-			 */
-			if (sigs && !ABORT_SIGS())
-				newaction = A_F_FOREVER;
+			newaction = forw_loop(0);
+			break;
+
+		case A_F_UNTIL_HILITE:
+			newaction = forw_loop(1);
 			break;
 
 		case A_F_SCROLL:
