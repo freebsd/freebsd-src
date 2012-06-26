@@ -30,11 +30,9 @@ AC_CHECK_LIB(ncurses, initscr, [have_ncurses=yes], [have_ncurses=no])
 AC_CHECK_LIB(curses, initscr, [have_curses=yes], [have_curses=no])
 AC_CHECK_LIB(termcap, tgetent, [have_termcap=yes], [have_termcap=no])
 AC_CHECK_LIB(termlib, tgetent, [have_termlib=yes], [have_termlib=no])
-# Regular expressions (regcmp) are in -lgen on Solaris 2,
-# and in -lintl on SCO Unix.
-AC_CHECK_LIB(gen, regcmp)
-AC_CHECK_LIB(intl, regcmp)
-AC_CHECK_LIB(PW, regcmp)
+# Regular expressions (regcmp) are in -lgen on Solaris 2, (but in libc
+# at least on Solaris 10 (2.10)) and in -lintl on SCO Unix.
+AC_SEARCH_LIBS([regcmp], [gen intl PW])
 
 # Checks for terminal libraries
 AC_MSG_CHECKING([for working terminal libraries])
@@ -179,6 +177,8 @@ AC_TYPE_SIZE_T
 AC_HEADER_TIME
 
 # Autoheader templates for symbols defined later by AC_DEFINE.
+AH_TEMPLATE([HAVE_GNU_REGEX],
+	[GNU regex library])
 AH_TEMPLATE([HAVE_POSIX_REGCOMP],
 	[POSIX regcomp() and regex.h])
 AH_TEMPLATE([HAVE_PCRE],
@@ -388,7 +388,7 @@ AC_MSG_CHECKING(for regcomp)
 # Select a regular expression library.
 WANT_REGEX=auto
 AC_ARG_WITH(regex,
-  [  --with-regex={auto,pcre,posix,regcmp,re_comp,regcomp,regcomp-local}  Select a regular expression library  [auto]],
+  [  --with-regex={auto,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local,none}  Select a regular expression library  [auto]],
   WANT_REGEX="$withval")
 
 if test $have_regex = no; then
@@ -426,6 +426,13 @@ fi
 fi
 
 if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = gnu; then
+AC_CHECK_LIB(c, re_compile_pattern, 
+[AC_MSG_RESULT(using gnu); AC_DEFINE(HAVE_GNU_REGEX) have_regex=yes], [])
+fi
+fi
+
+if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = pcre; then
 AC_CHECK_LIB(pcre, pcre_compile, 
 [AC_MSG_RESULT(using pcre); AC_DEFINE(HAVE_PCRE) LIBS="$LIBS -lpcre" have_regex=yes], [])
@@ -456,6 +463,12 @@ fi
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = re_comp; then
 AC_MSG_RESULT(using re_comp); AC_CHECK_FUNC(re_comp, AC_DEFINE(HAVE_RE_COMP) have_regex=yes)
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = none; then
+AC_MSG_RESULT(using no regex); have_regex=yes;
 fi
 fi
 
