@@ -189,6 +189,15 @@ __FBSDID("$FreeBSD$");
 #define	CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m)	\
 			CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, VM_PAGE_TO_PHYS(m))
 
+#define	RELEASE_PV_LIST_LOCK(lockp)		do {	\
+	struct rwlock **_lockp = (lockp);		\
+							\
+	if (*_lockp != NULL) {				\
+		rw_wunlock(*_lockp);			\
+		*_lockp = NULL;				\
+	}						\
+} while (0)
+
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
@@ -1714,10 +1723,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
 		if (lockp != NULL) {
-			if (*lockp != NULL) {
-				rw_wunlock(*lockp);
-				*lockp = NULL;
-			}
+			RELEASE_PV_LIST_LOCK(lockp);
 			PMAP_UNLOCK(pmap);
 			rw_runlock(&pvh_global_lock);
 			VM_WAIT;
@@ -2133,10 +2139,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			pmap = pc->pc_pmap;
 			/* Avoid deadlock and lock recursion. */
 			if (pmap > locked_pmap) {
-				if (*lockp != NULL) {
-					rw_wunlock(*lockp);
-					*lockp = NULL;
-				}
+				RELEASE_PV_LIST_LOCK(lockp);
 				PMAP_LOCK(pmap);
 			} else if (pmap != locked_pmap &&
 			    !PMAP_TRYLOCK(pmap)) {
