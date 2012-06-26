@@ -355,21 +355,20 @@ static int t4_mod_event(module_t, int, void *);
 
 struct t4_pciids {
 	uint16_t device;
-	uint8_t mpf;
 	char *desc;
 } t4_pciids[] = {
-	{0xa000, 0, "Chelsio Terminator 4 FPGA"},
-	{0x4400, 4, "Chelsio T440-dbg"},
-	{0x4401, 4, "Chelsio T420-CR"},
-	{0x4402, 4, "Chelsio T422-CR"},
-	{0x4403, 4, "Chelsio T440-CR"},
-	{0x4404, 4, "Chelsio T420-BCH"},
-	{0x4405, 4, "Chelsio T440-BCH"},
-	{0x4406, 4, "Chelsio T440-CH"},
-	{0x4407, 4, "Chelsio T420-SO"},
-	{0x4408, 4, "Chelsio T420-CX"},
-	{0x4409, 4, "Chelsio T420-BT"},
-	{0x440a, 4, "Chelsio T404-BT"},
+	{0xa000, "Chelsio Terminator 4 FPGA"},
+	{0x4400, "Chelsio T440-dbg"},
+	{0x4401, "Chelsio T420-CR"},
+	{0x4402, "Chelsio T422-CR"},
+	{0x4403, "Chelsio T440-CR"},
+	{0x4404, "Chelsio T420-BCH"},
+	{0x4405, "Chelsio T440-BCH"},
+	{0x4406, "Chelsio T440-CH"},
+	{0x4407, "Chelsio T420-SO"},
+	{0x4408, "Chelsio T420-CX"},
+	{0x4409, "Chelsio T420-BT"},
+	{0x440a, "Chelsio T404-BT"},
 };
 
 #ifdef TCP_OFFLOAD
@@ -387,13 +386,17 @@ t4_probe(device_t dev)
 	int i;
 	uint16_t v = pci_get_vendor(dev);
 	uint16_t d = pci_get_device(dev);
+	uint8_t f = pci_get_function(dev);
 
 	if (v != PCI_VENDOR_ID_CHELSIO)
 		return (ENXIO);
 
+	/* Attach only to PF0 of the FPGA */
+	if (d == 0xa000 && f != 0)
+		return (ENXIO);
+
 	for (i = 0; i < ARRAY_SIZE(t4_pciids); i++) {
-		if (d == t4_pciids[i].device &&
-		    pci_get_function(dev) == t4_pciids[i].mpf) {
+		if (d == t4_pciids[i].device) {
 			device_set_desc(dev, t4_pciids[i].desc);
 			return (BUS_PROBE_DEFAULT);
 		}
@@ -415,8 +418,6 @@ t4_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->pf = pci_get_function(dev);
-	sc->mbox = sc->pf;
 
 	pci_enable_busmaster(dev);
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
@@ -442,6 +443,15 @@ t4_attach(device_t dev)
 	rc = map_bars(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
+
+	/*
+	 * This is the real PF# to which we're attaching.  Works from within PCI
+	 * passthrough environments too, where pci_get_function() could return a
+	 * different PF# depending on the passthrough configuration.  We need to
+	 * use the real PF# in all our communication with the firmware.
+	 */
+	sc->pf = G_SOURCEPF(t4_read_reg(sc, A_PL_WHOAMI));
+	sc->mbox = sc->pf;
 
 	memset(sc->chan_map, 0xff, sizeof(sc->chan_map));
 	sc->an_handler = an_not_handled;
@@ -1277,9 +1287,17 @@ map_bars(struct adapter *sc)
 static void
 setup_memwin(struct adapter *sc)
 {
-	u_long bar0;
+	uint32_t bar0;
 
-	bar0 = rman_get_start(sc->regs_res);
+	/*
+	 * Read low 32b of bar0 indirectly via the hardware backdoor mechanism.
+	 * Works from within PCI passthrough environments too, where
+	 * rman_get_start() can return a different value.  We need to program
+	 * the memory window decoders with the actual addresses that will be
+	 * coming across the PCIe link.
+	 */
+	bar0 = t4_hw_pci_read_cfg4(sc, PCIR_BAR(0));
+	bar0 &= (uint32_t) PCIM_BAR_MEM_BASE;
 
 	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 0),
 	    	     (bar0 + MEMWIN0_BASE) | V_BIR(0) |
@@ -1292,6 +1310,9 @@ setup_memwin(struct adapter *sc)
 	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2),
 		     (bar0 + MEMWIN2_BASE) | V_BIR(0) |
 		     V_WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
+
+	/* flush */
+	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2));
 }
 
 static int
