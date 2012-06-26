@@ -90,10 +90,14 @@ struct disk_devdesc
 /*
  * Parse disk metadata and initialise dev->d_offset.
  */
-extern int disk_open(struct disk_devdesc * dev);
+extern int disk_open(struct disk_devdesc *dev, off_t mediasize,
+    u_int sectorsize);
+extern int disk_close(struct disk_devdesc *dev);
 
 /*
  * Print information about slices on a disk.  For the size calculations we
  * assume a 512 byte sector.
  */
 extern void disk_print(struct disk_devdesc *dev, char *prefix, int verbose);
+extern char* disk_fmtdev(struct disk_devdesc *dev);
+
