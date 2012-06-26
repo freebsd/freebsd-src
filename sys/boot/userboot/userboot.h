@@ -175,4 +175,9 @@ struct loader_callbacks_v1 {
          */
 	void		(*getmem)(void *arg, uint64_t *lowmem,
             uint64_t *highmem);
+	/*
+	 * ioctl interface to the disk device
+	 */
+	int		(*diskioctl)(void *arg, int unit, u_long cmd,
+	    void *data);
 };
