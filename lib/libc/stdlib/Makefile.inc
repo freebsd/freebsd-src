@@ -42,6 +42,7 @@ MLINKS+=rand.3 rand_r.3 rand.3 srand.3 rand.3 sranddev.3
 MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3 \
 	random.3 srandomdev.3
 MLINKS+=radixsort.3 sradixsort.3
+MLINKS+=strfmon.3 strfmon_l.3
 MLINKS+=strtod.3 strtof.3 strtod.3 strtold.3
 MLINKS+=strtol.3 strtoll.3 strtol.3 strtoq.3 strtol.3 strtoimax.3
 MLINKS+=strtoul.3 strtoull.3 strtoul.3 strtouq.3 strtoul.3 strtoumax.3

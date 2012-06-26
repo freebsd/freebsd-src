@@ -76,6 +76,7 @@ typedef void g_orphan_t (struct g_consumer *);
 typedef void g_start_t (struct bio *);
 typedef void g_spoiled_t (struct g_consumer *);
 typedef void g_attrchanged_t (struct g_consumer *, const char *attr);
+typedef void g_provgone_t (struct g_provider *);
 typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
     struct g_consumer *, struct g_provider *);
 
@@ -106,7 +107,7 @@ struct g_class {
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
-	void			*spare1;
+	g_provgone_t		*providergone;
 	void			*spare2;
 	/*
 	 * The remaining elements are private
@@ -137,7 +138,7 @@ struct g_geom {
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
-	void			*spare0;
+	g_provgone_t		*providergone;
 	void			*spare1;
 	void			*softc;
 	unsigned		flags;

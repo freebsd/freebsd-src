@@ -440,6 +440,10 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 			cam_periph_release_locked(periph);
 			return (error);
 		}
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			cam_periph_release_locked(periph);
+			return (ENXIO);
+		}
 	}
 
 	periph->flags |= CAM_PERIPH_LOCKED;
@@ -1143,22 +1147,15 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	union ccb      *saved_ccb;
 	cam_status	status;
 	struct scsi_start_stop_unit *scsi_cmd;
+	int    error_code, sense_key, asc, ascq;
 
 	scsi_cmd = (struct scsi_start_stop_unit *)
 	    &done_ccb->csio.cdb_io.cdb_bytes;
 	status = done_ccb->ccb_h.status;
 
 	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if ((status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
-		    (status & CAM_AUTOSNS_VALID)) {
-			struct scsi_sense_data *sense;
-			int    error_code, sense_key, asc, ascq, sense_len;
-
-			sense = &done_ccb->csio.sense_data;
-			sense_len = done_ccb->csio.sense_len -
-				    done_ccb->csio.sense_resid;
-			scsi_extract_sense_len(sense, sense_len, &error_code,
-			    &sense_key, &asc, &ascq, /*show_errors*/ 1);
+		if (scsi_extract_sense_ccb(done_ccb,
+		    &error_code, &sense_key, &asc, &ascq)) {
 			/*
 			 * If the error is "invalid field in CDB",
 			 * and the load/eject flag is set, turn the
@@ -1350,6 +1347,7 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 			}
 			*timeout = 0;
 			error = ERESTART;
+			*print = 0;
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1416,12 +1414,8 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 
-		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
-			err_action = scsi_error_action(&ccb->csio,
-						       &cgd.inq_data,
-						       sense_flags);
-		else
-			err_action = SS_RETRY|SSQ_DECREMENT_COUNT|EIO;
+		err_action = scsi_error_action(&ccb->csio, &cgd.inq_data,
+		    sense_flags);
 		error = err_action & SS_ERRMASK;
 
 		/*
@@ -1679,8 +1673,10 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		} else if (sense_flags & SF_NO_RETRY) {
 			error = EIO;
 			action_string = "Retry was blocked";
-		} else
+		} else {
 			error = ERESTART;
+			print = 0;
+		}
 		break;
 	case CAM_RESRC_UNAVAIL:
 		/* Wait a bit for the resource shortage to abate. */

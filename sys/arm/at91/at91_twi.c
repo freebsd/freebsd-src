@@ -284,7 +284,6 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
-	printf("setting cwgr to %#x\n", sc->cwgr);
 	AT91_TWI_UNLOCK(sc);
 
 	return 0;

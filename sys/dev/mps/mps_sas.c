@@ -2214,7 +2214,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 			sense_len = min(returned_sense_len,
 			    ccb->csio.sense_len - ccb->csio.sense_resid);
 			bzero(&ccb->csio.sense_data,
-			      sizeof(&ccb->csio.sense_data));
+			      sizeof(ccb->csio.sense_data));
 			bcopy(cm->cm_sense, &ccb->csio.sense_data, sense_len);
 			ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 		}
