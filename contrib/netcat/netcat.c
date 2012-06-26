@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.100 2011/01/09 22:16:46 jeremy Exp $ */
+/* $OpenBSD: netcat.c,v 1.105 2012/02/09 06:25:35 lum Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -107,6 +107,7 @@ void	help(void);
 int	local_listen(char *, char *, struct addrinfo);
 void	readwrite(int);
 int	remote_connect(const char *, const char *, struct addrinfo);
+int	timeout_connect(int, const struct sockaddr *, socklen_t);
 int	socks_connect(const char *, const char *, struct addrinfo,
 	    const char *, const char *, struct addrinfo, int, const char *);
 int	udptest(int);
@@ -114,7 +115,7 @@ int	unix_bind(char *);
 int	unix_connect(char *);
 int	unix_listen(char *);
 void	set_common_sockopts(int);
-int	parse_iptos(char *);
+int	map_tos(char *, int *);
 void	usage(int);
 
 #ifdef IPSEC
@@ -281,7 +282,18 @@ main(int argc, char *argv[])
 			Sflag = 1;
 			break;
 		case 'T':
-			Tflag = parse_iptos(optarg);
+			errstr = NULL;
+			errno = 0;
+			if (map_tos(optarg, &Tflag))
+				break;
+			if (strlen(optarg) > 1 && optarg[0] == '0' &&
+			    optarg[1] == 'x')
+				Tflag = (int)strtol(optarg, NULL, 16);
+			else
+				Tflag = (int)strtonum(optarg, 0, 255,
+				    &errstr);
+			if (Tflag < 0 || Tflag > 255 || errstr || errno)
+				errx(1, "illegal tos value %s", optarg);
 			break;
 		default:
 			usage(1);
@@ -633,7 +645,7 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 
 		set_common_sockopts(s);
 
-		if (connect(s, res0->ai_addr, res0->ai_addrlen) == 0)
+		if (timeout_connect(s, res0->ai_addr, res0->ai_addrlen) == 0)
 			break;
 		else if (vflag)
 			warn("connect to %s port %s (%s) failed", host, port,
@@ -646,6 +658,43 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 	freeaddrinfo(res);
 
 	return (s);
+}
+
+int
+timeout_connect(int s, const struct sockaddr *name, socklen_t namelen)
+{
+	struct pollfd pfd;
+	socklen_t optlen;
+	int flags, optval;
+	int ret;
+
+	if (timeout != -1) {
+		flags = fcntl(s, F_GETFL, 0);
+		if (fcntl(s, F_SETFL, flags | O_NONBLOCK) == -1)
+			err(1, "set non-blocking mode");
+	}
+
+	if ((ret = connect(s, name, namelen)) != 0 && errno == EINPROGRESS) {
+		pfd.fd = s;
+		pfd.events = POLLOUT;
+		if ((ret = poll(&pfd, 1, timeout)) == 1) {
+			optlen = sizeof(optval);
+			if ((ret = getsockopt(s, SOL_SOCKET, SO_ERROR,
+			    &optval, &optlen)) == 0) {
+				errno = optval;
+				ret = optval == 0 ? 0 : -1;
+			}
+		} else if (ret == 0) {
+			errno = ETIMEDOUT;
+			ret = -1;
+		} else
+			err(1, "poll failed");
+	}
+
+	if (timeout != -1 && fcntl(s, F_SETFL, flags) == -1)
+		err(1, "restoring flags");
+
+	return (ret);
 }
 
 /*
@@ -818,7 +867,7 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
 
 /*
  * build_ports()
- * Build an array or ports in portlist[], listing each port
+ * Build an array of ports in portlist[], listing each port
  * that we should try to connect to.
  */
 void
@@ -830,9 +879,6 @@ build_ports(char *p)
 	int x = 0;
 
 	if ((n = strchr(p, '-')) != NULL) {
-		if (lflag)
-			errx(1, "Cannot use -l with multiple ports!");
-
 		*n = '\0';
 		n++;
 
@@ -884,8 +930,7 @@ build_ports(char *p)
 /*
  * udptest()
  * Do a few writes to see if the UDP port is there.
- * XXX - Better way of doing this? Doesn't work for IPv6.
- * Also fails after around 100 ports checked.
+ * Fails once PF state table is full.
  */
 int
 udptest(int s)
@@ -946,20 +991,51 @@ set_common_sockopts(int s)
 }
 
 int
-parse_iptos(char *s)
+map_tos(char *s, int *val)
 {
-	int tos = -1;
+	/* DiffServ Codepoints and other TOS mappings */
+	const struct toskeywords {
+		const char	*keyword;
+		int		 val;
+	} *t, toskeywords[] = {
+		{ "af11",		IPTOS_DSCP_AF11 },
+		{ "af12",		IPTOS_DSCP_AF12 },
+		{ "af13",		IPTOS_DSCP_AF13 },
+		{ "af21",		IPTOS_DSCP_AF21 },
+		{ "af22",		IPTOS_DSCP_AF22 },
+		{ "af23",		IPTOS_DSCP_AF23 },
+		{ "af31",		IPTOS_DSCP_AF31 },
+		{ "af32",		IPTOS_DSCP_AF32 },
+		{ "af33",		IPTOS_DSCP_AF33 },
+		{ "af41",		IPTOS_DSCP_AF41 },
+		{ "af42",		IPTOS_DSCP_AF42 },
+		{ "af43",		IPTOS_DSCP_AF43 },
+		{ "critical",		IPTOS_PREC_CRITIC_ECP },
+		{ "cs0",		IPTOS_DSCP_CS0 },
+		{ "cs1",		IPTOS_DSCP_CS1 },
+		{ "cs2",		IPTOS_DSCP_CS2 },
+		{ "cs3",		IPTOS_DSCP_CS3 },
+		{ "cs4",		IPTOS_DSCP_CS4 },
+		{ "cs5",		IPTOS_DSCP_CS5 },
+		{ "cs6",		IPTOS_DSCP_CS6 },
+		{ "cs7",		IPTOS_DSCP_CS7 },
+		{ "ef",			IPTOS_DSCP_EF },
+		{ "inetcontrol",	IPTOS_PREC_INTERNETCONTROL },
+		{ "lowdelay",		IPTOS_LOWDELAY },
+		{ "netcontrol",		IPTOS_PREC_NETCONTROL },
+		{ "reliability",	IPTOS_RELIABILITY },
+		{ "throughput",		IPTOS_THROUGHPUT },
+		{ NULL, 		-1 },
+	};
 
-	if (strcmp(s, "lowdelay") == 0)
-		return (IPTOS_LOWDELAY);
-	if (strcmp(s, "throughput") == 0)
-		return (IPTOS_THROUGHPUT);
-	if (strcmp(s, "reliability") == 0)
-		return (IPTOS_RELIABILITY);
+	for (t = toskeywords; t->keyword != NULL; t++) {
+		if (strcmp(s, t->keyword) == 0) {
+			*val = t->val;
+			return (1);
+		}
+	}
 
-	if (sscanf(s, "0x%x", &tos) != 1 || tos < 0 || tos > 0xff)
-		errx(1, "invalid IP Type of Service");
-	return (tos);
+	return (0);
 }
 
 void
@@ -990,7 +1066,7 @@ help(void)
 	\t-r		Randomize remote ports\n\
 	\t-S		Enable the TCP MD5 signature option\n\
 	\t-s addr\t	Local source address\n\
-	\t-T ToS\t	Set IP Type of Service\n\
+	\t-T toskeyword\tSet IP Type of Service\n\
 	\t-t		Answer TELNET negotiation\n\
 	\t-U		Use UNIX domain socket\n\
 	\t-u		UDP mode\n\
