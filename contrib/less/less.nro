@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 444: 09 Jun 2011"
+.TH LESS 1 "Version 449: 26 Jun 2012"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -109,6 +109,10 @@ Normally this command would be used when already at the end of the file.
 It is a way to monitor the tail of a file which is growing
 while it is being viewed.
 (The behavior is similar to the "tail \-f" command.)
+.IP "ESC-F"
+Like F, but as soon as a line is found which matches
+the last search pattern, the terminal bell is rung 
+and forward scrolling stops.
 .IP "g or < or ESC-<"
 Go to line N in the file, default 1 (beginning of file).
 (Warning: this may be slow if N is large.)
@@ -761,10 +765,10 @@ This is useful when viewing
 output.
 .IP "\-S or \-\-chop-long-lines"
 Causes lines longer than the screen width to be
-chopped rather than folded.
+chopped (truncated) rather than wrapped.
 That is, the portion of a long line that does not fit in
 the screen width is not shown.
-The default is to fold long lines; that is, display the remainder
+The default is to wrap long lines; that is, display the remainder
 on the next line.
 .IP "\-t\fItag\fP or \-\-tag=\fItag\fP"
 The \-t option, followed immediately by a TAG,
@@ -805,7 +809,7 @@ the overstruck text is printed
 using the terminal's hardware boldface capability.
 Other backspaces are deleted, along with the preceding character.
 Carriage returns immediately followed by a newline are deleted.
-other carriage returns are handled as specified by the \-r option.
+Other carriage returns are handled as specified by the \-r option.
 Text which is overstruck or underlined can be searched for
 if neither \-u nor \-U is in effect.
 .IP "\-V or \-\-version"
@@ -963,8 +967,12 @@ Delete the word to the left of the cursor.
 Delete the word under the cursor.
 .IP "UPARROW [ ESC-k ]"
 Retrieve the previous command line.
+If you first enter some text and then press UPARROW,
+it will retrieve the previous command which begins with that text.
 .IP "DOWNARROW [ ESC-j ]"
 Retrieve the next command line.
+If you first enter some text and then press DOWNARROW,
+it will retrieve the next command which begins with that text.
 .IP "TAB"
 Complete the partial filename to the left of the cursor.
 If it matches more than one filename, the first match
@@ -1158,13 +1166,32 @@ lesspipe.sh:
 .br
 	*.Z)	uncompress \-c $1  2>/dev/null
 .br
+	*)	exit 1
+.br
 		;;
 .br
 	esac
 .br
+	exit $?
+.br
 .PP
 To use this script, put it where it can be executed and set
 LESSOPEN="|lesspipe.sh %s".
+.PP
+Note that a preprocessor cannot output an empty file, since that
+is interpreted as meaning there is no replacement, and 
+the original file is used.
+To avoid this, if LESSOPEN starts with two vertical bars,
+the exit status of the script becomes meaningful.
+If the exit status is zero, the output is considered to be 
+replacement text, even if it empty.
+If the exit status is nonzero, any output is ignored and the
+original file is used.
+For compatibility with previous versions of
+.I less,
+if LESSOPEN starts with only one vertical bar, the exit status
+of the preprocessor is ignored.
+.PP
 When an input pipe is used, a LESSCLOSE postprocessor can be used,
 but it is usually not necessary since there is no replacement file
 to clean up.
@@ -1183,7 +1210,8 @@ the preprocessor command.
 If standard input is being viewed, the input preprocessor is passed
 a file name consisting of a single dash.
 Similarly, if the first two characters of LESSOPEN are vertical bar and dash
-(|\-), the input pipe is used on standard input as well as other files.
+(|\-) or two vertical bars and a dash (||\-), 
+the input pipe is used on standard input as well as other files.
 Again, in this case the dash is not considered to be part of 
 the input pipe command.
 
@@ -1666,6 +1694,12 @@ Takes precedence over the number of lines specified by the TERM variable.
 (But if you have a windowing system which supports TIOCGWINSZ or WIOCGETD,
 the window system's idea of the screen size takes precedence over the
 LINES and COLUMNS environment variables.)
+.IP MORE
+Options which are passed to
+.I less
+automatically when running in 
+.I more
+compatible mode.
 .IP PATH
 User's search path (used to find a lesskey file 
 on MS-DOS and OS/2 systems).
@@ -1682,7 +1716,7 @@ The name of the editor (used for the v command).
 lesskey(1)
 
 .SH COPYRIGHT
-Copyright (C) 1984-2011  Mark Nudelman
+Copyright (C) 1984-2012  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -1705,9 +1739,9 @@ See the GNU General Public License for more details.
 
 .SH AUTHOR
 .PP
-Mark Nudelman <markn@greenwoodsoftware.com>
+Mark Nudelman <bug-less@gnu.org>
 .br
-Send bug reports or comments to the above address or to bug-less@gnu.org.
+Send bug reports or comments to bug-less@gnu.org.
 .br
 See http://www.greenwoodsoftware.com/less/bugs.html for the latest list of known bugs in less.
 .br
