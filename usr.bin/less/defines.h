@@ -227,17 +227,11 @@
 /* Define to 1 if you have the `fsync' function. */
 #define HAVE_FSYNC 1
 
+/* GNU regex library */
+/* #undef HAVE_GNU_REGEX */
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
-
-/* Define to 1 if you have the `gen' library (-lgen). */
-/* #undef HAVE_LIBGEN */
-
-/* Define to 1 if you have the `intl' library (-lintl). */
-/* #undef HAVE_LIBINTL */
-
-/* Define to 1 if you have the `PW' library (-lPW). */
-/* #undef HAVE_LIBPW */
 
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
