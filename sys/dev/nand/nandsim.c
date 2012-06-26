@@ -663,3 +663,5 @@ nandsim_modevent(module_t mod __unused, int type, void *data __unused)
 
 DEV_MODULE(nandsim, nandsim_modevent, NULL);
 MODULE_VERSION(nandsim, 1);
+MODULE_DEPEND(nandsim, nand, 1, 1, 1);
+MODULE_DEPEND(nandsim, alq, 1, 1, 1);
