@@ -673,9 +673,10 @@ pmap_bootstrap(u_int cpu_impl)
 	CPU_FILL(&pm->pm_active);
 
  	/*
-	 * Initialize the global tte list lock.
+	 * Initialize the global tte list lock, which is more commonly
+	 * known as the pmap pv global lock.
 	 */
-	rw_init(&tte_list_global_lock, "tte list global");
+	rw_init(&tte_list_global_lock, "pmap pv global");
 
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
