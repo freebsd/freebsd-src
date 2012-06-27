@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/socket.h>
 
+#include <elf.h>
 #include <errno.h>
 #include <limits.h>
 #include <paths.h>
@@ -51,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include "../stdlib/atexit.h"
 #include "tzfile.h"		/* from ../../../contrib/tzcode/stdtime */
+#include "libc_private.h"
 
 #define	_PATH_ZONEINFO	TZDIR	/* from tzfile.h */
 
@@ -585,6 +587,8 @@ yesno:
 
 	case _SC_NPROCESSORS_CONF:
 	case _SC_NPROCESSORS_ONLN:
+		if (_elf_aux_info(AT_NCPUS, &value, sizeof(value)) == 0)
+			return ((long)value);
 		mib[0] = CTL_HW;
 		mib[1] = HW_NCPU;
 		break;
