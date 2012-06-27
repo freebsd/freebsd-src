@@ -642,7 +642,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
  	/*
 	 * Initialize the global pv list lock.
 	 */
-	rw_init(&pvh_global_lock, "pvh global");
+	rw_init(&pvh_global_lock, "pmap pv global");
 
 	/*
 	 * Reserve some special page table entries/VA space for temporary
@@ -810,13 +810,13 @@ pmap_init(void)
 	/*
 	 * Initialize the pv chunk list mutex.
 	 */
-	mtx_init(&pv_chunks_mutex, "pv chunk list", NULL, MTX_DEF);
+	mtx_init(&pv_chunks_mutex, "pmap pv chunk list", NULL, MTX_DEF);
 
 	/*
 	 * Initialize the pool of pv list locks.
 	 */
 	for (i = 0; i < NPV_LIST_LOCKS; i++)
-		rw_init(&pv_list_locks[i], "pv list");
+		rw_init(&pv_list_locks[i], "pmap pv list");
 
 	/*
 	 * Calculate the size of the pv head table for superpages.
