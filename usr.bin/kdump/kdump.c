@@ -99,6 +99,8 @@ void ktruser(int, unsigned char *);
 void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
+void ktrfault(struct ktr_fault *);
+void ktrfaultend(struct ktr_faultend *);
 void usage(void);
 void sockfamilyname(int);
 const char *ioctlname(u_long);
@@ -302,6 +304,12 @@ main(int argc, char *argv[])
 		case KTR_STRUCT:
 			ktrstruct(m, ktrlen);
 			break;
+		case KTR_FAULT:
+			ktrfault((struct ktr_fault *)m);
+			break;
+		case KTR_FAULTEND:
+			ktrfaultend((struct ktr_faultend *)m);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -441,6 +449,12 @@ dumpheader(struct ktr_header *kth)
 		/* FALLTHROUGH */
 	case KTR_PROCDTOR:
 		return;
+	case KTR_FAULT:
+		type = "PFLT";
+		break;
+	case KTR_FAULTEND:
+		type = "PRET";
+		break;
 	default:
 		(void)sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
 		type = unknown;
@@ -1510,6 +1524,23 @@ ktrstruct(char *buf, size_t buflen)
 	return;
 invalid:
 	printf("invalid record\n");
+}
+
+void
+ktrfault(struct ktr_fault *ktr)
+{
+
+	printf("0x%jx ", ktr->vaddr);
+	vmprotname(ktr->type);
+	printf("\n");
+}
+
+void
+ktrfaultend(struct ktr_faultend *ktr)
+{
+
+	vmresultname(ktr->result);
+	printf("\n");
 }
 
 #if defined(__amd64__) || defined(__i386__)
