@@ -226,6 +226,8 @@ int MAIN(int argc, char **argv)
 		else if (!strcmp(*args,"-camellia256"))
 				cipher = EVP_camellia_256_cbc();
 #endif
+		else if (!strcmp (*args, "-debug_decrypt")) 
+				flags |= CMS_DEBUG_DECRYPT;
 		else if (!strcmp (*args, "-text")) 
 				flags |= CMS_TEXT;
 		else if (!strcmp (*args, "-nointern")) 
@@ -611,7 +613,7 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-certsout file certificate output file\n");
 		BIO_printf (bio_err, "-signer file   signer certificate file\n");
 		BIO_printf (bio_err, "-recip  file   recipient certificate file for decryption\n");
-		BIO_printf (bio_err, "-skeyid        use subject key identifier\n");
+		BIO_printf (bio_err, "-keyid         use subject key identifier\n");
 		BIO_printf (bio_err, "-in file       input file\n");
 		BIO_printf (bio_err, "-inform arg    input format SMIME (default), PEM or DER\n");
 		BIO_printf (bio_err, "-inkey file    input private key (if not signer or recipient)\n");
@@ -1013,6 +1015,8 @@ int MAIN(int argc, char **argv)
 	ret = 4;
 	if (operation == SMIME_DECRYPT)
 		{
+		if (flags & CMS_DEBUG_DECRYPT)
+			CMS_decrypt(cms, NULL, NULL, NULL, NULL, flags);
 
 		if (secret_key)
 			{
