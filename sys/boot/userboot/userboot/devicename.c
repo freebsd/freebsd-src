@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <string.h>
-#include <sys/disklabel.h>
 
 #include "bootstrap.h"
 #include "disk.h"
@@ -87,7 +86,7 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **p
 {
     struct disk_devdesc *idev;
     struct devsw	*dv;
-    int			i, unit, slice, partition, err;
+    int			i, unit, err;
     char		*cp;
     const char		*np;
 
@@ -113,62 +112,9 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **p
 	break;
 
     case DEVT_DISK:
-	unit = -1;
-	slice = -1;
-	partition = -1;
-	if (*np && (*np != ':')) {
-	    unit = strtol(np, &cp, 10);	/* next comes the unit number */
-	    if (cp == np) {
-		err = EUNIT;
-		goto fail;
-	    }
-#ifdef LOADER_GPT_SUPPORT
-	    if (*cp == 'p') {		/* got a GPT partition */
-		np = cp + 1;
-		slice = strtol(np, &cp, 10);
-		if (cp == np) {
-		    err = ESLICE;
-		    goto fail;
-		}
-		if (*cp && (*cp != ':')) {
-		    err = EINVAL;
-		    goto fail;
-		}
-		partition = 0xff;
-	    } else {
-#endif
-		if (*cp == 's') {		/* got a slice number */
-		    np = cp + 1;
-		    slice = strtol(np, &cp, 10);
-		    if (cp == np) {
-			err = ESLICE;
-			goto fail;
-		    }
-		}
-		if (*cp && (*cp != ':')) {
-		    partition = *cp - 'a';	/* got a partition number */
-		    if ((partition < 0) || (partition >= MAXPARTITIONS)) {
-			err = EPART;
-			goto fail;
-		    }
-		    cp++;
-		}
-#ifdef LOADER_GPT_SUPPORT
-	    }
-#endif
-	} else {
-		cp = np;
-	}
-	if (*cp && (*cp != ':')) {
-	    err = EINVAL;
+	err = disk_parsedev(idev, np, path);
+	if (err != 0)
 	    goto fail;
-	}
-
-	idev->d_unit = unit;
-	idev->d_slice = slice;
-	idev->d_partition = partition;
-	if (path != NULL)
-	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
 
     case DEVT_CD:
@@ -219,8 +165,7 @@ userboot_fmtdev(void *vdev)
 {
     struct disk_devdesc	*dev = (struct disk_devdesc *)vdev;
     static char		buf[128];	/* XXX device length constant? */
-    char		*cp;
-    
+
     switch(dev->d_type) {
     case DEVT_NONE:
 	strcpy(buf, "(no device)");
@@ -231,22 +176,7 @@ userboot_fmtdev(void *vdev)
 	break;
 
     case DEVT_DISK:
-	cp = buf;
-	cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
-#ifdef LOADER_GPT_SUPPORT
-	if (dev->d_partition == 0xff) {
-	    cp += sprintf(cp, "p%d", dev->d_slice);
-	} else {
-#endif
-	    if (dev->d_slice > 0)
-		cp += sprintf(cp, "s%d", dev->d_slice);
-	    if (dev->d_partition >= 0)
-		cp += sprintf(cp, "%c", dev->d_partition + 'a');
-#ifdef LOADER_GPT_SUPPORT
-	}
-#endif
-	strcat(cp, ":");
-	break;
+	return (disk_fmtdev(vdev));
 
     case DEVT_NET:
     case DEVT_ZFS:
