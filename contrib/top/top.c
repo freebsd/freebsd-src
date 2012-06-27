@@ -121,6 +121,8 @@ int i_cpustates();
 int u_cpustates();
 int i_memory();
 int u_memory();
+int i_arc();
+int u_arc();
 int i_swap();
 int u_swap();
 int i_message();
@@ -135,6 +137,7 @@ int (*d_loadave)() = i_loadave;
 int (*d_procstates)() = i_procstates;
 int (*d_cpustates)() = i_cpustates;
 int (*d_memory)() = i_memory;
+int (*d_arc)() = i_arc;
 int (*d_swap)() = i_swap;
 int (*d_message)() = i_message;
 int (*d_header)() = i_header;
@@ -647,6 +650,7 @@ restart:
 
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
+	(*d_arc)(system_info.arc);
 
 	/* display swap stats */
 	(*d_swap)(system_info.swap);
@@ -712,6 +716,7 @@ restart:
 		    d_procstates = u_procstates;
 		    d_cpustates = u_cpustates;
 		    d_memory = u_memory;
+		    d_arc = u_arc;
 		    d_swap = u_swap;
 		    d_message = u_message;
 		    d_header = u_header;
@@ -1129,6 +1134,7 @@ reset_display()
     d_procstates = i_procstates;
     d_cpustates  = i_cpustates;
     d_memory     = i_memory;
+    d_arc        = i_arc;
     d_swap       = i_swap;
     d_message	 = i_message;
     d_header	 = i_header;
