@@ -420,6 +420,30 @@ typedef enum {
 			| HAL_INT_GPIO,
 } HAL_INT;
 
+/*
+ * MSI vector assignments
+ */
+typedef enum {
+	HAL_MSIVEC_MISC = 0,
+	HAL_MSIVEC_TX   = 1,
+	HAL_MSIVEC_RXLP = 2,
+	HAL_MSIVEC_RXHP = 3,
+} HAL_MSIVEC;
+
+typedef enum {
+	HAL_INT_LINE = 0,
+	HAL_INT_MSI  = 1,
+} HAL_INT_TYPE;
+
+/* For interrupt mitigation registers */
+typedef enum {
+	HAL_INT_RX_FIRSTPKT=0,
+	HAL_INT_RX_LASTPKT,
+	HAL_INT_TX_FIRSTPKT,
+	HAL_INT_TX_LASTPKT,
+	HAL_INT_THRESHOLD
+} HAL_INT_MITIGATION;
+
 typedef enum {
 	HAL_GPIO_OUTPUT_MUX_AS_OUTPUT		= 0,
 	HAL_GPIO_OUTPUT_MUX_PCIE_ATTENTION_LED	= 1,
