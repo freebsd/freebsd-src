@@ -502,6 +502,14 @@ g_disk_providergone(struct g_provider *pp)
 	struct g_disk_softc *sc;
 
 	sc = (struct g_disk_softc *)pp->geom->softc;
+
+	/*
+	 * If the softc is already NULL, then we've probably been through
+	 * g_disk_destroy already; there is nothing for us to do anyway.
+	 */
+	if (sc == NULL)
+		return;
+
 	dp = sc->dp;
 
 	if (dp->d_gone != NULL)
