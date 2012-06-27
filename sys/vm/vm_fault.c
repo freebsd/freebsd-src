@@ -74,6 +74,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -86,6 +87,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -114,6 +118,9 @@ static int prefault_pageorder[] = {
 
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
 static void vm_fault_prefault(pmap_t, vm_offset_t, vm_map_entry_t);
+#ifdef KTRACE
+static int vm_fault_traced(vm_map_t, vm_offset_t, vm_prot_t, int);
+#endif
 
 #define VM_FAULT_READ_AHEAD 8
 #define VM_FAULT_READ_BEHIND 7
@@ -209,6 +216,24 @@ unlock_and_deallocate(struct faultstate *fs)
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	 int fault_flags)
+#ifdef KTRACE
+{
+	struct thread *td;
+	int result;
+
+	td = curthread;
+	if (map != kernel_map && KTRPOINT(td, KTR_FAULT))
+		ktrfault(vaddr, fault_type);
+	result = vm_fault_traced(map, vaddr, fault_type, fault_flags);
+	if (map != kernel_map && KTRPOINT(td, KTR_FAULTEND))
+		ktrfaultend(result);
+	return (result);
+}
+
+int
+vm_fault_traced(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
+    int fault_flags)
+#endif
 {
 	vm_prot_t prot;
 	int is_first_object_locked, result;
