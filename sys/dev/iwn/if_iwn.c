@@ -2437,18 +2437,43 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct ieee80211_node *ni;
 	struct iwn_compressed_ba *ba = (struct iwn_compressed_ba *)(desc + 1);
 	struct iwn_tx_ring *txq;
+	struct iwn_tx_data *txdata;
 	struct ieee80211_tx_ampdu *tap;
+	struct mbuf *m;
 	uint64_t bitmap;
 	uint8_t tid;
-	int ackfailcnt = 0, i, shift;
+	int ackfailcnt = 0, i, lastidx, qid, shift;
 
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
-	txq = &sc->txq[le16toh(ba->qid)];
-	tap = sc->qid2tap[le16toh(ba->qid)];
+	qid = le16toh(ba->qid);
+	txq = &sc->txq[ba->qid];
+	tap = sc->qid2tap[ba->qid];
 	tid = tap->txa_tid;
-	ni = tap->txa_ni;
-	wn = (void *)ni;
+	wn = (void *)tap->txa_ni;
+
+	for (lastidx = le16toh(ba->ssn) & 0xff; txq->read != lastidx;) {
+		txdata = &txq->data[txq->read];
+
+		/* Unmap and free mbuf. */
+		bus_dmamap_sync(txq->data_dmat, txdata->map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(txq->data_dmat, txdata->map);
+		m = txdata->m, txdata->m = NULL;
+		ni = txdata->ni, txdata->ni = NULL;
+
+		KASSERT(ni != NULL, ("no node"));
+		KASSERT(m != NULL, ("no mbuf"));
+
+		if (m->m_flags & M_TXCB)
+			ieee80211_process_callback(ni, m, 1);
+
+		m_freem(m);
+		ieee80211_free_node(ni);
+
+		txq->queued--;
+		txq->read = (txq->read + 1) % IWN_TX_RING_COUNT;
+	}
 
 	if (wn->agg[tid].bitmap == 0)
 		return;
@@ -2460,6 +2485,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	if (wn->agg[tid].nframes > (64 - shift))
 		return;
 
+	ni = tap->txa_ni;
 	bitmap = (le64toh(ba->bitmap) >> shift) & wn->agg[tid].bitmap;
 	for (i = 0; bitmap; i++) {
 		if ((bitmap & 1) == 0) {
@@ -2815,14 +2841,15 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	for (lastidx = (seqno & 0xff); ring->read != lastidx;) {
 		data = &ring->data[ring->read];
 
-		KASSERT(data->ni != NULL, ("no node"));
-
 		/* Unmap and free mbuf. */
 		bus_dmamap_sync(ring->data_dmat, data->map,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ring->data_dmat, data->map);
 		m = data->m, data->m = NULL;
 		ni = data->ni, data->ni = NULL;
+
+		KASSERT(ni != NULL, ("no node"));
+		KASSERT(m != NULL, ("no mbuf"));
 
 		if (m->m_flags & M_TXCB)
 			ieee80211_process_callback(ni, m, 1);
