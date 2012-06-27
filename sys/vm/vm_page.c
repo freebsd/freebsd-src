@@ -292,16 +292,13 @@ vm_page_startup(vm_offset_t vaddr)
 	end = phys_avail[biggestone+1];
 
 	/*
-	 * Initialize the locks.
+	 * Initialize the page and queue locks.
 	 */
-	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF |
+	mtx_init(&vm_page_queue_mtx, "vm page queue", NULL, MTX_DEF |
 	    MTX_RECURSE);
-	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
-	    MTX_DEF);
-
-	/* Setup page locks. */
+	mtx_init(&vm_page_queue_free_mtx, "vm page free queue", NULL, MTX_DEF);
 	for (i = 0; i < PA_LOCK_COUNT; i++)
-		mtx_init(&pa_lock[i].data, "page lock", NULL, MTX_DEF);
+		mtx_init(&pa_lock[i].data, "vm page", NULL, MTX_DEF);
 
 	/*
 	 * Initialize the queue headers for the hold queue, the active queue,
