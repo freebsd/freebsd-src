@@ -21,7 +21,7 @@ sort.1: sort.1.in
 
 CLEANFILES+= sort.1
 
-.if !defined(WITHOUT_THREADS)
+.if defined(WITH_THREADS)
 CFLAGS+= -DSORT_THREADS
 LDFLAGS+= -lpthread -lmd
 MAN_SUB+= -e 's|%%THREADS%%||g'
@@ -39,7 +39,7 @@ NLSSRCDIR_${lang}= ${.CURDIR}/nls
 .endfor
 .else
 CFLAGS+= -DWITHOUT_NLS
-MAN_SUB+= -e 's|%%THREADS%%|\.\\"|g'
+MAN_SUB+= -e 's|%%NLS%%|\.\\"|g'
 .endif
 
 .include <bsd.prog.mk>
