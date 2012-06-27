@@ -183,6 +183,8 @@ cat <<_EOF_
 #include <sys/shm.h>
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
 
 #include "kdump_subr.h"
 
@@ -327,6 +329,26 @@ sockoptlevelname (int level, int decimal)
 	}
 }
 
+/*
+ * MANUAL
+ *
+ * Used for page fault type.  Cannot use auto_or_type since the macro
+ * values contain a cast.  Also, VM_PROT_NONE has to be handled specially.
+ */
+void
+vmprotname (int type)
+{
+	int	or = 0;
+
+	if (type == VM_PROT_NONE) {
+		(void)printf("VM_PROT_NONE");
+		return;
+	}
+	if_print_or(type, VM_PROT_READ, or);
+	if_print_or(type, VM_PROT_WRITE, or);
+	if_print_or(type, VM_PROT_EXECUTE, or);
+	if_print_or(type, VM_PROT_OVERRIDE_WRITE, or);
+}
 _EOF_
 
 auto_or_type "modename" "S_[A-Z]+[[:space:]]+[0-6]{7}" "sys/stat.h"
@@ -368,6 +390,7 @@ auto_if_type "sockipprotoname" "IPPROTO_[[:alnum:]]+[[:space:]]+" "netinet/in.h"
 auto_switch_type "sockoptname" "SO_[A-Z]+[[:space:]]+0x[0-9]+" "sys/socket.h"
 auto_switch_type "socktypename" "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*" "sys/socket.h"
 auto_switch_type "ptraceopname" "PT_[[:alnum:]_]+[[:space:]]+[0-9]+" "sys/ptrace.h"
+auto_switch_type "vmresultname" "KERN_[A-Z]+[[:space:]]+[0-9]+" "vm/vm_param.h"
 
 cat <<_EOF_
 /*
