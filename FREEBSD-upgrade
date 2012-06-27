@@ -11,8 +11,8 @@ First, read http://wiki.freebsd.org/SubversionPrimer/VendorImports
 # Xlist
 setenv XLIST /FreeBSD/work/openssl/svn-FREEBSD-files/FREEBSD-Xlist
 setenv FSVN "svn+ssh://svn.freebsd.org/base"
-setenv OSSLVER 0.9.8k
-# OSSLTAG format: v0_9_8k
+setenv OSSLVER 0.9.8x
+# OSSLTAG format: v0_9_8x
 
 ###setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
 
@@ -25,13 +25,12 @@ svn co $FSVN/vendor-crypto/openssl/dist dist
 tar -x -X $XLIST -f openssl-${OSSLVER}.tar.gz
 
 cd dist
-svn list -R | grep -v '/$' | sort >../old
+svn list -R | egrep -v -e '/$' -e '^FREEBSD-(Xlist|upgrade)$' | sort >../old
 cd ../openssl-${OSSLVER}
 find . -type f -or -type l | cut -c 3- | sort >../new
 cd ..
 
 # See that files to remove makes sense
-# FREEBSD-Xlist FREEBSD-upgrade will show up - ignore that.
 comm -23 old new
 # See that files to add makes sense
 comm -13 old new
@@ -41,30 +40,43 @@ cd dist
 comm -23 ../old ../new | xargs svn rm
 comm -13 ../old ../new | xargs svn --parents add
 
+svn stat
 svn ci
-echo svn cp $FSVN/vendor-crypto/openssl/dist $FSVN/vendor-crypto/openssl/$OSSLVER
+svn cp $FSVN/vendor-crypto/openssl/dist $FSVN/vendor-crypto/openssl/$OSSLVER
 
-# XXX, below this point it's very WIP.
+# Merge to head
+mkdir ../head
+cd ../head
+svn co $FSVN/head/crypto/openssl crypto/openssl
+svn merge $FSVN/vendor-crypto/openssl/dist crypto/openssl
 
 # Resolve conflicts manually
-cd src/crypto/openssl
-cvs ci -m "Resolve conflicts after import of OpenSSL ${OSSLVER}."
 
-cd ../../secure
-# Do something so it actually compiles...
-# Update version number in lib/libcrypto/Makefile.inc
-cd lib/libcrypto
+svn co $FSVN/head/secure/lib/libcrypto secure/lib/libcrypto
+svn co $FSVN/head/secure/lib/libssl secure/lib/libssl
+svn co $FSVN/head/secure/usr.bin/openssl secure/usr.bin/openssl
+
+cd secure/lib/libcrypto
+
+# Update version number and release date in Makefile.inc
+# Update all opensslconf-${MACHINE_CPUARCH}.h
+
+# Regen assembly files if necessary
+make -f Makefile.asm all
+mv *.[Ss] ${MACHINE_CPUARCH}
+make -f Makefile.asm clean
+
+# Regen manual pages
 make man-makefile-update && make man-update
 cd ../libssl
 make man-makefile-update && make man-update
 cd ../../usr.bin/openssl
 make man-makefile-update && make man-update
-cd ../..
-cvs add lib/libcrypto/man/*.3 lib/libssl/man/*.3 usr.bin/openssl/man/*.1
-cvs update
-# check for files not added
-cvs ci -m "Upgrade to OpenSSL ${OSSLVER}."
+cd ../../..
 
-					-- simon@
+# Commit!
+svn ci crypto/openssl secure/lib/libcrypto secure/lib/libssl secure/usr.bin/openssl
+
+					-- simon@, jkim@
 
 $FreeBSD$

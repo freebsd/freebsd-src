@@ -139,7 +139,6 @@ static int dtls1_process_record(SSL *s);
 #if PQ_64BIT_IS_INTEGER
 static PQ_64BIT bytes_to_long_long(unsigned char *bytes, PQ_64BIT *num);
 #endif
-static void dtls1_clear_timeouts(SSL *s);
 
 /* copy buffered record into SSL structure */
 static int
@@ -335,6 +334,8 @@ dtls1_process_record(SSL *s)
     SSL3_RECORD *rr;
 	unsigned int mac_size;
 	unsigned char md[EVP_MAX_MD_SIZE];
+	int decryption_failed_or_bad_record_mac = 0;
+	unsigned char *mac = NULL;
 
 
 	rr= &(s->s3->rrec);
@@ -369,12 +370,10 @@ dtls1_process_record(SSL *s)
 	enc_err = s->method->ssl3_enc->enc(s,0);
 	if (enc_err <= 0)
 		{
-		if (enc_err == 0)
-			/* SSLerr() and ssl3_send_alert() have been called */
-			goto err;
-
-		/* otherwise enc_err == -1 */
-		goto err;
+		/* To minimize information leaked via timing, we will always
+		 * perform all computations before discarding the message.
+		 */
+		decryption_failed_or_bad_record_mac = 1;
 		}
 
 #ifdef TLS_DEBUG
@@ -400,26 +399,30 @@ if (	(sess == NULL) ||
 			SSLerr(SSL_F_DTLS1_PROCESS_RECORD,SSL_R_PRE_MAC_LENGTH_TOO_LONG);
 			goto f_err;
 #else
-			goto err;
+			decryption_failed_or_bad_record_mac = 1;
 #endif			
 			}
 		/* check the MAC for rr->input (it's in mac_size bytes at the tail) */
-		if (rr->length < mac_size)
+		if (rr->length >= mac_size)
 			{
-#if 0 /* OK only for stream ciphers */
-			al=SSL_AD_DECODE_ERROR;
-			SSLerr(SSL_F_DTLS1_PROCESS_RECORD,SSL_R_LENGTH_TOO_SHORT);
-			goto f_err;
-#else
-			goto err;
-#endif
+			rr->length -= mac_size;
+			mac = &rr->data[rr->length];
 			}
-		rr->length-=mac_size;
+		else
+			rr->length = 0;
 		s->method->ssl3_enc->mac(s,md,0);
-		if (memcmp(md,&(rr->data[rr->length]),mac_size) != 0)
+		if (mac == NULL || memcmp(md, mac, mac_size) != 0)
 			{
-			goto err;
+			decryption_failed_or_bad_record_mac = 1;
 			}
+		}
+
+	if (decryption_failed_or_bad_record_mac)
+		{
+		/* decryption failed, silently discard message */
+		rr->length = 0;
+		s->packet_length = 0;
+		goto err;
 		}
 
 	/* r->length is now just compressed */
@@ -615,10 +618,12 @@ again:
 
 	/* If this record is from the next epoch (either HM or ALERT),
 	 * and a handshake is currently in progress, buffer it since it
-	 * cannot be processed at this time. */
+	 * cannot be processed at this time. However, do not buffer
+	 * anything while listening.
+	 */
 	if (is_next_epoch)
 		{
-		if (SSL_in_init(s) || s->in_handshake)
+		if ((SSL_in_init(s) || s->in_handshake) && !s->d1->listen)
 			{
 			dtls1_buffer_record(s, &(s->d1->unprocessed_rcds), &rr->seq_num);
 			}
@@ -634,7 +639,6 @@ again:
 		goto again;     /* get another record */
 		}
 
-	dtls1_clear_timeouts(s);  /* done waiting */
 	return(1);
 
 	}
@@ -1103,6 +1107,9 @@ start:
 		 */
 		if (msg_hdr.type == SSL3_MT_FINISHED)
 			{
+			if (dtls1_check_timeout_num(s) < 0)
+				return -1;
+
 			dtls1_retransmit_buffered_messages(s);
 			rr->length = 0;
 			goto start;
@@ -1806,10 +1813,3 @@ bytes_to_long_long(unsigned char *bytes, PQ_64BIT *num)
        return _num;
        }
 #endif
-
-
-static void
-dtls1_clear_timeouts(SSL *s)
-	{
-	memset(&(s->d1->timeout), 0x00, sizeof(struct dtls1_timeout_st));
-	}

@@ -28,6 +28,7 @@ openssl-*/demos/engines/rsaref
 openssl-*/ms
 openssl-*/op
 openssl-*/os2
+openssl-*/perl
 openssl-*/shlib/Makefile.hpux10-cc
 openssl-*/shlib/hpux10-cc.sh
 openssl-*/shlib/irix.sh
