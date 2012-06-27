@@ -2432,6 +2432,7 @@ static void
 iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
+	struct iwn_ops *ops = &sc->ops;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct iwn_node *wn;
 	struct ieee80211_node *ni;
@@ -2441,8 +2442,9 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct ieee80211_tx_ampdu *tap;
 	struct mbuf *m;
 	uint64_t bitmap;
+	uint16_t ssn;
 	uint8_t tid;
-	int ackfailcnt = 0, i, lastidx, qid, shift;
+	int ackfailcnt = 0, i, lastidx, qid, *res, shift;
 
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
@@ -2451,6 +2453,13 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	tap = sc->qid2tap[ba->qid];
 	tid = tap->txa_tid;
 	wn = (void *)tap->txa_ni;
+
+	res = NULL;
+	ssn = 0;
+	if (!IEEE80211_AMPDU_RUNNING(tap)) {
+		res = tap->txa_private;
+		ssn = tap->txa_start & 0xfff;
+	}
 
 	for (lastidx = le16toh(ba->ssn) & 0xff; txq->read != lastidx;) {
 		txdata = &txq->data[txq->read];
@@ -2473,6 +2482,15 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 		txq->queued--;
 		txq->read = (txq->read + 1) % IWN_TX_RING_COUNT;
+	}
+
+	if (txq->queued == 0 && res != NULL) {
+		iwn_nic_lock(sc);
+		ops->ampdu_tx_stop(sc, qid, tid, ssn);
+		iwn_nic_unlock(sc);
+		sc->qid2tap[qid] = NULL;
+		free(res, M_DEVBUF);
+		return;
 	}
 
 	if (wn->agg[tid].bitmap == 0)
@@ -2785,6 +2803,7 @@ static void
 iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
     void *stat)
 {
+	struct iwn_ops *ops = &sc->ops;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct iwn_tx_ring *ring = &sc->txq[qid];
 	struct iwn_tx_data *data;
@@ -2795,8 +2814,9 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	uint64_t bitmap;
 	uint32_t *status = stat;
 	uint16_t *aggstatus = stat;
+	uint16_t ssn;
 	uint8_t tid;
-	int bit, i, lastidx, seqno, shift, start;
+	int bit, i, lastidx, *res, seqno, shift, start;
 
 #ifdef NOT_YET
 	if (nframes == 1) {
@@ -2829,12 +2849,17 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		bitmap |= 1ULL << bit;
 	}
 	tap = sc->qid2tap[qid];
-	if (tap != NULL) {
-		tid = tap->txa_tid;
-		wn = (void *)tap->txa_ni;
-		wn->agg[tid].bitmap = bitmap;
-		wn->agg[tid].startidx = start;
-		wn->agg[tid].nframes = nframes;
+	tid = tap->txa_tid;
+	wn = (void *)tap->txa_ni;
+	wn->agg[tid].bitmap = bitmap;
+	wn->agg[tid].startidx = start;
+	wn->agg[tid].nframes = nframes;
+
+	res = NULL;
+	ssn = 0;
+	if (!IEEE80211_AMPDU_RUNNING(tap)) {
+		res = tap->txa_private;
+		ssn = tap->txa_start & 0xfff;
 	}
 
 	seqno = le32toh(*(status + nframes)) & 0xfff;
@@ -2859,6 +2884,15 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 
 		ring->queued--;
 		ring->read = (ring->read + 1) % IWN_TX_RING_COUNT;
+	}
+
+	if (ring->queued == 0 && res != NULL) {
+		iwn_nic_lock(sc);
+		ops->ampdu_tx_stop(sc, qid, tid, ssn);
+		iwn_nic_unlock(sc);
+		sc->qid2tap[qid] = NULL;
+		free(res, M_DEVBUF);
+		return;
 	}
 
 	sc->sc_tx_timer = 0;
@@ -5661,6 +5695,8 @@ iwn_ampdu_tx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
 	if ((error = iwn_nic_lock(sc)) != 0)
 		return 0;
 	qid = *(int *)tap->txa_private;
+	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: ra=%d tid=%d ssn=%d qid=%d\n",
+	    __func__, wn->id, tid, tap->txa_start, qid);
 	ops->ampdu_tx_start(sc, ni, qid, tid, tap->txa_start & 0xfff);
 	iwn_nic_unlock(sc);
 
@@ -5676,10 +5712,14 @@ iwn_ampdu_tx_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	uint8_t tid = tap->txa_tid;
 	int qid;
 
+	sc->sc_addba_stop(ni, tap);
+
 	if (tap->txa_private == NULL)
 		return;
 
 	qid = *(int *)tap->txa_private;
+	if (sc->txq[qid].queued != 0)
+		return;
 	if (iwn_nic_lock(sc) != 0)
 		return;
 	ops->ampdu_tx_stop(sc, qid, tid, tap->txa_start & 0xfff);
@@ -5687,7 +5727,6 @@ iwn_ampdu_tx_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	sc->qid2tap[qid] = NULL;
 	free(tap->txa_private, M_DEVBUF);
 	tap->txa_private = NULL;
-	sc->sc_addba_stop(ni, tap);
 }
 
 static void
