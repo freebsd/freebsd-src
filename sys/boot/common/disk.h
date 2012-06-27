@@ -100,4 +100,6 @@ extern int disk_close(struct disk_devdesc *dev);
  */
 extern void disk_print(struct disk_devdesc *dev, char *prefix, int verbose);
 extern char* disk_fmtdev(struct disk_devdesc *dev);
+extern int disk_parsedev(struct disk_devdesc *dev, const char *devspec,
+    const char **path);
 

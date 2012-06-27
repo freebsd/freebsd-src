@@ -242,3 +242,55 @@ disk_fmtdev(struct disk_devdesc *dev)
 	strcat(cp, ":");
 	return (buf);
 }
+
+int
+disk_parsedev(struct disk_devdesc *dev, const char *devspec, const char **path)
+{
+	int unit, slice, partition;
+	const char *np;
+	char *cp;
+
+	np = devspec;
+	unit = slice = partition = -1;
+	if (*np != '\0' && *np != ':') {
+		unit = strtol(np, &cp, 10);
+		if (cp == np)
+			return (EUNIT);
+#ifdef LOADER_GPT_SUPPORT
+		if (*cp == 'p') {
+			np = cp + 1;
+			slice = strtol(np, &cp, 10);
+			if (np == cp)
+				return (ESLICE);
+			/* we don't support nested partitions on GPT */
+			if (*cp != '\0' && *cp != ':')
+				return (EINVAL);
+			partition = 255;
+		} else
+#endif
+#ifdef LOADER_MBR_SUPPORT
+		if (*cp == 's') {
+			np = cp + 1;
+			slice = strtol(np, &cp, 10);
+			if (np == cp)
+				return (ESLICE);
+		}
+#endif
+		if (*cp != '\0' && *cp != ':') {
+			partition = *cp - 'a';
+			if (partition < 0)
+				return (EPART);
+			cp++;
+		}
+	} else
+		return (EINVAL);
+
+	if (*cp != '\0' && *cp != ':')
+		return (EINVAL);
+	dev->d_unit = unit;
+	dev->d_slice = slice;
+	dev->d_partition = partition;
+	if (path != NULL)
+		*path = (*cp == '\0') ? cp: cp + 1;
+	return (0);
+}
