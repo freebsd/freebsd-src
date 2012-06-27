@@ -240,11 +240,25 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		if (ads->ds_rxstatus8 & AR_PHYErr) {
 			u_int phyerr;
 
-			rs->rs_status |= HAL_RXERR_PHY;
+			/*
+			 * Packets with OFDM_RESTART on post delimiter are CRC OK and
+			 * usable and MAC ACKs them.
+			 * To avoid packet from being lost, we remove the PHY Err flag
+			 * so that driver layer does not drop them.
+			 */
 			phyerr = MS(ads->ds_rxstatus8, AR_PHYErrCode);
-			rs->rs_phyerr = phyerr;
-		}
 
+			if ((phyerr == HAL_PHYERR_OFDM_RESTART) &&
+			    (ads->ds_rxstatus8 & AR_PostDelimCRCErr)) {
+				ath_hal_printf(ah,
+				    "%s: OFDM_RESTART on post-delim CRC error\n",
+				    __func__);
+				rs->rs_phyerr = 0;
+			} else {
+				rs->rs_status |= HAL_RXERR_PHY;
+				rs->rs_phyerr = phyerr;
+			}
+		}
 		if (ads->ds_rxstatus8 & AR_CRCErr)
 			rs->rs_status |= HAL_RXERR_CRC;
 		else if (ads->ds_rxstatus8 & AR_DecryptCRCErr)
