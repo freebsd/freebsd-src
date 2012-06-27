@@ -809,8 +809,10 @@ dsl_dataset_create_sync_dd(dsl_dir_t *dd, dsl_dataset_t *origin,
 	dsphys->ds_dir_obj = dd->dd_object;
 	dsphys->ds_flags = flags;
 	dsphys->ds_fsid_guid = unique_create();
-	(void) random_get_pseudo_bytes((void*)&dsphys->ds_guid,
-	    sizeof (dsphys->ds_guid));
+	do {
+		(void) random_get_pseudo_bytes((void*)&dsphys->ds_guid,
+		    sizeof (dsphys->ds_guid));
+	} while (dsphys->ds_guid == 0);
 	dsphys->ds_snapnames_zapobj =
 	    zap_create_norm(mos, U8_TEXTPREP_TOUPPER, DMU_OT_DSL_DS_SNAP_MAP,
 	    DMU_OT_NONE, 0, tx);
@@ -2082,8 +2084,10 @@ dsl_dataset_snapshot_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	bzero(dsphys, sizeof (dsl_dataset_phys_t));
 	dsphys->ds_dir_obj = ds->ds_dir->dd_object;
 	dsphys->ds_fsid_guid = unique_create();
-	(void) random_get_pseudo_bytes((void*)&dsphys->ds_guid,
-	    sizeof (dsphys->ds_guid));
+	do {
+		(void) random_get_pseudo_bytes((void*)&dsphys->ds_guid,
+		    sizeof (dsphys->ds_guid));
+	} while (dsphys->ds_guid == 0);
 	dsphys->ds_prev_snap_obj = ds->ds_phys->ds_prev_snap_obj;
 	dsphys->ds_prev_snap_txg = ds->ds_phys->ds_prev_snap_txg;
 	dsphys->ds_next_snap_obj = ds->ds_object;
