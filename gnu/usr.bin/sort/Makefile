@@ -5,7 +5,7 @@ SORTDIR= ${.CURDIR}/../../../contrib/gnu-sort
 
 .include <bsd.own.mk>
 
-.if ${MK_BSD_SORT} != "yes"
+.if ${MK_GNU_SORT} == "yes"
 PROG=	sort
 .else
 PROG=	gnusort
