@@ -415,7 +415,6 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
-    BSD_SORT \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
@@ -424,6 +423,7 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CLANG_IS_CC \
     CTF \
+    GNU_SORT \
     HESIOD \
     ICONV \
     IDEA \
