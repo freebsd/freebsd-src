@@ -95,6 +95,7 @@ void visdump(char *, int, int);
 void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
+void ktrcsw_old(struct ktr_csw_old *);
 void ktruser(int, unsigned char *);
 void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
@@ -296,7 +297,10 @@ main(int argc, char *argv[])
 			ktrpsig((struct ktr_psig *)m);
 			break;
 		case KTR_CSW:
-			ktrcsw((struct ktr_csw *)m);
+			if (ktrlen == sizeof(struct ktr_csw_old))
+				ktrcsw_old((struct ktr_csw_old *)m);
+			else
+				ktrcsw((struct ktr_csw *)m);
 			break;
 		case KTR_USER:
 			ktruser(ktrlen, m);
@@ -1164,10 +1168,17 @@ ktrpsig(struct ktr_psig *psig)
 }
 
 void
-ktrcsw(struct ktr_csw *cs)
+ktrcsw_old(struct ktr_csw_old *cs)
 {
 	(void)printf("%s %s\n", cs->out ? "stop" : "resume",
 		cs->user ? "user" : "kernel");
+}
+
+void
+ktrcsw(struct ktr_csw *cs)
+{
+	printf("%s %s \"%s\"\n", cs->out ? "stop" : "resume",
+	    cs->user ? "user" : "kernel", cs->wmesg);
 }
 
 #define	UTRACE_DLOPEN_START		1
