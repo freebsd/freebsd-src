@@ -2197,6 +2197,7 @@ mld_final_leave(struct in6_multi *inm, struct mld_ifinfo *mli)
 #endif
 			mld_v1_transmit_report(inm, MLD_LISTENER_DONE);
 			inm->in6m_state = MLD_NOT_MEMBER;
+			V_current_state_timers_running6 = 1;
 		} else if (mli->mli_version == MLD_VERSION_2) {
 			/*
 			 * Stop group timer and all pending reports.
