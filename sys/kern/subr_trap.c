@@ -207,7 +207,7 @@ ast(struct trapframe *framep)
 	if (flags & TDF_NEEDRESCHED) {
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(1, 1);
+			ktrcsw(1, 1, __func__);
 #endif
 		thread_lock(td);
 		sched_prio(td, td->td_user_pri);
@@ -215,7 +215,7 @@ ast(struct trapframe *framep)
 		thread_unlock(td);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(0, 1);
+			ktrcsw(0, 1, __func__);
 #endif
 	}
 

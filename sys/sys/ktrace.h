@@ -139,9 +139,15 @@ struct ktr_psig {
  * KTR_CSW - trace context switches
  */
 #define KTR_CSW		6
+struct ktr_csw_old {
+	int	out;	/* 1 if switch out, 0 if switch in */
+	int	user;	/* 1 if usermode (ivcsw), 0 if kernel (vcsw) */
+};
+
 struct ktr_csw {
 	int	out;	/* 1 if switch out, 0 if switch in */
 	int	user;	/* 1 if usermode (ivcsw), 0 if kernel (vcsw) */
+	char	wmesg[8];
 };
 
 /*
@@ -227,7 +233,7 @@ struct ktr_faultend {
 
 #ifdef	_KERNEL
 void	ktrnamei(char *);
-void	ktrcsw(int, int);
+void	ktrcsw(int, int, const char *);
 void	ktrpsig(int, sig_t, sigset_t *, int);
 void	ktrfault(vm_offset_t, int);
 void	ktrfaultend(int);
