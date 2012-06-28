@@ -1059,6 +1059,8 @@
 
       &hwlist.bwi;
 
+      &hwlist.bwn;
+
       <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100
 	MiniPCI network adapter (&man.ipw.4; driver)</para>
 
