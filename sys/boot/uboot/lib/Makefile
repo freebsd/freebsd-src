@@ -6,8 +6,8 @@ LIB=		uboot
 INTERNALLIB=
 WARNS?=		2
 
-SRCS=	crc32.c console.c copy.c devicename.c disk.c elf_freebsd.c glue.c
-SRCS+=	module.c net.c reboot.c time.c
+SRCS=	crc32.c console.c copy.c devicename.c elf_freebsd.c glue.c
+SRCS+=	module.c net.c reboot.c storage.c time.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 
