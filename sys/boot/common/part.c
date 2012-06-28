@@ -256,24 +256,12 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		}
 	}
 	offset = pri ? hdr.hdr_lba_alt: table->sectors - 1;
-	while (offset > 0) {
-		/* Read the backup GPT header. */
-		if (dread(dev, buf, 1, offset) != 0) {
-			phdr = NULL;
-			break;
-		}
+	/* Read the backup GPT header. */
+	if (dread(dev, buf, 1, offset) != 0)
+		phdr = NULL;
+	else
 		phdr = gpt_checkhdr((struct gpt_hdr *)buf, offset,
 		    table->sectors, table->sectorsize);
-		if (phdr != NULL)
-			break;
-		/*
-		 * Skip GEOM metadata and try to read backup
-		 * GPT header again.
-		 */
-		if (memcmp(buf, GEOM_MAGIC, sizeof(GEOM_MAGIC) - 1) != 0)
-			break;
-		offset--;
-	}
 	if (phdr != NULL) {
 		/*
 		 * Compare primary and backup headers.

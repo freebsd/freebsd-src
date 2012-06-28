@@ -44,7 +44,6 @@
 		.set GPT_SIG,0
 		.set GPT_SIG_0,0x20494645	# "EFI "
 		.set GPT_SIG_1,0x54524150	# "PART"
-		.set GEOM_MAGIC,0x4d4f4547	# "GEOM"
 		.set GPT_MYLBA,24
 		.set GPT_PART_LBA,72
 		.set GPT_NPART,80
@@ -109,19 +108,13 @@ main.2a:	movw $GPT_ADDR,%bx
 		jnz main.2b
 		jmp load_part
 main.2b:	cmpb $1,%dh			# Reading primary?
-		je main.3			# Try backup if yes
-		cmpl $GEOM_MAGIC,GPT_ADDR	# GEOM sig at backup location?
-		jz main.3			# Skip GEOM metadata
-		jmp err_pt			# Invalid table found
+		jne err_pt			# If no - invalid table found
 #
 # Try alternative LBAs from the last sector for the GPT header.
 #
 main.3:		movb $0,%dh			# %dh := 0 (reading backup)
 		movw $DPBUF+DPBUF_SEC,%si	# %si = last sector + 1
 		movw $lba,%di			# %di = $lba
-		cmpl $0,(%si)			#
-		jnz main.3a			#
-		decl 0x4(%si)			# 0x4(%si) = last sec (32-64)
 main.3a:	decl (%si)			# 0x0(%si) = last sec (0-31)
 		movw $2,%cx
 		rep
