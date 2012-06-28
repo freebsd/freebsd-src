@@ -56,10 +56,12 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/imgact.h>
+#include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
@@ -74,8 +76,13 @@
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
+#include <vm/vm_pager.h>
 
+#include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/stdarg.h>
@@ -110,6 +117,8 @@ vm_offset_t pa_index = 0;
 vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
 vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 
+struct kva_md_info kmi;
+
 struct pcpu __pcpu[MAXCPU];
 
 struct user_segment_descriptor gdt[512] 
@@ -124,11 +133,14 @@ void failsafe_callback(void);
 
 vm_paddr_t initxen(struct start_info *);
 
-extern void identify_cpu(void);
+extern void printcpuinfo(void); /* XXX header file */
+extern void identify_cpu(void); /* XXX header file */
+extern void panicifcpuunsupported(void); /* XXX header file */
 
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
+
 /* Expects a zero-ed page aligned page */
 static void
 setup_gdt(struct user_segment_descriptor *thisgdt)
@@ -577,6 +589,73 @@ cpu_idle_wakeup(int cpu)
 	return (1);
 }
 
+static void
+cpu_startup(void *dummy)
+{
+	uintmax_t memsize;
+
+	/*
+	 * Good {morning,afternoon,evening,night}.
+	 */
+	startrtclock();
+
+	//printcpuinfo();
+	//panicifcpuunsupported();
+
+#ifdef PERFMON
+	perfmon_init();
+#endif
+	realmem = Maxmem;
+
+	/*
+	 * Display physical memory if SMBIOS reports reasonable amount.
+	 */
+	memsize = 0;
+	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
+		memsize = ptoa((uintmax_t)Maxmem);
+	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+
+	/*
+	 * Display any holes after the first chunk of extended memory.
+	 */
+	if (bootverbose) {
+		int indx;
+
+		printf("Physical memory chunk(s):\n");
+		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
+			vm_paddr_t size;
+
+			size = phys_avail[indx + 1] - phys_avail[indx];
+			printf(
+			    "0x%016jx - 0x%016jx, %ju bytes (%ju pages)\n",
+			    (uintmax_t)phys_avail[indx],
+			    (uintmax_t)phys_avail[indx + 1] - 1,
+			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
+		}
+	}
+
+	vm_ksubmap_init(&kmi);
+
+	printf("avail memory = %ju (%ju MB)\n",
+	    ptoa((uintmax_t)cnt.v_free_count),
+	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
+
+	/*
+	 * Set up buffers, so they can be used to read disk labels.
+	 */
+	bufinit();
+	vm_pager_bufferinit();
+
+	cpu_setregs();
+
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
+}
+
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
+
 /* XXX: Unify with "native" machdep.c */
 /*
  * Reset registers to default values on exec.
@@ -585,6 +664,12 @@ void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	KASSERT(0, ("TODO"));	
+}
+
+void
+cpu_setregs(void)
+{
+	/* XXX: */
 }
 
 void
@@ -1427,3 +1512,4 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 	return sys_sigreturn(td, (struct sigreturn_args *)uap);
 }
 #endif
+
