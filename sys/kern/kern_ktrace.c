@@ -731,8 +731,9 @@ ktrpsig(sig, action, mask, code)
 }
 
 void
-ktrcsw(out, user)
+ktrcsw(out, user, wmesg)
 	int out, user;
+	const char *wmesg;
 {
 	struct thread *td = curthread;
 	struct ktr_request *req;
@@ -744,6 +745,10 @@ ktrcsw(out, user)
 	kc = &req->ktr_data.ktr_csw;
 	kc->out = out;
 	kc->user = user;
+	if (wmesg != NULL)
+		strlcpy(kc->wmesg, wmesg, sizeof(kc->wmesg));
+	else
+		bzero(kc->wmesg, sizeof(kc->wmesg));
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
