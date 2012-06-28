@@ -255,16 +255,6 @@ boot_uuid:	.long 0x83bd6b9d
 		.org DISKSIG,0x90
 sig:		.long 0				# OS Disk Signature
 		.word 0				# "Unknown" in PMBR
-						# Partition table
-partbl: 	.byte 0x80			# bootable flag
-		.byte 0x00			# CHS address 
-		.byte 0x02			#  of first 
-		.byte 0x00			#   sector
-		.byte 0xee			# Partition type PMBR
-		.byte 0xff			# CHS address
-		.byte 0xff			#  of last
-		.byte 0xff			#   sector
-		.long 1				# LBA of first sector
-		.long 0xffffffff		# LBA of last sector
-		.fill 0x10,0x3,0x0		# Remaining partition records
+
+partbl: 	.fill 0x10,0x4,0x0		# Partition table
 		.word MAGIC			# Magic number
