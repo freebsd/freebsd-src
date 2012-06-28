@@ -79,7 +79,7 @@ sigint_h(__unused int sig)
 
 
 static int
-do_ioctl(struct my_ring *me, int what)
+do_ioctl(struct my_ring *me, unsigned long what)
 {
 	struct ifreq ifr;
 	int error;
@@ -98,7 +98,7 @@ do_ioctl(struct my_ring *me, int what)
 	}
 	error = ioctl(me->fd, what, &ifr);
 	if (error) {
-		D("ioctl error %d", what);
+		D("ioctl error 0x%lx", what);
 		return error;
 	}
 	switch (what) {
