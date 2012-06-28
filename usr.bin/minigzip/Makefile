@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR=	${.CURDIR}/../../lib/libz
+SRCDIR=	${.CURDIR}/../../lib/libz/test
 .PATH:	${SRCDIR}
 
 PROG=	minigzip
