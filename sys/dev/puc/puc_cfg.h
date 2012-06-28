@@ -79,7 +79,7 @@ struct puc_cfg {
 	int8_t		ports;
 	int8_t		rid;		/* Rid of first port */
 	int8_t		d_rid;		/* Delta rid of next ports */
-	int8_t		d_ofs;		/* Delta offset of next ports */
+	int16_t		d_ofs;		/* Delta offset of next ports */
 	puc_config_f 	*config_function;
 };
 
