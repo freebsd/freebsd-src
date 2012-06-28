@@ -867,16 +867,10 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	 */
 	if (IN6_IS_ADDR_UNSPECIFIED(&mld->mld_addr)) {
 		/*
-		 * General Queries SHOULD be directed to ff02::1.
 		 * A general query with a source list has undefined
 		 * behaviour; discard it.
 		 */
-		struct in6_addr		 dst;
-
-		dst = ip6->ip6_dst;
-		in6_clearscope(&dst);
-		if (!IN6_ARE_ADDR_EQUAL(&dst, &in6addr_linklocal_allnodes) ||
-		    nsrc > 0)
+		if (nsrc > 0)
 			return (EINVAL);
 		is_general_query = 1;
 	} else {
