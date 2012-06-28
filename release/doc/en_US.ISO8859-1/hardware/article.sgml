@@ -898,6 +898,8 @@
 
       &hwlist.bge;
 
+      &hwlist.bxe;
+
       &hwlist.cas;
 
       &hwlist.cdce;
