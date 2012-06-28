@@ -201,7 +201,7 @@ struct my_ring {
 
 
 static int
-do_ioctl(struct my_ring *me, int what)
+do_ioctl(struct my_ring *me, unsigned long what)
 {
 	struct ifreq ifr;
 	int error;
@@ -221,7 +221,7 @@ do_ioctl(struct my_ring *me, int what)
 	}
 	error = ioctl(me->fd, what, &ifr);
 	if (error) {
-		D("ioctl 0x%x error %d", what, error);
+		D("ioctl 0x%lx error %d", what, error);
 		return error;
 	}
 	switch (what) {
