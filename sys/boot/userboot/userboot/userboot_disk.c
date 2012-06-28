@@ -132,8 +132,10 @@ userdisk_open(struct open_file *f, ...)
 static int
 userdisk_close(struct open_file *f)
 {
+	struct disk_devdesc *dev;
 
-	return(0);
+	dev = (struct disk_devdesc *)f->f_devdata;
+	return (disk_close(dev));
 }
 
 static int
