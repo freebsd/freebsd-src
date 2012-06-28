@@ -114,13 +114,14 @@ stor_init(void)
 				    stor_info_no);
 				return (-1);
 			}
-			stor_info[stor_info_no++].handle = i;
-			stor_info[stor_info_no++].opened = 0;
-			stor_info[stor_info_no++].type = di->type;
-			stor_info[stor_info_no++].blocks =
+			stor_info[stor_info_no].handle = i;
+			stor_info[stor_info_no].opened = 0;
+			stor_info[stor_info_no].type = di->type;
+			stor_info[stor_info_no].blocks =
 			    di->di_stor.block_count;
-			stor_info[stor_info_no++].bsize =
+			stor_info[stor_info_no].bsize =
 			    di->di_stor.block_size;
+			stor_info_no++;
 		}
 	}
 
