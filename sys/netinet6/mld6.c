@@ -833,7 +833,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	mld = (struct mldv2_query *)(mtod(m, uint8_t *) + off);
 
 	maxdelay = ntohs(mld->mld_maxdelay);	/* in 1/10ths of a second */
-	if (maxdelay >= 32678) {
+	if (maxdelay >= 32768) {
 		maxdelay = (MLD_MRC_MANT(maxdelay) | 0x1000) <<
 			   (MLD_MRC_EXP(maxdelay) + 3);
 	}
