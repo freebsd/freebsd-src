@@ -119,6 +119,7 @@ struct exec {
      uint32_t	a_trsize;	/* text relocation size */
      uint32_t	a_drsize;	/* data relocation size */
 };
+#define a_magic a_midmag	/* Hack for emulators */
 
 /* a_magic */
 #define	OMAGIC		0407	/* old impure format */
