@@ -52,9 +52,11 @@ static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
 #define	XPQ_IDX xpq_idx[vcpu]
 #define	SET_VCPU() int vcpu = smp_processor_id()
 #else
-	
-static mmu_update_t xpq_queue[XPQUEUE_SIZE];
+#ifdef INVARIANTS	
 static struct mmu_log xpq_queue_log[XPQUEUE_SIZE];
+#endif
+
+static mmu_update_t xpq_queue[XPQUEUE_SIZE];
 static int xpq_idx = 0;
 
 #define	XPQ_QUEUE_LOG xpq_queue_log

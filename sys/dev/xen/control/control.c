@@ -201,13 +201,13 @@ extern void xencons_resume(void);
 static void
 xctrl_suspend()
 {
-	u_int cpuid;
 	int i, j, k, fpp;
 	unsigned long max_pfn, start_info_mfn;
 
 	EVENTHANDLER_INVOKE(power_suspend);
 
 #ifdef SMP
+	u_int cpuid;
 	struct thread *td;
 	cpuset_t map;
 	/*
