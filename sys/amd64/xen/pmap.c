@@ -119,6 +119,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
@@ -615,14 +616,51 @@ pmap_init(void)
 void
 pmap_pinit0(pmap_t pmap)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	PMAP_LOCK_INIT(pmap);
+	pmap->pm_pml4 = (void *) KPML4phys;
+	pmap->pm_root = NULL;
+	CPU_ZERO(&pmap->pm_active);
+	PCPU_SET(curpmap, pmap);
+	TAILQ_INIT(&pmap->pm_pvchunk);
+	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
 int
 pmap_pinit(pmap_t pmap)
 {
-	KASSERT(0, ("XXX: TODO\n"));
-	return -1;
+
+	KASSERT(pmap != kernel_pmap, 
+		("kernel map re-initialised!"));
+
+	PMAP_LOCK_INIT(pmap);
+
+	/*
+	 * allocate the page directory page
+	 */
+	pmap->pm_pml4 = (void *) kmem_alloc(kernel_map, PAGE_SIZE);
+	bzero(pmap->pm_pml4, PAGE_SIZE);
+
+	/* 
+	 * We do not wire in kernel space, or the self-referencial
+	 * entry in userspace pmaps for two reasons:
+	 * i)  both kernel and userland run in ring3 (same CPU
+	 *     privilege level). This means that userland that has kernel
+	 *     address space mapped in, can access kernel memory!
+	 *     Instead, we make the kernel pmap is exclusive and
+	 *     unshared, and we switch to it on *every* kernel
+	 *     entry. This is facilitated by the hypervisor.
+	 * ii) we access the user pmap from within kernel VA. The
+	 *     self-referencing entry is useful if we access the pmap
+	 *     from the *user* VA.
+	 * XXX: review this when userland is up.
+	 */
+
+	pmap->pm_root = NULL;
+	CPU_ZERO(&pmap->pm_active);
+	TAILQ_INIT(&pmap->pm_pvchunk);
+	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+
+	return 1;
 }
 
 void
@@ -737,6 +775,7 @@ void *
 pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	KASSERT(0, ("XXX: TODO\n"));
+	return NULL;
 }
 
 void
