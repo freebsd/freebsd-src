@@ -3570,7 +3570,7 @@ validate:
 				if ((newpte & PG_RW) == 0)
 					invlva = TRUE;
 			}
-			if ((origpte & PG_MANAGED) != 0) {
+			if ((om->aflags & PGA_WRITEABLE) != 0) {
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, om);
 				if (TAILQ_EMPTY(&om->md.pv_list) &&
 				    ((om->flags & PG_FICTITIOUS) != 0 ||
