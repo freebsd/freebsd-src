@@ -2469,11 +2469,14 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
     struct rwlock **lockp)
 {
 	struct md_page *pvh;
+	struct pv_chunk *pc;
 	pv_entry_t pv;
 	vm_offset_t va_last;
 	vm_page_t m;
+	int bit, field;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((pa & PDRMASK) == 0,
 	    ("pmap_pv_demote_pde: pa is not 2mpage aligned"));
 	reserve_pv_entries(pmap, NPTEPG - 1, lockp);
@@ -2481,7 +2484,8 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 
 	/*
 	 * Transfer the 2mpage's pv entry for this mapping to the first
-	 * page's pv list.
+	 * page's pv list.  Once this transfer begins, the pv list lock
+	 * must not be released until the last pv entry is reinstantiated.
 	 */
 	pvh = pa_to_pvh(pa);
 	va = trunc_2mpage(va);
@@ -2490,16 +2494,37 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	m = PHYS_TO_VM_PAGE(pa);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	/* Instantiate the remaining NPTEPG - 1 pv entries. */
+	PV_STAT(atomic_add_long(&pv_entry_allocs, NPTEPG - 1));
 	va_last = va + NBPDR - PAGE_SIZE;
-	do {
-		m++;
-		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-		    ("pmap_pv_demote_pde: page %p is not managed", m));
-		va += PAGE_SIZE;
-		pv = get_pv_entry(pmap, TRUE);
-		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-	} while (va < va_last);
+	for (;;) {
+		pc = TAILQ_FIRST(&pmap->pm_pvchunk);
+		KASSERT(pc->pc_map[0] != 0 || pc->pc_map[1] != 0 ||
+		    pc->pc_map[2] != 0, ("pmap_pv_demote_pde: missing spare"));
+		for (field = 0; field < _NPCM; field++) {
+			while (pc->pc_map[field]) {
+				bit = bsfq(pc->pc_map[field]);
+				pc->pc_map[field] &= ~(1ul << bit);
+				pv = &pc->pc_pventry[field * 64 + bit];
+				va += PAGE_SIZE;
+				pv->pv_va = va;
+				m++;
+				KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+			    ("pmap_pv_demote_pde: page %p is not managed", m));
+				TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+				if (va == va_last)
+					goto out;
+			}
+		}
+		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_list);
+	}
+out:
+	if (pc->pc_map[0] == 0 && pc->pc_map[1] == 0 && pc->pc_map[2] == 0) {
+		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_list);
+	}
+	PV_STAT(atomic_add_long(&pv_entry_count, NPTEPG - 1));
+	PV_STAT(atomic_subtract_int(&pv_entry_spare, NPTEPG - 1));
 }
 
 /*
