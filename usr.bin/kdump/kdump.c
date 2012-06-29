@@ -249,7 +249,8 @@ main(int argc, char *argv[])
 			}
 		}
 		if (trpoints & (1<<ktr_header.ktr_type))
-			if (pid == 0 || ktr_header.ktr_pid == pid)
+			if (pid == 0 || ktr_header.ktr_pid == pid ||
+			    ktr_header.ktr_tid == pid)
 				dumpheader(&ktr_header);
 		if ((ktrlen = ktr_header.ktr_len) < 0)
 			errx(1, "bogus length 0x%x", ktrlen);
@@ -264,7 +265,8 @@ main(int argc, char *argv[])
 		if (fetchprocinfo(&ktr_header, (u_int *)m) != 0)
 			continue;
 		sv_flags = abidump(&ktr_header);
-		if (pid && ktr_header.ktr_pid != pid)
+		if (pid && ktr_header.ktr_pid != pid &&
+		    ktr_header.ktr_tid != pid)
 			continue;
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
 			continue;
