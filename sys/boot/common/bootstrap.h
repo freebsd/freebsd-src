@@ -301,6 +301,9 @@ struct arch_switch
     void	(*arch_isaoutb)(int port, int value);
     /* Pass in initial kernel memory size */
     void        (*arch_maphint)(vm_offset_t va, size_t len);	
+
+    /* Probe ZFS pool(s), if needed. */
+    void	(*arch_zfs_probe)(void);
 };
 extern struct arch_switch archsw;
 
