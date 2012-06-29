@@ -1868,6 +1868,8 @@ VNET_DECLARE(uma_zone_t,		 pfr_ktable_pl);
 #define	V_pfr_ktable_pl			 VNET(pfr_ktable_pl)
 VNET_DECLARE(uma_zone_t,		 pfr_kentry_pl);
 #define	V_pfr_kentry_pl			 VNET(pfr_kentry_pl)
+VNET_DECLARE(uma_zone_t,		 pfr_kcounters_pl);
+#define	V_pfr_kcounters_pl		 VNET(pfr_kcounters_pl)
 VNET_DECLARE(uma_zone_t,		 pf_cache_pl);
 #define	V_pf_cache_pl			 VNET(pf_cache_pl)
 VNET_DECLARE(uma_zone_t,		 pf_cent_pl);
