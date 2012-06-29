@@ -127,7 +127,7 @@ zfs_close(struct open_file *f)
 static int
 zfs_read(struct open_file *f, void *start, size_t size, size_t *resid	/* out */)
 {
-	spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
+	const spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct stat sb;
 	size_t n;
@@ -201,7 +201,7 @@ zfs_seek(struct open_file *f, off_t offset, int where)
 static int
 zfs_stat(struct open_file *f, struct stat *sb)
 {
-	spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
+	const spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
 	struct file *fp = (struct file *)f->f_fsdata;
 
 	return (zfs_dnode_stat(spa, &fp->f_dnode, sb));
@@ -210,7 +210,7 @@ zfs_stat(struct open_file *f, struct stat *sb)
 static int
 zfs_readdir(struct open_file *f, struct dirent *d)
 {
-	spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
+	const spa_t *spa = ((struct zfsmount *)f->f_devdata)->spa;
 	struct file *fp = (struct file *)f->f_fsdata;
 	mzap_ent_phys_t mze;
 	struct stat sb;
