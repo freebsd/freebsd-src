@@ -119,13 +119,13 @@ g_map_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 	if (pp != NULL) {
 		if (indent == NULL) {
-			sbuf_printf(sb, " entry %lld", sc->entry[pp->index]);
-			sbuf_printf(sb, " dsize %lld", sc->dsize[pp->index]);
+			sbuf_printf(sb, " entry %jd", (intmax_t)sc->entry[pp->index]);
+			sbuf_printf(sb, " dsize %jd", (intmax_t)sc->dsize[pp->index]);
 		} else {
-			sbuf_printf(sb, "%s<entry>%lld</entry>\n", indent,
-			    sc->entry[pp->index]);
-			sbuf_printf(sb, "%s<dsize>%lld</dsize>\n", indent,
-			    sc->dsize[pp->index]);
+			sbuf_printf(sb, "%s<entry>%jd</entry>\n", indent,
+			    (intmax_t)sc->entry[pp->index]);
+			sbuf_printf(sb, "%s<dsize>%jd</dsize>\n", indent,
+			    (intmax_t)sc->dsize[pp->index]);
 		}
 	}
 }
@@ -153,8 +153,8 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 		return (1);
 
 	if (bootverbose) {
-		printf("MAP: search key \"%s\" from 0x%llx, step 0x%llx\n",
-		    search_key, search_start, search_step);
+		printf("MAP: search key \"%s\" from 0x%jx, step 0x%jx\n",
+		    search_key, (intmax_t)search_start, (intmax_t)search_step);
 	}
 
 	/* error if search_key is empty */
@@ -321,9 +321,10 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	}
 
 	if (bootverbose) {
-		printf("MAP: %llxx%llx, data=%llxx%llx "
+		printf("MAP: %lxx%lx, data=%lxx%lx "
 		    "\"/dev/map/%s\"\n",
-		    start, size, offset, dsize, name);
+		    (intmax_t)start, (intmax_t)size, (intmax_t)offset,
+		    (intmax_t)dsize, name);
 	}
 
 	sc->offset[i] = start;
