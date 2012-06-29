@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4 2012
+.Dd June 29 2012
 .Dt PF 4
 .Os
 .Sh NAME
@@ -75,6 +75,25 @@ separated by
 characters, similar to how file system hierarchies are laid out.
 The final component of the anchor path is the anchor under which
 operations will be performed.
+.Sh SYSCTL VARIABLES AND LOADER TUNABLES
+The following
+.Xr loader 8
+tunables are available.
+.Bl -tag -width indent
+.It Va net.pf.states_hashsize
+Size of hash tables that store states.
+Should be power of 2.
+Default value is 32768.
+.It Va net.pf.source_nodes_hashsize
+Size of hash table that store source nodes.
+Should be power of 2.
+Default value is 8192.
+.El
+.Pp
+Read only
+.Xr sysctl 8
+variables with matching names are provided to obtain current values
+at runtime.
 .Sh IOCTL INTERFACE
 .Nm
 supports the following
