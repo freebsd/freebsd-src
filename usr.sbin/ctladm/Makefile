@@ -14,8 +14,8 @@ CFLAGS+=	-I${SDIR}
 WARNS?= 3
 .endif
 
-DPADD=		${LIBCAM} ${LIBSBUF}
-LDADD=		-lcam -lsbuf -lbsdxml
+DPADD=		${LIBCAM} ${LIBSBUF} ${LIBBSDXML} ${LIBUTIL}
+LDADD=		-lcam -lsbuf -lbsdxml -lutil
 MAN=		ctladm.8
 
 .include <bsd.prog.mk>
