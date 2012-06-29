@@ -3411,7 +3411,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		CAMLOCK_2_MPTLOCK(mpt);
 		switch (accb->ccb_h.func_code) {
 		case XPT_ACCEPT_TARGET_IO:
-		case XPT_IMMED_NOTIFY:
+		case XPT_IMMEDIATE_NOTIFY:
 			ccb->ccb_h.status = mpt_abort_target_ccb(mpt, ccb);
 			break;
 		case XPT_CONT_TARGET_IO:
@@ -3785,8 +3785,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	}
-	case XPT_NOTIFY_ACK:		/* recycle notify ack */
-	case XPT_IMMED_NOTIFY:		/* Add Immediate Notify Resource */
+	case XPT_NOTIFY_ACKNOWLEDGE:	/* recycle notify ack */
+	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
 		tgt_resource_t *trtp;
@@ -3813,7 +3813,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			    "Put FREE ATIO %p lun %d\n", ccb, lun);
 			STAILQ_INSERT_TAIL(&trtp->atios, &ccb->ccb_h,
 			    sim_links.stqe);
-		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+		} else if (ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG1,
 			    "Put FREE INOT lun %d\n", lun);
 			STAILQ_INSERT_TAIL(&trtp->inots, &ccb->ccb_h,
@@ -4822,7 +4822,7 @@ mpt_abort_target_ccb(struct mpt_softc *mpt, union ccb *ccb)
 
 	if (accb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 		lp = &trtp->atios;
-	} else if (accb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+	} else if (accb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
 		lp = &trtp->inots;
 	} else {
 		return (CAM_REQ_INVALID);
@@ -5043,11 +5043,11 @@ static void
 mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
     tgt_resource_t *trtp, int init_id)
 {
-	struct ccb_immed_notify *inot;
+	struct ccb_immediate_notify *inot;
 	mpt_tgt_state_t *tgt;
 
 	tgt = MPT_TGT_STATE(mpt, req);
-	inot = (struct ccb_immed_notify *) STAILQ_FIRST(&trtp->inots);
+	inot = (struct ccb_immediate_notify *) STAILQ_FIRST(&trtp->inots);
 	if (inot == NULL) {
 		mpt_lprt(mpt, MPT_PRT_WARN, "no INOTSs- sending back BSY\n");
 		mpt_scsi_tgt_status(mpt, NULL, req, SCSI_STATUS_BUSY, NULL);
@@ -5057,35 +5057,35 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 	mpt_lprt(mpt, MPT_PRT_DEBUG1,
 	    "Get FREE INOT %p lun %d\n", inot, inot->ccb_h.target_lun);
 
-	memset(&inot->sense_data, 0, sizeof (inot->sense_data));
-	inot->sense_len = 0;
-	memset(inot->message_args, 0, sizeof (inot->message_args));
 	inot->initiator_id = init_id;	/* XXX */
-
 	/*
 	 * This is a somewhat grotesque attempt to map from task management
 	 * to old style SCSI messages. God help us all.
 	 */
 	switch (fc) {
 	case MPT_ABORT_TASK_SET:
-		inot->message_args[0] = MSG_ABORT_TAG;
+		inot->arg = MSG_ABORT_TAG;
 		break;
 	case MPT_CLEAR_TASK_SET:
-		inot->message_args[0] = MSG_CLEAR_TASK_SET;
+		inot->arg = MSG_CLEAR_TASK_SET;
 		break;
 	case MPT_TARGET_RESET:
-		inot->message_args[0] = MSG_TARGET_RESET;
+		inot->arg = MSG_TARGET_RESET;
 		break;
 	case MPT_CLEAR_ACA:
-		inot->message_args[0] = MSG_CLEAR_ACA;
+		inot->arg = MSG_CLEAR_ACA;
 		break;
 	case MPT_TERMINATE_TASK:
-		inot->message_args[0] = MSG_ABORT_TAG;
+		inot->arg = MSG_ABORT_TAG;
 		break;
 	default:
-		inot->message_args[0] = MSG_NOOP;
+		inot->arg = MSG_NOOP;
 		break;
 	}
+	/*
+	 * XXX KDM we need the sequence/tag number for the target of the
+	 * task management operation, especially if it is an abort.
+	 */
 	tgt->ccb = (union ccb *) inot;
 	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
 	MPTLOCK_2_CAMLOCK(mpt);
