@@ -905,7 +905,7 @@ ed_command(EditLine *el, int c __unused)
 	int tmplen;
 
 	tmplen = c_gets(el, tmpbuf, "\n: ");
-	term__putc('\n');
+	term__putc(el, '\n');
 
 	if (tmplen < 0 || (tmpbuf[tmplen] = 0, parse_line(el, tmpbuf)) == -1)
 		term_beep(el);

@@ -76,8 +76,8 @@ protected int		 key_delete(EditLine *, const char *);
 protected void		 key_print(EditLine *, const char *);
 protected void	         key_kprint(EditLine *, const char *, key_value_t *,
     int);
-protected int		 key__decode_str(const char *, char *, int,
+protected size_t	 key__decode_str(const char *, char *, size_t,
     const char *);
-protected int		 key__decode_char(char *, int, int, int);
+protected size_t	 key__decode_char(char *, size_t, size_t, int);
 
 #endif /* _h_el_key */
