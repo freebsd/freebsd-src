@@ -69,7 +69,6 @@ static VNET_DEFINE(long, pfi_update);
 #define	V_pfi_update	VNET(pfi_update)
 #define PFI_BUFFER_MAX	0x10000
 
-/* XXXGL */
 static VNET_DEFINE(struct pfr_addr *, pfi_buffer);
 static VNET_DEFINE(int, pfi_buffer_cnt);
 static VNET_DEFINE(int,	pfi_buffer_max);

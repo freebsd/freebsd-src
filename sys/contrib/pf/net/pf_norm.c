@@ -1517,10 +1517,8 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	int copyback = 0;
 	int got_ts = 0;
 
-	/* XXXGL: lock */
-
 	KASSERT((src->scrub || dst->scrub), 
-	    ("pf_normalize_tcp_statefull: src->scrub && dst->scrub!"));
+	    ("%s: src->scrub && dst->scrub!", __func__));
 
 	/*
 	 * Enforce the minimum TTL seen for this connection.  Negate a common
