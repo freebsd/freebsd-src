@@ -121,6 +121,13 @@ struct acpi_cpu_device {
 #define PIIX4_STOP_BREAK_MASK	(PIIX4_BRLD_EN_IRQ0 | PIIX4_BRLD_EN_IRQ | PIIX4_BRLD_EN_IRQ8)
 #define PIIX4_PCNTRL_BST_EN	(1<<10)
 
+/* Allow users to ignore processor orders in MADT. */
+static int cpu_unordered;
+TUNABLE_INT("debug.acpi.cpu_unordered", &cpu_unordered);
+SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
+    &cpu_unordered, 0,
+    "Do not use the MADT to match ACPI Processor objects to CPUs.");
+
 /* Platform hardware resource information. */
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
 static uint8_t		 cpu_cst_cnt;	/* Indicate we are _CST aware. */
@@ -145,7 +152,7 @@ static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
 static int	acpi_cpu_suspend(device_t dev);
 static int	acpi_cpu_resume(device_t dev);
-static int	acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id,
+static int	acpi_pcpu_get_id(device_t dev, uint32_t *acpi_id,
 		    uint32_t *cpu_id);
 static struct resource_list *acpi_cpu_get_rlist(device_t dev, device_t child);
 static device_t	acpi_cpu_add_child(device_t dev, u_int order, const char *name,
@@ -242,7 +249,7 @@ acpi_cpu_probe(device_t dev)
      */
     acpi_id = obj->Processor.ProcId;
     AcpiOsFree(obj);
-    if (acpi_pcpu_get_id(device_get_unit(dev), &acpi_id, &cpu_id) != 0)
+    if (acpi_pcpu_get_id(dev, &acpi_id, &cpu_id) != 0)
 	return (ENXIO);
 
     /*
@@ -433,35 +440,65 @@ acpi_cpu_resume(device_t dev)
 }
 
 /*
- * Find the nth present CPU and return its pc_cpuid as well as set the
- * pc_acpi_id from the most reliable source.
+ * Find the processor associated with a given ACPI ID.  By default,
+ * use the MADT to map ACPI IDs to APIC IDs and use that to locate a
+ * processor.  Some systems have inconsistent ASL and MADT however.
+ * For these systems the cpu_unordered tunable can be set in which
+ * case we assume that Processor objects are listed in the same order
+ * in both the MADT and ASL.
  */
 static int
-acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
+acpi_pcpu_get_id(device_t dev, uint32_t *acpi_id, uint32_t *cpu_id)
 {
-    struct pcpu	*pcpu_data;
-    uint32_t	 i;
+    struct pcpu	*pc;
+    uint32_t	 i, idx;
 
     KASSERT(acpi_id != NULL, ("Null acpi_id"));
     KASSERT(cpu_id != NULL, ("Null cpu_id"));
+    idx = device_get_unit(dev);
+
+    /*
+     * If pc_acpi_id for CPU 0 is not initialized (e.g. a non-APIC
+     * UP box) use the ACPI ID from the first processor we find.
+     */
+    if (idx == 0 && mp_ncpus == 1) {
+	pc = pcpu_find(0);
+	if (pc->pc_acpi_id == 0xffffffff)
+	    pc->pc_acpi_id = *acpi_id;
+	*cpu_id = 0;
+	return (0);
+    }
+
     CPU_FOREACH(i) {
-	pcpu_data = pcpu_find(i);
-	KASSERT(pcpu_data != NULL, ("no pcpu data for %d", i));
-	if (idx-- == 0) {
-	    /*
-	     * If pc_acpi_id was not initialized (e.g., a non-APIC UP box)
-	     * override it with the value from the ASL.  Otherwise, if the
-	     * two don't match, prefer the MADT-derived value.  Finally,
-	     * return the pc_cpuid to reference this processor.
-	     */
-	    if (pcpu_data->pc_acpi_id == 0xffffffff)
-		pcpu_data->pc_acpi_id = *acpi_id;
-	    else if (pcpu_data->pc_acpi_id != *acpi_id)
-		*acpi_id = pcpu_data->pc_acpi_id;
-	    *cpu_id = pcpu_data->pc_cpuid;
-	    return (0);
+	pc = pcpu_find(i);
+	KASSERT(pc != NULL, ("no pcpu data for %d", i));
+	if (cpu_unordered) {
+	    if (idx-- == 0) {
+		/*
+		 * If pc_acpi_id doesn't match the ACPI ID from the
+		 * ASL, prefer the MADT-derived value.
+		 */
+		if (pc->pc_acpi_id != *acpi_id)
+		    *acpi_id = pc->pc_acpi_id;
+		*cpu_id = pc->pc_cpuid;
+		return (0);
+	    }
+	} else {
+	    if (pc->pc_acpi_id == *acpi_id) {
+		if (bootverbose)
+		    device_printf(dev,
+			"Processor %s (ACPI ID %u) -> APIC ID %d\n",
+			acpi_name(acpi_get_handle(dev)), *acpi_id,
+			pc->pc_cpuid);
+		*cpu_id = pc->pc_cpuid;
+		return (0);
+	    }
 	}
     }
+
+    if (bootverbose)
+	printf("ACPI: Processor %s (ACPI ID %u) ignored\n",
+	    acpi_name(acpi_get_handle(dev)), *acpi_id);
 
     return (ESRCH);
 }

@@ -178,7 +178,6 @@ struct acpi_ec_softc {
 
 ACPI_SERIAL_DECL(ec, "ACPI embedded controller");
 
-SYSCTL_DECL(_debug_acpi);
 SYSCTL_NODE(_debug_acpi, OID_AUTO, ec, CTLFLAG_RD, NULL, "EC debugging");
 
 static int	ec_burst_mode;
