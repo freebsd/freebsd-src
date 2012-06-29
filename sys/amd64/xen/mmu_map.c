@@ -328,7 +328,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
 		vm_paddr_t pml4tep_ma;
 		pml4_entry_t pml4te;
 
-		pti->pdpt = (pdp_entry_t *)pti->ptmb.alloc(PAGE_SIZE);
+		pti->pdpt = (pdp_entry_t *)pti->ptmb.alloc();
 
 		pml4tep = &pti->pml4t[pml4t_index(va)];
 		pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pml4tep));
@@ -346,7 +346,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
 		vm_paddr_t pdptep_ma;
 		pdp_entry_t pdpte;
 
-		pti->pdt = (pd_entry_t *)pti->ptmb.alloc(PAGE_SIZE);
+		pti->pdt = (pd_entry_t *)pti->ptmb.alloc();
 
 		pdptep = &pti->pdpt[pdpt_index(va)];
 		pdptep_ma = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pdptep));
@@ -364,7 +364,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
 		vm_paddr_t pdtep_ma;
 		pd_entry_t pdte;
 
-		pti->pt = (pt_entry_t *) pti->ptmb.alloc(PAGE_SIZE);
+		pti->pt = (pt_entry_t *) pti->ptmb.alloc();
 
 		pdtep = &pti->pdt[pdt_index(va)];
 		pdtep_ma = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pdtep));

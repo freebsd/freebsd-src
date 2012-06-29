@@ -185,8 +185,8 @@ static vm_paddr_t	boot_ptendphys;	/* phys addr of end of kernel
 
 static uma_zone_t xen_pagezone;
 static size_t tsz; /* mmu_map.h opaque cookie size */
-static vm_offset_t (*ptmb_mappedalloc)(size_t) = NULL;
-static void (*ptmb_mappedfree)(size_t) = NULL;
+static vm_offset_t (*ptmb_mappedalloc)(void) = NULL;
+static void (*ptmb_mappedfree)(vm_offset_t) = NULL;
 static vm_offset_t ptmb_ptov(vm_paddr_t p)
 {
 	return PTOV(p);
@@ -461,21 +461,18 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 
 /* alloc from linear mapped boot time virtual address space */
 static vm_offset_t
-mmu_alloc(size_t size)
+mmu_alloc(void)
 {
-	KASSERT(size != 0, ("mmu_alloc size must not be zero\n"));
 	KASSERT(physfree != 0,
 		("physfree must have been set before using mmu_alloc"));
 				
-	size = round_page(size); /* We can allocate only in page sizes */
-
-	vm_offset_t va = vallocpages(&physfree, atop(size));
+	vm_offset_t va = vallocpages(&physfree, atop(PAGE_SIZE));
 
 	/* 
 	 * Xen requires the page table hierarchy to be R/O.
 	 */
 
-	pmap_xen_setpages_ro(va, atop(size));
+	pmap_xen_setpages_ro(va, atop(PAGE_SIZE));
 
 	return va;
 }
@@ -1167,11 +1164,9 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 }
 
 static vm_offset_t
-xen_pagezone_alloc(size_t size)
+xen_pagezone_alloc(void)
 {
 	vm_offset_t ret;
-
-	KASSERT(size == PAGE_SIZE, ("%s: invalid size", __func__));
 
 	ret = (vm_offset_t)uma_zalloc(xen_pagezone, M_NOWAIT | M_ZERO);
 	if (ret == 0)

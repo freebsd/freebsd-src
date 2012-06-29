@@ -90,7 +90,7 @@ typedef void * mmu_map_t;
 
 struct mmu_map_mbackend { /* Callbacks */
 
-	vm_offset_t (*alloc)(size_t);
+	vm_offset_t (*alloc)(void);
 	void (*free)(vm_offset_t); /* May be NULL */
 
 	/* 
