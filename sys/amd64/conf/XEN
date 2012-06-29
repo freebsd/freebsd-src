@@ -62,7 +62,7 @@ nodevice	isa
 options 	MCLSHIFT=12
 
 # To make an SMP kernel, the next line is needed
-options 	SMP			# Symmetric MultiProcessor Kernel
+nooptions 	SMP			# Symmetric MultiProcessor Kernel
 
 #device		atkbdc		# AT keyboard controller
 #device		atkbd		# AT keyboard
