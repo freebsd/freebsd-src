@@ -164,12 +164,13 @@ __start:
 	
 	bl	OF_initial_setup
 
-	lis	4,end@ha
-	addi	4,4,end@l
-	mr	5,4
-
 	lis	3,kernel_text@ha
 	addi	3,3,kernel_text@l
+
+	lis	4,end@ha
+	addi	4,4,end@l
+	add	4,4,3
+	mr	5,4
 
 	/* Restore the argument pointer and length */
 	mr	6,20
