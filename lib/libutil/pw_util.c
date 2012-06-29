@@ -436,14 +436,21 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 	size_t len;
 	int eof, readlen;
 
-	spw = pw;
+	if (old_pw == NULL && pw == NULL)
+			return (-1);
+
+	spw = old_pw;
+	/* deleting a user */
 	if (pw == NULL) {
 		line = NULL;
-		if (old_pw == NULL)
+	} else {
+		if ((line = pw_make(pw)) == NULL)
 			return (-1);
-		spw = old_pw;
-	} else if ((line = pw_make(pw)) == NULL)
-		return (-1);
+	}
+
+	/* adding a user */
+	if (spw == NULL)
+		spw = pw;
 
 	eof = 0;
 	len = 0;
@@ -510,7 +517,7 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		 */
 
 		*q = t;
-		if (fpw == NULL || fpw->pw_uid != spw->pw_uid) {
+		if (fpw == NULL || strcmp(fpw->pw_name, spw->pw_name) != 0) {
 			/* nope */
 			if (fpw != NULL)
 				free(fpw);
