@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
 
-#define	MAXBDDEV	31
-
 extern uint32_t _end;
 
 #ifdef GPT
