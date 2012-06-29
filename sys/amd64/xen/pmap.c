@@ -153,15 +153,15 @@ extern unsigned long physfree; /* from machdep.c */
 
 struct pmap kernel_pmap_store;
 
-vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
-vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
+uintptr_t virtual_avail;	/* VA of first avail page (after kernel bss) */
+uintptr_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
 #ifdef SUPERPAGESUPPORT
 static int ndmpdp;
 static vm_paddr_t dmaplimit;
 #endif /* SUPERPAGESUPPORT */
 
-vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
+uintptr_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx; /* XXX: do we need this ? */
 
 struct msgbuf *msgbufp = 0;
@@ -185,13 +185,13 @@ static vm_paddr_t	boot_ptendphys;	/* phys addr of end of kernel
 
 static uma_zone_t xen_pagezone;
 static size_t tsz; /* mmu_map.h opaque cookie size */
-static vm_offset_t (*ptmb_mappedalloc)(void) = NULL;
-static void (*ptmb_mappedfree)(vm_offset_t) = NULL;
-static vm_offset_t ptmb_ptov(vm_paddr_t p)
+static uintptr_t (*ptmb_mappedalloc)(void) = NULL;
+static void (*ptmb_mappedfree)(uintptr_t) = NULL;
+static uintptr_t ptmb_ptov(vm_paddr_t p)
 {
 	return PTOV(p);
 }
-static vm_paddr_t ptmb_vtop(vm_offset_t v)
+static vm_paddr_t ptmb_vtop(uintptr_t v)
 {
 	return VTOP(v);
 }
@@ -200,10 +200,10 @@ extern uint64_t xenstack; /* The stack Xen gives us at boot */
 extern char *console_page; /* The shared ring for console i/o */
 
 /* return kernel virtual address of  'n' claimed physical pages at boot. */
-static vm_offset_t
+static uintptr_t
 vallocpages(vm_paddr_t *firstaddr, int n)
 {
-	u_int64_t ret = *firstaddr + KERNBASE;
+	uintptr_t ret = *firstaddr + KERNBASE;
 	bzero((void *)ret, n * PAGE_SIZE);
 	*firstaddr += n * PAGE_SIZE;
 
@@ -224,7 +224,7 @@ vallocpages(vm_paddr_t *firstaddr, int n)
 
 /* Set page addressed by va to r/o */
 static void
-pmap_xen_setpages_ro(vm_offset_t va, vm_size_t npages)
+pmap_xen_setpages_ro(uintptr_t va, vm_size_t npages)
 {
 	vm_size_t i;
 	for (i = 0; i < npages; i++) {
@@ -235,7 +235,7 @@ pmap_xen_setpages_ro(vm_offset_t va, vm_size_t npages)
 
 /* Set page addressed by va to r/w */
 static void
-pmap_xen_setpages_rw(vm_offset_t va, vm_size_t npages)
+pmap_xen_setpages_rw(uintptr_t va, vm_size_t npages)
 {
 	vm_size_t i;
 	for (i = 0; i < npages; i++) {
@@ -248,12 +248,12 @@ extern int etext;	/* End of kernel text (virtual address) */
 extern int end;		/* End of kernel binary (virtual address) */
 /* Return pte flags according to kernel va access restrictions */
 static pt_entry_t
-pmap_xen_kernel_vaflags(vm_offset_t va)
+pmap_xen_kernel_vaflags(uintptr_t va)
 {
-	if ((va > (vm_offset_t) &etext && /* .data, .bss et. al */
-	     (va < (vm_offset_t) &end))
+	if ((va > (uintptr_t) &etext && /* .data, .bss et. al */
+	     (va < (uintptr_t) &end))
 	    ||
-	    ((va > (vm_offset_t)(xen_start_info->pt_base +
+	    ((va > (uintptr_t)(xen_start_info->pt_base +
 	    			xen_start_info->nr_pt_frames * PAGE_SIZE)) &&
 	     va < PTOV(boot_ptphys))
 	    ||
@@ -430,7 +430,7 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 static void
 pmap_xen_bootpages(vm_paddr_t *firstaddr)
 {
-	vm_offset_t va;
+	uintptr_t va;
 	vm_paddr_t ma;
 
 	/* Share info */
@@ -460,13 +460,15 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 }
 
 /* alloc from linear mapped boot time virtual address space */
-static vm_offset_t
+static uintptr_t
 mmu_alloc(void)
 {
+	uintptr_t va;
+
 	KASSERT(physfree != 0,
 		("physfree must have been set before using mmu_alloc"));
 				
-	vm_offset_t va = vallocpages(&physfree, atop(PAGE_SIZE));
+	va = vallocpages(&physfree, atop(PAGE_SIZE));
 
 	/* 
 	 * Xen requires the page table hierarchy to be R/O.
@@ -525,7 +527,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * is available.
 	 */
 
-	virtual_avail = (vm_offset_t) xenstack + 512 * 1024;
+	virtual_avail = (uintptr_t) xenstack + 512 * 1024;
 	/* XXX: Check we don't overlap xen pgdir entries. */
 	virtual_end = VM_MAX_KERNEL_ADDRESS; 
 
@@ -560,7 +562,7 @@ pmap_page_init(vm_page_t m)
  * and update kernel_vm_end.
  */
 void
-pmap_growkernel(vm_offset_t addr)
+pmap_growkernel(uintptr_t addr)
 {
 	KASSERT(kernel_vm_end < addr, ("trying to shrink kernel VA!"));
 
@@ -600,6 +602,8 @@ pmap_growkernel(vm_offset_t addr)
 void
 pmap_init(void)
 {
+	uintptr_t va;
+
 	/* XXX: review the use of gdtset for the purpose below */
 	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
 
@@ -608,7 +612,7 @@ pmap_init(void)
 	/* Get a va for console and map the console mfn into it */
 	vm_paddr_t console_ma = xen_start_info->console.domU.mfn << PAGE_SHIFT;
 
-	vm_offset_t va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
 	KASSERT(va != 0, ("Could not allocate KVA for console page!\n"));
 
 	pmap_kenter(va, xpmap_mtop(console_ma));
@@ -672,7 +676,7 @@ pmap_release(pmap_t pmap)
 }
 
 __inline pt_entry_t *
-vtopte(vm_offset_t va)
+vtopte(uintptr_t va)
 {
 	KASSERT(0, ("XXX: REVIEW\n"));
 	u_int64_t mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
@@ -1163,12 +1167,12 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 		return -1;
 }
 
-static vm_offset_t
+static uintptr_t
 xen_pagezone_alloc(void)
 {
-	vm_offset_t ret;
+	uintptr_t ret;
 
-	ret = (vm_offset_t)uma_zalloc(xen_pagezone, M_NOWAIT | M_ZERO);
+	ret = (uintptr_t)uma_zalloc(xen_pagezone, M_NOWAIT | M_ZERO);
 	if (ret == 0)
 		panic("%s: failed allocation\n", __func__);
 	return (ret);
@@ -1184,9 +1188,9 @@ xen_pagezone_free(vm_offset_t page)
 static int
 xen_pagezone_init(void *mem, int size, int flags)
 {
-	vm_offset_t va;
+	uintptr_t va;
 
-	va = (vm_offset_t)mem;
+	va = (uintptr_t)mem;
 
 	/* Xen requires the page table hierarchy to be R/O. */
 	pmap_xen_setpages_ro(va, atop(size));

@@ -90,8 +90,8 @@ typedef void * mmu_map_t;
 
 struct mmu_map_mbackend { /* Callbacks */
 
-	vm_offset_t (*alloc)(void);
-	void (*free)(vm_offset_t); /* May be NULL */
+	uintptr_t (*alloc)(void);
+	void (*free)(uintptr_t); /* May be NULL */
 
 	/* 
 	 * vtop()/ptov() conversion functions:
@@ -101,8 +101,8 @@ struct mmu_map_mbackend { /* Callbacks */
 	 * multiple instances of use; ie; mappings may persist across 
 	 * one pair of mmu_map_t_init()/.._finit() calls.
 	 */
-	vm_offset_t (*ptov)(vm_paddr_t);
-	vm_paddr_t (*vtop)(vm_offset_t);
+	uintptr_t (*ptov)(vm_paddr_t);
+	vm_paddr_t (*vtop)(uintptr_t);
 };
 
 /* 

@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <amd64/xen/mmu_map.h>
 
 static int
-pml4t_index(vm_offset_t va)
+pml4t_index(uintptr_t va)
 {
 	/* amd64 sign extends 48th bit and upwards */
 	const uint64_t SIGNMASK = (1UL << 48) - 1;
@@ -69,7 +69,7 @@ pml4t_index(vm_offset_t va)
 }
 
 static int
-pdpt_index(vm_offset_t va)
+pdpt_index(uintptr_t va)
 {
 	/* amd64 sign extends 48th bit and upwards */
 	const uint64_t SIGNMASK = (1UL << 48) - 1;
@@ -79,7 +79,7 @@ pdpt_index(vm_offset_t va)
 }
 
 static int
-pdt_index(vm_offset_t va)
+pdt_index(uintptr_t va)
 {
 	/* amd64 sign extends 48th bit and upwards */
 	const uint64_t SIGNMASK = (1UL << 48) - 1;
@@ -108,7 +108,7 @@ pmap_get_pml4t(struct pmap *pm)
 
 /* Returns physical address */
 static vm_paddr_t
-pmap_get_pdpt(vm_offset_t va, pml4_entry_t *pml4t)
+pmap_get_pdpt(uintptr_t va, pml4_entry_t *pml4t)
 {
 	pml4_entry_t pml4e;
 
@@ -127,7 +127,7 @@ pmap_get_pdpt(vm_offset_t va, pml4_entry_t *pml4t)
 
 /* Returns physical address */
 static vm_paddr_t
-pmap_get_pdt(vm_offset_t va, pdp_entry_t *pdpt)
+pmap_get_pdt(uintptr_t va, pdp_entry_t *pdpt)
 {
 	pdp_entry_t pdpe;
 
@@ -146,7 +146,7 @@ pmap_get_pdt(vm_offset_t va, pdp_entry_t *pdpt)
 
 /* Returns physical address */
 static vm_paddr_t
-pmap_get_pt(vm_offset_t va, pd_entry_t *pdt)
+pmap_get_pt(uintptr_t va, pd_entry_t *pdt)
 {
 	pd_entry_t pdte;
 
@@ -271,7 +271,7 @@ mmu_map_pt(void *addr)
 }
 
 bool
-mmu_map_inspect_va(struct pmap *pm, void *addr, vm_offset_t va)
+mmu_map_inspect_va(struct pmap *pm, void *addr, uintptr_t va)
 {
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
 
@@ -310,7 +310,7 @@ mmu_map_inspect_va(struct pmap *pm, void *addr, vm_offset_t va)
 }
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
 void
-mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
+mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 {
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
 
@@ -331,8 +331,8 @@ mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
 		pti->pdpt = (pdp_entry_t *)pti->ptmb.alloc();
 
 		pml4tep = &pti->pml4t[pml4t_index(va)];
-		pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pml4tep));
-		pml4te = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pti->pdpt)) | PG_RW | PG_V | PG_U; /* XXX: revisit flags */
+		pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep));
+		pml4te = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pti->pdpt)) | PG_RW | PG_V | PG_U; /* XXX: revisit flags */
 		xen_queue_pt_update(pml4tep_ma, pml4te);
 
 	} else {
@@ -349,8 +349,8 @@ mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
 		pti->pdt = (pd_entry_t *)pti->ptmb.alloc();
 
 		pdptep = &pti->pdpt[pdpt_index(va)];
-		pdptep_ma = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pdptep));
-		pdpte = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pti->pdt)) | PG_RW | PG_V | PG_U; /*	XXX: revisit flags */
+		pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
+		pdpte = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pti->pdt)) | PG_RW | PG_V | PG_U; /*	XXX: revisit flags */
 		xen_queue_pt_update(pdptep_ma, pdpte);
 		
 	} else {
@@ -367,8 +367,8 @@ mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
 		pti->pt = (pt_entry_t *) pti->ptmb.alloc();
 
 		pdtep = &pti->pdt[pdt_index(va)];
-		pdtep_ma = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pdtep));
-		pdte = xpmap_ptom(pti->ptmb.vtop((vm_offset_t)pti->pt)) | PG_RW | PG_V | PG_U; /*	XXX: revisit flags */
+		pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
+		pdte = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pti->pt)) | PG_RW | PG_V | PG_U; /*	XXX: revisit flags */
 		xen_queue_pt_update(pdtep_ma, pdte);
 
 	} else {
@@ -377,7 +377,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, vm_offset_t va)
 }
 
 void
-mmu_map_release_va(struct pmap *pm, void *addr, vm_offset_t va)
+mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 {
 
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
