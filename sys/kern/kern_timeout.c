@@ -497,8 +497,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
     struct bintime to_bintime, void (*func)(void *), void *arg, int cpu, 
     int flags)
 {
-	struct timeval tv;
-	int bucket;	
+	int bucket, r_shift, r_val;	
 	
 	CC_LOCK_ASSERT(cc);
 	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <)) {
@@ -510,25 +509,38 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 		c->c_flags |= CALLOUT_DIRECT;
 	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
-	c->c_time = to_bintime; 
-	tv.tv_sec = 0;
-	if (flags & C_10US) { 
-		tv.tv_usec = 10;
-		timeval2bintime(&tv, &c->c_precision);
-	}
-	else if (flags & C_100US) {
-		tv.tv_usec = 100;
-		timeval2bintime(&tv, &c->c_precision);
+	c->c_time = to_bintime;
+	bintime_clear(&c->c_precision);
+	if (flags & 0x2) {  
+		r_shift = ((flags >> 2) & PRECISION_RANGE);
+		r_val = (r_shift != 0) ? (uint64_t)1 << (64 - r_shift) : 0;
+		/* 
+		 * Round as far as precision specified is coarse (up to 8ms).
+		 * In order to play safe, round to to half of the interval and
+		 * set half precision.
+		 */	
+		if (r_shift < 6) {
+			r_val = (r_shift != 0) ? r_val >> 2 : 
+			    ((uint64_t)1 << (64 - 1)) - 1;
+			/*
+			 * Round only if c_time is not a multiple of the
+			 * rounding factor.
+			 */
+			if ((c->c_time.frac & r_val) != r_val) {
+				c->c_time.frac |= r_val - 1;
+				c->c_time.frac += 1;
+				if (c->c_time.frac == 0)
+					c->c_time.sec += 1;
+			}
+		}
+		c->c_precision.frac = r_val;
+		CTR6(KTR_CALLOUT, "rounding %d.%u%u to %d.%u%u", 
+		    to_bintime.sec, (u_int) (to_bintime.frac >> 32), 
+		    (u_int) (to_bintime.frac & 0xffffffff), c->c_time.sec, 
+		    (u_int) (c->c_time.frac >> 32), 
+		    (u_int) (c->c_time.frac & 0xffffffff)); 
 	} 
-	else if (flags & C_1MS) {
-		tv.tv_usec = 1000;
-		timeval2bintime(&tv, &c->c_precision);
-	} 
-	else { 
-		c->c_precision.sec = 0;
-		c->c_precision.frac = 0;
-	}
-	bucket = get_bucket(&c->c_time);	
+	bucket = get_bucket(&c->c_time);
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket & callwheelmask], 
 	    c, c_links.tqe);
 	/*
@@ -536,10 +548,10 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * that has been inserted.
 	 */
 	if (callout_new_inserted != NULL && 
-	    (bintime_cmp(&to_bintime, &cc->cc_firstevent, <) ||
+	    (bintime_cmp(&c->c_time, &cc->cc_firstevent, <) ||
 	    (cc->cc_firstevent.sec == 0 && cc->cc_firstevent.frac == 0))) {
-		cc->cc_firstevent = to_bintime;
-		(*callout_new_inserted)(cpu, to_bintime);
+		cc->cc_firstevent = c->c_time;
+		(*callout_new_inserted)(cpu, c->c_time);
 	}
 }
 
