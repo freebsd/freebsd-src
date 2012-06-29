@@ -5,7 +5,8 @@
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
-SUBDIR=	${_3dfx} \
+SUBDIR=	\
+	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
 	accf_data \
@@ -102,6 +103,7 @@ SUBDIR=	${_3dfx} \
 	fdc \
 	fdescfs \
 	${_fe} \
+	${_filemon} \
 	firewire \
 	firmware \
 	${_fxp} \
@@ -351,6 +353,10 @@ SUBDIR=	${_3dfx} \
 	xl \
 	${_zfs} \
 	zlib \
+
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_filemon=	filemon
+.endif
 
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_CPUARCH} != "mips"
