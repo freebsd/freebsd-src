@@ -959,6 +959,33 @@ ctl_init(void)
 
 	softc->dev->si_drv1 = softc;
 
+	/*
+	 * By default, return a "bad LUN" peripheral qualifier for unknown
+	 * LUNs.  The user can override this default using the tunable or
+	 * sysctl.  See the comment in ctl_inquiry_std() for more details.
+	 */
+	softc->inquiry_pq_no_lun = 1;
+	TUNABLE_INT_FETCH("kern.cam.ctl.inquiry_pq_no_lun",
+			  &softc->inquiry_pq_no_lun);
+	sysctl_ctx_init(&softc->sysctl_ctx);
+	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+		SYSCTL_STATIC_CHILDREN(_kern_cam), OID_AUTO, "ctl",
+		CTLFLAG_RD, 0, "CAM Target Layer");
+
+	if (softc->sysctl_tree == NULL) {
+		printf("%s: unable to allocate sysctl tree\n", __func__);
+		destroy_dev(softc->dev);
+		free(control_softc, M_DEVBUF);
+		control_softc = NULL;
+		return;
+	}
+
+	SYSCTL_ADD_INT(&softc->sysctl_ctx,
+		       SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		       "inquiry_pq_no_lun", CTLFLAG_RW,
+		       &softc->inquiry_pq_no_lun, 0,
+		       "Report no lun possible for invalid LUNs");
+
 	mtx_init(&softc->ctl_lock, "CTL mutex", NULL, MTX_DEF);
 	softc->open_count = 0;
 
@@ -1149,6 +1176,11 @@ ctl_shutdown(void)
 	mtx_destroy(&softc->ctl_lock);
 
 	destroy_dev(softc->dev);
+
+	sysctl_ctx_free(&softc->sysctl_ctx);
+
+	free(control_softc, M_DEVBUF);
+	control_softc = NULL;
 
 	printf("ctl: CAM Target Layer unloaded\n");
 }
@@ -9369,15 +9401,55 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	memset(inq_ptr, 0, sizeof(*inq_ptr));
 
 	/*
-	 * The control device is always connected.  The disk device, on the
-	 * other hand, may not be online all the time.  If we don't have a
-	 * LUN mapping, we'll just say it's offline.
+	 * If we have a LUN configured, report it as connected.  Otherwise,
+	 * report that it is offline or no device is supported, depending 
+	 * on the value of inquiry_pq_no_lun.
+	 *
+	 * According to the spec (SPC-4 r34), the peripheral qualifier
+	 * SID_QUAL_LU_OFFLINE (001b) is used in the following scenario:
+	 *
+	 * "A peripheral device having the specified peripheral device type 
+	 * is not connected to this logical unit. However, the device
+	 * server is capable of supporting the specified peripheral device
+	 * type on this logical unit."
+	 *
+	 * According to the same spec, the peripheral qualifier
+	 * SID_QUAL_BAD_LU (011b) is used in this scenario:
+	 *
+	 * "The device server is not capable of supporting a peripheral
+	 * device on this logical unit. For this peripheral qualifier the
+	 * peripheral device type shall be set to 1Fh. All other peripheral
+	 * device type values are reserved for this peripheral qualifier."
+	 *
+	 * Given the text, it would seem that we probably want to report that
+	 * the LUN is offline here.  There is no LUN connected, but we can
+	 * support a LUN at the given LUN number.
+	 *
+	 * In the real world, though, it sounds like things are a little
+	 * different:
+	 *
+	 * - Linux, when presented with a LUN with the offline peripheral
+	 *   qualifier, will create an sg driver instance for it.  So when
+	 *   you attach it to CTL, you wind up with a ton of sg driver
+	 *   instances.  (One for every LUN that Linux bothered to probe.)
+	 *   Linux does this despite the fact that it issues a REPORT LUNs
+	 *   to LUN 0 to get the inventory of supported LUNs.
+	 *
+	 * - There is other anecdotal evidence (from Emulex folks) about
+	 *   arrays that use the offline peripheral qualifier for LUNs that
+	 *   are on the "passive" path in an active/passive array.
+	 *
+	 * So the solution is provide a hopefully reasonable default
+	 * (return bad/no LUN) and allow the user to change the behavior
+	 * with a tunable/sysctl variable.
 	 */
 	if (lun != NULL)
 		inq_ptr->device = (SID_QUAL_LU_CONNECTED << 5) |
 				  lun->be_lun->lun_type;
-	else
+	else if (ctl_softc->inquiry_pq_no_lun == 0)
 		inq_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
+	else
+		inq_ptr->device = (SID_QUAL_BAD_LU << 5) | T_NODEVICE;
 
 	/* RMB in byte 2 is 0 */
 	inq_ptr->version = SCSI_REV_SPC3;
@@ -9491,8 +9563,6 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 			break;
 		}
 	}
-	sprintf((char *)inq_ptr->vendor_specific1, "Copyright (C) 2004, COPAN "
-		"Systems, Inc.  All Rights Reserved.");
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	if (ctsio->kern_data_len > 0) {
