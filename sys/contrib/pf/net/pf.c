@@ -2644,7 +2644,7 @@ pf_addr_inc(struct pf_addr *addr, sa_family_t af)
 #endif /* INET6 */
 
 int
-pf_socket_lookup(int direction, struct pf_pdesc *pd)
+pf_socket_lookup(int direction, struct pf_pdesc *pd, struct mbuf *m)
 {
 	struct pf_addr		*saddr, *daddr;
 	u_int16_t		 sport, dport;
@@ -2687,16 +2687,12 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 	switch (pd->af) {
 #ifdef INET
 	case AF_INET:
-		/*
-		 * XXXRW: would be nice if we had an mbuf here so that we
-		 * could use in_pcblookup_mbuf().
-		 */
-		inp = in_pcblookup(pi, saddr->v4, sport, daddr->v4,
-			dport, INPLOOKUP_RLOCKPCB, NULL);
+		inp = in_pcblookup_mbuf(pi, saddr->v4, sport, daddr->v4,
+		    dport, INPLOOKUP_RLOCKPCB, NULL, m);
 		if (inp == NULL) {
-			inp = in_pcblookup(pi, saddr->v4, sport,
+			inp = in_pcblookup_mbuf(pi, saddr->v4, sport,
 			   daddr->v4, dport, INPLOOKUP_WILDCARD |
-			   INPLOOKUP_RLOCKPCB, NULL);
+			   INPLOOKUP_RLOCKPCB, NULL, m);
 			if (inp == NULL)
 				return (-1);
 		}
@@ -2704,16 +2700,12 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		/*
-		 * XXXRW: would be nice if we had an mbuf here so that we
-		 * could use in6_pcblookup_mbuf().
-		 */
-		inp = in6_pcblookup(pi, &saddr->v6, sport,
-			&daddr->v6, dport, INPLOOKUP_RLOCKPCB, NULL);
+		inp = in6_pcblookup_mbuf(pi, &saddr->v6, sport, &daddr->v6,
+		    dport, INPLOOKUP_RLOCKPCB, NULL, m);
 		if (inp == NULL) {
-			inp = in6_pcblookup(pi, &saddr->v6, sport,
+			inp = in6_pcblookup_mbuf(pi, &saddr->v6, sport,
 			    &daddr->v6, dport, INPLOOKUP_WILDCARD |
-			    INPLOOKUP_RLOCKPCB, NULL);
+			    INPLOOKUP_RLOCKPCB, NULL, m);
 			if (inp == NULL)
 				return (-1);
 		}
@@ -3170,13 +3162,13 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 			r = TAILQ_NEXT(r, entries);
 		/* tcp/udp only. uid.op always 0 in other cases */
 		else if (r->uid.op && (pd->lookup.done || (pd->lookup.done =
-		    pf_socket_lookup(direction, pd), 1)) &&
+		    pf_socket_lookup(direction, pd, m), 1)) &&
 		    !pf_match_uid(r->uid.op, r->uid.uid[0], r->uid.uid[1],
 		    pd->lookup.uid))
 			r = TAILQ_NEXT(r, entries);
 		/* tcp/udp only. gid.op always 0 in other cases */
 		else if (r->gid.op && (pd->lookup.done || (pd->lookup.done =
-		    pf_socket_lookup(direction, pd), 1)) &&
+		    pf_socket_lookup(direction, pd, m), 1)) &&
 		    !pf_match_gid(r->gid.op, r->gid.gid[0], r->gid.gid[1],
 		    pd->lookup.gid))
 			r = TAILQ_NEXT(r, entries);

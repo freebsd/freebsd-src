@@ -234,7 +234,7 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	 * These conditions are very very rare, however.
 	 */
 	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
-		pd->lookup.done = pf_socket_lookup(dir, pd);
+		pd->lookup.done = pf_socket_lookup(dir, pd, m);
 	if (pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
 	else

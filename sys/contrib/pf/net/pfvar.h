@@ -1841,7 +1841,7 @@ u_int32_t
 void	pf_purge_expired_fragments(void);
 int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *,
 	    int);
-int	pf_socket_lookup(int, struct pf_pdesc *);   
+int	pf_socket_lookup(int, struct pf_pdesc *, struct mbuf *);
 struct pf_state_key *pf_alloc_state_key(int);
 void	pfr_initialize(void);
 void	pfr_cleanup(void);
