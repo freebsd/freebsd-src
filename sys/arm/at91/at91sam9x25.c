@@ -110,6 +110,7 @@ static const struct cpu_devs at91_devs[] =
 	DEVICE("at91_pio", PIOA, 0),
 	DEVICE("at91_pio", PIOB, 1),
 	DEVICE("at91_pio", PIOC, 2),
+	DEVICE("at91_pio", PIOD, 3),
 	DEVICE("at91_twi", TWI0, 0),
 	DEVICE("at91_twi", TWI1, 1),
 	DEVICE("at91_twi", TWI2, 2),
