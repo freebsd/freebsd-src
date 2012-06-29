@@ -144,6 +144,9 @@ struct callout_cpu cc_cpu;
         (bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
 }
 
+#define	TIME_T_MAX							\
+	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)		
+
 static int timeout_cpu;
 void (*callout_new_inserted)(int cpu, struct bintime bt) = NULL;
 
@@ -394,8 +397,8 @@ callout_process(void)
 		first = (first + 1) & callwheelmask;
 	}
 	future = ((last + hz/4) & callwheelmask); 
-	max.sec = max.frac = INT_MAX;
-	min.sec = min.frac = INT_MAX;
+	max.sec = min.sec = TIME_T_MAX;
+	max.frac = min.frac = UINT64_MAX;
 	limit.sec = 0;
 	limit.frac = (uint64_t)1 << (64 - 2);
 	bintime_add(&limit, &now);		
@@ -432,12 +435,11 @@ callout_process(void)
 			min = (bintime_cmp(&tmp_min, &min, >)) ? tmp_min : min;
 			max = (bintime_cmp(&tmp_max, &max, >)) ? tmp_max : max;
 		}		
-		if (last == future || 
-		    (max.sec != INT_MAX && min.sec != INT_MAX))
+		if (last == future || max.sec != TIME_T_MAX) 
 			break;
 		last = (last + 1) & callwheelmask;
 	}
-	if (max.sec == INT_MAX && min.sec == INT_MAX) { 
+	if (max.sec == TIME_T_MAX) { 
 		next.sec = 0;	
 		next.frac = (uint64_t)1 << (64 - 2);	
 		bintime_add(&next, &now);
