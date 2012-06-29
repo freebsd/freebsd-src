@@ -22,7 +22,7 @@ SUBDIR+=		ofw
 SUBDIR+=		uboot
 .endif
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386" || ${MACHINE_ARCH} == "sparc64"
 SUBDIR+=		zfs
 .endif
 
