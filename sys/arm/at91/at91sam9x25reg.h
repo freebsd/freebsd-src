@@ -138,11 +138,12 @@
 #define AT91SAM9X25_PIOB_SIZE	0x200
 #define AT91SAM9X25_PIOC_BASE	0xffff800
 #define AT91SAM9X25_PIOC_SIZE	0x200
+#define AT91SAM9X25_PIOD_BASE	0xffffa00
+#define AT91SAM9X25_PIOD_SIZE	0x200
 
 #define AT91RM92_PMC_BASE	0xffffc00
 #define AT91RM92_PMC_SIZE	0x100
-/* IRQs : */
-/*XXX FIXME XXX
+/* IRQs :
  * 0: AIC 
  * 1: System peripheral (System timer, RTC, DBGU)
  * 2: PIO Controller A,B
@@ -168,13 +169,13 @@
  * 22: UHPHS - USB Host controller
  * 23: UDPHS - USB Device Controller
  * 24: EMAC0
- * 25: Reserved
+ * 25: LCD controller or Image Sensor Interface
  * 26: HSMCI1
  * 27: EMAC1
  * 28: SSC
  * 29: CAN0
  * 30: CAN1
- * 31: AIC IRQ
+ * 31: AIC IRQ0
  */
 
 #define AT91SAM9X25_IRQ_AIC	0
@@ -220,6 +221,7 @@
 #define AT91SAM9X25_IRQ_PIOA    AT91SAM9X25_IRQ_PIOAB
 #define AT91SAM9X25_IRQ_PIOB    AT91SAM9X25_IRQ_PIOAB
 #define AT91SAM9X25_IRQ_PIOC    AT91SAM9X25_IRQ_PIOCD
+#define AT91SAM9X25_IRQ_PIOD    AT91SAM9X25_IRQ_PIOCD
 #define AT91SAM9X25_IRQ_NAND 	(-1)
 
 #define AT91SAM9X25_AIC_BASE	0xffff000
