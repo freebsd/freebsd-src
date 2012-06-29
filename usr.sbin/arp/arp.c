@@ -387,10 +387,6 @@ set(int argc, char **argv)
 	}
 	addr = (struct sockaddr_inarp *)(rtm + 1);
 	sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
-	if (addr->sin_addr.s_addr == dst->sin_addr.s_addr) {
-		printf("set: proxy entry exists for non 802 device\n");
-		return (1);
-	}
 
 	if ((sdl->sdl_family != AF_LINK) ||
 	    (rtm->rtm_flags & RTF_GATEWAY) ||
