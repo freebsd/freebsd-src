@@ -1672,7 +1672,7 @@ struct pf_idhash {
 	struct mtx			lock;
 };
 
-#define	PF_HASHSIZ	(262144)	/* now 2^18 XXXGL: grow? */
+#define	PF_HASHSIZ	(32768)
 VNET_DECLARE(struct pf_keyhash *, pf_keyhash);
 VNET_DECLARE(struct pf_idhash *, pf_idhash);
 VNET_DECLARE(u_long, pf_hashmask);

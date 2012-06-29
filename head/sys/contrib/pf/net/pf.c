@@ -375,12 +375,23 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 	} while (0)
 
 static MALLOC_DEFINE(M_PFHASH, "pf_hash", "pf(4) hash header structures");
-/* XXXGL: make static? */
 VNET_DEFINE(struct pf_keyhash *, pf_keyhash);
 VNET_DEFINE(struct pf_idhash *, pf_idhash);
 VNET_DEFINE(u_long, pf_hashmask);
 VNET_DEFINE(struct pf_srchash *, pf_srchash);
 VNET_DEFINE(u_long, pf_srchashmask);
+
+SYSCTL_NODE(_net, OID_AUTO, pf, CTLFLAG_RW, 0, "pf(4)");
+
+VNET_DEFINE(u_long, pf_hashsize);
+#define	V_pf_hashsize	VNET(pf_hashsize)
+SYSCTL_VNET_UINT(_net_pf, OID_AUTO, states_hashsize, CTLFLAG_RDTUN,
+    &VNET_NAME(pf_hashsize), 0, "Size of pf(4) states hashtable");
+
+VNET_DEFINE(u_long, pf_srchashsize);
+#define	V_pf_srchashsize	VNET(pf_srchashsize)
+SYSCTL_VNET_UINT(_net_pf, OID_AUTO, source_nodes_hashsize, CTLFLAG_RDTUN,
+    &VNET_NAME(pf_srchashsize), 0, "Size of pf(4) source nodes hashtable");
 
 VNET_DEFINE(void *, pf_swi_cookie);
 
@@ -715,6 +726,13 @@ pf_initialize()
 	struct pf_srchash	*sh;
 	u_int i;
 
+	TUNABLE_ULONG_FETCH("net.pf.states_hashsize", &V_pf_hashsize);
+	if (V_pf_hashsize == 0 || !powerof2(V_pf_hashsize))
+		V_pf_hashsize = PF_HASHSIZ;
+	TUNABLE_ULONG_FETCH("net.pf.source_nodes_hashsize", &V_pf_srchashsize);
+	if (V_pf_srchashsize == 0 || !powerof2(V_pf_srchashsize))
+		V_pf_srchashsize = PF_HASHSIZ / 4;
+
 	/* States and state keys storage. */
 	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -724,11 +742,11 @@ pf_initialize()
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), NULL, NULL, pf_state_key_ini, NULL,
 	    UMA_ALIGN_PTR, 0);
-	V_pf_keyhash = malloc(PF_HASHSIZ * sizeof(struct pf_keyhash), M_PFHASH,
-	    M_WAITOK|M_ZERO);
-	V_pf_idhash = malloc(PF_HASHSIZ * sizeof(struct pf_idhash), M_PFHASH,
-	    M_WAITOK|M_ZERO);
-	V_pf_hashmask = PF_HASHSIZ - 1;
+	V_pf_keyhash = malloc(V_pf_hashsize * sizeof(struct pf_keyhash),
+	    M_PFHASH, M_WAITOK | M_ZERO);
+	V_pf_idhash = malloc(V_pf_hashsize * sizeof(struct pf_idhash),
+	    M_PFHASH, M_WAITOK | M_ZERO);
+	V_pf_hashmask = V_pf_hashsize - 1;
 	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= V_pf_hashmask;
 	    i++, kh++, ih++) {
 		mtx_init(&kh->lock, "pf_keyhash", NULL, MTX_DEF);
@@ -741,9 +759,9 @@ pf_initialize()
 	    0);
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
-	V_pf_srchash = malloc((PF_HASHSIZ / 4) * sizeof(struct pf_srchash),
+	V_pf_srchash = malloc(V_pf_srchashsize * sizeof(struct pf_srchash),
 	  M_PFHASH, M_WAITOK|M_ZERO);
-	V_pf_srchashmask = (PF_HASHSIZ / 4) - 1;
+	V_pf_srchashmask = V_pf_srchashsize - 1;
 	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++)
 		mtx_init(&sh->lock, "pf_srchash", NULL, MTX_DEF);
 
