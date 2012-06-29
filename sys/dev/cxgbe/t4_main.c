@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -823,7 +824,7 @@ cxgbe_probe(device_t dev)
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
     IFCAP_VLAN_HWTSO | IFCAP_HWCSUM_IPV6)
-#define T4_CAP_ENABLE (T4_CAP & ~IFCAP_TSO6)
+#define T4_CAP_ENABLE (T4_CAP)
 
 static int
 cxgbe_attach(device_t dev)
@@ -1075,7 +1076,7 @@ fail:
 			ifp->if_capenable ^= IFCAP_TSO6;
 		}
 		if (mask & IFCAP_LRO) {
-#ifdef INET
+#if defined(INET) || defined(INET6)
 			int i;
 			struct sge_rxq *rxq;
 
