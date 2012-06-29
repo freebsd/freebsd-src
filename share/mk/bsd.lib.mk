@@ -85,7 +85,7 @@ PO_FLAG=-pg
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
-.cc.o:
+.cc.o .C.o .cpp.o .cxx.o:
 	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
