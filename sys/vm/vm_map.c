@@ -475,12 +475,14 @@ static void
 vm_map_process_deferred(void)
 {
 	struct thread *td;
-	vm_map_entry_t entry;
+	vm_map_entry_t entry, next;
 	vm_object_t object;
 
 	td = curthread;
-	while ((entry = td->td_map_def_user) != NULL) {
-		td->td_map_def_user = entry->next;
+	entry = td->td_map_def_user;
+	td->td_map_def_user = NULL;
+	while (entry != NULL) {
+		next = entry->next;
 		if ((entry->eflags & MAP_ENTRY_VN_WRITECNT) != 0) {
 			/*
 			 * Decrement the object's writemappings and
@@ -494,6 +496,7 @@ vm_map_process_deferred(void)
 			    entry->end);
 		}
 		vm_map_entry_deallocate(entry, FALSE);
+		entry = next;
 	}
 }
 
