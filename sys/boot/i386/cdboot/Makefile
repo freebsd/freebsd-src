@@ -4,7 +4,9 @@ PROG=	cdboot
 STRIP=
 BINMODE=${NOBINMODE}
 NO_MAN=
-SRCS=	${PROG}.s
+SRCS=	${PROG}.S
+
+CFLAGS+=-I${.CURDIR}/../common
 
 ORG=	0x7c00
 
