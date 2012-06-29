@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2003, 2004 Silicon Graphics International Corp.
  * Copyright (c) 1997-2007 Kenneth D. Merry
+ * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <camlib.h>
+#include <libutil.h>
 #include "ctladm.h"
 
 #ifdef min
@@ -110,7 +115,8 @@ typedef enum {
 	CTLADM_CMD_PRES_IN,
 	CTLADM_CMD_PRES_OUT,
 	CTLADM_CMD_INQ_VPD_DEVID,
-	CTLADM_CMD_RTPG
+	CTLADM_CMD_RTPG,
+	CTLADM_CMD_MODIFY
 } ctladm_cmdfunction;
 
 typedef enum {
@@ -175,6 +181,7 @@ struct ctladm_opts option_table[] = {
 	{"inquiry", CTLADM_CMD_INQUIRY, CTLADM_ARG_NEED_TL, NULL},
 	{"lunlist", CTLADM_CMD_LUNLIST, CTLADM_ARG_NONE, NULL},
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
+	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:s:"},
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:p:qt:w:W:x"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
 	{"prout", CTLADM_CMD_PRES_OUT, CTLADM_ARG_NEED_TL, "a:k:r:s:"},
@@ -249,6 +256,7 @@ static int cctl_create_lun(int fd, int argc, char **argv, char *combinedopt);
 static int cctl_inquiry_vpd_devid(int fd, int target, int lun, int initiator);
 static int cctl_report_target_port_group(int fd, int target, int lun,
 					 int initiator);
+static int cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt);
 
 ctladm_optret
 getoption(struct ctladm_opts *table, char *arg, uint32_t *cmdnum,
@@ -3043,7 +3051,15 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 			break;
 		}
 		case 's':
-			lun_size = strtoull(optarg, NULL, 0);
+			if (strcasecmp(optarg, "auto") != 0) {
+				retval = expand_number(optarg, &lun_size);
+				if (retval != 0) {
+					warn("%s: invalid -s argument",
+					    __func__);
+					retval = 1;
+					goto bailout;
+				}
+			}
 			lun_size_set = 1;
 			break;
 		case 'S':
@@ -3287,12 +3303,12 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 	}
 
 	if (req.status == CTL_LUN_ERROR) {
-		warnx("%s: error returned from LUN creation request:\n%s",
+		warnx("%s: error returned from LUN removal request:\n%s",
 		      __func__, req.error_str);
 		retval = 1;
 		goto bailout;
 	} else if (req.status != CTL_LUN_OK) {
-		warnx("%s: unknown LUN creation request status %d",
+		warnx("%s: unknown LUN removal request status %d",
 		      __func__, req.status);
 		retval = 1;
 		goto bailout;
@@ -3303,6 +3319,84 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 bailout:
 	return (retval);
 }
+
+static int
+cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_lun_req req;
+	uint64_t lun_size = 0;
+	uint32_t lun_id = 0;
+	int lun_id_set = 0, lun_size_set = 0;
+	char *backend_name = NULL;
+	int retval = 0, c;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'b':
+			backend_name = strdup(optarg);
+			break;
+		case 'l':
+			lun_id = strtoul(optarg, NULL, 0);
+			lun_id_set = 1;
+			break;
+		case 's':
+			if (strcasecmp(optarg, "auto") != 0) {
+				retval = expand_number(optarg, &lun_size);
+				if (retval != 0) {
+					warn("%s: invalid -s argument",
+					    __func__);
+					retval = 1;
+					goto bailout;
+				}
+			}
+			lun_size_set = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (backend_name == NULL)
+		errx(1, "%s: backend name (-b) must be specified", __func__);
+
+	if (lun_id_set == 0)
+		errx(1, "%s: LUN id (-l) must be specified", __func__);
+
+	if (lun_size_set == 0)
+		errx(1, "%s: size (-s) must be specified", __func__);
+
+	bzero(&req, sizeof(req));
+
+	strlcpy(req.backend, backend_name, sizeof(req.backend));
+	req.reqtype = CTL_LUNREQ_MODIFY;
+
+	req.reqdata.modify.lun_id = lun_id;
+	req.reqdata.modify.lun_size_bytes = lun_size;
+
+	if (ioctl(fd, CTL_LUN_REQ, &req) == -1) {
+		warn("%s: error issuing CTL_LUN_REQ ioctl", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (req.status == CTL_LUN_ERROR) {
+		warnx("%s: error returned from LUN modification request:\n%s",
+		      __func__, req.error_str);
+		retval = 1;
+		goto bailout;
+	} else if (req.status != CTL_LUN_OK) {
+		warnx("%s: unknown LUN modification request status %d",
+		      __func__, req.status);
+		retval = 1;
+		goto bailout;
+	}
+
+	printf("LUN %d modified successfully\n", lun_id);
+
+bailout:
+	return (retval);
+}
+
 
 /*
  * Name/value pair used for per-LUN attributes.
@@ -3599,6 +3693,7 @@ usage(int error)
 "                            [-l lun_id] [-o name=value] [-s size_bytes]\n"
 "                            [-S serial_num] [-t dev_type]\n"
 "         ctladm remove      <-b backend> <-l lun_id> [-o name=value]\n"
+"         ctladm modify      <-b backend> <-l lun_id> <-s size_bytes>\n"
 "         ctladm devlist     [-b][-v][-x]\n"
 "         ctladm shutdown\n"
 "         ctladm startup\n"
@@ -3982,6 +4077,9 @@ main(int argc, char **argv)
 		break;
 	case CTLADM_CMD_RTPG:
 	        retval = cctl_report_target_port_group(fd, target, lun, initid);
+		break;
+	case CTLADM_CMD_MODIFY:
+	        retval = cctl_modify_lun(fd, argc, argv, combinedopt);
 		break;
 	case CTLADM_CMD_HELP:
 	default:

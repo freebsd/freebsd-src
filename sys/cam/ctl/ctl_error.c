@@ -454,6 +454,11 @@ ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
 		asc = 0x2A;
 		ascq = 0x06;
 		break;
+	case CTL_UA_CAPACITY_CHANGED:
+	        /* 2Ah/09n  CAPACITY DATA HAS CHANGED */
+		asc = 0x2A;
+		ascq = 0x09;
+		break;
 	default:
 		ua_to_build = CTL_UA_NONE;
 		return (ua_to_build);
