@@ -15,6 +15,8 @@
 
 # $FreeBSD$
 
+#include <bootargs.h>
+
 #
 # BTX C startup code (ELF).
 #
@@ -23,10 +25,6 @@
 # Globals.
 #
 		.global _start
-#
-# Constants.
-#
-		.set ARGADJ,0xfa0		# Argument adjustment
 #
 # Client entry point.
 #
