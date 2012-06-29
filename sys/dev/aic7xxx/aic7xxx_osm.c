@@ -568,8 +568,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	}
-	case XPT_NOTIFY_ACK:
-	case XPT_IMMED_NOTIFY:
+	case XPT_NOTIFY_ACKNOWLEDGE:
+	case XPT_IMMEDIATE_NOTIFY:
 	{
 		struct	   ahc_tmode_tstate *tstate;
 		struct	   ahc_tmode_lstate *lstate;
@@ -1248,7 +1248,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 	abort_ccb = ccb->cab.abort_ccb;
 	switch (abort_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
-	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_CONT_TARGET_IO:
 	{
 		struct ahc_tmode_tstate *tstate;
@@ -1266,7 +1266,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 
 		if (abort_ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
 			list = &lstate->accept_tios;
-		else if (abort_ccb->ccb_h.func_code == XPT_IMMED_NOTIFY)
+		else if (abort_ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY)
 			list = &lstate->immed_notifies;
 		else
 			list = NULL;

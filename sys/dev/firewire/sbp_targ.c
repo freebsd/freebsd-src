@@ -488,7 +488,7 @@ sbp_targ_send_lstate_events(struct sbp_targ_softc *sc,
 {
 #if 0
 	struct ccb_hdr *ccbh;
-	struct ccb_immed_notify *inot;
+	struct ccb_immediate_notify *inot;
 
 	printf("%s: not implemented yet\n", __func__);
 #endif
@@ -822,7 +822,7 @@ sbp_targ_abort_ccb(struct sbp_targ_softc *sc, union ccb *ccb)
 
 	if (accb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
 		list = &lstate->accept_tios;
-	else if (accb->ccb_h.func_code == XPT_IMMED_NOTIFY)
+	else if (accb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY)
 		list = &lstate->immed_notifies;
 	else
 		return (CAM_UA_ABORT);
@@ -1100,8 +1100,8 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 				}
 		}
 		break;
-	case XPT_NOTIFY_ACK:		/* recycle notify ack */
-	case XPT_IMMED_NOTIFY:		/* Add Immediate Notify Resource */
+	case XPT_NOTIFY_ACKNOWLEDGE:	/* recycle notify ack */
+	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 		if (status != CAM_REQ_CMP) {
 			ccb->ccb_h.status = status;
 			xpt_done(ccb);
@@ -1147,7 +1147,7 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 
 		switch (accb->ccb_h.func_code) {
 		case XPT_ACCEPT_TARGET_IO:
-		case XPT_IMMED_NOTIFY:
+		case XPT_IMMEDIATE_NOTIFY:
 			ccb->ccb_h.status = sbp_targ_abort_ccb(sc, ccb);
 			break;
 		case XPT_CONT_TARGET_IO:
