@@ -21,14 +21,14 @@
 cpu		AIM
 ident		GENERIC
 
-machine		powerpc	powerpc
+machine 	powerpc powerpc
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
-options		MAMBO			#IBM Mambo Full System Simulator
+options 	MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -82,7 +82,7 @@ options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
-# To make an SMP kernel, the next line is needed
+# Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 # CPU frequency control
