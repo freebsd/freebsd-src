@@ -19,14 +19,12 @@
 # BTX C startup code (ELF).
 #
 
+#include <bootargs.h>
+
 #
 # Globals.
 #
 		.global _start
-#
-# Constants.
-#
-		.set ARGADJ,0xfa0		# Argument adjustment
 #
 # Client entry point.
 #
