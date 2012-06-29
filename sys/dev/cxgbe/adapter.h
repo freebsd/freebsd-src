@@ -392,7 +392,7 @@ struct sge_txq {
 	/* stats for common events first */
 
 	uint64_t txcsum;	/* # of times hardware assisted with checksum */
-	uint64_t tso_wrs;	/* # of IPv4 TSO work requests */
+	uint64_t tso_wrs;	/* # of TSO work requests */
 	uint64_t vlan_insertion;/* # of times VLAN tag was inserted */
 	uint64_t imm_wrs;	/* # of work requests with immediate data */
 	uint64_t sgl_wrs;	/* # of work requests with direct SGL */
@@ -412,7 +412,7 @@ struct sge_rxq {
 	struct sge_fl fl;	/* MUST follow iq */
 
 	struct ifnet *ifp;	/* the interface this rxq belongs to */
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	struct lro_ctrl lro;	/* LRO state */
 #endif
 
