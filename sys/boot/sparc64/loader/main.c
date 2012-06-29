@@ -155,6 +155,7 @@ static int is_sun4v = 0;
 static vm_offset_t curkva = 0;
 static vm_offset_t heapva;
 
+static char bootpath[64];
 static phandle_t root;
 
 /*
@@ -847,7 +848,7 @@ sparc64_zfs_probe(void)
 
 	/* Get the GUID of the ZFS pool on the boot device. */
 	guid = 0;
-	zfs_probe_dev(getenv("currdev"), &guid);
+	zfs_probe_dev(bootpath, &guid);
 
 	for (unit = 0; unit < MAXDEV; unit++) {
 		/* Find freebsd-zfs slices in the VTOC. */
@@ -864,7 +865,7 @@ sparc64_zfs_probe(void)
 
 		for (part = 0; part < 8; part++) {
 			if (part == 2 || vtoc.part[part].tag !=
-			     VTOC_TAG_FREEBSD_ZFS)
+			    VTOC_TAG_FREEBSD_ZFS)
 				continue;
 			sprintf(devname, "disk%d:%c", unit, part + 'a');
 			if (zfs_probe_dev(devname, NULL) == ENXIO)
@@ -877,11 +878,9 @@ sparc64_zfs_probe(void)
 		zfs_currdev.root_guid = 0;
 		zfs_currdev.d_dev = &zfs_dev;
 		zfs_currdev.d_type = zfs_currdev.d_dev->dv_type;
-		/* Update the environment for ZFS. */
-		env_setenv("currdev", EV_VOLATILE, zfs_fmtdev(&zfs_currdev),
-		    ofw_setcurrdev, env_nounset);
-		env_setenv("loaddev", EV_VOLATILE, zfs_fmtdev(&zfs_currdev),
-		    env_noset, env_nounset);
+		(void)strncpy(bootpath, zfs_fmtdev(&zfs_currdev),
+		    sizeof(bootpath) - 1);
+		bootpath[sizeof(bootpath) - 1] = '\0';
 	}
 }
 #endif /* LOADER_ZFS_SUPPORT */
@@ -889,7 +888,6 @@ sparc64_zfs_probe(void)
 int
 main(int (*openfirm)(void *))
 {
-	char bootpath[64];
 	char compatible[32];
 	struct devsw **dp;
 
@@ -949,15 +947,10 @@ main(int (*openfirm)(void *))
 	 */
 	if (bootpath[strlen(bootpath) - 2] == ':' &&
 	    bootpath[strlen(bootpath) - 1] == 'f' &&
-	    strstr(bootpath, "cdrom")) {
+	    strstr(bootpath, "cdrom") != NULL) {
 		bootpath[strlen(bootpath) - 1] = 'a';
 		printf("Boot path set to %s\n", bootpath);
 	}
-
-	env_setenv("currdev", EV_VOLATILE, bootpath,
-	    ofw_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, bootpath,
-	    env_noset, env_nounset);
 
 	/*
 	 * Initialize devices.
@@ -965,6 +958,15 @@ main(int (*openfirm)(void *))
 	for (dp = devsw; *dp != 0; dp++)
 		if ((*dp)->dv_init != 0)
 			(*dp)->dv_init();
+
+	/*
+	 * Now that sparc64_zfs_probe() might have altered bootpath,
+	 * export it.
+	 */
+	env_setenv("currdev", EV_VOLATILE, bootpath,
+	    ofw_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, bootpath,
+	    env_noset, env_nounset);
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
