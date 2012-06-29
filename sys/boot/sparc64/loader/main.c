@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #ifdef LOADER_ZFS_SUPPORT
 #include <sys/vtoc.h>
+#include "../zfs/libzfs.h"
 #endif
 
 #include <vm/vm.h>
@@ -73,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libofw.h"
 #include "dev_net.h"
+
+#define	MAXDEV	31
 
 extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
@@ -139,11 +142,6 @@ static vm_offset_t curkva = 0;
 static vm_offset_t heapva;
 
 static phandle_t root;
-
-#ifdef LOADER_ZFS_SUPPORT
-static int zfs_dev_init(void);
-#include "zfs.c"
-#endif
 
 /*
  * Machine dependent structures that the machine independent
@@ -731,39 +729,20 @@ tlb_init_sun4u(void)
 }
 
 #ifdef LOADER_ZFS_SUPPORT
-
-static int
-zfs_dev_init(void)
+static void
+sparc64_zfs_probe(void)
 {
 	struct vtoc8 vtoc;
-	char devname[512];
-	spa_t *spa;
-	vdev_t *vdev;
+	struct zfs_devdesc zfs_currdev;
+	char devname[32];
 	uint64_t guid;
 	int fd, part, unit;
 
-	zfs_init();
-
-	guid = 0;
 	/* Get the GUID of the ZFS pool on the boot device. */
-	fd = open(getenv("currdev"), O_RDONLY);
-	if (fd != -1) {
-		if (vdev_probe(vdev_read, (void *)(uintptr_t) fd, &spa) == 0)
-			guid = spa->spa_guid;
-		close(fd);
-	}
+	guid = 0;
+	zfs_probe_dev(getenv("currdev"), &guid);
 
-	/* Clean up the environment to let ZFS work. */
-	while ((vdev = STAILQ_FIRST(&zfs_vdevs)) != NULL) {
-		STAILQ_REMOVE_HEAD(&zfs_vdevs, v_alllink);
-		free(vdev);
-	}
-	while ((spa = STAILQ_FIRST(&zfs_pools)) != NULL) {
-		STAILQ_REMOVE_HEAD(&zfs_pools, spa_link);
-		free(spa);
-	}
-
-	for (unit = 0; unit < MAXBDDEV; unit++) {
+	for (unit = 0; unit < MAXDEV; unit++) {
 		/* Find freebsd-zfs slices in the VTOC. */
 		sprintf(devname, "disk%d:", unit);
 		fd = open(devname, O_RDONLY);
@@ -781,29 +760,23 @@ zfs_dev_init(void)
 			     VTOC_TAG_FREEBSD_ZFS)
 				continue;
 			sprintf(devname, "disk%d:%c", unit, part + 'a');
-			fd = open(devname, O_RDONLY);
-			if (fd == -1)
+			if (zfs_probe_dev(devname, NULL) == ENXIO)
 				break;
-
-			if (vdev_probe(vdev_read, (void*)(uintptr_t) fd, 0))
-				close(fd);
 		}
 	}
 
 	if (guid != 0) {
-		unit = zfs_guid_to_unit(guid);
-		if (unit >= 0) {
-			/* Update the environment for ZFS. */
-			sprintf(devname, "zfs%d", unit);
-			env_setenv("currdev", EV_VOLATILE, devname,
-			   ofw_setcurrdev, env_nounset);
-			env_setenv("loaddev", EV_VOLATILE, devname,
-			   env_noset, env_nounset);
-		}
+		zfs_currdev.pool_guid = guid;
+		zfs_currdev.root_guid = 0;
+		zfs_currdev.d_dev = &zfs_dev;
+		zfs_currdev.d_type = zfs_currdev.d_dev->dv_type;
+		/* Update the environment for ZFS. */
+		env_setenv("currdev", EV_VOLATILE, zfs_fmtdev(&zfs_currdev),
+		    ofw_setcurrdev, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, zfs_fmtdev(&zfs_currdev),
+		    env_noset, env_nounset);
 	}
-	return (0);
 }
-
 #endif /* LOADER_ZFS_SUPPORT */
 
 int
@@ -823,6 +796,9 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = sparc64_readin;
 	archsw.arch_autoload = sparc64_autoload;
+#ifdef LOADER_ZFS_SUPPORT
+	archsw.arch_zfs_probe = sparc64_zfs_probe;
+#endif
 
 	if (init_heap() == (vm_offset_t)-1)
 		OF_exit();

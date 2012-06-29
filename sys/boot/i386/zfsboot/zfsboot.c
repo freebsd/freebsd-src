@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include "cons.h"
 #include "bootargs.h"
 
+#include "libzfs.h"
+
 #define PATH_DOTCONFIG	"/boot.config"
 #define PATH_CONFIG	"/boot/config"
 #define PATH_BOOT3	"/boot/zfsloader"
@@ -91,9 +93,12 @@ static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 static char cmd[512];
 static char cmddup[512];
 static char kname[1024];
+static char rootname[256];
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint32_t bootdev;
+static struct zfs_boot_args zfsargs;
+static struct zfsmount zfsmount;
 
 vm_offset_t	high_heap_base;
 uint32_t	bios_basemem, bios_extmem, high_heap_size;
@@ -170,7 +175,7 @@ zfs_read(spa_t *spa, const dnode_phys_t *dnode, off_t *offp, void *start, size_t
 /*
  * Current ZFS pool
  */
-spa_t *spa;
+static spa_t *spa;
 
 /*
  * A wrapper for dskread that doesn't have to worry about whether the
@@ -209,7 +214,7 @@ static int
 xfsread(const dnode_phys_t *dnode, off_t *offp, void *buf, size_t nbyte)
 {
     if ((size_t)zfs_read(spa, dnode, offp, buf, nbyte) != nbyte) {
-	printf("Invalid %s\n", "format");
+	printf("Invalid format\n");
 	return -1;
     }
     return 0;
@@ -529,10 +534,12 @@ main(void)
 	}
     }
 
-    zfs_mount_pool(spa);
-
-    if (zfs_lookup(spa, PATH_CONFIG, &dn) == 0 ||
-        zfs_lookup(spa, PATH_DOTCONFIG, &dn) == 0) {
+    if (zfs_spa_init(spa) != 0 || zfs_mount(spa, 0, &zfsmount) != 0) {
+	printf("%s: failed to mount default pool %s\n",
+	    BOOTPROG, spa->spa_name);
+	autoboot = 0;
+    } else if (zfs_lookup(&zfsmount, PATH_CONFIG, &dn) == 0 ||
+        zfs_lookup(&zfsmount, PATH_DOTCONFIG, &dn) == 0) {
 	off = 0;
 	zfs_read(spa, &dn, &off, cmd, sizeof(cmd));
     }
@@ -567,11 +574,17 @@ main(void)
     /* Present the user with the boot2 prompt. */
 
     for (;;) {
-	if (!autoboot || !OPT_CHECK(RBX_QUIET))
-	    printf("\nFreeBSD/x86 boot\n"
-		   "Default: %s:%s\n"
-		   "boot: ",
-		   spa->spa_name, kname);
+	if (!autoboot || !OPT_CHECK(RBX_QUIET)) {
+	    printf("\nFreeBSD/x86 boot\n");
+	    if (zfs_rlookup(spa, zfsmount.rootobj, rootname) != 0)
+		printf("Default: %s:<0x%llx>:%s\n"
+		       "boot: ",
+		       spa->spa_name, zfsmount.rootobj, kname);
+	    else
+		printf("Default: %s:%s:%s\n"
+		       "boot: ",
+		       spa->spa_name, rootname, kname);
+	}
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
 	if (!autoboot || keyhit(5))
@@ -607,7 +620,8 @@ load(void)
     uint32_t addr, x;
     int fmt, i, j;
 
-    if (zfs_lookup(spa, kname, &dn)) {
+    if (zfs_lookup(&zfsmount, kname, &dn)) {
+	printf("\nCan't find %s\n", kname);
 	return;
     }
     off = 0;
@@ -681,12 +695,16 @@ load(void)
     }
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
+    zfsargs.size = sizeof(zfsargs);
+    zfsargs.pool = zfsmount.spa->spa_guid;
+    zfsargs.root = zfsmount.rootobj;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   bootdev,
-	   KARGS_FLAGS_ZFS,
+	   KARGS_FLAGS_ZFS | KARGS_FLAGS_EXTARG,
 	   (uint32_t) spa->spa_guid,
 	   (uint32_t) (spa->spa_guid >> 32),
-	   VTOP(&bootinfo));
+	   VTOP(&bootinfo),
+	   zfsargs);
 }
 
 static int
@@ -738,7 +756,7 @@ parse(void)
 	} if (c == '?') {
 	    dnode_phys_t dn;
 
-	    if (zfs_lookup(spa, arg, &dn) == 0) {
+	    if (zfs_lookup(&zfsmount, arg, &dn) == 0) {
 		zap_list(spa, &dn);
 	    }
 	    return -1;
@@ -760,17 +778,32 @@ parse(void)
 	    q = (char *) strchr(arg, ':');
 	    if (q) {
 		spa_t *newspa;
+		uint64_t newroot;
 
 		*q++ = 0;
 		newspa = spa_find_by_name(arg);
 		if (newspa) {
+		    arg = q;
 		    spa = newspa;
-		    zfs_mount_pool(spa);
+		    newroot = 0;
+		    q = (char *) strchr(arg, ':');
+		    if (q) {
+			*q++ = 0;
+			if (zfs_lookup_dataset(spa, arg, &newroot)) {
+			    printf("\nCan't find dataset %s in ZFS pool %s\n",
+			        arg, spa->spa_name);
+			    return -1;
+			}
+			arg = q;
+		    }
+		    if (zfs_mount(spa, newroot, &zfsmount)) {
+			printf("\nCan't mount ZFS dataset\n");
+			return -1;
+		    }
 		} else {
 		    printf("\nCan't find ZFS pool %s\n", arg);
 		    return -1;
 		}
-		arg = q;
 	    }
 	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(kname))
