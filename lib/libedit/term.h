@@ -84,7 +84,7 @@ typedef struct {
 protected void	term_move_to_line(EditLine *, int);
 protected void	term_move_to_char(EditLine *, int);
 protected void	term_clear_EOL(EditLine *, int);
-protected void	term_overwrite(EditLine *, const char *, int);
+protected void	term_overwrite(EditLine *, const char *, size_t);
 protected void	term_insertwrite(EditLine *, char *, int);
 protected void	term_deletechars(EditLine *, int);
 protected void	term_clear_screen(EditLine *);
@@ -104,8 +104,8 @@ protected int	term_gettc(EditLine *, int, char **);
 protected int	term_telltc(EditLine *, int, const char **);
 protected int	term_echotc(EditLine *, int, const char **);
 protected void	term_writec(EditLine *, int);
-protected int	term__putc(int);
-protected void	term__flush(void);
+protected int	term__putc(EditLine *, int);
+protected void	term__flush(EditLine *);
 
 /*
  * Easy access macros

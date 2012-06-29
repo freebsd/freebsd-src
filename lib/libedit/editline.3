@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.55 2007/01/12 16:31:13 christos Exp $
+.\"	$NetBSD: editline.3,v 1.70 2009/07/05 21:55:24 perry Exp $
 .\"
 .\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2007
+.Dd July 5, 2009
 .Dt EDITLINE 3
 .Os
 .Sh NAME
@@ -165,6 +165,14 @@ is modified to contain the number of characters read.
 Returns the line read if successful, or
 .Dv NULL
 if no characters were read or if an error occurred.
+If an error occurred,
+.Fa count
+is set to \-1 and
+.Dv errno
+contains the error code that caused it.
+The return value may not remain valid across calls to
+.Fn el_gets
+and must be copied if the data is to be retained.
 .It Fn el_getc
 Read a character from the tty.
 .Fa ch
@@ -225,10 +233,30 @@ are supported, along with the required argument list:
 Define prompt printing function as
 .Fa f ,
 which is to return a string that contains the prompt.
+.It Dv EL_PROMPT_ESC , Fa "char *(*f)(EditLine *)" , Fa "char c"
+Same as
+.Dv EL_PROMPT ,
+but the
+.Fa c
+argument indicates the start/stop literal prompt character.
+.Pp
+If a start/stop literal character is found in the prompt, the
+character itself
+is not printed, but characters after it are printed directly to the
+terminal without affecting the state of the current line.
+A subsequent second start/stop literal character ends this behavior.
+This is typically used to embed literal escape sequences that change the
+color/style of the terminal in the prompt.
+.Dv 0
+unsets it.
+.It Dv EL_REFRESH
+Re-display the current line on the next terminal line.
 .It Dv EL_RPROMPT , Fa "char *(*f)(EditLine *)"
 Define right side prompt printing function as
 .Fa f ,
 which is to return a string that contains the prompt.
+.It Dv EL_RPROMPT_ESC , Fa "char *(*f)(EditLine *)" , Fa "char c"
+Define the right prompt printing function but with a literal escape character.
 .It Dv EL_TERMINAL , Fa "const char *type"
 Define terminal type of the tty to be
 .Fa type ,
@@ -262,66 +290,43 @@ reading command input:
 and
 .Dv SIGWINCH .
 Otherwise, the current signal handlers will be used.
-.It Dv EL_BIND , Xo
-.Fa "const char *" ,
-.Fa "..." ,
-.Dv NULL
-.Xc
+.It Dv EL_BIND , Fa "const char *" , Fa "..." , Dv NULL
 Perform the
 .Ic bind
 builtin command.
 Refer to
 .Xr editrc 5
 for more information.
-.It Dv EL_ECHOTC , Xo
-.Fa "const char *" ,
-.Fa "..." ,
-.Dv NULL
-.Xc
+.It Dv EL_ECHOTC , Fa "const char *" , Fa "..." , Dv NULL
 Perform the
 .Ic echotc
 builtin command.
 Refer to
 .Xr editrc 5
 for more information.
-.It Dv EL_SETTC , Xo
-.Fa "const char *" ,
-.Fa "..." ,
-.Dv NULL
-.Xc
+.It Dv EL_SETTC , Fa "const char *" , Fa "..." , Dv NULL
 Perform the
 .Ic settc
 builtin command.
 Refer to
 .Xr editrc 5
 for more information.
-.It Dv EL_SETTY , Xo
-.Fa "const char *" ,
-.Fa "..." ,
-.Dv NULL
-.Xc
+.It Dv EL_SETTY , Fa "const char *" , Fa "..." , Dv NULL
 Perform the
 .Ic setty
 builtin command.
 Refer to
 .Xr editrc 5
 for more information.
-.It Dv EL_TELLTC , Xo
-.Fa "const char *" ,
-.Fa "..." ,
-.Dv NULL
-.Xc
+.It Dv EL_TELLTC , Fa "const char *" , Fa "..." , Dv NULL
 Perform the
 .Ic telltc
 builtin command.
 Refer to
 .Xr editrc 5
 for more information.
-.It Dv EL_ADDFN , Xo
-.Fa "const char *name" ,
-.Fa "const char *help" ,
-.Fa "unsigned char (*func)(EditLine *e, int ch)"
-.Xc
+.It Dv EL_ADDFN , Fa "const char *name" , Fa "const char *help" , \
+Fa "unsigned char (*func)(EditLine *e, int ch)"
 Add a user defined function,
 .Fn func ,
 referred to as
@@ -363,10 +368,8 @@ Beep, and flush tty.
 .It Dv CC_FATAL
 Fatal error, reset tty to known state.
 .El
-.It Dv EL_HIST , Xo
-.Fa "History *(*func)(History *, int op, ...)" ,
-.Fa "const char *ptr"
-.Xc
+.It Dv EL_HIST , Fa "History *(*func)(History *, int op, ...)" , \
+Fa "const char *ptr"
 Defines which history function to use, which is usually
 .Fn history .
 .Fa ptr
@@ -438,10 +441,22 @@ The following values for
 are supported, along with actual type of
 .Fa result :
 .Bl -tag -width 4n
-.It Dv EL_PROMPT , Fa "char *(*f)(EditLine *)"
-Return a pointer to the function that displays the prompt.
-.It Dv EL_RPROMPT , Fa "char *(*f)(EditLine *)"
-Return a pointer to the function that displays the rightside prompt.
+.It Dv EL_PROMPT , Fa "char *(*f)(EditLine *)" , Fa "char *c"
+Return a pointer to the function that displays the prompt in
+.Fa f .
+If
+.Fa c
+is not
+.Dv NULL ,
+return the start/stop literal prompt character in it.
+.It Dv EL_RPROMPT , Fa "char *(*f)(EditLine *)" , Fa "char *c"
+Return a pointer to the function that displays the prompt in
+.Fa f .
+If
+.Fa c
+is not
+.Dv NULL ,
+return the start/stop literal prompt character in it.
 .It Dv EL_EDITOR , Fa "const char *"
 Return the name of the editor, which will be one of
 .Dq emacs
@@ -606,18 +621,11 @@ assumed to be created with
 .Fn history_init .
 .It Dv H_CLEAR
 Clear the history.
-.It Dv H_FUNC , Xo
-.Fa "void *ptr" ,
-.Fa "history_gfun_t first" ,
-.Fa "history_gfun_t next" ,
-.Fa "history_gfun_t last" ,
-.Fa "history_gfun_t prev" ,
-.Fa "history_gfun_t curr" ,
-.Fa "history_sfun_t set" ,
-.Fa "history_vfun_t clear" ,
-.Fa "history_efun_t enter" ,
-.Fa "history_efun_t add"
-.Xc
+.It Dv H_FUNC , Fa "void *ptr" , Fa "history_gfun_t first" , \
+Fa "history_gfun_t next" , Fa "history_gfun_t last" , \
+Fa "history_gfun_t prev" , Fa "history_gfun_t curr" , \
+Fa "history_sfun_t set" , Fa "history_vfun_t clear" , \
+Fa "history_efun_t enter" , Fa "history_efun_t add"
 Define functions to perform various history operations.
 .Fa ptr
 is the argument given to a function when it is invoked.
