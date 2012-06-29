@@ -10,6 +10,8 @@
  * All rights reserved.
  * Copyright (c) 2012 Spectra Logic Corporation
  * All rights reserved.
+ * Copyright (c) 2012 Citrix Systems
+ * All rights reserved.
  * 
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
@@ -120,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cpuset.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
@@ -136,6 +139,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
+#include <vm/uma.h>
 
 #include <machine/md_var.h>
 
@@ -179,6 +183,7 @@ static vm_paddr_t	boot_ptendphys;	/* phys addr of end of kernel
 					 * bootstrap page tables
 					 */
 
+static uma_zone_t xen_pagezone;
 static size_t tsz; /* mmu_map.h opaque cookie size */
 static vm_offset_t (*ptmb_mappedalloc)(size_t) = NULL;
 static void (*ptmb_mappedfree)(size_t) = NULL;
@@ -1160,3 +1165,51 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 		KASSERT(0, ("XXX: TODO\n"));
 		return -1;
 }
+
+static vm_offset_t
+xen_pagezone_alloc(size_t size)
+{
+	vm_offset_t ret;
+
+	KASSERT(size == PAGE_SIZE, ("%s: invalid size", __func__));
+
+	ret = (vm_offset_t)uma_zalloc(xen_pagezone, M_NOWAIT | M_ZERO);
+	if (ret == 0)
+		panic("%s: failed allocation\n", __func__);
+	return (ret);
+}
+
+static void
+xen_pagezone_free(vm_offset_t page)
+{
+
+	uma_zfree(xen_pagezone, (void *)page);
+}
+
+static int
+xen_pagezone_init(void *mem, int size, int flags)
+{
+	vm_offset_t va;
+
+	va = (vm_offset_t)mem;
+
+	/* Xen requires the page table hierarchy to be R/O. */
+	pmap_xen_setpages_ro(va, atop(size));
+	return (0);
+}
+
+/*
+ * Replace the custom mmu_alloc(), backed by vallocpages(), with an
+ * uma backed allocator, as soon as it is possible.
+ */ 
+static void
+setup_xen_pagezone(void *dummy __unused)
+{
+
+	xen_pagezone = uma_zcreate("XEN PAGEZONE", PAGE_SIZE, NULL, NULL,
+	    xen_pagezone_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	ptmb_mappedalloc = xen_pagezone_alloc;
+	ptmb_mappedfree = xen_pagezone_free;
+}
+SYSINIT(setup_xen_pagezone, SI_SUB_VM_CONF, SI_ORDER_ANY, setup_xen_pagezone,
+    NULL);
