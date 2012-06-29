@@ -4,8 +4,12 @@
 #
 
 # Sets SSH_AUTH_SOCK to the user's ssh-agent socket path if running
+#
+# This has a couple caveats, the most notable being that if a user
+# has multiple ssh-agent(1) processes running, this will very likely
+# set SSH_AUTH_SOCK to point to the wrong file/domain socket.
 if (${?SSH_AUTH_SOCK} != "1") then
-	setenv SSH_AUTH_SOCK `sockstat | grep "^${USER} " | awk '/ssh-agent/ { print $6 }'`
+	setenv SSH_AUTH_SOCK `sockstat -u | awk '/^${USER}.+ ssh-agent/ { print $6 }'
 endif
 
 # Change only root's prompt

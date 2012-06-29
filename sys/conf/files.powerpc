@@ -61,6 +61,7 @@ dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart aim
 kern/kern_clocksource.c		standard
+kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
 libkern/ashldi3.c		optional	powerpc
 libkern/ashrdi3.c		optional	powerpc
@@ -102,6 +103,7 @@ powerpc/booke/copyinout.c	optional	booke
 powerpc/booke/interrupt.c	optional	booke
 powerpc/booke/locore.S		optional	booke no-obj
 powerpc/booke/machdep.c		optional	booke
+powerpc/booke/machdep_e500.c	optional	booke_e500
 powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	mpc85xx
 powerpc/booke/pmap.c		optional	booke

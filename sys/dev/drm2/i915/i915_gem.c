@@ -1064,7 +1064,7 @@ i915_gem_gtt_write(struct drm_device *dev, struct drm_i915_gem_object *obj,
 	    IDX_TO_OFF(obj_pi), size, PAT_WRITE_COMBINING);
 	ret = -copyin_nofault((void *)(uintptr_t)data_ptr, (char *)mkva +
 	    obj_po, size);
-	pmap_unmapdev(mkva, PAGE_SIZE);
+	pmap_unmapdev(mkva, size);
 	return (ret);
 }
 
@@ -1421,7 +1421,7 @@ unlocked_vmobj:
 
 	if ((m->flags & VPO_BUSY) != 0) {
 		DRM_UNLOCK(dev);
-		vm_page_sleep_if_busy(m, false, "915pbs");
+		vm_page_sleep(m, "915pbs");
 		goto retry;
 	}
 	m->valid = VM_PAGE_BITS_ALL;

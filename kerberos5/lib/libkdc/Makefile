@@ -14,12 +14,10 @@ KRB5INCS=	windc_plugin.h
 KRB5INCSDIR=	${INCLUDEDIR}/krb5
 INCSGROUPS=	INCS KRB5INCS
 
-SRCS=	kdc-private.h \
-	kdc-protos.h \
+SRCS=	\
 	default_config.c \
 	set_dbinfo.c \
 	digest.c \
-	kdc_locl.h\
 	kerberos5.c \
 	krb5tgs.c \
 	pkinit.c \
@@ -27,8 +25,7 @@ SRCS=	kdc-private.h \
 	misc.c \
 	kx509.c \
 	process.c \
-	windc.c \
-	rx.h
+	windc.c
 
 CFLAGS+=	-I${KRB5DIR}/lib/roken \
 		-I${KRB5DIR}/lib/krb5 \

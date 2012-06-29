@@ -5,6 +5,18 @@
 	with SSE3 instruction set support.
 	* doc/invoke.texi: Likewise.
 
+2007-04-12  Richard Guenther  <rguenther@suse.de> (r123736)
+
+	PR tree-optimization/24689
+	PR tree-optimization/31307
+	* fold-const.c (operand_equal_p): Compare INTEGER_CST array
+	indices by value.
+	* gimplify.c (canonicalize_addr_expr): To be consistent with
+	gimplify_compound_lval only set operands two and three of
+	ARRAY_REFs if they are not gimple_min_invariant.  This makes
+	it never at this place.
+	* tree-ssa-ccp.c (maybe_fold_offset_to_array_ref): Likewise.
+
 2007-04-07  H.J. Lu  <hongjiu.lu@intel.com> (r123639)
 
 	* config/i386/i386.c (ix86_handle_option): Handle SSSE3.
@@ -96,7 +108,7 @@
 
 	* doc/invoke.texi: Add entry about geode processor.
     
-2006-10-24  Richard Guenther  <rguenther@suse.de>
+2006-10-24  Richard Guenther  <rguenther@suse.de> (r118001)
 
 	PR middle-end/28796
 	* builtins.c (fold_builtin_classify): Use HONOR_INFINITIES
@@ -170,7 +182,13 @@
 
 	* doc/invoke.texi: Document -mssse3/-mno-ssse3 switches.
 
-2006-10-21  Richard Guenther  <rguenther@suse.de>
+2006-10-21  Richard Guenther  <rguenther@suse.de> (r117932)
+
+	PR tree-optimization/3511
+	* tree-ssa-pre.c (phi_translate): Fold CALL_EXPRs that
+	got new invariant arguments during PHI translation.
+
+2006-10-21  Richard Guenther  <rguenther@suse.de> (r117929)
 
 	* builtins.c (fold_builtin_classify): Fix typo.
 

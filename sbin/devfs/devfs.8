@@ -52,7 +52,7 @@ most of the commands related to the rule subsystem must be preceded by the
 .Cm rule
 keyword.
 The following flags are common to all keywords:
-.Bl -tag -offset indent
+.Bl -tag -width 15n
 .It Fl m Ar mount-point
 Operate on
 .Ar mount-point ,
@@ -88,7 +88,7 @@ Rule manipulation commands follow the
 .Cm rule
 keyword.
 The following flags are common to all of the rule manipulation commands:
-.Bl -tag -offset indent
+.Bl -tag -width 15n
 .It Fl s Ar ruleset
 Operate on the ruleset with the number
 .Ar ruleset .
@@ -98,7 +98,7 @@ specified mount-point.
 .El
 .Pp
 The following commands are recognized:
-.Bl -tag -offset indent
+.Bl -tag -width 15n
 .It Cm rule add Oo Ar rulenum Oc Ar rulespec
 Add the rule described by
 .Ar rulespec
@@ -156,7 +156,7 @@ is ignored.
 The following conditions are recognized.
 Conditions are ANDed together when matching a device;
 if OR is desired, multiple rules can be written.
-.Bl -tag -offset indent
+.Bl -tag -width 15n
 .It Cm path Ar pattern
 Matches any node with a path that matches
 .Ar pattern ,
@@ -175,7 +175,7 @@ and
 The following actions are recognized.
 Although there is no explicit delimiter between conditions and actions,
 they may not be intermixed.
-.Bl -tag -offset indent
+.Bl -tag -width 15n
 .It Cm group Ar gid
 Set the GID of the node to
 .Ar gid ,
@@ -238,7 +238,7 @@ will return the same information regardless of the mount-point specified with
 The mount-point is only relevant when changing what its current ruleset is
 or when using one of the apply commands.
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -width "Pa /usr/share/examples/etc/devfs.conf" -compact
 .It Pa /etc/defaults/devfs.rules
 Default
 .Nm

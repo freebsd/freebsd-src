@@ -566,6 +566,12 @@
 	{0x8086, 0x0116, CHIP_I9XX|CHIP_I915, "Intel SandyBridge (M)"}, \
 	{0x8086, 0x0126, CHIP_I9XX|CHIP_I915, "Intel SandyBridge (M)"}, \
 	{0x8086, 0x010A, CHIP_I9XX|CHIP_I915, "Intel SandyBridge (M)"}, \
+	{0x8086, 0x0152, CHIP_I9XX|CHIP_I915, "Intel IvyBridge"}, \
+	{0x8086, 0x0162, CHIP_I9XX|CHIP_I915, "Intel IvyBridge"}, \
+	{0x8086, 0x0156, CHIP_I9XX|CHIP_I915, "Intel IvyBridge (M)"}, \
+	{0x8086, 0x0166, CHIP_I9XX|CHIP_I915, "Intel IvyBridge (M)"}, \
+	{0x8086, 0x015A, CHIP_I9XX|CHIP_I915, "Intel IvyBridge (S)"}, \
+	{0x8086, 0x016A, CHIP_I9XX|CHIP_I915, "Intel IvyBridge (S)"}, \
 	{0x8086, 0xA001, CHIP_I9XX|CHIP_I965, "Intel Pineview"}, \
 	{0x8086, 0xA011, CHIP_I9XX|CHIP_I965, "Intel Pineview (M)"}, \
 	{0, 0, 0, NULL}

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: el.c,v 1.44 2006/12/15 22:13:33 christos Exp $
+ *	$NetBSD: el.c,v 1.55 2009/07/25 21:19:23 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include "el.h"
 
 #define	HAVE_ISSETUGID
@@ -156,9 +157,21 @@ el_set(EditLine *el, int op, ...)
 
 	switch (op) {
 	case EL_PROMPT:
-	case EL_RPROMPT:
-		rv = prompt_set(el, va_arg(ap, el_pfunc_t), op);
+	case EL_RPROMPT: {
+		el_pfunc_t p = va_arg(ap, el_pfunc_t);
+
+		rv = prompt_set(el, p, 0, op);
 		break;
+	}
+
+	case EL_PROMPT_ESC:
+	case EL_RPROMPT_ESC: {
+		el_pfunc_t p = va_arg(ap, el_pfunc_t);
+		char c = va_arg(ap, int);
+
+		rv = prompt_set(el, p, c, op);
+		break;
+	}
 
 	case EL_TERMINAL:
 		rv = term_set(el, va_arg(ap, char *));
@@ -309,6 +322,12 @@ el_set(EditLine *el, int op, ...)
 		break;
 	}
 
+	case EL_REFRESH:
+		re_clear_display(el);
+		re_refresh(el);
+		term__flush(el);
+		break;
+
 	default:
 		rv = -1;
 		break;
@@ -335,9 +354,13 @@ el_get(EditLine *el, int op, ...)
 
 	switch (op) {
 	case EL_PROMPT:
-	case EL_RPROMPT:
-		rv = prompt_get(el, va_arg(ap, el_pfunc_t *), op);
+	case EL_RPROMPT: {
+		el_pfunc_t *p = va_arg(ap, el_pfunc_t *);
+		char *c = va_arg(ap, char *);
+
+		rv = prompt_get(el, p, c, op);
 		break;
+	}
 
 	case EL_EDITOR:
 		rv = map_get_editor(el, va_arg(ap, const char **));
@@ -364,7 +387,7 @@ el_get(EditLine *el, int op, ...)
 		char *argv[20];
 		int i;
 
- 		for (i = 1; i < sizeof(argv) / sizeof(argv[0]); i++)
+ 		for (i = 1; i < (int)(sizeof(argv) / sizeof(argv[0])); i++)
 			if ((argv[i] = va_arg(ap, char *)) == NULL)
 				break;
 
@@ -495,12 +518,14 @@ el_source(EditLine *el, const char *fname)
 	FILE *fp;
 	size_t len;
 	char *ptr;
+#ifdef HAVE_ISSETUGID
+	char path[MAXPATHLEN];
+#endif
 
 	fp = NULL;
 	if (fname == NULL) {
 #ifdef HAVE_ISSETUGID
 		static const char elpath[] = "/.editrc";
-		char path[MAXPATHLEN];
 
 		if (issetugid())
 			return (-1);
@@ -529,6 +554,13 @@ el_source(EditLine *el, const char *fname)
 		if (len > 0 && ptr[len - 1] == '\n')
 			--len;
 		ptr[len] = '\0';
+
+		/* loop until first non-space char or EOL */
+		while (*ptr != '\0' && isspace((unsigned char)*ptr))
+			ptr++;
+		if (*ptr == '#')
+			continue;   /* ignore, this is a comment line */
+
 		if (parse_line(el, ptr) == -1) {
 			(void) fclose(fp);
 			return (-1);

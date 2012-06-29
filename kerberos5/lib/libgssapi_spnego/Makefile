@@ -13,9 +13,6 @@ SRCS=	accept_sec_context.c \
 	external.c \
 	init_sec_context.c \
 	freebsd_compat.c \
-	spnego-private.h \
-	spnego_locl.h \
-	spnego_asn1.h \
 	${GEN:S/.x$/.c/:S/.hx$/.h/} \
 	gss_oid.c
 
@@ -40,8 +37,6 @@ CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 
 CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} \
 		spnego_asn1_files spnego_asn1-template.c
-
-ASN1_COMPILE=	asn1_compile
 
 ${GEN}: spnego.asn1 spnego.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \

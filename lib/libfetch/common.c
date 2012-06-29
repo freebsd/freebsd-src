@@ -209,11 +209,13 @@ conn_t *
 fetch_reopen(int sd)
 {
 	conn_t *conn;
+	int opt = 1;
 
 	/* allocate and fill connection structure */
 	if ((conn = calloc(1, sizeof(*conn))) == NULL)
 		return (NULL);
 	fcntl(sd, F_SETFD, FD_CLOEXEC);
+	setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof opt);
 	conn->sd = sd;
 	++conn->ref;
 	return (conn);

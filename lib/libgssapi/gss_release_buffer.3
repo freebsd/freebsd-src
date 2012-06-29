@@ -55,7 +55,7 @@ Any buffer object returned by a GSS-API routine may be passed to
 .Fn gss_release_buffer
 (even if there is no storage associated with the buffer).
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor_status"
 .It minor_status
 Mechanism specific status code.
 .It buffer
@@ -64,12 +64,12 @@ The gss_buffer_desc object will not be freed,
 but its length field will be zeroed.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .El
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

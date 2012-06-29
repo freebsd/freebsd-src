@@ -40,7 +40,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -147,7 +147,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-static struct trapframe proc0_tf;
 
 /* Static device mappings. */
 static const struct pmap_devmap assabet_devmap[] = {
@@ -201,7 +200,7 @@ cpu_reset()
 #define CPU_SA110_CACHE_CLEAN_SIZE (0x4000 * 2)
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 	struct pcpu *pc;
 	struct pv_addr  kernel_l1pt;
@@ -216,10 +215,10 @@ initarm(void *arg, void *arg2)
 	uint32_t memsize = 32 * 1024 * 1024;
 	sa1110_uart_vaddr = SACOM1_VBASE;
 
-	boothowto = RB_VERBOSE | RB_SINGLE;
+	boothowto = RB_VERBOSE | RB_SINGLE;     /* Default value */
+	lastaddr = parse_boot_param(abp);
 	cninit();
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	physmem = memsize / PAGE_SIZE;
 	pc = &__pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
@@ -258,7 +257,7 @@ initarm(void *arg, void *arg2)
 			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_va = 
+			kernel_pt_table[loop].pv_va =
 			    kernel_pt_table[loop].pv_pa;
 		}
 	}
@@ -344,7 +343,7 @@ initarm(void *arg, void *arg2)
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the statically mapped devices. */
 	pmap_devmap_bootstrap(l1pagetable, assabet_devmap);
-	pmap_map_chunk(l1pagetable, sa1_cache_clean_addr, 0xf0000000, 
+	pmap_map_chunk(l1pagetable, sa1_cache_clean_addr, 0xf0000000,
 	    CPU_SA110_CACHE_CLEAN_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	data_abort_handler_address = (u_int)data_abort_handler;
@@ -387,12 +386,7 @@ initarm(void *arg, void *arg2)
 
 	/* Set stack for exception handlers */
 	
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
+	init_proc0(kernelstack.pv_va);
 	
 	
 	/* Enable MMU, I-cache, D-cache, write buffer. */

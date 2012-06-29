@@ -692,7 +692,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	if (error)
 		goto done2;
 
-	/* An extra reference on `nfp' has been held for us by falloc(). */
+	/* An extra reference on `fp' has been held for us by falloc(). */
 	kq = malloc(sizeof *kq, M_KQUEUE, M_WAITOK | M_ZERO);
 	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
 	TAILQ_INIT(&kq->kq_head);

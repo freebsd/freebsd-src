@@ -310,23 +310,22 @@ retry:
 		nandfs_error("%s:%d", __FILE__, __LINE__);
 		goto out;
 	}
-
 	if (ssegs == 0 && *rseg != 0) {
 		*rseg = 0;
 		goto retry;
 	}
+	if (ssegs > 0) {
+		print_suinfo(suinfo, ssegs);
 
-	print_suinfo(suinfo, ssegs);
-
-	for (i = 0; i < ssegs; i++) {
-		(**segpp) = suinfo[i].nsi_num;
-		(*segpp)++;
+		for (i = 0; i < ssegs; i++) {
+			(**segpp) = suinfo[i].nsi_num;
+			(*segpp)++;
+		}
+		*rseg = suinfo[i - 1].nsi_num + 1;
 	}
 
-	*rseg = suinfo[i - 1].nsi_num + 1;
 out:
 	free(suinfo, M_NANDFSTEMP);
-
 	return (error);
 }
 

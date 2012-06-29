@@ -246,7 +246,7 @@ next_proc(int nonblock)
 /*
  * Run a single command for a jail, possible inside the jail.
  */
-int
+static int
 run_command(struct cfjail *j)
 {
 	const struct passwd *pwd;
@@ -290,6 +290,8 @@ run_command(struct cfjail *j)
 		} else {
 			if (create_jail(j) < 0)
 				return -1;
+			if (iflag)
+				printf("%d\n", j->jid);
 			if (verbose >= 0 && (j->name || verbose > 0))
 				jail_note(j, "created\n");
 			dep_done(j, DF_LIGHT);

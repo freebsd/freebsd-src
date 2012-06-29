@@ -53,7 +53,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-j jail]\n");
+	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-I] [-j jail]\n");
 	fprintf(stderr,
 	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
@@ -95,8 +95,9 @@ main(int ac, char **av)
 	struct passwd	*pw;
 	regex_t		rgx;
 	regmatch_t	pmatch;
-	int		i, j;
+	int		i, j, ch;
 	char		buf[256];
+	char		first;
 	char		*user = NULL;
 	char		*tty = NULL;
 	char		*cmd = NULL;
@@ -104,6 +105,7 @@ main(int ac, char **av)
 	int		sflag = 0;
 	int		dflag = 0;
 	int		eflag = 0;
+	int		Iflag = 0;
 	int		jflag = 0;
 	int		mflag = 0;
 	int		zflag = 0;
@@ -141,6 +143,9 @@ main(int ac, char **av)
 		if (**av == '-') {
 			++*av;
 			switch (**av) {
+			case 'I':
+				Iflag = 1;
+				break;
 			case 'j':
 				++*av;
 				if (**av == '\0') {
@@ -381,6 +386,16 @@ main(int ac, char **av)
 			}
 			if (matched)
 				break;
+		}
+		if (matched != 0 && Iflag) {
+			printf("Send signal %d to %s (pid %d uid %d)? ",
+				sig, thiscmd, thispid, thisuid);
+			fflush(stdout);
+			first = ch = getchar();
+			while (ch != '\n' && ch != EOF)
+				ch = getchar();
+			if (first != 'y' && first != 'Y')
+				matched = 0;
 		}
 		if (matched == 0)
 			continue;

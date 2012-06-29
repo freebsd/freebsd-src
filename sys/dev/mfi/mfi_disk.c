@@ -130,10 +130,17 @@ mfi_disk_attach(device_t dev)
 		state = "unknown";
 		break;
 	}
-	device_printf(dev, "%juMB (%ju sectors) RAID volume '%s' is %s\n",
-		      sectors / (1024 * 1024 / secsize), sectors,
-		      ld_info->ld_config.properties.name,
-		      state);
+
+        if ( strlen(ld_info->ld_config.properties.name) == 0 ) {
+                device_printf(dev, 
+                      "%juMB (%ju sectors) RAID volume (no label) is %s\n",
+                      sectors / (1024 * 1024 / secsize), sectors, state);
+        } else { 
+                device_printf(dev, 
+                      "%juMB (%ju sectors) RAID volume '%s' is %s\n",
+                      sectors / (1024 * 1024 / secsize), sectors,
+                      ld_info->ld_config.properties.name, state);
+        }
 
 	sc->ld_disk = disk_alloc();
 	sc->ld_disk->d_drv1 = sc;

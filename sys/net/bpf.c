@@ -159,7 +159,7 @@ static void	catchpacket(struct bpf_d *, u_char *, u_int, u_int,
 		    void (*)(struct bpf_d *, caddr_t, u_int, void *, u_int),
 		    struct bintime *);
 static void	reset_d(struct bpf_d *);
-static int	 bpf_setf(struct bpf_d *, struct bpf_program *, u_long cmd);
+static int	bpf_setf(struct bpf_d *, struct bpf_program *, u_long cmd);
 static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
 static int	bpf_setdlt(struct bpf_d *, u_int);
 static void	filt_bpfdetach(struct knote *);
@@ -1704,146 +1704,130 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 /*
  * Set d's packet filter program to fp.  If this file already has a filter,
  * free it and replace it.  Returns EINVAL for bogus requests.
+ *
+ * Note we need global lock here to serialize bpf_setf() and bpf_setif() calls
+ * since reading d->bd_bif can't be protected by d or interface lock due to
+ * lock order.
+ *
+ * Additionally, we have to acquire interface write lock due to bpf_mtap() uses
+ * interface read lock to read all filers.
+ *
  */
 static int
 bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 {
-	struct bpf_insn *fcode, *old;
-	u_int wfilter, flen, size;
-#ifdef BPF_JITTER
-	bpf_jit_filter *ofunc, *jfunc;
-#endif
-	int need_upgrade;
 #ifdef COMPAT_FREEBSD32
-	struct bpf_program32 *fp32;
 	struct bpf_program fp_swab;
+	struct bpf_program32 *fp32;
+#endif
+	struct bpf_insn *fcode, *old;
+#ifdef BPF_JITTER
+	bpf_jit_filter *jfunc, *ofunc;
+#endif
+	size_t size;
+	u_int flen;
+	int need_upgrade;
 
-	if (cmd == BIOCSETWF32 || cmd == BIOCSETF32 || cmd == BIOCSETFNR32) {
+#ifdef COMPAT_FREEBSD32
+	switch (cmd) {
+	case BIOCSETF32:
+	case BIOCSETWF32:
+	case BIOCSETFNR32:
 		fp32 = (struct bpf_program32 *)fp;
 		fp_swab.bf_len = fp32->bf_len;
 		fp_swab.bf_insns = (struct bpf_insn *)(uintptr_t)fp32->bf_insns;
 		fp = &fp_swab;
-		if (cmd == BIOCSETWF32)
+		switch (cmd) {
+		case BIOCSETF32:
+			cmd = BIOCSETF;
+			break;
+		case BIOCSETWF32:
 			cmd = BIOCSETWF;
+			break;
+		}
+		break;
 	}
 #endif
+
+	fcode = NULL;
+#ifdef BPF_JITTER
+	jfunc = ofunc = NULL;
+#endif
+	need_upgrade = 0;
+
 	/*
 	 * Check new filter validness before acquiring any locks.
 	 * Allocate memory for new filter, if needed.
 	 */
 	flen = fp->bf_len;
-	if ((flen > bpf_maxinsns) || ((fp->bf_insns == NULL) && (flen != 0)))
+	if (flen > bpf_maxinsns || (fp->bf_insns == NULL && flen != 0))
 		return (EINVAL);
-
-	need_upgrade = 0;
 	size = flen * sizeof(*fp->bf_insns);
-	if (size > 0)
-		fcode = (struct bpf_insn *)malloc(size, M_BPF, M_WAITOK);
-	else
-		fcode = NULL; /* Make compiler happy */
-
+	if (size > 0) {
+		/* We're setting up new filter.  Copy and check actual data. */
+		fcode = malloc(size, M_BPF, M_WAITOK);
+		if (copyin(fp->bf_insns, fcode, size) != 0 ||
+		    !bpf_validate(fcode, flen)) {
+			free(fcode, M_BPF);
+			return (EINVAL);
+		}
 #ifdef BPF_JITTER
-	if (fp->bf_insns != NULL)
+		/* Filter is copied inside fcode and is perfectly valid. */
 		jfunc = bpf_jitter(fcode, flen);
-	else
-		jfunc = NULL; /* Make compiler happy */
 #endif
+	}
 
 	BPF_LOCK();
 
+	/*
+	 * Set up new filter.
+	 * Protect filter change by interface lock.
+	 * Additionally, we are protected by global lock here.
+	 */
+	if (d->bd_bif != NULL)
+		BPFIF_WLOCK(d->bd_bif);
+	BPFD_LOCK(d);
 	if (cmd == BIOCSETWF) {
 		old = d->bd_wfilter;
-		wfilter = 1;
-#ifdef BPF_JITTER
-		ofunc = NULL;
-#endif
+		d->bd_wfilter = fcode;
 	} else {
-		wfilter = 0;
 		old = d->bd_rfilter;
+		d->bd_rfilter = fcode;
 #ifdef BPF_JITTER
 		ofunc = d->bd_bfilter;
+		d->bd_bfilter = jfunc;
 #endif
-	}
-	if (fp->bf_insns == NULL) {
-		/* 
-		 * Protect filter removal by interface lock.
-		 * Additionally, we are protected by global lock here.
-		 */
-		if (d->bd_bif != NULL)
-			BPFIF_WLOCK(d->bd_bif);
-		BPFD_LOCK(d);
-		if (wfilter)
-			d->bd_wfilter = NULL;
-		else {
-			d->bd_rfilter = NULL;
-#ifdef BPF_JITTER
-			d->bd_bfilter = NULL;
-#endif
-			if (cmd == BIOCSETF)
-				reset_d(d);
-		}
-		BPFD_UNLOCK(d);
-		if (d->bd_bif != NULL)
-			BPFIF_WUNLOCK(d->bd_bif);
-		if (old != NULL)
-			free((caddr_t)old, M_BPF);
-#ifdef BPF_JITTER
-		if (ofunc != NULL)
-			bpf_destroy_jit_filter(ofunc);
-#endif
-		BPF_UNLOCK();
-		return (0);
-	}
+		if (cmd == BIOCSETF)
+			reset_d(d);
 
-	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
-	    bpf_validate(fcode, (int)flen)) {
-		/* 
-		 * Protect filter change by interface lock
-		 * Additionally, we are protected by global lock here.
-		 */
-		if (d->bd_bif != NULL)
-			BPFIF_WLOCK(d->bd_bif);
-		BPFD_LOCK(d);
-		if (wfilter)
-			d->bd_wfilter = fcode;
-		else {
-			d->bd_rfilter = fcode;
-#ifdef BPF_JITTER
-			d->bd_bfilter = jfunc;
-#endif
-			if (cmd == BIOCSETF)
-				reset_d(d);
-
+		if (fcode != NULL) {
 			/*
 			 * Do not require upgrade by first BIOCSETF
-			 * (used to set snaplen) by pcap_open_live()
+			 * (used to set snaplen) by pcap_open_live().
 			 */
-			if ((d->bd_writer != 0) && (--d->bd_writer == 0))
+			if (d->bd_writer != 0 && --d->bd_writer == 0)
 				need_upgrade = 1;
 			CTR4(KTR_NET, "%s: filter function set by pid %d, "
 			    "bd_writer counter %d, need_upgrade %d",
 			    __func__, d->bd_pid, d->bd_writer, need_upgrade);
 		}
-		BPFD_UNLOCK(d);
-		if (d->bd_bif != NULL)
-			BPFIF_WUNLOCK(d->bd_bif);
-		if (old != NULL)
-			free((caddr_t)old, M_BPF);
+	}
+	BPFD_UNLOCK(d);
+	if (d->bd_bif != NULL)
+		BPFIF_WUNLOCK(d->bd_bif);
+	if (old != NULL)
+		free(old, M_BPF);
 #ifdef BPF_JITTER
-		if (ofunc != NULL)
-			bpf_destroy_jit_filter(ofunc);
+	if (ofunc != NULL)
+		bpf_destroy_jit_filter(ofunc);
 #endif
 
-		/* Move d to active readers list */
-		if (need_upgrade != 0)
-			bpf_upgraded(d);
+	/* Move d to active readers list. */
+	if (need_upgrade)
+		bpf_upgraded(d);
 
-		BPF_UNLOCK();
-		return (0);
-	}
-	free((caddr_t)fcode, M_BPF);
 	BPF_UNLOCK();
-	return (EINVAL);
+	return (0);
 }
 
 /*
@@ -2559,20 +2543,32 @@ bpfdetach(struct ifnet *ifp)
 }
 
 /*
- * Interface departure handler
+ * Interface departure handler.
+ * Note departure event does not guarantee interface is going down.
  */
 static void
 bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
 	struct bpf_if *bp;
 
-	if ((bp = ifp->if_bpf) == NULL)
+	BPF_LOCK();
+	if ((bp = ifp->if_bpf) == NULL) {
+		BPF_UNLOCK();
 		return;
+	}
+
+	/* Check if bpfdetach() was called previously */
+	if ((bp->flags & BPFIF_FLAG_DYING) == 0) {
+		BPF_UNLOCK();
+		return;
+	}
 
 	CTR3(KTR_NET, "%s: freing BPF instance %p for interface %p",
 	    __func__, bp, ifp);
 
 	ifp->if_bpf = NULL;
+	BPF_UNLOCK();
+
 	rw_destroy(&bp->bif_lock);
 	free(bp, M_BPF);
 }

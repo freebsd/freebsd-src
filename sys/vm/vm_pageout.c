@@ -503,7 +503,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		vm_page_t mt = mc[i];
 
 		KASSERT(pageout_status[i] == VM_PAGER_PEND ||
-		    (mt->aflags & PGA_WRITEABLE) == 0,
+		    !pmap_page_is_write_mapped(mt),
 		    ("vm_pageout_flush: page %p is not write protected", mt));
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
@@ -899,7 +899,7 @@ rescan0:
 		 * be updated.
 		 */
 		if (m->dirty != VM_PAGE_BITS_ALL &&
-		    (m->aflags & PGA_WRITEABLE) != 0) {
+		    pmap_page_is_write_mapped(m)) {
 			/*
 			 * Avoid a race condition: Unless write access is
 			 * removed from the page, another processor could

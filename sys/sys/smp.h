@@ -75,6 +75,7 @@ extern int smp_active;
 extern int smp_cpus;
 extern volatile cpuset_t started_cpus;
 extern volatile cpuset_t stopped_cpus;
+extern volatile cpuset_t suspended_cpus;
 extern cpuset_t hlt_cpus_mask;
 extern cpuset_t logical_cpus_mask;
 #endif /* SMP */

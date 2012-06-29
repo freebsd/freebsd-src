@@ -55,11 +55,14 @@ static struct at91_pmc_softc {
 	bus_space_handle_t	sc_sh;
 	struct resource	*mem_res;	/* Memory resource */
 	device_t		dev;
-	uint32_t		pllb_init;
 } *pmc_softc;
+
+static uint32_t pllb_init;
 
 MALLOC_DECLARE(M_PMC);
 MALLOC_DEFINE(M_PMC, "at91_pmc_clocks", "AT91 PMC Clock descriptors");
+
+#define AT91_PMC_BASE 0xffffc00
 
 static void at91_pmc_set_pllb_mode(struct at91_pmc_clock *, int);
 static void at91_pmc_set_sys_mode(struct at91_pmc_clock *, int);
@@ -150,6 +153,11 @@ static inline uint32_t
 RD4(struct at91_pmc_softc *sc, bus_size_t off)
 {
 
+	if (sc == NULL) {
+		uint32_t *p = (uint32_t *)(AT91_BASE + AT91_PMC_BASE + off);
+
+		return *p;
+	}
 	return (bus_read_4(sc->mem_res, off));
 }
 
@@ -157,7 +165,12 @@ static inline void
 WR4(struct at91_pmc_softc *sc, bus_size_t off, uint32_t val)
 {
 
-	bus_write_4(sc->mem_res, off, val);
+	if (sc == NULL) {
+		uint32_t *p = (uint32_t *)(AT91_BASE + AT91_PMC_BASE + off);
+
+		*p = val;
+	} else
+		bus_write_4(sc->mem_res, off, val);
 }
 
 void
@@ -168,7 +181,7 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 
 	if (on) {
 		on = PMC_IER_LOCKB;
-		value = sc->pllb_init;
+		value = pllb_init;
 	} else
 		value = 0;
 
@@ -398,15 +411,17 @@ static const unsigned int at91_main_clock_tbl[] = {
 	16000000, 17344700, 18432000, 20000000
 };
 #define	MAIN_CLOCK_TBL_LEN	(sizeof(at91_main_clock_tbl) / sizeof(*at91_main_clock_tbl))
+#endif
 
 static unsigned int
-at91_pmc_sense_main_clock(struct at91_pmc_softc *sc)
+at91_pmc_sense_main_clock(void)
 {
+#if !defined(AT91C_MAIN_CLOCK)
 	unsigned int ckgr_val;
 	unsigned int diff, matchdiff, freq;
 	int i;
 
-	ckgr_val = (RD4(sc, CKGR_MCFR) & CKGR_MCFR_MAINF_MASK) << 11;
+	ckgr_val = (RD4(NULL, CKGR_MCFR) & CKGR_MCFR_MAINF_MASK) << 11;
 
 	/*
 	 * Clocks up to 50MHz can be connected to some models.  If
@@ -414,7 +429,7 @@ at91_pmc_sense_main_clock(struct at91_pmc_softc *sc)
 	 * measure it correctly, and that any error can be adequately
 	 * compensated for by roudning to the nearest 500Hz.  Users
 	 * with fast, or odd-ball clocks will need to set
-	 * AT91C_MASTER_CLOCK in the kernel config file.
+	 * AT91C_MAIN_CLOCK in the kernel config file.
 	 */
 	if (ckgr_val >= 21000000)
 		return ((ckgr_val + 250) / 500 * 500);
@@ -432,21 +447,20 @@ at91_pmc_sense_main_clock(struct at91_pmc_softc *sc)
 		}
 	}
 	return (freq);
-}
+#else
+	return (AT91C_MAIN_CLOCK);
 #endif
+}
 
-static void
-at91_pmc_init_clock(struct at91_pmc_softc *sc)
+void
+at91_pmc_init_clock(void)
 {
+	struct at91_pmc_softc *sc = NULL;
 	unsigned int main_clock;
 	uint32_t mckr;
 	uint32_t mdiv;
 
-#if !defined(AT91C_MAIN_CLOCK)
-	main_clock = at91_pmc_sense_main_clock(pmc_softc);
-#else
-	main_clock = AT91C_MAIN_CLOCK;
-#endif
+	main_clock = at91_pmc_sense_main_clock();
 
 	if (at91_is_sam9() || at91_is_sam9xe()) {
 		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
@@ -457,15 +471,15 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc)
 
 	at91_pmc_pll_rate(&plla, RD4(sc, CKGR_PLLAR));
 
-	if (at91_cpu_is(AT91_CPU_SAM9G45) && (mckr & PMC_MCKR_PLLADIV2))
+	if (at91_cpu_is(AT91_T_SAM9G45) && (mckr & PMC_MCKR_PLLADIV2))
 		plla.hz /= 2;
 
 	/*
 	 * Initialize the usb clock.  This sets up pllb, but disables the
 	 * actual clock.
 	 */
-	sc->pllb_init = at91_pmc_pll_calc(&pllb, 48000000 * 2) | 0x10000000;
-	at91_pmc_pll_rate(&pllb, sc->pllb_init);
+	pllb_init = at91_pmc_pll_calc(&pllb, 48000000 * 2) | 0x10000000;
+	at91_pmc_pll_rate(&pllb, pllb_init);
 
 #if 0
 	/* Turn off USB clocks */
@@ -498,7 +512,7 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc)
 		mck.hz /= (1 + mdiv);
 
 	/* Only found on SAM9G20 */
-	if (at91_cpu_is(AT91_CPU_SAM9G20))
+	if (at91_cpu_is(AT91_T_SAM9G20))
 		cpu.hz /= (mckr & PMC_MCKR_PDIV) ?  2 : 1;
 
 	at91_master_clock = mck.hz;
@@ -570,8 +584,11 @@ at91_pmc_attach(device_t dev)
 	/*
 	 * Configure main clock frequency.
 	 */
-	at91_pmc_init_clock(pmc_softc);
+	at91_pmc_init_clock();
 
+	/*
+	 * Display info about clocks previously computed
+	 */
 	device_printf(dev,
 	    "Primary: %d Hz PLLA: %d MHz CPU: %d MHz MCK: %d MHz\n",
 	    main_ck.hz,

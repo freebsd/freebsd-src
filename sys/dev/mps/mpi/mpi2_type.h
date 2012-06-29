@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 LSI Corp.
+ * Copyright (c) 2011, 2012 LSI Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 /*
- *  Copyright (c) 2000-2011 LSI Corporation.
+ *  Copyright (c) 2000-2012 LSI Corporation.
  *
  *
  *           Name:  mpi2_type.h

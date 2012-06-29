@@ -105,6 +105,9 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
+#ifdef TCP_OFFLOAD
+#include <netinet/tcp_offload.h>
+#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -512,6 +515,8 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
 		return IPPROTO_DONE;
 	}
+	if (ia6)
+		ifa_free(&ia6->ia_ifa);
 
 	tcp_input(m, *offp);
 	return IPPROTO_DONE;
@@ -589,7 +594,7 @@ tcp_input(struct mbuf *m, int off0)
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		tlen = sizeof(*ip6) + ntohs(ip6->ip6_plen) - off0;
-		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
 			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 				th->th_sum = m->m_pkthdr.csum_data;
 			else
@@ -956,6 +961,14 @@ relocked:
 		goto dropwithreset;
 	}
 
+#ifdef TCP_OFFLOAD
+	if (tp->t_flags & TF_TOE) {
+		tcp_offload_input(tp, m);
+		m = NULL;	/* consumed by the TOE driver */
+		goto dropunlock;
+	}
+#endif
+
 	/*
 	 * We've identified a valid inpcb, but it could be that we need an
 	 * inpcbinfo write lock but don't hold it.  In this case, attempt to
@@ -1240,7 +1253,8 @@ relocked:
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
-			ifa_free(&ia6->ia_ifa);
+			if (ia6)
+				ifa_free(&ia6->ia_ifa);
 		}
 #endif /* INET6 */
 		/*
@@ -1317,7 +1331,7 @@ relocked:
 			    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
 		tcp_dooptions(&to, optp, optlen, TO_SYN);
-		syncache_add(&inc, &to, th, inp, &so, m);
+		syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL);
 		/*
 		 * Entry added to syncache and mbuf consumed.
 		 * Everything already unlocked by syncache_add().

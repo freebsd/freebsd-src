@@ -2368,7 +2368,6 @@ bge_dma_free(struct bge_softc *sc)
 	if (sc->bge_cdata.bge_tx_mtag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_mtag);
 
-
 	/* Destroy standard RX ring. */
 	if (sc->bge_cdata.bge_rx_std_ring_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_std_ring_tag,
@@ -2767,9 +2766,8 @@ bge_mbox_reorder(struct bge_softc *sc)
 	};
 	devclass_t pci, pcib;
 	device_t bus, dev;
-	int count, i;
+	int i;
 
-	count = sizeof(mbox_reorder_lists) / sizeof(mbox_reorder_lists[0]);
 	pci = devclass_find("pci");
 	pcib = devclass_find("pcib");
 	dev = sc->bge_dev;
@@ -2777,17 +2775,9 @@ bge_mbox_reorder(struct bge_softc *sc)
 	for (;;) {
 		dev = device_get_parent(bus);
 		bus = device_get_parent(dev);
-		device_printf(sc->bge_dev, "dev : %s%d, bus : %s%d\n",
-		    device_get_name(dev), device_get_unit(dev),
-		    device_get_name(bus), device_get_unit(bus));
 		if (device_get_devclass(dev) != pcib)
 			break;
-		for (i = 0; i < count; i++) {
-			device_printf(sc->bge_dev,
-			    "probing dev : %s%d, vendor : 0x%04x "
-			    "device : 0x%04x\n",
-			    device_get_name(dev), device_get_unit(dev),
-			    pci_get_vendor(dev), pci_get_device(dev));
+		for (i = 0; i < nitems(mbox_reorder_lists); i++) {
 			if (pci_get_vendor(dev) ==
 			    mbox_reorder_lists[i].vendor &&
 			    pci_get_device(dev) ==
@@ -2868,8 +2858,6 @@ bge_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
-
-	bge_add_sysctls(sc);
 
 	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
 
@@ -3015,6 +3003,9 @@ bge_attach(device_t dev)
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
 		break;
 	}
+
+	/* Add SYSCTLs, requires the chipset family to be set. */
+	bge_add_sysctls(sc);
 
 	/* Set various PHY bug flags. */
 	if (sc->bge_chipid == BGE_CHIPID_BCM5701_A0 ||

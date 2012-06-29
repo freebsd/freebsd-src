@@ -161,9 +161,11 @@ cddl/compat/opensolaris/kern/opensolaris_vfs.c				optional zfs compile-with "${Z
 cddl/compat/opensolaris/kern/opensolaris_zone.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/acl/acl_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/avl/avl.c				optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/fnvpair.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/nvpair/nvpair.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/nvpair/nvpair_alloc_fixed.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/unicode/u8_textprep.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/zfs/zfeature_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_comutil.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_deleg.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_fletcher.c			optional zfs compile-with "${ZFS_C}"
@@ -177,6 +179,7 @@ cddl/contrib/opensolaris/uts/common/fs/vnode.c				optional zfs compile-with "${Z
 cddl/contrib/opensolaris/uts/common/fs/zfs/arc.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bplist.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bpobj.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/bptree.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dbuf.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt_zap.c			optional zfs compile-with "${ZFS_C}"
@@ -228,6 +231,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_root.c			optional zfs compile-wi
 cddl/contrib/opensolaris/uts/common/fs/zfs/zap.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zap_leaf.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zap_micro.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/zfeature.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zfs_acl.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zfs_byteswap.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zfs_ctldir.c			optional zfs compile-with "${ZFS_C}"
@@ -1037,8 +1041,6 @@ dev/cs/if_cs.c			optional cs
 dev/cs/if_cs_isa.c		optional cs isa
 dev/cs/if_cs_pccard.c		optional cs pccard
 dev/cxgb/cxgb_main.c		optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"
-dev/cxgb/cxgb_offload.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_sge.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
@@ -2562,12 +2564,14 @@ kern/kern_priv.c		standard
 kern/kern_proc.c		standard
 kern/kern_prot.c		standard
 kern/kern_racct.c		standard
+kern/kern_rangelock.c		standard
 kern/kern_rctl.c		standard
 kern/kern_resource.c		standard
 kern/kern_rmlock.c		standard
 kern/kern_rwlock.c		standard
 kern/kern_sdt.c			optional kdtrace_hooks
 kern/kern_sema.c		standard
+kern/kern_sharedpage.c		standard
 kern/kern_shutdown.c		standard
 kern/kern_sig.c			standard
 kern/kern_switch.c		standard
@@ -3036,7 +3040,7 @@ netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
 netinet/tcp_lro.c		optional inet | inet6
 netinet/tcp_output.c		optional inet | inet6
-netinet/tcp_offload.c		optional inet | inet6
+netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
 netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
 netinet/tcp_subr.c		optional inet | inet6

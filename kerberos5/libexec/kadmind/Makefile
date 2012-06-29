@@ -5,7 +5,6 @@ MAN=	kadmind.8
 SRCS=	rpc.c \
 	server.c \
 	kadmind.c \
-	kadmin_locl.h \
 	kadm_conn.c
 
 CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \

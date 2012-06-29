@@ -132,6 +132,28 @@ struct ath_hal_5416 {
 	int		initPDADC;
 
 	int		ah_need_an_top2_fixup;	/* merlin or later chips that may need this workaround */
+
+	/*
+	 * Bluetooth coexistence static setup according to the registry
+	 */
+	HAL_BT_MODULE ah_btModule;            /* Bluetooth module identifier */
+	uint8_t		ah_btCoexConfigType;  /* BT coex configuration */
+	uint8_t		ah_btActiveGpioSelect;  /* GPIO pin for BT_ACTIVE */
+	uint8_t		ah_btPriorityGpioSelect; /* GPIO pin for BT_PRIORITY */
+	uint8_t		ah_wlanActiveGpioSelect; /* GPIO pin for WLAN_ACTIVE */
+	uint8_t		ah_btActivePolarity;  /* Polarity of BT_ACTIVE */
+	HAL_BOOL	ah_btCoexSingleAnt;   /* Single or dual antenna configuration */
+	uint8_t		ah_btWlanIsolation;   /* Isolation between BT and WLAN in dB */
+
+	/*
+	 * Bluetooth coexistence runtime settings
+	 */
+	HAL_BOOL	ah_btCoexEnabled;     /* If Bluetooth coexistence is enabled */
+	uint32_t	ah_btCoexMode;        /* Register setting for AR_BT_COEX_MODE */
+	uint32_t	ah_btCoexBTWeight;    /* Register setting for AR_BT_COEX_WEIGHT */
+	uint32_t	ah_btCoexWLANWeight;  /* Register setting for AR_BT_COEX_WEIGHT */
+	uint32_t	ah_btCoexMode2;       /* Register setting for AR_BT_COEX_MODE2 */
+	uint32_t	ah_btCoexFlag;        /* Special tuning flags for BT coex */
 };
 #define	AH5416(_ah)	((struct ath_hal_5416 *)(_ah))
 
@@ -172,6 +194,21 @@ extern	void ar5416ResetStaBeaconTimers(struct ath_hal *ah);
 extern	void ar5416SetStaBeaconTimers(struct ath_hal *ah,
 		const HAL_BEACON_STATE *);
 extern	uint64_t ar5416GetNextTBTT(struct ath_hal *);
+
+/* ar5416_btcoex.c */
+extern	void ar5416SetBTCoexInfo(struct ath_hal *ah,
+		HAL_BT_COEX_INFO *btinfo);
+extern	void ar5416BTCoexConfig(struct ath_hal *ah,
+		HAL_BT_COEX_CONFIG *btconf);
+extern	void ar5416BTCoexSetQcuThresh(struct ath_hal *ah, int qnum);
+extern	void ar5416BTCoexSetWeights(struct ath_hal *ah, uint32_t stompType);
+extern	void ar5416BTCoexSetupBmissThresh(struct ath_hal *ah,
+		uint32_t thresh);
+extern	void ar5416BTCoexSetParameter(struct ath_hal *ah, uint32_t type,
+		uint32_t value);
+extern	void ar5416BTCoexDisable(struct ath_hal *ah);
+extern	int ar5416BTCoexEnable(struct ath_hal *ah);
+extern	void ar5416InitBTCoex(struct ath_hal *ah);
 
 extern	HAL_BOOL ar5416EepromRead(struct ath_hal *, u_int off, uint16_t *data);
 extern	HAL_BOOL ar5416EepromWrite(struct ath_hal *, u_int off, uint16_t data);

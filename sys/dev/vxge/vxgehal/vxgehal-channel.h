@@ -291,7 +291,7 @@ __hal_channel_dtr_restore(__hal_channel_t *channel, __hal_dtr_h dtrh)
 	else
 		dtr_index = channel->reserve_index - 1;
 
-	if ((channel->dtr_arr[dtr_index].dtr == dtrh)) {
+	if ((channel->dtr_arr[dtr_index].dtr = dtrh) != NULL) {
 
 		channel->reserve_index = dtr_index;
 		channel->dtr_arr[dtr_index].state = VXGE_HAL_CHANNEL_DTR_FREE;

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <fstab.h>
 #include <paths.h>
 #include <stdio.h>
@@ -246,6 +247,8 @@ getfsfile(name)
 int 
 setfsent()
 {
+	int fd;
+
 	if (_fs_fp) {
 		rewind(_fs_fp);
 		LineNo = 0;
@@ -257,11 +260,18 @@ setfsent()
 		else
 			setfstab(getenv("PATH_FSTAB"));
 	}
-	if ((_fs_fp = fopen(path_fstab, "r")) != NULL) {
+	fd = _open(path_fstab, O_RDONLY | O_CLOEXEC);
+	if (fd == -1) {
+		error(errno);
+		return (0);
+	}
+	_fs_fp = fdopen(fd, "r");
+	if (_fs_fp  != NULL) {
 		LineNo = 0;
 		return(1);
 	}
 	error(errno);
+	_close(fd);
 	return(0);
 }
 

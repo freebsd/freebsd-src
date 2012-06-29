@@ -50,11 +50,16 @@
 
 extern int ath_tx_findrix(const struct ath_softc *sc, uint8_t rate);
 
-extern struct ath_buf * ath_getbuf(struct ath_softc *sc);
-extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc);
+extern struct ath_buf * ath_getbuf(struct ath_softc *sc,
+	    ath_buf_type_t btype);
+extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc,
+	    ath_buf_type_t btype);
 extern struct ath_buf * ath_buf_clone(struct ath_softc *sc,
 	    const struct ath_buf *bf);
+/* XXX change this to NULL the buffer pointer? */
 extern void ath_freebuf(struct ath_softc *sc, struct ath_buf *bf);
+extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
+extern void ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf);
 
 extern int ath_reset(struct ifnet *, ATH_RESET_TYPE);
 extern void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
@@ -84,5 +89,11 @@ extern void ath_setslottime(struct ath_softc *sc);
  */
 extern void ath_start(struct ifnet *ifp);
 
+static inline void
+ath_tx_kick(struct ath_softc *sc)
+{
+
+	ath_start(sc->sc_ifp);
+}
 
 #endif

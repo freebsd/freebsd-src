@@ -109,6 +109,7 @@ device		esp		# AMD Am53C974, Sun ESP and FAS	families
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
 # ATA/SCSI peripherals

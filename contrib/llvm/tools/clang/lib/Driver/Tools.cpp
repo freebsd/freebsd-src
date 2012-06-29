@@ -4760,6 +4760,9 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-dynamic-linker");
       CmdArgs.push_back("/libexec/ld-elf.so.1");
     }
+    llvm::Triple::ArchType Arch = getToolChain().getArch();
+    if (Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64)
+      CmdArgs.push_back("--hash-style=both");
   }
 
   // When building 32-bit code on FreeBSD/amd64, we have to explicitly

@@ -227,11 +227,16 @@ static struct periph_driver ctlfe_driver =
 PERIPHDRIVER_DECLARE(ctl, ctlfe_driver);
 
 extern struct ctl_softc *control_softc;
+extern int ctl_disable;
 
 int
 ctlfeinitialize(void)
 {
 	cam_status status;
+
+	/* Don't initialize if we're disabled */
+	if (ctl_disable != 0)
+		return (0);
 
 	STAILQ_INIT(&ctlfe_softc_list);
 
@@ -262,6 +267,10 @@ void
 ctlfeinit(void)
 {
 	cam_status status;
+
+	/* Don't initialize if we're disabled */
+	if (ctl_disable != 0)
+		return;
 
 	STAILQ_INIT(&ctlfe_softc_list);
 
@@ -490,7 +499,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 
 			dev_chg = (struct ac_device_changed *)ac->contract_data;
 
-			printf("%s: WWPN %#jx port %u path %u target %u %s\n",
+			printf("%s: WWPN %#jx port 0x%06x path %u target %u %s\n",
 			       __func__, dev_chg->wwpn, dev_chg->port,
 			       xpt_path_path_id(path), dev_chg->target,
 			       (dev_chg->arrived == 0) ?  "left" : "arrived");
@@ -558,7 +567,6 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	
 	TAILQ_INIT(&softc->work_queue);
 	softc->periph = periph;
-	softc->parent_softc = bus_softc;
 
 	callout_init_mtx(&softc->dma_callout, sim->mtx, /*flags*/ 0);
 	periph->softc = softc;
@@ -582,7 +590,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		union ccb *new_ccb;
 
 		new_ccb = (union ccb *)malloc(sizeof(*new_ccb), M_CTLFE,
-					      M_NOWAIT);
+					      M_ZERO|M_NOWAIT);
 		if (new_ccb == NULL) {
 			status = CAM_RESRC_UNAVAIL;
 			break;
@@ -616,7 +624,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		union ccb *new_ccb;
 
 		new_ccb = (union ccb *)malloc(sizeof(*new_ccb), M_CTLFE,
-					      M_NOWAIT);
+					      M_ZERO|M_NOWAIT);
 		if (new_ccb == NULL) {
 			status = CAM_RESRC_UNAVAIL;
 			break;
@@ -628,12 +636,22 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		xpt_action(new_ccb);
 		softc->inots_sent++;
 		status = new_ccb->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			free(new_ccb, M_CTLFE);
+		if ((status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
+			/*
+			 * Note that we don't free the CCB here.  If the
+			 * status is not CAM_REQ_INPROG, then we're
+			 * probably talking to a SIM that says it is
+			 * target-capable but doesn't support the 
+			 * XPT_IMMEDIATE_NOTIFY CCB.  i.e. it supports the
+			 * older API.  In that case, it'll call xpt_done()
+			 * on the CCB, and we need to free it in our done
+			 * routine as a result.
+			 */
 			break;
 		}
 	}
-	if (i == 0) {
+	if ((i == 0)
+	 || (status != CAM_REQ_INPROG)) {
 		xpt_print(periph->path, "%s: could not allocate immediate "
 			  "notify CCBs, status 0x%x\n", __func__, status);
 		return (CAM_REQ_CMP_ERR);
@@ -1460,12 +1478,29 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				send_ctl_io = 0;
 				break;
+			case CAM_REQ_INVALID:
+			case CAM_PROVIDE_FAIL:
 			default:
-				xpt_print(periph->path, "%s: "
-					  "unsupported CAM status 0x%x\n", 
-					  __func__, status);
-				send_ctl_io = 0;
-				break;
+				/*
+				 * We should only get here if we're talking
+				 * to a talking to a SIM that is target
+				 * capable but supports the old API.  In
+				 * that case, we need to just free the CCB.
+				 * If we actually send a notify acknowledge,
+				 * it will send that back with an error as
+				 * well.
+				 */
+
+				if ((status != CAM_REQ_INVALID)
+				 && (status != CAM_PROVIDE_FAIL))
+					xpt_print(periph->path, "%s: "
+						  "unsupported CAM status "
+						  "0x%x\n", __func__, status);
+
+				ctl_free_io(io);
+				ctlfe_free_ccb(periph, done_ccb);
+
+				return;
 			}
 			if (send_ctl_io != 0) {
 				ctl_queue(io);

@@ -117,6 +117,10 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
+static int relocate_object_dag(Obj_Entry *root, bool bind_now,
+    Obj_Entry *rtldobj, int flags, RtldLockState *lockstate);
+static int relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, int,
     RtldLockState *);
 static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
@@ -2217,52 +2221,70 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
 }
 
 /*
- * Relocate newly-loaded shared objects.  The argument is a pointer to
- * the Obj_Entry for the first such object.  All objects from the first
- * to the end of the list of objects are relocated.  Returns 0 on success,
- * or -1 on failure.
+ * Relocate dag rooted in the specified object.
+ * Returns 0 on success, or -1 on failure.
  */
+
 static int
-relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
+relocate_object_dag(Obj_Entry *root, bool bind_now, Obj_Entry *rtldobj,
     int flags, RtldLockState *lockstate)
 {
-    Obj_Entry *obj;
+	Objlist_Entry *elm;
+	int error;
 
-    for (obj = first;  obj != NULL;  obj = obj->next) {
+	error = 0;
+	STAILQ_FOREACH(elm, &root->dagmembers, link) {
+		error = relocate_object(elm->obj, bind_now, rtldobj, flags,
+		    lockstate);
+		if (error == -1)
+			break;
+	}
+	return (error);
+}
+
+/*
+ * Relocate single object.
+ * Returns 0 on success, or -1 on failure.
+ */
+static int
+relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate)
+{
+
 	if (obj->relocated)
-	    continue;
+		return (0);
 	obj->relocated = true;
 	if (obj != rtldobj)
-	    dbg("relocating \"%s\"", obj->path);
+		dbg("relocating \"%s\"", obj->path);
 
 	if (obj->symtab == NULL || obj->strtab == NULL ||
-	  !(obj->valid_hash_sysv || obj->valid_hash_gnu)) {
-	    _rtld_error("%s: Shared object has no run-time symbol table",
-	      obj->path);
-	    return -1;
+	    !(obj->valid_hash_sysv || obj->valid_hash_gnu)) {
+		_rtld_error("%s: Shared object has no run-time symbol table",
+			    obj->path);
+		return (-1);
 	}
 
 	if (obj->textrel) {
-	    /* There are relocations to the write-protected text segment. */
-	    if (mprotect(obj->mapbase, obj->textsize,
-	      PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
-		_rtld_error("%s: Cannot write-enable text segment: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		/* There are relocations to the write-protected text segment. */
+		if (mprotect(obj->mapbase, obj->textsize,
+		    PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
+			_rtld_error("%s: Cannot write-enable text segment: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 	/* Process the non-PLT relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
-		return -1;
+		return (-1);
 
 	if (obj->textrel) {	/* Re-protected the text segment. */
-	    if (mprotect(obj->mapbase, obj->textsize,
-	      PROT_READ|PROT_EXEC) == -1) {
-		_rtld_error("%s: Cannot write-protect text segment: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		if (mprotect(obj->mapbase, obj->textsize,
+		    PROT_READ|PROT_EXEC) == -1) {
+			_rtld_error("%s: Cannot write-protect text segment: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 
@@ -2271,18 +2293,19 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 
 	/* Process the PLT relocations. */
 	if (reloc_plt(obj) == -1)
-	    return -1;
+		return (-1);
 	/* Relocate the jump slots if we are doing immediate binding. */
 	if (obj->bind_now || bind_now)
-	    if (reloc_jmpslots(obj, flags, lockstate) == -1)
-		return -1;
+		if (reloc_jmpslots(obj, flags, lockstate) == -1)
+			return (-1);
 
 	if (obj->relro_size > 0) {
-	    if (mprotect(obj->relro_page, obj->relro_size, PROT_READ) == -1) {
-		_rtld_error("%s: Cannot enforce relro protection: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		if (mprotect(obj->relro_page, obj->relro_size,
+		    PROT_READ) == -1) {
+			_rtld_error("%s: Cannot enforce relro protection: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 	/*
@@ -2292,9 +2315,30 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	 */
 	obj->magic = RTLD_MAGIC;
 	obj->version = RTLD_VERSION;
-    }
 
-    return (0);
+	return (0);
+}
+
+/*
+ * Relocate newly-loaded shared objects.  The argument is a pointer to
+ * the Obj_Entry for the first such object.  All objects from the first
+ * to the end of the list of objects are relocated.  Returns 0 on success,
+ * or -1 on failure.
+ */
+static int
+relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate)
+{
+	Obj_Entry *obj;
+	int error;
+
+	for (error = 0, obj = first;  obj != NULL;  obj = obj->next) {
+		error = relocate_object(obj, bind_now, rtldobj, flags,
+		    lockstate);
+		if (error == -1)
+			break;
+	}
+	return (error);
 }
 
 /*
@@ -2614,10 +2658,10 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		result = rtld_verify_versions(&obj->dagmembers);
 	    if (result != -1 && ld_tracing)
 		goto trace;
-	    if (result == -1 || (relocate_objects(obj,
-	     (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
+	    if (result == -1 || relocate_object_dag(obj,
+	      (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
 	      (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-	      lockstate)) == -1) {
+	      lockstate) == -1) {
 		dlopen_cleanup(obj);
 		obj = NULL;
 	    } else if (lo_flags & RTLD_LO_EARLY) {

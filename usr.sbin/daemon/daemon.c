@@ -217,6 +217,10 @@ wait_child(pid_t pid, sigset_t *mask)
 		}
 		switch (signo) {
 		case SIGCHLD:
+			if (waitpid(pid, NULL, WNOHANG) == -1) {
+				warn("waitpid");
+				return (-1);
+			}
 			return (terminate);
 		case SIGTERM:
 			terminate = 1;
@@ -236,7 +240,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cf] [-p pidfile] [-u user] command "
+	    "usage: daemon [-cfr] [-p pidfile] [-u user] command "
 		"arguments ...\n");
 	exit(1);
 }

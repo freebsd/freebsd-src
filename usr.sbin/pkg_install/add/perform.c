@@ -307,8 +307,12 @@ pkg_do(char *pkg)
 		    *sep = '\0';
 		    strlcat(subpkg, "/All/", sizeof subpkg);
 		    strlcat(subpkg, p->name, sizeof subpkg);
-		    if ((ext = strrchr(pkg, '.')) == NULL)
-			ext = ".tbz";
+		    if ((ext = strrchr(pkg, '.')) == NULL) {
+			if (getenv("PACKAGESUFFIX"))
+			  ext = getenv("PACKAGESUFFIX");
+			else
+			  ext = ".tbz";
+		    }
 		    strlcat(subpkg, ext, sizeof subpkg);
 		    pkg_do(subpkg);
 		}
@@ -345,8 +349,13 @@ pkg_do(char *pkg)
 		    const char *ext;
 
 		    ext = strrchr(pkg_fullname, '.');
-		    if (ext == NULL)
-			ext = ".tbz";
+		    if (ext == NULL) {
+			if (getenv("PACKAGESUFFIX")) {
+			  ext = getenv("PACKAGESUFFIX");
+			} else {
+			  ext = ".tbz";
+			}
+		    }
 		    snprintf(path, FILENAME_MAX, "%s/%s%s", getenv("_TOP"), p->name, ext);
 		    if (fexists(path))
 			cp = path;

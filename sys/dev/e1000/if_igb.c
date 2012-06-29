@@ -846,6 +846,8 @@ igb_resume(device_t dev)
 }
 
 
+#if __FreeBSD_version < 800000
+
 /*********************************************************************
  *  Transmit entry point
  *
@@ -922,7 +924,7 @@ igb_start(struct ifnet *ifp)
 	return;
 }
 
-#if __FreeBSD_version >= 800000
+#else
 /*
 ** Multiqueue Transmit driver
 **
@@ -3010,14 +3012,15 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = igb_ioctl;
-	ifp->if_start = igb_start;
 #if __FreeBSD_version >= 800000
 	ifp->if_transmit = igb_mq_start;
 	ifp->if_qflush = igb_qflush;
-#endif
+#else
+	ifp->if_start = igb_start;
 	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 1);
 	ifp->if_snd.ifq_drv_maxlen = adapter->num_tx_desc - 1;
 	IFQ_SET_READY(&ifp->if_snd);
+#endif
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
 

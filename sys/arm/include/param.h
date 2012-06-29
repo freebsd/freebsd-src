@@ -62,7 +62,7 @@
 #define	MACHINE_ARCH	"arm"
 #endif
 #endif
-#define	MID_MACHINE	MID_ARM6 
+#define	MID_MACHINE	MID_ARM6
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
@@ -78,7 +78,7 @@
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
+ * (within reasonable limits).
  */
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
 
