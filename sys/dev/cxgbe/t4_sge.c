@@ -1054,15 +1054,23 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	m0->m_flags |= M_FLOWID;
 	m0->m_pkthdr.flowid = rss->hash_val;
 
-	if (cpl->csum_calc && !cpl->err_vec &&
-	    ifp->if_capenable & IFCAP_RXCSUM) {
-		m0->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED |
-		    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-		if (cpl->ip_frag)
+	if (cpl->csum_calc && !cpl->err_vec) {
+		if (ifp->if_capenable & IFCAP_RXCSUM &&
+		    cpl->l2info & htobe32(F_RXF_IP)) {
+			m0->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED |
+			    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+			rxq->rxcsum++;
+		} else if (ifp->if_capenable & IFCAP_RXCSUM_IPV6 &&
+		    cpl->l2info & htobe32(F_RXF_IP6)) {
+			m0->m_pkthdr.csum_flags |= (CSUM_DATA_VALID_IPV6 |
+			    CSUM_PSEUDO_HDR);
+			rxq->rxcsum++;
+		}
+
+		if (__predict_false(cpl->ip_frag))
 			m0->m_pkthdr.csum_data = be16toh(cpl->csum);
 		else
 			m0->m_pkthdr.csum_data = 0xffff;
-		rxq->rxcsum++;
 	}
 
 	if (cpl->vlan_ex) {
@@ -2827,9 +2835,11 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	ctrl1 = 0;
 	if (!(m->m_pkthdr.csum_flags & CSUM_IP))
 		ctrl1 |= F_TXPKT_IPCSUM_DIS;
-	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
+	    CSUM_TCP_IPV6)))
 		ctrl1 |= F_TXPKT_L4CSUM_DIS;
-	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP))
+	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP |
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6))
 		txq->txcsum++;	/* some hardware assistance provided */
 
 	/* VLAN tag insertion */
