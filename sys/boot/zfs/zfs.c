@@ -56,7 +56,6 @@ static int	zfs_stat(struct open_file *f, struct stat *sb);
 static int	zfs_readdir(struct open_file *f, struct dirent *d);
 
 struct devsw zfs_dev;
-struct devsw zfs_dev_compat;
 
 struct fs_ops zfs_fsops = {
 	"zfs",
@@ -90,7 +89,7 @@ zfs_open(const char *upath, struct open_file *f)
 	struct file *fp;
 	int rc;
 
-	if (f->f_dev != &zfs_dev && f->f_dev != &zfs_dev_compat)
+	if (f->f_dev != &zfs_dev)
 		return (EINVAL);
 
 	/* allocate file system specific data structure */
