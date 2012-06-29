@@ -216,8 +216,14 @@ ttydev_leave(struct tty *tp)
 static int
 ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	struct tty *tp = dev->si_drv1;
+	struct tty *tp;
 	int error = 0;
+
+	while ((tp = dev->si_drv1) == NULL) {
+		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
+		if (error != EWOULDBLOCK)
+			return (error);
+	}
 
 	tty_lock(tp);
 	if (tty_gone(tp)) {
@@ -726,9 +732,14 @@ static struct cdevsw ttydev_cdevsw = {
 static int
 ttyil_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	struct tty *tp = dev->si_drv1;
+	struct tty *tp;
 	int error = 0;
 
+	while ((tp = dev->si_drv1) == NULL) {
+		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
+		if (error != EWOULDBLOCK)
+			return (error);
+	}
 	tty_lock(tp);
 	if (tty_gone(tp))
 		error = ENODEV;
@@ -1166,6 +1177,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 	dev = make_dev_cred(&ttydev_cdevsw, 0, cred,
 	    uid, gid, mode, "%s%s", prefix, name);
 	dev->si_drv1 = tp;
+	wakeup(&dev->si_drv1);
 	tp->t_dev = dev;
 
 	/* Slave call-in devices. */
@@ -1174,12 +1186,14 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 		    uid, gid, mode, "%s%s.init", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
+		wakeup(&dev->si_drv1);
 		dev->si_drv2 = &tp->t_termios_init_in;
 
 		dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
 		    uid, gid, mode, "%s%s.lock", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
+		wakeup(&dev->si_drv1);
 		dev->si_drv2 = &tp->t_termios_lock_in;
 	}
 
@@ -1189,6 +1203,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
+		wakeup(&dev->si_drv1);
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
@@ -1196,12 +1211,14 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;
+			wakeup(&dev->si_drv1);
 			dev->si_drv2 = &tp->t_termios_init_out;
 
 			dev = make_dev_cred(&ttyil_cdevsw, 0, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;
+			wakeup(&dev->si_drv1);
 			dev->si_drv2 = &tp->t_termios_lock_out;
 		}
 	}
