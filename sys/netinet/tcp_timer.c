@@ -602,6 +602,11 @@ tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
 	struct inpcb *inp = tp->t_inpcb;
 	int cpu = INP_CPU(inp);
 
+#ifdef TCP_OFFLOAD
+	if (tp->t_flags & TF_TOE)
+		return;
+#endif
+
 	switch (timer_type) {
 		case TT_DELACK:
 			t_callout = &tp->t_timers->tt_delack;

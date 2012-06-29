@@ -420,14 +420,38 @@ typedef enum {
 			| HAL_INT_GPIO,
 } HAL_INT;
 
+/*
+ * MSI vector assignments
+ */
 typedef enum {
-	HAL_GPIO_MUX_OUTPUT		= 0,
-	HAL_GPIO_MUX_PCIE_ATTENTION_LED	= 1,
-	HAL_GPIO_MUX_PCIE_POWER_LED	= 2,
-	HAL_GPIO_MUX_TX_FRAME		= 3,
-	HAL_GPIO_MUX_RX_CLEAR_EXTERNAL	= 4,
-	HAL_GPIO_MUX_MAC_NETWORK_LED	= 5,
-	HAL_GPIO_MUX_MAC_POWER_LED	= 6
+	HAL_MSIVEC_MISC = 0,
+	HAL_MSIVEC_TX   = 1,
+	HAL_MSIVEC_RXLP = 2,
+	HAL_MSIVEC_RXHP = 3,
+} HAL_MSIVEC;
+
+typedef enum {
+	HAL_INT_LINE = 0,
+	HAL_INT_MSI  = 1,
+} HAL_INT_TYPE;
+
+/* For interrupt mitigation registers */
+typedef enum {
+	HAL_INT_RX_FIRSTPKT=0,
+	HAL_INT_RX_LASTPKT,
+	HAL_INT_TX_FIRSTPKT,
+	HAL_INT_TX_LASTPKT,
+	HAL_INT_THRESHOLD
+} HAL_INT_MITIGATION;
+
+typedef enum {
+	HAL_GPIO_OUTPUT_MUX_AS_OUTPUT		= 0,
+	HAL_GPIO_OUTPUT_MUX_PCIE_ATTENTION_LED	= 1,
+	HAL_GPIO_OUTPUT_MUX_PCIE_POWER_LED	= 2,
+	HAL_GPIO_OUTPUT_MUX_MAC_NETWORK_LED	= 3,
+	HAL_GPIO_OUTPUT_MUX_MAC_POWER_LED	= 4,
+	HAL_GPIO_OUTPUT_MUX_AS_WLAN_ACTIVE	= 5,
+	HAL_GPIO_OUTPUT_MUX_AS_TX_FRAME		= 6
 } HAL_GPIO_MUX_TYPE;
 
 typedef enum {
@@ -776,6 +800,139 @@ struct hal_dfs_event {
 	uint32_t	re_flags;	/* Flags (see above) */
 };
 typedef struct hal_dfs_event HAL_DFS_EVENT;
+
+/*
+ * BT Co-existence definitions
+ */
+typedef enum {
+	HAL_BT_MODULE_CSR_BC4	= 0,	/* CSR BlueCore v4 */
+	HAL_BT_MODULE_JANUS	= 1,	/* Kite + Valkyrie combo */
+	HAL_BT_MODULE_HELIUS	= 2,	/* Kiwi + Valkyrie combo */
+	HAL_MAX_BT_MODULES
+} HAL_BT_MODULE;
+
+typedef struct {
+	HAL_BT_MODULE	bt_module;
+	u_int8_t	bt_coex_config;
+	u_int8_t	bt_gpio_bt_active;
+	u_int8_t	bt_gpio_bt_priority;
+	u_int8_t	bt_gpio_wlan_active;
+	u_int8_t	bt_active_polarity;
+	HAL_BOOL	bt_single_ant;
+	u_int8_t	bt_dutyCycle;
+	u_int8_t	bt_isolation;
+	u_int8_t	bt_period;
+} HAL_BT_COEX_INFO;
+
+typedef enum {
+	HAL_BT_COEX_MODE_LEGACY		= 0,	/* legacy rx_clear mode */
+	HAL_BT_COEX_MODE_UNSLOTTED	= 1,	/* untimed/unslotted mode */
+	HAL_BT_COEX_MODE_SLOTTED	= 2,	/* slotted mode */
+	HAL_BT_COEX_MODE_DISALBED	= 3,	/* coexistence disabled */
+} HAL_BT_COEX_MODE;
+
+typedef enum {
+	HAL_BT_COEX_CFG_NONE,		/* No bt coex enabled */
+	HAL_BT_COEX_CFG_2WIRE_2CH,	/* 2-wire with 2 chains */
+	HAL_BT_COEX_CFG_2WIRE_CH1,	/* 2-wire with ch1 */
+	HAL_BT_COEX_CFG_2WIRE_CH0,	/* 2-wire with ch0 */
+	HAL_BT_COEX_CFG_3WIRE,		/* 3-wire */
+	HAL_BT_COEX_CFG_MCI		/* MCI */
+} HAL_BT_COEX_CFG;
+
+typedef enum {
+	HAL_BT_COEX_SET_ACK_PWR		= 0,	/* Change ACK power setting */
+	HAL_BT_COEX_LOWER_TX_PWR,		/* Change transmit power */
+	HAL_BT_COEX_ANTENNA_DIVERSITY,	/* Enable RX diversity for Kite */
+} HAL_BT_COEX_SET_PARAMETER;
+
+#define	HAL_BT_COEX_FLAG_LOW_ACK_PWR	0x00000001
+#define	HAL_BT_COEX_FLAG_LOWER_TX_PWR	0x00000002
+/* Check Rx Diversity is allowed */
+#define	HAL_BT_COEX_FLAG_ANT_DIV_ALLOW	0x00000004
+/* Check Diversity is on or off */
+#define	HAL_BT_COEX_FLAG_ANT_DIV_ENABLE	0x00000008
+
+#define	HAL_BT_COEX_ANTDIV_CONTROL1_ENABLE	0x0b
+/* main: LNA1, alt: LNA2 */
+#define	HAL_BT_COEX_ANTDIV_CONTROL2_ENABLE	0x09
+#define	HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_A	0x04
+#define	HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_A	0x09
+#define	HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_B	0x02
+#define	HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_B	0x06
+
+#define	HAL_BT_COEX_ISOLATION_FOR_NO_COEX	30
+
+#define	HAL_BT_COEX_ANT_DIV_SWITCH_COM	0x66666666
+
+#define	HAL_BT_COEX_HELIUS_CHAINMASK	0x02
+
+#define	HAL_BT_COEX_LOW_ACK_POWER	0x0
+#define	HAL_BT_COEX_HIGH_ACK_POWER	0x3f3f3f
+
+typedef enum {
+	HAL_BT_COEX_NO_STOMP = 0,
+	HAL_BT_COEX_STOMP_ALL,
+	HAL_BT_COEX_STOMP_LOW,
+	HAL_BT_COEX_STOMP_NONE,
+	HAL_BT_COEX_STOMP_ALL_FORCE,
+	HAL_BT_COEX_STOMP_LOW_FORCE,
+} HAL_BT_COEX_STOMP_TYPE;
+
+typedef struct {
+	/* extend rx_clear after tx/rx to protect the burst (in usec). */
+	u_int8_t	bt_time_extend;
+
+	/*
+	 * extend rx_clear as long as txsm is
+	 * transmitting or waiting for ack.
+	 */
+	HAL_BOOL	bt_txstate_extend;
+
+	/*
+	 * extend rx_clear so that when tx_frame
+	 * is asserted, rx_clear will drop.
+	 */
+	HAL_BOOL	bt_txframe_extend;
+
+	/*
+	 * coexistence mode
+	 */
+	HAL_BT_COEX_MODE	bt_mode;
+
+	/*
+	 * treat BT high priority traffic as
+	 * a quiet collision
+	 */
+	HAL_BOOL	bt_quiet_collision;
+
+	/*
+	 * invert rx_clear as WLAN_ACTIVE
+	 */
+	HAL_BOOL	bt_rxclear_polarity;
+
+	/*
+	 * slotted mode only. indicate the time in usec
+	 * from the rising edge of BT_ACTIVE to the time
+	 * BT_PRIORITY can be sampled to indicate priority.
+	 */
+	u_int8_t	bt_priority_time;
+
+	/*
+	 * slotted mode only. indicate the time in usec
+	 * from the rising edge of BT_ACTIVE to the time
+	 * BT_PRIORITY can be sampled to indicate tx/rx and
+	 * BT_FREQ is sampled.
+	 */
+	u_int8_t	bt_first_slot_time;
+
+	/*
+	 * slotted mode only. rx_clear and bt_ant decision
+	 * will be held the entire time that BT_ACTIVE is asserted,
+	 * otherwise the decision is made before every slot boundry.
+	 */
+	HAL_BOOL	bt_hold_rxclear;
+} HAL_BT_COEX_CONFIG;
 
 typedef struct
 {

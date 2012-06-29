@@ -63,7 +63,7 @@ Options (
     void);
 
 static void
-HelpMessage (
+FilenameHelp (
     void);
 
 static void
@@ -170,27 +170,36 @@ Options (
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
 
     printf ("\nHelp:\n");
-    ACPI_OPTION ("-h",              "Additional help and compiler debug options");
+    ACPI_OPTION ("-h",              "This message");
     ACPI_OPTION ("-hc",             "Display operators allowed in constant expressions");
+    ACPI_OPTION ("-hf",             "Display help for output filename generation");
     ACPI_OPTION ("-hr",             "Display ACPI reserved method names");
     ACPI_OPTION ("-ht",             "Display currently supported ACPI table names");
+
+    printf ("\nDebug Options:\n");
+    ACPI_OPTION ("-bf -bt",         "Create debug file (full or parse tree only) (*.txt)");
+    ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
+    ACPI_OPTION ("-n",              "Parse only, no output generation");
+    ACPI_OPTION ("-ot",             "Display compile times and statistics");
+    ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
+    ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    HelpMessage
+ * FUNCTION:    FilenameHelp
  *
  * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display help message
+ * DESCRIPTION: Display help message for output filename generation
  *
  ******************************************************************************/
 
 static void
-HelpMessage (
+FilenameHelp (
     void)
 {
 
@@ -202,17 +211,6 @@ HelpMessage (
     printf ("    2) The prefix of the AMLFileName in the ASL Definition Block\n");
     printf ("    3) The prefix of the input filename\n");
     printf ("\n");
-
-    Options ();
-
-    printf ("\nCompiler/Disassembler Debug Options:\n");
-    ACPI_OPTION ("-bb -bp -bt",     "Create compiler debug/trace file (*.txt)");
-    ACPI_OPTION ("",                "Types: Parse/Tree/Both");
-    ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
-    ACPI_OPTION ("-n",              "Parse only, no output generation");
-    ACPI_OPTION ("-ot",             "Display compile times");
-    ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
-    ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }
 
 
@@ -430,13 +428,7 @@ AslDoOptions (
     case 'b':   /* Debug output options */
         switch (AcpiGbl_Optarg[0])
         {
-        case 'b':
-            AslCompilerdebug = 1; /* same as yydebug */
-            DtParserdebug = 1;
-            PrParserdebug = 1;
-            break;
-
-        case 'p':
+        case 'f':
             AslCompilerdebug = 1; /* same as yydebug */
             DtParserdebug = 1;
             PrParserdebug = 1;
@@ -530,11 +522,15 @@ AslDoOptions (
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
-            HelpMessage ();
+            Usage ();
             exit (0);
 
         case 'c':
             UtDisplayConstantOpcodes ();
+            exit (0);
+
+        case 'f':
+            FilenameHelp ();
             exit (0);
 
         case 'r':

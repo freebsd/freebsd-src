@@ -1,4 +1,4 @@
-.TH LESSECHO 1 "Version 444: 09 Jun 2011"
+.TH LESSECHO 1 "Version 449: 26 Jun 2012"
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
@@ -7,12 +7,19 @@ lessecho \- expand metacharacters
 .SH "DESCRIPTION"
 .I lessecho
 is a program that simply echos its arguments on standard output.
-But any argument containing spaces is enclosed in quotes.
+But any metacharacter in the output is preceded by an "escape"
+character, which by default is a backslash.
 .SH OPTIONS
 A summary of options is included below.
 .TP
+.B \-ex
+Specifies "x", rather than backslash, to be the escape char for metachars.
+If x is "-", no escape char is used and arguments containing metachars
+are surrounded by quotes instead.
+.TP
 .B \-ox
-Specifies "x" to be the open quote character.
+Specifies "x", rather than double-quote, to be the open quote character,
+which is used if the -e- option is specified.
 .TP
 .B \-cx
 Specifies "x" to be the close quote character.
@@ -25,19 +32,17 @@ Specifies "n" to be the close quote character, as an integer.
 .TP
 .B \-mx
 Specifies "x" to be a metachar.
+By default, no characters are considered metachars.
 .TP
 .B \-nn
 Specifies "n" to be a metachar, as an integer.
-.TP
-.B \-ex
-Specifies "x" to be the escape char for metachars.
 .TP
 .B \-fn
 Specifies "n" to be the escape char for metachars, as an integer.
 .TP
 .B \-a
 Specifies that all arguments are to be quoted.
-The default is that only arguments containing spaces are quoted.
+The default is that only arguments containing metacharacters are quoted
 .SH "SEE ALSO"
 less(1)
 .SH AUTHOR

@@ -10,3 +10,4 @@ device		at91sam9
 
 device		at91sam9260
 device		at91sam9g20
+device		at91sam9x25

@@ -1,2 +1,3 @@
 # $FreeBSD$
+machine arm armeb
 options		ARM_CACHE_LOCK_ENABLE

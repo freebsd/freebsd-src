@@ -354,6 +354,55 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	}
 }
 
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+static void
+ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
+    const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
+{
+	struct ath_softc *sc = ifp->if_softc;
+
+	/* Fill in the extension bitmap */
+	sc->sc_rx_th.wr_ext_bitmap = htole32(1 << ATH_RADIOTAP_VENDOR_HEADER);
+
+	/* Fill in the vendor header */
+	sc->sc_rx_th.wr_vh.vh_oui[0] = 0x7f;
+	sc->sc_rx_th.wr_vh.vh_oui[1] = 0x03;
+	sc->sc_rx_th.wr_vh.vh_oui[2] = 0x00;
+
+	/* XXX what should this be? */
+	sc->sc_rx_th.wr_vh.vh_sub_ns = 0;
+	sc->sc_rx_th.wr_vh.vh_skip_len =
+	    htole16(sizeof(struct ath_radiotap_vendor_hdr));
+
+	/* General version info */
+	sc->sc_rx_th.wr_v.vh_version = 1;
+
+	sc->sc_rx_th.wr_v.vh_rx_chainmask = sc->sc_rxchainmask;
+
+	/* rssi */
+	sc->sc_rx_th.wr_v.rssi_ctl[0] = rs->rs_rssi_ctl[0];
+	sc->sc_rx_th.wr_v.rssi_ctl[1] = rs->rs_rssi_ctl[1];
+	sc->sc_rx_th.wr_v.rssi_ctl[2] = rs->rs_rssi_ctl[2];
+	sc->sc_rx_th.wr_v.rssi_ext[0] = rs->rs_rssi_ext[0];
+	sc->sc_rx_th.wr_v.rssi_ext[1] = rs->rs_rssi_ext[1];
+	sc->sc_rx_th.wr_v.rssi_ext[2] = rs->rs_rssi_ext[2];
+
+	/* evm */
+	sc->sc_rx_th.wr_v.evm[0] = rs->rs_evm0;
+	sc->sc_rx_th.wr_v.evm[1] = rs->rs_evm1;
+	sc->sc_rx_th.wr_v.evm[2] = rs->rs_evm2;
+	/* XXX TODO: extend this to include 3-stream EVM */
+
+	/* phyerr info */
+	if (rs->rs_status & HAL_RXERR_PHY)
+		sc->sc_rx_th.wr_v.vh_phyerr_code = rs->rs_phyerr;
+	else
+		sc->sc_rx_th.wr_v.vh_phyerr_code = 0xff;
+	sc->sc_rx_th.wr_v.vh_rs_status = rs->rs_status;
+	sc->sc_rx_th.wr_v.vh_rssi = rs->rs_rssi;
+}
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
+
 static void
 ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
@@ -487,7 +536,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 				    bf->bf_dmamap,
 				    BUS_DMASYNC_POSTREAD);
 				/* Now pass it to the radar processing code */
-				ath_dfs_process_phy_err(sc, mtod(m, char *), rstamp, rs);
+				ath_dfs_process_phy_err(sc, m, rstamp, rs);
 			}
 
 			/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
@@ -552,6 +601,9 @@ rx_error:
 			m->m_pkthdr.len = m->m_len = len;
 			bf->bf_m = NULL;
 			ath_rx_tap(ifp, m, rs, rstamp, nf);
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+			ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 			ieee80211_radiotap_rx_all(ic, m);
 			m_freem(m);
 		}
@@ -646,8 +698,12 @@ rx_accept:
 	 * material required by ieee80211_input.  Note that
 	 * noise setting is filled in above.
 	 */
-	if (ieee80211_radiotap_active(ic))
+	if (ieee80211_radiotap_active(ic)) {
 		ath_rx_tap(ifp, m, rs, rstamp, nf);
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+		ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
+	}
 
 	/*
 	 * From this point on we assume the frame is at least

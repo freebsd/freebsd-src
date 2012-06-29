@@ -197,7 +197,7 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (soc_data.type == AT91_CPU_SAM9260) {
+	if (soc_data.type == AT91_T_SAM9260) {
 		at91_add_child(parent, 0, "at91sam9260", 0, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
 	}
@@ -266,7 +266,7 @@ at91_attach(device_t dev)
 	    &sc->sc_matrix_sh) != 0)
 		panic("Enable to map matrix registers");
 
-	/* activate NAND*/
+	/* activate NAND */
 	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
 	    AT91SAM9260_EBICSA);
 	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,

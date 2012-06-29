@@ -258,7 +258,7 @@ failure:
 		break;
 	case 3:
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
-		xpt_remove_periph(periph);
+		xpt_remove_periph(periph, /*topology_lock_held*/ 0);
 		/* FALLTHROUGH */
 	case 2:
 		xpt_lock_buses();
@@ -273,7 +273,7 @@ failure:
 		/* No cleanup to perform. */
 		break;
 	default:
-		panic("cam_periph_alloc: Unkown init level");
+		panic("%s: Unknown init level", __func__);
 	}
 	return(status);
 }
@@ -439,6 +439,10 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 		    "caplck", 0)) != 0) {
 			cam_periph_release_locked(periph);
 			return (error);
+		}
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			cam_periph_release_locked(periph);
+			return (ENXIO);
 		}
 	}
 
@@ -610,13 +614,38 @@ camperiphfree(struct cam_periph *periph)
 		return;
 	}
 
-	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
-	(*p_drv)->generation++;
+	/*
+	 * The peripheral destructor semantics dictate calling with only the
+	 * SIM mutex held.  Since it might sleep, it should not be called
+	 * with the topology lock held.
+	 */
 	xpt_unlock_buses();
 
+	/*
+	 * We need to call the peripheral destructor prior to removing the
+	 * peripheral from the list.  Otherwise, we risk running into a
+	 * scenario where the peripheral unit number may get reused
+	 * (because it has been removed from the list), but some resources
+	 * used by the peripheral are still hanging around.  In particular,
+	 * the devfs nodes used by some peripherals like the pass(4) driver
+	 * aren't fully cleaned up until the destructor is run.  If the
+	 * unit number is reused before the devfs instance is fully gone,
+	 * devfs will panic.
+	 */
 	if (periph->periph_dtor != NULL)
 		periph->periph_dtor(periph);
-	xpt_remove_periph(periph);
+
+	/*
+	 * The peripheral list is protected by the topology lock.
+	 */
+	xpt_lock_buses();
+
+	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
+	(*p_drv)->generation++;
+
+	xpt_remove_periph(periph, /*topology_lock_held*/ 1);
+
+	xpt_unlock_buses();
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
@@ -1118,22 +1147,15 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	union ccb      *saved_ccb;
 	cam_status	status;
 	struct scsi_start_stop_unit *scsi_cmd;
+	int    error_code, sense_key, asc, ascq;
 
 	scsi_cmd = (struct scsi_start_stop_unit *)
 	    &done_ccb->csio.cdb_io.cdb_bytes;
 	status = done_ccb->ccb_h.status;
 
 	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if ((status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
-		    (status & CAM_AUTOSNS_VALID)) {
-			struct scsi_sense_data *sense;
-			int    error_code, sense_key, asc, ascq, sense_len;
-
-			sense = &done_ccb->csio.sense_data;
-			sense_len = done_ccb->csio.sense_len -
-				    done_ccb->csio.sense_resid;
-			scsi_extract_sense_len(sense, sense_len, &error_code,
-			    &sense_key, &asc, &ascq, /*show_errors*/ 1);
+		if (scsi_extract_sense_ccb(done_ccb,
+		    &error_code, &sense_key, &asc, &ascq)) {
 			/*
 			 * If the error is "invalid field in CDB",
 			 * and the load/eject flag is set, turn the
@@ -1325,6 +1347,7 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 			}
 			*timeout = 0;
 			error = ERESTART;
+			*print = 0;
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1391,12 +1414,8 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 
-		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
-			err_action = scsi_error_action(&ccb->csio,
-						       &cgd.inq_data,
-						       sense_flags);
-		else
-			err_action = SS_RETRY|SSQ_DECREMENT_COUNT|EIO;
+		err_action = scsi_error_action(&ccb->csio, &cgd.inq_data,
+		    sense_flags);
 		error = err_action & SS_ERRMASK;
 
 		/*
@@ -1654,8 +1673,10 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		} else if (sense_flags & SF_NO_RETRY) {
 			error = EIO;
 			action_string = "Retry was blocked";
-		} else
+		} else {
 			error = ERESTART;
+			print = 0;
+		}
 		break;
 	case CAM_RESRC_UNAVAIL:
 		/* Wait a bit for the resource shortage to abate. */

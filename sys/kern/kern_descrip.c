@@ -668,7 +668,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		}
 		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = 0;
-		if (error != 0) {
+		if (error != 0 || flp->l_type == F_UNLCK ||
+		    flp->l_type == F_UNLCKSYS) {
 			fdrop(fp, td);
 			break;
 		}

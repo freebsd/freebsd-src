@@ -210,18 +210,28 @@ ncl_inactive(struct vop_inactive_args *ap)
 	struct nfsnode *np;
 	struct sillyrename *sp;
 	struct vnode *vp = ap->a_vp;
+	boolean_t retv;
 
 	np = VTONFS(vp);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		/*
 		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
-		 * Close operations are delayed until now. Any dirty buffers
-		 * must be flushed before the close, so that the stateid is
-		 * available for the writes.
+		 * Close operations are delayed until now. Any dirty
+		 * buffers/pages must be flushed before the close, so that the
+		 * stateid is available for the writes.
 		 */
-		(void) ncl_flush(vp, MNT_WAIT, NULL, ap->a_td, 1, 0);
-		(void) nfsrpc_close(vp, 1, ap->a_td);
+		if (vp->v_object != NULL) {
+			VM_OBJECT_LOCK(vp->v_object);
+			retv = vm_object_page_clean(vp->v_object, 0, 0,
+			    OBJPC_SYNC);
+			VM_OBJECT_UNLOCK(vp->v_object);
+		} else
+			retv = TRUE;
+		if (retv == TRUE) {
+			(void)ncl_flush(vp, MNT_WAIT, NULL, ap->a_td, 1, 0);
+			(void)nfsrpc_close(vp, 1, ap->a_td);
+		}
 	}
 
 	mtx_lock(&np->n_mtx);

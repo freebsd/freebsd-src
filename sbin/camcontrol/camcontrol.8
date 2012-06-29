@@ -497,6 +497,8 @@ is specified,
 .Nm
 will print out the number of defects given in the READ DEFECT DATA header
 returned from the drive.
+Some drives will report 0 defects if neither the primary or grown defect
+lists are requested.
 .It Ic modepage
 Allows the user to display and optionally edit a SCSI mode page.
 The mode

@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * FTDI FT8U100AX serial adapter driver
+ * FTDI FT2232x, FT8U100AX and FT8U232AM serial adapter driver
  */
 
 #include <sys/stdint.h>
@@ -278,9 +278,15 @@ uftdi_probe(device_t dev)
 	 */
 	id = usbd_lookup_id_by_info(uftdi_devs, sizeof(uftdi_devs),
 	    &uaa->info);
-	if (id == NULL || ((id->driver_info & UFTDI_FLAG_JTAG) != 0 &&
-	    uaa->info.bIfaceIndex == UFTDI_IFACE_INDEX_JTAG))
+	if (id == NULL)
 		return (ENXIO);
+	if ((id->driver_info & UFTDI_FLAG_JTAG) != 0 &&
+	    uaa->info.bIfaceIndex == UFTDI_IFACE_INDEX_JTAG) {
+		printf("%s: skipping JTAG interface at %u.%u\n",
+		    device_get_name(dev), usbd_get_bus_index(uaa->device),
+		    usbd_get_device_index(uaa->device));
+		return (ENXIO);
+	}
 	uaa->driver_info = id->driver_info;
 	return (BUS_PROBE_SPECIFIC);
 }

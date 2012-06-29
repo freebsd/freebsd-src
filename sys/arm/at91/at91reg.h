@@ -46,6 +46,9 @@
 #define	AT91_SYS_BASE	0xffff000
 #define	AT91_SYS_SIZE	0x1000
 
+#define AT91_DBGU0	0x0ffff200	/* Most */
+#define AT91_DBGU1	0x0fffee00	/* SAM9263, CAP9, and SAM9G45 */
+
 #define	AT91_DBGU_SIZE	0x200
 #define	DBGU_C1R		(64) /* Chip ID1 Register */
 #define	DBGU_C2R		(68) /* Chip ID2 Register */

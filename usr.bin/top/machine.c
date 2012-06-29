@@ -176,6 +176,12 @@ char *memorynames[] = {
 	"K Free", NULL
 };
 
+int arc_stats[7];
+char *arcnames[] = {
+	"K Total, ", "K MRU, ", "K MFU, ", "K Anon, ", "K Header, ", "K Other",
+	NULL
+};
+
 int swap_stats[7];
 char *swapnames[] = {
 	"K Total, ", "K Used, ", "K Free, ", "% Inuse, ", "K In, ", "K Out",
@@ -194,6 +200,7 @@ static struct kinfo_proc *previous_procs;
 static struct kinfo_proc **previous_pref;
 static int previous_proc_count = 0;
 static int previous_proc_count_max = 0;
+static int arc_enabled;
 
 /* total number of io operations */
 static long total_inblock;
@@ -239,6 +246,7 @@ static int compare_tid(const void *a, const void *b);
 static const char *format_nice(const struct kinfo_proc *pp);
 static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
+static void update_layout(void);
 
 void
 toggle_pcpustats(void)
@@ -246,24 +254,30 @@ toggle_pcpustats(void)
 
 	if (ncpus == 1)
 		return;
+	update_layout();
+}
 
-	/* Adjust display based on ncpus */
+/* Adjust display based on ncpus and the ARC state. */
+static void
+update_layout(void)
+{
+
+	y_mem = 3;
+	y_swap = 4 + arc_enabled;
+	y_idlecursor = 5 + arc_enabled;
+	y_message = 5 + arc_enabled;
+	y_header = 6 + arc_enabled;
+	y_procs = 7 + arc_enabled;
+	Header_lines = 7 + arc_enabled;
+
 	if (pcpu_stats) {
-		y_mem += ncpus - 1;	/* 3 */
-		y_swap += ncpus - 1;	/* 4 */
-		y_idlecursor += ncpus - 1; /* 5 */
-		y_message += ncpus - 1;	/* 5 */
-		y_header += ncpus - 1;	/* 6 */
-		y_procs += ncpus - 1;	/* 7 */
-		Header_lines += ncpus - 1; /* 7 */
-	} else {
-		y_mem = 3;
-		y_swap = 4;
-		y_idlecursor = 5;
-		y_message = 5;
-		y_header = 6;
-		y_procs = 7;
-		Header_lines = 7;
+		y_mem = ncpus - 1;
+		y_swap += ncpus - 1;
+		y_idlecursor += ncpus - 1;
+		y_message += ncpus - 1;
+		y_header += ncpus - 1;
+		y_procs += ncpus - 1;
+		Header_lines += ncpus - 1;
 	}
 }
 
@@ -271,6 +285,7 @@ int
 machine_init(struct statics *statics, char do_unames)
 {
 	int i, j, empty, pagesize;
+	uint64_t arc_size;
 	size_t size;
 	struct passwd *pw;
 
@@ -281,6 +296,11 @@ machine_init(struct statics *statics, char do_unames)
 	    NULL, 0) != 0) ||
 	    size != sizeof(smpmode))
 		smpmode = 0;
+
+	size = sizeof(arc_size);
+	if (sysctlbyname("kstat.zfs.misc.arcstats.size", &arc_size, &size,
+	    NULL, 0) == 0 && arc_size != 0)
+		arc_enabled = 1;
 
 	if (do_unames) {
 	    while ((pw = getpwent()) != NULL) {
@@ -322,6 +342,10 @@ machine_init(struct statics *statics, char do_unames)
 	statics->procstate_names = procstatenames;
 	statics->cpustate_names = cpustatenames;
 	statics->memory_names = memorynames;
+	if (arc_enabled)
+		statics->arc_names = arcnames;
+	else
+		statics->arc_names = NULL;
 	statics->swap_names = swapnames;
 #ifdef ORDER
 	statics->order_names = ordernames;
@@ -356,8 +380,7 @@ machine_init(struct statics *statics, char do_unames)
 	pcpu_cpu_states = calloc(1, size);
 	statics->ncpus = ncpus;
 
-	if (pcpu_stats)
-		toggle_pcpustats();
+	update_layout();
 
 	/* all done! */
 	return (0);
@@ -408,7 +431,7 @@ get_system_info(struct system_info *si)
 	struct loadavg sysload;
 	int mib[2];
 	struct timeval boottime;
-	size_t bt_size;
+	uint64_t arc_stat, arc_stat2;
 	int i, j;
 	size_t size;
 
@@ -487,6 +510,23 @@ get_system_info(struct system_info *si)
 		swap_stats[6] = -1;
 	}
 
+	if (arc_enabled) {
+		GETSYSCTL("kstat.zfs.misc.arcstats.size", arc_stat);
+		arc_stats[0] = arc_stat >> 10;
+		GETSYSCTL("vfs.zfs.mfu_size", arc_stat);
+		arc_stats[1] = arc_stat >> 10;
+		GETSYSCTL("vfs.zfs.mru_size", arc_stat);
+		arc_stats[2] = arc_stat >> 10;
+		GETSYSCTL("vfs.zfs.anon_size", arc_stat);
+		arc_stats[3] = arc_stat >> 10;
+		GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc_stat);
+		GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc_stat2);
+		arc_stats[4] = arc_stat + arc_stat2 >> 10;
+		GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc_stat);
+		arc_stats[5] = arc_stat >> 10;
+		si->arc = arc_stats;
+	}
+		    
 	/* set arrays and strings */
 	if (pcpu_stats) {
 		si->cpustates = pcpu_cpu_states;
@@ -511,8 +551,8 @@ get_system_info(struct system_info *si)
 	 */
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_BOOTTIME;
-	bt_size = sizeof(boottime);
-	if (sysctl(mib, 2, &boottime, &bt_size, NULL, 0) != -1 &&
+	size = sizeof(boottime);
+	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
 	    boottime.tv_sec != 0) {
 		si->boottime = boottime;
 	} else {

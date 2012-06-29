@@ -341,7 +341,7 @@ AePrintException (
 
         if (Gbl_VerboseErrors)
         {
-            fprintf (OutputFile, "%s %4.4d - ",
+            fprintf (OutputFile, "%s %4.4d -",
                         AslErrorLevel[Enode->Level],
                         Enode->MessageId + ((Enode->Level+1) * 1000));
         }

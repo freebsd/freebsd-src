@@ -374,6 +374,7 @@ static devclass_t isp_devclass;
 DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 MODULE_DEPEND(isp, firmware, 1, 1, 1);
+static int isp_nvports = 0;
 
 static int
 isp_pci_probe(device_t dev)
@@ -451,7 +452,7 @@ isp_pci_probe(device_t dev)
 }
 
 static void
-isp_get_generic_options(device_t dev, ispsoftc_t *isp, int *nvp)
+isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
 	int tval;
 
@@ -483,12 +484,10 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp, int *nvp)
 	if (bootverbose) {
 		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
 	}
-	tval = 0;
+	tval = -1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "vports", &tval);
 	if (tval > 0 && tval < 127) {
-		*nvp =  tval;
-	} else {
-		*nvp = 0;
+		isp_nvports = tval;
 	}
 	tval = 1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "autoconfig", &tval);
@@ -496,11 +495,6 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp, int *nvp)
 	tval = 7;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "quickboot_time", &tval);
 	isp_quickboot_time = tval;
-
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "forcemulti", &tval) == 0 && tval != 0) {
-		isp->isp_osinfo.forcemulti = 1;
-	}
 }
 
 static void
@@ -532,7 +526,7 @@ static void
 isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 {
 	const char *sptr;
-	int tval;
+	int tval = 0;
 
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "iid", &tval)) {
 		if (IS_FC(isp)) {
@@ -653,7 +647,6 @@ static int
 isp_pci_attach(device_t dev)
 {
 	int i, m1, m2, locksetup = 0;
-	int isp_nvports = 0;
 	uint32_t data, cmd, linesz, did;
 	struct isp_pcisoftc *pcs;
 	ispsoftc_t *isp;
@@ -675,7 +668,8 @@ isp_pci_attach(device_t dev)
 	/*
 	 * Get Generic Options
 	 */
-	isp_get_generic_options(dev, isp, &isp_nvports);
+	isp_nvports = 0;
+	isp_get_generic_options(dev, isp);
 
 	/*
 	 * Check to see if options have us disabled
@@ -865,7 +859,7 @@ isp_pci_attach(device_t dev)
 	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
-	} else if (IS_24XX(isp) && (isp->isp_nchan > 1 || isp->isp_osinfo.forcemulti)) {
+	} else if (IS_24XX(isp)) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x_multi", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
 	}
@@ -874,28 +868,23 @@ isp_pci_attach(device_t dev)
 		isp->isp_osinfo.fw = firmware_get(fwname);
 	}
 	if (isp->isp_osinfo.fw != NULL) {
+		isp_prt(isp, ISP_LOGCONFIG, "loaded firmware %s", fwname);
 		isp->isp_mdvec->dv_ispfw = isp->isp_osinfo.fw->data;
 	}
 
 	/*
-	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
-	 * are set.
+	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER are set.
 	 */
-	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN |
-		PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
-
+	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
 	if (IS_2300(isp)) {	/* per QLogic errata */
 		cmd &= ~PCIM_CMD_INVEN;
 	}
-
 	if (IS_2322(isp) || pci_get_devid(dev) == PCI_QLOGIC_ISP6312) {
 		cmd &= ~PCIM_CMD_INTX_DISABLE;
 	}
-
 	if (IS_24XX(isp)) {
 		cmd &= ~PCIM_CMD_INTX_DISABLE;
 	}
-
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
 	/*
@@ -903,7 +892,7 @@ isp_pci_attach(device_t dev)
 	 */
 	data = pci_read_config(dev, PCIR_CACHELNSZ, 1);
 	if (data == 0 || (linesz != PCI_DFLT_LNSZ && data != linesz)) {
-		isp_prt(isp, ISP_LOGCONFIG, "set PCI line size to %d from %d", linesz, data);
+		isp_prt(isp, ISP_LOGDEBUG0, "set PCI line size to %d from %d", linesz, data);
 		data = linesz;
 		pci_write_config(dev, PCIR_CACHELNSZ, data, 1);
 	}
@@ -914,7 +903,7 @@ isp_pci_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_LATTIMER, 1);
 	if (data < PCI_DFLT_LTNCY) {
 		data = PCI_DFLT_LTNCY;
-		isp_prt(isp, ISP_LOGCONFIG, "set PCI latency to %d", data);
+		isp_prt(isp, ISP_LOGDEBUG0, "set PCI latency to %d", data);
 		pci_write_config(dev, PCIR_LATTIMER, data, 1);
 	}
 
