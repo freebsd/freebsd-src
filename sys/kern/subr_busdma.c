@@ -41,6 +41,10 @@ __FBSDID("$FreeBSD$");
 
 #include "busdma_if.h"
 
+/*
+ * Section 1: Private types.
+ */
+
 struct busdma_tag {
 	struct busdma_tag *dt_chain;
 	struct busdma_tag *dt_child;
@@ -76,6 +80,10 @@ struct busdma_md {
 #define	BUSDMA_MD_FLAG_USED		\
 		(BUSDMA_MD_FLAG_ALLOCATED | BUSDMA_MD_FLAG_LOADED)
 
+/*
+ * Section 2: Private data.
+ */
+
 static struct busdma_tag busdma_root_tag = {
 	.dt_maxaddr = ~0UL,
 	.dt_align = 1,
@@ -105,6 +113,10 @@ static struct busdma_tag busdma_root_tag = {
 
 static MALLOC_DEFINE(M_BUSDMA_MD, "busdma_md", "DMA memory descriptors");
 static MALLOC_DEFINE(M_BUSDMA_TAG, "busdma_tag", "DMA tags");
+
+/*
+ * Section 3: Private functions.
+ */
 
 static void
 _busdma_mtag_dump(const char *func, device_t dev, struct busdma_mtag *mtag)
@@ -281,6 +293,10 @@ _busdma_iommu_map(device_t leaf, struct busdma_md *md)
 		_busdma_md_dump(__func__, leaf, md);
 	return (error);
 }
+
+/*
+ * Section 4: Public interface.
+ */
 
 int
 busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
