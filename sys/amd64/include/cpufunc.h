@@ -273,6 +273,15 @@ outw(u_int port, u_short data)
 	__asm __volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
 }
 
+static __inline u_long
+popcntq(u_long mask)
+{
+	u_long result;
+
+	__asm __volatile("popcntq %1,%0" : "=r" (result) : "rm" (mask));
+	return (result);
+}
+
 static __inline void
 mfence(void)
 {
