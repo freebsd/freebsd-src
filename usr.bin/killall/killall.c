@@ -310,7 +310,7 @@ main(int ac, char **av)
 	if (size % sizeof(struct kinfo_proc) != 0) {
 		fprintf(stderr, "proc size mismatch (%zu total, %zu chunks)\n",
 			size, sizeof(struct kinfo_proc));
-		fprintf(stderr, "userland out of sync with kernel, recompile libkvm etc\n");
+		fprintf(stderr, "userland out of sync with kernel\n");
 		exit(1);
 	}
 	nprocs = size / sizeof(struct kinfo_proc);
