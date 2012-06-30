@@ -278,9 +278,6 @@ main(int ac, char **av)
 	size = 0;
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
-	mib[2] = KERN_PROC_PROC;
-	mib[3] = 0;
-	miblen = 3;
 
 	if (user) {
 		mib[2] = eflag ? KERN_PROC_UID : KERN_PROC_RUID;
@@ -290,6 +287,10 @@ main(int ac, char **av)
 		mib[2] = KERN_PROC_TTY;
 		mib[3] = tdev;
 		miblen = 4;
+	} else {
+		mib[2] = KERN_PROC_PROC;
+		mib[3] = 0;
+		miblen = 3;
 	}
 
 	procs = NULL;
