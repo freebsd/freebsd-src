@@ -90,7 +90,7 @@ nosig(char *name)
 int
 main(int ac, char **av)
 {
-	struct kinfo_proc *procs = NULL, *newprocs;
+	struct kinfo_proc *procs, *newprocs;
 	struct stat	sb;
 	struct passwd	*pw;
 	regex_t		rgx;
@@ -292,14 +292,14 @@ main(int ac, char **av)
 		miblen = 4;
 	}
 
+	procs = NULL;
 	st = sysctl(mib, miblen, NULL, &size, NULL, 0);
 	do {
 		size += size / 10;
 		newprocs = realloc(procs, size);
-		if (newprocs == 0) {
-			if (procs)
-				free(procs);
-			errx(1, "could not reallocate memory");
+		if (newprocs == NULL) {
+			free(procs);
+			err(1, "could not reallocate memory");
 		}
 		procs = newprocs;
 		st = sysctl(mib, miblen, procs, &size, NULL, 0);
