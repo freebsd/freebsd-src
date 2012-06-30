@@ -1059,12 +1059,12 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	if (cpl->csum_calc && !cpl->err_vec) {
 		if (ifp->if_capenable & IFCAP_RXCSUM &&
 		    cpl->l2info & htobe32(F_RXF_IP)) {
-			m0->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED |
+			m0->m_pkthdr.csum_flags = (CSUM_IP_CHECKED |
 			    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			rxq->rxcsum++;
 		} else if (ifp->if_capenable & IFCAP_RXCSUM_IPV6 &&
 		    cpl->l2info & htobe32(F_RXF_IP6)) {
-			m0->m_pkthdr.csum_flags |= (CSUM_DATA_VALID_IPV6 |
+			m0->m_pkthdr.csum_flags = (CSUM_DATA_VALID_IPV6 |
 			    CSUM_PSEUDO_HDR);
 			rxq->rxcsum++;
 		}
