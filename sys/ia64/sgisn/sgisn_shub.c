@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
+#include <sys/timetc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -62,6 +63,7 @@ struct sgisn_shub_softc {
 	bus_addr_t	sc_mmraddr;
 	bus_space_tag_t sc_tag;
 	bus_space_handle_t sc_hndl;
+	struct timecounter sc_rtc;
 	u_int		sc_domain;
 	u_int		sc_hubtype;	/* SHub type (0=SHub1, 1=SHub2) */
 	u_int		sc_nasid_mask;
@@ -129,6 +131,17 @@ static driver_t sgisn_shub_driver = {
 
 
 DRIVER_MODULE(shub, nexus, sgisn_shub_driver, sgisn_shub_devclass, 0, 0);
+
+static u_int
+sgisn_shub_get_rtc(struct timecounter *tc)
+{
+	struct sgisn_shub_softc *sc;
+	u_int rtc;
+
+	sc = tc->tc_priv;
+	rtc = bus_space_read_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_RTC);
+	return (rtc);
+}
 
 static int
 sgisn_shub_activate_resource(device_t dev, device_t child, int type, int rid,
@@ -427,6 +440,18 @@ sgisn_shub_attach(device_t dev)
 	if (r.sal_status == 0 && r.sal_result[0] == sc->sc_nasid) {
 		child = device_add_child(dev, "sncon", -1);
 		device_set_ivars(child, (void *)(uintptr_t)~0UL);
+	}
+
+	/* Use the SHub's RTC as a time counter. */
+	r = ia64_sal_entry(SAL_FREQ_BASE, 2, 0, 0, 0, 0, 0, 0);
+	if (r.sal_status == 0) {
+		sc->sc_rtc.tc_get_timecount = sgisn_shub_get_rtc;
+		sc->sc_rtc.tc_counter_mask = ~0U;
+		sc->sc_rtc.tc_frequency = r.sal_result[0];
+		sc->sc_rtc.tc_name = "SHub RTC";
+		sc->sc_rtc.tc_quality = (r.sal_result[0]) ? 1200 : 950;
+		sc->sc_rtc.tc_priv = sc;
+		tc_init(&sc->sc_rtc);
 	}
 
 	for (seg = 0; seg <= sc->sc_fwhub->hub_pci_maxseg; seg++) {
