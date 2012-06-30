@@ -108,7 +108,7 @@ struct callout_cpu {
 	struct mtx		cc_lock;
 	struct callout		*cc_callout;
 	struct callout_tailq	*cc_callwheel;
-	struct callout_tailq	*cc_localexp;		  
+	struct callout_tailq	cc_expireq;		  
 	struct callout_list	cc_callfree;
 	struct callout		*cc_next;
 	struct callout		*cc_curr;
@@ -224,8 +224,6 @@ kern_timeout_callwheel_alloc(caddr_t v)
 	v = (caddr_t)(cc->cc_callout + ncallout);
 	cc->cc_callwheel = (struct callout_tailq *)v;
 	v = (caddr_t)(cc->cc_callwheel + callwheelsize);
-	cc->cc_localexp = (struct callout_tailq *)v;
-	v = (caddr_t)(cc->cc_localexp + 1);
 	return(v);
 }
 
@@ -240,7 +238,7 @@ callout_cpu_init(struct callout_cpu *cc)
 	for (i = 0; i < callwheelsize; i++) {
 		TAILQ_INIT(&cc->cc_callwheel[i]);
 	}
-	TAILQ_INIT(cc->cc_localexp);
+	TAILQ_INIT(&cc->cc_expireq);
 	cc_cme_cleanup(cc);
 	if (cc->cc_callout == NULL)
 		return;
@@ -322,8 +320,6 @@ start_softclock(void *dummy)
 		cc->cc_callwheel = malloc(
 		    sizeof(struct callout_tailq) * callwheelsize, M_CALLOUT,
 		    M_WAITOK);
-		cc->cc_localexp = malloc(
-		    sizeof(struct callout_tailq), M_CALLOUT, M_WAITOK);
 		callout_cpu_init(cc);
 	}
 #endif
@@ -384,8 +380,8 @@ callout_process(void)
 			                tmp->c_flags &= ~CALLOUT_PENDING;
 				}
 				else {
-					TAILQ_INSERT_TAIL(cc->cc_localexp,
-					    tmp,c_staiter);
+					TAILQ_INSERT_TAIL(&cc->cc_expireq, 
+					    tmp, c_staiter);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
 					tmp->c_flags |= CALLOUT_PROCESSED;
 					need_softclock = 1;
@@ -770,7 +766,7 @@ softclock(void *arg)
 	cc = (struct callout_cpu *)arg;
 	CC_LOCK(cc);
 
-	c = TAILQ_FIRST(cc->cc_localexp);
+	c = TAILQ_FIRST(&cc->cc_expireq);
 	while (c != NULL) {
 		++steps;
 		if (steps >= MAX_SOFTCLOCK_STEPS) {
@@ -781,9 +777,8 @@ softclock(void *arg)
 			CC_LOCK(cc);
 			c = cc->cc_next;
 			steps = 0;
-		}
-		else {
-			TAILQ_REMOVE(cc->cc_localexp, c, c_staiter);	
+		} else {
+			TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
 			c = softclock_call_cc(c, cc, &mpcalls,
 			    &lockcalls, &gcalls);
 			steps = 0;
@@ -933,12 +928,10 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 			bucket = get_bucket(&c->c_time);
 			TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 			    c_links.tqe);
-		}
-		else {
+		} else {
 			if (cc->cc_next == c)
 				cc->cc_next = TAILQ_NEXT(c, c_staiter);
-			TAILQ_REMOVE(cc->cc_localexp, c, 
-			    c_staiter);
+			TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);  
 		}
 		cancelled = 1;
 		c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
@@ -1153,10 +1146,8 @@ again:
 		bucket = get_bucket(&c->c_time);
 		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 		    c_links.tqe);
-	}
-	else 
-		TAILQ_REMOVE(cc->cc_localexp, c, 
-		    c_staiter);
+	} else
+		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter); 
 	callout_cc_del(c, cc);
 
 	CC_UNLOCK(cc);
