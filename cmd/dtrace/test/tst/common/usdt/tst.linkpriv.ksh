@@ -23,7 +23,6 @@
 # Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-#ident	"%Z%%M%	%I%	%E% SMI"
 
 if [ $# != 1 ]; then
 	echo expected one argument: '<'dtrace-path'>'
@@ -62,7 +61,7 @@ provider test_prov {
 };
 EOF
 
-cc -c test.c
+gcc -c test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
@@ -72,7 +71,7 @@ if [ $? -ne 0 ]; then
 	print -u2 "failed to create DOF"
 	exit 1
 fi
-cc -o test test.o prov.o
+gcc -o test test.o prov.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to link final executable"
 	exit 1

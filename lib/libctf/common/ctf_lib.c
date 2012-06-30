@@ -24,8 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -37,9 +35,9 @@
 #include <gelf.h>
 
 #ifdef _LP64
-static const char *_libctf_zlib = "/usr/lib/64/libz.so";
+static const char *_libctf_zlib = "/usr/lib/64/libz.so.1";
 #else
-static const char *_libctf_zlib = "/usr/lib/libz.so";
+static const char *_libctf_zlib = "/usr/lib/libz.so.1";
 #endif
 
 static struct {

@@ -23,7 +23,6 @@
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-# ident	"%Z%%M%	%I%	%E% SMI"
 
 script()
 {
@@ -62,7 +61,7 @@ child=$!
 #
 # The only thing we can be sure of here is that ksh is doing some work.
 #
-script | tee /dev/fd/2 | grep -w ksh > /dev/null
+script | tee /dev/fd/2 | egrep '(ksh|libshell)' > /dev/null
 status=$? 
 
 kill $child
