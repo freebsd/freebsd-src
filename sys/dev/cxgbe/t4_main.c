@@ -823,7 +823,7 @@ cxgbe_probe(device_t dev)
 
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
-    IFCAP_VLAN_HWTSO | IFCAP_HWCSUM_IPV6)
+    IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6)
 #define T4_CAP_ENABLE (T4_CAP)
 
 static int
@@ -1028,11 +1028,11 @@ fail:
 			ifp->if_capenable ^= IFCAP_TXCSUM;
 			ifp->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
 
-			if (IFCAP_TSO & ifp->if_capenable &&
+			if (IFCAP_TSO4 & ifp->if_capenable &&
 			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
 				ifp->if_capenable &= ~IFCAP_TSO4;
 				if_printf(ifp,
-				    "tso disabled due to -txcsum.\n");
+				    "tso4 disabled due to -txcsum.\n");
 			}
 		}
 		if (mask & IFCAP_TXCSUM_IPV6) {
