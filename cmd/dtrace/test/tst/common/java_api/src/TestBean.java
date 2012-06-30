@@ -22,8 +22,6 @@
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- *
- * ident	"%Z%%M%	%I%	%E% SMI"
  */
 
 import org.opensolaris.os.dtrace.*;
@@ -50,6 +48,7 @@ public class TestBean {
 	"KernelStackRecord",
 	"LogDistribution",
 	"LinearDistribution",
+	"LogLinearDistribution",
 	"Option",
 	"ProcessState",
 	"ProbeDescription",
@@ -262,6 +261,50 @@ public class TestBean {
 	buckets.add(bucket);
 	LinearDistribution d = new LinearDistribution(base, step, buckets);
 	return d;
+    }
+
+    public static LogLinearDistribution
+    getLogLinearDistribution()
+    {
+        Distribution.Bucket bucket;
+        long next, step;
+        long low = 0;
+        long high = 6;
+        long factor = 2;
+        long nsteps = 2;
+        int value = 1;
+        int order;
+
+        List < Distribution.Bucket > buckets =
+          new ArrayList < Distribution.Bucket > ();
+
+        for (order = 0; order < low; order++)
+            value *= factor;
+
+        bucket = new Distribution.Bucket(Long.MIN_VALUE, (value - 1), 0);
+        buckets.add(bucket);
+
+        next = value * factor;
+        step = (next > nsteps) ? (next / nsteps) : 1;
+
+        while (order <= high) {
+            bucket = new Distribution.Bucket(value, value + step - 1, 5);
+            buckets.add(bucket);
+
+            if ((value += step) != next)
+                continue;
+
+            next = value * factor;
+            step = (next > nsteps) ? (next / nsteps) : 1;
+            order++;
+        }
+
+        bucket = new Distribution.Bucket(value, Long.MAX_VALUE, 0);
+        buckets.add(bucket);
+
+        LogLinearDistribution d = new LogLinearDistribution(factor, low, high,
+          nsteps, 0, buckets);
+        return d;
     }
 
     public static Option

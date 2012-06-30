@@ -23,8 +23,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * DWARF to tdata conversion
  *
@@ -1832,8 +1830,11 @@ dw_read(tdata_t *td, Elf *elf, const char *filename)
 	}
 
 	if ((rc = dwarf_next_cu_header(dw.dw_dw, &hdrlen, &vers, &abboff,
-	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK ||
-	    (cu = die_sibling(&dw, NULL)) == NULL ||
+	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
+		terminate("file does not contain valid DWARF data: %s\n",
+		    dwarf_errmsg(dw.dw_err));
+
+	if ((cu = die_sibling(&dw, NULL)) == NULL ||
 	    (child = die_child(&dw, cu)) == NULL)
 		terminate("file does not contain dwarf type data "
 		    "(try compiling with -g)\n");
