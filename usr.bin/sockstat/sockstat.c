@@ -732,7 +732,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: sockstat [-46cLlu] [-p ports] [-P protocols]\n");
+	    "Usage: sockstat [-46cLlu] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
