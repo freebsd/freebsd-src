@@ -2408,9 +2408,15 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 retry:
 	avail = 0;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
-		free = popcnt_pc_map_elem(pc->pc_map[0]);
-		free += popcnt_pc_map_elem(pc->pc_map[1]);
-		free += popcnt_pc_map_elem(pc->pc_map[2]);
+		if ((cpu_feature2 & CPUID2_POPCNT) == 0) {
+			free = popcnt_pc_map_elem(pc->pc_map[0]);
+			free += popcnt_pc_map_elem(pc->pc_map[1]);
+			free += popcnt_pc_map_elem(pc->pc_map[2]);
+		} else {
+			free = popcntq(pc->pc_map[0]);
+			free += popcntq(pc->pc_map[1]);
+			free += popcntq(pc->pc_map[2]);
+		}
 		if (free == 0)
 			break;
 		avail += free;
