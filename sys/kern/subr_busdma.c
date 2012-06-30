@@ -32,8 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/busdma.h>
-#include <sys/malloc.h>
+#include <sys/queue.h>
 #include <machine/stdarg.h>
+#include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -60,6 +61,8 @@ struct busdma_tag {
 };
 
 struct busdma_md_seg {
+	TAILQ_ENTRY(busdma_md_seg) mds_chain;
+	u_int		mds_idx;
 	bus_addr_t	mds_busaddr;
 	vm_paddr_t	mds_paddr;
 	vm_offset_t	mds_vaddr;
@@ -70,7 +73,7 @@ struct busdma_md {
 	struct busdma_tag *md_tag;
 	u_int		md_flags;
 	u_int		md_nsegs;
-	struct busdma_md_seg md_seg[0];
+	TAILQ_HEAD(, busdma_md_seg) md_seg;
 };
 
 #define	BUSDMA_MD_FLAG_ALLOCATED	0x1	/* busdma_mem_alloc() created
@@ -84,57 +87,93 @@ struct busdma_md {
  * Section 2: Private data.
  */
 
-static struct busdma_tag busdma_root_tag = {
-	.dt_maxaddr = ~0UL,
-	.dt_align = 1,
+static uma_zone_t busdma_tag_zone;
+static uma_zone_t busdma_md_zone;
+static uma_zone_t busdma_md_seg_zone;
 
-	/*
-	 * Make dt_maxsz the largest power of 2. I don't like ~0 as the
-	 * maximum size. 0 would be a good number to signal (virtually)
-	 * unrestricted DMA sizes, but that creates an irregularity for
-	 * merging restrictions.
-	 */
-	.dt_maxsz = (~0UL >> 1) + 1,
-
-	/*
-	 * Arbitrarily limit the number of scatter/gather segments to
-	 * 1K. This to avoid that some driver actually tries to do
-	 * DMA with unlimited segments and we try to allocate a memory
-	 * descriptor for it. Why 1K? "It looked like a good idea at
-	 * the time" (read: no particular reason).
-	 */
-	.dt_nsegs = 1024,
-
-	/*
-	 * Just like dt_maxsz, limit to the largest power of 2.
-	 */
-	.dt_maxsegsz = (~0UL >> 1) + 1,
-};
-
-static MALLOC_DEFINE(M_BUSDMA_MD, "busdma_md", "DMA memory descriptors");
-static MALLOC_DEFINE(M_BUSDMA_TAG, "busdma_tag", "DMA tags");
+static struct busdma_tag *busdma_root_tag;
 
 /*
  * Section 3: Private functions.
  */
 
+/* Section 3.1: Initialization. */
+
+static void
+busdma_init(void *arg)
+{
+
+	/*
+	 * Create our zones.  Note that the align argument is a bitmask that
+	 * relays which bits of the address must be 0.  Hence the decrement.
+	 */
+	busdma_tag_zone = uma_zcreate("busdma_tags",
+	    sizeof(struct busdma_tag),
+	    NULL /*ctor*/, NULL /*dtor*/,
+	    NULL /*init*/, NULL /*fini*/,
+	    __alignof(struct busdma_tag) - 1 /*align*/,
+	    0);
+
+	busdma_md_zone = uma_zcreate("busdma_mds",
+	    sizeof(struct busdma_md),
+	    NULL /*ctor*/, NULL /*dtor*/,
+	    NULL /*init*/, NULL /*fini*/,
+	    __alignof(struct busdma_md) - 1 /*align*/,
+	    0);
+
+	busdma_md_seg_zone = uma_zcreate("busdma_md_segs",
+	    sizeof(struct busdma_md_seg),
+	    NULL /*ctor*/, NULL /*dtor*/,
+	    NULL /*init*/, NULL /*fini*/,
+	    __alignof(struct busdma_tag) - 1 /*align*/,
+	    0);
+
+	/*
+	 * Allocate and initialize our root tag.
+	 */
+	busdma_root_tag = uma_zalloc(busdma_tag_zone, M_WAITOK|M_ZERO);
+
+	/* Make dt_maxaddr the largest possible address. */
+	busdma_root_tag->dt_maxaddr = ~0UL;
+
+	/* Make dt_align the least restrictive alignment. */
+	busdma_root_tag->dt_align = 1;
+
+	/* Make dt_maxsz the largest power of 2. */
+	busdma_root_tag->dt_maxsz = (~0UL >> 1) + 1;
+
+	/*
+	 * Arbitrarily limit the number of scatter/gather segments to 1K
+	 * so as to protect the kernel from bad drivers or bugs.  Why 1K?
+	 * "It looked like a good idea at the time".
+	 */
+	busdma_root_tag->dt_nsegs = 1024;
+
+	/* Just like dt_maxsz, limit to the largest power of 2. */
+	busdma_root_tag->dt_maxsegsz = (~0UL >> 1) + 1;
+}
+SYSINIT(busdma_kmem, SI_SUB_KMEM, SI_ORDER_ANY, busdma_init, NULL);
+
+/* Section 3.2: Debugging & tracing. */
+
 static void
 _busdma_mtag_dump(const char *func, device_t dev, struct busdma_mtag *mtag)
 {
 
-	printf("[%s: %s: min=%#lx, max=%#lx, size=%#lx, align=%#lx, "
-	    "bndry=%#lx]\n", __func__,
+	printf("[%s: %s: min=%#jx, max=%#jx, size=%#jx, align=%#jx, "
+	    "bndry=%#jx]\n", __func__,
 	    (dev != NULL) ? device_get_nameunit(dev) : "*",
-	    mtag->dmt_minaddr, mtag->dmt_maxaddr, mtag->dmt_maxsz,
-	    mtag->dmt_align, mtag->dmt_bndry);
+	    (uintmax_t)mtag->dmt_minaddr, (uintmax_t)mtag->dmt_maxaddr,
+	    (uintmax_t)mtag->dmt_maxsz, (uintmax_t)mtag->dmt_align,
+	    (uintmax_t)mtag->dmt_bndry);
 }
 
 static void
 _busdma_tag_dump(const char *func, device_t dev, struct busdma_tag *tag)
 {
 
-	printf("[%s: %s: tag=%p (minaddr=%jx, maxaddr=%jx, align=%jx, "
-	    "bndry=%jx, maxsz=%jx, nsegs=%u, maxsegsz=%jx)]\n",
+	printf("[%s: %s: tag=%p (minaddr=%#jx, maxaddr=%#jx, align=%#jx, "
+	    "bndry=%#jx, maxsz=%#jx, nsegs=%u, maxsegsz=%#jx)]\n",
 	    func, (dev != NULL) ? device_get_nameunit(dev) : "*", tag,
 	    (uintmax_t)tag->dt_minaddr, (uintmax_t)tag->dt_maxaddr,
 	    (uintmax_t)tag->dt_align, (uintmax_t)tag->dt_bndry,
@@ -147,25 +186,48 @@ _busdma_md_dump(const char *func, device_t dev, struct busdma_md *md)
 {
 	struct busdma_tag *tag;
 	struct busdma_md_seg *seg;
-	int idx;
 
 	tag = md->md_tag;
 	if (dev == NULL)
 		dev = tag->dt_device;
-	printf("[%s: %s: md=%p (tag=%p, flags=%x, nsegs=%u)", func,
+	printf("[%s: %s: md=%p (tag=%p, flags=%#x, nsegs=%u)", func,
 	    device_get_nameunit(dev), md, tag, md->md_flags,
 	    md->md_nsegs);
 	if (md->md_nsegs == 0) {
 		printf(" -- UNUSED]\n");
 		return;
 	}
-	for (idx = 0; idx < md->md_nsegs; idx++) {
-		seg = &md->md_seg[idx];
-		printf(", %u={size=%jx, busaddr=%jx, paddr=%jx, vaddr=%jx}",
-		    idx, seg->mds_size, seg->mds_busaddr, seg->mds_paddr,
-		    seg->mds_vaddr);
+	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
+		printf(", {idx=%u, size=%#jx, busaddr=%#jx, paddr=%#jx, "
+		    "vaddr=%#jx}", seg->mds_idx, (uintmax_t)seg->mds_size,
+		    (uintmax_t)seg->mds_busaddr, (uintmax_t)seg->mds_paddr,
+		    (uintmax_t)seg->mds_vaddr);
 	}
 	printf("]\n");
+}
+
+/* Section 3.3: API support functions. */
+
+static struct busdma_md_seg *
+_busdma_md_get_seg(struct busdma_md *md, u_int idx)
+{
+	struct busdma_md_seg *seg;
+
+	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
+		if (seg->mds_idx == idx)
+			return (seg);
+	}
+	return (NULL);
+}
+
+static void
+_busdma_md_seg_reserve(struct busdma_tag *tag)
+{
+}
+
+static void
+_busdma_md_seg_unreserve(struct busdma_tag *tag)
+{
 }
 
 static struct busdma_tag *
@@ -182,7 +244,7 @@ _busdma_tag_get_base(device_t dev)
 			parent = device_get_parent(parent);
 	}
 	if (base == NULL) {
-		base = &busdma_root_tag;
+		base = busdma_root_tag;
 		parent = NULL;
 	}
 	_busdma_tag_dump(__func__, parent, base);
@@ -204,7 +266,13 @@ _busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t align,
 	if (maxsegsz > maxsz || nsegs == 1)
 		maxsegsz = maxsz;
 
-	tag = malloc(sizeof(*tag), M_BUSDMA_TAG, M_NOWAIT | M_ZERO);
+	tag = uma_zalloc(busdma_tag_zone, M_NOWAIT);
+	if (tag == NULL)
+		return (ENOMEM);
+
+	tag->dt_chain = NULL;
+	tag->dt_child = NULL;
+	tag->dt_parent = NULL;
 	tag->dt_device = dev;
 	tag->dt_minaddr = MAX(0, base->dt_minaddr);
 	tag->dt_maxaddr = MIN(maxaddr, base->dt_maxaddr);
@@ -222,14 +290,16 @@ static struct busdma_md *
 _busdma_md_create(struct busdma_tag *tag, u_int flags)
 {
 	struct busdma_md *md;
-	size_t mdsz;
 
-	mdsz = sizeof(struct busdma_md) +
-	    sizeof(struct busdma_md_seg) * tag->dt_nsegs;
-	md = malloc(mdsz, M_BUSDMA_MD, M_NOWAIT | M_ZERO);
+	md = uma_zalloc(busdma_md_zone, M_NOWAIT);
 	if (md != NULL) {
-		md->md_tag = tag;  
+		md->md_tag = tag;
 		md->md_flags = flags;
+		md->md_nsegs = 0;
+		TAILQ_INIT(&md->md_seg);
+
+		/* Reserve (pre-allocate) segments */
+		_busdma_md_seg_reserve(tag);
 	}
 	return (md);
 }
@@ -253,17 +323,24 @@ _busdma_iommu_xlate(device_t leaf, struct busdma_mtag *mtag)
 }
 
 static int
-_busdma_iommu_map_r(device_t dev, struct busdma_md *md, u_int idx,
-    bus_addr_t *ba_p)
+_busdma_iommu_map_r(device_t dev, struct busdma_md *md,
+    struct busdma_md_seg *seg)
 {
 	int error;
 
-	if (dev == root_bus)
+	if (dev == root_bus) {
+		/*
+		 * A bus address and a physical address are one and the same
+		 * at this level.
+		 */
+		seg->mds_busaddr = seg->mds_paddr;
 		return (0);
+	}
 
-	error = _busdma_iommu_map_r(device_get_parent(dev), md, idx, ba_p);
+	error = _busdma_iommu_map_r(device_get_parent(dev), md, seg);
 	if (!error)
-		error = BUSDMA_IOMMU_MAP(dev, md, idx, ba_p);
+		error = BUSDMA_IOMMU_MAP(dev, md, seg->mds_idx,
+		    &seg->mds_busaddr);
 	return (error);
 }
 
@@ -272,20 +349,13 @@ _busdma_iommu_map(device_t leaf, struct busdma_md *md)
 {
 	struct busdma_md_seg *seg;
 	device_t dev;
-	u_int idx;
 	int error;
  
 	_busdma_md_dump(__func__, root_bus, md);
 	dev = device_get_parent(leaf);
 	error = 0;
-	for (idx = 0; idx < md->md_nsegs; idx++) {
-		seg = &md->md_seg[idx];
-		/*
-		 * A bus address and a physical address are one and the same
-		 * at this level.
-		 */
-		seg->mds_busaddr = seg->mds_paddr;
-		error = _busdma_iommu_map_r(dev, md, idx, &seg->mds_busaddr);
+	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
+		error = _busdma_iommu_map_r(dev, md, seg);
 		if (error)
 			break;
 	}
@@ -374,18 +444,18 @@ busdma_md_destroy(struct busdma_md *md)
 	if (md->md_nsegs > 0)
 		return (EBUSY);
 
-	free(md, M_BUSDMA_MD);
+	_busdma_md_seg_unreserve(md->md_tag);
+	uma_zfree(busdma_md_zone, md);
 	return (0);
 }
 
 bus_addr_t
 busdma_md_get_busaddr(struct busdma_md *md, u_int idx)
 {
+	struct busdma_md_seg *seg;
 
-	if (idx >= md->md_tag->dt_nsegs)
-		return (0);
-
-	return (md->md_seg[idx].mds_busaddr);
+	seg = _busdma_md_get_seg(md, idx);
+	return ((seg != NULL) ? seg->mds_busaddr : ~0UL);
 }
 
 u_int
@@ -398,31 +468,28 @@ busdma_md_get_nsegs(struct busdma_md *md)
 vm_paddr_t
 busdma_md_get_paddr(struct busdma_md *md, u_int idx)
 {
+	struct busdma_md_seg *seg;
 
-	if (idx >= md->md_tag->dt_nsegs)
-		return (0);
-
-	return (md->md_seg[idx].mds_paddr);
+	seg = _busdma_md_get_seg(md, idx);
+	return ((seg != NULL) ? seg->mds_paddr : ~0UL);
 }
 
 vm_size_t
 busdma_md_get_size(struct busdma_md *md, u_int idx)
 {
+	struct busdma_md_seg *seg;
 
-	if (idx >= md->md_tag->dt_nsegs)
-		return (0);
-
-	return (md->md_seg[idx].mds_size);
+	seg = _busdma_md_get_seg(md, idx);
+	return ((seg != NULL) ? seg->mds_size : 0UL);
 }
 
 vm_offset_t
 busdma_md_get_vaddr(struct busdma_md *md, u_int idx)
 {
+	struct busdma_md_seg *seg;
 
-	if (idx >= md->md_tag->dt_nsegs)
-		return (0);
-
-	return (md->md_seg[idx].mds_vaddr);
+	seg = _busdma_md_get_seg(md, idx);
+	return ((seg != NULL) ? seg->mds_vaddr : 0);
 }
 
 int
@@ -494,7 +561,13 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 
 	maxsz = tag->dt_maxsz;
 	while (maxsz > 0 && idx < tag->dt_nsegs) {
-		seg = &md->md_seg[idx];
+		seg = uma_zalloc(busdma_md_seg_zone, M_NOWAIT);
+		if (seg == NULL)
+			goto fail;
+		seg->mds_idx = idx;
+		TAILQ_INSERT_TAIL(&md->md_seg, seg, mds_chain);
+		seg->mds_busaddr = ~0UL;
+		seg->mds_paddr = ~0UL;
 		seg->mds_size = MIN(maxsz, mtag.dmt_maxsz);
 		seg->mds_vaddr = kmem_alloc_contig(kernel_map, seg->mds_size,
 		    0, mtag.dmt_minaddr, mtag.dmt_maxaddr, mtag.dmt_align,
@@ -517,20 +590,21 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	}
 
  fail:
-	seg = &md->md_seg[0];
-	while (seg != &md->md_seg[idx]) {
-		kmem_free(kernel_map, seg->mds_vaddr, seg->mds_size);
-		seg++;
+	while ((seg = TAILQ_FIRST(&md->md_seg)) != NULL) {
+		if (seg->mds_paddr != ~0UL)
+			kmem_free(kernel_map, seg->mds_vaddr, seg->mds_size);
+		TAILQ_REMOVE(&md->md_seg, seg, mds_chain);
+		uma_zfree(busdma_md_seg_zone, seg);
 	}
-	free(md, M_BUSDMA_MD);
+	uma_zfree(busdma_md_zone, md);
 	return (ENOMEM);
 }
 
 int
 busdma_mem_free(struct busdma_md *md)
 {
+	struct busdma_md_seg *seg;
 	device_t bus;
-	u_int idx;
 	int error;
 
 	if ((md->md_flags & BUSDMA_MD_FLAG_ALLOCATED) == 0)
@@ -541,10 +615,12 @@ busdma_mem_free(struct busdma_md *md)
 	if (error)
 		printf("BUSDMA_IOMMU_UNMAP: error=%d\n", error);
 
-	for (idx = 0; idx < md->md_nsegs; idx++)
-		kmem_free(kernel_map, md->md_seg[idx].mds_vaddr,
-		    md->md_seg[idx].mds_size);
-	free(md, M_BUSDMA_MD);
+	while ((seg = TAILQ_FIRST(&md->md_seg)) != NULL) {
+		kmem_free(kernel_map, seg->mds_vaddr, seg->mds_size);
+		TAILQ_REMOVE(&md->md_seg, seg, mds_chain);
+		uma_zfree(busdma_md_seg_zone, seg);
+	}
+	uma_zfree(busdma_md_zone, md);
 	return (0);
 }
 
