@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_callout_profiling.h"
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
@@ -69,6 +70,10 @@ SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end, callout-end);
 SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_end, 0,
     "struct callout *");
 
+#ifdef CALLOUT_PROFILING	
+static int avg_depth;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_depth, CTLFLAG_RD, &avg_depth, 0,
+    "Average number of items examined per softclock call. Units = 1/1000");
 static int avg_gcalls;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_gcalls, CTLFLAG_RD, &avg_gcalls, 0,
     "Average number of Giant callouts made per softclock call. Units = 1/1000");
@@ -78,6 +83,7 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_lockcalls, CTLFLAG_RD, &avg_lockcalls, 0,
 static int avg_mpcalls;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
     "Average number of MP callouts made per softclock call. Units = 1/1000");
+#endif
 /*
  * TODO:
  *	allocate more timeout table slots when table overflows.
@@ -784,10 +790,12 @@ softclock(void *arg)
 			steps = 0;
 		}	
 	}
-
+#ifdef CALLOUT_PROFILING
+	avg_depth += (depth * 1000 - avg_depth) >> 8;
 	avg_mpcalls += (mpcalls * 1000 - avg_mpcalls) >> 8;
 	avg_lockcalls += (lockcalls * 1000 - avg_lockcalls) >> 8;
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
+#endif
 	cc->cc_next = NULL;
 	CC_UNLOCK(cc);
 }

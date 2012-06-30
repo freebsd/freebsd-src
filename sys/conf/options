@@ -66,6 +66,7 @@ SYSCTL_DEBUG	opt_sysctl.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
 CODA_COMPAT_5	opt_coda.h
