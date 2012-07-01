@@ -956,6 +956,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	int ipflags;
 	u_short fport, lport;
 	int unlock_udbinfo;
+	u_char tos;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -971,6 +972,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	src.sin_family = 0;
+	tos = inp->inp_ip_tos;
 	if (control != NULL) {
 		/*
 		 * XXX: Currently, we assume all the optional information is
@@ -1006,6 +1008,14 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				src.sin_port = inp->inp_lport;
 				src.sin_addr =
 				    *(struct in_addr *)CMSG_DATA(cm);
+				break;
+
+			case IP_TOS:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(u_char))) {
+					error = EINVAL;
+					break;
+				}
+				tos = *(u_char *)CMSG_DATA(cm);
 				break;
 
 			default:
@@ -1223,7 +1233,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		ui->ui_sum = 0;
 	((struct ip *)ui)->ip_len = sizeof (struct udpiphdr) + len;
 	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
-	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
+	((struct ip *)ui)->ip_tos = tos;		/* XXX */
 	UDPSTAT_INC(udps_opackets);
 
 	if (unlock_udbinfo == UH_WLOCKED)
