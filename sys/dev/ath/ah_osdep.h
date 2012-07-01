@@ -63,6 +63,7 @@ typedef bus_space_handle_t HAL_BUS_HANDLE;
 #define	OS_INLINE	__inline
 #define	OS_MEMZERO(_a, _n)	bzero((_a), (_n))
 #define	OS_MEMCPY(_d, _s, _n)	memcpy(_d,_s,_n)
+#define	OS_MEMCMP(_a, _b, _l)	memcmp((_a), (_b), (_l))
 
 #define	abs(_a)		__builtin_abs(_a)
 
