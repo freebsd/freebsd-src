@@ -60,7 +60,7 @@ static struct sgisn_fwirq sgisn_irq;
 
 struct sgisn_pcib_softc {
 	device_t	sc_dev;
-	struct sgisn_fwbus *sc_fwbus;
+	struct sgisn_fwpcib *sc_fwbus;
 	bus_addr_t	sc_ioaddr;
 	bus_space_tag_t	sc_tag;
 	bus_space_handle_t sc_hndl;
@@ -88,6 +88,9 @@ static int sgisn_pcib_release_resource(device_t, device_t, int, int,
 static int sgisn_pcib_set_resource(device_t, device_t, int, int, u_long,
     u_long);
 
+static int sgisn_pcib_setup_intr(device_t, device_t, struct resource *, int,
+    driver_filter_t *, driver_intr_t *, void *, void **);
+
 static int sgisn_pcib_read_ivar(device_t, device_t, int, uintptr_t *);
 static int sgisn_pcib_write_ivar(device_t, device_t, int, uintptr_t);
 
@@ -97,6 +100,7 @@ static void sgisn_pcib_cfgwrite(device_t, u_int, u_int, u_int, u_int, uint32_t,
     int);
 
 static int sgisn_pcib_iommu_xlate(device_t, busdma_mtag_t);
+static int sgisn_pcib_iommu_map(device_t, busdma_md_t, u_int, bus_addr_t *);
 
 /*
  * Bus interface definitions.
@@ -118,7 +122,7 @@ static device_method_t sgisn_pcib_methods[] = {
 	DEVMETHOD(bus_get_resource_list, sgisn_pcib_get_resource_list),
 	DEVMETHOD(bus_release_resource,	sgisn_pcib_release_resource),
 	DEVMETHOD(bus_set_resource,	sgisn_pcib_set_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_setup_intr,	sgisn_pcib_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* pcib interface */
@@ -129,6 +133,7 @@ static device_method_t sgisn_pcib_methods[] = {
 
 	/* busdma interface */
 	DEVMETHOD(busdma_iommu_xlate,	sgisn_pcib_iommu_xlate),
+	DEVMETHOD(busdma_iommu_map,	sgisn_pcib_iommu_map),
 
 	{ 0, 0 }
 };
@@ -182,6 +187,11 @@ sgisn_pcib_activate_resource(device_t dev, device_t child, int type, int rid,
 {
 	int error;
 
+	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
+	//     "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
+	//     device_get_nameunit(child), type, rid, res, rman_get_start(res),
+	//     rman_get_end(res));
+
 	error = rman_activate_resource(res);
 	return (error);
 }
@@ -199,6 +209,11 @@ sgisn_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	uint64_t base;
 	uintptr_t func, slot;
 	int bar, error;
+
+	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
+	//     "start=%#lx, end=%#lx, count=%#lx, flags=%x)\n", __func__,
+	//     device_get_nameunit(dev), device_get_nameunit(child), type,
+	//     *rid, start, end, count, flags);
 
 	if (type == SYS_RES_IRQ)
 		return (bus_generic_alloc_resource(dev, child, type, rid,
@@ -233,6 +248,15 @@ sgisn_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		device_printf(dev, "PCI bus address %#lx mapped to CPU "
 		    "address %#lx\n", start, base);
 
+	// device_printf(child, "nas=%#x, slice=%#x, cpuid=%#x, nr=%#x, "
+	//     "pin=%#x, xtaddr=%#lx, br_type=%#x, bridge=%p, dev=%p, "
+	//     "last=%#x, cookie=%#x, flags=%#x, refcnt=%#x\n",
+	//     sgisn_irq.irq_nasid, sgisn_irq.irq_slice, sgisn_irq.irq_cpuid,
+	//     sgisn_irq.irq_nr, sgisn_irq.irq_pin, sgisn_irq.irq_xtaddr,
+	//     sgisn_irq.irq_br_type, sgisn_irq.irq_bridge, sgisn_irq.irq_dev,
+	//     sgisn_irq.irq_last, sgisn_irq.irq_cookie, sgisn_irq.irq_flags,
+	//     sgisn_irq.irq_refcnt);
+
 	/* I/O port space is presented as memory mapped I/O. */
 	rman_set_bustag(rv, IA64_BUS_SPACE_MEM);
 	vaddr = pmap_mapdev(base, count);
@@ -252,6 +276,11 @@ sgisn_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
 {
 	int error;
 
+	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
+	//     "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
+	//     device_get_nameunit(child), type, rid, res, rman_get_start(res),
+	//     rman_get_end(res));
+
 	error = rman_deactivate_resource(res);
 	return (error);
 }
@@ -259,6 +288,10 @@ sgisn_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
 static void
 sgisn_pcib_delete_resource(device_t dev, device_t child, int type, int rid)
 {
+
+	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u)\n",
+	//     __func__, device_get_nameunit(dev), device_get_nameunit(child),
+	//     type, rid);
 }
 
 static int
@@ -266,6 +299,9 @@ sgisn_pcib_get_resource(device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {
 
+	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
+	//     "startp=%p, countp=%p)\n", __func__, device_get_nameunit(dev),
+	//     device_get_nameunit(child), type, rid, startp, countp);
 	return (ENOENT);
 }
 
@@ -273,6 +309,8 @@ static struct resource_list *
 sgisn_pcib_get_resource_list(device_t dev, device_t child)
 {
 
+	// device_printf(dev, "%s(dev=%s, child=%s)\n", __func__,
+	//     device_get_nameunit(dev), device_get_nameunit(child));
 	return (NULL);
 }
 
@@ -281,6 +319,11 @@ sgisn_pcib_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
 	int error;
+
+	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
+	//     "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
+	//     device_get_nameunit(child), type, rid, res, rman_get_start(res),
+	//     rman_get_end(res));
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
 		error = rman_deactivate_resource(res);
@@ -296,7 +339,33 @@ sgisn_pcib_set_resource(device_t dev, device_t child, int type, int rid,
     u_long start, u_long count)
 {
 
+	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
+	//     "start=%#lx, count=%#lx)\n", __func__, device_get_nameunit(dev),
+	//     device_get_nameunit(child), type, rid, start, count);
 	return (ENXIO);
+}
+
+static int
+sgisn_pcib_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *ifltr, driver_intr_t *ihdlr, void *arg,
+    void **cookiep)
+{
+	struct sgisn_pcib_softc *sc;
+	uint64_t ie;
+	int error;
+
+	// device_printf(dev, "%s(dev=%s, child=%s, irq=%lu, flags=%#x, "
+	//     "ifltr=%p, ihdlr=%p, arg=%p, cookiep=%p)\n", __func__,
+	//     device_get_nameunit(dev), device_get_nameunit(child),
+	//     rman_get_start(irq), flags, ifltr, ihdlr, arg, cookiep);
+
+	sc = device_get_softc(dev);
+	ie = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PIC_REG_INT_ENABLE);
+	// device_printf(dev, "INT_ENABLE=%#lx\n", ie);
+
+	error = bus_generic_setup_intr(dev, child, irq, flags, ifltr, ihdlr,
+	    arg, cookiep);
+	return (error);
 }
 
 static int
@@ -315,24 +384,6 @@ sgisn_pcib_probe(device_t dev)
 
 	device_set_desc(dev, "SGI PCI-X host controller");
 	return (BUS_PROBE_DEFAULT);
-}
-
-static void
-sgisn_pcib_callout(void *arg)
-{
-	static u_long islast = ~0UL;
-	struct sgisn_pcib_softc *sc = arg;
-	u_long is;
-
-	is = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PIC_REG_INT_STATUS);
-	if (is != islast) {
-		islast = is;
-		printf("XXX: %s: INTR status = %lu, IRR=%#lx:%#lx:%#lx:%#lx\n",
-		    __func__, is, ia64_get_irr0(), ia64_get_irr1(),
-		    ia64_get_irr2(), ia64_get_irr3());
-	}
-
-	timeout(sgisn_pcib_callout, sc, hz);
 }
 
 static int
@@ -389,19 +440,19 @@ sgisn_pcib_attach(device_t dev)
 	(void)ia64_sal_entry(SAL_SGISN_IOBUS_INFO, seg, bus,
 	    ia64_tpa((uintptr_t)&addr), 0, 0, 0, 0);
 	sc->sc_fwbus = (void *)IA64_PHYS_TO_RR7(addr);
-	sc->sc_ioaddr = IA64_RR_MASK(sc->sc_fwbus->bus_base);
+	sc->sc_ioaddr = IA64_RR_MASK(sc->sc_fwbus->fw_common.bus_base);
 	sc->sc_tag = IA64_BUS_SPACE_MEM;
 	bus_space_map(sc->sc_tag, sc->sc_ioaddr, PIC_REG_SIZE, 0,
 	    &sc->sc_hndl);
 
 	if (bootverbose)
-		device_printf(dev, "ASIC=%x, XID=%u\n", sc->sc_fwbus->bus_asic,
-		    sc->sc_fwbus->bus_xid);
-
-	timeout(sgisn_pcib_callout, sc, hz);
+		device_printf(dev, "ASIC=%x, XID=%u\n",
+		    sc->sc_fwbus->fw_common.bus_asic,
+		    sc->sc_fwbus->fw_common.bus_xid);
 
 	device_add_child(dev, "pci", -1);
-	return (bus_generic_attach(dev));
+	error = bus_generic_attach(dev);
+	return (error);
 }
 
 static int
@@ -436,12 +487,34 @@ sgisn_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 static int
 sgisn_pcib_iommu_xlate(device_t dev, busdma_mtag_t mtag)
 {
+	vm_paddr_t bndry = 0x80000000UL;
 
 	/*
 	 * Use a 31-bit direct-mapped window for PCI devices that are not
-	 * 64-bit capable.
+	 * 64-bit capable. In that case we also make sure allocations do
+	 * not cross the 2G boundary so that the whole segment can be
+	 * direct mapped.
 	 */
-	if (mtag->dmt_maxaddr < ~0UL)
-		mtag->dmt_maxaddr &= 0x7fffffffUL;
+	if (mtag->dmt_maxaddr < ~0UL) {
+		mtag->dmt_maxaddr &= (bndry - 1);
+		if (mtag->dmt_bndry == 0 || mtag->dmt_bndry > bndry)
+			mtag->dmt_bndry = bndry;
+	}
 	return (0);
+}
+
+static int
+sgisn_pcib_iommu_map(device_t dev, busdma_md_t md, u_int idx, bus_addr_t *ba_p)
+{
+	bus_addr_t bndry = 0x80000000UL;
+	bus_addr_t ba;
+
+	ba = *ba_p;
+	if (ba < bndry) {
+		ba |= bndry;
+		*ba_p = ba;
+		return (0);
+	}
+
+	return (ENXIO);
 }

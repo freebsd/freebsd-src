@@ -292,10 +292,6 @@ sncon_rx_intr(void *arg)
 	if (count > 0)
 		ttydisc_rint_done(tp);
 	tty_unlock(tp);
-
-	/* Acknowledge handling of Shub event. */
-	BUS_WRITE_IVAR(device_get_parent(sc->sc_dev), sc->sc_dev,
-	    SHUB_IVAR_EVENT, SHUB_EVENT_CONSOLE);
 }
 
 static void

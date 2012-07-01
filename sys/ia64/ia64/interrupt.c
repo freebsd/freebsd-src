@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
+extern void shub_iack(const char *f, u_int xiv);
+
 struct ia64_intr {
 	struct intr_event *event;	/* interrupt event */
 	volatile long *cntp;		/* interrupt counter */
@@ -158,6 +160,8 @@ ia64_intr_eoi(void *arg)
 	KASSERT(i != NULL, ("%s", __func__));
 	if (i->sapic != NULL)
 		sapic_eoi(i->sapic, xiv);
+	else
+		shub_iack(__func__, xiv);
 }
 
 static void
@@ -171,7 +175,8 @@ ia64_intr_mask(void *arg)
 	if (i->sapic != NULL) {
 		sapic_mask(i->sapic, i->irq);
 		sapic_eoi(i->sapic, xiv);
-	}
+	} else
+		shub_iack(__func__, xiv);
 }
 
 static void

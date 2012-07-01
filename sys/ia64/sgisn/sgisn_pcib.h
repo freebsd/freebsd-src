@@ -73,4 +73,20 @@
 #define	PIC_REG_WR_REQ(x)	(0x00240 + (x << 3))
 #define	PIC_REG_RRB_MAP(x)	(0x00280 + (x << 3))
 
+struct sgisn_fwpcib {
+	struct sgisn_fwbus	fw_common;
+	uint32_t		fw_modid;
+	uint16_t		fw_type;
+	uint16_t		fw_mode;
+	uint64_t		*fw_ate_base;
+	uint64_t		fw_ate_count;
+	uint64_t		fw_ate_idx;
+	uint64_t		fw_ate_size;
+	uint64_t		fw_xbase;
+	uint8_t			fw_hub_xid;
+	uint64_t		fw_regs[8];
+	uint32_t		fw_dev_valid;
+	uint32_t		fw_dev_enabled;
+};
+
 #endif /* _IA64_SGISN_PCIB_H_ */

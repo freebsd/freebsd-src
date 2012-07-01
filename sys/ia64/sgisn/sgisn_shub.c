@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 
 #include <ia64/sgisn/sgisn_shub.h>
 
+void shub_iack(const char *f, u_int xiv);
+
 struct sgisn_shub_softc {
 	struct sgisn_fwhub *sc_fwhub;
 	device_t	sc_dev;
@@ -90,6 +92,7 @@ static int sgisn_shub_set_resource(device_t, device_t, int, int, u_long,
 static int sgisn_shub_write_ivar(device_t, device_t, int, uintptr_t);
 
 static int sgisn_shub_iommu_xlate(device_t, busdma_mtag_t);
+static int sgisn_shub_iommu_map(device_t, busdma_md_t, u_int, bus_addr_t *);
 
 /*
  * Bus interface definitions.
@@ -116,12 +119,15 @@ static device_method_t sgisn_shub_methods[] = {
 
 	/* busdma interface */
 	DEVMETHOD(busdma_iommu_xlate,	sgisn_shub_iommu_xlate),
+	DEVMETHOD(busdma_iommu_map,	sgisn_shub_iommu_map),
 
 	{ 0, 0 }
 };
 
 static devclass_t sgisn_shub_devclass;
 static char sgisn_shub_name[] = "shub";
+
+static device_t shub_dev;
 
 static driver_t sgisn_shub_driver = {
 	sgisn_shub_name,
@@ -377,6 +383,8 @@ sgisn_shub_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_domain = device_get_unit(dev);
 
+	shub_dev = dev;
+
 	/*
 	 * Get the physical memory region that is connected to the MD I/F
 	 * of this SHub. It allows us to allocate memory that's close to
@@ -534,3 +542,39 @@ sgisn_shub_iommu_xlate(device_t dev, busdma_mtag_t mtag)
 	mtag->dmt_maxaddr += sc->sc_membase;
 	return (0);
 }
+
+static int
+sgisn_shub_iommu_map(device_t dev, busdma_md_t md, u_int idx, bus_addr_t *ba_p)
+{
+	struct sgisn_shub_softc *sc;
+	bus_addr_t ba;
+
+	sc = device_get_softc(dev);
+	ba = *ba_p;
+	if (ba >= sc->sc_membase && ba < sc->sc_membase + sc->sc_memsize) {
+		ba -= sc->sc_membase;
+		*ba_p = ba;
+	}
+	return (0);
+}
+
+void
+shub_iack(const char *f, u_int xiv)
+{
+	uintptr_t mask;
+
+	printf("%s(%u) -- ", f, xiv);
+	mask = (xiv == 0xe9) ? SHUB_EVENT_CONSOLE : 0x670000000;
+	sgisn_shub_write_ivar(shub_dev, NULL, SHUB_IVAR_EVENT, mask);
+}
+
+static void
+shub_conf_final(void *arg)
+{
+
+	if (shub_dev != NULL)
+		sgisn_shub_write_ivar(shub_dev, NULL, SHUB_IVAR_EVENT,
+		    0x670000000);
+}
+SYSINIT(shub_configure, SI_SUB_CONFIGURE, SI_ORDER_ANY, shub_conf_final, NULL);
+
