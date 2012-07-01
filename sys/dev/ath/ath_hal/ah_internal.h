@@ -649,6 +649,46 @@ extern	HAL_BOOL ath_hal_setcapability(struct ath_hal *ah,
 /* The diagnostic codes used to be internally defined here -adrian */
 #include "ah_diagcodes.h"
 
+/*
+ * The AR5416 and later HALs have MAC and baseband hang checking.
+ */
+typedef struct {
+	uint32_t hang_reg_offset;
+	uint32_t hang_val;
+	uint32_t hang_mask;
+	uint32_t hang_offset;
+} hal_hw_hang_check_t;
+
+typedef struct {
+	uint32_t dma_dbg_3;
+	uint32_t dma_dbg_4;
+	uint32_t dma_dbg_5;
+	uint32_t dma_dbg_6;
+} mac_dbg_regs_t;
+
+typedef enum {
+	dcu_chain_state		= 0x1,
+	dcu_complete_state	= 0x2,
+	qcu_state		= 0x4,
+	qcu_fsp_ok		= 0x8,
+	qcu_fsp_state		= 0x10,
+	qcu_stitch_state	= 0x20,
+	qcu_fetch_state		= 0x40,
+	qcu_complete_state	= 0x80
+} hal_mac_hangs_t;
+
+typedef struct {
+	int states;
+	uint8_t dcu_chain_state;
+	uint8_t dcu_complete_state;
+	uint8_t qcu_state;
+	uint8_t qcu_fsp_ok;
+	uint8_t qcu_fsp_state;
+	uint8_t qcu_stitch_state;
+	uint8_t qcu_fetch_state;
+	uint8_t qcu_complete_state;
+} hal_mac_hang_check_t;
+
 enum {
     HAL_BB_HANG_DFS		= 0x0001,
     HAL_BB_HANG_RIFS		= 0x0002,
