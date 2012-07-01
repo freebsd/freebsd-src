@@ -264,7 +264,7 @@ static caddr_t crashdumpmap;
 
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
-static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
+static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
 static int	popcnt_pc_map_elem(uint64_t elem);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	reserve_pv_entries(pmap_t pmap, int needed,
@@ -2102,6 +2102,8 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
  * drastic measures to free some pages so we can allocate
  * another pv entry chunk.
  *
+ * Returns NULL if PV entries were reclaimed from the specified pmap.
+ *
  * We do not, however, unmap 2mpages because subsequent accesses will
  * allocate per-page pv entries until repromotion occurs, thereby
  * exacerbating the shortage of free pv entries.
@@ -2123,6 +2125,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
+	KASSERT(lockp != NULL, ("reclaim_pv_chunk: lockp is NULL"));
 	pmap = NULL;
 	free = m_pc = NULL;
 	TAILQ_INIT(&new_tail);
@@ -2287,16 +2290,19 @@ free_pv_chunk(struct pv_chunk *pc)
 }
 
 /*
- * get a new pv_entry, allocating a block from the system
- * when needed.
+ * Returns a new PV entry, allocating a new PV chunk from the system when
+ * needed.  If this PV chunk allocation fails and a PV list lock pointer was
+ * given, a PV chunk is reclaimed from an arbitrary pmap.  Otherwise, NULL is
+ * returned.
+ *
+ * The given PV list lock may be released.
  */
 static pv_entry_t
-get_pv_entry(pmap_t pmap, boolean_t try)
+get_pv_entry(pmap_t pmap, struct rwlock **lockp)
 {
 	int bit, field;
 	pv_entry_t pv;
 	struct pv_chunk *pc;
-	struct rwlock *lock;
 	vm_page_t m;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
@@ -2330,14 +2336,11 @@ retry:
 	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED);
 	if (m == NULL) {
-		if (try) {
+		if (lockp == NULL) {
 			PV_STAT(pc_chunk_tryfail++);
 			return (NULL);
 		}
-		lock = NULL;
-		m = reclaim_pv_chunk(pmap, &lock);
-		if (lock != NULL)
-			rw_wunlock(lock);
+		m = reclaim_pv_chunk(pmap, lockp);
 		if (m == NULL)
 			goto retry;
 	}
@@ -2380,6 +2383,8 @@ popcnt_pc_map_elem(uint64_t elem)
 /*
  * Ensure that the number of spare PV entries in the specified pmap meets or
  * exceeds the given count, "needed".
+ *
+ * The given PV list lock may be released.
  */
 static void
 reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
@@ -2391,6 +2396,7 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(lockp != NULL, ("reserve_pv_entries: lockp is NULL"));
 
 	/*
 	 * Newly allocated PV chunks must be stored in a private list until
@@ -2402,9 +2408,15 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 retry:
 	avail = 0;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
-		free = popcnt_pc_map_elem(pc->pc_map[0]);
-		free += popcnt_pc_map_elem(pc->pc_map[1]);
-		free += popcnt_pc_map_elem(pc->pc_map[2]);
+		if ((cpu_feature2 & CPUID2_POPCNT) == 0) {
+			free = popcnt_pc_map_elem(pc->pc_map[0]);
+			free += popcnt_pc_map_elem(pc->pc_map[1]);
+			free += popcnt_pc_map_elem(pc->pc_map[2]);
+		} else {
+			free = popcntq(pc->pc_map[0]);
+			free += popcntq(pc->pc_map[1]);
+			free += popcntq(pc->pc_map[2]);
+		}
 		if (free == 0)
 			break;
 		avail += free;
@@ -2584,7 +2596,8 @@ pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 }
 
 /*
- * Conditionally create a pv entry.
+ * Conditionally create the PV entry for a 4KB page mapping if the required
+ * memory can be allocated without resorting to reclamation.
  */
 static boolean_t
 pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
@@ -2594,7 +2607,8 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((pv = get_pv_entry(pmap, TRUE)) != NULL) {
+	/* Pass NULL instead of the lock pointer to disable reclamation. */
+	if ((pv = get_pv_entry(pmap, NULL)) != NULL) {
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
@@ -2604,7 +2618,8 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
 }
 
 /*
- * Create the pv entry for a 2MB page mapping.
+ * Conditionally create the PV entry for a 2MB page mapping if the required
+ * memory can be allocated without resorting to reclamation.
  */
 static boolean_t
 pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
@@ -2614,7 +2629,9 @@ pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
-	if ((pv = get_pv_entry(pmap, TRUE)) != NULL) {
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	/* Pass NULL instead of the lock pointer to disable reclamation. */
+	if ((pv = get_pv_entry(pmap, NULL)) != NULL) {
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 		pvh = pa_to_pvh(pa);
@@ -3513,7 +3530,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
 		    ("pmap_enter: managed mapping within the clean submap"));
 		if (pv == NULL)
-			pv = get_pv_entry(pmap, FALSE);
+			pv = get_pv_entry(pmap, &lock);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
@@ -3785,6 +3802,10 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				mpte = PHYS_TO_VM_PAGE(*ptepa & PG_FRAME);
 				mpte->wire_count++;
 			} else {
+				/*
+				 * Pass NULL instead of the PV list lock
+				 * pointer, because we don't intend to sleep.
+				 */
 				mpte = _pmap_allocpte(pmap, ptepindex, NULL);
 				if (mpte == NULL)
 					return (mpte);

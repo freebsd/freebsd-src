@@ -90,7 +90,7 @@ nosig(char *name)
 int
 main(int ac, char **av)
 {
-	struct kinfo_proc *procs = NULL, *newprocs;
+	struct kinfo_proc *procs, *newprocs;
 	struct stat	sb;
 	struct passwd	*pw;
 	regex_t		rgx;
@@ -278,9 +278,6 @@ main(int ac, char **av)
 	size = 0;
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
-	mib[2] = KERN_PROC_PROC;
-	mib[3] = 0;
-	miblen = 3;
 
 	if (user) {
 		mib[2] = eflag ? KERN_PROC_UID : KERN_PROC_RUID;
@@ -290,16 +287,20 @@ main(int ac, char **av)
 		mib[2] = KERN_PROC_TTY;
 		mib[3] = tdev;
 		miblen = 4;
+	} else {
+		mib[2] = KERN_PROC_PROC;
+		mib[3] = 0;
+		miblen = 3;
 	}
 
+	procs = NULL;
 	st = sysctl(mib, miblen, NULL, &size, NULL, 0);
 	do {
 		size += size / 10;
 		newprocs = realloc(procs, size);
-		if (newprocs == 0) {
-			if (procs)
-				free(procs);
-			errx(1, "could not reallocate memory");
+		if (newprocs == NULL) {
+			free(procs);
+			err(1, "could not reallocate memory");
 		}
 		procs = newprocs;
 		st = sysctl(mib, miblen, procs, &size, NULL, 0);
@@ -309,7 +310,7 @@ main(int ac, char **av)
 	if (size % sizeof(struct kinfo_proc) != 0) {
 		fprintf(stderr, "proc size mismatch (%zu total, %zu chunks)\n",
 			size, sizeof(struct kinfo_proc));
-		fprintf(stderr, "userland out of sync with kernel, recompile libkvm etc\n");
+		fprintf(stderr, "userland out of sync with kernel\n");
 		exit(1);
 	}
 	nprocs = size / sizeof(struct kinfo_proc);
@@ -318,7 +319,7 @@ main(int ac, char **av)
 	mypid = getpid();
 
 	for (i = 0; i < nprocs; i++) {
-		if ((procs[i].ki_stat & SZOMB) == SZOMB && !zflag)
+		if (procs[i].ki_stat == SZOMB && !zflag)
 			continue;
 		thispid = procs[i].ki_pid;
 		strlcpy(thiscmd, procs[i].ki_comm, sizeof(thiscmd));
