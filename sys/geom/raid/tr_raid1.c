@@ -145,7 +145,8 @@ g_raid_tr_taste_raid1(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 
 	trs = (struct g_raid_tr_raid1_object *)tr;
 	if (tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_RAID1 ||
-	    tr->tro_volume->v_raid_level_qualifier != G_RAID_VOLUME_RLQ_NONE)
+	    (tr->tro_volume->v_raid_level_qualifier != G_RAID_VOLUME_RLQ_R1SM &&
+	     tr->tro_volume->v_raid_level_qualifier != G_RAID_VOLUME_RLQ_R1MM))
 		return (G_RAID_TR_TASTE_FAIL);
 	trs->trso_starting = 1;
 	return (G_RAID_TR_TASTE_SUCCEED);
@@ -893,7 +894,16 @@ rebuild_round_done:
 		g_raid_unlock_range(sd->sd_volume, bp->bio_offset,
 		    bp->bio_length);
 	}
-	error = bp->bio_error;
+	if (pbp->bio_cmd != BIO_READ) {
+		if (pbp->bio_inbed == 1 || pbp->bio_error != 0)
+			pbp->bio_error = bp->bio_error;
+		if (bp->bio_error != 0) {
+			G_RAID_LOGREQ(0, bp, "Write failed: failing subdisk.");
+			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+		}
+		error = pbp->bio_error;
+	} else
+		error = bp->bio_error;
 	g_destroy_bio(bp);
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;

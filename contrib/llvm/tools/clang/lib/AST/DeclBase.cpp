@@ -39,7 +39,24 @@ using namespace clang;
 #define ABSTRACT_DECL(DECL)
 #include "clang/AST/DeclNodes.inc"
 
-static bool StatSwitch = false;
+void *Decl::AllocateDeserializedDecl(const ASTContext &Context, 
+                                     unsigned ID,
+                                     unsigned Size) {
+  // Allocate an extra 8 bytes worth of storage, which ensures that the
+  // resulting pointer will still be 8-byte aligned. 
+  void *Start = Context.Allocate(Size + 8);
+  void *Result = (char*)Start + 8;
+  
+  unsigned *PrefixPtr = (unsigned *)Result - 2;
+  
+  // Zero out the first 4 bytes; this is used to store the owning module ID.
+  PrefixPtr[0] = 0;
+  
+  // Store the global declaration ID in the second 4 bytes.
+  PrefixPtr[1] = ID;
+  
+  return Result;
+}
 
 const char *Decl::getDeclKindName() const {
   switch (DeclKind) {
@@ -52,7 +69,7 @@ const char *Decl::getDeclKindName() const {
 
 void Decl::setInvalidDecl(bool Invalid) {
   InvalidDecl = Invalid;
-  if (Invalid) {
+  if (Invalid && !isa<ParmVarDecl>(this)) {
     // Defensive maneuver for ill-formed code: we're likely not to make it to
     // a point where we set the access specifier, so default it to "public"
     // to avoid triggering asserts elsewhere in the front end. 
@@ -69,9 +86,9 @@ const char *DeclContext::getDeclKindName() const {
   }
 }
 
-bool Decl::CollectingStats(bool Enable) {
-  if (Enable) StatSwitch = true;
-  return StatSwitch;
+bool Decl::StatisticsEnabled = false;
+void Decl::EnableStatistics() {
+  StatisticsEnabled = true;
 }
 
 void Decl::PrintStats() {
@@ -100,7 +117,6 @@ void Decl::PrintStats() {
 
 void Decl::add(Kind k) {
   switch (k) {
-  default: llvm_unreachable("Declaration not in DeclNodes.inc!");
 #define DECL(DERIVED, BASE) case DERIVED: ++n##DERIVED##s; break;
 #define ABSTRACT_DECL(DECL)
 #include "clang/AST/DeclNodes.inc"
@@ -185,12 +201,21 @@ void Decl::setLexicalDeclContext(DeclContext *DC) {
     return;
 
   if (isInSemaDC()) {
-    MultipleDC *MDC = new (getASTContext()) MultipleDC();
-    MDC->SemanticDC = getDeclContext();
-    MDC->LexicalDC = DC;
-    DeclCtx = MDC;
+    setDeclContextsImpl(getDeclContext(), DC, getASTContext());
   } else {
     getMultipleDC()->LexicalDC = DC;
+  }
+}
+
+void Decl::setDeclContextsImpl(DeclContext *SemaDC, DeclContext *LexicalDC,
+                               ASTContext &Ctx) {
+  if (SemaDC == LexicalDC) {
+    DeclCtx = SemaDC;
+  } else {
+    Decl::MultipleDC *MDC = new (Ctx) Decl::MultipleDC();
+    MDC->SemanticDC = SemaDC;
+    MDC->LexicalDC = LexicalDC;
+    DeclCtx = MDC;
   }
 }
 
@@ -282,13 +307,20 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
   // Match the platform name.
   if (A->getPlatform()->getName() != TargetPlatform)
     return AR_Available;
-
+  
+  std::string HintMessage;
+  if (!A->getMessage().empty()) {
+    HintMessage = " - ";
+    HintMessage += A->getMessage();
+  }
+  
   // Make sure that this declaration has not been marked 'unavailable'.
   if (A->getUnavailable()) {
     if (Message) {
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
-      Out << "not available on " << PrettyPlatformName;
+      Out << "not available on " << PrettyPlatformName 
+          << HintMessage;
     }
 
     return AR_Unavailable;
@@ -301,7 +333,7 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
       Out << "introduced in " << PrettyPlatformName << ' ' 
-          << A->getIntroduced();
+          << A->getIntroduced() << HintMessage;
     }
 
     return AR_NotYetIntroduced;
@@ -313,7 +345,7 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
       Out << "obsoleted in " << PrettyPlatformName << ' ' 
-          << A->getObsoleted();
+          << A->getObsoleted() << HintMessage;
     }
     
     return AR_Unavailable;
@@ -325,7 +357,7 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
       Out << "first deprecated in " << PrettyPlatformName << ' '
-          << A->getDeprecated();
+          << A->getDeprecated() << HintMessage;
     }
     
     return AR_Deprecated;
@@ -391,7 +423,7 @@ bool Decl::canBeWeakImported(bool &IsDefinition) const {
     }
   } else if (isa<ObjCPropertyDecl>(this) || isa<ObjCMethodDecl>(this))
     return false;
-  else if (!(getASTContext().getLangOptions().ObjCNonFragileABI &&
+  else if (!(getASTContext().getLangOpts().ObjCNonFragileABI &&
              isa<ObjCInterfaceDecl>(this)))
     return false;
 
@@ -488,9 +520,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case LinkageSpec:
     case FileScopeAsm:
     case StaticAssert:
-    case ObjCClass:
     case ObjCPropertyImpl:
-    case ObjCForwardProtocol:
     case Block:
     case TranslationUnit:
 
@@ -501,17 +531,18 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ObjCImplementation:
     case ObjCCategory:
     case ObjCCategoryImpl:
+    case Import:
       // Never looked up by name.
       return 0;
   }
 
-  return 0;
+  llvm_unreachable("Invalid DeclKind!");
 }
 
-void Decl::setAttrs(const AttrVec &attrs) {
+void Decl::setAttrsImpl(const AttrVec &attrs, ASTContext &Ctx) {
   assert(!HasAttrs && "Decl already contains attrs.");
 
-  AttrVec &AttrBlank = getASTContext().getDeclAttrs(this);
+  AttrVec &AttrBlank = Ctx.getDeclAttrs(this);
   assert(AttrBlank.empty() && "HasAttrs was wrong?");
 
   AttrBlank = attrs;
@@ -640,7 +671,11 @@ void Decl::CheckAccessDeclContext() const {
 }
 
 DeclContext *Decl::getNonClosureContext() {
-  DeclContext *DC = getDeclContext();
+  return getDeclContext()->getNonClosureAncestor();
+}
+
+DeclContext *DeclContext::getNonClosureAncestor() {
+  DeclContext *DC = this;
 
   // This is basically "while (DC->isClosure()) DC = DC->getParent();"
   // except that it's significantly more efficient to cast to a known
@@ -704,10 +739,14 @@ bool DeclContext::isDependentContext() const {
   if (isa<ClassTemplatePartialSpecializationDecl>(this))
     return true;
 
-  if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(this))
+  if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(this)) {
     if (Record->getDescribedClassTemplate())
       return true;
-
+    
+    if (Record->isDependentLambda())
+      return true;
+  }
+  
   if (const FunctionDecl *Function = dyn_cast<FunctionDecl>(this)) {
     if (Function->getDescribedFunctionTemplate())
       return true;
@@ -767,9 +806,18 @@ DeclContext *DeclContext::getPrimaryContext() {
     return this;
 
   case Decl::ObjCInterface:
+    if (ObjCInterfaceDecl *Def = cast<ObjCInterfaceDecl>(this)->getDefinition())
+      return Def;
+      
+    return this;
+      
   case Decl::ObjCProtocol:
+    if (ObjCProtocolDecl *Def = cast<ObjCProtocolDecl>(this)->getDefinition())
+      return Def;
+    
+    return this;
+      
   case Decl::ObjCCategory:
-    // FIXME: Can Objective-C interfaces be forward-declared?
     return this;
 
   case Decl::ObjCImplementation:
@@ -804,21 +852,27 @@ DeclContext *DeclContext::getPrimaryContext() {
   }
 }
 
-DeclContext *DeclContext::getNextContext() {
-  switch (DeclKind) {
-  case Decl::Namespace:
-    // Return the next namespace
-    return static_cast<NamespaceDecl*>(this)->getNextNamespace();
-
-  default:
-    return 0;
+void 
+DeclContext::collectAllContexts(llvm::SmallVectorImpl<DeclContext *> &Contexts){
+  Contexts.clear();
+  
+  if (DeclKind != Decl::Namespace) {
+    Contexts.push_back(this);
+    return;
   }
+  
+  NamespaceDecl *Self = static_cast<NamespaceDecl *>(this);
+  for (NamespaceDecl *N = Self->getMostRecentDecl(); N;
+       N = N->getPreviousDecl())
+    Contexts.push_back(N);
+  
+  std::reverse(Contexts.begin(), Contexts.end());
 }
 
 std::pair<Decl *, Decl *>
-DeclContext::BuildDeclChain(const SmallVectorImpl<Decl*> &Decls,
+DeclContext::BuildDeclChain(ArrayRef<Decl*> Decls,
                             bool FieldsAlreadyLoaded) {
-  // Build up a chain of declarations via the Decl::NextDeclInContext field.
+  // Build up a chain of declarations via the Decl::NextInContextAndBits field.
   Decl *FirstNewDecl = 0;
   Decl *PrevDecl = 0;
   for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
@@ -827,7 +881,7 @@ DeclContext::BuildDeclChain(const SmallVectorImpl<Decl*> &Decls,
 
     Decl *D = Decls[I];
     if (PrevDecl)
-      PrevDecl->NextDeclInContext = D;
+      PrevDecl->NextInContextAndBits.setPointer(D);
     else
       FirstNewDecl = D;
 
@@ -873,7 +927,7 @@ DeclContext::LoadLexicalDeclsFromExternalStorage() const {
   Decl *ExternalFirst, *ExternalLast;
   llvm::tie(ExternalFirst, ExternalLast) = BuildDeclChain(Decls,
                                                           FieldsAlreadyLoaded);
-  ExternalLast->NextDeclInContext = FirstDecl;
+  ExternalLast->NextInContextAndBits.setPointer(FirstDecl);
   FirstDecl = ExternalFirst;
   if (!LastDecl)
     LastDecl = ExternalLast;
@@ -884,7 +938,7 @@ ExternalASTSource::SetNoExternalVisibleDeclsForName(const DeclContext *DC,
                                                     DeclarationName Name) {
   ASTContext &Context = DC->getParentASTContext();
   StoredDeclsMap *Map;
-  if (!(Map = DC->LookupPtr))
+  if (!(Map = DC->LookupPtr.getPointer()))
     Map = DC->CreateStoredDeclsMap(Context);
 
   StoredDeclsList &List = (*Map)[Name];
@@ -901,7 +955,7 @@ ExternalASTSource::SetExternalVisibleDeclsForName(const DeclContext *DC,
   ASTContext &Context = DC->getParentASTContext();;
 
   StoredDeclsMap *Map;
-  if (!(Map = DC->LookupPtr))
+  if (!(Map = DC->LookupPtr.getPointer()))
     Map = DC->CreateStoredDeclsMap(Context);
 
   StoredDeclsList &List = (*Map)[Name];
@@ -948,7 +1002,7 @@ bool DeclContext::decls_empty() const {
 void DeclContext::removeDecl(Decl *D) {
   assert(D->getLexicalDeclContext() == this &&
          "decl being removed from non-lexical context");
-  assert((D->NextDeclInContext || D == LastDecl) &&
+  assert((D->NextInContextAndBits.getPointer() || D == LastDecl) &&
          "decl is not in decls list");
 
   // Remove D from the decl chain.  This is O(n) but hopefully rare.
@@ -956,12 +1010,12 @@ void DeclContext::removeDecl(Decl *D) {
     if (D == LastDecl)
       FirstDecl = LastDecl = 0;
     else
-      FirstDecl = D->NextDeclInContext;
+      FirstDecl = D->NextInContextAndBits.getPointer();
   } else {
-    for (Decl *I = FirstDecl; true; I = I->NextDeclInContext) {
+    for (Decl *I = FirstDecl; true; I = I->NextInContextAndBits.getPointer()) {
       assert(I && "decl not found in linked list");
-      if (I->NextDeclInContext == D) {
-        I->NextDeclInContext = D->NextDeclInContext;
+      if (I->NextInContextAndBits.getPointer() == D) {
+        I->NextInContextAndBits.setPointer(D->NextInContextAndBits.getPointer());
         if (D == LastDecl) LastDecl = I;
         break;
       }
@@ -969,7 +1023,7 @@ void DeclContext::removeDecl(Decl *D) {
   }
   
   // Mark that D is no longer in the decl chain.
-  D->NextDeclInContext = 0;
+  D->NextInContextAndBits.setPointer(0);
 
   // Remove D from the lookup table if necessary.
   if (isa<NamedDecl>(D)) {
@@ -978,12 +1032,13 @@ void DeclContext::removeDecl(Decl *D) {
     // Remove only decls that have a name
     if (!ND->getDeclName()) return;
 
-    StoredDeclsMap *Map = getPrimaryContext()->LookupPtr;
+    StoredDeclsMap *Map = getPrimaryContext()->LookupPtr.getPointer();
     if (!Map) return;
 
     StoredDeclsMap::iterator Pos = Map->find(ND->getDeclName());
     assert(Pos != Map->end() && "no lookup entry for decl");
-    Pos->second.remove(ND);
+    if (Pos->second.getAsVector() || Pos->second.getAsDecl() == ND)
+      Pos->second.remove(ND);
   }
 }
 
@@ -994,7 +1049,7 @@ void DeclContext::addHiddenDecl(Decl *D) {
          "Decl already inserted into a DeclContext");
 
   if (FirstDecl) {
-    LastDecl->NextDeclInContext = D;
+    LastDecl->NextInContextAndBits.setPointer(D);
     LastDecl = D;
   } else {
     FirstDecl = LastDecl = D;
@@ -1004,55 +1059,118 @@ void DeclContext::addHiddenDecl(Decl *D) {
   // update it's class-specific state.
   if (CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(this))
     Record->addedMember(D);
+
+  // If this is a newly-created (not de-serialized) import declaration, wire
+  // it in to the list of local import declarations.
+  if (!D->isFromASTFile()) {
+    if (ImportDecl *Import = dyn_cast<ImportDecl>(D))
+      D->getASTContext().addedLocalImportDecl(Import);
+  }
 }
 
 void DeclContext::addDecl(Decl *D) {
   addHiddenDecl(D);
 
   if (NamedDecl *ND = dyn_cast<NamedDecl>(D))
-    ND->getDeclContext()->makeDeclVisibleInContext(ND);
+    ND->getDeclContext()->getPrimaryContext()->
+        makeDeclVisibleInContextWithFlags(ND, false, true);
+}
+
+void DeclContext::addDeclInternal(Decl *D) {
+  addHiddenDecl(D);
+
+  if (NamedDecl *ND = dyn_cast<NamedDecl>(D))
+    ND->getDeclContext()->getPrimaryContext()->
+        makeDeclVisibleInContextWithFlags(ND, true, true);
+}
+
+/// shouldBeHidden - Determine whether a declaration which was declared
+/// within its semantic context should be invisible to qualified name lookup.
+static bool shouldBeHidden(NamedDecl *D) {
+  // Skip unnamed declarations.
+  if (!D->getDeclName())
+    return true;
+
+  // Skip entities that can't be found by name lookup into a particular
+  // context.
+  if ((D->getIdentifierNamespace() == 0 && !isa<UsingDirectiveDecl>(D)) ||
+      D->isTemplateParameter())
+    return true;
+
+  // Skip template specializations.
+  // FIXME: This feels like a hack. Should DeclarationName support
+  // template-ids, or is there a better way to keep specializations
+  // from being visible?
+  if (isa<ClassTemplateSpecializationDecl>(D))
+    return true;
+  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+    if (FD->isFunctionTemplateSpecialization())
+      return true;
+
+  return false;
 }
 
 /// buildLookup - Build the lookup data structure with all of the
-/// declarations in DCtx (and any other contexts linked to it or
-/// transparent contexts nested within it).
-void DeclContext::buildLookup(DeclContext *DCtx) {
-  for (; DCtx; DCtx = DCtx->getNextContext()) {
-    for (decl_iterator D = DCtx->decls_begin(),
-                    DEnd = DCtx->decls_end();
-         D != DEnd; ++D) {
-      // Insert this declaration into the lookup structure, but only
-      // if it's semantically in its decl context.  During non-lazy
-      // lookup building, this is implicitly enforced by addDecl.
-      if (NamedDecl *ND = dyn_cast<NamedDecl>(*D))
-        if (D->getDeclContext() == DCtx)
-          makeDeclVisibleInContextImpl(ND);
+/// declarations in this DeclContext (and any other contexts linked
+/// to it or transparent contexts nested within it) and return it.
+StoredDeclsMap *DeclContext::buildLookup() {
+  assert(this == getPrimaryContext() && "buildLookup called on non-primary DC");
 
-      // Insert any forward-declared Objective-C interface into the lookup
-      // data structure.
-      if (ObjCClassDecl *Class = dyn_cast<ObjCClassDecl>(*D))
-        makeDeclVisibleInContextImpl(Class->getForwardInterfaceDecl());
-      
-      // If this declaration is itself a transparent declaration context or
-      // inline namespace, add its members (recursively).
-      if (DeclContext *InnerCtx = dyn_cast<DeclContext>(*D))
-        if (InnerCtx->isTransparentContext() || InnerCtx->isInlineNamespace())
-          buildLookup(InnerCtx->getPrimaryContext());
-    }
+  if (!LookupPtr.getInt())
+    return LookupPtr.getPointer();
+
+  llvm::SmallVector<DeclContext *, 2> Contexts;
+  collectAllContexts(Contexts);
+  for (unsigned I = 0, N = Contexts.size(); I != N; ++I)
+    buildLookupImpl(Contexts[I]);
+
+  // We no longer have any lazy decls.
+  LookupPtr.setInt(false);
+  return LookupPtr.getPointer();
+}
+
+/// buildLookupImpl - Build part of the lookup data structure for the
+/// declarations contained within DCtx, which will either be this
+/// DeclContext, a DeclContext linked to it, or a transparent context
+/// nested within it.
+void DeclContext::buildLookupImpl(DeclContext *DCtx) {
+  for (decl_iterator I = DCtx->decls_begin(), E = DCtx->decls_end();
+       I != E; ++I) {
+    Decl *D = *I;
+
+    // Insert this declaration into the lookup structure, but only if
+    // it's semantically within its decl context. Any other decls which
+    // should be found in this context are added eagerly.
+    if (NamedDecl *ND = dyn_cast<NamedDecl>(D))
+      if (ND->getDeclContext() == DCtx && !shouldBeHidden(ND))
+        makeDeclVisibleInContextImpl(ND, false);
+
+    // If this declaration is itself a transparent declaration context
+    // or inline namespace, add the members of this declaration of that
+    // context (recursively).
+    if (DeclContext *InnerCtx = dyn_cast<DeclContext>(D))
+      if (InnerCtx->isTransparentContext() || InnerCtx->isInlineNamespace())
+        buildLookupImpl(InnerCtx);
   }
 }
 
 DeclContext::lookup_result
 DeclContext::lookup(DeclarationName Name) {
+  assert(DeclKind != Decl::LinkageSpec &&
+         "Should not perform lookups into linkage specs!");
+
   DeclContext *PrimaryContext = getPrimaryContext();
   if (PrimaryContext != this)
     return PrimaryContext->lookup(Name);
 
   if (hasExternalVisibleStorage()) {
-    // Check to see if we've already cached the lookup results.
-    if (LookupPtr) {
-      StoredDeclsMap::iterator I = LookupPtr->find(Name);
-      if (I != LookupPtr->end())
+    // If a PCH has a result for this name, and we have a local declaration, we
+    // will have imported the PCH result when adding the local declaration.
+    // FIXME: For modules, we could have had more declarations added by module
+    // imoprts since we saw the declaration of the local name.
+    if (StoredDeclsMap *Map = LookupPtr.getPointer()) {
+      StoredDeclsMap::iterator I = Map->find(Name);
+      if (I != Map->end())
         return I->second.getLookupResult();
     }
 
@@ -1060,20 +1178,18 @@ DeclContext::lookup(DeclarationName Name) {
     return Source->FindExternalVisibleDeclsByName(this, Name);
   }
 
-  /// If there is no lookup data structure, build one now by walking
-  /// all of the linked DeclContexts (in declaration order!) and
-  /// inserting their values.
-  if (!LookupPtr) {
-    buildLookup(this);
+  StoredDeclsMap *Map = LookupPtr.getPointer();
+  if (LookupPtr.getInt())
+    Map = buildLookup();
 
-    if (!LookupPtr)
-      return lookup_result(lookup_iterator(0), lookup_iterator(0));
-  }
-
-  StoredDeclsMap::iterator Pos = LookupPtr->find(Name);
-  if (Pos == LookupPtr->end())
+  if (!Map)
     return lookup_result(lookup_iterator(0), lookup_iterator(0));
-  return Pos->second.getLookupResult();
+
+  StoredDeclsMap::iterator I = Map->find(Name);
+  if (I == Map->end())
+    return lookup_result(lookup_iterator(0), lookup_iterator(0));
+
+  return I->second.getLookupResult();
 }
 
 DeclContext::lookup_const_result
@@ -1094,10 +1210,10 @@ void DeclContext::localUncachedLookup(DeclarationName Name,
   }
 
   // If we have a lookup table, check there first. Maybe we'll get lucky.
-  if (LookupPtr) {
-    StoredDeclsMap::iterator Pos = LookupPtr->find(Name);
-    if (Pos != LookupPtr->end()) {
-      Results.insert(Results.end(), 
+  if (StoredDeclsMap *Map = LookupPtr.getPointer()) {
+    StoredDeclsMap::iterator Pos = Map->find(Name);
+    if (Pos != Map->end()) {
+      Results.insert(Results.end(),
                      Pos->second.getLookupResult().first,
                      Pos->second.getLookupResult().second);
       return;
@@ -1147,79 +1263,97 @@ bool DeclContext::InEnclosingNamespaceSetOf(const DeclContext *O) const {
   return false;
 }
 
-void DeclContext::makeDeclVisibleInContext(NamedDecl *D, bool Recoverable) {
-  // FIXME: This feels like a hack. Should DeclarationName support
-  // template-ids, or is there a better way to keep specializations
-  // from being visible?
-  if (isa<ClassTemplateSpecializationDecl>(D) || D->isTemplateParameter())
-    return;
-  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
-    if (FD->isFunctionTemplateSpecialization())
-      return;
+void DeclContext::makeDeclVisibleInContext(NamedDecl *D) {
+  DeclContext *PrimaryDC = this->getPrimaryContext();
+  DeclContext *DeclDC = D->getDeclContext()->getPrimaryContext();
+  // If the decl is being added outside of its semantic decl context, we
+  // need to ensure that we eagerly build the lookup information for it.
+  PrimaryDC->makeDeclVisibleInContextWithFlags(D, false, PrimaryDC == DeclDC);
+}
 
-  DeclContext *PrimaryContext = getPrimaryContext();
-  if (PrimaryContext != this) {
-    PrimaryContext->makeDeclVisibleInContext(D, Recoverable);
+void DeclContext::makeDeclVisibleInContextWithFlags(NamedDecl *D, bool Internal,
+                                                    bool Recoverable) {
+  assert(this == getPrimaryContext() && "expected a primary DC");
+
+  // Skip declarations within functions.
+  // FIXME: We shouldn't need to build lookup tables for function declarations
+  // ever, and we can't do so correctly because we can't model the nesting of
+  // scopes which occurs within functions. We use "qualified" lookup into
+  // function declarations when handling friend declarations inside nested
+  // classes, and consequently accept the following invalid code:
+  //
+  //   void f() { void g(); { int g; struct S { friend void g(); }; } }
+  if (isFunctionOrMethod() && !isa<FunctionDecl>(D))
     return;
+
+  // Skip declarations which should be invisible to name lookup.
+  if (shouldBeHidden(D))
+    return;
+
+  // If we already have a lookup data structure, perform the insertion into
+  // it. If we might have externally-stored decls with this name, look them
+  // up and perform the insertion. If this decl was declared outside its
+  // semantic context, buildLookup won't add it, so add it now.
+  //
+  // FIXME: As a performance hack, don't add such decls into the translation
+  // unit unless we're in C++, since qualified lookup into the TU is never
+  // performed.
+  if (LookupPtr.getPointer() || hasExternalVisibleStorage() ||
+      ((!Recoverable || D->getDeclContext() != D->getLexicalDeclContext()) &&
+       (getParentASTContext().getLangOpts().CPlusPlus ||
+        !isTranslationUnit()))) {
+    // If we have lazily omitted any decls, they might have the same name as
+    // the decl which we are adding, so build a full lookup table before adding
+    // this decl.
+    buildLookup();
+    makeDeclVisibleInContextImpl(D, Internal);
+  } else {
+    LookupPtr.setInt(true);
   }
-
-  // If we already have a lookup data structure, perform the insertion
-  // into it. If we haven't deserialized externally stored decls, deserialize
-  // them so we can add the decl. Otherwise, be lazy and don't build that
-  // structure until someone asks for it.
-  if (LookupPtr || !Recoverable || hasExternalVisibleStorage())
-    makeDeclVisibleInContextImpl(D);
 
   // If we are a transparent context or inline namespace, insert into our
   // parent context, too. This operation is recursive.
   if (isTransparentContext() || isInlineNamespace())
-    getParent()->makeDeclVisibleInContext(D, Recoverable);
+    getParent()->getPrimaryContext()->
+        makeDeclVisibleInContextWithFlags(D, Internal, Recoverable);
 
   Decl *DCAsDecl = cast<Decl>(this);
-  // Notify that a decl was made visible unless it's a Tag being defined. 
+  // Notify that a decl was made visible unless we are a Tag being defined.
   if (!(isa<TagDecl>(DCAsDecl) && cast<TagDecl>(DCAsDecl)->isBeingDefined()))
     if (ASTMutationListener *L = DCAsDecl->getASTMutationListener())
       L->AddedVisibleDecl(this, D);
 }
 
-void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D) {
-  // Skip unnamed declarations.
-  if (!D->getDeclName())
-    return;
-
-  // Skip entities that can't be found by name lookup into a particular
-  // context.
-  if ((D->getIdentifierNamespace() == 0 && !isa<UsingDirectiveDecl>(D)) ||
-      D->isTemplateParameter())
-    return;
-
-  ASTContext *C = 0;
-  if (!LookupPtr) {
-    C = &getParentASTContext();
-    CreateStoredDeclsMap(*C);
+void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D, bool Internal) {
+  // Find or create the stored declaration map.
+  StoredDeclsMap *Map = LookupPtr.getPointer();
+  if (!Map) {
+    ASTContext *C = &getParentASTContext();
+    Map = CreateStoredDeclsMap(*C);
   }
 
   // If there is an external AST source, load any declarations it knows about
   // with this declaration's name.
   // If the lookup table contains an entry about this name it means that we
   // have already checked the external source.
-  if (ExternalASTSource *Source = getParentASTContext().getExternalSource())
-    if (hasExternalVisibleStorage() &&
-        LookupPtr->find(D->getDeclName()) == LookupPtr->end())
-      Source->FindExternalVisibleDeclsByName(this, D->getDeclName());
+  if (!Internal)
+    if (ExternalASTSource *Source = getParentASTContext().getExternalSource())
+      if (hasExternalVisibleStorage() &&
+          Map->find(D->getDeclName()) == Map->end())
+        Source->FindExternalVisibleDeclsByName(this, D->getDeclName());
 
   // Insert this declaration into the map.
-  StoredDeclsList &DeclNameEntries = (*LookupPtr)[D->getDeclName()];
+  StoredDeclsList &DeclNameEntries = (*Map)[D->getDeclName()];
   if (DeclNameEntries.isNull()) {
     DeclNameEntries.setOnlyValue(D);
     return;
   }
 
-  // If it is possible that this is a redeclaration, check to see if there is
-  // already a decl for which declarationReplaces returns true.  If there is
-  // one, just replace it and return.
-  if (DeclNameEntries.HandleRedeclaration(D))
+  if (DeclNameEntries.HandleRedeclaration(D)) {
+    // This declaration has replaced an existing one for which
+    // declarationReplaces returns true.
     return;
+  }
 
   // Put this declaration into the appropriate slot.
   DeclNameEntries.AddSubsequentDecl(D);
@@ -1229,6 +1363,8 @@ void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D) {
 /// this context.
 DeclContext::udir_iterator_range
 DeclContext::getUsingDirectives() const {
+  // FIXME: Use something more efficient than normal lookup for using
+  // directives. In C++, using directives are looked up more than anything else.
   lookup_const_result Result = lookup(UsingDirectiveDecl::getName());
   return udir_iterator_range(reinterpret_cast<udir_iterator>(Result.first),
                              reinterpret_cast<udir_iterator>(Result.second));
@@ -1239,7 +1375,7 @@ DeclContext::getUsingDirectives() const {
 //===----------------------------------------------------------------------===//
 
 StoredDeclsMap *DeclContext::CreateStoredDeclsMap(ASTContext &C) const {
-  assert(!LookupPtr && "context already has a decls map");
+  assert(!LookupPtr.getPointer() && "context already has a decls map");
   assert(getPrimaryContext() == this &&
          "creating decls map on non-primary context");
 
@@ -1251,7 +1387,7 @@ StoredDeclsMap *DeclContext::CreateStoredDeclsMap(ASTContext &C) const {
     M = new StoredDeclsMap();
   M->Previous = C.LastSDM;
   C.LastSDM = llvm::PointerIntPair<StoredDeclsMap*,1>(M, Dependent);
-  LookupPtr = M;
+  LookupPtr.setPointer(M);
   return M;
 }
 
@@ -1283,11 +1419,11 @@ DependentDiagnostic *DependentDiagnostic::Create(ASTContext &C,
   assert(Parent->isDependentContext()
          && "cannot iterate dependent diagnostics of non-dependent context");
   Parent = Parent->getPrimaryContext();
-  if (!Parent->LookupPtr)
+  if (!Parent->LookupPtr.getPointer())
     Parent->CreateStoredDeclsMap(C);
 
   DependentStoredDeclsMap *Map
-    = static_cast<DependentStoredDeclsMap*>(Parent->LookupPtr);
+    = static_cast<DependentStoredDeclsMap*>(Parent->LookupPtr.getPointer());
 
   // Allocate the copy of the PartialDiagnostic via the ASTContext's
   // BumpPtrAllocator, rather than the ASTContext itself.

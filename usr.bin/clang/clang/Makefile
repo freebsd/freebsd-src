@@ -41,35 +41,38 @@ LIBDEPS=clangfrontendtool \
 	clangstaticanalyzercheckers \
 	clangstaticanalyzercore \
 	clanganalysis \
-	clangindex \
 	clangarcmigrate \
 	clangrewrite \
+	clangedit \
 	clangast \
 	clanglex \
 	clangbasic \
+	llvmlinker \
+	llvmarchive \
 	llvmipo \
+	llvmvectorize \
 	llvminstrumentation \
 	llvmbitwriter \
 	llvmbitreader \
 	llvmasmparser \
+	llvmmipsasmparser \
+	llvmmipscodegen \
+	llvmmipsdesc \
+	llvmmipsinfo \
+	llvmmipsinstprinter \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvmarmdesc \
-	llvmarminstprinter \
 	llvmarminfo \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinstprinter \
-	llvmmipsinfo \
+	llvmarminstprinter \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
-	llvmx86disassembler \
+	llvmpowerpcinstprinter \
 	llvmx86asmparser \
+	llvmx86disassembler \
 	llvmx86codegen \
-	llvmx86desc \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
@@ -79,12 +82,14 @@ LIBDEPS=clangfrontendtool \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
+	llvmx86desc \
+	llvmx86info \
 	llvmtarget \
 	llvmx86instprinter \
+	llvmmc \
+	llvmobject \
 	llvmx86utils \
 	llvmcore \
-	llvmx86info \
-	llvmmc \
 	llvmsupport
 
 .include "../clang.prog.mk"

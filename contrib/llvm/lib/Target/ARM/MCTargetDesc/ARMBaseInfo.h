@@ -67,7 +67,6 @@ namespace ARMCC {
 
 inline static const char *ARMCondCodeToString(ARMCC::CondCodes CC) {
   switch (CC) {
-  default: llvm_unreachable("Unknown condition code");
   case ARMCC::EQ:  return "eq";
   case ARMCC::NE:  return "ne";
   case ARMCC::HS:  return "hs";
@@ -84,6 +83,7 @@ inline static const char *ARMCondCodeToString(ARMCC::CondCodes CC) {
   case ARMCC::LE:  return "le";
   case ARMCC::AL:  return "al";
   }
+  llvm_unreachable("Unknown condition code");
 }
 
 namespace ARM_PROC {
@@ -185,6 +185,39 @@ inline static unsigned getARMRegisterNumbering(unsigned Reg) {
   case S29: case D29: return 29;
   case S30: case D30: return 30;
   case S31: case D31: return 31;
+
+  // Composite registers use the regnum of the first register in the list.
+  /* Q0  */     case D0_D2:   return 0;
+  case D1_D2:   case D1_D3:   return 1;
+  /* Q1  */     case D2_D4:   return 2;
+  case D3_D4:   case D3_D5:   return 3;
+  /* Q2  */     case D4_D6:   return 4;
+  case D5_D6:   case D5_D7:   return 5;
+  /* Q3  */     case D6_D8:   return 6;
+  case D7_D8:   case D7_D9:   return 7;
+  /* Q4  */     case D8_D10:  return 8;
+  case D9_D10:  case D9_D11:  return 9;
+  /* Q5  */     case D10_D12: return 10;
+  case D11_D12: case D11_D13: return 11;
+  /* Q6  */     case D12_D14: return 12;
+  case D13_D14: case D13_D15: return 13;
+  /* Q7  */     case D14_D16: return 14;
+  case D15_D16: case D15_D17: return 15;
+  /* Q8  */     case D16_D18: return 16;
+  case D17_D18: case D17_D19: return 17;
+  /* Q9  */     case D18_D20: return 18;
+  case D19_D20: case D19_D21: return 19;
+  /* Q10 */     case D20_D22: return 20;
+  case D21_D22: case D21_D23: return 21;
+  /* Q11 */     case D22_D24: return 22;
+  case D23_D24: case D23_D25: return 23;
+  /* Q12 */     case D24_D26: return 24;
+  case D25_D26: case D25_D27: return 25;
+  /* Q13 */     case D26_D28: return 26;
+  case D27_D28: case D27_D29: return 27;
+  /* Q14 */     case D28_D30: return 28;
+  case D29_D30: case D29_D31: return 29;
+  /* Q15 */
   }
 }
 
@@ -237,7 +270,6 @@ namespace ARMII {
 
   inline static const char *AddrModeToString(AddrMode addrmode) {
     switch (addrmode) {
-    default: llvm_unreachable("Unknown memory operation");
     case AddrModeNone:    return "AddrModeNone";
     case AddrMode1:       return "AddrMode1";
     case AddrMode2:       return "AddrMode2";

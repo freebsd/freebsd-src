@@ -374,7 +374,20 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 		t++;
 	}
 	ATH_TXBUF_UNLOCK(sc);
-	printf("Total TX buffers: %d; Total TX buffers busy: %d\n",
+	printf("Total TX buffers: %d; Total TX buffers busy: %d (%d)\n",
+	    t, i, sc->sc_txbuf_cnt);
+
+	i = t = 0;
+	ATH_TXBUF_LOCK(sc);
+	TAILQ_FOREACH(bf, &sc->sc_txbuf_mgmt, bf_list) {
+		if (bf->bf_flags & ATH_BUF_BUSY) {
+			printf("Busy: %d\n", t);
+			i++;
+		}
+		t++;
+	}
+	ATH_TXBUF_UNLOCK(sc);
+	printf("Total mgmt TX buffers: %d; Total mgmt TX buffers busy: %d\n",
 	    t, i);
 
 	return 0;
@@ -501,8 +514,8 @@ ath_sysctlattach(struct ath_softc *sc)
 		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
 		"EEPROM regdomain code");
 #ifdef	ATH_DEBUG
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"debug", CTLFLAG_RW, &sc->sc_debug, 0,
+	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debug", CTLFLAG_RW, &sc->sc_debug,
 		"control debugging printfs");
 #endif
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -607,12 +620,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
 
-#if 0
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
 		0, "Minimum free buffers before adding a data frame"
 		" to the TX queue");
-#endif
+
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_mcastq_maxdepth", CTLFLAG_RW,
 		&sc->sc_txq_mcastq_maxdepth, 0,
@@ -655,6 +667,7 @@ ath_sysctl_clearstats(SYSCTL_HANDLER_ARGS)
 		return 0;       /* Not clearing the stats is still valid */
 	memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
 	memset(&sc->sc_aggr_stats, 0, sizeof(sc->sc_aggr_stats));
+	memset(&sc->sc_intr_stats, 0, sizeof(sc->sc_intr_stats));
 
 	val = 0;
 	return 0;
@@ -674,6 +687,26 @@ ath_sysctl_stats_attach_rxphyerr(struct ath_softc *sc, struct sysctl_oid_list *p
 	for (i = 0; i < 64; i++) {
 		snprintf(sn, sizeof(sn), "%d", i);
 		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD, &sc->sc_stats.ast_rx_phy[i], 0, "");
+	}
+}
+
+static void
+ath_sysctl_stats_attach_intr(struct ath_softc *sc,
+    struct sysctl_oid_list *parent)
+{
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	int i;
+	char sn[8];
+
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "sync_intr",
+	    CTLFLAG_RD, NULL, "Sync interrupt statistics");
+	child = SYSCTL_CHILDREN(tree);
+	for (i = 0; i < 32; i++) {
+		snprintf(sn, sizeof(sn), "%d", i);
+		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD,
+		    &sc->sc_intr_stats.sync_intr[i], 0, "");
 	}
 }
 
@@ -904,6 +937,9 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
+
+	/* Attach the interrupt statistics array */
+	ath_sysctl_stats_attach_intr(sc, child);
 }
 
 /*

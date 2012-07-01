@@ -48,7 +48,7 @@
 This function is used to establish a security context between an
 application and a remote peer using the RPSEC_GSS protocol.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width "options_req"
 .It clnt
 An RPC handle which is connected to the remote peer
 .It principal
@@ -62,7 +62,7 @@ The value of mechanism should be the name of one of the security
 mechanisms listed in /etc/gss/mech.
 .It service
 Type of service requested.
-.Bl -tag
+.Bl -tag -width "rpc_gss_svc_integrity"
 .It rpc_gss_svc_default
 The default - typically the same as
 .Dv rpc_gss_svc_none .

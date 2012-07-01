@@ -1,0 +1,18 @@
+The following are demonstrations of the whatexec.d script.
+
+
+Here we run it while a few commands are also executed,
+
+   # ./whatexec.d
+   PEXEC            EXEC                                   OK TYPE
+   bash             /usr/bin/clear                          Y #!/u\0
+   bash             /sbin/sh                                Y \177ELF\0
+   clear            /usr/bin/tput                           Y \177ELF\0
+   bash             /export/home/brendan/DOOM.EXE           N MZ\644\0
+   ^C
+
+whatexec.d has first found that "clear" was run, which has a type that
+begins with "#!" - a script. clear runs "sh" and "tput", both ELF files.
+
+We finish by attempting to run a MZ file, "DOOM.EXE", which is rejected
+(OK is "N").

@@ -9,15 +9,14 @@
 .Nd IP packet filter and traffic accounting
 .Sh SYNOPSIS
 To compile
-.Ns Nm
+the driver
 into the kernel, place the following option in the kernel configuration
 file:
 .Bd -ragged -offset indent
 .Cd "options IPFIREWALL"
 .Ed
 .Pp
-Other kernel options related to
-.Ns Nm
+Other related kernel options
 which may also be useful are:
 .Bd -ragged -offset indent
 .Cd "options IPFIREWALL_DEFAULT_TO_ACCEPT"
@@ -27,7 +26,7 @@ which may also be useful are:
 .Ed
 .Pp
 To load
-.Ns Nm
+the driver
 as a module at boot time, add the following line into the
 .Xr loader.conf 5
 file:

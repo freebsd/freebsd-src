@@ -75,6 +75,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 	 * Blank the interrupt debugging area regardless.
 	 */
 	bzero(&ah->ah_intrstate, sizeof(ah->ah_intrstate));
+	ah->ah_syncstate = 0;
 #endif
 
 	/*
@@ -89,6 +90,9 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			isr = OS_REG_READ(ah, AR_ISR);
 		else
 			isr = 0;
+#ifdef	AH_INTERRUPT_DEBUGGING
+		ah->ah_syncstate =
+#endif
 		o_sync_cause = sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
 		sync_cause &= AR_INTR_SYNC_DEFAULT;
 		*masked = 0;

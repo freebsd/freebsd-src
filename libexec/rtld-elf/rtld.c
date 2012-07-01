@@ -1,7 +1,8 @@
 /*-
  * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
- * Copyright 2009, 2010, 2011 Konstantin Belousov <kib@FreeBSD.ORG>.
+ * Copyright 2009-2012 Konstantin Belousov <kib@FreeBSD.ORG>.
+ * Copyright 2012 John Marino <draco@marino.st>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +86,7 @@ static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
 static Obj_Entry *dlopen_object(const char *name, int fd, Obj_Entry *refobj,
-    int lo_flags, int mode);
+    int lo_flags, int mode, RtldLockState *lockstate);
 static Obj_Entry *do_load_object(int, const char *, char *, struct stat *, int);
 static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
@@ -116,6 +117,10 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
+static int relocate_object_dag(Obj_Entry *root, bool bind_now,
+    Obj_Entry *rtldobj, int flags, RtldLockState *lockstate);
+static int relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, int,
     RtldLockState *);
 static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
@@ -132,7 +137,8 @@ static int symlook_global(SymLook *, DoneList *);
 static void symlook_init_from_req(SymLook *, const SymLook *);
 static int symlook_list(SymLook *, const Objlist *, DoneList *);
 static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
-static int symlook_obj1(SymLook *, const Obj_Entry *);
+static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
+static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
 static void trace_loaded_objects(Obj_Entry *);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
@@ -149,6 +155,9 @@ static int  object_match_name(const Obj_Entry *, const char *);
 static void ld_utrace_log(int, void *, void *, size_t, int, const char *);
 static void rtld_fill_dl_phdr_info(const Obj_Entry *obj,
     struct dl_phdr_info *phdr_info);
+static uint32_t gnu_hash(const char *);
+static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
+    const unsigned long);
 
 void r_debug_state(struct r_debug *, struct link_map *) __noinline;
 
@@ -485,6 +494,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     }
 
     digest_dynamic(obj_main, 0);
+    dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d",
+	obj_main->path, obj_main->valid_hash_sysv, obj_main->valid_hash_gnu,
+	obj_main->dynsymcount);
 
     linkmap_add(obj_main);
     linkmap_add(&obj_rtld);
@@ -822,6 +834,11 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
     Needed_Entry **needed_tail = &obj->needed;
     Needed_Entry **needed_filtees_tail = &obj->needed_filtees;
     Needed_Entry **needed_aux_filtees_tail = &obj->needed_aux_filtees;
+    const Elf_Hashelt *hashtab;
+    const Elf32_Word *hashval;
+    Elf32_Word bkt, nmaskwords;
+    int bloom_size32;
+    bool nmw_power2;
     int plttype = DT_REL;
 
     *dyn_rpath = NULL;
@@ -911,12 +928,35 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 	case DT_HASH:
 	    {
-		const Elf_Hashelt *hashtab = (const Elf_Hashelt *)
-		  (obj->relocbase + dynp->d_un.d_ptr);
+		hashtab = (const Elf_Hashelt *)(obj->relocbase +
+		    dynp->d_un.d_ptr);
 		obj->nbuckets = hashtab[0];
 		obj->nchains = hashtab[1];
 		obj->buckets = hashtab + 2;
 		obj->chains = obj->buckets + obj->nbuckets;
+		obj->valid_hash_sysv = obj->nbuckets > 0 && obj->nchains > 0 &&
+		  obj->buckets != NULL;
+	    }
+	    break;
+
+	case DT_GNU_HASH:
+	    {
+		hashtab = (const Elf_Hashelt *)(obj->relocbase +
+		    dynp->d_un.d_ptr);
+		obj->nbuckets_gnu = hashtab[0];
+		obj->symndx_gnu = hashtab[1];
+		nmaskwords = hashtab[2];
+		bloom_size32 = (__ELF_WORD_SIZE / 32) * nmaskwords;
+		/* Number of bitmask words is required to be power of 2 */
+		nmw_power2 = ((nmaskwords & (nmaskwords - 1)) == 0);
+		obj->maskwords_bm_gnu = nmaskwords - 1;
+		obj->shift2_gnu = hashtab[3];
+		obj->bloom_gnu = (Elf_Addr *) (hashtab + 4);
+		obj->buckets_gnu = hashtab + 4 + bloom_size32;
+		obj->chain_zero_gnu = obj->buckets_gnu + obj->nbuckets_gnu -
+		  obj->symndx_gnu;
+		obj->valid_hash_gnu = nmw_power2 && obj->nbuckets_gnu > 0 &&
+		  obj->buckets_gnu != NULL;
 	    }
 	    break;
 
@@ -1092,6 +1132,22 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	obj->pltrel = NULL;
 	obj->pltrelasize = obj->pltrelsize;
 	obj->pltrelsize = 0;
+    }
+
+    /* Determine size of dynsym table (equal to nchains of sysv hash) */
+    if (obj->valid_hash_sysv)
+	obj->dynsymcount = obj->nchains;
+    else if (obj->valid_hash_gnu) {
+	obj->dynsymcount = 0;
+	for (bkt = 0; bkt < obj->nbuckets_gnu; bkt++) {
+	    if (obj->buckets_gnu[bkt] == 0)
+		continue;
+	    hashval = &obj->chain_zero_gnu[obj->buckets_gnu[bkt]];
+	    do
+		obj->dynsymcount++;
+	    while ((*hashval++ & 1u) == 0);
+	}
+	obj->dynsymcount += obj->symndx_gnu;
     }
 }
 
@@ -1309,6 +1365,22 @@ elf_hash(const char *name)
 }
 
 /*
+ * The GNU hash function is the Daniel J. Bernstein hash clipped to 32 bits
+ * unsigned in case it's implemented with a wider type.
+ */
+static uint32_t
+gnu_hash(const char *s)
+{
+	uint32_t h;
+	unsigned char c;
+
+	h = 5381;
+	for (c = *s; c != '\0'; c = *++s)
+		h = h * 33 + c;
+	return (h & 0xffffffff);
+}
+
+/*
  * Find the library with the given name, and return its full pathname.
  * The returned string is dynamically allocated.  Generates an error
  * message and returns NULL if the library cannot be found.
@@ -1384,7 +1456,7 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
      * If we have already found this symbol, get the information from
      * the cache.
      */
-    if (symnum >= refobj->nchains)
+    if (symnum >= refobj->dynsymcount)
 	return NULL;	/* Bad object */
     if (cache != NULL && cache[symnum].sym != NULL) {
 	*defobj_out = cache[symnum].obj;
@@ -1672,13 +1744,14 @@ unload_filtees(Obj_Entry *obj)
 }
 
 static void
-load_filtee1(Obj_Entry *obj, Needed_Entry *needed, int flags)
+load_filtee1(Obj_Entry *obj, Needed_Entry *needed, int flags,
+    RtldLockState *lockstate)
 {
 
     for (; needed != NULL; needed = needed->next) {
 	needed->obj = dlopen_object(obj->strtab + needed->name, -1, obj,
 	  flags, ((ld_loadfltr || obj->z_loadfltr) ? RTLD_NOW : RTLD_LAZY) |
-	  RTLD_LOCAL);
+	  RTLD_LOCAL, lockstate);
     }
 }
 
@@ -1688,8 +1761,8 @@ load_filtees(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     lock_restart_for_upgrade(lockstate);
     if (!obj->filtees_loaded) {
-	load_filtee1(obj, obj->needed_filtees, flags);
-	load_filtee1(obj, obj->needed_aux_filtees, flags);
+	load_filtee1(obj, obj->needed_filtees, flags, lockstate);
+	load_filtee1(obj, obj->needed_aux_filtees, flags, lockstate);
 	obj->filtees_loaded = true;
     }
 }
@@ -1881,6 +1954,8 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
 	object_add_name(obj, name);
     obj->path = path;
     digest_dynamic(obj, 0);
+    dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d", obj->path,
+	obj->valid_hash_sysv, obj->valid_hash_gnu, obj->dynsymcount);
     if (obj->z_noopen && (flags & (RTLD_LO_DLOPEN | RTLD_LO_TRACE)) ==
       RTLD_LO_DLOPEN) {
 	dbg("refusing to load non-loadable \"%s\"", obj->path);
@@ -2146,52 +2221,70 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
 }
 
 /*
- * Relocate newly-loaded shared objects.  The argument is a pointer to
- * the Obj_Entry for the first such object.  All objects from the first
- * to the end of the list of objects are relocated.  Returns 0 on success,
- * or -1 on failure.
+ * Relocate dag rooted in the specified object.
+ * Returns 0 on success, or -1 on failure.
  */
+
 static int
-relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
+relocate_object_dag(Obj_Entry *root, bool bind_now, Obj_Entry *rtldobj,
     int flags, RtldLockState *lockstate)
 {
-    Obj_Entry *obj;
+	Objlist_Entry *elm;
+	int error;
 
-    for (obj = first;  obj != NULL;  obj = obj->next) {
+	error = 0;
+	STAILQ_FOREACH(elm, &root->dagmembers, link) {
+		error = relocate_object(elm->obj, bind_now, rtldobj, flags,
+		    lockstate);
+		if (error == -1)
+			break;
+	}
+	return (error);
+}
+
+/*
+ * Relocate single object.
+ * Returns 0 on success, or -1 on failure.
+ */
+static int
+relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate)
+{
+
 	if (obj->relocated)
-	    continue;
+		return (0);
 	obj->relocated = true;
 	if (obj != rtldobj)
-	    dbg("relocating \"%s\"", obj->path);
+		dbg("relocating \"%s\"", obj->path);
 
-	if (obj->nbuckets == 0 || obj->nchains == 0 || obj->buckets == NULL ||
-	    obj->symtab == NULL || obj->strtab == NULL) {
-	    _rtld_error("%s: Shared object has no run-time symbol table",
-	      obj->path);
-	    return -1;
+	if (obj->symtab == NULL || obj->strtab == NULL ||
+	    !(obj->valid_hash_sysv || obj->valid_hash_gnu)) {
+		_rtld_error("%s: Shared object has no run-time symbol table",
+			    obj->path);
+		return (-1);
 	}
 
 	if (obj->textrel) {
-	    /* There are relocations to the write-protected text segment. */
-	    if (mprotect(obj->mapbase, obj->textsize,
-	      PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
-		_rtld_error("%s: Cannot write-enable text segment: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		/* There are relocations to the write-protected text segment. */
+		if (mprotect(obj->mapbase, obj->textsize,
+		    PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
+			_rtld_error("%s: Cannot write-enable text segment: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 	/* Process the non-PLT relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
-		return -1;
+		return (-1);
 
 	if (obj->textrel) {	/* Re-protected the text segment. */
-	    if (mprotect(obj->mapbase, obj->textsize,
-	      PROT_READ|PROT_EXEC) == -1) {
-		_rtld_error("%s: Cannot write-protect text segment: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		if (mprotect(obj->mapbase, obj->textsize,
+		    PROT_READ|PROT_EXEC) == -1) {
+			_rtld_error("%s: Cannot write-protect text segment: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 
@@ -2200,18 +2293,19 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 
 	/* Process the PLT relocations. */
 	if (reloc_plt(obj) == -1)
-	    return -1;
+		return (-1);
 	/* Relocate the jump slots if we are doing immediate binding. */
 	if (obj->bind_now || bind_now)
-	    if (reloc_jmpslots(obj, flags, lockstate) == -1)
-		return -1;
+		if (reloc_jmpslots(obj, flags, lockstate) == -1)
+			return (-1);
 
 	if (obj->relro_size > 0) {
-	    if (mprotect(obj->relro_page, obj->relro_size, PROT_READ) == -1) {
-		_rtld_error("%s: Cannot enforce relro protection: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		if (mprotect(obj->relro_page, obj->relro_size,
+		    PROT_READ) == -1) {
+			_rtld_error("%s: Cannot enforce relro protection: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 	/*
@@ -2221,9 +2315,30 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	 */
 	obj->magic = RTLD_MAGIC;
 	obj->version = RTLD_VERSION;
-    }
 
-    return (0);
+	return (0);
+}
+
+/*
+ * Relocate newly-loaded shared objects.  The argument is a pointer to
+ * the Obj_Entry for the first such object.  All objects from the first
+ * to the end of the list of objects are relocated.  Returns 0 on success,
+ * or -1 on failure.
+ */
+static int
+relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate)
+{
+	Obj_Entry *obj;
+	int error;
+
+	for (error = 0, obj = first;  obj != NULL;  obj = obj->next) {
+		error = relocate_object(obj, bind_now, rtldobj, flags,
+		    lockstate);
+		if (error == -1)
+			break;
+	}
+	return (error);
 }
 
 /*
@@ -2489,7 +2604,7 @@ rtld_dlopen(const char *name, int fd, int mode)
 	    lo_flags |= RTLD_LO_TRACE;
 
     return (dlopen_object(name, fd, obj_main, lo_flags,
-      mode & (RTLD_MODEMASK | RTLD_GLOBAL)));
+      mode & (RTLD_MODEMASK | RTLD_GLOBAL), NULL));
 }
 
 static void
@@ -2504,17 +2619,20 @@ dlopen_cleanup(Obj_Entry *obj)
 
 static Obj_Entry *
 dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
-    int mode)
+    int mode, RtldLockState *lockstate)
 {
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    RtldLockState lockstate;
+    RtldLockState mlockstate;
     int result;
 
     objlist_init(&initlist);
 
-    wlock_acquire(rtld_bind_lock, &lockstate);
+    if (lockstate == NULL && !(lo_flags & RTLD_LO_EARLY)) {
+	wlock_acquire(rtld_bind_lock, &mlockstate);
+	lockstate = &mlockstate;
+    }
     GDB_STATE(RT_ADD,NULL);
 
     old_obj_tail = obj_tail;
@@ -2540,10 +2658,10 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		result = rtld_verify_versions(&obj->dagmembers);
 	    if (result != -1 && ld_tracing)
 		goto trace;
-	    if (result == -1 || (relocate_objects(obj,
-	     (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
+	    if (result == -1 || relocate_object_dag(obj,
+	      (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
 	      (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-	      &lockstate)) == -1) {
+	      lockstate) == -1) {
 		dlopen_cleanup(obj);
 		obj = NULL;
 	    } else if (lo_flags & RTLD_LO_EARLY) {
@@ -2587,28 +2705,31 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
     if (!(lo_flags & RTLD_LO_EARLY)) {
-	map_stacks_exec(&lockstate);
+	map_stacks_exec(lockstate);
     }
 
     if (initlist_objects_ifunc(&initlist, (mode & RTLD_MODEMASK) == RTLD_NOW,
       (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-      &lockstate) == -1) {
+      lockstate) == -1) {
 	objlist_clear(&initlist);
 	dlopen_cleanup(obj);
-	lock_release(rtld_bind_lock, &lockstate);
+	if (lockstate == &mlockstate)
+	    lock_release(rtld_bind_lock, lockstate);
 	return (NULL);
     }
 
     if (!(lo_flags & RTLD_LO_EARLY)) {
 	/* Call the init functions. */
-	objlist_call_init(&initlist, &lockstate);
+	objlist_call_init(&initlist, lockstate);
     }
     objlist_clear(&initlist);
-    lock_release(rtld_bind_lock, &lockstate);
+    if (lockstate == &mlockstate)
+	lock_release(rtld_bind_lock, lockstate);
     return obj;
 trace:
     trace_loaded_objects(obj);
-    lock_release(rtld_bind_lock, &lockstate);
+    if (lockstate == &mlockstate)
+	lock_release(rtld_bind_lock, lockstate);
     exit(0);
 }
 
@@ -2831,7 +2952,7 @@ dladdr(const void *addr, Dl_info *info)
      * Walk the symbol list looking for the symbol whose address is
      * closest to the address sent in.
      */
-    for (symoffset = 0; symoffset < obj->nchains; symoffset++) {
+    for (symoffset = 0; symoffset < obj->dynsymcount; symoffset++) {
         def = obj->symtab + symoffset;
 
         /*
@@ -3402,7 +3523,17 @@ symlook_obj(SymLook *req, const Obj_Entry *obj)
     SymLook req1;
     int flags, res, mres;
 
-    mres = symlook_obj1(req, obj);
+    /*
+     * If there is at least one valid hash at this point, we prefer to
+     * use the faster GNU version if available.
+     */
+    if (obj->valid_hash_gnu)
+	mres = symlook_obj1_gnu(req, obj);
+    else if (obj->valid_hash_sysv)
+	mres = symlook_obj1_sysv(req, obj);
+    else
+	return (EINVAL);
+
     if (mres == 0) {
 	if (obj->needed_filtees != NULL) {
 	    flags = (req->flags & SYMLOOK_EARLY) ? RTLD_LO_EARLY : 0;
@@ -3432,27 +3563,14 @@ symlook_obj(SymLook *req, const Obj_Entry *obj)
     return (mres);
 }
 
-static int
-symlook_obj1(SymLook *req, const Obj_Entry *obj)
+/* Symbol match routine common to both hash functions */
+static bool
+matched_symbol(SymLook *req, const Obj_Entry *obj, Sym_Match_Result *result,
+    const unsigned long symnum)
 {
-    unsigned long symnum;
-    const Elf_Sym *vsymp;
-    Elf_Versym verndx;
-    int vcount;
-
-    if (obj->buckets == NULL)
-	return (ESRCH);
-
-    vsymp = NULL;
-    vcount = 0;
-    symnum = obj->buckets[req->hash % obj->nbuckets];
-
-    for (; symnum != STN_UNDEF; symnum = obj->chains[symnum]) {
+	Elf_Versym verndx;
 	const Elf_Sym *symp;
 	const char *strp;
-
-	if (symnum >= obj->nchains)
-	    return (ESRCH);	/* Bad object */
 
 	symp = obj->symtab + symnum;
 	strp = obj->strtab + symp->st_name;
@@ -3461,103 +3579,183 @@ symlook_obj1(SymLook *req, const Obj_Entry *obj)
 	case STT_FUNC:
 	case STT_NOTYPE:
 	case STT_OBJECT:
+	case STT_COMMON:
 	case STT_GNU_IFUNC:
-	    if (symp->st_value == 0)
-		continue;
+		if (symp->st_value == 0)
+			return (false);
 		/* fallthrough */
 	case STT_TLS:
-	    if (symp->st_shndx != SHN_UNDEF)
-		break;
+		if (symp->st_shndx != SHN_UNDEF)
+			break;
 #ifndef __mips__
-	    else if (((req->flags & SYMLOOK_IN_PLT) == 0) &&
-		 (ELF_ST_TYPE(symp->st_info) == STT_FUNC))
-		break;
+		else if (((req->flags & SYMLOOK_IN_PLT) == 0) &&
+		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC))
+			break;
 		/* fallthrough */
 #endif
 	default:
-	    continue;
+		return (false);
 	}
 	if (req->name[0] != strp[0] || strcmp(req->name, strp) != 0)
-	    continue;
+		return (false);
 
 	if (req->ventry == NULL) {
-	    if (obj->versyms != NULL) {
-		verndx = VER_NDX(obj->versyms[symnum]);
-		if (verndx > obj->vernum) {
-		    _rtld_error("%s: symbol %s references wrong version %d",
-			obj->path, obj->strtab + symnum, verndx);
-		    continue;
+		if (obj->versyms != NULL) {
+			verndx = VER_NDX(obj->versyms[symnum]);
+			if (verndx > obj->vernum) {
+				_rtld_error(
+				    "%s: symbol %s references wrong version %d",
+				    obj->path, obj->strtab + symnum, verndx);
+				return (false);
+			}
+			/*
+			 * If we are not called from dlsym (i.e. this
+			 * is a normal relocation from unversioned
+			 * binary), accept the symbol immediately if
+			 * it happens to have first version after this
+			 * shared object became versioned.  Otherwise,
+			 * if symbol is versioned and not hidden,
+			 * remember it. If it is the only symbol with
+			 * this name exported by the shared object, it
+			 * will be returned as a match by the calling
+			 * function. If symbol is global (verndx < 2)
+			 * accept it unconditionally.
+			 */
+			if ((req->flags & SYMLOOK_DLSYM) == 0 &&
+			    verndx == VER_NDX_GIVEN) {
+				result->sym_out = symp;
+				return (true);
+			}
+			else if (verndx >= VER_NDX_GIVEN) {
+				if ((obj->versyms[symnum] & VER_NDX_HIDDEN)
+				    == 0) {
+					if (result->vsymp == NULL)
+						result->vsymp = symp;
+					result->vcount++;
+				}
+				return (false);
+			}
 		}
-		/*
-		 * If we are not called from dlsym (i.e. this is a normal
-		 * relocation from unversioned binary), accept the symbol
-		 * immediately if it happens to have first version after
-		 * this shared object became versioned. Otherwise, if
-		 * symbol is versioned and not hidden, remember it. If it
-		 * is the only symbol with this name exported by the
-		 * shared object, it will be returned as a match at the
-		 * end of the function. If symbol is global (verndx < 2)
-		 * accept it unconditionally.
-		 */
-		if ((req->flags & SYMLOOK_DLSYM) == 0 &&
-		  verndx == VER_NDX_GIVEN) {
-		    req->sym_out = symp;
-		    req->defobj_out = obj;
-		    return (0);
-		}
-		else if (verndx >= VER_NDX_GIVEN) {
-		    if ((obj->versyms[symnum] & VER_NDX_HIDDEN) == 0) {
-			if (vsymp == NULL)
-			    vsymp = symp;
-			vcount ++;
-		    }
-		    continue;
-		}
-	    }
-	    req->sym_out = symp;
-	    req->defobj_out = obj;
-	    return (0);
-	} else {
-	    if (obj->versyms == NULL) {
+		result->sym_out = symp;
+		return (true);
+	}
+	if (obj->versyms == NULL) {
 		if (object_match_name(obj, req->ventry->name)) {
-		    _rtld_error("%s: object %s should provide version %s for "
-			"symbol %s", obj_rtld.path, obj->path,
-			req->ventry->name, obj->strtab + symnum);
-		    continue;
+			_rtld_error("%s: object %s should provide version %s "
+			    "for symbol %s", obj_rtld.path, obj->path,
+			    req->ventry->name, obj->strtab + symnum);
+			return (false);
 		}
-	    } else {
+	} else {
 		verndx = VER_NDX(obj->versyms[symnum]);
 		if (verndx > obj->vernum) {
-		    _rtld_error("%s: symbol %s references wrong version %d",
-			obj->path, obj->strtab + symnum, verndx);
-		    continue;
+			_rtld_error("%s: symbol %s references wrong version %d",
+			    obj->path, obj->strtab + symnum, verndx);
+			return (false);
 		}
 		if (obj->vertab[verndx].hash != req->ventry->hash ||
 		    strcmp(obj->vertab[verndx].name, req->ventry->name)) {
-		    /*
-		     * Version does not match. Look if this is a global symbol
-		     * and if it is not hidden. If global symbol (verndx < 2)
-		     * is available, use it. Do not return symbol if we are
-		     * called by dlvsym, because dlvsym looks for a specific
-		     * version and default one is not what dlvsym wants.
-		     */
-		    if ((req->flags & SYMLOOK_DLSYM) ||
-			(obj->versyms[symnum] & VER_NDX_HIDDEN) ||
-			(verndx >= VER_NDX_GIVEN))
-			continue;
+			/*
+			 * Version does not match. Look if this is a
+			 * global symbol and if it is not hidden. If
+			 * global symbol (verndx < 2) is available,
+			 * use it. Do not return symbol if we are
+			 * called by dlvsym, because dlvsym looks for
+			 * a specific version and default one is not
+			 * what dlvsym wants.
+			 */
+			if ((req->flags & SYMLOOK_DLSYM) ||
+			    (verndx >= VER_NDX_GIVEN) ||
+			    (obj->versyms[symnum] & VER_NDX_HIDDEN))
+				return (false);
 		}
-	    }
-	    req->sym_out = symp;
-	    req->defobj_out = obj;
-	    return (0);
 	}
-    }
-    if (vcount == 1) {
-	req->sym_out = vsymp;
-	req->defobj_out = obj;
-	return (0);
-    }
-    return (ESRCH);
+	result->sym_out = symp;
+	return (true);
+}
+
+/*
+ * Search for symbol using SysV hash function.
+ * obj->buckets is known not to be NULL at this point; the test for this was
+ * performed with the obj->valid_hash_sysv assignment.
+ */
+static int
+symlook_obj1_sysv(SymLook *req, const Obj_Entry *obj)
+{
+	unsigned long symnum;
+	Sym_Match_Result matchres;
+
+	matchres.sym_out = NULL;
+	matchres.vsymp = NULL;
+	matchres.vcount = 0;
+
+	for (symnum = obj->buckets[req->hash % obj->nbuckets];
+	    symnum != STN_UNDEF; symnum = obj->chains[symnum]) {
+		if (symnum >= obj->nchains)
+			return (ESRCH);	/* Bad object */
+
+		if (matched_symbol(req, obj, &matchres, symnum)) {
+			req->sym_out = matchres.sym_out;
+			req->defobj_out = obj;
+			return (0);
+		}
+	}
+	if (matchres.vcount == 1) {
+		req->sym_out = matchres.vsymp;
+		req->defobj_out = obj;
+		return (0);
+	}
+	return (ESRCH);
+}
+
+/* Search for symbol using GNU hash function */
+static int
+symlook_obj1_gnu(SymLook *req, const Obj_Entry *obj)
+{
+	Elf_Addr bloom_word;
+	const Elf32_Word *hashval;
+	Elf32_Word bucket;
+	Sym_Match_Result matchres;
+	unsigned int h1, h2;
+	unsigned long symnum;
+
+	matchres.sym_out = NULL;
+	matchres.vsymp = NULL;
+	matchres.vcount = 0;
+
+	/* Pick right bitmask word from Bloom filter array */
+	bloom_word = obj->bloom_gnu[(req->hash_gnu / __ELF_WORD_SIZE) &
+	    obj->maskwords_bm_gnu];
+
+	/* Calculate modulus word size of gnu hash and its derivative */
+	h1 = req->hash_gnu & (__ELF_WORD_SIZE - 1);
+	h2 = ((req->hash_gnu >> obj->shift2_gnu) & (__ELF_WORD_SIZE - 1));
+
+	/* Filter out the "definitely not in set" queries */
+	if (((bloom_word >> h1) & (bloom_word >> h2) & 1) == 0)
+		return (ESRCH);
+
+	/* Locate hash chain and corresponding value element*/
+	bucket = obj->buckets_gnu[req->hash_gnu % obj->nbuckets_gnu];
+	if (bucket == 0)
+		return (ESRCH);
+	hashval = &obj->chain_zero_gnu[bucket];
+	do {
+		if (((*hashval ^ req->hash_gnu) >> 1) == 0) {
+			symnum = hashval - obj->chain_zero_gnu;
+			if (matched_symbol(req, obj, &matchres, symnum)) {
+				req->sym_out = matchres.sym_out;
+				req->defobj_out = obj;
+				return (0);
+			}
+		}
+	} while ((*hashval++ & 1) == 0);
+	if (matchres.vcount == 1) {
+		req->sym_out = matchres.vsymp;
+		req->defobj_out = obj;
+		return (0);
+	}
+	return (ESRCH);
 }
 
 static void
@@ -4343,6 +4541,7 @@ symlook_init(SymLook *dst, const char *name)
 	bzero(dst, sizeof(*dst));
 	dst->name = name;
 	dst->hash = elf_hash(name);
+	dst->hash_gnu = gnu_hash(name);
 }
 
 static void
@@ -4351,6 +4550,7 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 
 	dst->name = src->name;
 	dst->hash = src->hash;
+	dst->hash_gnu = src->hash_gnu;
 	dst->ventry = src->ventry;
 	dst->flags = src->flags;
 	dst->defobj_out = NULL;

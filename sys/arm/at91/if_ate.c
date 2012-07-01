@@ -120,38 +120,38 @@ __FBSDID("$FreeBSD$");
 
 struct ate_softc
 {
-	struct ifnet    *ifp;           /* ifnet pointer */
-	struct mtx      sc_mtx;         /* Basically a perimeter lock */
-	device_t        dev;            /* Myself */
-	device_t        miibus;         /* My child miibus */
-	struct resource *irq_res;       /* IRQ resource */
-	struct resource	*mem_res;       /* Memory resource */
-	struct callout  tick_ch;        /* Tick callout */
+	struct ifnet	*ifp;		/* ifnet pointer */
+	struct mtx	sc_mtx;		/* Basically a perimeter lock */
+	device_t	dev;		/* Myself */
+	device_t	miibus;		/* My child miibus */
+	struct resource *irq_res;	/* IRQ resource */
+	struct resource	*mem_res;	/* Memory resource */
+	struct callout  tick_ch;	/* Tick callout */
 	struct ifmib_iso_8802_3 mibdata; /* Stuff for network mgmt */
-	bus_dma_tag_t   mtag;           /* bus dma tag for mbufs */
+	bus_dma_tag_t   mtag;		/* bus dma tag for mbufs */
 	bus_dma_tag_t   rx_tag;
 	bus_dma_tag_t   rx_desc_tag;
 	bus_dmamap_t    rx_desc_map;
 	bus_dmamap_t    rx_map[ATE_MAX_RX_DESCR];
-	bus_addr_t      rx_desc_phys;   /* PA of rx descriptors */
-	eth_rx_desc_t   *rx_descs;      /* VA of rx descriptors */
-	void            *rx_buf[ATE_NUM_RX_DESCR]; /* RX buffer space */
-	int             rxhead;         /* Current RX map/desc index */
-	uint32_t        rx_buf_size;    /* Size of Rx buffers */
+	bus_addr_t	rx_desc_phys;   /* PA of rx descriptors */
+	eth_rx_desc_t   *rx_descs;	/* VA of rx descriptors */
+	void		*rx_buf[ATE_NUM_RX_DESCR]; /* RX buffer space */
+	int		rxhead;		/* Current RX map/desc index */
+	uint32_t	rx_buf_size;    /* Size of Rx buffers */
 
 	bus_dma_tag_t   tx_desc_tag;
 	bus_dmamap_t    tx_desc_map;
 	bus_dmamap_t    tx_map[ATE_MAX_TX_BUFFERS];
-	bus_addr_t      tx_desc_phys;   /* PA of tx descriptors */
-	eth_tx_desc_t   *tx_descs;      /* VA of tx descriptors */
-	int             txhead;         /* Current TX map/desc index */
-	int             txtail;         /* Current TX map/desc index */
-	struct mbuf     *sent_mbuf[ATE_MAX_TX_BUFFERS]; /* Sent mbufs */
-	void            *intrhand;      /* Interrupt handle */
-	int             flags;
-	int             if_flags;
-	int             use_rmii;
-	int              is_emacb;       /* SAM9x hardware version */
+	bus_addr_t	tx_desc_phys;   /* PA of tx descriptors */
+	eth_tx_desc_t   *tx_descs;	/* VA of tx descriptors */
+	int		txhead;		/* Current TX map/desc index */
+	int		txtail;		/* Current TX map/desc index */
+	struct mbuf	*sent_mbuf[ATE_MAX_TX_BUFFERS]; /* Sent mbufs */
+	void		*intrhand;	/* Interrupt handle */
+	int		flags;
+	int		if_flags;
+	int		use_rmii;
+	int		is_emacb;	/* SAM9x hardware version */
 };
 
 static inline uint32_t
@@ -247,7 +247,7 @@ ate_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	ATE_LOCK_INIT(sc);
-	
+
 	rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -266,7 +266,7 @@ ate_attach(device_t dev)
 	}
 
 	/* New or old version, chooses buffer size. */
-	sc->is_emacb    = at91_is_sam9();
+	sc->is_emacb = at91_is_sam9() || at91_is_sam9xe();
 	sc->rx_buf_size = RX_BUF_SIZE(sc);
 
 	err = ate_activate(dev);
@@ -325,8 +325,8 @@ ate_attach(device_t dev)
 		goto out;
 	}
 	/*
-	 * XXX: Clear the isolate bit, or we won't get up, 
-	 * at least on the HL201 
+	 * XXX: Clear the isolate bit, or we won't get up,
+	 * at least on the HL201
 	 */
 	ate_miibus_writereg(dev, 0, 0, 0x3000);
 
@@ -750,7 +750,7 @@ ate_tick(void *xsc)
 		active = mii->mii_media_active;
 		mii_tick(mii);
 		if (mii->mii_media_status & IFM_ACTIVE &&
-		     active != mii->mii_media_active)
+		    active != mii->mii_media_active)
 			ate_stat_update(sc, mii->mii_media_active);
 	}
 
@@ -966,7 +966,7 @@ ate_intr(void *xsc)
 
 		ATE_LOCK(sc);
 		/* XXX TSR register should be cleared */
-		if (!sc->is_emacb) {	
+		if (!sc->is_emacb) {
 			/* Simulate Transmit descriptor table */
 
 			/* First packet done */
@@ -1055,7 +1055,7 @@ ateinit_locked(void *xsc)
 	} else  {
 		/* SAM9 */
 		reg = ETHB_UIO_CLKE;
-		reg |= (sc->use_rmii) ?  ETHB_UIO_RMII : 0;
+		reg |= (sc->use_rmii) ? ETHB_UIO_RMII : 0;
 		WR4(sc, ETHB_UIO, reg);
 	}
 
@@ -1170,7 +1170,7 @@ atestart_locked(struct ifnet *ifp)
 			WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) | ETHB_CTL_TGO);
 		}
 		sc->txhead = NEXT_TX_IDX(sc, sc->txhead);
-	
+
 		/* Tap off here if there is a bpf listener. */
 		BPF_MTAP(ifp, m);
 	}
@@ -1315,7 +1315,7 @@ ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ate_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
-	struct ifreq *ifr = (struct ifreq *)data;	
+	struct ifreq *ifr = (struct ifreq *)data;
 	int drv_flags, flags;
 	int mask, error, enabled;
 
@@ -1416,7 +1416,7 @@ static int
 ate_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ate_softc *sc;
-	
+
 	/*
 	 * XXX if we implement agressive power savings, then we need
 	 * XXX to make sure that the clock to the emac is on here
@@ -1442,7 +1442,7 @@ static device_method_t ate_methods[] = {
 	DEVMETHOD(miibus_readreg,	ate_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	ate_miibus_writereg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ate_driver = {
@@ -1451,7 +1451,7 @@ static driver_t ate_driver = {
 	sizeof(struct ate_softc),
 };
 
-DRIVER_MODULE(ate, atmelarm, ate_driver, ate_devclass, 0, 0);
-DRIVER_MODULE(miibus, ate, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(ate, atmelarm, ate_driver, ate_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, ate, miibus_driver, miibus_devclass, NULL, NULL);
 MODULE_DEPEND(ate, miibus, 1, 1, 1);
 MODULE_DEPEND(ate, ether, 1, 1, 1);

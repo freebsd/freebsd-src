@@ -73,7 +73,7 @@ struct trapframe *kdb_frame = NULL;
 static int	kdb_break_to_debugger = KDB_BREAK_TO_DEBUGGER;
 static int	kdb_alt_break_to_debugger = KDB_ALT_BREAK_TO_DEBUGGER;
 
-KDB_BACKEND(null, NULL, NULL, NULL);
+KDB_BACKEND(null, NULL, NULL, NULL, NULL);
 SET_DECLARE(kdb_dbbe_set, struct kdb_dbbe);
 
 static int kdb_sysctl_available(SYSCTL_HANDLER_ARGS);
@@ -376,7 +376,32 @@ kdb_backtrace(void)
 		struct stack st;
 
 		printf("KDB: stack backtrace:\n");
+		stack_zero(&st);
 		stack_save(&st);
+		stack_print_ddb(&st);
+	}
+#endif
+}
+
+/*
+ * Similar to kdb_backtrace() except that it prints a backtrace of an
+ * arbitrary thread rather than the calling thread.
+ */
+void
+kdb_backtrace_thread(struct thread *td)
+{
+
+	if (kdb_dbbe != NULL && kdb_dbbe->dbbe_trace_thread != NULL) {
+		printf("KDB: stack backtrace of thread %d:\n", td->td_tid);
+		kdb_dbbe->dbbe_trace_thread(td);
+	}
+#ifdef STACK
+	else {
+		struct stack st;
+
+		printf("KDB: stack backtrace of thread %d:\n", td->td_tid);
+		stack_zero(&st);
+		stack_save_td(&st, td);
 		stack_print_ddb(&st);
 	}
 #endif

@@ -228,7 +228,6 @@ static MachineOperand *findLastUse(MachineBasicBlock *MBB, unsigned Reg) {
         return &MO;
     }
   }
-  return NULL;
 }
 
 bool StrongPHIElimination::runOnMachineFunction(MachineFunction &MF) {
@@ -390,11 +389,9 @@ bool StrongPHIElimination::runOnMachineFunction(MachineFunction &MF) {
     MachineOperand *LastUse = findLastUse(MBB, SrcReg);
     assert(LastUse);
     SlotIndex LastUseIndex = LI->getInstructionIndex(LastUse->getParent());
-    SrcLI.removeRange(LastUseIndex.getDefIndex(), LI->getMBBEndIdx(MBB));
+    SrcLI.removeRange(LastUseIndex.getRegSlot(), LI->getMBBEndIdx(MBB));
     LastUse->setIsKill(true);
   }
-
-  LI->renumber();
 
   Allocator.Reset();
   RegNodeMap.clear();
@@ -745,7 +742,7 @@ void StrongPHIElimination::InsertCopiesForPHI(MachineInstr *PHI,
 
     // Set the phi-def flag for the VN at this PHI.
     SlotIndex PHIIndex = LI->getInstructionIndex(PHI);
-    VNInfo *DestVNI = DestLI.getVNInfoAt(PHIIndex.getDefIndex());
+    VNInfo *DestVNI = DestLI.getVNInfoAt(PHIIndex.getRegSlot());
     assert(DestVNI);
     DestVNI->setIsPHIDef(true);
   
@@ -756,7 +753,7 @@ void StrongPHIElimination::InsertCopiesForPHI(MachineInstr *PHI,
     SlotIndex MBBStartIndex = LI->getMBBStartIdx(MBB);
     DestVNI->def = MBBStartIndex;
     DestLI.addRange(LiveRange(MBBStartIndex,
-                              PHIIndex.getDefIndex(),
+                              PHIIndex.getRegSlot(),
                               DestVNI));
     return;
   }
@@ -779,22 +776,21 @@ void StrongPHIElimination::InsertCopiesForPHI(MachineInstr *PHI,
   SlotIndex MBBStartIndex = LI->getMBBStartIdx(MBB);
   SlotIndex DestCopyIndex = LI->getInstructionIndex(CopyInstr);
   VNInfo *CopyVNI = CopyLI.getNextValue(MBBStartIndex,
-                                        CopyInstr,
                                         LI->getVNInfoAllocator());
   CopyVNI->setIsPHIDef(true);
   CopyLI.addRange(LiveRange(MBBStartIndex,
-                            DestCopyIndex.getDefIndex(),
+                            DestCopyIndex.getRegSlot(),
                             CopyVNI));
 
   // Adjust DestReg's live interval to adjust for its new definition at
   // CopyInstr.
   LiveInterval &DestLI = LI->getOrCreateInterval(DestReg);
   SlotIndex PHIIndex = LI->getInstructionIndex(PHI);
-  DestLI.removeRange(PHIIndex.getDefIndex(), DestCopyIndex.getDefIndex());
+  DestLI.removeRange(PHIIndex.getRegSlot(), DestCopyIndex.getRegSlot());
 
-  VNInfo *DestVNI = DestLI.getVNInfoAt(DestCopyIndex.getDefIndex());
+  VNInfo *DestVNI = DestLI.getVNInfoAt(DestCopyIndex.getRegSlot());
   assert(DestVNI);
-  DestVNI->def = DestCopyIndex.getDefIndex();
+  DestVNI->def = DestCopyIndex.getRegSlot();
 
   InsertedDestCopies[CopyReg] = CopyInstr;
 }

@@ -28,10 +28,12 @@ SRCS=	APValue.cpp \
 	InheritViz.cpp \
 	ItaniumCXXABI.cpp \
 	ItaniumMangle.cpp \
+	LambdaMangleContext.cpp \
 	Mangle.cpp \
 	MicrosoftCXXABI.cpp \
 	MicrosoftMangle.cpp \
 	NestedNameSpecifier.cpp \
+	NSAPI.cpp \
 	ParentMap.cpp \
 	RecordLayout.cpp \
 	RecordLayoutBuilder.cpp \

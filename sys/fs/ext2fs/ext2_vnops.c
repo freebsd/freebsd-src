@@ -424,23 +424,19 @@ ext2_setattr(ap)
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
 		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
 					return (error);
 			}
-			ip->i_flags = vap->va_flags;
 		} else {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
+			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND) ||
+			    ((vap->va_flags ^ ip->i_flags) & SF_SETTABLE))
 				return (EPERM);
-			ip->i_flags &= SF_SETTABLE;
-			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
 		}
+		ip->i_flags = vap->va_flags;
 		ip->i_flag |= IN_CHANGE;
-		if (vap->va_flags & (IMMUTABLE | APPEND))
+		if (ip->i_flags & (IMMUTABLE | APPEND))
 			return (0);
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND))
@@ -1340,7 +1336,11 @@ ext2_rmdir(ap)
 	error = ext2_truncate(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
 	    cnp->cn_thread);
 	cache_purge(ITOV(ip));
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+	if (vn_lock(dvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
+		VOP_UNLOCK(vp, 0);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	}
 out:
 	return (error);
 }

@@ -1,4 +1,4 @@
-//===-- ARMAsmPrinter.h - Print machine code to an ARM .s file ------------===//
+//===-- ARMAsmPrinter.h - Print machine code to an ARM .s file --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -73,6 +73,7 @@ public:
   virtual void EmitFunctionEntryLabel();
   void EmitStartOfAsmFile(Module &M);
   void EmitEndOfAsmFile(Module &M);
+  void EmitXXStructor(const Constant *CV);
 
   // lowerOperand - Convert a MachineOperand into the equivalent MCOperand.
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
@@ -106,7 +107,7 @@ public:
     if (!Subtarget->isTargetDarwin())
       return 0;
     return Subtarget->isThumb() ?
-      llvm::ARM::DW_ISA_ARM_thumb : llvm::ARM::DW_ISA_ARM_arm;
+      ARM::DW_ISA_ARM_thumb : ARM::DW_ISA_ARM_arm;
   }
 
   MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol);

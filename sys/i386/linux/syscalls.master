@@ -95,7 +95,7 @@
 39	AUE_MKDIR	STD	{ int linux_mkdir(char *path, l_int mode); }
 40	AUE_RMDIR	STD	{ int linux_rmdir(char *path); }
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
-42	AUE_PIPE	STD	{ int linux_pipe(l_ulong *pipefds); }
+42	AUE_PIPE	STD	{ int linux_pipe(l_int *pipefds); }
 43	AUE_NULL	STD	{ int linux_times(struct l_times_argv *buf); }
 44	AUE_NULL	UNIMPL	prof
 45	AUE_NULL	STD	{ int linux_brk(l_ulong dsend); }
@@ -203,7 +203,7 @@
 				    struct l_newstat *buf); }
 ; 109: olduname
 109	AUE_NULL	STD	{ int linux_uname(void); }
-110	AUE_NULL	STD	{ int linux_iopl(l_ulong level); }
+110	AUE_NULL	STD	{ int linux_iopl(l_int level); }
 111	AUE_NULL	STD	{ int linux_vhangup(void); }
 112	AUE_NULL	UNIMPL	idle
 113	AUE_NULL	STD	{ int linux_vm86old(void); }
@@ -353,12 +353,12 @@
 				    l_loff_t length); }
 194	AUE_FTRUNCATE	STD	{ int linux_ftruncate64(l_uint fd, \
 				    l_loff_t length); }
-195	AUE_STAT	STD	{ int linux_stat64(char *filename, \
-				    struct l_stat64 *statbuf, l_long flags); }
-196	AUE_LSTAT	STD	{ int linux_lstat64(char *filename, \
-				    struct l_stat64 *statbuf, l_long flags); }
-197	AUE_FSTAT	STD	{ int linux_fstat64(l_ulong fd, \
-				    struct l_stat64 *statbuf, l_long flags); }
+195	AUE_STAT	STD	{ int linux_stat64(const char *filename, \
+				    struct l_stat64 *statbuf); }
+196	AUE_LSTAT	STD	{ int linux_lstat64(const char *filename, \
+				    struct l_stat64 *statbuf); }
+197	AUE_FSTAT	STD	{ int linux_fstat64(l_int fd, \
+				    struct l_stat64 *statbuf); }
 198	AUE_LCHOWN	STD	{ int linux_lchown(char *path, l_uid_t uid, \
 				    l_gid_t gid); }
 199	AUE_GETUID	STD	{ int linux_getuid(void); }
@@ -546,7 +546,7 @@
 328	AUE_NULL	STD	{ int linux_eventfd2(void); }
 329	AUE_NULL	STD	{ int linux_epoll_create1(void); }
 330	AUE_NULL	STD	{ int linux_dup3(void); }
-331	AUE_NULL	STD	{ int linux_pipe2(void); }
+331	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
 332	AUE_NULL	STD	{ int linux_inotify_init1(void); }
 ; linux 2.6.30:
 333	AUE_NULL	STD	{ int linux_preadv(void); }

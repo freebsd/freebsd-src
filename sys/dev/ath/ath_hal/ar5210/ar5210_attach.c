@@ -33,7 +33,8 @@ static	HAL_BOOL ar5210GetChannelEdges(struct ath_hal *,
 static	HAL_BOOL ar5210GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 
-static void ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_on);
 static void ar5210DisablePCIE(struct ath_hal *ah);
 
 static const struct ath_hal_private ar5210hal = {{
@@ -129,8 +130,14 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_getAckCTSRate		= ar5210GetAckCTSRate,
 	.ah_setCTSTimeout		= ar5210SetCTSTimeout,
 	.ah_getCTSTimeout		= ar5210GetCTSTimeout,
-	.ah_setDecompMask               = ar5210SetDecompMask,
-	.ah_setCoverageClass            = ar5210SetCoverageClass,
+	.ah_setDecompMask		= ar5210SetDecompMask,
+	.ah_setCoverageClass		= ar5210SetCoverageClass,
+	.ah_get11nExtBusy		= ar5210Get11nExtBusy,
+	.ah_getMibCycleCounts		= ar5210GetMibCycleCounts,
+	.ah_enableDfs			= ar5210EnableDfs,
+	.ah_getDfsThresh		= ar5210GetDfsThresh,
+	/* XXX procRadarEvent */
+	/* XXX isFastClockEnabled */
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5210GetKeyCacheSize,
@@ -326,7 +333,7 @@ ar5210GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 }
 
 static void
-ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 }
 

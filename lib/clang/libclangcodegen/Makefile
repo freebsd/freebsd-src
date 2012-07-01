@@ -31,7 +31,6 @@ SRCS=	BackendUtil.cpp \
 	CGRTTI.cpp \
 	CGRecordLayoutBuilder.cpp \
 	CGStmt.cpp \
-	CGTemporaries.cpp \
 	CGVTT.cpp \
 	CGVTables.cpp \
 	CodeGenAction.cpp \

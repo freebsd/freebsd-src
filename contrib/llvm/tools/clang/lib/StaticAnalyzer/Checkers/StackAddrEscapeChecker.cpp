@@ -26,12 +26,12 @@ using namespace ento;
 namespace {
 class StackAddrEscapeChecker : public Checker< check::PreStmt<ReturnStmt>,
                                                check::EndPath > {
-  mutable llvm::OwningPtr<BuiltinBug> BT_stackleak;
-  mutable llvm::OwningPtr<BuiltinBug> BT_returnstack;
+  mutable OwningPtr<BuiltinBug> BT_stackleak;
+  mutable OwningPtr<BuiltinBug> BT_returnstack;
 
 public:
   void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
-  void checkEndPath(EndOfFunctionNodeBuilder &B, ExprEngine &Eng) const;
+  void checkEndPath(CheckerContext &Ctx) const;
 private:
   void EmitStackError(CheckerContext &C, const MemRegion *R,
                       const Expr *RetE) const;
@@ -100,7 +100,7 @@ void StackAddrEscapeChecker::EmitStackError(CheckerContext &C, const MemRegion *
                  new BuiltinBug("Return of address to stack-allocated memory"));
 
   // Generate a report for this bug.
-  llvm::SmallString<512> buf;
+  SmallString<512> buf;
   llvm::raw_svector_ostream os(buf);
   SourceRange range = GenName(os, R, C.getSourceManager());
   os << " returned to caller";
@@ -113,45 +113,53 @@ void StackAddrEscapeChecker::EmitStackError(CheckerContext &C, const MemRegion *
 }
 
 void StackAddrEscapeChecker::checkPreStmt(const ReturnStmt *RS,
-                                        CheckerContext &C) const {
+                                          CheckerContext &C) const {
   
   const Expr *RetE = RS->getRetValue();
   if (!RetE)
     return;
  
-  SVal V = C.getState()->getSVal(RetE);
+  SVal V = C.getState()->getSVal(RetE, C.getLocationContext());
   const MemRegion *R = V.getAsRegion();
 
-  if (!R || !R->hasStackStorage())
-    return;  
-  
-  if (R->hasStackStorage()) {
-    // Automatic reference counting automatically copies blocks.
-    if (C.getASTContext().getLangOptions().ObjCAutoRefCount &&
-        isa<BlockDataRegion>(R))
-      return;
-
-    EmitStackError(C, R, RetE);
+  if (!R)
     return;
-  }
+  
+  const StackSpaceRegion *SS =
+    dyn_cast_or_null<StackSpaceRegion>(R->getMemorySpace());
+    
+  if (!SS)
+    return;
+
+  // Return stack memory in an ancestor stack frame is fine.
+  const StackFrameContext *SFC = SS->getStackFrame();
+  if (SFC != C.getLocationContext()->getCurrentStackFrame())
+    return;
+
+  // Automatic reference counting automatically copies blocks.
+  if (C.getASTContext().getLangOpts().ObjCAutoRefCount &&
+      isa<BlockDataRegion>(R))
+    return;
+
+  EmitStackError(C, R, RetE);
 }
 
-void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
-                                        ExprEngine &Eng) const {
-
-  const ProgramState *state = B.getState();
+void StackAddrEscapeChecker::checkEndPath(CheckerContext &Ctx) const {
+  ProgramStateRef state = Ctx.getState();
 
   // Iterate over all bindings to global variables and see if it contains
   // a memory region in the stack space.
   class CallBack : public StoreManager::BindingsHandler {
   private:
-    ExprEngine &Eng;
+    CheckerContext &Ctx;
     const StackFrameContext *CurSFC;
   public:
     SmallVector<std::pair<const MemRegion*, const MemRegion*>, 10> V;
 
-    CallBack(ExprEngine &Eng, const LocationContext *LCtx)
-      : Eng(Eng), CurSFC(LCtx->getCurrentStackFrame()) {}
+    CallBack(CheckerContext &CC) :
+      Ctx(CC),
+      CurSFC(CC.getLocationContext()->getCurrentStackFrame())
+    {}
     
     bool HandleBinding(StoreManager &SMgr, Store store,
                        const MemRegion *region, SVal val) {
@@ -165,7 +173,7 @@ void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
         
       // Under automated retain release, it is okay to assign a block
       // directly to a global variable.
-      if (Eng.getContext().getLangOptions().ObjCAutoRefCount &&
+      if (Ctx.getASTContext().getLangOpts().ObjCAutoRefCount &&
           isa<BlockDataRegion>(vR))
         return true;
 
@@ -181,14 +189,14 @@ void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
     }
   };
     
-  CallBack cb(Eng, B.getPredecessor()->getLocationContext());
+  CallBack cb(Ctx);
   state->getStateManager().getStoreManager().iterBindings(state->getStore(),cb);
 
   if (cb.V.empty())
     return;
 
   // Generate an error node.
-  ExplodedNode *N = B.generateNode(state);
+  ExplodedNode *N = Ctx.addTransition(state);
   if (!N)
     return;
 
@@ -201,10 +209,10 @@ void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
   
   for (unsigned i = 0, e = cb.V.size(); i != e; ++i) {
     // Generate a report for this bug.
-    llvm::SmallString<512> buf;
+    SmallString<512> buf;
     llvm::raw_svector_ostream os(buf);
     SourceRange range = GenName(os, cb.V[i].second,
-                                Eng.getContext().getSourceManager());
+                                Ctx.getSourceManager());
     os << " is still referred to by the global variable '";
     const VarRegion *VR = cast<VarRegion>(cb.V[i].first->getBaseRegion());
     os << *VR->getDecl()
@@ -213,7 +221,7 @@ void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
     if (range.isValid())
       report->addRange(range);
 
-    Eng.getBugReporter().EmitReport(report);
+    Ctx.EmitReport(report);
   }
 }
 

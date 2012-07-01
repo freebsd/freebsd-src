@@ -7,7 +7,8 @@ SRCS=	PPCAsmBackend.cpp \
 	PPCMCAsmInfo.cpp \
 	PPCMCCodeEmitter.cpp \
 	PPCMCTargetDesc.cpp \
-	PPCPredicates.cpp
+	PPCPredicates.cpp \
+	PPCELFObjectWriter.cpp
 CFLAGS+= -I${LLVM_SRCS}/${SRCDIR}/..
 
 TGHDRS=	PPCGenInstrInfo \

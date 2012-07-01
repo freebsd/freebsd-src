@@ -15,9 +15,9 @@
 #ifndef LLVM_CODEGEN_TARGETLOWERINGOBJECTFILEIMPL_H
 #define LLVM_CODEGEN_TARGETLOWERINGOBJECTFILEIMPL_H
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
   class MachineModuleInfo;
@@ -65,6 +65,11 @@ public:
   virtual MCSymbol *
   getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
                           MachineModuleInfo *MMI) const;
+
+  virtual const MCSection *
+  getStaticCtorSection(unsigned Priority = 65535) const;
+  virtual const MCSection *
+  getStaticDtorSection(unsigned Priority = 65535) const;
 };
 
 
@@ -72,6 +77,12 @@ public:
 class TargetLoweringObjectFileMachO : public TargetLoweringObjectFile {
 public:
   virtual ~TargetLoweringObjectFileMachO() {}
+
+  /// emitModuleFlags - Emit the module flags that specify the garbage
+  /// collection information.
+  virtual void emitModuleFlags(MCStreamer &Streamer,
+                               ArrayRef<Module::ModuleFlagEntry> ModuleFlags,
+                               Mangler *Mang, const TargetMachine &TM) const;
 
   virtual const MCSection *
   SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,

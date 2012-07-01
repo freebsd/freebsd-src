@@ -15,9 +15,34 @@
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
+#include "clang/Analysis/Analyses/Dominators.h"
+#include "clang/Analysis/CallGraph.h"
+#include "llvm/Support/Process.h"
 
 using namespace clang;
 using namespace ento;
+
+//===----------------------------------------------------------------------===//
+// DominatorsTreeDumper
+//===----------------------------------------------------------------------===//
+
+namespace {
+class DominatorsTreeDumper : public Checker<check::ASTCodeBody> {
+public:
+  void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
+                        BugReporter &BR) const {
+    if (AnalysisDeclContext *AC = mgr.getAnalysisDeclContext(D)) {
+      DominatorTree dom;
+      dom.buildDominatorTree(*AC);
+      dom.dump();
+    }
+  }
+};
+}
+
+void ento::registerDominatorsTreeDumper(CheckerManager &mgr) {
+  mgr.registerChecker<DominatorsTreeDumper>();
+}
 
 //===----------------------------------------------------------------------===//
 // LiveVariablesDumper
@@ -49,7 +74,7 @@ public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
     if (CFG *cfg = mgr.getCFG(D)) {
-      cfg->viewCFG(mgr.getLangOptions());
+      cfg->viewCFG(mgr.getLangOpts());
     }
   }
 };
@@ -69,7 +94,8 @@ public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
     if (CFG *cfg = mgr.getCFG(D)) {
-      cfg->dump(mgr.getLangOptions());
+      cfg->dump(mgr.getLangOpts(),
+                llvm::sys::Process::StandardErrHasColors());
     }
   }
 };
@@ -77,4 +103,44 @@ public:
 
 void ento::registerCFGDumper(CheckerManager &mgr) {
   mgr.registerChecker<CFGDumper>();
+}
+
+//===----------------------------------------------------------------------===//
+// CallGraphViewer
+//===----------------------------------------------------------------------===//
+
+namespace {
+class CallGraphViewer : public Checker< check::ASTDecl<TranslationUnitDecl> > {
+public:
+  void checkASTDecl(const TranslationUnitDecl *TU, AnalysisManager& mgr,
+                    BugReporter &BR) const {
+    CallGraph CG;
+    CG.addToCallGraph(const_cast<TranslationUnitDecl*>(TU));
+    CG.viewGraph();
+  }
+};
+}
+
+void ento::registerCallGraphViewer(CheckerManager &mgr) {
+  mgr.registerChecker<CallGraphViewer>();
+}
+
+//===----------------------------------------------------------------------===//
+// CallGraphDumper
+//===----------------------------------------------------------------------===//
+
+namespace {
+class CallGraphDumper : public Checker< check::ASTDecl<TranslationUnitDecl> > {
+public:
+  void checkASTDecl(const TranslationUnitDecl *TU, AnalysisManager& mgr,
+                    BugReporter &BR) const {
+    CallGraph CG;
+    CG.addToCallGraph(const_cast<TranslationUnitDecl*>(TU));
+    CG.dump();
+  }
+};
+}
+
+void ento::registerCallGraphDumper(CheckerManager &mgr) {
+  mgr.registerChecker<CallGraphDumper>();
 }

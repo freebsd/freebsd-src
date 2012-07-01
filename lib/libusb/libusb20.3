@@ -331,7 +331,7 @@ packets are avoided for proxy buffers.
 .Pp
 .
 .Fn libusb20_tr_get_max_total_length
-function will return the maximum value for the data length sum of all USB
+will return the maximum value for the data length sum of all USB
 frames associated with an USB transfer.
 In case of control transfers the value returned does not include the
 length of the SETUP packet, 8 bytes, which is part of frame zero.
@@ -401,7 +401,7 @@ The callback type is defined by libusb20_tr_callback_t.
 .
 .Fn libusb20_tr_set_flags
 is used to set various USB flags for the given USB transfer.
-.Bl -tag
+.Bl -tag -width "LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK"
 .It LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK
 Report a short frame as error.
 .It LIBUSB20_TRANSFER_MULTI_SHORT_NOT_OK
@@ -709,13 +709,14 @@ This function returns zero if the device is still connected else a LIBUSB20_ERRO
 sets the power mode of the USB device.
 .
 Valid power modes:
-.Bl -tag
+.Bl -tag -width "LIBUSB20_POWER_OFF"
 .It LIBUSB20_POWER_OFF
 .It LIBUSB20_POWER_ON
 .It LIBUSB20_POWER_SAVE
 .It LIBUSB20_POWER_SUSPEND
 .It LIBUSB20_POWER_RESUME
 .El
+.Pp
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
 returned.
@@ -793,7 +794,7 @@ Valid bus numbers start at zero.
 returns the current operation mode of the USB entity.
 .
 Valid return values are:
-.Bl -tag
+.Bl -tag -width "LIBUSB20_MODE_DEVICE"
 .It LIBUSB20_MODE_HOST
 .It LIBUSB20_MODE_DEVICE
 .El
@@ -803,7 +804,7 @@ Valid return values are:
 .Fn libusb20_dev_get_speed
 returns the current speed of the given USB device.
 .
-.Bl -tag
+.Bl -tag -width "LIBUSB20_SPEED_VARIABLE"
 .It LIBUSB20_SPEED_UNKNOWN
 .It LIBUSB20_SPEED_LOW
 .It LIBUSB20_SPEED_FULL
@@ -815,7 +816,7 @@ returns the current speed of the given USB device.
 .Pp
 .
 .Fn libusb20_dev_get_config_index
-This function returns the currently select config index for the given
+returns the currently selected config index for the given
 USB device.
 .
 .Pp
@@ -832,7 +833,7 @@ will set the debug level for the given USB device.
 .Pp
 .
 .Fn libusb20_dev_wait_process
-function will wait until a pending USB transfer has completed on
+will wait until a pending USB transfer has completed on
 the given USB device.
 .
 A timeout value can be specified which is passed on to the
@@ -866,7 +867,7 @@ returned.
 .Pp
 .
 .Fn libusb20_be_get_dev_quirk
-This function will return the device quirk according to
+will return the device quirk according to
 .Fa index
 into the libusb20_quirk structure pointed to by
 .Fa pq .
@@ -948,7 +949,7 @@ Dequeued USB devices will not be freed when the backend is freed.
 .Pp
 .
 .Fn libusb20_be_enqueue_device
-This function will enqueue the given USB device pointer in the backend USB device list.
+will enqueue the given USB device pointer in the backend USB device list.
 .
 Enqueued USB devices will get freed when the backend is freed.
 .

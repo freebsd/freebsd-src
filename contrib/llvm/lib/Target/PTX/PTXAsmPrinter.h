@@ -1,4 +1,4 @@
-//===-- PTXAsmPrinter.h - Print machine code to a PTX file ----------------===//
+//===-- PTXAsmPrinter.h - Print machine code to a PTX file ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -47,7 +47,7 @@ public:
 
 private:
   void EmitVariableDeclaration(const GlobalVariable *gv);
-  void EmitFunctionDeclaration();
+  void EmitFunctionDeclaration(const Function* func);
 
   StringMap<unsigned> SourceIdMap;
 }; // class PTXAsmPrinter

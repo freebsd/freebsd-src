@@ -94,7 +94,7 @@ void	makectx(struct trapframe *tf, struct pcb *pcb);
 
 #ifdef _KERNEL
 
-void    savectx(struct pcb *);
+void    savectx(struct pcb *) __returns_twice;
 #endif	/* _KERNEL */
 
 #endif	/* !_MACHINE_PCB_H_ */

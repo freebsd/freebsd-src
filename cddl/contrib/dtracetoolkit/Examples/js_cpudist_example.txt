@@ -1,0 +1,112 @@
+The following are examples of js_cpudist.d.
+
+This script traces the on-CPU time of JavaScript functions and prints a report 
+in the form of a histogram.  Here it traces the example program,
+Code/JavaScript/func_clock.html 
+
+# js_cpudist.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Elapsed times (us),
+   func_clock.html, obj-new, Date 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+               8 |                                         0        
+
+
+Exclusive function on-CPU times (us),
+   func_clock.html, func, setTimeout 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@                     2        
+              64 |@@@@@@@@@@@@@@@@@@@@                     2        
+             128 |                                         0        
+
+   func_clock.html, func, getElementById 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@                               4        
+              16 |@@@@@@@@@@                               4        
+              32 |@@@@@@@@@@@@@@@@@@@@                     8        
+              64 |                                         0        
+
+   func_clock.html, func, start 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+            1024 |                                         0        
+
+   func_clock.html, func, func_a 
+           value  ------------- Distribution ------------- count    
+            8192 |                                         0        
+           16384 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+           32768 |                                         0        
+
+   func_clock.html, func, func_b 
+           value  ------------- Distribution ------------- count    
+           16384 |                                         0        
+           32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+           65536 |                                         0        
+
+   func_clock.html, func, func_c 
+           value  ------------- Distribution ------------- count    
+           16384 |                                         0        
+           32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+           65536 |                                         0        
+
+
+Inclusive function on-CPU times (us),
+   func_clock.html, func, setTimeout 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@                     2        
+              64 |@@@@@@@@@@@@@@@@@@@@                     2        
+             128 |                                         0        
+
+   func_clock.html, func, getElementById 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@                               4        
+              16 |@@@@@@@@@@                               4        
+              32 |@@@@@@@@@@@@@@@@@@@@                     8        
+              64 |                                         0        
+
+   func_clock.html, func, func_c 
+           value  ------------- Distribution ------------- count    
+           16384 |                                         0        
+           32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+           65536 |                                         0        
+
+   func_clock.html, func, func_a 
+           value  ------------- Distribution ------------- count    
+           32768 |                                         0        
+           65536 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+          131072 |                                         0        
+
+   func_clock.html, func, func_b 
+           value  ------------- Distribution ------------- count    
+           32768 |                                         0        
+           65536 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+          131072 |                                         0        
+
+   func_clock.html, func, start 
+           value  ------------- Distribution ------------- count    
+           32768 |                                         0        
+           65536 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+          131072 |                                         0        
+
+The first section, Exclusive function on-CPU times, shows us the time spent
+on-CPU by various functions, not including time spent in subroutines.  You can
+see here that func_a had four instances of being on-CPU between 16384
+microseconds and 32767 microseconds.
+
+The second section, Inclusive function on-CPU times, shows us the time spent
+on-CPU by various functions, including that time spent in subroutines called
+by those functions.  You can see that here func_a had four instances of being 
+on-CPU between 65536 microseconds and 131071 microseconds.
+
+It is important to pay close attention to the third column, "count" as this
+will indicate if there were any instances in a particular timeframe, even if
+the number is too small to show up on the histogram clearly.

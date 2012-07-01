@@ -43,12 +43,10 @@ namespace llvm {
   private:
     enum {
       HAS_PHI_KILL    = 1,
-      REDEF_BY_EC     = 1 << 1,
-      IS_PHI_DEF      = 1 << 2,
-      IS_UNUSED       = 1 << 3
+      IS_PHI_DEF      = 1 << 1,
+      IS_UNUSED       = 1 << 2
     };
 
-    MachineInstr *copy;
     unsigned char flags;
 
   public:
@@ -57,23 +55,22 @@ namespace llvm {
     /// The ID number of this value.
     unsigned id;
 
-    /// The index of the defining instruction (if isDefAccurate() returns true).
+    /// The index of the defining instruction.
     SlotIndex def;
 
     /// VNInfo constructor.
-    VNInfo(unsigned i, SlotIndex d, MachineInstr *c)
-      : copy(c), flags(0), id(i), def(d)
+    VNInfo(unsigned i, SlotIndex d)
+      : flags(0), id(i), def(d)
     { }
 
     /// VNInfo construtor, copies values from orig, except for the value number.
     VNInfo(unsigned i, const VNInfo &orig)
-      : copy(orig.copy), flags(orig.flags), id(i), def(orig.def)
+      : flags(orig.flags), id(i), def(orig.def)
     { }
 
     /// Copy from the parameter into this VNInfo.
     void copyFrom(VNInfo &src) {
       flags = src.flags;
-      copy = src.copy;
       def = src.def;
     }
 
@@ -86,19 +83,6 @@ namespace llvm {
       flags = (flags | VNI->flags) & ~IS_UNUSED;
     }
 
-    /// For a register interval, if this VN was definied by a copy instr
-    /// getCopy() returns a pointer to it, otherwise returns 0.
-    /// For a stack interval the behaviour of this method is undefined.
-    MachineInstr* getCopy() const { return copy; }
-    /// For a register interval, set the copy member.
-    /// This method should not be called on stack intervals as it may lead to
-    /// undefined behavior.
-    void setCopy(MachineInstr *c) { copy = c; }
-
-    /// isDefByCopy - Return true when this value was defined by a copy-like
-    /// instruction as determined by MachineInstr::isCopyLike.
-    bool isDefByCopy() const { return copy != 0; }
-
     /// Returns true if one or more kills are PHI nodes.
     /// Obsolete, do not use!
     bool hasPHIKill() const { return flags & HAS_PHI_KILL; }
@@ -108,17 +92,6 @@ namespace llvm {
         flags |= HAS_PHI_KILL;
       else
         flags &= ~HAS_PHI_KILL;
-    }
-
-    /// Returns true if this value is re-defined by an early clobber somewhere
-    /// during the live range.
-    bool hasRedefByEC() const { return flags & REDEF_BY_EC; }
-    /// Set the "redef by early clobber" flag on this value.
-    void setHasRedefByEC(bool hasRedef) {
-      if (hasRedef)
-        flags |= REDEF_BY_EC;
-      else
-        flags &= ~REDEF_BY_EC;
     }
 
     /// Returns true if this value is defined by a PHI instruction (or was,
@@ -294,10 +267,9 @@ namespace llvm {
 
     /// getNextValue - Create a new value number and return it.  MIIdx specifies
     /// the instruction that defines the value number.
-    VNInfo *getNextValue(SlotIndex def, MachineInstr *CopyMI,
-                         VNInfo::Allocator &VNInfoAllocator) {
+    VNInfo *getNextValue(SlotIndex def, VNInfo::Allocator &VNInfoAllocator) {
       VNInfo *VNI =
-        new (VNInfoAllocator) VNInfo((unsigned)valnos.size(), def, CopyMI);
+        new (VNInfoAllocator) VNInfo((unsigned)valnos.size(), def);
       valnos.push_back(VNI);
       return VNI;
     }
@@ -381,7 +353,7 @@ namespace llvm {
     /// point is not contained in the half-open live range. It is usually the
     /// getDefIndex() slot following its last use.
     bool killedAt(SlotIndex index) const {
-      const_iterator r = find(index.getUseIndex());
+      const_iterator r = find(index.getRegSlot(true));
       return r != end() && r->end == index;
     }
 
@@ -403,6 +375,14 @@ namespace llvm {
     LiveRange *getLiveRangeContaining(SlotIndex Idx) {
       iterator I = FindLiveRangeContaining(Idx);
       return I == end() ? 0 : &*I;
+    }
+
+    const LiveRange *getLiveRangeBefore(SlotIndex Idx) const {
+      return getLiveRangeContaining(Idx.getPrevSlot());
+    }
+
+    LiveRange *getLiveRangeBefore(SlotIndex Idx) {
+      return getLiveRangeContaining(Idx.getPrevSlot());
     }
 
     /// getVNInfoAt - Return the VNInfo that is live at Idx, or NULL.

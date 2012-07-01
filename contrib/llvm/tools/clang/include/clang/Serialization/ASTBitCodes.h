@@ -127,7 +127,7 @@ namespace clang {
     /// \brief The number of predefined identifier IDs.
     const unsigned int NUM_PREDEF_IDENT_IDS = 1;
     
-    /// \brief An ID number that refers to an ObjC selctor in an AST file.
+    /// \brief An ID number that refers to an ObjC selector in an AST file.
     typedef uint32_t SelectorID;
 
     /// \brief The number of predefined selector IDs.
@@ -140,6 +140,12 @@ namespace clang {
     /// \brief An ID number that refers to an entity in the detailed
     /// preprocessing record.
     typedef uint32_t PreprocessedEntityID;
+
+    /// \brief An ID number that refers to a submodule in a module file.
+    typedef uint32_t SubmoduleID;
+    
+    /// \brief The number of predefined submodule IDs.
+    const unsigned int NUM_PREDEF_SUBMODULE_IDS = 1;
 
     /// \brief Source range/offset of a preprocessed entity.
     struct PPEntityOffset {
@@ -154,6 +160,22 @@ namespace clang {
         : Begin(R.getBegin().getRawEncoding()),
           End(R.getEnd().getRawEncoding()),
           BitOffset(BitOffset) { }
+    };
+
+    /// \brief Source range/offset of a preprocessed entity.
+    struct DeclOffset {
+      /// \brief Raw source location.
+      unsigned Loc;
+      /// \brief Offset in the AST file.
+      uint32_t BitOffset;
+
+      DeclOffset() : Loc(0), BitOffset(0) { }
+      DeclOffset(SourceLocation Loc, uint32_t BitOffset)
+        : Loc(Loc.getRawEncoding()),
+          BitOffset(BitOffset) { }
+      void setLocation(SourceLocation L) {
+        Loc = L.getRawEncoding();
+      }
     };
 
     /// \brief The number of predefined preprocessed entity IDs.
@@ -182,7 +204,10 @@ namespace clang {
       DECL_UPDATES_BLOCK_ID,
       
       /// \brief The block containing the detailed preprocessing record.
-      PREPROCESSOR_DETAIL_BLOCK_ID
+      PREPROCESSOR_DETAIL_BLOCK_ID,
+      
+      /// \brief The block containing the submodule structure.
+      SUBMODULE_BLOCK_ID
     };
 
     /// \brief Record types that occur within the AST block itself.
@@ -341,10 +366,11 @@ namespace clang {
       /// \brief Record code for an update to the TU's lexically contained
       /// declarations.
       TU_UPDATE_LEXICAL = 28,
-
-      /// \brief Record code for an update to first decls pointing to the
-      /// latest redeclarations.
-      REDECLS_UPDATE_LATEST = 29,
+      
+      /// \brief Record code for the array describing the locations (in the
+      /// LOCAL_REDECLARATIONS record) of the redeclaration chains, indexed by
+      /// the first known ID.
+      LOCAL_REDECLARATIONS_MAP = 29,
 
       /// \brief Record code for declarations that Sema keeps references of.
       SEMA_DECL_REFS = 30,
@@ -418,9 +444,32 @@ namespace clang {
       /// which stores information about #line directives.
       SOURCE_MANAGER_LINE_TABLE = 48,
 
-      /// \brief Record code for ObjC categories in a module that are chained to
-      /// an interface.
-      OBJC_CHAINED_CATEGORIES
+      /// \brief Record code for map of Objective-C class definition IDs to the 
+      /// ObjC categories in a module that are attached to that class.
+      OBJC_CATEGORIES_MAP = 49,
+
+      /// \brief Record code for a file sorted array of DeclIDs in a module.
+      FILE_SORTED_DECLS = 50,
+      
+      /// \brief Record code for an array of all of the (sub)modules that were
+      /// imported by the AST file.
+      IMPORTED_MODULES = 51,
+      
+      /// \brief Record code for the set of merged declarations in an AST file.
+      MERGED_DECLARATIONS = 52,
+      
+      /// \brief Record code for the array of redeclaration chains.
+      ///
+      /// This array can only be interpreted properly using the local 
+      /// redeclarations map.
+      LOCAL_REDECLARATIONS = 53,
+      
+      /// \brief Record code for the array of Objective-C categories (including
+      /// extensions).
+      ///
+      /// This array can only be interpreted properly using the Objective-C
+      /// categories map.
+      OBJC_CATEGORIES
     };
 
     /// \brief Record types used within a source manager block.
@@ -433,7 +482,8 @@ namespace clang {
       SM_SLOC_BUFFER_ENTRY = 2,
       /// \brief Describes a blob that contains the data for a buffer
       /// entry. This kind of record always directly follows a
-      /// SM_SLOC_BUFFER_ENTRY record.
+      /// SM_SLOC_BUFFER_ENTRY record or a SM_SLOC_FILE_ENTRY with an
+      /// overridden buffer.
       SM_SLOC_BUFFER_BLOB = 3,
       /// \brief Describes a source location entry (SLocEntry) for a
       /// macro expansion.
@@ -470,6 +520,30 @@ namespace clang {
       /// \brief Describes an inclusion directive within the preprocessing
       /// record.
       PPD_INCLUSION_DIRECTIVE = 2
+    };
+    
+    /// \brief Record types used within a submodule description block.
+    enum SubmoduleRecordTypes {
+      /// \brief Metadata for submodules as a whole.
+      SUBMODULE_METADATA = 0,
+      /// \brief Defines the major attributes of a submodule, including its
+      /// name and parent.
+      SUBMODULE_DEFINITION = 1,
+      /// \brief Specifies the umbrella header used to create this module,
+      /// if any.
+      SUBMODULE_UMBRELLA_HEADER = 2,
+      /// \brief Specifies a header that falls into this (sub)module.
+      SUBMODULE_HEADER = 3,
+      /// \brief Specifies an umbrella directory.
+      SUBMODULE_UMBRELLA_DIR = 4,
+      /// \brief Specifies the submodules that are imported by this 
+      /// submodule.
+      SUBMODULE_IMPORTS = 5,
+      /// \brief Specifies the submodules that are re-exported from this 
+      /// submodule.
+      SUBMODULE_EXPORTS = 6,
+      /// \brief Specifies a required feature.
+      SUBMODULE_REQUIRES = 7
     };
     
     /// \defgroup ASTAST AST file AST constants
@@ -554,7 +628,11 @@ namespace clang {
       /// \brief The "auto &&" deduction type.
       PREDEF_TYPE_AUTO_RREF_DEDUCT = 32,
       /// \brief The OpenCL 'half' / ARM NEON __fp16 type.
-      PREDEF_TYPE_HALF_ID       = 33
+      PREDEF_TYPE_HALF_ID       = 33,
+      /// \brief ARC's unbridged-cast placeholder type.
+      PREDEF_TYPE_ARC_UNBRIDGED_CAST = 34,
+      /// \brief The pseudo-object placeholder type.
+      PREDEF_TYPE_PSEUDO_OBJECT = 35
     };
 
     /// \brief The number of predefined type IDs that are reserved for
@@ -662,28 +740,26 @@ namespace clang {
     enum SpecialTypeIDs {
       /// \brief __builtin_va_list
       SPECIAL_TYPE_BUILTIN_VA_LIST             = 0,
-      /// \brief Objective-C Protocol type
-      SPECIAL_TYPE_OBJC_PROTOCOL               = 1,
       /// \brief CFConstantString type
-      SPECIAL_TYPE_CF_CONSTANT_STRING          = 2,
+      SPECIAL_TYPE_CF_CONSTANT_STRING          = 1,
       /// \brief C FILE typedef type
-      SPECIAL_TYPE_FILE                        = 3,
+      SPECIAL_TYPE_FILE                        = 2,
       /// \brief C jmp_buf typedef type
-      SPECIAL_TYPE_jmp_buf                     = 4,
+      SPECIAL_TYPE_JMP_BUF                     = 3,
       /// \brief C sigjmp_buf typedef type
-      SPECIAL_TYPE_sigjmp_buf                  = 5,
+      SPECIAL_TYPE_SIGJMP_BUF                  = 4,
       /// \brief Objective-C "id" redefinition type
-      SPECIAL_TYPE_OBJC_ID_REDEFINITION        = 6,
+      SPECIAL_TYPE_OBJC_ID_REDEFINITION        = 5,
       /// \brief Objective-C "Class" redefinition type
-      SPECIAL_TYPE_OBJC_CLASS_REDEFINITION     = 7,
+      SPECIAL_TYPE_OBJC_CLASS_REDEFINITION     = 6,
       /// \brief Objective-C "SEL" redefinition type
-      SPECIAL_TYPE_OBJC_SEL_REDEFINITION       = 8,
+      SPECIAL_TYPE_OBJC_SEL_REDEFINITION       = 7,
       /// \brief C ucontext_t typedef type
-      SPECIAL_TYPE_UCONTEXT_T                  = 9
+      SPECIAL_TYPE_UCONTEXT_T                  = 8
     };
     
     /// \brief The number of special type IDs.
-    const unsigned NumSpecialTypeIDs = 0;
+    const unsigned NumSpecialTypeIDs = 9;
 
     /// \brief Predefined declaration IDs.
     ///
@@ -706,22 +782,25 @@ namespace clang {
       
       /// \brief The Objective-C 'Class' type.
       PREDEF_DECL_OBJC_CLASS_ID = 4,
+            
+      /// \brief The Objective-C 'Protocol' type.
+      PREDEF_DECL_OBJC_PROTOCOL_ID = 5,
       
       /// \brief The signed 128-bit integer type.
-      PREDEF_DECL_INT_128_ID = 5,
+      PREDEF_DECL_INT_128_ID = 6,
 
       /// \brief The unsigned 128-bit integer type.
-      PREDEF_DECL_UNSIGNED_INT_128_ID = 6,
+      PREDEF_DECL_UNSIGNED_INT_128_ID = 7,
       
       /// \brief The internal 'instancetype' typedef.
-      PREDEF_DECL_OBJC_INSTANCETYPE_ID = 7
+      PREDEF_DECL_OBJC_INSTANCETYPE_ID = 8
     };
 
     /// \brief The number of declaration IDs that are predefined.
     ///
     /// For more information about predefined declarations, see the
     /// \c PredefinedDeclIDs type and the PREDEF_DECL_*_ID constants.
-    const unsigned int NUM_PREDEF_DECL_IDS = 8;
+    const unsigned int NUM_PREDEF_DECL_IDS = 9;
     
     /// \brief Record codes for each kind of declaration.
     ///
@@ -752,10 +831,6 @@ namespace clang {
       DECL_OBJC_IVAR,
       /// \brief A ObjCAtDefsFieldDecl record.
       DECL_OBJC_AT_DEFS_FIELD,
-      /// \brief A ObjCClassDecl record.
-      DECL_OBJC_CLASS,
-      /// \brief A ObjCForwardProtocolDecl record.
-      DECL_OBJC_FORWARD_PROTOCOL,
       /// \brief A ObjCCategoryDecl record.
       DECL_OBJC_CATEGORY,
       /// \brief A ObjCCategoryImplDecl record.
@@ -859,7 +934,9 @@ namespace clang {
       DECL_EXPANDED_NON_TYPE_TEMPLATE_PARM_PACK,
       /// \brief A ClassScopeFunctionSpecializationDecl record a class scope
       /// function specialization. (Microsoft extension).
-      DECL_CLASS_SCOPE_FUNCTION_SPECIALIZATION
+      DECL_CLASS_SCOPE_FUNCTION_SPECIALIZATION,
+      /// \brief An ImportDecl recording a module import.
+      DECL_IMPORT
     };
 
     /// \brief Record codes for each kind of statement or expression.
@@ -875,6 +952,8 @@ namespace clang {
       STMT_STOP = 100,
       /// \brief A NULL expression.
       STMT_NULL_PTR,
+      /// \brief A reference to a previously [de]serialized Stmt record.
+      STMT_REF_PTR,
       /// \brief A NullStmt record.
       STMT_NULL,
       /// \brief A CompoundStmt record.
@@ -885,6 +964,8 @@ namespace clang {
       STMT_DEFAULT,
       /// \brief A LabelStmt record.
       STMT_LABEL,
+      /// \brief An AttributedStmt record.
+      STMT_ATTRIBUTED,
       /// \brief An IfStmt record.
       STMT_IF,
       /// \brief A SwitchStmt record.
@@ -973,10 +1054,10 @@ namespace clang {
       EXPR_SHUFFLE_VECTOR,
       /// \brief BlockExpr
       EXPR_BLOCK,
-      /// \brief A BlockDeclRef record.
-      EXPR_BLOCK_DECL_REF,
       /// \brief A GenericSelectionExpr record.
       EXPR_GENERIC_SELECTION,
+      /// \brief A PseudoObjectExpr record.
+      EXPR_PSEUDO_OBJECT,
       /// \brief An AtomicExpr record.
       EXPR_ATOMIC,
 
@@ -984,6 +1065,12 @@ namespace clang {
 
       /// \brief An ObjCStringLiteral record.
       EXPR_OBJC_STRING_LITERAL,
+
+      EXPR_OBJC_NUMERIC_LITERAL,
+      EXPR_OBJC_ARRAY_LITERAL,
+      EXPR_OBJC_DICTIONARY_LITERAL,
+
+    
       /// \brief An ObjCEncodeExpr record.
       EXPR_OBJC_ENCODE,
       /// \brief An ObjCSelectorExpr record.
@@ -994,6 +1081,8 @@ namespace clang {
       EXPR_OBJC_IVAR_REF_EXPR,
       /// \brief An ObjCPropertyRefExpr record.
       EXPR_OBJC_PROPERTY_REF_EXPR,
+      /// \brief An ObjCSubscriptRefExpr record.
+      EXPR_OBJC_SUBSCRIPT_REF_EXPR,
       /// \brief UNUSED
       EXPR_OBJC_KVC_REF_EXPR,
       /// \brief An ObjCMessageExpr record.
@@ -1017,6 +1106,8 @@ namespace clang {
       STMT_OBJC_AT_THROW,
       /// \brief An ObjCAutoreleasePoolStmt record.
       STMT_OBJC_AUTORELEASE_POOL,
+      /// \brief A ObjCBoolLiteralExpr record.
+      EXPR_OBJC_BOOL_LITERAL,
 
       // C++
       
@@ -1045,6 +1136,8 @@ namespace clang {
       EXPR_CXX_CONST_CAST,
       /// \brief A CXXFunctionalCastExpr record.
       EXPR_CXX_FUNCTIONAL_CAST,
+      /// \brief A UserDefinedLiteral record.
+      EXPR_USER_DEFINED_LITERAL,
       /// \brief A CXXBoolLiteralExpr record.
       EXPR_CXX_BOOL_LITERAL,
       EXPR_CXX_NULL_PTR_LITERAL,  // CXXNullPtrLiteralExpr
@@ -1075,6 +1168,7 @@ namespace clang {
       EXPR_OPAQUE_VALUE,          // OpaqueValueExpr
       EXPR_BINARY_CONDITIONAL_OPERATOR,  // BinaryConditionalOperator
       EXPR_BINARY_TYPE_TRAIT,     // BinaryTypeTraitExpr
+      EXPR_TYPE_TRAIT,            // TypeTraitExpr
       EXPR_ARRAY_TYPE_TRAIT,      // ArrayTypeTraitIntExpr
       
       EXPR_PACK_EXPANSION,        // PackExpansionExpr
@@ -1097,7 +1191,10 @@ namespace clang {
       STMT_SEH_TRY,               // SEHTryStmt
       
       // ARC
-      EXPR_OBJC_BRIDGED_CAST       // ObjCBridgedCastExpr
+      EXPR_OBJC_BRIDGED_CAST,     // ObjCBridgedCastExpr
+      
+      STMT_MS_DEPENDENT_EXISTS,   // MSDependentExistsStmt
+      EXPR_LAMBDA                 // LambdaExpr
     };
 
     /// \brief The kinds of designators that can occur in a
@@ -1121,6 +1218,58 @@ namespace clang {
       CTOR_INITIALIZER_DELEGATING,
       CTOR_INITIALIZER_MEMBER,
       CTOR_INITIALIZER_INDIRECT_MEMBER
+    };
+
+    /// \brief Describes the redeclarations of a declaration.
+    struct LocalRedeclarationsInfo {
+      DeclID FirstID;      // The ID of the first declaration
+      unsigned Offset;     // Offset into the array of redeclaration chains.
+      
+      friend bool operator<(const LocalRedeclarationsInfo &X,
+                            const LocalRedeclarationsInfo &Y) {
+        return X.FirstID < Y.FirstID;
+      }
+      
+      friend bool operator>(const LocalRedeclarationsInfo &X,
+                            const LocalRedeclarationsInfo &Y) {
+        return X.FirstID > Y.FirstID;
+      }
+      
+      friend bool operator<=(const LocalRedeclarationsInfo &X,
+                             const LocalRedeclarationsInfo &Y) {
+        return X.FirstID <= Y.FirstID;
+      }
+      
+      friend bool operator>=(const LocalRedeclarationsInfo &X,
+                             const LocalRedeclarationsInfo &Y) {
+        return X.FirstID >= Y.FirstID;
+      }
+    };
+
+    /// \brief Describes the categories of an Objective-C class.
+    struct ObjCCategoriesInfo {
+      DeclID DefinitionID; // The ID of the definition
+      unsigned Offset;     // Offset into the array of category lists.
+      
+      friend bool operator<(const ObjCCategoriesInfo &X,
+                            const ObjCCategoriesInfo &Y) {
+        return X.DefinitionID < Y.DefinitionID;
+      }
+      
+      friend bool operator>(const ObjCCategoriesInfo &X,
+                            const ObjCCategoriesInfo &Y) {
+        return X.DefinitionID > Y.DefinitionID;
+      }
+      
+      friend bool operator<=(const ObjCCategoriesInfo &X,
+                             const ObjCCategoriesInfo &Y) {
+        return X.DefinitionID <= Y.DefinitionID;
+      }
+      
+      friend bool operator>=(const ObjCCategoriesInfo &X,
+                             const ObjCCategoriesInfo &Y) {
+        return X.DefinitionID >= Y.DefinitionID;
+      }
     };
 
     /// @}

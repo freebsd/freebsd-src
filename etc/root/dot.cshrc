@@ -23,12 +23,15 @@ setenv	BLOCKSIZE	K
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
-	set prompt = "%n@%m:%c04%# "
+	if ($uid == 0) then
+		set user = root
+	endif
+	set prompt = "%n@%m:%/ %# "
 	set promptchars = "%#"
 
 	set filec
 	set history = 1000
-	set savehist = 1000
+	set savehist = (1000 merge)
 	set autolist = ambiguous
 	# Use history to aid expansion
 	set autoexpand
@@ -38,10 +41,6 @@ if ($?prompt) then
 		bindkey "^W" backward-delete-word
 		bindkey -k up history-search-backward
 		bindkey -k down history-search-forward
-
-		bindkey "\e[1~" beginning-of-line #make Home key work;
-		bindkey "\e[3~" delete-char #make Delete key work;
-		bindkey "\e[4~" end-of-line #make End key work;
 	endif
 
 endif

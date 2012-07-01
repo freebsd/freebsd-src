@@ -23,13 +23,9 @@
  * SUCH DAMAGE.
  */
 
-/* 
+/*
  * This board file can be used for both:
- * Atmel AT91SAM9260-B Development Card and
- * Atmel AT91SAM9G20-EK Rev. B Development Card 
- * 
- * Since the AT91SAM9260 and AT91SAM9G20 have identical memory maps and 
- * pin configurations we can use the same file for both.
+ * Atmel SAM9G20-EK Development Card
  */
 
 #include <sys/cdefs.h>
@@ -73,7 +69,7 @@ board_init(void)
 	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE,AT91C_PA24_TWCK, 1);
 
 #if 1
-	/* 
+	/*
 	 * Turn off Clock to DataFlash, conflicts with MCI clock.
 	 */
 	at91_pio_use_gpio(AT91SAM9G20_PIOA_BASE,AT91C_PIO_PA2);

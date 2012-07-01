@@ -267,9 +267,6 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 	int error;
 #endif
 
-	if (p->p_flag & P_SYSTEM)
-		return (0);
-
 	SDT_PROBE(racct, kernel, rusage, add, p, resource, amount, 0, 0);
 
 	/*
@@ -344,9 +341,6 @@ void
 racct_add_force(struct proc *p, int resource, uint64_t amount)
 {
 
-	if (p->p_flag & P_SYSTEM)
-		return;
-
 	SDT_PROBE(racct, kernel, rusage, add_force, p, resource, amount, 0, 0);
 
 	/*
@@ -367,9 +361,6 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 #ifdef RCTL
 	int error;
 #endif
-
-	if (p->p_flag & P_SYSTEM)
-		return (0);
 
 	SDT_PROBE(racct, kernel, rusage, set, p, resource, amount, 0, 0);
 
@@ -425,9 +416,6 @@ void
 racct_set_force(struct proc *p, int resource, uint64_t amount)
 {
 	int64_t diff;
-
-	if (p->p_flag & P_SYSTEM)
-		return;
 
 	SDT_PROBE(racct, kernel, rusage, set, p, resource, amount, 0, 0);
 
@@ -486,9 +474,6 @@ racct_get_available(struct proc *p, int resource)
 void
 racct_sub(struct proc *p, int resource, uint64_t amount)
 {
-
-	if (p->p_flag & P_SYSTEM)
-		return;
 
 	SDT_PROBE(racct, kernel, rusage, sub, p, resource, amount, 0, 0);
 
@@ -556,12 +541,6 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 	 */
 	racct_create(&child->p_racct);
 
-	/*
-	 * No resource accounting for kernel processes.
-	 */
-	if (child->p_flag & P_SYSTEM)
-		return (0);
-
 	PROC_LOCK(parent);
 	PROC_LOCK(child);
 	mtx_lock(&racct_lock);
@@ -593,6 +572,9 @@ out:
 	mtx_unlock(&racct_lock);
 	PROC_UNLOCK(child);
 	PROC_UNLOCK(parent);
+
+	if (error != 0)
+		racct_proc_exit(child);
 
 	return (error);
 }
@@ -722,8 +704,6 @@ racctd(void)
 
 		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_state != PRS_NORMAL)
-				continue;
-			if (p->p_flag & P_SYSTEM)
 				continue;
 
 			microuptime(&wallclock);

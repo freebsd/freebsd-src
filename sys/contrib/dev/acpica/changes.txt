@@ -1,8 +1,199 @@
 ----------------------------------------
+20 June 2012. Summary of changes for version 20120620:
+
+This release is available at https://www.acpica.org/downloads
+The ACPI 5.0 specification is available at www.acpi.info
+
+1) ACPICA Kernel-resident Subsystem:
+
+Implemented support to expand the "implicit notify" feature to allow multiple 
+devices to be notified by a single GPE. This feature automatically generates a 
+runtime device notification in the absence of a BIOS-provided GPE control 
+method (_Lxx/_Exx) or a host-installed handler for the GPE. Implicit notify is 
+provided by ACPICA for Windows compatibility, and is a workaround for BIOS AML 
+code errors. See the description of the AcpiSetupGpeForWake interface in the 
+APCICA reference. Bob Moore, Rafael Wysocki. ACPICA BZ 918.
+
+Changed some comments and internal function names to simplify and ensure 
+correctness of the Linux code translation. No functional changes.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  93.0K Code, 25.1K Data, 118.1K Total
+    Debug Version:     172.7K Code, 73.6K Data, 246.3K Total
+  Current Release:
+    Non-Debug Version:  93.1K Code, 25.1K Data, 118.2K Total
+    Debug Version:     172.9K Code, 73.6K Data, 246.5K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Added support to emit short, commented descriptions for the ACPI 
+predefined names in order to improve the readability of the disassembled 
+output. ACPICA BZ 959. Changes include:
+  1) Emit descriptions for all standard predefined names (_INI, _STA, _PRW, 
+etc.)
+  2) Emit generic descriptions for the special names (_Exx, _Qxx, etc.)
+  3) Emit descriptions for the resource descriptor names (_MIN, _LEN, etc.)
+
+AcpiSrc: Fixed several long-standing Linux code translation issues. Argument 
+descriptions in function headers are now translated properly to lower case and 
+underscores. ACPICA BZ 961. Also fixes translation problems such as these: 
+(old -> new)
+  i_aSL -> iASL
+  00-7_f -> 00-7F
+  16_k -> 16K
+  local_fADT -> local_FADT
+  execute_oSI -> execute_OSI
+
+iASL: Fixed a problem where null bytes were inadvertently emitted into some 
+listing files.
+
+iASL: Added the existing debug options to the standard help screen. There are 
+no longer two different help screens. ACPICA BZ 957.
+
+AcpiHelp: Fixed some typos in the various predefined name descriptions. Also 
+expand some of the descriptions where appropriate.
+
+iASL: Fixed the -ot option (display compile times/statistics). Was not working 
+properly for standard output; only worked for the debug file case.
+
+----------------------------------------
+18 May 2012. Summary of changes for version 20120518:
+
+
+1) ACPICA Core Subsystem:
+
+Added a new OSL interface, AcpiOsWaitEventsComplete. This interface is defined 
+to block until asynchronous events such as notifies and GPEs have completed. 
+Within ACPICA, it is only called before a notify or GPE handler is 
+removed/uninstalled. It also may be useful for the host OS within related 
+drivers such as the Embedded Controller driver. See the ACPICA reference for 
+additional information. ACPICA BZ 868.
+
+ACPI Tables: Added a new error message for a possible overflow failure during 
+the conversion of FADT 32-bit legacy register addresses to internal common 64-
+bit GAS structure representation. The GAS has a one-byte "bit length" field, 
+thus limiting the register length to 255 bits. ACPICA BZ 953.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  92.9K Code, 25.0K Data, 117.9K Total
+    Debug Version:     172.6K Code, 73.4K Data, 246.0K Total
+  Current Release:
+    Non-Debug Version:  93.0K Code, 25.1K Data, 118.1K Total
+    Debug Version:     172.7K Code, 73.6K Data, 246.3K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Added the ACPI 5.0 "PCC" keyword for use in the Register() ASL macro. 
+This keyword was added late in the ACPI 5.0 release cycle and was not 
+implemented until now.
+
+Disassembler: Added support for Operation Region externals. Adds missing 
+support for operation regions that are defined in another table, and 
+referenced locally via a Field or BankField ASL operator. Now generates the 
+correct External statement.
+
+Disassembler: Several additional fixes for the External() statement generation 
+related to some ASL operators. Also, order the External() statements 
+alphabetically in the disassembler output. Fixes the External() generation for 
+the Create* field, Alias, and Scope operators:
+ 1) Create* buffer field operators - fix type mismatch warning on disassembly
+ 2) Alias - implement missing External support
+ 3) Scope - fix to make sure all necessary externals are emitted.
+
+iASL: Improved pathname support. For include files, merge the prefix pathname 
+with the file pathname and eliminate unnecessary components. Convert 
+backslashes in all pathnames to forward slashes, for readability. Include file 
+pathname changes affect both #include and Include() type operators.
+
+iASL/DTC/Preprocessor: Gracefully handle early EOF. Handle an EOF at the end 
+of a valid line by inserting a newline and then returning the EOF during the 
+next call to GetNextLine. Prevents the line from being ignored due to EOF 
+condition.
+
+iASL: Implemented some changes to enhance the IDE support (-vi option.) Error 
+and Warning messages are now correctly recognized for both the source code 
+browser and the global error and warning counts.
+
+----------------------------------------
+20 April 2012. Summary of changes for version 20120420:
+
+
+1) ACPICA Core Subsystem:
+
+Implemented support for multiple notify handlers. This change adds support to 
+allow multiple system and device notify handlers on Device, Thermal Zone, and 
+Processor objects. This can simplify the host OS notification implementation. 
+Also re-worked and restructured the entire notify support code to simplify 
+handler installation, handler removal, notify event queuing, and notify 
+dispatch to handler(s). Note: there can still only be two global notify 
+handlers - one for system notifies and one for device notifies. There are no 
+changes to the existing handler install/remove interfaces. Lin Ming, Bob 
+Moore, Rafael Wysocki.
+
+Fixed a regression in the package repair code where the object reference 
+count was calculated incorrectly. Regression was introduced in the commit 
+"Support to add Package wrappers".
+
+Fixed a couple possible memory leaks in the AML parser, in the error recovery 
+path. Jesper Juhl, Lin Ming.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  92.9K Code, 25.0K Data, 117.9K Total
+    Debug Version:     172.5K Code, 73.2K Data, 245.7K Total
+  Current Release:
+    Non-Debug Version:  92.9K Code, 25.0K Data, 117.9K Total
+    Debug Version:     172.6K Code, 73.4K Data, 246.0K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a problem with the resource descriptor support where the length 
+of the StartDependentFn and StartDependentFnNoPrio descriptors were not 
+included in cumulative descriptor offset, resulting in incorrect values for 
+resource tags within resource descriptors appearing after a StartDependent* 
+descriptor. Reported by Petr Vandrovec. ACPICA BZ 949.
+
+iASL and Preprocessor: Implemented full support for the #line directive to 
+correctly track original source file line numbers through the .i preprocessor 
+output file - for error and warning messages.
+
+iASL: Expand the allowable byte constants for address space IDs. Previously, 
+the allowable range was 0x80-0xFF (user-defined spaces), now the range is 
+0x0A-0xFF to allow for custom and new IDs without changing the compiler.
+
+iASL: Add option to treat all warnings as errors (-we). ACPICA BZ 948.
+
+iASL: Add option to completely disable the preprocessor (-Pn).
+
+iASL: Now emit all error/warning messages to standard error (stderr) by 
+default (instead of the previous stdout).
+
+ASL Test Suite (ASLTS): Reduce iASL warnings due to use of Switch(). Update 
+for resource descriptor offset fix above. Update/cleanup error output 
+routines. Enable and send iASL errors/warnings to an error logfile 
+(error.txt). Send all other iASL output to a logfile (compiler.txt). Fixed 
+several extraneous "unrecognized operator" messages.
+
+----------------------------------------
 20 March 2012. Summary of changes for version 20120320:
 
-This release is available at www.acpica.org/downloads.
-The ACPI 5.0 specification is available at www.acpi.info.
 
 1) ACPICA Core Subsystem:
 
@@ -93,8 +284,6 @@ Versions supported:
 ----------------------------------------
 15 February 2012. Summary of changes for version 20120215:
 
-This release is available at www.acpica.org/downloads.
-The ACPI 5.0 specification is available at www.acpi.info.
 
 1) ACPICA Core Subsystem:
 
@@ -185,8 +374,6 @@ specification.
 ----------------------------------------
 11 January 2012. Summary of changes for version 20120111:
 
-This release is available at www.acpica.org/downloads.
-The ACPI 5.0 specification is available at www.acpi.info.
 
 1) ACPICA Core Subsystem:
 

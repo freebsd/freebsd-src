@@ -294,6 +294,25 @@ libusb_free_config_descriptor(struct libusb_config_descriptor *config)
 }
 
 int
+libusb_get_string_descriptor(libusb_device_handle *pdev,
+    uint8_t desc_index, uint16_t langid, unsigned char *data,
+    int length)
+{
+	if (pdev == NULL || data == NULL || length < 1)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
+	if (length > 65535)
+		length = 65535;
+
+	/* put some default data into the destination buffer */
+	data[0] = 0;
+
+	return (libusb_control_transfer(pdev, LIBUSB_ENDPOINT_IN,
+	    LIBUSB_REQUEST_GET_DESCRIPTOR, (LIBUSB_DT_STRING << 8) | desc_index,
+	    langid, data, length, 1000));
+}
+
+int
 libusb_get_string_descriptor_ascii(libusb_device_handle *pdev,
     uint8_t desc_index, unsigned char *data, int length)
 {
@@ -390,8 +409,8 @@ libusb_parse_bos_descriptor(const void *buf, int len,
     struct libusb_bos_descriptor **bos)
 {
 	struct libusb_bos_descriptor *ptr;
-	struct libusb_usb_2_0_device_capability_descriptor *dcap_20;
-	struct libusb_ss_usb_device_capability_descriptor *ss_cap;
+	struct libusb_usb_2_0_device_capability_descriptor *dcap_20 = NULL;
+	struct libusb_ss_usb_device_capability_descriptor *ss_cap = NULL;
 
 	if (buf == NULL || bos == NULL || len < 1)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -438,7 +457,7 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 		    dtype == LIBUSB_DT_DEVICE_CAPABILITY) {
 			switch (((const uint8_t *)buf)[2]) {
 			case LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY:
-				if (ptr->usb_2_0_ext_cap != NULL)
+				if (ptr->usb_2_0_ext_cap != NULL || dcap_20 == NULL)
 					break;
 				if (dlen < LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY_SIZE)
 					break;
@@ -455,7 +474,7 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 				break;
 
 			case LIBUSB_SS_USB_DEVICE_CAPABILITY:
-				if (ptr->ss_usb_cap != NULL)
+				if (ptr->ss_usb_cap != NULL || ss_cap == NULL)
 					break;
 				if (dlen < LIBUSB_SS_USB_DEVICE_CAPABILITY_SIZE)
 					break;

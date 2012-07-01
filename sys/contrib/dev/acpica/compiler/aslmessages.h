@@ -402,13 +402,22 @@ char                        *AslMessages [] = {
 };
 
 
-char                    *AslErrorLevel [ASL_NUM_REPORT_LEVELS] = {
+const char              *AslErrorLevel [ASL_NUM_REPORT_LEVELS] = {
     "Warning ",
     "Warning ",
     "Warning ",
     "Error   ",
     "Remark  ",
     "Optimize"
+};
+
+const char              *AslErrorLevelIde [ASL_NUM_REPORT_LEVELS] = {
+    "warning ",
+    "warning ",
+    "warning ",
+    "error   ",
+    "remark  ",
+    "optimize"
 };
 
 #define ASL_ERROR_LEVEL_LENGTH          8       /* Length of strings above */

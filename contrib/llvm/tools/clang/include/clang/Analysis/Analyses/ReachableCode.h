@@ -25,7 +25,7 @@ namespace llvm {
 }
 
 namespace clang {
-  class AnalysisContext;
+  class AnalysisDeclContext;
   class CFGBlock;
 }
 
@@ -37,6 +37,7 @@ namespace clang {
 namespace reachable_code {
 
 class Callback {
+  virtual void anchor();
 public:
   virtual ~Callback() {}
   virtual void HandleUnreachable(SourceLocation L, SourceRange R1,
@@ -48,7 +49,7 @@ public:
 unsigned ScanReachableFromBlock(const CFGBlock *Start,
                                 llvm::BitVector &Reachable);
 
-void FindUnreachableCode(AnalysisContext &AC, Callback &CB);
+void FindUnreachableCode(AnalysisDeclContext &AC, Callback &CB);
 
 }} // end namespace clang::reachable_code
 

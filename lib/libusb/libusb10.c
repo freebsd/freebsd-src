@@ -92,6 +92,7 @@ int
 libusb_init(libusb_context **context)
 {
 	struct libusb_context *ctx;
+	pthread_condattr_t attr;
 	char *debug;
 	int ret;
 
@@ -110,8 +111,28 @@ libusb_init(libusb_context **context)
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
 
-	pthread_mutex_init(&ctx->ctx_lock, NULL);
-	pthread_cond_init(&ctx->ctx_cond, NULL);
+	if (pthread_mutex_init(&ctx->ctx_lock, NULL) != 0) {
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	if (pthread_condattr_init(&attr) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_condattr_destroy(&attr);
+		free(ctx);
+		return (LIBUSB_ERROR_OTHER);
+	}
+	if (pthread_cond_init(&ctx->ctx_cond, &attr) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_condattr_destroy(&attr);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	pthread_condattr_destroy(&attr);
 
 	ctx->ctx_handler = NO_THREAD;
 
@@ -328,6 +349,30 @@ libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
 
 out:
 	libusb_free_config_descriptor(pdconf);
+	return (ret);
+}
+
+int
+libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint)
+{
+	int multiplier;
+	int ret;
+
+	ret = libusb_get_max_packet_size(dev, endpoint);
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+	case LIBUSB20_SPEED_FULL:
+		break;
+	default:
+		if (ret > -1) {
+			multiplier = (1 + ((ret >> 11) & 3));
+			if (multiplier > 3)
+				multiplier = 3;
+			ret = (ret & 0x7FF) * multiplier;
+		}
+		break;
+	}
 	return (ret);
 }
 
@@ -627,17 +672,17 @@ libusb_set_interface_alt_setting(struct libusb20_device *pdev,
 
 static struct libusb20_transfer *
 libusb10_get_transfer(struct libusb20_device *pdev,
-    uint8_t endpoint, uint8_t index)
+    uint8_t endpoint, uint8_t xfer_index)
 {
-	index &= 1;			/* double buffering */
+	xfer_index &= 1;	/* double buffering */
 
-	index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
+	xfer_index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
 
 	if (endpoint & LIBUSB20_ENDPOINT_DIR_MASK) {
 		/* this is an IN endpoint */
-		index |= 2;
+		xfer_index |= 2;
 	}
-	return (libusb20_tr_get_pointer(pdev, index));
+	return (libusb20_tr_get_pointer(pdev, xfer_index));
 }
 
 int
@@ -1298,7 +1343,7 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	uint32_t endpoint;
+	uint8_t endpoint;
 	int err;
 
 	if (uxfer == NULL)
@@ -1308,9 +1353,6 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	endpoint = uxfer->endpoint;
-
-	if (endpoint > 255)
-		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(uxfer->dev_handle);
 
@@ -1361,7 +1403,7 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	uint32_t endpoint;
+	uint8_t endpoint;
 	int retval;
 
 	if (uxfer == NULL)
@@ -1372,9 +1414,6 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 		return (LIBUSB_ERROR_NOT_FOUND);
 
 	endpoint = uxfer->endpoint;
-
-	if (endpoint > 255)
-		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(uxfer->dev_handle);
 

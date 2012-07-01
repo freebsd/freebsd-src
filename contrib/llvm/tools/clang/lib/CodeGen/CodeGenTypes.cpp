@@ -15,6 +15,7 @@
 #include "CGCall.h"
 #include "CGCXXABI.h"
 #include "CGRecordLayout.h"
+#include "TargetInfo.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclCXX.h"
@@ -26,11 +27,12 @@
 using namespace clang;
 using namespace CodeGen;
 
-CodeGenTypes::CodeGenTypes(ASTContext &Ctx, llvm::Module& M,
-                           const llvm::TargetData &TD, const ABIInfo &Info,
-                           CGCXXABI &CXXABI, const CodeGenOptions &CGO)
-  : Context(Ctx), Target(Ctx.getTargetInfo()), TheModule(M), TheTargetData(TD),
-    TheABIInfo(Info), TheCXXABI(CXXABI), CodeGenOpts(CGO) {
+CodeGenTypes::CodeGenTypes(CodeGenModule &CGM)
+  : Context(CGM.getContext()), Target(Context.getTargetInfo()),
+    TheModule(CGM.getModule()), TheTargetData(CGM.getTargetData()),
+    TheABIInfo(CGM.getTargetCodeGenInfo().getABIInfo()),
+    TheCXXABI(CGM.getCXXABI()),
+    CodeGenOpts(CGM.getCodeGenOpts()), CGM(CGM) {
   SkippedLayout = false;
 }
 
@@ -48,7 +50,7 @@ CodeGenTypes::~CodeGenTypes() {
 void CodeGenTypes::addRecordTypeName(const RecordDecl *RD,
                                      llvm::StructType *Ty,
                                      StringRef suffix) {
-  llvm::SmallString<256> TypeName;
+  SmallString<256> TypeName;
   llvm::raw_svector_ostream OS(TypeName);
   OS << RD->getKindName() << '.';
   
@@ -193,11 +195,9 @@ bool CodeGenTypes::isFuncTypeArgumentConvertible(QualType Ty) {
   // If this isn't a tagged type, we can convert it!
   const TagType *TT = Ty->getAs<TagType>();
   if (TT == 0) return true;
-  
-  
-  // If it's a tagged type used by-value, but is just a forward decl, we can't
-  // convert it.  Note that getDefinition()==0 is not the same as !isDefinition.
-  if (TT->getDecl()->getDefinition() == 0)
+    
+  // Incomplete types cannot be converted.
+  if (TT->isIncompleteType())
     return false;
   
   // If this is an enum, then it is always safe to convert.
@@ -305,7 +305,6 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
 #define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
 #include "clang/AST/TypeNodes.def"
     llvm_unreachable("Non-canonical or dependent types aren't possible.");
-    break;
 
   case Type::Builtin: {
     switch (cast<BuiltinType>(Ty)->getKind()) {
@@ -368,12 +367,12 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       ResultType = llvm::IntegerType::get(getLLVMContext(), 128);
       break;
     
-    case BuiltinType::Overload:
     case BuiltinType::Dependent:
-    case BuiltinType::BoundMember:
-    case BuiltinType::UnknownAny:
+#define BUILTIN_TYPE(Id, SingletonId)
+#define PLACEHOLDER_TYPE(Id, SingletonId) \
+    case BuiltinType::Id:
+#include "clang/AST/BuiltinTypes.def"
       llvm_unreachable("Unexpected placeholder builtin type!");
-      break;
     }
     break;
   }
@@ -474,16 +473,13 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     // The function type can be built; call the appropriate routines to
     // build it.
     const CGFunctionInfo *FI;
-    bool isVariadic;
     if (const FunctionProtoType *FPT = dyn_cast<FunctionProtoType>(FT)) {
-      FI = &getFunctionInfo(
+      FI = &arrangeFunctionType(
                    CanQual<FunctionProtoType>::CreateUnsafe(QualType(FPT, 0)));
-      isVariadic = FPT->isVariadic();
     } else {
       const FunctionNoProtoType *FNPT = cast<FunctionNoProtoType>(FT);
-      FI = &getFunctionInfo(
+      FI = &arrangeFunctionType(
                 CanQual<FunctionNoProtoType>::CreateUnsafe(QualType(FNPT, 0)));
-      isVariadic = true;
     }
     
     // If there is something higher level prodding our CGFunctionInfo, then
@@ -495,7 +491,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     } else {
 
       // Otherwise, we're good to go, go ahead and convert it.
-      ResultType = GetFunctionType(*FI, isVariadic);
+      ResultType = GetFunctionType(*FI);
     }
 
     RecordsBeingLaidOut.erase(Ty);
@@ -560,7 +556,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   }
 
   case Type::Atomic: {
-    ResultType = ConvertTypeForMem(cast<AtomicType>(Ty)->getValueType());
+    ResultType = ConvertType(cast<AtomicType>(Ty)->getValueType());
     break;
   }
   }
@@ -655,7 +651,7 @@ CodeGenTypes::getCGRecordLayout(const RecordDecl *RD) {
 
 bool CodeGenTypes::isZeroInitializable(QualType T) {
   // No need to check for member pointers when not compiling C++.
-  if (!Context.getLangOptions().CPlusPlus)
+  if (!Context.getLangOpts().CPlusPlus)
     return true;
   
   T = Context.getBaseElementType(T);

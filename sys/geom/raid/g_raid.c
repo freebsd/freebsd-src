@@ -277,23 +277,87 @@ g_raid_volume_level2str(int level, int qual)
 	case G_RAID_VOLUME_RL_RAID1:
 		return ("RAID1");
 	case G_RAID_VOLUME_RL_RAID3:
+		if (qual == G_RAID_VOLUME_RLQ_R3P0)
+			return ("RAID3-P0");
+		if (qual == G_RAID_VOLUME_RLQ_R3PN)
+			return ("RAID3-PN");
 		return ("RAID3");
 	case G_RAID_VOLUME_RL_RAID4:
+		if (qual == G_RAID_VOLUME_RLQ_R4P0)
+			return ("RAID4-P0");
+		if (qual == G_RAID_VOLUME_RLQ_R4PN)
+			return ("RAID4-PN");
 		return ("RAID4");
 	case G_RAID_VOLUME_RL_RAID5:
+		if (qual == G_RAID_VOLUME_RLQ_R5RA)
+			return ("RAID5-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5RS)
+			return ("RAID5-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5LA)
+			return ("RAID5-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5LS)
+			return ("RAID5-LS");
 		return ("RAID5");
 	case G_RAID_VOLUME_RL_RAID6:
+		if (qual == G_RAID_VOLUME_RLQ_R6RA)
+			return ("RAID6-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R6RS)
+			return ("RAID6-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R6LA)
+			return ("RAID6-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R6LS)
+			return ("RAID6-LS");
 		return ("RAID6");
+	case G_RAID_VOLUME_RL_RAIDMDF:
+		if (qual == G_RAID_VOLUME_RLQ_RMDFRA)
+			return ("RAIDMDF-RA");
+		if (qual == G_RAID_VOLUME_RLQ_RMDFRS)
+			return ("RAIDMDF-RS");
+		if (qual == G_RAID_VOLUME_RLQ_RMDFLA)
+			return ("RAIDMDF-LA");
+		if (qual == G_RAID_VOLUME_RLQ_RMDFLS)
+			return ("RAIDMDF-LS");
+		return ("RAIDMDF");
 	case G_RAID_VOLUME_RL_RAID1E:
+		if (qual == G_RAID_VOLUME_RLQ_R1EA)
+			return ("RAID1E-A");
+		if (qual == G_RAID_VOLUME_RLQ_R1EO)
+			return ("RAID1E-O");
 		return ("RAID1E");
 	case G_RAID_VOLUME_RL_SINGLE:
 		return ("SINGLE");
 	case G_RAID_VOLUME_RL_CONCAT:
 		return ("CONCAT");
 	case G_RAID_VOLUME_RL_RAID5E:
+		if (qual == G_RAID_VOLUME_RLQ_R5ERA)
+			return ("RAID5E-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5ERS)
+			return ("RAID5E-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5ELA)
+			return ("RAID5E-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5ELS)
+			return ("RAID5E-LS");
 		return ("RAID5E");
 	case G_RAID_VOLUME_RL_RAID5EE:
+		if (qual == G_RAID_VOLUME_RLQ_R5EERA)
+			return ("RAID5EE-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5EERS)
+			return ("RAID5EE-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5EELA)
+			return ("RAID5EE-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5EELS)
+			return ("RAID5EE-LS");
 		return ("RAID5EE");
+	case G_RAID_VOLUME_RL_RAID5R:
+		if (qual == G_RAID_VOLUME_RLQ_R5RRA)
+			return ("RAID5R-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5RRS)
+			return ("RAID5R-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5RLA)
+			return ("RAID5R-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5RLS)
+			return ("RAID5R-LS");
+		return ("RAID5E");
 	default:
 		return ("UNKNOWN");
 	}
@@ -309,26 +373,111 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 		*level = G_RAID_VOLUME_RL_RAID0;
 	else if (strcasecmp(str, "RAID1") == 0)
 		*level = G_RAID_VOLUME_RL_RAID1;
-	else if (strcasecmp(str, "RAID3") == 0)
+	else if (strcasecmp(str, "RAID3-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
-	else if (strcasecmp(str, "RAID4") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R3P0;
+	} else if (strcasecmp(str, "RAID3-PN") == 0 ||
+		   strcasecmp(str, "RAID3") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID3;
+		*qual = G_RAID_VOLUME_RLQ_R3PN;
+	} else if (strcasecmp(str, "RAID4-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
-	else if (strcasecmp(str, "RAID5") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R4P0;
+	} else if (strcasecmp(str, "RAID4-PN") == 0 ||
+		   strcasecmp(str, "RAID4") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID4;
+		*qual = G_RAID_VOLUME_RLQ_R4PN;
+	} else if (strcasecmp(str, "RAID5-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5;
-	else if (strcasecmp(str, "RAID6") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R5RA;
+	} else if (strcasecmp(str, "RAID5-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5RS;
+	} else if (strcasecmp(str, "RAID5") == 0 ||
+		   strcasecmp(str, "RAID5-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5LA;
+	} else if (strcasecmp(str, "RAID5-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5LS;
+	} else if (strcasecmp(str, "RAID6-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID6;
-	else if (strcasecmp(str, "RAID10") == 0 ||
-		 strcasecmp(str, "RAID1E") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R6RA;
+	} else if (strcasecmp(str, "RAID6-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID6;
+		*qual = G_RAID_VOLUME_RLQ_R6RS;
+	} else if (strcasecmp(str, "RAID6") == 0 ||
+		   strcasecmp(str, "RAID6-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID6;
+		*qual = G_RAID_VOLUME_RLQ_R6LA;
+	} else if (strcasecmp(str, "RAID6-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID6;
+		*qual = G_RAID_VOLUME_RLQ_R6LS;
+	} else if (strcasecmp(str, "RAIDMDF-RA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFRA;
+	} else if (strcasecmp(str, "RAIDMDF-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFRS;
+	} else if (strcasecmp(str, "RAIDMDF") == 0 ||
+		   strcasecmp(str, "RAIDMDF-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFLA;
+	} else if (strcasecmp(str, "RAIDMDF-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFLS;
+	} else if (strcasecmp(str, "RAID10") == 0 ||
+		   strcasecmp(str, "RAID1E") == 0 ||
+		   strcasecmp(str, "RAID1E-A") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID1E;
-	else if (strcasecmp(str, "SINGLE") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R1EA;
+	} else if (strcasecmp(str, "RAID1E-O") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID1E;
+		*qual = G_RAID_VOLUME_RLQ_R1EO;
+	} else if (strcasecmp(str, "SINGLE") == 0)
 		*level = G_RAID_VOLUME_RL_SINGLE;
 	else if (strcasecmp(str, "CONCAT") == 0)
 		*level = G_RAID_VOLUME_RL_CONCAT;
-	else if (strcasecmp(str, "RAID5E") == 0)
+	else if (strcasecmp(str, "RAID5E-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5E;
-	else if (strcasecmp(str, "RAID5EE") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R5ERA;
+	} else if (strcasecmp(str, "RAID5E-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5E;
+		*qual = G_RAID_VOLUME_RLQ_R5ERS;
+	} else if (strcasecmp(str, "RAID5E") == 0 ||
+		   strcasecmp(str, "RAID5E-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5E;
+		*qual = G_RAID_VOLUME_RLQ_R5ELA;
+	} else if (strcasecmp(str, "RAID5E-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5E;
+		*qual = G_RAID_VOLUME_RLQ_R5ELS;
+	} else if (strcasecmp(str, "RAID5EE-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5EE;
-	else
+		*qual = G_RAID_VOLUME_RLQ_R5EERA;
+	} else if (strcasecmp(str, "RAID5EE-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5EE;
+		*qual = G_RAID_VOLUME_RLQ_R5EERS;
+	} else if (strcasecmp(str, "RAID5EE") == 0 ||
+		   strcasecmp(str, "RAID5EE-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5EE;
+		*qual = G_RAID_VOLUME_RLQ_R5EELA;
+	} else if (strcasecmp(str, "RAID5EE-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5EE;
+		*qual = G_RAID_VOLUME_RLQ_R5EELS;
+	} else if (strcasecmp(str, "RAID5R-RA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RRA;
+	} else if (strcasecmp(str, "RAID5R-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RRS;
+	} else if (strcasecmp(str, "RAID5R") == 0 ||
+		   strcasecmp(str, "RAID5R-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RLA;
+	} else if (strcasecmp(str, "RAID5R-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RLS;
+	} else
 		return (-1);
 	return (0);
 }
@@ -1674,8 +1823,8 @@ g_raid_create_node(struct g_class *mp,
 	sc->sc_flags = 0;
 	TAILQ_INIT(&sc->sc_volumes);
 	TAILQ_INIT(&sc->sc_disks);
-	sx_init(&sc->sc_lock, "gmirror:lock");
-	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
+	sx_init(&sc->sc_lock, "graid:lock");
+	mtx_init(&sc->sc_queue_mtx, "graid:queue", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_events);
 	bioq_init(&sc->sc_queue);
 	gp->softc = sc;
@@ -1707,6 +1856,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name, int id)
 	vol->v_state = G_RAID_VOLUME_S_STARTING;
 	vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_UNKNOWN;
+	vol->v_rotate_parity = 1;
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);
@@ -1994,7 +2144,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
-	gp = g_new_geomf(mp, "mirror:taste");
+	gp = g_new_geomf(mp, "raid:taste");
 	/*
 	 * This orphan function should be never called.
 	 */
@@ -2024,7 +2174,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 int
-g_raid_create_node_format(const char *format, struct g_geom **gp)
+g_raid_create_node_format(const char *format, struct gctl_req *req,
+    struct g_geom **gp)
 {
 	struct g_raid_md_class *class;
 	struct g_raid_md_object *obj;
@@ -2042,7 +2193,7 @@ g_raid_create_node_format(const char *format, struct g_geom **gp)
 	obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
 	    M_WAITOK);
 	obj->mdo_class = class;
-	status = G_RAID_MD_CREATE(obj, &g_raid_class, gp);
+	status = G_RAID_MD_CREATE_REQ(obj, &g_raid_class, req, gp);
 	if (status != G_RAID_MD_TASTE_NEW)
 		kobj_delete((kobj_t)obj, M_RAID);
 	return (status);

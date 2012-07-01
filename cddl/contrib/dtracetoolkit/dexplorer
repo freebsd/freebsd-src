@@ -1,0 +1,547 @@
+#!/usr/bin/ksh
+#
+# dexplorer - DTrace system explorer, runs a collection of scripts.
+#             Written using DTrace (Solaris 10 3/05).
+#
+# This program automatically runs a collection of DTrace scripts to examine
+# many areas of the system, and places the output in a meaningful directory
+# structure that is tar'd and gzip'd.
+#
+# $Id: dexplorer 3 2007-08-01 10:50:08Z brendan $
+#
+# USAGE:	dexplorer [-yDT] [-d outputdir] [-i interval]
+#
+#                  -q              # quiet mode
+#                  -y              # "yes", don't prompt for confirmation
+#                  -D              # don't delete output dir
+#                  -T              # don't create output tar.gz
+#                  -d outputdir    # output directory
+#                  -i interval     # interval for each sample
+#    eg,
+#               dexplorer          # default is 5 second samples
+#               dexplorer -y -i30  # no prompting, with 30 second samples
+#
+# SEE ALSO:	DTraceToolkit
+#
+# THANKS: David Visser, et all. for the idea and encouragement.
+#
+# COPYRIGHT: Copyright (c) 2005 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# CODE:
+#
+#  This is currently a monolithic script, and while it contains only
+#  a few dozen straigftforward DTrace scripts I think it's desirable to
+#  keep it that way. The scripts themselves have designed to be very
+#  generic (eg, switching on all sdt:::), and are aggregations to keep a 
+#  limit on the size of the output.
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 23-Jun-2005	Brendan Gregg	Created this.
+# 28-Jun-2005	   "      "	Last update.
+
+#
+#  Default variables
+#
+interval=5				# time of each sample
+verbose=1				# print screen output
+prompt=1				# prompt before run
+tar=1					# create tar file
+delete=1				# delete output dirs
+dtrace=/usr/sbin/dtrace			# path to dtrace
+root=.					# default output dir
+PATH=/usr/bin:/usr/sbin			# safe path
+dir=de_`uname -n`_`date +%Y%m%d%H%M`	# OUTPUT FILENAME
+samples=20				# max number of tests
+current=0				# current sample
+
+#
+#  Process options
+#
+while getopts d:hi:qyDT name
+do
+	case $name in
+	d)      root=$OPTARG ;;
+	i)      interval=$OPTARG ;;
+	q)      verbose=0 ;;
+	y)      prompt=0 ;;
+	D)      delete=0 ;;
+	T)      tar=0 ;;
+	h|?)    cat <<-END >&2
+		USAGE: dexplorer [-qyDT] [-d outputdir] [-i interval]
+		 
+		        -q               # quiet mode
+		        -y               # "yes", don't prompt for confirmation
+		        -D               # don't delete output dir
+		        -T               # don't create output tar.gz
+		        -d outputdir     # output directory
+		        -i interval      # interval for each sample
+		   eg,
+		       dexplorer         # default is 5 second samples
+		       dexplorer -y -i30 # no prompting, with 30 second samples
+		END
+		exit 1
+	esac
+done
+shift $(( OPTIND - 1 ))
+
+#
+#  Confirm path
+#
+if [[ "$prompt" == "1" ]] ; then
+	if [[ "$root" == "." ]]; then
+		print "Output dir will be the current dir ($PWD)."
+	else
+		print "Output dir will be $root"
+	fi
+	print -n "Hit enter for yes, or type path: "
+	read ans junk
+	if [[ "$ans" == [yY] || "$ans" == [yY]es ]]; then
+		print "WARNING: I didn't ask for \"$ans\"!"
+		print "\tI was asking for the path or just enter."
+		print "\tignoring \"$ans\"..."
+	fi
+	if [[ "$ans" != "" ]]; then
+		root=$ans
+		print "Output is now $root."
+	fi
+fi
+
+#
+#  Sanity checks
+#
+if [[ "$interval" == *[a-zA-Z]* ]]; then
+	print "ERROR2: Invalid interval $interval.\n"
+	print "Please use a number of seconds."
+	exit 2
+fi
+if (( ${#interval} < 1 )); then
+	print "ERROR3: Length of interval $interval too short.\n"
+	print "Minimum 1 second."
+	exit 3
+fi
+if [[ ! -d "$root" ]]; then
+	print "ERROR4: Output directory \"$root\" does not exist.\n"
+	print "Perhaps try a mkdir first?"
+	print "or use an existing dir, eg \"/tmp\""
+	exit 4
+fi
+if [[ ! -w "$root" ]]; then
+	print "ERROR5: Can't write to output directory \"$root\".\n"
+	print "Are you logged in as root?"
+	print "Perhaps try another directory, eg \"/tmp\""
+	exit 5
+fi
+if [[ `$dtrace -b1k -qn 'BEGIN { trace(pid); exit(0); }'` == "" ]]; then
+	print "ERROR6: Unable to run dtrace!\n"
+	print "Perhaps this is a permission problem? Try running as root."
+	exit 6
+fi
+
+# calculate total time
+(( total = interval * samples ))
+if (( total > 180 )); then
+	(( total = total / 60 ))
+	total="$total minutes"
+else
+	total="$total seconds"
+fi
+
+#
+#  Common Functions
+#
+function decho {
+	if (( verbose )); then print "$*"; fi
+}
+clean="sed /^\$/d"
+header='dtrace:::BEGIN {
+		printf("%Y, ", walltimestamp);
+		printf("%s %s %s %s %s, ", `utsname.sysname, `utsname.nodename,
+		    `utsname.release, `utsname.version, `utsname.machine);
+		printf("%d secs\n",'$interval');
+	}
+	profile:::tick-'$interval'sec { exit(0); }
+	'
+function dstatus {
+	if (( verbose )); then 
+		(( percent = current * 100 / samples ))
+		printf "%3d%% $*\n" $percent
+		(( current = current + 1 ))
+	fi
+}
+
+########################################
+#  START                               #
+########################################
+
+#
+#  Make dirs
+#
+err=0
+cd $root
+(( err = err + $? ))
+mkdir $dir
+(( err = err + $? ))
+cd $dir
+(( err = err + $? ))
+base1=${PWD##*/}
+base2=${dir##*/}
+if [[ "$base1" != "$base2" || "$err" != "0" ]]; then
+	print "ERROR7: tried to mkdir $dir from $root, but something failed.\n"
+	print "Check directories before rerunning."
+	exit 7
+fi
+mkdir Cpu
+mkdir Disk
+mkdir Mem
+mkdir Net
+mkdir Proc
+mkdir Info
+
+#
+#  Create Log
+#
+decho "Starting dexplorer ver 0.76."
+decho "Sample interval is $interval seconds. Total run is > $total."
+( print "dexplorer ver 0.76\n------------------"
+print -n "System: "
+uname -a
+print -n "Start:  "
+date ) > log
+
+#
+#  Capture Standard Info
+#
+args='pid,ppid,uid,gid,projid,zoneid,pset,pri,nice,'
+args=$args'class,vsz,rss,time,pcpu,pmem,args'
+uname -a > Info/uname-a		# System
+psrinfo -v > Info/psrinfo-v	# CPU
+prtconf > Info/prtconf		# Memory (+ devices)
+df -k > Info/df-k		# Disk
+ifconfig -a > Info/ifconfig-a	# Network
+ps -eo $args > Info/ps-o	# Processes
+uptime > Info/uptime		# Load
+
+#
+#  Cpu Tests, DTrace
+#
+
+dstatus "Interrupts by CPU..."
+$dtrace -qn "$header"'
+	sdt:::interrupt-start { @num[cpu] = count(); }
+	dtrace:::END
+	{ 
+		printf("%-16s %16s\n", "CPU", "INTERRUPTS");
+		printa("%-16d %@16d\n", @num);
+	}
+' | $clean > Cpu/interrupt_by_cpu
+
+dstatus "Interrupt times..."
+$dtrace -qn "$header"'
+	sdt:::interrupt-start { self->ts = vtimestamp; }
+	sdt:::interrupt-complete
+	/self->ts && arg0 != 0/
+	{
+		this->devi = (struct dev_info *)arg0;
+		self->name = this->devi != 0 ?
+		    stringof(`devnamesp[this->devi->devi_major].dn_name) : "?";
+		this->inst = this->devi != 0 ? this->devi->devi_instance : 0;
+		@num[self->name, this->inst] = sum(vtimestamp - self->ts);
+		self->name = 0;
+	}
+	sdt:::interrupt-complete { self->ts = 0; }
+	dtrace:::END
+	{ 
+		printf("%11s    %16s\n", "DEVICE", "TIME (ns)");
+		printa("%10s%-3d %@16d\n", @num);
+	}
+' | $clean > Cpu/interrupt_time
+
+dstatus "Dispatcher queue length by CPU..."
+$dtrace -qn "$header"'
+	profile:::profile-1000
+	{
+		this->num = curthread->t_cpu->cpu_disp->disp_nrunnable;
+		@length[cpu] = lquantize(this->num, 0, 100, 1);
+	}
+	dtrace:::END { printa(" CPU %d%@d\n", @length); }
+' | $clean > Cpu/dispqlen_by_cpu
+
+dstatus "Sdt counts..."
+$dtrace -qn "$header"'
+	sdt:::{ @num[probefunc, probename] = count(); }
+	dtrace:::END
+	{ 
+		printf("%-32s %-32s %10s\n", "FUNC", "NAME", "COUNT");
+		printa("%-32s %-32s %@10d\n", @num);
+	}
+' | $clean > Cpu/sdt_count
+
+#
+#  Disk Tests, DTrace
+#
+
+dstatus "Pages paged in by process..."
+$dtrace -qn "$header"'
+	vminfo:::pgpgin { @pg[pid, execname] = sum(arg0); }
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %16s\n", "PID", "CMD", "PAGES");
+		printa("%6d %-16s %@16d\n", @pg);
+	}
+' | $clean > Disk/pgpgin_by_process
+
+dstatus "Files opened successfully count..."
+$dtrace -qn "$header"'
+	syscall::open*:entry { self->file = copyinstr(arg0); self->ok = 1; }
+	syscall::open*:return /self->ok && arg0 != -1/ 
+	{ 
+		@num[self->file] = count();
+	}
+	syscall::open*:return /self->ok/ { self->file = 0; self->ok = 0; }
+	dtrace:::END
+	{ 
+		printf("%-64s %8s\n", "FILE", "COUNT");
+		printa("%-64s %@8d\n", @num);
+	}
+' | $clean > Disk/fileopen_count
+
+dstatus "Disk I/O size distribution by process..."
+$dtrace -qn "$header"'
+	io:::start { @size[pid, execname] = quantize(args[0]->b_bcount); }
+' | $clean > Disk/sizedist_by_process
+
+#
+#  Mem Tests, DTrace
+#
+
+dstatus "Minor faults by process..."
+$dtrace -qn "$header"'
+	vminfo:::as_fault { @mem[pid, execname] = sum(arg0); }
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %16s\n", "PID", "CMD", "MINFAULTS");
+		printa("%6d %-16s %@16d\n", @mem);
+	}
+' | $clean > Mem/minf_by_process
+
+
+dstatus "Vminfo data by process..."
+$dtrace -qn "$header"'
+	vminfo::: { @data[pid, execname, probename] = sum(arg0); }
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %-16s %16s\n",
+		    "PID", "CMD", "STATISTIC", "VALUE");
+		printa("%6d %-16s %-16s %@16d\n", @data);
+	}
+' | $clean > Mem/vminfo_by_process
+
+#
+#  Net Tests, DTrace
+#
+
+dstatus "Mib data by mib statistic..."
+$dtrace -qn "$header"'
+	mib::: { @data[probename] = sum(arg0); }
+	dtrace:::END
+	{ 
+		printf("%-32s %16s\n", "STATISTIC", "VALUE");
+		printa("%-32s %@16d\n", @data);
+	}
+' | $clean > Net/mib_data
+
+dstatus "TCP write bytes by process..."
+$dtrace -qn "$header"'
+	fbt:ip:tcp_output:entry
+	{
+		this->size = msgdsize(args[1]);
+		@size[pid, execname] = sum(this->size);
+	}
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %12s\n", "PID", "CMD", "BYTES");
+		printa("%6d %-16s %@12d\n", @size);
+	}
+' | $clean > Net/tcpw_by_process
+
+#
+#  Proc Tests, DTrace
+#
+
+dstatus "Sample process @ 1000 Hz..."
+$dtrace -qn "$header"'
+	profile:::profile-1000
+	{
+		@num[pid, curpsinfo->pr_psargs] = count();
+	}
+	dtrace:::END
+	{ 
+		printf("%6s %12s %s\n", "PID", "SAMPLES", "ARGS");
+		printa("%6d %@12d %S\n", @num);
+	}
+' | $clean > Proc/sample_process
+
+dstatus "Syscall count by process..."
+$dtrace -qn "$header"'
+	syscall:::entry { @num[pid, execname, probefunc] = count(); }
+	dtrace:::END
+	{ 
+		printf("%6s %-24s %-24s %8s\n",
+		    "PID", "CMD", "SYSCALL", "COUNT");
+		printa("%6d %-24s %-24s %@8d\n", @num);
+	}
+' | $clean > Proc/syscall_by_process
+
+dstatus "Syscall count by syscall..."
+$dtrace -qn "$header"'
+	syscall:::entry { @num[probefunc] = count(); }
+	dtrace:::END
+	{ 
+		printf("%-32s %16s\n", "SYSCALL", "COUNT");
+		printa("%-32s %@16d\n", @num);
+	}
+' | $clean > Proc/syscall_count
+
+dstatus "Read bytes by process..."
+$dtrace -qn "$header"'
+	sysinfo:::readch { @bytes[pid, execname] = sum(arg0); }
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %16s\n", "PID", "CMD", "BYTES");
+		printa("%6d %-16s %@16d\n", @bytes);
+	}
+' | $clean > Proc/readb_by_process
+
+dstatus "Write bytes by process..."
+$dtrace -qn "$header"'
+	sysinfo:::writech { @bytes[pid, execname] = sum(arg0); }
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %16s\n", "PID", "CMD", "BYTES");
+		printa("%6d %-16s %@16d\n", @bytes);
+	}
+' | $clean > Proc/writeb_by_process
+
+dstatus "Sysinfo counts by process..."
+$dtrace -qn "$header"'
+	sysinfo::: { @num[pid, execname, probename] = sum(arg0); }
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %-16s %16s\n", 
+		    "PID", "CMD", "STATISTIC", "COUNT");
+		printa("%6d %-16s %-16s %@16d\n", @num);
+	}
+' | $clean > Proc/sysinfo_by_process
+
+dstatus "New process counts with arguments..."
+$dtrace -qn "$header"'
+	proc:::exec-success
+	{
+		@num[pid, ppid, curpsinfo->pr_psargs] = count();
+	}
+	dtrace:::END
+	{ 
+		printf("%6s %6s %8s %s\n", "PID", "PPID", "COUNT", "ARGS");
+		printa("%6d %6d %@8d %S\n", @num);
+	}
+' | $clean > Proc/newprocess_count
+
+dstatus "Signal counts..."
+$dtrace -qn "$header"'
+	proc:::signal-send { 
+		@num[execname,args[2],stringof(args[1]->pr_fname)] = count();
+	}
+	dtrace:::END
+	{ 
+		printf("%-16s %-8s %-16s %8s\n",
+		    "FROM", "SIG", "TO", "COUNT");
+		printa("%-16s %-8d %-16s %@8d\n", @num);
+	}
+' | $clean > Proc/signal_count
+
+dstatus "Syscall error counts..."
+$dtrace -qn "$header"'
+	syscall:::return /(int)arg0 == -1/
+	{
+		@num[pid, execname, probefunc, errno] = count();
+	}
+	dtrace:::END
+	{ 
+		printf("%6s %-16s %-32s %-6s %8s\n",
+		    "PID", "CMD", "SYSCALL", "ERRNO", "COUNT");
+		printa("%6d %-16s %-32s %-6d %@8d\n", @num);
+	}
+' | $clean > Proc/syscall_errors
+
+
+###########
+#  Done
+#
+( print -n "End:    "
+date ) >> log
+decho "100% Done."
+if (( tar )); then
+	cd ..
+	tar cf $dir.tar $dir
+	gzip $dir.tar
+	decho "File is $dir.tar.gz"
+fi
+if (( delete && tar )); then
+	cd $dir
+	# this could be all an "rm -r $dir", but since it will be run 
+	# as root on production servers - lets be analy cautious,
+	rm Cpu/interrupt_by_cpu
+	rm Cpu/interrupt_time
+	rm Cpu/dispqlen_by_cpu
+	rm Cpu/sdt_count
+	rm Disk/pgpgin_by_process
+	rm Disk/fileopen_count
+	rm Disk/sizedist_by_process
+	rm Mem/minf_by_process
+	rm Mem/vminfo_by_process
+	rm Net/mib_data
+	rm Net/tcpw_by_process
+	rm Proc/sample_process
+	rm Proc/syscall_by_process
+	rm Proc/syscall_count
+	rm Proc/readb_by_process
+	rm Proc/writeb_by_process
+	rm Proc/sysinfo_by_process
+	rm Proc/newprocess_count
+	rm Proc/signal_count
+	rm Proc/syscall_errors
+	rmdir Cpu
+	rmdir Disk
+	rmdir Mem
+	rmdir Net
+	rmdir Proc
+	rm Info/uname-a
+	rm Info/psrinfo-v
+	rm Info/prtconf
+	rm Info/df-k
+	rm Info/ifconfig-a
+	rm Info/ps-o
+	rm Info/uptime
+	rmdir Info
+	rm log
+	cd ..
+	rmdir $dir
+else
+	decho "Directory is $dir"
+fi
+

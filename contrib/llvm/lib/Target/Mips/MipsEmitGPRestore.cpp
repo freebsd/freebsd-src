@@ -1,4 +1,4 @@
-//===-- MipsEmitGPRestore.cpp - Emit GP restore instruction----------------===//
+//===-- MipsEmitGPRestore.cpp - Emit GP Restore Instruction ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -44,11 +44,14 @@ namespace {
 } // end of anonymous namespace
 
 bool Inserter::runOnMachineFunction(MachineFunction &F) {
-  if (TM.getRelocationModel() != Reloc::PIC_)
+  MipsFunctionInfo *MipsFI = F.getInfo<MipsFunctionInfo>();
+
+  if ((TM.getRelocationModel() != Reloc::PIC_) ||
+      (!MipsFI->globalBaseRegFixed()))
     return false;
 
   bool Changed = false;
-  int FI =  F.getInfo<MipsFunctionInfo>()->getGPFI();
+  int FI = MipsFI->getGPFI();
 
   for (MachineFunction::iterator MFI = F.begin(), MFE = F.end();
        MFI != MFE; ++MFI) {
@@ -60,7 +63,7 @@ bool Inserter::runOnMachineFunction(MachineFunction &F) {
     if (MBB.isLandingPad()) {
       // Find EH_LABEL first.
       for (; I->getOpcode() != TargetOpcode::EH_LABEL; ++I) ;
-      
+
       // Insert lw.
       ++I;
       DebugLoc dl = I != MBB.end() ? I->getDebugLoc() : DebugLoc();
@@ -81,7 +84,7 @@ bool Inserter::runOnMachineFunction(MachineFunction &F) {
                                                          .addImm(0);
       Changed = true;
     }
-  } 
+  }
 
   return Changed;
 }

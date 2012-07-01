@@ -1,4 +1,4 @@
-//=====---- X86Subtarget.h - Define Subtarget for the X86 -----*- C++ -*--====//
+//===-- X86Subtarget.h - Define Subtarget for the X86 ----------*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,9 +14,9 @@
 #ifndef X86SUBTARGET_H
 #define X86SUBTARGET_H
 
+#include "llvm/CallingConv.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
-#include "llvm/CallingConv.h"
 #include <string>
 
 #define GET_SUBTARGETINFO_HEADER
@@ -42,13 +42,20 @@ enum Style {
 class X86Subtarget : public X86GenSubtargetInfo {
 protected:
   enum X86SSEEnum {
-    NoMMXSSE, MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42
+    NoMMXSSE, MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, AVX, AVX2
   };
 
   enum X863DNowEnum {
     NoThreeDNow, ThreeDNow, ThreeDNowA
   };
 
+  enum X86ProcFamilyEnum {
+    Others, IntelAtom
+  };
+
+  /// X86ProcFamily - X86 processor family: Intel Atom, and others
+  X86ProcFamilyEnum X86ProcFamily;
+  
   /// PICStyle - Which PIC style to use
   ///
   PICStyles::Style PICStyle;
@@ -75,9 +82,6 @@ protected:
   /// HasSSE4A - True if the processor supports SSE4A instructions.
   bool HasSSE4A;
 
-  /// HasAVX - Target has AVX instructions
-  bool HasAVX;
-
   /// HasAES - Target has AES instructions
   bool HasAES;
 
@@ -90,6 +94,9 @@ protected:
   /// HasFMA4 - Target has 4-operand fused multiply-add
   bool HasFMA4;
 
+  /// HasXOP - Target has XOP instructions
+  bool HasXOP;
+
   /// HasMOVBE - True if the processor has the MOVBE instruction.
   bool HasMOVBE;
 
@@ -99,11 +106,17 @@ protected:
   /// HasF16C - Processor has 16-bit floating point conversion instructions.
   bool HasF16C;
 
+  /// HasFSGSBase - Processor has FS/GS base insturctions.
+  bool HasFSGSBase;
+
   /// HasLZCNT - Processor has LZCNT instruction.
   bool HasLZCNT;
 
   /// HasBMI - Processor has BMI1 instructions.
   bool HasBMI;
+
+  /// HasBMI2 - Processor has BMI2 instructions.
+  bool HasBMI2;
 
   /// IsBTMemSlow - True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
@@ -119,6 +132,13 @@ protected:
   /// this is true for most x86-64 chips, but not the first AMD chips.
   bool HasCmpxchg16b;
 
+  /// UseLeaForSP - True if the LEA instruction should be used for adjusting
+  /// the stack pointer. This is an optimization for Intel Atom processors.
+  bool UseLeaForSP;
+
+  /// PostRAScheduler - True if using post-register-allocation scheduler.
+  bool PostRAScheduler;
+
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
   unsigned stackAlignment;
@@ -129,13 +149,13 @@ protected:
 
   /// TargetTriple - What processor and OS we're targeting.
   Triple TargetTriple;
+  
+  /// Instruction itineraries for scheduling
+  InstrItineraryData InstrItins;
 
 private:
   /// In64BitMode - True if compiling for 64-bit, false for 32-bit.
   bool In64BitMode;
-
-  /// InNaClMode - True if compiling for Native Client target.
-  bool InNaClMode;
 
 public:
 
@@ -176,26 +196,31 @@ public:
   bool hasSSSE3() const { return X86SSELevel >= SSSE3; }
   bool hasSSE41() const { return X86SSELevel >= SSE41; }
   bool hasSSE42() const { return X86SSELevel >= SSE42; }
+  bool hasAVX() const { return X86SSELevel >= AVX; }
+  bool hasAVX2() const { return X86SSELevel >= AVX2; }
   bool hasSSE4A() const { return HasSSE4A; }
   bool has3DNow() const { return X863DNowLevel >= ThreeDNow; }
   bool has3DNowA() const { return X863DNowLevel >= ThreeDNowA; }
   bool hasPOPCNT() const { return HasPOPCNT; }
-  bool hasAVX() const { return HasAVX; }
-  bool hasXMM() const { return hasSSE1() || hasAVX(); }
-  bool hasXMMInt() const { return hasSSE2() || hasAVX(); }
   bool hasAES() const { return HasAES; }
   bool hasCLMUL() const { return HasCLMUL; }
   bool hasFMA3() const { return HasFMA3; }
   bool hasFMA4() const { return HasFMA4; }
+  bool hasXOP() const { return HasXOP; }
   bool hasMOVBE() const { return HasMOVBE; }
   bool hasRDRAND() const { return HasRDRAND; }
   bool hasF16C() const { return HasF16C; }
+  bool hasFSGSBase() const { return HasFSGSBase; }
   bool hasLZCNT() const { return HasLZCNT; }
   bool hasBMI() const { return HasBMI; }
+  bool hasBMI2() const { return HasBMI2; }
   bool isBTMemSlow() const { return IsBTMemSlow; }
   bool isUnalignedMemAccessFast() const { return IsUAMemFast; }
   bool hasVectorUAMem() const { return HasVectorUAMem; }
   bool hasCmpxchg16b() const { return HasCmpxchg16b; }
+  bool useLeaForSP() const { return UseLeaForSP; }
+
+  bool isAtom() const { return X86ProcFamily == IntelAtom; }
 
   const Triple &getTargetTriple() const { return TargetTriple; }
 
@@ -209,38 +234,28 @@ public:
 
   // ELF is a reasonably sane default and the only other X86 targets we
   // support are Darwin and Windows. Just use "not those".
-  bool isTargetELF() const {
-    return !isTargetDarwin() && !isTargetWindows() && !isTargetCygMing();
-  }
+  bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
   bool isTargetLinux() const { return TargetTriple.getOS() == Triple::Linux; }
   bool isTargetNaCl() const {
     return TargetTriple.getOS() == Triple::NativeClient;
   }
   bool isTargetNaCl32() const { return isTargetNaCl() && !is64Bit(); }
   bool isTargetNaCl64() const { return isTargetNaCl() && is64Bit(); }
-
   bool isTargetWindows() const { return TargetTriple.getOS() == Triple::Win32; }
   bool isTargetMingw() const { return TargetTriple.getOS() == Triple::MinGW32; }
   bool isTargetCygwin() const { return TargetTriple.getOS() == Triple::Cygwin; }
-  bool isTargetCygMing() const {
-    return isTargetMingw() || isTargetCygwin();
-  }
-
-  /// isTargetCOFF - Return true if this is any COFF/Windows target variant.
-  bool isTargetCOFF() const {
-    return isTargetMingw() || isTargetCygwin() || isTargetWindows();
-  }
+  bool isTargetCygMing() const { return TargetTriple.isOSCygMing(); }
+  bool isTargetCOFF() const { return TargetTriple.isOSBinFormatCOFF(); }
+  bool isTargetEnvMacho() const { return TargetTriple.isEnvironmentMachO(); }
 
   bool isTargetWin64() const {
     // FIXME: x86_64-cygwin has not been released yet.
-    return In64BitMode && (isTargetCygMing() || isTargetWindows());
-  }
-
-  bool isTargetEnvMacho() const {
-    return isTargetDarwin() || (TargetTriple.getEnvironment() == Triple::MachO);
+    return In64BitMode && TargetTriple.isOSWindows();
   }
 
   bool isTargetWin32() const {
+    // FIXME: Cygwin is included for isTargetWin64 -- should it be included
+    // here too?
     return !In64BitMode && (isTargetMingw() || isTargetWindows());
   }
 
@@ -286,6 +301,15 @@ public:
   /// indicating the number of scheduling cycles of backscheduling that
   /// should be attempted.
   unsigned getSpecialAddressLatency() const;
+
+  /// enablePostRAScheduler - run for Atom optimization.
+  bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
+                             TargetSubtargetInfo::AntiDepBreakMode& Mode,
+                             RegClassVector& CriticalPathRCs) const;
+
+  /// getInstrItins = Return the instruction itineraries based on the
+  /// subtarget selection.
+  const InstrItineraryData &getInstrItineraryData() const { return InstrItins; }
 };
 
 } // End llvm namespace

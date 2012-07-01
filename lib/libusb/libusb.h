@@ -340,7 +340,7 @@ typedef void (*libusb_transfer_cb_fn) (struct libusb_transfer *transfer);
 typedef struct libusb_transfer {
 	libusb_device_handle *dev_handle;
 	uint8_t	flags;
-	uint32_t endpoint;
+	uint8_t endpoint;
 	uint8_t type;
 	uint32_t timeout;
 	enum libusb_transfer_status status;
@@ -349,7 +349,6 @@ typedef struct libusb_transfer {
 	libusb_transfer_cb_fn callback;
 	void   *user_data;
 	uint8_t *buffer;
-	void *os_priv;
 	int	num_iso_packets;
 	struct libusb_iso_packet_descriptor iso_packet_desc[0];
 }	libusb_transfer __aligned(sizeof(void *));
@@ -371,6 +370,7 @@ uint8_t	libusb_get_device_address(libusb_device * dev);
 enum libusb_speed libusb_get_device_speed(libusb_device * dev);
 int	libusb_clear_halt(libusb_device_handle *devh, uint8_t endpoint);
 int	libusb_get_max_packet_size(libusb_device * dev, uint8_t endpoint);
+int	libusb_get_max_iso_packet_size(libusb_device * dev, uint8_t endpoint);
 libusb_device *libusb_ref_device(libusb_device * dev);
 void	libusb_unref_device(libusb_device * dev);
 int	libusb_open(libusb_device * dev, libusb_device_handle ** devh);
@@ -398,6 +398,7 @@ int	libusb_get_active_config_descriptor(libusb_device * dev, struct libusb_confi
 int	libusb_get_config_descriptor(libusb_device * dev, uint8_t config_index, struct libusb_config_descriptor **config);
 int	libusb_get_config_descriptor_by_value(libusb_device * dev, uint8_t bConfigurationValue, struct libusb_config_descriptor **config);
 void	libusb_free_config_descriptor(struct libusb_config_descriptor *config);
+int	libusb_get_string_descriptor(libusb_device_handle * devh, uint8_t desc_index, uint16_t langid, unsigned char *data, int length);
 int	libusb_get_string_descriptor_ascii(libusb_device_handle * devh, uint8_t desc_index, uint8_t *data, int length);
 int	libusb_get_descriptor(libusb_device_handle * devh, uint8_t desc_type, uint8_t desc_index, uint8_t *data, int length);
 int	libusb_parse_ss_endpoint_comp(const void *buf, int len, struct libusb_ss_endpoint_companion_descriptor **ep_comp);

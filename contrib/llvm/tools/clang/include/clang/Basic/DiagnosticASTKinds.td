@@ -9,9 +9,103 @@
 
 let Component = "AST" in {
 
-//def note_comma_in_ice : Note<
-//  "C does not permit evaluated commas in an integer constant expression">;
+// Constant expression diagnostics. These (and their users) belong in Sema.
 def note_expr_divide_by_zero : Note<"division by zero">;
+def note_constexpr_invalid_cast : Note<
+  "%select{reinterpret_cast|dynamic_cast|cast which performs the conversions of"
+  " a reinterpret_cast|cast from %1}0 is not allowed in a constant expression">;
+def note_constexpr_invalid_downcast : Note<
+  "cannot cast object of dynamic type %0 to type %1">;
+def note_constexpr_overflow : Note<
+  "value %0 is outside the range of representable values of type %1">;
+def note_constexpr_negative_shift : Note<"negative shift count %0">;
+def note_constexpr_large_shift : Note<
+  "shift count %0 >= width of type %1 (%2 bit%s2)">;
+def note_constexpr_lshift_of_negative : Note<"left shift of negative value %0">;
+def note_constexpr_lshift_discards : Note<"signed left shift discards bits">;
+def note_constexpr_invalid_function : Note<
+  "%select{non-constexpr|undefined}0 %select{function|constructor}1 %2 cannot "
+  "be used in a constant expression">;
+def note_constexpr_virtual_call : Note<
+  "cannot evaluate virtual function call in a constant expression">;
+def note_constexpr_virtual_base : Note<
+  "cannot construct object of type %0 with virtual base class "
+  "in a constant expression">;
+def note_constexpr_nonliteral : Note<
+  "non-literal type %0 cannot be used in a constant expression">;
+def note_constexpr_non_global : Note<
+  "%select{pointer|reference}0 to %select{|subobject of }1"
+  "%select{temporary|%3}2 is not a constant expression">;
+def note_constexpr_array_index : Note<"cannot refer to element %0 of "
+  "%select{array of %2 elements|non-array object}1 in a constant expression">;
+def note_constexpr_float_arithmetic : Note<
+  "floating point arithmetic produces %select{an infinity|a NaN}0">;
+def note_constexpr_pointer_subtraction_not_same_array : Note<
+  "subtracted pointers are not elements of the same array">;
+def note_constexpr_pointer_comparison_base_classes : Note<
+  "comparison of addresses of subobjects of different base classes "
+  "has unspecified value">;
+def note_constexpr_pointer_comparison_base_field : Note<
+  "comparison of address of base class subobject %0 of class %1 to field %2 "
+  "has unspecified value">;
+def note_constexpr_pointer_comparison_differing_access : Note<
+  "comparison of address of fields %0 and %2 of %4 with differing access "
+  "specifiers (%1 vs %3) has unspecified value">;
+def note_constexpr_compare_virtual_mem_ptr : Note<
+  "comparison of pointer to virtual member function %0 has unspecified value">;
+def note_constexpr_past_end : Note<
+  "dereferenced pointer past the end of %select{|subobject of }0"
+  "%select{temporary|%2}1 is not a constant expression">;
+def note_constexpr_past_end_subobject : Note<
+  "cannot %select{access base class of|access derived class of|access field of|"
+  "access array element of|ERROR|call member function on|"
+  "access real component of|access imaginary component of}0 "
+  "pointer past the end of object">;
+def note_constexpr_null_subobject : Note<
+  "cannot %select{access base class of|access derived class of|access field of|"
+  "access array element of|perform pointer arithmetic on|"
+  "call member function on|access real component of|"
+  "access imaginary component of}0 null pointer">;
+def note_constexpr_var_init_non_constant : Note<
+  "initializer of %0 is not a constant expression">;
+def note_constexpr_typeid_polymorphic : Note<
+  "typeid applied to expression of polymorphic type %0 is "
+  "not allowed in a constant expression">;
+def note_constexpr_void_comparison : Note<
+  "comparison between unequal pointers to void has unspecified result">;
+def note_constexpr_temporary_here : Note<"temporary created here">;
+def note_constexpr_conditional_never_const : Note<
+  "both arms of conditional operator are unable to produce a "
+  "constant expression">;
+def note_constexpr_depth_limit_exceeded : Note<
+  "constexpr evaluation exceeded maximum depth of %0 calls">;
+def note_constexpr_call_limit_exceeded : Note<
+  "constexpr evaluation hit maximum call limit">;
+def note_constexpr_lifetime_ended : Note<
+  "read of %select{temporary|variable}0 whose lifetime has ended">;
+def note_constexpr_ltor_volatile_type : Note<
+  "read of volatile-qualified type %0 is not allowed in a constant expression">;
+def note_constexpr_ltor_volatile_obj : Note<
+  "read of volatile %select{temporary|object %1|member %1}0 is not allowed in "
+  "a constant expression">;
+def note_constexpr_ltor_mutable : Note<
+  "read of mutable member %0 is not allowed in a constant expression">;
+def note_constexpr_ltor_non_const_int : Note<
+  "read of non-const variable %0 is not allowed in a constant expression">;
+def note_constexpr_ltor_non_constexpr : Note<
+  "read of non-constexpr variable %0 is not allowed in a constant expression">;
+def note_constexpr_read_past_end : Note<
+  "read of dereferenced one-past-the-end pointer is not allowed in a "
+  "constant expression">;
+def note_constexpr_read_inactive_union_member : Note<
+  "read of member %0 of union with %select{active member %2|no active member}1 "
+  "is not allowed in a constant expression">;
+def note_constexpr_read_uninit : Note<
+  "read of uninitialized object is not allowed in a constant expression">;
+def note_constexpr_calls_suppressed : Note<
+  "(skipping %0 call%s0 in backtrace; use -fconstexpr-backtrace-limit=0 to "
+  "see all)">;
+def note_constexpr_call_here : Note<"in call to '%0'">;
 
 // inline asm related.
 let CategoryName = "Inline Assembly Issue" in {

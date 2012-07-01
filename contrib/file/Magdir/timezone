@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: timezone,v 1.11 2009/09/19 16:28:12 christos Exp $
 # timezone:  file(1) magic for timezone data
 #
 # from Daniel Quinlan (quinlan@yggdrasil.com)

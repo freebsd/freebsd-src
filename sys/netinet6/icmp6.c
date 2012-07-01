@@ -2418,23 +2418,23 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	if (rt) {
 		if (rt->rt_gateway == NULL ||
 		    rt->rt_gateway->sa_family != AF_INET6) {
+			RTFREE_LOCKED(rt);
 			nd6log((LOG_ERR,
 			    "ICMP6 redirect rejected; no route "
 			    "with inet6 gateway found for redirect dst: %s\n",
 			    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
-			RTFREE_LOCKED(rt);
 			goto bad;
 		}
 
 		gw6 = &(((struct sockaddr_in6 *)rt->rt_gateway)->sin6_addr);
 		if (bcmp(&src6, gw6, sizeof(struct in6_addr)) != 0) {
+			RTFREE_LOCKED(rt);
 			nd6log((LOG_ERR,
 			    "ICMP6 redirect rejected; "
 			    "not equal to gw-for-src=%s (must be same): "
 			    "%s\n",
 			    ip6_sprintf(ip6buf, gw6),
 			    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
-			RTFREE_LOCKED(rt);
 			goto bad;
 		}
 	} else {

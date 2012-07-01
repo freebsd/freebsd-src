@@ -33,4 +33,16 @@ EXPORT_SYMS=	agp_find_device		\
 		agp_unbind_memory	\
 		agp_memory_info
 
+
+.if ${MACHINE_CPUARCH} == "i386"  || ${MACHINE_CPUARCH} == "amd64"
+EXPORT_SYMS+=	intel_gtt_clear_range	\
+		intel_gtt_insert_pages	\
+		intel_gtt_get		\
+		intel_gtt_chipset_flush	\
+		intel_gtt_unmap_memory	\
+		intel_gtt_map_memory	\
+		intel_gtt_insert_sg_entries \
+		intel_gtt_get_bridge_device
+.endif
+
 .include <bsd.kmod.mk>

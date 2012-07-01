@@ -68,7 +68,7 @@ uint64_t DIDescriptor::getUInt64Field(unsigned Elt) const {
     return 0;
 
   if (Elt < DbgNode->getNumOperands())
-    if (ConstantInt *CI = dyn_cast<ConstantInt>(DbgNode->getOperand(Elt)))
+    if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(DbgNode->getOperand(Elt)))
       return CI->getZExtValue();
 
   return 0;
@@ -289,6 +289,10 @@ bool DIDescriptor::isEnumerator() const {
   return DbgNode && getTag() == dwarf::DW_TAG_enumerator;
 }
 
+/// isObjCProperty - Return true if the specified tag is DW_TAG
+bool DIDescriptor::isObjCProperty() const {
+  return DbgNode && getTag() == dwarf::DW_TAG_APPLE_property;
+}
 //===----------------------------------------------------------------------===//
 // Simple Descriptor Constructors and other Methods
 //===----------------------------------------------------------------------===//
@@ -370,6 +374,19 @@ bool DICompileUnit::Verify() const {
   if (N.empty())
     return false;
   // It is possible that directory and produce string is empty.
+  return true;
+}
+
+/// Verify - Verify that an ObjC property is well formed.
+bool DIObjCProperty::Verify() const {
+  if (!DbgNode)
+    return false;
+  unsigned Tag = getTag();
+  if (Tag != dwarf::DW_TAG_APPLE_property) return false;
+  DIType Ty = getType();
+  if (!Ty.Verify()) return false;
+
+  // Don't worry about the rest of the strings for now.
   return true;
 }
 
@@ -482,6 +499,7 @@ bool DINameSpace::Verify() const {
 /// return base type size.
 uint64_t DIDerivedType::getOriginalTypeSize() const {
   unsigned Tag = getTag();
+
   if (Tag == dwarf::DW_TAG_member || Tag == dwarf::DW_TAG_typedef ||
       Tag == dwarf::DW_TAG_const_type || Tag == dwarf::DW_TAG_volatile_type ||
       Tag == dwarf::DW_TAG_restrict_type) {
@@ -490,13 +508,26 @@ uint64_t DIDerivedType::getOriginalTypeSize() const {
     // approach.
     if (!BaseType.isValid())
       return getSizeInBits();
-    if (BaseType.isDerivedType())
+    // If this is a derived type, go ahead and get the base type, unless
+    // it's a reference then it's just the size of the field. Pointer types
+    // have no need of this since they're a different type of qualification
+    // on the type.
+    if (BaseType.getTag() == dwarf::DW_TAG_reference_type)
+      return getSizeInBits();
+    else if (BaseType.isDerivedType())
       return DIDerivedType(BaseType).getOriginalTypeSize();
     else
       return BaseType.getSizeInBits();
   }
 
   return getSizeInBits();
+}
+
+/// getObjCProperty - Return property node, if this ivar is associated with one.
+MDNode *DIDerivedType::getObjCProperty() const {
+  if (getVersion() <= LLVMDebugVersion11 || DbgNode->getNumOperands() <= 10)
+    return NULL;
+  return dyn_cast_or_null<MDNode>(DbgNode->getOperand(10));
 }
 
 /// isInlinedFnArgument - Return true if this variable provides debugging
@@ -565,8 +596,7 @@ StringRef DIScope::getFilename() const {
     return DIType(DbgNode).getFilename();
   if (isFile())
     return DIFile(DbgNode).getFilename();
-  assert(0 && "Invalid DIScope!");
-  return StringRef();
+  llvm_unreachable("Invalid DIScope!");
 }
 
 StringRef DIScope::getDirectory() const {
@@ -586,8 +616,7 @@ StringRef DIScope::getDirectory() const {
     return DIType(DbgNode).getDirectory();
   if (isFile())
     return DIFile(DbgNode).getDirectory();
-  assert(0 && "Invalid DIScope!");
-  return StringRef();
+  llvm_unreachable("Invalid DIScope!");
 }
 
 DIArray DICompileUnit::getEnumTypes() const {
@@ -630,6 +659,32 @@ DIArray DICompileUnit::getGlobalVariables() const {
       return DIArray(A);
   return DIArray();
 }
+
+//===----------------------------------------------------------------------===//
+// DIDescriptor: vtable anchors for all descriptors.
+//===----------------------------------------------------------------------===//
+
+void DIScope::anchor() { }
+
+void DICompileUnit::anchor() { }
+
+void DIFile::anchor() { }
+
+void DIType::anchor() { }
+
+void DIBasicType::anchor() { }
+
+void DIDerivedType::anchor() { }
+
+void DICompositeType::anchor() { }
+
+void DISubprogram::anchor() { }
+
+void DILexicalBlock::anchor() { }
+
+void DINameSpace::anchor() { }
+
+void DILexicalBlockFile::anchor() { }
 
 //===----------------------------------------------------------------------===//
 // DIDescriptor: dump routines for all descriptors.
@@ -679,8 +734,13 @@ void DIType::print(raw_ostream &OS) const {
 
   if (isBasicType())
     DIBasicType(DbgNode).print(OS);
-  else if (isDerivedType())
-    DIDerivedType(DbgNode).print(OS);
+  else if (isDerivedType()) {
+    DIDerivedType DTy = DIDerivedType(DbgNode);
+    DTy.print(OS);
+    DICompositeType CTy = getDICompositeType(DTy);
+    if (CTy.Verify())
+      CTy.print(OS);
+  }
   else if (isCompositeType())
     DICompositeType(DbgNode).print(OS);
   else {
@@ -698,7 +758,9 @@ void DIBasicType::print(raw_ostream &OS) const {
 
 /// print - Print derived type.
 void DIDerivedType::print(raw_ostream &OS) const {
-  OS << "\n\t Derived From: "; getTypeDerivedFrom().print(OS);
+  OS << "\n\t Derived From: ";
+  getTypeDerivedFrom().print(OS);
+  OS << "\n\t";
 }
 
 /// print - Print composite type.
@@ -724,6 +786,9 @@ void DISubprogram::print(raw_ostream &OS) const {
 
   if (isDefinition())
     OS << " [def] ";
+
+  if (getScopeLineNumber() != getLineNumber())
+    OS << " [Scope: " << getScopeLineNumber() << "] ";
 
   OS << "\n";
 }
@@ -927,9 +992,30 @@ DIVariable llvm::cleanseInlinedVariable(MDNode *DV, LLVMContext &VMContext) {
 
 /// processModule - Process entire module and collect debug info.
 void DebugInfoFinder::processModule(Module &M) {
-  if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
-    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i)
-      addCompileUnit(DICompileUnit(CU_Nodes->getOperand(i)));
+  if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu")) {
+    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+      DICompileUnit CU(CU_Nodes->getOperand(i));
+      addCompileUnit(CU);
+      if (CU.getVersion() > LLVMDebugVersion10) {
+        DIArray GVs = CU.getGlobalVariables();
+        for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+          DIGlobalVariable DIG(GVs.getElement(i));
+          if (addGlobalVariable(DIG))
+            processType(DIG.getType());
+        }
+        DIArray SPs = CU.getSubprograms();
+        for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i)
+          processSubprogram(DISubprogram(SPs.getElement(i)));
+        DIArray EnumTypes = CU.getEnumTypes();
+        for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i)
+          processType(DIType(EnumTypes.getElement(i)));
+        DIArray RetainedTypes = CU.getRetainedTypes();
+        for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i)
+          processType(DIType(RetainedTypes.getElement(i)));
+        return;
+      }
+    }
+  }
 
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
     for (Function::iterator FI = (*I).begin(), FE = (*I).end(); FI != FE; ++FI)

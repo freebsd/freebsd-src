@@ -7,9 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This just asks the TargetRegistry for the appropriate JIT to use, and allows
-// the user to specify a specific one on the commandline with -march=x. Clients
-// should initialize targets prior to calling createJIT.
+// This just asks the TargetRegistry for the appropriate target to use, and
+// allows the user to specify a specific one on the commandline with -march=x,
+// -mcpu=y, and -mattr=a,-b,+c. Clients should initialize targets prior to
+// calling selectTarget().
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,21 +22,27 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/raw_ostream.h"
+
 using namespace llvm;
+
+TargetMachine *EngineBuilder::selectTarget() {
+  StringRef MArch = "";
+  StringRef MCPU = "";
+  SmallVector<std::string, 1> MAttrs;
+  Triple TT(M->getTargetTriple());
+
+  return selectTarget(TT, MArch, MCPU, MAttrs);
+}
 
 /// selectTarget - Pick a target either via -march or by guessing the native
 /// arch.  Add any CPU features specified via -mcpu or -mattr.
-TargetMachine *EngineBuilder::selectTarget(Module *Mod,
+TargetMachine *EngineBuilder::selectTarget(const Triple &TargetTriple,
                               StringRef MArch,
                               StringRef MCPU,
-                              const SmallVectorImpl<std::string>& MAttrs,
-                              Reloc::Model RM,
-                              CodeModel::Model CM,
-                              std::string *ErrorStr) {
-  Triple TheTriple(Mod->getTargetTriple());
+                              const SmallVectorImpl<std::string>& MAttrs) {
+  Triple TheTriple(TargetTriple);
   if (TheTriple.getTriple().empty())
-    TheTriple.setTriple(sys::getHostTriple());
+    TheTriple.setTriple(sys::getDefaultTargetTriple());
 
   // Adjust the triple to match what the user requested.
   const Target *TheTarget = 0;
@@ -55,7 +62,7 @@ TargetMachine *EngineBuilder::selectTarget(Module *Mod,
     }
 
     // Adjust the triple to match (if known), otherwise stick with the
-    // module/host triple.
+    // requested/host triple.
     Triple::ArchType Type = Triple::getArchTypeForLLVMName(MArch);
     if (Type != Triple::UnknownArch)
       TheTriple.setArch(Type);
@@ -67,12 +74,6 @@ TargetMachine *EngineBuilder::selectTarget(Module *Mod,
         *ErrorStr = Error;
       return 0;
     }
-  }
-
-  if (!TheTarget->hasJIT()) {
-    errs() << "WARNING: This target JIT is not designed for the host you are"
-           << " running.  If bad things happen, please choose a different "
-           << "-march switch.\n";
   }
 
   // Package up features to be passed to target/subtarget
@@ -87,7 +88,9 @@ TargetMachine *EngineBuilder::selectTarget(Module *Mod,
   // Allocate a target...
   TargetMachine *Target = TheTarget->createTargetMachine(TheTriple.getTriple(),
                                                          MCPU, FeaturesStr,
-                                                         RM, CM);
+                                                         Options,
+                                                         RelocModel, CMModel,
+                                                         OptLevel);
   assert(Target && "Could not allocate target machine!");
   return Target;
 }

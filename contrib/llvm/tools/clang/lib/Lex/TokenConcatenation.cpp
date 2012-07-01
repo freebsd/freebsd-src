@@ -45,7 +45,7 @@ static bool IsStringPrefix(StringRef Str, bool CPlusPlus0x) {
 /// IsIdentifierStringPrefix - Return true if the spelling of the token
 /// is literally 'L', 'u', 'U', or 'u8'. Including raw versions.
 bool TokenConcatenation::IsIdentifierStringPrefix(const Token &Tok) const {
-  const LangOptions &LangOpts = PP.getLangOptions();
+  const LangOptions &LangOpts = PP.getLangOpts();
 
   if (!Tok.needsCleaning()) {
     if (Tok.getLength() < 1 || Tok.getLength() > 3)
@@ -84,6 +84,19 @@ TokenConcatenation::TokenConcatenation(Preprocessor &pp) : PP(pp) {
   TokenInfo[tok::colon           ] |= aci_custom_firstchar;
   TokenInfo[tok::hash            ] |= aci_custom_firstchar;
   TokenInfo[tok::arrow           ] |= aci_custom_firstchar;
+
+  // These tokens have custom code in C++11 mode.
+  if (PP.getLangOpts().CPlusPlus0x) {
+    TokenInfo[tok::string_literal      ] |= aci_custom;
+    TokenInfo[tok::wide_string_literal ] |= aci_custom;
+    TokenInfo[tok::utf8_string_literal ] |= aci_custom;
+    TokenInfo[tok::utf16_string_literal] |= aci_custom;
+    TokenInfo[tok::utf32_string_literal] |= aci_custom;
+    TokenInfo[tok::char_constant       ] |= aci_custom;
+    TokenInfo[tok::wide_char_constant  ] |= aci_custom;
+    TokenInfo[tok::utf16_char_constant ] |= aci_custom;
+    TokenInfo[tok::utf32_char_constant ] |= aci_custom;
+  }
 
   // These tokens change behavior if followed by an '='.
   TokenInfo[tok::amp         ] |= aci_avoid_equal;           // &=
@@ -179,12 +192,32 @@ bool TokenConcatenation::AvoidConcat(const Token &PrevPrevTok,
   switch (PrevKind) {
   default:
     llvm_unreachable("InitAvoidConcatTokenInfo built wrong");
-    return true;
 
   case tok::raw_identifier:
     llvm_unreachable("tok::raw_identifier in non-raw lexing mode!");
-    return true;
 
+  case tok::string_literal:
+  case tok::wide_string_literal:
+  case tok::utf8_string_literal:
+  case tok::utf16_string_literal:
+  case tok::utf32_string_literal:
+  case tok::char_constant:
+  case tok::wide_char_constant:
+  case tok::utf16_char_constant:
+  case tok::utf32_char_constant:
+    if (!PP.getLangOpts().CPlusPlus0x)
+      return false;
+
+    // In C++11, a string or character literal followed by an identifier is a
+    // single token.
+    if (Tok.getIdentifierInfo())
+      return true;
+
+    // A ud-suffix is an identifier. If the previous token ends with one, treat
+    // it as an identifier.
+    if (!PrevTok.hasUDSuffix())
+      return false;
+    // FALL THROUGH.
   case tok::identifier:   // id+id or id+number or id+L"foo".
     // id+'.'... will not append.
     if (Tok.is(tok::numeric_constant))
@@ -203,13 +236,15 @@ bool TokenConcatenation::AvoidConcat(const Token &PrevPrevTok,
     // Otherwise, this is a narrow character or string.  If the *identifier*
     // is a literal 'L', 'u8', 'u' or 'U', avoid pasting L "foo" -> L"foo".
     return IsIdentifierStringPrefix(PrevTok);
+
   case tok::numeric_constant:
     return isalnum(FirstChar) || Tok.is(tok::numeric_constant) ||
-    FirstChar == '+' || FirstChar == '-' || FirstChar == '.';
+           FirstChar == '+' || FirstChar == '-' || FirstChar == '.' ||
+           (PP.getLangOpts().CPlusPlus0x && FirstChar == '_');
   case tok::period:          // ..., .*, .1234
     return (FirstChar == '.' && PrevPrevTok.is(tok::period)) ||
     isdigit(FirstChar) ||
-    (PP.getLangOptions().CPlusPlus && FirstChar == '*');
+    (PP.getLangOpts().CPlusPlus && FirstChar == '*');
   case tok::amp:             // &&
     return FirstChar == '&';
   case tok::plus:            // ++
@@ -228,10 +263,10 @@ bool TokenConcatenation::AvoidConcat(const Token &PrevPrevTok,
     return FirstChar == '>' || FirstChar == ':';
   case tok::colon:           // ::, :>
     return FirstChar == '>' ||
-    (PP.getLangOptions().CPlusPlus && FirstChar == ':');
+    (PP.getLangOpts().CPlusPlus && FirstChar == ':');
   case tok::hash:            // ##, #@, %:%:
     return FirstChar == '#' || FirstChar == '@' || FirstChar == '%';
   case tok::arrow:           // ->*
-    return PP.getLangOptions().CPlusPlus && FirstChar == '*';
+    return PP.getLangOpts().CPlusPlus && FirstChar == '*';
   }
 }

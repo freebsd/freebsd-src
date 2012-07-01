@@ -1,4 +1,4 @@
-//===- ARMInstrInfo.h - ARM Instruction Information -------------*- C++ -*-===//
+//===-- ARMInstrInfo.h - ARM Instruction Information ------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,11 +14,10 @@
 #ifndef ARMINSTRUCTIONINFO_H
 #define ARMINSTRUCTIONINFO_H
 
-#include "llvm/Target/TargetInstrInfo.h"
+#include "ARM.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMRegisterInfo.h"
 #include "ARMSubtarget.h"
-#include "ARM.h"
 
 namespace llvm {
   class ARMSubtarget;
@@ -27,6 +26,9 @@ class ARMInstrInfo : public ARMBaseInstrInfo {
   ARMRegisterInfo RI;
 public:
   explicit ARMInstrInfo(const ARMSubtarget &STI);
+
+  /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
+  void getNoopForMachoTarget(MCInst &NopInst) const;
 
   // Return the non-pre/post incrementing version of 'Opc'. Return 0
   // if there is not such an opcode.

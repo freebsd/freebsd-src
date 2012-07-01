@@ -63,28 +63,6 @@ struct async_node {
 SLIST_HEAD(async_list, async_node);
 SLIST_HEAD(periph_list, cam_periph);
 
-#if defined(CAM_DEBUG_FLAGS) && !defined(CAMDEBUG)
-#error "You must have options CAMDEBUG to use options CAM_DEBUG_FLAGS"
-#endif
-
-/*
- * In order to enable the CAM_DEBUG_* options, the user must have CAMDEBUG
- * enabled.  Also, the user must have either none, or all of CAM_DEBUG_BUS,
- * CAM_DEBUG_TARGET, and CAM_DEBUG_LUN specified.
- */
-#if defined(CAM_DEBUG_BUS) || defined(CAM_DEBUG_TARGET) \
-    || defined(CAM_DEBUG_LUN)
-#ifdef CAMDEBUG
-#if !defined(CAM_DEBUG_BUS) || !defined(CAM_DEBUG_TARGET) \
-    || !defined(CAM_DEBUG_LUN)
-#error "You must define all or none of CAM_DEBUG_BUS, CAM_DEBUG_TARGET \
-        and CAM_DEBUG_LUN"
-#endif /* !CAM_DEBUG_BUS || !CAM_DEBUG_TARGET || !CAM_DEBUG_LUN */
-#else /* !CAMDEBUG */
-#error "You must use options CAMDEBUG if you use the CAM_DEBUG_* options"
-#endif /* CAMDEBUG */
-#endif /* CAM_DEBUG_BUS || CAM_DEBUG_TARGET || CAM_DEBUG_LUN */
-
 void			xpt_action(union ccb *new_ccb);
 void			xpt_action_default(union ccb *new_ccb);
 union ccb		*xpt_alloc_ccb(void);

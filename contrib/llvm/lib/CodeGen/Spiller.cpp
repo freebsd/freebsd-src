@@ -11,8 +11,8 @@
 
 #include "Spiller.h"
 #include "VirtRegMap.h"
-#include "LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -29,7 +29,7 @@
 using namespace llvm;
 
 namespace {
-  enum SpillerName { trivial, standard, inline_ };
+  enum SpillerName { trivial, inline_ };
 }
 
 static cl::opt<SpillerName>
@@ -37,10 +37,9 @@ spillerOpt("spiller",
            cl::desc("Spiller to use: (default: standard)"),
            cl::Prefix,
            cl::values(clEnumVal(trivial,   "trivial spiller"),
-                      clEnumVal(standard,  "default spiller"),
                       clEnumValN(inline_,  "inline", "inline spiller"),
                       clEnumValEnd),
-           cl::init(standard));
+           cl::init(trivial));
 
 // Spiller virtual destructor implementation.
 Spiller::~Spiller() {}
@@ -73,8 +72,9 @@ protected:
   /// Add spill ranges for every use/def of the live interval, inserting loads
   /// immediately before each use, and stores after each def. No folding or
   /// remat is attempted.
-  void trivialSpillEverywhere(LiveInterval *li,
-                              SmallVectorImpl<LiveInterval*> &newIntervals) {
+  void trivialSpillEverywhere(LiveRangeEdit& LRE) {
+    LiveInterval* li = &LRE.getParent();
+
     DEBUG(dbgs() << "Spilling everywhere " << *li << "\n");
 
     assert(li->weight != HUGE_VALF &&
@@ -116,17 +116,14 @@ protected:
       }
 
       // Create a new vreg & interval for this instr.
-      unsigned newVReg = mri->createVirtualRegister(trc);
-      vrm->grow();
-      vrm->assignVirt2StackSlot(newVReg, ss);
-      LiveInterval *newLI = &lis->getOrCreateInterval(newVReg);
+      LiveInterval *newLI = &LRE.create();
       newLI->weight = HUGE_VALF;
 
       // Update the reg operands & kill flags.
       for (unsigned i = 0; i < indices.size(); ++i) {
         unsigned mopIdx = indices[i];
         MachineOperand &mop = mi->getOperand(mopIdx);
-        mop.setReg(newVReg);
+        mop.setReg(newLI->reg);
         if (mop.isUse() && !mi->isRegTiedToDefOperand(mopIdx)) {
           mop.setIsKill(true);
         }
@@ -136,33 +133,29 @@ protected:
       // Insert reload if necessary.
       MachineBasicBlock::iterator miItr(mi);
       if (hasUse) {
-        tii->loadRegFromStackSlot(*mi->getParent(), miItr, newVReg, ss, trc,
+        tii->loadRegFromStackSlot(*mi->getParent(), miItr, newLI->reg, ss, trc,
                                   tri);
         MachineInstr *loadInstr(prior(miItr));
         SlotIndex loadIndex =
-          lis->InsertMachineInstrInMaps(loadInstr).getDefIndex();
-        vrm->addSpillSlotUse(ss, loadInstr);
+          lis->InsertMachineInstrInMaps(loadInstr).getRegSlot();
         SlotIndex endIndex = loadIndex.getNextIndex();
         VNInfo *loadVNI =
-          newLI->getNextValue(loadIndex, 0, lis->getVNInfoAllocator());
+          newLI->getNextValue(loadIndex, lis->getVNInfoAllocator());
         newLI->addRange(LiveRange(loadIndex, endIndex, loadVNI));
       }
 
       // Insert store if necessary.
       if (hasDef) {
-        tii->storeRegToStackSlot(*mi->getParent(), llvm::next(miItr), newVReg,
+        tii->storeRegToStackSlot(*mi->getParent(), llvm::next(miItr),newLI->reg,
                                  true, ss, trc, tri);
         MachineInstr *storeInstr(llvm::next(miItr));
         SlotIndex storeIndex =
-          lis->InsertMachineInstrInMaps(storeInstr).getDefIndex();
-        vrm->addSpillSlotUse(ss, storeInstr);
+          lis->InsertMachineInstrInMaps(storeInstr).getRegSlot();
         SlotIndex beginIndex = storeIndex.getPrevIndex();
         VNInfo *storeVNI =
-          newLI->getNextValue(beginIndex, 0, lis->getVNInfoAllocator());
+          newLI->getNextValue(beginIndex, lis->getVNInfoAllocator());
         newLI->addRange(LiveRange(beginIndex, storeIndex, storeVNI));
       }
-
-      newIntervals.push_back(newLI);
     }
   }
 };
@@ -182,60 +175,20 @@ public:
 
   void spill(LiveRangeEdit &LRE) {
     // Ignore spillIs - we don't use it.
-    trivialSpillEverywhere(&LRE.getParent(), *LRE.getNewVRegs());
+    trivialSpillEverywhere(LRE);
   }
 };
 
 } // end anonymous namespace
 
-namespace {
-
-/// Falls back on LiveIntervals::addIntervalsForSpills.
-class StandardSpiller : public Spiller {
-protected:
-  MachineFunction *mf;
-  LiveIntervals *lis;
-  LiveStacks *lss;
-  MachineLoopInfo *loopInfo;
-  VirtRegMap *vrm;
-public:
-  StandardSpiller(MachineFunctionPass &pass, MachineFunction &mf,
-                  VirtRegMap &vrm)
-    : mf(&mf),
-      lis(&pass.getAnalysis<LiveIntervals>()),
-      lss(&pass.getAnalysis<LiveStacks>()),
-      loopInfo(pass.getAnalysisIfAvailable<MachineLoopInfo>()),
-      vrm(&vrm) {}
-
-  /// Falls back on LiveIntervals::addIntervalsForSpills.
-  void spill(LiveRangeEdit &LRE) {
-    std::vector<LiveInterval*> added =
-      lis->addIntervalsForSpills(LRE.getParent(), LRE.getUselessVRegs(),
-                                 loopInfo, *vrm);
-    LRE.getNewVRegs()->insert(LRE.getNewVRegs()->end(),
-                              added.begin(), added.end());
-
-    // Update LiveStacks.
-    int SS = vrm->getStackSlot(LRE.getReg());
-    if (SS == VirtRegMap::NO_STACK_SLOT)
-      return;
-    const TargetRegisterClass *RC = mf->getRegInfo().getRegClass(LRE.getReg());
-    LiveInterval &SI = lss->getOrCreateInterval(SS, RC);
-    if (!SI.hasAtLeastOneValue())
-      SI.getNextValue(SlotIndex(), 0, lss->getVNInfoAllocator());
-    SI.MergeRangesInAsValue(LRE.getParent(), SI.getValNumInfo(0));
-  }
-};
-
-} // end anonymous namespace
+void Spiller::anchor() { }
 
 llvm::Spiller* llvm::createSpiller(MachineFunctionPass &pass,
                                    MachineFunction &mf,
                                    VirtRegMap &vrm) {
   switch (spillerOpt) {
-  default: assert(0 && "unknown spiller");
   case trivial: return new TrivialSpiller(pass, mf, vrm);
-  case standard: return new StandardSpiller(pass, mf, vrm);
   case inline_: return createInlineSpiller(pass, mf, vrm);
   }
+  llvm_unreachable("Invalid spiller optimization");
 }

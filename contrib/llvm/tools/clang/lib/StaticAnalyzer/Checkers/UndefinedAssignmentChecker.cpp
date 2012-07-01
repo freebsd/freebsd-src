@@ -24,7 +24,7 @@ using namespace ento;
 namespace {
 class UndefinedAssignmentChecker
   : public Checker<check::Bind> {
-  mutable llvm::OwningPtr<BugType> BT;
+  mutable OwningPtr<BugType> BT;
 
 public:
   void checkBind(SVal location, SVal val, const Stmt *S,
@@ -54,8 +54,8 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   while (StoreE) {
     if (const BinaryOperator *B = dyn_cast<BinaryOperator>(StoreE)) {
       if (B->isCompoundAssignmentOp()) {
-        const ProgramState *state = C.getState();
-        if (state->getSVal(B->getLHS()).isUndef()) {
+        ProgramStateRef state = C.getState();
+        if (state->getSVal(B->getLHS(), C.getLocationContext()).isUndef()) {
           str = "The left expression of the compound assignment is an "
                 "uninitialized value. The computed value will also be garbage";
           ex = B->getLHS();
@@ -78,7 +78,7 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   BugReport *R = new BugReport(*BT, str, N);
   if (ex) {
     R->addRange(ex->getSourceRange());
-    R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, ex));
+    R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, ex, R));
   }
   C.EmitReport(R);
 }

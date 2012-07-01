@@ -212,10 +212,24 @@ typedef struct {
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
-			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
+			halSupportsFastClock5GHz	: 1,
 			halHasLongRxDescTsf		: 1,
 			halHasBBReadWar			: 1,
-			halSerialiseRegWar		: 1;
+			halSerialiseRegWar		: 1,
+			halMciSupport			: 1,
+			halRxTxAbortSupport		: 1,
+			halPaprdEnabled			: 1,
+			halHasUapsdSupport		: 1,
+			halWpsPushButtonSupport		: 1,
+			halBtCoexApsmWar		: 1,
+			halGenTimerSupport		: 1,
+			halLDPCSupport			: 1,
+			halHwBeaconProcSupport		: 1,
+			halEnhancedDmaSupport		: 1;
+	uint32_t	halIsrRacSupport		: 1,
+			halApmEnable			: 1,
+			halIntrMitigation		: 1;
+
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -231,6 +245,13 @@ typedef struct {
 	uint32_t	halIntrMask;
 	uint8_t		halTxStreams;
 	uint8_t		halRxStreams;
+
+	int		halNumTxMaps;
+	int		halTxDescLen;
+	int		halTxStatusLen;
+	int		halRxStatusLen;
+	int		halRxHpFifoDepth;
+	int		halRxLpFifoDepth;
 } HAL_CAPABILITIES;
 
 struct regDomain;
@@ -355,8 +376,8 @@ struct ath_hal_private {
 	AH_PRIVATE(_ah)->ah_getNfAdjust(_ah, _c)
 #define	ath_hal_getNoiseFloor(_ah, _nfArray) \
 	AH_PRIVATE(_ah)->ah_getNoiseFloor(_ah, _nfArray)
-#define	ath_hal_configPCIE(_ah, _reset) \
-	(_ah)->ah_configPCIE(_ah, _reset)
+#define	ath_hal_configPCIE(_ah, _reset, _poweroff) \
+	(_ah)->ah_configPCIE(_ah, _reset, _poweroff)
 #define	ath_hal_disablePCIE(_ah) \
 	(_ah)->ah_disablePCIE(_ah)
 #define	ath_hal_setInterrupts(_ah, _mask) \
@@ -484,6 +505,8 @@ isBigEndian(void)
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
 	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
+#define	OS_A_REG_WRITE(_a, _r, _v) \
+	do { OS_REG_WRITE(_a, _r, _v); OS_DELAY(100); } while (0)
 
 /* wait for the register contents to have the specified value */
 extern	HAL_BOOL ath_hal_wait(struct ath_hal *, u_int reg,

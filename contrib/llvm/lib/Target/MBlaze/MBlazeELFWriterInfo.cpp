@@ -41,7 +41,6 @@ unsigned MBlazeELFWriterInfo::getRelocationType(unsigned MachineRelTy) const {
   default:
     llvm_unreachable("unknown mblaze machine relocation type");
   }
-  return 0;
 }
 
 long int MBlazeELFWriterInfo::getDefaultAddendForRelTy(unsigned RelTy,
@@ -54,7 +53,6 @@ long int MBlazeELFWriterInfo::getDefaultAddendForRelTy(unsigned RelTy,
   default:
     llvm_unreachable("unknown mblaze relocation type");
   }
-  return 0;
 }
 
 unsigned MBlazeELFWriterInfo::getRelocationTySize(unsigned RelTy) const {
@@ -102,10 +100,8 @@ unsigned MBlazeELFWriterInfo::getAbsoluteLabelMachineRelTy() const {
 long int MBlazeELFWriterInfo::computeRelocation(unsigned SymOffset,
                                                 unsigned RelOffset,
                                                 unsigned RelTy) const {
-  if (RelTy == ELF::R_MICROBLAZE_32_PCREL || ELF::R_MICROBLAZE_64_PCREL)
-    return SymOffset - (RelOffset + 4);
-  else
-    assert("computeRelocation unknown for this relocation type");
-
-  return 0;
+  assert((RelTy == ELF::R_MICROBLAZE_32_PCREL ||
+          RelTy == ELF::R_MICROBLAZE_64_PCREL) &&
+         "computeRelocation unknown for this relocation type");
+  return SymOffset - (RelOffset + 4);
 }

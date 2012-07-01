@@ -9,12 +9,9 @@ INCS=	heimbase.h
 
 SRCS= \
 	array.c \
-	baselocl.h \
 	bool.c \
 	dict.c \
 	heimbase.c \
-	heimbasepriv.h \
-	heimqueue.h \
 	null.c \
 	number.c \
 	string.c

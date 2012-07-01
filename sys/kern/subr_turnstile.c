@@ -60,11 +60,13 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include "opt_turnstile_profiling.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -72,13 +74,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
 
 #include <vm/uma.h>
 
 #ifdef DDB
-#include <sys/kdb.h>
 #include <ddb/ddb.h>
 #include <sys/lockmgr.h>
 #include <sys/sx.h>
@@ -143,7 +145,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD, 0,
 static SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains, CTLFLAG_RD, 0,
     "turnstile chain stats");
 SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
-    &turnstile_max_depth, 0, "maxmimum depth achieved of a single chain");
+    &turnstile_max_depth, 0, "maximum depth achieved of a single chain");
 #endif
 static struct mtx td_contested_lock;
 static struct turnstile_chain turnstile_chains[TC_TABLESIZE];
@@ -166,6 +168,11 @@ static void	turnstile_dtor(void *mem, int size, void *arg);
 #endif
 static int	turnstile_init(void *mem, int size, int flags);
 static void	turnstile_fini(void *mem, int size);
+
+SDT_PROVIDER_DECLARE(sched);
+SDT_PROBE_DEFINE(sched, , , sleep, sleep);
+SDT_PROBE_DEFINE2(sched, , , wakeup, wakeup, "struct thread *", 
+    "struct proc *");
 
 /*
  * Walks the chain of turnstiles and their owners to propagate the priority
@@ -217,9 +224,7 @@ propagate_priority(struct thread *td)
 			printf(
 		"Sleeping thread (tid %d, pid %d) owns a non-sleepable lock\n",
 			    td->td_tid, td->td_proc->p_pid);
-#ifdef DDB
-			db_trace_thread(td, -1);
-#endif
+			kdb_backtrace_thread(td);
 			panic("sleeping thread");
 		}
 
@@ -742,6 +747,8 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 		CTR4(KTR_LOCK, "%s: td %d blocked on [%p] %s", __func__,
 		    td->td_tid, lock, lock->lo_name);
 
+	SDT_PROBE0(sched, , , sleep);
+
 	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 	mi_switch(SW_VOL | SWT_TURNSTILE, NULL);
 
@@ -918,6 +925,7 @@ turnstile_unpend(struct turnstile *ts, int owner_type)
 	while (!TAILQ_EMPTY(&pending_threads)) {
 		td = TAILQ_FIRST(&pending_threads);
 		TAILQ_REMOVE(&pending_threads, td, td_lockq);
+		SDT_PROBE2(sched, , , wakeup, td, td->td_proc);
 		thread_lock(td);
 		THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 		MPASS(td->td_proc->p_magic == P_MAGIC);

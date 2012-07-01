@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2011
+.Dd May 2, 2012
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -318,7 +318,7 @@ The hostname of the sup server to use when doing
 .It Va SUP_UPDATE
 .Pq Vt bool
 Set this to use
-.Xr cvsup 1
+.Xr csup 1
 to update your
 .Pa src , ports , doc
 and
@@ -575,7 +575,7 @@ files at build time.
 The value should include the full path to the
 .Pa .mc
 file(s), e.g.,
-.Pa /etc/mail/foo.mc
+.Pa /etc/mail/foo.mc ,
 .Pa /etc/mail/bar.mc .
 .It Va SENDMAIL_ALIASES
 .Pq Vt str

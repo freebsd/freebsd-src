@@ -11,7 +11,6 @@ SRCS=	Action.cpp \
 	Compilation.cpp \
 	Driver.cpp \
 	DriverOptions.cpp \
-	HostInfo.cpp \
 	Job.cpp \
 	OptTable.cpp \
 	Option.cpp \
@@ -20,7 +19,8 @@ SRCS=	Action.cpp \
 	ToolChain.cpp \
 	ToolChains.cpp \
 	Tools.cpp \
-	Types.cpp
+	Types.cpp \
+	WindowsToolChain.cpp
 
 TGHDRS=	CC1AsOptions \
 	CC1Options \

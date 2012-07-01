@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_output.h,v 1.14 2005/03/06 16:04:18 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_output_h__
-#define __sctp_output_h__
+#ifndef _NETINET_SCTP_OUTPUT_H_
+#define _NETINET_SCTP_OUTPUT_H_
 
 #include <netinet/sctp_header.h>
 
@@ -85,8 +83,11 @@ sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int
 );
 
 void
-sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
-    struct mbuf *, int, int, struct sctphdr *, struct sctp_init_chunk *,
+sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *, struct mbuf *,
+    int, int,
+    struct sockaddr *, struct sockaddr *,
+    struct sctphdr *, struct sctp_init_chunk *,
+    uint8_t, uint32_t,
     uint32_t, uint16_t, int);
 
 struct mbuf *
@@ -117,7 +118,9 @@ void sctp_send_shutdown_ack(struct sctp_tcb *, struct sctp_nets *);
 void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *, int);
 
 void 
-sctp_send_shutdown_complete2(struct mbuf *, struct sctphdr *,
+sctp_send_shutdown_complete2(struct sockaddr *, struct sockaddr *,
+    struct sctphdr *,
+    uint8_t, uint32_t,
     uint32_t, uint16_t);
 
 void sctp_send_asconf(struct sctp_tcb *, struct sctp_nets *, int addr_locked);
@@ -162,7 +165,7 @@ void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
 
 void
 sctp_send_packet_dropped(struct sctp_tcb *, struct sctp_nets *, struct mbuf *,
-    int, int);
+    int, int, int);
 
 
 
@@ -203,14 +206,20 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
     uint16_t adding_i, uint8_t from_peer);
 
 void
-sctp_send_abort(struct mbuf *, int, struct sctphdr *, uint32_t,
-    struct mbuf *, uint32_t, uint16_t);
+sctp_send_abort(struct mbuf *, int, struct sockaddr *, struct sockaddr *,
+    struct sctphdr *, uint32_t, struct mbuf *,
+    uint8_t, uint32_t,
+    uint32_t, uint16_t);
 
-void sctp_send_operr_to(struct mbuf *, int, struct mbuf *, uint32_t, uint32_t, uint16_t);
+void 
+sctp_send_operr_to(struct sockaddr *, struct sockaddr *,
+    struct sctphdr *, uint32_t, struct mbuf *,
+    uint8_t, uint32_t,
+    uint32_t, uint16_t);
 
 #endif				/* _KERNEL || __Userspace__ */
 
-#if defined(_KERNEL) || defined (__Userspace__)
+#if defined(_KERNEL) || defined(__Userspace__)
 int
 sctp_sosend(struct socket *so,
     struct sockaddr *addr,

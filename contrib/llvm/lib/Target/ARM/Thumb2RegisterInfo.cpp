@@ -1,4 +1,4 @@
-//===- Thumb2RegisterInfo.cpp - Thumb-2 Register Information ----*- C++ -*-===//
+//===-- Thumb2RegisterInfo.cpp - Thumb-2 Register Information -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,10 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ARM.h"
-#include "ARMSubtarget.h"
-#include "Thumb2InstrInfo.h"
 #include "Thumb2RegisterInfo.h"
+#include "ARM.h"
+#include "ARMBaseInstrInfo.h"
+#include "ARMSubtarget.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"

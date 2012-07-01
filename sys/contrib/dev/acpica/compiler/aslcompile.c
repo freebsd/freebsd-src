@@ -59,13 +59,17 @@ CmFlushSourceCode (
 
 static void
 FlConsumeAnsiComment (
-    ASL_FILE_INFO           *FileInfo,
+    FILE                    *Handle,
     ASL_FILE_STATUS         *Status);
 
 static void
 FlConsumeNewComment (
-    ASL_FILE_INFO           *FileInfo,
+    FILE                    *Handle,
     ASL_FILE_STATUS         *Status);
+
+static void
+CmDumpAllEvents (
+    void);
 
 
 /*******************************************************************************
@@ -242,10 +246,10 @@ CmFlushSourceCode (
 
     while (FlReadFile (ASL_FILE_INPUT, &Buffer, 1) != AE_ERROR)
     {
-        InsertLineBuffer ((int) Buffer);
+        AslInsertLineBuffer ((int) Buffer);
     }
 
-    ResetCurrentLineBuffer ();
+    AslResetCurrentLineBuffer ();
 }
 
 
@@ -253,7 +257,8 @@ CmFlushSourceCode (
  *
  * FUNCTION:    FlConsume*
  *
- * PARAMETERS:  FileInfo        - Points to an open input file
+ * PARAMETERS:  Handle              - Open input file
+ *              Status              - File current status struct
  *
  * RETURN:      Number of lines consumed
  *
@@ -263,14 +268,14 @@ CmFlushSourceCode (
 
 static void
 FlConsumeAnsiComment (
-    ASL_FILE_INFO           *FileInfo,
+    FILE                    *Handle,
     ASL_FILE_STATUS         *Status)
 {
     UINT8                   Byte;
     BOOLEAN                 ClosingComment = FALSE;
 
 
-    while (fread (&Byte, 1, 1, FileInfo->Handle))
+    while (fread (&Byte, 1, 1, Handle))
     {
         /* Scan until comment close is found */
 
@@ -307,13 +312,13 @@ FlConsumeAnsiComment (
 
 static void
 FlConsumeNewComment (
-    ASL_FILE_INFO           *FileInfo,
+    FILE                    *Handle,
     ASL_FILE_STATUS         *Status)
 {
     UINT8                   Byte;
 
 
-    while (fread (&Byte, 1, 1, FileInfo->Handle))
+    while (fread (&Byte, 1, 1, Handle))
     {
         Status->Offset++;
 
@@ -332,7 +337,9 @@ FlConsumeNewComment (
  *
  * FUNCTION:    FlCheckForAscii
  *
- * PARAMETERS:  FileInfo        - Points to an open input file
+ * PARAMETERS:  Handle              - Open input file
+ *              Filename            - Input filename
+ *              DisplayErrors       - TRUE if error messages desired
  *
  * RETURN:      Status
  *
@@ -347,7 +354,9 @@ FlConsumeNewComment (
 
 ACPI_STATUS
 FlCheckForAscii (
-    ASL_FILE_INFO           *FileInfo)
+    FILE                    *Handle,
+    char                    *Filename,
+    BOOLEAN                 DisplayErrors)
 {
     UINT8                   Byte;
     ACPI_SIZE               BadBytes = 0;
@@ -360,7 +369,7 @@ FlCheckForAscii (
 
     /* Read the entire file */
 
-    while (fread (&Byte, 1, 1, FileInfo->Handle))
+    while (fread (&Byte, 1, 1, Handle))
     {
         /* Ignore comment fields (allow non-ascii within) */
 
@@ -370,12 +379,12 @@ FlCheckForAscii (
 
             if (Byte == '*')
             {
-                FlConsumeAnsiComment (FileInfo, &Status);
+                FlConsumeAnsiComment (Handle, &Status);
             }
 
             if (Byte == '/')
             {
-                FlConsumeNewComment (FileInfo, &Status);
+                FlConsumeNewComment (Handle, &Status);
             }
 
             /* Reset */
@@ -391,7 +400,7 @@ FlCheckForAscii (
 
         if (!ACPI_IS_ASCII (Byte))
         {
-            if (BadBytes < 10)
+            if ((BadBytes < 10) && (DisplayErrors))
             {
                 AcpiOsPrintf (
                     "Non-ASCII character [0x%2.2X] found in line %u, file offset 0x%.2X\n",
@@ -413,20 +422,24 @@ FlCheckForAscii (
 
     /* Seek back to the beginning of the source file */
 
-    fseek (FileInfo->Handle, 0, SEEK_SET);
+    fseek (Handle, 0, SEEK_SET);
 
     /* Were there any non-ASCII characters in the file? */
 
     if (BadBytes)
     {
-        AcpiOsPrintf (
-            "%u non-ASCII characters found in input source text, could be a binary file\n",
-            BadBytes);
-        AslError (ASL_ERROR, ASL_MSG_NON_ASCII, NULL, FileInfo->Filename);
+        if (DisplayErrors)
+        {
+            AcpiOsPrintf (
+                "%u non-ASCII characters found in input source text, could be a binary file\n",
+                BadBytes);
+            AslError (ASL_ERROR, ASL_MSG_NON_ASCII, NULL, Filename);
+        }
+
         return (AE_BAD_CHARACTER);
     }
 
-    /* File is OK */
+    /* File is OK (100% ASCII) */
 
     return (AE_OK);
 }
@@ -457,16 +470,20 @@ CmDoCompile (
     Event = UtBeginEvent ("Open input and output files");
     UtEndEvent (Event);
 
-    /* Preprocessor */
-
     Event = UtBeginEvent ("Preprocess input file");
-    PrDoPreprocess ();
-    UtEndEvent (Event);
-    if (Gbl_PreprocessOnly)
+    if (Gbl_PreprocessFlag)
     {
-        CmCleanupAndExit ();
-        return 0;
+        /* Preprocessor */
+
+        PrDoPreprocess ();
+        if (Gbl_PreprocessOnly)
+        {
+            UtEndEvent (Event);
+            CmCleanupAndExit ();
+            return 0;
+        }
     }
+    UtEndEvent (Event);
 
     /* Build the parse tree */
 
@@ -483,8 +500,17 @@ CmDoCompile (
 
     if (!RootNode)
     {
-        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
-            NULL, "- Could not resolve parse tree root node");
+        /*
+         * If there are no errors, then we have some sort of
+         * internal problem.
+         */
+        Status = AslCheckForErrorExit ();
+        if (Status == AE_OK)
+        {
+            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
+                NULL, "- Could not resolve parse tree root node");
+        }
+
         goto ErrorExit;
     }
 
@@ -553,14 +579,14 @@ CmDoCompile (
 
     if (Gbl_ParseOnlyFlag)
     {
-        AePrintErrorLog (ASL_FILE_STDOUT);
-        UtDisplaySummary (ASL_FILE_STDOUT);
+        AePrintErrorLog (ASL_FILE_STDERR);
+        UtDisplaySummary (ASL_FILE_STDERR);
         if (Gbl_DebugFlag)
         {
-            /* Print error summary to the debug file */
+            /* Print error summary to the stdout also */
 
-            AePrintErrorLog (ASL_FILE_STDERR);
-            UtDisplaySummary (ASL_FILE_STDERR);
+            AePrintErrorLog (ASL_FILE_STDOUT);
+            UtDisplaySummary (ASL_FILE_STDOUT);
         }
         UtEndEvent (FullCompile);
         return 0;
@@ -695,45 +721,65 @@ CmDoOutputFiles (
 
 /*******************************************************************************
  *
- * FUNCTION:    CmDumpEvent
+ * FUNCTION:    CmDumpAllEvents
  *
- * PARAMETERS:  Event           - A compiler event struct
+ * PARAMETERS:  None
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Dump a compiler event struct
+ * DESCRIPTION: Dump all compiler events
  *
  ******************************************************************************/
 
 static void
-CmDumpEvent (
-    ASL_EVENT_INFO          *Event)
+CmDumpAllEvents (
+    void)
 {
+    ASL_EVENT_INFO          *Event;
     UINT32                  Delta;
     UINT32                  USec;
     UINT32                  MSec;
+    UINT32                  i;
 
-    if (!Event->Valid)
+
+    Event = AslGbl_Events;
+
+    DbgPrint (ASL_DEBUG_OUTPUT, "\n\nElapsed time for major events\n\n");
+    if (Gbl_CompileTimesFlag)
     {
-        return;
+        printf ("\nElapsed time for major events\n\n");
     }
 
-    /* Delta will be in 100-nanosecond units */
-
-    Delta = (UINT32) (Event->EndTime - Event->StartTime);
-
-    USec = Delta / 10;
-    MSec = Delta / 10000;
-
-    /* Round milliseconds up */
-
-    if ((USec - (MSec * 1000)) >= 500)
+    for (i = 0; i < AslGbl_NextEvent; i++)
     {
-        MSec++;
-    }
+        if (Event->Valid)
+        {
+            /* Delta will be in 100-nanosecond units */
 
-    DbgPrint (ASL_DEBUG_OUTPUT, "%8u usec %8u msec - %s\n",
-        USec, MSec, Event->EventName);
+            Delta = (UINT32) (Event->EndTime - Event->StartTime);
+
+            USec = Delta / 10;
+            MSec = Delta / 10000;
+
+            /* Round milliseconds up */
+
+            if ((USec - (MSec * 1000)) >= 500)
+            {
+                MSec++;
+            }
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "%8u usec %8u msec - %s\n",
+                USec, MSec, Event->EventName);
+
+            if (Gbl_CompileTimesFlag)
+            {
+                printf ("%8u usec %8u msec - %s\n",
+                    USec, MSec, Event->EventName);
+            }
+        }
+
+        Event++;
+    }
 }
 
 
@@ -756,28 +802,20 @@ CmCleanupAndExit (
     UINT32                  i;
 
 
-    AePrintErrorLog (ASL_FILE_STDOUT);
+    AePrintErrorLog (ASL_FILE_STDERR);
     if (Gbl_DebugFlag)
     {
-        /* Print error summary to the debug file */
+        /* Print error summary to stdout also */
 
-        AePrintErrorLog (ASL_FILE_STDERR);
+        AePrintErrorLog (ASL_FILE_STDOUT);
     }
 
-    DbgPrint (ASL_DEBUG_OUTPUT, "\n\nElapsed time for major events\n\n");
-    for (i = 0; i < AslGbl_NextEvent; i++)
-    {
-        CmDumpEvent (&AslGbl_Events[i]);
-    }
+    /* Emit compile times if enabled */
+
+    CmDumpAllEvents ();
 
     if (Gbl_CompileTimesFlag)
     {
-        printf ("\nElapsed time for major events\n\n");
-        for (i = 0; i < AslGbl_NextEvent; i++)
-        {
-            CmDumpEvent (&AslGbl_Events[i]);
-        }
-
         printf ("\nMiscellaneous compile statistics\n\n");
         printf ("%11u : %s\n", TotalParseNodes, "Parse nodes");
         printf ("%11u : %s\n", Gbl_NsLookupCount, "Namespace searches");
@@ -837,7 +875,9 @@ CmCleanupAndExit (
 
     /* Delete the preprocessor output file (.i) unless -li flag is set */
 
-    if (!Gbl_PreprocessorOutputFlag && Gbl_Files[ASL_FILE_PREPROCESSOR].Filename)
+    if (!Gbl_PreprocessorOutputFlag &&
+        Gbl_PreprocessFlag &&
+        Gbl_Files[ASL_FILE_PREPROCESSOR].Filename)
     {
         if (remove (Gbl_Files[ASL_FILE_PREPROCESSOR].Filename))
         {

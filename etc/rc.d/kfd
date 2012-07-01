@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kfd
+# REQUIRE: NETWORK
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=kfd
+rcvar=kfd_enable
+load_rc_config $name
+command_args="-i &"
+
+run_rc_command "$1"

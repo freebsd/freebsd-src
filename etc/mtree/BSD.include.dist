@@ -88,7 +88,7 @@
         ..
     ..
     clang
-        3.0
+        3.1
         ..
     ..
     crypto
@@ -101,6 +101,8 @@
         bktr
         ..
         ciss
+        ..
+        filemon
         ..
         firewire
         ..
@@ -121,6 +123,8 @@
         mpt
             mpilib
             ..
+        ..
+        nand
         ..
         ofw
         ..
@@ -153,6 +157,8 @@
         fdescfs
         ..
         msdosfs
+        ..
+        nandfs
         ..
         nfs
         ..

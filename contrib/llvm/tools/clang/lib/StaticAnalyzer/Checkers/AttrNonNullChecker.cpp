@@ -24,7 +24,7 @@ using namespace ento;
 namespace {
 class AttrNonNullChecker
   : public Checker< check::PreStmt<CallExpr> > {
-  mutable llvm::OwningPtr<BugType> BT;
+  mutable OwningPtr<BugType> BT;
 public:
 
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
@@ -33,10 +33,11 @@ public:
 
 void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
                                       CheckerContext &C) const {
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
+  const LocationContext *LCtx = C.getLocationContext();
 
   // Check if the callee has a 'nonnull' attribute.
-  SVal X = state->getSVal(CE->getCallee());
+  SVal X = state->getSVal(CE->getCallee(), LCtx);
 
   const FunctionDecl *FD = X.getAsFunctionDecl();
   if (!FD)
@@ -55,7 +56,7 @@ void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
     if (!Att->isNonNull(idx))
       continue;
 
-    SVal V = state->getSVal(*I);
+    SVal V = state->getSVal(*I, LCtx);
     DefinedSVal *DV = dyn_cast<DefinedSVal>(&V);
 
     // If the value is unknown or undefined, we can't perform this check.
@@ -85,7 +86,7 @@ void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
     }
 
     ConstraintManager &CM = C.getConstraintManager();
-    const ProgramState *stateNotNull, *stateNull;
+    ProgramStateRef stateNotNull, stateNull;
     llvm::tie(stateNotNull, stateNull) = CM.assumeDual(state, *DV);
 
     if (stateNull && !stateNotNull) {
@@ -108,7 +109,7 @@ void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
         const Expr *arg = *I;
         R->addRange(arg->getSourceRange());
         R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(errorNode,
-                                                                   arg));
+                                                                   arg, R));
         // Emit the bug report.
         C.EmitReport(R);
       }

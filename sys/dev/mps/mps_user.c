@@ -30,7 +30,7 @@
  * LSI MPT-Fusion Host Adapter FreeBSD userland interface
  */
 /*-
- * Copyright (c) 2011 LSI Corp.
+ * Copyright (c) 2011, 2012 LSI Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -701,6 +701,11 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 
 	if (cmd->len > 0) {
 		buf = malloc(cmd->len, M_MPSUSER, M_WAITOK|M_ZERO);
+		if(!buf) {
+			mps_printf(sc, "Cannot allocate memory %s %d\n",
+			 __func__, __LINE__);
+			return (ENOMEM);
+    	}
 		cm->cm_data = buf;
 		cm->cm_length = cmd->len;
 	} else {
@@ -946,7 +951,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		 */
 		scsi_io_req->SenseBufferLength = (uint8_t)(data->RequestSize -
 		    64);
-		scsi_io_req->SenseBufferLowAddress = cm->cm_sense_busaddr;
+		scsi_io_req->SenseBufferLowAddress = htole32(cm->cm_sense_busaddr);
 
 		/*
 		 * Set SGLOffset0 value.  This is the number of dwords that SGL
@@ -1033,7 +1038,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 			if (((MPI2_SCSI_IO_REPLY *)rpl)->SCSIState &
 			    MPI2_SCSI_STATE_AUTOSENSE_VALID) {
 				sense_len =
-				    MIN(((MPI2_SCSI_IO_REPLY *)rpl)->SenseCount,
+				    MIN((le32toh(((MPI2_SCSI_IO_REPLY *)rpl)->SenseCount)),
 				    sizeof(struct scsi_sense_data));
 				mps_unlock(sc);
 				copyout(cm->cm_sense, cm->cm_req + 64, sense_len);
@@ -2053,7 +2058,7 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 	struct mps_cfg_page_req *page_req;
 	struct mps_ext_cfg_page_req *ext_page_req;
 	void *mps_page;
-	int error, reset_loop;
+	int error, msleep_ret;
 
 	mps_page = NULL;
 	sc = dev->si_drv1;
@@ -2068,6 +2073,11 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPSIO_READ_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK | M_ZERO);
+		if(!mps_page) {
+			mps_printf(sc, "Cannot allocate memory %s %d\n",
+			 __func__, __LINE__);
+			return (ENOMEM);
+    	}
 		error = copyin(page_req->buf, mps_page,
 		    sizeof(MPI2_CONFIG_PAGE_HEADER));
 		if (error)
@@ -2086,6 +2096,11 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPSIO_READ_EXT_CFG_PAGE:
 		mps_page = malloc(ext_page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
+		if(!mps_page) {
+			mps_printf(sc, "Cannot allocate memory %s %d\n",
+			 __func__, __LINE__);
+			return (ENOMEM);
+	}
 		error = copyin(ext_page_req->buf, mps_page,
 		    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
 		if (error)
@@ -2099,6 +2114,11 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPSIO_WRITE_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
+		if(!mps_page) {
+			mps_printf(sc, "Cannot allocate memory %s %d\n",
+			 __func__, __LINE__);
+			return (ENOMEM);
+	}
 		error = copyin(page_req->buf, mps_page, page_req->len);
 		if (error)
 			break;
@@ -2138,19 +2158,19 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 	case MPTIOCTL_RESET_ADAPTER:
 		mps_lock(sc);
 		sc->port_enable_complete = 0;
+		uint32_t reinit_start = time_uptime;
 		error = mps_reinit(sc);
+		/* Sleep for 300 second. */
+		msleep_ret = msleep(&sc->port_enable_complete, &sc->mps_mtx, PRIBIO,
+		       "mps_porten", 300 * hz);
 		mps_unlock(sc);
-		/*
-		 * Wait no more than 5 minutes for Port Enable to complete
-		 */
-		for (reset_loop = 0; (reset_loop < MPS_DIAG_RESET_TIMEOUT) &&
-		    (!sc->port_enable_complete); reset_loop++) {
-			DELAY(1000);
-		}
-		if (reset_loop == MPS_DIAG_RESET_TIMEOUT) {
+		if (msleep_ret)
 			printf("Port Enable did not complete after Diag "
-			    "Reset.\n");
-		}
+			    "Reset msleep error %d.\n", msleep_ret);
+		else
+			mps_dprint(sc, MPS_INFO,
+				"Hard Reset with Port Enable completed in %d seconds.\n",
+				 (uint32_t) (time_uptime - reinit_start));
 		break;
 	case MPTIOCTL_DIAG_ACTION:
 		/*

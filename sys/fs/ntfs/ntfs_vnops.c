@@ -493,8 +493,13 @@ ntfs_readdir(ap)
 
 	/* Simulate . in every dir except ROOT */
 	if( ip->i_number != NTFS_ROOTINO ) {
-		struct dirent dot = { NTFS_ROOTINO,
-				sizeof(struct dirent), DT_DIR, 1, "." };
+		struct dirent dot = {
+			.d_fileno = NTFS_ROOTINO,
+			.d_reclen = sizeof(struct dirent),
+			.d_type = DT_DIR,
+			.d_namlen = 1,
+			.d_name = "."
+		};
 
 		if( uio->uio_offset < sizeof(struct dirent) ) {
 			dot.d_fileno = ip->i_number;
@@ -508,8 +513,13 @@ ntfs_readdir(ap)
 
 	/* Simulate .. in every dir including ROOT */
 	if( uio->uio_offset < 2 * sizeof(struct dirent) ) {
-		struct dirent dotdot = { NTFS_ROOTINO,
-				sizeof(struct dirent), DT_DIR, 2, ".." };
+		struct dirent dotdot = {
+			.d_fileno = NTFS_ROOTINO,
+			.d_reclen = sizeof(struct dirent),
+			.d_type = DT_DIR,
+			.d_namlen = 2,
+			.d_name = ".."
+		};
 
 		error = uiomove((char *)&dotdot,sizeof(struct dirent),uio);
 		if(error)

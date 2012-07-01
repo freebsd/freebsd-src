@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -114,8 +115,9 @@
 #define	DT_VERS_1_6_1	DT_VERSION_NUMBER(1, 6, 1)
 #define	DT_VERS_1_6_2	DT_VERSION_NUMBER(1, 6, 2)
 #define	DT_VERS_1_6_3	DT_VERSION_NUMBER(1, 6, 3)
-#define	DT_VERS_LATEST	DT_VERS_1_6_3
-#define	DT_VERS_STRING	"Sun D 1.6.3"
+#define	DT_VERS_1_7	DT_VERSION_NUMBER(1, 7, 0)
+#define	DT_VERS_LATEST	DT_VERS_1_7
+#define	DT_VERS_STRING	"Sun D 1.7"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -131,6 +133,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_6_1,	/* D API 1.6.1 */
 	DT_VERS_1_6_2,	/* D API 1.6.2 */
 	DT_VERS_1_6_3,	/* D API 1.6.3 */
+	DT_VERS_1_7,	/* D API 1.7 */
 	0
 };
 
@@ -287,6 +290,9 @@ static const dt_ident_t _dtrace_globals[] = {
 	&dt_idops_func, "stack(...)" },
 { "lltostr", DT_IDENT_FUNC, 0, DIF_SUBR_LLTOSTR, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "string(int64_t)" },
+{ "llquantize", DT_IDENT_AGGFUNC, 0, DTRACEAGG_LLQUANTIZE, DT_ATTR_STABCMN,
+	DT_VERS_1_7, &dt_idops_func,
+	"void(@, int32_t, int32_t, int32_t, int32_t, ...)" },
 { "lquantize", DT_IDENT_AGGFUNC, 0, DTRACEAGG_LQUANTIZE,
 	DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "void(@, int32_t, int32_t, ...)" },
@@ -497,6 +503,12 @@ static const dt_ident_t _dtrace_globals[] = {
 { "zonename", DT_IDENT_SCALAR, 0, DIF_VAR_ZONENAME,
 	DT_ATTR_STABCMN, DT_VERS_1_0, &dt_idops_type, "string" },
 #endif
+
+#if !defined(sun)
+{ "cpu", DT_IDENT_SCALAR, 0, DIF_VAR_CPU,
+	DT_ATTR_STABCMN, DT_VERS_1_6_3, &dt_idops_type, "int" },
+#endif
+
 { NULL, 0, 0, 0, { 0, 0, 0 }, 0, NULL, NULL }
 };
 

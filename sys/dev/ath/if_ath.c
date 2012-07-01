@@ -102,10 +102,13 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_debug.h>
 #include <dev/ath/if_ath_misc.h>
+#include <dev/ath/if_ath_tsf.h>
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
 #include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_keycache.h>
+#include <dev/ath/if_ath_rx.h>
+#include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
 
 #ifdef ATH_TX99_DIAG
@@ -139,7 +142,6 @@ static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
-static void	ath_start(struct ifnet *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
@@ -151,21 +153,9 @@ static void	ath_key_update_begin(struct ieee80211vap *);
 static void	ath_key_update_end(struct ieee80211vap *);
 static void	ath_update_mcast(struct ifnet *);
 static void	ath_update_promisc(struct ifnet *);
-static void	ath_mode_init(struct ath_softc *);
-static void	ath_setslottime(struct ath_softc *);
 static void	ath_updateslot(struct ifnet *);
-static int	ath_beaconq_setup(struct ath_hal *);
-static int	ath_beacon_alloc(struct ath_softc *, struct ieee80211_node *);
-static void	ath_beacon_update(struct ieee80211vap *, int item);
-static void	ath_beacon_setup(struct ath_softc *, struct ath_buf *);
-static void	ath_beacon_proc(void *, int);
-static struct ath_buf *ath_beacon_generate(struct ath_softc *,
-			struct ieee80211vap *);
 static void	ath_bstuck_proc(void *, int);
 static void	ath_reset_proc(void *, int);
-static void	ath_beacon_return(struct ath_softc *, struct ath_buf *);
-static void	ath_beacon_free(struct ath_softc *);
-static void	ath_beacon_config(struct ath_softc *, struct ieee80211vap *);
 static void	ath_descdma_cleanup(struct ath_softc *sc,
 			struct ath_descdma *, ath_bufhead *);
 static int	ath_desc_alloc(struct ath_softc *);
@@ -176,16 +166,9 @@ static void	ath_node_cleanup(struct ieee80211_node *);
 static void	ath_node_free(struct ieee80211_node *);
 static void	ath_node_getsignal(const struct ieee80211_node *,
 			int8_t *, int8_t *);
-static int	ath_rxbuf_init(struct ath_softc *, struct ath_buf *);
-static void	ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-			int subtype, int rssi, int nf);
-static void	ath_setdefantenna(struct ath_softc *, u_int);
-static void	ath_rx_proc(struct ath_softc *sc, int);
-static void	ath_rx_tasklet(void *, int);
 static void	ath_txq_init(struct ath_softc *sc, struct ath_txq *, int);
 static struct ath_txq *ath_txq_setup(struct ath_softc*, int qtype, int subtype);
 static int	ath_tx_setup(struct ath_softc *, int, int);
-static int	ath_wme_update(struct ieee80211com *);
 static void	ath_tx_cleanupq(struct ath_softc *, struct ath_txq *);
 static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
@@ -194,13 +177,13 @@ static void	ath_tx_proc(void *, int);
 static void	ath_txq_sched_tasklet(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
-static void	ath_stoprecv(struct ath_softc *, int);
-static int	ath_startrecv(struct ath_softc *);
 static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
 static void	ath_set_channel(struct ieee80211com *);
+#ifdef	ATH_ENABLE_11N
 static void	ath_update_chw(struct ieee80211com *);
+#endif	/* ATH_ENABLE_11N */
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
@@ -220,16 +203,10 @@ static void	ath_announce(struct ath_softc *);
 static void	ath_dfs_tasklet(void *, int);
 
 #ifdef IEEE80211_SUPPORT_TDMA
-static void	ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt,
-		    u_int32_t bintval);
-static void	ath_tdma_bintvalsetup(struct ath_softc *sc,
-		    const struct ieee80211_tdma_state *tdma);
-static void	ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap);
-static void	ath_tdma_update(struct ieee80211_node *ni,
-		    const struct ieee80211_tdma_param *tdma, int);
-static void	ath_tdma_beacon_send(struct ath_softc *sc,
-		    struct ieee80211vap *vap);
+#include <dev/ath/if_ath_tdma.h>
+#endif
 
+#if 0
 #define	TDMA_EP_MULTIPLIER	(1<<10) /* pow2 to optimize out * and / */
 #define	TDMA_LPF_LEN		6
 #define	TDMA_DUMMY_MARKER	0x127
@@ -269,8 +246,12 @@ static	int ath_txbuf = ATH_TXBUF;		/* # tx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
+static	int ath_txbuf_mgmt = ATH_MGMT_TXBUF;	/* # mgmt tx buffers to allocate */
+SYSCTL_INT(_hw_ath, OID_AUTO, txbuf_mgmt, CTLFLAG_RW, &ath_txbuf_mgmt,
+	    0, "tx (mgmt) buffers allocated");
+TUNABLE_INT("hw.ath.txbuf_mgmt", &ath_txbuf_mgmt);
 
-static	int ath_bstuck_threshold = 4;		/* max missed beacons */
+int ath_bstuck_threshold = 4;		/* max missed beacons */
 SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
 	    0, "max missed beacon xmits before chip reset");
 
@@ -400,6 +381,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
+	TASK_INIT(&sc->sc_fataltask,0, ath_fatal_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -542,7 +524,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
+#ifndef	ATH_ENABLE_11N
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
+#endif
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 #ifdef	ATH_ENABLE_DFS
 		| IEEE80211_C_DFS		/* Enable radar detection */
@@ -678,12 +662,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
 
-	/*
-	 * The if_ath 11n support is completely not ready for normal use.
-	 * Enabling this option will likely break everything and everything.
-	 * Don't think of doing that unless you know what you're doing.
-	 */
-
 #ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
@@ -745,6 +723,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #endif
 
 	/*
+	 * Initial aggregation settings.
+	 */
+	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
+	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
+	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
+
+	/*
 	 * Check if the hardware requires PCI register serialisation.
 	 * Some of the Owl based MACs require this.
 	 */
@@ -804,8 +789,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
-	ic->ic_update_chw = ath_update_chw;
-
+#ifdef	ATH_ENABLE_11N
 	/* 802.11n specific - but just override anyway */
 	sc->sc_addba_request = ic->ic_addba_request;
 	sc->sc_addba_response = ic->ic_addba_response;
@@ -819,11 +803,29 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_addba_stop = ath_addba_stop;
 	ic->ic_bar_response = ath_bar_response;
 
+	ic->ic_update_chw = ath_update_chw;
+#endif	/* ATH_ENABLE_11N */
+
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+	/*
+	 * There's one vendor bitmap entry in the RX radiotap
+	 * header; make sure that's taken into account.
+	 */
+	ieee80211_radiotap_attachv(ic,
+	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th), 0,
+		ATH_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th), 1,
+		ATH_RX_RADIOTAP_PRESENT);
+#else
+	/*
+	 * No vendor bitmap/extensions are present.
+	 */
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
 		ATH_TX_RADIOTAP_PRESENT,
 	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th),
 		ATH_RX_RADIOTAP_PRESENT);
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 
 	/*
 	 * Setup dynamic sysctl's now that country code and
@@ -1329,15 +1331,22 @@ ath_suspend(struct ath_softc *sc)
 		__func__, ifp->if_flags);
 
 	sc->sc_resume_up = (ifp->if_flags & IFF_UP) != 0;
-	if (ic->ic_opmode == IEEE80211_M_STA)
-		ath_stop(ifp);
-	else
-		ieee80211_suspend_all(ic);
+
+	ieee80211_suspend_all(ic);
 	/*
 	 * NB: don't worry about putting the chip in low power
 	 * mode; pci will power off our socket on suspend and
 	 * CardBus detaches the device.
 	 */
+
+	/*
+	 * XXX ensure none of the taskqueues are running
+	 * XXX ensure sc_invalid is 1
+	 * XXX ensure the calibration callout is disabled
+	 */
+
+	/* Disable the PCIe PHY, complete with workarounds */
+	ath_hal_enablepcie(sc->sc_ah, 1, 1);
 }
 
 /*
@@ -1370,6 +1379,9 @@ ath_resume(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
 
+	/* Re-enable PCIe, re-enable the PCIe bus */
+	ath_hal_enablepcie(ah, 0, 0);
+
 	/*
 	 * Must reset the chip before we reload the
 	 * keycache as we were powered down on suspend.
@@ -1386,23 +1398,8 @@ ath_resume(struct ath_softc *sc)
 	ath_led_config(sc);
 	ath_hal_setledstate(ah, HAL_LED_INIT);
 
-	if (sc->sc_resume_up) {
-		if (ic->ic_opmode == IEEE80211_M_STA) {
-			ath_init(sc);
-			ath_hal_setledstate(ah, HAL_LED_RUN);
-			/*
-			 * Program the beacon registers using the last rx'd
-			 * beacon frame and enable sync on the next beacon
-			 * we see.  This should handle the case where we
-			 * wakeup and find the same AP and also the case where
-			 * we wakeup and need to roam.  For the latter we
-			 * should get bmiss events that trigger a roam.
-			 */
-			ath_beacon_config(sc, NULL);
-			sc->sc_syncbeacon = 1;
-		} else
-			ieee80211_resume_all(ic);
-	}
+	if (sc->sc_resume_up)
+		ieee80211_resume_all(ic);
 
 	/* XXX beacons ? */
 }
@@ -1491,6 +1488,15 @@ ath_intr(void *arg)
 	    ah->ah_intrstate[3],
 	    ah->ah_intrstate[6]);
 #endif
+
+	/* Squirrel away SYNC interrupt debugging */
+	if (ah->ah_syncstate != 0) {
+		int i;
+		for (i = 0; i < 32; i++)
+			if (ah->ah_syncstate & (i << i))
+				sc->sc_intr_stats.sync_intr[i]++;
+	}
+
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
 	/* Short-circuit un-handled interrupts */
@@ -1514,7 +1520,7 @@ ath_intr(void *arg)
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		ath_fatal_proc(sc, 0);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_fataltask);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
@@ -1823,13 +1829,6 @@ ath_init(void *arg)
 	 * things transition to the RUN state.
 	 */
 	sc->sc_beacons = 0;
-
-	/*
-	 * Initial aggregation settings.
-	 */
-	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
-	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
-	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -2211,13 +2210,17 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 }
 
 struct ath_buf *
-_ath_getbuf_locked(struct ath_softc *sc)
+_ath_getbuf_locked(struct ath_softc *sc, ath_buf_type_t btype)
 {
 	struct ath_buf *bf;
 
 	ATH_TXBUF_LOCK_ASSERT(sc);
 
-	bf = TAILQ_FIRST(&sc->sc_txbuf);
+	if (btype == ATH_BUFTYPE_MGMT)
+		bf = TAILQ_FIRST(&sc->sc_txbuf_mgmt);
+	else
+		bf = TAILQ_FIRST(&sc->sc_txbuf);
+
 	if (bf == NULL) {
 		sc->sc_stats.ast_tx_getnobuf++;
 	} else {
@@ -2227,17 +2230,42 @@ _ath_getbuf_locked(struct ath_softc *sc)
 		}
 	}
 
-	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0)
-		TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
-	else
+	if (bf != NULL && (bf->bf_flags & ATH_BUF_BUSY) == 0) {
+		if (btype == ATH_BUFTYPE_MGMT)
+			TAILQ_REMOVE(&sc->sc_txbuf_mgmt, bf, bf_list);
+		else {
+			TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
+			sc->sc_txbuf_cnt--;
+
+			/*
+			 * This shuldn't happen; however just to be
+			 * safe print a warning and fudge the txbuf
+			 * count.
+			 */
+			if (sc->sc_txbuf_cnt < 0) {
+				device_printf(sc->sc_dev,
+				    "%s: sc_txbuf_cnt < 0?\n",
+				    __func__);
+				sc->sc_txbuf_cnt = 0;
+			}
+		}
+	} else
 		bf = NULL;
 
 	if (bf == NULL) {
+		/* XXX should check which list, mgmt or otherwise */
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: %s\n", __func__,
 		    TAILQ_FIRST(&sc->sc_txbuf) == NULL ?
 			"out of xmit buffers" : "xmit buffer busy");
 		return NULL;
 	}
+
+	/* XXX TODO: should do this at buffer list initialisation */
+	/* XXX (then, ensure the buffer has the right flag set) */
+	if (btype == ATH_BUFTYPE_MGMT)
+		bf->bf_flags |= ATH_BUF_MGMT;
+	else
+		bf->bf_flags &= (~ATH_BUF_MGMT);
 
 	/* Valid bf here; clear some basic fields */
 	bf->bf_next = NULL;	/* XXX just to be sure */
@@ -2273,7 +2301,9 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 {
 	struct ath_buf *tbf;
 
-	tbf = ath_getbuf(sc);
+	tbf = ath_getbuf(sc,
+	    (bf->bf_flags & ATH_BUF_MGMT) ?
+	     ATH_BUFTYPE_MGMT : ATH_BUFTYPE_NORMAL);
 	if (tbf == NULL)
 		return NULL;	/* XXX failure? Why? */
 
@@ -2301,12 +2331,18 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 }
 
 struct ath_buf *
-ath_getbuf(struct ath_softc *sc)
+ath_getbuf(struct ath_softc *sc, ath_buf_type_t btype)
 {
 	struct ath_buf *bf;
 
 	ATH_TXBUF_LOCK(sc);
-	bf = _ath_getbuf_locked(sc);
+	bf = _ath_getbuf_locked(sc, btype);
+	/*
+	 * If a mgmt buffer was requested but we're out of those,
+	 * try requesting a normal one.
+	 */
+	if (bf == NULL && btype == ATH_BUFTYPE_MGMT)
+		bf = _ath_getbuf_locked(sc, ATH_BUFTYPE_NORMAL);
 	ATH_TXBUF_UNLOCK(sc);
 	if (bf == NULL) {
 		struct ifnet *ifp = sc->sc_ifp;
@@ -2320,7 +2356,7 @@ ath_getbuf(struct ath_softc *sc)
 	return bf;
 }
 
-static void
+void
 ath_start(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
@@ -2339,6 +2375,7 @@ ath_start(struct ifnet *ifp)
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
 		ATH_PCU_UNLOCK(sc);
 		IF_LOCK(&ifp->if_snd);
+		sc->sc_stats.ast_tx_qstop++;
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		IF_UNLOCK(&ifp->if_snd);
 		return;
@@ -2347,17 +2384,28 @@ ath_start(struct ifnet *ifp)
 	ATH_PCU_UNLOCK(sc);
 
 	for (;;) {
+		ATH_TXBUF_LOCK(sc);
+		if (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree) {
+			/* XXX increment counter? */
+			ATH_TXBUF_UNLOCK(sc);
+			IF_LOCK(&ifp->if_snd);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IF_UNLOCK(&ifp->if_snd);
+			break;
+		}
+		ATH_TXBUF_UNLOCK(sc);
+		
 		/*
 		 * Grab a TX buffer and associated resources.
 		 */
-		bf = ath_getbuf(sc);
+		bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
 		if (bf == NULL)
 			break;
 
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
 			ATH_TXBUF_LOCK(sc);
-			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			ath_returnbuf_head(sc, bf);
 			ATH_TXBUF_UNLOCK(sc);
 			break;
 		}
@@ -2400,7 +2448,7 @@ ath_start(struct ifnet *ifp)
 			bf->bf_m = NULL;
 			bf->bf_node = NULL;
 			ATH_TXBUF_LOCK(sc);
-			TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+			ath_returnbuf_head(sc, bf);
 			ath_txfrag_cleanup(sc, &frags, ni);
 			ATH_TXBUF_UNLOCK(sc);
 			if (ni != NULL)
@@ -2471,102 +2519,6 @@ ath_key_update_end(struct ieee80211vap *vap)
 	taskqueue_unblock(sc->sc_tq);
 }
 
-/*
- * Calculate the receive filter according to the
- * operating mode and state:
- *
- * o always accept unicast, broadcast, and multicast traffic
- * o accept PHY error frames when hardware doesn't have MIB support
- *   to count and we need them for ANI (sta mode only until recently)
- *   and we are not scanning (ANI is disabled)
- *   NB: older hal's add rx filter bits out of sight and we need to
- *	 blindly preserve them
- * o probe request frames are accepted only when operating in
- *   hostap, adhoc, mesh, or monitor modes
- * o enable promiscuous mode
- *   - when in monitor mode
- *   - if interface marked PROMISC (assumes bridge setting is filtered)
- * o accept beacons:
- *   - when operating in station mode for collecting rssi data when
- *     the station is otherwise quiet, or
- *   - when operating in adhoc mode so the 802.11 layer creates
- *     node table entries for peers,
- *   - when scanning
- *   - when doing s/w beacon miss (e.g. for ap+sta)
- *   - when operating in ap mode in 11g to detect overlapping bss that
- *     require protection
- *   - when operating in mesh mode to detect neighbors
- * o accept control frames:
- *   - when in monitor mode
- * XXX HT protection for 11n
- */
-static u_int32_t
-ath_calcrxfilter(struct ath_softc *sc)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	u_int32_t rfilt;
-
-	rfilt = HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
-	if (!sc->sc_needmib && !sc->sc_scanning)
-		rfilt |= HAL_RX_FILTER_PHYERR;
-	if (ic->ic_opmode != IEEE80211_M_STA)
-		rfilt |= HAL_RX_FILTER_PROBEREQ;
-	/* XXX ic->ic_monvaps != 0? */
-	if (ic->ic_opmode == IEEE80211_M_MONITOR || (ifp->if_flags & IFF_PROMISC))
-		rfilt |= HAL_RX_FILTER_PROM;
-	if (ic->ic_opmode == IEEE80211_M_STA ||
-	    ic->ic_opmode == IEEE80211_M_IBSS ||
-	    sc->sc_swbmiss || sc->sc_scanning)
-		rfilt |= HAL_RX_FILTER_BEACON;
-	/*
-	 * NB: We don't recalculate the rx filter when
-	 * ic_protmode changes; otherwise we could do
-	 * this only when ic_protmode != NONE.
-	 */
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
-	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
-		rfilt |= HAL_RX_FILTER_BEACON;
-
-	/*
-	 * Enable hardware PS-POLL RX only for hostap mode;
-	 * STA mode sends PS-POLL frames but never
-	 * receives them.
-	 */
-	if (ath_hal_getcapability(sc->sc_ah, HAL_CAP_PSPOLL,
-	    0, NULL) == HAL_OK &&
-	    ic->ic_opmode == IEEE80211_M_HOSTAP)
-		rfilt |= HAL_RX_FILTER_PSPOLL;
-
-	if (sc->sc_nmeshvaps) {
-		rfilt |= HAL_RX_FILTER_BEACON;
-		if (sc->sc_hasbmatch)
-			rfilt |= HAL_RX_FILTER_BSSID;
-		else
-			rfilt |= HAL_RX_FILTER_PROM;
-	}
-	if (ic->ic_opmode == IEEE80211_M_MONITOR)
-		rfilt |= HAL_RX_FILTER_CONTROL;
-
-	/*
-	 * Enable RX of compressed BAR frames only when doing
-	 * 802.11n. Required for A-MPDU.
-	 */
-	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
-		rfilt |= HAL_RX_FILTER_COMPBAR;
-
-	/*
-	 * Enable radar PHY errors if requested by the
-	 * DFS module.
-	 */
-	if (sc->sc_dodfs)
-		rfilt |= HAL_RX_FILTER_PHYRADAR;
-
-	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
-	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
-	return rfilt;
-}
-
 static void
 ath_update_promisc(struct ifnet *ifp)
 {
@@ -2616,7 +2568,7 @@ ath_update_mcast(struct ifnet *ifp)
 		__func__, mfilt[0], mfilt[1]);
 }
 
-static void
+void
 ath_mode_init(struct ath_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2640,7 +2592,7 @@ ath_mode_init(struct ath_softc *sc)
 /*
  * Set the slot time based on the current setting.
  */
-static void
+void
 ath_setslottime(struct ath_softc *sc)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
@@ -2693,248 +2645,10 @@ ath_updateslot(struct ifnet *ifp)
 }
 
 /*
- * Setup a h/w transmit queue for beacons.
- */
-static int
-ath_beaconq_setup(struct ath_hal *ah)
-{
-	HAL_TXQ_INFO qi;
-
-	memset(&qi, 0, sizeof(qi));
-	qi.tqi_aifs = HAL_TXQ_USEDEFAULT;
-	qi.tqi_cwmin = HAL_TXQ_USEDEFAULT;
-	qi.tqi_cwmax = HAL_TXQ_USEDEFAULT;
-	/* NB: for dynamic turbo, don't enable any other interrupts */
-	qi.tqi_qflags = HAL_TXQ_TXDESCINT_ENABLE;
-	return ath_hal_setuptxqueue(ah, HAL_TX_QUEUE_BEACON, &qi);
-}
-
-/*
- * Setup the transmit queue parameters for the beacon queue.
- */
-static int
-ath_beaconq_config(struct ath_softc *sc)
-{
-#define	ATH_EXPONENT_TO_VALUE(v)	((1<<(v))-1)
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	struct ath_hal *ah = sc->sc_ah;
-	HAL_TXQ_INFO qi;
-
-	ath_hal_gettxqueueprops(ah, sc->sc_bhalq, &qi);
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
-	    ic->ic_opmode == IEEE80211_M_MBSS) {
-		/*
-		 * Always burst out beacon and CAB traffic.
-		 */
-		qi.tqi_aifs = ATH_BEACON_AIFS_DEFAULT;
-		qi.tqi_cwmin = ATH_BEACON_CWMIN_DEFAULT;
-		qi.tqi_cwmax = ATH_BEACON_CWMAX_DEFAULT;
-	} else {
-		struct wmeParams *wmep =
-			&ic->ic_wme.wme_chanParams.cap_wmeParams[WME_AC_BE];
-		/*
-		 * Adhoc mode; important thing is to use 2x cwmin.
-		 */
-		qi.tqi_aifs = wmep->wmep_aifsn;
-		qi.tqi_cwmin = 2*ATH_EXPONENT_TO_VALUE(wmep->wmep_logcwmin);
-		qi.tqi_cwmax = ATH_EXPONENT_TO_VALUE(wmep->wmep_logcwmax);
-	}
-
-	if (!ath_hal_settxqueueprops(ah, sc->sc_bhalq, &qi)) {
-		device_printf(sc->sc_dev, "unable to update parameters for "
-			"beacon hardware queue!\n");
-		return 0;
-	} else {
-		ath_hal_resettxqueue(ah, sc->sc_bhalq); /* push to h/w */
-		return 1;
-	}
-#undef ATH_EXPONENT_TO_VALUE
-}
-
-/*
- * Allocate and setup an initial beacon frame.
- */
-static int
-ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_vap *avp = ATH_VAP(vap);
-	struct ath_buf *bf;
-	struct mbuf *m;
-	int error;
-
-	bf = avp->av_bcbuf;
-	DPRINTF(sc, ATH_DEBUG_NODE, "%s: bf_m=%p, bf_node=%p\n",
-	    __func__, bf->bf_m, bf->bf_node);
-	if (bf->bf_m != NULL) {
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		m_freem(bf->bf_m);
-		bf->bf_m = NULL;
-	}
-	if (bf->bf_node != NULL) {
-		ieee80211_free_node(bf->bf_node);
-		bf->bf_node = NULL;
-	}
-
-	/*
-	 * NB: the beacon data buffer must be 32-bit aligned;
-	 * we assume the mbuf routines will return us something
-	 * with this alignment (perhaps should assert).
-	 */
-	m = ieee80211_beacon_alloc(ni, &avp->av_boff);
-	if (m == NULL) {
-		device_printf(sc->sc_dev, "%s: cannot get mbuf\n", __func__);
-		sc->sc_stats.ast_be_nombuf++;
-		return ENOMEM;
-	}
-	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
-				     bf->bf_segs, &bf->bf_nseg,
-				     BUS_DMA_NOWAIT);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: cannot map mbuf, bus_dmamap_load_mbuf_sg returns %d\n",
-		    __func__, error);
-		m_freem(m);
-		return error;
-	}
-
-	/*
-	 * Calculate a TSF adjustment factor required for staggered
-	 * beacons.  Note that we assume the format of the beacon
-	 * frame leaves the tstamp field immediately following the
-	 * header.
-	 */
-	if (sc->sc_stagbeacons && avp->av_bslot > 0) {
-		uint64_t tsfadjust;
-		struct ieee80211_frame *wh;
-
-		/*
-		 * The beacon interval is in TU's; the TSF is in usecs.
-		 * We figure out how many TU's to add to align the timestamp
-		 * then convert to TSF units and handle byte swapping before
-		 * inserting it in the frame.  The hardware will then add this
-		 * each time a beacon frame is sent.  Note that we align vap's
-		 * 1..N and leave vap 0 untouched.  This means vap 0 has a
-		 * timestamp in one beacon interval while the others get a
-		 * timstamp aligned to the next interval.
-		 */
-		tsfadjust = ni->ni_intval *
-		    (ATH_BCBUF - avp->av_bslot) / ATH_BCBUF;
-		tsfadjust = htole64(tsfadjust << 10);	/* TU -> TSF */
-
-		DPRINTF(sc, ATH_DEBUG_BEACON,
-		    "%s: %s beacons bslot %d intval %u tsfadjust %llu\n",
-		    __func__, sc->sc_stagbeacons ? "stagger" : "burst",
-		    avp->av_bslot, ni->ni_intval,
-		    (long long unsigned) le64toh(tsfadjust));
-
-		wh = mtod(m, struct ieee80211_frame *);
-		memcpy(&wh[1], &tsfadjust, sizeof(tsfadjust));
-	}
-	bf->bf_m = m;
-	bf->bf_node = ieee80211_ref_node(ni);
-
-	return 0;
-}
-
-/*
- * Setup the beacon frame for transmit.
- */
-static void
-ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
-{
-#define	USE_SHPREAMBLE(_ic) \
-	(((_ic)->ic_flags & (IEEE80211_F_SHPREAMBLE | IEEE80211_F_USEBARKER))\
-		== IEEE80211_F_SHPREAMBLE)
-	struct ieee80211_node *ni = bf->bf_node;
-	struct ieee80211com *ic = ni->ni_ic;
-	struct mbuf *m = bf->bf_m;
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_desc *ds;
-	int flags, antenna;
-	const HAL_RATE_TABLE *rt;
-	u_int8_t rix, rate;
-
-	DPRINTF(sc, ATH_DEBUG_BEACON_PROC, "%s: m %p len %u\n",
-		__func__, m, m->m_len);
-
-	/* setup descriptors */
-	ds = bf->bf_desc;
-	bf->bf_last = bf;
-	bf->bf_lastds = ds;
-
-	flags = HAL_TXDESC_NOACK;
-	if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol) {
-		ds->ds_link = bf->bf_daddr;	/* self-linked */
-		flags |= HAL_TXDESC_VEOL;
-		/*
-		 * Let hardware handle antenna switching.
-		 */
-		antenna = sc->sc_txantenna;
-	} else {
-		ds->ds_link = 0;
-		/*
-		 * Switch antenna every 4 beacons.
-		 * XXX assumes two antenna
-		 */
-		if (sc->sc_txantenna != 0)
-			antenna = sc->sc_txantenna;
-		else if (sc->sc_stagbeacons && sc->sc_nbcnvaps != 0)
-			antenna = ((sc->sc_stats.ast_be_xmit / sc->sc_nbcnvaps) & 4 ? 2 : 1);
-		else
-			antenna = (sc->sc_stats.ast_be_xmit & 4 ? 2 : 1);
-	}
-
-	KASSERT(bf->bf_nseg == 1,
-		("multi-segment beacon frame; nseg %u", bf->bf_nseg));
-	ds->ds_data = bf->bf_segs[0].ds_addr;
-	/*
-	 * Calculate rate code.
-	 * XXX everything at min xmit rate
-	 */
-	rix = 0;
-	rt = sc->sc_currates;
-	rate = rt->info[rix].rateCode;
-	if (USE_SHPREAMBLE(ic))
-		rate |= rt->info[rix].shortPreamble;
-	ath_hal_setuptxdesc(ah, ds
-		, m->m_len + IEEE80211_CRC_LEN	/* frame length */
-		, sizeof(struct ieee80211_frame)/* header length */
-		, HAL_PKT_TYPE_BEACON		/* Atheros packet type */
-		, ni->ni_txpower		/* txpower XXX */
-		, rate, 1			/* series 0 rate/tries */
-		, HAL_TXKEYIX_INVALID		/* no encryption */
-		, antenna			/* antenna mode */
-		, flags				/* no ack, veol for beacons */
-		, 0				/* rts/cts rate */
-		, 0				/* rts/cts duration */
-	);
-	/* NB: beacon's BufLen must be a multiple of 4 bytes */
-	ath_hal_filltxdesc(ah, ds
-		, roundup(m->m_len, 4)		/* buffer length */
-		, AH_TRUE			/* first segment */
-		, AH_TRUE			/* last segment */
-		, ds				/* first descriptor */
-	);
-#if 0
-	ath_desc_swap(ds);
-#endif
-#undef USE_SHPREAMBLE
-}
-
-static void
-ath_beacon_update(struct ieee80211vap *vap, int item)
-{
-	struct ieee80211_beacon_offsets *bo = &ATH_VAP(vap)->av_boff;
-
-	setbit(bo->bo_flags, item);
-}
-
-/*
  * Append the contents of src to dst; both queues
  * are assumed to be locked.
  */
-static void
+void
 ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
 {
 
@@ -2948,255 +2662,6 @@ ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
 	dst->axq_aggr_depth += src->axq_aggr_depth;
 	src->axq_depth = 0;
 	src->axq_aggr_depth = 0;
-}
-
-/*
- * Transmit a beacon frame at SWBA.  Dynamic updates to the
- * frame contents are done as needed and the slot time is
- * also adjusted based on current state.
- */
-static void
-ath_beacon_proc(void *arg, int pending)
-{
-	struct ath_softc *sc = arg;
-	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211vap *vap;
-	struct ath_buf *bf;
-	int slot, otherant;
-	uint32_t bfaddr;
-
-	DPRINTF(sc, ATH_DEBUG_BEACON_PROC, "%s: pending %u\n",
-		__func__, pending);
-	/*
-	 * Check if the previous beacon has gone out.  If
-	 * not don't try to post another, skip this period
-	 * and wait for the next.  Missed beacons indicate
-	 * a problem and should not occur.  If we miss too
-	 * many consecutive beacons reset the device.
-	 */
-	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
-		sc->sc_bmisscount++;
-		sc->sc_stats.ast_be_missed++;
-		DPRINTF(sc, ATH_DEBUG_BEACON,
-			"%s: missed %u consecutive beacons\n",
-			__func__, sc->sc_bmisscount);
-		if (sc->sc_bmisscount >= ath_bstuck_threshold)
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
-		return;
-	}
-	if (sc->sc_bmisscount != 0) {
-		DPRINTF(sc, ATH_DEBUG_BEACON,
-			"%s: resume beacon xmit after %u misses\n",
-			__func__, sc->sc_bmisscount);
-		sc->sc_bmisscount = 0;
-	}
-
-	if (sc->sc_stagbeacons) {			/* staggered beacons */
-		struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-		uint32_t tsftu;
-
-		tsftu = ath_hal_gettsf32(ah) >> 10;
-		/* XXX lintval */
-		slot = ((tsftu % ic->ic_lintval) * ATH_BCBUF) / ic->ic_lintval;
-		vap = sc->sc_bslot[(slot+1) % ATH_BCBUF];
-		bfaddr = 0;
-		if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
-			bf = ath_beacon_generate(sc, vap);
-			if (bf != NULL)
-				bfaddr = bf->bf_daddr;
-		}
-	} else {					/* burst'd beacons */
-		uint32_t *bflink = &bfaddr;
-
-		for (slot = 0; slot < ATH_BCBUF; slot++) {
-			vap = sc->sc_bslot[slot];
-			if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
-				bf = ath_beacon_generate(sc, vap);
-				if (bf != NULL) {
-					*bflink = bf->bf_daddr;
-					bflink = &bf->bf_desc->ds_link;
-				}
-			}
-		}
-		*bflink = 0;				/* terminate list */
-	}
-
-	/*
-	 * Handle slot time change when a non-ERP station joins/leaves
-	 * an 11g network.  The 802.11 layer notifies us via callback,
-	 * we mark updateslot, then wait one beacon before effecting
-	 * the change.  This gives associated stations at least one
-	 * beacon interval to note the state change.
-	 */
-	/* XXX locking */
-	if (sc->sc_updateslot == UPDATE) {
-		sc->sc_updateslot = COMMIT;	/* commit next beacon */
-		sc->sc_slotupdate = slot;
-	} else if (sc->sc_updateslot == COMMIT && sc->sc_slotupdate == slot)
-		ath_setslottime(sc);		/* commit change to h/w */
-
-	/*
-	 * Check recent per-antenna transmit statistics and flip
-	 * the default antenna if noticeably more frames went out
-	 * on the non-default antenna.
-	 * XXX assumes 2 anntenae
-	 */
-	if (!sc->sc_diversity && (!sc->sc_stagbeacons || slot == 0)) {
-		otherant = sc->sc_defant & 1 ? 2 : 1;
-		if (sc->sc_ant_tx[otherant] > sc->sc_ant_tx[sc->sc_defant] + 2)
-			ath_setdefantenna(sc, otherant);
-		sc->sc_ant_tx[1] = sc->sc_ant_tx[2] = 0;
-	}
-
-	if (bfaddr != 0) {
-		/*
-		 * Stop any current dma and put the new frame on the queue.
-		 * This should never fail since we check above that no frames
-		 * are still pending on the queue.
-		 */
-		if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
-			DPRINTF(sc, ATH_DEBUG_ANY,
-				"%s: beacon queue %u did not stop?\n",
-				__func__, sc->sc_bhalq);
-		}
-		/* NB: cabq traffic should already be queued and primed */
-		ath_hal_puttxbuf(ah, sc->sc_bhalq, bfaddr);
-		ath_hal_txstart(ah, sc->sc_bhalq);
-
-		sc->sc_stats.ast_be_xmit++;
-	}
-}
-
-static struct ath_buf *
-ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
-{
-	struct ath_vap *avp = ATH_VAP(vap);
-	struct ath_txq *cabq = sc->sc_cabq;
-	struct ath_buf *bf;
-	struct mbuf *m;
-	int nmcastq, error;
-
-	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
-	    ("not running, state %d", vap->iv_state));
-	KASSERT(avp->av_bcbuf != NULL, ("no beacon buffer"));
-
-	/*
-	 * Update dynamic beacon contents.  If this returns
-	 * non-zero then we need to remap the memory because
-	 * the beacon frame changed size (probably because
-	 * of the TIM bitmap).
-	 */
-	bf = avp->av_bcbuf;
-	m = bf->bf_m;
-	/* XXX lock mcastq? */
-	nmcastq = avp->av_mcastq.axq_depth;
-
-	if (ieee80211_beacon_update(bf->bf_node, &avp->av_boff, m, nmcastq)) {
-		/* XXX too conservative? */
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
-					     bf->bf_segs, &bf->bf_nseg,
-					     BUS_DMA_NOWAIT);
-		if (error != 0) {
-			if_printf(vap->iv_ifp,
-			    "%s: bus_dmamap_load_mbuf_sg failed, error %u\n",
-			    __func__, error);
-			return NULL;
-		}
-	}
-	if ((avp->av_boff.bo_tim[4] & 1) && cabq->axq_depth) {
-		DPRINTF(sc, ATH_DEBUG_BEACON,
-		    "%s: cabq did not drain, mcastq %u cabq %u\n",
-		    __func__, nmcastq, cabq->axq_depth);
-		sc->sc_stats.ast_cabq_busy++;
-		if (sc->sc_nvaps > 1 && sc->sc_stagbeacons) {
-			/*
-			 * CABQ traffic from a previous vap is still pending.
-			 * We must drain the q before this beacon frame goes
-			 * out as otherwise this vap's stations will get cab
-			 * frames from a different vap.
-			 * XXX could be slow causing us to miss DBA
-			 */
-			ath_tx_draintxq(sc, cabq);
-		}
-	}
-	ath_beacon_setup(sc, bf);
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
-
-	/*
-	 * Enable the CAB queue before the beacon queue to
-	 * insure cab frames are triggered by this beacon.
-	 */
-	if (avp->av_boff.bo_tim[4] & 1) {
-		struct ath_hal *ah = sc->sc_ah;
-
-		/* NB: only at DTIM */
-		ATH_TXQ_LOCK(cabq);
-		ATH_TXQ_LOCK(&avp->av_mcastq);
-		if (nmcastq) {
-			struct ath_buf *bfm;
-
-			/*
-			 * Move frames from the s/w mcast q to the h/w cab q.
-			 * XXX MORE_DATA bit
-			 */
-			bfm = TAILQ_FIRST(&avp->av_mcastq.axq_q);
-			if (cabq->axq_link != NULL) {
-				*cabq->axq_link = bfm->bf_daddr;
-			} else
-				ath_hal_puttxbuf(ah, cabq->axq_qnum,
-					bfm->bf_daddr);
-			ath_txqmove(cabq, &avp->av_mcastq);
-
-			sc->sc_stats.ast_cabq_xmit += nmcastq;
-		}
-		/* NB: gated by beacon so safe to start here */
-		if (! TAILQ_EMPTY(&(cabq->axq_q)))
-			ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TXQ_UNLOCK(&avp->av_mcastq);
-		ATH_TXQ_UNLOCK(cabq);
-	}
-	return bf;
-}
-
-static void
-ath_beacon_start_adhoc(struct ath_softc *sc, struct ieee80211vap *vap)
-{
-	struct ath_vap *avp = ATH_VAP(vap);
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
-	struct mbuf *m;
-	int error;
-
-	KASSERT(avp->av_bcbuf != NULL, ("no beacon buffer"));
-
-	/*
-	 * Update dynamic beacon contents.  If this returns
-	 * non-zero then we need to remap the memory because
-	 * the beacon frame changed size (probably because
-	 * of the TIM bitmap).
-	 */
-	bf = avp->av_bcbuf;
-	m = bf->bf_m;
-	if (ieee80211_beacon_update(bf->bf_node, &avp->av_boff, m, 0)) {
-		/* XXX too conservative? */
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
-					     bf->bf_segs, &bf->bf_nseg,
-					     BUS_DMA_NOWAIT);
-		if (error != 0) {
-			if_printf(vap->iv_ifp,
-			    "%s: bus_dmamap_load_mbuf_sg failed, error %u\n",
-			    __func__, error);
-			return;
-		}
-	}
-	ath_beacon_setup(sc, bf);
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
-
-	/* NB: caller is known to have already stopped tx dma */
-	ath_hal_puttxbuf(ah, sc->sc_bhalq, bf->bf_daddr);
-	ath_hal_txstart(ah, sc->sc_bhalq);
 }
 
 /*
@@ -3237,255 +2702,6 @@ ath_bstuck_proc(void *arg, int pending)
 	 * occuring.
 	 */
 	ath_reset(ifp, ATH_RESET_NOLOSS);
-}
-
-/*
- * Reclaim beacon resources and return buffer to the pool.
- */
-static void
-ath_beacon_return(struct ath_softc *sc, struct ath_buf *bf)
-{
-
-	DPRINTF(sc, ATH_DEBUG_NODE, "%s: free bf=%p, bf_m=%p, bf_node=%p\n",
-	    __func__, bf, bf->bf_m, bf->bf_node);
-	if (bf->bf_m != NULL) {
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		m_freem(bf->bf_m);
-		bf->bf_m = NULL;
-	}
-	if (bf->bf_node != NULL) {
-		ieee80211_free_node(bf->bf_node);
-		bf->bf_node = NULL;
-	}
-	TAILQ_INSERT_TAIL(&sc->sc_bbuf, bf, bf_list);
-}
-
-/*
- * Reclaim beacon resources.
- */
-static void
-ath_beacon_free(struct ath_softc *sc)
-{
-	struct ath_buf *bf;
-
-	TAILQ_FOREACH(bf, &sc->sc_bbuf, bf_list) {
-		DPRINTF(sc, ATH_DEBUG_NODE,
-		    "%s: free bf=%p, bf_m=%p, bf_node=%p\n",
-		        __func__, bf, bf->bf_m, bf->bf_node);
-		if (bf->bf_m != NULL) {
-			bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-			m_freem(bf->bf_m);
-			bf->bf_m = NULL;
-		}
-		if (bf->bf_node != NULL) {
-			ieee80211_free_node(bf->bf_node);
-			bf->bf_node = NULL;
-		}
-	}
-}
-
-/*
- * Configure the beacon and sleep timers.
- *
- * When operating as an AP this resets the TSF and sets
- * up the hardware to notify us when we need to issue beacons.
- *
- * When operating in station mode this sets up the beacon
- * timers according to the timestamp of the last received
- * beacon and the current TSF, configures PCF and DTIM
- * handling, programs the sleep registers so the hardware
- * will wakeup in time to receive beacons, and configures
- * the beacon miss handling so we'll receive a BMISS
- * interrupt when we stop seeing beacons from the AP
- * we've associated with.
- */
-static void
-ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
-{
-#define	TSF_TO_TU(_h,_l) \
-	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
-#define	FUDGE	2
-	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	struct ieee80211_node *ni;
-	u_int32_t nexttbtt, intval, tsftu;
-	u_int64_t tsf;
-
-	if (vap == NULL)
-		vap = TAILQ_FIRST(&ic->ic_vaps);	/* XXX */
-	ni = ieee80211_ref_node(vap->iv_bss);
-
-	/* extract tstamp from last beacon and convert to TU */
-	nexttbtt = TSF_TO_TU(LE_READ_4(ni->ni_tstamp.data + 4),
-			     LE_READ_4(ni->ni_tstamp.data));
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
-	    ic->ic_opmode == IEEE80211_M_MBSS) {
-		/*
-		 * For multi-bss ap/mesh support beacons are either staggered
-		 * evenly over N slots or burst together.  For the former
-		 * arrange for the SWBA to be delivered for each slot.
-		 * Slots that are not occupied will generate nothing.
-		 */
-		/* NB: the beacon interval is kept internally in TU's */
-		intval = ni->ni_intval & HAL_BEACON_PERIOD;
-		if (sc->sc_stagbeacons)
-			intval /= ATH_BCBUF;
-	} else {
-		/* NB: the beacon interval is kept internally in TU's */
-		intval = ni->ni_intval & HAL_BEACON_PERIOD;
-	}
-	if (nexttbtt == 0)		/* e.g. for ap mode */
-		nexttbtt = intval;
-	else if (intval)		/* NB: can be 0 for monitor mode */
-		nexttbtt = roundup(nexttbtt, intval);
-	DPRINTF(sc, ATH_DEBUG_BEACON, "%s: nexttbtt %u intval %u (%u)\n",
-		__func__, nexttbtt, intval, ni->ni_intval);
-	if (ic->ic_opmode == IEEE80211_M_STA && !sc->sc_swbmiss) {
-		HAL_BEACON_STATE bs;
-		int dtimperiod, dtimcount;
-		int cfpperiod, cfpcount;
-
-		/*
-		 * Setup dtim and cfp parameters according to
-		 * last beacon we received (which may be none).
-		 */
-		dtimperiod = ni->ni_dtim_period;
-		if (dtimperiod <= 0)		/* NB: 0 if not known */
-			dtimperiod = 1;
-		dtimcount = ni->ni_dtim_count;
-		if (dtimcount >= dtimperiod)	/* NB: sanity check */
-			dtimcount = 0;		/* XXX? */
-		cfpperiod = 1;			/* NB: no PCF support yet */
-		cfpcount = 0;
-		/*
-		 * Pull nexttbtt forward to reflect the current
-		 * TSF and calculate dtim+cfp state for the result.
-		 */
-		tsf = ath_hal_gettsf64(ah);
-		tsftu = TSF_TO_TU(tsf>>32, tsf) + FUDGE;
-		do {
-			nexttbtt += intval;
-			if (--dtimcount < 0) {
-				dtimcount = dtimperiod - 1;
-				if (--cfpcount < 0)
-					cfpcount = cfpperiod - 1;
-			}
-		} while (nexttbtt < tsftu);
-		memset(&bs, 0, sizeof(bs));
-		bs.bs_intval = intval;
-		bs.bs_nexttbtt = nexttbtt;
-		bs.bs_dtimperiod = dtimperiod*intval;
-		bs.bs_nextdtim = bs.bs_nexttbtt + dtimcount*intval;
-		bs.bs_cfpperiod = cfpperiod*bs.bs_dtimperiod;
-		bs.bs_cfpnext = bs.bs_nextdtim + cfpcount*bs.bs_dtimperiod;
-		bs.bs_cfpmaxduration = 0;
-#if 0
-		/*
-		 * The 802.11 layer records the offset to the DTIM
-		 * bitmap while receiving beacons; use it here to
-		 * enable h/w detection of our AID being marked in
-		 * the bitmap vector (to indicate frames for us are
-		 * pending at the AP).
-		 * XXX do DTIM handling in s/w to WAR old h/w bugs
-		 * XXX enable based on h/w rev for newer chips
-		 */
-		bs.bs_timoffset = ni->ni_timoff;
-#endif
-		/*
-		 * Calculate the number of consecutive beacons to miss
-		 * before taking a BMISS interrupt.
-		 * Note that we clamp the result to at most 10 beacons.
-		 */
-		bs.bs_bmissthreshold = vap->iv_bmissthreshold;
-		if (bs.bs_bmissthreshold > 10)
-			bs.bs_bmissthreshold = 10;
-		else if (bs.bs_bmissthreshold <= 0)
-			bs.bs_bmissthreshold = 1;
-
-		/*
-		 * Calculate sleep duration.  The configuration is
-		 * given in ms.  We insure a multiple of the beacon
-		 * period is used.  Also, if the sleep duration is
-		 * greater than the DTIM period then it makes senses
-		 * to make it a multiple of that.
-		 *
-		 * XXX fixed at 100ms
-		 */
-		bs.bs_sleepduration =
-			roundup(IEEE80211_MS_TO_TU(100), bs.bs_intval);
-		if (bs.bs_sleepduration > bs.bs_dtimperiod)
-			bs.bs_sleepduration = roundup(bs.bs_sleepduration, bs.bs_dtimperiod);
-
-		DPRINTF(sc, ATH_DEBUG_BEACON,
-			"%s: tsf %ju tsf:tu %u intval %u nexttbtt %u dtim %u nextdtim %u bmiss %u sleep %u cfp:period %u maxdur %u next %u timoffset %u\n"
-			, __func__
-			, tsf, tsftu
-			, bs.bs_intval
-			, bs.bs_nexttbtt
-			, bs.bs_dtimperiod
-			, bs.bs_nextdtim
-			, bs.bs_bmissthreshold
-			, bs.bs_sleepduration
-			, bs.bs_cfpperiod
-			, bs.bs_cfpmaxduration
-			, bs.bs_cfpnext
-			, bs.bs_timoffset
-		);
-		ath_hal_intrset(ah, 0);
-		ath_hal_beacontimers(ah, &bs);
-		sc->sc_imask |= HAL_INT_BMISS;
-		ath_hal_intrset(ah, sc->sc_imask);
-	} else {
-		ath_hal_intrset(ah, 0);
-		if (nexttbtt == intval)
-			intval |= HAL_BEACON_RESET_TSF;
-		if (ic->ic_opmode == IEEE80211_M_IBSS) {
-			/*
-			 * In IBSS mode enable the beacon timers but only
-			 * enable SWBA interrupts if we need to manually
-			 * prepare beacon frames.  Otherwise we use a
-			 * self-linked tx descriptor and let the hardware
-			 * deal with things.
-			 */
-			intval |= HAL_BEACON_ENA;
-			if (!sc->sc_hasveol)
-				sc->sc_imask |= HAL_INT_SWBA;
-			if ((intval & HAL_BEACON_RESET_TSF) == 0) {
-				/*
-				 * Pull nexttbtt forward to reflect
-				 * the current TSF.
-				 */
-				tsf = ath_hal_gettsf64(ah);
-				tsftu = TSF_TO_TU(tsf>>32, tsf) + FUDGE;
-				do {
-					nexttbtt += intval;
-				} while (nexttbtt < tsftu);
-			}
-			ath_beaconq_config(sc);
-		} else if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
-		    ic->ic_opmode == IEEE80211_M_MBSS) {
-			/*
-			 * In AP/mesh mode we enable the beacon timers
-			 * and SWBA interrupts to prepare beacon frames.
-			 */
-			intval |= HAL_BEACON_ENA;
-			sc->sc_imask |= HAL_INT_SWBA;	/* beacon prepare */
-			ath_beaconq_config(sc);
-		}
-		ath_hal_beaconinit(ah, nexttbtt, intval);
-		sc->sc_bmisscount = 0;
-		ath_hal_intrset(ah, sc->sc_imask);
-		/*
-		 * When using a self-linked beacon descriptor in
-		 * ibss mode load it once here.
-		 */
-		if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol)
-			ath_beacon_start_adhoc(sc, vap);
-	}
-	sc->sc_syncbeacon = 0;
-	ieee80211_free_node(ni);
-#undef FUDGE
-#undef TSF_TO_TU
 }
 
 static void
@@ -3687,12 +2903,28 @@ ath_desc_alloc(struct ath_softc *sc)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 		return error;
 	}
+	sc->sc_txbuf_cnt = ath_txbuf;
+
+	error = ath_descdma_setup(sc, &sc->sc_txdma_mgmt, &sc->sc_txbuf_mgmt,
+			"tx_mgmt", ath_txbuf_mgmt, ATH_TXDESC);
+	if (error != 0) {
+		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
+		return error;
+	}
+
+	/*
+	 * XXX mark txbuf_mgmt frames with ATH_BUF_MGMT, so the
+	 * flag doesn't have to be set in ath_getbuf_locked().
+	 */
 
 	error = ath_descdma_setup(sc, &sc->sc_bdma, &sc->sc_bbuf,
 			"beacon", ATH_BCBUF, 1);
 	if (error != 0) {
-		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
+		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
+		    &sc->sc_txbuf_mgmt);
 		return error;
 	}
 	return 0;
@@ -3708,6 +2940,9 @@ ath_desc_free(struct ath_softc *sc)
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+	if (sc->sc_txdma_mgmt.dd_desc_len != 0)
+		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
+		    &sc->sc_txbuf_mgmt);
 }
 
 static struct ieee80211_node *
@@ -3774,197 +3009,10 @@ ath_node_getsignal(const struct ieee80211_node *ni, int8_t *rssi, int8_t *noise)
 		*noise = -95;		/* nominally correct */
 }
 
-static int
-ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	int error;
-	struct mbuf *m;
-	struct ath_desc *ds;
-
-	m = bf->bf_m;
-	if (m == NULL) {
-		/*
-		 * NB: by assigning a page to the rx dma buffer we
-		 * implicitly satisfy the Atheros requirement that
-		 * this buffer be cache-line-aligned and sized to be
-		 * multiple of the cache line size.  Not doing this
-		 * causes weird stuff to happen (for the 5210 at least).
-		 */
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (m == NULL) {
-			DPRINTF(sc, ATH_DEBUG_ANY,
-				"%s: no mbuf/cluster\n", __func__);
-			sc->sc_stats.ast_rx_nombuf++;
-			return ENOMEM;
-		}
-		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
-
-		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat,
-					     bf->bf_dmamap, m,
-					     bf->bf_segs, &bf->bf_nseg,
-					     BUS_DMA_NOWAIT);
-		if (error != 0) {
-			DPRINTF(sc, ATH_DEBUG_ANY,
-			    "%s: bus_dmamap_load_mbuf_sg failed; error %d\n",
-			    __func__, error);
-			sc->sc_stats.ast_rx_busdma++;
-			m_freem(m);
-			return error;
-		}
-		KASSERT(bf->bf_nseg == 1,
-			("multi-segment packet; nseg %u", bf->bf_nseg));
-		bf->bf_m = m;
-	}
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREREAD);
-
-	/*
-	 * Setup descriptors.  For receive we always terminate
-	 * the descriptor list with a self-linked entry so we'll
-	 * not get overrun under high load (as can happen with a
-	 * 5212 when ANI processing enables PHY error frames).
-	 *
-	 * To insure the last descriptor is self-linked we create
-	 * each descriptor as self-linked and add it to the end.  As
-	 * each additional descriptor is added the previous self-linked
-	 * entry is ``fixed'' naturally.  This should be safe even
-	 * if DMA is happening.  When processing RX interrupts we
-	 * never remove/process the last, self-linked, entry on the
-	 * descriptor list.  This insures the hardware always has
-	 * someplace to write a new frame.
-	 */
-	/*
-	 * 11N: we can no longer afford to self link the last descriptor.
-	 * MAC acknowledges BA status as long as it copies frames to host
-	 * buffer (or rx fifo). This can incorrectly acknowledge packets
-	 * to a sender if last desc is self-linked.
-	 */
-	ds = bf->bf_desc;
-	if (sc->sc_rxslink)
-		ds->ds_link = bf->bf_daddr;	/* link to self */
-	else
-		ds->ds_link = 0;		/* terminate the list */
-	ds->ds_data = bf->bf_segs[0].ds_addr;
-	ath_hal_setuprxdesc(ah, ds
-		, m->m_len		/* buffer size */
-		, 0
-	);
-
-	if (sc->sc_rxlink != NULL)
-		*sc->sc_rxlink = bf->bf_daddr;
-	sc->sc_rxlink = &ds->ds_link;
-	return 0;
-}
-
-/*
- * Extend 15-bit time stamp from rx descriptor to
- * a full 64-bit TSF using the specified TSF.
- */
-static __inline u_int64_t
-ath_extend_tsf15(u_int32_t rstamp, u_int64_t tsf)
-{
-	if ((tsf & 0x7fff) < rstamp)
-		tsf -= 0x8000;
-
-	return ((tsf &~ 0x7fff) | rstamp);
-}
-
-/*
- * Extend 32-bit time stamp from rx descriptor to
- * a full 64-bit TSF using the specified TSF.
- */
-static __inline u_int64_t
-ath_extend_tsf32(u_int32_t rstamp, u_int64_t tsf)
-{
-	u_int32_t tsf_low = tsf & 0xffffffff;
-	u_int64_t tsf64 = (tsf & ~0xffffffffULL) | rstamp;
-
-	if (rstamp > tsf_low && (rstamp - tsf_low > 0x10000000))
-		tsf64 -= 0x100000000ULL;
-
-	if (rstamp < tsf_low && (tsf_low - rstamp > 0x10000000))
-		tsf64 += 0x100000000ULL;
-
-	return tsf64;
-}
-
-/*
- * Extend the TSF from the RX descriptor to a full 64 bit TSF.
- * Earlier hardware versions only wrote the low 15 bits of the
- * TSF into the RX descriptor; later versions (AR5416 and up)
- * include the 32 bit TSF value.
- */
-static __inline u_int64_t
-ath_extend_tsf(struct ath_softc *sc, u_int32_t rstamp, u_int64_t tsf)
-{
-	if (sc->sc_rxtsf32)
-		return ath_extend_tsf32(rstamp, tsf);
-	else
-		return ath_extend_tsf15(rstamp, tsf);
-}
-
-/*
- * Intercept management frames to collect beacon rssi data
- * and to do ibss merges.
- */
-static void
-ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	int subtype, int rssi, int nf)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
-
-	/*
-	 * Call up first so subsequent work can use information
-	 * potentially stored in the node (e.g. for ibss merge).
-	 */
-	ATH_VAP(vap)->av_recv_mgmt(ni, m, subtype, rssi, nf);
-	switch (subtype) {
-	case IEEE80211_FC0_SUBTYPE_BEACON:
-		/* update rssi statistics for use by the hal */
-		/* XXX unlocked check against vap->iv_bss? */
-		ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
-		if (sc->sc_syncbeacon &&
-		    ni == vap->iv_bss && vap->iv_state == IEEE80211_S_RUN) {
-			/*
-			 * Resync beacon timers using the tsf of the beacon
-			 * frame we just received.
-			 */
-			ath_beacon_config(sc, vap);
-		}
-		/* fall thru... */
-	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
-		if (vap->iv_opmode == IEEE80211_M_IBSS &&
-		    vap->iv_state == IEEE80211_S_RUN) {
-			uint32_t rstamp = sc->sc_lastrs->rs_tstamp;
-			uint64_t tsf = ath_extend_tsf(sc, rstamp,
-				ath_hal_gettsf64(sc->sc_ah));
-			/*
-			 * Handle ibss merge as needed; check the tsf on the
-			 * frame before attempting the merge.  The 802.11 spec
-			 * says the station should change it's bssid to match
-			 * the oldest station with the same ssid, where oldest
-			 * is determined by the tsf.  Note that hardware
-			 * reconfiguration happens through callback to
-			 * ath_newstate as the state machine will go from
-			 * RUN -> RUN when this happens.
-			 */
-			if (le64toh(ni->ni_tstamp.tsf) >= tsf) {
-				DPRINTF(sc, ATH_DEBUG_STATE,
-				    "ibss merge, rstamp %u tsf %ju "
-				    "tstamp %ju\n", rstamp, (uintmax_t)tsf,
-				    (uintmax_t)ni->ni_tstamp.tsf);
-				(void) ieee80211_ibss_merge(ni);
-			}
-		}
-		break;
-	}
-}
-
 /*
  * Set the default antenna.
  */
-static void
+void
 ath_setdefantenna(struct ath_softc *sc, u_int antenna)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -3975,538 +3023,6 @@ ath_setdefantenna(struct ath_softc *sc, u_int antenna)
 		sc->sc_stats.ast_ant_defswitch++;
 	sc->sc_defant = antenna;
 	sc->sc_rxotherant = 0;
-}
-
-static void
-ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
-	const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
-{
-#define	CHAN_HT20	htole32(IEEE80211_CHAN_HT20)
-#define	CHAN_HT40U	htole32(IEEE80211_CHAN_HT40U)
-#define	CHAN_HT40D	htole32(IEEE80211_CHAN_HT40D)
-#define	CHAN_HT		(CHAN_HT20|CHAN_HT40U|CHAN_HT40D)
-	struct ath_softc *sc = ifp->if_softc;
-	const HAL_RATE_TABLE *rt;
-	uint8_t rix;
-
-	rt = sc->sc_currates;
-	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
-	rix = rt->rateCodeToIndex[rs->rs_rate];
-	sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
-	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
-#ifdef AH_SUPPORT_AR5416
-	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
-	if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
-		struct ieee80211com *ic = ifp->if_l2com;
-
-		if ((rs->rs_flags & HAL_RX_2040) == 0)
-			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
-		else if (IEEE80211_IS_CHAN_HT40U(ic->ic_curchan))
-			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
-		else
-			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
-		if ((rs->rs_flags & HAL_RX_GI) == 0)
-			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
-	}
-#endif
-	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
-	if (rs->rs_status & HAL_RXERR_CRC)
-		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
-	/* XXX propagate other error flags from descriptor */
-	sc->sc_rx_th.wr_antnoise = nf;
-	sc->sc_rx_th.wr_antsignal = nf + rs->rs_rssi;
-	sc->sc_rx_th.wr_antenna = rs->rs_antenna;
-#undef CHAN_HT
-#undef CHAN_HT20
-#undef CHAN_HT40U
-#undef CHAN_HT40D
-}
-
-static void
-ath_handle_micerror(struct ieee80211com *ic,
-	struct ieee80211_frame *wh, int keyix)
-{
-	struct ieee80211_node *ni;
-
-	/* XXX recheck MIC to deal w/ chips that lie */
-	/* XXX discard MIC errors on !data frames */
-	ni = ieee80211_find_rxnode(ic, (const struct ieee80211_frame_min *) wh);
-	if (ni != NULL) {
-		ieee80211_notify_michael_failure(ni->ni_vap, wh, keyix);
-		ieee80211_free_node(ni);
-	}
-}
-
-/*
- * Only run the RX proc if it's not already running.
- * Since this may get run as part of the reset/flush path,
- * the task can't clash with an existing, running tasklet.
- */
-static void
-ath_rx_tasklet(void *arg, int npending)
-{
-	struct ath_softc *sc = arg;
-
-	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
-	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
-	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
-		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
-		ATH_PCU_UNLOCK(sc);
-		return;
-	}
-	ATH_PCU_UNLOCK(sc);
-	ath_rx_proc(sc, 1);
-}
-
-static void
-ath_rx_proc(struct ath_softc *sc, int resched)
-{
-#define	PA2DESC(_sc, _pa) \
-	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
-		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
-	struct ath_buf *bf;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_desc *ds;
-	struct ath_rx_status *rs;
-	struct mbuf *m;
-	struct ieee80211_node *ni;
-	int len, type, ngood;
-	HAL_STATUS status;
-	int16_t nf;
-	u_int64_t tsf, rstamp;
-	int npkts = 0;
-
-	/* XXX we must not hold the ATH_LOCK here */
-	ATH_UNLOCK_ASSERT(sc);
-	ATH_PCU_UNLOCK_ASSERT(sc);
-
-	ATH_PCU_LOCK(sc);
-	sc->sc_rxproc_cnt++;
-	ATH_PCU_UNLOCK(sc);
-
-	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
-	ngood = 0;
-	nf = ath_hal_getchannoise(ah, sc->sc_curchan);
-	sc->sc_stats.ast_rx_noise = nf;
-	tsf = ath_hal_gettsf64(ah);
-	do {
-		bf = TAILQ_FIRST(&sc->sc_rxbuf);
-		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
-			if_printf(ifp, "%s: no buffer!\n", __func__);
-			break;
-		} else if (bf == NULL) {
-			/*
-			 * End of List:
-			 * this can happen for non-self-linked RX chains
-			 */
-			sc->sc_stats.ast_rx_hitqueueend++;
-			break;
-		}
-		m = bf->bf_m;
-		if (m == NULL) {		/* NB: shouldn't happen */
-			/*
-			 * If mbuf allocation failed previously there
-			 * will be no mbuf; try again to re-populate it.
-			 */
-			/* XXX make debug msg */
-			if_printf(ifp, "%s: no mbuf!\n", __func__);
-			TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
-			goto rx_next;
-		}
-		ds = bf->bf_desc;
-		if (ds->ds_link == bf->bf_daddr) {
-			/* NB: never process the self-linked entry at the end */
-			sc->sc_stats.ast_rx_hitqueueend++;
-			break;
-		}
-		/* XXX sync descriptor memory */
-		/*
-		 * Must provide the virtual address of the current
-		 * descriptor, the physical address, and the virtual
-		 * address of the next descriptor in the h/w chain.
-		 * This allows the HAL to look ahead to see if the
-		 * hardware is done with a descriptor by checking the
-		 * done bit in the following descriptor and the address
-		 * of the current descriptor the DMA engine is working
-		 * on.  All this is necessary because of our use of
-		 * a self-linked list to avoid rx overruns.
-		 */
-		rs = &bf->bf_status.ds_rxstat;
-		status = ath_hal_rxprocdesc(ah, ds,
-				bf->bf_daddr, PA2DESC(sc, ds->ds_link), rs);
-#ifdef ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
-			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
-#endif
-		if (status == HAL_EINPROGRESS)
-			break;
-
-		TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
-		npkts++;
-
-		/*
-		 * Calculate the correct 64 bit TSF given
-		 * the TSF64 register value and rs_tstamp.
-		 */
-		rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
-
-		/* These aren't specifically errors */
-#ifdef	AH_SUPPORT_AR5416
-		if (rs->rs_flags & HAL_RX_GI)
-			sc->sc_stats.ast_rx_halfgi++;
-		if (rs->rs_flags & HAL_RX_2040)
-			sc->sc_stats.ast_rx_2040++;
-		if (rs->rs_flags & HAL_RX_DELIM_CRC_PRE)
-			sc->sc_stats.ast_rx_pre_crc_err++;
-		if (rs->rs_flags & HAL_RX_DELIM_CRC_POST)
-			sc->sc_stats.ast_rx_post_crc_err++;
-		if (rs->rs_flags & HAL_RX_DECRYPT_BUSY)
-			sc->sc_stats.ast_rx_decrypt_busy_err++;
-		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
-			sc->sc_stats.ast_rx_hi_rx_chain++;
-#endif /* AH_SUPPORT_AR5416 */
-
-		if (rs->rs_status != 0) {
-			if (rs->rs_status & HAL_RXERR_CRC)
-				sc->sc_stats.ast_rx_crcerr++;
-			if (rs->rs_status & HAL_RXERR_FIFO)
-				sc->sc_stats.ast_rx_fifoerr++;
-			if (rs->rs_status & HAL_RXERR_PHY) {
-				sc->sc_stats.ast_rx_phyerr++;
-				/* Process DFS radar events */
-				if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
-				    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
-					/* Since we're touching the frame data, sync it */
-					bus_dmamap_sync(sc->sc_dmat,
-					    bf->bf_dmamap,
-					    BUS_DMASYNC_POSTREAD);
-					/* Now pass it to the radar processing code */
-					ath_dfs_process_phy_err(sc, mtod(m, char *), rstamp, rs);
-				}
-
-				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
-				if (rs->rs_phyerr < 64)
-					sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
-				goto rx_error;	/* NB: don't count in ierrors */
-			}
-			if (rs->rs_status & HAL_RXERR_DECRYPT) {
-				/*
-				 * Decrypt error.  If the error occurred
-				 * because there was no hardware key, then
-				 * let the frame through so the upper layers
-				 * can process it.  This is necessary for 5210
-				 * parts which have no way to setup a ``clear''
-				 * key cache entry.
-				 *
-				 * XXX do key cache faulting
-				 */
-				if (rs->rs_keyix == HAL_RXKEYIX_INVALID)
-					goto rx_accept;
-				sc->sc_stats.ast_rx_badcrypt++;
-			}
-			if (rs->rs_status & HAL_RXERR_MIC) {
-				sc->sc_stats.ast_rx_badmic++;
-				/*
-				 * Do minimal work required to hand off
-				 * the 802.11 header for notification.
-				 */
-				/* XXX frag's and qos frames */
-				len = rs->rs_datalen;
-				if (len >= sizeof (struct ieee80211_frame)) {
-					bus_dmamap_sync(sc->sc_dmat,
-					    bf->bf_dmamap,
-					    BUS_DMASYNC_POSTREAD);
-					ath_handle_micerror(ic,
-					    mtod(m, struct ieee80211_frame *),
-					    sc->sc_splitmic ?
-						rs->rs_keyix-32 : rs->rs_keyix);
-				}
-			}
-			ifp->if_ierrors++;
-rx_error:
-			/*
-			 * Cleanup any pending partial frame.
-			 */
-			if (sc->sc_rxpending != NULL) {
-				m_freem(sc->sc_rxpending);
-				sc->sc_rxpending = NULL;
-			}
-			/*
-			 * When a tap is present pass error frames
-			 * that have been requested.  By default we
-			 * pass decrypt+mic errors but others may be
-			 * interesting (e.g. crc).
-			 */
-			if (ieee80211_radiotap_active(ic) &&
-			    (rs->rs_status & sc->sc_monpass)) {
-				bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-				    BUS_DMASYNC_POSTREAD);
-				/* NB: bpf needs the mbuf length setup */
-				len = rs->rs_datalen;
-				m->m_pkthdr.len = m->m_len = len;
-				bf->bf_m = NULL;
-				ath_rx_tap(ifp, m, rs, rstamp, nf);
-				ieee80211_radiotap_rx_all(ic, m);
-				m_freem(m);
-			}
-			/* XXX pass MIC errors up for s/w reclaculation */
-			goto rx_next;
-		}
-rx_accept:
-		/*
-		 * Sync and unmap the frame.  At this point we're
-		 * committed to passing the mbuf somewhere so clear
-		 * bf_m; this means a new mbuf must be allocated
-		 * when the rx descriptor is setup again to receive
-		 * another frame.
-		 */
-		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		bf->bf_m = NULL;
-
-		len = rs->rs_datalen;
-		m->m_len = len;
-
-		if (rs->rs_more) {
-			/*
-			 * Frame spans multiple descriptors; save
-			 * it for the next completed descriptor, it
-			 * will be used to construct a jumbogram.
-			 */
-			if (sc->sc_rxpending != NULL) {
-				/* NB: max frame size is currently 2 clusters */
-				sc->sc_stats.ast_rx_toobig++;
-				m_freem(sc->sc_rxpending);
-			}
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = len;
-			sc->sc_rxpending = m;
-			goto rx_next;
-		} else if (sc->sc_rxpending != NULL) {
-			/*
-			 * This is the second part of a jumbogram,
-			 * chain it to the first mbuf, adjust the
-			 * frame length, and clear the rxpending state.
-			 */
-			sc->sc_rxpending->m_next = m;
-			sc->sc_rxpending->m_pkthdr.len += len;
-			m = sc->sc_rxpending;
-			sc->sc_rxpending = NULL;
-		} else {
-			/*
-			 * Normal single-descriptor receive; setup
-			 * the rcvif and packet length.
-			 */
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = len;
-		}
-
-		/*
-		 * Validate rs->rs_antenna.
-		 *
-		 * Some users w/ AR9285 NICs have reported crashes
-		 * here because rs_antenna field is bogusly large.
-		 * Let's enforce the maximum antenna limit of 8
-		 * (and it shouldn't be hard coded, but that's a
-		 * separate problem) and if there's an issue, print
-		 * out an error and adjust rs_antenna to something
-		 * sensible.
-		 *
-		 * This code should be removed once the actual
-		 * root cause of the issue has been identified.
-		 * For example, it may be that the rs_antenna
-		 * field is only valid for the lsat frame of
-		 * an aggregate and it just happens that it is
-		 * "mostly" right. (This is a general statement -
-		 * the majority of the statistics are only valid
-		 * for the last frame in an aggregate.
-		 */
-		if (rs->rs_antenna > 7) {
-			device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
-			    __func__, rs->rs_antenna);
-#ifdef	ATH_DEBUG
-			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
-#endif /* ATH_DEBUG */
-			rs->rs_antenna = 0;	/* XXX better than nothing */
-		}
-
-		ifp->if_ipackets++;
-		sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
-
-		/*
-		 * Populate the rx status block.  When there are bpf
-		 * listeners we do the additional work to provide
-		 * complete status.  Otherwise we fill in only the
-		 * material required by ieee80211_input.  Note that
-		 * noise setting is filled in above.
-		 */
-		if (ieee80211_radiotap_active(ic))
-			ath_rx_tap(ifp, m, rs, rstamp, nf);
-
-		/*
-		 * From this point on we assume the frame is at least
-		 * as large as ieee80211_frame_min; verify that.
-		 */
-		if (len < IEEE80211_MIN_LEN) {
-			if (!ieee80211_radiotap_active(ic)) {
-				DPRINTF(sc, ATH_DEBUG_RECV,
-				    "%s: short packet %d\n", __func__, len);
-				sc->sc_stats.ast_rx_tooshort++;
-			} else {
-				/* NB: in particular this captures ack's */
-				ieee80211_radiotap_rx_all(ic, m);
-			}
-			m_freem(m);
-			goto rx_next;
-		}
-
-		if (IFF_DUMPPKTS(sc, ATH_DEBUG_RECV)) {
-			const HAL_RATE_TABLE *rt = sc->sc_currates;
-			uint8_t rix = rt->rateCodeToIndex[rs->rs_rate];
-
-			ieee80211_dump_pkt(ic, mtod(m, caddr_t), len,
-			    sc->sc_hwmap[rix].ieeerate, rs->rs_rssi);
-		}
-
-		m_adj(m, -IEEE80211_CRC_LEN);
-
-		/*
-		 * Locate the node for sender, track state, and then
-		 * pass the (referenced) node up to the 802.11 layer
-		 * for its use.
-		 */
-		ni = ieee80211_find_rxnode_withkey(ic,
-			mtod(m, const struct ieee80211_frame_min *),
-			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
-				IEEE80211_KEYIX_NONE : rs->rs_keyix);
-		sc->sc_lastrs = rs;
-
-#ifdef	AH_SUPPORT_AR5416
-		if (rs->rs_isaggr)
-			sc->sc_stats.ast_rx_agg++;
-#endif /* AH_SUPPORT_AR5416 */
-
-		if (ni != NULL) {
-			/*
- 			 * Only punt packets for ampdu reorder processing for
-			 * 11n nodes; net80211 enforces that M_AMPDU is only
-			 * set for 11n nodes.
- 			 */
-			if (ni->ni_flags & IEEE80211_NODE_HT)
-				m->m_flags |= M_AMPDU;
-
-			/*
-			 * Sending station is known, dispatch directly.
-			 */
-			type = ieee80211_input(ni, m, rs->rs_rssi, nf);
-			ieee80211_free_node(ni);
-			/*
-			 * Arrange to update the last rx timestamp only for
-			 * frames from our ap when operating in station mode.
-			 * This assumes the rx key is always setup when
-			 * associated.
-			 */
-			if (ic->ic_opmode == IEEE80211_M_STA &&
-			    rs->rs_keyix != HAL_RXKEYIX_INVALID)
-				ngood++;
-		} else {
-			type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
-		}
-		/*
-		 * Track rx rssi and do any rx antenna management.
-		 */
-		ATH_RSSI_LPF(sc->sc_halstats.ns_avgrssi, rs->rs_rssi);
-		if (sc->sc_diversity) {
-			/*
-			 * When using fast diversity, change the default rx
-			 * antenna if diversity chooses the other antenna 3
-			 * times in a row.
-			 */
-			if (sc->sc_defant != rs->rs_antenna) {
-				if (++sc->sc_rxotherant >= 3)
-					ath_setdefantenna(sc, rs->rs_antenna);
-			} else
-				sc->sc_rxotherant = 0;
-		}
-
-		/* Newer school diversity - kite specific for now */
-		/* XXX perhaps migrate the normal diversity code to this? */
-		if ((ah)->ah_rxAntCombDiversity)
-			(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
-
-		if (sc->sc_softled) {
-			/*
-			 * Blink for any data frame.  Otherwise do a
-			 * heartbeat-style blink when idle.  The latter
-			 * is mainly for station mode where we depend on
-			 * periodic beacon frames to trigger the poll event.
-			 */
-			if (type == IEEE80211_FC0_TYPE_DATA) {
-				const HAL_RATE_TABLE *rt = sc->sc_currates;
-				ath_led_event(sc,
-				    rt->rateCodeToIndex[rs->rs_rate]);
-			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
-				ath_led_event(sc, 0);
-		}
-rx_next:
-		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
-	} while (ath_rxbuf_init(sc, bf) == 0);
-
-	/* rx signal state monitoring */
-	ath_hal_rxmonitor(ah, &sc->sc_halstats, sc->sc_curchan);
-	if (ngood)
-		sc->sc_lastrx = tsf;
-
-	CTR2(ATH_KTR_INTR, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
-	/* Queue DFS tasklet if needed */
-	if (resched && ath_dfs_tasklet_needed(sc, sc->sc_curchan))
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
-
-	/*
-	 * Now that all the RX frames were handled that
-	 * need to be handled, kick the PCU if there's
-	 * been an RXEOL condition.
-	 */
-	ATH_PCU_LOCK(sc);
-	if (resched && sc->sc_kickpcu) {
-		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
-		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
-		    __func__, npkts);
-
-		/* XXX rxslink? */
-		/*
-		 * XXX can we hold the PCU lock here?
-		 * Are there any net80211 buffer calls involved?
-		 */
-		bf = TAILQ_FIRST(&sc->sc_rxbuf);
-		ath_hal_putrxbuf(ah, bf->bf_daddr);
-		ath_hal_rxena(ah);		/* enable recv descriptors */
-		ath_mode_init(sc);		/* set filters, etc. */
-		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
-
-		ath_hal_intrset(ah, sc->sc_imask);
-		sc->sc_kickpcu = 0;
-	}
-	ATH_PCU_UNLOCK(sc);
-
-	/* XXX check this inside of IF_LOCK? */
-	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
-#ifdef IEEE80211_SUPPORT_SUPERG
-		ieee80211_ff_age_all(ic, 100);
-#endif
-		if (!IFQ_IS_EMPTY(&ifp->if_snd))
-			ath_start(ifp);
-	}
-#undef PA2DESC
-
-	ATH_PCU_LOCK(sc);
-	sc->sc_rxproc_cnt--;
-	ATH_PCU_UNLOCK(sc);
 }
 
 static void
@@ -4686,7 +3202,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 /*
  * Callback from the 802.11 layer to update WME parameters.
  */
-static int
+int
 ath_wme_update(struct ieee80211com *ic)
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
@@ -4873,11 +3389,13 @@ ath_tx_update_busy(struct ath_softc *sc)
 	 * descriptor.
 	 */
 	ATH_TXBUF_LOCK_ASSERT(sc);
+	last = TAILQ_LAST(&sc->sc_txbuf_mgmt, ath_bufhead_s);
+	if (last != NULL)
+		last->bf_flags &= ~ATH_BUF_BUSY;
 	last = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
 	if (last != NULL)
 		last->bf_flags &= ~ATH_BUF_BUSY;
 }
-
 
 /*
  * Process completed xmit descriptors from the specified queue.
@@ -4893,6 +3411,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
+#ifdef	IEEE80211_SUPPORT_SUPERG
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+#endif	/* IEEE80211_SUPPORT_SUPERG */
 	int nacked;
 	HAL_STATUS status;
 
@@ -5046,7 +3567,7 @@ ath_tx_proc_q0(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	ath_tx_kick(sc);
 }
 
 /*
@@ -5096,7 +3617,7 @@ ath_tx_proc_q0123(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	ath_tx_kick(sc);
 }
 
 /*
@@ -5139,7 +3660,7 @@ ath_tx_proc(void *arg, int npending)
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-	ath_start(ifp);
+	ath_tx_kick(sc);
 }
 #undef	TXQACTIVE
 
@@ -5178,6 +3699,48 @@ ath_txq_sched_tasklet(void *arg, int npending)
 	ATH_PCU_UNLOCK(sc);
 }
 
+void
+ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf)
+{
+
+	ATH_TXBUF_LOCK_ASSERT(sc);
+
+	if (bf->bf_flags & ATH_BUF_MGMT)
+		TAILQ_INSERT_TAIL(&sc->sc_txbuf_mgmt, bf, bf_list);
+	else {
+		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+		sc->sc_txbuf_cnt++;
+		if (sc->sc_txbuf_cnt > ath_txbuf) {
+			device_printf(sc->sc_dev,
+			    "%s: sc_txbuf_cnt > %d?\n",
+			    __func__,
+			    ath_txbuf);
+			sc->sc_txbuf_cnt = ath_txbuf;
+		}
+	}
+}
+
+void
+ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf)
+{
+
+	ATH_TXBUF_LOCK_ASSERT(sc);
+
+	if (bf->bf_flags & ATH_BUF_MGMT)
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf_mgmt, bf, bf_list);
+	else {
+		TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+		sc->sc_txbuf_cnt++;
+		if (sc->sc_txbuf_cnt > ATH_TXBUF) {
+			device_printf(sc->sc_dev,
+			    "%s: sc_txbuf_cnt > %d?\n",
+			    __func__,
+			    ATH_TXBUF);
+			sc->sc_txbuf_cnt = ATH_TXBUF;
+		}
+	}
+}
+
 /*
  * Return a buffer to the pool and update the 'busy' flag on the
  * previous 'tail' entry.
@@ -5200,7 +3763,7 @@ ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TXBUF_LOCK(sc);
 	ath_tx_update_busy(sc);
-	TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ath_returnbuf_tail(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
 }
 
@@ -5254,6 +3817,9 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	 */
 	ATH_TXBUF_LOCK(sc);
 	bf = TAILQ_LAST(&sc->sc_txbuf, ath_bufhead_s);
+	if (bf != NULL)
+		bf->bf_flags &= ~ATH_BUF_BUSY;
+	bf = TAILQ_LAST(&sc->sc_txbuf_mgmt, ath_bufhead_s);
 	if (bf != NULL)
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 	ATH_TXBUF_UNLOCK(sc);
@@ -5384,81 +3950,6 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
-}
-
-/*
- * Disable the receive h/w in preparation for a reset.
- */
-static void
-ath_stoprecv(struct ath_softc *sc, int dodelay)
-{
-#define	PA2DESC(_sc, _pa) \
-	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
-		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
-	struct ath_hal *ah = sc->sc_ah;
-
-	ath_hal_stoppcurecv(ah);	/* disable PCU */
-	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
-	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
-	if (dodelay)
-		DELAY(3000);		/* 3ms is long enough for 1 frame */
-#ifdef ATH_DEBUG
-	if (sc->sc_debug & (ATH_DEBUG_RESET | ATH_DEBUG_FATAL)) {
-		struct ath_buf *bf;
-		u_int ix;
-
-		device_printf(sc->sc_dev,
-		    "%s: rx queue %p, link %p\n",
-		    __func__,
-		    (caddr_t)(uintptr_t) ath_hal_getrxbuf(ah),
-		    sc->sc_rxlink);
-		ix = 0;
-		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
-			struct ath_desc *ds = bf->bf_desc;
-			struct ath_rx_status *rs = &bf->bf_status.ds_rxstat;
-			HAL_STATUS status = ath_hal_rxprocdesc(ah, ds,
-				bf->bf_daddr, PA2DESC(sc, ds->ds_link), rs);
-			if (status == HAL_OK || (sc->sc_debug & ATH_DEBUG_FATAL))
-				ath_printrxbuf(sc, bf, ix, status == HAL_OK);
-			ix++;
-		}
-	}
-#endif
-	if (sc->sc_rxpending != NULL) {
-		m_freem(sc->sc_rxpending);
-		sc->sc_rxpending = NULL;
-	}
-	sc->sc_rxlink = NULL;		/* just in case */
-#undef PA2DESC
-}
-
-/*
- * Enable the receive h/w following a reset.
- */
-static int
-ath_startrecv(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
-
-	sc->sc_rxlink = NULL;
-	sc->sc_rxpending = NULL;
-	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
-		int error = ath_rxbuf_init(sc, bf);
-		if (error != 0) {
-			DPRINTF(sc, ATH_DEBUG_RECV,
-				"%s: ath_rxbuf_init failed %d\n",
-				__func__, error);
-			return error;
-		}
-	}
-
-	bf = TAILQ_FIRST(&sc->sc_rxbuf);
-	ath_hal_putrxbuf(ah, bf->bf_daddr);
-	ath_hal_rxena(ah);		/* enable recv descriptors */
-	ath_mode_init(sc);		/* set filters, etc. */
-	ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
-	return 0;
 }
 
 /*
@@ -5766,6 +4257,7 @@ ath_scan_end(struct ieee80211com *ic)
 		 sc->sc_curaid);
 }
 
+#ifdef	ATH_ENABLE_11N
 /*
  * For now, just do a channel change.
  *
@@ -5790,6 +4282,7 @@ ath_update_chw(struct ieee80211com *ic)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
 	ath_set_channel(ic);
 }
+#endif	/* ATH_ENABLE_11N */
 
 static void
 ath_set_channel(struct ieee80211com *ic)
@@ -6468,10 +4961,18 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_stats.ast_tx_rate |= IEEE80211_RATE_MCS;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
+	case SIOCGATHAGSTATS:
+		return copyout(&sc->sc_aggr_stats,
+		    ifr->ifr_data, sizeof (sc->sc_aggr_stats));
 	case SIOCZATHSTATS:
 		error = priv_check(curthread, PRIV_DRIVER);
-		if (error == 0)
+		if (error == 0) {
 			memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
+			memset(&sc->sc_aggr_stats, 0,
+			    sizeof(sc->sc_aggr_stats));
+			memset(&sc->sc_intr_stats, 0,
+			    sizeof(sc->sc_intr_stats));
+		}
 		break;
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
@@ -6524,357 +5025,6 @@ ath_announce(struct ath_softc *sc)
 	if (sc->sc_mcastkey && bootverbose)
 		if_printf(ifp, "using multicast key search\n");
 }
-
-#ifdef IEEE80211_SUPPORT_TDMA
-static void
-ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	HAL_BEACON_TIMERS bt;
-
-	bt.bt_intval = bintval | HAL_BEACON_ENA;
-	bt.bt_nexttbtt = nexttbtt;
-	bt.bt_nextdba = (nexttbtt<<3) - sc->sc_tdmadbaprep;
-	bt.bt_nextswba = (nexttbtt<<3) - sc->sc_tdmaswbaprep;
-	bt.bt_nextatim = nexttbtt+1;
-	/* Enables TBTT, DBA, SWBA timers by default */
-	bt.bt_flags = 0;
-	ath_hal_beaconsettimers(ah, &bt);
-}
-
-/*
- * Calculate the beacon interval.  This is periodic in the
- * superframe for the bss.  We assume each station is configured
- * identically wrt transmit rate so the guard time we calculate
- * above will be the same on all stations.  Note we need to
- * factor in the xmit time because the hardware will schedule
- * a frame for transmit if the start of the frame is within
- * the burst time.  When we get hardware that properly kills
- * frames in the PCU we can reduce/eliminate the guard time.
- *
- * Roundup to 1024 is so we have 1 TU buffer in the guard time
- * to deal with the granularity of the nexttbtt timer.  11n MAC's
- * with 1us timer granularity should allow us to reduce/eliminate
- * this.
- */
-static void
-ath_tdma_bintvalsetup(struct ath_softc *sc,
-	const struct ieee80211_tdma_state *tdma)
-{
-	/* copy from vap state (XXX check all vaps have same value?) */
-	sc->sc_tdmaslotlen = tdma->tdma_slotlen;
-
-	sc->sc_tdmabintval = roundup((sc->sc_tdmaslotlen+sc->sc_tdmaguard) *
-		tdma->tdma_slotcnt, 1024);
-	sc->sc_tdmabintval >>= 10;		/* TSF -> TU */
-	if (sc->sc_tdmabintval & 1)
-		sc->sc_tdmabintval++;
-
-	if (tdma->tdma_slot == 0) {
-		/*
-		 * Only slot 0 beacons; other slots respond.
-		 */
-		sc->sc_imask |= HAL_INT_SWBA;
-		sc->sc_tdmaswba = 0;		/* beacon immediately */
-	} else {
-		/* XXX all vaps must be slot 0 or slot !0 */
-		sc->sc_imask &= ~HAL_INT_SWBA;
-	}
-}
-
-/*
- * Max 802.11 overhead.  This assumes no 4-address frames and
- * the encapsulation done by ieee80211_encap (llc).  We also
- * include potential crypto overhead.
- */
-#define	IEEE80211_MAXOVERHEAD \
-	(sizeof(struct ieee80211_qosframe) \
-	 + sizeof(struct llc) \
-	 + IEEE80211_ADDR_LEN \
-	 + IEEE80211_WEP_IVLEN \
-	 + IEEE80211_WEP_KIDLEN \
-	 + IEEE80211_WEP_CRCLEN \
-	 + IEEE80211_WEP_MICLEN \
-	 + IEEE80211_CRC_LEN)
-
-/*
- * Setup initially for tdma operation.  Start the beacon
- * timers and enable SWBA if we are slot 0.  Otherwise
- * we wait for slot 0 to arrive so we can sync up before
- * starting to transmit.
- */
-static void
-ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	const struct ieee80211_txparam *tp;
-	const struct ieee80211_tdma_state *tdma = NULL;
-	int rix;
-
-	if (vap == NULL) {
-		vap = TAILQ_FIRST(&ic->ic_vaps);   /* XXX */
-		if (vap == NULL) {
-			if_printf(ifp, "%s: no vaps?\n", __func__);
-			return;
-		}
-	}
-	/* XXX should take a locked ref to iv_bss */
-	tp = vap->iv_bss->ni_txparms;
-	/*
-	 * Calculate the guard time for each slot.  This is the
-	 * time to send a maximal-size frame according to the
-	 * fixed/lowest transmit rate.  Note that the interface
-	 * mtu does not include the 802.11 overhead so we must
-	 * tack that on (ath_hal_computetxtime includes the
-	 * preamble and plcp in it's calculation).
-	 */
-	tdma = vap->iv_tdma;
-	if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
-		rix = ath_tx_findrix(sc, tp->ucastrate);
-	else
-		rix = ath_tx_findrix(sc, tp->mcastrate);
-	/* XXX short preamble assumed */
-	sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
-		ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
-
-	ath_hal_intrset(ah, 0);
-
-	ath_beaconq_config(sc);			/* setup h/w beacon q */
-	if (sc->sc_setcca)
-		ath_hal_setcca(ah, AH_FALSE);	/* disable CCA */
-	ath_tdma_bintvalsetup(sc, tdma);	/* calculate beacon interval */
-	ath_tdma_settimers(sc, sc->sc_tdmabintval,
-		sc->sc_tdmabintval | HAL_BEACON_RESET_TSF);
-	sc->sc_syncbeacon = 0;
-
-	sc->sc_avgtsfdeltap = TDMA_DUMMY_MARKER;
-	sc->sc_avgtsfdeltam = TDMA_DUMMY_MARKER;
-
-	ath_hal_intrset(ah, sc->sc_imask);
-
-	DPRINTF(sc, ATH_DEBUG_TDMA, "%s: slot %u len %uus cnt %u "
-	    "bsched %u guard %uus bintval %u TU dba prep %u\n", __func__,
-	    tdma->tdma_slot, tdma->tdma_slotlen, tdma->tdma_slotcnt,
-	    tdma->tdma_bintval, sc->sc_tdmaguard, sc->sc_tdmabintval,
-	    sc->sc_tdmadbaprep);
-}
-
-/*
- * Update tdma operation.  Called from the 802.11 layer
- * when a beacon is received from the TDMA station operating
- * in the slot immediately preceding us in the bss.  Use
- * the rx timestamp for the beacon frame to update our
- * beacon timers so we follow their schedule.  Note that
- * by using the rx timestamp we implicitly include the
- * propagation delay in our schedule.
- */
-static void
-ath_tdma_update(struct ieee80211_node *ni,
-	const struct ieee80211_tdma_param *tdma, int changed)
-{
-#define	TSF_TO_TU(_h,_l) \
-	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
-#define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
-	struct ath_hal *ah = sc->sc_ah;
-	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	u_int64_t tsf, rstamp, nextslot, nexttbtt;
-	u_int32_t txtime, nextslottu;
-	int32_t tudelta, tsfdelta;
-	const struct ath_rx_status *rs;
-	int rix;
-
-	sc->sc_stats.ast_tdma_update++;
-
-	/*
-	 * Check for and adopt configuration changes.
-	 */
-	if (changed != 0) {
-		const struct ieee80211_tdma_state *ts = vap->iv_tdma;
-
-		ath_tdma_bintvalsetup(sc, ts);
-		if (changed & TDMA_UPDATE_SLOTLEN)
-			ath_wme_update(ic);
-
-		DPRINTF(sc, ATH_DEBUG_TDMA,
-		    "%s: adopt slot %u slotcnt %u slotlen %u us "
-		    "bintval %u TU\n", __func__,
-		    ts->tdma_slot, ts->tdma_slotcnt, ts->tdma_slotlen,
-		    sc->sc_tdmabintval);
-
-		/* XXX right? */
-		ath_hal_intrset(ah, sc->sc_imask);
-		/* NB: beacon timers programmed below */
-	}
-
-	/* extend rx timestamp to 64 bits */
-	rs = sc->sc_lastrs;
-	tsf = ath_hal_gettsf64(ah);
-	rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
-	/*
-	 * The rx timestamp is set by the hardware on completing
-	 * reception (at the point where the rx descriptor is DMA'd
-	 * to the host).  To find the start of our next slot we
-	 * must adjust this time by the time required to send
-	 * the packet just received.
-	 */
-	rix = rt->rateCodeToIndex[rs->rs_rate];
-	txtime = ath_hal_computetxtime(ah, rt, rs->rs_datalen, rix,
-	    rt->info[rix].shortPreamble);
-	/* NB: << 9 is to cvt to TU and /2 */
-	nextslot = (rstamp - txtime) + (sc->sc_tdmabintval << 9);
-	nextslottu = TSF_TO_TU(nextslot>>32, nextslot) & HAL_BEACON_PERIOD;
-
-	/*
-	 * Retrieve the hardware NextTBTT in usecs
-	 * and calculate the difference between what the
-	 * other station thinks and what we have programmed.  This
-	 * lets us figure how to adjust our timers to match.  The
-	 * adjustments are done by pulling the TSF forward and possibly
-	 * rewriting the beacon timers.
-	 */
-	nexttbtt = ath_hal_getnexttbtt(ah);
-	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD + 1)) - nexttbtt);
-
-	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
-	    "tsfdelta %d avg +%d/-%d\n", tsfdelta,
-	    TDMA_AVG(sc->sc_avgtsfdeltap), TDMA_AVG(sc->sc_avgtsfdeltam));
-
-	if (tsfdelta < 0) {
-		TDMA_SAMPLE(sc->sc_avgtsfdeltap, 0);
-		TDMA_SAMPLE(sc->sc_avgtsfdeltam, -tsfdelta);
-		tsfdelta = -tsfdelta % 1024;
-		nextslottu++;
-	} else if (tsfdelta > 0) {
-		TDMA_SAMPLE(sc->sc_avgtsfdeltap, tsfdelta);
-		TDMA_SAMPLE(sc->sc_avgtsfdeltam, 0);
-		tsfdelta = 1024 - (tsfdelta % 1024);
-		nextslottu++;
-	} else {
-		TDMA_SAMPLE(sc->sc_avgtsfdeltap, 0);
-		TDMA_SAMPLE(sc->sc_avgtsfdeltam, 0);
-	}
-	tudelta = nextslottu - TSF_TO_TU(nexttbtt >> 32, nexttbtt);
-
-	/*
-	 * Copy sender's timetstamp into tdma ie so they can
-	 * calculate roundtrip time.  We submit a beacon frame
-	 * below after any timer adjustment.  The frame goes out
-	 * at the next TBTT so the sender can calculate the
-	 * roundtrip by inspecting the tdma ie in our beacon frame.
-	 *
-	 * NB: This tstamp is subtlely preserved when
-	 *     IEEE80211_BEACON_TDMA is marked (e.g. when the
-	 *     slot position changes) because ieee80211_add_tdma
-	 *     skips over the data.
-	 */
-	memcpy(ATH_VAP(vap)->av_boff.bo_tdma +
-		__offsetof(struct ieee80211_tdma_param, tdma_tstamp),
-		&ni->ni_tstamp.data, 8);
-#if 0
-	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
-	    "tsf %llu nextslot %llu (%d, %d) nextslottu %u nexttbtt %llu (%d)\n",
-	    (unsigned long long) tsf, (unsigned long long) nextslot,
-	    (int)(nextslot - tsf), tsfdelta, nextslottu, nexttbtt, tudelta);
-#endif
-	/*
-	 * Adjust the beacon timers only when pulling them forward
-	 * or when going back by less than the beacon interval.
-	 * Negative jumps larger than the beacon interval seem to
-	 * cause the timers to stop and generally cause instability.
-	 * This basically filters out jumps due to missed beacons.
-	 */
-	if (tudelta != 0 && (tudelta > 0 || -tudelta < sc->sc_tdmabintval)) {
-		ath_tdma_settimers(sc, nextslottu, sc->sc_tdmabintval);
-		sc->sc_stats.ast_tdma_timers++;
-	}
-	if (tsfdelta > 0) {
-		ath_hal_adjusttsf(ah, tsfdelta);
-		sc->sc_stats.ast_tdma_tsf++;
-	}
-	ath_tdma_beacon_send(sc, vap);		/* prepare response */
-#undef TU_TO_TSF
-#undef TSF_TO_TU
-}
-
-/*
- * Transmit a beacon frame at SWBA.  Dynamic updates
- * to the frame contents are done as needed.
- */
-static void
-ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
-	int otherant;
-
-	/*
-	 * Check if the previous beacon has gone out.  If
-	 * not don't try to post another, skip this period
-	 * and wait for the next.  Missed beacons indicate
-	 * a problem and should not occur.  If we miss too
-	 * many consecutive beacons reset the device.
-	 */
-	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
-		sc->sc_bmisscount++;
-		DPRINTF(sc, ATH_DEBUG_BEACON,
-			"%s: missed %u consecutive beacons\n",
-			__func__, sc->sc_bmisscount);
-		if (sc->sc_bmisscount >= ath_bstuck_threshold)
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
-		return;
-	}
-	if (sc->sc_bmisscount != 0) {
-		DPRINTF(sc, ATH_DEBUG_BEACON,
-			"%s: resume beacon xmit after %u misses\n",
-			__func__, sc->sc_bmisscount);
-		sc->sc_bmisscount = 0;
-	}
-
-	/*
-	 * Check recent per-antenna transmit statistics and flip
-	 * the default antenna if noticeably more frames went out
-	 * on the non-default antenna.
-	 * XXX assumes 2 anntenae
-	 */
-	if (!sc->sc_diversity) {
-		otherant = sc->sc_defant & 1 ? 2 : 1;
-		if (sc->sc_ant_tx[otherant] > sc->sc_ant_tx[sc->sc_defant] + 2)
-			ath_setdefantenna(sc, otherant);
-		sc->sc_ant_tx[1] = sc->sc_ant_tx[2] = 0;
-	}
-
-	bf = ath_beacon_generate(sc, vap);
-	if (bf != NULL) {
-		/*
-		 * Stop any current dma and put the new frame on the queue.
-		 * This should never fail since we check above that no frames
-		 * are still pending on the queue.
-		 */
-		if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
-			DPRINTF(sc, ATH_DEBUG_ANY,
-				"%s: beacon queue %u did not stop?\n",
-				__func__, sc->sc_bhalq);
-			/* NB: the HAL still stops DMA, so proceed */
-		}
-		ath_hal_puttxbuf(ah, sc->sc_bhalq, bf->bf_daddr);
-		ath_hal_txstart(ah, sc->sc_bhalq);
-
-		sc->sc_stats.ast_be_xmit++;		/* XXX per-vap? */
-
-		/*
-		 * Record local TSF for our last send for use
-		 * in arbitrating slot collisions.
-		 */
-		/* XXX should take a locked ref to iv_bss */
-		vap->iv_bss->ni_tstamp.tsf = ath_hal_gettsf64(ah);
-	}
-}
-#endif /* IEEE80211_SUPPORT_TDMA */
 
 static void
 ath_dfs_tasklet(void *p, int npending)

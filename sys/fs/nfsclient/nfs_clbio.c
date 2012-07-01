@@ -281,7 +281,11 @@ ncl_putpages(struct vop_putpages_args *ap)
 	vp = ap->a_vp;
 	np = VTONFS(vp);
 	td = curthread;				/* XXX */
-	cred = curthread->td_ucred;		/* XXX */
+	/* Set the cred to n_writecred for the write rpcs. */
+	if (np->n_writecred != NULL)
+		cred = crhold(np->n_writecred);
+	else
+		cred = crhold(curthread->td_ucred);	/* XXX */
 	nmp = VFSTONFS(vp->v_mount);
 	pages = ap->a_m;
 	count = ap->a_count;
@@ -345,6 +349,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 	    iomode = NFSWRITE_FILESYNC;
 
 	error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit, 0);
+	crfree(cred);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &ncl_pbuf_freecnt);
@@ -717,7 +722,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	    };
 
 	    if (n > 0) {
-		    error = uiomove(bp->b_data + on, (int)n, uio);
+		    error = vn_io_fault_uiomove(bp->b_data + on, (int)n, uio);
 	    }
 	    if (vp->v_type == VLNK)
 		n = 0;
@@ -892,8 +897,9 @@ ncl_write(struct vop_write_args *ap)
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn;
 	int bcount;
-	int n, on, error = 0;
-	off_t tmp_off;
+	int bp_cached, n, on, error = 0;
+	size_t orig_resid, local_resid;
+	off_t orig_size, tmp_off;
 
 	KASSERT(uio->uio_rw == UIO_WRITE, ("ncl_write mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
@@ -944,6 +950,11 @@ flush_and_restart:
 		} else
 			mtx_unlock(&np->n_mtx);
 	}
+
+	orig_resid = uio->uio_resid;
+	mtx_lock(&np->n_mtx);
+	orig_size = np->n_size;
+	mtx_unlock(&np->n_mtx);
 
 	/*
 	 * If IO_APPEND then load uio_offset.  We restart here if we cannot
@@ -1122,7 +1133,10 @@ again:
 		 * normally.
 		 */
 
+		bp_cached = 1;
 		if (on == 0 && n == bcount) {
+			if ((bp->b_flags & B_CACHE) == 0)
+				bp_cached = 0;
 			bp->b_flags |= B_CACHE;
 			bp->b_flags &= ~B_INVAL;
 			bp->b_ioflags &= ~BIO_ERROR;
@@ -1173,7 +1187,7 @@ again:
 		 * significant cache coherency problems with multiple clients,
 		 * especially if locking is implemented later on.
 		 *
-		 * as an optimization we could theoretically maintain
+		 * As an optimization we could theoretically maintain
 		 * a linked list of discontinuous areas, but we would still
 		 * have to commit them separately so there isn't much
 		 * advantage to it except perhaps a bit of asynchronization.
@@ -1188,7 +1202,23 @@ again:
 			goto again;
 		}
 
-		error = uiomove((char *)bp->b_data + on, n, uio);
+		local_resid = uio->uio_resid;
+		error = vn_io_fault_uiomove((char *)bp->b_data + on, n, uio);
+
+		if (error != 0 && !bp_cached) {
+			/*
+			 * This block has no other content then what
+			 * possibly was written by the faulty uiomove.
+			 * Release it, forgetting the data pages, to
+			 * prevent the leak of uninitialized data to
+			 * usermode.
+			 */
+			bp->b_ioflags |= BIO_ERROR;
+			brelse(bp);
+			uio->uio_offset -= local_resid - uio->uio_resid;
+			uio->uio_resid = local_resid;
+			break;
+		}
 
 		/*
 		 * Since this block is being modified, it must be written
@@ -1198,17 +1228,18 @@ again:
 		 */
 		bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 
-		if (error) {
-			bp->b_ioflags |= BIO_ERROR;
-			brelse(bp);
-			break;
-		}
+		/*
+		 * Get the partial update on the progress made from
+		 * uiomove, if an error occured.
+		 */
+		if (error != 0)
+			n = local_resid - uio->uio_resid;
 
 		/*
 		 * Only update dirtyoff/dirtyend if not a degenerate
 		 * condition.
 		 */
-		if (n) {
+		if (n > 0) {
 			if (bp->b_dirtyend > 0) {
 				bp->b_dirtyoff = min(on, bp->b_dirtyoff);
 				bp->b_dirtyend = max((on + n), bp->b_dirtyend);
@@ -1237,7 +1268,21 @@ again:
 		} else {
 			bdwrite(bp);
 		}
+
+		if (error != 0)
+			break;
 	} while (uio->uio_resid > 0 && n > 0);
+
+	if (error != 0) {
+		if (ioflag & IO_UNIT) {
+			VATTR_NULL(&vattr);
+			vattr.va_size = orig_size;
+			/* IO_SYNC is handled implicitely */
+			(void)VOP_SETATTR(vp, &vattr, cred);
+			uio->uio_offset -= orig_resid - uio->uio_resid;
+			uio->uio_resid = orig_resid;
+		}
+	}
 
 	return (error);
 }
@@ -1817,7 +1862,7 @@ ncl_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 		 * truncation point.  We may have a B_DELWRI and/or B_CACHE
 		 * buffer that now needs to be truncated.
 		 */
-		error = vtruncbuf(vp, cred, td, nsize, biosize);
+		error = vtruncbuf(vp, cred, nsize, biosize);
 		lbn = nsize / biosize;
 		bufsize = nsize & (biosize - 1);
 		bp = nfs_getcacheblk(vp, lbn, bufsize, td);

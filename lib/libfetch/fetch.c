@@ -289,6 +289,49 @@ fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
 }
 
 /*
+ * Return value of the given hex digit.
+ */
+static int
+fetch_hexval(char ch)
+{
+
+	if (ch >= '0' && ch <= '9')
+		return (ch - '0');
+	else if (ch >= 'a' && ch <= 'f')
+		return (ch - 'a' + 10);
+	else if (ch >= 'A' && ch <= 'F')
+		return (ch - 'A' + 10);
+	return (-1);
+}
+
+/*
+ * Decode percent-encoded URL component from src into dst, stopping at end
+ * of string, or at @ or : separators.  Returns a pointer to the unhandled
+ * part of the input string (null terminator, @, or :).  No terminator is
+ * written to dst (it is the caller's responsibility).
+ */
+static const char *
+fetch_pctdecode(char *dst, const char *src, size_t dlen)
+{
+	int d1, d2;
+	char c;
+	const char *s;
+
+	for (s = src; *s != '\0' && *s != '@' && *s != ':'; s++) {
+		if (s[0] == '%' && (d1 = fetch_hexval(s[1])) >= 0 &&
+		    (d2 = fetch_hexval(s[2])) >= 0 && (d1 > 0 || d2 > 0)) {
+			c = d1 << 4 | d2;
+			s += 2;
+		} else {
+			c = *s;
+		}
+		if (dlen-- > 0)
+			*dst++ = c;
+	}
+	return (s);
+}
+
+/*
  * Split an URL into components. URL syntax is:
  * [method:/][/[user[:pwd]@]host[:port]/][document]
  * This almost, but not quite, RFC1738 URL syntax.
@@ -329,15 +372,11 @@ fetchParseURL(const char *URL)
 	p = strpbrk(URL, "/@");
 	if (p && *p == '@') {
 		/* username */
-		for (q = URL, i = 0; (*q != ':') && (*q != '@'); q++)
-			if (i < URL_USERLEN)
-				u->user[i++] = *q;
+		q = fetch_pctdecode(u->user, URL, URL_USERLEN);
 
 		/* password */
 		if (*q == ':')
-			for (q++, i = 0; (*q != ':') && (*q != '@'); q++)
-				if (i < URL_PWDLEN)
-					u->pwd[i++] = *q;
+			q = fetch_pctdecode(u->pwd, ++q, URL_PWDLEN);
 
 		p++;
 	} else {

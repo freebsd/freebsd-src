@@ -190,10 +190,7 @@ AcpiDbDumpExternalObject (
     case ACPI_TYPE_STRING:
 
         AcpiOsPrintf ("[String] Length %.2X = ", ObjDesc->String.Length);
-        for (i = 0; i < ObjDesc->String.Length; i++)
-        {
-            AcpiOsPrintf ("%c", ObjDesc->String.Pointer[i]);
-        }
+        AcpiUtPrintString (ObjDesc->String.Pointer, ACPI_UINT8_MAX);
         AcpiOsPrintf ("\n");
         break;
 
@@ -363,7 +360,7 @@ AcpiDbLocalNsLookup (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDbUInt32ToHexString
+ * FUNCTION:    AcpiDbUint32ToHexString
  *
  * PARAMETERS:  Value           - The value to be converted to string
  *              Buffer          - Buffer for result (not less than 11 bytes)
@@ -378,7 +375,7 @@ AcpiDbLocalNsLookup (
  ******************************************************************************/
 
 void
-AcpiDbUInt32ToHexString (
+AcpiDbUint32ToHexString (
     UINT32                  Value,
     char                    *Buffer)
 {

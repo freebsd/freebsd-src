@@ -4,8 +4,6 @@ ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARMFPE			opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_USE_SMALL_ALLOC	opt_global.h
-AT91C_MASTER_CLOCK	opt_global.h
-AT91C_MAIN_CLOCK	opt_at91.h
 COMPAT_OABI		opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_SA1100		opt_global.h
@@ -19,13 +17,14 @@ CPU_XSCALE_IXP425	opt_global.h
 CPU_XSCALE_IXP435	opt_global.h
 CPU_XSCALE_PXA2X0	opt_global.h
 FLASHADDR		opt_global.h
+FREEBSD_BOOT_LOADER	opt_global.h
 IXP4XX_FLASH_SIZE	opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
+LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
 PHYSADDR		opt_global.h
 QEMU_WORKAROUNDS	opt_global.h
-SKYEYE_WORKAROUNDS	opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_KIRKWOOD		opt_global.h
 SOC_MV_ORION		opt_global.h
@@ -34,10 +33,8 @@ XSCALE_CACHE_READ_WRITE_ALLOCATE	opt_global.h
 XSACLE_DISABLE_CCNT	opt_timer.h
 VERBOSE_INIT_ARM	opt_global.h
 AT91_ATE_USE_RMII	opt_at91.h
-AT91_BWCT		opt_at91.h
-AT91_TSC		opt_at91.h
-AT91_KWIKBYTE		opt_at91.h
 AT91_MCI_HAS_4WIRE	opt_at91.h
 AT91_MCI_SLOT_B		opt_at91.h
+AT91C_MAIN_CLOCK	opt_at91.h
 CPU_FA526		opt_global.h
 CPU_FA626TE		opt_global.h

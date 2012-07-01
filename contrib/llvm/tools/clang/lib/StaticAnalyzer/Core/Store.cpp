@@ -14,6 +14,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/DeclObjC.h"
 
 using namespace clang;
 using namespace ento;
@@ -22,8 +23,9 @@ StoreManager::StoreManager(ProgramStateManager &stateMgr)
   : svalBuilder(stateMgr.getSValBuilder()), StateMgr(stateMgr),
     MRMgr(svalBuilder.getRegionManager()), Ctx(stateMgr.getContext()) {}
 
-StoreRef StoreManager::enterStackFrame(const ProgramState *state,
-                                       const StackFrameContext *frame) {
+StoreRef StoreManager::enterStackFrame(ProgramStateRef state,
+                                       const LocationContext *callerCtx,
+                                       const StackFrameContext *calleeCtx) {
   return StoreRef(state->getStore(), *this);
 }
 
@@ -101,8 +103,10 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
     case MemRegion::StackArgumentsSpaceRegionKind:
     case MemRegion::HeapSpaceRegionKind:
     case MemRegion::UnknownSpaceRegionKind:
-    case MemRegion::NonStaticGlobalSpaceRegionKind:
-    case MemRegion::StaticGlobalSpaceRegionKind: {
+    case MemRegion::StaticGlobalSpaceRegionKind:
+    case MemRegion::GlobalInternalSpaceRegionKind:
+    case MemRegion::GlobalSystemSpaceRegionKind:
+    case MemRegion::GlobalImmutableSpaceRegionKind: {
       llvm_unreachable("Invalid region cast");
     }
 
@@ -116,6 +120,7 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
     case MemRegion::CompoundLiteralRegionKind:
     case MemRegion::FieldRegionKind:
     case MemRegion::ObjCIvarRegionKind:
+    case MemRegion::ObjCStringRegionKind:
     case MemRegion::VarRegionKind:
     case MemRegion::CXXTempObjectRegionKind:
     case MemRegion::CXXBaseObjectRegionKind:
@@ -212,7 +217,7 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
 SVal StoreManager::CastRetrievedVal(SVal V, const TypedValueRegion *R,
                                     QualType castTy, bool performTestOnly) {
   
-  if (castTy.isNull())
+  if (castTy.isNull() || V.isUnknownOrUndef())
     return V;
   
   ASTContext &Ctx = svalBuilder.getContext();
@@ -227,12 +232,7 @@ SVal StoreManager::CastRetrievedVal(SVal V, const TypedValueRegion *R,
     return V;
   }
   
-  if (const Loc *L = dyn_cast<Loc>(&V))
-    return svalBuilder.evalCastFromLoc(*L, castTy);
-  else if (const NonLoc *NL = dyn_cast<NonLoc>(&V))
-    return svalBuilder.evalCastFromNonLoc(*NL, castTy);
-  
-  return V;
+  return svalBuilder.dispatchCast(V, castTy);
 }
 
 SVal StoreManager::getLValueFieldOrIvar(const Decl *D, SVal Base) {
@@ -268,6 +268,10 @@ SVal StoreManager::getLValueFieldOrIvar(const Decl *D, SVal Base) {
     return loc::MemRegionVal(MRMgr.getObjCIvarRegion(ID, BaseR));
 
   return loc::MemRegionVal(MRMgr.getFieldRegion(cast<FieldDecl>(D), BaseR));
+}
+
+SVal StoreManager::getLValueIvar(const ObjCIvarDecl *decl, SVal base) {
+  return getLValueFieldOrIvar(decl, base);
 }
 
 SVal StoreManager::getLValueElement(QualType elementType, NonLoc Offset, 
@@ -336,3 +340,23 @@ SVal StoreManager::getLValueElement(QualType elementType, NonLoc Offset,
 
 StoreManager::BindingsHandler::~BindingsHandler() {}
 
+bool StoreManager::FindUniqueBinding::HandleBinding(StoreManager& SMgr,
+                                                    Store store,
+                                                    const MemRegion* R,
+                                                    SVal val) {
+  SymbolRef SymV = val.getAsLocSymbol();
+  if (!SymV || SymV != Sym)
+    return true;
+
+  if (Binding) {
+    First = false;
+    return false;
+  }
+  else
+    Binding = R;
+
+  return true;
+}
+
+void SubRegionMap::anchor() { }
+void SubRegionMap::Visitor::anchor() { }

@@ -10,8 +10,8 @@ if [ ! $# -eq 1 ]; then
 fi
 
 src=$1
-wrk=`realpath ./_acpi_ca_unpack`
-dst=`realpath ./acpi_ca_destination`
+wrk="$(realpath .)/_acpi_ca_unpack"
+dst="$(realpath .)/acpi_ca_destination"
 
 # files that should keep their full directory path
 fulldirs="common compiler components include os_specific"
@@ -31,7 +31,7 @@ src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	actbl2.h actbl3.h actypes.h acutils.h amlcode.h amlresrc.h	\
 	platform/acenv.h platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
-	asltypes.h dtcompiler.h dttemplate.h preprocess.h"
+	aslsupport.l asltypes.h dtcompiler.h dttemplate.h preprocess.h"
 platform_headers="acfreebsd.h acgcc.h"
 
 # pre-clean
@@ -67,7 +67,8 @@ for H in ${src_headers}; do
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/$H\>|g"
 done
 for H in ${comp_headers}; do
-	find ${dst}/common ${dst}/compiler -name "*.[chly]" -type f |	\
+	find ${dst}/common ${dst}/compiler ${dst}/components \
+	    -name "*.[chly]" -type f |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/compiler/$H\>|g"
 done
 for H in ${platform_headers}; do

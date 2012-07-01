@@ -1,0 +1,77 @@
+The following is an example of running rb_calltime.d and tracing the elapsed
+times for functions.
+
+We run rb_calltime.d while running the program Code/Ruby/func_abc.rb.  We can
+see that there are four sections in the DTrace output
+
+# rb_calltime.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Count,
+   FILE                 TYPE       NAME                                COUNT
+   .                    obj-new    NoMemoryError                           1
+   .                    obj-new    SystemStackError                        1
+   .                    obj-new    ThreadGroup                             1
+   .                    obj-new    fatal                                   1
+   func_abc.rb          func       Object::func_a                          1
+   func_abc.rb          func       Object::func_b                          1
+   func_abc.rb          func       Object::func_c                          1
+   .                    obj-new    Object                                  3
+   func_abc.rb          func       IO::write                               3
+   func_abc.rb          func       Module::method_added                    3
+   func_abc.rb          func       Object::print                           3
+   func_abc.rb          func       Object::sleep                           3
+   -                    total      -                                      15
+
+Elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   .                    obj-new    SystemStackError                        3
+   .                    obj-new    NoMemoryError                           3
+   .                    obj-new    fatal                                  11
+   .                    obj-new    ThreadGroup                            13
+   .                    obj-new    Object                                 26
+
+Exclusive function elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   func_abc.rb          func       Module::method_added                    9
+   func_abc.rb          func       Object::print                          92
+   func_abc.rb          func       IO::write                             185
+   func_abc.rb          func       Object::func_c                        344
+   func_abc.rb          func       Object::func_a                        379
+   func_abc.rb          func       Object::func_b                        383
+   func_abc.rb          func       Object::sleep                     3020597
+   -                    total      -                                 3021992
+
+Inclusive function elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   func_abc.rb          func       Module::method_added                    9
+   func_abc.rb          func       IO::write                             185
+   func_abc.rb          func       Object::print                         277
+   func_abc.rb          func       Object::func_c                    1009829
+   func_abc.rb          func       Object::func_b                    2019781
+   func_abc.rb          func       Object::sleep                     3020597
+   func_abc.rb          func       Object::func_a                    3021983
+
+The first section, Count, shows us how many times each function associated
+with func_abc.rb was called.  It also shows other functions called by the Ruby
+engine.
+
+The second section, elapsed times, shows how long each action that was not
+calling a function took.		
+
+The third section, exclusive function elapsed times, shows us how many 
+microseconds the program spends in each function.  This does not include the 
+time spent in any sub-functions called by that particular function.  The last 
+line gives us the total time in microseconds.
+
+The fourth section, inclusive function elapsed times, are the absolute time
+from when the function began to when it completed - which includes off-CPU time 
+due to other system events such as I/O, scheduling, interrupts, etc. In 
+particular, for this case it has included the time waiting for the sleep 
+commands.
+
+Elapsed times are useful for identifying where latencies are.
+See Notes/ALLelapsed_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive function time.

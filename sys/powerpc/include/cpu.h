@@ -99,7 +99,6 @@ void	fork_trampoline(void);
 void	swi_vm(void *);
 
 /* XXX the following should not be here. */
-void	savectx(struct pcb *);
-int	kcopy(const void *, void *, size_t);
+void	savectx(struct pcb *) __returns_twice;
 
 #endif	/* _MACHINE_CPU_H_ */

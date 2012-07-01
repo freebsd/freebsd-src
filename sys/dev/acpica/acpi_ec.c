@@ -178,7 +178,6 @@ struct acpi_ec_softc {
 
 ACPI_SERIAL_DECL(ec, "ACPI embedded controller");
 
-SYSCTL_DECL(_debug_acpi);
 static SYSCTL_NODE(_debug_acpi, OID_AUTO, ec, CTLFLAG_RD, NULL, "EC debugging");
 
 static int	ec_burst_mode;
@@ -650,8 +649,8 @@ EcGpeQueryHandler(void *Context)
 	Status = EcCommand(sc, EC_COMMAND_QUERY);
 	if (ACPI_SUCCESS(Status))
 	    break;
-	if (EcCheckStatus(sc, "retr_check",
-	    EC_EVENT_INPUT_BUFFER_EMPTY) == AE_OK)
+	if (ACPI_SUCCESS(EcCheckStatus(sc, "retr_check",
+	    EC_EVENT_INPUT_BUFFER_EMPTY)))
 	    continue;
 	else
 	    break;
@@ -846,7 +845,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 	DELAY(10);
 	for (i = 0; i < count; i++) {
 	    Status = EcCheckStatus(sc, "poll", Event);
-	    if (Status == AE_OK)
+	    if (ACPI_SUCCESS(Status))
 		break;
 	    DELAY(EC_POLL_DELAY);
 	}
@@ -876,7 +875,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 	     * event we are actually waiting for.
 	     */
 	    Status = EcCheckStatus(sc, "sleep", Event);
-	    if (Status == AE_OK) {
+	    if (ACPI_SUCCESS(Status)) {
 		if (gen_count == sc->ec_gencount)
 		    no_intr++;
 		else
@@ -891,7 +890,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 	 * read the register once and trust whatever value we got.  This is
 	 * the best we can do at this point.
 	 */
-	if (Status != AE_OK)
+	if (ACPI_FAILURE(Status))
 	    Status = EcCheckStatus(sc, "sleep_end", Event);
     }
     if (!need_poll && no_intr > 10) {
@@ -899,7 +898,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 	    "not getting interrupts, switched to polled mode\n");
 	ec_polled_mode = 1;
     }
-    if (Status != AE_OK)
+    if (ACPI_FAILURE(Status))
 	    CTR0(KTR_ACPI, "error: ec wait timed out");
     return (Status);
 }
@@ -978,8 +977,8 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 	EC_SET_DATA(sc, Address);
 	status = EcWaitEvent(sc, EC_EVENT_OUTPUT_BUFFER_FULL, gen_count);
 	if (ACPI_FAILURE(status)) {
-	    if (EcCheckStatus(sc, "retr_check",
-		EC_EVENT_INPUT_BUFFER_EMPTY) == AE_OK)
+	    if (ACPI_SUCCESS(EcCheckStatus(sc, "retr_check",
+		EC_EVENT_INPUT_BUFFER_EMPTY)))
 		continue;
 	    else
 		break;

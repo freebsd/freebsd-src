@@ -567,7 +567,7 @@ ffs_read(ap)
 			xfersize = size;
 		}
 
-		error = uiomove((char *)bp->b_data + blkoffset,
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
 		    (int)xfersize, uio);
 		if (error)
 			break;
@@ -738,8 +738,8 @@ ffs_write(ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
+		    (int)xfersize, uio);
 		/*
 		 * If the buffer is not already filled and we encounter an
 		 * error while trying to fill it, we have to clear out any
@@ -812,8 +812,7 @@ ffs_write(ap)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_NORMAL | (ioflag & IO_SYNC),
-			    ap->a_cred, uio->uio_td);
+			    IO_NORMAL | (ioflag & IO_SYNC), ap->a_cred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -1135,7 +1134,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_EXT | (ioflag&IO_SYNC), ucred, uio->uio_td);
+			    IO_EXT | (ioflag&IO_SYNC), ucred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -1326,7 +1325,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 		luio.uio_td = td;
 		/* XXX: I'm not happy about truncating to zero size */
 		if (ip->i_ea_len < dp->di_extsize)
-			error = ffs_truncate(vp, 0, IO_EXT, cred, td);
+			error = ffs_truncate(vp, 0, IO_EXT, cred);
 		error = ffs_extwrite(vp, &luio, IO_EXT | IO_SYNC, cred);
 	}
 	if (--ip->i_ea_refs == 0) {
@@ -1649,7 +1648,8 @@ vop_setextattr {
 	struct inode *ip;
 	struct fs *fs;
 	uint32_t ealength, ul;
-	int ealen, olen, eapad1, eapad2, error, i, easize;
+	ssize_t ealen;
+	int olen, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
 
 	ip = VTOI(ap->a_vp);
@@ -1668,6 +1668,10 @@ vop_setextattr {
 	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (EROFS);
 
+	ealen = ap->a_uio->uio_resid;
+	if (ealen < 0 || ealen > lblktosize(fs, NXADDR))
+		return (EINVAL);
+
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
@@ -1685,7 +1689,6 @@ vop_setextattr {
 	if (error)
 		return (error);
 
-	ealen = ap->a_uio->uio_resid;
 	ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
 	eapad1 = 8 - (ealength % 8);
 	if (eapad1 == 8)
@@ -1713,7 +1716,7 @@ vop_setextattr {
 			easize += (ealength - ul);
 		}
 	}
-	if (easize > NXADDR * fs->fs_bsize) {
+	if (easize > lblktosize(fs, NXADDR)) {
 		free(eae, M_TEMP);
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)

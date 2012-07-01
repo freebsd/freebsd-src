@@ -29,13 +29,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
+#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_util.h>
+
+/* DTrace init */
+LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 DUMMY(stime);
 DUMMY(olduname);
@@ -122,7 +131,6 @@ DUMMY(signalfd4);
 DUMMY(eventfd2);
 DUMMY(epoll_create1);
 DUMMY(dup3);
-DUMMY(pipe2);
 DUMMY(inotify_init1);
 /* linux 2.6.30: */
 DUMMY(preadv);

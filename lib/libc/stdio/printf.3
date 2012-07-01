@@ -113,20 +113,6 @@ string that specifies how subsequent arguments
 .Xr stdarg 3 )
 are converted for output.
 .Pp
-These functions return the number of characters printed
-(not including the trailing
-.Ql \e0
-used to end output to strings) or a negative value if an output error occurs,
-except for
-.Fn snprintf
-and
-.Fn vsnprintf ,
-which return the number of characters that would have been printed if the
-.Fa size
-were unlimited
-(again, not including the final
-.Ql \e0 ) .
-.Pp
 The
 .Fn asprintf
 and
@@ -164,15 +150,19 @@ if the return value is greater than or equal to the
 .Fa size
 argument, the string was too short
 and some of the printed characters were discarded.
-The output is always null-terminated.
+The output is always null-terminated, unless
+.Fa size
+is 0.
 .Pp
 The
 .Fn sprintf
 and
 .Fn vsprintf
 functions
-effectively assume an infinite
-.Fa size .
+effectively assume a
+.Fa size
+of
+.Dv INT_MAX + 1.
 .Pp
 The format string is composed of zero or more directives:
 ordinary
@@ -670,6 +660,21 @@ In no case does a non-existent or small field width cause truncation of
 a numeric field; if the result of a conversion is wider than the field
 width, the
 field is expanded to contain the conversion result.
+.Sh RETURN VALUES
+These functions return the number of characters printed
+(not including the trailing
+.Ql \e0
+used to end output to strings),
+except for
+.Fn snprintf
+and
+.Fn vsnprintf ,
+which return the number of characters that would have been printed if the
+.Fa size
+were unlimited
+(again, not including the final
+.Ql \e0 ) .
+These functions return a negative value if an error occurs.
 .Sh EXAMPLES
 To print a date and time in the form
 .Dq Li "Sunday, July 3, 10:02" ,
@@ -771,6 +776,13 @@ family of functions may fail if:
 An invalid wide character code was encountered.
 .It Bq Er ENOMEM
 Insufficient storage space is available.
+.It Bq Er EOVERFLOW
+The
+.Fa size
+argument exceeds
+.Dv INT_MAX + 1 ,
+or the return value would be too large to be represented by an
+.Vt int .
 .El
 .Sh SEE ALSO
 .Xr printf 1 ,

@@ -276,6 +276,6 @@ int dosdirempty(struct denode *dep);
 int createde(struct denode *dep, struct denode *ddep, struct denode **depp, struct componentname *cnp);
 int deupdat(struct denode *dep, int waitfor);
 int removede(struct denode *pdep, struct denode *dep);
-int detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred, struct thread *td);
+int detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred);
 int doscheckpath( struct denode *source, struct denode *target);
 #endif	/* _KERNEL */

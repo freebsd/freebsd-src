@@ -205,7 +205,7 @@ void MallocOverflowSecurityChecker::OutputPossibleOverflows(
 
   // Delete any possible overflows which have a comparison.
   CheckOverflowOps c(PossibleMallocOverflows, BR.getContext());
-  c.Visit(mgr.getAnalysisContext(D)->getBody());
+  c.Visit(mgr.getAnalysisDeclContext(D)->getBody());
 
   // Output warnings for all overflows that are left.
   for (CheckOverflowOps::theVecType::iterator
@@ -214,11 +214,10 @@ void MallocOverflowSecurityChecker::OutputPossibleOverflows(
        i != e;
        ++i) {
     SourceRange R = i->mulop->getSourceRange();
-    BR.EmitBasicReport("MallocOverflowSecurityChecker",
+    BR.EmitBasicReport(D, "malloc() size overflow", categories::UnixAPI,
       "the computation of the size of the memory allocation may overflow",
       PathDiagnosticLocation::createOperatorLoc(i->mulop,
-                                                BR.getSourceManager()),
-      &R, 1);
+                                                BR.getSourceManager()), &R, 1);
   }
 }
 

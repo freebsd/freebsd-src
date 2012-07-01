@@ -649,7 +649,7 @@ createde(dep, ddep, depp, cnp)
 		dirclust = de_clcount(pmp, diroffset);
 		error = extendfile(ddep, dirclust, 0, 0, DE_CLEAR);
 		if (error) {
-			(void)detrunc(ddep, ddep->de_FileSize, 0, NOCRED, NULL);
+			(void)detrunc(ddep, ddep->de_FileSize, 0, NOCRED);
 			return error;
 		}
 

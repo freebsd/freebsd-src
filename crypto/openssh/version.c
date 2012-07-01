@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Brian Fundakowski Feldman
+ * Copyright (c) 2012 Eygene Ryabinkin <rea@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,30 +36,60 @@ __RCSID("$FreeBSD$");
 
 
 static char *version = NULL;
+/* NULL means "use default value", empty string means "unset" */
+static const char *addendum = NULL;
+static unsigned char update_version = 1;
 
+/*
+ * Constructs the version string if it is empty or needs updating.
+ *
+ * HPN patch we're running requires both parties
+ * to have the "hpn" string inside the advertized version
+ * (see compat.c::compat_datafellows), so we should
+ * include it to the generated string if HPN is enabled.
+ */
 const char *
-ssh_version_get(void) {
+ssh_version_get(int hpn_disabled)
+{
+	const char *hpn = NULL, *add = NULL;
+	char *newvers = NULL;
+	size_t size = 0;
 
-	if (version == NULL)
-		version = xstrdup(SSH_VERSION);
+	if (version != NULL && !update_version)
+		return (version);
+
+	hpn = (hpn_disabled ? NULL : SSH_VERSION_HPN);
+	add = (addendum == NULL ? SSH_VERSION_ADDENDUM :
+	    (addendum[0] == '\0' ? NULL : addendum));
+
+	size = strlen(SSH_VERSION_BASE) + (hpn ? strlen(hpn) : 0) +
+	    (add ? strlen(add) + 1 : 0) + 1;
+	newvers = xmalloc(size);
+	strcpy(newvers, SSH_VERSION_BASE);
+	if (hpn)
+		strcat(newvers, hpn);
+	if (add) {
+		strcat(newvers, " ");
+		strcat(newvers, add);
+	}
+
+	if (version)
+		xfree(version);
+	version = newvers;
+	update_version = 0;
+
 	return (version);
 }
 
 void
-ssh_version_set_addendum(const char *add) {
-	char *newvers;
-	size_t size;
+ssh_version_set_addendum(const char *add)
+{
+	if (add && addendum && !strcmp(add, addendum))
+		return;
 
-	if (add != NULL) {
-		size = strlen(SSH_VERSION_BASE) + strlen(SSH_VERSION_HPN) + 1 +
-		    strlen(add) + 1;
-		newvers = xmalloc(size);
-		snprintf(newvers, size, "%s %s", SSH_VERSION_BASE,
-		    SSH_VERSION_HPN, add);
-	} else {
-		newvers = xstrdup(SSH_VERSION_BASE SSH_VERSION_HPN);
-	}
-	if (version != NULL)
-		xfree(version);
-	version = newvers;
+	if (addendum)
+		xfree((void *)addendum);
+	addendum = (add ? xstrdup(add) : xstrdup(""));
+
+	update_version = 1;
 }

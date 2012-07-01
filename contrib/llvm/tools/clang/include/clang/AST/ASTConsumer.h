@@ -24,6 +24,7 @@ namespace clang {
   class SemaConsumer; // layering violation required for safe SemaConsumer
   class TagDecl;
   class VarDecl;
+  class FunctionDecl;
 
 /// ASTConsumer - This is an abstract interface that should be implemented by
 /// clients that read ASTs.  This abstraction layer allows the client to be
@@ -48,7 +49,9 @@ public:
   /// called by the parser to process every top-level Decl*. Note that D can be
   /// the head of a chain of Decls (e.g. for `int a, b` the chain will have two
   /// elements). Use Decl::getNextDeclarator() to walk the chain.
-  virtual void HandleTopLevelDecl(DeclGroupRef D);
+  ///
+  /// \returns true to continue parsing, or false to abort parsing.
+  virtual bool HandleTopLevelDecl(DeclGroupRef D);
 
   /// HandleInterestingDecl - Handle the specified interesting declaration. This
   /// is called by the AST reader when deserializing things that might interest
@@ -65,6 +68,17 @@ public:
   /// can be defined in declspecs).
   virtual void HandleTagDeclDefinition(TagDecl *D) {}
 
+  /// \brief Invoked when a function is implicitly instantiated.
+  /// Note that at this point point it does not have a body, its body is
+  /// instantiated at the end of the translation unit and passed to
+  /// HandleTopLevelDecl.
+  virtual void HandleCXXImplicitFunctionInstantiation(FunctionDecl *D) {}
+
+  /// \brief Handle the specified top-level declaration that occurred inside
+  /// and ObjC container.
+  /// The default implementation ignored them.
+  virtual void HandleTopLevelDeclInObjCContainer(DeclGroupRef D);
+
   /// CompleteTentativeDefinition - Callback invoked at the end of a translation
   /// unit to notify the consumer that the given tentative definition should be
   /// completed.
@@ -75,6 +89,10 @@ public:
   /// declaration remains a tentative definition and has not been
   /// modified by the introduction of an implicit zero initializer.
   virtual void CompleteTentativeDefinition(VarDecl *D) {}
+
+  /// HandleCXXStaticMemberVarInstantiation - Tell the consumer that this
+  // variable has been instantiated.
+  virtual void HandleCXXStaticMemberVarInstantiation(VarDecl *D) {}
 
   /// \brief Callback involved at the end of a translation unit to
   /// notify the consumer that a vtable for the given C++ class is
@@ -94,7 +112,9 @@ public:
 
   /// \brief If the consumer is interested in entities being deserialized from
   /// AST files, it should return a pointer to a ASTDeserializationListener here
-  virtual ASTDeserializationListener *GetASTDeserializationListener() { return 0; }
+  virtual ASTDeserializationListener *GetASTDeserializationListener() {
+    return 0;
+  }
 
   /// PrintStats - If desired, print any statistics.
   virtual void PrintStats() {}

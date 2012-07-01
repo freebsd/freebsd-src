@@ -21,10 +21,8 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/IndexedMap.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#ifndef NDEBUG
-#include "llvm/ADT/SmallSet.h"
-#endif
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
@@ -98,8 +96,8 @@ public:
   MachineBasicBlock::iterator InsertPt;
 
 #ifndef NDEBUG
-  SmallSet<const Instruction *, 8> CatchInfoLost;
-  SmallSet<const Instruction *, 8> CatchInfoFound;
+  SmallPtrSet<const Instruction *, 8> CatchInfoLost;
+  SmallPtrSet<const Instruction *, 8> CatchInfoFound;
 #endif
 
   struct LiveOutInfo {
@@ -112,7 +110,7 @@ public:
 
   /// VisitedBBs - The set of basic blocks visited thus far by instruction
   /// selection.
-  DenseSet<const BasicBlock*> VisitedBBs;
+  SmallPtrSet<const BasicBlock*, 4> VisitedBBs;
 
   /// PHINodesToUpdate - A list of phi instructions whose operand list will
   /// be updated after processing the current basic block.
@@ -202,7 +200,7 @@ public:
   /// setArgumentFrameIndex - Record frame index for the byval
   /// argument.
   void setArgumentFrameIndex(const Argument *A, int FI);
-  
+
   /// getArgumentFrameIndex - Get frame index for the byval argument.
   int getArgumentFrameIndex(const Argument *A);
 
@@ -211,15 +209,17 @@ private:
   IndexedMap<LiveOutInfo, VirtReg2IndexFunctor> LiveOutRegInfo;
 };
 
+/// ComputeUsesVAFloatArgument - Determine if any floating-point values are
+/// being passed to this variadic function, and set the MachineModuleInfo's
+/// usesVAFloatArgument flag if so. This flag is used to emit an undefined
+/// reference to _fltused on Windows, which will link in MSVCRT's
+/// floating-point support.
+void ComputeUsesVAFloatArgument(const CallInst &I, MachineModuleInfo *MMI);
+
 /// AddCatchInfo - Extract the personality and type infos from an eh.selector
 /// call, and add them to the specified machine basic block.
 void AddCatchInfo(const CallInst &I,
                   MachineModuleInfo *MMI, MachineBasicBlock *MBB);
-
-/// CopyCatchInfo - Copy catch information from SuccBB (or one of its
-/// successors) to LPad.
-void CopyCatchInfo(const BasicBlock *SuccBB, const BasicBlock *LPad,
-                   MachineModuleInfo *MMI, FunctionLoweringInfo &FLI);
 
 /// AddLandingPadInfo - Extract the exception handling information from the
 /// landingpad instruction and add them to the specified machine module info.

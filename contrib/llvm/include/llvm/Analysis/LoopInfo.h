@@ -23,7 +23,6 @@
 //  * whether or not a particular block branches out of the loop
 //  * the successor blocks of the loop
 //  * the loop depth
-//  * the trip count
 //  * etc...
 //
 //===----------------------------------------------------------------------===//
@@ -416,14 +415,26 @@ public:
 #ifndef NDEBUG
     assert(!Blocks.empty() && "Loop header is missing");
 
+    // Setup for using a depth-first iterator to visit every block in the loop.
+    SmallVector<BlockT*, 8> ExitBBs;
+    getExitBlocks(ExitBBs);
+    llvm::SmallPtrSet<BlockT*, 8> VisitSet;
+    VisitSet.insert(ExitBBs.begin(), ExitBBs.end());
+    df_ext_iterator<BlockT*, llvm::SmallPtrSet<BlockT*, 8> >
+        BI = df_ext_begin(getHeader(), VisitSet),
+        BE = df_ext_end(getHeader(), VisitSet);
+
+    // Keep track of the number of BBs visited.
+    unsigned NumVisited = 0;
+
     // Sort the blocks vector so that we can use binary search to do quick
     // lookups.
     SmallVector<BlockT*, 128> LoopBBs(block_begin(), block_end());
     std::sort(LoopBBs.begin(), LoopBBs.end());
 
     // Check the individual blocks.
-    for (block_iterator I = block_begin(), E = block_end(); I != E; ++I) {
-      BlockT *BB = *I;
+    for ( ; BI != BE; ++BI) {
+      BlockT *BB = *BI;
       bool HasInsideLoopSuccs = false;
       bool HasInsideLoopPreds = false;
       SmallVector<BlockT *, 2> OutsideLoopPreds;
@@ -440,7 +451,7 @@ public:
       for (typename InvBlockTraits::ChildIteratorType PI =
            InvBlockTraits::child_begin(BB), PE = InvBlockTraits::child_end(BB);
            PI != PE; ++PI) {
-        typename InvBlockTraits::NodeType *N = *PI;
+        BlockT *N = *PI;
         if (std::binary_search(LoopBBs.begin(), LoopBBs.end(), N))
           HasInsideLoopPreds = true;
         else
@@ -464,7 +475,11 @@ public:
       assert(HasInsideLoopSuccs && "Loop block has no in-loop successors!");
       assert(BB != getHeader()->getParent()->begin() &&
              "Loop contains function entry block!");
+
+      NumVisited++;
     }
+
+    assert(NumVisited == getNumBlocks() && "Unreachable block in loop");
 
     // Check the subloops.
     for (iterator I = begin(), E = end(); I != E; ++I)
@@ -571,37 +586,6 @@ public:
   ///
   PHINode *getCanonicalInductionVariable() const;
 
-  /// getTripCount - Return a loop-invariant LLVM value indicating the number of
-  /// times the loop will be executed.  Note that this means that the backedge
-  /// of the loop executes N-1 times.  If the trip-count cannot be determined,
-  /// this returns null.
-  ///
-  /// The IndVarSimplify pass transforms loops to have a form that this
-  /// function easily understands.
-  ///
-  Value *getTripCount() const;
-
-  /// getSmallConstantTripCount - Returns the trip count of this loop as a
-  /// normal unsigned value, if possible. Returns 0 if the trip count is unknown
-  /// of not constant. Will also return 0 if the trip count is very large
-  /// (>= 2^32)
-  ///
-  /// The IndVarSimplify pass transforms loops to have a form that this
-  /// function easily understands.
-  ///
-  unsigned getSmallConstantTripCount() const;
-
-  /// getSmallConstantTripMultiple - Returns the largest constant divisor of the
-  /// trip count of this loop as a normal unsigned value, if possible. This
-  /// means that the actual trip count is always a multiple of the returned
-  /// value (don't forget the trip count could very well be zero as well!).
-  ///
-  /// Returns 1 if the trip count is unknown or not guaranteed to be the
-  /// multiple of a constant (which is also the case if the trip count is simply
-  /// constant, use getSmallConstantTripCount for that case), Will also return 1
-  /// if the trip count is very large (>= 2^32).
-  unsigned getSmallConstantTripMultiple() const;
-
   /// isLCSSAForm - Return true if the Loop is in LCSSA form
   bool isLCSSAForm(DominatorTree &DT) const;
 
@@ -609,6 +593,9 @@ public:
   /// the LoopSimplify form transforms loops to, which is sometimes called
   /// normal form.
   bool isLoopSimplifyForm() const;
+
+  /// isSafeToClone - Return true if the loop body is safe to clone in practice.
+  bool isSafeToClone() const;
 
   /// hasDedicatedExits - Return true if no exit block for the loop
   /// has a predecessor that is outside the loop.
@@ -671,9 +658,7 @@ public:
   /// block is in no loop (for example the entry node), null is returned.
   ///
   LoopT *getLoopFor(const BlockT *BB) const {
-    typename DenseMap<BlockT *, LoopT *>::const_iterator I=
-      BBMap.find(const_cast<BlockT*>(BB));
-    return I != BBMap.end() ? I->second : 0;
+    return BBMap.lookup(const_cast<BlockT*>(BB));
   }
 
   /// operator[] - same as getLoopFor...
@@ -712,9 +697,7 @@ public:
   /// the loop hierarchy tree.
   void changeLoopFor(BlockT *BB, LoopT *L) {
     if (!L) {
-      typename DenseMap<BlockT *, LoopT *>::iterator I = BBMap.find(BB);
-      if (I != BBMap.end())
-        BBMap.erase(I);
+      BBMap.erase(BB);
       return;
     }
     BBMap[BB] = L;
@@ -771,7 +754,7 @@ public:
   }
 
   LoopT *ConsiderForLoop(BlockT *BB, DominatorTreeBase<BlockT> &DT) {
-    if (BBMap.find(BB) != BBMap.end()) return 0;// Haven't processed this node?
+    if (BBMap.count(BB)) return 0; // Haven't processed this node?
 
     std::vector<BlockT *> TodoStack;
 
@@ -782,7 +765,8 @@ public:
          InvBlockTraits::child_begin(BB), E = InvBlockTraits::child_end(BB);
          I != E; ++I) {
       typename InvBlockTraits::NodeType *N = *I;
-      if (DT.dominates(BB, N))   // If BB dominates its predecessor...
+      // If BB dominates its predecessor...
+      if (DT.dominates(BB, N) && DT.isReachableFromEntry(N))
           TodoStack.push_back(N);
     }
 
@@ -792,14 +776,12 @@ public:
     LoopT *L = new LoopT(BB);
     BBMap[BB] = L;
 
-    BlockT *EntryBlock = BB->getParent()->begin();
-
     while (!TodoStack.empty()) {  // Process all the nodes in the loop
       BlockT *X = TodoStack.back();
       TodoStack.pop_back();
 
       if (!L->contains(X) &&         // As of yet unprocessed??
-          DT.dominates(EntryBlock, X)) {   // X is reachable from entry block?
+          DT.isReachableFromEntry(X)) {
         // Check to see if this block already belongs to a loop.  If this occurs
         // then we have a case where a loop that is supposed to be a child of
         // the current loop was processed before the current loop.  When this

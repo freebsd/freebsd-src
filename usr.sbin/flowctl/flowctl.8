@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2011
+.Dd June 8, 2012
 .Dt FLOWCTL 8
 .Os
 .Sh NAME
@@ -55,12 +55,12 @@ Currently,
 .Nm
 supports only one command.
 .Bl -tag -width ".Cm show"
-.It Cm show Op Cm ipv4|ipv6
+.It Cm show Oo Cm ipv4|ipv6 Oc Op Cm human|verbose
 This command is the analog of the
 .Dq "show ip cache flow"
 command of a Cisco router.
 It dumps the contents of the flow cache in Cisco-like format.
-Specifing either
+Specifying either
 .Cm ipv4
 or
 .Cm ipv6
@@ -69,7 +69,9 @@ It has optional parameter
 .Cm verbose ,
 which is analog of the
 .Dq "show ip cache verbose flow"
-command.
+command. Additionally,
+.Cm human
+parameter can be specify to show selected flows in human-readable format.
 .El
 .Sh EXIT STATUS
 .Ex -std

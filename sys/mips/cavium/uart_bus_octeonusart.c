@@ -61,10 +61,7 @@ __FBSDID("$FreeBSD$");
 
 extern struct uart_class uart_oct16550_class;
 
-
 static int uart_octeon_probe(device_t dev);
-
-extern struct uart_class octeon_uart_class;
 
 static device_method_t uart_octeon_methods[] = {
 	/* Device interface */

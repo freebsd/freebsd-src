@@ -91,6 +91,7 @@ static void usage(void);
 static void cleanheaders(char *);
 static void kernconfdump(const char *);
 static void checkversion(void);
+extern int yyparse(void);
 
 struct hdr_list {
 	char *h_name;

@@ -15,11 +15,12 @@
 #ifndef LLVM_CLANG_AST_TEMPLATEBASE_H
 #define LLVM_CLANG_AST_TEMPLATEBASE_H
 
-#include "llvm/ADT/APSInt.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TemplateName.h"
+#include "llvm/ADT/APSInt.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
   class FoldingSetNodeID;
@@ -100,7 +101,6 @@ public:
   /// declaration, which is either an external declaration or a
   /// template declaration.
   TemplateArgument(Decl *D) : Kind(Declaration) {
-    // FIXME: Need to be sure we have the "canonical" declaration!
     TypeOrValue = reinterpret_cast<uintptr_t>(D);
   }
 
@@ -457,7 +457,7 @@ public:
   }
 
   /// \brief - Fetches the full source range of the argument.
-  SourceRange getSourceRange() const;
+  SourceRange getSourceRange() const LLVM_READONLY;
 
   const TemplateArgument &getArgument() const {
     return Argument;
@@ -589,7 +589,42 @@ struct ASTTemplateArgumentListInfo {
                       bool &ContainsUnexpandedParameterPack);
   void copyInto(TemplateArgumentListInfo &List) const;
   static std::size_t sizeFor(unsigned NumTemplateArgs);
-  static std::size_t sizeFor(const TemplateArgumentListInfo &List);
+};
+
+/// \brief Extends ASTTemplateArgumentListInfo with the source location
+/// information for the template keyword; this is used as part of the
+/// representation of qualified identifiers, such as S<T>::template apply<T>.
+struct ASTTemplateKWAndArgsInfo : public ASTTemplateArgumentListInfo {
+  typedef ASTTemplateArgumentListInfo Base;
+
+  // NOTE: the source location of the (optional) template keyword is
+  // stored after all template arguments.
+
+  /// \brief Get the source location of the template keyword.
+  SourceLocation getTemplateKeywordLoc() const {
+    return *reinterpret_cast<const SourceLocation*>
+      (getTemplateArgs() + NumTemplateArgs);
+  }
+
+  /// \brief Sets the source location of the template keyword.
+  void setTemplateKeywordLoc(SourceLocation TemplateKWLoc) {
+    *reinterpret_cast<SourceLocation*>
+      (getTemplateArgs() + NumTemplateArgs) = TemplateKWLoc;
+  }
+
+  static const ASTTemplateKWAndArgsInfo*
+  Create(ASTContext &C, SourceLocation TemplateKWLoc,
+         const TemplateArgumentListInfo &List);
+
+  void initializeFrom(SourceLocation TemplateKWLoc,
+                      const TemplateArgumentListInfo &List);
+  void initializeFrom(SourceLocation TemplateKWLoc,
+                      const TemplateArgumentListInfo &List,
+                      bool &Dependent, bool &InstantiationDependent,
+                      bool &ContainsUnexpandedParameterPack);
+  void initializeFrom(SourceLocation TemplateKWLoc);
+
+  static std::size_t sizeFor(unsigned NumTemplateArgs);
 };
 
 const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,

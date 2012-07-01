@@ -20,19 +20,60 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/AST/CharUnits.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/STLExtras.h"
 
 using namespace clang;
 using namespace ento;
 
 namespace {
 class VLASizeChecker : public Checker< check::PreStmt<DeclStmt> > {
-  mutable llvm::OwningPtr<BugType> BT_zero;
-  mutable llvm::OwningPtr<BugType> BT_undef;
-  
+  mutable OwningPtr<BugType> BT;
+  enum VLASize_Kind { VLA_Garbage, VLA_Zero, VLA_Tainted };
+
+  void reportBug(VLASize_Kind Kind,
+                 const Expr *SizeE,
+                 ProgramStateRef State,
+                 CheckerContext &C) const;
 public:
   void checkPreStmt(const DeclStmt *DS, CheckerContext &C) const;
 };
 } // end anonymous namespace
+
+void VLASizeChecker::reportBug(VLASize_Kind Kind,
+                               const Expr *SizeE,
+                               ProgramStateRef State,
+                               CheckerContext &C) const {
+  // Generate an error node.
+  ExplodedNode *N = C.generateSink(State);
+  if (!N)
+    return;
+
+  if (!BT)
+    BT.reset(new BuiltinBug("Dangerous variable-length array (VLA) declaration"));
+
+  SmallString<256> buf;
+  llvm::raw_svector_ostream os(buf);
+  os << "Declared variable-length array (VLA) ";
+  switch (Kind) {
+  case VLA_Garbage:
+    os << "uses a garbage value as its size";
+    break;
+  case VLA_Zero:
+    os << "has zero size";
+    break;
+  case VLA_Tainted:
+    os << "has tainted size";
+    break;
+  }
+
+  BugReport *report = new BugReport(*BT, os.str(), N);
+  report->addRange(SizeE->getSourceRange());
+  report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, SizeE,
+                                                                  report));
+  C.EmitReport(report);
+  return;
+}
 
 void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
   if (!DS->isSingleDecl())
@@ -49,24 +90,11 @@ void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
 
   // FIXME: Handle multi-dimensional VLAs.
   const Expr *SE = VLA->getSizeExpr();
-  const ProgramState *state = C.getState();
-  SVal sizeV = state->getSVal(SE);
+  ProgramStateRef state = C.getState();
+  SVal sizeV = state->getSVal(SE, C.getLocationContext());
 
   if (sizeV.isUndef()) {
-    // Generate an error node.
-    ExplodedNode *N = C.generateSink();
-    if (!N)
-      return;
-    
-    if (!BT_undef)
-      BT_undef.reset(new BuiltinBug("Declared variable-length array (VLA) "
-                                    "uses a garbage value as its size"));
-
-    BugReport *report =
-      new BugReport(*BT_undef, BT_undef->getName(), N);
-    report->addRange(SE->getSourceRange());
-    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, SE));
-    C.EmitReport(report);
+    reportBug(VLA_Garbage, SE, state, C);
     return;
   }
 
@@ -75,23 +103,20 @@ void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
   if (sizeV.isUnknown())
     return;
   
+  // Check if the size is tainted.
+  if (state->isTainted(sizeV)) {
+    reportBug(VLA_Tainted, SE, 0, C);
+    return;
+  }
+
   // Check if the size is zero.
   DefinedSVal sizeD = cast<DefinedSVal>(sizeV);
 
-  const ProgramState *stateNotZero, *stateZero;
+  ProgramStateRef stateNotZero, stateZero;
   llvm::tie(stateNotZero, stateZero) = state->assume(sizeD);
 
   if (stateZero && !stateNotZero) {
-    ExplodedNode *N = C.generateSink(stateZero);
-    if (!BT_zero)
-      BT_zero.reset(new BuiltinBug("Declared variable-length array (VLA) has "
-                                   "zero size"));
-
-    BugReport *report =
-      new BugReport(*BT_zero, BT_zero->getName(), N);
-    report->addRange(SE->getSourceRange());
-    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, SE));
-    C.EmitReport(report);
+    reportBug(VLA_Zero, SE, stateZero, C);
     return;
   }
  
@@ -117,7 +142,7 @@ void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
                                               cast<NonLoc>(EleSizeVal), SizeTy);
 
   // Finally, assume that the array's extent matches the given size.
-  const LocationContext *LC = C.getPredecessor()->getLocationContext();
+  const LocationContext *LC = C.getLocationContext();
   DefinedOrUnknownSVal Extent =
     state->getRegion(VD, LC)->getExtent(svalBuilder);
   DefinedOrUnknownSVal ArraySize = cast<DefinedOrUnknownSVal>(ArraySizeVal);

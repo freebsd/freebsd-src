@@ -1,4 +1,4 @@
-//==-- MSP430ISelLowering.h - MSP430 DAG Lowering Interface ------*- C++ -*-==//
+//===-- MSP430ISelLowering.h - MSP430 DAG Lowering Interface ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -152,8 +152,8 @@ namespace llvm {
                            DebugLoc dl, SelectionDAG &DAG,
                            SmallVectorImpl<SDValue> &InVals) const;
     virtual SDValue
-      LowerCall(SDValue Chain, SDValue Callee,
-                CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
+      LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
+                bool isVarArg, bool doesNotRet, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<SDValue> &OutVals,
                 const SmallVectorImpl<ISD::InputArg> &Ins,

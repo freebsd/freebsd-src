@@ -35,7 +35,7 @@
 #ifndef	_MACHINE_PSL_H_
 #define	_MACHINE_PSL_H_
 
-#if defined(E500)
+#if defined(BOOKE_E500)
 /*
  * Machine State Register (MSR) - e500 core
  *
@@ -67,7 +67,29 @@
 #define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
 #define PSL_USERSET		(PSL_KERNSET | PSL_PR)
 
-#else	/* if defined(E500) */
+#elif defined(BOOKE_PPC4XX)
+/*
+ * Machine State Register (MSR) - PPC4xx core
+ */
+#define PSL_WE		(0x80000000 >> 13) /* Wait State Enable */
+#define PSL_CE		(0x80000000 >> 14) /* Critical Interrupt Enable */
+#define PSL_EE		(0x80000000 >> 16) /* External Interrupt Enable */
+#define PSL_PR		(0x80000000 >> 17) /* Problem State */
+#define PSL_FP		(0x80000000 >> 18) /* Floating Point Available */
+#define PSL_ME		(0x80000000 >> 19) /* Machine Check Enable */
+#define PSL_FE0		(0x80000000 >> 20) /* Floating-point exception mode 0 */
+#define PSL_DWE		(0x80000000 >> 21) /* Debug Wait Enable */
+#define PSL_DE		(0x80000000 >> 22) /* Debug interrupt Enable */
+#define PSL_FE1		(0x80000000 >> 23) /* Floating-point exception mode 1 */
+#define PSL_IS		(0x80000000 >> 26) /* Instruction Address Space */
+#define PSL_DS		(0x80000000 >> 27) /* Data Address Space */
+
+#define PSL_KERNSET	(PSL_CE | PSL_ME | PSL_EE | PSL_FP)
+#define PSL_USERSET	(PSL_KERNSET | PSL_PR)
+
+#define PSL_FE_DFLT	0x00000000UL	/* default == none */
+
+#else	/* if defined(BOOKE_*) */
 /*
  * Machine State Register (MSR)
  *
@@ -127,5 +149,5 @@
 
 #define	PSL_USERSTATIC	(PSL_USERSET | PSL_IP | 0x87c0008c)
 
-#endif	/* if defined(E500) */
+#endif	/* if defined(BOOKE_E500) */
 #endif	/* _MACHINE_PSL_H_ */

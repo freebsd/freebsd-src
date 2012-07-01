@@ -3,8 +3,7 @@
 LIB=	clangstaticanalyzercore
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Core
-SRCS=	AggExprVisitor.cpp \
-	AnalysisManager.cpp \
+SRCS=	AnalysisManager.cpp \
 	BasicConstraintManager.cpp \
 	BasicValueFactory.cpp \
 	BlockCounter.cpp \
@@ -23,6 +22,7 @@ SRCS=	AggExprVisitor.cpp \
 	ExprEngineCXX.cpp \
 	ExprEngineCallAndReturn.cpp \
 	ExprEngineObjC.cpp \
+	FunctionSummary.cpp \
 	HTMLDiagnostics.cpp \
 	MemRegion.cpp \
 	ObjCMessage.cpp \
@@ -36,6 +36,7 @@ SRCS=	AggExprVisitor.cpp \
 	SimpleConstraintManager.cpp \
 	SimpleSValBuilder.cpp \
 	Store.cpp \
+	SubEngine.cpp \
 	SymbolManager.cpp \
 	TextPathDiagnostics.cpp
 

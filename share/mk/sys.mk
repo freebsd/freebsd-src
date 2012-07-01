@@ -123,6 +123,10 @@ LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
 
 MAKE		?=	make
 
+.if !defined(%POSIX)
+NM		?=	nm
+.endif
+
 OBJC		?=	cc
 OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
 

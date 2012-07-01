@@ -1279,7 +1279,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 {
 	struct in_llentry *lle;
 
-	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_DONTWAIT | M_ZERO);
+	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
@@ -1469,7 +1469,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
 			lle->la_flags = LLE_DELETED;
-			EVENTHANDLER_INVOKE(arp_update_event, lle);
+			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
 			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	

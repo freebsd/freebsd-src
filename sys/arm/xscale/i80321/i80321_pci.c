@@ -79,7 +79,7 @@ static int
 i80321_pci_attach(device_t dev)
 {
 
-	uint32_t busno;                                       
+	uint32_t busno;
 	struct i80321_pci_softc *sc = device_get_softc(dev);
 
 	sc->sc_st = i80321_softc->sc_st;
@@ -100,16 +100,16 @@ i80321_pci_attach(device_t dev)
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "I80321 PCI I/O Ports";
 	if (rman_init(&sc->sc_io_rman) != 0 ||
-		rman_manage_region(&sc->sc_io_rman, 
-		sc->sc_io, 
-		    sc->sc_io + 
+		rman_manage_region(&sc->sc_io_rman,
+		sc->sc_io,
+		    sc->sc_io +
 		    VERDE_OUT_XLATE_IO_WIN_SIZE) != 0) {
 		panic("i80321_pci_probe: failed to set up I/O rman");
 	}
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "I80321 PCI Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 
+	    rman_manage_region(&sc->sc_mem_rman,
 	    0, VERDE_OUT_XLATE_MEM_WIN_SIZE) != 0) {
 		panic("i80321_pci_probe: failed to set up memory rman");
 	}
@@ -325,7 +325,7 @@ i80321_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				rman_release_resource(rv);
 				return (NULL);
 			}
-		} 
+		}
 	}
 	return (rv);
 }
@@ -340,7 +340,7 @@ i80321_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY) {
 		error = bus_space_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, &p);
-		if (error) 
+		if (error)
 			return (error);
 		rman_set_bushandle(r, p);
 	
@@ -350,8 +350,8 @@ i80321_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 i80321_pci_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)    
+    struct resource *ires, int flags, driver_filter_t *filt,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
 	return (BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
 	    filt, intr, arg, cookiep));

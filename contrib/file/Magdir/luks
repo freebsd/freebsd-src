@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: luks,v 1.4 2009/09/19 16:28:10 christos Exp $
 # luks:  file(1) magic for Linux Unified Key Setup
 # URL:	http://luks.endorphin.org/spec
 # From:	Anthon van der Neut <anthon@mnt.org>

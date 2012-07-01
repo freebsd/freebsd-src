@@ -151,7 +151,6 @@ extern void dblfault_handler(void);
 extern void printcpuinfo(void);	/* XXX header file */
 extern void finishidentcpu(void);
 extern void panicifcpuunsupported(void);
-extern void initializecpu(void);
 
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
@@ -271,6 +270,11 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 	cpu_setregs();
+
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
 }
 
 /*

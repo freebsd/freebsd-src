@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: gcc,v 1.4 2009/09/19 16:28:09 christos Exp $
 # gcc:  file(1) magic for GCC special files
 #
 0	string		gpch		GCC precompiled header

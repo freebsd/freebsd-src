@@ -127,9 +127,7 @@ dbg_dump_hex(struct fs *sb, const char *comment, unsigned char *mem)
 void
 dbg_dump_fs(struct fs *sb, const char *comment)
 {
-#ifdef FSMAXSNAP
 	int j;
-#endif /* FSMAXSNAP */
 
 	if (!dbg_log)
 		return;
@@ -299,7 +297,6 @@ dbg_dump_fs(struct fs *sb, const char *comment)
 	fprintf(dbg_log, "pendinginodes     int32_t          0x%08x\n",
 	    sb->fs_pendinginodes);
 
-#ifdef FSMAXSNAP
 	for (j = 0; j < FSMAXSNAP; j++) {
 		fprintf(dbg_log, "snapinum          int32_t[%2d]      0x%08x\n",
 		    j, sb->fs_snapinum[j]);
@@ -307,7 +304,6 @@ dbg_dump_fs(struct fs *sb, const char *comment)
 			break;
 		}
 	}
-#endif /* FSMAXSNAP */
 	fprintf(dbg_log, "avgfilesize       int32_t          0x%08x\n",
 	    sb->fs_avgfilesize);
 	fprintf(dbg_log, "avgfpdir          int32_t          0x%08x\n",

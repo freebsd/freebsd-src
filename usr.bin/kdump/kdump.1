@@ -28,7 +28,7 @@
 .\"	@(#)kdump.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2012
+.Dd June 4, 2012
 .Dt KDUMP 1
 .Os
 .Sh NAME
@@ -86,9 +86,9 @@ string.
 Suppressing this feature yields a more consistent output format and is
 easily amenable to further processing.
 .It Fl p Ar pid
-Display only trace events that correspond to the process
+Display only trace events that correspond to the process or thread
 .Ar pid .
-This may be useful when there are multiple processes recorded in the
+This may be useful when there are multiple processes or threads recorded in the
 same trace file.
 .It Fl R
 Display relative timestamps (time since previous entry).
@@ -167,7 +167,7 @@ The possible operations are:
 .It Li NAMI Ta file name lookup Ta path to file
 .It Li GIO Ta general I/O Ta fd, read/write, number of bytes
 .It Li PSIG Ta signal Ta signal name, handler, mask, code
-.It Li CSW Ta context switch Ta stop/resume user/kernel
+.It Li CSW Ta context switch Ta stop/resume user/kernel wmesg
 .It Li USER Ta data from user process Ta the data
 .It Li STRU Ta various syscalls Ta structure
 .It Li SCTL Ta Xr sysctl 3 requests Ta MIB name

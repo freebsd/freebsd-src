@@ -164,6 +164,8 @@ static void enlarge_stack(void);
 
 int main(int, char *[]);
 
+int exit_code = 0;
+
 int
 main(int argc, char *argv[])
 {
@@ -282,7 +284,7 @@ main(int argc, char *argv[])
 		(void) fclose(outfile[0]);
 	}
 
-	return 0;
+	return exit_code;
 }
 
 /*

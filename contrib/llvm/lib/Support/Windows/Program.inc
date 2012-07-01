@@ -299,14 +299,14 @@ Program::Execute(const Path& path,
   Data_ = wpi;
 
   // Make sure these get closed no matter what.
-  AutoHandle hThread(pi.hThread);
+  ScopedCommonHandle hThread(pi.hThread);
 
   // Assign the process to a job if a memory limit is defined.
-  AutoHandle hJob(0);
+  ScopedJobHandle hJob;
   if (memoryLimit != 0) {
     hJob = CreateJobObject(0, 0);
     bool success = false;
-    if (hJob != 0) {
+    if (hJob) {
       JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli;
       memset(&jeli, 0, sizeof(jeli));
       jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_PROCESS_MEMORY;
@@ -367,7 +367,17 @@ Program::Wait(const Path &path,
     return -2;
   }
 
-  return status;
+  if (!status)
+    return 0;
+
+  // Pass 10(Warning) and 11(Error) to the callee as negative value.
+  if ((status & 0xBFFF0000U) == 0x80000000U)
+    return (int)status;
+
+  if (status & 0xFF)
+    return status & 0x7FFFFFFF;
+
+  return 1;
 }
 
 bool
@@ -387,19 +397,25 @@ Program::Kill(std::string* ErrMsg) {
   return false;
 }
 
-bool Program::ChangeStdinToBinary(){
+error_code Program::ChangeStdinToBinary(){
   int result = _setmode( _fileno(stdin), _O_BINARY );
-  return result == -1;
+  if (result == -1)
+    return error_code(errno, generic_category());
+  return make_error_code(errc::success);
 }
 
-bool Program::ChangeStdoutToBinary(){
+error_code Program::ChangeStdoutToBinary(){
   int result = _setmode( _fileno(stdout), _O_BINARY );
-  return result == -1;
+  if (result == -1)
+    return error_code(errno, generic_category());
+  return make_error_code(errc::success);
 }
 
-bool Program::ChangeStderrToBinary(){
+error_code Program::ChangeStderrToBinary(){
   int result = _setmode( _fileno(stderr), _O_BINARY );
-  return result == -1;
+  if (result == -1)
+    return error_code(errno, generic_category());
+  return make_error_code(errc::success);
 }
 
 }

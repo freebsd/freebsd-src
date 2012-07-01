@@ -1,4 +1,4 @@
-//===-- InterferenceCache.h - Caching per-block interference ---*- C++ -*--===//
+//===-- InterferenceCache.cpp - Caching per-block interference ---------*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,6 +15,7 @@
 #include "InterferenceCache.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/CodeGen/LiveIntervalAnalysis.h"
 
 using namespace llvm;
 
@@ -24,13 +25,14 @@ InterferenceCache::BlockInterference InterferenceCache::Cursor::NoInterference;
 void InterferenceCache::init(MachineFunction *mf,
                              LiveIntervalUnion *liuarray,
                              SlotIndexes *indexes,
+                             LiveIntervals *lis,
                              const TargetRegisterInfo *tri) {
   MF = mf;
   LIUArray = liuarray;
   TRI = tri;
   PhysRegEntries.assign(TRI->getNumRegs(), 0);
   for (unsigned i = 0; i != CacheEntries; ++i)
-    Entries[i].clear(mf, indexes);
+    Entries[i].clear(mf, indexes, lis);
 }
 
 InterferenceCache::Entry *InterferenceCache::get(unsigned PhysReg) {
@@ -78,7 +80,7 @@ void InterferenceCache::Entry::reset(unsigned physReg,
   PhysReg = physReg;
   Blocks.resize(MF->getNumBlockIDs());
   Aliases.clear();
-  for (const unsigned *AS = TRI->getOverlaps(PhysReg); *AS; ++AS) {
+  for (const uint16_t *AS = TRI->getOverlaps(PhysReg); *AS; ++AS) {
     LiveIntervalUnion *LIU = LIUArray + *AS;
     Aliases.push_back(std::make_pair(LIU, LIU->getTag()));
   }
@@ -94,7 +96,7 @@ void InterferenceCache::Entry::reset(unsigned physReg,
 bool InterferenceCache::Entry::valid(LiveIntervalUnion *LIUArray,
                                      const TargetRegisterInfo *TRI) {
   unsigned i = 0, e = Aliases.size();
-  for (const unsigned *AS = TRI->getOverlaps(PhysReg); *AS; ++AS, ++i) {
+  for (const uint16_t *AS = TRI->getOverlaps(PhysReg); *AS; ++AS, ++i) {
     LiveIntervalUnion *LIU = LIUArray + *AS;
     if (i == e ||  Aliases[i].first != LIU)
       return false;
@@ -121,6 +123,8 @@ void InterferenceCache::Entry::update(unsigned MBBNum) {
 
   MachineFunction::const_iterator MFI = MF->getBlockNumbered(MBBNum);
   BlockInterference *BI = &Blocks[MBBNum];
+  ArrayRef<SlotIndex> RegMaskSlots;
+  ArrayRef<const uint32_t*> RegMaskBits;
   for (;;) {
     BI->Tag = Tag;
     BI->First = BI->Last = SlotIndex();
@@ -136,6 +140,18 @@ void InterferenceCache::Entry::update(unsigned MBBNum) {
       if (!BI->First.isValid() || StartI < BI->First)
         BI->First = StartI;
     }
+
+    // Also check for register mask interference.
+    RegMaskSlots = LIS->getRegMaskSlotsInBlock(MBBNum);
+    RegMaskBits = LIS->getRegMaskBitsInBlock(MBBNum);
+    SlotIndex Limit = BI->First.isValid() ? BI->First : Stop;
+    for (unsigned i = 0, e = RegMaskSlots.size();
+         i != e && RegMaskSlots[i] < Limit; ++i)
+      if (MachineOperand::clobbersPhysReg(RegMaskBits[i], PhysReg)) {
+        // Register mask i clobbers PhysReg before the LIU interference.
+        BI->First = RegMaskSlots[i];
+        break;
+      }
 
     PrevPos = Stop;
     if (BI->First.isValid())
@@ -166,4 +182,15 @@ void InterferenceCache::Entry::update(unsigned MBBNum) {
     if (Backup)
       ++I;
   }
+
+  // Also check for register mask interference.
+  SlotIndex Limit = BI->Last.isValid() ? BI->Last : Start;
+  for (unsigned i = RegMaskSlots.size();
+       i && RegMaskSlots[i-1].getDeadSlot() > Limit; --i)
+    if (MachineOperand::clobbersPhysReg(RegMaskBits[i-1], PhysReg)) {
+      // Register mask i-1 clobbers PhysReg after the LIU interference.
+      // Model the regmask clobber as a dead def.
+      BI->Last = RegMaskSlots[i-1].getDeadSlot();
+      break;
+    }
 }

@@ -20,47 +20,6 @@
 using namespace clang;
 using namespace ento;
 
-// The "fundamental rule" for naming conventions of methods:
-//  (url broken into two lines)
-//  http://developer.apple.com/documentation/Cocoa/Conceptual/
-//     MemoryMgmt/Tasks/MemoryManagementRules.html
-//
-// "You take ownership of an object if you create it using a method whose name
-//  begins with "alloc" or "new" or contains "copy" (for example, alloc,
-//  newObject, or mutableCopy), or if you send it a retain message. You are
-//  responsible for relinquishing ownership of objects you own using release
-//  or autorelease. Any other time you receive an object, you must
-//  not release it."
-//
-
-cocoa::NamingConvention cocoa::deriveNamingConvention(Selector S, 
-                                                    const ObjCMethodDecl *MD) {
-  switch (MD && MD->hasAttr<ObjCMethodFamilyAttr>()? MD->getMethodFamily() 
-                                                   : S.getMethodFamily()) {
-  case OMF_None:
-  case OMF_autorelease:
-  case OMF_dealloc:
-  case OMF_finalize:
-  case OMF_release:
-  case OMF_retain:
-  case OMF_retainCount:
-  case OMF_self:
-  case OMF_performSelector:
-    return NoConvention;
-
-  case OMF_init:
-    return InitRule;
-
-  case OMF_alloc:
-  case OMF_copy:
-  case OMF_mutableCopy:
-  case OMF_new:
-    return CreateRule;
-  }
-  llvm_unreachable("unexpected naming convention");
-  return NoConvention;
-}
-
 bool cocoa::isRefType(QualType RetTy, StringRef Prefix,
                       StringRef Name) {
   // Recursively walk the typedef stack, allowing typedefs of reference types.
@@ -68,7 +27,9 @@ bool cocoa::isRefType(QualType RetTy, StringRef Prefix,
     StringRef TDName = TD->getDecl()->getIdentifier()->getName();
     if (TDName.startswith(Prefix) && TDName.endswith("Ref"))
       return true;
-    
+    // XPC unfortunately uses CF-style function names, but aren't CF types.
+    if (TDName.startswith("xpc_"))
+      return false;
     RetTy = TD->getDecl()->getUnderlyingType();
   }
   
@@ -115,7 +76,7 @@ bool cocoa::isCocoaObjectRef(QualType Ty) {
   
   // Assume that anything declared with a forward declaration and no
   // @interface subclasses NSObject.
-  if (ID->isForwardDecl())
+  if (!ID->hasDefinition())
     return true;
   
   for ( ; ID ; ID = ID->getSuperClass())
@@ -174,6 +135,4 @@ bool coreFoundation::followsCreateRule(const FunctionDecl *fn) {
     // If we matched a lowercase character, it isn't the end of the
     // word.  Keep scanning.
   }
-  
-  return false;
 }

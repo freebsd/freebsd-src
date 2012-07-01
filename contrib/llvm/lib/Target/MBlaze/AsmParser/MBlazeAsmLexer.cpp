@@ -9,10 +9,6 @@
 
 #include "MCTargetDesc/MBlazeBaseInfo.h"
 
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringExtras.h"
-
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
@@ -100,11 +96,7 @@ AsmToken MBlazeBaseAsmLexer::LexTokenUAL() {
     return AsmToken(lexedToken);
   case AsmToken::Identifier:
   {
-    std::string upperCase = lexedToken.getString().str();
-    std::string lowerCase = LowercaseString(upperCase);
-    StringRef lowerRef(lowerCase);
-    
-    unsigned regID = MatchRegisterName(lowerRef);
+    unsigned regID = MatchRegisterName(lexedToken.getString().lower());
     
     if (regID) {
       return AsmToken(AsmToken::Register,

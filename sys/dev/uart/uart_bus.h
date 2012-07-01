@@ -87,6 +87,7 @@ struct uart_softc {
 	struct resource *sc_ires;	/* Interrupt resource. */
 	void		*sc_icookie;
 	int		sc_irid;
+	struct callout	sc_timer;
 
 	int		sc_callout:1;	/* This UART is opened for callout. */
 	int		sc_fastintr:1;	/* This UART uses fast interrupts. */

@@ -107,8 +107,8 @@ typedef struct acpi_handler_info
 
 static ACPI_HANDLER_INFO    AcpiGbl_HandlerList[] =
 {
-    {&AcpiGbl_SystemNotify.Handler,     "System Notifications"},
-    {&AcpiGbl_DeviceNotify.Handler,     "Device Notifications"},
+    {&AcpiGbl_GlobalNotify[0].Handler,  "System Notifications"},
+    {&AcpiGbl_GlobalNotify[1].Handler,  "Device Notifications"},
     {&AcpiGbl_TableHandler,             "ACPI Table Events"},
     {&AcpiGbl_ExceptionHandler,         "Control Method Exceptions"},
     {&AcpiGbl_InterfaceHandler,         "OSI Invocations"}
@@ -792,10 +792,12 @@ AcpiDbDisplayGpes (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
     char                    *GpeType;
+    ACPI_GPE_NOTIFY_INFO    *Notify;
     UINT32                  GpeIndex;
     UINT32                  Block = 0;
     UINT32                  i;
     UINT32                  j;
+    UINT32                  Count;
     char                    Buffer[80];
     ACPI_BUFFER             RetBuf;
     ACPI_STATUS             Status;
@@ -916,7 +918,14 @@ AcpiDbDisplayGpes (
                         AcpiOsPrintf ("Handler");
                         break;
                     case ACPI_GPE_DISPATCH_NOTIFY:
-                        AcpiOsPrintf ("Notify");
+                        Count = 0;
+                        Notify = GpeEventInfo->Dispatch.NotifyList;
+                        while (Notify)
+                        {
+                            Count++;
+                            Notify = Notify->Next;
+                        }
+                        AcpiOsPrintf ("Implicit Notify on %u devices", Count);
                         break;
                     default:
                         AcpiOsPrintf ("UNKNOWN: %X",

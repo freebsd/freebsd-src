@@ -57,7 +57,7 @@ namespace ISD {
     AssertSext, AssertZext,
 
     // Various leaf nodes.
-    BasicBlock, VALUETYPE, CONDCODE, Register,
+    BasicBlock, VALUETYPE, CONDCODE, Register, RegisterMask,
     Constant, ConstantFP,
     GlobalAddress, GlobalTLSAddress, FrameIndex,
     JumpTable, ConstantPool, ExternalSymbol, BlockAddress,
@@ -106,13 +106,6 @@ namespace ISD {
     // It takes an input chain and a pointer to the jump buffer as inputs
     // and returns an outchain.
     EH_SJLJ_LONGJMP,
-
-    // OUTCHAIN = EH_SJLJ_DISPATCHSETUP(INCHAIN, setjmpval)
-    // This corresponds to the eh.sjlj.dispatchsetup intrinsic. It takes an
-    // input chain and the value returning from setjmp as inputs and returns an
-    // outchain. By default, this does nothing. Targets can lower this to unwind
-    // setup code if needed.
-    EH_SJLJ_DISPATCHSETUP,
 
     // TargetConstant* - Like Constant*, but the DAG does not do any folding,
     // simplification, or lowering of the constant. They are used for constants
@@ -319,6 +312,9 @@ namespace ISD {
     /// Byte Swap and Counting operators.
     BSWAP, CTTZ, CTLZ, CTPOP,
 
+    /// Bit counting operators with an undefined result for zero inputs.
+    CTTZ_ZERO_UNDEF, CTLZ_ZERO_UNDEF,
+
     // Select(COND, TRUEVAL, FALSEVAL).  If the type of the boolean COND is not
     // i1 then the high bits must conform to getBooleanContents.
     SELECT,
@@ -327,6 +323,9 @@ namespace ISD {
     // and #2), returning a vector result.  All vectors have the same length.
     // Much like the scalar select and setcc, each bit in the condition selects
     // whether the corresponding result element is taken from op #1 or op #2.
+    // At first, the VSELECT condition is of vXi1 type. Later, targets may change
+    // the condition type in order to match the VSELECT node using a a pattern.
+    // The condition follows the BooleanContent format of the target.
     VSELECT,
 
     // Select with condition operator - This selects between a true value and

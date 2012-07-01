@@ -4,8 +4,12 @@
 #
 
 # Sets SSH_AUTH_SOCK to the user's ssh-agent socket path if running
+#
+# This has a couple caveats, the most notable being that if a user
+# has multiple ssh-agent(1) processes running, this will very likely
+# set SSH_AUTH_SOCK to point to the wrong file/domain socket.
 if (${?SSH_AUTH_SOCK} != "1") then
-	setenv SSH_AUTH_SOCK `sockstat | grep "${USER}" | cut -d ' ' -f 6` 
+	setenv SSH_AUTH_SOCK `sockstat -u | awk '/^${USER}.+ ssh-agent/ { print $6 }'
 endif
 
 # Change only root's prompt
@@ -21,20 +25,20 @@ bindkey "^[[3~" delete-char-or-list-or-eof
 # Make the Ins key work
 bindkey "\e[2~" overwrite-mode 
 
+# Aliases used for completions
+alias _PKGS_PkGs_PoRtS_ 'awk -F\| \{sub\(\"\/usr\/ports\/\"\,\"\"\,\$2\)\;print\ \$2\} /usr/ports/INDEX-name -r | cut -d . -f 1'
+alias _PKGS_PkGs_PoRtS_ 'awk -F\| \{sub\(\"\/usr\/ports\/\"\,\"\"\,\$2\)\;print\ \$2\} /usr/ports/INDEX-`uname -r | cut -d . -f 1`&& pkg_info -E \*'
+
 # Some common completions
 complete chown          'p/1/u/'
-complete man            'C/*/c/'
-complete service        'n/*/`service -l`/'
-complete service  	'c/-/(e l r v)/' 'p/1/`service -l`/' 'n/*/(start stop reload restart status rcvar onestart onestop)/'
-complete kldunload	'n@*@`kldstat | awk \{sub\(\/\.ko\/,\"\",\$NF\)\;print\ \$NF\} | grep -v Name` @'
-complete make           'n@*@`make -pn | sed -n -E "/^[#_.\/[:blank:]]+/d; /=/d; s/[[:blank:]]*:.*//gp;"`@'
-complete pkg_delete     'c/-/(i v D n p d f G x X r)/' 'n@*@`ls /var/db/pkg`@'
-complete pkg_info       'c/-/(a b v p q Q c d D f g i I j k K r R m L s o G O x X e E l t V P)/' 'n@*@`\ls -1 /var/db/pkg | sed svar/db/pkg/%%`@"
+complete dd		'c/[io]f=/f/ n/*/"(if of ibs obs bs skip seek count)"/='
 complete kill		'c/-/S/' 'c/%/j/' 'n/*/`ps -ax | awk '"'"'{print $1}'"'"'`/'
 complete killall	'c/-/S/' 'c/%/j/' 'n/*/`ps -ax | awk '"'"'{print $5}'"'"'`/'
-complete dd		'c/[io]f=/f/ n/*/"(if of ibs obs bs skip seek count)"/='
-alias _PKGS_PkGs_PoRtS_ 'awk -F\| \{sub\(\"\/usr\/ports\/\"\,\"\"\,\$2\)\;print\ \$2\} /usr/ports/INDEX-name -r | cut -d . -f 1A
-alias _PKGS_PkGs_PoRtS_ 'awk -F\| \{sub\(\"\/usr\/ports\/\"\,\"\"\,\$2\)\;print\ \$2\} /usr/ports/INDEX-`uname -r | cut -d . -f 1`&& pkg_info -E \*'
+complete kldunload	'n@*@`kldstat | awk \{sub\(\/\.ko\/,\"\",\$NF\)\;print\ \$NF\} | grep -v Name` @'
+complete make           'n@*@`make -pn | sed -n -E "/^[#_.\/[:blank:]]+/d; /=/d; s/[[:blank:]]*:.*//gp;"`@'
+complete man            'C/*/c/'
+complete pkg_delete     'c/-/(i v D n p d f G x X r)/' 'n@*@`ls /var/db/pkg`@'
+complete pkg_info       'c/-/(a b v p q Q c d D f g i I j k K r R m L s o G O x X e E l t V P)/' 'n@*@`\ls -1 /var/db/pkg | sed s%/var/db/pkg/%%`@'
 complete portmaster   'c/--/(always-fetch check-depends check-port-dbdir clean-distfiles \
     clean-packages delete-build-only delete-packages force-config help \
     index index-first index-only list-origins local-packagedir no-confirm \
@@ -42,6 +46,8 @@ complete portmaster   'c/--/(always-fetch check-depends check-port-dbdir clean-d
     packages-local packages-only show-work update-if-newer version)/' \
     'c/-/(a b B C d D e f F g G h H i l L m n o p r R s t u v w x)/' \
     'n@*@`_PKGS_PkGs_PoRtS_`@'
+complete service  	'c/-/(e l r v)/' 'p/1/`service -l`/' 'n/*/(start stop reload restart status rcvar onestart onestop)/'
+complete sysctl 'n/*/`sysctl -Na`/'
 
 # Alternate prompts
 set prompt = '#'

@@ -1,0 +1,51 @@
+.TH j_who.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+j_who.d - trace Java calls by process using DTrace.
+.SH SYNOPSIS
+.B j_who.d
+
+.SH DESCRIPTION
+This traces activity from all Java processes on the system with hotspot
+provider support (1.6.0).
+
+The argument list is truncated at 55 characters (up to 80 is easily
+available). To easily read the full argument list, use other system tools;
+on Solaris use "pargs PID".
+.SH OS
+Solaris
+.SH STABILITY
+Evolving - uses the DTrace hotspot provider, which may change 
+as additional features are introduced. Check Java/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B j_who.d
+.PP
+.SH FIELDS
+.TP
+PID
+Process ID of Java
+.TP
+UID
+User ID of the owner
+.TP
+CALLS
+Number of calls made (a measure of activity)
+.TP
+ARGS
+Process name and arguments
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+j_who.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

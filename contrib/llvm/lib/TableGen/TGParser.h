@@ -14,6 +14,7 @@
 #ifndef TGPARSER_H
 #define TGPARSER_H
 
+#include "llvm/TableGen/Record.h"
 #include "TGLexer.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/ADT/Twine.h"
@@ -41,17 +42,44 @@ namespace llvm {
     }
   };
   
+  /// ForeachLoop - Record the iteration state associated with a for loop.
+  /// This is used to instantiate items in the loop body.
+  struct ForeachLoop {
+    Init *IterVar;
+    Init *ListValue;
+
+    ForeachLoop(Init *IVar, Init *LValue) : IterVar(IVar), ListValue(LValue) {}
+  };
+
 class TGParser {
   TGLexer Lex;
   std::vector<std::vector<LetRecord> > LetStack;
   std::map<std::string, MultiClass*> MultiClasses;
   
+  /// Loops - Keep track of any foreach loops we are within.
+  ///
+  typedef std::vector<ForeachLoop> LoopVector;
+  LoopVector Loops;
+
   /// CurMultiClass - If we are parsing a 'multiclass' definition, this is the 
   /// current value.
   MultiClass *CurMultiClass;
 
   // Record tracker
   RecordKeeper &Records;
+
+  // A "named boolean" indicating how to parse identifiers.  Usually
+  // identifiers map to some existing object but in special cases
+  // (e.g. parsing def names) no such object exists yet because we are
+  // in the middle of creating in.  For those situations, allow the
+  // parser to ignore missing object errors.
+  enum IDParseMode {
+    ParseValueMode,   // We are parsing a value we expect to look up.
+    ParseNameMode,    // We are parsing a name of an object that does not yet
+                      // exist.
+    ParseForeachMode  // We are parsing a foreach init.
+  };
+
 public:
   TGParser(SourceMgr &SrcMgr, RecordKeeper &records) : 
     Lex(SrcMgr), CurMultiClass(0), Records(records) {}
@@ -70,13 +98,35 @@ public:
   const std::vector<std::string> &getDependencies() const {
     return Lex.getDependencies();
   }
+
 private:  // Semantic analysis methods.
   bool AddValue(Record *TheRec, SMLoc Loc, const RecordVal &RV);
-  bool SetValue(Record *TheRec, SMLoc Loc, const std::string &ValName, 
+  bool SetValue(Record *TheRec, SMLoc Loc, Init *ValName, 
                 const std::vector<unsigned> &BitList, Init *V);
+  bool SetValue(Record *TheRec, SMLoc Loc, const std::string &ValName, 
+                const std::vector<unsigned> &BitList, Init *V) {
+    return SetValue(TheRec, Loc, StringInit::get(ValName), BitList, V);
+  }
   bool AddSubClass(Record *Rec, SubClassReference &SubClass);
   bool AddSubMultiClass(MultiClass *CurMC,
                         SubMultiClassReference &SubMultiClass);
+
+  // IterRecord: Map an iterator name to a value.
+  struct IterRecord {
+    Init *IterVar;
+    Init *IterValue;
+    IterRecord(Init *Var, Init *Val) : IterVar(Var), IterValue(Val) {}
+  };
+
+  // IterSet: The set of all iterator values at some point in the
+  // iteration space.
+  typedef std::vector<IterRecord> IterSet;
+
+  bool ProcessForeachDefs(Record *CurRec, MultiClass *CurMultiClass,
+                          SMLoc Loc);
+  bool ProcessForeachDefs(Record *CurRec, MultiClass *CurMultiClass,
+                          SMLoc Loc, IterSet &IterVals, ForeachLoop &CurLoop,
+                          LoopVector::iterator NextLoop);
 
 private:  // Parser methods.
   bool ParseObjectList(MultiClass *MC = 0);
@@ -85,13 +135,13 @@ private:  // Parser methods.
   bool ParseMultiClass();
   Record *InstantiateMulticlassDef(MultiClass &MC,
                                    Record *DefProto,
-                                   const std::string &DefmPrefix,
+                                   Init *DefmPrefix,
                                    SMLoc DefmPrefixLoc);
   bool ResolveMulticlassDefArgs(MultiClass &MC,
                                 Record *DefProto,
                                 SMLoc DefmPrefixLoc,
                                 SMLoc SubClassLoc,
-                                const std::vector<std::string> &TArgs,
+                                const std::vector<Init *> &TArgs,
                                 std::vector<Init *> &TemplateVals,
                                 bool DeleteArgs);
   bool ResolveMulticlassDef(MultiClass &MC,
@@ -100,6 +150,7 @@ private:  // Parser methods.
                             SMLoc DefmPrefixLoc);
   bool ParseDefm(MultiClass *CurMultiClass);
   bool ParseDef(MultiClass *CurMultiClass);
+  bool ParseForeach(MultiClass *CurMultiClass);
   bool ParseTopLevelLet(MultiClass *CurMultiClass);
   std::vector<LetRecord> ParseLetList();
 
@@ -108,15 +159,19 @@ private:  // Parser methods.
   bool ParseBodyItem(Record *CurRec);
 
   bool ParseTemplateArgList(Record *CurRec);
-  std::string ParseDeclaration(Record *CurRec, bool ParsingTemplateArgs);
+  Init *ParseDeclaration(Record *CurRec, bool ParsingTemplateArgs);
+  Init *ParseForeachDeclaration(Init *&ForeachListValue);
 
   SubClassReference ParseSubClassReference(Record *CurRec, bool isDefm);
   SubMultiClassReference ParseSubMultiClassReference(MultiClass *CurMC);
 
-  Init *ParseIDValue(Record *CurRec);
-  Init *ParseIDValue(Record *CurRec, const std::string &Name, SMLoc NameLoc);
-  Init *ParseSimpleValue(Record *CurRec, RecTy *ItemType = 0);
-  Init *ParseValue(Record *CurRec, RecTy *ItemType = 0);
+  Init *ParseIDValue(Record *CurRec, IDParseMode Mode = ParseValueMode);
+  Init *ParseIDValue(Record *CurRec, const std::string &Name, SMLoc NameLoc,
+                     IDParseMode Mode = ParseValueMode);
+  Init *ParseSimpleValue(Record *CurRec, RecTy *ItemType = 0,
+                         IDParseMode Mode = ParseValueMode);
+  Init *ParseValue(Record *CurRec, RecTy *ItemType = 0,
+                   IDParseMode Mode = ParseValueMode);
   std::vector<Init*> ParseValueList(Record *CurRec, Record *ArgsRec = 0, RecTy *EltTy = 0);
   std::vector<std::pair<llvm::Init*, std::string> > ParseDagArgList(Record *);
   bool ParseOptionalRangeList(std::vector<unsigned> &Ranges);
@@ -126,7 +181,7 @@ private:  // Parser methods.
   RecTy *ParseType();
   Init *ParseOperation(Record *CurRec);
   RecTy *ParseOperatorType();
-  std::string ParseObjectName();
+  Init *ParseObjectName(MultiClass *CurMultiClass);
   Record *ParseClassID();
   MultiClass *ParseMultiClassID();
   Record *ParseDefmID();

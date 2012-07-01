@@ -220,11 +220,7 @@ int dtls1_enc(SSL *s, int send)
 		if (!send)
 			{
 			if (l == 0 || l%bs != 0)
-				{
-				SSLerr(SSL_F_DTLS1_ENC,SSL_R_BLOCK_CIPHER_PAD_IS_WRONG);
-				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_DECRYPTION_FAILED);
-				return 0;
-				}
+				return -1;
 			}
 		
 		EVP_Cipher(ds,rec->data,rec->input,l);
@@ -253,7 +249,7 @@ int dtls1_enc(SSL *s, int send)
 				}
 			/* TLS 1.0 does not bound the number of padding bytes by the block size.
 			 * All of them must have value 'padding_length'. */
-			if (i > (int)rec->length)
+			if (i + bs > (int)rec->length)
 				{
 				/* Incorrect padding. SSLerr() and ssl3_alert are done
 				 * by caller: we don't want to reveal whether this is

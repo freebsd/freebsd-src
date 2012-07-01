@@ -28,12 +28,12 @@ using namespace clang;
 namespace {
   class CodeGeneratorImpl : public CodeGenerator {
     DiagnosticsEngine &Diags;
-    llvm::OwningPtr<const llvm::TargetData> TD;
+    OwningPtr<const llvm::TargetData> TD;
     ASTContext *Ctx;
     const CodeGenOptions CodeGenOpts;  // Intentionally copied in.
   protected:
-    llvm::OwningPtr<llvm::Module> M;
-    llvm::OwningPtr<CodeGen::CodeGenModule> Builder;
+    OwningPtr<llvm::Module> M;
+    OwningPtr<CodeGen::CodeGenModule> Builder;
   public:
     CodeGeneratorImpl(DiagnosticsEngine &diags, const std::string& ModuleName,
                       const CodeGenOptions &CGO, llvm::LLVMContext& C)
@@ -59,10 +59,15 @@ namespace {
                                                *M, *TD, Diags));
     }
 
-    virtual void HandleTopLevelDecl(DeclGroupRef DG) {
+    virtual void HandleCXXStaticMemberVarInstantiation(VarDecl *VD) {
+      Builder->HandleCXXStaticMemberVarInstantiation(VD);
+    }
+
+    virtual bool HandleTopLevelDecl(DeclGroupRef DG) {
       // Make sure to emit all elements of a Decl.
       for (DeclGroupRef::iterator I = DG.begin(), E = DG.end(); I != E; ++I)
         Builder->EmitTopLevelDecl(*I);
+      return true;
     }
 
     /// HandleTagDeclDefinition - This callback is invoked each time a TagDecl
@@ -74,7 +79,7 @@ namespace {
       
       // In C++, we may have member functions that need to be emitted at this 
       // point.
-      if (Ctx->getLangOptions().CPlusPlus && !D->isDependentContext()) {
+      if (Ctx->getLangOpts().CPlusPlus && !D->isDependentContext()) {
         for (DeclContext::decl_iterator M = D->decls_begin(), 
                                      MEnd = D->decls_end();
              M != MEnd; ++M)
@@ -111,6 +116,8 @@ namespace {
     }
   };
 }
+
+void CodeGenerator::anchor() { }
 
 CodeGenerator *clang::CreateLLVMCodeGen(DiagnosticsEngine &Diags,
                                         const std::string& ModuleName,

@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: os400,v 1.5 2009/09/19 16:28:11 christos Exp $
 # os400:  file(1) magic for IBM OS/400 files
 #
 # IBM OS/400 (i5/OS) Save file (SAVF) - gerardo.cacciari@gmail.com

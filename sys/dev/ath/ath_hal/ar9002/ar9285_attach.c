@@ -66,7 +66,9 @@ static const HAL_PERCAL_DATA ar9280_adc_init_dc_cal = {
 	.calPostProc	= ar5416AdcDcCalibration
 };
 
-static void ar9285ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar9285ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
+static void ar9285DisablePCIE(struct ath_hal *ah);
 static HAL_BOOL ar9285FillCapabilityInfo(struct ath_hal *ah);
 static void ar9285WriteIni(struct ath_hal *ah,
 	const struct ieee80211_channel *chan);
@@ -134,12 +136,25 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 
 	ar5416InitState(AH5416(ah), devid, sc, st, sh, status);
 
+	/*
+	 * Use the "local" EEPROM data given to us by the higher layers.
+	 * This is a private copy out of system flash. The Linux ath9k
+	 * commit for the initial AR9130 support mentions MMIO flash
+	 * access is "unreliable." -adrian
+	 */
+	if (eepromdata != AH_NULL) {
+		AH_PRIVATE(ah)->ah_eepromRead = ath_hal_EepromDataRead;
+		AH_PRIVATE(ah)->ah_eepromWrite = NULL;
+		ah->ah_eepromdata = eepromdata;
+	}
+
 	/* XXX override with 9285 specific state */
 	/* override 5416 methods for our needs */
 	AH5416(ah)->ah_initPLL = ar9280InitPLL;
 
 	ah->ah_setAntennaSwitch		= ar9285SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9285ConfigPCIE;
+	ah->ah_disablePCIE		= ar9285DisablePCIE;
 	ah->ah_setTxPower		= ar9285SetTransmitPower;
 	ah->ah_setBoardValues		= ar9285SetBoardValues;
 
@@ -350,14 +365,92 @@ bad:
 }
 
 static void
-ar9285ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar9285ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
+	uint32_t val;
+
+	/*
+	 * This workaround needs some integration work with the HAL
+	 * config parameters and the if_ath_pci.c glue.
+	 * Specifically, read the value of the PCI register 0x70c
+	 * (4 byte PCI config space register) and store it in ath_hal_war70c.
+	 * Then if it's non-zero, the below WAR would override register
+	 * 0x570c upon suspend/resume.
+	 */
+#if 0
+	if (AR_SREV_9285E_20(ah)) {
+		val = AH_PRIVATE(ah)->ah_config.ath_hal_war70c;
+		if (val) {
+			val &= 0xffff00ff;
+			val |= 0x6f00;
+			OS_REG_WRITE(ah, 0x570c, val);
+		}
+	}
+#endif
+
 	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
 		OS_DELAY(1000);
-		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-		OS_REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
 	}
+
+	/*
+	 * Set PCIe workaround bits
+	 *
+	 * NOTE:
+	 *
+	 * In Merlin and Kite, bit 14 in WA register (disable L1) should only
+	 * be set when device enters D3 and be cleared when device comes back
+	 * to D0.
+	 */
+	if (power_off) {                /* Power-off */
+		OS_REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+
+		val = OS_REG_READ(ah, AR_WA);
+
+		/*
+		 * Disable bit 6 and 7 before entering D3 to prevent
+		 * system hang.
+		 */
+		val &= ~(AR_WA_BIT6 | AR_WA_BIT7);
+
+		/*
+		 * See above: set AR_WA_D3_L1_DISABLE when entering D3 state.
+		 *
+		 * XXX The reference HAL does it this way - it only sets
+		 * AR_WA_D3_L1_DISABLE if it's set in AR9280_WA_DEFAULT,
+		 * which it (currently) isn't.  So the following statement
+		 * is currently a NOP.
+		 */
+		if (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)
+			val |= AR_WA_D3_L1_DISABLE;
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		OS_REG_WRITE(ah, AR_WA, val);
+	} else {			/* Power-on */
+		val = AR9285_WA_DEFAULT;
+		/*
+		 * See note above: make sure L1_DISABLE is not set.
+		 */
+		val &= (~AR_WA_D3_L1_DISABLE);
+
+		/* Software workaroud for ASPM system hang. */
+		val |= (AR_WA_BIT6 | AR_WA_BIT7);
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		OS_REG_WRITE(ah, AR_WA, val);
+
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	}
+}
+
+static void
+ar9285DisablePCIE(struct ath_hal *ah)
+{
 }
 
 static void

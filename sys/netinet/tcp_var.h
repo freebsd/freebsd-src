@@ -194,7 +194,7 @@ struct tcpcb {
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
-	struct toe_usrreqs *t_tu;	/* offload operations vector */
+	struct toedev	*tod;		/* toedev handling this connection */
 	int	t_sndrexmitpack;	/* retransmit packets sent */
 	int	t_rcvoopack;		/* out-of-order packets received */
 	void	*t_toe;			/* TOE pcb pointer */
@@ -675,7 +675,8 @@ void	 tcp_reass_destroy(void);
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, int *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, int *);
-void	 tcp_mss_update(struct tcpcb *, int, struct hc_metrics_lite *, int *);
+void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
+	    int *);
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *

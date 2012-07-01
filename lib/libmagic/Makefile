@@ -1,5 +1,5 @@
 # $FreeBSD$
-# Copyright (c) David E. O'Brien, 2000-2004
+# Copyright (c) David E. O'Brien, 2000-2004, 2006, 2009
 
 CONTRDIR=	${.CURDIR}/../../contrib/file
 .PATH: ${CONTRDIR}
@@ -39,8 +39,9 @@ magic.mgc: mkmagic magic
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
-mkmagic: apprentice.c funcs.c magic.c print.c
-	${CC} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+mkmagic: apprentice.c funcs.c getline.c magic.c print.c
+	${CC} ${CFLAGS} -DCOMPILE_ONLY -DHOSTPROG ${LDFLAGS} \
+	    -o ${.TARGET} ${.ALLSRC}
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
 			${.CURDIR}/config.h

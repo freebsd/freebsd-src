@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2012
+.Dd June 10, 2012
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1535,9 +1535,9 @@ Matches packets with the corresponding IP protocol.
 .It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar table Ns Pq Ar number Ns Op , Ns Ar value | Ar ipno | Ar any
 Matches packets received, transmitted or going through,
 respectively, the interface specified by exact name
-.Ns No ( Ar ifX Ns No ),
+.Po Ar ifX Pc ,
 by device name
-.Ns No ( Ar if Ns Ar * Ns No ),
+.Po Ar if* Pc ,
 by IP address, or through some interface.
 .Pp
 The
@@ -1733,7 +1733,7 @@ connected networks instead of all source addresses.
 Lookup tables are useful to handle large sparse sets of
 addresses or other search keys (e.g. ports, jail IDs, interface names).
 In the rest of this section we will use the term ``address''.
-There may be up to 4096 different lookup tables, numbered 0 to 4095.
+There may be up to 65535 different lookup tables, numbered 0 to 65534.
 .Pp
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen

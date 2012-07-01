@@ -54,6 +54,9 @@
 /* -------- MCI_MR : (MCI Offset: 0x4) MCI Mode Register --------  */
 #define	MCI_MR_CLKDIV      (0xffu <<  0) /* (MCI) Clock Divider */
 #define	MCI_MR_PWSDIV      (0x3fu <<  8) /* (MCI) Power Saving Divider */
+#define	MCI_MR_RDPROOF	(0x1u << 11)	/* (MCI) Read Proof Enable */
+#define	MCI_MR_WRPROOF	(0x1u << 12)	/* (MCI) Write Proof Enable */
+#define	MCI_MR_PDCFBYTE	(0x1u << 13)	/* (MCI) PDC Force Byte Transfer */
 #define	MCI_MR_PDCPADV     (0x1u << 14) /* (MCI) PDC Padding Value */
 #define	MCI_MR_PDCMODE     (0x1u << 15) /* (MCI) PDC Oriented Mode */
 #define	MCI_MR_BLKLEN      0x3fff0000ul /* (MCI) Data Block Length */

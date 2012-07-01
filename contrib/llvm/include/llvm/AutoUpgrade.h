@@ -39,14 +39,6 @@ namespace llvm {
   /// This checks for global variables which should be upgraded. It returns true
   /// if it requires upgrading.
   bool UpgradeGlobalVariable(GlobalVariable *GV);
-
-  /// This function checks debug info intrinsics. If an intrinsic is invalid
-  /// then this function simply removes the intrinsic. 
-  void CheckDebugInfoIntrinsics(Module *M);
-  
-  /// This function upgrades the old pre-3.0 exception handling system to the
-  /// new one. N.B. This will be removed in 3.1.
-  void UpgradeExceptionHandling(Module *M);
 } // End llvm namespace
 
 #endif

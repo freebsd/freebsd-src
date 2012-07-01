@@ -1,0 +1,5 @@
+%type <int> rule
+%%
+rule:
+    ;
+%%

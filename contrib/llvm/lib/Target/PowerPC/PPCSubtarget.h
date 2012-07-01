@@ -1,4 +1,4 @@
-//=====-- PPCSubtarget.h - Define Subtarget for the PPC -------*- C++ -*--====//
+//===-- PPCSubtarget.h - Define Subtarget for the PPC ----------*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -33,12 +33,14 @@ namespace PPC {
   enum {
     DIR_NONE,
     DIR_32,
+    DIR_440, 
     DIR_601, 
     DIR_602, 
     DIR_603, 
     DIR_7400,
     DIR_750, 
     DIR_970, 
+    DIR_A2,
     DIR_64  
   };
 }
@@ -66,6 +68,7 @@ protected:
   bool HasAltivec;
   bool HasFSQRT;
   bool HasSTFIWX;
+  bool IsBookE;
   bool HasLazyResolverStubs;
   bool IsJITCodeModel;
   
@@ -136,15 +139,22 @@ public:
   bool hasSTFIWX() const { return HasSTFIWX; }
   bool hasAltivec() const { return HasAltivec; }
   bool isGigaProcessor() const { return IsGigaProcessor; }
+  bool isBookE() const { return IsBookE; }
 
   const Triple &getTargetTriple() const { return TargetTriple; }
 
   /// isDarwin - True if this is any darwin platform.
   bool isDarwin() const { return TargetTriple.isMacOSX(); }
+  /// isBGP - True if this is a BG/P platform.
+  bool isBGP() const { return TargetTriple.getVendor() == Triple::BGP; }
 
   bool isDarwinABI() const { return isDarwin(); }
   bool isSVR4ABI() const { return !isDarwin(); }
 
+  /// enablePostRAScheduler - True at 'More' optimization.
+  bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
+                             TargetSubtargetInfo::AntiDepBreakMode& Mode,
+                             RegClassVector& CriticalPathRCs) const;
 };
 } // End llvm namespace
 

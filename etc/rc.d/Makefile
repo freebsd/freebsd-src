@@ -66,6 +66,7 @@ FILES=	DAEMON \
 	kadmind \
 	kerberos \
 	keyserv \
+	kfd \
 	kld \
 	kldxref \
 	kpasswdd \

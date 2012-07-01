@@ -599,7 +599,25 @@ enum {
   R_ARM_THM_TLS_DESCSEQ32     = 0x82
 };
 
+// Mips Specific e_flags
+enum {
+  EF_MIPS_NOREORDER = 0x00000001, // Don't reorder instructions
+  EF_MIPS_PIC       = 0x00000002, // Position independent code
+  EF_MIPS_CPIC      = 0x00000004, // Call object with Position independent code
+  EF_MIPS_ARCH_1    = 0x00000000, // MIPS1 instruction set
+  EF_MIPS_ARCH_2    = 0x10000000, // MIPS2 instruction set
+  EF_MIPS_ARCH_3    = 0x20000000, // MIPS3 instruction set
+  EF_MIPS_ARCH_4    = 0x30000000, // MIPS4 instruction set
+  EF_MIPS_ARCH_5    = 0x40000000, // MIPS5 instruction set
+  EF_MIPS_ARCH_32   = 0x50000000, // MIPS32 instruction set per linux not elf.h
+  EF_MIPS_ARCH_64   = 0x60000000, // MIPS64 instruction set per linux not elf.h
+  EF_MIPS_ARCH_32R2 = 0x70000000, // mips32r2
+  EF_MIPS_ARCH_64R2 = 0x80000000, // mips64r2
+  EF_MIPS_ARCH      = 0xf0000000  // Mask for applying EF_MIPS_ARCH_ variant
+};
+
 // ELF Relocation types for Mips
+// .
 enum {
   R_MIPS_NONE              =  0,
   R_MIPS_16                =  1,
@@ -611,6 +629,7 @@ enum {
   R_MIPS_GPREL16           =  7,
   R_MIPS_LITERAL           =  8,
   R_MIPS_GOT16             =  9,
+  R_MIPS_GOT               =  9,
   R_MIPS_PC16              = 10,
   R_MIPS_CALL16            = 11,
   R_MIPS_GPREL32           = 12,
@@ -717,6 +736,9 @@ enum {
   SHT_GROUP         = 17, // Section group.
   SHT_SYMTAB_SHNDX  = 18, // Indices for SHN_XINDEX entries.
   SHT_LOOS          = 0x60000000, // Lowest operating system-specific type.
+  SHT_GNU_verdef    = 0x6ffffffd, // GNU version definitions.
+  SHT_GNU_verneed   = 0x6ffffffe, // GNU version references.
+  SHT_GNU_versym    = 0x6fffffff, // GNU symbol versions table.
   SHT_HIOS          = 0x6fffffff, // Highest operating system-specific type.
   SHT_LOPROC        = 0x70000000, // Lowest processor architecture-specific type.
   // Fixme: All this is duplicated in MCSectionELF. Why??
@@ -871,6 +893,7 @@ enum {
   STT_TLS     = 6,   // Thread local data object
   STT_LOOS    = 7,   // Lowest operating system-specific symbol type
   STT_HIOS    = 8,   // Highest operating system-specific symbol type
+  STT_GNU_IFUNC = 10, // GNU indirect function
   STT_LOPROC  = 13,  // Lowest processor-specific symbol type
   STT_HIPROC  = 15   // Highest processor-specific symbol type
 };
@@ -1082,6 +1105,33 @@ enum {
   DF_TEXTREL    = 0x04, // Relocations may modify a non-writable segment.
   DF_BIND_NOW   = 0x08, // Process all relocations on load.
   DF_STATIC_TLS = 0x10  // Reject attempts to load dynamically.
+};
+
+// ElfXX_VerDef structure version (GNU versioning)
+enum {
+  VER_DEF_NONE    = 0,
+  VER_DEF_CURRENT = 1
+};
+
+// VerDef Flags (ElfXX_VerDef::vd_flags)
+enum {
+  VER_FLG_BASE = 0x1,
+  VER_FLG_WEAK = 0x2,
+  VER_FLG_INFO = 0x4
+};
+
+// Special constants for the version table. (SHT_GNU_versym/.gnu.version)
+enum {
+  VER_NDX_LOCAL  = 0,      // Unversioned local symbol
+  VER_NDX_GLOBAL = 1,      // Unversioned global symbol
+  VERSYM_VERSION = 0x7fff, // Version Index mask
+  VERSYM_HIDDEN  = 0x8000  // Hidden bit (non-default version)
+};
+
+// ElfXX_VerNeed structure version (GNU versioning)
+enum {
+  VER_NEED_NONE = 0,
+  VER_NEED_CURRENT = 1
 };
 
 } // end namespace ELF

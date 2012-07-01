@@ -53,23 +53,23 @@ public:
   virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
   virtual void BeginCOFFSymbolDef(const MCSymbol *Symbol) {
-    assert(0 && "macho doesn't support this directive");
+    llvm_unreachable("macho doesn't support this directive");
   }
   virtual void EmitCOFFSymbolStorageClass(int StorageClass) {
-    assert(0 && "macho doesn't support this directive");
+    llvm_unreachable("macho doesn't support this directive");
   }
   virtual void EmitCOFFSymbolType(int Type) {
-    assert(0 && "macho doesn't support this directive");
+    llvm_unreachable("macho doesn't support this directive");
   }
   virtual void EndCOFFSymbolDef() {
-    assert(0 && "macho doesn't support this directive");
+    llvm_unreachable("macho doesn't support this directive");
   }
   virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
-    assert(0 && "macho doesn't support this directive");
+    llvm_unreachable("macho doesn't support this directive");
   }
   virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                      unsigned ByteAlignment) {
-    assert(0 && "macho doesn't support this directive");
+    llvm_unreachable("macho doesn't support this directive");
   }
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             unsigned Size = 0, unsigned ByteAlignment = 0);
@@ -89,7 +89,7 @@ public:
     //report_fatal_error("unsupported directive: '.file'");
   }
 
-  virtual void Finish();
+  virtual void FinishImpl();
 
   /// @}
 };
@@ -140,7 +140,7 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
 
 void MCMachOStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   // Let the target do whatever target specific stuff it needs to do.
-  getAssembler().getBackend().HandleAssemblerFlag(Flag);
+  getAssembler().getBackend().handleAssemblerFlag(Flag);
   // Do any generic stuff we need to do.
   switch (Flag) {
   case MCAF_SyntaxUnified: return; // no-op here.
@@ -150,14 +150,10 @@ void MCMachOStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   case MCAF_SubsectionsViaSymbols:
     getAssembler().setSubsectionsViaSymbols(true);
     return;
-  default:
-    llvm_unreachable("invalid assembler flag!");
   }
 }
 
 void MCMachOStreamer::EmitThumbFunc(MCSymbol *Symbol) {
-  // FIXME: Flag the function ISA as thumb with DW_AT_APPLE_isa.
-
   // Remember that the function is a thumb function. Fixup and relocation
   // values will need adjusted.
   getAssembler().setIsThumbFunc(Symbol);
@@ -215,8 +211,7 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   case MCSA_Protected:
   case MCSA_Weak:
   case MCSA_Local:
-    assert(0 && "Invalid symbol attribute for Mach-O!");
-    break;
+    llvm_unreachable("Invalid symbol attribute for Mach-O!");
 
   case MCSA_Global:
     SD.setExternal(true);
@@ -377,7 +372,7 @@ void MCMachOStreamer::EmitInstToData(const MCInst &Inst) {
   DF->getContents().append(Code.begin(), Code.end());
 }
 
-void MCMachOStreamer::Finish() {
+void MCMachOStreamer::FinishImpl() {
   EmitFrames(true);
 
   // We have to set the fragment atom associations so we can relax properly for
@@ -409,7 +404,7 @@ void MCMachOStreamer::Finish() {
     }
   }
 
-  this->MCObjectStreamer::Finish();
+  this->MCObjectStreamer::FinishImpl();
 }
 
 MCStreamer *llvm::createMachOStreamer(MCContext &Context, MCAsmBackend &MAB,

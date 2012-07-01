@@ -1,0 +1,203 @@
+#!/usr/bin/sh
+#
+# cputimes - print CPU time consumed by Kernel/Idle/Processes.
+#            Written using DTrace (Solaris 10 3/05).
+#
+# $Id: cputimes 3 2007-08-01 10:50:08Z brendan $
+#
+# This program accurately measures time consumed by the kernel, but in
+# doing so creates extra kernel load of it's own. The extra kernel
+# activity can be measured by running one cputimes and then another, and
+# comparing the difference in kernel consumed time. This method can be
+# used to estimate the load created by other DTrace scripts.
+#
+# USAGE:	cputimes [-ahTV] [-t top] [interval [count]]
+#
+#		-a                # print all processes
+#		-T                # print totals
+#		-V                # don't print timestamps
+#		-t num            # print top num lines only
+#  eg,
+#		cputimes 1        # print every 1 second
+#		cputimes -a 10    # print all processes every 10 secs
+#		cputimes -at 8 5  # print top 8 lines every 5 secs
+#
+#
+# FIELDS: 
+#		THREADS         The following or the process name,
+#		IDLE            Idle time - CPU running idle thread
+#		KERNEL          Kernel time - Kernel servicing interrupts, ...
+#		PROCESS         Process time - PIDs running on the system
+#		TIME (ns)       Sum of the CPU time, ns (nanoseconds)
+#
+# NOTES:
+# * This takes into account multiple CPU servers, the total 
+# seconds consumed will be a multiple of the CPU count and interval.
+#
+# SEE ALSO: cpudists
+#           Heisenberg's uncertainty principle.
+#
+# COPYRIGHT: Copyright (c) 2005 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 27-Apr-2005   Brendan Gregg   Created this.
+# 22-Sep-2005      "      "	Fixed a key corruption bug.
+# 22-Sep-2005      "      "	Last update.
+#
+
+
+##############################
+# --- Process Arguments ---
+#
+opt_all=0; opt_time=1; opt_top=0; opt_totals=0
+top=0; interval=1; count=1
+
+while getopts aht:TV name
+do
+        case $name in
+        a)      opt_all=1 ;;
+        T)      opt_totals=1 ;;
+        V)      opt_time=0 ;;
+        t)      opt_top=1; top=$OPTARG ;;
+        h|?)    cat <<-END >&2
+		USAGE: cputimes [-ahTV] [-t top] [interval [count]]
+		       cputimes                  # default output
+		               -a                # print all processes
+		               -T                # print totals
+		               -V                # don't print times
+		               -t num            # print top num lines only
+		          eg,
+		               cputimes 1        # print every 1 second
+		               cputimes -a 10    # all processes per 10 sec
+		               cputimes -at 8 5  # top 8 lines every 5 secs
+		END
+		exit 1
+        esac
+done
+shift `expr $OPTIND - 1`
+
+if [ "$1" -gt 0 ]; then
+        interval=$1; count=-1; shift
+fi
+if [ "$1" -gt 0 ]; then
+	count=$1; shift
+fi
+
+
+#################################
+# --- Main Program, DTrace ---
+#
+/usr/sbin/dtrace -n '
+ #pragma D option quiet
+
+ /*
+  * Command line arguments
+  */
+ inline int OPT_all    = '$opt_all';
+ inline int OPT_time   = '$opt_time';
+ inline int OPT_totals = '$opt_totals';
+ inline int OPT_top    = '$opt_top';
+ inline int TOP        = '$top';
+ inline int INTERVAL   = '$interval';
+ inline int COUNTER    = '$count';
+
+ /* Initialise variables */
+ dtrace:::BEGIN
+ {
+	cpustart[cpu] = 0;
+	counts = COUNTER;
+	secs = INTERVAL;
+ }
+
+ /* Flag this thread as idle */
+ sysinfo:unix:idle_enter:idlethread
+ {
+	idle[cpu] = 1;
+ }
+
+ /* Save kernel time between running threads */
+ sched:::on-cpu 
+ /cpustart[cpu]/
+ {
+	this->elapsed = timestamp - cpustart[cpu];
+	@Procs["KERNEL"] = sum(this->elapsed);
+ }
+
+ /* Save the elapsed time of a thread */
+ sched:::off-cpu,
+ sched:::remain-cpu,
+ profile:::profile-1sec
+ /cpustart[cpu]/
+ {
+	/* determine the name for this thread */
+	program[cpu] = pid == 0 ? idle[cpu] ? "IDLE" : "KERNEL" :
+	    OPT_all ? execname : "PROCESS";
+
+	/* save elapsed */
+	this->elapsed = timestamp - cpustart[cpu];
+	@Procs[program[cpu]] = sum(this->elapsed);
+	cpustart[cpu] = timestamp;
+ }
+
+ /* Record the start time of a thread */
+ sched:::on-cpu,
+ sched:::remain-cpu
+ {
+	idle[cpu] = 0;
+	cpustart[cpu] = timestamp;
+ }
+
+
+ profile:::tick-1sec
+ {
+	secs--;
+ }
+
+ /* Print time */
+ profile:::tick-1sec 
+ /secs == 0/
+ { 
+	OPT_time ? printf("%Y,\n", walltimestamp) : 1;
+	printf("%16s %16s\n", "THREADS", "TIME (ns)");
+ }
+
+ /* Print report */
+ profile:::tick-1sec 
+ /secs == 0/ 
+ { 
+	OPT_top ? trunc(@Procs, TOP) : 1;
+	printa("%16s %@16d\n", @Procs);
+	trunc(@Procs);
+	secs = INTERVAL;
+	counts--;
+ }
+
+ /* End of program */
+ profile:::tick-1sec 
+ /counts == 0/ 
+ {
+	exit(0);
+ }
+
+ /* cleanup for Ctrl-C */
+ dtrace:::END
+ {
+	trunc(@Procs);
+ }
+'
+

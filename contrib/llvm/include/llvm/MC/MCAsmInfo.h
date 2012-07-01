@@ -36,10 +36,6 @@ namespace llvm {
     enum LCOMMType { None, NoAlignment, ByteAlignment };
   }
 
-  namespace Structors {
-    enum OutputOrder { None, PriorityOrder, ReversePriorityOrder };
-  }
-
   /// MCAsmInfo - This class is intended to be used as a base class for asm
   /// properties and features specific to the target.
   class MCAsmInfo {
@@ -47,7 +43,7 @@ namespace llvm {
     //===------------------------------------------------------------------===//
     // Properties to be set by the target writer, used to configure asm printer.
     //
-    
+
     /// PointerSize - Pointer size in bytes.
     ///               Default is 4.
     unsigned PointerSize;
@@ -71,11 +67,6 @@ namespace llvm {
     /// HasMachoTBSSDirective - True if this is a MachO target that supports
     /// the macho-specific .tbss directive for emitting thread local BSS Symbols
     bool HasMachoTBSSDirective;                 // Default is false.
-
-    /// StructorOutputOrder - Whether the static ctor/dtor list should be output
-    /// in no particular order, in order of increasing priority or the reverse:
-    /// in order of decreasing priority (the default).
-    Structors::OutputOrder StructorOutputOrder; // Default is reverse order.
 
     /// HasStaticCtorDtorReferenceInStaticMode - True if the compiler should
     /// emit a ".reference .constructors_used" or ".reference .destructors_used"
@@ -152,6 +143,10 @@ namespace llvm {
     /// symbol names.  This defaults to true.
     bool AllowPeriodsInName;
 
+    /// AllowUTF8 - This is true if the assembler accepts UTF-8 input.
+    // FIXME: Make this a more general encoding setting?
+    bool AllowUTF8;
+
     //===--- Data Emission Directives -------------------------------------===//
 
     /// ZeroDirective - this should be set to the directive used to get some
@@ -188,6 +183,11 @@ namespace llvm {
     const char *JT16Begin;                   // Defaults to "$a."
     const char *JT32Begin;                   // Defaults to "$a."
     bool SupportsDataRegions;
+
+    /// GPRel64Directive - if non-null, a directive that is used to emit a word
+    /// which should be relocated as a 64-bit GP-relative offset, e.g. .gpdword
+    /// on Mips.
+    const char *GPRel64Directive;            // Defaults to NULL.
 
     /// GPRel32Directive - if non-null, a directive that is used to emit a word
     /// which should be relocated as a 32-bit GP-relative offset, e.g. .gpword
@@ -323,12 +323,16 @@ namespace llvm {
     const char* DwarfSectionOffsetDirective; // Defaults to NULL
 
     /// DwarfRequiresRelocationForSectionOffset - True if we need to produce a
-    // relocation when we want a section offset in dwarf.
+    /// relocation when we want a section offset in dwarf.
     bool DwarfRequiresRelocationForSectionOffset;  // Defaults to true;
 
-    // DwarfUsesLabelOffsetDifference - True if Dwarf2 output can
-    // use EmitLabelOffsetDifference.
+    /// DwarfUsesLabelOffsetDifference - True if Dwarf2 output can
+    /// use EmitLabelOffsetDifference.
     bool DwarfUsesLabelOffsetForRanges;
+
+    /// DwarfUsesRelocationsForStringPool - True if this Dwarf output must use
+    /// relocations to refer to entries in the string pool.
+    bool DwarfUsesRelocationsForStringPool;
 
     /// DwarfRegNumForCFI - True if dwarf register numbers are printed
     /// instead of symbolic register names in .cfi_* directives.
@@ -381,6 +385,7 @@ namespace llvm {
     const char *getData64bitsDirective(unsigned AS = 0) const {
       return AS == 0 ? Data64bitsDirective : getDataASDirective(64, AS);
     }
+    const char *getGPRel64Directive() const { return GPRel64Directive; }
     const char *getGPRel32Directive() const { return GPRel32Directive; }
 
     /// [Code|Data]Begin label name accessors.
@@ -424,9 +429,6 @@ namespace llvm {
     //
     bool hasMachoZeroFillDirective() const { return HasMachoZeroFillDirective; }
     bool hasMachoTBSSDirective() const { return HasMachoTBSSDirective; }
-    Structors::OutputOrder getStructorOutputOrder() const {
-      return StructorOutputOrder;
-    }
     bool hasStaticCtorDtorReferenceInStaticMode() const {
       return HasStaticCtorDtorReferenceInStaticMode;
     }
@@ -486,6 +488,9 @@ namespace llvm {
     }
     bool doesAllowPeriodsInName() const {
       return AllowPeriodsInName;
+    }
+    bool doesAllowUTF8() const {
+      return AllowUTF8;
     }
     const char *getZeroDirective() const {
       return ZeroDirective;
@@ -554,7 +559,7 @@ namespace llvm {
          ExceptionsType == ExceptionHandling::ARM ||
          ExceptionsType == ExceptionHandling::Win64);
     }
-    bool doesDwarfUsesInlineInfoSection() const {
+    bool doesDwarfUseInlineInfoSection() const {
       return DwarfUsesInlineInfoSection;
     }
     const char *getDwarfSectionOffsetDirective() const {
@@ -563,8 +568,11 @@ namespace llvm {
     bool doesDwarfRequireRelocationForSectionOffset() const {
       return DwarfRequiresRelocationForSectionOffset;
     }
-    bool doesDwarfUsesLabelOffsetForRanges() const {
+    bool doesDwarfUseLabelOffsetForRanges() const {
       return DwarfUsesLabelOffsetForRanges;
+    }
+    bool doesDwarfUseRelocationsForStringPool() const {
+      return DwarfUsesRelocationsForStringPool;
     }
     bool useDwarfRegNumForCFI() const {
       return DwarfRegNumForCFI;

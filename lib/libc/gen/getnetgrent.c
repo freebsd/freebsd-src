@@ -161,8 +161,7 @@ setnetgrent(const char *group)
 	if (group == NULL || !strlen(group))
 		return;
 
-	if (grouphead.gr == (struct netgrp *)0 ||
-		strcmp(group, grouphead.grname)) {
+	if (grouphead.gr == NULL || strcmp(group, grouphead.grname)) {
 		endnetgrent();
 #ifdef YP
 		/* Presumed guilty until proven innocent. */
@@ -172,7 +171,7 @@ setnetgrent(const char *group)
 		 * use NIS exclusively.
 		 */
 		if (((stat(_PATH_NETGROUP, &_yp_statp) < 0) &&
-			errno == ENOENT) || _yp_statp.st_size == 0)
+		    errno == ENOENT) || _yp_statp.st_size == 0)
 			_use_only_yp = _netgr_yp_enabled = 1;
 		if ((netf = fopen(_PATH_NETGROUP,"r")) != NULL ||_use_only_yp){
 		/*
@@ -203,9 +202,7 @@ setnetgrent(const char *group)
 			if (parse_netgrp(group))
 				endnetgrent();
 			else {
-				grouphead.grname = (char *)
-					malloc(strlen(group) + 1);
-				strcpy(grouphead.grname, group);
+				grouphead.grname = strdup(group);
 			}
 			if (netf)
 				fclose(netf);
@@ -249,27 +246,24 @@ endnetgrent(void)
 		lp = lp->l_next;
 		free(olp->l_groupname);
 		free(olp->l_line);
-		free((char *)olp);
+		free(olp);
 	}
-	linehead = (struct linelist *)0;
+	linehead = NULL;
 	if (grouphead.grname) {
 		free(grouphead.grname);
-		grouphead.grname = (char *)0;
+		grouphead.grname = NULL;
 	}
 	gp = grouphead.gr;
 	while (gp) {
 		ogp = gp;
 		gp = gp->ng_next;
-		if (ogp->ng_str[NG_HOST])
-			free(ogp->ng_str[NG_HOST]);
-		if (ogp->ng_str[NG_USER])
-			free(ogp->ng_str[NG_USER]);
-		if (ogp->ng_str[NG_DOM])
-			free(ogp->ng_str[NG_DOM]);
-		free((char *)ogp);
+		free(ogp->ng_str[NG_HOST]);
+		free(ogp->ng_str[NG_USER]);
+		free(ogp->ng_str[NG_DOM]);
+		free(ogp);
 	}
-	grouphead.gr = (struct netgrp *)0;
-	nextgrp = (struct netgrp *)0;
+	grouphead.gr = NULL;
+	nextgrp = NULL;
 #ifdef YP
 	_netgr_yp_enabled = 0;
 #endif
@@ -284,7 +278,7 @@ _listmatch(const char *list, const char *group, int len)
 	int glen = strlen(group);
 
 	/* skip possible leading whitespace */
-	while(isspace((unsigned char)*ptr))
+	while (isspace((unsigned char)*ptr))
 		ptr++;
 
 	while (ptr < list + len) {
@@ -292,12 +286,12 @@ _listmatch(const char *list, const char *group, int len)
 		while(*ptr != ','  && *ptr != '\0' && !isspace((unsigned char)*ptr))
 			ptr++;
 		if (strncmp(cptr, group, glen) == 0 && glen == (ptr - cptr))
-			return(1);
-		while(*ptr == ','  || isspace((unsigned char)*ptr))
+			return (1);
+		while (*ptr == ','  || isspace((unsigned char)*ptr))
 			ptr++;
 	}
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -311,32 +305,37 @@ _revnetgr_lookup(char* lookupdom, char* map, const char* str,
 
 	for (rot = 0; ; rot++) {
 		switch (rot) {
-			case(0): snprintf(key, MAXHOSTNAMELEN, "%s.%s",
-					  str, dom?dom:lookupdom);
-				 break;
-			case(1): snprintf(key, MAXHOSTNAMELEN, "%s.*",
-					  str);
-				 break;
-			case(2): snprintf(key, MAXHOSTNAMELEN, "*.%s",
-					  dom?dom:lookupdom);
-				 break;
-			case(3): snprintf(key, MAXHOSTNAMELEN, "*.*");
-				 break;
-			default: return(0);
+		case 0:
+			snprintf(key, MAXHOSTNAMELEN, "%s.%s", str,
+			    dom ? dom : lookupdom);
+			break;
+		case 1:
+			snprintf(key, MAXHOSTNAMELEN, "%s.*", str);
+			break;
+		case 2:
+			snprintf(key, MAXHOSTNAMELEN, "*.%s",
+			    dom ? dom : lookupdom);
+			break;
+		case 3:
+			snprintf(key, MAXHOSTNAMELEN, "*.*");
+			break;
+		default:
+			return (0);
 		}
 		y = yp_match(lookupdom, map, key, strlen(key), &result,
-			     &resultlen);
+		    &resultlen);
 		if (y == 0) {
 			rv = _listmatch(result, group, resultlen);
 			free(result);
-			if (rv) return(1);
+			if (rv)
+				return (1);
 		} else if (y != YPERR_KEY) {
 			/*
 			 * If we get an error other than 'no
 			 * such key in map' then something is
 			 * wrong and we should stop the search.
 			 */
-			return(-1);
+			return (-1);
 		}
 	}
 }
@@ -386,14 +385,14 @@ innetgr(const char *group, const char *host, const char *user, const char *dom)
 	if (_use_only_yp && (host == NULL) != (user == NULL)) {
 		int ret;
 		if(yp_get_default_domain(&_netgr_yp_domain))
-			return(0);
+			return (0);
 		ret = _revnetgr_lookup(_netgr_yp_domain, 
 				      host?"netgroup.byhost":"netgroup.byuser",
 				      host?host:user, dom, group);
 		if (ret == 1)
-			return(1);
+			return (1);
 		else if (ret == 0 && dom != NULL)
-			return(0);
+			return (0);
 	}
 
 	setnetgrent(group);
@@ -416,14 +415,14 @@ innetgr(const char *group, const char *host, const char *user, const char *dom)
 static int
 parse_netgrp(const char *group)
 {
-	char *spos, *epos;
-	int len, strpos;
+	struct netgrp *grp;
+	struct linelist *lp = linehead;
+	char **ng;
+	char *epos, *gpos, *pos, *spos;
+	int freepos, len, strpos;
 #ifdef DEBUG
 	int fields;
 #endif
-	char *pos, *gpos;
-	struct netgrp *grp;
-	struct linelist *lp = linehead;
 
 	/*
 	 * First, see if the line has already been read in.
@@ -433,8 +432,7 @@ parse_netgrp(const char *group)
 			break;
 		lp = lp->l_next;
 	}
-	if (lp == (struct linelist *)0 &&
-	    (lp = read_for_group(group)) == (struct linelist *)0)
+	if (lp == NULL && (lp = read_for_group(group)) == NULL)
 		return (1);
 	if (lp->l_parsed) {
 #ifdef DEBUG
@@ -453,43 +451,51 @@ parse_netgrp(const char *group)
 	/* Watch for null pointer dereferences, dammit! */
 	while (pos != NULL && *pos != '\0') {
 		if (*pos == '(') {
-			grp = (struct netgrp *)malloc(sizeof (struct netgrp));
-			bzero((char *)grp, sizeof (struct netgrp));
-			grp->ng_next = grouphead.gr;
-			grouphead.gr = grp;
+			grp = malloc(sizeof(*grp));
+			if (grp == NULL)
+				return (1);
+			ng = grp->ng_str;
+			bzero(grp, sizeof(*grp));
 			pos++;
 			gpos = strsep(&pos, ")");
 #ifdef DEBUG
 			fields = 0;
 #endif
 			for (strpos = 0; strpos < 3; strpos++) {
-				if ((spos = strsep(&gpos, ","))) {
-#ifdef DEBUG
-					fields++;
-#endif
-					while (*spos == ' ' || *spos == '\t')
-						spos++;
-					if ((epos = strpbrk(spos, " \t"))) {
-						*epos = '\0';
-						len = epos - spos;
-					} else
-						len = strlen(spos);
-					if (len > 0) {
-						grp->ng_str[strpos] =  (char *)
-							malloc(len + 1);
-						bcopy(spos, grp->ng_str[strpos],
-							len + 1);
-					}
-				} else {
+				if ((spos = strsep(&gpos, ",")) == NULL) {
 					/*
 					 * All other systems I've tested
 					 * return NULL for empty netgroup
 					 * fields. It's up to user programs
 					 * to handle the NULLs appropriately.
 					 */
-					grp->ng_str[strpos] = NULL;
+					ng[strpos] = NULL;
+					continue;
 				}
+#ifdef DEBUG
+				fields++;
+#endif
+				while (*spos == ' ' || *spos == '\t')
+					spos++;
+				if ((epos = strpbrk(spos, " \t"))) {
+					*epos = '\0';
+					len = epos - spos;
+				} else
+					len = strlen(spos);
+				if (len <= 0)
+					continue;
+				ng[strpos] = malloc(len + 1);
+				if (ng[strpos] == NULL) {
+					for (freepos = 0; freepos < strpos;
+					    freepos++)
+						free(ng[freepos]);
+					free(grp);
+					return (1);
+				}
+				bcopy(spos, ng[strpos], len + 1);
 			}
+			grp->ng_next = grouphead.gr;
+			grouphead.gr = grp;
 #ifdef DEBUG
 			/*
 			 * Note: on other platforms, malformed netgroup
@@ -497,14 +503,15 @@ parse_netgrp(const char *group)
 			 * can catch bad entries and report them, we should
 			 * stay silent by default for compatibility's sake.
 			 */
-			if (fields < 3)
-					fprintf(stderr, "Bad entry (%s%s%s%s%s) in netgroup \"%s\"\n",
-						grp->ng_str[NG_HOST] == NULL ? "" : grp->ng_str[NG_HOST],
-						grp->ng_str[NG_USER] == NULL ? "" : ",",
-						grp->ng_str[NG_USER] == NULL ? "" : grp->ng_str[NG_USER],
-						grp->ng_str[NG_DOM] == NULL ? "" : ",",
-						grp->ng_str[NG_DOM] == NULL ? "" : grp->ng_str[NG_DOM],
-						lp->l_groupname);
+			if (fields < 3) {
+				fprintf(stderr,
+				"Bad entry (%s%s%s%s%s) in netgroup \"%s\"\n",
+				    ng[NG_HOST] == NULL ? "" : ng[NG_HOST],
+				    ng[NG_USER] == NULL ? "" : ",",
+				    ng[NG_USER] == NULL ? "" : ng[NG_USER],
+				    ng[NG_DOM] == NULL ? "" : ",",
+				    ng[NG_DOM] == NULL ? "" : ng[NG_DOM],
+				    lp->l_groupname);
 #endif
 		} else {
 			spos = strsep(&pos, ", \t");
@@ -526,7 +533,7 @@ parse_netgrp(const char *group)
 static struct linelist *
 read_for_group(const char *group)
 {
-	char *pos, *spos, *linep, *olinep;
+	char *linep, *olinep, *pos, *spos;
 	int len, olen;
 	int cont;
 	struct linelist *lp;
@@ -534,6 +541,7 @@ read_for_group(const char *group)
 #ifdef YP
 	char *result;
 	int resultlen;
+	linep = NULL;
 
 	while (_netgr_yp_enabled || fgets(line, LINSIZ, netf) != NULL) {
 		if (_netgr_yp_enabled) {
@@ -541,7 +549,7 @@ read_for_group(const char *group)
 				if(yp_get_default_domain(&_netgr_yp_domain))
 					continue;
 			if (yp_match(_netgr_yp_domain, "netgroup", group,
-					strlen(group), &result, &resultlen)) {
+			    strlen(group), &result, &resultlen)) {
 				free(result);
 				if (_use_only_yp)
 					return ((struct linelist *)0);
@@ -554,6 +562,7 @@ read_for_group(const char *group)
 			free(result);
 		}
 #else
+	linep = NULL;
 	while (fgets(line, LINSIZ, netf) != NULL) {
 #endif
 		pos = (char *)&line;
@@ -576,8 +585,14 @@ read_for_group(const char *group)
 			pos++;
 		if (*pos != '\n' && *pos != '\0') {
 			lp = (struct linelist *)malloc(sizeof (*lp));
+			if (lp == NULL) 
+				return (NULL);
 			lp->l_parsed = 0;
 			lp->l_groupname = (char *)malloc(len + 1);
+			if (lp->l_groupname == NULL) {
+				free(lp);
+				return (NULL);
+			}
 			bcopy(spos, lp->l_groupname, len);
 			*(lp->l_groupname + len) = '\0';
 			len = strlen(pos);
@@ -595,7 +610,12 @@ read_for_group(const char *group)
 				} else
 					cont = 0;
 				if (len > 0) {
-					linep = (char *)malloc(olen + len + 1);
+					linep = malloc(olen + len + 1);
+					if (linep == NULL) {
+						free(lp->l_groupname);
+						free(lp);
+						return (NULL);
+					}
 					if (olen > 0) {
 						bcopy(olinep, linep, olen);
 						free(olinep);
@@ -634,5 +654,5 @@ read_for_group(const char *group)
 	 */
 	rewind(netf);
 #endif
-	return ((struct linelist *)0);
+	return (NULL);
 }

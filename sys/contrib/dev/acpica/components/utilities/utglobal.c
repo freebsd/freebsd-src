@@ -287,8 +287,8 @@ AcpiUtInitGlobals (
 
     /* Global handlers */
 
-    AcpiGbl_SystemNotify.Handler        = NULL;
-    AcpiGbl_DeviceNotify.Handler        = NULL;
+    AcpiGbl_GlobalNotify[0].Handler     = NULL;
+    AcpiGbl_GlobalNotify[1].Handler     = NULL;
     AcpiGbl_ExceptionHandler            = NULL;
     AcpiGbl_InitHandler                 = NULL;
     AcpiGbl_TableHandler                = NULL;

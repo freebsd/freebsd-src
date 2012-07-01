@@ -991,12 +991,20 @@ static int mlx4_en_calc_media(struct mlx4_en_priv *priv)
 	active |= IFM_FDX;
 	trans_type = priv->port_state.transciver;
 	/* XXX I don't know all of the transceiver values. */
-	if (priv->port_state.link_speed == 1000)
+	switch (priv->port_state.link_speed) {
+	case 1000:
 		active |= IFM_1000_T;
-	else if (trans_type > 0 && trans_type <= 0xC)
-		active |= IFM_10G_SR;
-	else if (trans_type == 0x80 || trans_type == 0)
-		active |= IFM_10G_CX4;
+		break;
+	case 10000:
+		if (trans_type > 0 && trans_type <= 0xC)
+			active |= IFM_10G_SR;
+		else if (trans_type == 0x80 || trans_type == 0)
+			active |= IFM_10G_CX4;
+		break;
+	case 40000:
+		active |= IFM_40G_CR4;
+		break;
+	}
 	if (priv->prof->tx_pause)
 		active |= IFM_ETH_TXPAUSE;
 	if (priv->prof->rx_pause)
@@ -1561,7 +1569,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->if_capabilities |= IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER;
 	dev->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
 	if (mdev->LSO_support)
-		dev->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
+		dev->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	if (mdev->profile.num_lro)
 		dev->if_capabilities |= IFCAP_LRO;
 	dev->if_capenable = dev->if_capabilities;

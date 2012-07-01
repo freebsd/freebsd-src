@@ -38,6 +38,56 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120613: auth.conf removed
+OLD_FILES+=etc/auth.conf
+OLD_FILES+=usr/share/examples/etc/auth.conf
+OLD_FILES+=usr/share/man/man3/auth.3.gz
+OLD_FILES+=usr/share/man/man5/auth.conf.5.gz
+# 20120530: kde pam lives now in ports
+OLD_FILES+=etc/pam.d/kde
+# 20120505: new clang import installed a redundant internal header
+OLD_FILES+=usr/include/clang/3.1/stdalign.h
+# 20120428: MD2 removed from libmd
+OLD_FILES+=usr/include/md2.h
+OLD_FILES+=usr/share/man/man3/MD2Data.3.gz
+OLD_FILES+=usr/share/man/man3/MD2End.3.gz
+OLD_FILES+=usr/share/man/man3/MD2File.3.gz
+OLD_FILES+=usr/share/man/man3/MD2FileChunk.3.gz
+OLD_FILES+=usr/share/man/man3/MD2Final.3.gz
+OLD_FILES+=usr/share/man/man3/MD2Init.3.gz
+OLD_FILES+=usr/share/man/man3/MD2Update.3.gz
+OLD_FILES+=usr/share/man/man3/md2.3.gz
+# 20120425: libusb version bump (r234684)
+OLD_LIBS+=usr/lib/libusb.so.2
+OLD_LIBS+=usr/lib32/libusb.so.2
+OLD_FILES+=usr/share/man/man3/libsub_get_active_config_descriptor.3.gz
+# 20120415: new clang import which bumps version from 3.0 to 3.1
+OLD_FILES+=usr/include/clang/3.0/altivec.h
+OLD_FILES+=usr/include/clang/3.0/avxintrin.h
+OLD_FILES+=usr/include/clang/3.0/emmintrin.h
+OLD_FILES+=usr/include/clang/3.0/immintrin.h
+OLD_FILES+=usr/include/clang/3.0/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.0/mmintrin.h
+OLD_FILES+=usr/include/clang/3.0/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/smmintrin.h
+OLD_FILES+=usr/include/clang/3.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/x86intrin.h
+OLD_FILES+=usr/include/clang/3.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.0
+# 20120412: BIND 9.8.1 release notes removed
+OLD_FILES+=usr/share/doc/bind9/RELEASE-NOTES-BIND-9.8.1.pdf
+OLD_FILES+=usr/share/doc/bind9/RELEASE-NOTES-BIND-9.8.1.txt
+OLD_FILES+=usr/share/doc/bind9/RELEASE-NOTES-BIND-9.8.1.html
+OLD_FILES+=usr/share/doc/bind9/release-notes.css
+# 20120330: legacy(4) moved to x86
+OLD_FILES+=usr/include/machine/legacyvar.h
+# 20120324: MPI headers updated
+OLD_FILES+=usr/include/dev/mpt/mpilib/mpi_inb.h
+# 20120322: hwpmc_mips24k.h removed
+OLD_FILES+=usr/include/dev/hwpmc/hwpmc_mips24k.h
 # 20120322: Update heimdal to 1.5.1.
 OLD_FILES+=usr/include/krb5-v4compat.h \
 	usr/include/krb_err.h \
@@ -82,6 +132,8 @@ OLD_LIBS+=usr/lib/libasn1.so.10 \
 # 20120309: Remove fifofs header files.
 OLD_FILES+=usr/include/fs/fifofs/fifo.h
 OLD_DIRS+=usr/include/fs/fifofs
+# 20120304: xlocale cleanup
+OLD_FILES+=usr/include/_xlocale_ctype.h
 # 20120225: libarchive 3.0.3
 OLD_FILES+=usr/share/man/man3/archive_read_data_into_buffer.3.gz \
 	usr/share/man/man3/archive_read_support_compression_all.3.gz \
@@ -443,7 +495,7 @@ OLD_FILES+=usr/share/man/man5/lastlog.5.gz
 OLD_FILES+=usr/share/man/man5/utmp.5.gz
 OLD_FILES+=usr/share/man/man5/wtmp.5.gz
 OLD_LIBS+=lib/libutil.so.8
-OLB_LIBS+=usr/lib32/libutil.so.8
+OLD_LIBS+=usr/lib32/libutil.so.8
 # 20100105: new userland semaphore implementation
 OLD_FILES+=usr/include/sys/semaphore.h
 # 20100103: ntptrace(8) removed
@@ -563,6 +615,7 @@ OLD_LIBS+=lib/libipx.so.4
 OLD_LIBS+=lib/libkiconv.so.3
 OLD_LIBS+=lib/libkvm.so.4
 OLD_LIBS+=lib/libmd.so.4
+OLD_LIBS+=lib/libmd.so.5
 OLD_LIBS+=lib/libncurses.so.7
 OLD_LIBS+=lib/libncursesw.so.7
 OLD_LIBS+=lib/libnvpair.so.1

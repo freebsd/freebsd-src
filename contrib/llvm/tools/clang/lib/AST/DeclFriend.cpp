@@ -16,6 +16,8 @@
 #include "clang/AST/DeclTemplate.h"
 using namespace clang;
 
+void FriendDecl::anchor() { }
+
 FriendDecl *FriendDecl::Create(ASTContext &C, DeclContext *DC,
                                SourceLocation L,
                                FriendUnion Friend,
@@ -40,6 +42,7 @@ FriendDecl *FriendDecl::Create(ASTContext &C, DeclContext *DC,
   return FD;
 }
 
-FriendDecl *FriendDecl::Create(ASTContext &C, EmptyShell Empty) {
-  return new (C) FriendDecl(Empty);
+FriendDecl *FriendDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
+  void *Mem = AllocateDeserializedDecl(C, ID, sizeof(FriendDecl));
+  return new (Mem) FriendDecl(EmptyShell());
 }

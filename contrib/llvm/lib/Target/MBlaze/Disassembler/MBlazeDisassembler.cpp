@@ -1,4 +1,4 @@
-//===- MBlazeDisassembler.cpp - Disassembler for MicroBlaze  ----*- C++ -*-===//
+//===-- MBlazeDisassembler.cpp - Disassembler for MicroBlaze  -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,13 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "MBlaze.h"
-#include "MBlazeInstrInfo.h"
 #include "MBlazeDisassembler.h"
 
 #include "llvm/MC/EDInstInfo.h"
 #include "llvm/MC/MCDisassembler.h"
-#include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -30,14 +29,14 @@
 #include "MBlazeGenEDInfo.inc"
 
 namespace llvm {
-extern MCInstrDesc MBlazeInsts[];
+extern const MCInstrDesc MBlazeInsts[];
 }
 
 using namespace llvm;
 
-const unsigned UNSUPPORTED = -1;
+const uint16_t UNSUPPORTED = -1;
 
-static unsigned mblazeBinary2Opcode[] = {
+static const uint16_t mblazeBinary2Opcode[] = {
   MBlaze::ADD,   MBlaze::RSUB,   MBlaze::ADDC,   MBlaze::RSUBC,   //00,01,02,03
   MBlaze::ADDK,  MBlaze::RSUBK,  MBlaze::ADDKC,  MBlaze::RSUBKC,  //04,05,06,07
   MBlaze::ADDI,  MBlaze::RSUBI,  MBlaze::ADDIC,  MBlaze::RSUBIC,  //08,09,0A,0B
@@ -124,6 +123,7 @@ static unsigned decodeSEXT(uint32_t insn) {
     case 0x41: return MBlaze::SRL;
     case 0x21: return MBlaze::SRC;
     case 0x01: return MBlaze::SRA;
+    case 0xE0: return MBlaze::CLZ;
     }
 }
 
@@ -177,6 +177,13 @@ static unsigned decodeBR(uint32_t insn) {
 }
 
 static unsigned decodeBRI(uint32_t insn) {
+    switch (insn&0x3FFFFFF) {
+    default:        break;
+    case 0x0020004: return MBlaze::IDMEMBAR;
+    case 0x0220004: return MBlaze::DMEMBAR;
+    case 0x0420004: return MBlaze::IMEMBAR;
+    }
+
     switch ((insn>>16)&0x1F) {
     default:   return UNSUPPORTED;
     case 0x00: return MBlaze::BRI;
@@ -485,7 +492,7 @@ static unsigned getOPCODE(uint32_t insn) {
   }
 }
 
-EDInstInfo *MBlazeDisassembler::getEDInfo() const {
+const EDInstInfo *MBlazeDisassembler::getEDInfo() const {
   return instInfoMBlaze;
 }
 
@@ -532,6 +539,9 @@ MCDisassembler::DecodeStatus MBlazeDisassembler::getInstruction(MCInst &instr,
   default: 
     return Fail;
 
+  case MBlazeII::FC:
+    break;
+
   case MBlazeII::FRRRR:
     if (RD == UNSUPPORTED || RA == UNSUPPORTED || RB == UNSUPPORTED)
       return Fail;
@@ -546,6 +556,13 @@ MCDisassembler::DecodeStatus MBlazeDisassembler::getInstruction(MCInst &instr,
     instr.addOperand(MCOperand::CreateReg(RD));
     instr.addOperand(MCOperand::CreateReg(RA));
     instr.addOperand(MCOperand::CreateReg(RB));
+    break;
+
+  case MBlazeII::FRR:
+    if (RD == UNSUPPORTED || RA == UNSUPPORTED)
+      return Fail;
+    instr.addOperand(MCOperand::CreateReg(RD));
+    instr.addOperand(MCOperand::CreateReg(RA));
     break;
 
   case MBlazeII::FRI:

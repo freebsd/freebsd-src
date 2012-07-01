@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2004
+.Dd April 28, 2012
 .Dt LIBMAP.CONF 5
 .Os
 .Sh NAME
@@ -42,6 +42,27 @@ The configuration file consists of two whitespace separated columns; the
 left hand side containing the mapping candidate and the right hand
 side containing the mapping.
 Dependencies are matched against candidates and replaced with the mappings.
+.Pp
+Two special directives are available:
+.Bl -tag -width indent
+.It Cm include Ar file
+Parse the contents of
+.Ar file
+before continuing with the current file.
+.It Cm includedir Ar dir
+Parse the contents of every file in
+.Ar dir
+that ends in
+.Pa .conf
+before continuing with the current file.
+.El
+.Pp
+Any file or directory encountered while processing
+.Cm include
+or
+.Cm includedir
+directives will be parsed exactly once, even if it is encountered
+multiple times.
 .Pp
 Constrained mappings may be specified by enclosing the name of the
 executable or library in brackets.

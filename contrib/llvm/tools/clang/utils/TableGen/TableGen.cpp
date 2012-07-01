@@ -36,6 +36,9 @@ enum ActionType {
   GenClangAttrPCHWrite,
   GenClangAttrSpellingList,
   GenClangAttrLateParsedList,
+  GenClangAttrTemplateInstantiate,
+  GenClangAttrParsedAttrList,
+  GenClangAttrParsedAttrKinds,
   GenClangDiagsDefs,
   GenClangDiagGroups,
   GenClangDiagsIndexName,
@@ -71,6 +74,15 @@ namespace {
                     clEnumValN(GenClangAttrLateParsedList,
                                "gen-clang-attr-late-parsed-list",
                                "Generate a clang attribute LateParsed list"),
+                    clEnumValN(GenClangAttrTemplateInstantiate,
+                               "gen-clang-attr-template-instantiate",
+                               "Generate a clang template instantiate code"),
+                    clEnumValN(GenClangAttrParsedAttrList,
+                               "gen-clang-attr-parsed-attr-list",
+                               "Generate a clang parsed attribute list"),
+                    clEnumValN(GenClangAttrParsedAttrKinds,
+                               "gen-clang-attr-parsed-attr-kinds",
+                               "Generate a clang parsed attribute kinds"),
                     clEnumValN(GenClangDiagsDefs, "gen-clang-diags-defs",
                                "Generate Clang diagnostics definitions"),
                     clEnumValN(GenClangDiagGroups, "gen-clang-diag-groups",
@@ -96,7 +108,6 @@ namespace {
   ClangComponent("clang-component",
                  cl::desc("Only use warnings from specified component"),
                  cl::value_desc("component"), cl::Hidden);
-}
 
 class ClangTableGenAction : public TableGenAction {
 public:
@@ -122,6 +133,15 @@ public:
       break;
     case GenClangAttrLateParsedList:
       ClangAttrLateParsedListEmitter(Records).run(OS);
+      break;
+    case GenClangAttrTemplateInstantiate:
+      ClangAttrTemplateInstantiateEmitter(Records).run(OS);
+      break;
+    case GenClangAttrParsedAttrList:
+      ClangAttrParsedAttrListEmitter(Records).run(OS);
+      break;
+    case GenClangAttrParsedAttrKinds:
+      ClangAttrParsedAttrKindsEmitter(Records).run(OS);
       break;
     case GenClangDiagsDefs:
       ClangDiagsDefsEmitter(Records, ClangComponent).run(OS);
@@ -157,14 +177,12 @@ public:
     case GenArmNeonTest:
       NeonEmitter(Records).runTests(OS);
       break;
-    default:
-      assert(1 && "Invalid Action");
-      return true;
     }
 
     return false;
   }
 };
+}
 
 int main(int argc, char **argv) {
   sys::PrintStackTraceOnErrorSignal();

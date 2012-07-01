@@ -24,7 +24,7 @@
  */
 
 /* Calao Systems QIL-9G20-Cxx
- * http://www.calao-systems.com 
+ * http://www.calao-systems.com
  */
 
 #include <sys/cdefs.h>

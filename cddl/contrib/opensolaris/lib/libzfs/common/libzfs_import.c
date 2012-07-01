@@ -1145,7 +1145,7 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 	char *end, **dir = iarg->path;
 	size_t pathleft;
 	nvlist_t *ret = NULL;
-	static char *default_dir = "/dev/dsk";
+	static char *default_dir = "/dev";
 	pool_list_t pools = { 0 };
 	pool_entry_t *pe, *penext;
 	vdev_entry_t *ve, *venext;

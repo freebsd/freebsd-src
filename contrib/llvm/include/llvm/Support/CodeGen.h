@@ -27,6 +27,26 @@ namespace llvm {
     enum Model { Default, JITDefault, Small, Kernel, Medium, Large };
   }
 
+  // TLS models.
+  namespace TLSModel {
+    enum Model {
+      GeneralDynamic,
+      LocalDynamic,
+      InitialExec,
+      LocalExec
+    };
+  }
+
+  // Code generation optimization level.
+  namespace CodeGenOpt {
+    enum Level {
+      None,        // -O0
+      Less,        // -O1
+      Default,     // -O2, -Os
+      Aggressive   // -O3
+    };
+  }
+
 }  // end llvm namespace
 
 #endif

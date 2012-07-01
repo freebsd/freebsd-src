@@ -14,13 +14,13 @@
 #ifndef XCORETARGETMACHINE_H
 #define XCORETARGETMACHINE_H
 
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
 #include "XCoreFrameLowering.h"
 #include "XCoreSubtarget.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreISelLowering.h"
 #include "XCoreSelectionDAGInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetData.h"
 
 namespace llvm {
 
@@ -33,8 +33,9 @@ class XCoreTargetMachine : public LLVMTargetMachine {
   XCoreSelectionDAGInfo TSInfo;
 public:
   XCoreTargetMachine(const Target &T, StringRef TT,
-                     StringRef CPU, StringRef FS,
-                     Reloc::Model RM, CodeModel::Model CM);
+                     StringRef CPU, StringRef FS, const TargetOptions &Options,
+                     Reloc::Model RM, CodeModel::Model CM,
+                     CodeGenOpt::Level OL);
 
   virtual const XCoreInstrInfo *getInstrInfo() const { return &InstrInfo; }
   virtual const XCoreFrameLowering *getFrameLowering() const {
@@ -55,7 +56,7 @@ public:
   virtual const TargetData       *getTargetData() const { return &DataLayout; }
 
   // Pass Pipeline Configuration
-  virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
+  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
 };
 
 } // end namespace llvm

@@ -1,4 +1,4 @@
-//===- ARMConstantPoolValue.cpp - ARM constantpool value --------*- C++ -*-===//
+//===-- ARMConstantPoolValue.cpp - ARM constantpool value -----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -48,7 +48,6 @@ ARMConstantPoolValue::~ARMConstantPoolValue() {}
 
 const char *ARMConstantPoolValue::getModifierText() const {
   switch (Modifier) {
-  default: llvm_unreachable("Unknown modifier!");
     // FIXME: Are these case sensitive? It'd be nice to lower-case all the
     // strings if that's legal.
   case ARMCP::no_modifier: return "none";
@@ -58,12 +57,12 @@ const char *ARMConstantPoolValue::getModifierText() const {
   case ARMCP::GOTTPOFF:    return "gottpoff";
   case ARMCP::TPOFF:       return "tpoff";
   }
+  llvm_unreachable("Unknown modifier!");
 }
 
 int ARMConstantPoolValue::getExistingMachineCPValue(MachineConstantPool *CP,
                                                     unsigned Alignment) {
-  assert(false && "Shouldn't be calling this directly!");
-  return -1;
+  llvm_unreachable("Shouldn't be calling this directly!");
 }
 
 void
@@ -315,5 +314,6 @@ void ARMConstantPoolMBB::addSelectionDAGCSEId(FoldingSetNodeID &ID) {
 }
 
 void ARMConstantPoolMBB::print(raw_ostream &O) const {
+  O << "BB#" << MBB->getNumber();
   ARMConstantPoolValue::print(O);
 }

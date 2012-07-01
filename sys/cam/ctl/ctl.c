@@ -308,7 +308,6 @@ static struct scsi_control_page control_page_changeable = {
 	/*aen_holdoff_period*/{0, 0}
 };
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
 
 /*
  * XXX KDM move these into the softc.
@@ -318,7 +317,12 @@ static int persis_offset;
 static uint8_t ctl_pause_rtr;
 static int     ctl_is_single;
 static int     index_to_aps_page;
+int	   ctl_disable = 0;
 
+SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, disable, CTLFLAG_RDTUN, &ctl_disable, 0,
+	   "Disable CTL");
+TUNABLE_INT("kern.cam.ctl.disable", &ctl_disable);
 
 /*
  * Serial number (0x80), device id (0x83), and supported pages (0x00)
@@ -948,6 +952,10 @@ ctl_init(void)
 	retval = 0;
 	ctl_pause_rtr = 0;
         rcv_sync_msg = 0;
+
+	/* If we're disabled, don't initialize. */
+	if (ctl_disable != 0)
+		return;
 
 	control_softc = malloc(sizeof(*control_softc), M_DEVBUF, M_WAITOK);
 	softc = control_softc;

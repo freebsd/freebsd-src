@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2011
+.Dd June 18, 2012
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -51,8 +51,9 @@ The following tunables are settable from the
 .Xr loader 8 :
 .Bl -ohang
 .It Va hint.ahci. Ns Ar X Ns Va .msi
-controls Message Signaled Interrupts (MSI) usage by the specified controller
-.Bl -tag -compact
+controls Message Signaled Interrupts (MSI) usage by the specified controller.
+.Pp
+.Bl -tag -width 4n -offset indent -compact
 .It 0
 MSI disabled;
 .It 1
@@ -72,7 +73,8 @@ controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command
 latency.
 Possible values:
-.Bl -tag -compact
+.Pp
+.Bl -tag -width 4n -offset indent -compact
 .It 0
 interface Power Management is disabled (default);
 .It 1
@@ -86,6 +88,7 @@ driver initiates PARTIAL PM state transition 1ms after port becomes idle;
 .It 5
 driver initiates SLUMBER PM state transition 125ms after port becomes idle.
 .El
+.Pp
 Some controllers, such as ICH8, do not implement modes 2 and 3 with NCQ used.
 Because of artificial entering latency, performance degradation in modes
 4 and 5 is much smaller then in modes 2 and 3.
@@ -98,7 +101,8 @@ setting to nonzero value limits maximum SATA revision (speed).
 Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
 .It Va hw.ahci.force
 setting to nonzero value forces driver attach to some known AHCI-capable
-chips even if they are configured for legacy IDE emulation. Default is 1.
+chips even if they are configured for legacy IDE emulation.
+Default is 1.
 .El
 .Sh DESCRIPTION
 This driver provides the

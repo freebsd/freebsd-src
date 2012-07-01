@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2010
+.Dd May 25, 2012
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -37,11 +37,19 @@ kernel is written to run across multiple CPUs and as such requires
 several different synchronization primitives to allow the developers
 to safely access and manipulate the many data types required.
 .Ss Mutexes
-Mutexes (also called "sleep mutexes") are the most commonly used
+Mutexes (also erroneously called "sleep mutexes") are the most commonly used
 synchronization primitive in the kernel.
-Thread acquires (locks) a mutex before accessing data shared with other
+A thread acquires (locks) a mutex before accessing data shared with other
 threads (including interrupt threads), and releases (unlocks) it afterwards.
-If the mutex cannot be acquired, the thread requesting it will sleep.
+If the mutex cannot be acquired, the thread requesting it will wait.
+Mutexes are by default adaptive, meaning that
+if the owner of a contended mutex is currently running on another CPU,
+then a thread attempting to acquire the mutex will briefly spin
+in the hope that the owner is only briefly holding it,
+and might release it shortly.
+If the owner does not do so, the waiting thread proceeds to yield the processor,
+allowing other threads to run.
+If the owner is not currently actually running then the spin step is skipped.
 Mutexes fully support priority propagation.
 .Pp
 See
@@ -49,9 +57,10 @@ See
 for details.
 .Ss Spin mutexes
 Spin mutexes are variation of basic mutexes; the main difference between
-the two is that spin mutexes never sleep - instead, they spin, waiting
-for the thread holding the lock, which runs on another CPU, to release it.
-Differently from ordinary mutex, spin mutexes disable interrupts when acquired.
+the two is that spin mutexes never yield the processor - instead, they spin,
+waiting for the thread holding the lock,
+(which must be running on another CPU), to release it.
+Spin mutexes disable interrupts while the held so as to not get pre-empted.
 Since disabling interrupts is expensive, they are also generally slower.
 Spin mutexes should be used only when necessary, e.g. to protect data shared
 with interrupt filter code (see
@@ -122,7 +131,7 @@ and read-mostly locks.
 They don't support priority propagation.
 They should be considered to be closely related to
 .Xr sleep 9 .
-In fact it could in some cases be
+They could in some cases be
 considered a conditional sleep.
 .Pp
 See
@@ -146,8 +155,8 @@ A thread must hold the mutex before calling the
 .Fn cv_wait* ,
 functions.
 When a thread waits on a condition, the mutex
-is atomically released before the thread is blocked, then reacquired
-before the function call returns.
+is atomically released before the thread thread yields the processor,
+then reacquired before the function call returns.
 .Pp
 See
 .Xr condvar 9
@@ -255,14 +264,14 @@ Many of these rules are checked using the
 .Xr witness 4
 code.
 .Ss Bounded vs. unbounded sleep
-The following primitives perform bounded sleep: mutexes, pool mutexes,
-reader/writer locks and read-mostly locks.
+The following primitives perform bounded sleep:
+ mutexes, pool mutexes, reader/writer locks and read-mostly locks.
 .Pp
-The following primitives block (perform unbounded sleep): shared/exclusive locks,
-counting semaphores, condition variables, sleep/wakeup and lockmanager locks.
+The following primitives may perform an unbounded sleep:
+shared/exclusive locks, counting semaphores, condition variables, sleep/wakeup and lockmanager locks.
 .Pp
-It is an error to do any operation that could result in any kind of sleep while
-holding spin mutex.
+It is an error to do any operation that could result in yielding the processor
+while holding a spin mutex.
 .Pp
 As a general rule, it is an error to do any operation that could result
 in unbounded sleep while holding any primitive from the 'bounded sleep' group.
@@ -280,25 +289,26 @@ This is often a bad idea because it generally relies on the programmer having
 good knowledge of all of the call graph above the place where
 .Fn mtx_sleep
 is being called and assumptions the calling code has made.
-Because the lock gets dropped during sleep, one one must re-test all
+Because the lock gets dropped during sleep, one must re-test all
 the assumptions that were made before, all the way up the call graph to the
 place where the lock was acquired.
 .Pp
-It is an error to do any operation that could result in any kind of sleep when
-running inside an interrupt filter.
+It is an error to do any operation that could result in yielding of
+the processor when running inside an interrupt filter.
 .Pp
 It is an error to do any operation that could result in unbounded sleep when
 running inside an interrupt thread.
 .Ss Interaction table
 The following table shows what you can and can not do while holding
 one of the synchronization primitives discussed:
-.Bl -column ".Ic xxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXX" -offset indent
-.It Em "You have: You want:" Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
+.Bl -column ".Ic xxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXX" -offset indent
+.It Em "       You want:" Ta spin-mtx Ta mutex Ta rwlock Ta rmlock Ta sx Ta sleep
+.It Em "You have:     " Ta ------ Ta ------ Ta ------ Ta ------ Ta ------ Ta ------
 .It spin mtx  Ta \&ok-1 Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no-3
-.It mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
-.It sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
-.It rwlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
-.It rmlock    Ta \&ok Ta \&ok Ta \&ok-5 Ta \&ok Ta \&ok-2 Ta \&ok-5
+.It mutex     Ta \&ok Ta \&ok-1 Ta \&ok Ta \&ok Ta \&no Ta \&no-3
+.It rwlock    Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&no Ta \&no-3
+.It rmlock    Ta \&ok Ta \&ok Ta \&ok Ta \&ok-2 Ta \&no-5 Ta \&no-5
+.It sx        Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&no-2 Ta \&ok-4
 .El
 .Pp
 .Em *1
@@ -315,8 +325,7 @@ and reacquire it on wakeup (e.g.
 .Fn mtx_sleep ,
 .Fn rw_sleep
 and
-.Fn msleep_spin
-).
+.Fn msleep_spin ) .
 .Pp
 .Em *4
 Though one can sleep holding an sx lock, one can also use
@@ -358,6 +367,6 @@ These
 functions appeared in
 .Bsx 4.1
 through
-.Fx 7.0
+.Fx 7.0 .
 .Sh BUGS
 There are too many locking primitives to choose from.

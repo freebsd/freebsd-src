@@ -12,6 +12,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/Utils.h"
@@ -21,6 +22,8 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/FileSystem.h"
+
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -45,7 +48,10 @@ ASTConsumer *FixItAction::CreateASTConsumer(CompilerInstance &CI,
 namespace {
 class FixItRewriteInPlace : public FixItOptions {
 public:
-  std::string RewriteFilename(const std::string &Filename) { return Filename; }
+  std::string RewriteFilename(const std::string &Filename, int &fd) {
+    fd = -1;
+    return Filename;
+  }
 };
 
 class FixItActionSuffixInserter : public FixItOptions {
@@ -57,11 +63,25 @@ public:
       this->FixWhatYouCan = FixWhatYouCan;
   }
 
-  std::string RewriteFilename(const std::string &Filename) {
-    llvm::SmallString<128> Path(Filename);
+  std::string RewriteFilename(const std::string &Filename, int &fd) {
+    fd = -1;
+    SmallString<128> Path(Filename);
     llvm::sys::path::replace_extension(Path,
       NewSuffix + llvm::sys::path::extension(Path));
     return Path.str();
+  }
+};
+
+class FixItRewriteToTemp : public FixItOptions {
+public:
+  std::string RewriteFilename(const std::string &Filename, int &fd) {
+    SmallString<128> Path;
+    Path = llvm::sys::path::filename(Filename);
+    Path += "-%%%%%%%%";
+    Path += llvm::sys::path::extension(Filename);
+    SmallString<128> NewPath;
+    llvm::sys::fs::unique_file(Path.str(), fd, NewPath);
+    return NewPath.str();
   }
 };
 } // end anonymous namespace
@@ -86,16 +106,63 @@ void FixItAction::EndSourceFileAction() {
   Rewriter->WriteFixedFiles();
 }
 
+bool FixItRecompile::BeginInvocation(CompilerInstance &CI) {
+
+  std::vector<std::pair<std::string, std::string> > RewrittenFiles;
+  bool err = false;
+  {
+    const FrontendOptions &FEOpts = CI.getFrontendOpts();
+    OwningPtr<FrontendAction> FixAction(new SyntaxOnlyAction());
+    if (FixAction->BeginSourceFile(CI, FEOpts.Inputs[0])) {
+      OwningPtr<FixItOptions> FixItOpts;
+      if (FEOpts.FixToTemporaries)
+        FixItOpts.reset(new FixItRewriteToTemp());
+      else
+        FixItOpts.reset(new FixItRewriteInPlace());
+      FixItOpts->Silent = true;
+      FixItOpts->FixWhatYouCan = FEOpts.FixWhatYouCan;
+      FixItOpts->FixOnlyWarnings = FEOpts.FixOnlyWarnings;
+      FixItRewriter Rewriter(CI.getDiagnostics(), CI.getSourceManager(),
+                             CI.getLangOpts(), FixItOpts.get());
+      FixAction->Execute();
+  
+      err = Rewriter.WriteFixedFiles(&RewrittenFiles);
+    
+      FixAction->EndSourceFile();
+      CI.setSourceManager(0);
+      CI.setFileManager(0);
+    } else {
+      err = true;
+    }
+  }
+  if (err)
+    return false;
+  CI.getDiagnosticClient().clear();
+  CI.getDiagnostics().Reset();
+
+  PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+  PPOpts.RemappedFiles.insert(PPOpts.RemappedFiles.end(),
+                              RewrittenFiles.begin(), RewrittenFiles.end());
+  PPOpts.RemappedFilesKeepOriginalName = false;
+
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 // Preprocessor Actions
 //===----------------------------------------------------------------------===//
 
 ASTConsumer *RewriteObjCAction::CreateASTConsumer(CompilerInstance &CI,
                                                   StringRef InFile) {
-  if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile, "cpp"))
+  if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile, "cpp")) {
+    if (CI.getLangOpts().ObjCNonFragileABI)
+      return CreateModernObjCRewriter(InFile, OS,
+                                CI.getDiagnostics(), CI.getLangOpts(),
+                                CI.getDiagnosticOpts().NoRewriteMacros);
     return CreateObjCRewriter(InFile, OS,
                               CI.getDiagnostics(), CI.getLangOpts(),
                               CI.getDiagnosticOpts().NoRewriteMacros);
+  }
   return 0;
 }
 

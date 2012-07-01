@@ -179,12 +179,12 @@ sa1110_bus_transmit(struct uart_softc *sc)
 
 	while (!(uart_getreg(&sc->sc_bas, SACOM_CR3) & CR3_TIE))
 		uart_setreg(&sc->sc_bas, SACOM_CR3,
-		    uart_getreg(&sc->sc_bas, SACOM_CR3) | CR3_TIE);    
+		    uart_getreg(&sc->sc_bas, SACOM_CR3) | CR3_TIE);
 #endif
 
 	sc->sc_txbusy = 1;
 	uart_setreg(&sc->sc_bas, SACOM_CR3, uart_getreg(&sc->sc_bas, SACOM_CR3)
-	    | CR3_TIE);    
+	    | CR3_TIE);
 	for (i = 0; i < sc->sc_txdatasz; i++) {
 		while (!(uart_getreg(&sc->sc_bas, SACOM_SR1) & SR1_TNF));
 
@@ -252,7 +252,7 @@ sa1110_bus_ipend(struct uart_softc *sc)
 			ipend |= SER_INT_RXREADY;
 		mask &= ~CR3_RIE;
 	}
-	uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_RXE | mask); 
+	uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_RXE | mask);
 	return (ipend);
 }
 static int

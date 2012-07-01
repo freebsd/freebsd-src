@@ -1,7 +1,7 @@
 # $FreeBSD: head/sys/arm/conf/SAM9G20EK.hints 213497 2010-10-06 22:32:31Z cognet $
 #
 
-# EEPROM 
+# EEPROM
 hint.icee.0.at="iicbus0"
 hint.icee.0.addr=0xa0
 hint.icee.0.type=16

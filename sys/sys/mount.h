@@ -148,6 +148,7 @@ struct vfsopt {
  * Lock reference:
  *	m - mountlist_mtx
  *	i - interlock
+ *	v - vnode freelist mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
@@ -164,6 +165,8 @@ struct mount {
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
+	struct vnodelst	mnt_activevnodelist;	/* (v) list of active vnodes */
+	int		mnt_activevnodelistsize;/* (v) # of active vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */
@@ -187,6 +190,49 @@ struct mount {
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 };
 
+/*
+ * Definitions for MNT_VNODE_FOREACH_ALL.
+ */
+struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
+struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
+void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
+
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
+
+#define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
+	do {								\
+		MNT_ILOCK(mp);						\
+		__mnt_vnode_markerfree_all(&(mvp), (mp));		\
+		/* MNT_IUNLOCK(mp); -- done in above function */	\
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
+	} while (0)
+
+/*
+ * Definitions for MNT_VNODE_FOREACH_ACTIVE.
+ */
+struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
+struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
+void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
+
+#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) \
+	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); \
+		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
+
+#define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
+	do {								\
+		MNT_ILOCK(mp);						\
+		__mnt_vnode_markerfree_active(&(mvp), (mp));		\
+		/* MNT_IUNLOCK(mp); -- done in above function */	\
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
+	} while (0)
+
+/*
+ * Definitions for MNT_VNODE_FOREACH.
+ *
+ * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
+ */
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
@@ -199,10 +245,10 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 	__mnt_vnode_markerfree(&(mvp), (mp))
 
 #define MNT_VNODE_FOREACH_ABORT(mp, mvp)				\
-        do {								\
-	  MNT_ILOCK(mp);						\
-          MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);			\
-	  MNT_IUNLOCK(mp);						\
+	do {								\
+		MNT_ILOCK(mp);						\
+		MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);		\
+		MNT_IUNLOCK(mp);					\
 	} while (0)
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
@@ -211,7 +257,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
 #define	MNT_REF(mp)	(mp)->mnt_ref++
 #define	MNT_REL(mp)	do {						\
-	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));			\
+	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));		\
 	(mp)->mnt_ref--;						\
 	if ((mp)->mnt_ref == 0)						\
 		wakeup((mp));						\
@@ -324,6 +370,9 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
 #define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
+#define	MNTK_NO_IOPF	0x00000100	/* Disallow page faults during reads
+					   and writes. Filesystem shall properly
+					   handle i/o state on EFAULT. */
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */

@@ -63,6 +63,7 @@ typedef bus_space_handle_t HAL_BUS_HANDLE;
 #define	OS_INLINE	__inline
 #define	OS_MEMZERO(_a, _n)	bzero((_a), (_n))
 #define	OS_MEMCPY(_d, _s, _n)	memcpy(_d,_s,_n)
+#define	OS_MEMCMP(_a, _b, _l)	memcmp((_a), (_b), (_l))
 
 #define	abs(_a)		__builtin_abs(_a)
 
@@ -75,6 +76,10 @@ struct ath_hal;
  * domain registers are not byte swapped!  Thus, on big-endian
  * platforms we have to explicitly byte-swap those registers.
  * OS_REG_UNSWAPPED identifies the registers that need special handling.
+ *
+ * This is not currently used by the FreeBSD HAL osdep code; the HAL
+ * currently does not configure hardware byteswapping for register space
+ * accesses and instead does it through the FreeBSD bus space code.
  */
 #if _BYTE_ORDER == _BIG_ENDIAN
 #define	OS_REG_UNSWAPPED(_reg) \
@@ -83,6 +88,20 @@ struct ath_hal;
 #else /* _BYTE_ORDER == _LITTLE_ENDIAN */
 #define	OS_REG_UNSWAPPED(_reg)	(0)
 #endif /* _BYTE_ORDER */
+
+/*
+ * For USB/SDIO support (where access latencies are quite high);
+ * some write accesses may be buffered and then flushed when
+ * either a read is done, or an explicit flush is done.
+ *
+ * These are simply placeholders for now.
+ */
+#define	OS_REG_WRITE_BUFFER_ENABLE(_ah)		\
+	    do { } while (0)
+#define	OS_REG_WRITE_BUFFER_DISABLE(_ah)	\
+	    do { } while (0)
+#define	OS_REG_WRITE_BUFFER_FLUSH(_ah)		\
+	    do { } while (0)
 
 /*
  * Register read/write operations are either handled through
@@ -97,39 +116,13 @@ struct ath_hal;
 extern	void ath_hal_reg_write(struct ath_hal *ah, u_int reg, u_int32_t val);
 extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
 #else
-/*
- * The hardware registers are native little-endian byte order.
- * Big-endian hosts are handled by enabling hardware byte-swap
- * of register reads and writes at reset.  But the PCI clock
- * domain registers are not byte swapped!  Thus, on big-endian
- * platforms we have to explicitly byte-swap those registers.
- * Most of this code is collapsed at compile time because the
- * register values are constants.
- */
-#if _BYTE_ORDER == _BIG_ENDIAN
-#define OS_REG_WRITE(_ah, _reg, _val) do {				\
-	if (OS_REG_UNSWAPPED(_reg))					\
-		bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,	\
-		    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val));	\
-	else								\
-		bus_space_write_stream_4((bus_space_tag_t)(_ah)->ah_st,	\
-		    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val));	\
-} while (0)
-#define OS_REG_READ(_ah, _reg)						\
-	(OS_REG_UNSWAPPED(_reg) ?					\
-		bus_space_read_4((bus_space_tag_t)(_ah)->ah_st,		\
-		    (bus_space_handle_t)(_ah)->ah_sh, (_reg)) :		\
-		bus_space_read_stream_4((bus_space_tag_t)(_ah)->ah_st,	\
-		    (bus_space_handle_t)(_ah)->ah_sh, (_reg)))
-#else /* _BYTE_ORDER == _LITTLE_ENDIAN */
 #define	OS_REG_WRITE(_ah, _reg, _val)					\
 	bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,		\
 	    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val))
 #define	OS_REG_READ(_ah, _reg)						\
 	bus_space_read_4((bus_space_tag_t)(_ah)->ah_st,			\
 	    (bus_space_handle_t)(_ah)->ah_sh, (_reg))
-#endif /* _BYTE_ORDER */
-#endif /* AH_DEBUG || AH_REGFUNC || AH_DEBUG_ALQ */
+#endif
 
 #ifdef AH_DEBUG_ALQ
 extern	void OS_MARK(struct ath_hal *, u_int id, u_int32_t value);

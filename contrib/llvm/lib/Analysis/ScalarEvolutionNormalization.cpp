@@ -118,7 +118,6 @@ TransformImpl(const SCEV *S, Instruction *User, Value *OperandValToReplace) {
     // Conservatively use AnyWrap until/unless we need FlagNW.
     const SCEV *Result = SE.getAddRecExpr(Operands, L, SCEV::FlagAnyWrap);
     switch (Kind) {
-    default: llvm_unreachable("Unexpected transform name!");
     case NormalizeAutodetect:
       if (IVUseShouldUsePostIncValue(User, OperandValToReplace, L, &DT)) {
         const SCEV *TransformedStep =
@@ -191,7 +190,6 @@ TransformImpl(const SCEV *S, Instruction *User, Value *OperandValToReplace) {
   }
 
   llvm_unreachable("Unexpected SCEV kind!");
-  return 0;
 }
 
 /// Manage recursive transformation across an expression DAG. Revisiting

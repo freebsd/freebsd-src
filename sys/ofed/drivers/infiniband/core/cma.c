@@ -59,10 +59,10 @@ static int tavor_quirk = 0;
 module_param_named(tavor_quirk, tavor_quirk, int, 0644);
 MODULE_PARM_DESC(tavor_quirk, "Tavor performance quirk: limit MTU to 1K if > 0");
 
-int unify_tcp_port_space = 0;
+int unify_tcp_port_space = 1;
 module_param(unify_tcp_port_space, int, 0644);
 MODULE_PARM_DESC(unify_tcp_port_space, "Unify the host TCP and RDMA port "
-		 "space allocation (default=0)");
+		 "space allocation (default=1)");
 
 #define CMA_CM_RESPONSE_TIMEOUT 20
 #define CMA_MAX_CM_RETRIES 15
@@ -96,7 +96,9 @@ static DEFINE_IDR(sdp_ps);
 static DEFINE_IDR(tcp_ps);
 static DEFINE_IDR(udp_ps);
 static DEFINE_IDR(ipoib_ps);
+#if defined(INET)
 static int next_port;
+#endif
 
 struct cma_device {
 	struct list_head	list;
@@ -1476,6 +1478,7 @@ static int cma_iw_listen(struct rdma_id_private *id_priv, int backlog)
 	struct sockaddr_in *sin;
 
 	id_priv->cm_id.iw = iw_create_cm_id(id_priv->id.device,
+					    id_priv->sock,
 					    iw_conn_req_handler,
 					    id_priv);
 	if (IS_ERR(id_priv->cm_id.iw))
@@ -2053,7 +2056,16 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 				((struct sockaddr_in6 *) dst_addr)->sin6_scope_id;
 		}
 	}
-	return rdma_bind_addr(id, src_addr);
+	if (!cma_any_addr(src_addr))
+		return rdma_bind_addr(id, src_addr);
+	else {
+		struct sockaddr_in addr_in;
+
+        	memset(&addr_in, 0, sizeof addr_in);
+        	addr_in.sin_family = dst_addr->sa_family;
+        	addr_in.sin_len = sizeof addr_in;
+        	return rdma_bind_addr(id, (struct sockaddr *) &addr_in);
+	}
 }
 
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
@@ -2137,6 +2149,7 @@ err1:
 
 static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 {
+#if defined(INET)
 	struct rdma_bind_list *bind_list;
 	int port, ret, low, high;
 
@@ -2178,6 +2191,9 @@ err2:
 err1:
 	kfree(bind_list);
 	return ret;
+#else
+	return -ENOSPC;
+#endif
 }
 
 static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
@@ -2241,6 +2257,7 @@ static int cma_get_tcp_port(struct rdma_id_private *id_priv)
 		sock_release(sock);
 		return ret;
 	}
+
 	size = ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr);
 	ret = sock_getname(sock,
 			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
@@ -2249,6 +2266,7 @@ static int cma_get_tcp_port(struct rdma_id_private *id_priv)
 		sock_release(sock);
 		return ret;
 	}
+
 	id_priv->sock = sock;
 	return 0;
 }
@@ -2598,7 +2616,8 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 	int ret;
 	struct iw_cm_conn_param iw_param;
 
-	cm_id = iw_create_cm_id(id_priv->id.device, cma_iw_handler, id_priv);
+	cm_id = iw_create_cm_id(id_priv->id.device, id_priv->sock,
+				cma_iw_handler, id_priv);
 	if (IS_ERR(cm_id)) {
 		ret = PTR_ERR(cm_id);
 		goto out;
@@ -2919,9 +2938,13 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 static void cma_set_mgid(struct rdma_id_private *id_priv,
 			 struct sockaddr *addr, union ib_gid *mgid)
 {
+#if defined(INET) || defined(INET6)
 	unsigned char mc_map[MAX_ADDR_LEN];
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+#endif
+#ifdef INET
 	struct sockaddr_in *sin = (struct sockaddr_in *) addr;
+#endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) addr;
 #endif
@@ -2940,11 +2963,13 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 			mc_map[7] = 0x01;	/* Use RDMA CM signature */
 		*mgid = *(union ib_gid *) (mc_map + 4);
 #endif
+#ifdef INET
 	} else {
 		ip_ib_mc_map(sin->sin_addr.s_addr, dev_addr->broadcast, mc_map);
 		if (id_priv->id.ps == RDMA_PS_UDP)
 			mc_map[7] = 0x01;	/* Use RDMA CM signature */
 		*mgid = *(union ib_gid *) (mc_map + 4);
+#endif
 	}
 }
 
@@ -3347,12 +3372,15 @@ static void cma_remove_one(struct ib_device *device)
 
 static int cma_init(void)
 {
-	int ret, low, high, remaining;
+	int ret;
+#if defined(INET)
+	int low, high, remaining;
 
 	get_random_bytes(&next_port, sizeof next_port);
 	inet_get_local_port_range(&low, &high);
 	remaining = (high - low) + 1;
 	next_port = ((unsigned int) next_port % remaining) + low;
+#endif
 
 	cma_wq = create_singlethread_workqueue("rdma_cm");
 	if (!cma_wq)

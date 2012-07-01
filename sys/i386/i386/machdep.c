@@ -180,7 +180,6 @@ extern void dblfault_handler(void);
 extern void printcpuinfo(void);	/* XXX header file */
 extern void finishidentcpu(void);
 extern void panicifcpuunsupported(void);
-extern void initializecpu(void);
 
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
@@ -336,6 +335,11 @@ cpu_startup(dummy)
 #ifndef XEN
 	cpu_setregs();
 #endif
+
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
 }
 
 /*
@@ -465,7 +469,13 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - szosigcode;
+	if (p->p_sysent->sv_sigcode_base != 0) {
+		regs->tf_eip = p->p_sysent->sv_sigcode_base + szsigcode -
+		    szosigcode;
+	} else {
+		/* a.out sysentvec does not use shared page */
+		regs->tf_eip = p->p_sysent->sv_psstrings - szosigcode;
+	}
 	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -592,7 +602,8 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_esp = (int)sfp;
-	regs->tf_eip = PS_STRINGS - szfreebsd4_sigcode;
+	regs->tf_eip = p->p_sysent->sv_sigcode_base + szsigcode -
+	    szfreebsd4_sigcode;
 	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -743,7 +754,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_esp = (int)sfp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_eip = p->p_sysent->sv_sigcode_base;
 	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;

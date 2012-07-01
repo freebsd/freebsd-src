@@ -1,4 +1,4 @@
-//===-- MBlazeTargetMachine.h - Define TargetMachine for MBlaze --- C++ ---===//
+//===-- MBlazeTargetMachine.h - Define TargetMachine for MBlaze -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -43,7 +43,9 @@ namespace llvm {
   public:
     MBlazeTargetMachine(const Target &T, StringRef TT,
                         StringRef CPU, StringRef FS,
-                        Reloc::Model RM, CodeModel::Model CM);
+                        const TargetOptions &Options,
+                        Reloc::Model RM, CodeModel::Model CM,
+                        CodeGenOpt::Level OL);
 
     virtual const MBlazeInstrInfo *getInstrInfo() const
     { return &InstrInfo; }
@@ -77,8 +79,7 @@ namespace llvm {
     }
 
     // Pass Pipeline Configuration
-    virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level Opt);
-    virtual bool addPreEmitPass(PassManagerBase &PM,CodeGenOpt::Level Opt);
+    virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
   };
 } // End llvm namespace
 

@@ -1,0 +1,52 @@
+.TH j_profile.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+j_profile.d - sample stack traces with Java translations using DTrace.
+.SH SYNOPSIS
+.SH DESCRIPTION
+This samples stack traces for the process specified. This stack trace
+will cross the JVM and system libraries, and insert translations for Java
+stack frames where appropriate. This is best explained with an example
+stack frame output,
+
+Func_loop.func_c()V
+Func_loop.func_b()V
+Func_loop.func_a()V
+Func_loop.main([Ljava/lang/String;)V
+StubRoutines (1)
+libjvm.so`__1cJJavaCallsLcall_helper6FpnJJavaValue_pnMmethodHan
+libjvm.so`__1cCosUos_exception_wrapper6FpFpnJJavaValue_pnMmetho
+libjvm.so`__1cJJavaCallsEcall6FpnJJavaValue_nMmethodHandle_pnRJ
+libjvm.so`__1cRjni_invoke_static6FpnHJNIEnv__pnJJavaValue_pnI_j
+libjvm.so`jni_CallStaticVoidMethod+0x15d
+java`JavaMain+0xd30
+libc.so.1`_thr_setup+0x52
+libc.so.1`_lwp_start
+101
+
+The lines at the top are Java frames, followed by the JVM (libjvm.so).
+The JVM symbols may be translated by passing the output through c++filt.
+.SH OS
+Solaris
+.SH STABILITY
+Evolving - uses the DTrace hotspot provider, which may change 
+as additional features are introduced. Check Java/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B j_profile.d
+.PP
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+j_profile.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

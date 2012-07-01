@@ -1,4 +1,4 @@
-//===- lib/Target/PTX/PTXMCAsmStreamer.cpp - PTX Text Assembly Output -----===//
+//===-- PTXMCAsmStreamer.cpp - PTX Text Assembly Output -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -22,6 +22,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/PathV2.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -161,11 +162,12 @@ public:
   virtual void EmitCodeAlignment(unsigned ByteAlignment,
                                  unsigned MaxBytesToEmit = 0);
 
-  virtual void EmitValueToOffset(const MCExpr *Offset,
+  virtual bool EmitValueToOffset(const MCExpr *Offset,
                                  unsigned char Value = 0);
 
   virtual void EmitFileDirective(StringRef Filename);
-  virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Filename);
+  virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
+                                      StringRef Filename);
 
   virtual void EmitInstruction(const MCInst &Inst);
 
@@ -174,7 +176,7 @@ public:
   /// indicated by the hasRawTextSupport() predicate.
   virtual void EmitRawText(StringRef String);
 
-  virtual void Finish();
+  virtual void FinishImpl();
 
   /// @}
 
@@ -476,8 +478,8 @@ void PTXMCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment,
 void PTXMCAsmStreamer::EmitCodeAlignment(unsigned ByteAlignment,
                                          unsigned MaxBytesToEmit) {}
 
-void PTXMCAsmStreamer::EmitValueToOffset(const MCExpr *Offset,
-                                         unsigned char Value) {}
+bool PTXMCAsmStreamer::EmitValueToOffset(const MCExpr *Offset,
+                                         unsigned char Value) {return false;}
 
 
 void PTXMCAsmStreamer::EmitFileDirective(StringRef Filename) {
@@ -489,11 +491,20 @@ void PTXMCAsmStreamer::EmitFileDirective(StringRef Filename) {
 
 // FIXME: should we inherit from MCAsmStreamer?
 bool PTXMCAsmStreamer::EmitDwarfFileDirective(unsigned FileNo,
-                                              StringRef Filename){
+                                              StringRef Directory,
+                                              StringRef Filename) {
+  if (!Directory.empty()) {
+    if (sys::path::is_absolute(Filename))
+      return EmitDwarfFileDirective(FileNo, "", Filename);
+    SmallString<128> FullPathName = Directory;
+    sys::path::append(FullPathName, Filename);
+    return EmitDwarfFileDirective(FileNo, "", FullPathName);
+  }
+
   OS << "\t.file\t" << FileNo << ' ';
   PrintQuotedString(Filename, OS);
   EmitEOL();
-  return this->MCStreamer::EmitDwarfFileDirective(FileNo, Filename);
+  return this->MCStreamer::EmitDwarfFileDirective(FileNo, Directory, Filename);
 }
 
 void PTXMCAsmStreamer::AddEncodingComment(const MCInst &Inst) {}
@@ -529,12 +540,13 @@ void PTXMCAsmStreamer::EmitRawText(StringRef String) {
   EmitEOL();
 }
 
-void PTXMCAsmStreamer::Finish() {}
+void PTXMCAsmStreamer::FinishImpl() {}
 
 namespace llvm {
   MCStreamer *createPTXAsmStreamer(MCContext &Context,
                                    formatted_raw_ostream &OS,
                                    bool isVerboseAsm, bool useLoc, bool useCFI,
+                                   bool useDwarfDirectory,
                                    MCInstPrinter *IP,
                                    MCCodeEmitter *CE, MCAsmBackend *MAB,
                                    bool ShowInst) {

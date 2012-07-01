@@ -22,8 +22,12 @@ include "llvm/Intrinsics.td"
 class RegisterClass; // Forward def
 
 // SubRegIndex - Use instances of SubRegIndex to identify subregisters.
-class SubRegIndex {
+class SubRegIndex<list<SubRegIndex> comps = []> {
   string Namespace = "";
+
+  // ComposedOf - A list of two SubRegIndex instances, [A, B].
+  // This indicates that this SubRegIndex is the result of composing A and B.
+  list<SubRegIndex> ComposedOf = comps;
 }
 
 // RegAltNameIndex - The alternate name set to use for register operands of
@@ -83,9 +87,15 @@ class Register<string n, list<string> altNames = []> {
   // CostPerUse - Additional cost of instructions using this register compared
   // to other registers in its class. The register allocator will try to
   // minimize the number of instructions using a register with a CostPerUse.
-  // This is used by the x86-64 and ARM Thumb targets where some registers 
+  // This is used by the x86-64 and ARM Thumb targets where some registers
   // require larger instruction encodings.
   int CostPerUse = 0;
+
+  // CoveredBySubRegs - When this bit is set, the value of this register is
+  // completely determined by the value of its sub-registers.  For example, the
+  // x86 register AX is covered by its sub-registers AL and AH, but EAX is not
+  // covered by its sub-register AX.
+  bit CoveredBySubRegs = 0;
 }
 
 // RegisterWithSubRegs - This can be used to define instances of Register which
@@ -194,12 +204,15 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
 //
 // (decimate GPR, 2) - Pick every N'th element, starting with the first.
 //
+// (interleave A, B, ...) - Interleave the elements from each argument list.
+//
 // All of these operators work on ordered sets, not lists. That means
 // duplicates are removed from sub-expressions.
 
 // Set operators. The rest is defined in TargetSelectionDAG.td.
 def sequence;
 def decimate;
+def interleave;
 
 // RegisterTuples - Automatically generate super-registers by forming tuples of
 // sub-registers. This is useful for modeling register sequence constraints
@@ -356,6 +369,15 @@ class Instruction {
   // associated with them. Once we've migrated all of them over to true
   // pseudo-instructions that are lowered to real instructions prior to
   // the printer/emitter, we can remove this attribute and just use isPseudo.
+  //
+  // The intended use is:
+  // isPseudo: Does not have encoding information and should be expanded,
+  //   at the latest, during lowering to MCInst.
+  //
+  // isCodeGenOnly: Does have encoding information and can go through to the
+  //   CodeEmitter unchanged, but duplicates a canonical instruction
+  //   definition's encoding and should be ignored when constructing the
+  //   assembler match tables.
   bit isCodeGenOnly = 0;
 
   // Is this instruction a pseudo instruction for use by the assembler parser.
@@ -414,7 +436,7 @@ class Predicate<string cond> {
 /// NoHonorSignDependentRounding - This predicate is true if support for
 /// sign-dependent-rounding is not enabled.
 def NoHonorSignDependentRounding
- : Predicate<"!HonorSignDependentRoundingFPMath()">;
+ : Predicate<"!TM.Options.HonorSignDependentRoundingFPMath()">;
 
 class Requires<list<Predicate> preds> {
   list<Predicate> Predicates = preds;
@@ -679,6 +701,11 @@ def COPY : Instruction {
   let neverHasSideEffects = 1;
   let isAsCheapAsAMove = 1;
 }
+def BUNDLE : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins variable_ops);
+  let AsmString = "BUNDLE";
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -698,7 +725,15 @@ class AsmParser {
   // function of the AsmParser class to call on every matched instruction.
   // This can be used to perform target specific instruction post-processing.
   string AsmParserInstCleanup  = "";
+}
+def DefaultAsmParser : AsmParser;
 
+//===----------------------------------------------------------------------===//
+// AsmParserVariant - Subtargets can have multiple different assembly parsers 
+// (e.g. AT&T vs Intel syntax on X86 for example). This class can be
+// implemented by targets to describe such variants.
+//
+class AsmParserVariant {
   // Variant - AsmParsers can be of multiple different variants.  Variants are
   // used to support targets that need to parser multiple formats for the
   // assembly language.
@@ -715,7 +750,7 @@ class AsmParser {
   // purposes of matching.
   string RegisterPrefix = "";
 }
-def DefaultAsmParser : AsmParser;
+def DefaultAsmParserVariant : AsmParserVariant;
 
 /// AssemblerPredicate - This is a Predicate that can be used when the assembler
 /// matches instructions and aliases.
@@ -724,7 +759,20 @@ class AssemblerPredicate<string cond> {
   string AssemblerCondString = cond;
 }
 
-
+/// TokenAlias - This class allows targets to define assembler token
+/// operand aliases. That is, a token literal operand which is equivalent
+/// to another, canonical, token literal. For example, ARM allows:
+///   vmov.u32 s4, #0  -> vmov.i32, #0
+/// 'u32' is a more specific designator for the 32-bit integer type specifier
+/// and is legal for any instruction which accepts 'i32' as a datatype suffix.
+///   def : TokenAlias<".u32", ".i32">;
+///
+/// This works by marking the match class of 'From' as a subclass of the
+/// match class of 'To'.
+class TokenAlias<string From, string To> {
+  string FromToken = From;
+  string ToToken = To;
+}
 
 /// MnemonicAlias - This class allows targets to define assembler mnemonic
 /// aliases.  This should be used when all forms of one mnemonic are accepted
@@ -812,6 +860,10 @@ class Target {
 
   // AssemblyParsers - The AsmParser instances available for this target.
   list<AsmParser> AssemblyParsers = [DefaultAsmParser];
+
+  /// AssemblyParserVariants - The AsmParserVariant instances available for 
+  /// this target.
+  list<AsmParserVariant> AssemblyParserVariants = [DefaultAsmParserVariant];
 
   // AssemblyWriters - The AsmWriter instances available for this target.
   list<AsmWriter> AssemblyWriters = [DefaultAsmWriter];

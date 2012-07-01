@@ -187,10 +187,10 @@ struct mwl_bastate {
 };
 
 static __inline__ void
-mwl_bastream_setup(struct mwl_bastate *bas, int ac, int txq)
+mwl_bastream_setup(struct mwl_bastate *bas, int tid, int txq)
 {
 	bas->txq = txq;
-	bas->qos = htole16(WME_AC_TO_TID(ac) | IEEE80211_QOS_ACKPOLICY_BA);
+	bas->qos = htole16(tid | IEEE80211_QOS_ACKPOLICY_BA);
 }
 
 static __inline__ void

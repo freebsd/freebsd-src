@@ -139,6 +139,7 @@ ENTRY(cpu_switch)
 
 	addi	%r1,%r1,48
 
+	sync				/* Make sure all of that finished */
 	std	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:
@@ -149,7 +150,8 @@ cpu_switchin:
 blocked_loop:
 	ld	%r7,TD_LOCK(%r13)
 	cmpd	%r6,%r7 
-	beq	blocked_loop
+	beq-	blocked_loop
+	isync
 #endif
 
 	mfsprg	%r7,0			/* Get the pcpu pointer */

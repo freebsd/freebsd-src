@@ -22,11 +22,13 @@ cpu		HAMMER
 ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -43,6 +45,7 @@ options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
+options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD32	# Compatible with i386 binaries
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
@@ -63,8 +66,9 @@ options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
 options 	MAC			# TrustedBSD MAC Framework
-#options 	KDTRACE_FRAME		# Ensure frames are compiled in
-#options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # Debugging support.  Always need this:
@@ -270,6 +274,8 @@ device		ath		# Atheros NIC's
 device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_AR5416_INTERRUPT_MITIGATION	# AR5416 interrupt mitigation
+options 	ATH_ENABLE_11N	# Enable 802.11n support for AR5416 and later
 device		ath_rate_sample	# SampleRate tx rate control for ath
 #device		bwi		# Broadcom BCM430x/BCM431x wireless NICs.
 #device		bwn		# Broadcom BCM43xx wireless NICs.

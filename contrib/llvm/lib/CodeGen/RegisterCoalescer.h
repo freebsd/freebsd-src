@@ -1,4 +1,4 @@
-//===-- RegisterCoalescer.h - Register Coalescing Interface ------*- C++ -*-===//
+//===-- RegisterCoalescer.h - Register Coalescing Interface -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the abstract interface for register coalescers, 
+// This file contains the abstract interface for register coalescers,
 // allowing them to interact with and query register allocators.
 //
 //===----------------------------------------------------------------------===//
@@ -47,7 +47,7 @@ namespace llvm {
     /// CrossClass - True when both regs are virtual, and newRC is constrained.
     bool CrossClass;
 
-    /// Flipped - True when DstReg and SrcReg are reversed from the oriignal
+    /// Flipped - True when DstReg and SrcReg are reversed from the original
     /// copy instruction.
     bool Flipped;
 

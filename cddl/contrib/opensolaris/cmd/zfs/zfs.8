@@ -18,13 +18,14 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2011 by Delphix. All rights reserved.
+.\" Copyright (c) 2012 by Delphix. All rights reserved.
 .\" Copyright (c) 2012 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2012
+.Dd April 22, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -35,7 +36,7 @@
 .Op Fl \&?
 .Nm
 .Cm create
-.Op Fl p
+.Op Fl pu
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ... filesystem
 .Nm
@@ -77,10 +78,12 @@
 .Ar clone-filesystem
 .Nm
 .Cm rename
+.Op Fl f
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm rename
+.Op Fl f
 .Fl p
 .Ar filesystem Ns | Ns Ar volume
 .Ar filesystem Ns | Ns Ar volume
@@ -833,7 +836,7 @@ disables integrity checking on user data. Disabling checksums is
 a recommended practice.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle
 Controls the compression algorithm used for this dataset. The
-.CM lzjb
+.Cm lzjb
 compression algorithm is optimized for performance while providing decent data
 compression. Setting compression to
 .Cm on
@@ -1275,11 +1278,11 @@ for legacy mounts or the
 command for normal file systems, its mount options are set according to its
 properties. The correlation between properties and mount options is as follows:
 .Bl -column -offset 4n "PROPERTY" "MOUNT OPTION"
-.It PROPERTY	MOUNT OPTION
-.It atime	atime/noatime
-.It exec	exec/noexec
-.It readonly	ro/rw
-.It setuid	suid/nosuid
+.It "PROPERTY	MOUNT OPTION"
+.It "atime	atime/noatime"
+.It "exec	exec/noexec"
+.It "readonly	ro/rw"
+.It "setuid	suid/nosuid"
 .El
 .Pp
 In addition, these options can be set on a per-mount basis using the
@@ -1354,7 +1357,7 @@ Displays a help message.
 .It Xo
 .Nm
 .Cm create
-.Op Fl p
+.Op Fl pu
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ... filesystem
 .Xc
@@ -1374,6 +1377,8 @@ line using the
 .Fl o
 option is ignored. If the target filesystem already exists, the operation
 completes successfully.
+.It Fl u
+Newly created file system is not mounted.
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property as if the command
 .Qq Nm Cm set Ar property Ns = Ns Ar value
@@ -1644,12 +1649,14 @@ subcommand can be used to rename any conflicting snapshots.
 .It Xo
 .Nm
 .Cm rename
+.Op Fl f
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .It Xo
 .Nm
 .Cm rename
+.Op Fl f
 .Fl p
 .Ar filesystem Ns | Ns Ar volume
 .Ar filesystem Ns | Ns Ar volume
@@ -1683,6 +1690,11 @@ property is set to
 or
 .Cm none ,
 file system is not unmounted even if this option is not given.
+.It Fl f
+Force unmount any filesystems that need to be unmounted in the process.
+This flag has no effect if used together with the
+.Fl u
+flag.
 .El
 .It Xo
 .Nm
@@ -2269,6 +2281,7 @@ flags to determine what data will be sent.
 Print machine-parsable verbose information about the stream package generated.
 .It Fl v
 Print verbose information about the stream package generated.
+This information includes a per-second report of how much data has been sent.
 .El
 .Pp
 The format of the stream is committed. You will be able to receive your streams

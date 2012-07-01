@@ -1,0 +1,21 @@
+Examples - Script demos, screenshots, and how to read the output
+
+   This directory contains an example file per script in the DTraceToolkit.
+
+   When I hear of a new performance tool or what not, the first thing I want
+   to see are screenshots. They illustrate,
+
+   	- generally what the tool is for
+	- many details and features, since the output is (supposed to be)
+	  as intuitive as possible
+	- how to use the tool (command line usage)
+
+   It is a rapid way to get a handle on what a tool generally is, and how
+   to start using it. The files in this directory serve that purpose.
+
+   These are especially important now that the DTraceToolkit has over 200
+   scripts. Flicking through these files and seeing the screenshots may
+   be the quickest way to find what you are after.
+
+   Of course, don't forget to read the man pages and notes files too :)
+

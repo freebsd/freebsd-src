@@ -1241,3 +1241,24 @@ AcpiOsExecute (
 }
 
 #endif /* ACPI_SINGLE_THREADED */
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsWaitEventsComplete
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Wait for all asynchronous events to complete. This
+ *              implementation does nothing.
+ *
+ *****************************************************************************/
+
+void
+AcpiOsWaitEventsComplete (
+    void)
+{
+    return;
+}

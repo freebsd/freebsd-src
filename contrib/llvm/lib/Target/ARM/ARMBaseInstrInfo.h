@@ -1,4 +1,4 @@
-//===- ARMBaseInstrInfo.h - ARM Base Instruction Information ----*- C++ -*-===//
+//===-- ARMBaseInstrInfo.h - ARM Base Instruction Information ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -35,6 +35,9 @@ protected:
   explicit ARMBaseInstrInfo(const ARMSubtarget &STI);
 
 public:
+  // Return whether the target has an explicit NOP encoding.
+  bool hasNOP() const;
+
   // Return the non-pre/post incrementing version of 'Opc'. Return 0
   // if there is not such an opcode.
   virtual unsigned getUnindexedOpcode(unsigned Opc) const =0;
@@ -69,10 +72,7 @@ public:
   bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;
 
   // Predication support.
-  bool isPredicated(const MachineInstr *MI) const {
-    int PIdx = MI->findFirstPredOperandIdx();
-    return PIdx != -1 && MI->getOperand(PIdx).getImm() != ARMCC::AL;
-  }
+  bool isPredicated(const MachineInstr *MI) const;
 
   ARMCC::CondCodes getPredicate(const MachineInstr *MI) const {
     int PIdx = MI->findFirstPredOperandIdx();
@@ -138,6 +138,8 @@ public:
                              const TargetRegisterInfo &TRI) const;
 
   MachineInstr *duplicate(MachineInstr *Orig, MachineFunction &MF) const;
+
+  MachineInstr *commuteInstruction(MachineInstr*, bool=false) const;
 
   virtual bool produceSameValue(const MachineInstr *MI0,
                                 const MachineInstr *MI1,
@@ -213,12 +215,18 @@ public:
                         SDNode *DefNode, unsigned DefIdx,
                         SDNode *UseNode, unsigned UseIdx) const;
 
+  virtual unsigned getOutputLatency(const InstrItineraryData *ItinData,
+                                    const MachineInstr *DefMI, unsigned DefIdx,
+                                    const MachineInstr *DepMI) const;
+
   /// VFP/NEON execution domains.
   std::pair<uint16_t, uint16_t>
   getExecutionDomain(const MachineInstr *MI) const;
   void setExecutionDomain(MachineInstr *MI, unsigned Domain) const;
 
 private:
+  unsigned getInstBundleLength(const MachineInstr *MI) const;
+
   int getVLDMDefCycle(const InstrItineraryData *ItinData,
                       const MCInstrDesc &DefMCID,
                       unsigned DefClass,

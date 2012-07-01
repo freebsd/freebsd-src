@@ -24,8 +24,7 @@ namespace llvm {
 
 class MCJIT : public ExecutionEngine {
   MCJIT(Module *M, TargetMachine *tm, TargetJITInfo &tji,
-        RTDyldMemoryManager *MemMgr, CodeGenOpt::Level OptLevel,
-        bool AllocateGVsWithCode);
+        RTDyldMemoryManager *MemMgr, bool AllocateGVsWithCode);
 
   TargetMachine *TM;
   MCContext *Ctx;
@@ -66,8 +65,17 @@ public:
   /// found, this function silently returns a null pointer. Otherwise,
   /// it prints a message to stderr and aborts.
   ///
-  void *getPointerToNamedFunction(const std::string &Name,
-                                  bool AbortOnFailure = true);
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true);
+
+  /// mapSectionAddress - map a section to its target address space value.
+  /// Map the address of a JIT section as returned from the memory manager
+  /// to the address in the target process as the running code will see it.
+  /// This is the address which will be used for relocation resolution.
+  virtual void mapSectionAddress(void *LocalAddress, uint64_t TargetAddress) {
+    Dyld.mapSectionAddress(LocalAddress, TargetAddress);
+  }
+
   /// @}
   /// @name (Private) Registration Interfaces
   /// @{
@@ -79,7 +87,6 @@ public:
   static ExecutionEngine *createJIT(Module *M,
                                     std::string *ErrorStr,
                                     JITMemoryManager *JMM,
-                                    CodeGenOpt::Level OptLevel,
                                     bool GVsWithCode,
                                     TargetMachine *TM);
 

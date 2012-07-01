@@ -53,6 +53,13 @@ class CGDebugInfo {
   /// TypeCache - Cache of previously constructed Types.
   llvm::DenseMap<void *, llvm::WeakVH> TypeCache;
 
+  /// CompleteTypeCache - Cache of previously constructed complete RecordTypes.
+  llvm::DenseMap<void *, llvm::WeakVH> CompletedTypeCache;
+
+  /// ReplaceMap - Cache of forward declared types to RAUW at the end of
+  /// compilation.
+  std::vector<std::pair<void *, llvm::WeakVH> >ReplaceMap;
+
   bool BlockLiteralGenericSet;
   llvm::DIType BlockLiteralGeneric;
 
@@ -83,8 +90,8 @@ class CGDebugInfo {
   llvm::DIType CreateType(const PointerType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const BlockPointerType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const FunctionType *Ty, llvm::DIFile F);
-  llvm::DIType CreateType(const TagType *Ty);
   llvm::DIType CreateType(const RecordType *Ty);
+  llvm::DIType CreateLimitedType(const RecordType *Ty);
   llvm::DIType CreateType(const ObjCInterfaceType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const ObjCObjectType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const VectorType *Ty, llvm::DIFile F);
@@ -94,6 +101,8 @@ class CGDebugInfo {
   llvm::DIType CreateType(const MemberPointerType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const AtomicType *Ty, llvm::DIFile F);
   llvm::DIType CreateEnumType(const EnumDecl *ED);
+  llvm::DIType getTypeOrNull(const QualType);
+  llvm::DIType getCompletedTypeOrNull(const QualType);
   llvm::DIType getOrCreateMethodType(const CXXMethodDecl *Method,
                                      llvm::DIFile F);
   llvm::DIType getOrCreateFunctionType(const Decl *D, QualType FnType,
@@ -139,6 +148,7 @@ class CGDebugInfo {
                                AccessSpecifier AS, uint64_t offsetInBits,
                                llvm::DIFile tunit,
                                llvm::DIDescriptor scope);
+  void CollectRecordStaticVars(const RecordDecl *, llvm::DIType);
   void CollectRecordFields(const RecordDecl *Decl, llvm::DIFile F,
                            SmallVectorImpl<llvm::Value *> &E,
                            llvm::DIType RecordTy);
@@ -154,7 +164,8 @@ class CGDebugInfo {
 public:
   CGDebugInfo(CodeGenModule &CGM);
   ~CGDebugInfo();
-  void finalize() { DBuilder.finalize(); }
+
+  void finalize(void);
 
   /// setLocation - Update the current source location. If \arg loc is
   /// invalid it is ignored.
@@ -171,10 +182,6 @@ public:
 
   /// EmitFunctionEnd - Constructs the debug code for exiting a function.
   void EmitFunctionEnd(CGBuilderTy &Builder);
-
-  /// UpdateCompletedType - Update type cache because the type is now
-  /// translated.
-  void UpdateCompletedType(const TagDecl *TD);
 
   /// EmitLexicalBlockStart - Emit metadata to indicate the beginning of a
   /// new lexical block and push the block onto the stack.
@@ -219,6 +226,12 @@ public:
 
   /// getOrCreateRecordType - Emit record type's standalone debug info. 
   llvm::DIType getOrCreateRecordType(QualType Ty, SourceLocation L);
+
+  /// getOrCreateInterfaceType - Emit an objective c interface type standalone
+  /// debug info.
+  llvm::DIType getOrCreateInterfaceType(QualType Ty,
+					SourceLocation Loc);
+
 private:
   /// EmitDeclare - Emit call to llvm.dbg.declare for a variable declaration.
   void EmitDeclare(const VarDecl *decl, unsigned Tag, llvm::Value *AI,
@@ -231,6 +244,13 @@ private:
 
   /// getContextDescriptor - Get context info for the decl.
   llvm::DIDescriptor getContextDescriptor(const Decl *Decl);
+
+  /// createRecordFwdDecl - Create a forward decl for a RecordType in a given
+  /// context.
+  llvm::DIType createRecordFwdDecl(const RecordDecl *, llvm::DIDescriptor);
+  
+  /// createContextChain - Create a set of decls for the context chain.
+  llvm::DIDescriptor createContextChain(const Decl *Decl);
 
   /// getCurrentDirname - Return current directory name.
   StringRef getCurrentDirname();
@@ -249,8 +269,16 @@ private:
   /// necessary.
   llvm::DIType getOrCreateType(QualType Ty, llvm::DIFile F);
 
+  /// getOrCreateLimitedType - Get the type from the cache or create a new
+  /// partial type if necessary.
+  llvm::DIType getOrCreateLimitedType(QualType Ty, llvm::DIFile F);
+
   /// CreateTypeNode - Create type metadata for a source language type.
   llvm::DIType CreateTypeNode(QualType Ty, llvm::DIFile F);
+
+  /// CreateLimitedTypeNode - Create type metadata for a source language
+  /// type, but only partial types for records.
+  llvm::DIType CreateLimitedTypeNode(QualType Ty, llvm::DIFile F);
 
   /// CreateMemberType - Create new member and increase Offset by FType's size.
   llvm::DIType CreateMemberType(llvm::DIFile Unit, QualType FType,
@@ -274,7 +302,7 @@ private:
   StringRef getSelectorName(Selector S);
 
   /// getClassName - Get class name including template argument list.
-  StringRef getClassName(RecordDecl *RD);
+  StringRef getClassName(const RecordDecl *RD);
 
   /// getVTableName - Get vtable name for the given Class.
   StringRef getVTableName(const CXXRecordDecl *Decl);

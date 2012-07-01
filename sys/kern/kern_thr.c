@@ -252,7 +252,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 	PROC_LOCK(td->td_proc);
 	td->td_proc->p_flag |= P_HADTHREADS;
-	newtd->td_sigmask = td->td_sigmask;
 	thread_link(newtd, p); 
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 	thread_lock(td);
@@ -317,13 +316,13 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 	rw_wlock(&tidhash_lock);
 
 	PROC_LOCK(p);
-	racct_sub(p, RACCT_NTHR, 1);
 
 	/*
 	 * Shutting down last thread in the proc.  This will actually
 	 * call exit() in the trampoline when it returns.
 	 */
 	if (p->p_numthreads != 1) {
+		racct_sub(p, RACCT_NTHR, 1);
 		LIST_REMOVE(td, td_hash);
 		rw_wunlock(&tidhash_lock);
 		tdsigcleanup(td);

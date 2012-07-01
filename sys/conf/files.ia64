@@ -138,3 +138,4 @@ libkern/ia64/bswap16.S		standard
 libkern/ia64/bswap32.S		standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
+kern/subr_dummy_vdso_tc.c	standard

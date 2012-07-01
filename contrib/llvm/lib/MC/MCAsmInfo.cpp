@@ -29,7 +29,6 @@ MCAsmInfo::MCAsmInfo() {
   HasSubsectionsViaSymbols = false;
   HasMachoZeroFillDirective = false;
   HasMachoTBSSDirective = false;
-  StructorOutputOrder = Structors::ReversePriorityOrder;
   HasStaticCtorDtorReferenceInStaticMode = false;
   LinkerRequiresNonEmptyDwarfLines = false;
   MaxInstLength = 4;
@@ -50,6 +49,7 @@ MCAsmInfo::MCAsmInfo() {
   AllowQuotesInName = false;
   AllowNameToStartWithDigit = false;
   AllowPeriodsInName = true;
+  AllowUTF8 = true;
   ZeroDirective = "\t.zero\t";
   AsciiDirective = "\t.ascii\t";
   AscizDirective = "\t.asciz\t";
@@ -68,6 +68,7 @@ MCAsmInfo::MCAsmInfo() {
   AlignDirective = "\t.align\t";
   AlignmentIsInBytes = true;
   TextAlignFillValue = 0;
+  GPRel64Directive = 0;
   GPRel32Directive = 0;
   GlobalDirective = "\t.globl\t";
   HasSetDirective = true;
@@ -91,6 +92,7 @@ MCAsmInfo::MCAsmInfo() {
   DwarfRequiresRelocationForSectionOffset = true;
   DwarfSectionOffsetDirective = 0;
   DwarfUsesLabelOffsetForRanges = true;
+  DwarfUsesRelocationsForStringPool = true;
   DwarfRegNumForCFI = false;
   HasMicrosoftFastStdCallMangling = false;
 

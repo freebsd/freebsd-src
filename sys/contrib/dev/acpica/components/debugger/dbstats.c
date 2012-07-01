@@ -227,8 +227,8 @@ AcpiDbEnumerateObject (
 
     case ACPI_TYPE_DEVICE:
 
-        AcpiDbEnumerateObject (ObjDesc->Device.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->Device.DeviceNotify);
+        AcpiDbEnumerateObject (ObjDesc->Device.NotifyList[0]);
+        AcpiDbEnumerateObject (ObjDesc->Device.NotifyList[1]);
         AcpiDbEnumerateObject (ObjDesc->Device.Handler);
         break;
 
@@ -248,21 +248,21 @@ AcpiDbEnumerateObject (
 
     case ACPI_TYPE_POWER:
 
-        AcpiDbEnumerateObject (ObjDesc->PowerResource.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->PowerResource.DeviceNotify);
+        AcpiDbEnumerateObject (ObjDesc->PowerResource.NotifyList[0]);
+        AcpiDbEnumerateObject (ObjDesc->PowerResource.NotifyList[1]);
         break;
 
     case ACPI_TYPE_PROCESSOR:
 
-        AcpiDbEnumerateObject (ObjDesc->Processor.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->Processor.DeviceNotify);
+        AcpiDbEnumerateObject (ObjDesc->Processor.NotifyList[0]);
+        AcpiDbEnumerateObject (ObjDesc->Processor.NotifyList[1]);
         AcpiDbEnumerateObject (ObjDesc->Processor.Handler);
         break;
 
     case ACPI_TYPE_THERMAL:
 
-        AcpiDbEnumerateObject (ObjDesc->ThermalZone.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->ThermalZone.DeviceNotify);
+        AcpiDbEnumerateObject (ObjDesc->ThermalZone.NotifyList[0]);
+        AcpiDbEnumerateObject (ObjDesc->ThermalZone.NotifyList[1]);
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.Handler);
         break;
 
@@ -522,6 +522,18 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("NamespaceNode    %3d\n", sizeof (ACPI_NAMESPACE_NODE));
         AcpiOsPrintf ("AcpiObject       %3d\n", sizeof (ACPI_OBJECT));
 
+        AcpiOsPrintf ("\n");
+
+        AcpiOsPrintf ("Generic State    %3d\n", sizeof (ACPI_GENERIC_STATE));
+        AcpiOsPrintf ("Common State     %3d\n", sizeof (ACPI_COMMON_STATE));
+        AcpiOsPrintf ("Control State    %3d\n", sizeof (ACPI_CONTROL_STATE));
+        AcpiOsPrintf ("Update State     %3d\n", sizeof (ACPI_UPDATE_STATE));
+        AcpiOsPrintf ("Scope State      %3d\n", sizeof (ACPI_SCOPE_STATE));
+        AcpiOsPrintf ("Parse Scope      %3d\n", sizeof (ACPI_PSCOPE_STATE));
+        AcpiOsPrintf ("Package State    %3d\n", sizeof (ACPI_PKG_STATE));
+        AcpiOsPrintf ("Thread State     %3d\n", sizeof (ACPI_THREAD_STATE));
+        AcpiOsPrintf ("Result Values    %3d\n", sizeof (ACPI_RESULT_VALUES));
+        AcpiOsPrintf ("Notify Info      %3d\n", sizeof (ACPI_NOTIFY_INFO));
         break;
 
 

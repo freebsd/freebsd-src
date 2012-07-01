@@ -13,6 +13,7 @@ SRCS=	PPCAsmPrinter.cpp \
 	PPCInstrInfo.cpp \
 	PPCJITInfo.cpp \
 	PPCMCInstLower.cpp \
+	PPCMachineFunctionInfo.cpp \
 	PPCRegisterInfo.cpp \
 	PPCSelectionDAGInfo.cpp \
 	PPCSubtarget.cpp \

@@ -38,6 +38,7 @@
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/ADT/SmallString.h"
 
 using namespace clang;
 using namespace arcmt;
@@ -48,7 +49,7 @@ namespace {
 class UnbridgedCastRewriter : public RecursiveASTVisitor<UnbridgedCastRewriter>{
   MigrationPass &Pass;
   IdentifierInfo *SelfII;
-  llvm::OwningPtr<ParentMap> StmtMap;
+  OwningPtr<ParentMap> StmtMap;
 
 public:
   UnbridgedCastRewriter(MigrationPass &pass) : Pass(pass) {
@@ -128,6 +129,21 @@ private:
           if (fname.endswith("Retain") ||
               fname.find("Create") != StringRef::npos ||
               fname.find("Copy") != StringRef::npos) {
+            // Do not migrate to couple of bridge transfer casts which
+            // cancel each other out. Leave it unchanged so error gets user
+            // attention instead.
+            if (FD->getName() == "CFRetain" && 
+                FD->getNumParams() == 1 &&
+                FD->getParent()->isTranslationUnit() &&
+                FD->getLinkage() == ExternalLinkage) {
+              Expr *Arg = callE->getArg(0);
+              if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(Arg)) {
+                const Expr *sub = ICE->getSubExpr();
+                QualType T = sub->getType();
+                if (T->isObjCObjectPointerType())
+                  return;
+              }
+            }
             castToObjCObject(E, /*retained=*/true);
             return;
           }
@@ -179,7 +195,7 @@ private:
       TA.insertAfterToken(CCE->getLParenLoc(), bridge);
     } else {
       SourceLocation insertLoc = E->getSubExpr()->getLocStart();
-      llvm::SmallString<128> newCast;
+      SmallString<128> newCast;
       newCast += '(';
       newCast += bridge;
       newCast += E->getType().getAsString(Pass.Ctx.getPrintingPolicy());
@@ -236,7 +252,15 @@ private:
       }
     }
 
-    if (ImplicitCastExpr *implCE = dyn_cast<ImplicitCastExpr>(E->getSubExpr())){
+    Expr *subExpr = E->getSubExpr();
+
+    // Look through pseudo-object expressions.
+    if (PseudoObjectExpr *pseudo = dyn_cast<PseudoObjectExpr>(subExpr)) {
+      subExpr = pseudo->getResultExpr();
+      assert(subExpr && "no result for pseudo-object of non-void type?");
+    }
+
+    if (ImplicitCastExpr *implCE = dyn_cast<ImplicitCastExpr>(subExpr)) {
       if (implCE->getCastKind() == CK_ARCConsumeObject)
         return rewriteToBridgedCast(E, OBC_BridgeRetained);
       if (implCE->getCastKind() == CK_ARCReclaimReturnedObject)

@@ -1,4 +1,4 @@
-//===-- MBlazeMachineFunctionInfo.h - Private data ----------------*- C++ -*-=//
+//===-- MBlazeMachineFunctionInfo.h - Private data --------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,7 +16,6 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/VectorExtras.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 
@@ -25,8 +24,8 @@ namespace llvm {
 /// MBlazeFunctionInfo - This class is derived from MachineFunction private
 /// MBlaze target-specific information for each MachineFunction.
 class MBlazeFunctionInfo : public MachineFunctionInfo {
+  virtual void anchor();
 
-private:
   /// Holds for each function where on the stack the Frame Pointer must be
   /// saved. This is used on Prologue and Epilogue to emit FP save/restore
   int FPStackOffset;

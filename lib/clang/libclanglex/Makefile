@@ -9,7 +9,9 @@ SRCS=	HeaderMap.cpp \
 	LiteralSupport.cpp \
 	MacroArgs.cpp \
 	MacroInfo.cpp \
+	ModuleMap.cpp \
 	PPCaching.cpp \
+	PPCallbacks.cpp \
 	PPDirectives.cpp \
 	PPExpressions.cpp \
 	PPLexerChange.cpp \

@@ -22,7 +22,6 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Constants.h"
@@ -91,8 +90,6 @@ namespace {
       short s_val = (short) i_val;
       return i_val == s_val;
     }
-
-    return false;
   }
 
   //! ConstantFPSDNode predicate for representing floats as 16-bit sign ext.
@@ -216,7 +213,7 @@ namespace {
       HandleSDNode Dummy(CurDAG->getLoad(vecVT, dl,
                                          CurDAG->getEntryNode(), CGPoolOffset,
                                          MachinePointerInfo::getConstantPool(),
-                                         false, false, Alignment));
+                                         false, false, false, Alignment));
       CurDAG->ReplaceAllUsesWith(SDValue(bvNode, 0), Dummy.getValue());
       if (SDNode *N = SelectCode(Dummy.getValue().getNode()))
         return N;
@@ -287,8 +284,8 @@ namespace {
         llvm_unreachable("InlineAsmMemoryOperand 'v' constraint not handled.");
 #else
         SelectAddrIdxOnly(Op, Op, Op0, Op1);
-#endif
         break;
+#endif
       }
 
       OutOps.push_back(Op0);
@@ -327,7 +324,7 @@ SPUDAGToDAGISel::SelectAFormAddr(SDNode *Op, SDValue N, SDValue &Base,
     val = dyn_cast<ConstantSDNode>(N.getNode())->getSExtValue();
     Base = CurDAG->getTargetConstant( val , MVT::i32);
     Index = Zero;
-    return true; break;
+    return true;
   case ISD::ConstantPool:
   case ISD::GlobalAddress:
     report_fatal_error("SPU SelectAFormAddr: Pool/Global not lowered.");
@@ -579,22 +576,16 @@ SDValue SPUDAGToDAGISel::getRC( MVT VT ) {
   switch( VT.SimpleTy ) {
   case MVT::i8:
     return CurDAG->getTargetConstant(SPU::R8CRegClass.getID(), MVT::i32);
-    break;
   case MVT::i16:
     return CurDAG->getTargetConstant(SPU::R16CRegClass.getID(), MVT::i32);
-    break;
   case MVT::i32:
     return CurDAG->getTargetConstant(SPU::R32CRegClass.getID(), MVT::i32);
-    break;
   case MVT::f32:
     return CurDAG->getTargetConstant(SPU::R32FPRegClass.getID(), MVT::i32);
-    break;
   case MVT::i64:
     return CurDAG->getTargetConstant(SPU::R64CRegClass.getID(), MVT::i32);
-    break;
   case MVT::i128:
     return CurDAG->getTargetConstant(SPU::GPRCRegClass.getID(), MVT::i32);
-    break;
   case MVT::v16i8:
   case MVT::v8i16:
   case MVT::v4i32:
@@ -602,11 +593,10 @@ SDValue SPUDAGToDAGISel::getRC( MVT VT ) {
   case MVT::v2i64:
   case MVT::v2f64:
     return CurDAG->getTargetConstant(SPU::VECREGRegClass.getID(), MVT::i32);
-    break;
   default:
     assert( false && "add a new case here" );
+    return SDValue();
   }
-  return SDValue();
 }
 
 //! Convert the operand from a target-independent to a target-specific node

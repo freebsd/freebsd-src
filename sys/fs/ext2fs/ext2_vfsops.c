@@ -480,19 +480,12 @@ ext2_reload(struct mount *mp, struct thread *td)
 	}
 
 loop:
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
 		 * Step 4: invalidate all cached file data.
 		 */
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		if (vinvalbuf(vp, 0, 0, 0))
@@ -507,7 +500,7 @@ loop:
 		if (error) {
 			VOP_UNLOCK(vp, 0);
 			vrele(vp);
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			return (error);
 		}
 		ext2_ei2i((struct ext2fs_dinode *) ((char *)bp->b_data +
@@ -515,9 +508,7 @@ loop:
 		brelse(bp);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -839,29 +830,24 @@ ext2_sync(struct mount *mp, int waitfor)
 	/*
 	 * Write back each (modified) inode.
 	 */
-	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED)) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		ip = VTOI(vp);
 		if ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY)) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
 			}
 			continue;
@@ -870,9 +856,7 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 
 	/*
 	 * Force stale file system control information to be flushed.

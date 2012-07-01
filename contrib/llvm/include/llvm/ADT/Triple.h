@@ -43,20 +43,19 @@ public:
   enum ArchType {
     UnknownArch,
 
-    alpha,   // Alpha: alpha
     arm,     // ARM; arm, armv.*, xscale
-    bfin,    // Blackfin: bfin
     cellspu, // CellSPU: spu, cellspu
+    hexagon, // Hexagon: hexagon
     mips,    // MIPS: mips, mipsallegrex
-    mipsel,  // MIPSEL: mipsel, mipsallegrexel, psp
+    mipsel,  // MIPSEL: mipsel, mipsallegrexel
     mips64,  // MIPS64: mips64
     mips64el,// MIPS64EL: mips64el
     msp430,  // MSP430: msp430
     ppc,     // PPC: powerpc
     ppc64,   // PPC64: powerpc64, ppu
+    r600,    // R600: AMD GPUs HD2XXX - HD6XXX
     sparc,   // Sparc: sparc
     sparcv9, // Sparcv9: Sparcv9
-    systemz, // SystemZ: s390x
     tce,     // TCE (http://tce.cs.tut.fi/): tce
     thumb,   // Thumb: thumb, thumbv.*
     x86,     // X86: i[3-9]86
@@ -66,16 +65,16 @@ public:
     ptx32,   // PTX: ptx (32-bit)
     ptx64,   // PTX: ptx (64-bit)
     le32,    // le32: generic little-endian 32-bit CPU (PNaCl / Emscripten)
-    amdil,   // amdil: amd IL
-
-    InvalidArch
+    amdil   // amdil: amd IL
   };
   enum VendorType {
     UnknownVendor,
 
     Apple,
     PC,
-    SCEI
+    SCEI,
+    BGP,
+    BGQ
   };
   enum OSType {
     UnknownOS,
@@ -93,61 +92,52 @@ public:
     MinGW32,    // i*86-pc-mingw32, *-w64-mingw32
     NetBSD,
     OpenBSD,
-    Psp,
     Solaris,
     Win32,
     Haiku,
     Minix,
     RTEMS,
-    NativeClient
+    NativeClient,
+    CNK         // BG/P Compute-Node Kernel
   };
   enum EnvironmentType {
     UnknownEnvironment,
 
     GNU,
     GNUEABI,
+    GNUEABIHF,
     EABI,
-    MachO
+    MachO,
+    ANDROIDEABI
   };
 
 private:
   std::string Data;
 
-  /// The parsed arch type (or InvalidArch if uninitialized).
-  mutable ArchType Arch;
+  /// The parsed arch type.
+  ArchType Arch;
 
   /// The parsed vendor type.
-  mutable VendorType Vendor;
+  VendorType Vendor;
 
   /// The parsed OS type.
-  mutable OSType OS;
+  OSType OS;
 
   /// The parsed Environment type.
-  mutable EnvironmentType Environment;
-
-  bool isInitialized() const { return Arch != InvalidArch; }
-  static ArchType ParseArch(StringRef ArchName);
-  static VendorType ParseVendor(StringRef VendorName);
-  static OSType ParseOS(StringRef OSName);
-  static EnvironmentType ParseEnvironment(StringRef EnvironmentName);
-  void Parse() const;
+  EnvironmentType Environment;
 
 public:
   /// @name Constructors
   /// @{
 
-  Triple() : Data(), Arch(InvalidArch) {}
-  explicit Triple(const Twine &Str) : Data(Str.str()), Arch(InvalidArch) {}
-  Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr)
-    : Data((ArchStr + Twine('-') + VendorStr + Twine('-') + OSStr).str()),
-      Arch(InvalidArch) {
-  }
+  /// \brief Default constructor is the same as an empty string and leaves all
+  /// triple fields unknown.
+  Triple() : Data(), Arch(), Vendor(), OS(), Environment() {}
 
+  explicit Triple(const Twine &Str);
+  Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr);
   Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr,
-         const Twine &EnvironmentStr)
-    : Data((ArchStr + Twine('-') + VendorStr + Twine('-') + OSStr + Twine('-') +
-            EnvironmentStr).str()), Arch(InvalidArch) {
-  }
+         const Twine &EnvironmentStr);
 
   /// @}
   /// @name Normalization
@@ -164,22 +154,13 @@ public:
   /// @{
 
   /// getArch - Get the parsed architecture type of this triple.
-  ArchType getArch() const {
-    if (!isInitialized()) Parse();
-    return Arch;
-  }
+  ArchType getArch() const { return Arch; }
 
   /// getVendor - Get the parsed vendor type of this triple.
-  VendorType getVendor() const {
-    if (!isInitialized()) Parse();
-    return Vendor;
-  }
+  VendorType getVendor() const { return Vendor; }
 
   /// getOS - Get the parsed operating system type of this triple.
-  OSType getOS() const {
-    if (!isInitialized()) Parse();
-    return OS;
-  }
+  OSType getOS() const { return OS; }
 
   /// hasEnvironment - Does this triple have the optional environment
   /// (fourth) component?
@@ -188,10 +169,30 @@ public:
   }
 
   /// getEnvironment - Get the parsed environment type of this triple.
-  EnvironmentType getEnvironment() const {
-    if (!isInitialized()) Parse();
-    return Environment;
+  EnvironmentType getEnvironment() const { return Environment; }
+
+  /// getOSVersion - Parse the version number from the OS name component of the
+  /// triple, if present.
+  ///
+  /// For example, "fooos1.2.3" would return (1, 2, 3).
+  ///
+  /// If an entry is not defined, it will be returned as 0.
+  void getOSVersion(unsigned &Major, unsigned &Minor, unsigned &Micro) const;
+
+  /// getOSMajorVersion - Return just the major version number, this is
+  /// specialized because it is a common query.
+  unsigned getOSMajorVersion() const {
+    unsigned Maj, Min, Micro;
+    getOSVersion(Maj, Min, Micro);
+    return Maj;
   }
+
+  /// getMacOSXVersion - Parse the version number as with getOSVersion and then
+  /// translate generic "darwin" versions to the corresponding OS X versions.
+  /// This may also be called with IOS triples but the OS X version number is
+  /// just set to a constant 10.4.0 in that case.  Returns true if successful.
+  bool getMacOSXVersion(unsigned &Major, unsigned &Minor,
+                        unsigned &Micro) const;
 
   /// @}
   /// @name Direct Component Access
@@ -221,21 +222,28 @@ public:
   /// if the environment component is present).
   StringRef getOSAndEnvironmentName() const;
 
-  /// getOSVersion - Parse the version number from the OS name component of the
-  /// triple, if present.
-  ///
-  /// For example, "fooos1.2.3" would return (1, 2, 3).
-  ///
-  /// If an entry is not defined, it will be returned as 0.
-  void getOSVersion(unsigned &Major, unsigned &Minor, unsigned &Micro) const;
+  /// @}
+  /// @name Convenience Predicates
+  /// @{
 
-  /// getOSMajorVersion - Return just the major version number, this is
-  /// specialized because it is a common query.
-  unsigned getOSMajorVersion() const {
-    unsigned Maj, Min, Micro;
-    getOSVersion(Maj, Min, Micro);
-    return Maj;
-  }
+  /// \brief Test whether the architecture is 64-bit
+  ///
+  /// Note that this tests for 64-bit pointer width, and nothing else. Note
+  /// that we intentionally expose only three predicates, 64-bit, 32-bit, and
+  /// 16-bit. The inner details of pointer width for particular architectures
+  /// is not summed up in the triple, and so only a coarse grained predicate
+  /// system is provided.
+  bool isArch64Bit() const;
+
+  /// \brief Test whether the architecture is 32-bit
+  ///
+  /// Note that this tests for 32-bit pointer width, and nothing else.
+  bool isArch32Bit() const;
+
+  /// \brief Test whether the architecture is 16-bit
+  ///
+  /// Note that this tests for 16-bit pointer width, and nothing else.
+  bool isArch16Bit() const;
 
   /// isOSVersionLT - Helper function for doing comparisons against version
   /// numbers included in the target triple.
@@ -254,23 +262,6 @@ public:
     return false;
   }
 
-  /// isMacOSX - Is this a Mac OS X triple. For legacy reasons, we support both
-  /// "darwin" and "osx" as OS X triples.
-  bool isMacOSX() const {
-    return getOS() == Triple::Darwin || getOS() == Triple::MacOSX;
-  }
-
-  /// isOSDarwin - Is this a "Darwin" OS (OS X or iOS).
-  bool isOSDarwin() const {
-    return isMacOSX() || getOS() == Triple::IOS;
-  }
-
-  /// isOSWindows - Is this a "Windows" OS.
-  bool isOSWindows() const {
-    return getOS() == Triple::Win32 || getOS() == Triple::Cygwin ||
-      getOS() == Triple::MinGW32;
-  }
-
   /// isMacOSXVersionLT - Comparison function for checking OS X version
   /// compatibility, which handles supporting skewed version numbering schemes
   /// used by the "darwin" triples.
@@ -285,6 +276,43 @@ public:
     // Otherwise, compare to the "Darwin" number.
     assert(Major == 10 && "Unexpected major version");
     return isOSVersionLT(Minor + 4, Micro, 0);
+  }
+
+  /// isMacOSX - Is this a Mac OS X triple. For legacy reasons, we support both
+  /// "darwin" and "osx" as OS X triples.
+  bool isMacOSX() const {
+    return getOS() == Triple::Darwin || getOS() == Triple::MacOSX;
+  }
+
+  /// isOSDarwin - Is this a "Darwin" OS (OS X or iOS).
+  bool isOSDarwin() const {
+    return isMacOSX() || getOS() == Triple::IOS;
+  }
+
+  /// \brief Tests for either Cygwin or MinGW OS
+  bool isOSCygMing() const {
+    return getOS() == Triple::Cygwin || getOS() == Triple::MinGW32;
+  }
+
+  /// isOSWindows - Is this a "Windows" OS.
+  bool isOSWindows() const {
+    return getOS() == Triple::Win32 || isOSCygMing();
+  }
+
+  /// \brief Tests whether the OS uses the ELF binary format.
+  bool isOSBinFormatELF() const {
+    return !isOSDarwin() && !isOSWindows();
+  }
+
+  /// \brief Tests whether the OS uses the COFF binary format.
+  bool isOSBinFormatCOFF() const {
+    return isOSWindows();
+  }
+
+  /// \brief Tests whether the environment is MachO.
+  // FIXME: Should this be an OSBinFormat predicate?
+  bool isEnvironmentMachO() const {
+    return getEnvironment() == Triple::MachO || isOSDarwin();
   }
 
   /// @}
@@ -333,6 +361,26 @@ public:
   /// getArchNameForAssembler - Get an architecture name that is understood by
   /// the target assembler.
   const char *getArchNameForAssembler();
+
+  /// @}
+  /// @name Helpers to build variants of a particular triple.
+  /// @{
+
+  /// \brief Form a triple with a 32-bit variant of the current architecture.
+  ///
+  /// This can be used to move across "families" of architectures where useful.
+  ///
+  /// \returns A new triple with a 32-bit architecture or an unknown
+  ///          architecture if no such variant can be found.
+  llvm::Triple get32BitArchVariant() const;
+
+  /// \brief Form a triple with a 64-bit variant of the current architecture.
+  ///
+  /// This can be used to move across "families" of architectures where useful.
+  ///
+  /// \returns A new triple with a 64-bit architecture or an unknown
+  ///          architecture if no such variant can be found.
+  llvm::Triple get64BitArchVariant() const;
 
   /// @}
   /// @name Static helpers for IDs.

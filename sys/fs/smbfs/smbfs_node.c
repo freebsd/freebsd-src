@@ -373,7 +373,7 @@ smbfs_inactive(ap)
 		smbfs_attr_cacheremove(vp);
 	}
 	if (np->n_flag & NGONE)
-		vrecycle(vp, td);
+		vrecycle(vp);
 	return (0);
 }
 /*

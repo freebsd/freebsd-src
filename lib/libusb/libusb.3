@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd May 7, 2012
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -100,12 +100,12 @@ counter decremented once.
 .Ft uint8_t
 .Fn libusb_get_bus_number "libusb_device *dev"
 Returns the number of the bus contained by the device
-.Fa dev.
+.Fa dev .
 .Pp
 .Ft uint8_t
 .Fn libusb_get_device_address "libusb_device *dev"
 Returns the device_address contained by the device
-.Fa dev.
+.Fa dev .
 .Pp
 .Ft enum libusb_speed
 .Fn libusb_get_device_speed "libusb_device *dev"
@@ -118,15 +118,21 @@ LIBUSB_SPEED_UNKNOWN is returned in case of unknown wire speed.
 Returns the wMaxPacketSize value on success, LIBUSB_ERROR_NOT_FOUND if the
 endpoint does not exist and LIBUSB_ERROR_OTHERS on other failure.
 .Pp
+.Ft int
+.Fn libusb_get_max_iso_packet_size "libusb_device *dev" "unsigned char endpoint"
+Returns the packet size multiplied by the packet multiplier on success,
+LIBUSB_ERROR_NOT_FOUND if the endpoint does not exist and
+LIBUSB_ERROR_OTHERS on other failure.
+.Pp
 .Ft libusb_device *
 .Fn libusb_ref_device "libusb_device *dev"
 Increment the reference counter of the device
-.Fa dev.
+.Fa dev .
 .Pp
 .Ft void
 .Fn libusb_unref_device "libusb_device *dev"
 Decrement the reference counter of the device
-.Fa dev.
+.Fa dev .
 .Pp
 .Ft int
 .Fn libusb_open "libusb_device *dev" "libusb_device_handle **devh"
@@ -141,7 +147,7 @@ disconnected and a LIBUSB_ERROR code on other errors.
 A convenience function to open a device by vendor and product IDs
 .Fa vid
 and
-.Fa pid.
+.Fa pid .
 Returns NULL on error.
 .Pp
 .Ft void
@@ -155,7 +161,7 @@ Returns NULL on error.
 .Pp
 .Ft int
 .Fn libusb_get_configuration "libusb_device_handle *devh" "int *config"
-Returns the bConfiguration value of the current configuration.
+Returns the value of the current configuration.
 Returns 0
 on success, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected
 and a LIBUSB_ERROR code on error.
@@ -165,7 +171,7 @@ and a LIBUSB_ERROR code on error.
 Set the active configuration to
 .Fa config
 for the device contained by
-.Fa devh.
+.Fa devh .
 This function returns 0 on success, LIBUSB_ERROR_NOT_FOUND if the requested
 configuration does not exist, LIBUSB_ERROR_BUSY if the interfaces are currently
 claimed, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and a
@@ -174,7 +180,7 @@ LIBUSB_ERROR code on failure.
 .Ft int
 .Fn libusb_claim_interface "libusb_device_handle *devh" "int interface_number"
 Claim an interface in a given libusb_handle
-.Fa devh.
+.Fa devh .
 This is a non-blocking function.
 It returns 0 on success, LIBUSB_ERROR_NOT_FOUND
 if the requested interface does not exist, LIBUSB_ERROR_BUSY if a program or
@@ -273,13 +279,13 @@ LIBUSB_ERROR code on failure.
 .Ft int
 .Fn libusb_get_device_descriptor "libusb_device *dev" "libusb_device_descriptor *desc"
 Get the USB device descriptor for the device
-.Fa dev.
+.Fa dev .
 This is a non-blocking function.
 Returns 0 on success and a LIBUSB_ERROR code on
 failure.
 .Pp
 .Ft int
-.Fn libsub_get_active_config_descriptor "libusb_device *dev" "struct libusb_config_descriptor **config"
+.Fn libusb_get_active_config_descriptor "libusb_device *dev" "struct libusb_config_descriptor **config"
 Get the USB configuration descriptor for the active configuration.
 Returns 0 on
 success, LIBUSB_ERROR_NOT_FOUND if the device is in
@@ -308,6 +314,12 @@ LIBUSB_ERROR code on failure.
 Free a configuration descriptor.
 .Pp
 .Ft int
+.Fn libusb_get_string_descriptor "libusb_device_handle *devh" "uint8_t desc_idx" "uint16_t langid" "unsigned char *data" "int length"
+Retrieve a string descriptor in raw format.
+Returns the number of bytes actually transferred on success
+or a negative LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
 .Fn libusb_get_string_descriptor_ascii "libusb_device_handle *devh" "uint8_t desc_idx" "unsigned char *data" "int length"
 Retrieve a string descriptor in C style ASCII.
 Returns the positive number of bytes in the resulting ASCII string
@@ -318,11 +330,11 @@ on success and a LIBUSB_ERROR code on failure.
 This function parses the USB 3.0 endpoint companion descriptor in host endian format pointed to by
 .Fa buf
 and having a length of
-.Fa len.
+.Fa len .
 Typically these arguments are the extra and extra_length fields of the
 endpoint descriptor.
 On success the pointer to resulting descriptor is stored at the location given by
-.Fa ep_comp.
+.Fa ep_comp .
 Returns zero on success and a LIBUSB_ERROR code on failure.
 On success the parsed USB 3.0 endpoint companion descriptor must be
 freed using the libusb_free_ss_endpoint_comp function.
@@ -336,9 +348,9 @@ This function is NULL safe and frees a parsed USB 3.0 endpoint companion descrip
 This function parses a Binary Object Store, BOS, descriptor into host endian format pointed to by
 .Fa buf
 and having a length of
-.Fa len.
+.Fa len .
 On success the pointer to resulting descriptor is stored at the location given by
-.Fa bos.
+.Fa bos .
 Returns zero on success and a LIBUSB_ERROR code on failure.
 On success the parsed BOS descriptor must be freed using the
 libusb_free_bos_descriptor function.

@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/StmtObjC.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ObjCMessage.h"
-#include "clang/Analysis/Support/SaveAndRestore.h"
 
 using namespace clang;
 using namespace ento;
@@ -22,13 +22,14 @@ using namespace ento;
 void ExprEngine::VisitLvalObjCIvarRefExpr(const ObjCIvarRefExpr *Ex, 
                                           ExplodedNode *Pred,
                                           ExplodedNodeSet &Dst) {
-  
-  const ProgramState *state = Pred->getState();
-  SVal baseVal = state->getSVal(Ex->getBase());
+  ProgramStateRef state = Pred->getState();
+  const LocationContext *LCtx = Pred->getLocationContext();
+  SVal baseVal = state->getSVal(Ex->getBase(), LCtx);
   SVal location = state->getLValue(Ex->getDecl(), baseVal);
   
   ExplodedNodeSet dstIvar;
-  MakeNode(dstIvar, Ex, Pred, state->BindExpr(Ex, location));
+  StmtNodeBuilder Bldr(Pred, dstIvar, *currentBuilderContext);
+  Bldr.generateNode(Ex, Pred, state->BindExpr(Ex, LCtx, location));
   
   // Perform the post-condition check of the ObjCIvarRefExpr and store
   // the created nodes in 'Dst'.
@@ -69,10 +70,11 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   //  For now: simulate (1) by assigning either a symbol or nil if the
   //    container is empty.  Thus this transfer function will by default
   //    result in state splitting.
-  
+
   const Stmt *elem = S->getElement();
-  const ProgramState *state = Pred->getState();
+  ProgramStateRef state = Pred->getState();
   SVal elementV;
+  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
   
   if (const DeclStmt *DS = dyn_cast<DeclStmt>(elem)) {
     const VarDecl *elemD = cast<VarDecl>(DS->getSingleDecl());
@@ -80,27 +82,27 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
     elementV = state->getLValue(elemD, Pred->getLocationContext());
   }
   else {
-    elementV = state->getSVal(elem);
+    elementV = state->getSVal(elem, Pred->getLocationContext());
   }
   
   ExplodedNodeSet dstLocation;
-  evalLocation(dstLocation, elem, Pred, state, elementV, NULL, false);
-  
-  if (dstLocation.empty())
-    return;
+  Bldr.takeNodes(Pred);
+  evalLocation(dstLocation, S, elem, Pred, state, elementV, NULL, false);
+  Bldr.addNodes(dstLocation);
   
   for (ExplodedNodeSet::iterator NI = dstLocation.begin(),
        NE = dstLocation.end(); NI!=NE; ++NI) {
     Pred = *NI;
-    const ProgramState *state = Pred->getState();
+    ProgramStateRef state = Pred->getState();
+    const LocationContext *LCtx = Pred->getLocationContext();
     
     // Handle the case where the container still has elements.
     SVal TrueV = svalBuilder.makeTruthVal(1);
-    const ProgramState *hasElems = state->BindExpr(S, TrueV);
+    ProgramStateRef hasElems = state->BindExpr(S, LCtx, TrueV);
     
     // Handle the case where the container has no elements.
     SVal FalseV = svalBuilder.makeTruthVal(0);
-    const ProgramState *noElems = state->BindExpr(S, FalseV);
+    ProgramStateRef noElems = state->BindExpr(S, LCtx, FalseV);
     
     if (loc::MemRegionVal *MV = dyn_cast<loc::MemRegionVal>(&elementV))
       if (const TypedValueRegion *R = 
@@ -110,8 +112,8 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
         //  For now, just 'conjure' up a symbolic value.
         QualType T = R->getValueType();
         assert(Loc::isLocType(T));
-        unsigned Count = Builder->getCurrentBlockCount();
-        SymbolRef Sym = SymMgr.getConjuredSymbol(elem, T, Count);
+        unsigned Count = currentBuilderContext->getCurrentBlockCount();
+        SymbolRef Sym = SymMgr.getConjuredSymbol(elem, LCtx, T, Count);
         SVal V = svalBuilder.makeLoc(Sym);
         hasElems = hasElems->bindLoc(elementV, V);
         
@@ -121,8 +123,8 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
       }
     
     // Create the new nodes.
-    MakeNode(Dst, S, Pred, hasElems);
-    MakeNode(Dst, S, Pred, noElems);
+    Bldr.generateNode(S, Pred, hasElems);
+    Bldr.generateNode(S, Pred, noElems);
   }
 }
 
@@ -137,29 +139,27 @@ void ExprEngine::VisitObjCMessage(const ObjCMessage &msg,
   
   // Proceed with evaluate the message expression.
   ExplodedNodeSet dstEval;
-  
+  StmtNodeBuilder Bldr(dstPrevisit, dstEval, *currentBuilderContext);
+
   for (ExplodedNodeSet::iterator DI = dstPrevisit.begin(),
        DE = dstPrevisit.end(); DI != DE; ++DI) {
     
     ExplodedNode *Pred = *DI;
     bool RaisesException = false;
-    SaveAndRestore<bool> OldSink(Builder->BuildSinks);
-    SaveOr OldHasGen(Builder->hasGeneratedNode);
     
     if (const Expr *Receiver = msg.getInstanceReceiver()) {
-      const ProgramState *state = Pred->getState();
-      SVal recVal = state->getSVal(Receiver);
+      ProgramStateRef state = Pred->getState();
+      SVal recVal = state->getSVal(Receiver, Pred->getLocationContext());
       if (!recVal.isUndef()) {
         // Bifurcate the state into nil and non-nil ones.
         DefinedOrUnknownSVal receiverVal = cast<DefinedOrUnknownSVal>(recVal);
         
-        const ProgramState *notNilState, *nilState;
+        ProgramStateRef notNilState, nilState;
         llvm::tie(notNilState, nilState) = state->assume(receiverVal);
         
         // There are three cases: can be nil or non-nil, must be nil, must be
         // non-nil. We ignore must be nil, and merge the rest two into non-nil.
         if (nilState && !notNilState) {
-          dstEval.insert(Pred);
           continue;
         }
         
@@ -168,13 +168,10 @@ void ExprEngine::VisitObjCMessage(const ObjCMessage &msg,
         if (msg.getSelector() == RaiseSel)
           RaisesException = true;
         
-        // Check if we raise an exception.  For now treat these as sinks.
+        // If we raise an exception, for now treat it as a sink.
         // Eventually we will want to handle exceptions properly.
-        if (RaisesException)
-          Builder->BuildSinks = true;
-        
         // Dispatch to plug-in transfer function.
-        evalObjCMessage(dstEval, msg, Pred, notNilState);
+        evalObjCMessage(Bldr, msg, Pred, notNilState, RaisesException);
       }
     }
     else if (const ObjCInterfaceDecl *Iface = msg.getReceiverInterface()) {
@@ -217,16 +214,11 @@ void ExprEngine::VisitObjCMessage(const ObjCMessage &msg,
           }
       }
       
-      // Check if we raise an exception.  For now treat these as sinks.
+      // If we raise an exception, for now treat it as a sink.
       // Eventually we will want to handle exceptions properly.
-      if (RaisesException)
-        Builder->BuildSinks = true;
-      
       // Dispatch to plug-in transfer function.
-      evalObjCMessage(dstEval, msg, Pred, Pred->getState());
+      evalObjCMessage(Bldr, msg, Pred, Pred->getState(), RaisesException);
     }
-
-    assert(Builder->BuildSinks || Builder->hasGeneratedNode);
   }
   
   // Finally, perform the post-condition check of the ObjCMessageExpr and store
@@ -234,11 +226,11 @@ void ExprEngine::VisitObjCMessage(const ObjCMessage &msg,
   getCheckerManager().runCheckersForPostObjCMessage(Dst, dstEval, msg, *this);
 }
 
-void ExprEngine::evalObjCMessage(ExplodedNodeSet &Dst, const ObjCMessage &msg, 
+void ExprEngine::evalObjCMessage(StmtNodeBuilder &Bldr,
+                                 const ObjCMessage &msg,
                                  ExplodedNode *Pred,
-                                 const ProgramState *state) {
-  assert (Builder && "StmtNodeBuilder must be defined.");
-
+                                 ProgramStateRef state,
+                                 bool GenSink) {
   // First handle the return value.
   SVal ReturnValue = UnknownVal();
 
@@ -252,7 +244,7 @@ void ExprEngine::evalObjCMessage(ExplodedNodeSet &Dst, const ObjCMessage &msg,
     // These methods return their receivers.
     const Expr *ReceiverE = msg.getInstanceReceiver();
     if (ReceiverE)
-      ReturnValue = state->getSVal(ReceiverE);
+      ReturnValue = state->getSVal(ReceiverE, Pred->getLocationContext());
     break;
   }
   }
@@ -261,19 +253,21 @@ void ExprEngine::evalObjCMessage(ExplodedNodeSet &Dst, const ObjCMessage &msg,
   if (ReturnValue.isUnknown()) {
     SValBuilder &SVB = getSValBuilder();
     QualType ResultTy = msg.getResultType(getContext());
-    unsigned Count = Builder->getCurrentBlockCount();
+    unsigned Count = currentBuilderContext->getCurrentBlockCount();
     const Expr *CurrentE = cast<Expr>(currentStmt);
-    ReturnValue = SVB.getConjuredSymbolVal(NULL, CurrentE, ResultTy, Count);
+    const LocationContext *LCtx = Pred->getLocationContext();
+    ReturnValue = SVB.getConjuredSymbolVal(NULL, CurrentE, LCtx, ResultTy, Count);
   }
 
   // Bind the return value.
-  state = state->BindExpr(currentStmt, ReturnValue);
+  const LocationContext *LCtx = Pred->getLocationContext();
+  state = state->BindExpr(currentStmt, LCtx, ReturnValue);
 
   // Invalidate the arguments (and the receiver)
-  const LocationContext *LC = Pred->getLocationContext();
-  state = invalidateArguments(state, CallOrObjCMessage(msg, state), LC);
+  state = invalidateArguments(state, CallOrObjCMessage(msg, state, LCtx), LCtx);
 
   // And create the new node.
-  MakeNode(Dst, msg.getOriginExpr(), Pred, state);
+  Bldr.generateNode(msg.getMessageExpr(), Pred, state, GenSink);
+  assert(Bldr.hasGeneratedNodes());
 }
 

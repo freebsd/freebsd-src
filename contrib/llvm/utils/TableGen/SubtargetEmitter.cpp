@@ -39,28 +39,41 @@ void SubtargetEmitter::Enumeration(raw_ostream &OS,
 
   OS << "namespace " << Target << " {\n";
 
-  // Open enumeration
-  OS << "enum {\n";
+  // For bit flag enumerations with more than 32 items, emit constants.
+  // Emit an enum for everything else.
+  if (isBits && N > 32) {
+    // For each record
+    for (unsigned i = 0; i < N; i++) {
+      // Next record
+      Record *Def = DefList[i];
 
-  // For each record
-  for (unsigned i = 0; i < N;) {
-    // Next record
-    Record *Def = DefList[i];
+      // Get and emit name and expression (1 << i)
+      OS << "  const uint64_t " << Def->getName() << " = 1ULL << " << i << ";\n";
+    }
+  } else {
+    // Open enumeration
+    OS << "enum {\n";
 
-    // Get and emit name
-    OS << "  " << Def->getName();
+    // For each record
+    for (unsigned i = 0; i < N;) {
+      // Next record
+      Record *Def = DefList[i];
 
-    // If bit flags then emit expression (1 << i)
-    if (isBits)  OS << " = " << " 1ULL << " << i;
+      // Get and emit name
+      OS << "  " << Def->getName();
 
-    // Depending on 'if more in the list' emit comma
-    if (++i < N) OS << ",";
+      // If bit flags then emit expression (1 << i)
+      if (isBits)  OS << " = " << " 1ULL << " << i;
 
-    OS << "\n";
+      // Depending on 'if more in the list' emit comma
+      if (++i < N) OS << ",";
+
+      OS << "\n";
+    }
+
+    // Close enumeration
+    OS << "};\n";
   }
-
-  // Close enumeration
-  OS << "};\n";
 
   OS << "}\n";
 }
@@ -81,7 +94,8 @@ unsigned SubtargetEmitter::FeatureKeyValues(raw_ostream &OS) {
 
   // Begin feature table
   OS << "// Sorted (by key) array of values for CPU features.\n"
-     << "llvm::SubtargetFeatureKV " << Target << "FeatureKV[] = {\n";
+     << "extern const llvm::SubtargetFeatureKV " << Target
+     << "FeatureKV[] = {\n";
 
   // For each feature
   unsigned NumFeatures = 0;
@@ -140,7 +154,8 @@ unsigned SubtargetEmitter::CPUKeyValues(raw_ostream &OS) {
 
   // Begin processor table
   OS << "// Sorted (by key) array of values for CPU subtype.\n"
-     << "llvm::SubtargetFeatureKV " << Target << "SubTypeKV[] = {\n";
+     << "extern const llvm::SubtargetFeatureKV " << Target
+     << "SubTypeKV[] = {\n";
 
   // For each processor
   for (unsigned i = 0, N = ProcessorList.size(); i < N;) {
@@ -327,9 +342,9 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
       OS << "\n// Pipeline forwarding pathes for itineraries \"" << Name
          << "\"\n" << "namespace " << Name << "Bypass {\n";
 
-      OS << "  unsigned NoBypass = 0;\n";
+      OS << "  const unsigned NoBypass = 0;\n";
       for (unsigned j = 0, BPN = BPs.size(); j < BPN; ++j)
-        OS << "  unsigned " << BPs[j]->getName()
+        OS << "  const unsigned " << BPs[j]->getName()
            << " = 1 << " << j << ";\n";
 
       OS << "}\n";
@@ -337,16 +352,17 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
   }
 
   // Begin stages table
-  std::string StageTable = "\nllvm::InstrStage " + Target + "Stages[] = {\n";
+  std::string StageTable = "\nextern const llvm::InstrStage " + Target +
+                           "Stages[] = {\n";
   StageTable += "  { 0, 0, 0, llvm::InstrStage::Required }, // No itinerary\n";
 
   // Begin operand cycle table
-  std::string OperandCycleTable = "unsigned " + Target +
+  std::string OperandCycleTable = "extern const unsigned " + Target +
     "OperandCycles[] = {\n";
   OperandCycleTable += "  0, // No itinerary\n";
 
   // Begin pipeline bypass table
-  std::string BypassTable = "unsigned " + Target +
+  std::string BypassTable = "extern const unsigned " + Target +
     "ForwardingPathes[] = {\n";
   BypassTable += "  0, // No itinerary\n";
 
@@ -488,7 +504,7 @@ EmitProcessorData(raw_ostream &OS,
 
     // Begin processor itinerary table
     OS << "\n";
-    OS << "llvm::InstrItinerary " << Name << "[] = {\n";
+    OS << "static const llvm::InstrItinerary " << Name << "[] = {\n";
 
     // For each itinerary class
     std::vector<InstrItinerary> &ItinList = *ProcListIter++;
@@ -530,7 +546,7 @@ void SubtargetEmitter::EmitProcessorLookup(raw_ostream &OS) {
   // Begin processor table
   OS << "\n";
   OS << "// Sorted (by key) array of itineraries for CPU subtype.\n"
-     << "llvm::SubtargetInfoKV "
+     << "extern const llvm::SubtargetInfoKV "
      << Target << "ProcItinKV[] = {\n";
 
   // For each processor
@@ -708,9 +724,13 @@ void SubtargetEmitter::run(raw_ostream &OS) {
 
   std::string ClassName = Target + "GenSubtargetInfo";
   OS << "namespace llvm {\n";
+  OS << "class DFAPacketizer;\n";
   OS << "struct " << ClassName << " : public TargetSubtargetInfo {\n"
      << "  explicit " << ClassName << "(StringRef TT, StringRef CPU, "
      << "StringRef FS);\n"
+     << "public:\n"
+     << "  DFAPacketizer *createDFAPacketizer(const InstrItineraryData *IID)"
+     << " const;\n"
      << "};\n";
   OS << "} // End llvm namespace \n";
 
@@ -720,13 +740,13 @@ void SubtargetEmitter::run(raw_ostream &OS) {
   OS << "#undef GET_SUBTARGETINFO_CTOR\n";
 
   OS << "namespace llvm {\n";
-  OS << "extern llvm::SubtargetFeatureKV " << Target << "FeatureKV[];\n";
-  OS << "extern llvm::SubtargetFeatureKV " << Target << "SubTypeKV[];\n";
+  OS << "extern const llvm::SubtargetFeatureKV " << Target << "FeatureKV[];\n";
+  OS << "extern const llvm::SubtargetFeatureKV " << Target << "SubTypeKV[];\n";
   if (HasItineraries) {
-    OS << "extern llvm::SubtargetInfoKV " << Target << "ProcItinKV[];\n";
-    OS << "extern llvm::InstrStage " << Target << "Stages[];\n";
-    OS << "extern unsigned " << Target << "OperandCycles[];\n";
-    OS << "extern unsigned " << Target << "ForwardingPathes[];\n";
+    OS << "extern const llvm::SubtargetInfoKV " << Target << "ProcItinKV[];\n";
+    OS << "extern const llvm::InstrStage " << Target << "Stages[];\n";
+    OS << "extern const unsigned " << Target << "OperandCycles[];\n";
+    OS << "extern const unsigned " << Target << "ForwardingPathes[];\n";
   }
 
   OS << ClassName << "::" << ClassName << "(StringRef TT, StringRef CPU, "

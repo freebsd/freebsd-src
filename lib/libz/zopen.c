@@ -3,7 +3,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: projects/arm_eabi/lib/libz/zopen.c 84228 2001-09-30 22:39:00Z dillon $");
 
 #include <stdio.h>
 #include <zlib.h>
@@ -23,6 +23,12 @@ xgzwrite(void *cookie, const char *data, int size)
     return gzwrite(cookie, (void*)data, size);
 }
 
+static int
+xgzclose(void *cookie)
+{
+    return gzclose(cookie);
+}
+
 FILE *
 zopen(const char *fname, const char *mode)
 {
@@ -31,7 +37,7 @@ zopen(const char *fname, const char *mode)
 	return NULL;
 
     if(*mode == 'r')
-	return (funopen(gz, xgzread, NULL, NULL, gzclose));
+	return (funopen(gz, xgzread, NULL, NULL, xgzclose));
     else
-	return (funopen(gz, NULL, xgzwrite, NULL, gzclose));
+	return (funopen(gz, NULL, xgzwrite, NULL, xgzclose));
 }

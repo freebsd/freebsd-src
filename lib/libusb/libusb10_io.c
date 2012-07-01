@@ -307,12 +307,16 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 		    &ctx->ctx_lock);
 		return (0);
 	}
-	err = clock_gettime(CLOCK_REALTIME, &ts);
+	err = clock_gettime(CLOCK_MONOTONIC, &ts);
 	if (err < 0)
 		return (LIBUSB_ERROR_OTHER);
 
-	ts.tv_sec = tv->tv_sec;
-	ts.tv_nsec = tv->tv_usec * 1000;
+	/*
+	 * The "tv" arguments points to a relative time structure and
+	 * not an absolute time structure.
+	 */
+	ts.tv_sec += tv->tv_sec;
+	ts.tv_nsec += tv->tv_usec * 1000;
 	if (ts.tv_nsec >= 1000000000) {
 		ts.tv_nsec -= 1000000000;
 		ts.tv_sec++;
@@ -481,7 +485,7 @@ libusb10_do_transfer(libusb_device_handle *devh,
 {
 	libusb_context *ctx;
 	struct libusb_transfer *xfer;
-	volatile int complet;
+	int done;
 	int ret;
 
 	if (devh == NULL)
@@ -502,15 +506,15 @@ libusb10_do_transfer(libusb_device_handle *devh,
 	xfer->timeout = timeout;
 	xfer->buffer = data;
 	xfer->length = length;
-	xfer->user_data = (void *)&complet;
+	xfer->user_data = (void *)&done;
 	xfer->callback = libusb10_do_transfer_cb;
-	complet = 0;
+	done = 0;
 
 	if ((ret = libusb_submit_transfer(xfer)) < 0) {
 		libusb_free_transfer(xfer);
 		return (ret);
 	}
-	while (complet == 0) {
+	while (done == 0) {
 		if ((ret = libusb_handle_events(ctx)) < 0) {
 			libusb_cancel_transfer(xfer);
 			usleep(1000);	/* nice it */
@@ -581,7 +585,7 @@ libusb_interrupt_transfer(libusb_device_handle *devh,
 }
 
 uint8_t *
-libusb_get_iso_packet_buffer(struct libusb_transfer *transfer, uint32_t index)
+libusb_get_iso_packet_buffer(struct libusb_transfer *transfer, uint32_t off)
 {
 	uint8_t *ptr;
 	uint32_t n;
@@ -589,35 +593,35 @@ libusb_get_iso_packet_buffer(struct libusb_transfer *transfer, uint32_t index)
 	if (transfer->num_iso_packets < 0)
 		return (NULL);
 
-	if (index >= (uint32_t)transfer->num_iso_packets)
+	if (off >= (uint32_t)transfer->num_iso_packets)
 		return (NULL);
 
 	ptr = transfer->buffer;
 	if (ptr == NULL)
 		return (NULL);
 
-	for (n = 0; n != index; n++) {
+	for (n = 0; n != off; n++) {
 		ptr += transfer->iso_packet_desc[n].length;
 	}
 	return (ptr);
 }
 
 uint8_t *
-libusb_get_iso_packet_buffer_simple(struct libusb_transfer *transfer, uint32_t index)
+libusb_get_iso_packet_buffer_simple(struct libusb_transfer *transfer, uint32_t off)
 {
 	uint8_t *ptr;
 
 	if (transfer->num_iso_packets < 0)
 		return (NULL);
 
-	if (index >= (uint32_t)transfer->num_iso_packets)
+	if (off >= (uint32_t)transfer->num_iso_packets)
 		return (NULL);
 
 	ptr = transfer->buffer;
 	if (ptr == NULL)
 		return (NULL);
 
-	ptr += transfer->iso_packet_desc[0].length * index;
+	ptr += transfer->iso_packet_desc[0].length * off;
 
 	return (ptr);
 }

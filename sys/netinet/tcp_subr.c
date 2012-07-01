@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
-#include <netinet/tcp_offload.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -95,6 +94,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef INET6
 #include <netinet6/ip6protosw.h>
+#endif
+#ifdef TCP_OFFLOAD
+#include <netinet/tcp_offload.h>
 #endif
 
 #ifdef IPSEC
@@ -222,6 +224,7 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
+static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 
@@ -572,8 +575,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		ip6->ip6_flow = 0;
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_nxt = IPPROTO_TCP;
-		ip6->ip6_plen = htons((u_short)(sizeof (struct tcphdr) +
-						tlen));
+		ip6->ip6_plen = 0;		/* Set in ip6_output(). */
 		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
 	}
 #endif
@@ -618,12 +620,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	else
 		nth->th_win = htons((u_short)win);
 	nth->th_urp = 0;
+
+	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
 	if (isipv6) {
-		nth->th_sum = 0;
-		nth->th_sum = in6_cksum(m, IPPROTO_TCP,
-					sizeof(struct ip6_hdr),
-					tlen - sizeof(struct ip6_hdr));
+		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
+		nth->th_sum = in6_cksum_pseudo(ip6,
+		    tlen - sizeof(struct ip6_hdr), IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(tp != NULL ? tp->t_inpcb :
 		    NULL, NULL);
 	}
@@ -633,10 +636,9 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #endif
 #ifdef INET
 	{
+		m->m_pkthdr.csum_flags = CSUM_TCP;
 		nth->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons((u_short)(tlen - sizeof(struct ip) + ip->ip_p)));
-		m->m_pkthdr.csum_flags = CSUM_TCP;
-		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 	}
 #endif /* INET */
 #ifdef TCPDEBUG
@@ -824,7 +826,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
-		(void) tcp_output_reset(tp);
+		(void) tcp_output(tp);
 		TCPSTAT_INC(tcps_drops);
 	} else
 		TCPSTAT_INC(tcps_conndrops);
@@ -924,8 +926,12 @@ tcp_discardcb(struct tcpcb *tp)
 
 	/* free the reassembly queue, if any */
 	tcp_reass_flush(tp);
+
+#ifdef TCP_OFFLOAD
 	/* Disconnect offload device, if any. */
-	tcp_offload_detach(tp);
+	if (tp->t_flags & TF_TOE)
+		tcp_offload_detach(tp);
+#endif
 		
 	tcp_free_sackholes(tp);
 
@@ -954,9 +960,10 @@ tcp_close(struct tcpcb *tp)
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	/* Notify any offload devices of listener close */
+#ifdef TCP_OFFLOAD
 	if (tp->t_state == TCPS_LISTEN)
-		tcp_offload_listen_close(tp);
+		tcp_offload_listen_stop(tp);
+#endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
@@ -1337,7 +1344,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		return;
 
 	if (cmd == PRC_MSGSIZE)
-		notify = tcp_mtudisc;
+		notify = tcp_mtudisc_notify;
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
 		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
@@ -1410,9 +1417,10 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					     */
 					    if (mtu <= tcp_maxmtu(&inc, NULL))
 						tcp_hc_updatemtu(&inc, mtu);
-					}
-
-					inp = (*notify)(inp, inetctlerrmap[cmd]);
+					    tcp_mtudisc(inp, mtu);
+					} else
+						inp = (*notify)(inp,
+						    inetctlerrmap[cmd]);
 				}
 			}
 			if (inp != NULL)
@@ -1452,7 +1460,7 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		return;
 
 	if (cmd == PRC_MSGSIZE)
-		notify = tcp_mtudisc;
+		notify = tcp_mtudisc_notify;
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
 		return;
@@ -1653,12 +1661,19 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 
 /*
  * When `need fragmentation' ICMP is received, update our idea of the MSS
- * based on the new value in the route.  Also nudge TCP to send something,
- * since we know the packet we just sent was dropped.
+ * based on the new value. Also nudge TCP to send something, since we
+ * know the packet we just sent was dropped.
  * This duplicates some code in the tcp_mss() function in tcp_input.c.
  */
+static struct inpcb *
+tcp_mtudisc_notify(struct inpcb *inp, int error)
+{
+
+	return (tcp_mtudisc(inp, -1));
+}
+
 struct inpcb *
-tcp_mtudisc(struct inpcb *inp, int errno)
+tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 {
 	struct tcpcb *tp;
 	struct socket *so;
@@ -1671,7 +1686,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
 
-	tcp_mss_update(tp, -1, NULL, NULL);
+	tcp_mss_update(tp, -1, mtuoffer, NULL, NULL);
   
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_snd);
@@ -1687,7 +1702,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tp->snd_recover = tp->snd_max;
 	if (tp->t_flags & TF_SACK_PERMIT)
 		EXIT_FASTRECOVERY(tp->t_flags);
-	tcp_output_send(tp);
+	tcp_output(tp);
 	return (inp);
 }
 

@@ -54,13 +54,7 @@ static void at91_eoi(void *);
 
 extern const struct pmap_devmap at91_devmap[];
 
-uint32_t at91_chip_id;
-
-#ifdef AT91C_MASTER_CLOCK
-uint32_t at91_master_clock = AT91C_MASTER_CLOCK;
-#else
 uint32_t at91_master_clock;
-#endif
 
 static int
 at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
@@ -69,16 +63,16 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	vm_paddr_t pa, endpa;
 
 	pa = trunc_page(bpa);
-	if (pa >= 0xfff00000) {
-		*bshp = pa - 0xf0000000 + 0xd0000000;
+	if (pa >= AT91_PA_BASE + 0xff00000) {
+		*bshp = pa - AT91_PA_BASE + AT91_BASE;
 		return (0);
 	}
-	if (pa >= 0xdff00000)
+	if (pa >= AT91_BASE + 0xff00000)
 		return (0);
 	endpa = round_page(bpa + size);
 
 	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
-		       
+
 	return (0);
 }
 
@@ -104,7 +98,7 @@ at91_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 static void
-at91_barrier(void *t, bus_space_handle_t bsh, bus_size_t size, bus_size_t b, 
+at91_barrier(void *t, bus_space_handle_t bsh, bus_size_t size, bus_size_t b,
     int a)
 {
 }
@@ -269,7 +263,7 @@ at91_attach(device_t dev)
 	sc->sc_mem_rman.rm_descr = "AT91 Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0)
 		panic("at91_attach: failed to set up memory rman");
-	for ( pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
+	for (pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
 		if (rman_manage_region(&sc->sc_mem_rman, pdevmap->pd_va,
 		    pdevmap->pd_va + pdevmap->pd_size - 1) != 0)
 			panic("at91_attach: failed to set up memory rman");
@@ -278,7 +272,7 @@ at91_attach(device_t dev)
 
 	/* Our device list will be added automatically by the cpu device
 	 * e.g. at91rm9200.c when it is identified. To ensure that the
-	 * CPU and PMC are attached first any other "identified" devices 
+	 * CPU and PMC are attached first any other "identified" devices
 	 * call BUS_ADD_CHILD(9) with an "order" of at least 2. */
 
 	bus_generic_probe(dev);
@@ -363,8 +357,8 @@ at91_release_resource(device_t dev, device_t child, int type,
 
 static int
 at91_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)    
+    struct resource *ires, int flags, driver_filter_t *filt,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct at91_softc *sc = device_get_softc(dev);
 	int error;
@@ -387,7 +381,7 @@ at91_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 	struct at91_softc *sc = device_get_softc(dev);
 
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR,
 	    1 << rman_get_start(res));
 	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
 }
@@ -403,7 +397,7 @@ at91_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY) {
 		error = bus_space_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, &p);
-		if (error) 
+		if (error)
 			return (error);
 		rman_set_bushandle(r, p);
 	}
@@ -438,7 +432,7 @@ void
 arm_mask_irq(uintptr_t nb)
 {
 	
-	bus_space_write_4(at91_softc->sc_st, 
+	bus_space_write_4(at91_softc->sc_st,
 	    at91_softc->sc_aic_sh, IC_IDCR, 1 << nb);
 }
 
@@ -464,7 +458,7 @@ void
 arm_unmask_irq(uintptr_t nb)
 {
 	
-	bus_space_write_4(at91_softc->sc_st, 
+	bus_space_write_4(at91_softc->sc_st,
 	at91_softc->sc_aic_sh, IC_IECR, 1 << nb);
 	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
 	    IC_EOICR, 0);

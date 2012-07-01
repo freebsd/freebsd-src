@@ -24,7 +24,6 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Config/config.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdio>
@@ -63,7 +62,7 @@ static void PrintMacroDefinition(const IdentifierInfo &II, const MacroInfo &MI,
   if (MI.tokens_empty() || !MI.tokens_begin()->hasLeadingSpace())
     OS << ' ';
 
-  llvm::SmallString<128> SpellingBuffer;
+  SmallString<128> SpellingBuffer;
   for (MacroInfo::tokens_iterator I = MI.tokens_begin(), E = MI.tokens_end();
        I != E; ++I) {
     if (I->hasLeadingSpace())
@@ -90,7 +89,7 @@ private:
   bool EmittedTokensOnThisLine;
   bool EmittedMacroOnThisLine;
   SrcMgr::CharacteristicKind FileType;
-  llvm::SmallString<512> CurFilename;
+  SmallString<512> CurFilename;
   bool Initialized;
   bool DisableLineMarkers;
   bool DumpDefines;
@@ -109,7 +108,7 @@ public:
     Initialized = false;
 
     // If we're in microsoft mode, use normal #line instead of line markers.
-    UseLineDirective = PP.getLangOptions().MicrosoftExt;
+    UseLineDirective = PP.getLangOpts().MicrosoftExt;
   }
 
   void SetEmittedTokensOnThisLine() { EmittedTokensOnThisLine = true; }
@@ -390,7 +389,6 @@ PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
   MoveToLine(Loc);
   OS << "#pragma " << Namespace << " diagnostic ";
   switch (Map) {
-  default: llvm_unreachable("unexpected diagnostic kind");
   case diag::MAP_WARNING:
     OS << "warning";
     break;

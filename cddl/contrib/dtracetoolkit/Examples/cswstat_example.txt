@@ -1,0 +1,25 @@
+The following is an example of the cswstat.d script,
+
+   # cswstat.d 
+   TIME                       NUM      CSWTIME      AVGTIME
+   2005 May 17 01:57:21       276         2407            8
+   2005 May 17 01:57:22       283         2251            7
+   2005 May 17 01:57:23       259         2098            8
+   2005 May 17 01:57:24       268         2169            8
+   2005 May 17 01:57:25      1248        10864            8
+   2005 May 17 01:57:26      2421        21263            8
+   2005 May 17 01:57:27      2183        19804            9
+   2005 May 17 01:57:28      1980        18640            9
+   2005 May 17 01:57:29       794         7422            9
+   2005 May 17 01:57:30       275         2233            8
+   2005 May 17 01:57:31       288         2338            8
+   2005 May 17 01:57:32       545         4154            7
+   2005 May 17 01:57:33       264         2149            8
+   ^C
+
+In the above output, the average context switch time is 8 microseconds.
+During the sample there was a burst of activity, increasing the number
+of context switches per second from around 270 to over 2000. The time
+consumed by all of these context switches in total is printed, peaking
+at 21 ms.
+

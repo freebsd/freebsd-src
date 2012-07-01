@@ -147,8 +147,8 @@ struct MemsetRange {
 } // end anon namespace
 
 bool MemsetRange::isProfitableToUseMemset(const TargetData &TD) const {
-  // If we found more than 8 stores to merge or 64 bytes, use memset.
-  if (TheStores.size() >= 8 || End-Start >= 64) return true;
+  // If we found more than 4 stores to merge or 16 bytes, use memset.
+  if (TheStores.size() >= 4 || End-Start >= 16) return true;
 
   // If there is nothing to merge, don't do anything.
   if (TheStores.size() < 2) return false;
@@ -806,21 +806,25 @@ bool MemCpyOpt::processMemCpy(MemCpyInst *M) {
   //   a) memcpy-memcpy xform which exposes redundance for DSE.
   //   b) call-memcpy xform for return slot optimization.
   MemDepResult DepInfo = MD->getDependency(M);
-  if (!DepInfo.isClobber())
-    return false;
-  
-  if (MemCpyInst *MDep = dyn_cast<MemCpyInst>(DepInfo.getInst()))
-    return processMemCpyMemCpyDependence(M, MDep, CopySize->getZExtValue());
-    
-  if (CallInst *C = dyn_cast<CallInst>(DepInfo.getInst())) {
-    if (performCallSlotOptzn(M, M->getDest(), M->getSource(),
-                             CopySize->getZExtValue(), C)) {
-      MD->removeInstruction(M);
-      M->eraseFromParent();
-      return true;
+  if (DepInfo.isClobber()) {
+    if (CallInst *C = dyn_cast<CallInst>(DepInfo.getInst())) {
+      if (performCallSlotOptzn(M, M->getDest(), M->getSource(),
+                               CopySize->getZExtValue(), C)) {
+        MD->removeInstruction(M);
+        M->eraseFromParent();
+        return true;
+      }
     }
   }
-  
+
+  AliasAnalysis::Location SrcLoc = AliasAnalysis::getLocationForSource(M);
+  MemDepResult SrcDepInfo = MD->getPointerDependencyFrom(SrcLoc, true,
+                                                         M, M->getParent());
+  if (SrcDepInfo.isClobber()) {
+    if (MemCpyInst *MDep = dyn_cast<MemCpyInst>(SrcDepInfo.getInst()))
+      return processMemCpyMemCpyDependence(M, MDep, CopySize->getZExtValue());
+  }
+
   return false;
 }
 
@@ -945,7 +949,7 @@ bool MemCpyOpt::iterateOnFunction(Function &F) {
         RepeatInstruction = processMemMove(M);
       else if (CallSite CS = (Value*)I) {
         for (unsigned i = 0, e = CS.arg_size(); i != e; ++i)
-          if (CS.paramHasAttr(i+1, Attribute::ByVal))
+          if (CS.isByValArgument(i))
             MadeChange |= processByValArgument(CS, i);
       }
 

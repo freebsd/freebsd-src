@@ -30,12 +30,15 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sbuf.h>
@@ -48,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
+#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_util.h>
 
 #define	LINUX_CTL_KERN		1
@@ -65,23 +69,49 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_KERN_OSREV	3
 #define	LINUX_KERN_VERSION	4
 
+/* DTrace init */
+LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
+
+/**
+ * DTrace probes in this module.
+ */
+LIN_SDT_PROBE_DEFINE2(sysctl, handle_string, entry, "struct l___sysctl_args *",
+    "char *");
+LIN_SDT_PROBE_DEFINE1(sysctl, handle_string, copyout_error, "int");
+LIN_SDT_PROBE_DEFINE1(sysctl, handle_string, return, "int");
+LIN_SDT_PROBE_DEFINE2(sysctl, linux_sysctl, entry, "struct l___sysctl_args *",
+    "struct thread *");
+LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, copyin_error, "int");
+LIN_SDT_PROBE_DEFINE2(sysctl, linux_sysctl, wrong_length, "int", "int");
+LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, unsupported_sysctl, "char *");
+LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, return, "int");
+
 static int
 handle_string(struct l___sysctl_args *la, char *value)
 {
 	int error;
+
+	LIN_SDT_PROBE2(sysctl, handle_string, entry, la, value);
 
 	if (la->oldval != 0) {
 		l_int len = strlen(value);
 		error = copyout(value, PTRIN(la->oldval), len + 1);
 		if (!error && la->oldlenp != 0)
 			error = copyout(&len, PTRIN(la->oldlenp), sizeof(len));
-		if (error)
+		if (error) {
+			LIN_SDT_PROBE1(sysctl, handle_string, copyout_error,
+			    error);
+			LIN_SDT_PROBE1(sysctl, handle_string, return, error);
 			return (error);
+		}
 	}
 
-	if (la->newval != 0)
+	if (la->newval != 0) {
+		LIN_SDT_PROBE1(sysctl, handle_string, return, ENOTDIR);
 		return (ENOTDIR);
+	}
 
+	LIN_SDT_PROBE1(sysctl, handle_string, return, 0);
 	return (0);
 }
 
@@ -91,18 +121,30 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	struct l___sysctl_args la;
 	struct sbuf *sb;
 	l_int *mib;
+	char *sysctl_string;
 	int error, i;
 
-	error = copyin(args->args, &la, sizeof(la));
-	if (error)
-		return (error);
+	LIN_SDT_PROBE2(sysctl, linux_sysctl, entry, td, args->args);
 
-	if (la.nlen <= 0 || la.nlen > LINUX_CTL_MAXNAME)
+	error = copyin(args->args, &la, sizeof(la));
+	if (error) {
+		LIN_SDT_PROBE1(sysctl, linux_sysctl, copyin_error, error);
+		LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
+		return (error);
+	}
+
+	if (la.nlen <= 0 || la.nlen > LINUX_CTL_MAXNAME) {
+		LIN_SDT_PROBE2(sysctl, linux_sysctl, wrong_length, la.nlen,
+		    LINUX_CTL_MAXNAME);
+		LIN_SDT_PROBE1(sysctl, linux_sysctl, return, ENOTDIR);
 		return (ENOTDIR);
+	}
 
 	mib = malloc(la.nlen * sizeof(l_int), M_TEMP, M_WAITOK);
 	error = copyin(PTRIN(la.name), mib, la.nlen * sizeof(l_int));
 	if (error) {
+		LIN_SDT_PROBE1(sysctl, linux_sysctl, copyin_error, error);
+		LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
 		free(mib, M_TEMP);
 		return (error);
 	}
@@ -116,6 +158,7 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		case LINUX_KERN_VERSION:
 			error = handle_string(&la, version);
 			free(mib, M_TEMP);
+			LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
 			return (error);
 		default:
 			break;
@@ -128,16 +171,23 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	sb = sbuf_new(NULL, NULL, 20 + la.nlen * 5, SBUF_AUTOEXTEND);
 	if (sb == NULL) {
 		linux_msg(td, "sysctl is not implemented");
+		LIN_SDT_PROBE1(sysctl, linux_sysctl, unsupported_sysctl,
+		    "unknown sysctl, ENOMEM during lookup");
 	} else {
 		sbuf_printf(sb, "sysctl ");
 		for (i = 0; i < la.nlen; i++)
 			sbuf_printf(sb, "%c%d", (i) ? ',' : '{', mib[i]);
 		sbuf_printf(sb, "} is not implemented");
 		sbuf_finish(sb);
+		sysctl_string = sbuf_data(sb);
 		linux_msg(td, "%s", sbuf_data(sb));
+		LIN_SDT_PROBE1(sysctl, linux_sysctl, unsupported_sysctl,
+		    sysctl_string);
 		sbuf_delete(sb);
 	}
 
 	free(mib, M_TEMP);
+
+	LIN_SDT_PROBE1(sysctl, linux_sysctl, return, ENOTDIR);
 	return (ENOTDIR);
 }

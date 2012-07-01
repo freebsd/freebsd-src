@@ -1,0 +1,57 @@
+The following is an example of the shortlived.d program.
+It can measure time spent processing short lived processes,
+that may be responsible for heavy load on the system but
+are usually difficult to see with sampling tools like prstat.
+
+
+
+Here we run in for a few seconds on a server,
+
+   # shortlived.d
+   Tracing... Hit Ctrl-C to stop.
+   ^C
+   short lived processes:      0.456 secs
+   total sample duration:      9.352 secs
+   
+   Total time by process name,
+                 date           12 ms
+                   df           20 ms
+                   ls           40 ms
+                 perl          380 ms
+   
+   Total time by PPID,
+                 3279          452 ms
+
+In the above output, around 5% of the CPU was lost to short
+lived processes - mostly perl. This may be many perl processes,
+here we are aggregating on the process name not the instance.
+
+
+
+Now shortlived.d is run on a server with a performance problem,
+
+   # uptime
+     10:58pm  up 5 day(s),  1:28,  1 user,  load average: 2.20, 1.81, 1.04
+   #
+   # shortlived.d
+   Tracing... Hit Ctrl-C to stop.
+   ^C
+   short lived processes:      4.546 secs
+   total sample duration:      9.858 secs
+   
+   Total time by process name,
+                 expr         4122 ms
+   
+   Total time by PPID,
+                 3279         4122 ms
+   #
+   # ps -p 3279
+      PID TTY         TIME CMD
+     3279 pts/10      0:45 report.sh
+
+shortlived.d showed that 50% of the CPU was consumed by short lived
+processes, all of them the "expr" command, and all having the 
+parent proccess-ID 3279. We finished by checking PID 3279 to find
+it is a Bourne shell script called "report.sh".
+
+

@@ -8,13 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCMachObjectWriter.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSymbol.h"
@@ -584,9 +584,16 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
     // requires the compiler to use .set to absolutize the differences between
     // symbols which the compiler knows to be assembly time constants, so we
     // don't need to worry about considering symbol differences fully resolved.
+    //
+    // If the file isn't using sub-sections-via-symbols, we can make the
+    // same assumptions about any symbol that we normally make about
+    // assembler locals.
 
     if (!Asm.getBackend().hasReliableSymbolDifference()) {
-      if (!SA.isTemporary() || !SA.isInSection() || &SecA != &SecB)
+      if (!SA.isInSection() || &SecA != &SecB ||
+          (!SA.isTemporary() &&
+           FB.getAtom() != Asm.getSymbolData(SA).getFragment()->getAtom() &&
+           Asm.getSubsectionsViaSymbols()))
         return false;
       return true;
     }
@@ -628,7 +635,7 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
 }
 
 void MachObjectWriter::WriteObject(MCAssembler &Asm,
-				   const MCAsmLayout &Layout) {
+                                   const MCAsmLayout &Layout) {
   unsigned NumSections = Asm.size();
 
   // The section data starts after the header, the segment load command (and
@@ -731,7 +738,7 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
   // Write the actual section data.
   for (MCAssembler::const_iterator it = Asm.begin(),
          ie = Asm.end(); it != ie; ++it) {
-    Asm.WriteSectionData(it, Layout);
+    Asm.writeSectionData(it, Layout);
 
     uint64_t Pad = getPaddingSize(it, Layout);
     for (unsigned int i = 0; i < Pad; ++i)

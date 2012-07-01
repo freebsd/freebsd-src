@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2007-2008 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 2007-2008 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2010
+.Dd May 10, 2012
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -102,6 +102,16 @@ content of the archive.
 .It Fl x Ar pattern
 Exclude files matching the pattern
 .Ar pattern .
+.It Fl Z Ar mode
+Emulate
+.Xr zipinfo 1L
+mode.
+Enabling
+.Xr zipinfo 1L
+mode changes the way in which additional arguments are parsed.
+Currently only
+.Xr zipinfo 1L
+mode 1 is supported, which lists the file names one per line.
 .El
 .Pp
 Note that only one of

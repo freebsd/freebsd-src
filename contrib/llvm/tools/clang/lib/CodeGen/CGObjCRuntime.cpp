@@ -41,7 +41,7 @@ static uint64_t LookupFieldBitOffset(CodeGen::CodeGenModule &CGM,
   // If we know have an implementation (and the ivar is in it) then
   // look up in the implementation layout.
   const ASTRecordLayout *RL;
-  if (ID && ID->getClassInterface() == Container)
+  if (ID && declaresSameEntity(ID->getClassInterface(), Container))
     RL = &CGM.getContext().getASTObjCImplementationLayout(ID);
   else
     RL = &CGM.getContext().getASTObjCInterfaceLayout(Container);
@@ -85,7 +85,7 @@ LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
                                                unsigned CVRQualifiers,
                                                llvm::Value *Offset) {
   // Compute (type*) ( (char *) BaseValue + Offset)
-  llvm::Type *I8Ptr = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
+  llvm::Type *I8Ptr = CGF.Int8PtrTy;
   QualType IvarTy = Ivar->getType();
   llvm::Type *LTy = CGF.CGM.getTypes().ConvertTypeForMem(IvarTy);
   llvm::Value *V = CGF.Builder.CreateBitCast(BaseValue, I8Ptr);
@@ -93,7 +93,7 @@ LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
   V = CGF.Builder.CreateBitCast(V, llvm::PointerType::getUnqual(LTy));
 
   if (!Ivar->isBitField()) {
-    LValue LV = CGF.MakeAddrLValue(V, IvarTy);
+    LValue LV = CGF.MakeNaturalAlignAddrLValue(V, IvarTy);
     LV.getQuals().addCVRQualifiers(CVRQualifiers);
     return LV;
   }
@@ -229,7 +229,7 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
       cast<llvm::CallInst>(Exn)->setDoesNotThrow();
     }
 
-    CodeGenFunction::RunCleanupsScope cleanups(CGF);
+    CodeGenFunction::LexicalScope cleanups(CGF, Handler.Body->getSourceRange());
 
     if (endCatchFn) {
       // Add a cleanup to leave the catch.
@@ -246,7 +246,24 @@ void CGObjCRuntime::EmitTryCatchStmt(CodeGenFunction &CGF,
       llvm::Value *CastExn = CGF.Builder.CreateBitCast(Exn, CatchType);
 
       CGF.EmitAutoVarDecl(*CatchParam);
-      CGF.Builder.CreateStore(CastExn, CGF.GetAddrOfLocalVar(CatchParam));
+
+      llvm::Value *CatchParamAddr = CGF.GetAddrOfLocalVar(CatchParam);
+
+      switch (CatchParam->getType().getQualifiers().getObjCLifetime()) {
+      case Qualifiers::OCL_Strong:
+        CastExn = CGF.EmitARCRetainNonBlock(CastExn);
+        // fallthrough
+
+      case Qualifiers::OCL_None:
+      case Qualifiers::OCL_ExplicitNone:
+      case Qualifiers::OCL_Autoreleasing:
+        CGF.Builder.CreateStore(CastExn, CatchParamAddr);
+        break;
+
+      case Qualifiers::OCL_Weak:
+        CGF.EmitARCInitWeak(CatchParamAddr, CastExn);
+        break;
+      }
     }
 
     CGF.ObjCEHValueStack.push_back(Exn);
@@ -293,7 +310,7 @@ void CGObjCRuntime::EmitAtSynchronizedStmt(CodeGenFunction &CGF,
   // ARC release and lock-release cleanups.
   const Expr *lockExpr = S.getSynchExpr();
   llvm::Value *lock;
-  if (CGF.getLangOptions().ObjCAutoRefCount) {
+  if (CGF.getLangOpts().ObjCAutoRefCount) {
     lock = CGF.EmitARCRetainScalarExpr(lockExpr);
     lock = CGF.EmitObjCConsumeObject(lockExpr->getType(), lock);
   } else {
@@ -309,4 +326,49 @@ void CGObjCRuntime::EmitAtSynchronizedStmt(CodeGenFunction &CGF,
 
   // Emit the body of the statement.
   CGF.EmitStmt(S.getSynchBody());
+}
+
+/// Compute the pointer-to-function type to which a message send
+/// should be casted in order to correctly call the given method
+/// with the given arguments.
+///
+/// \param method - may be null
+/// \param resultType - the result type to use if there's no method
+/// \param argInfo - the actual arguments, including implicit ones
+CGObjCRuntime::MessageSendInfo
+CGObjCRuntime::getMessageSendInfo(const ObjCMethodDecl *method,
+                                  QualType resultType,
+                                  CallArgList &callArgs) {
+  // If there's a method, use information from that.
+  if (method) {
+    const CGFunctionInfo &signature =
+      CGM.getTypes().arrangeObjCMessageSendSignature(method, callArgs[0].Ty);
+
+    llvm::PointerType *signatureType =
+      CGM.getTypes().GetFunctionType(signature)->getPointerTo();
+
+    // If that's not variadic, there's no need to recompute the ABI
+    // arrangement.
+    if (!signature.isVariadic())
+      return MessageSendInfo(signature, signatureType);
+
+    // Otherwise, there is.
+    FunctionType::ExtInfo einfo = signature.getExtInfo();
+    const CGFunctionInfo &argsInfo =
+      CGM.getTypes().arrangeFunctionCall(resultType, callArgs, einfo,
+                                         signature.getRequiredArgs());
+
+    return MessageSendInfo(argsInfo, signatureType);
+  }
+
+  // There's no method;  just use a default CC.
+  const CGFunctionInfo &argsInfo =
+    CGM.getTypes().arrangeFunctionCall(resultType, callArgs, 
+                                       FunctionType::ExtInfo(),
+                                       RequiredArgs::All);
+
+  // Derive the signature to call from that.
+  llvm::PointerType *signatureType =
+    CGM.getTypes().GetFunctionType(argsInfo)->getPointerTo();
+  return MessageSendInfo(argsInfo, signatureType);
 }

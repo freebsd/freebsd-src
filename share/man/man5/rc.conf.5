@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2012
+.Dd May 6, 2012
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -386,7 +386,7 @@ is used to set the hostname via DHCP,
 this variable should be set to an empty string.
 If this value remains unset when the system is done booting
 your console login will display the default hostname of
-.Dq Amnesiac.
+.Dq Amnesiac .
 .It Va nisdomainname
 .Pq Vt str
 The NIS domain name of this host, or
@@ -1299,6 +1299,7 @@ ifconfig_ed0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
 .Ed
 .It Va ipv6_enable
+.Pq Vt bool
 This variable is deprecated.
 Use
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
@@ -1306,7 +1307,6 @@ and
 .Va ipv6_activate_all_interfaces
 if necessary.
 .Pp
-.Pq Vt bool
 If the variable is
 .Dq Li YES ,
 .Dq Li inet6 accept_rtadv
@@ -1317,12 +1317,12 @@ and the
 is defined as
 .Dq Li YES .
 .It Va ipv6_prefer
+.Pq Vt bool
 This variable is deprecated.
 Use
 .Va ip6addrctl_policy
 instead.
 .Pp
-.Pq Vt bool
 If the variable is
 .Dq Li YES ,
 the default address selection policy table set by
@@ -2086,6 +2086,19 @@ If
 is set to
 .Dq Li YES
 this is the path to Kerberos 5 Password-Changing Daemon.
+.It Va kfd_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to start
+.Xr kfd 8 ,
+the Kerberos 5 ticket forwarding daemon, at the boot time.
+.It Va kfd_program
+.Pq Vt str
+Path to
+.Xr kfd 8
+(default
+.Pa /usr/libexec/kfd ) .
 .It Va rwhod_enable
 .Pq Vt bool
 If set to
@@ -3273,9 +3286,10 @@ is enabled, and a
 daemon is started for a non-default port, the
 .Va "moused_" Ns Ar XXX Ns Va "_flags"
 set of options has precedence over and replaces the default
-.Va moused_flags (where
+.Va moused_flags
+(where
 .Ar XXX
-is the name of the non-default port, i.e.\&
+is the name of the non-default port, i.e.,\&
 .Ar ums0 ) .
 By setting
 .Va "moused_" Ns Ar XXX Ns Va "_flags"

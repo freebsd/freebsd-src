@@ -1428,7 +1428,7 @@ zfs_zinactive(znode_t *zp)
 		mutex_exit(&zp->z_lock);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
 		ASSERT(vp->v_count == 0);
-		vrecycle(vp, curthread);
+		vrecycle(vp);
 		vfslocked = VFS_LOCK_GIANT(zfsvfs->z_vfs);
 		zfs_rmnode(zp);
 		VFS_UNLOCK_GIANT(vfslocked);

@@ -318,6 +318,7 @@ struct ata_params {
 #define ATA_READ_VERIFY48               0x42
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
+#define ATA_SEP_ATTN                    0x67    /* SEP request */
 #define ATA_SEEK                        0x70    /* seek */
 #define ATA_PACKET_CMD                  0xa0    /* packet command */
 #define ATA_ATAPI_IDENTIFY              0xa1    /* get ATAPI params*/

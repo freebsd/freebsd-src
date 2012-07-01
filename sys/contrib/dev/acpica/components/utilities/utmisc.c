@@ -53,6 +53,43 @@
         ACPI_MODULE_NAME    ("utmisc")
 
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
+/*******************************************************************************
+ *
+ * FUNCTION:    UtConvertBackslashes
+ *
+ * PARAMETERS:  Pathname        - File pathname string to be converted
+ *
+ * RETURN:      Modifies the input Pathname
+ *
+ * DESCRIPTION: Convert all backslashes (0x5C) to forward slashes (0x2F) within
+ *              the entire input file pathname string.
+ *
+ ******************************************************************************/
+
+void
+UtConvertBackslashes (
+    char                    *Pathname)
+{
+
+    if (!Pathname)
+    {
+        return;
+    }
+
+    while (*Pathname)
+    {
+        if (*Pathname == '\\')
+        {
+            *Pathname = '/';
+        }
+
+        Pathname++;
+    }
+}
+#endif
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtValidateException
@@ -1295,5 +1332,3 @@ AcpiUtWalkPackageTree (
 
     return_ACPI_STATUS (AE_AML_INTERNAL);
 }
-
-

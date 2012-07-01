@@ -18,6 +18,7 @@ let Component = "Common" in {
 def fatal_too_many_errors
   : Error<"too many errors emitted, stopping now">, DefaultFatal; 
 
+def note_declared_at : Note<"declared here">;
 def note_previous_definition : Note<"previous definition is here">;
 def note_previous_declaration : Note<"previous declaration is here">;
 def note_previous_implicit_declaration : Note<
@@ -40,6 +41,12 @@ def err_expected_colon : Error<"expected ':'">;
 def err_expected_colon_after_setter_name : Error<
   "method name referenced in property setter attribute "
   "must end with ':'">;
+def err_invalid_string_udl : Error<
+  "string literal with user-defined suffix cannot be used here">;
+def err_invalid_character_udl : Error<
+  "character literal with user-defined suffix cannot be used here">;
+def err_invalid_numeric_udl : Error<
+  "numeric literal with user-defined suffix cannot be used here">;
 
 // Parse && Sema
 def ext_no_declarators : ExtWarn<"declaration does not declare anything">,
@@ -58,8 +65,6 @@ def warn_cxx98_compat_variadic_templates :
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_default_special_members : Error<
   "only special member functions may be defaulted">;
-def err_friends_define_only_namespace_scope : Error<
-  "cannot define a function with non-namespace scope in a friend declaration">;
 def err_deleted_non_function : Error<
   "only functions can have deleted definitions">;
 def err_module_not_found : Error<"module '%0' not found">, DefaultFatal;
@@ -83,8 +88,8 @@ def warn_integer_too_large_for_signed : Warning<
   "integer constant is so large that it is unsigned">;
 
 // Sema && AST
-def note_invalid_subexpr_in_ice : Note<
-  "subexpression not valid in an integer constant expression">;
+def note_invalid_subexpr_in_const_expr : Note<
+  "subexpression not valid in a constant expression">;
 
 // Targets
 

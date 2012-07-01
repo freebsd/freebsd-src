@@ -83,6 +83,7 @@ struct g_part_alias_list {
 	{ "fat32", G_PART_ALIAS_MS_FAT32 },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
+	{ "freebsd-nandfs", G_PART_ALIAS_FREEBSD_NANDFS },
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
@@ -103,6 +104,9 @@ struct g_part_alias_list {
 	{ "netbsd-lfs", G_PART_ALIAS_NETBSD_LFS },
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
+	{ "vmware-vmfs", G_PART_ALIAS_VMFS },
+	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
+	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
 };
 
 SYSCTL_DECL(_kern_geom);

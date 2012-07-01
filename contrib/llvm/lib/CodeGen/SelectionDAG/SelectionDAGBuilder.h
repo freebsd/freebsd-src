@@ -67,11 +67,11 @@ class SIToFPInst;
 class StoreInst;
 class SwitchInst;
 class TargetData;
+class TargetLibraryInfo;
 class TargetLowering;
 class TruncInst;
 class UIToFPInst;
 class UnreachableInst;
-class UnwindInst;
 class VAArgInst;
 class ZExtInst;
 
@@ -129,13 +129,13 @@ private:
   /// Case - A struct to record the Value for a switch case, and the
   /// case's target basic block.
   struct Case {
-    Constant* Low;
-    Constant* High;
+    const Constant *Low;
+    const Constant *High;
     MachineBasicBlock* BB;
     uint32_t ExtraWeight;
 
     Case() : Low(0), High(0), BB(0), ExtraWeight(0) { }
-    Case(Constant* low, Constant* high, MachineBasicBlock* bb,
+    Case(const Constant *low, const Constant *high, MachineBasicBlock *bb,
          uint32_t extraweight) : Low(low), High(high), BB(bb),
          ExtraWeight(extraweight) { }
 
@@ -294,6 +294,7 @@ public:
   SelectionDAG &DAG;
   const TargetData *TD;
   AliasAnalysis *AA;
+  const TargetLibraryInfo *LibInfo;
 
   /// SwitchCases - Vector of CaseBlock structures used to communicate
   /// SwitchInst code generation information.
@@ -338,7 +339,8 @@ public:
       HasTailCall(false), Context(dag.getContext()) {
   }
 
-  void init(GCFunctionInfo *gfi, AliasAnalysis &aa);
+  void init(GCFunctionInfo *gfi, AliasAnalysis &aa,
+            const TargetLibraryInfo *li);
 
   /// clear - Clear out the current SelectionDAG and the associated
   /// state and prepare this SelectionDAGBuilder object to be used
@@ -451,7 +453,8 @@ private:
                                 MachineBasicBlock* Default,
                                 MachineBasicBlock *SwitchBB);
 
-  uint32_t getEdgeWeight(MachineBasicBlock *Src, MachineBasicBlock *Dst);
+  uint32_t getEdgeWeight(const MachineBasicBlock *Src,
+                         const MachineBasicBlock *Dst) const;
   void addSuccessorWithWeight(MachineBasicBlock *Src, MachineBasicBlock *Dst,
                               uint32_t Weight = 0);
 public:
@@ -471,7 +474,6 @@ private:
   // These all get lowered before this pass.
   void visitInvoke(const InvokeInst &I);
   void visitResume(const ResumeInst &I);
-  void visitUnwind(const UnwindInst &I);
 
   void visitBinary(const User &I, unsigned OpCode);
   void visitShift(const User &I, unsigned Opcode);
@@ -554,8 +556,6 @@ private:
   void visitUserOp2(const Instruction &I) {
     llvm_unreachable("UserOp2 should not exist at instruction selection time!");
   }
-  
-  const char *implVisitAluOverflow(const CallInst &I, ISD::NodeType Op);
 
   void HandlePHINodesInSuccessorBlocks(const BasicBlock *LLVMBB);
 

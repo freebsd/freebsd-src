@@ -139,7 +139,7 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 };
 
 /*
- * As speeds for umodem deivces increase, these numbers will need to
+ * As speeds for umodem devices increase, these numbers will need to
  * be increased. They should be good for G3 speeds and below.
  *
  * TODO: The TTY buffers should be increased!

@@ -4,8 +4,8 @@ PROG=	iasl
 SRCS=	adfile.c adisasm.c adwalk.c
 
 # common
-SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
-	getopt.c
+SRCS+=	ahpredef.c dmextern.c dmrestag.c dmtable.c dmtbdump.c	\
+	dmtbinfo.c getopt.c
 
 # compiler
 SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
@@ -73,8 +73,9 @@ CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
 	dtparserparse.c dtparserparse.h
 
-aslcompilerlex.c: aslcompiler.l
-	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} ${.ALLSRC}
+aslcompilerlex.c: aslcompiler.l aslsupport.l
+	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} \
+	    ${ACPICA_DIR}/compiler/aslcompiler.l
 
 .ORDER: aslcompilerparse.c aslcompilerparse.h
 aslcompilerparse.c aslcompilerparse.h: aslcompiler.y

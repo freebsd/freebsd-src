@@ -9,8 +9,8 @@
 //
 //  This file defines partial implementations of template specializations of
 //  the class ProgramStateTrait<>.  ProgramStateTrait<> is used by ProgramState 
-//  to implement set/get methods for mapulating a ProgramState's
-// generic data map.
+//  to implement set/get methods for manipulating a ProgramState's
+//  generic data map.
 //
 //===----------------------------------------------------------------------===//
 
@@ -176,7 +176,20 @@ namespace ento {
       return (void*) (uintptr_t) d;
     }
   };
-  
+
+  // Partial specialization for void*.
+  template <> struct ProgramStatePartialTrait<void*> {
+    typedef void *data_type;
+
+    static inline data_type MakeData(void *const* p) {
+      return p ? *p
+               : data_type();
+    }
+    static inline void *MakeVoidPtr(data_type d) {
+      return d;
+    }
+  };
+
 } // end GR namespace
 
 } // end clang namespace

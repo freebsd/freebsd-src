@@ -36,13 +36,13 @@ public:
 
 void NoReturnFunctionChecker::checkPostStmt(const CallExpr *CE,
                                             CheckerContext &C) const {
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
   const Expr *Callee = CE->getCallee();
 
   bool BuildSinks = getFunctionExtInfo(Callee->getType()).getNoReturn();
 
   if (!BuildSinks) {
-    SVal L = state->getSVal(Callee);
+    SVal L = state->getSVal(Callee, C.getLocationContext());
     const FunctionDecl *FD = L.getAsFunctionDecl();
     if (!FD)
       return;

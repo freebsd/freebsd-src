@@ -26,6 +26,30 @@
 
 #include <immintrin.h>
 
-// FIXME: SSE4A, 3dNOW, FMA4, XOP, LWP, ABM, POPCNT
+#ifdef __3dNOW__
+#include <mm3dnow.h>
+#endif
+
+#ifdef __BMI__
+#include <bmiintrin.h>
+#endif
+
+#ifdef __BMI2__
+#include <bmi2intrin.h>
+#endif
+
+#ifdef __LZCNT__
+#include <lzcntintrin.h>
+#endif
+
+#ifdef __POPCNT__
+#include <popcntintrin.h>
+#endif
+
+#ifdef __FMA4__
+#include <fma4intrin.h>
+#endif
+
+// FIXME: SSE4A, XOP, LWP, ABM
 
 #endif /* __X86INTRIN_H */

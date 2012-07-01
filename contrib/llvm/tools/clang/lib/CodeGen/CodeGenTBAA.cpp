@@ -28,7 +28,7 @@ using namespace CodeGen;
 CodeGenTBAA::CodeGenTBAA(ASTContext &Ctx, llvm::LLVMContext& VMContext,
                          const LangOptions &Features, MangleContext &MContext)
   : Context(Ctx), VMContext(VMContext), Features(Features), MContext(MContext),
-    Root(0), Char(0) {
+    MDHelper(VMContext), Root(0), Char(0) {
 }
 
 CodeGenTBAA::~CodeGenTBAA() {
@@ -40,7 +40,7 @@ llvm::MDNode *CodeGenTBAA::getRoot() {
   // (or a different version of this front-end), their TBAA trees will
   // remain distinct, and the optimizer will treat them conservatively.
   if (!Root)
-    Root = getTBAAInfoForNamedType("Simple C/C++ TBAA", 0);
+    Root = MDHelper.createTBAARoot("Simple C/C++ TBAA");
 
   return Root;
 }
@@ -51,31 +51,9 @@ llvm::MDNode *CodeGenTBAA::getChar() {
   // these special powers only cover user-accessible memory, and doesn't
   // include things like vtables.
   if (!Char)
-    Char = getTBAAInfoForNamedType("omnipotent char", getRoot());
+    Char = MDHelper.createTBAANode("omnipotent char", getRoot());
 
   return Char;
-}
-
-/// getTBAAInfoForNamedType - Create a TBAA tree node with the given string
-/// as its identifier, and the given Parent node as its tree parent.
-llvm::MDNode *CodeGenTBAA::getTBAAInfoForNamedType(StringRef NameStr,
-                                                   llvm::MDNode *Parent,
-                                                   bool Readonly) {
-  // Currently there is only one flag defined - the readonly flag.
-  llvm::Value *Flags = 0;
-  if (Readonly)
-    Flags = llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext), true);
-
-  // Set up the mdnode operand list.
-  llvm::Value *Ops[] = {
-    llvm::MDString::get(VMContext, NameStr),
-    Parent,
-    Flags
-  };
-
-  // Create the mdnode.
-  unsigned Len = llvm::array_lengthof(Ops) - !Flags;
-  return llvm::MDNode::get(VMContext, llvm::makeArrayRef(Ops, Len));
 }
 
 static bool TypeHasMayAlias(QualType QTy) {
@@ -137,7 +115,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
     // "underlying types".
     default:
       return MetadataCache[Ty] =
-               getTBAAInfoForNamedType(BTy->getName(Features), getChar());
+        MDHelper.createTBAANode(BTy->getName(Features), getChar());
     }
   }
 
@@ -145,7 +123,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
   // TODO: Implement C++'s type "similarity" and consider dis-"similar"
   // pointers distinct.
   if (Ty->isPointerType())
-    return MetadataCache[Ty] = getTBAAInfoForNamedType("any pointer",
+    return MetadataCache[Ty] = MDHelper.createTBAANode("any pointer",
                                                        getChar());
 
   // Enum types are distinct types. In C++ they have "underlying types",
@@ -169,13 +147,17 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
 
     // TODO: This is using the RTTI name. Is there a better way to get
     // a unique string for a type?
-    llvm::SmallString<256> OutName;
+    SmallString<256> OutName;
     llvm::raw_svector_ostream Out(OutName);
     MContext.mangleCXXRTTIName(QualType(ETy, 0), Out);
     Out.flush();
-    return MetadataCache[Ty] = getTBAAInfoForNamedType(OutName, getChar());
+    return MetadataCache[Ty] = MDHelper.createTBAANode(OutName, getChar());
   }
 
   // For now, handle any other kind of type conservatively.
   return MetadataCache[Ty] = getChar();
+}
+
+llvm::MDNode *CodeGenTBAA::getTBAAInfoForVTablePtr() {
+  return MDHelper.createTBAANode("vtable pointer", getRoot());
 }

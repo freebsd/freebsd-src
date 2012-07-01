@@ -10,15 +10,26 @@
 #ifndef LLVM_ADT_STRINGREF_H
 #define LLVM_ADT_STRINGREF_H
 
+#include "llvm/Support/type_traits.h"
+
 #include <cassert>
 #include <cstring>
-#include <utility>
+#include <limits>
 #include <string>
+#include <utility>
 
 namespace llvm {
   template<typename T>
   class SmallVectorImpl;
   class APInt;
+  class hash_code;
+  class StringRef;
+
+  /// Helper functions for StringRef::getAsInteger.
+  bool getAsUnsignedInteger(StringRef Str, unsigned Radix,
+                            unsigned long long &Result);
+
+  bool getAsSignedInteger(StringRef Str, unsigned Radix, long long &Result);
 
   /// StringRef - Represent a constant reference to a string, i.e. a character
   /// array and a length, which need not be null terminated.
@@ -304,14 +315,29 @@ namespace llvm {
     ///
     /// If the string is invalid or if only a subset of the string is valid,
     /// this returns true to signify the error.  The string is considered
-    /// erroneous if empty.
+    /// erroneous if empty or if it overflows T.
     ///
-    bool getAsInteger(unsigned Radix, long long &Result) const;
-    bool getAsInteger(unsigned Radix, unsigned long long &Result) const;
-    bool getAsInteger(unsigned Radix, int &Result) const;
-    bool getAsInteger(unsigned Radix, unsigned &Result) const;
+    template <typename T>
+    typename enable_if_c<std::numeric_limits<T>::is_signed, bool>::type
+    getAsInteger(unsigned Radix, T &Result) const {
+      long long LLVal;
+      if (getAsSignedInteger(*this, Radix, LLVal) ||
+            static_cast<T>(LLVal) != LLVal)
+        return true;
+      Result = LLVal;
+      return false;
+    }
 
-    // TODO: Provide overloads for int/unsigned that check for overflow.
+    template <typename T>
+    typename enable_if_c<!std::numeric_limits<T>::is_signed, bool>::type
+    getAsInteger(unsigned Radix, T &Result) const {
+      unsigned long long ULLVal;
+      if (getAsUnsignedInteger(*this, Radix, ULLVal) ||
+            static_cast<T>(ULLVal) != ULLVal)
+        return true;
+      Result = ULLVal;
+      return false;
+    }
 
     /// getAsInteger - Parse the current string as an integer of the
     /// specified radix, or of an autosensed radix if the radix given
@@ -325,6 +351,16 @@ namespace llvm {
     /// APInt::fromString is superficially similar but assumes the
     /// string is well-formed in the given radix.
     bool getAsInteger(unsigned Radix, APInt &Result) const;
+
+    /// @}
+    /// @name String Operations
+    /// @{
+
+    // lower - Convert the given ASCII string to lowercase.
+    std::string lower() const;
+
+    /// upper - Convert the given ASCII string to uppercase.
+    std::string upper() const;
 
     /// @}
     /// @name Substring Operations
@@ -342,6 +378,20 @@ namespace llvm {
     StringRef substr(size_t Start, size_t N = npos) const {
       Start = min(Start, Length);
       return StringRef(Data + Start, min(N, Length - Start));
+    }
+    
+    /// drop_front - Return a StringRef equal to 'this' but with the first
+    /// elements dropped.
+    StringRef drop_front(unsigned N = 1) const {
+      assert(size() >= N && "Dropping more elements than exist");
+      return substr(N);
+    }
+
+    /// drop_back - Return a StringRef equal to 'this' but with the last
+    /// elements dropped.
+    StringRef drop_back(unsigned N = 1) const {
+      assert(size() >= N && "Dropping more elements than exist");
+      return substr(0, size()-N);
     }
 
     /// slice - Return a reference to the substring from [Start, End).
@@ -465,6 +515,9 @@ namespace llvm {
   }
 
   /// @}
+
+  /// \brief Compute a hash_code for a StringRef.
+  hash_code hash_value(StringRef S);
 
   // StringRefs can be treated like a POD type.
   template <typename T> struct isPodLike;

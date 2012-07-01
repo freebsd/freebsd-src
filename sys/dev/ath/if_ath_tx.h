@@ -109,8 +109,6 @@ extern void ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid, struct ath_buf *bf);
 extern struct ieee80211_tx_ampdu * ath_tx_get_tx_tid(struct ath_node *an,
     int tid);
-extern int ath_tx_tid_seqno_assign(struct ath_softc *sc,
-    struct ieee80211_node *ni, struct ath_buf *bf, struct mbuf *m0);
 
 /* TX addba handling */
 extern	int ath_addba_request(struct ieee80211_node *ni,

@@ -225,6 +225,7 @@ struct ath_desc_status {
 #define	ds_rxstat	ds_us.rx
 
 /* flags passed to tx descriptor setup methods */
+/* This is a uint16_t field in ath_buf, just be warned! */
 #define	HAL_TXDESC_CLRDMASK	0x0001	/* clear destination filter mask */
 #define	HAL_TXDESC_NOACK	0x0002	/* don't wait for ACK */
 #define	HAL_TXDESC_RTSENA	0x0004	/* enable RTS */

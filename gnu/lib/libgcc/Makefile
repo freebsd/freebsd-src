@@ -15,7 +15,7 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-.if ${TARGET_CPUARCH} == "sparc64" || ${TARGET_CPUARCH} == "mips"
+.if ${TARGET_CPUARCH} == "mips"
 LIB=		gcc
 .endif
 
@@ -274,7 +274,7 @@ ${ASM_S}: ${LIB1ASMSRC}
 ${ASM_V}: ${LIB1ASMSRC}
 	${CC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.PREFIX}.vo ${.ALLSRC:N*.h}
-	( nm -pg ${.PREFIX}.vo | \
+	( ${NM} -pg ${.PREFIX}.vo | \
 		awk 'NF == 3 && $$2 !~ /^[UN]$$/ { print "\t.hidden ", $$3 }'\
 	) > ${.TARGET}
 
@@ -326,7 +326,7 @@ SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
 VERSION_MAP      = libgcc.map
 
 libgcc.map: ${SHLIB_MKMAP} ${SHLIB_MAPFILES} ${SOBJS} ${OBJS:R:S/$/.So/}
-	(  nm -pg ${SOBJS};echo %% ; \
+	(  ${NM} -pg ${SOBJS};echo %% ; \
 	  cat ${SHLIB_MAPFILES} \
 	    | sed -e '/^[   ]*#/d' \
 	          -e 's/^%\(if\|else\|elif\|endif\|define\)/#\1/' \

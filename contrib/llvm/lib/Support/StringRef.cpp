@@ -10,6 +10,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/edit_distance.h"
 #include <bitset>
 
 using namespace llvm;
@@ -22,6 +24,12 @@ const size_t StringRef::npos;
 static char ascii_tolower(char x) {
   if (x >= 'A' && x <= 'Z')
     return x - 'A' + 'a';
+  return x;
+}
+
+static char ascii_toupper(char x) {
+  if (x >= 'a' && x <= 'z')
+    return x - 'a' + 'A';
   return x;
 }
 
@@ -78,56 +86,29 @@ int StringRef::compare_numeric(StringRef RHS) const {
 unsigned StringRef::edit_distance(llvm::StringRef Other,
                                   bool AllowReplacements,
                                   unsigned MaxEditDistance) {
-  // The algorithm implemented below is the "classic"
-  // dynamic-programming algorithm for computing the Levenshtein
-  // distance, which is described here:
-  //
-  //   http://en.wikipedia.org/wiki/Levenshtein_distance
-  //
-  // Although the algorithm is typically described using an m x n
-  // array, only two rows are used at a time, so this implemenation
-  // just keeps two separate vectors for those two rows.
-  size_type m = size();
-  size_type n = Other.size();
+  return llvm::ComputeEditDistance(
+      llvm::ArrayRef<char>(data(), size()),
+      llvm::ArrayRef<char>(Other.data(), Other.size()),
+      AllowReplacements, MaxEditDistance);
+}
 
-  const unsigned SmallBufferSize = 64;
-  unsigned SmallBuffer[SmallBufferSize];
-  llvm::OwningArrayPtr<unsigned> Allocated;
-  unsigned *previous = SmallBuffer;
-  if (2*(n + 1) > SmallBufferSize) {
-    previous = new unsigned [2*(n+1)];
-    Allocated.reset(previous);
+//===----------------------------------------------------------------------===//
+// String Operations
+//===----------------------------------------------------------------------===//
+
+std::string StringRef::lower() const {
+  std::string Result(size(), char());
+  for (size_type i = 0, e = size(); i != e; ++i) {
+    Result[i] = ascii_tolower(Data[i]);
   }
-  unsigned *current = previous + (n + 1);
+  return Result;
+}
 
-  for (unsigned i = 0; i <= n; ++i)
-    previous[i] = i;
-
-  for (size_type y = 1; y <= m; ++y) {
-    current[0] = y;
-    unsigned BestThisRow = current[0];
-
-    for (size_type x = 1; x <= n; ++x) {
-      if (AllowReplacements) {
-        current[x] = min(previous[x-1] + ((*this)[y-1] == Other[x-1]? 0u:1u),
-                         min(current[x-1], previous[x])+1);
-      }
-      else {
-        if ((*this)[y-1] == Other[x-1]) current[x] = previous[x-1];
-        else current[x] = min(current[x-1], previous[x]) + 1;
-      }
-      BestThisRow = min(BestThisRow, current[x]);
-    }
-
-    if (MaxEditDistance && BestThisRow > MaxEditDistance)
-      return MaxEditDistance + 1;
-
-    unsigned *tmp = current;
-    current = previous;
-    previous = tmp;
+std::string StringRef::upper() const {
+  std::string Result(size(), char());
+  for (size_type i = 0, e = size(); i != e; ++i) {
+    Result[i] = ascii_toupper(Data[i]);
   }
-
-  unsigned Result = previous[n];
   return Result;
 }
 
@@ -144,9 +125,35 @@ size_t StringRef::find(StringRef Str, size_t From) const {
   size_t N = Str.size();
   if (N > Length)
     return npos;
-  for (size_t e = Length - N + 1, i = min(From, e); i != e; ++i)
-    if (substr(i, N).equals(Str))
-      return i;
+
+  // For short haystacks or unsupported needles fall back to the naive algorithm
+  if (Length < 16 || N > 255 || N == 0) {
+    for (size_t e = Length - N + 1, i = min(From, e); i != e; ++i)
+      if (substr(i, N).equals(Str))
+        return i;
+    return npos;
+  }
+
+  if (From >= Length)
+    return npos;
+
+  // Build the bad char heuristic table, with uint8_t to reduce cache thrashing.
+  uint8_t BadCharSkip[256];
+  std::memset(BadCharSkip, N, 256);
+  for (unsigned i = 0; i != N-1; ++i)
+    BadCharSkip[(uint8_t)Str[i]] = N-1-i;
+
+  unsigned Len = Length-From, Pos = From;
+  while (Len >= N) {
+    if (substr(Pos, N).equals(Str)) // See if this is the correct substring.
+      return Pos;
+
+    // Otherwise skip the appropriate number of bytes.
+    uint8_t Skip = BadCharSkip[(uint8_t)(*this)[Pos+N-1]];
+    Len -= Skip;
+    Pos += Skip;
+  }
+
   return npos;
 }
 
@@ -223,6 +230,27 @@ StringRef::size_type StringRef::find_last_of(StringRef Chars,
   return npos;
 }
 
+void StringRef::split(SmallVectorImpl<StringRef> &A,
+                      StringRef Separators, int MaxSplit,
+                      bool KeepEmpty) const {
+  StringRef rest = *this;
+
+  // rest.data() is used to distinguish cases like "a," that splits into
+  // "a" + "" and "a" that splits into "a" + 0.
+  for (int splits = 0;
+       rest.data() != NULL && (MaxSplit < 0 || splits < MaxSplit);
+       ++splits) {
+    std::pair<StringRef, StringRef> p = rest.split(Separators);
+
+    if (KeepEmpty || p.first.size() != 0)
+      A.push_back(p.first);
+    rest = p.second;
+  }
+  // If we have a tail left, add it.
+  if (rest.data() != NULL && (rest.size() != 0 || KeepEmpty))
+    A.push_back(rest);
+}
+
 //===----------------------------------------------------------------------===//
 // Helpful Algorithms
 //===----------------------------------------------------------------------===//
@@ -257,8 +285,8 @@ static unsigned GetAutoSenseRadix(StringRef &Str) {
 
 /// GetAsUnsignedInteger - Workhorse method that converts a integer character
 /// sequence of radix up to 36 to an unsigned long long value.
-static bool GetAsUnsignedInteger(StringRef Str, unsigned Radix,
-                                 unsigned long long &Result) {
+bool llvm::getAsUnsignedInteger(StringRef Str, unsigned Radix,
+                                unsigned long long &Result) {
   // Autosense radix if not specified.
   if (Radix == 0)
     Radix = GetAutoSenseRadix(Str);
@@ -298,17 +326,13 @@ static bool GetAsUnsignedInteger(StringRef Str, unsigned Radix,
   return false;
 }
 
-bool StringRef::getAsInteger(unsigned Radix, unsigned long long &Result) const {
-  return GetAsUnsignedInteger(*this, Radix, Result);
-}
-
-
-bool StringRef::getAsInteger(unsigned Radix, long long &Result) const {
+bool llvm::getAsSignedInteger(StringRef Str, unsigned Radix,
+                              long long &Result) {
   unsigned long long ULLVal;
 
   // Handle positive strings first.
-  if (empty() || front() != '-') {
-    if (GetAsUnsignedInteger(*this, Radix, ULLVal) ||
+  if (Str.empty() || Str.front() != '-') {
+    if (getAsUnsignedInteger(Str, Radix, ULLVal) ||
         // Check for value so large it overflows a signed value.
         (long long)ULLVal < 0)
       return true;
@@ -317,7 +341,7 @@ bool StringRef::getAsInteger(unsigned Radix, long long &Result) const {
   }
 
   // Get the positive part of the value.
-  if (GetAsUnsignedInteger(substr(1), Radix, ULLVal) ||
+  if (getAsUnsignedInteger(Str.substr(1), Radix, ULLVal) ||
       // Reject values so large they'd overflow as negative signed, but allow
       // "-0".  This negates the unsigned so that the negative isn't undefined
       // on signed overflow.
@@ -325,24 +349,6 @@ bool StringRef::getAsInteger(unsigned Radix, long long &Result) const {
     return true;
 
   Result = -ULLVal;
-  return false;
-}
-
-bool StringRef::getAsInteger(unsigned Radix, int &Result) const {
-  long long Val;
-  if (getAsInteger(Radix, Val) ||
-      (int)Val != Val)
-    return true;
-  Result = Val;
-  return false;
-}
-
-bool StringRef::getAsInteger(unsigned Radix, unsigned &Result) const {
-  unsigned long long Val;
-  if (getAsInteger(Radix, Val) ||
-      (unsigned)Val != Val)
-    return true;
-  Result = Val;
   return false;
 }
 
@@ -419,4 +425,10 @@ bool StringRef::getAsInteger(unsigned Radix, APInt &Result) const {
   }
 
   return false;
+}
+
+
+// Implementation of StringRef hashing.
+hash_code llvm::hash_value(StringRef S) {
+  return hash_combine_range(S.begin(), S.end());
 }

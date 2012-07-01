@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2008
+.Dd June 27, 2012
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -87,7 +87,7 @@ parameters specified and attach it to the system.
 Detach a memory disk from the system and release all resources.
 .It Fl t Ar type
 Select the type of the memory disk.
-.Bl -tag -width "preload"
+.Bl -tag -width "malloc"
 .It Cm malloc
 Storage for this type of memory disk is allocated with
 .Xr malloc 9 .
@@ -104,31 +104,35 @@ becomes the backing store for this memory disk.
 .It Cm swap
 Storage for this type of memory disk is allocated from buffer
 memory.
-Pages get pushed out to the swap when the system is under memory
+Pages get pushed out to swap when the system is under memory
 pressure, otherwise they stay in the operating memory.
 Using
 .Cm swap
-backing is generally preferable over
+backing is generally preferred instead of using
 .Cm malloc
 backing.
 .El
 .It Fl f Ar file
-Filename to use for the vnode type memory disk. Options
+Filename to use for the vnode type memory disk.
+The
 .Fl a
 and
 .Fl t Ar vnode
-are implied if not specified.
+options are implied if not specified.
 .It Fl l
 List configured devices.
 If given with
 .Fl u ,
 display details about that particular device.
-If
+If the
 .Fl v
-option specified, show all details.
+option is specified, show all details.
 .It Fl n
-When printing md device names, print only the unit number without the
-md prefix.
+When printing
+.Xr md 4
+device names, print only the unit number without the
+.Xr md 4
+prefix.
 .It Fl s Ar size
 Size of the memory disk.
 .Ar Size
@@ -137,13 +141,14 @@ is the number of 512 byte sectors unless suffixed with a
 or
 .Cm t
 which
-denotes byte, kilobyte, megabyte, gigabyte and terabyte respectively. Options
+denotes byte, kilobyte, megabyte, gigabyte and terabyte respectively.
+The
 .Fl a
 and
 .Fl t Ar swap
-are implied if not specified.
+options are implied if not specified.
 .It Fl S Ar sectorsize
-Sectorsize to use for malloc backed device.
+Sectorsize to use for the memory disk, in bytes.
 .It Fl x Ar sectors/track
 See the description of the
 .Fl y
@@ -175,12 +180,12 @@ Allocate and reserve all needed storage from the start, rather than as needed.
 .It Oo Cm no Oc Ns Cm cluster
 Enable clustering on this disk.
 .It Oo Cm no Oc Ns Cm compress
-Enable/Disable compression features to reduce memory usage.
+Enable/disable compression features to reduce memory usage.
 .It Oo Cm no Oc Ns Cm force
-Disable/Enable extra sanity checks to prevent the user from doing something
+Disable/enable extra sanity checks to prevent the user from doing something
 that might adversely affect the system.
 .It Oo Cm no Oc Ns Cm readonly
-Enable/Disable readonly mode.
+Enable/disable readonly mode.
 .El
 .It Fl u Ar unit
 Request a specific unit number for the
@@ -197,15 +202,15 @@ is provided for convenience as an abbreviation of
 .Fl t Ar vnode
 .Fl f Ar file .
 .Sh EXAMPLES
-To create a 4 megabyte
+Create a 4 megabyte
 .Xr malloc 9
 backed memory disk.
-The name of the allocated unit will be output on stdout like
+The name of the allocated unit will be printed on stdout, such as
 .Dq Li md3 :
 .Pp
 .Dl mdconfig -a -t malloc -s 4m
 .Pp
-To create a disk named
+Create a disk named
 .Pa /dev/md4
 with
 .Pa /tmp/boot.flp
@@ -213,12 +218,12 @@ as backing storage:
 .Pp
 .Dl mdconfig -a -t vnode -f /tmp/boot.flp -u 4
 .Pp
-To detach and free all resources used by
+Detach and free all resources used by
 .Pa /dev/md4 :
 .Pp
 .Dl mdconfig -d -u 4
 .Pp
-To create a 128MByte swap backed disk, initialize an
+Create a 128MByte swap backed disk, initialize an
 .Xr ffs 7
 file system on it, and mount it on
 .Pa /tmp :
@@ -229,11 +234,12 @@ mount /dev/md10 /tmp
 chmod 1777 /tmp
 .Ed
 .Pp
-To create a 5MB file-backed disk
-.Ns ( Fl a
+Create a 5MB file-backed disk
+.Po Fl a
 and
 .Fl t Ar vnode
-are implied):
+are implied
+.Pc :
 .Bd -literal -offset indent
 dd if=/dev/zero of=somebackingfile bs=1k count=5k
 mdconfig -f somebackingfile -u 0
@@ -242,13 +248,14 @@ newfs md0c
 mount /dev/md0c /mnt
 .Ed
 .Pp
-To create an
+Create an
 .Xr md 4
 device out of an ISO 9660 CD image file
-.Ns ( Fl a
+.Po Fl a
 and
 .Fl t Ar vnode
-are implied), using the first available
+are implied
+.Pc , using the first available
 .Xr md 4
 device, and then mount the new memory disk:
 .Bd -literal -offset indent

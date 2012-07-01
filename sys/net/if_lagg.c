@@ -516,8 +516,13 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		return (ENOSPC);
 
 	/* Check if port has already been associated to a lagg */
-	if (ifp->if_lagg != NULL)
+	if (ifp->if_lagg != NULL) {
+		/* Port is already in the current lagg? */
+		lp = (struct lagg_port *)ifp->if_lagg;
+		if (lp->lp_softc == sc)
+			return (EEXIST);
 		return (EBUSY);
+	}
 
 	/* XXX Disallow non-ethernet interfaces (this should be any of 802) */
 	if (ifp->if_type != IFT_ETHER)
@@ -764,28 +769,18 @@ fallback:
 	return (EINVAL);
 }
 
+/*
+ * For direct output to child ports.
+ */
 static int
 lagg_port_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
 {
 	struct lagg_port *lp = ifp->if_lagg;
-	struct ether_header *eh;
-	short type = 0;
 
 	switch (dst->sa_family) {
 		case pseudo_AF_HDRCMPLT:
 		case AF_UNSPEC:
-			eh = (struct ether_header *)dst->sa_data;
-			type = eh->ether_type;
-			break;
-	}
-
-	/*
-	 * Only allow ethernet types required to initiate or maintain the link,
-	 * aggregated frames take a different path.
-	 */
-	switch (ntohs(type)) {
-		case ETHERTYPE_PAE:	/* EAPOL PAE/802.1x */
 			return ((*lp->lp_output)(ifp, m, dst, ro));
 	}
 
@@ -801,6 +796,9 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct lagg_softc *sc;
 
 	if ((lp = ifp->if_lagg) == NULL)
+		return;
+	/* If the ifnet is just being renamed, don't do anything. */
+	if (ifp->if_flags & IFF_RENAMING)
 		return;
 
 	sc = lp->lp_softc;
@@ -950,11 +948,11 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = EPROTONOSUPPORT;
 			break;
 		}
+		LAGG_WLOCK(sc);
 		if (sc->sc_proto != LAGG_PROTO_NONE) {
-			LAGG_WLOCK(sc);
-			error = sc->sc_detach(sc);
-			/* Reset protocol and pointers */
+			/* Reset protocol first in case detach unlocks */
 			sc->sc_proto = LAGG_PROTO_NONE;
+			error = sc->sc_detach(sc);
 			sc->sc_detach = NULL;
 			sc->sc_start = NULL;
 			sc->sc_input = NULL;
@@ -966,10 +964,14 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_lladdr = NULL;
 			sc->sc_req = NULL;
 			sc->sc_portreq = NULL;
-			LAGG_WUNLOCK(sc);
+		} else if (sc->sc_input != NULL) {
+			/* Still detaching */
+			error = EBUSY;
 		}
-		if (error != 0)
+		if (error != 0) {
+			LAGG_WUNLOCK(sc);
 			break;
+		}
 		for (int i = 0; i < (sizeof(lagg_protos) /
 		    sizeof(lagg_protos[0])); i++) {
 			if (lagg_protos[i].ti_proto == ra->ra_proto) {
@@ -977,7 +979,6 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					printf("%s: using proto %u\n",
 					    sc->sc_ifname,
 					    lagg_protos[i].ti_proto);
-				LAGG_WLOCK(sc);
 				sc->sc_proto = lagg_protos[i].ti_proto;
 				if (sc->sc_proto != LAGG_PROTO_NONE)
 					error = lagg_protos[i].ti_attach(sc);
@@ -985,6 +986,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				return (error);
 			}
 		}
+		LAGG_WUNLOCK(sc);
 		error = EPROTONOSUPPORT;
 		break;
 	case SIOCGLAGGFLAGS:

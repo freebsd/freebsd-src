@@ -45,7 +45,7 @@ class NumericLiteralParser {
 
   unsigned radix;
 
-  bool saw_exponent, saw_period;
+  bool saw_exponent, saw_period, saw_ud_suffix;
 
 public:
   NumericLiteralParser(const char *begin, const char *end,
@@ -64,8 +64,17 @@ public:
   bool isFloatingLiteral() const {
     return saw_period || saw_exponent;
   }
-  bool hasSuffix() const {
-    return SuffixBegin != ThisTokEnd;
+
+  bool hasUDSuffix() const {
+    return saw_ud_suffix;
+  }
+  StringRef getUDSuffix() const {
+    assert(saw_ud_suffix);
+    return StringRef(SuffixBegin, ThisTokEnd - SuffixBegin);
+  }
+  unsigned getUDSuffixOffset() const {
+    assert(saw_ud_suffix);
+    return SuffixBegin - ThisTokBegin;
   }
 
   unsigned getRadix() const { return radix; }
@@ -128,6 +137,8 @@ class CharLiteralParser {
   tok::TokenKind Kind;
   bool IsMultiChar;
   bool HadError;
+  SmallString<32> UDSuffixBuf;
+  unsigned UDSuffixOffset;
 public:
   CharLiteralParser(const char *begin, const char *end,
                     SourceLocation Loc, Preprocessor &PP,
@@ -140,6 +151,11 @@ public:
   bool isUTF32() const { return Kind == tok::utf32_char_constant; }
   bool isMultiChar() const { return IsMultiChar; }
   uint64_t getValue() const { return Value; }
+  StringRef getUDSuffix() const { return UDSuffixBuf; }
+  unsigned getUDSuffixOffset() const {
+    assert(!UDSuffixBuf.empty() && "no ud-suffix");
+    return UDSuffixOffset;
+  }
 };
 
 /// StringLiteralParser - This decodes string escape characters and performs
@@ -155,8 +171,11 @@ class StringLiteralParser {
   unsigned SizeBound;
   unsigned CharByteWidth;
   tok::TokenKind Kind;
-  llvm::SmallString<512> ResultBuf;
+  SmallString<512> ResultBuf;
   char *ResultPtr; // cursor
+  SmallString<32> UDSuffixBuf;
+  unsigned UDSuffixToken;
+  unsigned UDSuffixOffset;
 public:
   StringLiteralParser(const Token *StringToks, unsigned NumStringToks,
                       Preprocessor &PP, bool Complain = true);
@@ -189,15 +208,30 @@ public:
   /// checking of the string literal and emit errors and warnings.
   unsigned getOffsetOfStringByte(const Token &TheTok, unsigned ByteNo) const;
 
-  bool isAscii() { return Kind == tok::string_literal; }
-  bool isWide() { return Kind == tok::wide_string_literal; }
-  bool isUTF8() { return Kind == tok::utf8_string_literal; }
-  bool isUTF16() { return Kind == tok::utf16_string_literal; }
-  bool isUTF32() { return Kind == tok::utf32_string_literal; }
+  bool isAscii() const { return Kind == tok::string_literal; }
+  bool isWide() const { return Kind == tok::wide_string_literal; }
+  bool isUTF8() const { return Kind == tok::utf8_string_literal; }
+  bool isUTF16() const { return Kind == tok::utf16_string_literal; }
+  bool isUTF32() const { return Kind == tok::utf32_string_literal; }
+  bool isPascal() const { return Pascal; }
+
+  StringRef getUDSuffix() const { return UDSuffixBuf; }
+
+  /// Get the index of a token containing a ud-suffix.
+  unsigned getUDSuffixToken() const {
+    assert(!UDSuffixBuf.empty() && "no ud-suffix");
+    return UDSuffixToken;
+  }
+  /// Get the spelling offset of the first byte of the ud-suffix.
+  unsigned getUDSuffixOffset() const {
+    assert(!UDSuffixBuf.empty() && "no ud-suffix");
+    return UDSuffixOffset;
+  }
 
 private:
   void init(const Token *StringToks, unsigned NumStringToks);
-  void CopyStringFragment(StringRef Fragment);
+  bool CopyStringFragment(StringRef Fragment);
+  bool DiagnoseBadString(const Token& Tok);
 };
 
 }  // end namespace clang

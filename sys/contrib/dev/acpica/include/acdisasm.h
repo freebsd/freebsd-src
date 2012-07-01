@@ -519,6 +519,14 @@ AcpiDmMethodFlags (
     ACPI_PARSE_OBJECT       *Op);
 
 void
+AcpiDmPredefinedDescription (
+    ACPI_PARSE_OBJECT       *Op);
+
+void
+AcpiDmFieldPredefinedDescription (
+    ACPI_PARSE_OBJECT       *Op);
+
+void
 AcpiDmFieldFlags (
     ACPI_PARSE_OBJECT       *Op);
 

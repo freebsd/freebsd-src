@@ -231,7 +231,8 @@ void	usb_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint8_t	usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat, usb_bus_mem_cb_t *cb);
 void	usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint16_t usb_isoc_time_expand(struct usb_bus *bus, uint16_t isoc_time_curr);
-uint16_t usbd_fs_isoc_schedule_isoc_time_expand(struct usb_device *udev, struct usb_fs_isoc_schedule **pp_start, struct usb_fs_isoc_schedule **pp_end, uint16_t isoc_time);
-uint8_t	usbd_fs_isoc_schedule_alloc(struct usb_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);
+#if USB_HAVE_TT_SUPPORT
+uint8_t	usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time);
+#endif
 
 #endif					/* _USB_CONTROLLER_H_ */

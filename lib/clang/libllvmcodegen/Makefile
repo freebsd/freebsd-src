@@ -13,9 +13,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	CodePlacementOpt.cpp \
 	CriticalAntiDepBreaker.cpp \
 	DeadMachineInstructionElim.cpp \
+	DFAPacketizer.cpp \
 	DwarfEHPrepare.cpp \
-	ELFCodeEmitter.cpp \
-	ELFWriter.cpp \
 	EdgeBundles.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
@@ -27,6 +26,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	InlineSpiller.cpp \
 	InterferenceCache.cpp \
 	IntrinsicLowering.cpp \
+	JITCodeEmitter.cpp \
 	LLVMTargetMachine.cpp \
 	LatencyPriorityQueue.cpp \
 	LexicalScopes.cpp \
@@ -40,7 +40,11 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveRangeEdit.cpp \
 	LocalStackSlotAllocation.cpp \
 	MachineBasicBlock.cpp \
+	MachineBlockFrequencyInfo.cpp \
+	MachineBlockPlacement.cpp \
 	MachineBranchProbabilityInfo.cpp \
+	MachineCodeEmitter.cpp \
+	MachineCopyPropagation.cpp \
 	MachineCSE.cpp \
 	MachineDominators.cpp \
 	MachineFunction.cpp \
@@ -48,6 +52,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineFunctionPass.cpp \
 	MachineFunctionPrinterPass.cpp \
 	MachineInstr.cpp \
+	MachineInstrBundle.cpp \
 	MachineLICM.cpp \
 	MachineLoopInfo.cpp \
 	MachineLoopRanges.cpp \
@@ -56,9 +61,9 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachinePassRegistry.cpp \
 	MachineRegisterInfo.cpp \
 	MachineSSAUpdater.cpp \
+	MachineScheduler.cpp \
 	MachineSink.cpp \
 	MachineVerifier.cpp \
-	ObjectCodeEmitter.cpp \
 	OcamlGC.cpp \
 	OptimizePHIs.cpp \
 	PHIElimination.cpp \
@@ -69,17 +74,16 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ProcessImplicitDefs.cpp \
 	PrologEpilogInserter.cpp \
 	PseudoSourceValue.cpp \
+	RegAllocBase.cpp \
 	RegAllocBasic.cpp \
 	RegAllocFast.cpp \
 	RegAllocGreedy.cpp \
-	RegAllocLinearScan.cpp \
 	RegAllocPBQP.cpp \
 	RegisterClassInfo.cpp \
 	RegisterCoalescer.cpp \
 	RegisterScavenging.cpp \
 	RenderMachineFunction.cpp \
 	ScheduleDAG.cpp \
-	ScheduleDAGEmit.cpp \
 	ScheduleDAGInstrs.cpp \
 	ScheduleDAGPrinter.cpp \
 	ScoreboardHazardRecognizer.cpp \
@@ -90,17 +94,17 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	Spiller.cpp \
 	SpillPlacement.cpp \
 	SplitKit.cpp \
-	Splitter.cpp \
 	StackProtector.cpp \
 	StackSlotColoring.cpp \
 	StrongPHIElimination.cpp \
 	TailDuplication.cpp \
+	TargetFrameLoweringImpl.cpp \
 	TargetInstrInfoImpl.cpp \
 	TargetLoweringObjectFileImpl.cpp \
+	TargetOptionsImpl.cpp \
 	TwoAddressInstructionPass.cpp \
 	UnreachableBlockElim.cpp \
-	VirtRegMap.cpp \
-	VirtRegRewriter.cpp
+	VirtRegMap.cpp
 
 TGHDRS=	Intrinsics
 

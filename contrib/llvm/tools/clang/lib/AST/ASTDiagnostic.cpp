@@ -154,26 +154,34 @@ static std::string
 ConvertTypeToDiagnosticString(ASTContext &Context, QualType Ty,
                               const DiagnosticsEngine::ArgumentValue *PrevArgs,
                               unsigned NumPrevArgs,
-                              SmallVectorImpl<intptr_t> &QualTypeVals) {
+                              ArrayRef<intptr_t> QualTypeVals) {
   // FIXME: Playing with std::string is really slow.
   bool ForceAKA = false;
   QualType CanTy = Ty.getCanonicalType();
   std::string S = Ty.getAsString(Context.getPrintingPolicy());
   std::string CanS = CanTy.getAsString(Context.getPrintingPolicy());
 
-  for (SmallVectorImpl<intptr_t>::iterator I = QualTypeVals.begin(),
-       E = QualTypeVals.end(); I != E; ++I) {
+  for (unsigned I = 0, E = QualTypeVals.size(); I != E; ++I) {
     QualType CompareTy =
-        QualType::getFromOpaquePtr(reinterpret_cast<void*>(*I));
+        QualType::getFromOpaquePtr(reinterpret_cast<void*>(QualTypeVals[I]));
+    if (CompareTy.isNull())
+      continue;
     if (CompareTy == Ty)
       continue;  // Same types
     QualType CompareCanTy = CompareTy.getCanonicalType();
     if (CompareCanTy == CanTy)
       continue;  // Same canonical types
     std::string CompareS = CompareTy.getAsString(Context.getPrintingPolicy());
-    if (CompareS != S)
-      continue;  // Original strings are different
-    std::string CompareCanS = CompareCanTy.getAsString(Context.getPrintingPolicy());
+    bool aka;
+    QualType CompareDesugar = Desugar(Context, CompareTy, aka);
+    std::string CompareDesugarStr =
+        CompareDesugar.getAsString(Context.getPrintingPolicy());
+    if (CompareS != S && CompareDesugarStr != S)
+      continue;  // The type string is different than the comparison string
+                 // and the desugared comparison string.
+    std::string CompareCanS =
+        CompareCanTy.getAsString(Context.getPrintingPolicy());
+    
     if (CompareCanS == CanS)
       continue;  // No new info from canonical type
 
@@ -228,7 +236,7 @@ void clang::FormatASTNodeDiagnosticArgument(
     unsigned NumPrevArgs,
     SmallVectorImpl<char> &Output,
     void *Cookie,
-    SmallVectorImpl<intptr_t> &QualTypeVals) {
+    ArrayRef<intptr_t> QualTypeVals) {
   ASTContext &Context = *static_cast<ASTContext*>(Cookie);
   
   std::string S;
@@ -286,7 +294,7 @@ void clang::FormatASTNodeDiagnosticArgument(
       
       if (DC->isTranslationUnit()) {
         // FIXME: Get these strings from some localized place
-        if (Context.getLangOptions().CPlusPlus)
+        if (Context.getLangOpts().CPlusPlus)
           S = "the global namespace";
         else
           S = "the global scope";

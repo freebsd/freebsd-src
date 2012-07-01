@@ -44,7 +44,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_capsicum.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
@@ -219,7 +218,7 @@ ast(struct trapframe *framep)
 	if (flags & TDF_NEEDRESCHED) {
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(1, 1);
+			ktrcsw(1, 1, __func__);
 #endif
 		thread_lock(td);
 		sched_prio(td, td->td_user_pri);
@@ -227,7 +226,7 @@ ast(struct trapframe *framep)
 		thread_unlock(td);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(0, 1);
+			ktrcsw(0, 1, __func__);
 #endif
 	}
 

@@ -39,9 +39,10 @@ namespace tgtok {
     colon, semi,        // : ;
     comma, period,      // , .
     equal, question,    // = ?
-    
+    paste,              // #
+
     // Keywords.
-    Bit, Bits, Class, Code, Dag, Def, Defm, Field, In, Int, Let, List,
+    Bit, Bits, Class, Code, Dag, Def, Foreach, Defm, Field, In, Int, Let, List,
     MultiClass, String,
     
     // !keywords.
@@ -109,6 +110,7 @@ private:
   tgtok::TokKind ReturnError(const char *Loc, const Twine &Msg);
   
   int getNextChar();
+  int peekNextChar(int Index);
   void SkipBCPLComment();
   bool SkipCComment();
   tgtok::TokKind LexIdentifier();

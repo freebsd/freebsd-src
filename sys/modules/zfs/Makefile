@@ -13,6 +13,7 @@ SRCS+=	avl.c
 .PATH:	${SUNW}/common/nvpair
 SRCS+=	nvpair.c
 SRCS+=	nvpair_alloc_fixed.c
+SRCS+=	fnvpair.c
 .PATH:	${.CURDIR}/../../cddl/contrib/opensolaris/common/unicode
 SRCS+=	u8_textprep.c
 

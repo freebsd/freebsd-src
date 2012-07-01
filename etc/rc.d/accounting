@@ -65,9 +65,7 @@ accounting_rotate_log()
 	mv ${accounting_file} ${accounting_file}.0
 
 	if checkyesno accounting_enable; then
-		ln $_file ${accounting_file##*/}
-		${accounting_command} ${accounting_file}
-		unlink $_file
+		mv $_file ${accounting_file}
 	fi
 }
 

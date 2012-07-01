@@ -58,6 +58,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::iAny:     return "MVT::iAny";
   case MVT::fAny:     return "MVT::fAny";
   case MVT::vAny:     return "MVT::vAny";
+  case MVT::f16:      return "MVT::f16";
   case MVT::f32:      return "MVT::f32";
   case MVT::f64:      return "MVT::f64";
   case MVT::f80:      return "MVT::f80";
@@ -82,6 +83,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v2i64:    return "MVT::v2i64";
   case MVT::v4i64:    return "MVT::v4i64";
   case MVT::v8i64:    return "MVT::v8i64";
+  case MVT::v2f16:    return "MVT::v2f16";
   case MVT::v2f32:    return "MVT::v2f32";
   case MVT::v4f32:    return "MVT::v4f32";
   case MVT::v8f32:    return "MVT::v8f32";
@@ -90,8 +92,8 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::Metadata: return "MVT::Metadata";
   case MVT::iPTR:     return "MVT::iPTR";
   case MVT::iPTRAny:  return "MVT::iPTRAny";
-  case MVT::untyped:  return "MVT::untyped";
-  default: assert(0 && "ILLEGAL VALUE TYPE!"); return "";
+  case MVT::Untyped:  return "MVT::Untyped";
+  default: llvm_unreachable("ILLEGAL VALUE TYPE!");
   }
 }
 
@@ -147,6 +149,26 @@ Record *CodeGenTarget::getAsmParser() const {
   if (AsmParserNum >= LI.size())
     throw "Target does not have an AsmParser #" + utostr(AsmParserNum) + "!";
   return LI[AsmParserNum];
+}
+
+/// getAsmParserVariant - Return the AssmblyParserVariant definition for
+/// this target.
+///
+Record *CodeGenTarget::getAsmParserVariant(unsigned i) const {
+  std::vector<Record*> LI = 
+    TargetRec->getValueAsListOfDefs("AssemblyParserVariants");
+  if (i >= LI.size())
+    throw "Target does not have an AsmParserVariant #" + utostr(i) + "!";
+  return LI[i];
+}
+
+/// getAsmParserVariantCount - Return the AssmblyParserVariant definition 
+/// available for this target.
+///
+unsigned CodeGenTarget::getAsmParserVariantCount() const {
+  std::vector<Record*> LI = 
+    TargetRec->getValueAsListOfDefs("AssemblyParserVariants");
+  return LI.size();
 }
 
 /// getAsmWriter - Return the AssemblyWriter definition for this target.
@@ -267,6 +289,7 @@ void CodeGenTarget::ComputeInstrsByEnum() const {
     "DBG_VALUE",
     "REG_SEQUENCE",
     "COPY",
+    "BUNDLE",
     0
   };
   const DenseMap<const Record*, CodeGenInstruction*> &Insts = getInstructions();
@@ -492,7 +515,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       unsigned ArgNo = Property->getValueAsInt("ArgNo");
       ArgumentAttributes.push_back(std::make_pair(ArgNo, NoCapture));
     } else
-      assert(0 && "Unknown property!");
+      llvm_unreachable("Unknown property!");
   }
 
   // Sort the argument attributes for later benefit.

@@ -35,7 +35,7 @@
  * Test the SVID-compatible Message Queue facility.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/wait.h>

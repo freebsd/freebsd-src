@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: vxl,v 1.4 2009/09/19 16:28:13 christos Exp $
 # VXL: file(1) magic for VXL binary IO data files
 #
 # from Ian Scott <scottim@sf.net>

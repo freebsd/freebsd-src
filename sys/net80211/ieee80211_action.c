@@ -94,7 +94,7 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 			break;
 		ht_send_action[act] = f;
 		return 0;
-	case IEEE80211_ACTION_CAT_MESHPEERING:
+	case IEEE80211_ACTION_CAT_SELF_PROT:
 		if (act >= N(meshpl_send_action))
 			break;
 		meshpl_send_action[act] = f;
@@ -144,7 +144,7 @@ ieee80211_send_action(struct ieee80211_node *ni, int cat, int act, void *sa)
 		if (act < N(ht_send_action))
 			f = ht_send_action[act];
 		break;
-	case IEEE80211_ACTION_CAT_MESHPEERING:
+	case IEEE80211_ACTION_CAT_SELF_PROT:
 		if (act < N(meshpl_send_action))
 			f = meshpl_send_action[act];
 		break;
@@ -215,7 +215,7 @@ ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
 			break;
 		ht_recv_action[act] = f;
 		return 0;
-	case IEEE80211_ACTION_CAT_MESHPEERING:
+	case IEEE80211_ACTION_CAT_SELF_PROT:
 		if (act >= N(meshpl_recv_action))
 			break;
 		meshpl_recv_action[act] = f;
@@ -269,7 +269,7 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 		if (ia->ia_action < N(ht_recv_action))
 			f = ht_recv_action[ia->ia_action];
 		break;
-	case IEEE80211_ACTION_CAT_MESHPEERING:
+	case IEEE80211_ACTION_CAT_SELF_PROT:
 		if (ia->ia_action < N(meshpl_recv_action))
 			f = meshpl_recv_action[ia->ia_action];
 		break;

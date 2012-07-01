@@ -3,13 +3,16 @@
 LIB=	clanganalysis
 
 SRCDIR=	tools/clang/lib/Analysis
-SRCS=	AnalysisContext.cpp \
+SRCS=	AnalysisDeclContext.cpp \
+	CallGraph.cpp \
 	CFG.cpp \
 	CFGReachabilityAnalysis.cpp \
 	CFGStmtMap.cpp \
 	CocoaConventions.cpp \
+	Dominators.cpp \
 	FormatString.cpp \
 	LiveVariables.cpp \
+	PostOrderCFGView.cpp \
 	PrintfFormatString.cpp \
 	ProgramPoint.cpp \
 	PseudoConstantAnalysis.cpp \

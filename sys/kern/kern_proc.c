@@ -309,6 +309,30 @@ pfind(pid)
 	return (p);
 }
 
+static struct proc *
+pfind_tid(pid_t tid)
+{
+	struct proc *p;
+	struct thread *td;
+
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (td->td_tid == tid)
+				goto found;
+		}
+		PROC_UNLOCK(p);
+	}
+found:
+	sx_sunlock(&allproc_lock);
+	return (p);
+}
+
 /*
  * Locate a process group by number.
  * The caller must hold proctree_lock.
@@ -339,7 +363,12 @@ pget(pid_t pid, int flags, struct proc **pp)
 	struct proc *p;
 	int error;
 
-	p = pfind(pid);
+	if (pid <= PID_MAX)
+		p = pfind(pid);
+	else if ((flags & PGET_NOTID) == 0)
+		p = pfind_tid(pid);
+	else
+		p = NULL;
 	if (p == NULL)
 		return (ESRCH);
 	if ((flags & PGET_CANSEE) != 0) {
@@ -849,6 +878,9 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_childtime = kp->ki_childstime;
 	timevaladd(&kp->ki_childtime, &kp->ki_childutime);
 
+	FOREACH_THREAD_IN_PROC(p, td0)
+		kp->ki_cow += td0->td_cow;
+
 	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
@@ -961,6 +993,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		kp->ki_runtime = cputick2usec(td->td_rux.rux_runtime);
 		kp->ki_pctcpu = sched_pctcpu(td);
 		kp->ki_estcpu = td->td_estcpu;
+		kp->ki_cow = td->td_cow;
 	}
 
 	/* We can't get this anymore but ps etc never used it anyway. */
@@ -1103,6 +1136,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_estcpu);
 	CP(*ki, *ki32, ki_slptime);
 	CP(*ki, *ki32, ki_swtime);
+	CP(*ki, *ki32, ki_cow);
 	CP(*ki, *ki32, ki_runtime);
 	TV_CP(*ki, *ki32, ki_start);
 	TV_CP(*ki, *ki32, ki_childtime);

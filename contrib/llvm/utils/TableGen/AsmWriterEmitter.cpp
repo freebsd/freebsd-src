@@ -16,6 +16,7 @@
 #include "AsmWriterInst.h"
 #include "CodeGenTarget.h"
 #include "StringToOffsetTable.h"
+#include "SequenceToOffsetTable.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
@@ -277,11 +278,27 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
     CGIAWIMap.insert(std::make_pair(Instructions[i].CGI, &Instructions[i]));
 
   // Build an aggregate string, and build a table of offsets into it.
-  StringToOffsetTable StringTable;
+  SequenceToOffsetTable<std::string> StringTable;
 
   /// OpcodeInfo - This encodes the index of the string to use for the first
   /// chunk of the output as well as indices used for operand printing.
   std::vector<unsigned> OpcodeInfo;
+
+  // Add all strings to the string table upfront so it can generate an optimized
+  // representation.
+  for (unsigned i = 0, e = NumberedInstructions.size(); i != e; ++i) {
+    AsmWriterInst *AWI = CGIAWIMap[NumberedInstructions[i]];
+    if (AWI != 0 &&
+        AWI->Operands[0].OperandType ==
+                 AsmWriterOperand::isLiteralTextOperand &&
+        !AWI->Operands[0].Str.empty()) {
+      std::string Str = AWI->Operands[0].Str;
+      UnescapeString(Str);
+      StringTable.add(Str);
+    }
+  }
+
+  StringTable.layout();
 
   unsigned MaxStringIdx = 0;
   for (unsigned i = 0, e = NumberedInstructions.size(); i != e; ++i) {
@@ -294,11 +311,11 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
                         AsmWriterOperand::isLiteralTextOperand ||
                AWI->Operands[0].Str.empty()) {
       // Something handled by the asmwriter printer, but with no leading string.
-      Idx = StringTable.GetOrAddStringOffset("");
+      Idx = StringTable.get("");
     } else {
       std::string Str = AWI->Operands[0].Str;
       UnescapeString(Str);
-      Idx = StringTable.GetOrAddStringOffset(Str);
+      Idx = StringTable.get(Str);
       MaxStringIdx = std::max(MaxStringIdx, Idx);
 
       // Nuke the string from the operand list.  It is now handled!
@@ -373,9 +390,9 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
   O << "  };\n\n";
 
   // Emit the string itself.
-  O << "  const char *AsmStrs = \n";
-  StringTable.EmitString(O);
-  O << ";\n\n";
+  O << "  const char AsmStrs[] = {\n";
+  StringTable.emit(O, printChar);
+  O << "  };\n\n";
 
   O << "  O << \"\\t\";\n\n";
 
@@ -461,13 +478,13 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
 
 static void
 emitRegisterNameString(raw_ostream &O, StringRef AltName,
-  const std::vector<CodeGenRegister*> &Registers) {
-  StringToOffsetTable StringTable;
-  O << "  static const unsigned RegAsmOffset" << AltName << "[] = {\n    ";
+                       const std::vector<CodeGenRegister*> &Registers) {
+  SequenceToOffsetTable<std::string> StringTable;
+  SmallVector<std::string, 4> AsmNames(Registers.size());
   for (unsigned i = 0, e = Registers.size(); i != e; ++i) {
     const CodeGenRegister &Reg = *Registers[i];
+    std::string &AsmName = AsmNames[i];
 
-    std::string AsmName;
     // "NoRegAltName" is special. We don't need to do a lookup for that,
     // as it's just a reference to the default register name.
     if (AltName == "" || AltName == "NoRegAltName") {
@@ -495,21 +512,22 @@ emitRegisterNameString(raw_ostream &O, StringRef AltName,
         AsmName = AltNames[Idx];
       }
     }
-
-    O << StringTable.GetOrAddStringOffset(AsmName);
-    if (((i + 1) % 14) == 0)
-      O << ",\n    ";
-    else
-      O << ", ";
-
+    StringTable.add(AsmName);
   }
-  O << "0\n"
-    << "  };\n"
-    << "\n";
 
-  O << "  const char *AsmStrs" << AltName << " =\n";
-  StringTable.EmitString(O);
-  O << ";\n";
+  StringTable.layout();
+  O << "  static const char AsmStrs" << AltName << "[] = {\n";
+  StringTable.emit(O, printChar);
+  O << "  };\n\n";
+
+  O << "  static const unsigned RegAsmOffset" << AltName << "[] = {";
+  for (unsigned i = 0, e = Registers.size(); i != e; ++i) {
+    if ((i % 14) == 0)
+      O << "\n    ";
+    O << StringTable.get(AsmNames[i]) << ", ";
+  }
+  O << "\n  };\n"
+    << "\n";
 }
 
 void AsmWriterEmitter::EmitGetRegisterName(raw_ostream &O) {
@@ -544,7 +562,7 @@ void AsmWriterEmitter::EmitGetRegisterName(raw_ostream &O) {
     O << "  const unsigned *RegAsmOffset;\n"
       << "  const char *AsmStrs;\n"
       << "  switch(AltIdx) {\n"
-      << "  default: assert(0 && \"Invalid register alt name index!\");\n";
+      << "  default: llvm_unreachable(\"Invalid register alt name index!\");\n";
     for (unsigned i = 0, e = AltNameIndices.size(); i < e; ++i) {
       StringRef Namespace = AltNameIndices[1]->getValueAsString("Namespace");
       StringRef AltName(AltNameIndices[i]->getName());
@@ -563,48 +581,6 @@ void AsmWriterEmitter::EmitGetRegisterName(raw_ostream &O) {
     << "}\n";
 }
 
-void AsmWriterEmitter::EmitGetInstructionName(raw_ostream &O) {
-  CodeGenTarget Target(Records);
-  Record *AsmWriter = Target.getAsmWriter();
-  std::string ClassName = AsmWriter->getValueAsString("AsmWriterClassName");
-
-  const std::vector<const CodeGenInstruction*> &NumberedInstructions =
-    Target.getInstructionsByEnumValue();
-
-  StringToOffsetTable StringTable;
-  O <<
-"\n\n#ifdef GET_INSTRUCTION_NAME\n"
-"#undef GET_INSTRUCTION_NAME\n\n"
-"/// getInstructionName: This method is automatically generated by tblgen\n"
-"/// from the instruction set description.  This returns the enum name of the\n"
-"/// specified instruction.\n"
-  "const char *" << Target.getName() << ClassName
-  << "::getInstructionName(unsigned Opcode) {\n"
-  << "  assert(Opcode < " << NumberedInstructions.size()
-  << " && \"Invalid instruction number!\");\n"
-  << "\n"
-  << "  static const unsigned InstAsmOffset[] = {";
-  for (unsigned i = 0, e = NumberedInstructions.size(); i != e; ++i) {
-    const CodeGenInstruction &Inst = *NumberedInstructions[i];
-
-    std::string AsmName = Inst.TheDef->getName();
-    if ((i % 14) == 0)
-      O << "\n    ";
-
-    O << StringTable.GetOrAddStringOffset(AsmName) << ", ";
-  }
-  O << "0\n"
-  << "  };\n"
-  << "\n";
-
-  O << "  const char *Strs =\n";
-  StringTable.EmitString(O);
-  O << ";\n";
-
-  O << "  return Strs+InstAsmOffset[Opcode];\n"
-  << "}\n\n#endif\n";
-}
-
 namespace {
 // IAPrinter - Holds information about an InstAlias. Two InstAliases match if
 // they both have the same conditionals. In which case, we cannot print out the
@@ -614,7 +590,7 @@ class IAPrinter {
   std::map<StringRef, unsigned> OpMap;
   std::string Result;
   std::string AsmString;
-  std::vector<Record*> ReqFeatures;
+  SmallVector<Record*, 4> ReqFeatures;
 public:
   IAPrinter(std::string R, std::string AS)
     : Result(R), AsmString(AS) {}
@@ -694,70 +670,7 @@ static void EmitGetMapOperandNumber(raw_ostream &O) {
   O << "         I = OpMap.begin(), E = OpMap.end(); I != E; ++I)\n";
   O << "    if (I->first == Name)\n";
   O << "      return I->second;\n";
-  O << "  assert(false && \"Operand not in map!\");\n";
-  O << "  return 0;\n";
-  O << "}\n\n";
-}
-
-void AsmWriterEmitter::EmitRegIsInRegClass(raw_ostream &O) {
-  CodeGenTarget Target(Records);
-
-  // Enumerate the register classes.
-  ArrayRef<CodeGenRegisterClass*> RegisterClasses =
-    Target.getRegBank().getRegClasses();
-
-  O << "namespace { // Register classes\n";
-  O << "  enum RegClass {\n";
-
-  // Emit the register enum value for each RegisterClass.
-  for (unsigned I = 0, E = RegisterClasses.size(); I != E; ++I) {
-    if (I != 0) O << ",\n";
-    O << "    RC_" << RegisterClasses[I]->getName();
-  }
-
-  O << "\n  };\n";
-  O << "} // end anonymous namespace\n\n";
-
-  // Emit a function that returns 'true' if a regsiter is part of a particular
-  // register class. I.e., RAX is part of GR64 on X86.
-  O << "static bool regIsInRegisterClass"
-    << "(unsigned RegClass, unsigned Reg) {\n";
-
-  // Emit the switch that checks if a register belongs to a particular register
-  // class.
-  O << "  switch (RegClass) {\n";
-  O << "  default: break;\n";
-
-  for (unsigned I = 0, E = RegisterClasses.size(); I != E; ++I) {
-    const CodeGenRegisterClass &RC = *RegisterClasses[I];
-
-    // Give the register class a legal C name if it's anonymous.
-    std::string Name = RC.getName();
-    O << "  case RC_" << Name << ":\n";
-  
-    // Emit the register list now.
-    unsigned IE = RC.getOrder().size();
-    if (IE == 1) {
-      O << "    if (Reg == " << getQualifiedName(RC.getOrder()[0]) << ")\n";
-      O << "      return true;\n";
-    } else {
-      O << "    switch (Reg) {\n";
-      O << "    default: break;\n";
-
-      for (unsigned II = 0; II != IE; ++II) {
-        Record *Reg = RC.getOrder()[II];
-        O << "    case " << getQualifiedName(Reg) << ":\n";
-      }
-
-      O << "      return true;\n";
-      O << "    }\n";
-    }
-
-    O << "    break;\n";
-  }
-
-  O << "  }\n\n";
-  O << "  return false;\n";
+  O << "  llvm_unreachable(\"Operand not in map!\");\n";
   O << "}\n\n";
 }
 
@@ -803,8 +716,6 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
 
   O << "\n#ifdef PRINT_ALIAS_INSTR\n";
   O << "#undef PRINT_ALIAS_INSTR\n\n";
-
-  EmitRegIsInRegClass(O);
 
   // Emit the method that prints the alias instruction.
   std::string ClassName = AsmWriter->getValueAsString("AsmWriterClassName");
@@ -858,7 +769,6 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
         const CodeGenInstAlias::ResultOperand &RO = CGA->ResultOperands[i];
 
         switch (RO.Kind) {
-        default: assert(0 && "unexpected InstAlias operand kind");
         case CodeGenInstAlias::ResultOperand::K_Record: {
           const Record *Rec = RO.getRecord();
           StringRef ROName = RO.getName();
@@ -872,9 +782,9 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
 
             if (!IAP->isOpMapped(ROName)) {
               IAP->addOperand(ROName, i);
-              Cond = std::string("regIsInRegisterClass(RC_") +
-                CGA->ResultOperands[i].getRecord()->getName() +
-                ", MI->getOperand(" + llvm::utostr(i) + ").getReg())";
+              Cond = std::string("MRI.getRegClass(") + Target.getName() + "::" +
+                CGA->ResultOperands[i].getRecord()->getName() + "RegClassID)"
+                ".contains(MI->getOperand(" + llvm::utostr(i) + ").getReg())";
               IAP->addCond(Cond);
             } else {
               Cond = std::string("MI->getOperand(") +
@@ -900,6 +810,13 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
           IAP->addCond(Cond);
           break;
         case CodeGenInstAlias::ResultOperand::K_Reg:
+          // If this is zero_reg, something's playing tricks we're not
+          // equipped to handle.
+          if (!CGA->ResultOperands[i].getRegister()) {
+            CantHandle = true;
+            break;
+          }
+
           Cond = std::string("MI->getOperand(") +
             llvm::utostr(i) + ").getReg() == " + Target.getName() +
             "::" + CGA->ResultOperands[i].getRegister()->getName();
@@ -1003,7 +920,7 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
   O << "      }\n";
   O << "    }\n";
   O << "  }\n\n";
-  
+
   O << "  return true;\n";
   O << "}\n\n";
 
@@ -1015,7 +932,6 @@ void AsmWriterEmitter::run(raw_ostream &O) {
 
   EmitPrintInstruction(O);
   EmitGetRegisterName(O);
-  EmitGetInstructionName(O);
   EmitPrintAliasInstruction(O);
 }
 

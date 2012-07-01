@@ -28,7 +28,7 @@
 .\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd June 19, 2012
 .Dt POSIX_FADVISE 2
 .Os
 .Sh NAME
@@ -84,10 +84,9 @@ specified range and future access to this data may require a read operation.
 .It Dv POSIX_FADV_NOREUSE
 Tells the system that the specified data will only be accessed once and
 then not reused.
-Accesses to data within the specified range are treated as if the file
-descriptor has the
-.Dv O_DIRECT
-flag enabled.
+The system may decrease the in-memory priority of data once it has been
+read or written.
+Future access to this data may require a read operation.
 .El
 .Sh RETURN VALUES
 .Rv -std posix_fadvise

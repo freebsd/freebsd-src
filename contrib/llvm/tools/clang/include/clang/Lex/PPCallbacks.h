@@ -58,6 +58,23 @@ public:
                            SrcMgr::CharacteristicKind FileType) {
   }
 
+  /// FileNotFound - This callback is invoked whenever an inclusion directive
+  /// results in a file-not-found error.
+  ///
+  /// \param FileName The name of the file being included, as written in the 
+  /// source code.
+  ///
+  /// \param RecoveryPath If this client indicates that it can recover from 
+  /// this missing file, the client should set this as an additional header
+  /// search patch.
+  ///
+  /// \returns true to indicate that the preprocessor should attempt to recover
+  /// by adding \p RecoveryPath as a header search path.
+  virtual bool FileNotFound(StringRef FileName,
+                            SmallVectorImpl<char> &RecoveryPath) {
+    return false;
+  }
+
   /// \brief This callback is invoked whenever an inclusion directive of
   /// any kind (\c #include, \c #import, etc.) has been processed, regardless
   /// of whether the inclusion will actually result in an inclusion.
@@ -173,40 +190,49 @@ public:
   }
 
   /// If -- This hook is called whenever an #if is seen.
-  /// \param Range The SourceRange of the expression being tested.
+  /// \param Loc the source location of the directive.
+  /// \param ConditionRange The SourceRange of the expression being tested.
   // FIXME: better to pass in a list (or tree!) of Tokens.
-  virtual void If(SourceRange Range) {
+  virtual void If(SourceLocation Loc, SourceRange ConditionRange) {
   }
 
   /// Elif -- This hook is called whenever an #elif is seen.
-  /// \param Range The SourceRange of the expression being tested.
+  /// \param Loc the source location of the directive.
+  /// \param ConditionRange The SourceRange of the expression being tested.
+  /// \param IfLoc the source location of the #if/#ifdef/#ifndef directive.
   // FIXME: better to pass in a list (or tree!) of Tokens.
-  virtual void Elif(SourceRange Range) {
+  virtual void Elif(SourceLocation Loc, SourceRange ConditionRange,
+                    SourceLocation IfLoc) {
   }
 
   /// Ifdef -- This hook is called whenever an #ifdef is seen.
-  /// \param Loc The location of the token being tested.
+  /// \param Loc the source location of the directive.
   /// \param II Information on the token being tested.
-  virtual void Ifdef(const Token &MacroNameTok) {
+  virtual void Ifdef(SourceLocation Loc, const Token &MacroNameTok) {
   }
 
   /// Ifndef -- This hook is called whenever an #ifndef is seen.
-  /// \param Loc The location of the token being tested.
+  /// \param Loc the source location of the directive.
   /// \param II Information on the token being tested.
-  virtual void Ifndef(const Token &MacroNameTok) {
+  virtual void Ifndef(SourceLocation Loc, const Token &MacroNameTok) {
   }
 
   /// Else -- This hook is called whenever an #else is seen.
-  virtual void Else() {
+  /// \param Loc the source location of the directive.
+  /// \param IfLoc the source location of the #if/#ifdef/#ifndef directive.
+  virtual void Else(SourceLocation Loc, SourceLocation IfLoc) {
   }
 
   /// Endif -- This hook is called whenever an #endif is seen.
-  virtual void Endif() {
+  /// \param Loc the source location of the directive.
+  /// \param IfLoc the source location of the #if/#ifdef/#ifndef directive.
+  virtual void Endif(SourceLocation Loc, SourceLocation IfLoc) {
   }
 };
 
 /// PPChainedCallbacks - Simple wrapper class for chaining callbacks.
 class PPChainedCallbacks : public PPCallbacks {
+  virtual void anchor();
   PPCallbacks *First, *Second;
 
 public:
@@ -229,6 +255,12 @@ public:
                            SrcMgr::CharacteristicKind FileType) {
     First->FileSkipped(ParentFile, FilenameTok, FileType);
     Second->FileSkipped(ParentFile, FilenameTok, FileType);
+  }
+
+  virtual bool FileNotFound(StringRef FileName,
+                            SmallVectorImpl<char> &RecoveryPath) {
+    return First->FileNotFound(FileName, RecoveryPath) ||
+           Second->FileNotFound(FileName, RecoveryPath);
   }
 
   virtual void InclusionDirective(SourceLocation HashLoc,
@@ -311,39 +343,40 @@ public:
   }
 
   /// If -- This hook is called whenever an #if is seen.
-  virtual void If(SourceRange Range) {
-    First->If(Range);
-    Second->If(Range);
+  virtual void If(SourceLocation Loc, SourceRange ConditionRange) {
+    First->If(Loc, ConditionRange);
+    Second->If(Loc, ConditionRange);
   }
 
   /// Elif -- This hook is called whenever an #if is seen.
-  virtual void Elif(SourceRange Range) {
-    First->Elif(Range);
-    Second->Elif(Range);
+  virtual void Elif(SourceLocation Loc, SourceRange ConditionRange,
+                    SourceLocation IfLoc) {
+    First->Elif(Loc, ConditionRange, IfLoc);
+    Second->Elif(Loc, ConditionRange, IfLoc);
   }
 
   /// Ifdef -- This hook is called whenever an #ifdef is seen.
-  virtual void Ifdef(const Token &MacroNameTok) {
-    First->Ifdef(MacroNameTok);
-    Second->Ifdef(MacroNameTok);
+  virtual void Ifdef(SourceLocation Loc, const Token &MacroNameTok) {
+    First->Ifdef(Loc, MacroNameTok);
+    Second->Ifdef(Loc, MacroNameTok);
   }
 
   /// Ifndef -- This hook is called whenever an #ifndef is seen.
-  virtual void Ifndef(const Token &MacroNameTok) {
-    First->Ifndef(MacroNameTok);
-    Second->Ifndef(MacroNameTok);
+  virtual void Ifndef(SourceLocation Loc, const Token &MacroNameTok) {
+    First->Ifndef(Loc, MacroNameTok);
+    Second->Ifndef(Loc, MacroNameTok);
   }
 
   /// Else -- This hook is called whenever an #else is seen.
-  virtual void Else() {
-    First->Else();
-    Second->Else();
+  virtual void Else(SourceLocation Loc, SourceLocation IfLoc) {
+    First->Else(Loc, IfLoc);
+    Second->Else(Loc, IfLoc);
   }
 
   /// Endif -- This hook is called whenever an #endif is seen.
-  virtual void Endif() {
-    First->Endif();
-    Second->Endif();
+  virtual void Endif(SourceLocation Loc, SourceLocation IfLoc) {
+    First->Endif(Loc, IfLoc);
+    Second->Endif(Loc, IfLoc);
   }
 };
 

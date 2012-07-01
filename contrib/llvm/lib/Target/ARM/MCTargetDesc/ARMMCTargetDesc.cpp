@@ -1,4 +1,4 @@
-//===-- ARMMCTargetDesc.cpp - ARM Target Descriptions -----------*- C++ -*-===//
+//===-- ARMMCTargetDesc.cpp - ARM Target Descriptions ---------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -89,14 +89,6 @@ std::string ARM_MC::ParseARMTriple(StringRef TT) {
       ARMArchFeature += ",+thumb-mode";
   }
 
-  Triple TheTriple(TT);
-  if (TheTriple.getOS() == Triple::NativeClient) {
-    if (ARMArchFeature.empty())
-      ARMArchFeature = "+nacl-mode";
-    else
-      ARMArchFeature += ",+nacl-mode";
-  }
-
   return ARMArchFeature;
 }
 
@@ -137,14 +129,15 @@ static MCAsmInfo *createARMMCAsmInfo(const Target &T, StringRef TT) {
 }
 
 static MCCodeGenInfo *createARMMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                             CodeModel::Model CM) {
+                                             CodeModel::Model CM,
+                                             CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
   if (RM == Reloc::Default) {
     Triple TheTriple(TT);
     // Default relocation model on Darwin is PIC, not DynamicNoPIC.
     RM = TheTriple.isOSDarwin() ? Reloc::PIC_ : Reloc::DynamicNoPIC;
   }
-  X->InitMCCodeGenInfo(RM, CM);
+  X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
@@ -158,22 +151,23 @@ static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
   Triple TheTriple(TT);
 
   if (TheTriple.isOSDarwin())
-    return createMachOStreamer(Ctx, MAB, OS, Emitter, RelaxAll);
+    return createMachOStreamer(Ctx, MAB, OS, Emitter, false);
 
   if (TheTriple.isOSWindows()) {
     llvm_unreachable("ARM does not support Windows COFF format");
-    return NULL;
   }
 
-  return createELFStreamer(Ctx, MAB, OS, Emitter, RelaxAll, NoExecStack);
+  return createELFStreamer(Ctx, MAB, OS, Emitter, false, NoExecStack);
 }
 
 static MCInstPrinter *createARMMCInstPrinter(const Target &T,
                                              unsigned SyntaxVariant,
                                              const MCAsmInfo &MAI,
+                                             const MCInstrInfo &MII,
+                                             const MCRegisterInfo &MRI,
                                              const MCSubtargetInfo &STI) {
   if (SyntaxVariant == 0)
-    return new ARMInstPrinter(MAI, STI);
+    return new ARMInstPrinter(MAI, MII, MRI, STI);
   return 0;
 }
 

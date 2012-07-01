@@ -17,6 +17,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -25,23 +26,23 @@ using namespace ento;
 namespace {
 class UndefCapturedBlockVarChecker
   : public Checker< check::PostStmt<BlockExpr> > {
- mutable llvm::OwningPtr<BugType> BT;
+ mutable OwningPtr<BugType> BT;
 
 public:
   void checkPostStmt(const BlockExpr *BE, CheckerContext &C) const;
 };
 } // end anonymous namespace
 
-static const BlockDeclRefExpr *FindBlockDeclRefExpr(const Stmt *S,
-                                                    const VarDecl *VD){
-  if (const BlockDeclRefExpr *BR = dyn_cast<BlockDeclRefExpr>(S))
+static const DeclRefExpr *FindBlockDeclRefExpr(const Stmt *S,
+                                               const VarDecl *VD) {
+  if (const DeclRefExpr *BR = dyn_cast<DeclRefExpr>(S))
     if (BR->getDecl() == VD)
       return BR;
 
   for (Stmt::const_child_iterator I = S->child_begin(), E = S->child_end();
        I!=E; ++I)
     if (const Stmt *child = *I) {
-      const BlockDeclRefExpr *BR = FindBlockDeclRefExpr(child, VD);
+      const DeclRefExpr *BR = FindBlockDeclRefExpr(child, VD);
       if (BR)
         return BR;
     }
@@ -55,9 +56,10 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
   if (!BE->getBlockDecl()->hasCaptures())
     return;
 
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
   const BlockDataRegion *R =
-    cast<BlockDataRegion>(state->getSVal(BE).getAsRegion());
+    cast<BlockDataRegion>(state->getSVal(BE,
+                                         C.getLocationContext()).getAsRegion());
 
   BlockDataRegion::referenced_vars_iterator I = R->referenced_vars_begin(),
                                             E = R->referenced_vars_end();
@@ -72,7 +74,7 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
       continue;
 
     // Get the VarRegion associated with VD in the local stack frame.
-    const LocationContext *LC = C.getPredecessor()->getLocationContext();
+    const LocationContext *LC = C.getLocationContext();
     VR = C.getSValBuilder().getRegionManager().getVarRegion(VD, LC);
     SVal VRVal = state->getSVal(VR);
 
@@ -82,7 +84,7 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
           BT.reset(new BuiltinBug("uninitialized variable captured by block"));
 
         // Generate a bug report.
-        llvm::SmallString<128> buf;
+        SmallString<128> buf;
         llvm::raw_svector_ostream os(buf);
 
         os << "Variable '" << VD->getName() 

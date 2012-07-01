@@ -123,7 +123,7 @@ if_nameindex(void)
 		if (ifa->ifa_addr &&
 		    ifa->ifa_addr->sa_family == AF_LINK) {
 			ifni2->if_index =
-			    ((struct sockaddr_dl*)ifa->ifa_addr)->sdl_index;
+			    LLINDEX((struct sockaddr_dl*)ifa->ifa_addr);
 			ifni2->if_name = cp;
 			strcpy(cp, ifa->ifa_name);
 			ifni2++;

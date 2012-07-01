@@ -32,18 +32,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_log.c 437 2011-09-13 12:00:13Z des $
+ * $Id: openpam_log.c 544 2012-03-31 22:47:15Z des $
  */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <syslog.h>
 
 #include <security/pam_appl.h>
@@ -71,6 +70,7 @@ openpam_log(int level, const char *fmt, ...)
 	int priority;
 
 	switch (level) {
+	case PAM_LOG_LIBDEBUG:
 	case PAM_LOG_DEBUG:
 		if (!openpam_debug)
 			return;
@@ -100,8 +100,10 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 	va_list ap;
 	char *format;
 	int priority;
+	int serrno;
 
 	switch (level) {
+	case PAM_LOG_LIBDEBUG:
 	case PAM_LOG_DEBUG:
 		if (!openpam_debug)
 			return;
@@ -119,10 +121,13 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 		break;
 	}
 	va_start(ap, fmt);
+	serrno = errno;
 	if (asprintf(&format, "in %s(): %s", func, fmt) > 0) {
+		errno = serrno;
 		vsyslog(priority, format, ap);
 		FREE(format);
 	} else {
+		errno = serrno;
 		vsyslog(priority, fmt, ap);
 	}
 	va_end(ap);
@@ -137,6 +142,9 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
  * The =level argument indicates the importance of the message.
  * The following levels are defined:
  *
+ *	=PAM_LOG_LIBDEBUG:
+ *		Debugging messages.
+ *		For internal use only.
  *	=PAM_LOG_DEBUG:
  *		Debugging messages.
  *		These messages are normally not logged unless the global
