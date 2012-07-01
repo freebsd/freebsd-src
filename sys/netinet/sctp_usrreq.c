@@ -229,11 +229,9 @@ sctp_notify(struct sctp_inpcb *inp,
 	struct socket *so;
 
 #endif
-	/* protection */
-	int reason;
 	struct icmp *icmph;
 
-
+	/* protection */
 	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
 	    (sh == NULL) || (to == NULL)) {
 		if (stcb)
@@ -285,8 +283,7 @@ sctp_notify(struct sctp_inpcb *inp,
 		 * now is dead. In either case treat it like a OOTB abort
 		 * with no TCB
 		 */
-		reason = SCTP_PEER_FAULTY;
-		sctp_abort_notification(stcb, reason, SCTP_SO_NOT_LOCKED);
+		sctp_abort_notification(stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(inp);
 		atomic_add_int(&stcb->asoc.refcnt, 1);
@@ -1098,7 +1095,6 @@ sctp_shutdown(struct socket *so)
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
-				    SCTP_RESPONSE_TO_USER_REQ,
 				    op_err, SCTP_SO_LOCKED);
 				goto skip_unlock;
 			} else {
