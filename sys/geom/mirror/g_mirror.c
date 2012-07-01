@@ -440,7 +440,7 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
     struct g_mirror_metadata *md, int *errorp)
 {
 	struct g_mirror_disk *disk;
-	int error;
+	int i, error;
 
 	disk = malloc(sizeof(*disk), M_MIRROR, M_NOWAIT | M_ZERO);
 	if (disk == NULL) {
@@ -455,6 +455,11 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_state = G_MIRROR_DISK_STATE_NONE;
 	disk->d_priority = md->md_priority;
 	disk->d_flags = md->md_dflags;
+	error = g_getattr("GEOM::candelete", disk->d_consumer, &i);
+	if (error != 0)
+		goto fail;
+	if (i)
+		disk->d_flags |= G_MIRROR_DISK_FLAG_CANDELETE;
 	if (md->md_provider[0] != '\0')
 		disk->d_flags |= G_MIRROR_DISK_FLAG_HARDCODED;
 	disk->d_sync.ds_consumer = NULL;
@@ -1085,7 +1090,9 @@ g_mirror_start(struct bio *bp)
 		g_mirror_flush(sc, bp);
 		return;
 	case BIO_GETATTR:
-		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
+		if (g_handleattr_int(bp, "GEOM::candelete", 1))
+			return;
+		else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			g_mirror_kernel_dump(bp);
 			return;
 		}
@@ -1632,6 +1639,9 @@ g_mirror_register_request(struct bio *bp)
 			default:
 				continue;
 			}
+			if (bp->bio_cmd == BIO_DELETE &&
+			    (disk->d_flags & G_MIRROR_DISK_FLAG_CANDELETE) == 0)
+				continue;
 			cbp = g_clone_bio(bp);
 			if (cbp == NULL) {
 				for (cbp = bioq_first(&queue); cbp != NULL;
