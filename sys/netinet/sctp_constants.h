@@ -765,6 +765,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_AUTH_FREE_KEY               24
 #define SCTP_NOTIFY_NO_PEER_AUTH                25
 #define SCTP_NOTIFY_SENDER_DRY                  26
+#define SCTP_NOTIFY_REMOTE_ERROR                27
 
 /* This is the value for messages that are NOT completely
  * copied down where we will start to split the message.
