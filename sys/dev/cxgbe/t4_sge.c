@@ -1420,9 +1420,12 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 
 	iq->flags = 0;
 	iq->adapter = sc;
-	iq->intr_params = V_QINTR_TIMER_IDX(tmr_idx) |
-	    V_QINTR_CNT_EN(pktc_idx >= 0);
-	iq->intr_pktc_idx = pktc_idx;
+	iq->intr_params = V_QINTR_TIMER_IDX(tmr_idx);
+	iq->intr_pktc_idx = SGE_NCOUNTERS - 1;
+	if (pktc_idx >= 0) {
+		iq->intr_params |= F_QINTR_CNT_EN;
+		iq->intr_pktc_idx = pktc_idx;
+	}
 	iq->qsize = roundup(qsize, 16);		/* See FW_IQ_CMD/iqsize */
 	iq->esize = max(esize, 16);		/* See FW_IQ_CMD/iqesize */
 	strlcpy(iq->lockname, name, sizeof(iq->lockname));
