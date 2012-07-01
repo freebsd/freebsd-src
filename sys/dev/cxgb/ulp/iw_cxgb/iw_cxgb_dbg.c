@@ -30,11 +30,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
 #include <sys/pciio.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
@@ -60,11 +61,13 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
-#include <contrib/rdma/ib_verbs.h>
-#include <contrib/rdma/ib_umem.h>
-#include <contrib/rdma/ib_user_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_umem.h>
+#include <rdma/ib_user_verbs.h>
+#include <linux/idr.h>
+#include <ulp/iw_cxgb/iw_cxgb_ib_intfc.h>
 
-#ifdef DEBUG
+#if defined(INVARIANTS) && defined(TCP_OFFLOAD)
 #include <cxgb_include.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
 #include <ulp/iw_cxgb/iw_cxgb_hal.h>
@@ -74,75 +77,100 @@ __FBSDID("$FreeBSD$");
 #include <ulp/iw_cxgb/iw_cxgb_resource.h>
 #include <ulp/iw_cxgb/iw_cxgb_user.h>
 
+static int
+cxio_rdma_get_mem(struct cxio_rdev *rdev, struct ch_mem_range *m)
+{
+	struct adapter *sc = rdev->adap;
+	struct mc7 *mem;
+
+	if ((m->addr & 7) || (m->len & 7))
+		return (EINVAL);
+	if (m->mem_id == MEM_CM)
+		mem = &sc->cm;
+	else if (m->mem_id == MEM_PMRX)
+		mem = &sc->pmrx;
+	else if (m->mem_id == MEM_PMTX)
+		mem = &sc->pmtx;
+	else
+		return (EINVAL);
+
+	return (t3_mc7_bd_read(mem, m->addr/8, m->len/8, (u64 *)m->buf));
+}
+
 void cxio_dump_tpt(struct cxio_rdev *rdev, uint32_t stag)
 {
-	struct ch_mem_range *m;
+	struct ch_mem_range m;
 	u64 *data;
+	u32 addr;
 	int rc;
 	int size = 32;
 
-	m = kmalloc(sizeof(*m) + size, M_NOWAIT);
-	if (!m) {
+	m.buf = malloc(size, M_DEVBUF, M_NOWAIT);
+	if (m.buf == NULL) {
 		CTR1(KTR_IW_CXGB, "%s couldn't allocate memory.", __FUNCTION__);
 		return;
 	}
-	m->mem_id = MEM_PMRX;
-	m->addr = (stag>>8) * 32 + rdev->rnic_info.tpt_base;
-	m->len = size;
-	CTR3(KTR_IW_CXGB, "%s TPT addr 0x%x len %d", __FUNCTION__, m->addr, m->len);
-	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
+	m.mem_id = MEM_PMRX;
+	m.addr = (stag >> 8) * 32 + rdev->rnic_info.tpt_base;
+	m.len = size;
+	CTR3(KTR_IW_CXGB, "%s TPT addr 0x%x len %d", __FUNCTION__, m.addr, m.len);
+
+	rc = cxio_rdma_get_mem(rdev, &m);
 	if (rc) {
 		CTR2(KTR_IW_CXGB, "%s toectl returned error %d", __FUNCTION__, rc);
-		free(m, M_DEVBUF);
+		free(m.buf, M_DEVBUF);
 		return;
 	}
 
-	data = (u64 *)m->buf;
+	data = (u64 *)m.buf;
+	addr = m.addr;
 	while (size > 0) {
-		CTR2(KTR_IW_CXGB, "TPT %08x: %016llx", m->addr, (unsigned long long) *data);
+		CTR2(KTR_IW_CXGB, "TPT %08x: %016llx", addr, (unsigned long long) *data);
 		size -= 8;
 		data++;
-		m->addr += 8;
+		addr += 8;
 	}
-	free(m, M_DEVBUF);
+	free(m.buf, M_DEVBUF);
 }
 
 void cxio_dump_pbl(struct cxio_rdev *rdev, uint32_t pbl_addr, uint32_t len, u8 shift)
 {
-	struct ch_mem_range *m;
+	struct ch_mem_range m;
 	u64 *data;
+	u32 addr;
 	int rc;
 	int size, npages;
 
 	shift += 12;
 	npages = (len + (1ULL << shift) - 1) >> shift;
 	size = npages * sizeof(u64);
-
-	m = kmalloc(sizeof(*m) + size, M_NOWAIT);
-	if (!m) {
+	m.buf = malloc(size, M_DEVBUF, M_NOWAIT);
+	if (m.buf == NULL) {
 		CTR1(KTR_IW_CXGB, "%s couldn't allocate memory.", __FUNCTION__);
 		return;
 	}
-	m->mem_id = MEM_PMRX;
-	m->addr = pbl_addr;
-	m->len = size;
+	m.mem_id = MEM_PMRX;
+	m.addr = pbl_addr;
+	m.len = size;
 	CTR4(KTR_IW_CXGB, "%s PBL addr 0x%x len %d depth %d",
-		__FUNCTION__, m->addr, m->len, npages);
-	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
+		__FUNCTION__, m.addr, m.len, npages);
+
+	rc = cxio_rdma_get_mem(rdev, &m);
 	if (rc) {
 		CTR2(KTR_IW_CXGB, "%s toectl returned error %d", __FUNCTION__, rc);
-		free(m, M_DEVBUF);
+		free(m.buf, M_DEVBUF);
 		return;
 	}
 
-	data = (u64 *)m->buf;
+	data = (u64 *)m.buf;
+	addr = m.addr;
 	while (size > 0) {
-		CTR2(KTR_IW_CXGB, "PBL %08x: %016llx", m->addr, (unsigned long long) *data);
+		CTR2(KTR_IW_CXGB, "PBL %08x: %016llx", addr, (unsigned long long) *data);
 		size -= 8;
 		data++;
-		m->addr += 8;
+		addr += 8;
 	}
-	free(m, M_DEVBUF);
+	free(m.buf, M_DEVBUF);
 }
 
 void cxio_dump_wqe(union t3_wr *wqe)
@@ -175,70 +203,76 @@ void cxio_dump_wce(struct t3_cqe *wce)
 
 void cxio_dump_rqt(struct cxio_rdev *rdev, uint32_t hwtid, int nents)
 {
-	struct ch_mem_range *m;
+	struct ch_mem_range m;
 	int size = nents * 64;
 	u64 *data;
+	u32 addr;
 	int rc;
 
-	m = kmalloc(sizeof(*m) + size, M_NOWAIT);
-	if (!m) {
+	m.buf = malloc(size, M_DEVBUF, M_NOWAIT);
+	if (m.buf == NULL) {
 		CTR1(KTR_IW_CXGB, "%s couldn't allocate memory.", __FUNCTION__);
 		return;
 	}
-	m->mem_id = MEM_PMRX;
-	m->addr = ((hwtid)<<10) + rdev->rnic_info.rqt_base;
-	m->len = size;
-	CTR3(KTR_IW_CXGB, "%s RQT addr 0x%x len %d", __FUNCTION__, m->addr, m->len);
-	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
+	m.mem_id = MEM_PMRX;
+	m.addr = ((hwtid)<<10) + rdev->rnic_info.rqt_base;
+	m.len = size;
+	CTR3(KTR_IW_CXGB, "%s RQT addr 0x%x len %d", __FUNCTION__, m.addr, m.len);
+
+	rc = cxio_rdma_get_mem(rdev, &m);
 	if (rc) {
 		CTR2(KTR_IW_CXGB, "%s toectl returned error %d", __FUNCTION__, rc);
-		free(m, M_DEVBUF);
+		free(m.buf, M_DEVBUF);
 		return;
 	}
 
-	data = (u64 *)m->buf;
+	data = (u64 *)m.buf;
+	addr = m.addr;
 	while (size > 0) {
-		CTR2(KTR_IW_CXGB, "RQT %08x: %016llx", m->addr, (unsigned long long) *data);
+		CTR2(KTR_IW_CXGB, "RQT %08x: %016llx", addr, (unsigned long long) *data);
 		size -= 8;
 		data++;
-		m->addr += 8;
+		addr += 8;
 	}
-	free(m, M_DEVBUF);
+	free(m.buf, M_DEVBUF);
 }
 
 void cxio_dump_tcb(struct cxio_rdev *rdev, uint32_t hwtid)
 {
-	struct ch_mem_range *m;
+	struct ch_mem_range m;
 	int size = TCB_SIZE;
 	uint32_t *data;
+	uint32_t addr;
 	int rc;
 
-	m = kmalloc(sizeof(*m) + size, M_NOWAIT);
-	if (!m) {
+	m.buf = malloc(size, M_DEVBUF, M_NOWAIT);
+	if (m.buf == NULL) {
 		CTR1(KTR_IW_CXGB, "%s couldn't allocate memory.", __FUNCTION__);
 		return;
 	}
-	m->mem_id = MEM_CM;
-	m->addr = hwtid * size;
-	m->len = size;
-	CTR3(KTR_IW_CXGB, "%s TCB %d len %d", __FUNCTION__, m->addr, m->len);
-	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
+	m.mem_id = MEM_CM;
+	m.addr = hwtid * size;
+	m.len = size;
+	CTR3(KTR_IW_CXGB, "%s TCB %d len %d", __FUNCTION__, m.addr, m.len);
+
+	rc = cxio_rdma_get_mem(rdev, &m);
 	if (rc) {
 		CTR2(KTR_IW_CXGB, "%s toectl returned error %d", __FUNCTION__, rc);
-		free(m, M_DEVBUF);
+		free(m.buf, M_DEVBUF);
 		return;
 	}
 
-	data = (uint32_t *)m->buf;
+	data = (uint32_t *)m.buf;
+	addr = m.addr;
 	while (size > 0) {
 		printf("%2u: %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			m->addr,
+			addr,
 			*(data+2), *(data+3), *(data),*(data+1),
 			*(data+6), *(data+7), *(data+4), *(data+5));
 		size -= 32;
 		data += 8;
-		m->addr += 32;
+		addr += 32;
 	}
-	free(m, M_DEVBUF);
+	free(m.buf, M_DEVBUF);
 }
 #endif
