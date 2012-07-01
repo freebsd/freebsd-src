@@ -5972,15 +5972,8 @@ sctp_skip_csum_4:
 		struct sctp_init_chunk *init_chk, chunk_buf;
 
 		SCTP_STAT_INCR(sctps_noport);
-#ifdef ICMP_BANDLIM
-		/*
-		 * we use the bandwidth limiting to protect against sending
-		 * too many ABORTS all at once. In this case these count the
-		 * same as an ICMP message.
-		 */
-		if (badport_bandlim(0) < 0)
+		if (badport_bandlim(BANDLIM_SCTP_OOTB) < 0)
 			goto bad;
-#endif				/* ICMP_BANDLIM */
 		SCTPDBG(SCTP_DEBUG_INPUT1,
 		    "Sending a ABORT from packet entry!\n");
 		if (ch->chunk_type == SCTP_INITIATION) {
