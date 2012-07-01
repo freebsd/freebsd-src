@@ -268,7 +268,7 @@ failure:
 		/* No cleanup to perform. */
 		break;
 	default:
-		panic("cam_periph_alloc: Unkown init level");
+		panic("%s: Unknown init level", __func__);
 	}
 	return(status);
 }
