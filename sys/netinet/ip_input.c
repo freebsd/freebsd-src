@@ -1684,6 +1684,12 @@ makedummy:
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
+	if (inp->inp_flags & INP_RECVTOS) {
+		*mp = sbcreatecontrol((caddr_t) &ip->ip_tos,
+		    sizeof(u_char), IP_RECVTOS, IPPROTO_IP);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
 }
 
 /*
