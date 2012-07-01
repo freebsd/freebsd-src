@@ -2187,8 +2187,6 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 			from6->sin6_addr = ip6->ip6_src;
 			from6->sin6_port = sh->src_port;
 			/* Get the scopes in properly to the sin6 addr's */
-			/* we probably don't need these operations */
-			(void)sa6_recoverscope(from6);
 			sa6_embedscope(from6, MODULE_GLOBAL(ip6_use_defzone));
 			break;
 		}
@@ -2230,8 +2228,6 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 			to6->sin6_addr = ip6->ip6_dst;
 			to6->sin6_port = sh->dest_port;
 			/* Get the scopes in properly to the sin6 addr's */
-			/* we probably don't need these operations */
-			(void)sa6_recoverscope(to6);
 			sa6_embedscope(to6, MODULE_GLOBAL(ip6_use_defzone));
 			break;
 		}
