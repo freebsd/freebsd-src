@@ -2810,7 +2810,7 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 
 
 static void
-sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
+sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
     struct sctp_tmit_chunk *chk, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -2844,10 +2844,11 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
 		ssfe = mtod(m_notify, struct sctp_send_failed_event *);
 		ssfe->ssfe_type = SCTP_SEND_FAILED_EVENT;
-		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
-			ssfe->ssfe_flags = SCTP_DATA_UNSENT;
-		else
+		if (sent) {
 			ssfe->ssfe_flags = SCTP_DATA_SENT;
+		} else {
+			ssfe->ssfe_flags = SCTP_DATA_UNSENT;
+		}
 		ssfe->ssfe_length = length;
 		ssfe->ssfe_error = error;
 		/* not exactly what the user sent in, but should be close :) */
@@ -2862,10 +2863,11 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 	} else {
 		ssf = mtod(m_notify, struct sctp_send_failed *);
 		ssf->ssf_type = SCTP_SEND_FAILED;
-		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
-			ssf->ssf_flags = SCTP_DATA_UNSENT;
-		else
+		if (sent) {
 			ssf->ssf_flags = SCTP_DATA_SENT;
+		} else {
+			ssf->ssf_flags = SCTP_DATA_UNSENT;
+		}
 		ssf->ssf_length = length;
 		ssf->ssf_error = error;
 		/* not exactly what the user sent in, but should be close :) */
@@ -2954,10 +2956,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
 		ssfe = mtod(m_notify, struct sctp_send_failed_event *);
 		ssfe->ssfe_type = SCTP_SEND_FAILED;
-		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
-			ssfe->ssfe_flags = SCTP_DATA_UNSENT;
-		else
-			ssfe->ssfe_flags = SCTP_DATA_SENT;
+		ssfe->ssfe_flags = SCTP_DATA_UNSENT;
 		ssfe->ssfe_length = length;
 		ssfe->ssfe_error = error;
 		/* not exactly what the user sent in, but should be close :) */
@@ -2976,10 +2975,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	} else {
 		ssf = mtod(m_notify, struct sctp_send_failed *);
 		ssf->ssf_type = SCTP_SEND_FAILED;
-		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
-			ssf->ssf_flags = SCTP_DATA_UNSENT;
-		else
-			ssf->ssf_flags = SCTP_DATA_SENT;
+		ssf->ssf_flags = SCTP_DATA_UNSENT;
 		ssf->ssf_length = length;
 		ssf->ssf_error = error;
 		/* not exactly what the user sent in, but should be close :) */
@@ -3543,8 +3539,12 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		sctp_notify_send_failed2(stcb, error,
 		    (struct sctp_stream_queue_pending *)data, so_locked);
 		break;
-	case SCTP_NOTIFY_DG_FAIL:
-		sctp_notify_send_failed(stcb, error,
+	case SCTP_NOTIFY_SENT_DG_FAIL:
+		sctp_notify_send_failed(stcb, 1, error,
+		    (struct sctp_tmit_chunk *)data, so_locked);
+		break;
+	case SCTP_NOTIFY_UNSENT_DG_FAIL:
+		sctp_notify_send_failed(stcb, 0, error,
 		    (struct sctp_tmit_chunk *)data, so_locked);
 		break;
 	case SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION:
@@ -3642,7 +3642,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 }
 
 void
-sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
+sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -3677,8 +3677,8 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 		asoc->sent_queue_cnt--;
 		if (chk->data != NULL) {
 			sctp_free_bufspace(stcb, asoc, chk, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-			    SCTP_NOTIFY_DATAGRAM_SENT, chk, so_locked);
+			sctp_ulp_notify(SCTP_NOTIFY_SENT_DG_FAIL, stcb,
+			    error, chk, so_locked);
 			if (chk->data) {
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
@@ -3693,8 +3693,8 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 		asoc->send_queue_cnt--;
 		if (chk->data != NULL) {
 			sctp_free_bufspace(stcb, asoc, chk, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-			    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, so_locked);
+			sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb,
+			    error, chk, so_locked);
 			if (chk->data) {
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
@@ -3714,7 +3714,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 			sctp_free_spbufspace(stcb, asoc, sp);
 			if (sp->data) {
 				sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL, stcb,
-				    SCTP_NOTIFY_DATAGRAM_UNSENT, (void *)sp, so_locked);
+				    error, (void *)sp, so_locked);
 				if (sp->data) {
 					sctp_m_freem(sp->data);
 					sp->data = NULL;
@@ -3757,7 +3757,7 @@ sctp_abort_notification(struct sctp_tcb *stcb, uint8_t from_peer, uint16_t error
 		return;
 	}
 	/* Tell them we lost the asoc */
-	sctp_report_all_outbound(stcb, 1, so_locked);
+	sctp_report_all_outbound(stcb, error, 1, so_locked);
 	if (from_peer) {
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_REM_ABORTED, stcb, error, abort, so_locked);
 	} else {
@@ -4655,7 +4655,7 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
-    int reason, int so_locked
+    uint8_t sent, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -4682,7 +4682,11 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
 			stcb->asoc.peers_rwnd += tp1->send_size;
 			stcb->asoc.peers_rwnd += SCTP_BASE_SYSCTL(sctp_peer_chunk_oh);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
+			if (sent) {
+				sctp_ulp_notify(SCTP_NOTIFY_SENT_DG_FAIL, stcb, 0, tp1, so_locked);
+			} else {
+				sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb, 0, tp1, so_locked);
+			}
 			if (tp1->data) {
 				sctp_m_freem(tp1->data);
 				tp1->data = NULL;
@@ -4729,7 +4733,11 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 			chk = tp1;
 			ret_sz += tp1->book_size;
 			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
+			if (sent) {
+				sctp_ulp_notify(SCTP_NOTIFY_SENT_DG_FAIL, stcb, 0, tp1, so_locked);
+			} else {
+				sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb, 0, tp1, so_locked);
+			}
 			if (tp1->data) {
 				sctp_m_freem(tp1->data);
 				tp1->data = NULL;

@@ -170,7 +170,7 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 
 void 
-sctp_report_all_outbound(struct sctp_tcb *, int, int
+sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -244,7 +244,7 @@ void sctp_print_address_pkt(struct ip *, struct sctphdr *);
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
-    int, int
+    uint8_t, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
