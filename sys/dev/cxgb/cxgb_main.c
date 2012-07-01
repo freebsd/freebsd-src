@@ -982,7 +982,7 @@ cxgb_makedev(struct port_info *pi)
 #define CXGB_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
     IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
-#define CXGB_CAP_ENABLE (CXGB_CAP & ~IFCAP_TSO6)
+#define CXGB_CAP_ENABLE CXGB_CAP
 
 static int
 cxgb_port_attach(device_t dev)
@@ -2059,8 +2059,8 @@ fail:
 		}
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
-		if (mask & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_TSO) {
+			ifp->if_capenable ^= IFCAP_TSO;
 
 			if (IFCAP_TSO & ifp->if_capenable) {
 				if (IFCAP_TXCSUM & ifp->if_capenable)

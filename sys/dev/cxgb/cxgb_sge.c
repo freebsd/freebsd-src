@@ -30,6 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 
 #include <dev/pci/pcireg.h>
@@ -1492,10 +1494,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		check_ring_tx_db(sc, txq, 0);
 		return (0);		
 	} else if (tso_info) {
-		int eth_type;
+		uint16_t eth_type;
 		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *)txd;
 		struct ether_header *eh;
-		struct ip *ip;
+		void *l3hdr;
 		struct tcphdr *tcp;
 
 		txd->flit[2] = 0;
@@ -1521,18 +1523,37 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		}
 
 		eh = mtod(m0, struct ether_header *);
-		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			eth_type = CPL_ETH_II_VLAN;
-			ip = (struct ip *)((struct ether_vlan_header *)eh + 1);
-		} else {
-			eth_type = CPL_ETH_II;
-			ip = (struct ip *)(eh + 1);
-		}
-		tcp = (struct tcphdr *)(ip + 1);
+		eth_type = eh->ether_type;
+		if (eth_type == htons(ETHERTYPE_VLAN)) {
+			struct ether_vlan_header *evh = (void *)eh;
 
-		tso_info |= V_LSO_ETH_TYPE(eth_type) |
-			    V_LSO_IPHDR_WORDS(ip->ip_hl) |
-			    V_LSO_TCPHDR_WORDS(tcp->th_off);
+			tso_info |= V_LSO_ETH_TYPE(CPL_ETH_II_VLAN);
+			l3hdr = evh + 1;
+			eth_type = evh->evl_proto;
+		} else {
+			tso_info |= V_LSO_ETH_TYPE(CPL_ETH_II);
+			l3hdr = eh + 1;
+		}
+
+		if (eth_type == htons(ETHERTYPE_IP)) {
+			struct ip *ip = l3hdr;
+
+			tso_info |= V_LSO_IPHDR_WORDS(ip->ip_hl);
+			tcp = (struct tcphdr *)(ip + 1);
+		} else if (eth_type == htons(ETHERTYPE_IPV6)) {
+			struct ip6_hdr *ip6 = l3hdr;
+
+			KASSERT(ip6->ip6_nxt == IPPROTO_TCP,
+			    ("%s: CSUM_TSO with ip6_nxt %d",
+			    __func__, ip6->ip6_nxt));
+
+			tso_info |= F_LSO_IPV6;
+			tso_info |= V_LSO_IPHDR_WORDS(sizeof(*ip6) >> 2);
+			tcp = (struct tcphdr *)(ip6 + 1);
+		} else
+			panic("%s: CSUM_TSO but neither ip nor ip6", __func__);
+
+		tso_info |= V_LSO_TCPHDR_WORDS(tcp->th_off);
 		hdr->lso_info = htonl(tso_info);
 
 		if (__predict_false(mlen <= PIO_LEN)) {
@@ -2065,7 +2086,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		MTX_DESTROY(&q->rspq.lock);
 	}
 
-#ifdef INET
+#if defined(INET6) || defined(INET)
 	tcp_lro_free(&q->lro.ctrl);
 #endif
 
@@ -2648,7 +2669,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 
 	/* Allocate and setup the lro_ctrl structure */
 	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
-#ifdef INET
+#if defined(INET6) || defined(INET)
 	ret = tcp_lro_init(&q->lro.ctrl);
 	if (ret) {
 		printf("error %d from tcp_lro_init\n", ret);
@@ -2941,9 +2962,11 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct rsp_desc *r = &rspq->desc[rspq->cidx];
 	int budget_left = budget;
 	unsigned int sleeping = 0;
+#if defined(INET6) || defined(INET)
 	int lro_enabled = qs->lro.enabled;
 	int skip_lro;
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
+#endif
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
 	struct t3_mbuf_hdr *mh = &rspq->rspq_mh;
@@ -3062,15 +3085,16 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			 * The mbuf's rcvif was derived from the cpl header and
 			 * is accurate.  Skip LRO and just use that.
 			 */
+#if defined(INET6) || defined(INET)
 			skip_lro = __predict_false(qs->port->ifp != m->m_pkthdr.rcvif);
 
 			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro
-#ifdef INET
 			    && (tcp_lro_rx(lro_ctrl, m, 0) == 0)
-#endif
 			    ) {
 				/* successfully queue'd for LRO */
-			} else {
+			} else
+#endif
+			{
 				/*
 				 * LRO not enabled, packet unsuitable for LRO,
 				 * or unable to queue.  Pass it up right now in
@@ -3089,7 +3113,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 
-#ifdef INET
+#if defined(INET6) || defined(INET)
 	/* Flush LRO */
 	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
 		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
