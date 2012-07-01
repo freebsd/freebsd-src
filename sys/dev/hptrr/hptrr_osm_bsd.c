@@ -34,7 +34,7 @@
 #include <dev/hptrr/os_bsd.h>
 #include <dev/hptrr/hptintf.h>
 
-static int attach_generic = 1;
+static int attach_generic = 0;
 TUNABLE_INT("hw.hptrr.attach_generic", &attach_generic);
 
 static int hpt_probe(device_t dev)
