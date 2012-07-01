@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -355,21 +356,20 @@ static int t4_mod_event(module_t, int, void *);
 
 struct t4_pciids {
 	uint16_t device;
-	uint8_t mpf;
 	char *desc;
 } t4_pciids[] = {
-	{0xa000, 0, "Chelsio Terminator 4 FPGA"},
-	{0x4400, 4, "Chelsio T440-dbg"},
-	{0x4401, 4, "Chelsio T420-CR"},
-	{0x4402, 4, "Chelsio T422-CR"},
-	{0x4403, 4, "Chelsio T440-CR"},
-	{0x4404, 4, "Chelsio T420-BCH"},
-	{0x4405, 4, "Chelsio T440-BCH"},
-	{0x4406, 4, "Chelsio T440-CH"},
-	{0x4407, 4, "Chelsio T420-SO"},
-	{0x4408, 4, "Chelsio T420-CX"},
-	{0x4409, 4, "Chelsio T420-BT"},
-	{0x440a, 4, "Chelsio T404-BT"},
+	{0xa000, "Chelsio Terminator 4 FPGA"},
+	{0x4400, "Chelsio T440-dbg"},
+	{0x4401, "Chelsio T420-CR"},
+	{0x4402, "Chelsio T422-CR"},
+	{0x4403, "Chelsio T440-CR"},
+	{0x4404, "Chelsio T420-BCH"},
+	{0x4405, "Chelsio T440-BCH"},
+	{0x4406, "Chelsio T440-CH"},
+	{0x4407, "Chelsio T420-SO"},
+	{0x4408, "Chelsio T420-CX"},
+	{0x4409, "Chelsio T420-BT"},
+	{0x440a, "Chelsio T404-BT"},
 };
 
 #ifdef TCP_OFFLOAD
@@ -387,13 +387,17 @@ t4_probe(device_t dev)
 	int i;
 	uint16_t v = pci_get_vendor(dev);
 	uint16_t d = pci_get_device(dev);
+	uint8_t f = pci_get_function(dev);
 
 	if (v != PCI_VENDOR_ID_CHELSIO)
 		return (ENXIO);
 
+	/* Attach only to PF0 of the FPGA */
+	if (d == 0xa000 && f != 0)
+		return (ENXIO);
+
 	for (i = 0; i < ARRAY_SIZE(t4_pciids); i++) {
-		if (d == t4_pciids[i].device &&
-		    pci_get_function(dev) == t4_pciids[i].mpf) {
+		if (d == t4_pciids[i].device) {
 			device_set_desc(dev, t4_pciids[i].desc);
 			return (BUS_PROBE_DEFAULT);
 		}
@@ -415,8 +419,6 @@ t4_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->pf = pci_get_function(dev);
-	sc->mbox = sc->pf;
 
 	pci_enable_busmaster(dev);
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
@@ -442,6 +444,15 @@ t4_attach(device_t dev)
 	rc = map_bars(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
+
+	/*
+	 * This is the real PF# to which we're attaching.  Works from within PCI
+	 * passthrough environments too, where pci_get_function() could return a
+	 * different PF# depending on the passthrough configuration.  We need to
+	 * use the real PF# in all our communication with the firmware.
+	 */
+	sc->pf = G_SOURCEPF(t4_read_reg(sc, A_PL_WHOAMI));
+	sc->mbox = sc->pf;
 
 	memset(sc->chan_map, 0xff, sizeof(sc->chan_map));
 	sc->an_handler = an_not_handled;
@@ -812,8 +823,8 @@ cxgbe_probe(device_t dev)
 
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
-    IFCAP_VLAN_HWTSO)
-#define T4_CAP_ENABLE (T4_CAP & ~IFCAP_TSO6)
+    IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6)
+#define T4_CAP_ENABLE (T4_CAP)
 
 static int
 cxgbe_attach(device_t dev)
@@ -846,7 +857,8 @@ cxgbe_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_TOE4;
 #endif
 	ifp->if_capenable = T4_CAP_ENABLE;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO;
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6;
 
 	/* Initialize ifmedia for this port */
 	ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
@@ -1016,35 +1028,55 @@ fail:
 			ifp->if_capenable ^= IFCAP_TXCSUM;
 			ifp->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
 
-			if (IFCAP_TSO & ifp->if_capenable &&
+			if (IFCAP_TSO4 & ifp->if_capenable &&
 			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
-				ifp->if_capenable &= ~IFCAP_TSO;
-				ifp->if_hwassist &= ~CSUM_TSO;
+				ifp->if_capenable &= ~IFCAP_TSO4;
 				if_printf(ifp,
-				    "tso disabled due to -txcsum.\n");
+				    "tso4 disabled due to -txcsum.\n");
+			}
+		}
+		if (mask & IFCAP_TXCSUM_IPV6) {
+			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+			ifp->if_hwassist ^= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+
+			if (IFCAP_TSO6 & ifp->if_capenable &&
+			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
+				ifp->if_capenable &= ~IFCAP_TSO6;
+				if_printf(ifp,
+				    "tso6 disabled due to -txcsum6.\n");
 			}
 		}
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
-		if (mask & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_RXCSUM_IPV6)
+			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
 
-			if (IFCAP_TSO & ifp->if_capenable) {
-				if (IFCAP_TXCSUM & ifp->if_capenable)
-					ifp->if_hwassist |= CSUM_TSO;
-				else {
-					ifp->if_capenable &= ~IFCAP_TSO;
-					ifp->if_hwassist &= ~CSUM_TSO;
-					if_printf(ifp,
-					    "enable txcsum first.\n");
-					rc = EAGAIN;
-					goto fail;
-				}
-			} else
-				ifp->if_hwassist &= ~CSUM_TSO;
+		/*
+		 * Note that we leave CSUM_TSO alone (it is always set).  The
+		 * kernel takes both IFCAP_TSOx and CSUM_TSO into account before
+		 * sending a TSO request our way, so it's sufficient to toggle
+		 * IFCAP_TSOx only.
+		 */
+		if (mask & IFCAP_TSO4) {
+			if (!(IFCAP_TSO4 & ifp->if_capenable) &&
+			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
+				if_printf(ifp, "enable txcsum first.\n");
+				rc = EAGAIN;
+				goto fail;
+			}
+			ifp->if_capenable ^= IFCAP_TSO4;
+		}
+		if (mask & IFCAP_TSO6) {
+			if (!(IFCAP_TSO6 & ifp->if_capenable) &&
+			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
+				if_printf(ifp, "enable txcsum6 first.\n");
+				rc = EAGAIN;
+				goto fail;
+			}
+			ifp->if_capenable ^= IFCAP_TSO6;
 		}
 		if (mask & IFCAP_LRO) {
-#ifdef INET
+#if defined(INET) || defined(INET6)
 			int i;
 			struct sge_rxq *rxq;
 
@@ -1277,9 +1309,17 @@ map_bars(struct adapter *sc)
 static void
 setup_memwin(struct adapter *sc)
 {
-	u_long bar0;
+	uint32_t bar0;
 
-	bar0 = rman_get_start(sc->regs_res);
+	/*
+	 * Read low 32b of bar0 indirectly via the hardware backdoor mechanism.
+	 * Works from within PCI passthrough environments too, where
+	 * rman_get_start() can return a different value.  We need to program
+	 * the memory window decoders with the actual addresses that will be
+	 * coming across the PCIe link.
+	 */
+	bar0 = t4_hw_pci_read_cfg4(sc, PCIR_BAR(0));
+	bar0 &= (uint32_t) PCIM_BAR_MEM_BASE;
 
 	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 0),
 	    	     (bar0 + MEMWIN0_BASE) | V_BIR(0) |
@@ -1292,6 +1332,9 @@ setup_memwin(struct adapter *sc)
 	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2),
 		     (bar0 + MEMWIN2_BASE) | V_BIR(0) |
 		     V_WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
+
+	/* flush */
+	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2));
 }
 
 static int
@@ -1308,10 +1351,12 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 	iaq->nrxq10g = nrxq10g = t4_nrxq10g;
 	iaq->nrxq1g = nrxq1g = t4_nrxq1g;
 #ifdef TCP_OFFLOAD
-	iaq->nofldtxq10g = t4_nofldtxq10g;
-	iaq->nofldtxq1g = t4_nofldtxq1g;
-	iaq->nofldrxq10g = nofldrxq10g = t4_nofldrxq10g;
-	iaq->nofldrxq1g = nofldrxq1g = t4_nofldrxq1g;
+	if (is_offload(sc)) {
+		iaq->nofldtxq10g = t4_nofldtxq10g;
+		iaq->nofldtxq1g = t4_nofldtxq1g;
+		iaq->nofldrxq10g = nofldrxq10g = t4_nofldrxq10g;
+		iaq->nofldrxq1g = nofldrxq1g = t4_nofldrxq1g;
+	}
 #endif
 
 	for (itype = INTR_MSIX; itype; itype >>= 1) {
@@ -1380,7 +1425,8 @@ restart:
 				}
 				iaq->nrxq10g = min(n, nrxq10g);
 #ifdef TCP_OFFLOAD
-				iaq->nofldrxq10g = min(n, nofldrxq10g);
+				if (is_offload(sc))
+					iaq->nofldrxq10g = min(n, nofldrxq10g);
 #endif
 			}
 
@@ -1395,7 +1441,8 @@ restart:
 				}
 				iaq->nrxq1g = min(n, nrxq1g);
 #ifdef TCP_OFFLOAD
-				iaq->nofldrxq1g = min(n, nofldrxq1g);
+				if (is_offload(sc))
+					iaq->nofldrxq1g = min(n, nofldrxq1g);
 #endif
 			}
 
@@ -1408,7 +1455,8 @@ restart:
 		 */
 		iaq->nirq = iaq->nrxq10g = iaq->nrxq1g = 1;
 #ifdef TCP_OFFLOAD
-		iaq->nofldrxq10g = iaq->nofldrxq1g = 1;
+		if (is_offload(sc))
+			iaq->nofldrxq10g = iaq->nofldrxq1g = 1;
 #endif
 
 allocate:
@@ -2705,7 +2753,9 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 		0xdfc0, 0xdfe0,
 		0xe000, 0xea7c,
 		0xf000, 0x11190,
-		0x19040, 0x19124,
+		0x19040, 0x1906c,
+		0x19078, 0x19080,
+		0x1908c, 0x19124,
 		0x19150, 0x191b0,
 		0x191d0, 0x191e8,
 		0x19238, 0x1924c,
@@ -2718,49 +2768,49 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 		0x1a190, 0x1a1c4,
 		0x1a1fc, 0x1a1fc,
 		0x1e040, 0x1e04c,
-		0x1e240, 0x1e28c,
+		0x1e284, 0x1e28c,
 		0x1e2c0, 0x1e2c0,
 		0x1e2e0, 0x1e2e0,
 		0x1e300, 0x1e384,
 		0x1e3c0, 0x1e3c8,
 		0x1e440, 0x1e44c,
-		0x1e640, 0x1e68c,
+		0x1e684, 0x1e68c,
 		0x1e6c0, 0x1e6c0,
 		0x1e6e0, 0x1e6e0,
 		0x1e700, 0x1e784,
 		0x1e7c0, 0x1e7c8,
 		0x1e840, 0x1e84c,
-		0x1ea40, 0x1ea8c,
+		0x1ea84, 0x1ea8c,
 		0x1eac0, 0x1eac0,
 		0x1eae0, 0x1eae0,
 		0x1eb00, 0x1eb84,
 		0x1ebc0, 0x1ebc8,
 		0x1ec40, 0x1ec4c,
-		0x1ee40, 0x1ee8c,
+		0x1ee84, 0x1ee8c,
 		0x1eec0, 0x1eec0,
 		0x1eee0, 0x1eee0,
 		0x1ef00, 0x1ef84,
 		0x1efc0, 0x1efc8,
 		0x1f040, 0x1f04c,
-		0x1f240, 0x1f28c,
+		0x1f284, 0x1f28c,
 		0x1f2c0, 0x1f2c0,
 		0x1f2e0, 0x1f2e0,
 		0x1f300, 0x1f384,
 		0x1f3c0, 0x1f3c8,
 		0x1f440, 0x1f44c,
-		0x1f640, 0x1f68c,
+		0x1f684, 0x1f68c,
 		0x1f6c0, 0x1f6c0,
 		0x1f6e0, 0x1f6e0,
 		0x1f700, 0x1f784,
 		0x1f7c0, 0x1f7c8,
 		0x1f840, 0x1f84c,
-		0x1fa40, 0x1fa8c,
+		0x1fa84, 0x1fa8c,
 		0x1fac0, 0x1fac0,
 		0x1fae0, 0x1fae0,
 		0x1fb00, 0x1fb84,
 		0x1fbc0, 0x1fbc8,
 		0x1fc40, 0x1fc4c,
-		0x1fe40, 0x1fe8c,
+		0x1fe84, 0x1fe8c,
 		0x1fec0, 0x1fec0,
 		0x1fee0, 0x1fee0,
 		0x1ff00, 0x1ff84,

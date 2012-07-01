@@ -1204,7 +1204,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp = intotcpcb(inp);
 
-	if (cpl->seq_vld) {
+	if (cpl->flags & CPL_FW4_ACK_FLAGS_SEQVAL) {
 		tcp_seq snd_una = be32toh(cpl->snd_una);
 
 #ifdef INVARIANTS
