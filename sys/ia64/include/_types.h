@@ -115,6 +115,4 @@ typedef char *			__va_list;	/* non-functional */
 #endif /* lint */
 #endif /* __GNUCLIKE_BUILTIN_VARARGS */
 
-typedef int		__wchar_t;
-
 #endif /* !_MACHINE__TYPES_H_ */

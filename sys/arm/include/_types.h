@@ -119,10 +119,4 @@ typedef	char *			__va_list;
 typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
 #endif
 
-#ifdef __ARM_EABI__
-typedef unsigned int	__wchar_t;
-#else
-typedef int		__wchar_t;
-#endif
-
 #endif /* !_MACHINE__TYPES_H_ */

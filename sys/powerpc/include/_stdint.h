@@ -65,8 +65,6 @@
 
 #if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS)
 
-#include <machine/_wchar.h>
-
 #ifdef __LP64__
 #define	__INT64_C(c)		(c ## L)
 #define	__UINT64_C(c)		(c ## UL)
@@ -189,6 +187,12 @@
 
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT32_MAX
+#endif
+
+#ifndef WCHAR_MIN /* Also possibly defined in <wchar.h> */
+/* Limits of wchar_t. */
+#define	WCHAR_MIN	INT32_MIN
+#define	WCHAR_MAX	INT32_MAX
 #endif
 
 /* Limits of wint_t. */

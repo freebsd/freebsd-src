@@ -65,8 +65,6 @@
 
 #if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS)
 
-#include <machine/_wchar.h>
-
 /*
  * ISO/IEC 9899:1999
  * 7.18.2.1 Limits of exact-width integer types
@@ -180,6 +178,12 @@
 #define	SIG_ATOMIC_MIN	INT32_MIN
 #define	SIG_ATOMIC_MAX	INT32_MAX
 #define	SIZE_MAX	UINT32_MAX
+#endif
+
+#ifndef WCHAR_MIN /* Also possibly defined in <wchar.h> */
+/* Limits of wchar_t. */
+#define	WCHAR_MIN	INT32_MIN
+#define	WCHAR_MAX	INT32_MAX
 #endif
 
 /* Limits of wint_t. */

@@ -66,8 +66,6 @@
 
 #if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS)
 
-#include <machine/_wchar.h>
-
 #ifdef __mips_n64
 #define __INT64_C(c)              (c ## L)
 #define __UINT64_C(c)             (c ## UL)
@@ -187,6 +185,12 @@
 /* Limits of sig_atomic_t. */
 #define	SIG_ATOMIC_MIN	INT32_MIN
 #define	SIG_ATOMIC_MAX	INT32_MAX
+
+#ifndef WCHAR_MIN /* Also possibly defined in <wchar.h> */
+/* Limits of wchar_t. */
+#define	WCHAR_MIN	INT32_MIN
+#define	WCHAR_MAX	INT32_MAX
+#endif
 
 /* Limits of wint_t. */
 #define	WINT_MIN	INT32_MIN
