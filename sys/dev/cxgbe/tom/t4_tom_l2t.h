@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, 2009 Kip Macy <kmacy@freebsd.org>
+ * Copyright (c) 2012 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,41 +27,27 @@
  *
  */
 
-#ifndef _MVEC_H_
-#define _MVEC_H_
-#include <machine/bus.h>
+#ifndef __T4_TOM_L2T_H
+#define __T4_TOM_L2T_H
 
-static __inline void
-busdma_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
-    struct mbuf *m, bus_dma_segment_t *seg)
+#include "t4_l2t.h"
+
+int t4_l2t_send_slow(struct adapter *, struct wrqe *, struct l2t_entry *);
+struct l2t_entry *t4_l2t_get(struct port_info *, struct ifnet *,
+    struct sockaddr *);
+void t4_l2_update(struct toedev *, struct ifnet *, struct sockaddr *,
+    uint8_t *, uint16_t);
+void t4_init_l2t_cpl_handlers(struct adapter *);
+void t4_uninit_l2t_cpl_handlers(struct adapter *);
+
+static inline int
+t4_l2t_send(struct adapter *sc, struct wrqe *wr, struct l2t_entry *e)
 {
-#if defined(__i386__) || defined(__amd64__)
-	seg->ds_addr = pmap_kextract(mtod(m, vm_offset_t));
-	seg->ds_len = m->m_len;
-#else
-	int nsegstmp;
-
-	bus_dmamap_load_mbuf_sg(tag, map, m, seg, &nsegstmp, 0);
-#endif
+	if (__predict_true(e->state == L2T_STATE_VALID)) {
+		t4_wrq_tx(sc, wr);
+		return (0);
+	} else
+		return (t4_l2t_send_slow(sc, wr, e));
 }
 
-int busdma_map_sg_collapse(bus_dma_tag_t tag, bus_dmamap_t map,
-    struct mbuf **m, bus_dma_segment_t *segs, int *nsegs);
-void busdma_map_sg_vec(bus_dma_tag_t tag, bus_dmamap_t map,
-    struct mbuf *m, bus_dma_segment_t *segs, int *nsegs);
-
-static __inline void
-m_freem_list(struct mbuf *m)
-{
-	struct mbuf *n; 
-
-	while (m != NULL) {
-		n = m->m_nextpkt;
-		if (n != NULL)
-			prefetch(n);
-		m_freem(m);
-		m = n;
-	}	
-}
-
-#endif /* _MVEC_H_ */
+#endif  /* __T4_TOM_L2T_H */
