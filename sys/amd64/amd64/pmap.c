@@ -2096,7 +2096,6 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 	}
 }
 
-
 /*
  * free the pv_entry back to the free list
  */
@@ -2117,13 +2116,16 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	field = idx / 64;
 	bit = idx % 64;
 	pc->pc_map[field] |= 1ul << bit;
-	/* move to head of list */
-	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	if (pc->pc_map[0] != PC_FREE0 || pc->pc_map[1] != PC_FREE1 ||
 	    pc->pc_map[2] != PC_FREE2) {
-		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+		/* 98% of the time, pc is already at the head of the list. */
+		if (__predict_false(pc != TAILQ_FIRST(&pmap->pm_pvchunk))) {
+			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+			TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+		}
 		return;
 	}
+	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
@@ -4122,7 +4124,8 @@ pmap_remove_pages(pmap_t pmap)
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_list);
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
-							if (TAILQ_EMPTY(&mt->md.pv_list))
+							if ((mt->aflags & PGA_WRITEABLE) != 0 &&
+							    TAILQ_EMPTY(&mt->md.pv_list))
 								vm_page_aflag_clear(mt, PGA_WRITEABLE);
 					}
 					mpte = pmap_lookup_pt_page(pmap, pv->pv_va);
@@ -4138,7 +4141,8 @@ pmap_remove_pages(pmap_t pmap)
 				} else {
 					pmap_resident_count_dec(pmap, 1);
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-					if (TAILQ_EMPTY(&m->md.pv_list) &&
+					if ((m->aflags & PGA_WRITEABLE) != 0 &&
+					    TAILQ_EMPTY(&m->md.pv_list) &&
 					    (m->flags & PG_FICTITIOUS) == 0) {
 						pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 						if (TAILQ_EMPTY(&pvh->pv_list))
