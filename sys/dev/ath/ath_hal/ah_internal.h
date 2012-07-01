@@ -212,10 +212,24 @@ typedef struct {
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
-			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
+			halSupportsFastClock5GHz	: 1,
 			halHasLongRxDescTsf		: 1,
 			halHasBBReadWar			: 1,
-			halSerialiseRegWar		: 1;
+			halSerialiseRegWar		: 1,
+			halMciSupport			: 1,
+			halRxTxAbortSupport		: 1,
+			halPaprdEnabled			: 1,
+			halHasUapsdSupport		: 1,
+			halWpsPushButtonSupport		: 1,
+			halBtCoexApsmWar		: 1,
+			halGenTimerSupport		: 1,
+			halLDPCSupport			: 1,
+			halHwBeaconProcSupport		: 1,
+			halEnhancedDmaSupport		: 1;
+	uint32_t	halIsrRacSupport		: 1,
+			halApmEnable			: 1,
+			halIntrMitigation		: 1;
+
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -231,6 +245,13 @@ typedef struct {
 	uint32_t	halIntrMask;
 	uint8_t		halTxStreams;
 	uint8_t		halRxStreams;
+
+	int		halNumTxMaps;
+	int		halTxDescLen;
+	int		halTxStatusLen;
+	int		halRxStatusLen;
+	int		halRxHpFifoDepth;
+	int		halRxLpFifoDepth;
 } HAL_CAPABILITIES;
 
 struct regDomain;
