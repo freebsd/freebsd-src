@@ -533,4 +533,4 @@ ipi_send(struct pcpu *cpu, int xiv)
 	CTR3(KTR_SMP, "ipi_send(%p, %d): cpuid=%d", cpu, xiv, PCPU_GET(cpuid));
 }
 
-SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
+SYSINIT(start_aps, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, cpu_mp_unleash, NULL);
