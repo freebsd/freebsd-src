@@ -4990,8 +4990,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				if (so) {
 					/* Still an open socket - report */
 					sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL, stcb,
-					    SCTP_NOTIFY_DATAGRAM_UNSENT,
-					    (void *)sp, SCTP_SO_LOCKED);
+					    0, (void *)sp, SCTP_SO_LOCKED);
 				}
 				if (sp->data) {
 					sctp_m_freem(sp->data);
@@ -5051,8 +5050,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		if (chk->data) {
 			if (so) {
 				/* Still a socket? */
-				sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-				    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, SCTP_SO_LOCKED);
+				sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb,
+				    0, chk, SCTP_SO_LOCKED);
 			}
 			if (chk->data) {
 				sctp_m_freem(chk->data);
@@ -5075,8 +5074,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		if (chk->data) {
 			if (so) {
 				/* Still a socket? */
-				sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-				    SCTP_NOTIFY_DATAGRAM_SENT, chk, SCTP_SO_LOCKED);
+				sctp_ulp_notify(SCTP_NOTIFY_SENT_DG_FAIL, stcb,
+				    0, chk, SCTP_SO_LOCKED);
 			}
 			if (chk->data) {
 				sctp_m_freem(chk->data);

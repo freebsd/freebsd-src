@@ -300,8 +300,8 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 				asoc->send_queue_cnt--;
 				if (chk->data != NULL) {
 					sctp_free_bufspace(stcb, asoc, chk, 1);
-					sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-					    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, SCTP_SO_NOT_LOCKED);
+					sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb,
+					    0, chk, SCTP_SO_NOT_LOCKED);
 					if (chk->data) {
 						sctp_m_freem(chk->data);
 						chk->data = NULL;
@@ -318,8 +318,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 					TAILQ_REMOVE(&outs->outqueue, sp, next);
 					asoc->stream_queue_cnt--;
 					sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL,
-					    stcb, SCTP_NOTIFY_DATAGRAM_UNSENT,
-					    sp, SCTP_SO_NOT_LOCKED);
+					    stcb, 0, sp, SCTP_SO_NOT_LOCKED);
 					if (sp->data) {
 						sctp_m_freem(sp->data);
 						sp->data = NULL;
@@ -1006,7 +1005,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
 	    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
-		sctp_report_all_outbound(stcb, 0, SCTP_SO_NOT_LOCKED);
+		sctp_report_all_outbound(stcb, 0, 0, SCTP_SO_NOT_LOCKED);
 	}
 	/* stop the timer */
 	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_9);
@@ -1889,7 +1888,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		/* send up all the data */
 		SCTP_TCB_SEND_LOCK(stcb);
 
-		sctp_report_all_outbound(stcb, 1, SCTP_SO_NOT_LOCKED);
+		sctp_report_all_outbound(stcb, 0, 1, SCTP_SO_NOT_LOCKED);
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].next_sequence_sent = 0;
@@ -3176,7 +3175,7 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp SCTP_UNUSE
 		if (!TAILQ_EMPTY(&asoc->send_queue) ||
 		    !TAILQ_EMPTY(&asoc->sent_queue) ||
 		    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
-			sctp_report_all_outbound(stcb, 0, SCTP_SO_NOT_LOCKED);
+			sctp_report_all_outbound(stcb, 0, 0, SCTP_SO_NOT_LOCKED);
 		}
 	}
 	/* stop the timer */
