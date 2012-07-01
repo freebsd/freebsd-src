@@ -1432,7 +1432,8 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
 			if (__predict_false(!(cflags & CSUM_IP)))
 				cntrl |= F_TXPKT_IPCSUM_DIS;
-			if (__predict_false(!(cflags & (CSUM_TCP | CSUM_UDP))))
+			if (__predict_false(!(cflags & (CSUM_TCP | CSUM_UDP |
+			    CSUM_UDP_IPV6 | CSUM_TCP_IPV6))))
 				cntrl |= F_TXPKT_L4CSUM_DIS;
 
 			hflit[0] = htonl(cntrl);
@@ -1547,7 +1548,8 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
 		if (__predict_false(!(m0->m_pkthdr.csum_flags & CSUM_IP)))
 			cntrl |= F_TXPKT_IPCSUM_DIS;
-		if (__predict_false(!(m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))))
+		if (__predict_false(!(m0->m_pkthdr.csum_flags & (CSUM_TCP |
+		    CSUM_UDP | CSUM_UDP_IPV6 | CSUM_TCP_IPV6))))
 			cntrl |= F_TXPKT_L4CSUM_DIS;
 		cpl->cntrl = htonl(cntrl);
 		cpl->len = htonl(mlen | 0x80000000);
@@ -2620,20 +2622,12 @@ err:
  * will also be taken into account here.
  */
 void
-t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
+t3_rx_eth(struct adapter *adap, struct mbuf *m, int ethpad)
 {
 	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(mtod(m, uint8_t *) + ethpad);
 	struct port_info *pi = &adap->port[adap->rxpkt_map[cpl->iff]];
 	struct ifnet *ifp = pi->ifp;
 	
-	if ((ifp->if_capenable & IFCAP_RXCSUM) && !cpl->fragment &&
-	    cpl->csum_valid && cpl->csum == 0xffff) {
-		m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID);
-		rspq_to_qset(rq)->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
-		m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID|CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
-		m->m_pkthdr.csum_data = 0xffff;
-	}
-
 	if (cpl->vlan_valid) {
 		m->m_pkthdr.ether_vtag = ntohs(cpl->vlan);
 		m->m_flags |= M_VLANTAG;
@@ -2647,6 +2641,30 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	m->m_pkthdr.len -= (sizeof(*cpl) + ethpad);
 	m->m_len -= (sizeof(*cpl) + ethpad);
 	m->m_data += (sizeof(*cpl) + ethpad);
+
+	if (!cpl->fragment && cpl->csum_valid && cpl->csum == 0xffff) {
+		struct ether_header *eh = mtod(m, void *);
+		uint16_t eh_type;
+
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			struct ether_vlan_header *evh = mtod(m, void *);
+
+			eh_type = evh->evl_proto;
+		} else
+			eh_type = eh->ether_type;
+
+		if (ifp->if_capenable & IFCAP_RXCSUM &&
+		    eh_type == htons(ETHERTYPE_IP)) {
+			m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED |
+			    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+			m->m_pkthdr.csum_data = 0xffff;
+		} else if (ifp->if_capenable & IFCAP_RXCSUM_IPV6 &&
+		    eh_type == htons(ETHERTYPE_IPV6)) {
+			m->m_pkthdr.csum_flags = (CSUM_DATA_VALID_IPV6 |
+			    CSUM_PSEUDO_HDR);
+			m->m_pkthdr.csum_data = 0xffff;
+		}
+	}
 }
 
 /**
@@ -2913,7 +2931,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		} else if (eth && eop) {
 			struct mbuf *m = mh->mh_head;
 
-			t3_rx_eth(adap, rspq, m, ethpad);
+			t3_rx_eth(adap, m, ethpad);
 
 			/*
 			 * The T304 sends incoming packets on any qset.  If LRO
