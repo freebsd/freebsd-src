@@ -891,7 +891,8 @@ g_mirror_regular_request(struct bio *bp)
 		if (pbp->bio_children == pbp->bio_inbed) {
 			G_MIRROR_LOGREQ(3, pbp, "Request delivered.");
 			pbp->bio_completed = pbp->bio_length;
-			if (pbp->bio_cmd == BIO_WRITE) {
+			if (pbp->bio_cmd == BIO_WRITE ||
+			    pbp->bio_cmd == BIO_DELETE) {
 				bioq_remove(&sc->sc_inflight, pbp);
 				/* Release delayed sync requests if possible. */
 				g_mirror_sync_release(sc);
