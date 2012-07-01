@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/kdb.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
@@ -51,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
 #include "common/t4_msg.h"
-#include "t4_l2t.h"
 
 struct fl_buf_info {
 	int size;
@@ -115,14 +115,14 @@ static int free_mgmtq(struct adapter *);
 static int alloc_rxq(struct port_info *, struct sge_rxq *, int, int,
     struct sysctl_oid *);
 static int free_rxq(struct port_info *, struct sge_rxq *);
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 static int alloc_ofld_rxq(struct port_info *, struct sge_ofld_rxq *, int, int,
     struct sysctl_oid *);
 static int free_ofld_rxq(struct port_info *, struct sge_ofld_rxq *);
 #endif
 static int ctrl_eq_alloc(struct adapter *, struct sge_eq *);
 static int eth_eq_alloc(struct adapter *, struct port_info *, struct sge_eq *);
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 static int ofld_eq_alloc(struct adapter *, struct port_info *, struct sge_eq *);
 #endif
 static int alloc_eq(struct adapter *, struct port_info *, struct sge_eq *);
@@ -397,7 +397,7 @@ first_vector(struct port_info *pi)
 		if (i == pi->port_id)
 			break;
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 		if (sc->flags & INTR_DIRECT)
 			rc += pi->nrxq + pi->nofldrxq;
 		else
@@ -434,7 +434,7 @@ port_intr_iq(struct port_info *pi, int idx)
 	if (sc->intr_count == 1)
 		return (&sc->sge.fwq);
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	if (sc->flags & INTR_DIRECT) {
 		idx %= pi->nrxq + pi->nofldrxq;
 		
@@ -475,19 +475,20 @@ t4_setup_port_queues(struct port_info *pi)
 	struct sge_rxq *rxq;
 	struct sge_txq *txq;
 	struct sge_wrq *ctrlq;
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
 	struct sge_wrq *ofld_txq;
+	struct sysctl_oid *oid2 = NULL;
 #endif
 	char name[16];
 	struct adapter *sc = pi->adapter;
-	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev), *oid2 = NULL;
+	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq", CTLFLAG_RD,
 	    NULL, "rx queues");
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
 		oid2 = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "ofld_rxq",
 		    CTLFLAG_RD, NULL,
@@ -515,7 +516,7 @@ t4_setup_port_queues(struct port_info *pi)
 		init_fl(&rxq->fl, pi->qsize_rxq / 8, pi->ifp->if_mtu, name);
 
 		if (sc->flags & INTR_DIRECT
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 		    || (sc->intr_count > 1 && pi->nrxq >= pi->nofldrxq)
 #endif
 		   ) {
@@ -527,7 +528,7 @@ t4_setup_port_queues(struct port_info *pi)
 		}
 	}
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-iq",
@@ -567,7 +568,7 @@ t4_setup_port_queues(struct port_info *pi)
 		j++;
 	}
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 		if (ofld_rxq->iq.flags & IQ_INTR)
 			continue;
@@ -603,7 +604,7 @@ t4_setup_port_queues(struct port_info *pi)
 		j++;
 	}
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "ofld_txq",
 	    CTLFLAG_RD, NULL, "tx queues for offloaded TCP connections");
 	for_each_ofld_txq(pi, i, ofld_txq) {
@@ -655,7 +656,7 @@ t4_teardown_port_queues(struct port_info *pi)
 	struct adapter *sc = pi->adapter;
 	struct sge_rxq *rxq;
 	struct sge_txq *txq;
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
 	struct sge_wrq *ofld_txq;
 #endif
@@ -677,7 +678,7 @@ t4_teardown_port_queues(struct port_info *pi)
 		free_txq(pi, txq);
 	}
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	for_each_ofld_txq(pi, i, ofld_txq) {
 		free_wrq(sc, ofld_txq);
 	}
@@ -693,7 +694,7 @@ t4_teardown_port_queues(struct port_info *pi)
 			free_rxq(pi, rxq);
 	}
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 		if ((ofld_rxq->iq.flags & IQ_INTR) == 0)
 			free_ofld_rxq(pi, ofld_rxq);
@@ -709,7 +710,7 @@ t4_teardown_port_queues(struct port_info *pi)
 			free_rxq(pi, rxq);
 	}
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 		if (ofld_rxq->iq.flags & IQ_INTR)
 			free_ofld_rxq(pi, ofld_rxq);
@@ -775,7 +776,7 @@ static int
 service_iq(struct sge_iq *iq, int budget)
 {
 	struct sge_iq *q;
-	struct sge_rxq *rxq = (void *)iq;	/* Use iff iq is part of rxq */
+	struct sge_rxq *rxq = iq_to_rxq(iq);	/* Use iff iq is part of rxq */
 	struct sge_fl *fl = &rxq->fl;		/* Use iff IQ_HAS_FL */
 	struct adapter *sc = iq->adapter;
 	struct rsp_ctrl *ctrl;
@@ -862,7 +863,8 @@ service_iq(struct sge_iq *iq, int budget)
 				break;
 
 			default:
-				panic("%s: rsp_type %u", __func__, rsp_type);
+				sc->an_handler(iq, ctrl);
+				break;
 			}
 
 			iq_next(iq);
@@ -1076,42 +1078,33 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	return (0);
 }
 
-int
-t4_mgmt_tx(struct adapter *sc, struct mbuf *m)
-{
-	return t4_wrq_tx(sc, &sc->sge.mgmtq, m);
-}
-
 /*
  * Doesn't fail.  Holds on to work requests it can't send right away.
  */
-int
-t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct mbuf *m0)
+void
+t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct wrqe *wr)
 {
 	struct sge_eq *eq = &wrq->eq;
 	int can_reclaim;
 	caddr_t dst;
-	struct mbuf *wr, *next;
 
 	TXQ_LOCK_ASSERT_OWNED(wrq);
+#ifdef TCP_OFFLOAD
 	KASSERT((eq->flags & EQ_TYPEMASK) == EQ_OFLD ||
 	    (eq->flags & EQ_TYPEMASK) == EQ_CTRL,
 	    ("%s: eq type %d", __func__, eq->flags & EQ_TYPEMASK));
+#else
+	KASSERT((eq->flags & EQ_TYPEMASK) == EQ_CTRL,
+	    ("%s: eq type %d", __func__, eq->flags & EQ_TYPEMASK));
+#endif
 
-	if (__predict_true(m0 != NULL)) {
-		if (wrq->head)
-			wrq->tail->m_nextpkt = m0;
-		else
-			wrq->head = m0;
-		while (m0->m_nextpkt)
-			m0 = m0->m_nextpkt;
-		wrq->tail = m0;
-	}
+	if (__predict_true(wr != NULL))
+		STAILQ_INSERT_TAIL(&wrq->wr_list, wr, link);
 
 	can_reclaim = reclaimable(eq);
 	if (__predict_false(eq->flags & EQ_STALLED)) {
 		if (can_reclaim < tx_resume_threshold(eq))
-			return (0);
+			return;
 		eq->flags &= ~EQ_STALLED;
 		eq->unstalled++;
 	}
@@ -1120,39 +1113,34 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct mbuf *m0)
 	if (__predict_false(eq->cidx >= eq->cap))
 		eq->cidx -= eq->cap;
 
-	for (wr = wrq->head; wr; wr = next) {
+	while ((wr = STAILQ_FIRST(&wrq->wr_list)) != NULL) {
 		int ndesc;
-		struct mbuf *m;
 
-		next = wr->m_nextpkt;
-		wr->m_nextpkt = NULL;
+		if (__predict_false(wr->wr_len < 0 ||
+		    wr->wr_len > SGE_MAX_WR_LEN || (wr->wr_len & 0x7))) {
 
-		M_ASSERTPKTHDR(wr);
-		KASSERT(wr->m_pkthdr.len > 0 && (wr->m_pkthdr.len & 0x7) == 0,
-		    ("%s: work request len %d.", __func__, wr->m_pkthdr.len));
-
-		if (wr->m_pkthdr.len > SGE_MAX_WR_LEN) {
 #ifdef INVARIANTS
-			panic("%s: oversized work request", __func__);
-#else
-			log(LOG_ERR, "%s: %s work request too long (%d)",
-			    device_get_nameunit(sc->dev), __func__,
-			    wr->m_pkthdr.len);
-			m_freem(wr);
-			continue;
+			panic("%s: work request with length %d", __func__,
+			    wr->wr_len);
 #endif
+#ifdef KDB
+			kdb_backtrace();
+#endif
+			log(LOG_ERR, "%s: %s work request with length %d",
+			    device_get_nameunit(sc->dev), __func__, wr->wr_len);
+			STAILQ_REMOVE_HEAD(&wrq->wr_list, link);
+			free_wrqe(wr);
+			continue;
 		}
 
-		ndesc = howmany(wr->m_pkthdr.len, EQ_ESIZE);
+		ndesc = howmany(wr->wr_len, EQ_ESIZE);
 		if (eq->avail < ndesc) {
-			wr->m_nextpkt = next;
 			wrq->no_desc++;
 			break;
 		}
 
 		dst = (void *)&eq->desc[eq->pidx];
-		for (m = wr; m; m = m->m_next)
-			copy_to_txd(eq, mtod(m, caddr_t), &dst, m->m_len);
+		copy_to_txd(eq, wrtod(wr), &dst, wr->wr_len);
 
 		eq->pidx += ndesc;
 		eq->avail -= ndesc;
@@ -1164,7 +1152,8 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct mbuf *m0)
 			ring_eq_db(sc, eq);
 
 		wrq->tx_wrs++;
-		m_freem(wr);
+		STAILQ_REMOVE_HEAD(&wrq->wr_list, link);
+		free_wrqe(wr);
 
 		if (eq->avail < 8) {
 			can_reclaim = reclaimable(eq);
@@ -1178,20 +1167,11 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct mbuf *m0)
 	if (eq->pending)
 		ring_eq_db(sc, eq);
 
-	if (wr == NULL)
-		wrq->head = wrq->tail = NULL;
-	else {
-		wrq->head = wr;
-
-		KASSERT(wrq->tail->m_nextpkt == NULL,
-		    ("%s: wrq->tail grew a tail of its own", __func__));
-
+	if (wr != NULL) {
 		eq->flags |= EQ_STALLED;
 		if (callout_pending(&eq->tx_callout) == 0)
 			callout_reset(&eq->tx_callout, 1, t4_tx_callout, eq);
 	}
-
-	return (0);
 }
 
 /* Per-packet header in a coalesced tx WR, before the SGL starts (in flits) */
@@ -1792,6 +1772,7 @@ alloc_mgmtq(struct adapter *sc)
 static int
 free_mgmtq(struct adapter *sc)
 {
+
 	return free_wrq(sc, &sc->sge.mgmtq);
 }
 
@@ -1885,7 +1866,7 @@ free_rxq(struct port_info *pi, struct sge_rxq *rxq)
 	return (rc);
 }
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 static int
 alloc_ofld_rxq(struct port_info *pi, struct sge_ofld_rxq *ofld_rxq,
     int intr_idx, int idx, struct sysctl_oid *oid)
@@ -2031,7 +2012,7 @@ eth_eq_alloc(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 	return (rc);
 }
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 static int
 ofld_eq_alloc(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 {
@@ -2103,7 +2084,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 		rc = eth_eq_alloc(sc, pi, eq);
 		break;
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 	case EQ_OFLD:
 		rc = ofld_eq_alloc(sc, pi, eq);
 		break;
@@ -2141,7 +2122,7 @@ free_eq(struct adapter *sc, struct sge_eq *eq)
 			    eq->cntxt_id);
 			break;
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 		case EQ_OFLD:
 			rc = -t4_ofld_eq_free(sc, sc->mbox, sc->pf, 0,
 			    eq->cntxt_id);
@@ -2183,6 +2164,7 @@ alloc_wrq(struct adapter *sc, struct port_info *pi, struct sge_wrq *wrq,
 		return (rc);
 
 	wrq->adapter = sc;
+	STAILQ_INIT(&wrq->wr_list);
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &wrq->eq.cntxt_id, 0, "SGE context id of the queue");
@@ -3179,7 +3161,7 @@ write_sgl_to_txd(struct sge_eq *eq, struct sgl *sgl, caddr_t *to)
 static inline void
 copy_to_txd(struct sge_eq *eq, caddr_t from, caddr_t *to, int len)
 {
-	if ((uintptr_t)(*to) + len <= (uintptr_t)eq->spg) {
+	if (__predict_true((uintptr_t)(*to) + len <= (uintptr_t)eq->spg)) {
 		bcopy(from, *to, len);
 		(*to) += len;
 	} else {
