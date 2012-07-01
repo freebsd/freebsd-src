@@ -143,6 +143,7 @@ struct callout_cpu cc_cpu;
 #define	CC_LOCK(cc)	mtx_lock_spin(&(cc)->cc_lock)
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
 #define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
+#define	C_PRECISION	0x2
 
 #define FREQ2BT(freq, bt)                                               \
 {                                                                       \
@@ -336,19 +337,21 @@ SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL)
 static inline int
 callout_hash(struct bintime *bt) 
 {
+
 	return (int) ((bt->sec<<10)+(bt->frac>>54));
 } 
 
 static inline int
 get_bucket(struct bintime *bt)
 {
+
 	return callout_hash(bt) & callwheelmask;
 }
 
 void
 callout_process(void)
 {
-	struct bintime limit, max, min, next, now, tmp_max, tmp_min;
+	struct bintime max, min, next, now, tmp_max, tmp_min;
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
@@ -384,8 +387,7 @@ callout_process(void)
 					tmp->c_func(tmp->c_arg);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
 			                tmp->c_flags &= ~CALLOUT_PENDING;
-				}
-				else {
+				} else {
 					TAILQ_INSERT_TAIL(&cc->cc_expireq, 
 					    tmp, c_staiter);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
@@ -398,12 +400,9 @@ callout_process(void)
 			break;
 		first = (first + 1) & callwheelmask;
 	}
-	future = ((last + hz/4) & callwheelmask); 
+	future = (last + hz / 4) & callwheelmask; 
 	max.sec = min.sec = TIME_T_MAX;
 	max.frac = min.frac = UINT64_MAX;
-	limit.sec = 0;
-	limit.frac = (uint64_t)1 << (64 - 2);
-	bintime_add(&limit, &now);		
 	/* 
 	 * Look for the first bucket in the future that contains some event,
 	 * up to some point,  so that we can look for aggregation. 
@@ -445,12 +444,11 @@ callout_process(void)
 		next.sec = 0;	
 		next.frac = (uint64_t)1 << (64 - 2);	
 		bintime_add(&next, &now);
-	}
-	/*
-	 * Now that we found something to aggregate, schedule an interrupt in 
-	 * the middle of the previously calculated range.
-	 */
-	else {
+	} else {
+		/*
+		 * Now that we found something to aggregate, schedule an  
+		 * interrupt in the middle of the previously calculated range.
+	 	 */
 		bintime_add(&max, &min);
 		next = max;
 		next.frac >>= 1;
@@ -504,9 +502,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	int bucket, r_shift, r_val;	
 	
 	CC_LOCK_ASSERT(cc);
-	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <)) {
+	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <)) 
 		to_bintime = cc->cc_lastscan;
-	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 	if (flags & C_DIRECT_EXEC)
@@ -515,7 +512,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_func = func;
 	c->c_time = to_bintime;
 	bintime_clear(&c->c_precision);
-	if (flags & 0x2) {  
+	if (flags & C_PRECISION) {  
 		r_shift = ((flags >> 2) & PRECISION_RANGE);
 		r_val = (r_shift != 0) ? (uint64_t)1 << (64 - r_shift) : 0;
 		/* 
@@ -538,7 +535,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 			}
 		}
 		c->c_precision.frac = r_val;
-		CTR6(KTR_CALLOUT, "rounding %d.%u%u to %d.%u%u", 
+		CTR6(KTR_CALLOUT, "rounding %d.%08x%08x to %d.%08x%08x", 
 		    to_bintime.sec, (u_int) (to_bintime.frac >> 32), 
 		    (u_int) (to_bintime.frac & 0xffffffff), c->c_time.sec, 
 		    (u_int) (c->c_time.frac >> 32), 
@@ -899,8 +896,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 		getbinuptime(&now);
 		bintime_mul(&to_bt,to_ticks);
 		bintime_add(&to_bt,&now);
-	}
-	else
+	} else 
 		to_bt = *bt;
 	/*
 	 * Don't allow migration of pre-allocated callouts lest they
