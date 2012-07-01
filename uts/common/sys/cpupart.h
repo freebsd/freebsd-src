@@ -19,14 +19,11 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 1996, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef	_SYS_CPUPART_H
 #define	_SYS_CPUPART_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/processor.h>
@@ -57,16 +54,6 @@ typedef int	cpupartid_t;
  */
 #define	CP_ALL		0		/* return all cpu partitions */
 #define	CP_NONEMPTY	1		/* return only non-empty ones */
-
-#if defined(_MACHDEP)
-struct mach_cpupart {
-	cpuset_t	mc_haltset;
-};
-
-extern struct mach_cpupart cp_default_mach;
-#else
-struct mach_cpupart;
-#endif
 
 typedef struct cpupart {
 	disp_t		cp_kp_queue;	/* partition-wide kpreempt queue */
@@ -103,8 +90,7 @@ typedef struct cpupart {
 	lgrp_gen_t	cp_gen;		/* generation number */
 	lgrp_id_t	cp_lgrp_hint;	/* last home lgroup chosen */
 	bitset_t	cp_cmt_pgs;	/* CMT PGs represented */
-
-	struct mach_cpupart *cp_mach;   /* mach-specific */
+	bitset_t	cp_haltset;	/* halted CPUs */
 } cpupart_t;
 
 typedef struct cpupart_kstat {
@@ -137,6 +123,15 @@ extern cpupart_t	cp_default;
 extern cpupart_t	*cp_list_head;
 extern uint_t		cp_numparts;
 extern uint_t		cp_numparts_nonempty;
+
+/*
+ * Each partition contains a bitset that indicates which CPUs are halted and
+ * which ones are running. Given the growing number of CPUs in current and
+ * future platforms, it's important to fanout each CPU within its partition's
+ * haltset to prevent contention due to false sharing. The fanout factor
+ * is platform specific, and declared accordingly.
+ */
+extern uint_t cp_haltset_fanout;
 
 extern void	cpupart_initialize_default();
 extern cpupart_t *cpupart_find(psetid_t);

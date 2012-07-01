@@ -19,11 +19,13 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
 
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -361,7 +363,7 @@ profile_offline(void *arg, cpu_t *cpu, void *oarg)
 }
 
 /*ARGSUSED*/
-static void
+static int
 profile_enable(void *arg, dtrace_id_t id, void *parg)
 {
 	profile_probe_t *prof = parg;
@@ -391,6 +393,7 @@ profile_enable(void *arg, dtrace_id_t id, void *parg)
 	} else {
 		prof->prof_cyclic = cyclic_add_omni(&omni);
 	}
+	return (0);
 }
 
 /*ARGSUSED*/
@@ -408,9 +411,25 @@ profile_disable(void *arg, dtrace_id_t id, void *parg)
 
 /*ARGSUSED*/
 static int
-profile_usermode(void *arg, dtrace_id_t id, void *parg)
+profile_mode(void *arg, dtrace_id_t id, void *parg)
 {
-	return (CPU->cpu_profile_pc == 0);
+	profile_probe_t *prof = parg;
+	int mode;
+
+	if (CPU->cpu_profile_pc != 0) {
+		mode = DTRACE_MODE_KERNEL;
+	} else {
+		mode = DTRACE_MODE_USER;
+	}
+
+	if (prof->prof_kind == PROF_TICK) {
+		mode |= DTRACE_MODE_NOPRIV_RESTRICT;
+	} else {
+		ASSERT(prof->prof_kind == PROF_PROFILE);
+		mode |= DTRACE_MODE_NOPRIV_DROP;
+	}
+
+	return (mode);
 }
 
 static dtrace_pattr_t profile_attr = {
@@ -430,7 +449,7 @@ static dtrace_pops_t profile_pops = {
 	NULL,
 	NULL,
 	NULL,
-	profile_usermode,
+	profile_mode,
 	profile_destroy
 };
 
@@ -539,7 +558,8 @@ static struct dev_ops profile_ops = {
 	nodev,			/* reset */
 	&profile_cb_ops,	/* driver operations */
 	NULL,			/* bus operations */
-	nodev			/* dev power */
+	nodev,			/* dev power */
+	ddi_quiesce_not_needed,		/* quiesce */
 };
 
 /*

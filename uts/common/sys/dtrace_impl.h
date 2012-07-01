@@ -24,10 +24,12 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
+
 #ifndef _SYS_DTRACE_IMPL_H
 #define	_SYS_DTRACE_IMPL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -419,8 +421,11 @@ typedef struct dtrace_buffer {
 	uint32_t dtb_errors;			/* number of errors */
 	uint32_t dtb_xamot_errors;		/* errors in inactive buffer */
 #ifndef _LP64
-	uint64_t dtb_pad1;
+	uint64_t dtb_pad1;			/* pad out to 64 bytes */
 #endif
+	uint64_t dtb_switched;			/* time of last switch */
+	uint64_t dtb_interval;			/* observed switch interval */
+	uint64_t dtb_pad2[6];			/* pad to avoid false sharing */
 } dtrace_buffer_t;
 
 /*
@@ -924,7 +929,8 @@ typedef struct dtrace_mstate {
  * Access flag used by dtrace_mstate.dtms_access.
  */
 #define	DTRACE_ACCESS_KERNEL	0x1		/* the priv to read kmem */
-
+#define	DTRACE_ACCESS_PROC	0x2		/* the priv for proc state */
+#define	DTRACE_ACCESS_ARGS	0x4		/* the priv to examine args */
 
 /*
  * DTrace Activity
@@ -1139,7 +1145,7 @@ struct dtrace_provider {
 	dtrace_pops_t dtpv_pops;		/* provider operations */
 	char *dtpv_name;			/* provider name */
 	void *dtpv_arg;				/* provider argument */
-	uint_t dtpv_defunct;			/* boolean: defunct provider */
+	hrtime_t dtpv_defunct;			/* when made defunct */
 	struct dtrace_provider *dtpv_next;	/* next provider */
 };
 
@@ -1246,6 +1252,7 @@ extern void dtrace_copyoutstr(uintptr_t, uintptr_t, size_t,
     volatile uint16_t *);
 extern void dtrace_getpcstack(pc_t *, int, int, uint32_t *);
 extern ulong_t dtrace_getreg(struct regs *, uint_t);
+extern uint64_t dtrace_getvmreg(uint_t, volatile uint16_t *);
 extern int dtrace_getstackdepth(int);
 extern void dtrace_getupcstack(uint64_t *, int);
 extern void dtrace_getufpstack(uint64_t *, uint64_t *, int);
