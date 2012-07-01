@@ -80,6 +80,15 @@ extern int cxgb_debug;
 #define MTX_DESTROY mtx_destroy
 #endif
 
+#ifndef IFCAP_HWCSUM_IPV6
+#define IFCAP_HWCSUM_IPV6 0
+#define CSUM_TCP_IPV6 0
+#define CSUM_UDP_IPV6 0
+#define IFCAP_TXCSUM_IPV6 0
+#define IFCAP_RXCSUM_IPV6 0
+#define CSUM_DATA_VALID_IPV6 0
+#endif
+
 enum {
 	LF_NO = 0,
 	LF_MAYBE,
@@ -264,15 +273,6 @@ struct sge_txq {
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
 };
      	
-
-enum {
-	SGE_PSTAT_TSO,              /* # of TSO requests */
-	SGE_PSTAT_RX_CSUM_GOOD,     /* # of successful RX csum offloads */
-	SGE_PSTAT_TX_CSUM,          /* # of TX checksum offloads */
-	SGE_PSTAT_VLANEX,           /* # of VLAN tag extractions */
-	SGE_PSTAT_VLANINS,          /* # of VLAN tag insertions */
-};
-
 #define SGE_PSTAT_MAX (SGE_PSTAT_VLANINS+1)
 
 #define QS_EXITING              0x1
@@ -287,7 +287,6 @@ struct sge_qset {
 	struct lro_state        lro;
 	struct sge_txq		txq[SGE_TXQ_PER_SET];
 	uint32_t                txq_stopped;       /* which Tx queues are stopped */
-	uint64_t                port_stats[SGE_PSTAT_MAX];
 	struct port_info        *port;
 	struct adapter          *adap;
 	int                     idx; /* qset # */
@@ -537,7 +536,7 @@ int t3_sge_reset_adapter(adapter_t *);
 int t3_sge_init_port(struct port_info *);
 void t3_free_tx_desc(struct sge_qset *qs, int n, int qid);
 
-void t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad);
+void t3_rx_eth(struct adapter *adap, struct mbuf *m, int ethpad);
 
 void t3_add_attach_sysctls(adapter_t *sc);
 void t3_add_configured_sysctls(adapter_t *sc);
