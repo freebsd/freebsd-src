@@ -1111,7 +1111,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 {
 	int chklen;
 	struct sctp_paramhdr *phdr;
-	uint16_t error_type;
+	uint16_t error, error_type;
 	uint16_t error_len;
 	struct sctp_association *asoc;
 	int adjust;
@@ -1126,6 +1126,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 	phdr = (struct sctp_paramhdr *)((caddr_t)ch +
 	    sizeof(struct sctp_chunkhdr));
 	chklen = ntohs(ch->chunk_length) - sizeof(struct sctp_chunkhdr);
+	error = 0;
 	while ((size_t)chklen >= sizeof(struct sctp_paramhdr)) {
 		/* Process an Error Cause */
 		error_type = ntohs(phdr->param_type);
@@ -1135,6 +1136,10 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			SCTPDBG(SCTP_DEBUG_INPUT1, "Bogus length in error param- chunk left:%d errorlen:%d\n",
 			    chklen, error_len);
 			return (0);
+		}
+		if (error == 0) {
+			/* report the first error cause */
+			error = error_type;
 		}
 		switch (error_type) {
 		case SCTP_CAUSE_INVALID_STREAM:
@@ -1252,6 +1257,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 		chklen -= adjust;
 		phdr = (struct sctp_paramhdr *)((caddr_t)phdr + adjust);
 	}
+	sctp_ulp_notify(SCTP_NOTIFY_REMOTE_ERROR, stcb, error, ch, SCTP_SO_NOT_LOCKED);
 	return (0);
 }
 
