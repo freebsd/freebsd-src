@@ -321,7 +321,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	}
 
 	if (bootverbose) {
-		printf("MAP: %lxx%lx, data=%lxx%lx "
+		printf("MAP: %jxx%jx, data=%jxx%jx "
 		    "\"/dev/map/%s\"\n",
 		    (intmax_t)start, (intmax_t)size, (intmax_t)offset,
 		    (intmax_t)dsize, name);
