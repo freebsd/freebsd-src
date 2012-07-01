@@ -671,7 +671,7 @@ static int
 delta_bintime_in_msecs(struct bintime bt, struct bintime now) 
 {
 	bintime_sub(&bt, &now);
-	return (((uint64_t) 1000 * (uint64_t) (bt.frac >> 32)) >> 32) +
+	return (((uint64_t)1000 * (uint64_t)(bt.frac >> 32)) >> 32) +
 	    (bt.sec * 1000);
 }
 
@@ -681,7 +681,7 @@ tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
 {
 	struct bintime bt, now;
 	
-	bzero(xtimer, sizeof(xtimer));
+	bzero(xtimer, sizeof(*xtimer));
 	if (timer == NULL)
 		return;
 	bintime_clear(&bt);
