@@ -230,7 +230,7 @@ xlvbd_add(struct xb_softc *sc, blkif_sector_t sectors,
 	sc->xb_disk->d_mediasize = sectors * sector_size;
 	sc->xb_disk->d_maxsize = sc->max_request_size;
 	sc->xb_disk->d_flags = 0;
-	disk_create(sc->xb_disk, DISK_VERSION_00);
+	disk_create(sc->xb_disk, DISK_VERSION);
 
 	return error;
 }
