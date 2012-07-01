@@ -73,6 +73,7 @@ typedef enum {
 	HAL_EINPROGRESS	= 15,	/* Operation incomplete */
 	HAL_EEBADREG	= 16,	/* EEPROM invalid regulatory contents */
 	HAL_EEBADCC	= 17,	/* EEPROM invalid country code */
+	HAL_INV_PMODE	= 18,	/* Couldn't bring out of sleep state */
 } HAL_STATUS;
 
 typedef enum {
@@ -180,9 +181,18 @@ typedef enum {
 	HAL_TX_QUEUE_CAB	= 3,		/* "crap after beacon" xmit q */
 	HAL_TX_QUEUE_UAPSD	= 4,		/* u-apsd power save xmit q */
 	HAL_TX_QUEUE_PSPOLL	= 5,		/* power save poll xmit q */
+	HAL_TX_QUEUE_CFEND	= 6,
+	HAL_TX_QUEUE_PAPRD	= 7,
 } HAL_TX_QUEUE;
 
 #define	HAL_NUM_TX_QUEUES	10		/* max possible # of queues */
+
+typedef enum {
+	HAL_RX_QUEUE_HP = 0,			/* high priority recv queue */
+	HAL_RX_QUEUE_LP = 0,			/* low priority recv queue */
+} HAL_RX_QUEUE;
+
+#define	HAL_NUM_RX_QUEUES	2		/* max possible # of queues */
 
 /*
  * Transmit queue subtype.  These map directly to
@@ -592,7 +602,7 @@ typedef enum {
 
 typedef struct {
 	uint8_t		kv_type;		/* one of HAL_CIPHER */
-	uint8_t		kv_pad;
+	uint8_t		kv_apsd;		/* Mask for APSD enabled ACs */
 	uint16_t	kv_len;			/* length in bits */
 	uint8_t		kv_val[16];		/* enough for 128-bit keys */
 	uint8_t		kv_mic[8];		/* TKIP MIC key */
@@ -721,6 +731,7 @@ typedef enum {
 	HAL_ANI_SPUR_IMMUNITY_LEVEL = 5,	/* set level */
 	HAL_ANI_MODE = 6,			/* 0 => manual, 1 => auto (XXX do not change) */
 	HAL_ANI_PHYERR_RESET = 7,		/* reset phy error stats */
+	HAL_ANI_MRC_CCK = 8,
 } HAL_ANI_CMD;
 
 /*
@@ -738,6 +749,7 @@ typedef enum {
 	HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL = 6
 } HAL_CAP_INTMIT_CMD;
 
+/* DFS defines */
 typedef struct {
 	int32_t		pe_firpwr;	/* FIR pwr out threshold */
 	int32_t		pe_rrssi;	/* Radar rssi thresh */
