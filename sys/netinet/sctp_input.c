@@ -428,7 +428,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    &abort_flag, (struct sctp_chunkhdr *)cp, &nat_friendly);
 	if (abort_flag) {
 		/* Send an abort and notify peer */
-		sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_CAUSE_PROTOCOL_VIOLATION, op_err, SCTP_SO_NOT_LOCKED);
+		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		*abort_no_unlock = 1;
 		return (-1);
 	}
@@ -739,7 +739,7 @@ sctp_handle_nat_missing_state(struct sctp_tcb *stcb,
 
 
 static void
-sctp_handle_abort(struct sctp_abort_chunk *cp,
+sctp_handle_abort(struct sctp_abort_chunk *abort,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -747,43 +747,42 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 
 #endif
 	uint16_t len;
+	uint16_t error;
 
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_abort: handling ABORT\n");
 	if (stcb == NULL)
 		return;
 
-	len = ntohs(cp->ch.chunk_length);
+	len = ntohs(abort->ch.chunk_length);
 	if (len > sizeof(struct sctp_chunkhdr)) {
 		/*
 		 * Need to check the cause codes for our two magic nat
 		 * aborts which don't kill the assoc necessarily.
 		 */
-		struct sctp_abort_chunk *cpnext;
 		struct sctp_missing_nat_state *natc;
-		uint16_t cause;
 
-		cpnext = cp;
-		cpnext++;
-		natc = (struct sctp_missing_nat_state *)cpnext;
-		cause = ntohs(natc->cause);
-		if (cause == SCTP_CAUSE_NAT_COLLIDING_STATE) {
+		natc = (struct sctp_missing_nat_state *)(abort + 1);
+		error = ntohs(natc->cause);
+		if (error == SCTP_CAUSE_NAT_COLLIDING_STATE) {
 			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
-			    cp->ch.chunk_flags);
+			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_colliding_state(stcb)) {
 				return;
 			}
-		} else if (cause == SCTP_CAUSE_NAT_MISSING_STATE) {
+		} else if (error == SCTP_CAUSE_NAT_MISSING_STATE) {
 			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags:%x\n",
-			    cp->ch.chunk_flags);
+			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_missing_state(stcb, net)) {
 				return;
 			}
 		}
+	} else {
+		error = 0;
 	}
 	/* stop any receive timers */
 	sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
 	/* notify user of the abort and clean up... */
-	sctp_abort_notification(stcb, 0, SCTP_SO_NOT_LOCKED);
+	sctp_abort_notification(stcb, error, abort, SCTP_SO_NOT_LOCKED);
 	/* free the tcb */
 	SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 	if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
@@ -1174,7 +1173,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 				asoc->stale_cookie_count++;
 				if (asoc->stale_cookie_count >
 				    asoc->max_init_times) {
-					sctp_abort_notification(stcb, 0, SCTP_SO_NOT_LOCKED);
+					sctp_abort_notification(stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 					/* now free the asoc */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 					so = SCTP_INP_SO(stcb->sctp_ep);
