@@ -378,7 +378,9 @@ callout_process(void)
 	for (;;) {	
 		sc = &cc->cc_callwheel[first];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
-			if (bintime_cmp(&tmp->c_time, &now, <=)) {
+			next = tmp->c_time;
+			bintime_sub(&next, &tmp->c_precision);
+			if (bintime_cmp(&next, &now, <=)) {
 				/* 
 				 * Consumer told us the callout may be run
 				 * directly from hardware interrupt context.
@@ -499,6 +501,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
     struct bintime to_bintime, void (*func)(void *), void *arg, int cpu, 
     int flags)
 {
+	struct bintime bt;
 	int bucket, r_shift, r_val;	
 	
 	CC_LOCK_ASSERT(cc);
@@ -546,10 +549,12 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	    c, c_links.tqe);
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout 
-	 * that has been inserted.
+	 * that has been inserted, but only if really required.
 	 */
+	bt = c->c_time;
+	bintime_add(&bt, &c->c_precision); 
 	if (callout_new_inserted != NULL && 
-	    (bintime_cmp(&c->c_time, &cc->cc_firstevent, <) ||
+	    (bintime_cmp(&bt, &cc->cc_firstevent, <) ||
 	    (cc->cc_firstevent.sec == 0 && cc->cc_firstevent.frac == 0))) {
 		cc->cc_firstevent = c->c_time;
 		(*callout_new_inserted)(cpu, c->c_time);
@@ -784,7 +789,6 @@ softclock(void *arg)
 			TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
 			c = softclock_call_cc(c, cc, &mpcalls,
 			    &lockcalls, &gcalls);
-			steps = 0;
 		}	
 	}
 #ifdef CALLOUT_PROFILING
