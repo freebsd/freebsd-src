@@ -2176,7 +2176,7 @@ basemem_setup(void)
 static void
 getmemsize(int first)
 {
-	int has_smap, off, physmap_idx, pa_indx, da_indx;
+	int has_smap, off, physmap_idx, pa_indx, da_indx, res;
 	u_long physmem_tunable, memtest;
 	vm_paddr_t physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
@@ -2267,7 +2267,8 @@ getmemsize(int first)
 	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
 	vmc.npages = 0;
 	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
-	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
+	res = vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
+	KASSERT(res != 0, ("vm86_getptr() failed: address not found"));
 
 	vmf.vmf_ebx = 0;
 	do {
