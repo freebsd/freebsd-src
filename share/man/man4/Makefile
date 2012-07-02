@@ -4,6 +4,7 @@
 MAN=	aac.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
+	${_acpi_asus_wmi.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
 	${_acpi_hp.4} \
@@ -698,6 +699,7 @@ MLINKS+=zyd.4 if_zyd.4
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
+_acpi_asus_wmi.4=	acpi_asus_wmi.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
 _acpi_hp.4=	acpi_hp.4
