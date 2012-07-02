@@ -259,7 +259,7 @@ SUBDIR+=	keyserv
 SUBDIR+=	ftp-proxy
 .endif
 
-.if ${PK_PKGBOOTSTRAP} != "no"
+.if ${MK_PKGBOOTSTRAP} != "no"
 SUBDIR+=	pkg
 .endif
 
