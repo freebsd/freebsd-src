@@ -222,7 +222,7 @@ TUNABLE_INT("hw.cxgbe.linkcaps_allowed", &t4_linkcaps_allowed);
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC;
 TUNABLE_INT("hw.cxgbe.niccaps_allowed", &t4_niccaps_allowed);
 
-static int t4_toecaps_allowed = FW_CAPS_CONFIG_TOE;
+static int t4_toecaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 
 static int t4_rdmacaps_allowed = 0;
@@ -5492,6 +5492,12 @@ tweak_tunables(void)
 
 	if (t4_nofldrxq1g < 1)
 		t4_nofldrxq1g = min(nc, NOFLDRXQ_1G);
+
+	if (t4_toecaps_allowed == -1)
+		t4_toecaps_allowed = FW_CAPS_CONFIG_TOE;
+#else
+	if (t4_toecaps_allowed == -1)
+		t4_toecaps_allowed = 0;
 #endif
 
 	if (t4_tmr_idx_10g < 0 || t4_tmr_idx_10g >= SGE_NTIMERS)
