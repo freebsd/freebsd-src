@@ -25,8 +25,12 @@ LDADD=	-lkadm5clnt -lkrb5 -lhx509 ${LIBSL} -lroken ${LIBVERS} \
 
 .include <bsd.prog.mk>
 
-ktutil-commands.c ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in ../../tools/slc/slc
+ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in ../../tools/slc/slc
 	../../tools/slc/slc ${.ALLSRC:M*.in}
+
+.for ext in c o
+ktutil-commands.${ext}: ktutil-commands.h
+.endfor
 
 ../../tools/slc/slc:
 	cd ${.CURDIR}/../../tools/slc && ${MAKE}
