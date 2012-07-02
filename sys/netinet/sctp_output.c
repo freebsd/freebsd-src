@@ -10811,7 +10811,6 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	int len, cause_len, padding_len, ret;
 
 #ifdef INET
-	sctp_route_t ro;
 	struct sockaddr_in *src_sin, *dst_sin;
 	struct ip *ip;
 
@@ -10979,8 +10978,6 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	SCTP_ATTACH_CHAIN(o_pak, mout, len);
 #ifdef INET
 	if (ip != NULL) {
-		/* zap the stack pointer to the route */
-		bzero(&ro, sizeof(sctp_route_t));
 		if (port) {
 			if (V_udp_cksum) {
 				udp->uh_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
@@ -11013,11 +11010,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 			sctp_packet_log(o_pak);
 		}
 #endif
-		SCTP_IP_OUTPUT(ret, o_pak, &ro, NULL, vrf_id);
-		/* Free the route if we got one back */
-		if (ro.ro_rt) {
-			RTFREE(ro.ro_rt);
-		}
+		SCTP_IP_OUTPUT(ret, o_pak, NULL, NULL, vrf_id);
 	}
 #endif
 #ifdef INET6
