@@ -179,7 +179,7 @@ SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RDTUN,
 #define	NETISR_DEFAULT_MAXQLIMIT	10240
 static u_int	netisr_maxqlimit = NETISR_DEFAULT_MAXQLIMIT;
 TUNABLE_INT("net.isr.maxqlimit", &netisr_maxqlimit);
-SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
+SYSCTL_UINT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
     &netisr_maxqlimit, 0,
     "Maximum netisr per-protocol, per-CPU queue depth.");
 
@@ -191,7 +191,7 @@ SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
 #define	NETISR_DEFAULT_DEFAULTQLIMIT	256
 static u_int	netisr_defaultqlimit = NETISR_DEFAULT_DEFAULTQLIMIT;
 TUNABLE_INT("net.isr.defaultqlimit", &netisr_defaultqlimit);
-SYSCTL_INT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RDTUN,
+SYSCTL_UINT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RDTUN,
     &netisr_defaultqlimit, 0,
     "Default netisr per-protocol, per-CPU queue limit if not set by protocol");
 
@@ -201,7 +201,7 @@ SYSCTL_INT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RDTUN,
  * required for crashdump analysis, as it sizes netisr_proto[].
  */
 static u_int	netisr_maxprot = NETISR_MAXPROT;
-SYSCTL_INT(_net_isr, OID_AUTO, maxprot, CTLFLAG_RD,
+SYSCTL_UINT(_net_isr, OID_AUTO, maxprot, CTLFLAG_RD,
     &netisr_maxprot, 0,
     "Compile-time limit on the number of protocols supported by netisr.");
 
@@ -228,7 +228,7 @@ static u_int				 nws_array[MAXCPU];
  * CPUs once fully started.
  */
 static u_int				 nws_count;
-SYSCTL_INT(_net_isr, OID_AUTO, numthreads, CTLFLAG_RD,
+SYSCTL_UINT(_net_isr, OID_AUTO, numthreads, CTLFLAG_RD,
     &nws_count, 0, "Number of extant netisr threads.");
 
 /*

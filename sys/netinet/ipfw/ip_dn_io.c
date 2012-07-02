@@ -164,9 +164,9 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, io_fast,
     CTLFLAG_RW, DC(io_fast), 0, "Enable fast dummynet io.");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, debug,
     CTLFLAG_RW, DC(debug), 0, "Dummynet debug level");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
+SYSCTL_UINT(_net_inet_ip_dummynet, OID_AUTO, expire,
     CTLFLAG_RW, DC(expire), 0, "Expire empty queues/pipes");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
+SYSCTL_UINT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
     CTLFLAG_RD, DC(expire_cycle), 0, "Expire cycle for queues/pipes");
 
 /* RED parameters */
