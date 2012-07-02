@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: lex,v 1.6 2009/09/19 16:28:10 christos Exp $
 # lex:  file(1) magic for lex
 #
 #	derived empirically, your offsets may vary!

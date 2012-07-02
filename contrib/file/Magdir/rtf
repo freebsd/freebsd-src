@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: rtf,v 1.7 2009/09/19 16:28:12 christos Exp $
 # rtf:	file(1) magic for Rich Text Format (RTF)
 #
 # Duncan P. Simpson, D.P.Simpson@dcs.warwick.ac.uk

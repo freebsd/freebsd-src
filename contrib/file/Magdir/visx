@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: visx,v 1.5 2009/09/19 16:28:13 christos Exp $
 # visx:  file(1) magic for Visx format files
 #
 0	short		0x5555		VISX image file
