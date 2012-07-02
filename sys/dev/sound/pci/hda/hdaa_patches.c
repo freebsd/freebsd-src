@@ -401,12 +401,9 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 		if (!(HDA_DEV_MATCH(hdac_quirks[i].model, subid) &&
 		    HDA_DEV_MATCH(hdac_quirks[i].id, id)))
 			continue;
-		if (hdac_quirks[i].set != 0)
-			devinfo->quirks |=
-			    hdac_quirks[i].set;
-		if (hdac_quirks[i].unset != 0)
-			devinfo->quirks &=
-			    ~(hdac_quirks[i].unset);
+		devinfo->quirks |= hdac_quirks[i].set;
+		devinfo->quirks &= ~(hdac_quirks[i].unset);
+		devinfo->gpio = hdac_quirks[i].gpio;
 	}
 
 	/* Apply per-widget patch. */
