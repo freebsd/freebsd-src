@@ -3125,7 +3125,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	vm_offset_t pdnxt;
 	pd_entry_t ptpaddr;
 	pt_entry_t *pte;
-	int anychanged;
+	boolean_t anychanged, pv_lists_locked;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
@@ -3141,10 +3141,16 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 #endif
 
-	anychanged = 0;
+	if (pmap_is_current(pmap))
+		pv_lists_locked = FALSE;
+	else {
+		pv_lists_locked = TRUE;
+resume:
+		vm_page_lock_queues();
+		sched_pin();
+	}
+	anychanged = FALSE;
 
-	vm_page_lock_queues();
-	sched_pin();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = pdnxt) {
 		pt_entry_t obits, pbits;
@@ -3179,12 +3185,27 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				 */
 				if (pmap_protect_pde(pmap,
 				    &pmap->pm_pdir[pdirindex], sva, prot))
-					anychanged = 1;
+					anychanged = TRUE;
 				continue;
-			} else if (!pmap_demote_pde(pmap,
-			    &pmap->pm_pdir[pdirindex], sva)) {
-				/* The large page mapping was destroyed. */
-				continue;
+			} else {
+				if (!pv_lists_locked) {
+					pv_lists_locked = TRUE;
+					if (!mtx_trylock(&vm_page_queue_mtx)) {
+						if (anychanged)
+							pmap_invalidate_all(
+							    pmap);
+						PMAP_UNLOCK(pmap);
+						goto resume;
+					}
+				}
+				if (!pmap_demote_pde(pmap,
+				    &pmap->pm_pdir[pdirindex], sva)) {
+					/*
+					 * The large page mapping was
+					 * destroyed.
+					 */
+					continue;
+				}
 			}
 		}
 
@@ -3230,14 +3251,16 @@ retry:
 				if (obits & PG_G)
 					pmap_invalidate_page(pmap, sva);
 				else
-					anychanged = 1;
+					anychanged = TRUE;
 			}
 		}
 	}
-	sched_unpin();
 	if (anychanged)
 		pmap_invalidate_all(pmap);
-	vm_page_unlock_queues();
+	if (pv_lists_locked) {
+		sched_unpin();
+		vm_page_unlock_queues();
+	}
 	PMAP_UNLOCK(pmap);
 }
 
