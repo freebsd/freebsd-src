@@ -57,7 +57,7 @@ int ssh_port = SSH_DEFAULT_PORT;
 #define KT_RSA		4
 #define KT_ECDSA	8
 
-int get_keytypes = KT_RSA;	/* Get only RSA keys by default */
+int get_keytypes = KT_RSA|KT_ECDSA;/* Get RSA and ECDSA keys by default */
 
 int hash_hosts = 0;		/* Hash hostname on output */
 
