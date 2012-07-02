@@ -168,8 +168,8 @@ static int htcp_rtt_ref;
 static int htcp_max_diff = INT_MAX / ((1 << HTCP_ALPHA_INC_SHIFT) * 10);
 
 /* Per-netstack vars. */
-static VNET_DEFINE(uint8_t, htcp_adaptive_backoff) = 0;
-static VNET_DEFINE(uint8_t, htcp_rtt_scaling) = 0;
+static VNET_DEFINE(u_int, htcp_adaptive_backoff) = 0;
+static VNET_DEFINE(u_int, htcp_rtt_scaling) = 0;
 #define	V_htcp_adaptive_backoff    VNET(htcp_adaptive_backoff)
 #define	V_htcp_rtt_scaling    VNET(htcp_rtt_scaling)
 
