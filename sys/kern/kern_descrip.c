@@ -465,6 +465,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	int vfslocked;
 	u_int old, new;
 	uint64_t bsize;
+	off_t foffset;
 
 	vfslocked = 0;
 	error = 0;
@@ -606,14 +607,15 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		}
 		flp = (struct flock *)arg;
 		if (flp->l_whence == SEEK_CUR) {
-			if (fp->f_offset < 0 ||
+			foffset = foffset_get(fp);
+			if (foffset < 0 ||
 			    (flp->l_start > 0 &&
-			     fp->f_offset > OFF_MAX - flp->l_start)) {
+			     foffset > OFF_MAX - flp->l_start)) {
 				FILEDESC_SUNLOCK(fdp);
 				error = EOVERFLOW;
 				break;
 			}
-			flp->l_start += fp->f_offset;
+			flp->l_start += foffset;
 		}
 
 		/*
@@ -727,15 +729,16 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			break;
 		}
 		if (flp->l_whence == SEEK_CUR) {
+			foffset = foffset_get(fp);
 			if ((flp->l_start > 0 &&
-			    fp->f_offset > OFF_MAX - flp->l_start) ||
+			    foffset > OFF_MAX - flp->l_start) ||
 			    (flp->l_start < 0 &&
-			     fp->f_offset < OFF_MIN - flp->l_start)) {
+			     foffset < OFF_MIN - flp->l_start)) {
 				FILEDESC_SUNLOCK(fdp);
 				error = EOVERFLOW;
 				break;
 			}
-			flp->l_start += fp->f_offset;
+			flp->l_start += foffset;
 		}
 		/*
 		 * VOP_ADVLOCK() may block.
@@ -2810,7 +2813,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			xf.xf_type = fp->f_type;
 			xf.xf_count = fp->f_count;
 			xf.xf_msgcount = 0;
-			xf.xf_offset = fp->f_offset;
+			xf.xf_offset = foffset_get(fp);
 			xf.xf_flag = fp->f_flag;
 			error = SYSCTL_OUT(req, &xf, sizeof(xf));
 			if (error)
@@ -3015,7 +3018,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			kif->kf_flags |= KF_FLAG_DIRECT;
 		if (fp->f_flag & FHASLOCK)
 			kif->kf_flags |= KF_FLAG_HASLOCK;
-		kif->kf_offset = fp->f_offset;
+		kif->kf_offset = foffset_get(fp);
 		if (vp != NULL) {
 			vref(vp);
 			switch (vp->v_type) {
@@ -3359,7 +3362,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		}
 		refcnt = fp->f_count;
 		fflags = fp->f_flag;
-		offset = fp->f_offset;
+		offset = foffset_get(fp);
 
 		/*
 		 * Create sysctl entry.
