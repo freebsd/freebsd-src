@@ -31,7 +31,7 @@ bswap32(u_int32_t x)
 u_int64_t
 bswap64(u_int64_t x)
 {
-#ifdef _LP64
+#ifdef __LP64__
 	/*
 	 * Assume we have wide enough registers to do it without touching
 	 * memory.
