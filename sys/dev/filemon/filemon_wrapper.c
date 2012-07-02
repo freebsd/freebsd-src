@@ -656,12 +656,10 @@ filemon_wrapper_vfork(struct thread *td, struct vfork_args *uap)
 static void
 filemon_wrapper_install(void)
 {
-#if defined(__i386__)
-	struct sysent *sv_table = elf32_freebsd_sysvec.sv_table;
-#elif defined(__amd64__)
+#if defined(__LP64__)
 	struct sysent *sv_table = elf64_freebsd_sysvec.sv_table;
 #else
-#error Machine type not supported
+	struct sysent *sv_table = elf32_freebsd_sysvec.sv_table;
 #endif
 
 	sv_table[SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
@@ -702,12 +700,10 @@ filemon_wrapper_install(void)
 static void
 filemon_wrapper_deinstall(void)
 {
-#if defined(__i386__)
-	struct sysent *sv_table = elf32_freebsd_sysvec.sv_table;
-#elif defined(__amd64__)
+#if defined(__LP64__)
 	struct sysent *sv_table = elf64_freebsd_sysvec.sv_table;
 #else
-#error Machine type not supported
+	struct sysent *sv_table = elf32_freebsd_sysvec.sv_table;
 #endif
 
 	sv_table[SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
