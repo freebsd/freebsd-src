@@ -111,6 +111,7 @@ MAN=	aac.4 \
 	enc.4 \
 	epair.4 \
 	esp.4 \
+	est.4 \
 	et.4 \
 	exca.4 \
 	faith.4 \
