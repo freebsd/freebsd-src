@@ -144,7 +144,7 @@ typedef enum {
 	HAL_CAP_DS		= 67,	/* 2 stream */
 	HAL_CAP_BB_RX_CLEAR_STUCK_HANG	= 68,
 	HAL_CAP_MAC_HANG	= 69,	/* can MAC hang */
-	HAL_CAP_MFP		= 70,	/* Manangement Frame Protection in hardware */
+	HAL_CAP_MFP		= 70,	/* Management Frame Protection in hardware */
 
 	HAL_CAP_TS		= 72,	/* 3 stream */
 
