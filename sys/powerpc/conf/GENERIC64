@@ -49,6 +49,7 @@ options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	GEOM_PART_APM		#Apple Partition Maps.
 options 	GEOM_PART_GPT		#GUID Partition Tables.
 options 	GEOM_LABEL		#Provides labelization
 options 	COMPAT_FREEBSD32	#Compatible with FreeBSD/powerpc binaries
@@ -125,6 +126,7 @@ makeoptions	SC_DFLT_FONT=cp437
 # Serial (COM) ports
 device		scc
 device		uart
+device		uart_z8530
 
 # Ethernet hardware
 device		glc		# Sony Playstation 3 Ethernet
