@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2004 Philip Paeps <philip@FreeBSD.org>
+.\" Copyright (c) 2012 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,163 +25,66 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2010
-.Dt ACPI_ASUS 4
+.Dd July 2, 2012
+.Dt ACPI_ASUS_WMI 4
 .Os
 .Sh NAME
-.Nm acpi_asus
-.Nd Asus Laptop Extras
+.Nm acpi_asus_wmi
+.Nd Asus Laptop WMI Extras
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device acpi_asus"
+.Cd "device acpi_asus_wmi"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-acpi_asus_load="YES"
+acpi_asus_wmi_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the extra ACPI-controlled gadgets, such as hotkeys
-and leds, found on recent Asus (and Medion) laptops.
+driver provides support for the extra WMI-controlled gadgets, such as hotkeys
+and leds, found on Asus laptops.
 It allows one to use the
 .Xr sysctl 8
-interface to manipulate the brightness of the LCD panel and the display output
-state.
+interface to manipulate the brightness of the LCD panel and keyboard backlight,
+power on/off different internal components, such as WiFi, Bluetooth, camera,
+cardreader, etc, read some sensors.
 Hotkey events are passed to
 .Xr devd 8
 for easy handling in userspace with the default configuration in
 .Pa /etc/devd/asus.conf .
-.Pp
-Currently, the following Asus laptops are fully supported:
-.Pp
-.Bl -item -offset indent -compact
-.It
-xxN
-.It
-A1x
-.It
-A2x
-.It
-A3N
-.It
-A4D
-.It
-A6VM
-.It
-D1x
-.It
-J1x
-.It
-L2B
-.It
-L2D
-.It
-L2E
-.It
-L3C
-.It
-L3D
-.It
-L3H
-.It
-L4E
-.It
-L4R
-.It
-L5x
-.It
-L8x
-.It
-M1A
-.It
-M2E
-.It
-M6N
-.It
-M6R
-.It
-S1x
-.It
-S2x
-.It
-V6V
-.It
-W5A
-.It
-Eee PC
-.El
-.Pp
-Additionally,
-.Nm
-also supports the Asus-compatible
-.Em ATK0100
-interface found in
-.Em Samsung P30/P35
-laptops.
+Some hotkey events, such as keyboard backlight and touchpad control, are
+handled inside the driver.
 .Sh SYSCTL VARIABLES
 The following sysctls are currently implemented:
 .Bl -tag -width indent
-.It Va hw.acpi.asus.lcd_brightness
-Makes the LCD backlight brighter or dimmer (higher values are brighter).
-.It Va hw.acpi.asus.lcd_backlight
-Turns the LCD backlight on or off.
-.It Va hw.acpi.asus.video_output
-Sets the active display to use according to a bitwise OR of the following:
-.Pp
-.Bl -tag -width indent -compact
-.It Li 0
-No display
-.It Li 1
-LCD
-.It Li 2
-CRT
-.It Li 4
-TV-Out
+.It Va dev.acpi_asus_wmi.0.handle_keys
+Specifies whether driver should handle some harwdare keys, such as keyboard
+backlight, internally.
 .El
 .Pp
-Some models also support video switching via the generic
-.Xr acpi_video 4
-driver.
-Most models do not, however.
-.El
+Number of other variables under the same sysctl branch are model-specific.
 .Pp
 Defaults for these variables can be set in
 .Xr sysctl.conf 5 ,
 which is parsed at boot-time.
 .Sh SEE ALSO
 .Xr acpi 4 ,
-.Xr acpi_asus_wmi 4 ,
+.Xr acpi_asus 4 ,
 .Xr acpi_video 4 ,
 .Xr sysctl.conf 5 ,
+.Xr devd 8 ,
 .Xr sysctl 8
-.Rs
-.%T The acpi4asus Project
-.%U http://sourceforge.net/projects/acpi4asus/
-.Re
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
-.Fx 5.3 .
+.Fx 10.0 .
 .Sh AUTHORS
-.An -nosplit
-The
-.Nm
-driver and this manual page were written by
-.An Philip Paeps Aq philip@FreeBSD.org .
-.Pp
-Inspiration came from the
-.Em acpi4asus project
-started by
-.An Julien Lerouge
-which maintains a driver implementing this
-functionality in the
-.Tn Linux
-kernel.
+.An Alexander Motib Aq mav@FreeBSD.org .
