@@ -942,6 +942,9 @@ void	ath_intr(void *);
 #define	ath_hal_setintmit(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, \
 	HAL_CAP_INTMIT_ENABLE, _v, NULL)
+#define	ath_hal_hasedma(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ENHANCED_DMA_SUPPORT,	\
+	0, NULL) == HAL_OK)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
 #define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
