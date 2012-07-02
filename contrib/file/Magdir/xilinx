@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: xilinx,v 1.4 2009/09/19 16:28:13 christos Exp $
 # This is Aaron's attempt at a MAGIC file for Xilinx .bit files.
 # Xilinx-Magic@RevRagnarok.com
 # Got the info from FPGA-FAQ 0026

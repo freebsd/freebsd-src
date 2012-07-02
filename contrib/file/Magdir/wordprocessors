@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: wordprocessors,v 1.15 2010/09/20 19:19:17 rrt Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -148,3 +150,14 @@
 0	string		DOC
 >43	byte		0x16	Just System Word Processor Ichitaro v6
 !:mime	application/x-ichitaro6
+
+# Type: Freemind mindmap documents
+# From: Jamie Thompson <debian-bugs@jamie-thompson.co.uk>
+0	string/w	\<map\ version	Freemind document
+!:mime	application/x-freemind
+
+# Type:        Scribus
+# From:        Werner Fink <werner@suse.de>
+0	string	\<SCRIBUSUTF8\ Version		Scribus Document
+0	string	\<SCRIBUSUTF8NEW\ Version	Scribus Document
+!:mime	application/x-scribus

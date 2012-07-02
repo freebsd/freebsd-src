@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: motorola,v 1.10 2009/09/19 16:28:11 christos Exp $
 # motorola:  file(1) magic for Motorola 68K and 88K binaries
 #
 # 68K
