@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: cafebabe,v 1.8 2009/09/19 16:28:08 christos Exp $
 # Cafe Babes unite!
 #
 # Since Java bytecode and Mach-O fat-files have the same magic number, the test

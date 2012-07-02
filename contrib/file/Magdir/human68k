@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: human68k,v 1.5 2009/09/19 16:28:09 christos Exp $
 # human68k:  file(1) magic for Human68k (X680x0 DOS) binary formats
 # Magic too short!
 #0		string	HU		Human68k

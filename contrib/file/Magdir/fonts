@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: fonts,v 1.23 2010/09/20 18:55:20 rrt Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -9,6 +11,9 @@
 0	string		%!PS-AdobeFont-1.	PostScript Type 1 font text
 >20	string		>\0			(%s)
 6	string		%!PS-AdobeFont-1.	PostScript Type 1 font program data
+0	string		%!FontType1	PostScript Type 1 font program data
+6	string		%!FontType1	PostScript Type 1 font program data
+0	string		%!PS-Adobe-3.0\ Resource-Font	PostScript Type 1 font text
 
 # X11 font files in SNF (Server Natural Format) format
 0	belong		00000004		X11 SNF font data, MSB first
@@ -51,15 +56,30 @@
 
 # True Type fonts
 0	string	\000\001\000\000\000	TrueType font data
+!:mime application/x-font-ttf
 
 0	string		\007\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
 0	string		\012\001\001\000Copyright\ (c)\ 199	Adobe Multiple Master font
 
+# TrueType/OpenType font collections (.ttc)
+# http://www.microsoft.com/typography/otspec/otff.htm
 0	string		ttcf		TrueType font collection data
+>4	belong		0x00010000	\b, 1.0
+>>8	belong		>0		\b, %d fonts
+>4	belong		0x00020000	\b, 2.0
+>>8	belong		>0		\b, %d fonts
+# 0x44454947 = 'DSIG'
+>>>16	belong		0x44534947	\b, digitally signed
 
 # Opentype font data from Avi Bercovich
-0	string		OTTO		OpenType font data 
+0	string		OTTO		OpenType font data
+!:mime application/vnd.ms-opentype
 
 # Gürkan Sengün <gurkan@linuks.mine.nu>, www.linuks.mine.nu 
 0	string		SplineFontDB:	Spline Font Database 
+!:mime application/vnd.font-fontforge-sfd
 >14	string		x		version %s
+
+# EOT
+34	string		LP		Embedded OpenType (EOT)
+!:mime application/vnd.ms-fontobject
