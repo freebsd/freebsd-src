@@ -150,7 +150,7 @@ typedef enum {
 
 	HAL_CAP_ENHANCED_DMA_SUPPORT	= 75,	/* DMA FIFO support */
 
-	HAL_CAP_RX_BUFSIZE	= 81,
+	HAL_CAP_RXBUFSIZE	= 81,
 	HAL_CAP_NUM_MR_ENTRIES	= 82,
 	HAL_CAP_OL_PWRCTRL	= 84,	/* Open loop TX power control */
 
