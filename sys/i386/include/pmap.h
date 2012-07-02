@@ -481,7 +481,7 @@ struct pv_chunk {
 	pmap_t			pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_list;
 	uint32_t		pc_map[_NPCM];	/* bitmap; 1 = free */
-	uint32_t		pc_spare[2];
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
 	struct pv_entry		pc_pventry[_NPCPV];
 };
 
