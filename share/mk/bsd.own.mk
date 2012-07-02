@@ -385,6 +385,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSL \
     PAM \
     PF \
+    PKGBOOTSTRAP \
     PKGTOOLS \
     PMC \
     PORTSNAP \
