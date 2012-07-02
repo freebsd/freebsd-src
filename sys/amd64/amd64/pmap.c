@@ -1590,7 +1590,6 @@ int
 pmap_pinit(pmap_t pmap)
 {
 	vm_page_t pml4pg;
-	static vm_pindex_t color;
 	int i;
 
 	PMAP_LOCK_INIT(pmap);
@@ -1598,8 +1597,8 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	while ((pml4pg = vm_page_alloc(NULL, color++, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
+	while ((pml4pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		VM_WAIT;
 
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
@@ -2143,7 +2142,6 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 static pv_entry_t
 get_pv_entry(pmap_t pmap, boolean_t try)
 {
-	static vm_pindex_t colour;
 	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
@@ -2179,7 +2177,7 @@ retry:
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, colour, (pq == &vm_page_queues[PQ_ACTIVE] ?
+	m = vm_page_alloc(NULL, 0, (pq == &vm_page_queues[PQ_ACTIVE] ?
 	    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL) | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED);
 	if (m == NULL) {
@@ -2205,7 +2203,6 @@ retry:
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
-	colour++;
 	dump_add_page(m->phys_addr);
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
