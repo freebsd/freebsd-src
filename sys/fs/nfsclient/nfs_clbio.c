@@ -897,7 +897,7 @@ ncl_write(struct vop_write_args *ap)
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn;
 	int bcount;
-	int bp_cached, n, on, error = 0;
+	int bp_cached, n, on, error = 0, error1;
 	size_t orig_resid, local_resid;
 	off_t orig_size, tmp_off;
 
@@ -1259,9 +1259,12 @@ again:
 		if ((ioflag & IO_SYNC)) {
 			if (ioflag & IO_INVAL)
 				bp->b_flags |= B_NOCACHE;
-			error = bwrite(bp);
-			if (error)
+			error1 = bwrite(bp);
+			if (error1 != 0) {
+				if (error == 0)
+					error = error1;
 				break;
+			}
 		} else if ((n + on) == biosize) {
 			bp->b_flags |= B_ASYNC;
 			(void) ncl_writebp(bp, 0, NULL);
