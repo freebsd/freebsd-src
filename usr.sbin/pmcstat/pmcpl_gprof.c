@@ -333,8 +333,9 @@ pmcpl_gmon_initimage(struct pmcstat_image *pi)
 		count = 0;
 		do {
 			if (++count > 999)
-				errx(EX_CANTCREAT, "ERROR: cannot create a "
-				    "gmon file for \"%s\"", name);
+				errx(EX_CANTCREAT,
+				    "ERROR: cannot create a gmon file for"
+				    " \"%s\"", name);
 			snprintf(name, sizeof(name), "%.*s~%3.3d.gmon",
 			    nlen, sn, count);
 			if (pmcstat_string_lookup(name) == NULL) {
@@ -516,8 +517,8 @@ pmcpl_gmon_shutdown(FILE *mf)
 					    pgf->pgf_pmcid),
 					    pgf->pgf_nsamples);
 				if (pgf->pgf_overflow && args.pa_verbosity >= 1)
-					warnx("WARNING: profile \"%s\" "
-					    "overflowed.",
+					warnx(
+"WARNING: profile \"%s\" overflowed.",
 					    pmcstat_string_unintern(
 					        pgf->pgf_name));
 			}
