@@ -278,8 +278,11 @@ mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 		return;
 	}
 
-	/* XXX Hardwired to scan the bus for now */
-	ccb->ccb_h.func_code = XPT_SCAN_BUS;
+	if (targetid == CAM_TARGET_WILDCARD)
+		ccb->ccb_h.func_code = XPT_SCAN_BUS;
+	else
+		ccb->ccb_h.func_code = XPT_SCAN_TGT;     
+
 	mps_dprint(sc, MPS_TRACE, "%s targetid %u\n", __func__, targetid);
 	mpssas_rescan(sassc, ccb);
 }
