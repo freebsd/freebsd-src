@@ -38,8 +38,12 @@ LDFLAGS=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>
 
-kadmin-commands.c kadmin-commands.h: ${KRB5DIR}/kadmin/kadmin-commands.in ../../tools/slc/slc
+kadmin-commands.h: ${KRB5DIR}/kadmin/kadmin-commands.in ../../tools/slc/slc
 	../../tools/slc/slc ${.ALLSRC:M*.in}
+
+.for ext in c o
+kadmin-commands.${ext}: kadmin-commands.h
+.endfor
 
 ../../tools/slc/slc:
 	cd ${.CURDIR}/../../tools/slc && ${MAKE}
