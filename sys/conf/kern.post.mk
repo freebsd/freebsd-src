@@ -64,7 +64,7 @@ PORTSMODULESENV=\
 ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/all/clean all/:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
 .endfor
 .endfor
 .endif
