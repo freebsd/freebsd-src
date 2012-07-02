@@ -227,11 +227,16 @@ static struct periph_driver ctlfe_driver =
 PERIPHDRIVER_DECLARE(ctl, ctlfe_driver);
 
 extern struct ctl_softc *control_softc;
+extern int ctl_disable;
 
 int
 ctlfeinitialize(void)
 {
 	cam_status status;
+
+	/* Don't initialize if we're disabled */
+	if (ctl_disable != 0)
+		return (0);
 
 	STAILQ_INIT(&ctlfe_softc_list);
 
@@ -262,6 +267,10 @@ void
 ctlfeinit(void)
 {
 	cam_status status;
+
+	/* Don't initialize if we're disabled */
+	if (ctl_disable != 0)
+		return;
 
 	STAILQ_INIT(&ctlfe_softc_list);
 
