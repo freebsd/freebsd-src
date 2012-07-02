@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/rman.h>
 
+#include <machine/intr_machdep.h>
+
 /*
  * Device interface
  */
@@ -74,6 +76,13 @@ static int	nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static int	nexus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
+
+static int	nexus_config_intr(device_t, int, enum intr_trigger,
+    enum intr_polarity);
+static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
+    driver_filter_t *, driver_intr_t *, void *, void **);
+static int	nexus_teardown_intr(device_t, device_t, struct resource *,
+    void *);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -89,8 +98,9 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	NULL),
 	DEVMETHOD(bus_read_ivar,	NULL),
 	DEVMETHOD(bus_write_ivar,	NULL),
-	DEVMETHOD(bus_setup_intr,	NULL),
-	DEVMETHOD(bus_teardown_intr,	NULL),
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	NULL),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
@@ -142,4 +152,50 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 	/* Not much to be done yet... */
 	return (rman_deactivate_resource(res));
+}
+
+static int
+nexus_config_intr(device_t bus, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+	return (powerpc_config_intr(irq, trig, pol));
+}
+
+static int
+nexus_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
+    driver_filter_t *ifilt, driver_intr_t *ihand, void *arg, void **cookiep)
+{
+	int error;
+
+	*cookiep = NULL;
+
+	/* somebody tried to setup an irq that failed to allocate! */
+	if (res == NULL)
+		return (EINVAL);
+
+	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
+		flags |= INTR_EXCL;
+
+	/* We depend on rman_activate_resource() being idempotent. */
+	error = rman_activate_resource(res);
+	if (error)
+		return (error);
+
+	error = powerpc_setup_intr(device_get_nameunit(child),
+	    rman_get_start(res), ifilt, ihand, arg, flags, cookiep);
+	return (error);
+}
+
+static int
+nexus_teardown_intr(device_t bus, device_t child, struct resource *res,
+    void *cookie)
+{
+	int error;
+
+	if (res == NULL)
+		return (EINVAL);
+
+	error = powerpc_teardown_intr(cookie);
+	return (error);
 }
