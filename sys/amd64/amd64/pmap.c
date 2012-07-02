@@ -4409,8 +4409,9 @@ small_mappings:
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_write: found"
-		    " a 2mpage in page %p's pv list", m));
+		KASSERT((*pde & PG_PS) == 0,
+		    ("pmap_remove_write: found a 2mpage in page %p's pv list",
+		    m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
 retry:
 		oldpte = *pte;
