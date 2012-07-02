@@ -347,7 +347,7 @@ hdspe_attach(device_t dev)
 
 	hdspe_map_dmabuf(sc);
 
-	return 0;
+	return (bus_generic_attach(dev));
 }
 
 static void
@@ -407,4 +407,6 @@ static driver_t hdspe_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_hdspe, pci, hdspe_driver, pcm_devclass, 0, 0);
+static devclass_t hdspe_devclass;
+
+DRIVER_MODULE(snd_hdspe, pci, hdspe_driver, hdspe_devclass, 0, 0);
