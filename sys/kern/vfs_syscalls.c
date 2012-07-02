@@ -1981,7 +1981,7 @@ sys_lseek(td, uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct vattr vattr;
-	off_t offset, size;
+	off_t foffset, offset, size;
 	int error, noneg;
 	int vfslocked;
 
@@ -1993,18 +1993,19 @@ sys_lseek(td, uap)
 		return (ESPIPE);
 	}
 	vp = fp->f_vnode;
+	foffset = foffset_lock(fp, 0);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	noneg = (vp->v_type != VCHR);
 	offset = uap->offset;
 	switch (uap->whence) {
 	case L_INCR:
 		if (noneg &&
-		    (fp->f_offset < 0 ||
-		    (offset > 0 && fp->f_offset > OFF_MAX - offset))) {
+		    (foffset < 0 ||
+		    (offset > 0 && foffset > OFF_MAX - offset))) {
 			error = EOVERFLOW;
 			break;
 		}
-		offset += fp->f_offset;
+		offset += foffset;
 		break;
 	case L_XTND:
 		vn_lock(vp, LK_SHARED | LK_RETRY);
@@ -2044,12 +2045,12 @@ sys_lseek(td, uap)
 		error = EINVAL;
 	if (error != 0)
 		goto drop;
-	fp->f_offset = offset;
 	VFS_KNOTE_UNLOCKED(vp, 0);
-	*(off_t *)(td->td_retval) = fp->f_offset;
+	*(off_t *)(td->td_retval) = offset;
 drop:
 	fdrop(fp, td);
 	VFS_UNLOCK_GIANT(vfslocked);
+	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
 	return (error);
 }
 
@@ -3982,6 +3983,7 @@ kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	caddr_t dirbuf;
 	int error, eofflag, readcnt, vfslocked;
 	long loff;
+	off_t foffset;
 
 	/* XXX arbitrary sanity limit on `count'. */
 	if (uap->count > 64 * 1024)
@@ -3994,10 +3996,12 @@ kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
+	foffset = foffset_lock(fp, 0);
 unionread:
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
 		VFS_UNLOCK_GIANT(vfslocked);
+		foffset_unlock(fp, foffset, 0);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -4010,12 +4014,13 @@ unionread:
 	auio.uio_td = td;
 	auio.uio_resid = uap->count;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	loff = auio.uio_offset = fp->f_offset;
+	loff = auio.uio_offset = foffset;
 #ifdef MAC
 	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error) {
 		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
+		foffset_unlock(fp, foffset, FOF_NOUPDATE);
 		fdrop(fp, td);
 		return (error);
 	}
@@ -4024,7 +4029,7 @@ unionread:
 		if (vp->v_mount->mnt_maxsymlinklen <= 0) {
 			error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag,
 			    NULL, NULL);
-			fp->f_offset = auio.uio_offset;
+			foffset = auio.uio_offset;
 		} else
 #	endif
 	{
@@ -4036,7 +4041,7 @@ unionread:
 		kiov.iov_base = dirbuf;
 		error = VOP_READDIR(vp, &kuio, fp->f_cred, &eofflag,
 			    NULL, NULL);
-		fp->f_offset = kuio.uio_offset;
+		foffset = kuio.uio_offset;
 		if (error == 0) {
 			readcnt = uap->count - kuio.uio_resid;
 			edp = (struct dirent *)&dirbuf[readcnt];
@@ -4074,6 +4079,7 @@ unionread:
 	if (error) {
 		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
+		foffset_unlock(fp, foffset, 0);
 		fdrop(fp, td);
 		return (error);
 	}
@@ -4085,13 +4091,14 @@ unionread:
 		VREF(vp);
 		fp->f_vnode = vp;
 		fp->f_data = vp;
-		fp->f_offset = 0;
+		foffset = 0;
 		vput(tvp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		goto unionread;
 	}
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
+	foffset_unlock(fp, foffset, 0);
 	fdrop(fp, td);
 	td->td_retval[0] = uap->count - auio.uio_resid;
 	if (error == 0)
@@ -4144,6 +4151,7 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	int vfslocked;
 	long loff;
 	int error, eofflag;
+	off_t foffset;
 
 	AUDIT_ARG_FD(fd);
 	if (count > IOSIZE_MAX)
@@ -4157,6 +4165,7 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
+	foffset = foffset_lock(fp, 0);
 unionread:
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
@@ -4173,14 +4182,14 @@ unionread:
 	auio.uio_td = td;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
-	loff = auio.uio_offset = fp->f_offset;
+	loff = auio.uio_offset = foffset;
 #ifdef MAC
 	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error == 0)
 #endif
 		error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL,
 		    NULL);
-	fp->f_offset = auio.uio_offset;
+	foffset = auio.uio_offset;
 	if (error) {
 		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -4194,7 +4203,7 @@ unionread:
 		VREF(vp);
 		fp->f_vnode = vp;
 		fp->f_data = vp;
-		fp->f_offset = 0;
+		foffset = 0;
 		vput(tvp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		goto unionread;
@@ -4206,6 +4215,7 @@ unionread:
 		*residp = auio.uio_resid;
 	td->td_retval[0] = count - auio.uio_resid;
 fail:
+	foffset_unlock(fp, foffset, 0);
 	fdrop(fp, td);
 	return (error);
 }
