@@ -2176,13 +2176,13 @@ basemem_setup(void)
 static void
 getmemsize(int first)
 {
-	int has_smap, off, physmap_idx, pa_indx, da_indx, res;
+	int has_smap, off, physmap_idx, pa_indx, da_indx;
 	u_long physmem_tunable, memtest;
 	vm_paddr_t physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
 #ifndef XEN
-	int hasbrokenint12, i;
+	int hasbrokenint12, i, res;
 	u_int extmem;
 	struct vm86frame vmf;
 	struct vm86context vmc;
