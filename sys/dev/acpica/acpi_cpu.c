@@ -88,7 +88,7 @@ struct acpi_cpu_softc {
     /* Values for sysctl. */
     struct sysctl_ctx_list cpu_sysctl_ctx;
     struct sysctl_oid	*cpu_sysctl_tree;
-    int			 cpu_cx_lowest;
+    int			 cpu_cx_lowest; /* Index of lowest Cx state in cpu_cx_states[] */
     char 		 cpu_cx_supported[64];
     int			 cpu_rid;
 };
@@ -144,7 +144,8 @@ static int		 cpu_cx_count;	/* Number of valid Cx states */
 static struct sysctl_ctx_list cpu_sysctl_ctx;
 static struct sysctl_oid *cpu_sysctl_tree;
 static int		 cpu_cx_generic;
-static int		 cpu_cx_lowest;
+/* Lowest valid Cstate for all cpus -- Cx */
+static int		 global_lowest_cstate;
 
 static device_t		*cpu_devices;
 static int		 cpu_ndevices;
@@ -871,7 +872,7 @@ acpi_cpu_startup(void *arg)
 	"Global lowest Cx sleep state to use");
 
     /* Take over idling from cpu_idle_default(). */
-    cpu_cx_lowest = 0;
+    global_lowest_cstate = 0;
     cpu_disable_idle = FALSE;
     cpu_idle_hook = acpi_cpu_idle;
 }
@@ -889,7 +890,8 @@ acpi_cpu_cx_list(struct acpi_cpu_softc *sc)
     sbuf_new(&sb, sc->cpu_cx_supported, sizeof(sc->cpu_cx_supported),
 	SBUF_FIXEDLEN);
     for (i = 0; i < sc->cpu_cx_count; i++) {
-	sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
+	sbuf_printf(&sb, "C%d/%d ", sc->cpu_cx_states[i].type,
+				    sc->cpu_cx_states[i].trans_lat);
 	if (sc->cpu_cx_states[i].type < ACPI_STATE_C3)
 	    sc->cpu_non_c3 = i;
 	else
@@ -963,9 +965,10 @@ acpi_cpu_idle()
 
     /* Find the lowest state that has small enough latency. */
     cx_next_idx = 0;
-    if (cpu_disable_deep_sleep)
+    if (cpu_disable_deep_sleep) {
+	/* Chose the lowest valid index in the cpu_cx_states array */
 	i = min(sc->cpu_cx_lowest, sc->cpu_non_c3);
-    else
+    } else
 	i = sc->cpu_cx_lowest;
     for (; i >= 0; i--) {
 	if (sc->cpu_cx_states[i].trans_lat * 3 <= sc->cpu_prev_sleep) {
@@ -1080,8 +1083,8 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	if (isc->cpu_cx_count > cpu_cx_count)
 	    cpu_cx_count = isc->cpu_cx_count;
     }
-    if (sc->cpu_cx_lowest < cpu_cx_lowest)
-	acpi_cpu_set_cx_lowest(sc, min(cpu_cx_lowest, sc->cpu_cx_count - 1));
+    if (sc->cpu_cx_lowest < global_lowest_cstate)
+	acpi_cpu_set_cx_lowest(sc, sc->cpu_cx_states[sc->cpu_cx_lowest].type);
     ACPI_SERIAL_END(cpu);
 }
 
@@ -1208,13 +1211,31 @@ acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
     return (0);
 }
 
+/*
+ * val is the ACPI_STATE_CX enum request by the caller
+ */
 static int
 acpi_cpu_set_cx_lowest(struct acpi_cpu_softc *sc, int val)
 {
     int i;
 
     ACPI_SERIAL_ASSERT(cpu);
-    sc->cpu_cx_lowest = val;
+    /*
+     * scan list of valid cstates.  if we do no
+     * find a match to the requested val, return
+     * EINVAL
+     * once we match, set cpu_cx_lowest to the found
+     * index i
+     */
+     for (i = 0; i < sc->cpu_cx_count; i++) {
+         if (sc->cpu_cx_states[i].type == val) {
+              sc->cpu_cx_lowest = i;
+              break;
+         }
+     }
+     if (i == sc->cpu_cx_count)
+          return (EINVAL);
+
 
     /* If not disabling, cache the new lowest non-C3 state. */
     sc->cpu_non_c3 = 0;
@@ -1238,21 +1259,22 @@ acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
     int		 val, error;
 
     sc = (struct acpi_cpu_softc *) arg1;
-    snprintf(state, sizeof(state), "C%d", sc->cpu_cx_lowest + 1);
+    snprintf(state, sizeof(state), "C%d",
+            sc->cpu_cx_states[sc->cpu_cx_lowest].type);
     error = sysctl_handle_string(oidp, state, sizeof(state), req);
     if (error != 0 || req->newptr == NULL)
 	return (error);
     if (strlen(state) < 2 || toupper(state[0]) != 'C')
 	return (EINVAL);
-    val = (int) strtol(state + 1, NULL, 10) - 1;
-    if (val < 0 || val > sc->cpu_cx_count - 1)
+    val = (int) strtol(state + 1, NULL, 10);
+    if (val < 0 || val > MAX_CX_STATES)
 	return (EINVAL);
 
     ACPI_SERIAL_BEGIN(cpu);
-    acpi_cpu_set_cx_lowest(sc, val);
+    error = acpi_cpu_set_cx_lowest(sc, val);
     ACPI_SERIAL_END(cpu);
 
-    return (0);
+    return (error);
 }
 
 static int
@@ -1262,24 +1284,28 @@ acpi_cpu_global_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
     char	state[8];
     int		val, error, i;
 
-    snprintf(state, sizeof(state), "C%d", cpu_cx_lowest + 1);
+    snprintf(state, sizeof(state), "C%d", global_lowest_cstate);
     error = sysctl_handle_string(oidp, state, sizeof(state), req);
     if (error != 0 || req->newptr == NULL)
 	return (error);
     if (strlen(state) < 2 || toupper(state[0]) != 'C')
 	return (EINVAL);
-    val = (int) strtol(state + 1, NULL, 10) - 1;
-    if (val < 0 || val > cpu_cx_count - 1)
+    val = (int) strtol(state + 1, NULL, 10);
+    if (val < 0 || val > MAX_CX_STATES)
 	return (EINVAL);
-    cpu_cx_lowest = val;
 
     /* Update the new lowest useable Cx state for all CPUs. */
     ACPI_SERIAL_BEGIN(cpu);
     for (i = 0; i < cpu_ndevices; i++) {
 	sc = device_get_softc(cpu_devices[i]);
-	acpi_cpu_set_cx_lowest(sc, min(val, sc->cpu_cx_count - 1));
+	error =  acpi_cpu_set_cx_lowest(sc, val);
+	if (error) {
+		ACPI_SERIAL_END(cpu);
+		return(error);
+	}
     }
     ACPI_SERIAL_END(cpu);
+    global_lowest_cstate = val;
 
     return (0);
 }
