@@ -100,8 +100,9 @@ int debugger_on_panic = 0;
 #else
 int debugger_on_panic = 1;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
-	&debugger_on_panic, 0, "Run debugger on kernel panic");
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
+    CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_TUN,
+    &debugger_on_panic, 0, "Run debugger on kernel panic");
 TUNABLE_INT("debug.debugger_on_panic", &debugger_on_panic);
 
 #ifdef KDB_TRACE
@@ -109,8 +110,9 @@ static int trace_on_panic = 1;
 #else
 static int trace_on_panic = 0;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
-	&trace_on_panic, 0, "Print stack trace on kernel panic");
+SYSCTL_INT(_debug, OID_AUTO, trace_on_panic,
+    CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_TUN,
+    &trace_on_panic, 0, "Print stack trace on kernel panic");
 TUNABLE_INT("debug.trace_on_panic", &trace_on_panic);
 #endif /* KDB */
 
