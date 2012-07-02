@@ -90,7 +90,7 @@ node="dev.cpu.0.freq"
 highest_value="`(sysctl -n dev.cpu.0.freq_levels | \
 	awk '{ split($0, a, "[/ ]"); print a[1] }' -) 2> /dev/null`"
 lowest_value="`(sysctl -n dev.cpu.0.freq_levels | \
-	awk '{ split($0, a, "[/ ]"); print a[length(a) - 1] }' -) 2> /dev/null`"
+	awk '{ split($0, a, "[ /]"); print a[length(a) - 1] }' -) 2> /dev/null`"
 eval value=\$${profile}_cpu_freq
 sysctl_set
 
