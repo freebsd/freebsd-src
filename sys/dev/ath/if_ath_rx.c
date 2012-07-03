@@ -214,8 +214,8 @@ ath_calcrxfilter(struct ath_softc *sc)
 	return rfilt;
 }
 
-int
-ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
+static int
+ath_legacy_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	int error;
@@ -461,29 +461,6 @@ ath_handle_micerror(struct ieee80211com *ic,
 		ieee80211_notify_michael_failure(ni->ni_vap, wh, keyix);
 		ieee80211_free_node(ni);
 	}
-}
-
-/*
- * Only run the RX proc if it's not already running.
- * Since this may get run as part of the reset/flush path,
- * the task can't clash with an existing, running tasklet.
- */
-void
-ath_rx_tasklet(void *arg, int npending)
-{
-	struct ath_softc *sc = arg;
-
-	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
-	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
-	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
-		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
-		ATH_PCU_UNLOCK(sc);
-		return;
-	}
-	ATH_PCU_UNLOCK(sc);
-	ath_rx_proc(sc, 1);
 }
 
 static int
@@ -814,7 +791,7 @@ rx_next:
 	return (is_good);
 }
 
-void
+static void
 ath_rx_proc(struct ath_softc *sc, int resched)
 {
 #define	PA2DESC(_sc, _pa) \
@@ -965,10 +942,41 @@ rx_proc_next:
 }
 
 /*
+ * Only run the RX proc if it's not already running.
+ * Since this may get run as part of the reset/flush path,
+ * the task can't clash with an existing, running tasklet.
+ */
+static void
+ath_legacy_rx_tasklet(void *arg, int npending)
+{
+	struct ath_softc *sc = arg;
+
+	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
+	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+	ATH_PCU_UNLOCK(sc);
+
+	ath_rx_proc(sc, 1);
+}
+
+static void
+ath_legacy_flushrecv(struct ath_softc *sc)
+{
+
+	ath_rx_proc(sc, 0);
+}
+
+/*
  * Disable the receive h/w in preparation for a reset.
  */
-void
-ath_stoprecv(struct ath_softc *sc, int dodelay)
+static void
+ath_legacy_stoprecv(struct ath_softc *sc, int dodelay)
 {
 #define	PA2DESC(_sc, _pa) \
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
@@ -1019,8 +1027,8 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 /*
  * Enable the receive h/w following a reset.
  */
-int
-ath_startrecv(struct ath_softc *sc)
+static int
+ath_legacy_startrecv(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
@@ -1043,4 +1051,18 @@ ath_startrecv(struct ath_softc *sc)
 	ath_mode_init(sc);		/* set filters, etc. */
 	ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
 	return 0;
+}
+
+
+void
+ath_recv_setup_legacy(struct ath_softc *sc)
+{
+
+	device_printf(sc->sc_dev, "DMA setup: legacy\n");
+
+	sc->sc_rx.recv_start = ath_legacy_startrecv;
+	sc->sc_rx.recv_stop = ath_legacy_stoprecv;
+	sc->sc_rx.recv_flush = ath_legacy_flushrecv;
+	sc->sc_rx.recv_tasklet = ath_legacy_rx_tasklet;
+	sc->sc_rx.recv_rxbuf_init = ath_legacy_rxbuf_init;
 }
