@@ -233,7 +233,13 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	size_t size;
 
 	buf = malloc(table->sectorsize);
+	if (buf == NULL)
+		return (NULL);
 	tbl = malloc(table->sectorsize * MAXTBLSZ);
+	if {tbl == NULL} {
+		free(buf);
+		return (NULL);
+	}
 	/* Read the primary GPT header. */
 	if (dread(dev, buf, 1, 1) != 0) {
 		ptable_close(table);
@@ -301,6 +307,8 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		if (uuid_equal(&ent->ent_type, &gpt_uuid_unused, NULL))
 			continue;
 		entry = malloc(sizeof(*entry));
+		if (entry == NULL)
+			break;
 		entry->part.start = ent->ent_lba_start;
 		entry->part.end = ent->ent_lba_end;
 		entry->part.index = i + 1;
@@ -362,6 +370,8 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 	index = 5;
 	offset = e1->part.start;
 	buf = malloc(table->sectorsize);
+	if (buf == NULL)
+		return (table);
 	for (i = 0; i < MAXEBRENTRIES; i++) {
 		if (offset > table->sectors)
 			break;
@@ -378,6 +388,8 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 		}
 		end = le32toh(dp[0].dp_size);
 		entry = malloc(sizeof(*entry));
+		if (entry == NULL)
+			break;
 		entry->part.start = e1->part.start + start;
 		entry->part.end = entry->part.start + end - 1;
 		entry->part.index = index++;
@@ -427,6 +439,8 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 		return (table);
 	}
 	buf = malloc(table->sectorsize);
+	if (buf == NULL)
+		return (table);
 	if (dread(dev, buf, 1, 1) != 0) {
 		DEBUG("read failed");
 		ptable_close(table);
@@ -454,6 +468,8 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 		if (part->p_size == 0 || part->p_fstype == 0)
 			continue;
 		entry = malloc(sizeof(*entry));
+		if (entry == NULL)
+			break;
 		entry->part.start = le32toh(part->p_offset) - raw_offset;
 		entry->part.end = entry->part.start +
 		    le32toh(part->p_size) + 1;
@@ -499,6 +515,8 @@ ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 	if (table->sectorsize != sizeof(struct vtoc8))
 		return (table);
 	buf = malloc(table->sectorsize);
+	if (buf == NULL)
+		return (table);
 	if (dread(dev, buf, 1, 0) != 0) {
 		DEBUG("read failed");
 		ptable_close(table);
@@ -529,6 +547,8 @@ ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 		    dl->part[i].tag == VTOC_TAG_UNASSIGNED)
 			continue;
 		entry = malloc(sizeof(*entry));
+		if (entry == NULL)
+			break;
 		entry->part.start = be32toh(dl->map[i].cyl) * heads * sectors;
 		entry->part.end = be32toh(dl->map[i].nblks) +
 		    entry->part.start - 1;
@@ -561,6 +581,8 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 #endif
 	table = NULL;
 	buf = malloc(sectorsize);
+	if (buf == NULL)
+		return (NULL);
 	/* First, read the MBR. */
 	if (dread(dev, buf, 1, DOSBBSECTOR) != 0) {
 		DEBUG("read failed");
@@ -568,6 +590,8 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	}
 
 	table = malloc(sizeof(*table));
+	if (table == NULL)
+		goto out;
 	table->sectors = sectors;
 	table->sectorsize = sectorsize;
 	table->type = PTABLE_NONE;
@@ -642,6 +666,8 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 		    dp[i].dp_typ == DOSPTYP_EXTLBA)
 			has_ext = 1;
 		entry = malloc(sizeof(*entry));
+		if (entry == NULL)
+			break;
 		entry->part.start = start;
 		entry->part.end = start + end - 1;
 		entry->part.index = i + 1;
