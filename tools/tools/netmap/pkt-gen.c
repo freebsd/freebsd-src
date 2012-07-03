@@ -95,7 +95,7 @@ inline void prefetch (const void *x)
         __asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
 }
 
-// XXX only for multiples of 32 bytes, non overlapped.
+// XXX only for multiples of 64 bytes, non overlapped.
 static inline void
 pkt_copy(void *_src, void *_dst, int l)
 {
