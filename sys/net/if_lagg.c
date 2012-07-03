@@ -797,6 +797,9 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 
 	if ((lp = ifp->if_lagg) == NULL)
 		return;
+	/* If the ifnet is just being renamed, don't do anything. */
+	if (ifp->if_flags & IFF_RENAMING)
+		return;
 
 	sc = lp->lp_softc;
 
