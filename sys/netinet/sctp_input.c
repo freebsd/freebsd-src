@@ -5604,7 +5604,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	int cnt_ctrl_ready = 0;
 	struct sctp_inpcb *inp, *inp_decr = NULL;
 	struct sctp_tcb *stcb = NULL;
-	struct sctp_nets *net;
+	struct sctp_nets *net = NULL;
 
 	SCTP_STAT_INCR(sctps_recvdatagrams);
 #ifdef SCTP_AUDITING_ENABLED
