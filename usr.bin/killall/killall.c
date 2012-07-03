@@ -326,7 +326,7 @@ main(int ac, char **av)
 	mypid = getpid();
 
 	for (i = 0; i < nprocs; i++) {
-		if ((procs[i].ki_stat & SZOMB) == SZOMB && !zflag)
+		if (procs[i].ki_stat == SZOMB && !zflag)
 			continue;
 		thispid = procs[i].ki_pid;
 		strlcpy(thiscmd, procs[i].ki_comm, sizeof(thiscmd));
