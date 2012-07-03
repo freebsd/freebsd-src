@@ -372,6 +372,15 @@ typedef enum {
 	ATH_RESET_FULL = 2,
 } ATH_RESET_TYPE;
 
+struct ath_rx_methods {
+	void		(*recv_stop)(struct ath_softc *sc, int dodelay);
+	int		(*recv_start)(struct ath_softc *sc);
+	void		(*recv_flush)(struct ath_softc *sc);
+	void		(*recv_tasklet)(void *arg, int npending);
+	int		(*recv_rxbuf_init)(struct ath_softc *sc,
+			    struct ath_buf *bf);
+};
+
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
@@ -384,6 +393,8 @@ struct ath_softc {
 	u_int8_t		sc_hwbssidmask[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_nbssid0;	/* # vap's using base mac */
 	uint32_t		sc_bssidmask;	/* bssid mask */
+
+	struct ath_rx_methods	sc_rx;
 
 	void 			(*sc_node_cleanup)(struct ieee80211_node *);
 	void 			(*sc_node_free)(struct ieee80211_node *);
