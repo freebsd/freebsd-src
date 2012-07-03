@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_ath_rx.h>
+#include <dev/ath/if_ath_rx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
 
@@ -302,6 +303,17 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #endif
 
 	/*
+	 * Setup the DMA/EDMA functions based on the current
+	 * hardware support.
+	 *
+	 * This is required before the descriptors are allocated.
+	 */
+	if (ath_hal_hasedma(sc->sc_ah))
+		ath_recv_setup_edma(sc);
+	else
+		ath_recv_setup_legacy(sc);
+
+	/*
 	 * Check if the MAC has multi-rate retry support.
 	 * We do this by trying to setup a fake extended
 	 * descriptor.  MAC's that don't have support will
@@ -376,7 +388,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", ifp->if_xname);
 
-	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_tasklet, sc);
+	TASK_INIT(&sc->sc_rxtask, 0, sc->sc_rx.recv_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
@@ -2100,7 +2112,7 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * That way frames aren't dropped which shouldn't be.
 	 */
 	ath_stoprecv(sc, (reset_type != ATH_RESET_NOLOSS));
-	ath_rx_proc(sc, 0);
+	ath_rx_flush(sc);
 
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -4018,7 +4030,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		/*
 		 * First, handle completed TX/RX frames.
 		 */
-		ath_rx_proc(sc, 0);
+		ath_rx_flush(sc);
 		ath_draintxq(sc, ATH_RESET_NOLOSS);
 		/*
 		 * Next, flush the non-scheduled frames.

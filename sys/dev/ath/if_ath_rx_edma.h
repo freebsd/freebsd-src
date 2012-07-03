@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
+ * Copyright (c) 2012 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,30 +28,9 @@
  *
  * $FreeBSD$
  */
-#ifndef	__IF_ATH_RX_H__
-#define	__IF_ATH_RX_H__
+#ifndef	__IF_ATH_RX_EDMA_H__
+#define	__IF_ATH_RX_EDMA_H__
 
-extern	u_int32_t ath_calcrxfilter(struct ath_softc *sc);
-extern	void ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	    int subtype, int rssi, int nf);
-
-#define	ath_stoprecv(_sc, _dodelay)		\
-	    (_sc)->sc_rx.recv_stop((_sc), (_dodelay))
-#define	ath_startrecv(_sc)			\
-	    (_sc)->sc_rx.recv_start((_sc))
-#define	ath_rx_flush(_sc)			\
-	    (_sc)->sc_rx.recv_flush((_sc))
-#define	ath_rxbuf_init(_sc, _bf)		\
-	    (_sc)->sc_rx.recv_rxbuf_init((_sc), (_bf))
-
-#if 0
-extern	int ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf);
-extern	void ath_rx_tasklet(void *arg, int npending);
-extern	void ath_rx_proc(struct ath_softc *sc, int resched);
-extern	void ath_stoprecv(struct ath_softc *sc, int dodelay);
-extern	int ath_startrecv(struct ath_softc *sc);
-#endif
-
-extern	void ath_recv_setup_legacy(struct ath_softc *sc);
+extern	void ath_recv_setup_edma(struct ath_softc *sc);
 
 #endif
