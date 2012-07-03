@@ -236,7 +236,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	if (buf == NULL)
 		return (NULL);
 	tbl = malloc(table->sectorsize * MAXTBLSZ);
-	if {tbl == NULL} {
+	if (tbl == NULL) {
 		free(buf);
 		return (NULL);
 	}
