@@ -796,7 +796,7 @@ dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 		return (0);
 
 	assert(last_bin == bin);
-	(void) snprintf(c, sizeof (c), ">= %lld", value);
+	(void) snprintf(c, sizeof (c), ">= %lld", (long long)value);
 
 	if (dt_printf(dtp, fp, "%16s ", c) < 0)
 		return (-1);
