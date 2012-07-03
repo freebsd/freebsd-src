@@ -824,7 +824,7 @@ cxgbe_probe(device_t dev)
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
     IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6)
-#define T4_CAP_ENABLE (T4_CAP)
+#define T4_CAP_ENABLE (T4_CAP & ~IFCAP_TSO6)
 
 static int
 cxgbe_attach(device_t dev)
