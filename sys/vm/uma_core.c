@@ -3381,6 +3381,8 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 			    (uintmax_t)kz->uk_size,
 			    (intmax_t)(allocs - frees), cachefree,
 			    (uintmax_t)allocs, sleeps);
+			if (db_pager_quit)
+				return;
 		}
 	}
 }

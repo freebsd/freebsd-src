@@ -4330,6 +4330,9 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 
 /*
  * Stop ADDBA on a queue.
+ *
+ * This can be called whilst BAR TX is currently active on the queue,
+ * so make sure this is unblocked before continuing.
  */
 void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
@@ -4341,9 +4344,21 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 
-	/* Pause TID traffic early, so there aren't any races */
+	/*
+	 * Pause TID traffic early, so there aren't any races
+	 * Unblock the pending BAR held traffic, if it's currently paused.
+	 */
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	ath_tx_tid_pause(sc, atid);
+	if (atid->bar_wait) {
+		/*
+		 * bar_unsuspend() expects bar_tx == 1, as it should be
+		 * called from the TX completion path.  This quietens
+		 * the warning.  It's cleared for us anyway.
+		 */
+		atid->bar_tx = 1;
+		ath_tx_tid_bar_unsuspend(sc, atid);
+	}
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/* There's no need to hold the TXQ lock here */

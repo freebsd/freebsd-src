@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/types.h>
 #include <sys/mbuf.h>
@@ -46,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 
 #include "common/common.h"
@@ -908,7 +910,7 @@ service_iq(struct sge_iq *iq, int budget)
 			STAILQ_INSERT_TAIL(&iql, q, link);
 	}
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	if (iq->flags & IQ_LRO_ENABLED) {
 		struct lro_ctrl *lro = &rxq->lro;
 		struct lro_entry *l;
@@ -1039,7 +1041,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	struct sge_rxq *rxq = iq_to_rxq(iq);
 	struct ifnet *ifp = rxq->ifp;
 	const struct cpl_rx_pkt *cpl = (const void *)(rss + 1);
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	struct lro_ctrl *lro = &rxq->lro;
 #endif
 
@@ -1054,15 +1056,23 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	m0->m_flags |= M_FLOWID;
 	m0->m_pkthdr.flowid = rss->hash_val;
 
-	if (cpl->csum_calc && !cpl->err_vec &&
-	    ifp->if_capenable & IFCAP_RXCSUM) {
-		m0->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED |
-		    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-		if (cpl->ip_frag)
+	if (cpl->csum_calc && !cpl->err_vec) {
+		if (ifp->if_capenable & IFCAP_RXCSUM &&
+		    cpl->l2info & htobe32(F_RXF_IP)) {
+			m0->m_pkthdr.csum_flags = (CSUM_IP_CHECKED |
+			    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+			rxq->rxcsum++;
+		} else if (ifp->if_capenable & IFCAP_RXCSUM_IPV6 &&
+		    cpl->l2info & htobe32(F_RXF_IP6)) {
+			m0->m_pkthdr.csum_flags = (CSUM_DATA_VALID_IPV6 |
+			    CSUM_PSEUDO_HDR);
+			rxq->rxcsum++;
+		}
+
+		if (__predict_false(cpl->ip_frag))
 			m0->m_pkthdr.csum_data = be16toh(cpl->csum);
 		else
 			m0->m_pkthdr.csum_data = 0xffff;
-		rxq->rxcsum++;
 	}
 
 	if (cpl->vlan_ex) {
@@ -1071,7 +1081,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 		rxq->vlan_extraction++;
 	}
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	if (cpl->l2info & htobe32(F_RXF_LRO) &&
 	    iq->flags & IQ_LRO_ENABLED &&
 	    tcp_lro_rx(lro, m0, 0) == 0) {
@@ -1797,7 +1807,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 	refill_fl(pi->adapter, &rxq->fl, rxq->fl.needed / 8);
 	FL_UNLOCK(&rxq->fl);
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	rc = tcp_lro_init(&rxq->lro);
 	if (rc != 0)
 		return (rc);
@@ -1824,7 +1834,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "cidx",
 	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cidx, 0, sysctl_uint16, "I",
 	    "consumer index");
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_flushed", CTLFLAG_RD,
@@ -1857,7 +1867,7 @@ free_rxq(struct port_info *pi, struct sge_rxq *rxq)
 {
 	int rc;
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 	if (rxq->lro.ifp) {
 		tcp_lro_free(&rxq->lro);
 		rxq->lro.ifp = NULL;
@@ -2265,7 +2275,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx,
 	    CTLFLAG_RD, &txq->vlan_insertion,
 	    "# of times hardware inserted 802.1Q tag");
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "tso_wrs", CTLFLAG_RD,
-	    &txq->tso_wrs, "# of IPv4 TSO work requests");
+	    &txq->tso_wrs, "# of TSO work requests");
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "imm_wrs", CTLFLAG_RD,
 	    &txq->imm_wrs, "# of work requests with immediate data");
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "sgl_wrs", CTLFLAG_RD,
@@ -2794,22 +2804,60 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	if (m->m_pkthdr.tso_segsz) {
 		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
 		struct ether_header *eh;
-		struct ip *ip;
+		void *l3hdr;
+#if defined(INET) || defined(INET6)
 		struct tcphdr *tcp;
+#endif
+		uint16_t eh_type;
 
 		ctrl = V_LSO_OPCODE(CPL_TX_PKT_LSO) | F_LSO_FIRST_SLICE |
 		    F_LSO_LAST_SLICE;
 
 		eh = mtod(m, struct ether_header *);
-		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			ctrl |= V_LSO_ETHHDR_LEN(1);
-			ip = (void *)((struct ether_vlan_header *)eh + 1);
-		} else
-			ip = (void *)(eh + 1);
+		eh_type = ntohs(eh->ether_type);
+		if (eh_type == ETHERTYPE_VLAN) {
+			struct ether_vlan_header *evh = (void *)eh;
 
-		tcp = (void *)((uintptr_t)ip + ip->ip_hl * 4);
-		ctrl |= V_LSO_IPHDR_LEN(ip->ip_hl) |
-		    V_LSO_TCPHDR_LEN(tcp->th_off);
+			ctrl |= V_LSO_ETHHDR_LEN(1);
+			l3hdr = evh + 1;
+			eh_type = ntohs(evh->evl_proto);
+		} else
+			l3hdr = eh + 1;
+
+		switch (eh_type) {
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+		{
+			struct ip6_hdr *ip6 = l3hdr;
+
+			/*
+			 * XXX-BZ For now we do not pretend to support
+			 * IPv6 extension headers.
+			 */
+			KASSERT(ip6->ip6_nxt == IPPROTO_TCP, ("%s: CSUM_TSO "
+			    "with ip6_nxt != TCP: %u", __func__, ip6->ip6_nxt));
+			tcp = (struct tcphdr *)(ip6 + 1);
+			ctrl |= F_LSO_IPV6;
+			ctrl |= V_LSO_IPHDR_LEN(sizeof(*ip6) >> 2) |
+			    V_LSO_TCPHDR_LEN(tcp->th_off);
+			break;
+		}
+#endif
+#ifdef INET
+		case ETHERTYPE_IP:
+		{
+			struct ip *ip = l3hdr;
+
+			tcp = (void *)((uintptr_t)ip + ip->ip_hl * 4);
+			ctrl |= V_LSO_IPHDR_LEN(ip->ip_hl) |
+			    V_LSO_TCPHDR_LEN(tcp->th_off);
+			break;
+		}
+#endif
+		default:
+			panic("%s: CSUM_TSO but no supported IP version "
+			    "(0x%04x)", __func__, eh_type);
+		}
 
 		lso->lso_ctrl = htobe32(ctrl);
 		lso->ipid_ofst = htobe16(0);
@@ -2827,9 +2875,11 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	ctrl1 = 0;
 	if (!(m->m_pkthdr.csum_flags & CSUM_IP))
 		ctrl1 |= F_TXPKT_IPCSUM_DIS;
-	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
+	    CSUM_TCP_IPV6)))
 		ctrl1 |= F_TXPKT_L4CSUM_DIS;
-	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP))
+	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP |
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6))
 		txq->txcsum++;	/* some hardware assistance provided */
 
 	/* VLAN tag insertion */
