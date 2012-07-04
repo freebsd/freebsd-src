@@ -93,6 +93,7 @@ static void OP_3DNowSuffix (int, int);
 static void OP_SIMD_Suffix (int, int);
 static void SIMD_Fixup (int, int);
 static void PNI_Fixup (int, int);
+static void XCR_Fixup (int, int);
 static void SVME_Fixup (int, int);
 static void INVLPG_Fixup (int, int);
 static void BadOp (void);
@@ -1693,7 +1694,7 @@ static const struct dis386 grps[][8] = {
   {
     { "sgdt{Q|IQ||}", { { VMX_Fixup, 0 } } },
     { "sidt{Q|IQ||}", { { PNI_Fixup, 0 } } },
-    { "lgdt{Q|Q||}",	 { M } },
+    { "lgdt{Q|Q||}",	 { { XCR_Fixup, 0 }  } },
     { "lidt{Q|Q||}",	 { { SVME_Fixup, 0 } } },
     { "smswD",	{ Sv } },
     { "(bad)",	{ XX } },
@@ -1783,9 +1784,9 @@ static const struct dis386 grps[][8] = {
     { "fxrstor",	{ Ev } },
     { "ldmxcsr",	{ Ev } },
     { "stmxcsr",	{ Ev } },
-    { "(bad)",		{ XX } },
-    { "lfence",		{ { OP_0fae, 0 } } },
-    { "mfence",		{ { OP_0fae, 0 } } },
+    { "xsave",		{ Ev } },
+    { "xrstor",		{ { OP_0fae, v_mode } } },
+    { "xsaveopt",	{ { OP_0fae, v_mode } } },
     { "clflush",	{ { OP_0fae, 0 } } },
   },
   /* GRP16 */
@@ -5905,17 +5906,17 @@ OP_0fae (int bytemode, int sizeflag)
     {
       if (modrm.reg == 7)
 	strcpy (obuf + strlen (obuf) - sizeof ("clflush") + 1, "sfence");
+      else if (modrm.reg == 6)
+	strcpy (obuf + strlen (obuf) - sizeof ("xsaveopt") + 1, "mfence");
+      else if (modrm.reg == 5)
+	strcpy (obuf + strlen (obuf) - sizeof ("xrstor") + 1, "lfence");
 
       if (modrm.reg < 5 || modrm.rm != 0)
 	{
 	  BadOp ();	/* bad sfence, mfence, or lfence */
 	  return;
 	}
-    }
-  else if (modrm.reg != 7)
-    {
-      BadOp ();		/* bad clflush */
-      return;
+      bytemode = 0;
     }
 
   OP_E (bytemode, sizeflag);
@@ -6169,6 +6170,43 @@ PNI_Fixup (int extrachar ATTRIBUTE_UNUSED, int sizeflag)
     OP_M (0, sizeflag);
 }
 
+static void
+XCR_Fixup (int extrachar ATTRIBUTE_UNUSED, int sizeflag)
+{
+  if (modrm.mod == 3 && modrm.reg == 2 && modrm.rm <= 1)
+    {
+      /* Override "lgdt".  */
+      size_t olen = strlen (obuf);
+      char *p = obuf + olen - 4;
+
+      /* We might have a suffix when disassembling with -Msuffix.  */
+      if (*p == 'i')
+	--p;
+
+      /* Remove "addr16/addr32" if we aren't in Intel mode.  */
+      if (!intel_syntax
+	  && (prefixes & PREFIX_ADDR)
+	  && olen >= (4 + 7)
+	  && *(p - 1) == ' '
+	  && CONST_STRNEQ (p - 7, "addr")
+	  && (CONST_STRNEQ (p - 3, "16")
+	      || CONST_STRNEQ (p - 3, "32")))
+	p -= 7;
+
+      if (modrm.rm)
+	{
+	  strcpy (p, "xsetbv");
+	}
+      else
+	{
+	  strcpy (p, "xgetbv");
+	}
+
+      codep++;
+    }
+  else
+    OP_M (0, sizeflag);
+}
 static void
 SVME_Fixup (int bytemode, int sizeflag)
 {

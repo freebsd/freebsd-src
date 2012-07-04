@@ -4288,6 +4288,21 @@ const template i386_optab[] =
   { "xstore", 0, 0xfa7, 0xc0, Cpu686|CpuPadLock,
     No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|IsString|ImmExt,
     { 0 } },
+  { "xgetbv", 0, 0xf01, 0xd0, CpuXSAVE,
+    No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|ImmExt,
+    { 0 } },
+  { "xsetbv", 0, 0xf01, 0xd1, CpuXSAVE,
+    No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|ImmExt,
+    { 0 } },
+  { "xsave", 1, 0xfae, 0x4, CpuXSAVE,
+    Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_xSuf,
+    { BaseIndex|Disp8|Disp16|Disp32|Disp32S } },
+  { "xsaveopt", 1, 0xfae, 0x6, CpuXSAVE,
+    Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_xSuf,
+    { BaseIndex|Disp8|Disp16|Disp32|Disp32S } },
+  { "xrstor", 1, 0xfae, 0x5, CpuXSAVE,
+    Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_xSuf,
+    { BaseIndex|Disp8|Disp16|Disp32|Disp32S } },
   { NULL, 0, 0, 0, 0, 0, { 0 } }
 };
 
