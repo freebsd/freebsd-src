@@ -1,0 +1,149 @@
+; config options
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test lameness detection after scrubber.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net. IN AAAA
+SECTION ANSWER
+ENTRY_END
+ENTRY_BEGIN
+
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net. IN A
+SECTION ANSWER
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+; This server is Lame!
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode 
+ADJUST copy_id copy_query
+REPLY QR RD NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+com.                    155182  IN      NS      a.gtld-servers.net.
+com.                    155182  IN      NS      b.gtld-servers.net.
+com.                    155182  IN      NS      c.gtld-servers.net.
+com.                    155182  IN      NS      d.gtld-servers.net.
+com.                    155182  IN      NS      e.gtld-servers.net.
+com.                    155182  IN      NS      f.gtld-servers.net.
+com.                    155182  IN      NS      g.gtld-servers.net.
+com.                    155182  IN      NS      h.gtld-servers.net.
+com.                    155182  IN      NS      i.gtld-servers.net.
+com.                    155182  IN      NS      j.gtld-servers.net.
+com.                    155182  IN      NS      k.gtld-servers.net.
+com.                    155182  IN      NS      l.gtld-servers.net.
+com.                    155182  IN      NS      m.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.     155182  IN      A       192.5.6.30
+b.gtld-servers.net.     155182  IN      A       192.33.14.30
+c.gtld-servers.net.     155182  IN      A       192.26.92.30
+d.gtld-servers.net.     155182  IN      A       192.31.80.30
+e.gtld-servers.net.     155182  IN      A       192.12.94.30
+f.gtld-servers.net.     155182  IN      A       192.35.51.30
+g.gtld-servers.net.     155182  IN      A       192.42.93.30
+h.gtld-servers.net.     155182  IN      A       192.54.112.30
+i.gtld-servers.net.     155182  IN      A       192.43.172.30
+j.gtld-servers.net.     155182  IN      A       192.48.79.30
+k.gtld-servers.net.     155182  IN      A       192.52.178.30
+l.gtld-servers.net.     155182  IN      A       192.41.162.30
+m.gtld-servers.net.     155182  IN      A       192.55.83.30
+a.gtld-servers.net.     155182  IN      AAAA    2001:503:a83e::2:30
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; recursin happens here
+
+; check that the answer is a failure (lame server)
+; and not a nodata-noerror message (false answer classification).
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

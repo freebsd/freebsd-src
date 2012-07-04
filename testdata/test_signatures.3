@@ -1,0 +1,48 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; created test keys with bind tools:
+; dnssec-keygen 9.4.2: /usr/sbin/dnssec-keygen -a DSA -b 512 -n ZONE nlnetlabs.nl
+; Knlnetlabs.nl.+003+03510
+
+; private key file:
+; Private-key-format: v1.2
+; Algorithm: 3 (DSA)
+; Prime(p): 4nziv5P4tsXwaf71EoyKFoLzFq0/wN5fb6yb8IY5uwmVh5hvO0M4lR8LAjwimCIo3SYEdCnUPkl8WbJYHkRm9w==
+; Subprime(q): 3ueDKL3Jc2Ue1G/ZCfhwMEyR4v0=
+; Base(g): Ji9iYukmprX5qXO7V0MALKCTsfvz3kef2TsZdpM/VdetDK53OwKE1NRTMU6PSPGyumedOrkSD2BLa7CT1dJRJQ==
+; Private_value(x): wlEfaVwW10q6Re/ZOBL9PLJJb20=
+; Public_value(y): cHuTGyrkbj5QVkgmFm3KEpLnb5c7jH6tapeU5ugEIJiacbroPhfz/9vPw8tkZedBGImuYPSohRPfHIQPMxfxAg==
+
+
+; DSA key from bind tool 9.4.2
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl.	IN DNSKEY
+SECTION ANSWER
+nlnetlabs.nl. IN DNSKEY 256 3 3 AN7ngyi9yXNlHtRv2Qn4cDBMkeL94nziv5P4tsXwaf71EoyKFoLzFq0/ wN5fb6yb8IY5uwmVh5hvO0M4lR8LAjwimCIo3SYEdCnUPkl8WbJYHkRm 9yYvYmLpJqa1+alzu1dDACygk7H7895Hn9k7GXaTP1XXrQyudzsChNTU UzFOj0jxsrpnnTq5Eg9gS2uwk9XSUSVwe5MbKuRuPlBWSCYWbcoSkudv lzuMfq1ql5Tm6AQgmJpxuug+F/P/28/Dy2Rl50EYia5g9KiFE98chA8z F/EC
+ENTRY_END
+
+; entry to test
+; from
+; /usr/sbin/dnssec-signzone nlnetlabs.nl
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN SOA
+SECTION ANSWER
+nlnetlabs.nl.   10200   IN SOA  open.nlnetlabs.nl. hostmaster.nlnetlabs.nl. ( 2008040100 28800      7200       604800     3600       )
+nlnetlabs.nl.   10200   RRSIG   SOA 3 2 10200 20080515132632 ( 20080415132632 3510 nlnetlabs.nl.  ACYwIl9GQofKJ2xdgx1YelKbtmLrWRl8f+eC ToRnfyQ+gvdUIX3mTTw= )
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN NS
+SECTION ANSWER
+nlnetlabs.nl. 10200   NS      omval.tednet.nl.
+nlnetlabs.nl. 10200   NS      ns7.domain-registry.nl.
+nlnetlabs.nl. 10200 NS      open.nlnetlabs.nl.
+nlnetlabs.nl. 10200   RRSIG   NS 3 2 10200 20080515132632 ( 20080415132632 3510 nlnetlabs.nl.  AEYy9ZN3KEDHybhZbL3PoR71jMQuufKM1lej +obA6uL6CjYQAPrL9tk= )
+ENTRY_END
+

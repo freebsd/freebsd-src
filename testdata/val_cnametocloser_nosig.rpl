@@ -1,0 +1,96 @@
+; config options
+server:
+	trust-anchor: "example.com.	3600	IN	DS	30899 5 1 d4bf9d2e10f6d76840d42ef5913022abcd0bf512"
+	trust-anchor: "a.b.example.com.	3600	IN	DNSKEY	257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8="
+	val-override-date: "20091113091234"
+
+forward-zone:
+	name: "."
+	forward-addr: 192.0.2.1
+CONFIG_END
+
+SCENARIO_BEGIN Test validator with CNAME to closer anchor optout missing sigs.
+
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.2.1
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN AAAA
+SECTION ANSWER
+www.example.com. IN CNAME www.a.b.example.com.
+www.example.com.	3600	IN	RRSIG	CNAME 5 3 3600 20091213091234 20091111091234 30899 example.com. mfQXJgOsRe8wiqNDZT4+ygSgRqzNowJ20o5+b681Mssp0xc007dq1ZaUYwUCdZjTn/GhF+f74t0UI1oqsFw2XA== ;{id = 30899}
+
+SECTION AUTHORITY
+;; nsec3param 1 1 1 d399eaab
+; example.com. -> l0c0e5lac37ai0lpij31sj699hkktdmb.
+; b.example.com. -> 1lq6sb4omkd2vgj0l8lro2cbie223hco.
+;; closest encloser: example.com.
+l0c0e5lac37ai0lpij31sj699hkktdmb.example.com. IN NSEC3 1 1 1 d399eaab l0c0e5lac37ai0lpij31sj699hkktdmc SOA NS DNSKEY NSEC3PARAM RRSIG
+l0c0e5lac37ai0lpij31sj699hkktdmb.example.com.	3600	IN	RRSIG	NSEC3 5 3 3600 20091213091234 20091111091234 30899 example.com. qjV0zsbDWLuoOQQ3tgCE2zo1z31bK9nv/Wh6xqKhmhyFI87nw2HM0lZGfRQrpWvWfBDczLRxHH9WNZkeIzv28w== ;{id = 30899}
+
+;; nextcloser is:  b.example.com. ; under optout range.
+; disproof of DS using the optout range.
+1lq4sb4omkd2vgj0l8lro2cbie223hco.example.com. IN NSEC3 1 1 1 d399eaab 1lq8sb4omkd2vgj0l8lro2cbie223hco NS RRSIG
+1lq4sb4omkd2vgj0l8lro2cbie223hco.example.com.	3600	IN	RRSIG	NSEC3 5 3 3600 20091213091234 20091111091234 30899 example.com. ZOJhHYt+YkGHBxHynuXlyZ8PEGg4YyqD/roWiEtBoP2PiGoPNCNqtWd0WjRgsUT0YFp/VqjqAU/RH8D45B8S8A== ;{id = 30899}
+
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.a.b.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+; NSEC that proves there is no AAAA record
+www.a.b.example.com. IN NSEC zzz.a.b.example.com. A NSEC RRSIG MX
+; signature missing!
+;www.a.b.example.com.	3600	IN	RRSIG	NSEC 5 5 3600 20091213091234 20091111091234 16486 a.b.example.com. pOj+aOIolZ8VXlLpaLD1NsYVbl8FW4wmsJbiVTYAMcyDOlgxOsbhTtlB4jQ7uV9pRVAzkvdm1V5wc/1PcncTuw== ;{id = 16486}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN DNSKEY
+SECTION ANSWER
+example.com.	3600	IN	DNSKEY	256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}
+example.com.	3600	IN	RRSIG	DNSKEY 5 2 3600 20091213091234 20091111091234 30899 example.com. hc+1QLqhy6lcfgH95k6eabsXrYsdH2oTLqDu6BjHYrmLi0kX4ZDiOI+syhIcGw9+hRqW1j8t+lsHvzvi7BgcXg== ;{id = 30899}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a.b.example.com. IN DNSKEY
+SECTION ANSWER
+a.b.example.com.	3600	IN	DNSKEY	257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8= ;{id = 16486 (ksk), size = 512b}
+; signature missing!
+;a.b.example.com.	3600	IN	RRSIG	DNSKEY 5 4 3600 20091213091234 20091111091234 16486 a.b.example.com. kPftbF2Rut5h2Sc2k/gp27XS+4I9WQ/EYa5NJOnqfJZqpw/es7GuLyWAAZyvNhBDIUEenXtZ8k1H8F8poKdNXw== ;{id = 16486}
+ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN AAAA
+ENTRY_END
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+www.example.com. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+SCENARIO_END

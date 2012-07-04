@@ -1,0 +1,52 @@
+; config options
+server:
+	hide-identity: no
+	hide-version: no
+	identity: "test-identity"
+	version: "test-version"
+	access-control: 20.0.0.0/8 allow
+	access-control: 20.40.0.0/16 refuse
+	access-control: 20.40.80.0/24 deny
+
+CONFIG_END
+SCENARIO_BEGIN Test access control list
+
+; version.bind.
+; allow
+STEP 1 QUERY ADDRESS 20.1.2.3
+ENTRY_BEGIN
+SECTION QUESTION
+version.bind. CH TXT
+ENTRY_END
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA
+SECTION QUESTION
+version.bind. CH TXT
+SECTION ANSWER
+version.bind. 0 CH TXT	"test-version"
+ENTRY_END
+
+; refuse
+STEP 3 QUERY ADDRESS 20.40.2.3
+ENTRY_BEGIN
+SECTION QUESTION
+version.bind. CH TXT
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR REFUSED
+ENTRY_END
+
+; deny (drop)
+STEP 5 QUERY ADDRESS 20.40.80.3
+ENTRY_BEGIN
+SECTION QUESTION
+version.bind. CH TXT
+ENTRY_END
+
+; no answer must be pending
+
+SCENARIO_END

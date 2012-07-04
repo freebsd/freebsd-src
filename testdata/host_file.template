@@ -1,0 +1,5 @@
+# list of hosts and options for each. You need keyed ssh access to each.
+# It must be one tab delimited only. Very strict syntax.
+# hostname <tab> description <tab> directory <tab> variables
+linux.example.com	Linux Fedora Core i386	src/unbound/trunk
+solaris.example.com	Solaris 10 sparc64	nsd_trunk	LDNS=/var/local/ldns

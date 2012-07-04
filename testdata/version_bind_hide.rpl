@@ -1,0 +1,71 @@
+; config options
+server:
+	hide-identity: yes
+	hide-version: yes
+	identity: "test-identity"
+	version: "test-version"
+; we rely on the fact that there are no builtin stubs for class CH.
+CONFIG_END
+SCENARIO_BEGIN Test config hide options for identity and version queries
+
+; version.bind.
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+version.bind. CH TXT
+ENTRY_END
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA REFUSED
+SECTION QUESTION
+version.bind. CH TXT
+ENTRY_END
+
+; version.server.
+STEP 3 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+version.server. CH TXT
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA REFUSED
+SECTION QUESTION
+version.server. CH TXT
+ENTRY_END
+
+; hostname.bind.
+STEP 5 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+hostname.bind. CH TXT
+ENTRY_END
+STEP 6 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA REFUSED
+SECTION QUESTION
+hostname.bind. CH TXT
+ENTRY_END
+
+; id.server.
+STEP 7 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+id.server. CH TXT
+ENTRY_END
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA REFUSED
+SECTION QUESTION
+id.server. CH TXT
+ENTRY_END
+
+SCENARIO_END

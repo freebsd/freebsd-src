@@ -1,0 +1,27 @@
+; config options go here.
+forward-zone: name: "." forward-addr: 216.0.0.1
+CONFIG_END
+SCENARIO_BEGIN Forwarder and a timeout happens on server query.
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+; But the pending query times out!
+; OUTBOUND_MSG_RETRY times timeout.
+STEP 2 TIMEOUT
+STEP 3 TIMEOUT
+STEP 4 TIMEOUT
+STEP 5 TIMEOUT
+STEP 6 TIMEOUT
+; returns servfail
+STEP 14 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+REPLY SERVFAIL QR RA RD
+MATCH all
+www.example.com. IN A
+ENTRY_END
+SCENARIO_END

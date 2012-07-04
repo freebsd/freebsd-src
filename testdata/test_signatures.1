@@ -1,0 +1,605 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+
+; DNSKEY used for testing, from august 2007.
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN DNSKEY
+SECTION ANSWER
+nlnetlabs.nl.           3600    IN      DNSKEY  256 3 5 AQOpbYrUNahQAV5/wTCJ9/wbSM/eV+N+jYZAMmIKn6QF3Z57B6upgcjV HEOyFkA3YcIt5Fz+WqodCrABn4qShd6qJYR8iP3S6fjN6PVpljMjrhsp /6yVc30C6c7P2b/mgWZi5iYC56lkegDs0VGfAW5HmosKjQVoYMjOtNo3 F+MGQw==
+nlnetlabs.nl.           3600    IN      DNSKEY  257 3 5 AQO6TtiOq7uZa8wHrQNUGT3ZXudaGjnbduUnyLw9WwiDEd8Vy1Ao4FVK 7xqEAFo4F5gOkdGr6Y7Xz0F+Z5e1AaQlvhBhjujvIhPZ5EIuNGkGUbRT YLhVX5OJUHMYdrXpGPdyG+V1TBTmxJ/+OmUdkWiT2J6w5XUpSYRB+p0k YwGf7uxPO/cDNp67fILtx1+dduS30B7QygOK+f7PeAZDcdBo2qsy5rnB sPsLhbEpdpWFs2WPTVo0IGYAER3nG6WZptiq8OYAb1K22K8i+j8+hDwv NRDMjWeVMebBZXbNQGkwsGgJsIsaoGfVOT3WdeJxDu9GqODM//mwZxTv O7StbOht
+nlnetlabs.nl.           3600    IN      DNSKEY  257 3 5 AQPzzTWMz8qSWIQlfRnPckx2BiVmkVN6LPupO3mbz7FhLSnm26n6iG9N Lby97Ji453aWZY3M5/xJBSOS2vWtco2t8C0+xeO1bc/d6ZTy32DHchpW 6rDH1vp86Ll+ha0tmwyy9QP7y2bVw5zSbFCrefk8qCUBgfHm9bHzMG1U BYtEIQ==
+ENTRY_END
+
+; first entry; the www site
+ENTRY_BEGIN
+SECTION QUESTION
+www.nlnetlabs.nl.              IN      A
+SECTION ANSWER
+www.nlnetlabs.nl.       600     IN      A       213.154.224.1
+www.nlnetlabs.nl.       600     IN      RRSIG   A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Luav3fjE1VGhran3tnxR93cgoEyH3Kh//240KDCT8k0U4Tfw6xSBMVjj rf3oH13SXCZfYdJYZbZEahBvysMRm40Izl4+rpfUKzwjHXn1una1o4Gt A48v0fwffCXtUPz1TDFq9IKlVe95uLwjheMF8auDXHLwLItj2lF827Dd VI0=
+SECTION AUTHORITY
+nlnetlabs.nl.           86400   IN      NS      ns7.domain-registry.nl.
+nlnetlabs.nl.           86400   IN      NS      open.nlnetlabs.nl.
+nlnetlabs.nl.           86400   IN      NS      omval.tednet.nl.
+nlnetlabs.nl.           86400   IN      RRSIG   NS 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. mXE8tSPoCvD7f6SjQ4skJi8tvbiloN5dlXNHcwufK1rREEVl8oCJ34VV cldL6tv4APj8w0PXmYOiB3xM3TIFpi33n6eqRjudKiq5906PKaj/zLEE cl+dU64+hg9VL0rsT+Fx7TWs/i+gh6oiQm6MsbG415UWUgqtZLflwmMB SC4=
+SECTION ADDITIONAL
+ns7.domain-registry.nl. 8380    IN      A       62.4.86.230
+open.nlnetlabs.nl.      600     IN      A       213.154.224.1
+open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::53
+open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::1
+omval.tednet.nl.        28800   IN      A       213.154.224.17
+omval.tednet.nl.        28800   IN      AAAA    2001:7b8:206:1:200:39ff:fe59:b187
+open.nlnetlabs.nl.      600     IN      RRSIG   A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ViuIpiw1c6a0roF+XCOSFMQ3BCH/qmy+lRcU0Y8jEeoN7vLu5rJlWUuF yuuU3kAx6RFB/XDPjxNzm2OER/JJSUUeagzXSqnJVL8Orj03RGpS2PAW 5p66uf5uMv34VEednxoGoigVHKIBfpIwYIbcaXAkDaRMMpw+ylRWwWee q84=
+open.nlnetlabs.nl.      600     IN      RRSIG   AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. bcDWQYXDf6XEyNFeYeDJZTcdUCD4hbfzEIMCL1Fap4Lm6FNSvACQ8c+F F48UfJVdvSZeczDKgsHSm7nte81qYu4+lBQm5TuJcMkjgJakHumKGV0Y 17wIJAsMPiacw+NNICweKO4x4RKwNzWgcn1ymktYsiaPIJpOxQCQVJcU tlg=
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+bartok.nlnetlabs.nl.                  IN      MX
+SECTION ANSWER
+bartok.nlnetlabs.nl.	600	IN	MX	50 bartok.nlnetlabs.nl.
+bartok.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+bartok.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. kPtROxDJsZMq0XF/sM6tF3MQyaWBPAKGmEdWJ1DAcKwR5GJgBCCPbL4Z poV7NtJwfs0tN+vE5IqdxRu707Px3Omoc9HUJqF7mwu+dr8R4ltMkUGH 4XJpfSty7/4Q4B7Y/BrcJbYduudi4YmwqmO0ffFDJjTjDgJGCGC/DFtE HAo=
+ENTRY_END
+
+; big zone apex
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl.                  IN      ANY
+SECTION ANSWER
+nlnetlabs.nl.           18000   IN      NSEC    _sip._udp.nlnetlabs.nl. A NS SOA MX TXT AAAA NAPTR RRSIG NSEC DNSKEY
+nlnetlabs.nl.           18000   IN      RRSIG   NSEC 5 2 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. RMppeajhOKtJXWq2HRFHN7fbbBVrqQwyr8uuiaSft48JpCA4QfM8/sxD ahqGOt2P5BvMqVeHz6oWPYrxpnoe9NGJBYCnQ50aipTEFohct9HTFUFu cnk2NoEizMHPWWbQOhVxXaL+sQHZhLR69DIu6KwH9SNu8Dks9V2n6Yi5 slg=
+nlnetlabs.nl.           86400   IN      A       213.154.224.1
+nlnetlabs.nl.           86400   IN      RRSIG   A 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. mpbqSRHxv3TUo+MgzQndhWdZp0CqlOyaIPKFp2trycJ7onH63hCZ7Ixd d4sk/DhIfgzoo8HHootbsYvFCHr5oue8qgkAk9bjco7wWFt9KskturwS RS29p8+jTf4uQ0oXOad0IJo07iccpPyqVapIOHjOFwsFKG1ma7TZQRcW Sz0=
+nlnetlabs.nl.           86400   IN      NS      open.nlnetlabs.nl.
+nlnetlabs.nl.           86400   IN      NS      omval.tednet.nl.
+nlnetlabs.nl.           86400   IN      NS      ns7.domain-registry.nl.
+nlnetlabs.nl.           86400   IN      RRSIG   NS 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. mXE8tSPoCvD7f6SjQ4skJi8tvbiloN5dlXNHcwufK1rREEVl8oCJ34VV cldL6tv4APj8w0PXmYOiB3xM3TIFpi33n6eqRjudKiq5906PKaj/zLEE cl+dU64+hg9VL0rsT+Fx7TWs/i+gh6oiQm6MsbG415UWUgqtZLflwmMB SC4=
+nlnetlabs.nl.           86400   IN      RRSIG   SOA 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. C54bDHKC2sRbVUrDOeM2kXCHpJIFu0LlZWAFVFLf4l1Grfj+B4WcXqel kSVhi/Gpt70VW+zDEOHrS0kcE5XaBnrQE1AUZ9QjGyfjXlRzGWYbyVLD evIFrs7FdIeGKKWWp1YDLUHHF+txDT9NFu6KyEqPbZEVgIVok3skO5Vu jpA=
+nlnetlabs.nl.           86400   IN      MX      100 omval.tednet.nl.
+nlnetlabs.nl.           86400   IN      MX      50 open.nlnetlabs.nl.
+nlnetlabs.nl.           86400   IN      RRSIG   MX 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. o9l0WEH53WBdFd+3PE5UHN8kAJVFDb60DcES9oWlBOVwsBMqeTU7eDQr o+wlq1AlUYC+PlFb/W1vLdWN6eCJ//4iPxFJhKoElUEFR+ICPYIIZcD9 VLJM3i4FVsqUwcfgHdOcafciMpMeCgYutxbQDoOwDPe5o+jbynu3gq9a PQ4=
+nlnetlabs.nl.           86400   IN      TXT     "Stichting NLnet Labs zone"
+nlnetlabs.nl.           86400   IN      RRSIG   TXT 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. lSeFN/S4BATNoC5DG2fYtdSGkC5yxIwOxMH3rChYurB/bD3M4435ySKS Z+vHjLbXQqPtlXw1Jt5ZcVZujRhBM6kEmYZ2XwvC0rPZF0wMtz9nFhxK oc+seBSuP0R9GkbJZReho+JwAYh4F7EC/RQVbHylE1lPAQUHtxCGjmlV EAg=
+nlnetlabs.nl.           86400   IN      AAAA    2001:7b8:206:1::1
+nlnetlabs.nl.           86400   IN      RRSIG   AAAA 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. KGGDcoOAmCby+/xrK7f1b/t/evXfwWgm39VVzE/xButUtPzXv+0htDgO jtUMmouO3GWicIU3fGCffDBCdOmdIrMffjvrR0lKmQAC5JwWPt2FNF/F K7dKh+KrRMp2ruqucpajfvwShWnfesEWaTYWNox1/saLjsw1NXiQ6h+0 2bc=
+nlnetlabs.nl.           600     IN      NAPTR   20 0 "s" "SIP+D2U" "" _sip._udp.nlnetlabs.nl.
+nlnetlabs.nl.           600     IN      RRSIG   NAPTR 5 2 600 20070912141341 20070815141341 18182 nlnetlabs.nl. cxgMuZWTVJEagjnERLGjnPNZ7JKuyfe3o1gkkjoS1sg+AQb/8nUEKO/A tIoAwqPHWyALjlbOf25mWEIWviYVVt9TDn6d8k4saWNgTdnnCS+Kc5sM fV/Wz0Np/eQRZElBN0fP4QSBv0rk1VjqK1FHnFpSYz/zRV7FqDSQE1nQ 64w=
+nlnetlabs.nl.           3600    IN      DNSKEY  257 3 5 AQO6TtiOq7uZa8wHrQNUGT3ZXudaGjnbduUnyLw9WwiDEd8Vy1Ao4FVK 7xqEAFo4F5gOkdGr6Y7Xz0F+Z5e1AaQlvhBhjujvIhPZ5EIuNGkGUbRT YLhVX5OJUHMYdrXpGPdyG+V1TBTmxJ/+OmUdkWiT2J6w5XUpSYRB+p0k YwGf7uxPO/cDNp67fILtx1+dduS30B7QygOK+f7PeAZDcdBo2qsy5rnB sPsLhbEpdpWFs2WPTVo0IGYAER3nG6WZptiq8OYAb1K22K8i+j8+hDwv NRDMjWeVMebBZXbNQGkwsGgJsIsaoGfVOT3WdeJxDu9GqODM//mwZxTv O7StbOht
+nlnetlabs.nl.           3600    IN      DNSKEY  257 3 5 AQPzzTWMz8qSWIQlfRnPckx2BiVmkVN6LPupO3mbz7FhLSnm26n6iG9N Lby97Ji453aWZY3M5/xJBSOS2vWtco2t8C0+xeO1bc/d6ZTy32DHchpW 6rDH1vp86Ll+ha0tmwyy9QP7y2bVw5zSbFCrefk8qCUBgfHm9bHzMG1U BYtEIQ==
+nlnetlabs.nl.           3600    IN      DNSKEY  256 3 5 AQOpbYrUNahQAV5/wTCJ9/wbSM/eV+N+jYZAMmIKn6QF3Z57B6upgcjV HEOyFkA3YcIt5Fz+WqodCrABn4qShd6qJYR8iP3S6fjN6PVpljMjrhsp /6yVc30C6c7P2b/mgWZi5iYC56lkegDs0VGfAW5HmosKjQVoYMjOtNo3 F+MGQw==
+nlnetlabs.nl.           3600    IN      RRSIG   DNSKEY 5 2 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. foMQGGiev3Lys1fGMfYiHCHnqE9IIzpOFsXECGmT2kPHCRvXWDRcAGMu DWWfCQBPcAlDLZBKCvpUhp/H/VSLS+EA6wonPWN2dS20cDuPWKm3QsHo 6+wQmw7y5t/ejsd+i370dUTjgT40T5bR6nvXZkOLN0DJvaLk7USDRvRg BNU=
+nlnetlabs.nl.           3600    IN      RRSIG   DNSKEY 5 2 3600 20070912141341 20070815141341 36867 nlnetlabs.nl. hw0alVZsoFJqe+u4Meg2VMJ9acbLa85V65RvEAB6RDOqXvaYBhok3kNJ HGR4zq+FYC7i4EKczT7HVKdLtxL9QGt0rzVPq++tcE85861kAgHcLpB9 Iml8QkR7dRER/FpQ1t15gTxoGg6ctlNLfDM6j0x5+S144Rg7gAm1YODB VfL5gSML385EVo2nX7Jiv/Rz1Y6shJ5SzmXnkARqhrJDhQE/Tuf2N+HY sCNatrAv3aNwN0P7a+c99qd5esIb/WVt8eR7cx9Z46nO9GV8HOvfeYxh nMnhlQ/Oy+yG2s2FnJMpD9B4m4WS/m/lBR4pyxHvZR2PQ+/drlJ+oRUS Jt4yhw==
+nlnetlabs.nl.           3600    IN      RRSIG   DNSKEY 5 2 3600 20070912141341 20070815141341 43791 nlnetlabs.nl. uykSWt5yfpz/IN2jKEO+XPtCj9KBFuNWz7vIk+HvEDd+KhXp7vpjISvC tI/xK6yRCeTBIbX6uxR8VRsWEtoKuWwXWHhNmpPBWTGdDuguHOLiuGBn NBUSiTPhideDW8qx/cir6I1MtqypHjEr2w9dn21xdYZbieNXpdZWDLQl ufw=
+nlnetlabs.nl.           86400   IN      SOA     open.nlnetlabs.nl. hostmaster.nlnetlabs.nl. 2007081501 28800 7200 604800 18000
+SECTION ADDITIONAL
+ns7.domain-registry.nl. 8295    IN      A       62.4.86.230
+open.nlnetlabs.nl.      600     IN      A       213.154.224.1
+open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::53
+open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::1
+omval.tednet.nl.        28800   IN      A       213.154.224.17
+omval.tednet.nl.        28800   IN      AAAA    2001:7b8:206:1:200:39ff:fe59:b187
+johnny.nlnetlabs.nl.    600     IN      A       213.154.224.44
+open.nlnetlabs.nl.      600     IN      RRSIG   A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ViuIpiw1c6a0roF+XCOSFMQ3BCH/qmy+lRcU0Y8jEeoN7vLu5rJlWUuF yuuU3kAx6RFB/XDPjxNzm2OER/JJSUUeagzXSqnJVL8Orj03RGpS2PAW 5p66uf5uMv34VEednxoGoigVHKIBfpIwYIbcaXAkDaRMMpw+ylRWwWee q84=
+open.nlnetlabs.nl.      600     IN      RRSIG   AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. bcDWQYXDf6XEyNFeYeDJZTcdUCD4hbfzEIMCL1Fap4Lm6FNSvACQ8c+F F48UfJVdvSZeczDKgsHSm7nte81qYu4+lBQm5TuJcMkjgJakHumKGV0Y 17wIJAsMPiacw+NNICweKO4x4RKwNzWgcn1ymktYsiaPIJpOxQCQVJcU tlg=
+_sip._udp.nlnetlabs.nl. 600     IN      RRSIG   SRV 5 4 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ON/hEJ3zq5J7QUKEMT7mDY8Jj++cYCpTJoFfR/XjWC+JxQuQ5kA5HHoI kI6kABBVK+/6Npz1wof3ELQxvz3IU1jxVn2gwwofC2BNcf+MKRw6aSwc BKcDWRsrQwtMRABwZ63ixobXIUOr/NWBoRODrKQ+61ntPFmwHHCFmfwR YJ0=
+johnny.nlnetlabs.nl.    600     IN      RRSIG   A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. EJAy5kI3QxNNABLIw/asxL2LjCMshjnWMNyUeu1pRd7KM3QQUDygnw+c 50MpE1y4X8LkBXDizazoUXPsqEGhq+fzGeFEhdB0DqrxVXtyQ3ikHa+d oVp2jdGiI5zl3yWBlxr4GtLr59jIB0ZU1sL5F0voBIAGv2i6PqArRswr HBI=
+_sip._udp.nlnetlabs.nl. 600     IN      SRV     0 0 5060 johnny.nlnetlabs.nl.
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN AXFR
+SECTION ANSWER
+; <<>> DiG 9.4.1-P1 <<>> @open.nlnetlabs.nl. nlnetlabs.nl. AXFR
+; (3 servers found)
+;; global options:  printcmd
+nlnetlabs.nl.		86400	IN	SOA	open.nlnetlabs.nl. hostmaster.nlnetlabs.nl. 2007081501 28800 7200 604800 18000
+nlnetlabs.nl.		18000	IN	NSEC	_sip._udp.nlnetlabs.nl. A NS SOA MX TXT AAAA NAPTR RRSIG NSEC DNSKEY
+nlnetlabs.nl.		18000	IN	RRSIG	NSEC 5 2 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. RMppeajhOKtJXWq2HRFHN7fbbBVrqQwyr8uuiaSft48JpCA4QfM8/sxD ahqGOt2P5BvMqVeHz6oWPYrxpnoe9NGJBYCnQ50aipTEFohct9HTFUFu cnk2NoEizMHPWWbQOhVxXaL+sQHZhLR69DIu6KwH9SNu8Dks9V2n6Yi5 slg=
+nlnetlabs.nl.		86400	IN	A	213.154.224.1
+nlnetlabs.nl.		86400	IN	RRSIG	A 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. mpbqSRHxv3TUo+MgzQndhWdZp0CqlOyaIPKFp2trycJ7onH63hCZ7Ixd d4sk/DhIfgzoo8HHootbsYvFCHr5oue8qgkAk9bjco7wWFt9KskturwS RS29p8+jTf4uQ0oXOad0IJo07iccpPyqVapIOHjOFwsFKG1ma7TZQRcW Sz0=
+nlnetlabs.nl.		86400	IN	NS	ns7.domain-registry.nl.
+nlnetlabs.nl.		86400	IN	NS	open.nlnetlabs.nl.
+nlnetlabs.nl.		86400	IN	NS	omval.tednet.nl.
+nlnetlabs.nl.		86400	IN	RRSIG	NS 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. mXE8tSPoCvD7f6SjQ4skJi8tvbiloN5dlXNHcwufK1rREEVl8oCJ34VV cldL6tv4APj8w0PXmYOiB3xM3TIFpi33n6eqRjudKiq5906PKaj/zLEE cl+dU64+hg9VL0rsT+Fx7TWs/i+gh6oiQm6MsbG415UWUgqtZLflwmMB SC4=
+nlnetlabs.nl.		86400	IN	RRSIG	SOA 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. C54bDHKC2sRbVUrDOeM2kXCHpJIFu0LlZWAFVFLf4l1Grfj+B4WcXqel kSVhi/Gpt70VW+zDEOHrS0kcE5XaBnrQE1AUZ9QjGyfjXlRzGWYbyVLD evIFrs7FdIeGKKWWp1YDLUHHF+txDT9NFu6KyEqPbZEVgIVok3skO5Vu jpA=
+nlnetlabs.nl.		86400	IN	MX	50 open.nlnetlabs.nl.
+nlnetlabs.nl.		86400	IN	MX	100 omval.tednet.nl.
+nlnetlabs.nl.		86400	IN	RRSIG	MX 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. o9l0WEH53WBdFd+3PE5UHN8kAJVFDb60DcES9oWlBOVwsBMqeTU7eDQr o+wlq1AlUYC+PlFb/W1vLdWN6eCJ//4iPxFJhKoElUEFR+ICPYIIZcD9 VLJM3i4FVsqUwcfgHdOcafciMpMeCgYutxbQDoOwDPe5o+jbynu3gq9a PQ4=
+nlnetlabs.nl.		86400	IN	TXT	"Stichting NLnet Labs zone"
+nlnetlabs.nl.		86400	IN	RRSIG	TXT 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. lSeFN/S4BATNoC5DG2fYtdSGkC5yxIwOxMH3rChYurB/bD3M4435ySKS Z+vHjLbXQqPtlXw1Jt5ZcVZujRhBM6kEmYZ2XwvC0rPZF0wMtz9nFhxK oc+seBSuP0R9GkbJZReho+JwAYh4F7EC/RQVbHylE1lPAQUHtxCGjmlV EAg=
+nlnetlabs.nl.		86400	IN	AAAA	2001:7b8:206:1::1
+nlnetlabs.nl.		86400	IN	RRSIG	AAAA 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. KGGDcoOAmCby+/xrK7f1b/t/evXfwWgm39VVzE/xButUtPzXv+0htDgO jtUMmouO3GWicIU3fGCffDBCdOmdIrMffjvrR0lKmQAC5JwWPt2FNF/F K7dKh+KrRMp2ruqucpajfvwShWnfesEWaTYWNox1/saLjsw1NXiQ6h+0 2bc=
+nlnetlabs.nl.		600	IN	NAPTR	20 0 "s" "SIP+D2U" "" _sip._udp.nlnetlabs.nl.
+nlnetlabs.nl.		600	IN	RRSIG	NAPTR 5 2 600 20070912141341 20070815141341 18182 nlnetlabs.nl. cxgMuZWTVJEagjnERLGjnPNZ7JKuyfe3o1gkkjoS1sg+AQb/8nUEKO/A tIoAwqPHWyALjlbOf25mWEIWviYVVt9TDn6d8k4saWNgTdnnCS+Kc5sM fV/Wz0Np/eQRZElBN0fP4QSBv0rk1VjqK1FHnFpSYz/zRV7FqDSQE1nQ 64w=
+nlnetlabs.nl.		3600	IN	DNSKEY	256 3 5 AQOpbYrUNahQAV5/wTCJ9/wbSM/eV+N+jYZAMmIKn6QF3Z57B6upgcjV HEOyFkA3YcIt5Fz+WqodCrABn4qShd6qJYR8iP3S6fjN6PVpljMjrhsp /6yVc30C6c7P2b/mgWZi5iYC56lkegDs0VGfAW5HmosKjQVoYMjOtNo3 F+MGQw==
+nlnetlabs.nl.		3600	IN	DNSKEY	257 3 5 AQO6TtiOq7uZa8wHrQNUGT3ZXudaGjnbduUnyLw9WwiDEd8Vy1Ao4FVK 7xqEAFo4F5gOkdGr6Y7Xz0F+Z5e1AaQlvhBhjujvIhPZ5EIuNGkGUbRT YLhVX5OJUHMYdrXpGPdyG+V1TBTmxJ/+OmUdkWiT2J6w5XUpSYRB+p0k YwGf7uxPO/cDNp67fILtx1+dduS30B7QygOK+f7PeAZDcdBo2qsy5rnB sPsLhbEpdpWFs2WPTVo0IGYAER3nG6WZptiq8OYAb1K22K8i+j8+hDwv NRDMjWeVMebBZXbNQGkwsGgJsIsaoGfVOT3WdeJxDu9GqODM//mwZxTv O7StbOht
+nlnetlabs.nl.		3600	IN	DNSKEY	257 3 5 AQPzzTWMz8qSWIQlfRnPckx2BiVmkVN6LPupO3mbz7FhLSnm26n6iG9N Lby97Ji453aWZY3M5/xJBSOS2vWtco2t8C0+xeO1bc/d6ZTy32DHchpW 6rDH1vp86Ll+ha0tmwyy9QP7y2bVw5zSbFCrefk8qCUBgfHm9bHzMG1U BYtEIQ==
+nlnetlabs.nl.		3600	IN	RRSIG	DNSKEY 5 2 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. foMQGGiev3Lys1fGMfYiHCHnqE9IIzpOFsXECGmT2kPHCRvXWDRcAGMu DWWfCQBPcAlDLZBKCvpUhp/H/VSLS+EA6wonPWN2dS20cDuPWKm3QsHo 6+wQmw7y5t/ejsd+i370dUTjgT40T5bR6nvXZkOLN0DJvaLk7USDRvRg BNU=
+nlnetlabs.nl.		3600	IN	RRSIG	DNSKEY 5 2 3600 20070912141341 20070815141341 36867 nlnetlabs.nl. hw0alVZsoFJqe+u4Meg2VMJ9acbLa85V65RvEAB6RDOqXvaYBhok3kNJ HGR4zq+FYC7i4EKczT7HVKdLtxL9QGt0rzVPq++tcE85861kAgHcLpB9 Iml8QkR7dRER/FpQ1t15gTxoGg6ctlNLfDM6j0x5+S144Rg7gAm1YODB VfL5gSML385EVo2nX7Jiv/Rz1Y6shJ5SzmXnkARqhrJDhQE/Tuf2N+HY sCNatrAv3aNwN0P7a+c99qd5esIb/WVt8eR7cx9Z46nO9GV8HOvfeYxh nMnhlQ/Oy+yG2s2FnJMpD9B4m4WS/m/lBR4pyxHvZR2PQ+/drlJ+oRUS Jt4yhw==
+nlnetlabs.nl.		3600	IN	RRSIG	DNSKEY 5 2 3600 20070912141341 20070815141341 43791 nlnetlabs.nl. uykSWt5yfpz/IN2jKEO+XPtCj9KBFuNWz7vIk+HvEDd+KhXp7vpjISvC tI/xK6yRCeTBIbX6uxR8VRsWEtoKuWwXWHhNmpPBWTGdDuguHOLiuGBn NBUSiTPhideDW8qx/cir6I1MtqypHjEr2w9dn21xdYZbieNXpdZWDLQl ufw=
+_sip._udp.nlnetlabs.nl.	18000	IN	NSEC	alpha.nlnetlabs.nl. SRV
+_sip._udp.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 4 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. R0Mg9z4VQHtZXK3xcv3SOZLlibfhJ4nCXURBzvDSn2C3eI1UHvOdbeZ/ B7L7/1aVlho2kHFwjkPI0wGdTSyPqlc3tSHh9Kr+EuMw2wiqtjKqzROF 9hofI/V/PKYCQGBS31e6Dq2Mi5pfeHfxAaBQ8HoFVyLBvj7Xc33aRXGE DaI=
+_sip._udp.nlnetlabs.nl.	600	IN	SRV	0 0 5060 johnny.nlnetlabs.nl.
+_sip._udp.nlnetlabs.nl.	600	IN	RRSIG	SRV 5 4 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ON/hEJ3zq5J7QUKEMT7mDY8Jj++cYCpTJoFfR/XjWC+JxQuQ5kA5HHoI kI6kABBVK+/6Npz1wof3ELQxvz3IU1jxVn2gwwofC2BNcf+MKRw6aSwc BKcDWRsrQwtMRABwZ63ixobXIUOr/NWBoRODrKQ+61ntPFmwHHCFmfwR YJ0=
+alpha.nlnetlabs.nl.	18000	IN	NSEC	asus-ap.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+alpha.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ntDts9XbX6LamoCEkr7nsEBtqC8PMjsbrXmoZUDggDRKIjAjaqRt3tfy 2QdTdVYcPtG1Tj53RqAXGFfIn3+BfpSvkLELO9qIcIFvmaX+wZr458PV okltp9fX8rm2rirspNlHPNCuZBYVWb9gIRJkg64wnDFC31ERqqF+GS8/ iyo=
+alpha.nlnetlabs.nl.	600	IN	A	213.154.224.59
+alpha.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Hu76XqcNZI3IjJT6DwIisVWXhGFP3MCYUTH2XHGwpGF9mQOHX+Jbk7NO k88mwZ9CM3ZNLrDWGu1Z8qhd1ZfgvpxAXshqGBvKhne7Rvf/CopP4XWx QEKcA3Zy5EYUo8J+UBJVm/l5cURlDyj3skqBb+inFpL+FysLKRcQx2E5 Mg0=
+alpha.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+alpha.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+alpha.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. YK+H+ugme14+K8H8zdXcB96wI8gNXloKW1IJVBgjzzAwGooqxRM6LEXt jfD9F+ZA8wn0HnB58a/CZ9S/24+grfdTRjUdeTEl8Cbk0ZR5tqVUFLJt MZSXAKczyXWGXZnCn6htGy6diHm+SL0S2Agr/JhsGBBxSX22tTKcoI+i CxA=
+alpha.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:202:44ff:fe41:b898
+alpha.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. DtljNKbGwkLs+LtvDeRQEXBUTg/TGFjRdrkxp7HEfx/N6n7fWiRgvzo7 va1py1cc+EMxBO6zC2hegCVS5c1lRjwYuIoA1lSfclkZLQFwwJTfyFVe M/Iq2mE0bbPoJhQ6RAhivD+5Yb9JCqRcKM4B2zlAV2LGKlhwMD/Cq8u3 IB8=
+asus-ap.nlnetlabs.nl.	18000	IN	NSEC	bartok.nlnetlabs.nl. A RRSIG NSEC
+asus-ap.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. bCWeNq/W0loWFRQpKPO2bJT6XsEmjfwdP7X8Iz2aIXmHXmfMyNTpFEJH 26vcJJ8D/hMC8zDAKutHWRdcFPwJp+bCg3HJqemLdvzpdSlcGcC/hmr4 zCVLVNWYK/Q/Vq7/cbVWoJTYwVEarwwwATK+Hu3YZFMPOmxoWoHVPaoN bys=
+asus-ap.nlnetlabs.nl.	600	IN	A	213.154.224.63
+asus-ap.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. PQFBpiGWor6itylbCSIiowF0iTTGbmS1JyH4Yh2tUsexqlWNSJVvIiL5 EYqdttTSRGGDHkYFas8MN6CWXCvTUAAzAyDHOomHr3qt76n5bPpWXNlQ atz+Q2j+n9sqSrqiFYQ2ubAIyclsMetdRNtZxZvo+0Dqcyn42O6cx+0c L6o=
+bartok.nlnetlabs.nl.	18000	IN	NSEC	dhcp-01.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+bartok.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. Q7VfSibMW/aRxye7XKj1mxq9tT3b76H7PNuqNWmvQplA05Ad4mlBGrnN +THcTIv1ymE0pWzDR94LQkmQZabCzFpP5cwRqoVb5TwLgJBwWIxQeVMp zzFQ43+jYhlpiPnmzrtBMmG+js0gDPDa4446mMDFp9BapJEG1TYg2Mzl 7oQ=
+bartok.nlnetlabs.nl.	600	IN	A	213.154.224.50
+bartok.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. J26AYtIbdOrZdLxKSp65MOdbIcMmx+Cty8l9Z0HlsiamAYovhhWWh39+ HqO6H2sJiGXT8dPBrQvvRNbtbLWi2c02WRAtGZt1GFolLIvkgVPGjd0y 0eLJXikN9L7W4j5nspTRBe6GOWIatCg1NwHM7VWNFEsUSZJVNVxBmIVi Dao=
+bartok.nlnetlabs.nl.	600	IN	MX	50 bartok.nlnetlabs.nl.
+bartok.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+bartok.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. kPtROxDJsZMq0XF/sM6tF3MQyaWBPAKGmEdWJ1DAcKwR5GJgBCCPbL4Z poV7NtJwfs0tN+vE5IqdxRu707Px3Omoc9HUJqF7mwu+dr8R4ltMkUGH 4XJpfSty7/4Q4B7Y/BrcJbYduudi4YmwqmO0ffFDJjTjDgJGCGC/DFtE HAo=
+bartok.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:216:76ff:feb8:3c02
+bartok.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. HKozneYfqXBLk/3VIcSTDGY3jb3fqQfjvl2yKN3rTkYUrewI5EwSMo4p kXfkCZOvhu24UTuPNjJClCa2eDmuCOJ6uRfHprnF5zVEDOXYdibYSF6Q VAHEi7hzKdJVzk+Fg3BYdxkjzx2kq8jCSF7LAMQ7z1I7eJbpRZ/ORafC aHE=
+dhcp-01.nlnetlabs.nl.	18000	IN	NSEC	dhcp-02.nlnetlabs.nl. A RRSIG NSEC
+dhcp-01.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. BhWsjNlZlugg3KMFyaCTK+jX3JXiRsGA7KdKWvP/lvFkBS1nSI4dwwej omkDGiNWa90NGZiBx8A41eqykM9SJNi/+57K6jEKI8X/A1CngK1HxyyS JZyU2sbdSqV7MVERfnd5i7ZbThS5M90G/C2Dr5tJ0pMUJ9mwr1PN7mbj jlw=
+dhcp-01.nlnetlabs.nl.	3600	IN	A	213.154.224.64
+dhcp-01.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. Q/uN5lccCVcHi/BW3QL7HbQFSjw+9y3kFy00WCxo52ydjo91bPLME3e3 e988ajyZDWDp9BGmIe6lYjXaVpbzB5semGmlpX6ZKw9Ngq8BVVvCIfcN QLEsqzFsnQCa0wrRXqTeBsGa/msU3y09UJOpMBvVndUxjpX7liAMz5Up Iug=
+dhcp-02.nlnetlabs.nl.	18000	IN	NSEC	dhcp-03.nlnetlabs.nl. A RRSIG NSEC
+dhcp-02.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. h0JZ2yT+qAnoZc8C5x/7F063grW9x9nIyY1yHVhLHknwcJ0i7CA662jA FxdsEpj7r9oUrJKZEBC/txzeAb//mOM6Dt7xaQWL2JaqmGjRaIVhUX7g zmGTXqGxNr8+SSLwe8+D6h+FJHXirO495bk6fpa2AQNxlraCROV7IdFW Sik=
+dhcp-02.nlnetlabs.nl.	3600	IN	A	213.154.224.65
+dhcp-02.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. B08kP1Sw3I2JGN9gZ2WOvmo5Kg0dE/9Hu3zyoiJei2Ed8iNnl7G1snYI bBlWqvsbdqxlcwuV5wcwbkgmXsHQbvuSLjShKTyoJglqdMI3etKsseDT 2kBZsxvarrk4fXVlvTI0ICm35tKEgBKT+Nw87z+ZSd/a4zpIToLVIQv4 rio=
+dhcp-03.nlnetlabs.nl.	18000	IN	NSEC	dhcp-04.nlnetlabs.nl. A RRSIG NSEC
+dhcp-03.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. c4G82wM8U9YX0ESAPFfjosrPTivw/6Mbqq+DtqP76tLG2Ukm5xxth81w HgUDiOVegTQpJbaHXdwJL2gjzTsN3WTdn+5/ivGUSdH7SUiIkcge2MGZ Oz0Q/iCvDs/1ftDYW9SWaizuNay5Uyg15LCasf4UrVam5JcQtidGiBif l3g=
+dhcp-03.nlnetlabs.nl.	3600	IN	A	213.154.224.66
+dhcp-03.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. bTv4qvtUqco993fs4Oak+BmAU8CyQhk5XUBXoKzXYN4T8Fto5bFUkYi4 tzlzKzNxQpMpKww5uNPBOjxpyi1fBZDt+qZqrGzFiQ6+sq4G1x8qJ7fm h6/wW2QGYNR7A9j9VGmDmlGL9dOwXkNBGuKVPfD8n6GFF1FJ6HNJLqr5 n1U=
+dhcp-04.nlnetlabs.nl.	18000	IN	NSEC	dhcp-05.nlnetlabs.nl. A RRSIG NSEC
+dhcp-04.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ZquGGtHlQKK+D3CUAsWPPK/pyjtR7QBrrs4OTtEFhzJpkvm6kpYi6Gtf TtMy4M8LFFyslQaMsJM63ByzEf2LjNx3vUjgi80vbl4/dZhBDcegaBcB QBUZ3BUdDihfmjoZk/GvT4ddKoU5l8xGhbeG3qKsfNrA5VWVe51UgwiY dpo=
+dhcp-04.nlnetlabs.nl.	3600	IN	A	213.154.224.67
+dhcp-04.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. p34f8rWzYb5wQUsk20o+vWv3FfdJ/mbjVoK5zP6WZTIKUMxTAiXihLwB yhgQlOvJKJFT6Q/AZPC55lleZ5h0hE43P6S/9Q9rWRZVUJtrCAqy9xo2 QvRcsM/8VHR8ziehErSGHCSFdsiT6ANNMuO3FC5hBSRLrE8KHO5Aujum 0mg=
+dhcp-05.nlnetlabs.nl.	18000	IN	NSEC	dhcp-06.nlnetlabs.nl. A RRSIG NSEC
+dhcp-05.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. fx9KvvNQgkNrk0cbOJGqUAXIKSKLaS/u3zmdaKKEVJH+Xy2UpX1vGHgF WSgg6Cx8vuYu02yRMBv/PJwI5gg5flAXVfP1+GsT6Zd4c+fapUV6BPFc 7YNANu3eRv1kdjwEVZlKVmmZU9TL6oef+RSXZXiF3Zn8n+Cv+fwRIbGg +0I=
+dhcp-05.nlnetlabs.nl.	3600	IN	A	213.154.224.68
+dhcp-05.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. GHUlG1mfvwOPXrgY8pUBAtDj+InxjGRUnilnnhdeYnpB9ioNgNAmYMtG peRjGl8I6TgC2pYySkIP4kXHBG+KU/BrwcNyHNTjwCtfkWRD5em3nUMX SAlbh10ArTwtDBPuNLL/JVXQlVnXFqWdzONRH7coi0CQmE9Pd0HIdDe8 L1c=
+dhcp-06.nlnetlabs.nl.	18000	IN	NSEC	dhcp-07.nlnetlabs.nl. A RRSIG NSEC
+dhcp-06.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. DQcSwxeQL1yAZyxeA0JlRRVgy7NPTvwg8Jblv4eSCj/+hC7MWCNnS7uw syCqo06hxK9cDTppyeiBWFig1+Dd+dSJQF4P8NxEgmLLh2TWXEvPPgFy cd/D4C+Dvra0nuu1QWoEJP/oQrHoxGMiRz5b591XB+MOyfNOXTYw7YEg Qus=
+dhcp-06.nlnetlabs.nl.	3600	IN	A	213.154.224.69
+dhcp-06.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. N7ETvKemqDEOlcFfL21Un+IXT+cYrANIGOwnw9EZC2V/qyRVU0m2WlGB T6VgCOZyBAL5D7tEEqBHlWwTqdzstL4R05xlrgwcXuIehMlKhk5NJd+H t8lFw5jWSPhAeL5/8AM7fKV2gubV2W219ogzuvirIMfOtzf4hyXOsxTb 03Y=
+dhcp-07.nlnetlabs.nl.	18000	IN	NSEC	dhcp-08.nlnetlabs.nl. A RRSIG NSEC
+dhcp-07.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. KNII0C76+CbI1nrRS+TcRYpKfr2jNZ4K1dv9KhGPSV74p4X/HlPD3gn4 B2Gyj7kHGP1t8AkIbhpW1PpT1r3AslXkNoI843/P5XcOIQch4xtgXup5 xMp3gm/WQNOK00zrE8DgL/qnl+zVZBjKYPivuCOse9f5uP+2BAc/F09r fEQ=
+dhcp-07.nlnetlabs.nl.	3600	IN	A	213.154.224.70
+dhcp-07.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. E4Y9q8xhxzaMHYz9z/2zJm/9GA0mMBIpJENQPOEYTuHA6z17/MZumBym NpuQKmPm89qNIKcSUT3E2Yn/iayPZ7g3B4O6He8FJbv5ZlPXhb+/nZiT POd3gmUGtrGxmmF47u7c+KcMgM8eNS7zLAwHfGYihjbgsW0riTxjzlko 08k=
+dhcp-08.nlnetlabs.nl.	18000	IN	NSEC	dhcp-09.nlnetlabs.nl. A RRSIG NSEC
+dhcp-08.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. DWcPcqjgKVIXnko5DR2uwWDHX2nkp66TY1pcZDKVRCxt1dYO/b28CSHB 7Fnr8J5/fwtV5XKriw4VShk5azAphWke+XA3SCWNUmJ7cK0Rc6XcszwJ 02bHFSHMrfT6uxM6qUSOXJBqoHkhw2clVaeIXJSpmYpFsAF5kgLajOz0 yxM=
+dhcp-08.nlnetlabs.nl.	3600	IN	A	213.154.224.71
+dhcp-08.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. UTP/kGB7yZyh8aRFgomdLQHVGoRU6rn9HuoH1Tbcvu8++MmicoeYyXrs ei6W6lVHsZLjVAnWqistb8NAsHeS1MMy0cYHDqFe+NQl1osk6c+lmXu5 VxRG79J8CLXHR3Nr23HPWFLjZ0RRyrRykQsjdpgBlcydnfRgZ3JrXyXw GoI=
+dhcp-09.nlnetlabs.nl.	18000	IN	NSEC	dhcp-10.nlnetlabs.nl. A RRSIG NSEC
+dhcp-09.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. luSV2RpmFyjniakKkCo9sY4ZqgAOIo2k3fWmsZeIKEt7C2XD8bKyVO6v iL/55qSbd8p+xs/W6fvWtoDmlgrVk+e1E47UIu7uthbV/nLCyskwM2y4 ZX9VW/yC5WEgG/bzCKH1AY/ucLdYH4b/hD5IDyhM62ZXAqk/umj5zR27 bQA=
+dhcp-09.nlnetlabs.nl.	3600	IN	A	213.154.224.72
+dhcp-09.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. pjayjQAL8C2DUDJSSLxT2WaVbcRAObAGU7MCEQO+KK6jnbKpXM1lzVuC NFy6z0MqyjjcRv6bsBqLW22XJicJ8uEJxqGKD/w3RUF1mXaGVKj07z/G DpAH/ZuPeVWrlXrszLEuqXKeFd+UMvWc+0Wmfyu+SbAySmEeBhT0UqUM 2L4=
+dhcp-10.nlnetlabs.nl.	3600	IN	A	213.154.224.73
+dhcp-10.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. A6M/86z7t0FHkSboB/cXkzI4LduR7WYWhMHk/gPOVlWJkVtz6tl/MOaW PIC1Ls7e6qMdNLZpoKxsUUSnjYplurZXOPsi5rR96gWCuR4IRy2Lq+Fu IuVATPhXeKwexSwxDe2A0Ah1RdcTGQRxA763d2tsxenSbmRgSWZRwO/b SnY=
+dhcp-10.nlnetlabs.nl.	18000	IN	NSEC	dhcp-11.nlnetlabs.nl. A RRSIG NSEC
+dhcp-10.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. jKRrUspeXbc+oMTAZxt8C5TLK1PogrPcgIa02XykMJ5r1t/laYI5oXry tWj2S1l41zfNopBmSBGwysDZk67k41lj5Z4Hn9ytLsYzKCaOuOeL8LF0 +R0IlpJKZCZ6EglkyNBnTeXF8XbndoRh8FM6H0OEmftr906k7XQCzIlA WsI=
+dhcp-11.nlnetlabs.nl.	18000	IN	NSEC	dhcp-12.nlnetlabs.nl. A RRSIG NSEC
+dhcp-11.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. BbTDena3H6eEte8SjPGF+B8wQxd2Z024yUVPRs2zWfvLeXShVhJ5PbXJ Z8J4O/8iVxidFPWCr34YdJobtNcDZbMNPdfiLiyWT4LChBEAqWNaBJ7d uVDNxoKiS02aKfrKoOhTWgjf4An0FGmDh30Qxj0Mdq2ck7cNAaVAgCE/ Z5k=
+dhcp-11.nlnetlabs.nl.	3600	IN	A	213.154.224.74
+dhcp-11.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. ClbgLhqTC1EbKUoYJRJpIaQQKvBEWcxoOChOntxYTFw6vvPSx4C1M8Fr uDX40OEO0NO/l3IwHpBCBKrtKcP0mpdnkwcB3Zu12dlUuZSv8Syx3bjE ehXFcRktbh45M9JfiIuhI6kiN0SjWdK59LJzJ1PMGAOwiKjk7ZxBtngg qUI=
+dhcp-12.nlnetlabs.nl.	18000	IN	NSEC	dhcp-13.nlnetlabs.nl. A RRSIG NSEC
+dhcp-12.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. FAaeKtLXHurb5H8utLHKy7Y75dgQaE+qzcM8NYRjxrVD2qlHRQb+Wj2E 06He2jnOu/XAMC32Auuj0mllc2ixodg1hTCX2z/HyjM1RHR4dj2ZPCOx arKTpiTVd2J2UUabb5aUQjArlzbq1grIvy5fnkRfP5hBprq9Z8S1acVh 7Hs=
+dhcp-12.nlnetlabs.nl.	3600	IN	A	213.154.224.75
+dhcp-12.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. hejfyrYuoJJ4kJEep/dD/zjIAYa1ouw27xRj0G1CyTZuiyEmZrqgwPzc SbWcVI23ZoqooE5EYPfr/l8QJj0JHpc0QNlxVa/lC9BGFHIVVlOZkvmf qYkxBw0AZPzaW6oa7xA0aYHyksLOwAnaVD1G/P9k3TcNceTbRTJTqvIK 0QI=
+dhcp-13.nlnetlabs.nl.	18000	IN	NSEC	dhcp-14.nlnetlabs.nl. A RRSIG NSEC
+dhcp-13.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. NpHGV/R2Nou9bOLma3xNhFYFTs0iFC4ys/pWuyizz8YmWB32/oJCQ2wK kruitBPuEna3AuYtT5sG07AO5e4ueUYXYG2vLSUn+j6JrneL+k25zH2Z rLE68W+J646iIZZ5ruKraJ2Y28J8GZzArshwFwR9oRi+0iM94jdspIV1 qpI=
+dhcp-13.nlnetlabs.nl.	3600	IN	A	213.154.224.76
+dhcp-13.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. ZKDNqZ1I/d7KnVUnzakaPHKCj2A1Z8W17c5diDVvrWKeudgeHBM+JD+9 0bfAHH4gbgosKANNTGXA2cpUHlDlJoADhUX5sfd9+l5amxZAqLtC+QnX hea8LuHDIlMQQG66hsX7qvvzVpD1MuK5newEpJfKVUeKHbp+tFRSLGCr u3c=
+dhcp-14.nlnetlabs.nl.	18000	IN	NSEC	dhcp-15.nlnetlabs.nl. A RRSIG NSEC
+dhcp-14.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. c9mU38QvqETEs/v1y0RSeNhP3XELt2dhm4m0cRrYHkqxEERwt9NSDx9n gL9w7xVhVcnfzCXDzIfumqL+ZCjEjavMZ14X6a89CD6lGM+b/dqQoMzw ijeOSTJ6hq0p3lZYS13NXjUaQi8jwCeFNb2q2+TDhF8QPzJrW650Z8IB 5v8=
+dhcp-14.nlnetlabs.nl.	3600	IN	A	213.154.224.77
+dhcp-14.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. qUR/vpPkDIEQAa9L+a3QilfzvjYWti3btPUdal0gQD1+hmkMlFOI5wGO aaKyDU6GSU8F/i9VmRs3nuggKWVLoG9PJwkfZoDiJNlE81aZ+sKsGE1b AL2Hw2ZYqnUT7LDtzWt/TslpJcpxS0usfMfQtJN8E8iC7kcFEsCcLtyw z0k=
+dhcp-15.nlnetlabs.nl.	18000	IN	NSEC	dhcp-16.nlnetlabs.nl. A RRSIG NSEC
+dhcp-15.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. lAzCYeVTtrmNilOU9SuymQSyziT/qysJLtf92jY1/u9ZfG0wHMP7HE1n c2k1r2yCPKvjnJbNYEgYZJnjUhk8HH797TWkWQXY1dGJ2Vw4fPeXiB8b qH685V5i4fSjWkW6bk32WqdkpkWkLs1P6lzfWq5aQg3csQRWdOfw3HZ3 6NU=
+dhcp-15.nlnetlabs.nl.	3600	IN	A	213.154.224.78
+dhcp-15.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. k9ji4tuqlojJjFKGL/jlpXZDfEn2OUJYQdu5VJOI9vlGVcdKlL/QMERa vLweoleRNTdu0/Tt27caz7TrG0KtLhM71qRS0rd9X8fmGkO2PpxbvuJW yFjY/ckv22Y/K0sKn1zCf6/o1XxR2Wro6D6+V/u7KLYnRm7aVa//D5ef zfk=
+dhcp-16.nlnetlabs.nl.	18000	IN	NSEC	dhcp-80.nlnetlabs.nl. A RRSIG NSEC
+dhcp-16.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. e1rPfAwWPq9LBn2AXGgw43W8eO7K/VUtKvnGJ/ennRKlfJu5vsqDnhje zbQh2PY33jy2LUuLdGv9H3Ba2Hf4i8skK7YjcXI0yBMmWLiBHGoiF9i1 oD55Fpk+77RLJp6XU6wNDodsNGa83zsAfxdySrwy3USNAkIn3AXee5l7 4OQ=
+dhcp-16.nlnetlabs.nl.	3600	IN	A	213.154.224.79
+dhcp-16.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. g2qWzNzrbjlZVTGwj0ujmOGZzMmRZ0CNMZbMZVbBrf77aP9Lz1VgDvGL h9MPpBvdk3JanO/xZL+PY2Elkj0iTFGP3uRNteywdcUP2/Xx3nATzJzr eP5mIDZYDKiAmkoqXOLhouWXQ9j1xAJ2uinslw0ZefxaOF6MGpXihdos EYc=
+dhcp-80.nlnetlabs.nl.	18000	IN	NSEC	dhcp-81.nlnetlabs.nl. A RRSIG NSEC
+dhcp-80.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. Q52UtKoSAbaBFrJmT6SH7fHzg2W1HK3ybH/s/sqJSyaqZbf9pZQRopL3 ryiXMX7L4eGXWr4tOuOdVf8j5EboGEJfKDMRBZeQXEgEYw7VlCC0t5dP VALFQP2NKtYa7yZ9rXe7Ua/3duo7ydGpv4/acT0wwNNcW/Risx9pozH0 3OI=
+dhcp-80.nlnetlabs.nl.	3600	IN	A	213.154.224.80
+dhcp-80.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. HWdpL/uE9hV1FUjMSotBWtTlEJwT3RR36LcTyUa7/VHeL1H5Grq5QkxM 6Mf1Wv4zT9tjqTouDU7vkGlDvh9JN8eW+MIcV42Sugt27F+Oe/MAP4EW heYUF7Ez/7oZ6RWcq2I3n30x+qK3ehfwBNBfMchyPYEIqRIzWwyPVNjF 6c0=
+dhcp-81.nlnetlabs.nl.	18000	IN	NSEC	dhcp-82.nlnetlabs.nl. A RRSIG NSEC
+dhcp-81.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. R04Tz8a9qYlqNg6JPzNlAl+xGn5CGL3qEHJ6AM1C5uwZ9NU6vYdStNbp /gU7LJlMzcsN5wcS9V3dBsAap+P9awL9TUiPphlJA2O/37VL6pr2GmFF ZAKmJW28YN+dbqfeeiKE2mz6J+ZYcumlO5vPr46g6QtRf0pLFVkVlo12 TEE=
+dhcp-81.nlnetlabs.nl.	3600	IN	A	213.154.224.81
+dhcp-81.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. N6lkHwdgk53nhMoHDT/7cWhuybmHPMDZWPFEdNjnoStic3o8zlAOuXZ+ zucX9S6Pefw2fwTXlfxoAAs5TGU4WCY0I2DQszSDcj8polwDY5SJrJDJ Veu1lXXyd4iBzhZRww/VLoBmf44HLbB0kZ7ZbH+xlmwnbkRZ0xR+gvLb XoI=
+dhcp-82.nlnetlabs.nl.	18000	IN	NSEC	dhcp-83.nlnetlabs.nl. A RRSIG NSEC
+dhcp-82.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. HLiIvzxeEKcJF3NHZgrY1EhnZ+91fdLmvqePzKi7RDJZLxiTsCCdET17 FdQWRX4zT9wMg9WhI0Q2jvacomj1FGaW7jOJl9iEhPNPmy+O9HogWmE5 BxICgAkOJzX1SATH1tQnUTgXMarmmZd1YU/hc2mxM+Xtf5g6xs6VXotK VKE=
+dhcp-82.nlnetlabs.nl.	3600	IN	A	213.154.224.82
+dhcp-82.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. DhGvag9N4qTDfV2PpZmmDDwSkDx7QTrRAfH4SWU/fM5QYAMSk0P8g/4I dWDRL3BxAvvVNzfm5ATOEe+Kq+xNLDKAMxxRYSbaoeLQtEiRai+QUvrl YU7rgUpszenfwi5c5aVYeI0YvqC8DgLDjqIxcJEqvsi4mbWFYu2u4oJQ B90=
+dhcp-83.nlnetlabs.nl.	18000	IN	NSEC	dhcp-84.nlnetlabs.nl. A RRSIG NSEC
+dhcp-83.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. E2z6O6f4AHqXjlFaOMMyG8Xy9tCD89jgAmpioIqgOB4J/HgZHSzH0xi1 8XjNILyvYDnfjTDEcxUmfPHKBP8u7ngS6dKbKXT4+O4Q3ZeAvYUs3m5v h+U+2oOm5qM21k4CEIQmSSUFVqU44ASry4TbiT+Di9z2iqLDW17ajyr3 3NM=
+dhcp-83.nlnetlabs.nl.	3600	IN	A	213.154.224.83
+dhcp-83.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. XNPiy0sSgZgQjrq4fcTpxkRiHI8V6N+twVL1Q4A+3oFbAv4CLrvWZBnX 0N2cagdqFhLLtWNYxIw5P7wrZF/UowcxPa2KCr5DyDpo0JfNWR9En38G +XvV/f96DyR8LDnlfoGb7/PeopHnNP0W3sl5jXQPUBfZe6A1gh8Ph0F2 yzg=
+dhcp-84.nlnetlabs.nl.	18000	IN	NSEC	dhcp-85.nlnetlabs.nl. A RRSIG NSEC
+dhcp-84.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. MfJPB+IQxZs2N2x6qjCT3aJ27it8asZedsMrRii/6ZEvGJ0QQU5+x2xl bh3+mxRxbkTguk4Rf6ZPbbCwI3qa3ReP+V0GQTVFIctNmAV7OCreE5y2 svobwBThQp5Ue7U0l4w2u6r2kGXVISipYgll3rp8JdvhD1bs0HC82qL2 WGY=
+dhcp-84.nlnetlabs.nl.	3600	IN	A	213.154.224.84
+dhcp-84.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. KSgsF31Edr0e7wUJEaUGE1OzRU862UXlSISgmqyjLyqrR6HqyvtVAN7E WWz22LNwZdEKUxqkQ3EFNISGxcl0EgnIuM+1mnKNiWGLZY4gcxv9gyxr dHjtJC/03rCfeN5QDFqxwrZwRcChiyXt8sHDM5t43fWjb0bumjkMt0qb tBM=
+dhcp-85.nlnetlabs.nl.	18000	IN	NSEC	dhcp-86.nlnetlabs.nl. A RRSIG NSEC
+dhcp-85.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. HMipwg278ezTwQ7XW2SLz4rF+QVZRMPwVrxQ3elO/io0juBJLGDiI6UX GNZ8HeoBVLKR+EbXR0uzHj8Bu/nD/+5463CXWFDRVH26cBG8ppkD573v H8kkAsf1NBMSPvmxsnk100vfgInjsdVjbjPViVmq0MF+SUrfCDK3UwGi Vz8=
+dhcp-85.nlnetlabs.nl.	3600	IN	A	213.154.224.85
+dhcp-85.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. fdbeSnzQ3oDiuT6+h654Z9Q4Ap2G0SNVGzv7fICz5cTW6ofkHHgRGpsl XmZnvHergU4+mesbBsGOq6mQDL5lFVuQpZkoU9U+ZsDTVa4IOHjuxv1Z 7Gq6ipR5Tv/FnJwkxs7IR7G6iikN+cRfWau1b5qfJbjxcxI5IaxxVOjn zGY=
+dhcp-86.nlnetlabs.nl.	18000	IN	NSEC	dhcp-87.nlnetlabs.nl. A RRSIG NSEC
+dhcp-86.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ZiLXpVFO2a/xUFHr+lCLD/1WxSDBTzyfu+m5KCT63eQMyjetTqhic1xo o4Evww2ePf1/WMoUopJ2ho0gnrsNv6fCRQY1apXwPE/5NW36PZn3h4MV ldlSYx1ut/j1THjNf7QxL/Rd+mcixrYcRAByvn2edfrhU5wuCfybI3MO 3/A=
+dhcp-86.nlnetlabs.nl.	3600	IN	A	213.154.224.86
+dhcp-86.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. f7O7tH/gA1WhQ/EOEAAsyXpEUH3+XEAC1Kmy1F5zMF6TFB4ynIrqiCbJ Xvdl1AN+WoEClK/bJ+Y9gLjRHzD/fYGSuO1wnPjJRD6WGynVtaYEfSal ly8UHRuywvHlKV4vL6YQ+z/FFegMb47WCvmEd1Gu3QvohyOJrz/aS773 gBo=
+dhcp-87.nlnetlabs.nl.	18000	IN	NSEC	dhcp-88.nlnetlabs.nl. A RRSIG NSEC
+dhcp-87.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. n5zIChy2yTS4ulHqNe2/obbF+JXcKWMs1DnLPRsDm6BaXRjosn32zrj9 P0hoQJNOQxhG8f2xKO+3jYoDXMLKh6qOJrjXjUHeaBBiuj5kxU/EUJRz YspUKC4oEFE3KcA5UNL+siRfdMsnAD+fUVpWs0msrr+aT+rAIeZ44r+B HD0=
+dhcp-87.nlnetlabs.nl.	3600	IN	A	213.154.224.87
+dhcp-87.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. c2oRlyKG9hDQ+WUdBshyeKrgBNmeZQi/WTMaWMN/F3iICYGOd3NF0JLd ba9LqpY2BHFvA16y1LfVFY/3aRlmFqp/r8GZcdODyC0UMEf1nSY/gILg sLWTdi3H2Fk7+64FfpUu0o5WaDNWQKHz2lAyDU9h403cOQbaDKh5IIMH y0M=
+dhcp-88.nlnetlabs.nl.	18000	IN	NSEC	dhcp-89.nlnetlabs.nl. A RRSIG NSEC
+dhcp-88.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. EeWOJ4JcjbHxB4qu8du2YOa3Xbww9v6kIia88YCJLfRviaUlSqXxkrdl UOj7HoNWMMVyTAAT+Zc5zGS0IZi5JdxyAZyfdC3mwto3asSDNhsT1HZA qpHiOQIXoT/+yPLgYLtpBxafgiPzLP+V4yW+Q1ZmrBj9jZa0+WILjmHz qv8=
+dhcp-88.nlnetlabs.nl.	3600	IN	A	213.154.224.88
+dhcp-88.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. SSdcAQ+8Dpuc+XfIK9R9vhWTjkOabSrolGYzCvrjSnSyTQQbzNGgLOr3 SEt1XOCEKQ9p/uK+MPvytuJhZEIJThhE7umCJ278+q2EfYHvtc22gMuc /S9b1QpX4iwUNmsJRbSFhfhW7huL92kEhwh2ABUwjD5j/wC8DDLKGJdn bvk=
+dhcp-89.nlnetlabs.nl.	18000	IN	NSEC	dhcp-90.nlnetlabs.nl. A RRSIG NSEC
+dhcp-89.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. nEMoh/PDePEoGN8sqX8+cwzViqGADytqVQgsUjD/dR/rpetLAo+r2NKg mAtRpC0lzF5AMFgqheKvqGTyKFhiiHUCwL2JO6xturvGQ88BiQLku0Dl IsNHRqrqPbRdCsMnnh3dFgnlt2RgY0tFAlb0QvtUFS4JFLeZ4zrE0CAX QYQ=
+dhcp-89.nlnetlabs.nl.	3600	IN	A	213.154.224.89
+dhcp-89.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. S1QrqU8nF0wHHwkyJDTNz85WGwEZAqK0S3S6U8X5o8j6t6YA5shoqRUg HNNG9i2T2QLAuFDJ6RFKTuC2NjaTtuMlKOJN6eOUBDG7r9JEkTDj79jV EDMjjXOBVhG4DVeughfwSdGX20o/CEcVsD7w/cuG/h86tloLCdAxXf+3 xXQ=
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN AXFR
+SECTION ANSWER
+dhcp-90.nlnetlabs.nl.	18000	IN	NSEC	dhcp-91.nlnetlabs.nl. A RRSIG NSEC
+dhcp-90.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. cPEmnWaQJQflV/fR1LTiDn+EfCm9PO7DoIhjvr35dfp9Gx39OJPf5Fnc 4NC2Ay0gnfiJ8RmtWsd5A/rg0HYDAOqI50oHjmgBPjBaCDyclkZdCUdH r4wycksRf8yUWyrOc9EZtF7PekY8Pcd0HtaXG2eWH6h36qPZcuDDZExV ONk=
+dhcp-90.nlnetlabs.nl.	3600	IN	A	213.154.224.90
+dhcp-90.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. ZLV7Q/fuq/lxC7NuoSL3a8kkXnbvno7cujDLdqjNZWqMBWFe06GKYyFa lDQ6UDhKOOvavGJaY0dA6k+PoSzoL+bch3Ro+56/8+hNOGL33LDSiycZ 5X4bF7ghW+ggvrGCPoomICfoNVOKefHRBzKGBm6C8zJKjggb4FbDFeh9 DVM=
+dhcp-91.nlnetlabs.nl.	18000	IN	NSEC	dhcp-92.nlnetlabs.nl. A RRSIG NSEC
+dhcp-91.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. cJoIQjSfnuf/OIJXr+IQqHC+fl8bXlHrFEQf5PvdUgmYO5lx6HZ9FB9h dLuqDzLdVzPjf7ncBxiQrt1ng7gySAzeBqjezrTm9XqFoTXyK6W5SASC vSmAx/c8yHCcqsNSIWQWyo56VCF+ampF/xqVRO8xmmJP4EWJ49VOMOgt Smw=
+dhcp-91.nlnetlabs.nl.	3600	IN	A	213.154.224.91
+dhcp-91.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. DlSRwEHWgHWe+epmbdI+bo2fI3K+jJcm6plDXxy4b86Uc0wU25QMMbnV 6ksrJ2SAAXUzcdruJLlpdtdnZk6gX29w9KH9OTyIDDi8+Pkff16F1YQ/ 2WBrCDT/ogQFD7hLpmu5i5MuBSxblCigaQy1DWL8ZQLN1uIg+PIOG5mh j20=
+dhcp-92.nlnetlabs.nl.	18000	IN	NSEC	dhcp-93.nlnetlabs.nl. A RRSIG NSEC
+dhcp-92.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. YqjXuYbOomBjOwFVVCv7tg0ofoHrrvZRGmt2QNTHzuyFyvm1tVlYauF7 xHpTnFsdsKJMkWVNX1U05O1+gXI7mv7CiJmwk4ixap/oGNc/qT5ziOMm mEaW+HbD6Q3bMrb3/n3M3dQdU6aSHjKi6PAeqdu8k7101jb6qwJyKih7 cyg=
+dhcp-92.nlnetlabs.nl.	3600	IN	A	213.154.224.92
+dhcp-92.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. JGRsNgN+pLLGKqTkPRgGpP7wthjinjxS5aEI/SzyqYJ49jn58gLvUk02 j2rrC4zi14X74qaVg6Rqk5iYEaCnDD8WFF3rrTM2svyrxHtL9WooXVKD meuZUHo/S9em6avaMaJ4ATbrLRnyesDwX9ObKvFPqIB6ngDL7BEbdMcw FXE=
+dhcp-93.nlnetlabs.nl.	18000	IN	NSEC	dhcp-94.nlnetlabs.nl. A RRSIG NSEC
+dhcp-93.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ghKndVKwVwB3GCCbB05AQ+QHErd5hDH/eThxntJzD+t4XwfE/ba7w+15 R3n/rCMP8GZyOXIu4t9qRDuaqyx0Z2vnSDXVie20qilq+liFuSJc08oI OhD+TTUTfc3JeDFSq8966nE2iDOlga/0PlQv1J2ZWlHy6GW7uG9+erCD OQw=
+dhcp-93.nlnetlabs.nl.	3600	IN	A	213.154.224.93
+dhcp-93.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. OxOLXxd9IyHhfSZDgH6e3Q4kmu39n/STAFvveQ7lzrzABIiauIHqy2oR mteIYUzy3fV+C+GogeiowA6c9JROKzsU4DQHERP/WGM2TyYGVHrH+vuo FlkNEVUc85hbVySwXgjJDLo3megI0HYatldTNYt5I90mZOgUg7pSpLhG Wo4=
+dhcp-94.nlnetlabs.nl.	18000	IN	NSEC	dhcp-95.nlnetlabs.nl. A RRSIG NSEC
+dhcp-94.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. GiTajmO7Q7P5D9RSjFthAjKb3VFaU3IsEi1WIa9SdDCCgkweHh+a+42V TmbsSUxCEtHtHcutgARIoL1fghxAQUE0d0WPaOHlqsKXcIlOqFGe/uHF phydsYuyba0k5KwP5KQ9vpj55dUHmvE45EGpclooon6/j+dhYjlV15Kh MfI=
+dhcp-94.nlnetlabs.nl.	3600	IN	A	213.154.224.94
+dhcp-94.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. gMEfCCsC2RBehO29NobegN3YbUmPE6aml7dSEhVS2vzRXkceZ/kCDn4n yXkbBJA6WhZCR3XjIN9/YvGdCWS7TkbzebQC/btbEp1n0t/yDhjzyt8y 2waiIWM4ooehjyKRtr0B6GXv0UolSzK77JzHVtkaNOkNn0WJyLfY/Xyc 494=
+dhcp-95.nlnetlabs.nl.	18000	IN	NSEC	dicht.nlnetlabs.nl. A RRSIG NSEC
+dhcp-95.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. Fv/xwiUB8s25tD6FRSiaSHpO34hpxPZCGSQrkqExl8vqKP3B3dHtIcCX SiA0u22LlkehvpkoHUWzIhjRK2I5MslqHSzN+ZOmf2FNZd/NJruPPwVz lAjRn3pKQkOV1iqQBj0DlxAsTpI5r6a0dkPRcQ+qKs96xUXY6g9fhU/C pjg=
+dhcp-95.nlnetlabs.nl.	3600	IN	A	213.154.224.95
+dhcp-95.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. g9TfAoDLV1A+FXaLFU1pKxXYIk3Jy9nco8uvX6eR1lnuQkLg0ZD5Kmbk Yen8BuqlUDe7Tn7HFQ9/dq4y6eFXyoVi0ysvRw6E4P0yAwKHmvkqK0Sp surB64dt2MWKMekaXas8MTgCiwe6FkSutEO3/q64yGgFZcfcLTOy+8w6 unY=
+dicht.nlnetlabs.nl.	18000	IN	NSEC	fable.nlnetlabs.nl. A RRSIG NSEC
+dicht.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. V+b6TXHkfPt1DpfJdeQLIqlfyaev6ifluTkgA8rYA1ncehDH4OJtWg/a ChZBy8Y9LMzkQMFgqTBGjPlkrE6uzOlBEfZNAP+YA920KUZ84KdFutfL 0FYYracWonskOMdQvdbZNo0pFz/3OZr/9123okc/dCVEA7tavWiBfsBZ o9Q=
+dicht.nlnetlabs.nl.	3600	IN	A	213.154.224.250
+dicht.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. enxkeWL8VC9lsXjBnqCZt6BrONS/W6WzNhXJrhDFf/LBZTRdb37MgnGH fCBRqgKn/HozKPKAFtZiqsXrlsQ86P3mzlNm4IUpaj1v+y9syrFOjkyx 4/osLK1CZZdSEMUqROgoE9DQ+UdSJmKto2oUNxjidg8Ewlb7SDPXM/G+ ct0=
+fable.nlnetlabs.nl.	18000	IN	NSEC	ferret.nlnetlabs.nl. A AAAA RRSIG NSEC
+fable.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. p7JVmo3vVvAmgXLqEAljzKxhacRC6/T5r8SwF+t80zoEDTSTnS7wTmcq K/nXkkxUcQv/9fJAC5pZaj4karJURQ2q38EExwyoJGMgUvw7I8wzGZ/k /NMahGyGJLZf8hbcb0jLyvpnnq38V4DsQfbb9CcifcwmJkvS6cgHU6AE aOg=
+fable.nlnetlabs.nl.	600	IN	A	213.154.224.45
+fable.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. WWnxLKqS8bZ3WnJfmman1E9Xx+JwXM2/UVF78YjCVqCV8RMT6W2fzPCt ylgCAweIa6aG28hEGzPHCiWlSvQUs+cd2wUWbdDiVwle9FC+Vji9Iszs 19JQy3HEwiuZ4m3eapgYia+DRzJnXg1ZWaFgvhb6IW17DfHPVmcYYHku eQk=
+fable.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:250:bfff:fe58:4d93
+fable.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. oOKls8T7L9tx2AqgyClKIcFquXD6aT3NYJb5ZA3gXGp+cPMbvnfixilu pD7XZF2i08AzmlOxHpd1zNw0jp3IMKebQ5eZcIV4kIyyuY6rFovJCmxW ECcLumjIKlyxb8h3Qj7KSZcPH7Pt0yw/czluGD//5LWA+/7gg+itwk20 2dw=
+ferret.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. CaP8AdmTbja9YXpxnJfYsLWENSChjjG899PVPoluvQYXbfrLcb465uXe mp8MI03nySvo8786wGe++Icj9bXOzeP7zfUSEPW2UFREd3LsjvZB/wdu dfOApQcWBLrQEvD/++EGgJB7idf4cgrkovtW4elRWFpWHY3GQLCvbjGH UYM=
+ferret.nlnetlabs.nl.	18000	IN	NSEC	ferret-e.nlnetlabs.nl. A AAAA RRSIG NSEC
+ferret.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. FF69Elwu+M4nDJWr+f1UwyaL0UzAoorPOhZ8AZr90uuAeDdhNRZ9fdPj qLb4qqVj+5bDNFS4oxYyf1RZyMsHJPPMwi9j8STFh3uTa56JLSsK8zby CSc90Ik8ipnB/5fe0DThnEHzqGzujuPpX33pTgYd3+OHJCiCsTTJH/ml Tqc=
+ferret.nlnetlabs.nl.	600	IN	A	213.154.224.60
+ferret.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. QEZ72Z7l0zhUNTn5IqkoasFWSuV/cRasyTw3eFC/B2AT5l+0SQT1AlRd w1WHKJ+EcCeVdtujX4TbWgSfNB9Cwc90tLvWPTm6bq6WXI+LpfHEPw1m Vxi6dZAjncKN6S5GKYmovpiiipQgpA32vjc/52Ptzep1VZuFIXvHYesC 6kc=
+ferret.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:20d:93ff:fe86:918d
+ferret-e.nlnetlabs.nl.	18000	IN	NSEC	floep.nlnetlabs.nl. A AAAA RRSIG NSEC
+ferret-e.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. EUhsopQYSHZgNW64CNKUOIgJ3o8NU+EhCXoG0GGyvBQSkUOUAdqzMHJ4 wWXvigqPxpEa24mrMZQKKnHyAq1B/cB8Bt05TCNblOCcUxrDATaUYtOt K16NFIGCmI7gRTt5CTKKjMDrVpH12uDwISk7h2MGCvYVnsA/NN4Y+4BV k8c=
+ferret-e.nlnetlabs.nl.	600	IN	A	213.154.224.61
+ferret-e.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. GDL06fR5q0+YsaoRcBHzNZHgZ9GRpIGFQyTdwUQLWGIl3XeyZgiMVU3g w1MNDk1TM/UtTOLgUDu+lG2QJEgRFadU43F2ubcSVrL1PahAoN7Gou7N JlagBdgXE99gi2UfPeePBwcL/COv3U8aTSIiEJ7WVODSVtR9l0PCZ1m9 bfU=
+ferret-e.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:20d:93ff:fe27:ff66
+ferret-e.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Vt9a8m/XSjOcDurL+0H8vDFRXNsSlTgUVlsxmxQoNnw+2O9iA05i7UUl f2iubmnvgUmBpYa8ILp0FHGD6cyqD/O/wKKNpc4W7RoLBelWAwDVrhx/ yx8j5XXr56ER6XjoPPtCpNVNRvXPZ980VQr7HoPzbJWjOCAUovQ4YONT Ny8=
+floep.nlnetlabs.nl.	18000	IN	NSEC	gary.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+floep.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. K5r3od2Qo7nQwgnggvuTpQcB+NX5nlXfFFVH9TRzlx3kSupiEROO3YUd GXtTBl4fw9vDimo2o/VajENF50d0yU6aqfgCHhnjL7rg+pWPbyY6w02M c01/F5RklmwPCiynHebJ/RGXWSKFUi5/hNKr0LCIFae4YydPNUCHyivI 04Y=
+floep.nlnetlabs.nl.	600	IN	A	213.154.224.37
+floep.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. pmC5tXXZPnc4Sjfmcn4ADpuUbTdKAx9wIm5hflE6xCYnNGNCCY2LZDBh eggJtjMTsY30a7/ziDCwMiG9LzPoUo3cHURV5vVwSfiqMFDSyMrNxYQU aSa9tl+TdP3pxuGG0MG0MykM0CwnkjZOG2kTtd09pNYgg//iuD7UnAp9 6pw=
+floep.nlnetlabs.nl.	600	IN	MX	100 floep.nlnetlabs.nl.
+floep.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Ix/ol/iR+Tp70/bxUifh4FRu2lK8WDpj6aGyNFyzUrpSQH0cs5ZL+Xns S5fnhmGjkCm+6WCSr6oT1ncKqNmztwKBXFfAjkLQK9iynxDRC+j/ERuv OfxIh+nlvZ5pZXDIOJx4qzHSGZYi3D4bDL0otSjJjXG4316nzeeGIbFG c6g=
+floep.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:240:f4ff:fe37:7af9
+floep.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. SekN1WZszjlLSrVN2FFkRGSB0MVcTfsX0GEMn9cknFsA5hItnty+0rlf A++miOFdb6NbxNaoCSBLA95eldnEBkTOy3hp5rMHdQpjUxuzv31z3Kc/ tsMFBajyv79SFWibeUxzwS6kdgabO+yA8EN3S3be2f7/+n3dRBYpxxle cm8=
+gary.nlnetlabs.nl.	18000	IN	NSEC	hpr.nlnetlabs.nl. A AAAA RRSIG NSEC
+gary.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. k1ylHPSUOzCI+8eOhyJi1RVtc0g6SB+EqDEi0e45fsBh3Hsa5yr7/bua aK3NUI7OHRVjEg0Bs27UmNTrfzmNpFfties+eh5QTbtJ32DqQzzKCPPu CMfGOYVOqUrSVqAuYDLq2hVQwTLtvV6u7Dc5pCDE2RslGoqhL6BExdn5 0wQ=
+gary.nlnetlabs.nl.	600	IN	A	213.154.224.58
+gary.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. FElqOEtxgXvbJJbXE4e/0i7w/tCCCT03SC3Q4AJZ5wzhjyUBRMUQ5fZ7 Xa2YFUYtWvtZnuP74mIHc1mV4lUpGwT3TbXOVqCX45UaIA9GdEoFDeay S2vJbYRrdJewLGJHb8uIqFi+8MvGQWIm0TcCFd4s3CEMpoPASe+KzO3p ET4=
+gary.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:216:76ff:feb8:1853
+gary.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. JiqXQWJj/xzn9NopyM+M0p3EVdg/QuQZbZ+o4bQZ5JWHFvwzXSkjjR6u SDmObQTJCWVmgFvNQav6Y6Xh28Vgw3wO7ut5i3VOs2T7GAF5Ezr2tH2E rPP6NjgmvWgYwNSDCDuyzFIunNocVnUHt1VMk1FpfTxD3IIOY12UBWhL wuA=
+hpr.nlnetlabs.nl.	18000	IN	NSEC	iii.nlnetlabs.nl. A TXT RRSIG NSEC
+hpr.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. aS/em0n3uWpObWr73TyAppJfzVBBqsm3ItqrejZQwvPneUbf/VFTcRCn Rrkr1MkRpGHc1EKe4UOikhc/BLh3/WSlKeAHphVb4FxOHsik1gA9mkWN GgczZiB+iJhoSvXCrB548DcCC3kWRM7llz1GsbVfdJMlMu76G+K8j5DU 4vc=
+hpr.nlnetlabs.nl.	600	IN	A	213.154.224.35
+hpr.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. MtNG5jmsGvikF2+8VeM6YmtjtdwyaVtlYp2TOnhf9f/DnwGbHF6IyNp7 e3UCGaVSCe25nO3LXC8Bd/B/vXDrKhlvwdeLHnQttVC/1FukNySWLoIl 2TQMo+awluLnvndbSqinZat3IJwy7V3PHTTJByVagg6qf6SahBwPaxjG 7L4=
+hpr.nlnetlabs.nl.	600	IN	TXT	"HP LaserJet 2420"
+hpr.nlnetlabs.nl.	600	IN	RRSIG	TXT 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. emQOMgaasP6+meaCM7LWQA1euf7K0cKe84pKOJj5wh9ZcX+gIpORsTlt o7wvqbEq6khMRNkjtyqxaJW06LBw/diXtPqpwNbl+DfEXHmtU/QRoJzm tpEBaqZbmBcWXjBZeZJ3EJ4ZLxl1L52JAwOtW6FFtxDzt46pp5mB2DSZ P2E=
+iii.nlnetlabs.nl.	18000	IN	NSEC	ipdns.nlnetlabs.nl. A AAAA RRSIG NSEC
+iii.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ASgNY0oaCiUS8DJVzRrPlF33EHjAnYhyTfFjXIUqxXraoNhMba1qqgIS AsBUAbaGfBsxl32lbLMvb1utYrCUtfo+ZMxjpr1EK+KhD0QQoudVI7Yk o60VHl6mrsZXFlJ2DBm/FLYbkMbhJFzI7DLLsRN2vQsCeOTjPHcSw9wi 4Yk=
+iii.nlnetlabs.nl.	600	IN	A	213.154.224.1
+iii.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. UjvIGM54znUgTcuEJmR/e8u3jnmG1LM/+3JLZmzDdvNMVnW3n+K8qkEz ERWJwW3V+alkN2Rl+udErP8I7H5lB5YmtQDeGnZwiu4k6f/J3gdmNrkx MRpSnEtVYeNkajjPb0xX++7emchkeSydAA/Jt35cEEaMZwvWXkzaUyI2 MYM=
+iii.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::1
+iii.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. LzM3IiVN+rCNYAHM0/9Hd2b8q9gO1NeTxdIp4YVnrQqJMYIR+cwmJ7ie 6s7L4tlbbPsuN/rwXTog85dPyRhr7p0p5qFiHePXuzZm9sFwBH+hCrp9 F5/Op0YfjRGDbaQ2Aa2Ujc75Xp92kWVViJWP3efH6/FyGXARXR0OVPNS DM4=
+ipdns.nlnetlabs.nl.	18000	IN	NSEC	jelte.nlnetlabs.nl. NS RRSIG NSEC
+ipdns.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. jFgGPCL0aBhyG+xXjKy0wKlFosRlUtnURPnzSLAgjqU328xZUZK2k4Fe mc5ZxIgUDQdqsXm8B+1zKu8X7fnjeeX/4la8VIP5vRhIETKuDURyrU2S ZO/XYgMyzgXGo91zVxsOEp5otw+w8PuVJX0ErdE60v90KsGuzuy9z1NP aQU=
+ipdns.nlnetlabs.nl.	3600	IN	NS	fable.nlnetlabs.nl.
+jelte.nlnetlabs.nl.	18000	IN	NSEC	johnny.nlnetlabs.nl. NS DS RRSIG NSEC
+jelte.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. kKd6XS6j7oXpvhquML+09ef+RdD26UJ/UF7byOsGUGnadu1d+22K6/9a mfvDwwDtLb+ozZb4mHkhsRWgUDkPaLUjwj4GIwUbo0fb/29XsixNt7XZ djqVS0RgoOC6v7MsOluENBN5CB1rL1DPyQYqEGg7coT9onlREL3fy6cA dA8=
+jelte.nlnetlabs.nl.	600	IN	NS	talon.fluim.net.
+jelte.nlnetlabs.nl.	3600	IN	DS	31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD
+jelte.nlnetlabs.nl.	3600	IN	RRSIG	DS 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. MNtlv53uN3bLOFWlpqwZb6gWMJCkrCuUs1qrHiTPpzSyG/2Yn/pvqpRN pvS0OKZgZEv+xPodqFnYbFLc90//FFaMEiiXRh5M2M1wZbxdhf4CF2pQ Ip2E3TecPAZO1OAzxGJwXvYP/INFZsGSedP81+NmGOgXkDQ73hF8Pz7j Dpo=
+johnny.nlnetlabs.nl.	18000	IN	NSEC	lappie.nlnetlabs.nl. A MX RRSIG NSEC
+johnny.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. j3hxzzPIGSGWaaMCmsv5rO0exCMGKG7axgFN+zQ7S72MVBRsssddDa7J 0oFUZvKX3ZxH1oaxwuaBJURo0+2Z4ip4FJaqykY2CAHq19/ki55DDxiK 4hgBUj73gbeMeTWu01grVzdp5SdDCOP87DRmY0fhZ0W82it8bWYV5Nos pFs=
+johnny.nlnetlabs.nl.	600	IN	A	213.154.224.44
+johnny.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. EJAy5kI3QxNNABLIw/asxL2LjCMshjnWMNyUeu1pRd7KM3QQUDygnw+c 50MpE1y4X8LkBXDizazoUXPsqEGhq+fzGeFEhdB0DqrxVXtyQ3ikHa+d oVp2jdGiI5zl3yWBlxr4GtLr59jIB0ZU1sL5F0voBIAGv2i6PqArRswr HBI=
+johnny.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+johnny.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+johnny.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. I0qgNxmzI+Y83gLAMRkbqXqaTAwXksmtS0bxyw9ZeZuP6p68ScV5siS1 MsOmqmdcoqLX9BRU0ekL2JZBIiaOCBrZg9Gt4+NMRQdaZGv3cR79X6QB W2cEdQO5dKVuzFWH/oFJEBoThetFNKaEPNH7jlZSUMqSpBEdo6uHGOPP EvQ=
+lappie.nlnetlabs.nl.	18000	IN	NSEC	localhost.nlnetlabs.nl. A MX RRSIG NSEC
+lappie.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. EC+9kJ73MmOyyXzmo9Gf+CoNDEItyKdQB6YderLcv7or9CcWPnZ6hsW1 aZbU4SPYjO8Qtyp5O+vcTY3gFyex0eVmCSI05dNEY9VNCACfb5rUPtGw 6Q+Fc2oll0CAJhFRaRWHHfEoDuDh5MCNjnGM6bDax9JIKzJBi3cNmS1W VEc=
+lappie.nlnetlabs.nl.	600	IN	A	213.154.224.55
+lappie.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. TXeBHEwmv5bQDnkofdL2No8B7uf2/kQlDMRZh/yeGE86vIppxXZ1I42V SBzM3qEZ+dPWxJZU2yWdFcX45+NVIxQp/ktgaTNHcgPRHalX5B7gbd3N Ga4niMxUSXKQM3aZYqXrxDLvWjYaj9qH23AO65rF/sANAkPiZp4+/GqJ zPc=
+lappie.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+lappie.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+lappie.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. pD5bMt84XFoNJDcCbkq/+xBLg/yb1nPmfuYOeE4YaSV6lFFmth6HrQiS p86ErhD80R9omATBTEEaHnuYw/HxHUM219NA1kKO9smocB7oNhsb/Has WrdgzlzMm1oGyIJknuVCXFQQo/Z9kUJyLMLPntaOAORsRwuRgOn60JMb szo=
+localhost.nlnetlabs.nl.	18000	IN	NSEC	loghost.nlnetlabs.nl. A RRSIG NSEC
+localhost.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. h7Y5+OptNNj5UMWuDnRARnMbf0IKBYkii20PAHEQ1+tBtfA5bv1aavrk n3i/amzJLk5GV1xAoc459mV0+RcTzOrlrZZ7MwsvYFmdiB+0xmplRTgn 9bF0W43LZ5mMH5pFyBnygc3myoDMxmrgcdhjiW52JRCX19Ui0Dn33lZ3 dYU=
+localhost.nlnetlabs.nl.	3600	IN	A	127.0.0.1
+localhost.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. T1giRKds7G/HjqKOgDnGXwsRDm/kt6c4cWs10Xd0vaVKmeEFyi52+YoK j6AIRlHMd3aDJO2F0yNTy2MufDZTHVJ6usyGw0+GEi6Vf0AT1lAMtg5i /C4i38KAwJXLCNWQxPTfbAubpnPOtt/078Oq2I/MLNGytcWyRXApyftW J/Q=
+loghost.nlnetlabs.nl.	18000	IN	NSEC	lustra.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+loghost.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. VcO1o9JRiqFCkOCgizKfCWslCQObdt7QrvlSDgd7kkcT0UDuDcDMcD42 jDy3hhrJkmU+ICqx1g7CaaMIbsOPZWOsZi/qcNki6oEuLG8gRD55F3X9 TGApgPAd0feU1S2GuEBZSc/4oeizx4xuYrC+RSCQlgl5OUwJf1Iql1v0 Iwc=
+loghost.nlnetlabs.nl.	600	IN	A	213.154.224.1
+loghost.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Qa7seOsz+RF6J2NIk2Z2WQio+qoxgKHNLdYapzooJxvkghOQCqF2Ogto ykmmTvZTj7fUoZ+gyipkosNi6BIIxIUpI/BaEtEEp/sZK7vQZsGXHoqS Etoduv4dEUX1ZjVtBnuzW8BIg4NzPRXtrHTGox2SNcvEHpB2QrXD33XN BxY=
+loghost.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+loghost.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+loghost.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. VO0p+Ygk0L1HIwrCRsy/6GAF/HSaWZjDkM19iKhtlA1rmry1DQ4u0Zoz GV4gWLmuqxxC0ablYo3TPP1krRTuVowfEsxOPcInP1NbFXtfaJxNh73a KfyFOHCMbLboBU7pQCdnKjXZOqrOOaipEVAkPviAEhY9Rz3bHeDQKmTX R5M=
+loghost.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::1
+loghost.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. G0G/zsG2irSSY/Ym5Sk7e4qyfXU17S3gueNN/3it6AvoT6twshV604GZ 6aFRvpmx5tUhaosSV6uASzeZ65aR+5/kZa+IJtmzDoVliYv3Z1T4Bu85 MFX3ep0OSjXkF8umDzopfgiv89UHU/1lM/R+8WcgIyNBxpkcr0BDk5tL CZY=
+lustra.nlnetlabs.nl.	18000	IN	NSEC	markbook.nlnetlabs.nl. A RRSIG NSEC
+lustra.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. eI6c1Zvg7B4W33c3Hp682BUQFLldh/cuZU9Ynk0Ymga20lyjGRS27SYA 1PNiEge9h6dg+nLPJztgz7lexDfdp2p3ZLq4guNiGkN2YaQDMxoGzeOd zG3hHEyzTYKCBbdAlFmuy+94eIp4GWptlhu2vgAuWjvCQxvqAoTKIfiU 0q4=
+lustra.nlnetlabs.nl.	600	IN	A	213.154.224.52
+lustra.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. l5CL80Ow8dk/Cv/Yq6U1Fq2RuvkdrU1zvdh8SMIEim1JljsqV1YsyWZC AwBTH6ms35sG8MbiF5X0luwAV/V30jL8CUrB4EhQCA4TDwM+xSYZrEi4 wfb2KpNsX3GNDDa1CV5YEqbJEp69EmMhX92Wg+L2cd+0xXop1Z8PmKKw W5Y=
+markbook.nlnetlabs.nl.	18000	IN	NSEC	markbook-wifi.nlnetlabs.nl. A RRSIG NSEC
+markbook.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. BWuNDPuQ/yQoF6cI26tayhNArrClF9stzilmBnQpewBPuthWEllswZpQ yGKQ1cuBw189DD4rDN+22152lttO7Evwgf3rQTrCCIwpZm4/xERdLVbH 0/vwHVooJHgA4hjX6JeNkT8UrMnyTHt/0j/uZi76YI4jkttGKBQTw1IH V34=
+markbook.nlnetlabs.nl.	600	IN	A	213.154.224.15
+markbook.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. HDLwWv+UtqQvGPpr1Pb3NHqwt5bUqWOdJRx3a4UN9TAdjH2p54jjd+0Q TkobfBra18VfwThK9J7PP6br0ceEKBLXfI1bpOu93PMTmJJSjReocakw YSkwbjepZH9rWAMnVsUHEenjt6BfyIB36vKe+BXN+nsTT89JVewyd/Up nEk=
+markbook-wifi.nlnetlabs.nl. 18000 IN	NSEC	mirre.nlnetlabs.nl. A RRSIG NSEC
+markbook-wifi.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. Z9ay1VDAu6CFmZwnTBj/zBe/orvWl/KpfqcLe3M+YW0+Xmqr0egZKGtn b6DZjDBUAe0gsu+T5pGa0KL5QxX4SBTs6eIBqNaUmvwQEDFuaxjWiCTJ CtHItcmiWtCYSHMhqXJNehMFUWmW+MCtqQnBzHP/+ETvgwS8PXPrCi2H Exc=
+markbook-wifi.nlnetlabs.nl. 600	IN	A	213.154.224.14
+markbook-wifi.nlnetlabs.nl. 600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. SxAdBN/lM9g4cAVnQbY7T2RyDxtis1DUjQ26N3Vwz9DpjvO6gF1mVZBm E31BIoV0oqx/qPAUZ5acIvelMvnabqeD33eZ8PPSBjLZ1ozGli0hNzD0 2zAL+zSfV6A/Ndl1f0FXH3L8yQnCYk1xamgvrWSwOqB/ikpkK+F0fy4A 0fE=
+mirre.nlnetlabs.nl.	18000	IN	NSEC	motel.nlnetlabs.nl. A AAAA RRSIG NSEC
+mirre.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. DXlYJ5kmPFQavM16V9QkoHZqHhmyTdFE/iF/k/RL/1NzZ/3G8gL+sXfI r1I1Ziq1/NrrYdAGkZTQqw3TIXMkqsRUFqpGxzPu8mKB2e+IGprzhtyg HanlZQLzQAecIo5iiVpoqK3suYgE43nBDnjbILCUU/uuiKCsqnqwIac4 7Q8=
+mirre.nlnetlabs.nl.	600	IN	A	213.154.224.9
+mirre.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. IZx+IOx6mC3IZWWjdhAfgp8GGpYpEWGkx+IuIYT15ScE71xcP8Erd1Di s5e6Omtt0roZLOWMAFzC9gxd1n1E6nx9hyP8fYzSDaNsp8mfJhTPl5Of 8NEeGyZ/lBlWbxlBcaV0dSnllP44sjDbmLZqQBWhWWtG+Z5Of0Sqiahs DRU=
+mirre.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:219:d1ff:fe0b:89f4
+mirre.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. XEgipNwqEvfrpL2EEwBdGz4gtNMwJb9NQPrro1H85li59ts2yEH7GIGz CrSkI+nwXkNKhwf1NW7EE32DsGmYyWB6Ysg0+ISoeyx2gtlYh4NGVPav MrgWXYfg6p23w94fjfLGze2ADdcDpNmPSuz0q5zdLgEh5kSq09LAn//J txM=
+motel.nlnetlabs.nl.	18000	IN	NSEC	nlnetlabs-bit-gw.nlnetlabs.nl. A AAAA RRSIG NSEC
+motel.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. n16G/quCXHjHTfhdMdZUf836jZSHkhDbDJZwB0L2UT7OppTMBRwWL2+E /Gfiza5HRYCdOUhx7QBKD/eqXMwbASDuD2wfxoNXHna4aYeuHn47pI+2 cijH4EFslnwzyNvcY0m3L/fws75pmE9iKw4+e92sz2h3Pp4YG7IM+wTg +2A=
+motel.nlnetlabs.nl.	600	IN	A	213.154.224.7
+motel.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. cIVhYnVXBJoUll4z4y+PisMtJi9HAKQFVLN8yYK/dqkkK0FbMptChIJj Bqnoc3EghwIuGIi1sbAbn/dFb3Bsdio3E6mKsdBJ+Cit4TgqPTcQT05M wWMRKBNVkSVFLxisyAZCl78pNAji2DmpABtDVhHjI2HuhvFEqtUOUH4s GNA=
+motel.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::7
+motel.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Ekv3MGcrn16kes3koWHMfw6RwXIot/4kJYQOJus1dICT7Zuhrpbhps2k msSNHQ+/ziuJ0dvmkP4TBZU2rFHsYmJlzEv5qtBF6MMzQFH6M6ZgkDh1 Ovv3Xp5XBGfSm+hJMLtzoWmS8p/22RLogOsiv8RGiKCD+T3UF8TnRleU XXQ=
+nlnetlabs-bit-gw.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. OxxcW1xKbolFyiydndIfBIYdsb0jLL98VFEUsSaj2qstoLlRAL6YKORV wn/ssblwQsXqfdimVwyoNUvIdIO5rInbcqfBcimXDlvO8ihZENZZv4iw iHPxQ/Bc1pPTYFdHem+xfn/ih5i4oLLn6nd/v/0U1/immMWX16La86s7 Og8=
+nlnetlabs-bit-gw.nlnetlabs.nl. 3600 IN	A	213.136.31.102
+nlnetlabs-bit-gw.nlnetlabs.nl. 3600 IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. aTs3q0dm27hE9RSCUXMxyqVXCH/bo18YzV1N31ywu+0uGAqEkhnwtZpm PNX1C/PJNbmeVpRlOR1oIJ6KV73Q8r9zA2/gWODlr2G7uEwed3Uife0j FRA4D1DRMIituvD3Tjb6UIyqV/qikPe2fn1s9Kcl0IpMJ8uc/HgIARnz DGE=
+nlnetlabs-bit-gw.nlnetlabs.nl. 3600 IN	AAAA	2001:7b8:40:1::3
+nlnetlabs-bit-gw.nlnetlabs.nl. 3600 IN	RRSIG	AAAA 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. a4kVuaQbmEs7Ju1slFsv+6aLqkVP1r330aCF1h1c/P+qayNYIpWibQHS ZojJtgVbB2eid0xaYXCFd1TK5BBTu58SSNc9G7vR8U2WTkhmk0bvBeyc bVgMSfiPJsALtj5ID3OAkxtvO1ZusiVbKPXHeSFIXKFHJcRePZ8dox/n /jQ=
+nlnetlabs-bit-gw.nlnetlabs.nl. 18000 IN	NSEC	ns-ext.nlnetlabs.nl. A AAAA RRSIG NSEC
+ns-ext.nlnetlabs.nl.	18000	IN	NSEC	ns1.nlnetlabs.nl. A AAAA RRSIG NSEC
+ns-ext.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. OY+bcQreb7oTtgveymg0FWRG35NcEu9iBP8SHokm7NH2WtL5jOH7FZMR Jyaaq222Iv9TMcOEn2KEYqui7VaHkoQRS8YKchPHVS85YTDsjk7uULdm bZw6BqskiNKSo90bQDPBobvER41B3DGwvVUP3RDptNrEiMxhuIidGjOl yTU=
+ns-ext.nlnetlabs.nl.	600	IN	A	213.154.224.4
+ns-ext.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. lj0ArLI85OQ59mhEj9FPnx2UYfTOehnql3nAG8uNmnGbeepyIKDi5QRf ZKp0/eyyBFiMmKHVxvvrm1z0TtOULb7nS5325w9KfS2JQR4/nHAQZrff HGDnqZ8wFWVdnebhAqKzYt8paqlRc4I7tsyYuFxmKGZt4vi+1DQfK0z6 jbw=
+ns-ext.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::4:53
+ns-ext.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. gKo21eKXSxeR+8MpSUnGVBt46BLOm39e0Jxolz4dc880hOiWlfNRl+3y vZTILWgTn9iLJ2wz5ZPZwuk9ae/EHqlIvJUx+RLZ+i7tCsMr7Y5P2ris 27Ar0I4aipnN0DIdXio8VQF0GCvQHj+lcFlqBcV0d0saM3ZsMNoZc4jW zo0=
+ns1.nlnetlabs.nl.	18000	IN	NSEC	nsd-xfr.nlnetlabs.nl. A AAAA RRSIG NSEC
+ns1.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. mRQhMDYQM8/0Dkn9dplPnHqV0+d7wv/rGItfEYNOOu5HwGLmcp0D/fC5 caFMYtlfu6Py7/zNWrs7Ulwg0H0hfJhaQhHmxXRmf4ereFdrEiHEpgyN A1Uw8HsDOjOPEJTSbov2FxYvjihG+qJoiQWF+35qJC5/D0s5M6vXib0f 81A=
+ns1.nlnetlabs.nl.	600	IN	A	213.154.224.1
+ns1.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. AJpm2iiICAWSAWfcyWSZtlywNWlLgMk3qH2v0OcLawL5GPd9gCOw38iM J0fwYKu34UF08Z7f+ytNA7zPGUFGND4Xhe4lQeYworPXh2SeMfggmWtB y9tjGGsxQJe3+ldRajSIP71fSuWsvcp/YhNA4Q8/pQ51pgrxeOuJDgOj aGw=
+ns1.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::1
+ns1.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::53
+ns1.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. mL6AM8KRQFBtCSy8V10Rjmn0j6PfWB8j8Af79og8DirJkUuIJQq7Oiy/ EaNGHHpThAwEvS/JwCZbFOezx9gLgEW6s/So7E+U1v4iMnjm/HrEQlpk aXcLm6sI3oNP46mlBuBKpbaze6m41wJZHp80xPCqEmbiBxDEdQzjUVcf VBE=
+nsd-xfr.nlnetlabs.nl.	18000	IN	NSEC	omega.nlnetlabs.nl. A RRSIG NSEC
+nsd-xfr.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. p4YKePcT1qhweFhgILxcioJgEgsQprIIpYXSSb1KGcWAizPsTB4VrWAc qBrHWL7ok1XMIUBZEJ1ukwjmWKdG2bIr10PLIRKpFQl/+UtzxRXqldJh 8W9rBrxvZnaQCSFCm/fBMk+TcH82F90EvLIG08Pbr0f8R7Fad1NEwsmG eKg=
+nsd-xfr.nlnetlabs.nl.	600	IN	A	213.154.224.49
+nsd-xfr.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. HK3CIL/brGoxxuBGd7lvhUUZPt4Xjjs9bxoiiksCxkj7aGz8Kchi98tO sulv4HKGFV9CqzCtwgL09cLJOq4O9qg+WF/ZqbtJhFCLMgOq1hVE42j1 ZQQ78ueVtaBrxztyPHZWha2lgJKj0KKU8B9SJwdY+E6nXqd1lDWIEBtM 5V0=
+omega.nlnetlabs.nl.	18000	IN	NSEC	open.nlnetlabs.nl. A MX RRSIG NSEC
+omega.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. fcIj3rZIOYBdooN8hE/QzUMFm8J1uuwKPTqJpMU0QJWvvGNVZRI0oNVi Lc0rKg35xkW13GC51MPx7fiBOdYJHGVi0azSAtGAn358Q1BkekDXd7CG jMxlZ4z5DxMbdxcUpIIcWu1JGLI8EZ6Oog95CSA1987ya6H2c33Qn1Dr uZw=
+omega.nlnetlabs.nl.	600	IN	A	213.154.224.54
+omega.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. PPGDFlV4KMJKObKpSIj5EamMQL0xN4jJ1ilmeaZiLyrf5o51sG2YyzZc InUOznjoI74m4I53uvyUuf/DaEDivan+5xHb5ZlUkQu+/JnK2zRXF20b iARFnKdPW8kNe3aWLrolc7XSpKqOXGcsDoa2SS8zSU3oG875IkQOUzwR 76M=
+omega.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+omega.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+omega.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. UtSt0IyUVg+SiHBNkaz8S7otj2rpqZJQuKJSLb3bQvfXPJ9vnPvJsaCo pVB+CxXqx1GqjKj00Sfq8BZHbDS5OyO1baLRVXTNBZuXcjSDBksWEoel cdxuMG6If2R1rRfZnck3cu4DH2s2eQvk0SKUyfewOjp9QBuuGN/SEJcU X9M=
+open.nlnetlabs.nl.	18000	IN	NSEC	pan.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+open.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. mxHCyGC0YrwXJ1EUFB4fEzxV9ZERmCJLkdiCYt3zrub0zzoUAmlRZkrq J+7/HHpozI5mI8NuSNYNHtbD1Nu7Z2a+JaHOgbmKpEXx+BiQjKmUf/fM 63mkv1gtWjluk9wLc2tk01H0JEEX7CrwHfLKX346i6/qDPh4Xa+Mf5p8 2z0=
+open.nlnetlabs.nl.	600	IN	A	213.154.224.1
+open.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ViuIpiw1c6a0roF+XCOSFMQ3BCH/qmy+lRcU0Y8jEeoN7vLu5rJlWUuF yuuU3kAx6RFB/XDPjxNzm2OER/JJSUUeagzXSqnJVL8Orj03RGpS2PAW 5p66uf5uMv34VEednxoGoigVHKIBfpIwYIbcaXAkDaRMMpw+ylRWwWee q84=
+open.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+open.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+open.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. bXZIS3/aa5cdXU2k2vYCbfVj/1FnU8sI/4zAP5HNNVEl5PtNj3Zc97yi 0hj0grLoBqRYpwKB1ZzIVMWbJ0F/Ly39kx7yVWfQ047t27cXUZzGRWKu 3gUITW8qsLVTSr4tj1faWofrWTUZHRjn+5eT7stFTMKFQnXNRnE9aLb8 OhU=
+open.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::1
+open.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::53
+open.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. bcDWQYXDf6XEyNFeYeDJZTcdUCD4hbfzEIMCL1Fap4Lm6FNSvACQ8c+F F48UfJVdvSZeczDKgsHSm7nte81qYu4+lBQm5TuJcMkjgJakHumKGV0Y 17wIJAsMPiacw+NNICweKO4x4RKwNzWgcn1ymktYsiaPIJpOxQCQVJcU tlg=
+pan.nlnetlabs.nl.	18000	IN	NSEC	pontdugard.nlnetlabs.nl. A AAAA RRSIG NSEC
+pan.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. g126geXJj4BHuWcsmaG+gXMLh6qGya58U2gZ5KGIsLdqjyEdRUrwkwiP vOoXPFhPXYi3PnWO+qmCZF3+VZUYa4WDqGCHfkNtgV0VPmw0sTJvXN8q Y3I4ODvvYXwDSR0lzQvvZh5nXELGs6cMzEhxu9fU9ujBj0nA+3JL6V/t 23o=
+pan.nlnetlabs.nl.	600	IN	A	213.154.224.38
+pan.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. KJ+uPefKJD2HIqt8EYCsIT24kVRszJ74XwBlvkxuLZZlBu9ld4MBqfaj JJWssWPFGGHVFaK67afa/t8fn+NL7b9uF3OCo6iWSOrFlVzXcT+huQRI yokYnncKdbk4GHWJn7vjfFjfgiNZT5cbdq+e3zp/NjBuvETcyXGgQbDP 7Jw=
+pan.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:240:f4ff:fe37:8810
+pan.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Et98q71wUk53WPF3SURj1QmAQLLVXolNVIihwSnZcosB1v4VtrwXIDGp JocHKH3gl5ixOrGFnXLSi0x5icJ/MEFRAEUd5J+CcXhAjMmcwim2mZax d9SWjl0bLjrcXrQNHKqUZJn3QouEkrAiP+FM7eeD4xJ8cWxD3OVj6Foh YYQ=
+pontdugard.nlnetlabs.nl. 18000	IN	NSEC	qubit.nlnetlabs.nl. A RRSIG NSEC
+pontdugard.nlnetlabs.nl. 18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. H3nguVxothKIXYwrCGnsklJMK0eDOM9PLY14YZBucyT77GcXbrG8yUKy C6KztNFDWWMDWGF5yZloQVPqaBAvmTKFxPC2q5e/JrCiwmZfStcOgFhg S7IpIZOYwa9QBWmQShfsnb/2GJbE9H1XsvAtGw25BCg4j1CFeBDm+n7s mCg=
+pontdugard.nlnetlabs.nl. 600	IN	A	213.154.224.8
+pontdugard.nlnetlabs.nl. 600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. WfJXmfIWFVRmJxloj73JK/FMwNyBtXiAvDI2eX2BLBu6DCc4VqdE2sjn ObSE7wOx/28Nt5TL3ZktJkW+pOvxDHO0WE9F4GtEskSZdFSV0mV11xC2 dbn3F23+S2MpgNN0ZDEvYeZIcxvpYoDAbwEbKyd22efzcIv+A9dlH11n kPU=
+qubit.nlnetlabs.nl.	18000	IN	NSEC	roto.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+qubit.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. JhEWtMOZPbTlq3P7H0VZuGdLXVSxsTbpWe4Ers1zAUEKSZSpQ0UYKX+c IypwIOTgrRJLdPqKYeKWeU+/JVq0ZB2u0oc8fuxVnEfiR9yVILtbLwVv P4pgkzC/lUHU1GPljiqrLo2HngamQuIaznZ72FVrMIgFg3hZElHtturM /G8=
+qubit.nlnetlabs.nl.	600	IN	A	213.154.224.46
+qubit.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. frtAaueWLxb2/wzKkY4ltLS6yf7NAAMLxj4d6e/VAH7WrhFpak1sqQxn lGXOAJGTlwE36q1EtIOlbxB7ugvd9m8QkMiPkUE8OsdiafGcGR/o7UYH /fTBuqhnU6pkBztENZb1e1+elBZo9+dvkB1NeVkoildpZAUkdy1eYz0Y IaE=
+qubit.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+qubit.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+qubit.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. HYpo/8yh+GsNZsy2jPGzr5ya/pBYNwXbcpIOboCQt3yRwbieodwn4uDm yftGeL5DSVsaU0GalM7OR98sGG5weXV7WlCccqAZq+SGLALyqJ42hXfi tdNSiq3/snDtx5e+RPKqe97z3jcbthm26SrRLxMdLtt5v0S0ppNGfh4v nX4=
+qubit.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:202:8aff:fef2:f598
+qubit.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Pqlh2e0tXkamkSPQuvEQNqbqVWsq0RSqdgYSB1N08M/Jbe+BiqWoml7X EO90ir4ug1gTF/Re0vtEV8cr3lRofhmpHXHMe3dcVoZ538Yq3Eu7MyGV /NsjYGgNj2ek4sZiTt75/auvU6grx04egDJn6gvvsiVt5xnEwipNnP0S WIs=
+roto.nlnetlabs.nl.	18000	IN	NSEC	sane.nlnetlabs.nl. A AAAA RRSIG NSEC
+roto.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. GYigpeoLV9ax25m4mmF2HKWCbDT/flBZaBo8b8GBJ6RURaBr6ShcMe3J t645fVr6VOIAcNGDddSqqFOWvCIGEZhXSR7e7sjDJBKXVa8j72ANKN5Q zvfx5JDNxclWbsqiADgn6oYC9rp7KxvpqEUL/f/Yp2j7c4OP+xerduvf LWQ=
+roto.nlnetlabs.nl.	3600	IN	A	213.154.224.153
+roto.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. kBGp41jRARMoXDaLWWUD4i/jrj8n52a75EoFJMOgsy1/8QtWl9UpzGcK P8J32u4rAj8jQTprC9eyLYTXwPp7ACfqmCCSOeec1G3RLDzxm1bs6xzp ez4sZfbcbBlqI/MQccD6O6dTxI3Szxzt9WEM067QwdgU5KcLI7+noaxk 5DY=
+roto.nlnetlabs.nl.	3600	IN	AAAA	2001:7b8:206:1::153
+roto.nlnetlabs.nl.	3600	IN	RRSIG	AAAA 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. psSEF/+UXwZpCYqhQbHU89q/DFkA4odxlEcLZZkZmJG1+TFnOuDDh+FV MYFhjlZfHiWoN7tIhTqGtHHh04xrlcx5NVbnphZMqlZd4PBl05iCCrZb FT9AhsHftolVgH8fq29LVO3tQso8pbYw6MpG9flGT45rZzTU/eI8F3Aw luI=
+sane.nlnetlabs.nl.	18000	IN	NSEC	sanne.nlnetlabs.nl. A RRSIG NSEC
+sane.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ZHA2sgpDy7DLxLZBn+4TWnfYIfFJTZbvr/qqSGKYaMswNUgsq5D0g3sg LS0721YI37qDtZNKA/6wLVO2epnKm0vzLDJSn40YUOMdTyCt/xXpV8p2 oUopbsQhflxP3AWNQ8VnsijhJQLgQhTdr7NEz8EHgHpFjgSjB1h4pDkM nV0=
+sane.nlnetlabs.nl.	600	IN	A	213.154.224.6
+sane.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. NYHvgCZCpgAVe5roAttvnxc4I3ltRa/P/VHUofQgTRRFIGJY2FzcinYH 8CHRN0BEdgoCzNUGirHvYnbHin8PIqVgfllMWJ7Dtexz+Vl0RRyGqeUo ArVZf3j7C+z/kKpL8CYMk8WvSAVlXlPFqolUiiJJwwNzlsjrKqLs7fwE BzY=
+sanne.nlnetlabs.nl.	18000	IN	NSEC	se-dns-probe.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+sanne.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ewVO7sU70vbby8VL52SZ+M74yy7ClyIH/R9oFbLI3O4OQ2iqN8YXR0Fs uf30tSI6XKYYzIjps1MLlK0zSL23PKwcZIOkK55icSrgV7TnasWkrvFD LigM1smmErxyMeqfrrwu8yGFdhpzHDvYAjqiiVRiXJNRaoLC0GkOYEfQ eQs=
+sanne.nlnetlabs.nl.	600	IN	A	213.154.224.39
+sanne.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. J0HE1rZbC4cPBVt2gmiFBoyE2s7PyH52BkIalz5J1gBD8xTo6Kq5iPO2 zqk7aijDlbWAvgaftzyKwab5WZHdBJEfZ1wMvlMukPd2tRyiBfW/Hqbi kJf2SzAvUOipAUHHomESV2cO1U5OAbYvFMR5syu9WD/+5xjsnGabSLjK aFw=
+sanne.nlnetlabs.nl.	600	IN	MX	50 sanne.nlnetlabs.nl.
+sanne.nlnetlabs.nl.	600	IN	MX	75 open.nlnetlabs.nl.
+sanne.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. i3YmK7bxxz37q5NNfU5f0bPoO8xHVOC8xbzngXsieqfKsJEty5PPTDRZ f7opc7Xe/yMfU3IH/ZX2C0NJHxI1GwWGe0mRs5uic/gHJIFMqv/XUvjB MPZKVnIeSSa8fbfOBgHOpjXCXeEGVhHEmRjfrcePTIz5/eNUmPpaQZ15 NvU=
+sanne.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:200:39ff:fe59:b187
+sanne.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. mHVDCixUCNsdQoWtenWumJ6jYi5KOYk4WSZBZtm2QOBBVzyY9R6nqIZM HChCivztLR5lLdc7sO4aGekLxko5MVm6nZ+AG2yz2kIRNhxqyYYbWmD2 Ta3QGXz2RKiiwgyE6d5xk55sG9lEHhngwfItBgwYLOvrLVGIdjh8UmGF PLg=
+se-dns-probe.nlnetlabs.nl. 18000 IN	NSEC	sixgate.nlnetlabs.nl. A AAAA RRSIG NSEC
+se-dns-probe.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. E13fsWV+gXja+Ynt5/fc3ry47LyHBlCuUC74XjWXHGSiCY4KaaWbmv1Y LpjCvVQz7SKXyhL20el1qQVQZkDqfDUvtJKThgJpVdIlPGVpfhg00BMb XaD5UNIzGvsEUPo7cNqPswRvGU/9lc9Tn7z/Fwvikmj+8bL3SbDQPQlk mS8=
+se-dns-probe.nlnetlabs.nl. 600	IN	A	213.154.224.5
+se-dns-probe.nlnetlabs.nl. 600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. jKPpQ5cpUdFh8Dd/VHwN6geBBiPRi4tihr1/FMZO4enHbzmwHhtuh5ql qaZXn1hySLnNOJ70+0e4Ma4DZOsvuapGY44lpuQ49qGbu5AgpxPH2bUZ CjrsVnHfoifhR9c68GhocgjOQ9PS59/Ec2Ej/DF2rMFXFD0aF6bq555f ldE=
+se-dns-probe.nlnetlabs.nl. 600	IN	AAAA	2001:7b8:206:1::5
+se-dns-probe.nlnetlabs.nl. 600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. nh/86UHPGKcVw6nmQT8fYUplqtl5SzzKLYxXk5SsDl1rpGg6iHMvl3nz X/UnDXn7gMa4OQPEg4oVz7ZBjmBSuVjIjM3LoBSF41zZscBfjSue8HUE YIkOhhkJYvzR/xAhjnA+aAjmldtZ7HQYo1XfgOjwx/rh6asIwDtS4TxY 7NM=
+sixgate.nlnetlabs.nl.	18000	IN	NSEC	snom0.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+sixgate.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. p9SYrNRZKAcvnrFhk/oJVuVAJMRmlWuyijhz1ueoMrU0zslFqqKOCG1e HcuWVDLjjn8SV8nAak6uEZRWigjttjXLwl1uNenKUtt+pp5vo16a1Eff bGhoN0R4N+Q9yzoI6zfET2y7R+HrYBHOlVkrvUwGFo2Sliupi5b7kumr gdU=
+sixgate.nlnetlabs.nl.	600	IN	A	213.154.224.41
+sixgate.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. eBLYxx2wU5FyrLCIJqfWpEyUh1omWfqb6d++s3tQJWtbL8jV1E84Erde y7kphOsn8w9ar/ytcVg/k99+664FNTnMEiU8blJnLXUzBB97sy2irmS6 P/2TznKYEIce6kOyD99COJ6D2+u6SHCHEKKBv2G1RIGLyQt13aPiQkjk uXA=
+sixgate.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+sixgate.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+sixgate.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. KL+o5qDn8O69KadGbacCGLNYRkcVdrY1EqEGCib0AjVcemRyl382cqhP qUQI7Vzlr+dzRz5YON16OK0GOh+j9yBBUeabF2kZoZk/lzS6fojNZrFl Q3aE/sqEygYcKtuVft21Bg0W2v66x+mpYd35jbZbxpgg6K7RW/ceH0u7 rEc=
+sixgate.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:250:bfff:fe5e:33e0
+sixgate.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. aG4F9+Vx3wX43Si/iX+J2036Tz8ja0DkJg4+/G+0suCM/OHDFZcfR1Ne zxbwgdhXY74FODdYaz7JuJDUpYoQNy8HA0eHLaXMTPEjzU/C/YuePVrD DJjHEb2TpNapjD4BKCqXDY+OaQclPLdPIoOHkAv7I4DRvn/8qwUHK/Gf 3Fo=
+snom0.nlnetlabs.nl.	18000	IN	NSEC	snom1.nlnetlabs.nl. A RRSIG NSEC
+snom0.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. puhC3IReZ0U31hWvtWLlSrMww4BUf9+ExNAmQY9+rAOh8N61E25qmsSl wOveKfVIW/EK3d7Ld/DDcYEVsoOKcOXrSZ53SVUPFpmdx6FNPvkWkbjT LzwUspdwB/L1Ox7T7yFMvFAaubq0TzbEcZVnZlPxPKwGqw1ABgAT/FzP oo8=
+snom0.nlnetlabs.nl.	3600	IN	A	213.154.224.200
+snom0.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. kPE4amI57Hk6j+HLuKUzwYgj665mCP7klFnt2Ty1rjbBACXJDrzbgm5k Wq9Ee8OfpTrALro6qFhry5TSFkxA/46KADTRNtYzOHZvHtXJx//ZIJZU 3oBjnMbNFEGKQ7NUa1TmTg0XtKmZkFk45hiVsXEUTkHJ1br55Sk9ZN7P R6E=
+snom1.nlnetlabs.nl.	18000	IN	NSEC	snom2.nlnetlabs.nl. A RRSIG NSEC
+snom1.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. lsp1olju7Z38jPpBQ+TRPttAHLE/QU6tm1iRe8F5DAZVKduUCFtz4qsN jbCD9B5iWuhEBwPZ4+LLQi2Ga27OEioe9k9kFeWuF2GBSxYjSCOeczIr s6gGi7fARK1b4x5HoI5JrbwW8zrQ+y9lu/dwrXhFyPOX5SgQSwqLNUo8 qBM=
+snom1.nlnetlabs.nl.	3600	IN	A	213.154.224.201
+snom1.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. COot+bPSyihBf9iTeChxvIfMYm9a2LH9eR/kC2bmp64DIo2OhO4W58WJ CcDh/KzW6mtQt2PMU7JW8FwWHrRfgvScWxfcQGl90nlnWrb8I0VaZuyP M65WPwxB+xqCs3tmnN87m2jHCL9eWFXg7yCPPDTRJPDr0OZWbeQZXb2e 9F0=
+snom2.nlnetlabs.nl.	18000	IN	NSEC	snom3.nlnetlabs.nl. A RRSIG NSEC
+snom2.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. SjUDNgnAwaETHAovXMHWVFxcNTFn5+JKqcnk0SYEzIXZiTcfbDGfFE5b hGMVEwKl08KvsHCF9v9ckb+RfL9aQOkRoUEjxnsqU9L0J6WWXYv0CWld 46GFG9Rm0IbiE80IY4KMfXW9/sAbv8anDqhWLm3yHn5Muj2Al+h0OjSB kvE=
+snom2.nlnetlabs.nl.	3600	IN	A	213.154.224.202
+snom2.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. DQ9hFcmw8bXdW+TX4sTS3y1qPMUOzfzgDRIqCDu8oIiARH102rNpuB8E +JJT2ziaGgKjyfsVxJQldiBMIIvGagLIR0ArsJXThxtlaiFDbQeqZSZL +b8xqQcTDOhaU7xAC0V5cRYfdCYbd5sMtVx7XYQggX/Mot5Zt6oEOg3i msg=
+snom3.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. PJyBfD+TVk4JjyzUreels+5tWLmOOZg9Of3uklVcX+GK+Q2hCtU7yyUj k2mkeMJ731V7zLQXZGz+1vC91WtIVXP6tlY3rr63nMtj3jb1R8WWqY3/ 4O2hP6d6S2OEyuESuGnIhVXyZlPunzAWgLN53Dnzb+xn8KULe+iy9Sjp uH4=
+snom3.nlnetlabs.nl.	18000	IN	NSEC	sol.nlnetlabs.nl. A RRSIG NSEC
+snom3.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. j/KJY9y9PZIoSnAOzRkUbfq5PoUeSPW/Dy3d7K7HfVlysfJ+I2DloTPs 8CssOp/oCdki5EUnpnn2ym1csJTKZdEl6MSfDGMT4BP1W7FK6RDpLO6z ehQj7yKs+Pbr1nBq0tZWlr/HUTmJY1VJmnj5G81dmazesufO/9wDKer+ TCo=
+snom3.nlnetlabs.nl.	3600	IN	A	213.154.224.203
+sol.nlnetlabs.nl.	18000	IN	NSEC	sparc5.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+sol.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. jUXNRrMfRHbf7p4KgbdVI8WsDMC8k/1FOsO3BoIjSyX22Hr5v1RuKHG2 v8ZDlFXMbKcP92xdj3mAJbEmcM2JKvaHiY47VrweO+FbwY3JDgUkTQmH jf3SMOHXrxtKjixQOAJKOWOLDigEBBLkuUjdfG6PybDDG7sBgx8WHFIE Ulc=
+sol.nlnetlabs.nl.	600	IN	A	213.154.224.43
+sol.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. XEkjh4r+7asDkk98LEV5mlaIFD/nUvfP1eUBKVTfh4a8ba4W5sLo6HgY Y6sJcnaBuK0a4IDv2q2q/BPIokAcg72+P420oRD2vQXUhM+fgxVESJt5 AqWrqRetmctCOIhWuNhOYw1PlCT+lZ9eT5INhXAscepQyyjuAKQ+nQFK qW4=
+sol.nlnetlabs.nl.	600	IN	MX	100 sol.nlnetlabs.nl.
+sol.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. gEqhZntMOkonkQ6ONN1fwqOPf/kp7XGQMsORg7MPEt8UUxfkx4FlIZSc uQU11EfLr14BE6zkPZj4i8927KmfWK6M2I5F9WWynq41xDPO5giI7nPQ xX1d2ga2Oq/kCHH5Q3DyWmXTrdc9JpbwKIQLdtPEmAN2t2VslSH77M2a IVE=
+sol.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:7200:ff:fe00:28e3
+sol.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ExX2ABe4l4kOkFMeexofV/KE9u+XWvQKpdXtydtawymAz++crBdrYCUj 0tjDH8f9lUJEYPc/M0XUBj0FXrEK/OGrHREcj+U4dA4PfbKdCshp0+Ha jDqNigaFhwtXlRxwaaVX2F4B8y8WTOMpLeLA8GjH14gnC29TY/Fu5EAy rzM=
+sparc5.nlnetlabs.nl.	18000	IN	NSEC	stun1.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+sparc5.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ZGKUwlLbPYCQqGZQzUwaZUU7C89Qnq+7Uyo1VaPmDNMYLLxmi8RaRJKG SzNBDmr+om2MiEV68S4zkwj5aZ+IYB8cvvjdq8ZA4walYg1O8cf0OMFS A03lAnSfWiu9Ok7SryjltHfWZbEmS1bfhJQ7QVznKuIrzUbrx0giGxUl G7A=
+sparc5.nlnetlabs.nl.	600	IN	A	213.154.224.47
+sparc5.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. PqrRrkXcrTRXWSbrT1JZ9Rvt80SplTqpVgOlmLhe8qIxz+DiYdlBdIv9 bmb6orj1cLYG62/hWuGaW5UHpmslp1rn3LgrZCVbWS7JpULLEYs1l+B7 XYnRRGR4LlQ6cE1fZLbT55k4hMCnv+jYcto+gYDcp58ssZy3MUUyno+P C50=
+sparc5.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+sparc5.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+sparc5.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. G8cIIEKxLSh+Ql+OxYSCDdaeJ+iLreSS6DWLcgaMSXY+O0qXiy/avUYG IunyJyp95PuIle9OS6s3CpRTH7ZKcC7v80uAeBjGkwliIMaZc3L35x/t epNGGkw2FM2G0ZZCOoH55nw8CT9RHoKtvtXsr2A7er4gj2gLsk6sNSpo jqE=
+sparc5.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:a00:20ff:fea7:8f78
+sparc5.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. b9woyIw2bKMA3eJCTurjgBi1/3Er6Edgk6nT0iUBfzhv/qUK0K4ROor+ 9UkenclArkh2lbDHm/ziqn0z35gNn6FZUjo4L2x3jZQggxOuLz9ZhmpP es3eEArPU+c290i6NGGytrOmF5mh7S9h5nVapjDIPqgSBq7TtKBJ89wv ayc=
+stun1.nlnetlabs.nl.	18000	IN	NSEC	stun2.nlnetlabs.nl. CNAME RRSIG NSEC
+stun1.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. HFbzEeDw66ot0Qdm4S8z2YWJT3tD1HlRPhSwV/yN7GnJSQqmD4s6tUkz ZCyZtgcUNUwzm7ntIUMzD/njEiMCPWAR7SMoSHEnfLYlCx43GyiTDf8E J77Do1l8m116gA7sGnj6aPEsKrq/E0ml0yZn8sxRLhWEgxvCiGrQo652 e94=
+stun1.nlnetlabs.nl.	600	IN	CNAME	johnny.nlnetlabs.nl.
+stun1.nlnetlabs.nl.	600	IN	RRSIG	CNAME 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Vfy6Magu59sn5mCUs1qf/6FghANc01hJ8kpFzmt9Sxhowf+xpuJnyG9a lsYjYHhzvjpCv1ys82aDlN4s28ILOt7sbgeBTfG30VX6F3WZ3A7EtWS4 4ZTEwwDvV+c5x/mm+HAQQCnz9LGuNLF/9rQOprHmEivomWqnp4sXRAHs TyI=
+stun2.nlnetlabs.nl.	18000	IN	NSEC	tednet-gw.nlnetlabs.nl. A RRSIG NSEC
+stun2.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. YQJd0U7xpSZanBGsDMR5o3Sim0aU91L52cDVkdG/mgfkOjJcvXskQbyb 39LQozpAas5PeBvQ6xK07KR0nza4fmg1882Nv5TI38CktrdoBO0m1oDa Zj3rM5MwxAd5jClVIKuQ3Nw0DsTLR5Tlm7IVPZMPrWUJjO5QILfjWXMH Ny0=
+stun2.nlnetlabs.nl.	600	IN	A	213.154.224.154
+stun2.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ZxQ4qsRBDOj/BK800jqNncEQoyCWCqkZoT8VUmZOUdnUXv/pOQg3Fe51 a1/zeeUq9D7CPs5O8DV7OcYZSFpJHEA/GIBE+QGMT6wIdtlDl+lyvfOc lQnV+sf5t4jCexh/Mv/fSVgceO6aSqyiWc1jzQ/7kluQ/+Jk3RKJq7PA WUM=
+tednet-gw.nlnetlabs.nl.	18000	IN	NSEC	ds10.testlab.nlnetlabs.nl. A RRSIG NSEC
+tednet-gw.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. KKnPYYlzIMH7atLRWHIQMUim3GnfSQrpkRE49/2NeHcPuEgcSJebOf1l Ew/NEBiDCQtHEK0aiN+sE+nZ3tqdj951Ub9N332nKg98cNIqM5FVTcPS 8C5SrTH83O/xyhLbOYSJd+eOsuGlrmF0dnV6uFwC11DwGEp5fAtHXQ3/ SAQ=
+tednet-gw.nlnetlabs.nl.	3600	IN	A	213.154.224.33
+tednet-gw.nlnetlabs.nl.	3600	IN	RRSIG	A 5 3 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. jSPQxVwJ9Mks7+EAAYBrFkEmT8Pxmv1Op6AFldVRzsgNUh8AZYpsTqiO AH49+sbG8ZjHLSSKGdd54PGxPgTvF+h+B7NpSzpnachWIgczbiAejgsD X8EDS3D7JArouSl4/FPns2JKOJXyuA2vipB9Q0hota06O3s3T3VkOJLV Z+8=
+ds10.testlab.nlnetlabs.nl. 18000 IN	NSEC	listener.testlab.nlnetlabs.nl. A AAAA RRSIG NSEC
+ds10.testlab.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 4 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. CASiMvLsgqAkq6WIOqPIAtjAmi/fcd9mNCxJLgeOuyDrd6r/gbUTHky2 +sU2wYwpM19ThHyb+SLYTqlU/hI1dCpxMGVm5xf8PN3dINSZJFsKaaCx 01fg1j9LaZidOTLu8AtJqGH4TU+E7H7wvv4lvBYwwGejFHpM2r43CxIL DA4=
+ds10.testlab.nlnetlabs.nl. 3600	IN	A	213.154.224.100
+ds10.testlab.nlnetlabs.nl. 3600	IN	RRSIG	A 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. e9iqEEVgfnanV/2O/aNch3vIYbaAG4hvub+/UbbelsXDyADWfcVnunWU kF3WIsxFSqaZIQxAlHyIcK63z/jr+oDaGvPFmZcFE9cIU0rUlRC1GkVA pqNHcXRMcsPVdkX+kF82hbdy/CVqVGfEQfigcQq7E1bvLhs7ir+ckcRR 3gA=
+ds10.testlab.nlnetlabs.nl. 3600	IN	AAAA	2001:7b8:206:1:a00:2bff:fe86:cdb3
+ds10.testlab.nlnetlabs.nl. 3600	IN	RRSIG	AAAA 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. bWxVt+4GHXW2RIv5vxVeGRaDpI5O3wKoUoj71Nm+5Dx8ffzM/ZtcQNKs Xch2H+MowJ4EMqfct8YLufxFp7kv3aTYP7q/bhCk9PoxADSUVnZjs+Zh gSTTpX5InphKFEeT+JIg9RqAyYxMOSfjXU3KRI/xfWtzJ3VgYExVh4i5 UUw=
+listener.testlab.nlnetlabs.nl. 18000 IN	NSEC	player.testlab.nlnetlabs.nl. A AAAA RRSIG NSEC
+listener.testlab.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 4 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. dDJhcIcG9y/kF2WE/EbDG/5NKtY3cCv6VghKzv3gVnThDg24YwHq1x7s 3cGRzI6l1PpNAEBgim7Z90W5lIlfQfcwknDwh5fSZ7gD74KyG8/2I6SY EMTfW9P+cyM34Ujk8TwSlq0MLQYtElzfEkps0IC5nVRYvyRJYSzPOR51 y7w=
+listener.testlab.nlnetlabs.nl. 3600 IN	A	213.154.224.98
+listener.testlab.nlnetlabs.nl. 3600 IN	RRSIG	A 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. Sj5nJWIyGIuURQTGhIVfxNG8DqKDcTcwSRxWAihplSZ3gXdyL6M0qePn y23qlmj9H3DugndOol/vmmtDOUrAqOUTK3uKXeNuhJ8bxS5AN5f7PaJE CMGDMfvl9XTw6nlKF30ufpbXXlfZ26TFhfXjFmNz/r5H285kF/mNU8bF rX0=
+listener.testlab.nlnetlabs.nl. 3600 IN	AAAA	2001:7b8:206:1:42e0:4cff:fe39:6302
+listener.testlab.nlnetlabs.nl. 3600 IN	RRSIG	AAAA 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. PNZSXJS0xGP65+wQJtG4N8mBxeorUEVv8pRs4FtFqXv4wDvcnTpgCT4d 449V7gjlPk2ngQK5qpy68CvDVs47qrtfpgGQKOfNxeGpQbGsUE9I1114 B+38q4NUQldGGzzBQIxWBIlJnUVABPjAAyNVeSLVREVUp0m8wzsR1HQt syo=
+player.testlab.nlnetlabs.nl. 18000 IN	NSEC	rotten.testlab.nlnetlabs.nl. A AAAA RRSIG NSEC
+player.testlab.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 4 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ICq3/OV9Pb9yt+dMASSV6EGiXZulQqsCYoWpUs3a+ZKHVqS1Qepi0vK1 4s/mtv0xn3z/qLDzUjB3UDH4ezo7WZJILQR1W0nVdRj+baCqnR/QfA+4 Y4F37cs8qfrT0neIpSyCzDEdlMaLext+OhyhYP2eQ/17NM/OFJiMavjw OXg=
+player.testlab.nlnetlabs.nl. 3600 IN	A	213.154.224.99
+player.testlab.nlnetlabs.nl. 3600 IN	RRSIG	A 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. F7/bPM5B1Ye9q1urMwT2DVH5u9K3eyDau20o/Zx272aXLkJP3s3fbjhB cUtQz9DFs6MLVthN3s3BN/2+JS5XsxqGeY2ypjhlpWxb4j759gEe79pz 188jzliidXkoTxHotaTfE4z1SR35cS/nfBbMEBLILgkC7TmQpXdh9WdD NQU=
+player.testlab.nlnetlabs.nl. 3600 IN	AAAA	2001:7b8:206:1:22e0:4cff:fe39:5e05
+player.testlab.nlnetlabs.nl. 3600 IN	RRSIG	AAAA 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. DuuL+20G6fAgD5VFMvDHTAm8hKxgvksDvsQRUJ8yT7RpBh/VZQKzpPR/ 0l9FeZZ00dy1x/QSdPTo56t84SUGdvPh219zvs6ksmg4kXfyZquv6m0f 19IoGFX3myQ//aKnE6XDI0jvZekKmY01NXEdC0ujZe06VUyHxUpR3bnQ pek=
+rotten.testlab.nlnetlabs.nl. 18000 IN	NSEC	server.testlab.nlnetlabs.nl. A AAAA RRSIG NSEC
+rotten.testlab.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 4 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. ZQqczzsqR6ob3f2ldPcxxUFwMoJHygObZkL7XqdkpuHV4WzfA9rw9wUZ FYi5dE3D+2sFPDY8LGjPyd0DqQswDdi80eecv/ZIROiL2ka0buFsFo9L 93RoeaB/f52ilAuvTaJUie8L38p9G9w0g9HljscUEbBhGUSzvB32fAbw SE4=
+rotten.testlab.nlnetlabs.nl. 3600 IN	A	213.154.224.101
+rotten.testlab.nlnetlabs.nl. 3600 IN	RRSIG	A 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. bDraapmxqrCuAcoLuAKxYN646POaFATJa+YJ/ZKSgCJC7efwjVzWAqvL ga3gR+uGu9iRUzQh68OE2IYOgxYtGvG/lkMYBfTcreO6NbgOnFCQ4+J5 BpxucrvgQxz9tVqyl84kG+eZiB+ksVF0FQRYhJxxZUqWTPcMtU2p1RTU dOw=
+rotten.testlab.nlnetlabs.nl. 3600 IN	AAAA	2001:7b8:206:1:206:5bff:fef2:ae8b
+rotten.testlab.nlnetlabs.nl. 3600 IN	RRSIG	AAAA 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. EqVqCWsRTraX6Ykw2L8WOSnV3GG2Ox8T5fh/nHfBX+Nxp8fJJg/CE9+q eVU7GUyqzmobFSDrwc5O9cgtR6hJ/ZP4g2TEWob9TMIguCXByjzq6zqr 8SPn0WXmJV/hja4GnnEM2oe4AZxu1hjWW2YVCJ/LdslPyPqLDPosFcmz 8Fk=
+server.testlab.nlnetlabs.nl. 18000 IN	NSEC	tinkerbell.nlnetlabs.nl. A AAAA RRSIG NSEC
+server.testlab.nlnetlabs.nl. 18000 IN	RRSIG	NSEC 5 4 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. TKWHK663II7q0IcML1dy+PsMLYNnrOg9SeXCpgsP8xYsiFHWHPrYViRY NC+tJj3G4ORrhp8qgSi5Zb/loXDNahL2hHsqfs3vmWyONMu5zysBtfC7 BO41fRBkDtDzxQchfpaII0DDNdXzMN6rF0/tA10zOzbetTOrAzdgO0aM h44=
+server.testlab.nlnetlabs.nl. 3600 IN	A	213.154.224.97
+server.testlab.nlnetlabs.nl. 3600 IN	RRSIG	A 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. jYUS4vthWsYDgB1Ks8vOx9qI7mcvLN4YdMb1UnUUMua/jWuZ3j0flmTJ n0oTXWuje5Fnyu+ZgpNAbR2/TgrP9GGwFbnvLcye5lcz0tSK8RQpja7I nVmzs+BSN6YgAmmNpl7hA49ofDPmxb4Uo+ykfh6DR7lPkgec1KuXC47M sFw=
+server.testlab.nlnetlabs.nl. 3600 IN	AAAA	2001:7b8:206:1:22e0:4cff:fe39:5e02
+server.testlab.nlnetlabs.nl. 3600 IN	RRSIG	AAAA 5 4 3600 20070912141341 20070815141341 18182 nlnetlabs.nl. a7mvvRN5wAwqObak5JMtWLrMyLCwDhB9eVZCON+nIE478i2WcuPFxWSx XYiOZGiZq7OwIBU7aO7BwaBMKXqNokbJqbwE8KGvLMXgnWQgqlUCHRBy 2YKD9tsFT5xCtaDcSynBlMri/z9Wk+KXxlf58Adj5yCIqTEGueT4n1LG QhQ=
+tinkerbell.nlnetlabs.nl. 18000	IN	NSEC	ufo.nlnetlabs.nl. A RRSIG NSEC
+tinkerbell.nlnetlabs.nl. 18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. FX1z7mozbIq/4PufluGQ6ZVirevfKu8nZUHb9Ol4DNAD1nIu0v+teldL Ahx7fHpmzcYrMTA1n9Kktsim8cTd0LizMTd/wwWb+syExqNINZ1L20p1 nvIKzl/Razv27HKsY/kpiBUK7X+TCd/xJnFIO7D2JzoGjyiYpRGiaqef XxY=
+tinkerbell.nlnetlabs.nl. 600	IN	A	213.154.224.13
+tinkerbell.nlnetlabs.nl. 600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Ws7cRR7C2t+njlV/zBhVLfYPJN2l9fWOn97DjcU0sB6hT7r09cYIVV5u 8RTrH5UgwaboSqkImD+0LlbNte9nwcJS9wP3sItg/eO6eZyJ5NGKm/Nk 4KrKV6J1Vx1Ms+EtgzFhxYAiX4ThWBwZxaSNEDVh3ZCA+dAucURt315h xF0=
+ufo.nlnetlabs.nl.	18000	IN	NSEC	unbound.nlnetlabs.nl. A MX RRSIG NSEC
+ufo.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. IgEV6H97KEnxkNdhytWMjmtbXYerO61AqhAhDeD6J8iakPf83SqXOE9R ExwFmiSeqBRe+y/YZ+wVxLeWOU6okBrP4L6FAg57X+WVNNa123KD4r4j CMNR2hxXtFMjvvfRRPdi3i6JtTl2ygHJpvMzvbqJc2BrN7zdaGEG8bDU vQ8=
+ufo.nlnetlabs.nl.	600	IN	A	213.154.224.56
+ufo.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. mEc9varsLkWC5CCcQJqlSK1Tsk29Qfo6K2WzGQCLHaX+hhy83NbkHSss tYqXgpXNFUcxHRTmPoVofzlHFEkD+/5U8PxFEnSOI5FEfBbcYlHPSr7v l+8AJBPKXlC2ftVr7my7w+UhzvAODEbXxhveeqe/zJfeRImr+lJlANpk /pA=
+ufo.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+ufo.nlnetlabs.nl.	600	IN	MX	100 omval.tednet.nl.
+ufo.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. K2RffkDkyKmII1DVIgom/MeplVYzo6HLYgm4bbwbGP9y1T41XDwvgnvE EBI7OO+Dcz4m+adtIAD6/adkKYEQnqymok/BK1N1WArMtXXPyotRFOK7 UlrbYIFiIDE7GaVJsvJH0jyCDp8/pAJt7m3WLmhc579avWNvIPNqRAB7 uM0=
+unbound.nlnetlabs.nl.	18000	IN	NSEC	viertje.nlnetlabs.nl. A MX AAAA RRSIG NSEC
+unbound.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. T7VzMgdNSmXjZgw5VI8khY6k71BfeOH59r6vfHQhdlalMpALaDWYN6RD Oloslx7lLucA3ZrQ4X/RPwr84ZrRc0K0sH61MyQtuzyeiIWu8ifK7KHG yuxLYlngZx0jWsf2DgJuUaPaU6tzLLccfRJ0xZbbbv6TKL3sTD+EGSdI Wkc=
+unbound.nlnetlabs.nl.	600	IN	A	213.154.224.1
+unbound.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. euqJ/pC1YAuQB04coh1qWAptIkgfJDcJcGcKHH+bCGy5NK/IhEH8SKQE D0WlSD1pD+ibmeGQAi2be8eF3v2bHLog/Gm9wPjpxRj7lLkqtVxrXmyO pO6w7S9xfncsqJLkyyDhOgdg4/5LKghb6WAzkPKcMOd9GWLmVPdYhZ7u Pa4=
+unbound.nlnetlabs.nl.	600	IN	MX	10 open.nlnetlabs.nl.
+unbound.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. YxVXw9KyfAmxJqhIKh6L2X2cs6eUnQNlo3xkenBPZW1UjEne6I4H0nbB hXWc4hWFaADJjLEJlXu0NoYTIsSVafynu4knJfmNiUykmWc2nqUy96R8 1qmQ+TknQ93qW8s/2LA5Maf8UjHqFhbZbX/EpGxlVFEc5WN1nNwIiSH+ hwM=
+unbound.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::1
+unbound.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. BwPZseI4zk7Kh4JFKGmeevVKIG4FtLVdajwGWluOk9vhC7Hv7jbEbO+R k/pfkJuibHy+cx0Rv72sRM6vK86G7WD9PsLseHJvCupXOcHB/gfrftfq kSRyt8bNs+XZ2oFVLLj9MkksbuJt7ZrJVhYneBUGvDyzDOitIhg6aIDt oPc=
+viertje.nlnetlabs.nl.	18000	IN	NSEC	vrij-2.nlnetlabs.nl. A AAAA RRSIG NSEC
+viertje.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. KDdYp63+Wl7DRcwjA90xwSOqZUGQsZnqweopqsaVhZ3eKz4seGnihRwh oXrNVJlAZpsujIrTZwfh9VbzbATtaUciVCfE4AjGdXxsLKhEQIGjExau XyFgCmaT4/kKc6d9Bdxhw2Lan2cClWQWCtlUEIDyoAybtwkmO5zU0Pil EvE=
+viertje.nlnetlabs.nl.	600	IN	A	213.154.224.62
+viertje.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. fldcX8mF5FC4YxcoPgOmLhGmW/TTw5MVLOwK35aItqemNfXwFglbuJtv KiW3Qdtcr5g5iE5xkDl9aCJRYlfAyugYgJX+AJ1WkO0nfpSUUbulOnRN MEZImO2EHsyA3JQCEHTZ+J8xfYQJ87rfAD/pRXbmh5TW+wiXckNflf4J rPM=
+viertje.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1:203:93ff:feea:3086
+viertje.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. hFGUoyGTYcfURTEKx0qFYaJRBqzGeuctzC/rVQqLGTx0DhzVxNUIJN9V Rqj79FQXQ3S/XxOANmk14Y78HZmykUcARxCDDZGjgGrMTuuoQpYiDCdD FRhWWXr0/uS9yl0exj9Xo7fTIiGHe+d57CIuy8daJuxaBNXvc5+OIiyD U3U=
+vrij-2.nlnetlabs.nl.	18000	IN	NSEC	www.nlnetlabs.nl. A MX RRSIG NSEC
+vrij-2.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. avyjH0dMBtuhwewLd0ZIy/m4dFJCqdD2sWhq7X7s/wHIf4A3sSAZecFf 5Eu0gtyKkX4cIhFjrPzj6NTJPIUZmkaEAXIsmJ6sVw58+Wc6dP0E84d/ WQ8vBkpYzoAWVH5p9FDyax/3jNmn5U5KAqraOy3UaihnbafpmyR801kz 0uQ=
+vrij-2.nlnetlabs.nl.	600	IN	A	213.154.224.53
+vrij-2.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. ieo0tj2nMObHvje9Zb8KuhHzEE7hAo/d61NovqrGEe3MKFZ1Q/m15bC7 QTXZpuqundT1cIDPQmc9nA7vC7dX3JZameQ1j5QE3GSiNuU5xpFmnpvc KTBQbSDer+dncn/A3F+qY2HjylgkzMrmxRRSxOjexVIYCjFbtUvYsiAd KRk=
+vrij-2.nlnetlabs.nl.	600	IN	MX	50 open.nlnetlabs.nl.
+vrij-2.nlnetlabs.nl.	600	IN	MX	100 sanne.nlnetlabs.nl.
+vrij-2.nlnetlabs.nl.	600	IN	RRSIG	MX 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. hwamqP2ZCEhBO5Wn12GsZoKwxkmhn7J0NTbsuYKF2Vk23aPlV9qc7yfR SnK2G4y33dq/omt6LxN+29Sd+9lcu/Krx3rlYd5Y/dmu2ZX/SXX+XVUY Iqla+LwyYe6UWhG1zdvtD5UHuBBYocGcGud9amqFXHo8Q7YVded4AkoC 1BQ=
+www.nlnetlabs.nl.	18000	IN	NSEC	nlnetlabs.nl. A AAAA RRSIG NSEC
+www.nlnetlabs.nl.	18000	IN	RRSIG	NSEC 5 3 18000 20070912141341 20070815141341 18182 nlnetlabs.nl. L2RzZigsb3UEJTef8PTiDghDDWsRdwEFRUNZTSm79MO6poZOkq/0yzBr mfRMo3ST2wHfcyV+/Ws11imgrZ4EVXZ8bynQ7HFVnsI1xH/SrMHSUnzQ g1OPsiXJbukgfVaM0q4URq6cmBSuX6Ti/6waq39j4Cj3UJXAClG3lloB z+o=
+www.nlnetlabs.nl.	600	IN	A	213.154.224.1
+www.nlnetlabs.nl.	600	IN	RRSIG	A 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. Luav3fjE1VGhran3tnxR93cgoEyH3Kh//240KDCT8k0U4Tfw6xSBMVjj rf3oH13SXCZfYdJYZbZEahBvysMRm40Izl4+rpfUKzwjHXn1una1o4Gt A48v0fwffCXtUPz1TDFq9IKlVe95uLwjheMF8auDXHLwLItj2lF827Dd VI0=
+www.nlnetlabs.nl.	600	IN	AAAA	2001:7b8:206:1::1
+www.nlnetlabs.nl.	600	IN	RRSIG	AAAA 5 3 600 20070912141341 20070815141341 18182 nlnetlabs.nl. kNBkVXmMFOsKXv6IdhydkSbopCxiW1gHOVHv3G9co1SzRuaubyZ+Z7PL 5xVVMwx9Z7AwvwZ1t4b3IqVnXOXtdbABMSlUyLLRxMGt6pPt6jrcFery 7aNlmtIEStJ4FBLL5T8wdsNWUP4/iV9iTrppB/Emxp0dTz77MF2rpI+V DL0=
+nlnetlabs.nl.		86400	IN	RRSIG	SOA 5 2 86400 20070912141341 20070815141341 18182 nlnetlabs.nl. C54bDHKC2sRbVUrDOeM2kXCHpJIFu0LlZWAFVFLf4l1Grfj+B4WcXqel kSVhi/Gpt70VW+zDEOHrS0kcE5XaBnrQE1AUZ9QjGyfjXlRzGWYbyVLD evIFrs7FdIeGKKWWp1YDLUHHF+txDT9NFu6KyEqPbZEVgIVok3skO5Vu jpA=
+nlnetlabs.nl.		86400	IN	SOA	open.nlnetlabs.nl. hostmaster.nlnetlabs.nl. 2007081501 28800 7200 604800 18000
+;; Query time: 20 msec
+;; SERVER: 2001:7b8:206:1::53#53(2001:7b8:206:1::53)
+;; WHEN: Thu Aug 16 11:36:35 2007
+;; XFR size: 493 records (messages 1, bytes 50727)
+ENTRY_END

@@ -1,0 +1,83 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; RSA Key from ldns tool, key used in the testbound tests.
+
+; RSA key from ldns tool
+ENTRY_BEGIN
+SECTION QUESTION
+sub.example.com.	IN DNSKEY
+SECTION ANSWER
+sub.example.com.    3600    IN      DNSKEY  256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}
+ENTRY_END
+
+; entry to test -- capitals in signer name.
+ENTRY_BEGIN
+SECTION QUESTION
+www.sub.example.com.    IN      A 
+SECTION ANSWER
+www.sub.example.com.    3600    IN      A       11.11.11.11
+www.sub.example.com.    3600    IN      RRSIG   A 5 4 3600 20070926134150 20070829134150 30899 sUb.eXamPle.com. 0DqqRfRtm7VSEQ4mmBbzrKRqQAay3JAE8DPDGmjtokrrjN9F1G/HxozDV7bjdIh2EChlQea8FPwf/GepJMUVxg== ;{id = 30899}
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+www.sub.example.com.    IN      A 
+SECTION ANSWER
+www.sub.example.com.    3600    IN      A       11.11.11.11
+www.sub.example.com.    3600    IN      RRSIG   A 5 4 3600 20070926134150 20070829134150 30899 sub.example.com. 0DqqRfRtm7VSEQ4mmBbzrKRqQAay3JAE8DPDGmjtokrrjN9F1G/HxozDV7bjdIh2EChlQea8FPwf/GepJMUVxg== ;{id = 30899}
+ENTRY_END
+
+; another entry. Signed with ldns.
+ENTRY_BEGIN
+SECTION QUESTION
+www.sub.example.com.    IN      A 
+SECTION ANSWER
+www.sub.example.com.    3600    IN      A       11.11.11.11
+www.sub.example.com.    3600    IN      A       22.22.22.22
+www.sub.example.com.	3600	IN	RRSIG	A 5 4 3600 20070926134150 20070829134150 30899 sub.example.com. A1rCcVWeTZ5u0Fr1IewSOhpZvpSd8jMBsy4zk12LzZbjFK2yINSpClGYoyRvJMySfbNHjFKfufR/YpdsrsjC8A== ;{id = 30899}
+ENTRY_END
+
+; another entry. Signed with ldns. 10800 ttl
+ENTRY_BEGIN
+SECTION QUESTION
+www.sub.example.com.    IN      A 
+SECTION ANSWER
+www.sub.example.com.    10800    IN      A       11.11.11.11
+www.sub.example.com.    10800    IN      A       22.22.22.22
+www.sub.example.com.	10800	IN	RRSIG	A 5 4 10800 20070926134150 20070829134150 30899 sub.example.com. gRrsfYr57vipJHXE21RmXp0Y4cwp9rHyTYeqf1ncBgeipYSPFMILRw21wvAKNKEQ418/0toZOw6Nfmc1gXWS/w== ;{id = 30899}
+ENTRY_END
+
+; another entry. Signed with ldns. 10800 ttl original, now modified TTLs
+ENTRY_BEGIN
+SECTION QUESTION
+www.sub.example.com.    IN      A 
+SECTION ANSWER
+www.sub.example.com.    3600    IN      A       11.11.11.11
+www.sub.example.com.    10800    IN      A       22.22.22.22
+www.sub.example.com.	10800	IN	RRSIG	A 5 4 10800 20070926134150 20070829134150 30899 sub.example.com. gRrsfYr57vipJHXE21RmXp0Y4cwp9rHyTYeqf1ncBgeipYSPFMILRw21wvAKNKEQ418/0toZOw6Nfmc1gXWS/w== ;{id = 30899}
+ENTRY_END
+
+; another entry. Signed with ldns. 10800 ttl original, now modified TTLs
+ENTRY_BEGIN
+SECTION QUESTION
+www.sub.example.com.    IN      A 
+SECTION ANSWER
+www.sub.example.com.    10800    IN      A       11.11.11.11
+www.sub.example.com.    3600    IN      A       22.22.22.22
+www.sub.example.com.	10800	IN	RRSIG	A 5 4 10800 20070926134150 20070829134150 30899 sub.example.com. gRrsfYr57vipJHXE21RmXp0Y4cwp9rHyTYeqf1ncBgeipYSPFMILRw21wvAKNKEQ418/0toZOw6Nfmc1gXWS/w== ;{id = 30899}
+ENTRY_END
+
+; another entry. Signed with ldns. 10800 ttl original, now modified TTLs
+ENTRY_BEGIN
+SECTION QUESTION
+www.sub.example.com.    IN      A 
+SECTION ANSWER
+www.sub.example.com.    1234    IN      A       11.11.11.11
+www.sub.example.com.    3600    IN      A       22.22.22.22
+www.sub.example.com.	10800	IN	RRSIG	A 5 4 10800 20070926134150 20070829134150 30899 sub.example.com. gRrsfYr57vipJHXE21RmXp0Y4cwp9rHyTYeqf1ncBgeipYSPFMILRw21wvAKNKEQ418/0toZOw6Nfmc1gXWS/w== ;{id = 30899}
+ENTRY_END
+

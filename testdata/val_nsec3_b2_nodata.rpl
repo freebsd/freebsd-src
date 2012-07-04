@@ -1,0 +1,114 @@
+; config options
+server:
+        trust-anchor: "example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )"
+	val-override-date: "20120420235959"
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test validator NSEC3 B.2 no data.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+. IN A
+SECTION AUTHORITY
+example.	IN NS	ns1.example.
+; leave out to make unbound take ns1
+;example.	IN NS	ns2.example.
+SECTION ADDITIONAL
+ns1.example.	IN A 192.0.2.1
+; leave out to make unbound take ns1
+;ns2.example.	IN A 192.0.2.2
+ENTRY_END
+RANGE_END
+
+; ns1.example.
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.2.1
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+example. IN NS
+SECTION ANSWER
+ENTRY_END
+
+; response to DNSKEY priming query
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN DNSKEY
+SECTION ANSWER
+example. DNSKEY  256 3 7 AwEAAaetidLzsKWUt4swWR8yu0wPHPiUi8LU ( sAD0QPWU+wzt89epO6tHzkMBVDkC7qphQO2h TY4hHn9npWFRw5BYubE= )
+example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )
+example. RRSIG   DNSKEY 7 1 3600 20150420235959 ( 20051021000000 12708 example.  AuU4juU9RaxescSmStrQks3Gh9FblGBlVU31 uzMZ/U/FpsUb8aC6QZS+sTsJXnLnz7flGOsm MGQZf3bH+QsCtg== )
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA DO NOERROR
+SECTION QUESTION
+ns1.example.        IN MX
+SECTION AUTHORITY
+example.       SOA     ns1.example. bugs.x.w.example. 1 3600 300 ( 3600000 3600 )
+example.        RRSIG   SOA 7 1 3600 20150420235959 20051021000000 ( 40430 example.  Hu25UIyNPmvPIVBrldN+9Mlp9Zql39qaUd8i q4ZLlYWfUUbbAS41pG+68z81q1xhkYAcEyHd VI2LmKusbZsT0Q== )
+
+;; NSEC3 RR matches the QNAME and shows that the MX type bit is not set.
+2t7b4g4vsa5smi47k61mv5bv1a22bojr.example. NSEC3   1 1 12 aabbccdd ( 2vptu5timamqttgl4luu9kg21e0aor3s A RRSIG )
+2t7b4g4vsa5smi47k61mv5bv1a22bojr.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  OmBvJ1Vgg1hCKMXHFiNeIYHK9XVW0iLDLwJN 4TFoNxZuP03gAXEI634YwOc4YBNITrj413iq NI6mRk/r1dOSUw== )
+
+SECTION ADDITIONAL
+ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+ns1.example.        IN MX
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD NOERROR
+SECTION QUESTION
+ns1.example.        IN MX
+SECTION ANSWER
+SECTION AUTHORITY
+example.       SOA     ns1.example. bugs.x.w.example. 1 3600 300 ( 3600000 3600 )
+example.        RRSIG   SOA 7 1 3600 20150420235959 20051021000000 ( 40430 example.  Hu25UIyNPmvPIVBrldN+9Mlp9Zql39qaUd8i q4ZLlYWfUUbbAS41pG+68z81q1xhkYAcEyHd VI2LmKusbZsT0Q== )
+2t7b4g4vsa5smi47k61mv5bv1a22bojr.example. NSEC3   1 1 12 aabbccdd ( 2vptu5timamqttgl4luu9kg21e0aor3s A RRSIG )
+2t7b4g4vsa5smi47k61mv5bv1a22bojr.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  OmBvJ1Vgg1hCKMXHFiNeIYHK9XVW0iLDLwJN 4TFoNxZuP03gAXEI634YwOc4YBNITrj413iq NI6mRk/r1dOSUw== )
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

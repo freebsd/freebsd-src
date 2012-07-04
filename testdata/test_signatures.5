@@ -1,0 +1,48 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; ldns-keygen (svn trunk 1.3.0, 15 april 2008)
+; ./ldns-keygen -a DSAMD5 -b 512 nlnetlabs.nl
+; Knlnetlabs.nl.+003+08866
+
+; nlnetlabs.nl.   3600    IN      DS      8866 3 1 1300e7258af98cef40a47e6ac1e34ea79cb4b27f
+; Private-key-format: v1.2
+; Algorithm: 3 (DSA)
+; Prime(p): qp/0xtfW76CbSH29kZmI0iUEhJ9cIs/52WsgqogqBwrY/HpT+D6G2jd66WLi88DF0z/We3/YIjZYkR5PH03IRQ==
+; Subprime(q): iTRl4piaQvy9yxIsz/c5pAaVIeM=
+; Base(g): RJhjYU22ooiTKltbGmIR6OfXZjKDBfSODrT3e3/IrwiT8oQZriDFZkExYKrKqoqZFn7y0esTf9Bwvx2IhGabQw==
+; Private_value(x): gYjuQexf8JiiVBvCcxpXO+QaD88=
+; Public_value(y): aPtEU9ui/w2+9aFnCrWUB/fGvMEyAyLyGCCaT/N+l8bPYDPCv+wDxEKHoM3HT/ZOf3RuCE/CYKVK7CDX6+AZrA==
+
+; DSA key from ldns tool
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl.	IN DNSKEY
+SECTION ANSWER
+nlnetlabs.nl.   3600    IN      DNSKEY  256 3 3 AIk0ZeKYmkL8vcsSLM/3OaQGlSHjqp/0xtfW76CbSH29kZmI0iUEhJ9cIs/52WsgqogqBwrY/HpT+D6G2jd66WLi88DF0z/We3/YIjZYkR5PH03IRUSYY2FNtqKIkypbWxpiEejn12YygwX0jg6093t/yK8Ik/KEGa4gxWZBMWCqyqqKmRZ+8tHrE3/QcL8diIRmm0No+0RT26L/Db71oWcKtZQH98a8wTIDIvIYIJpP836Xxs9gM8K/7APEQoegzcdP9k5/dG4IT8JgpUrsINfr4Bms ;{id = 8866 (zsk), size = 512b}
+ENTRY_END
+
+; entry to test
+; from
+; ldns-signzone nlnetlabs.nl Knlnetlabs.nl.+003+08866
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN SOA
+SECTION ANSWER
+nlnetlabs.nl.   10200   IN SOA  open.nlnetlabs.nl. hostmaster.nlnetlabs.nl. ( 2008040100 28800      7200       604800     3600       )
+nlnetlabs.nl.   10200   IN      RRSIG   SOA 3 2 10200 20080513173901 20080415173901 8866 nlnetlabs.nl. MC0CFFI7JB0x4xaO0qhe9iQGk0eot8zGAhUAg/SFtf5MrR7DEkmd6vm2xf+SN9M= ;{id = 8866}
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN NS
+SECTION ANSWER
+nlnetlabs.nl. 10200   NS      omval.tednet.nl.
+nlnetlabs.nl. 10200   NS      ns7.domain-registry.nl.
+nlnetlabs.nl. 10200 NS      open.nlnetlabs.nl.
+nlnetlabs.nl.   10200   IN      RRSIG   NS 3 2 10200 20080513173901 20080415173901 8866 nlnetlabs.nl. MCwCFFHwxz9Kx7Un60vLMMoOrZizagNrAhR6OskQNF/KVL5/xanbOmK3ZUj0vw== ;{id = 8866}
+
+ENTRY_END
+

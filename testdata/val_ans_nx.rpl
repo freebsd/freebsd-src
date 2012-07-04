@@ -1,0 +1,246 @@
+; config options
+; The island of trust is at example.com
+server:
+	trust-anchor: "example.com.    3600    IN      DS      2854 3 1 46e4ffc6e9a4793b488954bd3f0cc6af0dfb201b"
+	val-override-date: "20070916134226"
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test validator with DS nodata as nxdomain on trust chain
+; This is a bug in ANS 2.8.1.0 where it gives an NXDOMAIN instead of
+; NOERROR for an empty nonterminal DS query. The proof for this NXDOMAIN
+; is the NSEC that proves emptynonterminal.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+328.0.0.194.example.com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.    IN NS   a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.     IN      A       192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+328.0.0.194.example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.    IN NS   ns.example.com.
+example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+SECTION ADDITIONAL
+ns.example.com.         IN      A       1.2.3.4
+ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFQCMSWxVehgOQLoYclB9PIAbNP229AIUeH0vNNGJhjnZiqgIOKvs1EhzqAo= ;{id = 2854}
+ENTRY_END
+
+; response to DNSKEY priming query
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN DNSKEY
+SECTION ANSWER
+example.com.    3600    IN      DNSKEY  256 3 3 ALXLUsWqUrY3JYER3T4TBJII s70j+sDS/UT2QRp61SE7S3E EXopNXoFE73JLRmvpi/UrOO/Vz4Se 6wXv/CYCKjGw06U4WRgR YXcpEhJROyNapmdIKSx hOzfLVE1gqA0PweZR8d tY3aNQSRn3sPpwJr6Mi /PqQKAMMrZ9ckJpf1+b QMOOvxgzz2U1GS18b3y ZKcgTMEaJzd/GZYzi/B N2DzQ0MsrSwYXfsNLFO Bbs8PJMW4LYIxeeOe6rUgkWOF 7CC9Dh/dduQ1QrsJhmZAEFfd6ByYV+ ;{id = 2854 (zsk), size = 1688b}
+example.com. 3600    IN      RRSIG   DNSKEY DSA 2 3600 20070926134150 20070829134150 2854 example.com. MCwCFBQRtlR4BEv9ohi+PGFjp+AHsJuHAhRCvz0shggvnvI88DFnBDCczHUcVA== ;{id = 2854}
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFQCMSWxVehgOQLoYclB9PIAbNP229AIUeH0vNNGJhjnZiqgIOKvs1EhzqAo= ;{id = 2854}
+ENTRY_END
+
+; responses to DS empty nonterminal queries.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+194.example.com. IN DS
+SECTION AUTHORITY
+example.com. 3600 IN SOA ns.example.com. host.example.com. 2007091980 3600 7200 1209600 7200
+example.com.    3600    IN      RRSIG   SOA 3 2 3600 20070926135752 20070829135752 2854 example.com. MC0CFCOn5qKBIV7bwFMBA+Qqiblx0cylAhUAoFiGtFm2wHhJpq9MooTYdeVw45s= ;{id = 2854}
+
+; This NSEC proves the NOERROR/NODATA case.
+194.example.com. IN NSEC 0.0.194.example.com. A RRSIG NSEC
+194.example.com.        3600    IN      RRSIG   NSEC 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFDcoKl74U9FjsuYF3Vc0E8GQ2GgzAhUAhlyhO2MMcAWQMxIhEZ4MguokN5g= ;{id = 2854}
+
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+; Bad NXDOMAIN response, this should be NOERROR.
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+0.194.example.com. IN DS
+SECTION AUTHORITY
+example.com. 3600 IN SOA ns.example.com. host.example.com. 2007091980 3600 7200 1209600 7200
+example.com.    3600    IN      RRSIG   SOA 3 2 3600 20070926135752 20070829135752 2854 example.com. MC0CFCOn5qKBIV7bwFMBA+Qqiblx0cylAhUAoFiGtFm2wHhJpq9MooTYdeVw45s= ;{id = 2854}
+
+; This NSEC proves the NOERROR/NODATA case.
+194.example.com. IN NSEC 0.0.194.example.com. A RRSIG NSEC
+194.example.com.        3600    IN      RRSIG   NSEC 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFDcoKl74U9FjsuYF3Vc0E8GQ2GgzAhUAhlyhO2MMcAWQMxIhEZ4MguokN5g= ;{id = 2854}
+
+ENTRY_END
+
+; response for delegation to sub zone.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+328.0.0.194.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+0.0.194.example.com. IN NS ns.sub.example.com.
+0.0.194.example.com.    3600    IN      DS      30899 RSASHA1 1 aa46f0717075d9750ac3596c659a2e326b33c28c
+0.0.194.example.com.    3600    IN      RRSIG   DS 3 5 3600 20070926135752 20070829135752 2854 example.com. MCwCFC9GIqtp/103hktw6bPpD83gr+0iAhQ8yev2yUaR9l64rYBUYTJqOoTKdw== ;{id = 2854}
+SECTION ADDITIONAL
+ns.sub.example.com. IN A 1.2.3.6
+ENTRY_END
+
+; response for delegation to sub zone
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+0.0.194.example.com. IN DNSKEY
+SECTION ANSWER
+SECTION AUTHORITY
+0.0.194.example.com. IN NS ns.sub.example.com.
+0.0.194.example.com.    3600    IN      DS      30899 RSASHA1 1 aa46f0717075d9750ac3596c659a2e326b33c28c
+0.0.194.example.com.    3600    IN      RRSIG   DS 3 5 3600 20070926135752 20070829135752 2854 example.com. MCwCFC9GIqtp/103hktw6bPpD83gr+0iAhQ8yev2yUaR9l64rYBUYTJqOoTKdw== ;{id = 2854}
+SECTION ADDITIONAL
+ns.sub.example.com. IN A 1.2.3.6
+ENTRY_END
+RANGE_END
+
+; ns.sub.example.com. for zone 0.0.194.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.6
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+0.0.194.example.com. IN NS
+SECTION ANSWER
+0.0.194.example.com. IN	NS ns.sub.example.com.
+0.0.194.example.com.    3600    IN      RRSIG   NS 5 5 3600 20070926135752 20070829135752 30899 0.0.194.example.com. KXDA+/PJAE+dXhv6O6Z0ZovDwabSRJcIt+GT5AL6ewlj46hzo/SDKUtEhYCeT1IVQvYtXrESwFZjpp7N0rXXBg== ;{id = 30899}
+SECTION ADDITIONAL
+ns.sub.example.com. IN A 1.2.3.6
+ENTRY_END
+
+; response to DNSKEY priming query
+; 0.0.194.example.com.    3600    IN      DS      30899 RSASHA1 1 aa46f0717075d9750ac3596c659a2e326b33c28c
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+0.0.194.example.com. IN DNSKEY
+SECTION ANSWER
+0.0.194.example.com.        3600    IN      DNSKEY  256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}
+0.0.194.example.com.    3600    IN      RRSIG   DNSKEY 5 5 3600 20070926135752 20070829135752 30899 0.0.194.example.com. fSmc7ef6NwbDXC0o4wPc/aa8LakW5ZJwEZ4xPYl3tTZKmPNM7hPXskl1tFlvst9Va4u37F62v+16trprHb+SCQ== ;{id = 30899}
+SECTION AUTHORITY
+0.0.194.example.com. IN	NS ns.sub.example.com.
+0.0.194.example.com.    3600    IN      RRSIG   NS 5 5 3600 20070926135752 20070829135752 30899 0.0.194.example.com. KXDA+/PJAE+dXhv6O6Z0ZovDwabSRJcIt+GT5AL6ewlj46hzo/SDKUtEhYCeT1IVQvYtXrESwFZjpp7N0rXXBg== ;{id = 30899}
+SECTION ADDITIONAL
+ns.sub.example.com. IN A 1.2.3.6
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+328.0.0.194.example.com. IN A
+SECTION ANSWER
+328.0.0.194.example.com. IN A 11.11.11.11
+328.0.0.194.example.com.        3600    IN      RRSIG   A 5 6 3600 20070926135752 20070829135752 30899 0.0.194.example.com. chZW77mqywhw/4ch6BxXQ4EbFgb9zgh2xF75FLlKq/7ey6CfHSJRpJRjRqtMTn+1i18UL2B4nPS/WnK5DZeqlA== ;{id = 30899}
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+328.0.0.194.example.com. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD NOERROR
+SECTION QUESTION
+328.0.0.194.example.com. IN A
+SECTION ANSWER
+328.0.0.194.example.com. 	3600	IN	A	11.11.11.11
+328.0.0.194.example.com.        3600    IN      RRSIG   A 5 6 3600 20070926135752 20070829135752 30899 0.0.194.example.com. chZW77mqywhw/4ch6BxXQ4EbFgb9zgh2xF75FLlKq/7ey6CfHSJRpJRjRqtMTn+1i18UL2B4nPS/WnK5DZeqlA== ;{id = 30899}
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

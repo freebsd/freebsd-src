@@ -1,0 +1,144 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	log-time-ascii: yes
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
+AUTOTRUST_FILE example.com
+; autotrust trust anchor file
+;;id: example.com. 1
+;;last_queried: 1258962400 ;;Mon Nov 23 07:46:40 2009
+;;last_success: 1258962400 ;;Mon Nov 23 07:46:40 2009
+;;next_probe_time: 1258967360 ;;Mon Nov 23 09:09:20 2009
+;;query_failed: 0
+;;query_interval: 5400
+;;retry_time: 3600
+example.com.    10800   IN      DNSKEY  257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8= ;{id = 16486 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+example.com.	10800	IN	DNSKEY	257 3 5 AwEAAc3Z5DQDJpH4oPdNtC4BUQHk50XMD+dHr4r8psHmivIa83hxR5CRgCtd9sENCW9Ae8OIO19xw9t/RPaEAqQa+OE= ;{id = 55582 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+AUTOTRUST_END
+CONFIG_END
+
+SCENARIO_BEGIN Test autotrust with 10 keys
+; spec says you must be able to handle at least 5 keys per trust point
+
+; K-ROOT
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id copy_query
+REPLY QR AA
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS k.root-servers.net.
+SECTION ADDITIONAL
+k.root-servers.net IN A 193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR
+SECTION QUESTION
+com. IN NS
+SECTION AUTHORITY
+com. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR
+SECTION QUESTION
+example.com. IN NS
+SECTION AUTHORITY
+example.com. IN NS ns.example.com.
+SECTION ADDITIONAL
+ns.example.com. IN A 1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR AA
+SECTION QUESTION
+example.com. IN DNSKEY
+SECTION ANSWER
+
+example.com.    10800   IN      DNSKEY  257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8= ;{id = 16486 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+example.com.	10800	IN	DNSKEY	257 3 5 AwEAAc3Z5DQDJpH4oPdNtC4BUQHk50XMD+dHr4r8psHmivIa83hxR5CRgCtd9sENCW9Ae8OIO19xw9t/RPaEAqQa+OE= ;{id = 55582 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAaxpsO70/oPdKhulQXVbkLX5V6lyzF7G0gtz0nReLlBmfEk6zQ3WSW8VZ8kdZUCOLQwJl+5nWNfRvFxnqUGwjT8= ;{id = 11146 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAbXPzz66rviAvNKgPV5JNdkOZv9olQwNDFWnxy7p/RtObOL35ahwpamQGL5A5uPOvn1OghQyqiytTFFP8ZM/5Rc= ;{id = 11446 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAdSj6e3XGnFwRNgw6Aifi4Q7SyRIdQ25XVsiWP/N9m7evkN+y6rlnaMP1ELRkhpiwK0bbNTP3DsGXtSMbR/4uzU= ;{id = 20314 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAa8er29rQIzO6+o3D4S8HsTTICTHHzDTeVbY/2kLdR0wwRy2PL8qvgxTX1YZXxEjrGHBhY5jD+aF9y9G3Ztfns8= ;{id = 22402 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAZ25ylUZoX11EeM7aPqJOprcnGFiXgI7P407NMiBVd8Wz5J1aaUuPabfu4f15oLp4/6czzn3iuJp4UJU4ZTjFrc= ;{id = 27586 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAbZxgKqPMoc8E7BqdrT84U7ux57LHMXQJnAogNcobTvC9+e3aeL5YdFSqgf6Em7ICISMzS+Sd0wJqgRoL0ZDhzk= ;{id = 29146 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAbpIKlHvo1Ev4La/eEPoqThtFA8+vLxcjUQaowkkR/Xvvt6fd6iM3vSH6RsyvNgbj5C+HBjkciSeW4KthUuIDUk= ;{id = 51673 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAdzRZ1JnXuspXF03PH6p97f6Xq8JkbZiOZYTCcfBiSFuyq6046Yqhbo3UNpPxMlB0JY52Ffj3gohTZAuClVoIZ8= ;{id = 55999 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAeu99txoU5i2Z4BVatCVi9PTj93oOPft8ZB9ovcjfzRZLpfc/woges07k5Ru+H44qSRxjtDKDqtf4QSo3RkkGLk= ;{id = 56782 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAd9vx7tR9cd9MMDh0gL/qHNTG4ykehjT3UzIIEtAi3Z4DI3/FFw9U/GjpYcqVC6hx2Yo1lbc4tVIa/uA0mbU7uE= ;{id = 58687 (ksk), size = 512b}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAdz+Xe5qS3BRnw1hBy2wL2wi0o3Nh94lDxtDtfOsmyJ0WD/25Ova9Pb27Yzh5XW/baENkI+xGJTFsljbi9bdSd0= ;{id = 63067 (ksk), size = 512b}
+
+example.com.	3600	IN	RRSIG	DNSKEY 5 2 3600 20091124111500 20091018111500 55582 example.com. baTsvlgA0tIVAts9myEBGKP/A7PvPshZfESq/dueRhPGVRwNYEoQACjkqYsIquzOs4sBec9xVH15CXIH+okXYA== ;{id = 55582}
+
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+ENTRY_END
+RANGE_END
+
+RANGE_END
+
+; set date/time to Mon Nov 23 09:46:40 2009
+STEP 5 TIME_PASSES EVAL ${1258962400 + 7200}
+STEP 6 TRAFFIC   ; do the probe
+STEP 7 ASSIGN t0 = ${time}
+STEP 8 ASSIGN probe0 = ${range 3200 ${timeout} 5400}
+STEP 9 ASSIGN tp = ${1258962400}
+
+; the auto probing should have been done now.
+STEP 11 CHECK_AUTOTRUST example.com
+FILE_BEGIN
+; autotrust trust anchor file
+;;id: example.com. 1
+;;last_queried: ${$t0} ;;${ctime $t0}
+;;last_success: ${$t0} ;;${ctime $t0}
+;;next_probe_time: ${$t0 + $probe0} ;;${ctime $t0 + $probe0}
+;;query_failed: 0
+;;query_interval: 3600
+;;retry_time: 3600
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAdz+Xe5qS3BRnw1hBy2wL2wi0o3Nh94lDxtDtfOsmyJ0WD/25Ova9Pb27Yzh5XW/baENkI+xGJTFsljbi9bdSd0= ;{id = 63067 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAd9vx7tR9cd9MMDh0gL/qHNTG4ykehjT3UzIIEtAi3Z4DI3/FFw9U/GjpYcqVC6hx2Yo1lbc4tVIa/uA0mbU7uE= ;{id = 58687 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAeu99txoU5i2Z4BVatCVi9PTj93oOPft8ZB9ovcjfzRZLpfc/woges07k5Ru+H44qSRxjtDKDqtf4QSo3RkkGLk= ;{id = 56782 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAdzRZ1JnXuspXF03PH6p97f6Xq8JkbZiOZYTCcfBiSFuyq6046Yqhbo3UNpPxMlB0JY52Ffj3gohTZAuClVoIZ8= ;{id = 55999 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAbpIKlHvo1Ev4La/eEPoqThtFA8+vLxcjUQaowkkR/Xvvt6fd6iM3vSH6RsyvNgbj5C+HBjkciSeW4KthUuIDUk= ;{id = 51673 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAbZxgKqPMoc8E7BqdrT84U7ux57LHMXQJnAogNcobTvC9+e3aeL5YdFSqgf6Em7ICISMzS+Sd0wJqgRoL0ZDhzk= ;{id = 29146 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAZ25ylUZoX11EeM7aPqJOprcnGFiXgI7P407NMiBVd8Wz5J1aaUuPabfu4f15oLp4/6czzn3iuJp4UJU4ZTjFrc= ;{id = 27586 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAa8er29rQIzO6+o3D4S8HsTTICTHHzDTeVbY/2kLdR0wwRy2PL8qvgxTX1YZXxEjrGHBhY5jD+aF9y9G3Ztfns8= ;{id = 22402 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAdSj6e3XGnFwRNgw6Aifi4Q7SyRIdQ25XVsiWP/N9m7evkN+y6rlnaMP1ELRkhpiwK0bbNTP3DsGXtSMbR/4uzU= ;{id = 20314 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAbXPzz66rviAvNKgPV5JNdkOZv9olQwNDFWnxy7p/RtObOL35ahwpamQGL5A5uPOvn1OghQyqiytTFFP8ZM/5Rc= ;{id = 11446 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	3600	IN	DNSKEY	257 3 5 AwEAAaxpsO70/oPdKhulQXVbkLX5V6lyzF7G0gtz0nReLlBmfEk6zQ3WSW8VZ8kdZUCOLQwJl+5nWNfRvFxnqUGwjT8= ;{id = 11146 (ksk), size = 512b} ;;state=1 [ ADDPEND ] ;;count=1 ;;lastchange=${$t0} ;;${ctime $t0}
+example.com.	10800	IN	DNSKEY	257 3 5 AwEAAc3Z5DQDJpH4oPdNtC4BUQHk50XMD+dHr4r8psHmivIa83hxR5CRgCtd9sENCW9Ae8OIO19xw9t/RPaEAqQa+OE= ;{id = 55582 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+example.com.	10800	IN	DNSKEY	257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8= ;{id = 16486 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+FILE_END
+
+SCENARIO_END

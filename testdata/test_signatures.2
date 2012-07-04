@@ -1,0 +1,23 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+
+; DNSKEY used for testing, from april 2008
+ENTRY_BEGIN
+SECTION QUESTION
+cesar.sec3.br.                 IN      DNSKEY
+SECTION ANSWER
+cesar.sec3.br.          43200   IN      DNSKEY  257 3 3 AMAdw+X4IcinbsSOXamwV4BrJVbRjSJ63DYRV0NLR4W5cDMEQGmB3Lci ybjLvaEogs9RDmjhxQrQJRfaIVMG11LtOwlTPBr4yzyeK9zzeZPAQz2F 9yCCPqgUdts51v4XeK5evtn+b4AB7t/j+v7Vb+26k8No6hmJiRJAy59N Fpzrt5FoY5qFZ8QbPl59nzEcXTbOiXBNSu9mQbe/jFH5p9NP4KB0iNL/ oAthNIVVsDG8hQFh1hE5YlDNLxYY3U+TODjWx//DZvkn5Tyyvp7I6b33 oJiq
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+cesar.sec3.br.       IN      SOA
+SECTION ANSWER
+cesar.sec3.br.  43200   IN      SOA     home.kuroiwa.eng.br. hostmaster.cesar.sec3.br. 2008040903 86400 86400 8640000 600
+cesar.sec3.br.  43200   IN      RRSIG   SOA 3 3 43200 20081010000000 20080410122550 14996 cesar.sec3.br. AJOGbuGOMggPspEBhIc58I8BXUHqR+DKiZqGZRwu9jMTgAX6JCPunSI= ;{id = 14996}
+ENTRY_END
+

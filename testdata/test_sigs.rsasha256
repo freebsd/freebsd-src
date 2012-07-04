@@ -1,0 +1,23 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; Test RSASHA256 signatures.
+
+; RSA key from ldns tool
+ENTRY_BEGIN
+SECTION QUESTION
+sub.example.com.	IN DNSKEY
+SECTION ANSWER
+example.com.	3600	IN	DNSKEY	256 3 8 AwEAAbd9WqjzE2Pynz21OG5doSf9hFzMr5dhzz2waZ3vTa+0o5r7AjTAqmA1yH/B3+aAMihUm5ucZSfVqo7+kOaRE8yFj9aivOmA1n1+JLevJq/oyvQyjxQN2Qb89LyaNUT5oKZIiL+uyyhNW3KDR3SSbQ/GBwQNDHVcZi+JDR3RC0r7 ;{id = 1443 (zsk), size = 1024b}
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+www.example.com.    IN      A 
+SECTION ANSWER
+www.example.com.	3600	IN	A	192.0.2.66
+www.example.com.	3600	IN	RRSIG	A 8 3 3600 20070926134150 20070829134150 1443 example.com. sX+BZ6Qdq0Td/THR1HgOnWh9URNP03KMEgjpnRGbS74NqlmlqLU3HcimOT/lUD7xsZTeOIWw5kAcQePxU3UrjS5gsIttIXAfrHFmOtTsyb0O4w0/RpR0QYxRl1hk4zQRPzHeEkgxNTe+y9V9gYe7iv9OddXsfwEnmqQiXk+tdsU= ;{id = 1443}
+ENTRY_END

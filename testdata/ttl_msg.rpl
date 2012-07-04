@@ -1,0 +1,491 @@
+; config options
+; fetch all extra targets - we want to trigger a lookup in cache
+server:
+	target-fetch-policy: "-1 -1 -1 -1 -1"
+	access-control: 127.0.0.1 allow_snoop
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test TTL countdown on messages in the cache
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.gtld-servers.net.	IN A
+SECTION ANSWER
+a.gtld-servers.net.	IN A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+K.ROOT-SERVERS.NET.	IN	A
+SECTION ANSWER
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.gtld-servers.net.	IN AAAA
+SECTION AUTHORITY
+. 86400 IN SOA . . 20070304 28800 7200 604800 86400
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+K.ROOT-SERVERS.NET.	IN	AAAA
+SECTION AUTHORITY
+. 86400 IN SOA . . 20070304 28800 7200 604800 86400
+ENTRY_END
+
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+foo.com. IN A
+SECTION AUTHORITY
+foo.com.	IN NS	ns.foo.com.
+;foo.com.	IN NS	nx1.example.com.
+SECTION ADDITIONAL
+ns.foo.com.		IN 	A	1.2.5.6
+ENTRY_END
+RANGE_END
+
+; ns.foo.com
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.5.6
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+foo.com. IN NS
+SECTION ANSWER
+foo.com.	IN NS	ns.foo.com.
+;foo.com.	IN NS	nx1.example.com.
+SECTION ADDITIONAL
+ns.foo.com.		IN 	A	1.2.5.6
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+;www.foo.com.		IN 	A	1.2.5.6
+www.foo.com.	IN CNAME  nx1.example.com.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.foo.com. IN A
+SECTION ANSWER
+ns.foo.com.		IN 	A	1.2.5.6
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.foo.com. IN AAAA
+SECTION AUTHORITY
+foo.com.  IN SOA . . 1 2 3 4 3600
+ENTRY_END
+RANGE_END
+
+; ns.example.com. --- serial=15
+RANGE_BEGIN 0 20
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com.		IN 	A	1.2.3.4
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 15 28800 7200 604800 10
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+nx1.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 15 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+nx2.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 15 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+RANGE_END
+
+; ns.example.com. --- serial=17
+RANGE_BEGIN 20 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com.		IN 	A	1.2.3.4
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 17 28800 7200 604800 10
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+nx1.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 17 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+nx2.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 17 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+RANGE_END
+
+; start by passing time ; so we are not at 0
+STEP 1 TIME_PASSES ELAPSE 10
+
+; query for NXDOMAIN
+STEP 8 QUERY
+ENTRY_BEGIN
+REPLY RD CD
+SECTION QUESTION
+nx1.example.com. IN A
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NXDOMAIN CD
+SECTION QUESTION
+nx1.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 15 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+; wait for 5 seconds
+STEP 20 TIME_PASSES ELAPSE 5
+
+; do a lookup for nx1.example.com just to check TTLs...
+STEP 25 QUERY
+ENTRY_BEGIN
+REPLY RD CD
+SECTION QUESTION
+nx1.example.com. IN A
+ENTRY_END
+STEP 26 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NXDOMAIN CD
+SECTION QUESTION
+nx1.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 5 IN SOA . . 15 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+; cause a lookup that refreshes the TTL on the SOA record
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+nx2.example.com. IN A
+ENTRY_END
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+nx2.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 17 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+; do a lookup for nx1.example.com to check TTLs updated
+STEP 35 QUERY
+ENTRY_BEGIN
+REPLY RD CD
+SECTION QUESTION
+nx1.example.com. IN A
+ENTRY_END
+STEP 36 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NXDOMAIN CD
+SECTION QUESTION
+nx1.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 17 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+; cause a lookup for nx1.example.com bypassing the cache.
+; with bug; this causes msg ttl for nx1 to be time(NOW)+ttl.
+; so 15+5 = 20
+; visiable in debug log as "msg ttl is %d"
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.foo.com. IN A
+ENTRY_END
+STEP 41 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+;www.foo.com IN A 1.2.5.6
+www.foo.com IN CNAME nx1.example.com.
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 17 28800 7200 604800 10
+ENTRY_END
+
+; now cause lookup from cache by not passing CD flag
+; (validator has a look, and stores after iterator cache lookup).
+STEP 45 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+nx1.example.com. IN A
+ENTRY_END
+STEP 46 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+nx1.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 17 28800 7200 604800 10
+SECTION ADDITIONAL
+ENTRY_END
+
+; the message should timeout in 5 seconds, wait 7
+STEP 50 TIME_PASSES ELAPSE 7
+
+; it is still there? (nonRD query)
+STEP 55 QUERY
+ENTRY_BEGIN
+REPLY 
+SECTION QUESTION
+nx1.example.com. IN A
+ENTRY_END
+
+; this answer is the bug - NXDOMAIN too long in the cache.
+;STEP 56 CHECK_ANSWER
+;ENTRY_BEGIN
+;MATCH all ttl
+;REPLY QR RA NXDOMAIN
+;SECTION QUESTION
+;nx1.example.com. IN A
+;SECTION ANSWER
+;SECTION AUTHORITY
+;example.com. 3 IN SOA . . 17 28800 7200 604800 10
+;SECTION ADDITIONAL
+;ENTRY_END
+
+; Now the correct answer: no such cached query.
+STEP 56 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA NOERROR
+SECTION QUESTION
+nx1.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+SCENARIO_END

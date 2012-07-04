@@ -1,0 +1,64 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 81.187.81.187
+stub-zone:
+        name: "lp0.eu"
+	stub-addr: 81.2.80.65
+	stub-prime: no
+CONFIG_END
+
+SCENARIO_BEGIN Test resolve of stub zone without root prime.
+
+; this server does not respond. (for the root)
+RANGE_BEGIN 0 100
+	ADDRESS 81.187.81.187
+ENTRY_BEGIN
+MATCH
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+. IN NS
+ENTRY_END
+RANGE_END
+
+; lp0.eu server
+RANGE_BEGIN 0 100
+	ADDRESS 81.2.80.65
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+proxima.lp0.eu. IN A
+SECTION ANSWER
+proxima.lp0.eu. IN A 81.2.80.65
+SECTION AUTHORITY
+lp0.eu. IN NS proxima.lp0.eu.
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+proxima.lp0.eu. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+proxima.lp0.eu. IN A
+SECTION ANSWER
+proxima.lp0.eu. IN A 81.2.80.65
+SECTION AUTHORITY
+lp0.eu. IN NS proxima.lp0.eu.
+ENTRY_END
+
+SCENARIO_END

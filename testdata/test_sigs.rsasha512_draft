@@ -1,0 +1,23 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; Test RSASHA512 signatures from draft-ietf-dnsext-dnssec-rsasha256-14
+
+ENTRY_BEGIN
+SECTION QUESTION
+example.net.	IN DNSKEY
+SECTION ANSWER
+example.net.    3600  IN  DNSKEY  (256 3 10 AwEAAdHoNTOW+et86KuJOWRD p1pndvwb6Y83nSVXXyLA3DLroROUkN6X0O6pnWnjJQujX/AyhqFD xj13tOnD9u/1kTg7cV6rklMrZDtJCQ5PCl/D7QNPsgVsMu1J2Q8g pMpztNFLpPBz1bWXjDtaR7ZQBlZ3PFY12ZTSncorffcGmhOL);{id = 3740 (zsk), size = 1024b}
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+www.example.net.    IN      A 
+SECTION ANSWER
+www.example.net. 3600  IN  A  192.0.2.91
+www.example.net. 3600  IN  RRSIG  (A 10 3 3600 20300101000000 20000101000000 3740 example.net. tsb4wnjRUDnB1BUi+t 6TMTXThjVnG+eCkWqjvvjhzQL1d0YRoOe0CbxrVDYd0xDtsuJRa eUw1ep94PzEWzr0iGYgZBWm/zpq+9fOuagYJRfDqfReKBzMweOL DiNa8iP5g9vMhpuv6OPlvpXwm9Sa9ZXIbNl1MBGk0fthPgxdDLw =);{id = 3740}
+ENTRY_END
+

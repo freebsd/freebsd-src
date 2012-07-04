@@ -1,0 +1,145 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test locate of NS records for DS without a SOA record
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+; content of root-servers.net
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR AA NOERROR
+SECTION QUESTION
+root-servers.net. IN NS
+SECTION ANSWER
+root-servers.net. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR AA NOERROR
+SECTION QUESTION
+k.root-servers.net. IN A
+SECTION ANSWER
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+SECTION AUTHORITY
+root-servers.net. IN NS	K.ROOT-SERVERS.NET.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR AA NOERROR
+SECTION QUESTION
+k.root-servers.net. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+root-servers.net. IN SOA	K.ROOT-SERVERS.NET. hostmaster. 1 2 3 4 5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR AA NOERROR
+SECTION QUESTION
+root-servers.net. IN DS
+SECTION ANSWER
+SECTION AUTHORITY
+;root-servers.net. IN SOA	K.ROOT-SERVERS.NET. hostmaster. 1 2 3 4 5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+net. IN A
+SECTION AUTHORITY
+net.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+net. IN NS
+SECTION ANSWER
+net.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+root-servers.net. IN DS
+SECTION AUTHORITY
+net. IN SOA a.gtld-servers.net. hostmaster. 2 3 4 5 6
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+root-servers.net. IN A
+SECTION AUTHORITY
+root-servers.net. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+root-servers.net. IN DS
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+root-servers.net. IN DS
+SECTION ANSWER
+SECTION AUTHORITY
+net. IN SOA a.gtld-servers.net. hostmaster. 2 3 4 5 6
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

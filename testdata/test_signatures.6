@@ -1,0 +1,48 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; ldns-keygen (svn trunk 1.3.0, 15 april 2008)
+; ./ldns-keygen -a DSAMD5 -b 768 nlnetlabs.nl
+; Knlnetlabs.nl.+003+51124
+
+; nlnetlabs.nl.   3600    IN      DS      51124 3 1 6f7e3ea1d525f3428ce342596f7375b1c3a71c51
+; Private-key-format: v1.2
+; Algorithm: 3 (DSA)
+; Prime(p): 1kpY0hU98SJrpDCTKHv9TQyN6EGcY9FJ8bw0QiQdcm3nx3fkS298V9Y7ZRzjCQmkxVwNrwdhtNpz4MvrByHKy+YE/hSJamNhwKHAtiIAHNggqfutGQwUkfqHmybFO8Kx
+; Subprime(q): 3GwgwvHRyOeXNgZqR/5XpaNs6Pc=
+; Base(g): Rw1YckcZ/Es07FYrNV6soRTbcQ5NEDj7ITSUdGSLKRPQT0k4ofR3L8aslTeOJESR2s2sIay/ZHoYmdQuwLZ93HLEq5MooPO19c/GnVkOWZm1Ab9H7zttNcoKgzQ64dhT
+; Private_value(x): OoN8CQisHVjCIET7B3WdAwERRro=
+; Public_value(y): 08zY8i9l5qn1xC829beHq2Hhb8MUIvGHyW+eBchQa4S5XIRwf1rVpnw1iengslp/Y1Kx28/a9GEQbIESQORfxllPV23Uv2OJ3aNV0jP7kI2a7VLVSDSJrCh2wBCFj8tY
+
+; DSA key from ldns tool
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl.	IN DNSKEY
+SECTION ANSWER
+nlnetlabs.nl.   3600    IN      DNSKEY  256 3 3 BNxsIMLx0cjnlzYGakf+V6WjbOj31kpY0hU98SJrpDCTKHv9TQyN6EGcY9FJ8bw0QiQdcm3nx3fkS298V9Y7ZRzjCQmkxVwNrwdhtNpz4MvrByHKy+YE/hSJamNhwKHAtiIAHNggqfutGQwUkfqHmybFO8KxRw1YckcZ/Es07FYrNV6soRTbcQ5NEDj7ITSUdGSLKRPQT0k4ofR3L8aslTeOJESR2s2sIay/ZHoYmdQuwLZ93HLEq5MooPO19c/GnVkOWZm1Ab9H7zttNcoKgzQ64dhT08zY8i9l5qn1xC829beHq2Hhb8MUIvGHyW+eBchQa4S5XIRwf1rVpnw1iengslp/Y1Kx28/a9GEQbIESQORfxllPV23Uv2OJ3aNV0jP7kI2a7VLVSDSJrCh2wBCFj8tY ;{id = 51124 (zsk), size = 768b}
+ENTRY_END
+
+; entry to test
+; from
+; ldns-signzone nlnetlabs.nl Knlnetlabs.nl.+003+51124
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN SOA
+SECTION ANSWER
+nlnetlabs.nl.   10200   IN SOA  open.nlnetlabs.nl. hostmaster.nlnetlabs.nl. ( 2008040100 28800      7200       604800     3600       )
+nlnetlabs.nl.   10200   IN      RRSIG   SOA 3 2 10200 20080513174626 20080415174626 51124 nlnetlabs.nl. MC0CFB3cRDHQROzkGp4NtLNc4jDA1lhWAhUAgsbb8VMxGqifShEzuCNgczxDHHg= ;{id = 51124}
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN NS
+SECTION ANSWER
+nlnetlabs.nl. 10200   NS      omval.tednet.nl.
+nlnetlabs.nl. 10200   NS      ns7.domain-registry.nl.
+nlnetlabs.nl. 10200 NS      open.nlnetlabs.nl.
+nlnetlabs.nl.   10200   IN      RRSIG   NS 3 2 10200 20080513174626 20080415174626 51124 nlnetlabs.nl. MCwCFEzgEjT0n/ooV/xZkRMzKNqeF4pkAhQxEPFtMt5LbIlsi9mSi0HS4+RZuA== ;{id = 51124}
+
+ENTRY_END
+

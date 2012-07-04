@@ -1,0 +1,143 @@
+; config options
+server:
+        trust-anchor: "example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm 3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )"
+	val-override-date: "20120420235959"
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test validator NSEC3 B.1 name error without nc NSEC3.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN A
+SECTION AUTHORITY
+example.	IN NS	ns1.example.
+; leave out to make unbound take ns1
+;example.	IN NS	ns2.example.
+SECTION ADDITIONAL
+ns1.example.	IN A 192.0.2.1
+; leave out to make unbound take ns1
+;ns2.example.	IN A 192.0.2.2
+ENTRY_END
+RANGE_END
+
+; ns1.example.
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.2.1
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+ns1.example. IN A
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+ns1.example. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+example. IN NS
+SECTION ANSWER
+ENTRY_END
+
+; response to DNSKEY priming query
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN DNSKEY
+SECTION ANSWER
+example. DNSKEY  256 3 7 AwEAAaetidLzsKWUt4swWR8yu0wPHPiUi8LU ( sAD0QPWU+wzt89ep O6tHzkMBVDkC7qphQO2h TY4hHn9npWFRw5BYubE= )
+example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8 Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )
+example. RRSIG   DNSKEY 7 1 3600 20150420235959 ( 20051021000000 12708 example.  AuU4juU9RaxescSmStrQks3Gh9FblGBlVU31 uzMZ/U/FpsUb8aC6QZS+sTsJXnLnz7flGOsm MGQZf 3bH+QsCtg== )
+
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA DO NXDOMAIN
+SECTION QUESTION
+a.c.x.w.example. IN A
+SECTION AUTHORITY
+example.       SOA     ns1.example. bugs.x.w.example. 1 3600 300 ( 3600000 3600 )
+example.        RRSIG   SOA 7 1 3600 20150420235959 20051021000000 ( 40430 example.  Hu25UIyNPmvPIVBrldN+9Mlp9Zql39qaUd8i q4ZLlYWfUUbbAS41pG+68z81q1xhkYAcEyHd V I2LmKusbZsT0Q== )
+
+;; NSEC3 RR that covers the "next closer" name (c.x.w.example)
+;; H(c.x.w.example) = 0va5bpr2ou0vk0lbqeeljri88laipsfh
+
+;0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd ( 2t7b4g4vsa5smi 47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+;0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  OSgWSm26B+cS+dDL8b5QrWr/dEWhtCsKlwKL IBHYH6blRx K9rC0bMJPwQ4mLIuw85H2EY762 BOCXJZMnpuwhpA== )
+
+;; NSEC3 RR that matches the closest encloser (x.w.example)
+;; H(x.w.example) = b4um86eghhds6nea196smvmlo4ors995
+
+b4um86eghhds6nea196smvmlo4ors995.example. NSEC3 1 1 12 aabbccdd ( gjeqe526plbf1g8mklp59enfd789njgi MX RRSIG )
+b4um86eghhds6nea196smvmlo4ors995.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  ZkPG3M32lmoHM6pa3D6gZFGB/rhL//Bs3Omh 5u4m/CUi wtblEVOaAKKZd7S959OeiX43aLX3 pOv0TSTyiTxIZg== )
+
+;; NSEC3 RR that covers wildcard at the closest encloser (*.x.w.example)
+;; H(*.x.w.example) = 92pqneegtaue7pjatc3l3qnk738c6v5m
+
+35mthgpgcu1qg68fab165klnsnk3dpvl.example. NSEC3 1 1 12 aabbccdd ( b4um86eghhds6nea196smvmlo4ors995 NS DS RRSIG )
+35mthgpgcu1qg68fab165klnsnk3dpvl.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  g6jPUUpduAJKRljUsN8gB4UagAX0NxY9shwQ Aynzo8EUWH +z6hEIBlUTPGj15eZll6VhQqgZ XtAIR3chwgW+SA== )
+
+SECTION ADDITIONAL
+ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.c.x.w.example. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+a.c.x.w.example. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

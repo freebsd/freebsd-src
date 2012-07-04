@@ -1,0 +1,123 @@
+; This is a comment.
+; config options go here.
+forward-zone: name: "." forward-addr: 216.0.0.1
+CONFIG_END
+
+SCENARIO_BEGIN RRset is updated from other message that passes by.
+
+STEP 1 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+	www.example.com. IN A
+ENTRY_END
+; the query is sent to the forwarder - no cache yet.
+STEP 2 CHECK_OUT_QUERY
+ENTRY_BEGIN
+	MATCH qname qtype opcode
+	SECTION QUESTION
+	www.example.com. IN A
+ENTRY_END
+STEP 3 REPLY
+ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	; authoritative answer
+	REPLY QR AA RD RA NOERROR
+	SECTION QUESTION
+	www.example.com. IN A
+	SECTION ANSWER
+	www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+	example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+	ns.example.com. IN A 10.20.30.50
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all 
+	REPLY QR RD RA
+	SECTION QUESTION
+	www.example.com. IN A
+	SECTION ANSWER
+	www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+	example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+	ns.example.com. IN A 10.20.30.50
+ENTRY_END
+
+; another query passes along
+STEP 6 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+	bla.example.com. IN A
+ENTRY_END
+STEP 7 CHECK_OUT_QUERY
+ENTRY_BEGIN
+	MATCH qname qtype opcode
+	SECTION QUESTION
+	bla.example.com. IN A
+ENTRY_END
+STEP 8 REPLY
+; This answer has updated information on ns2.example.com.
+ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	; authoritative answer
+	REPLY QR AA RD RA NOERROR
+	SECTION QUESTION
+	bla.example.com. IN A
+	SECTION ANSWER
+	bla.example.com. IN A 10.20.30.140
+	SECTION AUTHORITY
+	example.com. IN NS ns.example.com.
+	example.com. IN NS ns2.example.com.
+	SECTION ADDITIONAL
+	ns.example.com. IN A 10.20.30.50
+	ns2.example.com. IN A 10.20.30.53
+ENTRY_END
+STEP 9 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all 
+	REPLY QR RD RA
+	SECTION QUESTION
+	bla.example.com. IN A
+	SECTION ANSWER
+	bla.example.com. IN A 10.20.30.140
+	SECTION AUTHORITY
+	example.com. IN NS ns.example.com.
+	example.com. IN NS ns2.example.com.
+	SECTION ADDITIONAL
+	ns.example.com. IN A 10.20.30.50
+	ns2.example.com. IN A 10.20.30.53
+ENTRY_END
+
+
+; original www.example.com query 
+STEP 10 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+	www.example.com. IN A
+ENTRY_END
+; immediate answer without an OUT_QUERY happening (checked on exit)
+; also, the answer does not have AA set
+; NS rrset has been updated.
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all
+	REPLY QR RD RA
+	SECTION QUESTION
+	www.example.com. IN A
+	SECTION ANSWER
+	www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+	example.com. IN NS ns.example.com.
+	example.com. IN NS ns2.example.com.
+	SECTION ADDITIONAL
+	ns.example.com. IN A 10.20.30.50
+ENTRY_END
+
+SCENARIO_END

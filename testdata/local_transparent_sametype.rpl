@@ -1,0 +1,78 @@
+; config options
+; The island of trust is at example.com
+server:
+	local-zone: "example.com." transparent
+	local-data: "mail.example.com. IN A 10.20.30.40"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test local data with transparent zone queried for types
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+mail.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+. IN SOA invalid. invalid. 1 2 3 4 5
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+mail.example.com. IN A
+ENTRY_END
+; get straight answer from localdata
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA NOERROR
+SECTION QUESTION
+mail.example.com. IN A
+SECTION ANSWER
+mail.example.com. IN A 10.20.30.40
+SECTION AUTHORITY
+ENTRY_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+mail.example.com. IN AAAA
+ENTRY_END
+; must be NOERROR/NODATA because of A record, not NXDOMAIN from internet.
+
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA NOERROR
+SECTION QUESTION
+mail.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+ENTRY_END
+
+SCENARIO_END

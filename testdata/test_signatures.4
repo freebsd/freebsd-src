@@ -1,0 +1,47 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; dnssec-keygen 9.4.2: /usr/sbin/dnssec-keygen -a DSA -b 768 -n ZONE nlnetlabs.nl
+; Knlnetlabs.nl.+003+03793
+
+; private key file
+; Private-key-format: v1.2
+; Algorithm: 3 (DSA)
+; Prime(p): lHKDKRMhV1yBk/gXk3IL29jkPwWwOqEskebo/hC0ieobdQkeuf9B3AgzCdn2hQOWVGoIMWyxChhqHVLwnQzUGY/uAhTZgSXBG47eHZC+Pj1hgX9tkB+9kzoK5jKhstR9
+; Subprime(q): 6u+5FI/H5WmwyTPWB5K0LjegVb0=
+; Base(g): hWj33Fnu7b9vhIriw6nXnJKpeus9pffjSaKzVJBNnlWTMXbo3+w3rObnJlbkVLfRsY4F8boWn1EbUUHCaRIW3bsqziE739S8HBJDDwxYx85n0xRqkg0djWoCG2e4uv4o
+; Private_value(x): xSLjPW1PE6twDgObqfkUk6EXO+g=
+; Public_value(y): ORFJhDQMHGQNdWXlh05vAJJ8Fqm6u+72qsIY2pnSgWL7vQIL6sKKJL14oIVJbsZW9FIjQCFpqe19leUdzUDQa9AxB8WSRAzmh4S6tWkmbAGpUjoAUJSLtqV1NgvH8ESg
+
+
+; DSA key from bind tool 9.4.2
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl.	IN DNSKEY
+SECTION ANSWER
+nlnetlabs.nl. IN DNSKEY 256 3 3 BOrvuRSPx+VpsMkz1geStC43oFW9lHKDKRMhV1yBk/gXk3IL29jkPwWw OqEskebo/hC0ieobdQkeuf9B3AgzCdn2hQOWVGoIMWyxChhqHVLwnQzU GY/uAhTZgSXBG47eHZC+Pj1hgX9tkB+9kzoK5jKhstR9hWj33Fnu7b9v hIriw6nXnJKpeus9pffjSaKzVJBNnlWTMXbo3+w3rObnJlbkVLfRsY4F 8boWn1EbUUHCaRIW3bsqziE739S8HBJDDwxYx85n0xRqkg0djWoCG2e4 uv4oORFJhDQMHGQNdWXlh05vAJJ8Fqm6u+72qsIY2pnSgWL7vQIL6sKK JL14oIVJbsZW9FIjQCFpqe19leUdzUDQa9AxB8WSRAzmh4S6tWkmbAGp UjoAUJSLtqV1NgvH8ESg
+ENTRY_END
+
+; entry to test
+; from
+; /usr/sbin/dnssec-signzone nlnetlabs.nl
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN SOA
+SECTION ANSWER
+nlnetlabs.nl.   10200   IN SOA  open.nlnetlabs.nl. hostmaster.nlnetlabs.nl. ( 2008040100 28800      7200       604800     3600       )
+nlnetlabs.nl.                         10200   RRSIG   SOA 3 2 10200 20080515133546 ( 20080415133546 3793 nlnetlabs.nl.  BHMt1eWN8HzfFOqrqL1PrsED43JVCrybDYL1 GJXymKlkWRAjar0wT6o= )
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl. IN NS
+SECTION ANSWER
+nlnetlabs.nl. 10200   NS      omval.tednet.nl.
+nlnetlabs.nl. 10200   NS      ns7.domain-registry.nl.
+nlnetlabs.nl. 10200 NS      open.nlnetlabs.nl.
+nlnetlabs.nl. 10200   RRSIG   NS 3 2 10200 20080515133546 ( 20080415133546 3793 nlnetlabs.nl.  BJZaThgkBaF3k6t2q+tr0ngKcF2EntSOn9gX Ut9Xipj3CdioZl8b0cY= )
+ENTRY_END
+

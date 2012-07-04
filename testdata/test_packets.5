@@ -1,0 +1,70 @@
+; Hand made test packets.
+; By Wouter Wijngaards.
+; These DNS packets contain interesting compression cases.
+; 
+;-- next packet --
+; 0. A valid packet (handmade)
+; id flags qd  an   ns  ar   -- header
+4242 0000 0001 0001 0000 0000
+; query: qname example.com. qtype A(1) qclass IN(1)
+07 6578616d706c65 03 636f6d 00 0001 0001
+; answer: example.com          type class ttl rdatalen 10.x address.
+07 6578616d706c65 03 636f6d 00 0001 0001  00000101 0004 0a203040
+
+;-- next packet --
+; 0b. correct compression from answer to query.
+4242 0000 0001 0001 0000 0000
+07 6578616d706c65 03 636f6d 00 0001 0001
+c00c 0001 0001  00000101 0004 0a203040
+
+;-- next packet --
+; 1. Compression from query to answer.
+4242 0000 0001 0001 0000 0000
+c012 0001 0001
+07 6578616d706c65 03 636f6d 00 0001 0001  00000101 0004 0a203040
+
+;-- next packet --
+; 2. Compression loop answer 1 to answer 2.
+4242 0000 0001 0002 0000 0000
+07 6578616d706c65 03 636f6d 00 0001 0001
+c02d 0001 0001  00000101 0004 0a203040
+07 6578616d706c65 03 636f6d 00 0001 0001  00000101 0004 0a203050
+
+;-- next packet --
+; 2b. Compression loop answer 2 to answer 1.
+4242 0000 0001 0002 0000 0000
+07 6578616d706c65 03 636f6d 00 0001 0001
+07 6578616d706c65 03 636f6d 00 0001 0001  00000101 0004 0a203050
+c01d 0001 0001  00000101 0004 0a203040
+
+;-- next packet --
+; 3. Compression loop to self (in answer section).
+4242 0000 0001 0001 0000 0000
+07 6578616d706c65 03 636f6d 00 0001 0001
+c01d 0001 0001  00000101 0004 0a203040
+
+;-- next packet --
+; 4. bad compression pointer - to header.
+4242 0000 0001 0001 0000 0000
+07 6578616d706c65 03 636f6d 00 0001 0001
+c004 0001 0001  00000101 0004 0a203040
+
+;-- next packet --
+; 5. bad compression pointer - exceeds packet.
+4242 0000 0001 0001 0000 0000
+07 6578616d706c65 03 636f6d 00 0001 0001
+c0bb 0001 0001  00000101 0004 0a203040
+
+;-- next packet --
+; 6. double OPT record.
+; id flags qd  an   ns  ar   -- header
+4242 0000 0001 0001 0000 0002
+; query: qname example.com. qtype A(1) qclass IN(1)
+07 6578616d706c65 03 636f6d 00 0001 0001
+; answer: example.com          type class ttl rdatalen 10.x address.
+07 6578616d706c65 03 636f6d 00 0001 0001  00000101 0004 0a203040
+; additional:  .               OPT  4096     
+00                             0029 1000  00000000 0000
+; additional:  .               OPT  4096     
+00                             0029 1000  00000001 0000
+
