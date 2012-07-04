@@ -169,9 +169,9 @@ static const char * const db_Grp15[] = {
 	"fxrstor",
 	"ldmxcsr",
 	"stmxcsr",
-	"",
-	"",
-	"",
+	"xsave",
+	"xrstor",
+	"xsaveopt",
 	"clflush"
 };
 
@@ -1279,8 +1279,23 @@ db_disasm(loc, altfmt)
 			i_size = NONE;
 			i_mode = 0;
 			break;
+		case 0xd0:
+			i_name = "xgetbv";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xd1:
+			i_name = "xsetbv";
+			i_size = NONE;
+			i_mode = 0;
+			break;
 		case 0xf8:
 			i_name = "swapgs";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xf9:
+			i_name = "rdtscp";
 			i_size = NONE;
 			i_mode = 0;
 			break;
