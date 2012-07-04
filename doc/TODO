@@ -1,0 +1,22 @@
+TODO
+
+Features:
+* Multi-line zone file parsing
+* Configure option for not printing DNSSEC RR comments
+* HMAC and MD5 without OpenSSL
+* HIP RR support
+* Parse 'search' attribute in /etc/resolv.conf
+* Make use of automake (Bug #173)
+* ./configure --with-tools --with-drill (Bug #264)
+* Drill: print appropriate DS RRs (relates to Bug #355)
+* ldns-signzone optout to be really optout
+* Compression when generating wireformat. Preferably with a configurable 
+  policy: refer only backwards, case sensitivity, only refer to other owner 
+  names, etc.
+
+Bugfixes:
+* Bug #279: fix return values for net.h functions, and related: make return
+  values for functions that cannot return memory-failure today. Needs medium
+  version increase because of API change.
+* Long out-standing packaging bugs (debian)
+* Lazy ABI
