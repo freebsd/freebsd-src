@@ -24,8 +24,7 @@ SRCS+=	load_elf64.c reloc_elf64.c
 SRCS+=	dev_net.c
 .endif
 
-.if !defined(LOADER_NO_DISK_SUPPORT) ||
-    (defined(LOADER_DISK_SUPPORT) && ${LOADER_DISK_SUPPORT} != "no")
+.if !defined(LOADER_NO_DISK_SUPPORT)
 SRCS+=	disk.c part.c
 CFLAGS+= -DLOADER_DISK_SUPPORT
 .if !defined(LOADER_NO_GPT_SUPPORT)
