@@ -102,6 +102,17 @@ The same as the positive-policy, but this one is applied to the negative
 elements of the given
 .Ar cachename .
 The default policy is fifo.
+.It Va negative-confidence-threshold Oo Ar cachename Oc Op Ar value
+The number of times a query must have failed before the cache accepts
+that the element can not be found.
+At the default value of 1 each negative query result is cached and 
+immediately returned from the cache on further queries.
+Higher numbers cause queries to be retried at the configured data 
+sources the given number of times, before the negative result is 
+returned from the cache on further queries.
+This allows to probe for the existence of an entry, and then to create 
+it if it did not exist, without the negative probe result preventing 
+access to the new entry for the duration of the negative TTL.
 .It Va suggested-size Oo Ar cachename Oc Op Ar value
 This is the internal hash table size.
 The value should be a prime number for optimum performance.
