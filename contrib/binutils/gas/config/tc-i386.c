@@ -517,7 +517,9 @@ static const arch_entry cpu_arch[] =
   {".sse4a", PROCESSOR_UNKNOWN,
    CpuMMX|CpuMMX2|CpuSSE|CpuSSE2|CpuSSE3|CpuSSE4a},
   {".abm", PROCESSOR_UNKNOWN,
-   CpuABM}
+   CpuABM},
+  {".xsave", PROCESSOR_UNKNOWN,
+   CpuXSAVE}
 };
 
 const pseudo_typeS md_pseudo_table[] =
