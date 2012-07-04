@@ -113,11 +113,13 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 	case DEVT_NONE:
 		break;
 
+#ifdef LOADER_DISK_SUPPORT
 	case DEVT_DISK:
 		err = disk_parsedev((struct disk_devdesc *)idev, np, path);
 		if (err != 0)
 			goto fail;
 		break;
+#endif
 
 	case DEVT_NET:
 		unit = 0;
@@ -171,7 +173,9 @@ uboot_fmtdev(void *vdev)
 		break;
 
 	case DEVT_DISK:
+#ifdef LOADER_DISK_SUPPORT
 		return (disk_fmtdev(vdev));
+#endif
 
 	case DEVT_NET:
 		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);

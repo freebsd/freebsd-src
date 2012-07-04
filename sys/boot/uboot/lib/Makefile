@@ -7,7 +7,7 @@ INTERNALLIB=
 WARNS?=		2
 
 SRCS=	crc32.c console.c copy.c devicename.c elf_freebsd.c glue.c
-SRCS+=	module.c net.c reboot.c storage.c time.c
+SRCS+=	module.c net.c reboot.c time.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 
@@ -18,6 +18,11 @@ CFLAGS+=	-I${.CURDIR}/../../../../sys/contrib/libfdt/
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+
+.if !defined(LOADER_NO_DISK_SUPPORT)
+SRCS+=	storage.c
+CFLAGS+= -DLOADER_DISK_SUPPORT
+.endif
 
 .ifdef(BOOT_DISK_DEBUG)
 # Make the disk code more talkative
