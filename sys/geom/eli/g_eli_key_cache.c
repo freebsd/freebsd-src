@@ -200,7 +200,7 @@ g_eli_key_init(struct g_eli_softc *sc)
 			bcopy(mkey, sc->sc_ekey, G_ELI_DATAKEYLEN);
 		else {
 			/*
-			 * The encryption key is: ekey = HMAC_SHA512(Master-Key, 0x10)
+			 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
 			 */
 			g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1,
 			    sc->sc_ekey, 0);
