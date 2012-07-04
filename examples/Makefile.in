@@ -1,0 +1,182 @@
+# Standard installation pathnames
+# See the file LICENSE for the license
+SHELL = @SHELL@
+VERSION = @PACKAGE_VERSION@
+basesrcdir = $(shell basename `pwd`)
+srcdir = @srcdir@
+prefix  = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+mandir = @mandir@
+libtool = @libtool@
+
+CC = @CC@
+CFLAGS = -I. -I${srcdir} @CFLAGS@
+CPPFLAGS = @CPPFLAGS@ 
+LDFLAGS = @LDFLAGS@
+LIBNSL_LIBS = @LIBNSL_LIBS@
+LIBSSL_CPPFLAGS = @LIBSSL_CPPFLAGS@
+LIBSSL_LDFLAGS = @LIBSSL_LDFLAGS@
+LIBSSL_LIBS = @LIBSSL_LIBS@
+LIBS = @LIBS@
+RUNTIME_PATH = @RUNTIME_PATH@
+LDNSDIR = @LDNSDIR@
+
+INSTALL = $(srcdir)/../install-sh 
+
+COMPILE         = $(CC) $(CPPFLAGS) $(LIBSSL_CPPFLAGS) $(CFLAGS)
+LINK		= $(libtool) --tag=CC --quiet --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $(RUNTIME_PATH)
+LINK_STATIC	= $(libtool) --tag=CC --quiet --mode=link $(CC) $(CFLAGS) -static $(LDFLAGS) $(LIBS) $(RUNTIME_PATH)
+
+LINT		= splint
+LINTFLAGS=+quiet -weak -warnposix -unrecog -Din_addr_t=uint32_t -Du_int=unsigned -Du_char=uint8_t -preproc -Drlimit=rlimit64 -D__gnuc_va_list=va_list
+#-Dglob64=glob -Dglobfree64=globfree
+# compat with openssl linux edition.
+LINTFLAGS+="-DBN_ULONG=unsigned long" -Dkrb5_int32=int "-Dkrb5_ui_4=unsigned int" -DPQ_64BIT=uint64_t -DRC4_INT=unsigned -fixedformalarray -D"ENGINE=unsigned" -D"RSA=unsigned" -D"DSA=unsigned" -D"EVP_PKEY=unsigned" -D"EVP_MD=unsigned" -D"SSL=unsigned" -D"SSL_CTX=unsigned" -D"X509=unsigned" -D"RC4_KEY=unsigned" -D"EVP_MD_CTX=unsigned"
+# compat with NetBSD
+ifeq "$(shell uname)" "NetBSD"
+LINTFLAGS+="-D__RENAME(x)=" -D_NETINET_IN_H_
+endif
+# compat with OpenBSD
+LINTFLAGS+="-Dsigset_t=long"
+# FreeBSD8
+LINTFLAGS+="-D__uint16_t=uint16_t"
+LINTFLAGS+=-D__signed__=signed "-D__packed=" "-D__aligned(x)="
+# Ubuntu 11.04
+LINTFLAGS+="-D__u16=struct __u16" "-D__u32=struct __u32" "-D__u64=struct __u64"
+
+HEADER		= config.h
+MAIN_SOURCES = ldns-read-zone.c \
+		  ldns-mx.c \
+		  ldns-chaos.c \
+		  ldns-update.c \
+		  ldns-keygen.c \
+		  ldns-key2ds.c \
+		  ldns-version.c \
+		  ldns-rrsig.c \
+		  ldns-walk.c \
+		  ldns-zsplit.c \
+		  ldns-zcat.c \
+		  ldns-dpa.c \
+		  ldns-resolver.c \
+		  ldns-test-edns.c \
+		  ldns-keyfetcher.c \
+		  ldns-notify.c \
+		  ldns-testns.c \
+		  ldns-compare-zones.c \
+		  ldns-gen-zone.c \
+		  ldnsd.c
+
+MAIN_SSL_SOURCES = ldns-signzone.c \
+		  ldns-verify-zone.c \
+		  ldns-revoke.c \
+		  ldns-nsec3-hash.c
+
+OTHER_SOURCES = ldns-testpkts.c
+
+PROGRAMS=$(MAIN_SOURCES:.c=)
+SSL_PROGRAMS=$(MAIN_SSL_SOURCES:.c=)
+
+.PHONY:	all clean realclean all-static
+.SECONDARY: $(MAIN_SOURCES:.c=.o) $(OTHER_SOURCES:.c=.o) $(MAIN_SSL_SOURCES:.c=.o)
+
+all:	$(addsuffix .prg,$(PROGRAMS)) $(addsuffix .prg-ssl,$(SSL_PROGRAMS))
+
+all-static: $(addsuffix .stc,$(PROGRAMS)) $(addsuffix .stc-ssl,$(SSL_PROGRAMS))
+
+%.o:    $(srcdir)/%.c
+	$(COMPILE) -o $@ -c $<
+
+# ldns-testns uses more sources.
+ldns-testns.o: $(srcdir)/ldns-testns.c $(srcdir)/ldns-testpkts.c $(srcdir)/ldns-testpkts.h
+ldns-testns.prg: ldns-testpkts.o
+ldns-testns.stc: ldns-testpkts.o
+
+ldnsd.prg: ldnsd.o
+	@if test ! -f $(@:.prg=) -o $< -nt $(@:.prg=); then \
+	echo $(LINK) $(LIBNSL_LIBS) -o $(@:.prg=) $^ ; \
+	$(LINK) $(LIBNSL_LIBS) -o $(@:.prg=) $^ ; \
+	fi
+
+ldnsd.stc: ldnsd.o
+	@if test ! -f $@ -o $< -nt $@; then \
+	echo $(LINK_STATIC) $(LIBNSL_LDFLAGS) -o $@ $^ ; \
+	$(LINK_STATIC) $(LIBNSL_LDFLAGS) -o $@ $^ ; \
+	fi
+
+%.prg-ssl: %.o
+	@if test ! -f $(@:.prg-ssl=) -o $< -nt $(@:.prg-ssl=); then \
+	echo $(LINK) $(LIBNSL_LIBS) $(LIBSSL_LDFLAGS) $(LIBSSL_LIBS) -o $(@:.prg-ssl=) $^ ; \
+	$(LINK) $(LIBNSL_LIBS) $(LIBSSL_LDFLAGS) $(LIBSSL_LIBS) -o $(@:.prg-ssl=) $^ ; \
+	fi
+
+%.stc-ssl: %.o
+	@if test ! -f $@ -o $< -nt $@; then \
+	echo $(LINK_STATIC) $(LIBNSL_LIBS) $(LIBSSL_LDFLAGS) $(LIBSSL_LIBS) -o $@ $^ ; \
+	$(LINK_STATIC) $(LIBNSL_LIBS) $(LIBSSL_LDFLAGS) $(LIBSSL_LIBS) -o $@ $^ ; \
+	fi
+
+%.prg:  %.o
+	@if test ! -f $(@:.prg=) -o $< -nt $(@:.prg=); then \
+	echo $(LINK) -o $(@:.prg=) $^ ; \
+	$(LINK) -o $(@:.prg=) $^ ; \
+	fi
+
+%.stc:	%.o
+	@if test ! -f $@ -o $< -nt $@; then \
+	echo $(LINK_STATIC) -o $@ $^ ; \
+	$(LINK_STATIC) -o $@ $^ ; \
+	fi
+
+lint:
+	for i in $(MAIN_SOURCES) $(OTHER_SOURCES); do \
+		$(LINT) $(LINTFLAGS) -I. -I$(srcdir) $(srcdir)/$$i $(CPPFLAGS); \
+		if [ $$? -ne 0 ] ; then exit 1 ; fi ; \
+	done
+
+clean:
+	rm -f *.o *.lo 
+	rm -rf .libs
+	rm -f $(PROGRAMS) $(SSL_PROGRAMS)
+	rm -f $(addsuffix .stc,$(PROGRAMS)) $(addsuffix .stc-ssl,$(SSL_PROGRAMS))
+
+realclean: clean
+	rm -rf autom4te.cache/
+	rm -f config.log config.status aclocal.m4 config.h.in configure Makefile
+	rm -f config.h
+
+confclean: clean
+	rm -rf config.log config.status config.h Makefile
+
+install:	$(PROGRAMS) $(SSL_PROGRAMS)
+		$(INSTALL) -d -m 755 $(DESTDIR)$(bindir)
+		$(INSTALL) -d -m 755 $(DESTDIR)$(mandir)
+		$(INSTALL) -d -m 755 $(DESTDIR)$(mandir)/man1
+		for i in $(PROGRAMS) $(SSL_PROGRAMS); do \
+			$(libtool) --tag=CC --mode=install ${INSTALL} -c $$i $(DESTDIR)$(bindir) ; \
+			$(INSTALL) -c -m 644 $(srcdir)/$$i.1 $(DESTDIR)$(mandir)/man1/$$i.1 ; \
+			done
+		exit 0
+
+install-static:	all-static
+		$(INSTALL) -d -m 755 $(DESTDIR)$(bindir)
+		$(INSTALL) -d -m 755 $(DESTDIR)$(mandir)
+		$(INSTALL) -d -m 755 $(DESTDIR)$(mandir)/man1
+		for i in $(PROGRAMS); do \
+			$(libtool) --tag=CC --mode=install ${INSTALL} -c $$i.stc $(DESTDIR)$(bindir) ; \
+			$(INSTALL) -c -m 644 $(srcdir)/$$i.1 $(DESTDIR)$(mandir)/man1/$$i.1 ; \
+			done
+		for i in $(SSL_PROGRAMS); do \
+			$(libtool) --tag=CC --mode=install ${INSTALL} -c $$i.stc-ssl $(DESTDIR)$(bindir) ; \
+			$(INSTALL) -c -m 644 $(srcdir)/$$i.1 $(DESTDIR)$(mandir)/man1/$$i.1 ; \
+			done
+		exit 0
+
+uninstall:
+		for i in $(PROGRAMS) $(SSL_PROGRAMS); do \
+			rm -f $(DESTDIR)$(bindir)/$$i ; \
+			rm -f $(DESTDIR)$(mandir)/man1/$$i.1 ; \
+			done
+		exit 0
+		rmdir -p $(DESTDIR)$(bindir)
+		rmdir -p $(DESTDIR)$(mandir)
