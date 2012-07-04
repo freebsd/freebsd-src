@@ -73,7 +73,7 @@ display_size(uint64_t size, u_int sectorsize)
 		size /= 1024;
 		unit = 'M';
 	}
-	sprintf(buf, "%.6ld%cB", (long)size, unit);
+	sprintf(buf, "%ld%cB", (long)size, unit);
 	return (buf);
 }
 
@@ -89,6 +89,7 @@ ptblread(void *d, void *buf, size_t blocks, off_t offset)
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
+#define	PWIDTH	35
 static void
 ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 {
@@ -99,9 +100,13 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 
 	pa = (struct print_args *)arg;
 	od = (struct open_disk *)pa->dev->d_opendata;
-	sprintf(line, "  %s%s: %s %s\n", pa->prefix, pname,
-	    parttype2str(part->type), pa->verbose == 0 ? "":
-	    display_size(part->end - part->start + 1, od->sectorsize));
+	sprintf(line, "  %s%s: %s", pa->prefix, pname,
+	    parttype2str(part->type));
+	if (pa->verbose)
+		sprintf(line, "%-*s%s", PWIDTH, line,
+		    display_size(part->end - part->start + 1,
+		    od->sectorsize));
+	strcat(line, "\n");
 	pager_output(line);
 	if (part->type == PART_FREEBSD) {
 		/* Open slice with BSD label */
@@ -118,6 +123,7 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 		ptable_close(table);
 	}
 }
+#undef PWIDTH
 
 void
 disk_print(struct disk_devdesc *dev, char *prefix, int verbose)

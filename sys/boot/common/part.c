@@ -88,17 +88,17 @@ static struct parttypes {
 	enum partition_type	type;
 	const char		*desc;
 } ptypes[] = {
-	{ PART_UNKNOWN,		"Unknown      " },
-	{ PART_EFI,		"EFI          " },
-	{ PART_FREEBSD,		"FreeBSD      " },
-	{ PART_FREEBSD_BOOT,	"FreeBSD boot " },
-	{ PART_FREEBSD_UFS,	"FreeBSD UFS  " },
-	{ PART_FREEBSD_ZFS,	"FreeBSD ZFS  " },
-	{ PART_FREEBSD_SWAP,	"FreeBSD swap " },
+	{ PART_UNKNOWN,		"Unknown" },
+	{ PART_EFI,		"EFI" },
+	{ PART_FREEBSD,		"FreeBSD" },
+	{ PART_FREEBSD_BOOT,	"FreeBSD boot" },
+	{ PART_FREEBSD_UFS,	"FreeBSD UFS" },
+	{ PART_FREEBSD_ZFS,	"FreeBSD ZFS" },
+	{ PART_FREEBSD_SWAP,	"FreeBSD swap" },
 	{ PART_FREEBSD_VINUM,	"FreeBSD vinum" },
-	{ PART_LINUX,		"Linux        " },
-	{ PART_LINUX_SWAP,	"Linux swap   " },
-	{ PART_DOS,		"DOS/Windows  " },
+	{ PART_LINUX,		"Linux" },
+	{ PART_LINUX_SWAP,	"Linux swap" },
+	{ PART_DOS,		"DOS/Windows" },
 };
 
 const char *
