@@ -1,0 +1,357 @@
+; config options
+server:
+	hide-identity: no
+	hide-version: no
+	identity: "test-identity"
+	version: "test-version"
+
+	; implicit transparent zone should not block id.server
+	local-data: "mydata.server. CH A 10.11.12.13"
+	local-data: "myd2.server. CH A 10.11.12.14"
+	local-data: 'myd3.server. CH TXT "a text record"'
+	; together implicit CH top domain .server is created transparent.
+
+	; static zone
+	local-zone: "local" static
+	local-data: "local SOA nobody nobody 1 2 3 4 5"
+	local-data: "serv.local. A 20.30.40.50"
+	; multiple RRs in this RRset.
+	local-data: "bla.bla.local. A 20.30.40.51"
+	local-data: "bla.bla.local. A 20.30.40.52"
+	local-data: "bla.bla.local. A 20.30.40.53"
+	
+	; static zone (no soa)
+	local-zone: "noso.local" static
+	local-data: "bla.bla.noso.local AAAA 2001::2"
+
+	; deny zone (no answer)
+	local-zone: "deny.top." deny
+	
+	; refuse zone (error)
+	local-zone: "refuse.top." refuse
+
+	; redirect zone
+	local-zone: "redirect.top." redirect
+	local-data: "redirect.top. A 20.30.40.54"
+
+	; create implicit data in the IN domain as well
+	local-data: "a.a.implicit. A 20.30.41.50"
+	local-data: "b.a.implicit. A 20.30.42.50"
+	local-data: "b.b.implicit. A 20.30.43.50"
+	local-data: "b.c.implicit. A 20.30.45.50"
+	local-data: "c.c.implicit. A 20.30.44.50"
+
+CONFIG_END
+SCENARIO_BEGIN Test local data queries
+
+; id.server.
+STEP 1 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+id.server. CH TXT
+ENTRY_END
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA
+SECTION QUESTION
+id.server. CH TXT
+SECTION ANSWER
+id.server. 0 CH TXT	"test-identity"
+ENTRY_END
+
+; mydata.server.
+STEP 3 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+mydata.server. CH A
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+mydata.server. CH A
+SECTION ANSWER
+mydata.server. 3600 CH A 10.11.12.13
+ENTRY_END
+
+; nodata with SOA
+STEP 5 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+local. IN A
+ENTRY_END
+STEP 6 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+local. IN A
+SECTION AUTHORITY
+local. 3600 IN SOA nobody nobody 1 2 3 4 5
+ENTRY_END
+
+; positive SOA
+STEP 7 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+local. IN SOA
+ENTRY_END
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+local. IN SOA
+SECTION ANSWER
+local. 3600 IN SOA nobody nobody 1 2 3 4 5
+ENTRY_END
+
+; positive subdomain
+STEP 9 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+serv.local. IN A
+ENTRY_END
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+serv.local. IN A
+SECTION ANSWER
+serv.local. IN A 20.30.40.50
+ENTRY_END
+
+; no such type
+STEP 11 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+serv.local. IN MX
+ENTRY_END
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+serv.local. IN MX
+SECTION AUTHORITY
+local. 3600 IN SOA nobody nobody 1 2 3 4 5
+ENTRY_END
+
+; no such type, empty nonterminal
+STEP 13 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+bla.local. IN MX
+ENTRY_END
+STEP 14 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+bla.local. IN MX
+SECTION AUTHORITY
+local. 3600 IN SOA nobody nobody 1 2 3 4 5
+ENTRY_END
+
+; nxdomain with SOA
+STEP 15 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+doing.local. IN MX
+ENTRY_END
+STEP 16 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NXDOMAIN
+SECTION QUESTION
+doing.local. IN MX
+SECTION AUTHORITY
+local. 3600 IN SOA nobody nobody 1 2 3 4 5
+ENTRY_END
+
+; nxdomain without SOA
+STEP 17 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+doing.noso.local. IN MX
+ENTRY_END
+STEP 18 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NXDOMAIN
+SECTION QUESTION
+doing.noso.local. IN MX
+ENTRY_END
+
+; positive multiple RR
+STEP 19 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+bla.bla.local. IN A
+ENTRY_END
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+bla.bla.local. IN A
+SECTION ANSWER
+bla.bla.local. IN A 20.30.40.51
+bla.bla.local. IN A 20.30.40.52
+bla.bla.local. IN A 20.30.40.53
+ENTRY_END
+
+; second implicit transparent zone.
+STEP 21 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+b.b.implicit. IN A
+ENTRY_END
+STEP 22 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+b.b.implicit. IN A
+SECTION ANSWER
+b.b.implicit. 3600 IN A 20.30.43.50
+ENTRY_END
+
+; localhost A default
+STEP 30 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+localhost. IN A
+ENTRY_END
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+localhost. IN A
+SECTION ANSWER
+localhost. 10800 IN A 127.0.0.1
+ENTRY_END
+
+; localhost AAAA default
+STEP 32 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+localhost. IN AAAA
+ENTRY_END
+STEP 33 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+localhost. IN AAAA
+SECTION ANSWER
+localhost. 10800 IN AAAA ::1
+ENTRY_END
+
+; localhost A reverse default
+STEP 34 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+1.0.0.127.in-addr.arpa. IN PTR
+ENTRY_END
+STEP 35 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+1.0.0.127.in-addr.arpa. IN PTR
+SECTION ANSWER
+1.0.0.127.in-addr.arpa. 10800 IN PTR localhost.
+ENTRY_END
+
+; localhost AAAA reverse default
+STEP 36 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. IN PTR
+ENTRY_END
+STEP 37 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. IN PTR
+SECTION ANSWER
+1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. 10800 IN PTR localhost.
+ENTRY_END
+
+; blocked AS112 reverse default
+STEP 38 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+1.0.0.10.in-addr.arpa. IN PTR
+ENTRY_END
+STEP 39 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NXDOMAIN
+SECTION QUESTION
+1.0.0.10.in-addr.arpa. IN PTR
+SECTION AUTHORITY
+10.in-addr.arpa. 10800 IN SOA localhost. nobody.invalid. 1 3600 1200 604800 10800
+ENTRY_END
+
+; refuse zone
+STEP 40 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+www.refuse.top. IN A
+ENTRY_END
+STEP 41 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA REFUSED
+SECTION QUESTION
+www.refuse.top. IN A
+ENTRY_END
+
+; deny zone
+STEP 42 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+www.deny.top. IN A
+ENTRY_END
+; no answer is checked at exit of testbound.
+
+; redirect zone apex
+STEP 50 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+redirect.top. IN A
+ENTRY_END
+STEP 51 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NOERROR
+SECTION QUESTION
+redirect.top. IN A
+SECTION ANSWER
+redirect.top. IN A 20.30.40.54
+ENTRY_END
+
+; redirect zone
+STEP 52 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+www.redirect.top. IN A
+ENTRY_END
+STEP 53 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NOERROR
+SECTION QUESTION
+www.redirect.top. IN A
+SECTION ANSWER
+www.redirect.top. IN A 20.30.40.54
+ENTRY_END
+
+SCENARIO_END

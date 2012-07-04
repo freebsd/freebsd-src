@@ -1,0 +1,110 @@
+; config options go here.
+; This is one forever, one jostle.
+server:
+	num-queries-per-thread: 2
+forward-zone: 
+	name: "." 
+	forward-addr: 216.0.0.1
+CONFIG_END
+SCENARIO_BEGIN Test too many queries asked, last is too recent to be jostled
+
+; fill the forever slot.
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 2 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; NO REPLY (this step is not needed)
+STEP 3 NOTHING
+
+;something enters the jostle slot.
+STEP 4 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.net. IN A
+ENTRY_END
+
+STEP 5 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+www.example.net. IN A
+ENTRY_END
+
+; something else tries to replace the entry in the jostle slot.
+; but the entry in the jostle slot is too recent.
+STEP 6 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.org. IN A
+ENTRY_END
+
+; reply from latest query returns
+STEP 7 REPLY
+ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+www.example.net. IN A
+	SECTION ANSWER
+www.example.net. IN A 10.20.30.42
+	SECTION AUTHORITY
+www.example.net. IN NS ns.example.net.
+	SECTION ADDITIONAL
+ns.example.net. IN A 10.20.30.50
+ENTRY_END
+
+; answer to last query
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+www.example.net. IN A
+SECTION ANSWER
+www.example.net. IN A 10.20.30.42
+ENTRY_END
+
+
+; reply from first query returns
+STEP 10 REPLY
+ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+www.example.com. IN A
+	SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+www.example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+ns.example.com. IN A 10.20.30.50
+ENTRY_END
+
+; answer to first query
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+ENTRY_END
+
+SCENARIO_END
+
+; testbound checks before exit: 
+;  * no more pending queries outstanding.
+;  * and no answers that have not been checked.

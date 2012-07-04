@@ -1,0 +1,181 @@
+; config options
+server:
+	harden-referral-path: no
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+        name: "."
+	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test scrub of CNAME in answer section
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; root prime is sent
+STEP 20 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+. IN NS
+ENTRY_END
+STEP 30 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET. IN A 193.0.14.129
+ENTRY_END
+
+; query sent to root server
+STEP 40 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+STEP 50 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION AUTHORITY
+com. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+; query sent to .com server
+STEP 60 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; STEP 62 CHECK_OUT_QUERY
+; ENTRY_BEGIN
+; MATCH qname qtype opcode
+; SECTION QUESTION
+; com. IN NS
+; ENTRY_END
+; STEP 63 REPLY
+; ENTRY_BEGIN
+; MATCH opcode qtype qname
+; ADJUST copy_id
+; REPLY QR NOERROR
+; SECTION QUESTION
+; com. IN NS
+; SECTION ANSWER
+; com. IN NS a.gtld-servers.net.
+; SECTION ADDITIONAL
+; a.gtld-servers.net. IN A 192.5.6.30
+; ENTRY_END
+
+STEP 70 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+; this query reply has to be scrubbed
+STEP 80 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; STEP 82 CHECK_OUT_QUERY
+; ENTRY_BEGIN
+; MATCH qname qtype opcode
+; SECTION QUESTION
+; example.com. IN NS
+; ENTRY_END
+; STEP 83 REPLY
+; ENTRY_BEGIN
+; MATCH opcode qtype qname
+; ADJUST copy_id
+; REPLY QR NOERROR
+; SECTION QUESTION
+; example.com. IN NS
+; SECTION ANSWER
+; example.com. IN NS ns1.example.com.
+; SECTION ADDITIONAL
+; ns1.example.com. IN A 168.192.2.2
+; ENTRY_END
+
+STEP 90 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN CNAME next.example.com.
+next.example.com. IN A 10.20.30.0
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+; iterator should try again and ask the other nameserver.
+STEP 100 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+next.example.com. IN A
+ENTRY_END
+STEP 110 REPLY
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+next.example.com. IN A
+SECTION ANSWER
+next.example.com. IN A 10.20.30.40
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+; is the final answer correct?
+STEP 200 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN CNAME next.example.com.
+next.example.com. IN A 10.20.30.40
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+SCENARIO_END

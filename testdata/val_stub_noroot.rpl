@@ -1,0 +1,83 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	trust-anchor: "lp0.eu. IN DNSKEY 257 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3"
+	val-override-date: "20100913111500"
+	; the dlv anchor is completely ignored, but here to test that.
+	dlv-anchor: "dlv.isc.org. IN DNSKEY 257 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3"
+
+stub-zone:
+	name: "."
+	stub-addr: 81.187.81.187
+stub-zone:
+        name: "lp0.eu"
+	stub-addr: 81.2.80.65
+	stub-prime: no
+CONFIG_END
+
+SCENARIO_BEGIN Test validation of stub zone without root prime.
+
+; this server does not respond. (for the root)
+RANGE_BEGIN 0 100
+	ADDRESS 81.187.81.187
+ENTRY_BEGIN
+MATCH
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+. IN NS
+ENTRY_END
+RANGE_END
+
+; lp0.eu server
+RANGE_BEGIN 0 100
+	ADDRESS 81.2.80.65
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+lp0.eu. IN DNSKEY
+SECTION ANSWER
+lp0.eu.	3600	IN	DNSKEY	257 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30900 (ksk), size = 512b}
+lp0.eu.	3600	IN	RRSIG	DNSKEY 5 2 3600 20101013111500 20100909111500 30900 lp0.eu. zWYOT1zmB2k7hMl7mke7k1UNp4lDveUxi2EnF0tW++j2/qJopiAAcFHBo2GOo88jHcLWycurf0Qo+YGXfFbpEg== ;{id = 30900}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+proxima.lp0.eu. IN A
+SECTION ANSWER
+proxima.lp0.eu. IN A 81.2.80.65
+proxima.lp0.eu.	3600	IN	RRSIG	A 5 3 3600 20101013111500 20100909111500 30900 lp0.eu. xwS3PLSlxh500pDYh/t6fnLzxQAra6n3nhzk4fVqLzwmneBIfcx4F/vO44wRzXSprz1UbMkVUcruTbQYlLFBEg== ;{id = 30900}
+SECTION AUTHORITY
+lp0.eu. IN NS proxima.lp0.eu.
+lp0.eu.	3600	IN	RRSIG	NS 5 2 3600 20101013111500 20100909111500 30900 lp0.eu. KM7Zfwc1b0Ay8Ezer0ZAERPbmgGzKIrTfZMxzXzSkVx5DWirTtdgPTNVG/y9fkN4tUARNhElN2eb0ufb04Hdgw== ;{id = 30900}
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+proxima.lp0.eu. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD NOERROR
+SECTION QUESTION
+proxima.lp0.eu. IN A
+SECTION ANSWER
+proxima.lp0.eu. IN A 81.2.80.65
+proxima.lp0.eu.	3600	IN	RRSIG	A 5 3 3600 20101013111500 20100909111500 30900 lp0.eu. xwS3PLSlxh500pDYh/t6fnLzxQAra6n3nhzk4fVqLzwmneBIfcx4F/vO44wRzXSprz1UbMkVUcruTbQYlLFBEg== ;{id = 30900}
+SECTION AUTHORITY
+lp0.eu. IN NS proxima.lp0.eu.
+lp0.eu.	3600	IN	RRSIG	NS 5 2 3600 20101013111500 20100909111500 30900 lp0.eu. KM7Zfwc1b0Ay8Ezer0ZAERPbmgGzKIrTfZMxzXzSkVx5DWirTtdgPTNVG/y9fkN4tUARNhElN2eb0ufb04Hdgw== ;{id = 30900}
+ENTRY_END
+
+SCENARIO_END

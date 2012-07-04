@@ -1,0 +1,132 @@
+; config options
+server:
+	trust-anchor: "example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )"
+	val-override-date: "20120420235959"
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test validator NSEC3 B.2.1 no data empty nonterminal, wrong rr.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN A
+SECTION AUTHORITY
+example.	IN NS	ns1.example.
+; leave out to make unbound take ns1
+;example.	IN NS	ns2.example.
+SECTION ADDITIONAL
+ns1.example.	IN A 192.0.2.1
+; leave out to make unbound take ns1
+;ns2.example.	IN A 192.0.2.2
+ENTRY_END
+RANGE_END
+
+; ns1.example.
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.2.1
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+ns1.example. IN A
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+ns1.example. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+example. IN NS
+SECTION ANSWER
+ENTRY_END
+
+; response to DNSKEY priming query
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN DNSKEY
+SECTION ANSWER
+example. DNSKEY  256 3 7 AwEAAaetidLzsKWUt4swWR8yu0wPHPiUi8LU ( sAD0QPWU+wzt89epO6tHzkMBVDkC7qphQO2h TY4hHn9npWFRw5BYubE= )
+example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )
+example. RRSIG   DNSKEY 7 1 3600 20150420235959 ( 20051021000000 12708 example.  AuU4juU9RaxescSmStrQks3Gh9FblGBlVU31 uzMZ/U/FpsUb8aC6QZS+sTsJXnLnz7flGOsm MGQZf3bH+QsCtg== )
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA DO NOERROR
+SECTION QUESTION
+y.w.example.        IN A
+SECTION AUTHORITY
+example.       SOA     ns1.example. bugs.x.w.example. 1 3600 300 ( 3600000 3600 )
+example.        RRSIG   SOA 7 1 3600 20150420235959 20051021000000 ( 40430 example.  Hu25UIyNPmvPIVBrldN+9Mlp9Zql39qaUd8i q4ZLlYWfUUbbAS41pG+68z81q1xhkYAcEyHd VI2LmKusbZsT0Q== )
+
+;; NSEC3 RR matches the QNAME and shows that the A type bit is not set.
+;ji6neoaepv8b5o6k4ev33abha8ht9fgc.example. NSEC3 1 1 12 aabbccdd ( k8udemvp1j2f7eg6jebps17vp3n8i58h )
+;ji6neoaepv8b5o6k4ev33abha8ht9fgc.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  gPkFp1s2QDQ6wQzcg1uSebZ61W33rUBDcTj7 2F3kQ490fEdp7k1BUIfbcZtPbX3YCpE+sIt0 MpzVSKfTwx4uYA== )
+
+; instead the wrong NSEC3 rr is included
+35mthgpgcu1qg68fab165klnsnk3dpvl.example. NSEC3 1 1 12 aabbccdd ( b4um86eghhds6nea196smvmlo4ors995 NS DS RRSIG )
+35mthgpgcu1qg68fab165klnsnk3dpvl.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  g6jPUUpduAJKRljUsN8gB4UagAX0NxY9shwQ Aynzo8EUWH+z6hEIBlUTPGj15eZll6VhQqgZ XtAIR3chwgW+SA== )
+
+SECTION ADDITIONAL
+ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+y.w.example.        IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+y.w.example.        IN A
+SECTION ANSWER
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

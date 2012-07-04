@@ -1,0 +1,132 @@
+; config options
+server:
+	trust-anchor: "ORG. DS 21366 7 1 E6C1716CFB6BDC84E84CE1AB5510DAC69173B5B2"
+	val-override-date: "20091116100204"
+
+forward-zone:
+	name: "."
+	forward-addr: 192.0.2.1
+CONFIG_END
+
+SCENARIO_BEGIN Test validator with unsigned CNAME to signed CNAME to data
+
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.2.1
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+k.root-servers.org.  IN      A
+SECTION ANSWER
+k.root-servers.org.     3600    IN      CNAME   www.ripe.net.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.ripe.net.        IN      A
+SECTION ANSWER
+www.ripe.net.   900     IN      CNAME   aquila-www.ripe.net.
+www.ripe.net.   900     IN      RRSIG   CNAME 5 3 900 20091216060007 20091116060007 19386 ripe.net. NjCpVZC/LLnoV1pa91GSL9SP65n7eFKoe/OcuKzUPHumXIDrXnE23F1rNfbjYpVrQDEsG6iInI7Edh2MCS4NI4tLwrytEDgCX7ZnqIMIOV2/gJa5ZkLlmVT71Agnfi788q7ozEq14zlhY+brD5kyBiEcfOhH/qkX+zJuGdt1AcQwMxYn/GQ0Z32k5ulBnzrIFWObBksO ;{id = 19386}
+SECTION AUTHORITY
+ripe.net.       172800  IN      NS      ns3.nic.fr.
+ripe.net.       172800  IN      NS      sunic.sunet.se.
+ripe.net.       172800  IN      NS      ns-pri.ripe.net.
+ripe.net.       172800  IN      NS      sns-pb.isc.org.
+ripe.net.       172800  IN      RRSIG   NS 5 2 172800 20091216060007 20091116060007 19386 ripe.net. Km2zmkvPOjRddE+SlFBokj2QVroW/R8D2C6u6uCtFI5HVLZTV+oxrIw1ZYYWwe/Jf2CpVBzh3P6iHtWvojM8DHhfkO84wsO33ssqzIzq7e8nDOinqeeGB7yyl642xHCt0jObRewX1hU6Deubs42pFZmO6YKL8Tx6Jb5oe2yyoVebv4bX2qLoEPFw9plE0VavfD397Y4g ;{id = 19386}
+SECTION ADDITIONAL
+ns-pri.ripe.net.        172800  IN      A       193.0.0.195
+ns-pri.ripe.net.        172800  IN      AAAA    2001:610:240:0:53::3
+ns-pri.ripe.net.        172800  IN      RRSIG   A 5 3 172800 20091216060007 20091116060007 19386 ripe.net. BRxWwUNDivDxXnrPlj3/VPUBrf/bk8tKljRG0pQ/7XucTUMR9ae1huNVTC+FTrfZjggqU9/PZlyJ9TwI1lp7J1lEua1mByCHObzHlO7Cq/m7sjZ9cFvpIm6ke2c+xxjs3X8mHsiyftSsCCSvB43DLhgcJtib6QZlCpFxa4Y3sg1fx+1GENrbKlcuJGGqkdrAw0irvKEv ;{id = 19386}
+ns-pri.ripe.net.        172800  IN      RRSIG   AAAA 5 3 172800 20091216060007 20091116060007 19386 ripe.net. Ngd/GLGHakPj1A4rna19OPFpMPVSgCj7CgBtsuwjGwurMFEje4F4miNleazkdQKqe2kRMpB+Kg2OBnnRZpjR2PR9ZjRv6rss6/DL5qMRkDH6Xghwl5ZZzIONTgRSZlHKaHQZ7BHR2azZTo9wupK7VuE7f7EWmjBc5SDNiNOfwuEujUg2DvO1JOv16P2JLeQ3Vst4ovxW ;{id = 19386}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+aquila-www.ripe.net. IN      A
+SECTION ANSWER
+aquila-www.ripe.net.    600     IN      A       193.0.19.25
+aquila-www.ripe.net.    600     IN      RRSIG   A 5 3 600 20091216060007 20091116060007 19386 ripe.net. RuPSSATpwiS5hY4WTt7x9Hzq1tQ+ttWgq0hpgJPSorqJHlLbvgucXd8LhrcIFmBm/K/3sj9UYP1viCjbqfvjGToUdv+g4z9KrNq3FoAal6WSyTBgxAgvnHjNi9gRTZBm4O+rUQCKUD8XwlG6r3SKo6iOeSM84CHeQkGjsp5GNxpGnIagWkr5BzjKhaaUc+i82vk1SrNa ;{id = 19386}
+SECTION AUTHORITY
+ripe.net.       172800  IN      NS      ns3.nic.fr.
+ripe.net.       172800  IN      NS      sunic.sunet.se.
+ripe.net.       172800  IN      NS      ns-pri.ripe.net.
+ripe.net.       172800  IN      NS      sns-pb.isc.org.
+ripe.net.       172800  IN      RRSIG   NS 5 2 172800 20091216060007 20091116060007 19386 ripe.net. Km2zmkvPOjRddE+SlFBokj2QVroW/R8D2C6u6uCtFI5HVLZTV+oxrIw1ZYYWwe/Jf2CpVBzh3P6iHtWvojM8DHhfkO84wsO33ssqzIzq7e8nDOinqeeGB7yyl642xHCt0jObRewX1hU6Deubs42pFZmO6YKL8Tx6Jb5oe2yyoVebv4bX2qLoEPFw9plE0VavfD397Y4g ;{id = 19386}
+SECTION ADDITIONAL
+ns-pri.ripe.net.        172800  IN      A       193.0.0.195
+ns-pri.ripe.net.        172800  IN      AAAA    2001:610:240:0:53::3
+ns-pri.ripe.net.        172800  IN      RRSIG   A 5 3 172800 20091216060007 20091116060007 19386 ripe.net. BRxWwUNDivDxXnrPlj3/VPUBrf/bk8tKljRG0pQ/7XucTUMR9ae1huNVTC+FTrfZjggqU9/PZlyJ9TwI1lp7J1lEua1mByCHObzHlO7Cq/m7sjZ9cFvpIm6ke2c+xxjs3X8mHsiyftSsCCSvB43DLhgcJtib6QZlCpFxa4Y3sg1fx+1GENrbKlcuJGGqkdrAw0irvKEv ;{id = 19386}
+ns-pri.ripe.net.        172800  IN      RRSIG   AAAA 5 3 172800 20091216060007 20091116060007 19386 ripe.net. Ngd/GLGHakPj1A4rna19OPFpMPVSgCj7CgBtsuwjGwurMFEje4F4miNleazkdQKqe2kRMpB+Kg2OBnnRZpjR2PR9ZjRv6rss6/DL5qMRkDH6Xghwl5ZZzIONTgRSZlHKaHQZ7BHR2azZTo9wupK7VuE7f7EWmjBc5SDNiNOfwuEujUg2DvO1JOv16P2JLeQ3Vst4ovxW ;{id = 19386}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ORG. IN      DNSKEY
+SECTION ANSWER
+ORG.    900     IN      DNSKEY  256 3 7 AwEAAdV7bl0omw53nFPoUZSowSTSTDpQO4K8th19coBjlS0iMIWb0NF5YzGkoeditMS8ZLkgc9wS9txeH6XGHzwqJNc5eQcQEOasmC7vqaopoeN/GP/ZkUMbtNTcN1qzS9WzJ4gToxeNCHkAc7LZGh5XY/v1n599hk/ifotV/ZDGhN+H ;{id = 5273 (zsk), size = 1024b}
+ORG.    900     IN      DNSKEY  257 3 7 AwEAAYpYfj3aaRzzkxWQqMdl7YExY81NdYSv+qayuZDodnZ9IMh0bwMcYaVUdzNAbVeJ8gd6jq1sR3VvP/SR36mmGssbV4Udl5ORDtqiZP2TDNDHxEnKKTX+jWfytZeT7d3AbSzBKC0v7uZrM6M2eoJnl6id66rEUmQC2p9DrrDg9F6tXC9CD/zC7/y+BNNpiOdnM5DXk7HhZm7ra9E7ltL13h2mx7kEgU8e6npJlCoXjraIBgUDthYs48W/sdTDLu7N59rjCG+bpil+c8oZ9f7NR3qmSTpTP1m86RqUQnVErifrH8KjDqL+3wzUdF5ACkYwt1XhPVPU+wSIlzbaAQN49PU= ;{id = 21366 (ksk), size = 2048b}
+ORG.    900     IN      DNSKEY  257 3 7 AwEAAZTjbIO5kIpxWUtyXc8avsKyHIIZ+LjC2Dv8naO+Tz6X2fqzDC1bdq7HlZwtkaqTkMVVJ+8gE9FIreGJ4c8G1GdbjQgbP1OyYIG7OHTc4hv5T2NlyWr6k6QFz98Q4zwFIGTFVvwBhmrMDYsOTtXakK6QwHovA1+83BsUACxlidpwB0hQacbD6x+I2RCDzYuTzj64Jv0/9XsX6AYV3ebcgn4hL1jIR2eJYyXlrAoWxdzxcW//5yeL5RVWuhRxejmnSVnCuxkfS4AQ485KH2tpdbWcCopLJZs6tw8q3jWcpTGzdh/v3xdYfNpQNcPImFlxAun3BtORPA2r8ti6MNoJEHU= ;{id = 9795 (ksk), size = 2048b}
+ORG.    900     IN      DNSKEY  256 3 7 AwEAAaT7yoAEj5kX1rW40gMxUgPYGIc6hIPXihtK44jq6UQlZxTeFdsNX6aNaFpSq9pbI19y4JfQvCPPjw2248fwNzgwxfkdyRk7vzKagad2hs8wQ/C7vYuTUoTjrOBRwnsEHix+jYgKZH+lX1ZRKo/YXyMz05KWH+3j5y0VSrKBcdBZ ;{id = 53990 (zsk), size = 1024b}
+ORG.    900     IN      RRSIG   DNSKEY 7 1 900 20091123154522 20091109144522 5273 org. zHcY20bnIBzsl1CXmZdtt8PWPy079Ic3dQ/pLH2z1yCoC+kWGzLIlU/EcWa0rrQzqc9oK+v63xzXFoib3LewcijiGmKYtFcyi3HGfVdJrDFIxmN52x4pZerVZq9NA/FLQ8ZrobkVgYiEAmjMU1OesPPZPwwlPRdSG421q3o3N4Q= ;{id = 5273}
+ORG.    900     IN      RRSIG   DNSKEY 7 1 900 20091123154522 20091109144522 21366 org. Xlh0UQl+Ldig/jBS7Ty9rfeUztG5P7Brjr/Du+XlC7KjUkk/gNfpxgPmIKuA3ZLwgwTvEF6i7CD7b5gEKKC2P8Y5kQjKcjcDZl0+5W1IfpFF1Ka546erCy5cznXT23W5bzODNiraMs7KwvwMlD3LeOCiBeldPKeZ0yxWI/3YXmwAbkky4MApX9khSnilSaewcVSzQM/iOVuCR/+5esNvcKqjgWbT3M4vorzjc7YxVxF2BTgxybDOn4OkWvdeSlDiIVVS+VtxK0U7yIc59mpE7WxoRLtw/Qkd8bjh+KF5izQO2Q/7VxhkJ6pBxxumHwQahlgOQYxWMLqUc/EZnXSQpQ== ;{id = 21366}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+root-servers.org.    IN      DS
+SECTION ANSWER
+SECTION AUTHORITY
+h9p7u7tr2u91d0v0ljs9l1gidnp90u3h.org.   86399   IN      NSEC3   1 1 1 d399eaab  h9rsfb7fpf2l8hg35cmpc765tdk23rp6 NS SOA RRSIG DNSKEY NSEC3PARAM  ; flags: optout
+h9p7u7tr2u91d0v0ljs9l1gidnp90u3h.org.   86399   IN      RRSIG   NSEC3 7 2 86400 20091130090148 20091116080148 5273 org. FL7e/4Lhihh9LKAPDKNmlvEHbjkPY/6GLhtVMWtbSfBS8rAaHuInCD/tbQxCmFmT6e3HXHXkUcjC7BSDFPnlhtB8P2iNjvkdZJ72jVTXDY1P6LuK/OJhRT8DjFlHlvjdNgS5/0HCuGYU5A1GPkWGx1waUmblryPApb8HNSAmdYA= ;{id = 5273}
+i8i48ibuph5kgh999ld485qnt660qdag.org.   86399   IN      NSEC3   1 1 1 d399eaab  i94atlaqkvkoms2q45m5msds8r3414ft A RRSIG  ; flags: optout
+i8i48ibuph5kgh999ld485qnt660qdag.org.   86399   IN      RRSIG   NSEC3 7 2 86400 20091125010858 20091111000858 5273 org. WrWFYs2FuzPRYh+hgc8B3ZKL6jiMee2F1FsPNVEx9Ojv76BMELWomI0Zcd90NZbs7kvs5FP1G79s9o3oQHeWVfa6as8Wi6RLn97nX3FVqYI39r7GZnoKj8QGrCsRCatqK4Lsh426X0vzR5CwIA14/XL1w6UQ1KuTHlIu51RidA4= ;{id = 5273}
+ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+k.root-servers.org.  IN      A
+ENTRY_END
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+k.root-servers.org.  IN      A
+SECTION ANSWER
+k.root-servers.org. IN CNAME www.ripe.net.
+www.ripe.net.   900     IN      CNAME   aquila-www.ripe.net.
+www.ripe.net.   900     IN      RRSIG   CNAME 5 3 900 20091216060007 20091116060007 19386 ripe.net. NjCpVZC/LLnoV1pa91GSL9SP65n7eFKoe/OcuKzUPHumXIDrXnE23F1rNfbjYpVrQDEsG6iInI7Edh2MCS4NI4tLwrytEDgCX7ZnqIMIOV2/gJa5ZkLlmVT71Agnfi788q7ozEq14zlhY+brD5kyBiEcfOhH/qkX+zJuGdt1AcQwMxYn/GQ0Z32k5ulBnzrIFWObBksO ;{id = 19386}
+aquila-www.ripe.net.    600     IN      A       193.0.19.25
+aquila-www.ripe.net.    600     IN      RRSIG   A 5 3 600 20091216060007 20091116060007 19386 ripe.net. RuPSSATpwiS5hY4WTt7x9Hzq1tQ+ttWgq0hpgJPSorqJHlLbvgucXd8LhrcIFmBm/K/3sj9UYP1viCjbqfvjGToUdv+g4z9KrNq3FoAal6WSyTBgxAgvnHjNi9gRTZBm4O+rUQCKUD8XwlG6r3SKo6iOeSM84CHeQkGjsp5GNxpGnIagWkr5BzjKhaaUc+i82vk1SrNa ;{id = 19386}
+SECTION AUTHORITY
+ripe.net.       172800  IN      NS      ns3.nic.fr.
+ripe.net.       172800  IN      NS      sunic.sunet.se.
+ripe.net.       172800  IN      NS      ns-pri.ripe.net.
+ripe.net.       172800  IN      NS      sns-pb.isc.org.
+ripe.net.       172800  IN      RRSIG   NS 5 2 172800 20091216060007 20091116060007 19386 ripe.net. Km2zmkvPOjRddE+SlFBokj2QVroW/R8D2C6u6uCtFI5HVLZTV+oxrIw1ZYYWwe/Jf2CpVBzh3P6iHtWvojM8DHhfkO84wsO33ssqzIzq7e8nDOinqeeGB7yyl642xHCt0jObRewX1hU6Deubs42pFZmO6YKL8Tx6Jb5oe2yyoVebv4bX2qLoEPFw9plE0VavfD397Y4g ;{id = 19386}
+SECTION ADDITIONAL
+ns-pri.ripe.net.        172800  IN      A       193.0.0.195
+ns-pri.ripe.net.        172800  IN      AAAA    2001:610:240:0:53::3
+ns-pri.ripe.net.        172800  IN      RRSIG   A 5 3 172800 20091216060007 20091116060007 19386 ripe.net. BRxWwUNDivDxXnrPlj3/VPUBrf/bk8tKljRG0pQ/7XucTUMR9ae1huNVTC+FTrfZjggqU9/PZlyJ9TwI1lp7J1lEua1mByCHObzHlO7Cq/m7sjZ9cFvpIm6ke2c+xxjs3X8mHsiyftSsCCSvB43DLhgcJtib6QZlCpFxa4Y3sg1fx+1GENrbKlcuJGGqkdrAw0irvKEv ;{id = 19386}
+ns-pri.ripe.net.        172800  IN      RRSIG   AAAA 5 3 172800 20091216060007 20091116060007 19386 ripe.net. Ngd/GLGHakPj1A4rna19OPFpMPVSgCj7CgBtsuwjGwurMFEje4F4miNleazkdQKqe2kRMpB+Kg2OBnnRZpjR2PR9ZjRv6rss6/DL5qMRkDH6Xghwl5ZZzIONTgRSZlHKaHQZ7BHR2azZTo9wupK7VuE7f7EWmjBc5SDNiNOfwuEujUg2DvO1JOv16P2JLeQ3Vst4ovxW ;{id = 19386}
+ENTRY_END
+
+SCENARIO_END

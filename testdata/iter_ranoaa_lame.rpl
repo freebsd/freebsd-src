@@ -1,0 +1,293 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test detection of RA but no AA lameness
+; in this scenario mistakenly, a recursive server is deployed, instead
+; of an authoritative server. It gives answers from cache.
+; However, unbound is doing recursion on behalf of its client, and does
+; not trust the server to do so.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+net. IN A
+SECTION AUTHORITY
+net.	IN NS	e.gtld-servers.net.
+SECTION ADDITIONAL
+e.gtld-servers.net.	IN 	A	192.12.94.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+; this entry; glue will make unbound take this reference first.
+; it is however, the lame server.
+ns.example.com. IN A	1.2.3.55
+ENTRY_END
+RANGE_END
+
+; e.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.12.94.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+net. IN NS
+SECTION ANSWER
+net.	IN NS	e.gtld-servers.net.
+SECTION ADDITIONAL
+e.gtld-servers.net.	IN 	A	192.12.94.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.net. IN A
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net.		IN 	A	1.2.3.44
+ENTRY_END
+RANGE_END
+
+; ns.example.net.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.44
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.net. IN NS
+SECTION ANSWER
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net.		IN 	A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net 	IN A 	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN A
+SECTION ANSWER
+ns.example.net. IN A	1.2.3.44
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN AAAA
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+www.example.net. IN A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net 	IN A 	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.55
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.com. IN A	1.2.3.55
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com. IN A	1.2.3.55
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN AAAA
+ENTRY_END
+
+; the lame response.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+; the wrong answer.
+www.example.com. IN A	10.20.30.50
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.com. IN A 	1.2.3.55
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns.example.net.
+; scrubbed off
+;SECTION ADDITIONAL
+;ns.example.net 	IN A 	1.2.3.44
+ENTRY_END
+
+; query still pending
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+ns.example.net. IN AAAA
+ENTRY_END
+
+; query still pending
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY RD RA
+SECTION QUESTION
+ENTRY_END
+
+SCENARIO_END

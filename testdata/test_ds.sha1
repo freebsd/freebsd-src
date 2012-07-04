@@ -1,0 +1,33 @@
+;
+; DS match test file.
+; test matching of DS hash against DNSKEYs.
+;
+; enter ENTRYs with a DS and a DNSKEY.
+; These are matched against another.
+; If the query name starts with 'yes' then it must match.
+; If the query name starts with 'no' then it must not match.
+
+ENTRY_BEGIN
+SECTION QUESTION
+yes. IN A
+SECTION ANSWER
+nlnetlabs.nl.   3600    IN      DS      43791 RSASHA1 1 81ee88356df3c3077549445ed2fb1c92adc80641
+nlnetlabs.nl. DNSKEY 257 3 5 AQPzzTWMz8qSWIQlfRnPckx2BiVmkVN6LPupO3mbz7FhLSnm26n6iG9N Lby97Ji453aWZY3M5/xJBSOS2vWtco2t8C0+xeO1bc/d6ZTy32DHchpW 6rDH1vp86Ll+ha0tmwyy9QP7y2bVw5zSbFCrefk8qCUBgfHm9bHzMG1U BYtEIQ==
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+yes. IN A
+SECTION ANSWER
+jelte.nlnetlabs.nl. DS 42860 5 1 14D739EB566D2B1A5E216A0BA4D17FA9B038BE4A
+jelte.nlnetlabs.nl.     3600    IN      DNSKEY  256 3 5 AQOraLfzarHAlFskVGwAGnX0LRjlcOiO6y5WM4Kz+QvZ9vX28h4lOvnf d5tkxnZm7ERLTAJoFq+1w/wl7VXs2Isz75BSZ7LQh3OT2xXnS6VT5ZxX ko/UCOdoGiKZZ63jHZ0jNSTCYy8+5rfvwRD8s3gGuErp5KcHg3V8VLUK SDNNEQ==
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+no. IN A
+SECTION ANSWER
+nlnetlabs.nl.   3600    IN      DS      43791 RSASHA1 1 14D739EB566D2B1A5E216A0BA4D17FA9B038BE4A
+nlnetlabs.nl. DNSKEY 257 3 5 AQPzzTWMz8qSWIQlfRnPckx2BiVmkVN6LPupO3mbz7FhLSnm26n6iG9N Lby97Ji453aWZY3M5/xJBSOS2vWtco2t8C0+xeO1bc/d6ZTy32DHchpW 6rDH1vp86Ll+ha0tmwyy9QP7y2bVw5zSbFCrefk8qCUBgfHm9bHzMG1U BYtEIQ==
+ENTRY_END
+

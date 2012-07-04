@@ -1,0 +1,180 @@
+;
+; NSEC3 hash algo test file.
+; The hash cache is maintained for the duration of the file.
+; Every entry is a hash test.
+;	query name is hashed.
+;	answer AAAA record hash the correct hashed answer name.
+;	auth NSEC3 record has the hash parameters.
+;
+
+
+; These are from the nsec3-draft-11 example zone.
+; H(example)       = 0p9mhaveqvm6t7vbl5lop2u3t2rp3tom
+ENTRY_BEGIN
+SECTION QUESTION
+example. IN AAAA
+SECTION ANSWER
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(a.example)     = 35mthgpgcu1qg68fab165klnsnk3dpvl
+ENTRY_BEGIN
+SECTION QUESTION
+a.example.	IN 	AAAA
+SECTION ANSWER
+35mthgpgcu1qg68fab165klnsnk3dpvl.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(ai.example)    = gjeqe526plbf1g8mklp59enfd789njgi
+ENTRY_BEGIN
+SECTION QUESTION
+ai.example.	IN      AAAA
+SECTION ANSWER
+gjeqe526plbf1g8mklp59enfd789njgi.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(ns1.example)   = 2t7b4g4vsa5smi47k61mv5bv1a22bojr
+ENTRY_BEGIN
+SECTION QUESTION
+ns1.example.   IN      AAAA
+SECTION ANSWER
+2t7b4g4vsa5smi47k61mv5bv1a22bojr.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(ns2.example)   = q04jkcevqvmu85r014c7dkba38o0ji5r
+ENTRY_BEGIN
+SECTION QUESTION
+ns2.example.  IN      AAAA
+SECTION ANSWER
+q04jkcevqvmu85r014c7dkba38o0ji5r.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(w.example)     = k8udemvp1j2f7eg6jebps17vp3n8i58h
+ENTRY_BEGIN
+SECTION QUESTION
+w.example.	IN      AAAA
+SECTION ANSWER
+k8udemvp1j2f7eg6jebps17vp3n8i58h.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(*.w.example)   = r53bq7cc2uvmubfu5ocmm6pers9tk9en
+ENTRY_BEGIN
+SECTION QUESTION
+*.w.example.	IN      AAAA
+SECTION ANSWER
+r53bq7cc2uvmubfu5ocmm6pers9tk9en.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(x.w.example)   = b4um86eghhds6nea196smvmlo4ors995
+ENTRY_BEGIN
+SECTION QUESTION
+x.w.example.	IN      AAAA
+SECTION ANSWER
+b4um86eghhds6nea196smvmlo4ors995.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(y.w.example)   = ji6neoaepv8b5o6k4ev33abha8ht9fgc
+ENTRY_BEGIN
+SECTION QUESTION
+y.w.example.	IN	AAAA
+SECTION ANSWER
+ji6neoaepv8b5o6k4ev33abha8ht9fgc.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(x.y.w.example) = 2vptu5timamqttgl4luu9kg21e0aor3s
+ENTRY_BEGIN
+SECTION QUESTION
+x.y.w.example.	IN	AAAA
+SECTION ANSWER
+2vptu5timamqttgl4luu9kg21e0aor3s.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; H(xx.example)    = t644ebqk9bibcna874givr6joj62mlhv
+; capitalization changed.
+ENTRY_BEGIN
+SECTION QUESTION
+xX.example.	IN	AAAA
+SECTION ANSWER
+t644ebqk9bibcna874givr6joj62mlhv.example.	AAAA	::1
+SECTION AUTHORITY
+b4um86eghhds6nea196smvmlo4ors995.example. NSEC3 1 1 12 aabbccdd (gjeqe526plbf1g8mklp59enfd789njgi MX RRSIG )
+ENTRY_END
+
+; H(2t7b4g4vsa5smi47k61mv5bv1a22bojr.example)
+;                  = kohar7mbb8dc2ce8a9qvl8hon4k53uhi
+ENTRY_BEGIN
+SECTION QUESTION
+2t7b4g4vsa5smi47k61mv5bv1a22bojr.example.	IN	AAAA
+SECTION ANSWER
+kohar7mbb8dc2ce8a9qvl8hon4k53uhi.example.	AAAA	::1
+SECTION AUTHORITY
+b4um86eghhds6nea196smvmlo4ors995.example. NSEC3 1 1 12 aabbccdd (gjeqe526plbf1g8mklp59enfd789njgi MX RRSIG )
+ENTRY_END
+
+
+
+; repeat entry to test the cache.
+; H(example)       = 0p9mhaveqvm6t7vbl5lop2u3t2rp3tom
+ENTRY_BEGIN
+SECTION QUESTION
+example. IN AAAA
+SECTION ANSWER
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; repeat entry to test the cache.
+; H(a.example)     = 35mthgpgcu1qg68fab165klnsnk3dpvl
+ENTRY_BEGIN
+SECTION QUESTION
+a.example.	IN 	AAAA
+SECTION ANSWER
+35mthgpgcu1qg68fab165klnsnk3dpvl.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; repeat entry to test the cache.
+; H(ai.example)    = gjeqe526plbf1g8mklp59enfd789njgi
+ENTRY_BEGIN
+SECTION QUESTION
+ai.example.	IN      AAAA
+SECTION ANSWER
+gjeqe526plbf1g8mklp59enfd789njgi.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+
+; repeat entry to test the cache.
+; capitalization of qname.
+; H(ai.example)    = gjeqe526plbf1g8mklp59enfd789njgi
+ENTRY_BEGIN
+SECTION QUESTION
+AI.example.	IN      AAAA
+SECTION ANSWER
+gjeqe526plbf1g8mklp59enfd789njgi.example. AAAA ::1
+SECTION AUTHORITY
+0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. NSEC3 1 1 12 aabbccdd (2t7b4g4vsa5smi47k61mv5bv1a22bojr MX DNSKEY NS SOA NSEC3PARAM RRSIG )
+ENTRY_END
+

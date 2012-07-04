@@ -1,0 +1,51 @@
+.TH "unbound" "8" "May 24, 2012" "NLnet Labs" "unbound 1.4.17"
+.\"
+.\" unbound.8 -- unbound manual
+.\"
+.\" Copyright (c) 2007, NLnet Labs. All rights reserved.
+.\"
+.\" See LICENSE for the license.
+.\"
+.\"
+.SH "NAME"
+.LP
+.B unbound
+\- Unbound DNS validating resolver 1.4.17.
+.SH "SYNOPSIS"
+.LP
+.B unbound
+.RB [ \-h ]
+.RB [ \-d ]
+.RB [ \-v ]
+.RB [ \-c 
+.IR cfgfile ]
+.SH "DESCRIPTION"
+.LP
+.B Unbound 
+is an implementation of a DNS resolver, that does caching and 
+DNSSEC validation.
+.P
+The available options are:
+.TP
+.B \-h
+Show the version and commandline option help.
+.TP
+.B \-c\fI cfgfile
+Set the config file with settings for unbound to read instead of reading the 
+file at the default location, @ub_conf_file@. The syntax is
+described in \fIunbound.conf\fR(5).
+.TP
+.B \-d
+Debug flag, do not fork into the background, but stay attached to the
+console. This flag will also delay writing to the logfile until the
+thread\-spawn time. So that most config and setup errors appear on stderr.
+.TP
+.B \-v
+Increase verbosity. If given multiple times, more information is logged.
+This is in addition to the verbosity (if any) from the config file.
+.SH "SEE ALSO"
+\fIunbound.conf\fR(5), 
+\fIunbound\-checkconf\fR(8).
+.SH "AUTHORS"
+.B Unbound
+developers are mentioned in the CREDITS file in the distribution.

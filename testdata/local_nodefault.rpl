@@ -1,0 +1,60 @@
+; config options
+; The island of trust is at example.com
+server:
+	local-zone: "10.in-addr.arpa" nodefault
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test local data with nodefault for as112 zone.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+40.30.20.10.in-addr-arpa. IN PTR
+SECTION ANSWER
+SECTION AUTHORITY
+. IN SOA invalid. invalid. 1 2 3 4 5
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+40.30.20.10.in-addr-arpa. IN PTR
+ENTRY_END
+; not blocked!
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+40.30.20.10.in-addr-arpa. IN PTR
+SECTION ANSWER
+SECTION AUTHORITY
+. IN SOA invalid. invalid. 1 2 3 4 5
+ENTRY_END
+
+SCENARIO_END

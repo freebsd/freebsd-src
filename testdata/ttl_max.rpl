@@ -1,0 +1,212 @@
+; config options
+server:
+	access-control: 127.0.0.1 allow_snoop
+	cache-max-ttl: 10
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test TTL max option for messages in the cache
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.gtld-servers.net.	IN A
+SECTION ANSWER
+a.gtld-servers.net.	IN A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+K.ROOT-SERVERS.NET.	IN	A
+SECTION ANSWER
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.gtld-servers.net.	IN AAAA
+SECTION AUTHORITY
+. 86400 IN SOA . . 20070304 28800 7200 604800 86400
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+K.ROOT-SERVERS.NET.	IN	AAAA
+SECTION AUTHORITY
+. 86400 IN SOA . . 20070304 28800 7200 604800 86400
+ENTRY_END
+
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com.		IN 	A	1.2.3.4
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com.  248 IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION AUTHORITY
+example.com. 10 IN SOA . . 15 28800 7200 604800 10
+ENTRY_END
+
+RANGE_END
+
+; start by passing time ; so we are not at 0
+STEP 1 TIME_PASSES ELAPSE 10
+
+; query for the record
+STEP 8 QUERY
+ENTRY_BEGIN
+REPLY RD CD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA CD
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 248 IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.	IN 	A	1.2.3.4
+ENTRY_END
+
+; wait 
+STEP 20 TIME_PASSES ELAPSE 17
+
+; do a lookup to check TTLs.
+STEP 25 QUERY
+ENTRY_BEGIN
+REPLY
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 26 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RA
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+.       3600    IN      NS      K.ROOT-SERVERS.NET.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.     3600    IN      A       193.0.14.129
+ENTRY_END
+
+SCENARIO_END

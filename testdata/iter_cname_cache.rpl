@@ -1,0 +1,298 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test iterative resolve with cached cname for nameserver
+; example.com NS ns.example.com   en ns2.example.com
+; ns.example.com CNAME ns.bla.nl
+; ns.bla.nl A ....
+; dan timeout van A record uit cache - refetch.
+; ns2.example.com timeed niet uit ; maar geeft altijd servfail.
+
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net.	IN 	AAAA
+SECTION ANSWER
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+nl. IN A
+SECTION AUTHORITY
+nl.	IN NS	ns2.nic.nl.
+SECTION ADDITIONAL
+ns2.nic.nl.	IN 	A	192.1.1.2
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.  ".com"
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns2.example.com.
+SECTION ADDITIONAL
+;;; but really a CNAME in child server
+ns.example.com.  1 IN A 1.2.3.4
+ns2.example.com.  IN A 1.2.3.5
+ns2.example.com.  IN AAAA 2002::5
+ENTRY_END
+
+; lame answers back to root for .nl (.com server not authoritative for .nl)
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+nl. IN A
+SECTION AUTHORITY
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+RANGE_END
+
+; ns2.nic.nl  ".nl"
+RANGE_BEGIN 0 100
+	ADDRESS 192.1.1.2
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+bla.nl. IN A
+SECTION AUTHORITY
+bla.nl.	IN NS ns.bla.nl.
+SECTION ADDITIONAL
+ns.bla.nl. IN A 1.2.3.6
+ENTRY_END
+
+RANGE_END
+
+; ns.bla.nl  "bla..nl"
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.6
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+ns.bla.nl. IN A
+SECTION ANSWER
+ns.bla.nl. IN A 1.2.3.6
+SECTION AUTHORITY
+bla.nl.	IN NS ns.bla.nl.
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+ns.bla.nl. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+bla.nl. IN SOA bla.nl. bla.nl. 1 2 3 4 5
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+ns.bla.nl. IN MX
+SECTION ANSWER
+ns.bla.nl. IN MX 10 bla.nl.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+ENTRY_END
+RANGE_END
+
+; ns.example.com "example.com"
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qname
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN MX
+SECTION ANSWER
+ns.example.com IN CNAME ns.bla.nl.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+ENTRY_END
+RANGE_END
+
+; ns2.example.com "example.com"
+; bad failing server
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode 
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+ns.example.com. IN MX
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+
+; ns2.example.com "example.com"
+; bad failing server
+RANGE_BEGIN 0 100
+	ADDRESS 2002::5
+ENTRY_BEGIN
+MATCH opcode 
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+ns.example.com. IN MX
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+
+; get cname in cache.  use MX query 
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+ns.example.com. IN MX
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+ns.example.com. IN MX
+SECTION ANSWER
+ns.example.com. IN CNAME ns.bla.nl
+ns.bla.nl. IN MX  10 bla.nl.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; get seconds to pass to timeout the A record
+STEP 15 TIME_PASSES ELAPSE 5
+
+; get into trouble getting cname for nameserver.
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; there may still be pending ns.bla.nl AAAA queries ; get rid of them like this
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+ns.bla.nl. IN AAAA
+ENTRY_END
+
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+ns.bla.nl. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+bla.nl. IN SOA bla.nl. bla.nl. 1 2 3 4 5
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

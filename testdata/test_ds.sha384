@@ -1,0 +1,45 @@
+;
+; DS match test file.
+; test matching of DS hash against DNSKEYs.
+;
+; enter ENTRYs with a DS and a DNSKEY.
+; These are matched against another.
+; If the query name starts with 'yes' then it must match.
+; If the query name starts with 'no' then it must not match.
+
+; These are SHA256 and SHA384 tests from the draft-ietf-dnsext-ecdsa-04
+
+ENTRY_BEGIN
+SECTION QUESTION
+yes. IN A
+SECTION ANSWER
+example.net. 3600 IN DS 55648 13 2 ( b4c8c1fe2e7477127b27115656ad6256f424625bf5c1 e2770ce6d6e37df61d17 )
+example.net. 3600 IN DNSKEY 257 3 13 ( GojIhhXUN/u4v54ZQqGSnyhWJwaubCvTmeexv7bR6edb krSqQpF64cYbcB7wNcP+e+MAnLr+Wi9xMWyQLc8NAA== )
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+yes. IN A
+SECTION ANSWER
+example.net. 3600 IN DS 10771 14 4 ( 72d7b62976ce06438e9c0bf319013cf801f09ecc84b8 d7e9495f27e305c6a9b0563a9b5f4d288405c3008a94 6df983d6 )
+example.net. 3600 IN DNSKEY 257 3 14 ( xKYaNhWdGOfJ+nPrL8/arkwf2EY3MDJ+SErKivBVSum1 w/egsXvSADtNJhyem5RCOpgQ6K8X1DRSEkrbYQ+OB+v8 /uX45NBwY8rp65F6Glur8I/mlVNgF6W/qTI37m40 )
+ENTRY_END
+
+; same entry as above, but corrupted by a change in the DS, MUST fail
+ENTRY_BEGIN
+SECTION QUESTION
+no. IN A
+SECTION ANSWER
+example.net. 3600 IN DS 55648 13 2 ( b4c8c1fe2e7477126b27115656ad6256f424625bf5c1 e2770ce6d6e37df61d17 )
+example.net. 3600 IN DNSKEY 257 3 13 ( GojIhhXUN/u4v54ZQqGSnyhWJwaubCvTmeexv7bR6edb krSqQpF64cYbcB7wNcP+e+MAnLr+Wi9xMWyQLc8NAA== )
+ENTRY_END
+
+; same entry as above, but corrupted by a change in the DS, MUST fail
+ENTRY_BEGIN
+SECTION QUESTION
+no. IN A
+SECTION ANSWER
+example.net. 3600 IN DS 10771 14 4 ( 72d7b62976ce06438e9c0cf319013cf801f09ecc84b8 d7e9495f27e305c6a9b0563a9b5f4d288405c3008a94 6df983d6 )
+example.net. 3600 IN DNSKEY 257 3 14 ( xKYaNhWdGOfJ+nPrL8/arkwf2EY3MDJ+SErKivBVSum1 w/egsXvSADtNJhyem5RCOpgQ6K8X1DRSEkrbYQ+OB+v8 /uX45NBwY8rp65F6Glur8I/mlVNgF6W/qTI37m40 )
+ENTRY_END
+

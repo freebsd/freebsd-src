@@ -1,0 +1,163 @@
+; config options
+server:
+	trust-anchor: "example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )"
+	val-override-date: "20120420235959"
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test validator NSEC3 B.4 wildcard expansion, wrong NSEC3.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN A
+SECTION AUTHORITY
+example.	IN NS	ns1.example.
+; leave out to make unbound take ns1
+;example.	IN NS	ns2.example.
+SECTION ADDITIONAL
+ns1.example.	IN A 192.0.2.1
+; leave out to make unbound take ns1
+;ns2.example.	IN A 192.0.2.2
+ENTRY_END
+RANGE_END
+
+; ns1.example.
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.2.1
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+ns1.example. IN A
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+ns1.example. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR REFUSED
+SECTION QUESTION
+example. IN NS
+SECTION ANSWER
+ENTRY_END
+
+; response to DNSKEY priming query
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN DNSKEY
+SECTION ANSWER
+example. DNSKEY  256 3 7 AwEAAaetidLzsKWUt4swWR8yu0wPHPiUi8LU ( sAD0QPWU+wzt89epO6tHzkMBVDkC7qphQO2h TY4hHn9npWFRw5BYubE= )
+example. DNSKEY  257 3 7 AwEAAcUlFV1vhmqx6NSOUOq2R/dsR7Xm3upJ ( j7IommWSpJABVfW8Q0rOvXdM6kzt+TAu92L9 AbsUdblMFin8CVF3n4s= )
+example. RRSIG   DNSKEY 7 1 3600 20150420235959 ( 20051021000000 12708 example.  AuU4juU9RaxescSmStrQks3Gh9FblGBlVU31 uzMZ/U/FpsUb8aC6QZS+sTsJXnLnz7flGOsm MGQZf3bH+QsCtg== )
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA DO NOERROR
+SECTION QUESTION
+a.z.w.example. IN MX
+SECTION ANSWER
+a.z.w.example. MX      1 ai.example.
+a.z.w.example. RRSIG   MX 7 2 3600 20150420235959 20051021000000 ( 40430 example.  CikebjQwGQPwijVcxgcZcSJKtfynugtlBiKb 9FcBTrmOoyQ4InoWVudhCWsh/URX3lc4WRUM ivEBP6+4KS3ldA== )
+SECTION AUTHORITY
+example.       NS      ns1.example.
+example.       NS      ns2.example.
+example. RRSIG   NS 7 1 3600 20150420235959 20051021000000 ( 40430 example.  PVOgtMK1HHeSTau+HwDWC8Ts+6C8qtqd4pQJ qOtdEVgg+MA+ai4fWDEhu3qHJyLcQ9tbD2vv CnMXjtz6SyObxA== )
+
+;; NSEC3 RR that covers the "next closer" name (z.w.example)
+;; H(z.w.example) = qlu7gtfaeh0ek0c05ksfhdpbcgglbe03
+;q04jkcevqvmu85r014c7dkba38o0ji5r.example. NSEC3 1 1 12 aabbccdd ( r53bq7cc2uvmubfu5ocmm6pers9tk9en A RRSIG )
+;q04jkcevqvmu85r014c7dkba38o0ji5r.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  hV5I89b+4FHJDATp09g4bbN0R1F845CaXpL3 ZxlMKimoPAyqletMlEWwLfFia7sdpSzn+ZlN NlkxWcLsIlMmUg== )
+
+; The wrong NSEC3 here
+k8udemvp1j2f7eg6jebps17vp3n8i58h.example. NSEC3 1 1 12 aabbccdd ( kohar7mbb8dc2ce8a9qvl8hon4k53uhi )
+k8udemvp1j2f7eg6jebps17vp3n8i58h.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  FtXGbvF0+wf8iWkyo73enAuVx03klN+pILBK S6qCcftVtfH4yVzsEZquJ27NHR7ruxJWDNMt Otx7w9WfcIg62A== )
+
+SECTION ADDITIONAL
+ai.example.    A       192.0.2.9
+ai.example.    RRSIG   A 7 2 3600 20150420235959 20051021000000 ( 40430 example.  hVe+wKYMlObTRPhX0NL67GxeZfdxqr/QeR6F tfdAj5+FgYxyzPEjIzvKWy00hWIl6wD3Vws+ rznEn8sQ64UdqA== )
+ai.example.    AAAA    2001:db8:0:0:0:0:f00:baa9
+ai.example.    RRSIG   AAAA 7 2 3600 20150420235959 20051021000000 ( 40430 example.  LcdxKaCB5bGZwPDg+3JJ4O02zoMBrjxqlf6W uaHQZZfTUpb9Nf2nxFGe2XRPfR5tpJT6GdRG cHueLuXkMjBArQ== )
+ENTRY_END
+
+; catch glue queries
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA DO NOERROR
+SECTION QUESTION
+ns2.example. IN      A
+SECTION ANSWER
+; nothing to make sure the ns1 server is used for queries.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA DO NOERROR
+SECTION QUESTION
+ns2.example. IN      AAAA
+SECTION ANSWER
+; nothing to make sure the ns1 server is used for queries.
+ENTRY_END
+
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.z.w.example. IN MX
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+a.z.w.example. IN MX
+SECTION ANSWER
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END

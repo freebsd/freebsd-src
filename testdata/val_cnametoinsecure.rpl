@@ -1,0 +1,137 @@
+; config options
+server:
+	trust-anchor: "example.com.	3600	IN	DNSKEY	256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}"
+	trust-anchor: "example.org.	3600	IN	DNSKEY	256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}"
+	val-override-date: "20091011000000"
+
+forward-zone:
+	name: "."
+	forward-addr: 192.0.2.1
+CONFIG_END
+
+SCENARIO_BEGIN Test validator with CNAME to insecure NSEC or NSEC3.
+
+RANGE_BEGIN 0 100
+	ADDRESS 192.0.2.1
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN DNSKEY
+SECTION ANSWER
+example.com.     3600    IN      DNSKEY  256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}
+example.com.	3600	IN	RRSIG	DNSKEY 5 2 3600 20091012000000 20091010000000 30899 example.com. BeCk6+D0ysmO1+X0CjvXH55AO78C7Vxrq58C3YgO0wt2eTG/deZCiWI3bz+3OC64cICbJr5fvCfqUuJDABU/fw== ;{id = 30899}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN AAAA
+SECTION ANSWER
+www.example.com.	3600	IN	CNAME	unsafe.example.com.
+www.example.com.	3600	IN	RRSIG	CNAME 5 3 3600 20091012000000 20091010000000 30899 example.com. FJN0bZitZfxNQNTD1V2vcDBQ9cb4y4YGa35Ilr+VnrBiisAB9ZyrO8umvdtwzV1VPIlfFDQTJrKh5aZparLHPw== ;{id = 30899}
+SECTION AUTHORITY
+; really an insecure delegation, but co-hosted on the server.
+unsafe.example.com.	3600	IN	NSEC	v.example.com. NS RRSIG NSEC 
+unsafe.example.com.	3600	IN	RRSIG	NSEC 5 3 3600 20091012000000 20091010000000 30899 example.com. Le9EsRd2MxkOGRCvGtQkXRDAob5ZJOFQlZbDvcWAh5OXVpmcwZmCHctxw/Zyi4LkNYoYCSCc8PiVRrJM3IsGrQ== ;{id = 30899}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+unsafe.example.com. IN AAAA
+SECTION ANSWER
+; empty response
+ENTRY_END
+
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.org. IN DNSKEY
+SECTION ANSWER
+example.org.     3600    IN      DNSKEY  256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}
+example.org.	3600	IN	RRSIG	DNSKEY 5 2 3600 20091012000000 20091010000000 30899 example.org. rd9aoXbeaE0zyT96Z0sjN3Mz5Nz/wuRsIH1lwcjwUFmAAT7F+SjwVWeo8nGaTBd8JDSUdiL+VwotEE0I22RrnA== ;{id = 30899}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.org. IN AAAA
+SECTION ANSWER
+www.example.org.	3600	IN	CNAME	unsafe.example.org.
+www.example.org.	3600	IN	RRSIG	CNAME 5 3 3600 20091012000000 20091010000000 30899 example.org. ZgRbMnunAqa1K46GINIihekkI73/1PkGFSAJRn7bSTxBpLM+qiHJDU1+QgS2SjaSKHqNqbXy/eeG3qX9r9y87g== ;{id = 30899}
+SECTION AUTHORITY
+; really an insecure delegation, but co-hosted on the server.
+; h(unsafe.example.org.) = ltchu0548v0cof8f25u2pj4mjf4shcms.
+ltchu0548v0cof8f25u2pj4mjf4shcms.example.org. IN NSEC3 1 0 1 - ltchu0548v0cof8f25u2pj4mjf4shcmt NS
+ltchu0548v0cof8f25u2pj4mjf4shcms.example.org.	3600	IN	RRSIG	NSEC3 5 3 3600 20091012000000 20091010000000 30899 example.org. yxuYgfkg8QTdB5yBMN9Up9GyKu7xjKDScqq95/tsy3lx22tLsdLD9Fojdrq7eB+K7Tr72AejmVJs44v6TmWkZw== ;{id = 30899}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+unsafe.example.org. IN AAAA
+SECTION ANSWER
+; empty response
+ENTRY_END
+
+RANGE_END
+
+; NSEC
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN AAAA
+ENTRY_END
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN AAAA
+SECTION ANSWER
+www.example.com.        3600    IN      CNAME   unsafe.example.com.
+www.example.com.        3600    IN      RRSIG   CNAME 5 3 3600 20091012000000 20091010000000 30899 example.com. FJN0bZitZfxNQNTD1V2vcDBQ9cb4y4YGa35Ilr+VnrBiisAB9ZyrO8umvdtwzV1VPIlfFDQTJrKh5aZparLHPw== ;{id = 30899}
+SECTION AUTHORITY
+unsafe.example.com.     3600    IN      NSEC    v.example.com. NS RRSIG NSEC 
+unsafe.example.com.     3600    IN      RRSIG   NSEC 5 3 3600 20091012000000 20091010000000 30899 example.com. Le9EsRd2MxkOGRCvGtQkXRDAob5ZJOFQlZbDvcWAh5OXVpmcwZmCHctxw/Zyi4LkNYoYCSCc8PiVRrJM3IsGrQ== ;{id = 30899}
+ENTRY_END
+
+; NSEC3
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.org. IN AAAA
+ENTRY_END
+; recursion happens here.
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.org. IN AAAA
+SECTION ANSWER
+www.example.org.        3600    IN      CNAME   unsafe.example.org.
+www.example.org.        3600    IN      RRSIG   CNAME 5 3 3600 20091012000000 20091010000000 30899 example.org. ZgRbMnunAqa1K46GINIihekkI73/1PkGFSAJRn7bSTxBpLM+qiHJDU1+QgS2SjaSKHqNqbXy/eeG3qX9r9y87g== ;{id = 30899}
+SECTION AUTHORITY
+ltchu0548v0cof8f25u2pj4mjf4shcms.example.org.   3600    IN      NSEC3   1 0 1 -  ltchu0548v0cof8f25u2pj4mjf4shcmt NS 
+ltchu0548v0cof8f25u2pj4mjf4shcms.example.org.   3600    IN      RRSIG   NSEC3 5 3 3600 20091012000000 20091010000000 30899 example.org. yxuYgfkg8QTdB5yBMN9Up9GyKu7xjKDScqq95/tsy3lx22tLsdLD9Fojdrq7eB+K7Tr72AejmVJs44v6TmWkZw== ;{id = 30899}
+ENTRY_END
+
+SCENARIO_END

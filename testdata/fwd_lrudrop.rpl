@@ -1,0 +1,122 @@
+; This is a comment.
+; config options go here.
+; extremely small cache to force dropping old records.
+server:
+	msg-cache-size: 1 # one whole byte!
+	msg-cache-slabs: 1
+forward-zone: name: "." forward-addr: 216.0.0.1
+CONFIG_END
+
+SCENARIO_BEGIN Old answer is dropped from the cache
+
+STEP 1 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+	www.example.com. IN A
+ENTRY_END
+; the query is sent to the forwarder - no cache yet.
+STEP 2 CHECK_OUT_QUERY
+ENTRY_BEGIN
+	MATCH qname qtype opcode
+	SECTION QUESTION
+	www.example.com. IN A
+ENTRY_END
+STEP 3 REPLY
+ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+	www.example.com. IN A
+	SECTION ANSWER
+	www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+	www.example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+	ns.example.com. IN A 10.20.30.50
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH opcode qname qtype
+	SECTION QUESTION
+	www.example.com. IN A
+	SECTION ANSWER
+	www.example.com. IN A 10.20.30.40
+ENTRY_END
+
+; another query to force the cache to drop the example.com entry.
+STEP 11 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+	www.example.net. IN A
+ENTRY_END
+; the query is sent to the forwarder - no cache yet.
+STEP 12 CHECK_OUT_QUERY
+ENTRY_BEGIN
+	MATCH qname qtype opcode
+	SECTION QUESTION
+	www.example.net. IN A
+ENTRY_END
+STEP 13 REPLY
+ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+	www.example.net. IN A
+	SECTION ANSWER
+	www.example.net. IN A 10.20.30.40
+	SECTION AUTHORITY
+	www.example.net. IN NS ns.example.net.
+	SECTION ADDITIONAL
+	ns.example.net. IN A 10.20.30.50
+ENTRY_END
+STEP 14 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH opcode qname qtype
+	SECTION QUESTION
+	www.example.net. IN A
+	SECTION ANSWER
+	www.example.net. IN A 10.20.30.40
+ENTRY_END
+
+
+; query, same as first, but it fell out of the cache.
+STEP 21 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+	www.example.com. IN A
+ENTRY_END
+STEP 22 CHECK_OUT_QUERY
+ENTRY_BEGIN
+	MATCH qname qtype opcode
+	SECTION QUESTION
+	www.example.com. IN A
+ENTRY_END
+STEP 23 REPLY
+ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+	www.example.com. IN A
+	SECTION ANSWER
+	www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+	www.example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+	ns.example.com. IN A 10.20.30.50
+ENTRY_END
+STEP 24 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH opcode qname qtype
+	SECTION QUESTION
+	www.example.com. IN A
+	SECTION ANSWER
+	www.example.com. IN A 10.20.30.40
+ENTRY_END
+
+SCENARIO_END

@@ -1,0 +1,314 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	prefetch: "yes"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test resolver prefetch of NS record for moved domain
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 200
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net. (before sale of domain)
+RANGE_BEGIN 0 20
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net. (after sale of domain)
+RANGE_BEGIN 30 200
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	8.8.8.8
+ENTRY_END
+RANGE_END
+
+; ns.example.com. first owner
+RANGE_BEGIN 0 200
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 3600 IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	3600 IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.	3600 	IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com. new owner
+RANGE_BEGIN 0 200
+	ADDRESS 8.8.8.8
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	8.8.8.8
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 3600 IN A	88.88.88.88
+SECTION AUTHORITY
+example.com.	3600 IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.	3600 	IN 	A	8.8.8.8
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+; recursion happens here.
+STEP 5 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 3600 IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	3600 IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.	3600 	IN 	A	1.2.3.4
+ENTRY_END
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN NS
+ENTRY_END
+; recursion happens here.
+STEP 15 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	3600 IN NS	ns.example.com.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ns.example.com.	3600 	IN 	A	1.2.3.4
+ENTRY_END
+
+; after 1800 secs still the cached answer
+STEP 20 TIME_PASSES ELAPSE 1800
+
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+; recursion happens here.
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 1800 IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	1800 IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.	1800 	IN 	A	1.2.3.4
+ENTRY_END
+
+STEP 44 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN NS
+ENTRY_END
+; recursion happens here.
+STEP 45 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	1800 IN NS	ns.example.com.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ns.example.com.	1800 	IN 	A	1.2.3.4
+ENTRY_END
+
+; after 1440 we are 360 seconds before the expiry
+STEP 50 TIME_PASSES ELAPSE 1440
+
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN NS
+ENTRY_END
+; recursion happens here.
+STEP 70 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	360 IN NS	ns.example.com.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ns.example.com.	360 	IN 	A	1.2.3.4
+ENTRY_END
+
+STEP 80 TRAFFIC
+; let traffic flow for prefetch to happen
+
+; check result of that prefetch
+STEP 90 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN NS
+ENTRY_END
+; recursion happens here.
+
+; because the prefetch+current makes old-NS expired, new delegation is picked up
+STEP 91 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	3600 IN NS	ns.example.com.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ns.example.com.	3600 	IN 	A	8.8.8.8
+ENTRY_END
+
+STEP 100 TIME_PASSES ELAPSE 2360
+
+STEP 120 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+; recursion happens here.
+STEP 130 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 3600 IN A	88.88.88.88
+SECTION AUTHORITY
+example.com.	1240 IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.	1240 	IN 	A	8.8.8.8
+ENTRY_END
+
+SCENARIO_END

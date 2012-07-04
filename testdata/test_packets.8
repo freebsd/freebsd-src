@@ -1,0 +1,13 @@
+; Test that FORMERR no longer happens.
+;-- next packet --
+; bad packet, had arcount=1 but EDNS record is missing.
+; from imgw.pl.  BIND accepts it (but dig notes 'it is malformed').
+; therefore we leniently accept this.
+; header
+75D684100001000200000001
+; qd section
+04696D677702706C0000010001
+; answer section 
+04696D677702706C000001000100000E100004C3BB560E
+04696D677702706C000001000100000E100004C3BB560D
+

@@ -1,0 +1,163 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	log-time-ascii: yes
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
+AUTOTRUST_FILE example.com
+; autotrust trust anchor file
+;;id: example.com. 1
+;;last_queried: 1258962400 ;;Mon Nov 23 07:46:40 2009
+;;last_success: 1258962400 ;;Mon Nov 23 07:46:40 2009
+;;next_probe_time: 1258967360 ;;Mon Nov 23 09:09:20 2009
+;;query_failed: 0
+;;query_interval: 5400
+;;retry_time: 3600
+example.com.    10800   IN      DNSKEY  257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8= ;{id = 16486 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+example.com.	10800	IN	DNSKEY	257 3 5 AwEAAc3Z5DQDJpH4oPdNtC4BUQHk50XMD+dHr4r8psHmivIa83hxR5CRgCtd9sENCW9Ae8OIO19xw9t/RPaEAqQa+OE= ;{id = 55582 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+AUTOTRUST_END
+CONFIG_END
+
+SCENARIO_BEGIN Test autotrust with probe signature failure
+
+; K-ROOT
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id copy_query
+REPLY QR AA
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS k.root-servers.net.
+SECTION ADDITIONAL
+k.root-servers.net IN A 193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR
+SECTION QUESTION
+com. IN NS
+SECTION AUTHORITY
+com. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR
+SECTION QUESTION
+example.com. IN NS
+SECTION AUTHORITY
+example.com. IN NS ns.example.com.
+SECTION ADDITIONAL
+ns.example.com. IN A 1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR AA SERVFAIL
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR AA
+SECTION QUESTION
+example.com. IN DNSKEY
+SECTION ANSWER
+
+; revoked keys
+example.com.    10800   IN      DNSKEY  385 3 5 AwEAAc3Z5DQDJpH4oPdNtC4BUQHk50XMD+dHr4r8psHmivIa83hxR5CRgCtd9sENCW9Ae8OIO19xw9t/RPaEAqQa+OE= ;{id = 55710 (ksk), size = 512b}
+example.com.	10800	IN	DNSKEY	385 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8= ;{id = 16614 (ksk), size = 512b}
+; signatures
+; were edited from 20091124111500 20091018111500 to make them fail.
+example.com.	10800	IN	RRSIG	DNSKEY 5 2 10800 20090101011500 20090101011500 55710 example.com. zOSlB1iwtlP2lum1RK0WoDQrMVj0JKwk2E5Mu1okzV38hAx3Xm9IGMK6WrNkVVLmx4OkhYmdPVA95jVsFpwLMw== ;{id = 55710}
+example.com.	10800	IN	RRSIG	DNSKEY 5 2 10800 20090101011500 20090101011500 16614 example.com. qP49cCYP3lvNnLBYty/JxAwHqBIGjpup5zQ7qpjPnaZpBb/TlpOhY17LBZrqD86VvBbEVz5tkxC9UrCy85ePDQ== ;{id = 16614}
+
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR AA REFUSED
+SECTION QUESTION
+ns.example.com. IN A
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id
+REPLY QR AA REFUSED
+SECTION QUESTION
+ns.example.com. IN AAAA
+ENTRY_END
+RANGE_END
+
+; set date/time to Mon Nov 23 09:46:40 2009
+STEP 5 TIME_PASSES EVAL ${1258962400 + 7200}
+STEP 6 TRAFFIC   ; do the probe
+STEP 7 ASSIGN t0 = ${time}
+STEP 8 ASSIGN probe0 = ${range 3200 ${timeout} 3600}
+STEP 9 ASSIGN tp = ${1258962400}
+
+; the auto probing should have been done now.
+STEP 11 CHECK_AUTOTRUST example.com
+FILE_BEGIN
+; autotrust trust anchor file
+;;id: example.com. 1
+;;last_queried: ${$t0} ;;${ctime $t0}
+;;last_success: 1258962400 ;;Mon Nov 23 07:46:40 2009
+;;next_probe_time: ${$t0+$probe0} ;;${ctime $t0+$probe0}
+;;query_failed: 6
+;;query_interval: 5400
+;;retry_time: 3600
+example.com.	10800	IN	DNSKEY	257 3 5 AwEAAc3Z5DQDJpH4oPdNtC4BUQHk50XMD+dHr4r8psHmivIa83hxR5CRgCtd9sENCW9Ae8OIO19xw9t/RPaEAqQa+OE= ;{id = 55582 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+example.com.	10800	IN	DNSKEY	257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8= ;{id = 16486 (ksk), size = 512b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1258962400 ;;Mon Nov 23 07:46:40 2009
+FILE_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+SCENARIO_END

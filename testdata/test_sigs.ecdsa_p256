@@ -1,0 +1,23 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; Test ECDSA P256 signatures from draft-ietf-dnsext-ecdsa-04
+
+ENTRY_BEGIN
+SECTION QUESTION
+example.net.	IN DNSKEY
+SECTION ANSWER
+example.net. 3600 IN DNSKEY 257 3 13 ( GojIhhXUN/u4v54ZQqGSnyhWJwaubCvTmeexv7bR6edb krSqQpF64cYbcB7wNcP+e+MAnLr+Wi9xMWyQLc8NAA== )
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+www.example.net.    IN      A 
+SECTION ANSWER
+www.example.net. 3600 IN A 192.0.2.1
+www.example.net. 3600 IN RRSIG A 13 3 3600 ( 20100909100439 20100812100439 55648 example.net.  qx6wLYqmh+l9oCKTN6qIc+bw6ya+KJ8oMz0YP107epXA yGmt+3SNruPFKG7tZoLBLlUzGGus7ZwmwWep666VCw== )
+ENTRY_END
+

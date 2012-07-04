@@ -1,0 +1,55 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; Test HINFO canonicalisation
+
+; RSA key from ldns tool
+ENTRY_BEGIN
+SECTION QUESTION
+jelte.nlnetlabs.nl.	IN DNSKEY
+SECTION ANSWER
+jelte.nlnetlabs.nl.	3600	IN	DNSKEY	256 3 5 AwEAAawmHBgxeOiaYE4JpNU+CBqEj7xGB1o6ThEsUmtjsbmTnsJ89uWv 2PudzhQKCR1hJtuxVxG0Aw4mwHlAy+SoWHp8NXW1JYVA5qbvYhUUUM3l +ZFImaMhShhlviJJDLla5nmB5pyNYbC4wxqkCs51mzJY1abbCmZepmQL IlprTjUL
+ENTRY_END
+
+; check that signatures work
+ENTRY_BEGIN
+SECTION QUESTION
+jelte.nlnetlabs.nl.	IN	NS
+SECTION ANSWER
+jelte.nlnetlabs.nl.	3600	IN	NS	ns1.jelte.nlnetlabs.nl.
+jelte.nlnetlabs.nl.	3600	IN	NS	ns2.jelte.nlnetlabs.nl.
+jelte.nlnetlabs.nl.	3600	IN	RRSIG	NS 5 3 3600 20090203100022 20090106100022 48885 jelte.nlnetlabs.nl. E3G8ZsCvUw56EKxYA4JzjYaB3ojLpdmQdUHOPSxlWK43haSuxpFERGRc P7AhiMjcYcoJcR+LWQr0uOFVnW8VcFFdy8u7Gs9MNAIWs5+jOaI3WDRC reee7K/NEBiubQCdm7UPA894VNM5oiLCa1waMoMD+LfEeijuN4N09HqY 6eo=
+ENTRY_END
+
+; currently this fails due to the design of canonicalisation in unbound.
+; HINFO record signed with ldns, HINFO in uppercase, signature uppercase
+ENTRY_BEGIN
+SECTION QUESTION
+jelte.nlnetlabs.nl.    IN      HINFO
+SECTION ANSWER
+jelte.nlnetlabs.nl.	3600	IN	HINFO	"Jelte" "Machine van"
+jelte.nlnetlabs.nl.	3600	IN	RRSIG	HINFO 5 3 3600 20090203100022 20090106100022 48885 jelte.nlnetlabs.nl. eRig3NjIIgBTmQiN7AREmplgiY6OOtVwCNZgF5UAoYFAE1K1tl5WLqe9 FmTcVtaNUzFdgYv+TD93NNYdV0uxJkr+rS2sSykGf9OIlxevFm+rW2ya 4/Y+5GIN77eN9q9/6ULQRdsX3p8w1fhloiDXk+tgCaw+cJJElMEE1Avw 2dY=
+ENTRY_END
+
+
+; HINFO record signed with ldns, HINFO in lowercase, signature lowercase
+ENTRY_BEGIN
+SECTION QUESTION
+jelte.nlnetlabs.nl.    IN      HINFO
+SECTION ANSWER
+jelte.nlnetlabs.nl.	3600	IN	HINFO	"jelte" "machine van"
+jelte.nlnetlabs.nl.	3600	IN	RRSIG	HINFO 5 3 3600 20090203105558 20090106105558 48885 jelte.nlnetlabs.nl. UwFKSqH9oau3nCdJ4i6iYamo2izgMCKy1K8ec0IkhniUONKaIGiRNz8/ QrLAeBHhMnLQYNV/GBprNjvnPyYLG/6bWYUBxvP6pCG4oDEmNY7QF9di I6So5Ycv0ZWaYoT/NYStUj1fLNZ4xCdNXVLA7Oi5PRMeOvPQIvMG3hHK Ja0=
+ENTRY_END
+
+; HINFO record signed with ldns, HINFO in uppercase, signature lowercase
+; (signer canonicalised)
+ENTRY_BEGIN
+SECTION QUESTION
+bogus.jelte.nlnetlabs.nl.    IN      HINFO
+SECTION ANSWER
+jelte.nlnetlabs.nl.	3600	IN	HINFO	"Jelte" "Machine van"
+jelte.nlnetlabs.nl.	3600	IN	RRSIG	HINFO 5 3 3600 20090203105558 20090106105558 48885 jelte.nlnetlabs.nl. UwFKSqH9oau3nCdJ4i6iYamo2izgMCKy1K8ec0IkhniUONKaIGiRNz8/ QrLAeBHhMnLQYNV/GBprNjvnPyYLG/6bWYUBxvP6pCG4oDEmNY7QF9di I6So5Ycv0ZWaYoT/NYStUj1fLNZ4xCdNXVLA7Oi5PRMeOvPQIvMG3hHK Ja0=
+ENTRY_END
+

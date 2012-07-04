@@ -1,0 +1,24 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+
+; DNSKEY is revoked.
+ENTRY_BEGIN
+SECTION QUESTION
+example.com.                 IN      DNSKEY
+SECTION ANSWER
+example.com.	3600	IN	DNSKEY	384 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 31027 (zsk), size = 512b}
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+secure.example.com.       IN      SOA
+SECTION ANSWER
+example.com.  43200   IN      SOA     home.kuroiwa.eng.br. hostmaster.cesar.sec3.br. 2008040903 86400 86400 8640000 600
+example.com.	43200	IN	RRSIG	SOA 5 2 43200 20081010000000 20080410122550 31027 example.com. af7nqRak6cEeQLytqLHMIUKPsOECA4Cu/Zpm7vdnKSh2q2+/8ZwIxwHLyCEGdiu/mTYffZEHTZytJyzxnB0oxA== ;{id = 31027}
+ENTRY_END
+
+

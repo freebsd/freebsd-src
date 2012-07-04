@@ -1,0 +1,359 @@
+; config options
+; The island of trust is at example.com
+server:
+	trust-anchor: "example.com. DS 57024 7 1 46d134be319b2cc910b9938f1cb25dc41abb27bf"
+	val-override-date: "20070916134226"
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test validator with optout NSEC3 response that gets no AD.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.    IN NS   a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.     IN      A       192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.    IN NS   ns.example.com.
+example.com.	3600	IN	RRSIG	NS 7 2 3600 20070926134150 20070829134150 57024 example.com. fIE3H2v3wAm3GPajsdgJn+A8R4Cp7dMXf1PSUQ8BfklzMBMJjpc0oM/S7u/HVLYQs1jx8CMdw2TZEpIPfo6Rl0TekDqNtVk6IBw1H+zxDFwf3v7UdOjm8s6FfoEJcZ5yEFV/Lps82NzHCR9uqprhv6ddQdAeVNA5QHis1c5Y1P0= ;{id = 57024}
+SECTION ADDITIONAL
+ns.example.com.         IN      A       1.2.3.4
+ns.example.com.	3600	IN	RRSIG	A 7 3 3600 20070926134150 20070829134150 57024 example.com. b0iX5vuTqngB5F0ORFrFLx8sAeTHGJVcPpD34iNFY71ZoFnHrHfAMWC3RAWz+nQ1NmH1oDdA8NTYN/aQQNzwEz4VmVYA2PANBSiwSY3q3gp9PWZU6CfRNf2dU/210H0y35FroQpADszmwC+Hlbcvll+bQj3fSyT2W/69kRVssj4= ;{id = 57024}
+ENTRY_END
+
+; response to DNSKEY priming query
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN DNSKEY
+SECTION ANSWER
+example.com.	3600	IN	DNSKEY	257 3 7 AwEAAbvre/wK/WVeoj0SiwVkTD+NefvHPru9YIqLWY0m+0E5NYOpJZdc+PGQQYRzFNOlugVZtFirmv5Lmz7GNiASXtG/IFi//SlE30DxEKQOjt2F6qSZTZ1nZ5XOIMGTwWyp4OoI0egk5JavC5mQbyXqcj82ywt6F5Z3CmnThVl6MtOv ;{id = 57024 (ksk), size = 1024b}
+example.com.	3600	IN	RRSIG	DNSKEY 7 2 3600 20070926134150 20070829134150 57024 example.com. lqOo8W7UffLZIKBoIJg8OAPkmCWptnstiLIg1bAtzuEZDZFr2KNZGv+5k6hbRJKYnZRLReY4v8G9Eg0GCC/44gLm8BZlnh/4jLOjMH9MKusFV/jNqz/HABITYn1pBwvVak7lzqN+bmL0KMyWf1MzPWilx4fM9YWinsQFILVLPL0= ;{id = 57024}
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.	3600	IN	RRSIG	NS 7 2 3600 20070926134150 20070829134150 57024 example.com. fIE3H2v3wAm3GPajsdgJn+A8R4Cp7dMXf1PSUQ8BfklzMBMJjpc0oM/S7u/HVLYQs1jx8CMdw2TZEpIPfo6Rl0TekDqNtVk6IBw1H+zxDFwf3v7UdOjm8s6FfoEJcZ5yEFV/Lps82NzHCR9uqprhv6ddQdAeVNA5QHis1c5Y1P0= ;{id = 57024}
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ns.example.com.	3600	IN	RRSIG	A 7 3 3600 20070926134150 20070829134150 57024 example.com. b0iX5vuTqngB5F0ORFrFLx8sAeTHGJVcPpD34iNFY71ZoFnHrHfAMWC3RAWz+nQ1NmH1oDdA8NTYN/aQQNzwEz4VmVYA2PANBSiwSY3q3gp9PWZU6CfRNf2dU/210H0y35FroQpADszmwC+Hlbcvll+bQj3fSyT2W/69kRVssj4= ;{id = 57024}
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+sub.example.com. IN DS
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.	3600	IN	RRSIG	SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+
+; optout
+; example.com. -> onib9mgub9h0rml3cdf5bgrj59dkjhvk.
+; sub.example.com. -> kg19n32806c832kijdnglq8p9m2r5mdj.
+; *.example.com. -> 4f3cnt8cu22tngec382jj4gde4rb47ub.
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com. NSEC3 1 1 0 - pnib9mgub9h0rml3cdf5bgrj59dkjhvk NS SOA RRSIG DNSKEY NSEC3PARAM
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com. NSEC3 1 1 0 - lg19n32806c832kijdnglq8p9m2r5mdj NS DS RRSIG
+
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jHrF+lnyRL1LE/Bwz6C+jZg3E/2qQkVSboGxya6iX71v0zA3eUsob9m9l3gHNlhwhyahbamHUKx+OMvtYuzRa+RMv4ObuLRIt8StdixeXaUU+rx7C2qCKOFsa5q4HzK4bLYPfyb5T9w67HbzHPLEllXPA7tghzyzCM9qBtbvwK4= ;{id = 57024}
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. f7ZSCahAuKOLXquM0jpdU6I9AX31CgGicRiB3aU4jvqQp/EygbCNn5kfpyXY0FvZvzggpl8naXSStOPN9dy3bb0NwGQkJcYD94NEw307T8uEunOvx1ug5TuakBAwqjY8xKM3xab3LnWYRtx4zdln/3ZDHvBUwfzkxUZrzeKjpiI= ;{id = 57024}
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+sub.example.com. IN MX
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.	3600	IN	RRSIG	SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+
+; optout
+; example.com. -> onib9mgub9h0rml3cdf5bgrj59dkjhvk.
+; sub.example.com. -> kg19n32806c832kijdnglq8p9m2r5mdj.
+; *.example.com. -> 4f3cnt8cu22tngec382jj4gde4rb47ub.
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com. NSEC3 1 1 0 - pnib9mgub9h0rml3cdf5bgrj59dkjhvk NS SOA RRSIG DNSKEY NSEC3PARAM
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com. NSEC3 1 1 0 - lg19n32806c832kijdnglq8p9m2r5mdj NS DS RRSIG
+
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jHrF+lnyRL1LE/Bwz6C+jZg3E/2qQkVSboGxya6iX71v0zA3eUsob9m9l3gHNlhwhyahbamHUKx+OMvtYuzRa+RMv4ObuLRIt8StdixeXaUU+rx7C2qCKOFsa5q4HzK4bLYPfyb5T9w67HbzHPLEllXPA7tghzyzCM9qBtbvwK4= ;{id = 57024}
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. f7ZSCahAuKOLXquM0jpdU6I9AX31CgGicRiB3aU4jvqQp/EygbCNn5kfpyXY0FvZvzggpl8naXSStOPN9dy3bb0NwGQkJcYD94NEw307T8uEunOvx1ug5TuakBAwqjY8xKM3xab3LnWYRtx4zdln/3ZDHvBUwfzkxUZrzeKjpiI= ;{id = 57024}
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NXDOMAIN
+SECTION QUESTION
+rub.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.	3600	IN	RRSIG	SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+
+; optout
+; example.com. -> onib9mgub9h0rml3cdf5bgrj59dkjhvk.
+; rub.example.com. -> c2bqk3tb4foaenfbp1v0pdk6mor3r7vo.
+; *.example.com. -> 4f3cnt8cu22tngec382jj4gde4rb47ub.
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com. NSEC3 1 1 0 - pnib9mgub9h0rml3cdf5bgrj59dkjhvk NS SOA RRSIG DNSKEY NSEC3PARAM
+22bqk3tb4foaenfbp1v0pdk6mor3r7vo.example.com. NSEC3 1 1 0 - f2bqk3tb4foaenfbp1v0pdk6mor3r7vo NS RRSIG
+
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jHrF+lnyRL1LE/Bwz6C+jZg3E/2qQkVSboGxya6iX71v0zA3eUsob9m9l3gHNlhwhyahbamHUKx+OMvtYuzRa+RMv4ObuLRIt8StdixeXaUU+rx7C2qCKOFsa5q4HzK4bLYPfyb5T9w67HbzHPLEllXPA7tghzyzCM9qBtbvwK4= ;{id = 57024}
+22bqk3tb4foaenfbp1v0pdk6mor3r7vo.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jk6EYU9qTrmNeeKuQRG7iKyfNJnBt45MToPVpAQ+LoGDC3muy4bkWeKspj68cN9E5wNijfmm1eFK3khSSEnM50mfJbpiwlbKgL0VZz33Zn+Wu8b7sTtdDwDH7MUBLRwHeb7W+NtQIEXPLs4Z3BXHzAXy5ZpSjQ3PJZn6zBx4/dw= ;{id = 57024}
+SECTION ADDITIONAL
+ENTRY_END
+
+; wildcard expansion
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.wild.example.com. IN A
+SECTION ANSWER
+; *.wild.example.com. IN A 77.88.99.0
+a.wild.example.com. IN A 77.88.99.0
+a.wild.example.com.	3600	IN	RRSIG	A 7 3 3600 20070926134150 20070829134150 57024 example.com. GWV6cQprrpAsaYla5z7N9tppdb+X0ZjOsiWBuBueSACHU8CzsYPMbwKUZlTNbQ4mSVRRDa0rM1niYoZF9oqyAfbn5HBLi62TRjrBLHfvatDgSiZCa4mauUfzUS+U7FfUXikNIigG0aN0xdpJ//urmecjNSKg2aW4M0DYsm7keMI= ;{id = 57024}
+SECTION AUTHORITY
+; a.wild.example.com -> ad1535hlgg914unuuaei9jfh4ofr44uo.  covered by optout
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com. IN NSEC3 1 1 0 - ae1535hlgg914unuuaei9jfh4ofr44uo NS RRSIG
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. imoxsXE1c3FaXu6uSantJfMPGBgsauf1GhmNpS1lLuaNRjXOhf1PDXwt/GoD/dm2GXJAlWT8u6EK3RXkFwlDIsP7vYFuDfUNCQ/hvYq300sXl1nfW0O1bsoBJahQJuNM+xcbwbnQf0krCTxNthyi2cuiY7RYug6ZTZ3gz4DMkhU= ;{id = 57024}
+; for wild.example.com the closest encloser
+; wild.example.com -> 8aeigskl5tmraedgji7v1lqbmqs8qv7u.
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com. IN NSEC3 1 1 0 - 9aeigskl5tmraedgji7v1lqbmqs8qv7u
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. afV7c9knpxmD5c6UKrqw5J/06eokPwSb3HZi3TI63tzFcswuMjj4d7NKJmdpA+uo0aweVZgcOp+O+v9urgNYNYbxOy02qqOetLph8YWH7MQTftaGBwKD7gZMbnUArryPCtrlJz0i0GzoWvVTZnsjrrlDtP/ogLDnCKyi7Q0si+k= ;{id = 57024}
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.wild.example.com. IN MX
+SECTION ANSWER
+SECTION AUTHORITY
+; wildcard no data
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.	3600	IN	RRSIG	SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+; wild.example.com -> 8aeigskl5tmraedgji7v1lqbmqs8qv7u.
+; *.wild.example.com. -> nvec78au1hpuma9eebeji5n06eq33gbk.
+; the NSEC3 for the wildcard *.wild.example.com. , with optout, A RRSIG
+nvec78au1hpuma9eebeji5n06eq33gbk.example.com. IN NSEC3 1 1 0 - ovec78au1hpuma9eebeji5n06eq33gbk A RRSIG
+nvec78au1hpuma9eebeji5n06eq33gbk.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jE+b5p+stQumm+tLZdaBT+KBpwYI7wRXijRHWcqiUp2SY1uV7HxBdW8aedVTqpFe8kYbMUgI3pCOAitmiI9R6SJg3q7022QOb9y+0/xSmIDqxATVPTJbkzVBInfWrulRtn7o3HmOyoIc9/w7NnNxFYpwtFL08jTBRr8XRTWDM7Q= ;{id = 57024}
+; NSEC3 for the closest encloser, wild.example.com. (an empty nonterminal)
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com. IN NSEC3 1 1 0 - 9aeigskl5tmraedgji7v1lqbmqs8qv7u
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. afV7c9knpxmD5c6UKrqw5J/06eokPwSb3HZi3TI63tzFcswuMjj4d7NKJmdpA+uo0aweVZgcOp+O+v9urgNYNYbxOy02qqOetLph8YWH7MQTftaGBwKD7gZMbnUArryPCtrlJz0i0GzoWvVTZnsjrrlDtP/ogLDnCKyi7Q0si+k= ;{id = 57024}
+; a.wild.example.com -> ad1535hlgg914unuuaei9jfh4ofr44uo.  covered by optout
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com. IN NSEC3 1 1 0 - ae1535hlgg914unuuaei9jfh4ofr44uo NS RRSIG
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. imoxsXE1c3FaXu6uSantJfMPGBgsauf1GhmNpS1lLuaNRjXOhf1PDXwt/GoD/dm2GXJAlWT8u6EK3RXkFwlDIsP7vYFuDfUNCQ/hvYq300sXl1nfW0O1bsoBJahQJuNM+xcbwbnQf0krCTxNthyi2cuiY7RYug6ZTZ3gz4DMkhU= ;{id = 57024}
+ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+sub.example.com. IN MX
+ENTRY_END
+
+; recursion happens here.
+; no AD flag on this because an optout NSEC3 is used.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+sub.example.com. IN MX
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.    3600    IN      RRSIG   SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com. NSEC3 1 1 0 - pnib9mgub9h0rml3cdf5bgrj59dkjhvk NS SOA RRSIG DNSKEY NSEC3PARAM
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com.   3600    IN      RRSIG   NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jHrF+lnyRL1LE/Bwz6C+jZg3E/2qQkVSboGxya6iX71v0zA3eUsob9m9l3gHNlhwhyahbamHUKx+OMvtYuzRa+RMv4ObuLRIt8StdixeXaUU+rx7C2qCKOFsa5q4HzK4bLYPfyb5T9w67HbzHPLEllXPA7tghzyzCM9qBtbvwK4= ;{id = 57024}
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com. NSEC3 1 1 0 - lg19n32806c832kijdnglq8p9m2r5mdj NS DS RRSIG
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com.   3600    IN      RRSIG   NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. f7ZSCahAuKOLXquM0jpdU6I9AX31CgGicRiB3aU4jvqQp/EygbCNn5kfpyXY0FvZvzggpl8naXSStOPN9dy3bb0NwGQkJcYD94NEw307T8uEunOvx1ug5TuakBAwqjY8xKM3xab3LnWYRtx4zdln/3ZDHvBUwfzkxUZrzeKjpiI= ;{id = 57024}
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+sub.example.com. IN DS
+ENTRY_END
+
+; recursion happens here.
+; no AD flag here because of RFC5155 9.2 section.
+; even though we are sure there is no DS, this is what the RFC says.
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+sub.example.com. IN DS
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.    3600    IN      RRSIG   SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com. NSEC3 1 1 0 - pnib9mgub9h0rml3cdf5bgrj59dkjhvk NS SOA RRSIG DNSKEY NSEC3PARAM
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com.   3600    IN      RRSIG   NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jHrF+lnyRL1LE/Bwz6C+jZg3E/2qQkVSboGxya6iX71v0zA3eUsob9m9l3gHNlhwhyahbamHUKx+OMvtYuzRa+RMv4ObuLRIt8StdixeXaUU+rx7C2qCKOFsa5q4HzK4bLYPfyb5T9w67HbzHPLEllXPA7tghzyzCM9qBtbvwK4= ;{id = 57024}
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com. NSEC3 1 1 0 - lg19n32806c832kijdnglq8p9m2r5mdj NS DS RRSIG
+jg19n32806c832kijdnglq8p9m2r5mdj.example.com.   3600    IN      RRSIG   NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. f7ZSCahAuKOLXquM0jpdU6I9AX31CgGicRiB3aU4jvqQp/EygbCNn5kfpyXY0FvZvzggpl8naXSStOPN9dy3bb0NwGQkJcYD94NEw307T8uEunOvx1ug5TuakBAwqjY8xKM3xab3LnWYRtx4zdln/3ZDHvBUwfzkxUZrzeKjpiI= ;{id = 57024}
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+rub.example.com. IN A
+ENTRY_END
+
+; recursion happens here.
+; no AD flag here because of RFC5155 9.2 section.
+; also for NXDOMAIN
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+rub.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.    3600    IN      RRSIG   SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com. NSEC3 1 1 0 - pnib9mgub9h0rml3cdf5bgrj59dkjhvk NS SOA RRSIG DNSKEY NSEC3PARAM
+onib9mgub9h0rml3cdf5bgrj59dkjhvk.example.com.   3600    IN      RRSIG   NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jHrF+lnyRL1LE/Bwz6C+jZg3E/2qQkVSboGxya6iX71v0zA3eUsob9m9l3gHNlhwhyahbamHUKx+OMvtYuzRa+RMv4ObuLRIt8StdixeXaUU+rx7C2qCKOFsa5q4HzK4bLYPfyb5T9w67HbzHPLEllXPA7tghzyzCM9qBtbvwK4= ;{id = 57024}
+22bqk3tb4foaenfbp1v0pdk6mor3r7vo.example.com. NSEC3 1 1 0 - f2bqk3tb4foaenfbp1v0pdk6mor3r7vo NS RRSIG
+22bqk3tb4foaenfbp1v0pdk6mor3r7vo.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jk6EYU9qTrmNeeKuQRG7iKyfNJnBt45MToPVpAQ+LoGDC3muy4bkWeKspj68cN9E5wNijfmm1eFK3khSSEnM50mfJbpiwlbKgL0VZz33Zn+Wu8b7sTtdDwDH7MUBLRwHeb7W+NtQIEXPLs4Z3BXHzAXy5ZpSjQ3PJZn6zBx4/dw= ;{id = 57024}
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.wild.example.com. IN A
+ENTRY_END
+
+; query is a wildcard expansion, covered by optout.
+; hence it is without AD flag (even though we are sure this wildcard exists,
+; we are not sure that there is no delegation covered by the optout span
+; with the name a.wild.example.com).
+STEP 70 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+a.wild.example.com. IN A
+SECTION ANSWER
+a.wild.example.com. IN A 77.88.99.0
+a.wild.example.com.	3600	IN	RRSIG	A 7 3 3600 20070926134150 20070829134150 57024 example.com. GWV6cQprrpAsaYla5z7N9tppdb+X0ZjOsiWBuBueSACHU8CzsYPMbwKUZlTNbQ4mSVRRDa0rM1niYoZF9oqyAfbn5HBLi62TRjrBLHfvatDgSiZCa4mauUfzUS+U7FfUXikNIigG0aN0xdpJ//urmecjNSKg2aW4M0DYsm7keMI= ;{id = 57024}
+SECTION AUTHORITY
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com. IN NSEC3 1 1 0 - ae1535hlgg914unuuaei9jfh4ofr44uo NS RRSIG
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. imoxsXE1c3FaXu6uSantJfMPGBgsauf1GhmNpS1lLuaNRjXOhf1PDXwt/GoD/dm2GXJAlWT8u6EK3RXkFwlDIsP7vYFuDfUNCQ/hvYq300sXl1nfW0O1bsoBJahQJuNM+xcbwbnQf0krCTxNthyi2cuiY7RYug6ZTZ3gz4DMkhU= ;{id = 57024}
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com. IN NSEC3 1 1 0 - 9aeigskl5tmraedgji7v1lqbmqs8qv7u
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. afV7c9knpxmD5c6UKrqw5J/06eokPwSb3HZi3TI63tzFcswuMjj4d7NKJmdpA+uo0aweVZgcOp+O+v9urgNYNYbxOy02qqOetLph8YWH7MQTftaGBwKD7gZMbnUArryPCtrlJz0i0GzoWvVTZnsjrrlDtP/ogLDnCKyi7Q0si+k= ;{id = 57024}
+ENTRY_END
+
+STEP 80 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.wild.example.com. IN MX
+ENTRY_END
+
+; nodata wildcard expansion, we are sure that the wildcard does not have
+; the data that is requested, but there an optout flag set on the wildcard
+; expansion denial, thus we are not sure of a.wild.example.com delegation
+; under the optout.
+STEP 90 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+a.wild.example.com. IN MX
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA ns.example.com. noc.example.com. 2009310622 1800 900 604800 86400
+example.com.	3600	IN	RRSIG	SOA 7 2 3600 20070926134150 20070829134150 57024 example.com. HlyER7bYPiSJ9jdjjRBucQexYr932Oor1TvxSLPWw5fuWvr/fFitKVnLqC+lqBIeOby44KiDr0rIk+ZqYjWWKNjaLm5wMfhQzbsAgGTQxmO07jnYOGQG9SI6DSbR9GJdZ7imu5sx5oo5dze73MxgLMZIethGaFMkktYN53+AzG0= ;{id = 57024}
+nvec78au1hpuma9eebeji5n06eq33gbk.example.com. IN NSEC3 1 1 0 - ovec78au1hpuma9eebeji5n06eq33gbk A RRSIG
+nvec78au1hpuma9eebeji5n06eq33gbk.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. jE+b5p+stQumm+tLZdaBT+KBpwYI7wRXijRHWcqiUp2SY1uV7HxBdW8aedVTqpFe8kYbMUgI3pCOAitmiI9R6SJg3q7022QOb9y+0/xSmIDqxATVPTJbkzVBInfWrulRtn7o3HmOyoIc9/w7NnNxFYpwtFL08jTBRr8XRTWDM7Q= ;{id = 57024}
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com. IN NSEC3 1 1 0 - 9aeigskl5tmraedgji7v1lqbmqs8qv7u
+8aeigskl5tmraedgji7v1lqbmqs8qv7u.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. afV7c9knpxmD5c6UKrqw5J/06eokPwSb3HZi3TI63tzFcswuMjj4d7NKJmdpA+uo0aweVZgcOp+O+v9urgNYNYbxOy02qqOetLph8YWH7MQTftaGBwKD7gZMbnUArryPCtrlJz0i0GzoWvVTZnsjrrlDtP/ogLDnCKyi7Q0si+k= ;{id = 57024}
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com. IN NSEC3 1 1 0 - ae1535hlgg914unuuaei9jfh4ofr44uo NS RRSIG
+ac1535hlgg914unuuaei9jfh4ofr44uo.example.com.	3600	IN	RRSIG	NSEC3 7 3 3600 20070926134150 20070829134150 57024 example.com. imoxsXE1c3FaXu6uSantJfMPGBgsauf1GhmNpS1lLuaNRjXOhf1PDXwt/GoD/dm2GXJAlWT8u6EK3RXkFwlDIsP7vYFuDfUNCQ/hvYq300sXl1nfW0O1bsoBJahQJuNM+xcbwbnQf0krCTxNthyi2cuiY7RYug6ZTZ3gz4DMkhU= ;{id = 57024}
+ENTRY_END
+
+SCENARIO_END

@@ -1,0 +1,237 @@
+; config options
+server:
+	target-fetch-policy: "3 2 1 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test iterator with delagation with bad IP address
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net.	IN	A
+SECTION ANSWER
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net.	IN	AAAA
+SECTION AUTHORITY
+. SOA bla bla 1 2 3 4 5
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+example.com.	IN NS	ns2.example.com.
+SECTION ADDITIONAL
+ns.example.com.	 10 	IN 	A	1.2.3.4
+ns2.example.com. 3600	IN 	A	1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+foo.com. IN A
+SECTION AUTHORITY
+foo.com.	IN NS	ns.example.com.
+foo.com.	IN NS	ns2.example.com.
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 10 IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	3600 IN NS	ns.example.com.
+example.com.	3600 IN NS	ns2.example.com.
+SECTION ADDITIONAL
+ns.example.com.	10 	IN 	A	1.2.3.4
+ns2.example.com. 3600	IN 	A	1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com.	10 	IN 	A	1.2.3.4
+SECTION AUTHORITY
+example.com.	3600 IN NS	ns.example.com.
+example.com.	3600 IN NS	ns2.example.com.
+SECTION ADDITIONAL
+ns2.example.com. 3600	IN 	A	1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns2.example.com. IN A
+SECTION ANSWER
+ns2.example.com. 3600	IN 	A	1.2.3.5
+SECTION AUTHORITY
+example.com.	3600 IN NS	ns.example.com.
+example.com.	3600 IN NS	ns2.example.com.
+SECTION ADDITIONAL
+ns.example.com.	10 	IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.com.	3600 IN SOA bla. bla. 1 2 3 4 5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns2.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.com.	3600 IN SOA bla. bla. 1 2 3 4 5
+ENTRY_END
+
+; foo.com contents.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+www.foo.com. 10 IN A	10.20.30.40
+SECTION AUTHORITY
+foo.com.	3600 IN NS	ns.example.com.
+foo.com.	3600 IN NS	ns2.example.com.
+ENTRY_END
+
+RANGE_END
+
+; ns2.example.com. (lame)
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.foo.com. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+www.foo.com. 10 IN A	10.20.30.40
+SECTION AUTHORITY
+foo.com.	3600 IN NS	ns.example.com.
+foo.com.	3600 IN NS	ns2.example.com.
+ENTRY_END
+
+STEP 15 TRAFFIC
+
+; Now move the time so good server times out and bad remains.
+STEP 20 TIME_PASSES ELAPSE 20
+
+; Try query again.
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.foo.com. IN A
+ENTRY_END
+
+STEP 35 TRAFFIC
+
+; recursion happens here.
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.foo.com. IN A
+SECTION ANSWER
+www.foo.com. 10 IN A	10.20.30.40
+SECTION AUTHORITY
+foo.com.	3600 IN NS	ns.example.com.
+foo.com.	3600 IN NS	ns2.example.com.
+ENTRY_END
+
+SCENARIO_END

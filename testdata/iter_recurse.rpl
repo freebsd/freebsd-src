@@ -1,0 +1,227 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test resolution with recursion for NS target.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN A
+SECTION AUTHORITY
+net.	IN NS	e.gtld-servers.net.
+SECTION ADDITIONAL
+e.gtld-servers.net.	IN 	A	192.12.94.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN AAAA
+SECTION AUTHORITY
+net.	IN NS	e.gtld-servers.net.
+SECTION ADDITIONAL
+e.gtld-servers.net.	IN 	A	192.12.94.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.net.
+ENTRY_END
+RANGE_END
+
+; e.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.12.94.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+net. IN NS
+SECTION ANSWER
+net.	IN NS	e.gtld-servers.net.
+SECTION ADDITIONAL
+e.gtld-servers.net.	IN 	A	192.12.94.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN A
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net.		IN 	A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN AAAA
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net.		IN 	A	1.2.3.44
+ENTRY_END
+RANGE_END
+
+; ns.example.net.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.44
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.net. IN NS
+SECTION ANSWER
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net.		IN 	A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN A
+SECTION ANSWER
+ns.example.net. IN A	1.2.3.44
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.net. IN AAAA
+SECTION AUTHORITY
+example.net.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+www.example.net. IN A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.net.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.net.
+SECTION ADDITIONAL
+ns.example.net 	IN A 	1.2.3.44
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.net.
+; scrubbed off
+;SECTION ADDITIONAL
+;ns.example.net 	IN A 	1.2.3.44
+ENTRY_END
+
+; due to ordering of answer packets, this is still outstanding, remove it
+STEP 21 CHECK_OUT_QUERY
+ENTRY_BEGIN
+ADJUST copy_id
+MATCH qname qtype
+REPLY QR
+SECTION QUESTION
+ns.example.net IN AAAA
+ENTRY_END
+
+SCENARIO_END

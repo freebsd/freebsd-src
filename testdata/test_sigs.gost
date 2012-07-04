@@ -1,0 +1,40 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; Test GOST signatures using algo number 12.
+
+ENTRY_BEGIN
+SECTION QUESTION
+nlnetlabs.nl.	IN DNSKEY
+SECTION ANSWER
+nlnetlabs.nl.   3600	IN	DNSKEY	256 3 12 9SZY+xB3wKtrLoRHzkBs9L3fjcvazjnk5HF3gMaD1PVp4pthrwgHIm0TUaLrd3YCa2VCl5wj+MzbhZi8NEJ/Cg== ;{id = 60385 (zsk), size = 512b}
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+open.nlnetlabs.nl. IN A
+SECTION ANSWER
+open.nlnetlabs.nl.      600     IN      A       213.154.224.1
+open.nlnetlabs.nl.	600	IN	RRSIG	A 12 3 600 20090903100515 20090806100515 60385 nlnetlabs.nl. XVxDmt7/gRk13Yv+U+RPuEZ86iCGSVPmTcpMZYJs14Yn6Y/On8X+vgLV6IzxQTxAwGb+D35/dUfT55p6pFo8YQ== ;{id = 60385}
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+open.nlnetlabs.nl. IN AAAA
+SECTION ANSWER
+open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::1
+open.nlnetlabs.nl.      600     IN      AAAA    2001:7b8:206:1::53
+open.nlnetlabs.nl.	600	IN	RRSIG	AAAA 12 3 600 20090903100515 20090806100515 60385 nlnetlabs.nl. +tdW+Uhkl2dBsD3zjGFGg1UtkBgfEhM6aXzERl0gWElgoJ4pCpXTV7VhZQ4yjibpMYjcXsBhQLcN7AuG20Ps9Q== ;{id = 60385}
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+open.nlnetlabs.nl. IN NSEC
+SECTION ANSWER
+open.nlnetlabs.nl.      3600    IN      NSEC    nlnetlabs.nl. A AAAA RRSIG NSEC 
+open.nlnetlabs.nl.	3600	IN	RRSIG	NSEC 12 3 3600 20090903100515 20090806100515 60385 nlnetlabs.nl. vOzQQh9ITdgD74ohIE37L8mAZcgDt7V+HrrPjCdalsFYw9dvGwuEvc0MfSDmzrFQ7OhL0elwI/A1AfK57M7emQ== ;{id = 60385}
+ENTRY_END
+

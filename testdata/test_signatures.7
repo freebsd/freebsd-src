@@ -1,0 +1,32 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+; DSA Key from ldns tool, key used in the testbound tests.
+
+; DSA key from ldns tool
+ENTRY_BEGIN
+SECTION QUESTION
+example.com.	IN DNSKEY
+SECTION ANSWER
+example.com.    3600    IN      DNSKEY  256 3 3 ALXLUsWqUrY3JYER3T4TBJIIs70j+sDS/UT2QRp61SE7S3EEXopNXoFE73JLRmvpi/UrOO/Vz4Se6wXv/CYCKjGw06U4WRgRYXcpEhJROyNapmdIKSxhOzfLVE1gqA0PweZR8dtY3aNQSRn3sPpwJr6Mi/PqQKAMMrZ9ckJpf1+bQMOOvxgzz2U1GS18b3yZKcgTMEaJzd/GZYzi/BN2DzQ0MsrSwYXfsNLFOBbs8PJMW4LYIxeeOe6rUgkWOF7CC9Dh/dduQ1QrsJhmZAEFfd6ByYV+ ;{id = 2854 (zsk), size = 1688b}
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+example.com.    IN NS
+SECTION ANSWER
+example.com.    IN NS   ns.example.com.
+example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+ENTRY_END
+
+ENTRY_BEGIN
+SECTION QUESTION
+ns.example.com.         IN      A
+SECTION ANSWER
+ns.example.com.         IN      A       1.2.3.4
+ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFQCMSWxVehgOQLoYclB9PIAbNP229AIUeH0vNNGJhjnZiqgIOKvs1EhzqAo= ;{id = 2854}
+ENTRY_END
+
