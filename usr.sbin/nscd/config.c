@@ -209,6 +209,7 @@ create_def_configuration_entry(const char *name)
 	positive_params.max_elemsize = DEFAULT_POSITIVE_ELEMENTS_SIZE;
 	positive_params.satisf_elemsize = DEFAULT_POSITIVE_ELEMENTS_SIZE / 2;
 	positive_params.max_lifetime.tv_sec = DEFAULT_POSITIVE_LIFETIME;
+	positive_params.confidence_threshold = DEFAULT_POSITIVE_CONF_THRESH;
 	positive_params.policy = CPT_LRU;
 
 	memcpy(&negative_params, &positive_params,
@@ -216,6 +217,7 @@ create_def_configuration_entry(const char *name)
 	negative_params.max_elemsize = DEFAULT_NEGATIVE_ELEMENTS_SIZE;
 	negative_params.satisf_elemsize = DEFAULT_NEGATIVE_ELEMENTS_SIZE / 2;
 	negative_params.max_lifetime.tv_sec = DEFAULT_NEGATIVE_LIFETIME;
+	negative_params.confidence_threshold = DEFAULT_NEGATIVE_CONF_THRESH;
 	negative_params.policy = CPT_FIFO;
 
 	memset(&default_common_timeout, 0, sizeof(struct timeval));
