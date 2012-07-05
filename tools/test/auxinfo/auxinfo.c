@@ -47,6 +47,13 @@ test_osreldate(void)
 	printf("OSRELDATE: %d\n", getosreldate());
 }
 
+static void
+test_ncpus(void)
+{
+
+	printf("NCPUs: %ld\n", sysconf(_SC_NPROCESSORS_CONF));
+}
+
 int
 main(int argc __unused, char *argv[] __unused)
 {
@@ -54,5 +61,6 @@ main(int argc __unused, char *argv[] __unused)
 	test_pagesizes();
 	test_pagesize();
 	test_osreldate();
+	test_ncpus();
 	return (0);
 }
