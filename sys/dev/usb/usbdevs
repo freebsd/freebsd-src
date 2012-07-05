@@ -558,6 +558,7 @@ vendor APACER		0x1005	Apacer
 vendor MOTOROLA4	0x100d	Motorola
 vendor AIRPLUS		0x1011  Airplus
 vendor DESKNOTE		0x1019	Desknote
+vendor NEC3		0x1033	NEC
 vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
 vendor MOTOROLA		0x1063	Motorola
@@ -1912,6 +1913,7 @@ product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
 product INTEL2 IRMH        	0x0020	Integrated Rate Matching Hub
+product INTEL2 IRMH2        	0x0024	Integrated Rate Matching Hub
 
 /* Intersil products */
 product INTERSIL PRISM_GT	0x1000	PrismGT USB 2.0 WLAN
