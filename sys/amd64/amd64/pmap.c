@@ -3446,11 +3446,28 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
+	    va >= kmi.clean_eva,
+	    ("pmap_enter: managed mapping within the clean submap"));
 	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
 	    VM_OBJECT_LOCKED(m->object),
 	    ("pmap_enter: page %p is not busy", m));
+	pa = VM_PAGE_TO_PHYS(m);
+	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		newpte |= PG_MANAGED;
+	if ((prot & VM_PROT_WRITE) != 0)
+		newpte |= PG_RW;
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		newpte |= pg_nx;
+	if (wired)
+		newpte |= PG_W;
+	if (va < VM_MAXUSER_ADDRESS)
+		newpte |= PG_U;
+	if (pmap == kernel_pmap)
+		newpte |= PG_G;
 
-	mpte = NULL;
+	mpte = om = NULL;
 
 	lock = NULL;
 	rw_rlock(&pvh_global_lock);
@@ -3471,8 +3488,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	} else
 		panic("pmap_enter: invalid page directory va=%#lx", va);
 
-	pa = VM_PAGE_TO_PHYS(m);
-	om = NULL;
 	origpte = *pte;
 	opa = origpte & PG_FRAME;
 
@@ -3497,10 +3512,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		if (mpte)
 			mpte->wire_count--;
 
-		if (origpte & PG_MANAGED) {
+		if ((origpte & PG_MANAGED) != 0)
 			om = m;
-			pa |= PG_MANAGED;
-		}
 		goto validate;
 	} 
 
@@ -3530,15 +3543,12 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
-		    ("pmap_enter: managed mapping within the clean submap"));
+	if ((newpte & PG_MANAGED) != 0) {
 		if (pv == NULL)
 			pv = get_pv_entry(pmap, &lock);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-		pa |= PG_MANAGED;
 	} else if (pv != NULL)
 		free_pv_entry(pmap, pv);
 
@@ -3549,40 +3559,25 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pmap->pm_stats.wired_count++;
 
 validate:
-	/*
-	 * Now validate mapping with desired protection/wiring.
-	 */
-	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
-	if ((prot & VM_PROT_WRITE) != 0) {
-		newpte |= PG_RW;
-		if ((newpte & PG_MANAGED) != 0)
-			vm_page_aflag_set(m, PGA_WRITEABLE);
-	}
-	if ((prot & VM_PROT_EXECUTE) == 0)
-		newpte |= pg_nx;
-	if (wired)
-		newpte |= PG_W;
-	if (va < VM_MAXUSER_ADDRESS)
-		newpte |= PG_U;
-	if (pmap == kernel_pmap)
-		newpte |= PG_G;
 
 	/*
-	 * if the mapping or permission bits are different, we need
-	 * to update the pte.
+	 * Update the PTE only if the mapping or protection/wiring bits are
+	 * different.
 	 */
-	if ((origpte & ~(PG_M|PG_A)) != newpte) {
+	if ((origpte & ~(PG_M | PG_A)) != newpte) {
 		newpte |= PG_A;
 		if ((access & VM_PROT_WRITE) != 0)
 			newpte |= PG_M;
+		if ((newpte & (PG_MANAGED | PG_RW)) == (PG_MANAGED | PG_RW))
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 		if (origpte & PG_V) {
 			invlva = FALSE;
 			origpte = pte_load_store(pte, newpte);
 			if (origpte & PG_A) {
 				if (origpte & PG_MANAGED)
 					vm_page_aflag_set(om, PGA_REFERENCED);
-				if (opa != VM_PAGE_TO_PHYS(m) || ((origpte &
-				    PG_NX) == 0 && (newpte & PG_NX)))
+				if (opa != pa || ((origpte & PG_NX) == 0 &&
+				    (newpte & PG_NX) != 0))
 					invlva = TRUE;
 			}
 			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
