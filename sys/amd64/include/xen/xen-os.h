@@ -75,7 +75,7 @@ void bootmem_free(void *ptr, unsigned int size);
 #include <sys/types.h>
 
 void printk(const char *fmt, ...);
-void vprintk(const char *fmt, __va_list ap);
+int vprintk(const char *fmt, __va_list ap);
 
 /* some function prototypes */
 void trap_init(void);

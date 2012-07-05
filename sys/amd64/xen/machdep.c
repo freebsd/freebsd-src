@@ -61,6 +61,7 @@
 #include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/imgact.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
@@ -452,10 +453,19 @@ initxen(struct start_info *si)
 	/* Event handling */
 	init_event_callbacks();
 
-
 	cninit();		/* Console subsystem init */
 
+	kdb_init();
+
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS,
+		    "Boot flags requested debugger");
+#endif
+
 	identify_cpu();		/* Final stage of CPU initialization */
+	//initializecpu();
+	//initializecpucache();
 
 	init_param2(physmem);
 
@@ -1130,7 +1140,7 @@ printk(const char *fmt, ...)
         va_end(ap);
 }
 
-void
+int
 vprintk(const char *fmt, __va_list ap)
 {
         int retval;
@@ -1139,6 +1149,7 @@ vprintk(const char *fmt, __va_list ap)
         retval = vsnprintf(buf, PRINTK_BUFSIZE - 1, fmt, ap);
         buf[retval] = 0;
         (void)HYPERVISOR_console_write(buf, retval);
+	return retval;
 }
 
 
