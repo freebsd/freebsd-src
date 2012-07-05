@@ -2491,7 +2491,6 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((pa & PDRMASK) == 0,
 	    ("pmap_pv_demote_pde: pa is not 2mpage aligned"));
-	reserve_pv_entries(pmap, NPTEPG - 1, lockp);
 	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 
 	/*
@@ -2751,6 +2750,17 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		pmap_fill_ptp(firstpte, newpte);
 
 	/*
+	 * The spare PV entries must be reserved prior to demoting the
+	 * mapping, that is, prior to changing the PDE.  Otherwise, the state
+	 * of the PDE and the PV lists will be inconsistent, which can result
+	 * in reclaim_pv_chunk() attempting to remove a PV entry from the
+	 * wrong PV list and pmap_pv_demote_pde() failing to find the expected
+	 * PV entry for the 2MB page mapping that is being demoted.
+	 */
+	if ((oldpde & PG_MANAGED) != 0)
+		reserve_pv_entries(pmap, NPTEPG - 1, lockp);
+
+	/*
 	 * Demote the mapping.  This pmap is locked.  The old PDE has
 	 * PG_A set.  If the old PDE has PG_RW set, it also has PG_M
 	 * set.  Thus, there is no danger of a race with another
@@ -2769,13 +2779,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		pmap_invalidate_page(pmap, (vm_offset_t)vtopte(va));
 
 	/*
-	 * Demote the pv entry.  This depends on the earlier demotion
-	 * of the mapping.  Specifically, the (re)creation of a per-
-	 * page pv entry might trigger the execution of reclaim_pv_chunk(),
-	 * which might reclaim a newly (re)created per-page pv entry
-	 * and destroy the associated mapping.  In order to destroy
-	 * the mapping, the PDE must have already changed from mapping
-	 * the 2mpage to referencing the page table page.
+	 * Demote the PV entry.
 	 */
 	if ((oldpde & PG_MANAGED) != 0)
 		pmap_pv_demote_pde(pmap, va, oldpde & PG_PS_FRAME, lockp);
