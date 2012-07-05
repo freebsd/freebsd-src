@@ -55,6 +55,7 @@
 #include <dev/pci/pcireg.h>
 
 #define ASSERT(x) if(!(x)) panic("IXGBE: x")
+#define EWARN(H, W, S) printf(W)
 
 /* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
 #define usec_delay(x) DELAY(x)
@@ -109,6 +110,14 @@ typedef uint64_t	u64;
 #ifndef __bool_true_false_are_defined
 typedef boolean_t	bool;
 #endif
+
+/* shared code requires this */
+#define __le16  u16
+#define __le32  u32
+#define __le64  u64
+#define __be16  u16
+#define __be32  u32
+#define __be64  u64
 
 #define le16_to_cpu 
 

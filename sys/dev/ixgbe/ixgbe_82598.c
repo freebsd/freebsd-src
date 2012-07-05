@@ -104,31 +104,6 @@ out:
 }
 
 /**
- *  ixgbe_get_pcie_msix_count_82598 - Gets MSI-X vector count
- *  @hw: pointer to hardware structure
- *
- *  Read PCIe configuration space, and get the MSI-X vector count from
- *  the capabilities table.
- **/
-u32 ixgbe_get_pcie_msix_count_82598(struct ixgbe_hw *hw)
-{
-	u32 msix_count = 18;
-
-	DEBUGFUNC("ixgbe_get_pcie_msix_count_82598");
-
-	if (hw->mac.msix_vectors_from_pcie) {
-		msix_count = IXGBE_READ_PCIE_WORD(hw,
-						  IXGBE_PCIE_MSIX_82598_CAPS);
-		msix_count &= IXGBE_PCIE_MSIX_TBL_SZ_MASK;
-
-		/* MSI-X count is zero-based in HW, so increment to give
-		 * proper value */
-		msix_count++;
-	}
-	return msix_count;
-}
-
-/**
  *  ixgbe_init_ops_82598 - Inits func ptrs and MAC type
  *  @hw: pointer to hardware structure
  *
@@ -176,7 +151,7 @@ s32 ixgbe_init_ops_82598(struct ixgbe_hw *hw)
 	mac->rx_pb_size		= 512;
 	mac->max_tx_queues	= 32;
 	mac->max_rx_queues	= 64;
-	mac->max_msix_vectors	= ixgbe_get_pcie_msix_count_82598(hw);
+	mac->max_msix_vectors	= ixgbe_get_pcie_msix_count_generic(hw);
 
 	/* SFP+ Module */
 	phy->ops.read_i2c_eeprom = &ixgbe_read_i2c_eeprom_82598;
@@ -280,15 +255,15 @@ s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 	for (i = 0; ((i < hw->mac.max_tx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(i));
-		regval &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		regval &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), regval);
 	}
 
 	for (i = 0; ((i < hw->mac.max_rx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
-		regval &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-			    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		regval &= ~(IXGBE_DCA_RXCTRL_DATA_WRO_EN |
+			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
 
@@ -416,20 +391,40 @@ out:
 /**
  *  ixgbe_fc_enable_82598 - Enable flow control
  *  @hw: pointer to hardware structure
- *  @packetbuf_num: packet buffer number (0-7)
  *
  *  Enable flow control according to the current settings.
  **/
-s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
+s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 {
 	s32 ret_val = IXGBE_SUCCESS;
 	u32 fctrl_reg;
 	u32 rmcs_reg;
 	u32 reg;
+	u32 fcrtl, fcrth;
 	u32 link_speed = 0;
+	int i;
 	bool link_up;
 
 	DEBUGFUNC("ixgbe_fc_enable_82598");
+
+	/* Validate the water mark configuration */
+	if (!hw->fc.pause_time) {
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+		goto out;
+	}
+
+	/* Low water mark of zero causes XOFF floods */
+	for (i = 0; i < IXGBE_DCB_MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			if (!hw->fc.low_water[i] ||
+			    hw->fc.low_water[i] >= hw->fc.high_water[i]) {
+				DEBUGOUT("Invalid water mark configuration\n");
+				ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+				goto out;
+			}
+		}
+	}
 
 	/*
 	 * On 82598 having Rx FC on causes resets while doing 1G
@@ -452,9 +447,7 @@ s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	}
 
 	/* Negotiate the fc mode to use */
-	ret_val = ixgbe_fc_autoneg(hw);
-	if (ret_val == IXGBE_ERR_FLOW_CONTROL)
-		goto out;
+	ixgbe_fc_autoneg(hw);
 
 	/* Disable any previous flow control settings */
 	fctrl_reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
@@ -516,28 +509,27 @@ s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_RMCS, rmcs_reg);
 
 	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
-	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-		reg = hw->fc.low_water << 6;
-		if (hw->fc.send_xon)
-			reg |= IXGBE_FCRTL_XONE;
+	for (i = 0; i < IXGBE_DCB_MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			fcrtl = (hw->fc.low_water[i] << 10) | IXGBE_FCRTL_XONE;
+			fcrth = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(i), fcrtl);
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTH(i), fcrth);
+		} else {
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(i), 0);
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTH(i), 0);
+		}
 
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num), reg);
-
-		reg = hw->fc.high_water[packetbuf_num] << 6;
-		reg |= IXGBE_FCRTH_FCEN;
-
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTH(packetbuf_num), reg);
 	}
 
 	/* Configure pause time (2 TCs per register) */
-	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num / 2));
-	if ((packetbuf_num & 1) == 0)
-		reg = (reg & 0xFFFF0000) | hw->fc.pause_time;
-	else
-		reg = (reg & 0x0000FFFF) | (hw->fc.pause_time << 16);
-	IXGBE_WRITE_REG(hw, IXGBE_FCTTV(packetbuf_num / 2), reg);
+	reg = hw->fc.pause_time * 0x00010001;
+	for (i = 0; i < (IXGBE_DCB_MAX_TRAFFIC_CLASS / 2); i++)
+		IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), reg);
 
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, (hw->fc.pause_time >> 1));
+	/* Configure flow control refresh threshold value */
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, hw->fc.pause_time / 2);
 
 out:
 	return ret_val;
@@ -1325,15 +1317,15 @@ void ixgbe_enable_relaxed_ordering_82598(struct ixgbe_hw *hw)
 	for (i = 0; ((i < hw->mac.max_tx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(i));
-		regval |= IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		regval |= IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), regval);
 	}
 
 	for (i = 0; ((i < hw->mac.max_rx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
-		regval |= (IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-			   IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		regval |= IXGBE_DCA_RXCTRL_DATA_WRO_EN |
+			  IXGBE_DCA_RXCTRL_HEAD_WRO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
 
