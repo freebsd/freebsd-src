@@ -767,8 +767,6 @@ igb_detach(device_t dev)
 	if (adapter->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach);
 
-	ether_ifdetach(adapter->ifp);
-
 	callout_drain(&adapter->timer);
 
 #ifdef DEV_NETMAP
@@ -965,7 +963,7 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 		IGB_TX_UNLOCK(txr);
 	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
-		taskqueue_enqueue(que->tq, &que->que_task);
+		taskqueue_enqueue(que->tq, &txr->txq_task);
 	}
 
 	return (err);
