@@ -638,7 +638,7 @@ em_attach(device_t dev)
 	/* Sysctl for setting Energy Efficient Ethernet */
 	em_set_sysctl_value(adapter, "eee_control",
 	    "enable Energy Efficient Ethernet",
-	    &hw->dev_spec.ich8lan.eee_disable, eee_setting);
+	    (int *)&hw->dev_spec.ich8lan.eee_disable, eee_setting);
 
 	/*
 	** Start from a known state, this is
