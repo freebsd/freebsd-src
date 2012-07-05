@@ -540,8 +540,11 @@ MAN=	aac.4 \
 MLINKS=	ae.4 if_ae.4
 MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
+MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
 MLINKS+=altq.4 ALTQ.4
+MLINKS+=ath.4 if_ath.4
+MLINKS+=ath_pci.4 if_ath_pci.4
 MLINKS+=an.4 if_an.4
 MLINKS+=aue.4 if_aue.4
 MLINKS+=axe.4 if_axe.4
@@ -551,9 +554,13 @@ MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
 MLINKS+=bridge.4 if_bridge.4
 MLINKS+=bwi.4 if_bwi.4
+MLINKS+=bwn.4 if_bwn.4
 MLINKS+=cas.4 if_cas.4
+MLINKS+=cdce.4 if_cdce.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
+MLINKS+=cxgb.4 if_cxgb.4
+MLINKS+=cxgbe.4 if_cxgbe.4
 MLINKS+=dc.4 if_dc.4
 MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
@@ -599,14 +606,19 @@ MLINKS+=ixgbe.4 if_ixgbe.4
 MLINKS+=jme.4 if_jme.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lagg.4 trunk.4
+MLINKS+=lagg.4 if_lagg.4
 MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
+MLINKS+=lmc.4 if_lmc.4
 MLINKS+=lo.4 loop.4
 MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=mn.4 if_mn.4
+MLINKS+=mos.4 if_mos.4
+MLINKS+=msk.4 if_msk.4
+MLINKS+=mwl.4 if_mwl.4
 MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
 MLINKS+=${_ndis.4} ${_if_ndis.4}
@@ -626,11 +638,13 @@ MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=rum.4 if_rum.4
+MLINKS+=run.4 if_run.4
 MLINKS+=scsi.4 CAM.4 \
 	scsi.4 cam.4 \
 	scsi.4 scbus.4 \
 	scsi.4 SCSI.4
 MLINKS+=sf.4 if_sf.4
+MLINKS+=sge.4 if_sge.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
 MLINKS+=smp.4 SMP.4
@@ -662,6 +676,7 @@ MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
+MLINKS+=vte.4 if_vte.4
 MLINKS+=${_vxge.4} ${_if_vxge.4}
 MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=wb.4 if_wb.4
@@ -735,6 +750,9 @@ MLINKS+=lindev.4 full.4
 .if ${MACHINE_CPUARCH} == "amd64"
 _qlxgb.4=	qlxgb.4
 _sfxge.4=	sfxge.4
+
+MLINKS+=qlxgb.4 if_qlxgb.4
+MLINKS+=sfxge.4 if_sfxge.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
