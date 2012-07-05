@@ -548,6 +548,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	msgbufp = (void *) pmap_map(&virtual_avail,
 				    ptoa(physmem), ptoa(physmem) + round_page(msgbufsize),
 				    VM_PROT_READ | VM_PROT_WRITE);
+
+	bzero(msgbufp, round_page(msgbufsize));
 }
 
 void
@@ -834,6 +836,9 @@ pmap_kextract_ma(vm_offset_t va)
 			 * effectively const.
 			 */
 
+	const uint64_t SIGNMASK = (1UL << 48) - 1;
+	va &= SIGNMASK; /* Remove sign extension */
+
 	mmu_map_t tptr = tbuf;
 
 	struct mmu_map_mbackend mb = {
@@ -849,7 +854,7 @@ pmap_kextract_ma(vm_offset_t va)
 		goto nomapping;
 	}
 
-	ma = mmu_map_pt(tptr)[(~PDRMASK & PAGE_MASK & va) >> PAGE_SHIFT];
+	ma = mmu_map_pt(tptr)[(PDRMASK & va) >> PAGE_SHIFT];
 
 	mmu_map_t_fini(tptr);
 
