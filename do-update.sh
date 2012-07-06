@@ -1,15 +1,19 @@
 :
 # $FreeBSD$
 
+# "global" vars
+ECHO=
+# Set SVN variables
+#  select the local subversion site
 SVN=${SVN:-/usr/local/bin/svn}
 SITE=${SITE:-ftp://ftp.netbsd.org/pub/NetBSD/misc/sjg}
+
 
 # For consistency...
 Error() {
 	echo ERROR: ${1+"$@"} >&2
 	exit 1
 }
-
 
 Cd() {
 	[ $# -eq 1 ] || Error "Cd() takes a single parameter."
@@ -87,4 +91,16 @@ rm -rf bmake/missing
 svn-vendorimport.sh bmake dist
 ${SVN} stat dist
 
-rm -f bmake-${VERSION}.tar.gz.sha1 $SITE/bmake-${VERSION}.tar.gz
+rm -f bmake-${VERSION}.tar.gz bmake-${VERSION}.tar.gz.sha1
+
+echo "Import the ${VERSION} release of the \"Portable\" BSD make tool (from NetBSD).
+
+Submitted by:	Simon Gerraty <sjg@juniper.net>" > /tmp/commit-log
+
+${ECHO} ${SVN} ci -F /tmp/commit-log dist
+
+SVNURL=$(${SVN} info | grep URL: | awk '{print $2}')
+
+${ECHO} ${SVN} copy \
+    -m "\"Tag\" the ${VERSION} Portable BSD make import." \
+    ${SVNURL}/dist ${SVNURL}/${VERSION}
