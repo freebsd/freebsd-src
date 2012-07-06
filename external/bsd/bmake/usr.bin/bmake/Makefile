@@ -25,7 +25,7 @@ SRCS += lstPrev.c
 
 # you can use this Makefile if you have an earlier version of bmake.
 prefix= /usr
-srcdir=	${.CURDIR}/../dist
+srcdir=	${.CURDIR}/../../dist
 
 # Base version on src date
 MAKE_VERSION= 20120620
