@@ -3517,8 +3517,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		goto validate;
 	} 
 
-	pv = NULL;
-
 	/*
 	 * Mapping has changed, invalidate old range and fall through to
 	 * handle validating new mapping.
@@ -3526,11 +3524,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	if (opa) {
 		if (origpte & PG_W)
 			pmap->pm_stats.wired_count--;
-		if (origpte & PG_MANAGED) {
+		if ((origpte & PG_MANAGED) != 0)
 			om = PHYS_TO_VM_PAGE(opa);
-			CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, om);
-			pv = pmap_pvh_remove(&om->md, pmap, va);
-		}
 		if (mpte != NULL) {
 			mpte->wire_count--;
 			KASSERT(mpte->wire_count > 0,
@@ -3541,22 +3536,20 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pmap_resident_count_inc(pmap, 1);
 
 	/*
-	 * Enter on the PV list if part of our managed memory.
-	 */
-	if ((newpte & PG_MANAGED) != 0) {
-		if (pv == NULL)
-			pv = get_pv_entry(pmap, &lock);
-		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
-		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-	} else if (pv != NULL)
-		free_pv_entry(pmap, pv);
-
-	/*
-	 * Increment counters
+	 * Increment the counters.
 	 */
 	if (wired)
 		pmap->pm_stats.wired_count++;
+
+	/*
+	 * Enter on the PV list if part of our managed memory.
+	 */
+	if ((newpte & PG_MANAGED) != 0) {
+		pv = get_pv_entry(pmap, &lock);
+		pv->pv_va = va;
+		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+	}
 
 validate:
 
@@ -3586,9 +3579,11 @@ validate:
 				if ((newpte & PG_RW) == 0)
 					invlva = TRUE;
 			}
-			if ((om->aflags & PGA_WRITEABLE) != 0) {
-				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, om);
-				if (TAILQ_EMPTY(&om->md.pv_list) &&
+			if (opa != pa && (origpte & PG_MANAGED) != 0) {
+				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+				pmap_pvh_free(&om->md, pmap, va);
+				if ((om->aflags & PGA_WRITEABLE) != 0 &&
+				    TAILQ_EMPTY(&om->md.pv_list) &&
 				    ((om->flags & PG_FICTITIOUS) != 0 ||
 				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 					vm_page_aflag_clear(om, PGA_WRITEABLE);
