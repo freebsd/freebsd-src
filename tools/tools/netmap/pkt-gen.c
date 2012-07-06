@@ -472,9 +472,14 @@ sender_body(void *data)
 	struct pollfd fds[1];
 	struct netmap_if *nifp = targ->nifp;
 	struct netmap_ring *txring;
-	int i, n = targ->g->npackets / targ->g->nthreads, sent = 0;
+	int i, pkts_per_td = targ->g->npackets / targ->g->nthreads, sent = 0;
+	int continuous = 0;
 	int options = targ->g->options | OPT_COPY;
 D("start");
+	if (pkts_per_td == 0) {
+		continuous = 1;
+		pkts_per_td = 100000;
+	}
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
 	/* setup poll(2) mechanism. */
@@ -489,7 +494,7 @@ D("start");
 	void *pkt = &targ->pkt;
 	pcap_t *p = targ->g->p;
 
-	for (i = 0; sent < n && !targ->cancel; i++) {
+	for (i = 0; (sent < pkts_per_td && !targ->cancel) || continuous; i++) {
 		if (pcap_inject(p, pkt, size) != -1)
 			sent++;
 		if (i > 10000) {
@@ -498,7 +503,7 @@ D("start");
 		}
 	}
     } else {
-	while (sent < n) {
+	while (sent < pkts_per_td || continuous) {
 
 		/*
 		 * wait for available room in the send queue(s)
@@ -515,7 +520,9 @@ D("start");
 		if (sent > 100000 && !(targ->g->options & OPT_COPY) )
 			options &= ~OPT_COPY;
 		for (i = targ->qfirst; i < targ->qlast && !targ->cancel; i++) {
-			int m, limit = MIN(n - sent, targ->g->burst);
+			int m, limit = targ->g->burst;
+			if (!continuous && pkts_per_td - sent < limit)
+				limit = pkts_per_td - sent;
 
 			txring = NETMAP_TXRING(nifp, i);
 			if (txring->avail == 0)
@@ -602,7 +609,7 @@ receiver_body(void *data)
 	fds[0].events = (POLLIN);
 
 	/* unbounded wait for the first packet. */
-	for (;;) {
+	while (!targ->cancel) {
 		i = poll(fds, 1, 1000);
 		if (i > 0 && !(fds[0].revents & POLLERR))
 			break;
@@ -716,7 +723,7 @@ usage(void)
 		"Usage:\n"
 		"%s arguments\n"
 		"\t-i interface		interface name\n"
-		"\t-t pkts_to_send	also forces send mode\n"
+		"\t-t pkts_to_send	also forces send mode, 0 = continuous\n"
 		"\t-r pkts_to_receive	also forces receive mode\n"
 		"\t-l pkts_size		in bytes excluding CRC\n"
 		"\t-d dst-ip		end with %%n to sweep n addresses\n"
