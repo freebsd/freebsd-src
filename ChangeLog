@@ -1,3 +1,19 @@
+2012-07-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120704
+	  Merge with NetBSD make, pick up
+	  o Job_ParseShell should call Shell_Init if it has been
+	    previously called.
+	* Makefile.in: set USE_META based on configure result.
+	  also .PARSEDIR is safer indicator of bmake.
+
+2012-06-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: bump version to 20120626
+	  ensure CPPFLAGS is in CFLAGS
+	* meta.c: avoid nested externs
+	* bsd.after-import.mk: avoid ${.CURDIR}/Makefile as target
+	
 2012-06-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile.in (MAKE_VERSION): bump version to 20120620

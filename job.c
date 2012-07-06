@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.162 2012/06/12 19:21:50 joerg Exp $	*/
+/*	$NetBSD: job.c,v 1.163 2012/07/03 21:03:40 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.162 2012/06/12 19:21:50 joerg Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.163 2012/07/03 21:03:40 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.162 2012/06/12 19:21:50 joerg Exp $");
+__RCSID("$NetBSD: job.c,v 1.163 2012/07/03 21:03:40 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -2441,7 +2441,7 @@ Job_ParseShell(char *line)
 	 * If no path was given, the user wants one of the pre-defined shells,
 	 * yes? So we find the one s/he wants with the help of JobMatchShell
 	 * and set things up the right way. shellPath will be set up by
-	 * Job_Init.
+	 * Shell_Init.
 	 */
 	if (newShell.name == NULL) {
 	    Parse_Error(PARSE_FATAL, "Neither path nor name specified");
@@ -2456,6 +2456,12 @@ Job_ParseShell(char *line)
 	    }
 	    commandShell = sh;
 	    shellName = newShell.name;
+	    if (shellPath) {
+		/* Shell_Init has already been called!  Do it again. */
+		free(UNCONST(shellPath));
+		shellPath = NULL;
+		Shell_Init();
+	    }
 	}
     } else {
 	/*
