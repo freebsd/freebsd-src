@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
  * Instruction disassembler.
  */
 #include <sys/param.h>
+#include <sys/libkern.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
@@ -47,7 +48,9 @@ __FBSDID("$FreeBSD$");
 #define	DBLR	5
 #define	EXTR	6
 #define	SDEP	7
-#define	NONE	8
+#define	ADEP	8
+#define	ESC	9
+#define	NONE	10
 
 /*
  * REX prefix and bits
@@ -67,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	Eb	4			/* address, byte size */
 #define	R	5			/* register, in 'reg' field */
 #define	Rw	6			/* word register, in 'reg' field */
+#define	Rq	39			/* quad register, in 'reg' field */
 #define	Ri	7			/* register in instruction */
 #define	S	8			/* segment reg, in 'reg' field */
 #define	Si	9			/* segment reg, in instruction */
@@ -120,6 +124,45 @@ struct finst {
 					   (or pointer to table) */
 };
 
+static const struct inst db_inst_0f388x[] = {
+/*80*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invept" },
+/*81*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invvpid" },
+/*82*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*83*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*84*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*85*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*86*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*87*/	{ "",	   FALSE, NONE,  0,	      0 },
+
+/*88*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*89*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*8a*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*8b*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*8c*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*8d*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*8e*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*8f*/	{ "",	   FALSE, NONE,  0,	      0 },
+};
+
+static const struct inst * const db_inst_0f38[] = {
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	db_inst_0f388x,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0
+};
+
 static const char * const db_Grp6[] = {
 	"sldt",
 	"str",
@@ -160,8 +203,8 @@ static const char * const db_Grp9[] = {
 	"",
 	"",
 	"",
-	"",
-	""
+	"vmptrld",
+	"vmptrst"
 };
 
 static const char * const db_Grp15[] = {
@@ -236,7 +279,7 @@ static const struct inst db_inst_0f3x[] = {
 /*36*/	{ "",	   FALSE, NONE,  0,	      0 },
 /*37*/	{ "getsec",FALSE, NONE,  0,	      0 },
 
-/*38*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*38*/	{ "",	   FALSE, ESC,  0,	      db_inst_0f38 },
 /*39*/	{ "",	   FALSE, NONE,  0,	      0 },
 /*3a*/	{ "",	   FALSE, NONE,  0,	      0 },
 /*3b*/	{ "",	   FALSE, NONE,  0,	      0 },
@@ -264,6 +307,26 @@ static const struct inst db_inst_0f4x[] = {
 /*4d*/	{ "cmovnl", TRUE, NONE,  op2(E, R),   0 },
 /*4e*/	{ "cmovle", TRUE, NONE,  op2(E, R),   0 },
 /*4f*/	{ "cmovnle",TRUE, NONE,  op2(E, R),   0 },
+};
+
+static const struct inst db_inst_0f7x[] = {
+/*70*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*71*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*72*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*73*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*74*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*75*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*76*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*77*/	{ "",	   FALSE, NONE,  0,	      0 },
+
+/*78*/	{ "vmread", TRUE, NONE,  op2(Rq, E),  0 },
+/*79*/	{ "vmwrite",TRUE, NONE,  op2(E, Rq),  0 },
+/*7a*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*7b*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*7c*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*7d*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*7e*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*7f*/	{ "",	   FALSE, NONE,  0,	      0 },
 };
 
 static const struct inst db_inst_0f8x[] = {
@@ -373,7 +436,7 @@ static const struct inst * const db_inst_0f[] = {
 	db_inst_0f4x,
 	0,
 	0,
-	0,
+	db_inst_0f7x,
 	db_inst_0f8x,
 	db_inst_0f9x,
 	db_inst_0fax,
@@ -582,7 +645,7 @@ static const struct inst db_inst_table[256] = {
 /*0c*/	{ "or",    FALSE, BYTE,  op2(I, A),  0 },
 /*0d*/	{ "or",    FALSE, LONG,  op2(I, A),  0 },
 /*0e*/	{ "push",  FALSE, NONE,  op1(Si),    0 },
-/*0f*/	{ "",      FALSE, NONE,  0,	     0 },
+/*0f*/	{ "",      FALSE, ESC,   0,	     db_inst_0f },
 
 /*10*/	{ "adc",   TRUE,  BYTE,  op2(R, E),  0 },
 /*11*/	{ "adc",   TRUE,  LONG,  op2(R, E),  0 },
@@ -738,8 +801,8 @@ static const struct inst db_inst_table[256] = {
 /*96*/	{ "xchg",  FALSE, LONG,  op2(A, Ri),  0 },
 /*97*/	{ "xchg",  FALSE, LONG,  op2(A, Ri),  0 },
 
-/*98*/	{ "cbw",   FALSE, SDEP,  0,	      "cwde" },	/* cbw/cwde */
-/*99*/	{ "cwd",   FALSE, SDEP,  0,	      "cdq"  },	/* cwd/cdq */
+/*98*/	{ "cwde",  FALSE, SDEP,  0,	      "cbw" },
+/*99*/	{ "cdq",   FALSE, SDEP,  0,	      "cwd" },
 /*9a*/	{ "lcall", FALSE, NONE,  op1(OS),     0 },
 /*9b*/	{ "wait",  FALSE, NONE,  0,	      0 },
 /*9c*/	{ "pushf", FALSE, LONG,  0,	      0 },
@@ -822,7 +885,7 @@ static const struct inst db_inst_table[256] = {
 /*e0*/	{ "loopne",FALSE, NONE,  op1(Db),     0 },
 /*e1*/	{ "loope", FALSE, NONE,  op1(Db),     0 },
 /*e2*/	{ "loop",  FALSE, NONE,  op1(Db),     0 },
-/*e3*/	{ "jcxz",  FALSE, SDEP,  op1(Db),     "jecxz" },
+/*e3*/	{ "jrcxz", FALSE, ADEP,  op1(Db),     "jecxz" },
 /*e4*/	{ "in",    FALSE, BYTE,  op2(Ib, A),  0 },
 /*e5*/	{ "in",    FALSE, LONG,  op2(Ib, A) , 0 },
 /*e6*/	{ "out",   FALSE, BYTE,  op2(A, Ib),  0 },
@@ -1208,14 +1271,6 @@ db_disasm(loc, altfmt)
 	    if (prefix) {
 		get_value_inc(inst, loc, 1, FALSE);
 	    }
-	    if (rep == TRUE) {
-		if (inst == 0x90) {
-		    db_printf("pause\n");
-		    return (loc);
-		}
-		db_printf("repe ");	/* XXX repe VS rep */
-		rep = FALSE;
-	    }
 	} while (prefix);
 
 	if (inst >= 0xd8 && inst <= 0xdf) {
@@ -1224,9 +1279,10 @@ db_disasm(loc, altfmt)
 	    return (loc);
 	}
 
-	if (inst == 0x0f) {
+	ip = &db_inst_table[inst];
+	while (ip->i_size == ESC) {
 	    get_value_inc(inst, loc, 1, FALSE);
-	    ip = db_inst_0f[inst>>4];
+	    ip = ((const struct inst * const *)ip->i_extra)[inst>>4];
 	    if (ip == 0) {
 		ip = &db_bad_inst;
 	    }
@@ -1234,8 +1290,6 @@ db_disasm(loc, altfmt)
 		ip = &ip[inst&0xf];
 	    }
 	}
-	else
-	    ip = &db_inst_table[inst];
 
 	if (ip->i_has_modrm) {
 	    get_value_inc(regmodrm, loc, 1, FALSE);
@@ -1269,6 +1323,26 @@ db_disasm(loc, altfmt)
 	/* Special cases that don't fit well in the tables. */
 	if (ip->i_extra == db_Grp7 && f_mod(rex, regmodrm) == 3) {
 		switch (regmodrm) {
+		case 0xc1:
+			i_name = "vmcall";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xc2:
+			i_name = "vmlaunch";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xc3:
+			i_name = "vmresume";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xc4:
+			i_name = "vmxoff";
+			i_size = NONE;
+			i_mode = 0;
+			break;
 		case 0xc8:
 			i_name = "monitor";
 			i_size = NONE;
@@ -1307,8 +1381,42 @@ db_disasm(loc, altfmt)
 		i_mode = 0;
 	}
 
+	/* Handle instructions identified by mandatory prefixes. */
+	if (rep == TRUE) {
+	    if (inst == 0x90) {
+		i_name = "pause";
+		i_size = NONE;
+		i_mode = 0;
+		rep = FALSE;
+	    } else if (ip->i_extra == db_Grp9 && f_mod(rex, regmodrm) != 3 &&
+		f_reg(rex, regmodrm) == 0x6) {
+		i_name = "vmxon";
+		rep = FALSE;
+	    }
+	}
+	if (size == WORD) {
+	    if (ip->i_extra == db_Grp9 && f_mod(rex, regmodrm) != 3 &&
+		f_reg(rex, regmodrm) == 0x6) {
+		i_name = "vmclear";
+	    }
+	}
+	if (rex & REX_W) {
+	    if (strcmp(i_name, "cwde") == 0)
+		i_name = "cdqe";
+	    else if (strcmp(i_name, "cmpxchg8b") == 0)
+		i_name = "cmpxchg16b";
+	}
+
+	if (rep == TRUE)
+	    db_printf("repe ");	/* XXX repe VS rep */
+
 	if (i_size == SDEP) {
-	    if (size == WORD)
+	    if (size == LONG)
+		db_printf("%s", i_name);
+	    else
+		db_printf("%s", (const char *)ip->i_extra);
+	} else if (i_size == ADEP) {
+	    if (short_addr == FALSE)
 		db_printf("%s", i_name);
 	    else
 		db_printf("%s", (const char *)ip->i_extra);
@@ -1379,6 +1487,10 @@ db_disasm(loc, altfmt)
 
 		case Rw:
 		    db_printf("%s", db_reg[rex != 0 ? 1 : 0][WORD][f_reg(rex, regmodrm)]);
+		    break;
+
+		case Rq:
+		    db_printf("%s", db_reg[rex != 0 ? 1 : 0][QUAD][f_reg(rex, regmodrm)]);
 		    break;
 
 		case Ri:
