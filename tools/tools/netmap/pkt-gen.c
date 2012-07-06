@@ -653,27 +653,41 @@ quit:
 	return (NULL);
 }
 
+static char *
+scaled_val(double val)
+{
+	static char buf[64];
+	const char *units[] = {"", "K", "M", "G"};
+	int i = 0;
+
+	while (val >= 1000 && i < 3) {
+		val /= 1000;
+		i++;
+	}
+	snprintf(buf, sizeof(buf), "%.2f%s", val, units[i]);
+	return (buf);
+}
+
 static void
 tx_output(uint64_t sent, int size, double delta)
 {
-	double amount = 8.0 * (1.0 * size * sent) / delta;
+	uint64_t bytes_sent = sent * size;
+	double bw = 8.0 * bytes_sent / delta;
 	double pps = sent / delta;
-	char units[4] = { '\0', 'K', 'M', 'G' };
-	int aunit = 0, punit = 0;
-
-	while (amount >= 1000) {
-		amount /= 1000;
-		aunit += 1;
-	}
-	while (pps >= 1000) {
-		pps /= 1000;
-		punit += 1;
-	}
+	/*
+	 * Assume Ethernet overhead of 24 bytes per packet excluding header:
+	 * FCS       4 bytes
+	 * Preamble  8 bytes
+	 * IFG      12 bytes
+	 */
+	double bw_with_overhead = 8.0 * (bytes_sent + sent * 24) / delta;
 
 	printf("Sent %" PRIu64 " packets, %d bytes each, in %.2f seconds.\n",
 	       sent, size, delta);
-	printf("Speed: %.2f%cpps. Bandwidth: %.2f%cbps.\n",
-	       pps, units[punit], amount, units[aunit]);
+	printf("Speed: %spps. ", scaled_val(pps));
+	printf("Bandwidth: %sbps ", scaled_val(bw));
+	printf("(%sbps with overhead).\n", scaled_val(bw_with_overhead));
+
 }
 
 
