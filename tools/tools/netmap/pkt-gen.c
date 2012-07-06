@@ -191,6 +191,7 @@ struct targ {
 	struct glob_arg *g;
 	int used;
 	int completed;
+	int cancel;
 	int fd;
 	struct nmreq nmr;
 	struct netmap_if *nifp;
@@ -221,15 +222,8 @@ static int global_nthreads;
 static void
 sigint_h(__unused int sig)
 {
-	for (int i = 0; i < global_nthreads; i++) {
-		/* cancel active threads. */
-		if (targs[i].used == 0)
-			continue;
-
-		D("Cancelling thread #%d\n", i);
-		pthread_cancel(targs[i].thread);
-		targs[i].used = 0;
-	}
+	for (int i = 0; i < global_nthreads; i++)
+		targs[i].cancel = 1;
 
 	signal(SIGINT, SIG_DFL);
 }
@@ -495,7 +489,7 @@ D("start");
 	void *pkt = &targ->pkt;
 	pcap_t *p = targ->g->p;
 
-	for (i = 0; sent < n; i++) {
+	for (i = 0; sent < n && !targ->cancel; i++) {
 		if (pcap_inject(p, pkt, size) != -1)
 			sent++;
 		if (i > 10000) {
@@ -510,6 +504,8 @@ D("start");
 		 * wait for available room in the send queue(s)
 		 */
 		if (poll(fds, 1, 2000) <= 0) {
+			if (targ->cancel)
+				break;
 			D("poll error/timeout on queue %d\n", targ->me);
 			goto quit;
 		}
@@ -518,7 +514,7 @@ D("start");
 		 */
 		if (sent > 100000 && !(targ->g->options & OPT_COPY) )
 			options &= ~OPT_COPY;
-		for (i = targ->qfirst; i < targ->qlast; i++) {
+		for (i = targ->qfirst; i < targ->qlast && !targ->cancel; i++) {
 			int m, limit = MIN(n - sent, targ->g->burst);
 
 			txring = NETMAP_TXRING(nifp, i);
@@ -529,6 +525,8 @@ D("start");
 			sent += m;
 			targ->count = sent;
 		}
+		if (targ->cancel)
+			break; 
 	}
 	/* flush any remaining packets */
 	ioctl(fds[0].fd, NIOCTXSYNC, NULL);
@@ -614,11 +612,11 @@ receiver_body(void *data)
 	/* main loop, exit after 1s silence */
 	gettimeofday(&targ->tic, NULL);
     if (targ->g->use_pcap) {
-	for (;;) {
+	while (!targ->cancel) {
 		pcap_dispatch(targ->g->p, targ->g->burst, receive_pcap, NULL);
 	}
     } else {
-	while (1) {
+	while (!targ->cancel) {
 		/* Once we started to receive packets, wait at most 1 seconds
 		   before quitting. */
 		if (poll(fds, 1, 1 * 1000) <= 0) {
