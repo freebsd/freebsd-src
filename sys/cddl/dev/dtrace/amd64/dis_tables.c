@@ -815,7 +815,7 @@ const instable_t dis_op0F[16][16] = {
 /*  [10]  */	TNSZ("movups",XMMO,16),	TNSZ("movups",XMMOS,16),TNSZ("movlps",XMMO,8),	TNSZ("movlps",XMMOS,8),
 /*  [14]  */	TNSZ("unpcklps",XMMO,16),TNSZ("unpckhps",XMMO,16),TNSZ("movhps",XMMOM,8),TNSZ("movhps",XMMOMS,8),
 /*  [18]  */	IND(dis_op0F18),	INVALID,		INVALID,		INVALID,
-/*  [1C]  */	INVALID,		INVALID,		INVALID,		TNS("nopw", M),
+/*  [1C]  */	INVALID,		INVALID,		INVALID,		TS("nopw", Mw),
 }, {
 /*  [20]  */	TSy("mov",SREG),	TSy("mov",SREG),	TSy("mov",SREG),	TSy("mov",SREG),
 /*  [24]  */	TSx("mov",SREG),	INVALID,		TSx("mov",SREG),	INVALID,
