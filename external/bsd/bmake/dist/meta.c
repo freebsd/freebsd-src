@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.24 2011/09/21 14:30:47 christos Exp $ */
+/*      $NetBSD: meta.c,v 1.25 2012/06/27 17:22:58 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -68,6 +68,7 @@ static Boolean metaSilent = FALSE;	/* if we have a .meta be SILENT */
 
 extern Boolean forceJobs;
 extern Boolean comatMake;
+extern char    **environ;
 
 #define	MAKE_META_PREFIX	".MAKE.META.PREFIX"
 
@@ -388,7 +389,6 @@ printCMD(void *cmdp, void *mfpp)
 static FILE *
 meta_create(BuildMon *pbm, GNode *gn)
 {
-    extern char **environ;
     meta_file_t mf;
     char buf[MAXPATHLEN];
     char objdir[MAXPATHLEN];

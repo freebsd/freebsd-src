@@ -1,4 +1,4 @@
-# $Id: bsd.after-import.mk,v 1.5 2012/06/20 22:45:07 sjg Exp $
+# $Id: bsd.after-import.mk,v 1.6 2012/06/27 18:23:32 sjg Exp $
 
 # This makefile is for use when integrating bmake into a BSD build
 # system.  Use this makefile after importing bmake.
@@ -9,7 +9,7 @@
 # The goal is to allow the benefits of autoconf without
 # the overhead of running configure.
 
-all: ${.CURDIR}/Makefile
+all: _makefile
 all: after-import
 
 # we rely on bmake
@@ -79,8 +79,8 @@ after-import: bootstrap ${MAKEFILE}
 .endfor
 
 # this needs the most work
-${.CURDIR}/Makefile:	bootstrap ${MAKEFILE} .PRECIOUS
-	@echo Generating ${.TARGET:T}
+_makefile:	bootstrap ${MAKEFILE}
+	@echo Generating ${.CURDIR}/Makefile
 	@(echo '# This is a generated file, do NOT edit!'; \
 	echo '# See ${_this:S,${SRCTOP}/,,}'; \
 	echo '#'; echo '# $$${OS}$$'; echo; \
@@ -97,8 +97,9 @@ ${.CURDIR}/Makefile:	bootstrap ${MAKEFILE} .PRECIOUS
 	echo; echo 'after-import: ${_this:S,${SRCTOP},\${SRCTOP},}'; \
 	echo '	cd $${.CURDIR} && $${.MAKE} -f ${_this:S,${SRCTOP},\${SRCTOP},}'; \
 	echo; echo '.sinclude "Makefile.inc"'; \
-	echo ) > ${.TARGET:T}.new
-	@mv ${.TARGET:T}.new ${.TARGET}
+	echo ) > ${.TARGET}
+	@cmp -s ${.TARGET} ${.CURDIR}/Makefile || \
+	    mv ${.TARGET} ${.CURDIR}/Makefile
 
 .include <bsd.obj.mk>
 
