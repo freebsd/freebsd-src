@@ -213,6 +213,7 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
 #define Ew { OP_E, w_mode }
 #define M { OP_M, 0 }		/* lea, lgdt, etc. */
 #define Ma { OP_M, v_mode }
+#define Mo { OP_M, o_mode }
 #define Mp { OP_M, f_mode }		/* 32 or 48 bit memory operand for LDS, LES etc */
 #define Mq { OP_M, q_mode }
 #define Gb { OP_G, b_mode }
@@ -540,6 +541,8 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
 #define PREGRP95  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 95 } }
 #define PREGRP96  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 96 } }
 #define PREGRP97  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 97 } }
+#define PREGRP98  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 98 } }
+#define PREGRP99  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 99 } }
 
 
 #define X86_64_0  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 0 } }
@@ -2586,6 +2589,22 @@ static const struct dis386 prefix_user_table[][4] = {
     { "punpckldq",{ MX, EMq } },
     { "(bad)",	{ XX } },
   },
+
+  /* PREGRP98 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "invept",	{ Gm, Mo } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP99 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "invvpid",{ Gm, Mo } },
+    { "(bad)",	{ XX } },
+  },
 };
 
 static const struct dis386 x86_64_table[][2] = {
@@ -2755,8 +2774,8 @@ static const struct dis386 three_byte_table[][256] = {
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     /* 80 */
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
+    { PREGRP98 },
+    { PREGRP99 },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
@@ -5884,7 +5903,7 @@ static void
 OP_M (int bytemode, int sizeflag)
 {
   if (modrm.mod == 3)
-    /* bad bound,lea,lds,les,lfs,lgs,lss,cmpxchg8b,vmptrst modrm */
+    /* bad bound,lea,lds,les,lfs,lgs,lss,cmpxchg8b,vmptrst,invept,invvpid modrm */
     BadOp ();
   else
     OP_E (bytemode, sizeflag);
