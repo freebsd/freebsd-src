@@ -16,7 +16,7 @@
 # named makefile which should be added to SUBFILES to hook it in.
 # 
 
-srcdir=	${.CURDIR}/../../dist/unit-tests
+srcdir=	${.CURDIR}/../../../dist/unit-tests
 
 .MAIN: all
 
