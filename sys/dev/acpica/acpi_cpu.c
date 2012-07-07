@@ -746,13 +746,13 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 		/* This is the first C1 state.  Use the reserved slot. */
 		sc->cpu_cx_states[0] = *cx_ptr;
 	    } else {
-		sc->cpu_non_c3 = i;
+		sc->cpu_non_c3 = sc->cpu_cx_count;
 		cx_ptr++;
 		sc->cpu_cx_count++;
 	    }
 	    continue;
 	case ACPI_STATE_C2:
-	    sc->cpu_non_c3 = i;
+	    sc->cpu_non_c3 = sc->cpu_cx_count;
 	    break;
 	case ACPI_STATE_C3:
 	default:
