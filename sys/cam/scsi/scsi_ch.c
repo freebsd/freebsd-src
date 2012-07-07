@@ -433,16 +433,10 @@ static int
 chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
-	struct	ch_softc *softc;
-	int	error;
-
-	error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
-
-	softc = (struct ch_softc *)periph->softc;
 
 	cam_periph_release(periph);
 
