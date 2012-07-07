@@ -31,8 +31,6 @@
 #ifndef _VIRTIO_H_
 #define _VIRTIO_H_
 
-#include <sys/types.h>
-
 struct vq_alloc_info;
 
 /* VirtIO device IDs. */

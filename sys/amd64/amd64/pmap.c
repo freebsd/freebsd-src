@@ -2491,7 +2491,6 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((pa & PDRMASK) == 0,
 	    ("pmap_pv_demote_pde: pa is not 2mpage aligned"));
-	reserve_pv_entries(pmap, NPTEPG - 1, lockp);
 	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 
 	/*
@@ -2751,6 +2750,17 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		pmap_fill_ptp(firstpte, newpte);
 
 	/*
+	 * The spare PV entries must be reserved prior to demoting the
+	 * mapping, that is, prior to changing the PDE.  Otherwise, the state
+	 * of the PDE and the PV lists will be inconsistent, which can result
+	 * in reclaim_pv_chunk() attempting to remove a PV entry from the
+	 * wrong PV list and pmap_pv_demote_pde() failing to find the expected
+	 * PV entry for the 2MB page mapping that is being demoted.
+	 */
+	if ((oldpde & PG_MANAGED) != 0)
+		reserve_pv_entries(pmap, NPTEPG - 1, lockp);
+
+	/*
 	 * Demote the mapping.  This pmap is locked.  The old PDE has
 	 * PG_A set.  If the old PDE has PG_RW set, it also has PG_M
 	 * set.  Thus, there is no danger of a race with another
@@ -2769,13 +2779,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		pmap_invalidate_page(pmap, (vm_offset_t)vtopte(va));
 
 	/*
-	 * Demote the pv entry.  This depends on the earlier demotion
-	 * of the mapping.  Specifically, the (re)creation of a per-
-	 * page pv entry might trigger the execution of reclaim_pv_chunk(),
-	 * which might reclaim a newly (re)created per-page pv entry
-	 * and destroy the associated mapping.  In order to destroy
-	 * the mapping, the PDE must have already changed from mapping
-	 * the 2mpage to referencing the page table page.
+	 * Demote the PV entry.
 	 */
 	if ((oldpde & PG_MANAGED) != 0)
 		pmap_pv_demote_pde(pmap, va, oldpde & PG_PS_FRAME, lockp);
@@ -3442,11 +3446,28 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
+	    va >= kmi.clean_eva,
+	    ("pmap_enter: managed mapping within the clean submap"));
 	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
 	    VM_OBJECT_LOCKED(m->object),
 	    ("pmap_enter: page %p is not busy", m));
+	pa = VM_PAGE_TO_PHYS(m);
+	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		newpte |= PG_MANAGED;
+	if ((prot & VM_PROT_WRITE) != 0)
+		newpte |= PG_RW;
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		newpte |= pg_nx;
+	if (wired)
+		newpte |= PG_W;
+	if (va < VM_MAXUSER_ADDRESS)
+		newpte |= PG_U;
+	if (pmap == kernel_pmap)
+		newpte |= PG_G;
 
-	mpte = NULL;
+	mpte = om = NULL;
 
 	lock = NULL;
 	rw_rlock(&pvh_global_lock);
@@ -3467,8 +3488,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	} else
 		panic("pmap_enter: invalid page directory va=%#lx", va);
 
-	pa = VM_PAGE_TO_PHYS(m);
-	om = NULL;
 	origpte = *pte;
 	opa = origpte & PG_FRAME;
 
@@ -3493,14 +3512,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		if (mpte)
 			mpte->wire_count--;
 
-		if (origpte & PG_MANAGED) {
+		if ((origpte & PG_MANAGED) != 0)
 			om = m;
-			pa |= PG_MANAGED;
-		}
 		goto validate;
 	} 
-
-	pv = NULL;
 
 	/*
 	 * Mapping has changed, invalidate old range and fall through to
@@ -3509,11 +3524,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	if (opa) {
 		if (origpte & PG_W)
 			pmap->pm_stats.wired_count--;
-		if (origpte & PG_MANAGED) {
+		if ((origpte & PG_MANAGED) != 0)
 			om = PHYS_TO_VM_PAGE(opa);
-			CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, om);
-			pv = pmap_pvh_remove(&om->md, pmap, va);
-		}
 		if (mpte != NULL) {
 			mpte->wire_count--;
 			KASSERT(mpte->wire_count > 0,
@@ -3524,61 +3536,41 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pmap_resident_count_inc(pmap, 1);
 
 	/*
-	 * Enter on the PV list if part of our managed memory.
-	 */
-	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
-		    ("pmap_enter: managed mapping within the clean submap"));
-		if (pv == NULL)
-			pv = get_pv_entry(pmap, &lock);
-		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
-		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-		pa |= PG_MANAGED;
-	} else if (pv != NULL)
-		free_pv_entry(pmap, pv);
-
-	/*
-	 * Increment counters
+	 * Increment the counters.
 	 */
 	if (wired)
 		pmap->pm_stats.wired_count++;
 
-validate:
 	/*
-	 * Now validate mapping with desired protection/wiring.
+	 * Enter on the PV list if part of our managed memory.
 	 */
-	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
-	if ((prot & VM_PROT_WRITE) != 0) {
-		newpte |= PG_RW;
-		if ((newpte & PG_MANAGED) != 0)
-			vm_page_aflag_set(m, PGA_WRITEABLE);
+	if ((newpte & PG_MANAGED) != 0) {
+		pv = get_pv_entry(pmap, &lock);
+		pv->pv_va = va;
+		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	}
-	if ((prot & VM_PROT_EXECUTE) == 0)
-		newpte |= pg_nx;
-	if (wired)
-		newpte |= PG_W;
-	if (va < VM_MAXUSER_ADDRESS)
-		newpte |= PG_U;
-	if (pmap == kernel_pmap)
-		newpte |= PG_G;
+
+validate:
 
 	/*
-	 * if the mapping or permission bits are different, we need
-	 * to update the pte.
+	 * Update the PTE only if the mapping or protection/wiring bits are
+	 * different.
 	 */
-	if ((origpte & ~(PG_M|PG_A)) != newpte) {
+	if ((origpte & ~(PG_M | PG_A)) != newpte) {
 		newpte |= PG_A;
 		if ((access & VM_PROT_WRITE) != 0)
 			newpte |= PG_M;
+		if ((newpte & (PG_MANAGED | PG_RW)) == (PG_MANAGED | PG_RW))
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 		if (origpte & PG_V) {
 			invlva = FALSE;
 			origpte = pte_load_store(pte, newpte);
 			if (origpte & PG_A) {
 				if (origpte & PG_MANAGED)
 					vm_page_aflag_set(om, PGA_REFERENCED);
-				if (opa != VM_PAGE_TO_PHYS(m) || ((origpte &
-				    PG_NX) == 0 && (newpte & PG_NX)))
+				if (opa != pa || ((origpte & PG_NX) == 0 &&
+				    (newpte & PG_NX) != 0))
 					invlva = TRUE;
 			}
 			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
@@ -3587,9 +3579,11 @@ validate:
 				if ((newpte & PG_RW) == 0)
 					invlva = TRUE;
 			}
-			if ((om->aflags & PGA_WRITEABLE) != 0) {
-				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, om);
-				if (TAILQ_EMPTY(&om->md.pv_list) &&
+			if (opa != pa && (origpte & PG_MANAGED) != 0) {
+				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+				pmap_pvh_free(&om->md, pmap, va);
+				if ((om->aflags & PGA_WRITEABLE) != 0 &&
+				    TAILQ_EMPTY(&om->md.pv_list) &&
 				    ((om->flags & PG_FICTITIOUS) != 0 ||
 				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 					vm_page_aflag_clear(om, PGA_WRITEABLE);

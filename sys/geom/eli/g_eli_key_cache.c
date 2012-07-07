@@ -91,14 +91,20 @@ RB_GENERATE(g_eli_key_tree, g_eli_key, gek_link, g_eli_key_cmp);
 static void
 g_eli_key_fill(struct g_eli_softc *sc, struct g_eli_key *key, uint64_t keyno)
 {
+	const uint8_t *ekey;
 	struct {
 		char magic[4];
 		uint8_t keyno[8];
 	} __packed hmacdata;
 
+	if ((sc->sc_flags & G_ELI_FLAG_ENC_IVKEY) != 0)
+		ekey = sc->sc_mkey;
+	else
+		ekey = sc->sc_ekey;
+
 	bcopy("ekey", hmacdata.magic, 4);
 	le64enc(hmacdata.keyno, keyno);
-	g_eli_crypto_hmac(sc->sc_mkey, G_ELI_MAXKEYLEN, (uint8_t *)&hmacdata,
+	g_eli_crypto_hmac(ekey, G_ELI_MAXKEYLEN, (uint8_t *)&hmacdata,
 	    sizeof(hmacdata), key->gek_key, 0);
 	key->gek_keyno = keyno;
 	key->gek_count = 0;
@@ -200,7 +206,7 @@ g_eli_key_init(struct g_eli_softc *sc)
 			bcopy(mkey, sc->sc_ekey, G_ELI_DATAKEYLEN);
 		else {
 			/*
-			 * The encryption key is: ekey = HMAC_SHA512(Master-Key, 0x10)
+			 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
 			 */
 			g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1,
 			    sc->sc_ekey, 0);

@@ -691,6 +691,7 @@ vendor TLAYTECH		0x20b9	Tlay Tech
 vendor ENCORE		0x203d	Encore
 vendor PARA		0x20b8	PARA Industrial
 vendor SIMTEC		0x20df	Simtec Electronics
+vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor TRIPPLITE	0x2478	Tripp-Lite
@@ -1894,6 +1895,7 @@ product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
+product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
 
@@ -3345,6 +3347,7 @@ product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
 product TOSHIBA RT3070		0x0a07	RT3070
 product TOSHIBA G450		0x0d45	G450 modem
 product TOSHIBA HSDPA		0x1302	G450 modem
+product TOSHIBA TRANSMEMORY	0x6545	USB ThumbDrive
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
@@ -3400,6 +3403,9 @@ product USR USR5423		0x0121	USR5423 WLAN
 
 /* VIA Technologies products */
 product VIA USB2IDEBRIDGE	0x6204	USB 2.0 IDE Bridge
+
+/* VIA Labs */
+product VIALABS USB30SATABRIDGE	0x0700	USB 3.0 SATA Bridge
 
 /* Vaisala products */
 product VAISALA CABLE		0x0200	USB Interface cable

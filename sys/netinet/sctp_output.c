@@ -4156,10 +4156,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			SCTPDBG(SCTP_DEBUG_OUTPUT3, "IP output returns %d\n", ret);
 			if (net == NULL) {
 				/* free tempy routes */
-				if (ro->ro_rt) {
-					RTFREE(ro->ro_rt);
-					ro->ro_rt = NULL;
-				}
+				RO_RTFREE(ro);
 			} else {
 				/*
 				 * PMTU check versus smallest asoc MTU goes
@@ -4474,7 +4471,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #if defined(SCTP_WITH_NO_CSUM)
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-				m->m_pkthdr.csum_flags = CSUM_SCTP;
+				m->m_pkthdr.csum_flags = CSUM_SCTP_IPV6;
 				m->m_pkthdr.csum_data = 0;
 				SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
@@ -4513,9 +4510,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			}
 			if (net == NULL) {
 				/* Now if we had a temp route free it */
-				if (ro->ro_rt) {
-					RTFREE(ro->ro_rt);
-				}
+				RO_RTFREE(ro);
 			} else {
 				/*
 				 * PMTU check versus smallest asoc MTU goes
@@ -10976,8 +10971,9 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		return;
 	}
 	SCTP_ATTACH_CHAIN(o_pak, mout, len);
+	switch (dst->sa_family) {
 #ifdef INET
-	if (ip != NULL) {
+	case AF_INET:
 		if (port) {
 			if (V_udp_cksum) {
 				udp->uh_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
@@ -11011,10 +11007,10 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		}
 #endif
 		SCTP_IP_OUTPUT(ret, o_pak, NULL, NULL, vrf_id);
-	}
+		break;
 #endif
 #ifdef INET6
-	if (ip6 != NULL) {
+	case AF_INET6:
 		ip6->ip6_plen = len - sizeof(struct ip6_hdr);
 		if (port) {
 #if defined(SCTP_WITH_NO_CSUM)
@@ -11030,7 +11026,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-			mout->m_pkthdr.csum_flags = CSUM_SCTP;
+			mout->m_pkthdr.csum_flags = CSUM_SCTP_IPV6;
 			mout->m_pkthdr.csum_data = 0;
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
@@ -11041,8 +11037,15 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		}
 #endif
 		SCTP_IP6_OUTPUT(ret, o_pak, NULL, NULL, NULL, vrf_id);
-	}
+		break;
 #endif
+	default:
+		SCTPDBG(SCTP_DEBUG_OUTPUT1, "Unknown protocol (TSNH) type %d\n",
+		    dst->sa_family);
+		sctp_m_freem(mout);
+		SCTP_LTRACE_ERR_RET_PKT(mout, NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EFAULT);
+		return;
+	}
 	SCTP_STAT_INCR(sctps_sendpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_outpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);

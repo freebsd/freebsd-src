@@ -767,7 +767,7 @@ ext2_statfs(struct mount *mp, struct statfs *sbp)
 	ump = VFSTOEXT2(mp);
 	fs = ump->um_e2fs;
 	if (fs->e2fs->e2fs_magic != E2FS_MAGIC)
-		panic("ext2fs_statvfs");
+		panic("ext2fs_statfs");
 
 	/*
 	 * Compute the overhead (FS structures)

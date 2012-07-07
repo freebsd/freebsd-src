@@ -29,8 +29,6 @@
 #ifndef _VIRTIO_VIRTQUEUE_H
 #define _VIRTIO_VIRTQUEUE_H
 
-#include <sys/types.h>
-
 struct virtqueue;
 struct sglist;
 
