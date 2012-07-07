@@ -58,14 +58,24 @@
 #define F32_bit (1 << 6)        /* FIQ disable */
 #endif
 
-/* XXX: Rethink for userland later as those won't be defined */
-#if ARM_ARCH_6 || ARM_ARCH_7A
-
+/*
+ * It would be nice to use _HAVE_ARMv6_INSTRUCTIONS from machine/asm.h
+ * here, but that header can't be included here because this is C
+ * code.  I would like to move the _HAVE_ARMv6_INSTRUCTIONS definition
+ * out of asm.h so it can be used in both asm and C code. - kientzle@
+ */
+#if defined (__ARM_ARCH_7__) || \
+	defined (__ARM_ARCH_7A__) || \
+	defined (__ARM_ARCH_6__) || \
+	defined (__ARM_ARCH_6J__) || \
+	defined (__ARM_ARCH_6K__) || \
+	defined (__ARM_ARCH_6Z__) || \
+	defined (__ARM_ARCH_6ZK__)
 static __inline void
 __do_dmb(void)
 {
 
-#if ARM_ARCH_7A
+#if defined (__ARM_ARCH_7__) || defined (__ARM_ARCH_7A__)
 	__asm __volatile("dmb" : : : "memory");
 #else
 	__asm __volatile("mcr p15, 0, r0, c7, c10, 5" : : : "memory");

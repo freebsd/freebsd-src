@@ -40,6 +40,8 @@
 #ifndef	_MACHINE_ASMACROS_H_
 #define	_MACHINE_ASMACROS_H_
 
+#include <machine/asm.h>
+
 #ifdef _KERNEL
 
 #ifdef LOCORE

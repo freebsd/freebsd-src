@@ -1,4 +1,3 @@
 # $FreeBSD$
 options		ARM_CACHE_LOCK_ENABLE
 options		NO_EVENTTIMERS
-options		ARM_WANT_TP_ADDRESS

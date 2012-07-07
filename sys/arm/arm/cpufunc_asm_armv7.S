@@ -32,6 +32,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+	.cpu cortex-a8
+
 .Lcoherency_level:
 	.word	_C_LABEL(arm_cache_loc)
 .Lcache_type:

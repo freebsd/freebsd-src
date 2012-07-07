@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-# This should be armv7-a but current gcc doesn't support it
-makeoptions	CONF_CFLAGS=-D_ARM_ARCH_6
-
 cpu 		CPU_CORTEXA
 
 files		"../ti/files.ti"

@@ -56,7 +56,11 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
+#ifdef __FreeBSD_ARCH_armv6__
+#define	MACHINE_ARCH	"armv6"
+#else
 #define	MACHINE_ARCH	"arm"
+#endif
 #endif
 #define	MID_MACHINE	MID_ARM6 
 

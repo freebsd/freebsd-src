@@ -4,7 +4,7 @@
 # MACHINE_CPUARCH, but there's no easy way to export make functions...
 
 .if defined(TARGET_ARCH)
-TARGET_CPUARCH=${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+TARGET_CPUARCH=${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
 .else
 TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
@@ -17,7 +17,7 @@ TARGET_CPU_DEFAULT= MASK_GNU_AS|MASK_GNU_LD
 .if ${TARGET_ARCH} == "sparc64"
 TARGET_CPU_DEFAULT= TARGET_CPU_ultrasparc
 .endif
-.if ${TARGET_ARCH} == "armeb" || \
+.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "armv6eb" || \
 	(${TARGET_CPUARCH} == "mips" && ${TARGET_ARCH:Mmips*el} == "")
 TARGET_BIG_ENDIAN=t
 .endif

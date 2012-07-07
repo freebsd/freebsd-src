@@ -3,4 +3,3 @@
 files		"../mv/files.mv"
 cpu		CPU_ARM9E
 makeoptions	CONF_CFLAGS="-march=armv5te"
-options		ARM_WANT_TP_ADDRESS
