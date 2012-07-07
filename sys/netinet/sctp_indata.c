@@ -1529,7 +1529,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 */
 		if (stcb->sctp_socket->so_rcv.sb_cc) {
 			/* some to read, wake-up */
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			struct socket *so;
 
 			so = SCTP_INP_SO(stcb->sctp_ep);
@@ -1545,7 +1545,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			}
 #endif
 			sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 		}
@@ -2516,6 +2516,7 @@ doit_again:
 
 int
 sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
+    struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t * high_tsn,
     uint8_t use_mflowid, uint32_t mflowid,
@@ -2626,8 +2627,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
-				sctp_abort_association(inp, stcb, m, iphlen, sh,
-				    op_err,
+				sctp_abort_association(inp, stcb, m, iphlen,
+				    src, dst, sh, op_err,
 				    use_mflowid, mflowid,
 				    vrf_id, port);
 				return (2);
@@ -2695,6 +2696,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					op_err = sctp_generate_invmanparam(SCTP_CAUSE_PROTOCOL_VIOLATION);
 					sctp_abort_association(inp, stcb,
 					    m, iphlen,
+					    src, dst,
 					    sh, op_err,
 					    use_mflowid, mflowid,
 					    vrf_id, port);
@@ -2762,7 +2764,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		/*
 		 * we need to report rwnd overrun drops.
 		 */
-		sctp_send_packet_dropped(stcb, net, *mm, iphlen, 0);
+		sctp_send_packet_dropped(stcb, net, *mm, length, iphlen, 0);
 	}
 	if (num_chunks) {
 		/*
@@ -3982,7 +3984,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	}
 	/* sa_ignore NO_NULL_CHK */
 	if (stcb->sctp_socket) {
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		struct socket *so;
 
 #endif
@@ -3991,7 +3993,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 			/* sa_ignore NO_NULL_CHK */
 			sctp_wakeup_log(stcb, 1, SCTP_WAKESND_FROM_SACK);
 		}
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(stcb->sctp_ep);
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
@@ -4005,7 +4007,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		}
 #endif
 		sctp_sowwakeup_locked(stcb->sctp_ep, stcb->sctp_socket);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 	} else {
@@ -4734,7 +4736,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	}
 	/* sa_ignore NO_NULL_CHK */
 	if ((wake_him) && (stcb->sctp_socket)) {
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		struct socket *so;
 
 #endif
@@ -4742,7 +4744,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_WAKE_LOGGING_ENABLE) {
 			sctp_wakeup_log(stcb, wake_him, SCTP_WAKESND_FROM_SACK);
 		}
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(stcb->sctp_ep);
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
@@ -4756,7 +4758,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		}
 #endif
 		sctp_sowwakeup_locked(stcb->sctp_ep, stcb->sctp_socket);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 	} else {

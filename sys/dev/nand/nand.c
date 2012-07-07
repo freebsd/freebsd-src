@@ -830,3 +830,5 @@ nand_erase_blocks(struct nand_chip *chip, off_t offset, size_t len)
 
 	return (err);
 }
+
+MODULE_VERSION(nand, 1);

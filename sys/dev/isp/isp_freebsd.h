@@ -62,7 +62,7 @@
 #include "opt_isp.h"
 
 #define	ISP_PLATFORM_VERSION_MAJOR	7
-#define	ISP_PLATFORM_VERSION_MINOR	0
+#define	ISP_PLATFORM_VERSION_MINOR	10
 
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
@@ -93,13 +93,14 @@ typedef struct {
 	uint32_t	orig_datalen;
 	uint32_t	bytes_xfered;
 	uint32_t	last_xframt;
-	uint32_t	tag;
+	uint32_t	tag;		/* typically f/w RX_ID */
 	uint32_t	lun;
 	uint32_t	nphdl;
 	uint32_t	sid;
 	uint32_t	portid;
+	uint16_t	rxid;	/* wire rxid */
+	uint16_t	oxid;	/* wire oxid */
 	uint32_t
-			oxid	: 16,
 			cdb0	: 8,
 				: 1,
 			dead	: 1,

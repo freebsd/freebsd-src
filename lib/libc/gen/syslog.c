@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <netdb.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -414,7 +413,6 @@ void
 closelog(void)
 {
 	THREAD_LOCK();
-	assert(LogFile >= -1);
 	if (LogFile != -1) {
 		(void)_close(LogFile);
 		LogFile = -1;

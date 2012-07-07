@@ -678,7 +678,7 @@ struct ispsoftc {
 #define	ISP_RUNSTATE	4
 
 /*
- * ISP Configuration Options
+ * ISP Runtime Configuration Options
  */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */

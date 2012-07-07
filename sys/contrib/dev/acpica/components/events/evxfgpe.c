@@ -298,7 +298,7 @@ AcpiSetupGpeForWake (
     ACPI_STATUS             Status;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_NAMESPACE_NODE     *DeviceNode;
-    ACPI_GPE_NOTIFY_INFO    *Notify;
+    ACPI_GPE_NOTIFY_INFO    *NewNotify, *Notify;
     ACPI_CPU_FLAGS          Flags;
 
 
@@ -332,6 +332,12 @@ AcpiSetupGpeForWake (
     if (DeviceNode->Type != ACPI_TYPE_DEVICE)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    NewNotify = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_GPE_NOTIFY_INFO));
+    if (!NewNotify)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
@@ -384,16 +390,10 @@ AcpiSetupGpeForWake (
 
         /* Add this device to the notify list for this GPE */
 
-        Notify = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_GPE_NOTIFY_INFO));
-        if (!Notify)
-        {
-            Status = AE_NO_MEMORY;
-            goto UnlockAndExit;
-        }
-
-        Notify->DeviceNode = DeviceNode;
-        Notify->Next = GpeEventInfo->Dispatch.NotifyList;
-        GpeEventInfo->Dispatch.NotifyList = Notify;
+        NewNotify->DeviceNode = DeviceNode;
+        NewNotify->Next = GpeEventInfo->Dispatch.NotifyList;
+        GpeEventInfo->Dispatch.NotifyList = NewNotify;
+        NewNotify = NULL;
     }
 
     /* Mark the GPE as a possible wake event */
@@ -403,6 +403,10 @@ AcpiSetupGpeForWake (
 
 UnlockAndExit:
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    if (NewNotify)
+    {
+        ACPI_FREE (NewNotify);
+    }
     return_ACPI_STATUS (Status);
 }
 

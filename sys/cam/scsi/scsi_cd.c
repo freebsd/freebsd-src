@@ -103,8 +103,7 @@ typedef enum {
 	CD_FLAG_RETRY_UA	= 0x0200,
 	CD_FLAG_VALID_MEDIA	= 0x0400,
 	CD_FLAG_VALID_TOC	= 0x0800,
-	CD_FLAG_SCTX_INIT	= 0x1000,
-	CD_FLAG_OPEN		= 0x2000
+	CD_FLAG_SCTX_INIT	= 0x1000
 } cd_flags;
 
 typedef enum {
@@ -294,6 +293,9 @@ PERIPHDRIVER_DECLARE(cd, cddriver);
 #ifndef	CD_DEFAULT_RETRY
 #define	CD_DEFAULT_RETRY	4
 #endif
+#ifndef	CD_DEFAULT_TIMEOUT
+#define	CD_DEFAULT_TIMEOUT	30000
+#endif
 #ifndef CHANGER_MIN_BUSY_SECONDS
 #define CHANGER_MIN_BUSY_SECONDS	5
 #endif
@@ -302,6 +304,7 @@ PERIPHDRIVER_DECLARE(cd, cddriver);
 #endif
 
 static int cd_retry_count = CD_DEFAULT_RETRY;
+static int cd_timeout = CD_DEFAULT_TIMEOUT;
 static int changer_min_busy_seconds = CHANGER_MIN_BUSY_SECONDS;
 static int changer_max_busy_seconds = CHANGER_MAX_BUSY_SECONDS;
 
@@ -311,6 +314,9 @@ static SYSCTL_NODE(_kern_cam_cd, OID_AUTO, changer, CTLFLAG_RD, 0,
 SYSCTL_INT(_kern_cam_cd, OID_AUTO, retry_count, CTLFLAG_RW,
            &cd_retry_count, 0, "Normal I/O retry count");
 TUNABLE_INT("kern.cam.cd.retry_count", &cd_retry_count);
+SYSCTL_INT(_kern_cam_cd, OID_AUTO, timeout, CTLFLAG_RW,
+	   &cd_timeout, 0, "Timeout, in us, for read operations");
+TUNABLE_INT("kern.cam.cd.timeout", &cd_timeout);
 SYSCTL_INT(_kern_cam_cd_changer, OID_AUTO, min_busy_seconds, CTLFLAG_RW,
 	   &changer_min_busy_seconds, 0, "Minimum changer scheduling quantum");
 TUNABLE_INT("kern.cam.cd.changer.min_busy_seconds", &changer_min_busy_seconds);
@@ -358,6 +364,20 @@ cdinit(void)
 	}
 }
 
+/*
+ * Callback from GEOM, called when it has finished cleaning up its
+ * resources.
+ */
+static void
+cddiskgonecb(struct disk *dp)
+{
+	struct cam_periph *periph;
+
+	periph = (struct cam_periph *)dp->d_drv1;
+
+	cam_periph_release(periph);
+}
+
 static void
 cdoninvalidate(struct cam_periph *periph)
 {
@@ -389,7 +409,7 @@ cdoninvalidate(struct cam_periph *periph)
 		camq_remove(&softc->changer->devq, softc->pinfo.index);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device\n");
+	xpt_print(periph->path, "lost device, %d refs\n", periph->refcount);
 }
 
 static void
@@ -726,6 +746,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_open = cdopen;
 	softc->disk->d_close = cdclose;
 	softc->disk->d_strategy = cdstrategy;
+	softc->disk->d_gone = cddiskgonecb;
 	softc->disk->d_ioctl = cdioctl;
 	softc->disk->d_name = "cd";
 	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
@@ -747,6 +768,19 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_device = cpi.hba_device;
 	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
+
+	/*
+	 * Acquire a reference to the periph before we register with GEOM.
+	 * We'll release this reference once GEOM calls us back (via
+	 * dadiskgonecb()) telling us that our provider has been freed.
+	 */
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+		xpt_print(periph->path, "%s: lost periph during "
+			  "registration!\n", __func__);
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
+
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
 
@@ -1000,14 +1034,14 @@ cdopen(struct disk *dp)
 	cam_periph_lock(periph);
 
 	if (softc->flags & CD_FLAG_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(ENXIO);
 	}
 
 	if ((error = cam_periph_hold(periph, PRIBIO | PCATCH)) != 0) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return (error);
 	}
 
@@ -1024,14 +1058,7 @@ cdopen(struct disk *dp)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("leaving cdopen\n"));
 	cam_periph_unhold(periph);
 
-	/* Closes aren't symmetrical with opens, so fix up the refcounting. */
-	if ((softc->flags & CD_FLAG_OPEN) == 0) {
-		softc->flags |= CD_FLAG_OPEN;
-		cam_periph_unlock(periph);
-	} else {
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-	}
+	cam_periph_unlock(periph);
 
 	return (0);
 }
@@ -1070,11 +1097,11 @@ cdclose(struct disk *dp)
 	/*
 	 * We'll check the media and toc again at the next open().
 	 */
-	softc->flags &= ~(CD_FLAG_VALID_MEDIA|CD_FLAG_VALID_TOC|CD_FLAG_OPEN);
+	softc->flags &= ~(CD_FLAG_VALID_MEDIA|CD_FLAG_VALID_TOC);
 
 	cam_periph_unhold(periph);
+	cam_periph_release_locked(periph);
 	cam_periph_unlock(periph);
-	cam_periph_release(periph);
 
 	return (0);
 }
@@ -1489,8 +1516,9 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					bp->bio_bcount / softc->params.blksize,
 					/* data_ptr */ bp->bio_data,
 					/* dxfer_len */ bp->bio_bcount,
-					/* sense_len */ SSD_FULL_SIZE,
-					/* timeout */ 30000);
+					/* sense_len */ cd_retry_count ?
+					  SSD_FULL_SIZE : SF_NO_PRINT,
+					/* timeout */ cd_timeout);
 			/* Use READ CD command for audio tracks. */
 			if (softc->params.blksize == 2352) {
 				start_ccb->csio.cdb_io.cdb_bytes[0] = READ_CD;

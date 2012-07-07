@@ -39,6 +39,9 @@
 #define	SORT_HEAPSORT	3
 #define	SORT_RADIXSORT  4
 
+#define DEFAULT_SORT_ALGORITHM SORT_HEAPSORT
+#define DEFAULT_SORT_FUNC heapsort
+
 /*
  * List of data to be sorted.
  */

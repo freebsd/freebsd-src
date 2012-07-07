@@ -273,13 +273,8 @@ lbc_banks_enable(struct lbc_softc *sc)
 
 	for (i = 0; i < LBC_DEV_MAX; i++) {
 		size = sc->sc_banks[i].size;
-		if (size == 0) {
-			bus_space_write_4(sc->sc_bst, sc->sc_bsh,
-			    LBC85XX_BR(i), 0);
-			bus_space_write_4(sc->sc_bst, sc->sc_bsh,
-			    LBC85XX_OR(i), 0);
+		if (size == 0)
 			continue;
-		}
 
 		/*
 		 * Compute and program BR value.
@@ -331,23 +326,6 @@ lbc_banks_enable(struct lbc_softc *sc)
 		    LBC85XX_OR(i), regval);
 	}
 
-	/*
-	 * Initialize configuration register:
-	 * - enable Local Bus
-	 * - set data buffer control signal function
-	 * - disable parity byte select
-	 * - set ECC parity type
-	 * - set bus monitor timing and timer prescale
-	 */
-	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LBCR, 0);
-
-	/*
-	 * Initialize clock ratio register:
-	 * - disable PLL bypass mode
-	 * - configure LCLK delay cycles for the assertion of LALE
-	 * - set system clock divider
-	 */
-	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LCRR, 0x00030008);
 	return (0);
 
 fail:
@@ -426,6 +404,18 @@ out:
 	return (rv);
 }
 
+static void
+lbc_intr(void *arg)
+{
+	struct lbc_softc *sc = arg;
+	uint32_t ltesr;
+
+	ltesr = bus_space_read_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTESR);
+	sc->sc_ltesr = ltesr;
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTESR, ltesr);
+	wakeup(sc->sc_dev);
+}
+
 static int
 lbc_probe(device_t dev)
 {
@@ -455,14 +445,59 @@ lbc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	sc->sc_rid = 0;
-	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
+	sc->sc_mrid = 0;
+	sc->sc_mres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_mrid,
 	    RF_ACTIVE);
-	if (sc->sc_res == NULL)
+	if (sc->sc_mres == NULL)
 		return (ENXIO);
 
-	sc->sc_bst = rman_get_bustag(sc->sc_res);
-	sc->sc_bsh = rman_get_bushandle(sc->sc_res);
+	sc->sc_bst = rman_get_bustag(sc->sc_mres);
+	sc->sc_bsh = rman_get_bushandle(sc->sc_mres);
+
+	for (bank = 0; bank < LBC_DEV_MAX; bank++) {
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_BR(bank), 0);
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_OR(bank), 0);
+	}
+
+	/*
+	 * Initialize configuration register:
+	 * - enable Local Bus
+	 * - set data buffer control signal function
+	 * - disable parity byte select
+	 * - set ECC parity type
+	 * - set bus monitor timing and timer prescale
+	 */
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LBCR, 0);
+
+	/*
+	 * Initialize clock ratio register:
+	 * - disable PLL bypass mode
+	 * - configure LCLK delay cycles for the assertion of LALE
+	 * - set system clock divider
+	 */
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LCRR, 0x00030008);
+
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTEDR, 0);
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTESR, ~0);
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTEIR, 0x64080001);
+
+	sc->sc_irid = 0;
+	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->sc_ires != NULL) {
+		error = bus_setup_intr(dev, sc->sc_ires,
+		    INTR_TYPE_MISC | INTR_MPSAFE, NULL, lbc_intr, sc,
+		    &sc->sc_icookie);
+		if (error) {
+			device_printf(dev, "could not activate interrupt\n");
+			bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
+			    sc->sc_ires);
+			sc->sc_ires = NULL;
+		}
+	}
+
+	sc->sc_ltesr = ~0;
+
 	rangesptr = NULL;
 
 	rm = &sc->sc_rman;
@@ -614,7 +649,7 @@ lbc_attach(device_t dev)
 
 fail:
 	free(rangesptr, M_OFWPROP);
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mrid, sc->sc_mres);
 	return (error);
 }
 
@@ -742,17 +777,49 @@ lbc_get_devinfo(device_t bus, device_t child)
 void
 lbc_write_reg(device_t child, u_int off, uint32_t val)
 {
+	device_t dev;
 	struct lbc_softc *sc;
 
-	sc = device_get_softc(device_get_parent(child));
+	dev = device_get_parent(child);
+
+	if (off >= 0x1000) {
+		device_printf(dev, "%s(%s): invalid offset %#x\n",
+		    __func__, device_get_nameunit(child), off);
+		return;
+	}
+
+	sc = device_get_softc(dev);
+
+	if (off == LBC85XX_LTESR && sc->sc_ltesr != ~0u) {
+		sc->sc_ltesr ^= (val & sc->sc_ltesr);
+		return;
+	}
+
+	if (off == LBC85XX_LTEATR && (val & 1) == 0)
+		sc->sc_ltesr = ~0u;
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
 }
 
 uint32_t
 lbc_read_reg(device_t child, u_int off)
 {
+	device_t dev;
 	struct lbc_softc *sc;
+	uint32_t val;
 
-	sc = device_get_softc(device_get_parent(child));
-	return (bus_space_read_4(sc->sc_bst, sc->sc_bsh, off));
+	dev = device_get_parent(child);
+
+	if (off >= 0x1000) {
+		device_printf(dev, "%s(%s): invalid offset %#x\n",
+		    __func__, device_get_nameunit(child), off);
+		return (~0U);
+	}
+
+	sc = device_get_softc(dev);
+
+	if (off == LBC85XX_LTESR && sc->sc_ltesr != ~0U)
+		val = sc->sc_ltesr;
+	else
+		val = bus_space_read_4(sc->sc_bst, sc->sc_bsh, off);
+	return (val);
 }

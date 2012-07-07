@@ -710,8 +710,11 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			0x6666, 0x6677, 0x1122, 0x33ff,
 			0x0000, 0x0001, 0x1000, 0x1010,
 		};
+		int nmbox = ISP_NMBOX(isp);
+		if (IS_SCSI(isp))
+			nmbox = 6;
 		MBSINIT(&mbs, MBOX_MAILBOX_REG_TEST, MBLOGALL, 0);
-		for (i = 1; i < ISP_NMBOX(isp); i++) {
+		for (i = 1; i < nmbox; i++) {
 			mbs.param[i] = patterns[i];
 		}
 		isp_mboxcmd(isp, &mbs);
@@ -719,7 +722,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			ISP_RESET0(isp);
 			return;
 		}
-		for (i = 1; i < ISP_NMBOX(isp); i++) {
+		for (i = 1; i < nmbox; i++) {
 			if (mbs.param[i] != patterns[i]) {
 				ISP_RESET0(isp);
 				isp_prt(isp, ISP_LOGERR, "Register Test Failed at Register %d: should have 0x%04x but got 0x%04x", i, patterns[i], mbs.param[i]);
@@ -1088,7 +1091,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			isp->isp_fwattr = mbs.param[6];
 		}
 		if (IS_24XX(isp) && (isp->isp_fwattr & ISP2400_FW_ATTR_EXTNDED)) {
-			isp->isp_fwattr ^= ISP2400_FW_ATTR_EXTNDED;
 			isp->isp_fwattr |= (((uint64_t) mbs.param[15]) << 16) | (((uint64_t) mbs.param[16]) << 32) | (((uint64_t) mbs.param[17]) << 48);
 		}
 	} else if (IS_SCSI(isp)) {
@@ -1140,7 +1142,8 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		}
 		fwt &= ~ISP2400_FW_ATTR_EXTNDED;
 		if (fwt) {
-			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%jx)", buf, (uintmax_t)fwt);
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%08x%08x)", buf,
+			    (uint32_t) (fwt >> 32), (uint32_t) fwt);
 		}
 		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 	} else if (IS_FC(isp)) {
@@ -1183,12 +1186,23 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s 2K-Login", buf);
 		}
 		if (fwt != 0) {
-			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%jx)", buf, (uintmax_t)fwt);
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%08x%08x)", buf,
+			    (uint32_t) (fwt >> 32), (uint32_t) fwt);
 		}
 		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 	}
 
-	if (!IS_24XX(isp)) {
+	if (IS_24XX(isp)) {
+		MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
+		isp_mboxcmd(isp, &mbs);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			ISP_RESET0(isp);
+			return;
+		}
+		if (isp->isp_maxcmds >= mbs.param[3]) {
+			isp->isp_maxcmds = mbs.param[3];
+		}
+	} else {
 		MBSINIT(&mbs, MBOX_GET_FIRMWARE_STATUS, MBLOGALL, 0);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -1206,11 +1220,12 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * Only make this check for non-SCSI cards (I'm not sure firmware attributes
 	 * work for them).
 	 */
-	if (IS_FC(isp) && ISP_CAP_MULTI_ID(isp) == 0 && isp->isp_nchan > 1) {
-		isp_prt(isp, ISP_LOGWARN, "non-MULTIID f/w loaded, only can enable 1 of %d channels", isp->isp_nchan);
-		isp->isp_nchan = 1;
+	if (IS_FC(isp) && isp->isp_nchan > 1) {
+		if (!IS_24XX(isp) || (fwt & ISP2400_FW_ATTR_MULTIID) == 0) {
+			isp_prt(isp, ISP_LOGWARN, "non-MULTIID f/w loaded, only can enable 1 of %d channels", isp->isp_nchan);
+			isp->isp_nchan = 1;
+		}
 	}
-
 	for (i = 0; i < isp->isp_nchan; i++) {
 		isp_fw_state(isp, i);
 	}
@@ -1697,21 +1712,39 @@ isp_fibre_init(ispsoftc_t *isp)
 	 */
 	if (IS_2200(isp) || IS_23XX(isp)) {
 		icbp->icb_fwoptions |= ICBOPT_EXTENDED;
+
+		icbp->icb_xfwoptions = fcp->isp_xfwoptions;
+
 		/*
 		 * Prefer or force Point-To-Point instead Loop?
 		 */
 		switch (isp->isp_confopts & ISP_CFG_PORT_PREF) {
 		case ISP_CFG_NPORT:
+			icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
 			icbp->icb_xfwoptions |= ICBXOPT_PTP_2_LOOP;
 			break;
 		case ISP_CFG_NPORT_ONLY:
+			icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
 			icbp->icb_xfwoptions |= ICBXOPT_PTP_ONLY;
 			break;
 		case ISP_CFG_LPORT_ONLY:
+			icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
 			icbp->icb_xfwoptions |= ICBXOPT_LOOP_ONLY;
 			break;
 		default:
-			icbp->icb_xfwoptions |= ICBXOPT_LOOP_2_PTP;
+			/*
+			 * Let NVRAM settings define it if they are sane
+			 */
+			switch (icbp->icb_xfwoptions & ICBXOPT_TOPO_MASK) {
+			case ICBXOPT_PTP_2_LOOP:
+			case ICBXOPT_PTP_ONLY:
+			case ICBXOPT_LOOP_ONLY:
+			case ICBXOPT_LOOP_2_PTP:
+				break;
+			default:
+				icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
+				icbp->icb_xfwoptions |= ICBXOPT_LOOP_2_PTP;
+			}
 			break;
 		}
 		if (IS_2200(isp)) {
@@ -1737,15 +1770,24 @@ isp_fibre_init(ispsoftc_t *isp)
 				icbp->icb_xfwoptions |= ICBXOPT_ZIO;
 				icbp->icb_idelaytimer = 10;
 			}
+			icbp->icb_zfwoptions = fcp->isp_zfwoptions;
 			if (isp->isp_confopts & ISP_CFG_ONEGB) {
+				icbp->icb_zfwoptions &= ~ICBZOPT_RATE_MASK;
 				icbp->icb_zfwoptions |= ICBZOPT_RATE_ONEGB;
 			} else if (isp->isp_confopts & ISP_CFG_TWOGB) {
+				icbp->icb_zfwoptions &= ~ICBZOPT_RATE_MASK;
 				icbp->icb_zfwoptions |= ICBZOPT_RATE_TWOGB;
 			} else {
-				icbp->icb_zfwoptions |= ICBZOPT_RATE_AUTO;
-			}
-			if (fcp->isp_zfwoptions & ICBZOPT_50_OHM) {
-				icbp->icb_zfwoptions |= ICBZOPT_50_OHM;
+				switch (icbp->icb_zfwoptions & ICBZOPT_RATE_MASK) {
+				case ICBZOPT_RATE_ONEGB:
+				case ICBZOPT_RATE_TWOGB:
+				case ICBZOPT_RATE_AUTO:
+					break;
+				default:
+					icbp->icb_zfwoptions &= ~ICBZOPT_RATE_MASK;
+					icbp->icb_zfwoptions |= ICBZOPT_RATE_AUTO;
+					break;
+				}
 			}
 		}
 	}
@@ -1915,16 +1957,13 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		icbp->icb_execthrottle = ICB_DFLT_THROTTLE;
 	}
 
+	/*
+	 * Set target exchange count. Take half if we are supporting both roles.
+	 */
 	if (icbp->icb_fwoptions1 & ICB2400_OPT1_TGT_ENABLE) {
-		/*
-		 * Get current resource count
-		 */
-		MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			return;
-		}
-		icbp->icb_xchgcnt = mbs.param[3];
+		icbp->icb_xchgcnt = isp->isp_maxcmds;
+		if ((icbp->icb_fwoptions1 & ICB2400_OPT1_INI_DISABLE) == 0)
+			icbp->icb_xchgcnt >>= 1;
 	}
 
 
@@ -2511,15 +2550,12 @@ isp_get_wwn(ispsoftc_t *isp, int chan, int loopid, int nodename)
 	MBSINIT(&mbs, MBOX_GET_PORT_NAME, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR, 500000);
 	if (ISP_CAP_2KLOGIN(isp)) {
 		mbs.param[1] = loopid;
-		mbs.ibits = (1 << 10);
 		if (nodename) {
 			mbs.param[10] = 1;
 		}
-		if (ISP_CAP_MULTI_ID(isp)) {
-			mbs.ibits |= (1 << 9);
-			mbs.param[9] = chan;
-		}
+		mbs.param[9] = chan;
 	} else {
+		mbs.ibits = 3;
 		mbs.param[1] = loopid << 8;
 		if (nodename) {
 			mbs.param[1] |= 1;
@@ -7013,7 +7049,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3f: */
 	ISP_FC_OPMAP(0x03, 0x01),	/* 0x40: MBOX_LOOP_PORT_BYPASS */
 	ISP_FC_OPMAP(0x03, 0x01),	/* 0x41: MBOX_LOOP_PORT_ENABLE */
-	ISP_FC_OPMAP_HALF(0x3, 0xcf, 0x0, 0x07),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
+	ISP_FC_OPMAP_HALF(0x0, 0x01, 0x3, 0xcf),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x43: MBOX_REQUEST_OFFLINE_MODE */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x44: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x45: */
@@ -7053,7 +7089,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x07, 0x01),	/* 0x67: MBOX_CLEAR_TASK_SET */
 	ISP_FC_OPMAP(0x07, 0x01),	/* 0x68: MBOX_ABORT_TASK_SET */
 	ISP_FC_OPMAP(0x01, 0x07),	/* 0x69: MBOX_GET_FW_STATE */
-	ISP_FC_OPMAP(0x03, 0xcf),	/* 0x6a: MBOX_GET_PORT_NAME */
+	ISP_FC_OPMAP_HALF(0x6, 0x03, 0x0, 0xcf),	/* 0x6a: MBOX_GET_PORT_NAME */
 	ISP_FC_OPMAP(0xcf, 0x01),	/* 0x6b: MBOX_GET_LINK_STATUS */
 	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x6c: MBOX_INIT_LIP_RESET */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x6d: */

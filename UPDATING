@@ -24,6 +24,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20120628:
+	The sort utility has been replaced with BSD sort.  For now, GNU sort
+	is also available as "gnusort" or the default can be set back to
+	GNU sort by setting WITH_GNU_SORT.  In this case, BSD sort will be
+	installed as "bsdsort".
+
 20120611:
 	A new version of ZFS (pool version 5000) has been merged to -HEAD.
 	Starting with this version the old system of ZFS pool versioning

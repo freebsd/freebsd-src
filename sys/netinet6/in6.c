@@ -1330,6 +1330,7 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 	struct sockaddr_in6 mltaddr, mltmask;
 	struct in6_multi_mship *imm;
 	struct rtentry *rt;
+	struct sockaddr_in6 sin6;
 	int error;
 
 	/*
@@ -1355,6 +1356,19 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 
 	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) != 0)
 		return (error);
+
+	/*
+	 * As for the mltaddr above, proactively prepare the sin6 to avoid
+	 * rtentry un- and re-locking.
+	 */
+	if (ifa0 != NULL) {
+		bzero(&sin6, sizeof(sin6));
+		sin6.sin6_len = sizeof(sin6);
+		sin6.sin6_family = AF_INET6;
+		memcpy(&sin6.sin6_addr, &satosin6(ifa0->ifa_addr)->sin6_addr, 
+		    sizeof(sin6.sin6_addr));
+		in6_setscope(&sin6.sin6_addr, ifa0->ifa_ifp, NULL);
+	}
 
 	rt = in6_rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt != NULL && rt->rt_gateway != NULL &&
@@ -1382,15 +1396,7 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 			/*
 			 * Replace the gateway of the route.
 			 */
-			struct sockaddr_in6 sa;
-
-			bzero(&sa, sizeof(sa));
-			sa.sin6_len = sizeof(struct sockaddr_in6);
-			sa.sin6_family = AF_INET6;
-			memcpy(&sa.sin6_addr, &satosin6(ifa0->ifa_addr)->sin6_addr, 
-			       sizeof(sa.sin6_addr));
-			in6_setscope(&sa.sin6_addr, ifa0->ifa_ifp, NULL);
-			memcpy(rt->rt_gateway, &sa, sizeof(sa));
+			memcpy(rt->rt_gateway, &sin6, sizeof(sin6));
 			RTFREE_LOCKED(rt);
 		}
 	} else {
@@ -1432,15 +1438,7 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 			/*
 			 * Replace the gateway of the route.
 			 */
-			struct sockaddr_in6 sa;
-
-			bzero(&sa, sizeof(sa));
-			sa.sin6_len = sizeof(struct sockaddr_in6);
-			sa.sin6_family = AF_INET6;
-			memcpy(&sa.sin6_addr, &satosin6(ifa0->ifa_addr)->sin6_addr, 
-			       sizeof(sa.sin6_addr));
-			in6_setscope(&sa.sin6_addr, ifa0->ifa_ifp, NULL);
-			memcpy(rt->rt_gateway, &sa, sizeof(sa));
+			memcpy(rt->rt_gateway, &sin6, sizeof(sin6));
 			RTFREE_LOCKED(rt);
 		}
 	} else {

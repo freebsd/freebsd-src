@@ -77,19 +77,15 @@ g_bde_orphan(struct g_consumer *cp)
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_bde_softc *sc;
-	int error;
 
 	g_trace(G_T_TOPOLOGY, "g_bde_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
-	KASSERT(cp->provider->error != 0,
-		("g_bde_orphan with error == 0"));
 
 	gp = cp->geom;
 	sc = gp->softc;
 	gp->flags |= G_GEOM_WITHER;
-	error = cp->provider->error;
 	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, error);
+		g_orphan_provider(pp, ENXIO);
 	bzero(sc, sizeof(struct g_bde_softc));	/* destroy evidence */
 	return;
 }

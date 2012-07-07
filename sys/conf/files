@@ -576,6 +576,7 @@ dev/aac/aac_linux.c		optional aac compat_linux
 dev/aac/aac_pci.c		optional aac pci
 dev/acpi_support/acpi_wmi.c	optional acpi_wmi acpi
 dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
+dev/acpi_support/acpi_asus_wmi.c	optional acpi_asus_wmi acpi
 dev/acpi_support/acpi_fujitsu.c	optional acpi_fujitsu acpi
 dev/acpi_support/acpi_hp.c	optional acpi_hp acpi
 dev/acpi_support/acpi_ibm.c	optional acpi_ibm acpi
@@ -733,6 +734,8 @@ dev/ath/if_ath_tdma.c		optional ath \
 dev/ath/if_ath_sysctl.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_rx.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_rx_edma.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1192,6 +1195,8 @@ dev/e1000/e1000_82571.c		optional em | igb \
 dev/e1000/e1000_82575.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_ich8lan.c	optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_i210.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_api.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
