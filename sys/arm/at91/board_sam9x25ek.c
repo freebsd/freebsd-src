@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/board.h>
 #include <arm/at91/at91board.h>
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91var.h>
@@ -41,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pio_sam9g20.h>
 //#include <arm/at91/at91_led.h>
 
-long
+BOARD_INIT long
 board_init(void)
 {
 #if 0
@@ -123,3 +124,5 @@ board_init(void)
 #endif
 	return (at91_ramsize());
 }
+
+ARM_BOARD(AT91SAM9X5EK, "Atmel AT91SAM9x-EK Evaluation Board");

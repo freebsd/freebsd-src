@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008 Warner Losh.  All rights reserved.
+ * Copyright (c) 2012 Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,12 +25,38 @@
 
 /* $FreeBSD$ */
 
-#ifndef _ARM_AT91_AT91BOARD_H_
-#define _ARM_AT91_AT91BOARD_H_
+#ifndef _ARM_INCLUDE_BOARD_H_
+#define _ARM_INCLUDE_BOARD_H_
 
-/*
- * These routines are used by board init routines
- */
-long at91_ramsize(void);
+#include <sys/linker_set.h>
 
-#endif /* _ARM_AT91_AT91BOARD_H_ */
+typedef long (arm_board_init_fn)(void);
+
+struct arm_board {
+	int		board_id;	/* Board ID from the boot loader */
+	const char	*board_name;	/* Human readable name */
+	arm_board_init_fn *board_init;	/* Board initialize code */
+};
+ 
+#if defined(ARM_MANY_BOARD)
+
+#include "board_id.h"
+
+#define ARM_BOARD(id, name)     \
+	static struct arm_board this_board = { \
+		.board_id = ARM_BOARD_ID_ ## id, \
+		.board_name = name, \
+		.board_init = board_init, \
+	}; \
+	DATA_SET(arm_boards, this_board);
+#define BOARD_INIT static
+
+#else /* !ARM_MANY_BOARD */
+
+#define ARM_BOARD(id, name)
+extern arm_board_init_fn board_init;
+#define BOARD_INIT
+
+#endif /* ARM_MANY_BOARD */
+
+#endif /* _ARM_INCLUDE_BOARD_H_ */

@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
+#include <machine/board.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -401,6 +402,18 @@ at91_soc_id(void)
 	if (!at91_try_id(AT91_DBGU0))
 		at91_try_id(AT91_DBGU1);
 }
+
+#ifdef ARM_MANY_BOARD
+/* likely belongs in arm/arm/machdep.c, but since board_init is still at91 only... */
+SET_DECLARE(arm_board_set, const struct arm_board);
+
+/* Not yet fully functional, but enough to build ATMEL config */
+static long
+board_init(void)
+{
+	return -1;
+}
+#endif
 
 void *
 initarm(struct arm_boot_params *abp)
