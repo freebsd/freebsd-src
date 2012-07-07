@@ -69,7 +69,6 @@ struct tree {
 	ssize_t			index;
 };
 
-int			 yyparse(void);
 int			 yywrap(void);
 
 int			 fileindex;
