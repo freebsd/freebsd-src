@@ -79,6 +79,7 @@ typedef void g_attrchanged_t (struct g_consumer *, const char *attr);
 typedef void g_provgone_t (struct g_provider *);
 typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
     struct g_consumer *, struct g_provider *);
+typedef void g_resize_t(struct g_consumer *cp);
 
 /*
  * The g_class structure describes a transformation class.  In other words
@@ -108,7 +109,7 @@ struct g_class {
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
 	g_provgone_t		*providergone;
-	void			*spare2;
+	g_resize_t		*resize;
 	/*
 	 * The remaining elements are private
 	 */
@@ -139,7 +140,7 @@ struct g_geom {
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
 	g_provgone_t		*providergone;
-	void			*spare1;
+	g_resize_t		*resize;
 	void			*softc;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1
@@ -265,6 +266,7 @@ int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...);
 struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...);
+void g_resize_provider(struct g_provider *pp, off_t size);
 int g_retaste(struct g_class *mp);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
