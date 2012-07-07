@@ -289,6 +289,7 @@ static void	em_handle_link(void *context, int pending);
 static void	em_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
 static int	em_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	em_sysctl_eee(SYSCTL_HANDLER_ARGS);
 
 static __inline void em_rx_discard(struct rx_ring *, int);
 
@@ -389,7 +390,7 @@ SYSCTL_INT(_hw_em, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
     "at a time, -1 means unlimited");
 
 /* Energy efficient ethernet - default to OFF */
-static int eee_setting = 0;
+static int eee_setting = 1;
 TUNABLE_INT("hw.em.eee_setting", &eee_setting);
 SYSCTL_INT(_hw_em, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &eee_setting, 0,
     "Enable Energy Efficient Ethernet");
@@ -636,9 +637,12 @@ em_attach(device_t dev)
 		    " due to SOL/IDER session.\n");
 
 	/* Sysctl for setting Energy Efficient Ethernet */
-	em_set_sysctl_value(adapter, "eee_control",
-	    "enable Energy Efficient Ethernet",
-	    (int *)&hw->dev_spec.ich8lan.eee_disable, eee_setting);
+	hw->dev_spec.ich8lan.eee_disable = eee_setting;
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "eee_control", CTLTYPE_INT|CTLFLAG_RW,
+	    adapter, 0, em_sysctl_eee, "I",
+	    "Disable Energy Efficient Ethernet");
 
 	/*
 	** Start from a known state, this is
@@ -5695,6 +5699,27 @@ em_set_flowcntl(SYSCTL_HANDLER_ARGS)
         return (error);
 }
 
+/*
+** Manage Energy Efficient Ethernet:
+** Control values:
+**     0/1 - enabled/disabled
+*/
+static int
+em_sysctl_eee(SYSCTL_HANDLER_ARGS)
+{
+       struct adapter *adapter = (struct adapter *) arg1;
+       int             error, value;
+
+       value = adapter->hw.dev_spec.ich8lan.eee_disable;
+       error = sysctl_handle_int(oidp, &value, 0, req);
+       if (error || req->newptr == NULL)
+               return (error);
+       EM_CORE_LOCK(adapter);
+       adapter->hw.dev_spec.ich8lan.eee_disable = (value != 0);
+       em_init_locked(adapter);
+       EM_CORE_UNLOCK(adapter);
+       return (0);
+}
 
 static int
 em_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
