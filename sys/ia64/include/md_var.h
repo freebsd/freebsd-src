@@ -73,8 +73,7 @@ struct ia64_init_return {
 };
 
 extern uint64_t ia64_lapic_addr;
-
-extern long Maxmem;
+extern vm_paddr_t paddr_max;
 extern u_int busdma_swi_pending;
 
 void	*acpi_find_table(const char *sig);
@@ -93,6 +92,12 @@ int	ia64_highfp_save(struct thread *);
 int	ia64_highfp_save_ipi(void);
 struct ia64_init_return ia64_init(void);
 u_int	ia64_itc_freq(void);
+int	ia64_physmem_add(vm_paddr_t, vm_size_t);
+vm_paddr_t ia64_physmem_alloc(vm_size_t, vm_size_t);
+int	ia64_physmem_delete(vm_paddr_t, vm_size_t);
+int	ia64_physmem_fini(void);
+int	ia64_physmem_init(void);
+int	ia64_physmem_track(vm_paddr_t, vm_size_t);
 void	ia64_probe_sapics(void);
 void	ia64_sync_icache(vm_offset_t, vm_size_t);
 void	interrupt(struct trapframe *);
