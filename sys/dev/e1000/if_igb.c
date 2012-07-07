@@ -277,6 +277,7 @@ static void	igb_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
 static int	igb_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	igb_sysctl_dmac(SYSCTL_HANDLER_ARGS);
+static int	igb_sysctl_eee(SYSCTL_HANDLER_ARGS);
 
 #ifdef DEVICE_POLLING
 static poll_handler_t igb_poll;
@@ -586,10 +587,11 @@ igb_attach(device_t dev)
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		    OID_AUTO, "dmac", CTLTYPE_INT|CTLFLAG_RW,
 		    adapter, 0, igb_sysctl_dmac, "I", "DMA Coalesce");
-		igb_set_sysctl_value(adapter, "eee_disabled",
-		    "enable Energy Efficient Ethernet",
-		    (int *)&adapter->hw.dev_spec._82575.eee_disable,
-		    TRUE);
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "eee_disabled", CTLTYPE_INT|CTLFLAG_RW,
+		    adapter, 0, igb_sysctl_eee, "I",
+		    "Disable Energy Efficient Ethernet");
 		if (adapter->hw.phy.media_type == e1000_media_type_copper)
 			e1000_set_eee_i350(&adapter->hw);
 	}
@@ -5987,4 +5989,26 @@ igb_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 	/* Reinit the interface */
 	igb_init(adapter);
 	return (error);
+}
+
+/*
+** Manage Energy Efficient Ethernet:
+** Control values:
+**     0/1 - enabled/disabled
+*/
+static int
+igb_sysctl_eee(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter	*adapter = (struct adapter *) arg1;
+	int		error, value;
+
+	value = adapter->hw.dev_spec._82575.eee_disable;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	IGB_CORE_LOCK(adapter);
+	adapter->hw.dev_spec._82575.eee_disable = (value != 0);
+	igb_init_locked(adapter);
+	IGB_CORE_UNLOCK(adapter);
+	return (0);
 }
