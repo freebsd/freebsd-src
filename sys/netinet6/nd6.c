@@ -174,9 +174,7 @@ nd6_ifattach(struct ifnet *ifp)
 {
 	struct nd_ifinfo *nd;
 
-	nd = (struct nd_ifinfo *)malloc(sizeof(*nd), M_IP6NDP, M_WAITOK);
-	bzero(nd, sizeof(*nd));
-
+	nd = (struct nd_ifinfo *)malloc(sizeof(*nd), M_IP6NDP, M_WAITOK|M_ZERO);
 	nd->initialized = 1;
 
 	nd->chlim = IPV6_DEFHLIM;
@@ -284,10 +282,9 @@ nd6_option(union nd_opts *ndopts)
 	struct nd_opt_hdr *nd_opt;
 	int olen;
 
-	if (ndopts == NULL)
-		panic("ndopts == NULL in nd6_option");
-	if (ndopts->nd_opts_last == NULL)
-		panic("uninitialized ndopts in nd6_option");
+	KASSERT(ndopts != NULL, ("%s: ndopts == NULL", __func__));
+	KASSERT(ndopts->nd_opts_last != NULL, ("%s: uninitialized ndopts",
+	    __func__));
 	if (ndopts->nd_opts_search == NULL)
 		return NULL;
 	if (ndopts->nd_opts_done)
@@ -335,10 +332,9 @@ nd6_options(union nd_opts *ndopts)
 	struct nd_opt_hdr *nd_opt;
 	int i = 0;
 
-	if (ndopts == NULL)
-		panic("ndopts == NULL in nd6_options");
-	if (ndopts->nd_opts_last == NULL)
-		panic("uninitialized ndopts in nd6_options");
+	KASSERT(ndopts != NULL, ("%s: ndopts == NULL", __func__));
+	KASSERT(ndopts->nd_opts_last != NULL, ("%s: uninitialized ndopts",
+	    __func__));
 	if (ndopts->nd_opts_search == NULL)
 		return 0;
 
@@ -1174,11 +1170,13 @@ done:
 void
 nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 {
-	struct sockaddr_in6 *gateway = (struct sockaddr_in6 *)rt->rt_gateway;
+	struct sockaddr_in6 *gateway;
 	struct nd_defrouter *dr;
-	struct ifnet *ifp = rt->rt_ifp;
+	struct ifnet *ifp;
 
 	RT_LOCK_ASSERT(rt);
+	gateway = (struct sockaddr_in6 *)rt->rt_gateway;
+	ifp = rt->rt_ifp;
 
 	switch (req) {
 	case RTM_ADD:
@@ -1557,10 +1555,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 
-	if (ifp == NULL)
-		panic("ifp == NULL in nd6_cache_lladdr");
-	if (from == NULL)
-		panic("from == NULL in nd6_cache_lladdr");
+	KASSERT(ifp != NULL, ("%s: ifp == NULL", __func__));
+	KASSERT(from != NULL, ("%s: from == NULL", __func__));
 
 	/* nothing must be updated for unspecified address */
 	if (IN6_IS_ADDR_UNSPECIFIED(from))
@@ -2084,6 +2080,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		}
 		return (error);
 	}
+	/* Reset layer specific mbuf flags to avoid confusing lower layers. */
+	m->m_flags &= ~(M_PROTOFLAGS);  
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
 		    NULL));
@@ -2252,7 +2250,6 @@ clear_llinfo_pqueue(struct llentry *ln)
 
 	for (m_hold = ln->la_hold; m_hold; m_hold = m_hold_next) {
 		m_hold_next = m_hold->m_nextpkt;
-		m_hold->m_nextpkt = NULL;
 		m_freem(m_hold);
 	}
 
