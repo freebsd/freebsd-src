@@ -3611,7 +3611,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pv = get_pv_entry(pmap, &lock);
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 	}
 
 validate:
