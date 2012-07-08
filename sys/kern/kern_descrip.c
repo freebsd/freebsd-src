@@ -2340,11 +2340,11 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 
 	/*
 	 * FREAD and FWRITE failure return EBADF as per POSIX.
-	 *
-	 * Only one flag, or 0, may be specified.
 	 */
 	if ((flags == FREAD && (fp->f_flag & FREAD) == 0) ||
-	    (flags == FWRITE && (fp->f_flag & FWRITE) == 0)) {
+	    (flags == FWRITE && (fp->f_flag & FWRITE) == 0) ||
+	    (flags == (FREAD | FEXEC) &&
+	    (((fp->f_flag & flags) == 0) || ((fp->f_flag & FWRITE) != 0)))) {
 		fdrop(fp, td);
 		return (EBADF);
 	}
@@ -2442,6 +2442,13 @@ fgetvp_read(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
 {
 
 	return (_fgetvp(td, fd, FREAD, rights, NULL, vpp));
+}
+
+int
+fgetvp_exec(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
+{
+
+	return (_fgetvp(td, fd, FREAD | FEXEC, rights, NULL, vpp));
 }
 
 #ifdef notyet
