@@ -918,14 +918,12 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
 		    (void *)sc, 0, acpi_cpu_usage_sysctl, "A",
 		    "percent usage for each Cx state");
 
-#ifdef notyet
     /* Signal platform that we can handle _CST notification. */
     if (!cpu_cx_generic && cpu_cst_cnt != 0) {
 	ACPI_LOCK(acpi);
 	AcpiOsWritePort(cpu_smi_cmd, cpu_cst_cnt, 8);
 	ACPI_UNLOCK(acpi);
     }
-#endif
 }
 
 /*
