@@ -247,12 +247,12 @@ looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #if 1	/* XXX */
 	switch (dst->sa_family) {
 	case AF_INET:
+	case AF_INET6:
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
 			m->m_pkthdr.csum_data = 0xffff;
 			m->m_pkthdr.csum_flags = LO_CSUM_SET;
 		}
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES;
-	case AF_INET6:
 	case AF_IPX:
 	case AF_APPLETALK:
 		break;
