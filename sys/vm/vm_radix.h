@@ -29,9 +29,6 @@
 #ifndef _VM_RADIX_H_
 #define _VM_RADIX_H_
 
-#define	VM_RADIX_BLACK	0x1	/* Black node. (leaf only) */
-#define	VM_RADIX_RED	0x2	/* Red node. (leaf only) */
-#define	VM_RADIX_ANY	(VM_RADIX_RED | VM_RADIX_BLACK)
 #define	VM_RADIX_STACK	8	/* Nodes to store on stack. */
 
 /*
@@ -44,70 +41,59 @@ struct vm_radix {
 
 #ifdef _KERNEL
 
-/*
- * Initialize the radix tree subsystem.
- */
 void	vm_radix_init(void);
-
-/*
- * Functions which only work with black nodes. (object lock)
- */
 int 	vm_radix_insert(struct vm_radix *, vm_pindex_t, void *);
-
-/*
- * Functions which work on specified colors. (object, vm_page_queue_free locks)
- */
-void	*vm_radix_color(struct vm_radix *, vm_pindex_t, int);
-void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t, int);
-int	vm_radix_lookupn(struct vm_radix *, vm_pindex_t, vm_pindex_t, int,
-	    void **, int, vm_pindex_t *);
-void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t, int);
+void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t);
+int	vm_radix_lookupn(struct vm_radix *, vm_pindex_t, vm_pindex_t, void **,
+	    int, vm_pindex_t *, u_int *);
+void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t);
 void	vm_radix_reclaim_allnodes(struct vm_radix *);
-void	vm_radix_remove(struct vm_radix *, vm_pindex_t, int);
+void	vm_radix_remove(struct vm_radix *, vm_pindex_t);
 
 /*
  * Look up any entry at a position greater or equal to index.
  */
 static inline void *
-vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index, int color)
+vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 {
         void *val;
+	u_int dummy;
 
-        if (vm_radix_lookupn(rtree, index, 0, color, &val, 1, &index))
+        if (vm_radix_lookupn(rtree, index, 0, &val, 1, &index, &dummy))
                 return (val);
         return (NULL);
 }
 
 static inline void *
-vm_radix_last(struct vm_radix *rtree, int color)
+vm_radix_last(struct vm_radix *rtree)
 {
 
-	return vm_radix_lookup_le(rtree, 0, color);
+	return vm_radix_lookup_le(rtree, 0);
 }
 
 static inline void *
-vm_radix_first(struct vm_radix *rtree, int color)
+vm_radix_first(struct vm_radix *rtree)
 {
 
-	return vm_radix_lookup_ge(rtree, 0, color);
+	return vm_radix_lookup_ge(rtree, 0);
 }
 
 static inline void *
-vm_radix_next(struct vm_radix *rtree, vm_pindex_t index, int color)
+vm_radix_next(struct vm_radix *rtree, vm_pindex_t index)
 {
 
 	if (index == -1)
 		return (NULL);
-	return vm_radix_lookup_ge(rtree, index + 1, color);
+	return vm_radix_lookup_ge(rtree, index + 1);
 }
 
 static inline void *
-vm_radix_prev(struct vm_radix *rtree, vm_pindex_t index, int color)
+vm_radix_prev(struct vm_radix *rtree, vm_pindex_t index)
 {
 
 	if (index == 0)
 		return (NULL);
-	return vm_radix_lookup_le(rtree, index - 1, color);
+	return vm_radix_lookup_le(rtree, index - 1);
 }
 
 #endif /* _KERNEL */

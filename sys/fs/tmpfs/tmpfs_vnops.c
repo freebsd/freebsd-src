@@ -514,7 +514,7 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 		goto nocache;
 
 	VM_OBJECT_LOCK(vobj);
-	if (vobj->resident_page_count == 0 && vobj->cached_page_count == 0) {
+	if (vobj->resident_page_count == 0 && vm_object_cache_is_empty(vobj)) {
 		VM_OBJECT_UNLOCK(vobj);
 		goto nocache;
 	}
@@ -647,41 +647,38 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	}
 
 	VM_OBJECT_LOCK(vobj);
-	if (vobj->resident_page_count == 0 && vobj->cached_page_count == 0) {
+	if (vobj->resident_page_count == 0 && vm_object_cache_is_empty(vobj)) {
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
 		goto nocache;
 	}
 lookupvpg:
-	vpg = vm_radix_lookup(&vobj->rtree, idx, VM_RADIX_ANY);
-	if (vpg != NULL) {
-		if (vm_page_is_valid(vpg, offset, tlen)) {
-			if ((vpg->oflags & VPO_BUSY) != 0) {
-				/*
-				 * Reference the page before unlocking and
-				 * sleeping so that the page daemon is less
-				 * likely to reclaim it.  
-			 	*/
-				vm_page_reference(vpg);
-				vm_page_sleep(vpg, "tmfsmw");
-				goto lookupvpg;
-			}
-			vm_page_busy(vpg);
-			vm_page_undirty(vpg);
-			VM_OBJECT_UNLOCK(vobj);
-			error = uiomove_fromphys(&vpg, offset, tlen, uio);
-		} else {
-			if (vpg->flags & PG_CACHED) {
-				mtx_lock(&vm_page_queue_free_mtx);
-				if (vpg->object == vobj)
-					vm_page_cache_free(vpg);
-				mtx_unlock(&vm_page_queue_free_mtx);
-			}
-			VM_OBJECT_UNLOCK(vobj);
-			vpg = NULL;
+	if (((vpg = vm_radix_lookup(&vobj->rtree, idx)) != NULL) &&
+	    vm_page_is_valid(vpg, offset, tlen)) {
+		if ((vpg->oflags & VPO_BUSY) != 0) {
+			/*
+			 * Reference the page before unlocking and sleeping so
+			 * that the page daemon is less likely to reclaim it.  
+			 */
+			vm_page_reference(vpg);
+			vm_page_sleep(vpg, "tmfsmw");
+			goto lookupvpg;
 		}
-	} else
+		vm_page_busy(vpg);
+		vm_page_undirty(vpg);
 		VM_OBJECT_UNLOCK(vobj);
+		error = uiomove_fromphys(&vpg, offset, tlen, uio);
+	} else {
+		vpg = vm_page_is_cached(vobj, idx);
+		if (vpg != NULL) {
+			mtx_lock(&vm_page_queue_free_mtx);
+			if (vpg->object == vobj)
+				vm_page_cache_free(vpg);
+			mtx_unlock(&vm_page_queue_free_mtx);
+		}
+		VM_OBJECT_UNLOCK(vobj);
+		vpg = NULL;
+	}
 nocache:
 	VM_OBJECT_LOCK(tobj);
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |

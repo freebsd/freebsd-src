@@ -341,7 +341,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	/*
 	 * Look for an existing reservation.
 	 */
-	mpred = vm_radix_lookup_le(&object->rtree, pindex, VM_RADIX_BLACK);
+	mpred = vm_radix_lookup_le(&object->rtree, pindex);
 	if (mpred != NULL) {
 		KASSERT(mpred->pindex != pindex,
 		    ("vm_reserv_alloc_contig: pindex already allocated"));
@@ -349,7 +349,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
 	}
-	msucc = vm_radix_lookup_ge(&object->rtree, pindex, VM_RADIX_BLACK);
+	msucc = vm_radix_lookup_ge(&object->rtree, pindex);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex != pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));
@@ -495,7 +495,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Look for an existing reservation.
 	 */
-	mpred = vm_radix_lookup_le(&object->rtree, pindex, VM_RADIX_BLACK);
+	mpred = vm_radix_lookup_le(&object->rtree, pindex);
 	if (mpred != NULL) {
 		KASSERT(mpred->pindex != pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));
@@ -503,7 +503,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
 	}
-	msucc = vm_radix_lookup_ge(&object->rtree, pindex, VM_RADIX_BLACK);
+	msucc = vm_radix_lookup_ge(&object->rtree, pindex);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex != pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));

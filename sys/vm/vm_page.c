@@ -298,7 +298,7 @@ vm_page_startup(vm_offset_t vaddr)
 	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF |
 	    MTX_RECURSE);
 	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
-	    MTX_DEF);
+	    MTX_DEF | MTX_RECURSE);
 
 	/* Setup page locks. */
 	for (i = 0; i < PA_LOCK_COUNT; i++)
@@ -835,8 +835,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	if (object->resident_page_count == 0) {
 		TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	} else { 
-		neighbor = vm_radix_lookup_ge(&object->rtree, pindex,
-		    VM_RADIX_BLACK);
+		neighbor = vm_radix_lookup_ge(&object->rtree, pindex);
 		if (neighbor != NULL) {
 		    	KASSERT(pindex < neighbor->pindex,
 			    ("vm_page_insert: offset %ju not minor than %ju",
@@ -893,7 +892,7 @@ vm_page_remove(vm_page_t m)
 		vm_page_flash(m);
 	}
 
-	vm_radix_remove(&object->rtree, m->pindex, VM_RADIX_BLACK);
+	vm_radix_remove(&object->rtree, m->pindex);
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
@@ -925,7 +924,7 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
-	return vm_radix_lookup(&object->rtree, pindex, VM_RADIX_BLACK);
+	return vm_radix_lookup(&object->rtree, pindex);
 }
 
 /*
@@ -943,8 +942,7 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->resident_page_count)
-		return vm_radix_lookup_ge(&object->rtree, pindex,
-		    VM_RADIX_BLACK);
+		return (vm_radix_lookup_ge(&object->rtree, pindex));
 	return (NULL);
 }
 
@@ -1026,8 +1024,8 @@ vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	if (object->cached_page_count != 0)
-		return vm_radix_lookup(&object->rtree, pindex, VM_RADIX_RED);
+	if (!vm_object_cache_is_empty(object))
+		return (vm_radix_lookup(&object->cache, pindex));
 	return (NULL);
 }
 
@@ -1044,8 +1042,7 @@ vm_page_cache_remove(vm_page_t m)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	KASSERT((m->flags & PG_CACHED) != 0,
 	    ("vm_page_cache_remove: page %p is not cached", m));
-	vm_radix_remove(&m->object->rtree, m->pindex, VM_RADIX_RED);
-	m->object->cached_page_count--;
+	vm_radix_remove(&m->object->cache, m->pindex);
 	m->object = NULL;
 	cnt.v_cache_count--;
 }
@@ -1071,8 +1068,7 @@ vm_page_cache_free(vm_page_t m)
 	 * Replicate vm_page_cache_remove with a version that can collapse
 	 * internal nodes since the object lock is held.
 	 */
-	vm_radix_remove(&object->rtree, m->pindex, VM_RADIX_ANY);
-	object->cached_page_count--;
+	vm_radix_remove(&object->cache, m->pindex);
 	m->object = NULL;
 	m->valid = 0;
 	/* Clear PG_CACHED and set PG_FREE. */
@@ -1094,23 +1090,36 @@ vm_page_cache_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t idx)
 	VM_OBJECT_LOCK_ASSERT(orig_object, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	/*
-	 * If the insert fails we simply free the cached page.
-	 */
-	if (vm_radix_insert(&new_object->rtree, idx, m) != 0) {
-		vm_page_cache_free(m);
-		return;
-	}
-	vm_radix_color(&new_object->rtree, idx, VM_RADIX_RED);
-	/*
-	 * We use any color here though we know it's red so that tree
-	 * compaction will still work.
-	 */
-	vm_radix_remove(&orig_object->rtree, m->pindex, VM_RADIX_ANY);
+	vm_radix_remove(&orig_object->cache, m->pindex);
+	if (vm_radix_insert(&new_object->cache, idx, m) != 0)
+		panic("vm_page_cache_rename: failed vm_radix_insert");
 	m->object = new_object;
 	m->pindex = idx;
-	new_object->cached_page_count++;
-	orig_object->cached_page_count--;
+}
+
+/*
+ *	Returns a pointer to the cached page associated with the given object
+ *	and offset, NULL otherwise.
+ *
+ *	The object must be locked.
+ */
+vm_page_t
+vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	/*
+	 * Insertion into an object's collection of cached pages requires the
+	 * object to be locked.  Therefore, if the object is locked and the
+	 * object's collection is empty, there is no need to acquire the free
+	 * page queues lock in order to prove that the specified page doesn't
+	 * exist.
+	 */
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	mtx_lock(&vm_page_queue_free_mtx);
+	m = vm_page_cache_lookup(object, pindex);
+	mtx_unlock(&vm_page_queue_free_mtx);
+	return (m);
 }
 
 /*
@@ -1245,7 +1254,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		m_object = m->object;
 		vm_page_cache_remove(m);
 		if (m_object->type == OBJT_VNODE &&
-		    m_object->cached_page_count == 0)
+		    vm_object_cache_is_empty(m_object))
 			vp = m_object->handle;
 	} else {
 		KASSERT(VM_PAGE_IS_FREE(m),
@@ -1505,7 +1514,7 @@ vm_page_alloc_init(vm_page_t m)
 		m_object = m->object;
 		vm_page_cache_remove(m);
 		if (m_object->type == OBJT_VNODE &&
-		    m_object->cached_page_count == 0)
+		    vm_object_cache_is_empty(m_object))
 			drop = m_object->handle;
 	} else {
 		KASSERT(VM_PAGE_IS_FREE(m),
@@ -2085,7 +2094,7 @@ void
 vm_page_cache(vm_page_t m)
 {
 	vm_object_t object;
-	int old_cached;
+	int old_empty_cache;
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
@@ -2116,7 +2125,7 @@ vm_page_cache(vm_page_t m)
 	 */
 	vm_pageq_remove(m);
 
-	vm_radix_color(&object->rtree, m->pindex, VM_RADIX_RED);
+	vm_radix_remove(&object->rtree, m->pindex);
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
 
@@ -2133,9 +2142,10 @@ vm_page_cache(vm_page_t m)
 	m->flags &= ~PG_ZERO;
 	mtx_lock(&vm_page_queue_free_mtx);
 	m->flags |= PG_CACHED;
-	old_cached = object->cached_page_count;
-	object->cached_page_count++;
+	old_empty_cache = vm_object_cache_is_empty(object);
 	cnt.v_cache_count++;
+	if (vm_radix_insert(&object->cache, m->pindex, m) != 0)
+		panic("vm_page_cache: vm_radix_insert failed");
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m)) {
 #else
@@ -2153,9 +2163,10 @@ vm_page_cache(vm_page_t m)
 	 * the object's only resident page.
 	 */
 	if (object->type == OBJT_VNODE) {
-		if (old_cached == 0 && object->resident_page_count != 0)
+		if (old_empty_cache != 0 && object->resident_page_count != 0)
 			vhold(object->handle);
-		else if (old_cached != 0 && object->resident_page_count == 0)
+		else if (old_empty_cache == 0 &&
+		    object->resident_page_count == 0)
 			vdrop(object->handle);
 	}
 }

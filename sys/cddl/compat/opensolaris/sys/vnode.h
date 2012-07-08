@@ -75,7 +75,7 @@ vn_is_readonly(vnode_t *vp)
 #define	vn_mountedvfs(vp)	((vp)->v_mountedhere)
 #define	vn_has_cached_data(vp)	\
 	((vp)->v_object != NULL && \
-	 (vp)->v_object->cached_page_count > 0)
+	 !vm_object_cache_is_empty((vp)->v_object))
 #define	vn_exists(vp)		do { } while (0)
 #define	vn_invalid(vp)		do { } while (0)
 #define	vn_renamepath(tdvp, svp, tnm, lentnm)	do { } while (0)

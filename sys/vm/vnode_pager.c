@@ -401,41 +401,17 @@ vnode_pager_setsize(vp, nsize)
 		/*
 		 * this gets rid of garbage at the end of a page that is now
 		 * only partially backed by the vnode.
+		 *
+		 * XXX for some reason (I don't know yet), if we take a
+		 * completely invalid page and mark it partially valid
+		 * it can screw up NFS reads, so we don't allow the case.
 		 */
-		if ((nsize & PAGE_MASK) &&
-		    (m = vm_radix_lookup(&object->rtree, OFF_TO_IDX(nsize),
-		    VM_RADIX_ANY)) != NULL) {
-			int base;
-			int size;
+		if ((nsize & PAGE_MASK) && (m = vm_radix_lookup(&object->rtree,
+		    OFF_TO_IDX(nsize))) != NULL && m->valid != 0) {
+			int base = (int)nsize & PAGE_MASK;
+			int size = PAGE_SIZE - base;
 
-			/*
-			 * Eliminate any cached page as we would have to
-			 * do too much work to save it.
-			 */
-			if (m->flags & PG_CACHED) {
-				drop = NULL;
-				mtx_lock(&vm_page_queue_free_mtx);
-				if (m->object == object) {
-					vm_page_cache_free(m);
-					if (object->cached_page_count == 0)
-						drop = vp;
-				}
-				mtx_unlock(&vm_page_queue_free_mtx);
-				if (drop)
-					vdrop(drop);
-				goto out;
-			}
-			/*
-			 * XXX for some reason (I don't know yet), if we take a
-			 * completely invalid page and mark it partially valid
-			 * it can screw up NFS reads, so we don't allow the
-			 * case.
-			 */
-			if (m->valid != 0 || m->object != object)
-				goto out;
-
-			base = (int)nsize & PAGE_MASK;
-			size = PAGE_SIZE - base;
+			MPASS(m->object == object);
 
 			/*
 			 * Clear out partial-page garbage in case
@@ -465,9 +441,27 @@ vnode_pager_setsize(vp, nsize)
 			 * replacement from working properly.
 			 */
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
+		} else if ((nsize & PAGE_MASK) &&
+		    !vm_object_cache_is_empty(object)) {
+			drop = NULL;
+			mtx_lock(&vm_page_queue_free_mtx);
+			m = vm_radix_lookup(&object->cache, OFF_TO_IDX(nsize));
+			if (m != NULL) {
+				MPASS(m->object == object);
+
+				/*
+				 * Eliminate any cached page as we would have
+				 * to do too much work to save it.
+				 */
+				vm_page_cache_free(m);
+				if (vm_object_cache_is_empty(object))
+					drop = vp;
+			}
+			mtx_unlock(&vm_page_queue_free_mtx);
+			if (drop)
+				vdrop(drop);
 		}
 	}
-out:
 	object->un_pager.vnp.vnp_size = nsize;
 	object->size = nobjsize;
 	VM_OBJECT_UNLOCK(object);
