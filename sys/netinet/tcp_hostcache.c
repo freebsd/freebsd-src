@@ -630,7 +630,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    msec(hc_entry->rmx_rtt *
 				(RTM_RTTUNIT / (hz * TCP_RTT_SCALE))),
 			    msec(hc_entry->rmx_rttvar *
-				(RTM_RTTUNIT / (hz * TCP_RTT_SCALE))),
+				(RTM_RTTUNIT / (hz * TCP_RTTVAR_SCALE))),
 			    hc_entry->rmx_bandwidth * 8,
 			    hc_entry->rmx_cwnd,
 			    hc_entry->rmx_sendpipe,
