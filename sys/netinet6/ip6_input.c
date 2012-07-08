@@ -146,6 +146,9 @@ RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
 static void ip6_init2(void *);
 static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
+static struct ip6aux *ip6_addaux(struct mbuf *);
+static struct ip6aux *ip6_findaux(struct mbuf *m);
+static void ip6_delaux (struct mbuf *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
@@ -1814,7 +1817,7 @@ ip6_lasthdr(struct mbuf *m, int off, int proto, int *nxtp)
 	}
 }
 
-struct ip6aux *
+static struct ip6aux *
 ip6_addaux(struct mbuf *m)
 {
 	struct m_tag *mtag;
@@ -1831,7 +1834,7 @@ ip6_addaux(struct mbuf *m)
 	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
 }
 
-struct ip6aux *
+static struct ip6aux *
 ip6_findaux(struct mbuf *m)
 {
 	struct m_tag *mtag;
@@ -1840,7 +1843,7 @@ ip6_findaux(struct mbuf *m)
 	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
 }
 
-void
+static void
 ip6_delaux(struct mbuf *m)
 {
 	struct m_tag *mtag;
