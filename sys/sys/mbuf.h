@@ -283,15 +283,24 @@ struct mbuf {
 #define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
 #define	CSUM_TSO		0x0020		/* will do TSO */
 #define	CSUM_SCTP		0x0040		/* will csum SCTP */
+/*	CSUM_SCTP_IPV6		0x0080		will csum IPv6/SCTP */
 
 #define	CSUM_IP_CHECKED		0x0100		/* did csum IP */
 #define	CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
 #define	CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
 #define	CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
 #define	CSUM_SCTP_VALID		0x1000		/* SCTP checksum is valid */
+#define	CSUM_UDP_IPV6		0x2000		/* will csum IPv6/UDP */
+#define	CSUM_TCP_IPV6		0x4000		/* will csum IPv6/TCP */
+/*	CSUM_TSO_IPV6		0x8000		will do IPv6/TSO */
+
+/*	CSUM_FRAGMENT_IPV6	0x10000		will do IPv6 fragementation */
+
+#define	CSUM_DELAY_DATA_IPV6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
+#define	CSUM_DATA_VALID_IPV6	CSUM_DATA_VALID
 
 #define	CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
-#define	CSUM_DELAY_IP		(CSUM_IP)	/* XXX add ipv6 here too? */
+#define	CSUM_DELAY_IP		(CSUM_IP)	/* Only v4, no v6 IP hdr csum */
 
 /*
  * mbuf types.
