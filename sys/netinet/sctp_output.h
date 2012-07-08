@@ -204,7 +204,9 @@ void
 sctp_send_abort(struct mbuf *, int, struct sctphdr *, uint32_t,
     struct mbuf *, uint32_t, uint16_t);
 
-void sctp_send_operr_to(struct mbuf *, int, struct mbuf *, uint32_t, uint32_t, uint16_t);
+void 
+sctp_send_operr_to(struct mbuf *, struct sctphdr *, uint32_t,
+    struct mbuf *, uint32_t, uint16_t);
 
 #endif				/* _KERNEL || __Userspace__ */
 
