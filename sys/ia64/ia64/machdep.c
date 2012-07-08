@@ -506,6 +506,14 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 }
 
 void
+cpu_pcpu_setup(struct pcpu *pc, u_int acpi_id, u_int sapic_id)
+{
+
+	pc->pc_acpi_id = acpi_id;
+	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
+}
+ 
+void
 spinlock_enter(void)
 {
 	struct thread *td;
@@ -791,7 +799,7 @@ ia64_init(void)
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
 	dpcpu_init(ia64_physmem_alloc(DPCPU_SIZE, PAGE_SIZE), 0);
-	PCPU_SET(md.lid, ia64_get_lid());
+	cpu_pcpu_setup(pcpup, ~0U, ia64_get_lid());
 	PCPU_SET(curthread, &thread0);
 
 	/*
