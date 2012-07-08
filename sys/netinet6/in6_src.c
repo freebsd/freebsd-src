@@ -873,8 +873,7 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 			RTFREE(ro6.ro_rt);
 			if (lifp)
 				return (ND_IFINFO(lifp)->chlim);
-		} else
-			return (V_ip6_defhlim);
+		}
 	}
 	return (V_ip6_defhlim);
 }
