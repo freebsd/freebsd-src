@@ -610,13 +610,31 @@ tcp_input(struct mbuf *m, int off0)
 #ifdef INET6
 	if (isipv6) {
 		/* IP6_EXTHDR_CHECK() is already done at tcp6_input(). */
+
+		if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
+			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
+			if (m == NULL) {
+				TCPSTAT_INC(tcps_rcvshort);
+				return;
+			}
+		}
+
 		ip6 = mtod(m, struct ip6_hdr *);
+		th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		tlen = sizeof(*ip6) + ntohs(ip6->ip6_plen) - off0;
-		if (in6_cksum(m, IPPROTO_TCP, off0, tlen)) {
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+				th->th_sum = m->m_pkthdr.csum_data;
+			else
+				th->th_sum = in6_cksum_pseudo(ip6, tlen,
+				    IPPROTO_TCP, m->m_pkthdr.csum_data);
+			th->th_sum ^= 0xffff;
+		} else
+			th->th_sum = in6_cksum(m, IPPROTO_TCP, off0, tlen);
+		if (th->th_sum) {
 			TCPSTAT_INC(tcps_rcvbadsum);
 			goto drop;
 		}
-		th = (struct tcphdr *)((caddr_t)ip6 + off0);
 
 		/*
 		 * Be proactive about unspecified IPv6 address in source.

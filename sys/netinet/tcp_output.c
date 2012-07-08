@@ -1052,19 +1052,23 @@ send:
 	 * checksum extended header and data.
 	 */
 	m->m_pkthdr.len = hdrlen + len; /* in6_cksum() need this */
+	m->m_pkthdr.csum_flags = CSUM_TCP;
+	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
-	if (isipv6)
+	if (isipv6) {
 		/*
 		 * ip6_plen is not need to be filled now, and will be filled
 		 * in ip6_output.
 		 */
-		th->th_sum = in6_cksum(m, IPPROTO_TCP, sizeof(struct ip6_hdr),
-				       sizeof(struct tcphdr) + optlen + len);
+		th->th_sum = in6_cksum_pseudo(ip6, sizeof(struct tcphdr) +
+		    optlen + len, IPPROTO_TCP, 0);
+	}
+#endif
+#if defined(INET6) && defined(INET)
 	else
-#endif /* INET6 */
+#endif
+#ifdef INET
 	{
-		m->m_pkthdr.csum_flags = CSUM_TCP;
-		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 		th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(sizeof(struct tcphdr) + IPPROTO_TCP + len + optlen));
 
@@ -1072,6 +1076,7 @@ send:
 		KASSERT(ip->ip_v == IPVERSION,
 		    ("%s: IP version incorrect: %d", __func__, ip->ip_v));
 	}
+#endif
 
 	/*
 	 * Enable TSO and specify the size of the segments.
