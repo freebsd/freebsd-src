@@ -261,7 +261,7 @@
 
 /* Define if your assembler supports R_PPC_REL16 relocs. */
 #ifndef USED_FOR_TARGET
-/* #undef HAVE_AS_REL16 */
+#define HAVE_AS_REL16
 #endif
 
 
