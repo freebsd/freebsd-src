@@ -972,6 +972,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	src.sin_family = 0;
+	INP_RLOCK(inp);
 	tos = inp->inp_ip_tos;
 	if (control != NULL) {
 		/*
@@ -979,6 +980,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * stored in a single mbuf.
 		 */
 		if (control->m_next) {
+			INP_RUNLOCK(inp);
 			m_freem(control);
 			m_freem(m);
 			return (EINVAL);
@@ -1028,6 +1030,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		m_freem(control);
 	}
 	if (error) {
+		INP_RUNLOCK(inp);
 		m_freem(m);
 		return (error);
 	}
@@ -1049,7 +1052,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * XXXRW: Check that hash locking update here is correct.
 	 */
 	sin = (struct sockaddr_in *)addr;
-	INP_RLOCK(inp);
 	if (sin != NULL &&
 	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
 		INP_RUNLOCK(inp);
