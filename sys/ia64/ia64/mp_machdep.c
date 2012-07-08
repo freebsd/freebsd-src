@@ -309,9 +309,8 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	} else
 		pc = pcpup;
 
-	pc->pc_acpi_id = acpi_id;
-	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
-
+	cpu_pcpu_setup(pc, acpi_id, sapic_id);
+ 
 	CPU_SET(pc->pc_cpuid, &all_cpus);
 }
 
