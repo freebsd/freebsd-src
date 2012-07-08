@@ -508,7 +508,7 @@ skip_ipsec2:;
 #ifdef FLOWTABLE
 	if (ro == &ip6route) {
 		struct flentry *fle;
-		
+
 		/*
 		 * The flow table returns route entries valid for up to 30
 		 * seconds; we rely on the remainder of ip_output() taking no
@@ -521,7 +521,7 @@ skip_ipsec2:;
 				flevalid = 1;
 		}
 	}
-#endif	
+#endif
 again:
 	/*
 	 * if specified, try to fill in the traffic class field.
@@ -667,7 +667,7 @@ again:
 
 	/*
 	 * The outgoing interface must be in the zone of source and
-	 * destination addresses.  
+	 * destination addresses.
 	 */
 	origifp = ifp;
 
@@ -693,7 +693,7 @@ again:
 		goto badscope;
 	}
 
-	/* We should use ia_ifp to support the case of 
+	/* We should use ia_ifp to support the case of
 	 * sending packets to an address of our own.
 	 */
 	if (ia != NULL && ia->ia_ifp)
@@ -891,7 +891,7 @@ again:
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 #ifdef SCTP
-			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
 				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 #endif
 			error = netisr_queue(NETISR_IPV6, m);
@@ -911,9 +911,9 @@ again:
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 #ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
 			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-#endif   
+#endif
 		error = netisr_queue(NETISR_IPV6, m);
 		goto done;
 	}
@@ -965,8 +965,8 @@ passout:
 		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
 	}
 #ifdef SCTP
-	if (sw_csum & CSUM_SCTP) {
-		sw_csum &= ~CSUM_SCTP;
+	if (sw_csum & CSUM_SCTP_IPV6) {
+		sw_csum &= ~CSUM_SCTP_IPV6;
 		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 	}
 #endif
@@ -1081,9 +1081,9 @@ passout:
 			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 		}
 #ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
 			sctp_delayed_cksum(m, hlen);
-			m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
 		}
 #endif
 		mnext = &m->m_nextpkt;

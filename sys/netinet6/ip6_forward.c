@@ -587,7 +587,7 @@ skip_routing:
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 #ifdef SCTP
-			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
 				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 #endif
 			error = netisr_queue(NETISR_IPV6, m);
@@ -607,9 +607,9 @@ skip_routing:
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 #ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-#endif   
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
+			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
 		error = netisr_queue(NETISR_IPV6, m);
 		goto out;
 	}
