@@ -443,8 +443,10 @@ interpret:
 		/*
 		 * Some might argue that CAP_READ and/or CAP_MMAP should also
 		 * be required here; such arguments will be entertained.
+		 *
+		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_read(td, args->fd, CAP_FEXECVE, &binvp);
+		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
 		if (error)
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
