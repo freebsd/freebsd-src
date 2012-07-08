@@ -366,6 +366,7 @@ s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
+	s32 ret_val;
 	UNREFERENCED_1PARAMETER(vind);
 
 	msgbuf[0] = IXGBE_VF_SET_VLAN;
@@ -373,7 +374,14 @@ s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on)
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	return mbx->ops.write_posted(hw, msgbuf, 2, 0);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 2, 0);
+	if (!ret_val)
+		ret_val = mbx->ops.read_posted(hw, msgbuf, 1, 0);
+
+	if (!ret_val && (msgbuf[0] & IXGBE_VT_MSGTYPE_ACK))
+		return IXGBE_SUCCESS;
+
+	return ret_val | (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK);
 }
 
 /**
@@ -491,11 +499,17 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	else
 		*link_up = FALSE;
 
-	if ((links_reg & IXGBE_LINKS_SPEED_10G_82599) ==
-	    IXGBE_LINKS_SPEED_10G_82599)
+	switch (links_reg & IXGBE_LINKS_SPEED_10G_82599) {
+	case IXGBE_LINKS_SPEED_10G_82599:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-	else
+		break;
+	case IXGBE_LINKS_SPEED_1G_82599:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
+		break;
+	case IXGBE_LINKS_SPEED_100_82599:
+		*speed = IXGBE_LINK_SPEED_100_FULL;
+		break;
+	}
 
 	return IXGBE_SUCCESS;
 }
