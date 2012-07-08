@@ -1042,6 +1042,8 @@ dev/e1000/e1000_82575.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_ich8lan.c	optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_i210.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_api.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_mac.c		optional em | igb \
