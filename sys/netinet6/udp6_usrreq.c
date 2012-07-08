@@ -230,7 +230,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		goto badunlocked;
 	}
 
-	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
 		if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 			uh_sum = m->m_pkthdr.csum_data;
 		else
@@ -784,7 +784,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		ip6->ip6_dst	= *faddr;
 
 		udp6->uh_sum = in6_cksum_pseudo(ip6, plen, IPPROTO_UDP, 0);
-		m->m_pkthdr.csum_flags = CSUM_UDP;
+		m->m_pkthdr.csum_flags = CSUM_UDP_IPV6;
 		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 
 		flags = 0;

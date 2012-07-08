@@ -92,7 +92,9 @@
 #endif
 
 #define	LO_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)
-#define	LO_CSUM_SET		(CSUM_DATA_VALID | CSUM_PSEUDO_HDR | \
+#define	LO_CSUM_FEATURES6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_SCTP)
+#define	LO_CSUM_SET		(CSUM_DATA_VALID | CSUM_DATA_VALID_IPV6 | \
+				    CSUM_PSEUDO_HDR | \
 				    CSUM_IP_CHECKED | CSUM_IP_VALID | \
 				    CSUM_SCTP_VALID)
 
@@ -143,8 +145,9 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_ioctl = loioctl;
 	ifp->if_output = looutput;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	ifp->if_capabilities = ifp->if_capenable = IFCAP_HWCSUM;
-	ifp->if_hwassist = LO_CSUM_FEATURES;
+	ifp->if_capabilities = ifp->if_capenable =
+	    IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6;
+	ifp->if_hwassist = LO_CSUM_FEATURES | LO_CSUM_FEATURES6;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	if (V_loif == NULL)
@@ -247,12 +250,19 @@ looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #if 1	/* XXX */
 	switch (dst->sa_family) {
 	case AF_INET:
-	case AF_INET6:
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
 			m->m_pkthdr.csum_data = 0xffff;
 			m->m_pkthdr.csum_flags = LO_CSUM_SET;
 		}
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES;
+		break;
+	case AF_INET6:
+		if (ifp->if_capenable & IFCAP_RXCSUM_IPV6) {
+			m->m_pkthdr.csum_data = 0xffff;
+			m->m_pkthdr.csum_flags = LO_CSUM_SET;
+		}
+		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
+		break;
 	case AF_IPX:
 	case AF_APPLETALK:
 		break;
@@ -436,10 +446,15 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 		if ((mask & IFCAP_TXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_TXCSUM;
+		if ((mask & IFCAP_RXCSUM_IPV6) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
+		if ((mask & IFCAP_TXCSUM_IPV6) != 0)
+			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+		ifp->if_hwassist = 0;
 		if (ifp->if_capenable & IFCAP_TXCSUM)
 			ifp->if_hwassist = LO_CSUM_FEATURES;
-		else
-			ifp->if_hwassist = 0;
+		if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+			ifp->if_hwassist |= LO_CSUM_FEATURES6;
 		break;
 
 	default:
