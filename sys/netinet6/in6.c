@@ -1367,7 +1367,9 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 		sin6.sin6_family = AF_INET6;
 		memcpy(&sin6.sin6_addr, &satosin6(ifa0->ifa_addr)->sin6_addr, 
 		    sizeof(sin6.sin6_addr));
-		in6_setscope(&sin6.sin6_addr, ifa0->ifa_ifp, NULL);
+		error = in6_setscope(&sin6.sin6_addr, ifa0->ifa_ifp, NULL);
+		if (error != 0)
+			return (error);
 	}
 
 	rt = in6_rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL, RT_DEFAULT_FIB);
