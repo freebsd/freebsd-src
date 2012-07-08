@@ -1030,7 +1030,6 @@ rescan0:
 					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					vm_page_lock_queues();
 					goto unlock_and_continue;
 				}
 				KASSERT(mp != NULL,
@@ -1041,7 +1040,6 @@ rescan0:
 				if (vget(vp, LK_EXCLUSIVE | LK_TIMELOCK,
 				    curthread)) {
 					VM_OBJECT_LOCK(object);
-					vm_page_lock_queues();
 					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
@@ -1083,14 +1081,14 @@ rescan0:
 				 * be undergoing I/O, so skip it
 				 */
 				if (m->hold_count) {
-					vm_page_lock_queues();
-					queues_locked = TRUE;
 					vm_page_unlock(m);
 					vm_page_requeue(m);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					goto unlock_and_continue;
 				}
+				vm_page_unlock_queues();
+				queues_locked = FALSE;
 			}
 
 			/*
