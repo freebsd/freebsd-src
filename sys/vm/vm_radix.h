@@ -29,8 +29,6 @@
 #ifndef _VM_RADIX_H_
 #define _VM_RADIX_H_
 
-#define	VM_RADIX_STACK	8	/* Nodes to store on stack. */
-
 /*
  * Radix tree root.  The height and pointer are set together to permit
  * coherent lookups while the root is modified.

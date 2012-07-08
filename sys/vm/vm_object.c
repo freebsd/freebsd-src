@@ -96,6 +96,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
+#define	VM_RADIX_STACK	8	/* Nodes to store on stack for ranged ops. */
+
 static int old_msync;
 SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
     "Use old (insecure) msync behavior");
@@ -729,8 +731,10 @@ vm_object_terminate(vm_object_t object)
 	 */
 	start = 0;
 	exhausted = 0;
-	while (exhausted == 0 && (n = vm_radix_lookupn(&object->rtree, start,
-	    0, (void **)pa, VM_RADIX_STACK, &start, &exhausted)) != 0) {
+	n = VM_RADIX_STACK;
+	while (n == VM_RADIX_STACK && exhausted == 0 &&
+	    (n = vm_radix_lookupn(&object->rtree, start, 0, (void **)pa,
+	    VM_RADIX_STACK, &start, &exhausted)) != 0) {
 		for (i = 0; i < n; i++) {
 			p = pa[i];
 			KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
@@ -755,8 +759,6 @@ vm_object_terminate(vm_object_t object)
 			}
 			vm_page_unlock(p);
 		}
-		if (n < VM_RADIX_STACK)
-			break;
 	}
 	vm_radix_reclaim_allnodes(&object->rtree);
 	vp = NULL;
@@ -764,9 +766,10 @@ vm_object_terminate(vm_object_t object)
 		mtx_lock(&vm_page_queue_free_mtx);
 		start = 0;
 		exhausted = 0;
-		while (exhausted == 0 && (n = vm_radix_lookupn(&object->cache,
-		    start, 0, (void **)pa, VM_RADIX_STACK, &start,
-		    &exhausted)) != 0) {
+		n = VM_RADIX_STACK;
+		while (n == VM_RADIX_STACK && exhausted == 0 &&
+		    (n = vm_radix_lookupn(&object->cache, start, 0,
+		    (void **)pa, VM_RADIX_STACK, &start, &exhausted)) != 0) {
 			for (i = 0; i < n; i++) {
 				p = pa[i];
 				MPASS(p->object == object);
@@ -787,8 +790,6 @@ vm_object_terminate(vm_object_t object)
 				if (object->type == OBJT_VNODE)
 					vp = object->handle;
 			}
-			if (n < VM_RADIX_STACK)
-				break;
 		}
 		vm_radix_reclaim_allnodes(&object->cache);
 		mtx_unlock(&vm_page_queue_free_mtx);
@@ -1389,8 +1390,10 @@ vm_object_split(vm_map_entry_t entry)
 	start = offidxstart;
 retry:
 	exhausted = 0;
-	while (exhausted == 0 && (n = vm_radix_lookupn(&orig_object->rtree,
-	    start, offidxstart + size, (void **)ma, VM_RADIX_STACK, &start,
+	n = VM_RADIX_STACK;
+	while (n == VM_RADIX_STACK && exhausted == 0 &&
+	    (n = vm_radix_lookupn(&orig_object->rtree, start,
+	    offidxstart + size, (void **)ma, VM_RADIX_STACK, &start,
 	    &exhausted)) != 0) {
 		for (i = 0; i < n; i++) {
 			m = ma[i];
@@ -1438,8 +1441,6 @@ retry:
 			 */
 			vm_page_busy(m);
 		}
-		if (n < VM_RADIX_STACK)
-			break;
 	}
 	if (orig_object->type == OBJT_SWAP) {
 		/*
@@ -1454,8 +1455,9 @@ retry:
 		if (!vm_object_cache_is_empty(orig_object)) {
 			start = offidxstart;
 			exhausted = 0;
+			n = VM_RADIX_STACK;
 			mtx_lock(&vm_page_queue_free_mtx);
-			while (exhausted == 0 &&
+			while (n == VM_RADIX_STACK && exhausted == 0 &&
 			    (n = vm_radix_lookupn(&orig_object->cache, start,
 			    offidxstart + size, (void **)ma, VM_RADIX_STACK,
 			    &start, &exhausted)) != 0) {
@@ -1465,8 +1467,6 @@ retry:
 					vm_page_cache_rename(m, new_object,
 					    idx);
 				}
-				if (n < VM_RADIX_STACK)
-					break;
 			}
 			mtx_unlock(&vm_page_queue_free_mtx);
 		}
@@ -1532,9 +1532,7 @@ restart:
 	exhausted = 0;
 	for (;;) {
 		if (i == n) {
-			if (n < VM_RADIX_STACK)
-				break;
-			if (exhausted != 0 ||
+			if (n < VM_RADIX_STACK || exhausted != 0 ||
 			    (n = vm_radix_lookupn(&backing_object->rtree,
 			    start, 0, (void **)pa, VM_RADIX_STACK,
 			    &start, &exhausted)) == 0)
@@ -1827,16 +1825,16 @@ vm_object_collapse(vm_object_t object)
 					 */
 					start = 0;
 					exhausted = 0;
+					n = VM_RADIX_STACK;
 					mtx_lock(&vm_page_queue_free_mtx);
-					while (exhausted == 0 && (n =
+					while (n == VM_RADIX_STACK &&
+					    exhausted == 0 && (n =
 				    vm_radix_lookupn(&backing_object->cache,
 					    start, 0, (void **)pa,
 					    VM_RADIX_STACK, &start,
 					    &exhausted)) != 0) {
 						for (i = 0; i < n; i++)
 						vm_page_cache_free(pa[i]);
-						if (n < VM_RADIX_STACK)
-							break;
 					}
 					mtx_unlock(&vm_page_queue_free_mtx);
 				}
@@ -1981,8 +1979,10 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	cstart = start;
 restart:
 	exhausted = 0;
-	while (exhausted == 0 && (n = vm_radix_lookupn(&object->rtree, start,
-	    end, (void **)pa, VM_RADIX_STACK, &start, &exhausted)) != 0) {
+	n = VM_RADIX_STACK;
+	while (n == VM_RADIX_STACK && exhausted == 0 &&
+	    (n = vm_radix_lookupn(&object->rtree, start, end, (void **)pa,
+	    VM_RADIX_STACK, &start, &exhausted)) != 0) {
 		for (i = 0; i < n; i++) {
 			p = pa[i];
 
@@ -2039,17 +2039,16 @@ restart:
 			vm_page_free(p);
 			vm_page_unlock(p);
 		}
-		if (n < VM_RADIX_STACK)
-			break;
 	}
 	vm_object_pip_wakeup(object);
 	if (!vm_object_cache_is_empty(object)) {
 		start = cstart;
 		exhausted = 0;
+		n = VM_RADIX_STACK;
 		mtx_lock(&vm_page_queue_free_mtx);
-		while (exhausted == 0 && (n = vm_radix_lookupn(&object->cache,
-		    start, end, (void **)pa, VM_RADIX_STACK, &start,
-		    &exhausted)) != 0) {
+		while (n == VM_RADIX_STACK && exhausted == 0 &&
+		    (n = vm_radix_lookupn(&object->cache, start, end,
+		    (void **)pa, VM_RADIX_STACK, &start, &exhausted)) != 0) {
 			for (i = 0; i < n; i++) {
 				p = pa[i];
 				vm_page_cache_free(p);
@@ -2057,8 +2056,6 @@ restart:
 				    object->type == OBJT_VNODE)
 					vp = object->handle;
 			}
-			if (n < VM_RADIX_STACK)
-				break;
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
 	}
