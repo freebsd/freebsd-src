@@ -118,6 +118,7 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_82599_BACKPLANE_FCOE:
 		case IXGBE_DEV_ID_82599_SFP_FCOE:
 		case IXGBE_DEV_ID_82599_SFP_EM:
+		case IXGBE_DEV_ID_82599_SFP_SF2:
 		case IXGBE_DEV_ID_82599EN_SFP:
 		case IXGBE_DEV_ID_82599_CX4:
 		case IXGBE_DEV_ID_82599_T3_LOM:
@@ -130,6 +131,7 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 			hw->mac.type = ixgbe_mac_X540_vf;
 			break;
 		case IXGBE_DEV_ID_X540T:
+		case IXGBE_DEV_ID_X540T1:
 			hw->mac.type = ixgbe_mac_X540;
 			break;
 		default:
@@ -811,6 +813,18 @@ s32 ixgbe_set_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.set_vmdq, (hw, rar, vmdq),
 			       IXGBE_NOT_IMPLEMENTED);
+
+}
+
+/**
+ *  ixgbe_set_vmdq_san_mac - Associate VMDq index 127 with a receive address
+ *  @hw: pointer to hardware structure
+ *  @vmdq: VMDq default pool index
+ **/
+s32 ixgbe_set_vmdq_san_mac(struct ixgbe_hw *hw, u32 vmdq)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.set_vmdq_san_mac,
+			       (hw, vmdq), IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
@@ -960,13 +974,12 @@ s32 ixgbe_set_vlvf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
 /**
  *  ixgbe_fc_enable - Enable flow control
  *  @hw: pointer to hardware structure
- *  @packetbuf_num: packet buffer number (0-7)
  *
  *  Configures the flow control settings based on SW configuration.
  **/
-s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
+s32 ixgbe_fc_enable(struct ixgbe_hw *hw)
 {
-	return ixgbe_call_func(hw, hw->mac.ops.fc_enable, (hw, packetbuf_num),
+	return ixgbe_call_func(hw, hw->mac.ops.fc_enable, (hw),
 			       IXGBE_NOT_IMPLEMENTED);
 }
 
@@ -1102,7 +1115,7 @@ u32 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_enable_rx_dma - Enables Rx DMA unit, dependant on device specifics
+ *  ixgbe_enable_rx_dma - Enables Rx DMA unit, dependent on device specifics
  *  @hw: pointer to hardware structure
  *  @regval: bitfield to write to the Rx DMA register
  *
