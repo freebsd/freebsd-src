@@ -123,8 +123,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
-static struct trapframe proc0_tf;
-
 /* Static device mappings. */
 static const struct pmap_devmap econa_devmap[] = {
 	{
@@ -196,9 +194,8 @@ initarm(struct arm_boot_params *abp)
 	int mem_info;
 
 	boothowto = RB_VERBOSE;
-
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
@@ -232,7 +229,6 @@ initarm(struct arm_boot_params *abp)
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
-		i++;
 	}
 	/*
 	 * Allocate a page for the system page mapped to V0x00000000
@@ -341,30 +337,13 @@ initarm(struct arm_boot_params *abp)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
-
-	/*
-	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
-	dump_avail[0] = PHYSADDR;
-	dump_avail[1] = PHYSADDR + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
-	pmap_bootstrap(freemempos,
-	    KERNVIRTADDR + 3 * memsize,
-	    &kernel_l1pt);
+	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
+	pmap_bootstrap(freemempos, KERNVIRTADDR + 3 * memsize, &kernel_l1pt);
 
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

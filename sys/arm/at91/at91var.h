@@ -102,6 +102,9 @@ enum at91_soc_family {
 
 #define AT91_SOC_NAME_MAX 50
 
+typedef void (*DELAY_t)(int);
+typedef void (*cpu_reset_t)(void);
+
 struct at91_soc_info {
 	enum at91_soc_type type;
 	enum at91_soc_subtype subtype;
@@ -109,6 +112,8 @@ struct at91_soc_info {
 	uint32_t cidr;
 	uint32_t exid;
 	char name[AT91_SOC_NAME_MAX];
+	DELAY_t delay;
+	cpu_reset_t reset;
 };
 
 extern struct at91_soc_info soc_data;

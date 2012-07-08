@@ -10,21 +10,21 @@ __FBSDID("$FreeBSD$");
 #define RSTC_RCR  (AT91SAM9G20_BASE + \
 	AT91SAM9G20_RSTC_BASE + RST_CR)
 
-/* 
+/*
  * From AT91SAM9G20 Datasheet errata 44:3.5:
  *
  * When User Reset occurs durring SDRAM read acces, eh SDRAM clock is turned
  * off while data are ready to be read on the data bus. The SDRAM maintains
- * the data until the clock restarts. 
- * 
+ * the data until the clock restarts.
+ *
  * If the User reset is programed to assert a general reset, the data
  * maintained by the SDRAM leads to a data bus conflict and adversly affects
  * the boot memories connected to the EBI:
  *  + NAND Flash boot functionality, if the system boots out of internal ROM.
- *  + NOR Flash boot, if the system boots on an external memory connected to 
+ *  + NOR Flash boot, if the system boots on an external memory connected to
  *    the EBI CS0.
  *
- * Assembly code is mandatory for the following sequnce as ARM 
+ * Assembly code is mandatory for the following sequnce as ARM
  * instructions need to be piplined.
  *
  */
@@ -38,12 +38,12 @@ ENTRY(cpu_reset_sam9g20)
 
 	/* Change Refresh to block all data access */
 	ldr	r0, =SDRAM_TR
-	ldr	r1, =1 
+	ldr	r1, =1
 	str	r1, [r0]
 
 	/* Prepare power down command */
 	ldr	r0, =SDRAM_LPR
-	ldr	r1, =2 
+	ldr	r1, =2
 
 	/* Prepare proc_reset and periph reset */
 	ldr	r2, =RSTC_RCR

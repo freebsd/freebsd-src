@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2012
+.Dd July 3, 2012
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1733,7 +1733,7 @@ connected networks instead of all source addresses.
 Lookup tables are useful to handle large sparse sets of
 addresses or other search keys (e.g. ports, jail IDs, interface names).
 In the rest of this section we will use the term ``address''.
-There may be up to 4096 different lookup tables, numbered 0 to 4095.
+There may be up to 65535 different lookup tables, numbered 0 to 65534.
 .Pp
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
@@ -2218,19 +2218,20 @@ Specifies the weight to be used for flows matching this queue.
 The weight must be in the range 1..100, and defaults to 1.
 .El
 .Pp
-The following parameters can be configured for a scheduler:
+The following case-insensitive parameters can be configured for a
+scheduler:
 .Pp
 .Bl -tag -width indent -compact
-.It Cm type Ar {fifo | wf2qp | rr | qfq}
+.It Cm type Ar {fifo | wf2q+ | rr | qfq}
 specifies the scheduling algorithm to use.
 .Bl -tag -width indent -compact
-.It cm fifo
+.It Cm fifo
 is just a FIFO scheduler (which means that all packets
 are stored in the same queue as they arrive to the scheduler).
 FIFO has O(1) per-packet time complexity, with very low
 constants (estimate 60-80ns on a 2GHz desktop machine)
 but gives no service guarantees.
-.It Cm wf2qp
+.It Cm wf2q+
 implements the WF2Q+ algorithm, which is a Weighted Fair Queueing
 algorithm which permits flows to share bandwidth according to
 their weights. Note that weights are not priorities; even a flow

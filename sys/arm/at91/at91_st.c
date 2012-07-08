@@ -60,6 +60,7 @@ static struct at91st_softc {
 	bus_space_write_4(timer_softc->sc_st, timer_softc->sc_sh, (off), (val))
 
 static void at91st_watchdog(void *, u_int, int *);
+static void at91st_initclocks(struct at91st_softc *);
 
 static inline int
 st_crtr(void)
@@ -82,6 +83,40 @@ static struct timecounter at91st_timecounter = {
 	"AT91RM9200 timer", /* name */
 	1000 /* quality */
 };
+
+static void
+at91st_delay(int n)
+{
+	uint32_t start, end, cur;
+
+	start = st_crtr();
+	n = (n * 1000) / 32768;
+	if (n <= 0)
+		n = 1;
+	end = (start + n) & ST_CRTR_MASK;
+	cur = start;
+	if (start > end) {
+		while (cur >= start || cur < end)
+			cur = st_crtr();
+	} else {
+		while (cur < end)
+			cur = st_crtr();
+	}
+}
+
+static void
+at91st_cpu_reset(void)
+{
+	/*
+	 * Reset the CPU by programmig the watchdog timer to reset the
+	 * CPU after 128 'slow' clocks, or about ~4ms.  Loop until
+	 * the reset happens for safety.
+	 */
+	WR4(ST_WDMR, ST_WDMR_RSTEN | 2);
+	WR4(ST_CR, ST_CR_WDRST);
+	while (1)
+		continue;
+}
 
 static int
 at91st_probe(device_t dev)
@@ -111,11 +146,16 @@ at91st_attach(device_t dev)
 	WR4(ST_IDR, 0xffffffff);
 	/* disable watchdog timer */
 	WR4(ST_WDMR, 0);
+        soc_data.delay = at91st_delay;
+        soc_data.reset = at91st_cpu_reset;      // XXX kinda late to be setting this...
 
 	timer_softc->sc_wet = EVENTHANDLER_REGISTER(watchdog_list,
 	  at91st_watchdog, dev, 0);
+
 	device_printf(dev,
 	  "watchdog registered, timeout intervall max. 64 sec\n");
+
+	at91st_initclocks(timer_softc);
 	return (0);
 }
 
@@ -183,14 +223,14 @@ clock_intr(void *arg)
 	return (FILTER_STRAY);
 }
 
-void
-cpu_initclocks(void)
+static void
+at91st_initclocks(struct at91st_softc *sc)
 {
 	int rel_value;
 	struct resource *irq;
 	int rid = 0;
 	void *ih;
-	device_t dev = timer_softc->sc_dev;
+	device_t dev = sc->sc_dev;
 
 	rel_value = 32768 / hz;
 	if (rel_value < 1)
@@ -216,48 +256,4 @@ cpu_initclocks(void)
 	/* Enable PITS interrupts. */
 	WR4(ST_IER, ST_SR_PITS);
 	tc_init(&at91st_timecounter);
-}
-
-void
-DELAY(int n)
-{
-	uint32_t start, end, cur;
-
-	start = st_crtr();
-	n = (n * 1000) / 32768;
-	if (n <= 0)
-		n = 1;
-	end = (start + n) & ST_CRTR_MASK;
-	cur = start;
-	if (start > end) {
-		while (cur >= start || cur < end)
-			cur = st_crtr();
-	} else {
-		while (cur < end)
-			cur = st_crtr();
-	}
-}
-
-void
-cpu_reset(void)
-{
-	/*
-	 * Reset the CPU by programmig the watchdog timer to reset the
-	 * CPU after 128 'slow' clocks, or about ~4ms.  Loop until
-	 * the reset happens for safety.
-	 */
-	WR4(ST_WDMR, ST_WDMR_RSTEN | 2);
-	WR4(ST_CR, ST_CR_WDRST);
-	while (1)
-		continue;
-}
-
-void
-cpu_startprofclock(void)
-{
-}
-
-void
-cpu_stopprofclock(void)
-{
 }

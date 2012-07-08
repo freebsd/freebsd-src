@@ -3042,6 +3042,10 @@ tlb1_init(vm_offset_t ccsrbar)
 	/* Map in CCSRBAR. */
 	tlb1_set_entry(CCSRBAR_VA, ccsrbar, CCSRBAR_SIZE, _TLB_ENTRY_IO);
 
+	/* Purge the remaining entries */
+	for (i = tlb1_idx; i < TLB1_ENTRIES; i++)
+		tlb1_write_entry(i);
+
 	/* Setup TLB miss defaults */
 	set_mas4_defaults();
 }

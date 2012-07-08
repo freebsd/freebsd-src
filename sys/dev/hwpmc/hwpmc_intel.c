@@ -143,7 +143,6 @@ pmc_intel_initialize(void)
 			nclasses = 5;
 			break;
 		case 0x2A:	/* Per Intel document 253669-039US 05/2011. */
-		case 0x2D:	/* Per Intel document 253669-041US 12/2011. */	
 			cputype = PMC_CPU_INTEL_SANDYBRIDGE;
 			nclasses = 5;
 			break;

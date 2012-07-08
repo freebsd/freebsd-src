@@ -164,7 +164,7 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91RM92_BASE) 
+	if (addr != 0 && addr < AT91RM92_BASE)
 		addr += AT91RM92_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
@@ -189,7 +189,7 @@ at91_pll_outb(int freq)
 
 	if (freq > 155000000)
 		return (0x0000);
-	else 
+	else
 		return (0x8000);
 }
 
@@ -241,7 +241,7 @@ at91_attach(device_t dev)
 	at91sc->sc_irq_system = AT91RM92_IRQ_SYSTEM;
 
 	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR + 
+		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
 		    i * 4, i);
 		/* Priority. */
 		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,

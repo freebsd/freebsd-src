@@ -40,7 +40,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -136,13 +136,11 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 struct pv_addr minidataclean;
 
-static struct trapframe proc0_tf;
-
 #define IQ80321_OBIO_BASE 0xfe800000UL
 #define IQ80321_OBIO_SIZE 0x00100000UL
 /* Static device mappings. */
 static const struct pmap_devmap iq80321_devmap[] = {
-	/* 
+	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
 	 */
@@ -150,7 +148,7 @@ static const struct pmap_devmap iq80321_devmap[] = {
 		    IQ80321_OBIO_BASE,
 		    IQ80321_OBIO_BASE,
 		    IQ80321_OBIO_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE,                             
+		    VM_PROT_READ|VM_PROT_WRITE,
 		    PTE_NOCACHE,
 	    },
 	    {
@@ -160,7 +158,7 @@ static const struct pmap_devmap iq80321_devmap[] = {
 		    VM_PROT_READ|VM_PROT_WRITE,
 		    PTE_NOCACHE,
 	    },
-	    
+	
 	    {
 		    IQ80321_80321_VBASE,
 		    VERDE_PMMR_BASE,
@@ -195,8 +193,8 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t lastaddr;
 	uint32_t memsize, memstart;
 
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
@@ -225,7 +223,7 @@ initarm(struct arm_boot_params *abp)
 			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_va = 
+			kernel_pt_table[loop].pv_va =
 			    kernel_pt_table[loop].pv_pa + 0x20000000;
 		}
 	}
@@ -292,13 +290,13 @@ initarm(struct arm_boot_params *abp)
 	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
+	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE
 	    - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
-	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
+	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	
 
@@ -307,7 +305,7 @@ initarm(struct arm_boot_params *abp)
 		arm_add_smallalloc_pages((void *)(freemem_after),
 		    (void*)(freemem_after + PAGE_SIZE),
 		    afterkern - (freemem_after + PAGE_SIZE), 0);
-		    
+		
 	}
 #endif
 
@@ -339,7 +337,7 @@ initarm(struct arm_boot_params *abp)
 	 * of the stack memory.
 	 */
 
-				   
+				
 	set_stackptr(PSR_IRQ32_MODE,
 	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
 	set_stackptr(PSR_ABT32_MODE,
@@ -377,13 +375,7 @@ initarm(struct arm_boot_params *abp)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 	
 	/* Enable MMU, I-cache, D-cache, write buffer. */
 
@@ -401,7 +393,7 @@ initarm(struct arm_boot_params *abp)
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 					
-	pmap_bootstrap(pmap_curmaxkvaddr, 
+	pmap_bootstrap(pmap_curmaxkvaddr,
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

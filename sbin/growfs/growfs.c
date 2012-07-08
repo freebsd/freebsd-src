@@ -803,7 +803,6 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	DBG_FUNC("updcsloc")
 	struct csum *cs;
 	int ocscg, ncscg;
-	int blocks;
 	ufs2_daddr_t d;
 	int lcs = 0;
 	int block;
@@ -820,8 +819,6 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	}
 	ocscg = dtog(&osblock, osblock.fs_csaddr);
 	cs = fscs + ocscg;
-	blocks = 1 + howmany(sblock.fs_cssize, sblock.fs_bsize) -
-	    howmany(osblock.fs_cssize, osblock.fs_bsize);
 
 	/*
 	 * Read original cylinder group from disk, and make a copy.

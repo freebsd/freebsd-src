@@ -872,8 +872,8 @@ AcpiDbMethodThread (
 
     if (Info->InitArgs)
     {
-        AcpiDbUInt32ToHexString (Info->NumCreated, Info->IndexOfThreadStr);
-        AcpiDbUInt32ToHexString ((UINT32) AcpiOsGetThreadId (), Info->IdOfThreadStr);
+        AcpiDbUint32ToHexString (Info->NumCreated, Info->IndexOfThreadStr);
+        AcpiDbUint32ToHexString ((UINT32) AcpiOsGetThreadId (), Info->IdOfThreadStr);
     }
 
     if (Info->Threads && (Info->NumCreated < Info->NumThreads))
@@ -1063,7 +1063,7 @@ AcpiDbCreateExecutionThreads (
     AcpiGbl_DbMethodInfo.ArgTypes[1] = ACPI_TYPE_INTEGER;
     AcpiGbl_DbMethodInfo.ArgTypes[2] = ACPI_TYPE_INTEGER;
 
-    AcpiDbUInt32ToHexString (NumThreads, AcpiGbl_DbMethodInfo.NumThreadsStr);
+    AcpiDbUint32ToHexString (NumThreads, AcpiGbl_DbMethodInfo.NumThreadsStr);
 
     AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
 

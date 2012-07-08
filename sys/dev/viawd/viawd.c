@@ -168,12 +168,16 @@ viawd_attach(device_t dev)
 	}
 
 	/* Allocate I/O register space. */
-	sc->wd_rid = 0;
-	sc->wd_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->wd_rid,
-	    pmbase, pmbase + VIAWD_MEM_LEN - 1, VIAWD_MEM_LEN,
+	sc->wd_rid = VIAWD_CONFIG_BASE;
+	sc->wd_res = bus_alloc_resource_any(sb_dev, SYS_RES_MEMORY, &sc->wd_rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->wd_res == NULL) {
 		device_printf(dev, "Unable to map watchdog memory\n");
+		goto fail;
+	}
+	if (rman_get_size(sc->wd_res) < VIAWD_MEM_LEN) {
+		device_printf(dev, "Bad size for watchdog memory: %#x\n",
+		    (unsigned)rman_get_size(sc->wd_res));
 		goto fail;
 	}
 
@@ -192,7 +196,7 @@ viawd_attach(device_t dev)
 	return (0);
 fail:
 	if (sc->wd_res != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY,
+		bus_release_resource(sb_dev, SYS_RES_MEMORY,
 		    sc->wd_rid, sc->wd_res);
 	return (ENXIO);
 }
@@ -224,7 +228,7 @@ viawd_detach(device_t dev)
 	}
 
 	if (sc->wd_res != NULL)
-		bus_release_resource(sc->dev, SYS_RES_MEMORY,
+		bus_release_resource(sc->sb_dev, SYS_RES_MEMORY,
 		    sc->wd_rid, sc->wd_res);
 
 	return (0);

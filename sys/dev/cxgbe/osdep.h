@@ -111,6 +111,7 @@ typedef boolean_t bool;
 #define AUTONEG_DISABLE	0
 #define AUTONEG_ENABLE	1
 
+#define PCI_DEVICE_ID	PCIR_DEVICE
 #define PCI_CAP_ID_VPD  PCIY_VPD
 #define PCI_VPD_ADDR    PCIR_VPD_ADDR
 #define PCI_VPD_ADDR_F  0x8000

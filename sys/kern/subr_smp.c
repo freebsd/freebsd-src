@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 volatile cpuset_t stopped_cpus;
 volatile cpuset_t started_cpus;
+volatile cpuset_t suspended_cpus;
 cpuset_t hlt_cpus_mask;
 cpuset_t logical_cpus_mask;
 
@@ -207,6 +208,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 #endif
 	static volatile u_int stopping_cpu = NOCPU;
 	int i;
+	volatile cpuset_t *cpus;
 
 	KASSERT(
 #if defined(__amd64__) || defined(__i386__)
@@ -231,8 +233,15 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	/* send the stop IPI to all CPUs in map */
 	ipi_selected(map, type);
 
+#if defined(__amd64__) || defined(__i386__)
+	if (type == IPI_SUSPEND)
+		cpus = &suspended_cpus;
+	else
+#endif
+		cpus = &stopped_cpus;
+
 	i = 0;
-	while (!CPU_SUBSET(&stopped_cpus, &map)) {
+	while (!CPU_SUBSET(cpus, &map)) {
 		/* spin */
 		cpu_spinwait();
 		i++;

@@ -442,12 +442,11 @@ vnode_pager_setsize(vp, nsize)
 			 */
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
 		} else if ((nsize & PAGE_MASK) &&
-		    !vm_object_cache_is_empty(object)) {
+		    (m = vm_page_is_cached(object,
+		    OFF_TO_IDX(nsize))) != NULL) {
 			drop = NULL;
 			mtx_lock(&vm_page_queue_free_mtx);
-			m = vm_radix_lookup(&object->cache, OFF_TO_IDX(nsize));
-			if (m != NULL) {
-				MPASS(m->object == object);
+			if (m->object == object) {
 
 				/*
 				 * Eliminate any cached page as we would have
@@ -1163,7 +1162,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				m = ma[ncount - 1];
 				KASSERT(m->busy > 0,
 		("vnode_pager_generic_putpages: page %p is not busy", m));
-				KASSERT((m->aflags & PGA_WRITEABLE) == 0,
+				KASSERT(!pmap_page_is_write_mapped(m),
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
 				    pgoff);

@@ -78,8 +78,21 @@
  *
  *	vm_object_t		Virtual memory object.
  *
+ *	The root of cached pages pool is protected by both the per-object mutex
+ *	and the free pages queue mutex.
+ *	On insert in the cache splay tree, the per-object mutex is expected
+ *	to be already held and the free pages queue mutex will be
+ *	acquired during the operation too.
+ *	On remove and lookup from the cache splay tree, only the free
+ *	pages queue mutex is expected to be locked.
+ *	These rules allow for reliably checking for the presence of cached
+ *	pages with only the per-object lock held, thereby reducing contention
+ *	for the free pages queue mutex.
+ *
  * List of locks
  *	(c)	const until freed
+ *	(o)	per-object mutex
+ *	(f)	free pages queue mutex
  *
  */
 

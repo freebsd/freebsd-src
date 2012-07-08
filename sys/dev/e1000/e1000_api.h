@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -49,6 +49,7 @@ extern void e1000_rx_fifo_flush_82575(struct e1000_hw *hw);
 extern void e1000_init_function_pointers_vf(struct e1000_hw *hw);
 extern void e1000_power_up_fiber_serdes_link(struct e1000_hw *hw);
 extern void e1000_shutdown_fiber_serdes_link(struct e1000_hw *hw);
+extern void e1000_init_function_pointers_i210(struct e1000_hw *hw);
 
 s32 e1000_set_mac_type(struct e1000_hw *hw);
 s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device);
@@ -116,6 +117,7 @@ s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
 			       struct e1000_host_mng_command_header *hdr);
 s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length);
 u32  e1000_translate_register_82542(u32 reg);
+
 
 
 /*

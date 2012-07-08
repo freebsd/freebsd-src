@@ -236,6 +236,23 @@ typedef enum {
 	D_LQUANT_MATCHBASE,		/* lquantize() mismatch on base */
 	D_LQUANT_MATCHLIM,		/* lquantize() mismatch on limit */
 	D_LQUANT_MATCHSTEP,		/* lquantize() mismatch on step */
+	D_LLQUANT_FACTORTYPE,		/* llquantize() bad magnitude type */
+	D_LLQUANT_FACTORVAL,		/* llquantize() bad magnitude value */
+	D_LLQUANT_FACTORMATCH,		/* llquantize() mismatch on magnitude */
+	D_LLQUANT_LOWTYPE,		/* llquantize() bad low mag type */
+	D_LLQUANT_LOWVAL,		/* llquantize() bad low mag value */
+	D_LLQUANT_LOWMATCH,		/* llquantize() mismatch on low mag */
+	D_LLQUANT_HIGHTYPE,		/* llquantize() bad high mag type */
+	D_LLQUANT_HIGHVAL,		/* llquantize() bad high mag value */
+	D_LLQUANT_HIGHMATCH,		/* llquantize() mismatch on high mag */
+	D_LLQUANT_NSTEPTYPE,		/* llquantize() bad # steps type */
+	D_LLQUANT_NSTEPVAL,		/* llquantize() bad # steps value */
+	D_LLQUANT_NSTEPMATCH,		/* llquantize() mismatch on # steps */
+	D_LLQUANT_MAGRANGE,		/* llquantize() bad magnitude range */
+	D_LLQUANT_FACTORNSTEPS,		/* llquantize() # steps < factor */
+	D_LLQUANT_FACTOREVEN,		/* llquantize() bad # steps/factor */
+	D_LLQUANT_FACTORSMALL,		/* llquantize() magnitude too small */
+	D_LLQUANT_MAGTOOBIG,		/* llquantize() high mag too large */
 	D_PRINTM_ADDR,			/* printm() memref bad type */
 	D_PRINTM_SIZE,			/* printm() size bad type */
 	D_PRINTT_ADDR,			/* printt() typeref bad type */

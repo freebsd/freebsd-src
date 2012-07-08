@@ -85,13 +85,13 @@ both to allow GSS-API V1 applications to link
 and to retain the slight parameter type differences between the
 obsolete versions of this routine and its current form.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It output_message_buffer"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
 Identifies the context on which the message will be sent.
 .It conf_req_flag
-.Bl -tag -width "Non-zero"
+.Bl -tag -width "Non-zero" -compact
 .It Non-zero
 Both confidentiality and integrity services are requested.
 .It Zero
@@ -108,7 +108,7 @@ will return a major_status of
 .It input_message_buffer
 Message to be protected.
 .It conf_state
-.Bl -tag -width "Non-zero"
+.Bl -tag -width "Non-zero" -compact
 .It Non-zero
 Confidentiality, data origin authentication and integrity services
 have been applied.
@@ -123,7 +123,7 @@ with a call to
 .Xr gss_release_buffer 3 .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CONTEXT_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion.
 .It GSS_S_CONTEXT_EXPIRED
@@ -137,7 +137,7 @@ The specified QOP is not supported by the mechanism.
 .Xr gss_unwrap 3 ,
 .Xr gss_release_buffer 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

@@ -106,7 +106,7 @@ SUBDIR=	\
 	fdc \
 	fdescfs \
 	${_fe} \
-	${_filemon} \
+	filemon \
 	firewire \
 	firmware \
 	${_fxp} \
@@ -314,6 +314,7 @@ SUBDIR=	\
 	${_ti} \
 	tl \
 	tmpfs \
+	${_toecore} \
 	${_tpm} \
 	trm \
 	${_twa} \
@@ -359,10 +360,6 @@ SUBDIR=	\
 	${_zfs} \
 	zlib \
 
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-_filemon=	filemon
-.endif
-
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_CPUARCH} != "mips"
 _syscons=	syscons
@@ -392,6 +389,7 @@ _random=	random
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=	carp
+_toecore=	toecore
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)

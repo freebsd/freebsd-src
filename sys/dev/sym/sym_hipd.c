@@ -1609,7 +1609,6 @@ struct sym_hcb {
 	u_int	features;	/* Chip features map		*/
 	u_char	myaddr;		/* SCSI id of the adapter	*/
 	u_char	maxburst;	/* log base 2 of dwords burst	*/
-	u_char	maxsegcnt;	/* Max DMA S/G segments		*/
 	u_char	maxwide;	/* Maximum transfer width	*/
 	u_char	minsync;	/* Min sync period factor (ST)	*/
 	u_char	maxsync;	/* Max sync period factor (ST)	*/
@@ -8135,7 +8134,7 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 			cpi->xport_specific.spi.ppr_options =
 			    SID_SPI_CLOCK_DT_ST;
 		}
-		cpi->maxio = np->maxsegcnt * SYM_CONF_DMA_BOUNDARY;
+		cpi->maxio = SYM_CONF_MAX_SG * PAGE_SIZE;
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
 	case XPT_ABORT:
@@ -8536,11 +8535,9 @@ sym_pci_attach(device_t dev)
 	/*
 	 *  Allocate a tag for the DMA of user data.
 	 */
-	np->maxsegcnt = MIN(SYM_CONF_MAX_SG,
-	    (MAXPHYS / SYM_CONF_DMA_BOUNDARY) + 1);
 	if (bus_dma_tag_create(np->bus_dmat, 1, SYM_CONF_DMA_BOUNDARY,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    BUS_SPACE_MAXSIZE, np->maxsegcnt, SYM_CONF_DMA_BOUNDARY,
+	    BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG, SYM_CONF_DMA_BOUNDARY,
 	    BUS_DMA_ALLOCNOW, busdma_lock_mutex, &np->mtx, &np->data_dmat)) {
 		device_printf(dev, "failed to create DMA tag.\n");
 		goto attach_failed;

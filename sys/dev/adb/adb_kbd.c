@@ -426,8 +426,10 @@ adb_kbd_receive_packet(device_t dev, u_char status,
 		/* 0x7f is always the power button */
 		if (data[0] == 0x7f && devctl_process_running()) {
 			devctl_notify("PMU", "Button", "pressed", NULL);
+			mtx_unlock(&sc->sc_mutex);
 			return (0);
 		} else if (data[0] == 0xff) {
+			mtx_unlock(&sc->sc_mutex);
 			return (0);	/* Ignore power button release. */
 		}
 		if ((data[0] & 0x7f) == 57 && sc->buffers < 7) {

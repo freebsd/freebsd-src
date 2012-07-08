@@ -29,12 +29,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/board.h>
 #include <arm/at91/at91board.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_piovar.h>
 #include <arm/at91/at91_pio_rm9200.h>
 
-long
+BOARD_INIT long
 board_init(void)
 {
 	/*
@@ -73,3 +74,5 @@ board_init(void)
 
 	return (at91_ramsize());
 }
+
+ARM_BOARD(NONE, "TSC4370 Controller Board");

@@ -705,12 +705,9 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	inq_buf = &path->device->inq_data;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if (softc->restart) {
-			if (bootverbose) {
-				cam_error_print(done_ccb,
-				    CAM_ESF_ALL, CAM_EPF_ALL);
-			}
-		} else if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART)
+		if (cam_periph_error(done_ccb,
+		    0, softc->restart ? (SF_NO_RECOVERY | SF_NO_RETRY) : 0,
+		    NULL) == ERESTART)
 			return;
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */

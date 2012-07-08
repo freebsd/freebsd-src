@@ -3482,6 +3482,10 @@ OLD_FILES+=usr/share/man/man8/pflogd.8.gz
 OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
 .endif
 
+.if ${MK_PKGBOOTSTRAP} == no
+OLD_FILES+=usr/sbin/pkg
+.endif
+
 .if ${MK_PKGTOOLS} == no
 OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
 OLD_FILES+=etc/periodic/security/460.chkportsum

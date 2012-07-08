@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
+#include <machine/board.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -92,10 +93,12 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91sam9g20reg.h>
 
-#define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
+/* Page table for mapping proc0 zero page */
+#define KERNEL_PT_SYS		0
 #define KERNEL_PT_KERN		1
 #define KERNEL_PT_KERN_NUM	22
-#define KERNEL_PT_AFKERNEL	KERNEL_PT_KERN + KERNEL_PT_KERN_NUM	/* L2 table for mapping after kernel */
+/* L2 table for mapping after kernel */
+#define KERNEL_PT_AFKERNEL	KERNEL_PT_KERN + KERNEL_PT_KERN_NUM
 #define	KERNEL_PT_AFKERNEL_NUM	5
 
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
@@ -132,8 +135,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
-static struct trapframe proc0_tf;
-
 /* Static device mappings. */
 const struct pmap_devmap at91_devmap[] = {
 	/*
@@ -152,7 +153,8 @@ const struct pmap_devmap at91_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
-	/* We can't just map the OHCI registers VA == PA, because
+	/*
+	 * We can't just map the OHCI registers VA == PA, because
 	 * AT91xx_xxx_BASE belongs to the userland address space.
 	 * We could just choose a different virtual address, but a better
 	 * solution would probably be to just use pmap_mapdev() to allocate
@@ -182,8 +184,10 @@ const struct pmap_devmap at91_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
-	/* The next two should be good for the 9260, 9261 and 9G20 since
-	 * addresses mapping is the same. */
+	/*
+	 * The next two should be good for the 9260, 9261 and 9G20 since
+	 * addresses mapping is the same.
+	 */
 	{
 		/* Internal Memory 1MB  */
 		AT91SAM9G20_OHCI_BASE,
@@ -203,14 +207,27 @@ const struct pmap_devmap at91_devmap[] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
+#ifdef LINUX_BOOT_ABI
+extern int membanks;
+extern int memstart[];
+extern int memsize[];
+#endif
+
 long
 at91_ramsize(void)
 {
-	uint32_t cr, mr;
+	uint32_t cr, mr, *SDRAMC;
 	int banks, rows, cols, bw;
+#ifdef LINUX_BOOT_ABI
+	/*
+	 * If we found any ATAGs that were for memory, return the first bank.
+	 */
+	if (membanks > 0)
+		return (memsize[0]);
+#endif
 
 	if (at91_is_rm92()) {
-		uint32_t *SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
+		SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
 		cr = SDRAMC[AT91RM92_SDRAMC_CR / 4];
 		mr = SDRAMC[AT91RM92_SDRAMC_MR / 4];
 		banks = (cr & AT91RM92_SDRAMC_CR_NB_4) ? 2 : 1;
@@ -218,9 +235,11 @@ at91_ramsize(void)
 		cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
 		bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
 	} else {
-		/* This should be good for the 9260, 9261, 9G20, 9G35 and 9X25 as addresses
-		 * and registers are the same */
-		uint32_t *SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G20_SDRAMC_BASE);
+		/*
+		 * This should be good for the 9260, 9261, 9G20, 9G35 and 9X25
+		 * as addresses and registers are the same.
+		 */
+		SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G20_SDRAMC_BASE);
 		cr = SDRAMC[AT91SAM9G20_SDRAMC_CR / 4];
 		mr = SDRAMC[AT91SAM9G20_SDRAMC_MR / 4];
 		banks = (cr & AT91SAM9G20_SDRAMC_CR_NB_4) ? 2 : 1;
@@ -232,7 +251,7 @@ at91_ramsize(void)
 	return (1 << (cols + rows + banks + bw));
 }
 
-const char *soc_type_name[] = {
+static const char *soc_type_name[] = {
 	[AT91_T_CAP9] = "at91cap9",
 	[AT91_T_RM9200] = "at91rm9200",
 	[AT91_T_SAM9260] = "at91sam9260",
@@ -246,8 +265,8 @@ const char *soc_type_name[] = {
 	[AT91_T_SAM9X5] = "at91sam9x5",
 	[AT91_T_NONE] = "UNKNOWN"
 };
-	
-const char *soc_subtype_name[] = {
+
+static const char *soc_subtype_name[] = {
 	[AT91_ST_NONE] = "UNKNOWN",
 	[AT91_ST_RM9200_BGA] = "at91rm9200_bga",
 	[AT91_ST_RM9200_PQFP] = "at91rm9200_pqfp",
@@ -263,9 +282,6 @@ const char *soc_subtype_name[] = {
 	[AT91_ST_SAM9X35] = "at91sam9x35",
 };
 
-#define AT91_DBGU0	0x0ffff200	/* Most */
-#define AT91_DBGU1	0x0fffee00	/* SAM9263, CAP9, and SAM9G45 */
-
 struct at91_soc_info soc_data;
 
 /*
@@ -279,13 +295,15 @@ at91_try_id(uint32_t dbgu_base)
 {
 	uint32_t socid;
 
-	soc_data.cidr = *(volatile uint32_t *)(AT91_BASE + dbgu_base + DBGU_C1R);
+	soc_data.cidr = *(volatile uint32_t *)(AT91_BASE + dbgu_base +
+	    DBGU_C1R);
 	socid = soc_data.cidr & ~AT91_CPU_VERSION_MASK;
 
 	soc_data.type = AT91_T_NONE;
 	soc_data.subtype = AT91_ST_NONE;
 	soc_data.family = (soc_data.cidr & AT91_CPU_FAMILY_MASK) >> 20;
-	soc_data.exid = *(volatile uint32_t *)(AT91_BASE + dbgu_base + DBGU_C2R);
+	soc_data.exid = *(volatile uint32_t *)(AT91_BASE + dbgu_base +
+	    DBGU_C2R);
 
 	switch (socid) {
 	case AT91_CPU_CAP9:
@@ -327,7 +345,7 @@ at91_try_id(uint32_t dbgu_base)
 		soc_data.type = AT91_T_SAM9X5;
 		break;
 	default:
-		return 0;
+		return (0);
 	}
 
 	switch (soc_data.type) {
@@ -369,18 +387,33 @@ at91_try_id(uint32_t dbgu_base)
 	default:
 		break;
 	}
-        snprintf(soc_data.name, sizeof(soc_data.name), "%s%s%s", soc_type_name[soc_data.type],
+	snprintf(soc_data.name, sizeof(soc_data.name), "%s%s%s",
+	    soc_type_name[soc_data.type],
 	    soc_data.subtype == AT91_ST_NONE ? "" : " subtype ",
-	    soc_data.subtype == AT91_ST_NONE ? "" : soc_subtype_name[soc_data.subtype]);
-	return 1;
+	    soc_data.subtype == AT91_ST_NONE ? "" :
+	    soc_subtype_name[soc_data.subtype]);
+	return (1);
 }
 
 static void
 at91_soc_id(void)
 {
+
 	if (!at91_try_id(AT91_DBGU0))
 		at91_try_id(AT91_DBGU1);
 }
+
+#ifdef ARM_MANY_BOARD
+/* likely belongs in arm/arm/machdep.c, but since board_init is still at91 only... */
+SET_DECLARE(arm_board_set, const struct arm_board);
+
+/* Not yet fully functional, but enough to build ATMEL config */
+static long
+board_init(void)
+{
+	return -1;
+}
+#endif
 
 void *
 initarm(struct arm_boot_params *abp)
@@ -394,8 +427,8 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize;
 	vm_offset_t lastaddr;
 
+	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
@@ -404,13 +437,13 @@ initarm(struct arm_boot_params *abp)
 
 	freemempos = (lastaddr + PAGE_MASK) & ~PAGE_MASK;
 	/* Define a macro to simplify memory allocation */
-#define valloc_pages(var, np)                   \
-	alloc_pages((var).pv_va, (np));         \
+#define valloc_pages(var, np)						\
+	alloc_pages((var).pv_va, (np));					\
 	(var).pv_pa = (var).pv_va + (KERNPHYSADDR - KERNVIRTADDR);
 
-#define alloc_pages(var, np)			\
-	(var) = freemempos;		\
-	freemempos += (np * PAGE_SIZE);		\
+#define alloc_pages(var, np)						\
+	(var) = freemempos;						\
+	freemempos += (np * PAGE_SIZE);					\
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
 
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
@@ -428,7 +461,6 @@ initarm(struct arm_boot_params *abp)
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
-		i++;
 	}
 	/*
 	 * Allocate a page for the system page mapped to V0x00000000
@@ -550,30 +582,13 @@ initarm(struct arm_boot_params *abp)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
-
-	/*
-	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
-	dump_avail[0] = PHYSADDR;
-	dump_avail[1] = PHYSADDR + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
-	pmap_bootstrap(freemempos,
-	    KERNVIRTADDR + 3 * memsize,
-	    &kernel_l1pt);
+	arm_dump_avail_init(memsize, sizeof(dump_avail)/sizeof(dump_avail[0]));
+	pmap_bootstrap(freemempos, KERNVIRTADDR + 3 * memsize, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
@@ -591,4 +606,43 @@ initarm(struct arm_boot_params *abp)
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
+}
+
+/*
+ * These functions are handled elsewhere, so make them nops here.
+ */
+void
+cpu_startprofclock(void)
+{
+
+}
+
+void
+cpu_stopprofclock(void)
+{
+
+}
+
+void
+cpu_initclocks(void)
+{
+
+}
+
+void
+DELAY(int n)
+{
+
+	if (soc_data.delay)
+		soc_data.delay(n);
+}
+
+void
+cpu_reset(void)
+{
+
+	if (soc_data.reset)
+		soc_data.reset();
+	while (1)
+		continue;
 }

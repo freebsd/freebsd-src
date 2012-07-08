@@ -161,13 +161,13 @@
 #define	AT91C_PD1_ETX1     (AT91C_PIO_PD1) //  Ethernet MAC Transmit Data 1
 #define	AT91C_PD10_PCK3     (AT91C_PIO_PD10) //  PMC Programmable Clock Output 3
 #define	AT91C_PD10_TPS1     (AT91C_PIO_PD10) //  ETM ARM9 pipeline status 1
-#define	AT91C_PD11_         (AT91C_PIO_PD11) //  
+#define	AT91C_PD11_         (AT91C_PIO_PD11) //
 #define	AT91C_PD11_TPS2     (AT91C_PIO_PD11) //  ETM ARM9 pipeline status 2
-#define	AT91C_PD12_         (AT91C_PIO_PD12) //  
+#define	AT91C_PD12_         (AT91C_PIO_PD12) //
 #define	AT91C_PD12_TPK0     (AT91C_PIO_PD12) //  ETM Trace Packet 0
-#define	AT91C_PD13_         (AT91C_PIO_PD13) //  
+#define	AT91C_PD13_         (AT91C_PIO_PD13) //
 #define	AT91C_PD13_TPK1     (AT91C_PIO_PD13) //  ETM Trace Packet 1
-#define	AT91C_PD14_         (AT91C_PIO_PD14) //  
+#define	AT91C_PD14_         (AT91C_PIO_PD14) //
 #define	AT91C_PD14_TPK2     (AT91C_PIO_PD14) //  ETM Trace Packet 2
 #define	AT91C_PD15_TD0      (AT91C_PIO_PD15) //  SSC Transmit data
 #define	AT91C_PD15_TPK3     (AT91C_PIO_PD15) //  ETM Trace Packet 3

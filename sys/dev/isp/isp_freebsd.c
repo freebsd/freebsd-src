@@ -2210,6 +2210,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
 	atio_private_data_t *atp = NULL;
+	atio_private_data_t *oatp;
 	inot_private_data_t *ntp;
 
 	did = (aep->at_hdr.d_id[0] << 16) | (aep->at_hdr.d_id[1] << 8) | aep->at_hdr.d_id[2];
@@ -2304,6 +2305,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 			 * it and go to noresrc.
 			 */
 			if (tptr->restart_queue) {
+				isp_prt(isp, ISP_LOGTDEBUG0, "%s: restart queue refilling", __func__);
 				if (restart_queue) {
 					ntp = tptr->restart_queue;
 					tptr->restart_queue = restart_queue;
@@ -2340,15 +2342,15 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] out of atps", aep->at_rxid);
 		goto noresrc;
 	}
-	if (isp_get_atpd(isp, tptr, aep->at_rxid)) {
-		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] tag wraparound in isp_handle_platforms_atio7 (N-Port Handle 0x%04x S_ID 0x%04x OX_ID 0x%04x)\n",
-		    aep->at_rxid, nphdl, sid, aep->at_hdr.ox_id);
+	oatp = isp_get_atpd(isp, tptr, aep->at_rxid);
+	if (oatp) {
+		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] tag wraparound in isp_handle_platforms_atio7 (N-Port Handle 0x%04x S_ID 0x%04x OX_ID 0x%04x) oatp state %d\n",
+		    aep->at_rxid, nphdl, sid, aep->at_hdr.ox_id, oatp->state);
 		/*
 		 * It's not a "no resource" condition- but we can treat it like one
 		 */
 		goto noresrc;
 	}
-
 	atp->tag = aep->at_rxid;
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
@@ -2394,6 +2396,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	atp->nphdl = nphdl;
 	atp->portid = sid;
 	atp->oxid = aep->at_hdr.ox_id;
+	atp->rxid = aep->at_hdr.rx_id;
 	atp->cdb0 = atiop->cdb_io.cdb_bytes[0];
 	atp->tattr = aep->at_cmnd.fcp_cmnd_task_attribute & FCP_CMND_TASK_ATTR_MASK;
 	atp->state = ATPD_STATE_CAM;

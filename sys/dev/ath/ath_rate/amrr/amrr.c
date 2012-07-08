@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
  * "IEEE 802.11 Rate Adaptation: A Practical Approach" by
  *    Mathieu Lacage, Hossein Manshaei, Thierry Turletti
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 

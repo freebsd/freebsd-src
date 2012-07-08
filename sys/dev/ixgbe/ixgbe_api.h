@@ -104,6 +104,7 @@ s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 		  u32 enable_addr);
 s32 ixgbe_clear_rar(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_set_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
+s32 ixgbe_set_vmdq_san_mac(struct ixgbe_hw *hw, u32 vmdq);
 s32 ixgbe_clear_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
 s32 ixgbe_init_rx_addrs(struct ixgbe_hw *hw);
 u32 ixgbe_get_num_rx_addrs(struct ixgbe_hw *hw);
@@ -120,7 +121,7 @@ s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan,
 		   u32 vind, bool vlan_on);
 s32 ixgbe_set_vlvf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 		   bool vlan_on, bool *vfta_changed);
-s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num);
+s32 ixgbe_fc_enable(struct ixgbe_hw *hw);
 s32 ixgbe_set_fw_drv_ver(struct ixgbe_hw *hw, u8 maj, u8 min, u8 build,
 			 u8 ver);
 void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr);

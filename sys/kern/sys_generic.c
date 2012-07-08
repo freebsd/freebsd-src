@@ -1255,7 +1255,7 @@ sys_poll(td, uap)
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
 	struct timeval atv, rtv, ttv;
-	int error = 0, timo;
+	int error, timo;
 	u_int nfds;
 	size_t ni;
 

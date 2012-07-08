@@ -157,7 +157,7 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91SAM9G20_BASE) 
+	if (addr != 0 && addr < AT91SAM9G20_BASE)
 		addr += AT91SAM9G20_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
@@ -231,7 +231,7 @@ at91_attach(device_t dev)
 	sc->sc_sh = at91sc->sc_sh;
 	sc->dev = dev;
 
-	/* 
+	/*
 	 * XXX These values work for the RM9200, SAM926[01], and SAM9G20
 	 * will have to fix this when we want to support anything else. XXX
 	 */
@@ -252,7 +252,7 @@ at91_attach(device_t dev)
 	at91sc->sc_irq_system = AT91SAM9G20_IRQ_SYSTEM;
 
 	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR + 
+		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
 		    i * 4, i);
 		/* Priority. */
 		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
@@ -281,7 +281,7 @@ at91_attach(device_t dev)
 	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
 	    AT91SAM9G20_EBICSA);
 	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9G20_EBICSA, 
+	    AT91SAM9G20_EBICSA,
 	    i | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
 
 

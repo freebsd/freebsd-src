@@ -77,7 +77,6 @@ typedef enum {
 	DA_FLAG_NEW_PACK	= 0x002,
 	DA_FLAG_PACK_LOCKED	= 0x004,
 	DA_FLAG_PACK_REMOVABLE	= 0x008,
-	DA_FLAG_TAGGED_QUEUING	= 0x010,
 	DA_FLAG_NEED_OTAG	= 0x020,
 	DA_FLAG_WENT_IDLE	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
@@ -983,14 +982,13 @@ daclose(struct disk *dp)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
-	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (0);	
 
 	cam_periph_lock(periph);
-	if ((error = cam_periph_hold(periph, PRIBIO)) != 0) {
+	if (cam_periph_hold(periph, PRIBIO) != 0) {
 		cam_periph_unlock(periph);
 		cam_periph_release(periph);
 		return (0);
@@ -1120,6 +1118,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	u_int	    secsize;
 	struct	    ccb_scsiio csio;
 	struct	    disk *dp;
+	int	    error = 0;
 
 	dp = arg;
 	periph = dp->d_drv1;
@@ -1138,7 +1137,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_read_write(&csio,
-				/*retries*/1,
+				/*retries*/0,
 				dadone,
 				MSG_ORDERED_Q_TAG,
 				/*read*/FALSE,
@@ -1151,19 +1150,16 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*sense_len*/SSD_FULL_SIZE,
 				da_default_timeout * 1000);
 		xpt_polled_action((union ccb *)&csio);
-		cam_periph_unlock(periph);
 
-		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		error = cam_periph_error((union ccb *)&csio,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
 			printf("Aborting dump due to I/O error.\n");
-			if ((csio.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(&csio);
-			else
-				printf("status == 0x%x, scsi status == 0x%x\n",
-				       csio.ccb_h.status, csio.scsi_status);
-			return(EIO);
-		}
-		return(0);
+		cam_periph_unlock(periph);
+		return (error);
 	}
 		
 	/*
@@ -1174,7 +1170,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&csio,
-				       /*retries*/1,
+				       /*retries*/0,
 				       /*cbfcnp*/dadone,
 				       MSG_SIMPLE_Q_TAG,
 				       /*begin_lba*/0,/* Cover the whole disk */
@@ -1183,28 +1179,16 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				       5 * 60 * 1000);
 		xpt_polled_action((union ccb *)&csio);
 
-		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if ((csio.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR) {
-				int asc, ascq;
-				int sense_key, error_code;
-
-				scsi_extract_sense_len(&csio.sense_data,
-				    csio.sense_len - csio.sense_resid,
-				    &error_code, &sense_key, &asc, &ascq,
-				    /*show_errors*/ 1);
-				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
-					scsi_sense_print(&csio);
-			} else {
-				xpt_print(periph->path, "Synchronize cache "
-				    "failed, status == 0x%x, scsi status == "
-				    "0x%x\n", csio.ccb_h.status,
-				    csio.scsi_status);
-			}
-		}
+		error = cam_periph_error((union ccb *)&csio,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR, NULL);
+		if ((csio.ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(csio.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
+			xpt_print(periph->path, "Synchronize cache failed\n");
 	}
 	cam_periph_unlock(periph);
-	return (0);
+	return (error);
 }
 
 static int
@@ -1249,6 +1233,20 @@ dainit(void)
 	}
 }
 
+/*
+ * Callback from GEOM, called when it has finished cleaning up its
+ * resources.
+ */
+static void
+dadiskgonecb(struct disk *dp)
+{
+	struct cam_periph *periph;
+
+	periph = (struct cam_periph *)dp->d_drv1;
+
+	cam_periph_release(periph);
+}
+
 static void
 daoninvalidate(struct cam_periph *periph)
 {
@@ -1271,7 +1269,12 @@ daoninvalidate(struct cam_periph *periph)
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 	bioq_flush(&softc->delete_queue, NULL, ENXIO);
 
+	/*
+	 * Tell GEOM that we've gone away, we'll get a callback when it is
+	 * done cleaning up its resources.
+	 */
 	disk_gone(softc->disk);
+
 	xpt_print(periph->path, "lost device - %d outstanding, %d refs\n",
 		  softc->outstanding_cmds, periph->refcount);
 }
@@ -1554,8 +1557,6 @@ daregister(struct cam_periph *periph, void *arg)
 	bioq_init(&softc->delete_run_queue);
 	if (SID_IS_REMOVABLE(&cgd->inq_data))
 		softc->flags |= DA_FLAG_PACK_REMOVABLE;
-	if ((cgd->inq_data.flags & SID_CmdQue) != 0)
-		softc->flags |= DA_FLAG_TAGGED_QUEUING;
 	softc->unmap_max_ranges = UNMAP_MAX_RANGES;
 	softc->unmap_max_lba = 1024*1024*2;
 
@@ -1651,6 +1652,7 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_strategy = dastrategy;
 	softc->disk->d_dump = dadump;
 	softc->disk->d_getattr = dagetattr;
+	softc->disk->d_gone = dadiskgonecb;
 	softc->disk->d_name = "da";
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
@@ -1673,6 +1675,19 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_device = cpi.hba_device;
 	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
+
+	/*
+	 * Acquire a reference to the periph before we register with GEOM.
+	 * We'll release this reference once GEOM calls us back (via
+	 * dadiskgonecb()) telling us that our provider has been freed.
+	 */
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+		xpt_print(periph->path, "%s: lost periph during "
+			  "registration!\n", __func__);
+		mtx_lock(periph->sim->mtx);
+		return (CAM_REQ_CMP_ERR);
+	}
+
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
 
@@ -2272,7 +2287,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				return;
 			} else if (error != 0) {
-				struct scsi_sense_data *sense;
 				int asc, ascq;
 				int sense_key, error_code;
 				int have_sense;
@@ -2295,20 +2309,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 				xpt_action((union ccb *)&cgd);
 
-				if (((csio->ccb_h.flags & CAM_SENSE_PHYS) != 0)
-				 || ((csio->ccb_h.flags & CAM_SENSE_PTR) != 0)
-				 || ((status & CAM_AUTOSNS_VALID) == 0))
-					have_sense = FALSE;
-				else
+				if (scsi_extract_sense_ccb(done_ccb,
+				    &error_code, &sense_key, &asc, &ascq))
 					have_sense = TRUE;
+				else
+					have_sense = FALSE;
 
-				if (have_sense) {
-					sense = &csio->sense_data;
-					scsi_extract_sense_len(sense,
-					    csio->sense_len - csio->sense_resid,
-					    &error_code, &sense_key, &asc,
-					    &ascq, /*show_errors*/ 1);
-				}
 				/*
 				 * If we tried READ CAPACITY(16) and failed,
 				 * fallback to READ CAPACITY(10).
@@ -2446,7 +2452,7 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
 	struct da_softc	  *softc;
 	struct cam_periph *periph;
-	int error;
+	int error, error_code, sense_key, asc, ascq;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct da_softc *)periph->softc;
@@ -2458,16 +2464,8 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	error = 0;
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INVALID) {
 		error = cmd6workaround(ccb);
-	} else if (((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-		   CAM_SCSI_STATUS_ERROR)
-	 && (ccb->ccb_h.status & CAM_AUTOSNS_VALID)
-	 && (ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND)
-	 && ((ccb->ccb_h.flags & CAM_SENSE_PHYS) == 0)
-	 && ((ccb->ccb_h.flags & CAM_SENSE_PTR) == 0)) {
-		int sense_key, error_code, asc, ascq;
-
- 		scsi_extract_sense(&ccb->csio.sense_data,
-				   &error_code, &sense_key, &asc, &ascq);
+	} else if (scsi_extract_sense_ccb(ccb,
+	    &error_code, &sense_key, &asc, &ascq)) {
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
  			error = cmd6workaround(ccb);
 		/*
@@ -2646,6 +2644,8 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 	else
 		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
+
+	disk_resize(softc->disk);
 }
 
 static void
@@ -2678,6 +2678,7 @@ dashutdown(void * arg, int howto)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
+	int error;
 
 	TAILQ_FOREACH(periph, &dadriver.units, unit_links) {
 		union ccb ccb;
@@ -2699,7 +2700,7 @@ dashutdown(void * arg, int howto)
 
 		ccb.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&ccb.csio,
-				       /*retries*/1,
+				       /*retries*/0,
 				       /*cbfcnp*/dadone,
 				       MSG_SIMPLE_Q_TAG,
 				       /*begin_lba*/0, /* whole disk */
@@ -2709,32 +2710,13 @@ dashutdown(void * arg, int howto)
 
 		xpt_polled_action(&ccb);
 
-		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if (((ccb.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR)
-			 && (ccb.csio.scsi_status == SCSI_STATUS_CHECK_COND)){
-				int error_code, sense_key, asc, ascq;
-
-				scsi_extract_sense(&ccb.csio.sense_data,
-						   &error_code, &sense_key,
-						   &asc, &ascq);
-
-				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
-					scsi_sense_print(&ccb.csio);
-			} else {
-				xpt_print(periph->path, "Synchronize "
-				    "cache failed, status == 0x%x, scsi status "
-				    "== 0x%x\n", ccb.ccb_h.status,
-				    ccb.csio.scsi_status);
-			}
-		}
-
+		error = cam_periph_error(&ccb,
+		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR, NULL);
 		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
+			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
+			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		if (error != 0)
+			xpt_print(periph->path, "Synchronize cache failed\n");
 		cam_periph_unlock(periph);
 	}
 }

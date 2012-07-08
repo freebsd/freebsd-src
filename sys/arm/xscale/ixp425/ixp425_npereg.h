@@ -32,7 +32,7 @@
 /*-
  * Copyright (c) 2001-2005, Intel Corporation.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -44,8 +44,8 @@
  * 3. Neither the name of the Intel Corporation nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
- * 
+ *
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -93,7 +93,7 @@
     (((imageId) >> 0) & 0xff)
 
 /*
- * Instruction and Data Memory Size (in words) for each NPE 
+ * Instruction and Data Memory Size (in words) for each NPE
  */
 #define IX_NPEDL_INS_MEMSIZE_WORDS_NPEA     4096
 #define IX_NPEDL_INS_MEMSIZE_WORDS_NPEB     2048
@@ -135,7 +135,7 @@
 #define IX_NPEDL_MASK_STAT_IFNE              0x00080000	/* IFNE bit */
 
 /*
- * EXCTL (Execution Control) Register commands 
+ * EXCTL (Execution Control) Register commands
 */
 #define IX_NPEDL_EXCTL_CMD_NPE_STEP          0x01	/* Step 1 instruction */
 #define IX_NPEDL_EXCTL_CMD_NPE_START         0x02	/* Start execution */
@@ -164,7 +164,7 @@
 #define IX_NPEDL_EXCTL_STATUS_ECS_K          0x00800000	/* pipeline Klean */
 
 /*
- * Executing Context Stack (ECS) level registers 
+ * Executing Context Stack (ECS) level registers
  */
 #define IX_NPEDL_ECS_BG_CTXT_REG_0           0x00	/* reg 0 @ bg ctx */
 #define IX_NPEDL_ECS_BG_CTXT_REG_1           0x01	/* reg 1 @ bg ctx */
@@ -220,14 +220,14 @@
  * Bit-Offsets from LSB of particular bit-fields in Execution Access registers.
  */
 
-#define IX_NPEDL_OFFSET_ECS_REG_0_NEXTPC     16 
+#define IX_NPEDL_OFFSET_ECS_REG_0_NEXTPC     16
 #define IX_NPEDL_OFFSET_ECS_REG_0_LDUR        8
 
 #define IX_NPEDL_OFFSET_ECS_REG_1_CCTXT      16
 #define IX_NPEDL_OFFSET_ECS_REG_1_SELCTXT     0
 
 /*
- * NPE core & co-processor instruction templates to load into NPE Instruction 
+ * NPE core & co-processor instruction templates to load into NPE Instruction
  * Register, for read/write of NPE register file registers.
  */
 
@@ -268,7 +268,7 @@
  * Write a 16-bit NPE internal logical register.
  * NPE Assembler instruction:  "cprd32 d0    &&& DBG_RdInFIFO"
  */
-#define IX_NPEDL_INSTR_RD_FIFO        0x0F888220    
+#define IX_NPEDL_INSTR_RD_FIFO        0x0F888220
 
 /*
  * Reset Mailbox (MBST) register
@@ -292,7 +292,7 @@
  * Mask the bits of 16-bit data value (least-sig 5 bits) to be used in
  * SRC field of immediate-mode NPE instruction
  */
-#define IX_NPEDL_MASK_IMMED_INSTR_SRC_DATA         0x1F 
+#define IX_NPEDL_MASK_IMMED_INSTR_SRC_DATA         0x1F
 
 /**
  * Mask the bits of 16-bit data value (most-sig 11 bits) to be used in
