@@ -149,9 +149,14 @@ typedef enum {
 	HAL_CAP_TS		= 72,	/* 3 stream */
 
 	HAL_CAP_ENHANCED_DMA_SUPPORT	= 75,	/* DMA FIFO support */
+	HAL_CAP_NUM_TXMAPS	= 76,	/* Number of buffers in a transmit descriptor */
+	HAL_CAP_TXDESCLEN	= 77,	/* Length of transmit descriptor */
+	HAL_CAP_TXSTATUSLEN	= 78,	/* Length of transmit status descriptor */
+	HAL_CAP_RXSTATUSLEN	= 79,	/* Length of transmit status descriptor */
+	HAL_CAP_RXFIFODEPTH	= 80,	/* Receive hardware FIFO depth */
+	HAL_CAP_RXBUFSIZE	= 81,	/* Receive Buffer Length */
+	HAL_CAP_NUM_MR_RETRIES	= 82,	/* limit on multirate retries */
 
-	HAL_CAP_RXBUFSIZE	= 81,
-	HAL_CAP_NUM_MR_RETRIES	= 82,
 	HAL_CAP_OL_PWRCTRL	= 84,	/* Open loop TX power control */
 
 	HAL_CAP_BB_PANIC_WATCHDOG	= 92,
@@ -210,7 +215,7 @@ typedef enum {
 
 typedef enum {
 	HAL_RX_QUEUE_HP = 0,			/* high priority recv queue */
-	HAL_RX_QUEUE_LP = 0,			/* low priority recv queue */
+	HAL_RX_QUEUE_LP = 1,			/* low priority recv queue */
 } HAL_RX_QUEUE;
 
 #define	HAL_NUM_RX_QUEUES	2		/* max possible # of queues */
