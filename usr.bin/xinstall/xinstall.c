@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -670,11 +671,18 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (size <= 8 * 1048576 && trymmap(from_fd) &&
 	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
 		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
-		if ((nw = write(to_fd, p, size)) != size) {
+		nw = write(to_fd, p, size);
+		if (nw != size) {
 			serrno = errno;
 			(void)unlink(to_name);
-			errno = nw > 0 ? EIO : serrno;
-			err(EX_OSERR, "%s", to_name);
+			if (nw >= 0) {
+				errx(EX_OSERR,
+     "short write to %s: %jd bytes written, %jd bytes asked to write",
+				    to_name, (uintmax_t)nw, (uintmax_t)size);
+			} else {
+				errno = serrno;
+				err(EX_OSERR, "%s", to_name);
+			}
 		}
 		done_copy = 1;
 	}
@@ -683,8 +691,15 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 			if ((nw = write(to_fd, buf, nr)) != nr) {
 				serrno = errno;
 				(void)unlink(to_name);
-				errno = nw > 0 ? EIO : serrno;
-				err(EX_OSERR, "%s", to_name);
+				if (nw >= 0) {
+					errx(EX_OSERR,
+     "short write to %s: %jd bytes written, %jd bytes asked to write",
+					    to_name, (uintmax_t)nw,
+					    (uintmax_t)size);
+				} else {
+					errno = serrno;
+					err(EX_OSERR, "%s", to_name);
+				}
 			}
 		if (nr != 0) {
 			serrno = errno;
