@@ -1078,8 +1078,8 @@ struct ath_hal {
 				const struct ath_desc *ds, int *rates, int *tries);
 
 	/* Receive Functions */
-	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*);
-	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp);
+	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*, HAL_RX_QUEUE);
+	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp, HAL_RX_QUEUE);
 	void	  __ahdecl(*ah_enableReceive)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_stopDmaReceive)(struct ath_hal*);
 	void	  __ahdecl(*ah_startPcuReceive)(struct ath_hal*);
