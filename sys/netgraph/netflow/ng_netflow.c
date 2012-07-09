@@ -560,8 +560,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	struct ip6_hdr *ip6 = NULL;
 	struct m_tag *mtag;
 	int pullup_len = 0, off;
-	uint8_t upper_proto = 0, is_frag = 0;
-	int error = 0, bypass = 0, acct = 0;
+	uint8_t acct = 0, bypass = 0, is_frag = 0, upper_proto = 0;
+	int error = 0, l3_off = 0;
 	unsigned int src_if_index;
 	caddr_t upper_ptr = NULL;
 	fib_export_p fe;	
@@ -666,6 +666,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			M_CHECK(sizeof(struct ip));
 			eh = mtod(m, struct ether_header *);
 			ip = (struct ip *)(eh + 1);
+			l3_off = sizeof(struct ether_header);
 			break;
 #ifdef INET6
 		case ETHERTYPE_IPV6:
@@ -676,6 +677,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			M_CHECK(sizeof(struct ip6_hdr));
 			eh = mtod(m, struct ether_header *);
 			ip6 = (struct ip6_hdr *)(eh + 1);
+			l3_off = sizeof(struct ether_header);
 			break;
 #endif
 		case ETHERTYPE_VLAN:
@@ -686,6 +688,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			    sizeof(struct ether_header));
 			evh = mtod(m, struct ether_vlan_header *);
 			etype = ntohs(evh->evl_proto);
+			l3_off = sizeof(struct ether_vlan_header);
 
 			if (etype == ETHERTYPE_IP) {
 				M_CHECK(sizeof(struct ip));
@@ -707,12 +710,13 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	case DLT_RAW:		/* IP packets */
 		M_CHECK(sizeof(struct ip));
 		ip = mtod(m, struct ip *);
+		/* l3_off is already zero */
 #ifdef INET6
 		/* If INET6 is not defined IPv6 packets will be discarded in ng_netflow_flow_add() */
 		if (ip->ip_v == IP6VERSION) {
 			/* IPv6 packet */
 			ip = NULL;
-			M_CHECK(sizeof(struct ip6_hdr));
+			M_CHECK(sizeof(struct ip6_hdr) - sizeof(struct ip));
 			ip6 = mtod(m, struct ip6_hdr *);
 		}
 #endif
@@ -824,7 +828,10 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			case IPPROTO_NONE:
 				goto loopend;
 #endif
-			/* Any unknow header (new extension or IPv6/IPv4 header for tunnels) */
+			/*
+			 * Any unknow header (new extension or IPv6/IPv4
+			 * header for tunnels) ends loop.
+			 */
 			default:
 				goto loopend;
 			}
@@ -842,56 +849,11 @@ loopend:
 	/* Just in case of real reallocation in M_CHECK() / m_pullup() */
 	if (m != m_old) {
 		atomic_fetchadd_32(&priv->info.nfinfo_realloc_mbuf, 1);
-		ip = NULL;
-		ip6 = NULL;
-		switch (iface->info.ifinfo_dlt) {
-		case DLT_EN10MB:	/* Ethernet */
-		    {
-			struct ether_header *eh;
-	
-			eh = mtod(m, struct ether_header *);
-			switch (ntohs(eh->ether_type)) {
-			case ETHERTYPE_IP:
-				ip = (struct ip *)(eh + 1);
-				break;
-#ifdef INET6
-			case ETHERTYPE_IPV6:
-				ip6 = (struct ip6_hdr *)(eh + 1);
-				break;
-#endif
-			case ETHERTYPE_VLAN:
-			    {
-				struct ether_vlan_header *evh;
-	
-				evh = mtod(m, struct ether_vlan_header *);
-				if (ntohs(evh->evl_proto) == ETHERTYPE_IP) {
-					ip = (struct ip *)(evh + 1);
-					break;
-#ifdef INET6
-				} else if (ntohs(evh->evl_proto) == ETHERTYPE_IPV6) {
-					ip6 = (struct ip6_hdr *)(evh + 1);
-					break;
-#endif					
-				}
-			    }
-			default:
-				panic("ng_netflow entered deadcode");
-			}
-			break;
-		    }
-		case DLT_RAW:		/* IP packets */
-			ip = mtod(m, struct ip *);
-#ifdef INET6			
-			if (ip->ip_v == IP6VERSION) {
-				/* IPv6 packet */
-				ip = NULL;
-				ip6 = mtod(m, struct ip6_hdr *);
-			}
-#endif			
- 			break;
- 		default:
- 			panic("ng_netflow entered deadcode");
- 		}
+		/* Restore ip/ipv6 pointer */
+		if (ip != NULL)
+			ip = (struct ip *)(mtod(m, caddr_t) + l3_off);
+		else if (ip6 != NULL)
+			ip6 = (struct ip6_hdr *)(mtod(m, caddr_t) + l3_off);
  	}
 
 	upper_ptr = (caddr_t)(mtod(m, caddr_t) + off);
