@@ -73,10 +73,6 @@ __FBSDID("$FreeBSD$");
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	ldmxcsr(csr)		__asm __volatile("ldmxcsr %0" : : "m" (csr))
-#define	start_emulating()	__asm __volatile( \
-				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				    : : "n" (CR0_TS) : "ax")
-#define	stop_emulating()	__asm __volatile("clts")
 
 static __inline void
 xrstor(char *addr, uint64_t mask)
@@ -109,12 +105,13 @@ void	fnstsw(caddr_t addr);
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
 void	ldmxcsr(u_int csr);
-void	start_emulating(void);
-void	stop_emulating(void);
 void	xrstor(char *addr, uint64_t mask);
 void	xsave(char *addr, uint64_t mask);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
+
+#define	start_emulating()	load_cr0(rcr0() | CR0_TS)
+#define	stop_emulating()	clts()
 
 #define GET_FPU_CW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_cw)
 #define GET_FPU_SW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_sw)
