@@ -43,6 +43,10 @@ extern	void ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	    (_sc)->sc_rx.recv_flush((_sc))
 #define	ath_rxbuf_init(_sc, _bf)		\
 	    (_sc)->sc_rx.recv_rxbuf_init((_sc), (_bf))
+#define	ath_rxdma_setup(_sc)			\
+	    (_sc)->sc_rx.recv_setup(_sc)
+#define	ath_rxdma_teardown(_sc)			\
+	    (_sc)->sc_rx.recv_teardown(_sc)
 
 #if 0
 extern	int ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf);
