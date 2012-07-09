@@ -5520,6 +5520,7 @@ do_a_abort:
 		case AF_INET6:
 			{
 				stc.addr_type = SCTP_IPV6_ADDRESS;
+				memcpy(&stc.address, &src6->sin6_addr, sizeof(struct in6_addr));
 				stc.scope_id = in6_getscope(&src6->sin6_addr);
 				if (sctp_is_address_on_local_host(src, vrf_id)) {
 					stc.loopback_scope = 1;
