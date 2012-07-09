@@ -10,39 +10,40 @@ makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm hptmv ida malo mps mwl nve sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
-options 	PREEMPTION		# Enable kernel thread preemption
+nooptions 	PREEMPTION		# Enable kernel thread preemption
 #options 	SCHED_4BSD		 
 
 options 	INET			# InterNETworking
-options 	INET6			# IPv6 communications protocols
-options 	SCTP			# Stream Control Transmission Protocol
+#options 	INET6			# IPv6 communications protocols
+#options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
-options 	SOFTUPDATES		# Enable FFS soft updates support
-options 	UFS_ACL			# Support for access control lists
-options 	UFS_DIRHASH		# Improve performance on big directories
-options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
-options 	NFSCL			# New Network Filesystem Client
-options 	NFSD			# New Network Filesystem Server
-options 	NFSLOCKD		# Network Lock Manager
-options 	NFS_ROOT		# NFS usable as /, requires NFSCL
-options 	MSDOSFS			# MSDOS Filesystem
-options 	CD9660			# ISO 9660 Filesystem
+nooptions 	SOFTUPDATES		# Enable FFS soft updates support
+nooptions 	UFS_ACL			# Support for access control lists
+nooptions 	UFS_DIRHASH		# Improve performance on big directories
+nooptions 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+nooptions 	NFSCL			# New Network Filesystem Client
+nooptions 	NFSD			# New Network Filesystem Server
+nooptions 	NFSLOCKD		# Network Lock Manager
+nooptions 	NFS_ROOT		# NFS usable as /, requires NFSCL
+nooptions 	MSDOSFS			# MSDOS Filesystem
+nooptions 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	GEOM_PART_GPT		# GUID Partition Tables.
-options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
-options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
-options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
-options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
-options 	KTRACE			# ktrace(1) support
+nooptions 	GEOM_PART_GPT		# GUID Partition Tables.
+nooptions 	GEOM_LABEL		# Provides labelization
+nooptions 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+nooptions 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
+nooptions 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
+nooptions 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
+nooptions 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
-options 	SYSVSHM			# SYSV-style shared memory
-options 	SYSVMSG			# SYSV-style message queues
-options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	AUDIT			# Security event auditing
+nooptions 	SYSVSHM			# SYSV-style shared memory
+nooptions 	SYSVMSG			# SYSV-style message queues
+nooptions 	SYSVSEM			# SYSV-style semaphores
+nooptions 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+nooptions 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+nooptions 	AUDIT			# Security event auditing
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
@@ -54,34 +55,43 @@ options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 nooptions 	WITNESS			# Enable checks to detect deadlocks and cycles
 nooptions 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+options 	VERBOSE_SYSINIT
 
-nooption	NATIVE
+nooptions	NATIVE
 option		XEN
 nodevice	atpic
 nodevice	isa
+nodevice uart_ns8250
+nodevice mem
+nodevice io
+nooptions GEOM_PART_BSD
+nooptions GEOM_PART_EBR
+nooptions GEOM_PART_EBR_COMPAT
+nooptions GEOM_PART_MBR
+nooptions NEW_PCIB
 options 	MCLSHIFT=12
 
 # To make an SMP kernel, the next line is needed
 nooptions 	SMP			# Symmetric MultiProcessor Kernel
 
-#device		atkbdc		# AT keyboard controller
-#device		atkbd		# AT keyboard
-device		psm		# PS/2 mouse
+nodevice		atkbdc		# AT keyboard controller
+nodevice		atkbd		# AT keyboard
+nodevice		psm		# PS/2 mouse
 device		pci
 
 #device		kbdmux		# keyboard multiplexer
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		random		# Entropy device
+#device		random		# Entropy device
 device		ether		# Ethernet support
-device		tun		# Packet tunnel.
-device		pty		# Pseudo-ttys (telnet etc)
-device		md		# Memory "disks"
-device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying (translation)
+#device		tun		# Packet tunnel.
+#device		pty		# Pseudo-ttys (telnet etc)
+#device		md		# Memory "disks"
+#device		gif		# IPv6 and IPv4 tunneling
+#device		faith		# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
-device		bpf		# Berkeley packet filter
+#device		bpf		# Berkeley packet filter
