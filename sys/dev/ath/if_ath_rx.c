@@ -1053,6 +1053,31 @@ ath_legacy_startrecv(struct ath_softc *sc)
 	return 0;
 }
 
+static int
+ath_legacy_dma_rxsetup(struct ath_softc *sc)
+{
+	int error;
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
+
+	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
+	    "rx", ath_rxbuf, 1);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+static int
+ath_legacy_dma_rxteardown(struct ath_softc *sc)
+{
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	
+	if (sc->sc_rxdma.dd_desc_len != 0)
+		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+	return (0);
+}
 
 void
 ath_recv_setup_legacy(struct ath_softc *sc)
@@ -1065,4 +1090,7 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 	sc->sc_rx.recv_flush = ath_legacy_flushrecv;
 	sc->sc_rx.recv_tasklet = ath_legacy_rx_tasklet;
 	sc->sc_rx.recv_rxbuf_init = ath_legacy_rxbuf_init;
+
+	sc->sc_rx.recv_setup = ath_legacy_dma_rxsetup;
+	sc->sc_rx.recv_teardown = ath_legacy_dma_rxteardown;
 }

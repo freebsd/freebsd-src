@@ -379,6 +379,20 @@ struct ath_rx_methods {
 	void		(*recv_tasklet)(void *arg, int npending);
 	int		(*recv_rxbuf_init)(struct ath_softc *sc,
 			    struct ath_buf *bf);
+	int		(*recv_setup)(struct ath_softc *sc);
+	int		(*recv_teardown)(struct ath_softc *sc);
+};
+
+/*
+ * Represent the current state of the RX FIFO.
+ */
+struct ath_rx_edma {
+	struct ath_buf	**m_fifo;
+	int		m_fifolen;
+	int		m_fifo_head;
+	int		m_fifo_tail;
+	int		m_fifo_depth;
+	struct mbuf	*m_rxpending;
 };
 
 struct ath_softc {
@@ -395,6 +409,12 @@ struct ath_softc {
 	uint32_t		sc_bssidmask;	/* bssid mask */
 
 	struct ath_rx_methods	sc_rx;
+	struct ath_rx_edma	sc_rxedma[2];	/* HP/LP queues */
+	int			sc_rx_statuslen;
+	int			sc_tx_desclen;
+	int			sc_tx_statuslen;
+	int			sc_tx_nmaps;	/* Number of TX maps */
+	int			sc_edma_bufsize;
 
 	void 			(*sc_node_cleanup)(struct ieee80211_node *);
 	void 			(*sc_node_free)(struct ieee80211_node *);
@@ -439,7 +459,8 @@ struct ath_softc {
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
 				sc_resetcal : 1,/* reset cal state next trip */
 				sc_rxslink  : 1,/* do self-linked final descriptor */
-				sc_rxtsf32  : 1;/* RX dec TSF is 32 bits */
+				sc_rxtsf32  : 1,/* RX dec TSF is 32 bits */
+				sc_isedma   : 1;/* supports EDMA */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
