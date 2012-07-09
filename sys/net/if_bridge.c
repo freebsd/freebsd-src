@@ -1812,7 +1812,7 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 		}
 
 		if (err == 0)
-			dst_ifp->if_transmit(dst_ifp, m);
+			err = dst_ifp->if_transmit(dst_ifp, m);
 	}
 
 	if (err == 0) {
