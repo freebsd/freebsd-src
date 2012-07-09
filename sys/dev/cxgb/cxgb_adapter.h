@@ -81,15 +81,6 @@ extern int cxgb_debug;
 #define MTX_DESTROY mtx_destroy
 #endif
 
-#ifndef IFCAP_HWCSUM_IPV6
-#define IFCAP_HWCSUM_IPV6 0
-#define CSUM_TCP_IPV6 0
-#define CSUM_UDP_IPV6 0
-#define IFCAP_TXCSUM_IPV6 0
-#define IFCAP_RXCSUM_IPV6 0
-#define CSUM_DATA_VALID_IPV6 0
-#endif
-
 enum {
 	LF_NO = 0,
 	LF_MAYBE,
