@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/md_var.h>
 #include <sys/rman.h>
 
 MALLOC_DECLARE(M_AGP);
@@ -1438,7 +1439,7 @@ agp_i810_attach(device_t dev)
 	if (error)
 		return (error);
 
-	if (ptoa((vm_paddr_t)realmem) >
+	if (ptoa((vm_paddr_t)Maxmem) >
 	    (1ULL << sc->match->driver->busdma_addr_mask_sz) - 1) {
 		device_printf(dev, "agp_i810 does not support physical "
 		    "memory above %ju.\n", (uintmax_t)(1ULL <<
