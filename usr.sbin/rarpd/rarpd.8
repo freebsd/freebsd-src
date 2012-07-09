@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2001
+.Dd July 9, 2012
 .Dt RARPD 8
 .Os
 .Sh NAME
@@ -27,9 +27,11 @@
 .Fl a
 .Op Fl dfsv
 .Op Fl t Ar directory
+.Op Fl P Ar pidfile
 .Nm
 .Op Fl dfsv
 .Op Fl t Ar directory
+.Op Fl P Ar pidfile
 .Ar interface
 .Sh DESCRIPTION
 The
@@ -92,6 +94,15 @@ instead of via
 .Xr syslog 3 .
 .It Fl f
 Run in the foreground.
+.It Fl P
+Specify the pathname of the PID file.
+If not specified, 
+.Pa /var/run/rarpd.pid
+or
+.Pa /var/run/rarpd.ifname.pid
+will be used depending on the
+.Fl a
+flag or the specified interface name.
 .It Fl s
 Supply a response to any RARP request for which an ethernet to IP address
 mapping exists; do not depend on the existence of
@@ -115,6 +126,7 @@ Enable verbose syslogging.
 .It Pa /etc/ethers
 .It Pa /etc/hosts
 .It Pa /tftpboot
+.It Pa /var/run/rarpd.pid
 .El
 .Sh SEE ALSO
 .Xr bpf 4
