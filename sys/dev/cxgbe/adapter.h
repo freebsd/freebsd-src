@@ -57,15 +57,6 @@ MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
 
-#ifndef IFCAP_HWCSUM_IPV6
-#define IFCAP_HWCSUM_IPV6 0
-#define CSUM_TCP_IPV6 0
-#define CSUM_UDP_IPV6 0
-#define IFCAP_TXCSUM_IPV6 0
-#define IFCAP_RXCSUM_IPV6 0
-#define CSUM_DATA_VALID_IPV6 0
-#endif
-
 #if defined(__i386__) || defined(__amd64__)
 static __inline void
 prefetch(void *x)
