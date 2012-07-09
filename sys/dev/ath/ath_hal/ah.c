@@ -619,6 +619,33 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->hal4AddrAggrSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_EXT_CHAN_DFS:
 		return pCap->halExtChanDfsSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_NUM_TXMAPS:
+		*result = pCap->halNumTxMaps;
+		return HAL_OK;
+	case HAL_CAP_TXDESCLEN:
+		*result = pCap->halTxDescLen;
+		return HAL_OK;
+	case HAL_CAP_TXSTATUSLEN:
+		*result = pCap->halTxStatusLen;
+		return HAL_OK;
+	case HAL_CAP_RXSTATUSLEN:
+		*result = pCap->halRxStatusLen;
+		return HAL_OK;
+	case HAL_CAP_RXFIFODEPTH:
+		switch (capability) {
+		case HAL_RX_QUEUE_HP:
+			*result = pCap->halRxHpFifoDepth;
+			return HAL_OK;
+		case HAL_RX_QUEUE_LP:
+			*result = pCap->halRxLpFifoDepth;
+			return HAL_OK;
+		default:
+			return HAL_ENOTSUPP;
+	}
+	case HAL_CAP_RXBUFSIZE:
+	case HAL_CAP_NUM_MR_RETRIES:
+		return HAL_EINVAL;      /* XXX not yet */
+
 	case HAL_CAP_COMBINED_RADAR_RSSI:
 		return pCap->halUseCombinedRadarRssi ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_AUTO_SLEEP:
@@ -667,6 +694,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
 		return pCap->halSerialiseRegWar ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_ENHANCED_DMA_SUPPORT:
+		return pCap->halEnhancedDmaSupport ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}

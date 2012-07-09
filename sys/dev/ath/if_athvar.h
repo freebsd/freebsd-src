@@ -953,11 +953,34 @@ void	ath_intr(void *);
 #define	ath_hal_setintmit(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, \
 	HAL_CAP_INTMIT_ENABLE, _v, NULL)
+
+/* EDMA definitions */
 #define	ath_hal_hasedma(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_ENHANCED_DMA_SUPPORT,	\
 	0, NULL) == HAL_OK)
+#define	ath_hal_getrxfifodepth(_ah, _qtype, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RXFIFODEPTH, _qtype, _req)	\
+	== HAL_OK)
+#define	ath_hal_getntxmaps(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_NUM_TXMAPS, 0, _req)	\
+	== HAL_OK)
+#define	ath_hal_gettxdesclen(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TXDESCLEN, 0, _req)		\
+	== HAL_OK)
+#define	ath_hal_gettxstatuslen(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TXSTATUSLEN, 0, _req)	\
+	== HAL_OK)
+#define	ath_hal_getrxstatuslen(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RXSTATUSLEN, 0, _req)	\
+	== HAL_OK)
+#define	ath_hal_setrxbufsize(_ah, _req) \
+	(ath_hal_setcapability(_ah, HAL_CAP_RXBUFSIZE, 0, _req, NULL)	\
+	== HAL_OK)
+
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
+
+/* 802.11n HAL methods */
 #define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
 	(ath_hal_getcapability(_ah, HAL_CAP_RX_CHAINMASK, 0, _prxchainmask))
 #define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
