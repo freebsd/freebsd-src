@@ -53,6 +53,7 @@ struct ioc4_child {
 	struct resource *ch_mres;
 	u_int		ch_type;
 	u_int		ch_unit;
+	u_int		ch_imask;
 };
 
 struct ioc4_softc {
@@ -66,8 +67,6 @@ struct ioc4_softc {
 	void		*sc_icookie;
 
 	struct rman	sc_rm;
-
-	u_int		sc_fastintr:1;
 };
 
 static int ioc4_probe(device_t dev);
@@ -107,19 +106,27 @@ static driver_t ioc4_driver = {
 	sizeof(struct ioc4_softc),
 };
 
-#if 0
 static int
+ioc4_filt(void *arg)
+{
+	struct ioc4_softc *sc = arg;
+	uint32_t mask;
+
+	mask = bus_read_4(sc->sc_mres, IOC4_CTL_MISC_INT);
+	bus_write_4(sc->sc_mres, IOC4_CTL_MISC_INT, mask & ~0x03);
+	return ((mask & 0x03) ? FILTER_SCHEDULE_THREAD: FILTER_STRAY);
+}
+
+static void
 ioc4_intr(void *arg)
 {
 	struct ioc4_softc *sc = arg;
 
-	device_printf(sc->sc_dev, "%s\n", __func__);
-	return (FILTER_HANDLED);
+	bus_write_4(sc->sc_mres, IOC4_CTL_MISC_INT, 0x03);
 }
-#endif
 
 static int
-ioc4_child_add(struct ioc4_softc *sc, u_int type, u_int unit)
+ioc4_child_add(struct ioc4_softc *sc, u_int type, u_int unit, u_int imask)
 {
 	struct ioc4_child *ch;
 	bus_space_handle_t bsh;
@@ -148,6 +155,7 @@ ioc4_child_add(struct ioc4_softc *sc, u_int type, u_int unit)
 		len = IOC4_UART_REG_SIZE;
 		break;
 	case IOC4_TYPE_ATA:
+		bus_write_4(sc->sc_mres, IOC4_CTL_MISC_INT_SET, imask);
 		ofs = IOC4_ATA_BASE;
 		len = IOC4_ATA_SIZE;
 		break;
@@ -164,6 +172,7 @@ ioc4_child_add(struct ioc4_softc *sc, u_int type, u_int unit)
 		goto fail_delete;
 
 	ch->ch_ires = sc->sc_ires;
+	ch->ch_imask = imask;
 
 	bsh = rman_get_bushandle(sc->sc_mres);
 	bst = rman_get_bustag(sc->sc_mres);
@@ -228,19 +237,10 @@ ioc4_attach(device_t dev)
 	if (sc->sc_ires == NULL)
 		goto fail_rel_mres;
 
-#if 0
-	error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_TTY, ioc4_intr,
-	    NULL, sc, &sc->sc_icookie);
-	if (error)
-		error = bus_setup_intr(dev, sc->sc_ires,
-		    INTR_TYPE_TTY | INTR_MPSAFE, NULL,
-		    (driver_intr_t *)ioc4_intr, sc, &sc->sc_icookie);
-	else
-		sc->sc_fastintr = 1;
-
+	error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_MISC | INTR_MPSAFE,
+	    ioc4_filt, ioc4_intr, sc, &sc->sc_icookie);
 	if (error)
 		goto fail_rel_ires;
-#endif
 
 	sc->sc_rm.rm_type = RMAN_ARRAY;
 	error = rman_init(&sc->sc_rm);
@@ -273,16 +273,14 @@ ioc4_attach(device_t dev)
 	for (n = 0; n < 4; n++)
 		ioc4_child_add(sc, IOC4_TYPE_UART, n);
 #endif
-	ioc4_child_add(sc, IOC4_TYPE_ATA, 0);
+	ioc4_child_add(sc, IOC4_TYPE_ATA, 0, 0x03);
 
 	return (0);
 
  fail_teardown:
 	bus_teardown_intr(sc->sc_dev, sc->sc_ires, sc->sc_icookie);
 
-#if 0
  fail_rel_ires:
-#endif
 	bus_release_resource(sc->sc_dev, SYS_RES_IRQ, sc->sc_irid, sc->sc_ires);
 
  fail_rel_mres:
