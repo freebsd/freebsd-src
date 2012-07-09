@@ -48,6 +48,10 @@
 	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
+extern int ath_rxbuf;
+extern int ath_txbuf;
+extern int ath_txbuf_mgmt;
+
 extern int ath_tx_findrix(const struct ath_softc *sc, uint8_t rate);
 
 extern struct ath_buf * ath_getbuf(struct ath_softc *sc,
@@ -79,6 +83,11 @@ extern void ath_mode_init(struct ath_softc *sc);
 extern void ath_setdefantenna(struct ath_softc *sc, u_int antenna);
 
 extern void ath_setslottime(struct ath_softc *sc);
+
+extern	int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
+	    ath_bufhead *head, const char *name, int nbuf, int ndesc);
+extern	void ath_descdma_cleanup(struct ath_softc *sc,
+	    struct ath_descdma *dd, ath_bufhead *head);
 
 /*
  * This is only here so that the RX proc function can call it.
