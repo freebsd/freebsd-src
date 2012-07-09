@@ -745,8 +745,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setMulticastFilter)((_ah), (_mfilt0), (_mfilt1)))
 #define	ath_hal_waitforbeacon(_ah, _bf) \
 	((*(_ah)->ah_waitForBeaconDone)((_ah), (_bf)->bf_daddr))
-#define	ath_hal_putrxbuf(_ah, _bufaddr) \
-	((*(_ah)->ah_setRxDP)((_ah), (_bufaddr)))
+#define	ath_hal_putrxbuf(_ah, _bufaddr, _rxq) \
+	((*(_ah)->ah_setRxDP)((_ah), (_bufaddr), (_rxq)))
 /* NB: common across all chips */
 #define	AR_TSF_L32	0x804c	/* MAC local clock lower 32 bits */
 #define	ath_hal_gettsf32(_ah) \
@@ -763,8 +763,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getTxDP)((_ah), (_q)))
 #define	ath_hal_numtxpending(_ah, _q) \
 	((*(_ah)->ah_numTxPending)((_ah), (_q)))
-#define	ath_hal_getrxbuf(_ah) \
-	((*(_ah)->ah_getRxDP)((_ah)))
+#define	ath_hal_getrxbuf(_ah, _rxq) \
+	((*(_ah)->ah_getRxDP)((_ah), (_rxq)))
 #define	ath_hal_txstart(_ah, _q) \
 	((*(_ah)->ah_startTxDma)((_ah), (_q)))
 #define	ath_hal_setchannel(_ah, _chan) \

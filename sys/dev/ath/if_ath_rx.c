@@ -916,7 +916,7 @@ rx_proc_next:
 		 * Are there any net80211 buffer calls involved?
 		 */
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
-		ath_hal_putrxbuf(ah, bf->bf_daddr);
+		ath_hal_putrxbuf(ah, bf->bf_daddr, HAL_RX_QUEUE_HP);
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
@@ -1002,7 +1002,7 @@ ath_legacy_stoprecv(struct ath_softc *sc, int dodelay)
 		device_printf(sc->sc_dev,
 		    "%s: rx queue %p, link %p\n",
 		    __func__,
-		    (caddr_t)(uintptr_t) ath_hal_getrxbuf(ah),
+		    (caddr_t)(uintptr_t) ath_hal_getrxbuf(ah, HAL_RX_QUEUE_HP),
 		    sc->sc_rxlink);
 		ix = 0;
 		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
@@ -1046,7 +1046,7 @@ ath_legacy_startrecv(struct ath_softc *sc)
 	}
 
 	bf = TAILQ_FIRST(&sc->sc_rxbuf);
-	ath_hal_putrxbuf(ah, bf->bf_daddr);
+	ath_hal_putrxbuf(ah, bf->bf_daddr, HAL_RX_QUEUE_HP);
 	ath_hal_rxena(ah);		/* enable recv descriptors */
 	ath_mode_init(sc);		/* set filters, etc. */
 	ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
