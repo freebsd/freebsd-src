@@ -59,11 +59,6 @@ static device_method_t ata_ioc4_methods[] = {
 	DEVMETHOD(device_probe,		ata_ioc4_probe),
 	DEVMETHOD(device_attach,	ata_ioc4_attach),
 	DEVMETHOD(device_detach,	ata_ioc4_detach),
-
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD_END
 };
 
@@ -114,9 +109,11 @@ ata_ioc4_attach(device_t dev)
 	}
 	ch->r_io[ATA_CONTROL].res = mres;
 	ch->r_io[ATA_CONTROL].offset = 32;
+	ch->r_io[ATA_IDX_ADDR].res = mres;
 	ata_default_registers(dev);
 
 	ch->unit = 0;
+	ch->flags |= ATA_USE_16BIT | ATA_NO_ATAPI_DMA;
 	ata_generic_hw(dev);
 	return (ata_attach(dev));
 }
