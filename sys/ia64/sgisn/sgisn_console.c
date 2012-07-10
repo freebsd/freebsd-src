@@ -48,7 +48,6 @@ struct sncon_softc {
 	struct tty	*sc_tp;
 	struct resource *sc_ires;
 	void		*sc_icookie;
-	void		*sc_softih;
 	int		sc_irid;
 	int		sc_altbrk;
 };
@@ -104,7 +103,7 @@ sncon_cnprobe(struct consdev *cp)
 	if (r.sal_status != 0)
 		return;
 
-	strcpy(cp->cn_name, "sncon0");
+	strcpy(cp->cn_name, "ttys0");
 	cp->cn_pri = CN_INTERNAL;
 }
 
@@ -168,19 +167,13 @@ sncon_tty_free(void *arg)
 static void
 sncon_tty_inwakeup(struct tty *tp)
 {
-	struct sncon_softc *sc;
-
-	sc = tty_softc(tp);
-	/*
-	 * Re-start reception.
-	 */
 }
 
 static int
 sncon_tty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
 
-	return (ENOTTY);
+	return (ENOIOCTL);
 }
 
 static int
@@ -200,12 +193,17 @@ sncon_tty_open(struct tty *tp)
 static void
 sncon_tty_outwakeup(struct tty *tp)
 {
-	struct sncon_softc *sc;
+	char buf[80];
+	struct ia64_sal_result r;
+	size_t len;
 
-	sc = tty_softc(tp);
-	/*
-	 * Re-start transmission.
-	 */
+	while (1) {
+		len = ttydisc_getc(tp, buf, sizeof(buf));
+		if (len == 0)
+			break;
+		r = ia64_sal_entry(SAL_SGISN_TXBUF, (uintptr_t)buf, len,
+		    0, 0, 0, 0, 0);
+	}
 }
 
 static int
@@ -247,13 +245,16 @@ static void
 sncon_rx_intr(void *arg)
 {
 	struct sncon_softc *sc = arg;
+	struct tty *tp = sc->sc_tp;
 	struct ia64_sal_result r;
-	struct tty *tp;
 	int ch, count;
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+	int kdb;
+#endif
+
+	tty_lock(tp);
 
 	count = 0;
-	tp = sc->sc_tp;
-	tty_lock(tp);
 	do {
 		r = ia64_sal_entry(SAL_SGISN_POLL, 0, 0, 0, 0, 0, 0, 0);
 		if (r.sal_status || r.sal_result[0] == 0)
@@ -266,24 +267,21 @@ sncon_rx_intr(void *arg)
 		ch = r.sal_result[0];
 
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
-		do {
-			int kdb;
-			kdb = kdb_alt_break(ch, &sc->sc_altbrk);
-			if (kdb != 0) {
-				switch (kdb) {
-				case KDB_REQ_DEBUGGER:
-					kdb_enter(KDB_WHY_BREAK,
-					    "Break sequence on console");
-					break;
-				case KDB_REQ_PANIC:
-					kdb_panic("Panic sequence on console");
-					break;
-				case KDB_REQ_REBOOT:
-					kdb_reboot();
-					break;
-				}
+		kdb = kdb_alt_break(ch, &sc->sc_altbrk);
+		if (kdb != 0) {
+			switch (kdb) {
+			case KDB_REQ_DEBUGGER:
+				kdb_enter(KDB_WHY_BREAK,
+				    "Break sequence on console");
+				break;
+			case KDB_REQ_PANIC:
+				kdb_panic("Panic sequence on console");
+				break;
+			case KDB_REQ_REBOOT:
+				kdb_reboot();
+				break;
 			}
-		} while (0);
+		}
 #endif
 
 		ttydisc_rint(tp, ch, 0);
@@ -292,11 +290,6 @@ sncon_rx_intr(void *arg)
 	if (count > 0)
 		ttydisc_rint_done(tp);
 	tty_unlock(tp);
-}
-
-static void
-sncon_tx_intr(void *arg)
-{
 }
 
 static int
@@ -331,9 +324,6 @@ sncon_attach(device_t dev)
 	r = ia64_sal_entry(SAL_SGISN_CON_INTR, 2,
 	    (sc->sc_ires != NULL) ? 1 : 0, 0, 0, 0, 0, 0);
 
-	swi_add(&tty_intr_event, sncon_name, sncon_tx_intr, sc, SWI_TTY,
-	    INTR_TYPE_TTY, &sc->sc_softih);
-
 	sc->sc_tp = tty_alloc(&sncon_tty_class, sc);
 	if (sncon_is_console)
 		tty_init_console(sc->sc_tp, 0);
@@ -352,7 +342,6 @@ sncon_detach(device_t dev)
 	tp = sc->sc_tp;
 
 	tty_lock(tp);
-	swi_remove(sc->sc_softih);
 	tty_rel_gone(tp);
 
 	if (sc->sc_ires != NULL) {
