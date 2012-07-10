@@ -50,7 +50,6 @@ struct at91sam9_softc {
 	bus_space_handle_t sc_sh;
 	bus_space_handle_t sc_sys_sh;
 	bus_space_handle_t sc_aic_sh;
-	bus_space_handle_t sc_dbg_sh;
 	bus_space_handle_t sc_matrix_sh;
 };
 
@@ -205,10 +204,6 @@ at91_attach(device_t dev)
 	    AT91SAM9G20_SYS_SIZE, &sc->sc_sys_sh) != 0)
 		panic("Enable to map system registers");
 
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9G20_DBGU_BASE,
-	    AT91SAM9G20_DBGU_SIZE, &sc->sc_dbg_sh) != 0)
-		panic("Enable to map DBGU registers");
-
 	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9G20_AIC_BASE,
 	    AT91SAM9G20_AIC_SIZE, &sc->sc_aic_sh) != 0)
 		panic("Enable to map system registers");
@@ -233,9 +228,6 @@ at91_attach(device_t dev)
 	/* Disable and clear all interrupts. */
 	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
 	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
-
-	/* Disable all interrupts for DBGU */
-	bus_space_write_4(sc->sc_st, sc->sc_dbg_sh, 0x0c, 0xffffffff);
 
 	if (bus_space_subregion(sc->sc_st, sc->sc_sh,
 	    AT91SAM9G20_MATRIX_BASE, AT91SAM9G20_MATRIX_SIZE,
