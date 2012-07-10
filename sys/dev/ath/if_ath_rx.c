@@ -115,9 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
-#define	ATH_KTR_INTR	KTR_SPARE4
-#define	ATH_KTR_ERR	KTR_SPARE3
-
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
