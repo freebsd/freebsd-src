@@ -7,9 +7,9 @@ makeoptions	DEBUG=-g
 makeoptions	MODULES_OVERRIDE=""
 
 device		ata
-device		atadisk
 device		bge
 device		bpf
+device		cd
 device		da
 device		ether
 device		firmware
@@ -28,6 +28,7 @@ device		uart
 device		vlan
 
 options 	ALT_BREAK_TO_DEBUGGER
+options 	ATA_CAM
 options 	CD9660
 options 	DDB
 options 	DEADLKRES
@@ -62,8 +63,3 @@ options 	UFS_DIRHASH
 options 	WITNESS
 options 	WITNESS_SKIPSPIN
 options 	_KPOSIX_PRIORITY_SCHEDULING
-
-#options 	KTR
-#options 	KTR_COMPILE=KTR_INTR
-#options 	KTR_MASK=KTR_INTR
-#options 	KTR_VERBOSE
