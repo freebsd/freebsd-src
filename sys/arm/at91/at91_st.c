@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_streg.h>
 
-static struct at91st_softc {
+static struct at91_st_softc {
 	struct resource *	sc_irq_res;
 	struct resource	*	sc_mem_res;
 	void *			sc_intrhand;
@@ -67,8 +67,8 @@ WR4(bus_size_t off, uint32_t val)
 	bus_write_4(timer_softc->sc_mem_res, off, val);
 }
 
-static void at91st_watchdog(void *, u_int, int *);
-static void at91st_initclocks(device_t , struct at91st_softc *);
+static void at91_st_watchdog(void *, u_int, int *);
+static void at91_st_initclocks(device_t , struct at91_st_softc *);
 
 static inline int
 st_crtr(void)
@@ -81,10 +81,10 @@ st_crtr(void)
 	return (cur1);
 }
 
-static unsigned at91st_get_timecount(struct timecounter *tc);
+static unsigned at91_st_get_timecount(struct timecounter *tc);
 
-static struct timecounter at91st_timecounter = {
-	at91st_get_timecount, /* get_timecount */
+static struct timecounter at91_st_timecounter = {
+	at91_st_get_timecount, /* get_timecount */
 	NULL, /* no poll_pps */
 	0xfffffu, /* counter_mask */
 	32768, /* frequency */
@@ -106,7 +106,7 @@ clock_intr(void *arg)
 }
 
 static void
-at91st_delay(int n)
+at91_st_delay(int n)
 {
 	uint32_t start, end, cur;
 
@@ -126,7 +126,7 @@ at91st_delay(int n)
 }
 
 static void
-at91st_cpu_reset(void)
+at91_st_cpu_reset(void)
 {
 	/*
 	 * Reset the CPU by programmig the watchdog timer to reset the
@@ -140,7 +140,7 @@ at91st_cpu_reset(void)
 }
 
 static int
-at91st_probe(device_t dev)
+at91_st_probe(device_t dev)
 {
 
 	device_set_desc(dev, "ST");
@@ -148,9 +148,9 @@ at91st_probe(device_t dev)
 }
 
 static void
-at91st_deactivate(device_t dev)
+at91_st_deactivate(device_t dev)
 {
-	struct at91st_softc *sc = timer_softc;
+	struct at91_st_softc *sc = timer_softc;
 
 	if (sc->sc_intrhand)
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intrhand);
@@ -168,11 +168,11 @@ at91st_deactivate(device_t dev)
 }
 
 static int
-at91st_activate(device_t dev)
+at91_st_activate(device_t dev)
 {
 	int rid;
 	int err;
-	struct at91st_softc *sc = timer_softc;
+	struct at91_st_softc *sc = timer_softc;
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -195,50 +195,50 @@ at91st_activate(device_t dev)
 	    NULL, NULL, &sc->sc_intrhand);
 out:
 	if (err != 0)
-		at91st_deactivate(dev);
+		at91_st_deactivate(dev);
 	return (err);
 }
 
 static int
-at91st_attach(device_t dev)
+at91_st_attach(device_t dev)
 {
 	int err;
 
 	timer_softc = device_get_softc(dev);
-	err = at91st_activate(dev);
+	err = at91_st_activate(dev);
 	if (err)
 		return err;
 
-        soc_data.delay = at91st_delay;
-        soc_data.reset = at91st_cpu_reset;      // XXX kinda late to be setting this...
+        soc_data.delay = at91_st_delay;
+        soc_data.reset = at91_st_cpu_reset;      // XXX kinda late to be setting this...
 
 	timer_softc->sc_wet = EVENTHANDLER_REGISTER(watchdog_list,
-	  at91st_watchdog, dev, 0);
+	  at91_st_watchdog, dev, 0);
 
 	device_printf(dev,
 	  "watchdog registered, timeout intervall max. 64 sec\n");
 
-	at91st_initclocks(dev, timer_softc);
+	at91_st_initclocks(dev, timer_softc);
 	return (0);
 }
 
-static device_method_t at91st_methods[] = {
-	DEVMETHOD(device_probe, at91st_probe),
-	DEVMETHOD(device_attach, at91st_attach),
+static device_method_t at91_st_methods[] = {
+	DEVMETHOD(device_probe, at91_st_probe),
+	DEVMETHOD(device_attach, at91_st_attach),
 	{0, 0},
 };
 
-static driver_t at91st_driver = {
+static driver_t at91_st_driver = {
 	"at91_st",
-	at91st_methods,
-	sizeof(struct at91st_softc),
+	at91_st_methods,
+	sizeof(struct at91_st_softc),
 };
-static devclass_t at91st_devclass;
+static devclass_t at91_st_devclass;
 
-DRIVER_MODULE(at91_st, atmelarm, at91st_driver, at91st_devclass, 0, 0);
+DRIVER_MODULE(at91_st, atmelarm, at91_st_driver, at91_st_devclass, 0, 0);
 
 static unsigned
-at91st_get_timecount(struct timecounter *tc)
+at91_st_get_timecount(struct timecounter *tc)
 {
 	return (st_crtr());
 }
@@ -257,7 +257,7 @@ at91st_get_timecount(struct timecounter *tc)
  * interval, I think this is the best solution.
  */
 static void
-at91st_watchdog(void *argp, u_int cmd, int *error)
+at91_st_watchdog(void *argp, u_int cmd, int *error)
 {
 	uint32_t wdog;
 	int t;
@@ -274,7 +274,7 @@ at91st_watchdog(void *argp, u_int cmd, int *error)
 }
 
 static void
-at91st_initclocks(device_t dev, struct at91st_softc *sc)
+at91_st_initclocks(device_t dev, struct at91_st_softc *sc)
 {
 	int rel_value;
 
@@ -299,5 +299,5 @@ at91st_initclocks(device_t dev, struct at91st_softc *sc)
 
 	/* Enable PITS interrupts. */
 	WR4(ST_IER, ST_SR_PITS);
-	tc_init(&at91st_timecounter);
+	tc_init(&at91_st_timecounter);
 }
