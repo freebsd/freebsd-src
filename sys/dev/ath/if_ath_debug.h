@@ -69,6 +69,9 @@ enum {
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };
 
+#define	ATH_KTR_INTR	KTR_SPARE4
+#define	ATH_KTR_ERR	KTR_SPARE3
+
 extern uint64_t ath_debug;
 
 #define	IFF_DUMPPKTS(sc, m) \

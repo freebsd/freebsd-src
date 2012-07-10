@@ -116,9 +116,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
-#define	ATH_KTR_INTR	KTR_SPARE4
-#define	ATH_KTR_ERR	KTR_SPARE3
-
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
  * beacons and also (currently) the number of vap's that can
