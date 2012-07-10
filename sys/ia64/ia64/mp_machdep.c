@@ -434,6 +434,9 @@ cpu_mp_unleash(void *dummy)
 	ia64_ipi_nmi = (ia64_xiv_reserve(2, IA64_XIV_IPI, ia64_ih_stop) != 0)
 	    ? ia64_ipi_stop : 0x400;	/* DM=NMI, Vector=n/a */
 
+	/* XXX nmi doesn't work on Altix 350, but stop does... */
+	ia64_ipi_nmi = ia64_ipi_stop;
+
 	cpus = 0;
 	smp_cpus = 0;
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
