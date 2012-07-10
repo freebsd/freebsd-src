@@ -503,19 +503,8 @@ sgisn_shub_read_ivar(device_t dev, device_t child, int which, uintptr_t *res)
 static int
 sgisn_shub_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
-	struct sgisn_shub_softc *sc = device_get_softc(dev);
-	uint64_t ev;
 
-	if (which != SHUB_IVAR_EVENT)
-		return (ENOENT);
-
-	ev = bus_space_read_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_EVENT);
-	if (ev & value)
-		bus_space_write_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_EVENT_WR,
-		    value);
-	device_printf(dev, "XXX: %s: child=%p, event=%lx, mask=%lx\n",
-	    __func__, child, ev, value);
-	return (0);
+	return (ENOENT);
 }
 
 static int
@@ -561,20 +550,13 @@ sgisn_shub_iommu_map(device_t dev, busdma_md_t md, u_int idx, bus_addr_t *ba_p)
 void
 shub_iack(const char *f, u_int xiv)
 {
-	uintptr_t mask;
+	struct sgisn_shub_softc *sc = device_get_softc(shub_dev);
+	uint64_t ev;
 
-	printf("%s(%u) -- ", f, xiv);
-	mask = (xiv == 0xe9) ? SHUB_EVENT_CONSOLE : 0x670000000;
-	sgisn_shub_write_ivar(shub_dev, NULL, SHUB_IVAR_EVENT, mask);
+	ev = bus_space_read_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_EVENT);
+	ev &= (xiv == 0xe9) ? SHUB_EVENT_CONSOLE : (0x3UL << 33);
+	if (!ev)
+		return;
+
+	bus_space_write_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_EVENT_WR, ev);
 }
-
-static void
-shub_conf_final(void *arg)
-{
-
-	if (shub_dev != NULL)
-		sgisn_shub_write_ivar(shub_dev, NULL, SHUB_IVAR_EVENT,
-		    0x670000000);
-}
-SYSINIT(shub_configure, SI_SUB_CONFIGURE, SI_ORDER_ANY, shub_conf_final, NULL);
-
