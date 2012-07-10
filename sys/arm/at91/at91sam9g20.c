@@ -157,8 +157,8 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91SAM9G20_BASE)
-		addr += AT91SAM9G20_BASE;
+	if (addr != 0 && addr < AT91_BASE)
+		addr += AT91_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
 }
