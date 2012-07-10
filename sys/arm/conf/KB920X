@@ -21,16 +21,10 @@
 ident		KB920X
 
 include		"../at91/std.kb920x"
-# bring in the sam specific timers and such
-#include "../at91/std.at91sam9"
-nodevice	at91rm9200
-device		at91sam9
-device		at91sam9x25
 # The AT91 platform doesn't use /boot/loader, so we have to statically wire
 # hints.
 hints		"KB920X.hints"
 makeoptions	MODULES_OVERRIDE=""
-options		LINUX_BOOT_ABI
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	DDB
@@ -87,7 +81,7 @@ device		lxtphy
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 device		md
-#device		at91_twi		# TWI: Two Wire Interface
+device		at91_twi		# TWI: Two Wire Interface
 device		at91_spi		# SPI:
 device		spibus
 # MMC/SD
@@ -144,7 +138,6 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
 
-#device		cfi
 options		IEEE80211_SUPPORT_MESH
 
 options		AH_SUPPORT_AR5416
