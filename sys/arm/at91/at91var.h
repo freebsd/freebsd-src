@@ -151,6 +151,9 @@ at91_cpu_is(u_int cpu)
 	return (soc_data.type == cpu);
 }
 
+void at91_add_child(device_t dev, int prio, const char *name, int unit,
+    bus_addr_t addr, bus_size_t size, int irq0, int irq1, int irq2);
+
 extern uint32_t at91_irq_system;
 extern uint32_t at91_master_clock;
 void at91_pmc_init_clock(void);
