@@ -347,9 +347,7 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define	atomic_cmpset_ptr(dst, old, new)	\
     atomic_cmpset_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
 #define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
-#define atomic_cmpset_acq_ptr(dst, old, new) \
-    atomic_cmpset_ptr((volatile uint32_t *)(dst), (volatile uint32_t)(old), \
-    (volatile uint32_t)(new))
+#define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
 #define atomic_store_ptr		atomic_store_32
 #define atomic_store_rel_ptr		atomic_store_ptr
 
