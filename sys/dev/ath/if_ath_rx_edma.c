@@ -618,8 +618,9 @@ ath_edma_rxfifo_flush(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 
 	for (i = 0; i < re->m_fifolen; i++) {
 		if (re->m_fifo[i] != NULL) {
-			struct ath_buf *bf = re->m_fifo[i];
 #ifdef	ATH_DEBUG
+			struct ath_buf *bf = re->m_fifo[i];
+
 			if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 				ath_printrxbuf(sc, bf, 0, HAL_OK);
 #endif
