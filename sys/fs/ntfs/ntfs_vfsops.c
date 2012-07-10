@@ -212,45 +212,22 @@ ntfs_mount(struct mount *mp)
 		return (err);
 	}
 
-	if (mp->mnt_flag & MNT_UPDATE) {
-#if 0
-		/*
-		 ********************
-		 * UPDATE
-		 ********************
-		 */
 
-		if (devvp != ntmp->um_devvp)
-			err = EINVAL;	/* needs translation */
-		vput(devvp);
-		if (err)
-			return (err);
-#endif
-	} else {
-		/*
-		 ********************
-		 * NEW MOUNT
-		 ********************
-		 */
+	/*
+	 * Since this is a new mount, we want the names for the device and
+	 * the mount point copied in.  If an error occurs, the mountpoint is
+	 * discarded by the upper level code.  Note that vfs_mount() handles
+	 * copying the mountpoint f_mntonname for us, so we don't have to do
+	 * it here unless we want to set it to something other than "path"
+	 * for some rason.
+	 */
 
-		/*
-		 * Since this is a new mount, we want the names for
-		 * the device and the mount point copied in.  If an
-		 * error occurs, the mountpoint is discarded by the
-		 * upper level code.  Note that vfs_mount() handles
-		 * copying the mountpoint f_mntonname for us, so we
-		 * don't have to do it here unless we want to set it
-		 * to something other than "path" for some rason.
-		 */
+	err = ntfs_mountfs(devvp, mp, td);
+	if (err == 0) {
 
-		err = ntfs_mountfs(devvp, mp, td);
-		if (err == 0) {
-
-			/* Save "mounted from" info for mount point. */
-			vfs_mountedfrom(mp, from);
-		}
-	}
-	if (err)
+		/* Save "mounted from" info for mount point. */
+		vfs_mountedfrom(mp, from);
+	} else
 		vrele(devvp);
 	return (err);
 }
