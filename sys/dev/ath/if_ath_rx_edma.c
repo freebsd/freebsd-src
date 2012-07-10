@@ -190,6 +190,12 @@ ath_edma_reinit_fifo(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 	i = re->m_fifo_head;
 	for (j = 0; j < re->m_fifo_depth; j++) {
 		bf = re->m_fifo[i];
+		DPRINTF(sc, ATH_DEBUG_EDMA_RX,
+		    "%s: Q%d: pos=%i, addr=0x%x\n",
+		    __func__,
+		    qtype,
+		    i,
+		    bf->bf_daddr);
 		ath_hal_putrxbuf(sc->sc_ah, bf->bf_daddr, qtype);
 		INCR(i, re->m_fifolen);
 	}
@@ -221,8 +227,21 @@ ath_edma_startrecv(struct ath_softc *sc)
 	/*
 	 * Entries should only be written out if the
 	 * FIFO is empty.
+	 *
+	 * XXX This isn't correct. I should be looking
+	 * at the value of AR_RXDP_SIZE (0x0070) to determine
+	 * how many entries are in here.
+	 *
+	 * A warm reset will clear the registers but not the FIFO.
+	 *
+	 * And I believe this is actually the address of the last
+	 * handled buffer rather than the current FIFO pointer.
+	 * So if no frames have been (yet) seen, we'll reinit the
+	 * FIFO.
+	 *
+	 * I'll chase that up at some point.
 	 */
-	if (ath_hal_getrxbuf(sc->sc_ah, HAL_RX_QUEUE_HP) == 0){
+	if (ath_hal_getrxbuf(sc->sc_ah, HAL_RX_QUEUE_HP) == 0) {
 		DPRINTF(sc, ATH_DEBUG_EDMA_RX,
 		    "%s: Re-initing HP FIFO\n", __func__);
 		ath_edma_reinit_fifo(sc, HAL_RX_QUEUE_HP);
