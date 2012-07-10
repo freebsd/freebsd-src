@@ -56,6 +56,10 @@ extern	void ath_stoprecv(struct ath_softc *sc, int dodelay);
 extern	int ath_startrecv(struct ath_softc *sc);
 #endif
 
+extern	int ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs,
+	    HAL_STATUS status, uint64_t tsf, int nf, HAL_RX_QUEUE qtype,
+	    struct ath_buf *bf);
+
 extern	void ath_recv_setup_legacy(struct ath_softc *sc);
 
 #endif
