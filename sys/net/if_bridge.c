@@ -1813,6 +1813,8 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 
 		if (err == 0)
 			err = dst_ifp->if_transmit(dst_ifp, m);
+		else
+			m_freem(m);
 	}
 
 	if (err == 0) {
