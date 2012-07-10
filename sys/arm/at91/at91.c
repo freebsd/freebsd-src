@@ -270,10 +270,12 @@ at91_attach(device_t dev)
 	}
 
 
-	/* Our device list will be added automatically by the cpu device
+	/*
+         * Our device list will be added automatically by the cpu device
 	 * e.g. at91rm9200.c when it is identified. To ensure that the
 	 * CPU and PMC are attached first any other "identified" devices
-	 * call BUS_ADD_CHILD(9) with an "order" of at least 2. */
+	 * call BUS_ADD_CHILD(9) with an "order" of at least 2.
+         */
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -469,6 +471,41 @@ at91_eoi(void *unused)
 {
 	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
 	    IC_EOICR, 0);
+}
+
+void
+at91_add_child(device_t dev, int prio, const char *name, int unit,
+    bus_addr_t addr, bus_size_t size, int irq0, int irq1, int irq2)
+{
+	device_t kid;
+	struct at91_ivar *ivar;
+
+	kid = device_add_child_ordered(dev, prio, name, unit);
+	if (kid == NULL) {
+	    printf("Can't add child %s%d ordered\n", name, unit);
+	    return;
+	}
+	ivar = malloc(sizeof(*ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (ivar == NULL) {
+		device_delete_child(dev, kid);
+		printf("Can't add alloc ivar\n");
+		return;
+	}
+	device_set_ivars(kid, ivar);
+	resource_list_init(&ivar->resources);
+	if (irq0 != -1) {
+		bus_set_resource(kid, SYS_RES_IRQ, 0, irq0, 1);
+		if (irq0 != AT91_IRQ_SYSTEM)
+			at91_pmc_clock_add(device_get_nameunit(kid), irq0, 0);
+	}
+	if (irq1 != 0)
+		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
+	if (irq2 != 0)
+		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
+	if (addr != 0 && addr < AT91_BASE) 
+		addr += AT91_BASE;
+	if (addr != 0)
+		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
 }
 
 static device_method_t at91_methods[] = {
