@@ -463,9 +463,9 @@ ath_handle_micerror(struct ieee80211com *ic,
 	}
 }
 
-static int
+int
 ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
-    uint64_t tsf, int nf, struct ath_buf *bf)
+    uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct mbuf *m = bf->bf_m;
@@ -475,6 +475,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	int is_good = 0;
+	struct ath_rx_edma *re = &sc->sc_rxedma[qtype];
 
 	/*
 	 * Calculate the correct 64 bit TSF given
@@ -559,9 +560,9 @@ rx_error:
 		/*
 		 * Cleanup any pending partial frame.
 		 */
-		if (sc->sc_rxpending != NULL) {
-			m_freem(sc->sc_rxpending);
-			sc->sc_rxpending = NULL;
+		if (re->m_rxpending != NULL) {
+			m_freem(re->m_rxpending);
+			re->m_rxpending = NULL;
 		}
 		/*
 		 * When a tap is present pass error frames
@@ -608,25 +609,25 @@ rx_accept:
 		 * it for the next completed descriptor, it
 		 * will be used to construct a jumbogram.
 		 */
-		if (sc->sc_rxpending != NULL) {
+		if (re->m_rxpending != NULL) {
 			/* NB: max frame size is currently 2 clusters */
 			sc->sc_stats.ast_rx_toobig++;
-			m_freem(sc->sc_rxpending);
+			m_freem(re->m_rxpending);
 		}
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
-		sc->sc_rxpending = m;
+		re->m_rxpending = m;
 		goto rx_next;
-	} else if (sc->sc_rxpending != NULL) {
+	} else if (re->m_rxpending != NULL) {
 		/*
 		 * This is the second part of a jumbogram,
 		 * chain it to the first mbuf, adjust the
 		 * frame length, and clear the rxpending state.
 		 */
-		sc->sc_rxpending->m_next = m;
-		sc->sc_rxpending->m_pkthdr.len += len;
-		m = sc->sc_rxpending;
-		sc->sc_rxpending = NULL;
+		re->m_rxpending->m_next = m;
+		re->m_rxpending->m_pkthdr.len += len;
+		m = re->m_rxpending;
+		re->m_rxpending = NULL;
 	} else {
 		/*
 		 * Normal single-descriptor receive; setup
@@ -883,7 +884,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		/*
 		 * Process a single frame.
 		 */
-		if (ath_rx_pkt(sc, rs, status, tsf, nf, bf))
+		if (ath_rx_pkt(sc, rs, status, tsf, nf, HAL_RX_QUEUE_HP, bf))
 			ngood++;
 rx_proc_next:
 		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
@@ -1016,9 +1017,16 @@ ath_legacy_stoprecv(struct ath_softc *sc, int dodelay)
 		}
 	}
 #endif
-	if (sc->sc_rxpending != NULL) {
-		m_freem(sc->sc_rxpending);
-		sc->sc_rxpending = NULL;
+	/*
+	 * Free both high/low RX pending, just in case.
+	 */
+	if (sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending != NULL) {
+		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending);
+		sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
+	}
+	if (sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending != NULL) {
+		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending);
+		sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending = NULL;
 	}
 	sc->sc_rxlink = NULL;		/* just in case */
 #undef PA2DESC
@@ -1034,7 +1042,8 @@ ath_legacy_startrecv(struct ath_softc *sc)
 	struct ath_buf *bf;
 
 	sc->sc_rxlink = NULL;
-	sc->sc_rxpending = NULL;
+	sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
+	sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending = NULL;
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 		int error = ath_rxbuf_init(sc, bf);
 		if (error != 0) {
