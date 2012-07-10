@@ -50,7 +50,6 @@ struct at91rm92_softc {
 	bus_space_handle_t sc_sh;
 	bus_space_handle_t sc_sys_sh;
 	bus_space_handle_t sc_aic_sh;
-	bus_space_handle_t sc_matrix_sh;
 };
 /*
  * Standard priority levels for the system.  0 is lowest and 7 is highest.
