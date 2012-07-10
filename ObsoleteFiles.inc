@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120621: remove old man page
+OLD_FILES+=usr/share/man/man8/vnconfig.8.gz
 # 20120613: auth.conf removed
 OLD_FILES+=etc/auth.conf
 OLD_FILES+=usr/share/examples/etc/auth.conf

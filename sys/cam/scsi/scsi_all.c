@@ -4147,9 +4147,9 @@ scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 		     struct scsi_inquiry_data *inq_data,
 		     struct scsi_sense_desc_header *header)
 {
-	int i, found;
+	int i;
 
-	for (i = 0, found = 0; i < (sizeof(scsi_sense_printers) /
+	for (i = 0; i < (sizeof(scsi_sense_printers) /
 	     sizeof(scsi_sense_printers[0])); i++) {
 		struct scsi_sense_desc_printer *printer;
 

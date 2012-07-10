@@ -79,7 +79,7 @@ struct vmmeter {
 	u_int v_pdpages;	/* (q) pages analyzed by daemon */
 
 	u_int v_tcached;	/* (p) total pages cached */
-	u_int v_dfree;		/* (q) pages freed by daemon */
+	u_int v_dfree;		/* (p) pages freed by daemon */
 	u_int v_pfree;		/* (p) pages freed by exiting processes */
 	u_int v_tfree;		/* (p) total pages freed */
 	/*

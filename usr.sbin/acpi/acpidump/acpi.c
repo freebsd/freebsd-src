@@ -654,15 +654,23 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 		printf(END_COMMENT);
 		return;
 	}
+	if(sdp->Revision == 1){
+		printf("\tOLD TCPA spec log found. Dumping not supported.\n");
+		printf(END_COMMENT);
+		return;
+	}
 
 	vaddr = (unsigned char *)acpi_map_physical(paddr, len);
 	vend = vaddr + len;
 
 	while (vaddr != NULL) {
-		if (vaddr + sizeof(struct TCPAevent) >= vend)
+		if ((vaddr + sizeof(struct TCPAevent) >= vend)||
+		    (vaddr + sizeof(struct TCPAevent) < vaddr))
 			break;
 		event = (struct TCPAevent *)(void *)vaddr;
 		if (vaddr + event->event_size >= vend)
+			break;
+		if (vaddr + event->event_size < vaddr)
 			break;
 		if (event->event_type == 0 && event->event_size == 0)
 			break;

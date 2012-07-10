@@ -64,6 +64,8 @@ enum {
 	ATH_DEBUG_SW_TX_RETRIES	= 0x040000000ULL,	/* software TX retries */
 	ATH_DEBUG_FATAL		= 0x080000000ULL,	/* fatal errors */
 	ATH_DEBUG_SW_TX_BAR	= 0x100000000ULL,	/* BAR TX */
+	ATH_DEBUG_EDMA_RX	= 0x200000000ULL,	/* RX EDMA state */
+
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };
 

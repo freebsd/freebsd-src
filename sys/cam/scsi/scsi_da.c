@@ -2644,6 +2644,8 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 	else
 		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
+
+	disk_resize(softc->disk);
 }
 
 static void
