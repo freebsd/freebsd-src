@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <arm/at91/at91var.h>
+#include <arm/at91/at91reg.h>
 #include <arm/at91/at91_aicreg.h>
 #include <arm/at91/at91sam9260reg.h>
 #include <arm/at91/at91_pmcreg.h>
@@ -150,7 +151,7 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 	resource_list_init(&ivar->resources);
 	if (irq0 != -1) {
 		bus_set_resource(kid, SYS_RES_IRQ, 0, irq0, 1);
-		if (irq0 != AT91SAM9260_IRQ_SYSTEM)
+		if (irq0 != AT91_IRQ_SYSTEM)
 			at91_pmc_clock_add(device_get_nameunit(kid), irq0, 0);
 	}
 	if (irq1 != 0)
@@ -238,7 +239,7 @@ at91_attach(device_t dev)
 
 	/* XXX Hack to tell atmelarm about the AIC */
 	at91sc->sc_aic_sh = sc->sc_aic_sh;
-	at91sc->sc_irq_system = AT91SAM9260_IRQ_SYSTEM;
+	at91sc->sc_irq_system = AT91_IRQ_SYSTEM;
 
 	for (i = 0; i < 32; i++) {
 		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
