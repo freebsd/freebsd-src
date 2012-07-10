@@ -152,7 +152,6 @@ static int
 ntfs_mount(struct mount *mp)
 {
 	int err = 0, error;
-	accmode_t accmode;
 	struct vnode *devvp;
 	struct nameidata ndp;
 	struct thread *td;
@@ -161,6 +160,11 @@ ntfs_mount(struct mount *mp)
 	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, ntfs_opts))
 		return (EINVAL);
+
+	/* Force mount as read-only. */
+	MNT_ILOCK(mp);
+	mp->mnt_flag |= MNT_RDONLY;
+	MNT_IUNLOCK(mp);
 
 	from = vfs_getopts(mp->mnt_optnew, "from", &error);
 	if (error)	
@@ -173,11 +177,10 @@ ntfs_mount(struct mount *mp)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
 			/* Process export requests in vfs_mount.c */
-			goto success;
+			return (0);
 		} else {
 			printf("ntfs_mount(): MNT_UPDATE not supported\n");
-			err = EINVAL;
-			goto error_1;
+			return (EINVAL);
 		}
 	}
 
@@ -187,10 +190,8 @@ ntfs_mount(struct mount *mp)
 	 */
 	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, td);
 	err = namei(&ndp);
-	if (err) {
-		/* can't get devvp!*/
-		goto error_1;
-	}
+	if (err)
+		return (err);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
 
@@ -203,10 +204,7 @@ ntfs_mount(struct mount *mp)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	accmode = VREAD;
-	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accmode |= VWRITE;
-	err = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
+	err = VOP_ACCESS(devvp, VREAD, td->td_ucred, td);
 	if (err)
 		err = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (err) {
@@ -244,22 +242,16 @@ ntfs_mount(struct mount *mp)
 		 * don't have to do it here unless we want to set it
 		 * to something other than "path" for some rason.
 		 */
-		/* Save "mounted from" info for mount point (NULL pad)*/
-		vfs_mountedfrom(mp, from);
 
 		err = ntfs_mountfs(devvp, mp, td);
+		if (err == 0) {
+
+			/* Save "mounted from" info for mount point. */
+			vfs_mountedfrom(mp, from);
+		}
 	}
-	if (err) {
+	if (err)
 		vrele(devvp);
-		return (err);
-	}
-
-	goto success;
-
-error_1:	/* no state to back out*/
-	/* XXX: missing NDFREE(&ndp, ...) */
-
-success:
 	return (err);
 }
 
@@ -275,13 +267,12 @@ ntfs_mountfs(devvp, mp, td)
 	struct buf *bp;
 	struct ntfsmount *ntmp;
 	struct cdev *dev = devvp->v_rdev;
-	int error, ronly, i, v;
+	int error, i, v;
 	struct vnode *vp;
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char *cs_ntfs, *cs_local;
 
-	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	DROP_GIANT();
 	g_topology_lock();
 
@@ -296,7 +287,7 @@ ntfs_mountfs(devvp, mp, td)
  	if ((pp != NULL) && ((pp->acr | pp->acw | pp->ace ) != 0)) 
 		error = EPERM;
 	else 
-		error = g_vfs_open(devvp, &cp, "ntfs", ronly ? 0 : 1);
+		error = g_vfs_open(devvp, &cp, "ntfs", 0);
 
 	g_topology_unlock();
 	PICKUP_GIANT();
