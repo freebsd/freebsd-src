@@ -43,24 +43,32 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
-#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_streg.h>
 
 static struct at91st_softc {
-	bus_space_tag_t		sc_st;
-	bus_space_handle_t	sc_sh;
-	device_t		sc_dev;
+	struct resource *	sc_irq_res;
+	struct resource	*	sc_mem_res;
+	void *			sc_intrhand;
 	eventhandler_tag	sc_wet;	/* watchdog event handler tag */
 } *timer_softc;
 
-#define RD4(off) \
-	bus_space_read_4(timer_softc->sc_st, timer_softc->sc_sh, (off))
-#define WR4(off, val) \
-	bus_space_write_4(timer_softc->sc_st, timer_softc->sc_sh, (off), (val))
+static inline uint32_t
+RD4(bus_size_t off)
+{
+
+	return (bus_read_4(timer_softc->sc_mem_res, off));
+}
+
+static inline void
+WR4(bus_size_t off, uint32_t val)
+{
+
+	bus_write_4(timer_softc->sc_mem_res, off, val);
+}
 
 static void at91st_watchdog(void *, u_int, int *);
-static void at91st_initclocks(struct at91st_softc *);
+static void at91st_initclocks(device_t , struct at91st_softc *);
 
 static inline int
 st_crtr(void)
@@ -83,6 +91,19 @@ static struct timecounter at91st_timecounter = {
 	"AT91RM9200 timer", /* name */
 	1000 /* quality */
 };
+
+static int
+clock_intr(void *arg)
+{
+	struct trapframe *fp = arg;
+
+	/* The interrupt is shared, so we have to make sure it's for us. */
+	if (RD4(ST_SR) & ST_SR_PITS) {
+		hardclock(TRAPF_USERMODE(fp), TRAPF_PC(fp));
+		return (FILTER_HANDLED);
+	}
+	return (FILTER_STRAY);
+}
 
 static void
 at91st_delay(int n)
@@ -126,26 +147,68 @@ at91st_probe(device_t dev)
 	return (0);
 }
 
+static void
+at91st_deactivate(device_t dev)
+{
+	struct at91st_softc *sc = timer_softc;
+
+	if (sc->sc_intrhand)
+		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intrhand);
+	sc->sc_intrhand = NULL;
+
+	if (sc->sc_irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
+	sc->sc_irq_res = NULL;
+
+	if (sc->sc_mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_mem_res), sc->sc_mem_res);
+	sc->sc_mem_res = NULL;
+}
+
+static int
+at91st_activate(device_t dev)
+{
+	int rid;
+	int err;
+	struct at91st_softc *sc = timer_softc;
+
+	rid = 0;
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	err = ENOMEM;
+	if (sc->sc_mem_res == NULL)
+		goto out;
+	/* Disable all interrupts */
+	WR4(ST_IDR, 0xffffffff);
+
+	/* The system timer shares the system irq (1) */
+	rid = 0;
+	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->sc_irq_res == NULL) {
+		printf("Unable to allocate irq for the system timer");
+		goto out;
+	}
+	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_CLK, clock_intr,
+	    NULL, NULL, &sc->sc_intrhand);
+out:
+	if (err != 0)
+		at91st_deactivate(dev);
+	return (err);
+}
+
 static int
 at91st_attach(device_t dev)
 {
-	struct at91_softc *sc = device_get_softc(device_get_parent(dev));
+	int err;
 
 	timer_softc = device_get_softc(dev);
-	timer_softc->sc_st = sc->sc_st;
-	timer_softc->sc_dev = dev;
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_ST_BASE,
-	    AT91RM92_ST_SIZE, &timer_softc->sc_sh) != 0)
-		panic("couldn't subregion timer registers");
-	/*
-	 * Real time counter increments every clock cycle, need to set before
-	 * initializing clocks so that DELAY works.
-	 */
-	WR4(ST_RTMR, 1);
-	/* Disable all interrupts */
-	WR4(ST_IDR, 0xffffffff);
-	/* disable watchdog timer */
-	WR4(ST_WDMR, 0);
+	err = at91st_activate(dev);
+	if (err)
+		return err;
+
         soc_data.delay = at91st_delay;
         soc_data.reset = at91st_cpu_reset;      // XXX kinda late to be setting this...
 
@@ -155,7 +218,7 @@ at91st_attach(device_t dev)
 	device_printf(dev,
 	  "watchdog registered, timeout intervall max. 64 sec\n");
 
-	at91st_initclocks(timer_softc);
+	at91st_initclocks(dev, timer_softc);
 	return (0);
 }
 
@@ -210,47 +273,28 @@ at91st_watchdog(void *argp, u_int cmd, int *error)
 	WR4(ST_CR, ST_CR_WDRST);
 }
 
-static int
-clock_intr(void *arg)
-{
-	struct trapframe *fp = arg;
-
-	/* The interrupt is shared, so we have to make sure it's for us. */
-	if (RD4(ST_SR) & ST_SR_PITS) {
-		hardclock(TRAPF_USERMODE(fp), TRAPF_PC(fp));
-		return (FILTER_HANDLED);
-	}
-	return (FILTER_STRAY);
-}
-
 static void
-at91st_initclocks(struct at91st_softc *sc)
+at91st_initclocks(device_t dev, struct at91st_softc *sc)
 {
 	int rel_value;
-	struct resource *irq;
-	int rid = 0;
-	void *ih;
-	device_t dev = sc->sc_dev;
+
+	/*
+	 * Real time counter increments every clock cycle, need to set before
+	 * initializing clocks so that DELAY works.
+	 */
+	WR4(ST_RTMR, 1);
+	/* disable watchdog timer */
+	WR4(ST_WDMR, 0);
 
 	rel_value = 32768 / hz;
 	if (rel_value < 1)
 		rel_value = 1;
 	if (32768 % hz) {
-		printf("Cannot get %d Hz clock; using %dHz\n", hz, 32768 / rel_value);
+		device_printf(dev, "Cannot get %d Hz clock; using %dHz\n", hz,
+		    32768 / rel_value);
 		hz = 32768 / rel_value;
 		tick = 1000000 / hz;
 	}
-	/* Disable all interrupts. */
-	WR4(ST_IDR, 0xffffffff);
-	/* The system timer shares the system irq (1) */
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 1, 1, 1,
-	  RF_ACTIVE | RF_SHAREABLE);
-	if (!irq)
-		panic("Unable to allocate irq for the system timer");
-	else
-		bus_setup_intr(dev, irq, INTR_TYPE_CLK,
-		    clock_intr, NULL, NULL, &ih);
-
 	WR4(ST_PIMR, rel_value);
 
 	/* Enable PITS interrupts. */
