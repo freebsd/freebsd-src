@@ -619,6 +619,19 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->hal4AddrAggrSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_EXT_CHAN_DFS:
 		return pCap->halExtChanDfsSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_COMBINED_RADAR_RSSI:
+		return pCap->halUseCombinedRadarRssi ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_AUTO_SLEEP:
+		return pCap->halAutoSleepSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_MBSSID_AGGR_SUPPORT:
+		return pCap->halMbssidAggrSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
+		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_REG_FLAG:
+		*result = AH_PRIVATE(ah)->ah_currentRDext;
+		return HAL_OK;
+	case HAL_CAP_ENHANCED_DMA_SUPPORT:
+		return pCap->halEnhancedDmaSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_NUM_TXMAPS:
 		*result = pCap->halNumTxMaps;
 		return HAL_OK;
@@ -645,18 +658,6 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_RXBUFSIZE:
 	case HAL_CAP_NUM_MR_RETRIES:
 		return HAL_EINVAL;      /* XXX not yet */
-
-	case HAL_CAP_COMBINED_RADAR_RSSI:
-		return pCap->halUseCombinedRadarRssi ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_AUTO_SLEEP:
-		return pCap->halAutoSleepSupport ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_MBSSID_AGGR_SUPPORT:
-		return pCap->halMbssidAggrSupport ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
-		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_REG_FLAG:
-		*result = AH_PRIVATE(ah)->ah_currentRDext;
-		return HAL_OK;
 	case HAL_CAP_BT_COEX:
 		return pCap->halBtCoexSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_HT20_SGI:
@@ -694,8 +695,7 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
 		return pCap->halSerialiseRegWar ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_ENHANCED_DMA_SUPPORT:
-		return pCap->halEnhancedDmaSupport ? HAL_OK : HAL_ENOTSUPP;
+
 	default:
 		return HAL_EINVAL;
 	}
