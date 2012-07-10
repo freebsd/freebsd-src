@@ -204,7 +204,6 @@ at91_attach(device_t dev)
 
 	/* XXX Hack to tell atmelarm about the AIC */
 	at91sc->sc_aic_sh = sc->sc_aic_sh;
-	at91sc->sc_irq_system = AT91_IRQ_SYSTEM;
 
 	for (i = 0; i < 32; i++) {
 		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +

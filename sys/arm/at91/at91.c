@@ -365,7 +365,7 @@ at91_setup_intr(device_t dev, device_t child,
 	struct at91_softc *sc = device_get_softc(dev);
 	int error;
 
-	if (rman_get_start(ires) == sc->sc_irq_system && filt == NULL)
+	if (rman_get_start(ires) == AT91_IRQ_SYSTEM && filt == NULL)
 		panic("All system interrupt ISRs must be FILTER");
 	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
 	    filt, intr, arg, cookiep);
