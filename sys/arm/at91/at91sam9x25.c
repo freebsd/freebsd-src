@@ -50,7 +50,6 @@ struct at91sam9x25_softc {
 	bus_space_handle_t sc_sh;
 	bus_space_handle_t sc_sys_sh;
 	bus_space_handle_t sc_aic_sh;
-	bus_space_handle_t sc_matrix_sh;
 };
 
 /*
@@ -231,20 +230,6 @@ at91_attach(device_t dev)
 	/* Disable and clear all interrupts. */
 	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
 	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh,
-	    AT91SAM9X25_MATRIX_BASE, AT91SAM9X25_MATRIX_SIZE,
-	    &sc->sc_matrix_sh) != 0)
-		panic("Enable to map matrix registers");
-
-#if 0 /* wrong, placeholder */
-	/* activate NAND*/
-	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9X25_EBICSA);
-	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9X25_EBICSA, 
-	    i | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
-#endif
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");
