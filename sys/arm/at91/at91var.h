@@ -40,7 +40,6 @@ struct at91_softc {
 	bus_space_handle_t sc_aic_sh;
 	struct rman sc_irq_rman;
 	struct rman sc_mem_rman;
-	uint32_t sc_irq_system;
 };
 
 struct at91_ivar {
