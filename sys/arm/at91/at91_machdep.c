@@ -115,10 +115,6 @@ extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-extern void *_end;
-
-extern int *end;
-
 struct pcpu __pcpu;
 struct pcpu *pcpup = &__pcpu;
 
@@ -126,7 +122,6 @@ struct pcpu *pcpup = &__pcpu;
 
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
-vm_offset_t physical_pages;
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
