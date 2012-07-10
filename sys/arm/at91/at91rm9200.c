@@ -50,7 +50,6 @@ struct at91rm92_softc {
 	bus_space_handle_t sc_sh;
 	bus_space_handle_t sc_sys_sh;
 	bus_space_handle_t sc_aic_sh;
-	bus_space_handle_t sc_dbg_sh;
 	bus_space_handle_t sc_matrix_sh;
 };
 /*
@@ -194,10 +193,6 @@ at91_attach(device_t dev)
 	    AT91RM92_SYS_SIZE, &sc->sc_sys_sh) != 0)
 		panic("Enable to map system registers");
 
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_DBGU_BASE,
-	    AT91RM92_DBGU_SIZE, &sc->sc_dbg_sh) != 0)
-		panic("Enable to map DBGU registers");
-
 	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_AIC_BASE,
 	    AT91RM92_AIC_SIZE, &sc->sc_aic_sh) != 0)
 		panic("Enable to map system registers");
@@ -228,9 +223,6 @@ at91_attach(device_t dev)
 
 	/* Disable all interrupts for the SDRAM controller */
 	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, 0xfa8, 0xffffffff);
-
-	/* Disable all interrupts for DBGU */
-	bus_space_write_4(sc->sc_st, sc->sc_dbg_sh, 0x0c, 0xffffffff);
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");

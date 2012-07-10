@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91board.h>
 #include <arm/at91/at91var.h>
+#include <arm/at91/at91_usartreg.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91sam9g20reg.h>
 
@@ -382,6 +383,14 @@ at91_try_id(uint32_t dbgu_base)
 	default:
 		break;
 	}
+	/*
+	 * Disable interrupts
+	 */
+	*(volatile uint32_t *)(AT91_BASE + dbgu_base + USART_IDR) = 0xffffffff;
+
+	/*
+	 * Save the name for later...
+	 */
 	snprintf(soc_data.name, sizeof(soc_data.name), "%s%s%s",
 	    soc_type_name[soc_data.type],
 	    soc_data.subtype == AT91_ST_NONE ? "" : " subtype ",
