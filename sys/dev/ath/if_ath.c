@@ -1621,7 +1621,11 @@ ath_intr(void *arg)
 			/* bump tx trigger level */
 			ath_hal_updatetxtriglevel(ah, AH_TRUE);
 		}
-		if (status & HAL_INT_RX) {
+		/*
+		 * Handle both the legacy and RX EDMA interrupt bits.
+		 * Note that HAL_INT_RXLP is also HAL_INT_RXDESC.
+		 */
+		if (status & (HAL_INT_RX | HAL_INT_RXHP | HAL_INT_RXLP)) {
 			sc->sc_stats.ast_rx_intr++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
 		}
@@ -1867,6 +1871,14 @@ ath_init(void *arg)
 	sc->sc_imask = HAL_INT_RX | HAL_INT_TX
 		  | HAL_INT_RXEOL | HAL_INT_RXORN
 		  | HAL_INT_FATAL | HAL_INT_GLOBAL;
+
+	/*
+	 * Enable RX EDMA bits.  Note these overlap with
+	 * HAL_INT_RX and HAL_INT_RXDESC respectively.
+	 */
+	if (sc->sc_isedma)
+		sc->sc_imask |= (HAL_INT_RXHP | HAL_INT_RXLP);
+
 	/*
 	 * Enable MIB interrupts when there are hardware phy counters.
 	 * Note we only do this (at the moment) for station mode.
