@@ -368,9 +368,9 @@ TUNABLE_INT("kern.cam.ada.retry_count", &ada_retry_count);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, default_timeout, CTLFLAG_RW,
            &ada_default_timeout, 0, "Normal I/O timeout (in seconds)");
 TUNABLE_INT("kern.cam.ada.default_timeout", &ada_default_timeout);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, ada_send_ordered, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, send_ordered, CTLFLAG_RW,
            &ada_send_ordered, 0, "Send Ordered Tags");
-TUNABLE_INT("kern.cam.ada.ada_send_ordered", &ada_send_ordered);
+TUNABLE_INT("kern.cam.ada.send_ordered", &ada_send_ordered);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RW,
            &ada_spindown_shutdown, 0, "Spin down upon shutdown");
 TUNABLE_INT("kern.cam.ada.spindown_shutdown", &ada_spindown_shutdown);
