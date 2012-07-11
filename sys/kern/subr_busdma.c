@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/busdma.h>
+#include <sys/ktr.h>
 #include <sys/queue.h>
 #include <machine/stdarg.h>
 #include <vm/uma.h>
@@ -437,6 +438,12 @@ busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
 	struct busdma_tag *base, *first, *tag;
 	int error;
 
+	CTR5(KTR_BUSDMA, "%s: dev=%s, align=%#jx, bndry=%#jx, maxaddr=%#jx",
+	    __func__, device_get_nameunit(dev), (uintmax_t)align,
+	    (uintmax_t)bndry, (uintmax_t)maxaddr);
+	CTR5(KTR_BUSDMA, "%s: maxsz=%#jx, nsegs=%u, maxsegsz=%#jx, flags=%#x",
+	    __func__, maxsz, nsegs, (uintmax_t)maxsegsz, flags);
+
 	if (dev == NULL || tag_p == NULL)
 		return (EINVAL);
 
@@ -463,6 +470,12 @@ busdma_tag_derive(struct busdma_tag *base, bus_addr_t align, bus_addr_t bndry,
 	struct busdma_tag *tag;
 	int error;
 
+	CTR5(KTR_BUSDMA, "%s: base=%p, align=%#jx, bndry=%#jx, maxaddr=%#jx",
+	    __func__, base, (uintmax_t)align, (uintmax_t)bndry,
+	    (uintmax_t)maxaddr);
+	CTR5(KTR_BUSDMA, "%s: maxsz=%#jx, nsegs=%u, maxsegsz=%#jx, flags=%#x",
+	    __func__, maxsz, nsegs, (uintmax_t)maxsegsz, flags);
+
 	if (base == NULL || tag_p == NULL)
 		return (EINVAL);
 
@@ -485,6 +498,8 @@ int
 busdma_tag_destroy(struct busdma_tag *tag)
 {
 
+	CTR2(KTR_BUSDMA, "%s: tag=%p", __func__, tag);
+
 	if (tag == NULL)
 		return (EINVAL);
 
@@ -496,6 +511,8 @@ int
 busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 {
 	struct busdma_md *md;
+
+	CTR3(KTR_BUSDMA, "%s: tag=%p, flags=%#x", __func__, tag, flags);
 
 	if (tag == NULL || md_p == NULL)
 		return (EINVAL);
@@ -512,6 +529,8 @@ busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 int
 busdma_md_destroy(struct busdma_md *md)
 {
+
+	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
 
 	if (md == NULL)
 		return (EINVAL);
@@ -530,6 +549,8 @@ busdma_md_get_busaddr(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
 
+	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
+
 	seg = _busdma_md_get_seg(md, idx);
 	return ((seg != NULL) ? seg->mds_busaddr : ~0UL);
 }
@@ -538,6 +559,8 @@ u_int
 busdma_md_get_nsegs(struct busdma_md *md)
 {
 
+	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
+
 	return ((md != NULL) ? md->md_nsegs : 0);
 }
 
@@ -545,6 +568,8 @@ vm_paddr_t
 busdma_md_get_paddr(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
+
+	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
 
 	seg = _busdma_md_get_seg(md, idx);
 	return ((seg != NULL) ? seg->mds_paddr : ~0UL);
@@ -555,6 +580,8 @@ busdma_md_get_size(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
 
+	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
+
 	seg = _busdma_md_get_seg(md, idx);
 	return ((seg != NULL) ? seg->mds_size : 0UL);
 }
@@ -563,6 +590,8 @@ vm_offset_t
 busdma_md_get_vaddr(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
+
+	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
 
 	seg = _busdma_md_get_seg(md, idx);
 	return ((seg != NULL) ? seg->mds_vaddr : 0);
@@ -574,8 +603,8 @@ busdma_md_load_linear(struct busdma_md *md, void *buf, size_t len,
 {
 	int error;
 
-	// printf("XXX: %s: md=%p, buf=%p, len=%lx\n", __func__, md,
-	//     buf, (u_long)len);
+	CTR6(KTR_BUSDMA, "busdma_md_load_linear: md=%p, buf=%p, len=%zu, "
+	    "cb=%p, arg=%p, flags=%#x", md, buf, len, cb, arg, flags);
 
 	if (md == NULL || buf == NULL || len == 0)
 		return (EINVAL);
@@ -595,8 +624,10 @@ busdma_md_load_phys(struct busdma_md *md, vm_paddr_t buf, size_t len,
     busdma_callback_f cb, void *arg, u_int flags)
 {
 
-	// printf("XXX: %s: md=%p, buf=%#jx, len=%lx\n", __func__, md,
-	//     (uintmax_t)buf, (u_long)len);
+	CTR6(KTR_BUSDMA, "busdma_md_load_phys: md=%p, buf=%#jx, len=%zu, "
+	    "cb=%p, arg=%p, flags=%#x", md, (uintmax_t)buf, len, cb, arg,
+	    flags);
+
 	(*cb)(arg, md, ENOSYS);
 	return (0);
 }
@@ -606,7 +637,9 @@ busdma_md_load_uio(struct busdma_md *md, struct uio *uio,
     busdma_callback_f cb, void *arg, u_int flags)
 {
 
-	// printf("XXX: %s: md=%p, uio=%p\n", __func__, md, uio);
+	CTR6(KTR_BUSDMA, "%s: md=%p, uio=%p, cb=%p, arg=%p, flags=%#x",
+	    __func__, md, uio, cb, arg, flags);
+
 	(*cb)(arg, md, ENOSYS);
 	return (0);
 }
@@ -618,7 +651,7 @@ busdma_md_unload(struct busdma_md *md)
 	device_t bus;
 	int error;
 
-	// printf("XXX: %s: md=%p\n", __func__, md);
+	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
 
 	if (md == NULL)
 		return (EINVAL);
@@ -651,6 +684,8 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	vm_size_t maxsz;
 	u_int idx;
 	int error;
+
+	CTR3(KTR_BUSDMA, "%s: tag=%p, flags=%#x", __func__, tag, flags);
 
 	if (tag == NULL || md_p == NULL)
 		return (EINVAL);
@@ -720,6 +755,8 @@ busdma_mem_free(struct busdma_md *md)
 	device_t bus;
 	int error;
 
+	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
+
 	if (md == NULL)
 		return (EINVAL);
 	if ((md->md_flags & BUSDMA_MD_FLAG_ALLOCATED) == 0)
@@ -742,10 +779,15 @@ busdma_mem_free(struct busdma_md *md)
 void
 busdma_sync(struct busdma_md *md, u_int op)
 {
+
+	CTR3(KTR_BUSDMA, "%s: md=%p, op=%#x", __func__, md, op);
 }
 
 void
 busdma_sync_range(struct busdma_md *md, u_int op, bus_addr_t addr,
     bus_size_t len)
 {
+
+	CTR5(KTR_BUSDMA, "%s: md=%p, op=%#x, addr=%#jx, len=%#jx", __func__,
+	    md, op, addr, len);
 }
