@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_STRERROR 3
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Fn pam_strerror "const pam_handle_t *pamh" "int error_number"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_strerror
 function returns a pointer to a string containing a
 textual description of the error indicated by the
 .Fa error_number
@@ -64,7 +64,7 @@ or
 .Dv NULL .
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_strerror
 function returns
 .Dv NULL
 on failure.
@@ -78,11 +78,11 @@ on failure.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_strerror
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

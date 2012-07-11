@@ -17,13 +17,12 @@
  *
  * $FreeBSD$
  */
-#include <stdint.h>
 #include <math.h>
+#include <stdint.h>
 #define YYSTYPE	int32_t
 extern int32_t end_result;
 extern int yylex(void);
 extern int yyerror(const char *);
-extern int yyparse(void);
 %}
 %token NUMBER
 %token ERROR
@@ -35,9 +34,9 @@ extern int yyparse(void);
 %left EQ NE
 %left '<' LE '>' GE
 %left LSHIFT RSHIFT
-%right EXPONENT
 %left '+' '-'
 %left '*' '/' '%'
+%right EXPONENT
 %right UMINUS UPLUS '!' '~'
 
 %%

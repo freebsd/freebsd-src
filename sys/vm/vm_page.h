@@ -237,20 +237,22 @@ extern struct vpglocks pa_lock[];
 #endif
 
 #define	vm_page_queue_free_mtx	vm_page_queue_free_lock.data
+
 /*
  * These are the flags defined for vm_page.
  *
- * aflags are updated by atomic accesses. Use the vm_page_aflag_set()
+ * aflags are updated by atomic accesses.  Use the vm_page_aflag_set()
  * and vm_page_aflag_clear() functions to set and clear the flags.
  *
  * PGA_REFERENCED may be cleared only if the object containing the page is
- * locked.
+ * locked.  It is set by both the MI and MD VM layers.
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
- * does so, the page must be VPO_BUSY.
+ * does so, the page must be VPO_BUSY.  The MI VM layer must never access this
+ * flag directly.  Instead, it should call pmap_page_is_write_mapped().
  *
  * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
- * at least one executable mapping. It is not consumed by the VM layer.
+ * at least one executable mapping.  It is not consumed by the MI VM layer.
  */
 #define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x02		/* page has been referenced */
@@ -262,12 +264,12 @@ extern struct vpglocks pa_lock[];
  */
 #define	PG_CACHED	0x01		/* page is cached */
 #define	PG_FREE		0x02		/* page is free */
-#define	PG_FICTITIOUS	0x04		/* physical page doesn't exist (O) */
+#define	PG_FICTITIOUS	0x04		/* physical page doesn't exist */
 #define	PG_ZERO		0x08		/* page is zeroed */
 #define	PG_MARKER	0x10		/* special queue marker page */
 #define	PG_SLAB		0x20		/* object pointer is actually a slab */
 #define	PG_WINATCFLS	0x40		/* flush dirty page on inactive q */
-#define	PG_NODUMP	0x80		/* don't include this page in the dump */
+#define	PG_NODUMP	0x80		/* don't include this page in a dump */
 
 /*
  * Misc constants.
@@ -312,7 +314,7 @@ struct vnode;
 extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
-extern int vm_page_array_size;		/* number of vm_page_t's */
+extern long vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
 
 #define	VM_PAGE_IS_FREE(m)	(((m)->flags & PG_FREE) != 0)
@@ -321,19 +323,7 @@ extern long first_page;			/* first physical page number */
 
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 
-static __inline vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
-
-static __inline vm_page_t
-PHYS_TO_VM_PAGE(vm_paddr_t pa)
-{
-#ifdef VM_PHYSSEG_SPARSE
-	return (vm_phys_paddr_to_vm_page(pa));
-#elif defined(VM_PHYSSEG_DENSE)
-	return (&vm_page_array[atop(pa) - first_page]);
-#else
-#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
-#endif
-}
+vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 extern struct vpglocks vm_page_queue_lock;
 
@@ -370,7 +360,6 @@ void vm_page_hold(vm_page_t mem);
 void vm_page_unhold(vm_page_t mem);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
-void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_remove(vm_page_t m);
@@ -391,6 +380,7 @@ void vm_page_dontneed(vm_page_t);
 void vm_page_deactivate (vm_page_t);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
+void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 boolean_t vm_page_is_cached(vm_object_t object, vm_pindex_t pindex);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
@@ -423,6 +413,7 @@ void vm_page_cowfault (vm_page_t);
 int vm_page_cowsetup(vm_page_t);
 void vm_page_cowclear (vm_page_t);
 
+void vm_page_dirty_KBI(vm_page_t m);
 void vm_page_lock_KBI(vm_page_t m, const char *file, int line);
 void vm_page_unlock_KBI(vm_page_t m, const char *file, int line);
 int vm_page_trylock_KBI(vm_page_t m, const char *file, int line);
@@ -436,6 +427,28 @@ void vm_page_object_lock_assert(vm_page_t m);
 #else
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
 #endif
+
+/*
+ *	vm_page_dirty:
+ *
+ *	Set all bits in the page's dirty field.
+ *
+ *	The object containing the specified page must be locked if the
+ *	call is made from the machine-independent layer.
+ *
+ *	See vm_page_clear_dirty_mask().
+ */
+static __inline void
+vm_page_dirty(vm_page_t m)
+{
+
+	/* Use vm_page_dirty_KBI() under INVARIANTS to save memory. */
+#if defined(KLD_MODULE) || defined(INVARIANTS)
+	vm_page_dirty_KBI(m);
+#else
+	m->dirty = VM_PAGE_BITS_ALL;
+#endif
+}
 
 /*
  *	vm_page_sleep_if_busy:

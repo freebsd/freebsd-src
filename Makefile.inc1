@@ -15,6 +15,7 @@
 #	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
+#	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
 #	TARGET="machine" to crossbuild world for a different machine type
@@ -88,7 +89,7 @@ SUBDIR+=etc
 
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
-.for _DIR in ${LOCAL_DIRS}
+.for _DIR in ${LOCAL_LIB_DIRS} ${LOCAL_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+= ${_DIR}
 .endif
@@ -223,9 +224,6 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
-.if ${OSRELDATE} < 700044
-CROSSENV+=	AR=gnu-ar RANLIB=gnu-ranlib
-.endif
 .if ${MK_GROFF} != "no"
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
@@ -245,7 +243,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -255,7 +253,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -265,6 +263,7 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 # world stage
 WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
+		_LDSCRIPTROOT= \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
@@ -307,6 +306,7 @@ LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 # Yes, the flags are redundant.
 LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
+		_LDSCRIPTROOT=${LIB32TMP} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
@@ -319,11 +319,11 @@ LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
 		-DWITHOUT_HTML -DNO_CTF -DNO_LINT -ECC -ECXX -EAS -ELD \
 		DESTDIR=${LIB32TMP}
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
 .endif
 
 # install stage
-IMAKEENV=	${CROSSENV}
+IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
@@ -488,7 +488,8 @@ build32:
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=${_dir}/ build-tools
+	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF \
+	    -DEARLY_BUILD build-tools
 .endfor
 	cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 libraries
@@ -830,7 +831,7 @@ buildkernel:
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    PATH=${BPATH}:${PATH} \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
+	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
@@ -838,7 +839,7 @@ buildkernel:
 	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
 	    PATH=${BPATH}:${PATH} \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF ${target}
+	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD ${target}
 .endfor
 .endif
 .if !defined(NO_KERNELDEPEND)
@@ -979,8 +980,8 @@ update:
 # legacy: Build compatibility shims for the next three targets
 #
 legacy:
-.if ${BOOTSTRAPPING} < 600034 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 6.0 not supported."; \
+.if ${BOOTSTRAPPING} < 700055 && ${BOOTSTRAPPING} != 0
+	@echo "ERROR: Source upgrades from versions prior to 7.0 not supported."; \
 	false
 .endif
 .for _tool in tools/build
@@ -1008,7 +1009,7 @@ _gperf=		gnu/usr.bin/gperf
 _groff=		gnu/usr.bin/groff
 .endif
 
-.if ${BOOTSTRAPPING} >= 700044 && ${BOOTSTRAPPING} < 800022
+.if ${BOOTSTRAPPING} < 800022
 _ar=		usr.bin/ar
 .endif
 
@@ -1022,6 +1023,9 @@ _sed=		usr.bin/sed
 
 .if ${BOOTSTRAPPING} < 900006
 _lex=		usr.bin/lex
+.endif
+
+.if ${BOOTSTRAPPING} < 1000013
 _yacc=		usr.bin/yacc
 .endif
 
@@ -1029,14 +1033,8 @@ _yacc=		usr.bin/yacc
 _awk=		usr.bin/awk
 .endif
 
-.if ${MK_BSNMP} != "no" && \
-    (${BOOTSTRAPPING} < 700018 || !exists(/usr/sbin/gensnmptree))
+.if ${MK_BSNMP} != "no" && !exists(/usr/sbin/gensnmptree)
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
-.endif
-
-.if ${MK_RESCUE} != "no" && \
-    ${BOOTSTRAPPING} < 700026
-_crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
 .if ${MK_CLANG} != "no"
@@ -1088,12 +1086,11 @@ bootstrap-tools:
     ${_mklocale} \
     usr.bin/rpcgen \
     ${_sed} \
-    ${_lex} \
     ${_yacc} \
+    ${_lex} \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config \
-    ${_crunchgen}
+    usr.sbin/config
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1200,7 +1197,7 @@ cross-tools:
 #
 # hierarchy - ensure that all the needed directories are present
 #
-hierarchy:
+hierarchy hier:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
 
 #
@@ -1277,6 +1274,11 @@ _ofed_lib=	contrib/ofed/usr.lib/
 .endif
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
+.for _DIR in ${LOCAL_LIB_DIRS}
+.if exists(${.CURDIR}/${_DIR}/Makefile)
+_generic_libs+= ${_DIR}
+.endif
+.endfor
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
@@ -1649,8 +1651,8 @@ _xi-mtree:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 
-.ORDER: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
-xdev-install: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
 
 _xi-cross-tools:
 	@echo "_xi-cross-tools"

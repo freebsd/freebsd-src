@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,8 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_output.c,v 1.46 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -424,11 +422,12 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 
 #ifdef SCTP_PACKET_LOGGING
 void
-sctp_packet_log(struct mbuf *m, int length)
+sctp_packet_log(struct mbuf *m)
 {
 	int *lenat, thisone;
 	void *copyto;
 	uint32_t *tick_tock;
+	int length;
 	int total_len;
 	int grabbed_lock = 0;
 	int value, newval, thisend, thisbegin;
@@ -438,6 +437,7 @@ sctp_packet_log(struct mbuf *m, int length)
 	 * (value) -ticks of log      (ticks) o -ip packet o -as logged -
 	 * where this started (thisbegin) x <--end points here
 	 */
+	length = SCTP_HEADER_LEN(m);
 	total_len = SCTP_SIZE32((length + (4 * sizeof(int))));
 	/* Log a packet to the buffer. */
 	if (total_len > SCTP_PACKET_LOG_SIZE) {
@@ -483,7 +483,7 @@ again_locked:
 	}
 	/* Sanity check */
 	if (thisend >= SCTP_PACKET_LOG_SIZE) {
-		printf("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
+		SCTP_PRINTF("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
 		    thisbegin,
 		    thisend,
 		    SCTP_BASE_VAR(packet_log_writers),

@@ -1,0 +1,82 @@
+The following are demonstrations of the rfsio.d script.
+
+
+
+Here we trace file read() activity that has fully missed the cache and 
+must be read from disk,
+
+   # ./rfsio.d
+   
+   Read IOPS (count)
+   /                                   logical          7
+   /extra1                            physical        162
+   /boot                               logical        235
+   /boot                              physical        410
+   /extra1                             logical       9514
+   
+   Read Bandwidth (bytes)
+   /                                   logical        533
+   /boot                               logical    1502386
+   /boot                              physical    1512960
+   /extra1                            physical   97153024
+   /extra1                             logical   97228668
+   
+   Total File System miss-rate: 100%
+   ^C
+
+The miss rate of 100% means that all of the file system activity missed
+the cache, and had to read from disk.
+
+
+
+The following demonstrates file read() activity to the root filesystem
+that mostly returned from the file system cache.
+
+   # ./rfsio.d
+   
+   Read IOPS (count)
+   /                                  physical          1
+   /extra1                            physical          9
+   /devices                            logical          9
+   /                                   logical         15
+   /extra1                             logical       4096
+   
+   Read Bandwidth (bytes)
+   /devices                            logical          9
+   /                                   logical        949
+   /                                  physical       8192
+   /extra1                            physical     917504
+   /extra1                             logical    4194304
+   
+   Total File System miss-rate: 22%
+   ^C
+
+The total miss-rate was 22%, which is based on the bytes transferred that
+missed the cache.
+
+
+
+
+Now for an unusual demonstration,
+
+   # ./rfsio.d
+   
+   Read IOPS (count)
+   /devices                            logical          1
+   /                                   logical         10
+   /extra1                            physical        106
+   /extra1                             logical       6337
+   
+   Read Bandwidth (bytes)
+   /devices                            logical          2
+   /                                   logical        961
+   /extra1                             logical   64846450
+   /extra1                            physical   66151424
+   
+   Total File System miss-rate: 102%
+   ^C
+
+Here the miss-rate is 102%, which indicates that more data was read from 
+disk than was requested; this can occur due to UFS read-ahead, which
+assists the performance of sequential disk activity at the small risk of
+reading too much data.  

@@ -253,11 +253,15 @@
 #define	AR_MAC_LED_ASSOC_PEND	0x2	/* STA is trying to associate */
 #define	AR_MAC_LED_ASSOC_S	10
 
+#define	AR_WA_BIT6		0x00000040
+#define	AR_WA_BIT7		0x00000080
+#define	AR_WA_D3_L1_DISABLE	0x00004000	/* */
 #define	AR_WA_UNTIE_RESET_EN	0x00008000	/* ena PCI reset to POR */
 #define	AR_WA_RESET_EN		0x00040000	/* ena AR_WA_UNTIE_RESET_EN */
 #define	AR_WA_ANALOG_SHIFT	0x00100000
 #define	AR_WA_POR_SHORT		0x00200000	/* PCIE phy reset control */
-#define	AR_WA_D3_L1_DISABLE	0x00800000	/* bit 23 */
+#define	AR_WA_BIT22		0x00400000
+#define	AR_WA_BIT23		0x00800000
 
 #define	AR_WA_DEFAULT		0x0000073f
 #define	AR9280_WA_DEFAULT	0x0040073b	/* disable bit 2, see commit */

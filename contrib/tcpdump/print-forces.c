@@ -213,7 +213,7 @@ trunc:
 
 int
 pdatacnt_print(register const u_char * pptr, register u_int len,
-	       u_int32_t IDcnt, u_int16_t op_msk, int indent)
+	       u_int16_t IDcnt, u_int16_t op_msk, int indent)
 {
 	u_int i;
 	int rc;
@@ -270,7 +270,7 @@ pdatacnt_print(register const u_char * pptr, register u_int len,
 			if (vflag >= 3 && ops->v != F_TLV_PDAT) {
 				if (pad)
 					printf
-					    ("%s %s (Length %d DataLen %d pad %d Bytes)\n",
+					    ("%s  %s (Length %d DataLen %d pad %d Bytes)\n",
 					     ib, ops->s, EXTRACT_16BITS(&pdtlv->length),
 					     tll, pad);
 				else
@@ -285,6 +285,7 @@ pdatacnt_print(register const u_char * pptr, register u_int len,
 			rc = ops->print((const u_char *)pdtlv,
 					tll + pad + TLV_HDRL, op_msk,
 					indent + 2);
+			len -= (TLV_HDRL + pad + tll);
 		} else {
 			printf("Invalid path data content type 0x%x len %d\n",
 			       type, EXTRACT_16BITS(&pdtlv->length));
@@ -298,7 +299,7 @@ pd_err:
 			}
 		}
 	}
-	return 0;
+	return len;
 
 trunc:
 	fputs("[|forces]", stdout);
@@ -312,6 +313,8 @@ pdata_print(register const u_char * pptr, register u_int len,
 	const struct pathdata_h *pdh = (struct pathdata_h *)pptr;
 	char *ib = indent_pr(indent, 0);
 	u_int minsize = 0;
+	int more_pd = 0;
+	u_int16_t idcnt = 0;
 
 	TCHECK(*pdh);
 	if (len < sizeof(struct pathdata_h))
@@ -326,7 +329,8 @@ pdata_print(register const u_char * pptr, register u_int len,
 	}
 	pptr += sizeof(struct pathdata_h);
 	len -= sizeof(struct pathdata_h);
-	minsize = EXTRACT_16BITS(&pdh->pIDcnt) * 4;
+	idcnt = EXTRACT_16BITS(&pdh->pIDcnt);
+	minsize = idcnt * 4;
 	if (len < minsize) {
 		printf("\t\t\ttruncated IDs expected %uB got %uB\n", minsize,
 		       len);
@@ -334,7 +338,15 @@ pdata_print(register const u_char * pptr, register u_int len,
 		printf("]\n");
 		return -1;
 	}
-	return pdatacnt_print(pptr, len, EXTRACT_16BITS(&pdh->pIDcnt), op_msk, indent);
+	more_pd = pdatacnt_print(pptr, len, idcnt, op_msk, indent);
+	if (more_pd > 0) {
+		int consumed = len - more_pd;
+		pptr += consumed;
+		len = more_pd; 
+		/* XXX: Argh, recurse some more */
+		return recpdoptlv_print(pptr, len, op_msk, indent+1);
+	} else
+		return 0;
 
 trunc:
 	fputs("[|forces]", stdout);

@@ -22,10 +22,12 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2012 Milan Jurik. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #include <assert.h>
@@ -256,9 +258,10 @@ get_usage(zfs_help_t idx)
 		"snapshot>\n"
 		"\treceive [-vnFu] [-d | -e] <filesystem>\n"));
 	case HELP_RENAME:
-		return (gettext("\trename <filesystem|volume|snapshot> "
+		return (gettext("\trename [-f] <filesystem|volume|snapshot> "
 		    "<filesystem|volume|snapshot>\n"
-		    "\trename -p <filesystem|volume> <filesystem|volume>\n"
+		    "\trename [-f] -p <filesystem|volume> "
+		    "<filesystem|volume>\n"
 		    "\trename -r <snapshot> <snapshot>\n"
 		    "\trename -u [-p] <filesystem> <filesystem>"));
 	case HELP_ROLLBACK:
@@ -764,7 +767,6 @@ zfs_do_create(int argc, char **argv)
 			(void) fprintf(stderr, gettext("missing size "
 			    "argument\n"));
 			goto badusage;
-			break;
 		case '?':
 			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
 			    optopt);
@@ -3091,8 +3093,8 @@ zfs_do_list(int argc, char **argv)
 }
 
 /*
- * zfs rename <fs | snap | vol> <fs | snap | vol>
- * zfs rename -p <fs | vol> <fs | vol>
+ * zfs rename [-f] <fs | snap | vol> <fs | snap | vol>
+ * zfs rename [-f] -p <fs | vol> <fs | vol>
  * zfs rename -r <snap> <snap>
  * zfs rename -u [-p] <fs> <fs>
  *
@@ -3112,7 +3114,7 @@ zfs_do_rename(int argc, char **argv)
 	boolean_t parents = B_FALSE;
 
 	/* check options */
-	while ((c = getopt(argc, argv, "pru")) != -1) {
+	while ((c = getopt(argc, argv, "fpru")) != -1) {
 		switch (c) {
 		case 'p':
 			parents = B_TRUE;
@@ -3122,6 +3124,9 @@ zfs_do_rename(int argc, char **argv)
 			break;
 		case 'u':
 			flags.nounmount = B_TRUE;
+			break;
+		case 'f':
+			flags.forceunmount = B_TRUE;
 			break;
 		case '?':
 		default:
@@ -3163,7 +3168,7 @@ zfs_do_rename(int argc, char **argv)
 	}
 
 	if (flags.nounmount && parents) {
-		(void) fprintf(stderr, gettext("-u and -r options are mutually "
+		(void) fprintf(stderr, gettext("-u and -p options are mutually "
 		    "exclusive\n"));
 		usage(B_FALSE);
 	}
@@ -3586,6 +3591,7 @@ zfs_do_send(int argc, char **argv)
 			if (flags.verbose)
 				extraverbose = B_TRUE;
 			flags.verbose = B_TRUE;
+			flags.progress = B_TRUE;
 			break;
 		case 'D':
 			flags.dedup = B_TRUE;

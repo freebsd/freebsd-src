@@ -332,7 +332,7 @@ int main(int argc, char *argv[]) {
 
 	sip = argv[1];
 
-	memset(&s_in, 0, sizeof(&s_in));
+	memset(&s_in, 0, sizeof(s_in));
 	us = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
 		perror("socket()");

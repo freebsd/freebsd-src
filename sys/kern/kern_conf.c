@@ -993,9 +993,10 @@ make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev,
 	max_parentpath_len = SPECNAMELEN - physpath_len - /*/*/1;
 	parentpath_len = strlen(pdev->si_name);
 	if (max_parentpath_len < parentpath_len) {
-		printf("make_dev_physpath_alias: WARNING - Unable to alias %s "
-		    "to %s/%s - path too long\n",
-		    pdev->si_name, physpath, pdev->si_name);
+		if (bootverbose)
+			printf("WARNING: Unable to alias %s "
+			    "to %s/%s - path too long\n",
+			    pdev->si_name, physpath, pdev->si_name);
 		ret = ENAMETOOLONG;
 		goto out;
 	}

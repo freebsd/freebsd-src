@@ -200,6 +200,10 @@
                 ..
             ..
         ..
+        dtrace
+            toolkit
+            ..
+        ..  
         examples
             BSD_daemon
             ..
@@ -209,8 +213,8 @@
             ..
             bootforth
             ..
-	    csh
-	    	..
+            csh
+            ..
             cvs
                 contrib
                 ..

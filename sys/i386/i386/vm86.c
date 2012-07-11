@@ -650,7 +650,6 @@ vm86_getptr(vmc, kva, sel, off)
 			return (1);
 		}
 	return (0);
-	panic("vm86_getptr: address not found");
 }
 	
 int

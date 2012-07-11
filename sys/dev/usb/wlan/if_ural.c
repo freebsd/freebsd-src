@@ -713,6 +713,12 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
+			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
+				RAL_UNLOCK(sc);
+				IEEE80211_LOCK(ic);
+				ieee80211_free_node(ni);
+				return (-1);
+			}
 			ural_update_slot(ic->ic_ifp);
 			ural_set_txpreamble(sc);
 			ural_set_basicrates(sc, ic->ic_bsschan);
@@ -1054,7 +1060,12 @@ ural_tx_bcn(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		m_freem(m0);
 		ieee80211_free_node(ni);
-		return EIO;
+		return (EIO);
+	}
+	if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
+		m_freem(m0);
+		ieee80211_free_node(ni);
+		return (ENXIO);
 	}
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);

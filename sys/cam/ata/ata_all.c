@@ -108,6 +108,16 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x51: return ("CONFIGURE_STREAM");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
+	case 0x67:
+		if (cmd->features == 0xec)
+			return ("SEP_ATTN IDENTIFY");
+		switch (cmd->lba_low) {
+		case 0x00: return ("SEP_ATTN READ BUFFER");
+		case 0x02: return ("SEP_ATTN RECEIVE DIAGNOSTIC RESULTS");
+		case 0x80: return ("SEP_ATTN WRITE BUFFER");
+		case 0x82: return ("SEP_ATTN SEND DIAGNOSTIC");
+		}
+		return ("SEP_ATTN");
 	case 0x70: return ("SEEK");
 	case 0x87: return ("CFA_TRANSLATE_SECTOR");
 	case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
@@ -161,8 +171,8 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xf2: return ("SECURITY_UNLOCK");
 	case 0xf3: return ("SECURITY_ERASE_PREPARE");
 	case 0xf4: return ("SECURITY_ERASE_UNIT");
-	case 0xf5: return ("SECURITY_FREE_LOCK");
-	case 0xf6: return ("SECURITY DISABLE PASSWORD");
+	case 0xf5: return ("SECURITY_FREEZE_LOCK");
+	case 0xf6: return ("SECURITY_DISABLE_PASSWORD");
 	case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
 	case 0xf9: return ("SET_MAX_ADDRESS");
 	}
@@ -284,6 +294,21 @@ ata_print_ident(struct ata_params *ident_data)
 			printf(" SATA");
 	}
 	printf(" device\n");
+}
+
+void
+semb_print_ident(struct sep_identify_data *ident_data)
+{
+	char vendor[9], product[17], revision[5], fw[5], in[7], ins[5];
+
+	cam_strvis(vendor, ident_data->vendor_id, 8, sizeof(vendor));
+	cam_strvis(product, ident_data->product_id, 16, sizeof(product));
+	cam_strvis(revision, ident_data->product_rev, 4, sizeof(revision));
+	cam_strvis(fw, ident_data->firmware_rev, 4, sizeof(fw));
+	cam_strvis(in, ident_data->interface_id, 6, sizeof(in));
+	cam_strvis(ins, ident_data->interface_rev, 4, sizeof(ins));
+	printf("<%s %s %s %s> SEMB %s %s device\n",
+	    vendor, product, revision, fw, in, ins);
 }
 
 uint32_t
@@ -695,3 +720,86 @@ ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry)
 	}
         return (-1);
 }
+
+void
+semb_receive_diagnostic_results(struct ccb_ataio *ataio,
+    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+    uint8_t tag_action, int pcv, uint8_t page_code,
+    uint8_t *data_ptr, uint16_t length, uint32_t timeout)
+{
+
+	length = min(length, 1020);
+	length = (length + 3) & ~3;
+	cam_fill_ataio(ataio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      length,
+		      timeout);
+	ata_28bit_cmd(ataio, ATA_SEP_ATTN,
+	    pcv ? page_code : 0, 0x02, length / 4);
+}
+
+void
+semb_send_diagnostic(struct ccb_ataio *ataio,
+    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+    uint8_t tag_action, uint8_t *data_ptr, uint16_t length, uint32_t timeout)
+{
+
+	length = min(length, 1020);
+	length = (length + 3) & ~3;
+	cam_fill_ataio(ataio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/length ? CAM_DIR_OUT : CAM_DIR_NONE,
+		      tag_action,
+		      data_ptr,
+		      length,
+		      timeout);
+	ata_28bit_cmd(ataio, ATA_SEP_ATTN,
+	    length > 0 ? data_ptr[0] : 0, 0x82, length / 4);
+}
+
+void
+semb_read_buffer(struct ccb_ataio *ataio,
+    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+    uint8_t tag_action, uint8_t page_code,
+    uint8_t *data_ptr, uint16_t length, uint32_t timeout)
+{
+
+	length = min(length, 1020);
+	length = (length + 3) & ~3;
+	cam_fill_ataio(ataio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      length,
+		      timeout);
+	ata_28bit_cmd(ataio, ATA_SEP_ATTN,
+	    page_code, 0x00, length / 4);
+}
+
+void
+semb_write_buffer(struct ccb_ataio *ataio,
+    u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+    uint8_t tag_action, uint8_t *data_ptr, uint16_t length, uint32_t timeout)
+{
+
+	length = min(length, 1020);
+	length = (length + 3) & ~3;
+	cam_fill_ataio(ataio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/length ? CAM_DIR_OUT : CAM_DIR_NONE,
+		      tag_action,
+		      data_ptr,
+		      length,
+		      timeout);
+	ata_28bit_cmd(ataio, ATA_SEP_ATTN,
+	    length > 0 ? data_ptr[0] : 0, 0x80, length / 4);
+}
+

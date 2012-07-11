@@ -11,6 +11,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -24,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pamtest.c 472 2011-11-03 09:46:52Z des $
+ * $Id: pamtest.c 595 2012-04-14 14:28:35Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -261,8 +264,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: pamtest [-dksv] %s\n",
-	    "[-H rhost] [-h host] [-t tty] [-U ruser] [-u user] service");
+	fprintf(stderr, "usage: pamtest %s service command ...\n",
+	    "[-dkMPsv] [-H rhost] [-h host] [-t tty] [-U ruser] [-u user]");
 	exit(1);
 }
 
@@ -297,7 +300,7 @@ main(int argc, char *argv[])
 	int pame;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "dH:h:kst:U:u:v")) != -1)
+	while ((opt = getopt(argc, argv, "dH:h:kMPst:U:u:v")) != -1)
 		switch (opt) {
 		case 'd':
 			openpam_debug++;
@@ -310,6 +313,14 @@ main(int argc, char *argv[])
 			break;
 		case 'k':
 			keepatit = 1;
+			break;
+		case 'M':
+			openpam_set_feature(OPENPAM_RESTRICT_MODULE_NAME, 0);
+			openpam_set_feature(OPENPAM_VERIFY_MODULE_FILE, 0);
+			break;
+		case 'P':
+			openpam_set_feature(OPENPAM_RESTRICT_SERVICE_NAME, 0);
+			openpam_set_feature(OPENPAM_VERIFY_POLICY_FILE, 0);
 			break;
 		case 's':
 			silent = PAM_SILENT;

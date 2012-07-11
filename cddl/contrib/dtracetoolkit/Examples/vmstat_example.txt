@@ -1,0 +1,45 @@
+The following is an example of the vmstat.d script,
+
+
+We run both vmstat.d and the original vmstat(1M) command at the same time
+to compare outputs,
+
+ $ vmstat 1
+  kthr      memory            page            disk          faults      cpu
+  r b w   swap  free  re  mf pi po fr de sr cd s0 -- --   in   sy   cs us sy id
+  0 0 0 1147468 144324 2   8  2  1  1  0  0  1  0  0  0  294  990  355 18  2 80
+  1 0 0 1065480 92276 13  73  0  0  0  0  0  0  0  0  0  359 1055  376 85 15  0
+  0 0 0 1052088 82940  0   0  0  0  0  0  0  0  0  0  0  409  999  402 97  3  0
+  0 0 0 1052088 82940  0   0  0  0  0  0  0  0  0  0  0  406  975  407 97  3  0
+  0 0 0 1052088 82940  0   0  0  0  0  0  0  0  0  0  0  406 1037  429 97  3  0
+  0 0 0 1052088 82940 247 1763 0 0  0  0  0  2  0  0  0  427 4828  680 81 19  0
+  0 0 0 1051264 82300  0   0  0  0  0  0  0  0  0  0  0  414 1164  441 97  3  0
+  0 0 0 1051264 82300 11 134  0  0  0  0  0  0  0  0  0  423 1218  461 95  5  0
+  0 0 0 1051264 82300  0   0  0  0  0  0  0  0  0  0  0  416 1054  435 98  2  0
+ [...]
+
+ # ./vmstat.d
+  w       swap     free   re    mf   pi   po   fr   sr    in    sy   cs
+  0    1052088    82940    8    80    0    0    0    0   117   958  379
+  0    1052088    82940    0     0    0    0    0    0   123   955  402
+  0    1052088    82940    0     0    0    0    0    0   121  1025  420
+  0    1052088    82940    0     0    0    0    0    0   121  1065  433
+  0    1051264    82300 1008  7192    0    0    0    0   219  4886  684
+  0    1051264    82300    0     0    0    0    0    0   193  1188  461
+  0    1051264    82300   44   540    0    0    0    0   165  1226  450
+  0    1051264    82300    0     0    0    0    0    0   123  1012  421
+ [...]
+
+Above we can see the columns are corresponding well. "re" and "mf" in the
+DTrace output appear four times as large as they should be, because in the
+DTrace output we are printing Kbs not page counts (for consistancy).
+
+The DTrace output lacks the "summary since boot" line, as it is not using
+Kstat to fetch this data.
+
+
+The vmstat.d script is not intended itself as a useful program, rather it 
+is intended as a starting point for other DTrace scripts; a starting point
+of familiar statistics to provide the programmer with a "common ground"
+of knowledge.
+

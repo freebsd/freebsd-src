@@ -1,0 +1,1 @@
+../Ruby/rb_objnew.d

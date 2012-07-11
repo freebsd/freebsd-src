@@ -1527,7 +1527,7 @@ re_attach(device_t dev)
 		re_read_eeprom(sc, (caddr_t)as, RL_EE_EADDR, 3);
 		for (i = 0; i < ETHER_ADDR_LEN / 2; i++)
 			as[i] = le16toh(as[i]);
-		bcopy(as, eaddr, sizeof(eaddr));
+		bcopy(as, eaddr, ETHER_ADDR_LEN);
 	}
 
 	if (sc->rl_type == RL_8169) {
@@ -1753,8 +1753,12 @@ re_detach(device_t dev)
 		bus_teardown_intr(dev, sc->rl_irq[0], sc->rl_intrhand[0]);
 		sc->rl_intrhand[0] = NULL;
 	}
-	if (ifp != NULL)
+	if (ifp != NULL) {
+#ifdef DEV_NETMAP
+		netmap_detach(ifp);
+#endif /* DEV_NETMAP */
 		if_free(ifp);
+	}
 	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0)
 		rid = 0;
 	else
@@ -1843,9 +1847,6 @@ re_detach(device_t dev)
 		bus_dma_tag_destroy(sc->rl_ldata.rl_stag);
 	}
 
-#ifdef DEV_NETMAP
-	netmap_detach(ifp);
-#endif /* DEV_NETMAP */
 	if (sc->rl_parent_tag)
 		bus_dma_tag_destroy(sc->rl_parent_tag);
 

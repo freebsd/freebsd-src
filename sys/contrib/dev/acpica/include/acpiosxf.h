@@ -275,7 +275,7 @@ AcpiOsExecute (
 
 void
 AcpiOsWaitEventsComplete (
-    void                    *Context);
+    void);
 
 void
 AcpiOsSleep (

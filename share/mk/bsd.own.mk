@@ -334,6 +334,7 @@ __DEFAULT_YES_OPTIONS = \
     CXX \
     DICT \
     DYNAMICROOT \
+    ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
     FORTH \
@@ -366,6 +367,7 @@ __DEFAULT_YES_OPTIONS = \
     LOCALES \
     LOCATE \
     LPR \
+    LS_COLORS \
     MAIL \
     MAILWRAPPER \
     MAKE \
@@ -383,6 +385,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSL \
     PAM \
     PF \
+    PKGBOOTSTRAP \
     PKGTOOLS \
     PMC \
     PORTSNAP \
@@ -421,11 +424,15 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CLANG_IS_CC \
     CTF \
+    GNU_SORT \
     HESIOD \
     ICONV \
     IDEA \
+    INSTALL_AS_USER \
     LIBCPLUSPLUS \
-    OFED
+    NAND \
+    OFED \
+    SHARED_TOOLCHAIN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -441,8 +448,7 @@ __T=${TARGET_ARCH}
 __T=${MACHINE_ARCH}
 .endif
 # Clang is only for x86 and powerpc right now, by default.
-# XXX: Temporarily disabled for 32-bit powerpc, due to a binutils bug.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc64"
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
@@ -635,11 +641,22 @@ MK_${vv:H}:=	${MK_${vv:T}}
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif ${MAKE_VERSION} >= 5201111300
+.elif defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300
 CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
+
+.if ${MK_INSTALL_AS_USER} != "no"
+_uid!=	id -un
+.if ${_uid} != 0
+_gid!=	id -gn
+.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+$xOWN=	${_uid}
+$xGRP=	${_gid}
+.endfor
+.endif
+.endif
 
 .endif # !_WITHOUT_SRCCONF
 

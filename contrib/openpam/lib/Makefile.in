@@ -15,7 +15,7 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am 499 2011-11-22 11:51:50Z des $
+# $Id: Makefile.am 602 2012-04-15 17:31:15Z des $
 
 
 VPATH = @srcdir@
@@ -76,11 +76,13 @@ am__objects_1 =
 am_libpam_la_OBJECTS = openpam_borrow_cred.lo \
 	openpam_check_owner_perms.lo openpam_configure.lo \
 	openpam_constants.lo openpam_dispatch.lo openpam_dynamic.lo \
-	openpam_findenv.lo openpam_free_data.lo \
-	openpam_free_envlist.lo openpam_get_option.lo openpam_load.lo \
-	openpam_log.lo openpam_nullconv.lo openpam_readline.lo \
-	openpam_restore_cred.lo openpam_set_option.lo \
-	openpam_static.lo openpam_subst.lo openpam_ttyconv.lo \
+	openpam_features.lo openpam_findenv.lo openpam_free_data.lo \
+	openpam_free_envlist.lo openpam_get_feature.lo \
+	openpam_get_option.lo openpam_load.lo openpam_log.lo \
+	openpam_nullconv.lo openpam_readline.lo openpam_readlinev.lo \
+	openpam_readword.lo openpam_restore_cred.lo \
+	openpam_set_option.lo openpam_set_feature.lo openpam_static.lo \
+	openpam_straddch.lo openpam_subst.lo openpam_ttyconv.lo \
 	pam_acct_mgmt.lo pam_authenticate.lo pam_chauthtok.lo \
 	pam_close_session.lo pam_end.lo pam_error.lo \
 	pam_get_authtok.lo pam_get_data.lo pam_get_item.lo \
@@ -234,8 +236,11 @@ INCLUDES = -I$(top_srcdir)/include
 lib_LTLIBRARIES = libpam.la
 noinst_HEADERS = \
 	openpam_constants.h \
+	openpam_ctype.h \
 	openpam_debug.h \
+	openpam_features.h \
 	openpam_impl.h \
+	openpam_strlcat.h \
 	openpam_strlcmp.h \
 	openpam_strlcpy.h
 
@@ -246,17 +251,23 @@ libpam_la_SOURCES = \
 	openpam_constants.c \
 	openpam_dispatch.c \
 	openpam_dynamic.c \
+	openpam_features.c \
 	openpam_findenv.c \
 	openpam_free_data.c \
 	openpam_free_envlist.c \
+	openpam_get_feature.c \
 	openpam_get_option.c \
 	openpam_load.c \
 	openpam_log.c \
 	openpam_nullconv.c \
 	openpam_readline.c \
+	openpam_readlinev.c \
+	openpam_readword.c \
 	openpam_restore_cred.c \
 	openpam_set_option.c \
+	openpam_set_feature.c \
 	openpam_static.c \
+	openpam_straddch.c \
 	openpam_subst.c \
 	openpam_ttyconv.c \
 	pam_acct_mgmt.c \
@@ -387,17 +398,23 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_constants.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_dispatch.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_dynamic.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_features.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_findenv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_free_data.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_free_envlist.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_get_feature.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_get_option.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_load.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_log.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_nullconv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_readline.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_readlinev.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_readword.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_restore_cred.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_set_feature.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_set_option.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_static.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_straddch.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_subst.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_ttyconv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pam_acct_mgmt.Plo@am__quote@

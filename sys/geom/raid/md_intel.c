@@ -1490,7 +1490,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			return (-3);
 		}
 		if (strcasecmp(levelname, "RAID5") == 0)
-			levelname = "RAID5LA";
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1705,7 +1705,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			return (-3);
 		}
 		if (strcasecmp(levelname, "RAID5") == 0)
-			levelname = "RAID5LA";
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);

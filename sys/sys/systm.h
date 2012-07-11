@@ -153,7 +153,7 @@ struct uio;
 struct _jmp_buf;
 struct trapframe;
 
-int	setjmp(struct _jmp_buf *);
+int	setjmp(struct _jmp_buf *) __returns_twice;
 void	longjmp(struct _jmp_buf *, int) __dead2;
 int	dumpstatus(vm_offset_t addr, off_t count);
 int	nullop(void);

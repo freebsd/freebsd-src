@@ -1,0 +1,50 @@
+.TH vmbypid.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+vmbypid.d \- virtual memory stats by PID. Uses DTrace.
+.SH SYNOPSIS
+.B vmbypid.d
+.SH DESCRIPTION
+vmbypid.d is a simple DTrace program to print Virtual Memory
+statistics by process.
+
+The virtual memory statistics are documented in the cpu_vminfo struct
+in the /usr/include/sys/sysinfo.h file; and also in the vminfo provider
+chapter of the DTrace Guide, http://docs.sun.com/db/doc/817-6223.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the vminfo provider.
+.SH EXAMPLES
+.TP
+Sample until Ctrl\-C is hit then print report,
+# 
+.B vmbypid.d
+.PP
+.SH FIELDS
+.TP
+EXEC
+process name
+.TP
+PID
+process ID
+.TP
+VM
+Virtual Memory statistic
+.TP
+VALUE
+Value by which statistic was incremented
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+vmbypid.d will sample until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), vmstat(1M)
+

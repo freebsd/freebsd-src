@@ -58,7 +58,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * was allocated for a PT then the other 3KB would also get mapped
  * whenever the 1KB was mapped.
  */
- 
+
 #define PT_RSIZE	0x0400		/* Real page table size */
 #define PT_SIZE		0x1000
 #define PD_SIZE		0x4000
@@ -315,7 +315,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  *
  * Cache attributes with L2 present, S = 0
  * T E X C B   L1 i-cache L1 d-cache L1 DC WP  L2 cacheable write coalesce
- * 0 0 0 0 0 	N	  N 		- 	N		N 
+ * 0 0 0 0 0 	N	  N 		- 	N		N
  * 0 0 0 0 1	N	  N		-	N		Y
  * 0 0 0 1 0	Y	  Y		WT	N		Y
  * 0 0 0 1 1	Y	  Y		WB	Y		Y
@@ -342,7 +342,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  *
   * Cache attributes with L2 present, S = 1
  * T E X C B   L1 i-cache L1 d-cache L1 DC WP  L2 cacheable write coalesce
- * 0 0 0 0 0 	N	  N 		- 	N		N 
+ * 0 0 0 0 0 	N	  N 		- 	N		N
  * 0 0 0 0 1	N	  N		-	N		Y
  * 0 0 0 1 0	Y	  Y		-	N		Y
  * 0 0 0 1 1	Y	  Y		WT	Y		Y

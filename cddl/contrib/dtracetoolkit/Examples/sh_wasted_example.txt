@@ -1,0 +1,45 @@
+Many shell programmers are in the habit of using calls to external commands 
+instead of using shell built-in commands (an example of this is a call to
+usr/bin/echo instead of using the echo command built into the shell.
+
+This script shows sh_wasted.d tracing a shell script that calls /usr/bin/echo
+instead of using the built-in.
+
+# sh_wasted.d -c ./func_waste.sh
+Tracing... Hit Ctrl-C to end.
+Function A
+Function B
+Function C
+Script duration: 3101631 us
+
+External command elapsed times,
+   FILE                           NAME                   TIME(us)
+   func_waste.sh                  sleep                   3019573
+
+Wasted command elapsed times,
+   FILE                           NAME                   TIME(us)
+   func_waste.sh                  /usr/bin/echo             26510
+
+You can see that the calls to /usr/bin/echo took around 26 thousand
+microseconds; time wasted by the shell having to access an external command.
+
+
+Here we trace the same script, except it uses the shell built-in echo command.
+
+# sh_wasted.d -c ./func_abc.sh 
+Function A
+Tracing... Hit Ctrl-C to end.
+Function B
+Function C
+Script duration: 3032616 us
+
+External command elapsed times,
+   FILE                           NAME                   TIME(us)
+   func_abc.sh                    sleep                   3012920
+
+Wasted command elapsed times,
+   FILE                           NAME                   TIME(us)
+
+The total time here is less and there are no 'wasted' calls to external
+commands.
+

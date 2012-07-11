@@ -543,6 +543,27 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 
 	return (0);
 }
+ 
+/*
+ * Function instructs GEOM_GATE to handle reads directly from within the kernel.
+ */
+static void
+enable_direct_reads(struct hast_resource *res)
+{
+	struct g_gate_ctl_modify ggiomodify;
+
+	bzero(&ggiomodify, sizeof(ggiomodify));
+	ggiomodify.gctl_version = G_GATE_VERSION;
+	ggiomodify.gctl_unit = res->hr_ggateunit;
+	ggiomodify.gctl_modify = GG_MODIFY_READPROV | GG_MODIFY_READOFFSET;
+	strlcpy(ggiomodify.gctl_readprov, res->hr_localpath,
+	    sizeof(ggiomodify.gctl_readprov));
+	ggiomodify.gctl_readoffset = res->hr_localoff;
+	if (ioctl(res->hr_ggatefd, G_GATE_CMD_MODIFY, &ggiomodify) == 0)
+		pjdlog_debug(1, "Direct reads enabled.");
+	else
+		pjdlog_errno(LOG_WARNING, "Failed to enable direct reads");
+}
 
 static int
 init_remote(struct hast_resource *res, struct proto_conn **inp,
@@ -692,6 +713,8 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	res->hr_secondary_localcnt = nv_get_uint64(nvin, "localcnt");
 	res->hr_secondary_remotecnt = nv_get_uint64(nvin, "remotecnt");
 	res->hr_syncsrc = nv_get_uint8(nvin, "syncsrc");
+	if (res->hr_syncsrc == HAST_SYNCSRC_PRIMARY)
+		enable_direct_reads(res);
 	if (nv_exists(nvin, "virgin")) {
 		/*
 		 * Secondary was reinitialized, bump localcnt if it is 0 as
@@ -990,36 +1013,33 @@ reqlog(int loglevel, int debuglevel, struct g_gate_ctl_io *ggio, const char *fmt
 {
 	char msg[1024];
 	va_list ap;
-	int len;
 
 	va_start(ap, fmt);
-	len = vsnprintf(msg, sizeof(msg), fmt, ap);
+	(void)vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
-	if ((size_t)len < sizeof(msg)) {
-		switch (ggio->gctl_cmd) {
-		case BIO_READ:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "READ(%ju, %ju).", (uintmax_t)ggio->gctl_offset,
-			    (uintmax_t)ggio->gctl_length);
-			break;
-		case BIO_DELETE:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "DELETE(%ju, %ju).", (uintmax_t)ggio->gctl_offset,
-			    (uintmax_t)ggio->gctl_length);
-			break;
-		case BIO_FLUSH:
-			(void)snprintf(msg + len, sizeof(msg) - len, "FLUSH.");
-			break;
-		case BIO_WRITE:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "WRITE(%ju, %ju).", (uintmax_t)ggio->gctl_offset,
-			    (uintmax_t)ggio->gctl_length);
-			break;
-		default:
-			(void)snprintf(msg + len, sizeof(msg) - len,
-			    "UNKNOWN(%u).", (unsigned int)ggio->gctl_cmd);
-			break;
-		}
+	switch (ggio->gctl_cmd) {
+	case BIO_READ:
+		(void)snprlcat(msg, sizeof(msg), "READ(%ju, %ju).",
+		    (uintmax_t)ggio->gctl_offset,
+		    (uintmax_t)ggio->gctl_length);
+		break;
+	case BIO_DELETE:
+		(void)snprlcat(msg, sizeof(msg), "DELETE(%ju, %ju).",
+		    (uintmax_t)ggio->gctl_offset,
+		    (uintmax_t)ggio->gctl_length);
+		break;
+	case BIO_FLUSH:
+		(void)snprlcat(msg, sizeof(msg), "FLUSH.");
+		break;
+	case BIO_WRITE:
+		(void)snprlcat(msg, sizeof(msg), "WRITE(%ju, %ju).",
+		    (uintmax_t)ggio->gctl_offset,
+		    (uintmax_t)ggio->gctl_length);
+		break;
+	default:
+		(void)snprlcat(msg, sizeof(msg), "UNKNOWN(%u).",
+		    (unsigned int)ggio->gctl_cmd);
+		break;
 	}
 	pjdlog_common(loglevel, debuglevel, -1, "%s", msg);
 }
@@ -1792,13 +1812,14 @@ sync_thread(void *arg __unused)
 	struct timeval tstart, tend, tdiff;
 	unsigned int ii, ncomp, ncomps;
 	off_t offset, length, synced;
-	bool dorewind;
+	bool dorewind, directreads;
 	int syncext;
 
 	ncomps = HAST_NCOMPONENTS;
 	dorewind = true;
 	synced = 0;
 	offset = -1;
+	directreads = false;
 
 	for (;;) {
 		mtx_lock(&sync_lock);
@@ -1870,6 +1891,8 @@ sync_thread(void *arg __unused)
 					event_send(res, EVENT_SYNCDONE);
 				}
 				mtx_lock(&metadata_lock);
+				if (res->hr_syncsrc == HAST_SYNCSRC_SECONDARY)
+					directreads = true;
 				res->hr_syncsrc = HAST_SYNCSRC_UNDEF;
 				res->hr_primary_localcnt =
 				    res->hr_secondary_remotecnt;
@@ -1883,6 +1906,10 @@ sync_thread(void *arg __unused)
 				mtx_unlock(&metadata_lock);
 			}
 			rw_unlock(&hio_remote_lock[ncomp]);
+			if (directreads) {
+				directreads = false;
+				enable_direct_reads(res);
+			}
 			continue;
 		}
 		pjdlog_debug(2, "sync: Taking free request.");

@@ -125,11 +125,10 @@ static const mbstate_t initial_mbs;
  */
 
 static __inline int
-convert_char(FILE *fp, char * __restrict p, int width)
+convert_char(FILE *fp, char * p, int width)
 {
-	int n, nread;
+	int n;
 
-	nread = 0;
 	if (p == SUPPRESS_PTR) {
 		size_t sum = 0;
 		for (;;) {
@@ -149,63 +148,38 @@ convert_char(FILE *fp, char * __restrict p, int width)
 				break;
 			}
 		}
-		nread += sum;
+		return (sum);
 	} else {
 		size_t r = __fread(p, 1, width, fp);
-		
+
 		if (r == 0)
 			return (-1);
-		nread += r;
+		return (r);
 	}
-	return (nread);
 }
 
 static __inline int
-convert_wchar(FILE *fp, wchar_t *wcp, int width)
+convert_wchar(FILE *fp, wchar_t *wcp, int width, locale_t locale)
 {
 	mbstate_t mbs;
-	size_t nconv;
 	int n, nread;
-	char buf[MB_CUR_MAX];
+	wint_t wi;
 
-	nread = 0;
+	mbs = initial_mbs;
 	n = 0;
-	while (width != 0) {
-		if (n == MB_CUR_MAX) {
-			fp->_flags |= __SERR;
-			return (-1);
-		}
-		buf[n++] = *fp->_p;
-		fp->_p++;
-		fp->_r--;
-		mbs = initial_mbs;
-		nconv = mbrtowc(wcp, buf, n, &mbs);
-		if (nconv == (size_t)-1) {
-			fp->_flags |= __SERR;
-			return (-1);
-		}
-		if (nconv == 0 && wcp != SUPPRESS_PTR)
-			*wcp = L'\0';
-		if (nconv != (size_t)-2) {
-			nread += n;
-			width--;
-			if (wcp != SUPPRESS_PTR)
-				wcp++;
-			n = 0;
-		}
-		if (fp->_r <= 0 && __srefill(fp)) {
-			if (n != 0) {
-				fp->_flags |= __SERR;
-				return (-1);
-			}
-			break;
-		}
+	while (width-- != 0 &&
+	    (wi = __fgetwc_mbs(fp, &mbs, &nread, locale)) != WEOF) {
+		if (wcp != SUPPRESS_PTR)
+			*wcp++ = (wchar_t)wi;
+		n += nread;
 	}
-	return (nread);
+	if (n == 0)
+		return (-1);
+	return (n);
 }
 
 static __inline int
-convert_ccl(FILE *fp, char * __restrict p, int width, const char *ccltab)
+convert_ccl(FILE *fp, char * p, int width, const char *ccltab)
 {
 	char *p0;
 	int n;
@@ -244,67 +218,38 @@ convert_ccl(FILE *fp, char * __restrict p, int width, const char *ccltab)
 }
 
 static __inline int
-convert_wccl(FILE *fp, wchar_t *wcp, int width, const char *ccltab)
+convert_wccl(FILE *fp, wchar_t *wcp, int width, const char *ccltab,
+    locale_t locale)
 {
 	mbstate_t mbs;
-	wchar_t twc;
-	int n, nchars, nconv;
-	char buf[MB_CUR_MAX];
+	wint_t wi;
+	int n, nread;
 
-	if (wcp == SUPPRESS_PTR)
-		wcp = &twc;
+	mbs = initial_mbs;
 	n = 0;
-	nchars = 0;
-	while (width != 0) {
-		if (n == MB_CUR_MAX) {
-			fp->_flags |= __SERR;
-			return (-1);
+	if (wcp == SUPPRESS_PTR) {
+		while ((wi = __fgetwc_mbs(fp, &mbs, &nread, locale)) != WEOF &&
+		    width-- != 0 && ccltab[wctob(wi)])
+			n += nread;
+		if (wi != WEOF)
+			__ungetwc(wi, fp, __get_locale());
+	} else {
+		while ((wi = __fgetwc_mbs(fp, &mbs, &nread, locale)) != WEOF &&
+		    width-- != 0 && ccltab[wctob(wi)]) {
+			*wcp++ = (wchar_t)wi;
+			n += nread;
 		}
-		buf[n++] = *fp->_p;
-		fp->_p++;
-		fp->_r--;
-		mbs = initial_mbs;
-		nconv = mbrtowc(wcp, buf, n, &mbs);
-		if (nconv == (size_t)-1) {
-			fp->_flags |= __SERR;
-			return (-1);
-		}
-		if (nconv == 0)
-			*wcp = L'\0';
-		if (nconv != (size_t)-2) {
-			if (wctob(*wcp) != EOF && !ccltab[wctob(*wcp)]) {
-				while (n != 0) {
-					n--;
-					__ungetc(buf[n], fp);
-				}
-				break;
-			}
-			width--;
-			if (wcp != &twc)
-				wcp++;
-			nchars++;
-			n = 0;
-		}
-		if (fp->_r <= 0 && __srefill(fp)) {
-			if (n != 0) {
-				fp->_flags |= __SERR;
-				return (-1);
-			}
-			break;
-		}
+		if (wi != WEOF)
+			__ungetwc(wi, fp, __get_locale());
+		if (n == 0)
+			return (0);
+		*wcp = 0;
 	}
-	if (n != 0) {
-		fp->_flags |= __SERR;
-		return (-1);
-	}
-	if (nchars == 0)
-		return (0);
-	*wcp = L'\0';
-	return (nchars);
+	return (n);
 }
 
 static __inline int
-convert_string(FILE *fp, char * __restrict p, int width)
+convert_string(FILE *fp, char * p, int width)
 {
 	char *p0;
 	int n;
@@ -335,56 +280,31 @@ convert_string(FILE *fp, char * __restrict p, int width)
 }
 
 static __inline int
-convert_wstring(FILE *fp, wchar_t *wcp, int width)
+convert_wstring(FILE *fp, wchar_t *wcp, int width, locale_t locale)
 {
 	mbstate_t mbs;
-	wchar_t twc;
-	int n, nconv, nread;
-	char buf[MB_CUR_MAX];
+	wint_t wi;
+	int n, nread;
 
-	if (wcp == SUPPRESS_PTR)
-		wcp = &twc;
-	n = nread = 0;
-	while (!isspace(*fp->_p) && width != 0) {
-		if (n == MB_CUR_MAX) {
-			fp->_flags |= __SERR;
-			return (-1);
+	mbs = initial_mbs;
+	n = 0;
+	if (wcp == SUPPRESS_PTR) {
+		while ((wi = __fgetwc_mbs(fp, &mbs, &nread, locale)) != WEOF &&
+		    width-- != 0 && !iswspace(wi))
+			n += nread;
+		if (wi != WEOF)
+			__ungetwc(wi, fp, __get_locale());
+	} else {
+		while ((wi = __fgetwc_mbs(fp, &mbs, &nread, locale)) != WEOF &&
+		    width-- != 0 && !iswspace(wi)) {
+			*wcp++ = (wchar_t)wi;
+			n += nread;
 		}
-		buf[n++] = *fp->_p;
-		fp->_p++;
-		fp->_r--;
-		mbs = initial_mbs;
-		nconv = mbrtowc(wcp, buf, n, &mbs);
-		if (nconv == (size_t)-1) {
-			fp->_flags |= __SERR;
-			return (-1);
-		}
-		if (nconv == 0)
-			*wcp = L'\0';
-		if (nconv != (size_t)-2) {
-			if (iswspace(*wcp)) {
-				while (n != 0) {
-					n--;
-					__ungetc(buf[n], fp);
-				}
-				break;
-			}
-			nread += n;
-			width--;
-			if (wcp != &twc)
-				wcp++;
-			n = 0;
-		}
-		if (fp->_r <= 0 && __srefill(fp)) {
-			if (n != 0) {
-				fp->_flags |= __SERR;
-				return (-1);
-			}
-			break;
-		}
+		if (wi != WEOF)
+			__ungetwc(wi, fp, __get_locale());
+		*wcp = '\0';
 	}
-	*wcp = L'\0';
-	return (nread);
+	return (n);
 }
 
 /*
@@ -467,7 +387,7 @@ parseint(FILE *fp, char * __restrict buf, int width, int base, int flags)
 				goto ok;
 			}
 			break;
-					
+
 		/*
 		 * x ok iff flag still set & 2nd char (or 3rd char if
 		 * we have a sign).
@@ -766,7 +686,7 @@ literal:
 				width = 1;
 			if (flags & LONG) {
 				nr = convert_wchar(fp, GETARG(wchar_t *),
-				    width);
+				    width, locale);
 			} else {
 				nr = convert_char(fp, GETARG(char *), width);
 			}
@@ -780,7 +700,7 @@ literal:
 				width = (size_t)~0;	/* `infinity' */
 			if (flags & LONG) {
 				nr = convert_wccl(fp, GETARG(wchar_t *), width,
-				    ccltab);
+				    ccltab, locale);
 			} else {
 				nr = convert_ccl(fp, GETARG(char *), width,
 				    ccltab);
@@ -799,7 +719,7 @@ literal:
 				width = (size_t)~0;
 			if (flags & LONG) {
 				nr = convert_wstring(fp, GETARG(wchar_t *),
-				    width);
+				    width, locale);
 			} else {
 				nr = convert_string(fp, GETARG(char *), width);
 			}

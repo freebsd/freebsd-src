@@ -130,6 +130,20 @@ CXXABI_1.3 {
     *;
 };
 
+GLIBCXX_3.4 {
+    # operator new and new[]
+    _Znai[jm];
+    _Zna[jm]RKSt9nothrow_t;
+    _Znw[jm];
+    _Znw[jm]RKSt9nothrow_t;
+
+    # operator delete and delete[]
+    _ZdaPv;
+    _ZdaPvRKSt9nothrow_t;
+    _ZdlPv;
+    _ZdlPvRKSt9nothrow_t;
+};
+
 CXXABI_1.3.1 {
 
     __cxa_get_exception_ptr;

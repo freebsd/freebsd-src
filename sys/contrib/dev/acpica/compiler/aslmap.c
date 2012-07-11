@@ -367,6 +367,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* REGIONSPACE_IO */            OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          ACPI_ADR_SPACE_SYSTEM_IO,       0,                  0),
 /* REGIONSPACE_IPMI */          OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          ACPI_ADR_SPACE_IPMI,            0,                  0),
 /* REGIONSPACE_MEM */           OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          ACPI_ADR_SPACE_SYSTEM_MEMORY,   0,                  0),
+/* REGIONSPACE_PCC */           OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          ACPI_ADR_SPACE_PLATFORM_COMM,   0,                  0),
 /* REGIONSPACE_PCI */           OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          ACPI_ADR_SPACE_PCI_CONFIG,      0,                  0),
 /* REGIONSPACE_PCIBAR */        OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          ACPI_ADR_SPACE_PCI_BAR_TARGET,  0,                  0),
 /* REGIONSPACE_SMBUS */         OP_TABLE_ENTRY (AML_RAW_DATA_BYTE,          ACPI_ADR_SPACE_SMBUS,           0,                  0),

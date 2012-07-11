@@ -1,0 +1,60 @@
+.TH js_objgc.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+js_objgc.d - trace JavaScript Object GC using DTrace.
+.SH SYNOPSIS
+.B js_objgc.d
+
+.SH DESCRIPTION
+This traces JavaScript activity from all running browers on the system
+which support the JavaScript DTrace provider.
+
+This script provides information on which objects are not being garbage
+collected, an issue which causes the browser to steadily leak memory.
+We trace object creation (+1) and destruction (-1), and provide a
+summary each second of the running tally of the object class and
+originating filename. If over the period of several minutes an object
+type is still steadily increasing, then that would be of interest.
+Be patient, depending on the rate of object creation it can take over
+ten minutes for garbage collect to kick in.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace JavaScript provider, which may change 
+as additional features are introduced. Check JavaScript/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B js_objgc.d
+.PP
+.SH FIELDS
+.TP
+FILE
+Filename that contained the function
+.TP
+CLASS
+Class to which this new object belongs
+.TP
+TOTAL
+Object entropy (positive == uncollected)
+.SH NOTES
+
+\- it is possible that you will see negative entropy. That happens
+when you begin tracing after some objects have already been created,
+and then trace their destruction.
+\- there are other Things that GC handles, other than Objects; extra
+probes can be added to trace them, should the need arise.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+js_objgc.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

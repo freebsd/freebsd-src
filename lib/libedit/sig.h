@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sig.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: sig.h,v 1.5 2003/08/07 16:44:33 agc Exp $
+ *	$NetBSD: sig.h,v 1.7 2009/02/15 21:25:01 christos Exp $
  * $FreeBSD$
  */
 
@@ -51,15 +51,17 @@
 #define	ALLSIGS		\
 	_DO(SIGINT)	\
 	_DO(SIGTSTP)	\
-	_DO(SIGSTOP)	\
 	_DO(SIGQUIT)	\
 	_DO(SIGHUP)	\
 	_DO(SIGTERM)	\
 	_DO(SIGCONT)	\
 	_DO(SIGWINCH)
+#define ALLSIGSNO	7
 
-typedef void (*el_signalhandler_t)(int);
-typedef el_signalhandler_t *el_signal_t;
+typedef struct {
+	struct sigaction sig_action[ALLSIGSNO];
+	sigset_t sig_set;
+} *el_signal_t;
 
 protected void	sig_end(EditLine*);
 protected int	sig_init(EditLine*);

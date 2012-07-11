@@ -7,24 +7,24 @@
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * a structure to represent them is a good idea.
  *
  * Here's the diagram from the APCS.  Increasing address is _up_ the page.
- * 
+ *
  *          save code pointer       [fp]        <- fp points to here
  *          return link value       [fp, #-4]
  *          return sp value         [fp, #-8]
@@ -72,21 +72,20 @@ __FBSDID("$FreeBSD$");
  *          [saved a2 value]
  *          [saved a1 value]
  *
- * The save code pointer points twelve bytes beyond the start of the 
- * code sequence (usually a single STM) that created the stack frame.  
- * We have to disassemble it if we want to know which of the optional 
+ * The save code pointer points twelve bytes beyond the start of the
+ * code sequence (usually a single STM) that created the stack frame.
+ * We have to disassemble it if we want to know which of the optional
  * fields are actually present.
  */
 
 static void
-db_stack_trace_cmd(db_expr_t addr, db_expr_t count)
+db_stack_trace_cmd(db_expr_t addr, db_expr_t count, boolean_t kernel_only)
 {
 	u_int32_t	*frame, *lastframe;
 	c_db_sym_t sym;
 	const char *name;
 	db_expr_t value;
 	db_expr_t offset;
-	boolean_t	kernel_only = TRUE;
 	int	scp_offset;
 
 	frame = (u_int32_t *)addr;
@@ -196,8 +195,11 @@ db_trace_thread(struct thread *thr, int count)
 {
 	struct pcb *ctx;
 
-	ctx = kdb_thr_ctx(thr);
-	db_stack_trace_cmd(ctx->un_32.pcb32_r11, -1);
+	if (thr != curthread) {
+		ctx = kdb_thr_ctx(thr);
+		db_stack_trace_cmd(ctx->un_32.pcb32_r11, -1, TRUE);
+	} else
+		db_trace_self();
 	return (0);
 }
 
@@ -207,5 +209,5 @@ db_trace_self(void)
 	db_addr_t addr;
 
 	addr = (db_addr_t)__builtin_frame_address(0);
-	db_stack_trace_cmd(addr, -1);
+	db_stack_trace_cmd(addr, -1, FALSE);
 }

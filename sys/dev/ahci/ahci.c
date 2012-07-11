@@ -199,8 +199,12 @@ static struct {
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
 	{0x91251b4b, 0x00, "Marvell 88SE9125",	AHCI_Q_NOBSYRES},
 	{0x91281b4b, 0x00, "Marvell 88SE9128",	AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
+	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x91721b4b, 0x00, "Marvell 88SE9172",	AHCI_Q_NOBSYRES},
 	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_NOBSYRES},
+	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
+	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
+	{0x92351b4b, 0x00, "Marvell 88SE9235",  AHCI_Q_NOBSYRES},
 	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
 	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
 	{0x06221103, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
@@ -1457,7 +1461,9 @@ ahci_ch_intr_locked(void *data)
 	struct ahci_channel *ch = device_get_softc(dev);
 
 	mtx_lock(&ch->mtx);
+	xpt_batch_start(ch->sim);
 	ahci_ch_intr(data);
+	xpt_batch_done(ch->sim);
 	mtx_unlock(&ch->mtx);
 }
 
@@ -2878,7 +2884,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
 			d = &ch->user[ccb->ccb_h.target_id];
-		cts->protocol = PROTO_ATA;
+		cts->protocol = PROTO_UNSPECIFIED;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;

@@ -78,6 +78,7 @@ enum {
 	dns_rdatatype_dhcid = 49,
 	dns_rdatatype_nsec3 = 50,
 	dns_rdatatype_nsec3param = 51,
+	dns_rdatatype_tlsa = 52,
 	dns_rdatatype_hip = 55,
 	dns_rdatatype_spf = 99,
 	dns_rdatatype_unspec = 103,
@@ -140,6 +141,7 @@ enum {
 #define dns_rdatatype_dhcid	((dns_rdatatype_t)dns_rdatatype_dhcid)
 #define dns_rdatatype_nsec3	((dns_rdatatype_t)dns_rdatatype_nsec3)
 #define dns_rdatatype_nsec3param	((dns_rdatatype_t)dns_rdatatype_nsec3param)
+#define dns_rdatatype_tlsa	((dns_rdatatype_t)dns_rdatatype_tlsa)
 #define dns_rdatatype_hip	((dns_rdatatype_t)dns_rdatatype_hip)
 #define dns_rdatatype_spf	((dns_rdatatype_t)dns_rdatatype_spf)
 #define dns_rdatatype_unspec	((dns_rdatatype_t)dns_rdatatype_unspec)

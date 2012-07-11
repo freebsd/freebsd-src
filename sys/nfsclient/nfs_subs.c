@@ -865,7 +865,6 @@ nfs_clearcommit(struct mount *mp)
 	struct buf *bp, *nbp;
 	struct bufobj *bo;
 
-	MNT_ILOCK(mp);
 	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
 		bo = &vp->v_bufobj;
 		vholdl(vp);

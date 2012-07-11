@@ -342,26 +342,82 @@ gif_encapcheck(m, off, proto, arg)
 		return 0;
 	}
 }
+#ifdef INET
+#define GIF_HDR_LEN (ETHER_HDR_LEN + sizeof (struct ip))
+#endif
+#ifdef INET6
+#define GIF_HDR_LEN6 (ETHER_HDR_LEN + sizeof (struct ip6_hdr))
+#endif
 
 static void
 gif_start(struct ifnet *ifp)
 {
 	struct gif_softc *sc;
 	struct mbuf *m;
+	uint32_t af;
+	int error = 0;
 
 	sc = ifp->if_softc;
-
+	GIF_LOCK(sc);
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	for (;;) {
-		IFQ_DEQUEUE(&ifp->if_snd, m);
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == 0)
 			break;
 
-		gif_output(ifp, m, sc->gif_pdst, NULL);
+#ifdef ALTQ
+		/* Take out those altq bytes we add in gif_output  */
+#ifdef INET
+		if (sc->gif_psrc->sa_family == AF_INET) 
+			m->m_pkthdr.len -= GIF_HDR_LEN;
+#endif
+#ifdef INET6
+		if (sc->gif_psrc->sa_family == AF_INET6) 
+		    m->m_pkthdr.len -= GIF_HDR_LEN6;
+#endif
+#endif
+		/* 
+		 * Now pull back the af that we
+		 * stashed in the csum_data.
+		 */
+		af = m->m_pkthdr.csum_data;
+		
+		if (ifp->if_bridge)
+			af = AF_LINK;
+
+		BPF_MTAP2(ifp, &af, sizeof(af), m);
+		ifp->if_opackets++;	
+
+/*              Done by IFQ_HANDOFF */
+/* 		ifp->if_obytes += m->m_pkthdr.len;*/
+		/* override to IPPROTO_ETHERIP for bridged traffic */
+
+		M_SETFIB(m, sc->gif_fibnum);
+		/* inner AF-specific encapsulation */
+		/* XXX should we check if our outer source is legal? */
+		/* dispatch to output logic based on outer AF */
+		switch (sc->gif_psrc->sa_family) {
+#ifdef INET
+		case AF_INET:
+			error = in_gif_output(ifp, af, m);
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			error = in6_gif_output(ifp, af, m);
+			break;
+#endif
+		default:
+			m_freem(m);		
+			error = ENETDOWN;
+		}
+		if (error)
+			ifp->if_oerrors++;
 
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
+	GIF_UNLOCK(sc);
 	return;
 }
 
@@ -376,8 +432,7 @@ gif_output(ifp, m, dst, ro)
 	struct m_tag *mtag;
 	int error = 0;
 	int gif_called;
-	u_int32_t af;
-
+	uint32_t af;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
@@ -426,55 +481,45 @@ gif_output(ifp, m, dst, ro)
 	m_tag_prepend(m, mtag);
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-
-	GIF_LOCK(sc);
-
-	if (!(ifp->if_flags & IFF_UP) ||
-	    sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
-		GIF_UNLOCK(sc);
-		m_freem(m);
-		error = ENETDOWN;
-		goto end;
-	}
-
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC) {
 		bcopy(dst->sa_data, &af, sizeof(af));
 		dst->sa_family = af;
 	}
-
 	af = dst->sa_family;
-	BPF_MTAP2(ifp, &af, sizeof(af), m);
-	ifp->if_opackets++;	
-	ifp->if_obytes += m->m_pkthdr.len;
-
-	/* override to IPPROTO_ETHERIP for bridged traffic */
-	if (ifp->if_bridge)
-		af = AF_LINK;
-
-	M_SETFIB(m, sc->gif_fibnum);
-	/* inner AF-specific encapsulation */
-
-	/* XXX should we check if our outer source is legal? */
-
-	/* dispatch to output logic based on outer AF */
-	switch (sc->gif_psrc->sa_family) {
+	/* 
+	 * Now save the af in the inbound pkt csum
+	 * data, this is a cheat since we are using
+	 * the inbound csum_data field to carry the
+	 * af over to the gif_start() routine, avoiding
+	 * using yet another mtag. 
+	 */
+	m->m_pkthdr.csum_data = af;
+	if (!(ifp->if_flags & IFF_UP) ||
+	    sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
+		m_freem(m);
+		error = ENETDOWN;
+		goto end;
+	}
+#ifdef ALTQ
+	/*
+	 * Make altq aware of the bytes we will add 
+	 * when we actually send it.
+	 */
 #ifdef INET
-	case AF_INET:
-		error = in_gif_output(ifp, af, m);
-		break;
+	if (sc->gif_psrc->sa_family == AF_INET) 
+		m->m_pkthdr.len += GIF_HDR_LEN;
 #endif
 #ifdef INET6
-	case AF_INET6:
-		error = in6_gif_output(ifp, af, m);
-		break;
+	if (sc->gif_psrc->sa_family == AF_INET6) 
+		m->m_pkthdr.len += GIF_HDR_LEN6;
 #endif
-	default:
-		m_freem(m);		
-		error = ENETDOWN;
-	}
-
-	GIF_UNLOCK(sc);
+#endif
+	/*
+	 * Queue message on interface, update output statistics if
+	 * successful, and start output if interface not yet active.
+	 */
+	IFQ_HANDOFF(ifp, m, error);
   end:
 	if (error)
 		ifp->if_oerrors++;

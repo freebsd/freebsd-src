@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -131,7 +132,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 			PMAP_STATS_INC(tsb_nenter_u_oc);
 	}
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
 	if (pm == kernel_pmap) {
 		PMAP_STATS_INC(tsb_nenter_k);

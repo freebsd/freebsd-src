@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #define cgbase(fs, c)   ((ufs2_daddr_t)((fs)->fs_fpg * (c)))
 #endif
 
+typedef	uint32_t	ufs_ino_t;
+
 /*
  * We use 4k `virtual' blocks for filesystem data, whatever the actual
  * filesystem block size. FFS blocks are always a multiple of 4k.
@@ -85,14 +87,14 @@ struct dmadat {
 };
 static struct dmadat *dmadat;
 
-static ino_t lookup(const char *);
-static ssize_t fsread(ino_t, void *, size_t);
+static ufs_ino_t lookup(const char *);
+static ssize_t fsread(ufs_ino_t, void *, size_t);
 
 static uint8_t ls, dsk_meta;
 static uint32_t fs_off;
 
 static __inline uint8_t
-fsfind(const char *name, ino_t * ino)
+fsfind(const char *name, ufs_ino_t * ino)
 {
 	static char buf[DEV_BSIZE];
 	struct direct *d;
@@ -116,12 +118,12 @@ fsfind(const char *name, ino_t * ino)
 	return 0;
 }
 
-static ino_t
+static ufs_ino_t
 lookup(const char *path)
 {
 	static char name[MAXNAMLEN + 1];
 	const char *s;
-	ino_t ino;
+	ufs_ino_t ino;
 	ssize_t n;
 	uint8_t dt;
 
@@ -163,7 +165,7 @@ static int sblock_try[] = SBLOCKSEARCH;
 #endif
 
 static ssize_t
-fsread(ino_t inode, void *buf, size_t nbyte)
+fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 {
 #ifndef UFS2_ONLY
 	static struct ufs1_dinode dp1;
@@ -173,7 +175,7 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	static struct ufs2_dinode dp2;
 #endif
 	static struct fs fs;
-	static ino_t inomap;
+	static ufs_ino_t inomap;
 	char *blkbuf;
 	void *indbuf;
 	char *s;

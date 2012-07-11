@@ -33,34 +33,28 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
+#include <stddef.h>
 #include <string.h>
 #include <machine/bootinfo.h>
 #include <machine/psl.h>
 #include <sys/reboot.h>
 
 #include "bootstrap.h"
+#include "common/bootargs.h"
 #include "libi386/libi386.h"
 #include "btxv86.h"
 
-#define	KARGS_FLAGS_CD		0x1
-#define	KARGS_FLAGS_PXE		0x2
-#define	KARGS_FLAGS_ZFS		0x4
+#ifdef LOADER_ZFS_SUPPORT
+#include "../zfs/libzfs.h"
+#endif
+
+CTASSERT(sizeof(struct bootargs) == BOOTARGS_SIZE);
+CTASSERT(offsetof(struct bootargs, bootinfo) == BA_BOOTINFO);
+CTASSERT(offsetof(struct bootargs, bootflags) == BA_BOOTFLAGS);
+CTASSERT(offsetof(struct bootinfo, bi_size) == BI_SIZE);
 
 /* Arguments passed in from the boot1/boot2 loader */
-static struct 
-{
-    u_int32_t	howto;
-    u_int32_t	bootdev;
-    u_int32_t	bootflags;
-    union {
-	struct {
-	    u_int32_t	pxeinfo;
-	    u_int32_t	res2;
-	};
-	uint64_t	zfspool;
-    };
-    u_int32_t	bootinfo;
-} *kargs;
+static struct bootargs *kargs;
 
 static u_int32_t	initial_howto;
 static u_int32_t	initial_bootdev;
@@ -72,6 +66,9 @@ static void		extract_currdev(void);
 static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
 void			exit(int code);
+#ifdef LOADER_ZFS_SUPPORT
+static void		i386_zfs_probe(void);
+#endif
 
 /* from vers.c */
 extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
@@ -163,6 +160,9 @@ main(void)
     archsw.arch_readin = i386_readin;
     archsw.arch_isainb = isa_inb;
     archsw.arch_isaoutb = isa_outb;
+#ifdef LOADER_ZFS_SUPPORT
+    archsw.arch_zfs_probe = i386_zfs_probe;
+#endif
 
     /*
      * March through the device switch probing for things.
@@ -206,8 +206,11 @@ main(void)
 static void
 extract_currdev(void)
 {
-    struct i386_devdesc	new_currdev;
-    int			biosdev = -1;
+    struct i386_devdesc		new_currdev;
+#ifdef LOADER_ZFS_SUPPORT
+    struct zfs_boot_args	*zargs;
+#endif
+    int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;
@@ -228,6 +231,24 @@ extract_currdev(void)
 	    new_currdev.d_kind.biosdisk.partition = 0;
 	    biosdev = -1;
 	}
+#ifdef LOADER_ZFS_SUPPORT
+    } else if ((kargs->bootflags & KARGS_FLAGS_ZFS) != 0) {
+	zargs = NULL;
+	/* check for new style extended argument */
+	if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0)
+	    zargs = (struct zfs_boot_args *)(kargs + 1);
+
+	if (zargs != NULL && zargs->size >= sizeof(*zargs)) {
+	    /* sufficient data is provided */
+	    new_currdev.d_kind.zfs.pool_guid = zargs->pool;
+	    new_currdev.d_kind.zfs.root_guid = zargs->root;
+	} else {
+	    /* old style zfsboot block */
+	    new_currdev.d_kind.zfs.pool_guid = kargs->zfspool;
+	    new_currdev.d_kind.zfs.root_guid = 0;
+	}
+	new_currdev.d_dev = &zfs_dev;
+#endif
     } else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 	/* The passed-in boot device is bad */
 	new_currdev.d_kind.biosdisk.slice = -1;
@@ -248,7 +269,7 @@ extract_currdev(void)
 	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
     }
     new_currdev.d_type = new_currdev.d_dev->dv_type;
-    
+
     /*
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
@@ -259,33 +280,11 @@ extract_currdev(void)
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
 	new_currdev.d_unit = 0;
     }
+
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
 	       env_nounset);
-
-#ifdef LOADER_ZFS_SUPPORT
-    /*
-     * If we were started from a ZFS-aware boot2, we can work out
-     * which ZFS pool we are booting from.
-     */
-    if (kargs->bootflags & KARGS_FLAGS_ZFS) {
-	/*
-	 * Dig out the pool guid and convert it to a 'unit number'
-	 */
-	uint64_t guid;
-	int unit;
-	char devname[32];
-	extern int zfs_guid_to_unit(uint64_t);
-
-	guid = kargs->zfspool;
-	unit = zfs_guid_to_unit(guid);
-	if (unit >= 0) {
-	    sprintf(devname, "zfs%d", unit);
-	    setenv("currdev", devname, 1);
-	}
-    }
-#endif
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
@@ -352,3 +351,30 @@ isa_outb(int port, int value)
     }
 }
 
+#ifdef LOADER_ZFS_SUPPORT
+static void
+i386_zfs_probe(void)
+{
+    char devname[32];
+    int unit, slice;
+
+    /*
+     * Open all the disks we can find and see if we can reconstruct
+     * ZFS pools from them. Bogusly assumes that the disks are named
+     * diskN, diskNpM or diskNsM.
+     */
+    for (unit = 0; unit < MAXBDDEV; unit++) {
+	sprintf(devname, "disk%d:", unit);
+	if (zfs_probe_dev(devname, NULL) == ENXIO)
+	    continue;
+	for (slice = 1; slice <= 128; slice++) {
+	    sprintf(devname, "disk%dp%d:", unit, slice);
+	    zfs_probe_dev(devname, NULL);
+	}
+	for (slice = 1; slice <= 4; slice++) {
+	    sprintf(devname, "disk%ds%d:", unit, slice);
+	    zfs_probe_dev(devname, NULL);
+	}
+    }
+}
+#endif

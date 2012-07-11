@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_authtok.c 455 2011-10-29 18:31:11Z des $
+ * $Id: pam_get_authtok.c 510 2011-12-31 13:14:23Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -50,6 +50,7 @@
 #include "openpam_impl.h"
 
 static const char authtok_prompt[] = "Password:";
+static const char authtok_prompt_remote[] = "Password for %u@%h:";
 static const char oldauthtok_prompt[] = "Old Password:";
 static const char newauthtok_prompt[] = "New Password:";
 
@@ -69,6 +70,7 @@ pam_get_authtok(pam_handle_t *pamh,
 	size_t prompt_size;
 	const void *oldauthtok, *prevauthtok, *promptp;
 	const char *prompt_option, *default_prompt;
+	const void *lhost, *rhost;
 	char *resp, *resp2;
 	int pitem, r, style, twice;
 
@@ -82,6 +84,14 @@ pam_get_authtok(pam_handle_t *pamh,
 		pitem = PAM_AUTHTOK_PROMPT;
 		prompt_option = "authtok_prompt";
 		default_prompt = authtok_prompt;
+		r = pam_get_item(pamh, PAM_RHOST, &rhost);
+		if (r == PAM_SUCCESS && rhost != NULL) {
+			r = pam_get_item(pamh, PAM_HOST, &lhost);
+			if (r == PAM_SUCCESS && lhost != NULL) {
+				if (strcmp(rhost, lhost) != 0)
+					default_prompt = authtok_prompt_remote;
+			}
+		}
 		r = pam_get_item(pamh, PAM_OLDAUTHTOK, &oldauthtok);
 		if (r == PAM_SUCCESS && oldauthtok != NULL) {
 			default_prompt = newauthtok_prompt;

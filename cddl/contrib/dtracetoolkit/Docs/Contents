@@ -1,0 +1,152 @@
+Contents - Command Summary
+
+   The following is a list of commands found in the DTraceToolkit, along
+   with their directory location.
+
+Generally commands that end in a ".d" are DTrace scripts, and commands
+that don't are DTrace scripts wrapped in another language (eg, shell
+or Perl). See the Docs/Readme for instructions for finding their docs.
+
+DTraceToolkit/
+   dexplorer		run a series of scripts and archive output
+   dtruss		process syscall info. DTrace truss
+   dvmstat		vmstat by PID/name/command
+   errinfo		report syscall failures with details
+   execsnoop		snoop process execution as it occurs
+   iosnoop		snoop I/O events as they occur
+   iopattern		print disk I/O pattern
+   iotop		display top disk I/O events by process
+   opensnoop		snoop file opens as they occur
+   procsystime		analyse process system call times
+   rwsnoop		snoop read/write events
+   rwtop		display top read/write bytes by process
+   statsnoop		snoop file stats as they occur
+   Apps/
+	httpdstat.d	realtime httpd statistics
+	nfswizard.d	NFS client activity wizard
+	shellsnoop	snoop live shell activity
+	weblatency.d	website latency statistics
+   Cpu/
+	cputypes.d	list CPU types
+	cpuwalk.d	measure which CPUs a process runs on
+	dispqlen.d	dispatcher queue length by CPU
+	intbycpu.d	interrupts by CPU
+	intoncpu.d	interrput on-cpu usage
+	inttimes.d	interrput on-cpu time total
+	loads.d		print load averages
+	runocc.d	run queue occupancy by CPU
+	xcallsbypid.d	CPU cross calls by PID
+   Disk/
+	bitesize.d	print disk event size report
+	diskhits	disk access by file offset
+	hotspot.d	print disk event by location
+	iofile.d	I/O wait time by filename and process
+	iofileb.d	I/O bytes by filename and process
+	iopending	plot number of pending disk events
+	pathopens.d	pathnames successfully opened count
+	seeksize.d	print disk seek size report
+   Docs/
+	oneliners.txt	DTrace oneliners
+   FS/
+	fsrw.d		file system read/write event tracing
+	fspaging.d	file system read/write and paging tracing
+	rfsio.d		read FS I/O stats, with cache miss rate
+	rfileio.d	read file I/O stats, with cache miss rate
+	vopstat		vnode interface statistics
+   Java/
+	j_*.d		18 scripts for tracing Java using the hotspot provider
+   JavaScript/
+	js_*.d		14 scripts for JavaScript with the Mozilla provider
+   Kernel/
+	cputimes	print time by Kernel/Idle/Process
+	cpudists	time distribution by Kernel/Idle/Process
+	cswstat.d	context switch time statistics
+	dnlcps.d	DNLC stats by process
+	dnlcsnoop.d	snoop DNLC activity
+	dnlcstat	DNLC statistics
+	kstat_types.d	trace kstat reads with type info
+	modcalls.d	kernel function calls by module name
+	priclass.d	priority distribution by scheduling class
+	pridist.d	process priority distribution
+	putnexts.d	trace who is putting to which streams module
+	whatexec.d	examine the type of files executed
+   Locks/
+	lockbyproc.d	lock time by process name
+	lockbydist.d	lock time distribution by process name
+   Mem/
+	anonpgpid.d	anonymous memory paging info by PID on CPU
+	minfbypid.d	minor faults by PID
+	minfbyproc.d	minor faults by process name
+	pgpginbypid.d	pages paged in by PID
+	pgpginbyproc.d	pages paged in by process name
+	swapinfo.d	print virtual memory info
+	vmbypid.d	virtual memory stats by PID
+	vmstat.d	vmstat demo using DTrace
+	vmstat-p.d	vmstat -p demo using DTrace
+	xvmstat		extended vmstat demo using DTrace
+   Misc/
+	guess.d		guessing game
+	wpm.d		words per minute tracing
+	woof.d		audio alert for new processes
+   Net/
+	connections	print inbound TCP connections by process
+	icmpstat.d	print ICMP statistics
+	tcpsnoop	snoop TCP network packets by process, Solaris 10 3/05
+	tcpsnoop_snv	snoop TCP network packets by process, Solaris Nevada
+	tcpsnoop.d	snoop TCP network packets by process, Solaris 10 3/05
+	tcpsnoop_snv.d	snoop TCP network packets by process, Solaris Nevada
+	tcpstat.d	print TCP statistics
+	tcptop		display top TCP network packets by PID, Solaris 10 3/05
+	tcptop_snv	display top TCP network packets by PID, Solaris Nevada
+	tcpwdist.d	simple TCP write distribution by process
+	udpstat.d	print UDP statistics
+   Perl/
+	pl_*.d		12 scripts for tracing Perl
+   Php/
+	php_*.d		12 scripts for tracing Php
+   Proc/
+	crash.d		crashed application report
+	creatbyproc.d	snoop file creat() by process name
+	dappprof	profile user and lib function usage
+	dapptrace	trace user and lib function usage
+	fddist		file descriptor usage distribution
+	fileproc.d	snoop files opened by process
+	kill.d		snoop process signals
+	lastwords	print syscalls before exit
+	mmapfiles.d	mmap'd files by process
+	newproc.d	snoop new processes
+	pfilestat	show I/O latency break down by FD
+	pidpersec.d	print new PIDs per sec
+	readbytes.d	read bytes by process name
+	readdist.d	read distribution by process name
+	rwbbypid.d	read/write bytes by PID
+	rwbypid.d	read/write calls by PID
+	rwbytype.d	read/write bytes by vnode type
+	sampleproc	sample processes on the CPUs
+	shortlived.d	check short lived process time
+	sigdist.d	signal distribution by process name
+	stacksize.d	measure stack size for running threads
+	sysbypid.d	system stats by PID
+	syscallbyproc.d	system calls by process name
+	syscallbypid.d	system calls by process ID
+	threaded.d	sample multi-threaded CPU usage
+	topsysproc	display top syscalls by process name
+	writebytes.d	write bytes by process name
+	writedist.d	write distribution by process name
+   Python/
+	py_*.d		14 scripts for tracing Python
+   Shell/
+	sh_*.d		15 scripts for tracing the Bourne shell
+   System/
+	sar-c.d		sar -c demo using DTrace
+	syscallbysysc.d	system calls by system call
+	topsyscall	display top system call type
+	uname-a.d	uname -a demo using DTrace
+   Tcl/
+	tcl_*.d		15 scripts for tracing Tcl
+   User/
+	setuids.d	snoop setuid calls
+   Zones/
+	zvmstat		vmstat info by zone
+
+Total: 230 scripts

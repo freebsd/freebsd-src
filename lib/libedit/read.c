@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: read.c,v 1.40 2007/03/01 21:41:45 christos Exp $
+ *	$NetBSD: read.c,v 1.52 2009/07/22 15:57:00 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -222,7 +222,7 @@ el_push(EditLine *el, const char *str)
 		ma->level--;
 	}
 	term_beep(el);
-	term__flush();
+	term__flush(el);
 }
 
 
@@ -286,7 +286,7 @@ read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch)
 private int
 read_char(EditLine *el, char *cp)
 {
-	int num_read;
+	ssize_t num_read;
 	int tried = 0;
 
 	while ((num_read = read(el->el_infd, cp, 1)) == -1)
@@ -297,7 +297,7 @@ read_char(EditLine *el, char *cp)
 			return (-1);
 		}
 
-	return (num_read);
+	return (int)num_read;
 }
 
 /* read_pop():
@@ -309,8 +309,9 @@ read_pop(c_macro_t *ma)
 	int i;
 
 	el_free(ma->macro[0]);
-	for (i = ma->level--; i > 0; i--)
-		ma->macro[i - 1] = ma->macro[i];
+	for (i = 0; i < ma->level; i++)
+		ma->macro[i] = ma->macro[i + 1];
+	ma->level--;
 	ma->offset = 0;
 }
 
@@ -323,7 +324,7 @@ el_getc(EditLine *el, char *cp)
 	int num_read;
 	c_macro_t *ma = &el->el_chared.c_macro;
 
-	term__flush();
+	term__flush(el);
 	for (;;) {
 		if (ma->level < 0) {
 			if (!read_preread(el))
@@ -382,7 +383,7 @@ read_prepare(EditLine *el)
 	re_refresh(el);		/* print the prompt */
 
 	if (el->el_flags & UNBUFFERED)
-		term__flush();
+		term__flush(el);
 }
 
 protected void
@@ -406,6 +407,8 @@ el_gets(EditLine *el, int *nread)
 	c_macro_t *ma = &el->el_chared.c_macro;
 #endif /* FIONREAD */
 
+	*nread = 0;
+
 	if (el->el_flags & NO_TTY) {
 		char *cp = el->el_line.buffer;
 		size_t idx;
@@ -428,8 +431,8 @@ el_gets(EditLine *el, int *nread)
 		el->el_line.cursor = el->el_line.lastchar = cp;
 		*cp = '\0';
 		if (nread)
-			*nread = el->el_line.cursor - el->el_line.buffer;
-		return (el->el_line.buffer);
+			*nread = (int)(el->el_line.cursor - el->el_line.buffer);
+		return (*nread ? el->el_line.buffer : NULL);
 	}
 
 
@@ -459,7 +462,7 @@ el_gets(EditLine *el, int *nread)
 		else
 			cp = el->el_line.lastchar;
 
-		term__flush();
+		term__flush(el);
 
 		while ((*el->el_read.read_char)(el, cp) == 1) {
 			/* make sure there is space next character */
@@ -469,8 +472,6 @@ el_gets(EditLine *el, int *nread)
 					break;
 				cp = &el->el_line.buffer[idx];
 			}
-			if (*cp == 4)	/* ought to be stty eof */
-				break;
 			cp++;
 			crlf = cp[-1] == '\r' || cp[-1] == '\n';
 			if (el->el_flags & UNBUFFERED)
@@ -482,8 +483,8 @@ el_gets(EditLine *el, int *nread)
 		el->el_line.cursor = el->el_line.lastchar = cp;
 		*cp = '\0';
 		if (nread)
-			*nread = el->el_line.cursor - el->el_line.buffer;
-		return (el->el_line.buffer);
+			*nread = (int)(el->el_line.cursor - el->el_line.buffer);
+		return (*nread ? el->el_line.buffer : NULL);
 	}
 
 	for (num = OKCMD; num == OKCMD;) {	/* while still editing this
@@ -499,7 +500,7 @@ el_gets(EditLine *el, int *nread)
 #endif /* DEBUG_READ */
 			break;
 		}
-		if ((unsigned int)cmdnum >= el->el_map.nfunc) {	/* BUG CHECK command */
+		if ((unsigned int)cmdnum >= (unsigned int)el->el_map.nfunc) {	/* BUG CHECK command */
 #ifdef DEBUG_EDIT
 			(void) fprintf(el->el_errfile,
 			    "ERROR: illegal command from key 0%o\r\n", ch);
@@ -581,7 +582,7 @@ el_gets(EditLine *el, int *nread)
 			break;
 
 		case CC_NEWLINE:	/* normal end of line */
-			num = el->el_line.lastchar - el->el_line.buffer;
+			num = (int)(el->el_line.lastchar - el->el_line.buffer);
 			break;
 
 		case CC_FATAL:	/* fatal error, reset to known state */
@@ -602,7 +603,7 @@ el_gets(EditLine *el, int *nread)
 			    "*** editor ERROR ***\r\n\n");
 #endif /* DEBUG_READ */
 			term_beep(el);
-			term__flush();
+			term__flush(el);
 			break;
 		}
 		el->el_state.argument = 1;
@@ -612,7 +613,7 @@ el_gets(EditLine *el, int *nread)
 			break;
 	}
 
-	term__flush();		/* flush any buffered output */
+	term__flush(el);		/* flush any buffered output */
 	/* make sure the tty is set up correctly */
 	if ((el->el_flags & UNBUFFERED) == 0) {
 		read_finish(el);
@@ -620,7 +621,8 @@ el_gets(EditLine *el, int *nread)
 			*nread = num;
 	} else {
 		if (nread)
-			*nread = el->el_line.lastchar - el->el_line.buffer;
+			*nread =
+			    (int)(el->el_line.lastchar - el->el_line.buffer);
 	}
 	return (num ? el->el_line.buffer : NULL);
 }

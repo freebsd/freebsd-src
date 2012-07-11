@@ -972,4 +972,15 @@ amd64_syscall(struct thread *td, int traced)
 	     syscallname(td->td_proc, sa.code)));
 
 	syscallret(td, error, &sa);
+
+	/*
+	 * If the user-supplied value of %rip is not a canonical
+	 * address, then some CPUs will trigger a ring 0 #GP during
+	 * the sysret instruction.  However, the fault handler would
+	 * execute in ring 0 with the user's %gs and %rsp which would
+	 * not be safe.  Instead, use the full return path which
+	 * catches the problem safely.
+	 */
+	if (td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS)
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }

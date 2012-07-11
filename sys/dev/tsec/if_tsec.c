@@ -289,17 +289,17 @@ int
 tsec_detach(struct tsec_softc *sc)
 {
 
+	if (sc->tsec_ifp != NULL) {
 #ifdef DEVICE_POLLING
-	if (sc->tsec_ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(sc->tsec_ifp);
+		if (sc->tsec_ifp->if_capenable & IFCAP_POLLING)
+			ether_poll_deregister(sc->tsec_ifp);
 #endif
 
-	/* Stop TSEC controller and free TX queue */
-	if (sc->sc_rres && sc->tsec_ifp)
-		tsec_shutdown(sc->dev);
+		/* Stop TSEC controller and free TX queue */
+		if (sc->sc_rres)
+			tsec_shutdown(sc->dev);
 
-	/* Detach network interface */
-	if (sc->tsec_ifp) {
+		/* Detach network interface */
 		ether_ifdetach(sc->tsec_ifp);
 		if_free(sc->tsec_ifp);
 		sc->tsec_ifp = NULL;
@@ -357,6 +357,9 @@ tsec_init_locked(struct tsec_softc *sc)
 	struct tsec_desc *rx_desc = sc->tsec_rx_vaddr;
 	struct ifnet *ifp = sc->tsec_ifp;
 	uint32_t timeout, val, i;
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		return;
 
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 	tsec_stop(sc);

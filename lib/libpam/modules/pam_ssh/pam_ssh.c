@@ -112,7 +112,7 @@ pam_ssh_load_key(const char *dir, const char *kfn, const char *passphrase,
 	 * with an empty passphrase, and if the key is not encrypted,
 	 * accept only an empty passphrase.
 	 */
-	key = key_load_private(fn, NULL, &comment);
+	key = key_load_private(fn, "", &comment);
 	if (key != NULL && !(*passphrase == '\0' && nullok)) {
 		key_free(key);
 		return (NULL);

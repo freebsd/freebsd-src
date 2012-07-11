@@ -380,6 +380,10 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       typedef _Deque_iterator<_Tp, _Tp&, _Tp*>             iterator;
       typedef _Deque_iterator<_Tp, const _Tp&, const _Tp*> const_iterator;
 
+      _Deque_base()
+      : _M_impl()
+      { _M_initialize_map(0); }
+
       _Deque_base(const allocator_type& __a, size_t __num_elements)
       : _M_impl(__a)
       { _M_initialize_map(__num_elements); }
@@ -405,6 +409,11 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
 	size_t _M_map_size;
 	iterator _M_start;
 	iterator _M_finish;
+
+	_Deque_impl()
+	: _Tp_alloc_type(), _M_map(0), _M_map_size(0),
+	  _M_start(), _M_finish()
+	{ }
 
 	_Deque_impl(const _Tp_alloc_type& __a)
 	: _Tp_alloc_type(__a), _M_map(0), _M_map_size(0),
@@ -679,8 +688,11 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       /**
        *  @brief  Default constructor creates no elements.
        */
+      deque()
+      : _Base() { }
+
       explicit
-      deque(const allocator_type& __a = allocator_type())
+      deque(const allocator_type& __a)
       : _Base(__a, 0) {}
 
       /**

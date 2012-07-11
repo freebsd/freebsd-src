@@ -505,11 +505,10 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 
 out:
 	if (error) {
-		uma_zfree(namei_zone, cnp->cn_pnbuf);
+		nfsvno_relpathbuf(ndp);
 		ndp->ni_vp = NULL;
 		ndp->ni_dvp = NULL;
 		ndp->ni_startdir = NULL;
-		cnp->cn_flags &= ~HASBUF;
 	} else if ((ndp->ni_cnd.cn_flags & (WANTPARENT|LOCKPARENT)) == 0) {
 		ndp->ni_dvp = NULL;
 	}
@@ -1047,6 +1046,8 @@ nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
+	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
+		nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1086,6 +1087,8 @@ out:
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
+	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
+		nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }

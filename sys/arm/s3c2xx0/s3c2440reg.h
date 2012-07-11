@@ -30,7 +30,7 @@
  * Samsung S3C2440X processor is ARM920T based integrated CPU
  *
  * Reference:
- *  S3C2440A/S3C2442B User's Manual 
+ *  S3C2440A/S3C2442B User's Manual
  */
 #ifndef _ARM_S3C2XX0_S3C2440REG_H_
 #define	_ARM_S3C2XX0_S3C2440REG_H_

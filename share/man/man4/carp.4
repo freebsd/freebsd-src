@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2012
+.Dd May 30, 2012
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -42,8 +42,8 @@ addresses are always available.
 .Pp
 To use
 .Nm ,
-the administrator needs to configure at minimum a common virtual host ID
-(vhid) and attach at least one IP address to this vhid on each machine which
+the administrator needs to configure at a minimum a common virtual host ID
+(vhid), and attach at least one IP address to this vhid on each machine which
 is to take part in the virtual group.
 Additional parameters can also be set on a per-vhid basis:
 .Cm advbase
@@ -72,13 +72,13 @@ Both
 and
 .Cm advskew
 are put inside CARP advertisements.
-These configurations can be done using
+These values can be configured using
 .Xr ifconfig 8 ,
 or through the
 .Dv SIOCSVH
 .Xr ioctl 2 .
 .Pp
-CARP virtual hosts can be configured on multicast capable interfaces: Ethernet,
+CARP virtual hosts can be configured on multicast-capable interfaces: Ethernet,
 layer 2 VLAN, FDDI and Token Ring.
 An arbitrary number of virtual host IDs can be configured on an interface.
 An arbitrary number of IPv4 or IPv6 addresses can be attached to a particular
@@ -91,7 +91,7 @@ elections independently.
 .Pp
 Additionally, there are a number of global parameters which can be set using
 .Xr sysctl 8 :
-.Bl -tag -width ".Va net.inet.carp.preempt"
+.Bl -tag -width ".Va net.inet.carp.ifdown_demotion_factor"
 .It Va net.inet.carp.allow
 Accept incoming
 .Nm
@@ -103,14 +103,17 @@ When enabled, a vhid in a backup state would preempt a master that
 is announcing itself with a lower advskew.
 Disabled by default.
 .It Va net.inet.carp.log
-Value of 0 disables any logging.
-Value of 1 enables logging state changes of
+Determines what events relating to
+.Nm
+vhids are logged.
+A value of 0 disables any logging.
+A value of 1 enables logging state changes of
 .Nm
 vhids.
 Values above 1 enable logging of bad
 .Nm
 packets.
-Default value is 1.
+The default value is 1.
 .It Va net.inet.carp.demotion
 This value shows current level of CARP demotion.
 The value is added to the actual advskew sent in announcements for
@@ -123,44 +126,48 @@ running a vhid goes down, or while the
 .Xr pfsync 4
 interface is not synchronized.
 The demotion value is writable, so that user may alter it
-depending on some external conditions, for example on status of some
+depending on some external conditions, for example on the status of some
 daemon utility.
-However, altering the value should be performed with care, do
+However, altering the value should be performed with care, so as to
 not conflict with subsystems that adjust demotion factor
 automatically:
 .Nm
 and
 .Xr pfsync 4 .
 .It Va net.inet.carp.ifdown_demotion_factor
-Value added to
+This value is added to
 .Va net.inet.carp.demotion
-when interface running a vhid goes down.
-Default value is 240 (maximum advskew value).
+when an interface running a vhid goes down.
+The default value is 240 (the maximum advskew value).
 .It Va net.inet.carp.senderr_demotion_factor
-Value added to
+This value is added to
 .Va net.inet.carp.demotion
 when
 .Nm
 experiences errors sending its announcements.
-Default value is 240 (maximum advskew value).
+The default value is 240 (the maximum advskew value).
 .El
 .\".Sh ARP level load balancing
-.\"The
+.\"A
 .\".Nm
-.\"has limited abilities for load balancing the incoming connections
-.\"between hosts in Ethernet network.
-.\"For load balancing operation, one needs several CARP interfaces that
+.\"interface has limited abilities for load balancing incoming connections
+.\"between hosts in an Ethernet network.
+.\"For load-balancing operation, one needs several CARP interfaces that
 .\"are configured to the same IP address, but to a different vhids.
 .\"Once an ARP request is received, the CARP protocol will use a hashing
 .\"function against the source IP address in the ARP request to determine
-.\"which vhid should this request belong to.
-.\"If the corresponding CARP interface is in master state, the ARP request
-.\"will be replied, otherwise it will be ignored.
+.\"which vhid the request will be assigned to.
+.\"If the corresponding CARP interface is the current
+.\"master interface, a reply will
+.\"be sent to the ARP request;
+.\"otherwise it will be ignored.
 .\"See the
 .\".Sx EXAMPLES
 .\"section for a practical example of load balancing.
 .\".Pp
-.\"The ARP load balancing has some limitations.
+.\"The ARP load balancing implemented in
+.\".Nm
+.\"has some limitations.
 .\"First, ARP balancing only works on the local network segment.
 .\"It cannot balance traffic that crosses a router, because the
 .\"router itself will always be balanced to the same virtual host.
@@ -170,10 +177,11 @@ Default value is 240 (maximum advskew value).
 .\"is dangerous, because this creates a race condition between
 .\"balanced routers and a host they are serving.
 .\"Imagine an incoming packet creating state on the first router, being
-.\"forwarded to its destination, and destination replying faster
+.\"forwarded to its destination, and the destination replying faster
 .\"than the state information is packed and synced with the second router.
 .\"If the reply would be load balanced to second router, it will be
-.\"dropped due to no state.
+.\"dropped since the second router has not yet received information about
+.\"the connection state.
 .Sh STATE CHANGE NOTIFICATIONS
 Sometimes it is useful to get notified about
 .Nm
@@ -183,11 +191,12 @@ This can be accomplished by using
 hooks.
 Master/slave events are signalled under system
 .Dv CARP .
-Subsystem specifies vhid and name of interface, where event occurred.
-Type of the message displays new state of vhid.
+The subsystem specifies the vhid and name of the interface where
+the master/slave event occurred.
+The type of the message displays the new state of the vhid.
 Please see
 .Xr devd.conf 5
-and
+and the
 .Sx EXAMPLES
 section for more information.
 .Sh EXAMPLES
@@ -195,8 +204,8 @@ For firewalls and routers with multiple interfaces, it is desirable to
 failover all of the addresses running
 .Nm
 together, when one of the physical interfaces goes down.
-This is achieved by the preempt option.
-Enable it on both host A and B:
+This is achieved by the use of the preempt option.
+Enable it on both hosts A and B:
 .Pp
 .Dl sysctl net.inet.carp.preempt=1
 .Pp
@@ -295,7 +304,6 @@ The
 device was imported into
 .Fx 5.4 .
 In
-.Fx 10.0
-the
+.Fx 10.0 ,
 .Nm
 was significantly rewritten, and is no longer a pseudo-interface.

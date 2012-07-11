@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: search.c,v 1.20 2004/11/04 01:16:03 christos Exp $
+ *	$NetBSD: search.c,v 1.21 2009/02/15 21:55:23 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -207,7 +207,7 @@ ce_inc_search(EditLine *el, int dir)
 	el_action_t ret = CC_NORM;
 
 	int ohisteventno = el->el_history.eventno;
-	int oldpatlen = el->el_search.patlen;
+	size_t oldpatlen = el->el_search.patlen;
 	int newdir = dir;
 	int done, redo;
 

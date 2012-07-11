@@ -1,0 +1,39 @@
+Php - DTracing PHP
+
+   These scripts trace the PHP programming language, and require the PHP 
+   DTrace extension module to be installed and enabled.
+
+   The PHP DTrace provider was written by Wes Furlong, and is available
+   for download both as source and in binary form. The easiest instructions
+   are currently at,
+
+	http://blogs.sun.com/shanti/entry/dtrace_support_for_php
+
+   which were written for Solaris and the coolstack distribution of PHP.
+   The steps are roughly,
+
+	1. Download the extension library from the URL above
+	2. Copy the library to your php/extensions/* directory
+	3. Edit your php.ini and add,
+		extension="dtrace.so"
+
+   The website with the PHP DTrace provider source is,
+
+	http://pecl.php.net/package/DTrace
+
+   Here you can fetch the source to build the library yourself, especially
+   if Solaris binaries from the previous URL aren't going to work for you.
+
+   Since the DTrace PHP provider may be developed further, there is a chance
+   that it has changed slightly by the time you are reading this, causing
+   these scripts to either break or behave oddly. Firstly, check for newer
+   versions of the DTraceToolkit; if it hasn't been updated and you need
+   to use these scripts immediately, then updating them shouldn't take
+   too long. The following was the state of the provider when these scripts
+   were written - check for changes and update the scripts accordingly,
+
+	provider php {
+	    probe function-entry(function, file, lineno)
+	    probe function-return(function, file, lineno)
+	};
+

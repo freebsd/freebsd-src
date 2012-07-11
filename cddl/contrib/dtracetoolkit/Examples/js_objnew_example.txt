@@ -1,0 +1,100 @@
+The following are examples of the results of running js_objnew.d.  
+
+It reports on the class type of new objects created. 
+
+Here we can see it running on the program Code/JavaScript/func_clock.html.
+
+# js_objnew.d 
+Tracing... Hit Ctrl-C to end.
+^C
+ FILE                     CLASS                                   COUNT
+ func_clock.html          Date                                        2
+
+The results are very simple, func_clock.html caused two new objects to be
+created, both of type 'Date'.
+
+
+Here is a more complicated example, running on the program
+Code/JavaScript/func_slow.html, with the results of that plus JavaScript caused 
+by hitting reload on the browser.
+
+
+# js_objnew.d 
+Tracing... Hit Ctrl-C to end.
+^C
+ FILE                     CLASS                                   COUNT
+ <null>                   BarProp                                     1
+ <null>                   CSSStyleDeclaration                         1
+ <null>                   Global Scope Polluter                       1
+ <null>                   HTMLBodyElement                             1
+ <null>                   HTMLDocument                                1
+ <null>                   HTMLHtmlElement                             1
+ <null>                   NodeList                                    1
+ <null>                   StyleSheetList                              1
+ <null>                   TreeSelection                               1
+ <null>                   Window                                      1
+ <null>                   XULCommandDispatcher                        1
+ <null>                   chrome://global/content/bindings/popup.xml#popup 8c35c92        1
+ <null>                   chrome://global/content/bindings/popup.xml#popup 8fb299a        1
+ <null>                   chrome://global/content/bindings/scrollbar.xml#scrollbar 8fb2ea2        1
+ <null>                   nsXPCComponents_Classes                     1
+ <null>                   xpcTempGlobalClass                          1
+ autocomplete.xml         Object                                      1
+ browser.js               Array                                       1
+ browser.js               Object                                      1
+ browser.js               XPC_WN_NoMods_Proto_JSClass                 1
+ browser.js               nsJSCID                                     1
+ consoleAPI.js            Call                                        1
+ firebug.js               Constructor                                 1
+ firebug.js               Location                                    1
+ firebug.js               Object                                      1
+ firebug.js               XPC_WN_ModsAllowed_Proto_JSClass            1
+ func_slow.html           Function                                    1
+ popup.xml                Array                                       1
+ preferences.js           nsJSCID                                     1
+ tabbrowser.xml           Array                                       1
+ tabbrowser.xml           String                                      1
+ webdeveloper.js          Array                                       1
+ webdeveloper.js          String                                      1
+ <null>                   BoxObject                                   2
+ <null>                   JSOptions                                   2
+ <null>                   JavaArray                                   2
+ <null>                   JavaClass                                   2
+ <null>                   JavaMember                                  2
+ <null>                   JavaObject                                  2
+ <null>                   PageTransitionEvent                         2
+ autocomplete.xml         Function                                    2
+ firebug.js               XPC_WN_NoMods_Proto_JSClass                 2
+ reporterOverlay.js       Function                                    2
+ tree.xml                 Function                                    2
+ <null>                   Array                                       3
+ <null>                   DOM Constructor.prototype                   3
+ <null>                   With                                        3
+ <null>                   XPC_WN_NoMods_Proto_JSClass                 3
+ <null>                   nsXPCComponents                             3
+ globalOverlay.js         Function                                    3
+ scrollbar.xml            String                                      3
+ utils.js                 Array                                       3
+ utils.js                 String                                      3
+ browser.js               Call                                        4
+ func_clock.html          Date                                        4
+ webdeveloper.js          Function                                    4
+ <null>                   XPCNativeWrapper                            5
+ browser.js               String                                      6
+ <null>                   Object                                      7
+ tabbrowser.xml           Function                                    7
+ <null>                   XPC_WN_ModsAllowed_Proto_JSClass            8
+ <null>                   Constructor                                 9
+ browser.xml              Function                                    9
+ firebug.js               Function                                   10
+ <null>                   MouseEvent                                 12
+ <null>                   XPCWrappedNative_NoHelper                  13
+ <null>                   KeyboardEvent                              14
+ <null>                   XULElement                                 16
+ <null>                   Event                                      29
+ browser.js               Function                                   33
+ consoleAPI.js            Function                                   33
+ <null>                   JavaPackage                                41
+ scrollbar.xml            Function                                   61
+ <null>                   Function                                  211
+

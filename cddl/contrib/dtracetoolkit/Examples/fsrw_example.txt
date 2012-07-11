@@ -1,0 +1,129 @@
+The following are demonstrations of the fsrw.d script.
+
+
+Here the fsrw.d script was running while a 50 Kbyte file was read,
+
+   # ./fsrw.d
+   Event            Device RW     Size Offset Path
+   sc-read               .  R     8192      0 /extra1/50k
+     fop_read            .  R     8192      0 /extra1/50k
+       disk_io       cmdk0  R     8192      0 /extra1/50k
+       disk_ra       cmdk0  R     8192      8 /extra1/50k
+   sc-read               .  R     8192      8 /extra1/50k
+     fop_read            .  R     8192      8 /extra1/50k
+       disk_ra       cmdk0  R    34816     16 /extra1/50k
+   sc-read               .  R     8192     16 /extra1/50k
+     fop_read            .  R     8192     16 /extra1/50k
+   sc-read               .  R     8192     24 /extra1/50k
+     fop_read            .  R     8192     24 /extra1/50k
+   sc-read               .  R     8192     32 /extra1/50k
+     fop_read            .  R     8192     32 /extra1/50k
+   sc-read               .  R     8192     40 /extra1/50k
+     fop_read            .  R     8192     40 /extra1/50k
+   sc-read               .  R     8192     48 /extra1/50k
+     fop_read            .  R     8192     48 /extra1/50k
+   sc-read               .  R     8192     50 /extra1/50k
+     fop_read            .  R     8192     50 /extra1/50k
+   ^C
+
+By looking closely at the Offset (Kbytes) and Size of each transaction, we
+can see how the read() system calls (sc-read) were satisfied by the file
+system. There were 8 read() system calls, and 3 disk events - 2 of which were
+UFS read-ahead (disk_ra). The final read-ahead was for 34 Kbytes and began
+with an offset of 16 Kbytes, which read the remaining file data (34 + 16 = 50
+Kbytes). The subsequent read() system calls and corresponding fop_read() calls
+returned from the page cache.
+
+
+
+The following demonstrates how a logical I/O is broken up into multiple 
+physical I/O events. Here a dd command was used to read 1 Mbytes from the
+/var/sadm/install/contents file while fsrw.d was tracing.
+
+   # ./fsrw.d
+   Event            Device RW     Size Offset Path
+   sc-read               .  R  1048576      0 /var/sadm/install/contents
+     fop_read            .  R  1048576      0 /var/sadm/install/contents
+       disk_ra       cmdk0  R     4096     72 /var/sadm/install/contents
+       disk_ra       cmdk0  R     8192     96 <none>
+       disk_ra       cmdk0  R    57344     96 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    152 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    208 /var/sadm/install/contents
+       disk_ra       cmdk0  R    49152    264 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    312 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    368 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    424 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    480 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    536 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    592 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    648 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    704 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    760 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    816 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    872 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    928 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344    984 /var/sadm/install/contents
+       disk_ra       cmdk0  R    57344   1040 /var/sadm/install/contents
+   ^C
+
+Both the read() syscall (sc-read) and the fop_read() call asked the file system
+for 1048576 bytes, which was then broken into numerous disk I/O events of up to
+56 Kbytes in size. The 8192 byte read with a path of "<none>" is likely to be
+the file system reading the indirect block pointers for the 
+/var/sadm/install/contents file (something DTrace could confirm in detail).
+
+
+
+
+The following traces activity as a cp command copies a 50 Kbyte file.
+
+   # ./fsrw.d
+   Event            Device RW     Size Offset Path
+       disk_io        dad1  R     1024      0 /extra1
+       disk_io        dad1  R     8192      0 <none>
+       disk_io        dad1  R     8192      0 <none>
+       disk_io        dad1  R     2048      0 <none>
+       disk_io        dad1  R     2048      0 <none>
+   sc-write              .  W    51200      0 /extra1/outfile
+     fop_write           .  W    51200      0 /extra1/outfile
+       disk_io        dad1  R     8192      0 /extra1/50k
+       disk_ra        dad1  R     8192      8 /extra1/50k
+       disk_ra        dad1  R    34816     16 /extra1/50k
+       disk_io        dad1  R     2048      0 <none>
+       disk_io        dad1  W    49152      0 /extra1/outfile
+   ^C
+
+Reads including UFS read-ahead can be seen as the file is read.
+The output finishes with disk writes as the new file is flushed to disk.
+The syscall write() and fop_write() can be seen to the /extra1/outfile,
+however there is no syscall read() or fop_read() to /extra1/50k - which
+we may have expected to occur before the writes. This is due to the way
+the cp command now works, it uses mmap() to map files in for reading.
+This activity can be seen if we also trace fop_getpage() and fop_putpage(),
+as the fspaging.d dtrace script does.
+
+   # ./fspaging.d
+   Event             Device RW     Size Offset Path
+       disk_io         dad1  R     1024      0 /extra1
+       disk_io         dad1  R     8192      0 <none>
+       disk_io         dad1  R     2048      0 <none>
+   sc-write               .  W    51200      0 /extra1/outfile
+     fop_write            .  W    51200      0 /extra1/outfile
+     fop_getpage          .  R     8192      0 /extra1/50k
+       disk_io         dad1  R     8192      0 /extra1/50k
+       disk_ra         dad1  R     8192      8 /extra1/50k
+     fop_getpage          .  R     8192      8 /extra1/50k
+       disk_ra         dad1  R    34816     16 /extra1/50k
+     fop_getpage          .  R     8192     16 /extra1/50k
+     fop_getpage          .  R     8192     24 /extra1/50k
+     fop_getpage          .  R     8192     32 /extra1/50k
+     fop_getpage          .  R     8192     40 /extra1/50k
+     fop_getpage          .  R     8192     48 /extra1/50k
+     fop_putpage          .  W     8192      0 /extra1/outfile
+     fop_putpage          .  W     8192      8 /extra1/outfile
+     fop_putpage          .  W     8192     16 /extra1/outfile
+     fop_putpage          .  W     8192     24 /extra1/outfile
+     fop_putpage          .  W     8192     32 /extra1/outfile
+     fop_putpage          .  W     8192     40 /extra1/outfile
+       disk_io         dad1  W    51200      0 /extra1/outfile
+

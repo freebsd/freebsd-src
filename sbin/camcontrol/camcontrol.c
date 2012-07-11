@@ -123,6 +123,7 @@ typedef enum {
 	CAM_ARG_DEBUG_CDB	= 0x08000000,
 	CAM_ARG_DEBUG_XPT	= 0x10000000,
 	CAM_ARG_DEBUG_PERIPH	= 0x20000000,
+	CAM_ARG_DEBUG_PROBE	= 0x40000000,
 } cam_argmask;
 
 struct camcontrol_opts {
@@ -176,7 +177,7 @@ static struct camcontrol_opts option_table[] = {
 	{"tags", CAM_CMD_TAG, CAM_ARG_NONE, "N:q"},
 	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
-	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXc"},
+	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXcp"},
 	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qrwy"},
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
@@ -456,7 +457,7 @@ getdevtree(void)
 			case DEV_MATCH_DEVICE: {
 				struct device_match_result *dev_result;
 				char vendor[16], product[48], revision[16];
-				char tmpstr[256];
+				char fw[5], tmpstr[256];
 
 				dev_result =
 				     &ccb.cdm.matches[i].result.device_result;
@@ -495,6 +496,25 @@ getdevtree(void)
 					   sizeof(revision));
 				    sprintf(tmpstr, "<%s %s>", product,
 					revision);
+				} else if (dev_result->protocol == PROTO_SEMB) {
+					struct sep_identify_data *sid;
+
+					sid = (struct sep_identify_data *)
+					    &dev_result->ident_data;
+					cam_strvis(vendor, sid->vendor_id,
+					    sizeof(sid->vendor_id),
+					    sizeof(vendor));
+					cam_strvis(product, sid->product_id,
+					    sizeof(sid->product_id),
+					    sizeof(product));
+					cam_strvis(revision, sid->product_rev,
+					    sizeof(sid->product_rev),
+					    sizeof(revision));
+					cam_strvis(fw, sid->firmware_rev,
+					    sizeof(sid->firmware_rev),
+					    sizeof(fw));
+					sprintf(tmpstr, "<%s %s %s %s>",
+					    vendor, product, revision, fw);
 				} else {
 				    sprintf(tmpstr, "<>");
 				}
@@ -1006,11 +1026,11 @@ camxferrate(struct cam_device *device)
 		if (sas->valid & CTS_SAS_VALID_SPEED)
 			speed = sas->bitrate;
 	} else if (ccb->cts.transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
+		struct ccb_trans_settings_pata *pata =
 		    &ccb->cts.xport_specific.ata;
 
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			speed = ata_mode2speed(ata->mode);
+		if (pata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(pata->mode);
 	} else if (ccb->cts.transport == XPORT_SATA) {
 		struct	ccb_trans_settings_sata *sata =
 		    &ccb->cts.xport_specific.sata;
@@ -1053,16 +1073,16 @@ camxferrate(struct cam_device *device)
 			fprintf(stdout, ")");
 		}
 	} else if (ccb->cts.transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
+		struct ccb_trans_settings_pata *pata =
 		    &ccb->cts.xport_specific.ata;
 
 		printf(" (");
-		if (ata->valid & CTS_ATA_VALID_MODE)
-			printf("%s, ", ata_mode2string(ata->mode));
-		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
-			printf("ATAPI %dbytes, ", ata->atapi);
-		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO %dbytes", ata->bytecount);
+		if (pata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(pata->mode));
+		if ((pata->valid & CTS_ATA_VALID_ATAPI) && pata->atapi != 0)
+			printf("ATAPI %dbytes, ", pata->atapi);
+		if (pata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf("PIO %dbytes", pata->bytecount);
 		printf(")");
 	} else if (ccb->cts.transport == XPORT_SATA) {
 		struct ccb_trans_settings_sata *sata =
@@ -1779,13 +1799,14 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	union ccb *ccb = NULL;
 	struct scsi_read_defect_data_10 *rdd_cdb;
 	u_int8_t *defect_list = NULL;
-	u_int32_t dlist_length = 65000;
+	u_int32_t max_dlist_length = SRDD10_MAX_LENGTH, dlist_length = 0;
 	u_int32_t returned_length = 0;
 	u_int32_t num_returned = 0;
 	u_int8_t returned_format;
 	unsigned int i;
 	int c, error = 0;
-	int lists_specified = 0;
+	int lists_specified;
+	int get_length = 1;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c){
@@ -1822,19 +1843,32 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	ccb = cam_getccb(device);
 
 	/*
-	 * Hopefully 65000 bytes is enough to hold the defect list.  If it
-	 * isn't, the disk is probably dead already.  We'd have to go with
-	 * 12 byte command (i.e. alloc_length is 32 bits instead of 16)
-	 * to hold them all.
+	 * Eventually we should probably support the 12 byte READ DEFECT
+	 * DATA command.  It supports a longer parameter list, which may be
+	 * necessary on newer drives with lots of defects.  According to
+	 * the SBC-3 spec, drives are supposed to return an illegal request
+	 * if they have more defect data than will fit in 64K.
 	 */
-	defect_list = malloc(dlist_length);
+	defect_list = malloc(max_dlist_length);
 	if (defect_list == NULL) {
 		warnx("can't malloc memory for defect list");
 		error = 1;
 		goto defect_bailout;
 	}
 
+	/*
+	 * We start off asking for just the header to determine how much
+	 * defect data is available.  Some Hitachi drives return an error
+	 * if you ask for more data than the drive has.  Once we know the
+	 * length, we retry the command with the returned length.
+	 */
+	dlist_length = sizeof(struct scsi_read_defect_data_hdr_10);
+
 	rdd_cdb =(struct scsi_read_defect_data_10 *)&ccb->csio.cdb_io.cdb_bytes;
+
+retry:
+
+	lists_specified = 0;
 
 	/*
 	 * cam_getccb() zeros the CCB header only.  So we need to zero the
@@ -1896,6 +1930,51 @@ readdefects(struct cam_device *device, int argc, char **argv,
 
 	returned_length = scsi_2btoul(((struct
 		scsi_read_defect_data_hdr_10 *)defect_list)->length);
+
+	if (get_length != 0) {
+		get_length = 0;
+
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+		     CAM_SCSI_STATUS_ERROR) {
+			struct scsi_sense_data *sense;
+			int error_code, sense_key, asc, ascq;
+
+			sense = &ccb->csio.sense_data;
+			scsi_extract_sense_len(sense, ccb->csio.sense_len -
+			    ccb->csio.sense_resid, &error_code, &sense_key,
+			    &asc, &ascq, /*show_errors*/ 1);
+
+			/*
+			 * If the drive is reporting that it just doesn't
+			 * support the defect list format, go ahead and use
+			 * the length it reported.  Otherwise, the length
+			 * may not be valid, so use the maximum.
+			 */
+			if ((sense_key == SSD_KEY_RECOVERED_ERROR)
+			 && (asc == 0x1c) && (ascq == 0x00)
+			 && (returned_length > 0)) {
+				dlist_length = returned_length +
+				    sizeof(struct scsi_read_defect_data_hdr_10);
+				dlist_length = min(dlist_length,
+						   SRDD10_MAX_LENGTH);
+			} else
+				dlist_length = max_dlist_length;
+		} else if ((ccb->ccb_h.status & CAM_STATUS_MASK) !=
+			    CAM_REQ_CMP){
+			error = 1;
+			warnx("Error reading defect header");
+			if (arglist & CAM_ARG_VERBOSE)
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
+			goto defect_bailout;
+		} else {
+			dlist_length = returned_length +
+			    sizeof(struct scsi_read_defect_data_hdr_10);
+			dlist_length = min(dlist_length, SRDD10_MAX_LENGTH);
+		}
+
+		goto retry;
+	}
 
 	returned_format = ((struct scsi_read_defect_data_hdr_10 *)
 			defect_list)->format;
@@ -2621,6 +2700,10 @@ camdebug(int argc, char **argv, char *combinedopt)
 			arglist |= CAM_ARG_DEBUG_CDB;
 			ccb.cdbg.flags |= CAM_DEBUG_CDB;
 			break;
+		case 'p':
+			arglist |= CAM_ARG_DEBUG_PROBE;
+			ccb.cdbg.flags |= CAM_DEBUG_PROBE;
+			break;
 		default:
 			break;
 		}
@@ -2650,7 +2733,7 @@ camdebug(int argc, char **argv, char *combinedopt)
 		ccb.cdbg.flags = CAM_DEBUG_NONE;
 		arglist &= ~(CAM_ARG_DEBUG_INFO|CAM_ARG_DEBUG_PERIPH|
 			     CAM_ARG_DEBUG_TRACE|CAM_ARG_DEBUG_SUBTRACE|
-			     CAM_ARG_DEBUG_XPT);
+			     CAM_ARG_DEBUG_XPT|CAM_ARG_DEBUG_PROBE);
 	} else if (strncmp(tstr, "all", 3) != 0) {
 		tmpstr = (char *)strtok(tstr, ":");
 		if ((tmpstr != NULL) && (*tmpstr != '\0')){
@@ -2872,21 +2955,45 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				"enabled" : "disabled");
 		}
 	}
+	if (cts->transport == XPORT_FC) {
+		struct ccb_trans_settings_fc *fc =
+		    &cts->xport_specific.fc;
+
+		if (fc->valid & CTS_FC_VALID_WWNN)
+			fprintf(stdout, "%sWWNN: 0x%llx", pathstr,
+			    (long long) fc->wwnn);
+		if (fc->valid & CTS_FC_VALID_WWPN)
+			fprintf(stdout, "%sWWPN: 0x%llx", pathstr,
+			    (long long) fc->wwpn);
+		if (fc->valid & CTS_FC_VALID_PORT)
+			fprintf(stdout, "%sPortID: 0x%x", pathstr, fc->port);
+		if (fc->valid & CTS_FC_VALID_SPEED)
+			fprintf(stdout, "%stransfer speed: %d.%03dMB/s\n",
+			    pathstr, fc->bitrate / 1000, fc->bitrate % 1000);
+	}
+	if (cts->transport == XPORT_SAS) {
+		struct ccb_trans_settings_sas *sas =
+		    &cts->xport_specific.sas;
+
+		if (sas->valid & CTS_SAS_VALID_SPEED)
+			fprintf(stdout, "%stransfer speed: %d.%03dMB/s\n",
+			    pathstr, sas->bitrate / 1000, sas->bitrate % 1000);
+	}
 	if (cts->transport == XPORT_ATA) {
-		struct ccb_trans_settings_ata *ata =
+		struct ccb_trans_settings_pata *pata =
 		    &cts->xport_specific.ata;
 
-		if ((ata->valid & CTS_ATA_VALID_MODE) != 0) {
+		if ((pata->valid & CTS_ATA_VALID_MODE) != 0) {
 			fprintf(stdout, "%sATA mode: %s\n", pathstr,
-				ata_mode2string(ata->mode));
+				ata_mode2string(pata->mode));
 		}
-		if ((ata->valid & CTS_ATA_VALID_ATAPI) != 0) {
+		if ((pata->valid & CTS_ATA_VALID_ATAPI) != 0) {
 			fprintf(stdout, "%sATAPI packet length: %d\n", pathstr,
-				ata->atapi);
+				pata->atapi);
 		}
-		if ((ata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
+		if ((pata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
 			fprintf(stdout, "%sPIO transaction length: %d\n",
-				pathstr, ata->bytecount);
+				pathstr, pata->bytecount);
 		}
 	}
 	if (cts->transport == XPORT_SATA) {
@@ -2922,12 +3029,22 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				sata->caps);
 		}
 	}
+	if (cts->protocol == PROTO_ATA) {
+		struct ccb_trans_settings_ata *ata=
+		    &cts->proto_specific.ata;
+
+		if (ata->valid & CTS_ATA_VALID_TQ) {
+			fprintf(stdout, "%stagged queueing: %s\n", pathstr,
+				(ata->flags & CTS_ATA_FLAGS_TAG_ENB) ?
+				"enabled" : "disabled");
+		}
+	}
 	if (cts->protocol == PROTO_SCSI) {
 		struct ccb_trans_settings_scsi *scsi=
 		    &cts->proto_specific.scsi;
 
 		if (scsi->valid & CTS_SCSI_VALID_TQ) {
-			fprintf(stdout, "%stagged queueing is %s\n", pathstr,
+			fprintf(stdout, "%stagged queueing: %s\n", pathstr,
 				(scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) ?
 				"enabled" : "disabled");
 		}
@@ -3011,6 +3128,26 @@ get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
 get_cgd_bailout:
 	cam_freeccb(ccb);
 	return(retval);
+}
+
+/* return the type of disk (really the command type) */
+static const char *
+get_disk_type(struct cam_device *device)
+{
+	struct ccb_getdev	cgd;
+
+	(void) memset(&cgd, 0x0, sizeof(cgd));
+	get_cgd(device, &cgd);
+	switch(cgd.protocol) {
+	case PROTO_SCSI:
+		return "scsi";
+	case PROTO_ATA:
+	case PROTO_ATAPI:
+	case PROTO_SATAPM:
+		return "ata";
+	default:
+		return "unknown";
+	}
 }
 
 static void
@@ -3365,16 +3502,19 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 	if (change_settings) {
 		int didsettings = 0;
 		struct ccb_trans_settings_spi *spi = NULL;
-		struct ccb_trans_settings_ata *ata = NULL;
+		struct ccb_trans_settings_pata *pata = NULL;
 		struct ccb_trans_settings_sata *sata = NULL;
+		struct ccb_trans_settings_ata *ata = NULL;
 		struct ccb_trans_settings_scsi *scsi = NULL;
 
 		if (ccb->cts.transport == XPORT_SPI)
 			spi = &ccb->cts.xport_specific.spi;
 		if (ccb->cts.transport == XPORT_ATA)
-			ata = &ccb->cts.xport_specific.ata;
+			pata = &ccb->cts.xport_specific.ata;
 		if (ccb->cts.transport == XPORT_SATA)
 			sata = &ccb->cts.xport_specific.sata;
+		if (ccb->cts.protocol == PROTO_ATA)
+			ata = &ccb->cts.proto_specific.ata;
 		if (ccb->cts.protocol == PROTO_SCSI)
 			scsi = &ccb->cts.proto_specific.scsi;
 		ccb->cts.xport_specific.valid = 0;
@@ -3385,20 +3525,30 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
 			else
 				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+			didsettings++;
 		}
-		if (scsi && tag_enable != -1) {
+		if (tag_enable != -1) {
 			if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0) {
 				warnx("HBA does not support tagged queueing, "
 				      "so you cannot modify tag settings");
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-			scsi->valid |= CTS_SCSI_VALID_TQ;
-			if (tag_enable == 0)
-				scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-			else
-				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
-			didsettings++;
+			if (ata) {
+				ata->valid |= CTS_SCSI_VALID_TQ;
+				if (tag_enable == 0)
+					ata->flags &= ~CTS_ATA_FLAGS_TAG_ENB;
+				else
+					ata->flags |= CTS_ATA_FLAGS_TAG_ENB;
+				didsettings++;
+			} else if (scsi) {
+				scsi->valid |= CTS_SCSI_VALID_TQ;
+				if (tag_enable == 0)
+					scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+				else
+					scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+				didsettings++;
+			}
 		}
 		if (spi && offset != -1) {
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
@@ -3445,6 +3595,12 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
+			if  (!user_settings) {
+				warnx("You can modify only user rate "
+				    "settings for SATA");
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
 			sata->revision = ata_speed2revision(syncrate * 100);
 			if (sata->revision < 0) {
 				warnx("Invalid rate %f", syncrate);
@@ -3454,16 +3610,22 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			sata->valid |= CTS_SATA_VALID_REVISION;
 			didsettings++;
 		}
-		if ((ata || sata) && mode != -1) {
+		if ((pata || sata) && mode != -1) {
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
 				warnx("HBA is not capable of changing "
 				      "transfer rates");
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-			if (ata) {
-				ata->mode = mode;
-				ata->valid |= CTS_ATA_VALID_MODE;
+			if  (!user_settings) {
+				warnx("You can modify only user mode "
+				    "settings for ATA/SATA");
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			if (pata) {
+				pata->mode = mode;
+				pata->valid |= CTS_ATA_VALID_MODE;
 			} else {
 				sata->mode = mode;
 				sata->valid |= CTS_SATA_VALID_MODE;
@@ -3510,11 +3672,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		if  (didsettings == 0) {
 			goto ratecontrol_bailout;
 		}
-		if  (!user_settings && (ata || sata)) {
-			warnx("You can modify only user settings for ATA/SATA");
-			retval = 1;
-			goto ratecontrol_bailout;
-		}
 		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		if (cam_send_ccb(device, ccb) < 0) {
 			perror("error sending XPT_SET_TRAN_SETTINGS CCB");
@@ -3546,13 +3703,10 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				fprintf(stderr, "Test Unit Ready failed\n");
 			goto ratecontrol_bailout;
 		}
-		/*
-		 * If the user wants things quiet, there's no sense in
-		 * getting the transfer settings, if we're not going
-		 * to print them.
-		 */
-		if (quiet != 0)
-			goto ratecontrol_bailout;
+	}
+	if ((change_settings || send_tur) && !quiet &&
+	    (ccb->cts.transport == XPORT_ATA ||
+	     ccb->cts.transport == XPORT_SATA || send_tur)) {
 		fprintf(stdout, "New parameters:\n");
 		retval = get_print_cts(device, user_settings, 0, NULL);
 	}
@@ -6122,7 +6276,8 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_DOWNLOAD_FW:
 			error = fwdownload(cam_dev, argc, argv, combinedopt,
-			    arglist & CAM_ARG_VERBOSE, retry_count, timeout);
+			    arglist & CAM_ARG_VERBOSE, retry_count, timeout,
+			    get_disk_type(cam_dev));
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:

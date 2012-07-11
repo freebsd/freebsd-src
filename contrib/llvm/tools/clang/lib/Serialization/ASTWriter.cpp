@@ -195,6 +195,9 @@ void ASTTypeWriter::VisitFunctionProtoType(const FunctionProtoType *T) {
       Writer.AddTypeRef(T->getExceptionType(I), Record);
   } else if (T->getExceptionSpecType() == EST_ComputedNoexcept) {
     Writer.AddStmt(T->getNoexceptExpr());
+  } else if (T->getExceptionSpecType() == EST_Uninstantiated) {
+    Writer.AddDeclRef(T->getExceptionSpecDecl(), Record);
+    Writer.AddDeclRef(T->getExceptionSpecTemplate(), Record);
   }
   Code = TYPE_FUNCTION_PROTO;
 }
@@ -651,6 +654,7 @@ static void AddStmtsExprs(llvm::BitstreamWriter &Stream,
   RECORD(STMT_CASE);
   RECORD(STMT_DEFAULT);
   RECORD(STMT_LABEL);
+  RECORD(STMT_ATTRIBUTED);
   RECORD(STMT_IF);
   RECORD(STMT_SWITCH);
   RECORD(STMT_WHILE);

@@ -282,7 +282,10 @@ static int
 bootstrap_pkg(void)
 {
 	FILE *remote;
+	FILE *config;
+	char *site;
 	char url[MAXPATHLEN];
+	char conf[MAXPATHLEN];
 	char abi[BUFSIZ];
 	char tmppkg[MAXPATHLEN];
 	char buf[10240];
@@ -290,7 +293,6 @@ bootstrap_pkg(void)
 	int fd, retry, ret;
 	struct url_stat st;
 	off_t done, r;
-	time_t begin_dl;
 	time_t now;
 	time_t last;
 
@@ -298,6 +300,7 @@ bootstrap_pkg(void)
 	last = 0;
 	ret = -1;
 	remote = NULL;
+	config = NULL;
 
 	printf("Bootstrapping pkg please wait\n");
 
@@ -307,7 +310,7 @@ bootstrap_pkg(void)
 	}
 
 	if (getenv("PACKAGESITE") != NULL)
-		snprintf(url, MAXPATHLEN, "%s/pkg.txz", getenv("PACKAGESITE"));
+		snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz", getenv("PACKAGESITE"));
 	else
 		snprintf(url, MAXPATHLEN, "%s/%s/latest/Latest/pkg.txz",
 		    getenv("PACKAGEROOT") ? getenv("PACKAGEROOT") : _PKGS_URL,
@@ -331,7 +334,6 @@ bootstrap_pkg(void)
 	if (remote == NULL)
 		goto fetchfail;
 
-	begin_dl = time(NULL);
 	while (done < st.size) {
 		if ((r = fread(buf, 1, sizeof(buf), remote)) < 1)
 			break;
@@ -353,12 +355,34 @@ bootstrap_pkg(void)
 	if ((ret = extract_pkg_static(fd, pkgstatic, MAXPATHLEN)) == 0)
 		ret = install_pkg_static(pkgstatic, tmppkg);
 
+	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
+	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
+
+	if (access(conf, R_OK) == -1) {
+		site = strrchr(url, '/');
+		if (site == NULL)
+			goto cleanup;
+		site[0] = '\0';
+		site = strrchr(url, '/');
+		if (site == NULL)
+			goto cleanup;
+		site[0] = '\0';
+
+		config = fopen(conf, "w+");
+		if (config == NULL)
+			goto cleanup;
+		fprintf(config, "packagesite: %s\n", url);
+		fclose(config);
+	}
+
 	goto cleanup;
 
 fetchfail:
 	warnx("Error fetching %s: %s", url, fetchLastErrString);
 
 cleanup:
+	if (remote != NULL)
+		fclose(remote);
 	close(fd);
 	unlink(tmppkg);
 

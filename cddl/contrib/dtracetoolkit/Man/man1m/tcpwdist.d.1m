@@ -1,0 +1,60 @@
+.TH tcpwdist.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+tcpwdist.d \- simple TCP write dist by process. Uses DTrace.
+.SH SYNOPSIS
+.B tcpwdist.d
+.SH DESCRIPTION
+This measures the size of writes from applications to the TCP level, which
+may well be much larger than the MTU size (this is application writes not
+packet writes). It can help identify which process is creating network
+traffic, and the size of the writes by that application. It uses a simple
+probe that produces meaningful output for most protocols.
+
+Tracking TCP activity by process is complex for a number of reasons,
+the greatest is that inbound TCP traffic is asynchronous to the process.
+The easiest TCP traffic to match is writes, which this script demonstrates.
+However there are still issues - for an inbound telnet connection the
+writes are associated with the command, for example "ls -l", not something
+meaningful such as "in.telnetd".
+
+Scripts that match TCP traffic properly include tcpsnoop and tcptop.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - this script uses fbt provider probes which may change for
+future updates of the OS, invalidating this script. Please read
+Docs/Notes/ALLfbt_notes.txt for further details about these fbt scripts.
+.SH EXAMPLES
+.TP
+Sample until Ctrl\-C is hit then print report,
+# 
+.B tcpwdist.d
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+CMD
+command and argument list
+.TP
+value
+TCP write payload size in bytes
+.TP
+count
+number of writes
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+tcpwdist.d will sample until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+tcpsnoop(1M), tcptop(1M), dtrace(1M)

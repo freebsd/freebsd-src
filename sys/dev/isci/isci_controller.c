@@ -201,6 +201,7 @@ void isci_controller_construct(struct ISCI_CONTROLLER *controller,
 
 	controller->is_started = FALSE;
 	controller->is_frozen = FALSE;
+	controller->release_queued_ccbs = FALSE;
 	controller->sim = NULL;
 	controller->initial_discovery_mask = 0;
 
@@ -431,6 +432,8 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 		sci_fast_list_element_init(remote_device,
 		    &remote_device->pending_device_reset_element);
 		TAILQ_INIT(&remote_device->queued_ccbs);
+		remote_device->release_queued_ccb = FALSE;
+		remote_device->queued_ccb_in_progress = NULL;
 
 		/*
 		 * For the first SCI_MAX_DOMAINS device objects, do not put
@@ -694,3 +697,47 @@ void isci_action(struct cam_sim *sim, union ccb *ccb)
 	}
 }
 
+/*
+ * Unfortunately, SCIL doesn't cleanly handle retry conditions.
+ *  CAM_REQUEUE_REQ works only when no one is using the pass(4) interface.  So
+ *  when SCIL denotes an I/O needs to be retried (typically because of mixing
+ *  tagged/non-tagged ATA commands, or running out of NCQ slots), we queue
+ *  these I/O internally.  Once SCIL completes an I/O to this device, or we get
+ *  a ready notification, we will retry the first I/O on the queue.
+ *  Unfortunately, SCIL also doesn't cleanly handle starting the new I/O within
+ *  the context of the completion handler, so we need to retry these I/O after
+ *  the completion handler is done executing.
+ */
+void
+isci_controller_release_queued_ccbs(struct ISCI_CONTROLLER *controller)
+{
+	struct ISCI_REMOTE_DEVICE *dev;
+	struct ccb_hdr *ccb_h;
+	int dev_idx;
+
+	KASSERT(mtx_owned(&controller->lock), ("controller lock not owned"));
+
+	controller->release_queued_ccbs = FALSE;
+	for (dev_idx = 0;
+	     dev_idx < SCI_MAX_REMOTE_DEVICES;
+	     dev_idx++) {
+
+		dev = controller->remote_device[dev_idx];
+		if (dev != NULL &&
+		    dev->release_queued_ccb == TRUE &&
+		    dev->queued_ccb_in_progress == NULL) {
+			dev->release_queued_ccb = FALSE;
+			ccb_h = TAILQ_FIRST(&dev->queued_ccbs);
+
+			if (ccb_h == NULL)
+				continue;
+
+			isci_log_message(1, "ISCI", "release %p %x\n", ccb_h,
+			    ((union ccb *)ccb_h)->csio.cdb_io.cdb_bytes[0]);
+
+			dev->queued_ccb_in_progress = (union ccb *)ccb_h;
+			isci_io_request_execute_scsi_io(
+			    (union ccb *)ccb_h, controller);
+		}
+	}
+}
