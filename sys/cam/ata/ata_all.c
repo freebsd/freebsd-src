@@ -171,8 +171,8 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xf2: return ("SECURITY_UNLOCK");
 	case 0xf3: return ("SECURITY_ERASE_PREPARE");
 	case 0xf4: return ("SECURITY_ERASE_UNIT");
-	case 0xf5: return ("SECURITY_FREE_LOCK");
-	case 0xf6: return ("SECURITY DISABLE PASSWORD");
+	case 0xf5: return ("SECURITY_FREEZE_LOCK");
+	case 0xf6: return ("SECURITY_DISABLE_PASSWORD");
 	case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
 	case 0xf9: return ("SET_MAX_ADDRESS");
 	}
