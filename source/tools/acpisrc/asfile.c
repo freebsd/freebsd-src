@@ -716,7 +716,7 @@ AsGetFile (
 
     /*
      * Create a buffer for the entire file
-     * Add plenty extra buffer to accomodate string replacements
+     * Add plenty extra buffer to accommodate string replacements
      */
     Size = Gbl_StatBuf.st_size;
     Gbl_TotalSize += Size;

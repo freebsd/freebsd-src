@@ -19,7 +19,8 @@ PROG = $(OBJDIR)/acpihelp
 #
 vpath %.c \
     $(ACPIHELP) \
-    $(ACPICA_COMMON)
+    $(ACPICA_COMMON) \
+    $(ACPICA_UTILITIES)
 
 HEADERS = \
     $(wildcard $(ACPIHELP)/*.h)
@@ -31,7 +32,8 @@ OBJECTS = \
 	$(OBJDIR)/ahdecode.o \
 	$(OBJDIR)/ahpredef.o \
 	$(OBJDIR)/ahmain.o \
-	$(OBJDIR)/getopt.o
+	$(OBJDIR)/getopt.o \
+	$(OBJDIR)/utexcep.o
 
 #
 # Flags specific to acpihelp

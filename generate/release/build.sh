@@ -254,6 +254,7 @@ generate_source_package ()
 	#
 	# Copy generic UNIX makefiles
 	#
+    cp Makefile                             $TEMP_DIR
 	cp generate/unix/readme.txt             $TEMP_DIR/generate/unix/readme.txt
 	cp generate/unix/Makefile*              $TEMP_DIR/generate/unix
 	cp generate/unix/acpibin/Makefile       $TEMP_DIR/generate/unix/acpibin

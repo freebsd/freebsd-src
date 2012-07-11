@@ -114,6 +114,7 @@ OBJECTS = \
 	tbinstal.o \
 	tbutils.o \
 	tbxface.o \
+	tbxfload.o \
 	tbxfroot.o \
 	utaddress.o \
 	utalloc.o \
@@ -121,6 +122,7 @@ OBJECTS = \
 	utdebug.o \
 	utdecode.o \
 	utdelete.o \
+	utexcep.o \
 	utglobal.o \
 	utlock.o \
 	utmath.o \

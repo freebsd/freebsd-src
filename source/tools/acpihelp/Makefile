@@ -51,7 +51,8 @@ ACPICA_HEADERS = \
 #
 vpath %.c \
     $(ACPIHELP) \
-    $(ACPICA_COMMON)
+    $(ACPICA_COMMON) \
+    $(ACPICA_UTILITIES)
 
 HEADERS = \
     $(wildcard $(ACPIHELP)/*.h)
@@ -63,7 +64,8 @@ OBJECTS = \
 	ahdecode.o \
 	ahpredef.o \
 	ahmain.o \
-	getopt.o
+	getopt.o \
+	utexcep.o
 
 CFLAGS+= \
     -D$(HOST) \

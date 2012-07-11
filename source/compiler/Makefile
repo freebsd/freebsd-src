@@ -201,6 +201,7 @@ OBJECTS = \
 	utdebug.o \
 	utdecode.o \
 	utdelete.o \
+	utexcep.o \
 	utglobal.o \
 	utinit.o \
 	utlock.o \

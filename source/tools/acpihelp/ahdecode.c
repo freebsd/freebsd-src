@@ -46,6 +46,45 @@
 #define ACPI_CREATE_PREDEFINED_TABLE
 #include "acpredef.h"
 
+
+/* Device IDs defined in the ACPI specification */
+
+static const AH_DEVICE_ID  AhDeviceIds[] =
+{
+    {"PNP0A05",     "Generic Container Device"},
+    {"PNP0A06",     "Generic Container Device"},
+    {"PNP0C08",     "ACPI core hardware"},
+    {"PNP0C09",     "Embedded Controller Device"},
+    {"PNP0C0A",     "Control Method Battery"},
+    {"PNP0C0B",     "Fan"},
+    {"PNP0C0C",     "Power Button Device"},
+    {"PNP0C0D",     "Lid Device"},
+    {"PNP0C0E",     "Sleep Button Device"},
+    {"PNP0C0F",     "PCI Interrupt Link Device"},
+    {"PNP0C80",     "Memory Device"},
+
+    {"ACPI0001",    "SMBus 1.0 Host Controller"},
+    {"ACPI0002",    "Smart Battery Subsystem"},
+    {"ACPI0003",    "Power Source Device"},
+    {"ACPI0004",    "Module Device"},
+    {"ACPI0005",    "SMBus 2.0 Host Controller"},
+    {"ACPI0006",    "GPE Block Device"},
+    {"ACPI0007",    "Processor Device"},
+    {"ACPI0008",    "Ambient Light Sensor Device"},
+    {"ACPI0009",    "I/O xAPIC Device"},
+    {"ACPI000A",    "I/O APIC Device"},
+    {"ACPI000B",    "I/O SAPIC Device"},
+    {"ACPI000C",    "Processor Aggregator Device"},
+    {"ACPI000D",    "Power Meter Device"},
+    {"ACPI000E",    "Time/Alarm Device"},
+    {"ACPI000F",    "User Presence Detection Device"},
+
+    {NULL, NULL}
+};
+
+#define AH_DISPLAY_EXCEPTION(Status, Name) \
+    printf ("%.4X: %s\n", Status, Name)
+
 #define BUFFER_LENGTH           128
 #define LINE_BUFFER_LENGTH      512
 
@@ -806,39 +845,6 @@ AhPrintOneField (
  *
  ******************************************************************************/
 
-static const AH_DEVICE_ID  AhDeviceIds[] =
-{
-    {"PNP0A05",     "Generic Container Device"},
-    {"PNP0A06",     "Generic Container Device"},
-    {"PNP0C08",     "ACPI core hardware"},
-    {"PNP0C09",     "Embedded Controller Device"},
-    {"PNP0C0A",     "Control Method Battery"},
-    {"PNP0C0B",     "Fan"},
-    {"PNP0C0C",     "Power Button Device"},
-    {"PNP0C0D",     "Lid Device"},
-    {"PNP0C0E",     "Sleep Button Device"},
-    {"PNP0C0F",     "PCI Interrupt Link Device"},
-    {"PNP0C80",     "Memory Device"},
-
-    {"ACPI0001",    "SMBus 1.0 Host Controller"},
-    {"ACPI0002",    "Smart Battery Subsystem"},
-    {"ACPI0003",    "Power Source Device"},
-    {"ACPI0004",    "Module Device"},
-    {"ACPI0005",    "SMBus 2.0 Host Controller"},
-    {"ACPI0006",    "GPE Block Device"},
-    {"ACPI0007",    "Processor Device"},
-    {"ACPI0008",    "Ambient Light Sensor Device"},
-    {"ACPI0009",    "I/O xAPIC Device"},
-    {"ACPI000A",    "I/O APIC Device"},
-    {"ACPI000B",    "I/O SAPIC Device"},
-    {"ACPI000C",    "Processor Aggregator Device"},
-    {"ACPI000D",    "Power Meter Device"},
-    {"ACPI000E",    "Time/Alarm Device"},
-    {"ACPI000F",    "User Presence Detection Device"},
-
-    {NULL, NULL}
-};
-
 void
 AhDisplayDeviceIds (
     void)
@@ -852,4 +858,80 @@ AhDisplayDeviceIds (
         printf ("%8s   %s\n", DeviceId->Name, DeviceId->Description);
         DeviceId++;
     }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AhDecodeException
+ *
+ * PARAMETERS:  HexString           - ACPI status string from command line, in
+ *                                    hex. If null, display all exceptions.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode and display an ACPI_STATUS exception code.
+ *
+ ******************************************************************************/
+
+void
+AhDecodeException (
+    char                    *HexString)
+{
+    const char              *ExceptionName;
+    UINT32                  Status;
+    UINT32                  i;
+
+
+    /*
+     * A null input string means to decode and display all known
+     * exception codes.
+     */
+    if (!HexString)
+    {
+        printf ("All defined ACPI exception codes:\n\n");
+        AH_DISPLAY_EXCEPTION (0, "AE_OK");
+
+        /* Display codes in each block of exception types */
+
+        for (i = 1; (i & AE_CODE_MASK) <= AE_CODE_MAX; i += 0x1000)
+        {
+            Status = i;
+            do
+            {
+                ExceptionName = AcpiUtValidateException ((ACPI_STATUS) Status);
+                if (ExceptionName)
+                {
+                    AH_DISPLAY_EXCEPTION (Status, ExceptionName);
+                }
+                Status++;
+
+            } while (ExceptionName);
+        }
+        return;
+    }
+
+    /* Decode a single user-supplied exception code */
+
+    Status = ACPI_STRTOUL (HexString, NULL, 16);
+    if (!Status)
+    {
+        printf ("%s: Invalid hexadecimal exception code\n", HexString);
+        return;
+    }
+
+    if (Status > ACPI_UINT16_MAX)
+    {
+        AH_DISPLAY_EXCEPTION (Status, "Invalid exception code (more than 16 bits)");
+        return;
+    }
+
+    ExceptionName = AcpiUtValidateException ((ACPI_STATUS) Status);
+    if (!ExceptionName)
+    {
+        AH_DISPLAY_EXCEPTION (Status, "Unknown exception code");
+        return;
+    }
+
+    AH_DISPLAY_EXCEPTION (Status, ExceptionName);
 }

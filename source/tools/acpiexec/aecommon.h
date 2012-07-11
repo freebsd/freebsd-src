@@ -68,6 +68,7 @@ extern BOOLEAN              AcpiGbl_IgnoreErrors;
 extern UINT8                AcpiGbl_RegionFillValue;
 extern UINT8                AcpiGbl_UseHwReducedFadt;
 extern BOOLEAN              AcpiGbl_DisplayRegionAccess;
+extern BOOLEAN              AcpiGbl_DoInterfaceTests;
 
 /* Check for unexpected exceptions */
 
