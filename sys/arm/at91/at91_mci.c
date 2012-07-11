@@ -313,7 +313,7 @@ static int
 at91_mci_is_mci1rev2xx(void)
 {
 
-	switch (soc_data.type) {
+	switch (soc_info.type) {
 	case AT91_T_SAM9260:
 	case AT91_T_SAM9263:
 	case AT91_T_CAP9:

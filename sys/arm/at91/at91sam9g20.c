@@ -39,10 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91reg.h>
+#include <arm/at91/at91soc.h>
 #include <arm/at91/at91_aicreg.h>
 #include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91_pitreg.h>
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
+#include <arm/at91/at91_rstreg.h>
 
 struct at91sam9_softc {
 	device_t dev;
@@ -179,7 +182,7 @@ static int
 at91_probe(device_t dev)
 {
 
-	device_set_desc(dev, soc_data.name);
+	device_set_desc(dev, soc_info.name);
 	return (0);
 }
 
@@ -295,3 +298,10 @@ static driver_t at91sam9_driver = {
 static devclass_t at91sam9_devclass;
 
 DRIVER_MODULE(at91sam, atmelarm, at91sam9_driver, at91sam9_devclass, 0, 0);
+
+static struct at91_soc_data soc_data = {
+	.soc_delay = at91_pit_delay,
+	.soc_reset = at91_rst_cpu_reset
+};
+
+AT91_SOC(AT91_T_SAM9G20, &soc_data);
