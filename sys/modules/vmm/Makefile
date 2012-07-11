@@ -1,10 +1,5 @@
 # $FreeBSD$
 
-# *REQUIRES* binutils 2.20.1 for VT-x instructions
-AS=	/usr/local/bin/as
-LD=	/usr/local/bin/ld
-CFLAGS+=	-B /usr/local/bin
-
 KMOD=	vmm
 
 SRCS=	opt_ddb.h device_if.h bus_if.h pci_if.h
