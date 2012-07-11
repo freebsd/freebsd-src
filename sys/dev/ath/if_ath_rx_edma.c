@@ -191,11 +191,11 @@ ath_edma_reinit_fifo(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 	for (j = 0; j < re->m_fifo_depth; j++) {
 		bf = re->m_fifo[i];
 		DPRINTF(sc, ATH_DEBUG_EDMA_RX,
-		    "%s: Q%d: pos=%i, addr=0x%x\n",
+		    "%s: Q%d: pos=%i, addr=0x%jx\n",
 		    __func__,
 		    qtype,
 		    i,
-		    bf->bf_daddr);
+		    (uintmax_t)bf->bf_daddr);
 		ath_hal_putrxbuf(sc->sc_ah, bf->bf_daddr, qtype);
 		INCR(i, re->m_fifolen);
 	}
