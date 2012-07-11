@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -43,6 +45,54 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/atomic.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+dtrace_io_start_probe_func_t dtrace_io_start_probe;
+dtrace_io_done_probe_func_t dtrace_io_done_probe;
+dtrace_io_wait_start_probe_func_t dtrace_io_wait_start_probe;
+dtrace_io_wait_done_probe_func_t dtrace_io_wait_done_probe;
+
+uint32_t	dtio_start_id;
+uint32_t	dtio_done_id;
+uint32_t	dtio_wait_start_id;
+uint32_t	dtio_wait_done_id;
+
+#define DTRACE_DEVSTAT_START() \
+	if (dtrace_io_start_probe != NULL) \
+		(*dtrace_io_start_probe)(dtio_start_id, NULL, ds);
+
+#define DTRACE_DEVSTAT_BIO_START() \
+	if (dtrace_io_start_probe != NULL) \
+		(*dtrace_io_start_probe)(dtio_start_id, bp, ds);
+
+#define DTRACE_DEVSTAT_DONE() \
+	if (dtrace_io_done_probe != NULL) \
+		(*dtrace_io_done_probe)(dtio_done_id, NULL, ds);
+
+#define DTRACE_DEVSTAT_BIO_DONE() \
+	if (dtrace_io_done_probe != NULL) \
+		(*dtrace_io_done_probe)(dtio_done_id, bp, ds);
+
+#define DTRACE_DEVSTAT_WAIT_START() \
+	if (dtrace_io_wait_start_probe != NULL) \
+		(*dtrace_io_wait_start_probe)(dtio_wait_start_id, NULL, ds);
+
+#define DTRACE_DEVSTAT_WAIT_DONE() \
+	if (dtrace_io_wait_done_probe != NULL) \
+		(*dtrace_io_wait_done_probe)(dtio_wait_done_id, NULL, ds);
+
+#else /* ! KDTRACE_HOOKS */
+
+#define DTRACE_DEVSTAT_START()
+
+#define DTRACE_DEVSTAT_DONE()
+
+#define DTRACE_DEVSTAT_WAIT_START()
+
+#define DTRACE_DEVSTAT_WAIT_DONE()
+#endif /* KDTRACE_HOOKS */
 
 static int devstat_num_devs;
 static long devstat_generation = 1;
@@ -227,6 +277,7 @@ devstat_start_transaction(struct devstat *ds, struct bintime *now)
 	}
 	ds->start_count++;
 	atomic_add_rel_int(&ds->sequence0, 1);
+	DTRACE_DEVSTAT_START();
 }
 
 void
@@ -241,6 +292,7 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 
 	binuptime(&bp->bio_t0);
 	devstat_start_transaction(ds, &bp->bio_t0);
+	DTRACE_DEVSTAT_BIO_START();
 }
 
 /*
@@ -312,6 +364,7 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 
 	ds->end_count++;
 	atomic_add_rel_int(&ds->sequence0, 1);
+	DTRACE_DEVSTAT_DONE();
 }
 
 void
@@ -334,6 +387,7 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
 				DEVSTAT_TAG_SIMPLE, flg, NULL, &bp->bio_t0);
+	DTRACE_DEVSTAT_BIO_DONE();
 }
 
 /*
