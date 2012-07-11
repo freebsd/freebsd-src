@@ -39,10 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91reg.h>
+#include <arm/at91/at91soc.h>
 #include <arm/at91/at91_aicreg.h>
 #include <arm/at91/at91sam9x25reg.h>
+#include <arm/at91/at91_pitreg.h>
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
+#include <arm/at91/at91_rstreg.h>
 
 struct at91sam9x25_softc {
 	device_t dev;
@@ -171,7 +174,7 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (soc_data.type == AT91_T_SAM9X5 && soc_data.subtype == AT91_ST_SAM9X25) {
+	if (soc_info.type == AT91_T_SAM9X5 && soc_info.subtype == AT91_ST_SAM9X25) {
 		at91_add_child(parent, 0, "at91sam9x25", 0, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
 	}
@@ -284,3 +287,10 @@ static driver_t at91sam9x25_driver = {
 static devclass_t at91sam9x25_devclass;
 
 DRIVER_MODULE(at91sam9x25, atmelarm, at91sam9x25_driver, at91sam9x25_devclass, 0, 0);
+
+static struct at91_soc_data soc_data = {
+	.soc_delay = at91_pit_delay,
+	.soc_reset = at91_rst_cpu_reset
+};
+
+AT91_SOC_SUB(AT91_T_SAM9X5, AT91_ST_SAM9X25, &soc_data);
