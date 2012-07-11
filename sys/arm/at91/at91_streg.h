@@ -55,4 +55,7 @@
 /* ST_CRTR */
 #define ST_CRTR_MASK	0xfffff /* 20-bit counter */
 
+void at91_st_delay(int n);
+void at91_st_cpu_reset(void);
+
 #endif /* ARM_AT91_AT91STREG_H */

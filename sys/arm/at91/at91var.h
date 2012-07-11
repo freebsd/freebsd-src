@@ -74,6 +74,7 @@ enum at91_soc_type {
 };
 
 enum at91_soc_subtype {
+	AT91_ST_ANY = -1,	/* Match any type */
 	AT91_ST_NONE = 0,
 	/* AT91RM9200 */
 	AT91_ST_RM9200_BGA,
@@ -104,6 +105,11 @@ enum at91_soc_family {
 typedef void (*DELAY_t)(int);
 typedef void (*cpu_reset_t)(void);
 
+struct at91_soc_data {
+	DELAY_t		soc_delay;
+	cpu_reset_t	soc_reset;
+};
+
 struct at91_soc_info {
 	enum at91_soc_type type;
 	enum at91_soc_subtype subtype;
@@ -111,11 +117,10 @@ struct at91_soc_info {
 	uint32_t cidr;
 	uint32_t exid;
 	char name[AT91_SOC_NAME_MAX];
-	DELAY_t delay;
-	cpu_reset_t reset;
+	struct at91_soc_data *soc_data;
 };
 
-extern struct at91_soc_info soc_data;
+extern struct at91_soc_info soc_info;
 
 static inline int at91_is_rm92(void);
 static inline int at91_is_sam9(void);
@@ -126,28 +131,28 @@ static inline int
 at91_is_rm92(void)
 {
 
-	return (soc_data.type == AT91_T_RM9200);
+	return (soc_info.type == AT91_T_RM9200);
 }
 
 static inline int
 at91_is_sam9(void)
 {
 
-	return (soc_data.family == AT91_FAMILY_SAM9);
+	return (soc_info.family == AT91_FAMILY_SAM9);
 }
 
 static inline int
 at91_is_sam9xe(void)
 {
 
-	return (soc_data.family == AT91_FAMILY_SAM9XE);
+	return (soc_info.family == AT91_FAMILY_SAM9XE);
 }
 
 static inline int
 at91_cpu_is(u_int cpu)
 {
 
-	return (soc_data.type == cpu);
+	return (soc_info.type == cpu);
 }
 
 void at91_add_child(device_t dev, int prio, const char *name, int unit,
