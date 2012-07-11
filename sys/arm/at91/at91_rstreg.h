@@ -25,8 +25,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef ARM_AT91_AT91RSTREG_H
-#define ARM_AT91_AT91RSTREG_H
+#ifndef ARM_AT91_AT91_RSTREG_H
+#define ARM_AT91_AT91_RSTREG_H
 
 #define	RST_CR		0x0	/* Control Register */
 #define	RST_SR		0x4	/* Status Register */
@@ -56,4 +56,8 @@
 #define	RST_MR_ERSTL(x)		((x)<<8) /* External reset length */	
 #define	RST_MR_KEY		(0xa5<<24)
 
-#endif /* ARM_AT91_AT91RSTREG_H */
+#ifndef __ASSEMBLER__
+void at91_rst_cpu_reset(void);
+#endif
+
+#endif /* ARM_AT91_AT91_RSTREG_H */
