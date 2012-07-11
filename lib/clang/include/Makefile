@@ -5,17 +5,23 @@
 INCSDIR=${INCLUDEDIR}/clang/3.1
 
 INCS=	altivec.h \
+	avx2intrin.h \
 	avxintrin.h \
+	bmi2intrin.h \
+	bmiintrin.h \
 	cpuid.h \
 	emmintrin.h \
+	fma4intrin.h \
 	immintrin.h \
+	lzcntintrin.h \
 	mm3dnow.h \
 	mm_malloc.h \
 	mmintrin.h \
+	module.map \
 	nmmintrin.h \
 	pmmintrin.h \
+	popcntintrin.h \
 	smmintrin.h \
-	stdalign.h \
 	tmmintrin.h \
 	unwind.h \
 	wmmintrin.h \

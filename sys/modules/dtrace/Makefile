@@ -9,6 +9,7 @@ SUBDIR=		dtmalloc	\
 		dtrace		\
 		dtraceall	\
 		dtrace_test	\
+		dtio		\
 		prototype	\
 		sdt		\
 		systrace

@@ -140,7 +140,7 @@ node allows to modify TTL and TOS/DSCP fields in IP packets.
 Suppose you have two adjacent simplex links to remote network
 (e.g.\& satellite), so that the packets expiring in between
 will generate unwanted ICMP-replies which have to go forth, not back.
-Thus you need to raise TTL of every packet entering link link by 2
+Thus you need to raise TTL of every packet entering link by 2
 to ensure the TTL will not reach zero there.
 So you setup
 .Xr ipfw 8

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -41,6 +41,10 @@ void e1000_null_phy_generic(struct e1000_hw *hw);
 s32  e1000_null_lplu_state(struct e1000_hw *hw, bool active);
 s32  e1000_null_write_reg(struct e1000_hw *hw, u32 offset, u16 data);
 s32  e1000_null_set_page(struct e1000_hw *hw, u16 data);
+s32 e1000_read_i2c_byte_null(struct e1000_hw *hw, u8 byte_offset,
+			     u8 dev_addr, u8 *data);
+s32 e1000_write_i2c_byte_null(struct e1000_hw *hw, u8 byte_offset,
+			      u8 dev_addr, u8 data);
 s32  e1000_check_downshift_generic(struct e1000_hw *hw);
 s32  e1000_check_polarity_m88(struct e1000_hw *hw);
 s32  e1000_check_polarity_igp(struct e1000_hw *hw);
@@ -112,6 +116,8 @@ s32  e1000_check_polarity_82577(struct e1000_hw *hw);
 s32  e1000_get_phy_info_82577(struct e1000_hw *hw);
 s32  e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw);
 s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
+s32  e1000_write_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 data);
+s32  e1000_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data);
 
 #define E1000_MAX_PHY_ADDR		8
 
@@ -127,6 +133,17 @@ s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define BM_PHY_PAGE_SELECT		22   /* Page Select for BM */
 #define IGP_PAGE_SHIFT			5
 #define PHY_REG_MASK			0x1F
+
+/* GS40G - I210 PHY defines */
+#define GS40G_PAGE_SELECT		0x16
+#define GS40G_PAGE_SHIFT		16
+#define GS40G_OFFSET_MASK		0xFFFF
+#define GS40G_PAGE_2			0x20000
+#define GS40G_MAC_REG2			0x15
+#define GS40G_MAC_LB			0x4140
+#define GS40G_MAC_SPEED_1G		0X0006
+#define GS40G_COPPER_SPEC		0x0010
+#define GS40G_CS_POWER_DOWN		0x0002
 
 /* BM/HV Specific Registers */
 #define BM_PORT_CTRL_PAGE		769
@@ -174,8 +191,9 @@ s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define I82577_PHY_STATUS2_SPEED_100MBPS	0x0100
 
 /* I82577 PHY Control 2 */
-#define I82577_PHY_CTRL2_AUTO_MDIX		0x0400
-#define I82577_PHY_CTRL2_FORCE_MDI_MDIX		0x0200
+#define I82577_PHY_CTRL2_MANUAL_MDIX		0x0200
+#define I82577_PHY_CTRL2_AUTO_MDI_MDIX		0x0400
+#define I82577_PHY_CTRL2_MDIX_CFG_MASK		0x0600
 
 /* I82577 PHY Diagnostics Status */
 #define I82577_DSTATUS_CABLE_LENGTH		0x03FC

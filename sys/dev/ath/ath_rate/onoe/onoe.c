@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Atsushi Onoe's rate control algorithm.
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 

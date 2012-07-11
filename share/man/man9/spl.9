@@ -112,8 +112,7 @@ The system automatically arranges for interrupts in
 the
 .Em xxx
 group to be called at a priority >=
-.Ns spl Ns Em xxx
-\&().
+.Em spl Ns Fn xxx
 .Pp
 The function
 .Fn splx
@@ -221,7 +220,8 @@ the system.
 The historical number scheme can be considered as a
 simple linearly ordered set of interrupt priority groups.
 .Pp
-.Fx 5.0 eliminated spl entirely in favor of locking primitives which scale
+.Fx 5.0
+eliminated spl entirely in favor of locking primitives which scale
 to more than one processor.
 .Sh AUTHORS
 This manual page was written by

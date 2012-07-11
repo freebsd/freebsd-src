@@ -145,6 +145,7 @@ extern "C" {
 /* #endif */
 
 #define BIO_CTRL_DGRAM_QUERY_MTU          40 /* as kernel for current MTU */
+#define BIO_CTRL_DGRAM_GET_FALLBACK_MTU   47
 #define BIO_CTRL_DGRAM_GET_MTU            41 /* get cached value for MTU */
 #define BIO_CTRL_DGRAM_SET_MTU            42 /* set cached value for
 					      * MTU. want to use this
@@ -321,6 +322,15 @@ DECLARE_STACK_OF(BIO)
 
 typedef struct bio_f_buffer_ctx_struct
 	{
+	/* Buffers are setup like this:
+	 *
+	 * <---------------------- size ----------------------->
+	 * +---------------------------------------------------+
+	 * | consumed | remaining          | free space        |
+	 * +---------------------------------------------------+
+	 * <-- off --><------- len ------->
+	 */
+
 	/* BIO *bio; */ /* this is now in the BIO struct */
 	int ibuf_size;	/* how big is the input buffer */
 	int obuf_size;	/* how big is the output buffer */

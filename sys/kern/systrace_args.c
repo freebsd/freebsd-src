@@ -3121,7 +3121,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 514: {
 		struct cap_new_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* u_int64_t */
+		uarg[1] = p->rights; /* uint64_t */
 		*n_args = 2;
 		break;
 	}
@@ -3129,7 +3129,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 515: {
 		struct cap_getrights_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->rightsp; /* u_int64_t * */
+		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
 		*n_args = 2;
 		break;
 	}
@@ -8434,7 +8434,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int64_t";
+			p = "uint64_t";
 			break;
 		default:
 			break;
@@ -8447,7 +8447,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int64_t *";
+			p = "uint64_t *";
 			break;
 		default:
 			break;

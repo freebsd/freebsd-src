@@ -109,6 +109,11 @@ void StmtProfiler::VisitLabelStmt(const LabelStmt *S) {
   VisitDecl(S->getDecl());
 }
 
+void StmtProfiler::VisitAttributedStmt(const AttributedStmt *S) {
+  VisitStmt(S);
+  // TODO: maybe visit attributes?
+}
+
 void StmtProfiler::VisitIfStmt(const IfStmt *S) {
   VisitStmt(S);
   VisitDecl(S->getConditionVariable());
@@ -758,6 +763,7 @@ void StmtProfiler::VisitCXXUuidofExpr(const CXXUuidofExpr *S) {
 
 void StmtProfiler::VisitCXXThisExpr(const CXXThisExpr *S) {
   VisitExpr(S);
+  ID.AddBoolean(S->isImplicit());
 }
 
 void StmtProfiler::VisitCXXThrowExpr(const CXXThrowExpr *S) {

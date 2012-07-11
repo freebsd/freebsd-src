@@ -750,10 +750,13 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		if (do_init) {
 			/* setup the USB interface structure */
 			iface->idesc = id;
-			/* default setting */
-			iface->parent_iface_index = USB_IFACE_INDEX_ANY;
 			/* set alternate index */
 			iface->alt_index = alt_index;
+			/* set default interface parent */
+			if (iface_index == USB_IFACE_INDEX_ANY) {
+				iface->parent_iface_index =
+				    USB_IFACE_INDEX_ANY;
+			}
 		}
 
 		DPRINTFN(5, "found idesc nendpt=%d\n", id->bNumEndpoints);
@@ -1229,10 +1232,13 @@ usbd_set_parent_iface(struct usb_device *udev, uint8_t iface_index,
 {
 	struct usb_interface *iface;
 
-	iface = usbd_get_iface(udev, iface_index);
-	if (iface) {
-		iface->parent_iface_index = parent_index;
+	if (udev == NULL) {
+		/* nothing to do */
+		return;
 	}
+	iface = usbd_get_iface(udev, iface_index);
+	if (iface != NULL)
+		iface->parent_iface_index = parent_index;
 }
 
 static void

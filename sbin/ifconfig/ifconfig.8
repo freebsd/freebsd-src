@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2012
+.Dd July 9, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -372,16 +372,32 @@ This is useful for devices which have multiple physical layer interfaces
 .It Cm name Ar name
 Set the interface name to
 .Ar name .
-.It Cm rxcsum , txcsum
+.It Cm rxcsum , txcsum , rxcsum6 , txcsum6
 If the driver supports user-configurable checksum offloading,
 enable receive (or transmit) checksum offloading on the interface.
+The feature can be turned on selectively per protocol family.
+Use
+.Cm rxcsum6 , txcsum6
+for
+.Xr ip6 4
+or
+.Cm rxcsum , txcsum
+otherwise.
 Some drivers may not be able to enable these flags independently
 of each other, so setting one may also set the other.
 The driver will offload as much checksum work as it can reliably
 support, the exact level of offloading varies between drivers.
-.It Fl rxcsum , txcsum
+.It Fl rxcsum , txcsum , rxcsum6 , txcsum6
 If the driver supports user-configurable checksum offloading,
 disable receive (or transmit) checksum offloading on the interface.
+The feature can be turned off selectively per protocol family.
+Use
+.Fl rxcsum6 , txcsum6
+for
+.Xr ip6 4
+or
+.Fl rxcsum , txcsum
+otherwise.
 These settings may not always be independent of each other.
 .It Cm tso
 If the driver supports
@@ -400,6 +416,22 @@ It will always disable TSO for
 .Xr ip 4
 and
 .Xr ip6 4 .
+.It Cm tso6 , tso4
+If the driver supports
+.Xr tcp 4
+segmentation offloading for
+.Xr ip6 4
+or
+.Xr ip 4
+use one of these to selectively enabled it only for one protocol family.
+.It Fl tso6 , tso4
+If the driver supports
+.Xr tcp 4
+segmentation offloading for
+.Xr ip6 4
+or
+.Xr ip 4
+use one of these to selectively disable it only for one protocol family.
 .It Cm lro
 If the driver supports
 .Xr tcp 4
@@ -684,12 +716,6 @@ Set a flag to enable Neighbor Unreachability Detection.
 .It Cm -nud
 Clear a flag
 .Cm nud .
-.It Cm prefer_source
-Set a flag to prefer addresses on the interface as candidates of the
-source address for outgoing packets.
-.It Cm -prefer_source
-Clear a flag
-.Cm prefer_source .
 .El
 .Pp
 The following parameters are specific to cloning
@@ -1979,6 +2005,12 @@ Enable or disable forwarding packets by a mesh interface.
 By default
 .Cm meshforward
 is enabled.
+.It Cm meshgate
+This attribute specifies whether or not the mesh STA activates mesh gate
+announcements.
+By default
+.Cm meshgate
+is disabled.
 .It Cm meshmetric Ar protocol
 Set the specified
 .Ar protocol
@@ -2013,7 +2045,7 @@ Send broadcast path requests every two seconds.
 Nodes on the mesh without a path to this root mesh station with try to
 discover a path to us.
 .It Cm PROACTIVE
-Send broadcast path requests every two seconds and every node must reply with
+Send broadcast path requests every two seconds and every node must reply
 with a path reply even if it already has a path to this root mesh station.
 .It Cm RANN
 Send broadcast root announcement (RANN) frames.

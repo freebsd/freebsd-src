@@ -376,17 +376,17 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 	else if (strcasecmp(str, "RAID3-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
 		*qual = G_RAID_VOLUME_RLQ_R3P0;
-	} else if (strcasecmp(str, "RAID3-PN") == 0 &&
+	} else if (strcasecmp(str, "RAID3-PN") == 0 ||
 		   strcasecmp(str, "RAID3") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
-		*qual = G_RAID_VOLUME_RLQ_R3P0;
+		*qual = G_RAID_VOLUME_RLQ_R3PN;
 	} else if (strcasecmp(str, "RAID4-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
 		*qual = G_RAID_VOLUME_RLQ_R4P0;
-	} else if (strcasecmp(str, "RAID4-PN") == 0 &&
+	} else if (strcasecmp(str, "RAID4-PN") == 0 ||
 		   strcasecmp(str, "RAID4") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
-		*qual = G_RAID_VOLUME_RLQ_R4P0;
+		*qual = G_RAID_VOLUME_RLQ_R4PN;
 	} else if (strcasecmp(str, "RAID5-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5;
 		*qual = G_RAID_VOLUME_RLQ_R5RA;
@@ -1823,8 +1823,8 @@ g_raid_create_node(struct g_class *mp,
 	sc->sc_flags = 0;
 	TAILQ_INIT(&sc->sc_volumes);
 	TAILQ_INIT(&sc->sc_disks);
-	sx_init(&sc->sc_lock, "gmirror:lock");
-	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
+	sx_init(&sc->sc_lock, "graid:lock");
+	mtx_init(&sc->sc_queue_mtx, "graid:queue", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_events);
 	bioq_init(&sc->sc_queue);
 	gp->softc = sc;
@@ -1856,6 +1856,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name, int id)
 	vol->v_state = G_RAID_VOLUME_S_STARTING;
 	vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_UNKNOWN;
+	vol->v_rotate_parity = 1;
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);
@@ -2143,7 +2144,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
-	gp = g_new_geomf(mp, "mirror:taste");
+	gp = g_new_geomf(mp, "raid:taste");
 	/*
 	 * This orphan function should be never called.
 	 */
@@ -2173,7 +2174,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 int
-g_raid_create_node_format(const char *format, struct g_geom **gp)
+g_raid_create_node_format(const char *format, struct gctl_req *req,
+    struct g_geom **gp)
 {
 	struct g_raid_md_class *class;
 	struct g_raid_md_object *obj;
@@ -2191,7 +2193,7 @@ g_raid_create_node_format(const char *format, struct g_geom **gp)
 	obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
 	    M_WAITOK);
 	obj->mdo_class = class;
-	status = G_RAID_MD_CREATE(obj, &g_raid_class, gp);
+	status = G_RAID_MD_CREATE_REQ(obj, &g_raid_class, req, gp);
 	if (status != G_RAID_MD_TASTE_NEW)
 		kobj_delete((kobj_t)obj, M_RAID);
 	return (status);

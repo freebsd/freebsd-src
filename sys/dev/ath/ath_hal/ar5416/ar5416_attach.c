@@ -30,7 +30,9 @@
 
 #include "ar5416/ar5416.ini"
 
-static void ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
+static void ar5416DisablePCIE(struct ath_hal *ah);
 static void ar5416WriteIni(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan);
 static void ar5416SpurMitigate(struct ath_hal *ah,
@@ -99,6 +101,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_phyDisable		= ar5416PhyDisable;
 	ah->ah_disable			= ar5416Disable;
 	ah->ah_configPCIE		= ar5416ConfigPCIE;
+	ah->ah_disablePCIE		= ar5416DisablePCIE;
 	ah->ah_perCalibration		= ar5416PerCalibration;
 	ah->ah_perCalibrationN		= ar5416PerCalibrationN,
 	ah->ah_resetCalValid		= ar5416ResetCalValid,
@@ -119,6 +122,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	/* Receive Functions */
 	ah->ah_getRxFilter		= ar5416GetRxFilter;
 	ah->ah_setRxFilter		= ar5416SetRxFilter;
+	ah->ah_stopDmaReceive		= ar5416StopDmaReceive;
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
@@ -144,6 +148,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setDecompMask		= ar5416SetDecompMask;
 	ah->ah_setCoverageClass		= ar5416SetCoverageClass;
 	ah->ah_setQuiet			= ar5416SetQuiet;
+	ah->ah_getMibCycleCounts	= ar5416GetMibCycleCounts;
 
 	ah->ah_resetKeyCacheEntry	= ar5416ResetKeyCacheEntry;
 	ah->ah_setKeyCacheEntry		= ar5416SetKeyCacheEntry;
@@ -455,20 +460,71 @@ void
 ar5416AttachPCIE(struct ath_hal *ah)
 {
 	if (AH_PRIVATE(ah)->ah_ispcie)
-		ath_hal_configPCIE(ah, AH_FALSE);
+		ath_hal_configPCIE(ah, AH_FALSE, AH_FALSE);
 	else
 		ath_hal_disablePCIE(ah);
 }
 
 static void
-ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
-	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
+
+	/* This is only applicable for AR5418 (AR5416 PCIe) */
+	if (! AH_PRIVATE(ah)->ah_ispcie)
+		return;
+
+	if (! restore) {
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
 		OS_DELAY(1000);
-		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-		OS_REG_WRITE(ah, AR_WA, AR_WA_DEFAULT);
 	}
+
+	if (power_off) {		/* Power-off */
+		/* clear bit 19 to disable L1 */
+		OS_REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	} else {			/* Power-on */
+		/* Set default WAR values for Owl */
+		OS_REG_WRITE(ah, AR_WA, AR_WA_DEFAULT);
+
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	}
+}
+
+/*
+ * Disable PCIe PHY if PCIe isn't used.
+ */
+static void
+ar5416DisablePCIE(struct ath_hal *ah)
+{
+
+	/* PCIe? Don't */
+	if (AH_PRIVATE(ah)->ah_ispcie)
+		return;
+
+	/* .. Only applicable for AR5416v2 or later */
+	if (! (AR_SREV_OWL(ah) && AR_SREV_OWL_20_OR_LATER(ah)))
+		return;
+
+	OS_REG_WRITE_BUFFER_ENABLE(ah);
+
+	/*
+	 * Disable the PCIe PHY.
+	 */
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x28000029);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x57160824);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x25980579);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x00000000);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x000e1007);
+
+	/* Load the new settings */
+	OS_REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
+
+	OS_REG_WRITE_BUFFER_FLUSH(ah);
+	OS_REG_WRITE_BUFFER_DISABLE(ah);
 }
 
 static void

@@ -314,7 +314,6 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     ACPI_OBJECT			*reslist_object;
     ACPI_STATUS			status;
     char			*method_name, *reslist_name;
-    int				res_changed;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -445,7 +444,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * Now we are ready to switch, so kill off any current power
      * resource references.
      */
-    res_changed = acpi_pwr_dereference_resource(pc);
+    acpi_pwr_dereference_resource(pc);
 
     /*
      * Add new power resource references, if we have any.  Traverse the
@@ -457,7 +456,6 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 			  reslist_object->Package.Count));
 	acpi_ForeachPackageObject(reslist_object, acpi_pwr_reference_resource,
 				  pc);
-	res_changed = 1;
     }
 
     /*

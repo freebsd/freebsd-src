@@ -304,7 +304,6 @@ namespace {
     void RewriteFunctionDecl(FunctionDecl *FD);
     void RewriteBlockPointerType(std::string& Str, QualType Type);
     void RewriteBlockPointerTypeVariable(std::string& Str, ValueDecl *VD);
-    void RewriteBlockLiteralFunctionDecl(FunctionDecl *FD);
     void RewriteObjCQualifiedInterfaceTypes(Decl *Dcl);
     void RewriteTypeOfDecl(VarDecl *VD);
     void RewriteObjCQualifiedInterfaceTypes(Expr *E);
@@ -2246,31 +2245,7 @@ void RewriteModernObjC::RewriteBlockPointerTypeVariable(std::string& Str,
   }
 }
 
-
-void RewriteModernObjC::RewriteBlockLiteralFunctionDecl(FunctionDecl *FD) {
-  SourceLocation FunLocStart = FD->getTypeSpecStartLoc();
-  const FunctionType *funcType = FD->getType()->getAs<FunctionType>();
-  const FunctionProtoType *proto = dyn_cast<FunctionProtoType>(funcType);
-  if (!proto)
-    return;
-  QualType Type = proto->getResultType();
-  std::string FdStr = Type.getAsString(Context->getPrintingPolicy());
-  FdStr += " ";
-  FdStr += FD->getName();
-  FdStr +=  "(";
-  unsigned numArgs = proto->getNumArgs();
-  for (unsigned i = 0; i < numArgs; i++) {
-    QualType ArgType = proto->getArgType(i);
-    RewriteBlockPointerType(FdStr, ArgType);
-    if (i+1 < numArgs)
-      FdStr += ", ";
-  }
-  FdStr +=  ");\n";
-  InsertText(FunLocStart, FdStr);
-  CurFunctionDeclToDeclareForBlock = 0;
-}
-
-// SynthSuperContructorFunctionDecl - id objc_super(id obj, id super);
+// SynthSuperContructorFunctionDecl - id __rw_objc_super(id obj, id super);
 void RewriteModernObjC::SynthSuperContructorFunctionDecl() {
   if (SuperContructorFunctionDecl)
     return;
@@ -2311,21 +2286,13 @@ void RewriteModernObjC::SynthMsgSendFunctionDecl() {
                                          SC_None, false);
 }
 
-// SynthMsgSendSuperFunctionDecl - id objc_msgSendSuper(struct objc_super *, SEL op, ...);
+// SynthMsgSendSuperFunctionDecl - id objc_msgSendSuper(void);
 void RewriteModernObjC::SynthMsgSendSuperFunctionDecl() {
   IdentifierInfo *msgSendIdent = &Context->Idents.get("objc_msgSendSuper");
-  SmallVector<QualType, 16> ArgTys;
-  RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
-                                      SourceLocation(), SourceLocation(),
-                                      &Context->Idents.get("objc_super"));
-  QualType argT = Context->getPointerType(Context->getTagDeclType(RD));
-  assert(!argT.isNull() && "Can't build 'struct objc_super *' type");
-  ArgTys.push_back(argT);
-  argT = Context->getObjCSelType();
-  assert(!argT.isNull() && "Can't find 'SEL' type");
-  ArgTys.push_back(argT);
+  SmallVector<QualType, 2> ArgTys;
+  ArgTys.push_back(Context->VoidTy);
   QualType msgSendType = getSimpleFunctionType(Context->getObjCIdType(),
-                                               &ArgTys[0], ArgTys.size(),
+                                               &ArgTys[0], 1,
                                                true /*isVariadic*/);
   MsgSendSuperFunctionDecl = FunctionDecl::Create(*Context, TUDecl,
                                               SourceLocation(),
@@ -2357,22 +2324,14 @@ void RewriteModernObjC::SynthMsgSendStretFunctionDecl() {
 }
 
 // SynthMsgSendSuperStretFunctionDecl -
-// id objc_msgSendSuper_stret(struct objc_super *, SEL op, ...);
+// id objc_msgSendSuper_stret(void);
 void RewriteModernObjC::SynthMsgSendSuperStretFunctionDecl() {
   IdentifierInfo *msgSendIdent =
     &Context->Idents.get("objc_msgSendSuper_stret");
-  SmallVector<QualType, 16> ArgTys;
-  RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
-                                      SourceLocation(), SourceLocation(),
-                                      &Context->Idents.get("objc_super"));
-  QualType argT = Context->getPointerType(Context->getTagDeclType(RD));
-  assert(!argT.isNull() && "Can't build 'struct objc_super *' type");
-  ArgTys.push_back(argT);
-  argT = Context->getObjCSelType();
-  assert(!argT.isNull() && "Can't find 'SEL' type");
-  ArgTys.push_back(argT);
+  SmallVector<QualType, 2> ArgTys;
+  ArgTys.push_back(Context->VoidTy);
   QualType msgSendType = getSimpleFunctionType(Context->getObjCIdType(),
-                                               &ArgTys[0], ArgTys.size(),
+                                               &ArgTys[0], 1,
                                                true /*isVariadic*/);
   MsgSendSuperStretFunctionDecl = FunctionDecl::Create(*Context, TUDecl,
                                                        SourceLocation(),
@@ -2925,18 +2884,20 @@ Stmt *RewriteModernObjC::RewriteObjCDictionaryLiteralExpr(ObjCDictionaryLiteral 
   return CE;
 }
 
-// struct objc_super { struct objc_object *receiver; struct objc_class *super; };
+// struct __rw_objc_super { 
+//   struct objc_object *object; struct objc_object *superClass; 
+// };
 QualType RewriteModernObjC::getSuperStructType() {
   if (!SuperStructDecl) {
     SuperStructDecl = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                          SourceLocation(), SourceLocation(),
-                                         &Context->Idents.get("objc_super"));
+                                         &Context->Idents.get("__rw_objc_super"));
     QualType FieldTypes[2];
 
-    // struct objc_object *receiver;
+    // struct objc_object *object;
     FieldTypes[0] = Context->getObjCIdType();
-    // struct objc_class *super;
-    FieldTypes[1] = Context->getObjCClassType();
+    // struct objc_object *superClass;
+    FieldTypes[1] = Context->getObjCIdType();
 
     // Create fields
     for (unsigned i = 0; i < 2; ++i) {
@@ -3073,7 +3034,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
                         NoTypeInfoCStyleCastExpr(Context,
                                                  Context->getObjCIdType(),
                                                  CK_BitCast, Cls));
-    // struct objc_super
+    // struct __rw_objc_super
     QualType superType = getSuperStructType();
     Expr *SuperRep;
 
@@ -3091,7 +3052,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
       // the structure definition in the header. The rewriter has it's own
       // internal definition (__rw_objc_super) that is uses. This is why
       // we need the cast below. For example:
-      // (struct objc_super *)&__rw_objc_super((id)self, (id)objc_getClass("SUPER"))
+      // (struct __rw_objc_super *)&__rw_objc_super((id)self, (id)objc_getClass("SUPER"))
       //
       SuperRep = new (Context) UnaryOperator(SuperRep, UO_AddrOf,
                                Context->getPointerType(SuperRep->getType()),
@@ -3101,7 +3062,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
                                           Context->getPointerType(superType),
                                           CK_BitCast, SuperRep);
     } else {
-      // (struct objc_super) { <exprs from above> }
+      // (struct __rw_objc_super) { <exprs from above> }
       InitListExpr *ILE =
         new (Context) InitListExpr(*Context, SourceLocation(),
                                    &InitExprs[0], InitExprs.size(),
@@ -3111,7 +3072,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
       SuperRep = new (Context) CompoundLiteralExpr(SourceLocation(), superTInfo,
                                                    superType, VK_LValue,
                                                    ILE, false);
-      // struct objc_super *
+      // struct __rw_objc_super *
       SuperRep = new (Context) UnaryOperator(SuperRep, UO_AddrOf,
                                Context->getPointerType(SuperRep->getType()),
                                              VK_RValue, OK_Ordinary,
@@ -3183,7 +3144,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
       // set 'super class', using class_getSuperclass().
       NoTypeInfoCStyleCastExpr(Context, Context->getObjCIdType(),
                                CK_BitCast, Cls));
-    // struct objc_super
+    // struct __rw_objc_super
     QualType superType = getSuperStructType();
     Expr *SuperRep;
 
@@ -3200,7 +3161,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
       // the structure definition in the header. The rewriter has it's own
       // internal definition (__rw_objc_super) that is uses. This is why
       // we need the cast below. For example:
-      // (struct objc_super *)&__rw_objc_super((id)self, (id)objc_getClass("SUPER"))
+      // (struct __rw_objc_super *)&__rw_objc_super((id)self, (id)objc_getClass("SUPER"))
       //
       SuperRep = new (Context) UnaryOperator(SuperRep, UO_AddrOf,
                                Context->getPointerType(SuperRep->getType()),
@@ -3210,7 +3171,7 @@ Stmt *RewriteModernObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
                                Context->getPointerType(superType),
                                CK_BitCast, SuperRep);
     } else {
-      // (struct objc_super) { <exprs from above> }
+      // (struct __rw_objc_super) { <exprs from above> }
       InitListExpr *ILE =
         new (Context) InitListExpr(*Context, SourceLocation(),
                                    &InitExprs[0], InitExprs.size(),
@@ -4022,11 +3983,25 @@ std::string RewriteModernObjC::SynthesizeBlockDescriptor(std::string DescTag,
   return S;
 }
 
+/// getFunctionSourceLocation - returns start location of a function
+/// definition. Complication arises when function has declared as
+/// extern "C" or extern "C" {...}
+static SourceLocation getFunctionSourceLocation (FunctionDecl *FD) {
+  if (!FD->isExternC() || FD->isMain())
+    return FD->getTypeSpecStartLoc();
+  const DeclContext *DC = FD->getDeclContext();
+  if (const LinkageSpecDecl *LSD = dyn_cast<LinkageSpecDecl>(DC)) {
+    SourceLocation BodyRBrace = LSD->getRBraceLoc();
+    // if it is extern "C" {...}, return function decl's own location.
+    if (BodyRBrace.isValid())
+      return FD->getTypeSpecStartLoc();
+    return LSD->getExternLoc();
+  }
+  return FD->getTypeSpecStartLoc();
+}
+
 void RewriteModernObjC::SynthesizeBlockLiterals(SourceLocation FunLocStart,
                                           StringRef FunName) {
-  // Insert declaration for the function in which block literal is used.
-  if (CurFunctionDeclToDeclareForBlock && !Blocks.empty())
-    RewriteBlockLiteralFunctionDecl(CurFunctionDeclToDeclareForBlock);
   bool RewriteSC = (GlobalVarDecl &&
                     !Blocks.empty() &&
                     GlobalVarDecl->getStorageClass() == SC_Static &&
@@ -4135,7 +4110,7 @@ void RewriteModernObjC::SynthesizeBlockLiterals(SourceLocation FunLocStart,
 }
 
 void RewriteModernObjC::InsertBlockLiteralsWithinFunction(FunctionDecl *FD) {
-  SourceLocation FunLocStart = FD->getTypeSpecStartLoc();
+  SourceLocation FunLocStart = getFunctionSourceLocation(FD);
   StringRef FuncName = FD->getName();
 
   SynthesizeBlockLiterals(FunLocStart, FuncName);
@@ -4170,11 +4145,15 @@ void RewriteModernObjC::GetBlockDeclRefExprs(Stmt *S) {
         GetBlockDeclRefExprs(*CI);
     }
   // Handle specific things.
-  if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(S))
-    if (DRE->refersToEnclosingLocal() &&
-        HasLocalVariableExternalStorage(DRE->getDecl())) {
-      BlockDeclRefs.push_back(DRE);
+  if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(S)) {
+    if (DRE->refersToEnclosingLocal()) {
+      // FIXME: Handle enums.
+      if (!isa<FunctionDecl>(DRE->getDecl()))
+        BlockDeclRefs.push_back(DRE);
+      if (HasLocalVariableExternalStorage(DRE->getDecl()))
+        BlockDeclRefs.push_back(DRE);
     }
+  }
   
   return;
 }
@@ -4474,19 +4453,18 @@ void RewriteModernObjC::RewriteCastExpr(CStyleCastExpr *CE) {
 
 void RewriteModernObjC::RewriteImplicitCastObjCExpr(CastExpr *IC) {
   CastKind CastKind = IC->getCastKind();
+  if (CastKind != CK_BlockPointerToObjCPointerCast &&
+      CastKind != CK_AnyPointerToBlockPointerCast)
+    return;
   
-  if (CastKind == CK_BlockPointerToObjCPointerCast) {
-    CStyleCastExpr * CastExpr = 
-      NoTypeInfoCStyleCastExpr(Context, IC->getType(), CK_BitCast, IC);
-    ReplaceStmt(IC, CastExpr);
-  }
-  else if (CastKind == CK_AnyPointerToBlockPointerCast) {
-    QualType BlockT = IC->getType();
-    (void)convertBlockPointerToFunctionPointer(BlockT);
-    CStyleCastExpr * CastExpr = 
-      NoTypeInfoCStyleCastExpr(Context, BlockT, CK_BitCast, IC);
-    ReplaceStmt(IC, CastExpr);
-  }
+  QualType QT = IC->getType();
+  (void)convertBlockPointerToFunctionPointer(QT);
+  std::string TypeString(QT.getAsString(Context->getPrintingPolicy()));
+  std::string Str = "(";
+  Str += TypeString;
+  Str += ")";
+  InsertText(IC->getSubExpr()->getLocStart(), &Str[0], Str.size());
+
   return;
 }
 
@@ -4742,10 +4720,6 @@ std::string RewriteModernObjC::SynthesizeByrefCopyDestroyHelper(VarDecl *VD,
 ///
 ///
 void RewriteModernObjC::RewriteByRefVar(VarDecl *ND) {
-  // Insert declaration for the function in which block literal is
-  // used.
-  if (CurFunctionDeclToDeclareForBlock)
-    RewriteBlockLiteralFunctionDecl(CurFunctionDeclToDeclareForBlock);
   int flag = 0;
   int isa = 0;
   SourceLocation DeclLoc = ND->getTypeSpecStartLoc();
@@ -4784,7 +4758,7 @@ void RewriteModernObjC::RewriteByRefVar(VarDecl *ND) {
   // Insert this type in global scope. It is needed by helper function.
   SourceLocation FunLocStart;
   if (CurFunctionDef)
-     FunLocStart = CurFunctionDef->getTypeSpecStartLoc();
+     FunLocStart = getFunctionSourceLocation(CurFunctionDef);
   else {
     assert(CurMethodDef && "RewriteByRefVar - CurMethodDef is null");
     FunLocStart = CurMethodDef->getLocStart();
@@ -5375,6 +5349,7 @@ Stmt *RewriteModernObjC::RewriteFunctionBodyOrGlobalInitializer(Stmt *S) {
     RewriteImplicitCastObjCExpr(ICE);
   }
 #if 0
+
   if (ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(S)) {
     CastExpr *Replacement = new (Context) CastExpr(ICE->getType(),
                                                    ICE->getSubExpr(),
@@ -5627,13 +5602,11 @@ void RewriteModernObjC::Initialize(ASTContext &context) {
     // These are currently generated.
     Preamble += "\n#pragma section(\".objc_classlist$B\", long, read, write)\n";
     Preamble += "#pragma section(\".objc_catlist$B\", long, read, write)\n";
-    Preamble += "#pragma section(\".objc_protolist$B\", long, read, write)\n";
     Preamble += "#pragma section(\".objc_imageinfo$B\", long, read, write)\n";
     Preamble += "#pragma section(\".objc_nlclslist$B\", long, read, write)\n";
     Preamble += "#pragma section(\".objc_nlcatlist$B\", long, read, write)\n";
     Preamble += "#pragma section(\".objc_protorefs$B\", long, read, write)\n";
     // These are generated but not necessary for functionality.
-    Preamble += "#pragma section(\".datacoal_nt$B\", long, read, write)\n";
     Preamble += "#pragma section(\".cat_cls_meth$B\", long, read, write)\n";
     Preamble += "#pragma section(\".inst_meth$B\", long, read, write)\n";
     Preamble += "#pragma section(\".cls_meth$B\", long, read, write)\n";
@@ -6604,7 +6577,7 @@ void RewriteModernObjC::RewriteObjCProtocolMetaData(ObjCProtocolDecl *PDecl,
   // Writer out root metadata for current protocol: struct _protocol_t
   Result += "\n";
   if (LangOpts.MicrosoftExt)
-    Result += "__declspec(allocate(\".datacoal_nt$B\")) ";
+    Result += "static ";
   Result += "struct _protocol_t _OBJC_PROTOCOL_";
   Result += PDecl->getNameAsString();
   Result += " __attribute__ ((used, section (\"__DATA,__datacoal_nt,coalesced\"))) = {\n";
@@ -6662,11 +6635,8 @@ void RewriteModernObjC::RewriteObjCProtocolMetaData(ObjCProtocolDecl *PDecl,
   else
     Result += "\t0\n};\n";
   
-  // Use this protocol meta-data to build protocol list table in section
-  // .objc_protolist$B
-  // Unspecified visibility means 'private extern'.
   if (LangOpts.MicrosoftExt)
-    Result += "__declspec(allocate(\".objc_protolist$B\")) ";
+    Result += "static ";
   Result += "struct _protocol_t *";
   Result += "_OBJC_LABEL_PROTOCOL_$_"; Result += PDecl->getNameAsString();
   Result += " = &_OBJC_PROTOCOL_"; Result += PDecl->getNameAsString();

@@ -10,8 +10,8 @@ if [ ! $# -eq 1 ]; then
 fi
 
 src=$1
-wrk=`realpath ./_acpi_ca_unpack`
-dst=`realpath ./acpi_ca_destination`
+wrk="$(realpath .)/_acpi_ca_unpack"
+dst="$(realpath .)/acpi_ca_destination"
 
 # files that should keep their full directory path
 fulldirs="common compiler components include os_specific"
@@ -67,7 +67,8 @@ for H in ${src_headers}; do
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/$H\>|g"
 done
 for H in ${comp_headers}; do
-	find ${dst}/common ${dst}/compiler -name "*.[chly]" -type f |	\
+	find ${dst}/common ${dst}/compiler ${dst}/components \
+	    -name "*.[chly]" -type f |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/compiler/$H\>|g"
 done
 for H in ${platform_headers}; do

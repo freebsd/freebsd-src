@@ -111,10 +111,16 @@ struct ng_netflow_settimeouts {
 	uint32_t	active_timeout;		/* flow active timeout */
 };
 
-#define NG_NETFLOW_CONF_INGRESS		1
-#define NG_NETFLOW_CONF_EGRESS		2
-#define NG_NETFLOW_CONF_ONCE		4
-#define NG_NETFLOW_CONF_THISONCE	8
+#define NG_NETFLOW_CONF_INGRESS		0x01	/* Account on ingress */
+#define NG_NETFLOW_CONF_EGRESS		0x02	/* Account on egress */
+#define NG_NETFLOW_CONF_ONCE		0x04	/* Add tag to account only once */
+#define NG_NETFLOW_CONF_THISONCE	0x08	/* Account once in current node */
+#define NG_NETFLOW_CONF_NOSRCLOOKUP	0x10	/* No radix lookup on src */
+#define NG_NETFLOW_CONF_NODSTLOOKUP	0x20	/* No radix lookup on dst */
+
+#define NG_NETFLOW_IS_FRAG		0x01
+#define NG_NETFLOW_FLOW_FLAGS		(NG_NETFLOW_CONF_NOSRCLOOKUP|\
+					NG_NETFLOW_CONF_NODSTLOOKUP)
 
 /* This structure is passed to NGM_NETFLOW_SETCONFIG */
 struct ng_netflow_setconfig {

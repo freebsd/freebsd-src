@@ -155,8 +155,8 @@ at91_mci_init(device_t dev)
 #ifndef  AT91_MCI_SLOT_B
 	WR4(sc, MCI_SDCR, 0);			/* SLOT A, 1 bit bus */
 #else
-	/* XXX Really should add second "unit" but nobody using using 
-	 * a two slot card that we know of. XXX */
+	/* XXX Really should add second "unit" but nobody using using
+	 * a two slot card that we know of. -- except they are... XXX */
 	WR4(sc, MCI_SDCR, 1);			/* SLOT B, 1 bit bus */
 #endif
 }
@@ -313,23 +313,17 @@ static int
 at91_mci_is_mci1rev2xx(void)
 {
 
-	switch (AT91_CPU(at91_chip_id)) {
-	case AT91_CPU_SAM9260:
-	case AT91_CPU_SAM9263:
-#ifdef notyet
-	case AT91_CPU_CAP9:
-#endif
-	case AT91_CPU_SAM9G10:
-	case AT91_CPU_SAM9G20:
-#ifdef notyet
-	case AT91_CPU_SAM9RL:
-#endif
-	case AT91_CPU_SAM9XE128:
-	case AT91_CPU_SAM9XE256:
-	case AT91_CPU_SAM9XE512:
+	switch (soc_data.type) {
+	case AT91_T_SAM9260:
+	case AT91_T_SAM9263:
+	case AT91_T_CAP9:
+	case AT91_T_SAM9G10:
+	case AT91_T_SAM9G20:
+	case AT91_T_SAM9RL:
 		return(1);
+	default:
+		return (0);
 	}
-	return (0);
 }
 
 static void

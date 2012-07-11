@@ -1872,7 +1872,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			FILEDESC_SLOCK(fdescp);
 			for (i = 0; i < oldfds; i++) {
 				fd = *fdp++;
-				if ((unsigned)fd >= fdescp->fd_nfiles ||
+				if (fd < 0 || fd >= fdescp->fd_nfiles ||
 				    fdescp->fd_ofiles[fd] == NULL) {
 					FILEDESC_SUNLOCK(fdescp);
 					error = EBADF;

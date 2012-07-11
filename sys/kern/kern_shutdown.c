@@ -66,9 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
-#ifdef SW_WATCHDOG
 #include <sys/watchdog.h>
-#endif
 
 #include <ddb/ddb.h>
 
@@ -151,7 +149,7 @@ static struct dumperinfo dumper;	/* our selected dumper */
 
 /* Context information for dump-debuggers. */
 static struct pcb dumppcb;		/* Registers. */
-static lwpid_t dumptid;			/* Thread ID. */
+lwpid_t dumptid;			/* Thread ID. */
 
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
@@ -334,9 +332,7 @@ kern_reboot(int howto)
 
 		waittime = 0;
 
-#ifdef SW_WATCHDOG
 		wdog_kern_pat(WD_LASTVAL);
-#endif
 		sys_sync(curthread, NULL);
 
 		/*
@@ -362,9 +358,8 @@ kern_reboot(int howto)
 			if (nbusy < pbusy)
 				iter = 0;
 			pbusy = nbusy;
-#ifdef SW_WATCHDOG
+
 			wdog_kern_pat(WD_LASTVAL);
-#endif
 			sys_sync(curthread, NULL);
 
 #ifdef PREEMPTION

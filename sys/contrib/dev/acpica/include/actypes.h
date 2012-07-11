@@ -731,8 +731,9 @@ typedef UINT8                           ACPI_ADR_SPACE_TYPE;
 #define ACPI_ADR_SPACE_IPMI             (ACPI_ADR_SPACE_TYPE) 7
 #define ACPI_ADR_SPACE_GPIO             (ACPI_ADR_SPACE_TYPE) 8
 #define ACPI_ADR_SPACE_GSBUS            (ACPI_ADR_SPACE_TYPE) 9
+#define ACPI_ADR_SPACE_PLATFORM_COMM    (ACPI_ADR_SPACE_TYPE) 10
 
-#define ACPI_NUM_PREDEFINED_REGIONS     10
+#define ACPI_NUM_PREDEFINED_REGIONS     11
 
 /*
  * Special Address Spaces

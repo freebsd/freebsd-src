@@ -213,6 +213,7 @@ FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
 HPFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
+NANDFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 NWFS		opt_dontuse.h
@@ -305,6 +306,7 @@ MAXSSIZ		opt_param.h
 # Generic SCSI options.
 CAM_MAX_HIGHPOWER	opt_cam.h
 CAMDEBUG		opt_cam.h
+CAM_DEBUG_COMPILE	opt_cam.h
 CAM_DEBUG_DELAY		opt_cam.h
 CAM_DEBUG_BUS		opt_cam.h
 CAM_DEBUG_TARGET	opt_cam.h
@@ -432,7 +434,7 @@ RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
-TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
+TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
@@ -781,6 +783,7 @@ ATH_TX99_DIAG		opt_ath.h
 ATH_ENABLE_11N		opt_ath.h
 ATH_ENABLE_DFS		opt_ath.h
 ATH_EEPROM_FIRMWARE	opt_ath.h
+ATH_ENABLE_RADIOTAP_VENDOR_EXT	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h

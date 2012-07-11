@@ -32,7 +32,7 @@
 .Nm DB_COMMAND ,
 .Nm DB_SHOW_COMMAND ,
 .Nm DB_SHOW_ALL_COMMAND
-.Nd Extends the ddb command set.
+.Nd Extends the ddb command set
 .Sh SYNOPSIS
 .In ddb/ddb.h
 .Fo DB_COMMAND
@@ -71,7 +71,7 @@ The general command syntax:
 .Ar address Ns Op Li , Ns Ar count ,
 translates into the following parameters for
 .Fa command_function :
-.Bl -tag
+.Bl -tag -width Fa -offset indent
 .It Fa addr
 The address passed to the command as an argument.
 .It Fa have_addr

@@ -366,7 +366,7 @@ Valid values are:
 0 (do not promote, use legacy),
 1 (promote to HT20),
 and
-2 (promote to HT40),
+2 (promote to HT40).
 .It Dv IEEE80211_IOC_HTPROTMODE
 Return, in
 .Va i_val ,
@@ -447,7 +447,7 @@ Return the number of SSIDs supported in
 .Va i_val .
 .It Dv IEEE80211_IOC_NUMWEPKEYS
 Return the number of WEP keys supported in
-.Va i_val
+.Va i_val .
 .It Dv IEEE80211_IOC_POWERSAVE
 Return the current powersaving mode in
 .Va i_val .
@@ -923,8 +923,8 @@ using the value in
 .Va i_val .
 .It Dv IEEE80211_IOC_DTIM_PERIOD
 Set the period (in beacon intervals) between DTIM events to the value in
-This request causes a running interface to be restarted.
 .Va i_val .
+This request causes a running interface to be restarted.
 .It Dv IEEE80211_IOC_DWDS
 Set whether or not Dynamic WDS support is enabled using the value in
 .Va i_val .

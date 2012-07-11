@@ -1,20 +1,18 @@
 # $FreeBSD$
 
 LIB=	md
+SHLIB_MAJOR= 6
 SHLIBDIR?= /lib
-SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c \
+SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 	rmd160c.c rmd160hl.c \
 	sha0c.c sha0hl.c sha1c.c sha1hl.c \
 	sha256c.c sha256hl.c \
 	sha512c.c sha512hl.c
-INCS=	md2.h md4.h md5.h ripemd.h sha.h sha256.h sha512.h
+INCS=	md4.h md5.h ripemd.h sha.h sha256.h sha512.h
 
 WARNS?=	0
 
-MAN+=	md2.3 md4.3 md5.3 ripemd.3 sha.3 sha256.3 sha512.3
-MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
-MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2FileChunk.3
-MLINKS+=md2.3 MD2Data.3
+MAN+=	md4.3 md5.3 ripemd.3 sha.3 sha256.3 sha512.3
 MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
 MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4FileChunk.3
 MLINKS+=md4.3 MD4Data.3
@@ -59,10 +57,6 @@ CFLAGS+= -DRMD160_ASM
 ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
 
-md2hl.c: mdXhl.c
-	(echo '#define LENGTH 16'; \
-		sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' ${.ALLSRC}) > ${.TARGET}
-
 md4hl.c: mdXhl.c
 	(echo '#define LENGTH 16'; \
 		sed -e 's/mdX/md4/g' -e 's/MDX/MD4/g' ${.ALLSRC}) > ${.TARGET}
@@ -104,16 +98,6 @@ md${i}.3: ${.CURDIR}/mdX.3
 	sed -e "s/mdX/md${i}/g" -e "s/MDX/MD${i}/g" ${.ALLSRC} > ${.TARGET}
 	cat ${.CURDIR}/md${i}.copyright >> ${.TARGET}
 .endfor
-
-md2.ref:
-	echo 'MD2 test suite:' > ${.TARGET}
-	@echo 'MD2 ("") = 8350e5a3e24c153df2275c9f80692773' >> ${.TARGET}
-	@echo 'MD2 ("a") = 32ec01ec4a6dac72c0ab96fb34c0b5d1' >> ${.TARGET}
-	@echo 'MD2 ("abc") = da853b0d3f88d99b30283a69e6ded6bb' >> ${.TARGET}
-	@echo 'MD2 ("message digest") = ab4f496bfb2a530b219ff33031fe06b0' >> ${.TARGET}
-	@echo 'MD2 ("abcdefghijklmnopqrstuvwxyz") = 4e8ddff3650292ab5a4108c3aa47940b' >> ${.TARGET}
-	@echo 'MD2 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = da33def2a42df13975352846c30338cd' >> ${.TARGET}
-	@echo 'MD2 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = d5976f79d83d3a0dc9806c3c66f3efd8' >> ${.TARGET}
 
 md4.ref:
 	echo 'MD4 test suite:' > ${.TARGET}
@@ -205,12 +189,9 @@ rmd160.ref:
 	@echo 'RIPEMD160 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'9b752e45573d4b39f4dbd3323cab82bf63326bfb' >> ${.TARGET}
 
-test:	md2.ref md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha512.ref
+test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha512.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
-	${CC} ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c ./libmd.a
-	./mddriver | cmp md2.ref -
-	@${ECHO} MD2 passed test
 	${CC} ${CFLAGS} ${LDFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c libmd.a
 	./mddriver | cmp md4.ref -
 	@${ECHO} MD4 passed test

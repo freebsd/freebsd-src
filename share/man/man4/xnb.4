@@ -83,7 +83,7 @@ get traffic statistics.
 Runs a builtin suite of unit tests and displays the results.
 Does not affect the operation of the driver in any way.
 Note that the test suite simulates error conditions; this will result in
-error messages being printed to the system system log.
+error messages being printed to the system log.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
@@ -104,7 +104,7 @@ driver was written by
 .Aq alans@spectralogic.com
 and
 .An John Suykerbuyk
-.Aq johns@spectralogic.com
+.Aq johns@spectralogic.com .
 .Sh CAVEATS
 Packets sent through Xennet pass over shared memory, so the protocol includes
 no form of link-layer checksum or CRC.
@@ -127,7 +127,7 @@ to the OS.
 .Pp
 For this reason, it is recommended that if
 .Nm
-is bridged to a physcal interface, then transmit checksum offloading should be
+is bridged to a physical interface, then transmit checksum offloading should be
 disabled on the netfront.
 The Xennet protocol does not have any mechanism for the netback to request
 the netfront to do this; the operator must do it manually.

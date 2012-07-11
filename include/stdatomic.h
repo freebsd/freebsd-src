@@ -51,7 +51,7 @@
 
 #if defined(__CLANG_ATOMICS)
 #define	ATOMIC_VAR_INIT(value)		(value)
-#define	atomic_init(obj, value)		__atomic_init(obj, value)
+#define	atomic_init(obj, value)		__c11_atomic_init(obj, value)
 #else
 #define	ATOMIC_VAR_INIT(value)		{ .__val = (value) }
 #define	atomic_init(obj, value) do {					\
@@ -104,7 +104,10 @@ enum memory_order {
  * 7.17.4 Fences.
  */
 
-#if defined(__CLANG_ATOMICS) || defined(__GNUC_ATOMICS)
+#ifdef __CLANG_ATOMICS
+#define	atomic_thread_fence(order)	__c11_atomic_thread_fence(order)
+#define	atomic_signal_fence(order)	__c11_atomic_signal_fence(order)
+#elif defined(__GNUC_ATOMICS)
 #define	atomic_thread_fence(order)	__atomic_thread_fence(order)
 #define	atomic_signal_fence(order)	__atomic_signal_fence(order)
 #else
@@ -118,7 +121,7 @@ enum memory_order {
 
 #if defined(__CLANG_ATOMICS)
 #define	atomic_is_lock_free(obj) \
-	__atomic_is_lock_free(sizeof(obj))
+	__c11_atomic_is_lock_free(sizeof(obj))
 #elif defined(__GNUC_ATOMICS)
 #define	atomic_is_lock_free(obj) \
 	__atomic_is_lock_free(sizeof((obj)->__val))
@@ -182,28 +185,28 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 #if defined(__CLANG_ATOMICS)
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure)						\
-	__atomic_compare_exchange_strong(object, expected, desired,	\
+	__c11_atomic_compare_exchange_strong(object, expected, desired,	\
 	    success, failure)
 #define	atomic_compare_exchange_weak_explicit(object, expected,		\
     desired, success, failure)						\
-	__atomic_compare_exchange_weak(object, expected, desired,	\
+	__c11_atomic_compare_exchange_weak(object, expected, desired,	\
 	    success, failure)
 #define	atomic_exchange_explicit(object, desired, order)		\
-	__atomic_exchange(object, desired, order)
+	__c11_atomic_exchange(object, desired, order)
 #define	atomic_fetch_add_explicit(object, operand, order)		\
-	__atomic_fetch_add(object, operand, order)
+	__c11_atomic_fetch_add(object, operand, order)
 #define	atomic_fetch_and_explicit(object, operand, order)		\
-	__atomic_fetch_and(object, operand, order)
+	__c11_atomic_fetch_and(object, operand, order)
 #define	atomic_fetch_or_explicit(object, operand, order)		\
-	__atomic_fetch_or(object, operand, order)
+	__c11_atomic_fetch_or(object, operand, order)
 #define	atomic_fetch_sub_explicit(object, operand, order)		\
-	__atomic_fetch_sub(object, operand, order)
+	__c11_atomic_fetch_sub(object, operand, order)
 #define	atomic_fetch_xor_explicit(object, operand, order)		\
-	__atomic_fetch_xor(object, operand, order)
+	__c11_atomic_fetch_xor(object, operand, order)
 #define	atomic_load_explicit(object, order)				\
-	__atomic_load(object, order)
+	__c11_atomic_load(object, order)
 #define	atomic_store_explicit(object, desired, order)			\
-	__atomic_store(object, desired, order)
+	__c11_atomic_store(object, desired, order)
 #elif defined(__GNUC_ATOMICS)
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure)						\

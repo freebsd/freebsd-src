@@ -82,9 +82,7 @@ xrstor(char *addr, uint64_t mask)
 
 	low = mask;
 	hi = mask >> 32;
-	/* xrstor (%rdi) */
-	__asm __volatile(".byte	0x0f,0xae,0x2f" : :
-	    "a" (low), "d" (hi), "D" (addr));
+	__asm __volatile("xrstor %0" : : "m" (*addr), "a" (low), "d" (hi));
 }
 
 static __inline void
@@ -94,20 +92,8 @@ xsave(char *addr, uint64_t mask)
 
 	low = mask;
 	hi = mask >> 32;
-	/* xsave (%rdi) */
-	__asm __volatile(".byte	0x0f,0xae,0x27" : :
-	    "a" (low), "d" (hi), "D" (addr) : "memory");
-}
-
-static __inline void
-xsetbv(uint32_t reg, uint64_t val)
-{
-	uint32_t low, hi;
-
-	low = val;
-	hi = val >> 32;
-	__asm __volatile(".byte 0x0f,0x01,0xd1" : :
-	    "c" (reg), "a" (low), "d" (hi));
+	__asm __volatile("xsave %0" : "=m" (*addr) : "a" (low), "d" (hi) :
+	    "memory");
 }
 
 #else	/* !(__GNUCLIKE_ASM && !lint) */
@@ -120,13 +106,13 @@ void	fnstsw(caddr_t addr);
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
 void	ldmxcsr(u_int csr);
-void	start_emulating(void);
-void	stop_emulating(void);
 void	xrstor(char *addr, uint64_t mask);
 void	xsave(char *addr, uint64_t mask);
-void	xsetbv(uint32_t reg, uint64_t val);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
+
+#define	start_emulating()	load_cr0(rcr0() | CR0_TS)
+#define	stop_emulating()	clts()
 
 #define GET_FPU_CW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_cw)
 #define GET_FPU_SW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_sw)
@@ -138,7 +124,7 @@ CTASSERT(sizeof(struct savefpu_ymm) == 832);
 /*
  * This requirement is to make it easier for asm code to calculate
  * offset of the fpu save area from the pcb address. FPU save area
- * must by 64-bytes aligned.
+ * must be 64-byte aligned.
  */
 CTASSERT(sizeof(struct pcb) % XSAVE_AREA_ALIGN == 0);
 
@@ -235,7 +221,7 @@ fpuinit(void)
 
 	if (use_xsave) {
 		load_cr4(rcr4() | CR4_XSAVE);
-		xsetbv(XCR0, xsave_mask);
+		load_xcr(XCR0, xsave_mask);
 	}
 
 	/*

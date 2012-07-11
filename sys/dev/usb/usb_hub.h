@@ -38,22 +38,9 @@ struct usb_port {
 };
 
 /*
- * The following structure defines how many bytes are
- * left in an 1ms USB time slot.
- */
-struct usb_fs_isoc_schedule {
-	uint16_t total_bytes;
-	uint8_t	frame_bytes;
-	uint8_t	frame_slot;
-};
-
-/*
  * The following structure defines an USB HUB.
  */
 struct usb_hub {
-#if USB_HAVE_TT_SUPPORT
-	struct usb_fs_isoc_schedule fs_isoc_schedule[USB_ISOC_TIME_MAX];
-#endif
 	struct usb_device *hubudev;	/* the HUB device */
 	usb_error_t (*explore) (struct usb_device *hub);
 	void   *hubsoftc;
@@ -68,7 +55,6 @@ struct usb_hub {
 
 void	usb_hs_bandwidth_alloc(struct usb_xfer *xfer);
 void	usb_hs_bandwidth_free(struct usb_xfer *xfer);
-void	usbd_fs_isoc_schedule_init_all(struct usb_fs_isoc_schedule *fss);
 void	usb_bus_port_set_device(struct usb_bus *bus, struct usb_port *up,
 	    struct usb_device *udev, uint8_t device_index);
 struct usb_device *usb_bus_port_get_device(struct usb_bus *bus,

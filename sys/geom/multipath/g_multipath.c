@@ -944,7 +944,7 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	struct g_multipath_metadata *md;
+	struct g_multipath_metadata md;
 	const char *name;
 	int error, *val;
 	void *buf;
@@ -980,14 +980,15 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		g_topology_unlock();
-		md = buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
-		strlcpy(md->md_magic, G_MULTIPATH_MAGIC, sizeof(md->md_magic));
-		memcpy(md->md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
-		strlcpy(md->md_name, name, sizeof(md->md_name));
-		md->md_version = G_MULTIPATH_VERSION;
-		md->md_size = pp->mediasize;
-		md->md_sectorsize = pp->sectorsize;
-		md->md_active_active = sc->sc_active_active;
+		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+		strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
+		memcpy(md.md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
+		strlcpy(md.md_name, name, sizeof(md.md_name));
+		md.md_version = G_MULTIPATH_VERSION;
+		md.md_size = pp->mediasize;
+		md.md_sectorsize = pp->sectorsize;
+		md.md_active_active = sc->sc_active_active;
+		multipath_metadata_encode(&md, buf);
 		error = g_write_data(cp, pp->mediasize - pp->sectorsize,
 		    buf, pp->sectorsize);
 		g_topology_lock();
@@ -1313,7 +1314,7 @@ g_multipath_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (sc == NULL)
 		return;
 	if (cp != NULL) {
-		sbuf_printf(sb, "%s<State>%s</State>", indent,
+		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    (cp->index & MP_NEW) ? "NEW" :
 		    (cp->index & MP_LOST) ? "LOST" :
 		    (cp->index & MP_FAIL) ? "FAIL" :
@@ -1322,17 +1323,17 @@ g_multipath_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		     sc->sc_active_active == 2 ? "READ" : "PASSIVE");
 	} else {
 		good = g_multipath_good(gp);
-		sbuf_printf(sb, "%s<State>%s</State>", indent,
+		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
 		    good == 0 ? "BROKEN" :
 		    (good != sc->sc_ndisks || sc->sc_ndisks == 1) ?
 		    "DEGRADED" : "OPTIMAL");
 	}
 	if (cp == NULL && pp == NULL) {
-		sbuf_printf(sb, "%s<UUID>%s</UUID>", indent, sc->sc_uuid);
-		sbuf_printf(sb, "%s<Mode>Active/%s</Mode>", indent,
+		sbuf_printf(sb, "%s<UUID>%s</UUID>\n", indent, sc->sc_uuid);
+		sbuf_printf(sb, "%s<Mode>Active/%s</Mode>\n", indent,
 		    sc->sc_active_active == 2 ? "Read" :
 		    sc->sc_active_active == 1 ? "Active" : "Passive");
-		sbuf_printf(sb, "%s<Type>%s</Type>", indent,
+		sbuf_printf(sb, "%s<Type>%s</Type>\n", indent,
 		    sc->sc_uuid[0] == 0 ? "MANUAL" : "AUTOMATIC");
 	}
 }

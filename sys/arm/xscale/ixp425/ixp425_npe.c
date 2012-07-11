@@ -30,7 +30,7 @@
 /*-
  * Copyright (c) 2001-2005, Intel Corporation.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -42,8 +42,8 @@
  * 3. Neither the name of the Intel Corporation nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
- * 
+ *
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -135,7 +135,7 @@ static struct ixpnpe_softc *npes[NPE_MAX];
 
 /*
  * masks used to extract address info from State information context
- * register addresses as read from microcode image 
+ * register addresses as read from microcode image
  */
 #define IX_NPEDL_MASK_STATE_ADDR_CTXT_REG         0x0000000F
 #define IX_NPEDL_MASK_STATE_ADDR_CTXT_NUM         0x000000F0
@@ -332,7 +332,7 @@ ixpnpe_attach(device_t dev, int npeid)
 	    NULL, ixpnpe_intr, sc, &sc->sc_ih);
 	/*
 	 * Enable output fifo interrupts (NB: must also set OFIFO Write Enable)
-	 */ 
+	 */
 	npe_reg_write(sc, IX_NPECTL,
 	    npe_reg_read(sc, IX_NPECTL) | (IX_NPECTL_OFE | IX_NPECTL_OFWE));
 
@@ -347,7 +347,7 @@ ixpnpe_detach(struct ixpnpe_softc *sc)
 	if (--sc->sc_nrefs == 0) {
 		npes[sc->sc_npeid] = NULL;
 
-		/* disable output fifo interrupts */ 
+		/* disable output fifo interrupts */
 		npe_reg_write(sc, IX_NPECTL,
 		    npe_reg_read(sc, IX_NPECTL) &~ (IX_NPECTL_OFE | IX_NPECTL_OFWE));
 
@@ -671,7 +671,7 @@ npe_load_stateinfo(struct ixpnpe_softc *sc,
     const IxNpeDlNpeMgrStateInfoBlock *bp, int verify)
 {
 	int i, nentries, error;
-     
+
 	npe_cpu_step_save(sc);
 
 	/* for each state-info context register entry in block */
@@ -683,7 +683,7 @@ npe_load_stateinfo(struct ixpnpe_softc *sc,
 		uint32_t addrInfo = bp->ctxtRegEntry[i].addressInfo;
 
 		uint32_t reg = (addrInfo & IX_NPEDL_MASK_STATE_ADDR_CTXT_REG);
-		uint32_t cNum = (addrInfo & IX_NPEDL_MASK_STATE_ADDR_CTXT_NUM) >> 
+		uint32_t cNum = (addrInfo & IX_NPEDL_MASK_STATE_ADDR_CTXT_NUM) >>
 		    IX_NPEDL_OFFSET_STATE_ADDR_CTXT_NUM;
 		
 		/* error-check Context Register No. and Context Number values */
@@ -692,13 +692,13 @@ npe_load_stateinfo(struct ixpnpe_softc *sc,
 			    "invalid Context Register %u\n", reg);
 			error = EINVAL;
 			break;
-		}    
+		}
 		if (!(0 <= cNum && cNum < IX_NPEDL_CTXT_NUM_MAX)) {
 			device_printf(sc->sc_dev,
 			    "invalid Context Number %u\n", cNum);
 			error = EINVAL;
 			break;
-		}    
+		}
 		/* NOTE that there is no STEVT register for Context 0 */
 		if (cNum == 0 && reg == IX_NPEDL_CTXT_REG_STEVT) {
 			device_printf(sc->sc_dev,
@@ -735,7 +735,7 @@ npe_load_image(struct ixpnpe_softc *sc,
 
 	/*
 	 * Read Download Map, checking each block type and calling
-	 * appropriate function to perform download 
+	 * appropriate function to perform download
 	 */
 	error = 0;
 	downloadMap = (const IxNpeDlNpeMgrDownloadMap *) imageCodePtr;
@@ -844,7 +844,7 @@ npe_cpu_reset(struct ixpnpe_softc *sc)
 	    (ixNpeConfigCtrlRegVal & IX_NPEDL_PARITY_BIT_MASK));
 	DPRINTFn(2, sc->sc_dev, "%s: dis parity int, CTL => 0x%x\n",
 	    __func__, ixNpeConfigCtrlRegVal & IX_NPEDL_PARITY_BIT_MASK);
-     
+
 	npe_cpu_step_save(sc);
 
 	/*
@@ -873,7 +873,7 @@ npe_cpu_reset(struct ixpnpe_softc *sc)
 			DPRINTF(sc->sc_dev, "%s: cannot step (1), error %u\n",
 			    __func__, error);
 			npe_cpu_step_restore(sc);
-			return error;   
+			return error;
 		}
 	}
 	
@@ -888,10 +888,10 @@ npe_cpu_reset(struct ixpnpe_softc *sc)
 		DPRINTF(sc->sc_dev, "%s: cannot step (2), error %u\n",
 		    __func__, error);
 		npe_cpu_step_restore(sc);
-		return error;   
+		return error;
 	}
 
-	/* 
+	/*
 	 * Reset the physical registers in the NPE register file:
 	 * Note: no need to save/restore REGMAP for Context 0 here
 	 * since all Context Store regs are reset in subsequent code.
@@ -965,7 +965,7 @@ npe_cpu_reset(struct ixpnpe_softc *sc)
 	error = npe_cpu_stop(sc);
 
 	/* restore NPE configuration bus Control Register - Parity Settings  */
-	npe_reg_write(sc, IX_NPEDL_REG_OFFSET_CTL, 
+	npe_reg_write(sc, IX_NPEDL_REG_OFFSET_CTL,
 	    (ixNpeConfigCtrlRegVal & IX_NPEDL_CONFIG_CTRL_REG_MASK));
 	DPRINTFn(2, sc->sc_dev, "%s: restore CTL => 0x%x\n",
 	    __func__, npe_reg_read(sc, IX_NPEDL_REG_OFFSET_CTL));
@@ -1189,10 +1189,10 @@ npe_cpu_step(struct ixpnpe_softc *sc, uint32_t npeInstruction,
 	    newWatchcount == oldWatchcount; tries++) {
 		/* Watch Count register incr's when NPE completes an inst */
 		newWatchcount = npe_reg_read(sc, IX_NPEDL_REG_OFFSET_WC);
-	}    
+	}
 	return (tries < IX_NPE_DL_MAX_NUM_OF_RETRIES) ? 0 : EIO;
 #undef IX_NPE_DL_MAX_NUM_OF_RETRIES
-}    
+}
 
 static void
 npe_cpu_step_restore(struct ixpnpe_softc *sc)
@@ -1283,7 +1283,7 @@ npe_logical_reg_write(struct ixpnpe_softc *sc, uint32_t regAddr, uint32_t regVal
 	} else {
 		uint32_t npeInstruction;
 
-		switch (regSize) { 
+		switch (regSize) {
 		case IX_NPEDL_REG_SIZE_BYTE:
 			npeInstruction = IX_NPEDL_INSTR_WR_REG_BYTE;
 			regVal &= 0xff;
@@ -1353,7 +1353,7 @@ npe_physical_reg_write(struct ixpnpe_softc *sc,
 	    /* regAddr = 0 or 4  */
 	    regAddr = (regAddr & IX_NPEDL_MASK_PHYS_REG_ADDR_LOGICAL_ADDR) *
 		sizeof(uint32_t);
-	    error = npe_logical_reg_write(sc, regAddr, regValue, 
+	    error = npe_logical_reg_write(sc, regAddr, regValue,
 		IX_NPEDL_REG_SIZE_WORD, 0, verify);
 	}
 	return error;

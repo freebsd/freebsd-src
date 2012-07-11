@@ -33,20 +33,25 @@
  */
 
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_enc.h>
 
 #include "eltsub.h"
 
 int
 main(int a, char **v)
 {
-	ses_object *objp;
-	ses_objstat ob;
+	encioc_element_t *objp;
+	encioc_elm_status_t ob;
+	encioc_elm_desc_t objd;
+	encioc_elm_devnames_t objdn;
 	int fd, nobj, f, i, verbose, quiet, errors;
 	u_char estat;
 
@@ -73,13 +78,13 @@ main(int a, char **v)
 			perror(*v);
 			continue;
 		}
-		if (ioctl(fd, SESIOC_GETNOBJ, (caddr_t) &nobj) < 0) {
-			perror("SESIOC_GETNOBJ");
+		if (ioctl(fd, ENCIOC_GETNELM, (caddr_t) &nobj) < 0) {
+			perror("ENCIOC_GETNELM");
 			(void) close(fd);
 			continue;
 		}
-		if (ioctl(fd, SESIOC_GETENCSTAT, (caddr_t) &estat) < 0) {
-			perror("SESIOC_GETENCSTAT");
+		if (ioctl(fd, ENCIOC_GETENCSTAT, (caddr_t) &estat) < 0) {
+			perror("ENCIOC_GETENCSTAT");
 			(void) close(fd);
 			continue;
 		}
@@ -113,38 +118,64 @@ main(int a, char **v)
 			}
 		}
 		fprintf(stdout, ">\n");
-		objp = calloc(nobj, sizeof (ses_object));
+		objp = calloc(nobj, sizeof (encioc_element_t));
 		if (objp == NULL) {
 			perror("calloc");
 			(void) close(fd);
 			continue;
 		}
-                if (ioctl(fd, SESIOC_GETOBJMAP, (caddr_t) objp) < 0) {
-                        perror("SESIOC_GETOBJMAP");
+                if (ioctl(fd, ENCIOC_GETELMMAP, (caddr_t) objp) < 0) {
+                        perror("ENCIOC_GETELMMAP");
                         (void) close(fd);
                         continue;
                 }
 		for (i = 0; i < nobj; i++) {
-			ob.obj_id = objp[i].obj_id;
-			if (ioctl(fd, SESIOC_GETOBJSTAT, (caddr_t) &ob) < 0) {
-				perror("SESIOC_GETOBJSTAT");
+			ob.elm_idx = objp[i].elm_idx;
+			if (ioctl(fd, ENCIOC_GETELMSTAT, (caddr_t) &ob) < 0) {
+				perror("ENCIOC_GETELMSTAT");
 				(void) close(fd);
 				break;
 			}
-			if ((ob.cstat[0] & 0xf) == SES_OBJSTAT_OK) {
-				if (verbose) {
-					fprintf(stdout,
-					    "Element 0x%x: %s OK (%s)\n",
-					    ob.obj_id,
-					    geteltnm(objp[i].object_type),
-					    stat2ascii(objp[i].object_type,
-					    ob.cstat));
-				}
+			bzero(&objd, sizeof(objd));
+			objd.elm_idx = objp[i].elm_idx;
+			objd.elm_desc_len = UINT16_MAX;
+			objd.elm_desc_str = calloc(UINT16_MAX, sizeof(char));
+			if (objd.elm_desc_str == NULL) {
+				perror("calloc");
+				(void) close(fd);
 				continue;
 			}
-			fprintf(stdout, "Element 0x%x: %s, %s\n",
-			    ob.obj_id, geteltnm(objp[i].object_type),
-			    stat2ascii(objp[i].object_type, ob.cstat));
+			if (ioctl(fd, ENCIOC_GETELMDESC, (caddr_t)&objd) < 0) {
+				perror("ENCIOC_GETELMDESC");
+				(void) close(fd);
+				break;
+			}
+			bzero(&objdn, sizeof(objdn));
+			objdn.elm_idx = objp[i].elm_idx;
+			objdn.elm_names_size = 128;
+			objdn.elm_devnames = calloc(128, sizeof(char));
+			if (objdn.elm_devnames == NULL) {
+				perror("calloc");
+				(void) close(fd);
+				break;
+			}
+			/*
+			 * This ioctl isn't critical and has a good chance
+			 * of returning -1.
+			 */
+			(void)ioctl(fd, ENCIOC_GETELMDEVNAMES, (caddr_t)&objdn);
+			fprintf(stdout, "Element 0x%x: %s", ob.elm_idx,
+			    geteltnm(objp[i].elm_type));
+			fprintf(stdout, ", %s",
+			    stat2ascii(objp[i].elm_type, ob.cstat));
+			if (objd.elm_desc_len > 0)
+				fprintf(stdout, ", descriptor: '%s'",
+				    objd.elm_desc_str);
+			if (objdn.elm_names_len > 0)
+				fprintf(stdout, ", dev: '%s'",
+				    objdn.elm_devnames);
+			fprintf(stdout, "\n");
+			free(objdn.elm_devnames);
 		}
 		free(objp);
 		(void) close(fd);

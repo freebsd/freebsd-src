@@ -1,0 +1,35 @@
+The following is a demonstration of the iofile.d script,
+
+
+Here we run it while a tar command is backing up /var/adm,
+
+   # iofile.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+      PID CMD              TIME FILE
+     5206 tar               109 /var/adm/acct/nite
+     5206 tar               110 /var/adm/acct/sum
+     5206 tar               114 /var/adm/acct/fiscal
+     5206 tar               117 /var/adm/messages.3
+     5206 tar               172 /var/adm/sa
+     5206 tar              3605 /var/adm/messages.2
+     5206 tar              4548 /var/adm/spellhist
+     5206 tar              5769 /var/adm/exacct/brendan1task
+     5206 tar              6416 /var/adm/acct
+     5206 tar              7587 /var/adm/messages.1
+     5206 tar              8246 /var/adm/exacct/task
+     5206 tar              8320 /var/adm/pool
+     5206 tar              8973 /var/adm/pool/history
+     5206 tar              9183 /var/adm/exacct
+        3 fsflush         10882 <none>
+     5206 tar             11861 /var/adm/exacct/flow
+     5206 tar             12042 /var/adm/messages.0
+     5206 tar             12408 /var/adm/sm.bin
+     5206 tar             13021 /var/adm/sulog
+     5206 tar             19007 /var/adm/streams
+     5206 tar             21811 <none>
+     5206 tar             24918 /var/adm/exacct/proc
+
+In the above output, we can see that the tar command spent 24918 us (25 ms)
+waiting for disk I/O on the /var/adm/exacct/proc file. 
+

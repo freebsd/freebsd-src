@@ -134,7 +134,9 @@ cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
-cam/scsi/scsi_ses.c		optional ses
+cam/scsi/scsi_enc.c		optional ses
+cam/scsi/scsi_enc_ses.c		optional ses
+cam/scsi/scsi_enc_safte.c	optional ses
 cam/scsi/scsi_sg.c		optional sg
 cam/scsi/scsi_targ_bh.c		optional targbh
 cam/scsi/scsi_target.c		optional targ
@@ -159,9 +161,11 @@ cddl/compat/opensolaris/kern/opensolaris_vfs.c				optional zfs compile-with "${Z
 cddl/compat/opensolaris/kern/opensolaris_zone.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/acl/acl_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/avl/avl.c				optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/fnvpair.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/nvpair/nvpair.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/nvpair/nvpair_alloc_fixed.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/unicode/u8_textprep.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/zfs/zfeature_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_comutil.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_deleg.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_fletcher.c			optional zfs compile-with "${ZFS_C}"
@@ -175,6 +179,7 @@ cddl/contrib/opensolaris/uts/common/fs/vnode.c				optional zfs compile-with "${Z
 cddl/contrib/opensolaris/uts/common/fs/zfs/arc.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bplist.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bpobj.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/bptree.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dbuf.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt_zap.c			optional zfs compile-with "${ZFS_C}"
@@ -226,6 +231,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/vdev_root.c			optional zfs compile-wi
 cddl/contrib/opensolaris/uts/common/fs/zfs/zap.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zap_leaf.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zap_micro.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/zfeature.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zfs_acl.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zfs_byteswap.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/zfs_ctldir.c			optional zfs compile-with "${ZFS_C}"
@@ -570,6 +576,7 @@ dev/aac/aac_linux.c		optional aac compat_linux
 dev/aac/aac_pci.c		optional aac pci
 dev/acpi_support/acpi_wmi.c	optional acpi_wmi acpi
 dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
+dev/acpi_support/acpi_asus_wmi.c	optional acpi_asus_wmi acpi
 dev/acpi_support/acpi_fujitsu.c	optional acpi_fujitsu acpi
 dev/acpi_support/acpi_hp.c	optional acpi_hp acpi
 dev/acpi_support/acpi_ibm.c	optional acpi_ibm acpi
@@ -710,6 +717,8 @@ dev/ath/if_ath_ahb.c		optional ath_ahb \
 #
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_beacon.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_keycache.c	optional ath \
@@ -720,7 +729,13 @@ dev/ath/if_ath_tx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx_ht.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_tdma.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_sysctl.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_rx.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_rx_edma.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1030,8 +1045,6 @@ dev/cs/if_cs_isa.c		optional cs isa
 dev/cs/if_cs_pccard.c		optional cs pccard
 dev/cxgb/cxgb_main.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
-dev/cxgb/cxgb_offload.c		optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_sge.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_mc5.c	optional cxgb pci \
@@ -1183,6 +1196,8 @@ dev/e1000/e1000_82575.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_ich8lan.c	optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_i210.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_api.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_mac.c		optional em | igb \
@@ -1217,6 +1232,7 @@ dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_pci.c		optional fdt pci
+dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static
 dev/fdt/fdtbus.c		optional fdt
 dev/fdt/simplebus.c		optional fdt
@@ -1513,7 +1529,7 @@ dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/ixgbe.c		optional ixgbe inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP -DIXGBE_FDIR"
 dev/ixgbe/ixv.c			optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \
@@ -1660,6 +1676,21 @@ dev/mxge/mxge_ethp_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
+dev/nand/nand.c			optional nand
+dev/nand/nand_bbt.c		optional nand
+dev/nand/nand_cdev.c		optional nand
+dev/nand/nand_generic.c		optional nand
+dev/nand/nand_geom.c		optional nand
+dev/nand/nand_id.c		optional nand
+dev/nand/nandbus.c		optional nand
+dev/nand/nandbus_if.m		optional nand
+dev/nand/nand_if.m		optional nand
+dev/nand/nandsim.c		optional nandsim nand
+dev/nand/nandsim_chip.c		optional nandsim nand
+dev/nand/nandsim_ctrl.c		optional nandsim nand
+dev/nand/nandsim_log.c		optional nandsim nand
+dev/nand/nandsim_swap.c		optional nandsim nand
+dev/nand/nfc_if.m		optional nand
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
@@ -1759,6 +1790,7 @@ dev/puc/pucdata.c		optional puc pci
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
+dev/ral/rt2860.c		optional ral
 dev/ral/if_ral_pci.c		optional ral pci
 rt2561fw.c			optional rt2561fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561.fw:rt2561fw -mrt2561 -c${.TARGET}" \
@@ -2251,6 +2283,20 @@ fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
 fs/msdosfs/msdosfs_vnops.c	optional msdosfs
+fs/nandfs/bmap.c		optional nandfs
+fs/nandfs/nandfs_alloc.c	optional nandfs
+fs/nandfs/nandfs_bmap.c		optional nandfs
+fs/nandfs/nandfs_buffer.c	optional nandfs
+fs/nandfs/nandfs_cleaner.c	optional nandfs
+fs/nandfs/nandfs_cpfile.c	optional nandfs
+fs/nandfs/nandfs_dat.c		optional nandfs
+fs/nandfs/nandfs_dir.c		optional nandfs
+fs/nandfs/nandfs_ifile.c	optional nandfs
+fs/nandfs/nandfs_segment.c	optional nandfs
+fs/nandfs/nandfs_subr.c		optional nandfs
+fs/nandfs/nandfs_sufile.c	optional nandfs
+fs/nandfs/nandfs_vfsops.c	optional nandfs
+fs/nandfs/nandfs_vnops.c	optional nandfs
 fs/nfs/nfs_commonkrpc.c		optional nfscl | nfsd
 fs/nfs/nfs_commonsubs.c		optional nfscl | nfsd
 fs/nfs/nfs_commonport.c		optional nfscl | nfsd
@@ -2352,6 +2398,7 @@ geom/geom_disk.c		standard
 geom/geom_dump.c		standard
 geom/geom_event.c		standard
 geom/geom_fox.c			optional geom_fox
+geom/geom_flashmap.c		optional fdt cfi | fdt nand
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
 geom/geom_map.c			optional geom_map
@@ -2396,6 +2443,7 @@ geom/raid/g_raid.c		optional geom_raid
 geom/raid/g_raid_ctl.c		optional geom_raid
 geom/raid/g_raid_md_if.m	optional geom_raid
 geom/raid/g_raid_tr_if.m	optional geom_raid
+geom/raid/md_ddf.c		optional geom_raid
 geom/raid/md_intel.c		optional geom_raid
 geom/raid/md_jmicron.c		optional geom_raid
 geom/raid/md_nvidia.c		optional geom_raid
@@ -2521,12 +2569,14 @@ kern/kern_priv.c		standard
 kern/kern_proc.c		standard
 kern/kern_prot.c		standard
 kern/kern_racct.c		standard
+kern/kern_rangelock.c		standard
 kern/kern_rctl.c		standard
 kern/kern_resource.c		standard
 kern/kern_rmlock.c		standard
 kern/kern_rwlock.c		standard
 kern/kern_sdt.c			optional kdtrace_hooks
 kern/kern_sema.c		standard
+kern/kern_sharedpage.c		standard
 kern/kern_shutdown.c		standard
 kern/kern_sig.c			standard
 kern/kern_switch.c		standard
@@ -2553,7 +2603,7 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
-kern/subr_acl_nfs4.c		optional ufs_acl
+kern/subr_acl_nfs4.c		optional ufs_acl | zfs
 kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
@@ -2995,7 +3045,7 @@ netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
 netinet/tcp_lro.c		optional inet | inet6
 netinet/tcp_output.c		optional inet | inet6
-netinet/tcp_offload.c		optional inet | inet6
+netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
 netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
 netinet/tcp_subr.c		optional inet | inet6
@@ -3682,3 +3732,20 @@ dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
+
+dev/etherswitch/mdio_if.m	optional miiproxy
+dev/etherswitch/mdio.c		optional miiproxy
+dev/etherswitch/miiproxy.c	optional miiproxy
+
+dev/etherswitch/etherswitch.c	optional etherswitch
+dev/etherswitch/etherswitch_if.m	optional etherswitch
+
+dev/etherswitch/rtl8366/rtl8366rb.c		optional rtl8366rb
+
+dev/etherswitch/arswitch/arswitch.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_reg.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_phy.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch

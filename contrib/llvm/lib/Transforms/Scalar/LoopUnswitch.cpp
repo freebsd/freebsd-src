@@ -624,11 +624,10 @@ bool LoopUnswitch::IsTrivialUnswitchCondition(Value *Cond, Constant **Val,
 /// LoopCond == Val to simplify the loop.  If we decide that this is profitable,
 /// unswitch the loop, reprocess the pieces, then return true.
 bool LoopUnswitch::UnswitchIfProfitable(Value *LoopCond, Constant *Val) {
-
   Function *F = loopHeader->getParent();
-
   Constant *CondVal = 0;
   BasicBlock *ExitBlock = 0;
+
   if (IsTrivialUnswitchCondition(LoopCond, &CondVal, &ExitBlock)) {
     // If the condition is trivial, always unswitch. There is no code growth
     // for this case.
@@ -688,8 +687,8 @@ void LoopUnswitch::EmitPreheaderBranchOnCondition(Value *LIC, Constant *Val,
 
   // If either edge is critical, split it. This helps preserve LoopSimplify
   // form for enclosing loops.
-  SplitCriticalEdge(BI, 0, this);
-  SplitCriticalEdge(BI, 1, this);
+  SplitCriticalEdge(BI, 0, this, false, false, true);
+  SplitCriticalEdge(BI, 1, this, false, false, true);
 }
 
 /// UnswitchTrivialCondition - Given a loop that has a trivial unswitchable

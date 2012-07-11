@@ -99,9 +99,9 @@ ufs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 	 * comparisons
 	 */
 	vn->vn_fsid = dev2udev(kd, inode.i_dev);
-	vn->vn_fileid = (long)inode.i_number;
+	vn->vn_fileid = inode.i_number;
 	vn->vn_mode = (mode_t)inode.i_mode;
-	vn->vn_size = (u_long)inode.i_size;
+	vn->vn_size = inode.i_size;
 	return (0);
 }
 

@@ -84,6 +84,10 @@ NoFloats("bb-vectorize-no-floats", cl::init(false), cl::Hidden,
   cl::desc("Don't try to vectorize floating-point values"));
 
 static cl::opt<bool>
+NoPointers("bb-vectorize-no-pointers", cl::init(false), cl::Hidden,
+  cl::desc("Don't try to vectorize pointer values"));
+
+static cl::opt<bool>
 NoCasts("bb-vectorize-no-casts", cl::init(false), cl::Hidden,
   cl::desc("Don't try to vectorize casting (conversion) operations"));
 
@@ -94,6 +98,14 @@ NoMath("bb-vectorize-no-math", cl::init(false), cl::Hidden,
 static cl::opt<bool>
 NoFMA("bb-vectorize-no-fma", cl::init(false), cl::Hidden,
   cl::desc("Don't try to vectorize the fused-multiply-add intrinsic"));
+
+static cl::opt<bool>
+NoSelect("bb-vectorize-no-select", cl::init(false), cl::Hidden,
+  cl::desc("Don't try to vectorize select instructions"));
+
+static cl::opt<bool>
+NoGEP("bb-vectorize-no-gep", cl::init(false), cl::Hidden,
+  cl::desc("Don't try to vectorize getelementptr instructions"));
 
 static cl::opt<bool>
 NoMemOps("bb-vectorize-no-mem-ops", cl::init(false), cl::Hidden,
@@ -546,11 +558,21 @@ namespace {
         return false;
 
       Type *SrcTy = C->getSrcTy();
-      if (!SrcTy->isSingleValueType() || SrcTy->isPointerTy())
+      if (!SrcTy->isSingleValueType())
         return false;
 
       Type *DestTy = C->getDestTy();
-      if (!DestTy->isSingleValueType() || DestTy->isPointerTy())
+      if (!DestTy->isSingleValueType())
+        return false;
+    } else if (isa<SelectInst>(I)) {
+      if (!Config.VectorizeSelect)
+        return false;
+    } else if (GetElementPtrInst *G = dyn_cast<GetElementPtrInst>(I)) {
+      if (!Config.VectorizeGEP)
+        return false;
+
+      // Currently, vector GEPs exist only with one index.
+      if (G->getNumIndices() != 1)
         return false;
     } else if (!(I->isBinaryOp() || isa<ShuffleVectorInst>(I) ||
         isa<ExtractElementInst>(I) || isa<InsertElementInst>(I))) {
@@ -588,6 +610,11 @@ namespace {
 
     if (!Config.VectorizeFloats
         && (T1->isFPOrFPVectorTy() || T2->isFPOrFPVectorTy()))
+      return false;
+
+    if ((!Config.VectorizePointers || TD == 0) &&
+        (T1->getScalarType()->isPointerTy() ||
+         T2->getScalarType()->isPointerTy()))
       return false;
 
     if (T1->getPrimitiveSizeInBits() > Config.VectorBits/2 ||
@@ -828,16 +855,33 @@ namespace {
                       std::vector<Value *> &PairableInsts,
                       std::multimap<ValuePair, ValuePair> &ConnectedPairs,
                       ValuePair P) {
+    StoreInst *SI, *SJ;
+
     // For each possible pairing for this variable, look at the uses of
     // the first value...
     for (Value::use_iterator I = P.first->use_begin(),
          E = P.first->use_end(); I != E; ++I) {
+      if (isa<LoadInst>(*I)) {
+        // A pair cannot be connected to a load because the load only takes one
+        // operand (the address) and it is a scalar even after vectorization.
+        continue;
+      } else if ((SI = dyn_cast<StoreInst>(*I)) &&
+                 P.first == SI->getPointerOperand()) {
+        // Similarly, a pair cannot be connected to a store through its
+        // pointer operand.
+        continue;
+      }
+
       VPIteratorPair IPairRange = CandidatePairs.equal_range(*I);
 
       // For each use of the first variable, look for uses of the second
       // variable...
       for (Value::use_iterator J = P.second->use_begin(),
            E2 = P.second->use_end(); J != E2; ++J) {
+        if ((SJ = dyn_cast<StoreInst>(*J)) &&
+            P.second == SJ->getPointerOperand())
+          continue;
+
         VPIteratorPair JPairRange = CandidatePairs.equal_range(*J);
 
         // Look for <I, J>:
@@ -853,6 +897,10 @@ namespace {
       // Look for cases where just the first value in the pair is used by
       // both members of another pair (splatting).
       for (Value::use_iterator J = P.first->use_begin(); J != E; ++J) {
+        if ((SJ = dyn_cast<StoreInst>(*J)) &&
+            P.first == SJ->getPointerOperand())
+          continue;
+
         if (isSecondInIteratorPair<Value*>(*J, IPairRange))
           ConnectedPairs.insert(VPPair(P, ValuePair(*I, *J)));
       }
@@ -863,9 +911,19 @@ namespace {
     // both members of another pair (splatting).
     for (Value::use_iterator I = P.second->use_begin(),
          E = P.second->use_end(); I != E; ++I) {
+      if (isa<LoadInst>(*I))
+        continue;
+      else if ((SI = dyn_cast<StoreInst>(*I)) &&
+               P.second == SI->getPointerOperand())
+        continue;
+
       VPIteratorPair IPairRange = CandidatePairs.equal_range(*I);
 
       for (Value::use_iterator J = P.second->use_begin(); J != E; ++J) {
+        if ((SJ = dyn_cast<StoreInst>(*J)) &&
+            P.second == SJ->getPointerOperand())
+          continue;
+
         if (isSecondInIteratorPair<Value*>(*J, IPairRange))
           ConnectedPairs.insert(VPPair(P, ValuePair(*I, *J)));
       }
@@ -1891,9 +1949,12 @@ VectorizeConfig::VectorizeConfig() {
   VectorBits = ::VectorBits;
   VectorizeInts = !::NoInts;
   VectorizeFloats = !::NoFloats;
+  VectorizePointers = !::NoPointers;
   VectorizeCasts = !::NoCasts;
   VectorizeMath = !::NoMath;
   VectorizeFMA = !::NoFMA;
+  VectorizeSelect = !::NoSelect;
+  VectorizeGEP = !::NoGEP;
   VectorizeMemOps = !::NoMemOps;
   AlignedOnly = ::AlignedOnly;
   ReqChainDepth= ::ReqChainDepth;

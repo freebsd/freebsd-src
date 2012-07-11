@@ -36,13 +36,44 @@ modules-${target}:
 .endif
 .endfor
 
-# Handle out of tree ports 
+# Handle ports (as defined by the user) that build kernel modules
 .if !defined(NO_MODULES) && defined(PORTS_MODULES)
-PORTSMODULESENV=SYSDIR=${SYSDIR}
-.for __target in all install reinstall clean
+#
+# The ports tree needs some environment variables defined to match the new kernel
+#
+# Ports search for some dependencies in PATH, so add the location of the installed files
+LOCALBASE?=	/usr/local
+# SRC_BASE is how the ports tree refers to the location of the base source files
+.if !defined(SRC_BASE)
+SRC_BASE!=	realpath "${SYSDIR:H}/"
+.endif
+# OSVERSION is used by some ports to determine build options
+.if !defined(OSRELDATE)
+# Definition copied from src/Makefile.inc1
+OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+		    ${MAKEOBJDIRPREFIX}${SRC_BASE}/include/osreldate.h
+.endif
+# Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
+WRKDIRPREFIX?=	${MAKEOBJDIRPREFIX}${SRC_BASE}/sys/${KERNCONF}
+PORTSMODULESENV=\
+	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
+	SRC_BASE=${SRC_BASE} \
+	OSVERSION=${OSRELDATE} \
+	WRKDIRPREFIX=${WRKDIRPREFIX}
+
+# The WRKDIR needs to be cleaned before building, and trying to change the target
+# with a :C pattern below results in install -> instclean
+all:
+.for __i in ${PORTS_MODULES}
+	@${ECHO} "===> Ports module ${__i} (all)"
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B clean all
+.endfor
+
+.for __target in install reinstall clean
 ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
+	@${ECHO} "===> Ports module ${__i} (${__target})"
 	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
 .endfor
 .endfor
@@ -239,8 +270,7 @@ kernel-install:
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
-.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && \
-    (defined(MK_KERNEL_SYMBOLS) && ${MK_KERNEL_SYMBOLS} != "no")
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 .if defined(KERNEL_EXTRA_INSTALL)
@@ -252,8 +282,7 @@ kernel-install:
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
-.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && \
-    (defined(MK_KERNEL_SYMBOLS) && ${MK_KERNEL_SYMBOLS} != "no")
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 

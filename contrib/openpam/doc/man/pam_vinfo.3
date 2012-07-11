@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_VINFO 3
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Fn pam_vinfo "const pam_handle_t *pamh" "const char *fmt" "va_list ap"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_vinfo
 function passes its arguments to
 .Xr pam_vprompt 3
 with a
@@ -59,7 +59,7 @@ and discards the response.
 .Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_vinfo
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_BUF_ERR
@@ -77,15 +77,15 @@ System error.
 .Xr pam_vprompt 3
 .Sh STANDARDS
 The
-.Nm
+.Fn pam_vinfo
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_vinfo
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

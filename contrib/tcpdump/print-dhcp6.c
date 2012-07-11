@@ -229,15 +229,15 @@ dhcp6opt_name(int type)
 	case DH6OPT_SIP_SERVER_A:
 		return "SIP-servers-address";
 	case DH6OPT_DNS:
-		return "DNS";
+		return "DNS-server";
 	case DH6OPT_DNSNAME:
-		return "DNS-name";
+		return "DNS-search-list";
 	case DH6OPT_IA_PD:
 		return "IA_PD";
 	case DH6OPT_IA_PD_PREFIX:
 		return "IA_PD-prefix";
 	case DH6OPT_NTP_SERVERS:
-		return "NTP-Server";
+		return "NTP-server";
 	case DH6OPT_LIFETIME:
 		return "lifetime";
 	case DH6OPT_NIS_SERVERS:

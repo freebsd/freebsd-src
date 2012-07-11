@@ -172,12 +172,13 @@ __asm(	"	.globl	_mcount			\n" \
 #define	__PROFILE_VECTOR_BASE	EXC_RST
 #define	__PROFILE_VECTOR_TOP	(EXC_LAST + 0x100)
 #endif	/* AIM */
-#ifdef E500
+#if defined(BOOKE)
 extern char interrupt_vector_base[];
 extern char interrupt_vector_top[];
 #define	__PROFILE_VECTOR_BASE	(uintfptr_t)interrupt_vector_base
 #define	__PROFILE_VECTOR_TOP	(uintfptr_t)interrupt_vector_top
-#endif	/* E500 */
+#endif	/* BOOKE_E500 || BOOKE_PPC4XX */
+
 #endif	/* !COMPILING_LINT */
 
 #ifndef __PROFILE_VECTOR_BASE

@@ -1126,7 +1126,7 @@ static s32 e1000_setup_copper_link_82543(struct e1000_hw *hw)
 		DEBUGOUT("Valid link established!!!\n");
 		/* Config the MAC and PHY after link is up */
 		if (hw->mac.type == e1000_82544) {
-			e1000_config_collision_dist_generic(hw);
+			hw->mac.ops.config_collision_dist(hw);
 		} else {
 			ret_val = e1000_config_mac_to_phy_82543(hw);
 			if (ret_val)
@@ -1160,7 +1160,7 @@ static s32 e1000_setup_fiber_link_82543(struct e1000_hw *hw)
 	/* Take the link out of reset */
 	ctrl &= ~E1000_CTRL_LRST;
 
-	e1000_config_collision_dist_generic(hw);
+	hw->mac.ops.config_collision_dist(hw);
 
 	ret_val = e1000_commit_fc_settings_generic(hw);
 	if (ret_val)
@@ -1259,7 +1259,7 @@ static s32 e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 	 * settings.
 	 */
 	if (mac->type == e1000_82544)
-		e1000_config_collision_dist_generic(hw);
+		hw->mac.ops.config_collision_dist(hw);
 	else {
 		ret_val = e1000_config_mac_to_phy_82543(hw);
 		if (ret_val) {
@@ -1433,7 +1433,7 @@ static s32 e1000_config_mac_to_phy_82543(struct e1000_hw *hw)
 	if (phy_data & M88E1000_PSSR_DPLX)
 		ctrl |= E1000_CTRL_FD;
 
-	e1000_config_collision_dist_generic(hw);
+	hw->mac.ops.config_collision_dist(hw);
 
 	/*
 	 * Set up speed in the Device Control register depending on

@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_SET_ITEM 3
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Fn pam_set_item "pam_handle_t *pamh" "int item_type" "const void *item"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_set_item
 function sets the item specified by the
 .Fa item_type
 argument to a copy of the object pointed to by the
@@ -63,7 +63,7 @@ See
 for a list of recognized item types.
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_set_item
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_BUF_ERR
@@ -84,11 +84,11 @@ System error.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_set_item
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

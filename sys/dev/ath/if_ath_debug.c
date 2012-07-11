@@ -89,12 +89,12 @@ __FBSDID("$FreeBSD$");
 #ifdef ATH_DEBUG
 #include <dev/ath/if_ath_debug.h>
 
-int ath_debug = 0;
+uint64_t ath_debug = 0;
 
 SYSCTL_DECL(_hw_ath);
-SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
+SYSCTL_QUAD(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.ath.debug", &ath_debug);
+TUNABLE_QUAD("hw.ath.debug", &ath_debug);
 
 void
 ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
@@ -118,6 +118,16 @@ ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
 			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
 			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
 			    ds->ds_hw[8]);
+		} else if (ah->ah_magic == 0x19741014) {
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
+			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
+			    ds->ds_hw[8]);
+
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[9], ds->ds_hw[10], ds->ds_hw[11],
+			    ds->ds_hw[12], ds->ds_hw[13], ds->ds_hw[14],
+			    ds->ds_hw[15]);
 		}
 	}
 }
@@ -144,9 +154,6 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 			    bf->bf_state.bfs_retries,
 			    bf->bf_state.bfs_addedbaw,
 			    bf->bf_state.bfs_dobaw);
-			printf("        SEQNO_ASSIGNED: %d, NEED_SEQNO: %d\n",
-			    bf->bf_state.bfs_seqno_assigned,
-			    bf->bf_state.bfs_need_seqno);
 			printf("        %08x %08x %08x %08x %08x %08x\n",
 			    ds->ds_ctl0, ds->ds_ctl1,
 			    ds->ds_hw[0], ds->ds_hw[1],

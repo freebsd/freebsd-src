@@ -1811,6 +1811,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
+#ifdef RACCT
+	if (!created) {
+		sx_sunlock(&allprison_lock);
+		prison_racct_modify(pr);
+		sx_slock(&allprison_lock);
+	}
+#endif
+
+	td->td_retval[0] = pr->pr_id;
+
 	/*
 	 * Now that it is all there, drop the temporary reference from existing
 	 * prisons.  Or add a reference to newly created persistent prisons
@@ -1832,12 +1842,6 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			sx_sunlock(&allprison_lock);
 	}
 
-#ifdef RACCT
-	if (!created)
-		prison_racct_modify(pr);
-#endif
-
-	td->td_retval[0] = pr->pr_id;
 	goto done_errmsg;
 
  done_deref_locked:
@@ -4491,8 +4495,11 @@ prison_racct_modify(struct prison *pr)
 	sx_slock(&allproc_lock);
 	sx_xlock(&allprison_lock);
 
-	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0)
+	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0) {
+		sx_xunlock(&allprison_lock);
+		sx_sunlock(&allproc_lock);
 		return;
+	}
 
 	oldprr = pr->pr_prison_racct;
 	pr->pr_prison_racct = NULL;

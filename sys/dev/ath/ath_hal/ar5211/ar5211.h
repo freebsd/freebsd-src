@@ -205,8 +205,8 @@ extern  void ar5211IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
 extern	HAL_BOOL ar5211GetTxCompletionRates(struct ath_hal *ah,
 		const struct ath_desc *ds0, int *rates, int *tries);
 
-extern	uint32_t ar5211GetRxDP(struct ath_hal *);
-extern	void ar5211SetRxDP(struct ath_hal *, uint32_t rxdp);
+extern	uint32_t ar5211GetRxDP(struct ath_hal *, HAL_RX_QUEUE);
+extern	void ar5211SetRxDP(struct ath_hal *, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5211EnableReceive(struct ath_hal *);
 extern	HAL_BOOL ar5211StopDmaReceive(struct ath_hal *);
 extern	void ar5211StartPcuReceive(struct ath_hal *);
@@ -276,6 +276,11 @@ extern	HAL_BOOL ar5211SetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
 extern	HAL_BOOL ar5211GetDiagState(struct ath_hal *ah, int request,
 		const void *args, uint32_t argsize,
 		void **result, uint32_t *resultsize);
+extern	uint32_t ar5211Get11nExtBusy(struct ath_hal *);
+extern	HAL_BOOL ar5211GetMibCycleCounts(struct ath_hal *,
+		HAL_SURVEY_SAMPLE *);
+extern	void ar5211EnableDfs(struct ath_hal *, HAL_PHYERR_PARAM *);
+extern	void ar5211GetDfsThresh(struct ath_hal *, HAL_PHYERR_PARAM *);
 
 extern	u_int ar5211GetKeyCacheSize(struct ath_hal *);
 extern	HAL_BOOL ar5211IsKeyCacheEntryValid(struct ath_hal *, uint16_t);

@@ -69,11 +69,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->ops = uart_getops(class);
 	di->bas.chan = 0;
 	di->bas.bst = &at91_bs_tag;
-	/* 
+	/*
 	 * XXX: Not pretty, but will work because we map the needed addresses
 	 * early.
 	 */
-	di->bas.bsh = AT91RM92_BASE + AT91RM92_DBGU_BASE;
+	di->bas.bsh = AT91_BASE + AT91RM92_DBGU_BASE;
 	di->baudrate = 115200;
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;

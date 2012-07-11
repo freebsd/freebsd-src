@@ -278,7 +278,13 @@ struct g_raid_volume {
 	u_int			 v_raid_level;	/* Array RAID level. */
 	u_int			 v_raid_level_qualifier; /* RAID level det. */
 	u_int			 v_disks_count;	/* Number of disks in array. */
+	u_int			 v_mdf_pdisks;	/* Number of parity disks
+						   in RAIDMDF array. */
+	uint16_t		 v_mdf_polynomial; /* Polynomial for RAIDMDF. */
+	uint8_t			 v_mdf_method;	/* Generation method for RAIDMDF. */
 	u_int			 v_strip_size;	/* Array strip size. */
+	u_int			 v_rotate_parity; /* Rotate RAID5R parity
+						   after numer of stripes. */
 	u_int			 v_sectorsize;	/* Volume sector size. */
 	off_t			 v_mediasize;	/* Volume media size.  */
 	struct bio_queue_head	 v_inflight;	/* In-flight write requests. */
@@ -382,7 +388,8 @@ const char * g_raid_disk_state2str(int state);
 
 struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);
-int g_raid_create_node_format(const char *format, struct g_geom **gp);
+int g_raid_create_node_format(const char *format, struct gctl_req *req,
+    struct g_geom **gp);
 struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
     const char *name, int id);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);

@@ -166,7 +166,9 @@ CmCleanupAndExit (
 
 ACPI_STATUS
 FlCheckForAscii (
-    ASL_FILE_INFO           *FileInfo);
+    FILE                    *Handle,
+    char                    *Filename,
+    BOOLEAN                 DisplayErrors);
 
 
 /*
@@ -607,6 +609,11 @@ AslAbort (
 void
 FlAddIncludeDirectory (
     char                    *Dir);
+
+char *
+FlMergePathnames (
+    char                    *PrefixDir,
+    char                    *FilePathname);
 
 void
 FlOpenIncludeFile (

@@ -437,7 +437,8 @@ main(int ac, char **av)
 			/* FALLTHROUGH */
 		case 'V':
 			fprintf(stderr, "%s, %s\n",
-			    SSH_RELEASE, SSLeay_version(SSLEAY_VERSION));
+			    ssh_version_get(options.hpn_disabled),
+			    SSLeay_version(SSLEAY_VERSION));
 			if (opt == 'V')
 				exit(0);
 			break;

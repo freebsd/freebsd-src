@@ -1,0 +1,84 @@
+The following are examples of php_cpudist.d.
+
+This script traces the on-CPU time of PHP functions and prints a report
+containing distribution plots per subroutine. Here it traces the example 
+program Code/Php/func_abc.php.
+
+# php_cpudist.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Exclusive function on-CPU times (us),
+   func_abc.php, func, func_a 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   func_abc.php, func, func_b 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   func_abc.php, func, func_c 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   func_abc.php, func, sleep 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+
+Inclusive function on-CPU times (us),
+   func_abc.php, func, func_c 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   func_abc.php, func, sleep 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   func_abc.php, func, func_b 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   func_abc.php, func, func_a 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+In total, 3 subroutines were called, one each of func_a(), func_b() and
+func_c(), and sleep was called 3 times.  You can see this reflected in the
+"count" column on the right.
+
+The exclusive subroutine elapsed times show that each subroutine spent
+between 16 and 31 microseconds on CPU. This time excludes the time spent in
+other subroutines.
+
+The inclusive subroutine elapsed times show that func_c() took between 32 
+microseconds and 63 microseconds on CPU; sleep ran three times and each time 
+took between 16 and 31 microseconds on CPU; func_b() took between 64 and 127 
+microseconds on CPU; and func_a() took between 128 and 255 microseconds on
+CPU.  This time includes the time spent in other subroutines called, and since 
+func_a() called func_b() which called func_c(), these times make sense.
+
+These elapsed times are the on CPU time from when the subroutine began to
+when it completed.
+
+On-CPU times are useful for showing who is causing the CPUs to be busy.
+See Notes/ALLelapsed_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive subroutine time.
+

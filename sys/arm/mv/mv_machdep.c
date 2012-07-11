@@ -115,16 +115,11 @@ extern unsigned char _edata[];
 extern unsigned char __bss_start[];
 extern unsigned char _end[];
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 extern vm_offset_t pmap_bootstrap_lastaddr;
-extern int *end;
 
 struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
 struct pcpu __pcpu;
@@ -134,7 +129,6 @@ struct pcpu *pcpup = &__pcpu;
 
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
-vm_offset_t physical_pages;
 vm_offset_t pmap_bootstrap_lastaddr;
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
@@ -144,8 +138,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-
-static struct trapframe proc0_tf;
 
 static struct mem_region availmem_regions[FDT_MEM_REGIONS];
 static int availmem_regions_sz;
@@ -287,7 +279,7 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		/* 
+		/*
 		 * We should not map the page at PA 0x0000000, the VM can't
 		 * handle it, as pmap_extract() == 0 means failure.
 		 */
@@ -306,7 +298,7 @@ physmap_init(void)
 }
 
 void *
-initarm(void *mdp, void *unused __unused)
+initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
@@ -314,44 +306,21 @@ initarm(void *mdp, void *unused __unused)
 	uint32_t memsize, l2size;
 	void *kmdp;
 	u_int l1pagetable;
-	int i = 0, j = 0;
+	int i = 0, j = 0, err_devmap = 0;
 
-	kmdp = NULL;
-	lastaddr = 0;
+        lastaddr = parse_boot_param(abp);
 	memsize = 0;
-	dtbp = (vm_offset_t)NULL;
-
 	set_cpufuncs();
 
 	/*
-	 * Mask metadata pointer: it is supposed to be on page boundary. If
-	 * the first argument (mdp) doesn't point to a valid address the
-	 * bootloader must have passed us something else than the metadata
-	 * ptr... In this case we want to fall back to some built-in settings.
+	 * Find the dtb passed in by the boot loader.
 	 */
-	mdp = (void *)((uint32_t)mdp & ~PAGE_MASK);
-
-	/* Parse metadata and fetch parameters */
-	if (mdp != NULL) {
-		preload_metadata = mdp;
-		kmdp = preload_search_by_type("elf kernel");
-		if (kmdp != NULL) {
-			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
-			    vm_offset_t);
-#ifdef DDB
-			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-#endif
-		}
-
-		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
-	} else {
-		/* Fall back to hardcoded metadata. */
-		lastaddr = fake_preload_metadata();
-	}
+        kmdp = preload_search_by_type("elf kernel");
+        if (kmdp != NULL)
+		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	else
+		dtbp = (vm_offset_t)NULL;
+		
 
 #if defined(FDT_DTB_STATIC)
 	/*
@@ -496,8 +465,7 @@ initarm(void *mdp, void *unused __unused)
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	/* Map pmap_devmap[] entries */
-	if (platform_devmap_init() != 0)
-		while (1);
+	err_devmap = platform_devmap_init();
 	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
@@ -524,11 +492,15 @@ initarm(void *mdp, void *unused __unused)
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
 	print_kenv();
+
+	if (err_devmap != 0)
+		printf("WARNING: could not fully configure devmap, error=%d\n",
+                    err_devmap);
 
 	/*
 	 * Re-initialise decode windows
@@ -536,6 +508,7 @@ initarm(void *mdp, void *unused __unused)
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
 		    "Running with existing settings...\n");
+
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
@@ -570,22 +543,10 @@ initarm(void *mdp, void *unused __unused)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_kstack_pages = KSTACK_PAGES;
-	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-
-	dump_avail[0] = 0;
-	dump_avail[1] = memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
+	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
@@ -733,25 +694,34 @@ moveon:
 	return (0);
 }
 
-#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)
+#define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 1)
 static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
 /*
+ * XXX: When device entry in devmap has pd_size smaller than section size,
+ * system will freeze during initialization
+ */
+
+/*
  * Construct pmap_devmap[] with DT-derived config data.
  */
+
 static int
 platform_devmap_init(void)
 {
 	phandle_t root, child;
+	pcell_t bank_count;
 	u_long base, size;
-	int i;
+	int i, num_mapped;
+
+	i = 0;
+	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 
 	/*
 	 * IMMR range.
 	 */
-	i = 0;
 	fdt_devmap[i].pd_va = fdt_immr_va;
 	fdt_devmap[i].pd_pa = fdt_immr_pa;
 	fdt_devmap[i].pd_size = fdt_immr_size;
@@ -760,12 +730,12 @@ platform_devmap_init(void)
 	i++;
 
 	/*
-	 * PCI range(s).
+	 * PCI range(s) and localbus.
 	 */
 	if ((root = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
-	for (child = OF_child(root); child != 0; child = OF_peer(child))
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (fdt_is_type(child, "pci")) {
 			/*
 			 * Check space: each PCI node will consume 2 devmap
@@ -773,7 +743,6 @@ platform_devmap_init(void)
 			 */
 			if (i + 1 >= FDT_DEVMAP_MAX) {
 				return (ENOMEM);
-				break;
 			}
 
 			/*
@@ -786,6 +755,29 @@ platform_devmap_init(void)
 			i += 2;
 		}
 
+		if (fdt_is_compatible(child, "mrvl,lbc")) {
+			/* Check available space */
+			if (OF_getprop(child, "bank-count", (void *)&bank_count,
+			    sizeof(bank_count)) <= 0)
+				/* If no property, use default value */
+				bank_count = 1;
+			else
+				bank_count = fdt32_to_cpu(bank_count);
+
+			if ((i + bank_count) >= FDT_DEVMAP_MAX)
+				return (ENOMEM);
+
+			/* Add all localbus ranges to device map */
+			num_mapped = 0;
+
+			if (fdt_localbus_devmap(child, &fdt_devmap[i],
+			    (int)bank_count, &num_mapped) != 0)
+				return (ENXIO);
+
+			i += num_mapped;
+		}
+	}
+
 	/*
 	 * CESA SRAM range.
 	 */
@@ -795,7 +787,7 @@ platform_devmap_init(void)
 
 	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0)
 		/* No CESA SRAM node. */
-		goto out;
+		return (0);
 moveon:
 	if (i >= FDT_DEVMAP_MAX)
 		return (ENOMEM);
@@ -809,8 +801,6 @@ moveon:
 	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
 	fdt_devmap[i].pd_cache = PTE_NOCACHE;
 
-out:
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 	return (0);
 }
 

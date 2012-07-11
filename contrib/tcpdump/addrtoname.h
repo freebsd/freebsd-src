@@ -34,6 +34,7 @@ enum {
 
 extern const char *linkaddr_string(const u_char *, const unsigned int, const unsigned int);
 extern const char *etheraddr_string(const u_char *);
+extern const char *le64addr_string(const u_char *);
 extern const char *etherproto_string(u_short);
 extern const char *tcpport_string(u_short);
 extern const char *udpport_string(u_short);

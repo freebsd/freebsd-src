@@ -143,6 +143,11 @@ FBSD_1.0 {
 	setsourcefilter;
 };
 
+FBSD_1.3 {
+	sctp_recvv;
+	sctp_sendv;
+};
+
 FBSDprivate_1.0 {
 	_nsdispatch;
 	_nsyyerror;	/* generated from nslexer.l */

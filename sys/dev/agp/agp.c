@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/pmap.h>
 
-#include <machine/md_var.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -234,12 +233,13 @@ agp_generic_attach(device_t dev)
 	 * Work out an upper bound for agp memory allocation. This
 	 * uses a heurisitc table from the Linux driver.
 	 */
-	memsize = ptoa(Maxmem) >> 20;
+	memsize = ptoa(realmem) >> 20;
 	for (i = 0; i < agp_max_size; i++) {
 		if (memsize <= agp_max[i][0])
 			break;
 	}
-	if (i == agp_max_size) i = agp_max_size - 1;
+	if (i == agp_max_size)
+		i = agp_max_size - 1;
 	sc->as_maxmem = agp_max[i][1] << 20U;
 
 	/*
@@ -803,6 +803,13 @@ agp_unbind_user(device_t dev, agp_unbind *unbind)
 }
 
 static int
+agp_chipset_flush(device_t dev)
+{
+
+	return (AGP_CHIPSET_FLUSH(dev));
+}
+
+static int
 agp_open(struct cdev *kdev, int oflags, int devtype, struct thread *td)
 {
 	device_t dev = kdev->si_drv1;
@@ -869,6 +876,8 @@ agp_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int fflag, struct thread 
 	case AGPIOC_UNBIND:
 		return agp_unbind_user(dev, (agp_unbind *)data);
 
+	case AGPIOC_CHIPSET_FLUSH:
+		return agp_chipset_flush(dev);
 	}
 
 	return EINVAL;

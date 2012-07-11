@@ -403,6 +403,7 @@ typedef enum {
 #define MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED	0x0152
 #define MR_EVT_PD_REMOVED			0x0070
 #define MR_EVT_PD_INSERTED			0x005b
+#define MR_EVT_LD_CHANGE			0x0051
 
 typedef enum {
 	MR_LD_CACHE_WRITE_BACK =	0x01,
@@ -1376,8 +1377,13 @@ struct mfi_bbu_status {
 #define	MFI_BBU_STATE_PACK_MISSING	(1 << 0)
 #define	MFI_BBU_STATE_VOLTAGE_LOW	(1 << 1)
 #define	MFI_BBU_STATE_TEMPERATURE_HIGH	(1 << 2)
-#define	MFI_BBU_STATE_CHARGE_ACTIVE	(1 << 0)
-#define	MFI_BBU_STATE_DISCHARGE_ACTIVE	(1 << 0)
+#define	MFI_BBU_STATE_CHARGE_ACTIVE	(1 << 3)
+#define	MFI_BBU_STATE_DISCHARGE_ACTIVE	(1 << 4)
+#define	MFI_BBU_STATE_LEARN_CYC_REQ	(1 << 5)
+#define	MFI_BBU_STATE_LEARN_CYC_ACTIVE	(1 << 6)
+#define	MFI_BBU_STATE_LEARN_CYC_FAIL	(1 << 7)
+#define	MFI_BBU_STATE_LEARN_CYC_TIMEOUT	(1 << 8)
+#define	MFI_BBU_STATE_I2C_ERR_DETECT	(1 << 9)
 	uint8_t			pad[20];
 	union mfi_bbu_status_detail detail;
 } __packed;

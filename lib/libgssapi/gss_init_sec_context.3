@@ -233,7 +233,7 @@ exist in version 1 of the GSS-API specification, so applications that
 wish to run over version 1 implementations must special-case these
 codes.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It initiator_cred_handle"
 .It minor_status
 Mechanism specific status code.
 .It initiator_cred_handle
@@ -475,7 +475,7 @@ not support context expiration, the value
 .Dv NULL if not required.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CREDENTIALS_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_CONTINUE_NEEDED
@@ -529,7 +529,7 @@ implementation.
 .Xr gss_release_buffer 3 ,
 .Xr gss_wrap 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

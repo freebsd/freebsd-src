@@ -141,6 +141,7 @@ typedef enum {
 	PROBE_INQUIRY_BASIC_DV1,
 	PROBE_INQUIRY_BASIC_DV2,
 	PROBE_DV_EXIT,
+	PROBE_DONE,
 	PROBE_INVALID
 } probe_action;
 
@@ -157,6 +158,7 @@ static char *probe_action_text[] = {
 	"PROBE_INQUIRY_BASIC_DV1",
 	"PROBE_INQUIRY_BASIC_DV2",
 	"PROBE_DV_EXIT",
+	"PROBE_DONE",
 	"PROBE_INVALID"
 };
 
@@ -164,7 +166,7 @@ static char *probe_action_text[] = {
 do {									\
 	char **text;							\
 	text = probe_action_text;					\
-	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_INFO,		\
+	CAM_DEBUG((softc)->periph->path, CAM_DEBUG_PROBE,		\
 	    ("Probe %s to %s\n", text[(softc)->action],			\
 	    text[(newaction)]));					\
 	(softc)->action = (newaction);					\
@@ -535,6 +537,10 @@ static struct scsi_quirk_entry scsi_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "Garmin", "*", "*" },
+		CAM_QUIRK_NORPTLUNS, /*mintags*/2, /*maxtags*/255
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
@@ -638,7 +644,7 @@ proberegister(struct cam_periph *periph, void *arg)
 	if (status != CAM_REQ_CMP) {
 		return (status);
 	}
-
+	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
 
 	/*
 	 * Ensure we've waited at least a bus settle
@@ -741,7 +747,7 @@ again:
 	case PROBE_DV_EXIT:
 	{
 		scsi_test_unit_ready(csio,
-				     /*retries*/10,
+				     /*retries*/4,
 				     probedone,
 				     MSG_SIMPLE_Q_TAG,
 				     SSD_FULL_SIZE,
@@ -977,11 +983,8 @@ again:
 		probedone(periph, start_ccb);
 		return;
 	}
-	case PROBE_INVALID:
-		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_INFO,
-		    ("probestart: invalid action state\n"));
 	default:
-		break;
+		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
 	xpt_action(start_ccb);
 }
@@ -1061,7 +1064,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 	}
 
 	if (device->flags & CAM_DEV_DV_HIT_BOTTOM) {
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
 		    ("hit async: giving up on DV\n"));
 		return (0);
 	}
@@ -1081,7 +1084,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 		if (spi->sync_period >= 0xf) {
 			spi->sync_period = 0;
 			spi->sync_offset = 0;
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
 			    ("setting to async for DV\n"));
 			/*
 			 * Once we hit async, we don't want to try
@@ -1089,7 +1092,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 			 */
 			device->flags |= CAM_DEV_DV_HIT_BOTTOM;
 		} else if (bootverbose) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
 			    ("DV: period 0x%x\n", spi->sync_period));
 			printf("setting period to 0x%x\n", spi->sync_period);
 		}
@@ -1099,7 +1102,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 		if ((cts.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			break;
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
 		    ("DV: failed to set period 0x%x\n", spi->sync_period));
 		if (spi->sync_period == 0) {
 			return (0);
@@ -1246,6 +1249,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 			/* Send the async notification. */
 			xpt_async(AC_LOST_DEVICE, path, NULL);
+		PROBE_SET_ACTION(softc, PROBE_INVALID);
 
 		xpt_release_ccb(done_ccb);
 		break;
@@ -1279,8 +1283,9 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			/*
 			 * Reallocate and retry to cover all luns
 			 */
-			CAM_DEBUG_PATH_PRINT(CAM_DEBUG_PROBE, path,
-			    ("reallocating REPORT_LUNS for %u luns\n", nlun));
+			CAM_DEBUG(path, CAM_DEBUG_PROBE,
+			    ("Probe: reallocating REPORT_LUNS for %u luns\n",
+			     nlun));
 			free(lp, M_CAMXPT);
 			path->target->rpl_size = (nlun << 3) + 8;
 			xpt_release_ccb(done_ccb);
@@ -1303,8 +1308,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			lun_id_t lun;
 			int idx;
 
-			CAM_DEBUG_PATH_PRINT(CAM_DEBUG_PROBE, path,
-			   ("%u luns reported\n", nlun));
+			CAM_DEBUG(path, CAM_DEBUG_PROBE,
+			   ("Probe: %u lun(s) reported\n", nlun));
 
 			CAM_GET_SIMPLE_LUN(lp, 0, lun);
 			/*
@@ -1326,8 +1331,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 					    lp->luns[idx].lundata, 8);
 					memcpy(lp->luns[idx].lundata,
 					    tlun, 8);
-					CAM_DEBUG_PATH_PRINT(CAM_DEBUG_PROBE,
-					    path, ("lun 0 in position %u\n", idx));
+					CAM_DEBUG(path, CAM_DEBUG_PROBE,
+					    ("lun 0 in position %u\n", idx));
 				} else {
 					/*
 					 * There is no lun 0 in our list. Destroy
@@ -1591,14 +1596,11 @@ probe_device_check:
 		break;
 	}
 	case PROBE_TUR_FOR_NEGOTIATION:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			DELAY(500000);
-			if (cam_periph_error(done_ccb, 0, SF_RETRY_UA,
-			    NULL) == ERESTART)
-				return;
-		}
-	/* FALLTHROUGH */
 	case PROBE_DV_EXIT:
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			cam_periph_error(done_ccb, 0,
+			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1612,7 +1614,7 @@ probe_device_check:
 		 && done_ccb->ccb_h.target_lun == 0
 		 && (path->device->inq_data.flags & SID_Sync) != 0
                  && (path->device->flags & CAM_DEV_IN_DV) == 0) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
 			    ("Begin Domain Validation\n"));
 			path->device->flags |= CAM_DEV_IN_DV;
 			xpt_release_ccb(done_ccb);
@@ -1621,7 +1623,7 @@ probe_device_check:
 			return;
 		}
 		if (softc->action == PROBE_DV_EXIT) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
 			    ("Leave Domain Validation\n"));
 		}
 		if (path->device->flags & CAM_DEV_UNCONFIGURED) {
@@ -1637,6 +1639,7 @@ probe_device_check:
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 				  done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		xpt_release_ccb(done_ccb);
 		break;
 	case PROBE_INQUIRY_BASIC_DV1:
@@ -1645,6 +1648,10 @@ probe_device_check:
 		struct scsi_inquiry_data *nbuf;
 		struct ccb_scsiio *csio;
 
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			cam_periph_error(done_ccb, 0,
+			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1676,7 +1683,7 @@ probe_device_check:
 			return;
 		}
 		if (softc->action == PROBE_INQUIRY_BASIC_DV2) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
 			    ("Leave Domain Validation Successfully\n"));
 		}
 		if (path->device->flags & CAM_DEV_UNCONFIGURED) {
@@ -1692,23 +1699,22 @@ probe_device_check:
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 				  done_ccb);
 		}
+		PROBE_SET_ACTION(softc, PROBE_DONE);
 		xpt_release_ccb(done_ccb);
 		break;
 	}
-	case PROBE_INVALID:
-		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_INFO,
-		    ("probedone: invalid action state\n"));
 	default:
-		break;
+		panic("probedone: invalid action state 0x%x\n", softc->action);
 	}
 	done_ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 	TAILQ_REMOVE(&softc->request_ccbs, &done_ccb->ccb_h, periph_links.tqe);
 	done_ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(done_ccb);
 	if (TAILQ_FIRST(&softc->request_ccbs) == NULL) {
+		CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
+		cam_periph_invalidate(periph);
 		cam_release_devq(periph->path,
 		    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
-		cam_periph_invalidate(periph);
 		cam_periph_release_locked(periph);
 	} else {
 		probeschedule(periph);
@@ -1918,7 +1924,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			xpt_done(request_ccb);
 			return;
 		}
-		CAM_DEBUG_PATH_PRINT(CAM_DEBUG_PROBE, request_ccb->ccb_h.path,
+		CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
 		   ("SCAN start for %p\n", scan_info));
 		scan_info->request_ccb = request_ccb;
 		scan_info->cpi = &work_ccb->cpi;
@@ -2031,8 +2037,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				CAM_GET_SIMPLE_LUN(target->luns,
 				    scan_info->lunindex[target_id], lun_id);
 				next_target = 0;
-				CAM_DEBUG_PATH_PRINT(CAM_DEBUG_PROBE,
-				    request_ccb->ccb_h.path,
+				CAM_DEBUG(request_ccb->ccb_h.path,
+				    CAM_DEBUG_PROBE,
 				   ("next lun to try at index %u is %u\n",
 				   scan_info->lunindex[target_id], lun_id));
 				scan_info->lunindex[target_id]++;
@@ -2139,8 +2145,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
-				CAM_DEBUG_PATH_PRINT(CAM_DEBUG_PROBE,
-				    request_ccb->ccb_h.path,
+				CAM_DEBUG(request_ccb->ccb_h.path,
+				    CAM_DEBUG_TRACE,
 				   ("SCAN done for %p\n", scan_info));
 				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2274,11 +2280,16 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	}
 
 	if ((old_periph = cam_periph_find(path, "probe")) != NULL) {
-		probe_softc *softc;
+		if ((old_periph->flags & CAM_PERIPH_INVALID) == 0) {
+			probe_softc *softc;
 
-		softc = (probe_softc *)old_periph->softc;
-		TAILQ_INSERT_TAIL(&softc->request_ccbs, &request_ccb->ccb_h,
-				  periph_links.tqe);
+			softc = (probe_softc *)old_periph->softc;
+			TAILQ_INSERT_TAIL(&softc->request_ccbs,
+			    &request_ccb->ccb_h, periph_links.tqe);
+		} else {
+			request_ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(request_ccb);
+		}
 	} else {
 		status = cam_periph_alloc(proberegister, NULL, probecleanup,
 					  probestart, "probe",

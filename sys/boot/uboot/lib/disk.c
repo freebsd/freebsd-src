@@ -398,6 +398,94 @@ out:
 }
 
 static int
+stor_open_mbr(struct open_dev *od, struct uboot_devdesc *dev)
+{
+	char *buf = NULL;
+	struct dos_partition *dp;
+	int err, i, part;
+
+	od->od_nparts = 0;
+	od->od_partitions = NULL;
+
+	/* Block size must be at least 512 bytes. */
+	if (od->od_bsize < 512)
+		return (ENXIO);
+
+	/* Read MBR */
+	buf = malloc(od->od_bsize);
+	if (!buf) {
+		stor_printf("could not allocate memory for MBR\n");
+		return (ENOMEM);
+	}
+	err = stor_readdev(dev, 0, 1, buf);
+	if (err) {
+		stor_printf("MBR read error=%d\n", err);
+		err = EIO;
+		goto out;
+	}
+
+	/* Check the slice table magic. */
+	if (le16toh(*((uint16_t *)(buf + DOSMAGICOFFSET))) != DOSMAGIC) {
+		err = ENXIO;
+		goto out;
+	}
+
+	/* Save information about partitions. */
+	dp = (struct dos_partition *)(buf + DOSPARTOFF);
+	od->od_partitions = calloc(NDOSPART, sizeof(struct gpt_part));
+	if (!od->od_partitions) {
+		stor_printf("could not allocate memory for MBR partitions\n");
+		err = ENOMEM;
+		goto out;
+	}
+
+	part = 0;
+	for (i = 0; i < NDOSPART; i++) {
+		u_int32_t start = le32dec(&dp[i].dp_start);
+		u_int32_t size = le32dec(&dp[i].dp_size);
+		uuid_t *u = NULL;
+
+		/* Map MBR partition types to GPT partition types. */
+		switch (dp[i].dp_typ) {
+		case DOSPTYP_386BSD:
+			u = &freebsd_ufs;
+			break;
+		/* XXX Other types XXX */
+		}
+
+		if (u) {
+			od->od_partitions[part].gp_type = *u;
+			od->od_partitions[part].gp_index = i + 1;
+			od->od_partitions[part].gp_start = start;
+			od->od_partitions[part].gp_end = start + size;
+			part += 1;
+		}
+	}
+	od->od_nparts = part;
+
+	if (od->od_nparts == 0) {
+		err = EINVAL;
+		goto out;
+	}
+
+	dev->d_disk.ptype = PTYPE_MBR;
+
+	/* XXX Be smarter here? XXX */
+	if (dev->d_disk.pnum == 0)
+		dev->d_disk.pnum = od->od_partitions[0].gp_index;
+
+	for (i = 0; i < od->od_nparts; i++)
+		if (od->od_partitions[i].gp_index == dev->d_disk.pnum)
+			od->od_bstart = od->od_partitions[i].gp_start;
+
+out:
+	if (err && od->od_partitions)
+		free(od->od_partitions);
+	free(buf);
+	return (err);
+}
+
+static int
 stor_open_bsdlabel(struct open_dev *od, struct uboot_devdesc *dev)
 {
 	char *buf;
@@ -443,7 +531,7 @@ stor_readdev(struct uboot_devdesc *dev, daddr_t blk, size_t size, char *buf)
 	lbasize_t real_size;
 	int err, handle;
 
-	debugf("reading size=%d @ 0x%08x\n", size, (uint32_t)buf);
+	debugf("reading blk=%d size=%d @ 0x%08x\n", (int)blk, size, (uint32_t)buf);
 
 	handle = stor_info[dev->d_unit];
 	err = ub_dev_read(handle, buf, size, blk, &real_size);
@@ -495,7 +583,10 @@ stor_opendev(struct open_dev **odp, struct uboot_devdesc *dev)
 	od->od_bsize = di->di_stor.block_size;
 	od->od_bstart = 0;
 
-	if ((err = stor_open_gpt(od, dev)) != 0)
+	err = stor_open_gpt(od, dev);
+	if (err != 0)
+		err = stor_open_mbr(od, dev);
+	if (err != 0)
 		err = stor_open_bsdlabel(od, dev);
 
 	if (err != 0)
@@ -516,6 +607,8 @@ stor_closedev(struct uboot_devdesc *dev)
 
 	od = (struct open_dev *)dev->d_disk.data;
 	if (dev->d_disk.ptype == PTYPE_GPT && od->od_nparts != 0)
+		free(od->od_partitions);
+	if (dev->d_disk.ptype == PTYPE_MBR && od->od_nparts != 0)
 		free(od->od_partitions);
 
 	free(od);

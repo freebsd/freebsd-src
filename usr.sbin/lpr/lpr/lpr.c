@@ -846,7 +846,7 @@ mktemps(const struct printer *pp)
 
 	(void) snprintf(buf, sizeof(buf), "%s/.seq", pp->spool_dir);
 	seteuid(euid);
-	if ((fd = open(buf, O_RDWR|O_CREAT, 0661)) < 0) {
+	if ((fd = open(buf, O_RDWR|O_CREAT, 0664)) < 0) {
 		printf("%s: cannot create %s\n", progname, buf);
 		exit(1);
 	}

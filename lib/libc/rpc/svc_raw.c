@@ -96,10 +96,22 @@ svc_raw_create()
 			mutex_unlock(&svcraw_lock);
 			return (NULL);
 		}
-		if (__rpc_rawcombuf == NULL)
+		if (__rpc_rawcombuf == NULL) {
 			__rpc_rawcombuf = calloc(UDPMSGSIZE, sizeof (char));
+			if (__rpc_rawcombuf == NULL) {
+				free(srp);
+				mutex_unlock(&svcraw_lock);
+				return (NULL);
+			}
+		}
 		srp->raw_buf = __rpc_rawcombuf; /* Share it with the client */
 		srp->server = svc_xprt_alloc();
+		if (srp->server == NULL) {
+			free(__rpc_rawcombuf);
+			free(srp);
+			mutex_unlock(&svcraw_lock);
+			return (NULL);
+		}
 		svc_raw_private = srp;
 	}
 	srp->server->xp_fd = FD_SETSIZE;

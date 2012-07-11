@@ -1,0 +1,38 @@
+The following is a demonstration of the fddist command,
+
+
+Here fddist is run for a few seconds on an idle workstation,
+
+   Tracing reads and writes... Hit Ctrl-C to end.
+   ^C
+   EXEC: dtrace           PID: 3288
+   
+              value  ------------- Distribution ------------- count
+                  0 |                                         0
+                  1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2
+                  2 |                                         0
+   
+   EXEC: mozilla-bin      PID: 1659
+   
+              value  ------------- Distribution ------------- count
+                  3 |                                         0
+                  4 |@@@@@@@@@@                               28
+                  5 |                                         0
+                  6 |@@@@@@@@@@@@@@@                          40
+                  7 |@@@@@@@@@@@@@@@                          40
+                  8 |                                         0
+   
+   EXEC: Xorg             PID: 1532
+   
+              value  ------------- Distribution ------------- count
+                 22 |                                         0
+                 23 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 57
+                 24 |                                         0
+
+The above displays the usage pattern for process file descriptors.
+We can see the Xorg process (PID 1532) has made 57 reads or writes to
+it's file descriptor 23. 
+
+The pfiles(1) command can be used to help determine what file 
+descriptor 23 actually is.
+

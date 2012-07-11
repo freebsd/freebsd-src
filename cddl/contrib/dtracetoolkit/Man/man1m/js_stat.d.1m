@@ -1,0 +1,52 @@
+.TH js_stat.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+js_stat.d - JavaScript operation stats using DTrace.
+.SH SYNOPSIS
+.B js_stat.d
+[interval [count]]
+.SH DESCRIPTION
+This traces activity from all browsers on the system that are
+running with JavaScript provider support.
+
+The numbers are counts for the interval specified. The default interval
+is 1 second.
+
+Filename and function names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace JavaScript provider, which may change 
+as additional features are introduced. Check JavaScript/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B js_stat.d
+.PP
+.SH FIELDS
+.TP
+EXEC/s
+JavaScript programs executed per second
+.TP
+FUNCS/s
+Functions called, per second
+.TP
+OBJNEW/s
+Objects created, per second
+.TP
+OBJFRE/s
+Objects freed (finalize), per second
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+js_stat.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

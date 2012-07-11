@@ -270,6 +270,8 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 			free((caddr_t)dp2, M_NFSDIROFF);
 		}
 	}
+	if (np->n_writecred != NULL)
+		crfree(np->n_writecred);
 	if (np->n_fhsize > NFS_SMALLFH) {
 		free((caddr_t)np->n_fhp, M_NFSBIGFH);
 	}

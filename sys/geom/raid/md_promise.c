@@ -1246,7 +1246,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			return (-3);
 		}
 		if (strcasecmp(levelname, "RAID5") == 0)
-			levelname = "RAID5LA";
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1955,6 +1955,8 @@ g_raid_md_free_volume_promise(struct g_raid_md_object *md,
 		pv->pv_started = 1;
 		callout_stop(&pv->pv_start_co);
 	}
+	free(pv, M_MD_PROMISE);
+	vol->v_md_data = NULL;
 	return (0);
 }
 

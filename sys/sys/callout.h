@@ -46,6 +46,7 @@
 #define	CALLOUT_MPSAFE		0x0008 /* callout handler is mp safe */
 #define	CALLOUT_RETURNUNLOCKED	0x0010 /* handler returns with mtx unlocked */
 #define	CALLOUT_SHAREDLOCK	0x0020 /* callout lock held in shared mode */
+#define	CALLOUT_DFRMIGRATION	0x0040 /* callout in deferred migration mode */
 
 struct callout_handle {
 	struct callout *callout;

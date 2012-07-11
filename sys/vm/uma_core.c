@@ -272,10 +272,7 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 static void
 bucket_enable(void)
 {
-	if (cnt.v_free_count < cnt.v_free_min)
-		bucketdisable = 1;
-	else
-		bucketdisable = 0;
+	bucketdisable = vm_page_count_min();
 }
 
 /*
@@ -2196,6 +2193,7 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int flags)
 				zone->uz_flags |= UMA_ZFLAG_FULL;
 			if (flags & M_NOWAIT)
 				break;
+			zone->uz_sleeps++;
 			msleep(keg, &keg->uk_lock, PVM, "keglimit", 0);
 			continue;
 		}
@@ -3384,6 +3382,8 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 			    (uintmax_t)kz->uk_size,
 			    (intmax_t)(allocs - frees), cachefree,
 			    (uintmax_t)allocs, sleeps);
+			if (db_pager_quit)
+				return;
 		}
 	}
 }

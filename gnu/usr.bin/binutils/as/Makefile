@@ -4,6 +4,7 @@
 # BINDIR
 .include "${.CURDIR}/../../Makefile.inc"
 .include "${.CURDIR}/../Makefile.inc0"
+.include <bsd.own.mk>
 
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
 
@@ -79,7 +80,9 @@ CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/bfd -I${SRCDIR}/gas/config -I${SRCDIR}
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_CPUARCH}-freebsd
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=	yes
+.endif
 
 DPADD=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a

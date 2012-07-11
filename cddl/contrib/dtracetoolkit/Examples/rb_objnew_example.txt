@@ -1,0 +1,21 @@
+The following are examples of running rb_objnew.d.  
+
+The rb_objnew.d script reports the new Ruby objects created (by filename and
+class) while the script is tracing.   Here we see it running while 
+Code/Ruby/func_abc.rb is executed.
+
+# rb_objnew.d
+Tracing... Hit Ctrl-C to end.
+^C
+ FILE                     CLASS                                   COUNT
+ .                        NoMemoryError                               1
+ .                        SystemStackError                            1
+ .                        ThreadGroup                                 1
+ .                        fatal                                       1
+ .                        Object                                      3
+
+Since this is a simple example, not many objects were allocated - a few
+for the ruby engine, and three of class Object. No file was associated
+with these allocations, as they may have been caused by Ruby engine startup,
+and not necessarily lines of code in the example program.
+

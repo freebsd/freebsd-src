@@ -1,0 +1,34 @@
+These are examples of the results after running the py_who.d script.
+
+This script shows which UIDs and PIDs are running Python programs with Python 
+provider support, and how active they are.  It lists the name of the program, 
+along with the number of lines executed per program as recorded by the line
+provider.
+
+Here it runs as the Code/Python/func_abc.py program is executed.  
+
+# py_who.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+      PID    UID  FUNCS FILE
+   145442      0      1 /usr/lib/python2.4/encodings/aliases.py
+   145442      0      1 /usr/lib/python2.4/linecache.py
+   145442      0      2 /usr/lib/python2.4/types.py
+   145442      0      4 /usr/lib/python2.4/encodings/__init__.py
+   145442      0      4 func_abc.py
+   145442      0      5 /usr/lib/python2.4/UserDict.py
+   145442      0      5 /usr/lib/python2.4/warnings.py
+   145442      0      6 /usr/lib/python2.4/codecs.py
+   145442      0      6 /usr/lib/python2.4/encodings/ascii.py
+   145442      0      7 /usr/lib/python2.4/copy_reg.py
+   145442      0     11 <string>
+   145442      0     13 /usr/lib/python2.4/stat.py
+   145442      0     14 /usr/lib/python2.4/os.py
+   145442      0     36 /usr/lib/python2.4/site.py
+   145442      0    115 /usr/lib/python2.4/posixpath.py
+
+You can see that the program itself had four lines executed attributed to it,
+and the other lines in the program were associated with their particular
+Python library calls.
+

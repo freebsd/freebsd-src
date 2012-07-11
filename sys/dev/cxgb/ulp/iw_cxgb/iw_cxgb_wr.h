@@ -32,6 +32,9 @@ $FreeBSD$
 #define __CXIO_WR_H__
 #define T3_MAX_SGE      4
 #define T3_MAX_INLINE	64
+#define T3_STAG0_PBL_SIZE (2 * T3_MAX_SGE << 3)
+#define T3_STAG0_MAX_PBE_LEN (128 * 1024 * 1024)
+#define T3_STAG0_PAGE_SHIFT 15
 
 #define Q_EMPTY(rptr,wptr) ((rptr)==(wptr))
 #define Q_FULL(rptr,wptr,size_log2)  ( (((wptr)-(rptr))>>(size_log2)) && \
@@ -272,6 +275,22 @@ enum t3_qp_caps {
 	uP_RI_QP_STAG0_ENABLE = 0x10
 } __attribute__ ((packed));
 
+enum rdma_init_rtr_types {
+        RTR_READ = 1,
+        RTR_WRITE = 2,
+        RTR_SEND = 3,
+};
+
+#define S_RTR_TYPE      2
+#define M_RTR_TYPE      0x3
+#define V_RTR_TYPE(x)   ((x) << S_RTR_TYPE)
+#define G_RTR_TYPE(x)   ((((x) >> S_RTR_TYPE)) & M_RTR_TYPE)
+
+#define S_CHAN          4
+#define M_CHAN          0x3
+#define V_CHAN(x)       ((x) << S_CHAN)
+#define G_CHAN(x)       ((((x) >> S_CHAN)) & M_CHAN)
+
 struct t3_rdma_init_attr {
 	u32 tid;
 	u32 qpid;
@@ -287,8 +306,11 @@ struct t3_rdma_init_attr {
 	u32 ird;
 	u64 qp_dma_addr;
 	u32 qp_dma_size;
-	u32 flags;
+	enum rdma_init_rtr_types rtr_type;
+	u16 flags;
+	u16 rqe_count;
 	u32 irs;
+	u32 chan;
 };
 
 struct t3_rdma_init_wr {
@@ -303,13 +325,13 @@ struct t3_rdma_init_wr {
 	u8 mpaattrs;		/* 5 */
 	u8 qpcaps;
 	__be16 ulpdu_size;
-	__be32 flags;		/* bits 31-1 - reservered */
-				/* bit     0 - set if RECV posted */
+	__be16 flags_rtr_type;
+        __be16 rqe_count;
 	__be32 ord;		/* 6 */
 	__be32 ird;
 	__be64 qp_dma_addr;	/* 7 */
 	__be32 qp_dma_size;	/* 8 */
-	u32 irs;
+	__be32 irs;
 };
 
 struct t3_genbit {
@@ -318,7 +340,8 @@ struct t3_genbit {
 };
 
 enum rdma_init_wr_flags {
-	RECVS_POSTED = 1,
+        MPA_INITIATOR = (1<<0),
+        PRIV_QP = (1<<1),
 };
 
 union t3_wr {
@@ -531,6 +554,12 @@ struct t3_cqe {
 #define CQE_STATUS(x)     (G_CQE_STATUS(be32toh((x).header)))
 #define CQE_OPCODE(x)     (G_CQE_OPCODE(be32toh((x).header)))
 
+#define CQE_SEND_OPCODE(x)( \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND) || \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND_WITH_SE) || \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND_WITH_INV) || \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND_WITH_SE_INV))
+
 #define CQE_LEN(x)        (be32toh((x).len))
 
 /* used for RQ completion processing */
@@ -589,10 +618,15 @@ struct t3_swsq {
 	uint64_t		wr_id;
 	struct t3_cqe		cqe;
 	uint32_t		sq_wptr;
-	uint32_t		read_len;
+	__be32   		read_len;
 	int			opcode;
 	int			complete;
 	int			signaled;
+};
+
+struct t3_swrq {
+        __u64                   wr_id;
+        __u32                   pbl_addr;
 };
 
 /*
@@ -601,9 +635,6 @@ struct t3_swsq {
 struct t3_wq {
 	union t3_wr *queue;		/* DMA accessable memory */
 	bus_addr_t dma_addr;		/* DMA address for HW */
-#ifdef notyet	
-	DECLARE_PCI_UNMAP_ADDR(mapping)	/* unmap kruft */
-#endif		
 	u32 error;			/* 1 once we go to ERROR */
 	u32 qpid;
 	u32 wptr;			/* idx to next available WR slot */
@@ -613,14 +644,15 @@ struct t3_wq {
 	u32 sq_wptr;			/* sq_wptr - sq_rptr == count of */
 	u32 sq_rptr;			/* pending wrs */
 	u32 sq_size_log2;		/* sq size */
-	u64 *rq;			/* SW RQ (holds consumer wr_ids */
+        struct t3_swrq *rq;             /* SW RQ (holds consumer wr_ids */
 	u32 rq_wptr;			/* rq_wptr - rq_rptr == count of */
 	u32 rq_rptr;			/* pending wrs */
-	u64 *rq_oldest_wr;		/* oldest wr on the SW RQ */
+	struct t3_swrq *rq_oldest_wr;	/* oldest wr on the SW RQ */
 	u32 rq_size_log2;		/* rq size */
 	u32 rq_addr;			/* rq adapter address */
-	void /* __iomem */ *doorbell;	/* kernel db */
+	void *doorbell;			/* kernel db */
 	u64 udb;			/* user db if any */
+	struct cxio_rdev *rdev;
 };
 
 struct t3_cq {
@@ -629,9 +661,6 @@ struct t3_cq {
 	u32 wptr;
 	u32 size_log2;
 	bus_addr_t dma_addr;
-#ifdef notyet	
-	DECLARE_PCI_UNMAP_ADDR(mapping)
-#endif		
 	struct t3_cqe *queue;
 	struct t3_cqe *sw_queue;
 	u32 sw_rptr;
@@ -640,6 +669,22 @@ struct t3_cq {
 
 #define CQ_VLD_ENTRY(ptr,size_log2,cqe) (Q_GENBIT(ptr,size_log2) == \
 					 CQE_GENBIT(*cqe))
+
+struct t3_cq_status_page {
+        u32 cq_err;
+};
+
+static inline int cxio_cq_in_error(struct t3_cq *cq)
+{
+        return ((struct t3_cq_status_page *)
+                &cq->queue[1 << cq->size_log2])->cq_err;
+}
+
+static inline void cxio_set_cq_in_error(struct t3_cq *cq)
+{
+        ((struct t3_cq_status_page *)
+         &cq->queue[1 << cq->size_log2])->cq_err = 1;
+}
 
 static inline void cxio_set_wq_in_error(struct t3_wq *wq)
 {

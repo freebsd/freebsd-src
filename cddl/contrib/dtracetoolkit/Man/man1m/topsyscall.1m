@@ -1,0 +1,73 @@
+.TH topsyscall 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+topsyscall \- top syscalls by syscall name. Uses DTrace.
+.SH SYNOPSIS
+.B topsyscall
+[-Cs] [interval [count]]
+.SH DESCRIPTION
+This program continually prints a report of the top system calls,
+and refreshes the display every 1 second or as specified at the
+command line.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - uses the hp_avenrun kernel symbol.
+.SH OPTIONS
+.TP
+\-C
+don't clear the screen
+.TP
+\-s
+print per second values
+.PP
+.SH EXAMPLES
+.TP
+Default output, 1 second updates,
+# 
+.B topsyscall
+.TP
+Print every 5 seconds,
+#
+.B topsyscall
+5
+.TP
+Print a scrolling output,
+#
+.B topsyscall
+\-C
+.PP
+.SH FIELDS
+.TP
+load avg
+load averages, see uptime(1)
+.TP
+syscalls
+total syscalls in this interval
+.TP
+syscalls/s
+syscalls per second
+.TP
+SYSCALL
+system call name
+.TP
+COUNT
+total syscalls in this interval
+.TP
+COUNT/s
+syscalls per second
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+topsyscall will run until Ctrl\-C is hit, or the specified
+interval is reached.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), prstat(1M)

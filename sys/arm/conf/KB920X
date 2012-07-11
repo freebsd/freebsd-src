@@ -12,8 +12,8 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files. 
-# If you are in doubt as to the purpose or necessity of a line, check first 
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
 # $FreeBSD$
@@ -24,7 +24,7 @@ include		"../at91/std.kb920x"
 # The AT91 platform doesn't use /boot/loader, so we have to statically wire
 # hints.
 hints		"KB920X.hints"
-#makeoptions	MODULES_OVERRIDE=""
+makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	DDB
@@ -137,6 +137,7 @@ device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
+
 options		IEEE80211_SUPPORT_MESH
 
 options		AH_SUPPORT_AR5416

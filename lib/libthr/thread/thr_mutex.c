@@ -538,6 +538,7 @@ mutex_self_trylock(struct pthread_mutex *m)
 	switch (PMUTEX_TYPE(m->m_flags)) {
 	case PTHREAD_MUTEX_ERRORCHECK:
 	case PTHREAD_MUTEX_NORMAL:
+	case PTHREAD_MUTEX_ADAPTIVE_NP:
 		ret = EBUSY; 
 		break;
 

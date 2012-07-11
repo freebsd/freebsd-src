@@ -107,6 +107,13 @@ clflush(u_long addr)
 }
 
 static __inline void
+clts(void)
+{
+
+	__asm __volatile("clts");
+}
+
+static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
@@ -273,6 +280,15 @@ outw(u_int port, u_short data)
 	__asm __volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
 }
 
+static __inline u_long
+popcntq(u_long mask)
+{
+	u_long result;
+
+	__asm __volatile("popcntq %1,%0" : "=r" (result) : "rm" (mask));
+	return (result);
+}
+
 static __inline void
 mfence(void)
 {
@@ -407,6 +423,25 @@ rcr4(void)
 
 	__asm __volatile("movq %%cr4,%0" : "=r" (data));
 	return (data);
+}
+
+static __inline u_long
+rxcr(u_int reg)
+{
+	u_int low, high;
+
+	__asm __volatile("xgetbv" : "=a" (low), "=d" (high) : "c" (reg));
+	return (low | ((uint64_t)high << 32));
+}
+
+static __inline void
+load_xcr(u_int reg, u_long val)
+{
+	u_int low, high;
+
+	low = val;
+	high = val >> 32;
+	__asm __volatile("xsetbv" : : "c" (reg), "a" (low), "d" (high));
 }
 
 /*
@@ -691,6 +726,9 @@ intr_restore(register_t rflags)
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
 u_int	bsrl(u_int mask);
+void	clflush(u_long addr);
+void	clts(void);
+void	cpuid_count(u_int ax, u_int cx, u_int *p);
 void	disable_intr(void);
 void	do_cpuid(u_int ax, u_int *p);
 void	enable_intr(void);

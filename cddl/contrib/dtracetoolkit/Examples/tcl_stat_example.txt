@@ -1,0 +1,24 @@
+Following are examples of running tcl_stat.d on Tcl programs.
+
+tcl_stat.d shows you the number of events per second that have happened since
+the last line output.  The default interval is 1 second, but you can specify
+other intervals as arguments to the script.
+
+This shows the sh_stat.d script reflecting the Code/Tcl/func_abc.tcl program.
+
+# tcl_stat.d
+TIME                 EXEC/s   PROC/s    CMD/s OBJNEW/s OBJFRE/s     OP/s
+2007 Sep 26 23:34:36      0        0        0        0        0        0
+2007 Sep 26 23:34:37      1        2       75      911      805      377
+2007 Sep 26 23:34:38      0        1        3        4        2       10
+2007 Sep 26 23:34:39      0        1        3        3        2       10
+2007 Sep 26 23:34:40      0        0        1        7        8        3
+2007 Sep 26 23:34:41      0        0        0        0        0        0
+2007 Sep 26 23:34:42      0        0        0        0        0        0
+^C
+
+ At 2007 Sep 26 23:34:37 we can see that there was one Tcl program executed
+(this number may include those programs without Tcl provider support), two
+procedures called, 75 new commands created, 911 objects created,  805 objects
+freed, and 377 bytecode operations.
+

@@ -268,7 +268,7 @@ Options:
 All packets sent to and received from the server or peer are to
 include authentication fields encrypted using the autokey scheme
 described in
-.Sx Authentication Options .
+.Sx Authentication Commands .
 .It Cm burst
 when the server is reachable, send a burst of eight packets
 instead of the usual one.
@@ -305,7 +305,7 @@ default is to include no encryption field.
 .It Cm minpoll Ar minpoll
 .It Cm maxpoll Ar maxpoll
 These options specify the minimum and maximum poll intervals
-for NTP messages, as a power of 2 in seconds
+for NTP messages, as a power of 2 in seconds.
 The maximum poll
 interval defaults to 10 (1,024 s), but can be increased by the
 .Cm maxpoll
@@ -363,7 +363,7 @@ Note that, in order
 to avoid accidental or malicious disruption in this mode, both the
 server and client should operate using symmetric-key or public-key
 authentication as described in
-.Sx Authentication Options .
+.Sx Authentication Commands .
 .It Ic manycastserver Ar address ...
 This command enables reception of manycast client messages to
 the multicast group address(es) (type m) specified.
@@ -376,7 +376,7 @@ Note that, in order to avoid
 accidental or malicious disruption in this mode, both the server
 and client should operate using symmetric-key or public-key
 authentication as described in
-.Sx Authentication Options .
+.Sx Authentication Commands .
 .It Ic multicastclient Ar address ...
 This command enables reception of multicast server messages to
 the multicast group address(es) (type m) specified.
@@ -389,7 +389,7 @@ Note that,
 in order to avoid accidental or malicious disruption in this mode,
 both the server and client should operate using symmetric-key or
 public-key authentication as described in
-.Sx Authentication Options .
+.Sx Authentication Commands .
 .El
 .Sh Authentication Support
 Authentication support allows the NTP client to verify that the
@@ -466,7 +466,7 @@ of these checks and be discarded.
 Furthermore, the Autokey scheme requires a
 preliminary protocol exchange to obtain
 the server certificate, verify its
-credentials and initialize the protocol
+credentials and initialize the protocol.
 .Pp
 The
 .Cm auth
@@ -669,7 +669,7 @@ using the host name, network address and public keys,
 all of which are bound together by the protocol specifically
 to deflect masquerade attacks.
 For this reason Autokey
-includes the source and destinatino IP addresses in message digest
+includes the source and destination IP addresses in message digest
 computations and so the same addresses must be available
 at both the server and client.
 For this reason operation
@@ -796,7 +796,7 @@ The certificate extension fields must not contain either
 a subject key identifier or a issuer key identifier field;
 however, an extended key usage field for a trusted host must
 contain the value
-.Cm trustRoot ; .
+.Cm trustRoot .
 Other extension fields are ignored.
 .Ss Authentication Commands
 .Bl -tag -width indent
@@ -1068,10 +1068,11 @@ following form to the file generation set named
 The first two fields show the date (Modified Julian Day) and time
 (seconds and fraction past UTC midnight).
 The next field shows the peer
-address in dotted-quad notation, The final message field includes the
+address in dotted-quad notation.
+The final message field includes the
 message type and certain ancillary information.
 See the
-.Sx Authentication Options
+.Sx Authentication Commands
 section for further information.
 .It Cm loopstats
 Enables recording of loop filter statistics information.
@@ -1155,7 +1156,7 @@ Time in hours since the system was last rebooted.
 .It Packets received Cm 81965
 Total number of packets received.
 .It Packets processed Cm 0
-Number of packets received in response to previous packets sent
+Number of packets received in response to previous packets sent.
 .It Current version Cm 9546
 Number of packets matching the current NTP version.
 .It Previous version Cm 56
@@ -1461,7 +1462,7 @@ subcommand specifies the minimum average packet
 spacing, while the
 .Cm minimum
 subcommand specifies the minimum packet spacing.
-Packets that violate these minima are discarded
+Packets that violate these minimum are discarded
 and a kiss-o'-death packet returned if enabled.
 The default
 minimum average and minimum are 5 and 2, respectively.
@@ -1775,7 +1776,7 @@ It is often useful to narrow the range of acceptable
 servers which can be found by manycast client associations.
 Because manycast servers respond only when the client
 stratum is equal to or greater than the server stratum,
-primary (stratum 1) servers fill find only primary servers
+primary (stratum 1) servers will find only primary servers
 in TTL range, which is probably the most common objective.
 However, unless configured otherwise, all manycast clients
 in TTL range will eventually find all primary servers
@@ -1955,7 +1956,7 @@ peers remaining.
 This value defaults to 1, but can be changed
 to any number from 1 to 15.
 .It Cm minclock Ar minclock
-The clustering algorithm repeatedly casts out outlyer
+The clustering algorithm repeatedly casts out outerlayer
 associations until no more than
 .Cm minclock
 associations remain.
@@ -1965,7 +1966,7 @@ configured sources.
 .It Cm minsane Ar minsane
 This is the minimum number of candidates available
 to the clock selection algorithm in order to produce
-one or more truechimers for the clustering algorithm.
+one or more true chimers for the clustering algorithm.
 If fewer than this number are available, the clock is
 undisciplined and allowed to run free.
 The default is 1

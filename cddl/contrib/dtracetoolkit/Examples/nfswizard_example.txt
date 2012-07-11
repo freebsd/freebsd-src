@@ -1,0 +1,67 @@
+The following is a demonstration of the NFS client wizard tool, nfswizard.d,
+
+
+
+   # nfswizard.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   NFS Client Wizard. 2005 Dec  2 14:59:07 -> 2005 Dec  2 14:59:14
+   
+   Read:  4591616 bytes (4 Mb)
+   Write: 0 bytes (0 Mb)
+   
+   Read:  640 Kb/sec
+   Write: 0 Kb/sec
+   
+   NFS I/O events:    166
+   Avg response time: 8 ms
+   Max response time: 14 ms
+   
+   Response times (us):
+              value  ------------- Distribution ------------- count
+                128 |                                         0
+                256 |                                         1
+                512 |@@@                                      14
+               1024 |@                                        4
+               2048 |@@@@@@@                                  30
+               4096 |@@@@@                                    20
+               8192 |@@@@@@@@@@@@@@@@@@@@@@@                  97
+              16384 |                                         0
+   
+   Top 25 files accessed (bytes):
+      PATHNAME                                                         BYTES
+      /net/mars/var/tmp/adm/vold.log                                   4096
+      /net/mars/var/tmp/adm/uptime                                     4096
+      /net/mars/var/tmp/adm/mail                                       4096
+      /net/mars/var/tmp/adm/authlog.5                                  4096
+      /net/mars/var/tmp/adm/ftpd                                       12288
+      /net/mars/var/tmp/adm/spellhist                                  16384
+      /net/mars/var/tmp/adm/messages                                   16384
+      /net/mars/var/tmp/adm/utmpx                                      20480
+      /net/mars/var/tmp/adm/ftpd.2                                     20480
+      /net/mars/var/tmp/adm/ftpd.3                                     20480
+      /net/mars/var/tmp/adm/ftpd.1                                     24576
+      /net/mars/var/tmp/adm/ftpd.0                                     24576
+      /net/mars/var/tmp/adm/lastlog                                    28672
+      /net/mars/var/tmp/adm/ipf                                        61440
+      /net/mars/var/tmp/adm/loginlog                                   69632
+      /net/mars/var/tmp/adm/ipf.4                                      73728
+      /net/mars/var/tmp/adm/messages.20040906                          81920
+      /net/mars/var/tmp/adm/ipf.3                                      102400
+      /net/mars/var/tmp/adm/ipf.1                                      110592
+      /net/mars/var/tmp/adm/ipf.5                                      114688
+      /net/mars/var/tmp/adm/ipf.2                                      114688
+      /net/mars/var/tmp/adm/ipf.0                                      122880
+      /net/mars/var/tmp/adm/route.log                                  266240
+      /net/mars/var/tmp/adm/pppd.log                                   425984
+      /net/mars/var/tmp/adm/wtmpx                                      2842624
+
+
+
+In the above demonstration, we run nfswizard.d for several seconds then hit
+Ctrl-C. The report contains useful information about NFS client activity,
+including response time statistics and file access details.
+
+Note: this is measuring activity caused by NFS client processes (which must
+be on the same server). It is not examining NFS server processes.
+

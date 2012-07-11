@@ -49,8 +49,8 @@ Driver::Driver(StringRef ClangExecutable,
                bool IsProduction,
                DiagnosticsEngine &Diags)
   : Opts(createDriverOptTable()), Diags(Diags),
-    ClangExecutable(ClangExecutable), UseStdLib(true),
-    DefaultTargetTriple(DefaultTargetTriple), 
+    ClangExecutable(ClangExecutable), SysRoot(DEFAULT_SYSROOT),
+    UseStdLib(true), DefaultTargetTriple(DefaultTargetTriple),
     DefaultImageName(DefaultImageName),
     DriverTitle("clang \"gcc-compatible\" driver"),
     CCPrintOptionsFilename(0), CCPrintHeadersFilename(0),
@@ -660,9 +660,7 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
     llvm::outs() << "\n";
     llvm::outs() << "libraries: =" << ResourceDir;
 
-    std::string sysroot;
-    if (Arg *A = C.getArgs().getLastArg(options::OPT__sysroot_EQ))
-      sysroot = A->getValue(C.getArgs());
+    StringRef sysroot = C.getSysRoot();
 
     for (ToolChain::path_list::const_iterator it = TC.getFilePaths().begin(),
            ie = TC.getFilePaths().end(); it != ie; ++it) {
@@ -872,30 +870,30 @@ void Driver::BuildUniversalActions(const ToolChain &TC,
 
     // Handle debug info queries.
     Arg *A = Args.getLastArg(options::OPT_g_Group);
-      if (A && !A->getOption().matches(options::OPT_g0) &&
-          !A->getOption().matches(options::OPT_gstabs) &&
-          ContainsCompileOrAssembleAction(Actions.back())) {
-   
-        // Add a 'dsymutil' step if necessary, when debug info is enabled and we
-        // have a compile input. We need to run 'dsymutil' ourselves in such cases
-        // because the debug info will refer to a temporary object file which is
-        // will be removed at the end of the compilation process.
-        if (Act->getType() == types::TY_Image) {
-          ActionList Inputs;
-          Inputs.push_back(Actions.back());
-          Actions.pop_back();
-          Actions.push_back(new DsymutilJobAction(Inputs, types::TY_dSYM));
-        }
-
-        // Verify the output (debug information only) if we passed '-verify'.
-        if (Args.hasArg(options::OPT_verify)) {
-          ActionList VerifyInputs;
-	  VerifyInputs.push_back(Actions.back());
-	  Actions.pop_back();
-	  Actions.push_back(new VerifyJobAction(VerifyInputs,
-						types::TY_Nothing));
-	}
+    if (A && !A->getOption().matches(options::OPT_g0) &&
+        !A->getOption().matches(options::OPT_gstabs) &&
+        ContainsCompileOrAssembleAction(Actions.back())) {
+ 
+      // Add a 'dsymutil' step if necessary, when debug info is enabled and we
+      // have a compile input. We need to run 'dsymutil' ourselves in such cases
+      // because the debug info will refer to a temporary object file which is
+      // will be removed at the end of the compilation process.
+      if (Act->getType() == types::TY_Image) {
+        ActionList Inputs;
+        Inputs.push_back(Actions.back());
+        Actions.pop_back();
+        Actions.push_back(new DsymutilJobAction(Inputs, types::TY_dSYM));
       }
+
+      // Verify the output (debug information only) if we passed '-verify'.
+      if (Args.hasArg(options::OPT_verify)) {
+        ActionList VerifyInputs;
+        VerifyInputs.push_back(Actions.back());
+        Actions.pop_back();
+        Actions.push_back(new VerifyJobAction(VerifyInputs,
+                                              types::TY_Nothing));
+      }
+    }
   }
 }
 

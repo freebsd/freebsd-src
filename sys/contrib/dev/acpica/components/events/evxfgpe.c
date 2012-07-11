@@ -295,9 +295,10 @@ AcpiSetupGpeForWake (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber)
 {
-    ACPI_STATUS             Status = AE_BAD_PARAMETER;
+    ACPI_STATUS             Status;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_NAMESPACE_NODE     *DeviceNode;
+    ACPI_GPE_NOTIFY_INFO    *NewNotify, *Notify;
     ACPI_CPU_FLAGS          Flags;
 
 
@@ -333,32 +334,79 @@ AcpiSetupGpeForWake (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
+    NewNotify = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_GPE_NOTIFY_INFO));
+    if (!NewNotify)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
     Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
 
     /* Ensure that we have a valid GPE number */
 
     GpeEventInfo = AcpiEvGetGpeEventInfo (GpeDevice, GpeNumber);
-    if (GpeEventInfo)
+    if (!GpeEventInfo)
     {
-        /*
-         * If there is no method or handler for this GPE, then the
-         * WakeDevice will be notified whenever this GPE fires (aka
-         * "implicit notify") Note: The GPE is assumed to be
-         * level-triggered (for windows compatibility).
-         */
-        if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
-                ACPI_GPE_DISPATCH_NONE)
-        {
-            GpeEventInfo->Flags =
-                (ACPI_GPE_DISPATCH_NOTIFY | ACPI_GPE_LEVEL_TRIGGERED);
-            GpeEventInfo->Dispatch.DeviceNode = DeviceNode;
-        }
-
-        GpeEventInfo->Flags |= ACPI_GPE_CAN_WAKE;
-        Status = AE_OK;
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
     }
 
+    /*
+     * If there is no method or handler for this GPE, then the
+     * WakeDevice will be notified whenever this GPE fires. This is
+     * known as an "implicit notify". Note: The GPE is assumed to be
+     * level-triggered (for windows compatibility).
+     */
+    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+            ACPI_GPE_DISPATCH_NONE)
+    {
+        /*
+         * This is the first device for implicit notify on this GPE.
+         * Just set the flags here, and enter the NOTIFY block below.
+         */
+        GpeEventInfo->Flags =
+            (ACPI_GPE_DISPATCH_NOTIFY | ACPI_GPE_LEVEL_TRIGGERED);
+    }
+
+    /*
+     * If we already have an implicit notify on this GPE, add
+     * this device to the notify list.
+     */
+    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+            ACPI_GPE_DISPATCH_NOTIFY)
+    {
+        /* Ensure that the device is not already in the list */
+
+        Notify = GpeEventInfo->Dispatch.NotifyList;
+        while (Notify)
+        {
+            if (Notify->DeviceNode == DeviceNode)
+            {
+                Status = AE_ALREADY_EXISTS;
+                goto UnlockAndExit;
+            }
+            Notify = Notify->Next;
+        }
+
+        /* Add this device to the notify list for this GPE */
+
+        NewNotify->DeviceNode = DeviceNode;
+        NewNotify->Next = GpeEventInfo->Dispatch.NotifyList;
+        GpeEventInfo->Dispatch.NotifyList = NewNotify;
+        NewNotify = NULL;
+    }
+
+    /* Mark the GPE as a possible wake event */
+
+    GpeEventInfo->Flags |= ACPI_GPE_CAN_WAKE;
+    Status = AE_OK;
+
+UnlockAndExit:
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    if (NewNotify)
+    {
+        ACPI_FREE (NewNotify);
+    }
     return_ACPI_STATUS (Status);
 }
 

@@ -1,0 +1,32 @@
+The following is a short sample of output from the fspaging.d script.
+
+
+fspaging.d traces syscall read and writes, vnode interface reads, writes,
+getpage and putpage, and disk io.
+
+   # ./fspaging.d
+   Event             Device RW     Size Offset Path
+       disk_io         dad1  R     1024      0 /extra1
+       disk_io         dad1  R     8192      0 <none>
+       disk_io         dad1  R     2048      0 <none>
+   sc-write               .  W    51200      0 /extra1/outfile
+     fop_write            .  W    51200      0 /extra1/outfile
+     fop_getpage          .  R     8192      0 /extra1/50k
+       disk_io         dad1  R     8192      0 /extra1/50k
+       disk_ra         dad1  R     8192      8 /extra1/50k
+     fop_getpage          .  R     8192      8 /extra1/50k
+       disk_ra         dad1  R    34816     16 /extra1/50k
+     fop_getpage          .  R     8192     16 /extra1/50k
+     fop_getpage          .  R     8192     24 /extra1/50k
+     fop_getpage          .  R     8192     32 /extra1/50k
+     fop_getpage          .  R     8192     40 /extra1/50k
+     fop_getpage          .  R     8192     48 /extra1/50k
+     fop_putpage          .  W     8192      0 /extra1/outfile
+     fop_putpage          .  W     8192      8 /extra1/outfile
+     fop_putpage          .  W     8192     16 /extra1/outfile
+     fop_putpage          .  W     8192     24 /extra1/outfile
+     fop_putpage          .  W     8192     32 /extra1/outfile
+     fop_putpage          .  W     8192     40 /extra1/outfile
+       disk_io         dad1  W    51200      0 /extra1/outfile
+
+For a full discussion of this example, see fsrw_example.txt.

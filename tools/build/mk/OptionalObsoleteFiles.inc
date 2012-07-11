@@ -2179,6 +2179,8 @@ OLD_FILES+=usr/share/man/man8/ipfstat.8.gz
 OLD_FILES+=usr/share/man/man8/ipmon.8.gz
 OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
+OLD_FILES+=etc/periodic/security/510.ipfdenied
+OLD_FILES+=etc/periodic/security/610.ipf6denied
 .endif
 
 .if ${MK_IPFW} == no
@@ -3478,6 +3480,10 @@ OLD_FILES+=usr/share/man/man8/ftp-proxy.8.gz
 OLD_FILES+=usr/share/man/man8/pfctl.8.gz
 OLD_FILES+=usr/share/man/man8/pflogd.8.gz
 OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
+.endif
+
+.if ${MK_PKGBOOTSTRAP} == no
+OLD_FILES+=usr/sbin/pkg
 .endif
 
 .if ${MK_PKGTOOLS} == no

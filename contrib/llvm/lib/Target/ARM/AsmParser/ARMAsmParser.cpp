@@ -82,8 +82,14 @@ class ARMAsmParser : public MCTargetAsmParser {
   MCAsmParser &getParser() const { return Parser; }
   MCAsmLexer &getLexer() const { return Parser.getLexer(); }
 
-  void Warning(SMLoc L, const Twine &Msg) { Parser.Warning(L, Msg); }
-  bool Error(SMLoc L, const Twine &Msg) { return Parser.Error(L, Msg); }
+  bool Warning(SMLoc L, const Twine &Msg,
+               ArrayRef<SMRange> Ranges = ArrayRef<SMRange>()) {
+    return Parser.Warning(L, Msg, Ranges);
+  }
+  bool Error(SMLoc L, const Twine &Msg,
+             ArrayRef<SMRange> Ranges = ArrayRef<SMRange>()) {
+    return Parser.Error(L, Msg, Ranges);
+  }
 
   int tryParseRegister();
   bool tryParseRegisterWithWriteBack(SmallVectorImpl<MCParsedAsmOperand*> &);
@@ -477,6 +483,8 @@ public:
   SMLoc getStartLoc() const { return StartLoc; }
   /// getEndLoc - Get the location of the last token of this operand.
   SMLoc getEndLoc() const { return EndLoc; }
+
+  SMRange getLocRange() const { return SMRange(StartLoc, EndLoc); }
 
   ARMCC::CondCodes getCondCode() const {
     assert(Kind == k_CondCode && "Invalid access!");
@@ -4518,22 +4526,26 @@ bool ARMAsmParser::parseOperand(SmallVectorImpl<MCParsedAsmOperand*> &Operands,
   case AsmToken::Dollar:
   case AsmToken::Hash: {
     // #42 -> immediate.
-    // TODO: ":lower16:" and ":upper16:" modifiers after # before immediate
     S = Parser.getTok().getLoc();
     Parser.Lex();
-    bool isNegative = Parser.getTok().is(AsmToken::Minus);
-    const MCExpr *ImmVal;
-    if (getParser().ParseExpression(ImmVal))
-      return true;
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ImmVal);
-    if (CE) {
-      int32_t Val = CE->getValue();
-      if (isNegative && Val == 0)
-        ImmVal = MCConstantExpr::Create(INT32_MIN, getContext());
+
+    if (Parser.getTok().isNot(AsmToken::Colon)) {
+      bool isNegative = Parser.getTok().is(AsmToken::Minus);
+      const MCExpr *ImmVal;
+      if (getParser().ParseExpression(ImmVal))
+        return true;
+      const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(ImmVal);
+      if (CE) {
+        int32_t Val = CE->getValue();
+        if (isNegative && Val == 0)
+          ImmVal = MCConstantExpr::Create(INT32_MIN, getContext());
+      }
+      E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
+      Operands.push_back(ARMOperand::CreateImm(ImmVal, S, E));
+      return false;
     }
-    E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
-    Operands.push_back(ARMOperand::CreateImm(ImmVal, S, E));
-    return false;
+    // w/ a ':' after the '#', it's just like a plain ':'.
+    // FALLTHROUGH
   }
   case AsmToken::Colon: {
     // ":lower16:" and ":upper16:" expression prefixes
@@ -7321,7 +7333,8 @@ MatchAndEmitInstruction(SMLoc IDLoc,
     return Error(ErrorLoc, "invalid operand for instruction");
   }
   case Match_MnemonicFail:
-    return Error(IDLoc, "invalid instruction");
+    return Error(IDLoc, "invalid instruction",
+                 ((ARMOperand*)Operands[0])->getLocRange());
   case Match_ConversionFail:
     // The converter function will have already emited a diagnostic.
     return true;

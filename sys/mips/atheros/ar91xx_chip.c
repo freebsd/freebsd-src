@@ -112,25 +112,9 @@ ar91xx_chip_device_stopped(uint32_t mask)
 }
 
 static void
-ar91xx_chip_set_pll_ge(int unit, int speed)
+ar91xx_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 {
-	uint32_t pll;
 
-	switch(speed) {
-	case 10:
-		pll = AR91XX_PLL_VAL_10;
-		break;
-	case 100:
-		pll = AR91XX_PLL_VAL_100;
-		break;
-	case 1000:
-		pll = AR91XX_PLL_VAL_1000;
-		break;
-	default:
-		printf("%s%d: invalid speed %d\n",
-		    __func__, unit, speed);
-		return;
-	}
 	switch (unit) {
 	case 0:
 		ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG,
@@ -178,8 +162,24 @@ ar91xx_chip_ddr_flush_ip2(void)
 static uint32_t
 ar91xx_chip_get_eth_pll(unsigned int mac, int speed)
 {
+	uint32_t pll;
 
-	return 0;
+	switch(speed) {
+	case 10:
+		pll = AR91XX_PLL_VAL_10;
+		break;
+	case 100:
+		pll = AR91XX_PLL_VAL_100;
+		break;
+	case 1000:
+		pll = AR91XX_PLL_VAL_1000;
+		break;
+	default:
+		printf("%s%d: invalid speed %d\n", __func__, mac, speed);
+		pll = 0;
+	}
+
+	return (pll);
 }
 
 static void
@@ -211,6 +211,7 @@ struct ar71xx_cpu_def ar91xx_chip_def = {
 	&ar91xx_chip_device_stopped,
 	&ar91xx_chip_set_pll_ge,
 	&ar71xx_chip_set_mii_speed,
+	&ar71xx_chip_set_mii_if,
 	&ar91xx_chip_ddr_flush_ge,
 	&ar91xx_chip_get_eth_pll,
 	&ar91xx_chip_ddr_flush_ip2,

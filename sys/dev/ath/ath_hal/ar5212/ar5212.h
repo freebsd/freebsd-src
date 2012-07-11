@@ -320,6 +320,7 @@ struct ath_hal_5212 {
 	struct ar5212AniParams ah_aniParams5;	/* 5GHz parameters */
 	struct ar5212AniState	*ah_curani;	/* cached last reference */
 	struct ar5212AniState	ah_ani[AH_MAXCHAN]; /* per-channel state */
+	HAL_CHANNEL_SURVEY	ah_chansurvey; /* channel survey */
 
 	/* AR5416 uses some of the AR5212 ANI code; these are the ANI methods */
 	HAL_BOOL	(*ah_aniControl) (struct ath_hal *, HAL_ANI_CMD cmd, int param);
@@ -510,14 +511,16 @@ extern	HAL_BOOL ar5212GetDiagState(struct ath_hal *ah, int request,
 		void **result, uint32_t *resultsize);
 extern	HAL_STATUS ar5212SetQuiet(struct ath_hal *ah, uint32_t period,
 		uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
+extern	HAL_BOOL ar5212GetMibCycleCounts(struct ath_hal *,
+		HAL_SURVEY_SAMPLE *);
 
 extern	HAL_BOOL ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
 extern	HAL_POWER_MODE ar5212GetPowerMode(struct ath_hal *ah);
 extern	HAL_BOOL ar5212GetPowerStatus(struct ath_hal *ah);
 
-extern	uint32_t ar5212GetRxDP(struct ath_hal *ath);
-extern	void ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp);
+extern	uint32_t ar5212GetRxDP(struct ath_hal *ath, HAL_RX_QUEUE);
+extern	void ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5212EnableReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5212StopDmaReceive(struct ath_hal *ah);
 extern	void ar5212StartPcuReceive(struct ath_hal *ah);

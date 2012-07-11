@@ -262,7 +262,7 @@ ENTRY(cpu_switch)
 	strd	r12, [r2, #(PCB_R12)]
 #endif
 	str	pc, [r2, #(PCB_PC)]
-									   
+
 	/*
 	 * NOTE: We can now use r8-r13 until it is time to restore
 	 * them for the new process.
@@ -291,7 +291,7 @@ ENTRY(cpu_switch)
 
         mrs	r3, cpsr
 	/*
-	 * We can do that, since 
+	 * We can do that, since
 	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
 	 */
 	orr	r8, r3, #(PSR_UND32_MODE)
@@ -399,7 +399,7 @@ ENTRY(cpu_switch)
 	movne	lr, pc
 	ldrne	pc, [r10, #CF_TLB_FLUSHID_SE]
 	/*
-	 * We can do that, since 
+	 * We can do that, since
 	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
 	 */
 
@@ -422,7 +422,7 @@ ENTRY(cpu_switch)
 
         mrs	r3, cpsr
 	/*
-	 * We can do that, since 
+	 * We can do that, since
 	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
 	 */
 	orr	r2, r3, #(PSR_UND32_MODE)
@@ -451,7 +451,7 @@ ENTRY(cpu_switch)
 
 #ifdef ARMFPE
 	add	r0, r7, #(USER_SIZE) & 0x00ff
-	add	r0, r0, #(USER_SIZE) & 0xff00 
+	add	r0, r0, #(USER_SIZE) & 0xff00
 	bl	_C_LABEL(arm_fpe_core_changecontext)
 #endif
 

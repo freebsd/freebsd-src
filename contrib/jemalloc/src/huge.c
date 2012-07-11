@@ -140,11 +140,11 @@ huge_ralloc(void *ptr, size_t oldsize, size_t size, size_t extra,
 	 */
 	copysize = (size < oldsize) ? size : oldsize;
 
+#ifdef JEMALLOC_MREMAP
 	/*
 	 * Use mremap(2) if this is a huge-->huge reallocation, and neither the
 	 * source nor the destination are in dss.
 	 */
-#ifdef JEMALLOC_MREMAP_FIXED
 	if (oldsize >= chunksize && (config_dss == false || (chunk_in_dss(ptr)
 	    == false && chunk_in_dss(ret) == false))) {
 		size_t newsize = huge_salloc(ret);
@@ -168,7 +168,7 @@ huge_ralloc(void *ptr, size_t oldsize, size_t size, size_t extra,
 			 */
 			char buf[BUFERROR_BUF];
 
-			buferror(errno, buf, sizeof(buf));
+			buferror(buf, sizeof(buf));
 			malloc_printf("<jemalloc>: Error in mremap(): %s\n",
 			    buf);
 			if (opt_abort)

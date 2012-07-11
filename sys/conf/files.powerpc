@@ -35,6 +35,7 @@ dev/iicbus/ad7417.c		optional	ad7417 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
+dev/nand/nfc_fsl.c		optional	nand mpc85xx
 dev/ofw/openfirm.c		optional	aim | fdt
 dev/ofw/openfirmio.c		optional	aim | fdt
 dev/ofw/ofw_bus_if.m		optional	aim | fdt
@@ -61,6 +62,7 @@ dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart aim
 kern/kern_clocksource.c		standard
+kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
 libkern/ashldi3.c		optional	powerpc
 libkern/ashrdi3.c		optional	powerpc
@@ -97,17 +99,18 @@ powerpc/aim/swtch64.S		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
 powerpc/aim/vm_machdep.c	optional	aim
-powerpc/booke/clock.c		optional	e500
-powerpc/booke/copyinout.c	optional	e500
-powerpc/booke/interrupt.c	optional	e500
-powerpc/booke/locore.S		optional	e500 no-obj
-powerpc/booke/machdep.c		optional	e500
-powerpc/booke/mp_cpudep.c	optional	e500 smp
+powerpc/booke/clock.c		optional	booke
+powerpc/booke/copyinout.c	optional	booke
+powerpc/booke/interrupt.c	optional	booke
+powerpc/booke/locore.S		optional	booke no-obj
+powerpc/booke/machdep.c		optional	booke
+powerpc/booke/machdep_e500.c	optional	booke_e500
+powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	mpc85xx
-powerpc/booke/pmap.c		optional	e500
-powerpc/booke/swtch.S		optional	e500
-powerpc/booke/trap.c		optional	e500
-powerpc/booke/vm_machdep.c	optional	e500
+powerpc/booke/pmap.c		optional	booke
+powerpc/booke/swtch.S		optional	booke
+powerpc/booke/trap.c		optional	booke
+powerpc/booke/vm_machdep.c	optional	booke
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/fpu/fpu_add.c		optional	fpu_emu powerpc
@@ -132,7 +135,6 @@ powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/nexus.c		optional	mpc85xx
-powerpc/mpc85xx/openpic_fdt.c	optional	fdt
 powerpc/mpc85xx/pci_fdt.c	optional	pci mpc85xx
 powerpc/ofw/ofw_cpu.c		optional	aim
 powerpc/ofw/ofw_machdep.c	optional	aim
@@ -194,6 +196,7 @@ powerpc/powerpc/mem.c		optional	mem
 powerpc/powerpc/mmu_if.m	standard
 powerpc/powerpc/mp_machdep.c	optional	smp
 powerpc/powerpc/openpic.c	standard
+powerpc/powerpc/openpic_fdt.c	optional	fdt
 powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap_dispatch.c	standard
 powerpc/powerpc/platform.c	standard

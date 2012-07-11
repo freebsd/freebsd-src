@@ -457,8 +457,6 @@ utf8_to_ucs4(const char *src, size_t *utf8width, size_t srclen)
 		/* out of utf-16 range or having illegal bits */
 		return (0);
 	}
-	if (w == 0)
-		return (0);
 
 	if (srclen < w)
 		return (0);

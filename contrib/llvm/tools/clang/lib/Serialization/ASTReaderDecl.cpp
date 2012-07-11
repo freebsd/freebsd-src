@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ASTCommon.h"
+#include "ASTReaderInternals.h"
 #include "clang/Serialization/ASTReader.h"
 #include "clang/Sema/IdentifierResolver.h"
 #include "clang/Sema/Sema.h"
@@ -954,6 +955,10 @@ void ASTDeclReader::VisitBlockDecl(BlockDecl *BD) {
   for (unsigned I = 0; I != NumParams; ++I)
     Params.push_back(ReadDeclAs<ParmVarDecl>(Record, Idx));
   BD->setParams(Params);
+
+  BD->setIsVariadic(Record[Idx++]);
+  BD->setBlockMissingReturnType(Record[Idx++]);
+  BD->setIsConversionFromLambda(Record[Idx++]);
 
   bool capturesCXXThis = Record[Idx++];
   unsigned numCaptures = Record[Idx++];
@@ -2100,7 +2105,9 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
       DeclContextVisibleUpdates &U = I->second;
       for (DeclContextVisibleUpdates::iterator UI = U.begin(), UE = U.end();
            UI != UE; ++UI) {
-        UI->second->DeclContextInfos[DC].NameLookupTableData = UI->first;
+        DeclContextInfo &Info = UI->second->DeclContextInfos[DC];
+        delete Info.NameLookupTableData;
+        Info.NameLookupTableData = UI->first;
       }
       PendingVisibleUpdates.erase(I);
     }

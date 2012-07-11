@@ -73,7 +73,7 @@ struct agp_softc {
 	struct agp_memory_list	as_memory;	/* list of allocated memory */
 	int			as_nextid;	/* next memory block id */
 	int			as_isopen;	/* user device is open */
-	struct cdev *as_devnode;	/* from make_dev */
+	struct cdev		*as_devnode;	/* from make_dev */
 	struct mtx		as_lock;	/* lock for access to GATT */
 };
 

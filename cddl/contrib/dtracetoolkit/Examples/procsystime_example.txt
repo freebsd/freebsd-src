@@ -1,0 +1,149 @@
+This is a demonstration of the procsystime tool, which can give details
+on how processes make use of system calls.
+
+Here we run procsystime on processes which have the name "bash",
+
+   #  procsystime -n bash
+   Tracing... Hit Ctrl-C to end...
+   ^C
+   
+   Elapsed Times for process bash,
+   
+            SYSCALL          TIME (ns)
+            setpgrp              27768
+              gtime              28692
+        lwp_sigmask             148074
+              write             235814
+          sigaction             553556
+              ioctl             776691
+               read          857401243
+
+By default procsystime prints elapsed times, the time from when the syscall
+was issued to it's completion. In the above output, we can see the read()
+syscall took the most time for this process - 8.57 seconds for all the
+reads combined. This is because the read syscall is waiting for keystrokes.
+
+
+
+Here we try the "-o" option to print CPU overhead times on "bash",
+
+   # procsystime -o -n bash
+   Tracing... Hit Ctrl-C to end...
+   ^C
+   
+   CPU Times for process bash,
+   
+            SYSCALL          TIME (ns)
+            setpgrp               6994
+              gtime               8054
+        lwp_sigmask              33865
+               read             154895
+          sigaction             259899
+              write             343825
+              ioctl             932280
+
+This identifies which syscall type from bash is consuming the most CPU time.
+This is ioctl, at 932 microseconds. Compare this output to the default in
+the first example - both are useful for different reasons, this CPU overhead
+output helps us see why processes are consuming a lot of sys time.
+
+
+
+This demonstrates using the "-a" for all details, this time with "ssh",
+
+   # procsystime -a -n ssh
+   Tracing... Hit Ctrl-C to end...
+   ^C
+
+   Elapsed Times for processes ssh,
+   
+            SYSCALL          TIME (ns)
+               read             115833
+              write             302419
+            pollsys          114616076
+             TOTAL:          115034328
+   
+   CPU Times for processes ssh,
+   
+            SYSCALL          TIME (ns)
+               read              82381
+            pollsys             201818
+              write             280390
+             TOTAL:             564589
+   
+   Syscall Counts for processes ssh,
+   
+            SYSCALL              COUNT
+               read                  4
+              write                  4
+            pollsys                  8
+             TOTAL:                 16
+
+Now we can see elapsed times, overhead times, and syscall counts in one
+report. Very handy. We can also see totals printed as "TOTAL:".
+
+
+
+procsystime also lets us just examine one PID. For example,
+
+   # procsystime -p 1304
+   Tracing... Hit Ctrl-C to end...
+   ^C
+   
+   Elapsed Times for PID 1304,
+   
+            SYSCALL          TIME (ns)
+              fcntl               7323
+            fstat64              21349
+              ioctl             190683
+               read             238197
+              write            1276169
+            pollsys         1005360640
+
+
+
+Here is a longer example of running procsystime on mozilla,
+
+   # procsystime -a -n mozilla-bin
+   Tracing... Hit Ctrl-C to end...
+   ^C
+   
+   Elapsed Times for processes mozilla-bin,
+   
+            SYSCALL          TIME (ns)
+              readv             677958
+             writev            1159088
+              yield            1298742
+               read           18019194
+              write           35679619
+              ioctl          108845685
+           lwp_park        38090969432
+            pollsys        65955258781
+             TOTAL:       104211908499
+   
+   CPU Times for processes mozilla-bin,
+   
+            SYSCALL          TIME (ns)
+              yield             120345
+              readv             398046
+             writev            1117178
+           lwp_park            8591428
+               read            9752315
+              write           29043460
+              ioctl           37089349
+            pollsys          189933470
+             TOTAL:          276045591
+   
+   Syscall Counts for processes mozilla-bin,
+   
+            SYSCALL              COUNT
+             writev                  3
+              yield                  9
+              readv                 58
+           lwp_park                280
+              write               1317
+               read               1744
+            pollsys               8268
+              ioctl              16434
+             TOTAL:              28113
+

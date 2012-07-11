@@ -35,10 +35,6 @@
 
 #include "clang/Config/config.h" // for GCC_INSTALL_PREFIX
 
-#ifndef CLANG_PREFIX
-#define CLANG_PREFIX
-#endif
-
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
 using namespace clang;
@@ -584,7 +580,7 @@ void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
 
     // If no '-miphoneos-version-min' specified on the command line and
     // IPHONEOS_DEPLOYMENT_TARGET is not defined, see if we can set the default
-    // based on isysroot.
+    // based on -isysroot.
     if (iOSTarget.empty()) {
       if (const Arg *A = Args.getLastArg(options::OPT_isysroot)) {
         StringRef first, second;
@@ -1090,6 +1086,7 @@ bool Generic_GCC::GCCVersion::operator<(const GCCVersion &RHS) const {
   // a patch.
   if (RHS.Patch == -1) return true;   if (Patch == -1) return false;
   if (Patch < RHS.Patch) return true; if (Patch > RHS.Patch) return false;
+  if (PatchSuffix == RHS.PatchSuffix) return false;
 
   // Finally, between completely tied version numbers, the version with the
   // suffix loses as we prefer full releases.
@@ -1107,7 +1104,7 @@ static StringRef getGCCToolchainDir(const ArgList &Args) {
 /// \brief Construct a GCCInstallationDetector from the driver.
 ///
 /// This performs all of the autodetection and sets up the various paths.
-/// Once constructed, a GCCInstallation is esentially immutable.
+/// Once constructed, a GCCInstallationDetector is essentially immutable.
 ///
 /// FIXME: We shouldn't need an explicit TargetTriple parameter here, and
 /// should instead pull the target out of the driver. This is currently
@@ -1618,10 +1615,10 @@ FreeBSD::FreeBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Arg
   // back to '/usr/lib' if it doesn't exist.
   if ((Triple.getArch() == llvm::Triple::x86 ||
        Triple.getArch() == llvm::Triple::ppc) &&
-      llvm::sys::fs::exists(getDriver().SysRoot + CLANG_PREFIX "/usr/lib32/crt1.o"))
-    getFilePaths().push_back(getDriver().SysRoot + CLANG_PREFIX "/usr/lib32");
+      llvm::sys::fs::exists(getDriver().SysRoot + "/usr/lib32/crt1.o"))
+    getFilePaths().push_back(getDriver().SysRoot + "/usr/lib32");
   else
-    getFilePaths().push_back(getDriver().SysRoot + CLANG_PREFIX "/usr/lib");
+    getFilePaths().push_back(getDriver().SysRoot + "/usr/lib");
 }
 
 Tool &FreeBSD::SelectTool(const Compilation &C, const JobAction &JA,
@@ -1833,6 +1830,7 @@ enum LinuxDistro {
   OpenSuse11_3,
   OpenSuse11_4,
   OpenSuse12_1,
+  OpenSuse12_2,
   UbuntuHardy,
   UbuntuIntrepid,
   UbuntuJaunty,
@@ -1851,7 +1849,7 @@ static bool IsRedhat(enum LinuxDistro Distro) {
 }
 
 static bool IsOpenSuse(enum LinuxDistro Distro) {
-  return Distro >= OpenSuse11_3 && Distro <= OpenSuse12_1;
+  return Distro >= OpenSuse11_3 && Distro <= OpenSuse12_2;
 }
 
 static bool IsDebian(enum LinuxDistro Distro) {
@@ -1928,6 +1926,7 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
       .StartsWith("openSUSE 11.3", OpenSuse11_3)
       .StartsWith("openSUSE 11.4", OpenSuse11_4)
       .StartsWith("openSUSE 12.1", OpenSuse12_1)
+      .StartsWith("openSUSE 12.2", OpenSuse12_2)
       .Default(UnknownDistro);
 
   bool Exists;
@@ -2067,7 +2066,7 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
     // If the GCC installation we found is inside of the sysroot, we want to
     // prefer libraries installed in the parent prefix of the GCC installation.
     // It is important to *not* use these paths when the GCC installation is
-    // outside of the system root as that can pick up un-intented libraries.
+    // outside of the system root as that can pick up unintended libraries.
     // This usually happens when there is an external cross compiler on the
     // host system, and a more minimal sysroot available that is the target of
     // the cross.

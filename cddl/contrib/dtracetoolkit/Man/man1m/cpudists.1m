@@ -1,0 +1,86 @@
+.TH cpudists 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+cpudists \- CPU distrib. by Kernel/Idle/Process. Uses DTrace.
+.SH SYNOPSIS
+.B cpudists
+[\-ahV] [\-t top] [interval [count]]
+.SH DESCRIPTION
+cpudists prints the CPU time distributions consumed by the Kernel, 
+Idle threads and by Processes. 
+
+This program is a variant on cputimes, and creates extra kernel load as
+described in cputimes(1M). cpudists prints out a distribution report
+(a quantize aggregation), such that the number of occurrences and 
+duration of each thread using the CPUs can be identified. 
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the sysinfo and sched providers.
+.SH OPTIONS
+.TP
+\-a
+print all processes
+.TP
+\-T
+print totals
+.TP
+\-V
+don't print timestamps
+.TP
+\-t num
+print top num lines only
+.SH EXAMPLES
+.TP
+Default, print Kernel/Idle/Process time, 1 x 1 second sample,
+# 
+.B cpudists
+.PP
+.TP
+Print every 1 second,
+# 
+.B cpudists
+1
+.PP
+.TP
+Print all processes every 10 seconds,
+#
+.B cpudists
+\-a 10
+.PP
+.TP
+Print top 8 lines every 5 seconds,
+#
+.B cpudists
+\-at 8 5
+.PP
+.SH FIELDS
+.TP
+IDLE
+Idle time - CPU running idle thread
+.TP
+KERNEL
+Kernel time - Kernel servicing interrupts, ...
+.TP
+PROCESS
+Process time - PIDs running on the system
+.TP
+value
+Time in nanoseconds
+.TP
+count
+Number of occurrences that were at least this duration (ns)
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+cpudists will run once, unless a count is specified.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), vmstat(1M)
+

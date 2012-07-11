@@ -5,7 +5,8 @@
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
-SUBDIR=	${_3dfx} \
+SUBDIR=	\
+	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
 	accf_data \
@@ -88,6 +89,7 @@ SUBDIR=	${_3dfx} \
 	${_dpms} \
 	${_dpt} \
 	${_drm} \
+	${_drm2} \
 	${_dtrace} \
 	dummynet \
 	${_ed} \
@@ -105,6 +107,7 @@ SUBDIR=	${_3dfx} \
 	fdc \
 	fdescfs \
 	${_fe} \
+	filemon \
 	firewire \
 	firmware \
 	${_fxp} \
@@ -218,6 +221,8 @@ SUBDIR=	${_3dfx} \
 	${_mwlfw} \
 	mxge \
 	my \
+	${_nandfs} \
+	${_nandsim} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
@@ -310,6 +315,7 @@ SUBDIR=	${_3dfx} \
 	${_ti} \
 	tl \
 	tmpfs \
+	${_toecore} \
 	${_tpm} \
 	trm \
 	${_twa} \
@@ -385,6 +391,7 @@ _random=	random
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=	carp
+_toecore=	toecore
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
@@ -398,6 +405,11 @@ _ipfilter=	ipfilter
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
 _ipdivert=	ipdivert
 _ipfw=		ipfw
+.endif
+
+.if ${MK_NAND} != "no" || defined(ALL_MODULES)
+_nandfs=	nandfs
+_nandsim=	nandsim
 .endif
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
@@ -457,6 +469,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
@@ -628,6 +641,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
