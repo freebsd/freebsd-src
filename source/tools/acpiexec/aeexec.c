@@ -90,7 +90,9 @@ AfInstallGpeBlock (
     void);
 #endif /* !ACPI_REDUCED_HARDWARE */
 
+extern unsigned char Ssdt2Code[];
 extern unsigned char Ssdt3Code[];
+extern unsigned char Ssdt4Code[];
 
 
 /******************************************************************************
@@ -527,13 +529,61 @@ AeMiscellaneousTests (
     char                    Buffer[32];
     ACPI_STATUS             Status;
     ACPI_STATISTICS         Stats;
+    ACPI_HANDLE             Handle;
 
 #if (!ACPI_REDUCED_HARDWARE)
-    ACPI_HANDLE             Handle;
     ACPI_VENDOR_UUID        Uuid = {0, {ACPI_INIT_UUID (0,0,0,0,0,0,0,0,0,0,0)}};
     UINT32                  LockHandle1;
     UINT32                  LockHandle2;
 #endif /* !ACPI_REDUCED_HARDWARE */
+
+
+    if (AcpiGbl_DoInterfaceTests)
+    {
+        /*
+         * Tests for AcpiLoadTable and AcpiUnloadParentTable
+         */
+
+        /* Attempt unload of DSDT, should fail */
+
+        Status = AcpiGetHandle (NULL, "\\_SB_", &Handle);
+        AE_CHECK_OK (AcpiGetHandle, Status);
+
+        Status = AcpiUnloadParentTable (Handle);
+        AE_CHECK_STATUS (AcpiUnloadParentTable, Status, AE_TYPE);
+
+        /* Load and unload SSDT4 */
+
+        Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt4Code);
+        AE_CHECK_OK (AcpiLoadTable, Status);
+
+        Status = AcpiGetHandle (NULL, "\\_T96", &Handle);
+        AE_CHECK_OK (AcpiGetHandle, Status);
+
+        Status = AcpiUnloadParentTable (Handle);
+        AE_CHECK_OK (AcpiUnloadParentTable, Status);
+
+        /* Re-load SSDT4 */
+
+        Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt4Code);
+        AE_CHECK_OK (AcpiLoadTable, Status);
+
+        /* Unload and re-load SSDT2 (SSDT2 is in the XSDT) */
+
+        Status = AcpiGetHandle (NULL, "\\_T99", &Handle);
+        AE_CHECK_OK (AcpiGetHandle, Status);
+
+        Status = AcpiUnloadParentTable (Handle);
+        AE_CHECK_OK (AcpiUnloadParentTable, Status);
+
+        Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt2Code);
+        AE_CHECK_OK (AcpiLoadTable, Status);
+
+        /* Load OEM9 table (causes table override) */
+
+        Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt3Code);
+        AE_CHECK_OK (AcpiLoadTable, Status);
+    }
 
 
     AeHardwareInterfaces ();

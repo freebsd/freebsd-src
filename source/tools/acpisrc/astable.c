@@ -178,6 +178,7 @@ ACPI_STRING_TABLE           LinuxDataTypes[] = {
 
 ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
 
+    {"ACPI_ADDRESS_RANGE",                  SRC_TYPE_STRUCT},
     {"ACPI_ADR_SPACE_HANDLER",              SRC_TYPE_SIMPLE},
     {"ACPI_ADR_SPACE_SETUP",                SRC_TYPE_SIMPLE},
     {"ACPI_ADR_SPACE_TYPE",                 SRC_TYPE_SIMPLE},

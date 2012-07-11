@@ -56,6 +56,7 @@ BOOLEAN                 AcpiGbl_IgnoreErrors = FALSE;
 BOOLEAN                 AcpiGbl_DbOpt_NoRegionSupport = FALSE;
 BOOLEAN                 AcpiGbl_DebugTimeout = FALSE;
 UINT8                   AcpiGbl_UseHwReducedFadt = FALSE;
+BOOLEAN                 AcpiGbl_DoInterfaceTests = FALSE;
 
 static UINT8            AcpiGbl_BatchMode = 0;
 static char             BatchBuffer[128];
@@ -99,6 +100,7 @@ usage (void)
     printf ("\n");
 
     ACPI_OPTION ("-ef",                 "Enable display of final memory statistics");
+    ACPI_OPTION ("-ei",                 "Enable additional tests for ACPICA interfaces");
     ACPI_OPTION ("-em",                 "Enable Interpreter Serialized Mode");
     ACPI_OPTION ("-es",                 "Enable Interpreter Slack Mode");
     ACPI_OPTION ("-et",                 "Enable debug semaphore timeout");
@@ -463,6 +465,10 @@ main (
             #ifdef ACPI_DBG_TRACK_ALLOCATIONS
                 AcpiGbl_DisplayFinalMemStats = TRUE;
             #endif
+            break;
+
+        case 'i':
+            AcpiGbl_DoInterfaceTests = TRUE;
             break;
 
         case 'm':

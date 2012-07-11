@@ -64,6 +64,7 @@ OBJECTS = \
 	utcache.o \
 	utdebug.o \
 	utdecode.o \
+	utexcep.o \
 	utglobal.o \
 	utlock.o \
 	utmath.o \

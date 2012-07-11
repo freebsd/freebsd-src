@@ -69,6 +69,7 @@
 #define     AH_DECODE_AML               4
 #define     AH_DECODE_AML_OPCODE        5
 #define     AH_DISPLAY_DEVICE_IDS       6
+#define     AH_DECODE_EXCEPTION         7
 
 #define     AH_MAX_ASL_LINE_LENGTH      70
 #define     AH_MAX_AML_LINE_LENGTH      100
@@ -126,6 +127,10 @@ AhFindAmlOpcode (
 
 void
 AhDecodeAmlOpcode (
+    char                    *Name);
+
+void
+AhDecodeException (
     char                    *Name);
 
 void

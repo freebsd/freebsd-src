@@ -112,8 +112,7 @@ AcpiDbDisplayTemplate (
 
 void
 AcpiDbUnloadAcpiTable (
-    char                    *TableArg,
-    char                    *InstanceArg);
+    char                    *Name);
 
 void
 AcpiDbSendNotify (

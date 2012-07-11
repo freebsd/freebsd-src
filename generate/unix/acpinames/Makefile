@@ -81,6 +81,7 @@ OBJECTS = \
 	$(OBJDIR)/tbinstal.o \
 	$(OBJDIR)/tbutils.o \
 	$(OBJDIR)/tbxface.o \
+	$(OBJDIR)/tbxfload.o \
 	$(OBJDIR)/tbxfroot.o \
 	$(OBJDIR)/utaddress.o \
 	$(OBJDIR)/utalloc.o \
@@ -88,6 +89,7 @@ OBJECTS = \
 	$(OBJDIR)/utdebug.o \
 	$(OBJDIR)/utdecode.o \
 	$(OBJDIR)/utdelete.o \
+	$(OBJDIR)/utexcep.o \
 	$(OBJDIR)/utglobal.o \
 	$(OBJDIR)/utlock.o \
 	$(OBJDIR)/utmath.o \

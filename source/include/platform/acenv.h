@@ -108,9 +108,9 @@
 #endif
 
 #ifdef ACPI_HELP_APP
-#define ACPI_DEBUG_OUTPUT
 #define ACPI_APPLICATION
 #define ACPI_SINGLE_THREADED
+#define ACPI_NO_ERROR_MESSAGES
 #endif
 
 /* Linkable ACPICA library */

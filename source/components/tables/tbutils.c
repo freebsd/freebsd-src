@@ -287,8 +287,9 @@ AcpiTbVerifyChecksum (
 
     if (Checksum)
     {
-        ACPI_WARNING ((AE_INFO,
-            "Incorrect checksum in table [%4.4s] - 0x%2.2X, should be 0x%2.2X",
+        ACPI_BIOS_WARNING ((AE_INFO,
+            "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+            "should be 0x%2.2X",
             Table->Signature, Table->Checksum,
             (UINT8) (Table->Checksum - Checksum)));
 
@@ -356,8 +357,9 @@ AcpiTbCheckDsdtHeader (
     if (AcpiGbl_OriginalDsdtHeader.Length != AcpiGbl_DSDT->Length ||
         AcpiGbl_OriginalDsdtHeader.Checksum != AcpiGbl_DSDT->Checksum)
     {
-        ACPI_ERROR ((AE_INFO,
-            "The DSDT has been corrupted or replaced - old, new headers below"));
+        ACPI_BIOS_ERROR ((AE_INFO,
+            "The DSDT has been corrupted or replaced - "
+            "old, new headers below"));
         AcpiTbPrintTableHeader (0, &AcpiGbl_OriginalDsdtHeader);
         AcpiTbPrintTableHeader (0, AcpiGbl_DSDT);
 
@@ -465,7 +467,7 @@ AcpiTbInstallTable (
     if (Signature &&
         !ACPI_COMPARE_NAME (Table->Signature, Signature))
     {
-        ACPI_ERROR ((AE_INFO,
+        ACPI_BIOS_ERROR ((AE_INFO,
             "Invalid signature 0x%X for ACPI table, expected [%s]",
             *ACPI_CAST_PTR (UINT32, Table->Signature), Signature));
         goto UnmapAndExit;
@@ -584,7 +586,7 @@ AcpiTbGetRootTableEntry (
         {
             /* Will truncate 64-bit address to 32 bits, issue warning */
 
-            ACPI_WARNING ((AE_INFO,
+            ACPI_BIOS_WARNING ((AE_INFO,
                 "64-bit Physical Address in XSDT is too large (0x%8.8X%8.8X),"
                 " truncating",
                 ACPI_FORMAT_UINT64 (Address64)));
@@ -686,7 +688,8 @@ AcpiTbParseRootTable (
 
     if (Length < sizeof (ACPI_TABLE_HEADER))
     {
-        ACPI_ERROR ((AE_INFO, "Invalid length 0x%X in RSDT/XSDT", Length));
+        ACPI_BIOS_ERROR ((AE_INFO,
+            "Invalid table length 0x%X in RSDT/XSDT", Length));
         return_ACPI_STATUS (AE_INVALID_TABLE_LENGTH);
     }
 
