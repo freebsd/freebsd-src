@@ -22,7 +22,7 @@ arm/at91/at91_wdt.c		optional	at91_wdt
 arm/at91/if_ate.c		optional	ate
 arm/at91/if_macb.c		optional	macb
 arm/at91/uart_bus_at91usart.c	optional	uart
-arm/at91/uart_cpu_at91rm9200usart.c	optional	uart
+arm/at91/uart_cpu_at91usart.c	optional	uart
 arm/at91/uart_dev_at91usart.c	optional	uart
 #
 # All the "systems on a chip" we support
