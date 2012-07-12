@@ -3583,6 +3583,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 		    "seq_st=%d\n",
 		    __func__, hasba, tx_ok, isaggr, seq_st);
 		/* XXX TODO: schedule an interface reset */
+#ifdef ATH_DEBUG
+		ath_printtxbuf(sc, bf_first,
+		    sc->sc_ac2q[atid->ac]->axq_qnum, 0, 0);
+#endif
 	}
 
 	/*

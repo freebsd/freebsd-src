@@ -59,7 +59,7 @@ static struct pit_softc {
 } *sc;
 
 static uint32_t timecount = 0;
-static unsigned at91pit_get_timecount(struct timecounter *tc);
+static unsigned at91_pit_get_timecount(struct timecounter *tc);
 static int pit_intr(void *arg);
 
 static inline uint32_t
@@ -76,8 +76,8 @@ WR4(struct pit_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
-static void
-at91pit_delay(int us)
+void
+at91_pit_delay(int us)
 {
 	int32_t cnt, last, piv;
 	uint64_t pit_freq;
@@ -99,8 +99,8 @@ at91pit_delay(int us)
 	}
 }
 
-static struct timecounter at91pit_timecounter = {
-	at91pit_get_timecount, /* get_timecount */
+static struct timecounter at91_pit_timecounter = {
+	at91_pit_get_timecount, /* get_timecount */
 	NULL, /* no poll_pps */
 	0xffffffff, /* counter mask */
 	0 / PIT_PRESCALE, /* frequency */
@@ -109,7 +109,7 @@ static struct timecounter at91pit_timecounter = {
 };
 
 static int
-at91pit_probe(device_t dev)
+at91_pit_probe(device_t dev)
 {
 
 	device_set_desc(dev, "AT91SAM9 PIT");
@@ -117,7 +117,7 @@ at91pit_probe(device_t dev)
 }
 
 static int
-at91pit_attach(device_t dev)
+at91_pit_attach(device_t dev)
 {
 	void *ih;
 	int rid, err = 0;
@@ -148,32 +148,31 @@ at91pit_attach(device_t dev)
 	err = bus_setup_intr(dev, irq, INTR_TYPE_CLK, pit_intr, NULL, NULL,
 	    &ih);
 
-	at91pit_timecounter.tc_frequency =  at91_master_clock / PIT_PRESCALE;
-	tc_init(&at91pit_timecounter);
+	at91_pit_timecounter.tc_frequency =  at91_master_clock / PIT_PRESCALE;
+	tc_init(&at91_pit_timecounter);
 
 	/* Enable the PIT here. */
 	WR4(sc, PIT_MR, PIT_PIV(at91_master_clock / PIT_PRESCALE / hz) |
 	    PIT_EN | PIT_IEN);
-        soc_data.delay = at91pit_delay;
 out:
 	return (err);
 }
 
-static device_method_t at91pit_methods[] = {
-	DEVMETHOD(device_probe, at91pit_probe),
-	DEVMETHOD(device_attach, at91pit_attach),
+static device_method_t at91_pit_methods[] = {
+	DEVMETHOD(device_probe, at91_pit_probe),
+	DEVMETHOD(device_attach, at91_pit_attach),
 	DEVMETHOD_END
 };
 
-static driver_t at91pit_driver = {
+static driver_t at91_pit_driver = {
 	"at91_pit",
-	at91pit_methods,
+	at91_pit_methods,
 	sizeof(struct pit_softc),
 };
 
-static devclass_t at91pit_devclass;
+static devclass_t at91_pit_devclass;
 
-DRIVER_MODULE(at91_pit, atmelarm, at91pit_driver, at91pit_devclass, NULL,
+DRIVER_MODULE(at91_pit, atmelarm, at91_pit_driver, at91_pit_devclass, NULL,
     NULL);
 
 static int
@@ -195,7 +194,7 @@ pit_intr(void *arg)
 }
 
 static unsigned
-at91pit_get_timecount(struct timecounter *tc)
+at91_pit_get_timecount(struct timecounter *tc)
 {
 	uint32_t piir, icnt;
 

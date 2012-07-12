@@ -118,6 +118,16 @@ ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
 			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
 			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
 			    ds->ds_hw[8]);
+		} else if (ah->ah_magic == 0x19741014) {
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
+			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
+			    ds->ds_hw[8]);
+
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[9], ds->ds_hw[10], ds->ds_hw[11],
+			    ds->ds_hw[12], ds->ds_hw[13], ds->ds_hw[14],
+			    ds->ds_hw[15]);
 		}
 	}
 }

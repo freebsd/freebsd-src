@@ -1789,6 +1789,9 @@ vm_object_collapse(vm_object_t object)
 				 * swap_pager_copy() can sleep, in which case
 				 * the backing_object's and object's locks are
 				 * released and reacquired.
+				 * Since swap_pager_copy() is being asked to
+				 * destroy the source, it will change the
+				 * backing_object's type to OBJT_DEFAULT.
 				 */
 				swap_pager_copy(
 				    backing_object,

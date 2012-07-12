@@ -519,8 +519,8 @@ extern	HAL_BOOL ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 extern	HAL_POWER_MODE ar5212GetPowerMode(struct ath_hal *ah);
 extern	HAL_BOOL ar5212GetPowerStatus(struct ath_hal *ah);
 
-extern	uint32_t ar5212GetRxDP(struct ath_hal *ath);
-extern	void ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp);
+extern	uint32_t ar5212GetRxDP(struct ath_hal *ath, HAL_RX_QUEUE);
+extern	void ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5212EnableReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5212StopDmaReceive(struct ath_hal *ah);
 extern	void ar5212StartPcuReceive(struct ath_hal *ah);

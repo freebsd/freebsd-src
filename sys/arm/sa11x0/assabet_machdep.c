@@ -119,13 +119,9 @@ extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-extern void *_end;
-
 extern vm_offset_t sa1110_uart_vaddr;
 
 extern vm_offset_t sa1_cache_clean_addr;
-
-extern int *end;
 
 struct pcpu __pcpu;
 struct pcpu *pcpup = &__pcpu;
@@ -140,7 +136,6 @@ vm_paddr_t dump_avail[4];
 vm_paddr_t physical_start;
 vm_paddr_t physical_end;
 vm_paddr_t physical_freestart;
-vm_offset_t physical_pages;
 
 struct pv_addr systempage;
 struct pv_addr irqstack;
