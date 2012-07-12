@@ -109,6 +109,7 @@ struct at91_soc_data {
 	DELAY_t		soc_delay;
 	cpu_reset_t	soc_reset;
 	const int	*soc_irq_prio;
+	const struct cpu_devs *soc_children;
 };
 
 struct at91_soc_info {
