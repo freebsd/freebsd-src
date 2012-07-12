@@ -242,6 +242,18 @@ at91_identify(driver_t *drv, device_t parent)
 	BUS_ADD_CHILD(parent, 0, "atmelarm", 0);
 }
 
+static void
+at91_cpu_add_builtin_children(device_t dev, const struct cpu_devs *walker)
+{
+	int i;
+
+	for (i = 1; walker->name; i++, walker++) {
+		at91_add_child(dev, i, walker->name, walker->unit,
+		    walker->mem_base, walker->mem_len, walker->irq0,
+		    walker->irq1, walker->irq2);
+	}
+}
+
 static int
 at91_attach(device_t dev)
 {
@@ -294,12 +306,10 @@ at91_attach(device_t dev)
 	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
 	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
 
-	/*
-	 * Our device list will be added automatically by the cpu device
-	 * e.g. at91rm9200.c when it is identified. To ensure that the
-	 * CPU and PMC are attached first any other "identified" devices
-	 * call BUS_ADD_CHILD(9) with an "order" of at least 2.
-	 */
+        /*
+         * Add this device's children...
+         */
+	at91_cpu_add_builtin_children(dev, soc_info.soc_data->soc_children);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);

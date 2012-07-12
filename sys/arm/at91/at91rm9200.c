@@ -137,19 +137,6 @@ static const struct cpu_devs at91_devs[] =
 	{	0, 0, 0, 0, 0 }
 };
 
-static void
-at91_cpu_add_builtin_children(device_t dev)
-{
-	int i;
-	const struct cpu_devs *walker;
-	
-	for (i = 1, walker = at91_devs; walker->name; i++, walker++) {
-		at91_add_child(dev, i, walker->name, walker->unit,
-		    walker->mem_base, walker->mem_len, walker->irq0,
-		    walker->irq1, walker->irq2);
-	}
-}
-
 static uint32_t
 at91_pll_outb(int freq)
 {
@@ -164,10 +151,8 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (at91_cpu_is(AT91_T_RM9200)) {
+	if (at91_cpu_is(AT91_T_RM9200))
 		at91_add_child(parent, 0, "at91rm920", 0, 0, 0, -1, 0, 0);
-		at91_cpu_add_builtin_children(parent);
-	}
 }
 
 static int
@@ -258,6 +243,7 @@ static struct at91_soc_data soc_data = {
 	.soc_delay = at91_st_delay,
 	.soc_reset = at91_st_cpu_reset,
 	.soc_irq_prio = at91_irq_prio,
+	.soc_children = at91_devs,
 };
 
 AT91_SOC(AT91_T_RM9200, &soc_data);
