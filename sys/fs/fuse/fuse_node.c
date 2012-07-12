@@ -204,6 +204,7 @@ fuse_vnode_alloc(struct mount *mp,
 		return (err);
 	}
 	vn_lock(*vpp, lkflags);
+	fuse_vnode_init(*vpp, fvdat, nodeid, vtyp);
 	err = insmntque(*vpp, mp);
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnode_alloc");
 	if (err) {
@@ -212,7 +213,6 @@ fuse_vnode_alloc(struct mount *mp,
 		*vpp = NULL;
 		return (err);
 	}
-	fuse_vnode_init(*vpp, fvdat, nodeid, vtyp);
 	err = vfs_hash_insert(*vpp, fuse_vnode_hash(nodeid), lkflags,
 	    td, &vp2, fuse_vnode_cmp, &nodeid);
 
