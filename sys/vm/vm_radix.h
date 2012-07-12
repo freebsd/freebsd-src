@@ -62,37 +62,5 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
         return (NULL);
 }
 
-static inline void *
-vm_radix_last(struct vm_radix *rtree)
-{
-
-	return vm_radix_lookup_le(rtree, 0);
-}
-
-static inline void *
-vm_radix_first(struct vm_radix *rtree)
-{
-
-	return vm_radix_lookup_ge(rtree, 0);
-}
-
-static inline void *
-vm_radix_next(struct vm_radix *rtree, vm_pindex_t index)
-{
-
-	if (index == -1)
-		return (NULL);
-	return vm_radix_lookup_ge(rtree, index + 1);
-}
-
-static inline void *
-vm_radix_prev(struct vm_radix *rtree, vm_pindex_t index)
-{
-
-	if (index == 0)
-		return (NULL);
-	return vm_radix_lookup_le(rtree, index - 1);
-}
-
 #endif /* _KERNEL */
 #endif /* !_VM_RADIX_H_ */
