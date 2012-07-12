@@ -104,10 +104,12 @@ enum at91_soc_family {
 
 typedef void (*DELAY_t)(int);
 typedef void (*cpu_reset_t)(void);
+typedef void (*clk_init_t)(void);
 
 struct at91_soc_data {
 	DELAY_t		soc_delay;
 	cpu_reset_t	soc_reset;
+	clk_init_t      soc_clock_init;
 	const int	*soc_irq_prio;
 	const struct cpu_devs *soc_children;
 };
