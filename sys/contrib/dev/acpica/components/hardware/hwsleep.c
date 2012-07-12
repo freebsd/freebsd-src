@@ -100,20 +100,6 @@ AcpiHwLegacySleep (
         return_ACPI_STATUS (Status);
     }
 
-    if (SleepState != ACPI_STATE_S5)
-    {
-        /*
-         * Disable BM arbitration. This feature is contained within an
-         * optional register (PM2 Control), so ignore a BAD_ADDRESS
-         * exception.
-         */
-        Status = AcpiWriteBitRegister (ACPI_BITREG_ARB_DISABLE, 1);
-        if (ACPI_FAILURE (Status) && (Status != AE_BAD_ADDRESS))
-        {
-            return_ACPI_STATUS (Status);
-        }
-    }
-
     /*
      * 1) Disable/Clear all GPEs
      * 2) Enable all wakeup GPEs
@@ -393,17 +379,6 @@ AcpiHwLegacyWake (
     (void) AcpiWriteBitRegister(
             AcpiGbl_FixedEventInfo[ACPI_EVENT_POWER_BUTTON].StatusRegisterId,
             ACPI_CLEAR_STATUS);
-
-    /*
-     * Enable BM arbitration. This feature is contained within an
-     * optional register (PM2 Control), so ignore a BAD_ADDRESS
-     * exception.
-     */
-    Status = AcpiWriteBitRegister (ACPI_BITREG_ARB_DISABLE, 0);
-    if (ACPI_FAILURE (Status) && (Status != AE_BAD_ADDRESS))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     AcpiHwExecuteSleepMethod (METHOD_PATHNAME__SST, ACPI_SST_WORKING);
     return_ACPI_STATUS (Status);

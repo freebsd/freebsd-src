@@ -54,9 +54,9 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 
 # components/utilities
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
-	utdecode.c utdelete.c utglobal.c utinit.c utlock.c	\
-	utmath.c utmisc.c utmutex.c utobject.c utresrc.c	\
-	utstate.c utxface.c utxferror.c
+	utdecode.c utdelete.c utexcep.c utglobal.c utinit.c	\
+	utlock.c utmath.c utmisc.c utmutex.c utobject.c		\
+	utresrc.c utstate.c utxface.c utxferror.c
 
 # os_specific/service_layers
 SRCS+=	osunixxf.c
