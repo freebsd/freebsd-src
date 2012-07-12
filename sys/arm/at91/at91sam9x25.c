@@ -47,10 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pmcvar.h>
 #include <arm/at91/at91_rstreg.h>
 
-struct at91sam9x25_softc {
-	int filler;
-};
-
 /*
  * Standard priority levels for the system.  0 is lowest and 7 is highest.
  * These values are the ones Atmel uses for its Linux port
@@ -154,23 +150,7 @@ at91_pll_outb(int freq)
 }
 
 static void
-at91_identify(driver_t *drv, device_t parent)
-{
-
-	if (soc_info.type == AT91_T_SAM9X5 && soc_info.subtype == AT91_ST_SAM9X25)
-		at91_add_child(parent, 0, "at91sam9x25", 0, 0, 0, -1, 0, 0);
-}
-
-static int
-at91_probe(device_t dev)
-{
-
-	device_set_desc(dev, "AT91SAM9X25");
-	return (0);
-}
-
-static int
-at91_attach(device_t dev)
+at91_clock_init(void)
 {
 	struct at91_pmc_clock *clk;
 
@@ -208,31 +188,14 @@ at91_attach(device_t dev)
 	clk->pll_div_mask  = SAM9X25_PLL_B_DIV_MASK;
 	clk->set_outb      = at91_pll_outb;
 	at91_pmc_clock_deref(clk);
-	return (0);
 }
-
-static device_method_t at91sam9x25_methods[] = {
-	DEVMETHOD(device_probe, at91_probe),
-	DEVMETHOD(device_attach, at91_attach),
-	DEVMETHOD(device_identify, at91_identify),
-	{0, 0},
-};
-
-static driver_t at91sam9x25_driver = {
-	"at91sam9x25",
-	at91sam9x25_methods,
-	sizeof(struct at91sam9x25_softc),
-};
-
-static devclass_t at91sam9x25_devclass;
-
-DRIVER_MODULE(at91sam9x25, atmelarm, at91sam9x25_driver, at91sam9x25_devclass, 0, 0);
 
 static struct at91_soc_data soc_data = {
 	.soc_delay = at91_pit_delay,
 	.soc_reset = at91_rst_cpu_reset,
+	.soc_clock_init = at91_clock_init,
 	.soc_irq_prio = at91_irq_prio,
-	.soc_childpren = at91_devs,
+	.soc_children = at91_devs,
 };
 
 AT91_SOC_SUB(AT91_T_SAM9X5, AT91_ST_SAM9X25, &soc_data);

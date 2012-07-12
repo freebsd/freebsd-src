@@ -47,12 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pmcvar.h>
 #include <arm/at91/at91_rstreg.h>
 
-struct at91sam9_softc {
-	bus_space_tag_t sc_st;
-	bus_space_handle_t sc_sh;
-	bus_space_handle_t sc_matrix_sh;
-};
-
 /*
  * Standard priority levels for the system.  0 is lowest and 7 is highest.
  * These values are the ones Atmel uses for its Linux port
@@ -146,43 +140,9 @@ at91_pll_outb(int freq)
 }
 
 static void
-at91_identify(driver_t *drv, device_t parent)
-{
-
-	if (soc_info.type == AT91_T_SAM9260)
-		at91_add_child(parent, 0, "at91sam9260", 0, 0, 0, -1, 0, 0);
-}
-
-static int
-at91_probe(device_t dev)
-{
-
-	device_set_desc(dev, soc_info.name);
-	return (0);
-}
-
-static int
-at91_attach(device_t dev)
+at91_clock_init(void)
 {
 	struct at91_pmc_clock *clk;
-	struct at91sam9_softc *sc = device_get_softc(dev);
-	struct at91_softc *at91sc = device_get_softc(device_get_parent(dev));
-	uint32_t i;
-
-	sc->sc_st = at91sc->sc_st;
-	sc->sc_sh = at91sc->sc_sh;
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh,
-	    AT91SAM9260_MATRIX_BASE, AT91SAM9260_MATRIX_SIZE,
-	    &sc->sc_matrix_sh) != 0)
-		panic("Enable to map matrix registers");
-
-	/* activate NAND */
-	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9260_EBICSA);
-	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9260_EBICSA,
-	    i | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");
@@ -227,30 +187,12 @@ at91_attach(device_t dev)
 	clk->pll_div_mask  = SAM9260_PLL_B_DIV_MASK;
 	clk->set_outb      = at91_pll_outb;
 	at91_pmc_clock_deref(clk);
-	return (0);
 }
-
-static device_method_t at91sam9260_methods[] = {
-	DEVMETHOD(device_probe, at91_probe),
-	DEVMETHOD(device_attach, at91_attach),
-	DEVMETHOD(device_identify, at91_identify),
-	DEVMETHOD_END
-};
-
-static driver_t at91sam9260_driver = {
-	"at91sam9260",
-	at91sam9260_methods,
-	sizeof(struct at91sam9_softc),
-};
-
-static devclass_t at91sam9260_devclass;
-
-DRIVER_MODULE(at91sam9260, atmelarm, at91sam9260_driver, at91sam9260_devclass,
-    NULL, NULL);
 
 static struct at91_soc_data soc_data = {
 	.soc_delay = at91_pit_delay,
 	.soc_reset = at91_rst_cpu_reset,
+	.soc_clock_init = at91_clock_init,
 	.soc_irq_prio = at91_irq_prio,
 	.soc_children = at91_devs,
 };
