@@ -54,12 +54,12 @@ void	vm_radix_remove(struct vm_radix *, vm_pindex_t);
 static inline void *
 vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 {
-        void *val;
+	void *val;
 	u_int dummy;
 
-        if (vm_radix_lookupn(rtree, index, 0, &val, 1, &index, &dummy))
-                return (val);
-        return (NULL);
+	if (vm_radix_lookupn(rtree, index, 0, &val, 1, &index, &dummy))
+		return (val);
+	return (NULL);
 }
 
 #endif /* _KERNEL */
