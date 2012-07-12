@@ -109,6 +109,7 @@ SUBDIR=	\
 	filemon \
 	firewire \
 	firmware \
+	fuse \
 	${_fxp} \
 	gem \
 	geom \
