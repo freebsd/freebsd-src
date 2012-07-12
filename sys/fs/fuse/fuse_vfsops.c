@@ -444,7 +444,7 @@ fuse_vfsop_root(struct mount *mp, int lkflags, struct vnode **vpp)
 				FUSE_UNLOCK();
 				VOP_UNLOCK(*vpp, 0);
 				vrele(*vpp);
-				vrecycle(*vpp, curthread);
+				vrecycle(*vpp);
 				*vpp = data->vroot;
 			} else
 				FUSE_UNLOCK();

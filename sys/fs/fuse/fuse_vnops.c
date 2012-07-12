@@ -612,7 +612,7 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 	}
 
 	if ((fvdat->flag & FN_REVOKED) != 0 && fuse_reclaim_revoked) {
-		vrecycle(vp, td);
+		vrecycle(vp);
 	}
 	return 0;
 }
