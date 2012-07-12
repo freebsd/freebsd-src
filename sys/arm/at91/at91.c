@@ -310,7 +310,7 @@ at91_attach(device_t dev)
          * Add this device's children...
          */
 	at91_cpu_add_builtin_children(dev, soc_info.soc_data->soc_children);
-        soc_info.soc_data->soc_clock_init();
+	soc_info.soc_data->soc_clock_init();
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
