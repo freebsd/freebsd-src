@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_rstreg.h>
 
 struct at91sam9x25_softc {
-	device_t dev;
-	bus_space_tag_t sc_st;
-	bus_space_handle_t sc_sh;
+	int filler;
 };
 
 /*
@@ -131,19 +129,6 @@ static const struct cpu_devs at91_devs[] =
 	{ 0, 0, 0, 0, 0 }
 };
 
-static void
-at91_cpu_add_builtin_children(device_t dev)
-{
-	int i;
-	const struct cpu_devs *walker;
-
-	for (i = 1, walker = at91_devs; walker->name; i++, walker++) {
-		at91_add_child(dev, i, walker->name, walker->unit,
-		    walker->mem_base, walker->mem_len, walker->irq0,
-		    walker->irq1, walker->irq2);
-	}
-}
-
 static uint32_t
 at91_pll_outa(int freq)
 {
@@ -172,10 +157,8 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (soc_info.type == AT91_T_SAM9X5 && soc_info.subtype == AT91_ST_SAM9X25) {
+	if (soc_info.type == AT91_T_SAM9X5 && soc_info.subtype == AT91_ST_SAM9X25)
 		at91_add_child(parent, 0, "at91sam9x25", 0, 0, 0, -1, 0, 0);
-		at91_cpu_add_builtin_children(parent);
-	}
 }
 
 static int
@@ -190,12 +173,6 @@ static int
 at91_attach(device_t dev)
 {
 	struct at91_pmc_clock *clk;
-	struct at91sam9x25_softc *sc = device_get_softc(dev);
-	struct at91_softc *at91sc = device_get_softc(device_get_parent(dev));
-
-	sc->sc_st = at91sc->sc_st;
-	sc->sc_sh = at91sc->sc_sh;
-	sc->dev = dev;
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");
@@ -255,6 +232,7 @@ static struct at91_soc_data soc_data = {
 	.soc_delay = at91_pit_delay,
 	.soc_reset = at91_rst_cpu_reset,
 	.soc_irq_prio = at91_irq_prio,
+	.soc_childpren = at91_devs,
 };
 
 AT91_SOC_SUB(AT91_T_SAM9X5, AT91_ST_SAM9X25, &soc_data);
