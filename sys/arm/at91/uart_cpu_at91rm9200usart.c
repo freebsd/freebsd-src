@@ -71,9 +71,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.bst = &at91_bs_tag;
 	/*
 	 * XXX: Not pretty, but will work because we map the needed addresses
-	 * early.
+	 * early.  At least we probed this so that the console will work on
+         * all flavors of Atmel we can detect.
 	 */
-	di->bas.bsh = AT91_BASE + AT91RM92_DBGU_BASE;
+	di->bas.bsh = soc_info.dbgu_base;
 	di->baudrate = 115200;
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;

@@ -121,6 +121,7 @@ struct at91_soc_info {
 	uint32_t cidr;
 	uint32_t exid;
 	char name[AT91_SOC_NAME_MAX];
+	uint32_t dbgu_base;
 	struct at91_soc_data *soc_data;
 };
 
