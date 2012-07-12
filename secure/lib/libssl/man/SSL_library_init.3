@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_library_init 3"
-.TH SSL_library_init 3 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH SSL_library_init 3 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,6 +150,7 @@ for \fISSL_library_init()\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 \&\fISSL_library_init()\fR must be called before any other action takes place.
+\&\fISSL_library_init()\fR is not reentrant.
 .SH "WARNING"
 .IX Header "WARNING"
 \&\fISSL_library_init()\fR adds ciphers and digests used directly and indirectly by
