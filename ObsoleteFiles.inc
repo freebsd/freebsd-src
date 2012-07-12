@@ -39,7 +39,10 @@
 # done
 
 # 20120712: OpenSSL 1.0.1c import
-OLD_FILES+=lib/libcrypto.so.6
+OLD_LIBS+=lib/libcrypto.so.6
+OLD_LIBS+=usr/lib/libssl.so.6
+OLD_LIBS+=usr/lib32/libcrypto.so.6
+OLD_LIBS+=usr/lib32/libssl.so.6
 OLD_FILES+=usr/include/openssl/aes_locl.h
 OLD_FILES+=usr/include/openssl/bio_lcl.h
 OLD_FILES+=usr/include/openssl/e_os.h
@@ -50,9 +53,6 @@ OLD_FILES+=usr/include/openssl/pq_compat.h
 OLD_FILES+=usr/include/openssl/store.h
 OLD_FILES+=usr/include/openssl/tmdiff.h
 OLD_FILES+=usr/include/openssl/ui_locl.h
-OLD_FILES+=usr/lib/libssl.so.6
-OLD_FILES+=usr/lib32/libcrypto.so.6
-OLD_FILES+=usr/lib32/libssl.so.6
 OLD_FILES+=usr/share/openssl/man/man3/CRYPTO_set_id_callback.3.gz
 # 20120621: remove old man page
 OLD_FILES+=usr/share/man/man8/vnconfig.8.gz
