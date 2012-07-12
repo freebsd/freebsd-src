@@ -51,8 +51,6 @@ struct at91sam9x25_softc {
 	device_t dev;
 	bus_space_tag_t sc_st;
 	bus_space_handle_t sc_sh;
-	bus_space_handle_t sc_sys_sh;
-	bus_space_handle_t sc_aic_sh;
 };
 
 /*
@@ -193,46 +191,11 @@ at91_attach(device_t dev)
 {
 	struct at91_pmc_clock *clk;
 	struct at91sam9x25_softc *sc = device_get_softc(dev);
-	int i;
-
 	struct at91_softc *at91sc = device_get_softc(device_get_parent(dev));
 
 	sc->sc_st = at91sc->sc_st;
 	sc->sc_sh = at91sc->sc_sh;
 	sc->dev = dev;
-
-	/* 
-	 * XXX These values work for the RM9200, SAM926[01], and SAM9X25
-	 * will have to fix this when we want to support anything else. XXX
-	 */
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9X25_SYS_BASE,
-	    AT91SAM9X25_SYS_SIZE, &sc->sc_sys_sh) != 0)
-		panic("Enable to map system registers");
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9X25_AIC_BASE,
-	    AT91SAM9X25_AIC_SIZE, &sc->sc_aic_sh) != 0)
-		panic("Enable to map system registers");
-
-	/* XXX Hack to tell atmelarm about the AIC */
-	at91sc->sc_aic_sh = sc->sc_aic_sh;
-
-	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR + 
-		    i * 4, i);
-		/* Priority. */
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
-		    at91_irq_prio[i]);
-		if (i < 8)
-			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
-			    1);
-	}
-
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
-	/* No debug. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
-	/* Disable and clear all interrupts. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");
@@ -290,7 +253,8 @@ DRIVER_MODULE(at91sam9x25, atmelarm, at91sam9x25_driver, at91sam9x25_devclass, 0
 
 static struct at91_soc_data soc_data = {
 	.soc_delay = at91_pit_delay,
-	.soc_reset = at91_rst_cpu_reset
+	.soc_reset = at91_rst_cpu_reset,
+	.soc_irq_prio = at91_irq_prio,
 };
 
 AT91_SOC_SUB(AT91_T_SAM9X5, AT91_ST_SAM9X25, &soc_data);
