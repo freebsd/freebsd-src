@@ -108,6 +108,7 @@ typedef void (*cpu_reset_t)(void);
 struct at91_soc_data {
 	DELAY_t		soc_delay;
 	cpu_reset_t	soc_reset;
+	const int	*soc_irq_prio;
 };
 
 struct at91_soc_info {

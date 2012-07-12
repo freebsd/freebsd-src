@@ -183,8 +183,6 @@ at91_attach(device_t dev)
 {
 	struct at91_pmc_clock *clk;
 	struct at91rm92_softc *sc = device_get_softc(dev);
-	int i;
-
 	struct at91_softc *at91sc = device_get_softc(device_get_parent(dev));
 
 	sc->sc_st = at91sc->sc_st;
@@ -194,31 +192,6 @@ at91_attach(device_t dev)
 	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_SYS_BASE,
 	    AT91RM92_SYS_SIZE, &sc->sc_sys_sh) != 0)
 		panic("Enable to map system registers");
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_AIC_BASE,
-	    AT91RM92_AIC_SIZE, &sc->sc_aic_sh) != 0)
-		panic("Enable to map system registers");
-
-	/* XXX Hack to tell atmelarm about the AIC */
-	at91sc->sc_aic_sh = sc->sc_aic_sh;
-
-	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
-		    i * 4, i);
-		/* Priority. */
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
-		    at91_irq_prio[i]);
-		if (i < 8)
-			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
-			    1);
-	}
-
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
-	/* No debug. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
-	/* Disable and clear all interrupts. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
 
 	/* Disable all interrupts for RTC (0xe24 == RTC_IDR) */
 	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, 0xe24, 0xffffffff);
@@ -283,7 +256,8 @@ DRIVER_MODULE(at91rm920, atmelarm, at91rm92_driver, at91rm92_devclass, 0, 0);
 
 static struct at91_soc_data soc_data = {
 	.soc_delay = at91_st_delay,
-	.soc_reset = at91_st_cpu_reset
+	.soc_reset = at91_st_cpu_reset,
+	.soc_irq_prio = at91_irq_prio,
 };
 
 AT91_SOC(AT91_T_RM9200, &soc_data);
