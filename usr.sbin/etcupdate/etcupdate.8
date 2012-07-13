@@ -112,7 +112,6 @@ The
 utility will not perform a new merge until all conflicts from an earlier
 merge are resolved.
 .Sh MODES
-.Pp
 The
 .Nm
 utility supports several modes of operation.
@@ -150,7 +149,7 @@ tree.
 An older
 .Dq previous
 tree is removed if it exists.
-By default the new 
+By default the new
 .Dq current
 tree is built from a source tree.
 However,
@@ -349,7 +348,9 @@ Do not build generated files in a private object tree.
 Instead,
 reuse the generated files from a previously built object tree that matches
 the source tree.
-This can be useful to avoid gratuitous conflicts in sendmail configuration
+This can be useful to avoid gratuitous conflicts in
+.Xr sendmail 8
+configuration
 files when bootstrapping.
 It can also be useful for building a tarball that matches a specific
 world build.
@@ -379,7 +380,7 @@ variable or the
 option will not be installed.
 .It Fl D Ar destdir
 Specify an alternate destination directory as the target of a merge.
-This is analagous to the
+This is analogous to the
 .Dv DESTDIR
 variable used with
 .Sq make installworld .
@@ -739,12 +740,11 @@ but it has been removed in the destination directory.
 .El
 .Sh SEE ALSO
 .Xr cap_mkdb 1 ,
-.Xr diff 1 , 
+.Xr diff 1 ,
 .Xr make 1 ,
 .Xr newaliases 1 ,
 .Xr sh 1 ,
 .Xr pwd_mkdb 8
-.\".Sh HISTORY
 .Sh AUTHORS
 The
 .Nm
