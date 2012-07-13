@@ -20,14 +20,11 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef	_DEBUG_H
 #define	_DEBUG_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * Global include file for lddbg debugging.
@@ -45,6 +42,7 @@
  *	start with the `Elf_' prefix.  These latter routines are the only
  *	routines used by the elfdump(1) utility.
  */
+#include <sys/times.h>
 #include <sgs.h>
 #include <libld.h>
 #include <rtld.h>
@@ -55,13 +53,12 @@ extern "C" {
 #endif
 
 /*
- * Define Dbg_*() interface flags.  These flags direct the debugging routine to
- * generate different diagnostics, thus the strings themselves are maintained
+ * Define Dbg_*() interface values.  These values direct the debugging routine
+ * to generate different diagnostics, thus the strings themselves are maintained
  * in the debugging library.
  */
 #define	DBG_SUP_ENVIRON		1
 #define	DBG_SUP_CMDLINE		2
-#define	DBG_SUP_DEFAULT		3
 
 #define	DBG_CONF_IGNORE		1	/* configuration processing errors */
 #define	DBG_CONF_VERSION	2
@@ -87,17 +84,21 @@ extern "C" {
 #define	DBG_DLSYM_SELF		3
 #define	DBG_DLSYM_PROBE		4
 #define	DBG_DLSYM_SINGLETON	5
+#define	DBG_DLSYM_NUM		DBG_DLSYM_SINGLETON + 1
 
 #define	DBG_DLCLOSE_NULL	0
 #define	DBG_DLCLOSE_IGNORE	1
 #define	DBG_DLCLOSE_RESCAN	2
 
-#define	DBG_WAIT_INIT		1
-#define	DBG_WAIT_FINI		2
-#define	DBG_WAIT_SYMBOL		3
-
 #define	DBG_SYM_REDUCE_GLOBAL	1	/* reporting global symbols to local */
 #define	DBG_SYM_REDUCE_RETAIN	2	/* reporting non reduced local syms */
+
+#define	DBG_AUD_CALL		1	/* original call to auditor */
+#define	DBG_AUD_RET		2	/* return from auditor diagnostic */
+
+#define	DBG_AUD_LOCAL		0	/* auditor is local */
+#define	DBG_AUD_GLOBAL		1	/* auditor is global */
+#define	DBG_AUD_PRELOAD		2	/* auditor is preloaded */
 
 /*
  * Group handle operations - passed to Dbg_file_hdl_title().  Indicate why
@@ -139,12 +140,18 @@ extern "C" {
 #define	DBG_BINFO_REF_PARENT	0x2000	/* reference to PARENT */
 #define	DBG_BINFO_REF_MSK	0xf000
 
-
-#define	DBG_CAP_INITIAL		0
-#define	DBG_CAP_IGNORE		1
-#define	DBG_CAP_OLD		2
-#define	DBG_CAP_NEW		3
-#define	DBG_CAP_RESOLVED	4
+/*
+ * ld.so.1(1) symbol capabilities processing.
+ */
+#define	DBG_CAP_DEFAULT		0
+#define	DBG_CAP_USED		1
+#define	DBG_CAP_CANDIDATE	2
+#define	DBG_CAP_REJECTED	3
+#define	DBG_CAP_HW_1		4
+#define	DBG_CAP_SF_1		5
+#define	DBG_CAP_HW_2		6
+#define	DBG_CAP_PLAT		7
+#define	DBG_CAP_MACH		8
 
 #define	DBG_REL_START		1
 #define	DBG_REL_FINISH		2
@@ -153,10 +160,31 @@ extern "C" {
 #define	DBG_NL_STD		0	/* newline controllers - standard and */
 #define	DBG_NL_FRC		2	/*    forced. */
 
-#define	DBG_BNDREJ_NODIR	0	/* bind rejected, direct to nodirect */
-#define	DBG_BNDREJ_SINGLE	1	/* bind rejected, singleton without */
+#define	DBG_BNDREJ_DIRECT	0	/* bind rejected, direct to nodirect */
+#define	DBG_BNDREJ_GROUP	1	/* bind rejected, group to nodirect */
+#define	DBG_BNDREJ_SINGLE	2	/* bind rejected, singleton without */
 					/*    default search model */
 #define	DBG_BNDREJ_NUM		DBG_BNDREJ_SINGLE
+
+/*
+ * Dbg_state_str() is used to obtain commonly used "state transition"
+ * strings used in various debugging output.
+ */
+#define	DBG_STATE_ADD		0	/* add */
+#define	DBG_STATE_CURRENT	1	/* current */
+#define	DBG_STATE_EXCLUDE	2	/* exclude */
+#define	DBG_STATE_IGNORED	3	/* ignored */
+#define	DBG_STATE_MOD_BEFORE	4	/* modify (before) */
+#define	DBG_STATE_MOD_AFTER	5	/* modify (after) */
+#define	DBG_STATE_NEW 		6	/* new */
+#define	DBG_STATE_NEW_IMPLICIT	7	/* new (implicit) */
+#define	DBG_STATE_RESET		8	/* reset */
+#define	DBG_STATE_ORIGINAL	9	/* original */
+#define	DBG_STATE_RESOLVED	10	/* resolved */
+
+#define	DBG_STATE_NUM		11
+typedef uint_t dbg_state_t;
+extern	const char *Dbg_state_str(dbg_state_t);
 
 /*
  * Define a debug descriptor, and a user macro that inspects the descriptor as
@@ -164,12 +192,21 @@ extern "C" {
  */
 typedef struct {
 	uint_t		d_class;	/* debugging classes */
-	uint_t		d_extra;	/* extra information for classes */
-	APlist		*d_list;	/* associated strings */
+	uint_t		d_extra;	/* extra public information */
+	APlist		*d_list;	/* accepted link-map list names */
+	struct timeval	d_totaltime;	/* total time since entry - */
+					/*	gettimeofday(3c) */
+	struct timeval	d_deltatime;	/* delta time since last diagnostic - */
+					/*	gettimeofday(3c) */
 } Dbg_desc;
 
 extern	Dbg_desc	*dbg_desc;
 
+/*
+ * Macros used to avoid calls to liblddbg unless debugging is enabled.
+ * liblddbg is lazy loaded --- this prevents it from happening unless
+ * it will actually be used.
+ */
 #define	DBG_ENABLED	(dbg_desc->d_class)
 #define	DBG_CALL(func)	if (DBG_ENABLED) func
 
@@ -180,26 +217,51 @@ extern	Dbg_desc	*dbg_desc;
  * may be interpreted by the debugging library itself or from the callers
  * dbg_print() routine.
  */
-#define	DBG_E_DETAIL	0x0001		/* add detail to a class */
-#define	DBG_E_LONG	0x0002		/* use long names (ie. no truncation) */
+#define	DBG_E_DETAIL	0x00000001	/* add detail to a class */
+#define	DBG_E_LONG	0x00000002	/* use long names (ie. no truncation) */
+#define	DBG_E_DEMANGLE	0x00000004	/* demangle symbol names */
+#define	DBG_E_STDNL	0x00000008	/* standard newline indicator */
+#define	DBG_E_HELP	0x00000010	/* help requested */
+#define	DBG_E_HELP_EXIT	0x00000020	/* hint: user should exit after help */
+#define	DBG_E_TTIME	0x00000040	/* prepend total time */
+#define	DBG_E_DTIME	0x00000080	/* prepend delta time */
+#define	DBG_E_RESET	0x00000100	/* reset times */
 
-#define	DBG_E_STDNL	0x0010		/* standard newline indicator */
+/* ld only */
+#define	DBG_E_SNAME	0x00001000	/* prepend simple name */
+#define	DBG_E_FNAME	0x00002000	/* prepend full name */
+#define	DBG_E_CLASS	0x00004000	/* prepend ELF class */
 
-#define	DBG_E_SNAME	0x0100		/* prepend simple name (ld only) */
-#define	DBG_E_FNAME	0x0200		/* prepend full name (ld only) */
-#define	DBG_E_CLASS	0x0400		/* prepend ELF class (ld only) */
-#define	DBG_E_LMID	0x0800		/* prepend link-map id (ld.so.1 only) */
-#define	DBG_E_DEMANGLE	0x1000		/* demangle symbol names */
+/* ld.so.1 only */
+#define	DBG_E_LMID	0x00100000	/* prepend link-map id */
+#define	DBG_E_LMID_LDSO	0x00200000	/* show ldso link-map list */
+#define	DBG_E_LMID_ALL	0x00400000	/* show all non-ldso link-map lists */
+#define	DBG_E_LMID_ALT	0x00800000	/* show all ALT link-map lists */
+#define	DBG_E_LMID_BASE	0x01000000	/* show BASE link-map list */
+
 
 #define	DBG_NOTDETAIL()	!(dbg_desc->d_extra & DBG_E_DETAIL)
 #define	DBG_NOTLONG()	!(dbg_desc->d_extra & DBG_E_LONG)
+
+#define	DBG_ISDEMANGLE() \
+			(dbg_desc->d_extra & DBG_E_DEMANGLE)
+
+#define	DBG_TOTALTIME	(dbg_desc->d_totaltime)
+#define	DBG_DELTATIME	(dbg_desc->d_deltatime)
+
+#define	DBG_ISTTIME()	(dbg_desc->d_extra & DBG_E_TTIME)
+#define	DBG_ISDTIME()	(dbg_desc->d_extra & DBG_E_DTIME)
+#define	DBG_ISTIME()	(dbg_desc->d_extra & (DBG_E_TTIME | DBG_E_DTIME))
+#define	DBG_NOTTIME()	!(dbg_desc->d_extra & (DBG_E_TTIME | DBG_E_DTIME))
+
+#define	DBG_ISRESET()	(dbg_desc->d_extra & DBG_E_RESET)
+#define	DBG_ONRESET()	(dbg_desc->d_extra |= DBG_E_RESET)
+#define	DBG_OFFRESET()	(dbg_desc->d_extra &= ~DBG_E_RESET)
 
 #define	DBG_ISSNAME()	(dbg_desc->d_extra & DBG_E_SNAME)
 #define	DBG_ISFNAME()	(dbg_desc->d_extra & DBG_E_FNAME)
 #define	DBG_ISCLASS()	(dbg_desc->d_extra & DBG_E_CLASS)
 #define	DBG_ISLMID()	(dbg_desc->d_extra & DBG_E_LMID)
-#define	DBG_ISDEMANGLE() \
-			(dbg_desc->d_extra & DBG_E_DEMANGLE)
 
 /*
  * Print routine, this must be supplied by the application.  The initial
@@ -209,7 +271,19 @@ extern	Dbg_desc	*dbg_desc;
 /* PRINTFLIKE2 */
 extern	void		dbg_print(Lm_list *, const char *, ...);
 
-extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
+/*
+ * Initialization routine, called before any other Dbg routines to
+ * establish the necessary state.
+ */
+typedef enum { DBG_CALLER_LD, DBG_CALLER_RTLD } dbg_setup_caller_t;
+extern	int		Dbg_setup(dbg_setup_caller_t, const char *,
+			    Dbg_desc *, const char **);
+
+/* Call dbg_print() to produce linker version output */
+extern void		Dbg_version(void);
+
+/* Call dbg_print() to produce help output */
+extern	void		Dbg_help(void);
 
 /*
  * Establish ELF32 and ELF64 class Dbg_*() interfaces.
@@ -225,12 +299,28 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_bind_reject		Dbg64_bind_reject
 #define	Dbg_bind_weak		Dbg64_bind_weak
 
-#define	Dbg_cap_val_hw1		Dbg64_cap_val_hw1
-#define	Dbg_cap_hw_candidate	Dbg64_cap_hw_candidate
-#define	Dbg_cap_hw_filter	Dbg64_cap_hw_filter
-#define	Dbg_cap_mapfile		Dbg64_cap_mapfile
-#define	Dbg_cap_sec_entry	Dbg64_cap_sec_entry
+#define	Dbg_cap_candidate	Dbg64_cap_candidate
+#define	Dbg_cap_filter		Dbg64_cap_filter
+#define	Dbg_cap_id		Dbg64_cap_id
+#define	Dbg_cap_identical	Dbg64_cap_identical
+#define	Dbg_cap_mapfile_title	Dbg64_cap_mapfile_title
+#define	Dbg_cap_post_title	Dbg64_cap_post_title
 #define	Dbg_cap_sec_title	Dbg64_cap_sec_title
+#define	Dbg_cap_val		Dbg64_cap_val
+#define	Dbg_cap_ptr_entry	Dbg64_cap_ptr_entry
+#define	Dbg_cap_val_entry	Dbg64_cap_val_entry
+
+#define	Dbg_dl_dladdr		Dbg64_dl_dladdr
+#define	Dbg_dl_dlclose		Dbg64_dl_dlclose
+#define	Dbg_dl_dldump		Dbg64_dl_dldump
+#define	Dbg_dl_dlerror		Dbg64_dl_dlerror
+#define	Dbg_dl_dlinfo		Dbg64_dl_dlinfo
+#define	Dbg_dl_dlopen		Dbg64_dl_dlopen
+#define	Dbg_dl_dlsym		Dbg64_dl_dlsym
+#define	Dbg_dl_iphdr_enter	Dbg64_dl_iphdr_enter
+#define	Dbg_dl_iphdr_callback	Dbg64_dl_iphdr_callback
+#define	Dbg_dl_iphdr_mapchange	Dbg64_dl_iphdr_mapchange
+#define	Dbg_dl_iphdr_unmap_ret	Dbg64_dl_iphdr_unmap_ret
 
 #define	Dbg_ent_entry		Dbg64_ent_entry
 #define	Dbg_ent_print		Dbg64_ent_print
@@ -241,15 +331,14 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_file_ar_rescan	Dbg64_file_ar_rescan
 #define	Dbg_file_bind_entry	Dbg64_file_bind_entry
 #define	Dbg_file_bindings	Dbg64_file_bindings
+#define	Dbg_file_bindings_done	Dbg64_file_bindings_done
 #define	Dbg_file_cleanup	Dbg64_file_cleanup
 #define	Dbg_file_cntl		Dbg64_file_cntl
 #define	Dbg_file_config_dis	Dbg64_file_config_dis
 #define	Dbg_file_config_obj	Dbg64_file_config_obj
 #define	Dbg_file_del_rescan	Dbg64_file_del_rescan
 #define	Dbg_file_delete		Dbg64_file_delete
-#define	Dbg_file_dlclose	Dbg64_file_dlclose
-#define	Dbg_file_dldump		Dbg64_file_dldump
-#define	Dbg_file_dlopen		Dbg64_file_dlopen
+#define	Dbg_file_deferred	Dbg64_file_deferred
 #define	Dbg_file_elf		Dbg64_file_elf
 #define	Dbg_file_filtee		Dbg64_file_filtee
 #define	Dbg_file_filter		Dbg64_file_filter
@@ -260,6 +349,7 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_file_hdl_title	Dbg64_file_hdl_title
 #define	Dbg_file_lazyload	Dbg64_file_lazyload
 #define	Dbg_file_ldso		Dbg64_file_ldso
+#define	Dbg_file_mmapobj	Dbg64_file_mmapobj
 #define	Dbg_file_mode_promote	Dbg64_file_mode_promote
 #define	Dbg_file_modified	Dbg64_file_modified
 #define	Dbg_file_needed		Dbg64_file_needed
@@ -275,7 +365,7 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_libs_audit		Dbg64_libs_audit
 #define	Dbg_libs_find		Dbg64_libs_find
 #define	Dbg_libs_found		Dbg64_libs_found
-#define	Dbg_libs_ignore		Dbg64_libs_ignore
+#define	Dbg_libs_insecure	Dbg64_libs_insecure
 #define	Dbg_libs_init		Dbg64_libs_init
 #define	Dbg_libs_l		Dbg64_libs_l
 #define	Dbg_libs_path		Dbg64_libs_path
@@ -284,22 +374,28 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_libs_yp		Dbg64_libs_yp
 #define	Dbg_libs_ylu		Dbg64_libs_ylu
 
-#define	Dbg_map_dash		Dbg64_map_dash
+#define	Dbg_map_cexp_id		Dbg64_map_cexp_id
+#define	Dbg_map_dv		Dbg64_map_dv
+#define	Dbg_map_dv_entry	Dbg64_map_dv_entry
 #define	Dbg_map_ent		Dbg64_map_ent
+#define	Dbg_map_ent_ord_title	Dbg64_map_ent_ord_title
+#define	Dbg_map_hdr_noalloc	Dbg64_map_hdr_noalloc
 #define	Dbg_map_parse		Dbg64_map_parse
-#define	Dbg_map_pipe		Dbg64_map_pipe
+#define	Dbg_map_pass		Dbg64_map_pass
+#define	Dbg_map_post_title	Dbg64_map_post_title
 #define	Dbg_map_seg		Dbg64_map_seg
-#define	Dbg_map_set_atsign	Dbg64_map_set_atsign
-#define	Dbg_map_set_equal	Dbg64_map_set_equal
+#define	Dbg_map_seg_order	Dbg64_map_seg_order
+#define	Dbg_map_seg_os_order	Dbg64_map_seg_os_order
 #define	Dbg_map_size_new	Dbg64_map_size_new
 #define	Dbg_map_size_old	Dbg64_map_size_old
-#define	Dbg_map_sort_fini	Dbg64_map_sort_fini
-#define	Dbg_map_sort_orig	Dbg64_map_sort_orig
+#define	Dbg_map_sort_seg	Dbg64_map_sort_seg
+#define	Dbg_map_sort_title	Dbg64_map_sort_title
 #define	Dbg_map_symbol		Dbg64_map_symbol
 #define	Dbg_map_version		Dbg64_map_version
 
 #define	Dbg_move_adjexpandreloc	Dbg64_move_adjexpandreloc
 #define	Dbg_move_adjmovereloc	Dbg64_move_adjmovereloc
+#define	Dbg_move_bad		Dbg64_move_bad
 #define	Dbg_move_data		Dbg64_move_data
 #define	Dbg_move_entry1		Dbg64_move_entry1
 #define	Dbg_move_entry2		Dbg64_move_entry2
@@ -329,13 +425,16 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_reloc_sloppycomdat	Dbg64_reloc_sloppycomdat
 
 #define	Dbg_sec_added		Dbg64_sec_added
+#define	Dbg_sec_backing		Dbg64_sec_backing
 #define	Dbg_sec_created		Dbg64_sec_created
 #define	Dbg_sec_discarded	Dbg64_sec_discarded
 #define	Dbg_sec_genstr_compress	Dbg64_sec_genstr_compress
 #define	Dbg_sec_group		Dbg64_sec_group
+#define	Dbg_sec_gnu_comdat	Dbg64_sec_gnu_comdat
 #define	Dbg_sec_in		Dbg64_sec_in
 #define	Dbg_sec_order_error	Dbg64_sec_order_error
 #define	Dbg_sec_order_list	Dbg64_sec_order_list
+#define	Dbg_sec_redirected	Dbg64_sec_redirected
 #define	Dbg_sec_strtab		Dbg64_sec_strtab
 #define	Dbg_sec_unsup_strmerge	Dbg64_sec_unsup_strmerge
 
@@ -353,17 +452,24 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_support_action	Dbg64_support_action
 #define	Dbg_support_load	Dbg64_support_load
 #define	Dbg_support_req		Dbg64_support_req
+#define	Dbg_support_vnone	Dbg64_support_vnone
 
 #define	Dbg_syminfo_entry	Dbg64_syminfo_entry
 #define	Dbg_syminfo_title	Dbg64_syminfo_title
 
 #define	Dbg_syms_ar_checking	Dbg64_syms_ar_checking
-#define	Dbg_syms_ar_entry	Dbg64_syms_ar_entry
+#define	Dbg_syms_ar_force	Dbg64_syms_ar_force
 #define	Dbg_syms_ar_resolve	Dbg64_syms_ar_resolve
+#define	Dbg_syms_ar_skip	Dbg64_syms_ar_skip
 #define	Dbg_syms_ar_title	Dbg64_syms_ar_title
+#define	Dbg_syms_cap_convert	Dbg64_syms_cap_convert
+#define	Dbg_syms_cap_local	Dbg64_syms_cap_local
+#define	Dbg_syms_cap_lookup	Dbg64_syms_cap_lookup
+#define	Dbg_syms_cap_title	Dbg64_syms_cap_title
+#define	Dbg_syms_copy_reloc	Dbg64_syms_copy_reloc
 #define	Dbg_syms_created	Dbg64_syms_created
 #define	Dbg_syms_discarded	Dbg64_syms_discarded
-#define	Dbg_syms_dlsym		Dbg64_syms_dlsym
+#define	Dbg_syms_dup_discarded	Dbg64_syms_dup_discarded
 #define	Dbg_syms_dup_sort_addr	Dbg64_syms_dup_sort_addr
 #define	Dbg_syms_entered	Dbg64_syms_entered
 #define	Dbg_syms_entry		Dbg64_syms_entry
@@ -376,7 +482,6 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_syms_old		Dbg64_syms_old
 #define	Dbg_syms_process	Dbg64_syms_process
 #define	Dbg_syms_reduce		Dbg64_syms_reduce
-#define	Dbg_syms_reloc		Dbg64_syms_reloc
 #define	Dbg_syms_resolved	Dbg64_syms_resolved
 #define	Dbg_syms_resolving	Dbg64_syms_resolving
 #define	Dbg_syms_sec_entry	Dbg64_syms_sec_entry
@@ -384,8 +489,8 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_syms_spec_title	Dbg64_syms_spec_title
 #define	Dbg_syms_updated	Dbg64_syms_updated
 #define	Dbg_syms_up_title	Dbg64_syms_up_title
+#define	Dbg_syms_wrap		Dbg64_syms_wrap
 
-#define	Dbg_util_broadcast	Dbg64_util_broadcast
 #define	Dbg_util_call_array	Dbg64_util_call_array
 #define	Dbg_util_call_fini	Dbg64_util_call_fini
 #define	Dbg_util_call_init	Dbg64_util_call_init
@@ -401,7 +506,6 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_util_scc_entry	Dbg64_util_scc_entry
 #define	Dbg_util_scc_title	Dbg64_util_scc_title
 #define	Dbg_util_str		Dbg64_util_str
-#define	Dbg_util_wait		Dbg64_util_wait
 
 #define	Dbg_unused_file		Dbg64_unused_file
 #define	Dbg_unused_lcinterface	Dbg64_unused_lcinterface
@@ -413,6 +517,7 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_ver_avail_title	Dbg64_ver_avail_title
 #define	Dbg_ver_def_title	Dbg64_ver_def_title
 #define	Dbg_ver_desc_entry	Dbg64_ver_desc_entry
+#define	Dbg_ver_need_done	Dbg64_ver_need_done
 #define	Dbg_ver_need_entry	Dbg64_ver_need_entry
 #define	Dbg_ver_need_title	Dbg64_ver_need_title
 #define	Dbg_ver_nointerface	Dbg64_ver_nointerface
@@ -427,12 +532,28 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_bind_reject		Dbg32_bind_reject
 #define	Dbg_bind_weak		Dbg32_bind_weak
 
-#define	Dbg_cap_val_hw1		Dbg32_cap_val_hw1
-#define	Dbg_cap_hw_candidate	Dbg32_cap_hw_candidate
-#define	Dbg_cap_hw_filter	Dbg32_cap_hw_filter
-#define	Dbg_cap_mapfile		Dbg32_cap_mapfile
-#define	Dbg_cap_sec_entry	Dbg32_cap_sec_entry
+#define	Dbg_cap_candidate	Dbg32_cap_candidate
+#define	Dbg_cap_filter		Dbg32_cap_filter
+#define	Dbg_cap_id		Dbg32_cap_id
+#define	Dbg_cap_identical	Dbg32_cap_identical
+#define	Dbg_cap_mapfile_title	Dbg32_cap_mapfile_title
+#define	Dbg_cap_post_title	Dbg32_cap_post_title
 #define	Dbg_cap_sec_title	Dbg32_cap_sec_title
+#define	Dbg_cap_val		Dbg32_cap_val
+#define	Dbg_cap_ptr_entry	Dbg32_cap_ptr_entry
+#define	Dbg_cap_val_entry	Dbg32_cap_val_entry
+
+#define	Dbg_dl_dladdr		Dbg32_dl_dladdr
+#define	Dbg_dl_dlclose		Dbg32_dl_dlclose
+#define	Dbg_dl_dldump		Dbg32_dl_dldump
+#define	Dbg_dl_dlerror		Dbg32_dl_dlerror
+#define	Dbg_dl_dlinfo		Dbg32_dl_dlinfo
+#define	Dbg_dl_dlopen		Dbg32_dl_dlopen
+#define	Dbg_dl_dlsym		Dbg32_dl_dlsym
+#define	Dbg_dl_iphdr_enter	Dbg32_dl_iphdr_enter
+#define	Dbg_dl_iphdr_callback	Dbg32_dl_iphdr_callback
+#define	Dbg_dl_iphdr_mapchange	Dbg32_dl_iphdr_mapchange
+#define	Dbg_dl_iphdr_unmap_ret	Dbg32_dl_iphdr_unmap_ret
 
 #define	Dbg_ent_entry		Dbg32_ent_entry
 #define	Dbg_ent_print		Dbg32_ent_print
@@ -443,15 +564,14 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_file_ar_rescan	Dbg32_file_ar_rescan
 #define	Dbg_file_bind_entry	Dbg32_file_bind_entry
 #define	Dbg_file_bindings	Dbg32_file_bindings
+#define	Dbg_file_bindings_done	Dbg32_file_bindings_done
 #define	Dbg_file_cleanup	Dbg32_file_cleanup
 #define	Dbg_file_cntl		Dbg32_file_cntl
 #define	Dbg_file_config_dis	Dbg32_file_config_dis
 #define	Dbg_file_config_obj	Dbg32_file_config_obj
 #define	Dbg_file_del_rescan	Dbg32_file_del_rescan
 #define	Dbg_file_delete		Dbg32_file_delete
-#define	Dbg_file_dlclose	Dbg32_file_dlclose
-#define	Dbg_file_dldump		Dbg32_file_dldump
-#define	Dbg_file_dlopen		Dbg32_file_dlopen
+#define	Dbg_file_deferred	Dbg32_file_deferred
 #define	Dbg_file_elf		Dbg32_file_elf
 #define	Dbg_file_filtee		Dbg32_file_filtee
 #define	Dbg_file_filter		Dbg32_file_filter
@@ -462,6 +582,7 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_file_hdl_title	Dbg32_file_hdl_title
 #define	Dbg_file_lazyload	Dbg32_file_lazyload
 #define	Dbg_file_ldso		Dbg32_file_ldso
+#define	Dbg_file_mmapobj	Dbg32_file_mmapobj
 #define	Dbg_file_mode_promote	Dbg32_file_mode_promote
 #define	Dbg_file_modified	Dbg32_file_modified
 #define	Dbg_file_needed		Dbg32_file_needed
@@ -477,7 +598,7 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_libs_audit		Dbg32_libs_audit
 #define	Dbg_libs_find		Dbg32_libs_find
 #define	Dbg_libs_found		Dbg32_libs_found
-#define	Dbg_libs_ignore		Dbg32_libs_ignore
+#define	Dbg_libs_insecure	Dbg32_libs_insecure
 #define	Dbg_libs_init		Dbg32_libs_init
 #define	Dbg_libs_l		Dbg32_libs_l
 #define	Dbg_libs_path		Dbg32_libs_path
@@ -486,22 +607,28 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_libs_yp		Dbg32_libs_yp
 #define	Dbg_libs_ylu		Dbg32_libs_ylu
 
-#define	Dbg_map_dash		Dbg32_map_dash
+#define	Dbg_map_cexp_id		Dbg32_map_cexp_id
+#define	Dbg_map_dv		Dbg32_map_dv
+#define	Dbg_map_dv_entry	Dbg32_map_dv_entry
 #define	Dbg_map_ent		Dbg32_map_ent
+#define	Dbg_map_ent_ord_title	Dbg32_map_ent_ord_title
+#define	Dbg_map_hdr_noalloc	Dbg32_map_hdr_noalloc
 #define	Dbg_map_parse		Dbg32_map_parse
-#define	Dbg_map_pipe		Dbg32_map_pipe
+#define	Dbg_map_pass		Dbg32_map_pass
+#define	Dbg_map_post_title	Dbg32_map_post_title
 #define	Dbg_map_seg		Dbg32_map_seg
-#define	Dbg_map_set_atsign	Dbg32_map_set_atsign
-#define	Dbg_map_set_equal	Dbg32_map_set_equal
+#define	Dbg_map_seg_order	Dbg32_map_seg_order
+#define	Dbg_map_seg_os_order	Dbg32_map_seg_os_order
 #define	Dbg_map_size_new	Dbg32_map_size_new
 #define	Dbg_map_size_old	Dbg32_map_size_old
-#define	Dbg_map_sort_fini	Dbg32_map_sort_fini
-#define	Dbg_map_sort_orig	Dbg32_map_sort_orig
+#define	Dbg_map_sort_seg	Dbg32_map_sort_seg
+#define	Dbg_map_sort_title	Dbg32_map_sort_title
 #define	Dbg_map_symbol		Dbg32_map_symbol
 #define	Dbg_map_version		Dbg32_map_version
 
 #define	Dbg_move_adjexpandreloc	Dbg32_move_adjexpandreloc
 #define	Dbg_move_adjmovereloc	Dbg32_move_adjmovereloc
+#define	Dbg_move_bad		Dbg32_move_bad
 #define	Dbg_move_data		Dbg32_move_data
 #define	Dbg_move_entry1		Dbg32_move_entry1
 #define	Dbg_move_entry2		Dbg32_move_entry2
@@ -531,13 +658,16 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_reloc_sloppycomdat	Dbg32_reloc_sloppycomdat
 
 #define	Dbg_sec_added		Dbg32_sec_added
+#define	Dbg_sec_backing		Dbg32_sec_backing
 #define	Dbg_sec_created		Dbg32_sec_created
 #define	Dbg_sec_discarded	Dbg32_sec_discarded
 #define	Dbg_sec_genstr_compress	Dbg32_sec_genstr_compress
 #define	Dbg_sec_group		Dbg32_sec_group
+#define	Dbg_sec_gnu_comdat	Dbg32_sec_gnu_comdat
 #define	Dbg_sec_in		Dbg32_sec_in
 #define	Dbg_sec_order_error	Dbg32_sec_order_error
 #define	Dbg_sec_order_list	Dbg32_sec_order_list
+#define	Dbg_sec_redirected	Dbg32_sec_redirected
 #define	Dbg_sec_strtab		Dbg32_sec_strtab
 #define	Dbg_sec_unsup_strmerge	Dbg32_sec_unsup_strmerge
 
@@ -555,17 +685,24 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_support_action	Dbg32_support_action
 #define	Dbg_support_load	Dbg32_support_load
 #define	Dbg_support_req		Dbg32_support_req
+#define	Dbg_support_vnone	Dbg32_support_vnone
 
 #define	Dbg_syminfo_entry	Dbg32_syminfo_entry
 #define	Dbg_syminfo_title	Dbg32_syminfo_title
 
 #define	Dbg_syms_ar_checking	Dbg32_syms_ar_checking
-#define	Dbg_syms_ar_entry	Dbg32_syms_ar_entry
+#define	Dbg_syms_ar_force	Dbg32_syms_ar_force
 #define	Dbg_syms_ar_resolve	Dbg32_syms_ar_resolve
+#define	Dbg_syms_ar_skip	Dbg32_syms_ar_skip
 #define	Dbg_syms_ar_title	Dbg32_syms_ar_title
+#define	Dbg_syms_cap_convert	Dbg32_syms_cap_convert
+#define	Dbg_syms_cap_local	Dbg32_syms_cap_local
+#define	Dbg_syms_cap_lookup	Dbg32_syms_cap_lookup
+#define	Dbg_syms_cap_title	Dbg32_syms_cap_title
+#define	Dbg_syms_copy_reloc	Dbg32_syms_copy_reloc
 #define	Dbg_syms_created	Dbg32_syms_created
 #define	Dbg_syms_discarded	Dbg32_syms_discarded
-#define	Dbg_syms_dlsym		Dbg32_syms_dlsym
+#define	Dbg_syms_dup_discarded	Dbg32_syms_dup_discarded
 #define	Dbg_syms_dup_sort_addr	Dbg32_syms_dup_sort_addr
 #define	Dbg_syms_entered	Dbg32_syms_entered
 #define	Dbg_syms_entry		Dbg32_syms_entry
@@ -579,7 +716,6 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_syms_old		Dbg32_syms_old
 #define	Dbg_syms_process	Dbg32_syms_process
 #define	Dbg_syms_reduce		Dbg32_syms_reduce
-#define	Dbg_syms_reloc		Dbg32_syms_reloc
 #define	Dbg_syms_resolved	Dbg32_syms_resolved
 #define	Dbg_syms_resolving	Dbg32_syms_resolving
 #define	Dbg_syms_sec_entry	Dbg32_syms_sec_entry
@@ -587,8 +723,8 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_syms_spec_title	Dbg32_syms_spec_title
 #define	Dbg_syms_updated	Dbg32_syms_updated
 #define	Dbg_syms_up_title	Dbg32_syms_up_title
+#define	Dbg_syms_wrap		Dbg32_syms_wrap
 
-#define	Dbg_util_broadcast	Dbg32_util_broadcast
 #define	Dbg_util_call_array	Dbg32_util_call_array
 #define	Dbg_util_call_fini	Dbg32_util_call_fini
 #define	Dbg_util_call_init	Dbg32_util_call_init
@@ -604,7 +740,6 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_util_scc_entry	Dbg32_util_scc_entry
 #define	Dbg_util_scc_title	Dbg32_util_scc_title
 #define	Dbg_util_str		Dbg32_util_str
-#define	Dbg_util_wait		Dbg32_util_wait
 
 #define	Dbg_unused_file		Dbg32_unused_file
 #define	Dbg_unused_lcinterface	Dbg32_unused_lcinterface
@@ -616,6 +751,7 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 #define	Dbg_ver_avail_title	Dbg32_ver_avail_title
 #define	Dbg_ver_def_title	Dbg32_ver_def_title
 #define	Dbg_ver_desc_entry	Dbg32_ver_desc_entry
+#define	Dbg_ver_need_done	Dbg32_ver_need_done
 #define	Dbg_ver_need_entry	Dbg32_ver_need_entry
 #define	Dbg_ver_need_title	Dbg32_ver_need_title
 #define	Dbg_ver_nointerface	Dbg32_ver_nointerface
@@ -626,17 +762,40 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 /*
  * External Dbg_*() interface routines.
  */
-extern	void	Dbg_args_files(Lm_list *, int, char *);
-extern	void	Dbg_args_flags(Lm_list *, int, int);
+extern	void	Dbg_args_file(Lm_list *, int, char *);
+extern	void	Dbg_args_guidance_unknown(Lm_list *, const char *);
+extern	void	Dbg_args_option(Lm_list *, int, int, char *);
+extern	void	Dbg_args_str2chr(Lm_list *, int, const char *, int);
+extern	void	Dbg_args_Wldel(Lm_list *, int, const char *);
+extern	void	Dbg_audit_activity(Lm_list *, const char *, const char *,
+		    uint_t);
 extern	void	Dbg_audit_ignore(Rt_map *);
 extern	void	Dbg_audit_interface(Lm_list *, const char *, const char *);
-extern	void	Dbg_audit_lib(Lm_list *, const char *);
-extern	void	Dbg_audit_object(Lm_list *, const char *, const char *);
-extern	void	Dbg_audit_symval(Lm_list *, const char *, const char *,
-		    const char *, Addr, Addr);
+extern	void	Dbg_audit_lib(Rt_map *, const char *, int);
+extern	void	Dbg_audit_objclose(Lm_list *, const char *, const char *);
+extern	void	Dbg_audit_objopen(Lm_list *, int, const char *, const char *,
+		    uint_t, Boolean);
+extern	void	Dbg_audit_objfilter(Lm_list *, int, const char *, const char *,
+		    const char *, const char *);
+extern	void	Dbg_audit_objsearch(Lm_list *, int, const char *, const char *,
+		    uint_t, const char *);
+extern	void	Dbg_audit_pltenter(Lm_list *, int, const char *, const char *,
+		    Addr);
+extern	void	Dbg_audit_pltexit(Lm_list *, const char *, const char *);
+extern	void	Dbg_audit_preinit(Lm_list *, const char *, const char *);
+extern	void	Dbg_audit_symbind(Lm_list *, int, const char *, const char *,
+		    Addr, uint_t);
 extern	void	Dbg_audit_skip(Lm_list *, const char *, const char *);
 extern	void	Dbg_audit_terminate(Lm_list *, const char *);
-extern	void	Dbg_audit_version(Lm_list *, const char *, ulong_t);
+extern	void	Dbg_audit_version(Lm_list *, const char *, uint_t, uint_t);
+
+extern	void	Dbg_basic_collect(Lm_list *);
+extern	void	Dbg_basic_create(Lm_list *);
+extern	void	Dbg_basic_finish(Lm_list *);
+extern	void	Dbg_basic_files(Lm_list *);
+extern	void	Dbg_basic_options(Lm_list *);
+extern	void	Dbg_basic_relocate(Lm_list *);
+extern	void	Dbg_basic_validate(Lm_list *);
 
 extern	void	Dbg_bind_global(Rt_map *, Addr, Off, Xword, Pltbindtype,
 		    Rt_map *, Addr, Off, const char *, uint_t);
@@ -649,26 +808,43 @@ extern	void	Dbg_bind_pltpad_to(Rt_map *, Addr, const char *, const char *);
 extern	void	Dbg_bind_reject(Rt_map *, Rt_map *, const char *, int);
 extern	void	Dbg_bind_weak(Rt_map *, Addr, Addr, const char *);
 
-extern	void	Dbg_cap_hw_candidate(Lm_list *, const char *);
-extern	void	Dbg_cap_hw_filter(Lm_list *, const char *, Rt_map *);
-extern	void	Dbg_cap_mapfile(Lm_list *, Xword, Xword, Half);
-extern	void	Dbg_cap_sec_entry(Lm_list *, uint_t, Xword, Xword, Half);
-extern	void	Dbg_cap_sec_title(Ofl_desc *);
-extern	void	Dbg_cap_val_hw1(Lm_list *, Xword, Half);
+extern	void	Dbg_cap_candidate(Lm_list *, const char *);
+extern	void	Dbg_cap_filter(Lm_list *, const char *, Rt_map *);
+extern	void	Dbg_cap_id(Lm_list *, Lineno, const char *, const char *);
+extern	void	Dbg_cap_identical(Lm_list *, const char *, const char *);
+extern	void	Dbg_cap_mapfile_title(Lm_list *, Lineno);
+extern	void	Dbg_cap_post_title(Lm_list *, int *);
+extern	void	Dbg_cap_sec_title(Lm_list *, const char *);
+extern	void	Dbg_cap_val(Lm_list *, Syscapset *, Syscapset *, Half);
+extern	void	Dbg_cap_ptr_entry(Lm_list *, dbg_state_t, Xword, const char *);
+extern	void	Dbg_cap_val_entry(Lm_list *, dbg_state_t, Xword, Xword, Half);
+
+extern	void	Dbg_dl_dladdr(Rt_map *, void *);
+extern	void	Dbg_dl_dlclose(Rt_map *, const char *, int);
+extern	void	Dbg_dl_dldump(Rt_map *, const char *, const char *, int);
+extern	void	Dbg_dl_dlerror(Rt_map *, const char *);
+extern	void	Dbg_dl_dlinfo(Rt_map *, const char *, int, void *);
+extern	void	Dbg_dl_dlopen(Rt_map *, const char *, int *, int);
+extern	void	Dbg_dl_dlsym(Rt_map *, const char *, int *, const char *, int);
+extern	void	Dbg_dl_iphdr_enter(Rt_map *, u_longlong_t, u_longlong_t);
+extern	void	Dbg_dl_iphdr_callback(Lm_list *, struct dl_phdr_info *);
+extern	void	Dbg_dl_iphdr_mapchange(Lm_list *, u_longlong_t, u_longlong_t);
+extern	void	Dbg_dl_iphdr_unmap_ret(Lm_list *);
 
 extern	const char *
 		Dbg_demangle_name(const char *);
 
-extern	void	Dbg_ent_entry(Lm_list *, Half, Ent_desc *);
-extern	void	Dbg_ent_print(Lm_list *, Half, List *, Boolean);
+extern	void	Dbg_ent_entry(Lm_list *, uchar_t, Half, Ent_desc *);
+extern	void	Dbg_ent_print(Lm_list *, uchar_t, Half, APlist *);
 
 extern	void	Dbg_file_analyze(Rt_map *);
-extern	void	Dbg_file_aout(Lm_list *, const char *, ulong_t, ulong_t,
-		    ulong_t, const char *, Aliste);
-extern	void	Dbg_file_ar(Lm_list *, const char *, int);
-extern	void	Dbg_file_ar_rescan(Lm_list *);
+extern	void	Dbg_file_aout(Lm_list *, const char *, Addr, size_t,
+		    const char *, Aliste);
+extern	void	Dbg_file_ar(Lm_list *, const char *, Boolean);
+extern	void	Dbg_file_ar_rescan(Lm_list *, int, int);
 extern	void	Dbg_file_bind_entry(Lm_list *, Bnd_desc *);
 extern	void	Dbg_file_bindings(Rt_map *, int);
+extern	void	Dbg_file_bindings_done(Lm_list *);
 extern	void	Dbg_file_cleanup(Lm_list *, const char *, Aliste);
 extern	void	Dbg_file_cntl(Lm_list *, Aliste, Aliste);
 extern	void	Dbg_file_config_dis(Lm_list *, const char *, int);
@@ -676,11 +852,9 @@ extern	void	Dbg_file_config_obj(Lm_list *, const char *, const char *,
 		    const char *);
 extern	void	Dbg_file_del_rescan(Lm_list *);
 extern	void	Dbg_file_delete(Rt_map *);
-extern	void	Dbg_file_dlclose(Lm_list *, const char *, int);
-extern	void	Dbg_file_dldump(Rt_map *, const char *, int);
-extern	void	Dbg_file_dlopen(Rt_map *, const char *, int *, int);
-extern	void	Dbg_file_elf(Lm_list *, const char *, ulong_t, ulong_t,
-		    ulong_t, ulong_t, const char *, Aliste);
+extern	void	Dbg_file_deferred(Lm_list *, const char *, const char *);
+extern	void	Dbg_file_elf(Lm_list *, const char *, Addr, size_t,
+		    const char *, Aliste);
 extern	void	Dbg_file_filtee(Lm_list *, const char *, const char *, int);
 extern	void	Dbg_file_filter(Lm_list *, const char *, const char *, int);
 extern	void	Dbg_file_fixname(Lm_list *, const char *, const char *);
@@ -691,6 +865,8 @@ extern	void	Dbg_file_hdl_title(int);
 extern	void	Dbg_file_lazyload(Rt_map *, const char *, const char *);
 extern	void	Dbg_file_ldso(Rt_map *, char **, auxv_t *, const char *,
 		    Aliste);
+extern	void	Dbg_file_mmapobj(Lm_list *, const char *, mmapobj_result_t *,
+		    uint_t);
 extern	void	Dbg_file_mode_promote(Rt_map *, int);
 extern	void	Dbg_file_modified(Lm_list *, const char *, const char *,
 		    const char *, int, int, Elf *, Elf *);
@@ -707,32 +883,42 @@ extern	void	Dbg_got_display(Ofl_desc *, Off, int, Word, size_t);
 extern	void	Dbg_libs_audit(Lm_list *, const char *, const char *);
 extern	void	Dbg_libs_find(Lm_list *, const char *);
 extern	void	Dbg_libs_found(Lm_list *, const char *, int);
-extern	void	Dbg_libs_ignore(Lm_list *, const char *);
-extern	void	Dbg_libs_init(Lm_list *, List *, List *);
+extern	void	Dbg_libs_insecure(Lm_list *, const char *, int);
+extern	void	Dbg_libs_init(Lm_list *, APlist *, APlist *);
 extern	void	Dbg_libs_l(Lm_list *, const char *, const char *);
 extern	void	Dbg_libs_path(Lm_list *, const char *, uint_t, const char *);
 extern	void	Dbg_libs_req(Lm_list *, const char *, const char *,
 		    const char *);
-extern	void	Dbg_libs_update(Lm_list *, List *, List *);
+extern	void	Dbg_libs_update(Lm_list *, APlist *, APlist *);
 extern	void	Dbg_libs_yp(Lm_list *, const char *);
 extern	void	Dbg_libs_ylu(Lm_list *, const char *, const char *, int);
 
-extern	void	Dbg_map_dash(Lm_list *, const char *, Sdf_desc *);
-extern	void	Dbg_map_ent(Lm_list *, Boolean, Ent_desc *, Ofl_desc *);
-extern	void	Dbg_map_parse(Lm_list *, const char *);
-extern	void	Dbg_map_pipe(Lm_list *, Sg_desc *, const char *, const Word);
-extern	void	Dbg_map_seg(Ofl_desc *, int, Sg_desc *);
-extern	void	Dbg_map_set_atsign(Boolean);
-extern	void	Dbg_map_set_equal(Boolean);
-extern	void	Dbg_map_size_new(Lm_list *, const char *);
-extern	void	Dbg_map_size_old(Ofl_desc *, Sym_desc *);
-extern	void	Dbg_map_sort_fini(Lm_list *, Sg_desc *);
-extern	void	Dbg_map_sort_orig(Lm_list *, Sg_desc *);
+extern	void	Dbg_map_cexp_id(Lm_list *, Boolean, const char *, Lineno,
+		    const char *);
+extern	void	Dbg_map_dv(Lm_list *, const char *, Lineno);
+extern	void	Dbg_map_dv_entry(Lm_list *, Lineno, int, const char *);
+extern	void	Dbg_map_ent(Lm_list *, Ent_desc *, Ofl_desc *, Lineno);
+extern	void	Dbg_map_ent_ord_title(Lm_list *, const char *);
+extern	void	Dbg_map_hdr_noalloc(Lm_list *, Lineno);
+extern	void	Dbg_map_parse(Lm_list *, const char *, int);
+extern	void	Dbg_map_pass(Lm_list *, Boolean, const char *, Lineno,
+		    const char *);
+extern	void	Dbg_map_post_title(Lm_list *);
+extern	void	Dbg_map_seg(Ofl_desc *, dbg_state_t, int, Sg_desc *, Lineno);
+extern	void	Dbg_map_seg_order(Ofl_desc *, uchar_t, Half, dbg_state_t,
+		    Lineno);
+extern	void	Dbg_map_seg_os_order(Lm_list *, Sg_desc *, const char *,
+		    Word, Lineno);
+extern	void	Dbg_map_size_new(Lm_list *, const char *, const char *, Lineno);
+extern	void	Dbg_map_size_old(Ofl_desc *, Sym_desc *, const char *, Lineno);
+extern	void	Dbg_map_sort_title(Lm_list *, Boolean);
+extern	void	Dbg_map_sort_seg(Lm_list *, uchar_t, Half, Sg_desc *);
 extern	void	Dbg_map_symbol(Ofl_desc *, Sym_desc *);
 extern	void	Dbg_map_version(Lm_list *, const char *, const char *, int);
 
 extern 	void	Dbg_move_adjexpandreloc(Lm_list *, Xword, const char *);
 extern 	void	Dbg_move_adjmovereloc(Lm_list *, Xword, Xword, const char *);
+extern	void	Dbg_move_bad(Lm_list *, ulong_t, const char *, Addr);
 extern	void	Dbg_move_data(Rt_map *);
 extern 	void	Dbg_move_entry1(Lm_list *, int, Move *, Sym_desc *);
 extern 	void	Dbg_move_entry2(Lm_list *, Move *, Word, const char *);
@@ -747,8 +933,8 @@ extern	void	Dbg_reloc_apply_val(Lm_list *, int, Xword, Xword);
 extern	void	Dbg_reloc_ars_entry(Lm_list *, int, Word, Half, Rel_desc *);
 extern	void	Dbg_reloc_copy(Rt_map *, Rt_map *, const char *, int);
 extern	void	Dbg_reloc_discard(Lm_list *, Half, Rel_desc *);
-extern	void	Dbg_reloc_doact(Lm_list *, int, Half, Word, Word, Xword, Xword,
-		    const char *, Os_desc *);
+extern	void	Dbg_reloc_doact(Lm_list *, int, Half, Word, Rel_desc *,
+		    Xword, Xword, rel_desc_sname_func_t);
 extern	void	Dbg_reloc_doact_title(Lm_list *);
 extern	void	Dbg_reloc_dooutrel(Lm_list *, Word);
 extern	void	Dbg_reloc_entry(Lm_list *, const char *, Half, Word, void *,
@@ -757,35 +943,40 @@ extern	void	Dbg_reloc_error(Lm_list *, int, Half, Word, void *,
 		    const char *);
 extern	void	Dbg_reloc_generate(Lm_list *, Os_desc *, Word);
 extern	void	Dbg_reloc_in(Lm_list *, int, Half, Word, void *, const char *,
-		    const char *);
+		    Word, const char *);
 extern	void	Dbg_reloc_ors_entry(Lm_list *, int, Word, Half, Rel_desc *);
 extern	void	Dbg_reloc_out(Ofl_desc *, int, Word, void *, const char *,
 		    const char *);
 extern	void	Dbg_reloc_proc(Lm_list *, Os_desc *, Is_desc *, Is_desc *);
 extern	void	Dbg_reloc_run(Rt_map *, uint_t, int, int);
-extern	void	Dbg_reloc_transition(Lm_list *, Half, Word, Rel_desc *);
-extern	void	Dbg_reloc_sloppycomdat(Lm_list *, const char *, Sym_desc *);
+extern	void	Dbg_reloc_transition(Lm_list *, Half, Word, Rel_desc *,
+		    rel_desc_sname_func_t);
+extern	void	Dbg_reloc_sloppycomdat(Lm_list *, Sym_desc *);
 
 extern	void	Dbg_sec_added(Lm_list *, Os_desc *, Sg_desc *);
+extern	void	Dbg_sec_backing(Lm_list *);
 extern	void	Dbg_sec_created(Lm_list *, Os_desc *, Sg_desc *);
 extern	void	Dbg_sec_discarded(Lm_list *, Is_desc *, Is_desc *);
 extern	void	Dbg_sec_genstr_compress(Lm_list *, const char *,
 		    Xword, Xword);
 extern	void	Dbg_sec_group(Lm_list *, Is_desc *, Group_desc *);
+extern	void	Dbg_sec_gnu_comdat(Lm_list *, Is_desc *, Boolean, Boolean);
 extern	void	Dbg_sec_in(Lm_list *, Is_desc *);
 extern	void	Dbg_sec_order_error(Lm_list *, Ifl_desc *, Word, int);
 extern	void	Dbg_sec_order_list(Ofl_desc *, int);
+extern	void	Dbg_sec_redirected(Lm_list *, Is_desc *, const char *);
 extern	void	Dbg_sec_strtab(Lm_list *, Os_desc *, Str_tbl *);
 extern	void	Dbg_sec_unsup_strmerge(Lm_list *, Is_desc *);
 
-extern	void	Dbg_seg_desc_entry(Lm_list *, Half, int, Sg_desc *);
+extern	void	Dbg_seg_desc_entry(Lm_list *, uchar_t, Half, int, Sg_desc *,
+		    Boolean);
 extern	void	Dbg_seg_entry(Ofl_desc *, int, Sg_desc *);
-extern	void	Dbg_seg_list(Lm_list *, Half, List *);
+extern	void	Dbg_seg_list(Lm_list *, uchar_t, Half, APlist *);
 extern	void	Dbg_seg_os(Ofl_desc *, Os_desc *, int);
 extern	void	Dbg_seg_title(Lm_list *);
 
-extern	void	Dbg_shdr_modified(Lm_list *, const char *, Half, Shdr *, Shdr *,
-		    const char *);
+extern	void	Dbg_shdr_modified(Lm_list *, const char *, uchar_t, Half,
+		    Word, Shdr *, Shdr *, const char *);
 
 extern	void	Dbg_statistics_ar(Ofl_desc *);
 extern	void	Dbg_statistics_ld(Ofl_desc *);
@@ -794,21 +985,29 @@ extern	void	Dbg_support_action(Lm_list *, const char *, const char *,
 		    Support_ndx, const char *);
 extern	void	Dbg_support_load(Lm_list *, const char *, const char *);
 extern	void	Dbg_support_req(Lm_list *, const char *, int);
+extern	void	Dbg_support_vnone(Lm_list *, const char *);
 
 extern	void	Dbg_syminfo_entry(Lm_list *, Word, Syminfo *, Sym *,
 		    const char *, Dyn *);
 extern	void	Dbg_syminfo_title(Lm_list *);
 
-extern	void	Dbg_syms_ar_checking(Lm_list *, Xword, Elf_Arsym *,
-		    const char *);
-extern	void	Dbg_syms_ar_entry(Lm_list *, Xword, Elf_Arsym *);
-extern	void	Dbg_syms_ar_resolve(Lm_list *, Xword, Elf_Arsym *,
-		    const char *, int);
-extern	void	Dbg_syms_ar_title(Lm_list *, const char *, int);
+extern	void	Dbg_syms_ar_checking(Lm_list *, const char *, const char *,
+		    Elf_Arsym *);
+extern	void	Dbg_syms_ar_force(Lm_list *, const char *, const char *);
+extern	void	Dbg_syms_ar_resolve(Lm_list *, const char *, const char *,
+		    Elf_Arsym *);
+extern	void	Dbg_syms_ar_skip(Lm_list *, const char *, Elf_Arsym *);
+extern	void	Dbg_syms_ar_title(Lm_list *, const char *, Boolean);
+extern	void	Dbg_syms_cap_convert(Ofl_desc *, Word, const char *, Sym *);
+extern	void	Dbg_syms_cap_local(Ofl_desc *, Word, const char *, Sym *,
+		    Sym_desc *);
+extern	void	Dbg_syms_cap_lookup(Rt_map *, uint_t, const char *, uint_t,
+		    Half, Syscapset *);
+extern	void	Dbg_syms_cap_title(Ofl_desc *);
+extern	void	Dbg_syms_copy_reloc(Ofl_desc *, Sym_desc *, Word);
 extern	void	Dbg_syms_created(Lm_list *, const char *);
 extern	void	Dbg_syms_discarded(Lm_list *, Sym_desc *);
-extern	void	Dbg_syms_dlsym(Rt_map *, const char *, int *, const char *,
-		    int);
+extern	void	Dbg_syms_dup_discarded(Lm_list *, Word ndx, Sym_desc *);
 extern	void	Dbg_syms_dup_sort_addr(Lm_list *, const char *, const char *,
 		    const char *, Addr);
 extern	void	Dbg_syms_entered(Ofl_desc *, Sym *, Sym_desc *);
@@ -826,7 +1025,6 @@ extern	void	Dbg_syms_old(Ofl_desc *, Sym_desc *);
 extern	void	Dbg_syms_process(Lm_list *, Ifl_desc *);
 extern	void	Dbg_syms_reduce(Ofl_desc *, int, Sym_desc *, int,
 		    const char *);
-extern	void	Dbg_syms_reloc(Ofl_desc *, Sym_desc *);
 extern	void	Dbg_syms_resolved(Ofl_desc *, Sym_desc *);
 extern	void	Dbg_syms_resolving(Ofl_desc *, Word, const char *, int, int,
 		    Sym *, Sym *, Sym_desc *, Ifl_desc *);
@@ -835,12 +1033,12 @@ extern	void	Dbg_syms_sec_title(Lm_list *);
 extern	void	Dbg_syms_spec_title(Lm_list *);
 extern	void	Dbg_syms_updated(Ofl_desc *, Sym_desc *, const char *);
 extern	void	Dbg_syms_up_title(Lm_list *);
+extern	void	Dbg_syms_wrap(Lm_list *, Word, const char *, const char *);
 
 extern	void	Dbg_tls_modactivity(Lm_list *, void *, uint_t);
 extern	void	Dbg_tls_static_block(Lm_list *, void *, ulong_t, ulong_t);
 extern	void	Dbg_tls_static_resv(Rt_map *, ulong_t, ulong_t);
 
-extern	void	Dbg_util_broadcast(Rt_map *);
 extern	void	Dbg_util_call_array(Rt_map *, void *, int, Word);
 extern	void	Dbg_util_call_fini(Rt_map *);
 extern	void	Dbg_util_call_init(Rt_map *, int);
@@ -854,10 +1052,9 @@ extern	void	Dbg_util_intoolate(Rt_map *);
 extern	void	Dbg_util_lcinterface(Rt_map *, int, char *);
 extern	void	Dbg_util_nl(Lm_list *, int);
 extern	void	Dbg_util_no_init(Rt_map *);
-extern	void	Dbg_util_str(Lm_list *, const char *);
 extern	void	Dbg_util_scc_entry(Rt_map *, uint_t);
 extern	void	Dbg_util_scc_title(Lm_list *, int);
-extern	void	Dbg_util_wait(Rt_map *, Rt_map *, int);
+extern	void	Dbg_util_str(Lm_list *, const char *);
 
 extern	void	Dbg_unused_file(Lm_list *, const char *, int, uint_t);
 extern	void	Dbg_unused_lcinterface(Rt_map *, Rt_map *, int);
@@ -870,6 +1067,7 @@ extern	void	Dbg_ver_avail_entry(Lm_list *, Ver_index *, const char *);
 extern	void	Dbg_ver_avail_title(Lm_list *, const char *);
 extern	void	Dbg_ver_def_title(Lm_list *, const char *);
 extern	void	Dbg_ver_desc_entry(Lm_list *, Ver_desc *);
+extern	void	Dbg_ver_need_done(Lm_list *);
 extern	void	Dbg_ver_need_entry(Lm_list *, Half, const char *,
 		    const char *);
 extern	void	Dbg_ver_need_title(Lm_list *, const char *);
@@ -882,6 +1080,7 @@ extern	void	Dbg_ver_symbol(Lm_list *, const char *);
 #define	ELF_DBG_ELFDUMP		1
 #define	ELF_DBG_RTLD		2
 #define	ELF_DBG_LD		3
+#define	ELF_DBG_LD_ACT		4
 
 /*
  * Define generic Elf_*() interfaces.
@@ -967,12 +1166,14 @@ extern	void Elf_syminfo_title(Lm_list *);
 
 #endif
 
-extern	void	Elf_cap_entry(Lm_list *, Cap *, int, Half);
+extern	void	Elf_cap_entry(Lm_list *, Cap *, int, const char *, size_t,
+		    Half);
 extern	void	Elf_cap_title(Lm_list *);
 
 extern	const char \
 		*Elf_demangle_name(const char *);
-extern	void	Elf_dyn_entry(Lm_list *, Dyn *, int, const char *, Half);
+extern	void	Elf_dyn_entry(Lm_list *, Dyn *, int, const char *,
+		    uchar_t, Half);
 extern	void	Elf_dyn_null_entry(Lm_list *, Dyn *, int, int);
 extern	void	Elf_dyn_title(Lm_list *);
 
@@ -982,7 +1183,7 @@ extern	void	Elf_got_entry(Lm_list *, Sword, Addr, Xword, Half,
 		    uchar_t, uchar_t, Word, void *, const char *);
 extern	void	Elf_got_title(Lm_list *);
 
-extern	void	Elf_phdr(Lm_list *, Half, Phdr *);
+extern	void	Elf_phdr(Lm_list *, uchar_t, Half, Phdr *);
 
 extern	void	Elf_reloc_apply_val(Lm_list *, int, Xword, Xword);
 extern	void	Elf_reloc_apply_reg(Lm_list *, int, Half, Xword, Xword);
@@ -993,10 +1194,10 @@ extern	void	Elf_reloc_entry_2(Lm_list *, int, const char *, Word,
 		    const char *);
 extern	void	Elf_reloc_title(Lm_list *, int, Word);
 
-extern	void	Elf_shdr(Lm_list *, Half, Shdr *);
+extern	void	Elf_shdr(Lm_list *, uchar_t, Half, Shdr *);
 
-extern	void	Elf_syms_table_entry(Lm_list *, int, const char *, Half, Sym *,
-		    Versym, int, const char *, const char *);
+extern	void	Elf_syms_table_entry(Lm_list *, int, const char *, uchar_t,
+		    Half, Sym *, Versym, int, const char *, const char *);
 extern	void	Elf_syms_table_title(Lm_list *, int);
 
 extern	void	Elf_ver_def_title(Lm_list *);

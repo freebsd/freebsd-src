@@ -20,11 +20,9 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <_string_table.h>
 #include <strings.h>
@@ -160,7 +158,7 @@ st_new(uint_t flags)
 {
 	Str_tbl	*stp;
 
-	if ((stp = calloc(sizeof (Str_tbl), 1)) == NULL)
+	if ((stp = calloc(sizeof (*stp), 1)) == NULL)
 		return (NULL);
 
 	/*
@@ -175,7 +173,7 @@ st_new(uint_t flags)
 	if ((stp->st_flags & FLG_STTAB_COMPRESS) == 0)
 		return (stp);
 
-	if ((stp->st_lentree = calloc(sizeof (avl_tree_t), 1)) == NULL)
+	if ((stp->st_lentree = calloc(sizeof (*stp->st_lentree), 1)) == NULL)
 		return (NULL);
 
 	avl_create(stp->st_lentree, &avl_len_compare, sizeof (LenNode),
@@ -187,9 +185,9 @@ st_new(uint_t flags)
 /*
  * Insert a new string into the Str_tbl.  There are two AVL trees used.
  *
- *  .	The first LenNode AVL tree maintains a tree of nodes based on string
+ *  -	The first LenNode AVL tree maintains a tree of nodes based on string
  *	sizes.
- *  .	Each LenNode maintains a StrNode AVL tree for each string.  Large
+ *  -	Each LenNode maintains a StrNode AVL tree for each string.  Large
  *	applications have been known to contribute thousands of strings of
  *	the same size.  Should strings need to be removed (-z ignore), then
  *	the string AVL tree makes this removal efficient and scalable.
@@ -227,12 +225,13 @@ st_insert(Str_tbl *stp, const char *str)
 	 */
 	ln.ln_strlen = len;
 	if ((lnp = avl_find(stp->st_lentree, &ln, &where)) == NULL) {
-		if ((lnp = calloc(sizeof (LenNode), 1)) == NULL)
+		if ((lnp = calloc(sizeof (*lnp), 1)) == NULL)
 			return (-1);
 		lnp->ln_strlen = len;
 		avl_insert(stp->st_lentree, lnp, where);
 
-		if ((lnp->ln_strtree = calloc(sizeof (avl_tree_t), 1)) == NULL)
+		if ((lnp->ln_strtree = calloc(sizeof (*lnp->ln_strtree), 1)) ==
+		    NULL)
 			return (0);
 
 		avl_create(lnp->ln_strtree, &avl_str_compare, sizeof (StrNode),
@@ -246,7 +245,7 @@ st_insert(Str_tbl *stp, const char *str)
 	 */
 	sn.sn_str = str;
 	if ((snp = avl_find(lnp->ln_strtree, &sn, &where)) == NULL) {
-		if ((snp = calloc(sizeof (StrNode), 1)) == NULL)
+		if ((snp = calloc(sizeof (*snp), 1)) == NULL)
 			return (-1);
 		snp->sn_str = str;
 		avl_insert(lnp->ln_strtree, snp, where);
@@ -513,7 +512,7 @@ st_hash_insert(Str_tbl *stp, const char *str, size_t len)
 		/*
 		 * allocate a new master string
 		 */
-		if ((mstr = calloc(sizeof (Str_hash), 1)) == 0)
+		if ((mstr = calloc(sizeof (*mstr), 1)) == 0)
 			return (-1);
 		mstr->sm_next = stp->st_mstrlist;
 		stp->st_mstrlist = mstr;
@@ -528,7 +527,7 @@ st_hash_insert(Str_tbl *stp, const char *str, size_t len)
 		stp->st_strsize += len - mstr->sm_strlen;
 	}
 
-	if ((sthash = calloc(sizeof (Str_hash), 1)) == 0)
+	if ((sthash = calloc(sizeof (*sthash), 1)) == 0)
 		return (-1);
 
 	mstr->sm_hashval = sthash->hi_hashval = hashval;
@@ -569,8 +568,8 @@ st_getstrtab_sz(Str_tbl *stp)
 		 * strings input.
 		 */
 		stp->st_hbckcnt = findprime(stp->st_strcnt);
-		if ((stp->st_hashbcks =
-		    calloc(sizeof (Str_hash), stp->st_hbckcnt)) == NULL)
+		if ((stp->st_hashbcks = calloc(sizeof (*stp->st_hashbcks),
+		    stp->st_hbckcnt)) == NULL)
 			return (0);
 
 		/*
@@ -673,8 +672,8 @@ st_setstrbuf(Str_tbl *stp, char *stbuf, size_t bufsize)
 #ifdef	DEBUG
 	/*
 	 * for debug builds - start with a stringtable filled in
-	 * with '0xff'.  This makes it very easy to find wholes
-	 * which we failed to fill in - in the strtab.
+	 * with '0xff'.  This makes it very easy to spot unfilled
+	 * holes in the strtab.
 	 */
 	memset(stbuf, 0xff, bufsize);
 	stbuf[0] = '\0';
