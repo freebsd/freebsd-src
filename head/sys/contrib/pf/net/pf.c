@@ -259,7 +259,6 @@ static void		 pf_detach_state(struct pf_state *);
 static int		 pf_state_key_attach(struct pf_state_key *,
 			    struct pf_state_key *, struct pf_state *);
 static void		 pf_state_key_detach(struct pf_state *, int);
-static int		 pf_state_key_ini(void *, int, int);
 static u_int32_t	 pf_tcp_iss(struct pf_pdesc *);
 static int		 pf_test_rule(struct pf_rule **, struct pf_state **,
 			    int, struct pfi_kif *, struct mbuf *, int,
@@ -740,7 +739,7 @@ pf_initialize()
         uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
 
 	V_pf_state_key_z = uma_zcreate("pf state keys",
-	    sizeof(struct pf_state_key), NULL, NULL, pf_state_key_ini, NULL,
+	    sizeof(struct pf_state_key), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	V_pf_keyhash = malloc(V_pf_hashsize * sizeof(struct pf_keyhash),
 	    M_PFHASH, M_WAITOK | M_ZERO);
@@ -1043,24 +1042,13 @@ pf_state_key_detach(struct pf_state *s, int idx)
 	}
 }
 
-static int
-pf_state_key_ini(void *mem, int size, int flags)
-{
-	struct pf_state_key *sk = mem;
-
-	bzero(sk, sizeof(*sk));
-	TAILQ_INIT(&sk->states[PF_SK_WIRE]);
-	TAILQ_INIT(&sk->states[PF_SK_STACK]);
-	return (0);
-}
-
 struct pf_state_key *
 pf_state_key_setup(struct pf_pdesc *pd, struct pf_addr *saddr,
 	struct pf_addr *daddr, u_int16_t sport, u_int16_t dport)
 {
 	struct pf_state_key *sk;
 
-	sk = uma_zalloc(V_pf_state_key_z, M_NOWAIT);
+	sk = uma_zalloc(V_pf_state_key_z, M_ZERO | M_NOWAIT);
 	if (sk == NULL)
 		return (NULL);
 
@@ -1070,6 +1058,9 @@ pf_state_key_setup(struct pf_pdesc *pd, struct pf_addr *saddr,
 	sk->port[pd->didx] = dport;
 	sk->proto = pd->proto;
 	sk->af = pd->af;
+
+	TAILQ_INIT(&sk->states[PF_SK_WIRE]);
+	TAILQ_INIT(&sk->states[PF_SK_STACK]);
 
 	return (sk);
 }
