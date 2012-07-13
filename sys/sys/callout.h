@@ -113,7 +113,7 @@ int	callout_schedule_on(struct callout *, int, int);
     callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
-void	callout_process(void);
+void	callout_process(struct bintime *);
 extern void (*callout_new_inserted)(int cpu, struct bintime bt);
 
 #endif

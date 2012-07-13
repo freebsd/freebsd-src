@@ -349,9 +349,9 @@ get_bucket(struct bintime *bt)
 }
 
 void
-callout_process(void)
+callout_process(struct bintime *now)
 {
-	struct bintime max, min, next, now, tmp_max, tmp_min;
+	struct bintime max, min, next, tmp_max, tmp_min;
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
@@ -364,10 +364,9 @@ callout_process(void)
 	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	binuptime(&now);
 	cpu = curcpu;
 	first = callout_hash(&cc->cc_lastscan);
-	last = callout_hash(&now);
+	last = callout_hash(now);
 	/* 
 	 * Check if we wrapped around the entire wheel from the last scan.
 	 * In case, we need to scan entirely the wheel for pending callouts.
@@ -380,7 +379,7 @@ callout_process(void)
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
 			next = tmp->c_time;
 			bintime_sub(&next, &tmp->c_precision);
-			if (bintime_cmp(&next, &now, <=)) {
+			if (bintime_cmp(&next, now, <=)) {
 				/* 
 				 * Consumer told us the callout may be run
 				 * directly from hardware interrupt context.
@@ -445,7 +444,7 @@ callout_process(void)
 	if (max.sec == TIME_T_MAX) { 
 		next.sec = 0;	
 		next.frac = (uint64_t)1 << (64 - 2);	
-		bintime_add(&next, &now);
+		bintime_add(&next, now);
 	} else {
 		/*
 		 * Now that we found something to aggregate, schedule an  
@@ -461,7 +460,7 @@ callout_process(void)
 	cc->cc_firstevent = next;
 	if (callout_new_inserted != NULL) 
 		(*callout_new_inserted)(cpu, next);
-	cc->cc_lastscan = now;
+	cc->cc_lastscan = *now;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	/*
 	 * swi_sched acquires the thread lock, so we don't want to call it
