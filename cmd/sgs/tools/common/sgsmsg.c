@@ -19,8 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
  *
  * sgsmsg generates several message files from an input template file.  Messages
  * are constructed for use with gettext(3i) - the default - or catgets(3c).  The
@@ -66,7 +65,6 @@
  *		the data array being built in msg.c.  The index into this array
  *		becomes the `message' identifier created in the msg.h file.
  */
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include	<fcntl.h>
 #include	<stdlib.h>
@@ -393,15 +391,22 @@ init_defs(void)
 		return (1);
 	}
 
+	if (fprintf(fddefs, "#include <sgsmsg.h>\t/* Msg typedef */\n\n") < 0) {
+		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
+		return (1);
+	}
+
 	if (fprintf(fddefs, "#ifndef\t__lint\n\n") < 0) {
 		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
 		return (1);
 	}
 
 	/*
-	 * add "typedef int	Msg;"
+	 * The MSG_SGS_ARRAY_NAME macro supplies a generic way to
+	 * reference the string table regardless of its name.
 	 */
-	if (fprintf(fddefs, "typedef int\tMsg;\n\n") < 0) {
+	if (fprintf(fddefs, "#define\tMSG_SGS_LOCAL_ARRAY\t__%s\n\n",
+	    interface) < 0) {
 		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
 		return (1);
 	}
@@ -418,7 +423,13 @@ init_defs(void)
 			return (1);
 		}
 	}
-	if (fprintf(fddefs, "#define\tMSG_ORIG(x)\t&__%s[x]\n\n",
+	if (fprintf(fddefs,
+	    "#define\tMSG_ORIG_STRTAB(_x, _s)\t&_s[_x]\n\n") < 0) {
+		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
+		return (1);
+	}
+	if (fprintf(fddefs,
+	    "#define\tMSG_ORIG(x)\tMSG_ORIG_STRTAB(x, __%s)\n\n",
 	    interface) < 0) {
 		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
 		return (1);
@@ -453,17 +464,14 @@ fini_defs(void)
 		return (1);
 	}
 
-	/*
-	 * When __lint is defined, Msg is a char *.  This allows lint to
-	 * check our format strings against it's arguments.
-	 */
-	if (fprintf(fddefs, "\ntypedef char *\tMsg;\n\n") < 0) {
+	if (fprintf(fddefs, "extern\tconst char *\t_%s(Msg);\n\n",
+	    interface) < 0) {
 		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
 		return (1);
 	}
 
-	if (fprintf(fddefs, "extern\tconst char *\t_%s(Msg);\n\n",
-	    interface) < 0) {
+	if (fprintf(fddefs, "#ifndef MSG_SGS_LOCAL_ARRAY\n"
+	    "#define\tMSG_SGS_LOCAL_ARRAY\t\"\"\n#endif\n\n") < 0) {
 		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
 		return (1);
 	}
@@ -478,7 +486,20 @@ fini_defs(void)
 	}
 
 	if (fprintf(fddefs,
+	    "#define MSG_ORIG_STRTAB(_x, _s)\t_x\n"
 	    "#define MSG_ORIG(x)\tx\n#define MSG_INTL(x)\tx\n") < 0) {
+		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
+		return (1);
+	}
+
+	/*
+	 * Provide a way to get the array and function declarations above
+	 * without also getting the actual messages. This is useful in
+	 * our lintsup.c files that include more than one message header.
+	 * lintsup doesn't need the actual messages, and this prevents
+	 * macro name collisions.
+	 */
+	if (fprintf(fddefs, "\n#ifndef LINTSUP_SUPPRESS_STRINGS\n") < 0) {
 		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
 		return (1);
 	}
@@ -508,6 +529,11 @@ fini_defs(void)
 			return (1);
 		}
 		(void) free(buf);
+	}
+
+	if (fprintf(fddefs, "\n#endif\t/* LINTSUP_SUPPRESS_STRINGS */\n") < 0) {
+		(void) fprintf(stderr, Errmsg_wrte, fldefs, strerror(errno));
+		return (1);
 	}
 
 	if (fprintf(fddefs, "\n#endif\t/* __lint */\n") < 0) {
@@ -1102,8 +1128,9 @@ main(int argc, char ** argv)
 		}
 	}
 	if (fddefs && fddata) {
-		(void) sprintf(fllint, "%s.%d", nmlint, (int)getpid());
-		if ((fdlint = fopen(fllint, "w+")) == NULL) {
+		(void) sprintf(fllint, "%s.%d.XXXXXX", nmlint, (int)getpid());
+		if ((mkstemp(fllint) == -1) ||
+		    ((fdlint = fopen(fllint, "w+")) == NULL)) {
 			(void) fprintf(stderr, Errmsg_opne, fllint,
 			    strerror(errno));
 			return (1);
