@@ -26,7 +26,7 @@ find_pidfile()
 	fi
 }
 
-devd_prestart ()
+devd_prestart()
 {
 	find_pidfile
 
