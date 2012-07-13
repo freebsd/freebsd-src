@@ -32,7 +32,7 @@
 /* Source of condition is... */
 #define	MM_HARD		0x0001	/* ...hardware. */
 #define	MM_SOFT		0x0002	/* ...software. */
-#define	MM_FIRM		0x0004	/* ...fireware. */
+#define	MM_FIRM		0x0004	/* ...firmware. */
 
 /* Condition detected by... */
 #define	MM_APPL		0x0010	/* ...application. */

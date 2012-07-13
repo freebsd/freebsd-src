@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -154,6 +154,13 @@ struct e1000_hw;
 #define E1000_DEV_ID_I350_SERDES		0x1523
 #define E1000_DEV_ID_I350_SGMII			0x1524
 #define E1000_DEV_ID_I350_DA4			0x1546
+#define E1000_DEV_ID_I210_COPPER		0x1533
+#define E1000_DEV_ID_I210_COPPER_OEM1		0x1534
+#define E1000_DEV_ID_I210_COPPER_IT		0x1535
+#define E1000_DEV_ID_I210_FIBER			0x1536
+#define E1000_DEV_ID_I210_SERDES		0x1537
+#define E1000_DEV_ID_I210_SGMII			0x1538
+#define E1000_DEV_ID_I211_COPPER		0x1539
 #define E1000_DEV_ID_DH89XXCC_SGMII		0x0438
 #define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
 #define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
@@ -203,6 +210,8 @@ enum e1000_mac_type {
 	e1000_82576,
 	e1000_82580,
 	e1000_i350,
+	e1000_i210,
+	e1000_i211,
 	e1000_vfadapt,
 	e1000_vfadapt_i350,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
@@ -248,6 +257,7 @@ enum e1000_phy_type {
 	e1000_phy_82579,
 	e1000_phy_82580,
 	e1000_phy_vf,
+	e1000_phy_i210,
 };
 
 enum e1000_bus_type {
@@ -674,6 +684,8 @@ struct e1000_mac_operations {
 				     struct e1000_host_mng_command_header*);
 	s32  (*mng_enable_host_if)(struct e1000_hw *);
 	s32  (*wait_autoneg)(struct e1000_hw *);
+	s32  (*acquire_swfw_sync)(struct e1000_hw *, u16);
+	void (*release_swfw_sync)(struct e1000_hw *, u16);
 };
 
 /*
@@ -911,13 +923,13 @@ struct e1000_dev_spec_ich8lan {
 	E1000_MUTEX nvm_mutex;
 	E1000_MUTEX swflag_mutex;
 	bool nvm_k1_enabled;
-	int eee_disable;
+	bool eee_disable;
 };
 
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
-	int eee_disable;
+	bool eee_disable;
 	bool module_plugged;
 	u32 mtu;
 };
@@ -967,6 +979,7 @@ struct e1000_hw {
 #include "e1000_80003es2lan.h"
 #include "e1000_ich8lan.h"
 #include "e1000_82575.h"
+#include "e1000_i210.h"
 
 /* These functions must be implemented by drivers */
 void e1000_pci_clear_mwi(struct e1000_hw *hw);

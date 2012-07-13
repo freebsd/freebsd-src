@@ -35,20 +35,20 @@
 #define SAM9G20_PLL_A_MIN_OUT_FREQ	400000000 /* 400 Mhz */
 #define SAM9G20_PLL_A_MAX_OUT_FREQ	800000000 /* 800 Mhz */
 #define SAM9G20_PLL_A_MUL_SHIFT 16
-#define SAM9G20_PLL_A_MUL_MASK 0xFF 
+#define SAM9G20_PLL_A_MUL_MASK 0xFF
 #define SAM9G20_PLL_A_DIV_SHIFT 0
-#define SAM9G20_PLL_A_DIV_MASK 0xFF 
+#define SAM9G20_PLL_A_DIV_MASK 0xFF
 
 #define SAM9G20_PLL_B_MIN_IN_FREQ	  2000000 /*   2 Mhz */
 #define SAM9G20_PLL_B_MAX_IN_FREQ	 32000000 /*  32 Mhz */
 #define SAM9G20_PLL_B_MIN_OUT_FREQ	 30000000 /*  30 Mhz */
 #define SAM9G20_PLL_B_MAX_OUT_FREQ	100000000 /* 100 Mhz */
 #define SAM9G20_PLL_B_MUL_SHIFT 16
-#define SAM9G20_PLL_B_MUL_MASK 0x3F 
+#define SAM9G20_PLL_B_MUL_MASK 0x3F
 #define SAM9G20_PLL_B_DIV_SHIFT 0
-#define SAM9G20_PLL_B_DIV_MASK 0xFF 
+#define SAM9G20_PLL_B_DIV_MASK 0xFF
 
-/* 
+/*
  * Memory map, from datasheet :
  * 0x00000000 - 0x0ffffffff : Internal Memories
  * 0x10000000 - 0x1ffffffff : Chip Select 0
@@ -72,9 +72,6 @@
 #define AT91_CHIPSELECT_6 0x70000000
 #define AT91_CHIPSELECT_7 0x80000000
 
-
-#define AT91SAM9G20_BASE	0xd0000000
-                                 
 
 #define AT91SAM9G20_EMAC_BASE 0xffc4000
 #define AT91SAM9G20_EMAC_SIZE 0x4000
@@ -157,7 +154,7 @@
 #define AT91RM92_PMC_SIZE	0x100
 /* IRQs : */
 /*
- * 0: AIC 
+ * 0: AIC
  * 1: System peripheral (System timer, RTC, DBGU)
  * 2: PIO Controller A
  * 3: PIO Controller B

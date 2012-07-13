@@ -30,7 +30,7 @@
 /*-
  * Copyright (c) 2001-2005, Intel Corporation.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -42,8 +42,8 @@
  * 3. Neither the name of the Intel Corporation nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
- * 
+ *
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -124,7 +124,7 @@ struct qmgrInfo {
 #if 0
 	/* NB: needed only for A0 parts */
 	u_int		statusWordOffset;	/* status word offset */
-	uint32_t	statusMask;             /* status mask */    
+	uint32_t	statusMask;             /* status mask */
 	uint32_t	statusCheckValue;	/* status check value */
 #endif
 };
@@ -257,7 +257,7 @@ ixpqmgr_attach(device_t dev)
 
 	    qi->cb = dummyCallback;
 	    qi->priority = IX_QMGR_Q_PRIORITY_0;	/* default priority */
-	    /* 
+	    /*
 	     * There are two interrupt registers, 32 bits each. One
 	     * for the lower queues(0-31) and one for the upper
 	     * queues(32-63). Therefore need to mod by 32 i.e the
@@ -280,17 +280,17 @@ ixpqmgr_attach(device_t dev)
 	    if (i < IX_QMGR_MIN_QUEUPP_QID) {
 		/* AQM Q underflow/overflow status reg address, per queue */
 		qi->qUOStatRegAddr = IX_QMGR_QUEUOSTAT0_OFFSET +
-		    ((i / IX_QMGR_QUEUOSTAT_NUM_QUE_PER_WORD) * 
+		    ((i / IX_QMGR_QUEUOSTAT_NUM_QUE_PER_WORD) *
 		     sizeof(uint32_t));
 
 		/* AQM Q underflow status bit masks for status reg per queue */
-		qi->qUflowStatBitMask = 
+		qi->qUflowStatBitMask =
 		    (IX_QMGR_UNDERFLOW_BIT_OFFSET + 1) <<
 		    ((i & (IX_QMGR_QUEUOSTAT_NUM_QUE_PER_WORD - 1)) *
 		     (32 / IX_QMGR_QUEUOSTAT_NUM_QUE_PER_WORD));
 
 		/* AQM Q overflow status bit masks for status reg, per queue */
-		qi->qOflowStatBitMask = 
+		qi->qOflowStatBitMask =
 		    (IX_QMGR_OVERFLOW_BIT_OFFSET + 1) <<
 		    ((i & (IX_QMGR_QUEUOSTAT_NUM_QUE_PER_WORD - 1)) *
 		     (32 / IX_QMGR_QUEUOSTAT_NUM_QUE_PER_WORD));
@@ -302,7 +302,7 @@ ixpqmgr_attach(device_t dev)
 
 		/* AQM Q lower-group (0-31) status register bit offset */
 		qi->qStatBitsOffset =
-		    (i & (IX_QMGR_QUELOWSTAT_NUM_QUE_PER_WORD - 1)) * 
+		    (i & (IX_QMGR_QUELOWSTAT_NUM_QUE_PER_WORD - 1)) *
 		    (32 / IX_QMGR_QUELOWSTAT_NUM_QUE_PER_WORD);
 	    } else { /* AQM Q upper-group (32-63), only */
 		qi->qUOStatRegAddr = 0;		/* XXX */
@@ -405,7 +405,7 @@ ixpqmgr_qwrite(int qId, uint32_t entry)
 		int qPtrs;
 
 		/*
-		 * Read the status twice because the status may 
+		 * Read the status twice because the status may
 		 * not be immediately ready after the write operation
 		 */
 		if ((status & qi->qOflowStatBitMask) ||
@@ -432,12 +432,12 @@ ixpqmgr_qwrite(int qId, uint32_t entry)
 		DPRINTFn(2, sc->sc_dev,
 		    "%s(%u, 0x%x) Q full, no overflow status, qConfig 0x%x\n",
 		    __func__, qId, entry, qPtrs);
-		qPtrs = (qPtrs - (qPtrs >> 7)) & 0x7f; 
+		qPtrs = (qPtrs - (qPtrs >> 7)) & 0x7f;
 
 		if (qPtrs == 0) {
 		    /*
-		     * The queue may be full at the time of the 
-		     * snapshot. Next access will check 
+		     * The queue may be full at the time of the
+		     * snapshot. Next access will check
 		     * the overflow status again.
 		     */
 		    qi->qWriteCount = qSize;
@@ -460,7 +460,7 @@ ixpqmgr_qread(int qId, uint32_t *entry)
 	*entry = aqm_reg_read(sc, off);
 
 	/*
-	 * Reset the current read count : next access to the read function 
+	 * Reset the current read count : next access to the read function
 	 * will force a underflow status check.
 	 */
 	qi->qReadCount = 0;
@@ -499,7 +499,7 @@ ixpqmgr_qreadm(int qId, uint32_t n, uint32_t *p)
 	*p = entry;
 
 	/*
-	 * Reset the current read count : next access to the read function 
+	 * Reset the current read count : next access to the read function
 	 * will force a underflow status check.
 	 */
 	qi->qReadCount = 0;
@@ -667,7 +667,7 @@ ixpqmgr_rebuild(struct ixpqmgr_softc *sc)
 	    /* low priority q's */
 	    for (q = 0; q < IX_QMGR_MIN_QUEUPP_QID; q++) {
 		qi = &sc->qinfo[q];
-		if (qi->priority == pri) { 
+		if (qi->priority == pri) {
 		    /*
 		     * Build the priority table bitmask which match the
 		     * queues of the first half of the priority table.
@@ -712,8 +712,8 @@ ixpqmgr_rebuild(struct ixpqmgr_softc *sc)
  * 0x00000001   31
  * 0x00000000   32
  *
- * The C version of this function is used as a replacement 
- * for system not providing the equivalent of the CLZ 
+ * The C version of this function is used as a replacement
+ * for system not providing the equivalent of the CLZ
  * assembly language instruction.
  *
  * Note that this version is big-endian
@@ -819,7 +819,7 @@ aqm_calc_statuscheck(int qId, IxQMgrSourceId srcSel)
 {
 	struct qmgrInfo *qi = &qinfo[qId];
 	uint32_t shiftVal;
-       
+
 	if (qId < IX_QMGR_MIN_QUEUPP_QID) {
 	    switch (srcSel) {
 	    case IX_QMGR_Q_SOURCE_ID_E:
@@ -863,7 +863,7 @@ aqm_calc_statuscheck(int qId, IxQMgrSourceId srcSel)
 	    /* One nibble of status per queue so need to shift the
 	     * check value and mask out to the correct position.
 	     */
-	    shiftVal = (qId % IX_QMGR_QUELOWSTAT_NUM_QUE_PER_WORD) * 
+	    shiftVal = (qId % IX_QMGR_QUELOWSTAT_NUM_QUE_PER_WORD) *
 		IX_QMGR_QUELOWSTAT_BITS_PER_Q;
 
 	    /* Calculate the which status word to check from the qId,
@@ -970,7 +970,7 @@ aqm_qcfg(struct ixpqmgr_softc *sc, int qId, u_int ne, u_int nf)
 
 	/* baseAddress, calculated relative to start address */
 	baseAddress = sc->aqmFreeSramAddress;
-		       
+		
 	/* base address must be word-aligned */
 	KASSERT((baseAddress % IX_QMGR_BASE_ADDR_16_WORD_ALIGN) == 0,
 	    ("address not word-aligned"));
@@ -1007,7 +1007,7 @@ aqm_srcsel_write(struct ixpqmgr_softc *sc, int qId, int sourceId)
 	if (off == IX_QMGR_INT0SRCSELREG0_OFFSET && qId == 0) {
 	    /* Queue 0 at INT0SRCSELREG should not corrupt the value bit-3  */
 	    v |= 0x7;
-	} else {     
+	} else {
 	  const uint32_t bpq = 32 / IX_QMGR_INTSRC_NUM_QUE_PER_WORD;
 	  uint32_t mask;
 	  int qshift;
@@ -1065,7 +1065,7 @@ aqm_reset(struct ixpqmgr_softc *sc)
 			     IX_QMGR_INT0SRCSELREG_RESET_VALUE);
 	aqm_reg_write(sc, IX_QMGR_INT0SRCSELREG3_OFFSET,
 			     IX_QMGR_INT0SRCSELREG_RESET_VALUE);
-	     
+	
 	/* Reset queue interrupt enable register 0..1 */
 	aqm_reg_write(sc, IX_QMGR_QUEIEREG0_OFFSET,
 		IX_QMGR_QUEIEREG_RESET_VALUE);

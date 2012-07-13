@@ -132,7 +132,7 @@ int ib_find_cached_gid(struct ib_device *device,
 	for (p = 0; p <= end_port(device) - start_port(device); ++p) {
 		cache = device->cache.gid_cache[p];
 		for (i = 0; i < cache->table_len; ++i) {
-			if (!memcmp(gid, &cache->table[i], 6)) { /* XXX */
+			if (!memcmp(gid, &cache->table[i], sizeof *gid)) {
 				*port_num = p + start_port(device);
 				if (index)
 					*index = i;

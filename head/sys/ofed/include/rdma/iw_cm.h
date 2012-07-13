@@ -63,6 +63,7 @@ struct iw_cm_event {
 	void *private_data;
 	u8 private_data_len;
 	void *provider_data;
+	struct socket *so;
 };
 
 /**
@@ -98,6 +99,7 @@ struct iw_cm_id {
 	/* Used by provider to add and remove refs on IW cm_id */
 	void (*add_ref)(struct iw_cm_id *);
 	void (*rem_ref)(struct iw_cm_id *);
+	struct socket           *so;
 };
 
 struct iw_cm_conn_param {
@@ -139,7 +141,7 @@ struct iw_cm_verbs {
  *   returned IW CM identifier.
  * @context: User specified context associated with the id.
  */
-struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
+struct iw_cm_id *iw_create_cm_id(struct ib_device *device, struct socket *so,
 				 iw_cm_handler cm_handler, void *context);
 
 /**

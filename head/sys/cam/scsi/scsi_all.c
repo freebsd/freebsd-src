@@ -2834,11 +2834,10 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 	int error_code, sense_key, asc, ascq;
 	scsi_sense_action action;
 
-	scsi_extract_sense_len(&csio->sense_data, csio->sense_len -
-			       csio->sense_resid, &error_code,
-			       &sense_key, &asc, &ascq, /*show_errors*/ 1);
-
-	if ((error_code == SSD_DEFERRED_ERROR)
+	if (!scsi_extract_sense_ccb((union ccb *)csio,
+	    &error_code, &sense_key, &asc, &ascq)) {
+		action = SS_RETRY | SSQ_DECREMENT_COUNT | SSQ_PRINT_SENSE | EIO;
+	} else if ((error_code == SSD_DEFERRED_ERROR)
 	 || (error_code == SSD_DESC_DEFERRED_ERROR)) {
 		/*
 		 * XXX dufault@FreeBSD.org
@@ -2901,11 +2900,17 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 					  SSQ_PRINT_SENSE;
 			}
 		}
+		if ((action & SS_MASK) >= SS_START &&
+		    (sense_flags & SF_NO_RECOVERY)) {
+			action &= ~SS_MASK;
+			action |= SS_FAIL;
+		} else if ((action & SS_MASK) == SS_RETRY &&
+		    (sense_flags & SF_NO_RETRY)) {
+			action &= ~SS_MASK;
+			action |= SS_FAIL;
+		}
+
 	}
-#ifdef _KERNEL
-	if (bootverbose)
-		sense_flags |= SF_PRINT_ALWAYS;
-#endif
 	if ((sense_flags & SF_PRINT_ALWAYS) != 0)
 		action |= SSQ_PRINT_SENSE;
 	else if ((sense_flags & SF_NO_PRINT) != 0)
@@ -3058,6 +3063,10 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 			    scsi_cdb_string(csio->cdb_io.cdb_bytes, cdb_str,
 					    sizeof(cdb_str)));
 	}
+
+#ifdef _KERNEL
+	xpt_free_ccb((union ccb *)cgd);
+#endif
 
 	return(0);
 }
@@ -4138,9 +4147,9 @@ scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 		     struct scsi_inquiry_data *inq_data,
 		     struct scsi_sense_desc_header *header)
 {
-	int i, found;
+	int i;
 
-	for (i = 0, found = 0; i < (sizeof(scsi_sense_printers) /
+	for (i = 0; i < (sizeof(scsi_sense_printers) /
 	     sizeof(scsi_sense_printers[0])); i++) {
 		struct scsi_sense_desc_printer *printer;
 
@@ -4609,6 +4618,36 @@ scsi_extract_sense(struct scsi_sense_data *sense_data, int *error_code,
 {
 	scsi_extract_sense_len(sense_data, sizeof(*sense_data), error_code,
 			       sense_key, asc, ascq, /*show_errors*/ 0);
+}
+
+/*
+ * Extract basic sense information from SCSI I/O CCB structure.
+ */
+int
+scsi_extract_sense_ccb(union ccb *ccb,
+    int *error_code, int *sense_key, int *asc, int *ascq)
+{
+	struct scsi_sense_data *sense_data;
+
+	/* Make sure there are some sense data we can access. */
+	if (ccb->ccb_h.func_code != XPT_SCSI_IO ||
+	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_SCSI_STATUS_ERROR ||
+	    (ccb->csio.scsi_status != SCSI_STATUS_CHECK_COND) ||
+	    (ccb->ccb_h.status & CAM_AUTOSNS_VALID) == 0 ||
+	    (ccb->ccb_h.flags & CAM_SENSE_PHYS))
+		return (0);
+
+	if (ccb->ccb_h.flags & CAM_SENSE_PTR)
+		bcopy(&ccb->csio.sense_data, &sense_data,
+		    sizeof(struct scsi_sense_data *));
+	else
+		sense_data = &ccb->csio.sense_data;
+	scsi_extract_sense_len(sense_data,
+	    ccb->csio.sense_len - ccb->csio.sense_resid,
+	    error_code, sense_key, asc, ascq, 1);
+	if (*error_code == -1)
+		return (0);
+	return (1);
 }
 
 /*

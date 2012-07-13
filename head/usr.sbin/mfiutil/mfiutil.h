@@ -139,7 +139,7 @@ int	mfi_lookup_drive(int fd, char *drive, uint16_t *device_id);
 int	mfi_lookup_volume(int fd, const char *name, uint8_t *target_id);
 int	mfi_dcmd_command(int fd, uint32_t opcode, void *buf, size_t bufsize,
     uint8_t *mbox, size_t mboxlen, uint8_t *statusp);
-int	mfi_open(int unit);
+int	mfi_open(int unit, int acs);
 int	mfi_ctrl_get_info(int fd, struct mfi_ctrl_info *info, uint8_t *statusp);
 int	mfi_ld_get_info(int fd, uint8_t target_id, struct mfi_ld_info *info,
     uint8_t *statusp);

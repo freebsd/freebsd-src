@@ -668,7 +668,7 @@ tlb_fill_entry:
 	lwarx	%r21, %r23, %r25		/* get pte->flags */
 	oris	%r21, %r21, PTE_REFERENCED@h	/* set referenced bit */
 
-	andi.	%r22, %r21, (PTE_UW | PTE_UW)@l	/* check if writable */
+	andi.	%r22, %r21, (PTE_SW | PTE_UW)@l	/* check if writable */
 	beq	2f
 	oris	%r21, %r21, PTE_MODIFIED@h	/* set modified bit */
 2:

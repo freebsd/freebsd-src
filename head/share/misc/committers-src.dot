@@ -200,6 +200,7 @@ mdf [label="Matthew Fleming\nmdf@FreeBSD.org\n2010/06/04"]
 mdodd [label="Matthew N. Dodd\nmdodd@FreeBSD.org\n1999/07/27"]
 melifaro [label="Alexander V. Chernikov\nmelifaro@FreeBSD.org\n2011/10/04"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
+mjg [label="Mateusz Guzik\nmjg@FreeBSD.org\n2012/06/04"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 monthadar [label="Monthadar Al Jaberi\nmonthadar@FreeBSD.org\n2012/04/02"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
@@ -435,6 +436,7 @@ jhb -> avg
 jhb -> jeff
 jhb -> kbyanc
 jhb -> rnoland
+jhb -> pfg
 
 jkh -> imp
 jkh -> jlemon
@@ -602,6 +604,7 @@ thompsa -> weongyo
 thompsa -> eri
 
 trasz -> jh
+trasz -> mjg
 
 ume -> jinmei
 ume -> suz

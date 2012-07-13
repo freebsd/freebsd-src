@@ -117,7 +117,7 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 
-static SSL_METHOD *ssl2_get_server_method(int ver);
+static const SSL_METHOD *ssl2_get_server_method(int ver);
 static int get_client_master_key(SSL *s);
 static int get_client_hello(SSL *s);
 static int server_hello(SSL *s); 
@@ -129,7 +129,7 @@ static int ssl_rsa_private_decrypt(CERT *c, int len, unsigned char *from,
 	unsigned char *to,int padding);
 #define BREAK	break
 
-static SSL_METHOD *ssl2_get_server_method(int ver)
+static const SSL_METHOD *ssl2_get_server_method(int ver)
 	{
 	if (ver == SSL2_VERSION)
 		return(SSLv2_server_method());
@@ -366,7 +366,7 @@ static int get_client_master_key(SSL *s)
 	int is_export,i,n,keya,ek;
 	unsigned long len;
 	unsigned char *p;
-	SSL_CIPHER *cp;
+	const SSL_CIPHER *cp;
 	const EVP_CIPHER *c;
 	const EVP_MD *md;
 
@@ -403,13 +403,14 @@ static int get_client_master_key(SSL *s)
 		p+=3;
 		n2s(p,i); s->s2->tmp.clear=i;
 		n2s(p,i); s->s2->tmp.enc=i;
-		n2s(p,i); s->session->key_arg_length=i;
-		if(s->session->key_arg_length > SSL_MAX_KEY_ARG_LENGTH)
+		n2s(p,i);
+		if(i > SSL_MAX_KEY_ARG_LENGTH)
 			{
 			ssl2_return_error(s,SSL2_PE_UNDEFINED_ERROR);
 			SSLerr(SSL_F_GET_CLIENT_MASTER_KEY, SSL_R_KEY_ARG_TOO_LONG);
 			return -1;
 			}
+		s->session->key_arg_length=i;
 		s->state=SSL2_ST_GET_CLIENT_MASTER_KEY_B;
 		}
 
@@ -451,7 +452,7 @@ static int get_client_master_key(SSL *s)
 
 	is_export=SSL_C_IS_EXPORT(s->session->cipher);
 	
-	if (!ssl_cipher_get_evp(s->session,&c,&md,NULL))
+	if (!ssl_cipher_get_evp(s->session,&c,&md,NULL,NULL,NULL))
 		{
 		ssl2_return_error(s,SSL2_PE_NO_CIPHER);
 		SSLerr(SSL_F_GET_CLIENT_MASTER_KEY,SSL_R_PROBLEMS_MAPPING_CIPHER_FUNCTIONS);

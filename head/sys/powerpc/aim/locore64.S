@@ -164,12 +164,13 @@ ASENTRY_NOPROF(__start)
 	bl	OF_initial_setup
 	nop
 
-	lis	4,end@ha
-	addi	4,4,end@l
-	mr	5,4
-
 	lis	3,kernbase@ha
 	addi	3,3,kernbase@l
+
+	lis	4,end@ha
+	addi	4,4,end@l
+	add	4,4,3
+	mr	5,4
 
 	/* Restore the argument pointer and length */
 	mr	6,20

@@ -387,7 +387,7 @@ METHOD boolean_t is_referenced {
  *
  * @retval int		count of referenced bits
  */
-METHOD boolean_t ts_referenced {
+METHOD int ts_referenced {
 	mmu_t		_mmu;
 	vm_page_t	_pg;
 };

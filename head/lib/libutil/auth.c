@@ -31,40 +31,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <fcntl.h>
+#include <stdlib.h>
+
 #include <libutil.h>
-#include <paths.h>
-#include <syslog.h>
-#include <unistd.h>
-
-static properties P;
-
-static int
-initauthconf(const char *path)
-{
-    int fd;
-
-    if (!P) {
-	if ((fd = open(path, O_RDONLY)) < 0) {
-	    syslog(LOG_ERR, "initauthconf: unable to open file: %s", path);
-	    return 1;
-	}
-	P = properties_read(fd);
-	close(fd);
-	if (!P) {
-	    syslog(LOG_ERR, "initauthconf: unable to parse file: %s", path);
-	    return 1;
-	}
-    }
-    return 0;
-}
 
 char *
 auth_getval(const char *name)
 {
-    if (!P && initauthconf(_PATH_AUTHCONF))
-	return NULL;
-    else
-	return property_find(P, name);
+
+	(void)name;
+	return (NULL);
 }

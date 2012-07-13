@@ -75,6 +75,9 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#ifdef TCP_OFFLOAD
+#include <netinet/tcp_offload.h>
+#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -190,6 +193,11 @@ tcp_output(struct tcpcb *tp)
 #endif
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+#ifdef TCP_OFFLOAD
+	if (tp->t_flags & TF_TOE)
+		return (tcp_offload_output(tp));
+#endif
 
 	/*
 	 * Determine length of data that should be transmitted,

@@ -1,3 +1,8 @@
+	--- 9.8.3-P1 released ---
+
+3331.	[security]	dns_rdataslab_fromrdataset could produce bad
+			rdataslabs. [RT #29644]
+			
 	--- 9.8.3 released ---
 
 3318.	[tuning]	Reduce the amount of work performed while holding a

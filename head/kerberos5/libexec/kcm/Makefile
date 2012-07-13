@@ -11,9 +11,6 @@ SRCS=	acl.c \
 	connect.c \
 	events.c \
 	glue.c \
-	headers.h \
-	kcm_locl.h \
-	kcm-protos.h \
 	log.c \
 	main.c \
 	protocol.c \

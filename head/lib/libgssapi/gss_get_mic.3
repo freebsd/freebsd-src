@@ -81,7 +81,7 @@ both to allow GSS-API V1 applications to link
 and to retain the slight parameter type differences between the
 obsolete versions of this routine and its current form.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It message_buffer"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -109,7 +109,7 @@ use with a call to
 .Fn gss_release_buffer .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CONTEXT_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_CONTEXT_EXPIRED
@@ -123,7 +123,7 @@ The specified QOP is not supported by the mechanism
 .Xr gss_wrap 3 ,
 .Xr gss_release_buffer 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

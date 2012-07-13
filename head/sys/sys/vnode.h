@@ -38,6 +38,7 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/mutex.h>
+#include <sys/rangelock.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
@@ -164,7 +165,8 @@ struct vnode {
 	 */
 	struct vpollinfo *v_pollinfo;		/* i Poll events, p for *v_pi */
 	struct label *v_label;			/* MAC label for vnode */
-	struct lockf *v_lockf;			/* Byte-level lock list */
+	struct lockf *v_lockf;		/* Byte-level advisory lock list */
+	struct rangelock v_rl;			/* Byte-range lock */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
@@ -652,6 +654,8 @@ int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    u_int vn_open_flags, struct ucred *cred, struct file *fp);
+int	vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
+	    struct thread *td, struct file *fp);
 void	vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,
@@ -679,6 +683,17 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
 
+int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
+
+#define	vn_rangelock_unlock(vp, cookie)					\
+	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
+#define	vn_rangelock_unlock_range(vp, cookie, start, end)		\
+	rangelock_unlock_range(&(vp)->v_rl, (cookie), (start), (end), 	\
+	    VI_MTX(vp))
+#define	vn_rangelock_rlock(vp, start, end)				\
+	rangelock_rlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+#define	vn_rangelock_wlock(vp, start, end)				\
+	rangelock_wlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
 
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);

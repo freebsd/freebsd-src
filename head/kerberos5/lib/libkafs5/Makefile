@@ -26,10 +26,8 @@ MLINKS=	kafs5.3 k_afs_cell_of_file.3 \
 SRCS=	afssys.c afskrb5.c common.c krb5_err.h
 SRCS=	afssys.c \
 	afskrb5.c \
-	common.c \
-	kafs_locl.h \
-	afssysdefs.h \
-	roken_rename.h
+	common.c
+
 CFLAGS+=	-I${KRB5DIR}/lib/kafs \
 		-I${KRB5DIR}/lib/krb5 \
 		-I${.OBJDIR}/../libkrb5/ \

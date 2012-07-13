@@ -385,6 +385,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSL \
     PAM \
     PF \
+    PKGBOOTSTRAP \
     PKGTOOLS \
     PMC \
     PORTSNAP \
@@ -415,7 +416,6 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
-    BSD_SORT \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
@@ -424,9 +424,11 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CLANG_IS_CC \
     CTF \
+    GNU_SORT \
     HESIOD \
     ICONV \
     IDEA \
+    INSTALL_AS_USER \
     LIBCPLUSPLUS \
     NAND \
     OFED \
@@ -639,11 +641,22 @@ MK_${vv:H}:=	${MK_${vv:T}}
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif ${MAKE_VERSION} >= 5201111300
+.elif defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300
 CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
+
+.if ${MK_INSTALL_AS_USER} != "no"
+_uid!=	id -un
+.if ${_uid} != 0
+_gid!=	id -gn
+.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+$xOWN=	${_uid}
+$xGRP=	${_gid}
+.endfor
+.endif
+.endif
 
 .endif # !_WITHOUT_SRCCONF
 

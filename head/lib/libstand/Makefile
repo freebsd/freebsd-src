@@ -38,7 +38,7 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
 
 # standalone components and stuff we have modified locally
-SRCS+=	zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
+SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
 	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
@@ -118,23 +118,29 @@ libstand_bzlib_private.h: bzlib_private.h
 # decompression functionality from libz
 .PATH: ${.CURDIR}/../libz
 CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
-SRCS+=	adler32.c crc32.c libstand_zutil.h
+SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c
 SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed "s|zutil\.h|libstand_zutil.h|" ${.ALLSRC} > ${.TARGET}
+	sed -e "s|zutil\.h|libstand_zutil.h|" \
+	    -e "s|gzguts\.h|libstand_gzguts.h|" \
+	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
 # depend on stand.h being able to be included multiple times
-CLEANFILES+= libstand_zutil.h
-libstand_zutil.h: zutil.h
-	sed -e 's|<stddef.h>|"stand.h"|' \
+.for file in zutil.h gzguts.h
+CLEANFILES+= libstand_${file}
+libstand_${file}: ${file}
+	sed -e 's|<fcntl.h>|"stand.h"|' \
+	    -e 's|<stddef.h>|"stand.h"|' \
 	    -e 's|<string.h>|"stand.h"|' \
+	    -e 's|<stdio.h>|"stand.h"|' \
 	    -e 's|<stdlib.h>|"stand.h"|' \
 	    ${.ALLSRC} > ${.TARGET}
+.endfor
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \

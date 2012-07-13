@@ -86,28 +86,6 @@ virtio_device_name(uint16_t devid)
 	return (NULL);
 }
 
-int
-virtio_get_device_type(device_t dev)
-{
-	uintptr_t devtype;
-
-	devtype = -1;
-
-	BUS_READ_IVAR(device_get_parent(dev), dev,
-	    VIRTIO_IVAR_DEVTYPE, &devtype);
-
-	return ((int) devtype);
-}
-
-void
-virtio_set_feature_desc(device_t dev,
-    struct virtio_feature_desc *feature_desc)
-{
-
-	BUS_WRITE_IVAR(device_get_parent(dev), dev,
-	    VIRTIO_IVAR_FEATURE_DESC, (uintptr_t) feature_desc);
-}
-
 void
 virtio_describe(device_t dev, const char *msg,
     uint64_t features, struct virtio_feature_desc *feature_desc)
@@ -183,6 +161,21 @@ virtio_feature_name(uint64_t val, struct virtio_feature_desc *feature_desc)
 /*
  * VirtIO bus method wrappers.
  */
+
+void
+virtio_read_ivar(device_t dev, int ivar, uintptr_t *val)
+{
+
+	*val = -1;
+	BUS_READ_IVAR(device_get_parent(dev), dev, ivar, val);
+}
+
+void
+virtio_write_ivar(device_t dev, int ivar, uintptr_t val)
+{
+
+	BUS_WRITE_IVAR(device_get_parent(dev), dev, ivar, val);
+}
 
 uint64_t
 virtio_negotiate_features(device_t dev, uint64_t child_features)
