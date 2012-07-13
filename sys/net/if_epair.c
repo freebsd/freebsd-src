@@ -904,39 +904,41 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	if_link_state_change(oifp, LINK_STATE_DOWN);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	oifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	ether_ifdetach(oifp);
-	ether_ifdetach(ifp);
-	/*
-	 * Wait for all packets to be dispatched to if_input.
-	 * The numbers can only go down as the interfaces are
-	 * detached so there is no need to use atomics.
-	 */
-	DPRINTF("sca refcnt=%u scb refcnt=%u\n", sca->refcount, scb->refcount);
-	EPAIR_REFCOUNT_ASSERT(sca->refcount == 1 && scb->refcount == 1,
-	    ("%s: ifp=%p sca->refcount!=1: %d || ifp=%p scb->refcount!=1: %d",
-	    __func__, ifp, sca->refcount, oifp, scb->refcount));
 
 	/*
-	 * Get rid of our second half.
+	 * Get rid of our second half. As the other of the two
+	 * interfaces may reside in a different vnet, we need to
+	 * switch before freeing them.
 	 */
+	CURVNET_SET_QUIET(oifp->if_vnet);
+	ether_ifdetach(oifp);
+	/*
+	 * Wait for all packets to be dispatched to if_input.
+	 * The numbers can only go down as the interface is
+	 * detached so there is no need to use atomics.
+	 */
+	DPRINTF("scb refcnt=%u\n", scb->refcount);
+	EPAIR_REFCOUNT_ASSERT(scb->refcount == 1,
+	    ("%s: ifp=%p scb->refcount!=1: %d", __func__, oifp, scb->refcount));
 	oifp->if_softc = NULL;
 	error = if_clone_destroyif(ifc, oifp);
 	if (error)
 		panic("%s: if_clone_destroyif() for our 2nd iface failed: %d",
 		    __func__, error);
-
-	/*
-	 * Finish cleaning up. Free them and release the unit.
-	 * As the other of the two interfaces my reside in a different vnet,
-	 * we need to switch before freeing them.
-	 */
-	CURVNET_SET_QUIET(oifp->if_vnet);
 	if_free(oifp);
-	CURVNET_RESTORE();
-	if_free(ifp);
-	ifmedia_removeall(&sca->media);
 	ifmedia_removeall(&scb->media);
 	free(scb, M_EPAIR);
+	CURVNET_RESTORE();
+
+	ether_ifdetach(ifp);
+	/*
+	 * Wait for all packets to be dispatched to if_input.
+	 */
+	DPRINTF("sca refcnt=%u\n", sca->refcount);
+	EPAIR_REFCOUNT_ASSERT(sca->refcount == 1,
+	    ("%s: ifp=%p sca->refcount!=1: %d", __func__, ifp, sca->refcount));
+	if_free(ifp);
+	ifmedia_removeall(&sca->media);
 	free(sca, M_EPAIR);
 	ifc_free_unit(ifc, unit);
 

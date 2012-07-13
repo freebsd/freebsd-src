@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <err.h>
+#include <fcntl.h>
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +51,7 @@ format_stripe(char *buf, size_t buflen, uint8_t stripe)
 }
 
 static int
-show_adapter(int ac, char **av)
+show_adapter(int ac, char **av __unused)
 {
 	struct mfi_ctrl_info info;
 	char stripe[5];
@@ -61,7 +62,7 @@ show_adapter(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -135,7 +136,7 @@ show_adapter(int ac, char **av)
 MFI_COMMAND(show, adapter, show_adapter);
 
 static int
-show_battery(int ac, char **av)
+show_battery(int ac, char **av __unused)
 {
 	struct mfi_bbu_capacity_info cap;
 	struct mfi_bbu_design_info design;
@@ -148,7 +149,7 @@ show_battery(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -303,7 +304,7 @@ print_pd(struct mfi_pd_info *info, int state_len)
 }
 
 static int
-show_config(int ac, char **av)
+show_config(int ac, char **av __unused)
 {
 	struct mfi_config_data *config;
 	struct mfi_array *ar;
@@ -320,7 +321,7 @@ show_config(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -409,7 +410,7 @@ show_config(int ac, char **av)
 MFI_COMMAND(show, config, show_config);
 
 static int
-show_volumes(int ac, char **av)
+show_volumes(int ac, char **av __unused)
 {
 	struct mfi_ld_list list;
 	struct mfi_ld_info info;
@@ -421,7 +422,7 @@ show_volumes(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -492,7 +493,7 @@ show_volumes(int ac, char **av)
 MFI_COMMAND(show, volumes, show_volumes);
 
 static int
-show_drives(int ac, char **av)
+show_drives(int ac, char **av __unused)
 {
 	struct mfi_pd_list *list;
 	struct mfi_pd_info info;
@@ -504,7 +505,7 @@ show_drives(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -600,7 +601,7 @@ display_firmware(struct mfi_info_component *comp, const char *tag)
 }
 
 static int
-show_firmware(int ac, char **av)
+show_firmware(int ac, char **av __unused)
 {
 	struct mfi_ctrl_info info;
 	struct mfi_info_component header;
@@ -612,7 +613,7 @@ show_firmware(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -656,7 +657,7 @@ show_firmware(int ac, char **av)
 MFI_COMMAND(show, firmware, show_firmware);
 
 static int
-show_progress(int ac, char **av)
+show_progress(int ac, char **av __unused)
 {
 	struct mfi_ld_list llist;
 	struct mfi_pd_list *plist;
@@ -672,7 +673,7 @@ show_progress(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

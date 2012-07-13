@@ -112,11 +112,21 @@ static int mmc_debug;
 SYSCTL_INT(_hw_mmc, OID_AUTO, debug, CTLFLAG_RW, &mmc_debug, 0, "Debug level");
 
 /* bus entry points */
-static int mmc_probe(device_t dev);
+static int mmc_acquire_bus(device_t busdev, device_t dev);
 static int mmc_attach(device_t dev);
+static int mmc_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen);
 static int mmc_detach(device_t dev);
-static int mmc_suspend(device_t dev);
+static int mmc_probe(device_t dev);
+static int mmc_read_ivar(device_t bus, device_t child, int which,
+    uintptr_t *result);
+static int mmc_release_bus(device_t busdev, device_t dev);
 static int mmc_resume(device_t dev);
+static int mmc_suspend(device_t dev);
+static int mmc_wait_for_request(device_t brdev, device_t reqdev,
+    struct mmc_request *req);
+static int mmc_write_ivar(device_t bus, device_t child, int which,
+    uintptr_t value);
 
 #define MMC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -127,25 +137,69 @@ static int mmc_resume(device_t dev);
 #define MMC_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define MMC_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
+static int mmc_all_send_cid(struct mmc_softc *sc, uint32_t *rawcid);
+static void mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr);
+static void mmc_app_decode_sd_status(uint32_t *raw_sd_status,
+    struct mmc_sd_status *sd_status);
+static int mmc_app_sd_status(struct mmc_softc *sc, uint16_t rca,
+    uint32_t *rawsdstatus);
+static int mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca,
+    uint32_t *rawscr);
 static int mmc_calculate_clock(struct mmc_softc *sc);
-static void mmc_delayed_attach(void *);
+static void mmc_decode_cid_mmc(uint32_t *raw_cid, struct mmc_cid *cid);
+static void mmc_decode_cid_sd(uint32_t *raw_cid, struct mmc_cid *cid);
+static void mmc_decode_csd_mmc(uint32_t *raw_csd, struct mmc_csd *csd);
+static void mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd);
+static void mmc_delayed_attach(void *xsc);
+static int mmc_delete_cards(struct mmc_softc *sc);
+static void mmc_discover_cards(struct mmc_softc *sc);
+static void mmc_format_card_id_string(struct mmc_ivars *ivar);
+static void mmc_go_discovery(struct mmc_softc *sc);
+static uint32_t mmc_get_bits(uint32_t *bits, int bit_len, int start,
+    int size);
+static int mmc_highest_voltage(uint32_t ocr);
+static void mmc_idle_cards(struct mmc_softc *sc);
+static void mmc_ms_delay(int ms);
+static void mmc_log_card(device_t dev, struct mmc_ivars *ivar, int newcard);
 static void mmc_power_down(struct mmc_softc *sc);
+static void mmc_power_up(struct mmc_softc *sc);
+static void mmc_rescan_cards(struct mmc_softc *sc);
+static void mmc_scan(struct mmc_softc *sc);
+static int mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp,
+    uint8_t value, uint8_t *res);
+static int mmc_select_card(struct mmc_softc *sc, uint16_t rca);
+static uint32_t mmc_select_vdd(struct mmc_softc *sc, uint32_t ocr);
+static int mmc_send_app_op_cond(struct mmc_softc *sc, uint32_t ocr,
+    uint32_t *rocr);
+static int mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcsd);
+static int mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd);
+static int mmc_send_if_cond(struct mmc_softc *sc, uint8_t vhs);
+static int mmc_send_op_cond(struct mmc_softc *sc, uint32_t ocr,
+    uint32_t *rocr);
+static int mmc_send_relative_addr(struct mmc_softc *sc, uint32_t *resp);
+static int mmc_send_status(struct mmc_softc *sc, uint16_t rca,
+    uint32_t *status);
+static int mmc_set_blocklen(struct mmc_softc *sc, uint32_t len);
+static int mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca,
+    int width);
+static int mmc_set_relative_addr(struct mmc_softc *sc, uint16_t resp);
+static int mmc_set_timing(struct mmc_softc *sc, int timing);
+static int mmc_switch(struct mmc_softc *sc, uint8_t set, uint8_t index,
+    uint8_t value);
+static int mmc_test_bus_width(struct mmc_softc *sc);
+static int mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
+    struct mmc_command *cmd, int retries);
 static int mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd,
     int retries);
 static int mmc_wait_for_command(struct mmc_softc *sc, uint32_t opcode,
     uint32_t arg, uint32_t flags, uint32_t *resp, int retries);
-static int mmc_select_card(struct mmc_softc *sc, uint16_t rca);
-static int mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width);
-static int mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca, uint32_t *rawscr);
-static void mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr);
-static int mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd);
-static void mmc_scan(struct mmc_softc *sc);
-static int mmc_delete_cards(struct mmc_softc *sc);
-static void mmc_format_card_id_string(struct mmc_ivars *ivar);
+static int mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req);
+static void mmc_wakeup(struct mmc_request *req);
 
 static void
 mmc_ms_delay(int ms)
 {
+
 	DELAY(1000 * ms);	/* XXX BAD */
 }
 

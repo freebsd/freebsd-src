@@ -31,8 +31,6 @@
 #ifndef _VIRTIO_BLK_H
 #define _VIRTIO_BLK_H
 
-#include <sys/types.h>
-
 /* Feature bits */
 #define VIRTIO_BLK_F_BARRIER	0x0001	/* Does host support barriers? */
 #define VIRTIO_BLK_F_SIZE_MAX	0x0002	/* Indicates maximum segment size */

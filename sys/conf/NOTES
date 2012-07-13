@@ -545,6 +545,8 @@ options 	INET6			#IPv6 communications protocols
 
 options 	ROUTETABLES=2		# max 16. 1 is back compatible.
 
+options 	TCP_OFFLOAD		# TCP offload support.
+
 # In order to enable IPSEC you MUST also add device crypto to 
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)
@@ -1305,14 +1307,13 @@ device		ctl		#CAM Target Layer
 
 # CAM OPTIONS:
 # debugging options:
-# -- NOTE --  If you specify one of the bus/target/lun options, you must
-#             specify them all!
-# CAMDEBUG: When defined enables debugging macros
-# CAM_DEBUG_BUS:  Debug the given bus.  Use -1 to debug all busses.
-# CAM_DEBUG_TARGET:  Debug the given target.  Use -1 to debug all targets.
-# CAM_DEBUG_LUN:  Debug the given lun.  Use -1 to debug all luns.
-# CAM_DEBUG_FLAGS:  OR together CAM_DEBUG_INFO, CAM_DEBUG_TRACE,
-#                   CAM_DEBUG_SUBTRACE, and CAM_DEBUG_CDB
+# CAMDEBUG		Compile in all possible debugging.
+# CAM_DEBUG_COMPILE	Debug levels to compile in.
+# CAM_DEBUG_FLAGS	Debug levels to enable on boot.
+# CAM_DEBUG_BUS		Limit debugging to the given bus.
+# CAM_DEBUG_TARGET	Limit debugging to the given target.
+# CAM_DEBUG_LUN		Limit debugging to the given lun.
+# CAM_DEBUG_DELAY	Delay in us after printing each debug line.
 #
 # CAM_MAX_HIGHPOWER: Maximum number of concurrent high power (start unit) cmds
 # SCSI_NO_SENSE_STRINGS: When defined disables sense descriptions
@@ -1323,10 +1324,12 @@ device		ctl		#CAM Target Layer
 #             can be changed at boot and runtime with the
 #             kern.cam.scsi_delay tunable/sysctl.
 options 	CAMDEBUG
+options 	CAM_DEBUG_COMPILE=-1
+options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
 options 	CAM_DEBUG_BUS=-1
 options 	CAM_DEBUG_TARGET=-1
 options 	CAM_DEBUG_LUN=-1
-options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB)
+options 	CAM_DEBUG_DELAY=1
 options 	CAM_MAX_HIGHPOWER=4
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
@@ -1603,7 +1606,7 @@ options 	ISP_TARGET_MODE=1
 #
 #	ISP_INTERNAL_TARGET		(trivial internal disk target, for testing)
 #
-options 	ISP_DEFAULT_ROLES=2
+options 	ISP_DEFAULT_ROLES=0
 
 # Options used in dev/sym/ (Symbios SCSI driver).
 #options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)

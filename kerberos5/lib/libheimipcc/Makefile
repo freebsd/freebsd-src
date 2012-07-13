@@ -5,8 +5,7 @@ INTERNALLIB=
 LDADD=	-lheimbase -lroken -lpthread
 DPADD=	${LIBHEIMBASE} ${LIBROKEN} ${LIBPTHREAD}
 
-SRCS=	hi_locl.h \
-	heim_ipc_types.h \
+SRCS=	\
 	client.c \
 	common.c
 

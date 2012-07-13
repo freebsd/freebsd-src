@@ -1,6 +1,6 @@
 # Makefile for authoring less.
 
-EMAIL = markn@greenwoodsoftware.com
+EMAIL = bug-less@gnu.org
 HOMEPAGE = http://www.greenwoodsoftware.com/less
 SHELL = /bin/sh
 RCS = rcs
@@ -112,8 +112,7 @@ dist: ${DISTFILES}
 	echo "Preparing $$REL"; \
 	rm -rf $$REL; mkdir $$REL; \
 	for file in ${DISTFILES}; do \
-	  cp -p $$file $$REL; \
-	  chmod -w $$REL/$$file; \
+	  ./add_copyright $$file $$REL; \
 	done; \
 	cd $$REL; chmod +w ${DISTFILES_W}; cd ..; \
 	echo "Creating release/$$REL/$$REL.tar.gz"; \

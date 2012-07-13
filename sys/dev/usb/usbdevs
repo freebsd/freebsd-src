@@ -487,6 +487,7 @@ vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor MEDELI		0x0a67	Medeli
 vendor GEOCAST		0x0a79	Geocast Network Systems
+vendor EGO		0x0a92	EGO systems
 vendor IDQUANTIQUE	0x0aba	id Quantique
 vendor ZYDAS		0x0ace	Zydas Technology Corporation
 vendor NEODIO		0x0aec	Neodio
@@ -559,6 +560,7 @@ vendor APACER		0x1005	Apacer
 vendor MOTOROLA4	0x100d	Motorola
 vendor AIRPLUS		0x1011  Airplus
 vendor DESKNOTE		0x1019	Desknote
+vendor NEC3		0x1033	NEC
 vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
 vendor MOTOROLA		0x1063	Motorola
@@ -611,6 +613,7 @@ vendor INITIO		0x13fd	Initio Corporation
 vendor EMTEC		0x13fe	Emtec
 vendor NOVATEL		0x1410	Novatel Wireless
 vendor MERLIN		0x1416	Merlin
+vendor REDOCTANE	0x1430	RedOctane
 vendor WISTRONNEWEB	0x1435	Wistron NeWeb
 vendor RADIOSHACK	0x1453	Radio Shack
 vendor HUAWEI3COM	0x1472	Huawei-3Com
@@ -633,6 +636,7 @@ vendor FIBERLINE	0x1582	Fiberline
 vendor SPARKLAN		0x15a9	SparkLAN
 vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
 vendor AMIT2		0x15c5	AMIT
+vendor TEXTECH		0x15ca	Textech International Ltd.
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
@@ -687,6 +691,7 @@ vendor TLAYTECH		0x20b9	Tlay Tech
 vendor ENCORE		0x203d	Encore
 vendor PARA		0x20b8	PARA Industrial
 vendor SIMTEC		0x20df	Simtec Electronics
+vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor TRIPPLITE	0x2478	Tripp-Lite
@@ -723,6 +728,7 @@ vendor MARVELL		0x9e88	Marvell Technology Group Ltd.
 vendor 3COM3		0xa727	3Com
 vendor DATAAPEX		0xdaae	DataApex
 vendor HP2		0xf003	Hewlett Packard
+vendor LOGILINK		0xfc08	LogiLink
 vendor USRP		0xfffe	GNU Radio USRP
 
 /*
@@ -1472,6 +1478,10 @@ product EGALAX TPANEL		0x0001	Touch Panel
 product EGALAX TPANEL2		0x0002	Touch Panel
 product EGALAX2 TPANEL		0x0001	Touch Panel
 
+/* EGO Products */
+product EGO DUMMY		0x0000	Dummy Product
+product EGO M4U			0x1020	ESI M4U
+
 /* Eicon Networks */
 product EICON DIVA852		0x4905	Diva 852 ISDN TA
 
@@ -1604,9 +1614,9 @@ product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
-product FTDI BEAGLEBONE		0xA6D0  BeagleBone
 product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
-product FTDI SERIAL_BEAGLEBONE	0xa6d0	BeagleBone FTDI Serial
+product FTDI BEAGLEBONE		0xa6d0	BeagleBone
+product FTDI TURTELIZER2	0xbdc8	egnite Turtelizer 2 JTAG/RS232 Adapter
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
@@ -1885,6 +1895,7 @@ product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
+product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
 
@@ -1916,6 +1927,7 @@ product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
 product INTEL2 IRMH        	0x0020	Integrated Rate Matching Hub
+product INTEL2 IRMH2        	0x0024	Integrated Rate Matching Hub
 
 /* Intersil products */
 product INTERSIL PRISM_GT	0x1000	PrismGT USB 2.0 WLAN
@@ -2090,6 +2102,10 @@ product LINKSYS4 WUSB54GCV3	0x0077	WUSB54GC v3
 product LINKSYS4 RT3070		0x0078	RT3070
 product LINKSYS4 WUSB600NV2	0x0079	WUSB600N v2
 
+/* Logilink products */
+product LOGILINK DUMMY		0x0000	Dummy product
+product LOGILINK U2M		0x0101	LogiLink USB MIDI Cable
+
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
 product LOGITECH M4848		0x0301	M4848 mouse
@@ -2124,6 +2140,7 @@ product LOGITEC RT2870_1	0x0162	RT2870
 product LOGITEC RT2870_2	0x0163	RT2870
 product LOGITEC RT2870_3	0x0164	RT2870
 product LOGITEC LANW300NU2	0x0166  LAN-W300N/U2
+product LOGITEC LANW150NU2	0x0168  LAN-W150N/U2
 
 /* Longcheer Holdings, Ltd. products */
 product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA
@@ -2188,7 +2205,8 @@ product MELCO RT2870_1		0x0148	RT2870
 product MELCO RT2870_2		0x0150	RT2870
 product MELCO WLIUCGN		0x015d	WLI-UC-GN
 product MELCO WLIUCG301N	0x016f	WLI-UC-G301N
-product MELCO WLIUCGNM		0x01a2  WLI-UC-GNM
+product MELCO WLIUCGNM		0x01a2	WLI-UC-GNM
+product MELCO WLIUCGNM2		0x01ee	WLI-UC-GNM2
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
@@ -2602,6 +2620,7 @@ product PLANEX2 GWUS54GD	0xed01	GW-US54GD
 product PLANEX2 GWUSMM		0xed02	GW-USMM
 product PLANEX2 RT2870		0xed06	RT2870
 product PLANEX2 GWUSMICRON	0xed14	GW-USMicroN
+product PLANEX2 GWUSVALUEEZ	0xed17	GW-USValue-EZ
 product PLANEX3 GWUS54GZ	0xab10	GW-US54GZ
 product PLANEX3 GU1000T		0xab11	GU-1000T
 product PLANEX3 GWUS54MINI	0xab13	GW-US54Mini
@@ -2812,6 +2831,10 @@ product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
 product REALTEK RTL8187B_0	0x8189	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_1	0x8197	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_2	0x8198	RTL8187B Wireless Adapter
+
+/* RedOctane products */
+product REDOCTANE DUMMY		0x0000	Dummy product
+product REDOCTANE GHMIDI	0x474b	GH MIDI INTERFACE
 
 /* Renesas products */
 product RENESAS RX610		0x0053	RX610 RX-Stick
@@ -3249,6 +3272,11 @@ product	SYNTECH CYPHERLAB100	0x1000	CipherLab USB Barcode Scanner
 /* Teclast products */
 product TECLAST TLC300		0x3203	USB Media Player
 
+/* TexTech products */
+product TEXTECH DUMMY		0x0000	Dummy product
+product TEXTECH U2M_1		0x0101	Textech USB MIDI cable
+product TEXTECH U2M_2		0x1806	Textech USB MIDI cable
+
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
 product DIAMOND2 SUPRA2890	0x0b4a	SupraMax 2890 56K Modem
@@ -3322,6 +3350,7 @@ product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
 product TOSHIBA RT3070		0x0a07	RT3070
 product TOSHIBA G450		0x0d45	G450 modem
 product TOSHIBA HSDPA		0x1302	G450 modem
+product TOSHIBA TRANSMEMORY	0x6545	USB ThumbDrive
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
@@ -3378,6 +3407,9 @@ product USR USR5423		0x0121	USR5423 WLAN
 /* VIA Technologies products */
 product VIA USB2IDEBRIDGE	0x6204	USB 2.0 IDE Bridge
 
+/* VIA Labs */
+product VIALABS USB30SATABRIDGE	0x0700	USB 3.0 SATA Bridge
+
 /* Vaisala products */
 product VAISALA CABLE		0x0200	USB Interface cable
 
@@ -3421,7 +3453,9 @@ product WAVESENSE JAZZ		0xaaaa	Jazz blood glucose meter
 
 /* WCH products */
 product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
+product WCH2 DUMMY		0x0000	Dummy product
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
+product WCH2 U2M		0X752d	CH345 USB2.0-MIDI
 
 /* Western Digital products */
 product WESTERN COMBO		0x0200	Firewire USB Combo

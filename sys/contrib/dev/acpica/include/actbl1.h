@@ -130,7 +130,7 @@ typedef struct acpi_table_bert
 {
     ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
     UINT32                  RegionLength;       /* Length of the boot error region */
-    UINT64                  Address;            /* Physical addresss of the error region */
+    UINT64                  Address;            /* Physical address of the error region */
 
 } ACPI_TABLE_BERT;
 

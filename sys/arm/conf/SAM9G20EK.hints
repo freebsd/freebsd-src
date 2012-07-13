@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 
-# EEPROM 
+# EEPROM
 hint.icee.0.at="iicbus0"
 hint.icee.0.addr=0xa0
 hint.icee.0.type=16

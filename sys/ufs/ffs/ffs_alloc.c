@@ -2865,10 +2865,9 @@ buffered_write(fp, uio, active_cred, flags, td)
 	if (ip->i_devvp != devvp)
 		return (EINVAL);
 	fs = ip->i_fs;
+	foffset_lock_uio(fp, uio, flags);
 	vfslocked = VFS_LOCK_GIANT(ip->i_vnode->v_mount);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-	if ((flags & FOF_OFFSET) == 0)
-		uio->uio_offset = fp->f_offset;
 #ifdef DEBUG
 	if (fsckcmds) {
 		printf("%s: buffered write for block %jd\n",
@@ -2893,11 +2892,9 @@ buffered_write(fp, uio, active_cred, flags, td)
 		goto out;
 	}
 	error = bwrite(bp);
-	if ((flags & FOF_OFFSET) == 0)
-		fp->f_offset = uio->uio_offset;
-	fp->f_nextoff = uio->uio_offset;
 out:
 	VOP_UNLOCK(devvp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
+	foffset_unlock_uio(fp, uio, flags | FOF_NEXTOFF);
 	return (error);
 }

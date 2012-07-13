@@ -94,16 +94,11 @@ void BUF_MEM_free(BUF_MEM *a)
 	OPENSSL_free(a);
 	}
 
-int BUF_MEM_grow(BUF_MEM *str, int len)
+int BUF_MEM_grow(BUF_MEM *str, size_t len)
 	{
 	char *ret;
-	unsigned int n;
+	size_t n;
 
-	if (len < 0)
-		{
-		BUFerr(BUF_F_BUF_MEM_GROW,ERR_R_MALLOC_FAILURE);
-		return 0;
-		}
 	if (str->length >= len)
 		{
 		str->length=len;
@@ -141,16 +136,11 @@ int BUF_MEM_grow(BUF_MEM *str, int len)
 	return(len);
 	}
 
-int BUF_MEM_grow_clean(BUF_MEM *str, int len)
+int BUF_MEM_grow_clean(BUF_MEM *str, size_t len)
 	{
 	char *ret;
-	unsigned int n;
+	size_t n;
 
-	if (len < 0)
-		{
-		BUFerr(BUF_F_BUF_MEM_GROW_CLEAN,ERR_R_MALLOC_FAILURE);
-		return 0;
-		}
 	if (str->length >= len)
 		{
 		memset(&str->data[len],0,str->length-len);
@@ -166,7 +156,7 @@ int BUF_MEM_grow_clean(BUF_MEM *str, int len)
 	/* This limit is sufficient to ensure (len+3)/3*4 < 2**31 */
 	if (len > LIMIT_BEFORE_EXPANSION)
 		{
-		BUFerr(BUF_F_BUF_MEM_GROW,ERR_R_MALLOC_FAILURE);
+		BUFerr(BUF_F_BUF_MEM_GROW_CLEAN,ERR_R_MALLOC_FAILURE);
 		return 0;
 		}
 	n=(len+3)/3*4;
@@ -187,4 +177,27 @@ int BUF_MEM_grow_clean(BUF_MEM *str, int len)
 		str->length=len;
 		}
 	return(len);
+	}
+
+void BUF_reverse(unsigned char *out, unsigned char *in, size_t size)
+	{
+	size_t i;
+	if (in)
+		{
+		out += size - 1;
+		for (i = 0; i < size; i++)
+			*in++ = *out--;
+		}
+	else
+		{
+		unsigned char *q;
+		char c;
+		q = out + size - 1;
+		for (i = 0; i < size/2; i++)
+			{
+			c = *q;
+			*q-- = *out;
+			*out++ = c;
+			}
+		}
 	}

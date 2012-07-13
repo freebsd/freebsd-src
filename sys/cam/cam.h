@@ -108,6 +108,15 @@ typedef enum {
 	CAM_RETRY_SELTO		= 0x02 /* Retry Selection Timeouts */
 } cam_flags;
 
+enum {
+	SF_RETRY_UA		= 0x01,	/* Retry UNIT ATTENTION conditions. */
+	SF_NO_PRINT		= 0x02,	/* Never print error status. */
+	SF_QUIET_IR		= 0x04,	/* Be quiet about Illegal Request reponses */
+	SF_PRINT_ALWAYS		= 0x08,	/* Always print error status. */
+	SF_NO_RECOVERY		= 0x10,	/* Don't do active error recovery. */
+	SF_NO_RETRY		= 0x20	/* Don't do any retries. */
+};
+
 /* CAM  Status field values */
 typedef enum {
 	CAM_REQ_INPROG,		/* CCB request is in progress */

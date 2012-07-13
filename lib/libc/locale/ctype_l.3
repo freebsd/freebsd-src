@@ -135,4 +135,17 @@ See the specific manual pages for more information.
 .Xr xlocale 3
 .Sh STANDARDS
 These functions conform to
-.St -p1003.1-2008 .
+.St -p1003.1-2008 ,
+except for
+.Fn digittoint_l ,
+.Fn isascii_l ,
+.Fn ishexnumber_l ,
+.Fn isideogram_l ,
+.Fn isnumber_l ,
+.Fn isphonogram_l ,
+.Fn isrune_l
+and
+.Fn isspecial_l
+which are
+.Fx
+extensions.

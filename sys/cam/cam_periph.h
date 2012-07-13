@@ -118,7 +118,6 @@ struct cam_periph {
 #define CAM_PERIPH_INVALID		0x08
 #define CAM_PERIPH_NEW_DEV_FOUND	0x10
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
-#define CAM_PERIPH_SENSE_INPROG		0x40
 #define CAM_PERIPH_FREE			0x80
 	u_int32_t		 immediate_priority;
 	u_int32_t		 refcount;

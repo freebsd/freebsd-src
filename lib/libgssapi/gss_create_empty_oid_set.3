@@ -51,7 +51,7 @@ These routines are intended to be used to construct sets of mechanism
 object identifiers for input to
 .Fn gss_acquire_cred .
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor_status"
 .It minor_status
 Mechanism specific status code.
 .It oid_set
@@ -61,7 +61,7 @@ which the application must free after use with a call to
 .Fn gss_release_oid_set .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .El
@@ -69,7 +69,7 @@ Successful completion
 .Xr gss_add_oid_set_member 3 ,
 .Xr gss_acquire_cred 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

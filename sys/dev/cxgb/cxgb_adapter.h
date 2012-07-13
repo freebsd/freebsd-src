@@ -57,7 +57,6 @@ $FreeBSD$
 #include <dev/pci/pcivar.h>
 
 #include <cxgb_osdep.h>
-#include <t3cdev.h>
 #include <sys/mbufq.h>
 
 struct adapter;
@@ -130,6 +129,7 @@ enum {
 	CXGB_OFLD_INIT	= (1 << 7),
 	TP_PARITY_INIT	= (1 << 8),
 	CXGB_BUSY	= (1 << 9),
+	TOM_INIT_DONE	= (1 << 10),
 
 	/* port flags */
 	DOOMED		= (1 << 0),
@@ -179,7 +179,6 @@ struct sge_rspq {
 	uint32_t        async_notif;
 	uint32_t	cntxt_id;
 	uint32_t        offload_pkts;
-	uint32_t        offload_bundles;
 	uint32_t        pure_rsps;
 	uint32_t        unhandled_irqs;
 	uint32_t        starved;
@@ -266,15 +265,6 @@ struct sge_txq {
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
 };
      	
-
-enum {
-	SGE_PSTAT_TSO,              /* # of TSO requests */
-	SGE_PSTAT_RX_CSUM_GOOD,     /* # of successful RX csum offloads */
-	SGE_PSTAT_TX_CSUM,          /* # of TX checksum offloads */
-	SGE_PSTAT_VLANEX,           /* # of VLAN tag extractions */
-	SGE_PSTAT_VLANINS,          /* # of VLAN tag insertions */
-};
-
 #define SGE_PSTAT_MAX (SGE_PSTAT_VLANINS+1)
 
 #define QS_EXITING              0x1
@@ -289,8 +279,8 @@ struct sge_qset {
 	struct lro_state        lro;
 	struct sge_txq		txq[SGE_TXQ_PER_SET];
 	uint32_t                txq_stopped;       /* which Tx queues are stopped */
-	uint64_t                port_stats[SGE_PSTAT_MAX];
 	struct port_info        *port;
+	struct adapter          *adap;
 	int                     idx; /* qset # */
 	int                     qs_flags;
 	int			coalescing;
@@ -307,10 +297,13 @@ struct sge {
 
 struct filter_info;
 
+typedef int (*cpl_handler_t)(struct sge_qset *, struct rsp_desc *,
+    struct mbuf *);
+
 struct adapter {
+	SLIST_ENTRY(adapter)	link;
 	device_t		dev;
 	int			flags;
-	TAILQ_ENTRY(adapter)    adapter_entry;
 
 	/* PCI register resources */
 	int			regs_rid;
@@ -376,11 +369,16 @@ struct adapter {
 
 	struct port_info	port[MAX_NPORTS];
 	device_t		portdev[MAX_NPORTS];
-	struct t3cdev           tdev;
+#ifdef TCP_OFFLOAD
+	void 			*tom_softc;
+	void 			*iwarp_softc;
+#endif
 	char                    fw_version[64];
 	char                    port_types[MAX_NPORTS + 1];
 	uint32_t                open_device_map;
-	uint32_t                registered_device_map;
+#ifdef TCP_OFFLOAD
+	int			offload_map;
+#endif
 	struct mtx              lock;
 	driver_intr_t           *cxgb_intr;
 	int                     msi_count;
@@ -392,6 +390,11 @@ struct adapter {
 	char                    elmerlockbuf[ADAPTER_LOCK_NAME_LEN];
 
 	int			timestamp;
+
+#ifdef TCP_OFFLOAD
+#define NUM_CPL_HANDLERS	0xa7
+	cpl_handler_t cpl_handler[NUM_CPL_HANDLERS] __aligned(CACHE_LINE_SIZE);
+#endif
 };
 
 struct t3_rx_mode {
@@ -502,10 +505,12 @@ void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc, int mac_was_reset);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
-int t3_offload_tx(struct t3cdev *, struct mbuf *);
+#ifdef TCP_OFFLOAD
+int t3_offload_tx(struct adapter *, struct mbuf *);
+#endif
 void t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[]);
 int t3_mgmt_tx(adapter_t *adap, struct mbuf *m);
-
+int t3_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 
 int t3_sge_alloc(struct adapter *);
 int t3_sge_free(struct adapter *);
@@ -523,7 +528,7 @@ int t3_sge_reset_adapter(adapter_t *);
 int t3_sge_init_port(struct port_info *);
 void t3_free_tx_desc(struct sge_qset *qs, int n, int qid);
 
-void t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad);
+void t3_rx_eth(struct adapter *adap, struct mbuf *m, int ethpad);
 
 void t3_add_attach_sysctls(adapter_t *sc);
 void t3_add_configured_sysctls(adapter_t *sc);
@@ -556,15 +561,9 @@ txq_to_qset(struct sge_txq *q, int qidx)
 	return container_of(q, struct sge_qset, txq[qidx]);
 }
 
-static __inline struct adapter *
-tdev2adap(struct t3cdev *d)
-{
-	return container_of(d, struct adapter, tdev);
-}
-
 #undef container_of
 
-#define OFFLOAD_DEVMAP_BIT 15
+#define OFFLOAD_DEVMAP_BIT (1 << MAX_NPORTS)
 static inline int offload_running(adapter_t *adapter)
 {
         return isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT);
@@ -573,4 +572,5 @@ static inline int offload_running(adapter_t *adapter)
 void cxgb_tx_watchdog(void *arg);
 int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
 void cxgb_qflush(struct ifnet *ifp);
+void t3_iterate(void (*)(struct adapter *, void *), void *);
 #endif

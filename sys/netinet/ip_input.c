@@ -1495,8 +1495,7 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	if (error == EMSGSIZE && ro.ro_rt)
 		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
-	if (ro.ro_rt)
-		RTFREE(ro.ro_rt);
+	RO_RTFREE(&ro);
 
 	if (error)
 		IPSTAT_INC(ips_cantforward);
@@ -1681,6 +1680,12 @@ makedummy:
 		}
 		*mp = sbcreatecontrol((caddr_t) sdl2, sdl2->sdl_len,
 			IP_RECVIF, IPPROTO_IP);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
+	if (inp->inp_flags & INP_RECVTOS) {
+		*mp = sbcreatecontrol((caddr_t) &ip->ip_tos,
+		    sizeof(u_char), IP_RECVTOS, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}

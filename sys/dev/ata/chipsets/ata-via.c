@@ -472,12 +472,10 @@ ata_via_sata_reset(device_t dev)
 static int
 ata_via_sata_scr_read(device_t dev, int port, int reg, u_int32_t *result)
 {
-	struct ata_channel *ch;
 	device_t parent;
 	uint32_t val;
 
 	parent = device_get_parent(dev);
-	ch = device_get_softc(dev);
 	port = (port == 1) ? 1 : 0;
 	switch (reg) {
 	case ATA_SSTATUS:
@@ -520,12 +518,10 @@ ata_via_sata_scr_read(device_t dev, int port, int reg, u_int32_t *result)
 static int
 ata_via_sata_scr_write(device_t dev, int port, int reg, u_int32_t value)
 {
-	struct ata_channel *ch;
 	device_t parent;
 	uint32_t val;
 
 	parent = device_get_parent(dev);
-	ch = device_get_softc(dev);
 	port = (port == 1) ? 1 : 0;
 	switch (reg) {
 	case ATA_SERROR:

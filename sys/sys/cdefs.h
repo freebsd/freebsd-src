@@ -293,6 +293,12 @@
 #define __nonnull(x)
 #endif
 
+#if __GNUC_PREREQ__(3, 4)
+#define	__fastcall	__attribute__((__fastcall__))
+#else
+#define	__fastcall
+#endif
+
 #if __GNUC_PREREQ__(4, 1)
 #define	__returns_twice	__attribute__((__returns_twice__))
 #else

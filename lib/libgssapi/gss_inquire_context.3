@@ -55,7 +55,7 @@ The caller must already have obtained a handle that refers to the
 context,
 although the context need not be fully established.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It locally_initiated"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -229,7 +229,7 @@ Specify
 if not required.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_NO_CONTEXT"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_NO_CONTEXT
@@ -242,7 +242,7 @@ The referenced context could not be accessed
 .Xr gss_get_mic 3 ,
 .Xr gss_export_sec_context 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

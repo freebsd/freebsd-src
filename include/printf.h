@@ -123,7 +123,7 @@ int register_printf_function(int spec, printf_function *render, printf_arginfo_f
 
 /* FreeBSD */
 int register_printf_render(int spec, printf_render *render, printf_arginfo_function *arginfo);
-int register_printf_render_std(const unsigned char *specs);
+int register_printf_render_std(const char *specs);
 
 /* vprintf_errno.c */
 printf_arginfo_function		__printf_arginfo_errno;

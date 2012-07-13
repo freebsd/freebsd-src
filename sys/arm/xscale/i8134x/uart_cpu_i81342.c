@@ -55,7 +55,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;
 	di->bas.bst = &obio_bs_tag;
-	di->bas.regshft = 2; 
+	di->bas.regshft = 2;
 	di->bas.rclk = 33334000;
 	di->baudrate = 115200;
 	di->databits = 8;

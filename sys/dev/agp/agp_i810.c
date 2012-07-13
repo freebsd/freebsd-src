@@ -700,7 +700,7 @@ static const struct agp_i810_match {
 		.driver = &agp_i810_sb_driver
 	},
 	{
-		.devid = 0x01088086,
+		.devid = 0x010a8086,
 		.name = "SandyBridge server IG",
 		.driver = &agp_i810_sb_driver
 	},
