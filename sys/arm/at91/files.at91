@@ -29,6 +29,7 @@ arm/at91/uart_dev_at91usart.c	optional	uart
 #
 arm/at91/at91soc.c		standard
 arm/at91/at91rm9200.c		optional	at91rm9200
+arm/at91/at91rm9200_devices.c	optional	at91rm9200
 arm/at91/at91sam9260.c		optional	at91sam9260
 arm/at91/at91sam9g20.c		optional	at91sam9g20
 arm/at91/at91sam9x25.c		optional	at91sam9x25
