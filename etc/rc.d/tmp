@@ -37,7 +37,7 @@ stop_cmd=':'
 
 load_rc_config $name
 
-mount_tmpmfs ()
+mount_tmpmfs()
 {
 	if ! /bin/df /tmp | grep -q "^/dev/md[0-9]"; then
 		mount_md ${tmpsize} /tmp "${tmpmfs_flags}"
