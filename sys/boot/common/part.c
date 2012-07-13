@@ -42,18 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <uuid.h>
 
 #ifdef PART_DEBUG
-static char dline[256];
-#define	DEBUG(fmt, args...)	do {				\
-	sprintf(dline, "%s: " fmt "\n" , __func__ , ## args);	\
-	pager_output(dline);					\
-} while (0)
+#define	DEBUG(fmt, args...) printf("%s: " fmt "\n" , __func__ , ## args)
 #else
 #define	DEBUG(fmt, args...)
 #endif
 
 #ifdef LOADER_GPT_SUPPORT
 #define	MAXTBLSZ	64
-#define	GEOM_MAGIC	"GEOM::"
 static const uuid_t gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 static const uuid_t gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static const uuid_t gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
@@ -248,7 +243,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	}
 	pri = sec = 0;
 	/* Check the primary GPT header. */
-	phdr = gpt_checkhdr((struct gpt_hdr *)buf, 1, table->sectors,
+	phdr = gpt_checkhdr((struct gpt_hdr *)buf, 1, table->sectors - 1,
 	    table->sectorsize);
 	if (phdr != NULL) {
 		/* Read the primary GPT table. */
@@ -256,7 +251,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		    phdr->hdr_entries * phdr->hdr_entsz / table->sectorsize);
 		if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 		    gpt_checktbl(phdr, tbl, size * table->sectorsize,
-		    table->sectors) == 0) {
+		    table->sectors - 1) == 0) {
 			memcpy(&hdr, phdr, sizeof(hdr));
 			pri = 1;
 		}
@@ -267,7 +262,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		phdr = NULL;
 	else
 		phdr = gpt_checkhdr((struct gpt_hdr *)buf, offset,
-		    table->sectors, table->sectorsize);
+		    table->sectors - 1, table->sectorsize);
 	if (phdr != NULL) {
 		/*
 		 * Compare primary and backup headers.
@@ -289,7 +284,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 			    phdr->hdr_entsz / table->sectorsize);
 			if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 			    gpt_checktbl(phdr, tbl, size * table->sectorsize,
-			    table->sectors) == 0) {
+			    table->sectors - 1) == 0) {
 				memcpy(&hdr, phdr, sizeof(hdr));
 				sec = 1;
 			}
@@ -373,7 +368,7 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 	if (buf == NULL)
 		return (table);
 	for (i = 0; i < MAXEBRENTRIES; i++) {
-		if (offset > table->sectors)
+		if (offset >= table->sectors)
 			break;
 		if (dread(dev, buf, 1, offset) != 0)
 			break;
@@ -660,7 +655,7 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 		end = le32toh(dp[i].dp_size);
 		if (start == 0 || end == 0)
 			continue;
-		if (start + end - 1 > sectors)
+		if (start + end - 1 >= sectors)
 			continue;	/* XXX: ignore */
 		if (dp[i].dp_typ == DOSPTYP_EXT ||
 		    dp[i].dp_typ == DOSPTYP_EXTLBA)
