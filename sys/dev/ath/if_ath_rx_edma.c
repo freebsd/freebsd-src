@@ -284,8 +284,16 @@ ath_edma_recv_flush(struct ath_softc *sc)
 
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
 
+	ATH_PCU_LOCK(sc);
+	sc->sc_rxproc_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
 	ath_edma_recv_proc_queue(sc, HAL_RX_QUEUE_HP, 0);
 	ath_edma_recv_proc_queue(sc, HAL_RX_QUEUE_LP, 0);
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_rxproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
 }
 
 /*
@@ -312,7 +320,7 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	struct ath_hal *ah = sc->sc_ah;
 	uint64_t tsf;
 	int16_t nf;
-	int ngood = 0;
+	int ngood = 0, npkts = 0;
 	ath_bufhead rxlist;
 	struct ath_buf *next;
 
@@ -362,6 +370,7 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 		 */
 		DPRINTF(sc, ATH_DEBUG_EDMA_RX,
 		    "%s: Q%d: completed!\n", __func__, qtype);
+		npkts++;
 
 		/*
 		 * Remove the FIFO entry and place it on the completion
@@ -407,6 +416,14 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	}
 	ATH_RX_UNLOCK(sc);
 
+	/* rx signal state monitoring */
+	ath_hal_rxmonitor(ah, &sc->sc_halstats, sc->sc_curchan);
+	if (ngood)
+		sc->sc_lastrx = tsf;
+
+	CTR2(ATH_KTR_INTR, "ath edma rx proc: npkts=%d, ngood=%d",
+	    npkts, ngood);
+
 	/* Handle resched and kickpcu appropriately */
 	ATH_PCU_LOCK(sc);
 	if (dosched && sc->sc_kickpcu) {
@@ -429,6 +446,8 @@ static void
 ath_edma_recv_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 
 	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called; npending=%d\n",
 	    __func__,
@@ -441,10 +460,26 @@ ath_edma_recv_tasklet(void *arg, int npending)
 		ATH_PCU_UNLOCK(sc);
 		return;
 	}
+	sc->sc_rxproc_cnt++;
 	ATH_PCU_UNLOCK(sc);
 
 	ath_edma_recv_proc_queue(sc, HAL_RX_QUEUE_HP, 1);
 	ath_edma_recv_proc_queue(sc, HAL_RX_QUEUE_LP, 1);
+
+	/* XXX inside IF_LOCK ? */
+	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+#ifdef	IEEE80211_SUPPORT_SUPERG
+		ieee80211_ff_age_all(ic, 100);
+#endif
+		if (! IFQ_IS_EMPTY(&ifp->if_snd))
+			ath_tx_kick(sc);
+	}
+	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_rxproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
 }
 
 /*
