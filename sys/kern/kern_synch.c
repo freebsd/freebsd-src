@@ -146,12 +146,12 @@ sleepinit(void)
  */
 int
 _sleep(void *ident, struct lock_object *lock, int priority,
-    const char *wmesg, int timo)
+    const char *wmesg, int timo, struct bintime *bt, int flags)
 {
 	struct thread *td;
 	struct proc *p;
 	struct lock_class *class;
-	int catch, flags, lock_state, pri, rval;
+	int catch, sleepq_flags, lock_state, pri, rval;
 	WITNESS_SAVE_DECL(lock_witness);
 
 	td = curthread;
@@ -199,13 +199,13 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 		sleepq_remove(td, td->td_wchan);
 
 	if (ident == &pause_wchan)
-		flags = SLEEPQ_PAUSE;
+		sleepq_flags = SLEEPQ_PAUSE;
 	else
-		flags = SLEEPQ_SLEEP;
+		sleepq_flags = SLEEPQ_SLEEP;
 	if (catch)
-		flags |= SLEEPQ_INTERRUPTIBLE;
+		sleepq_flags |= SLEEPQ_INTERRUPTIBLE;
 	if (priority & PBDRY)
-		flags |= SLEEPQ_STOP_ON_BDRY;
+		sleepq_flags |= SLEEPQ_STOP_ON_BDRY;
 
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
@@ -231,18 +231,20 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	sleepq_add(ident, lock, wmesg, flags, 0);
-	if (timo)
-		sleepq_set_timeout(ident, timo);
+	sleepq_add(ident, lock, wmesg, sleepq_flags, 0);
+	if (bt) 
+		sleepq_set_timeout_bt(ident, bt, flags);
+	else if (timo)
+		sleepq_set_timeout_flags(ident, timo, flags);
 	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
 		sleepq_release(ident);
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		sleepq_lock(ident);
 	}
-	if (timo && catch)
+	if ((timo || bt) && catch)
 		rval = sleepq_timedwait_sig(ident, pri);
-	else if (timo)
+	else if (timo || bt)
 		rval = sleepq_timedwait(ident, pri);
 	else if (catch)
 		rval = sleepq_wait_sig(ident, pri);

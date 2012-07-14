@@ -367,7 +367,7 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 	for (;;) {
 		sleepq_lock(&nanowait);	
 		sleepq_add(&nanowait, NULL, "nanslp", PWAIT | PCATCH, 0);
-		sleepq_set_timeout_bt(&nanowait,bt);
+		sleepq_set_timeout_bt(&nanowait, &bt, 0);
 		error = sleepq_timedwait_sig(&nanowait, PWAIT | PCATCH);
 		binuptime(&bt2);
 		if (error != EWOULDBLOCK) {

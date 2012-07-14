@@ -362,7 +362,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
  * sleep queue after timo ticks if the thread has not already been awakened.
  */
 void 
-_sleepq_set_timeout(void *wchan, struct bintime *bt, int timo)
+_sleepq_set_timeout(void *wchan, struct bintime *bt, int timo, int flags)
 {
 
 	struct sleepqueue_chain *sc;
@@ -375,11 +375,11 @@ _sleepq_set_timeout(void *wchan, struct bintime *bt, int timo)
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
 	if (bt == NULL) 
-		callout_reset_curcpu(&td->td_slpcallout, timo, 
-		    sleepq_timeout, td);
+		callout_reset_flags_on(&td->td_slpcallout, timo, 
+		    sleepq_timeout, td, PCPU_GET(cpuid), flags);
 	else
 		callout_reset_bt_on(&td->td_slpcallout, bt, 
-		    sleepq_timeout, td, PCPU_GET(cpuid), 0); 
+		    sleepq_timeout, td, PCPU_GET(cpuid), flags); 
 }
 
 /*

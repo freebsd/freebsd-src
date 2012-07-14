@@ -341,14 +341,21 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * less often.
  */
 int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
-	    int timo) __nonnull(1);
+	    int timo, struct bintime *bt, int flags) __nonnull(1);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
-	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo))
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo),	\
+	    NULL, 0) 
+#define	msleep_flags(chan, mtx, pri, wmesg, timo, flags)		\
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo), 	\
+	    NULL, (flags)) 
+#define	msleep_bt(chan, mtx, pri, wmesg, bt, flags)			\
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg) 0, (bt),	\
+	    (flags))
 int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo)
 	    __nonnull(1);
 int	pause(const char *wmesg, int timo);
 #define	tsleep(chan, pri, wmesg, timo)					\
-	_sleep((chan), NULL, (pri), (wmesg), (timo))
+	_sleep((chan), NULL, (pri), (wmesg), (timo), NULL, 0)
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
 

@@ -270,12 +270,12 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 }
 
 /*
- * Wait on a condition variable for at most timo/hz seconds.  Returns 0 if the
- * process was resumed by cv_signal or cv_broadcast, EWOULDBLOCK if the timeout
- * expires.
+ * Wait on a condition variable.  Returns 0 if the process was resumed by
+ * cv_signal or cv_broadcast, EWOULDBLOCK if the timeout expires.
  */
 int
-_cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
+_cv_timedwait(struct cv *cvp, struct lock_object *lock, struct bintime *bt, 
+    int timo, int flags)
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -311,7 +311,10 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
-	sleepq_set_timeout(cvp, timo);
+	if (bt == NULL) 
+		sleepq_set_timeout_flags(cvp, timo, flags);
+	else
+		sleepq_set_timeout_bt(cvp, bt, flags);	
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
@@ -336,14 +339,14 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 }
 
 /*
- * Wait on a condition variable for at most timo/hz seconds, allowing
- * interruption by signals.  Returns 0 if the thread was resumed by cv_signal
- * or cv_broadcast, EWOULDBLOCK if the timeout expires, and EINTR or ERESTART if
- * a signal was caught.
+ * Wait on a condition variable allowing interruption by signals.
+ * Returns 0 if the thread was resumed by cv_signal or cv_broadcast, 
+ * or cv_broadcast, EWOULDBLOCK if the timeout expires, and EINTR 
+ * or ERESTART if a signal was caught.
  */
 int
 _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, 
-    struct bintime *bt, int timo) 
+    struct bintime *bt, int timo, int flags) 
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -381,9 +384,9 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock,
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
 	if (bt == NULL)	
-		sleepq_set_timeout(cvp, timo);
+		sleepq_set_timeout_flags(cvp, timo, flags);
 	else
-		sleepq_set_timeout_bt(cvp, *bt);
+		sleepq_set_timeout_bt(cvp, bt, flags);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
