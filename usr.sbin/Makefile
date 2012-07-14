@@ -144,6 +144,10 @@ SUBDIR+=	rndc-confgen
 SUBDIR+=	bluetooth
 .endif
 
+.if ${MK_BSDCONFIG} != "no"
+SUBDIR+=	bsdconfig
+.endif
+
 .if ${MK_BSNMP} != "no"
 SUBDIR+=	bsnmpd
 .endif
