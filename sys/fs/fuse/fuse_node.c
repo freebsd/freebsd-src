@@ -301,7 +301,8 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
 	struct fuse_setattr_in *fsai;
 	int err = 0;
 
-	DEBUG("inode=%jd size=%jd\n", VTOI(vp), fvdat->filesize);
+	DEBUG("inode=%ju size=%ju\n", (uintmax_t)VTOI(vp),
+	    (uintmax_t)fvdat->filesize);
 	ASSERT_VOP_ELOCKED(vp, "fuse_io_extend");
 
 	if (fuse_isdeadfs(vp)) {
@@ -353,7 +354,7 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 		return;
 
 	VOP_GETATTR(vp, &va, cred);
-	DEBUG("refreshed file size: %jd\n", VTOFUD(vp)->filesize);
+	DEBUG("refreshed file size: %jd\n", (intmax_t)VTOFUD(vp)->filesize);
 }
 
 int
@@ -363,8 +364,9 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 	off_t oldsize;
 	int err = 0;
 
-	DEBUG("inode=%jd oldsize=%jd newsize=%jd\n",
-	    VTOI(vp), fvdat->filesize, newsize);
+	DEBUG("inode=%ju oldsize=%ju newsize=%ju\n",
+	    (uintmax_t)VTOI(vp), (uintmax_t)fvdat->filesize,
+	    (uintmax_t)newsize);
 	ASSERT_VOP_ELOCKED(vp, "fuse_vnode_setsize");
 
 	oldsize = fvdat->filesize;

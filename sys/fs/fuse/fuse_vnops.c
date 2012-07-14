@@ -221,7 +221,7 @@ fuse_vnop_access(struct vop_access_args *ap)
 
 	int err;
 
-	DEBUG2G("inode=%jd\n", VTOI(vp));
+	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		if (vnode_isvroot(vp)) {
@@ -339,7 +339,8 @@ fuse_vnop_create(struct vop_create_args *ap)
 	    if ((vap->va_type != VREG) || !fsess_isimpl(mp, FUSE_CREATE)) {
 		goto good_old;
 	}
-	debug_printf("parent nid = %ju, mode = %x\n", (uintmax_t)parentnid, mode);
+	debug_printf("parent nid = %ju, mode = %x\n", (uintmax_t)parentnid,
+	    mode);
 
 	fdisp_init(fdip, sizeof(*foi) + cnp->cn_namelen + 1);
 	if (!fsess_isimpl(mp, FUSE_CREATE)) {
@@ -502,7 +503,7 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 	int dataflags;
 	struct fuse_dispatcher fdi;
 
-	DEBUG2G("inode=%jd\n", VTOI(vp));
+	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	dataflags = fuse_get_mpdata(vnode_mount(vp))->dataflags;
 
@@ -516,7 +517,7 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 		if ((fvdat->flag & FN_SIZECHANGE) != 0) {
 			vap->va_size = fvdat->filesize;
 		}
-		debug_printf("return cached: inode=%jd\n", VTOI(vp));
+		debug_printf("return cached: inode=%ju\n", (uintmax_t)VTOI(vp));
 		return 0;
 	}
 	if (!(dataflags & FSESS_INITED)) {
@@ -591,7 +592,7 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 
 	int type, need_flush = 1;
 
-	DEBUG("inode=%jd\n", (uintmax_t)VTOI(vp));
+	DEBUG("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
 		fufh = &(fvdat->fufh[type]);
@@ -705,8 +706,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	uint64_t nid;
 	struct fuse_access_param facp;
 
-	DEBUG2G("parent_inode=%jd - %*s\n",
-	    VTOI(dvp), (int)cnp->cn_namelen, cnp->cn_nameptr);
+	DEBUG2G("parent_inode=%ju - %*s\n",
+	    (uintmax_t)VTOI(dvp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(dvp)) {
 		*vpp = NULL;
@@ -1166,7 +1167,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 
 	int error, isdir = 0;
 
-	DEBUG2G("inode=%jd mode=0x%x\n", VTOI(vp), mode);
+	DEBUG2G("inode=%ju mode=0x%x\n", (uintmax_t)VTOI(vp), mode);
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1207,8 +1208,8 @@ fuse_vnop_read(struct vop_read_args *ap)
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
 
-	DEBUG2G("inode=%jd offset=%jd resid=%zd\n",
-	    VTOI(vp), uio->uio_offset, uio->uio_resid);
+	DEBUG2G("inode=%ju offset=%jd resid=%zd\n",
+	    (uintmax_t)VTOI(vp), uio->uio_offset, uio->uio_resid);
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1240,7 +1241,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	int err = 0;
 	int freefufh = 0;
 
-	DEBUG2G("inode=%jd\n", VTOI(vp));
+	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1290,7 +1291,7 @@ fuse_vnop_readlink(struct vop_readlink_args *ap)
 	struct fuse_dispatcher fdi;
 	int err;
 
-	DEBUG2G("inode=%jd\n", VTOI(vp));
+	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1337,7 +1338,7 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 	if (!fvdat) {
 		panic("FUSE: no vnode data during recycling");
 	}
-	DEBUG("inode=%jd\n", (uintmax_t)VTOI(vp));
+	DEBUG("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
 		fufh = &(fvdat->fufh[type]);
@@ -1377,8 +1378,8 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 
 	int err;
 
-	DEBUG2G("inode=%jd name=%*s\n",
-	    VTOI(vp), (int)cnp->cn_namelen, cnp->cn_nameptr);
+	DEBUG2G("inode=%ju name=%*s\n",
+	    (uintmax_t)VTOI(vp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(vp)) {
 		panic("FUSE: fuse_vnop_remove(): called on a dead file system");
@@ -1420,9 +1421,9 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 
 	int err = 0;
 
-	DEBUG2G("from: inode=%jd name=%*s -> to: inode=%jd name=%*s\n",
-	    VTOI(fvp), (int)fcnp->cn_namelen, fcnp->cn_nameptr,
-	    (tvp == NULL ? (intmax_t)-1 : VTOI(tvp)),
+	DEBUG2G("from: inode=%ju name=%*s -> to: inode=%ju name=%*s\n",
+	    (uintmax_t)VTOI(fvp), (int)fcnp->cn_namelen, fcnp->cn_nameptr,
+	    (uintmax_t)(tvp == NULL ? -1 : VTOI(tvp)),
 	    (int)tcnp->cn_namelen, tcnp->cn_nameptr);
 
 	if (fuse_isdeadfs(fdvp)) {
@@ -1495,7 +1496,7 @@ fuse_vnop_rmdir(struct vop_rmdir_args *ap)
 
 	int err;
 
-	DEBUG2G("inode=%jd\n", VTOI(vp));
+	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		panic("FUSE: fuse_vnop_rmdir(): called on a dead file system");
@@ -1537,7 +1538,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	int sizechanged = 0;
 	uint64_t newsize = 0;
 
-	DEBUG2G("inode=%jd\n", VTOI(vp));
+	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1714,8 +1715,8 @@ fuse_vnop_symlink(struct vop_symlink_args *ap)
 	int err;
 	size_t len;
 
-	DEBUG2G("inode=%jd name=%*s\n",
-	    VTOI(dvp), (int)cnp->cn_namelen, cnp->cn_nameptr);
+	DEBUG2G("inode=%ju name=%*s\n",
+	    (uintmax_t)VTOI(dvp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(dvp)) {
 		panic("FUSE: fuse_vnop_symlink(): called on a dead file system");
@@ -2053,9 +2054,8 @@ fuse_vnop_print(struct vop_print_args *ap)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(ap->a_vp);
 
-	printf("nodeid: %ju, parent nodeid: %ju, "
-	    "nlookup: %ju, flag: %#x\n",
-	    VTOILLU(ap->a_vp), (uintmax_t)fvdat->parent_nid,
+	printf("nodeid: %ju, parent nodeid: %ju, nlookup: %ju, flag: %#x\n",
+	    (uintmax_t)VTOILLU(ap->a_vp), (uintmax_t)fvdat->parent_nid,
 	    (uintmax_t)fvdat->nlookup,
 	    fvdat->flag);
 

@@ -583,7 +583,7 @@ fuse_internal_forget_send(struct mount *mp,
 	struct fuse_dispatcher fdi;
 	struct fuse_forget_in *ffi;
 
-	debug_printf("mp=%p, nodeid=%jd, nlookup=%jd\n",
+	debug_printf("mp=%p, nodeid=%ju, nlookup=%ju\n",
 	    mp, (uintmax_t)nodeid, (uintmax_t)nlookup);
 
 	/*
