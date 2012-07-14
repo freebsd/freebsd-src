@@ -122,6 +122,9 @@ done_store_dr:
 1:	movq	%rdx,%rcx
 	movl	xsave_mask,%eax
 	movl	xsave_mask+4,%edx
+	.globl	ctx_switch_xsave
+ctx_switch_xsave:
+	/* This is patched to xsaveopt if supported, see fpuinit_bsp1() */
 	xsave	(%r8)
 	movq	%rcx,%rdx
 2:	smsw	%ax
