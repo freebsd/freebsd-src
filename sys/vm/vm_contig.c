@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -189,6 +190,20 @@ vm_contig_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 {
 	int actl, actmax, inactl, inactmax;
 
+	if (tries > 0) {
+		/*
+		 * Decrease registered cache sizes.  The vm_lowmem handlers
+		 * may acquire locks and/or sleep, so they can only be invoked
+		 * when "tries" is greater than zero.
+		 */
+		EVENTHANDLER_INVOKE(vm_lowmem, 0);
+
+		/*
+		 * We do this explicitly after the caches have been drained
+		 * above.
+		 */
+		uma_reclaim();
+	}
 	vm_page_lock_queues();
 	inactl = 0;
 	inactmax = tries < 1 ? 0 : cnt.v_inactive_count;
