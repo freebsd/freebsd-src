@@ -696,11 +696,11 @@ ath_edma_dma_rxsetup(struct ath_softc *sc)
 {
 	int error;
 
-	/* Create RX DMA tag */
-	/* Create RX ath_buf array */
-
-	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
-	    "rx", ath_rxbuf, 1);
+	/*
+	 * Create RX DMA tag and buffers.
+	 */
+	error = ath_descdma_setup_rx_edma(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
+	    "rx", ath_rxbuf, sc->sc_rx_statuslen);
 	if (error != 0)
 		return error;
 
@@ -739,14 +739,15 @@ ath_recv_setup_edma(struct ath_softc *sc)
 	/* Set buffer size to 4k */
 	sc->sc_edma_bufsize = 4096;
 
-	/* Configure the hardware with this */
-	(void) ath_hal_setrxbufsize(sc->sc_ah, sc->sc_edma_bufsize);
-
 	/* Fetch EDMA field and buffer sizes */
 	(void) ath_hal_getrxstatuslen(sc->sc_ah, &sc->sc_rx_statuslen);
 	(void) ath_hal_gettxdesclen(sc->sc_ah, &sc->sc_tx_desclen);
 	(void) ath_hal_gettxstatuslen(sc->sc_ah, &sc->sc_tx_statuslen);
 	(void) ath_hal_getntxmaps(sc->sc_ah, &sc->sc_tx_nmaps);
+
+	/* Configure the hardware with the RX buffer size */
+	(void) ath_hal_setrxbufsize(sc->sc_ah, sc->sc_edma_bufsize -
+	    sc->sc_rx_statuslen);
 
 	device_printf(sc->sc_dev, "RX status length: %d\n",
 	    sc->sc_rx_statuslen);
