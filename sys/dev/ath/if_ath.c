@@ -2923,6 +2923,7 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	if (bf == NULL) {
 		if_printf(ifp, "malloc of %s buffers failed, size %u\n",
 			dd->dd_name, bsize);
+		error = ENOMEM;
 		goto fail3;
 	}
 	dd->dd_bufptr = bf;
