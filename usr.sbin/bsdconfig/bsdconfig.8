@@ -98,16 +98,16 @@ Use
 .Xr Xdialog 1
 in place of
 .Xr dialog 1 .
-
+.El
 .Sh COMMANDS
 The following commands
 .Pq sorted alphabetically
 are currently included in the base
 .Nm
 program, with more to be added soon.  Other commands can be added, as detailed
-below in the 
+below in the
 .Cm ADDING COMMANDS
-section, and once added, will appear in the master menu as well as in the 
+section, and once added, will appear in the master menu as well as in the
 .Cm -h
 listing.
 .Bl -tag -width ".Cm syscons_screenmap"
@@ -119,7 +119,7 @@ Shortcut to the Default Router/Gateway menu under networking.
 Manage disk partitions and/or labels. Executes
 .Xr sade 8 .
 .It Cm docsinstall
-Executes the 
+Executes the
 .Cm bsdinstall docsinstall
 sub-utility to allow installation/re-installation of the FreeBSD Documentation
 set(s).
@@ -190,19 +190,17 @@ Shortcut to the Delete Users menu under usermgmt.
 Shortcut to the Edit/View Users menu under usermgmt.
 .It Cm usermgmt
 Utilities to Add/Edit/View/Delete User Accounts.
-
+.El
 .Sh INTERNATIONALIZATION
-i18n features are built into 
+i18n features are built into
 .Nm
 and language-specific translation files will be added as they become available.
 In the absence of language-specific translation files, the default
 .Pq en_US.ISO8859-1
 files will be used.
-
 .Sh ADDING COMMANDS
 To be documented later. Document menu_selection="command|*" syntax of INDEX
 files.
-
 .Sh ENVIRONMENT VARIABLES
 The following environment variables affect the execution of
 .Nm :
@@ -215,26 +213,21 @@ messages.$LANG and INDEX.$LANG do not exist.  LANG takes precedence over LC_ALL.
 If LC_ALL is set, messages and index information will be read from files named
 messages.$LC_ALL and INDEX.$LC_ALL and fall back to files named messages and INDEX if
 messages.$LC_ALL and INDEX.$LC_ALL do not exist.
-
+.El
 .Sh FILES
 /usr/share/examples/bsdconfig/bsdconfigrc can be copied to $HOME/.bsdconfigrc and
 customized as needed.
-
 .Sh EXIT STATUS
 .Ex -std
-
 .Sh SEE ALSO
-.Xr host-setup 8 
-
+.Xr host-setup 8 ,
+.Xr sade 8
 .Sh HISTORY
 .Nm
 first appeared in
 .Fx 10.0 .
-
 .Sh AUTHORS
-.\" An -nosplit
 .An Ron McDowell Aq rcm@FuzzWad.ORG
 .An Devin Teske Aq devinteske@hotmail.com
-
 .Sh BUGS
 Undoubtedly.
