@@ -425,6 +425,8 @@ struct ath_softc {
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct mtx		sc_pcu_mtx;	/* PCU access mutex */
 	char			sc_pcu_mtx_name[32];
+	struct mtx		sc_rx_mtx;	/* RX access mutex */
+	char			sc_rx_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
@@ -694,6 +696,28 @@ struct ath_softc {
 #define	ATH_PCU_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
 		MA_OWNED)
 #define	ATH_PCU_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
+		MA_NOTOWNED)
+
+/*
+ * The RX lock is primarily a(nother) workaround to ensure that the
+ * RX FIFO/list isn't modified by various execution paths.
+ * Even though RX occurs in a single context (the ath taskqueue), the
+ * RX path can be executed via various reset/channel change paths.
+ */
+#define	ATH_RX_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_rx_mtx_name,					\
+	    sizeof((_sc)->sc_rx_mtx_name),				\
+	    "%s RX lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_rx_mtx, (_sc)->sc_rx_mtx_name,		\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_RX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_rx_mtx)
+#define	ATH_RX_LOCK(_sc)		mtx_lock(&(_sc)->sc_rx_mtx)
+#define	ATH_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_rx_mtx)
+#define	ATH_RX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_rx_mtx,	\
+		MA_OWNED)
+#define	ATH_RX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_rx_mtx,	\
 		MA_NOTOWNED)
 
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
