@@ -447,7 +447,9 @@ ath_edma_recv_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
 	struct ifnet *ifp = sc->sc_ifp;
+#ifdef	IEEE80211_SUPPORT_SUPERG
 	struct ieee80211com *ic = ifp->if_l2com;
+#endif
 
 	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called; npending=%d\n",
 	    __func__,
