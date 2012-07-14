@@ -263,6 +263,7 @@ update_layout(void)
 {
 
 	y_mem = 3;
+	y_arc = 4;
 	y_swap = 4 + arc_enabled;
 	y_idlecursor = 5 + arc_enabled;
 	y_message = 5 + arc_enabled;
@@ -271,7 +272,8 @@ update_layout(void)
 	Header_lines = 7 + arc_enabled;
 
 	if (pcpu_stats) {
-		y_mem = ncpus - 1;
+		y_mem += ncpus - 1;
+		y_arc += ncpus - 1;
 		y_swap += ncpus - 1;
 		y_idlecursor += ncpus - 1;
 		y_message += ncpus - 1;

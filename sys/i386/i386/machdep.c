@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/memrange.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
@@ -246,6 +247,8 @@ static struct trapframe proc0_tf;
 struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
+
+struct mem_range_softc mem_range_softc;
 
 static void
 cpu_startup(dummy)
@@ -2182,7 +2185,7 @@ getmemsize(int first)
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
 #ifndef XEN
-	int hasbrokenint12, i;
+	int hasbrokenint12, i, res;
 	u_int extmem;
 	struct vm86frame vmf;
 	struct vm86context vmc;
@@ -2267,7 +2270,8 @@ getmemsize(int first)
 	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
 	vmc.npages = 0;
 	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
-	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
+	res = vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
+	KASSERT(res != 0, ("vm86_getptr() failed: address not found"));
 
 	vmf.vmf_ebx = 0;
 	do {

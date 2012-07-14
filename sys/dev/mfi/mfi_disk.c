@@ -298,6 +298,7 @@ mfi_disk_complete(struct bio *bio)
 	hdr = bio->bio_driver1;
 
 	if (bio->bio_flags & BIO_ERROR) {
+		bio->bio_resid = bio->bio_bcount;
 		if (bio->bio_error == 0)
 			bio->bio_error = EIO;
 		disk_err(bio, "hard error", -1, 1);

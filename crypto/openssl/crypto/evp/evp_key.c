@@ -90,6 +90,11 @@ char *EVP_get_pw_prompt(void)
  * this function will fail */
 int EVP_read_pw_string(char *buf, int len, const char *prompt, int verify)
 	{
+	return EVP_read_pw_string_min(buf, 0, len, prompt, verify);
+	}
+
+int EVP_read_pw_string_min(char *buf, int min, int len, const char *prompt, int verify)
+	{
 	int ret;
 	char buff[BUFSIZ];
 	UI *ui;
@@ -97,10 +102,10 @@ int EVP_read_pw_string(char *buf, int len, const char *prompt, int verify)
 	if ((prompt == NULL) && (prompt_string[0] != '\0'))
 		prompt=prompt_string;
 	ui = UI_new();
-	UI_add_input_string(ui,prompt,0,buf,0,(len>=BUFSIZ)?BUFSIZ-1:len);
+	UI_add_input_string(ui,prompt,0,buf,min,(len>=BUFSIZ)?BUFSIZ-1:len);
 	if (verify)
 		UI_add_verify_string(ui,prompt,0,
-			buff,0,(len>=BUFSIZ)?BUFSIZ-1:len,buf);
+			buff,min,(len>=BUFSIZ)?BUFSIZ-1:len,buf);
 	ret = UI_process(ui);
 	UI_free(ui);
 	OPENSSL_cleanse(buff,BUFSIZ);
@@ -115,7 +120,7 @@ int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
 	unsigned char md_buf[EVP_MAX_MD_SIZE];
 	int niv,nkey,addmd=0;
 	unsigned int mds=0,i;
-
+	int rv = 0;
 	nkey=type->key_len;
 	niv=type->iv_len;
 	OPENSSL_assert(nkey <= EVP_MAX_KEY_LENGTH);
@@ -129,17 +134,24 @@ int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
 		if (!EVP_DigestInit_ex(&c,md, NULL))
 			return 0;
 		if (addmd++)
-			EVP_DigestUpdate(&c,&(md_buf[0]),mds);
-		EVP_DigestUpdate(&c,data,datal);
+			if (!EVP_DigestUpdate(&c,&(md_buf[0]),mds))
+				goto err;
+		if (!EVP_DigestUpdate(&c,data,datal))
+			goto err;
 		if (salt != NULL)
-			EVP_DigestUpdate(&c,salt,PKCS5_SALT_LEN);
-		EVP_DigestFinal_ex(&c,&(md_buf[0]),&mds);
+			if (!EVP_DigestUpdate(&c,salt,PKCS5_SALT_LEN))
+				goto err;
+		if (!EVP_DigestFinal_ex(&c,&(md_buf[0]),&mds))
+			goto err;
 
 		for (i=1; i<(unsigned int)count; i++)
 			{
-			EVP_DigestInit_ex(&c,md, NULL);
-			EVP_DigestUpdate(&c,&(md_buf[0]),mds);
-			EVP_DigestFinal_ex(&c,&(md_buf[0]),&mds);
+			if (!EVP_DigestInit_ex(&c,md, NULL))
+				goto err;
+			if (!EVP_DigestUpdate(&c,&(md_buf[0]),mds))
+				goto err;
+			if (!EVP_DigestFinal_ex(&c,&(md_buf[0]),&mds))
+				goto err;
 			}
 		i=0;
 		if (nkey)
@@ -168,8 +180,10 @@ int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
 			}
 		if ((nkey == 0) && (niv == 0)) break;
 		}
+	rv = type->key_len;
+	err:
 	EVP_MD_CTX_cleanup(&c);
 	OPENSSL_cleanse(&(md_buf[0]),EVP_MAX_MD_SIZE);
-	return(type->key_len);
+	return rv;
 	}
 

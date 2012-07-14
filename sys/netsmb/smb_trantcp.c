@@ -523,8 +523,10 @@ smb_nbst_connect(struct smb_vc *vcp, struct sockaddr *sap, struct thread *td)
 		return error;
 	getnanotime(&ts2);
 	timespecsub(&ts2, &ts1);
-	if (ts2.tv_sec == 0 && ts2.tv_sec == 0)
+	if (ts2.tv_sec == 0) {
 		ts2.tv_sec = 1;
+		ts2.tv_nsec = 0;
+	}
 	nbp->nbp_timo = ts2;
 	timespecadd(&nbp->nbp_timo, &ts2);
 	timespecadd(&nbp->nbp_timo, &ts2);

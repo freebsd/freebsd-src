@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2005-2008 Olivier Houchard.  All rights reserved.
- * Copyright (c) 2005-2008 Warner Losh.  All rights reserved.
+ * Copyright (c) 2005-2012 Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,14 +29,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/board.h>
 #include <arm/at91/at91board.h>
+#include <arm/at91/at91var.h>
 #include <arm/at91/at91rm92reg.h>
+#include <arm/at91/at91rm9200var.h>
 #include <arm/at91/at91_piovar.h>
 #include <arm/at91/at91_pio_rm9200.h>
 
-long
+BOARD_INIT long
 board_init(void)
 {
+
+	at91rm9200_set_subtype(AT91_ST_RM9200_BGA);
+
 	/*
 	 * Since the USART supports RS-485 multidrop mode, it allows the
 	 * TX pins to float.  However, for RS-232 operations, we don't want
@@ -61,3 +67,5 @@ board_init(void)
 
 	return (at91_ramsize());
 }
+
+ARM_BOARD(NONE, "HOTe 200");

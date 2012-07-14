@@ -8,5 +8,4 @@ options		KERNPHYSADDR=0x20000000
 options		KERNVIRTADDR=0xc0000000
 
 device		at91_board_sam9x25ek
-nodevice at91sam9g20
-nodevice at91sam9260
+device		at91sam9x25

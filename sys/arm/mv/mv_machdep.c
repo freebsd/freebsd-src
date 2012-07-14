@@ -115,16 +115,11 @@ extern unsigned char _edata[];
 extern unsigned char __bss_start[];
 extern unsigned char _end[];
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 extern vm_offset_t pmap_bootstrap_lastaddr;
-extern int *end;
 
 struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
 struct pcpu __pcpu;
@@ -134,7 +129,6 @@ struct pcpu *pcpup = &__pcpu;
 
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
-vm_offset_t physical_pages;
 vm_offset_t pmap_bootstrap_lastaddr;
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
@@ -498,7 +492,7 @@ initarm(struct arm_boot_params *abp)
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();

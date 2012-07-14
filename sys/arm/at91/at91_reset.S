@@ -1,13 +1,14 @@
 #include <machine/asm.h>
 #include <arm/at91/at91_rstreg.h>
+#include <arm/at91/at91reg.h>
 #include <arm/at91/at91sam9g20reg.h>
 __FBSDID("$FreeBSD$");
 
-#define SDRAM_TR  (AT91SAM9G20_BASE + \
+#define SDRAM_TR  (AT91_BASE + \
 	AT91SAM9G20_SDRAMC_BASE + AT91SAM9G20_SDRAMC_TR)
-#define SDRAM_LPR (AT91SAM9G20_BASE + \
+#define SDRAM_LPR (AT91_BASE + \
 	AT91SAM9G20_SDRAMC_BASE + AT91SAM9G20_SDRAMC_LPR)
-#define RSTC_RCR  (AT91SAM9G20_BASE + \
+#define RSTC_RCR  (AT91_BASE + \
 	AT91SAM9G20_RSTC_BASE + RST_CR)
 
 /*

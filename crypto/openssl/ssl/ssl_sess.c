@@ -55,6 +55,85 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
+/* ====================================================================
+ * Copyright 2005 Nokia. All rights reserved.
+ *
+ * The portions of the attached software ("Contribution") is developed by
+ * Nokia Corporation and is licensed pursuant to the OpenSSL open source
+ * license.
+ *
+ * The Contribution, originally written by Mika Kousa and Pasi Eronen of
+ * Nokia Corporation, consists of the "PSK" (Pre-Shared Key) ciphersuites
+ * support (see RFC 4279) to OpenSSL.
+ *
+ * No patent licenses or other rights except those expressly stated in
+ * the OpenSSL open source license shall be deemed granted or received
+ * expressly, by implication, estoppel, or otherwise.
+ *
+ * No assurances are provided by Nokia that the Contribution does not
+ * infringe the patent or other intellectual property rights of any third
+ * party or that the license provides you with all the necessary rights
+ * to make use of the Contribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. IN
+ * ADDITION TO THE DISCLAIMERS INCLUDED IN THE LICENSE, NOKIA
+ * SPECIFICALLY DISCLAIMS ANY LIABILITY FOR CLAIMS BROUGHT BY YOU OR ANY
+ * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
+ * OTHERWISE.
+ */
 
 #include <stdio.h>
 #include <openssl/lhash.h>
@@ -127,8 +206,21 @@ SSL_SESSION *SSL_SESSION_new(void)
 	ss->compress_meth=0;
 #ifndef OPENSSL_NO_TLSEXT
 	ss->tlsext_hostname = NULL; 
+#ifndef OPENSSL_NO_EC
+	ss->tlsext_ecpointformatlist_length = 0;
+	ss->tlsext_ecpointformatlist = NULL;
+	ss->tlsext_ellipticcurvelist_length = 0;
+	ss->tlsext_ellipticcurvelist = NULL;
+#endif
 #endif
 	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_SSL_SESSION, ss, &ss->ex_data);
+#ifndef OPENSSL_NO_PSK
+	ss->psk_identity_hint=NULL;
+	ss->psk_identity=NULL;
+#endif
+#ifndef OPENSSL_NO_SRP
+	ss->srp_username=NULL;
+#endif
 	return(ss);
 	}
 
@@ -137,6 +229,11 @@ const unsigned char *SSL_SESSION_get_id(const SSL_SESSION *s, unsigned int *len)
 	if(len)
 		*len = s->session_id_length;
 	return s->session_id;
+	}
+
+unsigned int SSL_SESSION_get_compress_id(const SSL_SESSION *s)
+	{
+	return s->compress_meth;
 	}
 
 /* Even with SSLv2, we have 16 bytes (128 bits) of session ID space. SSLv3/TLSv1
@@ -183,10 +280,10 @@ int ssl_get_new_session(SSL *s, int session)
 	if ((ss=SSL_SESSION_new()) == NULL) return(0);
 
 	/* If the context has a default timeout, use it */
-	if (s->ctx->session_timeout == 0)
+	if (s->session_ctx->session_timeout == 0)
 		ss->timeout=SSL_get_default_timeout(s);
 	else
-		ss->timeout=s->ctx->session_timeout;
+		ss->timeout=s->session_ctx->session_timeout;
 
 	if (s->session != NULL)
 		{
@@ -209,6 +306,16 @@ int ssl_get_new_session(SSL *s, int session)
 		else if (s->version == TLS1_VERSION)
 			{
 			ss->ssl_version=TLS1_VERSION;
+			ss->session_id_length=SSL3_SSL_SESSION_ID_LENGTH;
+			}
+		else if (s->version == TLS1_1_VERSION)
+			{
+			ss->ssl_version=TLS1_1_VERSION;
+			ss->session_id_length=SSL3_SSL_SESSION_ID_LENGTH;
+			}
+		else if (s->version == TLS1_2_VERSION)
+			{
+			ss->ssl_version=TLS1_2_VERSION;
 			ss->session_id_length=SSL3_SSL_SESSION_ID_LENGTH;
 			}
 		else if (s->version == DTLS1_BAD_VER)
@@ -239,8 +346,8 @@ int ssl_get_new_session(SSL *s, int session)
 		CRYPTO_r_lock(CRYPTO_LOCK_SSL_CTX);
 		if(s->generate_session_id)
 			cb = s->generate_session_id;
-		else if(s->ctx->generate_session_id)
-			cb = s->ctx->generate_session_id;
+		else if(s->session_ctx->generate_session_id)
+			cb = s->session_ctx->generate_session_id;
 		CRYPTO_r_unlock(CRYPTO_LOCK_SSL_CTX);
 		/* Choose a session ID */
 		tmp = ss->session_id_length;
@@ -286,6 +393,32 @@ int ssl_get_new_session(SSL *s, int session)
 				return 0;
 				}
 			}
+#ifndef OPENSSL_NO_EC
+		if (s->tlsext_ecpointformatlist)
+			{
+			if (ss->tlsext_ecpointformatlist != NULL) OPENSSL_free(ss->tlsext_ecpointformatlist);
+			if ((ss->tlsext_ecpointformatlist = OPENSSL_malloc(s->tlsext_ecpointformatlist_length)) == NULL)
+				{
+				SSLerr(SSL_F_SSL_GET_NEW_SESSION, ERR_R_MALLOC_FAILURE);
+				SSL_SESSION_free(ss);
+				return 0;
+				}
+			ss->tlsext_ecpointformatlist_length = s->tlsext_ecpointformatlist_length;
+			memcpy(ss->tlsext_ecpointformatlist, s->tlsext_ecpointformatlist, s->tlsext_ecpointformatlist_length);
+			}
+		if (s->tlsext_ellipticcurvelist)
+			{
+			if (ss->tlsext_ellipticcurvelist != NULL) OPENSSL_free(ss->tlsext_ellipticcurvelist);
+			if ((ss->tlsext_ellipticcurvelist = OPENSSL_malloc(s->tlsext_ellipticcurvelist_length)) == NULL)
+				{
+				SSLerr(SSL_F_SSL_GET_NEW_SESSION, ERR_R_MALLOC_FAILURE);
+				SSL_SESSION_free(ss);
+				return 0;
+				}
+			ss->tlsext_ellipticcurvelist_length = s->tlsext_ellipticcurvelist_length;
+			memcpy(ss->tlsext_ellipticcurvelist, s->tlsext_ellipticcurvelist, s->tlsext_ellipticcurvelist_length);
+			}
+#endif
 #endif
 		}
 	else
@@ -308,6 +441,25 @@ int ssl_get_new_session(SSL *s, int session)
 	return(1);
 	}
 
+/* ssl_get_prev attempts to find an SSL_SESSION to be used to resume this
+ * connection. It is only called by servers.
+ *
+ *   session_id: points at the session ID in the ClientHello. This code will
+ *       read past the end of this in order to parse out the session ticket
+ *       extension, if any.
+ *   len: the length of the session ID.
+ *   limit: a pointer to the first byte after the ClientHello.
+ *
+ * Returns:
+ *   -1: error
+ *    0: a session may have been found.
+ *
+ * Side effects:
+ *   - If a session is found then s->session is pointed at it (after freeing an
+ *     existing session if need be) and s->verify_result is set from the session.
+ *   - Both for new and resumed sessions, s->tlsext_ticket_expected is set to 1
+ *     if the server should issue a new session ticket (to 0 otherwise).
+ */
 int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
 			const unsigned char *limit)
 	{
@@ -315,53 +467,67 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
 
 	SSL_SESSION *ret=NULL;
 	int fatal = 0;
+	int try_session_cache = 1;
 #ifndef OPENSSL_NO_TLSEXT
 	int r;
 #endif
-  
+
 	if (len > SSL_MAX_SSL_SESSION_ID_LENGTH)
 		goto err;
-#ifndef OPENSSL_NO_TLSEXT
- 	r = tls1_process_ticket(s, session_id, len, limit, &ret);
-	if (r == -1)
-		{
-		fatal = 1;
- 		goto err;
-		}
-	else if (r == 0 || (!ret && !len))
-		goto err;
-	else if (!ret && !(s->session_ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_LOOKUP))
-#else
+
 	if (len == 0)
+		try_session_cache = 0;
+
+#ifndef OPENSSL_NO_TLSEXT
+	r = tls1_process_ticket(s, session_id, len, limit, &ret); /* sets s->tlsext_ticket_expected */
+	switch (r)
+		{
+	case -1: /* Error during processing */
+		fatal = 1;
 		goto err;
-	if (!(s->ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_LOOKUP))
+	case 0: /* No ticket found */
+	case 1: /* Zero length ticket found */
+		break; /* Ok to carry on processing session id. */
+	case 2: /* Ticket found but not decrypted. */
+	case 3: /* Ticket decrypted, *ret has been set. */
+		try_session_cache = 0;
+		break;
+	default:
+		abort();
+		}
 #endif
+
+	if (try_session_cache &&
+	    ret == NULL &&
+	    !(s->session_ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_LOOKUP))
 		{
 		SSL_SESSION data;
 		data.ssl_version=s->version;
 		data.session_id_length=len;
 		if (len == 0)
 			return 0;
- 		memcpy(data.session_id,session_id,len);
+		memcpy(data.session_id,session_id,len);
 		CRYPTO_r_lock(CRYPTO_LOCK_SSL_CTX);
-		ret=(SSL_SESSION *)lh_retrieve(s->ctx->sessions,&data);
+		ret=lh_SSL_SESSION_retrieve(s->session_ctx->sessions,&data);
 		if (ret != NULL)
-		    /* don't allow other threads to steal it: */
-		    CRYPTO_add(&ret->references,1,CRYPTO_LOCK_SSL_SESSION);
+			{
+			/* don't allow other threads to steal it: */
+			CRYPTO_add(&ret->references,1,CRYPTO_LOCK_SSL_SESSION);
+			}
 		CRYPTO_r_unlock(CRYPTO_LOCK_SSL_CTX);
+		if (ret == NULL)
+			s->session_ctx->stats.sess_miss++;
 		}
 
-	if (ret == NULL)
+	if (try_session_cache &&
+	    ret == NULL &&
+	    s->session_ctx->get_session_cb != NULL)
 		{
 		int copy=1;
 	
-		s->ctx->stats.sess_miss++;
-		ret=NULL;
-		if (s->ctx->get_session_cb != NULL
-		    && (ret=s->ctx->get_session_cb(s,session_id,len,&copy))
-		       != NULL)
+		if ((ret=s->session_ctx->get_session_cb(s,session_id,len,&copy)))
 			{
-			s->ctx->stats.sess_cb_hit++;
+			s->session_ctx->stats.sess_cb_hit++;
 
 			/* Increment reference count now if the session callback
 			 * asks us to do so (note that if the session structures
@@ -373,28 +539,23 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
 
 			/* Add the externally cached session to the internal
 			 * cache as well if and only if we are supposed to. */
-			if(!(s->ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_STORE))
+			if(!(s->session_ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_STORE))
 				/* The following should not return 1, otherwise,
 				 * things are very strange */
-				SSL_CTX_add_session(s->ctx,ret);
+				SSL_CTX_add_session(s->session_ctx,ret);
 			}
-		if (ret == NULL)
-			goto err;
 		}
 
-	/* Now ret is non-NULL, and we own one of its reference counts. */
+	if (ret == NULL)
+		goto err;
+
+	/* Now ret is non-NULL and we own one of its reference counts. */
 
 	if (ret->sid_ctx_length != s->sid_ctx_length
 	    || memcmp(ret->sid_ctx,s->sid_ctx,ret->sid_ctx_length))
 		{
-		/* We've found the session named by the client, but we don't
+		/* We have the session requested by the client, but we don't
 		 * want to use it in this context. */
-
-#if 0 /* The client cannot always know when a session is not appropriate,
-       * so we shouldn't generate an error message. */
-
-		SSLerr(SSL_F_SSL_GET_PREV_SESSION,SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT);
-#endif
 		goto err; /* treat like cache miss */
 		}
 	
@@ -431,39 +592,38 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
 			goto err;
 		}
 
-
-#if 0 /* This is way too late. */
-
-	/* If a thread got the session, then 'swaped', and another got
-	 * it and then due to a time-out decided to 'OPENSSL_free' it we could
-	 * be in trouble.  So I'll increment it now, then double decrement
-	 * later - am I speaking rubbish?. */
-	CRYPTO_add(&ret->references,1,CRYPTO_LOCK_SSL_SESSION);
-#endif
-
 	if (ret->timeout < (long)(time(NULL) - ret->time)) /* timeout */
 		{
-		s->ctx->stats.sess_timeout++;
-		/* remove it from the cache */
-		SSL_CTX_remove_session(s->ctx,ret);
+		s->session_ctx->stats.sess_timeout++;
+		if (try_session_cache)
+			{
+			/* session was from the cache, so remove it */
+			SSL_CTX_remove_session(s->session_ctx,ret);
+			}
 		goto err;
 		}
 
-	s->ctx->stats.sess_hit++;
+	s->session_ctx->stats.sess_hit++;
 
-	/* ret->time=time(NULL); */ /* rezero timeout? */
-	/* again, just leave the session 
-	 * if it is the same session, we have just incremented and
-	 * then decremented the reference count :-) */
 	if (s->session != NULL)
 		SSL_SESSION_free(s->session);
 	s->session=ret;
 	s->verify_result = s->session->verify_result;
-	return(1);
+	return 1;
 
  err:
 	if (ret != NULL)
+		{
 		SSL_SESSION_free(ret);
+#ifndef OPENSSL_NO_TLSEXT
+		if (!try_session_cache)
+			{
+			/* The session was from a ticket, so we should
+			 * issue a ticket for the new session */
+			s->tlsext_ticket_expected = 1;
+			}
+#endif
+		}
 	if (fatal)
 		return -1;
 	else
@@ -482,7 +642,7 @@ int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
 	/* if session c is in already in cache, we take back the increment later */
 
 	CRYPTO_w_lock(CRYPTO_LOCK_SSL_CTX);
-	s=(SSL_SESSION *)lh_insert(ctx->sessions,c);
+	s=lh_SSL_SESSION_insert(ctx->sessions,c);
 	
 	/* s != NULL iff we already had a session with the given PID.
 	 * In this case, s == c should hold (then we did not really modify
@@ -548,10 +708,10 @@ static int remove_session_lock(SSL_CTX *ctx, SSL_SESSION *c, int lck)
 	if ((c != NULL) && (c->session_id_length != 0))
 		{
 		if(lck) CRYPTO_w_lock(CRYPTO_LOCK_SSL_CTX);
-		if ((r = (SSL_SESSION *)lh_retrieve(ctx->sessions,c)) == c)
+		if ((r = lh_SSL_SESSION_retrieve(ctx->sessions,c)) == c)
 			{
 			ret=1;
-			r=(SSL_SESSION *)lh_delete(ctx->sessions,c);
+			r=lh_SSL_SESSION_delete(ctx->sessions,c);
 			SSL_SESSION_list_remove(ctx,c);
 			}
 
@@ -601,6 +761,22 @@ void SSL_SESSION_free(SSL_SESSION *ss)
 #ifndef OPENSSL_NO_TLSEXT
 	if (ss->tlsext_hostname != NULL) OPENSSL_free(ss->tlsext_hostname);
 	if (ss->tlsext_tick != NULL) OPENSSL_free(ss->tlsext_tick);
+#ifndef OPENSSL_NO_EC
+	ss->tlsext_ecpointformatlist_length = 0;
+	if (ss->tlsext_ecpointformatlist != NULL) OPENSSL_free(ss->tlsext_ecpointformatlist);
+	ss->tlsext_ellipticcurvelist_length = 0;
+	if (ss->tlsext_ellipticcurvelist != NULL) OPENSSL_free(ss->tlsext_ellipticcurvelist);
+#endif /* OPENSSL_NO_EC */
+#endif
+#ifndef OPENSSL_NO_PSK
+	if (ss->psk_identity_hint != NULL)
+		OPENSSL_free(ss->psk_identity_hint);
+	if (ss->psk_identity != NULL)
+		OPENSSL_free(ss->psk_identity);
+#endif
+#ifndef OPENSSL_NO_SRP
+	if (ss->srp_username != NULL)
+		OPENSSL_free(ss->srp_username);
 #endif
 	OPENSSL_cleanse(ss,sizeof(*ss));
 	OPENSSL_free(ss);
@@ -609,7 +785,7 @@ void SSL_SESSION_free(SSL_SESSION *ss)
 int SSL_set_session(SSL *s, SSL_SESSION *session)
 	{
 	int ret=0;
-	SSL_METHOD *meth;
+	const SSL_METHOD *meth;
 
 	if (session != NULL)
 		{
@@ -626,10 +802,6 @@ int SSL_set_session(SSL *s, SSL_SESSION *session)
 			{
 			if (!SSL_set_ssl_method(s,meth))
 				return(0);
-			if (s->ctx->session_timeout == 0)
-				session->timeout=SSL_get_default_timeout(s);
-			else
-				session->timeout=s->ctx->session_timeout;
 			}
 
 #ifndef OPENSSL_NO_KRB5
@@ -697,6 +869,25 @@ long SSL_SESSION_set_time(SSL_SESSION *s, long t)
 	return(t);
 	}
 
+X509 *SSL_SESSION_get0_peer(SSL_SESSION *s)
+	{
+	return s->peer;
+	}
+
+int SSL_SESSION_set1_id_context(SSL_SESSION *s,const unsigned char *sid_ctx,
+			       unsigned int sid_ctx_len)
+	{
+	if(sid_ctx_len > SSL_MAX_SID_CTX_LENGTH)
+		{
+		SSLerr(SSL_F_SSL_SESSION_SET1_ID_CONTEXT,SSL_R_SSL_SESSION_ID_CONTEXT_TOO_LONG);
+		return 0;
+		}
+	s->sid_ctx_length=sid_ctx_len;
+	memcpy(s->sid_ctx,sid_ctx,sid_ctx_len);
+
+	return 1;
+	}
+
 long SSL_CTX_set_timeout(SSL_CTX *s, long t)
 	{
 	long l;
@@ -712,20 +903,75 @@ long SSL_CTX_get_timeout(const SSL_CTX *s)
 	return(s->session_timeout);
 	}
 
+#ifndef OPENSSL_NO_TLSEXT
+int SSL_set_session_secret_cb(SSL *s, int (*tls_session_secret_cb)(SSL *s, void *secret, int *secret_len,
+	STACK_OF(SSL_CIPHER) *peer_ciphers, SSL_CIPHER **cipher, void *arg), void *arg)
+	{
+	if (s == NULL) return(0);
+	s->tls_session_secret_cb = tls_session_secret_cb;
+	s->tls_session_secret_cb_arg = arg;
+	return(1);
+	}
+
+int SSL_set_session_ticket_ext_cb(SSL *s, tls_session_ticket_ext_cb_fn cb,
+				  void *arg)
+	{
+	if (s == NULL) return(0);
+	s->tls_session_ticket_ext_cb = cb;
+	s->tls_session_ticket_ext_cb_arg = arg;
+	return(1);
+	}
+
+int SSL_set_session_ticket_ext(SSL *s, void *ext_data, int ext_len)
+	{
+	if (s->version >= TLS1_VERSION)
+		{
+		if (s->tlsext_session_ticket)
+			{
+			OPENSSL_free(s->tlsext_session_ticket);
+			s->tlsext_session_ticket = NULL;
+			}
+
+		s->tlsext_session_ticket = OPENSSL_malloc(sizeof(TLS_SESSION_TICKET_EXT) + ext_len);
+		if (!s->tlsext_session_ticket)
+			{
+			SSLerr(SSL_F_SSL_SET_SESSION_TICKET_EXT, ERR_R_MALLOC_FAILURE);
+			return 0;
+			}
+
+		if (ext_data)
+			{
+			s->tlsext_session_ticket->length = ext_len;
+			s->tlsext_session_ticket->data = s->tlsext_session_ticket + 1;
+			memcpy(s->tlsext_session_ticket->data, ext_data, ext_len);
+			}
+		else
+			{
+			s->tlsext_session_ticket->length = 0;
+			s->tlsext_session_ticket->data = NULL;
+			}
+
+		return 1;
+		}
+
+	return 0;
+	}
+#endif /* OPENSSL_NO_TLSEXT */
+
 typedef struct timeout_param_st
 	{
 	SSL_CTX *ctx;
 	long time;
-	LHASH *cache;
+	LHASH_OF(SSL_SESSION) *cache;
 	} TIMEOUT_PARAM;
 
-static void timeout(SSL_SESSION *s, TIMEOUT_PARAM *p)
+static void timeout_doall_arg(SSL_SESSION *s, TIMEOUT_PARAM *p)
 	{
 	if ((p->time == 0) || (p->time > (s->time+s->timeout))) /* timeout */
 		{
 		/* The reason we don't call SSL_CTX_remove_session() is to
 		 * save on locking overhead */
-		lh_delete(p->cache,s);
+		(void)lh_SSL_SESSION_delete(p->cache,s);
 		SSL_SESSION_list_remove(p->ctx,s);
 		s->not_resumable=1;
 		if (p->ctx->remove_session_cb != NULL)
@@ -734,7 +980,7 @@ static void timeout(SSL_SESSION *s, TIMEOUT_PARAM *p)
 		}
 	}
 
-static IMPLEMENT_LHASH_DOALL_ARG_FN(timeout, SSL_SESSION *, TIMEOUT_PARAM *)
+static IMPLEMENT_LHASH_DOALL_ARG_FN(timeout, SSL_SESSION, TIMEOUT_PARAM)
 
 void SSL_CTX_flush_sessions(SSL_CTX *s, long t)
 	{
@@ -746,10 +992,11 @@ void SSL_CTX_flush_sessions(SSL_CTX *s, long t)
 	if (tp.cache == NULL) return;
 	tp.time=t;
 	CRYPTO_w_lock(CRYPTO_LOCK_SSL_CTX);
-	i=tp.cache->down_load;
-	tp.cache->down_load=0;
-	lh_doall_arg(tp.cache, LHASH_DOALL_ARG_FN(timeout), &tp);
-	tp.cache->down_load=i;
+	i=CHECKED_LHASH_OF(SSL_SESSION, tp.cache)->down_load;
+	CHECKED_LHASH_OF(SSL_SESSION, tp.cache)->down_load=0;
+	lh_SSL_SESSION_doall_arg(tp.cache, LHASH_DOALL_ARG_FN(timeout),
+				 TIMEOUT_PARAM, &tp);
+	CHECKED_LHASH_OF(SSL_SESSION, tp.cache)->down_load=i;
 	CRYPTO_w_unlock(CRYPTO_LOCK_SSL_CTX);
 	}
 
@@ -909,3 +1156,4 @@ void SSL_CTX_set_cookie_verify_cb(SSL_CTX *ctx,
 	ctx->app_verify_cookie_cb=cb;
 	}
 
+IMPLEMENT_PEM_rw(SSL_SESSION, SSL_SESSION, PEM_STRING_SSL_SESSION, SSL_SESSION)

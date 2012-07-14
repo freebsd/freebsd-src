@@ -497,7 +497,7 @@ g_dev_strategy(struct bio *bp)
  *
  * Called from below when the provider orphaned us.
  * - Clear any dump settings.
- * - Destroy the struct cdev *to prevent any more request from coming in.  The
+ * - Destroy the struct cdev to prevent any more request from coming in.  The
  *   provider is already marked with an error, so anything which comes in
  *   in the interrim will be returned immediately.
  * - Wait for any outstanding I/O to finish.
