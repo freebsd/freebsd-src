@@ -394,6 +394,7 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 		 * Note: this may or may not free bf->bf_m and sync/unmap
 		 * the frame.
 		 */
+		rs = &bf->bf_status.ds_rxstat;
 		if (ath_rx_pkt(sc, rs, bf->bf_rxstatus, tsf, nf, qtype, bf))
 			ngood++;
 	}
