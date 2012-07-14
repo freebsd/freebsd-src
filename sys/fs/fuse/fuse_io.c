@@ -614,8 +614,9 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 	MPASS(vp->v_type == VREG);
 	MPASS(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE);
-	DEBUG("inode=%jd offset=%jd resid=%jd\n",
-	    VTOI(vp), ((off_t)bp->b_blkno) * biosize, bp->b_bcount);
+	DEBUG("inode=%ju offset=%jd resid=%ld\n",
+	    (uintmax_t)VTOI(vp), (intmax_t)(((off_t)bp->b_blkno) * biosize),
+	    bp->b_bcount);
 
 	error = fuse_filehandle_getrw(vp,
 	    (bp->b_iocmd == BIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
