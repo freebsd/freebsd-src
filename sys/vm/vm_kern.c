@@ -195,6 +195,148 @@ kmem_alloc(map, size)
 }
 
 /*
+ *	Allocates a region from the kernel address map and physical pages
+ *	within the specified address range to the kernel object.  Creates a
+ *	wired mapping from this region to these pages, and returns the
+ *	region's starting virtual address.  The allocated pages are not
+ *	necessarily physically contiguous.  If M_ZERO is specified through the
+ *	given flags, then the pages are zeroed before they are mapped.
+ */
+vm_offset_t
+kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, vm_memattr_t memattr)
+{
+	vm_object_t object = kernel_object;
+	vm_offset_t addr;
+	vm_ooffset_t end_offset, offset;
+	vm_page_t m;
+	int pflags, tries;
+
+	size = round_page(size);
+	vm_map_lock(map);
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+		vm_map_unlock(map);
+		return (0);
+	}
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	vm_object_reference(object);
+	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, 0);
+	if ((flags & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOBUSY;
+	else
+		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
+	if (flags & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
+	VM_OBJECT_LOCK(object);
+	end_offset = offset + size;
+	for (; offset < end_offset; offset += PAGE_SIZE) {
+		tries = 0;
+retry:
+		m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags, 1,
+		    low, high, PAGE_SIZE, 0, memattr);
+		if (m == NULL) {
+			VM_OBJECT_UNLOCK(object);
+			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
+				vm_map_unlock(map);
+				vm_contig_grow_cache(tries, low, high);
+				vm_map_lock(map);
+				VM_OBJECT_LOCK(object);
+				tries++;
+				goto retry;
+			}
+
+			/*
+			 * Since the pages that were allocated by any previous
+			 * iterations of this loop are not busy, they can be
+			 * freed by vm_object_page_remove(), which is called
+			 * by vm_map_delete().
+			 */
+			vm_map_delete(map, addr, addr + size);
+			vm_map_unlock(map);
+			return (0);
+		}
+		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+	VM_OBJECT_UNLOCK(object);
+	vm_map_unlock(map);
+	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
+	    VM_MAP_WIRE_NOHOLES);
+	return (addr);
+}
+
+/*
+ *	Allocates a region from the kernel address map and physically
+ *	contiguous pages within the specified address range to the kernel
+ *	object.  Creates a wired mapping from this region to these pages, and
+ *	returns the region's starting virtual address.  If M_ZERO is specified
+ *	through the given flags, then the pages are zeroed before they are
+ *	mapped.
+ */
+vm_offset_t
+kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr)
+{
+	vm_object_t object = kernel_object;
+	vm_offset_t addr;
+	vm_ooffset_t offset;
+	vm_page_t end_m, m;
+	int pflags, tries;
+ 
+	size = round_page(size);
+	vm_map_lock(map);
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+		vm_map_unlock(map);
+		return (0);
+	}
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	vm_object_reference(object);
+	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, 0);
+	if ((flags & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOBUSY;
+	else
+		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
+	if (flags & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
+	if (flags & M_NODUMP)
+		pflags |= VM_ALLOC_NODUMP;
+	VM_OBJECT_LOCK(object);
+	tries = 0;
+retry:
+	m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags,
+	    atop(size), low, high, alignment, boundary, memattr);
+	if (m == NULL) {
+		VM_OBJECT_UNLOCK(object);
+		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
+			vm_map_unlock(map);
+			vm_contig_grow_cache(tries, low, high);
+			vm_map_lock(map);
+			VM_OBJECT_LOCK(object);
+			tries++;
+			goto retry;
+		}
+		vm_map_delete(map, addr, addr + size);
+		vm_map_unlock(map);
+		return (0);
+	}
+	end_m = m + atop(size);
+	for (; m < end_m; m++) {
+		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+	VM_OBJECT_UNLOCK(object);
+	vm_map_unlock(map);
+	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
+	    VM_MAP_WIRE_NOHOLES);
+	return (addr);
+}
+
+/*
  *	kmem_free:
  *
  *	Release a region of kernel virtual memory allocated
