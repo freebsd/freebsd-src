@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120713: auth.conf removed
+OLD_FILES+=etc/auth.conf
+OLD_FILES+=usr/share/examples/etc/auth.conf
+OLD_FILES+=usr/share/man/man3/auth.3.gz
+OLD_FILES+=usr/share/man/man5/auth.conf.5.gz
 # 20120415: new clang import which bumps version from 3.0 to 3.1
 OLD_FILES+=usr/include/clang/3.0/altivec.h
 OLD_FILES+=usr/include/clang/3.0/avxintrin.h

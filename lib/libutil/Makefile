@@ -8,7 +8,7 @@ SHLIBDIR?= /lib
 LIB=	util
 SHLIB_MAJOR= 9
 
-SRCS=	_secure_path.c auth.c expand_number.c flopen.c fparseln.c gr_util.c \
+SRCS=	_secure_path.c expand_number.c flopen.c fparseln.c gr_util.c \
 	hexdump.c humanize_number.c kinfo_getfile.c kinfo_getfile.c \
 	kinfo_getallproc.c kinfo_getproc.c kinfo_getvmmap.c kld.c \
 	login_auth.c login_cap.c \
@@ -27,16 +27,15 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../libc/gen/
 
 MAN+=	kld.3 login_auth.3 login_tty.3 pty.3 \
 	login_cap.3 login_class.3 login_times.3 login_ok.3 \
-	_secure_path.3 uucplock.3 property.3 auth.3 realhostname.3 \
+	_secure_path.3 uucplock.3 property.3 realhostname.3 \
 	realhostname_sa.3 trimdomain.3 fparseln.3 humanize_number.3 \
 	pidfile.3 flopen.3 expand_number.3 hexdump.3 \
 	kinfo_getfile.3 kinfo_getallproc.3 kinfo_getproc.3 \
 	kinfo_getvmmap.3 quotafile.3
-MAN+=	login.conf.5 auth.conf.5
+MAN+=	login.conf.5
 MLINKS+= kld.3 kld_isloaded.3 kld.3 kld_load.3
 MLINKS+= property.3 properties_read.3  property.3 properties_free.3
 MLINKS+= property.3 property_find.3
-MLINKS+= auth.3 auth_getval.3
 MLINKS+= pty.3 openpty.3  pty.3 forkpty.3
 MLINKS+=login_cap.3 login_getclassbyname.3 login_cap.3 login_close.3 \
 	login_cap.3 login_getclass.3 login_cap.3 login_getuserclass.3 \
