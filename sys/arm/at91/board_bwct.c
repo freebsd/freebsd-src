@@ -45,6 +45,9 @@ board_init(void)
 	 */
 	at91rm9200_config_uart(AT91_ID_DBGU, 0, 0);   /* DBGU just Tx and Rx */
 
+	at91rm9200_config_mci(0);
+	/* Configure ethernet */
+
 	return (at91_ramsize());
 }
 

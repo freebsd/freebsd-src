@@ -50,4 +50,9 @@ void at91rm9200_set_subtype(enum at91_soc_subtype st);
 
 void at91rm9200_config_uart(unsigned devid, unsigned unit, unsigned pinmask);
 
+/*
+ * MCI (sd/mmc card support)
+ */
+void at91rm9200_config_mci(int has_4wire);
+
 #endif /* ARM_AT91_AT91RM9200VAR_H */
