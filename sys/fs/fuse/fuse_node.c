@@ -176,7 +176,6 @@ fuse_vnode_alloc(struct mount *mp,
     enum vtype vtyp,
     struct vnode **vpp)
 {
-	const int lkflags = LK_EXCLUSIVE | LK_RETRY;
 	struct fuse_vnode_data *fvdat;
 	struct vnode *vp2;
 	int err = 0;
@@ -187,7 +186,7 @@ fuse_vnode_alloc(struct mount *mp,
 		return EINVAL;
 	}
 	*vpp = NULL;
-	err = vfs_hash_get(mp, fuse_vnode_hash(nodeid), lkflags, td, vpp,
+	err = vfs_hash_get(mp, fuse_vnode_hash(nodeid), LK_EXCLUSIVE, td, vpp,
 	    fuse_vnode_cmp, &nodeid);
 	if (err)
 		return (err);
@@ -203,21 +202,19 @@ fuse_vnode_alloc(struct mount *mp,
 		free(fvdat, M_FUSEVN);
 		return (err);
 	}
-	vn_lock(*vpp, lkflags);
+	lockmgr((*vpp)->v_vnlock, LK_EXCLUSIVE, NULL);
 	fuse_vnode_init(*vpp, fvdat, nodeid, vtyp);
 	err = insmntque(*vpp, mp);
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnode_alloc");
 	if (err) {
-		VOP_UNLOCK(*vpp, 0);
 		free(fvdat, M_FUSEVN);
 		*vpp = NULL;
 		return (err);
 	}
-	err = vfs_hash_insert(*vpp, fuse_vnode_hash(nodeid), lkflags,
+	err = vfs_hash_insert(*vpp, fuse_vnode_hash(nodeid), LK_EXCLUSIVE,
 	    td, &vp2, fuse_vnode_cmp, &nodeid);
 
 	if (err) {
-		VOP_UNLOCK(*vpp, 0);
 		fuse_vnode_destroy(*vpp);
 		*vpp = NULL;
 		return (err);
