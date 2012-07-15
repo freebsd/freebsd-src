@@ -1723,7 +1723,7 @@ seltdwait(struct thread *td, struct bintime *bt, int timo)
 		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
 	else if (bt != NULL)
 		error = cv_timedwait_bt_sig(&stp->st_wait, &stp->st_mtx, 
-		    bt, 0);
+		    bt, C_DIRECT_EXEC);
 	else	
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
 	mtx_unlock(&stp->st_mtx);
