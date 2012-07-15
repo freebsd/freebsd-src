@@ -111,6 +111,7 @@ struct scsi_read_defect_data_10
 	u_int8_t reserved[4];
 
 	u_int8_t alloc_length[2];
+#define	SRDD10_MAX_LENGTH		0xffff
 
 	u_int8_t control;
 };

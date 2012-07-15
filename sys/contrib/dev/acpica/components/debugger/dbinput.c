@@ -250,7 +250,7 @@ AcpiDbDisplayHelp (
     AcpiOsPrintf ("     Stack                            Display CPU stack usage\n");
     AcpiOsPrintf ("     Tables                           Info about current ACPI table(s)\n");
     AcpiOsPrintf ("  Tables                              Display info about loaded ACPI tables\n");
-    AcpiOsPrintf ("  Unload <TableSig> [Instance]        Unload an ACPI table\n");
+    AcpiOsPrintf ("  Unload <Namepath>                   Unload an ACPI table via namespace object\n");
     AcpiOsPrintf ("  ! <CommandNumber>                   Execute command from history buffer\n");
     AcpiOsPrintf ("  !!                                  Execute last command again\n");
 
@@ -894,7 +894,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_UNLOAD:
-        AcpiDbUnloadAcpiTable (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
+        AcpiDbUnloadAcpiTable (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_EXIT:

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd January 4, 2003
+.Dd June 25, 2012
 .Dt STRPTIME 3
 .Os
 .Sh NAME
@@ -41,6 +41,10 @@
 .Fa "const char * restrict format"
 .Fa "struct tm * restrict timeptr"
 .Fc
+.In time.h
+.In xlocale.h
+.Ft char *
+.Fn strptime_l "const char * restrict buf" "const char * restrict format" "struct tm * restrict timeptr" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strptime
@@ -53,6 +57,11 @@ and fills in the elements of the structure pointed to by
 The resulting values will be relative to the local time zone.
 Thus, it can be considered the reverse operation of
 .Xr strftime 3 .
+The
+.Fn strptime_l
+function does the same as
+.Fn strptime ,
+but takes an explicit locale rather than using the current locale.
 .Pp
 The
 .Fa format
@@ -104,6 +113,9 @@ that has not been required to satisfy the specified conversions in
 It returns
 .Dv NULL
 if one of the conversions failed.
+.Fn strptime_l
+returns the same values as
+.Fn strptime .
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr scanf 3 ,

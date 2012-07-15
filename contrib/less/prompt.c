@@ -1,12 +1,11 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -394,9 +393,9 @@ protochar(c, where, iseditproto)
  * where to resume parsing the string.
  * We must keep track of nested IFs and skip them properly.
  */
-	static char constant *
+	static constant char *
 skipcond(p)
-	register char constant *p;
+	register constant char *p;
 {
 	register int iflevel;
 
@@ -452,7 +451,7 @@ skipcond(p)
 /*
  * Decode a char that represents a position on the screen.
  */
-	static char constant *
+	static constant char *
 wherechar(p, wp)
 	char constant *p;
 	int *wp;
@@ -478,10 +477,10 @@ wherechar(p, wp)
  */
 	public char *
 pr_expand(proto, maxwidth)
-	char constant *proto;
+	constant char *proto;
 	int maxwidth;
 {
-	register char constant *p;
+	register constant char *p;
 	register int c;
 	int where;
 

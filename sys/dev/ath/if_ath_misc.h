@@ -48,13 +48,22 @@
 	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
+extern int ath_rxbuf;
+extern int ath_txbuf;
+extern int ath_txbuf_mgmt;
+
 extern int ath_tx_findrix(const struct ath_softc *sc, uint8_t rate);
 
-extern struct ath_buf * ath_getbuf(struct ath_softc *sc);
-extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc);
+extern struct ath_buf * ath_getbuf(struct ath_softc *sc,
+	    ath_buf_type_t btype);
+extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc,
+	    ath_buf_type_t btype);
 extern struct ath_buf * ath_buf_clone(struct ath_softc *sc,
 	    const struct ath_buf *bf);
+/* XXX change this to NULL the buffer pointer? */
 extern void ath_freebuf(struct ath_softc *sc, struct ath_buf *bf);
+extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
+extern void ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf);
 
 extern int ath_reset(struct ifnet *, ATH_RESET_TYPE);
 extern void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
@@ -74,6 +83,14 @@ extern void ath_mode_init(struct ath_softc *sc);
 extern void ath_setdefantenna(struct ath_softc *sc, u_int antenna);
 
 extern void ath_setslottime(struct ath_softc *sc);
+
+extern	int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
+	    ath_bufhead *head, const char *name, int nbuf, int ndesc);
+extern	int ath_descdma_setup_rx_edma(struct ath_softc *sc,
+	    struct ath_descdma *dd, ath_bufhead *head, const char *name,
+	    int nbuf, int desclen);
+extern	void ath_descdma_cleanup(struct ath_softc *sc,
+	    struct ath_descdma *dd, ath_bufhead *head);
 
 /*
  * This is only here so that the RX proc function can call it.

@@ -2544,7 +2544,7 @@ bpfdetach(struct ifnet *ifp)
 
 /*
  * Interface departure handler.
- * Note departure event does not guagantee interface is going down.
+ * Note departure event does not guarantee interface is going down.
  */
 static void
 bpf_ifdetach(void *arg __unused, struct ifnet *ifp)

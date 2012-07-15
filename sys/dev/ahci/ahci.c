@@ -202,6 +202,9 @@ static struct {
 	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x91721b4b, 0x00, "Marvell 88SE9172",	AHCI_Q_NOBSYRES},
 	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_NOBSYRES},
+	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
+	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
+	{0x92351b4b, 0x00, "Marvell 88SE9235",  AHCI_Q_NOBSYRES},
 	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
 	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
 	{0x06221103, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
@@ -2967,7 +2970,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->transport = XPORT_SATA;
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
-		cpi->protocol = PROTO_UNSPECIFIED;
+		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = MAXPHYS;
 		/* ATI SB600 can't handle 256 sectors with FPDMA (NCQ). */

@@ -155,8 +155,8 @@ at91_mci_init(device_t dev)
 #ifndef  AT91_MCI_SLOT_B
 	WR4(sc, MCI_SDCR, 0);			/* SLOT A, 1 bit bus */
 #else
-	/* XXX Really should add second "unit" but nobody using using 
-	 * a two slot card that we know of. XXX */
+	/* XXX Really should add second "unit" but nobody using using
+	 * a two slot card that we know of. -- except they are... XXX */
 	WR4(sc, MCI_SDCR, 1);			/* SLOT B, 1 bit bus */
 #endif
 }
@@ -313,7 +313,7 @@ static int
 at91_mci_is_mci1rev2xx(void)
 {
 
-	switch (soc_data.type) {
+	switch (soc_info.type) {
 	case AT91_T_SAM9260:
 	case AT91_T_SAM9263:
 	case AT91_T_CAP9:

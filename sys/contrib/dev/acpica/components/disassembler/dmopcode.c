@@ -46,6 +46,7 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -57,6 +58,218 @@
 static void
 AcpiDmMatchKeyword (
     ACPI_PARSE_OBJECT       *Op);
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmPredefinedDescription
+ *
+ * PARAMETERS:  Op              - Name() parse object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Emit a description comment for a predefined ACPI name.
+ *              Used for iASL compiler only.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmPredefinedDescription (
+    ACPI_PARSE_OBJECT       *Op)
+{
+#ifdef ACPI_ASL_COMPILER
+    const AH_PREDEFINED_NAME    *Info;
+    char                        *NameString;
+    int                         LastCharIsDigit;
+    int                         LastCharsAreHex;
+
+
+    if (!Op)
+    {
+        return;
+    }
+
+    /* Ensure that the comment field is emitted only once */
+
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_PREDEF_CHECKED)
+    {
+        return;
+    }
+    Op->Common.DisasmFlags |= ACPI_PARSEOP_PREDEF_CHECKED;
+
+    /* Predefined name must start with an underscore */
+
+    NameString = ACPI_CAST_PTR (char, &Op->Named.Name);
+    if (NameString[0] != '_')
+    {
+        return;
+    }
+
+    /*
+     * Check for the special ACPI names:
+     * _ACd, _ALd, _EJd, _Exx, _Lxx, _Qxx, _Wxx, _T_a
+     * (where d=decimal_digit, x=hex_digit, a=anything)
+     *
+     * Convert these to the generic name for table lookup.
+     * Note: NameString is guaranteed to be upper case here.
+     */
+    LastCharIsDigit =
+        (ACPI_IS_DIGIT (NameString[3]));    /* d */
+    LastCharsAreHex =
+        (ACPI_IS_XDIGIT (NameString[2]) &&  /* xx */
+         ACPI_IS_XDIGIT (NameString[3]));
+
+    switch (NameString[1])
+    {
+    case 'A':
+        if ((NameString[2] == 'C') && (LastCharIsDigit))
+        {
+            NameString = "_ACx";
+        }
+        else if ((NameString[2] == 'L') && (LastCharIsDigit))
+        {
+            NameString = "_ALx";
+        }
+        break;
+
+    case 'E':
+        if ((NameString[2] == 'J') && (LastCharIsDigit))
+        {
+            NameString = "_EJx";
+        }
+        else if (LastCharsAreHex)
+        {
+            NameString = "_Exx";
+        }
+        break;
+
+    case 'L':
+        if (LastCharsAreHex)
+        {
+            NameString = "_Lxx";
+        }
+        break;
+
+    case 'Q':
+        if (LastCharsAreHex)
+        {
+            NameString = "_Qxx";
+        }
+        break;
+
+    case 'T':
+        if (NameString[2] == '_')
+        {
+            NameString = "_T_x";
+        }
+        break;
+
+    case 'W':
+        if (LastCharsAreHex)
+        {
+            NameString = "_Wxx";
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    /* Match the name in the info table */
+
+    for (Info = AslPredefinedInfo; Info->Name; Info++)
+    {
+        if (ACPI_COMPARE_NAME (NameString, Info->Name))
+        {
+            AcpiOsPrintf ("  // %4.4s: %s",
+                NameString, ACPI_CAST_PTR (char, Info->Description));
+            return;
+        }
+    }
+
+#endif
+    return;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmFieldPredefinedDescription
+ *
+ * PARAMETERS:  Op              - Parse object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Emit a description comment for a resource descriptor tag
+ *              (which is a predefined ACPI name.) Used for iASL compiler only.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmFieldPredefinedDescription (
+    ACPI_PARSE_OBJECT       *Op)
+{
+#ifdef ACPI_ASL_COMPILER
+    ACPI_PARSE_OBJECT       *IndexOp;
+    char                    *Tag;
+    const ACPI_OPCODE_INFO  *OpInfo;
+    const AH_PREDEFINED_NAME *Info;
+
+
+    if (!Op)
+    {
+        return;
+    }
+
+    /* Ensure that the comment field is emitted only once */
+
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_PREDEF_CHECKED)
+    {
+        return;
+    }
+    Op->Common.DisasmFlags |= ACPI_PARSEOP_PREDEF_CHECKED;
+
+    /*
+     * Op must be one of the Create* operators: CreateField, CreateBitField,
+     * CreateByteField, CreateWordField, CreateDwordField, CreateQwordField
+     */
+    OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
+    if (!(OpInfo->Flags & AML_CREATE))
+    {
+        return;
+    }
+
+    /* Second argument is the Index argument */
+
+    IndexOp = Op->Common.Value.Arg;
+    IndexOp = IndexOp->Common.Next;
+
+    /* Index argument must be a namepath */
+
+    if (IndexOp->Common.AmlOpcode != AML_INT_NAMEPATH_OP)
+    {
+        return;
+    }
+
+    /* Major cheat: We previously put the Tag ptr in the Node field */
+
+    Tag = ACPI_CAST_PTR (char, IndexOp->Common.Node);
+
+    /* Match the name in the info table */
+
+    for (Info = AslPredefinedInfo; Info->Name; Info++)
+    {
+        if (ACPI_COMPARE_NAME (Tag, Info->Name))
+        {
+            AcpiOsPrintf ("  // %4.4s: %s", Tag,
+                ACPI_CAST_PTR (char, Info->Description));
+            return;
+        }
+    }
+
+#endif
+    return;
+}
 
 
 /*******************************************************************************

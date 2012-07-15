@@ -115,16 +115,11 @@ extern unsigned char _edata[];
 extern unsigned char __bss_start[];
 extern unsigned char _end[];
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 extern vm_offset_t pmap_bootstrap_lastaddr;
-extern int *end;
 
 struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
 struct pcpu __pcpu;
@@ -134,7 +129,6 @@ struct pcpu *pcpup = &__pcpu;
 
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
-vm_offset_t physical_pages;
 vm_offset_t pmap_bootstrap_lastaddr;
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
@@ -144,8 +138,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-
-static struct trapframe proc0_tf;
 
 static struct mem_region availmem_regions[FDT_MEM_REGIONS];
 static int availmem_regions_sz;
@@ -287,7 +279,7 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		/* 
+		/*
 		 * We should not map the page at PA 0x0000000, the VM can't
 		 * handle it, as pmap_extract() == 0 means failure.
 		 */
@@ -313,47 +305,22 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
 	uint32_t memsize, l2size;
 	void *kmdp;
-	void *mdp;
 	u_int l1pagetable;
 	int i = 0, j = 0, err_devmap = 0;
 
-	mdp = (void *)abp->abp_r0;
-	kmdp = NULL;
-	lastaddr = 0;
+        lastaddr = parse_boot_param(abp);
 	memsize = 0;
-	dtbp = (vm_offset_t)NULL;
-
 	set_cpufuncs();
 
 	/*
-	 * Mask metadata pointer: it is supposed to be on page boundary. If
-	 * the first argument (mdp) doesn't point to a valid address the
-	 * bootloader must have passed us something else than the metadata
-	 * ptr... In this case we want to fall back to some built-in settings.
+	 * Find the dtb passed in by the boot loader.
 	 */
-	mdp = (void *)((uint32_t)mdp & ~PAGE_MASK);
-
-	/* Parse metadata and fetch parameters */
-	if (mdp != NULL) {
-		preload_metadata = mdp;
-		kmdp = preload_search_by_type("elf kernel");
-		if (kmdp != NULL) {
-			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
-			    vm_offset_t);
-#ifdef DDB
-			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-#endif
-		}
-
-		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
-	} else {
-		/* Fall back to hardcoded metadata. */
-		lastaddr = fake_preload_metadata();
-	}
+        kmdp = preload_search_by_type("elf kernel");
+        if (kmdp != NULL)
+		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	else
+		dtbp = (vm_offset_t)NULL;
+		
 
 #if defined(FDT_DTB_STATIC)
 	/*
@@ -525,7 +492,7 @@ initarm(struct arm_boot_params *abp)
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
@@ -576,22 +543,10 @@ initarm(struct arm_boot_params *abp)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_kstack_pages = KSTACK_PAGES;
-	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-
-	dump_avail[0] = 0;
-	dump_avail[1] = memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
+	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

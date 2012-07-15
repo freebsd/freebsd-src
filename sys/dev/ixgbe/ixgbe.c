@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.4.5";
+char ixgbe_driver_version[] = "2.4.8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -80,8 +80,10 @@ static ixgbe_vendor_info_t ixgbe_vendor_info_array[] =
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_T3_LOM, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_COMBO_BACKPLANE, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BACKPLANE_FCOE, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF2, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_FCOE, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599EN_SFP, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T1, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
@@ -241,10 +243,6 @@ TUNABLE_INT("hw.ixgbe.max_interrupt_rate", &ixgbe_max_interrupt_rate);
 /* How many packets rxeof tries to clean at a time */
 static int ixgbe_rx_process_limit = 128;
 TUNABLE_INT("hw.ixgbe.rx_process_limit", &ixgbe_rx_process_limit);
-
-/* Flow control setting, default to full */
-static int ixgbe_flow_control = ixgbe_fc_full;
-TUNABLE_INT("hw.ixgbe.flow_control", &ixgbe_flow_control);
 
 /*
 ** Smart speed setting, default to on
@@ -526,28 +524,25 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 	}
 
-	/* Get Hardware Flow Control setting */
-	hw->fc.requested_mode = ixgbe_fc_full;
-	adapter->fc = hw->fc.requested_mode;
-	hw->fc.pause_time = IXGBE_FC_PAUSE;
-	hw->fc.low_water = IXGBE_FC_LO;
-	hw->fc.high_water[0] = IXGBE_FC_HI;
-	hw->fc.send_xon = TRUE;
-
 	error = ixgbe_init_hw(hw);
-	if (error == IXGBE_ERR_EEPROM_VERSION) {
+	switch (error) {
+	case IXGBE_ERR_EEPROM_VERSION:
 		device_printf(dev, "This device is a pre-production adapter/"
 		    "LOM.  Please be aware there may be issues associated "
 		    "with your hardware.\n If you are experiencing problems "
 		    "please contact your Intel or hardware representative "
 		    "who provided you with this hardware.\n");
-	} else if (error == IXGBE_ERR_SFP_NOT_SUPPORTED)
+		break;
+	case IXGBE_ERR_SFP_NOT_SUPPORTED:
 		device_printf(dev,"Unsupported SFP+ Module\n");
-
-	if (error) {
 		error = EIO;
 		device_printf(dev,"Hardware Initialization Failure\n");
 		goto err_late;
+	case IXGBE_ERR_SFP_NOT_PRESENT:
+		device_printf(dev,"No SFP+ Module found\n");
+		/* falls thru */
+	default:
+		break;
 	}
 
 	/* Detect and set physical type */
@@ -1152,7 +1147,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		 * from the Intel linux driver 3.8.21.
 		 * Prefetching enables tx line rate even with 1 queue.
 		 */
-		txdctl |= (16 << 0) | (1 << 8);
+		txdctl |= (32 << 0) | (1 << 8);
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(i), txdctl);
 	}
 
@@ -1236,7 +1231,7 @@ ixgbe_init_locked(struct adapter *adapter)
 #ifdef IXGBE_FDIR
 	/* Init Flow director */
 	if (hw->mac.type != ixgbe_mac_82598EB) {
-		u32 hdrm = 64 << fdir_pballoc;
+		u32 hdrm = 32 << fdir_pballoc;
 
 		hw->mac.ops.setup_rxpba(hw, 0, hdrm, PBA_STRATEGY_EQUAL);
 		ixgbe_init_fdir_signature_82599(&adapter->hw, fdir_pballoc);
@@ -1261,6 +1256,35 @@ ixgbe_init_locked(struct adapter *adapter)
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
+
+	/* Hardware Packet Buffer & Flow Control setup */
+	{
+		u32 rxpb, frame, size, tmp;
+
+		frame = adapter->max_frame_size;
+
+		/* Calculate High Water */
+		if (hw->mac.type == ixgbe_mac_X540)
+			tmp = IXGBE_DV_X540(frame, frame);
+		else
+			tmp = IXGBE_DV(frame, frame);
+		size = IXGBE_BT2KB(tmp);
+		rxpb = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(0)) >> 10;
+		hw->fc.high_water[0] = rxpb - size;
+
+		/* Now calculate Low Water */
+		if (hw->mac.type == ixgbe_mac_X540)
+			tmp = IXGBE_LOW_DV_X540(frame);
+		else
+			tmp = IXGBE_LOW_DV(frame);
+		hw->fc.low_water[0] = IXGBE_BT2KB(tmp);
+		
+		adapter->fc = hw->fc.requested_mode = ixgbe_fc_full;
+		hw->fc.pause_time = IXGBE_FC_PAUSE;
+		hw->fc.send_xon = TRUE;
+	}
+	/* Initialize the FC settings */
+	ixgbe_start_hw(hw);
 
 	/* And now turn on interrupts */
 	ixgbe_enable_intr(adapter);
@@ -1551,10 +1575,8 @@ ixgbe_msix_link(void *arg)
 			/* This is probably overkill :) */
 			if (!atomic_cmpset_int(&adapter->fdir_reinit, 0, 1))
 				return;
-                	/* Clear the interrupt */
-			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_FLOW_DIR);
-			/* Turn off the interface */
-			adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+                	/* Disable the interrupt */
+			IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EICR_FLOW_DIR);
 			taskqueue_enqueue(adapter->tq, &adapter->fdir_task);
 		} else
 #endif
@@ -2056,6 +2078,8 @@ ixgbe_update_link_status(struct adapter *adapter)
 				    ((adapter->link_speed == 128)? 10:1),
 				    "Full Duplex");
 			adapter->link_active = TRUE;
+			/* Update any Flow Control changes */
+			ixgbe_fc_enable(&adapter->hw);
 			if_link_state_change(ifp, LINK_STATE_UP);
 		}
 	} else { /* Link down */
@@ -3063,7 +3087,7 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 			txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
 			break;
                 }
-		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		txctrl &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		switch (hw->mac.type) {
 		case ixgbe_mac_82598EB:
 			IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), txctrl);
@@ -5095,6 +5119,8 @@ ixgbe_reinit_fdir(void *context, int pending)
 		return;
 	ixgbe_reinit_fdir_tables_82599(&adapter->hw);
 	adapter->fdir_reinit = 0;
+	/* re-enable flow director interrupts */
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
 	/* Restart the interface */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	return;
@@ -5652,8 +5678,9 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 		default:
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
 	}
-
-	ixgbe_fc_enable(&adapter->hw, 0);
+	/* Don't autoneg if forcing a value */
+	adapter->hw.fc.disable_fc_autoneg = TRUE;
+	ixgbe_fc_enable(&adapter->hw);
 	return error;
 }
 
@@ -5669,9 +5696,9 @@ ixgbe_add_rx_process_limit(struct adapter *adapter, const char *name,
 
 /*
 ** Control link advertise speed:
-** 	0 - normal
 **	1 - advertise only 1G
 **	2 - advertise 100Mb
+**	3 - advertise normal
 */
 static int
 ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
@@ -5685,12 +5712,14 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 	adapter = (struct adapter *) arg1;
 	dev = adapter->dev;
 	hw = &adapter->hw;
-	last = hw->phy.autoneg_advertised;
+	last = adapter->advertise;
 
 	error = sysctl_handle_int(oidp, &adapter->advertise, 0, req);
-
 	if ((error) || (adapter->advertise == -1))
 		return (error);
+
+	if (adapter->advertise == last) /* no change */
+		return (0);
 
 	if (!((hw->phy.media_type == ixgbe_media_type_copper) ||
             (hw->phy.multispeed_fiber)))
@@ -5705,11 +5734,10 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
                 speed = IXGBE_LINK_SPEED_1GB_FULL;
 	else if (adapter->advertise == 2)
                 speed = IXGBE_LINK_SPEED_100_FULL;
-	else
+	else if (adapter->advertise == 3)
                 speed = IXGBE_LINK_SPEED_1GB_FULL |
 			IXGBE_LINK_SPEED_10GB_FULL;
-
-	if (speed == last) /* no change */
+	else /* bogus value */
 		return (error);
 
 	hw->mac.autotry_restart = TRUE;

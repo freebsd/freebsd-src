@@ -14,7 +14,7 @@ rcvar="background_fsck"
 start_cmd="bgfsck_start"
 stop_cmd=":"
 
-bgfsck_start ()
+bgfsck_start()
 {
 	if [ -z "${rc_force}" ]; then
 		background_fsck_delay=${background_fsck_delay:=0}

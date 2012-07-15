@@ -69,18 +69,22 @@ static	void		camperiphdone(struct cam_periph *periph,
 					union ccb *done_ccb);
 static  void		camperiphfree(struct cam_periph *periph);
 static int		camperiphscsistatuserror(union ccb *ccb,
+					        union ccb **orig_ccb,
 						 cam_flags camflags,
 						 u_int32_t sense_flags,
 						 int *openings,
 						 u_int32_t *relsim_flags,
 						 u_int32_t *timeout,
+						 int *print,
 						 const char **action_string);
 static	int		camperiphscsisenseerror(union ccb *ccb,
+					        union ccb **orig_ccb,
 					        cam_flags camflags,
 					        u_int32_t sense_flags,
 					        int *openings,
 					        u_int32_t *relsim_flags,
 					        u_int32_t *timeout,
+					        int *print,
 					        const char **action_string);
 
 static int nperiph_drivers;
@@ -240,6 +244,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 		goto failure;
 
 	init_level++;
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph created\n"));
 
 	status = periph_ctor(periph, arg);
 
@@ -252,7 +257,8 @@ failure:
 		/* Initialized successfully */
 		break;
 	case 3:
-		xpt_remove_periph(periph);
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
+		xpt_remove_periph(periph, /*topology_lock_held*/ 0);
 		/* FALLTHROUGH */
 	case 2:
 		xpt_lock_buses();
@@ -267,7 +273,7 @@ failure:
 		/* No cleanup to perform. */
 		break;
 	default:
-		panic("cam_periph_alloc: Unkown init level");
+		panic("%s: Unknown init level", __func__);
 	}
 	return(status);
 }
@@ -434,6 +440,10 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 			cam_periph_release_locked(periph);
 			return (error);
 		}
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			cam_periph_release_locked(periph);
+			return (ENXIO);
+		}
 	}
 
 	periph->flags |= CAM_PERIPH_LOCKED;
@@ -572,6 +582,7 @@ void
 cam_periph_invalidate(struct cam_periph *periph)
 {
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.
@@ -603,13 +614,39 @@ camperiphfree(struct cam_periph *periph)
 		return;
 	}
 
-	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
-	(*p_drv)->generation++;
+	/*
+	 * The peripheral destructor semantics dictate calling with only the
+	 * SIM mutex held.  Since it might sleep, it should not be called
+	 * with the topology lock held.
+	 */
 	xpt_unlock_buses();
 
+	/*
+	 * We need to call the peripheral destructor prior to removing the
+	 * peripheral from the list.  Otherwise, we risk running into a
+	 * scenario where the peripheral unit number may get reused
+	 * (because it has been removed from the list), but some resources
+	 * used by the peripheral are still hanging around.  In particular,
+	 * the devfs nodes used by some peripherals like the pass(4) driver
+	 * aren't fully cleaned up until the destructor is run.  If the
+	 * unit number is reused before the devfs instance is fully gone,
+	 * devfs will panic.
+	 */
 	if (periph->periph_dtor != NULL)
 		periph->periph_dtor(periph);
-	xpt_remove_periph(periph);
+
+	/*
+	 * The peripheral list is protected by the topology lock.
+	 */
+	xpt_lock_buses();
+
+	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
+	(*p_drv)->generation++;
+
+	xpt_remove_periph(periph, /*topology_lock_held*/ 1);
+
+	xpt_unlock_buses();
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
 		union ccb ccb;
@@ -1104,107 +1141,52 @@ cam_release_devq(struct cam_path *path, u_int32_t relsim_flags,
 }
 
 #define saved_ccb_ptr ppriv_ptr0
-#define recovery_depth ppriv_field1
-static void
-camperiphsensedone(struct cam_periph *periph, union ccb *done_ccb)
-{
-	union ccb      *saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
-	cam_status	status;
-	int		frozen = 0;
-	int		depth = done_ccb->ccb_h.recovery_depth;
-
-	status = done_ccb->ccb_h.status;
-	if (status & CAM_DEV_QFRZN) {
-		frozen = 1;
-		/*
-		 * Clear freeze flag now for case of retry,
-		 * freeze will be dropped later.
-		 */
-		done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
-	}
-	status &= CAM_STATUS_MASK;
-	switch (status) {
-	case CAM_REQ_CMP:
-	{
-		int error_code, sense_key, asc, ascq;
-
-		scsi_extract_sense_len(&saved_ccb->csio.sense_data,
-				       saved_ccb->csio.sense_len -
-				       saved_ccb->csio.sense_resid,
-				       &error_code, &sense_key, &asc, &ascq,
-				       /*show_errors*/ 1);
-		/*
-		 * If we manually retrieved sense into a CCB and got
-		 * something other than "NO SENSE" send the updated CCB
-		 * back to the client via xpt_done() to be processed via
-		 * the error recovery code again.
-		 */
-		if ((sense_key != -1)
-		 && (sense_key != SSD_KEY_NO_SENSE)) {
-			saved_ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
-		} else {
-			saved_ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-			saved_ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
-		}
-		saved_ccb->csio.sense_resid = done_ccb->csio.resid;
-		bcopy(saved_ccb, done_ccb, sizeof(union ccb));
-		xpt_free_ccb(saved_ccb);
-		break;
-	}
-	default:
-		bcopy(saved_ccb, done_ccb, sizeof(union ccb));
-		xpt_free_ccb(saved_ccb);
-		done_ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-		done_ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
-		break;
-	}
-	periph->flags &= ~CAM_PERIPH_SENSE_INPROG;
-	/*
-	 * If it is the end of recovery, drop freeze, taken due to
-	 * CAM_DEV_QFREEZE flag, set on recovery request.
-	 */
-	if (depth == 0) {
-		cam_release_devq(done_ccb->ccb_h.path,
-			 /*relsim_flags*/0,
-			 /*openings*/0,
-			 /*timeout*/0,
-			 /*getcount_only*/0);
-	}
-	/*
-	 * Copy frozen flag from recovery request if it is set there
-	 * for some reason.
-	 */
-	if (frozen != 0)
-		done_ccb->ccb_h.status |= CAM_DEV_QFRZN;
-	(*done_ccb->ccb_h.cbfcnp)(periph, done_ccb);
-}
-
 static void
 camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 {
-	union ccb      *saved_ccb, *save_ccb;
+	union ccb      *saved_ccb;
 	cam_status	status;
-	int		frozen = 0;
 	struct scsi_start_stop_unit *scsi_cmd;
-	u_int32_t	relsim_flags, timeout;
+	int    error_code, sense_key, asc, ascq;
 
+	scsi_cmd = (struct scsi_start_stop_unit *)
+	    &done_ccb->csio.cdb_io.cdb_bytes;
 	status = done_ccb->ccb_h.status;
-	if (status & CAM_DEV_QFRZN) {
-		frozen = 1;
-		/*
-		 * Clear freeze flag now for case of retry,
-		 * freeze will be dropped later.
-		 */
-		done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
-	}
 
-	timeout = 0;
-	relsim_flags = 0;
-	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
-
-	switch (status & CAM_STATUS_MASK) {
-	case CAM_REQ_CMP:
-	{
+	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (scsi_extract_sense_ccb(done_ccb,
+		    &error_code, &sense_key, &asc, &ascq)) {
+			/*
+			 * If the error is "invalid field in CDB",
+			 * and the load/eject flag is set, turn the
+			 * flag off and try again.  This is just in
+			 * case the drive in question barfs on the
+			 * load eject flag.  The CAM code should set
+			 * the load/eject flag by default for
+			 * removable media.
+			 */
+			if ((scsi_cmd->opcode == START_STOP_UNIT) &&
+			    ((scsi_cmd->how & SSS_LOEJ) != 0) &&
+			     (asc == 0x24) && (ascq == 0x00)) {
+				scsi_cmd->how &= ~SSS_LOEJ;
+				if (status & CAM_DEV_QFRZN) {
+					cam_release_devq(done_ccb->ccb_h.path,
+					    0, 0, 0, 0);
+					done_ccb->ccb_h.status &=
+					    ~CAM_DEV_QFRZN;
+				}
+				xpt_action(done_ccb);
+				goto out;
+			}
+		}
+		if (cam_periph_error(done_ccb,
+		    0, SF_RETRY_UA | SF_NO_PRINT, NULL) == ERESTART)
+			goto out;
+		if (done_ccb->ccb_h.status & CAM_DEV_QFRZN) {
+			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
+			done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
+		}
+	} else {
 		/*
 		 * If we have successfully taken a device from the not
 		 * ready to ready state, re-scan the device and re-get
@@ -1212,147 +1194,24 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 		 * don't properly report their inquiry information unless
 		 * they are spun up.
 		 */
-		scsi_cmd = (struct scsi_start_stop_unit *)
-				&done_ccb->csio.cdb_io.cdb_bytes;
-
-	 	if (scsi_cmd->opcode == START_STOP_UNIT)
-			xpt_async(AC_INQ_CHANGED,
-				  done_ccb->ccb_h.path, NULL);
-		goto final;
+		if (scsi_cmd->opcode == START_STOP_UNIT)
+			xpt_async(AC_INQ_CHANGED, done_ccb->ccb_h.path, NULL);
 	}
-	case CAM_SCSI_STATUS_ERROR:
-		scsi_cmd = (struct scsi_start_stop_unit *)
-				&done_ccb->csio.cdb_io.cdb_bytes;
-		if (status & CAM_AUTOSNS_VALID) {
-			struct ccb_getdev cgd;
-			struct scsi_sense_data *sense;
-			int    error_code, sense_key, asc, ascq, sense_len;
-			scsi_sense_action err_action;
 
-			sense = &done_ccb->csio.sense_data;
-			sense_len = done_ccb->csio.sense_len -
-				    done_ccb->csio.sense_resid;
-			scsi_extract_sense_len(sense, sense_len, &error_code, 
-					       &sense_key, &asc, &ascq,
-					       /*show_errors*/ 1);
-			/*
-			 * Grab the inquiry data for this device.
-			 */
-			xpt_setup_ccb(&cgd.ccb_h, done_ccb->ccb_h.path,
-			    CAM_PRIORITY_NORMAL);
-			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-			xpt_action((union ccb *)&cgd);
-			err_action = scsi_error_action(&done_ccb->csio,
-						       &cgd.inq_data, 0);
-			/*
-	 		 * If the error is "invalid field in CDB", 
-			 * and the load/eject flag is set, turn the 
-			 * flag off and try again.  This is just in 
-			 * case the drive in question barfs on the 
-			 * load eject flag.  The CAM code should set 
-			 * the load/eject flag by default for 
-			 * removable media.
-			 */
-			/* XXX KDM 
-			 * Should we check to see what the specific
-			 * scsi status is??  Or does it not matter
-			 * since we already know that there was an
-			 * error, and we know what the specific
-			 * error code was, and we know what the
-			 * opcode is..
-			 */
-			if ((scsi_cmd->opcode == START_STOP_UNIT) &&
-			    ((scsi_cmd->how & SSS_LOEJ) != 0) &&
-			     (asc == 0x24) && (ascq == 0x00) &&
-			     (done_ccb->ccb_h.retry_count > 0)) {
-
-				scsi_cmd->how &= ~SSS_LOEJ;
-				xpt_action(done_ccb);
-			} else if ((done_ccb->ccb_h.retry_count > 1)
-				&& ((err_action & SS_MASK) != SS_FAIL)) {
-
-				/*
-				 * In this case, the error recovery
-				 * command failed, but we've got 
-				 * some retries left on it.  Give
-				 * it another try unless this is an
-				 * unretryable error.
-				 */
-				/* set the timeout to .5 sec */
-				relsim_flags =
-					RELSIM_RELEASE_AFTER_TIMEOUT;
-				timeout = 500;
-				xpt_action(done_ccb);
-				break;
-			} else {
-				/* 
-				 * Perform the final retry with the original
-				 * CCB so that final error processing is
-				 * performed by the owner of the CCB.
-				 */
-				goto final;
-			}
-		} else {
-			save_ccb = xpt_alloc_ccb_nowait();
-			if (save_ccb == NULL)
-				goto final;
-			bcopy(done_ccb, save_ccb, sizeof(*save_ccb));
-			periph->flags |= CAM_PERIPH_SENSE_INPROG;
-			/*
-			 * Send a Request Sense to the device.  We
-			 * assume that we are in a contingent allegiance
-			 * condition so we do not tag this request.
-			 */
-			scsi_request_sense(&done_ccb->csio, /*retries*/1,
-					   camperiphsensedone,
-					   &save_ccb->csio.sense_data,
-					   save_ccb->csio.sense_len,
-					   CAM_TAG_ACTION_NONE,
-					   /*sense_len*/SSD_FULL_SIZE,
-					   /*timeout*/5000);
-			done_ccb->ccb_h.pinfo.priority--;
-			done_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
-			done_ccb->ccb_h.saved_ccb_ptr = save_ccb;
-			done_ccb->ccb_h.recovery_depth++;
-			xpt_action(done_ccb);
-		}
-		break;
-	default:
-final:
-		bcopy(saved_ccb, done_ccb, sizeof(*done_ccb));
-		xpt_free_ccb(saved_ccb);
+	/*
+	 * Perform the final retry with the original CCB so that final
+	 * error processing is performed by the owner of the CCB.
+	 */
+	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
+	bcopy(saved_ccb, done_ccb, sizeof(*done_ccb));
+	xpt_free_ccb(saved_ccb);
+	if (done_ccb->ccb_h.cbfcnp != camperiphdone)
 		periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
-		xpt_action(done_ccb);
-		break;
-	}
+	xpt_action(done_ccb);
 
-	/* decrement the retry count */
-	/*
-	 * XXX This isn't appropriate in all cases.  Restructure,
-	 *     so that the retry count is only decremented on an
-	 *     actual retry.  Remeber that the orignal ccb had its
-	 *     retry count dropped before entering recovery, so
-	 *     doing it again is a bug.
-	 */
-	if (done_ccb->ccb_h.retry_count > 0)
-		done_ccb->ccb_h.retry_count--;
-	/*
-	 * Drop freeze taken due to CAM_DEV_QFREEZE flag set on recovery
-	 * request.
-	 */
-	cam_release_devq(done_ccb->ccb_h.path,
-			 /*relsim_flags*/relsim_flags,
-			 /*openings*/0,
-			 /*timeout*/timeout,
-			 /*getcount_only*/0);
-	/* Drop freeze taken, if this recovery request got error. */
-	if (frozen != 0) {
-		cam_release_devq(done_ccb->ccb_h.path,
-			 /*relsim_flags*/0,
-			 /*openings*/0,
-			 /*timeout*/0,
-			 /*getcount_only*/0);
-	}
+out:
+	/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+	cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
 }
 
 /*
@@ -1411,10 +1270,10 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 }
 
 static int
-camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
-			 u_int32_t sense_flags,
-			 int *openings, u_int32_t *relsim_flags,
-			 u_int32_t *timeout, const char **action_string)
+camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
+    cam_flags camflags, u_int32_t sense_flags,
+    int *openings, u_int32_t *relsim_flags,
+    u_int32_t *timeout, int *print, const char **action_string)
 {
 	int error;
 
@@ -1427,14 +1286,13 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		break;
 	case SCSI_STATUS_CMD_TERMINATED:
 	case SCSI_STATUS_CHECK_COND:
-		if (bootverbose)
-			xpt_print(ccb->ccb_h.path, "SCSI status error\n");
-		error = camperiphscsisenseerror(ccb,
+		error = camperiphscsisenseerror(ccb, orig_ccb,
 					        camflags,
 					        sense_flags,
 					        openings,
 					        relsim_flags,
 					        timeout,
+					        print,
 					        action_string);
 		break;
 	case SCSI_STATUS_QUEUE_FULL:
@@ -1489,9 +1347,7 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 			}
 			*timeout = 0;
 			error = ERESTART;
-			if (bootverbose) {
-				xpt_print(ccb->ccb_h.path, "Queue full\n");
-			}
+			*print = 0;
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1501,9 +1357,6 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		 * Restart the queue after either another
 		 * command completes or a 1 second timeout.
 		 */
-		if (bootverbose) {
-			xpt_print(ccb->ccb_h.path, "Device busy\n");
-		}
 	 	if (ccb->ccb_h.retry_count > 0) {
 	 		ccb->ccb_h.retry_count--;
 			error = ERESTART;
@@ -1515,12 +1368,7 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		}
 		break;
 	case SCSI_STATUS_RESERV_CONFLICT:
-		xpt_print(ccb->ccb_h.path, "Reservation conflict\n");
-		error = EIO;
-		break;
 	default:
-		xpt_print(ccb->ccb_h.path, "SCSI status 0x%x\n",
-		    ccb->csio.scsi_status);
 		error = EIO;
 		break;
 	}
@@ -1528,18 +1376,18 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 }
 
 static int
-camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
-			u_int32_t sense_flags,
-		       int *openings, u_int32_t *relsim_flags,
-		       u_int32_t *timeout, const char **action_string)
+camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
+    cam_flags camflags, u_int32_t sense_flags,
+    int *openings, u_int32_t *relsim_flags,
+    u_int32_t *timeout, int *print, const char **action_string)
 {
 	struct cam_periph *periph;
 	union ccb *orig_ccb = ccb;
-	int error;
+	int error, recoveryccb;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
-	if (periph->flags &
-	    (CAM_PERIPH_RECOVERY_INPROG | CAM_PERIPH_SENSE_INPROG)) {
+	recoveryccb = (ccb->ccb_h.cbfcnp == camperiphdone);
+	if ((periph->flags & CAM_PERIPH_RECOVERY_INPROG) && !recoveryccb) {
 		/*
 		 * If error recovery is already in progress, don't attempt
 		 * to process this error, but requeue it unconditionally
@@ -1554,6 +1402,7 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		 * imperitive that we don't violate this assumption.
 		 */
 		error = ERESTART;
+		*print = 0;
 	} else {
 		scsi_sense_action err_action;
 		struct ccb_getdev cgd;
@@ -1565,16 +1414,34 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 
-		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
-			err_action = scsi_error_action(&ccb->csio,
-						       &cgd.inq_data,
-						       sense_flags);
-		else if ((ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)
-			err_action = SS_REQSENSE;
-		else
-			err_action = SS_RETRY|SSQ_DECREMENT_COUNT|EIO;
-
+		err_action = scsi_error_action(&ccb->csio, &cgd.inq_data,
+		    sense_flags);
 		error = err_action & SS_ERRMASK;
+
+		/*
+		 * Do not autostart sequential access devices
+		 * to avoid unexpected tape loading.
+		 */
+		if ((err_action & SS_MASK) == SS_START &&
+		    SID_TYPE(&cgd.inq_data) == T_SEQUENTIAL) {
+			*action_string = "Will not autostart a "
+			    "sequential access device";
+			goto sense_error_done;
+		}
+
+		/*
+		 * Avoid recovery recursion if recovery action is the same.
+		 */
+		if ((err_action & SS_MASK) >= SS_START && recoveryccb) {
+			if (((err_action & SS_MASK) == SS_START &&
+			     ccb->csio.cdb_io.cdb_bytes[0] == START_STOP_UNIT) ||
+			    ((err_action & SS_MASK) == SS_TUR &&
+			     (ccb->csio.cdb_io.cdb_bytes[0] == TEST_UNIT_READY))) {
+				err_action = SS_RETRY|SSQ_DECREMENT_COUNT|EIO;
+				*relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
+				*timeout = 500;
+			}
+		}
 
 		/*
 		 * If the recovery action will consume a retry,
@@ -1623,15 +1490,6 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		case SS_START:
 		{
 			int le;
-			if (SID_TYPE(&cgd.inq_data) == T_SEQUENTIAL) {
-				xpt_free_ccb(orig_ccb);
-				ccb->ccb_h.status |= CAM_DEV_QFRZN;
-				*action_string = "Will not autostart a "
-				    "sequential access device";
-				err_action = SS_FAIL;
-				error = EIO;
-				break;
-			}
 
 			/*
 			 * Send a start unit command to the device, and
@@ -1695,24 +1553,6 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 			*timeout = 500;
 			break;
 		}
-		case SS_REQSENSE:
-		{
-			*action_string = "Requesting SCSI sense data";
-			periph->flags |= CAM_PERIPH_SENSE_INPROG;
-			/*
-			 * Send a Request Sense to the device.  We
-			 * assume that we are in a contingent allegiance
-			 * condition so we do not tag this request.
-			 */
-			scsi_request_sense(&ccb->csio, /*retries*/1,
-					   camperiphsensedone,
-					   &orig_ccb->csio.sense_data,
-					   orig_ccb->csio.sense_len,
-					   CAM_TAG_ACTION_NONE,
-					   /*sense_len*/SSD_FULL_SIZE,
-					   /*timeout*/5000);
-			break;
-		}
 		default:
 			panic("Unhandled error action %x", err_action);
 		}
@@ -1729,14 +1569,12 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 			ccb->ccb_h.pinfo.priority--;
 			ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 			ccb->ccb_h.saved_ccb_ptr = orig_ccb;
-			ccb->ccb_h.recovery_depth = 0;
 			error = ERESTART;
+			*orig = orig_ccb;
 		}
 
 sense_error_done:
-		if ((err_action & SSQ_PRINT_SENSE) != 0
-		 && (ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
-			cam_error_print(orig_ccb, CAM_ESF_ALL, CAM_EPF_ALL);
+		*print = ((err_action & SSQ_PRINT_SENSE) != 0);
 	}
 	return (error);
 }
@@ -1750,86 +1588,34 @@ int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 u_int32_t sense_flags, union ccb *save_ccb)
 {
+	union ccb  *orig_ccb;
 	struct cam_periph *periph;
 	const char *action_string;
 	cam_status  status;
-	int	    frozen;
-	int	    error, printed = 0;
-	int         openings;
-	u_int32_t   relsim_flags;
-	u_int32_t   timeout = 0;
+	int	    frozen, error, openings, print, lost_device;
+	u_int32_t   relsim_flags, timeout;
 
+	print = 1;
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	action_string = NULL;
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
 	status &= CAM_STATUS_MASK;
-	openings = relsim_flags = 0;
+	openings = relsim_flags = timeout = lost_device = 0;
+	orig_ccb = ccb;
 
 	switch (status) {
 	case CAM_REQ_CMP:
 		error = 0;
+		print = 0;
 		break;
 	case CAM_SCSI_STATUS_ERROR:
-		error = camperiphscsistatuserror(ccb,
-						 camflags,
-						 sense_flags,
-						 &openings,
-						 &relsim_flags,
-						 &timeout,
-						 &action_string);
+		error = camperiphscsistatuserror(ccb, &orig_ccb,
+		    camflags, sense_flags, &openings, &relsim_flags,
+		    &timeout, &print, &action_string);
 		break;
 	case CAM_AUTOSENSE_FAIL:
-		xpt_print(ccb->ccb_h.path, "AutoSense failed\n");
 		error = EIO;	/* we have to kill the command */
-		break;
-	case CAM_ATA_STATUS_ERROR:
-		if (bootverbose && printed == 0) {
-			xpt_print(ccb->ccb_h.path, "ATA status error\n");
-			cam_error_print(ccb, CAM_ESF_ALL, CAM_EPF_ALL);
-			printed++;
-		}
-		/* FALLTHROUGH */
-	case CAM_REQ_CMP_ERR:
-		if (bootverbose && printed == 0) {
-			xpt_print(ccb->ccb_h.path,
-			    "Request completed with CAM_REQ_CMP_ERR\n");
-			printed++;
-		}
-		/* FALLTHROUGH */
-	case CAM_CMD_TIMEOUT:
-		if (bootverbose && printed == 0) {
-			xpt_print(ccb->ccb_h.path, "Command timed out\n");
-			printed++;
-		}
-		/* FALLTHROUGH */
-	case CAM_UNEXP_BUSFREE:
-		if (bootverbose && printed == 0) {
-			xpt_print(ccb->ccb_h.path, "Unexpected Bus Free\n");
-			printed++;
-		}
-		/* FALLTHROUGH */
-	case CAM_UNCOR_PARITY:
-		if (bootverbose && printed == 0) {
-			xpt_print(ccb->ccb_h.path,
-			    "Uncorrected parity error\n");
-			printed++;
-		}
-		/* FALLTHROUGH */
-	case CAM_DATA_RUN_ERR:
-		if (bootverbose && printed == 0) {
-			xpt_print(ccb->ccb_h.path, "Data overrun\n");
-			printed++;
-		}
-		/* decrement the number of retries */
-		if (ccb->ccb_h.retry_count > 0 &&
-		    (periph->flags & CAM_PERIPH_INVALID) == 0) {
-			ccb->ccb_h.retry_count--;
-			error = ERESTART;
-		} else {
-			action_string = "Retries exhausted";
-			error = EIO;
-		}
 		break;
 	case CAM_UA_ABORT:
 	case CAM_UA_TERMIO:
@@ -1841,14 +1627,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		if ((camflags & CAM_RETRY_SELTO) != 0) {
 			if (ccb->ccb_h.retry_count > 0 &&
 			    (periph->flags & CAM_PERIPH_INVALID) == 0) {
-
 				ccb->ccb_h.retry_count--;
 				error = ERESTART;
-				if (bootverbose && printed == 0) {
-					xpt_print(ccb->ccb_h.path,
-					    "Selection timeout\n");
-					printed++;
-				}
 
 				/*
 				 * Wait a bit to give the device
@@ -1862,38 +1642,10 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		}
 		/* FALLTHROUGH */
 	case CAM_DEV_NOT_THERE:
-	{
-		struct cam_path *newpath;
-		lun_id_t lun_id;
-
 		error = ENXIO;
-
-		/*
-		 * For a selection timeout, we consider all of the LUNs on
-		 * the target to be gone.  If the status is CAM_DEV_NOT_THERE,
-		 * then we only get rid of the device(s) specified by the
-		 * path in the original CCB.
-		 */
-		if (status == CAM_DEV_NOT_THERE)
-			lun_id = xpt_path_lun_id(ccb->ccb_h.path);
-		else
-			lun_id = CAM_LUN_WILDCARD;
-
-		/* Should we do more if we can't create the path?? */
-		if (xpt_create_path(&newpath, periph,
-				    xpt_path_path_id(ccb->ccb_h.path),
-				    xpt_path_target_id(ccb->ccb_h.path),
-				    lun_id) != CAM_REQ_CMP) 
-			break;
-
-		/*
-		 * Let peripheral drivers know that this device has gone
-		 * away.
-		 */
-		xpt_async(AC_LOST_DEVICE, newpath, NULL);
-		xpt_free_path(newpath);
+		print = 0;
+		lost_device = 1;
 		break;
-	}
 	case CAM_REQ_INVALID:
 	case CAM_PATH_INVALID:
 	case CAM_NO_HBA:
@@ -1913,26 +1665,17 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 * these events and should be unconditionally
 		 * retried.
 		 */
-		if (bootverbose && printed == 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			if (status == CAM_BDR_SENT)
-				printf("Bus Device Reset sent\n");
-			else
-				printf("Bus Reset issued\n");
-			printed++;
-		}
-		/* FALLTHROUGH */
 	case CAM_REQUEUE_REQ:
-		/* Unconditional requeue */
-		if (bootverbose && printed == 0) {
-			xpt_print(ccb->ccb_h.path, "Request requeued\n");
-			printed++;
-		}
-		if ((periph->flags & CAM_PERIPH_INVALID) == 0)
-			error = ERESTART;
-		else {
-			action_string = "Retries exhausted";
+		/* Unconditional requeue if device is still there */
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			action_string = "Periph was invalidated";
 			error = EIO;
+		} else if (sense_flags & SF_NO_RETRY) {
+			error = EIO;
+			action_string = "Retry was blocked";
+		} else {
+			error = ERESTART;
+			print = 0;
 		}
 		break;
 	case CAM_RESRC_UNAVAIL:
@@ -1946,30 +1689,37 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		}
 		relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
 		/* FALLTHROUGH */
+	case CAM_ATA_STATUS_ERROR:
+	case CAM_REQ_CMP_ERR:
+	case CAM_CMD_TIMEOUT:
+	case CAM_UNEXP_BUSFREE:
+	case CAM_UNCOR_PARITY:
+	case CAM_DATA_RUN_ERR:
 	default:
-		/* decrement the number of retries */
-		if (ccb->ccb_h.retry_count > 0 &&
-		    (periph->flags & CAM_PERIPH_INVALID) == 0) {
-			ccb->ccb_h.retry_count--;
-			error = ERESTART;
-			if (bootverbose && printed == 0) {
-				xpt_print(ccb->ccb_h.path, "CAM status 0x%x\n",
-				    status);
-				printed++;
-			}
-		} else {
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			error = EIO;
+			action_string = "Periph was invalidated";
+		} else if (ccb->ccb_h.retry_count == 0) {
 			error = EIO;
 			action_string = "Retries exhausted";
+		} else if (sense_flags & SF_NO_RETRY) {
+			error = EIO;
+			action_string = "Retry was blocked";
+		} else {
+			ccb->ccb_h.retry_count--;
+			error = ERESTART;
 		}
 		break;
 	}
 
-	/*
-	 * If we have and error and are booting verbosely, whine
-	 * *unless* this was a non-retryable selection timeout.
-	 */
-	if (error != 0 && bootverbose &&
-	    !(status == CAM_SEL_TIMEOUT && (camflags & CAM_RETRY_SELTO) == 0)) {
+	if ((sense_flags & SF_PRINT_ALWAYS) ||
+	    CAM_DEBUGGED(ccb->ccb_h.path, CAM_DEBUG_INFO))
+		print = 1;
+	else if (sense_flags & SF_NO_PRINT)
+		print = 0;
+	if (print)
+		cam_error_print(orig_ccb, CAM_ESF_ALL, CAM_EPF_ALL);
+	if (error != 0 && print) {
 		if (error != ERESTART) {
 			if (action_string == NULL)
 				action_string = "Unretryable error";
@@ -1979,6 +1729,36 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_print(ccb->ccb_h.path, "%s\n", action_string);
 		else
 			xpt_print(ccb->ccb_h.path, "Retrying command\n");
+	}
+
+	if (lost_device) {
+		struct cam_path *newpath;
+		lun_id_t lun_id;
+
+		/*
+		 * For a selection timeout, we consider all of the LUNs on
+		 * the target to be gone.  If the status is CAM_DEV_NOT_THERE,
+		 * then we only get rid of the device(s) specified by the
+		 * path in the original CCB.
+		 */
+		if (status == CAM_DEV_NOT_THERE)
+			lun_id = xpt_path_lun_id(ccb->ccb_h.path);
+		else
+			lun_id = CAM_LUN_WILDCARD;
+
+		/* Should we do more if we can't create the path?? */
+		if (xpt_create_path(&newpath, periph,
+				    xpt_path_path_id(ccb->ccb_h.path),
+				    xpt_path_target_id(ccb->ccb_h.path),
+				    lun_id) == CAM_REQ_CMP) {
+
+			/*
+			 * Let peripheral drivers know that this
+			 * device has gone away.
+			 */
+			xpt_async(AC_LOST_DEVICE, newpath, NULL);
+			xpt_free_path(newpath);
+		}
 	}
 
 	/* Attempt a retry */

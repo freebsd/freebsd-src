@@ -71,8 +71,6 @@ struct acpi_softc {
     int			acpi_verbose;
     int			acpi_handle_reboot;
 
-    bus_dma_tag_t	acpi_waketag;
-    bus_dmamap_t	acpi_wakemap;
     vm_offset_t		acpi_wakeaddr;
     vm_paddr_t		acpi_wakephys;
 

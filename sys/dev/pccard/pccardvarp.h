@@ -47,29 +47,32 @@
 #define PCCARD_CFE_READONLY		0x0400
 #define PCCARD_CFE_AUDIO		0x0800
 
+struct pccard_ce_iospace {
+	u_long	length;
+	u_long	start;
+};
+
+struct pccard_ce_memspace {
+	u_long	length;
+	u_long	cardaddr;
+	u_long	hostaddr;
+};
+
 struct pccard_config_entry {
 	int		number;
 	uint32_t	flags;
 	int		iftype;
 	int		num_iospace;
-
 	/*
 	 * The card will only decode this mask in any case, so we can
 	 * do dynamic allocation with this in mind, in case the suggestions
 	 * below are no good.
 	 */
 	u_long		iomask;
-	struct {
-		u_long	length;
-		u_long	start;
-	} iospace[4];		/* XXX this could be as high as 16 */
+	struct pccard_ce_iospace iospace[4]; /* XXX up to 16 */
 	uint16_t	irqmask;
 	int		num_memspace;
-	struct {
-		u_long	length;
-		u_long	cardaddr;
-		u_long	hostaddr;
-	} memspace[2];		/* XXX this could be as high as 8 */
+	struct pccard_ce_memspace memspace[2];	/* XXX up to 8 */
 	int		maxtwins;
 	STAILQ_ENTRY(pccard_config_entry) cfe_list;
 };

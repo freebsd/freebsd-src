@@ -15,6 +15,7 @@
 #	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
+#	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
 #	TARGET="machine" to crossbuild world for a different machine type
@@ -88,7 +89,7 @@ SUBDIR+=etc
 
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
-.for _DIR in ${LOCAL_DIRS}
+.for _DIR in ${LOCAL_LIB_DIRS} ${LOCAL_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+= ${_DIR}
 .endif
@@ -1196,7 +1197,7 @@ cross-tools:
 #
 # hierarchy - ensure that all the needed directories are present
 #
-hierarchy:
+hierarchy hier:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
 
 #
@@ -1273,6 +1274,11 @@ _ofed_lib=	contrib/ofed/usr.lib/
 .endif
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
+.for _DIR in ${LOCAL_LIB_DIRS}
+.if exists(${.CURDIR}/${_DIR}/Makefile)
+_generic_libs+= ${_DIR}
+.endif
+.endfor
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 

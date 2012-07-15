@@ -27,6 +27,7 @@ SRCS+=	libzfs_changelist.c \
 	libzfs_sendrecv.c \
 	libzfs_status.c \
 	libzfs_util.c \
+	zfeature_common.c \
 	zfs_comutil.c \
 	zfs_deleg.c \
 	zfs_fletcher.c \

@@ -765,6 +765,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
+	pt_entry_t *ptep;
 	pt_entry_t pte;
 	vm_page_t m;
 	vm_paddr_t pa;
@@ -773,8 +774,9 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	pa = 0;
 	PMAP_LOCK(pmap);
 retry:
-	pte = *pmap_pte(pmap, va);
-	if (pte != 0 && pte_test(&pte, PTE_V) &&
+	ptep = pmap_pte(pmap, va);
+	if ((ptep != NULL)  && ((pte = *ptep) != 0) && 
+	    pte_test(&pte, PTE_V) &&
 	    (pte_test(&pte, PTE_D) || (prot & VM_PROT_WRITE) == 0)) {
 		if (vm_page_pa_tryrelock(pmap, TLBLO_PTE_TO_PA(pte), &pa))
 			goto retry;

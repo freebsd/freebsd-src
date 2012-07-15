@@ -36,7 +36,7 @@
  * Samsung S3C2410X/2400 processor is ARM920T based integrated CPU
  *
  * Reference:
- *  S3C2410X User's Manual 
+ *  S3C2410X User's Manual
  *  S3C2400 User's Manual
  */
 #ifndef _ARM_S3C2XX0_S3C24X0REG_H_
@@ -691,7 +691,7 @@
 #define	 SPCON_CPOL		(1<<2)
 #define	 SPCON_IDLELOW_RISING	  (0|0)
 #define	 SPCON_IDLELOW_FALLING	  (0|SPCON_CPHA)
-#define	 SPCON_IDLEHIGH_FALLING  (SPCON_CPOL|0) 
+#define	 SPCON_IDLEHIGH_FALLING  (SPCON_CPOL|0)
 #define	 SPCON_IDLEHIGH_RISING	  (SPCON_CPOL|SPCON_CPHA)
 #define	 SPCON_MSTR		(1<<3)
 #define	 SPCON_ENSCK		(1<<4)
