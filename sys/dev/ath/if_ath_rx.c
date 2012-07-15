@@ -534,6 +534,14 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 				goto rx_accept;
 			sc->sc_stats.ast_rx_badcrypt++;
 		}
+		/*
+		 * Similar as above - if the failure was a keymiss
+		 * just punt it up to the upper layers for now.
+		 */
+		if (rs->rs_status & HAL_RXERR_KEYMISS) {
+			sc->sc_stats.ast_rx_keymiss++;
+			goto rx_accept;
+		}
 		if (rs->rs_status & HAL_RXERR_MIC) {
 			sc->sc_stats.ast_rx_badmic++;
 			/*
