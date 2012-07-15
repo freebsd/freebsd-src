@@ -53,7 +53,7 @@ Boston, MA 02110-1301, USA.  */
       %{rdynamic:-export-dynamic}					\
       %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
     %{static:-Bstatic}}							\
-  %{!static:--hash-style=both}						\
+  %{!static:--hash-style=both --enable-new-dtags}			\
   %{symbolic:-Bsymbolic}"
 
 
