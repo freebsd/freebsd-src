@@ -269,7 +269,9 @@ multiplied by 5 seconds.
 allowed before the login fails.
 .It "passwd_format	string	md5	The encryption format that new or
 changed passwords will use.
-Valid values include "des", "md5" and "blf".
+Valid values include "des", "md5", "blf", "sha256" and "sha512"; see
+.Xr crypt 3
+for details.
 NIS clients using a
 .No non- Ns Fx
 NIS server should probably use "des".
