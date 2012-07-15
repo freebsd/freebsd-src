@@ -5637,7 +5637,7 @@ found_one:
 			memcpy(from, &sin6, sizeof(struct sockaddr_in6));
 		}
 #endif
-#if defined(INET6)
+#ifdef INET6
 		{
 			struct sockaddr_in6 lsa6, *from6;
 
@@ -6534,7 +6534,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 		return;
 	}
 	addr_touse = sa;
-#if defined(INET6)
+#ifdef INET6
 	if (sa->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
 

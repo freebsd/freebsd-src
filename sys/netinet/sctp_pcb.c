@@ -3016,6 +3016,7 @@ continue_anyway:
 
 		memset(&store_sa, 0, sizeof(store_sa));
 		switch (addr->sa_family) {
+#ifdef INET
 		case AF_INET:
 			{
 				struct sockaddr_in *sin;
@@ -3025,6 +3026,8 @@ continue_anyway:
 				sin->sin_port = 0;
 				break;
 			}
+#endif
+#ifdef INET6
 		case AF_INET6:
 			{
 				struct sockaddr_in6 *sin6;
@@ -3034,6 +3037,7 @@ continue_anyway:
 				sin6->sin6_port = 0;
 				break;
 			}
+#endif
 		default:
 			break;
 		}
@@ -5195,12 +5199,16 @@ sctp_destination_is_reachable(struct sctp_tcb *stcb, struct sockaddr *destaddr)
 	}
 	/* NOTE: all "scope" checks are done when local addresses are added */
 	switch (destaddr->sa_family) {
+#ifdef INET6
 	case AF_INET6:
 		answer = inp->ip_inp.inp.inp_vflag & INP_IPV6;
 		break;
+#endif
+#ifdef INET
 	case AF_INET:
 		answer = inp->ip_inp.inp.inp_vflag & INP_IPV4;
 		break;
+#endif
 	default:
 		/* invalid family, so it's unreachable */
 		answer = 0;
@@ -5291,7 +5299,7 @@ sctp_add_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa, uint32_t ac
 			inp->ip_inp.inp.inp_vflag |= INP_IPV6;
 			break;
 #endif
-#ifdef INET6
+#ifdef INET
 		case AF_INET:
 			inp->ip_inp.inp.inp_vflag |= INP_IPV4;
 			break;
