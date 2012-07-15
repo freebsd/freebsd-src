@@ -57,7 +57,7 @@ int line_number = 1;
 <COMMENT>[\n]	{ line_number++; }
 <COMMENT>.	{ }
 <COMMENT><<EOF>>	{
-		yyerror("unexpected file end (unterminate comment)\n");
+		yyerror("unexpected file end (unterminated comment)\n");
 		exit(1);
 	}
 

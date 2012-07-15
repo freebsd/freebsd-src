@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91_spireg.h>
 #include <arm/at91/at91_pdcreg.h>
-#include <arm/at91/at91var.h>
 
 #include <dev/spibus/spi.h>
 
@@ -59,7 +58,6 @@ struct at91_spi_softc
 	bus_dma_tag_t dmatag;		/* bus dma tag for transfers */
 	bus_dmamap_t map[4];		/* Maps for the transaction */
 	struct sx xfer_mtx;		/* Enforce one transfer at a time */
-	uint32_t xfer_mask;		/* Bits to wait on for completion */
 	uint32_t xfer_done;		/* interrupt<->mainthread signaling */
 };
 
@@ -124,7 +122,6 @@ at91_spi_attach(device_t dev)
 	 * Set up the hardware.
 	 */
 
-	sc->xfer_mask = SPI_SR_RXBUFF | (at91_is_rm92() ? 0 : SPI_SR_TXEMPTY);
 	WR4(sc, SPI_CR, SPI_CR_SWRST);
 	/* "Software Reset must be Written Twice" erratum */
 	WR4(sc, SPI_CR, SPI_CR_SWRST);
@@ -272,7 +269,6 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	struct at91_spi_softc *sc;
 	bus_addr_t addr;
 	int err, i, j, mode[4];
-	uint32_t mask;
 
 	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("%s: TX/RX command sizes should be equal", __func__));
@@ -356,12 +352,11 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	 * Start the transfer, wait for it to complete.
 	 */
 	sc->xfer_done = 0;
-	mask = sc->xfer_mask;
-	WR4(sc, SPI_IER, mask);
+	WR4(sc, SPI_IER, SPI_SR_RXBUFF);
 	WR4(sc, PDC_PTCR, PDC_PTCR_TXTEN | PDC_PTCR_RXTEN);
 	do
 		err = tsleep(&sc->xfer_done, PCATCH | PZERO, "at91_spi", hz);
-	while (sc->xfer_done != mask && err != EINTR);
+	while (sc->xfer_done == 0 && err != EINTR);
 
 	/*
 	 * Stop the transfer and clean things up.
@@ -383,20 +378,19 @@ static void
 at91_spi_intr(void *arg)
 {
 	struct at91_spi_softc *sc;
-	uint32_t mask, sr;
+	uint32_t sr;
 
 	sc = (struct at91_spi_softc*)arg;
 
-	mask = sc->xfer_mask;
 	sr = RD4(sc, SPI_SR) & RD4(sc, SPI_IMR);
-	if ((sr & mask) != 0) {
-		sc->xfer_done |= sr & mask;
-		WR4(sc, SPI_IDR, mask);
+	if ((sr & SPI_SR_RXBUFF) != 0) {
+		sc->xfer_done = 1;
+		WR4(sc, SPI_IDR, SPI_SR_RXBUFF);
 		wakeup(&sc->xfer_done);
 	}
-	if ((sr & ~mask) != 0) {
+	if ((sr & ~SPI_SR_RXBUFF) != 0) {
 		device_printf(sc->dev, "Unexpected ISR %#x\n", sr);
-		WR4(sc, SPI_IDR, sr & ~mask);
+		WR4(sc, SPI_IDR, sr & ~SPI_SR_RXBUFF);
 	}
 }
 

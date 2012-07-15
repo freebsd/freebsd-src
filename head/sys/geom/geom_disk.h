@@ -50,6 +50,7 @@ typedef	int	disk_open_t(struct disk *);
 typedef	int	disk_close_t(struct disk *);
 typedef	void	disk_strategy_t(struct bio *bp);
 typedef	int	disk_getattr_t(struct bio *bp);
+typedef	void	disk_gone_t(struct disk *);
 typedef	int	disk_ioctl_t(struct disk *, u_long cmd, void *data,
 			int fflag, struct thread *td);
 		/* NB: disk_ioctl_t SHALL be cast'able to d_ioctl_t */
@@ -77,6 +78,7 @@ struct disk {
 	disk_ioctl_t		*d_ioctl;
 	dumper_t		*d_dump;
 	disk_getattr_t		*d_getattr;
+	disk_gone_t		*d_gone;
 
 	/* Info fields from driver to geom_disk.c. Valid when open */
 	u_int			d_sectorsize;
@@ -107,10 +109,12 @@ void disk_create(struct disk *disk, int version);
 void disk_destroy(struct disk *disk);
 void disk_gone(struct disk *disk);
 void disk_attr_changed(struct disk *dp, const char *attr, int flag);
+void disk_resize(struct disk *dp);
 
 #define DISK_VERSION_00		0x58561059
 #define DISK_VERSION_01		0x5856105a
-#define DISK_VERSION		DISK_VERSION_01
+#define DISK_VERSION_02		0x5856105b
+#define DISK_VERSION		DISK_VERSION_02
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */

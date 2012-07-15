@@ -68,7 +68,7 @@ __getcontextx_size(void)
 			    "	movl	%%ebx,%1\n"
 			    "	popl	%%ebx\n"
 			    : "=a" (p[0]), "=r" (p[1]), "=c" (p[2]), "=d" (p[3])
-			    :  "0" (0x0));
+			    :  "0" (0x1));
 			if ((p[2] & CPUID2_OSXSAVE) != 0) {
 				__asm __volatile(
 				    "	pushl	%%ebx\n"

@@ -42,50 +42,70 @@ __FBSDID("$FreeBSD$");
 #define RST_TIMEOUT (5)	/* Seconds to hold NRST for hard reset */
 #define RST_TICK (20)	/* sample NRST at hz/RST_TICK intervals */
 
-static int rst_intr(void *arg);
+static int at91_rst_intr(void *arg);
 
-static struct rst_softc {
+static struct at91_rst_softc {
 	struct resource	*mem_res;	/* Memory resource */
 	struct resource	*irq_res;	/* IRQ resource */
 	void		*intrhand;	/* Interrupt handle */
 	struct callout	tick_ch;	/* Tick callout */
 	device_t	sc_dev;
 	u_int		shutdown;	/* Shutdown in progress */
-} *rst_sc;
+} *at91_rst_sc;
 
 static inline uint32_t
-RD4(struct rst_softc *sc, bus_size_t off)
+RD4(struct at91_rst_softc *sc, bus_size_t off)
 {
 
 	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
-WR4(struct rst_softc *sc, bus_size_t off, uint32_t val)
+WR4(struct at91_rst_softc *sc, bus_size_t off, uint32_t val)
 {
 
 	bus_write_4(sc->mem_res, off, val);
+}
+
+void cpu_reset_sam9g20(void) __attribute__((weak));
+void cpu_reset_sam9g20(void) {}
+
+void
+at91_rst_cpu_reset(void)
+{
+
+	if (at91_rst_sc) {
+		cpu_reset_sam9g20(); /* May be null */
+
+		WR4(at91_rst_sc, RST_MR,
+		    RST_MR_ERSTL(0xd) | RST_MR_URSTEN | RST_MR_KEY);
+
+		WR4(at91_rst_sc, RST_CR,
+		    RST_CR_PROCRST |
+		    RST_CR_PERRST  |
+		    RST_CR_EXTRST  |
+		    RST_CR_KEY);
+	}
+	while(1)
+		continue;
 }
 
 static int
 at91_rst_probe(device_t dev)
 {
 
-	if (at91_is_sam9() || at91_is_sam9xe()) {
-		device_set_desc(dev, "AT91SAM9 Reset Controller");
-		return (0);
-	}
-	return (ENXIO);
+	device_set_desc(dev, "AT91SAM9 Reset Controller");
+	return (0);
 }
 
 static int
 at91_rst_attach(device_t dev)
 {
-	struct rst_softc *sc;
+	struct at91_rst_softc *sc;
 	const char *cause;
 	int rid, err;
 
-	rst_sc = sc = device_get_softc(dev);
+	at91_rst_sc = sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
 	callout_init(&sc->tick_ch, 0);
@@ -109,11 +129,11 @@ at91_rst_attach(device_t dev)
 
 	/* Activate the interrupt. */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    rst_intr, NULL, sc, &sc->intrhand);
+	    at91_rst_intr, NULL, sc, &sc->intrhand);
 	if (err)
 		device_printf(dev, "could not establish interrupt handler.\n");
 
-	WR4(rst_sc, RST_MR, RST_MR_ERSTL(0xd) | RST_MR_URSIEN | RST_MR_KEY);
+	WR4(at91_rst_sc, RST_MR, RST_MR_ERSTL(0xd) | RST_MR_URSIEN | RST_MR_KEY);
 
 	switch (RD4(sc, RST_SR) & RST_SR_RST_MASK) {
 		case	RST_SR_RST_POW:
@@ -137,16 +157,14 @@ at91_rst_attach(device_t dev)
 	}
 
 	device_printf(dev, "Reset cause: %s.\n", cause);
-	/* cpu_reset_addr = cpu_reset; */
-
 out:
 	return (err);
 }
 
 static void
-rst_tick(void *argp)
+at91_rst_tick(void *argp)
 {
-	struct rst_softc *sc = argp;
+	struct at91_rst_softc *sc = argp;
 
 	if (sc->shutdown++ >= RST_TIMEOUT * RST_TICK) {
 		/* User released the button in morre than RST_TIMEOUT */
@@ -157,18 +175,18 @@ rst_tick(void *argp)
 		device_printf(sc->sc_dev, "shutting down...\n");
 		shutdown_nice(0);
 	} else {
-		callout_reset(&sc->tick_ch, hz/RST_TICK, rst_tick, sc);
+		callout_reset(&sc->tick_ch, hz/RST_TICK, at91_rst_tick, sc);
 	}
 }
 
 static int
-rst_intr(void *argp)
+at91_rst_intr(void *argp)
 {
-	struct rst_softc *sc = argp;
+	struct at91_rst_softc *sc = argp;
 
 	if (RD4(sc, RST_SR) & RST_SR_URSTS) {
 		if (sc->shutdown == 0)
-			callout_reset(&sc->tick_ch, hz/RST_TICK, rst_tick, sc);
+			callout_reset(&sc->tick_ch, hz/RST_TICK, at91_rst_tick, sc);
 		return (FILTER_HANDLED);
 	}
 	return (FILTER_STRAY);
@@ -183,34 +201,10 @@ static device_method_t at91_rst_methods[] = {
 static driver_t at91_rst_driver = {
 	"at91_rst",
 	at91_rst_methods,
-	sizeof(struct rst_softc),
+	sizeof(struct at91_rst_softc),
 };
 
 static devclass_t at91_rst_devclass;
 
 DRIVER_MODULE(at91_rst, atmelarm, at91_rst_driver, at91_rst_devclass, NULL,
     NULL);
-
-void cpu_reset_sam9g20(void) __attribute__((weak));
-void cpu_reset_sam9g20(void) {}
-
-void
-cpu_reset(void)
-{
-
-	if (rst_sc) {
-		cpu_reset_sam9g20(); /* May be null */
-
-		WR4(rst_sc, RST_MR,
-		    RST_MR_ERSTL(0xd) | RST_MR_URSTEN | RST_MR_KEY);
-
-		WR4(rst_sc, RST_CR,
-		    RST_CR_PROCRST |
-		    RST_CR_PERRST  |
-		    RST_CR_EXTRST  |
-		    RST_CR_KEY);
-	}
-
-	for(;;)
-		;
-}

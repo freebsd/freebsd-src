@@ -71,7 +71,7 @@ believing that the context is fully established.
 .Fn gss_process_context_token
 provides a way to pass such a token to the mechanism at any time.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It context_handle"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -80,7 +80,7 @@ Context handle of context on which token is to be processed.
 Token to process.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_DEFECTIVE_TOKEN"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_DEFECTIVE_TOKEN
@@ -94,7 +94,7 @@ did not refer to a valid context
 .Xr gss_init_sec_context 3 ,
 .Xr gss_accept_sec_context 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

@@ -35,6 +35,7 @@ dev/iicbus/ad7417.c		optional	ad7417 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
+dev/nand/nfc_fsl.c		optional	nand mpc85xx
 dev/ofw/openfirm.c		optional	aim | fdt
 dev/ofw/openfirmio.c		optional	aim | fdt
 dev/ofw/ofw_bus_if.m		optional	aim | fdt
@@ -61,6 +62,7 @@ dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart aim
 kern/kern_clocksource.c		standard
+kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
 libkern/ashldi3.c		optional	powerpc
 libkern/ashrdi3.c		optional	powerpc

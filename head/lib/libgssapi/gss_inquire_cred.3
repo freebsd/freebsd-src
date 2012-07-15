@@ -50,7 +50,7 @@
 .Sh DESCRIPTION
 Obtains information about a credential.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor_status"
 .It minor_status
 Mechanism specific status code.
 .It cred_handle
@@ -99,7 +99,7 @@ Specify
 if not required.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_DEFECTIVE_CREDENTIAL"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_NO_CRED
@@ -116,7 +116,7 @@ it will be set to 0
 .Xr gss_release_name 3 ,
 .Xr gss_release_oid_set 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

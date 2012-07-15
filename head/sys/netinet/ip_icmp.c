@@ -963,7 +963,8 @@ badport_bandlim(int which)
 		{ "icmp tstamp response" },
 		{ "closed port RST response" },
 		{ "open port RST response" },
-		{ "icmp6 unreach response" }
+		{ "icmp6 unreach response" },
+		{ "sctp ootb response" }
 	};
 
 	/*

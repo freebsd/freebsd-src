@@ -1192,15 +1192,13 @@ set_terminal_mode(char *arg)
 		fprintf(stderr, "\033[=T");
 	else if (strcmp(arg, "cons25") == 0)
 		fprintf(stderr, "\033[=1T");
-	else
-		usage();
 }
 
 
 int
 main(int argc, char **argv)
 {
-	char	*font, *type;
+	char    *font, *type, *termmode;
 	int	dumpmod, dumpopt, opt;
 	int	reterr;
 
@@ -1212,6 +1210,7 @@ main(int argc, char **argv)
 		err(1, "must be on a virtual console");
 	dumpmod = 0;
 	dumpopt = DUMP_FBF;
+	termmode = NULL;
 	while ((opt = getopt(argc, argv,
 	    "b:Cc:df:g:h:Hi:l:LM:m:pPr:S:s:T:t:x")) != -1)
 		switch(opt) {
@@ -1283,7 +1282,10 @@ main(int argc, char **argv)
 			set_console(optarg);
 			break;
 		case 'T':
-			set_terminal_mode(optarg);
+			if (strcmp(optarg, "xterm") != 0 &&
+			    strcmp(optarg, "cons25") != 0)
+				usage();
+			termmode = optarg;
 			break;
 		case 't':
 			set_screensaver_timeout(optarg);
@@ -1306,6 +1308,8 @@ main(int argc, char **argv)
 	}
 
 	video_mode(argc, argv, &optind);
+	if (termmode != NULL)
+		set_terminal_mode(termmode);
 
 	get_normal_colors(argc, argv, &optind);
 

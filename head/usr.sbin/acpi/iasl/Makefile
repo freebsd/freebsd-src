@@ -4,8 +4,8 @@ PROG=	iasl
 SRCS=	adfile.c adisasm.c adwalk.c
 
 # common
-SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
-	getopt.c
+SRCS+=	ahpredef.c dmextern.c dmrestag.c dmtable.c dmtbdump.c	\
+	dmtbinfo.c getopt.c
 
 # compiler
 SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
@@ -54,9 +54,9 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 
 # components/utilities
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
-	utdecode.c utdelete.c utglobal.c utinit.c utlock.c	\
-	utmath.c utmisc.c utmutex.c utobject.c utresrc.c	\
-	utstate.c utxface.c utxferror.c
+	utdecode.c utdelete.c utexcep.c utglobal.c utinit.c	\
+	utlock.c utmath.c utmisc.c utmutex.c utobject.c		\
+	utresrc.c utstate.c utxface.c utxferror.c
 
 # os_specific/service_layers
 SRCS+=	osunixxf.c

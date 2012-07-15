@@ -705,6 +705,11 @@ void	ieee80211_radiotap_attach(struct ieee80211com *,
 		uint32_t tx_radiotap,
 	    struct ieee80211_radiotap_header *rh, int rlen,
 		uint32_t rx_radiotap);
+void	ieee80211_radiotap_attachv(struct ieee80211com *,
+	    struct ieee80211_radiotap_header *th,
+	    int tlen, int n_tx_v, uint32_t tx_radiotap,
+	    struct ieee80211_radiotap_header *rh,
+	    int rlen, int n_rx_v, uint32_t rx_radiotap);
 void	ieee80211_radiotap_detach(struct ieee80211com *);
 void	ieee80211_radiotap_vattach(struct ieee80211vap *);
 void	ieee80211_radiotap_vdetach(struct ieee80211vap *);

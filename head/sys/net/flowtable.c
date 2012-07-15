@@ -619,6 +619,7 @@ flow_to_route(struct flentry *fle, struct route *ro)
 	sin->sin_addr.s_addr = hashkey[2];
 	ro->ro_rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	ro->ro_lle = __DEVOLATILE(struct llentry *, fle->f_lle);
+	ro->ro_flags |= RT_NORTREF;
 }
 #endif /* INET */
 
@@ -826,7 +827,7 @@ flow_to_route_in6(struct flentry *fle, struct route_in6 *ro)
 	memcpy(&sin6->sin6_addr, &hashkey[5], sizeof (struct in6_addr));
 	ro->ro_rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	ro->ro_lle = __DEVOLATILE(struct llentry *, fle->f_lle);
-
+	ro->ro_flags |= RT_NORTREF;
 }
 #endif /* INET6 */
 

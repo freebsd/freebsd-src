@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 4, 2010
+.Dd June 7, 2012
 .Dt CAM 4
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Cd "options CAM_DEBUG_BUS=-1"
 .Cd "options CAM_DEBUG_TARGET=-1"
 .Cd "options CAM_DEBUG_LUN=-1"
+.Cd "options CAM_DEBUG_COMPILE=CAM_DEBUG_INFO|CAM_DEBUG_CDB|CAM_DEBUG_PROBE"
 .Cd "options CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_CDB"
 .Cd "options CAM_MAX_HIGHPOWER=4"
 .Cd "options SCSI_NO_SENSE_STRINGS"
@@ -72,12 +73,11 @@ There are a number of generic kernel configuration options for the
 subsystem:
 .Bl -tag -width SCSI_NO_SENSE_STRINGS
 .It Dv CAMDEBUG
-This option enables the
+This option compiles in all the
 .Nm
 debugging printf code.
 This will not actually
 cause any debugging information to be printed out when included by itself.
-Enabling printouts requires additional configuration.
 See below for details.
 .It Dv "CAM_MAX_HIGHPOWER=4"
 This sets the maximum allowable number of concurrent "high power" commands.
@@ -248,54 +248,53 @@ see other
 .Nm
 device entries.
 .Sh DIAGNOSTICS
-When the kernel is compiled with options CAMDEBUG, an XPT_DEBUG CCB can be
-used to enable various amounts of tracing information on any
-specific device.
-Devices not being traced will not produce trace information.
-There are currently four debugging flags that may be turned on:
+An XPT_DEBUG CCB can be used to enable various amounts of tracing information
+on any specific bus/device from the list of options compiled into the kernel.
+There are currently seven debugging flags that may be compiled in and used:
 .Bl -tag -width CAM_DEBUG_SUBTRACE
 .It Dv CAM_DEBUG_INFO
-This debugging flag enables general informational printfs for the device
+This flag enables general informational printfs for the device
 or devices in question.
 .It Dv CAM_DEBUG_TRACE
-This debugging flag enables function-level command flow tracing.
+This flag enables function-level command flow tracing.
 i.e.\&
 kernel printfs will happen at the entrance and exit of various functions.
 .It Dv CAM_DEBUG_SUBTRACE
-This debugging flag enables debugging output internal to various functions.
+This flag enables debugging output internal to various functions.
 .It Dv CAM_DEBUG_CDB
-This debugging flag will cause the kernel to print out all
+This flag will cause the kernel to print out all
+.Tn ATA
+and
 .Tn SCSI
 commands sent to a particular device or devices.
+.It Dv CAM_DEBUG_XPT
+This flag will enable command scheduler tracing.
+.It Dv CAM_DEBUG_PERIPH
+This flag will enable peripheral drivers messages.
+.It Dv CAM_DEBUG_PROBE
+This flag will enable devices probe process tracing.
 .El
 .Pp
 Some of these flags, most notably
 .Dv CAM_DEBUG_TRACE
 and
-.Dv CAM_DEBUG_SUBTRACE
-will produce kernel printfs in EXTREME numbers,
-and because of that, they are not especially useful.
-There are not many things logged at the
-.Dv CAM_DEBUG_INFO
-level, so it is not especially useful.
-The most useful debugging flag is the
-.Dv CAM_DEBUG_CDB
-flag.
+.Dv CAM_DEBUG_SUBTRACE ,
+will produce kernel printfs in EXTREME numbers.
+.Pp
 Users can enable debugging from their kernel config file, by using
 the following kernel config options:
-.Bl -tag -width CAM_DEBUG_TARGET
+.Bl -tag -width CAM_DEBUG_COMPILE
 .It Dv CAMDEBUG
-This enables
+This builds into the kernel all possible
 .Nm
 debugging.
-Without this option, users will not even be able
-to turn on debugging from userland via
-.Xr camcontrol 8 .
-.It Dv CAM_DEBUG_FLAGS
-This allows the user to set the various debugging flags described above
-in a kernel config file.
+.It Dv CAM_DEBUG_COMPILE
+This allows to specify support for which debugging flags described above
+should be built into the kernel.
 Flags may be ORed together if the user wishes to
 see printfs for multiple debugging levels.
+.It Dv CAM_DEBUG_FLAGS
+This allows to set the various debugging flags from a kernel config file.
 .It Dv CAM_DEBUG_BUS
 Specify a bus to debug.
 To debug all busses, set this to -1.
@@ -307,17 +306,9 @@ Specify a lun to debug.
 To debug all luns, set this to -1.
 .El
 .Pp
-When specifying a bus, target or lun to debug, you
-.Em MUST
-specify all three bus/target/lun options above.
-Using wildcards, you
-should be able to enable debugging on most anything.
-.Pp
-Users may also enable debugging printfs on the fly, if the
-.Dv CAMDEBUG
-option is their config file, by using the
+Users may also enable debugging on the fly by using the
 .Xr camcontrol 8
-utility.
+utility, if wanted options built into the kernel.
 See
 .Xr camcontrol 8
 for details.

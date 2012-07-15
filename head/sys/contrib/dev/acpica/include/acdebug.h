@@ -112,8 +112,7 @@ AcpiDbDisplayTemplate (
 
 void
 AcpiDbUnloadAcpiTable (
-    char                    *TableArg,
-    char                    *InstanceArg);
+    char                    *Name);
 
 void
 AcpiDbSendNotify (
@@ -405,7 +404,7 @@ AcpiDbLocalNsLookup (
     char                    *Name);
 
 void
-AcpiDbUInt32ToHexString (
+AcpiDbUint32ToHexString (
     UINT32                  Value,
     char                    *Buffer);
 

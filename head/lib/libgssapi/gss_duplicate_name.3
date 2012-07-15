@@ -57,7 +57,7 @@ and
 must both be released,
 and the release of one shall not affect the validity of the other).
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor_status"
 .It minor_status
 Mechanism specific status code.
 .It src_name
@@ -70,7 +70,7 @@ after use with a call to
 .Fn gss_release_name .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_BAD_NAME
@@ -81,7 +81,7 @@ parameter was ill-formed
 .Sh SEE ALSO
 .Xr gss_release_name 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

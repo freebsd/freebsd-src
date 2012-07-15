@@ -1,0 +1,489 @@
+if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
+#
+# Copyright (c) 2006-2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+. $BSDCFG_LIBE/include/common.subr || exit 1
+f_include $BSDCFG_LIBE/include/dialog.subr
+f_include $BSDCFG_LIBE/include/sysrc.subr
+
+APP_DIR="120.networking"
+f_include $BSDCFG_LIBE/$APP_DIR/include/common.subr
+f_include $BSDCFG_LIBE/$APP_DIR/include/ipaddr.subr
+f_include $BSDCFG_LIBE/$APP_DIR/include/media.subr
+f_include $BSDCFG_LIBE/$APP_DIR/include/netmask.subr
+f_include $BSDCFG_LIBE/$APP_DIR/include/resolv.subr
+f_include $BSDCFG_LIBE/$APP_DIR/include/routing.subr
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+############################################################ GLOBALS
+
+#
+# Settings used while interacting with various dialog(1) menus
+#
+: ${DIALOG_MENU_NETDEV_KICK_INTERFACES=1}
+: ${DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK=3}
+
+############################################################ FUNCTIONS
+
+# f_device_desc $device_name
+#
+# Print a description for a device name (eg., `fxp0').
+#
+f_device_desc()
+{
+	local device="$1" d="[1234567890]" desc=""
+
+	# Check variables
+	[ "$device" ] || return $SUCCESS
+
+	#
+	# Return sysctl MIB dev.NAME.UNIT.%desc if it exists,
+	# otherwise fall through to below static list.
+	#
+	if f_have sysctl; then
+		local devname devunit
+		devname="${device%%$d*}"
+		devunit="${device#$devname}"
+		devunit="${devunit%%[a-zA-Z_]*}"
+		sysctl -n "dev.$devname.$devunit.%desc" 2> /dev/null &&
+			return $SUCCESS
+	fi
+
+	case "$device" in
+	# Network devices
+	ae$d)    desc="Attansic/Atheros L2 Fast Ethernet";;
+	age$d)   desc="Attansic/Atheros L1 Gigabit Ethernet";;
+	alc$d)   desc="Atheros AR8131/AR8132 PCIe Ethernet";;
+	ale$d)   desc="Atheros AR8121/AR8113/AR8114 PCIe Ethernet";;
+	an$d)    desc="Aironet 4500/4800 802.11 wireless adapter";;
+	ath$d)   desc="Atheros IEEE 802.11 wireless adapter";;
+	aue$d)   desc="ADMtek USB Ethernet adapter";;
+	axe$d)   desc="ASIX Electronics USB Ethernet adapter";;
+	bce$d)   desc="Broadcom NetXtreme II Gigabit Ethernet card";;
+	bfe$d)   desc="Broadcom BCM440x PCI Ethernet card";;
+	bge$d)   desc="Broadcom BCM570x PCI Gigabit Ethernet card";;
+	bm$d)    desc="Apple BMAC Built-in Ethernet";;
+	bwn$d)   desc="Broadcom BCM43xx IEEE 802.11 wireless adapter";;
+	cas$d)   desc="Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet";;
+	cc3i$d)  desc="SDL HSSI sync serial PCI card";;
+	cue$d)   desc="CATC USB Ethernet adapter";;
+	cxgb$d)  desc="Chelsio T3 10Gb Ethernet card";;
+	dc$d)    desc="DEC/Intel 21143 (and clones) PCI Fast Ethernet card";;
+	de$d)    desc="DEC DE435 PCI NIC or other DC21040-AA based card";;
+	disc$d)  desc="Software discard network interface";;
+	ed$d)    desc="Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA";;
+	el$d)    desc="3Com 3C501 Ethernet card";;
+	em$d)    desc="Intel(R) PRO/1000 Ethernet card";;
+	en$d)    desc="Efficient Networks ATM PCI card";;
+	ep$d)    desc="3Com 3C509 Ethernet card/3C589 PCMCIA";;
+	et$d)    desc="Agere ET1310 based PCI Express Gigabit Ethernet card";;
+	ex$d)    desc="Intel EtherExpress Pro/10 Ethernet card";;
+	fe$d)    desc="Fujitsu MB86960A/MB86965A Ethernet card";;
+	fpa$d)   desc="DEC DEFPA PCI FDDI card";;
+	fwe$d)   desc="FireWire Ethernet emulation";;
+	fwip$d)  desc="IP over FireWire";;
+	fxp$d)   desc="Intel EtherExpress Pro/100B PCI Fast Ethernet card";;
+	gem$d)   desc="Apple GMAC or Sun ERI/GEM Ethernet adapter";;
+	hme$d)   desc="Sun HME (Happy Meal Ethernet) Ethernet adapter";;
+	ie$d)    desc="AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210";;
+	igb$d)   desc="Intel(R) PRO/1000 PCI Express Gigabit Ethernet card";;
+	ipw$d)   desc="Intel PRO/Wireless 2100 IEEE 802.11 adapter";;
+	iwi$d)   desc="Intel PRO/Wireless 2200BG/2225BG/2915ABG adapter";;
+	iwn$d)   desc="Intel Wireless WiFi Link 4965AGN IEEE 802.11n adapter";;
+	ix$d)    desc="Intel Etherexpress Ethernet card";;
+	ixgb$d)  desc="Intel(R) PRO/10Gb Ethernet card";;
+	ixgbe$d) desc="Intel(R) PRO/10Gb Ethernet card";;
+	jme$d)   desc="JMicron JMC250 Gigabit/JMC260 Fast Ethernet";;
+	kue$d)   desc="Kawasaki LSI USB Ethernet adapter";;
+	le$d)    desc="AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter";;
+	lge$d)   desc="Level 1 LXT1001 Gigabit Ethernet card";;
+	lnc$d)   desc="Lance/PCnet (Isolan/Novell NE2100/NE32-VL) Ethernet";;
+	lp$d)    desc="Parallel Port IP (PLIP) peer connection";;
+	lo$d)    desc="Loop-back (local) network interface";;
+	malo$d)  desc="Marvell Libertas 88W8335 802.11 wireless adapter";;
+	msk$d)   desc="Marvell/SysKonnect Yukon II Gigabit Ethernet";;
+	mxge$d)  desc="Myricom Myri10GE 10Gb Ethernet card";;
+	nfe$d)   desc="NVIDIA nForce MCP Ethernet";;
+	ng${d}_*|ng$d${d}_*|ng$d$d${d}_*|ng$d$d$d${d}_*|ng$d$d$d$d${d}_*)
+	         desc="Vimage netgraph(4) bridged Ethernet device";;
+	nge$d)   desc="NatSemi PCI Gigabit Ethernet card";;
+	nve$d)   desc="NVIDIA nForce MCP Ethernet";;
+	nxge$d)  desc="Neterion Xframe 10GbE Server/Storage adapter";;
+	pcn$d)   desc="AMD Am79c79x PCI Ethernet card";;
+	plip$d)  desc="Parallel Port IP (PLIP) peer connection";;
+	ral$d)   desc="Ralink Technology IEEE 802.11 wireless adapter";;
+	ray$d)   desc="Raytheon Raylink 802.11 wireless adapter";;
+	re$d)    desc="RealTek 8139C+/8169/8169S/8110S PCI Ethernet adapter";;
+	rl$d)    desc="RealTek 8129/8139 PCI Ethernet card";;
+	rue$d)   desc="RealTek USB Ethernet card";;
+	rum$d)   desc="Ralink Technology USB IEEE 802.11 wireless adapter";;
+	sf$d)    desc="Adaptec AIC-6915 PCI Ethernet card";;
+	sge$d)   desc="Silicon Integrated Systems SiS190/191 Ethernet";;
+	sis$d)   desc="SiS 900/SiS 7016 PCI Ethernet card";;
+	sk$d)    desc="SysKonnect PCI Gigabit Ethernet card";;
+	sn$d)    desc="SMC/Megahertz Ethernet card";;
+	snc$d)   desc="SONIC Ethernet card";;
+	sr$d)    desc="SDL T1/E1 sync serial PCI card";;
+	ste$d)   desc="Sundance ST201 PCI Ethernet card";;
+	stge$d)  desc="Sundance/Tamarack TC9021 Gigabit Ethernet";;
+	ti$d)    desc="Alteon Networks PCI Gigabit Ethernet card";;
+	tl$d)    desc="Texas Instruments ThunderLAN PCI Ethernet card";;
+	tx$d)    desc="SMC 9432TX Ethernet card";;
+	txp$d)   desc="3Com 3cR990 Ethernet card";;
+	uath$d)  desc="Atheros AR5005UG and AR5005UX USB wireless adapter";;
+	upgt$d)  desc="Conexant/Intersil PrismGT USB wireless adapter";;
+	ural$d)  desc="Ralink Technology RT2500USB 802.11 wireless adapter";;
+	urtw$d)  desc="Realtek 8187L USB wireless adapter";;
+	vge$d)   desc="VIA VT612x PCI Gigabit Ethernet card";;
+	vlan$d|vlan$d$d|vlan$d$d$d|vlan$d$d$d$d|vlan$d$d$d$d$d)
+	         desc="IEEE 802.1Q VLAN network interface";;
+	vr$d)    desc="VIA VT3043/VT86C100A Rhine PCI Ethernet card";;
+	vx$d)    desc="3COM 3c590 / 3c595 Ethernet card";;
+	wb$d)    desc="Winbond W89C840F PCI Ethernet card";;
+	wi$d)    desc="Lucent WaveLAN/IEEE 802.11 wireless adapter";;
+	wpi$d)   desc="Intel 3945ABG IEEE 802.11 wireless adapter";;
+	wx$d)    desc="Intel Gigabit Ethernet (82452) card";;
+	xe$d)    desc="Xircom/Intel EtherExpress Pro100/16 Ethernet card";;
+	xl$d)    desc="3COM 3c90x / 3c90xB PCI Ethernet card";;
+	zyd$d)   desc="ZyDAS ZD1211/ZD1211B USB 802.11 wireless adapter";;
+	# Unknown device
+	*)       desc="<unknown network interface type>";;
+	esac
+	printf "%s\n" "$desc"
+}
+
+# f_dialog_menu_netdev
+#
+# Display a list of network devices with descriptions.
+#
+f_dialog_menu_netdev()
+{
+	#
+	# Display a message to let the user know we're working...
+	# (message will remain until we throw up the next dialog)
+	#
+	f_dialog_info "$msg_probing_network_interfaces"
+
+	#
+	# Get list of usable network interfaces
+	#
+	local d='[[:digit:]]+:'
+	local iflist="`echo "$(ifconfig -l):" | sed -E -e "
+		# Convert all spaces to colons
+		y/ /:/
+
+		# Prune unsavory interfaces
+		s/lo$d//g
+		s/ppp$d//g
+		s/sl$d//g
+		s/lp$d//g
+		s/fwe$d//g
+		s/faith$d//g
+		s/plip$d//g
+
+		# Convert all colons back into spaces
+		y/:/ /
+	"`"
+
+	#
+	# Optionally kick interfaces in the head to get them to accurately
+	# track the carrier status in realtime (required on FreeBSD).
+	#
+	if [ "$DIALOG_MENU_NETDEV_KICK_INTERFACES" ]; then
+		DIALOG_MENU_NETDEV_KICK_INTERFACES=
+
+		local ifn
+		for ifn in $iflist; do
+			f_quietly ifconfig $ifn up
+		done
+
+		if [ "$DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK" ]; then
+			# interfaces need time to update carrier status
+			sleep $DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK
+		fi
+	fi
+
+	#
+	# Mark any "active" interfaces with an asterisk (*)
+	# to the right of the device name.
+	#
+	interfaces=$(
+		for ifn in $iflist; do
+			active=$( ifconfig $ifn | awk \
+			'
+				( $1 == "status:" ) \
+				{
+					if ( $2 == "active" ) { print 1; exit }
+				}
+			' )
+			printf "'%s%s' '%s'\n" \
+				"$ifn" "${active:+*}" "$(f_device_desc "$ifn")"
+		done
+	)
+	if [ ! "$interfaces" ]; then
+		f_dialog_msgbox "$msg_no_network_interfaces"
+		return $FAILURE
+	fi
+
+	local hline="$hline_arrows_tab_enter"
+
+	#
+	# Ask user to select an interface
+	#
+	local prompt size
+	prompt="$msg_select_network_interface"
+	size=$( eval f_dialog_menu_size \
+	        	\"\$DIALOG_TITLE\"     \
+	        	\"\$DIALOG_BACKTITLE\" \
+	        	\"\$prompt\"           \
+	        	\"\$hline\"            \
+	        	$interfaces            )
+	eval $DIALOG \
+		--clear --title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--menu \"\$prompt\" $size          \
+		$interfaces                        \
+		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+}
+
+# f_dialog_menu_netdev_edit $interface $ipaddr $netmask $options $dhcp
+#
+# Allow a user to edit network interface settings. Current values are not
+# probed but rather taken from the positional arguments.
+#
+f_dialog_menu_netdev_edit()
+{
+	local interface="$1" ipaddr="$2" netmask="$3" options="$4" dhcp="$5"
+	local prompt menu_list size
+
+	#
+	# Create a duplicate set of variables for change-tracking...
+	#
+	local ipaddr_orig="$2"  \
+	      netmask_orig="$3" \
+	      options_orig="$4" \
+	      dhcp_orig="$5"
+
+	local hline="$hline_arrows_tab_enter"
+	prompt=$( printf "$msg_network_configuration" "$interface" )
+
+	#
+	# Loop forever until the user has finished configuring the different
+	# components of the network interface.
+	#
+	# To apply the settings, we need to know each of the following:
+	# 	- IP Address
+	# 	- Network subnet mask
+	# 	- Additional ifconfig(8) options
+	#
+	# It is only when we have all of the above values that we can make the
+	# changes effective because all three options must be specified at-once
+	# to ifconfig(8).
+	#
+	while :; do
+		local dhcp_status="$msg_disabled"
+		[ "$dhcp" ] && dhcp_status="$msg_enabled"
+
+		#
+		# Display configuration-edit menu
+		#
+		menu_list="
+			'X $msg_save_exit' '$msg_return_to_previous_menu'
+			'2 $msg_dhcp'      '$dhcp_status'
+			'3 $msg_ipaddr4'   '$ipaddr'
+			'4 $msg_netmask'   '$netmask'
+			'5 $msg_options'   '$options'
+		"
+		size=$( eval f_dialog_menu_size \
+		        	\"\$DIALOG_TITLE\"     \
+		        	\"\$DIALOG_BACKTITLE\" \
+		        	\"\$prompt\"           \
+		        	\"\$hline\"            \
+		        	$menu_list             )
+		eval $DIALOG \
+			--clear --title \"\$DIALOG_TITLE\" \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$hline\"                \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--menu \"\$prompt\" $size          \
+			$menu_list                         \
+			2> "$DIALOG_TMPDIR/dialog.menu.$$"
+
+		local retval=$?
+		local tag="$( f_dialog_menutag )"
+
+		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
+		[ $retval -eq $SUCCESS ] || return $retval
+
+		#
+		# Call the below ``modifier functions'' whose job it is to take
+		# input from the user and assign the newly-acquired values back
+		# to the ipaddr, netmask, and options variables for us to re-
+		# read and display in the summary dialog.
+		#
+		case "$tag" in
+		X\ *) break;;
+		2\ *) #
+		      # Do not proceed if/when there are NFS-mounts currently
+		      # active. If the network is changed while NFS-exported
+		      # directories are mounted, the system may hang (if any
+		      # NFS mounts are using that interface).
+		      #
+		      if f_nfs_mounted && ! f_jailed; then
+		      	local setting="$( printf "$msg_current_dhcp_status" \
+		      	                         "$interface" "$dhcp_status" )"
+		      	local message="$(
+		      		printf "$msg_nfs_mounts_may_cause_hang" \
+		      		       "$setting"
+		      	)"
+		      	f_dialog_msgbox "$message"
+		      	continue
+		      fi
+
+		      #
+		      # Toggle DHCP status
+		      #
+		      if [ "$dhcp_status" = "$msg_enabled" ]; then
+		      	dhcp=
+		      else
+		      	trap - SIGINT
+		      	( # Execute within sub-shell to allow/catch Ctrl-C
+		      	  trap 'exit $FAILURE' SIGINT
+		      	  msg=$( printf "$msg_scanning_for_dhcp" "$interface" )
+		      	  if [ "$USE_XDIALOG" ]; then
+		      	  	(
+		      	  	  f_quietly ifconfig $interface delete
+		      	  	  f_quietly dhclient $interface
+		      	  	) |
+		      	  	  f_xdialog_info "$msg"
+		      	  else
+		      	  	f_dialog_info "$msg"
+		      	  	f_quietly ifconfig $interface delete
+		      	  	f_quietly dhclient $interface
+		      	  fi
+		      	)
+		      	retval=$?
+		      	trap 'interrupt' SIGINT
+		      	if [ $retval -eq $SUCCESS ]; then
+		      		dhcp=1
+		      		ipaddr=$( f_ifconfig_inet $interface )
+		      		netmask=$( f_ifconfig_netmask $interface )
+		      		options=
+
+		      		# Fixup search/domain in resolv.conf(5)
+		      		hostname=$( f_sysrc_get \
+				            	'hostname:-$(hostname)' )
+		      		f_dialog_resolv_conf_update "$hostname"
+		      	fi
+		      fi
+		      ;;
+		3\ *) f_dialog_input_ipaddr "$interface" "$ipaddr"
+		      [ $? -eq $SUCCESS ] && dhcp=;;
+		4\ *) f_dialog_input_netmask "$interface" "$netmask"
+		      [ $? -eq $SUCCESS -a "$_netmask" ] && dhcp=;;
+		5\ *) f_dialog_menu_media_options "$interface" "$options"
+		      [ $? -eq $SUCCESS ] && dhcp=;;
+		esac
+	done
+
+	#
+	# Save only if the user changed at least one feature of the interface
+	#
+	if [ "$ipaddr"  != "$ipaddr_orig"  -o \
+	     "$netmask" != "$netmask_orig" -o \
+	     "$options" != "$options_orig" -o \
+	     "$dhcp"    != "$dhcp_orig" ]
+	then
+		f_dialog_info "$( printf "$msg_saving_network_interface" \
+		                         "$interface" )"
+
+		local value=
+		if [ "$dhcp" ]; then
+			f_sysrc_delete defaultrouter
+			value=DHCP
+		else
+			value="inet $ipaddr netmask $netmask"
+			value="$value${options:+ }$options"
+		fi
+
+		f_sysrc_set ifconfig_$interface "$value"
+	fi
+
+	#
+	# Re/Apply the settings if desired
+	#
+	if [ ! "$dhcp" ]; then
+		f_dialog_yesno "Would you like to bring the $interface" \
+		               "interface up right now?"
+		if [ $? -eq $SUCCESS ]; then
+			f_dialog_info "$( printf "$msg_bring_interface_up" \
+			                         "$interface" )"
+
+			local dr="$( f_sysrc_get defaultrouter )" err
+			if [ "$dr" = "NO" -o ! "$dr" ]; then
+				dr=$( f_route_get_default )
+				[ "$dr" ] && f_sysrc_set defaultrouter "$dr"
+			fi
+			#
+			# Make a backup of resolv.conf(5) before using
+			# ifconfig(8) and then restore it afterward. This
+			# allows preservation of nameservers acquired via
+			# DHCP on FreeBSD-8.x (normally lost as ifconfig(8)
+			# usage causes dhclient(8) to exit which scrubs
+			# resolv.conf(5) by-default upon termination).
+			#
+			f_quietly cp -fp "$RESOLV_CONF" "$RESOLV_CONF.$$"
+			err=$( ifconfig $interface inet $ipaddr \
+			       	netmask $netmask $options 2>&1 )
+			if [ $? -eq $SUCCESS ]; then
+				if [ "$dr" -a "$dr" != "NO" ]; then
+					err=$( route add default "$dr" 2>&1 )
+					[ $? -eq $SUCCESS ] || \
+						dialog_msgbox "$err"
+				fi
+			else
+				dialog_msgbox "$err"
+			fi
+			if cmp -s "$RESOLV_CONF" "$RESOLV_CONF.$$"; then
+				f_quietly rm -f "$RESOLV_CONF.$$"
+			else
+				f_quietly mv -f "$RESOLV_CONF.$$" "$RESOLV_CONF"
+			fi
+		fi
+	fi
+
+	return $SUCCESS
+}
+
+fi # ! $_NETWORKING_DEVICE_SUBR

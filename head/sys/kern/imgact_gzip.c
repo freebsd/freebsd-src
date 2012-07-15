@@ -161,7 +161,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 	 * Set file/virtual offset based on a.out variant. We do two cases:
 	 * host byte order and network byte order (for NetBSD compatibility)
 	 */
-	switch ((int) (gz->a_out.a_magic & 0xffff)) {
+	switch ((int) (gz->a_out.a_midmag & 0xffff)) {
 	case ZMAGIC:
 		gz->virtual_offset = 0;
 		if (gz->a_out.a_text) {
@@ -177,7 +177,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 		break;
 	default:
 		/* NetBSD compatibility */
-		switch ((int) (ntohl(gz->a_out.a_magic) & 0xffff)) {
+		switch ((int) (ntohl(gz->a_out.a_midmag) & 0xffff)) {
 		case ZMAGIC:
 		case QMAGIC:
 			gz->virtual_offset = PAGE_SIZE;

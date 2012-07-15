@@ -29,8 +29,10 @@
  * Get the RXDP.
  */
 uint32_t
-ar5212GetRxDP(struct ath_hal *ath)
+ar5212GetRxDP(struct ath_hal *ath, HAL_RX_QUEUE qtype)
 {
+
+	HALASSERT(qtype == HAL_RX_QUEUE_HP);
 	return OS_REG_READ(ath, AR_RXDP);
 }
 
@@ -38,8 +40,10 @@ ar5212GetRxDP(struct ath_hal *ath)
  * Set the RxDP.
  */
 void
-ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp)
+ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE qtype)
 {
+
+	HALASSERT(qtype == HAL_RX_QUEUE_HP);
 	OS_REG_WRITE(ah, AR_RXDP, rxdp);
 	HALASSERT(OS_REG_READ(ah, AR_RXDP) == rxdp);
 }

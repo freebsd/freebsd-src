@@ -608,6 +608,15 @@ replace_cmd() {
 
 	log_it(RealUser, Pid, "REPLACE", User);
 
+	/*
+	 * Creating the 'tn' temp file has already updated the
+	 * modification time of the spool directory.  Sleep for a
+	 * second to ensure that poke_daemon() sets a later
+	 * modification time.  Otherwise, this can race with the cron
+	 * daemon scanning for updated crontabs.
+	 */
+	sleep(1);
+
 	poke_daemon();
 
 	return (0);

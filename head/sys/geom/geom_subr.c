@@ -68,9 +68,11 @@ static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 
 struct g_hh00 {
-	struct g_class	*mp;
-	int		error;
-	int		post;
+	struct g_class		*mp;
+	struct g_provider	*pp;
+	off_t			size;
+	int			error;
+	int			post;
 };
 
 /*
@@ -351,10 +353,12 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->start = mp->start;
 	gp->spoiled = mp->spoiled;
 	gp->attrchanged = mp->attrchanged;
+	gp->providergone = mp->providergone;
 	gp->dumpconf = mp->dumpconf;
 	gp->access = mp->access;
 	gp->orphan = mp->orphan;
 	gp->ioctl = mp->ioctl;
+	gp->resize = mp->resize;
 	return (gp);
 }
 
@@ -600,6 +604,76 @@ g_error_provider(struct g_provider *pp, int error)
 	pp->error = error;
 }
 
+static void
+g_resize_provider_event(void *arg, int flag)
+{
+	struct g_hh00 *hh;
+	struct g_class *mp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_consumer *cp, *cp2;
+	off_t size;
+
+	g_topology_assert();
+	if (flag == EV_CANCEL)
+		return;
+	if (g_shutdown)
+		return;
+
+	hh = arg;
+	pp = hh->pp;
+	size = hh->size;
+
+	G_VALID_PROVIDER(pp);
+	g_trace(G_T_TOPOLOGY, "g_resize_provider_event(%p)", pp);
+
+	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
+		gp = cp->geom;
+		if (gp->resize == NULL && size < pp->mediasize)
+			cp->geom->orphan(cp);
+	}
+
+	pp->mediasize = size;
+	
+	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
+		gp = cp->geom;
+		if (gp->resize != NULL)
+			gp->resize(cp);
+	}
+
+	/*
+	 * After resizing, the previously invalid GEOM class metadata
+	 * might become valid.  This means we should retaste.
+	 */
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (mp->taste == NULL)
+			continue;
+		LIST_FOREACH(cp, &pp->consumers, consumers)
+			if (cp->geom->class == mp)
+				break;
+		if (cp != NULL)
+			continue;
+		mp->taste(mp, pp, 0);
+		g_topology_assert();
+	}
+}
+
+void
+g_resize_provider(struct g_provider *pp, off_t size)
+{
+	struct g_hh00 *hh;
+
+	G_VALID_PROVIDER(pp);
+
+	if (size == pp->mediasize)
+		return;
+
+	hh = g_malloc(sizeof *hh, M_WAITOK | M_ZERO);
+	hh->pp = pp;
+	hh->size = size;
+	g_post_event(g_resize_provider_event, hh, M_WAITOK, NULL);
+}
+
 struct g_provider *
 g_provider_by_name(char const *arg)
 {
@@ -634,6 +708,13 @@ g_destroy_provider(struct g_provider *pp)
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
 	devstat_remove_entry(pp->stat);
+	/*
+	 * If a callback was provided, send notification that the provider
+	 * is now gone.
+	 */
+	if (gp->providergone != NULL)
+		gp->providergone(pp);
+
 	g_free(pp);
 	if ((gp->flags & G_GEOM_WITHER))
 		g_do_wither();
