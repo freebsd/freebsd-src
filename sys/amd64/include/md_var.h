@@ -57,6 +57,7 @@ extern	u_int	cpu_procinfo;
 extern	u_int	cpu_procinfo2;
 extern	char	cpu_vendor[];
 extern	u_int	cpu_vendor_id;
+extern	char	ctx_switch_xsave[];
 extern	char	kstack[];
 extern	char	sigcode[];
 extern	int	szsigcode;

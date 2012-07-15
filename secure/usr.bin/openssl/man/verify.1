@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "VERIFY 1"
-.TH VERIFY 1 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH VERIFY 1 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -137,6 +137,18 @@ verify \- Utility to verify certificates.
 [\fB\-CApath directory\fR]
 [\fB\-CAfile file\fR]
 [\fB\-purpose purpose\fR]
+[\fB\-policy arg\fR]
+[\fB\-ignore_critical\fR]
+[\fB\-crl_check\fR]
+[\fB\-crl_check_all\fR]
+[\fB\-policy_check\fR]
+[\fB\-explicit_policy\fR]
+[\fB\-inhibit_any\fR]
+[\fB\-inhibit_map\fR]
+[\fB\-x509_strict\fR]
+[\fB\-extended_crl\fR]
+[\fB\-use_deltas\fR]
+[\fB\-policy_print\fR]
 [\fB\-untrusted file\fR]
 [\fB\-help\fR]
 [\fB\-issuer_checks\fR]
@@ -181,6 +193,51 @@ of the current certificate. This shows why each candidate issuer
 certificate was rejected. However the presence of rejection messages
 does not itself imply that anything is wrong: during the normal
 verify process several rejections may take place.
+.IP "\fB\-policy arg\fR" 4
+.IX Item "-policy arg"
+Enable policy processing and add \fBarg\fR to the user-initial-policy-set
+(see \s-1RFC3280\s0 et al). The policy \fBarg\fR can be an object name an \s-1OID\s0 in numeric
+form. This argument can appear more than once.
+.IP "\fB\-policy_check\fR" 4
+.IX Item "-policy_check"
+Enables certificate policy processing.
+.IP "\fB\-explicit_policy\fR" 4
+.IX Item "-explicit_policy"
+Set policy variable require-explicit-policy (see \s-1RFC3280\s0 et al).
+.IP "\fB\-inhibit_any\fR" 4
+.IX Item "-inhibit_any"
+Set policy variable inhibit-any-policy (see \s-1RFC3280\s0 et al).
+.IP "\fB\-inhibit_map\fR" 4
+.IX Item "-inhibit_map"
+Set policy variable inhibit-policy-mapping (see \s-1RFC3280\s0 et al).
+.IP "\fB\-policy_print\fR" 4
+.IX Item "-policy_print"
+Print out diagnostics, related to policy checking
+.IP "\fB\-crl_check\fR" 4
+.IX Item "-crl_check"
+Checks end entity certificate validity by attempting to lookup a valid \s-1CRL\s0.
+If a valid \s-1CRL\s0 cannot be found an error occurs.
+.IP "\fB\-crl_check_all\fR" 4
+.IX Item "-crl_check_all"
+Checks the validity of \fBall\fR certificates in the chain by attempting
+to lookup valid CRLs.
+.IP "\fB\-ignore_critical\fR" 4
+.IX Item "-ignore_critical"
+Normally if an unhandled critical extension is present which is not
+supported by OpenSSL the certificate is rejected (as required by
+\&\s-1RFC3280\s0 et al). If this option is set critical extensions are
+ignored.
+.IP "\fB\-x509_strict\fR" 4
+.IX Item "-x509_strict"
+Disable workarounds for broken certificates which have to be disabled
+for strict X.509 compliance.
+.IP "\fB\-extended_crl\fR" 4
+.IX Item "-extended_crl"
+Enable extended \s-1CRL\s0 features such as indirect CRLs and alternate \s-1CRL\s0
+signing keys.
+.IP "\fB\-use_deltas\fR" 4
+.IX Item "-use_deltas"
+Enable support for delta CRLs.
 .IP "\fB\-check_ss_sig\fR" 4
 .IX Item "-check_ss_sig"
 Verify the signature on the self-signed root \s-1CA\s0. This is disabled by default
@@ -281,7 +338,7 @@ the issuer certificate of a looked up certificate could not be found. This
 normally means the list of trusted certificates is not complete.
 .IP "\fB3 X509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate \s-1CRL\s0\fR" 4
 .IX Item "3 X509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate CRL"
-the \s-1CRL\s0 of a certificate could not be found. Unused.
+the \s-1CRL\s0 of a certificate could not be found.
 .IP "\fB4 X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE: unable to decrypt certificate's signature\fR" 4
 .IX Item "4 X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE: unable to decrypt certificate's signature"
 the certificate signature could not be decrypted. This means that the actual signature value
@@ -299,7 +356,7 @@ the public key in the certificate SubjectPublicKeyInfo could not be read.
 the signature of the certificate is invalid.
 .IP "\fB8 X509_V_ERR_CRL_SIGNATURE_FAILURE: \s-1CRL\s0 signature failure\fR" 4
 .IX Item "8 X509_V_ERR_CRL_SIGNATURE_FAILURE: CRL signature failure"
-the signature of the certificate is invalid. Unused.
+the signature of the certificate is invalid.
 .IP "\fB9 X509_V_ERR_CERT_NOT_YET_VALID: certificate is not yet valid\fR" 4
 .IX Item "9 X509_V_ERR_CERT_NOT_YET_VALID: certificate is not yet valid"
 the certificate is not yet valid: the notBefore date is after the current time.
@@ -308,10 +365,10 @@ the certificate is not yet valid: the notBefore date is after the current time.
 the certificate has expired: that is the notAfter date is before the current time.
 .IP "\fB11 X509_V_ERR_CRL_NOT_YET_VALID: \s-1CRL\s0 is not yet valid\fR" 4
 .IX Item "11 X509_V_ERR_CRL_NOT_YET_VALID: CRL is not yet valid"
-the \s-1CRL\s0 is not yet valid. Unused.
+the \s-1CRL\s0 is not yet valid.
 .IP "\fB12 X509_V_ERR_CRL_HAS_EXPIRED: \s-1CRL\s0 has expired\fR" 4
 .IX Item "12 X509_V_ERR_CRL_HAS_EXPIRED: CRL has expired"
-the \s-1CRL\s0 has expired. Unused.
+the \s-1CRL\s0 has expired.
 .IP "\fB13 X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD: format error in certificate's notBefore field\fR" 4
 .IX Item "13 X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD: format error in certificate's notBefore field"
 the certificate notBefore field contains an invalid time.
@@ -320,10 +377,10 @@ the certificate notBefore field contains an invalid time.
 the certificate notAfter field contains an invalid time.
 .IP "\fB15 X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD: format error in \s-1CRL\s0's lastUpdate field\fR" 4
 .IX Item "15 X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD: format error in CRL's lastUpdate field"
-the \s-1CRL\s0 lastUpdate field contains an invalid time. Unused.
+the \s-1CRL\s0 lastUpdate field contains an invalid time.
 .IP "\fB16 X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD: format error in \s-1CRL\s0's nextUpdate field\fR" 4
 .IX Item "16 X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD: format error in CRL's nextUpdate field"
-the \s-1CRL\s0 nextUpdate field contains an invalid time. Unused.
+the \s-1CRL\s0 nextUpdate field contains an invalid time.
 .IP "\fB17 X509_V_ERR_OUT_OF_MEM: out of memory\fR" 4
 .IX Item "17 X509_V_ERR_OUT_OF_MEM: out of memory"
 an error occurred trying to allocate memory. This should never happen.
@@ -348,7 +405,7 @@ self signed.
 the certificate chain length is greater than the supplied maximum depth. Unused.
 .IP "\fB23 X509_V_ERR_CERT_REVOKED: certificate revoked\fR" 4
 .IX Item "23 X509_V_ERR_CERT_REVOKED: certificate revoked"
-the certificate has been revoked. Unused.
+the certificate has been revoked.
 .IP "\fB24 X509_V_ERR_INVALID_CA: invalid \s-1CA\s0 certificate\fR" 4
 .IX Item "24 X509_V_ERR_INVALID_CA: invalid CA certificate"
 a \s-1CA\s0 certificate is invalid. Either it is not a \s-1CA\s0 or its extensions are not consistent

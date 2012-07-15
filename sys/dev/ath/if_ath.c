@@ -2888,6 +2888,68 @@ fail0:
 #undef ATH_DESC_4KB_BOUND_CHECK
 }
 
+/*
+ * Allocate ath_buf entries but no descriptor contents.
+ *
+ * This is for RX EDMA where the descriptors are the header part of
+ * the RX buffer.
+ */
+int
+ath_descdma_setup_rx_edma(struct ath_softc *sc,
+	struct ath_descdma *dd, ath_bufhead *head,
+	const char *name, int nbuf, int rx_status_len)
+{
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ath_buf *bf;
+	int i, bsize, error;
+
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA: %u buffers\n",
+	    __func__, name, nbuf);
+
+	dd->dd_name = name;
+	/*
+	 * This is (mostly) purely for show.  We're not allocating any actual
+	 * descriptors here as EDMA RX has the descriptor be part
+	 * of the RX buffer.
+	 *
+	 * However, dd_desc_len is used by ath_descdma_free() to determine
+	 * whether we have already freed this DMA mapping.
+	 */
+	dd->dd_desc_len = rx_status_len;
+
+	/* allocate rx buffers */
+	bsize = sizeof(struct ath_buf) * nbuf;
+	bf = malloc(bsize, M_ATHDEV, M_NOWAIT | M_ZERO);
+	if (bf == NULL) {
+		if_printf(ifp, "malloc of %s buffers failed, size %u\n",
+			dd->dd_name, bsize);
+		error = ENOMEM;
+		goto fail3;
+	}
+	dd->dd_bufptr = bf;
+
+	TAILQ_INIT(head);
+	for (i = 0; i < nbuf; i++, bf++) {
+		bf->bf_desc = NULL;
+		bf->bf_daddr = 0;
+		bf->bf_lastds = NULL;	/* Just an initial value */
+
+		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
+				&bf->bf_dmamap);
+		if (error != 0) {
+			if_printf(ifp, "unable to create dmamap for %s "
+				"buffer %u, error %u\n", dd->dd_name, i, error);
+			ath_descdma_cleanup(sc, dd, head);
+			return error;
+		}
+		TAILQ_INSERT_TAIL(head, bf, bf_list);
+	}
+	return 0;
+fail3:
+	memset(dd, 0, sizeof(*dd));
+	return error;
+}
+
 void
 ath_descdma_cleanup(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head)
@@ -2895,10 +2957,12 @@ ath_descdma_cleanup(struct ath_softc *sc,
 	struct ath_buf *bf;
 	struct ieee80211_node *ni;
 
-	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
-	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-	bus_dma_tag_destroy(dd->dd_dmat);
+	if (dd->dd_dmamap != 0) {
+		bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
+		bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
+		bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
+		bus_dma_tag_destroy(dd->dd_dmat);
+	}
 
 	TAILQ_FOREACH(bf, head, bf_list) {
 		if (bf->bf_m) {

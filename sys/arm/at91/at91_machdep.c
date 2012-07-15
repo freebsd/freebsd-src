@@ -402,6 +402,7 @@ at91_try_id(uint32_t dbgu_base)
          * try to get the matching CPU support.
          */
         soc_info.soc_data = at91_match_soc(soc_info.type, soc_info.subtype);
+        soc_info.dbgu_base = AT91_BASE + dbgu_base;
 
 	return (1);
 }
