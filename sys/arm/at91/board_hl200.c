@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91rm9200var.h>
-#include <arm/at91/at91_piovar.h>
-#include <arm/at91/at91_pio_rm9200.h>
 
 BOARD_INIT long
 board_init(void)
@@ -50,6 +48,16 @@ board_init(void)
 	 */
 	at91rm9200_config_uart(AT91_ID_DBGU, 0, 0);   /* DBGU just Tx and Rx */
 	at91rm9200_config_uart(AT91RM9200_ID_USART0, 1, 0);   /* Tx and Rx */
+
+	at91rm9200_config_mci(0);			/* HOTe HL200 unknown 1 vs 4 wire */
+
+	/* Enable CF card slot */
+	/* Enable sound thing */
+	/* Enable VGA chip */
+	/* Enable ethernet */
+	/* Enable TWI + RTC */
+	/* Enable USB Host */
+	/* Enable USB Device (gadget) */
 
 	return (at91_ramsize());
 }

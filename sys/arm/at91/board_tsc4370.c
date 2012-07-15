@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91rm9200var.h>
 #include <arm/at91/at91_piovar.h>
-#include <arm/at91/at91_pio_rm9200.h>
+#include <arm/at91/at91_pioreg.h>
 
 BOARD_INIT long
 board_init(void)
@@ -48,6 +48,15 @@ board_init(void)
 	at91rm9200_config_uart(AT91RM9200_ID_USART1, 2, 0);   /* Tx and Rx */
 	at91rm9200_config_uart(AT91RM9200_ID_USART2, 3, 0);   /* Tx and Rx */
 	at91rm9200_config_uart(AT91RM9200_ID_USART3, 4, 0);   /* Tx and Rx */
+
+	at91rm9200_config_mci(0);			/* tsc4370 board has only 1 wire */
+							/* Newer boards may have 4 wires */
+
+	/* Configure TWI */
+	/* Configure SPI + dataflash */
+	/* Configure SSC */
+	/* Configure USB Host */
+	/* Configure FPGA attached to chip selects */
 
 	/* Pin assignment */
 	/* Assert PA24 low -- talk to rubidium */

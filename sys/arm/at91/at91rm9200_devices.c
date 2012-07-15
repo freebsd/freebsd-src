@@ -80,6 +80,10 @@ at91rm9200_config_uart(unsigned devid, unsigned unit, unsigned pinmask)
 	 * to do.
 	 */
 
+	/*
+	 * Current boards supported don't need the extras, but they should be
+	 * implemented.  But that should wait until the new pin api goes in.
+	 */
 	switch (devid) {
 	case AT91_ID_DBGU:
 		at91_pio_use_periph_a(AT91RM92_PIOA_BASE, AT91C_PIO_PA30, 0); /* DRXD */
@@ -120,5 +124,19 @@ at91rm9200_config_uart(unsigned devid, unsigned unit, unsigned pinmask)
 
 	default:
 		break;
+	}
+}
+
+void
+at91rm9200_config_mci(int has_4wire)
+{
+	/* XXX TODO chip changed GPIO, other slots, etc */
+	at91_pio_use_periph_a(AT91RM92_PIOA_BASE, AT91C_PIO_PA27,  0); /* MCCK */
+	at91_pio_use_periph_a(AT91RM92_PIOA_BASE, AT91C_PIO_PA28, 1);  /* MCCDA */
+	at91_pio_use_periph_a(AT91RM92_PIOA_BASE, AT91C_PIO_PA29, 1);  /* MCDA0 */
+	if (has_4wire) {
+		at91_pio_use_periph_b(AT91RM92_PIOB_BASE, AT91C_PIO_PB3, 1); /* MCDA1 */
+		at91_pio_use_periph_b(AT91RM92_PIOB_BASE, AT91C_PIO_PB4, 1); /* MCDA2 */
+		at91_pio_use_periph_b(AT91RM92_PIOB_BASE, AT91C_PIO_PB5, 1); /* MCDA3 */
 	}
 }

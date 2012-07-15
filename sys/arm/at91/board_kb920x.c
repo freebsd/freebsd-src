@@ -32,10 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/board.h>
 #include <arm/at91/at91board.h>
 #include <arm/at91/at91var.h>
-#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91rm9200var.h>
-#include <arm/at91/at91_piovar.h>
-#include <arm/at91/at91_pio_rm9200.h>
 
 BOARD_INIT long
 board_init(void)
@@ -54,13 +51,14 @@ board_init(void)
 	at91rm9200_config_uart(AT91RM9200_ID_USART3, 3,	/* Tx, Rx, CTS, RTS - RS485 */
 	    AT91_UART_CTS | AT91_UART_RTS);
 
-	/*  MMC/SD Interface */
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,AT91C_PA27_MCCK,  0);
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,AT91C_PA28_MCCDA, 1);
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,AT91C_PA29_MCDA0, 1);
-	at91_pio_use_periph_b(AT91RM92_PIOB_BASE,AT91C_PB3_MCDA1, 1);
-	at91_pio_use_periph_b(AT91RM92_PIOB_BASE,AT91C_PB4_MCDA2, 1);
-	at91_pio_use_periph_b(AT91RM92_PIOB_BASE,AT91C_PB5_MCDA3, 1);
+	at91rm9200_config_mci(1);
+
+	/* CFE interface */
+	/* ethernet interface */
+	/* lcd interface */
+	/* USB host */
+	/* USB device (gadget) */
+	/* TWI */
 
 	return (at91_ramsize());
 }
