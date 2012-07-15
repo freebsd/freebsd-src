@@ -428,8 +428,9 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	ATH_PCU_LOCK(sc);
 	if (dosched && sc->sc_kickpcu) {
 		CTR0(ATH_KTR_ERR, "ath_edma_recv_proc_queue(): kickpcu");
-		device_printf(sc->sc_dev, "%s: handled %d descriptors\n",
-		    __func__, ngood);
+		device_printf(sc->sc_dev,
+		    "%s: handled npkts %d ngood %d\n",
+		    __func__, npkts, ngood);
 
 		/*
 		 * XXX TODO: what should occur here? Just re-poke and
