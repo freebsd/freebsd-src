@@ -110,7 +110,7 @@ typedef enum {
 	HAL_CAP_TPC_ACK		= 26,	/* ack txpower with per-packet tpc */
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
-
+	HAL_CAP_PCIE_PS		= 29,
 	HAL_CAP_HT		= 30,   /* hardware can support HT */
 	HAL_CAP_GTXTO		= 31,	/* hardware supports global tx timeout */
 	HAL_CAP_FAST_CC		= 32,	/* hardware supports fast channel change */
@@ -120,6 +120,9 @@ typedef enum {
 
 	HAL_CAP_CST		= 38,	/* hardware supports carrier sense timeout */
 
+	HAL_CAP_RIFS_RX		= 39,
+	HAL_CAP_RIFS_TX		= 40,
+	HAL_CAP_FORCE_PPM	= 41,
 	HAL_CAP_RTS_AGGR_LIMIT	= 42,	/* aggregation limit with RTS */
 	HAL_CAP_4ADDR_AGGR	= 43,	/* hardware is capable of 4addr aggregation */
 	HAL_CAP_DFS_DMN		= 44,	/* current DFS domain */
@@ -131,8 +134,32 @@ typedef enum {
 	HAL_CAP_MBSSID_AGGR_SUPPORT	= 49, /* Support for mBSSID Aggregation */
 	HAL_CAP_SPLIT_4KB_TRANS	= 50,	/* hardware supports descriptors straddling a 4k page boundary */
 	HAL_CAP_REG_FLAG	= 51,	/* Regulatory domain flags */
+	HAL_CAP_BB_RIFS_HANG	= 52,
+	HAL_CAP_RIFS_RX_ENABLED	= 53,
+	HAL_CAP_BB_DFS_HANG	= 54,
 
 	HAL_CAP_BT_COEX		= 60,	/* hardware is capable of bluetooth coexistence */
+	HAL_CAP_DYNAMIC_SMPS	= 61,	/* Dynamic MIMO Power Save hardware support */
+
+	HAL_CAP_DS		= 67,	/* 2 stream */
+	HAL_CAP_BB_RX_CLEAR_STUCK_HANG	= 68,
+	HAL_CAP_MAC_HANG	= 69,	/* can MAC hang */
+	HAL_CAP_MFP		= 70,	/* Management Frame Protection in hardware */
+
+	HAL_CAP_TS		= 72,	/* 3 stream */
+
+	HAL_CAP_ENHANCED_DMA_SUPPORT	= 75,	/* DMA FIFO support */
+	HAL_CAP_NUM_TXMAPS	= 76,	/* Number of buffers in a transmit descriptor */
+	HAL_CAP_TXDESCLEN	= 77,	/* Length of transmit descriptor */
+	HAL_CAP_TXSTATUSLEN	= 78,	/* Length of transmit status descriptor */
+	HAL_CAP_RXSTATUSLEN	= 79,	/* Length of transmit status descriptor */
+	HAL_CAP_RXFIFODEPTH	= 80,	/* Receive hardware FIFO depth */
+	HAL_CAP_RXBUFSIZE	= 81,	/* Receive Buffer Length */
+	HAL_CAP_NUM_MR_RETRIES	= 82,	/* limit on multirate retries */
+
+	HAL_CAP_OL_PWRCTRL	= 84,	/* Open loop TX power control */
+
+	HAL_CAP_BB_PANIC_WATCHDOG	= 92,
 
 	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
 
@@ -144,7 +171,6 @@ typedef enum {
 	HAL_CAP_INTMIT		= 229,	/* interference mitigation */
 	HAL_CAP_RXORN_FATAL	= 230,	/* HAL_INT_RXORN treated as fatal */
 	HAL_CAP_BB_HANG		= 235,	/* can baseband hang */
-	HAL_CAP_MAC_HANG	= 236,	/* can MAC hang */
 	HAL_CAP_INTRMASK	= 237,	/* bitmask of supported interrupts */
 	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
@@ -189,7 +215,7 @@ typedef enum {
 
 typedef enum {
 	HAL_RX_QUEUE_HP = 0,			/* high priority recv queue */
-	HAL_RX_QUEUE_LP = 0,			/* low priority recv queue */
+	HAL_RX_QUEUE_LP = 1,			/* low priority recv queue */
 } HAL_RX_QUEUE;
 
 #define	HAL_NUM_RX_QUEUES	2		/* max possible # of queues */
@@ -383,7 +409,10 @@ typedef enum {
  */
 typedef enum {
 	HAL_INT_RX	= 0x00000001,	/* Non-common mapping */
-	HAL_INT_RXDESC	= 0x00000002,
+	HAL_INT_RXDESC	= 0x00000002,	/* Legacy mapping */
+	HAL_INT_RXHP	= 0x00000001,	/* EDMA */
+	HAL_INT_RXLP	= 0x00000002,	/* EDMA */
+	HAL_INT_RXERR	= 0x00000004,
 	HAL_INT_RXNOFRM	= 0x00000008,
 	HAL_INT_RXEOL	= 0x00000010,
 	HAL_INT_RXORN	= 0x00000020,
@@ -1057,8 +1086,8 @@ struct ath_hal {
 				const struct ath_desc *ds, int *rates, int *tries);
 
 	/* Receive Functions */
-	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*);
-	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp);
+	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*, HAL_RX_QUEUE);
+	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp, HAL_RX_QUEUE);
 	void	  __ahdecl(*ah_enableReceive)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_stopDmaReceive)(struct ath_hal*);
 	void	  __ahdecl(*ah_startPcuReceive)(struct ath_hal*);

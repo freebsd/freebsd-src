@@ -24,6 +24,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20120712:
+	The OpenSSL has been upgraded to 1.0.1c.  Any binaries requiring
+	libcrypto.so.6 or libssl.so.6 must be recompiled.  Also, there are
+	configuration changes.  Make sure to merge /etc/ssl/openssl.cnf.
+
+20120712:
+	The following sysctls and tunables have been renamed for consistency
+	with other variables:
+	  kern.cam.da.da_send_ordered   -> kern.cam.da.send_ordered
+	  kern.cam.ada.ada_send_ordered -> kern.cam.ada.send_ordered
+
 20120628:
 	The sort utility has been replaced with BSD sort.  For now, GNU sort
 	is also available as "gnusort" or the default can be set back to

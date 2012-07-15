@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include "el.h"
 
-#define	OKCMD	-1	/* must be -1! */
+#define	OKCMD	-1
 
 private int	read__fixio(int, int);
 private int	read_preread(EditLine *);
@@ -170,7 +170,7 @@ read__fixio(int fd __unused, int e)
 		return (e ? 0 : -1);
 
 	case EINTR:
-		return (-1);
+		return (0);
 
 	default:
 		return (-1);
@@ -426,7 +426,7 @@ el_gets(EditLine *el, int *nread)
 		char *cp = el->el_line.buffer;
 		size_t idx;
 
-		while ((num = (*el->el_read.read_char)(el, cp)) == 1) {
+		while ((*el->el_read.read_char)(el, cp) == 1) {
 			/* make sure there is space for next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);
@@ -440,11 +440,8 @@ el_gets(EditLine *el, int *nread)
 			if (cp[-1] == '\r' || cp[-1] == '\n')
 				break;
 		}
-		if (num == -1) {
-			if (errno == EINTR)
-				cp = el->el_line.buffer;
+		if (num == -1)
 			el->el_errno = errno;
-		}
 
 		el->el_line.cursor = el->el_line.lastchar = cp;
 		*cp = '\0';
@@ -482,7 +479,7 @@ el_gets(EditLine *el, int *nread)
 
 		term__flush(el);
 
-		while ((num = (*el->el_read.read_char)(el, cp)) == 1) {
+		while ((*el->el_read.read_char)(el, cp) == 1) {
 			/* make sure there is space next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);
@@ -499,8 +496,6 @@ el_gets(EditLine *el, int *nread)
 		}
 
 		if (num == -1) {
-			if (errno == EINTR)
-				cp = el->el_line.buffer;
 			el->el_errno = errno;
 		}
 
@@ -520,12 +515,6 @@ el_gets(EditLine *el, int *nread)
 			(void) fprintf(el->el_errfile,
 			    "Returning from el_gets %d\n", num);
 #endif /* DEBUG_READ */
-			break;
-		}
-		if (el->el_errno == EINTR) {
-			el->el_line.buffer[0] = '\0';
-			el->el_line.lastchar =
-			    el->el_line.cursor = el->el_line.buffer;
 			break;
 		}
 		if ((unsigned int)cmdnum >= (unsigned int)el->el_map.nfunc) {	/* BUG CHECK command */

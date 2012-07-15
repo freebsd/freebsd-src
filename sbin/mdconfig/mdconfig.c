@@ -54,7 +54,7 @@
 #include <unistd.h>
 
 static struct md_ioctl mdio;
-static enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
+static enum {UNSET, ATTACH, DETACH, RESIZE, LIST} action = UNSET;
 static int nflag;
 
 static void usage(void);
@@ -81,6 +81,7 @@ usage(void)
 "                [-s size] [-S sectorsize] [-u unit]\n"
 "                [-x sectors/track] [-y heads/cylinder]\n"
 "       mdconfig -d -u unit [-o [no]force]\n"
+"       mdconfig -r -u unit -s size [-o [no]force]\n"
 "       mdconfig -l [-v] [-n] [-u unit]\n"
 "       mdconfig file\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
@@ -96,7 +97,7 @@ main(int argc, char **argv)
 {
 	int ch, fd, i, vflag;
 	char *p;
-	char *fflag = NULL, *tflag = NULL, *uflag = NULL;
+	char *fflag = NULL, *sflag = NULL, *tflag = NULL, *uflag = NULL;
 
 	bzero(&mdio, sizeof(mdio));
 	mdio.md_file = malloc(PATH_MAX);
@@ -108,25 +109,32 @@ main(int argc, char **argv)
 	if (argc == 1)
 		usage();
 
-	while ((ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:vx:y:")) != -1) {
+	while ((ch = getopt(argc, argv, "ab:df:lno:rs:S:t:u:vx:y:")) != -1) {
 		switch (ch) {
 		case 'a':
 			if (action != UNSET && action != ATTACH)
-				errx(1,
-				    "-a is mutually exclusive with -d and -l");
+				errx(1, "-a is mutually exclusive "
+				    "with -d, -r, and -l");
 			action = ATTACH;
 			break;
 		case 'd':
 			if (action != UNSET && action != DETACH)
-				errx(1,
-				    "-d is mutually exclusive with -a and -l");
+				errx(1, "-d is mutually exclusive "
+				    "with -a, -r, and -l");
 			action = DETACH;
+			mdio.md_options |= MD_AUTOUNIT;
+			break;
+		case 'r':
+			if (action != UNSET && action != RESIZE)
+				errx(1, "-r is mutually exclusive "
+				    "with -a, -d, and -l");
+			action = RESIZE;
 			mdio.md_options |= MD_AUTOUNIT;
 			break;
 		case 'l':
 			if (action != UNSET && action != LIST)
-				errx(1,
-				    "-l is mutually exclusive with -a and -d");
+				errx(1, "-l is mutually exclusive "
+				    "with -a, -r, and -d");
 			action = LIST;
 			mdio.md_options |= MD_AUTOUNIT;
 			break;
@@ -188,6 +196,9 @@ main(int argc, char **argv)
 			mdio.md_sectorsize = strtoul(optarg, &p, 0);
 			break;
 		case 's':
+			if (sflag != NULL)
+				errx(1, "-s can be passed only once");
+			sflag = optarg;
 			mdio.md_mediasize = (off_t)strtoumax(optarg, &p, 0);
 			if (p == NULL || *p == '\0')
 				mdio.md_mediasize *= DEV_BSIZE;
@@ -242,7 +253,7 @@ main(int argc, char **argv)
 				mdio.md_type = MD_VNODE;
 				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT |
 				    MD_COMPRESS;
-			} else if (mdio.md_mediasize != 0) {
+			} else if (sflag != NULL) {
 				/* Imply ``-t swap'' */
 				mdio.md_type = MD_SWAP;
 				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT |
@@ -276,15 +287,15 @@ main(int argc, char **argv)
 		}
 
 		if ((mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP) &&
-		    mdio.md_mediasize == 0)
+		    sflag == NULL)
 			errx(1, "must specify -s for -t malloc or -t swap");
 		if (mdio.md_type == MD_VNODE && mdio.md_file[0] == '\0')
 			errx(1, "must specify -f for -t vnode");
 	} else {
 		if (mdio.md_sectorsize != 0)
 			errx(1, "-S can only be used with -a");
-		if (mdio.md_mediasize != 0)
-			errx(1, "-s can only be used with -a");
+		if (action != RESIZE && sflag != NULL)
+			errx(1, "-s can only be used with -a and -r");
 		if (mdio.md_fwsectors != 0)
 			errx(1, "-x can only be used with -a");
 		if (mdio.md_fwheads != 0)
@@ -295,12 +306,19 @@ main(int argc, char **argv)
 			errx(1, "-t can only be used with -a");
 		if (argc > 0)
 			errx(1, "file can only be used with -a");
-		if (action != DETACH && (mdio.md_options & ~MD_AUTOUNIT) != 0)
-			errx(1, "-o can only be used with -a and -d");
+		if ((action != DETACH && action != RESIZE) &&
+		    (mdio.md_options & ~MD_AUTOUNIT) != 0)
+			errx(1, "-o can only be used with -a, -d, and -r");
 		if (action == DETACH &&
 		    (mdio.md_options & ~(MD_FORCE | MD_AUTOUNIT)) != 0)
 			errx(1, "only -o [no]force can be used with -d");
+		if (action == RESIZE &&
+		    (mdio.md_options & ~(MD_FORCE | MD_RESERVE | MD_AUTOUNIT)) != 0)
+			errx(1, "only -o [no]force and -o [no]reserve can be used with -r");
 	}
+
+	if (action == RESIZE && sflag == NULL)
+		errx(1, "must specify -s for -r");
 
 	if (action != LIST && vflag == OPT_VERBOSE)
 		errx(1, "-v can only be used with -l");
@@ -333,6 +351,12 @@ main(int argc, char **argv)
 		i = ioctl(fd, MDIOCDETACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
+	} else if (action == RESIZE) {
+		if (mdio.md_options & MD_AUTOUNIT)
+			errx(1, "-r requires -u");
+		i = ioctl(fd, MDIOCRESIZE, &mdio);
+		if (i < 0)
+			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
 	} else if (action == LIST) {
 		if (mdio.md_options & MD_AUTOUNIT) {
 			/*
@@ -342,7 +366,6 @@ main(int argc, char **argv)
 			md_list(NULL, OPT_LIST | vflag);
 		} else
 			return (md_query(uflag));
-
 	} else
 		usage();
 	close(fd);

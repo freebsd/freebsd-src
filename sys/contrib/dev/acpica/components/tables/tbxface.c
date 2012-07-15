@@ -1,7 +1,6 @@
 /******************************************************************************
  *
- * Module Name: tbxface - Public interfaces to the ACPI subsystem
- *                         ACPI table oriented interfaces
+ * Module Name: tbxface - ACPI table oriented external interfaces
  *
  *****************************************************************************/
 
@@ -46,17 +45,10 @@
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbxface")
-
-/* Local prototypes */
-
-static ACPI_STATUS
-AcpiTbLoadNamespace (
-    void);
 
 
 /*******************************************************************************
@@ -454,165 +446,6 @@ AcpiGetTableByIndex (
 }
 
 ACPI_EXPORT_SYMBOL (AcpiGetTableByIndex)
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbLoadNamespace
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Load the namespace from the DSDT and all SSDTs/PSDTs found in
- *              the RSDT/XSDT.
- *
- ******************************************************************************/
-
-static ACPI_STATUS
-AcpiTbLoadNamespace (
-    void)
-{
-    ACPI_STATUS             Status;
-    UINT32                  i;
-    ACPI_TABLE_HEADER       *NewDsdt;
-
-
-    ACPI_FUNCTION_TRACE (TbLoadNamespace);
-
-
-    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-
-    /*
-     * Load the namespace. The DSDT is required, but any SSDT and
-     * PSDT tables are optional. Verify the DSDT.
-     */
-    if (!AcpiGbl_RootTableList.CurrentTableCount ||
-        !ACPI_COMPARE_NAME (
-            &(AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Signature),
-            ACPI_SIG_DSDT) ||
-         ACPI_FAILURE (AcpiTbVerifyTable (
-            &AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT])))
-    {
-        Status = AE_NO_ACPI_TABLES;
-        goto UnlockAndExit;
-    }
-
-    /*
-     * Save the DSDT pointer for simple access. This is the mapped memory
-     * address. We must take care here because the address of the .Tables
-     * array can change dynamically as tables are loaded at run-time. Note:
-     * .Pointer field is not validated until after call to AcpiTbVerifyTable.
-     */
-    AcpiGbl_DSDT = AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer;
-
-    /*
-     * Optionally copy the entire DSDT to local memory (instead of simply
-     * mapping it.) There are some BIOSs that corrupt or replace the original
-     * DSDT, creating the need for this option. Default is FALSE, do not copy
-     * the DSDT.
-     */
-    if (AcpiGbl_CopyDsdtLocally)
-    {
-        NewDsdt = AcpiTbCopyDsdt (ACPI_TABLE_INDEX_DSDT);
-        if (NewDsdt)
-        {
-            AcpiGbl_DSDT = NewDsdt;
-        }
-    }
-
-    /*
-     * Save the original DSDT header for detection of table corruption
-     * and/or replacement of the DSDT from outside the OS.
-     */
-    ACPI_MEMCPY (&AcpiGbl_OriginalDsdtHeader, AcpiGbl_DSDT,
-        sizeof (ACPI_TABLE_HEADER));
-
-    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
-
-    /* Load and parse tables */
-
-    Status = AcpiNsLoadTable (ACPI_TABLE_INDEX_DSDT, AcpiGbl_RootNode);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
-
-    (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    for (i = 2; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
-    {
-        if ((!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
-                    ACPI_SIG_SSDT) &&
-             !ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
-                    ACPI_SIG_PSDT)) ||
-             ACPI_FAILURE (AcpiTbVerifyTable (
-                &AcpiGbl_RootTableList.Tables[i])))
-        {
-            continue;
-        }
-
-        /* Skip SSDT when DSDT is overriden */
-
-        if (ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
-                    ACPI_SIG_SSDT) &&
-            (AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Flags &
-                    ACPI_TABLE_ORIGIN_OVERRIDE))
-        {
-            continue;
-        }
-
-        /* Ignore errors while loading tables, get as many as possible */
-
-        (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
-        (void) AcpiNsLoadTable (i, AcpiGbl_RootNode);
-        (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    }
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
-
-UnlockAndExit:
-    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiLoadTables
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Load the ACPI tables from the RSDT/XSDT
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiLoadTables (
-    void)
-{
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE (AcpiLoadTables);
-
-
-    /* Load the namespace from the tables */
-
-    Status = AcpiTbLoadNamespace ();
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_EXCEPTION ((AE_INFO, Status,
-            "While loading namespace from ACPI tables"));
-    }
-
-    return_ACPI_STATUS (Status);
-}
-
-ACPI_EXPORT_SYMBOL (AcpiLoadTables)
 
 
 /*******************************************************************************

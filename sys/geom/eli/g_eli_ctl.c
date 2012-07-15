@@ -1020,6 +1020,12 @@ g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 			/* Compatible. */
 			break;
 		}
+		if (G_ELI_VERSION == G_ELI_VERSION_07 &&
+		    (*version == G_ELI_VERSION_05 ||
+		     *version == G_ELI_VERSION_06)) {
+			/* Compatible. */
+			break;
+		}
 		gctl_error(req, "Userland and kernel parts are out of sync.");
 		return;
 	}

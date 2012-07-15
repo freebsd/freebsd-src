@@ -97,6 +97,13 @@ clflush(u_long addr)
 }
 
 static __inline void
+clts(void)
+{
+
+	__asm __volatile("clts");
+}
+
+static __inline void
 disable_intr(void)
 {
 #ifdef XEN
@@ -688,6 +695,9 @@ intr_restore(register_t eflags)
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
 u_int	bsrl(u_int mask);
+void	clflush(u_long addr);
+void	clts(void);
+void	cpuid_count(u_int ax, u_int cx, u_int *p);
 void	disable_intr(void);
 void	do_cpuid(u_int ax, u_int *p);
 void	enable_intr(void);

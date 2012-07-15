@@ -115,9 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
-#define	ATH_KTR_INTR	KTR_SPARE4
-#define	ATH_KTR_ERR	KTR_SPARE3
-
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -214,8 +211,8 @@ ath_calcrxfilter(struct ath_softc *sc)
 	return rfilt;
 }
 
-int
-ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
+static int
+ath_legacy_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	int error;
@@ -463,32 +460,9 @@ ath_handle_micerror(struct ieee80211com *ic,
 	}
 }
 
-/*
- * Only run the RX proc if it's not already running.
- * Since this may get run as part of the reset/flush path,
- * the task can't clash with an existing, running tasklet.
- */
-void
-ath_rx_tasklet(void *arg, int npending)
-{
-	struct ath_softc *sc = arg;
-
-	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
-	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
-	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
-		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
-		ATH_PCU_UNLOCK(sc);
-		return;
-	}
-	ATH_PCU_UNLOCK(sc);
-	ath_rx_proc(sc, 1);
-}
-
-static int
+int
 ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
-    uint64_t tsf, int nf, struct ath_buf *bf)
+    uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct mbuf *m = bf->bf_m;
@@ -498,6 +472,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	int is_good = 0;
+	struct ath_rx_edma *re = &sc->sc_rxedma[qtype];
 
 	/*
 	 * Calculate the correct 64 bit TSF given
@@ -582,9 +557,9 @@ rx_error:
 		/*
 		 * Cleanup any pending partial frame.
 		 */
-		if (sc->sc_rxpending != NULL) {
-			m_freem(sc->sc_rxpending);
-			sc->sc_rxpending = NULL;
+		if (re->m_rxpending != NULL) {
+			m_freem(re->m_rxpending);
+			re->m_rxpending = NULL;
 		}
 		/*
 		 * When a tap is present pass error frames
@@ -631,25 +606,25 @@ rx_accept:
 		 * it for the next completed descriptor, it
 		 * will be used to construct a jumbogram.
 		 */
-		if (sc->sc_rxpending != NULL) {
+		if (re->m_rxpending != NULL) {
 			/* NB: max frame size is currently 2 clusters */
 			sc->sc_stats.ast_rx_toobig++;
-			m_freem(sc->sc_rxpending);
+			m_freem(re->m_rxpending);
 		}
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
-		sc->sc_rxpending = m;
+		re->m_rxpending = m;
 		goto rx_next;
-	} else if (sc->sc_rxpending != NULL) {
+	} else if (re->m_rxpending != NULL) {
 		/*
 		 * This is the second part of a jumbogram,
 		 * chain it to the first mbuf, adjust the
 		 * frame length, and clear the rxpending state.
 		 */
-		sc->sc_rxpending->m_next = m;
-		sc->sc_rxpending->m_pkthdr.len += len;
-		m = sc->sc_rxpending;
-		sc->sc_rxpending = NULL;
+		re->m_rxpending->m_next = m;
+		re->m_rxpending->m_pkthdr.len += len;
+		m = re->m_rxpending;
+		re->m_rxpending = NULL;
 	} else {
 		/*
 		 * Normal single-descriptor receive; setup
@@ -814,7 +789,7 @@ rx_next:
 	return (is_good);
 }
 
-void
+static void
 ath_rx_proc(struct ath_softc *sc, int resched)
 {
 #define	PA2DESC(_sc, _pa) \
@@ -906,7 +881,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		/*
 		 * Process a single frame.
 		 */
-		if (ath_rx_pkt(sc, rs, status, tsf, nf, bf))
+		if (ath_rx_pkt(sc, rs, status, tsf, nf, HAL_RX_QUEUE_HP, bf))
 			ngood++;
 rx_proc_next:
 		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
@@ -939,7 +914,7 @@ rx_proc_next:
 		 * Are there any net80211 buffer calls involved?
 		 */
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
-		ath_hal_putrxbuf(ah, bf->bf_daddr);
+		ath_hal_putrxbuf(ah, bf->bf_daddr, HAL_RX_QUEUE_HP);
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
@@ -965,10 +940,41 @@ rx_proc_next:
 }
 
 /*
+ * Only run the RX proc if it's not already running.
+ * Since this may get run as part of the reset/flush path,
+ * the task can't clash with an existing, running tasklet.
+ */
+static void
+ath_legacy_rx_tasklet(void *arg, int npending)
+{
+	struct ath_softc *sc = arg;
+
+	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
+	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+	ATH_PCU_UNLOCK(sc);
+
+	ath_rx_proc(sc, 1);
+}
+
+static void
+ath_legacy_flushrecv(struct ath_softc *sc)
+{
+
+	ath_rx_proc(sc, 0);
+}
+
+/*
  * Disable the receive h/w in preparation for a reset.
  */
-void
-ath_stoprecv(struct ath_softc *sc, int dodelay)
+static void
+ath_legacy_stoprecv(struct ath_softc *sc, int dodelay)
 {
 #define	PA2DESC(_sc, _pa) \
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
@@ -994,7 +1000,7 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 		device_printf(sc->sc_dev,
 		    "%s: rx queue %p, link %p\n",
 		    __func__,
-		    (caddr_t)(uintptr_t) ath_hal_getrxbuf(ah),
+		    (caddr_t)(uintptr_t) ath_hal_getrxbuf(ah, HAL_RX_QUEUE_HP),
 		    sc->sc_rxlink);
 		ix = 0;
 		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
@@ -1008,9 +1014,16 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 		}
 	}
 #endif
-	if (sc->sc_rxpending != NULL) {
-		m_freem(sc->sc_rxpending);
-		sc->sc_rxpending = NULL;
+	/*
+	 * Free both high/low RX pending, just in case.
+	 */
+	if (sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending != NULL) {
+		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending);
+		sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
+	}
+	if (sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending != NULL) {
+		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending);
+		sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending = NULL;
 	}
 	sc->sc_rxlink = NULL;		/* just in case */
 #undef PA2DESC
@@ -1019,14 +1032,15 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 /*
  * Enable the receive h/w following a reset.
  */
-int
-ath_startrecv(struct ath_softc *sc)
+static int
+ath_legacy_startrecv(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
 
 	sc->sc_rxlink = NULL;
-	sc->sc_rxpending = NULL;
+	sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
+	sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending = NULL;
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 		int error = ath_rxbuf_init(sc, bf);
 		if (error != 0) {
@@ -1038,9 +1052,51 @@ ath_startrecv(struct ath_softc *sc)
 	}
 
 	bf = TAILQ_FIRST(&sc->sc_rxbuf);
-	ath_hal_putrxbuf(ah, bf->bf_daddr);
+	ath_hal_putrxbuf(ah, bf->bf_daddr, HAL_RX_QUEUE_HP);
 	ath_hal_rxena(ah);		/* enable recv descriptors */
 	ath_mode_init(sc);		/* set filters, etc. */
 	ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
 	return 0;
+}
+
+static int
+ath_legacy_dma_rxsetup(struct ath_softc *sc)
+{
+	int error;
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
+
+	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
+	    "rx", ath_rxbuf, 1);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+static int
+ath_legacy_dma_rxteardown(struct ath_softc *sc)
+{
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	
+	if (sc->sc_rxdma.dd_desc_len != 0)
+		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
+	return (0);
+}
+
+void
+ath_recv_setup_legacy(struct ath_softc *sc)
+{
+
+	device_printf(sc->sc_dev, "DMA setup: legacy\n");
+
+	sc->sc_rx.recv_start = ath_legacy_startrecv;
+	sc->sc_rx.recv_stop = ath_legacy_stoprecv;
+	sc->sc_rx.recv_flush = ath_legacy_flushrecv;
+	sc->sc_rx.recv_tasklet = ath_legacy_rx_tasklet;
+	sc->sc_rx.recv_rxbuf_init = ath_legacy_rxbuf_init;
+
+	sc->sc_rx.recv_setup = ath_legacy_dma_rxsetup;
+	sc->sc_rx.recv_teardown = ath_legacy_dma_rxteardown;
 }
