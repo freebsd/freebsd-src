@@ -401,14 +401,16 @@ first_vector(struct port_info *pi)
 		return (0);
 
 	for_each_port(sc, i) {
+		struct port_info *p = sc->port[i];
+
 		if (i == pi->port_id)
 			break;
 
 #ifdef TCP_OFFLOAD
 		if (sc->flags & INTR_DIRECT)
-			rc += pi->nrxq + pi->nofldrxq;
+			rc += p->nrxq + p->nofldrxq;
 		else
-			rc += max(pi->nrxq, pi->nofldrxq);
+			rc += max(p->nrxq, p->nofldrxq);
 #else
 		/*
 		 * Not compiled with offload support and intr_count > 1.  Only
@@ -419,7 +421,7 @@ first_vector(struct port_info *pi)
 		    ("%s: intr_count %d, !INTR_DIRECT", __func__,
 		    sc->intr_count));
 
-		rc += pi->nrxq;
+		rc += p->nrxq;
 #endif
 	}
 
