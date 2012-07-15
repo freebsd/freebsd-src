@@ -161,7 +161,9 @@ struct ath_stats {
 	u_int32_t	ast_tx_aggr_ok;		/* aggregate TX ok */
 	u_int32_t	ast_tx_aggr_fail;	/* aggregate TX failed */
 	u_int32_t	ast_tx_mcastq_overflow;	/* multicast queue overflow */
-	u_int32_t	ast_pad[1];
+	u_int32_t	ast_rx_keymiss;
+
+	u_int32_t	ast_pad[16];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
