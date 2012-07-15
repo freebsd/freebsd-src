@@ -5258,7 +5258,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_ADD_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
-			size_t sz;
 			struct thread *td;
 
 			td = (struct thread *)p;
@@ -5266,8 +5265,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			    optsize);
 #ifdef INET
 			if (addrs->addr->sa_family == AF_INET) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
@@ -5280,8 +5278,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 #endif
 #ifdef INET6
 			if (addrs->addr->sa_family == AF_INET6) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
@@ -5305,7 +5302,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_REM_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
-			size_t sz;
 			struct thread *td;
 
 			td = (struct thread *)p;
@@ -5313,8 +5309,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(addrs, optval, struct sctp_getaddresses, optsize);
 #ifdef INET
 			if (addrs->addr->sa_family == AF_INET) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
@@ -5327,8 +5322,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 #endif
 #ifdef INET6
 			if (addrs->addr->sa_family == AF_INET6) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
