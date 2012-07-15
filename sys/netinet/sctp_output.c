@@ -8432,12 +8432,14 @@ again_one_more_time:
 		}
 		/* now lets add any data within the MTU constraints */
 		switch (((struct sockaddr *)&net->ro._l_addr)->sa_family) {
+#ifdef INET
 		case AF_INET:
 			if (net->mtu > (sizeof(struct ip) + sizeof(struct sctphdr)))
 				omtu = net->mtu - (sizeof(struct ip) + sizeof(struct sctphdr));
 			else
 				omtu = 0;
 			break;
+#endif
 #ifdef INET6
 		case AF_INET6:
 			if (net->mtu > (sizeof(struct ip6_hdr) + sizeof(struct sctphdr)))
@@ -12165,7 +12167,7 @@ sctp_lower_sosend(struct socket *so,
 		union sctp_sockstore *raddr = (union sctp_sockstore *)addr;
 
 		switch (raddr->sa.sa_family) {
-#if defined(INET)
+#ifdef INET
 		case AF_INET:
 			if (raddr->sin.sin_len != sizeof(struct sockaddr_in)) {
 				SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
@@ -12175,7 +12177,7 @@ sctp_lower_sosend(struct socket *so,
 			port = raddr->sin.sin_port;
 			break;
 #endif
-#if defined(INET6)
+#ifdef INET6
 		case AF_INET6:
 			if (raddr->sin6.sin6_len != sizeof(struct sockaddr_in6)) {
 				SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
