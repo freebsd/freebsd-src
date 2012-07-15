@@ -223,7 +223,7 @@ loop:
 	if (fap == NULL)
 		return ENOENT;
 
-	np = malloc(sizeof *np, M_SMBNODE, M_WAITOK);
+	np = malloc(sizeof *np, M_SMBNODE, M_WAITOK | M_ZERO);
 	error = getnewvnode("smbfs", mp, &smbfs_vnodeops, &vp);
 	if (error) {
 		free(np, M_SMBNODE);
@@ -235,7 +235,6 @@ loop:
 		return (error);
 	}
 	vp->v_type = fap->fa_attr & SMB_FA_DIR ? VDIR : VREG;
-	bzero(np, sizeof(*np));
 	vp->v_data = np;
 	np->n_vnode = vp;
 	np->n_mount = VFSTOSMBFS(mp);
