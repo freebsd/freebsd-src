@@ -43,12 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_pf.h"
 
-#ifdef DEV_PFLOG
-#define	NPFLOG		DEV_PFLOG
-#else
-#define	NPFLOG		0
-#endif
-
 #ifdef DEV_PFLOW
 #define	NPFLOW	DEV_PFLOW
 #else

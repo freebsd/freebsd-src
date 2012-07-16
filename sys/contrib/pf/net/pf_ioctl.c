@@ -43,13 +43,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#ifdef DEV_PFLOG
-#define		NPFLOG		DEV_PFLOG
-#else
-#define		NPFLOG		0
-#endif
-
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -89,10 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 
 #include <net/if_pfsync.h>
-
-#if NPFLOG > 0
 #include <net/if_pflog.h>
-#endif /* NPFLOG > 0 */
 
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -1232,12 +1222,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				error = EBUSY;
 		if (rule->rt && !rule->direction)
 			error = EINVAL;
-#if NPFLOG > 0
 		if (!rule->log)
 			rule->logif = 0;
 		if (rule->logif >= PFLOGIFS_MAX)
 			error = EINVAL;
-#endif
 		if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
 			error = ENOMEM;
 		if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))
@@ -1485,12 +1473,10 @@ DIOCADDRULE_error:
 					error = EBUSY;
 			if (newrule->rt && !newrule->direction)
 				error = EINVAL;
-#if NPFLOG > 0
 			if (!newrule->log)
 				newrule->logif = 0;
 			if (newrule->logif >= PFLOGIFS_MAX)
 				error = EINVAL;
-#endif
 			if (pf_addr_setup(ruleset, &newrule->src.addr, newrule->af))
 				error = ENOMEM;
 			if (pf_addr_setup(ruleset, &newrule->dst.addr, newrule->af))
