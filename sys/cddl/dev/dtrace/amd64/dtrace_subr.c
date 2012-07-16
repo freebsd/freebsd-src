@@ -47,6 +47,8 @@
 extern uintptr_t 	dtrace_in_probe_addr;
 extern int		dtrace_in_probe;
 
+extern void dtrace_getnanotime(struct timespec *tsp);
+
 int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
 
 typedef struct dtrace_invop_hdlr {
@@ -461,8 +463,11 @@ dtrace_gethrtime()
 uint64_t
 dtrace_gethrestime(void)
 {
-	printf("%s(%d): XXX\n",__func__,__LINE__);
-	return (0);
+	struct timespec current_time;
+
+	dtrace_getnanotime(&current_time);
+
+	return (current_time.tv_sec * 1000000000UL + current_time.tv_nsec);
 }
 
 /* Function to handle DTrace traps during probes. See amd64/amd64/trap.c */
