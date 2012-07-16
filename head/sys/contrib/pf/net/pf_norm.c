@@ -32,12 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef DEV_PFLOG
-#define	NPFLOG	DEV_PFLOG
-#else
-#define	NPFLOG	0
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
