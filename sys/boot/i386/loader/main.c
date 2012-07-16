@@ -355,18 +355,18 @@ isa_outb(int port, int value)
 static void
 i386_zfs_probe(void)
 {
-	char devname[32];
-	int unit;
+    char devname[32];
+    int unit;
 
-	/*
-	 * Open all the disks we can find and see if we can reconstruct
-	 * ZFS pools from them.
-	 */
-	for (unit = 0; unit < MAXBDDEV; unit++) {
-		if (bd_unit2bios(unit) == -1)
-			break;
-		sprintf(devname, "disk%d:", unit);
-		zfs_probe_dev(devname, NULL);
-	}
+    /*
+     * Open all the disks we can find and see if we can reconstruct
+     * ZFS pools from them.
+     */
+    for (unit = 0; unit < MAXBDDEV; unit++) {
+	if (bd_unit2bios(unit) == -1)
+	    break;
+	sprintf(devname, "disk%d:", unit);
+	zfs_probe_dev(devname, NULL);
+    }
 }
 #endif
