@@ -1972,7 +1972,8 @@ do_zipwork(struct zipwork_entry *zwork)
 	else
 		pgm_name++;
 
-	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_pidok <= 0) {
+	if (zwork->zw_swork != NULL && zwork->zw_swork->run_cmd == 0 &&
+	    zwork->zw_swork->sw_pidok <= 0) {
 		warnx(
 		    "log %s not compressed because daemon(s) not notified",
 		    zwork->zw_fname);
