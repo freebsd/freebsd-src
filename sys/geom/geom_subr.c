@@ -615,8 +615,6 @@ g_resize_provider_event(void *arg, int flag)
 	off_t size;
 
 	g_topology_assert();
-	if (flag == EV_CANCEL)
-		return;
 	if (g_shutdown)
 		return;
 
