@@ -3204,8 +3204,8 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	if (r->log || (nr != NULL && nr->log)) {
 		if (rewrite)
 			m_copyback(m, off, hdrlen, pd->hdr.any);
-		PFLOG_PACKET(kif, h, m, af, direction, reason, r->log ? r : nr,
-		    a, ruleset, pd, 1);
+		PFLOG_PACKET(kif, m, af, direction, reason, r->log ? r : nr, a,
+		    ruleset, pd, 1);
 	}
 
 	if ((r->action == PF_DROP) &&
@@ -3631,8 +3631,8 @@ pf_test_fragment(struct pf_rule **rm, int direction, struct pfi_kif *kif,
 	REASON_SET(&reason, PFRES_MATCH);
 
 	if (r->log)
-		PFLOG_PACKET(kif, h, m, af, direction, reason, r, a, ruleset,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, af, direction, reason, r, a, ruleset, pd,
+		    1);
 
 	if (r->action != PF_PASS)
 		return (PF_DROP);
@@ -5855,8 +5855,8 @@ done:
 			lr = s->nat_rule.ptr;
 		else
 			lr = r;
-		PFLOG_PACKET(kif, h, m, AF_INET, dir, reason, lr, a, ruleset,
-		    &pd, (s == NULL));
+		PFLOG_PACKET(kif, m, AF_INET, dir, reason, lr, a, ruleset, &pd,
+		    (s == NULL));
 	}
 
 	kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS] += pd.tot_len;
@@ -6237,7 +6237,7 @@ done:
 			lr = s->nat_rule.ptr;
 		else
 			lr = r;
-		PFLOG_PACKET(kif, h, m, AF_INET6, dir, reason, lr, a, ruleset,
+		PFLOG_PACKET(kif, m, AF_INET6, dir, reason, lr, a, ruleset,
 		    &pd, (s == NULL));
 	}
 

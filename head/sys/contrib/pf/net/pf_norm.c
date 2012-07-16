@@ -1075,15 +1075,15 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
  no_mem:
 	REASON_SET(reason, PFRES_MEMORY);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, h, m, AF_INET, dir, *reason, r, NULL, NULL,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET, dir, *reason, r, NULL, NULL, pd,
+		    1);
 	return (PF_DROP);
 
  drop:
 	REASON_SET(reason, PFRES_NORM);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, h, m, AF_INET, dir, *reason, r, NULL, NULL,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET, dir, *reason, r, NULL, NULL, pd,
+		    1);
 	return (PF_DROP);
 
  bad:
@@ -1097,8 +1097,8 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 
 	REASON_SET(reason, PFRES_FRAG);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, h, m, AF_INET, dir, *reason, r, NULL, NULL,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET, dir, *reason, r, NULL, NULL, pd,
+		    1);
 
 	return (PF_DROP);
 }
@@ -1266,22 +1266,22 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
  shortpkt:
 	REASON_SET(reason, PFRES_SHORT);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, h, m, AF_INET6, dir, *reason, r, NULL, NULL,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET6, dir, *reason, r, NULL, NULL, pd,
+		    1);
 	return (PF_DROP);
 
  drop:
 	REASON_SET(reason, PFRES_NORM);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, h, m, AF_INET6, dir, *reason, r, NULL, NULL,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET6, dir, *reason, r, NULL, NULL, pd,
+		    1);
 	return (PF_DROP);
 
  badfrag:
 	REASON_SET(reason, PFRES_FRAG);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, h, m, AF_INET6, dir, *reason, r, NULL, NULL,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET6, dir, *reason, r, NULL, NULL, pd,
+		    1);
 	return (PF_DROP);
 }
 #endif /* INET6 */
@@ -1399,8 +1399,8 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
  tcp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(kif, h, m, AF_INET, dir, reason, r, NULL, NULL,
-		    pd, 1);
+		PFLOG_PACKET(kif, m, AF_INET, dir, reason, r, NULL, NULL, pd,
+		    1);
 	return (PF_DROP);
 }
 
