@@ -52,17 +52,6 @@ struct pfloghdr {
 /* minus pad, also used as a signature */
 #define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad)
 
-/* XXX remove later when old format logs are no longer needed */
-struct old_pfloghdr {
-	u_int32_t af;
-	char ifname[IFNAMSIZ];
-	short rnr;
-	u_short reason;
-	u_short action;
-	u_short dir;
-};
-#define	OLD_PFLOG_HDRLEN	sizeof(struct old_pfloghdr)
-
 #ifdef _KERNEL
 struct pf_rule;
 struct pf_ruleset;
