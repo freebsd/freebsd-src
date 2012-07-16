@@ -27,8 +27,7 @@
  */
 
 /*
- * Device descriptor for partitioned disks. We assume that all disk addresses
- * are 512 byte block offsets from the start of the disk. To use, set the
+ * Device descriptor for partitioned disks. To use, set the
  * d_slice and d_partition variables as follows:
  *
  * Whole disk access:
@@ -74,8 +73,6 @@
  * the device's strategy method.
  */
 
-#define DISK_SECSIZE	512
-
 struct disk_devdesc
 {
 	struct devsw	*d_dev;
@@ -95,8 +92,7 @@ extern int disk_open(struct disk_devdesc *dev, off_t mediasize,
 extern int disk_close(struct disk_devdesc *dev);
 
 /*
- * Print information about slices on a disk.  For the size calculations we
- * assume a 512 byte sector.
+ * Print information about slices on a disk.
  */
 extern void disk_print(struct disk_devdesc *dev, char *prefix, int verbose);
 extern char* disk_fmtdev(struct disk_devdesc *dev);
