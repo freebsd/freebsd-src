@@ -871,7 +871,13 @@ cpu_new_callout(int cpu, struct bintime bt)
 	state = DPCPU_ID_PTR(cpu, timerstate);
 	ET_HW_LOCK(state);
 
-	/* If there is callout time already set earlier -- do nothing. */
+	/* 
+	 * If there is callout time already set earlier -- do nothing. 
+	 * This check may appear redundant because we check already in  
+	 * callout_process() but this double check guarantees we're safe 
+	 * with respect to race conditions between interrupts execution 
+	 * and scheduling. 
+	 */
 	if (state->nextcall.sec != -1 &&
 	    bintime_cmp(&bt, &state->nextcall, >=)) {
 		ET_HW_UNLOCK(state);
