@@ -138,12 +138,19 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 
 	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
 
+	pflogifs[unit] = ifp;
+
 	return (0);
 }
 
 static void
 pflog_clone_destroy(struct ifnet *ifp)
 {
+	int i;
+
+	for (i = 0; i < PFLOGIFS_MAX; i++)
+		if (pflogifs[i] == ifp)
+			pflogifs[i] = NULL;
 
 	bpfdetach(ifp);
 	if_detach(ifp);
