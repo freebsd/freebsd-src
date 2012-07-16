@@ -517,25 +517,26 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
-static int
-timertoticks(intptr_t data)
+static struct bintime
+timer2bintime(intptr_t data)
 {
-	struct timeval tv;
-	int tticks;
+	struct bintime bt, pbt;
 
-	tv.tv_sec = data / 1000;
-	tv.tv_usec = (data % 1000) * 1000;
-	tticks = tvtohz(&tv);
-
-	return tticks;
+	getbinuptime(&pbt);
+	bt.sec = data / 1000;
+	bt.frac = (data % 1000) * (uint64_t)1844674407309000LL;
+	bintime_add(&bt, &pbt);
+	return bt;
 }
 
 static void
 filt_timerexpire(void *knx)
 {
-	struct knote *kn = knx;
+	struct bintime bt;
 	struct callout *calloutp;
+	struct knote *kn;
 
+	kn = knx;
 	kn->kn_data++;
 	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
 
@@ -547,9 +548,10 @@ filt_timerexpire(void *knx)
 	 * when we're delayed.
 	 */
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
+		bt = timer2bintime(kn->kn_sdata);
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata) - 1,
-		    filt_timerexpire, kn);
+		callout_reset_bt_on(calloutp, &bt, filt_timerexpire, kn,
+		    PCPU_GET(cpuid), C_P1MS);
 	}
 }
 
@@ -559,6 +561,7 @@ filt_timerexpire(void *knx)
 static int
 filt_timerattach(struct knote *kn)
 {
+	struct bintime bt;
 	struct callout *calloutp;
 
 	atomic_add_int(&kq_ncallouts, 1);
@@ -573,8 +576,9 @@ filt_timerattach(struct knote *kn)
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata),
-	    filt_timerexpire, kn);
+	bt = timer2bintime(kn->kn_sdata);
+	callout_reset_bt_on(calloutp, &bt, filt_timerexpire, kn,
+	    PCPU_GET(cpuid), C_P1MS);
 
 	return (0);
 }
