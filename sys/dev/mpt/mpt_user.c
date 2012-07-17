@@ -292,7 +292,7 @@ mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
 	params.PageType = hdr->PageType & MPI_CONFIG_PAGETYPE_MASK;
 	params.PageAddress = le32toh(page_req->page_address);
 	busdma_sync(mpt_page->map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE);
 	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
 	    le32toh(page_req->len), TRUE, 5000);
 	if (error != 0) {
@@ -303,7 +303,7 @@ mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
 	page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
 		busdma_sync(mpt_page->map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -382,7 +382,7 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 	params.ExtPageType = hdr->ExtPageType;
 	params.ExtPageLength = hdr->ExtPageLength;
 	busdma_sync(mpt_page->map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE);
 	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
 	    le32toh(ext_page_req->len), TRUE, 5000);
 	if (error != 0) {
@@ -393,7 +393,7 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 	ext_page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
 		busdma_sync(mpt_page->map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -428,8 +428,8 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	if (req == NULL)
 		return (ENOMEM);
 
-	busdma_sync(mpt_page->map, BUS_DMASYNC_PREREAD |
-	    BUS_DMASYNC_PREWRITE);
+	busdma_sync(mpt_page->map, BUSDMA_SYNC_PREREAD |
+	    BUSDMA_SYNC_PREWRITE);
 
 	/*
 	 * There isn't any point in restoring stripped out attributes
@@ -456,8 +456,8 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	}
 
 	page_req->ioc_status = htole16(req->IOCStatus);
-	busdma_sync(mpt_page->map, BUS_DMASYNC_POSTREAD |
-	    BUS_DMASYNC_POSTWRITE);
+	busdma_sync(mpt_page->map, BUSDMA_SYNC_POSTREAD |
+	    BUSDMA_SYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -529,7 +529,7 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	se = (SGE_SIMPLE32 *)&rap->ActionDataSGE;
 	if (mpt_page->vaddr != NULL && raid_act->len != 0) {
 		busdma_sync(mpt_page->map,
-		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		    BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE);
 		se->Address = htole32(mpt_page->paddr);
 		MPI_pSGE_SET_LENGTH(se, le32toh(raid_act->len));
 		MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
@@ -568,7 +568,7 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	    sizeof(res->action_data));
 	if (mpt_page->vaddr != NULL)
 		busdma_sync(mpt_page->map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);
 }

@@ -731,8 +731,8 @@ mpt_intr(void *arg)
 			 */
 			reply_baddr = MPT_REPLY_BADDR(reply_desc);
 			offset = reply_baddr - (mpt->reply_phys & 0xFFFFFFFF);
-			busdma_sync_range(mpt->reply_md, reply_baddr,
-			    MPT_REPLY_SIZE, BUS_DMASYNC_POSTREAD);
+			busdma_sync_range(mpt->reply_md, BUSDMA_SYNC_POSTREAD,
+			    reply_baddr, MPT_REPLY_SIZE);
 			reply_frame = MPT_REPLY_OTOV(mpt, offset);
 			ctxt_idx = le32toh(reply_frame->MsgContext);
 		} else {
@@ -809,13 +809,13 @@ mpt_intr(void *arg)
 		}
 
 		busdma_sync(mpt->request_md,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);
 		free_rf = mpt_reply_handlers[cb_index](mpt, req,
 		    reply_desc, reply_frame);
 
 		if (reply_frame != NULL && free_rf) {
-			busdma_sync_range(mpt->reply_md, reply_baddr,
-			    MPT_REPLY_SIZE, BUS_DMASYNC_PREREAD);
+			busdma_sync_range(mpt->reply_md, BUSDMA_SYNC_PREREAD,
+			    reply_baddr, MPT_REPLY_SIZE);
 			mpt_free_reply(mpt, reply_baddr);
 		}
 
@@ -849,7 +849,7 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		u_int		    cb_index;
 
 		busdma_sync(mpt->request_md,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
@@ -1237,8 +1237,8 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	mpt_send_event_ack(mpt, req, &record->reply, record->context);
 	offset = (uint32_t)((uint8_t *)record - mpt->reply);
 	reply_baddr = offset + (mpt->reply_phys & 0xFFFFFFFF);
-	busdma_sync_range(mpt->reply_md, offset, MPT_REPLY_SIZE,
-	    BUS_DMASYNC_PREREAD);
+	busdma_sync_range(mpt->reply_md, BUSDMA_SYNC_PREREAD, offset,
+	    MPT_REPLY_SIZE);
 	mpt_free_reply(mpt, reply_baddr);
 }
 
@@ -1279,7 +1279,7 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 		mpt_dump_request(mpt, req);
 	}
 	busdma_sync(mpt->request_md,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE);
 	req->state |= REQ_STATE_QUEUED;
 	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
 	    ("req %p:%u func %x on freelist list in mpt_send_cmd",
@@ -2406,12 +2406,12 @@ mpt_upload_fw(struct mpt_softc *mpt)
 	flags <<= MPI_SGE_FLAGS_SHIFT;
 	sge->FlagsLength = htole32(flags | mpt->fw_image_size);
 	sge->Address = htole32(mpt->fw_phys);
-	busdma_sync(mpt->fw_md, BUS_DMASYNC_PREREAD);
+	busdma_sync(mpt->fw_md, BUSDMA_SYNC_PREREAD);
 	error = mpt_send_handshake_cmd(mpt, sizeof(fw_req_buf), &fw_req_buf);
 	if (error)
 		return(error);
 	error = mpt_recv_handshake_reply(mpt, sizeof(fw_reply), &fw_reply);
-	busdma_sync(mpt->fw_md, BUS_DMASYNC_POSTREAD);
+	busdma_sync(mpt->fw_md, BUSDMA_SYNC_POSTREAD);
 	return (error);
 }
 
@@ -2461,10 +2461,10 @@ mpt_download_fw(struct mpt_softc *mpt)
 		  MPI_DIAG_RW_ENABLE|MPI_DIAG_DISABLE_ARM);
 
 	fw_hdr = (MpiFwHeader_t *)mpt->fw_image;
-	busdma_sync(mpt->fw_md, BUS_DMASYNC_PREWRITE);
+	busdma_sync(mpt->fw_md, BUSDMA_SYNC_PREWRITE);
 	mpt_diag_outsl(mpt, fw_hdr->LoadStartAddress, (uint32_t*)fw_hdr,
 		       fw_hdr->ImageSize);
-	busdma_sync(mpt->fw_md, BUS_DMASYNC_POSTWRITE);
+	busdma_sync(mpt->fw_md, BUSDMA_SYNC_POSTWRITE);
 
 	ext_offset = fw_hdr->NextImageHeaderOffset;
 	while (ext_offset != 0) {
@@ -2472,10 +2472,10 @@ mpt_download_fw(struct mpt_softc *mpt)
 
 		ext = (MpiExtImageHeader_t *)((uintptr_t)fw_hdr + ext_offset);
 		ext_offset = ext->NextImageHeaderOffset;
-		busdma_sync(mpt->fw_md, BUS_DMASYNC_PREWRITE);
+		busdma_sync(mpt->fw_md, BUSDMA_SYNC_PREWRITE);
 		mpt_diag_outsl(mpt, ext->LoadStartAddress, (uint32_t*)ext,
 			       ext->ImageSize);
-		busdma_sync(mpt->fw_md, BUS_DMASYNC_POSTWRITE);
+		busdma_sync(mpt->fw_md, BUSDMA_SYNC_POSTWRITE);
 	}
 
 	if (mpt->is_sas) {
