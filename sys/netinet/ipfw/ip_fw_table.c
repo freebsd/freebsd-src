@@ -344,9 +344,12 @@ ipfw_del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
 		struct xaddr_iface ifname, ifmask;
 		memset(&ifname, 0, sizeof(ifname));
 
+		/* Include last \0 into comparison */
+		mlen++;
+
 		/* Set 'total' structure length */
-		KEY_LEN(ifname) = mlen;
-		KEY_LEN(ifmask) = mlen;
+		KEY_LEN(ifname) = KEY_LEN_IFACE + mlen;
+		KEY_LEN(ifmask) = KEY_LEN_IFACE + mlen;
 		/* Assume direct match */
 		/* FIXME: Add interface pattern matching */
 #if 0
@@ -568,7 +571,8 @@ ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
 		break;
 
 	case IPFW_TABLE_INTERFACE:
-		KEY_LEN(iface) = strlcpy(iface.ifname, (char *)paddr, IF_NAMESIZE);
+		KEY_LEN(iface) = KEY_LEN_IFACE +
+		    strlcpy(iface.ifname, (char *)paddr, IF_NAMESIZE) + 1;
 		/* Assume direct match */
 		/* FIXME: Add interface pattern matching */
 		xent = (struct table_xentry *)(rnh->rnh_lookup(&iface, NULL, rnh));
