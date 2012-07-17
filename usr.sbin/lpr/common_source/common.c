@@ -139,6 +139,8 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 	 * and dividing it by a multiple of the minimum size entry.
 	 */
 	arraysz = (stbuf.st_size / 24);
+	if (arraysz < 16)
+		arraysz = 16;
 	queue = (struct jobqueue **)malloc(arraysz * sizeof(struct jobqueue *));
 	if (queue == NULL)
 		goto errdone;
