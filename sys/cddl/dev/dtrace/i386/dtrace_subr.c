@@ -468,7 +468,7 @@ dtrace_gethrestime(void)
 
 	dtrace_getnanotime(&current_time);
 
-	return (current_time.tv_sec * 1000000000UL + current_time.tv_nsec);
+	return (current_time.tv_sec * 1000000000ULL + current_time.tv_nsec);
 }
 
 /* Function to handle DTrace traps during probes. See i386/i386/trap.c */
