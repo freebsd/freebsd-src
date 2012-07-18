@@ -20,11 +20,10 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/atomic.h>
 #include <sys/errno.h>
@@ -876,7 +875,7 @@ fasttrap_disable_callbacks(void)
 }
 
 /*ARGSUSED*/
-static void
+static int
 fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 {
 	fasttrap_probe_t *probe = parg;
@@ -904,7 +903,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	 * provider can't go away while we're in this code path.
 	 */
 	if (probe->ftp_prov->ftp_retired)
-		return;
+		return (0);
 
 	/*
 	 * If we can't find the process, it may be that we're in the context of
@@ -913,7 +912,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	 */
 	if ((p = sprlock(probe->ftp_pid)) == NULL) {
 		if ((curproc->p_flag & SFORKING) == 0)
-			return;
+			return (0);
 
 		mutex_enter(&pidlock);
 		p = prfind(probe->ftp_pid);
@@ -975,7 +974,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 			 * drop our reference on the trap table entry.
 			 */
 			fasttrap_disable_callbacks();
-			return;
+			return (0);
 		}
 	}
 
@@ -983,6 +982,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	sprunlock(p);
 
 	probe->ftp_enabled = 1;
+	return (0);
 }
 
 /*ARGSUSED*/
@@ -1946,7 +1946,8 @@ fasttrap_ioctl(dev_t dev, int cmd, intptr_t arg, int md, cred_t *cr, int *rv)
 
 		probe = kmem_alloc(size, KM_SLEEP);
 
-		if (copyin(uprobe, probe, size) != 0) {
+		if (copyin(uprobe, probe, size) != 0 ||
+		    probe->ftps_noffs != noffs) {
 			kmem_free(probe, size);
 			return (EFAULT);
 		}
@@ -2044,13 +2045,6 @@ err:
 			    tp->ftt_proc->ftpc_acount != 0)
 				break;
 
-			/*
-			 * The count of active providers can only be
-			 * decremented (i.e. to zero) during exec, exit, and
-			 * removal of a meta provider so it should be
-			 * impossible to drop the count during this operation().
-			 */
-			ASSERT(tp->ftt_proc->ftpc_acount != 0);
 			tp = tp->ftt_next;
 		}
 
@@ -2346,7 +2340,8 @@ static struct dev_ops fasttrap_ops = {
 	nodev,			/* reset */
 	&fasttrap_cb_ops,	/* driver operations */
 	NULL,			/* bus operations */
-	nodev			/* dev power */
+	nodev,			/* dev power */
+	ddi_quiesce_not_needed,		/* quiesce */
 };
 
 /*

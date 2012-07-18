@@ -19,11 +19,10 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -84,7 +83,7 @@ static kmutex_t		lockstat_test;	/* for testing purposes only */
 static dtrace_provider_id_t lockstat_id;
 
 /*ARGSUSED*/
-static void
+static int
 lockstat_enable(void *arg, dtrace_id_t id, void *parg)
 {
 	lockstat_probe_t *probe = parg;
@@ -103,6 +102,7 @@ lockstat_enable(void *arg, dtrace_id_t id, void *parg)
 	 */
 	mutex_enter(&lockstat_test);
 	mutex_exit(&lockstat_test);
+	return (0);
 }
 
 /*ARGSUSED*/
@@ -310,11 +310,13 @@ static struct dev_ops lockstat_ops = {
 	nulldev,		/* reset */
 	&lockstat_cb_ops,	/* cb_ops */
 	NULL,			/* bus_ops */
+	NULL,			/* power */
+	ddi_quiesce_not_needed,		/* quiesce */
 };
 
 static struct modldrv modldrv = {
 	&mod_driverops,		/* Type of module.  This one is a driver */
-	"Lock Statistics %I%",	/* name of module */
+	"Lock Statistics",	/* name of module */
 	&lockstat_ops,		/* driver ops */
 };
 
