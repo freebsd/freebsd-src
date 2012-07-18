@@ -20,8 +20,7 @@
  */
 
 /*
- * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #include <sys/sysmacros.h>
@@ -222,8 +221,7 @@ dtrace_str2attr(const char *str, dtrace_attribute_t *attr)
 		return (-1); /* invalid function arguments */
 
 	*attr = _dtrace_maxattr;
-	p = alloca(strlen(str) + 1);
-	(void) strcpy(p, str);
+	p = strdupa(str);
 
 	if ((p = dt_getstrattr(p, &q)) == NULL)
 		return (0);
