@@ -3,19 +3,19 @@
 .\" The contents of this file are subject to the terms of the Common Development and Distribution License (the "License").  You may not use this file except in compliance with the License.
 .\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE or http://www.opensolaris.org/os/licensing.  See the License for the specific language governing permissions and limitations under the License.
 .\" When distributing Covered Code, include this CDDL HEADER in each file and include the License file at usr/src/OPENSOLARIS.LICENSE.  If applicable, add the following below this CDDL HEADER, with the fields enclosed by brackets "[]" replaced with your own identifying information: Portions Copyright [yyyy] [name of copyright owner]
-.TH PLOCKSTAT 1M "Jan 26, 2009"
+.TH plockstat 1M "26 Jan 2009" "SunOS 5.11" "System Administration Commands"
 .SH NAME
 plockstat \- report user-level lock statistics
 .SH SYNOPSIS
 .LP
 .nf
-\fBplockstat\fR [\fB-vACHV\fR] [\fB-n\fR \fIcount\fR] [\fB-s\fR \fIdepth\fR] [\fB-e\fR \fIsecs\fR]
+\fBplockstat\fR [\fB-vACHV\fR] [\fB-n\fR \fIcount\fR] [\fB-s\fR \fIdepth\fR] [\fB-e\fR \fIsecs\fR] 
      [\fB-x\fR \fIarg\fR [=val]] \fIcommand\fR [\fIarg\fR]...
 .fi
 
 .LP
 .nf
-\fBplockstat\fR [\fB-vACHV\fR] [\fB-n\fR \fIcount\fR] [\fB-s\fR \fIdepth\fR] [\fB-e\fR \fIsecs\fR]
+\fBplockstat\fR [\fB-vACHV\fR] [\fB-n\fR \fIcount\fR] [\fB-s\fR \fIdepth\fR] [\fB-e\fR \fIsecs\fR] 
      [\fB-x\fR \fIarg\fR [=val]] \fB-p\fR \fIpid\fR
 .fi
 
@@ -44,82 +44,100 @@ security features.
 The following options are supported:
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-A\fR\fR
 .ad
 .RS 16n
+.rt  
 Watch all lock events. This option is equivalent to \fB-CH\fR.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-C\fR\fR
 .ad
 .RS 16n
+.rt  
 Watch contention events.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-H\fR\fR
 .ad
 .RS 16n
+.rt  
 Watch hold events.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-e\fR \fIsecs\fR\fR
 .ad
 .RS 16n
+.rt  
 Exit after the number of seconds specified have elapsed.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-n\fR \fIcount\fR\fR
 .ad
 .RS 16n
+.rt  
 Display only the specified number of entries for each output category.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-s\fR \fIdepth\fR\fR
 .ad
 .RS 16n
+.rt  
 Record a stack trace rather than just the calling function.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-p\fR \fIpid\fR\fR
 .ad
 .RS 16n
+.rt  
 Specify a process ID from which \fBplockstat\fR is to gather data.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-v\fR\fR
 .ad
 .RS 16n
+.rt  
 Print out a message to indicate that tracing has started.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-x\fR \fIarg\fR[=\fIval\fR]\fR
 .ad
 .RS 16n
+.rt  
 Enable or modify a DTrace runtime option or D compiler option. The list of
 options is found in the \fISolaris Dynamic Tracing Guide\fR. Boolean options
 are enabled by specifying their name. Options with values are set by separating
@@ -128,10 +146,12 @@ the option name and value with an equals sign (\fB=\fR).
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fB-V\fR\fR
 .ad
 .RS 16n
+.rt  
 Print the Dtrace commands used to gather the data. The output can then be used
 directly with the \fBdtrace\fR(1M) command.
 .RE
@@ -142,46 +162,56 @@ directly with the \fBdtrace\fR(1M) command.
 The following operands are supported:
 .sp
 .ne 2
+.mk
 .na
 \fB\fIarg\fR\fR
 .ad
 .RS 11n
+.rt  
 A string to be passed as an argument to \fIcommand\fR.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fIcommand\fR\fR
 .ad
 .RS 11n
+.rt  
 The name of a utility to be invoked.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fIcount\fR\fR
 .ad
 .RS 11n
+.rt  
 A positive integer value.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fIpid\fR\fR
 .ad
 .RS 11n
+.rt  
 A process identifier for a process to be monitored.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB\fIsecs\fR\fR
 .ad
 .RS 11n
+.rt  
 Duration specified as a positive integer number of seconds.
 .RE
 
@@ -191,19 +221,23 @@ Duration specified as a positive integer number of seconds.
 The following exit values are returned:
 .sp
 .ne 2
+.mk
 .na
 \fB\fB0\fR\fR
 .ad
 .RS 6n
+.rt  
 Successful completion.
 .RE
 
 .sp
 .ne 2
+.mk
 .na
 \fB>\fB0\fR\fR
 .ad
 .RS 6n
+.rt  
 An error occurred.
 .RE
 
@@ -215,12 +249,13 @@ See \fBattributes\fR(5) for descriptions of the following attributes:
 
 .sp
 .TS
-box;
-c | c
-l | l .
-ATTRIBUTE TYPE	ATTRIBUTE VALUE
+tab() box;
+cw(2.75i) |cw(2.75i) 
+lw(2.75i) |lw(2.75i) 
+.
+ATTRIBUTE TYPEATTRIBUTE VALUE
 _
-Interface Stability	See below.
+Interface StabilitySee below.
 .TE
 
 .sp
