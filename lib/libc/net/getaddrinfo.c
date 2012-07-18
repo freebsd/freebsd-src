@@ -692,6 +692,8 @@ get_addrselectpolicy(struct policyhead *head)
 
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0)
 		return (0);
+	if (l == 0)
+		return (0);
 	if ((buf = malloc(l)) == NULL)
 		return (0);
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
