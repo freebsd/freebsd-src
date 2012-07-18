@@ -2142,7 +2142,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		goto out;
 	} else if (plp->plogx_status != PLOGX_STATUS_IOCBERR) {
 		isp_prt(isp, ISP_LOGWARN,
-		    "status 0x%x on port login IOCB chanel %d",
+		    "status 0x%x on port login IOCB channel %d",
 		    plp->plogx_status, chan);
 		rval = -1;
 		goto out;
