@@ -2197,10 +2197,10 @@ static struct asc_table_entry asc_table[] = {
 	    "Insufficient power for operation") },
 	/* DT P      B    */
 	{ SST(0x55, 0x0C, SS_RDEF,	/* XXX TBD */
-	    "Insufficient reources to create ROD") },
+	    "Insufficient resources to create ROD") },
 	/* DT P      B    */
 	{ SST(0x55, 0x0D, SS_RDEF,	/* XXX TBD */
-	    "Insufficient reources to create ROD token") },
+	    "Insufficient resources to create ROD token") },
 	/*      R         */
 	{ SST(0x57, 0x00, SS_RDEF,
 	    "Unable to recover table-of-contents") },
@@ -2521,7 +2521,7 @@ static struct asc_table_entry asc_table[] = {
 	    "Idle-C condition activated by command") },
 	/* DTLPWRO A  K   */
 	{ SST(0x5E, 0x09, SS_RDEF,
-	    "Stabdby-Y condition activated by timer") },
+	    "Standby-Y condition activated by timer") },
 	/* DTLPWRO A  K   */
 	{ SST(0x5E, 0x0A, SS_RDEF,
 	    "Standby-Y condition activated by command") },
