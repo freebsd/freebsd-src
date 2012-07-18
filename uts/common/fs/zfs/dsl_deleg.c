@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /*
@@ -171,8 +170,10 @@ dsl_deleg_set_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 		VERIFY(nvpair_value_nvlist(whopair, &perms) == 0);
 
 		if (zap_lookup(mos, zapobj, whokey, 8, 1, &jumpobj) != 0) {
-			jumpobj = zap_create_link(mos, DMU_OT_DSL_PERMS,
-			    zapobj, whokey, tx);
+			jumpobj = zap_create(mos, DMU_OT_DSL_PERMS,
+			    DMU_OT_NONE, 0, tx);
+			VERIFY(zap_update(mos, zapobj,
+			    whokey, 8, 1, &jumpobj, tx) == 0);
 		}
 
 		while (permpair = nvlist_next_nvpair(perms, permpair)) {
@@ -181,8 +182,10 @@ dsl_deleg_set_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 
 			VERIFY(zap_update(mos, jumpobj,
 			    perm, 8, 1, &n, tx) == 0);
-			spa_history_log_internal_dd(dd, "permission update", tx,
-			    "%s %s", whokey, perm);
+			spa_history_log_internal(LOG_DS_PERM_UPDATE,
+			    dd->dd_pool->dp_spa, tx,
+			    "%s %s dataset = %llu", whokey, perm,
+			    dd->dd_phys->dd_head_dataset_obj);
 		}
 	}
 }
@@ -211,8 +214,10 @@ dsl_deleg_unset_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 				(void) zap_remove(mos, zapobj, whokey, tx);
 				VERIFY(0 == zap_destroy(mos, jumpobj, tx));
 			}
-			spa_history_log_internal_dd(dd, "permission who remove",
-			    tx, "%s", whokey);
+			spa_history_log_internal(LOG_DS_PERM_WHO_REMOVE,
+			    dd->dd_pool->dp_spa, tx,
+			    "%s dataset = %llu", whokey,
+			    dd->dd_phys->dd_head_dataset_obj);
 			continue;
 		}
 
@@ -230,8 +235,10 @@ dsl_deleg_unset_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 				VERIFY(0 == zap_destroy(mos,
 				    jumpobj, tx));
 			}
-			spa_history_log_internal_dd(dd, "permission remove", tx,
-			    "%s %s", whokey, perm);
+			spa_history_log_internal(LOG_DS_PERM_REMOVE,
+			    dd->dd_pool->dp_spa, tx,
+			    "%s %s dataset = %llu", whokey, perm,
+			    dd->dd_phys->dd_head_dataset_obj);
 		}
 	}
 }

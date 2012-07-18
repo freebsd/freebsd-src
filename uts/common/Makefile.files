@@ -21,8 +21,6 @@
 
 #
 # Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
-# Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
-# Copyright (c) 2012 by Delphix. All rights reserved.
 #
 
 #
@@ -192,6 +190,7 @@ GENUNIX_OBJS +=	\
 		gid.o		\
 		groups.o	\
 		grow.o		\
+		hat.o		\
 		hat_refmod.o	\
 		id32.o		\
 		id_space.o	\
@@ -243,7 +242,6 @@ GENUNIX_OBJS +=	\
 		nvpair.o	\
 		nvpair_alloc_system.o	\
 		nvpair_alloc_fixed.o	\
-		fnvpair.o	\
 		octet.o		\
 		open.o		\
 		p_online.o	\
@@ -455,8 +453,6 @@ AUDIO810_OBJS += audio810.o
 
 AUDIOCMI_OBJS += audiocmi.o
 
-AUDIOCMIHD_OBJS += audiocmihd.o
-
 AUDIOHD_OBJS +=	audiohd.o
 
 AUDIOIXP_OBJS += audioixp.o
@@ -502,9 +498,9 @@ MD4_OBJS +=	md4.o md4_mod.o
 
 MD5_OBJS +=	md5.o md5_mod.o
 
-SHA1_OBJS +=	sha1.o sha1_mod.o
+SHA1_OBJS +=	sha1.o sha1_mod.o fips_sha1_util.o
 
-SHA2_OBJS +=	sha2.o sha2_mod.o
+SHA2_OBJS +=	sha2.o sha2_mod.o fips_sha2_util.o
 
 IPGPC_OBJS +=   classifierddi.o classifier.o filters.o trie.o table.o \
 		ba_table.o
@@ -939,7 +935,7 @@ ST_OBJS +=	st.o	st_conf.o
 
 EMLXS_OBJS +=	emlxs_clock.o emlxs_dfc.o emlxs_dhchap.o emlxs_diag.o \
 		emlxs_download.o emlxs_dump.o emlxs_els.o emlxs_event.o \
-		emlxs_fcf.o emlxs_fcp.o emlxs_fct.o emlxs_hba.o emlxs_ip.o \
+		emlxs_fcp.o emlxs_fct.o emlxs_hba.o emlxs_ip.o \
 		emlxs_mbox.o emlxs_mem.o emlxs_msg.o emlxs_node.o \
 		emlxs_pkt.o emlxs_sli3.o emlxs_sli4.o emlxs_solaris.o \
 		emlxs_thread.o
@@ -1087,7 +1083,7 @@ DRM_OBJS += drm_sunmod.o drm_kstat.o drm_agpsupport.o \
 	    drm_auth.o drm_bufs.o drm_context.o drm_dma.o \
 	    drm_drawable.o drm_drv.o drm_fops.o drm_ioctl.o drm_irq.o \
 	    drm_lock.o drm_memory.o drm_msg.o drm_pci.o drm_scatter.o \
-	    drm_cache.o drm_gem.o drm_mm.o ati_pcigart.o
+	    drm_cache.o drm_gem.o drm_mm.o ati_pcigart.o 
 
 FM_OBJS += devfm.o devfm_machdep.o
 
@@ -1329,7 +1325,6 @@ ZFS_COMMON_OBJS +=		\
 	arc.o			\
 	bplist.o		\
 	bpobj.o			\
-	bptree.o		\
 	dbuf.o			\
 	ddt.o			\
 	ddt_zap.o		\
@@ -1351,7 +1346,6 @@ ZFS_COMMON_OBJS +=		\
 	dsl_deleg.o		\
 	dsl_prop.o		\
 	dsl_scan.o		\
-	zfeature.o		\
 	gzip.o			\
 	lzjb.o			\
 	metaslab.o		\
@@ -1394,12 +1388,11 @@ ZFS_COMMON_OBJS +=		\
 	zrlock.o
 
 ZFS_SHARED_OBJS +=		\
-	zfeature_common.o	\
-	zfs_comutil.o		\
-	zfs_deleg.o		\
-	zfs_fletcher.o		\
 	zfs_namecheck.o		\
+	zfs_deleg.o		\
 	zfs_prop.o		\
+	zfs_comutil.o		\
+	zfs_fletcher.o		\
 	zpool_prop.o		\
 	zprop_common.o
 
@@ -1526,7 +1519,7 @@ KCF_OBJS +=	kcf.o kcf_callprov.o kcf_cbufcall.o kcf_cipher.o kcf_crypto.o \
 		kcf_object.o kcf_policy.o kcf_prov_lib.o kcf_prov_tabs.o \
 		kcf_sched.o kcf_session.o kcf_sign.o kcf_spi.o kcf_verify.o \
 		kcf_random.o modes.o ecb.o cbc.o ctr.o ccm.o gcm.o \
-		fips_random.o
+		fips_random.o fips_checksum.o fips_test_vectors.o
 
 CRYPTOADM_OBJS += cryptoadm.o
 
@@ -1537,7 +1530,7 @@ DPROV_OBJS +=	dprov.o
 DCA_OBJS +=	dca.o dca_3des.o dca_debug.o dca_dsa.o dca_kstat.o dca_rng.o \
 		dca_rsa.o
 
-AESPROV_OBJS +=	aes.o aes_impl.o aes_modes.o
+AESPROV_OBJS +=	aes.o aes_impl.o aes_modes.o fips_aes_util.o
 
 ARCFOURPROV_OBJS += arcfour.o arcfour_crypt.o
 
@@ -1548,16 +1541,16 @@ ECCPROV_OBJS += ecc.o ec.o ec2_163.o ec2_mont.o ecdecode.o ecl_mult.o \
 		ecp_jm.o ec2_233.o ecl_curve.o ecp_224.o ecp_aff.o \
 		ecp_mont.o ec2_aff.o ec_naf.o ecl_gf.o ecp_256.o mp_gf2m.o \
 		mpi.o mplogic.o mpmontg.o mpprime.o oid.o \
-		secitem.o ec2_test.o ecp_test.o
+		secitem.o ec2_test.o ecp_test.o fips_ecc_util.o
 
-RSAPROV_OBJS += rsa.o rsa_impl.o pkcs1.o
+RSAPROV_OBJS += rsa.o rsa_impl.o pkcs1.o fips_rsa_util.o
 
-SWRANDPROV_OBJS += swrand.o
+SWRANDPROV_OBJS += swrand.o fips_random_util.o
 
 #
 #			kernel SSL
 #
-KSSL_OBJS +=	kssl.o ksslioctl.o
+KSSL_OBJS +=	kssl.o ksslioctl.o 
 
 KSSL_SOCKFIL_MOD_OBJS += ksslfilter.o ksslapi.o ksslrec.o
 
@@ -1671,7 +1664,7 @@ KGSS_KRB5_OBJS += krb5mech.o \
 	$(CRYPTO_OLD) \
 	$(CRYPTO_RAW) $(K5_KRB) $(K5_OS)
 
-DES_OBJS +=	des_crypt.o des_impl.o des_ks.o des_soft.o
+DES_OBJS +=	des_crypt.o des_impl.o des_ks.o des_soft.o fips_des_util.o
 
 DLBOOT_OBJS +=	bootparam_xdr.o nfs_dlinet.o scan.o
 
@@ -1770,8 +1763,6 @@ BGE_OBJS += bge_main2.o bge_chip2.o bge_kstats.o bge_log.o bge_ndd.o \
 
 DMFE_OBJS += dmfe_log.o dmfe_main.o dmfe_mii.o
 
-EFE_OBJS += efe.o
-
 ELXL_OBJS += elxl.o
 
 HME_OBJS += hme.o
@@ -1781,8 +1772,6 @@ IXGB_OBJS += ixgb.o ixgb_atomic.o ixgb_chip.o ixgb_gld.o ixgb_kstats.o \
 
 NGE_OBJS += nge_main.o nge_atomic.o nge_chip.o nge_ndd.o nge_kstats.o \
 		nge_log.o nge_rx.o nge_tx.o nge_xmii.o
-
-PCN_OBJS += pcn.o
 
 RGE_OBJS += rge_main.o rge_chip.o rge_ndd.o rge_kstats.o rge_log.o rge_rxtx.o
 
@@ -1909,11 +1898,6 @@ IGB_OBJS =	igb_82575.o igb_api.o igb_mac.o igb_manage.o \
 		igb_rx.o igb_stat.o igb_tx.o
 
 #
-#	Intel Pro/100 NIC driver module
-#
-IPRB_OBJS =	iprb.o
-
-#
 #       Intel 10GbE PCIE NIC driver module
 #
 IXGBE_OBJS =    ixgbe_82598.o ixgbe_82599.o ixgbe_api.o		\
@@ -1947,6 +1931,11 @@ NXGE_HCALL_OBJS =	\
 #	kiconv modules
 #
 KICONV_EMEA_OBJS += kiconv_emea.o
+
+#
+#	blk2scsa
+#
+BLK2SCSA_OBJS = blk2scsa.o
 
 KICONV_JA_OBJS += kiconv_ja.o
 

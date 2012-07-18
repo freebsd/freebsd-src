@@ -20,8 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -228,7 +226,7 @@ dbuf_is_metadata(dmu_buf_impl_t *db)
 		boolean_t is_metadata;
 
 		DB_DNODE_ENTER(db);
-		is_metadata = DMU_OT_IS_METADATA(DB_DNODE(db)->dn_type);
+		is_metadata = dmu_ot[DB_DNODE(db)->dn_type].ot_metadata;
 		DB_DNODE_EXIT(db);
 
 		return (is_metadata);
@@ -1302,17 +1300,13 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	 * it, since one of the current holders may be in the
 	 * middle of an update.  Note that users of dbuf_undirty()
 	 * should not place a hold on the dbuf before the call.
-	 * Also note: we can get here with a spill block, so
-	 * test for that similar to how dbuf_dirty does.
 	 */
 	if (refcount_count(&db->db_holds) > db->db_dirtycnt) {
 		mutex_exit(&db->db_mtx);
 		/* Make sure we don't toss this buffer at sync phase */
-		if (db->db_blkid != DMU_SPILL_BLKID) {
-			mutex_enter(&dn->dn_mtx);
-			dnode_clear_range(dn, db->db_blkid, 1, tx);
-			mutex_exit(&dn->dn_mtx);
-		}
+		mutex_enter(&dn->dn_mtx);
+		dnode_clear_range(dn, db->db_blkid, 1, tx);
+		mutex_exit(&dn->dn_mtx);
 		DB_DNODE_EXIT(db);
 		return (0);
 	}
@@ -1325,18 +1319,11 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 
 	*drp = dr->dr_next;
 
-	/*
-	 * Note that there are three places in dbuf_dirty()
-	 * where this dirty record may be put on a list.
-	 * Make sure to do a list_remove corresponding to
-	 * every one of those list_insert calls.
-	 */
 	if (dr->dr_parent) {
 		mutex_enter(&dr->dr_parent->dt.di.dr_mtx);
 		list_remove(&dr->dr_parent->dt.di.dr_children, dr);
 		mutex_exit(&dr->dr_parent->dt.di.dr_mtx);
-	} else if (db->db_blkid == DMU_SPILL_BLKID ||
-	    db->db_level+1 == dn->dn_nlevels) {
+	} else if (db->db_level+1 == dn->dn_nlevels) {
 		ASSERT(db->db_blkptr == NULL || db->db_parent == dn->dn_dbuf);
 		mutex_enter(&dn->dn_mtx);
 		list_remove(&dn->dn_dirty_records[txg & TXG_MASK], dr);

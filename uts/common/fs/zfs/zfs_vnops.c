@@ -2975,8 +2975,7 @@ top:
 		uint64_t acl_obj;
 		new_mode = (pmode & S_IFMT) | (vap->va_mode & ~S_IFMT);
 
-		if (err = zfs_acl_chmod_setattr(zp, &aclp, new_mode))
-			goto out;
+		zfs_acl_chmod_setattr(zp, &aclp, new_mode);
 
 		mutex_enter(&zp->z_lock);
 		if (!zp->z_is_sa && ((acl_obj = zfs_external_acl(zp)) != 0)) {
@@ -4192,14 +4191,6 @@ zfs_putpage(vnode_t *vp, offset_t off, size_t len, int flags, cred_t *cr,
 
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
-
-	/*
-	 * There's nothing to do if no data is cached.
-	 */
-	if (!vn_has_cached_data(vp)) {
-		ZFS_EXIT(zfsvfs);
-		return (0);
-	}
 
 	/*
 	 * Align this request to the file block size in case we kluster.

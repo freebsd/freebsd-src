@@ -79,7 +79,7 @@
  * URL and SUNW-MSG-ID value to display for fm_panic(), defined below.  These
  * values must be kept in sync with the FMA source code in usr/src/cmd/fm.
  */
-static const char *fm_url = "http://illumos.org/msg";
+static const char *fm_url = "http://www.sun.com/msg";
 static const char *fm_msgid = "SUNOS-8000-0G";
 static char *volatile fm_panicstr = NULL;
 

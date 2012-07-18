@@ -20,8 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -48,7 +46,6 @@
 #include <sys/arc.h>
 #include <sys/ddt.h>
 #include "zfs_prop.h"
-#include "zfeature_common.h"
 
 /*
  * SPA locking
@@ -217,7 +214,7 @@
  * Like spa_vdev_enter/exit, these are convenience wrappers -- the actual
  * locking is, always, based on spa_namespace_lock and spa_config_lock[].
  *
- * spa_rename() is also implemented within this file since it requires
+ * spa_rename() is also implemented within this file since is requires
  * manipulation of the namespace.
  */
 
@@ -484,22 +481,8 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	VERIFY(nvlist_alloc(&spa->spa_load_info, NV_UNIQUE_NAME,
 	    KM_SLEEP) == 0);
 
-	if (config != NULL) {
-		nvlist_t *features;
-
-		if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_FEATURES_FOR_READ,
-		    &features) == 0) {
-			VERIFY(nvlist_dup(features, &spa->spa_label_features,
-			    0) == 0);
-		}
-
+	if (config != NULL)
 		VERIFY(nvlist_dup(config, &spa->spa_config, 0) == 0);
-	}
-
-	if (spa->spa_label_features == NULL) {
-		VERIFY(nvlist_alloc(&spa->spa_label_features, NV_UNIQUE_NAME,
-		    KM_SLEEP) == 0);
-	}
 
 	return (spa);
 }
@@ -536,7 +519,6 @@ spa_remove(spa_t *spa)
 
 	list_destroy(&spa->spa_config_list);
 
-	nvlist_free(spa->spa_label_features);
 	nvlist_free(spa->spa_load_info);
 	spa_config_set(spa, NULL);
 
@@ -1045,20 +1027,6 @@ spa_vdev_state_exit(spa_t *spa, vdev_t *vd, int error)
  * ==========================================================================
  */
 
-void
-spa_activate_mos_feature(spa_t *spa, const char *feature)
-{
-	(void) nvlist_add_boolean(spa->spa_label_features, feature);
-	vdev_config_dirty(spa->spa_root_vdev);
-}
-
-void
-spa_deactivate_mos_feature(spa_t *spa, const char *feature)
-{
-	(void) nvlist_remove_all(spa->spa_label_features, feature);
-	vdev_config_dirty(spa->spa_root_vdev);
-}
-
 /*
  * Rename a spa_t.
  */
@@ -1209,22 +1177,12 @@ spa_generate_guid(spa_t *spa)
 void
 sprintf_blkptr(char *buf, const blkptr_t *bp)
 {
-	char type[256];
+	char *type = NULL;
 	char *checksum = NULL;
 	char *compress = NULL;
 
 	if (bp != NULL) {
-		if (BP_GET_TYPE(bp) & DMU_OT_NEWTYPE) {
-			dmu_object_byteswap_t bswap =
-			    DMU_OT_BYTESWAP(BP_GET_TYPE(bp));
-			(void) snprintf(type, sizeof (type), "bswap %s %s",
-			    DMU_OT_IS_METADATA(BP_GET_TYPE(bp)) ?
-			    "metadata" : "data",
-			    dmu_ot_byteswap[bswap].ob_name);
-		} else {
-			(void) strlcpy(type, dmu_ot[BP_GET_TYPE(bp)].ot_name,
-			    sizeof (type));
-		}
+		type = dmu_ot[BP_GET_TYPE(bp)].ot_name;
 		checksum = zio_checksum_table[BP_GET_CHECKSUM(bp)].ci_name;
 		compress = zio_compress_table[BP_GET_COMPRESS(bp)].ci_name;
 	}
@@ -1306,12 +1264,6 @@ spa_get_dsl(spa_t *spa)
 	return (spa->spa_dsl_pool);
 }
 
-boolean_t
-spa_is_initializing(spa_t *spa)
-{
-	return (spa->spa_is_initializing);
-}
-
 blkptr_t *
 spa_get_rootblkptr(spa_t *spa)
 {
@@ -1351,24 +1303,13 @@ spa_guid(spa_t *spa)
 	/*
 	 * If we fail to parse the config during spa_load(), we can go through
 	 * the error path (which posts an ereport) and end up here with no root
-	 * vdev.  We stash the original pool guid in 'spa_config_guid' to handle
+	 * vdev.  We stash the original pool guid in 'spa_load_guid' to handle
 	 * this case.
 	 */
 	if (spa->spa_root_vdev != NULL)
 		return (spa->spa_root_vdev->vdev_guid);
 	else
-		return (spa->spa_config_guid);
-}
-
-uint64_t
-spa_load_guid(spa_t *spa)
-{
-	/*
-	 * This is a GUID that exists solely as a reference for the
-	 * purposes of the arc.  It is generated at load time, and
-	 * is never written to persistent storage.
-	 */
-	return (spa->spa_load_guid);
+		return (spa->spa_load_guid);
 }
 
 uint64_t
@@ -1595,7 +1536,6 @@ spa_init(int mode)
 	vdev_cache_stat_init();
 	zfs_prop_init();
 	zpool_prop_init();
-	zpool_feature_init();
 	spa_config_load();
 	l2arc_start();
 }
@@ -1729,10 +1669,4 @@ spa_scan_get_stats(spa_t *spa, pool_scan_stat_t *ps)
 	ps->pss_pass_exam = spa->spa_scan_pass_exam;
 
 	return (0);
-}
-
-boolean_t
-spa_debug_enabled(spa_t *spa)
-{
-	return (spa->spa_debug);
 }

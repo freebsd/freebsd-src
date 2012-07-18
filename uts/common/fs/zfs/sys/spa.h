@@ -20,8 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #ifndef _SYS_SPA_H
@@ -52,7 +50,6 @@ typedef struct spa_aux_vdev spa_aux_vdev_t;
 typedef struct ddt ddt_t;
 typedef struct ddt_entry ddt_entry_t;
 struct dsl_pool;
-struct dsl_dataset;
 
 /*
  * General-purpose 32-bit and 64-bit bitfield encodings.
@@ -95,7 +92,7 @@ struct dsl_dataset;
 /*
  * Size of block to hold the configuration data (a packed nvlist)
  */
-#define	SPA_CONFIG_BLOCKSIZE	(1ULL << 14)
+#define	SPA_CONFIG_BLOCKSIZE	(1 << 14)
 
 /*
  * The DVA size encodings for LSIZE and PSIZE support blocks up to 32MB.
@@ -263,7 +260,7 @@ typedef struct blkptr {
 		DVA_GET_ASIZE(&(bp)->blk_dva[2]))
 
 #define	BP_GET_UCSIZE(bp) \
-	((BP_GET_LEVEL(bp) > 0 || DMU_OT_IS_METADATA(BP_GET_TYPE(bp))) ? \
+	((BP_GET_LEVEL(bp) > 0 || dmu_ot[BP_GET_TYPE(bp)].ot_metadata) ? \
 	BP_GET_PSIZE(bp) : BP_GET_LSIZE(bp))
 
 #define	BP_GET_NDVAS(bp)	\
@@ -404,8 +401,8 @@ typedef struct blkptr {
 #include <sys/dmu.h>
 
 #define	BP_GET_BUFC_TYPE(bp)						\
-	(((BP_GET_LEVEL(bp) > 0) || (DMU_OT_IS_METADATA(BP_GET_TYPE(bp)))) ? \
-	ARC_BUFC_METADATA : ARC_BUFC_DATA)
+	(((BP_GET_LEVEL(bp) > 0) || (dmu_ot[BP_GET_TYPE(bp)].ot_metadata)) ? \
+	ARC_BUFC_METADATA : ARC_BUFC_DATA);
 
 typedef enum spa_import_type {
 	SPA_IMPORT_EXISTING,
@@ -416,10 +413,10 @@ typedef enum spa_import_type {
 extern int spa_open(const char *pool, spa_t **, void *tag);
 extern int spa_open_rewind(const char *pool, spa_t **, void *tag,
     nvlist_t *policy, nvlist_t **config);
-extern int spa_get_stats(const char *pool, nvlist_t **config, char *altroot,
-    size_t buflen);
+extern int spa_get_stats(const char *pool, nvlist_t **config,
+    char *altroot, size_t buflen);
 extern int spa_create(const char *pool, nvlist_t *config, nvlist_t *props,
-    nvlist_t *zplprops);
+    const char *history_str, nvlist_t *zplprops);
 extern int spa_import_rootpool(char *devpath, char *devid);
 extern int spa_import(const char *pool, nvlist_t *config, nvlist_t *props,
     uint64_t flags);
@@ -574,14 +571,12 @@ extern void spa_claim_notify(zio_t *zio);
 /* Accessor functions */
 extern boolean_t spa_shutting_down(spa_t *spa);
 extern struct dsl_pool *spa_get_dsl(spa_t *spa);
-extern boolean_t spa_is_initializing(spa_t *spa);
 extern blkptr_t *spa_get_rootblkptr(spa_t *spa);
 extern void spa_set_rootblkptr(spa_t *spa, const blkptr_t *bp);
 extern void spa_altroot(spa_t *, char *, size_t);
 extern int spa_sync_pass(spa_t *spa);
 extern char *spa_name(spa_t *spa);
 extern uint64_t spa_guid(spa_t *spa);
-extern uint64_t spa_load_guid(spa_t *spa);
 extern uint64_t spa_last_synced_txg(spa_t *spa);
 extern uint64_t spa_first_txg(spa_t *spa);
 extern uint64_t spa_syncing_txg(spa_t *spa);
@@ -606,8 +601,6 @@ extern uint64_t spa_delegation(spa_t *spa);
 extern objset_t *spa_meta_objset(spa_t *spa);
 
 /* Miscellaneous support routines */
-extern void spa_activate_mos_feature(spa_t *spa, const char *feature);
-extern void spa_deactivate_mos_feature(spa_t *spa, const char *feature);
 extern int spa_rename(const char *oldname, const char *newname);
 extern spa_t *spa_by_guid(uint64_t pool_guid, uint64_t device_guid);
 extern boolean_t spa_guid_exists(uint64_t pool_guid, uint64_t device_guid);
@@ -617,7 +610,6 @@ extern uint64_t spa_get_random(uint64_t range);
 extern uint64_t spa_generate_guid(spa_t *spa);
 extern void sprintf_blkptr(char *buf, const blkptr_t *bp);
 extern void spa_freeze(spa_t *spa);
-extern int spa_change_guid(spa_t *spa);
 extern void spa_upgrade(spa_t *spa, uint64_t version);
 extern void spa_evict_all(void);
 extern vdev_t *spa_lookup_by_guid(spa_t *spa, uint64_t guid,
@@ -633,20 +625,31 @@ extern boolean_t spa_writeable(spa_t *spa);
 extern int spa_mode(spa_t *spa);
 extern uint64_t strtonum(const char *str, char **nptr);
 
+/* history logging */
+typedef enum history_log_type {
+	LOG_CMD_POOL_CREATE,
+	LOG_CMD_NORMAL,
+	LOG_INTERNAL
+} history_log_type_t;
+
+typedef struct history_arg {
+	char *ha_history_str;
+	history_log_type_t ha_log_type;
+	history_internal_events_t ha_event;
+	char *ha_zone;
+	uid_t ha_uid;
+} history_arg_t;
+
 extern char *spa_his_ievent_table[];
 
 extern void spa_history_create_obj(spa_t *spa, dmu_tx_t *tx);
 extern int spa_history_get(spa_t *spa, uint64_t *offset, uint64_t *len_read,
     char *his_buf);
-extern int spa_history_log(spa_t *spa, const char *his_buf);
-extern int spa_history_log_nvl(spa_t *spa, nvlist_t *nvl);
-extern void spa_history_log_version(spa_t *spa, const char *operation);
-extern void spa_history_log_internal(spa_t *spa, const char *operation,
-    dmu_tx_t *tx, const char *fmt, ...);
-extern void spa_history_log_internal_ds(struct dsl_dataset *ds, const char *op,
-    dmu_tx_t *tx, const char *fmt, ...);
-extern void spa_history_log_internal_dd(dsl_dir_t *dd, const char *operation,
-    dmu_tx_t *tx, const char *fmt, ...);
+extern int spa_history_log(spa_t *spa, const char *his_buf,
+    history_log_type_t what);
+extern void spa_history_log_internal(history_internal_events_t event,
+    spa_t *spa, dmu_tx_t *tx, const char *fmt, ...);
+extern void spa_history_log_version(spa_t *spa, history_internal_events_t evt);
 
 /* error handling */
 struct zbookmark;
@@ -693,13 +696,6 @@ _NOTE(CONSTCOND) } while (0)
 #else
 #define	dprintf_bp(bp, fmt, ...)
 #endif
-
-extern boolean_t spa_debug_enabled(spa_t *spa);
-#define	spa_dbgmsg(spa, ...)			\
-{						\
-	if (spa_debug_enabled(spa))		\
-		zfs_dbgmsg(__VA_ARGS__);	\
-}
 
 extern int spa_mode_global;			/* mode, e.g. FREAD | FWRITE */
 

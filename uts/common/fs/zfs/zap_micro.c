@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zio.h>
@@ -461,7 +460,7 @@ zap_lockdir(objset_t *os, uint64_t obj, dmu_tx_t *tx,
 	{
 		dmu_object_info_t doi;
 		dmu_object_info_from_db(db, &doi);
-		ASSERT3U(DMU_OT_BYTESWAP(doi.doi_type), ==, DMU_BSWAP_ZAP);
+		ASSERT(dmu_ot[doi.doi_type].ot_byteswap == zap_byteswap);
 	}
 #endif
 
@@ -585,7 +584,7 @@ mzap_create_impl(objset_t *os, uint64_t obj, int normflags, zap_flags_t flags,
 	{
 		dmu_object_info_t doi;
 		dmu_object_info_from_db(db, &doi);
-		ASSERT3U(DMU_OT_BYTESWAP(doi.doi_type), ==, DMU_BSWAP_ZAP);
+		ASSERT(dmu_ot[doi.doi_type].ot_byteswap == zap_byteswap);
 	}
 #endif
 
@@ -1404,7 +1403,7 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 	}
 
 	/*
-	 * We lock the zap with adding == FALSE. Because, if we pass
+	 * We lock the zap with adding ==  FALSE. Because, if we pass
 	 * the actual value of add, it could trigger a mzap_upgrade().
 	 * At present we are just evaluating the possibility of this operation
 	 * and hence we donot want to trigger an upgrade.

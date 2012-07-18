@@ -23,10 +23,6 @@
  * Use is subject to license terms.
  */
 
-/*
- * Copyright (c) 2012 by Delphix. All rights reserved.
- */
-
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
 #include <sys/vdev_impl.h>
@@ -131,8 +127,7 @@ vdev_mirror_map_alloc(zio_t *zio)
 }
 
 static int
-vdev_mirror_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
-    uint64_t *ashift)
+vdev_mirror_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
 {
 	int numerrors = 0;
 	int lasterror = 0;
@@ -154,7 +149,6 @@ vdev_mirror_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 		}
 
 		*asize = MIN(*asize - 1, cvd->vdev_asize - 1) + 1;
-		*max_asize = MIN(*max_asize - 1, cvd->vdev_max_asize - 1) + 1;
 		*ashift = MAX(*ashift, cvd->vdev_ashift);
 	}
 

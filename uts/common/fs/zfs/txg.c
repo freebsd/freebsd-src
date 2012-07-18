@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Portions Copyright 2011 Martin Matuska
  */
 
 #include <sys/zfs_context.h>
@@ -480,7 +479,7 @@ void
 txg_delay(dsl_pool_t *dp, uint64_t txg, int ticks)
 {
 	tx_state_t *tx = &dp->dp_tx;
-	clock_t timeout = ddi_get_lbolt() + ticks;
+	int timeout = ddi_get_lbolt() + ticks;
 
 	/* don't delay if this txg could transition to quiesing immediately */
 	if (tx->tx_open_txg > txg ||

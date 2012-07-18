@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -561,7 +560,7 @@ zil_destroy(zilog_t *zilog, boolean_t keep_first)
 
 	if (!list_is_empty(&zilog->zl_lwb_list)) {
 		ASSERT(zh->zh_claim_txg == 0);
-		VERIFY(!keep_first);
+		ASSERT(!keep_first);
 		while ((lwb = list_head(&zilog->zl_lwb_list)) != NULL) {
 			list_remove(&zilog->zl_lwb_list, lwb);
 			if (lwb->lwb_buf != NULL)
@@ -1662,9 +1661,20 @@ zil_alloc(objset_t *os, zil_header_t *zh_phys)
 void
 zil_free(zilog_t *zilog)
 {
+	lwb_t *head_lwb;
+
 	zilog->zl_stop_sync = 1;
 
-	ASSERT(list_is_empty(&zilog->zl_lwb_list));
+	/*
+	 * After zil_close() there should only be one lwb with a buffer.
+	 */
+	head_lwb = list_head(&zilog->zl_lwb_list);
+	if (head_lwb) {
+		ASSERT(head_lwb == list_tail(&zilog->zl_lwb_list));
+		list_remove(&zilog->zl_lwb_list, head_lwb);
+		zio_buf_free(head_lwb->lwb_buf, head_lwb->lwb_sz);
+		kmem_cache_free(zil_lwb_cache, head_lwb);
+	}
 	list_destroy(&zilog->zl_lwb_list);
 
 	avl_destroy(&zilog->zl_vdev_tree);
@@ -1704,10 +1714,6 @@ zil_open(objset_t *os, zil_get_data_t *get_data)
 {
 	zilog_t *zilog = dmu_objset_zil(os);
 
-	ASSERT(zilog->zl_clean_taskq == NULL);
-	ASSERT(zilog->zl_get_data == NULL);
-	ASSERT(list_is_empty(&zilog->zl_lwb_list));
-
 	zilog->zl_get_data = get_data;
 	zilog->zl_clean_taskq = taskq_create("zil_clean", 1, minclsyspri,
 	    2, 2, TASKQ_PREPOPULATE);
@@ -1721,7 +1727,7 @@ zil_open(objset_t *os, zil_get_data_t *get_data)
 void
 zil_close(zilog_t *zilog)
 {
-	lwb_t *lwb;
+	lwb_t *tail_lwb;
 	uint64_t txg = 0;
 
 	zil_commit(zilog, 0); /* commit all itx */
@@ -1733,9 +1739,9 @@ zil_close(zilog_t *zilog)
 	 * destroy the zl_clean_taskq.
 	 */
 	mutex_enter(&zilog->zl_lock);
-	lwb = list_tail(&zilog->zl_lwb_list);
-	if (lwb != NULL)
-		txg = lwb->lwb_max_txg;
+	tail_lwb = list_tail(&zilog->zl_lwb_list);
+	if (tail_lwb != NULL)
+		txg = tail_lwb->lwb_max_txg;
 	mutex_exit(&zilog->zl_lock);
 	if (txg)
 		txg_wait_synced(zilog->zl_dmu_pool, txg);
@@ -1743,19 +1749,6 @@ zil_close(zilog_t *zilog)
 	taskq_destroy(zilog->zl_clean_taskq);
 	zilog->zl_clean_taskq = NULL;
 	zilog->zl_get_data = NULL;
-
-	/*
-	 * We should have only one LWB left on the list; remove it now.
-	 */
-	mutex_enter(&zilog->zl_lock);
-	lwb = list_head(&zilog->zl_lwb_list);
-	if (lwb != NULL) {
-		ASSERT(lwb == list_tail(&zilog->zl_lwb_list));
-		list_remove(&zilog->zl_lwb_list, lwb);
-		zio_buf_free(lwb->lwb_buf, lwb->lwb_sz);
-		kmem_cache_free(zil_lwb_cache, lwb);
-	}
-	mutex_exit(&zilog->zl_lock);
 }
 
 /*

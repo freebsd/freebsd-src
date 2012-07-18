@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef	_ZFS_COMUTIL_H
@@ -38,8 +37,7 @@ extern void zpool_get_rewind_policy(nvlist_t *, zpool_rewind_policy_t *);
 
 extern int zfs_zpl_version_map(int spa_version);
 extern int zfs_spa_version_map(int zpl_version);
-#define	ZFS_NUM_LEGACY_HISTORY_EVENTS 41
-extern const char *zfs_history_event_names[ZFS_NUM_LEGACY_HISTORY_EVENTS];
+extern const char *zfs_history_event_names[LOG_END];
 
 #ifdef	__cplusplus
 }

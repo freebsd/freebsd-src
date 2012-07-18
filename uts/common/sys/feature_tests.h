@@ -27,6 +27,8 @@
 #ifndef _SYS_FEATURE_TESTS_H
 #define	_SYS_FEATURE_TESTS_H
 
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
 #include <sys/ccompile.h>
 #include <sys/isa_defs.h>
 
@@ -363,7 +365,7 @@ extern "C" {
  * compiler is used. This allows for the use of single prototype
  * declarations regardless of compiler version.
  */
-#if (defined(__STDC__) && defined(_STDC_C99)) && !defined(__cplusplus)
+#if (defined(__STDC__) && defined(_STDC_C99))
 #define	_RESTRICT_KYWD	restrict
 #else
 #define	_RESTRICT_KYWD

@@ -20,8 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -48,7 +46,7 @@ dmu_tx_create_dd(dsl_dir_t *dd)
 {
 	dmu_tx_t *tx = kmem_zalloc(sizeof (dmu_tx_t), KM_SLEEP);
 	tx->tx_dir = dd;
-	if (dd != NULL)
+	if (dd)
 		tx->tx_pool = dd->dd_pool;
 	list_create(&tx->tx_holds, sizeof (dmu_tx_hold_t),
 	    offsetof(dmu_tx_hold_t, txh_node));
@@ -675,11 +673,9 @@ dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, const char *name)
 		return;
 	}
 
-	ASSERT3P(DMU_OT_BYTESWAP(dn->dn_type), ==, DMU_BSWAP_ZAP);
+	ASSERT3P(dmu_ot[dn->dn_type].ot_byteswap, ==, zap_byteswap);
 
 	if (dn->dn_maxblkid == 0 && !add) {
-		blkptr_t *bp;
-
 		/*
 		 * If there is only one block  (i.e. this is a micro-zap)
 		 * and we are not adding anything, the accounting is simple.
@@ -694,13 +690,14 @@ dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, const char *name)
 		 * Use max block size here, since we don't know how much
 		 * the size will change between now and the dbuf dirty call.
 		 */
-		bp = &dn->dn_phys->dn_blkptr[0];
 		if (dsl_dataset_block_freeable(dn->dn_objset->os_dsl_dataset,
-		    bp, bp->blk_birth))
+		    &dn->dn_phys->dn_blkptr[0],
+		    dn->dn_phys->dn_blkptr[0].blk_birth)) {
 			txh->txh_space_tooverwrite += SPA_MAXBLOCKSIZE;
-		else
+		} else {
 			txh->txh_space_towrite += SPA_MAXBLOCKSIZE;
-		if (!BP_IS_HOLE(bp))
+		}
+		if (dn->dn_phys->dn_blkptr[0].blk_birth)
 			txh->txh_space_tounref += SPA_MAXBLOCKSIZE;
 		return;
 	}
@@ -1276,6 +1273,7 @@ dmu_tx_hold_spill(dmu_tx_t *tx, uint64_t object)
 {
 	dnode_t *dn;
 	dmu_tx_hold_t *txh;
+	blkptr_t *bp;
 
 	txh = dmu_tx_hold_object_impl(tx, tx->tx_objset, object,
 	    THT_SPILL, 0, 0);
@@ -1286,18 +1284,17 @@ dmu_tx_hold_spill(dmu_tx_t *tx, uint64_t object)
 		return;
 
 	/* If blkptr doesn't exist then add space to towrite */
-	if (!(dn->dn_phys->dn_flags & DNODE_FLAG_SPILL_BLKPTR)) {
+	bp = &dn->dn_phys->dn_spill;
+	if (BP_IS_HOLE(bp)) {
 		txh->txh_space_towrite += SPA_MAXBLOCKSIZE;
+		txh->txh_space_tounref = 0;
 	} else {
-		blkptr_t *bp;
-
-		bp = &dn->dn_phys->dn_spill;
 		if (dsl_dataset_block_freeable(dn->dn_objset->os_dsl_dataset,
 		    bp, bp->blk_birth))
 			txh->txh_space_tooverwrite += SPA_MAXBLOCKSIZE;
 		else
 			txh->txh_space_towrite += SPA_MAXBLOCKSIZE;
-		if (!BP_IS_HOLE(bp))
+		if (bp->blk_birth)
 			txh->txh_space_tounref += SPA_MAXBLOCKSIZE;
 	}
 }

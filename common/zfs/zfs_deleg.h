@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
  */
 
 #ifndef	_ZFS_DELEG_H
@@ -52,7 +51,6 @@ typedef enum {
 	ZFS_DELEG_NOTE_CLONE,
 	ZFS_DELEG_NOTE_PROMOTE,
 	ZFS_DELEG_NOTE_RENAME,
-	ZFS_DELEG_NOTE_SEND,
 	ZFS_DELEG_NOTE_RECEIVE,
 	ZFS_DELEG_NOTE_ALLOW,
 	ZFS_DELEG_NOTE_USERPROP,

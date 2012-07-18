@@ -18,11 +18,8 @@
  *
  * CDDL HEADER END
  */
-
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Portions Copyright 2011 iXsystems, Inc
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -429,9 +426,10 @@ sa_add_layout_entry(objset_t *os, sa_attr_type_t *attrs, int attr_count,
 		char attr_name[8];
 
 		if (sa->sa_layout_attr_obj == 0) {
-			sa->sa_layout_attr_obj = zap_create_link(os,
-			    DMU_OT_SA_ATTR_LAYOUTS,
-			    sa->sa_master_obj, SA_LAYOUTS, tx);
+			sa->sa_layout_attr_obj = zap_create(os,
+			    DMU_OT_SA_ATTR_LAYOUTS, DMU_OT_NONE, 0, tx);
+			VERIFY(zap_add(os, sa->sa_master_obj, SA_LAYOUTS, 8, 1,
+			    &sa->sa_layout_attr_obj, tx) == 0);
 		}
 
 		(void) snprintf(attr_name, sizeof (attr_name),
@@ -607,14 +605,14 @@ sa_find_sizes(sa_os_t *sa, sa_bulk_attr_t *attr_desc, int attr_count,
 		 * and spill buffer.
 		 */
 		if (buftype == SA_BONUS && *index == -1 &&
-		    *total + P2ROUNDUP(hdrsize, 8) >
+		    P2ROUNDUP(*total + hdrsize, 8) >
 		    (full_space - sizeof (blkptr_t))) {
 			*index = i;
 			done = B_TRUE;
 		}
 
 next:
-		if (*total + P2ROUNDUP(hdrsize, 8) > full_space &&
+		if (P2ROUNDUP(*total + hdrsize, 8) > full_space &&
 		    buftype == SA_BONUS)
 			*will_spill = B_TRUE;
 	}
@@ -1553,9 +1551,10 @@ sa_attr_register_sync(sa_handle_t *hdl, dmu_tx_t *tx)
 	}
 
 	if (sa->sa_reg_attr_obj == NULL) {
-		sa->sa_reg_attr_obj = zap_create_link(hdl->sa_os,
-		    DMU_OT_SA_ATTR_REGISTRATION,
-		    sa->sa_master_obj, SA_REGISTRY, tx);
+		sa->sa_reg_attr_obj = zap_create(hdl->sa_os,
+		    DMU_OT_SA_ATTR_REGISTRATION, DMU_OT_NONE, 0, tx);
+		VERIFY(zap_add(hdl->sa_os, sa->sa_master_obj,
+		    SA_REGISTRY, 8, 1, &sa->sa_reg_attr_obj, tx) == 0);
 	}
 	for (i = 0; i != sa->sa_num_attrs; i++) {
 		if (sa->sa_attr_table[i].sa_registered)

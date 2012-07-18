@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -385,14 +384,6 @@ vscan_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
-acl_mode_changed_cb(void *arg, uint64_t newval)
-{
-	zfsvfs_t *zfsvfs = arg;
-
-	zfsvfs->z_acl_mode = newval;
-}
-
-static void
 acl_inherit_changed_cb(void *arg, uint64_t newval)
 {
 	zfsvfs_t *zfsvfs = arg;
@@ -523,8 +514,6 @@ zfs_register_callbacks(vfs_t *vfsp)
 	error = error ? error : dsl_prop_register(ds,
 	    "snapdir", snapdir_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "aclmode", acl_mode_changed_cb, zfsvfs);
-	error = error ? error : dsl_prop_register(ds,
 	    "aclinherit", acl_inherit_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
 	    "vscan", vscan_changed_cb, zfsvfs);
@@ -565,7 +554,6 @@ unregister:
 	(void) dsl_prop_unregister(ds, "setuid", setuid_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "exec", exec_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "aclinherit", acl_inherit_changed_cb,
 	    zfsvfs);
 	(void) dsl_prop_unregister(ds, "vscan", vscan_changed_cb, zfsvfs);
@@ -1246,9 +1234,6 @@ zfs_unregister_callbacks(zfsvfs_t *zfsvfs)
 		    zfsvfs) == 0);
 
 		VERIFY(dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb,
 		    zfsvfs) == 0);
 
 		VERIFY(dsl_prop_unregister(ds, "aclinherit",
@@ -2249,8 +2234,9 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 		sa_register_update_callback(os, zfs_sa_upgrade);
 	}
 
-	spa_history_log_internal_ds(dmu_objset_ds(os), "upgrade", tx,
-	    "from %llu to %llu", zfsvfs->z_version, newvers);
+	spa_history_log_internal(LOG_DS_UPGRADE,
+	    dmu_objset_spa(os), tx, "oldver=%llu newver=%llu dataset = %llu",
+	    zfsvfs->z_version, newvers, dmu_objset_id(os));
 
 	dmu_tx_commit(tx);
 

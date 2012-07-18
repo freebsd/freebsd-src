@@ -20,8 +20,6 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
- * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -80,7 +78,6 @@ kmem_cache_t *zio_data_buf_cache[SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT];
 #ifdef _KERNEL
 extern vmem_t *zio_alloc_arena;
 #endif
-extern int zfs_mg_alloc_failures;
 
 /*
  * An allocating zio is one that either currently has the DVA allocate
@@ -160,12 +157,6 @@ zio_init(void)
 		if (zio_data_buf_cache[c - 1] == NULL)
 			zio_data_buf_cache[c - 1] = zio_data_buf_cache[c];
 	}
-
-	/*
-	 * The zio write taskqs have 1 thread per cpu, allow 1/2 of the taskqs
-	 * to fail 3 times per txg or 8 failures, whichever is greater.
-	 */
-	zfs_mg_alloc_failures = MAX((3 * max_ncpus / 2), 8);
 
 	zio_inject_init();
 }
@@ -619,7 +610,7 @@ zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
 	    zp->zp_checksum < ZIO_CHECKSUM_FUNCTIONS &&
 	    zp->zp_compress >= ZIO_COMPRESS_OFF &&
 	    zp->zp_compress < ZIO_COMPRESS_FUNCTIONS &&
-	    DMU_OT_IS_VALID(zp->zp_type) &&
+	    zp->zp_type < DMU_OT_NUMTYPES &&
 	    zp->zp_level < 32 &&
 	    zp->zp_copies > 0 &&
 	    zp->zp_copies <= spa_max_replication(spa) &&
@@ -903,7 +894,7 @@ zio_read_bp_init(zio_t *zio)
 		zio_push_transform(zio, cbuf, psize, psize, zio_decompress);
 	}
 
-	if (!DMU_OT_IS_METADATA(BP_GET_TYPE(bp)) && BP_GET_LEVEL(bp) == 0)
+	if (!dmu_ot[BP_GET_TYPE(bp)].ot_metadata && BP_GET_LEVEL(bp) == 0)
 		zio->io_flags |= ZIO_FLAG_DONT_CACHE;
 
 	if (BP_GET_TYPE(bp) == DMU_OT_DDT_ZAP)
@@ -1062,7 +1053,7 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 {
 	spa_t *spa = zio->io_spa;
 	zio_type_t t = zio->io_type;
-	int flags = (cutinline ? TQ_FRONT : 0);
+	int flags = TQ_SLEEP | (cutinline ? TQ_FRONT : 0);
 
 	/*
 	 * If we're a config writer or a probe, the normal issue and
@@ -1086,15 +1077,8 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 		q++;
 
 	ASSERT3U(q, <, ZIO_TASKQ_TYPES);
-
-	/*
-	 * NB: We are assuming that the zio can only be dispatched
-	 * to a single taskq at a time.  It would be a grievous error
-	 * to dispatch the zio to another taskq at the same time.
-	 */
-	ASSERT(zio->io_tqent.tqent_next == NULL);
-	taskq_dispatch_ent(spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, flags, &zio->io_tqent);
+	(void) taskq_dispatch(spa->spa_zio_taskq[t][q],
+	    (task_func_t *)zio_execute, zio, flags);
 }
 
 static boolean_t
@@ -2130,7 +2114,6 @@ zio_dva_allocate(zio_t *zio)
 	metaslab_class_t *mc = spa_normal_class(spa);
 	blkptr_t *bp = zio->io_bp;
 	int error;
-	int flags = 0;
 
 	if (zio->io_gang_leader == NULL) {
 		ASSERT(zio->io_child_type > ZIO_CHILD_GANG);
@@ -2143,21 +2126,10 @@ zio_dva_allocate(zio_t *zio)
 	ASSERT3U(zio->io_prop.zp_copies, <=, spa_max_replication(spa));
 	ASSERT3U(zio->io_size, ==, BP_GET_PSIZE(bp));
 
-	/*
-	 * The dump device does not support gang blocks so allocation on
-	 * behalf of the dump device (i.e. ZIO_FLAG_NODATA) must avoid
-	 * the "fast" gang feature.
-	 */
-	flags |= (zio->io_flags & ZIO_FLAG_NODATA) ? METASLAB_GANG_AVOID : 0;
-	flags |= (zio->io_flags & ZIO_FLAG_GANG_CHILD) ?
-	    METASLAB_GANG_CHILD : 0;
 	error = metaslab_alloc(spa, mc, zio->io_size, bp,
-	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags);
+	    zio->io_prop.zp_copies, zio->io_txg, NULL, 0);
 
 	if (error) {
-		spa_dbgmsg(spa, "%s: metaslab allocation failure: zio %p, "
-		    "size %llu, error %d", spa_name(spa), zio, zio->io_size,
-		    error);
 		if (error == ENOSPC && zio->io_size > SPA_MINBLOCKSIZE)
 			return (zio_write_gang_block(zio));
 		zio->io_error = error;
@@ -2219,22 +2191,13 @@ zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp, blkptr_t *old_bp,
 
 	ASSERT(txg > spa_syncing_txg(spa));
 
-	/*
-	 * ZIL blocks are always contiguous (i.e. not gang blocks) so we
-	 * set the METASLAB_GANG_AVOID flag so that they don't "fast gang"
-	 * when allocating them.
-	 */
-	if (use_slog) {
+	if (use_slog)
 		error = metaslab_alloc(spa, spa_log_class(spa), size,
-		    new_bp, 1, txg, old_bp,
-		    METASLAB_HINTBP_AVOID | METASLAB_GANG_AVOID);
-	}
+		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID);
 
-	if (error) {
+	if (error)
 		error = metaslab_alloc(spa, spa_normal_class(spa), size,
-		    new_bp, 1, txg, old_bp,
-		    METASLAB_HINTBP_AVOID | METASLAB_GANG_AVOID);
-	}
+		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID);
 
 	if (error == 0) {
 		BP_SET_LSIZE(new_bp, size);
@@ -2906,11 +2869,9 @@ zio_done(zio_t *zio)
 			 * Reexecution is potentially a huge amount of work.
 			 * Hand it off to the otherwise-unused claim taskq.
 			 */
-			ASSERT(zio->io_tqent.tqent_next == NULL);
-			(void) taskq_dispatch_ent(
+			(void) taskq_dispatch(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
-			    (task_func_t *)zio_reexecute, zio, 0,
-			    &zio->io_tqent);
+			    (task_func_t *)zio_reexecute, zio, TQ_SLEEP);
 		}
 		return (ZIO_PIPELINE_STOP);
 	}
@@ -2989,45 +2950,3 @@ static zio_pipe_stage_t *zio_pipeline[] = {
 	zio_checksum_verify,
 	zio_done
 };
-
-/* dnp is the dnode for zb1->zb_object */
-boolean_t
-zbookmark_is_before(const dnode_phys_t *dnp, const zbookmark_t *zb1,
-    const zbookmark_t *zb2)
-{
-	uint64_t zb1nextL0, zb2thisobj;
-
-	ASSERT(zb1->zb_objset == zb2->zb_objset);
-	ASSERT(zb2->zb_level == 0);
-
-	/*
-	 * A bookmark in the deadlist is considered to be after
-	 * everything else.
-	 */
-	if (zb2->zb_object == DMU_DEADLIST_OBJECT)
-		return (B_TRUE);
-
-	/* The objset_phys_t isn't before anything. */
-	if (dnp == NULL)
-		return (B_FALSE);
-
-	zb1nextL0 = (zb1->zb_blkid + 1) <<
-	    ((zb1->zb_level) * (dnp->dn_indblkshift - SPA_BLKPTRSHIFT));
-
-	zb2thisobj = zb2->zb_object ? zb2->zb_object :
-	    zb2->zb_blkid << (DNODE_BLOCK_SHIFT - DNODE_SHIFT);
-
-	if (zb1->zb_object == DMU_META_DNODE_OBJECT) {
-		uint64_t nextobj = zb1nextL0 *
-		    (dnp->dn_datablkszsec << SPA_MINBLOCKSHIFT) >> DNODE_SHIFT;
-		return (nextobj <= zb2thisobj);
-	}
-
-	if (zb1->zb_object < zb2thisobj)
-		return (B_TRUE);
-	if (zb1->zb_object > zb2thisobj)
-		return (B_FALSE);
-	if (zb2->zb_object == DMU_META_DNODE_OBJECT)
-		return (B_FALSE);
-	return (zb1nextL0 <= zb2->zb_blkid);
-}
