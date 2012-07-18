@@ -22,11 +22,12 @@
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #ifndef	_SYS_RR_RW_LOCK_H
 #define	_SYS_RR_RW_LOCK_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -69,6 +70,7 @@ void rrw_destroy(rrwlock_t *rrl);
 void rrw_enter(rrwlock_t *rrl, krw_t rw, void *tag);
 void rrw_exit(rrwlock_t *rrl, void *tag);
 boolean_t rrw_held(rrwlock_t *rrl, krw_t rw);
+void rrw_tsd_destroy(void *arg);
 
 #define	RRW_READ_HELD(x)	rrw_held(x, RW_READER)
 #define	RRW_WRITE_HELD(x)	rrw_held(x, RW_WRITER)
