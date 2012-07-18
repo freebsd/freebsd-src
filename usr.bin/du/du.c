@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
 
-	while ((ch = getopt(argc, argv, "AB:HI:LPasd:chklmnrt:x")) != -1)
+	while ((ch = getopt(argc, argv, "AB:HI:LPasd:cghklmnrt:x")) != -1)
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -155,6 +155,10 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			cflag = 1;
+			break;
+		case 'g':
+			hflag = 0;
+			blocksize = 1073741824;
 			break;
 		case 'h':
 			hflag = 1;
