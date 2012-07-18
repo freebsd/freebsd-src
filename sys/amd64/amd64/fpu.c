@@ -115,9 +115,6 @@ void	xsave(char *addr, uint64_t mask);
 #define	start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	stop_emulating()	clts()
 
-#define GET_FPU_CW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_cw)
-#define GET_FPU_SW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_sw)
-
 CTASSERT(sizeof(struct savefpu) == 512);
 CTASSERT(sizeof(struct xstate_hdr) == 64);
 CTASSERT(sizeof(struct savefpu_ymm) == 832);
@@ -516,11 +513,15 @@ static char fpetable[128] = {
 };
 
 /*
- * Preserve the FP status word, clear FP exceptions, then generate a SIGFPE.
+ * Preserve the FP status word, clear FP exceptions for x87, then
+ * generate a SIGFPE.
  *
- * Clearing exceptions is necessary mainly to avoid IRQ13 bugs.  We now
- * depend on longjmp() restoring a usable state.  Restoring the state
- * or examining it might fail if we didn't clear exceptions.
+ * Clearing exceptions was necessary mainly to avoid IRQ13 bugs and is
+ * engraved in our i386 ABI.  We now depend on longjmp() restoring a
+ * usable state.  Restoring the state or examining it might fail if we
+ * didn't clear exceptions.
+ *
+ * For SSE exceptions, the exceptions are not cleared.
  *
  * The error code chosen will be one of the FPE_... macros. It will be
  * sent as the second argument to old BSD-style signal handlers and as
@@ -533,8 +534,9 @@ static char fpetable[128] = {
  * solution for signals other than SIGFPE.
  */
 int
-fputrap()
+fputrap_x87(void)
 {
+	struct savefpu *pcb_save;
 	u_short control, status;
 
 	critical_enter();
@@ -545,17 +547,31 @@ fputrap()
 	 * wherever they are.
 	 */
 	if (PCPU_GET(fpcurthread) != curthread) {
-		control = GET_FPU_CW(curthread);
-		status = GET_FPU_SW(curthread);
+		pcb_save = PCPU_GET(curpcb)->pcb_save;
+		control = pcb_save->sv_env.en_cw;
+		status = pcb_save->sv_env.en_sw;
 	} else {
 		fnstcw(&control);
 		fnstsw(&status);
+		fnclex();
 	}
 
-	if (PCPU_GET(fpcurthread) == curthread)
-		fnclex();
 	critical_exit();
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
+}
+
+int
+fputrap_sse(void)
+{
+	u_int mxcsr;
+
+	critical_enter();
+	if (PCPU_GET(fpcurthread) != curthread)
+		mxcsr = PCPU_GET(curpcb)->pcb_save->sv_env.en_mxcsr;
+	else
+		stmxcsr(&mxcsr);
+	critical_exit();
+	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
 }
 
 /*
