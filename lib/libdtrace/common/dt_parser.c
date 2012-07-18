@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -21,11 +20,8 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * DTrace D Language Parser
@@ -472,9 +468,9 @@ dt_node_name(const dt_node_t *dnp, char *buf, size_t len)
 	case DT_NODE_XLATOR:
 		(void) snprintf(buf, len, "translator <%s> (%s)",
 		    dt_type_name(dnp->dn_xlator->dx_dst_ctfp,
-			dnp->dn_xlator->dx_dst_type, n1, sizeof (n1)),
+		    dnp->dn_xlator->dx_dst_type, n1, sizeof (n1)),
 		    dt_type_name(dnp->dn_xlator->dx_src_ctfp,
-			dnp->dn_xlator->dx_src_type, n2, sizeof (n2)));
+		    dnp->dn_xlator->dx_src_type, n2, sizeof (n2)));
 		break;
 	case DT_NODE_PROG:
 		(void) snprintf(buf, len, "%s", "program");
@@ -1440,9 +1436,9 @@ dt_node_decl(void)
 			    "\t current: %s\n\tprevious: %s\n",
 			    dmp->dm_name, dsp->ds_ident,
 			    dt_type_name(dtt.dtt_ctfp, dtt.dtt_type,
-				n1, sizeof (n1)),
+			    n1, sizeof (n1)),
 			    dt_type_name(ott.dtt_ctfp, ott.dtt_type,
-				n2, sizeof (n2)));
+			    n2, sizeof (n2)));
 		} else if (!exists && dt_module_extern(dtp, dmp,
 		    dsp->ds_ident, &dtt) == NULL) {
 			xyerror(D_UNKNOWN,
@@ -1452,7 +1448,7 @@ dt_node_decl(void)
 			dt_dprintf("extern %s`%s type=<%s>\n",
 			    dmp->dm_name, dsp->ds_ident,
 			    dt_type_name(dtt.dtt_ctfp, dtt.dtt_type,
-				n1, sizeof (n1)));
+			    n1, sizeof (n1)));
 		}
 		break;
 	}
@@ -1756,8 +1752,7 @@ dt_node_offsetof(dt_decl_t *ddp, char *s)
 	ctf_id_t type;
 	uint_t kind;
 
-	name = alloca(strlen(s) + 1);
-	(void) strcpy(name, s);
+	name = strdupa(s);
 	free(s);
 
 	err = dt_decl_type(ddp, &dtt);

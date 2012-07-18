@@ -24,17 +24,13 @@
  *	  All Rights Reserved
  *
  *
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 1989, 2010, Oracle and/or its affiliates. All rights reserved.
  *
  * Global include file for all sgs.
  */
 
 #ifndef	_SGS_H
 #define	_SGS_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 
 #ifdef	__cplusplus
 extern "C" {
@@ -51,6 +47,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/machelf.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <libelf.h>
 #include <assert.h>
 #include <alist.h>
@@ -122,16 +119,26 @@ typedef enum {
 } Boolean;
 
 /*
- * Types of errors (used by eprintf()), together with a generic error return
+ * Types of errors (used by veprintf()), together with a generic error return
  * value.
  */
 typedef enum {
-	ERR_NONE,
-	ERR_WARNING,
-	ERR_FATAL,
-	ERR_ELF,
-	ERR_NUM				/* Must be last */
+	ERR_NONE,		/* plain message */
+	ERR_WARNING_NF,		/* warning that cannot be promoted to fatal */
+	ERR_WARNING,		/* warning that can be promoted to fatal */
+	ERR_GUIDANCE,		/* guidance warning that can be promoted */
+	ERR_FATAL,		/* fatal error */
+	ERR_ELF,		/* fatal libelf error */
+	ERR_NUM			/* # of Error codes. Must be last */
 } Error;
+
+/*
+ * Type used to represent line numbers within files, and a corresponding
+ * printing macro for it.
+ */
+typedef ulong_t Lineno;
+#define	EC_LINENO(_x) EC_XWORD(_x)			/* "llu" */
+
 
 #if defined(_LP64) && !defined(_ELF64)
 #define	S_ERROR		(~(uint_t)0)
@@ -140,48 +147,16 @@ typedef enum {
 #endif
 
 /*
- * LIST_TRAVERSE() is used as the only "argument" of a "for" loop to
- * traverse a linked list. The node pointer `node' is set to each node in
- * turn and the corresponding data pointer is copied to `data'.  The macro
- * is used as in
- * 	for (LIST_TRAVERSE(List *list, Listnode *node, void *data)) {
- *		process(data);
- *	}
+ * CTF currently does not handle automatic array variables sized via function
+ * arguments (VLA arrays) properly, when the code is compiled with gcc.
+ * Adding 1 to the size is a workaround.  VLA_SIZE, and its use, should be
+ * pulled when CTF is fixed or replaced.
  */
-#define	LIST_TRAVERSE(L, N, D) \
-	(void) (((N) = (L)->head) != NULL && ((D) = (N)->data) != NULL); \
-	(N) != NULL; \
-	(void) (((N) = (N)->next) != NULL && ((D) = (N)->data) != NULL)
-
-typedef	struct listnode	Listnode;
-typedef	struct list	List;
-
-struct	listnode {			/* a node on a linked list */
-	void		*data;		/* the data item */
-	Listnode	*next;		/* the next element */
-};
-
-struct	list {				/* a linked list */
-	Listnode	*head;		/* the first element */
-	Listnode	*tail;		/* the last element */
-};
-
-
-#ifdef _SYSCALL32
-typedef	struct listnode32	Listnode32;
-typedef	struct list32		List32;
-
-struct	listnode32 {			/* a node on a linked list */
-	Elf32_Addr	data;		/* the data item */
-	Elf32_Addr	next;		/* the next element */
-};
-
-struct	list32 {			/* a linked list */
-	Elf32_Addr	head;		/* the first element */
-	Elf32_Addr	tail;		/* the last element */
-};
-#endif	/* _SYSCALL32 */
-
+#ifdef __GNUC__
+#define	VLA_SIZE(_arg)	((_arg) + 1)
+#else
+#define	VLA_SIZE(_arg)	(_arg)
+#endif
 
 /*
  * Structure to maintain rejected files elf information.  Files that are not
@@ -192,7 +167,7 @@ struct	list32 {			/* a linked list */
  */
 typedef struct {
 	ushort_t	rej_type;	/* SGS_REJ_ value */
-	ushort_t	rej_flag;	/* additional information */
+	ushort_t	rej_flags;	/* additional information */
 	uint_t		rej_info;	/* numeric and string information */
 	const char	*rej_str;	/*	associated with error */
 	const char	*rej_name;	/* object name - expanded library */
@@ -212,7 +187,16 @@ typedef struct {
 					/*	required */
 #define	SGS_REJ_STR		10	/* generic error - info is a string */
 #define	SGS_REJ_UNKFILE		11	/* unknown file type */
-#define	SGS_REJ_HWCAP_1		12	/* hardware capabilities mismatch */
+#define	SGS_REJ_UNKCAP		12	/* unknown capabilities */
+#define	SGS_REJ_HWCAP_1		13	/* hardware capabilities mismatch */
+#define	SGS_REJ_SFCAP_1		14	/* software capabilities mismatch */
+#define	SGS_REJ_MACHCAP		15	/* machine capability mismatch */
+#define	SGS_REJ_PLATCAP		16	/* platform capability mismatch */
+#define	SGS_REJ_HWCAP_2		17	/* hardware capabilities mismatch */
+#define	SGS_REJ_ARCHIVE		18	/* archive used in invalid context */
+#define	SGS_REJ_NUM		19
+
+#define	FLG_REJ_ALTER		0x01	/* object name is an alternative */
 
 /*
  * For those source files used both inside and outside of the
@@ -227,44 +211,42 @@ typedef struct {
 #define	realloc			libld_realloc
 
 #define	libld_calloc(x, a)	libld_malloc(((size_t)x) * ((size_t)a))
-extern void		libld_free(void *);
-extern void		*libld_malloc(size_t);
-extern void		*libld_realloc(void *, size_t);
+extern void			libld_free(void *);
+extern void			*libld_malloc(size_t);
+extern void			*libld_realloc(void *, size_t);
 #endif
-
 
 /*
  * Data structures (defined in libld.h).
  */
+typedef	struct audit_desc	Audit_desc;
+typedef	struct audit_info	Audit_info;
+typedef	struct audit_list	Audit_list;
+typedef struct cap_desc		Cap_desc;
 typedef struct ent_desc		Ent_desc;
 typedef	struct group_desc	Group_desc;
 typedef struct ifl_desc		Ifl_desc;
 typedef struct is_desc		Is_desc;
 typedef struct isa_desc		Isa_desc;
 typedef struct isa_opt		Isa_opt;
-typedef struct mv_desc		Mv_desc;
-typedef struct ofl_desc		Ofl_desc;
 typedef struct os_desc		Os_desc;
+typedef struct ofl_desc		Ofl_desc;
 typedef	struct rel_cache	Rel_cache;
+typedef	struct rel_cachebuf	Rel_cachebuf;
+typedef	struct rel_aux_cachebuf	Rel_aux_cachebuf;
+typedef struct rel_aux		Rel_aux;
+typedef struct rel_desc		Rel_desc;
 typedef	struct sdf_desc		Sdf_desc;
 typedef	struct sdv_desc		Sdv_desc;
+typedef struct sec_order	Sec_order;
 typedef struct sg_desc		Sg_desc;
 typedef struct sort_desc	Sort_desc;
-typedef struct sec_order	Sec_order;
-typedef struct sym_desc		Sym_desc;
-typedef struct sym_aux		Sym_aux;
 typedef	struct sym_avlnode	Sym_avlnode;
+typedef struct sym_aux		Sym_aux;
+typedef struct sym_desc		Sym_desc;
 typedef	struct uts_desc		Uts_desc;
 typedef struct ver_desc		Ver_desc;
 typedef struct ver_index	Ver_index;
-typedef	struct audit_desc	Audit_desc;
-typedef	struct audit_info	Audit_info;
-typedef	struct audit_list	Audit_list;
-
-/*
- * Data structures defined in machrel.h.
- */
-typedef struct rel_desc		Rel_desc;
 
 /*
  * Data structures defined in rtld.h.
@@ -279,7 +261,7 @@ typedef struct lm_list32	Lm_list32;
  */
 extern int	assfail(const char *, const char *, int);
 extern void	eprintf(Lm_list *, Error, const char *, ...);
-extern char	*sgs_demangle(char *);
+extern void	veprintf(Lm_list *, Error, const char *, va_list);
 extern uint_t	sgs_str_hash(const char *);
 extern uint_t	findprime(uint_t);
 

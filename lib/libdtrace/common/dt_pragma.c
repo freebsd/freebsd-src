@@ -20,11 +20,8 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <assert.h>
 #include <strings.h>
@@ -337,8 +334,7 @@ dt_pragma_option(const char *prname, dt_node_t *dnp)
 		    "superfluous arguments specified for #pragma %s\n", prname);
 	}
 
-	opt = alloca(strlen(dnp->dn_string) + 1);
-	(void) strcpy(opt, dnp->dn_string);
+	opt = strdupa(dnp->dn_string);
 
 	if ((val = strchr(opt, '=')) != NULL)
 		*val++ = '\0';
