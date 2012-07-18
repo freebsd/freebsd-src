@@ -26,16 +26,18 @@
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ *
+ * Copyright 2012 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #ifndef _SYS_CMN_ERR_H
 #define	_SYS_CMN_ERR_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #if defined(_KERNEL) && !defined(_ASM)
 #include <sys/va_list.h>
 #endif
+
+#include <sys/dditypes.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -56,47 +58,40 @@ extern "C" {
 /*PRINTFLIKE2*/
 extern void cmn_err(int, const char *, ...)
     __KPRINTFLIKE(2);
-#pragma rarely_called(cmn_err)
 
 extern void vzcmn_err(zoneid_t, int, const char *, __va_list)
     __KVPRINTFLIKE(3);
-#pragma rarely_called(vzcmn_err)
+
+extern void dev_err(dev_info_t *, int, char *, ...)
+    __KPRINTFLIKE(3);
 
 extern void vcmn_err(int, const char *, __va_list)
     __KVPRINTFLIKE(2);
-#pragma rarely_called(vcmn_err)
 
 /*PRINTFLIKE3*/
 extern void zcmn_err(zoneid_t, int, const char *, ...)
     __KPRINTFLIKE(3);
-#pragma rarely_called(zcmn_err)
 
 /*PRINTFLIKE1*/
 extern void printf(const char *, ...)
     __KPRINTFLIKE(1);
-#pragma	rarely_called(printf)
 
 extern void vzprintf(zoneid_t, const char *, __va_list)
     __KVPRINTFLIKE(2);
-#pragma rarely_called(vzprintf)
 
 /*PRINTFLIKE2*/
 extern void zprintf(zoneid_t, const char *, ...)
     __KPRINTFLIKE(2);
-#pragma rarely_called(zprintf)
 
 extern void vprintf(const char *, __va_list)
     __KVPRINTFLIKE(1);
-#pragma	rarely_called(vprintf)
 
 /*PRINTFLIKE1*/
 extern void uprintf(const char *, ...)
     __KPRINTFLIKE(1);
-#pragma rarely_called(uprintf)
 
 extern void vuprintf(const char *, __va_list)
     __KVPRINTFLIKE(1);
-#pragma rarely_called(vuprintf)
 
 /*PRINTFLIKE3*/
 extern size_t snprintf(char *, size_t, const char *, ...)
@@ -112,11 +107,9 @@ extern char *vsprintf(char *, const char *, __va_list)
 /*PRINTFLIKE1*/
 extern void panic(const char *, ...)
     __KPRINTFLIKE(1) __NORETURN;
-#pragma rarely_called(panic)
 
 extern void vpanic(const char *, __va_list)
     __KVPRINTFLIKE(1) __NORETURN;
-#pragma rarely_called(vpanic)
 
 #endif /* _KERNEL */
 #endif /* !_ASM */

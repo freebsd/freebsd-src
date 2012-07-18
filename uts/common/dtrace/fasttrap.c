@@ -24,6 +24,9 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
 
 #include <sys/atomic.h>
 #include <sys/errno.h>
@@ -273,7 +276,7 @@ fasttrap_pid_cleanup_cb(void *data)
 	fasttrap_provider_t **fpp, *fp;
 	fasttrap_bucket_t *bucket;
 	dtrace_provider_id_t provid;
-	int i, later;
+	int i, later, rval;
 
 	static volatile int in = 0;
 	ASSERT(in == 0);
@@ -335,9 +338,13 @@ fasttrap_pid_cleanup_cb(void *data)
 				 * clean out the unenabled probes.
 				 */
 				provid = fp->ftp_provid;
-				if (dtrace_unregister(provid) != 0) {
+				if ((rval = dtrace_unregister(provid)) != 0) {
 					if (fasttrap_total > fasttrap_max / 2)
 						(void) dtrace_condense(provid);
+
+					if (rval == EAGAIN)
+						fp->ftp_marked = 1;
+
 					later += fp->ftp_marked;
 					fpp = &fp->ftp_next;
 				} else {
@@ -363,12 +370,16 @@ fasttrap_pid_cleanup_cb(void *data)
 	 * get a chance to do that work if and when the timeout is reenabled
 	 * (if detach fails).
 	 */
-	if (later > 0 && fasttrap_timeout != (timeout_id_t)1)
-		fasttrap_timeout = timeout(&fasttrap_pid_cleanup_cb, NULL, hz);
-	else if (later > 0)
+	if (later > 0) {
+		if (fasttrap_timeout != (timeout_id_t)1) {
+			fasttrap_timeout =
+			    timeout(&fasttrap_pid_cleanup_cb, NULL, hz);
+		}
+
 		fasttrap_cleanup_work = 1;
-	else
+	} else {
 		fasttrap_timeout = 0;
+	}
 
 	mutex_exit(&fasttrap_cleanup_mtx);
 	in = 0;

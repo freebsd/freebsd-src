@@ -21,6 +21,8 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -106,7 +108,7 @@ vdev_get_min_asize(vdev_t *vd)
 	vdev_t *pvd = vd->vdev_parent;
 
 	/*
-	 * The our parent is NULL (inactive spare or cache) or is the root,
+	 * If our parent is NULL (inactive spare or cache) or is the root,
 	 * just return our own asize.
 	 */
 	if (pvd == NULL)
@@ -286,6 +288,7 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	if (spa->spa_root_vdev == NULL) {
 		ASSERT(ops == &vdev_root_ops);
 		spa->spa_root_vdev = vd;
+		spa->spa_load_guid = spa_generate_guid(NULL);
 	}
 
 	if (guid == 0 && ops != &vdev_hole_ops) {
@@ -485,7 +488,7 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		    &vd->vdev_removing);
 	}
 
-	if (parent && !parent->vdev_parent) {
+	if (parent && !parent->vdev_parent && alloctype != VDEV_ALLOC_ATTACH) {
 		ASSERT(alloctype == VDEV_ALLOC_LOAD ||
 		    alloctype == VDEV_ALLOC_ADD ||
 		    alloctype == VDEV_ALLOC_SPLIT ||
@@ -661,6 +664,8 @@ vdev_top_transfer(vdev_t *svd, vdev_t *tvd)
 	svd->vdev_ms_shift = 0;
 	svd->vdev_ms_count = 0;
 
+	if (tvd->vdev_mg)
+		ASSERT3P(tvd->vdev_mg, ==, svd->vdev_mg);
 	tvd->vdev_mg = svd->vdev_mg;
 	tvd->vdev_ms = svd->vdev_ms;
 
@@ -732,6 +737,7 @@ vdev_add_parent(vdev_t *cvd, vdev_ops_t *ops)
 
 	mvd->vdev_asize = cvd->vdev_asize;
 	mvd->vdev_min_asize = cvd->vdev_min_asize;
+	mvd->vdev_max_asize = cvd->vdev_max_asize;
 	mvd->vdev_ashift = cvd->vdev_ashift;
 	mvd->vdev_state = cvd->vdev_state;
 	mvd->vdev_crtxg = cvd->vdev_crtxg;
@@ -1103,7 +1109,8 @@ vdev_open(vdev_t *vd)
 	spa_t *spa = vd->vdev_spa;
 	int error;
 	uint64_t osize = 0;
-	uint64_t asize, psize;
+	uint64_t max_osize = 0;
+	uint64_t asize, max_asize, psize;
 	uint64_t ashift = 0;
 
 	ASSERT(vd->vdev_open_thread == curthread ||
@@ -1134,7 +1141,7 @@ vdev_open(vdev_t *vd)
 		return (ENXIO);
 	}
 
-	error = vd->vdev_ops->vdev_op_open(vd, &osize, &ashift);
+	error = vd->vdev_ops->vdev_op_open(vd, &osize, &max_osize, &ashift);
 
 	/*
 	 * Reset the vdev_reopening flag so that we actually close
@@ -1192,6 +1199,7 @@ vdev_open(vdev_t *vd)
 	}
 
 	osize = P2ALIGN(osize, (uint64_t)sizeof (vdev_label_t));
+	max_osize = P2ALIGN(max_osize, (uint64_t)sizeof (vdev_label_t));
 
 	if (vd->vdev_children == 0) {
 		if (osize < SPA_MINDEVSIZE) {
@@ -1201,6 +1209,8 @@ vdev_open(vdev_t *vd)
 		}
 		psize = osize;
 		asize = osize - (VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE);
+		max_asize = max_osize - (VDEV_LABEL_START_SIZE +
+		    VDEV_LABEL_END_SIZE);
 	} else {
 		if (vd->vdev_parent != NULL && osize < SPA_MINDEVSIZE -
 		    (VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE)) {
@@ -1210,6 +1220,7 @@ vdev_open(vdev_t *vd)
 		}
 		psize = 0;
 		asize = osize;
+		max_asize = max_osize;
 	}
 
 	vd->vdev_psize = psize;
@@ -1229,16 +1240,22 @@ vdev_open(vdev_t *vd)
 		 * For testing purposes, a higher ashift can be requested.
 		 */
 		vd->vdev_asize = asize;
+		vd->vdev_max_asize = max_asize;
 		vd->vdev_ashift = MAX(ashift, vd->vdev_ashift);
 	} else {
 		/*
-		 * Make sure the alignment requirement hasn't increased.
+		 * Detect if the alignment requirement has increased.
+		 * We don't want to make the pool unavailable, just
+		 * issue a warning instead.
 		 */
-		if (ashift > vd->vdev_top->vdev_ashift) {
-			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
-			    VDEV_AUX_BAD_LABEL);
-			return (EINVAL);
+		if (ashift > vd->vdev_top->vdev_ashift &&
+		    vd->vdev_ops->vdev_op_leaf) {
+			cmn_err(CE_WARN,
+			    "Disk, '%s', has a block alignment that is "
+			    "larger than the pool's alignment\n",
+			    vd->vdev_path);
 		}
+		vd->vdev_max_asize = max_asize;
 	}
 
 	/*
@@ -1280,13 +1297,18 @@ vdev_open(vdev_t *vd)
  * contents.  This needs to be done before vdev_load() so that we don't
  * inadvertently do repair I/Os to the wrong device.
  *
+ * If 'strict' is false ignore the spa guid check. This is necessary because
+ * if the machine crashed during a re-guid the new guid might have been written
+ * to all of the vdev labels, but not the cached config. The strict check
+ * will be performed when the pool is opened again using the mos config.
+ *
  * This function will only return failure if one of the vdevs indicates that it
  * has since been destroyed or exported.  This is only possible if
  * /etc/zfs/zpool.cache was readonly at the time.  Otherwise, the vdev state
  * will be updated but the function will return 0.
  */
 int
-vdev_validate(vdev_t *vd)
+vdev_validate(vdev_t *vd, boolean_t strict)
 {
 	spa_t *spa = vd->vdev_spa;
 	nvlist_t *label;
@@ -1294,7 +1316,7 @@ vdev_validate(vdev_t *vd)
 	uint64_t state;
 
 	for (int c = 0; c < vd->vdev_children; c++)
-		if (vdev_validate(vd->vdev_child[c]) != 0)
+		if (vdev_validate(vd->vdev_child[c], strict) != 0)
 			return (EBADF);
 
 	/*
@@ -1306,7 +1328,8 @@ vdev_validate(vdev_t *vd)
 		uint64_t aux_guid = 0;
 		nvlist_t *nvl;
 
-		if ((label = vdev_label_read_config(vd)) == NULL) {
+		if ((label = vdev_label_read_config(vd, VDEV_BEST_LABEL)) ==
+		    NULL) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_BAD_LABEL);
 			return (0);
@@ -1324,8 +1347,9 @@ vdev_validate(vdev_t *vd)
 			return (0);
 		}
 
-		if (nvlist_lookup_uint64(label, ZPOOL_CONFIG_POOL_GUID,
-		    &guid) != 0 || guid != spa_guid(spa)) {
+		if (strict && (nvlist_lookup_uint64(label,
+		    ZPOOL_CONFIG_POOL_GUID, &guid) != 0 ||
+		    guid != spa_guid(spa))) {
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
 			nvlist_free(label);
@@ -1487,7 +1511,7 @@ vdev_reopen(vdev_t *vd)
 		    !l2arc_vdev_present(vd))
 			l2arc_add_vdev(spa, vd);
 	} else {
-		(void) vdev_validate(vd);
+		(void) vdev_validate(vd, B_TRUE);
 	}
 
 	/*
@@ -1946,14 +1970,14 @@ vdev_validate_aux(vdev_t *vd)
 	if (!vdev_readable(vd))
 		return (0);
 
-	if ((label = vdev_label_read_config(vd)) == NULL) {
+	if ((label = vdev_label_read_config(vd, VDEV_BEST_LABEL)) == NULL) {
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_CORRUPT_DATA);
 		return (-1);
 	}
 
 	if (nvlist_lookup_uint64(label, ZPOOL_CONFIG_VERSION, &version) != 0 ||
-	    version > SPA_VERSION ||
+	    !SPA_VERSION_IS_SUPPORTED(version) ||
 	    nvlist_lookup_uint64(label, ZPOOL_CONFIG_GUID, &guid) != 0 ||
 	    guid != vd->vdev_guid ||
 	    nvlist_lookup_uint64(label, ZPOOL_CONFIG_POOL_STATE, &state) != 0) {
@@ -2456,6 +2480,7 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	vs->vs_rsize = vdev_get_min_asize(vd);
 	if (vd->vdev_ops->vdev_op_leaf)
 		vs->vs_rsize += VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
+	vs->vs_esize = vd->vdev_max_asize - vd->vdev_asize;
 	mutex_exit(&vd->vdev_stat_lock);
 
 	/*
