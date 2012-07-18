@@ -19,11 +19,10 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -361,7 +360,7 @@ profile_offline(void *arg, cpu_t *cpu, void *oarg)
 }
 
 /*ARGSUSED*/
-static void
+static int
 profile_enable(void *arg, dtrace_id_t id, void *parg)
 {
 	profile_probe_t *prof = parg;
@@ -391,6 +390,7 @@ profile_enable(void *arg, dtrace_id_t id, void *parg)
 	} else {
 		prof->prof_cyclic = cyclic_add_omni(&omni);
 	}
+	return (0);
 }
 
 /*ARGSUSED*/
@@ -539,7 +539,8 @@ static struct dev_ops profile_ops = {
 	nodev,			/* reset */
 	&profile_cb_ops,	/* driver operations */
 	NULL,			/* bus operations */
-	nodev			/* dev power */
+	nodev,			/* dev power */
+	ddi_quiesce_not_needed,		/* quiesce */
 };
 
 /*
