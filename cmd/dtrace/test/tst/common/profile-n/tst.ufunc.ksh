@@ -23,7 +23,6 @@
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-# ident	"%Z%%M%	%I%	%E% SMI"
 
 script()
 {
@@ -61,10 +60,9 @@ child=$!
 
 #
 # The only thing we can be sure of here is that we caught some function in
-# ksh doing work.  (This actually goes one step further and assumes that we
-# catch some non-static function in ksh.)
+# ksh doing work.
 #
-script | tee /dev/fd/2 | grep 'ksh`[a-zA-Z_]' > /dev/null
+script | tee /dev/fd/2 | egrep '(ksh|libshell\.so\.[0-9])`[a-zA-Z_]' > /dev/null
 status=$? 
 
 kill $child

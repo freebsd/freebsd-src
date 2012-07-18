@@ -23,7 +23,6 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-#ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # This test is primarily intended to verify a fix for SPARC, but there's no
@@ -77,7 +76,7 @@ main(int argc, char **argv)
 }
 EOF
 
-cc -c -xO2 test.c
+gcc -c test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
@@ -87,7 +86,7 @@ if [ $? -ne 0 ]; then
 	print -u2 "failed to create DOF"
 	exit 1
 fi
-cc -o test test.o prov.o
+gcc -o test test.o prov.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to link final executable"
 	exit 1

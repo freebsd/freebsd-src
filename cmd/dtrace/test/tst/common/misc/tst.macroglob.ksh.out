@@ -4,12 +4,15 @@ read entry
 FUNCTION NAME
 read entry
 readlink entry
+readlinkat entry
 readv entry
 FUNCTION NAME
 read entry
 readlink entry
+readlinkat entry
 readv entry
 FUNCTION NAME
 readlink entry
+readlinkat entry
 FUNCTION NAME
 pread64 entry

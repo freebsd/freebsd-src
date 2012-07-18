@@ -23,7 +23,6 @@
 # Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-#ident	"%Z%%M%	%I%	%E% SMI"
 
 if [ $# != 1 ]; then
 	echo expected one argument: '<'dtrace-path'>'
@@ -35,7 +34,7 @@ dtrace=$1
 
 rm -f $file
 
-dir=`dirname $tst`
+dir=`/bin/dirname $tst`
 
 $dtrace -o $file -c $dir/tst.spin.exe -s /dev/stdin <<EOF
 

@@ -3,16 +3,16 @@
 .\" The contents of this file are subject to the terms of the Common Development and Distribution License (the "License").  You may not use this file except in compliance with the License.
 .\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE or http://www.opensolaris.org/os/licensing.  See the License for the specific language governing permissions and limitations under the License.
 .\" When distributing Covered Code, include this CDDL HEADER in each file and include the License file at usr/src/OPENSOLARIS.LICENSE.  If applicable, add the following below this CDDL HEADER, with the fields enclosed by brackets "[]" replaced with your own identifying information: Portions Copyright [yyyy] [name of copyright owner]
-.TH lockstat 1M "28 Feb 2008" "SunOS 5.11" "System Administration Commands"
+.TH LOCKSTAT 1M "Feb 28, 2008"
 .SH NAME
 lockstat \- report kernel lock and profiling statistics
 .SH SYNOPSIS
 .LP
 .nf
-\fBlockstat\fR [\fB-ACEHI\fR] [\fB-e\fR \fIevent_list\fR] [\fB-i\fR \fIrate\fR] 
-     [\fB-b\fR | \fB-t\fR | \fB-h\fR | \fB-s\fR \fIdepth\fR] [\fB-n\fR \fInrecords\fR] 
-     [\fB-l\fR \fIlock\fR [, \fIsize\fR]] [\fB-d\fR \fIduration\fR] 
-     [\fB-f\fR \fIfunction\fR [, \fIsize\fR]] [\fB-T\fR] [\fB-ckgwWRpP\fR] [\fB-D\fR \fIcount\fR] 
+\fBlockstat\fR [\fB-ACEHI\fR] [\fB-e\fR \fIevent_list\fR] [\fB-i\fR \fIrate\fR]
+     [\fB-b\fR | \fB-t\fR | \fB-h\fR | \fB-s\fR \fIdepth\fR] [\fB-n\fR \fInrecords\fR]
+     [\fB-l\fR \fIlock\fR [, \fIsize\fR]] [\fB-d\fR \fIduration\fR]
+     [\fB-f\fR \fIfunction\fR [, \fIsize\fR]] [\fB-T\fR] [\fB-ckgwWRpP\fR] [\fB-D\fR \fIcount\fR]
      [\fB-o\fR \fIfilename\fR] [\fB-x\fR \fIopt\fR [=val]] \fIcommand\fR [\fIargs\fR]
 .fi
 
@@ -61,7 +61,6 @@ The following options are supported:
 If no event selection options are specified, the default is \fB-C\fR.
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-A\fR\fR
 .ad
@@ -72,7 +71,6 @@ Watch all lock events. \fB-A\fR is equivalent to \fB-CH\fR.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-C\fR\fR
 .ad
@@ -83,7 +81,6 @@ Watch contention events.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-E\fR\fR
 .ad
@@ -94,7 +91,6 @@ Watch error events.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-e\fR \fIevent_list\fR\fR
 .ad
@@ -107,7 +103,6 @@ arguments to get a brief description of all events.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-H\fR\fR
 .ad
@@ -118,7 +113,6 @@ Watch hold events.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-I\fR\fR
 .ad
@@ -129,7 +123,6 @@ Watch profiling interrupt events.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-i\fR \fIrate\fR\fR
 .ad
@@ -143,7 +136,6 @@ Hz).
 .SS "Data Gathering"
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-x\fR \fIarg\fR[=\fIval\fR]\fR
 .ad
@@ -158,7 +150,6 @@ an equals sign (=).
 .SS "Data Gathering (Mutually Exclusive)"
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-b\fR\fR
 .ad
@@ -169,7 +160,6 @@ Basic statistics: lock, caller, number of events.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-h\fR\fR
 .ad
@@ -180,7 +170,6 @@ Histogram: Timing plus time-distribution histograms.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-s\fR \fIdepth\fR\fR
 .ad
@@ -191,7 +180,6 @@ Stack trace: Histogram plus stack traces up to \fIdepth\fR frames deep.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-t\fR\fR
 .ad
@@ -203,7 +191,6 @@ Timing: Basic plus timing for all events [default].
 .SS "Data Filtering"
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-d\fR \fIduration\fR\fR
 .ad
@@ -214,7 +201,6 @@ Only watch events longer than \fIduration\fR.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-f\fR \fIfunc[,size]\fR\fR
 .ad
@@ -227,7 +213,6 @@ available, or \fB1\fR if not.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-l\fR \fIlock[,size]\fR\fR
 .ad
@@ -240,7 +225,6 @@ symbol size is not available.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-n\fR \fInrecords\fR\fR
 .ad
@@ -251,7 +235,6 @@ Maximum number of data records.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-T\fR\fR
 .ad
@@ -263,7 +246,6 @@ Trace (rather than sample) events [off by default].
 .SS "Data Reporting"
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-c\fR\fR
 .ad
@@ -274,7 +256,6 @@ Coalesce lock data for lock arrays (for example, \fBpse_mutex[]\fR).
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-D\fR \fIcount\fR\fR
 .ad
@@ -285,7 +266,6 @@ Only display the top \fIcount\fR events of each type.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-g\fR\fR
 .ad
@@ -304,7 +284,6 @@ issue (1), the default data gathering mode when using \fB-g\fR is \fB-s\fR
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-k\fR\fR
 .ad
@@ -315,7 +294,6 @@ Coalesce PCs within functions.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB\fR\fB-o\fR \fIfilename\fR\fR
 .ad
@@ -326,7 +304,6 @@ Direct output to \fIfilename\fR.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-P\fR\fR
 .ad
@@ -337,7 +314,6 @@ Sort data by (\fIcount * time\fR) product.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-p\fR\fR
 .ad
@@ -348,7 +324,6 @@ Parsable output format.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-R\fR\fR
 .ad
@@ -359,7 +334,6 @@ Display rates (events per second) rather than counts.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-W\fR\fR
 .ad
@@ -370,7 +344,6 @@ Whichever: distinguish events only by caller, not by lock.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-w\fR\fR
 .ad
@@ -385,7 +358,6 @@ Wherever: distinguish events only by lock, not by caller.
 The following headers appear over various columns of data.
 .sp
 .ne 2
-.mk
 .na
 \fB\fBCount\fR or \fBops/s\fR\fR
 .ad
@@ -397,7 +369,6 @@ was specified.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBindv\fR\fR
 .ad
@@ -408,7 +379,6 @@ Percentage of all events represented by this individual event.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBgenr\fR\fR
 .ad
@@ -419,7 +389,6 @@ Percentage of all events generated by this function.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBcuml\fR\fR
 .ad
@@ -430,7 +399,6 @@ Cumulative percentage; a running total of the individuals.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBrcnt\fR\fR
 .ad
@@ -443,7 +411,6 @@ for shared locks (rwlocks held as reader).
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBnsec\fR\fR
 .ad
@@ -455,7 +422,6 @@ For the profiling event, duration means interrupt latency.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBLock\fR\fR
 .ad
@@ -466,7 +432,6 @@ Address of the lock; displayed symbolically if possible.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBCPU+PIL\fR\fR
 .ad
@@ -478,7 +443,6 @@ Address of the lock; displayed symbolically if possible.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBCaller\fR\fR
 .ad
@@ -800,7 +764,7 @@ Count indv cuml rcnt     nsec Lock               Caller
 Profiling interrupt: 229 events in 10.042 seconds (23 events/sec)
 
 Count indv cuml rcnt     nsec Hottest CPU+PIL    Caller
- 
+
 -------------------------------------------------------------------------
    89  39%  39% 1.00      426 cpu[0]+6           sync_stream_buf
    64  28%  67% 1.00      398 cpu[0]+6           sbus_intr_wrapper
@@ -855,7 +819,7 @@ Count indv cuml rcnt     nsec CPU+PIL          Caller
 1929   40%  40% 0.00     3215 cpu[0]           usec_delay+0x78
   nsec ------ Time Distribution ------ count   Stack
   4096 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  1872    ata_wait+0x90
-  8192 |                               27      acersb_get_intr_status+0x34     
+  8192 |                               27      acersb_get_intr_status+0x34
  16384 |                               29      ata_set_feature+0x124
  32768 |                               1       ata_disk_start+0x15c
                                                ata_hba_start+0xbc
