@@ -921,7 +921,6 @@ vm_pageout_scan(int pass)
 		maxlaunder = 10000;
 	vm_page_lock_queues();
 	queues_locked = TRUE;
-rescan0:
 	addl_page_shortage = addl_page_shortage_init;
 	maxscan = cnt.v_inactive_count;
 
@@ -930,12 +929,9 @@ rescan0:
 	     m = next) {
 		KASSERT(queues_locked, ("unlocked queues"));
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		KASSERT(m->queue == PQ_INACTIVE, ("Inactive queue %p", m));
 
 		cnt.v_pdpages++;
-
-		if (m->queue != PQ_INACTIVE)
-			goto rescan0;
-
 		next = TAILQ_NEXT(m, pageq);
 
 		/*
