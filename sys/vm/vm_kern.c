@@ -239,7 +239,7 @@ retry:
 			VM_OBJECT_UNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
 				vm_map_unlock(map);
-				vm_contig_grow_cache(tries, low, high);
+				vm_pageout_grow_cache(tries, low, high);
 				vm_map_lock(map);
 				VM_OBJECT_LOCK(object);
 				tries++;
@@ -313,7 +313,7 @@ retry:
 		VM_OBJECT_UNLOCK(object);
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
 			vm_map_unlock(map);
-			vm_contig_grow_cache(tries, low, high);
+			vm_pageout_grow_cache(tries, low, high);
 			vm_map_lock(map);
 			VM_OBJECT_LOCK(object);
 			tries++;
