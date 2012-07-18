@@ -39,7 +39,7 @@ zfs \- configures ZFS file systems
 .LP
 .nf
 \fBzfs\fR \fBsnapshot\fR [\fB-r\fR] [\fB-o\fR \fIproperty\fR=\fIvalue\fR]...
-      \fIfilesystem@snapname\fR|\fIvolume@snapname\fR
+      \fIfilesystem@snapname\fR|\fIvolume@snapname\fR...
 .fi
 
 .LP
@@ -1837,13 +1837,14 @@ behavior for mounted file systems in use.
 .ne 2
 .na
 \fB\fBzfs snapshot\fR [\fB-r\fR] [\fB-o\fR \fIproperty\fR=\fIvalue\fR] ...
-\fIfilesystem@snapname\fR|\fIvolume@snapname\fR\fR
+\fIfilesystem@snapname\fR|\fIvolume@snapname\fR\fR...
 .ad
 .sp .6
 .RS 4n
-Creates a snapshot with the given name. All previous modifications by
-successful system calls to the file system are part of the snapshot. See the
-"Snapshots" section for details.
+Creates snapshots with the given names. All previous modifications by
+successful system calls to the file system are part of the snapshots.
+Snapshots are taken atomically, so that all snapshots correspond to the same
+moment in time. See the "Snapshots" section for details.
 .sp
 .ne 2
 .na
@@ -1851,9 +1852,7 @@ successful system calls to the file system are part of the snapshot. See the
 .ad
 .sp .6
 .RS 4n
-Recursively create snapshots of all descendent datasets. Snapshots are taken
-atomically, so that all recursive snapshots correspond to the same moment in
-time.
+Recursively create snapshots of all descendent datasets
 .RE
 
 .sp
