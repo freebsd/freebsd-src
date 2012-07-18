@@ -23,6 +23,9 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
 
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -408,9 +411,25 @@ profile_disable(void *arg, dtrace_id_t id, void *parg)
 
 /*ARGSUSED*/
 static int
-profile_usermode(void *arg, dtrace_id_t id, void *parg)
+profile_mode(void *arg, dtrace_id_t id, void *parg)
 {
-	return (CPU->cpu_profile_pc == 0);
+	profile_probe_t *prof = parg;
+	int mode;
+
+	if (CPU->cpu_profile_pc != 0) {
+		mode = DTRACE_MODE_KERNEL;
+	} else {
+		mode = DTRACE_MODE_USER;
+	}
+
+	if (prof->prof_kind == PROF_TICK) {
+		mode |= DTRACE_MODE_NOPRIV_RESTRICT;
+	} else {
+		ASSERT(prof->prof_kind == PROF_PROFILE);
+		mode |= DTRACE_MODE_NOPRIV_DROP;
+	}
+
+	return (mode);
 }
 
 static dtrace_pattr_t profile_attr = {
@@ -430,7 +449,7 @@ static dtrace_pops_t profile_pops = {
 	NULL,
 	NULL,
 	NULL,
-	profile_usermode,
+	profile_mode,
 	profile_destroy
 };
 

@@ -20,9 +20,11 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ *
+ * Portions Copyright 2010 Robert Milkowski
+ *
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
-
-/* Portions Copyright 2010 Robert Milkowski */
 
 /*
  * ZFS volume emulation driver.
@@ -342,6 +344,24 @@ zvol_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
 }
 
 /*
+ * Replay a TX_TRUNCATE ZIL transaction if asked.  TX_TRUNCATE is how we
+ * implement DKIOCFREE/free-long-range.
+ */
+static int
+zvol_replay_truncate(zvol_state_t *zv, lr_truncate_t *lr, boolean_t byteswap)
+{
+	uint64_t offset, length;
+
+	if (byteswap)
+		byteswap_uint64_array(lr, sizeof (*lr));
+
+	offset = lr->lr_offset;
+	length = lr->lr_length;
+
+	return (dmu_free_long_range(zv->zv_objset, ZVOL_OBJ, offset, length));
+}
+
+/*
  * Replay a TX_WRITE ZIL transaction that didn't get committed
  * after a system failure
  */
@@ -391,7 +411,7 @@ zvol_replay_err(zvol_state_t *zv, lr_t *lr, boolean_t byteswap)
 
 /*
  * Callback vectors for replaying records.
- * Only TX_WRITE is needed for zvol.
+ * Only TX_WRITE and TX_TRUNCATE are needed for zvol.
  */
 zil_replay_func_t *zvol_replay_vector[TX_MAX_TYPE] = {
 	zvol_replay_err,	/* 0 no such transaction type */
@@ -404,7 +424,7 @@ zil_replay_func_t *zvol_replay_vector[TX_MAX_TYPE] = {
 	zvol_replay_err,	/* TX_LINK */
 	zvol_replay_err,	/* TX_RENAME */
 	zvol_replay_write,	/* TX_WRITE */
-	zvol_replay_err,	/* TX_TRUNCATE */
+	zvol_replay_truncate,	/* TX_TRUNCATE */
 	zvol_replay_err,	/* TX_SETATTR */
 	zvol_replay_err,	/* TX_ACL */
 	zvol_replay_err,	/* TX_CREATE_ACL */
@@ -1512,7 +1532,32 @@ zvol_log_write_minor(void *minor_hdl, dmu_tx_t *tx, offset_t off, ssize_t resid,
  */
 
 /*
+ * Log a DKIOCFREE/free-long-range to the ZIL with TX_TRUNCATE.
+ */
+static void
+zvol_log_truncate(zvol_state_t *zv, dmu_tx_t *tx, uint64_t off, uint64_t len,
+    boolean_t sync)
+{
+	itx_t *itx;
+	lr_truncate_t *lr;
+	zilog_t *zilog = zv->zv_zilog;
+
+	if (zil_replaying(zilog, tx))
+		return;
+
+	itx = zil_itx_create(TX_TRUNCATE, sizeof (*lr));
+	lr = (lr_truncate_t *)&itx->itx_lr;
+	lr->lr_foid = ZVOL_OBJ;
+	lr->lr_offset = off;
+	lr->lr_length = len;
+
+	itx->itx_sync = sync;
+	zil_itx_assign(zilog, itx, tx);
+}
+
+/*
  * Dirtbag ioctls to support mkfs(1M) for UFS filesystems.  See dkio(7I).
+ * Also a dirtbag dkio ioctl for unmap/free-block functionality.
  */
 /*ARGSUSED*/
 int
@@ -1630,6 +1675,65 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		error = zvol_dump_fini(zv);
 		zfs_range_unlock(rl);
 		break;
+
+	case DKIOCFREE:
+	{
+		dkioc_free_t df;
+		dmu_tx_t *tx;
+
+		if (ddi_copyin((void *)arg, &df, sizeof (df), flag)) {
+			error = EFAULT;
+			break;
+		}
+
+		/*
+		 * Apply Postel's Law to length-checking.  If they overshoot,
+		 * just blank out until the end, if there's a need to blank
+		 * out anything.
+		 */
+		if (df.df_start >= zv->zv_volsize)
+			break;	/* No need to do anything... */
+		if (df.df_start + df.df_length > zv->zv_volsize)
+			df.df_length = DMU_OBJECT_END;
+
+		rl = zfs_range_lock(&zv->zv_znode, df.df_start, df.df_length,
+		    RL_WRITER);
+		tx = dmu_tx_create(zv->zv_objset);
+		error = dmu_tx_assign(tx, TXG_WAIT);
+		if (error != 0) {
+			dmu_tx_abort(tx);
+		} else {
+			zvol_log_truncate(zv, tx, df.df_start,
+			    df.df_length, B_TRUE);
+			dmu_tx_commit(tx);
+			error = dmu_free_long_range(zv->zv_objset, ZVOL_OBJ,
+			    df.df_start, df.df_length);
+		}
+
+		zfs_range_unlock(rl);
+
+		if (error == 0) {
+			/*
+			 * If the write-cache is disabled or 'sync' property
+			 * is set to 'always' then treat this as a synchronous
+			 * operation (i.e. commit to zil).
+			 */
+			if (!(zv->zv_flags & ZVOL_WCE) ||
+			    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS))
+				zil_commit(zv->zv_zilog, ZVOL_OBJ);
+
+			/*
+			 * If the caller really wants synchronous writes, and
+			 * can't wait for them, don't return until the write
+			 * is done.
+			 */
+			if (df.df_flags & DF_WAIT_SYNC) {
+				txg_wait_synced(
+				    dmu_objset_pool(zv->zv_objset), 0);
+			}
+		}
+		break;
+	}
 
 	default:
 		error = ENOTTY;

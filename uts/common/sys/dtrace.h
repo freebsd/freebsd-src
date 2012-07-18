@@ -24,6 +24,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
+
 #ifndef _SYS_DTRACE_H
 #define	_SYS_DTRACE_H
 
@@ -202,6 +206,7 @@ typedef enum dtrace_probespec {
 #define	DIF_VAR_ARGS		0x0000	/* arguments array */
 #define	DIF_VAR_REGS		0x0001	/* registers array */
 #define	DIF_VAR_UREGS		0x0002	/* user registers array */
+#define	DIF_VAR_VMREGS		0x0003	/* virtual machine registers array */
 #define	DIF_VAR_CURTHREAD	0x0100	/* thread pointer */
 #define	DIF_VAR_TIMESTAMP	0x0101	/* timestamp */
 #define	DIF_VAR_VTIMESTAMP	0x0102	/* virtual timestamp */
@@ -280,8 +285,10 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_INET_NTOP		41
 #define	DIF_SUBR_INET_NTOA		42
 #define	DIF_SUBR_INET_NTOA6		43
+#define	DIF_SUBR_TOUPPER		44
+#define	DIF_SUBR_TOLOWER		45
 
-#define	DIF_SUBR_MAX			43	/* max subroutine value */
+#define	DIF_SUBR_MAX			45	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -390,6 +397,8 @@ typedef struct dtrace_difv {
 #define	DTRACEACT_PRINTF		3	/* printf() action */
 #define	DTRACEACT_PRINTA		4	/* printa() action */
 #define	DTRACEACT_LIBACT		5	/* library-controlled action */
+#define	DTRACEACT_TRACEMEM		6	/* tracemem() action */
+#define	DTRACEACT_TRACEMEM_DYNSIZE	7	/* dynamic tracemem() size */
 
 #define	DTRACEACT_PROC			0x0100
 #define	DTRACEACT_USTACK		(DTRACEACT_PROC + 1)
@@ -455,6 +464,7 @@ typedef struct dtrace_difv {
 #define	DTRACEAGG_STDDEV		(DTRACEACT_AGGREGATION + 6)
 #define	DTRACEAGG_QUANTIZE		(DTRACEACT_AGGREGATION + 7)
 #define	DTRACEAGG_LQUANTIZE		(DTRACEACT_AGGREGATION + 8)
+#define	DTRACEAGG_LLQUANTIZE		(DTRACEACT_AGGREGATION + 9)
 
 #define	DTRACEACT_ISAGG(x)		\
 	(DTRACEACT_CLASS(x) == DTRACEACT_AGGREGATION)
@@ -488,6 +498,31 @@ typedef struct dtrace_difv {
 #define	DTRACE_LQUANTIZE_BASE(x)		\
 	(int32_t)(((x) & DTRACE_LQUANTIZE_BASEMASK) >> \
 	DTRACE_LQUANTIZE_BASESHIFT)
+
+#define	DTRACE_LLQUANTIZE_FACTORSHIFT		48
+#define	DTRACE_LLQUANTIZE_FACTORMASK		((uint64_t)UINT16_MAX << 48)
+#define	DTRACE_LLQUANTIZE_LOWSHIFT		32
+#define	DTRACE_LLQUANTIZE_LOWMASK		((uint64_t)UINT16_MAX << 32)
+#define	DTRACE_LLQUANTIZE_HIGHSHIFT		16
+#define	DTRACE_LLQUANTIZE_HIGHMASK		((uint64_t)UINT16_MAX << 16)
+#define	DTRACE_LLQUANTIZE_NSTEPSHIFT		0
+#define	DTRACE_LLQUANTIZE_NSTEPMASK		UINT16_MAX
+
+#define	DTRACE_LLQUANTIZE_FACTOR(x)		\
+	(uint16_t)(((x) & DTRACE_LLQUANTIZE_FACTORMASK) >> \
+	DTRACE_LLQUANTIZE_FACTORSHIFT)
+
+#define	DTRACE_LLQUANTIZE_LOW(x)		\
+	(uint16_t)(((x) & DTRACE_LLQUANTIZE_LOWMASK) >> \
+	DTRACE_LLQUANTIZE_LOWSHIFT)
+
+#define	DTRACE_LLQUANTIZE_HIGH(x)		\
+	(uint16_t)(((x) & DTRACE_LLQUANTIZE_HIGHMASK) >> \
+	DTRACE_LLQUANTIZE_HIGHSHIFT)
+
+#define	DTRACE_LLQUANTIZE_NSTEP(x)		\
+	(uint16_t)(((x) & DTRACE_LLQUANTIZE_NSTEPMASK) >> \
+	DTRACE_LLQUANTIZE_NSTEPSHIFT)
 
 #define	DTRACE_USTACK_NFRAMES(x)	(uint32_t)((x) & UINT32_MAX)
 #define	DTRACE_USTACK_STRSIZE(x)	(uint32_t)((x) >> 32)
@@ -1321,7 +1356,7 @@ typedef struct dof_helper {
  *   dtps_resume()           <-- Resume specified probe
  *   dtps_getargdesc()       <-- Get the argument description for args[X]
  *   dtps_getargval()        <-- Get the value for an argX or args[X] variable
- *   dtps_usermode()         <-- Find out if the probe was fired in user mode
+ *   dtps_mode()             <-- Return the mode of the fired probe
  *   dtps_destroy()          <-- Destroy all state associated with this probe
  *
  * 1.2  void dtps_provide(void *arg, const dtrace_probedesc_t *spec)
@@ -1570,24 +1605,32 @@ typedef struct dof_helper {
  *   This is called from within dtrace_probe() meaning that interrupts
  *   are disabled. No locks should be taken within this entry point.
  *
- * 1.10  int dtps_usermode(void *arg, dtrace_id_t id, void *parg)
+ * 1.10  int dtps_mode(void *arg, dtrace_id_t id, void *parg)
  *
  * 1.10.1  Overview
  *
- *   Called to determine if the probe was fired in a user context.
+ *   Called to determine the mode of a fired probe.
  *
  * 1.10.2  Arguments and notes
  *
  *   The first argument is the cookie as passed to dtrace_register(). The
- *   second argument is the identifier of the current probe. The third
+ *   second argument is the identifier of the current probe.  The third
  *   argument is the probe argument as passed to dtrace_probe_create().  This
  *   entry point must not be left NULL for providers whose probes allow for
- *   mixed mode tracing, that is to say those probes that can fire during
- *   kernel- _or_ user-mode execution
+ *   mixed mode tracing, that is to say those unanchored probes that can fire
+ *   during kernel- or user-mode execution.
  *
  * 1.10.3  Return value
  *
- *   A boolean value.
+ *   A bitwise OR that encapsulates both the mode (either DTRACE_MODE_KERNEL
+ *   or DTRACE_MODE_USER) and the policy when the privilege of the enabling
+ *   is insufficient for that mode (either DTRACE_MODE_NOPRIV_DROP or
+ *   DTRACE_MODE_NOPRIV_RESTRICT).  If the policy is DTRACE_MODE_NOPRIV_DROP,
+ *   insufficient privilege will result in the probe firing being silently
+ *   ignored for the enabling; if the policy is DTRACE_NODE_NOPRIV_RESTRICT,
+ *   insufficient privilege will not prevent probe processing for the
+ *   enabling, but restrictions will be in place that induce a UPRIV fault
+ *   upon attempt to examine probe arguments or current process state.
  *
  * 1.10.4  Caller's context
  *
@@ -1978,9 +2021,14 @@ typedef struct dtrace_pops {
 	    dtrace_argdesc_t *desc);
 	uint64_t (*dtps_getargval)(void *arg, dtrace_id_t id, void *parg,
 	    int argno, int aframes);
-	int (*dtps_usermode)(void *arg, dtrace_id_t id, void *parg);
+	int (*dtps_mode)(void *arg, dtrace_id_t id, void *parg);
 	void (*dtps_destroy)(void *arg, dtrace_id_t id, void *parg);
 } dtrace_pops_t;
+
+#define	DTRACE_MODE_KERNEL			0x01
+#define	DTRACE_MODE_USER			0x02
+#define	DTRACE_MODE_NOPRIV_DROP			0x10
+#define	DTRACE_MODE_NOPRIV_RESTRICT		0x20
 
 typedef uintptr_t	dtrace_provider_id_t;
 
