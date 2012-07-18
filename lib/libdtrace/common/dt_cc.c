@@ -21,6 +21,8 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Joyent Inc. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 /*
@@ -82,6 +84,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/sysmacros.h>
 
 #include <assert.h>
 #include <strings.h>
@@ -676,13 +679,59 @@ dt_action_trace(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 	ap->dtad_kind = DTRACEACT_DIFEXPR;
 }
 
+/*
+ * The print() action behaves identically to trace(), except that it stores the
+ * CTF type of the argument (if present) within the DOF for the DIFEXPR action.
+ * To do this, we set the 'dtsd_strdata' to point to the fully-qualified CTF
+ * type ID for the result of the DIF action.  We use the ID instead of the name
+ * to handles complex types like arrays and function pointers that can't be
+ * resolved by ctf_type_lookup().  This is later processed by
+ * dtrace_dof_create() and turned into a reference into the string table so
+ * that we can get the type information when we process the data after the
+ * fact.
+ */
+static void
+dt_action_print(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
+{
+	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
+	dt_node_t *dret;
+	size_t len;
+	dt_module_t *dmp;
+
+	if (dt_node_is_void(dnp->dn_args)) {
+		dnerror(dnp->dn_args, D_PRINT_VOID,
+		    "print( ) may not be applied to a void expression\n");
+	}
+
+	if (dt_node_is_dynamic(dnp->dn_args)) {
+		dnerror(dnp->dn_args, D_PRINT_DYN,
+		    "print( ) may not be applied to a dynamic expression\n");
+	}
+
+	dt_cg(yypcb, dnp->dn_args);
+
+	dret = yypcb->pcb_dret;
+	dmp = dt_module_lookup_by_ctf(dtp, dret->dn_ctfp);
+
+	len = snprintf(NULL, 0, "%s`%d", dmp->dm_name, dret->dn_type) + 1;
+	sdp->dtsd_strdata = dt_alloc(dtp, len);
+	if (sdp->dtsd_strdata == NULL)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOMEM);
+	(void) snprintf(sdp->dtsd_strdata, len, "%s`%d", dmp->dm_name,
+	    dret->dn_type);
+
+	ap->dtad_difo = dt_as(yypcb);
+	ap->dtad_kind = DTRACEACT_DIFEXPR;
+}
+
 static void
 dt_action_tracemem(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 {
 	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
 
 	dt_node_t *addr = dnp->dn_args;
-	dt_node_t *size = dnp->dn_args->dn_list;
+	dt_node_t *max = dnp->dn_args->dn_list;
+	dt_node_t *size;
 
 	char n[DT_TYPE_NAMELEN];
 
@@ -694,17 +743,37 @@ dt_action_tracemem(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 		    dt_node_type_name(addr, n, sizeof (n)));
 	}
 
-	if (dt_node_is_posconst(size) == 0) {
-		dnerror(size, D_TRACEMEM_SIZE, "tracemem( ) argument #2 must "
+	if (dt_node_is_posconst(max) == 0) {
+		dnerror(max, D_TRACEMEM_SIZE, "tracemem( ) argument #2 must "
 		    "be a non-zero positive integral constant expression\n");
+	}
+
+	if ((size = max->dn_list) != NULL) {
+		if (size->dn_list != NULL) {
+			dnerror(size, D_TRACEMEM_ARGS, "tracemem ( ) prototype "
+			    "mismatch: expected at most 3 args\n");
+		}
+
+		if (!dt_node_is_scalar(size)) {
+			dnerror(size, D_TRACEMEM_DYNSIZE, "tracemem ( ) "
+			    "dynamic size (argument #3) must be of "
+			    "scalar type\n");
+		}
+
+		dt_cg(yypcb, size);
+		ap->dtad_difo = dt_as(yypcb);
+		ap->dtad_difo->dtdo_rtype = dt_int_rtype;
+		ap->dtad_kind = DTRACEACT_TRACEMEM_DYNSIZE;
+
+		ap = dt_stmt_action(dtp, sdp);
 	}
 
 	dt_cg(yypcb, addr);
 	ap->dtad_difo = dt_as(yypcb);
-	ap->dtad_kind = DTRACEACT_DIFEXPR;
+	ap->dtad_kind = DTRACEACT_TRACEMEM;
 
 	ap->dtad_difo->dtdo_rtype.dtdt_flags |= DIF_TF_BYREF;
-	ap->dtad_difo->dtdo_rtype.dtdt_size = size->dn_value;
+	ap->dtad_difo->dtdo_rtype.dtdt_size = max->dn_value;
 }
 
 static void
@@ -1034,6 +1103,9 @@ dt_compile_fun(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 	case DT_ACT_TRACE:
 		dt_action_trace(dtp, dnp->dn_expr, sdp);
 		break;
+	case DT_ACT_PRINT:
+		dt_action_print(dtp, dnp->dn_expr, sdp);
+		break;
 	case DT_ACT_TRACEMEM:
 		dt_action_tracemem(dtp, dnp->dn_expr, sdp);
 		break;
@@ -1289,6 +1361,145 @@ dt_compile_agg(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 
 		incr = arg3 != NULL ? arg3->dn_list : NULL;
 		argmax = 5;
+	}
+
+	if (fid->di_id == DTRACEAGG_LLQUANTIZE) {
+		/*
+		 * For log/linear quantizations, we have between one and five
+		 * arguments in addition to the expression:
+		 *
+		 *    arg1 => Factor
+		 *    arg2 => Low magnitude
+		 *    arg3 => High magnitude
+		 *    arg4 => Number of steps per magnitude
+		 *    arg5 => Quantization increment value (defaults to 1)
+		 */
+		dt_node_t *llarg = dnp->dn_aggfun->dn_args->dn_list;
+		uint64_t oarg, order, v;
+		dt_idsig_t *isp;
+		int i;
+
+		struct {
+			char *str;		/* string identifier */
+			int badtype;		/* error on bad type */
+			int badval;		/* error on bad value */
+			int mismatch;		/* error on bad match */
+			int shift;		/* shift value */
+			uint16_t value;		/* value itself */
+		} args[] = {
+			{ "factor", D_LLQUANT_FACTORTYPE,
+			    D_LLQUANT_FACTORVAL, D_LLQUANT_FACTORMATCH,
+			    DTRACE_LLQUANTIZE_FACTORSHIFT },
+			{ "low magnitude", D_LLQUANT_LOWTYPE,
+			    D_LLQUANT_LOWVAL, D_LLQUANT_LOWMATCH,
+			    DTRACE_LLQUANTIZE_LOWSHIFT },
+			{ "high magnitude", D_LLQUANT_HIGHTYPE,
+			    D_LLQUANT_HIGHVAL, D_LLQUANT_HIGHMATCH,
+			    DTRACE_LLQUANTIZE_HIGHSHIFT },
+			{ "linear steps per magnitude", D_LLQUANT_NSTEPTYPE,
+			    D_LLQUANT_NSTEPVAL, D_LLQUANT_NSTEPMATCH,
+			    DTRACE_LLQUANTIZE_NSTEPSHIFT },
+			{ NULL }
+		};
+
+		assert(arg == 0);
+
+		for (i = 0; args[i].str != NULL; i++) {
+			if (llarg->dn_kind != DT_NODE_INT) {
+				dnerror(llarg, args[i].badtype, "llquantize( ) "
+				    "argument #%d (%s) must be an "
+				    "integer constant\n", i + 1, args[i].str);
+			}
+
+			if ((uint64_t)llarg->dn_value > UINT16_MAX) {
+				dnerror(llarg, args[i].badval, "llquantize( ) "
+				    "argument #%d (%s) must be an unsigned "
+				    "16-bit quantity\n", i + 1, args[i].str);
+			}
+
+			args[i].value = (uint16_t)llarg->dn_value;
+
+			assert(!(arg & (UINT16_MAX << args[i].shift)));
+			arg |= ((uint64_t)args[i].value << args[i].shift);
+			llarg = llarg->dn_list;
+		}
+
+		assert(arg != 0);
+
+		if (args[0].value < 2) {
+			dnerror(dnp, D_LLQUANT_FACTORSMALL, "llquantize( ) "
+			    "factor (argument #1) must be two or more\n");
+		}
+
+		if (args[1].value >= args[2].value) {
+			dnerror(dnp, D_LLQUANT_MAGRANGE, "llquantize( ) "
+			    "high magnitude (argument #3) must be greater "
+			    "than low magnitude (argument #2)\n");
+		}
+
+		if (args[3].value < args[0].value) {
+			dnerror(dnp, D_LLQUANT_FACTORNSTEPS, "llquantize( ) "
+			    "factor (argument #1) must be less than or "
+			    "equal to the number of linear steps per "
+			    "magnitude (argument #4)\n");
+		}
+
+		for (v = args[0].value; v < args[3].value; v *= args[0].value)
+			continue;
+
+		if ((args[3].value % args[0].value) || (v % args[3].value)) {
+			dnerror(dnp, D_LLQUANT_FACTOREVEN, "llquantize( ) "
+			    "factor (argument #1) must evenly divide the "
+			    "number of steps per magnitude (argument #4), "
+			    "and the number of steps per magnitude must evenly "
+			    "divide a power of the factor\n");
+		}
+
+		for (i = 0, order = 1; i < args[2].value; i++) {
+			if (order * args[0].value > order) {
+				order *= args[0].value;
+				continue;
+			}
+
+			dnerror(dnp, D_LLQUANT_MAGTOOBIG, "llquantize( ) "
+			    "factor (%d) raised to power of high magnitude "
+			    "(%d) overflows 64-bits\n", args[0].value,
+			    args[2].value);
+		}
+
+		isp = (dt_idsig_t *)aid->di_data;
+
+		if (isp->dis_auxinfo == 0) {
+			/*
+			 * This is the first time we've seen an llquantize()
+			 * for this aggregation; we'll store our argument
+			 * as the auxiliary signature information.
+			 */
+			isp->dis_auxinfo = arg;
+		} else if ((oarg = isp->dis_auxinfo) != arg) {
+			/*
+			 * If we have seen this llquantize() before and the
+			 * argument doesn't match the original argument, pick
+			 * the original argument apart to concisely report the
+			 * mismatch.
+			 */
+			int expected = 0, found = 0;
+
+			for (i = 0; expected == found; i++) {
+				assert(args[i].str != NULL);
+
+				expected = (oarg >> args[i].shift) & UINT16_MAX;
+				found = (arg >> args[i].shift) & UINT16_MAX;
+			}
+
+			dnerror(dnp, args[i - 1].mismatch, "llquantize( ) "
+			    "%s (argument #%d) doesn't match previous "
+			    "declaration: expected %d, found %d\n",
+			    args[i - 1].str, i, expected, found);
+		}
+
+		incr = llarg;
+		argmax = 6;
 	}
 
 	if (fid->di_id == DTRACEAGG_QUANTIZE) {
@@ -1913,25 +2124,23 @@ dt_lib_depend_free(dtrace_hdl_t *dtp)
 	}
 }
 
-
 /*
- * Open all of the .d library files found in the specified directory and
- * compile each one in topological order to cache its inlines and translators,
- * etc.  We silently ignore any missing directories and other files found
- * therein. We only fail (and thereby fail dt_load_libs()) if we fail to
- * compile a library and the error is something other than #pragma D depends_on.
- * Dependency errors are silently ignored to permit a library directory to
- * contain libraries which may not be accessible depending on our privileges.
+ * Open all the .d library files found in the specified directory and
+ * compile each one of them.  We silently ignore any missing directories and
+ * other files found therein.  We only fail (and thereby fail dt_load_libs()) if
+ * we fail to compile a library and the error is something other than #pragma D
+ * depends_on.  Dependency errors are silently ignored to permit a library
+ * directory to contain libraries which may not be accessible depending on our
+ * privileges.
  */
 static int
 dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 {
 	struct dirent *dp;
-	const char *p;
+	const char *p, *end;
 	DIR *dirp;
 
 	char fname[PATH_MAX];
-	dtrace_prog_t *pgp;
 	FILE *fp;
 	void *rv;
 	dt_lib_depend_t *dld;
@@ -1955,9 +2164,28 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 			continue;
 		}
 
+		/*
+		 * Skip files whose name match an already processed library
+		 */
+		for (dld = dt_list_next(&dtp->dt_lib_dep); dld != NULL;
+		    dld = dt_list_next(dld)) {
+			end = strrchr(dld->dtld_library, '/');
+			/* dt_lib_depend_add ensures this */
+			assert(end != NULL);
+			if (strcmp(end + 1, dp->d_name) == 0)
+				break;
+		}
+
+		if (dld != NULL) {
+			dt_dprintf("skipping library %s, already processed "
+			    "library with the same name: %s", dp->d_name,
+			    dld->dtld_library);
+			continue;
+		}
+
 		dtp->dt_filetag = fname;
 		if (dt_lib_depend_add(dtp, &dtp->dt_lib_dep, fname) != 0)
-			goto err;
+			return (-1); /* preserve dt_errno */
 
 		rv = dt_compile(dtp, DT_CTX_DPROG,
 		    DTRACE_PROBESPEC_NAME, NULL,
@@ -1966,7 +2194,7 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 		if (rv != NULL && dtp->dt_errno &&
 		    (dtp->dt_errno != EDT_COMPILER ||
 		    dtp->dt_errtag != dt_errtag(D_PRAGMA_DEPEND)))
-			goto err;
+			return (-1); /* preserve dt_errno */
 
 		if (dtp->dt_errno)
 			dt_dprintf("error parsing library %s: %s\n",
@@ -1977,6 +2205,27 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 	}
 
 	(void) closedir(dirp);
+
+	return (0);
+}
+
+/*
+ * Perform a topological sorting of all the libraries found across the entire
+ * dt_lib_path.  Once sorted, compile each one in topological order to cache its
+ * inlines and translators, etc.  We silently ignore any missing directories and
+ * other files found therein. We only fail (and thereby fail dt_load_libs()) if
+ * we fail to compile a library and the error is something other than #pragma D
+ * depends_on.  Dependency errors are silently ignored to permit a library
+ * directory to contain libraries which may not be accessible depending on our
+ * privileges.
+ */
+static int
+dt_load_libs_sort(dtrace_hdl_t *dtp)
+{
+	dtrace_prog_t *pgp;
+	FILE *fp;
+	dt_lib_depend_t *dld;
+
 	/*
 	 * Finish building the graph containing the library dependencies
 	 * and perform a topological sort to generate an ordered list
@@ -2037,13 +2286,30 @@ dt_load_libs(dtrace_hdl_t *dtp)
 
 	dtp->dt_cflags |= DTRACE_C_NOLIBS;
 
-	for (dirp = dt_list_next(&dtp->dt_lib_path);
+	/*
+	 * /usr/lib/dtrace is always at the head of the list. The rest of the
+	 * list is specified in the precedence order the user requested. Process
+	 * everything other than the head first. DTRACE_C_NOLIBS has already
+	 * been spcified so dt_vopen will ensure that there is always one entry
+	 * in dt_lib_path.
+	 */
+	for (dirp = dt_list_next(dt_list_next(&dtp->dt_lib_path));
 	    dirp != NULL; dirp = dt_list_next(dirp)) {
 		if (dt_load_libs_dir(dtp, dirp->dir_path) != 0) {
 			dtp->dt_cflags &= ~DTRACE_C_NOLIBS;
 			return (-1); /* errno is set for us */
 		}
 	}
+
+	/* Handle /usr/lib/dtrace */
+	dirp = dt_list_next(&dtp->dt_lib_path);
+	if (dt_load_libs_dir(dtp, dirp->dir_path) != 0) {
+		dtp->dt_cflags &= ~DTRACE_C_NOLIBS;
+		return (-1); /* errno is set for us */
+	}
+
+	if (dt_load_libs_sort(dtp) < 0)
+		return (-1); /* errno is set for us */
 
 	return (0);
 }

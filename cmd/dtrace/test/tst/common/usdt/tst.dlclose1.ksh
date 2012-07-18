@@ -24,7 +24,6 @@
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-# ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # This test verifies that USDT providers are removed when its associated
@@ -46,17 +45,17 @@ cat > Makefile <<EOF
 all: main livelib.so deadlib.so
 
 main: main.o prov.o
-	cc -o main main.o
+	gcc -o main main.o
 
 main.o: main.c
-	cc -c main.c
+	gcc -c main.c
 
 
 livelib.so: livelib.o prov.o
-	cc -z defs -G -o livelib.so livelib.o prov.o -lc
+	gcc -shared -o livelib.so livelib.o prov.o -lc
 
 livelib.o: livelib.c prov.h
-	cc -c livelib.c
+	gcc -c livelib.c
 
 prov.o: livelib.o prov.d
 	$dtrace -G -s prov.d livelib.o
@@ -66,10 +65,10 @@ prov.h: prov.d
 
 
 deadlib.so: deadlib.o
-	cc -z defs -G -o deadlib.so deadlib.o -lc
+	gcc -shared -o deadlib.so deadlib.o -lc
 
 deadlib.o: deadlib.c
-	cc -c deadlib.c
+	gcc -c deadlib.c
 
 clean:
 	rm -f main.o livelib.o prov.o prov.h deadlib.o
@@ -125,7 +124,7 @@ main(int argc, char **argv)
 }
 EOF
 
-/usr/ccs/bin/make > /dev/null
+make > /dev/null
 if [ $? -ne 0 ]; then
 	print -u2 "failed to build"
 	exit 1

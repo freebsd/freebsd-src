@@ -3,20 +3,20 @@
 .\" The contents of this file are subject to the terms of the Common Development and Distribution License (the "License"). You may not use this file except in compliance with the License. You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE or http://www.opensolaris.org/os/licensing.
 .\" See the License for the specific language governing permissions and limitations under the License. When distributing Covered Code, include this CDDL HEADER in each file and include the License file at usr/src/OPENSOLARIS.LICENSE. If applicable, add the following below this CDDL HEADER, with the
 .\" fields enclosed by brackets "[]" replaced with your own identifying information: Portions Copyright [yyyy] [name of copyright owner]
-.TH dtrace 1M "4 Aug 2009" "SunOS 5.11" "System Administration Commands"
+.TH DTRACE 1M "Aug 4, 2009"
 .SH NAME
 dtrace \- DTrace dynamic tracing compiler and tracing utility
 .SH SYNOPSIS
 .LP
 .nf
-\fBdtrace\fR [\fB-32\fR | \fB-64\fR] [\fB-aACeFGHhlqSvVwZ\fR] [\fB-b\fR \fIbufsz\fR] [\fB-c\fR \fIcmd\fR] 
-     [\fB-D\fR \fIname\fR [\fI=value\fR]] [\fB-I\fR \fIpath\fR] [\fB-L\fR \fIpath\fR] [\fB-o\fR \fIoutput\fR] 
-     [\fB-s\fR \fIscript\fR] [\fB-U\fR \fIname\fR] [\fB-x\fR \fIarg\fR [\fI=val\fR]] 
-     [\fB-X\fR a | c | s | t] [\fB-p\fR \fIpid\fR] 
-     [\fB-P\fR \fIprovider\fR [[\fIpredicate\fR] \fIaction\fR]] 
-     [\fB-m\fR [\fIprovider:\fR] \fImodule\fR [[\fIpredicate\fR] \fIaction\fR]] 
-     [\fB-f\fR [[\fIprovider:\fR] \fImodule:\fR] \fIfunction\fR [[\fIpredicate\fR] \fIaction\fR]] 
-     [\fB-n\fR [[[\fIprovider:\fR] \fImodule:\fR] \fIfunction:\fR] \fIname\fR [[\fIpredicate\fR] \fIaction\fR]] 
+\fBdtrace\fR [\fB-32\fR | \fB-64\fR] [\fB-aACeFGHhlqSvVwZ\fR] [\fB-b\fR \fIbufsz\fR] [\fB-c\fR \fIcmd\fR]
+     [\fB-D\fR \fIname\fR [\fI=value\fR]] [\fB-I\fR \fIpath\fR] [\fB-L\fR \fIpath\fR] [\fB-o\fR \fIoutput\fR]
+     [\fB-s\fR \fIscript\fR] [\fB-U\fR \fIname\fR] [\fB-x\fR \fIarg\fR [\fI=val\fR]]
+     [\fB-X\fR a | c | s | t] [\fB-p\fR \fIpid\fR]
+     [\fB-P\fR \fIprovider\fR [[\fIpredicate\fR] \fIaction\fR]]
+     [\fB-m\fR [\fIprovider:\fR] \fImodule\fR [[\fIpredicate\fR] \fIaction\fR]]
+     [\fB-f\fR [[\fIprovider:\fR] \fImodule:\fR] \fIfunction\fR [[\fIpredicate\fR] \fIaction\fR]]
+     [\fB-n\fR [[[\fIprovider:\fR] \fImodule:\fR] \fIfunction:\fR] \fIname\fR [[\fIpredicate\fR] \fIaction\fR]]
      [\fB-i\fR \fIprobe-id\fR [[\fIpredicate\fR] \fIaction\fR]]
 .fi
 
@@ -97,7 +97,6 @@ appropriately quoted to avoid interpretation of meta-characters by the shell.
 The following options are supported:
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-32\fR | \fB-64\fR\fR
 .ad
@@ -118,7 +117,6 @@ format (ELF32 or ELF64) produced by the \fB-G\fR option.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-a\fR\fR
 .ad
@@ -133,7 +131,6 @@ information about anonymous tracing.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-A\fR\fR
 .ad
@@ -149,7 +146,6 @@ the specified probes for anonymous tracing and then exits. By default,
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-b\fR \fIbufsz\fR\fR
 .ad
@@ -163,7 +159,6 @@ size or exit depending on the setting of the \fBbufresize\fR property.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-c\fR \fIcmd\fR\fR
 .ad
@@ -180,7 +175,6 @@ for more information on macro variables.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-C\fR\fR
 .ad
@@ -195,7 +189,6 @@ the D compiler when invoking the C preprocessor, see \fB-X\fR.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-D\fR \fIname\fR \fB[=\fR\fIvalue\fR\fB]\fR\fR
 .ad
@@ -209,7 +202,6 @@ option to each \fBcpp\fR invocation.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-e\fR\fR
 .ad
@@ -225,7 +217,6 @@ instrumentation.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-f\fR\fB[[\fR\fIprovider\fR\fB:]\fR\fImodule\fR\fB:]\fR\fIfunction\fR\fB[
 [\fR\fIpredicate\fR\fB]\fR\fIaction\fR\fB]]\fR\fR
@@ -245,7 +236,6 @@ on the command line at a time.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-F\fR\fR
 .ad
@@ -261,7 +251,6 @@ their output is prefixed with \fB<=\fR\&.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-G\fR\fR
 .ad
@@ -279,7 +268,6 @@ whose name is \fB\fIfilename\fR.d\fR, then the ELF file is saved using the name
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-H\fR\fR
 .ad
@@ -293,7 +281,6 @@ invocation, causing it to display the list of pathnames, one for each line, to
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-h\fR\fR
 .ad
@@ -311,7 +298,6 @@ not present and the DTrace program is contained with a file whose name is
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-i\fR \fIprobe-id\fR\fB[[\fR\fIpredicate\fR] \fIaction\fR\fB]\fR\fR
 .ad
@@ -325,7 +311,6 @@ clause. You can specify more than one \fB-i\fR option at a time.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-I\fR \fIpath\fR\fR
 .ad
@@ -340,7 +325,6 @@ list.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-L\fR \fIpath\fR\fR
 .ad
@@ -354,7 +338,6 @@ search path.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-l\fR\fR
 .ad
@@ -368,7 +351,6 @@ options. If none of these options are specified, this option lists all probes.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-m\fR [[\fIprovider:\fR] \fImodule:\fR [[\fIpredicate\fR]
 \fIaction\fR]]\fR
@@ -387,7 +369,6 @@ on the command line at a time.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-n\fR [[[\fIprovider:\fR] \fImodule:\fR] \fIfunction:\fR] \fIname\fR
 [[\fIpredicate\fR] \fIaction\fR]\fR
@@ -407,7 +388,6 @@ specified on the command line at a time.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-o\fR \fIoutput\fR\fR
 .ad
@@ -424,7 +404,6 @@ the default output file is \fBd.out\fR.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-p\fR \fIpid\fR\fR
 .ad
@@ -441,7 +420,6 @@ Dynamic Tracing Guide\fR for more information on macro variables.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-P\fR \fIprovider\fR \fB[[\fR\fIpredicate\fR\fB]\fR \fIaction\fR]\fR
 .ad
@@ -456,7 +434,6 @@ suffixed with an optional D probe clause. You can specify more than one
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-q\fR\fR
 .ad
@@ -471,7 +448,6 @@ data traced and formatted by D program statements such as \fBtrace()\fR and
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-s\fR\fR
 .ad
@@ -487,7 +463,6 @@ program is enabled and tracing begins.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-S\fR\fR
 .ad
@@ -499,7 +474,6 @@ intermediate code generated for each D program to \fBstderr\fR.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-U\fR \fIname\fR\fR
 .ad
@@ -512,7 +486,6 @@ invocation.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-v\fR\fR
 .ad
@@ -526,7 +499,6 @@ further detail in the \fISolaris Dynamic Tracing Guide\fR.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-V\fR\fR
 .ad
@@ -540,7 +512,6 @@ about DTrace versioning features.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-w\fR\fR
 .ad
@@ -554,7 +525,6 @@ enabling of a D program that contains destructive actions.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-x\fR \fIarg\fR [\fI=val\fR]\fR
 .ad
@@ -568,7 +538,6 @@ the option name and value with an equals sign (\fB=\fR).
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-X\fR \fBa | c | s | t\fR\fR
 .ad
@@ -582,12 +551,10 @@ depending upon the value of the argument letter.
 The \fB-X\fR option supports the following arguments:
 .sp
 .ne 2
-.mk
 .na
 \fB\fBa\fR\fR
 .ad
 .RS 5n
-.rt  
 Default. ISO C plus K&R compatibility extensions, with semantic changes
 required by ISO C. This is the default mode if \fB-X\fR is not specified. The
 predefined macro \fB__STDC__\fR has a value of 0 when \fBcpp\fR is invoked in
@@ -596,12 +563,10 @@ conjunction with the \fB-Xa\fR option.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBc\fR\fR
 .ad
 .RS 5n
-.rt  
 Conformance. Strictly conformant ISO C, without K&R C compatibility extensions.
 The predefined macro \fB__STDC__\fR has a value of 1 when \fBcpp\fR is invoked
 in conjunction with the \fB-Xc\fR option.
@@ -609,24 +574,20 @@ in conjunction with the \fB-Xc\fR option.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBs\fR\fR
 .ad
 .RS 5n
-.rt  
 K&R C only. The macro \fB__STDC__\fR is not defined when \fBcpp\fR is invoked
 in conjunction with the \fB-Xs\fR option.
 .RE
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fBt\fR\fR
 .ad
 .RS 5n
-.rt  
 Transition. ISO C plus K&R C compatibility extensions, without semantic changes
 required by ISO C. The predefined macro \fB__STDC__\fR has a value of 0 when
 \fBcpp\fR is invoked in conjunction with the \fB-Xt\fR option.
@@ -708,7 +669,6 @@ information about DTrace versioning.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB-Z\fR\fR
 .ad
@@ -735,12 +695,10 @@ in the \fISolaris Dynamic Tracing Guide\fR.
 The following exit values are returned:
 .sp
 .ne 2
-.mk
 .na
 \fB0\fR
 .ad
 .RS 5n
-.rt  
 Successful completion.
 .sp
 For D program requests, an exit status of \fB0\fR indicates that programs were
@@ -751,12 +709,10 @@ tracing requests encountered errors or drops.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB1\fR\fR
 .ad
 .RS 5n
-.rt  
 An error occurred.
 .sp
 For D program requests, an exit status of \fB1\fR indicates that program
@@ -765,12 +721,10 @@ compilation failed or that the specified request could not be satisfied.
 
 .sp
 .ne 2
-.mk
 .na
 \fB\fB2\fR\fR
 .ad
 .RS 5n
-.rt  
 Invalid command line options or arguments were specified.
 .RE
 
@@ -782,13 +736,12 @@ See \fBattributes\fR(5) for descriptions of the following attributes:
 
 .sp
 .TS
-tab() box;
-cw(2.75i) |cw(2.75i) 
-lw(2.75i) |lw(2.75i) 
-.
-ATTRIBUTE TYPEATTRIBUTE VALUE
+box;
+c | c
+l | l .
+ATTRIBUTE TYPE	ATTRIBUTE VALUE
 _
-Interface StabilitySee below.
+Interface Stability	See below.
 .TE
 
 .sp

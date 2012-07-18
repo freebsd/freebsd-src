@@ -24,6 +24,11 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ */
+
 #ifndef	_DT_IMPL_H
 #define	_DT_IMPL_H
 
@@ -236,6 +241,8 @@ struct dtrace_hdl {
 	dtrace_aggdesc_t **dt_aggdesc; /* aggregation descriptions */
 	int dt_maxformat;	/* max format ID */
 	void **dt_formats;	/* pointer to format array */
+	int dt_maxstrdata;	/* max strdata ID */
+	char **dt_strdata;	/* pointer to strdata array */
 	dt_aggregate_t dt_aggregate; /* aggregate */
 	dtrace_bufdesc_t dt_buf; /* staging buffer */
 	struct dt_pfdict *dt_pfdict; /* dictionary of printf conversions */
@@ -413,6 +420,7 @@ struct dtrace_hdl {
 #define	DT_ACT_UMOD		DT_ACT(26)	/* umod() action */
 #define	DT_ACT_UADDR		DT_ACT(27)	/* uaddr() action */
 #define	DT_ACT_SETOPT		DT_ACT(28)	/* setopt() action */
+#define	DT_ACT_PRINT		DT_ACT(29)	/* print() action */
 
 /*
  * Sentinel to tell freopen() to restore the saved stdout.  This must not
@@ -596,9 +604,14 @@ extern void dt_aggid_destroy(dtrace_hdl_t *);
 extern void *dt_format_lookup(dtrace_hdl_t *, int);
 extern void dt_format_destroy(dtrace_hdl_t *);
 
+extern const char *dt_strdata_lookup(dtrace_hdl_t *, int);
+extern void dt_strdata_destroy(dtrace_hdl_t *);
+
 extern int dt_print_quantize(dtrace_hdl_t *, FILE *,
     const void *, size_t, uint64_t);
 extern int dt_print_lquantize(dtrace_hdl_t *, FILE *,
+    const void *, size_t, uint64_t);
+extern int dt_print_llquantize(dtrace_hdl_t *, FILE *,
     const void *, size_t, uint64_t);
 extern int dt_print_agg(const dtrace_aggdata_t *, void *);
 

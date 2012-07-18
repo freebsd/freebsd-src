@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/perl5/bin/perl -w
 #
 # CDDL HEADER START
 #
@@ -24,7 +24,6 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # get.ipv6remote.pl
