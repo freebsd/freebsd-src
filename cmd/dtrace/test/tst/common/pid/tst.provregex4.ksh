@@ -24,6 +24,7 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # This test verifies that USDT probes will be picked up after a dlopen(3C)
@@ -46,10 +47,10 @@ cat > Makefile <<EOF
 all: main altlib.so
 
 main: main.o provmain.o
-	gcc -o main main.o provmain.o
+	cc -o main main.o provmain.o
 
 main.o: main.c prov.h
-	gcc -c main.c
+	cc -c main.c
 
 prov.h: prov.d
 	$dtrace -h -s prov.d
@@ -58,10 +59,10 @@ provmain.o: prov.d main.o
 	$dtrace -G -32 -o provmain.o -s prov.d main.o
 
 altlib.so: altlib.o provalt.o
-	gcc -shared -o altlib.so altlib.o provalt.o -lc
+	cc -z defs -G -o altlib.so altlib.o provalt.o -lc
 
 altlib.o: altlib.c prov.h
-	gcc -c altlib.c
+	cc -c altlib.c
 
 provalt.o: prov.d altlib.o
 	$dtrace -G -32 -o provalt.o -s prov.d altlib.o

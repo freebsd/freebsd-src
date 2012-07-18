@@ -22,10 +22,8 @@
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-/*
- * Copyright 2012 Jason King.  All rights reserved.
- * Use is subject to license terms.
- */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * DWARF to tdata conversion
@@ -364,37 +362,6 @@ die_attr_form(dwarf_t *dw, Dwarf_Attribute attr)
 	return (0);
 }
 
-/*
- * the following functions lookup the value of an attribute in a DIE:
- *
- * die_signed
- * die_unsigned
- * die_bool
- * die_string
- *
- * They all take the same parameters (with the exception of valp which is
- * a pointer to the type of the attribute we are looking up):
- *
- * dw - the dwarf object to look in
- * die - the DIE we're interested in
- * name - the name of the attribute to lookup
- * valp - pointer to where the value of the attribute is placed
- * req - if the value is required (0 / non-zero)
- *
- * If the attribute is not found, one of the following happens:
- * - program terminates (req is non-zero)
- * - function returns 0
- *
- * If the value is found, and in a form (class) we can handle, the function
- * returns 1.
- *
- * Currently, we can only handle attribute values that are stored as
- * constants (immediate value).  If an attribute has a form we cannot
- * handle (for example VLAs may store the dimensions of the array
- * as a DWARF expression that can compute it at runtime by reading
- * values off the stack or other locations in memory), it is treated
- * the same as if the attribute does not exist.
- */
 static int
 die_signed(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Signed *valp,
     int req)
@@ -406,9 +373,6 @@ die_signed(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Signed *valp,
 		return (0); /* die_attr will terminate for us if necessary */
 
 	if (dwarf_formsdata(attr, &val, &dw->dw_err) != DW_DLV_OK) {
-		if (req == 0)
-			return (0);
-
 		terminate("die %llu: failed to get signed (form 0x%x)\n",
 		    die_off(dw, die), die_attr_form(dw, attr));
 	}
@@ -430,9 +394,6 @@ die_unsigned(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Unsigned *valp,
 		return (0); /* die_attr will terminate for us if necessary */
 
 	if (dwarf_formudata(attr, &val, &dw->dw_err) != DW_DLV_OK) {
-		if (req == 0)
-			return (0);
-
 		terminate("die %llu: failed to get unsigned (form 0x%x)\n",
 		    die_off(dw, die), die_attr_form(dw, attr));
 	}
@@ -453,9 +414,6 @@ die_bool(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Bool *valp, int req)
 		return (0); /* die_attr will terminate for us if necessary */
 
 	if (dwarf_formflag(attr, &val, &dw->dw_err) != DW_DLV_OK) {
-		if (req == 0)
-			return (0);
-
 		terminate("die %llu: failed to get bool (form 0x%x)\n",
 		    die_off(dw, die), die_attr_form(dw, attr));
 	}
@@ -476,9 +434,6 @@ die_string(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, char **strp, int req)
 		return (0); /* die_attr will terminate for us if necessary */
 
 	if (dwarf_formstring(attr, &str, &dw->dw_err) != DW_DLV_OK) {
-		if (req == 0)
-			return (0);
-
 		terminate("die %llu: failed to get string (form 0x%x)\n",
 		    die_off(dw, die), die_attr_form(dw, attr));
 	}
@@ -1838,27 +1793,6 @@ die_resolve(dwarf_t *dw)
 	} while (dw->dw_nunres != 0);
 }
 
-/*
- * Any object containing at least one allocatable section of non-0 size is
- * taken to be a file which should contain DWARF type information
- */
-static boolean_t
-should_have_dwarf(Elf *elf)
-{
-	Elf_Scn *scn = NULL;
-
-	while ((scn = elf_nextscn(elf, scn)) != NULL) {
-		GElf_Shdr shdr;
-		gelf_getshdr(scn, &shdr);
-
-		if ((shdr.sh_flags & SHF_ALLOC) &&
-		    (shdr.sh_size != 0))
-			return (B_TRUE);
-	}
-
-	return (B_FALSE);
-}
-
 /*ARGSUSED*/
 int
 dw_read(tdata_t *td, Elf *elf, const char *filename)
@@ -1882,12 +1816,8 @@ dw_read(tdata_t *td, Elf *elf, const char *filename)
 
 	if ((rc = dwarf_elf_init(elf, DW_DLC_READ, NULL, NULL, &dw.dw_dw,
 	    &dw.dw_err)) == DW_DLV_NO_ENTRY) {
-		if (should_have_dwarf(elf)) {
-			errno = ENOENT;
-			return (-1);
-		} else {
-			return (0);
-		}
+		errno = ENOENT;
+		return (-1);
 	} else if (rc != DW_DLV_OK) {
 		if (dwarf_errno(dw.dw_err) == DW_DLE_DEBUG_INFO_NULL) {
 			/*
@@ -1902,22 +1832,11 @@ dw_read(tdata_t *td, Elf *elf, const char *filename)
 	}
 
 	if ((rc = dwarf_next_cu_header(dw.dw_dw, &hdrlen, &vers, &abboff,
-	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
-		terminate("file does not contain valid DWARF data: %s\n",
-		    dwarf_errmsg(dw.dw_err));
-
-	/*
-	 * Some compilers emit no DWARF for empty files, others emit an empty
-	 * compilation unit.
-	 */
-	if ((cu = die_sibling(&dw, NULL)) == NULL ||
-	    ((child = die_child(&dw, cu)) == NULL) &&
-	    should_have_dwarf(elf)) {
+	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK ||
+	    (cu = die_sibling(&dw, NULL)) == NULL ||
+	    (child = die_child(&dw, cu)) == NULL)
 		terminate("file does not contain dwarf type data "
 		    "(try compiling with -g)\n");
-	} else if (child == NULL) {
-		return (0);
-	}
 
 	dw.dw_maxoff = nxthdr - 1;
 

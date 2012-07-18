@@ -21,7 +21,6 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <unistd.h>
@@ -348,7 +347,6 @@ dtrace_stmt_destroy(dtrace_hdl_t *dtp, dtrace_stmtdesc_t *sdp)
 
 	if (sdp->dtsd_fmtdata != NULL)
 		dt_printf_destroy(sdp->dtsd_fmtdata);
-	dt_free(dtp, sdp->dtsd_strdata);
 
 	dt_ecbdesc_release(dtp, sdp->dtsd_ecbdesc);
 	dt_free(dtp, sdp);

@@ -21,8 +21,6 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <ctype.h>
@@ -34,7 +32,6 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
-#include <libgen.h>
 #include <sys/efi_partition.h>
 #include <sys/vtoc.h>
 #include <sys/zfs_ioctl.h>
@@ -44,7 +41,6 @@
 #include "zfs_prop.h"
 #include "libzfs_impl.h"
 #include "zfs_comutil.h"
-#include "zfeature_common.h"
 
 static int read_efi_label(nvlist_t *config, diskaddr_t *sb);
 
@@ -237,7 +233,6 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 
 		case ZPOOL_PROP_ALTROOT:
 		case ZPOOL_PROP_CACHEFILE:
-		case ZPOOL_PROP_COMMENT:
 			if (zhp->zpool_props != NULL ||
 			    zpool_get_all_props(zhp) == 0) {
 				(void) strlcpy(buf,
@@ -275,8 +270,6 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 		case ZPOOL_PROP_SIZE:
 		case ZPOOL_PROP_ALLOCATED:
 		case ZPOOL_PROP_FREE:
-		case ZPOOL_PROP_FREEING:
-		case ZPOOL_PROP_EXPANDSZ:
 			(void) zfs_nicenum(intval, buf, len);
 			break;
 
@@ -301,12 +294,6 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 			(void) strlcpy(buf, zpool_state_to_name(intval,
 			    vs->vs_aux), len);
 			break;
-		case ZPOOL_PROP_VERSION:
-			if (intval >= SPA_VERSION_FEATURES) {
-				(void) snprintf(buf, len, "-");
-				break;
-			}
-			/* FALLTHROUGH */
 		default:
 			(void) snprintf(buf, len, "%llu", intval);
 		}
@@ -370,8 +357,8 @@ pool_uses_efi(nvlist_t *config)
 	return (B_FALSE);
 }
 
-boolean_t
-zpool_is_bootable(zpool_handle_t *zhp)
+static boolean_t
+pool_is_bootable(zpool_handle_t *zhp)
 {
 	char bootfs[ZPOOL_MAXNAMELEN];
 
@@ -395,7 +382,7 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 	zpool_prop_t prop;
 	char *strval;
 	uint64_t intval;
-	char *slash, *check;
+	char *slash;
 	struct stat64 statbuf;
 	zpool_handle_t *zhp;
 	nvlist_t *nvroot;
@@ -409,48 +396,10 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 	while ((elem = nvlist_next_nvpair(props, elem)) != NULL) {
 		const char *propname = nvpair_name(elem);
 
-		prop = zpool_name_to_prop(propname);
-		if (prop == ZPROP_INVAL && zpool_prop_feature(propname)) {
-			int err;
-			zfeature_info_t *feature;
-			char *fname = strchr(propname, '@') + 1;
-
-			err = zfeature_lookup_name(fname, &feature);
-			if (err != 0) {
-				ASSERT3U(err, ==, ENOENT);
-				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "invalid feature '%s'"), fname);
-				(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
-				goto error;
-			}
-
-			if (nvpair_type(elem) != DATA_TYPE_STRING) {
-				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "'%s' must be a string"), propname);
-				(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
-				goto error;
-			}
-
-			(void) nvpair_value_string(elem, &strval);
-			if (strcmp(strval, ZFS_FEATURE_ENABLED) != 0) {
-				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "property '%s' can only be set to "
-				    "'enabled'"), propname);
-				(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
-				goto error;
-			}
-
-			if (nvlist_add_uint64(retprops, propname, 0) != 0) {
-				(void) no_memory(hdl);
-				goto error;
-			}
-			continue;
-		}
-
 		/*
 		 * Make sure this property is valid and applies to this type.
 		 */
-		if (prop == ZPROP_INVAL) {
+		if ((prop = zpool_name_to_prop(propname)) == ZPROP_INVAL) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "invalid property '%s'"), propname);
 			(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
@@ -473,8 +422,7 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 		 */
 		switch (prop) {
 		case ZPOOL_PROP_VERSION:
-			if (intval < version ||
-			    !SPA_VERSION_IS_SUPPORTED(intval)) {
+			if (intval < version || intval > SPA_VERSION) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "property '%s' number %d is invalid."),
 				    propname, intval);
@@ -593,26 +541,6 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 			*slash = '/';
 			break;
 
-		case ZPOOL_PROP_COMMENT:
-			for (check = strval; *check != '\0'; check++) {
-				if (!isprint(*check)) {
-					zfs_error_aux(hdl,
-					    dgettext(TEXT_DOMAIN,
-					    "comment may only have printable "
-					    "characters"));
-					(void) zfs_error(hdl, EZFS_BADPROP,
-					    errbuf);
-					goto error;
-				}
-			}
-			if (strlen(strval) > ZPROP_MAX_COMMENT) {
-				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "comment must not exceed %d characters"),
-				    ZPROP_MAX_COMMENT);
-				(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
-				goto error;
-			}
-			break;
 		case ZPOOL_PROP_READONLY:
 			if (!flags.import) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
@@ -696,76 +624,9 @@ zpool_expand_proplist(zpool_handle_t *zhp, zprop_list_t **plp)
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
 	zprop_list_t *entry;
 	char buf[ZFS_MAXPROPLEN];
-	nvlist_t *features = NULL;
-	zprop_list_t **last;
-	boolean_t firstexpand = (NULL == *plp);
 
 	if (zprop_expand_list(hdl, plp, ZFS_TYPE_POOL) != 0)
 		return (-1);
-
-	last = plp;
-	while (*last != NULL)
-		last = &(*last)->pl_next;
-
-	if ((*plp)->pl_all)
-		features = zpool_get_features(zhp);
-
-	if ((*plp)->pl_all && firstexpand) {
-		for (int i = 0; i < SPA_FEATURES; i++) {
-			zprop_list_t *entry = zfs_alloc(hdl,
-			    sizeof (zprop_list_t));
-			entry->pl_prop = ZPROP_INVAL;
-			entry->pl_user_prop = zfs_asprintf(hdl, "feature@%s",
-			    spa_feature_table[i].fi_uname);
-			entry->pl_width = strlen(entry->pl_user_prop);
-			entry->pl_all = B_TRUE;
-
-			*last = entry;
-			last = &entry->pl_next;
-		}
-	}
-
-	/* add any unsupported features */
-	for (nvpair_t *nvp = nvlist_next_nvpair(features, NULL);
-	    nvp != NULL; nvp = nvlist_next_nvpair(features, nvp)) {
-		char *propname;
-		boolean_t found;
-		zprop_list_t *entry;
-
-		if (zfeature_is_supported(nvpair_name(nvp)))
-			continue;
-
-		propname = zfs_asprintf(hdl, "unsupported@%s",
-		    nvpair_name(nvp));
-
-		/*
-		 * Before adding the property to the list make sure that no
-		 * other pool already added the same property.
-		 */
-		found = B_FALSE;
-		entry = *plp;
-		while (entry != NULL) {
-			if (entry->pl_user_prop != NULL &&
-			    strcmp(propname, entry->pl_user_prop) == 0) {
-				found = B_TRUE;
-				break;
-			}
-			entry = entry->pl_next;
-		}
-		if (found) {
-			free(propname);
-			continue;
-		}
-
-		entry = zfs_alloc(hdl, sizeof (zprop_list_t));
-		entry->pl_prop = ZPROP_INVAL;
-		entry->pl_user_prop = propname;
-		entry->pl_width = strlen(entry->pl_user_prop);
-		entry->pl_all = B_TRUE;
-
-		*last = entry;
-		last = &entry->pl_next;
-	}
 
 	for (entry = *plp; entry != NULL; entry = entry->pl_next) {
 
@@ -783,66 +644,6 @@ zpool_expand_proplist(zpool_handle_t *zhp, zprop_list_t **plp)
 	return (0);
 }
 
-/*
- * Get the state for the given feature on the given ZFS pool.
- */
-int
-zpool_prop_get_feature(zpool_handle_t *zhp, const char *propname, char *buf,
-    size_t len)
-{
-	uint64_t refcount;
-	boolean_t found = B_FALSE;
-	nvlist_t *features = zpool_get_features(zhp);
-	boolean_t supported;
-	const char *feature = strchr(propname, '@') + 1;
-
-	supported = zpool_prop_feature(propname);
-	ASSERT(supported || zfs_prop_unsupported(propname));
-
-	/*
-	 * Convert from feature name to feature guid. This conversion is
-	 * unecessary for unsupported@... properties because they already
-	 * use guids.
-	 */
-	if (supported) {
-		int ret;
-		zfeature_info_t *fi;
-
-		ret = zfeature_lookup_name(feature, &fi);
-		if (ret != 0) {
-			(void) strlcpy(buf, "-", len);
-			return (ENOTSUP);
-		}
-		feature = fi->fi_guid;
-	}
-
-	if (nvlist_lookup_uint64(features, feature, &refcount) == 0)
-		found = B_TRUE;
-
-	if (supported) {
-		if (!found) {
-			(void) strlcpy(buf, ZFS_FEATURE_DISABLED, len);
-		} else  {
-			if (refcount == 0)
-				(void) strlcpy(buf, ZFS_FEATURE_ENABLED, len);
-			else
-				(void) strlcpy(buf, ZFS_FEATURE_ACTIVE, len);
-		}
-	} else {
-		if (found) {
-			if (refcount == 0) {
-				(void) strcpy(buf, ZFS_UNSUPPORTED_INACTIVE);
-			} else {
-				(void) strcpy(buf, ZFS_UNSUPPORTED_READONLY);
-			}
-		} else {
-			(void) strlcpy(buf, "-", len);
-			return (ENOTSUP);
-		}
-	}
-
-	return (0);
-}
 
 /*
  * Don't start the slice at the default block of 34; many storage
@@ -1206,7 +1007,7 @@ create_failed:
  * datasets left in the pool.
  */
 int
-zpool_destroy(zpool_handle_t *zhp, const char *log_str)
+zpool_destroy(zpool_handle_t *zhp)
 {
 	zfs_cmd_t zc = { 0 };
 	zfs_handle_t *zfp = NULL;
@@ -1218,7 +1019,6 @@ zpool_destroy(zpool_handle_t *zhp, const char *log_str)
 		return (-1);
 
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
-	zc.zc_history = (uint64_t)(uintptr_t)log_str;
 
 	if (zfs_ioctl(hdl, ZFS_IOC_POOL_DESTROY, &zc) != 0) {
 		(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
@@ -1271,7 +1071,7 @@ zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot)
 		return (zfs_error(hdl, EZFS_BADVERSION, msg));
 	}
 
-	if (zpool_is_bootable(zhp) && nvlist_lookup_nvlist_array(nvroot,
+	if (pool_is_bootable(zhp) && nvlist_lookup_nvlist_array(nvroot,
 	    ZPOOL_CONFIG_SPARES, &spares, &nspares) == 0) {
 		uint64_t s;
 
@@ -1373,9 +1173,8 @@ zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot)
  * Exports the pool from the system.  The caller must ensure that there are no
  * mounted datasets in the pool.
  */
-static int
-zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce,
-    const char *log_str)
+int
+zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce)
 {
 	zfs_cmd_t zc = { 0 };
 	char msg[1024];
@@ -1386,7 +1185,6 @@ zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce,
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
 	zc.zc_cookie = force;
 	zc.zc_guid = hardforce;
-	zc.zc_history = (uint64_t)(uintptr_t)log_str;
 
 	if (zfs_ioctl(zhp->zpool_hdl, ZFS_IOC_POOL_EXPORT, &zc) != 0) {
 		switch (errno) {
@@ -1408,15 +1206,15 @@ zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce,
 }
 
 int
-zpool_export(zpool_handle_t *zhp, boolean_t force, const char *log_str)
+zpool_export(zpool_handle_t *zhp, boolean_t force)
 {
-	return (zpool_export_common(zhp, force, B_FALSE, log_str));
+	return (zpool_export_common(zhp, force, B_FALSE));
 }
 
 int
-zpool_export_force(zpool_handle_t *zhp, const char *log_str)
+zpool_export_force(zpool_handle_t *zhp)
 {
-	return (zpool_export_common(zhp, B_TRUE, B_TRUE, log_str));
+	return (zpool_export_common(zhp, B_TRUE, B_TRUE));
 }
 
 static void
@@ -1432,10 +1230,8 @@ zpool_rewind_exclaim(libzfs_handle_t *hdl, const char *name, boolean_t dryrun,
 	if (!hdl->libzfs_printerr || config == NULL)
 		return;
 
-	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_LOAD_INFO, &nv) != 0 ||
-	    nvlist_lookup_nvlist(nv, ZPOOL_CONFIG_REWIND_INFO, &nv) != 0) {
+	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_LOAD_INFO, &nv) != 0)
 		return;
-	}
 
 	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_LOAD_TIME, &rewindto) != 0)
 		return;
@@ -1491,7 +1287,6 @@ zpool_explain_recover(libzfs_handle_t *hdl, const char *name, int reason,
 
 	/* All attempted rewinds failed if ZPOOL_CONFIG_LOAD_TIME missing */
 	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_LOAD_INFO, &nv) != 0 ||
-	    nvlist_lookup_nvlist(nv, ZPOOL_CONFIG_REWIND_INFO, &nv) != 0 ||
 	    nvlist_lookup_uint64(nv, ZPOOL_CONFIG_LOAD_TIME, &rewindto) != 0)
 		goto no_info;
 
@@ -1614,30 +1409,6 @@ print_vdev_tree(libzfs_handle_t *hdl, const char *name, nvlist_t *nv,
 	}
 }
 
-void
-zpool_print_unsup_feat(nvlist_t *config)
-{
-	nvlist_t *nvinfo, *unsup_feat;
-
-	verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_LOAD_INFO, &nvinfo) ==
-	    0);
-	verify(nvlist_lookup_nvlist(nvinfo, ZPOOL_CONFIG_UNSUP_FEAT,
-	    &unsup_feat) == 0);
-
-	for (nvpair_t *nvp = nvlist_next_nvpair(unsup_feat, NULL); nvp != NULL;
-	    nvp = nvlist_next_nvpair(unsup_feat, nvp)) {
-		char *desc;
-
-		verify(nvpair_type(nvp) == DATA_TYPE_STRING);
-		verify(nvpair_value_string(nvp, &desc) == 0);
-
-		if (strlen(desc) > 0)
-			(void) printf("\t%s (%s)\n", nvpair_name(nvp), desc);
-		else
-			(void) printf("\t%s\n", nvpair_name(nvp));
-	}
-}
-
 /*
  * Import the given pool using the known configuration and a list of
  * properties to be set. The configuration should have come from
@@ -1744,22 +1515,6 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 
 		switch (error) {
 		case ENOTSUP:
-			if (nv != NULL && nvlist_lookup_nvlist(nv,
-			    ZPOOL_CONFIG_LOAD_INFO, &nvinfo) == 0 &&
-			    nvlist_exists(nvinfo, ZPOOL_CONFIG_UNSUP_FEAT)) {
-				(void) printf(dgettext(TEXT_DOMAIN, "This "
-				    "pool uses the following feature(s) not "
-				    "supported by this system:\n"));
-				zpool_print_unsup_feat(nv);
-				if (nvlist_exists(nvinfo,
-				    ZPOOL_CONFIG_CAN_RDONLY)) {
-					(void) printf(dgettext(TEXT_DOMAIN,
-					    "All unsupported features are only "
-					    "required for writing to the pool."
-					    "\nThe pool can be imported using "
-					    "'-o readonly=on'.\n"));
-				}
-			}
 			/*
 			 * Unsupported version.
 			 */
@@ -2600,7 +2355,7 @@ zpool_vdev_attach(zpool_handle_t *zhp,
 	uint_t children;
 	nvlist_t *config_root;
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
-	boolean_t rootpool = zpool_is_bootable(zhp);
+	boolean_t rootpool = pool_is_bootable(zhp);
 
 	if (replacing)
 		(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
@@ -3212,46 +2967,6 @@ zpool_vdev_clear(zpool_handle_t *zhp, uint64_t guid)
 }
 
 /*
- * Change the GUID for a pool.
- */
-int
-zpool_reguid(zpool_handle_t *zhp)
-{
-	char msg[1024];
-	libzfs_handle_t *hdl = zhp->zpool_hdl;
-	zfs_cmd_t zc = { 0 };
-
-	(void) snprintf(msg, sizeof (msg),
-	    dgettext(TEXT_DOMAIN, "cannot reguid '%s'"), zhp->zpool_name);
-
-	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
-	if (zfs_ioctl(hdl, ZFS_IOC_POOL_REGUID, &zc) == 0)
-		return (0);
-
-	return (zpool_standard_error(hdl, errno, msg));
-}
-
-/*
- * Reopen the pool.
- */
-int
-zpool_reopen(zpool_handle_t *zhp)
-{
-	zfs_cmd_t zc = { 0 };
-	char msg[1024];
-	libzfs_handle_t *hdl = zhp->zpool_hdl;
-
-	(void) snprintf(msg, sizeof (msg),
-	    dgettext(TEXT_DOMAIN, "cannot reopen '%s'"),
-	    zhp->zpool_name);
-
-	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
-	if (zfs_ioctl(hdl, ZFS_IOC_POOL_REOPEN, &zc) == 0)
-		return (0);
-	return (zpool_standard_error(hdl, errno, msg));
-}
-
-/*
  * Convert from a devid string to a path.
  */
 static char *
@@ -3578,30 +3293,40 @@ zpool_upgrade(zpool_handle_t *zhp, uint64_t new_version)
 }
 
 void
-zfs_save_arguments(int argc, char **argv, char *string, int len)
+zpool_set_history_str(const char *subcommand, int argc, char **argv,
+    char *history_str)
 {
-	(void) strlcpy(string, basename(argv[0]), len);
-	for (int i = 1; i < argc; i++) {
-		(void) strlcat(string, " ", len);
-		(void) strlcat(string, argv[i], len);
+	int i;
+
+	(void) strlcpy(history_str, subcommand, HIS_MAX_RECORD_LEN);
+	for (i = 1; i < argc; i++) {
+		if (strlen(history_str) + 1 + strlen(argv[i]) >
+		    HIS_MAX_RECORD_LEN)
+			break;
+		(void) strlcat(history_str, " ", HIS_MAX_RECORD_LEN);
+		(void) strlcat(history_str, argv[i], HIS_MAX_RECORD_LEN);
 	}
 }
 
+/*
+ * Stage command history for logging.
+ */
 int
-zpool_log_history(libzfs_handle_t *hdl, const char *message)
+zpool_stage_history(libzfs_handle_t *hdl, const char *history_str)
 {
-	zfs_cmd_t zc = { 0 };
-	nvlist_t *args;
-	int err;
+	if (history_str == NULL)
+		return (EINVAL);
 
-	args = fnvlist_alloc();
-	fnvlist_add_string(args, "message", message);
-	err = zcmd_write_src_nvlist(hdl, &zc, args);
-	if (err == 0)
-		err = ioctl(hdl->libzfs_fd, ZFS_IOC_LOG_HISTORY, &zc);
-	nvlist_free(args);
-	zcmd_free_nvlists(&zc);
-	return (err);
+	if (strlen(history_str) > HIS_MAX_RECORD_LEN)
+		return (EINVAL);
+
+	if (hdl->libzfs_log_str != NULL)
+		free(hdl->libzfs_log_str);
+
+	if ((hdl->libzfs_log_str = strdup(history_str)) == NULL)
+		return (no_memory(hdl));
+
+	return (0);
 }
 
 /*
@@ -3874,7 +3599,7 @@ zpool_label_disk(libzfs_handle_t *hdl, zpool_handle_t *zhp, char *name)
 	if (zhp) {
 		nvlist_t *nvroot;
 
-		if (zpool_is_bootable(zhp)) {
+		if (pool_is_bootable(zhp)) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "EFI labeled devices are not supported on root "
 			    "pools."));

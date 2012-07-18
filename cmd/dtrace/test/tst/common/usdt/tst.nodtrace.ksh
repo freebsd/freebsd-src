@@ -23,6 +23,7 @@
 # Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 # Fake up a scenario where _DTRACE_VERSION is not defined by having our own
 # <unistd.h>. This tests that dtrace -h will produce a header file which can
@@ -69,12 +70,12 @@ main(int argc, char **argv)
 }
 EOF
 
-gcc -I. -m32 -c test.c
+cc -I. -xarch=generic -c test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
 fi
-gcc -m32 -o test test.o
+cc -xarch=generic -o test test.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to link final executable"
 	exit 1

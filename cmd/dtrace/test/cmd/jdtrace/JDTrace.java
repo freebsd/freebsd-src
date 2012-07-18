@@ -23,6 +23,7 @@
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  *
+ * ident	"%Z%%M%	%I%	%E% SMI"
  */
 import org.opensolaris.os.dtrace.*;
 import java.io.*;
@@ -302,7 +303,6 @@ public class JDTrace {
 	Distribution.Bucket bucket;
 	int b1 = 0; // first displayed bucket
 	int b2 = d.size() - 1; // last displayed bucket
-
 	for (; (b1 <= b2) && (d.get(b1).getFrequency() == 0); ++b1);
 	// If possible, get one bucket before the first non-zero
 	// bucket and one bucket after the last.
@@ -337,14 +337,9 @@ public class JDTrace {
 	    v = bucket.getFrequency();
 	    b = bucket.getMin();
 
-	    if ((d instanceof LinearDistribution) ||
-		(d instanceof LogLinearDistribution)) {
+	    if (d instanceof LinearDistribution) {
 		if (b == Long.MIN_VALUE) {
-		    String lt;
-		    if (d instanceof LinearDistribution)
-			lt = "< " + ((LinearDistribution)d).getBase();
-		    else
-			lt = "< " + ((LogLinearDistribution)d).getBase();
+		    String lt = "< " + ((LinearDistribution)d).getBase();
 		    out.printf("%16s ", lt);
 		} else if (bucket.getMax() == Long.MAX_VALUE) {
 		    String ge = ">= " + b;

@@ -24,6 +24,8 @@
  * Use is subject to license terms.
  */
 
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
 /*
  * ASSERTION:
  *	Checks that setting "bufresize" to "auto" will cause buffer
@@ -32,8 +34,14 @@
  * SECTION: Buffers and Buffering/Buffer Resizing Policy;
  *	Options and Tunables/bufsize;
  *	Options and Tunables/bufresize
+ *
+ * NOTES:
+ *	We use the undocumented "preallocate" option to make sure dtrace(1M)
+ *	has enough space in its heap to allocate a buffer as large as the
+ *	kernel's trace buffer.
  */
 
+#pragma D option preallocate=100t
 #pragma D option bufresize=auto
 #pragma D option bufsize=100t
 

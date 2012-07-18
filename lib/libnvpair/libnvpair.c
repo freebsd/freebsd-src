@@ -20,7 +20,6 @@
  */
 /*
  * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <unistd.h>
@@ -804,10 +803,6 @@ dump_nvlist(nvlist_t *list, int indent)
 
 	while ((elem = nvlist_next_nvpair(list, elem)) != NULL) {
 		switch (nvpair_type(elem)) {
-		case DATA_TYPE_BOOLEAN:
-			(void) printf("%*s%s\n", indent, "", nvpair_name(elem));
-			break;
-
 		case DATA_TYPE_BOOLEAN_VALUE:
 			(void) nvpair_value_boolean_value(elem, &bool_value);
 			(void) printf("%*s%s: %s\n", indent, "",

@@ -24,6 +24,7 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # This test verifies that a regex in the provider name will match
@@ -43,13 +44,13 @@ mkdir $DIR
 cd $DIR
 
 cat > Makefile <<EOF
-all: main
+	all: main
 
 main: main.o prov.o
-	gcc -o main main.o prov.o
+	cc -o main main.o prov.o
 
 main.o: main.c prov.h
-	gcc -c main.c
+	cc -c main.c
 
 prov.h: prov.d
 	$dtrace -h -s prov.d

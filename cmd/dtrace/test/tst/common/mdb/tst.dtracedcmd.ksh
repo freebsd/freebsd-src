@@ -24,6 +24,8 @@
 # Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
+#
 
 #
 # This script primarily tests that the ::dtrace dcmd is not dumping
@@ -34,7 +36,7 @@
 
 script()
 {
-	exec $dtrace -o $dtraceout -s /dev/stdin <<EOF
+	$dtrace -o $dtraceout -s /dev/stdin <<EOF
 	syscall:::entry
 	{
 		@[probefunc] = count();

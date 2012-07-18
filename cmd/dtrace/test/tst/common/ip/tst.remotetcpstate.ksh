@@ -86,7 +86,7 @@ cat > test.pl <<-EOPERL
 	close \$s;
 EOPERL
 
-$dtrace -c 'perl test.pl' -qs /dev/stdin <<EODTRACE
+$dtrace -c '/usr/bin/perl test.pl' -qs /dev/stdin <<EODTRACE
 BEGIN
 {
 	ipsend = tcpsend = ipreceive = tcpreceive = 0;

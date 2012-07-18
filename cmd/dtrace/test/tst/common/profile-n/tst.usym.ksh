@@ -23,6 +23,7 @@
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 script()
 {
@@ -62,7 +63,7 @@ child=$!
 # This test is essentially the same as that in the ufunc test; see that
 # test for the rationale.
 #
-script | tee /dev/fd/2 | egrep '(ksh|libshell\.so\.[0-9])`[a-zA-Z_]' > /dev/null
+script | tee /dev/fd/2 | grep 'ksh`[a-zA-Z_]' > /dev/null
 status=$? 
 
 kill $child

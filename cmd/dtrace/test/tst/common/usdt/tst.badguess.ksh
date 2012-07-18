@@ -23,6 +23,7 @@
 # Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 if [ $# != 1 ]; then
 	echo expected one argument: '<'dtrace-path'>'
@@ -60,12 +61,12 @@ main(int argc, char **argv)
 }
 EOF
 
-gcc -m64 -c -o test64.o test.c
+cc -xarch=generic64 -c -o test64.o test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c 64-bit"
 	exit 1
 fi
-gcc -m32 -c -o test32.o test.c
+cc -xarch=generic -c -o test32.o test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c 32-bit"
 	exit 1

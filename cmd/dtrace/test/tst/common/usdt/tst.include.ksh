@@ -23,6 +23,7 @@
 # Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 # Make sure <unistd.h> defines _DTRACE_VERSION
 
@@ -45,7 +46,7 @@ main(int argc, char **argv)
 }
 EOF
 
-gcc -m32 -o test test.c
+cc -xarch=generic -o test test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1

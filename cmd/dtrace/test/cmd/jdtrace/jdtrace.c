@@ -22,27 +22,25 @@
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- *
- * Copyright 2011, Richard Lowe
  */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <alloca.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <err.h>
 #include <sys/systeminfo.h>
 
 int
 main(int argc, char **argv)
 {
-	int i, ac;
+	int i, ac, has64;
 	char **av, **p;
-	char isaname[16];
 
 	ac = argc + 3;
 	av = p = alloca(sizeof (char *) * ac);
 
-	*p++ = "/usr/java/bin/java";
+	*p++ = "java";
 	*p++ = "-jar";
 	*p++ = "/opt/SUNWdtrt/lib/java/jdtrace.jar";
 
@@ -54,9 +52,9 @@ main(int argc, char **argv)
 	}
 	p[i] = NULL;
 
-	if (sysinfo(SI_ARCHITECTURE_64, isaname, sizeof (isaname)) != -1)
-		asprintf(av, "/usr/java/bin/%s/java", isaname);
+	(void) execvp(av[0], av);
 
-	(void) execv(av[0], av);
-	err(1, "exec failed");
+	perror("exec failed");
+
+	return (0);
 }

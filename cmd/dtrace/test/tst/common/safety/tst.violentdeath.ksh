@@ -23,10 +23,11 @@
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 script()
 {
-	exec $dtrace -x bufpolicy=ring -x bufsize=1k -s /dev/stdin <<EOF
+	$dtrace -x bufpolicy=ring -x bufsize=1k -s /dev/stdin <<EOF
 	fbt:::
 	{}
 EOF

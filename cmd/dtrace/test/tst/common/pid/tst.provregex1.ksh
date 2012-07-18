@@ -24,6 +24,7 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # This test verifies that specifying a glob in a pid provider name
@@ -45,10 +46,10 @@ cat > Makefile <<EOF
 all: main
 
 main: main.o
-	gcc -o main main.o
+	cc -o main main.o
 
 main.o: main.c
-	gcc -c main.c
+	cc -c main.c
 EOF
 
 cat > main.c <<EOF

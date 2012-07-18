@@ -21,7 +21,6 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, Joyent Inc. All rights reserved.
  */
 
 /*
@@ -720,18 +719,11 @@ dt_node_type_name(const dt_node_t *dnp, char *buf, size_t len)
 size_t
 dt_node_type_size(const dt_node_t *dnp)
 {
-	ctf_id_t base;
-
 	if (dnp->dn_kind == DT_NODE_STRING)
 		return (strlen(dnp->dn_string) + 1);
 
 	if (dt_node_is_dynamic(dnp) && dnp->dn_ident != NULL)
 		return (dt_ident_size(dnp->dn_ident));
-
-	base = ctf_type_resolve(dnp->dn_ctfp, dnp->dn_type);
-
-	if (ctf_type_kind(dnp->dn_ctfp, base) == CTF_K_FORWARD)
-		return (0);
 
 	return (ctf_type_size(dnp->dn_ctfp, dnp->dn_type));
 }

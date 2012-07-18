@@ -18,13 +18,12 @@
  *
  * CDDL HEADER END
  */
-
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- *
- * Copyright 2011 Jason King.  All rights reserved.
  */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include "libuutil_common.h"
 
@@ -318,8 +317,6 @@ uu_list_find(uu_list_t *lp, void *elem, void *private, uu_list_index_t *out)
 	int sorted = lp->ul_sorted;
 	uu_compare_fn_t *func = lp->ul_pool->ulp_cmp;
 	uu_list_node_impl_t *np;
-
-	uu_set_error(UU_ERROR_NONE);
 
 	if (func == NULL) {
 		if (out != NULL)

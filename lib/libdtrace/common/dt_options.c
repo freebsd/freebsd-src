@@ -24,6 +24,8 @@
  * Use is subject to license terms.
  */
 
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -835,6 +837,30 @@ dt_options_load(dtrace_hdl_t *dtp)
 	return (0);
 }
 
+/*ARGSUSED*/
+static int
+dt_opt_preallocate(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
+{
+	dtrace_optval_t size;
+	void *p;
+
+	if (arg == NULL || dt_optval_parse(arg, &size) != 0)
+		return (dt_set_errno(dtp, EDT_BADOPTVAL));
+
+	if (size > SIZE_MAX)
+		size = SIZE_MAX;
+
+	if ((p = dt_zalloc(dtp, size)) == NULL) {
+		do {
+			size /= 2;
+		} while ((p = dt_zalloc(dtp, size)) == NULL);
+	}
+
+	dt_free(dtp, p);
+
+	return (0);
+}
+
 typedef struct dt_option {
 	const char *o_name;
 	int (*o_func)(dtrace_hdl_t *, const char *, uintptr_t);
@@ -873,6 +899,7 @@ static const dt_option_t _dtrace_ctoptions[] = {
 	{ "linktype", dt_opt_linktype },
 	{ "nolibs", dt_opt_cflags, DTRACE_C_NOLIBS },
 	{ "pgmax", dt_opt_pgmax },
+	{ "preallocate", dt_opt_preallocate },
 	{ "pspec", dt_opt_cflags, DTRACE_C_PSPEC },
 	{ "stdc", dt_opt_stdc },
 	{ "strip", dt_opt_dflags, DTRACE_D_STRIP },

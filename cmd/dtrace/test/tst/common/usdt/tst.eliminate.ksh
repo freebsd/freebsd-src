@@ -23,6 +23,7 @@
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # Make sure temporary symbols generated due to DTrace probes in static
@@ -71,7 +72,7 @@ main(int argc, char **argv)
 }
 EOF
 
-gcc -c test.c
+cc -c test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
@@ -81,7 +82,7 @@ if [ $? -ne 0 ]; then
 	print -u2 "failed to create DOF"
 	exit 1
 fi
-gcc -o test test.o prov.o
+cc -o test test.o prov.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to link final executable"
 	exit 1

@@ -24,6 +24,7 @@
 # Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # This test verifies that performing a dlclose(3dl) on a library doesn't
@@ -45,17 +46,17 @@ cat > Makefile <<EOF
 all: main livelib.so deadlib.so
 
 main: main.o prov.o
-	gcc -o main main.o
+	cc -o main main.o
 
 main.o: main.c
-	gcc -c main.c
+	cc -c main.c
 
 
 livelib.so: livelib.o prov.o
-	gcc -shared -o livelib.so livelib.o prov.o -lc
+	cc -z defs -G -o livelib.so livelib.o prov.o -lc
 
 livelib.o: livelib.c prov.h
-	gcc -c livelib.c
+	cc -c livelib.c
 
 prov.o: livelib.o prov.d
 	$dtrace -G -s prov.d livelib.o
@@ -65,10 +66,10 @@ prov.h: prov.d
 
 
 deadlib.so: deadlib.o
-	gcc -shared -o deadlib.so deadlib.o -lc
+	cc -z defs -G -o deadlib.so deadlib.o -lc
 
 deadlib.o: deadlib.c
-	gcc -c deadlib.c
+	cc -c deadlib.c
 
 clean:
 	rm -f main.o livelib.o prov.o prov.h deadlib.o
@@ -130,7 +131,7 @@ main(int argc, char **argv)
 }
 EOF
 
-make > /dev/null
+/usr/ccs/bin/make > /dev/null
 if [ $? -ne 0 ]; then
 	print -u2 "failed to build"
 	exit 1

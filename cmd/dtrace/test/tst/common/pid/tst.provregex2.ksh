@@ -24,6 +24,7 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# ident	"%Z%%M%	%I%	%E% SMI"
 
 #
 # This test verifies that probes will be picked up after a dlopen(3C)
@@ -45,16 +46,16 @@ cat > Makefile <<EOF
 all: main altlib.so
 
 main: main.o
-	gcc -o main main.o
+	cc -o main main.o
 
 main.o: main.c
-	gcc -c main.c
+	cc -c main.c
 
 altlib.so: altlib.o
-	gcc -shared -o altlib.so altlib.o -lc
+	cc -z defs -G -o altlib.so altlib.o -lc
 
 altlib.o: altlib.c
-	gcc -c altlib.c
+	cc -c altlib.c
 EOF
 
 cat > altlib.c <<EOF
