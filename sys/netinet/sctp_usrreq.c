@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
-#if defined(INET6)
+#ifdef INET6
 #endif
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
