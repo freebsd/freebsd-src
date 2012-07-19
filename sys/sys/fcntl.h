@@ -225,6 +225,9 @@ typedef	__pid_t		pid_t;
 #define	F_SETLK_REMOTE	14		/* debugging support for remote locks */
 #define	F_READAHEAD	15		/* read ahead */
 #define	F_RDAHEAD	16		/* Darwin compatible read ahead */
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+#define	F_DUPFD_CLOEXEC	17		/* Like F_DUPFD, but FD_CLOEXEC is set */
+#endif
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define	FD_CLOEXEC	1		/* close-on-exec flag */
