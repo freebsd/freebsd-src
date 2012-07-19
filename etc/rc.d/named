@@ -173,7 +173,7 @@ named_prestart()
 		warn 'named_pidfile: now determined from the conf file'
 	fi
 
-	command_args="-u ${named_uid:=root}"
+	command_args="-u ${named_uid:-root}"
 
 	if [ ! "$named_conf" = '/etc/namedb/named.conf' ]; then
 		case "$named_flags" in
