@@ -310,9 +310,10 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
 		ds->ds_data = bf->bf_segs[i].ds_addr;
 		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
+			ath_hal_settxdesclink(ah, ds, 0);
 		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+			ath_hal_settxdesclink(ah, ds,
+			    bf->bf_daddr + sizeof(*ds) * (i + 1));
 		ath_hal_filltxdesc(ah, ds
 			, bf->bf_segs[i].ds_len	/* segment length */
 			, i == 0		/* first segment */
@@ -350,9 +351,10 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
 		ds->ds_data = bf->bf_segs[i].ds_addr;
 		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
+			ath_hal_settxdesclink(ah, ds, 0);
 		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+			ath_hal_settxdesclink(ah, ds,
+			    bf->bf_daddr + sizeof(*ds) * (i + 1));
 
 		/*
 		 * This performs the setup for an aggregate frame.
@@ -414,7 +416,8 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 		 * to the beginning descriptor of this frame.
 		 */
 		if (bf_prev != NULL)
-			bf_prev->bf_lastds->ds_link = bf->bf_daddr;
+			ath_hal_settxdesclink(sc->sc_ah, bf_prev->bf_lastds,
+			    bf->bf_daddr);
 
 		/* Save a copy so we can link the next descriptor in */
 		bf_prev = bf;
@@ -482,7 +485,7 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		*txq->axq_link = bf->bf_daddr;
 	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	txq->axq_link = &bf->bf_lastds->ds_link;
+	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 }
 
 /*
@@ -616,7 +619,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 #endif /* IEEE80211_SUPPORT_TDMA */
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth++;
-		txq->axq_link = &bf->bf_lastds->ds_link;
+		ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 		ath_hal_txstart(ah, txq->axq_qnum);
 	}
 }
@@ -645,7 +648,7 @@ ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
 		return;
 
 	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-	txq->axq_link = &bf_last->bf_lastds->ds_link;
+	ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 	ath_hal_txstart(ah, txq->axq_qnum);
 }
 
