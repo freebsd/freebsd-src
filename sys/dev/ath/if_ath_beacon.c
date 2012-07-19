@@ -277,14 +277,15 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 
 	flags = HAL_TXDESC_NOACK;
 	if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol) {
-		ds->ds_link = bf->bf_daddr;	/* self-linked */
+		/* self-linked descriptor */
+		ath_hal_settxdesclink(sc->sc_ah, ds, bf->bf_daddr);
 		flags |= HAL_TXDESC_VEOL;
 		/*
 		 * Let hardware handle antenna switching.
 		 */
 		antenna = sc->sc_txantenna;
 	} else {
-		ds->ds_link = 0;
+		ath_hal_settxdesclink(sc->sc_ah, ds, 0);
 		/*
 		 * Switch antenna every 4 beacons.
 		 * XXX assumes two antenna
@@ -405,8 +406,10 @@ ath_beacon_proc(void *arg, int pending)
 			if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
 				bf = ath_beacon_generate(sc, vap);
 				if (bf != NULL) {
+					/* XXX should do this using the ds */
 					*bflink = bf->bf_daddr;
-					bflink = &bf->bf_desc->ds_link;
+					ath_hal_gettxdesclinkptr(sc->sc_ah,
+					    bf->bf_desc, &bflink);
 				}
 			}
 		}
