@@ -113,6 +113,7 @@ static uma_zone_t file_zone;
 /* Flags for do_dup() */
 #define DUP_FIXED	0x1	/* Force fixed allocation */
 #define DUP_FCNTL	0x2	/* fcntl()-style errors */
+#define	DUP_CLOEXEC	0x4	/* Atomically set FD_CLOEXEC. */
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
@@ -477,6 +478,12 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_DUPFD:
 		tmp = arg;
 		error = do_dup(td, DUP_FCNTL, fd, tmp, td->td_retval);
+		break;
+
+	case F_DUPFD_CLOEXEC:
+		tmp = arg;
+		error = do_dup(td, DUP_FCNTL | DUP_CLOEXEC, fd, tmp,
+		    td->td_retval);
 		break;
 
 	case F_DUP2FD:
@@ -895,6 +902,10 @@ do_dup(struct thread *td, int flags, int old, int new,
 	 * Duplicate the source descriptor.
 	 */
 	fdp->fd_ofiles[new] = fp;
+	if ((flags & DUP_CLOEXEC) != 0)
+		fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] | UF_EXCLOSE;
+	else
+		fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] & ~UF_EXCLOSE;
 	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
 	if (new > fdp->fd_lastfile)
 		fdp->fd_lastfile = new;
