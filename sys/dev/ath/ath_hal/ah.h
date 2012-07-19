@@ -1084,6 +1084,12 @@ struct ath_hal {
 	void	   __ahdecl(*ah_reqTxIntrDesc)(struct ath_hal *, struct ath_desc*);
 	HAL_BOOL	__ahdecl(*ah_getTxCompletionRates)(struct ath_hal *,
 				const struct ath_desc *ds, int *rates, int *tries);
+	void	  __ahdecl(*ah_setTxDescLink)(struct ath_hal *ah, void *ds,
+				uint32_t link);
+	void	  __ahdecl(*ah_getTxDescLink)(struct ath_hal *ah, void *ds,
+				uint32_t *link);
+	void	  __ahdecl(*ah_getTxDescLinkPtr)(struct ath_hal *ah, void *ds,
+				uint32_t **linkptr);
 
 	/* Receive Functions */
 	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*, HAL_RX_QUEUE);
