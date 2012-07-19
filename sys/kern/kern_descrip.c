@@ -906,7 +906,6 @@ do_dup(struct thread *td, int flags, int old, int new,
 		fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] | UF_EXCLOSE;
 	else
 		fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] & ~UF_EXCLOSE;
-	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
 	if (new > fdp->fd_lastfile)
 		fdp->fd_lastfile = new;
 	*retval = new;
