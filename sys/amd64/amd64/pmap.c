@@ -3576,13 +3576,9 @@ validate:
 	if ((origpte & PG_V) != 0) {
 		invlva = FALSE;
 		origpte = pte_load_store(pte, newpte);
-		if ((origpte & PG_A) != 0) {
-			if ((origpte & PG_MANAGED) != 0)
-				vm_page_aflag_set(om, PGA_REFERENCED);
-			if (opa != pa || ((origpte & PG_NX) == 0 &&
-			    (newpte & PG_NX) != 0))
-				invlva = TRUE;
-		}
+		if ((origpte & PG_A) != 0 && (opa != pa ||
+		    ((origpte & PG_NX) == 0 && (newpte & PG_NX) != 0)))
+			invlva = TRUE;
 		if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 			if ((origpte & PG_MANAGED) != 0)
 				vm_page_dirty(om);
@@ -3590,6 +3586,8 @@ validate:
 				invlva = TRUE;
 		}
 		if (opa != pa && (origpte & PG_MANAGED) != 0) {
+			if ((origpte & PG_A) != 0)
+				vm_page_aflag_set(om, PGA_REFERENCED);
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 			pmap_pvh_free(&om->md, pmap, va);
 			if ((om->aflags & PGA_WRITEABLE) != 0 &&
