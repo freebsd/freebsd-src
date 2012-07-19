@@ -3799,6 +3799,7 @@ sctp_get_ect(struct sctp_tcb *stcb)
 	}
 }
 
+#if defined(INET) || defined(INET6)
 static void
 sctp_handle_no_route(struct sctp_tcb *stcb,
     struct sctp_nets *net,
@@ -3843,6 +3844,8 @@ sctp_handle_no_route(struct sctp_tcb *stcb,
 	}
 }
 
+#endif
+
 static int
 sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,	/* may be NULL */
@@ -3882,14 +3885,18 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 	 *   interface and smallest_mtu size as well.
 	 */
 	/* Will need ifdefs around this */
-	struct mbuf *o_pak;
 	struct mbuf *newm;
 	struct sctphdr *sctphdr;
 	int packet_length;
 	int ret;
 	uint32_t vrf_id;
+
+#if defined(INET) || defined(INET6)
+	struct mbuf *o_pak;
 	sctp_route_t *ro = NULL;
 	struct udphdr *udp = NULL;
+
+#endif
 	uint8_t tos_value;
 
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
