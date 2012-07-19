@@ -327,7 +327,7 @@ fpuexit(struct thread *td)
 	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread)) {
 		stop_emulating();
-		fpusave(PCPU_GET(curpcb)->pcb_save);
+		fpusave(curpcb->pcb_save);
 		start_emulating();
 		PCPU_SET(fpcurthread, 0);
 	}
@@ -547,7 +547,7 @@ fputrap_x87(void)
 	 * wherever they are.
 	 */
 	if (PCPU_GET(fpcurthread) != curthread) {
-		pcb_save = PCPU_GET(curpcb)->pcb_save;
+		pcb_save = curpcb->pcb_save;
 		control = pcb_save->sv_env.en_cw;
 		status = pcb_save->sv_env.en_sw;
 	} else {
@@ -567,7 +567,7 @@ fputrap_sse(void)
 
 	critical_enter();
 	if (PCPU_GET(fpcurthread) != curthread)
-		mxcsr = PCPU_GET(curpcb)->pcb_save->sv_env.en_mxcsr;
+		mxcsr = curpcb->pcb_save->sv_env.en_mxcsr;
 	else
 		stmxcsr(&mxcsr);
 	critical_exit();
@@ -609,7 +609,7 @@ fpudna(void)
 	 * Record new context early in case frstor causes a trap.
 	 */
 	PCPU_SET(fpcurthread, curthread);
-	pcb = PCPU_GET(curpcb);
+	pcb = curpcb;
 
 	fpu_clean_state();
 
@@ -970,7 +970,7 @@ fpu_kern_thread(u_int flags)
 {
 	struct pcb *pcb;
 
-	pcb = PCPU_GET(curpcb);
+	pcb = curpcb;
 	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
 	    ("Only kthread may use fpu_kern_thread"));
 	KASSERT(pcb->pcb_save == get_pcb_user_save_pcb(pcb),
@@ -987,5 +987,5 @@ is_fpu_kern_thread(u_int flags)
 
 	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
 		return (0);
-	return ((PCPU_GET(curpcb)->pcb_flags & PCB_KERNFPU) != 0);
+	return ((curpcb->pcb_flags & PCB_KERNFPU) != 0);
 }
