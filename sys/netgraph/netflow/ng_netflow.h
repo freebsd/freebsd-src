@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2010-2011 Alexander V. Chernikov <melifaro@ipfw.ru>
  * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
@@ -32,7 +33,7 @@
 #define	_NG_NETFLOW_H_
 
 #define NG_NETFLOW_NODE_TYPE	"netflow"
-#define NGM_NETFLOW_COOKIE	1137078102
+#define NGM_NETFLOW_COOKIE	1309868867
 
 #define	NG_NETFLOW_MAXIFACES	USHRT_MAX
 
@@ -41,6 +42,10 @@
 #define	NG_NETFLOW_HOOK_DATA	"iface"
 #define	NG_NETFLOW_HOOK_OUT	"out"
 #define NG_NETFLOW_HOOK_EXPORT	"export"
+#define NG_NETFLOW_HOOK_EXPORT9	"export9"
+
+/* This define effectively disable (v5) netflow export hook! */
+/* #define COUNTERS_64 */
 
 /* Netgraph commands understood by netflow node */
 enum {
@@ -51,15 +56,27 @@ enum {
     NGM_NETFLOW_SETIFINDEX	= 5, 	/* set interface index */
     NGM_NETFLOW_SETTIMEOUTS	= 6, 	/* set active/inactive flow timeouts */
     NGM_NETFLOW_SETCONFIG	= 7, 	/* set flow generation options */
+    NGM_NETFLOW_SETTEMPLATE	= 8, 	/* set v9 flow template periodic */
+    NGM_NETFLOW_SETMTU		= 9, 	/* set outgoing interface MTU */
 };
 
 /* This structure is returned by the NGM_NETFLOW_INFO message */
 struct ng_netflow_info {
-	uint64_t	nfinfo_bytes;		/* accounted bytes */
-	uint32_t	nfinfo_packets;		/* accounted packets */
+	uint64_t	nfinfo_bytes;		/* accounted IPv4 bytes */
+	uint32_t	nfinfo_packets;		/* accounted IPv4 packets */
+	uint64_t	nfinfo_bytes6;		/* accounted IPv6 bytes */
+	uint32_t	nfinfo_packets6;	/* accounted IPv6 packets */
+	uint64_t	nfinfo_sbytes;		/* skipped IPv4 bytes */
+	uint32_t	nfinfo_spackets;	/* skipped IPv4 packets */
+	uint64_t	nfinfo_sbytes6;		/* skipped IPv6 bytes */
+	uint32_t	nfinfo_spackets6;	/* skipped IPv6 packets */
 	uint32_t	nfinfo_used;		/* used cache records */
+	uint32_t	nfinfo_used6;		/* used IPv6 cache records */
 	uint32_t	nfinfo_alloc_failed;	/* failed allocations */
 	uint32_t	nfinfo_export_failed;	/* failed exports */
+	uint32_t	nfinfo_export9_failed;	/* failed exports */
+	uint32_t	nfinfo_realloc_mbuf;	/* reallocated mbufs */
+	uint32_t	nfinfo_alloc_fibs;	/* fibs allocated */
 	uint32_t	nfinfo_act_exp;		/* active expiries */
 	uint32_t	nfinfo_inact_exp;	/* inactive expiries */
 	uint32_t	nfinfo_inact_t;		/* flow inactive timeout */
@@ -94,10 +111,16 @@ struct ng_netflow_settimeouts {
 	uint32_t	active_timeout;		/* flow active timeout */
 };
 
-#define NG_NETFLOW_CONF_INGRESS		1
-#define NG_NETFLOW_CONF_EGRESS		2
-#define NG_NETFLOW_CONF_ONCE		4
-#define NG_NETFLOW_CONF_THISONCE	8
+#define NG_NETFLOW_CONF_INGRESS		0x01	/* Account on ingress */
+#define NG_NETFLOW_CONF_EGRESS		0x02	/* Account on egress */
+#define NG_NETFLOW_CONF_ONCE		0x04	/* Add tag to account only once */
+#define NG_NETFLOW_CONF_THISONCE	0x08	/* Account once in current node */
+#define NG_NETFLOW_CONF_NOSRCLOOKUP	0x10	/* No radix lookup on src */
+#define NG_NETFLOW_CONF_NODSTLOOKUP	0x20	/* No radix lookup on dst */
+
+#define NG_NETFLOW_IS_FRAG		0x01
+#define NG_NETFLOW_FLOW_FLAGS		(NG_NETFLOW_CONF_NOSRCLOOKUP|\
+					NG_NETFLOW_CONF_NODSTLOOKUP)
 
 /* This structure is passed to NGM_NETFLOW_SETCONFIG */
 struct ng_netflow_setconfig {
@@ -105,10 +128,66 @@ struct ng_netflow_setconfig {
 	u_int32_t conf;			/* new config */
 };
 
+/* This structure is passed to NGM_NETFLOW_SETTEMPLATE */
+struct ng_netflow_settemplate {
+	uint16_t time;		/* max time between announce */
+	uint16_t packets;	/* max packets between announce */
+};
+
+/* This structure is passed to NGM_NETFLOW_SETMTU */
+struct ng_netflow_setmtu {
+	uint16_t mtu;		/* MTU for packet */
+};
+
+/* This structure is used in NGM_NETFLOW_SHOW request/responce */
+struct ngnf_show_header {
+	u_char		version;	/* IPv4 or IPv6 */
+	uint32_t	hash_id;	/* current hash index */
+	uint32_t	list_id;	/* current record number in given hash */
+	uint32_t	nentries;	/* number of records in response */
+};
+
+/* XXXGL
+ * Somewhere flow_rec6 is casted to flow_rec, and flow6_entry_data is
+ * casted to flow_entry_data. After casting, fle->r.fib is accessed.
+ * So beginning of these structs up to fib should be kept common.
+ */
+
 /* This is unique data, which identifies flow */
 struct flow_rec {
+	uint16_t	flow_type; /* IPv4 L4/L3 flow, see NETFLOW_V9_FLOW* */
+	uint16_t	fib;
 	struct in_addr	r_src;
 	struct in_addr	r_dst;
+	union {
+		struct {
+			uint16_t	s_port;	/* source TCP/UDP port */
+			uint16_t	d_port; /* destination TCP/UDP port */
+		} dir;
+		uint32_t both;
+	} ports;
+	union {
+		struct {
+			u_char		prot;	/* IP protocol */
+			u_char		tos;	/* IP TOS */
+			uint16_t	i_ifx;	/* input interface index */
+		} i;
+		uint32_t all;
+	} misc;
+};
+
+/* This is unique data, which identifies flow */
+struct flow6_rec {
+	uint16_t	flow_type; /* IPv4 L4/L3 Ipv6 L4/L3 flow, see NETFLOW_V9_FLOW* */
+	uint16_t	fib;
+	union {
+		struct in_addr	r_src;
+		struct in6_addr	r_src6;
+	} src;
+	union {
+		struct in_addr	r_dst;
+		struct in6_addr	r_dst6;
+	} dst;
 	union {
 		struct {
 			uint16_t	s_port;	/* source TCP/UDP port */
@@ -136,8 +215,27 @@ struct flow_rec {
 	
 /* A flow entry which accumulates statistics */
 struct flow_entry_data {
+	uint16_t		version;	/* Protocol version */
 	struct flow_rec		r;
 	struct in_addr		next_hop;
+	uint16_t		fle_o_ifx;	/* output interface index */
+#define				fle_i_ifx	r.misc.i.i_ifx
+	uint8_t		dst_mask;	/* destination route mask bits */
+	uint8_t		src_mask;	/* source route mask bits */
+	u_long			packets;
+	u_long			bytes;
+	long			first;	/* uptime on first packet */
+	long			last;	/* uptime on last packet */
+	u_char			tcp_flags;	/* cumulative OR */
+};
+
+struct flow6_entry_data {
+	uint16_t		version;	/* Protocol version */
+	struct flow6_rec	r;
+	union {
+		struct in_addr		next_hop;
+		struct in6_addr		next_hop6;
+	} n;
 	uint16_t		fle_o_ifx;	/* output interface index */
 #define				fle_i_ifx	r.misc.i.i_ifx
 	uint8_t		dst_mask;	/* destination route mask bits */
@@ -154,35 +252,44 @@ struct flow_entry_data {
  * without overflowing socket receive buffer
  */
 #define NREC_AT_ONCE		1000
-#define NGRESP_SIZE		(sizeof(struct ngnf_flows) + (NREC_AT_ONCE * \
+#define NREC6_AT_ONCE		(NREC_AT_ONCE * sizeof(struct flow_entry_data) / \
+				sizeof(struct flow6_entry_data))
+#define NGRESP_SIZE		(sizeof(struct ngnf_show_header) + (NREC_AT_ONCE * \
 				sizeof(struct flow_entry_data)))
 #define SORCVBUF_SIZE		(NGRESP_SIZE + 2 * sizeof(struct ng_mesg))
-
-/* This struct is returned to userland, when "show cache ip flow" */
-struct ngnf_flows {
-	uint32_t		nentries;
-	uint32_t		last;
-	struct flow_entry_data	entries[0];
-};
 
 /* Everything below is for kernel */
 
 #ifdef _KERNEL
 
 struct flow_entry {
-	struct flow_entry_data	f;
 	TAILQ_ENTRY(flow_entry)	fle_hash;	/* entries in hash slot */
+	struct flow_entry_data	f;
 };
 
+struct flow6_entry {
+	TAILQ_ENTRY(flow_entry)	fle_hash;	/* entries in hash slot */
+	struct flow6_entry_data	f;
+};
 /* Parsing declarations */
 
 /* Parse the info structure */
 #define	NG_NETFLOW_INFO_TYPE	{			\
-	{ "Bytes",	&ng_parse_uint64_type },	\
-	{ "Packets",	&ng_parse_uint32_type },	\
-	{ "Records used",	&ng_parse_uint32_type },\
+	{ "IPv4 bytes",		&ng_parse_uint64_type },	\
+	{ "IPv4 packets",	&ng_parse_uint32_type },	\
+	{ "IPv6 bytes",		&ng_parse_uint64_type },	\
+	{ "IPv6 packets",	&ng_parse_uint32_type },	\
+	{ "IPv4 skipped bytes",		&ng_parse_uint64_type },	\
+	{ "IPv4 skipped packets",	&ng_parse_uint32_type },	\
+	{ "IPv6 skipped bytes",		&ng_parse_uint64_type },	\
+	{ "IPv6 skipped packets",	&ng_parse_uint32_type },	\
+	{ "IPv4 records used",	&ng_parse_uint32_type },\
+	{ "IPv6 records used",	&ng_parse_uint32_type },\
 	{ "Failed allocations",	&ng_parse_uint32_type },\
-	{ "Failed exports",	&ng_parse_uint32_type },\
+	{ "V5 failed exports",	&ng_parse_uint32_type },\
+	{ "V9 failed exports",	&ng_parse_uint32_type },\
+	{ "mbuf reallocations",	&ng_parse_uint32_type },\
+	{ "fibs allocated",	&ng_parse_uint32_type },\
 	{ "Active expiries",	&ng_parse_uint32_type },\
 	{ "Inactive expiries",	&ng_parse_uint32_type },\
 	{ "Inactive timeout",	&ng_parse_uint32_type },\
@@ -227,6 +334,19 @@ struct flow_entry {
 	{ NULL }					\
 }
 
+/* Parse the settemplate structure */
+#define	NG_NETFLOW_SETTEMPLATE_TYPE {		\
+	{ "time",	&ng_parse_uint16_type },	\
+	{ "packets",	&ng_parse_uint16_type },	\
+	{ NULL }					\
+}
+
+/* Parse the setmtu structure */
+#define	NG_NETFLOW_SETMTU_TYPE {			\
+	{ "mtu",	&ng_parse_uint16_type },	\
+	{ NULL }					\
+}
+
 /* Private hook data */
 struct ng_netflow_iface {
 	hook_p		hook;		/* NULL when disconnected */
@@ -237,10 +357,35 @@ struct ng_netflow_iface {
 typedef struct ng_netflow_iface *iface_p;
 typedef struct ng_netflow_ifinfo *ifinfo_p;
 
+struct netflow_export_item {
+	item_p		item;
+	item_p		item9;
+	struct netflow_v9_packet_opt	*item9_opt;
+};
+
+/* Structure contatining fib-specific data */
+struct fib_export {
+	uint32_t			fib;		/* kernel fib id */
+	struct netflow_export_item	exp;		/* Various data used for export */
+	struct mtx			export_mtx;	/* exp.item mutex */
+	struct mtx			export9_mtx;	/* exp.item9 mutex */
+	uint32_t			flow_seq;	/* current V5 flow sequence */
+	uint32_t			flow9_seq;	/* current V9 flow sequence */
+	uint32_t			domain_id;	/* Observartion domain id */
+	/* Netflow V9 counters */
+	uint32_t			templ_last_ts;	/* unixtime of last template announce */
+	uint32_t			templ_last_pkt;	/* packets count on last template announce */
+	uint32_t			sent_packets;	/* packets sent by exporter; */
+	struct netflow_v9_packet_opt	*export9_opt;	/* current packet specific options */
+};
+
+typedef struct fib_export *fib_export_p;
+
 /* Structure describing our flow engine */
 struct netflow {
 	node_p			node;		/* link to the node itself */
 	hook_p			export;		/* export data goes there */
+	hook_p			export9;	/* Netflow V9 export data goes there */
 
 	struct ng_netflow_info	info;
 	struct callout		exp_callout;	/* expiry periodic job */
@@ -264,12 +409,30 @@ struct netflow {
 	 * and works with it. If the export is full it is sent, and
 	 * a new one is allocated. Before exiting thread re-attaches
 	 * its current item back to priv. If there is item already,
-	 * current incomplete datagram is sent. 
+	 * current incomplete datagram is sent.
 	 * export_mtx is used for attaching/detaching.
 	 */
-	item_p			export_item;
-	struct mtx		export_mtx;
-	uint32_t		flow_seq;	/* current flow sequence */
+
+	/* IPv6 support */
+#ifdef INET6
+	uma_zone_t		zone6;
+	struct flow_hash_entry	*hash6;
+#endif
+	/* Multiple FIB support */
+	fib_export_p		*fib_data; /* array of pointers to per-fib data */
+	uint16_t		maxfibs; /* number of allocated fibs */
+
+	/*
+	 * RFC 3954 clause 7.3
+	 * "Both options MUST be configurable by the user on the Exporter."
+	 */
+	uint16_t		templ_time;	/* time between sending templates */
+	uint16_t		templ_packets;	/* packets between sending templates */
+#define NETFLOW_V9_MAX_FLOWSETS	2
+	u_char			flowsets_count; /* current flowsets used */
+	u_char			flowset_records[NETFLOW_V9_MAX_FLOWSETS - 1]; /* Count of records in each flowset */
+	uint16_t		mtu;		/* export interface MTU */
+	struct netflow_v9_flowset_header	*v9_flowsets[NETFLOW_V9_MAX_FLOWSETS - 1]; /* Pointers to pre-compiled flowsets */
 
 	struct ng_netflow_iface	ifaces[NG_NETFLOW_MAXIFACES];
 };
@@ -287,13 +450,41 @@ struct flow_hash_entry {
 #define MTAG_NETFLOW		1221656444
 #define MTAG_NETFLOW_CALLED	0
 
+#define m_pktlen(m)	((m)->m_pkthdr.len)
+#define IP6VERSION	6
+
+#define priv_to_fib(priv, fib)	(priv)->fib_data[(fib)]
+
+/*
+ * Cisco uses milliseconds for uptime. Bad idea, since it overflows
+ * every 48+ days. But we will do same to keep compatibility. This macro
+ * does overflowable multiplication to 1000.
+ */
+#define	MILLIUPTIME(t)	(((t) << 9) +	/* 512 */	\
+			 ((t) << 8) +	/* 256 */	\
+			 ((t) << 7) +	/* 128 */	\
+			 ((t) << 6) +	/* 64  */	\
+			 ((t) << 5) +	/* 32  */	\
+			 ((t) << 3))	/* 8   */
+
 /* Prototypes for netflow.c */
-int	ng_netflow_cache_init(priv_p);
+void	ng_netflow_cache_init(priv_p);
 void	ng_netflow_cache_flush(priv_p);
+int	ng_netflow_fib_init(priv_p priv, int fib);
 void	ng_netflow_copyinfo(priv_p, struct ng_netflow_info *);
 timeout_t ng_netflow_expire;
-int	ng_netflow_flow_add(priv_p, struct ip *, unsigned int src_if_index);
-int	ng_netflow_flow_show(priv_p, uint32_t last, struct ng_mesg *);
+int 	ng_netflow_flow_add(priv_p, fib_export_p, struct ip *, caddr_t, uint8_t, uint8_t, unsigned int);
+int	ng_netflow_flow6_add(priv_p, fib_export_p, struct ip6_hdr *, caddr_t , uint8_t, uint8_t, unsigned int);
+int	ng_netflow_flow_show(priv_p, struct ngnf_show_header *req, struct ngnf_show_header *resp);
+
+void	ng_netflow_v9_cache_init(priv_p);
+void	ng_netflow_v9_cache_flush(priv_p);
+item_p	get_export9_dgram(priv_p, fib_export_p, struct netflow_v9_packet_opt **);
+void	return_export9_dgram(priv_p, fib_export_p, item_p,
+	    struct netflow_v9_packet_opt *, int);
+int	export9_add(item_p, struct netflow_v9_packet_opt *, struct flow_entry *);
+int	export9_send(priv_p, fib_export_p, item_p, struct netflow_v9_packet_opt *,
+	    int);
 
 #endif	/* _KERNEL */
 #endif	/* _NG_NETFLOW_H_ */
