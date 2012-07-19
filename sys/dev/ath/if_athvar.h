@@ -410,7 +410,7 @@ struct ath_softc {
 	uint32_t		sc_bssidmask;	/* bssid mask */
 
 	struct ath_rx_methods	sc_rx;
-	struct ath_rx_edma	sc_rxedma[2];	/* HP/LP queues */
+	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
 	int			sc_tx_statuslen;
