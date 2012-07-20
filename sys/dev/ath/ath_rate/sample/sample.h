@@ -101,6 +101,9 @@ struct sample_node {
 	int packets_since_sample[NUM_PACKET_SIZE_BINS];
 	unsigned sample_tt[NUM_PACKET_SIZE_BINS];
 };
+
+#ifdef	_KERNEL
+
 #define	ATH_NODE_SAMPLE(an)	((struct sample_node *)&(an)[1])
 #define	IS_RATE_DEFINED(sn, rix)	(((sn)->ratemask & (1<<(rix))) != 0)
 
@@ -225,4 +228,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	}
 	return tt;
 }
+
+#endif	/* _KERNEL */
+
 #endif /* _DEV_ATH_RATE_SAMPLE_H */
