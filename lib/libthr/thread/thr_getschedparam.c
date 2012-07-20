@@ -48,7 +48,7 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 	struct sched_param *param)
 {
 	struct pthread *curthread = _get_curthread();
-	int ret;
+	int ret = 0;
 
 	if (policy == NULL || param == NULL)
 		return (EINVAL);
