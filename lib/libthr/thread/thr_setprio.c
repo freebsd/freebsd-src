@@ -45,10 +45,9 @@ _pthread_setprio(pthread_t pthread, int prio)
 	int	ret;
 
 	param.sched_priority = prio;
-	if (pthread == curthread) {
-		pthread = curthread;
+	if (pthread == curthread)
 		THR_LOCK(curthread);
-	} else if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)))
+	else if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)))
 		return (ret);
 	if (pthread->attr.sched_policy == SCHED_OTHER ||
 	    pthread->attr.prio == prio) {

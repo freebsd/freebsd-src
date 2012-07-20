@@ -53,10 +53,9 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 	struct pthread	*curthread = _get_curthread();
 	int	ret;
 
-	if (pthread == curthread) {
-		pthread = curthread;
+	if (pthread == curthread)
 		THR_LOCK(curthread);
-	} else if ((ret = _thr_find_thread(curthread, pthread,
+	else if ((ret = _thr_find_thread(curthread, pthread,
 		 /*include dead*/0)) != 0)
 		return (ret);
 	if (pthread->attr.sched_policy == policy &&
