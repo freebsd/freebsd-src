@@ -421,6 +421,14 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 	}
 }
 
+static int
+ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+    struct ath_rateioctl *re)
+{
+
+	return (EINVAL);
+}
+
 static void
 ath_rate_sysctlattach(struct ath_softc *sc)
 {

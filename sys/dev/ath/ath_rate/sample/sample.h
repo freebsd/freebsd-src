@@ -79,6 +79,14 @@ struct txschedule {
  */
 #define NUM_PACKET_SIZE_BINS 2
 
+static const int packet_size_bins[NUM_PACKET_SIZE_BINS]  = { 250, 1600 };
+
+static inline int
+bin_to_size(int index)
+{
+	return packet_size_bins[index];
+}
+
 /* per-node state */
 struct sample_node {
 	int static_rix;			/* rate index of fixed tx rate */
