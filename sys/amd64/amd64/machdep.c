@@ -629,63 +629,122 @@ void
 cpu_halt(void)
 {
 	for (;;)
-		__asm__ ("hlt");
+		halt();
 }
 
 void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
+static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
+static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
+TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
+SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
+    0, "Use MONITOR/MWAIT for short idle");
 
-static void
-cpu_idle_hlt(int busy)
-{
-	/*
-	 * we must absolutely guarentee that hlt is the next instruction
-	 * after sti or we introduce a timing window.
-	 */
-	disable_intr();
-  	if (sched_runnable())
-		enable_intr();
-	else
-		__asm __volatile("sti; hlt");
-}
+#define	STATE_RUNNING	0x0
+#define	STATE_MWAIT	0x1
+#define	STATE_SLEEPING	0x2
 
 static void
 cpu_idle_acpi(int busy)
 {
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_SLEEPING;
+
+	/* See comments in cpu_idle_hlt(). */
 	disable_intr();
-  	if (sched_runnable())
+	if (sched_runnable())
 		enable_intr();
 	else if (cpu_idle_hook)
 		cpu_idle_hook();
 	else
 		__asm __volatile("sti; hlt");
+	*state = STATE_RUNNING;
 }
 
-static int cpu_ident_amdc1e = 0;
-
-static int
-cpu_probe_amdc1e(void)
+static void
+cpu_idle_hlt(int busy)
 {
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_SLEEPING;
+
+	/*
+	 * Since we may be in a critical section from cpu_idle(), if
+	 * an interrupt fires during that critical section we may have
+	 * a pending preemption.  If the CPU halts, then that thread
+	 * may not execute until a later interrupt awakens the CPU.
+	 * To handle this race, check for a runnable thread after
+	 * disabling interrupts and immediately return if one is
+	 * found.  Also, we must absolutely guarentee that hlt is
+	 * the next instruction after sti.  This ensures that any
+	 * interrupt that fires after the call to disable_intr() will
+	 * immediately awaken the CPU from hlt.  Finally, please note
+	 * that on x86 this works fine because of interrupts enabled only
+	 * after the instruction following sti takes place, while IF is set
+	 * to 1 immediately, allowing hlt instruction to acknowledge the
+	 * interrupt.
+	 */
+	disable_intr();
+	if (sched_runnable())
+		enable_intr();
+	else
+		__asm __volatile("sti; hlt");
+	*state = STATE_RUNNING;
+}
+
+/*
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+static void
+cpu_idle_mwait(int busy)
+{
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_MWAIT;
+
+	/* See comments in cpu_idle_hlt(). */
+	disable_intr();
+	if (sched_runnable()) {
+		enable_intr();
+		*state = STATE_RUNNING;
+		return;
+	}
+	cpu_monitor(state, 0, 0);
+	if (*state == STATE_MWAIT)
+		__asm __volatile("sti; mwait" : : "a" (MWAIT_C1), "c" (0));
+	else
+		enable_intr();
+	*state = STATE_RUNNING;
+}
+
+static void
+cpu_idle_spin(int busy)
+{
+	int *state;
 	int i;
 
-	/*
-	 * Forget it, if we're not using local APIC timer.
-	 */
-	if (resource_disabled("apic", 0) ||
-	    (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0))
-		return (0);
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_RUNNING;
 
 	/*
-	 * Detect the presence of C1E capability mostly on latest
-	 * dual-cores (or future) k8 family.
+	 * The sched_runnable() call is racy but as long as there is
+	 * a loop missing it one time will have just a little impact if any
+	 * (and it is much better than missing the check at all).
 	 */
-	if (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    (cpu_id & 0x00000f00) == 0x00000f00 &&
-	    (cpu_id & 0x0fff0000) >=  0x00040000) {
-		cpu_ident_amdc1e = 1;
-		return (1);
+	for (i = 0; i < 1000; i++) {
+		if (sched_runnable())
+			return;
+		cpu_spinwait();
 	}
-
-	return (0);
 }
 
 /*
@@ -703,30 +762,18 @@ cpu_probe_amdc1e(void)
 #define	AMDK8_CMPHALT		(AMDK8_SMIONCMPHALT | AMDK8_C1EONCMPHALT)
 
 static void
-cpu_idle_amdc1e(int busy)
+cpu_probe_amdc1e(void)
 {
 
-	disable_intr();
-	if (sched_runnable())
-		enable_intr();
-	else {
-		uint64_t msr;
-
-		msr = rdmsr(MSR_AMDK8_IPM);
-		if (msr & AMDK8_CMPHALT)
-			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
-
-		if (cpu_idle_hook)
-			cpu_idle_hook();
-		else
-			__asm __volatile("sti; hlt");
+	/*
+	 * Detect the presence of C1E capability mostly on latest
+	 * dual-cores (or future) k8 family.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    (cpu_id & 0x00000f00) == 0x00000f00 &&
+	    (cpu_id & 0x0fff0000) >=  0x00040000) {
+		cpu_ident_amdc1e = 1;
 	}
-}
-
-static void
-cpu_idle_spin(int busy)
-{
-	return;
 }
 
 void (*cpu_idle_fn)(int) = cpu_idle_acpi;
@@ -734,79 +781,47 @@ void (*cpu_idle_fn)(int) = cpu_idle_acpi;
 void
 cpu_idle(int busy)
 {
+	uint64_t msr;
+
 #ifdef SMP
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
-	cpu_idle_fn(busy);
-}
-
-/*
- * mwait cpu power states.  Lower 4 bits are sub-states.
- */
-#define	MWAIT_C0	0xf0
-#define	MWAIT_C1	0x00
-#define	MWAIT_C2	0x10
-#define	MWAIT_C3	0x20
-#define	MWAIT_C4	0x30
-
-#define	MWAIT_DISABLED	0x0
-#define	MWAIT_WOKEN	0x1
-#define	MWAIT_WAITING	0x2
-
-static void
-cpu_idle_mwait(int busy)
-{
-	int *mwait;
-
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
-		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
-}
-
-static void
-cpu_idle_mwait_hlt(int busy)
-{
-	int *mwait;
-
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	if (busy == 0) {
-		*mwait = MWAIT_DISABLED;
-		cpu_idle_hlt(busy);
-		return;
+	/* If we are busy - try to use fast methods. */
+	if (busy) {
+		if ((cpu_feature2 & CPUID2_MON) && idle_mwait) {
+			cpu_idle_mwait(busy);
+			return;
+		}
 	}
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
-		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
+
+	/* Apply AMD APIC timer C1E workaround. */
+	if (cpu_ident_amdc1e) {
+		msr = rdmsr(MSR_AMDK8_IPM);
+		if (msr & AMDK8_CMPHALT)
+			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
+	}
+
+	/* Call main idle method. */
+	cpu_idle_fn(busy);
 }
 
 int
 cpu_idle_wakeup(int cpu)
 {
 	struct pcpu *pcpu;
-	int *mwait;
+	int *state;
 
-	if (cpu_idle_fn == cpu_idle_spin)
-		return (1);
-	if (cpu_idle_fn != cpu_idle_mwait && cpu_idle_fn != cpu_idle_mwait_hlt)
-		return (0);
 	pcpu = pcpu_find(cpu);
-	mwait = (int *)pcpu->pc_monitorbuf;
+	state = (int *)pcpu->pc_monitorbuf;
 	/*
 	 * This doesn't need to be atomic since missing the race will
 	 * simply result in unnecessary IPIs.
 	 */
-	if (cpu_idle_fn == cpu_idle_mwait_hlt && *mwait == MWAIT_DISABLED)
+	if (*state == STATE_SLEEPING)
 		return (0);
-	*mwait = MWAIT_WOKEN;
-
+	if (*state == STATE_MWAIT)
+		*state = STATE_RUNNING;
 	return (1);
 }
 
@@ -819,8 +834,6 @@ struct {
 } idle_tbl[] = {
 	{ cpu_idle_spin, "spin" },
 	{ cpu_idle_mwait, "mwait" },
-	{ cpu_idle_mwait_hlt, "mwait_hlt" },
-	{ cpu_idle_amdc1e, "amdc1e" },
 	{ cpu_idle_hlt, "hlt" },
 	{ cpu_idle_acpi, "acpi" },
 	{ NULL, NULL }
@@ -839,8 +852,8 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
-		    cpu_ident_amdc1e == 0)
+		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
+		    cpu_idle_hook == NULL)
 			continue;
 		p += sprintf(p, "%s, ", idle_tbl[i].id_name);
 	}
@@ -848,6 +861,9 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 	free(avail, M_TEMP);
 	return (error);
 }
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 static int
 idle_sysctl(SYSCTL_HANDLER_ARGS)
@@ -872,8 +888,8 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
-		    cpu_ident_amdc1e == 0)
+		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
+		    cpu_idle_hook == NULL)
 			continue;
 		if (strcmp(idle_tbl[i].id_name, buf))
 			continue;
@@ -882,9 +898,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	return (EINVAL);
 }
-
-SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
@@ -1819,8 +1832,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	}
 #endif
 
-	if (cpu_probe_amdc1e())
-		cpu_idle_fn = cpu_idle_amdc1e;
+	cpu_probe_amdc1e();
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
