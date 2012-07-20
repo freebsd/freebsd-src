@@ -105,8 +105,6 @@ __FBSDID("$FreeBSD$");
 
 static void	ath_rate_ctl_reset(struct ath_softc *, struct ieee80211_node *);
 
-static const int packet_size_bins[NUM_PACKET_SIZE_BINS] = { 250, 1600 };
-
 static __inline int
 size_to_bin(int size) 
 {
@@ -126,12 +124,6 @@ size_to_bin(int size)
 #error "add support for more packet sizes"
 #endif
 	return NUM_PACKET_SIZE_BINS-1;
-}
-
-static __inline int
-bin_to_size(int index)
-{
-	return packet_size_bins[index];
 }
 
 void
@@ -1196,6 +1188,79 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		ni->ni_txrate = RATE(0);
 #undef RATE
 #undef DOT11RATE
+}
+
+/*
+ * Fetch the statistics for the given node.
+ *
+ * The ieee80211 node must be referenced and unlocked, however the ath_node
+ * must be locked.
+ *
+ * The main difference here is that we convert the rate indexes
+ * to 802.11 rates, or the userland output won't make much sense
+ * as it has no access to the rix table.
+ */
+int
+ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+    struct ath_rateioctl *rs)
+{
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct ath_rateioctl_tlv av;
+	struct sample_node *ts;
+	int y;
+
+	ATH_NODE_LOCK_ASSERT(an);
+
+	/*
+	 * Ensure there's enough space for the statistics.
+	 */
+	if (rs->len <
+	    sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct sample_node))
+		return (EINVAL);
+
+	/*
+	 * Take a temporary copy of the sample node state so we can
+	 * modify it before we copy it.
+	 */
+	ts = malloc(sizeof(struct sample_node), M_TEMP, M_WAITOK | M_ZERO);
+	if (ts == NULL)
+		return (ENOMEM);
+	memcpy(ts, sn, sizeof(struct sample_node));
+
+	/* Convert rix -> 802.11 rate codes */
+	ts->static_rix = dot11rate(rt, sn->static_rix);
+	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
+		/*
+		 * For non-11n rates, clear the high bit - that
+		 * means "basic rate" and will confuse things.
+		 *
+		 * For 11n rates, set the high bit.
+		 */
+		ts->current_rix[y] = dot11rate(rt, sn->current_rix[y]);
+		ts->current_sample_rix[y] =
+		    dot11rate(rt, sn->current_sample_rix[y]);
+		ts->last_sample_rix[y] =
+		    dot11rate(rt, sn->last_sample_rix[y]);
+	}
+
+	/*
+	 * Assemble the TLV.
+	 */
+	av.tlv_id = ATH_RATE_TLV_SAMPLENODE;
+	av.tlv_len = sizeof(struct sample_node);
+	copyout(&av, rs->buf, sizeof(struct ath_rateioctl_tlv));
+
+	/*
+	 * Copy the statistics over to the provided buffer.
+	 */
+	copyout(ts, rs->buf + sizeof(struct ath_rateioctl_tlv),
+	    sizeof(struct sample_node));
+
+	free(ts, M_TEMP);
+
+	return (0);
 }
 
 static void
