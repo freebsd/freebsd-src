@@ -72,7 +72,9 @@ procstat_vm(struct kinfo_proc *kipp)
 		printf("%-1s", kve->kve_flags & KVME_FLAG_COW ? "C" : "-");
 		printf("%-1s", kve->kve_flags & KVME_FLAG_NEEDS_COPY ? "N" :
 		    "-");
-		printf("%-1s ", kve->kve_flags & KVME_FLAG_SUPER ? "S" : "-");
+		printf("%-1s", kve->kve_flags & KVME_FLAG_SUPER ? "S" : "-");
+		printf("%-1s ", kve->kve_flags & KVME_FLAG_GROWS_UP ? "U" :
+		    kve->kve_flags & KVME_FLAG_GROWS_DOWN ? "D" : "-");
 		switch (kve->kve_type) {
 		case KVME_TYPE_NONE:
 			str = "--";
