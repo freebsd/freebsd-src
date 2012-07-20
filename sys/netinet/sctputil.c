@@ -3774,6 +3774,8 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, 
 				if (sp->data) {
 					sctp_m_freem(sp->data);
 					sp->data = NULL;
+					sp->tail_mbuf = NULL;
+					sp->length = 0;
 				}
 			}
 			if (sp->net) {
@@ -4887,7 +4889,7 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 					/*
 					 * Pull any data to free up the SB
 					 * and allow sender to "add more"
-					 * whilc we will throw away :-)
+					 * while we will throw away :-)
 					 */
 					sctp_free_spbufspace(stcb, &stcb->asoc,
 					    sp);
@@ -4895,9 +4897,9 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 					do_wakeup_routine = 1;
 					sp->some_taken = 1;
 					sctp_m_freem(sp->data);
-					sp->length = 0;
 					sp->data = NULL;
 					sp->tail_mbuf = NULL;
+					sp->length = 0;
 				}
 				break;
 			}
