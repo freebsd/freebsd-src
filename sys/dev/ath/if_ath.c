@@ -4925,6 +4925,43 @@ ath_watchdog(void *arg)
 	callout_schedule(&sc->sc_wd_ch, hz);
 }
 
+/*
+ * Fetch the rate control statistics for the given node.
+ */
+static int
+ath_ioctl_ratestats(struct ath_softc *sc, struct ath_rateioctl *rs)
+{
+	struct ath_node *an;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211_node *ni;
+	int error = 0;
+
+	/* Perform a lookup on the given node */
+	ni = ieee80211_find_node(&ic->ic_sta, rs->is_u.macaddr);
+	if (ni == NULL) {
+		error = EINVAL;
+		goto bad;
+	}
+
+	/* Lock the ath_node */
+	an = ATH_NODE(ni);
+	ATH_NODE_LOCK(an);
+
+	/* Fetch the rate control stats for this node */
+	error = ath_rate_fetch_node_stats(sc, an, rs);
+
+	/* No matter what happens here, just drop through */
+
+	/* Unlock the ath_node */
+	ATH_NODE_UNLOCK(an);
+
+	/* Unref the node */
+	ieee80211_node_decref(ni);
+
+bad:
+	return (error);
+}
+
 #ifdef ATH_DIAGAPI
 /*
  * Diagnostic interface to the HAL.  This is used by various
@@ -5073,6 +5110,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ath_ioctl_phyerr(sc,(struct ath_diag*) ifr);
 		break;
 #endif
+	case SIOCGATHNODERATESTATS:
+		error = ath_ioctl_ratestats(sc, (struct ath_rateioctl *) ifr);
+		break;
 	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
