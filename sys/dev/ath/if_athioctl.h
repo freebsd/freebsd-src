@@ -204,6 +204,18 @@ struct ath_rateioctl_tlv {
 #define	ATH_RATE_TLV_MACADDR		0xaab0
 
 /*
+ * The rate control modules may decide to push a mapping table
+ * of rix -> net80211 ratecode as part of the update.
+ */
+#define	ATH_RATE_TLV_RATETABLE_NENTRIES	64
+struct ath_rateioctl_rt {
+	uint16_t	nentries;
+	uint16_t	pad[1];
+	uint8_t		ratecode[ATH_RATE_TLV_RATETABLE_NENTRIES];
+};
+#define	ATH_RATE_TLV_RATETABLE		0xaab1
+
+/*
  * This is the sample node statistics structure.
  * More in ath_rate/sample/sample.h.
  */
