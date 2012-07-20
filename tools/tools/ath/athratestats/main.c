@@ -57,6 +57,12 @@
 
 #include "ath_rate/sample/sample.h"
 
+/*
+ * This needs to be big enough to fit the two TLVs, the rate table
+ * and the rate statistics table for a single node.
+ */
+#define	STATS_BUF_SIZE	8192
+
 struct ath_ratestats {
 	int s;
 	struct ath_rateioctl re;
@@ -159,20 +165,13 @@ ath_setsta(struct ath_ratestats *r, const char *mac)
 static void
 ath_rate_ioctl(struct ath_ratestats *r)
 {
-	printf("ether: %x:%x:%x:%x:%x:%x\n",
-	    r->re.is_u.macaddr[0],
-	    r->re.is_u.macaddr[1],
-	    r->re.is_u.macaddr[2],
-	    r->re.is_u.macaddr[3],
-	    r->re.is_u.macaddr[4],
-	    r->re.is_u.macaddr[5]);
+
 	if (ioctl(r->s, SIOCGATHNODERATESTATS, &r->re) < 0)
 		err(1, "ioctl");
 }
 
-#define	STATS_BUF_SIZE	8192
 int
-main(int argc, const char *argv[])
+main(int argc, char *argv[])
 {
 	struct ath_ratestats r;
 	struct ether_addr *e;
@@ -180,6 +179,33 @@ main(int argc, const char *argv[])
 	struct ath_rateioctl_tlv *av;
 	struct sample_node *sn = NULL;
 	struct ath_rateioctl_rt *rt = NULL;
+	char const *ifname = NULL, *macaddr = NULL;
+	int c;
+	int do_all = 0;
+
+	ifname = getenv("ATH");
+	if (ifname == NULL)
+		ifname = "ath0";
+
+	while ((c = getopt(argc, argv, "ahi:m:")) != -1) {
+		switch (c) {
+		case 'a':
+			do_all = 1;
+			break;
+		case 'i':
+			ifname = optarg;
+			break;
+		case 'm':
+			macaddr = optarg;
+			break;
+			
+		default:
+			errx(1,
+			    "usage: %s [-h] [-i ifname] [-a] [-m macaddr]\n",
+			    argv[0]);
+			/* NOTREACHED */
+		}
+	}
 
 	buf = calloc(1, STATS_BUF_SIZE);
 	if (buf == NULL)
@@ -191,11 +217,17 @@ main(int argc, const char *argv[])
 		err(1, "socket");
 	}
 	/* XXX error check */
-	ath_setifname(&r, "ath0");
+	ath_setifname(&r, ifname);
 
-	e = ether_aton(argv[1]);
+	if (macaddr == NULL) {
+		errx(1, "%s: macaddress wasn't supplied and no -a given\n",
+		    argv[0]);
+		/* NOTREACHED */
+	}
+	e = ether_aton(macaddr);
+	if (e == NULL)
+		err(1, "ether_aton");
 
-	/* caddr_t ? */
 	r.re.buf = buf;
 	r.re.len = STATS_BUF_SIZE;
 
