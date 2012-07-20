@@ -1257,6 +1257,7 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 	struct sbuf *sb;
 	quad_t end;
 	int error;
+	off_t mediasize;
 
 	gp = gpp->gpp_geom;
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
@@ -1301,8 +1302,11 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 	pp = entry->gpe_pp;
 	if ((g_debugflags & 16) == 0 &&
 	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)) {
-		gctl_error(req, "%d", EBUSY);
-		return (EBUSY);
+		if (entry->gpe_end - entry->gpe_start + 1 > gpp->gpp_size) {
+			/* Deny shrinking of an opened partition. */
+			gctl_error(req, "%d", EBUSY);
+			return (EBUSY);
+		} 
 	}
 
 	error = G_PART_RESIZE(table, entry, gpp);
@@ -1315,8 +1319,9 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_modified = 1;
 
 	/* update mediasize of changed provider */
-	pp->mediasize = (entry->gpe_end - entry->gpe_start + 1) *
+	mediasize = (entry->gpe_end - entry->gpe_start + 1) *
 		pp->sectorsize;
+	g_resize_provider(pp, mediasize);
 
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
