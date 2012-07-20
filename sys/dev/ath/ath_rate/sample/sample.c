@@ -1207,8 +1207,9 @@ ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ath_rateioctl_tlv av;
-	struct sample_node *ts;
+	struct ath_rateioctl_rt *tv;
 	int y;
+	int o = 0;
 
 	ATH_NODE_LOCK_ASSERT(an);
 
@@ -1217,48 +1218,61 @@ ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
 	 */
 	if (rs->len <
 	    sizeof(struct ath_rateioctl_tlv) +
-	    sizeof(struct sample_node))
+	    sizeof(struct ath_rateioctl_rt) +
+	    sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct sample_node)) {
+		device_printf(sc->sc_dev, "%s: len=%d, too short\n",
+		    __func__,
+		    rs->len);
 		return (EINVAL);
+	}
 
 	/*
 	 * Take a temporary copy of the sample node state so we can
 	 * modify it before we copy it.
 	 */
-	ts = malloc(sizeof(struct sample_node), M_TEMP, M_WAITOK | M_ZERO);
-	if (ts == NULL)
+	tv = malloc(sizeof(struct ath_rateioctl_rt), M_TEMP,
+	    M_NOWAIT | M_ZERO);
+	if (tv == NULL) {
 		return (ENOMEM);
-	memcpy(ts, sn, sizeof(struct sample_node));
-
-	/* Convert rix -> 802.11 rate codes */
-	ts->static_rix = dot11rate(rt, sn->static_rix);
-	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
-		/*
-		 * For non-11n rates, clear the high bit - that
-		 * means "basic rate" and will confuse things.
-		 *
-		 * For 11n rates, set the high bit.
-		 */
-		ts->current_rix[y] = dot11rate(rt, sn->current_rix[y]);
-		ts->current_sample_rix[y] =
-		    dot11rate(rt, sn->current_sample_rix[y]);
-		ts->last_sample_rix[y] =
-		    dot11rate(rt, sn->last_sample_rix[y]);
 	}
 
 	/*
-	 * Assemble the TLV.
+	 * Populate the rate table mapping TLV.
+	 */
+	tv->nentries = rt->rateCount;
+	for (y = 0; y < rt->rateCount; y++) {
+		tv->ratecode[y] = rt->info[y].dot11Rate & IEEE80211_RATE_VAL;
+		if (rt->info[y].phy == IEEE80211_T_HT)
+			tv->ratecode[y] |= IEEE80211_RATE_MCS;
+	}
+
+	o = 0;
+	/*
+	 * First TLV - rate code mapping
+	 */
+	av.tlv_id = ATH_RATE_TLV_RATETABLE;
+	av.tlv_len = sizeof(struct ath_rateioctl_rt);
+	copyout(&av, rs->buf + o, sizeof(struct ath_rateioctl_tlv));
+	o += sizeof(struct ath_rateioctl_tlv);
+	copyout(tv, rs->buf + o, sizeof(struct ath_rateioctl_rt));
+	o += sizeof(struct ath_rateioctl_rt);
+
+	/*
+	 * Second TLV - sample node statistics
 	 */
 	av.tlv_id = ATH_RATE_TLV_SAMPLENODE;
 	av.tlv_len = sizeof(struct sample_node);
-	copyout(&av, rs->buf, sizeof(struct ath_rateioctl_tlv));
+	copyout(&av, rs->buf + o, sizeof(struct ath_rateioctl_tlv));
+	o += sizeof(struct ath_rateioctl_tlv);
 
 	/*
 	 * Copy the statistics over to the provided buffer.
 	 */
-	copyout(ts, rs->buf + sizeof(struct ath_rateioctl_tlv),
-	    sizeof(struct sample_node));
+	copyout(sn, rs->buf + o, sizeof(struct sample_node));
+	o += sizeof(struct sample_node);
 
-	free(ts, M_TEMP);
+	free(tv, M_TEMP);
 
 	return (0);
 }
