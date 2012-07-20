@@ -70,9 +70,8 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			curthread->attr.prio = param->sched_priority;
 		}
 		THR_UNLOCK(curthread);
-	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
-		== 0) {
-		THR_THREAD_LOCK(curthread, pthread);
+	} else if ((ret = _thr_find_thread(curthread, pthread,
+		 /*include dead*/0)) == 0) {
 		if (pthread->attr.sched_policy == policy &&
 		    (policy == SCHED_OTHER ||
 		     pthread->attr.prio == param->sched_priority)) {
@@ -88,7 +87,6 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			pthread->attr.prio = param->sched_priority;
 		}
 		THR_THREAD_UNLOCK(curthread, pthread);
-		_thr_ref_delete(curthread, pthread);
 	}
 	return (ret);
 }
