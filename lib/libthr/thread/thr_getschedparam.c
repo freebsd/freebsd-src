@@ -53,25 +53,16 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 	if (policy == NULL || param == NULL)
 		return (EINVAL);
 
-	if (pthread == curthread) {
-		/*
-		 * Avoid searching the thread list when it is the current
-		 * thread.
-		 */
+	/*
+	 * Avoid searching the thread list when it is the current
+	 * thread.
+	 */
+	if (pthread == curthread)
 		THR_LOCK(curthread);
-		*policy = curthread->attr.sched_policy;
-		param->sched_priority = curthread->attr.prio;
-		THR_UNLOCK(curthread);
-		ret = 0;
-	}
-	/* Find the thread in the list of active threads. */
-	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
-	    == 0) {
-		THR_THREAD_LOCK(curthread, pthread);
-		*policy = pthread->attr.sched_policy;
-		param->sched_priority = pthread->attr.prio;
-		THR_THREAD_UNLOCK(curthread, pthread);
-		_thr_ref_delete(curthread, pthread);
-	}
+	else if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)))
+		return (ret);
+	*policy = pthread->attr.sched_policy;
+	param->sched_priority = pthread->attr.prio;
+	THR_THREAD_UNLOCK(curthread, pthread);
 	return (ret);
 }
