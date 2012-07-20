@@ -62,10 +62,31 @@ struct ath_ratestats {
 	struct ath_rateioctl re;
 };
 
-static void
-ath_sample_stats(struct ath_ratestats *r, uint8_t *buf)
+static inline int
+dot11rate(struct ath_rateioctl_rt *rt, int rix)
 {
-	struct sample_node *sn = (void *) buf;
+
+	if (rt->ratecode[rix] & IEEE80211_RATE_MCS)
+		return rt->ratecode[rix] & ~(IEEE80211_RATE_MCS);
+	else
+		return (rt->ratecode[rix] / 2);
+}
+
+static const char *
+dot11str(struct ath_rateioctl_rt *rt, int rix)
+{
+	if (rix == -1)
+		return "";
+	else if (rt->ratecode[rix] & IEEE80211_RATE_MCS)
+		return "MCS";
+	else
+		return " Mb";
+}
+
+static void
+ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
+    struct sample_node *sn)
+{
 	uint32_t mask;
 	int rix, y;
 
@@ -74,17 +95,21 @@ ath_sample_stats(struct ath_ratestats *r, uint8_t *buf)
 	    sn->ratemask);
 
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
-		printf("[%4u] cur rix %d since switch: packets %d ticks %u\n",
+		printf("[%4u] cur rate %d %s since switch: "
+		    "packets %d ticks %u\n",
 		    bin_to_size(y),
-		    sn->current_rix[y],
+		    dot11rate(rt, sn->current_rix[y]),
+		    dot11str(rt, sn->current_rix[y]),
 		    sn->packets_since_switch[y],
 		    sn->ticks_since_switch[y]);
 
-		printf("[%4u] last sample (%d) cur sample (%d) "
+		printf("[%4u] last sample (%d %s) cur sample (%d %s) "
 		    "packets sent %d\n",
 		    bin_to_size(y),
-		    sn->last_sample_rix[y],
-		    sn->current_sample_rix[y],
+		    dot11rate(rt, sn->last_sample_rix[y]),
+		    dot11str(rt, sn->last_sample_rix[y]),
+		    dot11rate(rt, sn->current_sample_rix[y]),
+		    dot11str(rt, sn->current_sample_rix[y]),
 		    sn->packets_sent[y]);
 
 		printf("[%4u] packets since sample %d sample tt %u\n",
@@ -98,9 +123,10 @@ ath_sample_stats(struct ath_ratestats *r, uint8_t *buf)
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
-			printf("[%2u:%4u] %8ju:%-8ju (%3d%%) "
+			printf("[%2u %s:%4u] %8ju:%-8ju (%3d%%) "
 			    "(EWMA %3d.%1d%%) T %8ju F %4d avg %5u last %u\n",
-			    rix,
+			    dot11rate(rt, rix),
+			    dot11str(rt, rix),
 			    bin_to_size(y),
 			    (uintmax_t) sn->stats[y][rix].total_packets,
 			    (uintmax_t) sn->stats[y][rix].packets_acked,
@@ -144,7 +170,7 @@ ath_rate_ioctl(struct ath_ratestats *r)
 		err(1, "ioctl");
 }
 
-#define	STATS_BUF_SIZE	4096
+#define	STATS_BUF_SIZE	8192
 int
 main(int argc, const char *argv[])
 {
@@ -152,6 +178,8 @@ main(int argc, const char *argv[])
 	struct ether_addr *e;
 	uint8_t *buf;
 	struct ath_rateioctl_tlv *av;
+	struct sample_node *sn = NULL;
+	struct ath_rateioctl_rt *rt = NULL;
 
 	buf = calloc(1, STATS_BUF_SIZE);
 	if (buf == NULL)
@@ -175,11 +203,28 @@ main(int argc, const char *argv[])
 	ath_rate_ioctl(&r);
 
 	/*
-	 * Ensure the TLV entry in question is actually the sample
-	 * rate TLV.
+	 * For now, hard-code the TLV order and contents.  Ew!
 	 */
 	av = (struct ath_rateioctl_tlv *) buf;
+	if (av->tlv_id != ATH_RATE_TLV_RATETABLE) {
+		fprintf(stderr, "unexpected rate control TLV (got 0x%x, "
+		    "expected 0x%x\n",
+		    av->tlv_id,
+		    ATH_RATE_TLV_RATETABLE);
+		exit(127);
+	}
+	if (av->tlv_len != sizeof(struct ath_rateioctl_rt)) {
+		fprintf(stderr, "unexpected TLV len (got %d bytes, "
+		    "expected %d bytes\n",
+		    av->tlv_len,
+		    sizeof(struct ath_rateioctl_rt));
+		exit(127);
+	}
+	rt = (void *) (buf + sizeof(struct ath_rateioctl_tlv));
 
+	/* Next */
+	av = (void *) (buf + sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct ath_rateioctl_rt));
 	if (av->tlv_id != ATH_RATE_TLV_SAMPLENODE) {
 		fprintf(stderr, "unexpected rate control TLV (got 0x%x, "
 		    "expected 0x%x\n",
@@ -194,7 +239,10 @@ main(int argc, const char *argv[])
 		    sizeof(struct sample_node));
 		exit(127);
 	}
+	sn = (void *) (buf + sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct ath_rateioctl_rt) +
+	    sizeof(struct ath_rateioctl_tlv));
 
-	ath_sample_stats(&r, buf + sizeof(struct ath_rateioctl_tlv));
+	ath_sample_stats(&r, rt, sn);
 }
 
