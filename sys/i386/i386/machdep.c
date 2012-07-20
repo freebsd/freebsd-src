@@ -2738,9 +2738,7 @@ init386(first)
 	thread0.td_pcb->pcb_fsd = PCPU_GET(fsgs_gdt)[0];
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
-#if defined(XEN_PRIVILEGED)
 	cpu_probe_amdc1e();
-#endif
 }
 
 #else
