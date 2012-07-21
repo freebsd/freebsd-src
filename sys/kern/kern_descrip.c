@@ -367,7 +367,7 @@ int
 sys_fcntl(struct thread *td, struct fcntl_args *uap)
 {
 	struct flock fl;
-	struct oflock ofl;
+	struct __oflock ofl;
 	intptr_t arg;
 	int error;
 	int cmd;
