@@ -50,7 +50,7 @@ struct cpsw_softc {
 	void		*ih_cookie[CPSW_INTR_COUNT];	/* interrupt handlers cookies */
 
 	uint32_t	cpsw_if_flags;
-	uint32_t	cpsw_media_status;
+	int		cpsw_media_status;
 
 	struct callout	wd_callout;
 	int		wd_timer;
