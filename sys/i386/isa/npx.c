@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
+#define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : : "m" (*(addr)))
 #endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
@@ -113,6 +114,7 @@ void	frstor(caddr_t addr);
 #ifdef CPU_ENABLE_SSE
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
+void	stmxcsr(u_int csr);
 #endif
 
 #endif	/* __GNUCLIKE_ASM && !lint */
