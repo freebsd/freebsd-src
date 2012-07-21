@@ -600,12 +600,13 @@ static char fpetable[128] = {
  * For XMM traps, the exceptions were never cleared.
  */
 int
-npxtrap()
+npxtrap_x87(void)
 {
 	u_short control, status;
 
 	if (!hw_float) {
-		printf("npxtrap: fpcurthread = %p, curthread = %p, hw_float = %d\n",
+		printf(
+	"npxtrap_x87: fpcurthread = %p, curthread = %p, hw_float = %d\n",
 		       PCPU_GET(fpcurthread), curthread, hw_float);
 		panic("npxtrap from nowhere");
 	}
@@ -626,6 +627,28 @@ npxtrap()
 	critical_exit();
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
 }
+
+#ifdef CPU_ENABLE_SSE
+int
+npxtrap_sse(void)
+{
+	u_int mxcsr;
+
+	if (!hw_float) {
+		printf(
+	"npxtrap_sse: fpcurthread = %p, curthread = %p, hw_float = %d\n",
+		       PCPU_GET(fpcurthread), curthread, hw_float);
+		panic("npxtrap from nowhere");
+	}
+	critical_enter();
+	if (PCPU_GET(fpcurthread) != curthread)
+		mxcsr = curthread->td_pcb->pcb_save->sv_xmm.sv_env.en_mxcsr;
+	else
+		stmxcsr(&mxcsr);
+	critical_exit();
+	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
+}
+#endif
 
 /*
  * Implement device not available (DNA) exception

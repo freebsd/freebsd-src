@@ -369,7 +369,7 @@ trap(struct trapframe *frame)
 
 		case T_ARITHTRAP:	/* arithmetic trap */
 #ifdef DEV_NPX
-			ucode = npxtrap();
+			ucode = npxtrap_x87();
 			if (ucode == -1)
 				goto userout;
 #else
@@ -532,7 +532,13 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-			ucode = 0; /* XXX */
+#if defined(DEV_NPX) && !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
+			ucode = npxtrap_sse();
+			if (ucode == -1)
+				goto userout;
+#else
+			ucode = 0;
+#endif
 			i = SIGFPE;
 			break;
 		}
