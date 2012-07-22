@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
+#include <sys/filedesc.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
@@ -202,26 +204,30 @@ fuse_getdevice(const char *fspec, struct thread *td, struct cdev **fdevp)
 static int
 fuse_vfsop_mount(struct mount *mp)
 {
-	int err = 0;
+	int err;
 
-#if __FreeBSD_version >= 900040
-	uint64_t mntopts = 0, __mntopts = 0;
-
-#else
-	int mntopts = 0, __mntopts = 0;
-
-#endif
-	int max_read_set = 0;
-	uint32_t max_read = ~0;
+	uint64_t mntopts, __mntopts;
+	int max_read_set;
+	uint32_t max_read;
 	int daemon_timeout;
+	int fd;
 
 	size_t len;
 
 	struct cdev *fdev;
 	struct fuse_data *data;
-	struct thread *td = curthread;
-	char *fspec, *subtype = NULL;
+	struct thread *td;
+	struct file *fp, *fptmp;
+	char *fspec, *subtype;
 	struct vfsoptlist *opts;
+
+	subtype = NULL;
+	max_read_set = 0;
+	max_read = ~0;
+	err = 0;
+	mntopts = 0;
+	__mntopts = 0;
+	td = curthread;
 
 	fuse_trace_printf_vfsop();
 
@@ -244,6 +250,12 @@ fuse_vfsop_mount(struct mount *mp)
 	fspec = vfs_getopts(opts, "from", &err);
 	if (!fspec)
 		return err;
+
+	/* `fd' contains the filedescriptor for this session; REQUIRED */
+	if (!vfs_scanopt(opts, "fd", "%d", &fd)) {
+		printf("coglione\n");
+		return err;
+	}
 
 	err = fuse_getdevice(fspec, td, &fdev);
 	if (err != 0)
@@ -274,22 +286,26 @@ fuse_vfsop_mount(struct mount *mp)
 		daemon_timeout = FUSE_DEFAULT_DAEMON_TIMEOUT;
 	}
 	subtype = vfs_getopts(opts, "subtype=", &err);
-	err = 0;
 
 	DEBUG2G("mntopts 0x%jx\n", (uintmax_t)mntopts);
 
+	err = fget(td, fd, CAP_READ, &fp);
+	if (err != 0) {
+		DEBUG("invalid or not opened device: data=%p\n", data);
+		goto out;
+	}
+	fptmp = td->td_fpop;
+	td->td_fpop = fp;
+        err = devfs_get_cdevpriv((void **)&data);
+	td->td_fpop = fptmp;
+	fdrop(fp, td);
 	FUSE_LOCK();
-	data = fuse_get_devdata(fdev);
-	if (data == NULL || data->mp != NULL ||
-	    (data->dataflags & FSESS_OPENED) == 0) {
+	if (err != 0 || data == NULL || data->mp != NULL) {
 		DEBUG("invalid or not opened device: data=%p data.mp=%p\n",
 		    data, data != NULL ? data->mp : NULL);
 		err = ENXIO;
 		FUSE_UNLOCK();
 		goto out;
-	} else {
-		DEBUG("set mp: data=%p mp=%p\n", data, mp);
-		data->mp = mp;
 	}
 	if (fdata_get_dead(data)) {
 		DEBUG("device is dead during mount: data=%p\n", data);
@@ -312,6 +328,7 @@ fuse_vfsop_mount(struct mount *mp)
 	/* We need this here as this slot is used by getnewvnode() */
 	mp->mnt_stat.f_iosize = PAGE_SIZE;
 	mp->mnt_data = data;
+	data->ref++;
 	data->mp = mp;
 	data->dataflags |= mntopts;
 	data->max_read = max_read;

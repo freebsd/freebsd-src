@@ -83,19 +83,13 @@ __FBSDID("$FreeBSD$");
 #define FUSE_DEBUG_MODULE DEVICE
 #include "fuse_debug.h"
 
-static __inline int
-fuse_ohead_audit(struct fuse_out_header *ohead,
-    struct uio *uio);
+static struct cdev *fuse_dev;
 
 static d_open_t fuse_device_open;
 static d_close_t fuse_device_close;
 static d_poll_t fuse_device_poll;
 static d_read_t fuse_device_read;
 static d_write_t fuse_device_write;
-
-void
-fuse_device_clone(void *arg, struct ucred *cred, char *name,
-    int namelen, struct cdev **dev);
 
 static struct cdevsw fuse_device_cdevsw = {
 	.d_open = fuse_device_open,
@@ -108,21 +102,20 @@ static struct cdevsw fuse_device_cdevsw = {
 	.d_flags = D_NEEDMINOR,
 };
 
-/*
- * This struct is not public, but we are eager to use it,
- * so we have to put its def here.
- */
-struct clonedevs {
-	LIST_HEAD(, cdev) head;
-};
-
-struct clonedevs *fuseclones;
-
 /****************************
  *
  * >>> Fuse device op defs
  *
  ****************************/
+
+static void
+fdata_dtor(void *arg)
+{
+	struct fuse_data *fdata;
+
+	fdata = arg;
+	fdata_trydestroy(fdata);
+}
 
 /*
  * Resources are set up on a per-open basis
@@ -131,31 +124,18 @@ static int
 fuse_device_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct fuse_data *fdata;
-
-	if (dev->si_usecount > 1)
-		goto busy;
+	int error;
 
 	DEBUG("device %p\n", dev);
 
 	fdata = fdata_alloc(dev, td->td_ucred);
-
-	FUSE_LOCK();
-	if (fuse_get_devdata(dev)) {
+	error = devfs_set_cdevpriv(fdata, fdata_dtor);
+	if (error != 0)
 		fdata_trydestroy(fdata);
-		FUSE_UNLOCK();
-		goto busy;
-	} else {
-		fdata->dataflags |= FSESS_OPENED;
-		dev->si_drv1 = fdata;
-	}
-	FUSE_UNLOCK();
-
-	DEBUG("%s: device opened by thread %d.\n", dev->si_name, td->td_tid);
-
-	return (0);
-
-busy:
-	return (EBUSY);
+	else
+		DEBUG("%s: device opened by thread %d.\n", dev->si_name,
+		    td->td_tid);
+	return (error);
 }
 
 static int
@@ -163,17 +143,16 @@ fuse_device_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct fuse_data *data;
 	struct fuse_ticket *tick;
+	int error;
 
-	data = fuse_get_devdata(dev);
+	error = devfs_get_cdevpriv((void **)&data);
+	if (error != 0)
+		return (error);
 	if (!data)
 		panic("no fuse data upon fuse device close");
-	KASSERT(data->dataflags | FSESS_OPENED,
-	    ("fuse device is already closed upon close"));
 	fdata_set_dead(data);
 
 	FUSE_LOCK();
-	data->dataflags &= ~FSESS_OPENED;
-
 	fuse_lck_mtx_lock(data->aw_mtx);
 	/* wakup poll()ers */
 	selwakeuppri(&data->ks_rsel, PZERO + 1);
@@ -188,9 +167,6 @@ fuse_device_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 		fuse_ticket_drop(tick);
 	}
 	fuse_lck_mtx_unlock(data->aw_mtx);
-
-	dev->si_drv1 = NULL;
-	fdata_trydestroy(data);
 	FUSE_UNLOCK();
 
 	DEBUG("%s: device closed by thread %d.\n", dev->si_name, td->td_tid);
@@ -201,9 +177,12 @@ int
 fuse_device_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct fuse_data *data;
-	int revents = 0;
+	int error, revents = 0;
 
-	data = fuse_get_devdata(dev);
+	error = devfs_get_cdevpriv((void **)&data);
+	if (error != 0)
+		return (events &
+		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 
 	if (events & (POLLIN | POLLRDNORM)) {
 		fuse_lck_mtx_lock(data->ms_mtx);
@@ -227,16 +206,18 @@ fuse_device_poll(struct cdev *dev, int events, struct thread *td)
 int
 fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int err = 0;
+	int err;
 	struct fuse_data *data;
 	struct fuse_ticket *tick;
 	void *buf[] = {NULL, NULL, NULL};
 	int buflen[3];
 	int i;
 
-	data = fuse_get_devdata(dev);
-
 	DEBUG("fuse device being read on thread %d\n", uio->uio_td->td_tid);
+
+	err = devfs_get_cdevpriv((void **)&data);
+	if (err != 0)
+		return (err);
 
 	fuse_lck_mtx_lock(data->ms_mtx);
 again:
@@ -374,7 +355,9 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	DEBUG("resid: %zd, iovcnt: %d, thread: %d\n",
 	    uio->uio_resid, uio->uio_iovcnt, uio->uio_td->td_tid);
 
-	data = fuse_get_devdata(dev);
+	err = devfs_get_cdevpriv((void **)&data);
+	if (err != 0)
+		return (err);
 
 	if (uio->uio_resid < sizeof(struct fuse_out_header)) {
 		DEBUG("got less than a header!\n");
@@ -444,81 +427,21 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (err);
 }
 
-/*
- * Modeled after tunclone() of net/if_tun.c ...
- * boosted with a hack so that devices can be reused.
- */
-void
-fuse_device_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
+int
+fuse_device_init(void)
 {
-	/*
-	 * Why cloning? We do need per-open info, but we could as well put our
-	 * hands on the file struct assigned to an open by implementing
-	 * d_fdopen instead of d_open.
-	 *
-	 * From that on, the usual way to per-open (that is, file aware)
-	 * I/O would be pushing our preferred set of ops into the f_op
-	 * field of that file at open time. But that wouldn't work in
-	 * FreeBSD, as the devfs open routine (which is the one who calls
-	 * the device's d_(fd)open) overwrites that f_op with its own
-	 * file ops mercilessly.
-	 *
-	 * Yet... even if we could get devfs to keep our file ops intact,
-	 * I'd still say cloning is better. It makes fuse daemons' identity
-	 * explicit and globally visible to userspace, and we are not forced
-	 * to get the mount done by the daemon itself like in linux (where
-	 * I/O is file aware by default). (The possibilities of getting the
-	 * daemon do the mount or getting the mount util spawn the daemon
-	 * are still open, of course; I guess I will go for the latter
-	 * appcocroach.)
-	 */
 
-	int i, unit;
+	fuse_dev = make_dev(&fuse_device_cdevsw, 0, UID_ROOT, GID_OPERATOR,
+	    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP, "fuse");
+	if (fuse_dev == NULL)
+		return (ENOMEM);
+	return (0);
+}
 
-	if (*dev != NULL)
-		return;
+void
+fuse_device_destroy(void)
+{
 
-	if (strcmp(name, "fuse") == 0) {
-		struct cdev *xdev;
-
-		unit = -1;
-
-		/*
-		 * Before falling back to the standard routine, we try
-		 * to find an existing free device by ourselves, so that
-		 * it will be reused instead of having the clone machinery
-		 * dummily spawn a new one.
-		 */
-		dev_lock();
-		LIST_FOREACH(xdev, &fuseclones->head, si_clone) {
-			KASSERT(xdev->si_flags & SI_CLONELIST,
-			    ("Dev %p(%s) should be on clonelist", xdev, xdev->si_name));
-
-			if (!xdev->si_drv1) {
-				unit = dev2unit(xdev);
-				break;
-			}
-		}
-		dev_unlock();
-	} else if (dev_stdclone(name, NULL, "fuse", &unit) != 1) {
-		return;
-	}
-	/* find any existing device, or allocate new unit number */
-	i = clone_create(&fuseclones, &fuse_device_cdevsw, &unit, dev, 0);
-	if (i) {
-		*dev = make_dev(&fuse_device_cdevsw,
-		    unit,
-		    UID_ROOT, GID_OPERATOR,
-		    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
-		    "fuse%d", unit);
-		if (*dev == NULL)
-			return;
-	}
-	KASSERT(*dev, ("no device after apparently successful cloning"));
-	dev_ref(*dev);
-	(*dev)->si_drv1 = NULL;
-	(*dev)->si_flags |= SI_CHEAPCLONE;
-
-	DEBUG("clone done: %d\n", unit);
+	MPASS(fuse_dev != NULL);
+	destroy_dev(fuse_dev);
 }

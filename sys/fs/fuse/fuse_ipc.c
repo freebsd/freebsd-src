@@ -399,6 +399,7 @@ fdata_alloc(struct cdev *fdev, struct ucred *cred)
 	data->daemoncred = crhold(cred);
 	data->daemon_timeout = FUSE_DEFAULT_DAEMON_TIMEOUT;
 	sx_init(&data->rename_lock, "fuse rename lock");
+	data->ref = 1;
 
 	return data;
 }
@@ -409,16 +410,11 @@ fdata_trydestroy(struct fuse_data *data)
 	DEBUG("data=%p data.mp=%p data.fdev=%p data.flags=%04x\n",
 	    data, data->mp, data->fdev, data->dataflags);
 
-	if (data->mp != NULL) {
-		MPASS(data->mp->mnt_data == data);
-		return;
-	}
-	if (data->fdev->si_drv1 != NULL) {
-		MPASS(data->fdev->si_drv1 == data);
-		return;
-	}
 	DEBUG("destroy: data=%p\n", data);
-	MPASS((data->dataflags & FSESS_OPENED) == 0);
+	data->ref--;
+	MPASS(data->ref >= 0);
+	if (data->ref != 0)
+		return;
 
 	/* Driving off stage all that stuff thrown at device... */
 	mtx_destroy(&data->ms_mtx);

@@ -79,15 +79,9 @@ static int fuse_loader(struct module *m, int what, void *arg);
 
 struct mtx fuse_mtx;
 
-
-extern void 
-fuse_device_clone(void *arg, struct ucred *cred, char *name,
-    int namelen, struct cdev **dev);
-
 extern struct vfsops fuse_vfsops;
 extern struct cdevsw fuse_cdevsw;
 extern struct vop_vector fuse_vnops;
-extern struct clonedevs *fuseclones;
 extern int fuse_pbuf_freecnt;
 
 static struct vfsconf fuse_vfsconf = {
@@ -113,10 +107,8 @@ static void
 fuse_bringdown(eventhandler_tag eh_tag)
 {
 
-	EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-
 	fuse_ipc_destroy();
-	clone_cleanup(&fuseclones);
+	fuse_device_destroy();
 	mtx_destroy(&fuse_mtx);
 }
 
@@ -129,14 +121,11 @@ fuse_loader(struct module *m, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:			/* kldload */
 		fuse_pbuf_freecnt = nswbuf / 2 + 1;
-		clone_setup(&fuseclones);
 		mtx_init(&fuse_mtx, "fuse_mtx", NULL, MTX_DEF);
-		eh_tag = EVENTHANDLER_REGISTER(dev_clone, fuse_device_clone, 0,
-		    1000);
-		if (eh_tag == NULL) {
-			clone_cleanup(&fuseclones);
+		err = fuse_device_init();
+		if (err) {
 			mtx_destroy(&fuse_mtx);
-			return (ENOMEM);
+			return (err);
 		}
 		fuse_ipc_init();
 

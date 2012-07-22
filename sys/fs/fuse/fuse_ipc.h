@@ -170,6 +170,7 @@ struct fuse_data {
     struct vnode              *vroot;
     struct ucred              *daemoncred;
     int                        dataflags;
+    int                        ref; 
 
     struct mtx                 ms_mtx;
     STAILQ_HEAD(, fuse_ticket) ms_head;
@@ -196,7 +197,7 @@ struct fuse_data {
 };
 
 #define FSESS_DEAD                0x0001 /* session is to be closed */
-#define FSESS_OPENED              0x0002 /* session device has been opened */
+#define FSESS_UNUSED0             0x0002 /* unused */
 #define FSESS_INITED              0x0004 /* session has been inited */
 #define FSESS_DAEMON_CAN_SPY      0x0010 /* let non-owners access this fs */
                                          /* (and being observed by the daemon) */
@@ -214,13 +215,6 @@ extern int fuse_data_cache_invalidate;
 extern int fuse_mmap_enable;
 extern int fuse_sync_resize;
 extern int fuse_fix_broken_io;
-
-static __inline__
-struct fuse_data *
-fuse_get_devdata(struct cdev *fdev)
-{
-    return fdev->si_drv1;
-}
 
 static __inline__
 struct fuse_data *

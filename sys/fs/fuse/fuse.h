@@ -214,3 +214,6 @@ do {						\
 
 void fuse_ipc_init(void);
 void fuse_ipc_destroy(void);
+
+int fuse_device_init(void);
+void fuse_device_destroy(void);
