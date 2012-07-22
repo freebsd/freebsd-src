@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
 static Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
-    const char *interp, int32_t *osrel);
+    const char *interp, int interp_name_len, int32_t *osrel);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry, size_t pagesize);
 static int __elfN(load_section)(struct vmspace *vmspace, vm_object_t object,
@@ -254,7 +254,7 @@ __elfN(brand_inuse)(Elf_Brandinfo *entry)
 
 static Elf_Brandinfo *
 __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
-    int32_t *osrel)
+    int interp_name_len, int32_t *osrel)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	Elf_Brandinfo *bi;
@@ -300,7 +300,10 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
 				continue;
 			if (hdr->e_machine == bi->machine &&
-			    strcmp(interp, bi->interp_path) == 0)
+			    /* ELF image p_filesz includes terminating zero */
+			    strlen(bi->interp_path) + 1 == interp_name_len &&
+			    strncmp(interp, bi->interp_path, interp_name_len)
+			    == 0)
 				return (bi);
 		}
 	}
@@ -722,7 +725,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long seg_size, seg_addr;
 	u_long addr, baddr, et_dyn_addr, entry = 0, proghdr = 0;
 	int32_t osrel = 0;
-	int error = 0, i, n;
+	int error = 0, i, n, interp_name_len = 0;
 	const char *interp = NULL, *newinterp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
@@ -763,9 +766,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_INTERP:
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
-			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
+			    phdr[i].p_offset >= PAGE_SIZE ||
+			    phdr[i].p_offset + phdr[i].p_filesz >= PAGE_SIZE)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
+			interp_name_len = phdr[i].p_filesz;
 			break;
 		case PT_GNU_STACK:
 			if (__elfN(nxstack))
@@ -775,7 +780,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		}
 	}
 
-	brand_info = __elfN(get_brandinfo)(imgp, interp, &osrel);
+	brand_info = __elfN(get_brandinfo)(imgp, interp, interp_name_len,
+	    &osrel);
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
@@ -1556,6 +1562,7 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
 	int i;
 
 	if (pnote == NULL || pnote->p_offset >= PAGE_SIZE ||
+	    pnote->p_filesz > PAGE_SIZE ||
 	    pnote->p_offset + pnote->p_filesz >= PAGE_SIZE)
 		return (FALSE);
 
@@ -1563,15 +1570,17 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
 	note_end = (const Elf_Note *)(imgp->image_header +
 	    pnote->p_offset + pnote->p_filesz);
 	for (i = 0; i < 100 && note >= note0 && note < note_end; i++) {
-		if (!aligned(note, Elf32_Addr))
+		if (!aligned(note, Elf32_Addr) || (const char *)note_end -
+		    (const char *)note < sizeof(Elf_Note))
 			return (FALSE);
 		if (note->n_namesz != checknote->hdr.n_namesz ||
 		    note->n_descsz != checknote->hdr.n_descsz ||
 		    note->n_type != checknote->hdr.n_type)
 			goto nextnote;
 		note_name = (const char *)(note + 1);
-		if (strncmp(checknote->vendor, note_name,
-		    checknote->hdr.n_namesz) != 0)
+		if (note_name + checknote->hdr.n_namesz >=
+		    (const char *)note_end || strncmp(checknote->vendor,
+		    note_name, checknote->hdr.n_namesz) != 0)
 			goto nextnote;
 
 		/*
