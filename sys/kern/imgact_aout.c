@@ -106,6 +106,7 @@ struct sysentvec aout_sysvec = {
 #define	AOUT32_USRSTACK	0xbfc00000
 #define	AOUT32_PS_STRINGS \
     (AOUT32_USRSTACK - sizeof(struct freebsd32_ps_strings))
+#define	AOUT32_MINUSER	FREEBSD32_MINUSER
 
 extern const char *freebsd32_syscallnames[];
 extern u_long ia32_maxssiz;
@@ -129,7 +130,7 @@ struct sysentvec aout_sysvec = {
 	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_pagesize	= IA32_PAGE_SIZE,
-	.sv_minuser	= 0,
+	.sv_minuser	= AOUT32_MINUSER,
 	.sv_maxuser	= AOUT32_USRSTACK,
 	.sv_usrstack	= AOUT32_USRSTACK,
 	.sv_psstrings	= AOUT32_PS_STRINGS,
