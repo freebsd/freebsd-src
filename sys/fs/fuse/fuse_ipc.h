@@ -320,6 +320,7 @@ fuse_aw_remove(struct fuse_ticket *ftick)
 {
     DEBUGX(FUSE_DEBUG_IPC, "ftick=%p refcount=%d\n",
         ftick, ftick->tk_refcount);
+    mtx_assert(&ftick->tk_data->aw_mtx, MA_OWNED);
     TAILQ_REMOVE(&ftick->tk_data->aw_head, ftick, tk_aw_link);
 #ifdef INVARIANTS
     ftick->tk_aw_link.tqe_next = NULL;

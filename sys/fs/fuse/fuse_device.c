@@ -428,7 +428,12 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			/* pretender doesn't wanna do anything with answer */
 			DEBUG("stuff devalidated, so we drop it\n");
 		}
-		FUSE_ASSERT_AW_DONE(tick);
+
+		/*
+		 * As aw_mtx was not held during the callback execution the
+		 * ticket may have been inserted again.  However, this is safe
+		 * because fuse_ticket_drop() will deal with refcount anyway.
+		 */
 		fuse_ticket_drop(tick);
 	} else {
 		/* no callback at all! */
