@@ -213,18 +213,13 @@ fuse_vnode_alloc(struct mount *mp,
 	}
 	err = vfs_hash_insert(*vpp, fuse_vnode_hash(nodeid), LK_EXCLUSIVE,
 	    td, &vp2, fuse_vnode_cmp, &nodeid);
-
-	if (err) {
-		fuse_vnode_destroy(*vpp);
-		*vpp = NULL;
+	if (err)
 		return (err);
+	if (vp2 != NULL) {
+		*vpp = vp2;
+		return (0);
 	}
-	/*
-         * XXXIP: Prevent silent vnode reuse. It may happen because several fuse
-         * filesystems ignore inode numbers
-         */
-	KASSERT(vp2 == NULL,
-	    ("vfs hash collision for node #%ju\n", (uintmax_t)nodeid));
+
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnode_alloc");
 
 	return (0);
