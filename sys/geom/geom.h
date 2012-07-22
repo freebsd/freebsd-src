@@ -110,6 +110,8 @@ struct g_class {
 	g_ioctl_t		*ioctl;
 	g_provgone_t		*providergone;
 	g_resize_t		*resize;
+	void			*spare1;
+	void			*spare2;
 	/*
 	 * The remaining elements are private
 	 */
@@ -141,6 +143,8 @@ struct g_geom {
 	g_ioctl_t		*ioctl;
 	g_provgone_t		*providergone;
 	g_resize_t		*resize;
+	void			*spare0;
+	void			*spare1;
 	void			*softc;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1

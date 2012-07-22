@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
+#define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : : "m" (*(addr)))
 #endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
@@ -113,6 +114,7 @@ void	frstor(caddr_t addr);
 #ifdef CPU_ENABLE_SSE
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
+void	stmxcsr(u_int csr);
 #endif
 
 #endif	/* __GNUCLIKE_ASM && !lint */
@@ -581,29 +583,30 @@ static char fpetable[128] = {
 };
 
 /*
- * Preserve the FP status word, clear FP exceptions, then generate a SIGFPE.
+ * Read the FP status and control words, then generate si_code value
+ * for SIGFPE.  The error code chosen will be one of the
+ * FPE_... macros.  It will be sent as the second argument to old
+ * BSD-style signal handlers and as "siginfo_t->si_code" (second
+ * argument) to SA_SIGINFO signal handlers.
  *
- * Clearing exceptions is necessary mainly to avoid IRQ13 bugs.  We now
- * depend on longjmp() restoring a usable state.  Restoring the state
- * or examining it might fail if we didn't clear exceptions.
+ * Some time ago, we cleared the x87 exceptions with FNCLEX there.
+ * Clearing exceptions was necessary mainly to avoid IRQ13 bugs.  The
+ * usermode code which understands the FPU hardware enough to enable
+ * the exceptions, can also handle clearing the exception state in the
+ * handler.  The only consequence of not clearing the exception is the
+ * rethrow of the SIGFPE on return from the signal handler and
+ * reexecution of the corresponding instruction.
  *
- * The error code chosen will be one of the FPE_... macros. It will be
- * sent as the second argument to old BSD-style signal handlers and as
- * "siginfo_t->si_code" (second argument) to SA_SIGINFO signal handlers.
- *
- * XXX the FP state is not preserved across signal handlers.  So signal
- * handlers cannot afford to do FP unless they preserve the state or
- * longjmp() out.  Both preserving the state and longjmp()ing may be
- * destroyed by IRQ13 bugs.  Clearing FP exceptions is not an acceptable
- * solution for signals other than SIGFPE.
+ * For XMM traps, the exceptions were never cleared.
  */
 int
-npxtrap()
+npxtrap_x87(void)
 {
 	u_short control, status;
 
 	if (!hw_float) {
-		printf("npxtrap: fpcurthread = %p, curthread = %p, hw_float = %d\n",
+		printf(
+	"npxtrap_x87: fpcurthread = %p, curthread = %p, hw_float = %d\n",
 		       PCPU_GET(fpcurthread), curthread, hw_float);
 		panic("npxtrap from nowhere");
 	}
@@ -621,12 +624,31 @@ npxtrap()
 		fnstcw(&control);
 		fnstsw(&status);
 	}
-
-	if (PCPU_GET(fpcurthread) == curthread)
-		fnclex();
 	critical_exit();
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
 }
+
+#ifdef CPU_ENABLE_SSE
+int
+npxtrap_sse(void)
+{
+	u_int mxcsr;
+
+	if (!hw_float) {
+		printf(
+	"npxtrap_sse: fpcurthread = %p, curthread = %p, hw_float = %d\n",
+		       PCPU_GET(fpcurthread), curthread, hw_float);
+		panic("npxtrap from nowhere");
+	}
+	critical_enter();
+	if (PCPU_GET(fpcurthread) != curthread)
+		mxcsr = curthread->td_pcb->pcb_save->sv_xmm.sv_env.en_mxcsr;
+	else
+		stmxcsr(&mxcsr);
+	critical_exit();
+	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
+}
+#endif
 
 /*
  * Implement device not available (DNA) exception

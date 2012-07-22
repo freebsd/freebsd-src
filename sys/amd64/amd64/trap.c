@@ -328,7 +328,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
-			ucode = fputrap();
+			ucode = fputrap_x87();
 			if (ucode == -1)
 				goto userout;
 			i = SIGFPE;
@@ -442,7 +442,9 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-			ucode = 0; /* XXX */
+			ucode = fputrap_sse();
+			if (ucode == -1)
+				goto userout;
 			i = SIGFPE;
 			break;
 		}
@@ -518,9 +520,8 @@ trap(struct trapframe *frame)
 				frame->tf_rip = (long)fsbase_load_fault;
 				goto out;
 			}
-			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
-				frame->tf_rip =
-				    (long)PCPU_GET(curpcb)->pcb_onfault;
+			if (curpcb->pcb_onfault != NULL) {
+				frame->tf_rip = (long)curpcb->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -706,7 +707,7 @@ trap_pfault(frame, usermode)
 		 * it normally, and panic immediately.
 		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+		    curpcb->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}
@@ -762,8 +763,8 @@ trap_pfault(frame, usermode)
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
-		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
-			frame->tf_rip = (long)PCPU_GET(curpcb)->pcb_onfault;
+		    curpcb->pcb_onfault != NULL) {
+			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);

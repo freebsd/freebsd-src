@@ -397,7 +397,6 @@ at91_setup_intr(device_t dev, device_t child,
     struct resource *ires, int flags, driver_filter_t *filt,
     driver_intr_t *intr, void *arg, void **cookiep)
 {
-	struct at91_softc *sc = device_get_softc(dev);
 	int error;
 
 	if (rman_get_start(ires) == AT91_IRQ_SYSTEM && filt == NULL)
@@ -407,8 +406,6 @@ at91_setup_intr(device_t dev, device_t child,
 	if (error)
 		return (error);
 
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IECR,
-	    1 << rman_get_start(ires));
 	return (0);
 }
 

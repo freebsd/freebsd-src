@@ -410,7 +410,7 @@ struct ath_softc {
 	uint32_t		sc_bssidmask;	/* bssid mask */
 
 	struct ath_rx_methods	sc_rx;
-	struct ath_rx_edma	sc_rxedma[2];	/* HP/LP queues */
+	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
 	int			sc_tx_statuslen;
@@ -1067,6 +1067,12 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
 #define ath_hal_gettxcompletionrates(_ah, _ds, _rates, _tries) \
 	((*(_ah)->ah_getTxCompletionRates)((_ah), (_ds), (_rates), (_tries)))
+#define ath_hal_settxdesclink(_ah, _ds, _link) \
+	((*(_ah)->ah_setTxDescLink)((_ah), (_ds), (_link)))
+#define ath_hal_gettxdesclink(_ah, _ds, _link) \
+	((*(_ah)->ah_getTxDescLink)((_ah), (_ds), (_link)))
+#define ath_hal_gettxdesclinkptr(_ah, _ds, _linkptr) \
+	((*(_ah)->ah_getTxDescLinkPtr)((_ah), (_ds), (_linkptr)))
 
 #define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
