@@ -185,17 +185,10 @@ SYSCTL_INT(_vfs_fuse, OID_AUTO, reclaim_revoked, CTLFLAG_RW,
 
 int	fuse_pbuf_freecnt = -1;
 
-#if __FreeBSD_version >= 900011
 #define fuse_vm_page_lock(m)		vm_page_lock((m));
 #define fuse_vm_page_unlock(m)		vm_page_unlock((m));
 #define fuse_vm_page_lock_queues()	((void)0)
 #define fuse_vm_page_unlock_queues()	((void)0)
-#else
-#define fuse_vm_page_lock(m)		((void)0)
-#define fuse_vm_page_unlock(m)		((void)0)
-#define fuse_vm_page_lock_queues()	vm_page_lock_queues()
-#define fuse_vm_page_unlock_queues()	vm_page_unlock_queues()
-#endif
 
 /*
     struct vnop_access_args {
@@ -1928,11 +1921,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 			 * Read operation filled a partial page.
 			 */
 			m->valid = 0;
-#if __FreeBSD_version >= 1000002
 			vm_page_set_valid_range(m, 0, size - toff);
-#else
-			vm_page_set_valid(m, 0, size - toff);
-#endif
 			KASSERT(m->dirty == 0,
 			    ("fuse_getpages: page %p is dirty", m));
 		} else {
