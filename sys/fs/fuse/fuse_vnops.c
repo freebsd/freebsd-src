@@ -933,9 +933,30 @@ calldaemon:
 			goto out;
 		}
 		if (flags & ISDOTDOT) {
+			struct mount *mp;
 			int ltype;
 
+			/*
+			 * Expanded copy of vn_vget_ino() so that
+			 * fuse_vnode_get() can be used.
+			 */
+			mp = dvp->v_mount;
 			ltype = VOP_ISLOCKED(dvp);
+			err = vfs_busy(mp, MBF_NOWAIT);
+			if (err != 0) {
+				vfs_ref(mp);
+				VOP_UNLOCK(dvp, 0);
+				err = vfs_busy(mp, 0);
+				vn_lock(dvp, ltype | LK_RETRY);
+				vfs_rel(mp);
+				if (err)
+					goto out;
+				if ((dvp->v_iflag & VI_DOOMED) != 0) {
+					err = ENOENT;
+					vfs_unbusy(mp);
+					goto out;
+				}
+			}
 			VOP_UNLOCK(dvp, 0);
 			err = fuse_vnode_get(vnode_mount(dvp),
 			    nid,
@@ -943,8 +964,15 @@ calldaemon:
 			    &vp,
 			    cnp,
 			    IFTOVT(fattr->mode));
+			vfs_unbusy(mp);
 			vn_lock(dvp, ltype | LK_RETRY);
-			vref(vp);
+			if ((dvp->v_iflag & VI_DOOMED) != 0) {
+				if (err == 0)
+					vput(vp);
+				err = ENOENT;
+			}
+			if (err)
+				goto out;
 			*vpp = vp;
 		} else if (nid == VTOI(dvp)) {
 			vref(dvp);
