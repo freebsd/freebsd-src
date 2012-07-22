@@ -31,7 +31,7 @@ set -e
 
 exec < /dev/null
 
-if [ `uname -m` = "i386" ] ; then
+if [ `uname -m` = "i386" -o `uname -m` = "amd64" ] ; then
 	TARGET_PART=`df / | sed '
 	1d
 	s/[    ].*//
@@ -41,24 +41,23 @@ if [ `uname -m` = "i386" ] ; then
 	s,s3a,s2a,
 	'`
 
-	# Where our build-bits are to be found
-	FREEBSD_PART=`echo $TARGET_PART | sed 's/s[12]a/s3/'`
-elif [ `uname -m` = "amd64" ] ; then
-	TARGET_PART=`df / | sed '
-	1d
-	s/[    ].*//
-	s,/dev/,,
-	s,s1a,s3a,
-	s,s2a,s1a,
-	s,s3a,s2a,
-	'`
+	FREEBSD_PART=`sed -n	\
+		-e 's/#.*//'	\
+		-e '/[ 	]\/freebsd[ 	]/!d'	\
+		-e 's/[ 	].*//p'	\
+		/etc/fstab`
 
-	# Where our build-bits are to be found
-	FREEBSD_PART=`echo $TARGET_PART | sed 's/s[12]a/s3/'`
+	# Calculate a suggested gpart command
+	TARGET_DISK=`expr ${TARGET_PART} : '\(.*\)s[12]a$' || true`
+	TARGET_SLICE=`expr ${TARGET_PART} : '.*s\([12]\)a$' || true`
+	GPART_SUGGESTION="gpart set -a active -i $TARGET_SLICE /dev/$TARGET_DISK"
+	unset TARGET_DISK TARGET_SLICE
 else
 	TARGET_PART=unknown
 	FREEBSD_PART=unknown
+	GPART_SUGGESTION=unknown
 fi
+
 
 # Relative to /freebsd
 PORTS_PATH=ports
@@ -405,7 +404,7 @@ log_it Unmount everything
 	( cleanup )
 	umount /freebsd/distfiles || true
 	umount ${SBMNT}/freebsd/distfiles || true
-	umount /dev/${FREEBSD_PART} || true
+	umount ${FREEBSD_PART} || true
 	umount ${SBMNT}/freebsd || true
 	umount ${SBMNT}/dev || true
 	umount ${SBMNT} || true
@@ -414,7 +413,7 @@ log_it Unmount everything
 
 log_it Prepare running image
 mkdir -p /freebsd
-mount /dev/${FREEBSD_PART} /freebsd
+mount ${FREEBSD_PART} /freebsd
 
 #######################################################################
 
@@ -525,9 +524,9 @@ log_it Move filesystems
 if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 	umount /freebsd/distfiles
 fi
-umount /dev/${FREEBSD_PART} || true
+umount ${FREEBSD_PART} || true
 mkdir -p ${SBMNT}/freebsd
-mount /dev/${FREEBSD_PART} ${SBMNT}/freebsd
+mount ${FREEBSD_PART} ${SBMNT}/freebsd
 if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 	mount  ${REMOTEDISTFILES} ${SBMNT}/freebsd/distfiles
 fi
@@ -560,6 +559,10 @@ log_it before_ports
 	before_ports 
 )
 
+log_it fixing fstab
+sed "/[ 	]\/[ 	]/s;^[^ 	]*[ 	];/dev/${TARGET_PART}	;" \
+	/etc/fstab > ${SBMNT}/etc/fstab
+
 log_it build ports
 pwd
 cp $0 ${SBMNT}/root
@@ -572,10 +575,6 @@ else
 	chroot ${SBMNT} sh /root/$0 $use_pkg chroot_script
 fi
 cp ${SBMNT}/tmp/_sb_log /tmp
-
-log_it fixing fstab
-sed "/[ 	]\/[ 	]/s;^[^ 	]*[ 	];/dev/${TARGET_PART}	;" \
-	/etc/fstab > ${SBMNT}/etc/fstab
 
 log_it create all mountpoints
 grep -v '^[ 	]*#' ${SBMNT}/etc/fstab | 
@@ -615,3 +614,6 @@ cp ${SBMNT}/tmp/_sb_log /tmp
 log_it "Check these messages (if any):"
 grep '^Stop' ${SBMNT}/_* || true
 log_it DONE
+echo "Now you probably want to:"
+echo "    $GPART_SUGGESTION"
+echo "    shutdown -r now"
