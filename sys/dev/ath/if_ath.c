@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_ath_rx.h>
 #include <dev/ath/if_ath_rx_edma.h>
+#include <dev/ath/if_ath_tx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
 
@@ -306,8 +307,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ath_hal_hasedma(sc->sc_ah)) {
 		sc->sc_isedma = 1;
 		ath_recv_setup_edma(sc);
-	} else
+		ath_xmit_setup_edma(sc);
+	} else {
 		ath_recv_setup_legacy(sc);
+		ath_xmit_setup_legacy(sc);
+	}
 
 	/*
 	 * Check if the MAC has multi-rate retry support.
@@ -367,14 +371,24 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_setcurmode(sc, IEEE80211_MODE_11A);
 
 	/*
-	 * Allocate tx+rx descriptors and populate the lists.
+	 * Allocate TX descriptors and populate the lists.
 	 */
 	error = ath_desc_alloc(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate descriptors: %d\n", error);
+		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
+		    error);
+		goto bad;
+	}
+	error = ath_txdma_setup(sc);
+	if (error != 0) {
+		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
+		    error);
 		goto bad;
 	}
 
+	/*
+	 * Allocate RX descriptors and populate the lists.
+	 */
 	error = ath_rxdma_setup(sc);
 	if (error != 0) {
 		if_printf(ifp, "failed to allocate RX descriptors: %d\n",
@@ -858,6 +872,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 bad2:
 	ath_tx_cleanup(sc);
 	ath_desc_free(sc);
+	ath_txdma_teardown(sc);
 	ath_rxdma_teardown(sc);
 bad:
 	if (ah)

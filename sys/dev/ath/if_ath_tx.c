@@ -4463,3 +4463,27 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	ath_tx_tid_resume(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 }
+
+static int
+ath_legacy_dma_txsetup(struct ath_softc *sc)
+{
+
+	/* nothing new needed */
+	return (0);
+}
+
+static int
+ath_legacy_dma_txteardown(struct ath_softc *sc)
+{
+
+	/* nothing new needed */
+	return (0);
+}
+
+void
+ath_xmit_setup_legacy(struct ath_softc *sc)
+{
+
+	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;
+	sc->sc_tx.xmit_teardown = ath_legacy_dma_txteardown;
+}
