@@ -124,4 +124,13 @@ extern	void ath_bar_response(struct ieee80211_node *ni,
 extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap);
 
+/*
+ * Setup path
+ */
+#define	ath_txdma_setup(_sc)			\
+	(_sc)->sc_tx.xmit_setup(_sc)
+#define	ath_txdma_teardown(_sc)			\
+	(_sc)->sc_tx.xmit_teardown(_sc)
+extern	void ath_xmit_setup_legacy(struct ath_softc *sc);
+
 #endif

@@ -397,6 +397,11 @@ struct ath_rx_edma {
 	struct mbuf	*m_rxpending;
 };
 
+struct ath_tx_methods {
+	int		(*xmit_setup)(struct ath_softc *sc);
+	int		(*xmit_teardown)(struct ath_softc *sc);
+};
+
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
@@ -412,6 +417,8 @@ struct ath_softc {
 
 	struct ath_rx_methods	sc_rx;
 	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
+	struct ath_tx_methods	sc_tx;
+
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
 	int			sc_tx_statuslen;
