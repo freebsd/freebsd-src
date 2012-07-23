@@ -302,6 +302,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	/*
+	 * XXX There's txdma and txdma_mgmt; the descriptor
+	 * sizes must match.
+	 */
+	struct ath_descdma *dd = &sc->sc_txdma;
 
 	/*
 	 * Fillin the remainder of the descriptor info.
@@ -313,7 +318,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			ath_hal_settxdesclink(ah, ds, 0);
 		else
 			ath_hal_settxdesclink(ah, ds,
-			    bf->bf_daddr + sizeof(*ds) * (i + 1));
+			    bf->bf_daddr + dd->dd_descsize * (i + 1));
 		ath_hal_filltxdesc(ah, ds
 			, bf->bf_segs[i].ds_len	/* segment length */
 			, i == 0		/* first segment */
@@ -341,6 +346,11 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	/*
+	 * XXX There's txdma and txdma_mgmt; the descriptor
+	 * sizes must match.
+	 */
+	struct ath_descdma *dd = &sc->sc_txdma;
 
 	ds0 = ds = bf->bf_desc;
 
@@ -354,7 +364,7 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 			ath_hal_settxdesclink(ah, ds, 0);
 		else
 			ath_hal_settxdesclink(ah, ds,
-			    bf->bf_daddr + sizeof(*ds) * (i + 1));
+			    bf->bf_daddr + dd->dd_descsize * (i + 1));
 
 		/*
 		 * This performs the setup for an aggregate frame.

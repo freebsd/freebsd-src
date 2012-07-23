@@ -2762,15 +2762,15 @@ ath_descdma_setup(struct ath_softc *sc,
 	uint8_t *ds;
 	struct ath_buf *bf;
 	int i, bsize, error;
-	int desc_len;
 
-	desc_len = sizeof(struct ath_desc);
+	dd->dd_descsize = sizeof(struct ath_desc);
 
-	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA: %u buffers %u desc/buf\n",
-	    __func__, name, nbuf, ndesc);
+	DPRINTF(sc, ATH_DEBUG_RESET,
+	    "%s: %s DMA: %u buffers %u desc/buf, %d bytes per descriptor\n",
+	    __func__, name, nbuf, ndesc, dd->dd_descsize);
 
 	dd->dd_name = name;
-	dd->dd_desc_len = desc_len * nbuf * ndesc;
+	dd->dd_desc_len = dd->dd_descsize * nbuf * ndesc;
 
 	/*
 	 * Merlin work-around:
@@ -2778,7 +2778,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	 * Assume one skipped descriptor per 4KB page.
 	 */
 	if (! ath_hal_split4ktrans(sc->sc_ah)) {
-		int numdescpage = 4096 / (desc_len * ndesc);
+		int numdescpage = 4096 / (dd->dd_descsize * ndesc);
 		dd->dd_desc_len = (nbuf / numdescpage + 1) * 4096;
 	}
 
@@ -2845,7 +2845,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	dd->dd_bufptr = bf;
 
 	TAILQ_INIT(head);
-	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * desc_len)) {
+	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * dd->dd_descsize)) {
 		bf->bf_desc = (struct ath_desc *) ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
 		if (! ath_hal_split4ktrans(sc->sc_ah)) {
@@ -2855,7 +2855,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			 * in the descriptor.
 			 */
 			 if (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr,
-			     desc_len * ndesc)) {
+			     dd->dd_descsize * ndesc)) {
 				/* Start at the next page */
 				ds += 0x1000 - (bf->bf_daddr & 0xFFF);
 				bf->bf_desc = (struct ath_desc *) ds;
@@ -2915,7 +2915,8 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	 * However, dd_desc_len is used by ath_descdma_free() to determine
 	 * whether we have already freed this DMA mapping.
 	 */
-	dd->dd_desc_len = rx_status_len;
+	dd->dd_desc_len = rx_status_len * nbuf;
+	dd->dd_descsize = rx_status_len;
 
 	/* allocate rx buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
