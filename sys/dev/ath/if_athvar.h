@@ -277,6 +277,7 @@ typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 struct ath_descdma {
 	const char*		dd_name;
 	struct ath_desc		*dd_desc;	/* descriptors */
+	int			dd_descsize;	/* size of single descriptor */
 	bus_addr_t		dd_desc_paddr;	/* physical addr of dd_desc */
 	bus_size_t		dd_desc_len;	/* size of dd_desc */
 	bus_dma_segment_t	dd_dseg;
