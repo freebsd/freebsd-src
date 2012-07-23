@@ -4483,6 +4483,13 @@ ath_legacy_dma_txteardown(struct ath_softc *sc)
 void
 ath_xmit_setup_legacy(struct ath_softc *sc)
 {
+	/*
+	 * For now, just set the descriptor length to sizeof(ath_desc);
+	 * worry about extracting the real length out of the HAL later.
+	 */
+	sc->sc_tx_desclen = sizeof(struct ath_desc);
+	sc->sc_tx_statuslen = 0;
+	sc->sc_tx_nmaps = 1;	/* only one buffer per TX desc */
 
 	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;
 	sc->sc_tx.xmit_teardown = ath_legacy_dma_txteardown;
