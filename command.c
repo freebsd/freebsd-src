@@ -983,13 +983,15 @@ forw_loop(until_hilite)
 		forward(1, 0, 0);
 	}
 	ignore_eoi = 0;
+	ch_set_eof();
 
 	/*
 	 * This gets us back in "F mode" after processing 
 	 * a non-abort signal (e.g. window-change).  
 	 */
 	if (sigs && !ABORT_SIGS())
-		return (A_F_FOREVER);
+		return (until_hilite ? A_F_UNTIL_HILITE : A_F_FOREVER);
+
 	return (A_NOACTION);
 }
 
