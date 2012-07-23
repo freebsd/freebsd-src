@@ -2767,7 +2767,7 @@ ath_load_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 int
 ath_descdma_setup(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head,
-	const char *name, int nbuf, int ndesc)
+	const char *name, int ds_size, int nbuf, int ndesc)
 {
 #define	DS2PHYS(_dd, _ds) \
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
@@ -2778,7 +2778,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	struct ath_buf *bf;
 	int i, bsize, error;
 
-	dd->dd_descsize = sizeof(struct ath_desc);
+	dd->dd_descsize = ds_size;
 
 	DPRINTF(sc, ATH_DEBUG_RESET,
 	    "%s: %s DMA: %u buffers %u desc/buf, %d bytes per descriptor\n",
@@ -3010,14 +3010,15 @@ ath_desc_alloc(struct ath_softc *sc)
 	int error;
 
 	error = ath_descdma_setup(sc, &sc->sc_txdma, &sc->sc_txbuf,
-			"tx", ath_txbuf, ATH_TXDESC);
+		    "tx", sc->sc_tx_desclen, ath_txbuf, ATH_TXDESC);
 	if (error != 0) {
 		return error;
 	}
 	sc->sc_txbuf_cnt = ath_txbuf;
 
 	error = ath_descdma_setup(sc, &sc->sc_txdma_mgmt, &sc->sc_txbuf_mgmt,
-			"tx_mgmt", ath_txbuf_mgmt, ATH_TXDESC);
+		    "tx_mgmt", sc->sc_tx_desclen, ath_txbuf_mgmt,
+		    ATH_TXDESC);
 	if (error != 0) {
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		return error;
@@ -3029,7 +3030,7 @@ ath_desc_alloc(struct ath_softc *sc)
 	 */
 
 	error = ath_descdma_setup(sc, &sc->sc_bdma, &sc->sc_bbuf,
-			"beacon", ATH_BCBUF, 1);
+			"beacon", sc->sc_tx_desclen, ATH_BCBUF, 1);
 	if (error != 0) {
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,

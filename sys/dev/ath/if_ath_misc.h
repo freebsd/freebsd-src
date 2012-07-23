@@ -85,7 +85,8 @@ extern void ath_setdefantenna(struct ath_softc *sc, u_int antenna);
 extern void ath_setslottime(struct ath_softc *sc);
 
 extern	int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
-	    ath_bufhead *head, const char *name, int nbuf, int ndesc);
+	    ath_bufhead *head, const char *name, int ds_size, int nbuf,
+	    int ndesc);
 extern	int ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	    struct ath_descdma *dd, ath_bufhead *head, const char *name,
 	    int nbuf, int desclen);

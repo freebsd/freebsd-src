@@ -1075,7 +1075,7 @@ ath_legacy_dma_rxsetup(struct ath_softc *sc)
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
 
 	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
-	    "rx", ath_rxbuf, 1);
+	    "rx", sizeof(struct ath_desc), ath_rxbuf, 1);
 	if (error != 0)
 		return (error);
 
@@ -1098,6 +1098,9 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
 	device_printf(sc->sc_dev, "DMA setup: legacy\n");
+
+	/* Sensible legacy defaults */
+	sc->sc_rx_statuslen = 0;
 
 	sc->sc_rx.recv_start = ath_legacy_startrecv;
 	sc->sc_rx.recv_stop = ath_legacy_stoprecv;
