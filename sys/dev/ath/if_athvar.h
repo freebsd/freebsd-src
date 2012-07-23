@@ -558,6 +558,11 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+
+	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
+	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
+	char			sc_txcompname[12];	/* eg ath0_txcomp */
+
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
@@ -734,6 +739,19 @@ struct ath_softc {
 #define	ATH_TXBUF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txbuflock)
 #define	ATH_TXBUF_LOCK_ASSERT(_sc) \
 	mtx_assert(&(_sc)->sc_txbuflock, MA_OWNED)
+
+#define	ATH_TXSTATUS_LOCK_INIT(_sc) do { \
+	snprintf((_sc)->sc_txcompname, sizeof((_sc)->sc_txcompname), \
+		"%s_buf", \
+		device_get_nameunit((_sc)->sc_dev)); \
+	mtx_init(&(_sc)->sc_txcomplock, (_sc)->sc_txcompname, NULL, \
+		MTX_DEF); \
+} while (0)
+#define	ATH_TXSTATUS_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_LOCK(_sc)		mtx_lock(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_LOCK_ASSERT(_sc) \
+	mtx_assert(&(_sc)->sc_txcomplock, MA_OWNED)
 
 int	ath_attach(u_int16_t, struct ath_softc *);
 int	ath_detach(struct ath_softc *);
