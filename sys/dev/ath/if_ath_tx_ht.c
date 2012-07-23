@@ -511,8 +511,6 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
 		series[i].Rate = rt->info[rc[i].rix].rateCode;
-		series[i].RateIndex = rc[i].rix;
-		series[i].tx_power_cap = 0x3f;	/* XXX? */
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
