@@ -50,7 +50,7 @@ procstat_vm(struct kinfo_proc *kipp)
 
 	ptrwidth = 2*sizeof(void *) + 2;
 	if (!hflag)
-		printf("%5s %*s %*s %3s %4s %4s %3s %3s %3s %-2s %-s\n",
+		printf("%5s %*s %*s %3s %4s %4s %3s %3s %4s %-2s %-s\n",
 		    "PID", ptrwidth, "START", ptrwidth, "END", "PRT", "RES",
 		    "PRES", "REF", "SHD", "FL", "TP", "PATH");
 
