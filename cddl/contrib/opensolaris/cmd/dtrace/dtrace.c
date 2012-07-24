@@ -70,6 +70,8 @@ typedef struct dtrace_cmd {
 #define	E_ERROR		1
 #define	E_USAGE		2
 
+#define IMPATIENT_LIMIT	2
+
 static const char DTRACE_OPTSTR[] =
 	"3:6:aAb:Bc:CD:ef:FGhHi:I:lL:m:n:o:p:P:qs:SU:vVwx:X:Z";
 
@@ -1202,7 +1204,7 @@ intr(int signo)
 	if (!g_intr)
 		g_newline = 1;
 
-	if (g_intr++)
+	if (g_intr++ > IMPATIENT_LIMIT)
 		g_impatient = 1;
 }
 
