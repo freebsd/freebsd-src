@@ -1,0 +1,6 @@
+/dts-v1/;
+
+/ {
+	label: prop1 = "foo";
+	prop2 = "bar" label:;
+};

@@ -1,0 +1,8 @@
+/dts-v1/;
+
+/ {
+	prop-str = "hello world", "nastystring: \a\b\t\n\v\f\r\\\"";
+	prop-int64 = /bits/ 64 <0xdeadbeef01abcdef 0xdeadbeef01abcdef>;
+	prop-int = <0xdeadbeef 123456789>;
+	prop-bytes = [00010203040001020304];
+};

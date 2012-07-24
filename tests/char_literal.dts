@@ -1,0 +1,5 @@
+/dts-v1/;
+
+/ {
+	char-literal-cells = <'\r' 'b' '\0' '\'' '\xff'>;
+};

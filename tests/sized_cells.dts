@@ -1,0 +1,11 @@
+/dts-v1/;
+
+/ {
+	cells-8b = /bits/ 8 <'\r' 'b' '\0' '\'' '\xff' 0xde>;
+	cells-16b = /bits/ 16 <'\r' 'b' '\0' '\'' '\xff' 0xdead>;
+	cells-32b = /bits/ 32 <'\r' 'b' '\0' '\'' '\xff' 0xdeadbeef>;
+	cells-64b = /bits/ 64 <'\r' 'b' '\0' '\'' '\xff' 0xdeadbeef00000000>;
+
+	cells-one-16b = /bits/ 16 <0x1234 0x5678 0x0 0xffff>;
+	cells-one-32b = <0x12345678 0x0000ffff>;
+};

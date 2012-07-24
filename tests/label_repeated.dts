@@ -1,0 +1,15 @@
+/dts-v1/;
+
+/ {
+	l0: prop = "foo";
+
+	l1: node {
+	};
+};
+
+/ {
+	l0: prop = "foo";
+
+	l1: node {
+	};
+};

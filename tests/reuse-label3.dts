@@ -1,0 +1,9 @@
+/dts-v1/;
+
+/ {
+	label: property = "foo";
+
+	label: node {
+		property = "foo";
+	};
+};

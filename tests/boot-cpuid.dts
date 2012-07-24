@@ -1,0 +1,16 @@
+/dts-v1/;
+
+/ {
+	cpus {
+		cpu@10 {
+			device_type = "cpu";
+			compatible = "fake-cpu";
+			reg = <0x10>;
+		};
+		cpu@11 {
+			device_type = "cpu";
+			compatible = "fake-cpu";
+			reg = <0x11>;
+		};
+	};
+};

@@ -1,0 +1,66 @@
+/dts-v1/;
+
+m1: mq: /memreserve/ 0 0x1000;
+
+/ {
+	p0: pw: prop = "foo";
+
+	/* Explicit phandles */
+	n1: node1 {
+		linux,phandle = <0x2000>;
+		ref = <&{/node2}>; /* reference precedes target */
+		p1: lref;
+	};
+	node2 {
+		phandle = <0x1>;
+		ref = <&{/node1}>; /* reference after target */
+		lref = <&nx>;
+	};
+
+	/* Implicit phandles */
+	n3: node3 {
+		p3: ref = <&{/node4}>;
+		lref = <&n4>;
+	};
+	n4: node4 {
+		p4: prop = "foo";
+	};
+
+	/* Explicit phandle with implicit value */
+	/* This self-reference is the standard way to tag a node as requiring
+	 * a phandle (perhaps for reference by nodes that will be dynamically
+	 * added) without explicitly allocating it a phandle.
+	 * The self-reference requires some special internal handling, though
+	 * so check it actually works */
+	n5: nz: node5 {
+		linux,phandle = <&n5>;
+		phandle = <&nz>;
+		n1 = &n1;
+		n2 = &n2;
+		n3 = &n3;
+	};
+};
+
+/ {
+	/* Append labels (also changes property content) */
+	nx: node1 {
+		px: lref = <&ny>;
+	};
+
+	/* Add multiple labels */
+	ny: n2: node2 {
+		/* Add a label to a property */
+		p2: py: phandle = <0x1>;
+	};
+
+	/* Reassigning the same label should be a no-op */
+	n3: node3 {
+		p3: ref = <&{/node4}>;
+	};
+
+	/* Redefining a node/property should not remove labels */
+	node4 {
+		prop;
+	};
+
+};

@@ -1,0 +1,10 @@
+/dts-v1/;
+
+/ {
+	label: node1 {
+		prop = "foo";
+	};
+	label: node2 {
+		prop = "bar";
+	};
+};

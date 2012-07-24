@@ -1,0 +1,24 @@
+#
+# This is not a complete Makefile of itself.  Instead, it is designed to
+# be easily embeddable into other systems of Makefiles.
+#
+
+FDTDUMP_SRCS = \
+	fdtdump.c \
+	util.c
+
+FDTDUMP_OBJS = $(FDTDUMP_SRCS:%.c=%.o)
+
+
+FDTGET_SRCS = \
+	fdtget.c \
+	util.c
+
+FDTGET_OBJS = $(FDTGET_SRCS:%.c=%.o)
+
+
+FDTPUT_SRCS = \
+	fdtput.c \
+	util.c
+
+FDTPUT_OBJS = $(FDTPUT_SRCS:%.c=%.o)
