@@ -1090,6 +1090,9 @@ struct ath_hal {
 				uint32_t *link);
 	void	  __ahdecl(*ah_getTxDescLinkPtr)(struct ath_hal *ah, void *ds,
 				uint32_t **linkptr);
+	void	  __ahdecl(*ah_setupTxStatusRing)(struct ath_hal *,
+				void *ts_start, uint32_t ts_paddr_start,
+				uint16_t size);
 
 	/* Receive Functions */
 	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*, HAL_RX_QUEUE);
