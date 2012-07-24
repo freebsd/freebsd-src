@@ -873,7 +873,7 @@ vm_pageout_scan(int pass)
 	vm_page_t m, next;
 	struct vm_page marker;
 	int page_shortage, maxscan, pcount;
-	int addl_page_shortage, addl_page_shortage_init;
+	int addl_page_shortage;
 	vm_object_t object;
 	int actcount;
 	int vnodes_skipped = 0;
@@ -889,13 +889,13 @@ vm_pageout_scan(int pass)
 	 */
 	uma_reclaim();
 
-	addl_page_shortage_init = atomic_readandclear_int(&vm_pageout_deficit);
+	addl_page_shortage = atomic_readandclear_int(&vm_pageout_deficit);
 
 	/*
 	 * Calculate the number of pages we want to either free or move
 	 * to the cache.
 	 */
-	page_shortage = vm_paging_target() + addl_page_shortage_init;
+	page_shortage = vm_paging_target() + addl_page_shortage;
 
 	vm_pageout_init_marker(&marker, PQ_INACTIVE);
 
@@ -921,7 +921,6 @@ vm_pageout_scan(int pass)
 		maxlaunder = 10000;
 	vm_page_lock_queues();
 	queues_locked = TRUE;
-	addl_page_shortage = addl_page_shortage_init;
 	maxscan = cnt.v_inactive_count;
 
 	for (m = TAILQ_FIRST(&vm_page_queues[PQ_INACTIVE].pl);
