@@ -1,0 +1,6 @@
+/dts-v1/;
+
+/include/ "search_test_c.dtsi"
+
+/ {
+};

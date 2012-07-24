@@ -1,0 +1,10 @@
+/dts-v1/;
+
+/ {
+	label: node {
+	};
+};
+
+/* Try to redefine a node using a non-existent label */
+&nosuchnode {
+};
