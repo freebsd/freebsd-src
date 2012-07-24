@@ -272,13 +272,16 @@ flush()
 						break;
 					if (at & 1)
 					{
-#if MSDOS_COMPILER==WIN32C
-						fg |= FOREGROUND_INTENSITY;
-						bg |= BACKGROUND_INTENSITY;
-#else
-						fg = bo_fg_color;
-						bg = bo_bg_color;
-#endif
+						/*
+						 * If \e[1m use defined bold
+						 * color, else set intensity.
+						 */
+						if (p[-2] == '[')
+						{
+							fg = bo_fg_color;
+							bg = bo_bg_color;
+						} else
+							fg |= 8;
 					} else if (at & 2)
 					{
 						fg = so_fg_color;
