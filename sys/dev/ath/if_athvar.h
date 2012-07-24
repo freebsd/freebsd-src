@@ -1099,6 +1099,9 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getTxDescLink)((_ah), (_ds), (_link)))
 #define ath_hal_gettxdesclinkptr(_ah, _ds, _linkptr) \
 	((*(_ah)->ah_getTxDescLinkPtr)((_ah), (_ds), (_linkptr)))
+#define	ath_hal_setuptxstatusring(_ah, _tsstart, _tspstart, _size) \
+	((*(_ah)->ah_setupTxStatusRing)((_ah), (_tsstart), (_tspstart), \
+		(_size)))
 
 #define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
