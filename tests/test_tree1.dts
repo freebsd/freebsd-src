@@ -6,6 +6,7 @@
 / {
 	compatible = "test_tree1";
 	prop-int = <0xdeadbeef>;
+	prop-int64 = /bits/ 64 <0xdeadbeef01abcdef>;
 	prop-str = "hello world";
 
 	subnode@1 {
@@ -25,7 +26,7 @@
 		linux,phandle = <0x2000>;
 		prop-int = <123456789>;
 
-		subsubnode@0 {
+		ssn0: subsubnode@0 {
 			phandle = <0x2001>;
 			compatible = "subsubnode2", "subsubnode";
 			prop-int = <0726746425>;

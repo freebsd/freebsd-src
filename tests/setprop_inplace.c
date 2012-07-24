@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,6 +35,7 @@ int main(int argc, char *argv[])
 {
 	void *fdt;
 	const uint32_t *intp;
+	const uint64_t *int64p;
 	const char *strp;
 	char *xstr;
 	int xlen, i;
@@ -47,10 +49,24 @@ int main(int argc, char *argv[])
 	verbose_printf("Old int value was 0x%08x\n", *intp);
 	err = fdt_setprop_inplace_cell(fdt, 0, "prop-int", ~TEST_VALUE_1);
 	if (err)
-		FAIL("Failed to set \"prop-int\" to 0x08%x: %s",
+		FAIL("Failed to set \"prop-int\" to 0x%08x: %s",
 		     ~TEST_VALUE_1, fdt_strerror(err));
 	intp = check_getprop_cell(fdt, 0, "prop-int", ~TEST_VALUE_1);
 	verbose_printf("New int value is 0x%08x\n", *intp);
+
+	strp = check_getprop(fdt, 0, "prop-str", strlen(TEST_STRING_1)+1,
+			     TEST_STRING_1);
+
+
+	int64p = check_getprop_64(fdt, 0, "prop-int64", TEST_VALUE64_1);
+
+	verbose_printf("Old int64 value was 0x%016" PRIx64 "\n", *int64p);
+	err = fdt_setprop_inplace_u64(fdt, 0, "prop-int64", ~TEST_VALUE64_1);
+	if (err)
+		FAIL("Failed to set \"prop-int64\" to 0x%016llx: %s",
+		     ~TEST_VALUE64_1, fdt_strerror(err));
+	int64p = check_getprop_64(fdt, 0, "prop-int64", ~TEST_VALUE64_1);
+	verbose_printf("New int64 value is 0x%016" PRIx64 "\n", *int64p);
 
 	strp = check_getprop(fdt, 0, "prop-str", strlen(TEST_STRING_1)+1,
 			     TEST_STRING_1);

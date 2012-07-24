@@ -159,33 +159,13 @@ int nodename_eq(const char *s1, const char *s2)
 
 void *load_blob(const char *filename)
 {
-	int fd;
-	int offset = 0;
-	int bufsize = 1024;
-	char *p = NULL;
-	int ret;
+	char *blob;
+	int ret = utilfdt_read_err(filename, &blob);
 
-	fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	if (ret)
 		CONFIG("Couldn't open blob from \"%s\": %s", filename,
-		       strerror(errno));
-
-	p = xmalloc(bufsize);
-	do {
-		if (offset == bufsize) {
-			bufsize *= 2;
-			p = xrealloc(p, bufsize);
-		}
-
-		ret = read(fd, &p[offset], bufsize - offset);
-		if (ret < 0)
-			CONFIG("Couldn't read from \"%s\": %s", filename,
-			       strerror(errno));
-
-		offset += ret;
-	} while (ret != 0);
-
-	return p;
+		       strerror(ret));
+	return blob;
 }
 
 void *load_blob_arg(int argc, char *argv[])
@@ -197,28 +177,11 @@ void *load_blob_arg(int argc, char *argv[])
 
 void save_blob(const char *filename, void *fdt)
 {
-	int fd;
-	int totalsize;
-	int offset;
-	char *p;
-	int ret;
+	int ret = utilfdt_write_err(filename, fdt);
 
-	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-	if (fd < 0)
-		CONFIG("Couldn't open \"%s\" to write blob: %s", filename,
-		       strerror(errno));
-
-	totalsize = fdt_totalsize(fdt);
-	offset = 0;
-	p = fdt;
-
-	while (offset < totalsize) {
-		ret = write(fd, p + offset, totalsize - offset);
-		if (ret < 0)
-			CONFIG("Couldn't write to \"%s\": %s", filename,
-			       strerror(errno));
-		offset += ret;
-	}
+	if (ret)
+		CONFIG("Couldn't write blob to \"%s\": %s", filename,
+		       strerror(ret));
 }
 
 void *open_blob_rw(void *blob)

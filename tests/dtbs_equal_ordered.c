@@ -29,6 +29,31 @@
 #include "tests.h"
 #include "testdata.h"
 
+int notequal; /* = 0 */
+
+#define MISMATCH(fmt, ...)			\
+	do { \
+		if (notequal) \
+			PASS(); \
+		else \
+			FAIL(fmt, ##__VA_ARGS__);	\
+	} while (0)
+
+#define MATCH()			\
+	do { \
+		if (!notequal) \
+			PASS(); \
+		else \
+			FAIL("Trees match which shouldn't");	\
+	} while (0)
+
+#define CHECK(code) \
+	{ \
+		err = (code); \
+		if (err) \
+			FAIL(#code ": %s", fdt_strerror(err)); \
+	}
+
 static void compare_mem_rsv(const void *fdt1, const void *fdt2)
 {
 	int i;
@@ -36,23 +61,18 @@ static void compare_mem_rsv(const void *fdt1, const void *fdt2)
 	int err;
 
 	if (fdt_num_mem_rsv(fdt1) != fdt_num_mem_rsv(fdt2))
-		FAIL("Trees have different number of reserve entries");
+		MISMATCH("Trees have different number of reserve entries");
 	for (i = 0; i < fdt_num_mem_rsv(fdt1); i++) {
-		err = fdt_get_mem_rsv(fdt1, i, &addr1, &size1);
-		if (err)
-			FAIL("fdt_get_mem_rsv(fdt1, %d, ...): %s", i,
-			     fdt_strerror(err));
-		err = fdt_get_mem_rsv(fdt2, i, &addr2, &size2);
-		if (err)
-			FAIL("fdt_get_mem_rsv(fdt2, %d, ...): %s", i,
-			     fdt_strerror(err));
+		CHECK(fdt_get_mem_rsv(fdt1, i, &addr1, &size1));
+		CHECK(fdt_get_mem_rsv(fdt2, i, &addr2, &size2));
+
 		if ((addr1 != addr2) || (size1 != size2))
-			FAIL("Mismatch in reserve entry %d: "
-			     "(0x%llx, 0x%llx) != (0x%llx, 0x%llx)", i,
-			     (unsigned long long)addr1,
-			     (unsigned long long)size1,
-			     (unsigned long long)addr2,
-			     (unsigned long long)size2);
+			MISMATCH("Mismatch in reserve entry %d: "
+				 "(0x%llx, 0x%llx) != (0x%llx, 0x%llx)", i,
+				 (unsigned long long)addr1,
+				 (unsigned long long)size1,
+				 (unsigned long long)addr2,
+				 (unsigned long long)size2);
 	}
 }
 
@@ -77,7 +97,7 @@ static void compare_structure(const void *fdt1, const void *fdt2)
 		} while (tag2 == FDT_NOP);
 
 		if (tag1 != tag2)
-			FAIL("Tag mismatch (%d != %d) at (%d, %d)",
+			MISMATCH("Tag mismatch (%d != %d) at (%d, %d)",
 			     tag1, tag2, offset1, offset2);
 
 		switch (tag1) {
@@ -90,9 +110,10 @@ static void compare_structure(const void *fdt1, const void *fdt2)
 			if (!name2)
 				FAIL("fdt_get_name(fdt2, %d, ..): %s",
 				     offset2, fdt_strerror(err));
+
 			if (!streq(name1, name2))
-			    FAIL("Name mismatch (\"%s\" != \"%s\") at (%d, %d)",
-				 name1, name2, offset1, offset2);
+			    MISMATCH("Name mismatch (\"%s\" != \"%s\") at (%d, %d)",
+				     name1, name2, offset1, offset2);
 			break;
 
 		case FDT_PROP:
@@ -106,17 +127,17 @@ static void compare_structure(const void *fdt1, const void *fdt2)
 			name1 = fdt_string(fdt1, fdt32_to_cpu(prop1->nameoff));
 			name2 = fdt_string(fdt2, fdt32_to_cpu(prop2->nameoff));
 			if (!streq(name1, name2))
-				FAIL("Property name mismatch \"%s\" != \"%s\" "
-				     "at (%d, %d)", name1, name2, offset1, offset2);
+				MISMATCH("Property name mismatch \"%s\" != \"%s\" "
+					 "at (%d, %d)", name1, name2, offset1, offset2);
 			len1 = fdt32_to_cpu(prop1->len);
 			len2 = fdt32_to_cpu(prop2->len);
 			if (len1 != len2)
-				FAIL("Property length mismatch %u != %u "
-				     "at (%d, %d)", len1, len2, offset1, offset2);
+				MISMATCH("Property length mismatch %u != %u "
+					 "at (%d, %d)", len1, len2, offset1, offset2);
 
 			if (memcmp(prop1->data, prop2->data, len1) != 0)
-				FAIL("Property value mismatch at (%d, %d)",
-				     offset1, offset2);
+				MISMATCH("Property value mismatch at (%d, %d)",
+					 offset1, offset2);
 			break;
 
 		case FDT_END:
@@ -131,10 +152,14 @@ int main(int argc, char *argv[])
 	uint32_t cpuid1, cpuid2;
 
 	test_init(argc, argv);
-	if (argc != 3)
-		CONFIG("Usage: %s <dtb file> <dtb file>", argv[0]);
-	fdt1 = load_blob(argv[1]);
-	fdt2 = load_blob(argv[2]);
+	if ((argc != 3)
+	    && ((argc != 4) || !streq(argv[1], "-n")))
+		CONFIG("Usage: %s [-n] <dtb file> <dtb file>", argv[0]);
+	if (argc == 4)
+		notequal = 1;
+
+	fdt1 = load_blob(argv[argc-2]);
+	fdt2 = load_blob(argv[argc-1]);
 
 	compare_mem_rsv(fdt1, fdt2);
 	compare_structure(fdt1, fdt2);
@@ -142,8 +167,8 @@ int main(int argc, char *argv[])
 	cpuid1 = fdt_boot_cpuid_phys(fdt1);
 	cpuid2 = fdt_boot_cpuid_phys(fdt2);
 	if (cpuid1 != cpuid2)
-		FAIL("boot_cpuid_phys mismatch 0x%x != 0x%x",
-		     cpuid1, cpuid2);
+		MISMATCH("boot_cpuid_phys mismatch 0x%x != 0x%x",
+			 cpuid1, cpuid2);
 
-	PASS();
+	MATCH();
 }

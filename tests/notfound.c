@@ -37,27 +37,25 @@ static void check_error(const char *s, int err)
 
 int main(int argc, char *argv[])
 {
-	const struct fdt_property *prop;
 	void *fdt;
 	int offset;
 	int subnode1_offset;
-	const void *val;
 	int lenerr;
 
 	test_init(argc, argv);
 	fdt = load_blob_arg(argc, argv);
 
-	prop = fdt_get_property(fdt, 0, "nonexistant-property", &lenerr);
+	fdt_get_property(fdt, 0, "nonexistant-property", &lenerr);
 	check_error("fdt_get_property(\"nonexistant-property\")", lenerr);
 
-	val = fdt_getprop(fdt, 0, "nonexistant-property", &lenerr);
+	fdt_getprop(fdt, 0, "nonexistant-property", &lenerr);
 	check_error("fdt_getprop(\"nonexistant-property\"", lenerr);
 
 	subnode1_offset = fdt_subnode_offset(fdt, 0, "subnode@1");
 	if (subnode1_offset < 0)
 		FAIL("Couldn't find subnode1: %s", fdt_strerror(subnode1_offset));
 
-	val = fdt_getprop(fdt, subnode1_offset, "prop-str", &lenerr);
+	fdt_getprop(fdt, subnode1_offset, "prop-str", &lenerr);
 	check_error("fdt_getprop(\"prop-str\")", lenerr);
 
 	offset = fdt_subnode_offset(fdt, 0, "nonexistant-subnode");

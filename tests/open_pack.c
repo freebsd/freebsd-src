@@ -48,6 +48,8 @@ int main(int argc, char *argv[])
 	bufsize = oldsize * 2;
 
 	buf = xmalloc(bufsize);
+	/* don't leak uninitialized memory into our output */
+	memset(buf, 0, bufsize);
 
 	fdt1 = buf;
 	err = fdt_open_into(fdt, fdt1, bufsize);

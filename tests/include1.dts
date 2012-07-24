@@ -6,6 +6,7 @@
 / {
 	/include/ "include4.dts"
 	/include/ "include5.dts" = <0xdeadbeef>;
+	prop-int64 /include/ "include5a.dts";
 	prop-str = /include/ "include6.dts";
 
 	/include/ "include7.dts"

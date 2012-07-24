@@ -28,7 +28,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_extranull(void *fdt, const char *prop, const char *str, int numnulls)
+static void check_extranull(void *fdt, const char *prop, const char *str, int numnulls)
 {
 	int len = strlen(str);
 	char checkbuf[len+numnulls];

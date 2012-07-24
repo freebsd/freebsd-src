@@ -12,12 +12,20 @@
 #define TEST_VALUE_1	0xdeadbeef
 #define TEST_VALUE_2	123456789
 
+#define TEST_VALUE64_1	ASM_CONST_LL(0xdeadbeef01abcdef)
+
 #define PHANDLE_1	0x2000
 #define PHANDLE_2	0x2001
 
 #define TEST_STRING_1	"hello world"
 #define TEST_STRING_2	"nastystring: \a\b\t\n\v\f\r\\\""
 #define TEST_STRING_3	"\xde\xad\xbe\xef"
+
+#define TEST_CHAR1	'\r'
+#define TEST_CHAR2	'b'
+#define TEST_CHAR3	'\0'
+#define TEST_CHAR4	'\''
+#define TEST_CHAR5	'\xff'
 
 #ifndef __ASSEMBLY__
 extern struct fdt_header _test_tree1;
