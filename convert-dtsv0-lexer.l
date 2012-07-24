@@ -17,7 +17,7 @@
  *                                                                   USA
  */
 
-%option noyywrap nounput noinput
+%option noyywrap nounput noinput never-interactive
 
 %x INCLUDE
 %x BYTESTRING
@@ -210,8 +210,10 @@ static void convert_file(const char *fname)
 	memcpy(newname, fname, len);
 	memcpy(newname + len, suffix, sizeof(suffix));
 
-	srcpos_file = dtc_open_file(fname, NULL);
-	yyin = srcpos_file->file;
+	yyin = fopen(fname, "r");
+	if (!yyin)
+		die("Couldn't open input file %s: %s\n",
+		    fname, strerror(errno));
 
 	yyout = fopen(newname, "w");
 	if (!yyout)

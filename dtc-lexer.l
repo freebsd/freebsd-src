@@ -18,7 +18,7 @@
  *                                                                   USA
  */
 
-%option noyywrap nounput noinput yylineno
+%option noyywrap nounput noinput never-interactive
 
 %x INCLUDE
 %x BYTESTRING
@@ -29,6 +29,7 @@ PROPNODECHAR	[a-zA-Z0-9,._+*#?@-]
 PATHCHAR	({PROPNODECHAR}|[/])
 LABEL		[a-zA-Z_][a-zA-Z0-9_]*
 STRING		\"([^\\"]|\\.)*\"
+CHAR_LITERAL	'([^']|\\')*'
 WS		[[:space:]]
 COMMENT		"/*"([^*]|\*+[^*/])*\*+"/"
 LINECOMMENT	"//".*\n
@@ -38,10 +39,12 @@ LINECOMMENT	"//".*\n
 #include "srcpos.h"
 #include "dtc-parser.tab.h"
 
+YYLTYPE yylloc;
+
+/* CAUTION: this will stop working if we ever use yyless() or yyunput() */
 #define	YY_USER_ACTION \
 	{ \
-		yylloc.file = srcpos_file; \
-		yylloc.first_line = yylineno; \
+		srcpos_update(&yylloc, yytext, yyleng); \
 	}
 
 /*#define LEXDEBUG	1*/
@@ -94,6 +97,12 @@ static int pop_input_file(void);
 			return DT_MEMRESERVE;
 		}
 
+<*>"/bits/"	{
+			DPRINT("Keyword: /bits/\n");
+			BEGIN_DEFAULT();
+			return DT_BITS;
+		}
+
 <*>{LABEL}:	{
 			DPRINT("Label: %s\n", yytext);
 			yylval.labelref = xstrdup(yytext);
@@ -101,19 +110,26 @@ static int pop_input_file(void);
 			return DT_LABEL;
 		}
 
-<V1>[0-9]+|0[xX][0-9a-fA-F]+      {
+<V1>([0-9]+|0[xX][0-9a-fA-F]+)(U|L|UL|LL|ULL)? {
 			yylval.literal = xstrdup(yytext);
 			DPRINT("Literal: '%s'\n", yylval.literal);
 			return DT_LITERAL;
 		}
 
-\&{LABEL}	{	/* label reference */
+<*>{CHAR_LITERAL}	{
+			yytext[yyleng-1] = '\0';
+			yylval.literal = xstrdup(yytext+1);
+			DPRINT("Character literal: %s\n", yylval.literal);
+			return DT_CHAR_LITERAL;
+		}
+
+<*>\&{LABEL}	{	/* label reference */
 			DPRINT("Ref: %s\n", yytext+1);
 			yylval.labelref = xstrdup(yytext+1);
 			return DT_REF;
 		}
 
-"&{/"{PATHCHAR}+\}	{	/* new-style path reference */
+<*>"&{/"{PATHCHAR}+\}	{	/* new-style path reference */
 			yytext[yyleng-1] = '\0';
 			DPRINT("Ref: %s\n", yytext+2);
 			yylval.labelref = xstrdup(yytext+2);
@@ -148,6 +164,15 @@ static int pop_input_file(void);
 <*>{COMMENT}+	/* eat C-style comments */
 <*>{LINECOMMENT}+ /* eat C++-style comments */
 
+<*>"<<"		{ return DT_LSHIFT; };
+<*>">>"		{ return DT_RSHIFT; };
+<*>"<="		{ return DT_LE; };
+<*>">="		{ return DT_GE; };
+<*>"=="		{ return DT_EQ; };
+<*>"!="		{ return DT_NE; };
+<*>"&&"		{ return DT_AND; };
+<*>"||"		{ return DT_OR; };
+
 <*>.		{
 			DPRINT("Char: %c (\\x%02x)\n", yytext[0],
 				(unsigned)yytext[0]);
@@ -165,100 +190,25 @@ static int pop_input_file(void);
 
 %%
 
-
-/*
- * Stack of nested include file contexts.
- */
-
-struct incl_file {
-	struct dtc_file *file;
-	YY_BUFFER_STATE yy_prev_buf;
-	int yy_prev_lineno;
-	struct incl_file *prev;
-};
-
-static struct incl_file *incl_file_stack;
-
-
-/*
- * Detect infinite include recursion.
- */
-#define MAX_INCLUDE_DEPTH	(100)
-
-static int incl_depth = 0;
-
-
 static void push_input_file(const char *filename)
 {
-	struct incl_file *incl_file;
-	struct dtc_file *newfile;
-	struct search_path search, *searchptr = NULL;
-
 	assert(filename);
 
-	if (incl_depth++ >= MAX_INCLUDE_DEPTH)
-		die("Includes nested too deeply");
+	srcfile_push(filename);
 
-	if (srcpos_file) {
-		search.dir = srcpos_file->dir;
-		search.next = NULL;
-		search.prev = NULL;
-		searchptr = &search;
-	}
+	yyin = current_srcfile->f;
 
-	newfile = dtc_open_file(filename, searchptr);
-
-	incl_file = xmalloc(sizeof(struct incl_file));
-
-	/*
-	 * Save current context.
-	 */
-	incl_file->yy_prev_buf = YY_CURRENT_BUFFER;
-	incl_file->yy_prev_lineno = yylineno;
-	incl_file->file = srcpos_file;
-	incl_file->prev = incl_file_stack;
-
-	incl_file_stack = incl_file;
-
-	/*
-	 * Establish new context.
-	 */
-	srcpos_file = newfile;
-	yylineno = 1;
-	yyin = newfile->file;
-	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
+	yypush_buffer_state(yy_create_buffer(yyin, YY_BUF_SIZE));
 }
 
 
 static int pop_input_file(void)
 {
-	struct incl_file *incl_file;
-
-	if (incl_file_stack == 0)
+	if (srcfile_pop() == 0)
 		return 0;
 
-	dtc_close_file(srcpos_file);
-
-	/*
-	 * Pop.
-	 */
-	--incl_depth;
-	incl_file = incl_file_stack;
-	incl_file_stack = incl_file->prev;
-
-	/*
-	 * Recover old context.
-	 */
-	yy_delete_buffer(YY_CURRENT_BUFFER);
-	yy_switch_to_buffer(incl_file->yy_prev_buf);
-	yylineno = incl_file->yy_prev_lineno;
-	srcpos_file = incl_file->file;
-	yyin = incl_file->file ? incl_file->file->file : NULL;
-
-	/*
-	 * Free old state.
-	 */
-	free(incl_file);
+	yypop_buffer_state();
+	yyin = current_srcfile->f;
 
 	return 1;
 }

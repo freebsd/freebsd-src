@@ -74,5 +74,23 @@ int main(int argc, char *argv[])
 
 	check_getprop(fdt, 0, "prop-str", 0, NULL);
 
+	err = fdt_setprop_u32(fdt, 0, "prop-u32", TEST_VALUE_2);
+	if (err)
+		FAIL("Failed to set \"prop-u32\" to 0x%08x: %s",
+		     TEST_VALUE_2, fdt_strerror(err));
+	check_getprop_cell(fdt, 0, "prop-u32", TEST_VALUE_2);
+
+	err = fdt_setprop_cell(fdt, 0, "prop-cell", TEST_VALUE_2);
+	if (err)
+		FAIL("Failed to set \"prop-cell\" to 0x%08x: %s",
+		     TEST_VALUE_2, fdt_strerror(err));
+	check_getprop_cell(fdt, 0, "prop-cell", TEST_VALUE_2);
+
+	err = fdt_setprop_u64(fdt, 0, "prop-u64", TEST_VALUE64_1);
+	if (err)
+		FAIL("Failed to set \"prop-u64\" to 0x%016llx: %s",
+		     TEST_VALUE64_1, fdt_strerror(err));
+	check_getprop_64(fdt, 0, "prop-u64", TEST_VALUE64_1);
+	
 	PASS();
 }

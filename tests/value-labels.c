@@ -59,8 +59,8 @@ struct val_label labels3[] = {
 	{ "end3", -1 },
 };
 
-void check_prop_labels(void *sohandle, void *fdt, const char *name,
-		       const struct val_label* labels, int n)
+static void check_prop_labels(void *sohandle, void *fdt, const char *name,
+			      const struct val_label* labels, int n)
 {
 	const struct fdt_property *prop;
 	const char *p;

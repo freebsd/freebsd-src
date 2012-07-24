@@ -55,7 +55,8 @@ int main(int argc, char *argv[])
 
 	CHECK(fdt_begin_node(fdt, ""));
 	CHECK(fdt_property_string(fdt, "compatible", "test_tree1"));
-	CHECK(fdt_property_cell(fdt, "prop-int", TEST_VALUE_1));
+	CHECK(fdt_property_u32(fdt, "prop-int", TEST_VALUE_1));
+	CHECK(fdt_property_u64(fdt, "prop-int64", TEST_VALUE64_1));
 	CHECK(fdt_property_string(fdt, "prop-str", TEST_STRING_1));
 
 	CHECK(fdt_begin_node(fdt, "subnode@1"));

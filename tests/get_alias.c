@@ -29,7 +29,7 @@
 #include "tests.h"
 #include "testdata.h"
 
-void check_alias(void *fdt, const char *path, const char *alias)
+static void check_alias(void *fdt, const char *path, const char *alias)
 {
 	const char *aliaspath;
 

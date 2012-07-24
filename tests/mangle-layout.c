@@ -65,7 +65,7 @@ static void new_header(struct bufstate *buf, int version, const void *fdt)
 
 static void add_block(struct bufstate *buf, int version, char block, const void *fdt)
 {
-	int align, size;
+	int align, size, oldsize;
 	const void *src;
 	int offset;
 
@@ -95,9 +95,10 @@ static void add_block(struct bufstate *buf, int version, char block, const void 
 		CONFIG("Bad block '%c'", block);
 	}
 
-	offset = ALIGN(buf->size, align);
-
+	oldsize = buf->size;
+	offset = ALIGN(oldsize, align);
 	expand_buf(buf, offset+size);
+	memset(buf->buf + oldsize, 0, offset - oldsize);
 
 	memcpy(buf->buf + offset, src, size);
 

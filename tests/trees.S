@@ -52,6 +52,10 @@ tree##_rsvmap_end:		;
 	PROPHDR(tree, name, 4) \
 	FDTLONG(val)		;
 
+#define PROP_INT64(tree, name, val) \
+	PROPHDR(tree, name, 8) \
+	FDTQUAD(val)		;
+
 #define PROP_STR(tree, name, str) \
 	PROPHDR(tree, name, 55f - 54f) \
 54:	\
@@ -86,6 +90,7 @@ test_tree1_struct:
 	BEGIN_NODE("")
 	PROP_STR(test_tree1, compatible, "test_tree1")
 	PROP_INT(test_tree1, prop_int, TEST_VALUE_1)
+	PROP_INT64(test_tree1, prop_int64, TEST_VALUE64_1)
 	PROP_STR(test_tree1, prop_str, TEST_STRING_1)
 
 	BEGIN_NODE("subnode@1")
@@ -124,6 +129,7 @@ test_tree1_struct_end:
 test_tree1_strings:
 	STRING(test_tree1, compatible, "compatible")
 	STRING(test_tree1, prop_int, "prop-int")
+	STRING(test_tree1, prop_int64, "prop-int64")
 	STRING(test_tree1, prop_str, "prop-str")
 	STRING(test_tree1, linux_phandle, "linux,phandle")
 	STRING(test_tree1, phandle, "phandle")
