@@ -427,12 +427,22 @@ static int
 vmx_init(void)
 {
 	int error;
-	uint64_t fixed0, fixed1;
+	uint64_t fixed0, fixed1, feature_control;
 	uint32_t tmp;
 
 	/* CPUID.1:ECX[bit 5] must be 1 for processor to support VMX */
 	if (!(cpu_feature2 & CPUID2_VMX)) {
 		printf("vmx_init: processor does not support VMX operation\n");
+		return (ENXIO);
+	}
+
+	/*
+	 * Verify that MSR_IA32_FEATURE_CONTROL lock and VMXON enable bits
+	 * are set (bits 0 and 2 respectively).
+	 */
+	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
+	if ((feature_control & 0x5) != 0x5) {
+		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
 	}
 
