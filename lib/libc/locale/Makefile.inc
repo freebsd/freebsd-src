@@ -30,7 +30,8 @@ MAN+=	btowc.3 \
 	ctype.3 digittoint.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
 	isdigit.3 isgraph.3 isideogram.3 islower.3 isphonogram.3 isprint.3 \
 	ispunct.3 isrune.3 isspace.3 isspecial.3 \
-	isupper.3 iswalnum.3 isxdigit.3 localeconv.3 mblen.3 mbrlen.3 \
+	isupper.3 iswalnum.3 iswalnum_l.3 isxdigit.3 \
+	localeconv.3 mblen.3 mbrlen.3 \
 	mbrtowc.3 \
 	mbsinit.3 \
 	mbsrtowcs.3 mbstowcs.3 mbtowc.3 multibyte.3 \
@@ -53,6 +54,18 @@ MLINKS+=iswalnum.3 iswalpha.3 iswalnum.3 iswascii.3 iswalnum.3 iswblank.3 \
 	iswalnum.3 iswphonogram.3 iswalnum.3 iswprint.3 iswalnum.3 iswpunct.3 \
 	iswalnum.3 iswrune.3 iswalnum.3 iswspace.3 iswalnum.3 iswspecial.3 \
 	iswalnum.3 iswupper.3 iswalnum.3 iswxdigit.3
+MLINKS+=iswalnum_l.3 iswalpha_l.3 iswalnum_l.3 iswcntrl_l.3 \
+	iswalnum_l.3 iswctype_l.3 iswalnum_l.3 iswdigit_l.3 \
+	iswalnum_l.3 iswgraph_l.3 iswalnum_l.3 iswlower_l.3 \
+	iswalnum_l.3 iswprint_l.3 iswalnum_l.3 iswpunct_l.3 \
+	iswalnum_l.3 iswspace_l.3 iswalnum_l.3 iswupper_l.3 \
+	iswalnum_l.3 iswxdigit_l.3 iswalnum_l.3 towlower_l.3 \
+	iswalnum_l.3 towupper_l.3 iswalnum_l.3 wctype_l.3 \
+	iswalnum_l.3 iswblank_l.3 iswalnum_l.3 iswhexnumber_l.3 \
+	iswalnum_l.3 iswideogram_l.3 iswalnum_l.3 iswnumber_l.3 \
+	iswalnum_l.3 iswphonogram_l.3 iswalnum_l.3 iswrune_l.3 \
+	iswalnum_l.3 iswspecial_l.3 iswalnum_l.3 nextwctype_l.3 \
+	iswalnum_l.3 towctrans_l.3 iswalnum_l.3 wctrans_l.3
 MLINKS+=isxdigit.3 ishexnumber.3
 MLINKS+=mbsrtowcs.3 mbsnrtowcs.3
 MLINKS+=wcsrtombs.3 wcsnrtombs.3
