@@ -2667,6 +2667,7 @@ product PRIMAX HP_RH304AA	0x4d17	HP RH304AA mouse
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
+product PROLIFIC MOTOROLA	0x0307	Motorola Cable
 product PROLIFIC RSAQ2		0x04bb	PL2303 Serial (IODATA USB-RSAQ2)
 product PROLIFIC ALLTRONIX_GPRS	0x0609	Alltronix ACM003U00 modem
 product PROLIFIC ALDIGA_AL11U	0x0611	AlDiga AL-11U modem
