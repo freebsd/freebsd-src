@@ -69,7 +69,7 @@ _pthread_setprio(pthread_t pthread, int prio)
 			ret = 0;
 		} else {
 			ret = _thr_setscheduler(pthread->tid,
-				curthread->attr.sched_policy, &param);
+				pthread->attr.sched_policy, &param);
 			if (ret == -1)
 				ret = errno;
 			else
