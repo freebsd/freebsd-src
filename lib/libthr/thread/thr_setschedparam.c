@@ -78,6 +78,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 		     pthread->attr.prio == param->sched_priority)) {
 			pthread->attr.prio = param->sched_priority;
 			THR_THREAD_UNLOCK(curthread, pthread);
+			_thr_ref_delete(curthread, pthread);
 			return (0);
 		}
 		ret = _thr_setscheduler(pthread->tid, policy, param);
