@@ -70,12 +70,13 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 
 /* Request codes */
 #define	USLCOM_UART		0x00
-#define	USLCOM_BAUD_RATE	0x01	
+#define	USLCOM_SET_BAUD_DIV	0x01	
 #define	USLCOM_DATA		0x03
 #define	USLCOM_BREAK		0x05
 #define	USLCOM_CTRL		0x07
 #define	USLCOM_RCTRL            0x08
 #define	USLCOM_SET_FLOWCTRL     0x13
+#define	USLCOM_SET_BAUD_RATE	0x1e	
 #define	USLCOM_VENDOR_SPECIFIC	0xff
 
 /* USLCOM_UART values */
@@ -92,8 +93,8 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 #define	USLCOM_CTRL_RI          0x0040
 #define	USLCOM_CTRL_DCD		0x0080
 
-/* USLCOM_BAUD_RATE values */
-#define	USLCOM_BAUD_REF		0x384000
+/* USLCOM_SET_BAUD_DIV values */
+#define	USLCOM_BAUD_REF		3686400 /* 3.6864 MHz */
 
 /* USLCOM_DATA values */
 #define	USLCOM_STOP_BITS_1	0x00
@@ -511,19 +512,20 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
-	uint32_t flowctrl[4];
+	uint32_t baudrate, flowctrl[4];
 	uint16_t data;
 
 	DPRINTF("\n");
 
+	baudrate = t->c_ospeed;
 	req.bmRequestType = USLCOM_WRITE;
-	req.bRequest = USLCOM_BAUD_RATE;
-	USETW(req.wValue, USLCOM_BAUD_REF / t->c_ospeed);
+	req.bRequest = USLCOM_SET_BAUD_RATE;
+	USETW(req.wValue, 0);
 	USETW(req.wIndex, USLCOM_PORT_NO);
-	USETW(req.wLength, 0);
+	USETW(req.wLength, sizeof(baudrate));
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
-	    &req, NULL, 0, 1000)) {
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, &baudrate, 0, 1000)) {
 		DPRINTF("Set baudrate failed (ignored)\n");
 	}
 
