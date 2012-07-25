@@ -1550,13 +1550,6 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	u32			txd_upper, txd_lower, txd_used, txd_saved;
 	int			error, nsegs, i, j, first, last = 0;
 
-extern int netmap_drop;
-	if (netmap_drop == 95) {
-dropme:
-			m_freem(*m_headp);
-			*m_headp = NULL;
-			return (ENOBUFS);
-	}
 	m_head = *m_headp;
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
 
@@ -1696,9 +1689,6 @@ dropme:
 		}
 	}
 
-	if (netmap_drop == 96)
-		goto dropme;
-
 	adapter->next_avail_tx_desc = i;
 
 	if (adapter->pcix_82544)
@@ -1726,16 +1716,6 @@ dropme:
          */
         ctxd->lower.data |=
 	    htole32(E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS);
-
-if (netmap_drop == 97) {
-	static int count=0;
-	if (count++ & 63 != 0)
-		 ctxd->lower.data &=
-            ~htole32(E1000_TXD_CMD_RS);
-	else
-		D("preserve RS");
-
-}
 	/*
 	 * Keep track in the first buffer which
 	 * descriptor will be written back
@@ -1754,12 +1734,6 @@ if (netmap_drop == 97) {
 	    adapter->link_duplex == HALF_DUPLEX)
 		lem_82547_move_tail(adapter);
 	else {
-extern int netmap_repeat;
-		if (netmap_repeat) {
-			int x;
-			for (x = 0; x < netmap_repeat; x++)
-				E1000_WRITE_REG(&adapter->hw, E1000_TDT(0), i);
-		}
 		E1000_WRITE_REG(&adapter->hw, E1000_TDT(0), i);
 		if (adapter->hw.mac.type == e1000_82547)
 			lem_82547_update_fifo_head(adapter,
@@ -3013,13 +2987,6 @@ lem_txeof(struct adapter *adapter)
 		return;
 	}
 #endif /* DEV_NETMAP */
-{
-	static int drops = 0;
-	if (netmap_copy && drops++ < netmap_copy)
-		return;
-	drops = 0;
-}
-
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
                 return;
 
