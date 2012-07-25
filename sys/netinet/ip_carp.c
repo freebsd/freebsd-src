@@ -1027,23 +1027,31 @@ carp_send_na(struct carp_softc *sc)
 	}
 }
 
+/*
+ * Returns ifa in case it's a carp address and it is MASTER, or if the address
+ * matches and is not a carp address.  Returns NULL otherwise.
+ */
 struct ifaddr *
 carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 {
 	struct ifaddr *ifa;
 
+	ifa = NULL;
 	IF_ADDR_RLOCK(ifp);
-	IFNET_FOREACH_IFA(ifp, ifa)
-		if (ifa->ifa_addr->sa_family == AF_INET6 &&
-		    ifa->ifa_carp->sc_state == MASTER &&
-		    IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa))) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		if (!IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa)))
+			continue;
+		if (ifa->ifa_carp && ifa->ifa_carp->sc_state != MASTER)
+			ifa = NULL;
+		else
 			ifa_ref(ifa);
-			IF_ADDR_RUNLOCK(ifp);
-			return (ifa);
-		}
+		break;
+	}
 	IF_ADDR_RUNLOCK(ifp);
 
-	return (NULL);
+	return (ifa);
 }
 
 caddr_t
