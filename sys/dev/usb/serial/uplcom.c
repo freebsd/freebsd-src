@@ -279,6 +279,7 @@ static const STRUCT_USB_HOST_ID uplcom_devs[] = {
 	UPLCOM_DEV(PROLIFIC, DCU11),		/* DCU-11 Phone Cable */
 	UPLCOM_DEV(PROLIFIC, HCR331),		/* HCR331 Card Reader */
 	UPLCOM_DEV(PROLIFIC, MICROMAX_610U),	/* Micromax 610U modem */
+	UPLCOM_DEV(PROLIFIC, MOTOROLA),		/* Motorola cable */
 	UPLCOM_DEV(PROLIFIC, PHAROS),		/* Prolific Pharos */
 	UPLCOM_DEV(PROLIFIC, PL2303),		/* Generic adapter */
 	UPLCOM_DEV(PROLIFIC, RSAQ2),		/* I/O DATA USB-RSAQ2 */
