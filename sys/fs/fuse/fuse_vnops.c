@@ -871,19 +871,19 @@ calldaemon:
 			if (nid == VTOI(dvp)) {
 				vref(dvp);
 				*vpp = dvp;
-				goto out;
+			} else {
+				err = fuse_vnode_get(dvp->v_mount, nid, dvp,
+				    &vp, cnp, IFTOVT(fattr->mode));
+				if (err)
+					goto out;
+				*vpp = vp;
 			}
-			err = fuse_vnode_get(dvp->v_mount,
-			    nid,
-			    dvp,
-			    &vp,
-			    cnp,
-			    IFTOVT(fattr->mode));
-			if (err) {
-				goto out;
-			}
-			*vpp = vp;
 
+			/*
+			 * Save the name for use in VOP_RMDIR and VOP_REMOVE
+			 * later.
+			 */
+			cnp->cn_flags |= SAVENAME;
 			goto out;
 
 		}
