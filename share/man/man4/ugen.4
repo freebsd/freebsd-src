@@ -36,26 +36,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd July 22, 2012
 .Dt UGEN 4
 .Os
 .Sh NAME
 .Nm ugen
 .Nd USB generic device support
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device ugen"
-.Ed
-.Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-ugen_load="YES"
-.Ed
+.Nm
+is integrated into the
+.Xr usb 4
+kernel module.
 .Sh DESCRIPTION
 The
 .Nm
@@ -72,22 +63,22 @@ bulk, or interrupt.
 Each of the endpoints will have a different
 device node.
 The four least significant bits in the minor device
-number determines which endpoint the device accesses and the rest
-of the bits determines which USB device.
+number determine which endpoint the device accesses, and the rest
+of the bits determine which USB device.
 .Pp
-If an endpoint address is used both for input and output the device
+If an endpoint address is used both for input and output, the device
 can be opened for both read or write.
 .Pp
-To find out what endpoints that exist there are a series of
+To find out which endpoints exist, there are a series of
 .Xr ioctl 2
-operation on the control endpoint that returns the USB descriptors
+operations on the control endpoint that return the USB descriptors
 of the device, configurations, interfaces, and endpoints.
 .Pp
 The control transfer mode can only happen on the control endpoint
 which is always endpoint 0.
-The control endpoint accepts request
-and may respond with an answer to such request.
-Control request
+The control endpoint accepts a request
+and may respond with an answer to such a request.
+Control requests
 are issued by
 .Xr ioctl 2
 calls.
@@ -136,8 +127,8 @@ Normally a transfer from the device
 which is shorter than the request specified is reported as an
 error.
 .It Dv USB_SET_TIMEOUT Pq Vt int
-Set the timeout on the device operations, the time is specified
-in milliseconds.
+Set the timeout on the device operations
+The time is specified in milliseconds.
 The value 0 is used to indicate that there is
 no timeout.
 .El
@@ -183,7 +174,7 @@ field.
 Return the device descriptor.
 .It Dv USB_GET_CONFIG_DESC Pq Vt "struct usb_config_desc"
 Return the descriptor for the configuration with the given index.
-For convenience the current configuration can be specified by
+For convenience, the current configuration can be specified by
 .Dv USB_CURRENT_CONFIG_INDEX .
 .Bd -literal
 struct usb_config_desc {
@@ -194,7 +185,7 @@ struct usb_config_desc {
 .It Dv USB_GET_INTERFACE_DESC Pq Vt "struct usb_interface_desc"
 Return the interface descriptor for an interface specified by its
 configuration index, interface index, and alternative index.
-For convenience the current alternative can be specified by
+For convenience, the current alternative can be specified by
 .Dv USB_CURRENT_ALT_INDEX .
 .Bd -literal
 struct usb_interface_desc {
@@ -258,7 +249,7 @@ field is ignored in this call.
 The
 .Va ucr_flags
 field can be used to flag that the request is allowed to
-be shorter than the requested size, and the
+be shorter than the requested size, and
 .Va ucr_actlen
 will contain the actual size on completion.
 .Bd -literal
@@ -277,18 +268,17 @@ Some of the most dangerous (e.g., changing the device
 address) are not allowed.
 .It Dv USB_GET_DEVICEINFO Pq Vt "struct usb_device_info"
 Get an information summary for the device.
-This call will not
-issue any USB transactions.
+This call will not issue any USB transactions.
 .El
 .Pp
-Note that there are two different ways of addressing configurations, interfaces,
-alternatives, and endpoints: by index or by number.
+Note that there are two different ways of addressing configurations,
+interfaces, alternatives, and endpoints: by index or by number.
 The index is the ordinal number (starting from 0) of the descriptor
 as presented by the device.
 The number is the respective number of
 the entity as found in its descriptor.
 Enumeration of descriptors
-use the index, getting and setting typically uses numbers.
+uses the index, getting and setting typically uses numbers.
 .Pp
 Example:
 all endpoints (except the control endpoint) for the current configuration
@@ -296,13 +286,13 @@ can be found by iterating the
 .Va interface_index
 from 0 to
 .Va config_desc->bNumInterface Ns \-1
-and for each of these iterating the
+and for each of these, iterating the
 .Va endpoint_index
 from 0 to
 .Va interface_desc->bNumEndpoints .
 The
 .Va config_index
-should set to
+should be set to
 .Dv USB_CURRENT_CONFIG_INDEX
 and
 .Va alt_index
