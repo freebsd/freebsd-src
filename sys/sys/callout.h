@@ -48,7 +48,7 @@
 #define	CALLOUT_SHAREDLOCK	0x0020 /* callout lock held in shared mode */
 #define	CALLOUT_DFRMIGRATION	0x0040 /* callout in deferred migration mode */
 #define	CALLOUT_PROCESSED	0x0080 /* callout in wheel or processing list? */
-#define	CALLOUT_DIRECT 		0x1000 /* allow exec from hw int context */
+#define	CALLOUT_DIRECT 		0x0100 /* allow exec from hw int context */
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_P1S			0x0002 /* fields related to precision */ 
