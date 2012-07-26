@@ -2,7 +2,7 @@
 
 # Atmel AT45DB21D
 hint.at45d.0.at="spibus0"
-hint.at45d.0.addr=0x00
+hint.at45d.0.cs=0
 # user 132 kbytes
 hint.map.0.at="flash/spi0"
 hint.map.0.start=0x00000000
