@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
+/* XXX Prevent gcc from erroneously constant folding this: */
 static volatile const long double twom10000 = 0x1p-10000L, tiny = 0x1p-10000L;
 
 static const long double
@@ -57,12 +58,12 @@ P9 = 2.75573192240103867817876199544468806e-6L,
 P10 = 2.75573236172670046201884000197885520e-7L,
 P11 = 2.50517544183909126492878226167697856e-8L;
 
-#define	NUM		128
+#define	INTERVALS		128
 
 static const struct {
 	long double	hi;
 	long double	lo;
-} s[NUM] = {
+} s[INTERVALS] = {
 	0x1p0L, 0x0p0L,
 	0x1.0163da9fb33356d84a66aep0L, 0x3.36dcdfa4003ec04c360be2404078p-92L,
 	0x1.02c9a3e778060ee6f7cacap0L, 0x4.f7a29bde93d70a2cabc5cb89ba10p-92L,
@@ -226,8 +227,8 @@ expl(long double x)
 
 	fn = x * INV_L + 0x1.8p112 - 0x1.8p112;
 	n  = (int)fn;
-	n2 = (unsigned)n % NUM;		/* Tang's j. */
-	k = (n - n2) / NUM;
+	n2 = (unsigned)n % INTERVALS;		/* Tang's j. */
+	k = (n - n2) / INTERVALS;
 	r1 = x - fn * L1;
 	r2 = -fn * L2;
 
