@@ -220,7 +220,11 @@ struct nm_bridge nm_bridges[NM_BRIDGES];
 #ifndef linux
 static inline void prefetch (const void *x)
 {
+#if defined(__i386__) || defined(__amd64__)
         __asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
+#else
+	(void)x;
+#endif
 }
 #endif /* !linux */
 
