@@ -29,12 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <float.h>
 
+#include "fpmath.h"
 #include "math.h"
 #include "math_private.h"
-#include "fpmath.h"
 
 #define	BIAS	(LDBL_MAX_EXP - 1)
-#define	EXPMASK	(BIAS + LDBL_MAX_EXP)
 
 static volatile const long double twom10000 = 0x1p-10000L, tiny = 0x1p-10000L;
 
@@ -205,7 +204,7 @@ expl(long double x)
 	/* Filter out exceptional cases. */
 	u.e = x;
 	hx = u.xbits.expsign;
-	ix = hx & EXPMASK;
+	ix = hx &  0x7fff;
 	if (ix >= BIAS + 13) {		/* |x| >= 8192 or x is NaN */
 		if (ix == BIAS + LDBL_MAX_EXP) {
 			if (u.xbits.manh != 0
