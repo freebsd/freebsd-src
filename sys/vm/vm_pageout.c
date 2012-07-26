@@ -889,6 +889,12 @@ vm_pageout_scan(int pass)
 	 */
 	uma_reclaim();
 
+	/*
+	 * The addl_page_shortage is the the number of temporarily
+	 * stuck pages in the inactive queue.  In other words, the
+	 * number of pages from cnt.v_inactive_count that should be
+	 * discounted in setting the target for the active queue scan.
+	 */
 	addl_page_shortage = atomic_readandclear_int(&vm_pageout_deficit);
 
 	/*
@@ -945,38 +951,31 @@ vm_pageout_scan(int pass)
 		    ("Unmanaged page %p cannot be in inactive queue", m));
 
 		/*
-		 * Lock the page.
+		 * The page or object lock acquisitions fail if the
+		 * page was removed from the queue or moved to a
+		 * different position within the queue.  In either
+		 * case, addl_page_shortage should not be incremented.
 		 */
 		if (!vm_pageout_page_lock(m, &next)) {
 			vm_page_unlock(m);
-			addl_page_shortage++;
 			continue;
 		}
-
-		/*
-		 * A held page may be undergoing I/O, so skip it.
-		 */
-		if (m->hold_count) {
-			vm_page_unlock(m);
-			vm_page_requeue(m);
-			addl_page_shortage++;
-			continue;
-		}
-
-		/*
-		 * Don't mess with busy pages, keep in the front of the
-		 * queue, most likely are being paged out.
-		 */
 		object = m->object;
 		if (!VM_OBJECT_TRYLOCK(object) &&
-		    (!vm_pageout_fallback_object_lock(m, &next) ||
-		    m->hold_count != 0)) {
-			VM_OBJECT_UNLOCK(object);
+		    !vm_pageout_fallback_object_lock(m, &next)) {
 			vm_page_unlock(m);
-			addl_page_shortage++;
+			VM_OBJECT_UNLOCK(object);
 			continue;
 		}
-		if (m->busy || (m->oflags & VPO_BUSY)) {
+
+		/*
+		 * Don't mess with busy pages, keep them at at the
+		 * front of the queue, most likely they are being
+		 * paged out.  Increment addl_page_shortage for busy
+		 * pages, because they may leave the inactive queue
+		 * shortly after page scan is finished.
+		 */
+		if (m->busy != 0 || (m->oflags & VPO_BUSY) != 0) {
 			vm_page_unlock(m);
 			VM_OBJECT_UNLOCK(object);
 			addl_page_shortage++;
@@ -1033,6 +1032,21 @@ vm_pageout_scan(int pass)
 			vm_page_unlock(m);
 			m->act_count += actcount + ACT_ADVANCE + 1;
 			VM_OBJECT_UNLOCK(object);
+			goto relock_queues;
+		}
+
+		if (m->hold_count != 0) {
+			vm_page_unlock(m);
+			VM_OBJECT_UNLOCK(object);
+
+			/*
+			 * Held pages are essentially stuck in the
+			 * queue.  So, they ought to be discounted
+			 * from cnt.v_inactive_count.  See the
+			 * calculation of the page_shortage for the
+			 * loop over the active queue below.
+			 */
+			addl_page_shortage++;
 			goto relock_queues;
 		}
 
