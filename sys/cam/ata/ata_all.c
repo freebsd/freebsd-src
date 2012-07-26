@@ -334,7 +334,7 @@ ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
 	ataio->cmd.lba_low = lba;
 	ataio->cmd.lba_mid = lba >> 8;
 	ataio->cmd.lba_high = lba >> 16;
-	ataio->cmd.device = 0x40 | ((lba >> 24) & 0x0f);
+	ataio->cmd.device = ATA_DEV_LBA | ((lba >> 24) & 0x0f);
 	ataio->cmd.sector_count = sector_count;
 }
 
@@ -359,7 +359,7 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 	ataio->cmd.lba_low = lba;
 	ataio->cmd.lba_mid = lba >> 8;
 	ataio->cmd.lba_high = lba >> 16;
-	ataio->cmd.device = 0x40;
+	ataio->cmd.device = ATA_DEV_LBA;
 	ataio->cmd.lba_low_exp = lba >> 24;
 	ataio->cmd.lba_mid_exp = lba >> 32;
 	ataio->cmd.lba_high_exp = lba >> 40;
@@ -379,7 +379,7 @@ ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
 	ataio->cmd.lba_low = lba;
 	ataio->cmd.lba_mid = lba >> 8;
 	ataio->cmd.lba_high = lba >> 16;
-	ataio->cmd.device = 0x40;
+	ataio->cmd.device = ATA_DEV_LBA;
 	ataio->cmd.lba_low_exp = lba >> 24;
 	ataio->cmd.lba_mid_exp = lba >> 32;
 	ataio->cmd.lba_high_exp = lba >> 40;
