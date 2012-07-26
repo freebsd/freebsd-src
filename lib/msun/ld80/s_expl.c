@@ -45,13 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <ieeefp.h>
 #endif
 
-#include "math.h"
-#define	FPSETPREC
-#ifdef NO_FPSETPREC
-#undef FPSETPREC
-#endif
-#include "math_private.h"
 #include "fpmath.h"
+#include "math.h"
+#include "math_private.h"
 
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
