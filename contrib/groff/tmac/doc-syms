@@ -814,7 +814,6 @@
 .ds doc-str-Lb-librt       \*[Px] \*[doc-str-Lb]Real-time Library (librt, \-lrt)
 .ds doc-str-Lb-libsdp      Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
 .ds doc-str-Lb-libssp      Buffer Overflow Protection Library (libssp, \-lssp)
-.ds doc-str-Lb-libstdthreads C11 Threads Library (libstdthreads, \-lstdthreads)
 .ds doc-str-Lb-libSystem   System Library (libSystem, \-lSystem)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
 .ds doc-str-Lb-libterminfo Terminal Information Library (libterminfo, \-lterminfo)
