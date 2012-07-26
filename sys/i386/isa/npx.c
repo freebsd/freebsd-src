@@ -378,7 +378,7 @@ npxexit(td)
 
 	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread))
-		npxsave(PCPU_GET(curpcb)->pcb_save);
+		npxsave(curpcb->pcb_save);
 	critical_exit();
 #ifdef NPX_DEBUG
 	if (hw_float) {
@@ -663,7 +663,6 @@ static int err_count = 0;
 int
 npxdna(void)
 {
-	struct pcb *pcb;
 
 	if (!hw_float)
 		return (0);
@@ -687,25 +686,24 @@ npxdna(void)
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
 	PCPU_SET(fpcurthread, curthread);
-	pcb = PCPU_GET(curpcb);
 
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
 		fpu_clean_state();
 #endif
 
-	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
+	if ((curpcb->pcb_flags & PCB_NPXINITDONE) == 0) {
 		/*
 		 * This is the first time this thread has used the FPU or
 		 * the PCB doesn't contain a clean FPU state.  Explicitly
 		 * load an initial state.
 		 */
 		fpurstor(&npx_initialstate);
-		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
-			fldcw(pcb->pcb_initial_npxcw);
-		pcb->pcb_flags |= PCB_NPXINITDONE;
-		if (PCB_USER_FPU(pcb))
-			pcb->pcb_flags |= PCB_NPXUSERINITDONE;
+		if (curpcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
+			fldcw(curpcb->pcb_initial_npxcw);
+		curpcb->pcb_flags |= PCB_NPXINITDONE;
+		if (PCB_USER_FPU(curpcb))
+			curpcb->pcb_flags |= PCB_NPXUSERINITDONE;
 	} else {
 		/*
 		 * The following fpurstor() may cause an IRQ13 when the
@@ -721,7 +719,7 @@ npxdna(void)
 		 * fnclex if it is the first FPU instruction after a context
 		 * switch.
 		 */
-		fpurstor(pcb->pcb_save);
+		fpurstor(curpcb->pcb_save);
 	}
 	critical_exit();
 
@@ -1099,13 +1097,14 @@ fpu_kern_thread(u_int flags)
 {
 	struct pcb *pcb;
 
-	pcb = PCPU_GET(curpcb);
+	pcb = curpcb;
 	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
 	    ("Only kthread may use fpu_kern_thread"));
-	KASSERT(pcb->pcb_save == &pcb->pcb_user_save, ("mangled pcb_save"));
-	KASSERT(PCB_USER_FPU(pcb), ("recursive call"));
+	KASSERT(curpcb->pcb_save == &curpcb->pcb_user_save,
+	    ("mangled pcb_save"));
+	KASSERT(PCB_USER_FPU(curpcb), ("recursive call"));
 
-	pcb->pcb_flags |= PCB_KERNNPX;
+	curpcb->pcb_flags |= PCB_KERNNPX;
 	return (0);
 }
 
@@ -1115,5 +1114,5 @@ is_fpu_kern_thread(u_int flags)
 
 	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
 		return (0);
-	return ((PCPU_GET(curpcb)->pcb_flags & PCB_KERNNPX) != 0);
+	return ((curpcb->pcb_flags & PCB_KERNNPX) != 0);
 }
