@@ -493,7 +493,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-Aclnx] [-H | -L | -P] [-h | -k | -m ] "
+		"usage: du [-Aclnx] [-H | -L | -P] [-g | -h | -k | -m] "
 		"[-a | -s | -d depth] [-B blocksize] [-I mask] "
 		"[-t threshold] [file ...]\n");
 	exit(EX_USAGE);
