@@ -162,7 +162,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
-	KASSERT(timo != 0 || mtx_owned(&Giant) || lock != NULL,
+	KASSERT(timo != 0 || bt != NULL || mtx_owned(&Giant) || lock != NULL,
 	    ("sleeping without a lock"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
@@ -242,9 +242,9 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 		lock_state = class->lc_unlock(lock);
 		sleepq_lock(ident);
 	}
-	if ((timo || bt) && catch)
+	if ((timo != 0 || bt != NULL) && catch)
 		rval = sleepq_timedwait_sig(ident, pri);
-	else if (timo || bt)
+	else if (timo != 0 || bt != NULL)
 		rval = sleepq_timedwait(ident, pri);
 	else if (catch)
 		rval = sleepq_wait_sig(ident, pri);

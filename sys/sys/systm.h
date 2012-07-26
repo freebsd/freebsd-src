@@ -356,6 +356,8 @@ int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo)
 int	pause(const char *wmesg, int timo);
 #define	tsleep(chan, pri, wmesg, timo)					\
 	_sleep((chan), NULL, (pri), (wmesg), (timo), NULL, 0)
+#define	tsleep_bt(chan, pri, wmesg, bt, flags)				\
+	_sleep((chan), NULL, (pri), (wmesg), 0, (bt), (flags))
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
 
