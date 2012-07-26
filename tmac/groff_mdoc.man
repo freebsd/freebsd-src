@@ -2036,6 +2036,8 @@ are:
 .St -isoC-90
 .It Li \-isoC\-99
 .St -isoC-99
+.It Li \-isoC\-2011
+.St -isoC-2011
 .El
 .Pp
 .

@@ -605,6 +605,8 @@
 .ds doc-str-St--isoC           \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1990
 .as doc-str-St--isoC           " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^90\*[doc-str-St]\*[Rq])
 .als doc-str-St--isoC-90 doc-str-St--isoC
+.ds doc-str-St--isoC-2011      \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:2011
+.as doc-str-St--isoC-2011      " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^11\*[doc-str-St]\*[Rq])
 .ds doc-str-St--isoC-99        \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1999
 .as doc-str-St--isoC-99        " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^99\*[doc-str-St]\*[Rq])
 .ds doc-str-St--isoC-amd1       \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899/AMD1:1995
@@ -659,7 +661,7 @@
 .as doc-str-St--susv3          " (\*[Lq]\*[doc-Tn-font-size]SUSv3\*[doc-str-St]\*[Rq])
 .ds doc-str-St--svid4          System\~V Interface Definition, Fourth Edition
 .as doc-str-St--svid4          " (\*[Lq]\*[doc-Tn-font-size]SVID\*[doc-str-St]\^4\*[Rq])
-.ds doc-str-St--xbd5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] System Interface Definitions Issue\~5
+.ds doc-str-St--xbd5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Base Definitions Issue\~5
 .as doc-str-St--xbd5           " (\*[Lq]\*[doc-Tn-font-size]XBD\*[doc-str-St]\^5\*[Rq])
 .ds doc-str-St--xcu5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Commands and Utilities Issue\~5
 .as doc-str-St--xcu5           " (\*[Lq]\*[doc-Tn-font-size]XCU\*[doc-str-St]\^5\*[Rq])
