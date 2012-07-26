@@ -46,4 +46,5 @@ arm/at91/board_qila9g20.c	optional	at91_board_qila9g20
 arm/at91/board_sam9260ek.c	optional	at91_board_sam9260ek
 arm/at91/board_sam9g20ek.c	optional	at91_board_sam9g20ek
 arm/at91/board_sam9x25ek.c	optional	at91_board_sam9x25ek
+arm/at91/board_sn9g45.c 	optional	at91_board_sn9g45
 arm/at91/board_tsc4370.c	optional	at91_board_tsc4370
