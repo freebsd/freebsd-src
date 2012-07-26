@@ -679,11 +679,11 @@ netmap_if_new(const char *ifname, struct netmap_adapter *na)
 #ifdef linux
 	// XXX initialize the selrecord structs.
 	for (i = 0; i < ntx; i++)
-		init_waitqueue_head(&na->rx_rings[i].si);
-	for (i = 0; i < nrx; i++)
 		init_waitqueue_head(&na->tx_rings[i].si);
-	init_waitqueue_head(&na->rx_si);
+	for (i = 0; i < nrx; i++)
+		init_waitqueue_head(&na->rx_rings[i].si);
 	init_waitqueue_head(&na->tx_si);
+	init_waitqueue_head(&na->rx_si);
 #endif
 final:
 	/*
