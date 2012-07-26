@@ -39,11 +39,10 @@ hint.map.4.end=0x0083ffff
 hint.map.4.name="fs"
 #hint.map.4.readonly=1
 
-# EEPROM
+# EEPROM at24c512 - 512kbit 65,536x8 memory
 hint.icee.0.at="iicbus0"
 hint.icee.0.addr=0xa0
 hint.icee.0.type=16
 hint.icee.0.size=65536
-hint.icee.0.rd_sz=256
-hint.icee.0.wr_sz=256
-
+hint.icee.0.rd_sz=128
+hint.icee.0.wr_sz=128
