@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
  *   in IEEE floating-point arithmetic," ACM Trans. Math. Soft., 15,
  *   144-157 (1989).
  *
- * where the 32 table entries have been expanded to NUM (see below).
+ * where the 32 table entries have been expanded to INTERVALS (see below).
  */
 
 #include <float.h>
@@ -65,9 +65,9 @@ u_threshold = LD80C(0xb21dfe7f09e2baa9, 13, 1, -11399.4985314888605581L);
 
 static const double __aligned(64)
 /*
- * ln2/NUM = L1+L2 (hi+lo decomposition for multiplication).  L1 must have
- * at least 22 (= log2(|LDBL_MIN_EXP-extras|) + log2(NUM)) lowest bits zero
- * so that multiplication of it by n is exact.
+ * ln2/INTERVALS = L1+L2 (hi+lo decomposition for multiplication).  L1 must
+ * have at least 22 (= log2(|LDBL_MIN_EXP-extras|) + log2(INTERVALS)) lowest
+ * bits zero so that multiplication of it by n is exact.
  */
 L1 =  5.4152123484527692e-3,		/*  0x162e42ff000000.0p-60 */
 L2 = -3.2819649005320973e-13,		/* -0x1718432a1b0e26.0p-94 */
@@ -75,7 +75,7 @@ INV_L = 1.8466496523378731e+2,		/*  0x171547652b82fe.0p-45 */
 /*
  * Domain [-0.002708, 0.002708], range ~[-5.7136e-24, 5.7110e-24]:
  * |exp(x) - p(x)| < 2**-77.2
- * (0.002708 is ln2/(2*NUM) rounded up a little).
+ * (0.002708 is ln2/(2*INTERVALS) rounded up a little).
  */
 P2 =  0.5,
 P3 =  1.6666666666666119e-1,		/*  0x15555555555490.0p-55 */
@@ -84,16 +84,16 @@ P5 =  8.3333354987869413e-3,		/*  0x1111115b789919.0p-59 */
 P6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
 
 /*
- * 2^(i/NUM) for i in [0,NUM] is represented by two values where the
- * first 47 (?!) bits of the significand is stored in hi and the next 53
+ * 2^(i/INTERVALS) for i in [0,INTERVALS] is represented by two values where
+ * the first 47 (?!) bits of the significand is stored in hi and the next 53
  * bits are in lo.
  */
-#define	NUM		128
+#define	INTERVALS		128
 
 static const struct {
 	double	hi;
 	double	lo;
-} s[NUM] __aligned(16) = {
+} s[INTERVALS] __aligned(16) = {
 	0x1p+0, 0x0p+0,
 	0x1.0163da9fb330p+0, 0x1.ab6c25335719bp-47,
 	0x1.02c9a3e77804p+0, 0x1.07737be56527cp-47,
@@ -265,8 +265,8 @@ expl(long double x)
 #else
 	n  = (int)fn;
 #endif
-	n2 = (unsigned)n % NUM;		/* Tang's j. */
-	k = (n - n2) / NUM;
+	n2 = (unsigned)n % INTERVALS;		/* Tang's j. */
+	k = (n - n2) / INTERVALS;
 	r1 = x - fn * L1;
 	r2 = -fn * L2;
 
