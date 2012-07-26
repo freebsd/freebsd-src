@@ -42,6 +42,7 @@
 .ds doc-str-Lb-libproc     Processor Monitoring and Analysis Library (libproc, \-lproc)
 .ds doc-str-Lb-libprocstat Process and Files Information Retrieval (libprocstat, \-lprocstat)
 .ds doc-str-Lb-librtld_db  Run-time Linker Debugging Library (librtld_db, \-lrtld_db)
+.ds doc-str-Lb-libstdthreads C11 Threads Library (libstdthreads, \-lstdthreads)
 .
 .\" Default .Os value
 .ds doc-default-operating-system FreeBSD\~10.0
