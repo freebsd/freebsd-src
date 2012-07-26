@@ -17,12 +17,12 @@
 #
 # $FreeBSD$
 
-ident		ETHERNUT5
+ident		SAM9260EK
 
-include "../at91/std.ethernut5"
+include "../at91/std.sam9260ek"
 
 # To statically compile in device wiring instead of /boot/device.hints
-hints		"ETHERNUT5.hints"
+hints		"SAM9260EK.hints"
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
@@ -103,13 +103,13 @@ device		bpf		# Berkeley packet filter
 
 # Ethernet
 device		mii		# Minimal MII support
-device		ate		# Atmel AT91 Ethernet friver
+device		ate		# Atmel AT91 Ethernet driver
 
 # I2C
 device		at91_twi	# Atmel AT91 Two-wire Interface
 device		iic		# I2C generic I/O device driver
 device		iicbus		# I2C bus system
-device		pcf8563		# NXP PCF8563 clock/calendar
+device		icee		# I2C eeprom
 
 # MMC/SD
 device		at91_mci	# Atmel AT91 Multimedia Card Interface
