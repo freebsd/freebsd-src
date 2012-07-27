@@ -1,32 +1,6 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * $FreeBSD$
- */
-/*-
- * Copyright (c) 2011 LSI Corp.
+ * Copyright (c) 2011, 2012 LSI Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,7 +32,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"13.00.00.00-fbsd"
+#define MPS_DRIVER_VERSION	"14.00.00.01-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -79,6 +53,8 @@
 
 #define MPS_SCSI_RI_INVALID_FRAME	(0x00000002)
 #define MPS_STRING_LENGTH               64
+
+#include <sys/endian.h>
 
 /*
  * host mapping related macro definitions
@@ -276,7 +252,7 @@ struct mps_event_handle {
 	TAILQ_ENTRY(mps_event_handle)	eh_list;
 	mps_evt_callback_t		*callback;
 	void				*data;
-	uint8_t				mask[16];
+	u32				mask[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 };
 
 struct mps_softc {
@@ -333,7 +309,7 @@ struct mps_softc {
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
 
-	uint8_t				event_mask[16];
+	u32             event_mask[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 	TAILQ_HEAD(, mps_event_handle)	event_list;
 	struct mps_event_handle		*mps_log_eh;
 
@@ -422,8 +398,10 @@ struct mps_softc {
 #define	MPS_DIAG_RESET_TIMEOUT	300000
 	uint8_t				wait_for_port_enable;
 	uint8_t				port_enable_complete;
+	uint8_t				msleep_fake_chan;
 
 	/* WD controller */
+	uint8_t             WD_available;
 	uint8_t				WD_valid_config;
 	uint8_t				WD_hide_expose;
 
@@ -469,12 +447,15 @@ mps_regwrite(struct mps_softc *sc, uint32_t offset, uint32_t val)
 	bus_space_write_4(sc->mps_btag, sc->mps_bhandle, offset, val);
 }
 
+/* free_queue must have Little Endian address 
+ * TODO- cm_reply_data is unwanted. We can remove it.
+ * */
 static __inline void
 mps_free_reply(struct mps_softc *sc, uint32_t busaddr)
 {
 	if (++sc->replyfreeindex >= sc->fqdepth)
 		sc->replyfreeindex = 0;
-	sc->free_queue[sc->replyfreeindex] = busaddr;
+	sc->free_queue[sc->replyfreeindex] = htole32(busaddr);
 	mps_regwrite(sc, MPI2_REPLY_FREE_HOST_INDEX_OFFSET, sc->replyfreeindex);
 }
 
@@ -640,6 +621,9 @@ do {								\
 #define MPS_EVENTFIELD(sc, facts, attr, fmt)	\
 	mps_dprint_field((sc), MPS_EVENT, #attr ": " #fmt "\n", (facts)->attr)
 
+#define  CAN_SLEEP                      1
+#define  NO_SLEEP                       0
+
 static __inline void
 mps_from_u64(uint64_t data, U64 *mps)
 {
@@ -682,11 +666,11 @@ int mps_free(struct mps_softc *sc);
 void mps_intr(void *);
 void mps_intr_msi(void *);
 void mps_intr_locked(void *);
-int mps_register_events(struct mps_softc *, uint8_t *, mps_evt_callback_t *,
+int mps_register_events(struct mps_softc *, u32 *, mps_evt_callback_t *,
     void *, struct mps_event_handle **);
 int mps_restart(struct mps_softc *);
-int mps_update_events(struct mps_softc *, struct mps_event_handle *, uint8_t *);
-int mps_deregister_events(struct mps_softc *, struct mps_event_handle *);
+int mps_update_events(struct mps_softc *, struct mps_event_handle *, u32 *);
+void mps_deregister_events(struct mps_softc *, struct mps_event_handle *);
 int mps_push_sge(struct mps_command *, void *, size_t, int);
 int mps_add_dmaseg(struct mps_command *, vm_paddr_t, size_t, u_int, int);
 int mps_attach_sas(struct mps_softc *sc);
@@ -778,5 +762,21 @@ SYSCTL_DECL(_hw_mps);
 #else
 #define MPS_PRIORITY_XPT	5
 #endif
+
+#if __FreeBSD_version < 800107
+// Prior to FreeBSD-8.0 scp3_flags was not defined.
+#define spc3_flags reserved
+
+#define SPC3_SID_PROTECT    0x01
+#define SPC3_SID_3PC        0x08
+#define SPC3_SID_TPGS_MASK  0x30
+#define SPC3_SID_TPGS_IMPLICIT  0x10
+#define SPC3_SID_TPGS_EXPLICIT  0x20
+#define SPC3_SID_ACC        0x40
+#define SPC3_SID_SCCS       0x80
+
+#define CAM_PRIORITY_NORMAL CAM_PRIORITY_NONE
+#endif
+
 #endif
 

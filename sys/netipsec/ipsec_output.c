@@ -165,8 +165,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 */
 	if (isr->next) {
 		V_ipsec4stat.ips_out_bundlesa++;
-		sav = isr->next->sav;
-		saidx = &sav->sah->saidx;
+		/* XXX-BZ currently only support same AF bundles. */
 		switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 		case AF_INET:

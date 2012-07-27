@@ -93,6 +93,21 @@ MODULE_DEPEND(xhci, usb, 1, 1, 1);
 static const char *
 xhci_pci_match(device_t self)
 {
+	uint32_t device_id = pci_get_devid(self);
+
+	switch (device_id) {
+	case 0x01941033:
+		return ("NEC uPD720200 USB 3.0 controller");
+
+	case 0x1e318086:
+		return ("Intel Panther Point USB 3.0 controller");
+	case 0x8c318086:
+		return ("Intel Lynx Point USB 3.0 controller");
+
+	default:
+		break;
+	}
+
 	if ((pci_get_class(self) == PCIC_SERIALBUS)
 	    && (pci_get_subclass(self) == PCIS_SERIALBUS_USB)
 	    && (pci_get_progif(self) == PCIP_SERIALBUS_USB_XHCI)) {
@@ -232,6 +247,7 @@ static int
 xhci_pci_take_controller(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
+	uint32_t device_id = pci_get_devid(self);
 	uint32_t cparams;
 	uint32_t eecp;
 	uint32_t eec;
@@ -272,5 +288,13 @@ xhci_pci_take_controller(device_t self)
 			usb_pause_mtx(NULL, hz / 100);	/* wait 10ms */
 		}
 	}
+
+	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
+	if (device_id == 0x1e318086 /* Panther Point */ ||
+	    device_id == 0x8c318086 /* Lynx Point */) {
+		pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, 0xffffffff, 4);
+		pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, 0xffffffff, 4);
+	}
+
 	return (0);
 }

@@ -359,15 +359,7 @@ gif_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 	GIF_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		/* Already active */
-		ifp->if_drv_flags |= IFF_GIF_WANTED;
-		GIF_UNLOCK(sc);
-		return;
-	}
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	GIF_UNLOCK(sc);
-keep_going:
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
@@ -423,16 +415,6 @@ keep_going:
 		if (error)
 			ifp->if_oerrors++;
 
-	}
-	GIF_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_GIF_WANTED) {
-		/* Someone did a start while
-		 * we were unlocked and processing
-		 * lets clear the flag and try again.
-		 */
-		ifp->if_drv_flags &= ~IFF_GIF_WANTED;
-		GIF_UNLOCK(sc);
-		goto keep_going;
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	GIF_UNLOCK(sc);

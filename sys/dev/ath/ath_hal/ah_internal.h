@@ -212,10 +212,24 @@ typedef struct {
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
-			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
+			halSupportsFastClock5GHz	: 1,
 			halHasLongRxDescTsf		: 1,
 			halHasBBReadWar			: 1,
-			halSerialiseRegWar		: 1;
+			halSerialiseRegWar		: 1,
+			halMciSupport			: 1,
+			halRxTxAbortSupport		: 1,
+			halPaprdEnabled			: 1,
+			halHasUapsdSupport		: 1,
+			halWpsPushButtonSupport		: 1,
+			halBtCoexApsmWar		: 1,
+			halGenTimerSupport		: 1,
+			halLDPCSupport			: 1,
+			halHwBeaconProcSupport		: 1,
+			halEnhancedDmaSupport		: 1;
+	uint32_t	halIsrRacSupport		: 1,
+			halApmEnable			: 1,
+			halIntrMitigation		: 1;
+
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -231,6 +245,13 @@ typedef struct {
 	uint32_t	halIntrMask;
 	uint8_t		halTxStreams;
 	uint8_t		halRxStreams;
+
+	int		halNumTxMaps;
+	int		halTxDescLen;
+	int		halTxStatusLen;
+	int		halRxStatusLen;
+	int		halRxHpFifoDepth;
+	int		halRxLpFifoDepth;
 } HAL_CAPABILITIES;
 
 struct regDomain;
@@ -627,6 +648,46 @@ extern	HAL_BOOL ath_hal_setcapability(struct ath_hal *ah,
 
 /* The diagnostic codes used to be internally defined here -adrian */
 #include "ah_diagcodes.h"
+
+/*
+ * The AR5416 and later HALs have MAC and baseband hang checking.
+ */
+typedef struct {
+	uint32_t hang_reg_offset;
+	uint32_t hang_val;
+	uint32_t hang_mask;
+	uint32_t hang_offset;
+} hal_hw_hang_check_t;
+
+typedef struct {
+	uint32_t dma_dbg_3;
+	uint32_t dma_dbg_4;
+	uint32_t dma_dbg_5;
+	uint32_t dma_dbg_6;
+} mac_dbg_regs_t;
+
+typedef enum {
+	dcu_chain_state		= 0x1,
+	dcu_complete_state	= 0x2,
+	qcu_state		= 0x4,
+	qcu_fsp_ok		= 0x8,
+	qcu_fsp_state		= 0x10,
+	qcu_stitch_state	= 0x20,
+	qcu_fetch_state		= 0x40,
+	qcu_complete_state	= 0x80
+} hal_mac_hangs_t;
+
+typedef struct {
+	int states;
+	uint8_t dcu_chain_state;
+	uint8_t dcu_complete_state;
+	uint8_t qcu_state;
+	uint8_t qcu_fsp_ok;
+	uint8_t qcu_fsp_state;
+	uint8_t qcu_stitch_state;
+	uint8_t qcu_fetch_state;
+	uint8_t qcu_complete_state;
+} hal_mac_hang_check_t;
 
 enum {
     HAL_BB_HANG_DFS		= 0x0001,

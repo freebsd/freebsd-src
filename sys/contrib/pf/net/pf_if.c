@@ -506,8 +506,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 	if (aw->type != PF_ADDR_DYNIFTL)
 		return (0);
 #ifdef __FreeBSD__
-	/* XXX: revisit! */
-	if ((dyn = pool_get(&V_pfi_addr_pl, PR_WAITOK | PR_ZERO))
+	if ((dyn = pool_get(&V_pfi_addr_pl, PR_NOWAIT | PR_ZERO))
 #else
 	if ((dyn = pool_get(&pfi_addr_pl, PR_WAITOK | PR_LIMITFAIL | PR_ZERO))
 #endif

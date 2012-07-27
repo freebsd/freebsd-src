@@ -58,16 +58,47 @@ static scan_cb_t dsl_scan_remove_cb;
 static dsl_syncfunc_t dsl_scan_cancel_sync;
 static void dsl_scan_sync_state(dsl_scan_t *, dmu_tx_t *tx);
 
-int zfs_top_maxinflight = 32;		/* maximum I/Os per top-level */
-int zfs_resilver_delay = 2;		/* number of ticks to delay resilver */
-int zfs_scrub_delay = 4;		/* number of ticks to delay scrub */
-int zfs_scan_idle = 50;			/* idle window in clock ticks */
+unsigned int zfs_top_maxinflight = 32;	/* maximum I/Os per top-level */
+unsigned int zfs_resilver_delay = 2;	/* number of ticks to delay resilver */
+unsigned int zfs_scrub_delay = 4;	/* number of ticks to delay scrub */
+unsigned int zfs_scan_idle = 50;	/* idle window in clock ticks */
 
-int zfs_scan_min_time_ms = 1000; /* min millisecs to scrub per txg */
-int zfs_free_min_time_ms = 1000; /* min millisecs to free per txg */
-int zfs_resilver_min_time_ms = 3000; /* min millisecs to resilver per txg */
+unsigned int zfs_scan_min_time_ms = 1000; /* min millisecs to scrub per txg */
+unsigned int zfs_free_min_time_ms = 1000; /* min millisecs to free per txg */
+unsigned int zfs_resilver_min_time_ms = 3000; /* min millisecs to resilver
+						 per txg */
 boolean_t zfs_no_scrub_io = B_FALSE; /* set to disable scrub i/o */
 boolean_t zfs_no_scrub_prefetch = B_FALSE; /* set to disable srub prefetching */
+
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.top_maxinflight", &zfs_top_maxinflight);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, top_maxinflight, CTLFLAG_RW,
+    &zfs_top_maxinflight, 0, "Maximum I/Os per top-level vdev");
+TUNABLE_INT("vfs.zfs.resilver_delay", &zfs_resilver_delay);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, resilver_delay, CTLFLAG_RW,
+    &zfs_resilver_delay, 0, "Number of ticks to delay resilver");
+TUNABLE_INT("vfs.zfs.scrub_delay", &zfs_scrub_delay);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, scrub_delay, CTLFLAG_RW,
+    &zfs_scrub_delay, 0, "Number of ticks to delay scrub");
+TUNABLE_INT("vfs.zfs.scan_idle", &zfs_scan_idle);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, scan_idle, CTLFLAG_RW,
+    &zfs_scan_idle, 0, "Idle scan window in clock ticks");
+TUNABLE_INT("vfs.zfs.scan_min_time_ms", &zfs_scan_min_time_ms);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, scan_min_time_ms, CTLFLAG_RW,
+    &zfs_scan_min_time_ms, 0, "Min millisecs to scrub per txg");
+TUNABLE_INT("vfs.zfs.free_min_time_ms", &zfs_free_min_time_ms);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, free_min_time_ms, CTLFLAG_RW,
+    &zfs_free_min_time_ms, 0, "Min millisecs to free per txg");
+TUNABLE_INT("vfs.zfs.resilver_min_time_ms", &zfs_resilver_min_time_ms);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, resilver_min_time_ms, CTLFLAG_RW,
+    &zfs_resilver_min_time_ms, 0, "Min millisecs to resilver per txg");
+TUNABLE_INT("vfs.zfs.no_scrub_io", &zfs_no_scrub_io);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_io, CTLFLAG_RW,
+    &zfs_no_scrub_io, 0, "Disable scrub I/O");
+TUNABLE_INT("vfs.zfs.no_scrub_prefetch", &zfs_no_scrub_prefetch);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_prefetch, CTLFLAG_RW,
+    &zfs_no_scrub_prefetch, 0, "Disable scrub prefetching");
+
 enum ddt_class zfs_scrub_ddt_class_max = DDT_CLASS_DUPLICATE;
 
 #define	DSL_SCAN_IS_SCRUB_RESILVER(scn) \
@@ -405,7 +436,7 @@ static boolean_t
 dsl_scan_check_pause(dsl_scan_t *scn, const zbookmark_t *zb)
 {
 	uint64_t elapsed_nanosecs;
-	int mintime;
+	unsigned int mintime;
 
 	/* we never skip user/group accounting objects */
 	if (zb && (int64_t)zb->zb_object < 0)
@@ -1638,7 +1669,7 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 	boolean_t needs_io;
 	int zio_flags = ZIO_FLAG_SCAN_THREAD | ZIO_FLAG_RAW | ZIO_FLAG_CANFAIL;
 	int zio_priority;
-	int scan_delay = 0;
+	unsigned int scan_delay = 0;
 
 	if (phys_birth <= scn->scn_phys.scn_min_txg ||
 	    phys_birth >= scn->scn_phys.scn_max_txg)
@@ -1695,7 +1726,8 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 
 	if (needs_io && !zfs_no_scrub_io) {
 		vdev_t *rvd = spa->spa_root_vdev;
-		uint64_t maxinflight = rvd->vdev_children * zfs_top_maxinflight;
+		uint64_t maxinflight = rvd->vdev_children *
+		    MAX(zfs_top_maxinflight, 1);
 		void *data = zio_data_buf_alloc(size);
 
 		mutex_enter(&spa->spa_scrub_lock);
@@ -1709,7 +1741,7 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 		 * then throttle our workload to limit the impact of a scan.
 		 */
 		if (ddi_get_lbolt64() - spa->spa_last_io <= zfs_scan_idle)
-			delay(scan_delay);
+			delay(MAX((int)scan_delay, 0));
 
 		zio_nowait(zio_read(NULL, spa, bp, data, size,
 		    dsl_scan_scrub_done, NULL, zio_priority,

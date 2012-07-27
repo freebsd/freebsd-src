@@ -105,6 +105,10 @@ extern	struct protosw inetsw[];
  * ip_len and ip_off are in host format.
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
+ * If route ro is present and has ro_rt initialized, route lookup would be
+ * skipped and ro->ro_rt would be used. If ro is present but ro->ro_rt is NULL,
+ * then result of route lookup is stored in ro->ro_rt.
+ *
  * In the IP forwarding case, the packet will arrive with options already
  * inserted, so must have a NULL opt pointer.
  */
@@ -119,9 +123,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int mtu;
 	int n;	/* scratchpad */
 	int error = 0;
-	int nortfree = 0;
 	struct sockaddr_in *dst;
-	struct in_ifaddr *ia = NULL;
+	struct in_ifaddr *ia;
 	int isbroadcast, sw_csum;
 	struct route iproute;
 	struct rtentry *rte;	/* cache for ro->ro_rt */
@@ -146,24 +149,23 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (ro == NULL) {
 		ro = &iproute;
 		bzero(ro, sizeof (*ro));
+	}
 
 #ifdef FLOWTABLE
-		{
-			struct flentry *fle;
+	if (ro->ro_rt == NULL) {
+		struct flentry *fle;
 			
-			/*
-			 * The flow table returns route entries valid for up to 30
-			 * seconds; we rely on the remainder of ip_output() taking no
-			 * longer than that long for the stability of ro_rt.  The
-			 * flow ID assignment must have happened before this point.
-			 */
-			if ((fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET)) != NULL) {
-				flow_to_route(fle, ro);
-				nortfree = 1;
-			}
-		}
-#endif
+		/*
+		 * The flow table returns route entries valid for up to 30
+		 * seconds; we rely on the remainder of ip_output() taking no
+		 * longer than that long for the stability of ro_rt. The
+		 * flow ID assignment must have happened before this point.
+		 */
+		fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET);
+		if (fle != NULL)
+			flow_to_route(fle, ro);
 	}
+#endif
 
 	if (opt) {
 		int len = 0;
@@ -196,6 +198,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
+	ia = NULL;
 	/*
 	 * If there is a cached route,
 	 * check that it is to the same destination
@@ -209,10 +212,9 @@ again:
 		    !RT_LINK_IS_UP(rte->rt_ifp) ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		if (!nortfree)
-			RTFREE(rte);
-		rte = ro->ro_rt = (struct rtentry *)NULL;
-		ro->ro_lle = (struct llentry *)NULL;
+		RO_RTFREE(ro);
+		ro->ro_lle = NULL;
+		rte = NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
 	if (rte == NULL && fwd_tag == NULL) {
@@ -532,8 +534,11 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else
+		} else {
+			if (ia != NULL)
+				ifa_free(&ia->ia_ifa);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 #ifdef IPFIREWALL_FORWARD
@@ -563,6 +568,8 @@ sendit:
 		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m_tag_delete(m, fwd_tag);
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
 #endif /* IPFIREWALL_FORWARD */
@@ -672,9 +679,8 @@ passout:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	if (ro == &iproute && ro->ro_rt && !nortfree) {
-		RTFREE(ro->ro_rt);
-	}
+	if (ro == &iproute)
+		RO_RTFREE(ro);
 	if (ia != NULL)
 		ifa_free(&ia->ia_ifa);
 	return (error);

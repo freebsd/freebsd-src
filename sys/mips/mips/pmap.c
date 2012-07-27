@@ -1034,9 +1034,9 @@ pmap_grow_direct_page_cache()
 {
 
 #ifdef __mips_n64
-	vm_contig_grow_cache(3, 0, MIPS_XKPHYS_LARGEST_PHYS);
+	vm_pageout_grow_cache(3, 0, MIPS_XKPHYS_LARGEST_PHYS);
 #else
-	vm_contig_grow_cache(3, 0, MIPS_KSEG0_LARGEST_PHYS);
+	vm_pageout_grow_cache(3, 0, MIPS_KSEG0_LARGEST_PHYS);
 #endif
 }
 

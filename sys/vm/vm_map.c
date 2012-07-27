@@ -241,8 +241,8 @@ vm_map_zinit(void *mem, int size, int flags)
 	map = (vm_map_t)mem;
 	map->nentries = 0;
 	map->size = 0;
-	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
-	sx_init(&map->lock, "user map");
+	mtx_init(&map->system_mtx, "vm map (system)", NULL, MTX_DEF | MTX_DUPOK);
+	sx_init(&map->lock, "vm map (user)");
 	return (0);
 }
 

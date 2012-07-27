@@ -54,10 +54,12 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	fpstate = &td->td_pcb->pcb_user_save.sv_xmm;
 	switch (req) {
 	case PT_GETXMMREGS:
+		npxgetregs(td);
 		error = copyout(fpstate, addr, sizeof(*fpstate));
 		break;
 
 	case PT_SETXMMREGS:
+		npxgetregs(td);
 		error = copyin(addr, fpstate, sizeof(*fpstate));
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
 		break;

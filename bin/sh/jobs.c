@@ -84,7 +84,6 @@ static struct job *jobmru;	/* most recently used job list */
 static pid_t initialpgrp;	/* pgrp of shell on invocation */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
-int in_dowait = 0;		/* are we in dowait()? */
 volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 static int ttyfd = -1;
 
@@ -1023,14 +1022,12 @@ dowait(int block, struct job *job)
 	int sig;
 	int coredump;
 
-	in_dowait++;
 	TRACE(("dowait(%d) called\n", block));
 	do {
 		pid = waitproc(block, &status);
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
 		 (pid > 0 && WIFSTOPPED(status) && !iflag));
-	in_dowait--;
 	if (pid == -1 && errno == ECHILD && job != NULL)
 		job->state = JOBDONE;
 	if (breakwaitcmd != 0) {

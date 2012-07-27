@@ -177,15 +177,9 @@ zvol_size_changed(zvol_state_t *zv)
 	pp = zv->zv_provider;
 	if (pp == NULL)
 		return;
-	if (zv->zv_volsize == pp->mediasize)
-		return;
-	/*
-	 * Changing provider size is not really supported by GEOM, but it
-	 * should be safe when provider is closed.
-	 */
-	if (zv->zv_total_opens > 0)
-		return;
-	pp->mediasize = zv->zv_volsize;
+	g_topology_lock();
+	g_resize_provider(pp, zv->zv_volsize);
+	g_topology_unlock();
 #endif	/* !sun */
 }
 

@@ -1742,7 +1742,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum, vtype, wkhd)
 	enum vtype vtype;
 	struct workhead *wkhd;
 {
-	struct buf *ibp, *cbp, *savedcbp = 0;
+	struct buf *ibp, *cbp, *savedcbp = NULL;
 	struct thread *td = curthread;
 	struct inode *ip;
 	struct vnode *vp = NULL;
@@ -2236,11 +2236,11 @@ ffs_copyonwrite(devvp, bp)
 	struct buf *bp;
 {
 	struct snapdata *sn;
-	struct buf *ibp, *cbp, *savedcbp = 0;
+	struct buf *ibp, *cbp, *savedcbp = NULL;
 	struct thread *td = curthread;
 	struct fs *fs;
 	struct inode *ip;
-	struct vnode *vp = 0;
+	struct vnode *vp = NULL;
 	ufs2_daddr_t lbn, blkno, *snapblklist;
 	int lower, upper, mid, indiroff, error = 0;
 	int launched_async_io, prev_norunningbuf;

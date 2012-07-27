@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -1344,6 +1344,16 @@
 #define E1000_EECD_SEC1VAL		0x00400000 /* Sector One Valid */
 #define E1000_EECD_SECVAL_SHIFT		22
 #define E1000_EECD_SEC1VAL_VALID_MASK	(E1000_EECD_AUTO_RD | E1000_EECD_PRES)
+#define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
+#define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done */
+#define E1000_EECD_FLASH_DETECTED_I210	0x00080000 /* FLASH detected */
+#define E1000_FLUDONE_ATTEMPTS		20000
+#define E1000_EERD_EEWR_MAX_COUNT	512 /* buffered EEPROM words rw */
+#define E1000_I210_FIFO_SEL_RX			0x00
+#define E1000_I210_FIFO_SEL_TX_QAV(_i)	(0x02 + (_i))
+#define E1000_I210_FIFO_SEL_TX_LEGACY	E1000_I210_FIFO_SEL_TX_QAV(0)
+#define E1000_I210_FIFO_SEL_BMC2OS_TX	0x06
+#define E1000_I210_FIFO_SEL_BMC2OS_RX	0x01
 
 #define E1000_NVM_SWDPIN0	0x0001 /* SWDPIN 0 NVM Value */
 #define E1000_NVM_LED_LOGIC	0x0020 /* Led Logic Word */
@@ -1361,6 +1371,20 @@
 #define NVM_VERSION			0x0005
 #define NVM_SERDES_AMPLITUDE		0x0006 /* SERDES output amplitude */
 #define NVM_PHY_CLASS_WORD		0x0007
+#define NVM_ETRACK_WORD			0x0042
+#define NVM_COMB_VER_OFF		0x0083
+#define NVM_COMB_VER_PTR		0x003d
+
+#define NVM_MAC_ADDR			0x0000
+#define NVM_SUB_DEV_ID			0x000B
+#define NVM_SUB_VEN_ID			0x000C
+#define NVM_DEV_ID			0x000D
+#define NVM_VEN_ID			0x000E
+#define NVM_INIT_CTRL_2			0x000F
+#define NVM_INIT_CTRL_4			0x0013
+#define NVM_LED_1_CFG			0x001C
+#define NVM_LED_0_2_CFG			0x001F
+
 #define NVM_INIT_CONTROL1_REG		0x000A
 #define NVM_INIT_CONTROL2_REG		0x000F
 #define NVM_SWDEF_PINS_CTRL_PORT_1	0x0010
@@ -1380,12 +1404,12 @@
 #define E1000_NVM_CFG_DONE_PORT_2	0x100000 /* ...for third port */
 #define E1000_NVM_CFG_DONE_PORT_3	0x200000 /* ...for fourth port */
 
-#define NVM_82580_LAN_FUNC_OFFSET(a)	(a ? (0x40 + (0x40 * a)) : 0)
+#define NVM_82580_LAN_FUNC_OFFSET(a)	((a) ? (0x40 + (0x40 * (a))) : 0)
 
 /* Mask bits for fields in Word 0x24 of the NVM */
 #define NVM_WORD24_COM_MDIO		0x0008 /* MDIO interface shared */
 #define NVM_WORD24_EXT_MDIO		0x0004 /* MDIO accesses routed extrnl */
-/* Offset of Link Mode bits for 82575 up to Kawela */
+/* Offset of Link Mode bits for 82575/82576 */
 #define NVM_WORD24_LNK_MODE_OFFSET	8
 /* Offset of Link Mode bits for 82580 up */
 #define NVM_WORD24_82580_LNK_MODE_OFFSET	4
@@ -1525,6 +1549,7 @@
 #define I82579_E_PHY_ID		0x01540090
 #define I82580_I_PHY_ID		0x015403A0
 #define I350_I_PHY_ID		0x015403B0
+#define I210_I_PHY_ID		0x01410C00
 #define IGP04E1000_E_PHY_ID	0x02A80391
 #define M88_VENDOR		0x0141
 
@@ -1787,6 +1812,8 @@
 #define E1000_DMACR_DMAC_LX_MASK	0x30000000
 #define E1000_DMACR_DMAC_LX_SHIFT	28
 #define E1000_DMACR_DMAC_EN		0x80000000 /* Enable DMA Coalescing */
+/* DMA Coalescing BMC-to-OS Watchdog Enable */
+#define E1000_DMACR_DC_BMC2OSW_EN	0x00008000
 
 /* DMA Coalescing Transmit Threshold */
 #define E1000_DMCTXTH_DMCTTHR_MASK	0x00000FFF
@@ -1807,8 +1834,9 @@
 /* Lx power decision based on DMA coal */
 #define E1000_PCIEMISC_LX_DECISION	0x00000080
 
-#define E1000_LTRC_EEEMS_EN		0x00000005 /* Enable EEE LTR max send */
 #define E1000_RXPBS_SIZE_I210_MASK	0x0000003F /* Rx packet buffer size */
+#define E1000_TXPB0S_SIZE_I210_MASK	0x0000003F /* Tx packet buffer 0 size */
+#define E1000_LTRC_EEEMS_EN		0x00000020 /* Enable EEE LTR max send */
 /* Minimum time for 1000BASE-T where no data will be transmit following move out
  * of EEE LPI Tx state
  */
@@ -1826,12 +1854,14 @@
 #define E1000_LTRMINV_SCALE_1024	2
 /* Reg val to set scale to 32768 nsec */
 #define E1000_LTRMINV_SCALE_32768	3
+#define E1000_LTRMINV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
 #define E1000_LTRMAXV_SCALE_MASK	0x00001C00 /* LTR maximum scale */
 #define E1000_LTRMAXV_SCALE_SHIFT	10
 /* Reg val to set scale to 1024 nsec */
 #define E1000_LTRMAXV_SCALE_1024	2
 /* Reg val to set scale to 32768 nsec */
 #define E1000_LTRMAXV_SCALE_32768	3
+#define E1000_LTRMAXV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
 #define E1000_DOBFFCTL_OBFFTHR_MASK	0x000000FF /* OBFF threshold */
 #define E1000_DOBFFCTL_EXIT_ACT_MASK	0x01000000 /* Exit active CB */
 

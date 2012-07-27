@@ -1,4 +1,4 @@
-.\" Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2009-2012 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2012
+.Dd July 25, 2012
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -132,7 +132,9 @@ Driver supports "LED" enclosure management messages, defined by the AHCI.
 When supported by hardware, it allows to control per-port activity, locate
 and fault LEDs via the
 .Xr led 4
-API for localization and status reporting purposes.
+API or emulated
+.Xr ses 4
+device for localization and status reporting purposes.
 Supporting AHCI controllers may transmit that information to the backplane
 controllers via SGPIO interface. Backplane controllers interpret received
 statuses in some way (IBPI standard) to report them using present indicators.
@@ -153,11 +155,11 @@ it supports AHCI part of legacy-PATA + AHCI-SATA combined controllers,
 such as JMicron JMB36x and Marvell 88SE61xx.
 .Sh FILES
 .Bl -tag -width /dev/led/ahcich*.locate
-.It Pa /dev/led/ahcich*.act
+.It Pa /dev/led/ahci*.*.act
 activity LED device nodes
-.It Pa /dev/led/ahcich*.fault
+.It Pa /dev/led/ahci*.*.fault
 fault LED device nodes
-.It Pa /dev/led/ahcich*.locate
+.It Pa /dev/led/ahci*.*.locate
 locate LED device nodes
 .El
 .Sh SEE ALSO
@@ -166,7 +168,8 @@ locate LED device nodes
 .Xr cam 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,
-.Xr sa 4
+.Xr sa 4 ,
+.Xr ses 4
 .Sh HISTORY
 The
 .Nm

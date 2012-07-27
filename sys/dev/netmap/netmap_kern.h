@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_kern.h 10602 2012-02-21 16:47:55Z luigi $
+ * $Id: netmap_kern.h 11343 2012-07-03 09:08:38Z luigi $
  *
  * The header contains the definitions of constants and function
  * prototypes used only in kernelspace.
@@ -37,6 +37,9 @@
 #define NETMAP_MEM2    // use the new memory allocator
 
 #if defined(__FreeBSD__)
+#define likely(x)	__builtin_expect(!!(x), 1)
+#define unlikely(x)	__builtin_expect(!!(x), 0)
+
 #define	NM_LOCK_T	struct mtx
 #define	NM_SELINFO_T	struct selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
@@ -46,6 +49,33 @@
 #define	NM_SELINFO_T	wait_queue_head_t
 #define	MBUF_LEN(m)	((m)->len)
 #define	NM_SEND_UP(ifp, m)	netif_rx(m)
+
+#ifndef DEV_NETMAP
+#define DEV_NETMAP
+#endif
+
+/*
+ * IFCAP_NETMAP goes into net_device's flags (if_capabilities)
+ * and priv_flags (if_capenable). The latter used to be 16 bits
+ * up to linux 2.6.36, so we need to use a 16 bit value on older
+ * platforms and tolerate the clash with IFF_DYNAMIC and IFF_BRIDGE_PORT.
+ * For the 32-bit value, 0x100000 (bit 20) has no clashes up to 3.3.1
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
+#define IFCAP_NETMAP   0x8000
+#else
+#define IFCAP_NETMAP   0x100000
+#endif
+
+#elif defined (__APPLE__)
+#warning apple support is experimental
+#define likely(x)	__builtin_expect(!!(x), 1)
+#define unlikely(x)	__builtin_expect(!!(x), 0)
+#define	NM_LOCK_T	IOLock *
+#define	NM_SELINFO_T	struct selinfo
+#define	MBUF_LEN(m)	((m)->m_pkthdr.len)
+#define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
+
 #else
 #error unsupported platform
 #endif
@@ -64,6 +94,9 @@ MALLOC_DECLARE(M_NETMAP);
 		__FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	} while (0)
  
+#ifndef IFF_NETMAP	/* XXX is it really needed ? */
+#define IFF_NETMAP     0x20000
+#endif
 struct netmap_adapter;
 
 /*
@@ -150,8 +183,11 @@ struct netmap_adapter {
 	void (*nm_lock)(struct ifnet *, int what, u_int ringid);
 	int (*nm_txsync)(struct ifnet *, u_int ring, int lock);
 	int (*nm_rxsync)(struct ifnet *, u_int ring, int lock);
+
+	int bdg_port;
 #ifdef linux
 	struct net_device_ops nm_ndo;
+	int if_refcount;	// XXX additions for bridge
 #endif /* linux */
 };
 
@@ -240,6 +276,7 @@ enum {                                  /* verbose flags */
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
 
 
+#ifdef __FreeBSD__
 /* Callback invoked by the dma machinery after a successfull dmamap_load */
 static void netmap_dmamap_cb(__unused void *arg,
     __unused bus_dma_segment_t * segs, __unused int nseg, __unused int error)
@@ -267,6 +304,48 @@ netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
 		    netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
 	}
 }
+#else /* linux */
+
+/*
+ * XXX How do we redefine these functions:
+ *
+ * on linux we need
+ *     dma_map_single(&pdev->dev, virt_addr, len, direction)
+ *     dma_unmap_single(&adapter->pdev->dev, phys_addr, len, direction
+ * The len can be implicit (on netmap it is NETMAP_BUF_SIZE)
+ * unfortunately the direction is not, so we need to change
+ * something to have a cross API
+ */
+#define netmap_load_map(_t, _m, _b)
+#define netmap_reload_map(_t, _m, _b)
+#if 0
+	struct e1000_buffer *buffer_info =  &tx_ring->buffer_info[l];
+	/* set time_stamp *before* dma to help avoid a possible race */
+	buffer_info->time_stamp = jiffies;
+	buffer_info->mapped_as_page = false;
+	buffer_info->length = len;
+	//buffer_info->next_to_watch = l;
+	/* reload dma map */
+	dma_unmap_single(&adapter->pdev->dev, buffer_info->dma,
+	       NETMAP_BUF_SIZE, DMA_TO_DEVICE);
+	buffer_info->dma = dma_map_single(&adapter->pdev->dev,
+	addr, NETMAP_BUF_SIZE, DMA_TO_DEVICE);
+
+	if (dma_mapping_error(&adapter->pdev->dev, buffer_info->dma)) {
+		D("dma mapping error");
+		/* goto dma_error; See e1000_put_txbuf() */
+		/* XXX reset */
+	}
+	tx_desc->buffer_addr = htole64(buffer_info->dma); //XXX
+
+#endif
+
+/*
+ * The bus_dmamap_sync() can be one of wmb() or rmb() depending on direction.
+ */
+#define bus_dmamap_sync(_a, _b, _c)
+
+#endif /* linux */
 
 /*
  * functions to map NIC to KRING indexes (n2k) and vice versa (k2n)
@@ -322,7 +401,7 @@ static inline void *
 NMB(struct netmap_slot *slot)
 {
 	uint32_t i = slot->buf_idx;
-	return (i >= netmap_total_buffers) ?  NMB_VA(0) : NMB_VA(i);
+	return (unlikely(i >= netmap_total_buffers)) ?  NMB_VA(0) : NMB_VA(i);
 }
 
 static inline void *
@@ -341,4 +420,6 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 /* default functions to handle rx/tx interrupts */
 int netmap_rx_irq(struct ifnet *, int, int *);
 #define netmap_tx_irq(_n, _q) netmap_rx_irq(_n, _q, NULL)
+
+extern int netmap_copy;
 #endif /* _NET_NETMAP_KERN_H_ */

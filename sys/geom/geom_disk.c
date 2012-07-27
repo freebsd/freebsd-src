@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/devicestat.h>
 #include <machine/md_var.h>
 
@@ -65,6 +66,7 @@ struct g_disk_softc {
 	struct sysctl_oid	*sysctl_tree;
 	char			led[64];
 	uint32_t		state;
+	struct task		resize_task;
 };
 
 static struct mtx g_disk_done_mtx;
@@ -445,6 +447,27 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 }
 
 static void
+g_disk_resize_task(void *context, int pending)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct disk *dp;
+	struct g_disk_softc *sc;
+
+	sc = (struct g_disk_softc *)context;
+	dp = sc->dp;
+	gp = dp->d_geom;
+
+	LIST_FOREACH(pp, &gp->provider, provider) {
+		if (pp->sectorsize != 0 &&
+		    pp->sectorsize != dp->d_sectorsize)
+			g_wither_provider(pp, ENXIO);
+		else
+			g_resize_provider(pp, dp->d_mediasize);
+	}
+}
+
+static void
 g_disk_create(void *arg, int flag)
 {
 	struct g_geom *gp;
@@ -484,6 +507,7 @@ g_disk_create(void *arg, int flag)
 		    CTLFLAG_RW | CTLFLAG_TUN, sc->led, sizeof(sc->led),
 		    "LED name");
 	}
+	TASK_INIT(&sc->resize_task, 0, g_disk_resize_task, sc);
 	pp->private = sc;
 	dp->d_geom = gp;
 	g_error_provider(pp, 0);
@@ -502,6 +526,14 @@ g_disk_providergone(struct g_provider *pp)
 	struct g_disk_softc *sc;
 
 	sc = (struct g_disk_softc *)pp->geom->softc;
+
+	/*
+	 * If the softc is already NULL, then we've probably been through
+	 * g_disk_destroy already; there is nothing for us to do anyway.
+	 */
+	if (sc == NULL)
+		return;
+
 	dp = sc->dp;
 
 	if (dp->d_gone != NULL)
@@ -625,6 +657,24 @@ disk_attr_changed(struct disk *dp, const char *attr, int flag)
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			(void)g_attr_changed(pp, attr, flag);
+}
+
+void
+disk_resize(struct disk *dp)
+{
+	struct g_geom *gp;
+	struct g_disk_softc *sc;
+	int error;
+
+	gp = dp->d_geom;
+
+	if (gp == NULL)
+		return;
+
+	sc = gp->softc;
+
+	error = taskqueue_enqueue(taskqueue_thread, &sc->resize_task);
+	KASSERT(error == 0, ("taskqueue_enqueue(9) failed."));
 }
 
 static void

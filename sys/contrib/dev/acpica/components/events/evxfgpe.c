@@ -83,7 +83,7 @@ AcpiUpdateAllGpes (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE (AcpiUpdateGpes);
+    ACPI_FUNCTION_TRACE (AcpiUpdateAllGpes);
 
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
@@ -299,6 +299,7 @@ AcpiSetupGpeForWake (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_NAMESPACE_NODE     *DeviceNode;
     ACPI_GPE_NOTIFY_INFO    *Notify;
+    ACPI_GPE_NOTIFY_INFO    *NewNotify;
     ACPI_CPU_FLAGS          Flags;
 
 
@@ -332,6 +333,17 @@ AcpiSetupGpeForWake (
     if (DeviceNode->Type != ACPI_TYPE_DEVICE)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    /*
+     * Allocate a new notify object up front, in case it is needed.
+     * Memory allocation while holding a spinlock is a big no-no
+     * on some hosts.
+     */
+    NewNotify = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_GPE_NOTIFY_INFO));
+    if (!NewNotify)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
@@ -384,16 +396,10 @@ AcpiSetupGpeForWake (
 
         /* Add this device to the notify list for this GPE */
 
-        Notify = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_GPE_NOTIFY_INFO));
-        if (!Notify)
-        {
-            Status = AE_NO_MEMORY;
-            goto UnlockAndExit;
-        }
-
-        Notify->DeviceNode = DeviceNode;
-        Notify->Next = GpeEventInfo->Dispatch.NotifyList;
-        GpeEventInfo->Dispatch.NotifyList = Notify;
+        NewNotify->DeviceNode = DeviceNode;
+        NewNotify->Next = GpeEventInfo->Dispatch.NotifyList;
+        GpeEventInfo->Dispatch.NotifyList = NewNotify;
+        NewNotify = NULL;
     }
 
     /* Mark the GPE as a possible wake event */
@@ -401,8 +407,16 @@ AcpiSetupGpeForWake (
     GpeEventInfo->Flags |= ACPI_GPE_CAN_WAKE;
     Status = AE_OK;
 
+
 UnlockAndExit:
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+
+    /* Delete the notify object if it was not used above */
+
+    if (NewNotify)
+    {
+        ACPI_FREE (NewNotify);
+    }
     return_ACPI_STATUS (Status);
 }
 

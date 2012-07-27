@@ -96,7 +96,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b|c|d^D:e:fgh^i|I:l^mno|p:P^r:s|t|T:G^v|w|x:z"
+#define ASL_SUPPORTED_OPTIONS   "@:2b|c|d^D:e:fgh^i|I:l^mno|p:P^r:s|t|T:G^v^w|x:z"
 
 
 /*******************************************************************************
@@ -119,6 +119,7 @@ Options (
     printf ("\nGlobal:\n");
     ACPI_OPTION ("-@ <file>",       "Specify command file");
     ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
+    ACPI_OPTION ("-v",              "Display compiler version");
 
     printf ("\nPreprocessor:\n");
     ACPI_OPTION ("-D <symbol>",     "Define symbol for preprocessor use");
@@ -751,9 +752,13 @@ AslDoOptions (
         break;
 
 
-    case 'v':   /* Verbosity settings */
+    case 'v':   /* Version and verbosity settings */
         switch (AcpiGbl_Optarg[0])
         {
+        case '^':
+            printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
+            exit (0);
+
         case 'a':
             /* Disable All error/warning messages */
 

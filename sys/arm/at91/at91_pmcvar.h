@@ -55,7 +55,7 @@ struct at91_pmc_clock
 	uint32_t	(*set_outb)(int);
 };
 
-struct at91_pmc_clock * at91_pmc_clock_add(const char *name, uint32_t irq,
+struct at91_pmc_clock *at91_pmc_clock_add(const char *name, uint32_t irq,
     struct at91_pmc_clock *parent);
 struct at91_pmc_clock *at91_pmc_clock_ref(const char *name);
 void at91_pmc_clock_deref(struct at91_pmc_clock *);

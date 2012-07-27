@@ -1,0 +1,134 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+. $BSDCFG_LIBE/include/common.subr || exit 1
+f_include $BSDCFG_LIBE/include/dialog.subr
+f_include $BSDCFG_LIBE/include/mustberoot.subr
+f_include $BSDCFG_LIBE/include/sysrc.subr
+
+APP_DIR="080.console"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local menu_list size
+	local hline="$hline_choose_a_keyboard_repeat_rate"
+	local prompt="$msg_repeat_menu_text"
+
+	menu_list="
+		'$msg_slow'    '$msg_slow_desc'
+		'$msg_normal'  '$msg_normal_desc'
+		'$msg_fast'    '$msg_fast_desc'
+		'$msg_default' '$msg_default_desc'
+	" # END-QUOTE
+
+	size=$( eval f_dialog_menu_size \
+	        	\"\$DIALOG_TITLE\"     \
+	        	\"\$DIALOG_BACKTITLE\" \
+	                \"\$prompt\"           \
+	        	\"\$hline\"            \
+	        	$menu_list             )
+
+	eval $DIALOG \
+		--clear --title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--menu \"\$prompt\" $size          \
+		$menu_list                         \
+		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts hSX flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_init
+f_dialog_title "$msg_system_console_keyboard_repeat_rate"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main
+	retval=$?
+	mtag=$( f_dialog_menutag )
+
+	[ $retval -eq 0 ] || f_die
+
+	case "$mtag" in
+	"$msg_slow") # Slow keyboard repeat rate
+		f_sysrc_set keyrate "slow" || f_die
+		break ;;
+	"$msg_normal") # "Normal" keyboard repeat rate
+		f_sysrc_set keyrate "normal" || f_die
+		break ;;
+	"$msg_fast") # Fast keyboard repeat rate
+		f_sysrc_set keyrate "fast" || f_die
+		break ;;
+	"$msg_default") # Use default keyboard repeat rate
+		f_sysrc_set keyrate "NO" || f_die
+		break ;;
+	esac
+
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

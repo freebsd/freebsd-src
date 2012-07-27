@@ -659,6 +659,30 @@ OLD_FILES+=usr/include/clang/3.0/wmmintrin.h
 OLD_FILES+=usr/include/clang/3.0/x86intrin.h
 OLD_FILES+=usr/include/clang/3.0/xmmintrin.h
 OLD_DIRS+=usr/include/clang/3.0
+OLD_FILES+=usr/include/clang/3.1/altivec.h
+OLD_FILES+=usr/include/clang/3.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.1/module.map
+OLD_FILES+=usr/include/clang/3.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/unwind.h
+OLD_FILES+=usr/include/clang/3.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.1/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.1
 OLD_DIRS+=usr/include/clang
 OLD_FILES+=usr/share/doc/llvm/clang/LICENSE.TXT
 OLD_DIRS+=usr/share/doc/llvm/clang
@@ -3480,6 +3504,10 @@ OLD_FILES+=usr/share/man/man8/ftp-proxy.8.gz
 OLD_FILES+=usr/share/man/man8/pfctl.8.gz
 OLD_FILES+=usr/share/man/man8/pflogd.8.gz
 OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
+.endif
+
+.if ${MK_PKGBOOTSTRAP} == no
+OLD_FILES+=usr/sbin/pkg
 .endif
 
 .if ${MK_PKGTOOLS} == no

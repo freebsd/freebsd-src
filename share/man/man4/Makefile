@@ -4,6 +4,7 @@
 MAN=	aac.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
+	${_acpi_asus_wmi.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
 	${_acpi_hp.4} \
@@ -36,6 +37,7 @@ MAN=	aac.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \
 	${_amdtemp.4} \
+	${_bxe.4} \
 	amr.4 \
 	an.4 \
 	${_apic.4} \
@@ -562,6 +564,7 @@ MLINKS+=bktr.4 brooktree.4
 MLINKS+=bridge.4 if_bridge.4
 MLINKS+=bwi.4 if_bwi.4
 MLINKS+=bwn.4 if_bwn.4
+MLINKS+=${_bxe.4} ${_if_bxe.4}
 MLINKS+=cas.4 if_cas.4
 MLINKS+=cdce.4 if_cdce.4
 MLINKS+=crypto.4 cryptodev.4
@@ -696,6 +699,7 @@ MLINKS+=zyd.4 if_zyd.4
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
+_acpi_asus_wmi.4=	acpi_asus_wmi.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
 _acpi_hp.4=	acpi_hp.4
@@ -714,6 +718,7 @@ _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _atp.4=		atp.4
+_bxe.4=		bxe.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
@@ -723,6 +728,7 @@ _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
 _i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
+_if_bxe.4=	if_bxe.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4

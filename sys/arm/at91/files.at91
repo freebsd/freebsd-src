@@ -22,14 +22,17 @@ arm/at91/at91_wdt.c		optional	at91_wdt
 arm/at91/if_ate.c		optional	ate
 arm/at91/if_macb.c		optional	macb
 arm/at91/uart_bus_at91usart.c	optional	uart
-arm/at91/uart_cpu_at91rm9200usart.c	optional	uart
+arm/at91/uart_cpu_at91usart.c	optional	uart
 arm/at91/uart_dev_at91usart.c	optional	uart
 #
 # All the "systems on a chip" we support
 #
+arm/at91/at91soc.c		standard
 arm/at91/at91rm9200.c		optional	at91rm9200
+arm/at91/at91rm9200_devices.c	optional	at91rm9200
 arm/at91/at91sam9260.c		optional	at91sam9260
 arm/at91/at91sam9g20.c		optional	at91sam9g20
+arm/at91/at91sam9g45.c		optional	at91sam9g45
 arm/at91/at91sam9x25.c		optional	at91sam9x25
 #
 # All the boards we support
@@ -40,6 +43,12 @@ arm/at91/board_hl200.c		optional	at91_board_hl200
 arm/at91/board_hl201.c		optional	at91_board_hl201
 arm/at91/board_kb920x.c		optional	at91_board_kb920x
 arm/at91/board_qila9g20.c	optional	at91_board_qila9g20
+arm/at91/board_sam9260ek.c	optional	at91_board_sam9260ek
 arm/at91/board_sam9g20ek.c	optional	at91_board_sam9g20ek
 arm/at91/board_sam9x25ek.c	optional	at91_board_sam9x25ek
+arm/at91/board_sn9g45.c 	optional	at91_board_sn9g45
 arm/at91/board_tsc4370.c	optional	at91_board_tsc4370
+#
+# usb
+#
+dev/usb/controller/ohci_atmelarm.c	optional ohci
