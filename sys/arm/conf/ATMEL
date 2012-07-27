@@ -157,7 +157,7 @@ options 	ALT_BREAK_TO_DEBUGGER
 
 # USB support
 options 	USB_DEBUG	# enable debug msgs
-device		ohci		# OHCI PCI->USB interface
+device		ohci		# OHCI USB interface
 device		usb		# USB Bus (required)
 device		umass		# Disks/Mass storage - Requires scbus and da
 
