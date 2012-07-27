@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
 __inline static void
-fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
+fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
 {
 	ULARGE_INTEGER utc;
 
@@ -42,10 +42,10 @@ fileTimeToUtc(const FILETIME *filetime, time_t *time, long *ns)
 	utc.LowPart  = filetime->dwLowDateTime;
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
-		*time = (time_t)(utc.QuadPart / 10000000);	/* milli seconds base */
+		*t = (time_t)(utc.QuadPart / 10000000);	/* milli seconds base */
 		*ns = (long)(utc.QuadPart % 10000000) * 100;/* nano seconds base */
 	} else {
-		*time = 0;
+		*t = 0;
 		*ns = 0;
 	}
 }

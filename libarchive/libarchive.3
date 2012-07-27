@@ -22,16 +22,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD: src/lib/libarchive/libarchive.3,v 1.11 2007/01/09 08:05:56 kientzle Exp $
+.\" $FreeBSD$
 .\"
-.Dd February 6, 2010
+.Dd March 18, 2012
 .Dt LIBARCHIVE 3
 .Os
 .Sh NAME
 .Nm libarchive
 .Nd functions for reading and writing streaming archives
-.Sh LIBRARY
-.Lb libarchive
 .Sh OVERVIEW
 The
 .Nm
@@ -66,15 +64,33 @@ most common cpio archive formats,
 .It
 ISO9660 CD images (including RockRidge and Joliet extensions),
 .It
-Zip archives.
+Zip archives,
+.It
+ar archives (including GNU/SysV and BSD extensions),
+.It
+Microsoft CAB archives,
+.It
+LHA archives,
+.It
+mtree file tree descriptions,
+.It
+RAR archives,
+.It
+XAR archives.
 .El
 The library automatically detects archives compressed with
 .Xr gzip 1 ,
 .Xr bzip2 1 ,
 .Xr xz 1 ,
+.Xr lzip 1 ,
 or
 .Xr compress 1
 and decompresses them transparently.
+It can similarly detect and decode archives processed with
+.Xr uuencode 1
+or which have an
+.Xr rpm 1
+header.
 .Pp
 When writing an archive, you can specify the compression
 to be used and the format to use.
@@ -93,7 +109,17 @@ POSIX octet-oriented cpio archives,
 .It
 Zip archive,
 .It
-two different variants of shar archives.
+two different variants of shar archives,
+.It
+ISO9660 CD images,
+.It
+7-Zip archives,
+.It
+ar archives,
+.It
+mtree file tree descriptions,
+.It
+XAR archives.
 .El
 Pax interchange format is an extension of the tar archive format that
 eliminates essentially all of the limitations of historic tar formats
@@ -145,9 +171,21 @@ operations.
 .Sh READING ENTRIES FROM DISK
 The
 .Xr archive_read_disk 3
-provides some support for populating
+supports for populating
 .Xr archive_entry 3
 objects from information in the filesystem.
+This includes the information accessible from the
+.Xr stat 2
+system call as well as ACLs, extended attributes,
+and other metadata.
+The
+.Xr archive_read_disk 3
+API also supports iterating over directory trees,
+which allows directories of files to be read using
+an API compatible with
+the
+.Xr archive_read 3
+API.
 .Sh DESCRIPTION
 Detailed descriptions of each function are provided by the
 corresponding manual pages.
@@ -227,7 +265,7 @@ library first appeared in
 .An -nosplit
 The
 .Nm libarchive
-library was written by
+library was originally written by
 .An Tim Kientzle Aq kientzle@acm.org .
 .Sh BUGS
 Some archive formats support information that is not supported by
@@ -244,13 +282,8 @@ is supported by all formats.
 For example, cpio formats do not support nanosecond timestamps;
 old tar formats do not support large device numbers.
 .Pp
-The
-.Xr archive_read_disk 3
-API should support iterating over filesystems;
-that would make it possible to share code among
-disk-to-archive, archive-to-archive, archive-to-disk,
-and disk-to-disk operations.
-Currently, it only supports reading the
-information for a single file.
-(Which is still quite useful, as it hides a lot
-of system-specific details.)
+The ISO9660 reader cannot yet read all ISO9660 images;
+it should learn how to seek.
+.Pp
+The AR writer requires the client program to use
+two passes, unlike all other libarchive writers.

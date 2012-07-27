@@ -283,7 +283,7 @@ __tar_dosmaperr(unsigned long e)
 		return;
 	}
 
-	for (i = 0; i < sizeof(doserrors); i++) {
+	for (i = 0; i < (int)sizeof(doserrors); i++) {
 		if (doserrors[i].winerr == e) {
 			errno = doserrors[i].doserr;
 			return;

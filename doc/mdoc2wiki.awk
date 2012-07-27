@@ -26,6 +26,10 @@ BEGIN {
   sep = ""
   nextsep = " "
   spaces = "                    "
+
+  NORMAL_STATE = 0
+  PRETAG_STATE = 1
+  STATE = NORMAL_STATE
 }
 
 # Add a word with appropriate preceding whitespace
@@ -63,7 +67,11 @@ function endline() {
   addclose(trailer)
   trailer = ""
   if(length(out) > 0) {
-    print out
+    if (STATE == PRETAG_STATE) {
+      print out
+    } else {
+      print out " "
+    }
     out=""
   }
   if(displaylines > 0) {
@@ -87,12 +95,12 @@ function breakline() {
 
 # Start an indented display
 function dispstart() {
-  linecmd("{{{")
+  linecmd("```text")
 }
 
 # End an indented display
 function dispend() {
-  linecmd("}}}")
+  linecmd("```")
 }
 
 # Collect rest of input line
@@ -159,6 +167,7 @@ function splitwords(l, dest, n, o, w) {
       dispstart()
       displaylines = 1
     } else if(match(words[w],"^Bd$")) { # Begin display
+      STATE = PRETAG_STATE
       if(match(words[w+1],"-literal")) {
         dispstart()
 	displaylines=10000
@@ -167,6 +176,7 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Ed$")) { # End display
       displaylines = 0
       dispend()
+      STATE = NORMAL_STATE
     } else if(match(words[w],"^Ns$")) { # Suppress space before next word
       sep=""
     } else if(match(words[w],"^No$")) { # Normal text
@@ -182,18 +192,18 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Dc$")) {
       addclose("\"")
     } else if(match(words[w],"^Oo$")) {
-      addopen("`[`")
+      addopen("<nowiki>[</nowiki>")
     } else if(match(words[w],"^Oc$")) {
-      addclose("`]`")
+      addclose("<nowiki>]</nowiki>")
     } else if(match(words[w],"^Ao$")) {
-      addopen("`<`")
+      addopen("&lt;")
     } else if(match(words[w],"^Ac$")) {
-      addclose("`>`")
+      addclose("&gt;")
     } else if(match(words[w],"^Dd$")) {
       date=wtail()
       next
     } else if(match(words[w],"^Dt$")) {
-      id=wtail()
+      id=words[++w] "(" words[++w] ")"
       next
     } else if(match(words[w],"^Ox$")) {
       add("OpenBSD")
@@ -206,32 +216,32 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^St$")) {
       if (match(words[w+1], "^-p1003.1$")) {
          w++
-         add("IEEE Std 1003.1 (``POSIX.1'')")
+         add("<nowiki>IEEE Std 1003.1 (``POSIX.1'')</nowiki>")
       } else if(match(words[w+1], "^-p1003.1-96$")) {
          w++
-         add("ISO/IEC 9945-1:1996 (``POSIX.1'')")
+         add("<nowiki>ISO/IEC 9945-1:1996 (``POSIX.1'')</nowiki>")
       } else if(match(words[w+1], "^-p1003.1-88$")) {
          w++
-         add("IEEE Std 1003.1-1988 (``POSIX.1'')")
+         add("<nowiki>IEEE Std 1003.1-1988 (``POSIX.1'')</nowiki>")
       } else if(match(words[w+1], "^-p1003.1-2001$")) {
          w++
-         add("IEEE Std 1003.1-2001 (``POSIX.1'')")
+         add("<nowiki>IEEE Std 1003.1-2001 (``POSIX.1'')</nowiki>")
       } else if(match(words[w+1], "^-susv2$")) {
          w++
-         add("Version 2 of the Single UNIX Specification (``SUSv2'')")
+         add("<nowiki>Version 2 of the Single UNIX Specification (``SUSv2'')</nowiki>")
       }
     } else if(match(words[w],"^Ex$")) {
       if (match(words[w+1], "^-std$")) {
          w++
-         add("The *" name "* utility exits 0 on success, and >0 if an error occurs.")
+         add("The '''" name "''' utility exits 0 on success, and &gt;0 if an error occurs.")
       }
     } else if(match(words[w],"^Os$")) {
-      add("#summary " id " manual page")
+      add(id " manual page")
     } else if(match(words[w],"^Sh$")) {
       section=wtail()
       linecmd("== " section " ==")
     } else if(match(words[w],"^Xr$")) {
-      add("*" words[++w] "*(" words[++w] ")" words[++w])
+      add("'''" words[++w] "'''(" words[++w] ")" words[++w])
     } else if(match(words[w],"^Nm$")) {
       if(match(section,"SYNOPSIS"))
         breakline()
@@ -249,7 +259,7 @@ function splitwords(l, dest, n, o, w) {
       if(!length(n))
         n=name
       if (displaylines == 0)
-	add("*" n "*")
+	add("'''" n "'''")
       else
 	add(n)
     } else if(match(words[w],"^Nd$")) {
@@ -258,24 +268,22 @@ function splitwords(l, dest, n, o, w) {
       addopen("-")
     } else if(match(words[w],"^Ar$")) {
       if(w==nwords)
-	add("_file ..._")
+	add("''file ...''")
       else {
 	++w
-	gsub("<", "`<`", words[w])
-	add("_" words[w] "_")
+	gsub("<", "&lt;", words[w])
+	add("''" words[w] "''")
       }
     } else if(match(words[w],"^Cm$")) {
       ++w
       if (displaylines == 0) {
-	gsub("^_", "`_`", words[w])
-	gsub("\\*$", "`*`", words[w])
-	add("*" words[w] "*")
+	add("'''" words[w] "'''")
       } else
 	add(words[w])
     } else if(match(words[w],"^Op$")) {
-      addopen("`[`")
+      addopen("<nowiki>[</nowiki>")
       option=1
-      trailer="`]`" trailer
+      trailer="<nowiki>]</nowiki>" trailer
     } else if(match(words[w],"^Pp$")) {
       ++w
       endline()
@@ -292,15 +300,13 @@ function splitwords(l, dest, n, o, w) {
 	breakline()
       }
       l = wtail()
-      gsub("\\*", "`*`", l)
-
-      add("*" l "*")
+      add("'''" l "'''")
       if (match(section, "SYNOPSIS")) {
 	breakline()
       }
     } else if(match(words[w],"^Fn$")) {
       ++w
-      F = "*" words[w] "*("
+      F = "'''" words[w] "'''("
       Fsep = ""
       while(w<nwords) {
 	++w
@@ -308,8 +314,7 @@ function splitwords(l, dest, n, o, w) {
 	  --w
 	  break
 	}
-	gsub("\\*", "`*`", words[w])
-	F = F Fsep "_"  words[w] "_"
+	F = F Fsep "''"  words[w] "''"
 	Fsep = ", "
       }
       add(F ")")
@@ -318,12 +323,11 @@ function splitwords(l, dest, n, o, w) {
       }
     } else if(match(words[w],"^Fo$")) {
       w++
-      F = "*" words[w] "*("
+      F = "'''" words[w] "'''("
       Fsep = ""
     } else if(match(words[w],"^Fa$")) {
       w++
-      gsub("\\*", "`*`", words[w])
-      F = F Fsep "_"  words[w] "_"
+      F = F Fsep "''"  words[w] "''"
       Fsep = ", "
     } else if(match(words[w],"^Fc$")) {
       add(F ")")
@@ -332,16 +336,16 @@ function splitwords(l, dest, n, o, w) {
       }
     } else if(match(words[w],"^Va$")) {
       w++
-      add("_" words[w] "_")
+      add("''" words[w] "''")
     } else if(match(words[w],"^In$")) {
       w++
-      add("*#include <" words[w] ">*")
+      add("'''<nowiki>#include <" words[w] "></nowiki>'''")
     } else if(match(words[w],"^Pa$")) {
       w++
 #      if(match(words[w],"^\\."))
 #	add("\\&")
       if (displaylines == 0)
-	add("_" words[w] "_")
+	add("''" words[w] "''")
       else
 	add(words[w])
     } else if(match(words[w],"^Dv$")) {
@@ -352,20 +356,19 @@ function splitwords(l, dest, n, o, w) {
       addopen("(")
       trailer=")" trailer
     } else if(match(words[w],"^Aq$")) {
-      addopen(" <")
-      trailer=">" trailer
+      addopen(" &lt;")
+      trailer="&gt;" trailer
     } else if(match(words[w],"^Brq$")) {
-      addopen("{")
-      trailer="}" trailer
+      addopen("<nowiki>{</nowiki>")
+      trailer="<nowiki>}</nowiki>" trailer
     } else if(match(words[w],"^S[xy]$")) {
       add(".B " wtail())
     } else if(match(words[w],"^Tn$")) {
       n=wtail()
-      gsub("\\*$", "`*`", n)
-      add("*" n "*")
+      add("'''" n "'''")
     } else if(match(words[w],"^Ic$")) {
-      add("\\fB")
-      trailer="\\fP" trailer
+      add("''")
+      trailer="''" trailer
     } else if(match(words[w],"^Bl$")) {
       ++listdepth
       listnext[listdepth]=""
@@ -408,9 +411,9 @@ function splitwords(l, dest, n, o, w) {
 	  # Suppress trailer
 	  w++
 	} else if(match(words[w+1],"^Pa$|^Ev$")) {
-	  addopen("*")
+	  addopen("'''")
 	  w++
-	  add(words[++w] "*")
+	  add(words[++w] "'''")
 	} else {
 	  trailer = listnext[listdepth] "<dd>" trailer
 	  listnext[listdepth] = "</dd>"
@@ -421,7 +424,7 @@ function splitwords(l, dest, n, o, w) {
       }
     } else if(match(words[w], "^Vt$")) {
       w++
-      add("_" words[w] "_")
+      add("''" words[w] "''")
     } else if(match(words[w],"^Xo$")) {
       # TODO: Figure out how to handle this
     } else if(match(words[w],"^Xc$")) {
@@ -433,9 +436,9 @@ function splitwords(l, dest, n, o, w) {
       }
     } else if(match(words[w],"^[=]$")) {
       addpunct(words[w])
-    } else if(match(words[w],"^[\[{(]$")) {
+    } else if(match(words[w],"^[[{(]$")) {
       addopen(words[w])
-    } else if(match(words[w],"^[\\\])}.,;:]$")) {
+    } else if(match(words[w],"^[\\])}.,;:]$")) {
       addclose(words[w])
     } else {
       sub("\\\\&", "", words[w])

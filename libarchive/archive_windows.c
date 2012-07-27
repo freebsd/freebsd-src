@@ -65,6 +65,23 @@
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
+#if defined(__LA_LSEEK_NEEDED)
+static BOOL SetFilePointerEx_perso(HANDLE hFile,
+				   LARGE_INTEGER liDistanceToMove,
+				   PLARGE_INTEGER lpNewFilePointer,
+				   DWORD dwMoveMethod)
+{
+	LARGE_INTEGER li;
+	li.QuadPart = liDistanceToMove.QuadPart;
+	li.LowPart = SetFilePointer(
+		hFile, li.LowPart, &li.HighPart, dwMoveMethod);
+	if(lpNewFilePointer) {
+		lpNewFilePointer->QuadPart = li.QuadPart;
+	}
+	return li.LowPart != -1 || GetLastError() == NO_ERROR;
+}
+#endif
+
 struct ustat {
 	int64_t		st_atime;
 	uint32_t	st_atime_nsec;
@@ -93,7 +110,7 @@ getino(struct ustat *ub)
 	ULARGE_INTEGER ino64;
 	ino64.QuadPart = ub->st_ino;
 	/* I don't know this hashing is correct way */
-	return (ino64.LowPart ^ (ino64.LowPart >> INOSIZE));
+	return ((ino_t)(ino64.LowPart ^ (ino64.LowPart >> INOSIZE)));
 }
 
 /*
@@ -235,6 +252,40 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	return (handle);
 }
 
+#if defined(__LA_LSEEK_NEEDED)
+__int64
+__la_lseek(int fd, __int64 offset, int whence)
+{
+	LARGE_INTEGER distance;
+	LARGE_INTEGER newpointer;
+	HANDLE handle;
+
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
+	handle = (HANDLE)_get_osfhandle(fd);
+	if (GetFileType(handle) != FILE_TYPE_DISK) {
+		errno = EBADF;
+		return (-1);
+	}
+	distance.QuadPart = offset;
+	if (!SetFilePointerEx_perso(handle, distance, &newpointer, whence)) {
+		DWORD lasterr;
+
+		lasterr = GetLastError();
+		if (lasterr == ERROR_BROKEN_PIPE)
+			return (0);
+		if (lasterr == ERROR_ACCESS_DENIED)
+			errno = EBADF;
+		else
+			la_dosmaperr(lasterr);
+		return (-1);
+	}
+	return (newpointer.QuadPart);
+}
+#endif
+
 /* This can exceed MAX_PATH limitation. */
 int
 __la_open(const char *path, int flags, ...)
@@ -374,7 +425,7 @@ __la_read(int fd, void *buf, size_t nbytes)
 
 /* Convert Windows FILETIME to UTC */
 __inline static void
-fileTimeToUTC(const FILETIME *filetime, time_t *time, long *ns)
+fileTimeToUTC(const FILETIME *filetime, time_t *t, long *ns)
 {
 	ULARGE_INTEGER utc;
 
@@ -382,10 +433,10 @@ fileTimeToUTC(const FILETIME *filetime, time_t *time, long *ns)
 	utc.LowPart  = filetime->dwLowDateTime;
 	if (utc.QuadPart >= EPOC_TIME) {
 		utc.QuadPart -= EPOC_TIME;
-		*time = (time_t)(utc.QuadPart / 10000000);	/* milli seconds base */
+		*t = (time_t)(utc.QuadPart / 10000000);	/* milli seconds base */
 		*ns = (long)(utc.QuadPart % 10000000) * 100;/* nano seconds base */
 	} else {
-		*time = 0;
+		*t = 0;
 		*ns = 0;
 	}
 }
@@ -408,7 +459,7 @@ __hstat(HANDLE handle, struct ustat *st)
 	ULARGE_INTEGER ino64;
 	DWORD ftype;
 	mode_t mode;
-	time_t time;
+	time_t t;
 	long ns;
 
 	switch (ftype = GetFileType(handle)) {
@@ -465,14 +516,14 @@ __hstat(HANDLE handle, struct ustat *st)
 		mode |= S_IFREG;
 	st->st_mode = mode;
 	
-	fileTimeToUTC(&info.ftLastAccessTime, &time, &ns);
-	st->st_atime = time; 
+	fileTimeToUTC(&info.ftLastAccessTime, &t, &ns);
+	st->st_atime = t; 
 	st->st_atime_nsec = ns;
-	fileTimeToUTC(&info.ftLastWriteTime, &time, &ns);
-	st->st_mtime = time;
+	fileTimeToUTC(&info.ftLastWriteTime, &t, &ns);
+	st->st_mtime = t;
 	st->st_mtime_nsec = ns;
-	fileTimeToUTC(&info.ftCreationTime, &time, &ns);
-	st->st_ctime = time;
+	fileTimeToUTC(&info.ftCreationTime, &t, &ns);
+	st->st_ctime = t;
 	st->st_ctime_nsec = ns;
 	st->st_size = 
 	    ((int64_t)(info.nFileSizeHigh) * ((int64_t)MAXDWORD + 1))
@@ -508,7 +559,7 @@ copy_stat(struct stat *st, struct ustat *us)
 	st->st_ino = getino(us);
 	st->st_mode = us->st_mode;
 	st->st_nlink = us->st_nlink;
-	st->st_size = us->st_size;
+	st->st_size = (off_t)us->st_size;
 	st->st_uid = us->st_uid;
 	st->st_dev = us->st_dev;
 	st->st_rdev = us->st_rdev;
@@ -853,7 +904,7 @@ __la_dosmaperr(unsigned long e)
 		return;
 	}
 
-	for (i = 0; i < sizeof(doserrors); i++)
+	for (i = 0; i < (int)sizeof(doserrors); i++)
 	{
 		if (doserrors[i].winerr == e)
 		{

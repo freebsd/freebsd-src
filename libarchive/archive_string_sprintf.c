@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string_sprintf.c 189435 2009-03-
  * here.  This is only used to format error messages, so doesn't
  * require any floating-point support or field-width handling.
  */
-
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #include <stdio.h>
 
 #include "archive_string.h"
@@ -129,7 +131,7 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			break;
 		case 'c':
 			s = va_arg(ap, int);
-			archive_strappend_char(as, s);
+			archive_strappend_char(as, (char)s);
 			break;
 		case 'd':
 			switch(long_flag) {
@@ -146,7 +148,9 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 				pw = va_arg(ap, wchar_t *);
 				if (pw == NULL)
 					pw = L"(null)";
-				archive_string_append_from_wcs(as, pw, wcslen(pw));
+				if (archive_string_append_from_wcs(as, pw,
+				    wcslen(pw)) != 0 && errno == ENOMEM)
+					__archive_errx(1, "Out of memory");
 				break;
 			default:
 				p2 = va_arg(ap, char *);
@@ -160,7 +164,9 @@ archive_string_vsprintf(struct archive_string *as, const char *fmt,
 			pw = va_arg(ap, wchar_t *);
 			if (pw == NULL)
 				pw = L"(null)";
-			archive_string_append_from_wcs(as, pw, wcslen(pw));
+			if (archive_string_append_from_wcs(as, pw,
+			    wcslen(pw)) != 0 && errno == ENOMEM)
+				__archive_errx(1, "Out of memory");
 			break;
 		case 'o': case 'u': case 'x': case 'X':
 			/* Common handling for unsigned integer formats. */

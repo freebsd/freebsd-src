@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD");
  * - the filename of second file is stored in UTF-8.
  *
  * Whenever hdrcharset option is specified, we will correctly read the
- * filename of sencod file, which is stored in UTF-8 by default.
+ * filename of second file, which is stored in UTF-8 by default.
  */
 
 static void

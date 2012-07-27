@@ -5,14 +5,13 @@
 ############################################
 IF(ENABLE_TAR AND ENABLE_TEST)
   SET(bsdtar_test_SOURCES
-    ../getdate.c
     main.c
     test.h
     test_0.c
     test_basic.c
     test_copy.c
     test_empty_mtree.c
-    test_getdate.c
+    test_format_newc.c
     test_help.c
     test_option_C_upper.c
     test_option_H_upper.c
@@ -28,6 +27,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_keep_newer_files.c
     test_option_n.c
     test_option_newer_than.c
+    test_option_nodump.c
     test_option_q.c
     test_option_r.c
     test_option_s.c

@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.0.3])
-m4_define([LIBARCHIVE_VERSION_N],[3000003])
+m4_define([LIBARCHIVE_VERSION_S],[3.0.4])
+m4_define([LIBARCHIVE_VERSION_N],[3000004])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -17,7 +17,7 @@ AC_PREREQ(2.65)
 # Now starts the "real" configure script.
 #
 
-AC_INIT([libarchive],LIBARCHIVE_VERSION_S(),[kientzle@FreeBSD.org])
+AC_INIT([libarchive],LIBARCHIVE_VERSION_S(),[libarchive-discuss@googlegroups.com])
 # Make sure the srcdir contains "libarchive" directory
 AC_CONFIG_SRCDIR([libarchive])
 # Use auxiliary subscripts from this subdirectory (cleans up root)
@@ -197,13 +197,6 @@ case $host in
   ;;
 esac
 
-# We need CoreServices on Mac OS.
-case $host in
-  *darwin* )
-  LIBS="${LIBS} -framework CoreServices"
-  ;;
-esac
-
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
@@ -223,7 +216,7 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
                     [Define to 1 if you have a working EXT2_IOC_GETFLAGS])])
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
-AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h])
+AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
 AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h])
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h sys/ioctl.h])
@@ -268,8 +261,8 @@ AC_ARG_WITH([iconv],
   AS_HELP_STRING([--without-iconv], [Don't try to link against iconv]))
 
 if test "x$with_iconv" != "xno"; then
-  AC_CHECK_HEADERS([iconv.h],[],[],[#include <stdlib.h>])
   AM_ICONV
+  AC_CHECK_HEADERS([iconv.h],[],[],[#include <stdlib.h>])
   if test "x$am_cv_func_iconv" = "xyes"; then
     AC_CHECK_HEADERS([localcharset.h])
     am_save_LIBS="$LIBS"
@@ -364,6 +357,12 @@ AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
 #include <sys/mount.h>
 ])
 
+# Check for f_iosize in struct statvfs
+AC_CHECK_MEMBERS([struct statvfs.f_iosize],,,
+[
+#include <sys/statvfs.h>
+])
+
 # Check for birthtime in struct stat
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
 
@@ -440,13 +439,13 @@ AC_CHECK_FUNCS([futimens futimes futimesat])
 AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
 AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat lutimes])
-AC_CHECK_FUNCS([mbrtowc mbsnrtowcs memmove memset])
+AC_CHECK_FUNCS([mbrtowc memmove memset])
 AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo openat pipe poll readlink readlinkat])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
-AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wcsnrtombs wctomb wmemcmp wmemcpy])
+AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy])
 AC_CHECK_FUNCS([_ctime64_s _fseeki64])
 AC_CHECK_FUNCS([_get_timezone _localtime64_s _mkgmtime64])
 # detects cygwin-1.7, as opposed to older versions

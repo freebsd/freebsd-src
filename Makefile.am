@@ -21,7 +21,11 @@ TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs)
 TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT)
 # Always build and test both bsdtar and bsdcpio as part of 'distcheck'
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
-AM_CFLAGS=-Wall
+COMMON_CFLAGS=-Wall -Wformat -Wformat-security
+# The next line is commented out by default in shipping libarchive releases.
+# It is uncommented by default in trunk.
+# DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual
+AM_CFLAGS=$(COMMON_CFLAGS) $(DEV_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 
@@ -100,8 +104,12 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_entry_stat.c				\
 	libarchive/archive_entry_strmode.c			\
 	libarchive/archive_entry_xattr.c			\
+	libarchive/archive_getdate.c				\
+	libarchive/archive_match.c				\
 	libarchive/archive_options.c				\
 	libarchive/archive_options_private.h			\
+	libarchive/archive_pathmatch.c				\
+	libarchive/archive_pathmatch.h				\
 	libarchive/archive_platform.h				\
 	libarchive/archive_ppmd_private.h			\
 	libarchive/archive_ppmd7.c				\
@@ -161,6 +169,7 @@ libarchive_la_SOURCES=						\
 	libarchive/archive_write_open_filename.c		\
 	libarchive/archive_write_open_memory.c			\
 	libarchive/archive_write_private.h			\
+	libarchive/archive_write_add_filter.c			\
 	libarchive/archive_write_add_filter_bzip2.c	\
 	libarchive/archive_write_add_filter_compress.c	\
 	libarchive/archive_write_add_filter_gzip.c		\
@@ -253,6 +262,11 @@ libarchive_test_SOURCES=					\
 	libarchive/test/test_archive_api_feature.c		\
 	libarchive/test/test_archive_clear_error.c		\
 	libarchive/test/test_archive_crypto.c			\
+	libarchive/test/test_archive_getdate.c			\
+	libarchive/test/test_archive_match_owner.c		\
+	libarchive/test/test_archive_match_path.c		\
+	libarchive/test/test_archive_match_time.c		\
+	libarchive/test/test_archive_pathmatch.c		\
 	libarchive/test/test_archive_read_close_twice.c		\
 	libarchive/test/test_archive_read_close_twice_open_fd.c	\
 	libarchive/test/test_archive_read_close_twice_open_filename.c	\
@@ -572,12 +586,9 @@ libarchive_fe_la_SOURCES=			\
 	libarchive_fe/err.h			\
 	libarchive_fe/lafe_platform.h		\
 	libarchive_fe/line_reader.c		\
-	libarchive_fe/line_reader.h		\
-	libarchive_fe/matching.c		\
-	libarchive_fe/matching.h		\
-	libarchive_fe/pathmatch.c		\
-	libarchive_fe/pathmatch.h
+	libarchive_fe/line_reader.h
 
+libarchive_fe_la_CPPFLAGS= -I$(top_srcdir)/libarchive
 #
 #
 # bsdtar source, docs, etc.
@@ -589,11 +600,8 @@ bsdtar_SOURCES=				\
 		tar/bsdtar.h		\
 		tar/bsdtar_platform.h	\
 		tar/cmdline.c		\
-		tar/getdate.c		\
 		tar/read.c		\
 		tar/subst.c		\
-		tar/tree.c		\
-		tar/tree.h		\
 		tar/util.c		\
 		tar/write.c
 
@@ -638,14 +646,13 @@ endif
 #
 
 bsdtar_test_SOURCES=						\
-	tar/getdate.c						\
 	tar/test/main.c						\
 	tar/test/test.h						\
 	tar/test/test_0.c					\
 	tar/test/test_basic.c					\
 	tar/test/test_copy.c					\
 	tar/test/test_empty_mtree.c				\
-	tar/test/test_getdate.c					\
+	tar/test/test_format_newc.c				\
 	tar/test/test_help.c					\
 	tar/test/test_option_C_upper.c				\
 	tar/test/test_option_H_upper.c				\
@@ -661,6 +668,7 @@ bsdtar_test_SOURCES=						\
 	tar/test/test_option_keep_newer_files.c			\
 	tar/test/test_option_n.c				\
 	tar/test/test_option_newer_than.c			\
+	tar/test/test_option_nodump.c				\
 	tar/test/test_option_q.c				\
 	tar/test/test_option_r.c				\
 	tar/test/test_option_s.c				\
@@ -784,8 +792,7 @@ bsdcpio_test_SOURCES=						\
 	cpio/test/test_option_z.c				\
 	cpio/test/test_owner_parse.c				\
 	cpio/test/test_passthrough_dotdot.c			\
-	cpio/test/test_passthrough_reverse.c			\
-	cpio/test/test_pathmatch.c
+	cpio/test/test_passthrough_reverse.c
 
 bsdcpio_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \

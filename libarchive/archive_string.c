@@ -61,9 +61,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_string.c 201095 2009-12-28 02:33
 #include <windows.h>
 #include <locale.h>
 #endif
-#if defined(__APPLE__)
-#include <CoreServices/CoreServices.h>
-#endif
 
 #include "archive_endian.h"
 #include "archive_private.h"
@@ -115,11 +112,6 @@ struct archive_string_conv {
 #endif
 	/* A temporary buffer for normalization. */
 	struct archive_string		 utftmp;
-#if defined(__APPLE__)
-	UnicodeToTextInfo		 uniInfo;
-	struct archive_string		 utf16nfc;
-	struct archive_string		 utf16nfd;
-#endif
 	int (*converter[2])(struct archive_string *, const void *, size_t,
 	    struct archive_string_conv *);
 	int				 nconverter;
@@ -164,29 +156,29 @@ static int archive_string_append_from_wcs_in_codepage(struct archive_string *,
 static int is_big_endian(void);
 static int strncat_in_codepage(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
-static int win_strncat_from_utf16be(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
-static int win_strncat_from_utf16le(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
-static int win_strncat_to_utf16be(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
-static int win_strncat_to_utf16le(struct archive_string *, const void *, size_t,
-    struct archive_string_conv *);
+static int win_strncat_from_utf16be(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+static int win_strncat_from_utf16le(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+static int win_strncat_to_utf16be(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
+static int win_strncat_to_utf16le(struct archive_string *, const void *,
+    size_t, struct archive_string_conv *);
 #endif
-static int best_effort_strncat_from_utf16be(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
-static int best_effort_strncat_from_utf16le(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
-static int best_effort_strncat_to_utf16be(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
-static int best_effort_strncat_to_utf16le(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
+static int best_effort_strncat_from_utf16be(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
+static int best_effort_strncat_from_utf16le(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
+static int best_effort_strncat_to_utf16be(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
+static int best_effort_strncat_to_utf16le(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
 #if defined(HAVE_ICONV)
 static int iconv_strncat_in_locale(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 #endif
-static int best_effort_strncat_in_locale(struct archive_string *, const void *,
-    size_t, struct archive_string_conv *);
+static int best_effort_strncat_in_locale(struct archive_string *,
+    const void *, size_t, struct archive_string_conv *);
 static int _utf8_to_unicode(uint32_t *, const char *, size_t);
 static int utf8_to_unicode(uint32_t *, const char *, size_t);
 static inline uint32_t combine_surrogate_pair(uint32_t, uint32_t);
@@ -201,10 +193,8 @@ static int strncat_from_utf8_to_utf8(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int archive_string_normalize_C(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
-#if defined(__APPLE__)
 static int archive_string_normalize_D(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
-#endif
 static int archive_string_append_unicode(struct archive_string *,
     const void *, size_t, struct archive_string_conv *);
 
@@ -238,7 +228,8 @@ archive_string_concat(struct archive_string *dest, struct archive_string *src)
 }
 
 void
-archive_wstring_concat(struct archive_wstring *dest, struct archive_wstring *src)
+archive_wstring_concat(struct archive_wstring *dest,
+    struct archive_wstring *src)
 {
 	if (archive_wstring_append(dest, src->s, src->length) == NULL)
 		__archive_errx(1, "Out of memory");
@@ -443,10 +434,7 @@ int
 archive_wstring_append_from_mbs(struct archive_wstring *dest,
     const char *p, size_t len)
 {
-	int r = archive_wstring_append_from_mbs_in_codepage(dest, p, len, NULL);
-	if (r != 0 && errno == ENOMEM)
-		__archive_errx(1, "No memory");
-	return (r);
+	return archive_wstring_append_from_mbs_in_codepage(dest, p, len, NULL);
 }
 
 static int
@@ -479,7 +467,8 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 			*ws++ = (wchar_t)*mp++;
 			count++;
 		}
-	} else if (sc != NULL && (sc->flag & SCONV_NORMALIZATION_C)) {
+	} else if (sc != NULL &&
+	    (sc->flag & (SCONV_NORMALIZATION_C | SCONV_NORMALIZATION_D))) {
 		/*
 		 * Normalize UTF-8 and UTF-16BE and convert it directly
 		 * to UTF-16 as wchar_t.
@@ -495,18 +484,23 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		if (sc->flag & SCONV_FROM_UTF16) {
 			/*
 			 *  UTF-16BE/LE NFD ===> UTF-16 NFC
+			 *  UTF-16BE/LE NFC ===> UTF-16 NFD
 			 */
 			count = utf16nbytes(s, length);
 		} else {
 			/*
 			 *  UTF-8 NFD ===> UTF-16 NFC
+			 *  UTF-8 NFC ===> UTF-16 NFD
 			 */
 			count = mbsnbytes(s, length);
 		}
 		u16.s = (char *)dest->s;
 		u16.length = dest->length << 1;;
 		u16.buffer_length = dest->buffer_length;
-		ret = archive_string_normalize_C(&u16, s, count, sc);
+		if (sc->flag & SCONV_NORMALIZATION_C)
+			ret = archive_string_normalize_C(&u16, s, count, sc);
+		else
+			ret = archive_string_normalize_D(&u16, s, count, sc);
 		dest->s = (wchar_t *)u16.s;
 		dest->length = u16.length >> 1;
 		dest->buffer_length = u16.buffer_length;
@@ -519,7 +513,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		if (NULL == archive_wstring_ensure(dest,
 		    dest->length + count + 1))
 			return (-1);
-		wmemcpy(dest->s + dest->length, (wchar_t *)s, count);
+		wmemcpy(dest->s + dest->length, (const wchar_t *)s, count);
 		if ((sc->flag & SCONV_FROM_UTF16BE) && !is_big_endian()) {
 			uint16_t *u16 = (uint16_t *)(dest->s + dest->length);
 			int b;
@@ -537,6 +531,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		}
 	} else {
 		DWORD mbflag;
+		size_t buffsize;
 
 		if (sc == NULL)
 			mbflag = 0;
@@ -548,83 +543,30 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		} else
 			mbflag = MB_PRECOMPOSED;
 
-		if (length == 0) {
-			/*
-			 * We do not need to convert any characters but make
-			 * sure `dest' has a valid buffer(no NULL pointer).
-			 */
-			if (NULL == archive_wstring_ensure(dest,
-			    dest->length + 1))
+		buffsize = dest->length + length + 1;
+		do {
+			/* Allocate memory for WCS. */
+			if (NULL == archive_wstring_ensure(dest, buffsize))
 				return (-1);
-			dest->s[dest->length] = L'\0';
-			return (0);
-		}
-
-		/*
-		 * Count how many bytes are needed for WCS.
-		 */
-		count = MultiByteToWideChar(from_cp,
-		    mbflag, s, length, NULL, 0);
-		if (count == 0) {
-			if (dest->s == NULL) {
-				if (NULL == archive_wstring_ensure(dest,
-				    dest->length + 1))
-					return (-1);
+			/* Convert MBS to WCS. */
+			count = MultiByteToWideChar(from_cp,
+			    mbflag, s, length, dest->s + dest->length,
+			    (dest->buffer_length >> 1) -1);
+			if (count == 0 &&
+			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+				/* Expand the WCS buffer. */
+				buffsize = dest->buffer_length << 1;
+				continue;
 			}
-			dest->s[dest->length] = L'\0';
-			return (-1);
-		}
-		/* Allocate memory for WCS. */
-		if (NULL == archive_wstring_ensure(dest,
-		    dest->length + count + 1))
-			return (-1);
-		/* Convert MBS to WCS. */
-		count = MultiByteToWideChar(from_cp,
-		    mbflag, s, length, dest->s + dest->length, count);
-		if (count == 0)
-			ret = -1;
+			if (count == 0 && length != 0)
+				ret = -1;
+		} while (0);
 	}
 	dest->length += count;
 	dest->s[dest->length] = L'\0';
 	return (ret);
 }
 
-#elif defined(HAVE_MBSNRTOWCS)
-
-/*
- * Convert MBS to WCS.
- * Note: returns -1 if conversion fails.
- */
-int
-archive_wstring_append_from_mbs(struct archive_wstring *dest,
-    const char *p, size_t len)
-{
-	size_t r;
-	/*
-	 * No single byte will be more than one wide character,
-	 * so this length estimate will always be big enough.
-	 */
-	size_t wcs_length = len;
-	size_t mbs_length = len;
-	const char *mbs = p;
-	wchar_t *wcs;
-	mbstate_t shift_state;
-
-	memset(&shift_state, 0, sizeof(shift_state));
-	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
-		__archive_errx(1,
-		    "No memory for archive_wstring_append_from_mbs()");
-	wcs = dest->s + dest->length;
-	r = mbsnrtowcs(wcs, &mbs, mbs_length, wcs_length, &shift_state);
-	if (r != (size_t)-1) {
-		dest->length += r;
-		dest->s[dest->length] = L'\0';
-		return (0);
-	}
-	dest->s[dest->length] = L'\0';
-	return (-1);
-}
-
 #else
 
 /*
@@ -636,6 +578,7 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
     const char *p, size_t len)
 {
 	size_t r;
+	int ret_val = 0;
 	/*
 	 * No single byte will be more than one wide character,
 	 * so this length estimate will always be big enough.
@@ -650,23 +593,36 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
 	memset(&shift_state, 0, sizeof(shift_state));
 #endif
 	if (NULL == archive_wstring_ensure(dest, dest->length + wcs_length + 1))
-		__archive_errx(1,
-		    "No memory for archive_wstring_append_from_mbs()");
+		return (-1);
 	wcs = dest->s + dest->length;
 	/*
 	 * We cannot use mbsrtowcs/mbstowcs here because those may convert
 	 * extra MBS when strlen(p) > len and one wide character consis of
 	 * multi bytes.
 	 */
-	while (wcs_length > 0 && *mbs && mbs_length > 0) {
+	while (*mbs && mbs_length > 0) {
+		if (wcs_length == 0) {
+			dest->length = wcs - dest->s;
+			dest->s[dest->length] = L'\0';
+			wcs_length = mbs_length;
+			if (NULL == archive_wstring_ensure(dest,
+			    dest->length + wcs_length + 1))
+				return (-1);
+			wcs = dest->s + dest->length;
+		}
 #if HAVE_MBRTOWC
 		r = mbrtowc(wcs, mbs, wcs_length, &shift_state);
 #else
 		r = mbtowc(wcs, mbs, wcs_length);
 #endif
 		if (r == (size_t)-1 || r == (size_t)-2) {
-			dest->s[dest->length] = L'\0';
-			return (-1);
+			ret_val = -1;
+			if (errno == EILSEQ) {
+				++mbs;
+				--mbs_length;
+				continue;
+			} else
+				break;
 		}
 		if (r == 0 || r > mbs_length)
 			break;
@@ -677,7 +633,7 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
 	}
 	dest->length = wcs - dest->s;
 	dest->s[dest->length] = L'\0';
-	return (0);
+	return (ret_val);
 }
 
 #endif
@@ -697,10 +653,7 @@ int
 archive_string_append_from_wcs(struct archive_string *as,
     const wchar_t *w, size_t len)
 {
-	int r = archive_string_append_from_wcs_in_codepage(as, w, len, NULL);
-	if (r != 0 && errno == ENOMEM)
-		__archive_errx(1, "No memory");
-	return (r);
+	return archive_string_append_from_wcs_in_codepage(as, w, len, NULL);
 }
 
 static int
@@ -792,73 +745,6 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 	return (defchar_used?-1:ret);
 }
 
-#elif defined(HAVE_WCSNRTOMBS)
-
-/*
- * Translates a wide character string into current locale character set
- * and appends to the archive_string.  Note: returns -1 if conversion
- * fails.
- */
-int
-archive_string_append_from_wcs(struct archive_string *as,
-    const wchar_t *w, size_t len)
-{
-	mbstate_t shift_state;
-	size_t r, ndest, nwc;
-	char *dest;
-	const wchar_t *wp, *wpp;
-	int ret_val = 0;
-
-	wp = w;
-	nwc = len;
-	ndest = len * 2;
-	/* Initialize the shift state. */
-	memset(&shift_state, 0, sizeof(shift_state));
-	while (nwc > 0) {
-		/* Allocate buffer for MBS. */
-		if (archive_string_ensure(as, as->length + ndest + 1) == NULL)
-			__archive_errx(1, "Out of memory");
-
-		dest = as->s + as->length;
-		wpp = wp;
-		r = wcsnrtombs(dest, &wp, nwc,
-		    as->buffer_length - as->length -1,
-		    &shift_state);
-		if (r == (size_t)-1) {
-			if (errno == EILSEQ) {
-				/* Retry conversion just for safe WCS. */
-				size_t xwc = wp - wpp;
-				wp = wpp;
-				r = wcsnrtombs(dest, &wp, xwc,
-				    as->buffer_length - as->length -1,
-				    &shift_state);
-				if (r == (size_t)-1)
-					/* This would not happen. */
-					return (-1);
-				as->length += r;
-				nwc -= wp - wpp;
-				/* Skip an illegal wide char. */
-				as->s[as->length++] = '?';
-				wp++;
-				nwc--;
-				ret_val = -1;
-				continue;
-			} else {
-				ret_val = -1;
-				break;
-			}
-		}
-		as->length += r;
-		if (wp == NULL || (wp - wpp) >= (int64_t)nwc)
-			break;
-		/* Get a remaining WCS lenth. */
-		nwc -= wp - wpp;
-	}
-	/* All wide characters are translated to MBS. */
-	as->s[as->length] = '\0';
-	return (ret_val);
-}
-
 #elif defined(HAVE_WCTOMB) || defined(HAVE_WCRTOMB)
 
 /*
@@ -893,7 +779,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 	 * as->s is still NULL.
 	 */
 	if (archive_string_ensure(as, as->length + len + 1) == NULL)
-		__archive_errx(1, "Out of memory");
+		return (-1);
 
 	p = as->s + as->length;
 	end = as->s + as->buffer_length - MB_CUR_MAX -1;
@@ -904,7 +790,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 			/* Re-allocate buffer for MBS. */
 			if (archive_string_ensure(as,
 			    as->length + len * 2 + 1) == NULL)
-				__archive_errx(1, "Out of memory");
+				return (-1);
 			p = as->s + as->length;
 			end = as->s + as->buffer_length - MB_CUR_MAX -1;
 		}
@@ -946,6 +832,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 	(void)as;/* UNUSED */
 	(void)w;/* UNUSED */
 	(void)len;/* UNUSED */
+	errno = ENOSYS;
 	return (-1);
 }
 
@@ -986,27 +873,6 @@ add_sconv_object(struct archive *a, struct archive_string_conv *sc)
 		psc = &((*psc)->next);
 	*psc = sc;
 }
-
-#if defined(__APPLE__)
-
-static int
-createUniInfo(struct archive_string_conv *sconv)
-{
-	UnicodeMapping map;
-	OSStatus err;
-
-	map.unicodeEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
-	    kUnicodeNoSubset, kUnicode16BitFormat);
-	map.otherEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault,
-	    kUnicodeHFSPlusDecompVariant, kUnicode16BitFormat);
-	map.mappingVersion = kUnicodeUseLatestMapping;
-
-	sconv->uniInfo = NULL;
-	err = CreateUnicodeToTextInfo(&map, &(sconv->uniInfo));
-	return ((err == noErr)? 0: -1);
-}
-
-#endif /* __APPLE__ */
 
 static void
 add_converter(struct archive_string_conv *sc, int (*converter)
@@ -1066,9 +932,11 @@ setup_converter(struct archive_string_conv *sc)
 
 		if (sc->flag & SCONV_BEST_EFFORT) {
 			if (sc->flag & SCONV_TO_UTF16BE)
-				add_converter(sc, best_effort_strncat_to_utf16be);
+				add_converter(sc,
+					best_effort_strncat_to_utf16be);
 			else
-				add_converter(sc, best_effort_strncat_to_utf16le);
+				add_converter(sc,
+					best_effort_strncat_to_utf16le);
 		} else
 			/* Make sure we have no converter. */
 			sc->nconverter = 0;
@@ -1082,12 +950,9 @@ setup_converter(struct archive_string_conv *sc)
 		/*
 		 * At least we should normalize a UTF-16BE string.
 		 */
-#if defined(__APPLE__)
 		if (sc->flag & SCONV_NORMALIZATION_D)
 			add_converter(sc,archive_string_normalize_D);
-		else
-#endif
-		if (sc->flag & SCONV_NORMALIZATION_C)
+		else if (sc->flag & SCONV_NORMALIZATION_C)
 			add_converter(sc, archive_string_normalize_C);
 
 		if (sc->flag & SCONV_TO_UTF8) {
@@ -1135,12 +1000,9 @@ setup_converter(struct archive_string_conv *sc)
 		/*
 		 * At least we should normalize a UTF-8 string.
 		 */
-#if defined(__APPLE__)
 		if (sc->flag & SCONV_NORMALIZATION_D)
 			add_converter(sc,archive_string_normalize_D);
-		else
-#endif
-		if (sc->flag & SCONV_NORMALIZATION_C)
+		else if (sc->flag & SCONV_NORMALIZATION_C)
 			add_converter(sc, archive_string_normalize_C);
 
 		/*
@@ -1174,6 +1036,16 @@ setup_converter(struct archive_string_conv *sc)
 #if HAVE_ICONV
 	if (sc->cd != (iconv_t)-1) {
 		add_converter(sc, iconv_strncat_in_locale);
+		/*
+		 * iconv generally does not support UTF-8-MAC and so
+		 * we have to the output of iconv from NFC to NFD if
+		 * need.
+		 */
+		if ((sc->flag & SCONV_FROM_CHARSET) &&
+		    (sc->flag & SCONV_TO_UTF8)) {
+			if (sc->flag & SCONV_NORMALIZATION_D)
+				add_converter(sc, archive_string_normalize_D);
+		}
 		return;
 	}
 #endif
@@ -1253,10 +1125,6 @@ create_sconv_object(const char *fc, const char *tc,
 		return (NULL);
 	}
 	archive_string_init(&sc->utftmp);
-#if defined(__APPLE__)
-	archive_string_init(&sc->utf16nfc);
-	archive_string_init(&sc->utf16nfd);
-#endif
 
 	if (flag & SCONV_TO_CHARSET) {
 		/*
@@ -1335,13 +1203,35 @@ create_sconv_object(const char *fc, const char *tc,
 	if ((flag & SCONV_FROM_CHARSET) &&
 	    (flag & (SCONV_FROM_UTF16 | SCONV_FROM_UTF8))) {
 #if defined(__APPLE__)
-		if (flag & SCONV_TO_UTF8) {
-			if (createUniInfo(sc) == 0)
-				flag |= SCONV_NORMALIZATION_D;
-		} else
+		if (flag & SCONV_TO_UTF8)
+			flag |= SCONV_NORMALIZATION_D;
+		else
 #endif
 			flag |= SCONV_NORMALIZATION_C;
 	}
+#if defined(__APPLE__)
+	/*
+	 * In case writing an archive file, make sure that a filename
+	 * going to be passed to iconv is a Unicode NFC string since
+	 * a filename in HFS Plus filesystem is a Unicode NFD one and
+	 * iconv cannot handle it with "UTF-8" charset. It is simpler
+	 * than a use of "UTF-8-MAC" charset.
+	 */
+	if ((flag & SCONV_TO_CHARSET) &&
+	    (flag & (SCONV_FROM_UTF16 | SCONV_FROM_UTF8)) &&
+	    !(flag & (SCONV_TO_UTF16 | SCONV_TO_UTF8)))
+		flag |= SCONV_NORMALIZATION_C;
+	/*
+	 * In case reading an archive file. make sure that a filename
+	 * will be passed to users is a Unicode NFD string in order to
+	 * correctly compare the filename with other one which comes
+	 * from HFS Plus filesystem.
+	 */
+	if ((flag & SCONV_FROM_CHARSET) &&
+	   !(flag & (SCONV_FROM_UTF16 | SCONV_FROM_UTF8)) &&
+	    (flag & SCONV_TO_UTF8))
+		flag |= SCONV_NORMALIZATION_D;
+#endif
 
 #if defined(HAVE_ICONV)
 	sc->cd_w = (iconv_t)-1;
@@ -1353,46 +1243,6 @@ create_sconv_object(const char *fc, const char *tc,
 	    (flag & SCONV_WIN_CP)) {
 		/* This case we won't use iconv. */
 		sc->cd = (iconv_t)-1;
-#if defined(__APPLE__)
-	} else if ((flag & SCONV_FROM_CHARSET) && (flag & SCONV_TO_UTF8)) {
-		/*
-		 * In case reading an archive file.
-		 * Translate non-Unicode filenames in an archive file to
-		 * UTF-8-MAC filenames.
-		 */
-		sc->cd = iconv_open("UTF-8-MAC", fc);
-		if (sc->cd == (iconv_t)-1) {
-			if ((sc->flag & SCONV_BEST_EFFORT) &&
-			    strcmp(fc, "CP932") == 0) {
-				sc->cd = iconv_open("UTF-8-MAC", "SJIS");
-				if (sc->cd == (iconv_t)-1) {
-					sc->cd = iconv_open(tc, fc);
-					if (sc->cd == (iconv_t)-1)
-						sc->cd = iconv_open(tc, "SJIS");
-				}
-			} else
-				sc->cd = iconv_open(tc, fc);
-		}
-	} else if ((flag & SCONV_TO_CHARSET) && (flag & SCONV_FROM_UTF8)) {
-		/*
-		 * In case writing an archive file.
-		 * Translate UTF-8-MAC filenames in HFS Plus to non-Unicode
-		 * filenames.
-		 */
-		sc->cd = iconv_open(tc, "UTF-8-MAC");
-		if (sc->cd == (iconv_t)-1) {
-			if ((sc->flag & SCONV_BEST_EFFORT) &&
-			    strcmp(tc, "CP932") == 0) {
-				sc->cd = iconv_open("SJIS", "UTF-8-MAC");
-				if (sc->cd == (iconv_t)-1) {
-					sc->cd = iconv_open(tc, fc);
-					if (sc->cd == (iconv_t)-1)
-						sc->cd = iconv_open("SJIS", fc);
-				}
-			} else
-				sc->cd = iconv_open(tc, fc);
-		}
-#endif
 	} else {
 		sc->cd = iconv_open(tc, fc);
 		if (sc->cd == (iconv_t)-1 && (sc->flag & SCONV_BEST_EFFORT)) {
@@ -1428,7 +1278,7 @@ create_sconv_object(const char *fc, const char *tc,
 	sc->flag = flag;
 
 	/*
-	 * Setup converters.
+	 * Set up converters.
 	 */
 	setup_converter(sc);
 
@@ -1449,12 +1299,6 @@ free_sconv_object(struct archive_string_conv *sc)
 		iconv_close(sc->cd);
 	if (sc->cd_w != (iconv_t)-1)
 		iconv_close(sc->cd_w);
-#endif
-#if defined(__APPLE__)
-	archive_string_free(&sc->utf16nfc);
-	archive_string_free(&sc->utf16nfd);
-	if (sc->uniInfo != NULL)
-		DisposeUnicodeToTextInfo(&(sc->uniInfo));
 #endif
 	free(sc);
 }
@@ -1995,10 +1839,36 @@ archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
 #else
 		if ((sc->flag & SCONV_UTF8_LIBARCHIVE_2) == 0) {
 			sc->flag |= SCONV_UTF8_LIBARCHIVE_2;
-			/* Re-setup string converters. */
+			/* Set up string converters. */
 			setup_converter(sc);
 		}
 #endif
+		break;
+	case SCONV_SET_OPT_NORMALIZATION_C:
+		if ((sc->flag & SCONV_NORMALIZATION_C) == 0) {
+			sc->flag |= SCONV_NORMALIZATION_C;
+			sc->flag &= ~SCONV_NORMALIZATION_D;
+			/* Set up string converters. */
+			setup_converter(sc);
+		}
+		break;
+	case SCONV_SET_OPT_NORMALIZATION_D:
+#if defined(HAVE_ICONV)
+		/*
+		 * If iconv will take the string, do not change the
+		 * setting of the normalization.
+		 */
+		if (!(sc->flag & SCONV_WIN_CP) &&
+		     (sc->flag & (SCONV_FROM_UTF16 | SCONV_FROM_UTF8)) &&
+		    !(sc->flag & (SCONV_TO_UTF16 | SCONV_TO_UTF8)))
+			break;
+#endif
+		if ((sc->flag & SCONV_NORMALIZATION_D) == 0) {
+			sc->flag |= SCONV_NORMALIZATION_D;
+			sc->flag &= ~SCONV_NORMALIZATION_C;
+			/* Set up string converters. */
+			setup_converter(sc);
+		}
 		break;
 	default:
 		break;
@@ -2009,8 +1879,8 @@ archive_string_conversion_set_opt(struct archive_string_conv *sc, int opt)
  *
  * Copy one archive_string to another in locale conversion.
  *
- *	archive_strncpy_in_locale();
- *	archive_strcpy_in_locale();
+ *	archive_strncat_l();
+ *	archive_strncpy_l();
  *
  */
 
@@ -2056,15 +1926,15 @@ utf16nbytes(const void *_p, size_t n)
 }
 
 int
-archive_strncpy_in_locale(struct archive_string *as, const void *_p, size_t n,
+archive_strncpy_l(struct archive_string *as, const void *_p, size_t n,
     struct archive_string_conv *sc)
 {
 	as->length = 0;
-	return (archive_strncat_in_locale(as, _p, n, sc));
+	return (archive_strncat_l(as, _p, n, sc));
 }
 
 int
-archive_strncat_in_locale(struct archive_string *as, const void *_p, size_t n,
+archive_strncat_l(struct archive_string *as, const void *_p, size_t n,
     struct archive_string_conv *sc)
 {
 	const void *s;
@@ -2291,7 +2161,6 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 	const char *p = (const char *)_p;
 	size_t r;
 
-	(void)sc; /* UNUSED */
 #if HAVE_MBRTOWC
 	mbstate_t shift_state;
 
@@ -2315,6 +2184,7 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 		p += r;
 		n -= r;
 	}
+	(void)sc; /* UNUSED */
 	return (0); /* All Okey. */
 }
 
@@ -2773,8 +2643,8 @@ unicode_to_utf16le(char *p, size_t remaining, uint32_t uc)
  * If any surrogate pair are found, it would be canonicalized.
  */
 static int
-strncat_from_utf8_to_utf8(struct archive_string *as, const void *_p, size_t len,
-    struct archive_string_conv *sc)
+strncat_from_utf8_to_utf8(struct archive_string *as, const void *_p,
+    size_t len, struct archive_string_conv *sc)
 {
 	const char *s;
 	char *p, *endp;
@@ -3320,7 +3190,50 @@ archive_string_normalize_C(struct archive_string *as, const void *_p,
 	return (ret);
 }
 
-#if defined(__APPLE__)
+static int
+get_nfd(uint32_t *cp1, uint32_t *cp2, uint32_t uc)
+{
+	int t, b;
+
+	/*
+	 * These are not converted to NFD on Mac OS.
+	 */
+	if ((uc >= 0x2000 && uc <= 0x2FFF) ||
+	    (uc >= 0xF900 && uc <= 0xFAFF) ||
+	    (uc >= 0x2F800 && uc <= 0x2FAFF))
+		return (0);
+	/*
+	 * Those code points are not converted to NFD on Mac OS.
+	 * I do not know the reason because it is undocumented.
+	 *   NFC        NFD
+	 *   1109A  ==> 11099 110BA
+	 *   1109C  ==> 1109B 110BA
+	 *   110AB  ==> 110A5 110BA
+	 */
+	if (uc == 0x1109A || uc == 0x1109C || uc == 0x110AB)
+		return (0);
+
+	t = 0;
+	b = sizeof(u_decomposition_table)/sizeof(u_decomposition_table[0]) -1;
+	while (b >= t) {
+		int m = (t + b) / 2;
+		if (u_decomposition_table[m].nfc < uc)
+			t = m + 1;
+		else if (u_decomposition_table[m].nfc > uc)
+			b = m - 1;
+		else {
+			*cp1 = u_decomposition_table[m].cp1;
+			*cp2 = u_decomposition_table[m].cp2;
+			return (1);
+		}
+	}
+	return (0);
+}
+
+#define REPLACE_UC_WITH(cp) do {		\
+	uc = cp;				\
+	ucptr = NULL;				\
+} while (0)
 
 /*
  * Normalize UTF-8 characters to Form D and copy the result.
@@ -3329,109 +3242,169 @@ static int
 archive_string_normalize_D(struct archive_string *as, const void *_p,
     size_t len, struct archive_string_conv *sc)
 {
-	const UniChar *inp;
-	char *outp;
-	size_t newsize;
-	ByteCount inCount, outCount;
-	ByteCount inAvail, outAvail;
-	OSStatus err;
-	int ret, saved_flag;
+	const char *s = (const char *)_p;
+	char *p, *endp;
+	uint32_t uc, uc2;
+	size_t w;
+	int always_replace, n, n2, ret = 0, spair, ts, tm;
+	int (*parse)(uint32_t *, const char *, size_t);
+	size_t (*unparse)(char *, size_t, uint32_t);
 
-	/*
-	 * Convert the current string to UTF-16LE for normalization.
-	 * The character-set of the current string must be UTF-16BE or
-	 * UTF-8.
-	 */
-	archive_string_empty(&(sc->utf16nfc));
-	saved_flag = sc->flag;/* save a flag. */
-	sc->flag &= ~(SCONV_TO_UTF16BE | SCONV_TO_UTF8);
-	sc->flag |= SCONV_TO_UTF16LE;
-	ret = archive_string_append_unicode(&(sc->utf16nfc), _p, len, sc);
-	sc->flag = saved_flag;/* restore the saved flag */
-	if (archive_strlen(&(sc->utf16nfc)) == 0) {
-		if (archive_string_ensure(as, as->length + 1) == NULL)
-			return (-1);
-		return (ret);
-	}
-
-	/*
-	 * Normalize an NFC string to be an NFD(HFS Plus version).
-	 */
-	newsize = sc->utf16nfc.length + 2;
-	if (archive_string_ensure(&(sc->utf16nfd), newsize) == NULL)
-		return (-1);
-
-	inp = (UniChar *)sc->utf16nfc.s;
-	inAvail = archive_strlen(&(sc->utf16nfc));
-	sc->utf16nfd.length = 0;
-	outp = sc->utf16nfd.s;
-	outAvail = sc->utf16nfd.buffer_length -2;
-
-	do {
-		/* Reinitialize all state information. */
-		if (ResetUnicodeToTextInfo(sc->uniInfo) != noErr)
-			goto return_no_changed_data;
-
-		inCount = outCount = 0;
-		err = ConvertFromUnicodeToText(sc->uniInfo,
-		    inAvail, inp,
-		    kUnicodeDefaultDirectionMask, 0, NULL, NULL, NULL,
-		    outAvail, &inCount, &outCount, outp);
-
-		if (err == noErr) {
-			sc->utf16nfd.length = outCount;
-			sc->utf16nfd.s[sc->utf16nfd.length] = 0;
-			sc->utf16nfd.s[sc->utf16nfd.length+1] = 0;
-		} else if (err == kTECOutputBufferFullStatus) {
-			newsize = inAvail - inCount;
-			if (newsize > inAvail)
-				newsize = inAvail;
-			newsize += sc->utf16nfd.buffer_length + 2;
-			if (archive_string_ensure(&(sc->utf16nfd), newsize)
-			    == NULL)
-				return (-1);
-			outp = sc->utf16nfd.s;
-			outAvail = sc->utf16nfd.buffer_length -2;
-		} else
-			goto return_no_changed_data;
-	} while (err == kTECOutputBufferFullStatus);
-
-	/*
-	 * If there is a next-step conversion, we should convert
-	 * a UTF-16LE(NFD) string back to the original Unicode type.
-	 */
-	saved_flag = sc->flag;/* save a flag. */
-	if (!(sc->flag &
-	    (SCONV_TO_UTF16BE | SCONV_TO_UTF16LE | SCONV_TO_UTF8))) {
+	always_replace = 1;
+	ts = 1;/* text size. */
+	if (sc->flag & SCONV_TO_UTF16BE) {
+		unparse = unicode_to_utf16be;
+		ts = 2;
+		if (sc->flag & SCONV_FROM_UTF16BE)
+			always_replace = 0;
+	} else if (sc->flag & SCONV_TO_UTF16LE) {
+		unparse = unicode_to_utf16le;
+		ts = 2;
+		if (sc->flag & SCONV_FROM_UTF16LE)
+			always_replace = 0;
+	} else if (sc->flag & SCONV_TO_UTF8) {
+		unparse = unicode_to_utf8;
+		if (sc->flag & SCONV_FROM_UTF8)
+			always_replace = 0;
+	} else {
 		/*
 		 * This case is going to be converted to another
 		 * character-set through iconv.
 		 */
-		if (sc->flag & SCONV_FROM_UTF16BE)
-			sc->flag |= SCONV_TO_UTF16BE;
-		else if (sc->flag & SCONV_FROM_UTF16LE)
-			sc->flag |= SCONV_TO_UTF16LE;
-		else
-			sc->flag |= SCONV_TO_UTF8;
+		always_replace = 0;
+		if (sc->flag & SCONV_FROM_UTF16BE) {
+			unparse = unicode_to_utf16be;
+			ts = 2;
+		} else if (sc->flag & SCONV_FROM_UTF16LE) {
+			unparse = unicode_to_utf16le;
+			ts = 2;
+		} else {
+			unparse = unicode_to_utf8;
+		}
 	}
-	sc->flag &= ~(SCONV_FROM_UTF16BE | SCONV_FROM_UTF8);
-	sc->flag |= SCONV_FROM_UTF16LE;
-	if (archive_string_append_unicode(as, sc->utf16nfd.s,
-	    sc->utf16nfd.length, sc) != 0)
-		ret = -1;
-	sc->flag = saved_flag;/* restore the saved flag */
+
+	if (sc->flag & SCONV_FROM_UTF16BE) {
+		parse = utf16be_to_unicode;
+		tm = 1;
+		spair = 4;/* surrogate pair size in UTF-16. */
+	} else if (sc->flag & SCONV_FROM_UTF16LE) {
+		parse = utf16le_to_unicode;
+		tm = 1;
+		spair = 4;/* surrogate pair size in UTF-16. */
+	} else {
+		parse = cesu8_to_unicode;
+		tm = ts;
+		spair = 6;/* surrogate pair size in UTF-8. */
+	}
+
+	if (archive_string_ensure(as, as->length + len * tm + ts) == NULL)
+		return (-1);
+
+	p = as->s + as->length;
+	endp = as->s + as->buffer_length - ts;
+	while ((n = parse(&uc, s, len)) != 0) {
+		const char *ucptr;
+		uint32_t cp1, cp2;
+		int SIndex;
+		struct {
+			uint32_t uc;
+			int ccc;
+		} fdc[FDC_MAX];
+		int fdi, fdj;
+		int ccc;
+
+check_first_code:
+		if (n < 0) {
+			/* Use a replaced unicode character. */
+			UNPARSE(p, endp, uc);
+			s += n*-1;
+			len -= n*-1;
+			ret = -1;
+			continue;
+		} else if (n == spair || always_replace)
+			/* uc is converted from a surrogate pair.
+			 * this should be treated as a changed code. */
+			ucptr = NULL;
+		else
+			ucptr = s;
+		s += n;
+		len -= n;
+
+		/* Hangul Decomposition. */
+		if ((SIndex = uc - HC_SBASE) >= 0 && SIndex < HC_SCOUNT) {
+			int L = HC_LBASE + SIndex / HC_NCOUNT;
+			int V = HC_VBASE + (SIndex % HC_NCOUNT) / HC_TCOUNT;
+			int T = HC_TBASE + SIndex % HC_TCOUNT;
+
+			REPLACE_UC_WITH(L);
+			WRITE_UC();
+			REPLACE_UC_WITH(V);
+			WRITE_UC();
+			if (T != HC_TBASE) {
+				REPLACE_UC_WITH(T);
+				WRITE_UC();
+			}
+			continue;
+		}
+		if (IS_DECOMPOSABLE_BLOCK(uc) && CCC(uc) != 0) {
+			WRITE_UC();
+			continue;
+		}
+
+		fdi = 0;
+		while (get_nfd(&cp1, &cp2, uc) && fdi < FDC_MAX) {
+			int k;
+
+			for (k = fdi; k > 0; k--)
+				fdc[k] = fdc[k-1];
+			fdc[0].ccc = CCC(cp2);
+			fdc[0].uc = cp2;
+			fdi++;
+			REPLACE_UC_WITH(cp1);
+		}
+
+		/* Read following code points. */
+		while ((n2 = parse(&uc2, s, len)) > 0 &&
+		    (ccc = CCC(uc2)) != 0 && fdi < FDC_MAX) {
+			int j, k;
+
+			s += n2;
+			len -= n2;
+			for (j = 0; j < fdi; j++) {
+				if (fdc[j].ccc > ccc)
+					break;
+			}
+			if (j < fdi) {
+				for (k = fdi; k > j; k--)
+					fdc[k] = fdc[k-1];
+				fdc[j].ccc = ccc;
+				fdc[j].uc = uc2;
+			} else {
+				fdc[fdi].ccc = ccc;
+				fdc[fdi].uc = uc2;
+			}
+			fdi++;
+		}
+
+		WRITE_UC();
+		for (fdj = 0; fdj < fdi; fdj++) {
+			REPLACE_UC_WITH(fdc[fdj].uc);
+			WRITE_UC();
+		}
+
+		if (n2 == 0)
+			break;
+		REPLACE_UC_WITH(uc2);
+		n = n2;
+		ucptr = s;
+		goto check_first_code;
+	}
+	as->length = p - as->s;
+	as->s[as->length] = '\0';
+	if (ts == 2)
+		as->s[as->length+1] = '\0';
 	return (ret);
-
-return_no_changed_data:
-	/*
-	 * Something conversion error happened, so we return a no normalized
-	 * string with an error.
-	 */
-	(void)archive_string_append_unicode(as, _p, len, sc);
-	return (-1);
 }
-
-#endif /* __APPLE__ */
 
 /*
  * libarchive 2.x made incorrect UTF-8 strings in the wrong assumption
@@ -3629,15 +3602,15 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 }
 
 static int
-win_strncat_from_utf16be(struct archive_string *as, const void *_p, size_t bytes,
-    struct archive_string_conv *sc)
+win_strncat_from_utf16be(struct archive_string *as, const void *_p,
+    size_t bytes, struct archive_string_conv *sc)
 {
 	return (win_strncat_from_utf16(as, _p, bytes, sc, 1));
 }
 
 static int
-win_strncat_from_utf16le(struct archive_string *as, const void *_p, size_t bytes,
-    struct archive_string_conv *sc)
+win_strncat_from_utf16le(struct archive_string *as, const void *_p,
+    size_t bytes, struct archive_string_conv *sc)
 {
 	return (win_strncat_from_utf16(as, _p, bytes, sc, 0));
 }
@@ -3655,8 +3628,8 @@ is_big_endian(void)
  * Return -1 if conversion failes.
  */
 static int
-win_strncat_to_utf16(struct archive_string *as16, const void *_p, size_t length,
-    struct archive_string_conv *sc, int bigendian)
+win_strncat_to_utf16(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc, int bigendian)
 {
 	const char *s = (const char *)_p;
 	char *u16;
@@ -3732,15 +3705,15 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p, size_t length,
 }
 
 static int
-win_strncat_to_utf16be(struct archive_string *as16, const void *_p, size_t length,
-    struct archive_string_conv *sc)
+win_strncat_to_utf16be(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc)
 {
 	return (win_strncat_to_utf16(as16, _p, length, sc, 1));
 }
 
 static int
-win_strncat_to_utf16le(struct archive_string *as16, const void *_p, size_t length,
-    struct archive_string_conv *sc)
+win_strncat_to_utf16le(struct archive_string *as16, const void *_p,
+    size_t length, struct archive_string_conv *sc)
 {
 	return (win_strncat_to_utf16(as16, _p, length, sc, 0));
 }
@@ -3914,7 +3887,7 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
 		if (sc == NULL)
 			return (-1);/* Couldn't allocate memory for sc. */
-		r = archive_strncpy_in_locale(&(aes->aes_mbs), aes->aes_mbs.s,
+		r = archive_strncpy_l(&(aes->aes_mbs), aes->aes_mbs.s,
 		    aes->aes_mbs.length, sc);
 		if (a == NULL)
 			free_sconv_object(sc);
@@ -4043,7 +4016,7 @@ archive_mstring_get_mbs_l(struct archive_mstring *aes,
 				*length = aes->aes_mbs.length;
 			return (0);
 		}
-		ret = archive_strncpy_in_locale(&(aes->aes_mbs_in_locale),
+		ret = archive_strncpy_l(&(aes->aes_mbs_in_locale),
 		    aes->aes_mbs.s, aes->aes_mbs.length, sc);
 		*p = aes->aes_mbs_in_locale.s;
 		if (length != NULL)
@@ -4084,7 +4057,8 @@ archive_mstring_copy_mbs_len(struct archive_mstring *aes, const char *mbs,
 int
 archive_mstring_copy_wcs(struct archive_mstring *aes, const wchar_t *wcs)
 {
-	return archive_mstring_copy_wcs_len(aes, wcs, wcs == NULL ? 0 : wcslen(wcs));
+	return archive_mstring_copy_wcs_len(aes, wcs,
+				wcs == NULL ? 0 : wcslen(wcs));
 }
 
 int
@@ -4143,7 +4117,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 		 * Translate multi-bytes from some character-set to UTF-8.
 		 */ 
 		sc->cd = sc->cd_w;
-		r = archive_strncpy_in_locale(&(aes->aes_utf8), mbs, len, sc);
+		r = archive_strncpy_l(&(aes->aes_utf8), mbs, len, sc);
 		sc->cd = cd;
 		if (r != 0) {
 			aes->aes_set = 0;
@@ -4175,7 +4149,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 			aes->aes_set = 0;
 	}
 #else
-	r = archive_strncpy_in_locale(&(aes->aes_mbs), mbs, len, sc);
+	r = archive_strncpy_l(&(aes->aes_mbs), mbs, len, sc);
 	if (r == 0)
 		aes->aes_set = AES_SET_MBS; /* Only MBS form is set now. */
 	else
@@ -4219,7 +4193,7 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
 	if (sc == NULL)
 		return (-1);/* Couldn't allocate memory for sc. */
-	r = archive_strcpy_in_locale(&(aes->aes_mbs), utf8, sc);
+	r = archive_strcpy_l(&(aes->aes_mbs), utf8, sc);
 	if (a == NULL)
 		free_sconv_object(sc);
 	if (r != 0)
