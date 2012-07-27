@@ -3021,27 +3021,32 @@ ath_descdma_cleanup(struct ath_softc *sc,
 		bus_dma_tag_destroy(dd->dd_dmat);
 	}
 
-	TAILQ_FOREACH(bf, head, bf_list) {
-		if (bf->bf_m) {
-			m_freem(bf->bf_m);
-			bf->bf_m = NULL;
-		}
-		if (bf->bf_dmamap != NULL) {
-			bus_dmamap_destroy(sc->sc_dmat, bf->bf_dmamap);
-			bf->bf_dmamap = NULL;
-		}
-		ni = bf->bf_node;
-		bf->bf_node = NULL;
-		if (ni != NULL) {
-			/*
-			 * Reclaim node reference.
-			 */
-			ieee80211_free_node(ni);
+	if (head != NULL) {
+		TAILQ_FOREACH(bf, head, bf_list) {
+			if (bf->bf_m) {
+				m_freem(bf->bf_m);
+				bf->bf_m = NULL;
+			}
+			if (bf->bf_dmamap != NULL) {
+				bus_dmamap_destroy(sc->sc_dmat, bf->bf_dmamap);
+				bf->bf_dmamap = NULL;
+			}
+			ni = bf->bf_node;
+			bf->bf_node = NULL;
+			if (ni != NULL) {
+				/*
+				 * Reclaim node reference.
+				 */
+				ieee80211_free_node(ni);
+			}
 		}
 	}
 
-	TAILQ_INIT(head);
-	free(dd->dd_bufptr, M_ATHDEV);
+	if (head != NULL)
+		TAILQ_INIT(head);
+
+	if (dd->dd_bufptr != NULL)
+		free(dd->dd_bufptr, M_ATHDEV);
 	memset(dd, 0, sizeof(*dd));
 }
 
