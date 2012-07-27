@@ -557,6 +557,7 @@ struct ath_softc {
 	int			sc_txbuf_cnt;	/* how many buffers avail */
 	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */
 	ath_bufhead		sc_txbuf_mgmt;	/* mgmt transmit buffer */
+	struct ath_descdma	sc_txsdma;	/* EDMA TX status desc's */
 	struct mtx		sc_txbuflock;	/* txbuf lock */
 	char			sc_txname[12];	/* e.g. "ath0_buf" */
 	u_int			sc_txqsetup;	/* h/w queues setup */
