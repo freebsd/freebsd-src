@@ -135,6 +135,7 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 #define set11nRateFlags(_series, _index) \
         ((_series)[_index].RateFlags & HAL_RATESERIES_2040 ? AR_2040_##_index : 0) \
         |((_series)[_index].RateFlags & HAL_RATESERIES_HALFGI ? AR_GI##_index : 0) \
+        |((_series)[_index].RateFlags & HAL_RATESERIES_STBC ? AR_STBC##_index : 0) \
         |SM((_series)[_index].ChSel, AR_ChainSel##_index)
 
 /*
