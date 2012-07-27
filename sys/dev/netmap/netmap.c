@@ -58,9 +58,11 @@
 #include "bsd_glue.h"
 static netdev_tx_t netmap_start_linux(struct sk_buff *skb, struct net_device *dev);
 #endif /* linux */
+
 #ifdef __APPLE__
 #include "osx_glue.h"
-#endif
+#endif /* __APPLE__ */
+
 #ifdef __FreeBSD__
 #include <sys/cdefs.h> /* prerequisite */
 __FBSDID("$FreeBSD$");
@@ -155,6 +157,7 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, copy, CTLFLAG_RW, &netmap_copy, 0 , "");
 #define	NM_BRIDGES		4	/* number of bridges */
 int netmap_bridge = NM_BDG_BATCH; /* bridge batch size */
 SYSCTL_INT(_dev_netmap, OID_AUTO, bridge, CTLFLAG_RW, &netmap_bridge, 0 , "");
+
 #ifdef linux
 #define	ADD_BDG_REF(ifp)	(NA(ifp)->if_refcount++)
 #define	DROP_BDG_REF(ifp)	(NA(ifp)->if_refcount-- <= 1)
@@ -165,6 +168,7 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, bridge, CTLFLAG_RW, &netmap_bridge, 0 , "");
 #include <sys/endian.h>
 #include <sys/refcount.h>
 #endif /* __FreeBSD__ */
+#define prefetch(x)	__builtin_prefetch(x)
 #endif /* !linux */
 
 static void bdg_netmap_attach(struct ifnet *ifp);
@@ -175,12 +179,6 @@ struct nm_bdg_fwd {	/* forwarding entry for a bridge */
 	uint64_t dst;	/* dst mask */
 	uint32_t src;	/* src index ? */
 	uint16_t len;	/* src len */
-#if 0
-	uint64_t src_mac;	/* ignore 2 MSBytes */
-	uint64_t dst_mac;	/* ignore 2 MSBytes */
-	uint32_t dst_idx;	/* dst index in fwd table */
-	uint32_t dst_buf;	/* where we copy to */
-#endif
 };
 
 struct nm_hash_ent {
@@ -216,17 +214,6 @@ struct nm_bridge nm_bridges[NM_BRIDGES];
 /*
  * NA(ifp)->bdg_port	port index
  */
-
-#ifndef linux
-static inline void prefetch (const void *x)
-{
-#if defined(__i386__) || defined(__amd64__)
-        __asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
-#else
-	(void)x;
-#endif
-}
-#endif /* !linux */
 
 // XXX only for multiples of 64 bytes, non overlapped.
 static inline void
@@ -540,15 +527,19 @@ netmap_sync_to_host(struct netmap_adapter *na)
  *
  * This routine also does the selrecord if called from the poll handler
  * (we know because td != NULL).
+ *
+ * NOTE: on linux, selrecord() is defined as a macro and uses pwait
+ *     as an additional hidden argument.
  */
 static void
-netmap_sync_from_host(struct netmap_adapter *na, struct thread *td)
+netmap_sync_from_host(struct netmap_adapter *na, struct thread *td, void *pwait)
 {
 	struct netmap_kring *kring = &na->rx_rings[na->num_rx_rings];
 	struct netmap_ring *ring = kring->ring;
 	u_int j, n, lim = kring->nkr_num_slots;
 	u_int k = ring->cur, resvd = ring->reserved;
 
+	(void)pwait;	/* disable unused warnings */
 	na->nm_lock(na->ifp, NETMAP_CORE_LOCK, 0);
 	if (k >= lim) {
 		netmap_ring_reinit(kring);
@@ -953,7 +944,7 @@ error:
 			if (cmd == NIOCTXSYNC)
 				netmap_sync_to_host(na);
 			else
-				netmap_sync_from_host(na, NULL);
+				netmap_sync_from_host(na, NULL, NULL);
 			break;
 		}
 		/* find the last ring to scan */
@@ -1025,13 +1016,12 @@ error:
  * Device-dependent parts (locking and sync of tx/rx rings)
  * are done through callbacks.
  *
- * On linux, pwait is the poll table.
- * If pwait == NULL someone else already woke up before. We can report
- * events but they are filtered upstream.
- * If pwait != NULL, then pwait->key contains the list of events.
+ * On linux, arguments are really pwait, the poll table, and 'td' is struct file *
+ * The first one is remapped to pwait as selrecord() uses the name as an
+ * hidden argument.
  */
 static int
-netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
+netmap_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct netmap_priv_d *priv = NULL;
 	struct netmap_adapter *na;
@@ -1040,6 +1030,9 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	u_int core_lock, i, check_all, want_tx, want_rx, revents = 0;
 	u_int lim_tx, lim_rx;
 	enum {NO_CL, NEED_CL, LOCKED_CL }; /* see below */
+	void *pwait = dev;	/* linux compatibility */
+
+	(void)pwait;
 
 	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
 		return POLLERR;
@@ -1069,7 +1062,7 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 		if (want_rx) {
 			kring = &na->rx_rings[lim_rx];
 			if (kring->ring->avail == 0)
-				netmap_sync_from_host(na, td);
+				netmap_sync_from_host(na, td, dev);
 			if (kring->ring->avail > 0) {
 				revents |= want_rx;
 			}
@@ -1535,6 +1528,146 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 }
 
 
+#ifdef linux	/* linux-specific routines */
+
+/*
+ * Remap linux arguments into the FreeBSD call.
+ * - pwait is the poll table, passed as 'dev';
+ *   If pwait == NULL someone else already woke up before. We can report
+ *   events but they are filtered upstream.
+ *   If pwait != NULL, then pwait->key contains the list of events.
+ * - events is computed from pwait as above.
+ * - file is passed as 'td';
+ */
+static u_int
+linux_netmap_poll(struct file * file, struct poll_table_struct *pwait)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
+	int events = pwait ? pwait->key : POLLIN | POLLOUT;
+#else /* in 3.4.0 field 'key' was renamed to '_key' */
+	int events = pwait ? pwait->_key : POLLIN | POLLOUT;
+#endif
+	return netmap_poll((void *)pwait, events, (void *)file);
+}
+
+static int
+netmap_mmap(__unused struct file *f, struct vm_area_struct *vma)
+{
+	int lut_skip, i, j;
+	int user_skip = 0;
+	struct lut_entry *l_entry;
+	const struct netmap_obj_pool *p[] = {
+		nm_mem->nm_if_pool,
+		nm_mem->nm_ring_pool,
+		nm_mem->nm_buf_pool };
+	/*
+	 * vma->vm_start: start of mapping user address space
+	 * vma->vm_end: end of the mapping user address space
+	 */
+
+	// XXX security checks
+
+	for (i = 0; i < 3; i++) {  /* loop through obj_pools */
+		/*
+		 * In each pool memory is allocated in clusters
+		 * of size _clustsize , each containing clustentries
+		 * entries. For each object k we already store the
+		 * vtophys malling in lut[k] so we use that, scanning
+		 * the lut[] array in steps of clustentries,
+		 * and we map each cluster (not individual pages,
+		 * it would be overkill).
+		 */
+		for (lut_skip = 0, j = 0; j < p[i]->_numclusters; j++) {
+			l_entry = &p[i]->lut[lut_skip];
+			if (remap_pfn_range(vma, vma->vm_start + user_skip,
+					l_entry->paddr >> PAGE_SHIFT, p[i]->_clustsize,
+					vma->vm_page_prot))
+				return -EAGAIN; // XXX check return value
+			lut_skip += p[i]->clustentries;
+			user_skip += p[i]->_clustsize;
+		}
+	}
+
+	return 0;
+}
+
+static netdev_tx_t
+netmap_start_linux(struct sk_buff *skb, struct net_device *dev)
+{
+	netmap_start(dev, skb);
+	return (NETDEV_TX_OK);
+}
+
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,38)
+#define LIN_IOCTL_NAME	.ioctl
+int
+linux_netmap_ioctl(struct inode *inode, struct file *file, u_int cmd, u_long data /* arg */)
+#else
+#define LIN_IOCTL_NAME	.unlocked_ioctl
+long
+linux_netmap_ioctl(struct file *file, u_int cmd, u_long data /* arg */)
+#endif
+{
+	int ret;
+	struct nmreq nmr;
+	bzero(&nmr, sizeof(nmr));
+
+	if (data && copy_from_user(&nmr, (void *)data, sizeof(nmr) ) != 0)
+		return -EFAULT;
+	ret = netmap_ioctl(NULL, cmd, (caddr_t)&nmr, 0, (void *)file);
+	if (data && copy_to_user((void*)data, &nmr, sizeof(nmr) ) != 0)
+		return -EFAULT;
+	return -ret;
+}
+
+
+static int
+netmap_release(__unused struct inode *inode, struct file *file)
+{
+	if (file->private_data)
+		netmap_dtor(file->private_data);
+	return (0);
+}
+
+
+static struct file_operations netmap_fops = {
+    .mmap = netmap_mmap,
+    LIN_IOCTL_NAME = linux_netmap_ioctl,
+    .poll = linux_netmap_poll,
+    .release = netmap_release,
+};
+
+static struct miscdevice netmap_cdevsw = {	/* same name as FreeBSD */
+	MISC_DYNAMIC_MINOR,
+	"netmap",
+	&netmap_fops,
+};
+
+static int netmap_init(void);
+static void netmap_fini(void);
+
+module_init(netmap_init);
+module_exit(netmap_fini);
+/* export certain symbols to other modules */
+EXPORT_SYMBOL(netmap_attach);		// driver attach routines
+EXPORT_SYMBOL(netmap_detach);		// driver detach routines
+EXPORT_SYMBOL(netmap_ring_reinit);	// ring init on error
+EXPORT_SYMBOL(netmap_buffer_lut);
+EXPORT_SYMBOL(netmap_total_buffers);	// index check
+EXPORT_SYMBOL(netmap_buffer_base);
+EXPORT_SYMBOL(netmap_reset);		// ring init routines
+EXPORT_SYMBOL(netmap_buf_size);
+EXPORT_SYMBOL(netmap_rx_irq);		// default irq handler
+EXPORT_SYMBOL(netmap_no_pendintr);	// XXX mitigation - should go away
+
+
+MODULE_AUTHOR("http://info.iet.unipi.it/~luigi/netmap/");
+MODULE_DESCRIPTION("The netmap packet I/O framework");
+MODULE_LICENSE("Dual BSD/GPL"); /* the code here is all BSD. */
+
+#else /* __FreeBSD__ */
+
 static struct cdevsw netmap_cdevsw = {
 	.d_version = D_VERSION,
 	.d_name = "netmap",
@@ -1542,6 +1675,7 @@ static struct cdevsw netmap_cdevsw = {
 	.d_ioctl = netmap_ioctl,
 	.d_poll = netmap_poll,
 };
+#endif /* __FreeBSD__ */
 
 #ifdef NM_BRIDGE
 /*
