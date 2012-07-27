@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2012
+.Dd July 27, 2012
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ Depending on the value of
 .Fn fcntl
 can take an additional third argument
 .Fa "int arg" .
-.Bl -tag -width F_DUPFD_CLOEXEC
+.Bl -tag -width F_DUP2FD_CLOEXEC
 .It Dv F_DUPFD
 Return a new descriptor as follows:
 .Pp
@@ -94,13 +94,23 @@ It is functionally equivalent to
 .Bd -literal -offset indent
 dup2(fd, arg)
 .Ed
+.It Dv F_DU2PFD_CLOEXEC
+Like
+.Dv F_DUP2FD ,
+but the
+.Dv FD_CLOEXEC
+flag associated with the new file descriptor is set.
 .Pp
 The
 .Dv F_DUP2FD
-constant is not portable, so it should not be used if portability is needed.
+and
+.Dv F_DUP2DF_CLOEXEC
+constants are not portable, so they should not be used if
+portability is needed.
 Use
 .Fn dup2
-instead.
+instead of
+.Dv F_DUP2FD .
 .It Dv F_GETFD
 Get the close-on-exec flag associated with the file descriptor
 .Fa fd
