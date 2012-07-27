@@ -491,6 +491,12 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		error = do_dup(td, DUP_FIXED, fd, tmp, td->td_retval);
 		break;
 
+	case F_DUP2FD_CLOEXEC:
+		tmp = arg;
+		error = do_dup(td, DUP_FIXED | DUP_CLOEXEC, fd, tmp,
+		    td->td_retval);
+		break;
+
 	case F_GETFD:
 		FILEDESC_SLOCK(fdp);
 		if ((fp = fget_locked(fdp, fd)) == NULL) {
@@ -849,6 +855,8 @@ do_dup(struct thread *td, int flags, int old, int new,
 	}
 	if (flags & DUP_FIXED && old == new) {
 		*retval = new;
+		if (flags & DUP_CLOEXEC)
+			fdp->fd_ofileflags[new] |= UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return (0);
 	}
