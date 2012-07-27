@@ -389,6 +389,28 @@ cleanup:
 	return (ret);
 }
 
+static const char confirmation_message[] =
+"The package management tool is not yet installed on your system.\n"
+"Do you want to fetch and install it now? [y/N]: ";
+
+static int
+pkg_query_yes_no(void)
+{
+	int ret, c;
+
+	c = getchar();
+
+	if (c == 'y' || c == 'Y')
+		ret = 1;
+	else
+		ret = 0;
+
+	while (c != '\n' && c != EOF)
+		c = getchar();
+
+	return (ret);
+}
+
 int
 main(__unused int argc, char *argv[])
 {
@@ -397,9 +419,21 @@ main(__unused int argc, char *argv[])
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
-	if (access(pkgpath, X_OK) == -1)
+	if (access(pkgpath, X_OK) == -1) {
+		/*
+		 * Do not ask for confirmation if either of stdin or stdout is
+		 * not tty. Check the environment to see if user has answer
+		 * tucked in there already.
+		 */
+		if (getenv("ALWAYS_ASSUME_YES") == NULL &&
+		    isatty(fileno(stdin))) {
+			printf("%s", confirmation_message);
+			if (pkg_query_yes_no() == 0)
+				exit(EXIT_FAILURE);
+		}
 		if (bootstrap_pkg() != 0)
 			exit(EXIT_FAILURE);
+	}
 
 	execv(pkgpath, argv);
 
