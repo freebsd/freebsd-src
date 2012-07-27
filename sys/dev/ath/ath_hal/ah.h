@@ -1233,7 +1233,7 @@ struct ath_hal {
 	    			struct ath_desc *, u_int, u_int,
 				HAL_11N_RATE_SERIES [], u_int, u_int);
 	void	  __ahdecl(*ah_set11nAggrFirst)(struct ath_hal *,
-				struct ath_desc *, u_int, u_int);
+				struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
