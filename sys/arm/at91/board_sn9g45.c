@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_piovar.h>
 #include <arm/at91/at91_pio_sam9g45.h>
 
-long
+BOARD_INIT long
 board_init(void)
 {
 
