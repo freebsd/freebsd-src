@@ -2773,7 +2773,7 @@ ath_load_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 int
 ath_descdma_alloc_desc(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head,
-	const char *name, int ds_size, int nbuf, int ndesc)
+	const char *name, int ds_size, int ndesc)
 {
 #define	DS2PHYS(_dd, _ds) \
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
@@ -2785,11 +2785,11 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 	dd->dd_descsize = ds_size;
 
 	DPRINTF(sc, ATH_DEBUG_RESET,
-	    "%s: %s DMA: %u buffers %u desc/buf, %d bytes per descriptor\n",
-	    __func__, name, nbuf, ndesc, dd->dd_descsize);
+	    "%s: %s DMA: %u desc, %d bytes per descriptor\n",
+	    __func__, name, ndesc, dd->dd_descsize);
 
 	dd->dd_name = name;
-	dd->dd_desc_len = dd->dd_descsize * nbuf * ndesc;
+	dd->dd_desc_len = dd->dd_descsize * ndesc;
 
 	/*
 	 * Merlin work-around:
@@ -2797,8 +2797,8 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 	 * Assume one skipped descriptor per 4KB page.
 	 */
 	if (! ath_hal_split4ktrans(sc->sc_ah)) {
-		int numdescpage = 4096 / (dd->dd_descsize * ndesc);
-		dd->dd_desc_len = (nbuf / numdescpage + 1) * 4096;
+		int numpages = dd->dd_desc_len / 4096;
+		dd->dd_desc_len += ds_size * numpages;
 	}
 
 	/*
@@ -2834,7 +2834,7 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 				 &dd->dd_dmamap);
 	if (error != 0) {
 		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
-			"error %u\n", nbuf * ndesc, dd->dd_name, error);
+			"error %u\n", ndesc, dd->dd_name, error);
 		goto fail1;
 	}
 
@@ -2883,7 +2883,7 @@ ath_descdma_setup(struct ath_softc *sc,
 
 	/* Allocate descriptors */
 	error = ath_descdma_alloc_desc(sc, dd, head, name, ds_size,
-	    nbuf, ndesc);
+	    nbuf * ndesc);
 
 	/* Assume any errors during allocation were dealt with */
 	if (error != 0) {
