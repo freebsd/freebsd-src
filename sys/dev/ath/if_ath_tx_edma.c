@@ -119,17 +119,33 @@ __FBSDID("$FreeBSD$");
 
 /*
  * some general macros
-  */
+ */
 #define	INCR(_l, _sz)		(_l) ++; (_l) &= ((_sz) - 1)
 #define	DECR(_l, _sz)		(_l) --; (_l) &= ((_sz) - 1)
+
+/*
+ * XXX doesn't belong here, and should be tunable
+ */
+#define	ATH_TXSTATUS_RING_SIZE	512
 
 MALLOC_DECLARE(M_ATHDEV);
 
 static int
 ath_edma_dma_txsetup(struct ath_softc *sc)
 {
+	int error;
 
-	/* XXX placeholder */
+	error = ath_descdma_alloc_desc(sc, &sc->sc_txsdma,
+	    NULL, "txcomp", sc->sc_tx_statuslen, ATH_TXSTATUS_RING_SIZE);
+	if (error != 0)
+		return (error);
+
+	ath_hal_setuptxstatusring(sc->sc_ah,
+	    (void *) sc->sc_txsdma.dd_desc,
+	    sc->sc_txsdma.dd_desc_paddr,
+	    ATH_TXSTATUS_RING_SIZE);
+
+
 	return (0);
 }
 
@@ -137,7 +153,7 @@ static int
 ath_edma_dma_txteardown(struct ath_softc *sc)
 {
 
-	/* XXX placeholder */
+	ath_descdma_cleanup(sc, &sc->sc_txsdma, NULL);
 	return (0);
 }
 
