@@ -28,8 +28,12 @@ SET(libarchive_SOURCES
   archive_entry_stat.c
   archive_entry_strmode.c
   archive_entry_xattr.c
+  archive_getdate.c
+  archive_match.c
   archive_options.c
   archive_options_private.h
+  archive_pathmatch.c
+  archive_pathmatch.h
   archive_platform.h
   archive_ppmd_private.h
   archive_ppmd7.c
@@ -89,6 +93,7 @@ SET(libarchive_SOURCES
   archive_write_open_file.c
   archive_write_open_filename.c
   archive_write_open_memory.c
+  archive_write_add_filter.c
   archive_write_add_filter_bzip2.c
   archive_write_add_filter_compress.c
   archive_write_add_filter_gzip.c

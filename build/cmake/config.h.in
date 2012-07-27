@@ -609,6 +609,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <linux/magic.h> header file. */
 #cmakedefine HAVE_LINUX_MAGIC_H 1
 
+/* Define to 1 if you have the <linux/types.h> header file. */
+#cmakedefine HAVE_LINUX_TYPES_H 1
+
 /* Define to 1 if you have the `listea' function. */
 #cmakedefine HAVE_LISTEA 1
 
@@ -660,9 +663,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `mbrtowc' function. */
 #cmakedefine HAVE_MBRTOWC 1
-
-/* Define to 1 if you have the `mbsnrtowcs' function. */
-#cmakedefine HAVE_MBSNRTOWCS 1
 
 /* Define to 1 if you have the `memmove' function. */
 #cmakedefine HAVE_MEMMOVE 1
@@ -781,6 +781,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if `f_namemax' is a member of `struct statfs'. */
 #cmakedefine HAVE_STRUCT_STATFS_F_NAMEMAX 1
+
+/* Define to 1 if `f_iosize' is a member of `struct statvfs'. */
+#cmakedefine HAVE_STRUCT_STATVFS_F_IOSIZE 1
 
 /* Define to 1 if `st_birthtime' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_BIRTHTIME 1
@@ -942,9 +945,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `wcslen' function. */
 #cmakedefine HAVE_WCSLEN 1
-
-/* Define to 1 if you have the `wcsnrtombs' function. */
-#cmakedefine HAVE_WCSNRTOMBS 1
 
 /* Define to 1 if you have the `wctomb' function. */
 #cmakedefine HAVE_WCTOMB 1

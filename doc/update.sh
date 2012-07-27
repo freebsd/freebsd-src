@@ -80,7 +80,7 @@ for f in $MANPAGES; do
     outname="`basename $f`.html"
     echo >> Makefile
     echo $outname: $f >> Makefile
-    echo "	groff -mdoc2html $f > $outname" >> Makefile
+    echo "	groff -mdoc -T html $f > $outname" >> Makefile
     all="$all $outname"
 done
 echo $all >>Makefile
@@ -113,5 +113,5 @@ cd ..
 (cd pdf && make)
 # Format all of the manpages to HTML
 (cd html && make)
-# Format all of the manpages to Google Wiki syntax
+# Format all of the manpages to wiki syntax
 (cd wiki && make)

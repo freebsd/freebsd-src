@@ -26,21 +26,27 @@
  * $FreeBSD$
  */
 
-#ifndef MATCHING_H
-#define MATCHING_H
+#ifndef __LIBARCHIVE_BUILD
+#ifndef __LIBARCHIVE_TEST
+#error This header is only to be used internally to libarchive.
+#endif
+#endif
 
-struct lafe_matching;
+#ifndef ARCHIVE_PATHMATCH_H
+#define ARCHIVE_PATHMATCH_H
 
-int	lafe_exclude(struct lafe_matching **matching, const char *pattern);
-int	lafe_exclude_from_file(struct lafe_matching **matching,
-			       const char *pathname);
-int	lafe_include(struct lafe_matching **matching, const char *pattern);
-int	lafe_include_from_file(struct lafe_matching **matching,
-			       const char *pathname, int nullSeparator);
+/* Don't anchor at beginning unless the pattern starts with "^" */
+#define PATHMATCH_NO_ANCHOR_START	1
+/* Don't anchor at end unless the pattern ends with "$" */
+#define PATHMATCH_NO_ANCHOR_END 	2
 
-int	lafe_excluded(struct lafe_matching *, const char *pathname);
-void	lafe_cleanup_exclusions(struct lafe_matching **);
-int	lafe_unmatched_inclusions(struct lafe_matching *);
-int	lafe_unmatched_inclusions_warn(struct lafe_matching *, const char *msg);
+/* Note that "^" and "$" are not special unless you set the corresponding
+ * flag above. */
+
+int __archive_pathmatch(const char *p, const char *s, int flags);
+int __archive_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags);
+
+#define archive_pathmatch(p, s, f)	__archive_pathmatch(p, s, f)
+#define archive_pathmatch_w(p, s, f)	__archive_pathmatch_w(p, s, f)
 
 #endif

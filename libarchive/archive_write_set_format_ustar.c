@@ -742,7 +742,7 @@ archive_write_ustar_finish_entry(struct archive_write *a)
 
 	ustar = (struct ustar *)a->format_data;
 	ret = __archive_write_nulls(a,
-	    ustar->entry_bytes_remaining + ustar->entry_padding);
+	    (size_t)(ustar->entry_bytes_remaining + ustar->entry_padding));
 	ustar->entry_bytes_remaining = ustar->entry_padding = 0;
 	return (ret);
 }
@@ -755,7 +755,7 @@ archive_write_ustar_data(struct archive_write *a, const void *buff, size_t s)
 
 	ustar = (struct ustar *)a->format_data;
 	if (s > ustar->entry_bytes_remaining)
-		s = ustar->entry_bytes_remaining;
+		s = (size_t)ustar->entry_bytes_remaining;
 	ret = __archive_write_output(a, buff, s);
 	ustar->entry_bytes_remaining -= s;
 	if (ret != ARCHIVE_OK)

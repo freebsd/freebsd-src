@@ -10,11 +10,8 @@ IF(ENABLE_TAR)
     bsdtar.h
     bsdtar_platform.h
     cmdline.c
-    getdate.c
     read.c
     subst.c
-    tree.c
-    tree.h
     util.c
     write.c
     ../libarchive_fe/err.c
@@ -22,10 +19,6 @@ IF(ENABLE_TAR)
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
-    ../libarchive_fe/matching.c
-    ../libarchive_fe/matching.h
-    ../libarchive_fe/pathmatch.c
-    ../libarchive_fe/pathmatch.h
   )
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)
   IF(WIN32 AND NOT CYGWIN)

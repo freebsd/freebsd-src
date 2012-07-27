@@ -7,7 +7,6 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   SET(bsdcpio_test_SOURCES
     ../cmdline.c
     ../../libarchive_fe/err.c
-    ../../libarchive_fe/pathmatch.c
     main.c
     test.h
     test_0.c
@@ -37,7 +36,6 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_owner_parse.c
     test_passthrough_dotdot.c
     test_passthrough_reverse.c
-    test_pathmatch.c
   )
 
   #

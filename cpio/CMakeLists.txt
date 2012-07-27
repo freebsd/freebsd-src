@@ -15,10 +15,6 @@ IF(ENABLE_CPIO)
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
-    ../libarchive_fe/matching.c
-    ../libarchive_fe/matching.h
-    ../libarchive_fe/pathmatch.c
-    ../libarchive_fe/pathmatch.h
   )
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)
   IF(WIN32 AND NOT CYGWIN)

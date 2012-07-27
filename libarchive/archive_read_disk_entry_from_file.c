@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2009 Tim Kientzle
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
+#ifdef HAVE_LINUX_TYPES_H
+#include <linux/types.h>
+#endif
 #ifdef HAVE_LINUX_FIEMAP_H
 #include <linux/fiemap.h>
 #endif
@@ -112,13 +115,13 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk_entry_from_file.c 2010
 #endif
 
 static int setup_acls_posix1e(struct archive_read_disk *,
-    struct archive_entry *, int fd);
+    struct archive_entry *, int *fd);
 static int setup_mac_metadata(struct archive_read_disk *,
-    struct archive_entry *, int fd);
+    struct archive_entry *, int *fd);
 static int setup_xattrs(struct archive_read_disk *,
-    struct archive_entry *, int fd);
+    struct archive_entry *, int *fd);
 static int setup_sparse(struct archive_read_disk *,
-    struct archive_entry *, int fd);
+    struct archive_entry *, int *fd);
 
 int
 archive_read_disk_entry_from_file(struct archive *_a,
@@ -165,15 +168,14 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			st = &s;
 		}
 		archive_entry_copy_stat(entry, st);
+		/* Lookup uname/gname */
+		name = archive_read_disk_uname(_a, archive_entry_uid(entry));
+		if (name != NULL)
+			archive_entry_copy_uname(entry, name);
+		name = archive_read_disk_gname(_a, archive_entry_gid(entry));
+		if (name != NULL)
+			archive_entry_copy_gname(entry, name);
 	}
-
-	/* Lookup uname/gname */
-	name = archive_read_disk_uname(_a, archive_entry_uid(entry));
-	if (name != NULL)
-		archive_entry_copy_uname(entry, name);
-	name = archive_read_disk_gname(_a, archive_entry_gid(entry));
-	if (name != NULL)
-		archive_entry_copy_gname(entry, name);
 
 #ifdef HAVE_STRUCT_STAT_ST_FLAGS
 	/* On FreeBSD, we get flags for free with the stat. */
@@ -187,8 +189,13 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	 * this is an extra step, it has a nice side-effect: We get an
 	 * open file descriptor which we can use in the subsequent lookups. */
 	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
-		if (fd < 0)
-			fd = open(path, O_RDONLY | O_NONBLOCK);
+		if (fd < 0) {
+			if (a->tree != NULL)
+				fd = a->open_on_current_dir(a->tree, path,
+					O_RDONLY | O_NONBLOCK);
+			else
+				fd = open(path, O_RDONLY | O_NONBLOCK);
+		}
 		if (fd >= 0) {
 			unsigned long stflags;
 			r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
@@ -210,13 +217,21 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			    "Couldn't read link data");
 			return (ARCHIVE_FAILED);
 		}
+		if (a->tree != NULL) {
 #ifdef HAVE_READLINKAT
-		if (a->entry_wd_fd >= 0)
-			lnklen = readlinkat(a->entry_wd_fd, path,
-			    linkbuffer, linkbuffer_len);
-		else
+			lnklen = readlinkat(a->tree_current_dir_fd(a->tree),
+			    path, linkbuffer, linkbuffer_len);
+#else
+			if (a->tree_enter_working_dir(a->tree) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't read link data");
+				free(linkbuffer);
+				return (ARCHIVE_FAILED);
+			}
+			lnklen = readlink(path, linkbuffer, linkbuffer_len);
 #endif /* HAVE_READLINKAT */
-		lnklen = readlink(path, linkbuffer, linkbuffer_len);
+		} else
+			lnklen = readlink(path, linkbuffer, linkbuffer_len);
 		if (lnklen < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't read link data");
@@ -229,14 +244,16 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	}
 #endif /* HAVE_READLINK || HAVE_READLINKAT */
 
-	r = setup_acls_posix1e(a, entry, fd);
-	r1 = setup_xattrs(a, entry, fd);
+	r = setup_acls_posix1e(a, entry, &fd);
+	r1 = setup_xattrs(a, entry, &fd);
 	if (r1 < r)
 		r = r1;
-	r1 = setup_mac_metadata(a, entry, fd);
-	if (r1 < r)
-		r = r1;
-	r1 = setup_sparse(a, entry, fd);
+	if (a->enable_copyfile) {
+		r1 = setup_mac_metadata(a, entry, &fd);
+		if (r1 < r)
+			r = r1;
+	}
+	r1 = setup_sparse(a, entry, &fd);
 	if (r1 < r)
 		r = r1;
 
@@ -262,7 +279,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
  */
 static int
 setup_mac_metadata(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	int tempfd = -1;
 	int copyfile_flags = COPYFILE_NOFOLLOW | COPYFILE_ACL | COPYFILE_XATTR;
@@ -272,6 +289,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 	int have_attrs;
 	const char *name, *tempdir, *tempfile = NULL;
 
+	(void)fd; /* UNUSED */
 	name = archive_entry_sourcepath(entry);
 	if (name == NULL)
 		name = archive_entry_pathname(entry);
@@ -279,6 +297,14 @@ setup_mac_metadata(struct archive_read_disk *a,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Can't open file to read extended attributes: No name");
 		return (ARCHIVE_WARN);
+	}
+
+	if (a->tree != NULL) {
+		if (a->tree_enter_working_dir(a->tree) != 0) {
+			archive_set_error(&a->archive, errno,
+				    "Couldn't change dir");
+				return (ARCHIVE_FAILED);
+		}
 	}
 
 	/* Short-circuit if there's nothing to do. */
@@ -351,7 +377,7 @@ cleanup:
  */
 static int
 setup_mac_metadata(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	(void)a; /* UNUSED */
 	(void)entry; /* UNUSED */
@@ -367,7 +393,7 @@ static void setup_acl_posix1e(struct archive_read_disk *a,
 
 static int
 setup_acls_posix1e(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	const char	*accpath;
 	acl_t		 acl;
@@ -378,9 +404,20 @@ setup_acls_posix1e(struct archive_read_disk *a,
 
 	archive_entry_acl_clear(entry);
 
+	if (*fd < 0 && a->tree != NULL &&
+	    (a->follow_symlinks || archive_entry_filetype(entry) != AE_IFLNK)){
+		*fd = a->open_on_current_dir(a->tree, accpath,
+				O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Couldn't access %s", accpath);
+			return (ARCHIVE_FAILED);
+		}
+	}
+
 	/* Retrieve access ACL from file. */
-	if (fd >= 0)
-		acl = acl_get_fd(fd);
+	if (*fd >= 0)
+		acl = acl_get_fd(*fd);
 #if HAVE_ACL_GET_LINK_NP
 	else if (!a->follow_symlinks)
 		acl = acl_get_link_np(accpath, ACL_TYPE_ACCESS);
@@ -474,7 +511,7 @@ setup_acl_posix1e(struct archive_read_disk *a,
 #else
 static int
 setup_acls_posix1e(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	(void)a;      /* UNUSED */
 	(void)entry;  /* UNUSED */
@@ -568,7 +605,7 @@ setup_xattr(struct archive_read_disk *a,
 
 static int
 setup_xattrs(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	char *list, *p;
 	const char *path;
@@ -578,16 +615,30 @@ setup_xattrs(struct archive_read_disk *a,
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
 
+	if (*fd < 0 && a->tree != NULL) {
+		if (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)
+			*fd = a->open_on_current_dir(a->tree, path,
+				O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
+			if (a->tree_enter_working_dir(a->tree) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't access %s", path);
+				return (ARCHIVE_FAILED);
+			}
+		}
+	}
+
 #if HAVE_FLISTXATTR
-	if (fd >= 0)
-		list_size = flistxattr(fd, NULL, 0);
+	if (*fd >= 0)
+		list_size = flistxattr(*fd, NULL, 0);
 	else if (!a->follow_symlinks)
 		list_size = llistxattr(path, NULL, 0);
 	else
 		list_size = listxattr(path, NULL, 0);
 #elif HAVE_FLISTEA
-	if (fd >= 0)
-		list_size = flistea(fd, NULL, 0);
+	if (*fd >= 0)
+		list_size = flistea(*fd, NULL, 0);
 	else if (!a->follow_symlinks)
 		list_size = llistea(path, NULL, 0);
 	else
@@ -611,15 +662,15 @@ setup_xattrs(struct archive_read_disk *a,
 	}
 
 #if HAVE_FLISTXATTR
-	if (fd >= 0)
-		list_size = flistxattr(fd, list, list_size);
+	if (*fd >= 0)
+		list_size = flistxattr(*fd, list, list_size);
 	else if (!a->follow_symlinks)
 		list_size = llistxattr(path, list, list_size);
 	else
 		list_size = listxattr(path, list, list_size);
 #elif HAVE_FLISTEA
-	if (fd >= 0)
-		list_size = flistea(fd, list, list_size);
+	if (*fd >= 0)
+		list_size = flistea(*fd, list, list_size);
 	else if (!a->follow_symlinks)
 		list_size = llistea(path, list, list_size);
 	else
@@ -637,7 +688,7 @@ setup_xattrs(struct archive_read_disk *a,
 		if (strncmp(p, "system.", 7) == 0 ||
 				strncmp(p, "xfsroot.", 8) == 0)
 			continue;
-		setup_xattr(a, entry, p, fd);
+		setup_xattr(a, entry, p, *fd);
 	}
 
 	free(list);
@@ -698,6 +749,7 @@ setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
 		size = extattr_get_file(accpath, namespace, name, value, size);
 
 	if (size == -1) {
+		free(value);
 		archive_set_error(&a->archive, errno,
 		    "Couldn't read extended attribute");
 		return (ARCHIVE_WARN);
@@ -711,7 +763,7 @@ setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
 
 static int
 setup_xattrs(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	char buff[512];
 	char *list, *p;
@@ -723,8 +775,22 @@ setup_xattrs(struct archive_read_disk *a,
 	if (path == NULL)
 		path = archive_entry_pathname(entry);
 
-	if (fd >= 0)
-		list_size = extattr_list_fd(fd, namespace, NULL, 0);
+	if (*fd < 0 && a->tree != NULL) {
+		if (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)
+			*fd = a->open_on_current_dir(a->tree, path,
+				O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
+			if (a->tree_enter_working_dir(a->tree) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't access %s", path);
+				return (ARCHIVE_FAILED);
+			}
+		}
+	}
+
+	if (*fd >= 0)
+		list_size = extattr_list_fd(*fd, namespace, NULL, 0);
 	else if (!a->follow_symlinks)
 		list_size = extattr_list_link(path, namespace, NULL, 0);
 	else
@@ -746,8 +812,8 @@ setup_xattrs(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (fd >= 0)
-		list_size = extattr_list_fd(fd, namespace, list, list_size);
+	if (*fd >= 0)
+		list_size = extattr_list_fd(*fd, namespace, list, list_size);
 	else if (!a->follow_symlinks)
 		list_size = extattr_list_link(path, namespace, list, list_size);
 	else
@@ -769,7 +835,7 @@ setup_xattrs(struct archive_read_disk *a,
 		name = buff + strlen(buff);
 		memcpy(name, p + 1, len);
 		name[len] = '\0';
-		setup_xattr(a, entry, namespace, name, buff, fd);
+		setup_xattr(a, entry, namespace, name, buff, *fd);
 		p += 1 + len;
 	}
 
@@ -784,7 +850,7 @@ setup_xattrs(struct archive_read_disk *a,
  */
 static int
 setup_xattrs(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	(void)a;     /* UNUSED */
 	(void)entry; /* UNUSED */
@@ -813,14 +879,13 @@ setup_xattrs(struct archive_read_disk *a,
 
 static int
 setup_sparse(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	char buff[4096];
 	struct fiemap *fm;
 	struct fiemap_extent *fe;
 	int64_t size;
 	int count, do_fiemap;
-	int initial_fd = fd;
 	int exit_sts = ARCHIVE_OK;
 
 	if (archive_entry_filetype(entry) != AE_IFREG
@@ -828,14 +893,18 @@ setup_sparse(struct archive_read_disk *a,
 	    || archive_entry_hardlink(entry) != NULL)
 		return (ARCHIVE_OK);
 
-	if (fd < 0) {
+	if (*fd < 0) {
 		const char *path;
 
 		path = archive_entry_sourcepath(entry);
 		if (path == NULL)
 			path = archive_entry_pathname(entry);
-		fd = open(path, O_RDONLY | O_NONBLOCK);
-		if (fd < 0) {
+		if (a->tree != NULL)
+			*fd = a->open_on_current_dir(a->tree, path,
+				O_RDONLY | O_NONBLOCK);
+		else
+			*fd = open(path, O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't open `%s'", path);
 			return (ARCHIVE_FAILED);
@@ -853,18 +922,11 @@ setup_sparse(struct archive_read_disk *a,
 	for (;;) {
 		int i, r;
 
-		r = ioctl(fd, FS_IOC_FIEMAP, fm); 
+		r = ioctl(*fd, FS_IOC_FIEMAP, fm); 
 		if (r < 0) {
-			/* When errno is ENOTTY, it is better we should
-			 * return ARCHIVE_OK because an earlier version
-			 *(<2.6.28) cannot perfom FS_IOC_FIEMAP.
-			 * We should also check if errno is EOPNOTSUPP,
-			 * it means "Operation not supported". */
-			if (errno != ENOTTY && errno != EOPNOTSUPP) {
-				archive_set_error(&a->archive, errno,
-				    "FIEMAP failed");
-				exit_sts = ARCHIVE_FAILED;
-			}
+			/* When something error happens, it is better we
+			 * should return ARCHIVE_OK because an earlier
+			 * version(<2.6.28) cannot perfom FS_IOC_FIEMAP. */
 			goto exit_setup_sparse;
 		}
 		if (fm->fm_mapped_extents == 0)
@@ -896,8 +958,6 @@ setup_sparse(struct archive_read_disk *a,
 			break;
 	}
 exit_setup_sparse:
-	if (initial_fd != fd)
-		close(fd);
 	return (exit_sts);
 }
 
@@ -909,10 +969,9 @@ exit_setup_sparse:
 
 static int
 setup_sparse(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	int64_t size;
-	int initial_fd = fd;
 	off_t initial_off; /* FreeBSD/Solaris only, so off_t okay here */
 	off_t off_s, off_e; /* FreeBSD/Solaris only, so off_t okay here */
 	int exit_sts = ARCHIVE_OK;
@@ -923,22 +982,38 @@ setup_sparse(struct archive_read_disk *a,
 		return (ARCHIVE_OK);
 
 	/* Does filesystem support the reporting of hole ? */
-	if (fd >= 0) {
-		if (fpathconf(fd, _PC_MIN_HOLE_SIZE) <= 0)
+	if (*fd < 0 && a->tree != NULL) {
+		const char *path;
+
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL)
+			path = archive_entry_pathname(entry);
+		*fd = a->open_on_current_dir(a->tree, path,
+				O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't open `%s'", path);
+			return (ARCHIVE_FAILED);
+		}
+	}
+
+	if (*fd >= 0) {
+		if (fpathconf(*fd, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);
-		initial_off = lseek(fd, 0, SEEK_CUR);
+		initial_off = lseek(*fd, 0, SEEK_CUR);
 		if (initial_off != 0)
-			lseek(fd, 0, SEEK_SET);
+			lseek(*fd, 0, SEEK_SET);
 	} else {
 		const char *path;
 
 		path = archive_entry_sourcepath(entry);
 		if (path == NULL)
 			path = archive_entry_pathname(entry);
+			
 		if (pathconf(path, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);
-		fd = open(path, O_RDONLY | O_NONBLOCK);
-		if (fd < 0) {
+		*fd = open(path, O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't open `%s'", path);
 			return (ARCHIVE_FAILED);
@@ -949,7 +1024,7 @@ setup_sparse(struct archive_read_disk *a,
 	off_s = 0;
 	size = archive_entry_size(entry);
 	while (off_s < size) {
-		off_s = lseek(fd, off_s, SEEK_DATA);
+		off_s = lseek(*fd, off_s, SEEK_DATA);
 		if (off_s == (off_t)-1) {
 			if (errno == ENXIO)
 				break;/* no more hole */
@@ -958,10 +1033,10 @@ setup_sparse(struct archive_read_disk *a,
 			exit_sts = ARCHIVE_FAILED;
 			goto exit_setup_sparse;
 		}
-		off_e = lseek(fd, off_s, SEEK_HOLE);
-		if (off_s == (off_t)-1) {
+		off_e = lseek(*fd, off_s, SEEK_HOLE);
+		if (off_e == (off_t)-1) {
 			if (errno == ENXIO) {
-				off_e = lseek(fd, 0, SEEK_END);
+				off_e = lseek(*fd, 0, SEEK_END);
 				if (off_e != (off_t)-1)
 					break;/* no more data */
 			}
@@ -977,10 +1052,7 @@ setup_sparse(struct archive_read_disk *a,
 		off_s = off_e;
 	}
 exit_setup_sparse:
-	if (initial_fd != fd)
-		close(fd);
-	else
-		lseek(fd, initial_off, SEEK_SET);
+	lseek(*fd, initial_off, SEEK_SET);
 	return (exit_sts);
 }
 
@@ -991,7 +1063,7 @@ exit_setup_sparse:
  */
 static int
 setup_sparse(struct archive_read_disk *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry, int *fd)
 {
 	(void)a;     /* UNUSED */
 	(void)entry; /* UNUSED */

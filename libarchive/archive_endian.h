@@ -126,8 +126,8 @@ archive_be64enc(void *pp, uint64_t u)
 {
 	unsigned char *p = (unsigned char *)pp;
 
-	archive_be32enc(p, u >> 32);
-	archive_be32enc(p + 4, u & 0xffffffff);
+	archive_be32enc(p, (uint32_t)(u >> 32));
+	archive_be32enc(p + 4, (uint32_t)(u & 0xffffffff));
 }
 
 static inline void
@@ -155,8 +155,8 @@ archive_le64enc(void *pp, uint64_t u)
 {
 	unsigned char *p = (unsigned char *)pp;
 
-	archive_le32enc(p, u & 0xffffffff);
-	archive_le32enc(p + 4, u >> 32);
+	archive_le32enc(p, (uint32_t)(u & 0xffffffff));
+	archive_le32enc(p + 4, (uint32_t)(u >> 32));
 }
 
 #endif
