@@ -2764,8 +2764,14 @@ ath_load_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	*paddr = segs->ds_addr;
 }
 
+/*
+ * Allocate the descriptors and appropriate DMA tag/setup.
+ *
+ * For some situations (eg EDMA TX completion), there isn't a requirement
+ * for the ath_buf entries to be allocated.
+ */
 int
-ath_descdma_setup(struct ath_softc *sc,
+ath_descdma_alloc_desc(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head,
 	const char *name, int ds_size, int nbuf, int ndesc)
 {
@@ -2774,9 +2780,7 @@ ath_descdma_setup(struct ath_softc *sc,
 #define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
 	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
 	struct ifnet *ifp = sc->sc_ifp;
-	uint8_t *ds;
-	struct ath_buf *bf;
-	int i, bsize, error;
+	int error;
 
 	dd->dd_descsize = ds_size;
 
@@ -2844,10 +2848,49 @@ ath_descdma_setup(struct ath_softc *sc,
 		goto fail2;
 	}
 
-	ds = (uint8_t *) dd->dd_desc;
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
-	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    __func__, dd->dd_name, (uint8_t *) dd->dd_desc,
+	    (u_long) dd->dd_desc_len, (caddr_t) dd->dd_desc_paddr,
+	    /*XXX*/ (u_long) dd->dd_desc_len);
+
+	return (0);
+
+fail2:
+	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
+fail1:
+	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
+fail0:
+	bus_dma_tag_destroy(dd->dd_dmat);
+	memset(dd, 0, sizeof(*dd));
+	return error;
+#undef DS2PHYS
+#undef ATH_DESC_4KB_BOUND_CHECK
+}
+
+int
+ath_descdma_setup(struct ath_softc *sc,
+	struct ath_descdma *dd, ath_bufhead *head,
+	const char *name, int ds_size, int nbuf, int ndesc)
+{
+#define	DS2PHYS(_dd, _ds) \
+	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
+#define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
+	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
+	struct ifnet *ifp = sc->sc_ifp;
+	uint8_t *ds;
+	struct ath_buf *bf;
+	int i, bsize, error;
+
+	/* Allocate descriptors */
+	error = ath_descdma_alloc_desc(sc, dd, head, name, ds_size,
+	    nbuf, ndesc);
+
+	/* Assume any errors during allocation were dealt with */
+	if (error != 0) {
+		return (error);
+	}
+
+	ds = (uint8_t *) dd->dd_desc;
 
 	/* allocate rx buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
@@ -2889,13 +2932,11 @@ ath_descdma_setup(struct ath_softc *sc,
 		TAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
 	return 0;
+	/* XXX this should likely just call ath_descdma_cleanup() */
 fail3:
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
-fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-fail1:
 	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
