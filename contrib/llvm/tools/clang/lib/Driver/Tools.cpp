@@ -4761,8 +4761,10 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("/libexec/ld-elf.so.1");
     }
     llvm::Triple::ArchType Arch = getToolChain().getArch();
-    if (Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64)
+    if (Arch == llvm::Triple::arm || Arch == llvm::Triple::sparc ||
+        Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64)
       CmdArgs.push_back("--hash-style=both");
+    CmdArgs.push_back("--enable-new-dtags");
   }
 
   // When building 32-bit code on FreeBSD/amd64, we have to explicitly
