@@ -397,6 +397,14 @@ struct ath_rx_edma {
 	struct mbuf	*m_rxpending;
 };
 
+struct ath_tx_edma_fifo {
+	struct ath_buf	**m_fifo;
+	int		m_fifolen;
+	int		m_fifo_head;
+	int		m_fifo_tail;
+	int		m_fifo_depth;
+};
+
 struct ath_tx_methods {
 	int		(*xmit_setup)(struct ath_softc *sc);
 	int		(*xmit_teardown)(struct ath_softc *sc);
@@ -418,6 +426,7 @@ struct ath_softc {
 	struct ath_rx_methods	sc_rx;
 	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
 	struct ath_tx_methods	sc_tx;
+	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
 
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
