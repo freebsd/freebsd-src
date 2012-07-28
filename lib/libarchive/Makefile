@@ -63,7 +63,10 @@ SRCS=	archive_acl.c					\
 	archive_entry_stat.c				\
 	archive_entry_strmode.c				\
 	archive_entry_xattr.c				\
+	archive_getdate.c				\
+	archive_match.c					\
 	archive_options.c				\
+	archive_pathmatch.c				\
 	archive_ppmd7.c					\
 	archive_rb.c					\
 	archive_read.c					\
@@ -106,6 +109,7 @@ SRCS=	archive_acl.c					\
 	archive_util.c					\
 	archive_virtual.c				\
 	archive_write.c					\
+	archive_write_add_filter.c			\
 	archive_write_disk_set_standard_lookup.c	\
 	archive_write_disk_posix.c			\
 	archive_write_open_fd.c				\
