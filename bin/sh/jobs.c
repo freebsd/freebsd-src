@@ -1027,7 +1027,8 @@ dowait(int block, struct job *job)
 		pid = waitproc(block, &status);
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
-		 (pid > 0 && WIFSTOPPED(status) && !iflag));
+		 (pid > 0 && (WIFSTOPPED(status) || WIFCONTINUED(status)) &&
+		  !iflag));
 	if (pid == -1 && errno == ECHILD && job != NULL)
 		job->state = JOBDONE;
 	if (breakwaitcmd != 0) {
@@ -1050,7 +1051,11 @@ dowait(int block, struct job *job)
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
 						   (int)pid, sp->status,
 						   status));
-					sp->status = status;
+					if (WIFCONTINUED(status)) {
+						sp->status = -1;
+						jp->state = 0;
+					} else
+						sp->status = status;
 					thisjob = jp;
 				}
 				if (sp->status == -1)
@@ -1118,7 +1123,7 @@ waitproc(int block, int *status)
 	int flags;
 
 #if JOBS
-	flags = WUNTRACED;
+	flags = WUNTRACED | WCONTINUED;
 #else
 	flags = 0;
 #endif
