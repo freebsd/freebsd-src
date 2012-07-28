@@ -220,6 +220,8 @@ typedef enum {
 
 #define	HAL_NUM_RX_QUEUES	2		/* max possible # of queues */
 
+#define	HAL_TXFIFO_DEPTH	8		/* transmit fifo depth */
+
 /*
  * Transmit queue subtype.  These map directly to
  * WME Access Categories (except for UPSD).  Refer
