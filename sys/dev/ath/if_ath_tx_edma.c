@@ -131,9 +131,42 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_ATHDEV);
 
 static int
+ath_edma_setup_txfifo(struct ath_softc *sc, int qnum)
+{
+	struct ath_tx_edma_fifo *te = &sc->sc_txedma[qnum];
+
+	te->m_fifo = malloc(sizeof(struct ath_buf *) * HAL_TXFIFO_DEPTH,
+	    M_ATHDEV,
+	    M_NOWAIT | M_ZERO);
+	if (te->m_fifo == NULL) {
+		device_printf(sc->sc_dev, "%s: malloc failed\n",
+		    __func__);
+		return (-ENOMEM);
+	}
+
+	/*
+	 * Set initial "empty" state.
+	 */
+	te->m_fifo_head = te->m_fifo_tail = te->m_fifo_depth = 0;
+	
+	return (0);
+}
+
+static int
+ath_edma_free_txfifo(struct ath_softc *sc, int qnum)
+{
+	struct ath_tx_edma_fifo *te = &sc->sc_txedma[qnum];
+
+	/* XXX TODO: actually deref the ath_buf entries? */
+	free(te->m_fifo, M_ATHDEV);
+	return (0);
+}
+
+static int
 ath_edma_dma_txsetup(struct ath_softc *sc)
 {
 	int error;
+	int i;
 
 	error = ath_descdma_alloc_desc(sc, &sc->sc_txsdma,
 	    NULL, "txcomp", sc->sc_tx_statuslen, ATH_TXSTATUS_RING_SIZE);
@@ -145,6 +178,10 @@ ath_edma_dma_txsetup(struct ath_softc *sc)
 	    sc->sc_txsdma.dd_desc_paddr,
 	    ATH_TXSTATUS_RING_SIZE);
 
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		ath_edma_setup_txfifo(sc, i);
+	}
+
 
 	return (0);
 }
@@ -152,6 +189,11 @@ ath_edma_dma_txsetup(struct ath_softc *sc)
 static int
 ath_edma_dma_txteardown(struct ath_softc *sc)
 {
+	int i;
+
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		ath_edma_free_txfifo(sc, i);
+	}
 
 	ath_descdma_cleanup(sc, &sc->sc_txsdma, NULL);
 	return (0);
