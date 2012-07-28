@@ -615,14 +615,13 @@ g_resize_provider_event(void *arg, int flag)
 	off_t size;
 
 	g_topology_assert();
-	if (flag == EV_CANCEL)
-		return;
 	if (g_shutdown)
 		return;
 
 	hh = arg;
 	pp = hh->pp;
 	size = hh->size;
+	g_free(hh);
 
 	G_VALID_PROVIDER(pp);
 	g_trace(G_T_TOPOLOGY, "g_resize_provider_event(%p)", pp);

@@ -239,6 +239,7 @@ static void     lem_enable_wakeup(device_t);
 static int	lem_enable_phy_wakeup(struct adapter *);
 static void	lem_led_func(void *, int);
 
+#define EM_LEGACY_IRQ	/* slightly faster, at least in qemu */
 #ifdef EM_LEGACY_IRQ
 static void	lem_intr(void *);
 #else /* FAST IRQ */

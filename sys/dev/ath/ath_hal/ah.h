@@ -220,6 +220,8 @@ typedef enum {
 
 #define	HAL_NUM_RX_QUEUES	2		/* max possible # of queues */
 
+#define	HAL_TXFIFO_DEPTH	8		/* transmit fifo depth */
+
 /*
  * Transmit queue subtype.  These map directly to
  * WME Access Categories (except for UPSD).  Refer
@@ -580,13 +582,16 @@ typedef enum {
 
 typedef struct {
 	u_int	Tries;
-	u_int	Rate;
+	u_int	Rate;		/* hardware rate code */
+	u_int	RateIndex;	/* rate series table index */
 	u_int	PktDuration;
 	u_int	ChSel;
 	u_int	RateFlags;
 #define	HAL_RATESERIES_RTS_CTS		0x0001	/* use rts/cts w/this series */
 #define	HAL_RATESERIES_2040		0x0002	/* use ext channel for series */
 #define	HAL_RATESERIES_HALFGI		0x0004	/* use half-gi for series */
+#define	HAL_RATESERIES_STBC		0x0008	/* use STBC for series */
+	u_int	tx_power_cap;
 } HAL_11N_RATE_SERIES;
 
 typedef enum {
@@ -1084,6 +1089,15 @@ struct ath_hal {
 	void	   __ahdecl(*ah_reqTxIntrDesc)(struct ath_hal *, struct ath_desc*);
 	HAL_BOOL	__ahdecl(*ah_getTxCompletionRates)(struct ath_hal *,
 				const struct ath_desc *ds, int *rates, int *tries);
+	void	  __ahdecl(*ah_setTxDescLink)(struct ath_hal *ah, void *ds,
+				uint32_t link);
+	void	  __ahdecl(*ah_getTxDescLink)(struct ath_hal *ah, void *ds,
+				uint32_t *link);
+	void	  __ahdecl(*ah_getTxDescLinkPtr)(struct ath_hal *ah, void *ds,
+				uint32_t **linkptr);
+	void	  __ahdecl(*ah_setupTxStatusRing)(struct ath_hal *,
+				void *ts_start, uint32_t ts_paddr_start,
+				uint16_t size);
 
 	/* Receive Functions */
 	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*, HAL_RX_QUEUE);
@@ -1224,7 +1238,7 @@ struct ath_hal {
 	    			struct ath_desc *, u_int, u_int,
 				HAL_11N_RATE_SERIES [], u_int, u_int);
 	void	  __ahdecl(*ah_set11nAggrFirst)(struct ath_hal *,
-				struct ath_desc *, u_int, u_int);
+				struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,

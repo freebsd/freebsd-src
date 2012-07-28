@@ -30,4 +30,29 @@
 
 void at91rm9200_set_subtype(enum at91_soc_subtype st);
 
+#define AT91RM9200_ID_USART0	1
+#define AT91RM9200_ID_USART1	2
+#define AT91RM9200_ID_USART2	3
+#define AT91RM9200_ID_USART3	4
+
+/*
+ * Serial port convenience routines
+ */
+/* uart pins that are wired... */
+#define	AT91_UART_CTS	0x01
+#define	AT91_UART_RTS	0x02
+#define	AT91_UART_RI    0x04
+#define	AT91_UART_DTR	0x08
+#define AT91_UART_DCD	0x10
+#define	AT91_UART_DSR	0x20
+
+#define AT91_ID_DBGU	0
+
+void at91rm9200_config_uart(unsigned devid, unsigned unit, unsigned pinmask);
+
+/*
+ * MCI (sd/mmc card support)
+ */
+void at91rm9200_config_mci(int has_4wire);
+
 #endif /* ARM_AT91_AT91RM9200VAR_H */

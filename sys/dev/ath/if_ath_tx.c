@@ -302,6 +302,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	/*
+	 * XXX There's txdma and txdma_mgmt; the descriptor
+	 * sizes must match.
+	 */
+	struct ath_descdma *dd = &sc->sc_txdma;
 
 	/*
 	 * Fillin the remainder of the descriptor info.
@@ -310,9 +315,10 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
 		ds->ds_data = bf->bf_segs[i].ds_addr;
 		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
+			ath_hal_settxdesclink(ah, ds, 0);
 		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+			ath_hal_settxdesclink(ah, ds,
+			    bf->bf_daddr + dd->dd_descsize * (i + 1));
 		ath_hal_filltxdesc(ah, ds
 			, bf->bf_segs[i].ds_len	/* segment length */
 			, i == 0		/* first segment */
@@ -340,6 +346,11 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	/*
+	 * XXX There's txdma and txdma_mgmt; the descriptor
+	 * sizes must match.
+	 */
+	struct ath_descdma *dd = &sc->sc_txdma;
 
 	ds0 = ds = bf->bf_desc;
 
@@ -350,9 +361,10 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
 		ds->ds_data = bf->bf_segs[i].ds_addr;
 		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
+			ath_hal_settxdesclink(ah, ds, 0);
 		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+			ath_hal_settxdesclink(ah, ds,
+			    bf->bf_daddr + dd->dd_descsize * (i + 1));
 
 		/*
 		 * This performs the setup for an aggregate frame.
@@ -414,7 +426,8 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 		 * to the beginning descriptor of this frame.
 		 */
 		if (bf_prev != NULL)
-			bf_prev->bf_lastds->ds_link = bf->bf_daddr;
+			ath_hal_settxdesclink(sc->sc_ah, bf_prev->bf_lastds,
+			    bf->bf_daddr);
 
 		/* Save a copy so we can link the next descriptor in */
 		bf_prev = bf;
@@ -482,7 +495,7 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		*txq->axq_link = bf->bf_daddr;
 	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	txq->axq_link = &bf->bf_lastds->ds_link;
+	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 }
 
 /*
@@ -616,7 +629,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 #endif /* IEEE80211_SUPPORT_TDMA */
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth++;
-		txq->axq_link = &bf->bf_lastds->ds_link;
+		ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 		ath_hal_txstart(ah, txq->axq_qnum);
 	}
 }
@@ -645,7 +658,7 @@ ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
 		return;
 
 	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-	txq->axq_link = &bf_last->bf_lastds->ds_link;
+	ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 	ath_hal_txstart(ah, txq->axq_qnum);
 }
 
@@ -4449,4 +4462,35 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	ath_tx_tid_resume(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+}
+
+static int
+ath_legacy_dma_txsetup(struct ath_softc *sc)
+{
+
+	/* nothing new needed */
+	return (0);
+}
+
+static int
+ath_legacy_dma_txteardown(struct ath_softc *sc)
+{
+
+	/* nothing new needed */
+	return (0);
+}
+
+void
+ath_xmit_setup_legacy(struct ath_softc *sc)
+{
+	/*
+	 * For now, just set the descriptor length to sizeof(ath_desc);
+	 * worry about extracting the real length out of the HAL later.
+	 */
+	sc->sc_tx_desclen = sizeof(struct ath_desc);
+	sc->sc_tx_statuslen = 0;
+	sc->sc_tx_nmaps = 1;	/* only one buffer per TX desc */
+
+	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;
+	sc->sc_tx.xmit_teardown = ath_legacy_dma_txteardown;
 }

@@ -9,14 +9,16 @@
 # CONFIG_LOCALVERSION from some future config system.
 #
 VERSION = 1
-PATCHLEVEL = 2
+PATCHLEVEL = 3
 SUBLEVEL = 0
 EXTRAVERSION =
 LOCAL_VERSION =
 CONFIG_LOCALVERSION =
 
-CPPFLAGS = -I libfdt
-CFLAGS = -Wall -g -Os -fPIC -Wpointer-arith -Wcast-qual
+CPPFLAGS = -I libfdt -I .
+WARNINGS = -Werror -Wall -Wpointer-arith -Wcast-qual -Wnested-externs \
+	-Wstrict-prototypes -Wmissing-prototypes -Wredundant-decls
+CFLAGS = -g -Os -fPIC -Werror $(WARNINGS)
 
 BISON = bison
 LEX = flex
@@ -103,12 +105,15 @@ endef
 
 include Makefile.convert-dtsv0
 include Makefile.dtc
-include Makefile.ftdump
+include Makefile.utils
 
 BIN += convert-dtsv0
 BIN += dtc
-BIN += ftdump
+BIN += fdtdump
+BIN += fdtget
+BIN += fdtput
 
+SCRIPTS = dtdiff
 
 all: $(BIN) libfdt
 
@@ -116,7 +121,9 @@ all: $(BIN) libfdt
 ifneq ($(DEPTARGETS),)
 -include $(DTC_OBJS:%.o=%.d)
 -include $(CONVERT_OBJS:%.o=%.d)
--include $(FTDUMP_OBJS:%.o=%.d)
+-include $(FDTDUMP_OBJS:%.o=%.d)
+-include $(FDTGET_OBJS:%.o=%.d)
+-include $(FDTPUT_OBJS:%.o=%.d)
 endif
 
 
@@ -127,7 +134,7 @@ endif
 LIBFDT_objdir = libfdt
 LIBFDT_srcdir = libfdt
 LIBFDT_archive = $(LIBFDT_objdir)/libfdt.a
-LIBFDT_lib = $(LIBFDT_objdir)/libfdt.$(SHAREDLIB_EXT)
+LIBFDT_lib = $(LIBFDT_objdir)/libfdt-$(DTC_VERSION).$(SHAREDLIB_EXT)
 LIBFDT_include = $(addprefix $(LIBFDT_srcdir)/,$(LIBFDT_INCLUDES))
 LIBFDT_version = $(addprefix $(LIBFDT_srcdir)/,$(LIBFDT_VERSION))
 
@@ -153,12 +160,14 @@ endif
 # intermediate target and building them again "for real"
 .SECONDARY: $(DTC_GEN_SRCS) $(CONVERT_GEN_SRCS)
 
-install: all
+install: all $(SCRIPTS)
 	@$(VECHO) INSTALL
 	$(INSTALL) -d $(DESTDIR)$(BINDIR)
-	$(INSTALL) $(BIN) $(DESTDIR)$(BINDIR)
+	$(INSTALL) $(BIN) $(SCRIPTS) $(DESTDIR)$(BINDIR)
 	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
 	$(INSTALL) $(LIBFDT_lib) $(DESTDIR)$(LIBDIR)
+	ln -sf $(notdir $(LIBFDT_lib)) $(DESTDIR)$(LIBDIR)/$(LIBFDT_soname)
+	ln -sf $(LIBFDT_soname) $(DESTDIR)$(LIBDIR)/libfdt.$(SHAREDLIB_EXT)
 	$(INSTALL) -m 644 $(LIBFDT_archive) $(DESTDIR)$(LIBDIR)
 	$(INSTALL) -d $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL) -m 644 $(LIBFDT_include) $(DESTDIR)$(INCLUDEDIR)
@@ -173,19 +182,29 @@ convert-dtsv0: $(CONVERT_OBJS)
 	@$(VECHO) LD $@
 	$(LINK.c) -o $@ $^
 
-ftdump:	$(FTDUMP_OBJS)
+fdtdump:	$(FDTDUMP_OBJS)
+
+fdtget:	$(FDTGET_OBJS) $(LIBFDT_archive)
+
+fdtput:	$(FDTPUT_OBJS) $(LIBFDT_archive)
 
 
 #
 # Testsuite rules
 #
 TESTS_PREFIX=tests/
+
+TESTS_BIN += dtc
+TESTS_BIN += convert-dtsv0
+TESTS_BIN += fdtput
+TESTS_BIN += fdtget
+
 include tests/Makefile.tests
 
 #
 # Clean rules
 #
-STD_CLEANFILES = *~ *.o *.so *.d *.a *.i *.s core a.out vgcore.* \
+STD_CLEANFILES = *~ *.o *.$(SHAREDLIB_EXT) *.d *.a *.i *.s core a.out vgcore.* \
 	*.tab.[ch] *.lex.c *.output
 
 clean: libfdt_clean tests_clean
@@ -231,8 +250,7 @@ clean: libfdt_clean tests_clean
 
 $(LIBFDT_lib):
 	@$(VECHO) LD $@
-	$(CC) $(LDFLAGS) -fPIC $(SHAREDLIB_LINK_OPTIONS)$(notdir $@) -o $(LIBFDT_objdir)/libfdt-$(DTC_VERSION).$(SHAREDLIB_EXT) $^
-	ln -sf libfdt-$(DTC_VERSION).$(SHAREDLIB_EXT) $(LIBFDT_objdir)/libfdt.$(SHAREDLIB_EXT)
+	$(CC) $(LDFLAGS) -fPIC $(SHAREDLIB_LINK_OPTIONS)$(LIBFDT_soname) -o $(LIBFDT_lib) $^
 
 %.lex.c: %.l
 	@$(VECHO) LEX $@

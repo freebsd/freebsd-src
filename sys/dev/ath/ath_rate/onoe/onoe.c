@@ -407,6 +407,14 @@ ath_rate_sysctlattach(struct ath_softc *sc)
 		"rate control: # good periods before raising rate");
 }
 
+static int
+ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+    struct ath_rateioctl *re)
+{
+
+	return (EINVAL);
+}
+
 struct ath_ratectrl *
 ath_rate_attach(struct ath_softc *sc)
 {

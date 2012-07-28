@@ -63,7 +63,7 @@ main(int argc, char **argv)
 {
 	int dmm;
         unsigned char buf[100];
-        char vbuf[sizeof buf * 4];
+        char vbuf[sizeof(buf) * 4];
 
         /* DVM */
         dmm = ibdev(0, (argc > 1? atoi(argv[1]): 7), 0,
@@ -71,7 +71,7 @@ main(int argc, char **argv)
         if (dmm < 0)
                 errx(1, "ibdev = %d\\n", dmm);
         ibwrt(dmm, "*IDN?\\r\\n", 7);
-        ibrd(dmm, buf, sizeof buf - 1);
+        ibrd(dmm, buf, sizeof(buf) - 1);
         strvisx(vbuf, buf, ibcnt, VIS_WHITE | VIS_CSTYLE);
         printf("%s\\n", vbuf);
         return (0);

@@ -421,6 +421,7 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    BSDCONFIG \
     CLANG_EXTRAS \
     CLANG_IS_CC \
     CTF \

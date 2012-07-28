@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91rm9200var.h>
-#include <arm/at91/at91_piovar.h>
-#include <arm/at91/at91_pio_rm9200.h>
 
 BOARD_INIT long
 board_init(void)
@@ -44,26 +42,22 @@ board_init(void)
 	at91rm9200_set_subtype(AT91_ST_RM9200_BGA);
 
 	/*
-	 * Since the USART supports RS-485 multidrop mode, it allows the
-	 * TX pins to float.  However, for RS-232 operations, we don't want
-	 * these pins to float.  Instead, they should be pulled up to avoid
-	 * mismatches.  Linux does something similar when it configures the
-	 * TX lines.  This implies that we also allow the RX lines to float
-	 * rather than be in the state they are left in by the boot loader.
-	 * Since they are input pins, I think that this is the right thing
-	 * to do.
+	 * Unsure what all is in the HOTe HL200, but I do know there's
+	 * one serial port that isn't DBGU.  There's many other peripherals
+	 * that need to be configured here.
 	 */
-	/* PIOA's A periph: Turn USART 0 and 2's TX/RX pins */
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
-	    AT91C_PA18_RXD0 | AT91C_PA22_RXD2, 0);
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
-	    AT91C_PA17_TXD0 | AT91C_PA23_TXD2, 1);
-	/* PIOA's B periph: Turn USART 3's TX/RX pins */
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA6_RXD3, 0);
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA5_TXD3, 1);
-	/* PIOB's A periph: Turn USART 1's TX/RX pins */
-	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB21_RXD1, 0);
-	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB20_TXD1, 1);
+	at91rm9200_config_uart(AT91_ID_DBGU, 0, 0);   /* DBGU just Tx and Rx */
+	at91rm9200_config_uart(AT91RM9200_ID_USART0, 1, 0);   /* Tx and Rx */
+
+	at91rm9200_config_mci(0);			/* HOTe HL200 unknown 1 vs 4 wire */
+
+	/* Enable CF card slot */
+	/* Enable sound thing */
+	/* Enable VGA chip */
+	/* Enable ethernet */
+	/* Enable TWI + RTC */
+	/* Enable USB Host */
+	/* Enable USB Device (gadget) */
 
 	return (at91_ramsize());
 }

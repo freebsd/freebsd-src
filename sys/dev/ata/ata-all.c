@@ -1532,7 +1532,7 @@ ata_cam_request_sense(device_t dev, struct ata_request *request)
 
 	ch->requestsense = 1;
 
-	bzero(request, sizeof(&request));
+	bzero(request, sizeof(*request));
 	request->dev = NULL;
 	request->parent = dev;
 	request->unit = ccb->ccb_h.target_id;

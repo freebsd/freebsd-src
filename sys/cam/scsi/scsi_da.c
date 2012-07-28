@@ -2645,7 +2645,10 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 	else
 		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
 
+/* Currently as of 6/13/2012, panics if DIAGNOSTIC is set */
+#ifndef	DIAGNOSTIC
 	disk_resize(softc->disk);
+#endif
 }
 
 static void

@@ -108,7 +108,7 @@ msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
 	struct denode *dp;
 	struct denode *tdp;
 	struct msdosfsmount *pmp;
-	struct buf *bp = 0;
+	struct buf *bp = NULL;
 	struct direntry *dep = NULL;
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;

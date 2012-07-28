@@ -223,19 +223,16 @@ loop:
 	if (fap == NULL)
 		return ENOENT;
 
-	np = malloc(sizeof *np, M_SMBNODE, M_WAITOK);
 	error = getnewvnode("smbfs", mp, &smbfs_vnodeops, &vp);
-	if (error) {
-		free(np, M_SMBNODE);
-		return error;
-	}
-	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
-	if (error != 0) {
-		free(np, M_SMBNODE);
+	if (error != 0)
 		return (error);
-	}
+	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
+	if (error != 0)
+		return (error);
+
+	np = malloc(sizeof *np, M_SMBNODE, M_WAITOK | M_ZERO);
+
 	vp->v_type = fap->fa_attr & SMB_FA_DIR ? VDIR : VREG;
-	bzero(np, sizeof(*np));
 	vp->v_data = np;
 	np->n_vnode = vp;
 	np->n_mount = VFSTOSMBFS(mp);

@@ -1124,12 +1124,8 @@ struct sctpstat {
 #define SCTP_STAT_DECR_GAUGE32(_x) SCTP_STAT_DECR(_x)
 
 union sctp_sockstore {
-#if defined(INET) || !defined(_KERNEL)
 	struct sockaddr_in sin;
-#endif
-#if defined(INET6) || !defined(_KERNEL)
 	struct sockaddr_in6 sin6;
-#endif
 	struct sockaddr sa;
 };
 
