@@ -657,7 +657,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	}
 	case HAL_CAP_RXBUFSIZE:
 	case HAL_CAP_NUM_MR_RETRIES:
-		return HAL_EINVAL;      /* XXX not yet */
+		*result = pCap->halNumMRRetries;
+		return HAL_OK;
 	case HAL_CAP_BT_COEX:
 		return pCap->halBtCoexSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_HT20_SGI:
