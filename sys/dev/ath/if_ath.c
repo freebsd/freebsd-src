@@ -916,6 +916,7 @@ ath_detach(struct ath_softc *sc)
 
 	ath_dfs_detach(sc);
 	ath_desc_free(sc);
+	ath_txdma_teardown(sc);
 	ath_rxdma_teardown(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
