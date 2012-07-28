@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 
 /* This file defines a single public function. */
-time_t get_date(time_t now, char *);
+time_t __archive_get_date(time_t now, char *);
 
 /* Basic time units. */
 #define	EPOCH		1970
@@ -894,7 +894,7 @@ difftm (struct tm *a, struct tm *b)
  * TODO: tokens[] array should be dynamically sized.
  */
 time_t
-get_date(time_t now, char *p)
+__archive_get_date(time_t now, char *p)
 {
 	struct token	tokens[256];
 	struct gdstate	_gds;

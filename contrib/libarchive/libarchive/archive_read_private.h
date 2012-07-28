@@ -134,8 +134,8 @@ struct archive_read {
 
 	/* Dev/ino of the archive being read/written. */
 	int		  skip_file_set;
-	dev_t		  skip_file_dev;
-	ino_t		  skip_file_ino;
+	int64_t		  skip_file_dev;
+	int64_t		  skip_file_ino;
 
 	/*
 	 * Used by archive_read_data() to track blocks and copy
