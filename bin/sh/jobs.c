@@ -94,7 +94,6 @@ static void freejob(struct job *);
 static struct job *getjob(char *);
 pid_t getjobpgrp(char *);
 static pid_t dowait(int, struct job *);
-static pid_t waitproc(int, int *);
 static void checkzombies(void);
 static void cmdtxt(union node *);
 static void cmdputs(const char *);
@@ -1021,10 +1020,18 @@ dowait(int block, struct job *job)
 	int stopped;
 	int sig;
 	int coredump;
+	int wflags;
 
 	TRACE(("dowait(%d) called\n", block));
 	do {
-		pid = waitproc(block, &status);
+#if JOBS
+		wflags = WUNTRACED | WCONTINUED;
+#else
+		wflags = 0;
+#endif
+		if (block == 0)
+			wflags |= WNOHANG;
+		pid = wait3(&status, wflags, (struct rusage *)NULL);
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
 		 (pid > 0 && (WIFSTOPPED(status) || WIFCONTINUED(status)) &&
@@ -1111,26 +1118,6 @@ dowait(int block, struct job *job)
 }
 
 
-
-/*
- * Do a wait system call.  If job control is compiled in, we accept
- * stopped processes.  If block is zero, we return a value of zero
- * rather than blocking.
- */
-static pid_t
-waitproc(int block, int *status)
-{
-	int flags;
-
-#if JOBS
-	flags = WUNTRACED | WCONTINUED;
-#else
-	flags = 0;
-#endif
-	if (block == 0)
-		flags |= WNOHANG;
-	return wait3(status, flags, (struct rusage *)NULL);
-}
 
 /*
  * return 1 if there are stopped jobs, otherwise 0
