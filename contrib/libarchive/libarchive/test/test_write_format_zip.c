@@ -91,7 +91,7 @@ verify_contents(struct archive *a, int expect_details)
 		assertEqualInt(0, archive_entry_size(ae));
 		assertEqualString("file1", archive_entry_symlink(ae));
 	} else {
-		assertEqualInt(AE_IFREG | 0777, archive_entry_mode(ae));
+		assertEqualInt(AE_IFREG | 0666, archive_entry_mode(ae));
 		assertEqualInt(0, archive_entry_size(ae));
 	}
 

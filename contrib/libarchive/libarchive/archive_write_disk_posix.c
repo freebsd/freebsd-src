@@ -188,8 +188,8 @@ struct archive_write_disk {
 	struct fixup_entry	*current_fixup;
 	int64_t			 user_uid;
 	int			 skip_file_set;
-	dev_t			 skip_file_dev;
-	ino_t			 skip_file_ino;
+	int64_t			 skip_file_dev;
+	int64_t			 skip_file_ino;
 	time_t			 start_time;
 
 	int64_t (*lookup_gid)(void *private, const char *gname, int64_t gid);
@@ -1143,9 +1143,10 @@ restore_entry(struct archive_write_disk *a)
 
 		/* If it's our archive, we're done. */
 		if (a->skip_file_set &&
-		    a->st.st_dev == a->skip_file_dev &&
-		    a->st.st_ino == a->skip_file_ino) {
-			archive_set_error(&a->archive, 0, "Refusing to overwrite archive");
+		    a->st.st_dev == (dev_t)a->skip_file_dev &&
+		    a->st.st_ino == (ino_t)a->skip_file_ino) {
+			archive_set_error(&a->archive, 0,
+			    "Refusing to overwrite archive");
 			return (ARCHIVE_FAILED);
 		}
 
@@ -1163,7 +1164,7 @@ restore_entry(struct archive_write_disk *a)
 			/* A dir is in the way of a non-dir, rmdir it. */
 			if (rmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
-				    "Can't remove already-existing dir");
+				    "Can't replace existing directory with non-directory");
 				return (ARCHIVE_FAILED);
 			}
 			/* Try again. */
@@ -2529,7 +2530,7 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	}
 	written = write(fd, metadata, metadata_size);
 	close(fd);
-	if (written != metadata_size
+	if ((size_t)written != metadata_size
 	    || copyfile(tmp.s, pathname, 0,
 			COPYFILE_UNPACK | COPYFILE_NOFOLLOW
 			| COPYFILE_ACL | COPYFILE_XATTR)) {
@@ -2584,7 +2585,7 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 	acl_t		 acl;
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
-	int		 ret;
+	int		 ret, r;
 	int		 ae_type, ae_permset, ae_tag, ae_id;
 	uid_t		 ae_uid;
 	gid_t		 ae_gid;
@@ -2596,9 +2597,9 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 	if (entries == 0)
 		return (ARCHIVE_OK);
 	acl = acl_init(entries);
-	while (archive_acl_next(&a->archive, abstract_acl,
+	while ((r = archive_acl_next(&a->archive, abstract_acl,
 	    ae_requested_type, &ae_type, &ae_permset, &ae_tag, &ae_id,
-	    &ae_name) == ARCHIVE_OK) {
+	    &ae_name)) == ARCHIVE_OK) {
 		acl_create_entry(&acl, &acl_entry);
 
 		switch (ae_tag) {
@@ -2639,6 +2640,12 @@ set_acl(struct archive_write_disk *a, int fd, const char *name,
 			acl_add_perm(acl_permset, ACL_WRITE);
 		if (ae_permset & ARCHIVE_ENTRY_ACL_READ)
 			acl_add_perm(acl_permset, ACL_READ);
+	}
+	if (r == ARCHIVE_FATAL) {
+		acl_free(acl);
+		archive_set_error(&a->archive, errno,
+		    "Failed to archive_acl_next");
+		return (r);
 	}
 
 	/* Try restoring the ACL through 'fd' if we can. */
