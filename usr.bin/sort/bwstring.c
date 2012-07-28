@@ -479,7 +479,7 @@ bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 struct bwstring *
 bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 {
-	wchar_t eols;
+	wint_t eols;
 
 	eols = zero_ended ? btowc('\0') : btowc('\n');
 
@@ -494,7 +494,7 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 			return (NULL);
 		}
 		if (*len > 0) {
-			if (ret[*len - 1] == eols)
+			if (ret[*len - 1] == (wchar_t)eols)
 				--(*len);
 		}
 		return (bwssbdup(ret, *len));
@@ -516,8 +516,6 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 		return (bwscsbdup(ret, *len));
 
 	} else {
-		wchar_t c = 0;
-
 		*len = 0;
 
 		if (feof(f))
@@ -532,6 +530,8 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 
 		if (MB_CUR_MAX == 1)
 			while (!feof(f)) {
+				int c;
+
 				c = fgetc(f);
 
 				if (c == EOF) {
@@ -553,6 +553,8 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 			}
 		else
 			while (!feof(f)) {
+				wint_t c = 0;
+
 				c = fgetwc(f);
 
 				if (c == WEOF) {

@@ -133,12 +133,12 @@ extern struct key_specs *keys;
 extern size_t keys_num;
 
 /*
- * Main localised symbols
+ * Main localised symbols. These must be wint_t as they may hold WEOF.
  */
-extern wchar_t symbol_decimal_point;
-extern wchar_t symbol_thousands_sep;
-extern wchar_t symbol_negative_sign;
-extern wchar_t symbol_positive_sign;
+extern wint_t symbol_decimal_point;
+extern wint_t symbol_thousands_sep;
+extern wint_t symbol_negative_sign;
+extern wint_t symbol_positive_sign;
 
 /* funcs */
 
