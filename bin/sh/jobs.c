@@ -1025,17 +1025,16 @@ dowait(int block, struct job *job)
 	TRACE(("dowait(%d) called\n", block));
 	do {
 #if JOBS
-		wflags = WUNTRACED | WCONTINUED;
-#else
-		wflags = 0;
+		if (iflag)
+			wflags = WUNTRACED | WCONTINUED;
+		else
 #endif
+			wflags = 0;
 		if (block == 0)
 			wflags |= WNOHANG;
 		pid = wait3(&status, wflags, (struct rusage *)NULL);
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
-	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
-		 (pid > 0 && (WIFSTOPPED(status) || WIFCONTINUED(status)) &&
-		  !iflag));
+	} while (pid == -1 && errno == EINTR && breakwaitcmd == 0);
 	if (pid == -1 && errno == ECHILD && job != NULL)
 		job->state = JOBDONE;
 	if (breakwaitcmd != 0) {
