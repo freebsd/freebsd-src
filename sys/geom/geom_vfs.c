@@ -65,11 +65,13 @@ static struct buf_ops __g_vfs_bufops = {
 struct buf_ops *g_vfs_bufops = &__g_vfs_bufops;
 
 static g_orphan_t g_vfs_orphan;
+static g_spoiled_t g_vfs_spoiled;
 
 static struct g_class g_vfs_class = {
 	.name =		"VFS",
 	.version =	G_VERSION,
 	.orphan =	g_vfs_orphan,
+	.spoiled =	g_vfs_spoiled,
 };
 
 DECLARE_GEOM_CLASS(g_vfs_class, g_vfs);
@@ -215,8 +217,35 @@ g_vfs_orphan(struct g_consumer *cp)
 	if (sc == NULL)
 		return;
 	mtx_lock(&sc->sc_mtx);
+	destroy = (sc->sc_active == 0 && sc->sc_orphaned == 0);
 	sc->sc_orphaned = 1;
-	destroy = (sc->sc_active == 0);
+	mtx_unlock(&sc->sc_mtx);
+	if (destroy)
+		g_vfs_destroy(cp, 0);
+
+	/*
+	 * Do not destroy the geom.  Filesystem will do that during unmount.
+	 */
+}
+
+static void
+g_vfs_spoiled(struct g_consumer *cp)
+{
+	struct g_geom *gp;
+	struct g_vfs_softc *sc;
+	int destroy;
+
+	g_topology_assert();
+
+	gp = cp->geom;
+	g_trace(G_T_TOPOLOGY, "g_vfs_spoiled(%p(%s))", cp, gp->name);
+	cp->flags |= G_CF_ORPHAN;
+	sc = gp->softc;
+	if (sc == NULL)
+		return;
+	mtx_lock(&sc->sc_mtx);
+	destroy = (sc->sc_active == 0 && sc->sc_orphaned == 0);
+	sc->sc_orphaned = 1;
 	mtx_unlock(&sc->sc_mtx);
 	if (destroy)
 		g_vfs_destroy(cp, 0);
