@@ -129,7 +129,6 @@
 #define HAVE_LSTAT 1
 #define HAVE_LUTIMES 1
 #define HAVE_MBRTOWC 1
-#define HAVE_MBSNRTOWCS 1
 #define HAVE_MEMMOVE 1
 #define HAVE_MEMORY_H 1
 #define HAVE_MEMSET 1
@@ -206,7 +205,6 @@
 #define HAVE_WCSCMP 1
 #define HAVE_WCSCPY 1
 #define HAVE_WCSLEN 1
-#define HAVE_WCSNRTOMBS 1
 #define HAVE_WCTOMB 1
 #define HAVE_WCTYPE_H 1
 #define HAVE_WMEMCMP 1
