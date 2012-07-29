@@ -41,6 +41,7 @@ void clear_traps(void);
 int have_traps(void);
 void setsignal(int);
 void ignoresig(int);
+int issigchldtrapped(void);
 void onsig(int);
 void dotrap(void);
 void setinteractive(int);
