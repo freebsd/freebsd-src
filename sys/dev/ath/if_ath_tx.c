@@ -3895,9 +3895,9 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_set_rtscts(sc, bf);
 			ath_tx_rate_fill_rcflags(sc, bf);
 			ath_tx_setds(sc, bf);
+			ath_tx_set_ratectrl(sc, ni, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
-			ath_tx_set_ratectrl(sc, ni, bf);
 
 			sc->sc_aggr_stats.aggr_nonbaw_pkt++;
 
@@ -3955,9 +3955,9 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
 			ath_tx_setds(sc, bf);
+			ath_tx_set_ratectrl(sc, ni, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
-			ath_tx_set_ratectrl(sc, ni, bf);
 			if (status == ATH_AGGR_BAW_CLOSED)
 				sc->sc_aggr_stats.aggr_baw_closed_single_pkt++;
 			else
@@ -4084,8 +4084,8 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		ath_tx_set_rtscts(sc, bf);
 		ath_tx_rate_fill_rcflags(sc, bf);
 		ath_tx_setds(sc, bf);
-		ath_tx_chaindesclist(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
+		ath_tx_chaindesclist(sc, bf);
 
 		/* Track outstanding buffer count to hardware */
 		/* aggregates are "one" buffer */
