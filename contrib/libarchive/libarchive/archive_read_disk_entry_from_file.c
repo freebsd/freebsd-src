@@ -485,6 +485,7 @@ setup_acl_posix1e(struct archive_read_disk *a,
 			ae_tag = ARCHIVE_ENTRY_ACL_OTHER;
 		} else {
 			/* Skip types that libarchive can't support. */
+			s = acl_get_entry(acl, ACL_NEXT_ENTRY, &acl_entry);
 			continue;
 		}
 
