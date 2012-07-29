@@ -2055,6 +2055,7 @@ g_part_spoiled(struct g_consumer *cp)
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, cp->provider->name));
 	g_topology_assert();
 
+	cp->flags |= G_CF_ORPHAN;
 	g_part_wither(cp->geom, ENXIO);
 }
 
