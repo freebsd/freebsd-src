@@ -294,11 +294,11 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
 	}
 
+#ifdef IPSEC
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 */
-#ifdef IPSEC
 	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp, &sp))
 	{
 	case 1:                 /* Bad packet */
