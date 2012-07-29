@@ -2914,7 +2914,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			 * in the descriptor.
 			 */
 			 if (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr,
-			     dd->dd_descsize * ndesc)) {
+			     dd->dd_descsize)) {
 				/* Start at the next page */
 				ds += 0x1000 - (bf->bf_daddr & 0xFFF);
 				bf->bf_desc = (struct ath_desc *) ds;
@@ -2932,6 +2932,12 @@ ath_descdma_setup(struct ath_softc *sc,
 		bf->bf_lastds = bf->bf_desc;	/* Just an initial value */
 		TAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
+
+	/*
+	 * XXX TODO: ensure that ds doesn't overflow the descriptor
+	 * allocation otherwise weird stuff will occur and crash your
+	 * machine.
+	 */
 	return 0;
 	/* XXX this should likely just call ath_descdma_cleanup() */
 fail3:
