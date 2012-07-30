@@ -32,9 +32,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef HAVE_SYS_ACL_H
-#include <sys/acl.h>
-#endif
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
 #endif
@@ -129,6 +126,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_write_disk_private.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -267,11 +265,6 @@ static int	create_dir(struct archive_write_disk *, char *);
 static int	create_parent_dir(struct archive_write_disk *, char *);
 static int	older(struct stat *, struct archive_entry *);
 static int	restore_entry(struct archive_write_disk *);
-#ifdef HAVE_POSIX_ACL
-static int	set_acl(struct archive_write_disk *, int fd, const char *, struct archive_acl *,
-		    acl_type_t, int archive_entry_acl_type, const char *tn);
-#endif
-static int	set_acls(struct archive_write_disk *, int fd, const char *, struct archive_acl *);
 static int	set_mac_metadata(struct archive_write_disk *, const char *,
 				 const void *, size_t);
 static int	set_xattrs(struct archive_write_disk *);
@@ -570,6 +563,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 
 	if (a->deferred & TODO_ACLS) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
+		fe->fixup |= TODO_ACLS;
 		archive_acl_copy(&fe->acl, archive_entry_acl(entry));
 	}
 
@@ -878,7 +872,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * ACLs that prevent attribute changes (including time).
 	 */
 	if (a->todo & TODO_ACLS) {
-		int r2 = set_acls(a, a->fd,
+		int r2 = archive_write_disk_set_acls(&a->archive, a->fd,
 				  archive_entry_pathname(a->entry),
 				  archive_entry_acl(a->entry));
 		if (r2 < ret) ret = r2;
@@ -950,12 +944,12 @@ archive_write_disk_gid(struct archive *_a, const char *name, int64_t id)
 int64_t
 archive_write_disk_uid(struct archive *_a, const char *name, int64_t id)
 {
-       struct archive_write_disk *a = (struct archive_write_disk *)_a;
-       archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
-           ARCHIVE_STATE_ANY, "archive_write_disk_uid");
-       if (a->lookup_uid)
-               return (a->lookup_uid)(a->lookup_uid_data, name, id);
-       return (id);
+	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_write_disk_uid");
+	if (a->lookup_uid)
+		return (a->lookup_uid)(a->lookup_uid_data, name, id);
+	return (id);
 }
 
 /*
@@ -1381,7 +1375,8 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
-			set_acls(a, -1, p->name, &p->acl);
+			archive_write_disk_set_acls(&a->archive,
+						    -1, p->name, &p->acl);
 		if (p->fixup & TODO_FFLAGS)
 			set_fflags_platform(a, -1, p->name,
 			    p->mode, p->fflags_set, 0);
@@ -2543,131 +2538,6 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 }
 #endif
 
-#ifndef HAVE_POSIX_ACL
-/* Default empty function body to satisfy mainline code. */
-static int
-set_acls(struct archive_write_disk *a, int fd, const char *name,
-	 struct archive_acl *aacl)
-{
-	(void)a; /* UNUSED */
-	(void)fd; /* UNUSED */
-	(void)name; /* UNUSED */
-	(void)aacl; /* UNUSED */
-	return (ARCHIVE_OK);
-}
-
-#else
-
-/*
- * XXX TODO: What about ACL types other than ACCESS and DEFAULT?
- */
-static int
-set_acls(struct archive_write_disk *a, int fd, const char *name,
-	 struct archive_acl *abstract_acl)
-{
-	int		 ret;
-
-	ret = set_acl(a, fd, name, abstract_acl, ACL_TYPE_ACCESS,
-	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
-	if (ret != ARCHIVE_OK)
-		return (ret);
-	ret = set_acl(a, fd, name, abstract_acl, ACL_TYPE_DEFAULT,
-	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
-	return (ret);
-}
-
-
-static int
-set_acl(struct archive_write_disk *a, int fd, const char *name,
-    struct archive_acl *abstract_acl,
-    acl_type_t acl_type, int ae_requested_type, const char *tname)
-{
-	acl_t		 acl;
-	acl_entry_t	 acl_entry;
-	acl_permset_t	 acl_permset;
-	int		 ret, r;
-	int		 ae_type, ae_permset, ae_tag, ae_id;
-	uid_t		 ae_uid;
-	gid_t		 ae_gid;
-	const char	*ae_name;
-	int		 entries;
-
-	ret = ARCHIVE_OK;
-	entries = archive_acl_reset(abstract_acl, ae_requested_type);
-	if (entries == 0)
-		return (ARCHIVE_OK);
-	acl = acl_init(entries);
-	while ((r = archive_acl_next(&a->archive, abstract_acl,
-	    ae_requested_type, &ae_type, &ae_permset, &ae_tag, &ae_id,
-	    &ae_name)) == ARCHIVE_OK) {
-		acl_create_entry(&acl, &acl_entry);
-
-		switch (ae_tag) {
-		case ARCHIVE_ENTRY_ACL_USER:
-			acl_set_tag_type(acl_entry, ACL_USER);
-			ae_uid = archive_write_disk_uid(&a->archive,
-			    ae_name, ae_id);
-			acl_set_qualifier(acl_entry, &ae_uid);
-			break;
-		case ARCHIVE_ENTRY_ACL_GROUP:
-			acl_set_tag_type(acl_entry, ACL_GROUP);
-			ae_gid = archive_write_disk_gid(&a->archive,
-			    ae_name, ae_id);
-			acl_set_qualifier(acl_entry, &ae_gid);
-			break;
-		case ARCHIVE_ENTRY_ACL_USER_OBJ:
-			acl_set_tag_type(acl_entry, ACL_USER_OBJ);
-			break;
-		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
-			acl_set_tag_type(acl_entry, ACL_GROUP_OBJ);
-			break;
-		case ARCHIVE_ENTRY_ACL_MASK:
-			acl_set_tag_type(acl_entry, ACL_MASK);
-			break;
-		case ARCHIVE_ENTRY_ACL_OTHER:
-			acl_set_tag_type(acl_entry, ACL_OTHER);
-			break;
-		default:
-			/* XXX */
-			break;
-		}
-
-		acl_get_permset(acl_entry, &acl_permset);
-		acl_clear_perms(acl_permset);
-		if (ae_permset & ARCHIVE_ENTRY_ACL_EXECUTE)
-			acl_add_perm(acl_permset, ACL_EXECUTE);
-		if (ae_permset & ARCHIVE_ENTRY_ACL_WRITE)
-			acl_add_perm(acl_permset, ACL_WRITE);
-		if (ae_permset & ARCHIVE_ENTRY_ACL_READ)
-			acl_add_perm(acl_permset, ACL_READ);
-	}
-	if (r == ARCHIVE_FATAL) {
-		acl_free(acl);
-		archive_set_error(&a->archive, errno,
-		    "Failed to archive_acl_next");
-		return (r);
-	}
-
-	/* Try restoring the ACL through 'fd' if we can. */
-#if HAVE_ACL_SET_FD
-	if (fd >= 0 && acl_type == ACL_TYPE_ACCESS && acl_set_fd(fd, acl) == 0)
-		ret = ARCHIVE_OK;
-	else
-#else
-#if HAVE_ACL_SET_FD_NP
-	if (fd >= 0 && acl_set_fd_np(fd, acl, acl_type) == 0)
-		ret = ARCHIVE_OK;
-	else
-#endif
-#endif
-	if (acl_set_file(name, acl_type, acl) != 0) {
-		archive_set_error(&a->archive, errno, "Failed to set %s acl", tname);
-		ret = ARCHIVE_WARN;
-	}
-	acl_free(acl);
-	return (ret);
-}
-#endif
 
 #if HAVE_LSETXATTR || HAVE_LSETEA
 /*

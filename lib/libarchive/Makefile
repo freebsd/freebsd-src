@@ -110,6 +110,7 @@ SRCS=	archive_acl.c					\
 	archive_virtual.c				\
 	archive_write.c					\
 	archive_write_add_filter.c			\
+	archive_write_disk_acl.c			\
 	archive_write_disk_set_standard_lookup.c	\
 	archive_write_disk_posix.c			\
 	archive_write_open_fd.c				\
