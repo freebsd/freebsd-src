@@ -310,7 +310,6 @@ extern struct vpglocks pa_lock[];
  *
  */
 
-struct vnode;
 extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
