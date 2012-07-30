@@ -326,6 +326,7 @@ init_TSC(void)
 
 #ifdef SMP
 
+/* rmb is required here because rdtsc is not a serializing instruction. */
 #define	TSC_READ(x)			\
 static void				\
 tsc_read_##x(void *arg)			\
@@ -333,6 +334,7 @@ tsc_read_##x(void *arg)			\
 	uint32_t *tsc = arg;		\
 	u_int cpu = PCPU_GET(cpuid);	\
 					\
+	rmb();				\
 	tsc[cpu * 3 + x] = rdtsc32();	\
 }
 TSC_READ(0)
