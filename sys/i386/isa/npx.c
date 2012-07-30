@@ -114,7 +114,7 @@ void	frstor(caddr_t addr);
 #ifdef CPU_ENABLE_SSE
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
-void	stmxcsr(u_int csr);
+void	stmxcsr(u_int *csr);
 #endif
 
 #endif	/* __GNUCLIKE_ASM && !lint */
