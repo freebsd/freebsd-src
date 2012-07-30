@@ -976,8 +976,9 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 #define	HAVE_OPTIONS	0x8000
 
 static void
-show_prerequisites(int *flags, int want, int cmd __unused)
+show_prerequisites(int *flags, int want, int cmd)
 {
+	(void)cmd;	/* UNUSED */
 	if (co.comment_only)
 		return;
 	if ( (*flags & HAVE_IP) == HAVE_IP)
