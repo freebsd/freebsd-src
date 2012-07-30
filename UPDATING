@@ -9,6 +9,11 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20120727:
+	The sparc64 ZFS loader has been changed to no longer try to auto-
+	detect ZFS providers based on diskN aliases but now requires these
+	to be explicitly listed in the OFW boot-device environment variable.
+
 20120422:
 	Now unix domain sockets behave "as expected" on	nullfs(5). Previously
 	nullfs(5) did not pass through all behaviours to the underlying layer,
