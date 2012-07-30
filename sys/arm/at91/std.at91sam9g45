@@ -1,6 +1,9 @@
 # $FreeBSD$
 #
-# PHYSADDR is different on at91sam9g45 than the other at91sam SoCs
+# Unlike other Atmel SoCs, which have their SDRAM at CS1, the
+# at91sam9g45 family has it on CS6, so PHYSADDR must be adjusted
+# accordingly.  The at91sam9g45, at91sam9g46, at91sam9m10 and at91sam9m11
+# SoCs are members of this family.
 
 files		"../at91/files.at91"
 cpu		CPU_ARM9
