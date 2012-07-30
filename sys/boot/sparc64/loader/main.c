@@ -7,7 +7,7 @@
  * unchanged, you can do what ever you want with this file.
  */
 /*-
- * Copyright (c) 2008 Marius Strobl <marius@FreeBSD.org>
+ * Copyright (c) 2008 - 2012 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libofw.h"
 #include "dev_net.h"
-
-#define	MAXDEV	31
 
 extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
@@ -842,18 +840,52 @@ sparc64_zfs_probe(void)
 {
 	struct vtoc8 vtoc;
 	struct zfs_devdesc zfs_currdev;
-	char devname[32];
+	char alias[64], devname[sizeof(alias) + sizeof(":x") - 1];
+	char type[sizeof("device_type")];
+	char *bdev, *dev, *odev;
 	uint64_t guid;
-	int fd, part, unit;
+	int fd, len, part;
+	phandle_t aliases, options;
 
 	/* Get the GUID of the ZFS pool on the boot device. */
 	guid = 0;
 	zfs_probe_dev(bootpath, &guid);
 
-	for (unit = 0; unit < MAXDEV; unit++) {
+	/*
+	 * Get the GUIDs of the ZFS pools on any additional disks listed in
+	 * the boot-device environment variable.
+	 */
+	if ((aliases = OF_finddevice("/aliases")) == -1)
+		goto out;
+	options = OF_finddevice("/options");
+	len = OF_getproplen(options, "boot-device");
+	if (len <= 0)
+		goto out;
+	bdev = odev = malloc(len + 1);
+	if (bdev == NULL)
+		goto out;
+	if (OF_getprop(options, "boot-device", bdev, len) <= 0)
+		goto out;
+	bdev[len] = '\0';
+	while ((dev = strsep(&bdev, " ")) != NULL) {
+		if (*dev == '\0')
+			continue;
+		strcpy(alias, dev);
+		(void)OF_getprop(aliases, dev, alias, sizeof(alias));
+		/*
+		 * Don't probe the boot disk twice.  Note that bootpath
+		 * includes the partition specifier.
+		 */
+		if (strncmp(alias, bootpath, strlen(alias)) == 0)
+			continue;
+		if (OF_getprop(OF_finddevice(alias), "device_type", type,
+		    sizeof(type)) == -1)
+			continue;
+		if (strcmp(type, "block") != 0)
+			continue;
+
 		/* Find freebsd-zfs slices in the VTOC. */
-		sprintf(devname, "disk%d:", unit);
-		fd = open(devname, O_RDONLY);
+		fd = open(alias, O_RDONLY);
 		if (fd == -1)
 			continue;
 		lseek(fd, 0, SEEK_SET);
@@ -867,12 +899,14 @@ sparc64_zfs_probe(void)
 			if (part == 2 || vtoc.part[part].tag !=
 			    VTOC_TAG_FREEBSD_ZFS)
 				continue;
-			sprintf(devname, "disk%d:%c", unit, part + 'a');
+			(void)sprintf(devname, "%s:%c", alias, part + 'a');
 			if (zfs_probe_dev(devname, NULL) == ENXIO)
 				break;
 		}
 	}
+	free(odev);
 
+ out:
 	if (guid != 0) {
 		zfs_currdev.pool_guid = guid;
 		zfs_currdev.root_guid = 0;
