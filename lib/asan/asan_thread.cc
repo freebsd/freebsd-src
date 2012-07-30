@@ -1,4 +1,4 @@
-//===-- asan_thread.cc ------------------------------------------*- C++ -*-===//
+//===-- asan_thread.cc ----------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,19 +13,11 @@
 //===----------------------------------------------------------------------===//
 #include "asan_allocator.h"
 #include "asan_interceptors.h"
+#include "asan_stack.h"
 #include "asan_thread.h"
 #include "asan_thread_registry.h"
 #include "asan_mapping.h"
-
-#if ASAN_USE_SYSINFO == 1
-#include "sysinfo/sysinfo.h"
-#endif
-
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <string.h>
+#include "sanitizer_common/sanitizer_common.h"
 
 namespace __asan {
 
@@ -34,67 +26,105 @@ AsanThread::AsanThread(LinkerInitialized x)
       malloc_storage_(x),
       stats_(x) { }
 
-AsanThread::AsanThread(int parent_tid, void *(*start_routine) (void *),
-                       void *arg, AsanStackTrace *stack)
-    : start_routine_(start_routine),
-      arg_(arg) {
-  asanThreadRegistry().RegisterThread(this, parent_tid, stack);
+static AsanLock mu_for_thread_summary(LINKER_INITIALIZED);
+static LowLevelAllocator allocator_for_thread_summary(LINKER_INITIALIZED);
+
+AsanThread *AsanThread::Create(u32 parent_tid, thread_callback_t start_routine,
+                               void *arg, AsanStackTrace *stack) {
+  uptr size = RoundUpTo(sizeof(AsanThread), kPageSize);
+  AsanThread *thread = (AsanThread*)MmapOrDie(size, __FUNCTION__);
+  thread->start_routine_ = start_routine;
+  thread->arg_ = arg;
+
+  const uptr kSummaryAllocSize = 1024;
+  CHECK_LE(sizeof(AsanThreadSummary), kSummaryAllocSize);
+  AsanThreadSummary *summary;
+  {
+    ScopedLock lock(&mu_for_thread_summary);
+    summary = (AsanThreadSummary*)
+        allocator_for_thread_summary.Allocate(kSummaryAllocSize);
+  }
+  summary->Init(parent_tid, stack);
+  summary->set_thread(thread);
+  thread->set_summary(summary);
+
+  return thread;
 }
 
-AsanThread::~AsanThread() {
+void AsanThreadSummary::TSDDtor(void *tsd) {
+  AsanThreadSummary *summary = (AsanThreadSummary*)tsd;
+  if (flags()->verbosity >= 1) {
+    Report("T%d TSDDtor\n", summary->tid());
+  }
+  if (summary->thread()) {
+    summary->thread()->Destroy();
+  }
+}
+
+void AsanThread::Destroy() {
+  if (flags()->verbosity >= 1) {
+    Report("T%d exited\n", tid());
+  }
+
   asanThreadRegistry().UnregisterThread(this);
-  fake_stack().Cleanup();
+  CHECK(summary()->thread() == 0);
   // We also clear the shadow on thread destruction because
   // some code may still be executing in later TSD destructors
   // and we don't want it to have any poisoned stack.
   ClearShadowForThreadStack();
-}
-
-void AsanThread::ClearShadowForThreadStack() {
-  uintptr_t shadow_bot = MemToShadow(stack_bottom_);
-  uintptr_t shadow_top = MemToShadow(stack_top_);
-  real_memset((void*)shadow_bot, 0, shadow_top - shadow_bot);
+  fake_stack().Cleanup();
+  uptr size = RoundUpTo(sizeof(AsanThread), kPageSize);
+  UnmapOrDie(this, size);
 }
 
 void AsanThread::Init() {
   SetThreadStackTopAndBottom();
-  fake_stack_.Init(stack_size());
-  if (FLAG_v >= 1) {
-    int local = 0;
-    Report("T%d: stack [%p,%p) size 0x%lx; local=%p, pthread_self=%p\n",
-           tid(), stack_bottom_, stack_top_,
-           stack_top_ - stack_bottom_, &local, pthread_self());
-  }
-
   CHECK(AddrIsInMem(stack_bottom_));
   CHECK(AddrIsInMem(stack_top_));
-
   ClearShadowForThreadStack();
+  if (flags()->verbosity >= 1) {
+    int local = 0;
+    Report("T%d: stack [%p,%p) size 0x%zx; local=%p\n",
+           tid(), (void*)stack_bottom_, (void*)stack_top_,
+           stack_top_ - stack_bottom_, &local);
+  }
+  fake_stack_.Init(stack_size());
+  AsanPlatformThreadInit();
 }
 
-void *AsanThread::ThreadStart() {
+thread_return_t AsanThread::ThreadStart() {
   Init();
+  if (flags()->use_sigaltstack) SetAlternateSignalStack();
 
   if (!start_routine_) {
-    // start_routine_ == NULL if we're on the main thread or on one of the
+    // start_routine_ == 0 if we're on the main thread or on one of the
     // OS X libdispatch worker threads. But nobody is supposed to call
     // ThreadStart() for the worker threads.
     CHECK(tid() == 0);
     return 0;
   }
 
-  void *res = start_routine_(arg_);
+  thread_return_t res = start_routine_(arg_);
   malloc_storage().CommitBack();
+  if (flags()->use_sigaltstack) UnsetAlternateSignalStack();
 
-  if (FLAG_v >= 1) {
-    Report("T%d exited\n", tid());
-  }
+  this->Destroy();
 
   return res;
 }
 
-const char *AsanThread::GetFrameNameByAddr(uintptr_t addr, uintptr_t *offset) {
-  uintptr_t bottom = 0;
+void AsanThread::SetThreadStackTopAndBottom() {
+  GetThreadStackTopAndBottom(tid() == 0, &stack_top_, &stack_bottom_);
+  int local;
+  CHECK(AddrIsInStack((uptr)&local));
+}
+
+void AsanThread::ClearShadowForThreadStack() {
+  PoisonShadow(stack_bottom_, stack_top_ - stack_bottom_, 0);
+}
+
+const char *AsanThread::GetFrameNameByAddr(uptr addr, uptr *offset) {
+  uptr bottom = 0;
   bool is_fake_stack = false;
   if (AddrIsInStack(addr)) {
     bottom = stack_bottom();
@@ -103,76 +133,30 @@ const char *AsanThread::GetFrameNameByAddr(uintptr_t addr, uintptr_t *offset) {
     CHECK(bottom);
     is_fake_stack = true;
   }
-  uintptr_t aligned_addr = addr & ~(__WORDSIZE/8 - 1);  // align addr.
-  uintptr_t *ptr = (uintptr_t*)aligned_addr;
-  while (ptr >= (uintptr_t*)bottom) {
-    if (ptr[0] == kCurrentStackFrameMagic ||
-        (is_fake_stack && ptr[0] == kRetiredStackFrameMagic)) {
-      *offset = addr - (uintptr_t)ptr;
-      return (const char*)ptr[1];
-    }
-    ptr--;
+  uptr aligned_addr = addr & ~(__WORDSIZE/8 - 1);  // align addr.
+  u8 *shadow_ptr = (u8*)MemToShadow(aligned_addr);
+  u8 *shadow_bottom = (u8*)MemToShadow(bottom);
+
+  while (shadow_ptr >= shadow_bottom &&
+      *shadow_ptr != kAsanStackLeftRedzoneMagic) {
+    shadow_ptr--;
   }
-  *offset = 0;
-  return "UNKNOWN";
-}
 
-void AsanThread::SetThreadStackTopAndBottom() {
-#ifdef __APPLE__
-  size_t stacksize = pthread_get_stacksize_np(pthread_self());
-  void *stackaddr = pthread_get_stackaddr_np(pthread_self());
-  stack_top_ = (uintptr_t)stackaddr;
-  stack_bottom_ = stack_top_ - stacksize;
-  int local;
-  CHECK(AddrIsInStack((uintptr_t)&local));
-#else
-#if ASAN_USE_SYSINFO == 1
-  if (tid() == 0) {
-    // This is the main thread. Libpthread may not be initialized yet.
-    struct rlimit rl;
-    CHECK(getrlimit(RLIMIT_STACK, &rl) == 0);
-
-    // Find the mapping that contains a stack variable.
-    ProcMapsIterator it(0);
-    uint64_t start, end;
-    uint64_t prev_end = 0;
-    while (it.Next(&start, &end, NULL, NULL, NULL, NULL)) {
-      if ((uintptr_t)&rl < end)
-        break;
-      prev_end = end;
-    }
-    CHECK((uintptr_t)&rl >= start && (uintptr_t)&rl < end);
-
-    // Get stacksize from rlimit, but clip it so that it does not overlap
-    // with other mappings.
-    size_t stacksize = rl.rlim_cur;
-    if (stacksize > end - prev_end)
-      stacksize = end - prev_end;
-    if (stacksize > kMaxThreadStackSize)
-      stacksize = kMaxThreadStackSize;
-    stack_top_ = end;
-    stack_bottom_ = end - stacksize;
-    CHECK(AddrIsInStack((uintptr_t)&rl));
-    return;
+  while (shadow_ptr >= shadow_bottom &&
+      *shadow_ptr == kAsanStackLeftRedzoneMagic) {
+    shadow_ptr--;
   }
-#endif
-  pthread_attr_t attr;
-  CHECK(pthread_getattr_np(pthread_self(), &attr) == 0);
-  size_t stacksize = 0;
-  void *stackaddr = NULL;
-  pthread_attr_getstack(&attr, &stackaddr, &stacksize);
-  pthread_attr_destroy(&attr);
 
-  stack_top_ = (uintptr_t)stackaddr + stacksize;
-  stack_bottom_ = (uintptr_t)stackaddr;
-  // When running with unlimited stack size, we still want to set some limit.
-  // The unlimited stack size is caused by 'ulimit -s unlimited'.
-  // Also, for some reason, GNU make spawns subrocesses with unlimited stack.
-  if (stacksize > kMaxThreadStackSize) {
-    stack_bottom_ = stack_top_ - kMaxThreadStackSize;
+  if (shadow_ptr < shadow_bottom) {
+    *offset = 0;
+    return "UNKNOWN";
   }
-  CHECK(AddrIsInStack((uintptr_t)&attr));
-#endif
+
+  uptr* ptr = (uptr*)SHADOW_TO_MEM((uptr)(shadow_ptr + 1));
+  CHECK((ptr[0] == kCurrentStackFrameMagic) ||
+      (is_fake_stack && ptr[0] == kRetiredStackFrameMagic));
+  *offset = addr - (uptr)ptr;
+  return (const char*)ptr[1];
 }
 
 }  // namespace __asan

@@ -1,4 +1,4 @@
-//===-- asan_poisoning.cc ---------------------------------------*- C++ -*-===//
+//===-- asan_poisoning.cc -------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -19,21 +19,22 @@
 
 namespace __asan {
 
-void PoisonShadow(uintptr_t addr, size_t size, uint8_t value) {
+void PoisonShadow(uptr addr, uptr size, u8 value) {
   CHECK(AddrIsAlignedByGranularity(addr));
   CHECK(AddrIsAlignedByGranularity(addr + size));
-  uintptr_t shadow_beg = MemToShadow(addr);
-  uintptr_t shadow_end = MemToShadow(addr + size);
-  real_memset((void*)shadow_beg, value, shadow_end - shadow_beg);
+  uptr shadow_beg = MemToShadow(addr);
+  uptr shadow_end = MemToShadow(addr + size);
+  CHECK(REAL(memset) != 0);
+  REAL(memset)((void*)shadow_beg, value, shadow_end - shadow_beg);
 }
 
-void PoisonShadowPartialRightRedzone(uintptr_t addr,
-                                     uintptr_t size,
-                                     uintptr_t redzone_size,
-                                     uint8_t value) {
+void PoisonShadowPartialRightRedzone(uptr addr,
+                                     uptr size,
+                                     uptr redzone_size,
+                                     u8 value) {
   CHECK(AddrIsAlignedByGranularity(addr));
-  uint8_t *shadow = (uint8_t*)MemToShadow(addr);
-  for (uintptr_t i = 0; i < redzone_size;
+  u8 *shadow = (u8*)MemToShadow(addr);
+  for (uptr i = 0; i < redzone_size;
        i += SHADOW_GRANULARITY, shadow++) {
     if (i + SHADOW_GRANULARITY <= size) {
       *shadow = 0;  // fully addressable
@@ -47,12 +48,12 @@ void PoisonShadowPartialRightRedzone(uintptr_t addr,
 
 
 struct ShadowSegmentEndpoint {
-  uint8_t *chunk;
-  int8_t offset;  // in [0, SHADOW_GRANULARITY)
-  int8_t value;  // = *chunk;
+  u8 *chunk;
+  s8 offset;  // in [0, SHADOW_GRANULARITY)
+  s8 value;  // = *chunk;
 
-  explicit ShadowSegmentEndpoint(uintptr_t address) {
-    chunk = (uint8_t*)MemToShadow(address);
+  explicit ShadowSegmentEndpoint(uptr address) {
+    chunk = (u8*)MemToShadow(address);
     offset = address & (SHADOW_GRANULARITY - 1);
     value = *chunk;
   }
@@ -73,18 +74,19 @@ using namespace __asan;  // NOLINT
 // at least [left, AlignDown(right)).
 // * if user asks to unpoison region [left, right), the program unpoisons
 // at most [AlignDown(left), right).
-void __asan_poison_memory_region(void const volatile *addr, size_t size) {
-  if (!FLAG_allow_user_poisoning || size == 0) return;
-  uintptr_t beg_addr = (uintptr_t)addr;
-  uintptr_t end_addr = beg_addr + size;
-  if (FLAG_v >= 1) {
-    Printf("Trying to poison memory region [%p, %p)\n", beg_addr, end_addr);
+void __asan_poison_memory_region(void const volatile *addr, uptr size) {
+  if (!flags()->allow_user_poisoning || size == 0) return;
+  uptr beg_addr = (uptr)addr;
+  uptr end_addr = beg_addr + size;
+  if (flags()->verbosity >= 1) {
+    Printf("Trying to poison memory region [%p, %p)\n",
+           (void*)beg_addr, (void*)end_addr);
   }
   ShadowSegmentEndpoint beg(beg_addr);
   ShadowSegmentEndpoint end(end_addr);
   if (beg.chunk == end.chunk) {
     CHECK(beg.offset < end.offset);
-    int8_t value = beg.value;
+    s8 value = beg.value;
     CHECK(value == end.value);
     // We can only poison memory if the byte in end.offset is unaddressable.
     // No need to re-poison memory if it is poisoned already.
@@ -107,25 +109,26 @@ void __asan_poison_memory_region(void const volatile *addr, size_t size) {
     }
     beg.chunk++;
   }
-  real_memset(beg.chunk, kAsanUserPoisonedMemoryMagic, end.chunk - beg.chunk);
+  REAL(memset)(beg.chunk, kAsanUserPoisonedMemoryMagic, end.chunk - beg.chunk);
   // Poison if byte in end.offset is unaddressable.
   if (end.value > 0 && end.value <= end.offset) {
     *end.chunk = kAsanUserPoisonedMemoryMagic;
   }
 }
 
-void __asan_unpoison_memory_region(void const volatile *addr, size_t size) {
-  if (!FLAG_allow_user_poisoning || size == 0) return;
-  uintptr_t beg_addr = (uintptr_t)addr;
-  uintptr_t end_addr = beg_addr + size;
-  if (FLAG_v >= 1) {
-    Printf("Trying to unpoison memory region [%p, %p)\n", beg_addr, end_addr);
+void __asan_unpoison_memory_region(void const volatile *addr, uptr size) {
+  if (!flags()->allow_user_poisoning || size == 0) return;
+  uptr beg_addr = (uptr)addr;
+  uptr end_addr = beg_addr + size;
+  if (flags()->verbosity >= 1) {
+    Printf("Trying to unpoison memory region [%p, %p)\n",
+           (void*)beg_addr, (void*)end_addr);
   }
   ShadowSegmentEndpoint beg(beg_addr);
   ShadowSegmentEndpoint end(end_addr);
   if (beg.chunk == end.chunk) {
     CHECK(beg.offset < end.offset);
-    int8_t value = beg.value;
+    s8 value = beg.value;
     CHECK(value == end.value);
     // We unpoison memory bytes up to enbytes up to end.offset if it is not
     // unpoisoned already.
@@ -139,21 +142,12 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size) {
     *beg.chunk = 0;
     beg.chunk++;
   }
-  real_memset(beg.chunk, 0, end.chunk - beg.chunk);
+  REAL(memset)(beg.chunk, 0, end.chunk - beg.chunk);
   if (end.offset > 0 && end.value != 0) {
     *end.chunk = Max(end.value, end.offset);
   }
 }
 
 bool __asan_address_is_poisoned(void const volatile *addr) {
-  const size_t kAccessSize = 1;
-  uintptr_t address = (uintptr_t)addr;
-  uint8_t *shadow_address = (uint8_t*)MemToShadow(address);
-  int8_t shadow_value = *shadow_address;
-  if (shadow_value) {
-    uint8_t last_accessed_byte = (address & (SHADOW_GRANULARITY - 1))
-                                 + kAccessSize - 1;
-    return (last_accessed_byte >= shadow_value);
-  }
-  return false;
+  return __asan::AddressIsPoisoned((uptr)addr);
 }
