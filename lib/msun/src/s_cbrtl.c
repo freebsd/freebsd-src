@@ -18,7 +18,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <float.h>
+#ifdef __i386__
 #include <ieeefp.h>
+#endif
 
 #include "fpmath.h"    
 #include "math.h"
