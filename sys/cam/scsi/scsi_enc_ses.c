@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
-#include <opt_enc.h>
-
 /* SES Native Type Device Support */
 
 /* SES Diagnostic Page Codes */
