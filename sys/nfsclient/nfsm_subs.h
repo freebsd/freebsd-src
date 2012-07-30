@@ -167,8 +167,8 @@ int	nfsm_getfh_xx(nfsfh_t **f, int *s, int v3, struct mbuf **md,
 	    caddr_t *dpos);
 int	nfsm_loadattr_xx(struct vnode **v, struct vattr *va, struct mbuf **md,
 	    caddr_t *dpos);
-int	nfsm_postop_attr_xx(struct vnode **v, int *f, struct mbuf **md,
-	    caddr_t *dpos);
+int	nfsm_postop_attr_xx(struct vnode **v, int *f, struct vattr *va,
+	    struct mbuf **md, caddr_t *dpos);
 int	nfsm_wcc_data_xx(struct vnode **v, int *f, struct mbuf **md,
 	    caddr_t *dpos);
 
@@ -196,7 +196,14 @@ do { \
 #define	nfsm_postop_attr(v, f) \
 do { \
 	int32_t t1; \
-	t1 = nfsm_postop_attr_xx(&v, &f, &md, &dpos); \
+	t1 = nfsm_postop_attr_xx(&v, &f, NULL, &md, &dpos);	\
+	nfsm_dcheck(t1, mrep); \
+} while (0)
+
+#define	nfsm_postop_attr_va(v, f, va)		\
+do { \
+	int32_t t1; \
+	t1 = nfsm_postop_attr_xx(&v, &f, va, &md, &dpos);	\
 	nfsm_dcheck(t1, mrep); \
 } while (0)
 
