@@ -47,6 +47,12 @@ Configs += asan-x86_64
 Arch.asan-x86_64 := x86_64
 endif
 
+# Configuration for TSAN runtime.
+ifeq ($(CompilerTargetArch),x86_64)
+Configs += tsan-x86_64
+Arch.tsan-x86_64 := x86_64
+endif
+
 endif
 
 ###
@@ -57,8 +63,9 @@ CFLAGS.full-i386 := $(CFLAGS) -m32
 CFLAGS.full-x86_64 := $(CFLAGS) -m64
 CFLAGS.profile-i386 := $(CFLAGS) -m32
 CFLAGS.profile-x86_64 := $(CFLAGS) -m64
-CFLAGS.asan-i386 := $(CFLAGS) -m32
-CFLAGS.asan-x86_64 := $(CFLAGS) -m64
+CFLAGS.asan-i386 := $(CFLAGS) -m32 -fPIE -fno-builtin
+CFLAGS.asan-x86_64 := $(CFLAGS) -m64 -fPIE -fno-builtin
+CFLAGS.tsan-x86_64 := $(CFLAGS) -m64 -fPIE -fno-builtin
 
 # Use our stub SDK as the sysroot to support more portable building. For now we
 # just do this for the non-ASAN modules, because the stub SDK doesn't have
@@ -72,8 +79,12 @@ FUNCTIONS.full-i386 := $(CommonFunctions) $(ArchFunctions.i386)
 FUNCTIONS.full-x86_64 := $(CommonFunctions) $(ArchFunctions.x86_64)
 FUNCTIONS.profile-i386 := GCDAProfiling
 FUNCTIONS.profile-x86_64 := GCDAProfiling
-FUNCTIONS.asan-i386 := $(AsanFunctions)
-FUNCTIONS.asan-x86_64 := $(AsanFunctions)
+FUNCTIONS.asan-i386 := $(AsanFunctions) $(InterceptionFunctions) \
+                                        $(SanitizerCommonFunctions)
+FUNCTIONS.asan-x86_64 := $(AsanFunctions) $(InterceptionFunctions) \
+                                          $(SanitizerCommonFunctions)
+FUNCTIONS.tsan-x86_64 := $(TsanFunctions) $(InterceptionFunctions) \
+                                          $(SanitizerCommonFunctions) 
 
 # Always use optimized variants.
 OPTIMIZED := 1

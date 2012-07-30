@@ -30,34 +30,32 @@ class AsanThreadRegistry {
  public:
   explicit AsanThreadRegistry(LinkerInitialized);
   void Init();
-  void RegisterThread(AsanThread *thread, int parent_tid,
-                      AsanStackTrace *stack);
+  void RegisterThread(AsanThread *thread);
   void UnregisterThread(AsanThread *thread);
 
   AsanThread *GetMain();
-  // Get the current thread. May return NULL.
+  // Get the current thread. May return 0.
   AsanThread *GetCurrent();
   void SetCurrent(AsanThread *t);
-  pthread_key_t GetTlsKey();
-  bool IsCurrentThreadDying();
 
-  int GetCurrentTidOrMinusOne() {
+  u32 GetCurrentTidOrInvalid() {
+    if (!inited_) return 0;
     AsanThread *t = GetCurrent();
-    return t ? t->tid() : -1;
+    return t ? t->tid() : kInvalidTid;
   }
 
   // Returns stats for GetCurrent(), or stats for
-  // T0 if GetCurrent() returns NULL.
+  // T0 if GetCurrent() returns 0.
   AsanStats &GetCurrentThreadStats();
   // Flushes all thread-local stats to accumulated stats, and returns
   // a copy of accumulated stats.
   AsanStats GetAccumulatedStats();
-  size_t GetCurrentAllocatedBytes();
-  size_t GetHeapSize();
-  size_t GetFreeBytes();
+  uptr GetCurrentAllocatedBytes();
+  uptr GetHeapSize();
+  uptr GetFreeBytes();
 
-  AsanThreadSummary *FindByTid(int tid);
-  AsanThread *FindThreadByStackAddress(uintptr_t addr);
+  AsanThreadSummary *FindByTid(u32 tid);
+  AsanThread *FindThreadByStackAddress(uptr addr);
 
  private:
   void UpdateAccumulatedStatsUnlocked();
@@ -65,19 +63,14 @@ class AsanThreadRegistry {
   // and fills "stats" with zeroes.
   void FlushToAccumulatedStatsUnlocked(AsanStats *stats);
 
-  static const int kMaxNumberOfThreads = (1 << 22);  // 4M
+  static const u32 kMaxNumberOfThreads = (1 << 22);  // 4M
   AsanThreadSummary *thread_summaries_[kMaxNumberOfThreads];
   AsanThread main_thread_;
   AsanThreadSummary main_thread_summary_;
   AsanStats accumulated_stats_;
-  int n_threads_;
+  u32 n_threads_;
   AsanLock mu_;
-  // For each thread tls_key_ stores the pointer to the corresponding
-  // AsanThread.
-  pthread_key_t tls_key_;
-  // This flag is updated only once at program startup, and then read
-  // by concurrent threads.
-  bool tls_key_created_;
+  bool inited_;
 };
 
 // Returns a single instance of registry.

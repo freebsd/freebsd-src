@@ -1,4 +1,4 @@
-//===-- asan_globals.cc -----------------------------------------*- C++ -*-===//
+//===-- asan_globals.cc ---------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -36,16 +36,16 @@ static ListOfGlobals *list_of_globals;
 static LowLevelAllocator allocator_for_globals(LINKER_INITIALIZED);
 
 void PoisonRedZones(const Global &g)  {
-  size_t shadow_rz_size = kGlobalAndStackRedzone >> SHADOW_SCALE;
+  uptr shadow_rz_size = kGlobalAndStackRedzone >> SHADOW_SCALE;
   CHECK(shadow_rz_size == 1 || shadow_rz_size == 2 || shadow_rz_size == 4);
   // full right redzone
-  size_t g_aligned_size = kGlobalAndStackRedzone *
+  uptr g_aligned_size = kGlobalAndStackRedzone *
       ((g.size + kGlobalAndStackRedzone - 1) / kGlobalAndStackRedzone);
   PoisonShadow(g.beg + g_aligned_size,
                kGlobalAndStackRedzone, kAsanGlobalRedzoneMagic);
   if ((g.size % kGlobalAndStackRedzone) != 0) {
     // partial right redzone
-    uint64_t g_aligned_down_size = kGlobalAndStackRedzone *
+    u64 g_aligned_down_size = kGlobalAndStackRedzone *
         (g.size / kGlobalAndStackRedzone);
     CHECK(g_aligned_down_size == g_aligned_size - kGlobalAndStackRedzone);
     PoisonShadowPartialRightRedzone(g.beg + g_aligned_down_size,
@@ -55,47 +55,47 @@ void PoisonRedZones(const Global &g)  {
   }
 }
 
-static size_t GetAlignedSize(size_t size) {
+static uptr GetAlignedSize(uptr size) {
   return ((size + kGlobalAndStackRedzone - 1) / kGlobalAndStackRedzone)
       * kGlobalAndStackRedzone;
 }
 
   // Check if the global is a zero-terminated ASCII string. If so, print it.
 void PrintIfASCII(const Global &g) {
-  for (size_t p = g.beg; p < g.beg + g.size - 1; p++) {
+  for (uptr p = g.beg; p < g.beg + g.size - 1; p++) {
     if (!isascii(*(char*)p)) return;
   }
   if (*(char*)(g.beg + g.size - 1) != 0) return;
-  Printf("  '%s' is ascii string '%s'\n", g.name, g.beg);
+  AsanPrintf("  '%s' is ascii string '%s'\n", g.name, (char*)g.beg);
 }
 
-bool DescribeAddrIfMyRedZone(const Global &g, uintptr_t addr) {
+bool DescribeAddrIfMyRedZone(const Global &g, uptr addr) {
   if (addr < g.beg - kGlobalAndStackRedzone) return false;
   if (addr >= g.beg + g.size_with_redzone) return false;
-  Printf("%p is located ", addr);
+  AsanPrintf("%p is located ", (void*)addr);
   if (addr < g.beg) {
-    Printf("%d bytes to the left", g.beg - addr);
+    AsanPrintf("%zd bytes to the left", g.beg - addr);
   } else if (addr >= g.beg + g.size) {
-    Printf("%d bytes to the right", addr - (g.beg + g.size));
+    AsanPrintf("%zd bytes to the right", addr - (g.beg + g.size));
   } else {
-    Printf("%d bytes inside", addr - g.beg);  // Can it happen?
+    AsanPrintf("%zd bytes inside", addr - g.beg);  // Can it happen?
   }
-  Printf(" of global variable '%s' (0x%lx) of size %ld\n",
-         g.name, g.beg, g.size);
+  AsanPrintf(" of global variable '%s' (0x%zx) of size %zu\n",
+             g.name, g.beg, g.size);
   PrintIfASCII(g);
   return true;
 }
 
 
-bool DescribeAddrIfGlobal(uintptr_t addr) {
-  if (!FLAG_report_globals) return false;
+bool DescribeAddrIfGlobal(uptr addr) {
+  if (!flags()->report_globals) return false;
   ScopedLock lock(&mu_for_globals);
   bool res = false;
   for (ListOfGlobals *l = list_of_globals; l; l = l->next) {
     const Global &g = *l->g;
-    if (FLAG_report_globals >= 2)
-      Printf("Search Global: beg=%p size=%ld name=%s\n",
-             g.beg, g.size, g.name);
+    if (flags()->report_globals >= 2)
+      AsanPrintf("Search Global: beg=%p size=%zu name=%s\n",
+                 (void*)g.beg, g.size, (char*)g.name);
     res |= DescribeAddrIfMyRedZone(g, addr);
   }
   return res;
@@ -106,7 +106,7 @@ bool DescribeAddrIfGlobal(uintptr_t addr) {
 // so we store the globals in a map.
 static void RegisterGlobal(const Global *g) {
   CHECK(asan_inited);
-  CHECK(FLAG_report_globals);
+  CHECK(flags()->report_globals);
   CHECK(AddrIsInMem(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->size_with_redzone));
@@ -116,14 +116,14 @@ static void RegisterGlobal(const Global *g) {
   l->g = g;
   l->next = list_of_globals;
   list_of_globals = l;
-  if (FLAG_report_globals >= 2)
-    Report("Added Global: beg=%p size=%ld name=%s\n",
-           g->beg, g->size, g->name);
+  if (flags()->report_globals >= 2)
+    Report("Added Global: beg=%p size=%zu name=%s\n",
+           (void*)g->beg, g->size, g->name);
 }
 
 static void UnregisterGlobal(const Global *g) {
   CHECK(asan_inited);
-  CHECK(FLAG_report_globals);
+  CHECK(flags()->report_globals);
   CHECK(AddrIsInMem(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->size_with_redzone));
@@ -139,9 +139,9 @@ static void UnregisterGlobal(const Global *g) {
 using namespace __asan;  // NOLINT
 
 // Register one global with a default redzone.
-void __asan_register_global(uintptr_t addr, size_t size,
+void __asan_register_global(uptr addr, uptr size,
                             const char *name) {
-  if (!FLAG_report_globals) return;
+  if (!flags()->report_globals) return;
   ScopedLock lock(&mu_for_globals);
   Global *g = (Global *)allocator_for_globals.Allocate(sizeof(Global));
   g->beg = addr;
@@ -152,20 +152,20 @@ void __asan_register_global(uintptr_t addr, size_t size,
 }
 
 // Register an array of globals.
-void __asan_register_globals(__asan_global *globals, size_t n) {
-  if (!FLAG_report_globals) return;
+void __asan_register_globals(__asan_global *globals, uptr n) {
+  if (!flags()->report_globals) return;
   ScopedLock lock(&mu_for_globals);
-  for (size_t i = 0; i < n; i++) {
+  for (uptr i = 0; i < n; i++) {
     RegisterGlobal(&globals[i]);
   }
 }
 
 // Unregister an array of globals.
 // We must do it when a shared objects gets dlclosed.
-void __asan_unregister_globals(__asan_global *globals, size_t n) {
-  if (!FLAG_report_globals) return;
+void __asan_unregister_globals(__asan_global *globals, uptr n) {
+  if (!flags()->report_globals) return;
   ScopedLock lock(&mu_for_globals);
-  for (size_t i = 0; i < n; i++) {
+  for (uptr i = 0; i < n; i++) {
     UnregisterGlobal(&globals[i]);
   }
 }

@@ -7,11 +7,14 @@
 
 #import <CoreFoundation/CFBase.h>
 #import <Foundation/NSObject.h>
+#import <Foundation/NSURL.h>
 
-void CFAllocatorDefaultDoubleFree() {
+// This is a (void*)(void*) function so it can be passed to pthread_create.
+void *CFAllocatorDefaultDoubleFree(void *unused) {
   void *mem =  CFAllocatorAllocate(kCFAllocatorDefault, 5, 0);
   CFAllocatorDeallocate(kCFAllocatorDefault, mem);
   CFAllocatorDeallocate(kCFAllocatorDefault, mem);
+  return 0;
 }
 
 void CFAllocatorSystemDefaultDoubleFree() {
@@ -32,6 +35,10 @@ void CFAllocatorMallocZoneDoubleFree() {
   CFAllocatorDeallocate(kCFAllocatorMallocZone, mem);
 }
 
+__attribute__((noinline))
+void access_memory(char *a) {
+  *a = 0;
+}
 
 // Test the +load instrumentation.
 // Because the +load methods are invoked before anything else is initialized,
@@ -51,7 +58,7 @@ char kStartupStr[] =
 
 +(void) load {
   for (int i = 0; i < strlen(kStartupStr); i++) {
-    volatile char ch = kStartupStr[i];  // make sure no optimizations occur.
+    access_memory(&kStartupStr[i]);  // make sure no optimizations occur.
   }
   // Don't print anything here not to interfere with the death tests.
 }
@@ -66,7 +73,7 @@ void worker_do_alloc(int size) {
 
 void worker_do_crash(int size) {
   char * volatile mem = malloc(size);
-  mem[size] = 0;  // BOOM
+  access_memory(&mem[size]);  // BOOM
   free(mem);
 }
 
@@ -162,7 +169,7 @@ void TestGCDSourceEvent() {
   dispatch_source_set_timer(timer, milestone, DISPATCH_TIME_FOREVER, 0);
   char * volatile mem = malloc(10);
   dispatch_source_set_event_handler(timer, ^{
-    mem[10] = 1;
+    access_memory(&mem[10]);
   });
   dispatch_resume(timer);
   sleep(2);
@@ -186,7 +193,7 @@ void TestGCDSourceCancel() {
     dispatch_source_cancel(timer);
   });
   dispatch_source_set_cancel_handler(timer, ^{
-    mem[10] = 1;
+    access_memory(&mem[10]);
   });
   dispatch_resume(timer);
   sleep(2);
@@ -197,7 +204,34 @@ void TestGCDGroupAsync() {
   dispatch_group_t group = dispatch_group_create(); 
   char * volatile mem = malloc(10);
   dispatch_group_async(group, queue, ^{
-    mem[10] = 1;
+    access_memory(&mem[10]);
   });
   dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+}
+
+@interface FixedArray : NSObject {
+  int items[10];
+}
+@end
+
+@implementation FixedArray
+-(int) access: (int)index {
+  return items[index];
+}
+@end
+
+void TestOOBNSObjects() {
+  id anObject = [FixedArray new];
+  [anObject access:1];
+  [anObject access:11];
+  [anObject release];
+}
+
+void TestNSURLDeallocation() {
+  NSURL *base =
+      [[NSURL alloc] initWithString:@"file://localhost/Users/glider/Library/"];
+  volatile NSURL *u =
+      [[NSURL alloc] initWithString:@"Saved Application State"
+                     relativeToURL:base];
+  [u release];
 }

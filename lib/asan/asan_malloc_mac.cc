@@ -1,4 +1,4 @@
-//===-- asan_rtl.cc ---------------------------------------------*- C++ -*-===//
+//===-- asan_rtl.cc -------------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,12 +16,14 @@
 
 #include <AvailabilityMacros.h>
 #include <CoreFoundation/CFBase.h>
+#include <dlfcn.h>
 #include <malloc/malloc.h>
 #include <setjmp.h>
 
 #include "asan_allocator.h"
 #include "asan_interceptors.h"
 #include "asan_internal.h"
+#include "asan_mac.h"
 #include "asan_stack.h"
 
 // Similar code is used in Google Perftools,
@@ -30,12 +32,26 @@
 // ---------------------- Replacement functions ---------------- {{{1
 using namespace __asan;  // NOLINT
 
+// TODO(glider): do we need both zones?
+static malloc_zone_t *system_malloc_zone = 0;
+static malloc_zone_t *system_purgeable_zone = 0;
+static malloc_zone_t asan_zone;
+CFAllocatorRef cf_asan = 0;
+
 // The free() implementation provided by OS X calls malloc_zone_from_ptr()
-// to find the owner of |ptr|. If the result is NULL, an invalid free() is
+// to find the owner of |ptr|. If the result is 0, an invalid free() is
 // reported. Our implementation falls back to asan_free() in this case
 // in order to print an ASan-style report.
-extern "C"
-void free(void *ptr) {
+//
+// For the objects created by _CFRuntimeCreateInstance a CFAllocatorRef is
+// placed at the beginning of the allocated chunk and the pointer returned by
+// our allocator is off by sizeof(CFAllocatorRef). This pointer can be then
+// passed directly to free(), which will lead to errors.
+// To overcome this we're checking whether |ptr-sizeof(CFAllocatorRef)|
+// contains a pointer to our CFAllocator (assuming no other allocator is used).
+// See http://code.google.com/p/address-sanitizer/issues/detail?id=70 for more
+// info.
+INTERCEPTOR(void, free, void *ptr) {
   malloc_zone_t *zone = malloc_zone_from_ptr(ptr);
   if (zone) {
 #if defined(MAC_OS_X_VERSION_10_6) && \
@@ -49,27 +65,48 @@ void free(void *ptr) {
     malloc_zone_free(zone, ptr);
 #endif
   } else {
+    if (flags()->replace_cfallocator) {
+      // Make sure we're not hitting the previous page. This may be incorrect
+      // if ASan's malloc returns an address ending with 0xFF8, which will be
+      // then padded to a page boundary with a CFAllocatorRef.
+      uptr arith_ptr = (uptr)ptr;
+      if ((arith_ptr & 0xFFF) > sizeof(CFAllocatorRef)) {
+        CFAllocatorRef *saved =
+            (CFAllocatorRef*)(arith_ptr - sizeof(CFAllocatorRef));
+        if ((*saved == cf_asan) && asan_mz_size(saved)) ptr = (void*)saved;
+      }
+    }
     GET_STACK_TRACE_HERE_FOR_FREE(ptr);
     asan_free(ptr, &stack);
   }
 }
 
-// TODO(glider): do we need both zones?
-static malloc_zone_t *system_malloc_zone = NULL;
-static malloc_zone_t *system_purgeable_zone = NULL;
+namespace __asan {
+  void ReplaceCFAllocator();
+}
 
-// We need to provide wrappers around all the libc functions.
+// We can't always replace the default CFAllocator with cf_asan right in
+// ReplaceSystemMalloc(), because it is sometimes called before
+// __CFInitialize(), when the default allocator is invalid and replacing it may
+// crash the program. Instead we wait for the allocator to initialize and jump
+// in just after __CFInitialize(). Nobody is going to allocate memory using
+// CFAllocators before that, so we won't miss anything.
+//
+// See http://code.google.com/p/address-sanitizer/issues/detail?id=87
+// and http://opensource.apple.com/source/CF/CF-550.43/CFRuntime.c
+INTERCEPTOR(void, __CFInitialize) {
+  CHECK(flags()->replace_cfallocator);
+  CHECK(asan_inited);
+  REAL(__CFInitialize)();
+  if (!cf_asan) ReplaceCFAllocator();
+}
+
 namespace {
+
 // TODO(glider): the mz_* functions should be united with the Linux wrappers,
 // as they are basically copied from there.
 size_t mz_size(malloc_zone_t* zone, const void* ptr) {
-  // Fast path: check whether this pointer belongs to the original malloc zone.
-  // We cannot just call malloc_zone_from_ptr(), because it in turn
-  // calls our mz_size().
-  if (system_malloc_zone) {
-    if ((system_malloc_zone->size)(system_malloc_zone, ptr)) return 0;
-  }
-  return __asan_mz_size(ptr);
+  return asan_mz_size(ptr);
 }
 
 void *mz_malloc(malloc_zone_t *zone, size_t size) {
@@ -92,9 +129,9 @@ void *cf_malloc(CFIndex size, CFOptionFlags hint, void *info) {
 
 void *mz_calloc(malloc_zone_t *zone, size_t nmemb, size_t size) {
   if (!asan_inited) {
-    // Hack: dlsym calls calloc before real_calloc is retrieved from dlsym.
+    // Hack: dlsym calls calloc before REAL(calloc) is retrieved from dlsym.
     const size_t kCallocPoolSize = 1024;
-    static uintptr_t calloc_memory_for_dlsym[kCallocPoolSize];
+    static uptr calloc_memory_for_dlsym[kCallocPoolSize];
     static size_t allocated;
     size_t size_in_words = ((nmemb * size) + kWordSize - 1) / kWordSize;
     void *mem = (void*)&calloc_memory_for_dlsym[allocated];
@@ -119,64 +156,41 @@ void print_zone_for_ptr(void *ptr) {
   malloc_zone_t *orig_zone = malloc_zone_from_ptr(ptr);
   if (orig_zone) {
     if (orig_zone->zone_name) {
-      Printf("malloc_zone_from_ptr(%p) = %p, which is %s\n",
-             ptr, orig_zone, orig_zone->zone_name);
+      AsanPrintf("malloc_zone_from_ptr(%p) = %p, which is %s\n",
+                 ptr, orig_zone, orig_zone->zone_name);
     } else {
-      Printf("malloc_zone_from_ptr(%p) = %p, which doesn't have a name\n",
-             ptr, orig_zone);
+      AsanPrintf("malloc_zone_from_ptr(%p) = %p, which doesn't have a name\n",
+                 ptr, orig_zone);
     }
   } else {
-    Printf("malloc_zone_from_ptr(%p) = NULL\n", ptr);
+    AsanPrintf("malloc_zone_from_ptr(%p) = 0\n", ptr);
+  }
+}
+
+void ALWAYS_INLINE free_common(void *context, void *ptr) {
+  if (!ptr) return;
+  if (!flags()->mac_ignore_invalid_free || asan_mz_size(ptr)) {
+    GET_STACK_TRACE_HERE_FOR_FREE(ptr);
+    asan_free(ptr, &stack);
+  } else {
+    // Let us just leak this memory for now.
+    AsanPrintf("free_common(%p) -- attempting to free unallocated memory.\n"
+               "AddressSanitizer is ignoring this error on Mac OS now.\n",
+               ptr);
+    print_zone_for_ptr(ptr);
+    GET_STACK_TRACE_HERE_FOR_FREE(ptr);
+    stack.PrintStack();
+    return;
   }
 }
 
 // TODO(glider): the allocation callbacks need to be refactored.
 void mz_free(malloc_zone_t *zone, void *ptr) {
-  if (!ptr) return;
-  malloc_zone_t *orig_zone = malloc_zone_from_ptr(ptr);
-  // For some reason Chromium calls mz_free() for pointers that belong to
-  // DefaultPurgeableMallocZone instead of asan_zone. We might want to
-  // fix this someday.
-  if (orig_zone == system_purgeable_zone) {
-    system_purgeable_zone->free(system_purgeable_zone, ptr);
-    return;
-  }
-  if (__asan_mz_size(ptr)) {
-    GET_STACK_TRACE_HERE_FOR_FREE(ptr);
-    asan_free(ptr, &stack);
-  } else {
-    // Let us just leak this memory for now.
-    Printf("mz_free(%p) -- attempting to free unallocated memory.\n"
-           "AddressSanitizer is ignoring this error on Mac OS now.\n", ptr);
-    print_zone_for_ptr(ptr);
-    GET_STACK_TRACE_HERE_FOR_FREE(ptr);
-    stack.PrintStack();
-    return;
-  }
+  free_common(zone, ptr);
 }
 
 void cf_free(void *ptr, void *info) {
-  if (!ptr) return;
-  malloc_zone_t *orig_zone = malloc_zone_from_ptr(ptr);
-  // For some reason Chromium calls mz_free() for pointers that belong to
-  // DefaultPurgeableMallocZone instead of asan_zone. We might want to
-  // fix this someday.
-  if (orig_zone == system_purgeable_zone) {
-    system_purgeable_zone->free(system_purgeable_zone, ptr);
-    return;
-  }
-  if (__asan_mz_size(ptr)) {
-    GET_STACK_TRACE_HERE_FOR_FREE(ptr);
-    asan_free(ptr, &stack);
-  } else {
-    // Let us just leak this memory for now.
-    Printf("cf_free(%p) -- attempting to free unallocated memory.\n"
-           "AddressSanitizer is ignoring this error on Mac OS now.\n", ptr);
-    print_zone_for_ptr(ptr);
-    GET_STACK_TRACE_HERE_FOR_FREE(ptr);
-    stack.PrintStack();
-    return;
-  }
+  free_common(info, ptr);
 }
 
 void *mz_realloc(malloc_zone_t *zone, void *ptr, size_t size) {
@@ -184,20 +198,21 @@ void *mz_realloc(malloc_zone_t *zone, void *ptr, size_t size) {
     GET_STACK_TRACE_HERE_FOR_MALLOC;
     return asan_malloc(size, &stack);
   } else {
-    if (__asan_mz_size(ptr)) {
+    if (asan_mz_size(ptr)) {
       GET_STACK_TRACE_HERE_FOR_MALLOC;
       return asan_realloc(ptr, size, &stack);
     } else {
       // We can't recover from reallocating an unknown address, because
       // this would require reading at most |size| bytes from
       // potentially unaccessible memory.
-      Printf("mz_realloc(%p) -- attempting to realloc unallocated memory.\n"
-             "This is an unrecoverable problem, exiting now.\n", ptr);
+      AsanPrintf("mz_realloc(%p) -- attempting to realloc unallocated memory.\n"
+                 "This is an unrecoverable problem, exiting now.\n",
+                 ptr);
       print_zone_for_ptr(ptr);
       GET_STACK_TRACE_HERE_FOR_FREE(ptr);
       stack.PrintStack();
       ShowStatsAndAbort();
-      return NULL;  // unreachable
+      return 0;  // unreachable
     }
   }
 }
@@ -207,27 +222,28 @@ void *cf_realloc(void *ptr, CFIndex size, CFOptionFlags hint, void *info) {
     GET_STACK_TRACE_HERE_FOR_MALLOC;
     return asan_malloc(size, &stack);
   } else {
-    if (__asan_mz_size(ptr)) {
+    if (asan_mz_size(ptr)) {
       GET_STACK_TRACE_HERE_FOR_MALLOC;
       return asan_realloc(ptr, size, &stack);
     } else {
       // We can't recover from reallocating an unknown address, because
       // this would require reading at most |size| bytes from
       // potentially unaccessible memory.
-      Printf("cf_realloc(%p) -- attempting to realloc unallocated memory.\n"
-             "This is an unrecoverable problem, exiting now.\n", ptr);
+      AsanPrintf("cf_realloc(%p) -- attempting to realloc unallocated memory.\n"
+                 "This is an unrecoverable problem, exiting now.\n",
+                 ptr);
       print_zone_for_ptr(ptr);
       GET_STACK_TRACE_HERE_FOR_FREE(ptr);
       stack.PrintStack();
       ShowStatsAndAbort();
-      return NULL;  // unreachable
+      return 0;  // unreachable
     }
   }
 }
 
 void mz_destroy(malloc_zone_t* zone) {
   // A no-op -- we will not be destroyed!
-  Printf("mz_destroy() called -- ignoring\n");
+  AsanPrintf("mz_destroy() called -- ignoring\n");
 }
   // from AvailabilityMacros.h
 #if defined(MAC_OS_X_VERSION_10_6) && \
@@ -279,11 +295,11 @@ void mi_log(malloc_zone_t *zone, void *address) {
 }
 
 void mi_force_lock(malloc_zone_t *zone) {
-  __asan_mz_force_lock();
+  asan_mz_force_lock();
 }
 
 void mi_force_unlock(malloc_zone_t *zone) {
-  __asan_mz_force_unlock();
+  asan_mz_force_unlock();
 }
 
 // This function is currently unused, and we build with -Werror.
@@ -298,19 +314,38 @@ void mi_statistics(malloc_zone_t *zone, malloc_statistics_t *stats) {
 }
 #endif
 
+#if defined(MAC_OS_X_VERSION_10_6) && \
+    MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
 boolean_t mi_zone_locked(malloc_zone_t *zone) {
   // UNIMPLEMENTED();
   return false;
 }
+#endif
 
 }  // unnamed namespace
 
-extern bool kCFUseCollectableAllocator;  // is GC on?
+extern int __CFRuntimeClassTableSize;
 
 namespace __asan {
+void ReplaceCFAllocator() {
+  static CFAllocatorContext asan_context = {
+        /*version*/ 0, /*info*/ &asan_zone,
+        /*retain*/ 0, /*release*/ 0,
+        /*copyDescription*/0,
+        /*allocate*/ &cf_malloc,
+        /*reallocate*/ &cf_realloc,
+        /*deallocate*/ &cf_free,
+        /*preferredSize*/ 0 };
+  if (!cf_asan)
+    cf_asan = CFAllocatorCreate(kCFAllocatorUseContext, &asan_context);
+  if (CFAllocatorGetDefault() != cf_asan)
+    CFAllocatorSetDefault(cf_asan);
+}
+
 void ReplaceSystemMalloc() {
   static malloc_introspection_t asan_introspection;
-  __asan::real_memset(&asan_introspection, 0, sizeof(asan_introspection));
+  // Ok to use internal_memset, these places are not performance-critical.
+  internal_memset(&asan_introspection, 0, sizeof(asan_introspection));
 
   asan_introspection.enumerator = &mi_enumerator;
   asan_introspection.good_size = &mi_good_size;
@@ -320,8 +355,7 @@ void ReplaceSystemMalloc() {
   asan_introspection.force_lock = &mi_force_lock;
   asan_introspection.force_unlock = &mi_force_unlock;
 
-  static malloc_zone_t asan_zone;
-  __asan::real_memset(&asan_zone, 0, sizeof(malloc_zone_t));
+  internal_memset(&asan_zone, 0, sizeof(malloc_zone_t));
 
   // Start with a version 4 zone which is used for OS X 10.4 and 10.5.
   asan_zone.version = 4;
@@ -333,8 +367,8 @@ void ReplaceSystemMalloc() {
   asan_zone.free = &mz_free;
   asan_zone.realloc = &mz_realloc;
   asan_zone.destroy = &mz_destroy;
-  asan_zone.batch_malloc = NULL;
-  asan_zone.batch_free = NULL;
+  asan_zone.batch_malloc = 0;
+  asan_zone.batch_free = 0;
   asan_zone.introspect = &asan_introspection;
 
   // from AvailabilityMacros.h
@@ -371,18 +405,16 @@ void ReplaceSystemMalloc() {
   // Make sure the default allocator was replaced.
   CHECK(malloc_default_zone() == &asan_zone);
 
-  if (FLAG_replace_cfallocator) {
-    static CFAllocatorContext asan_context =
-        { /*version*/ 0, /*info*/ &asan_zone,
-          /*retain*/ NULL, /*release*/ NULL,
-          /*copyDescription*/NULL,
-          /*allocate*/ &cf_malloc,
-          /*reallocate*/ &cf_realloc,
-          /*deallocate*/ &cf_free,
-          /*preferredSize*/ NULL };
-    CFAllocatorRef cf_asan =
-        CFAllocatorCreate(kCFAllocatorUseContext, &asan_context);
-    CFAllocatorSetDefault(cf_asan);
+  if (flags()->replace_cfallocator) {
+    // If __CFInitialize() hasn't been called yet, cf_asan will be created and
+    // installed as the default allocator after __CFInitialize() finishes (see
+    // the interceptor for __CFInitialize() above). Otherwise install cf_asan
+    // right now. On both Snow Leopard and Lion __CFInitialize() calls
+    // __CFAllocatorInitialize(), which initializes the _base._cfisa field of
+    // the default allocators we check here.
+    if (((CFRuntimeBase*)kCFAllocatorSystemDefault)->_cfisa) {
+      ReplaceCFAllocator();
+    }
   }
 }
 }  // namespace __asan

@@ -1,4 +1,4 @@
-//===-- asan_malloc_linux.cc ------------------------------------*- C++ -*-===//
+//===-- asan_malloc_linux.cc ----------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,20 +20,16 @@
 #include "asan_internal.h"
 #include "asan_stack.h"
 
-#include <malloc.h>
-
-#define INTERCEPTOR_ATTRIBUTE __attribute__((visibility("default")))
-
 #ifdef ANDROID
 struct MallocDebug {
-  void* (*malloc)(size_t bytes);
+  void* (*malloc)(uptr bytes);
   void  (*free)(void* mem);
-  void* (*calloc)(size_t n_elements, size_t elem_size);
-  void* (*realloc)(void* oldMem, size_t bytes);
-  void* (*memalign)(size_t alignment, size_t bytes);
+  void* (*calloc)(uptr n_elements, uptr elem_size);
+  void* (*realloc)(void* oldMem, uptr bytes);
+  void* (*memalign)(uptr alignment, uptr bytes);
 };
 
-const MallocDebug asan_malloc_dispatch __attribute__((aligned(32))) = {
+const MallocDebug asan_malloc_dispatch ALIGNED(32) = {
   malloc, free, calloc, realloc, memalign
 };
 
@@ -56,33 +52,28 @@ void ReplaceSystemMalloc() {
 // ---------------------- Replacement functions ---------------- {{{1
 using namespace __asan;  // NOLINT
 
-extern "C" {
-INTERCEPTOR_ATTRIBUTE
-void free(void *ptr) {
+INTERCEPTOR(void, free, void *ptr) {
   GET_STACK_TRACE_HERE_FOR_FREE(ptr);
   asan_free(ptr, &stack);
 }
 
-INTERCEPTOR_ATTRIBUTE
-void cfree(void *ptr) {
+INTERCEPTOR(void, cfree, void *ptr) {
   GET_STACK_TRACE_HERE_FOR_FREE(ptr);
   asan_free(ptr, &stack);
 }
 
-INTERCEPTOR_ATTRIBUTE
-void *malloc(size_t size) {
+INTERCEPTOR(void*, malloc, uptr size) {
   GET_STACK_TRACE_HERE_FOR_MALLOC;
   return asan_malloc(size, &stack);
 }
 
-INTERCEPTOR_ATTRIBUTE
-void *calloc(size_t nmemb, size_t size) {
+INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
   if (!asan_inited) {
-    // Hack: dlsym calls calloc before real_calloc is retrieved from dlsym.
-    const size_t kCallocPoolSize = 1024;
-    static uintptr_t calloc_memory_for_dlsym[kCallocPoolSize];
-    static size_t allocated;
-    size_t size_in_words = ((nmemb * size) + kWordSize - 1) / kWordSize;
+    // Hack: dlsym calls calloc before REAL(calloc) is retrieved from dlsym.
+    const uptr kCallocPoolSize = 1024;
+    static uptr calloc_memory_for_dlsym[kCallocPoolSize];
+    static uptr allocated;
+    uptr size_in_words = ((nmemb * size) + kWordSize - 1) / kWordSize;
     void *mem = (void*)&calloc_memory_for_dlsym[allocated];
     allocated += size_in_words;
     CHECK(allocated < kCallocPoolSize);
@@ -92,51 +83,56 @@ void *calloc(size_t nmemb, size_t size) {
   return asan_calloc(nmemb, size, &stack);
 }
 
-INTERCEPTOR_ATTRIBUTE
-void *realloc(void *ptr, size_t size) {
+INTERCEPTOR(void*, realloc, void *ptr, uptr size) {
   GET_STACK_TRACE_HERE_FOR_MALLOC;
   return asan_realloc(ptr, size, &stack);
 }
 
-INTERCEPTOR_ATTRIBUTE
-void *memalign(size_t boundary, size_t size) {
+INTERCEPTOR(void*, memalign, uptr boundary, uptr size) {
   GET_STACK_TRACE_HERE_FOR_MALLOC;
   return asan_memalign(boundary, size, &stack);
 }
 
-void* __libc_memalign(size_t align, size_t s)
-  __attribute__((alias("memalign")));
+INTERCEPTOR(void*, __libc_memalign, uptr align, uptr s)
+  ALIAS("memalign");
 
-INTERCEPTOR_ATTRIBUTE
-struct mallinfo mallinfo() {
-  struct mallinfo res;
-  real_memset(&res, 0, sizeof(res));
+INTERCEPTOR(uptr, malloc_usable_size, void *ptr) {
+  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  return asan_malloc_usable_size(ptr, &stack);
+}
+
+// We avoid including malloc.h for portability reasons.
+// man mallinfo says the fields are "long", but the implementation uses int.
+// It doesn't matter much -- we just need to make sure that the libc's mallinfo
+// is not called.
+struct fake_mallinfo {
+  int x[10];
+};
+
+INTERCEPTOR(struct fake_mallinfo, mallinfo, void) {
+  struct fake_mallinfo res;
+  REAL(memset)(&res, 0, sizeof(res));
   return res;
 }
 
-INTERCEPTOR_ATTRIBUTE
-int mallopt(int cmd, int value) {
+INTERCEPTOR(int, mallopt, int cmd, int value) {
   return -1;
 }
 
-INTERCEPTOR_ATTRIBUTE
-int posix_memalign(void **memptr, size_t alignment, size_t size) {
+INTERCEPTOR(int, posix_memalign, void **memptr, uptr alignment, uptr size) {
   GET_STACK_TRACE_HERE_FOR_MALLOC;
-  // Printf("posix_memalign: %lx %ld\n", alignment, size);
+  // Printf("posix_memalign: %zx %zu\n", alignment, size);
   return asan_posix_memalign(memptr, alignment, size, &stack);
 }
 
-INTERCEPTOR_ATTRIBUTE
-void *valloc(size_t size) {
+INTERCEPTOR(void*, valloc, uptr size) {
   GET_STACK_TRACE_HERE_FOR_MALLOC;
   return asan_valloc(size, &stack);
 }
 
-INTERCEPTOR_ATTRIBUTE
-void *pvalloc(size_t size) {
+INTERCEPTOR(void*, pvalloc, uptr size) {
   GET_STACK_TRACE_HERE_FOR_MALLOC;
   return asan_pvalloc(size, &stack);
 }
-}  // extern "C"
 
 #endif  // __linux__
