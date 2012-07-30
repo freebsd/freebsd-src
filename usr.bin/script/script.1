@@ -36,7 +36,7 @@
 .Nd make typescript of terminal session
 .Sh SYNOPSIS
 .Nm
-.Op Fl akq
+.Op Fl adkpqr
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
 .Sh DESCRIPTION
@@ -72,10 +72,20 @@ Append the output to
 or
 .Pa typescript ,
 retaining the prior contents.
+.It Fl d
+When playing back a session with the
+.Fl p
+flag, don't sleep between records when playing back a timestamped session.
 .It Fl k
 Log keys sent to the program as well as output.
+.It Fl p
+Play back a session recorded with the
+.Fl r
+flag in real time.
 .It Fl q
-Run in quiet mode, omit the start and stop status messages.
+Run in quiet mode, omit the start, stop and command status messages.
+.It Fl r
+Record a session with input, output, and timestamping.
 .It Fl t Ar time
 Specify the interval at which the script output file will be flushed
 to disk, in seconds.
@@ -151,6 +161,14 @@ The
 .Nm
 command appeared in
 .Bx 3.0 .
+.Pp
+The
+.Fl d ,
+.Fl p
+and
+.Fl r
+options first appeared in
+.Nx 2.0 .
 .Sh BUGS
 The
 .Nm
