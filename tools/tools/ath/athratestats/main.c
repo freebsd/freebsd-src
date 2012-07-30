@@ -170,69 +170,14 @@ ath_rate_ioctl(struct ath_ratestats *r)
 		err(1, "ioctl");
 }
 
-int
-main(int argc, char *argv[])
+static int
+rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 {
-	struct ath_ratestats r;
-	struct ether_addr *e;
-	uint8_t *buf;
 	struct ath_rateioctl_tlv *av;
 	struct sample_node *sn = NULL;
 	struct ath_rateioctl_rt *rt = NULL;
-	char const *ifname = NULL, *macaddr = NULL;
-	int c;
-	int do_all = 0;
-
-	ifname = getenv("ATH");
-	if (ifname == NULL)
-		ifname = "ath0";
-
-	while ((c = getopt(argc, argv, "ahi:m:")) != -1) {
-		switch (c) {
-		case 'a':
-			do_all = 1;
-			break;
-		case 'i':
-			ifname = optarg;
-			break;
-		case 'm':
-			macaddr = optarg;
-			break;
-			
-		default:
-			errx(1,
-			    "usage: %s [-h] [-i ifname] [-a] [-m macaddr]\n",
-			    argv[0]);
-			/* NOTREACHED */
-		}
-	}
-
-	buf = calloc(1, STATS_BUF_SIZE);
-	if (buf == NULL)
-		err(1, "calloc");
-
-	bzero(&r, sizeof(r));
-	r.s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (r.s < 0) {
-		err(1, "socket");
-	}
-	/* XXX error check */
-	ath_setifname(&r, ifname);
-
-	if (macaddr == NULL) {
-		errx(1, "%s: macaddress wasn't supplied and no -a given\n",
-		    argv[0]);
-		/* NOTREACHED */
-	}
-	e = ether_aton(macaddr);
-	if (e == NULL)
-		err(1, "ether_aton");
-
-	r.re.buf = buf;
-	r.re.len = STATS_BUF_SIZE;
-
-	ath_setsta(&r, e->octet);
-	ath_rate_ioctl(&r);
+	int error = 0;
+	uint8_t *buf = r->re.buf;
 
 	/*
 	 * For now, hard-code the TLV order and contents.  Ew!
@@ -275,6 +220,87 @@ main(int argc, char *argv[])
 	    sizeof(struct ath_rateioctl_rt) +
 	    sizeof(struct ath_rateioctl_tlv));
 
-	ath_sample_stats(&r, rt, sn);
+	ath_sample_stats(r, rt, sn);
 }
 
+
+int
+main(int argc, char *argv[])
+{
+	char const *ifname = NULL, *macaddr = NULL;
+	int c;
+	int do_all = 0;
+	struct ether_addr *e;
+	struct ath_ratestats r;
+	uint8_t *buf;
+
+	ifname = getenv("ATH");
+	if (ifname == NULL)
+		ifname = "ath0";
+
+	while ((c = getopt(argc, argv, "ahi:m:")) != -1) {
+		switch (c) {
+		case 'a':
+			do_all = 1;
+			break;
+		case 'i':
+			ifname = optarg;
+			break;
+		case 'm':
+			macaddr = optarg;
+			break;
+			
+		default:
+			errx(1,
+			    "usage: %s [-h] [-i ifname] [-a] [-m macaddr]\n",
+			    argv[0]);
+			/* NOTREACHED */
+		}
+	}
+
+	if (macaddr == NULL) {
+		errx(1, "%s: macaddress wasn't supplied and no -a given\n",
+		    argv[0]);
+		/* NOTREACHED */
+	}
+	e = ether_aton(macaddr);
+	if (e == NULL)
+		err(1, "ether_aton");
+
+	bzero(&r, sizeof(r));
+
+	/*
+	 * Persistent buffer for each lookup
+	 */
+	buf = malloc(STATS_BUF_SIZE);
+	if (buf == NULL)
+		err(1, "calloc");
+
+	r.re.buf = buf;
+	r.re.len = STATS_BUF_SIZE;
+
+	r.s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (r.s < 0) {
+		err(1, "socket");
+	}
+	/* XXX error check */
+	ath_setifname(&r, ifname);
+
+	/* Zero the buffer before it's passed in */
+	memset(buf, '\0', STATS_BUF_SIZE);
+
+	/*
+	 * Set the station address for this lookup.
+	 */
+	ath_setsta(&r, e->octet);
+
+	/*
+	 * Fetch the data from the driver.
+	 */
+	ath_rate_ioctl(&r);
+
+	/*
+	 * Decode and parse statistics.
+	 */
+	rate_node_stats(&r, e);
+}
