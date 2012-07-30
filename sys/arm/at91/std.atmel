@@ -10,7 +10,7 @@ device		at91rm9200
 device		at91sam9260
 device		at91sam9g20
 device		at91sam9g45
-device		at91sam9x25
+device		at91sam9x5
 
 # bring in the sam specific timers and such
 device		at91sam9

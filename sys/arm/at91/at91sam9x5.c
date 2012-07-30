@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91soc.h>
 #include <arm/at91/at91_aicreg.h>
-#include <arm/at91/at91sam9x25reg.h>
+#include <arm/at91/at91sam9x5reg.h>
 #include <arm/at91/at91_pitreg.h>
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
