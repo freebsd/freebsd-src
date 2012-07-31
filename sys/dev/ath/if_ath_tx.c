@@ -4494,7 +4494,10 @@ ath_xmit_setup_legacy(struct ath_softc *sc)
 
 	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;
 	sc->sc_tx.xmit_teardown = ath_legacy_dma_txteardown;
+	sc->sc_tx.xmit_attach_comp_func = ath_legacy_attach_comp_func;
 
 	sc->sc_tx.xmit_dma_restart = ath_legacy_tx_dma_restart;
 	sc->sc_tx.xmit_handoff = ath_legacy_xmit_handoff;
+	sc->sc_tx.xmit_processq = ath_legacy_tx_processq;
+	sc->sc_tx.xmit_drainq = ath_legacy_tx_draintxq;
 }

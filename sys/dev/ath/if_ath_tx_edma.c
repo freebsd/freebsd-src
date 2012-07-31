@@ -255,6 +255,35 @@ ath_edma_dma_txteardown(struct ath_softc *sc)
 	return (0);
 }
 
+static int
+ath_edma_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
+{
+
+	return (0);
+}
+
+static void
+ath_edma_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
+{
+
+}
+
+static void
+ath_edma_tx_proc(void *arg, int npending)
+{
+	struct ath_softc *sc = (struct ath_softc *) arg;
+
+	device_printf(sc->sc_dev, "%s: called, npending=%d\n",
+	    __func__, npending);
+}
+
+static void
+ath_edma_attach_comp_func(struct ath_softc *sc)
+{
+
+	TASK_INIT(&sc->sc_txtask, 0, ath_edma_tx_proc, sc);
+}
+
 void
 ath_xmit_setup_edma(struct ath_softc *sc)
 {
@@ -273,7 +302,10 @@ ath_xmit_setup_edma(struct ath_softc *sc)
 
 	sc->sc_tx.xmit_setup = ath_edma_dma_txsetup;
 	sc->sc_tx.xmit_teardown = ath_edma_dma_txteardown;
+	sc->sc_tx.xmit_attach_comp_func = ath_edma_attach_comp_func;
 
 	sc->sc_tx.xmit_dma_restart = ath_edma_dma_restart;
 	sc->sc_tx.xmit_handoff = ath_edma_xmit_handoff;
+	sc->sc_tx.xmit_processq = ath_edma_tx_processq;
+	sc->sc_tx.xmit_drainq = ath_edma_tx_draintxq;
 }
