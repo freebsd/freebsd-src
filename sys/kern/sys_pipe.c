@@ -1442,7 +1442,7 @@ pipe_poll(fp, events, active_cred, td)
 	levents = events &
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
 	if (rpipe->pipe_state & PIPE_NAMED && fp->f_flag & FREAD && levents &&
-	    rpipe->pipe_state & PIPE_SAMEWGEN)
+	    fp->f_seqcount == rpipe->pipe_wgen)
 		events |= POLLINIGNEOF;
 
 	if ((events & POLLINIGNEOF) == 0) {
