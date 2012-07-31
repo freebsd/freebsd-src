@@ -306,6 +306,20 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		goto freehdrs;
 	case -1:                /* Do IPSec */
 		needipsec = 1;
+		/*
+		 * Do delayed checksums now, as we may send before returning.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			plen = m->m_pkthdr.len - sizeof(*ip6);
+			in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
 	case 0:                 /* No IPSec */
 	default:
 		break;
