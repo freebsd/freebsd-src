@@ -639,8 +639,8 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
  *
  * This must be called whether the queue is empty or not.
  */
-void
-ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
+static void
+ath_legacy_tx_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf, *bf_last;
@@ -668,7 +668,8 @@ ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
  * The relevant hardware txq should be locked.
  */
 static void
-ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+ath_legacy_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_buf *bf)
 {
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -4493,4 +4494,7 @@ ath_xmit_setup_legacy(struct ath_softc *sc)
 
 	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;
 	sc->sc_tx.xmit_teardown = ath_legacy_dma_txteardown;
+
+	sc->sc_tx.xmit_dma_restart = ath_legacy_tx_dma_restart;
+	sc->sc_tx.xmit_handoff = ath_legacy_xmit_handoff;
 }
