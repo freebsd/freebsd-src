@@ -4704,8 +4704,8 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 		if (count != 0) {
 			printnl = B_TRUE;
 #ifdef __FreeBSD__
-		root_pool_upgrade_check(zhp, cbp->cb_poolname,
-		    sizeof(cbp->cb_poolname));
+			root_pool_upgrade_check(zhp, cbp->cb_poolname,
+			    sizeof(cbp->cb_poolname));
 #endif	/* __FreeBSD __*/
 		} else if (cur_version == SPA_VERSION) {
 			(void) printf(gettext("Pool '%s' already has all "
