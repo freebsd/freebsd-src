@@ -496,13 +496,6 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	    bf_first->bf_state.bfs_ctsduration);
 
 	/*
-	 * Setup the last descriptor in the list.
-	 * bf_prev points to the last; bf is NULL here.
-	 */
-	ath_hal_setuplasttxdesc(sc->sc_ah, bf_prev->bf_desc,
-	    bf_first->bf_desc);
-
-	/*
 	 * Set the first descriptor bf_lastds field to point to
 	 * the last descriptor in the last subframe, that's where
 	 * the status update will occur.
@@ -519,6 +512,13 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	 * setup first desc with rate and aggr info
 	 */
 	ath_tx_set_ratectrl(sc, bf_first->bf_node, bf_first);
+
+	/*
+	 * Setup the last descriptor in the list.
+	 * bf_prev points to the last; bf is NULL here.
+	 */
+	ath_hal_setuplasttxdesc(sc->sc_ah, bf_prev->bf_desc,
+	    bf_first->bf_desc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
