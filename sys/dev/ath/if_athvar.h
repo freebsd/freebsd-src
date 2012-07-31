@@ -408,6 +408,17 @@ struct ath_tx_edma_fifo {
 struct ath_tx_methods {
 	int		(*xmit_setup)(struct ath_softc *sc);
 	int		(*xmit_teardown)(struct ath_softc *sc);
+	void		(*xmit_attach_comp_func)(struct ath_softc *sc);
+
+	void		(*xmit_dma_restart)(struct ath_softc *sc,
+			    struct ath_txq *txq);
+	void		(*xmit_handoff)(struct ath_softc *sc,
+			    struct ath_txq *txq, struct ath_buf *bf);
+
+	void		(*xmit_drainq)(struct ath_softc *sc,
+			    struct ath_txq *txq);
+	int		(*xmit_processq)(struct ath_softc *sc,
+			    struct ath_txq *txq, int dosched);
 };
 
 struct ath_softc {
