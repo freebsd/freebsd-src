@@ -283,8 +283,11 @@ fifo_close(ap)
 		if (fip->fi_readers == 0) {
 			PIPE_LOCK(cpipe);
 			cpipe->pipe_state |= PIPE_EOF;
-			if (cpipe->pipe_state & PIPE_WANTW)
+			if ((cpipe->pipe_state & PIPE_WANTW)) {
+				cpipe->pipe_state &= ~PIPE_WANTW;
 				wakeup(cpipe);
+			}
+			pipeselwakeup(cpipe);
 			PIPE_UNLOCK(cpipe);
 		}
 	}
@@ -293,10 +296,13 @@ fifo_close(ap)
 		if (fip->fi_writers == 0) {
 			PIPE_LOCK(cpipe);
 			cpipe->pipe_state |= PIPE_EOF;
-			if (cpipe->pipe_state & PIPE_WANTR)
+			if ((cpipe->pipe_state & PIPE_WANTR)) {
+				cpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(cpipe);
+			}
 			fip->fi_wgen++;
 			FIFO_UPDWGEN(fip, cpipe);
+			pipeselwakeup(cpipe);
 			PIPE_UNLOCK(cpipe);
 		}
 	}
