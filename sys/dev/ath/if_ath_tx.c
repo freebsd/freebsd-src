@@ -394,6 +394,50 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
+ * Set the rate control fields in the given descriptor based on
+ * the bf_state fields and node state.
+ *
+ * The bfs fields should already be set with the relevant rate
+ * control information, including whether MRR is to be enabled.
+ *
+ * Since the FreeBSD HAL currently sets up the first TX rate
+ * in ath_hal_setuptxdesc(), this will setup the MRR
+ * conditionally for the pre-11n chips, and call ath_buf_set_rate
+ * unconditionally for 11n chips. These require the 11n rate
+ * scenario to be set if MCS rates are enabled, so it's easier
+ * to just always call it. The caller can then only set rates 2, 3
+ * and 4 if multi-rate retry is needed.
+ */
+static void
+ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf)
+{
+	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
+
+	/* If mrr is disabled, blank tries 1, 2, 3 */
+	if (! bf->bf_state.bfs_ismrr)
+		rc[1].tries = rc[2].tries = rc[3].tries = 0;
+
+	/*
+	 * Always call - that way a retried descriptor will
+	 * have the MRR fields overwritten.
+	 *
+	 * XXX TODO: see if this is really needed - setting up
+	 * the first descriptor should set the MRR fields to 0
+	 * for us anyway.
+	 */
+	if (ath_tx_is_11n(sc)) {
+		ath_buf_set_rate(sc, ni, bf);
+	} else {
+		ath_hal_setupxtxdesc(sc->sc_ah, bf->bf_desc
+			, rc[1].ratecode, rc[1].tries
+			, rc[2].ratecode, rc[2].tries
+			, rc[3].ratecode, rc[3].tries
+		);
+	}
+}
+
+/*
  * Setup segments+descriptors for an 11n aggregate.
  * bf_first is the first buffer in the aggregate.
  * The descriptor list must already been linked together using
@@ -470,6 +514,11 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	 * the aggregate list.
 	 */
 	bf_first->bf_last = bf_prev;
+
+	/*
+	 * setup first desc with rate and aggr info
+	 */
+	ath_tx_set_ratectrl(sc, bf_first->bf_node, bf_first);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
@@ -1039,7 +1088,9 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 	bf->bf_lastds = ds;
 	bf->bf_last = bf;
 
-	/* XXX TODO: Setup descriptor chain */
+	/* Set rate control and descriptor chain for this frame */
+	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
+	ath_tx_chaindesclist(sc, bf);
 }
 
 /*
@@ -1088,50 +1139,6 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
- * Set the rate control fields in the given descriptor based on
- * the bf_state fields and node state.
- *
- * The bfs fields should already be set with the relevant rate
- * control information, including whether MRR is to be enabled.
- *
- * Since the FreeBSD HAL currently sets up the first TX rate
- * in ath_hal_setuptxdesc(), this will setup the MRR
- * conditionally for the pre-11n chips, and call ath_buf_set_rate
- * unconditionally for 11n chips. These require the 11n rate
- * scenario to be set if MCS rates are enabled, so it's easier
- * to just always call it. The caller can then only set rates 2, 3
- * and 4 if multi-rate retry is needed.
- */
-static void
-ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
-    struct ath_buf *bf)
-{
-	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
-
-	/* If mrr is disabled, blank tries 1, 2, 3 */
-	if (! bf->bf_state.bfs_ismrr)
-		rc[1].tries = rc[2].tries = rc[3].tries = 0;
-
-	/*
-	 * Always call - that way a retried descriptor will
-	 * have the MRR fields overwritten.
-	 *
-	 * XXX TODO: see if this is really needed - setting up
-	 * the first descriptor should set the MRR fields to 0
-	 * for us anyway.
-	 */
-	if (ath_tx_is_11n(sc)) {
-		ath_buf_set_rate(sc, ni, bf);
-	} else {
-		ath_hal_setupxtxdesc(sc->sc_ah, bf->bf_desc
-			, rc[1].ratecode, rc[1].tries
-			, rc[2].ratecode, rc[2].tries
-			, rc[3].ratecode, rc[3].tries
-		);
-	}
-}
-
-/*
  * Transmit the given frame to the hardware.
  *
  * The frame must already be setup; rate control must already have
@@ -1156,8 +1163,6 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	ath_tx_set_rtscts(sc, bf);
 	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
-	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
-	ath_tx_chaindesclist(sc, bf);
 
 	/* Hand off to hardware */
 	ath_tx_handoff(sc, txq, bf);
@@ -2405,8 +2410,6 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	ath_tx_set_rtscts(sc, bf);
 	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
-	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
-	ath_tx_chaindesclist(sc, bf);
 
 	/* Statistics */
 	sc->sc_aggr_stats.aggr_low_hwq_single_pkt++;
@@ -3848,7 +3851,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 	struct ath_buf *bf;
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 	struct ieee80211_tx_ampdu *tap;
-	struct ieee80211_node *ni = &an->an_node;
 	ATH_AGGR_STATUS status;
 	ath_bufhead bf_q;
 
@@ -3896,8 +3898,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_set_rtscts(sc, bf);
 			ath_tx_rate_fill_rcflags(sc, bf);
 			ath_tx_setds(sc, bf);
-			ath_tx_set_ratectrl(sc, ni, bf);
-			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 
 			sc->sc_aggr_stats.aggr_nonbaw_pkt++;
@@ -3956,8 +3956,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
 			ath_tx_setds(sc, bf);
-			ath_tx_set_ratectrl(sc, ni, bf);
-			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			if (status == ATH_AGGR_BAW_CLOSED)
 				sc->sc_aggr_stats.aggr_baw_closed_single_pkt++;
@@ -3993,10 +3991,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			 */
 			ath_tx_setds_11n(sc, bf);
 
-			/*
-			 * setup first desc with rate and aggr info
-			 */
-			ath_tx_set_ratectrl(sc, ni, bf);
 		}
 	queuepkt:
 		//txq = bf->bf_state.bfs_txq;
@@ -4036,7 +4030,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 {
 	struct ath_buf *bf;
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
-	struct ieee80211_node *ni = &an->an_node;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: node %p: TID %d: called\n",
 	    __func__, an, tid->tid);
@@ -4085,8 +4078,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		ath_tx_set_rtscts(sc, bf);
 		ath_tx_rate_fill_rcflags(sc, bf);
 		ath_tx_setds(sc, bf);
-		ath_tx_set_ratectrl(sc, ni, bf);
-		ath_tx_chaindesclist(sc, bf);
 
 		/* Track outstanding buffer count to hardware */
 		/* aggregates are "one" buffer */
