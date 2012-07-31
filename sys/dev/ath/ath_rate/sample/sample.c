@@ -502,8 +502,10 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		goto done;
 	}
 
-	/* XXX TODO: this doesn't know about 11gn vs 11g protection; teach it */
-	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
+	mrr = sc->sc_mrretry;
+	/* XXX check HT protmode too */
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT) && !sc->sc_mrrprot)
+		mrr = 0;
 
 	best_rix = pick_best_rate(an, rt, size_bin, !mrr);
 	if (best_rix >= 0) {
@@ -910,7 +912,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		    short_tries, long_tries);
 		return;
 	}
-	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
+	mrr = sc->sc_mrretry;
+	/* XXX check HT protmode too */
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT) && !sc->sc_mrrprot)
+		mrr = 0;
+
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
 			badrate(ifp, 0, ts->ts_rate, long_tries, status);

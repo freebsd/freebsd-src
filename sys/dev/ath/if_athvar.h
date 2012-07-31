@@ -463,6 +463,7 @@ struct ath_softc {
 	void			(*sc_setdefantenna)(struct ath_softc *, u_int);
 	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
 				sc_mrretry  : 1,/* multi-rate retry support */
+				sc_mrrprot  : 1,/* MRR + protection support */
 				sc_softled  : 1,/* enable LED gpio status */
 				sc_hardled  : 1,/* enable MAC LED status */
 				sc_splitmic : 1,/* split TKIP MIC keys */

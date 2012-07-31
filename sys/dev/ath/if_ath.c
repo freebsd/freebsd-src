@@ -705,6 +705,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
 
+	/*
+	 * Disable MRR with protected frames by default.
+	 * Only 802.11n series NICs can handle this.
+	 */
+	sc->sc_mrrprot = 0;	/* XXX should be a capability */
+
 #ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
@@ -714,6 +720,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		int rxs, txs;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
+
+		sc->sc_mrrprot = 1;	/* XXX should be a capability */
+
 		ic->ic_htcaps = IEEE80211_HTC_HT	/* HT operation */
 			    | IEEE80211_HTC_AMPDU	/* A-MPDU tx/rx */
 			    | IEEE80211_HTC_AMSDU	/* A-MSDU tx/rx */
