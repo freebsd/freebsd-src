@@ -912,6 +912,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
 	struct ieee80211_meshprep_ie prep;
 	ieee80211_hwmp_seq preqid;	/* last seen preqid for orig */
+	uint32_t metric = 0;
 
 	if (ni == vap->iv_bss ||
 	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
@@ -985,13 +986,13 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	/* Data creation and update of forwarding information
 	 * according to Table 11C-8 for originator mesh STA.
 	 */
+	metric = preq->preq_metric + ms->ms_pmetric->mpm_metric(ni);
 	if (HWMP_SEQ_GT(preq->preq_origseq, hrorig->hr_seq) ||
 	    (HWMP_SEQ_EQ(preq->preq_origseq, hrorig->hr_seq) &&
-	    preq->preq_metric < rtorig->rt_metric)) {
+	    metric < rtorig->rt_metric)) {
 		hrorig->hr_seq = preq->preq_origseq;
 		IEEE80211_ADDR_COPY(rtorig->rt_nexthop, wh->i_addr2);
-		rtorig->rt_metric = preq->preq_metric +
-			ms->ms_pmetric->mpm_metric(ni);
+		rtorig->rt_metric = metric;
 		rtorig->rt_nhops  = preq->preq_hopcount + 1;
 		ieee80211_mesh_rt_update(rtorig, preq->preq_lifetime);
 		/* path to orig is valid now */
