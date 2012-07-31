@@ -68,7 +68,7 @@ beforeinstall:
 	cd ${.CURDIR}; \
 	    ${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    koi8-r.tmac hyphen.ru ${DESTDIR}${TMACDIR}
-	cd ${.OBJDIR}
+	cd ${.OBJDIR};
 .for f in ${STRIPFILES} ${SPECIALFILES}
 	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    $f-s ${DESTDIR}${TMACDIR}/$f

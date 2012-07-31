@@ -251,7 +251,9 @@ cpu_extra_feat(void)
 	uint32_t ef = 0;
 
 	soc_id(&dev, &rev);
-	if (dev == MV_DEV_88F6281 || dev == MV_DEV_MV78100_Z0 ||
+	if (dev == MV_DEV_88F6281 ||
+	    dev == MV_DEV_88F6282 ||
+	    dev == MV_DEV_MV78100_Z0 ||
 	    dev == MV_DEV_MV78100)
 		__asm __volatile("mrc p15, 1, %0, c15, c1, 0" : "=r" (ef));
 	else if (dev == MV_DEV_88F5182 || dev == MV_DEV_88F5281)
@@ -349,6 +351,13 @@ soc_identify(void)
 		else if (r == 2)
 			rev = "A0";
 		else if (r == 3)
+			rev = "A1";
+		break;
+	case MV_DEV_88F6282:
+		dev = "Marvell 88F6282";
+		if (r == 0)
+			rev = "A0";
+		else if (r == 1)
 			rev = "A1";
 		break;
 	case MV_DEV_MV78100_Z0:
@@ -536,6 +545,7 @@ win_cpu_can_remap(int i)
 	if ((dev == MV_DEV_88F5182 && i < 2) ||
 	    (dev == MV_DEV_88F5281 && i < 4) ||
 	    (dev == MV_DEV_88F6281 && i < 4) ||
+	    (dev == MV_DEV_88F6282 && i < 4) ||
 	    (dev == MV_DEV_MV78100 && i < 8) ||
 	    (dev == MV_DEV_MV78100_Z0 && i < 8))
 		return (1);
@@ -1320,7 +1330,8 @@ xor_max_eng(void)
 	uint32_t dev, rev;
 
 	soc_id(&dev, &rev);
-	if (dev == MV_DEV_88F6281)
+	if (dev == MV_DEV_88F6281 ||
+	    dev == MV_DEV_88F6282)
 		return (2);
 	else if ((dev == MV_DEV_MV78100) || (dev == MV_DEV_MV78100_Z0))
 		return (1);

@@ -213,6 +213,9 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
  * This function may modify ver and hlim only.
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
+ * If route_in6 ro is present and has ro_rt initialized, route lookup would be
+ * skipped and ro->ro_rt would be used. If ro is present but ro->ro_rt is NULL,
+ * then result of route lookup is stored in ro->ro_rt.
  *
  * type of "mtu": rt_rmx.rmx_mtu is u_long, ifnet.ifr_mtu is int, and
  * nd_ifinfo.linkmtu is u_int32_t.  so we use u_long to hold largest one,
@@ -243,7 +246,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct in6_addr finaldst, src0, dst0;
 	u_int32_t zone;
 	struct route_in6 *ro_pmtu = NULL;
-	int flevalid = 0;
 	int hdrsplit = 0;
 	int needipsec = 0;
 	int sw_csum, tso;
@@ -292,11 +294,11 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
 	}
 
+#ifdef IPSEC
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 */
-#ifdef IPSEC
 	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp, &sp))
 	{
 	case 1:                 /* Bad packet */
@@ -506,7 +508,7 @@ skip_ipsec2:;
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 #ifdef FLOWTABLE
-	if (ro == &ip6route) {
+	if (ro->ro_rt == NULL) {
 		struct flentry *fle;
 
 		/*
@@ -515,11 +517,9 @@ skip_ipsec2:;
 		 * longer than that long for the stability of ro_rt.  The
 		 * flow ID assignment must have happened before this point.
 		 */
-		if ((fle = flowtable_lookup_mbuf(V_ip6_ft, m, AF_INET6)) != NULL) {
+		fle = flowtable_lookup_mbuf(V_ip6_ft, m, AF_INET6);
+		if (fle != NULL)
 			flow_to_route_in6(fle, ro);
-			if (ro->ro_rt != NULL && ro->ro_lle != NULL)
-				flevalid = 1;
-		}
 	}
 #endif
 again:
@@ -627,7 +627,7 @@ again:
 	dst_sa.sin6_family = AF_INET6;
 	dst_sa.sin6_len = sizeof(dst_sa);
 	dst_sa.sin6_addr = ip6->ip6_dst;
-	if (flevalid) {
+	if (ro->ro_rt) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
 	} else if ((error = in6_selectroute_fib(&dst_sa, opt, im6o, ro,
@@ -1182,13 +1182,10 @@ sendorfree:
 		V_ip6stat.ip6s_fragmented++;
 
 done:
-	if (ro == &ip6route && ro->ro_rt && flevalid == 0) {
-                /* brace necessary for RTFREE */
-		RTFREE(ro->ro_rt);
-	} else if (ro_pmtu == &ip6route && ro_pmtu->ro_rt &&
-	    ((flevalid == 0) || (ro_pmtu != ro))) {
-		RTFREE(ro_pmtu->ro_rt);
-	}
+	if (ro == &ip6route)
+		RO_RTFREE(ro);
+	if (ro_pmtu == &ip6route)
+		RO_RTFREE(ro_pmtu);
 #ifdef IPSEC
 	if (sp != NULL)
 		KEY_FREESP(&sp);

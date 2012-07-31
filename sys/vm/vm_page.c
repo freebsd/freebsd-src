@@ -1684,7 +1684,7 @@ retry:
 	}
 	for (m = m_ret; m < &m_ret[npages]; m++) {
 		m->aflags = 0;
-		m->flags &= flags;
+		m->flags = (m->flags | PG_NODUMP) & flags;
 		if ((req & VM_ALLOC_WIRED) != 0)
 			m->wire_count = 1;
 		/* Unmanaged pages don't use "act_count". */

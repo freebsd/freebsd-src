@@ -15,7 +15,7 @@ name="kldxref"
 stop_cmd=":"
 start_cmd="kldxref_start"
 
-kldxref_start () {
+kldxref_start() {
 	if [ -n "$kldxref_module_path" ]; then
 		MODULE_PATHS="$kldxref_module_path"
 	else

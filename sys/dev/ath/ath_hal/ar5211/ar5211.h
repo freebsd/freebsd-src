@@ -204,9 +204,15 @@ extern  void ar5211GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5211IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
 extern	HAL_BOOL ar5211GetTxCompletionRates(struct ath_hal *ah,
 		const struct ath_desc *ds0, int *rates, int *tries);
+extern	void ar5211SetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t link);
+extern	void ar5211GetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t *link);
+extern	void ar5211GetTxDescLinkPtr(struct ath_hal *ah, void *ds,
+		uint32_t **linkptr);
 
-extern	uint32_t ar5211GetRxDP(struct ath_hal *);
-extern	void ar5211SetRxDP(struct ath_hal *, uint32_t rxdp);
+extern	uint32_t ar5211GetRxDP(struct ath_hal *, HAL_RX_QUEUE);
+extern	void ar5211SetRxDP(struct ath_hal *, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5211EnableReceive(struct ath_hal *);
 extern	HAL_BOOL ar5211StopDmaReceive(struct ath_hal *);
 extern	void ar5211StartPcuReceive(struct ath_hal *);

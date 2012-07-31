@@ -1297,7 +1297,7 @@ sort_list_to_file(struct sort_list *list, const char *outfile)
 	}
 
 	if (sort_opts_vals.sort_method == SORT_DEFAULT)
-		sort_opts_vals.sort_method = SORT_QSORT;
+		sort_opts_vals.sort_method = DEFAULT_SORT_ALGORITHM;
 
 	if (debug_sort)
 		printf("sort_method=%s\n",
@@ -1314,8 +1314,11 @@ sort_list_to_file(struct sort_list *list, const char *outfile)
 	case SORT_HEAPSORT:
 		mt_sort(list, heapsort,	outfile);
 		break;
-	default:
+	case SORT_QSORT:
 		mt_sort(list, sort_qsort, outfile);
+		break;
+	default:
+		mt_sort(list, DEFAULT_SORT_FUNC, outfile);
 		break;
 	}
 }

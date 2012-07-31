@@ -1811,8 +1811,10 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 			m->m_flags &= ~M_VLANTAG;
 		}
 
-		if (err == 0)
-			dst_ifp->if_transmit(dst_ifp, m);
+		if ((err = dst_ifp->if_transmit(dst_ifp, m))) {
+			m_freem(m0);
+			break;
+		}
 	}
 
 	if (err == 0) {

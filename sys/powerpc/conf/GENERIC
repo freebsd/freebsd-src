@@ -21,14 +21,14 @@
 cpu		AIM
 ident		GENERIC
 
-machine		powerpc	powerpc
+machine 	powerpc powerpc
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
-options		MAMBO			#IBM Mambo Full System Simulator
+options 	MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -49,6 +49,7 @@ options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	GEOM_PART_APM		#Apple Partition Maps.
 options 	GEOM_PART_GPT		#GUID Partition Tables.
 options 	GEOM_LABEL		#Provides labelization
 options 	COMPAT_FREEBSD4		#Keep this for a while
@@ -82,7 +83,7 @@ options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
-# To make an SMP kernel, the next line is needed
+# Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 # CPU frequency control
@@ -107,6 +108,7 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
 # ATA/SCSI peripherals
@@ -126,6 +128,7 @@ makeoptions	SC_DFLT_FONT=cp437
 # Serial (COM) ports
 device		scc
 device		uart
+device		uart_z8530
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support

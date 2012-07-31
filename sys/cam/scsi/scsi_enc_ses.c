@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
-#include <opt_enc.h>
-
 /* SES Native Type Device Support */
 
 /* SES Diagnostic Page Codes */
@@ -1473,7 +1471,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 
 out:
 	if (err)
-		ses_softc_cleanup(enc);
+		ses_cache_free(enc, enc_cache);
 	else {
 		enc_update_request(enc, SES_UPDATE_GETSTATUS);
 		enc_update_request(enc, SES_UPDATE_GETELMDESCS);

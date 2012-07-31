@@ -59,6 +59,7 @@ static eventhandler_tag g_mountver_pre_sync = NULL;
 
 static void g_mountver_queue(struct bio *bp);
 static void g_mountver_orphan(struct g_consumer *cp);
+static void g_mountver_resize(struct g_consumer *cp);
 static int g_mountver_destroy(struct g_geom *gp, boolean_t force);
 static g_taste_t g_mountver_taste;
 static int g_mountver_destroy_geom(struct gctl_req *req, struct g_class *mp,
@@ -257,6 +258,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	gp->softc = sc;
 	gp->start = g_mountver_start;
 	gp->orphan = g_mountver_orphan;
+	gp->resize = g_mountver_resize;
 	gp->access = g_mountver_access;
 	gp->dumpconf = g_mountver_dumpconf;
 
@@ -455,6 +457,18 @@ g_mountver_orphan(struct g_consumer *cp)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	g_detach(cp);
 	G_MOUNTVER_DEBUG(0, "%s is offline.  Mount verification in progress.", sc->sc_provider_name);
+}
+
+static void
+g_mountver_resize(struct g_consumer *cp)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = cp->geom;
+
+	LIST_FOREACH(pp, &gp->provider, provider)
+		g_resize_provider(pp, cp->provider->mediasize);
 }
 
 static int

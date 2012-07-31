@@ -60,7 +60,7 @@ static MALLOC_DEFINE(M_GATE, "gg_data", "GEOM Gate Data");
 
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, gate, CTLFLAG_RW, 0,
-    "GEOM_GATE stuff");
+    "GEOM_GATE configuration");
 static int g_gate_debug = 0;
 TUNABLE_INT("kern.geom.gate.debug", &g_gate_debug);
 SYSCTL_INT(_kern_geom_gate, OID_AUTO, debug, CTLFLAG_RW, &g_gate_debug, 0,
@@ -92,6 +92,7 @@ static int
 g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 {
 	struct g_provider *pp;
+	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct bio *bp;
 
@@ -138,6 +139,12 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 	mtx_unlock(&g_gate_units_lock);
 	mtx_destroy(&sc->sc_queue_mtx);
 	g_topology_lock();
+	if ((cp = sc->sc_readcons) != NULL) {
+		sc->sc_readcons = NULL;
+		(void)g_access(cp, -1, 0, 0);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+	}
 	G_GATE_DEBUG(1, "Device %s destroyed.", gp->name);
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
@@ -167,7 +174,7 @@ g_gate_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static void
-g_gate_start(struct bio *bp)
+g_gate_queue_io(struct bio *bp)
 {
 	struct g_gate_softc *sc;
 
@@ -176,27 +183,9 @@ g_gate_start(struct bio *bp)
 		g_io_deliver(bp, ENXIO);
 		return;
 	}
-	G_GATE_LOGREQ(2, bp, "Request received.");
-	switch (bp->bio_cmd) {
-	case BIO_READ:
-		break;
-	case BIO_DELETE:
-	case BIO_WRITE:
-	case BIO_FLUSH:
-		/* XXX: Hack to allow read-only mounts. */
-		if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0) {
-			g_io_deliver(bp, EPERM);
-			return;
-		}
-		break;
-	case BIO_GETATTR:
-	default:
-		G_GATE_LOGREQ(2, bp, "Ignoring request.");
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
-	}
 
 	mtx_lock(&sc->sc_queue_mtx);
+
 	if (sc->sc_queue_size > 0 && sc->sc_queue_count > sc->sc_queue_size) {
 		mtx_unlock(&sc->sc_queue_mtx);
 		G_GATE_LOGREQ(1, bp, "Queue full, request canceled.");
@@ -212,6 +201,74 @@ g_gate_start(struct bio *bp)
 	wakeup(sc);
 
 	mtx_unlock(&sc->sc_queue_mtx);
+}
+
+static void
+g_gate_done(struct bio *cbp)
+{
+	struct bio *pbp;
+
+	pbp = cbp->bio_parent;
+	if (cbp->bio_error == 0) {
+		pbp->bio_completed = cbp->bio_completed;
+		g_destroy_bio(cbp);
+		pbp->bio_inbed++;
+		g_io_deliver(pbp, 0);
+	} else {
+		/* If direct read failed, pass it through userland daemon. */
+		g_destroy_bio(cbp);
+		pbp->bio_children--;
+		g_gate_queue_io(pbp);
+	}
+}
+
+static void
+g_gate_start(struct bio *pbp)
+{
+	struct g_gate_softc *sc;
+
+	sc = pbp->bio_to->geom->softc;
+	if (sc == NULL || (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0) {
+		g_io_deliver(pbp, ENXIO);
+		return;
+	}
+	G_GATE_LOGREQ(2, pbp, "Request received.");
+	switch (pbp->bio_cmd) {
+	case BIO_READ:
+		if (sc->sc_readcons != NULL) {
+			struct bio *cbp;
+
+			cbp = g_clone_bio(pbp);
+			if (cbp == NULL) {
+				g_io_deliver(pbp, ENOMEM);
+				return;
+			}
+			cbp->bio_done = g_gate_done;
+			cbp->bio_offset = pbp->bio_offset + sc->sc_readoffset;
+			cbp->bio_data = pbp->bio_data;
+			cbp->bio_length = pbp->bio_length;
+			cbp->bio_to = sc->sc_readcons->provider;
+			g_io_request(cbp, sc->sc_readcons);
+			return;
+		}
+		break;
+	case BIO_DELETE:
+	case BIO_WRITE:
+	case BIO_FLUSH:
+		/* XXX: Hack to allow read-only mounts. */
+		if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0) {
+			g_io_deliver(pbp, EPERM);
+			return;
+		}
+		break;
+	case BIO_GETATTR:
+	default:
+		G_GATE_LOGREQ(2, pbp, "Ignoring request.");
+		g_io_deliver(pbp, EOPNOTSUPP);
+		return;
+	}
+
+	g_gate_queue_io(pbp);
 }
 
 static struct g_gate_softc *
@@ -312,6 +369,27 @@ g_gate_guard(void *arg)
 }
 
 static void
+g_gate_orphan(struct g_consumer *cp)
+{
+	struct g_gate_softc *sc;
+	struct g_geom *gp;
+
+	g_topology_assert();
+	gp = cp->geom;
+	sc = gp->softc;
+	if (sc == NULL)
+		return;
+	KASSERT(cp == sc->sc_readcons, ("cp=%p sc_readcons=%p", cp,
+	    sc->sc_readcons));
+	sc->sc_readcons = NULL;
+	G_GATE_DEBUG(1, "Destroying read consumer on provider %s orphan.",
+	    cp->provider->name);
+	(void)g_access(cp, -1, 0, 0);
+	g_detach(cp);
+	g_destroy_consumer(cp);
+}
+
+static void
 g_gate_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp, struct g_provider *pp)
 {
@@ -329,6 +407,12 @@ g_gate_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	} else {
 		sbuf_printf(sb, "%s<access>%s</access>\n", indent,
 		    "read-write");
+	}
+	if (sc->sc_readcons != NULL) {
+		sbuf_printf(sb, "%s<read_offset>%jd</read_offset>\n",
+		    indent, (intmax_t)sc->sc_readoffset);
+		sbuf_printf(sb, "%s<read_provider>%s</read_provider>\n",
+		    indent, sc->sc_readcons->provider->name);
 	}
 	sbuf_printf(sb, "%s<timeout>%u</timeout>\n", indent, sc->sc_timeout);
 	sbuf_printf(sb, "%s<info>%s</info>\n", indent, sc->sc_info);
@@ -348,15 +432,20 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 {
 	struct g_gate_softc *sc;
 	struct g_geom *gp;
-	struct g_provider *pp;
+	struct g_provider *pp, *ropp;
+	struct g_consumer *cp;
 	char name[NAME_MAX];
 	int error = 0, unit;
 
-	if (ggio->gctl_mediasize == 0) {
+	if (ggio->gctl_mediasize <= 0) {
 		G_GATE_DEBUG(1, "Invalid media size.");
 		return (EINVAL);
 	}
-	if (ggio->gctl_sectorsize > 0 && !powerof2(ggio->gctl_sectorsize)) {
+	if (ggio->gctl_sectorsize <= 0) {
+		G_GATE_DEBUG(1, "Invalid sector size.");
+		return (EINVAL);
+	}
+	if (!powerof2(ggio->gctl_sectorsize)) {
 		G_GATE_DEBUG(1, "Invalid sector size.");
 		return (EINVAL);
 	}
@@ -394,14 +483,11 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		sc->sc_queue_size = G_GATE_MAX_QUEUE_SIZE;
 	sc->sc_timeout = ggio->gctl_timeout;
 	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+
 	mtx_lock(&g_gate_units_lock);
 	sc->sc_unit = g_gate_getunit(ggio->gctl_unit, &error);
-	if (sc->sc_unit < 0) {
-		mtx_unlock(&g_gate_units_lock);
-		mtx_destroy(&sc->sc_queue_mtx);
-		free(sc, M_GATE);
-		return (error);
-	}
+	if (sc->sc_unit < 0)
+		goto fail1;
 	if (ggio->gctl_unit == G_GATE_NAME_GIVEN)
 		snprintf(name, sizeof(name), "%s", ggio->gctl_name);
 	else {
@@ -414,29 +500,71 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 			continue;
 		if (strcmp(name, g_gate_units[unit]->sc_name) != 0)
 			continue;
-		mtx_unlock(&g_gate_units_lock);
-		mtx_destroy(&sc->sc_queue_mtx);
-		free(sc, M_GATE);
-		return (EEXIST);
+		error = EEXIST;
+		goto fail1;
 	}
 	sc->sc_name = name;
 	g_gate_units[sc->sc_unit] = sc;
 	g_gate_nunits++;
 	mtx_unlock(&g_gate_units_lock);
 
-	ggio->gctl_unit = sc->sc_unit;
-
 	g_topology_lock();
+
+	if (ggio->gctl_readprov[0] == '\0') {
+		ropp = NULL;
+	} else {
+		ropp = g_provider_by_name(ggio->gctl_readprov);
+		if (ropp == NULL) {
+			G_GATE_DEBUG(1, "Provider %s doesn't exist.",
+			    ggio->gctl_readprov);
+			error = EINVAL;
+			goto fail2;
+		}
+		if ((ggio->gctl_readoffset % ggio->gctl_sectorsize) != 0) {
+			G_GATE_DEBUG(1, "Invalid read offset.");
+			error = EINVAL;
+			goto fail2;
+		}
+		if (ggio->gctl_mediasize + ggio->gctl_readoffset >
+		    ropp->mediasize) {
+			G_GATE_DEBUG(1, "Invalid read offset or media size.");
+			error = EINVAL;
+			goto fail2;
+		}
+	}
+
 	gp = g_new_geomf(&g_gate_class, "%s", name);
 	gp->start = g_gate_start;
 	gp->access = g_gate_access;
+	gp->orphan = g_gate_orphan;
 	gp->dumpconf = g_gate_dumpconf;
 	gp->softc = sc;
+
+	if (ropp != NULL) {
+		cp = g_new_consumer(gp);
+		error = g_attach(cp, ropp);
+		if (error != 0) {
+			G_GATE_DEBUG(1, "Unable to attach to %s.", ropp->name);
+			goto fail3;
+		}
+		error = g_access(cp, 1, 0, 0);
+		if (error != 0) {
+			G_GATE_DEBUG(1, "Unable to access %s.", ropp->name);
+			g_detach(cp);
+			goto fail3;
+		}
+		sc->sc_readcons = cp;
+		sc->sc_readoffset = ggio->gctl_readoffset;
+	}
+
+	ggio->gctl_unit = sc->sc_unit;
+
 	pp = g_new_providerf(gp, "%s", name);
 	pp->mediasize = ggio->gctl_mediasize;
 	pp->sectorsize = ggio->gctl_sectorsize;
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
+
 	g_topology_unlock();
 	mtx_lock(&g_gate_units_lock);
 	sc->sc_name = sc->sc_provider->name;
@@ -447,6 +575,112 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
 		    g_gate_guard, sc);
 	}
+	return (0);
+fail3:
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
+fail2:
+	g_topology_unlock();
+	mtx_lock(&g_gate_units_lock);
+	g_gate_units[sc->sc_unit] = NULL;
+	KASSERT(g_gate_nunits > 0, ("negative g_gate_nunits?"));
+	g_gate_nunits--;
+fail1:
+	mtx_unlock(&g_gate_units_lock);
+	mtx_destroy(&sc->sc_queue_mtx);
+	free(sc, M_GATE);
+	return (error);
+}
+
+static int
+g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
+{
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	int error;
+
+	if ((ggio->gctl_modify & GG_MODIFY_MEDIASIZE) != 0) {
+		if (ggio->gctl_mediasize <= 0) {
+			G_GATE_DEBUG(1, "Invalid media size.");
+			return (EINVAL);
+		}
+		pp = sc->sc_provider;
+		if ((ggio->gctl_mediasize % pp->sectorsize) != 0) {
+			G_GATE_DEBUG(1, "Invalid media size.");
+			return (EINVAL);
+		}
+		/* TODO */
+		return (EOPNOTSUPP);
+	}
+
+	if ((ggio->gctl_modify & GG_MODIFY_INFO) != 0)
+		(void)strlcpy(sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
+
+	cp = NULL;
+
+	if ((ggio->gctl_modify & GG_MODIFY_READPROV) != 0) {
+		g_topology_lock();
+		if (sc->sc_readcons != NULL) {
+			cp = sc->sc_readcons;
+			sc->sc_readcons = NULL;
+			(void)g_access(cp, -1, 0, 0);
+			g_detach(cp);
+			g_destroy_consumer(cp);
+		}
+		if (ggio->gctl_readprov[0] != '\0') {
+			pp = g_provider_by_name(ggio->gctl_readprov);
+			if (pp == NULL) {
+				g_topology_unlock();
+				G_GATE_DEBUG(1, "Provider %s doesn't exist.",
+				    ggio->gctl_readprov);
+				return (EINVAL);
+			}
+			cp = g_new_consumer(sc->sc_provider->geom);
+			error = g_attach(cp, pp);
+			if (error != 0) {
+				G_GATE_DEBUG(1, "Unable to attach to %s.",
+				    pp->name);
+			} else {
+				error = g_access(cp, 1, 0, 0);
+				if (error != 0) {
+					G_GATE_DEBUG(1, "Unable to access %s.",
+					    pp->name);
+					g_detach(cp);
+				}
+			}
+			if (error != 0) {
+				g_destroy_consumer(cp);
+				g_topology_unlock();
+				return (error);
+			}
+		}
+	} else {
+		cp = sc->sc_readcons;
+	}
+
+	if ((ggio->gctl_modify & GG_MODIFY_READOFFSET) != 0) {
+		if (cp == NULL) {
+			G_GATE_DEBUG(1, "No read provider.");
+			return (EINVAL);
+		}
+		pp = sc->sc_provider;
+		if ((ggio->gctl_readoffset % pp->sectorsize) != 0) {
+			G_GATE_DEBUG(1, "Invalid read offset.");
+			return (EINVAL);
+		}
+		if (pp->mediasize + ggio->gctl_readoffset >
+		    cp->provider->mediasize) {
+			G_GATE_DEBUG(1, "Invalid read offset or media size.");
+			return (EINVAL);
+		}
+		sc->sc_readoffset = ggio->gctl_readoffset;
+	}
+
+	if ((ggio->gctl_modify & GG_MODIFY_READPROV) != 0) {
+		sc->sc_readcons = cp;
+		g_topology_unlock();
+	}
+
 	return (0);
 }
 
@@ -481,6 +715,18 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		 * cannot answer on I/O requests until we're here.
 		 */
 		td->td_pflags &= ~TDP_GEOM;
+		return (error);
+	    }
+	case G_GATE_CMD_MODIFY:
+	    {
+		struct g_gate_ctl_modify *ggio = (void *)addr;
+
+		G_GATE_CHECK_VERSION(ggio);
+		sc = g_gate_hold(ggio->gctl_unit, NULL);
+		if (sc == NULL)
+			return (ENXIO);
+		error = g_gate_modify(sc, ggio);
+		g_gate_release(sc);
 		return (error);
 	    }
 	case G_GATE_CMD_DESTROY:

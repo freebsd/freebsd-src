@@ -46,10 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <zlib.h>
 #endif
 
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
-
 #include "archive.h"
 #include "archive_crypto_private.h"
 #include "archive_endian.h"
@@ -660,7 +656,7 @@ xar_write_data(struct archive_write *a, const void *buff, size_t s)
 	xar = (struct xar *)a->format_data;
 
 	if (s > xar->bytes_remaining)
-		s = xar->bytes_remaining;
+		s = (size_t)xar->bytes_remaining;
 	if (s == 0 || xar->cur_file == NULL)
 		return (0);
 	if (xar->cur_file->data.compression == NONE) {
@@ -741,7 +737,7 @@ xar_finish_entry(struct archive_write *a)
 		return (ARCHIVE_OK);
 
 	while (xar->bytes_remaining > 0) {
-		s = xar->bytes_remaining;
+		s = (size_t)xar->bytes_remaining;
 		if (s > a->null_length)
 			s = a->null_length;
 		w = xar_write_data(a, a->nulls, s);
@@ -2600,10 +2596,10 @@ compression_init_encoder_gzip(struct archive *a,
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
 	strm->avail_in = lastrm->avail_in;
-	strm->total_in = lastrm->total_in;
+	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
 	strm->avail_out = lastrm->avail_out;
-	strm->total_out = lastrm->total_out;
+	strm->total_out = (uLong)lastrm->total_out;
 	if (deflateInit2(strm, level, Z_DEFLATED,
 	    (withheader)?15:-15,
 	    8, Z_DEFAULT_STRATEGY) != Z_OK) {
@@ -2633,10 +2629,10 @@ compression_code_gzip(struct archive *a,
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
 	strm->avail_in = lastrm->avail_in;
-	strm->total_in = lastrm->total_in;
+	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
 	strm->avail_out = lastrm->avail_out;
-	strm->total_out = lastrm->total_out;
+	strm->total_out = (uLong)lastrm->total_out;
 	r = deflate(strm,
 	    (action == ARCHIVE_Z_FINISH)? Z_FINISH: Z_NO_FLUSH);
 	lastrm->next_in = strm->next_in;
@@ -2872,6 +2868,7 @@ compression_init_encoder_xz(struct archive *a,
 	if (level > 6)
 		level = 6;
 	if (lzma_lzma_preset(&lzma_opt, level)) {
+		free(strm);
 		lastrm->real_stream = NULL;
 		archive_set_error(a, ENOMEM,
 		    "Internal error initializing compression library");

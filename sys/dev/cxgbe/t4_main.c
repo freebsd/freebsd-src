@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -221,7 +222,7 @@ TUNABLE_INT("hw.cxgbe.linkcaps_allowed", &t4_linkcaps_allowed);
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC;
 TUNABLE_INT("hw.cxgbe.niccaps_allowed", &t4_niccaps_allowed);
 
-static int t4_toecaps_allowed = FW_CAPS_CONFIG_TOE;
+static int t4_toecaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 
 static int t4_rdmacaps_allowed = 0;
@@ -822,8 +823,8 @@ cxgbe_probe(device_t dev)
 
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
-    IFCAP_VLAN_HWTSO)
-#define T4_CAP_ENABLE (T4_CAP & ~IFCAP_TSO6)
+    IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6)
+#define T4_CAP_ENABLE (T4_CAP)
 
 static int
 cxgbe_attach(device_t dev)
@@ -856,7 +857,8 @@ cxgbe_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_TOE4;
 #endif
 	ifp->if_capenable = T4_CAP_ENABLE;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO;
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6;
 
 	/* Initialize ifmedia for this port */
 	ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
@@ -1026,35 +1028,55 @@ fail:
 			ifp->if_capenable ^= IFCAP_TXCSUM;
 			ifp->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
 
-			if (IFCAP_TSO & ifp->if_capenable &&
+			if (IFCAP_TSO4 & ifp->if_capenable &&
 			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
-				ifp->if_capenable &= ~IFCAP_TSO;
-				ifp->if_hwassist &= ~CSUM_TSO;
+				ifp->if_capenable &= ~IFCAP_TSO4;
 				if_printf(ifp,
-				    "tso disabled due to -txcsum.\n");
+				    "tso4 disabled due to -txcsum.\n");
+			}
+		}
+		if (mask & IFCAP_TXCSUM_IPV6) {
+			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+			ifp->if_hwassist ^= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+
+			if (IFCAP_TSO6 & ifp->if_capenable &&
+			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
+				ifp->if_capenable &= ~IFCAP_TSO6;
+				if_printf(ifp,
+				    "tso6 disabled due to -txcsum6.\n");
 			}
 		}
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
-		if (mask & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_RXCSUM_IPV6)
+			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
 
-			if (IFCAP_TSO & ifp->if_capenable) {
-				if (IFCAP_TXCSUM & ifp->if_capenable)
-					ifp->if_hwassist |= CSUM_TSO;
-				else {
-					ifp->if_capenable &= ~IFCAP_TSO;
-					ifp->if_hwassist &= ~CSUM_TSO;
-					if_printf(ifp,
-					    "enable txcsum first.\n");
-					rc = EAGAIN;
-					goto fail;
-				}
-			} else
-				ifp->if_hwassist &= ~CSUM_TSO;
+		/*
+		 * Note that we leave CSUM_TSO alone (it is always set).  The
+		 * kernel takes both IFCAP_TSOx and CSUM_TSO into account before
+		 * sending a TSO request our way, so it's sufficient to toggle
+		 * IFCAP_TSOx only.
+		 */
+		if (mask & IFCAP_TSO4) {
+			if (!(IFCAP_TSO4 & ifp->if_capenable) &&
+			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
+				if_printf(ifp, "enable txcsum first.\n");
+				rc = EAGAIN;
+				goto fail;
+			}
+			ifp->if_capenable ^= IFCAP_TSO4;
+		}
+		if (mask & IFCAP_TSO6) {
+			if (!(IFCAP_TSO6 & ifp->if_capenable) &&
+			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
+				if_printf(ifp, "enable txcsum6 first.\n");
+				rc = EAGAIN;
+				goto fail;
+			}
+			ifp->if_capenable ^= IFCAP_TSO6;
 		}
 		if (mask & IFCAP_LRO) {
-#ifdef INET
+#if defined(INET) || defined(INET6)
 			int i;
 			struct sge_rxq *rxq;
 
@@ -2121,7 +2143,7 @@ update_mac_settings(struct port_info *pi, int flags)
 
 		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family == AF_LINK)
+			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			mcaddr[i++] =
 			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
@@ -5470,6 +5492,12 @@ tweak_tunables(void)
 
 	if (t4_nofldrxq1g < 1)
 		t4_nofldrxq1g = min(nc, NOFLDRXQ_1G);
+
+	if (t4_toecaps_allowed == -1)
+		t4_toecaps_allowed = FW_CAPS_CONFIG_TOE;
+#else
+	if (t4_toecaps_allowed == -1)
+		t4_toecaps_allowed = 0;
 #endif
 
 	if (t4_tmr_idx_10g < 0 || t4_tmr_idx_10g >= SGE_NTIMERS)

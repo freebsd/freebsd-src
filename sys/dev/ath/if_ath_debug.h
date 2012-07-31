@@ -64,8 +64,13 @@ enum {
 	ATH_DEBUG_SW_TX_RETRIES	= 0x040000000ULL,	/* software TX retries */
 	ATH_DEBUG_FATAL		= 0x080000000ULL,	/* fatal errors */
 	ATH_DEBUG_SW_TX_BAR	= 0x100000000ULL,	/* BAR TX */
+	ATH_DEBUG_EDMA_RX	= 0x200000000ULL,	/* RX EDMA state */
+
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };
+
+#define	ATH_KTR_INTR	KTR_SPARE4
+#define	ATH_KTR_ERR	KTR_SPARE3
 
 extern uint64_t ath_debug;
 
@@ -86,6 +91,9 @@ extern	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
 extern	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
 	u_int qnum, u_int ix, int done);
 #else	/* ATH_DEBUG */
+#define	ATH_KTR_INTR	0
+#define	ATH_KTR_ERR	0
+
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 #define	DPRINTF(sc, m, fmt, ...) do {				\

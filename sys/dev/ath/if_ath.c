@@ -108,15 +108,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_ath_rx.h>
+#include <dev/ath/if_ath_rx_edma.h>
+#include <dev/ath/if_ath_tx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
-
-#define	ATH_KTR_INTR	KTR_SPARE4
-#define	ATH_KTR_ERR	KTR_SPARE3
 
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
@@ -156,8 +155,6 @@ static void	ath_update_promisc(struct ifnet *);
 static void	ath_updateslot(struct ifnet *);
 static void	ath_bstuck_proc(void *, int);
 static void	ath_reset_proc(void *, int);
-static void	ath_descdma_cleanup(struct ath_softc *sc,
-			struct ath_descdma *, ath_bufhead *);
 static int	ath_desc_alloc(struct ath_softc *);
 static void	ath_desc_free(struct ath_softc *);
 static struct ieee80211_node *ath_node_alloc(struct ieee80211vap *,
@@ -238,15 +235,15 @@ static	int ath_anicalinterval = 100;		/* ANI calibration - 100 msec */
 SYSCTL_INT(_hw_ath, OID_AUTO, anical, CTLFLAG_RW, &ath_anicalinterval,
 	    0, "ANI calibration (msecs)");
 
-static	int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
+int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RW, &ath_rxbuf,
 	    0, "rx buffers allocated");
 TUNABLE_INT("hw.ath.rxbuf", &ath_rxbuf);
-static	int ath_txbuf = ATH_TXBUF;		/* # tx buffers to allocate */
+int ath_txbuf = ATH_TXBUF;		/* # tx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
-static	int ath_txbuf_mgmt = ATH_MGMT_TXBUF;	/* # mgmt tx buffers to allocate */
+int ath_txbuf_mgmt = ATH_MGMT_TXBUF;	/* # mgmt tx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, txbuf_mgmt, CTLFLAG_RW, &ath_txbuf_mgmt,
 	    0, "tx (mgmt) buffers allocated");
 TUNABLE_INT("hw.ath.txbuf_mgmt", &ath_txbuf_mgmt);
@@ -300,6 +297,21 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #ifdef	ATH_DEBUG
 	sc->sc_debug = ath_debug;
 #endif
+
+	/*
+	 * Setup the DMA/EDMA functions based on the current
+	 * hardware support.
+	 *
+	 * This is required before the descriptors are allocated.
+	 */
+	if (ath_hal_hasedma(sc->sc_ah)) {
+		sc->sc_isedma = 1;
+		ath_recv_setup_edma(sc);
+		ath_xmit_setup_edma(sc);
+	} else {
+		ath_recv_setup_legacy(sc);
+		ath_xmit_setup_legacy(sc);
+	}
 
 	/*
 	 * Check if the MAC has multi-rate retry support.
@@ -359,13 +371,31 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_setcurmode(sc, IEEE80211_MODE_11A);
 
 	/*
-	 * Allocate tx+rx descriptors and populate the lists.
+	 * Allocate TX descriptors and populate the lists.
 	 */
 	error = ath_desc_alloc(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate descriptors: %d\n", error);
+		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
+		    error);
 		goto bad;
 	}
+	error = ath_txdma_setup(sc);
+	if (error != 0) {
+		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
+		    error);
+		goto bad;
+	}
+
+	/*
+	 * Allocate RX descriptors and populate the lists.
+	 */
+	error = ath_rxdma_setup(sc);
+	if (error != 0) {
+		if_printf(ifp, "failed to allocate RX descriptors: %d\n",
+		    error);
+		goto bad;
+	}
+
 	callout_init_mtx(&sc->sc_cal_ch, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_wd_ch, &sc->sc_mtx, 0);
 
@@ -376,7 +406,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", ifp->if_xname);
 
-	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_tasklet, sc);
+	TASK_INIT(&sc->sc_rxtask, 0, sc->sc_rx.recv_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
@@ -842,6 +872,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 bad2:
 	ath_tx_cleanup(sc);
 	ath_desc_free(sc);
+	ath_txdma_teardown(sc);
+	ath_rxdma_teardown(sc);
 bad:
 	if (ah)
 		ath_hal_detach(ah);
@@ -884,6 +916,8 @@ ath_detach(struct ath_softc *sc)
 
 	ath_dfs_detach(sc);
 	ath_desc_free(sc);
+	ath_txdma_teardown(sc);
+	ath_rxdma_teardown(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
 	if_free(ifp);
@@ -1603,7 +1637,11 @@ ath_intr(void *arg)
 			/* bump tx trigger level */
 			ath_hal_updatetxtriglevel(ah, AH_TRUE);
 		}
-		if (status & HAL_INT_RX) {
+		/*
+		 * Handle both the legacy and RX EDMA interrupt bits.
+		 * Note that HAL_INT_RXLP is also HAL_INT_RXDESC.
+		 */
+		if (status & (HAL_INT_RX | HAL_INT_RXHP | HAL_INT_RXLP)) {
 			sc->sc_stats.ast_rx_intr++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
 		}
@@ -1849,6 +1887,14 @@ ath_init(void *arg)
 	sc->sc_imask = HAL_INT_RX | HAL_INT_TX
 		  | HAL_INT_RXEOL | HAL_INT_RXORN
 		  | HAL_INT_FATAL | HAL_INT_GLOBAL;
+
+	/*
+	 * Enable RX EDMA bits.  Note these overlap with
+	 * HAL_INT_RX and HAL_INT_RXDESC respectively.
+	 */
+	if (sc->sc_isedma)
+		sc->sc_imask |= (HAL_INT_RXHP | HAL_INT_RXLP);
+
 	/*
 	 * Enable MIB interrupts when there are hardware phy counters.
 	 * Note we only do this (at the moment) for station mode.
@@ -2100,7 +2146,7 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * That way frames aren't dropped which shouldn't be.
 	 */
 	ath_stoprecv(sc, (reset_type != ATH_RESET_NOLOSS));
-	ath_rx_proc(sc, 0);
+	ath_rx_flush(sc);
 
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
@@ -2582,6 +2628,13 @@ ath_mode_init(struct ath_softc *sc)
 	/* configure operational mode */
 	ath_hal_setopmode(ah);
 
+	DPRINTF(sc, ATH_DEBUG_STATE | ATH_DEBUG_MODE,
+	    "%s: ah=%p, ifp=%p, if_addr=%p\n",
+	    __func__,
+	    ah,
+	    ifp,
+	    (ifp == NULL) ? NULL : ifp->if_addr);
+
 	/* handle any link-level address change */
 	ath_hal_setmac(ah, IF_LLADDR(ifp));
 
@@ -2712,28 +2765,32 @@ ath_load_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	*paddr = segs->ds_addr;
 }
 
-static int
-ath_descdma_setup(struct ath_softc *sc,
+/*
+ * Allocate the descriptors and appropriate DMA tag/setup.
+ *
+ * For some situations (eg EDMA TX completion), there isn't a requirement
+ * for the ath_buf entries to be allocated.
+ */
+int
+ath_descdma_alloc_desc(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head,
-	const char *name, int nbuf, int ndesc)
+	const char *name, int ds_size, int ndesc)
 {
 #define	DS2PHYS(_dd, _ds) \
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
 	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
 	struct ifnet *ifp = sc->sc_ifp;
-	uint8_t *ds;
-	struct ath_buf *bf;
-	int i, bsize, error;
-	int desc_len;
+	int error;
 
-	desc_len = sizeof(struct ath_desc);
+	dd->dd_descsize = ds_size;
 
-	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA: %u buffers %u desc/buf\n",
-	    __func__, name, nbuf, ndesc);
+	DPRINTF(sc, ATH_DEBUG_RESET,
+	    "%s: %s DMA: %u desc, %d bytes per descriptor\n",
+	    __func__, name, ndesc, dd->dd_descsize);
 
 	dd->dd_name = name;
-	dd->dd_desc_len = desc_len * nbuf * ndesc;
+	dd->dd_desc_len = dd->dd_descsize * ndesc;
 
 	/*
 	 * Merlin work-around:
@@ -2741,8 +2798,8 @@ ath_descdma_setup(struct ath_softc *sc,
 	 * Assume one skipped descriptor per 4KB page.
 	 */
 	if (! ath_hal_split4ktrans(sc->sc_ah)) {
-		int numdescpage = 4096 / (desc_len * ndesc);
-		dd->dd_desc_len = (nbuf / numdescpage + 1) * 4096;
+		int numpages = dd->dd_desc_len / 4096;
+		dd->dd_desc_len += ds_size * numpages;
 	}
 
 	/*
@@ -2778,7 +2835,7 @@ ath_descdma_setup(struct ath_softc *sc,
 				 &dd->dd_dmamap);
 	if (error != 0) {
 		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
-			"error %u\n", nbuf * ndesc, dd->dd_name, error);
+			"error %u\n", ndesc, dd->dd_name, error);
 		goto fail1;
 	}
 
@@ -2792,10 +2849,49 @@ ath_descdma_setup(struct ath_softc *sc,
 		goto fail2;
 	}
 
-	ds = (uint8_t *) dd->dd_desc;
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
-	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    __func__, dd->dd_name, (uint8_t *) dd->dd_desc,
+	    (u_long) dd->dd_desc_len, (caddr_t) dd->dd_desc_paddr,
+	    /*XXX*/ (u_long) dd->dd_desc_len);
+
+	return (0);
+
+fail2:
+	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
+fail1:
+	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
+fail0:
+	bus_dma_tag_destroy(dd->dd_dmat);
+	memset(dd, 0, sizeof(*dd));
+	return error;
+#undef DS2PHYS
+#undef ATH_DESC_4KB_BOUND_CHECK
+}
+
+int
+ath_descdma_setup(struct ath_softc *sc,
+	struct ath_descdma *dd, ath_bufhead *head,
+	const char *name, int ds_size, int nbuf, int ndesc)
+{
+#define	DS2PHYS(_dd, _ds) \
+	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
+#define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
+	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
+	struct ifnet *ifp = sc->sc_ifp;
+	uint8_t *ds;
+	struct ath_buf *bf;
+	int i, bsize, error;
+
+	/* Allocate descriptors */
+	error = ath_descdma_alloc_desc(sc, dd, head, name, ds_size,
+	    nbuf * ndesc);
+
+	/* Assume any errors during allocation were dealt with */
+	if (error != 0) {
+		return (error);
+	}
+
+	ds = (uint8_t *) dd->dd_desc;
 
 	/* allocate rx buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
@@ -2808,7 +2904,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	dd->dd_bufptr = bf;
 
 	TAILQ_INIT(head);
-	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * desc_len)) {
+	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * dd->dd_descsize)) {
 		bf->bf_desc = (struct ath_desc *) ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
 		if (! ath_hal_split4ktrans(sc->sc_ah)) {
@@ -2818,7 +2914,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			 * in the descriptor.
 			 */
 			 if (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr,
-			     desc_len * ndesc)) {
+			     dd->dd_descsize)) {
 				/* Start at the next page */
 				ds += 0x1000 - (bf->bf_daddr & 0xFFF);
 				bf->bf_desc = (struct ath_desc *) ds;
@@ -2836,14 +2932,18 @@ ath_descdma_setup(struct ath_softc *sc,
 		bf->bf_lastds = bf->bf_desc;	/* Just an initial value */
 		TAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
+
+	/*
+	 * XXX TODO: ensure that ds doesn't overflow the descriptor
+	 * allocation otherwise weird stuff will occur and crash your
+	 * machine.
+	 */
 	return 0;
+	/* XXX this should likely just call ath_descdma_cleanup() */
 fail3:
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
-fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-fail1:
 	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -2851,39 +2951,109 @@ fail0:
 #undef ATH_DESC_4KB_BOUND_CHECK
 }
 
-static void
+/*
+ * Allocate ath_buf entries but no descriptor contents.
+ *
+ * This is for RX EDMA where the descriptors are the header part of
+ * the RX buffer.
+ */
+int
+ath_descdma_setup_rx_edma(struct ath_softc *sc,
+	struct ath_descdma *dd, ath_bufhead *head,
+	const char *name, int nbuf, int rx_status_len)
+{
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ath_buf *bf;
+	int i, bsize, error;
+
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA: %u buffers\n",
+	    __func__, name, nbuf);
+
+	dd->dd_name = name;
+	/*
+	 * This is (mostly) purely for show.  We're not allocating any actual
+	 * descriptors here as EDMA RX has the descriptor be part
+	 * of the RX buffer.
+	 *
+	 * However, dd_desc_len is used by ath_descdma_free() to determine
+	 * whether we have already freed this DMA mapping.
+	 */
+	dd->dd_desc_len = rx_status_len * nbuf;
+	dd->dd_descsize = rx_status_len;
+
+	/* allocate rx buffers */
+	bsize = sizeof(struct ath_buf) * nbuf;
+	bf = malloc(bsize, M_ATHDEV, M_NOWAIT | M_ZERO);
+	if (bf == NULL) {
+		if_printf(ifp, "malloc of %s buffers failed, size %u\n",
+			dd->dd_name, bsize);
+		error = ENOMEM;
+		goto fail3;
+	}
+	dd->dd_bufptr = bf;
+
+	TAILQ_INIT(head);
+	for (i = 0; i < nbuf; i++, bf++) {
+		bf->bf_desc = NULL;
+		bf->bf_daddr = 0;
+		bf->bf_lastds = NULL;	/* Just an initial value */
+
+		error = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT,
+				&bf->bf_dmamap);
+		if (error != 0) {
+			if_printf(ifp, "unable to create dmamap for %s "
+				"buffer %u, error %u\n", dd->dd_name, i, error);
+			ath_descdma_cleanup(sc, dd, head);
+			return error;
+		}
+		TAILQ_INSERT_TAIL(head, bf, bf_list);
+	}
+	return 0;
+fail3:
+	memset(dd, 0, sizeof(*dd));
+	return error;
+}
+
+void
 ath_descdma_cleanup(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head)
 {
 	struct ath_buf *bf;
 	struct ieee80211_node *ni;
 
-	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
-	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-	bus_dma_tag_destroy(dd->dd_dmat);
+	if (dd->dd_dmamap != 0) {
+		bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
+		bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
+		bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
+		bus_dma_tag_destroy(dd->dd_dmat);
+	}
 
-	TAILQ_FOREACH(bf, head, bf_list) {
-		if (bf->bf_m) {
-			m_freem(bf->bf_m);
-			bf->bf_m = NULL;
-		}
-		if (bf->bf_dmamap != NULL) {
-			bus_dmamap_destroy(sc->sc_dmat, bf->bf_dmamap);
-			bf->bf_dmamap = NULL;
-		}
-		ni = bf->bf_node;
-		bf->bf_node = NULL;
-		if (ni != NULL) {
-			/*
-			 * Reclaim node reference.
-			 */
-			ieee80211_free_node(ni);
+	if (head != NULL) {
+		TAILQ_FOREACH(bf, head, bf_list) {
+			if (bf->bf_m) {
+				m_freem(bf->bf_m);
+				bf->bf_m = NULL;
+			}
+			if (bf->bf_dmamap != NULL) {
+				bus_dmamap_destroy(sc->sc_dmat, bf->bf_dmamap);
+				bf->bf_dmamap = NULL;
+			}
+			ni = bf->bf_node;
+			bf->bf_node = NULL;
+			if (ni != NULL) {
+				/*
+				 * Reclaim node reference.
+				 */
+				ieee80211_free_node(ni);
+			}
 		}
 	}
 
-	TAILQ_INIT(head);
-	free(dd->dd_bufptr, M_ATHDEV);
+	if (head != NULL)
+		TAILQ_INIT(head);
+
+	if (dd->dd_bufptr != NULL)
+		free(dd->dd_bufptr, M_ATHDEV);
 	memset(dd, 0, sizeof(*dd));
 }
 
@@ -2892,23 +3062,17 @@ ath_desc_alloc(struct ath_softc *sc)
 {
 	int error;
 
-	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
-			"rx", ath_rxbuf, 1);
-	if (error != 0)
-		return error;
-
 	error = ath_descdma_setup(sc, &sc->sc_txdma, &sc->sc_txbuf,
-			"tx", ath_txbuf, ATH_TXDESC);
+		    "tx", sc->sc_tx_desclen, ath_txbuf, ATH_TXDESC);
 	if (error != 0) {
-		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 		return error;
 	}
 	sc->sc_txbuf_cnt = ath_txbuf;
 
 	error = ath_descdma_setup(sc, &sc->sc_txdma_mgmt, &sc->sc_txbuf_mgmt,
-			"tx_mgmt", ath_txbuf_mgmt, ATH_TXDESC);
+		    "tx_mgmt", sc->sc_tx_desclen, ath_txbuf_mgmt,
+		    ATH_TXDESC);
 	if (error != 0) {
-		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		return error;
 	}
@@ -2919,9 +3083,8 @@ ath_desc_alloc(struct ath_softc *sc)
 	 */
 
 	error = ath_descdma_setup(sc, &sc->sc_bdma, &sc->sc_bbuf,
-			"beacon", ATH_BCBUF, 1);
+			"beacon", sc->sc_tx_desclen, ATH_BCBUF, 1);
 	if (error != 0) {
-		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
 		    &sc->sc_txbuf_mgmt);
@@ -2938,8 +3101,6 @@ ath_desc_free(struct ath_softc *sc)
 		ath_descdma_cleanup(sc, &sc->sc_bdma, &sc->sc_bbuf);
 	if (sc->sc_txdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
-	if (sc->sc_rxdma.dd_desc_len != 0)
-		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 	if (sc->sc_txdma_mgmt.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
 		    &sc->sc_txbuf_mgmt);
@@ -4018,7 +4179,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		/*
 		 * First, handle completed TX/RX frames.
 		 */
-		ath_rx_proc(sc, 0);
+		ath_rx_flush(sc);
 		ath_draintxq(sc, ATH_RESET_NOLOSS);
 		/*
 		 * Next, flush the non-scheduled frames.
@@ -4834,6 +4995,43 @@ ath_watchdog(void *arg)
 	callout_schedule(&sc->sc_wd_ch, hz);
 }
 
+/*
+ * Fetch the rate control statistics for the given node.
+ */
+static int
+ath_ioctl_ratestats(struct ath_softc *sc, struct ath_rateioctl *rs)
+{
+	struct ath_node *an;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211_node *ni;
+	int error = 0;
+
+	/* Perform a lookup on the given node */
+	ni = ieee80211_find_node(&ic->ic_sta, rs->is_u.macaddr);
+	if (ni == NULL) {
+		error = EINVAL;
+		goto bad;
+	}
+
+	/* Lock the ath_node */
+	an = ATH_NODE(ni);
+	ATH_NODE_LOCK(an);
+
+	/* Fetch the rate control stats for this node */
+	error = ath_rate_fetch_node_stats(sc, an, rs);
+
+	/* No matter what happens here, just drop through */
+
+	/* Unlock the ath_node */
+	ATH_NODE_UNLOCK(an);
+
+	/* Unref the node */
+	ieee80211_node_decref(ni);
+
+bad:
+	return (error);
+}
+
 #ifdef ATH_DIAGAPI
 /*
  * Diagnostic interface to the HAL.  This is used by various
@@ -4982,6 +5180,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ath_ioctl_phyerr(sc,(struct ath_diag*) ifr);
 		break;
 #endif
+	case SIOCGATHNODERATESTATS:
+		error = ath_ioctl_ratestats(sc, (struct ath_rateioctl *) ifr);
+		break;
 	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;

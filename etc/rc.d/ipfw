@@ -57,6 +57,10 @@ ipfw_start()
 		echo 'Firewall logging enabled.'
 		sysctl net.inet.ip.fw.verbose=1 >/dev/null
 	fi
+	if checkyesno firewall_logif; then
+		ifconfig ipfw0 create
+		echo 'Firewall logging pseudo-interface (ipfw0) created.'
+	fi
 }
 
 ipfw_poststart()

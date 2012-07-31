@@ -95,7 +95,7 @@ inline void prefetch (const void *x)
         __asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
 }
 
-// XXX only for multiples of 32 bytes, non overlapped.
+// XXX only for multiples of 64 bytes, non overlapped.
 static inline void
 pkt_copy(void *_src, void *_dst, int l)
 {
@@ -191,6 +191,7 @@ struct targ {
 	struct glob_arg *g;
 	int used;
 	int completed;
+	int cancel;
 	int fd;
 	struct nmreq nmr;
 	struct netmap_if *nifp;
@@ -221,15 +222,8 @@ static int global_nthreads;
 static void
 sigint_h(__unused int sig)
 {
-	for (int i = 0; i < global_nthreads; i++) {
-		/* cancel active threads. */
-		if (targs[i].used == 0)
-			continue;
-
-		D("Cancelling thread #%d\n", i);
-		pthread_cancel(targs[i].thread);
-		targs[i].used = 0;
-	}
+	for (int i = 0; i < global_nthreads; i++)
+		targs[i].cancel = 1;
 
 	signal(SIGINT, SIG_DFL);
 }
@@ -478,9 +472,14 @@ sender_body(void *data)
 	struct pollfd fds[1];
 	struct netmap_if *nifp = targ->nifp;
 	struct netmap_ring *txring;
-	int i, n = targ->g->npackets / targ->g->nthreads, sent = 0;
+	int i, pkts_per_td = targ->g->npackets / targ->g->nthreads, sent = 0;
+	int continuous = 0;
 	int options = targ->g->options | OPT_COPY;
 D("start");
+	if (pkts_per_td == 0) {
+		continuous = 1;
+		pkts_per_td = 100000;
+	}
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
 	/* setup poll(2) mechanism. */
@@ -495,7 +494,7 @@ D("start");
 	void *pkt = &targ->pkt;
 	pcap_t *p = targ->g->p;
 
-	for (i = 0; sent < n; i++) {
+	for (i = 0; (sent < pkts_per_td && !targ->cancel) || continuous; i++) {
 		if (pcap_inject(p, pkt, size) != -1)
 			sent++;
 		if (i > 10000) {
@@ -504,12 +503,14 @@ D("start");
 		}
 	}
     } else {
-	while (sent < n) {
+	while (sent < pkts_per_td || continuous) {
 
 		/*
 		 * wait for available room in the send queue(s)
 		 */
 		if (poll(fds, 1, 2000) <= 0) {
+			if (targ->cancel)
+				break;
 			D("poll error/timeout on queue %d\n", targ->me);
 			goto quit;
 		}
@@ -518,8 +519,10 @@ D("start");
 		 */
 		if (sent > 100000 && !(targ->g->options & OPT_COPY) )
 			options &= ~OPT_COPY;
-		for (i = targ->qfirst; i < targ->qlast; i++) {
-			int m, limit = MIN(n - sent, targ->g->burst);
+		for (i = targ->qfirst; i < targ->qlast && !targ->cancel; i++) {
+			int m, limit = targ->g->burst;
+			if (!continuous && pkts_per_td - sent < limit)
+				limit = pkts_per_td - sent;
 
 			txring = NETMAP_TXRING(nifp, i);
 			if (txring->avail == 0)
@@ -529,6 +532,8 @@ D("start");
 			sent += m;
 			targ->count = sent;
 		}
+		if (targ->cancel)
+			break; 
 	}
 	/* flush any remaining packets */
 	ioctl(fds[0].fd, NIOCTXSYNC, NULL);
@@ -604,7 +609,7 @@ receiver_body(void *data)
 	fds[0].events = (POLLIN);
 
 	/* unbounded wait for the first packet. */
-	for (;;) {
+	while (!targ->cancel) {
 		i = poll(fds, 1, 1000);
 		if (i > 0 && !(fds[0].revents & POLLERR))
 			break;
@@ -614,11 +619,11 @@ receiver_body(void *data)
 	/* main loop, exit after 1s silence */
 	gettimeofday(&targ->tic, NULL);
     if (targ->g->use_pcap) {
-	for (;;) {
+	while (!targ->cancel) {
 		pcap_dispatch(targ->g->p, targ->g->burst, receive_pcap, NULL);
 	}
     } else {
-	while (1) {
+	while (!targ->cancel) {
 		/* Once we started to receive packets, wait at most 1 seconds
 		   before quitting. */
 		if (poll(fds, 1, 1 * 1000) <= 0) {
@@ -655,27 +660,41 @@ quit:
 	return (NULL);
 }
 
+static char *
+scaled_val(double val)
+{
+	static char buf[64];
+	const char *units[] = {"", "K", "M", "G"};
+	int i = 0;
+
+	while (val >= 1000 && i < 3) {
+		val /= 1000;
+		i++;
+	}
+	snprintf(buf, sizeof(buf), "%.2f%s", val, units[i]);
+	return (buf);
+}
+
 static void
 tx_output(uint64_t sent, int size, double delta)
 {
-	double amount = 8.0 * (1.0 * size * sent) / delta;
+	uint64_t bytes_sent = sent * size;
+	double bw = 8.0 * bytes_sent / delta;
 	double pps = sent / delta;
-	char units[4] = { '\0', 'K', 'M', 'G' };
-	int aunit = 0, punit = 0;
-
-	while (amount >= 1000) {
-		amount /= 1000;
-		aunit += 1;
-	}
-	while (pps >= 1000) {
-		pps /= 1000;
-		punit += 1;
-	}
+	/*
+	 * Assume Ethernet overhead of 24 bytes per packet excluding header:
+	 * FCS       4 bytes
+	 * Preamble  8 bytes
+	 * IFG      12 bytes
+	 */
+	double bw_with_overhead = 8.0 * (bytes_sent + sent * 24) / delta;
 
 	printf("Sent %" PRIu64 " packets, %d bytes each, in %.2f seconds.\n",
 	       sent, size, delta);
-	printf("Speed: %.2f%cpps. Bandwidth: %.2f%cbps.\n",
-	       pps, units[punit], amount, units[aunit]);
+	printf("Speed: %spps. ", scaled_val(pps));
+	printf("Bandwidth: %sbps ", scaled_val(bw));
+	printf("(%sbps with overhead).\n", scaled_val(bw_with_overhead));
+
 }
 
 
@@ -704,7 +723,7 @@ usage(void)
 		"Usage:\n"
 		"%s arguments\n"
 		"\t-i interface		interface name\n"
-		"\t-t pkts_to_send	also forces send mode\n"
+		"\t-t pkts_to_send	also forces send mode, 0 = continuous\n"
 		"\t-r pkts_to_receive	also forces receive mode\n"
 		"\t-l pkts_size		in bytes excluding CRC\n"
 		"\t-d dst-ip		end with %%n to sweep n addresses\n"

@@ -1197,7 +1197,7 @@ cross-tools:
 #
 # hierarchy - ensure that all the needed directories are present
 #
-hierarchy:
+hierarchy hier:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
 
 #

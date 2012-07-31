@@ -73,10 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	ldmxcsr(csr)		__asm __volatile("ldmxcsr %0" : : "m" (csr))
-#define	start_emulating()	__asm __volatile( \
-				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				    : : "n" (CR0_TS) : "ax")
-#define	stop_emulating()	__asm __volatile("clts")
+#define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : : "m" (*(addr)))
 
 static __inline void
 xrstor(char *addr, uint64_t mask)
@@ -85,9 +82,7 @@ xrstor(char *addr, uint64_t mask)
 
 	low = mask;
 	hi = mask >> 32;
-	/* xrstor (%rdi) */
-	__asm __volatile(".byte	0x0f,0xae,0x2f" : :
-	    "a" (low), "d" (hi), "D" (addr));
+	__asm __volatile("xrstor %0" : : "m" (*addr), "a" (low), "d" (hi));
 }
 
 static __inline void
@@ -97,20 +92,8 @@ xsave(char *addr, uint64_t mask)
 
 	low = mask;
 	hi = mask >> 32;
-	/* xsave (%rdi) */
-	__asm __volatile(".byte	0x0f,0xae,0x27" : :
-	    "a" (low), "d" (hi), "D" (addr) : "memory");
-}
-
-static __inline void
-xsetbv(uint32_t reg, uint64_t val)
-{
-	uint32_t low, hi;
-
-	low = val;
-	hi = val >> 32;
-	__asm __volatile(".byte 0x0f,0x01,0xd1" : :
-	    "c" (reg), "a" (low), "d" (hi));
+	__asm __volatile("xsave %0" : "=m" (*addr) : "a" (low), "d" (hi) :
+	    "memory");
 }
 
 #else	/* !(__GNUCLIKE_ASM && !lint) */
@@ -123,16 +106,14 @@ void	fnstsw(caddr_t addr);
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
 void	ldmxcsr(u_int csr);
-void	start_emulating(void);
-void	stop_emulating(void);
+void	stmxcsr(u_int csr);
 void	xrstor(char *addr, uint64_t mask);
 void	xsave(char *addr, uint64_t mask);
-void	xsetbv(uint32_t reg, uint64_t val);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
 
-#define GET_FPU_CW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_cw)
-#define GET_FPU_SW(thread) ((thread)->td_pcb->pcb_save->sv_env.en_sw)
+#define	start_emulating()	load_cr0(rcr0() | CR0_TS)
+#define	stop_emulating()	clts()
 
 CTASSERT(sizeof(struct savefpu) == 512);
 CTASSERT(sizeof(struct xstate_hdr) == 64);
@@ -150,9 +131,15 @@ static	void	fpu_clean_state(void);
 SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
     NULL, 1, "Floating point instructions executed in hardware");
 
+static int use_xsaveopt;
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
 static	struct savefpu *fpu_initialstate;
+
+struct xsave_area_elm_descr {
+	u_int	offset;
+	u_int	size;
+} *xsave_area_desc;
 
 void
 fpusave(void *addr)
@@ -200,6 +187,17 @@ fpuinit_bsp1(void)
 	TUNABLE_ULONG_FETCH("hw.xsave_mask", &xsave_mask_user);
 	xsave_mask_user |= XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE;
 	xsave_mask &= xsave_mask_user;
+
+	cpuid_count(0xd, 0x1, cp);
+	if ((cp[0] & CPUID_EXTSTATE_XSAVEOPT) != 0) {
+		/*
+		 * Patch the XSAVE instruction in the cpu_switch code
+		 * to XSAVEOPT.  We assume that XSAVE encoding used
+		 * REX byte, and set the bit 4 of the r/m byte.
+		 */
+		ctx_switch_xsave[3] |= 0x10;
+		use_xsaveopt = 1;
+	}
 }
 
 /*
@@ -238,7 +236,7 @@ fpuinit(void)
 
 	if (use_xsave) {
 		load_cr4(rcr4() | CR4_XSAVE);
-		xsetbv(XCR0, xsave_mask);
+		load_xcr(XCR0, xsave_mask);
 	}
 
 	/*
@@ -270,6 +268,7 @@ static void
 fpuinitstate(void *arg __unused)
 {
 	register_t saveintr;
+	int cp[4], i, max_ext_n;
 
 	fpu_initialstate = malloc(cpu_max_ext_state_size, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -291,6 +290,28 @@ fpuinitstate(void *arg __unused)
 	 */
 	bzero(&fpu_initialstate->sv_xmm[0], sizeof(struct xmmacc));
 
+	/*
+	 * Create a table describing the layout of the CPU Extended
+	 * Save Area.
+	 */
+	if (use_xsaveopt) {
+		max_ext_n = flsl(xsave_mask);
+		xsave_area_desc = malloc(max_ext_n * sizeof(struct
+		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
+		/* x87 state */
+		xsave_area_desc[0].offset = 0;
+		xsave_area_desc[0].size = 160;
+		/* XMM */
+		xsave_area_desc[1].offset = 160;
+		xsave_area_desc[1].size = 288 - 160;
+
+		for (i = 2; i < max_ext_n; i++) {
+			cpuid_count(0xd, i, cp);
+			xsave_area_desc[i].offset = cp[1];
+			xsave_area_desc[i].size = cp[0];
+		}
+	}
+
 	start_emulating();
 	intr_restore(saveintr);
 }
@@ -306,7 +327,7 @@ fpuexit(struct thread *td)
 	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread)) {
 		stop_emulating();
-		fpusave(PCPU_GET(curpcb)->pcb_save);
+		fpusave(curpcb->pcb_save);
 		start_emulating();
 		PCPU_SET(fpcurthread, 0);
 	}
@@ -492,25 +513,26 @@ static char fpetable[128] = {
 };
 
 /*
- * Preserve the FP status word, clear FP exceptions, then generate a SIGFPE.
+ * Read the FP status and control words, then generate si_code value
+ * for SIGFPE.  The error code chosen will be one of the
+ * FPE_... macros.  It will be sent as the second argument to old
+ * BSD-style signal handlers and as "siginfo_t->si_code" (second
+ * argument) to SA_SIGINFO signal handlers.
  *
- * Clearing exceptions is necessary mainly to avoid IRQ13 bugs.  We now
- * depend on longjmp() restoring a usable state.  Restoring the state
- * or examining it might fail if we didn't clear exceptions.
+ * Some time ago, we cleared the x87 exceptions with FNCLEX there.
+ * Clearing exceptions was necessary mainly to avoid IRQ13 bugs.  The
+ * usermode code which understands the FPU hardware enough to enable
+ * the exceptions, can also handle clearing the exception state in the
+ * handler.  The only consequence of not clearing the exception is the
+ * rethrow of the SIGFPE on return from the signal handler and
+ * reexecution of the corresponding instruction.
  *
- * The error code chosen will be one of the FPE_... macros. It will be
- * sent as the second argument to old BSD-style signal handlers and as
- * "siginfo_t->si_code" (second argument) to SA_SIGINFO signal handlers.
- *
- * XXX the FP state is not preserved across signal handlers.  So signal
- * handlers cannot afford to do FP unless they preserve the state or
- * longjmp() out.  Both preserving the state and longjmp()ing may be
- * destroyed by IRQ13 bugs.  Clearing FP exceptions is not an acceptable
- * solution for signals other than SIGFPE.
+ * For XMM traps, the exceptions were never cleared.
  */
 int
-fputrap()
+fputrap_x87(void)
 {
+	struct savefpu *pcb_save;
 	u_short control, status;
 
 	critical_enter();
@@ -521,17 +543,30 @@ fputrap()
 	 * wherever they are.
 	 */
 	if (PCPU_GET(fpcurthread) != curthread) {
-		control = GET_FPU_CW(curthread);
-		status = GET_FPU_SW(curthread);
+		pcb_save = curpcb->pcb_save;
+		control = pcb_save->sv_env.en_cw;
+		status = pcb_save->sv_env.en_sw;
 	} else {
 		fnstcw(&control);
 		fnstsw(&status);
 	}
 
-	if (PCPU_GET(fpcurthread) == curthread)
-		fnclex();
 	critical_exit();
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
+}
+
+int
+fputrap_sse(void)
+{
+	u_int mxcsr;
+
+	critical_enter();
+	if (PCPU_GET(fpcurthread) != curthread)
+		mxcsr = curpcb->pcb_save->sv_env.en_mxcsr;
+	else
+		stmxcsr(&mxcsr);
+	critical_exit();
+	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
 }
 
 /*
@@ -547,7 +582,6 @@ static int err_count = 0;
 void
 fpudna(void)
 {
-	struct pcb *pcb;
 
 	critical_enter();
 	if (PCPU_GET(fpcurthread) == curthread) {
@@ -569,26 +603,31 @@ fpudna(void)
 	 * Record new context early in case frstor causes a trap.
 	 */
 	PCPU_SET(fpcurthread, curthread);
-	pcb = PCPU_GET(curpcb);
 
 	fpu_clean_state();
 
-	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
+	if ((curpcb->pcb_flags & PCB_FPUINITDONE) == 0) {
 		/*
 		 * This is the first time this thread has used the FPU or
 		 * the PCB doesn't contain a clean FPU state.  Explicitly
 		 * load an initial state.
+		 *
+		 * We prefer to restore the state from the actual save
+		 * area in PCB instead of directly loading from
+		 * fpu_initialstate, to ignite the XSAVEOPT
+		 * tracking engine.
 		 */
-		fpurestore(fpu_initialstate);
-		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
-			fldcw(pcb->pcb_initial_fpucw);
-		if (PCB_USER_FPU(pcb))
-			set_pcb_flags(pcb,
+		bcopy(fpu_initialstate, curpcb->pcb_save, cpu_max_ext_state_size);
+		fpurestore(curpcb->pcb_save);
+		if (curpcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
+			fldcw(curpcb->pcb_initial_fpucw);
+		if (PCB_USER_FPU(curpcb))
+			set_pcb_flags(curpcb,
 			    PCB_FPUINITDONE | PCB_USERFPUINITDONE);
 		else
-			set_pcb_flags(pcb, PCB_FPUINITDONE);
+			set_pcb_flags(curpcb, PCB_FPUINITDONE);
 	} else
-		fpurestore(pcb->pcb_save);
+		fpurestore(curpcb->pcb_save);
 	critical_exit();
 }
 
@@ -614,6 +653,9 @@ int
 fpugetregs(struct thread *td)
 {
 	struct pcb *pcb;
+	uint64_t *xstate_bv, bit;
+	char *sa;
+	int max_ext_n, i;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_USERFPUINITDONE) == 0) {
@@ -631,6 +673,25 @@ fpugetregs(struct thread *td)
 		return (_MC_FPOWNED_FPU);
 	} else {
 		critical_exit();
+		if (use_xsaveopt) {
+			/*
+			 * Handle partially saved state.
+			 */
+			sa = (char *)get_pcb_user_save_pcb(pcb);
+			xstate_bv = (uint64_t *)(sa + sizeof(struct savefpu) +
+			    offsetof(struct xstate_hdr, xstate_bv));
+			max_ext_n = flsl(xsave_mask);
+			for (i = 0; i < max_ext_n; i++) {
+				bit = 1 << i;
+				if ((*xstate_bv & bit) != 0)
+					continue;
+				bcopy((char *)fpu_initialstate +
+				    xsave_area_desc[i].offset,
+				    sa + xsave_area_desc[i].offset,
+				    xsave_area_desc[i].size);
+				*xstate_bv |= bit;
+			}
+		}
 		return (_MC_FPOWNED_PCB);
 	}
 }
@@ -900,16 +961,14 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 int
 fpu_kern_thread(u_int flags)
 {
-	struct pcb *pcb;
 
-	pcb = PCPU_GET(curpcb);
 	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
 	    ("Only kthread may use fpu_kern_thread"));
-	KASSERT(pcb->pcb_save == get_pcb_user_save_pcb(pcb),
+	KASSERT(curpcb->pcb_save == get_pcb_user_save_pcb(curpcb),
 	    ("mangled pcb_save"));
-	KASSERT(PCB_USER_FPU(pcb), ("recursive call"));
+	KASSERT(PCB_USER_FPU(curpcb), ("recursive call"));
 
-	set_pcb_flags(pcb, PCB_KERNFPU);
+	set_pcb_flags(curpcb, PCB_KERNFPU);
 	return (0);
 }
 
@@ -919,5 +978,5 @@ is_fpu_kern_thread(u_int flags)
 
 	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
 		return (0);
-	return ((PCPU_GET(curpcb)->pcb_flags & PCB_KERNFPU) != 0);
+	return ((curpcb->pcb_flags & PCB_KERNFPU) != 0);
 }

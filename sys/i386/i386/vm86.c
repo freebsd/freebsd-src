@@ -143,9 +143,9 @@ vm86_emulate(vmf)
 	 * the extension is not present.  (This check should not be needed,
 	 * as we can't enter vm86 mode until we set up an extension area)
 	 */
-	if (PCPU_GET(curpcb)->pcb_ext == 0)
+	if (curpcb->pcb_ext == 0)
 		return (SIGBUS);
-	vm86 = &PCPU_GET(curpcb)->pcb_ext->ext_vm86;
+	vm86 = &curpcb->pcb_ext->ext_vm86;
 
 	if (vmf->vmf_eflags & PSL_T)
 		retcode = SIGTRAP;
@@ -535,7 +535,7 @@ vm86_prepcall(struct vm86frame *vmf)
 	vmf->kernel_fs = vmf->kernel_es = vmf->kernel_ds = 0;
 	vmf->vmf_eflags = PSL_VIF | PSL_VM | PSL_USER;
 
-	vm86 = &PCPU_GET(curpcb)->pcb_ext->ext_vm86;
+	vm86 = &curpcb->pcb_ext->ext_vm86;
 	if (!vm86->vm86_has_vme) 
 		vm86->vm86_eflags = vmf->vmf_eflags;  /* save VIF, VIP */
 }
@@ -650,7 +650,6 @@ vm86_getptr(vmc, kva, sel, off)
 			return (1);
 		}
 	return (0);
-	panic("vm86_getptr: address not found");
 }
 	
 int

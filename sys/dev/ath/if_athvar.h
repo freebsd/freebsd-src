@@ -189,6 +189,7 @@ struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_list;
 	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
+	HAL_STATUS		bf_rxstatus;
 	uint16_t		bf_flags;	/* status flags (below) */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
@@ -276,6 +277,7 @@ typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 struct ath_descdma {
 	const char*		dd_name;
 	struct ath_desc		*dd_desc;	/* descriptors */
+	int			dd_descsize;	/* size of single descriptor */
 	bus_addr_t		dd_desc_paddr;	/* physical addr of dd_desc */
 	bus_size_t		dd_desc_len;	/* size of dd_desc */
 	bus_dma_segment_t	dd_dseg;
@@ -372,6 +374,42 @@ typedef enum {
 	ATH_RESET_FULL = 2,
 } ATH_RESET_TYPE;
 
+struct ath_rx_methods {
+	void		(*recv_stop)(struct ath_softc *sc, int dodelay);
+	int		(*recv_start)(struct ath_softc *sc);
+	void		(*recv_flush)(struct ath_softc *sc);
+	void		(*recv_tasklet)(void *arg, int npending);
+	int		(*recv_rxbuf_init)(struct ath_softc *sc,
+			    struct ath_buf *bf);
+	int		(*recv_setup)(struct ath_softc *sc);
+	int		(*recv_teardown)(struct ath_softc *sc);
+};
+
+/*
+ * Represent the current state of the RX FIFO.
+ */
+struct ath_rx_edma {
+	struct ath_buf	**m_fifo;
+	int		m_fifolen;
+	int		m_fifo_head;
+	int		m_fifo_tail;
+	int		m_fifo_depth;
+	struct mbuf	*m_rxpending;
+};
+
+struct ath_tx_edma_fifo {
+	struct ath_buf	**m_fifo;
+	int		m_fifolen;
+	int		m_fifo_head;
+	int		m_fifo_tail;
+	int		m_fifo_depth;
+};
+
+struct ath_tx_methods {
+	int		(*xmit_setup)(struct ath_softc *sc);
+	int		(*xmit_teardown)(struct ath_softc *sc);
+};
+
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
@@ -385,6 +423,17 @@ struct ath_softc {
 	u_int8_t		sc_nbssid0;	/* # vap's using base mac */
 	uint32_t		sc_bssidmask;	/* bssid mask */
 
+	struct ath_rx_methods	sc_rx;
+	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
+	struct ath_tx_methods	sc_tx;
+	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
+
+	int			sc_rx_statuslen;
+	int			sc_tx_desclen;
+	int			sc_tx_statuslen;
+	int			sc_tx_nmaps;	/* Number of TX maps */
+	int			sc_edma_bufsize;
+
 	void 			(*sc_node_cleanup)(struct ieee80211_node *);
 	void 			(*sc_node_free)(struct ieee80211_node *);
 	device_t		sc_dev;
@@ -394,6 +443,8 @@ struct ath_softc {
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct mtx		sc_pcu_mtx;	/* PCU access mutex */
 	char			sc_pcu_mtx_name[32];
+	struct mtx		sc_rx_mtx;	/* RX access mutex */
+	char			sc_rx_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
@@ -428,7 +479,8 @@ struct ath_softc {
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
 				sc_resetcal : 1,/* reset cal state next trip */
 				sc_rxslink  : 1,/* do self-linked final descriptor */
-				sc_rxtsf32  : 1;/* RX dec TSF is 32 bits */
+				sc_rxtsf32  : 1,/* RX dec TSF is 32 bits */
+				sc_isedma   : 1;/* supports EDMA */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
@@ -499,7 +551,6 @@ struct ath_softc {
 
 	struct ath_descdma	sc_rxdma;	/* RX descriptors */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
-	struct mbuf		*sc_rxpending;	/* pending receive data */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	u_int8_t		sc_defant;	/* current default antenna */
@@ -515,6 +566,7 @@ struct ath_softc {
 	int			sc_txbuf_cnt;	/* how many buffers avail */
 	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */
 	ath_bufhead		sc_txbuf_mgmt;	/* mgmt transmit buffer */
+	struct ath_descdma	sc_txsdma;	/* EDMA TX status desc's */
 	struct mtx		sc_txbuflock;	/* txbuf lock */
 	char			sc_txname[12];	/* e.g. "ath0_buf" */
 	u_int			sc_txqsetup;	/* h/w queues setup */
@@ -523,6 +575,11 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+
+	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
+	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
+	char			sc_txcompname[12];	/* eg ath0_txcomp */
+
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
@@ -665,6 +722,28 @@ struct ath_softc {
 #define	ATH_PCU_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
 		MA_NOTOWNED)
 
+/*
+ * The RX lock is primarily a(nother) workaround to ensure that the
+ * RX FIFO/list isn't modified by various execution paths.
+ * Even though RX occurs in a single context (the ath taskqueue), the
+ * RX path can be executed via various reset/channel change paths.
+ */
+#define	ATH_RX_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_rx_mtx_name,					\
+	    sizeof((_sc)->sc_rx_mtx_name),				\
+	    "%s RX lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_rx_mtx, (_sc)->sc_rx_mtx_name,		\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_RX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_rx_mtx)
+#define	ATH_RX_LOCK(_sc)		mtx_lock(&(_sc)->sc_rx_mtx)
+#define	ATH_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_rx_mtx)
+#define	ATH_RX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_rx_mtx,	\
+		MA_OWNED)
+#define	ATH_RX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_rx_mtx,	\
+		MA_NOTOWNED)
+
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
 
 #define	ATH_TXBUF_LOCK_INIT(_sc) do { \
@@ -677,6 +756,19 @@ struct ath_softc {
 #define	ATH_TXBUF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txbuflock)
 #define	ATH_TXBUF_LOCK_ASSERT(_sc) \
 	mtx_assert(&(_sc)->sc_txbuflock, MA_OWNED)
+
+#define	ATH_TXSTATUS_LOCK_INIT(_sc) do { \
+	snprintf((_sc)->sc_txcompname, sizeof((_sc)->sc_txcompname), \
+		"%s_buf", \
+		device_get_nameunit((_sc)->sc_dev)); \
+	mtx_init(&(_sc)->sc_txcomplock, (_sc)->sc_txcompname, NULL, \
+		MTX_DEF); \
+} while (0)
+#define	ATH_TXSTATUS_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_LOCK(_sc)		mtx_lock(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_LOCK_ASSERT(_sc) \
+	mtx_assert(&(_sc)->sc_txcomplock, MA_OWNED)
 
 int	ath_attach(u_int16_t, struct ath_softc *);
 int	ath_detach(struct ath_softc *);
@@ -734,8 +826,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setMulticastFilter)((_ah), (_mfilt0), (_mfilt1)))
 #define	ath_hal_waitforbeacon(_ah, _bf) \
 	((*(_ah)->ah_waitForBeaconDone)((_ah), (_bf)->bf_daddr))
-#define	ath_hal_putrxbuf(_ah, _bufaddr) \
-	((*(_ah)->ah_setRxDP)((_ah), (_bufaddr)))
+#define	ath_hal_putrxbuf(_ah, _bufaddr, _rxq) \
+	((*(_ah)->ah_setRxDP)((_ah), (_bufaddr), (_rxq)))
 /* NB: common across all chips */
 #define	AR_TSF_L32	0x804c	/* MAC local clock lower 32 bits */
 #define	ath_hal_gettsf32(_ah) \
@@ -752,8 +844,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getTxDP)((_ah), (_q)))
 #define	ath_hal_numtxpending(_ah, _q) \
 	((*(_ah)->ah_numTxPending)((_ah), (_q)))
-#define	ath_hal_getrxbuf(_ah) \
-	((*(_ah)->ah_getRxDP)((_ah)))
+#define	ath_hal_getrxbuf(_ah, _rxq) \
+	((*(_ah)->ah_getRxDP)((_ah), (_rxq)))
 #define	ath_hal_txstart(_ah, _q) \
 	((*(_ah)->ah_startTxDma)((_ah), (_q)))
 #define	ath_hal_setchannel(_ah, _chan) \
@@ -942,8 +1034,34 @@ void	ath_intr(void *);
 #define	ath_hal_setintmit(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, \
 	HAL_CAP_INTMIT_ENABLE, _v, NULL)
+
+/* EDMA definitions */
+#define	ath_hal_hasedma(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ENHANCED_DMA_SUPPORT,	\
+	0, NULL) == HAL_OK)
+#define	ath_hal_getrxfifodepth(_ah, _qtype, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RXFIFODEPTH, _qtype, _req)	\
+	== HAL_OK)
+#define	ath_hal_getntxmaps(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_NUM_TXMAPS, 0, _req)	\
+	== HAL_OK)
+#define	ath_hal_gettxdesclen(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TXDESCLEN, 0, _req)		\
+	== HAL_OK)
+#define	ath_hal_gettxstatuslen(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TXSTATUSLEN, 0, _req)	\
+	== HAL_OK)
+#define	ath_hal_getrxstatuslen(_ah, _req) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RXSTATUSLEN, 0, _req)	\
+	== HAL_OK)
+#define	ath_hal_setrxbufsize(_ah, _req) \
+	(ath_hal_setcapability(_ah, HAL_CAP_RXBUFSIZE, 0, _req, NULL)	\
+	== HAL_OK)
+
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
+
+/* 802.11n HAL methods */
 #define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
 	(ath_hal_getcapability(_ah, HAL_CAP_RX_CHAINMASK, 0, _prxchainmask))
 #define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
@@ -985,6 +1103,15 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
 #define ath_hal_gettxcompletionrates(_ah, _ds, _rates, _tries) \
 	((*(_ah)->ah_getTxCompletionRates)((_ah), (_ds), (_rates), (_tries)))
+#define ath_hal_settxdesclink(_ah, _ds, _link) \
+	((*(_ah)->ah_setTxDescLink)((_ah), (_ds), (_link)))
+#define ath_hal_gettxdesclink(_ah, _ds, _link) \
+	((*(_ah)->ah_getTxDescLink)((_ah), (_ds), (_link)))
+#define ath_hal_gettxdesclinkptr(_ah, _ds, _linkptr) \
+	((*(_ah)->ah_getTxDescLinkPtr)((_ah), (_ds), (_linkptr)))
+#define	ath_hal_setuptxstatusring(_ah, _tsstart, _tspstart, _size) \
+	((*(_ah)->ah_setupTxStatusRing)((_ah), (_tsstart), (_tspstart), \
+		(_size)))
 
 #define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
@@ -1003,7 +1130,7 @@ void	ath_intr(void *);
 	(_series), (_ns), (_flags)))
 
 #define	ath_hal_set11n_aggr_first(_ah, _ds, _len, _num) \
-	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len), (_num)))
+	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len)))
 #define	ath_hal_set11naggrmiddle(_ah, _ds, _num) \
 	((*(_ah)->ah_set11nAggrMiddle)((_ah), (_ds), (_num)))
 #define	ath_hal_set11n_aggr_last(_ah, _ds) \

@@ -91,7 +91,7 @@ const char *nlsstr[] = { "",
       "[--heapsort] [--mergesort] [--radixsort] [--qsort] "
       "[--mmap] "
 #if defined(SORT_THREADS)
-      "[--nthreads thread_no] "
+      "[--parallel thread_no] "
 #endif
       "[--human-numeric-sort] "
       "[--version-sort] [--random-sort [--random-source file]] "
@@ -132,7 +132,7 @@ enum
 	VERSION_OPT,
 	DEBUG_OPT,
 #if defined(SORT_THREADS)
-	NTHREADS_OPT,
+	PARALLEL_OPT,
 #endif
 	RANDOMSOURCE_OPT,
 	COMPRESSPROGRAM_OPT,
@@ -171,7 +171,7 @@ struct option long_options[] = {
 				{ "numeric-sort", no_argument, NULL, 'n' },
 				{ "output", required_argument, NULL, 'o' },
 #if defined(SORT_THREADS)
-				{ "nthreads", required_argument, NULL, NTHREADS_OPT },
+				{ "parallel", required_argument, NULL, PARALLEL_OPT },
 #endif
 				{ "qsort", no_argument, NULL, QSORT_OPT },
 				{ "radixsort", no_argument, NULL, RADIXSORT_OPT },
@@ -1119,7 +1119,7 @@ main(int argc, char **argv)
 				}
 				break;
 #if defined(SORT_THREADS)
-			case NTHREADS_OPT:
+			case PARALLEL_OPT:
 				nthreads = (size_t)(atoi(optarg));
 				if (nthreads < 1)
 					nthreads = 1;

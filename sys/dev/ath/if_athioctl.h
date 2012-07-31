@@ -161,7 +161,9 @@ struct ath_stats {
 	u_int32_t	ast_tx_aggr_ok;		/* aggregate TX ok */
 	u_int32_t	ast_tx_aggr_fail;	/* aggregate TX failed */
 	u_int32_t	ast_tx_mcastq_overflow;	/* multicast queue overflow */
-	u_int32_t	ast_pad[1];
+	u_int32_t	ast_rx_keymiss;
+
+	u_int32_t	ast_pad[16];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
@@ -183,6 +185,52 @@ struct ath_diag {
 };
 #define	SIOCGATHDIAG	_IOWR('i', 138, struct ath_diag)
 #define	SIOCGATHPHYERR	_IOWR('i', 140, struct ath_diag)
+
+
+/*
+ * The rate control ioctl has to support multiple potential rate
+ * control classes.  For now, instead of trying to support an
+ * abstraction for this in the API, let's just use a TLV
+ * representation for the payload and let userspace sort it out.
+ */
+struct ath_rateioctl_tlv {
+	uint16_t	tlv_id;
+	uint16_t	tlv_len;	/* length excluding TLV header */
+};
+
+/*
+ * This is purely the six byte MAC address.
+ */
+#define	ATH_RATE_TLV_MACADDR		0xaab0
+
+/*
+ * The rate control modules may decide to push a mapping table
+ * of rix -> net80211 ratecode as part of the update.
+ */
+#define	ATH_RATE_TLV_RATETABLE_NENTRIES	64
+struct ath_rateioctl_rt {
+	uint16_t	nentries;
+	uint16_t	pad[1];
+	uint8_t		ratecode[ATH_RATE_TLV_RATETABLE_NENTRIES];
+};
+#define	ATH_RATE_TLV_RATETABLE		0xaab1
+
+/*
+ * This is the sample node statistics structure.
+ * More in ath_rate/sample/sample.h.
+ */
+#define	ATH_RATE_TLV_SAMPLENODE		0xaab2
+
+struct ath_rateioctl {
+	char	if_name[IFNAMSIZ];	/* if name */
+	union {
+		uint8_t		macaddr[IEEE80211_ADDR_LEN];
+		uint64_t	pad;
+	} is_u;
+	uint32_t		len;
+	caddr_t			buf;
+};
+#define	SIOCGATHNODERATESTATS	_IOWR('i', 149, struct ath_rateioctl)
 
 /*
  * Radio capture format.

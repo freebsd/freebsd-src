@@ -2193,6 +2193,7 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int flags)
 				zone->uz_flags |= UMA_ZFLAG_FULL;
 			if (flags & M_NOWAIT)
 				break;
+			zone->uz_sleeps++;
 			msleep(keg, &keg->uk_lock, PVM, "keglimit", 0);
 			continue;
 		}
@@ -3381,6 +3382,8 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 			    (uintmax_t)kz->uk_size,
 			    (intmax_t)(allocs - frees), cachefree,
 			    (uintmax_t)allocs, sleeps);
+			if (db_pager_quit)
+				return;
 		}
 	}
 }

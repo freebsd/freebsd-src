@@ -122,8 +122,10 @@ done_store_dr:
 1:	movq	%rdx,%rcx
 	movl	xsave_mask,%eax
 	movl	xsave_mask+4,%edx
-/*	xsave	(%r8) */
-	.byte	0x41,0x0f,0xae,0x20
+	.globl	ctx_switch_xsave
+ctx_switch_xsave:
+	/* This is patched to xsaveopt if supported, see fpuinit_bsp1() */
+	xsave	(%r8)
 	movq	%rcx,%rdx
 2:	smsw	%ax
 	orb	$CR0_TS,%al
@@ -499,10 +501,8 @@ ENTRY(resumectx)
 	movq	%rax,%rdx
 	shrq	$32,%rdx
 	movl	$XCR0,%ecx
-/*	xsetbv	*/
-	.byte	0x0f, 0x01, 0xd1
-/*	xrstor	(%rbx) */
-	.byte	0x0f, 0xae, 0x2b
+	xsetbv
+	xrstor	(%rbx)
 	jmp	2f
 1:
 	fxrstor	(%rbx)

@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc_internal.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <opt_enc.h>
-
 /*
  * SAF-TE Type Device Emulation
  */

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/board.h>
 #include <arm/at91/at91board.h>
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91var.h>
@@ -44,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #define AT91SAM9G20_LED_SIZE AT91SAM9G20_PIO_SIZE
 #define AT91SAM9G20_IRQ_LED AT91SAM9G20_IRQ_PIOA
 
-long
+BOARD_INIT long
 board_init(void)
 {
 
@@ -103,3 +104,5 @@ board_init(void)
 
 	return (at91_ramsize());
 }
+
+ARM_BOARD(QIL_A9G20, "Calico System QIL-9G20-Cxx");

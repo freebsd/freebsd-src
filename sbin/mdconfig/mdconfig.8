@@ -64,6 +64,11 @@
 .Fl u Ar unit
 .Op Fl o Oo Cm no Oc Ns Ar force
 .Nm
+.Fl r
+.Fl u Ar unit
+.Fl s Ar size
+.Op Fl o Oo Cm no Oc Ns Ar force
+.Nm
 .Fl l
 .Op Fl n
 .Op Fl v
@@ -85,6 +90,8 @@ This will configure and attach a memory disk with the
 parameters specified and attach it to the system.
 .It Fl d
 Detach a memory disk from the system and release all resources.
+.It Fl r
+Resize a memory disk.
 .It Fl t Ar type
 Select the type of the memory disk.
 .Bl -tag -width "malloc"
