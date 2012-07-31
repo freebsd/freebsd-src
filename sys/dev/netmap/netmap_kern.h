@@ -80,10 +80,6 @@
 #error unsupported platform
 #endif
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_NETMAP);
-#endif
-
 #define ND(format, ...)
 #define D(format, ...)						\
 	do {							\
