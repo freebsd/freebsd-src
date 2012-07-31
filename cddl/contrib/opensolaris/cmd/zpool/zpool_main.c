@@ -4409,6 +4409,7 @@ typedef struct upgrade_cbdata {
 	char	**cb_argv;
 } upgrade_cbdata_t;
 
+#ifdef __FreeBSD__
 static int
 is_root_pool(zpool_handle_t *zhp)
 {
@@ -4433,6 +4434,14 @@ is_root_pool(zpool_handle_t *zhp)
 	}
 	return (poolname != NULL && strcmp(poolname, zpool_get_name(zhp)) == 0);
 }
+
+static void
+root_pool_upgrade_check(zpool_handle_t *zhp, char *poolname, int size) {
+
+	if (poolname[0] == '\0' && is_root_pool(zhp))
+		(void) strlcpy(poolname, zpool_get_name(zhp), size);
+}
+#endif	/* FreeBSD */
 
 static int
 upgrade_version(zpool_handle_t *zhp, uint64_t version)
@@ -4524,12 +4533,8 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 		if (ret != 0)
 			return (ret);
 #ifdef __FreeBSD__
-		if (cbp->cb_poolname[0] == '\0' &&
-		    is_root_pool(zhp)) {
-			(void) strlcpy(cbp->cb_poolname,
-			    zpool_get_name(zhp),
-			    sizeof(cbp->cb_poolname));
-		}
+		root_pool_upgrade_check(zhp, cbp->cb_poolname,
+		    sizeof(cbp->cb_poolname));
 #endif	/* ___FreeBSD__ */
 		printnl = B_TRUE;
 
@@ -4682,17 +4687,12 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 	if (cur_version != cbp->cb_version) {
 		printnl = B_TRUE;
 		ret = upgrade_version(zhp, cbp->cb_version);
-		if (ret != 0) {
-#ifdef __FreeBSD__
-			if (cbp->cb_poolname[0] == '\0' &&
-			    is_root_pool(zhp)) {
-				(void) strlcpy(cbp->cb_poolname,
-				    zpool_get_name(zhp),
-				    sizeof(cbp->cb_poolname));
-			}
-#endif	/* ___FreeBSD__ */
+		if (ret != 0)
 			return (ret);
-		}
+#ifdef __FreeBSD__
+		root_pool_upgrade_check(zhp, cbp->cb_poolname,
+		    sizeof(cbp->cb_poolname));
+#endif	/* ___FreeBSD__ */
 	}
 
 	if (cbp->cb_version >= SPA_VERSION_FEATURES) {
@@ -4703,14 +4703,14 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 
 		if (count != 0) {
 			printnl = B_TRUE;
+#ifdef __FreeBSD__
+		root_pool_upgrade_check(zhp, cbp->cb_poolname,
+		    sizeof(cbp->cb_poolname));
+#endif	/* __FreeBSD __*/
 		} else if (cur_version == SPA_VERSION) {
 			(void) printf(gettext("Pool '%s' already has all "
 			    "supported features enabled.\n"),
 			    zpool_get_name(zhp));
-		}
-		if (cbp->cb_poolname[0] == '\0' && is_root_pool(zhp)) {
-			(void) strlcpy(cbp->cb_poolname, zpool_get_name(zhp),
-			    sizeof(cbp->cb_poolname));
 		}
 	}
 
