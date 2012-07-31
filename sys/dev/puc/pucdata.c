@@ -510,13 +510,15 @@ const struct puc_cfg puc_pci_devices[] = {
 	{   0x1393, 0x1024, 0xffff, 0,
 	    "Moxa Technologies, Smartio CP-102E/PCIe",
 	    DEFAULT_RCLK * 8,
-	    PUC_PORT_2S, 0x14, 0, 0x200
+	    PUC_PORT_2S, 0x14, 0, -1,
+	        .config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1025, 0xffff, 0,
 	    "Moxa Technologies, Smartio CP-102EL/PCIe",
 	    DEFAULT_RCLK * 8,
-	    PUC_PORT_2S, 0x14, 0, 0x200,
+	    PUC_PORT_2S, 0x14, 0, -1,
+	        .config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1040, 0xffff, 0,
@@ -572,7 +574,8 @@ const struct puc_cfg puc_pci_devices[] = {
 	{   0x1393, 0x1182, 0xffff, 0,
 	    "Moxa Technologies, Smartio CP-118EL-A/PCIe",
 	    DEFAULT_RCLK * 8,
-	    PUC_PORT_8S, 0x14, 0, 0x200,
+	    PUC_PORT_8S, 0x14, 0, -1,
+		.config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1680, 0xffff, 0,
@@ -596,7 +599,8 @@ const struct puc_cfg puc_pci_devices[] = {
 	{   0x1393, 0x1683, 0xffff, 0,
 	    "Moxa Technologies, Smartio CP-168EL-A/PCIe",
 	    DEFAULT_RCLK * 8,
-	    PUC_PORT_8S, 0x14, 0, 0x200,
+	    PUC_PORT_8S, 0x14, 0, -1,
+		.config_function = puc_config_moxa
 	},
 
 	{   0x13a8, 0x0152, 0xffff, 0,
@@ -1159,7 +1163,12 @@ puc_config_moxa(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
     intptr_t *res)
 {
 	if (cmd == PUC_CFG_GET_OFS) {
-		*res = ((port == 3) ? 7 : port) * 0x200;
+		const struct puc_cfg *cfg = sc->sc_cfg;
+
+		if (port == 3 && (cfg->device == 0x1045 || cfg->device == 0x1144))
+			port = 7;
+		*res = port * 0x200;
+
 		return 0;
 	}
 	return (ENXIO);
