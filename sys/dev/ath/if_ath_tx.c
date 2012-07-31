@@ -1051,11 +1051,12 @@ ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
 	
 	/*
 	 * Must disable multi-rate retry when using RTS/CTS.
-	 * XXX TODO: only for pre-11n NICs.
 	 */
-	bf->bf_state.bfs_ismrr = 0;
-	bf->bf_state.bfs_try0 =
-	    bf->bf_state.bfs_rc[0].tries = ATH_TXMGTTRY;	/* XXX ew */
+	if (!sc->sc_mrrprot) {
+		bf->bf_state.bfs_ismrr = 0;
+		bf->bf_state.bfs_try0 =
+		    bf->bf_state.bfs_rc[0].tries = ATH_TXMGTTRY; /* XXX ew */
+	}
 }
 
 /*
