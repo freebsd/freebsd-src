@@ -1289,7 +1289,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 			    "discard PREP from %6D, new metric %u > %u",
 			    prep->prep_targetaddr, ":",
-			    prep->prep_metric, rt->rt_metric);
+			    metric, rt->rt_metric);
 			return;
 		}
 	}
@@ -1299,7 +1299,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID ?
 	    "prefer" : "update",
 	    prep->prep_targetaddr, ":",
-	    rt->rt_nhops, prep->prep_hopcount,
+	    rt->rt_nhops, prep->prep_hopcount + 1,
 	    rt->rt_metric, metric);
 
 	hr->hr_seq = prep->prep_targetseq;
@@ -1371,7 +1371,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		    rtext->rt_flags & IEEE80211_MESHRT_FLAGS_VALID ?
 		    "prefer" : "update",
 		    prep->prep_target_ext_addr, ":",
-		    rtext->rt_nhops, prep->prep_hopcount,
+		    rtext->rt_nhops, prep->prep_hopcount + 1,
 		    rtext->rt_metric, metric);
 
 		rtext->rt_flags = IEEE80211_MESHRT_FLAGS_PROXY |
