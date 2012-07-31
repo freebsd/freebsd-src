@@ -70,7 +70,7 @@ SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end, callout-end);
 SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_end, 0,
     "struct callout *");
 
-#ifdef CALLOUT_PROFILING	
+#ifdef CALLOUT_PROFILING
 static int avg_depth;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_depth, CTLFLAG_RD, &avg_depth, 0,
     "Average number of items examined per softclock call. Units = 1/1000");
@@ -83,6 +83,18 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_lockcalls, CTLFLAG_RD, &avg_lockcalls, 0,
 static int avg_mpcalls;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
     "Average number of MP callouts made per softclock call. Units = 1/1000");
+static int avg_depth_dir;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_depth_dir, CTLFLAG_RD, &avg_depth_dir, 0,
+    "Average number of direct callouts examined per callout_process call. "
+    "Units = 1/1000");
+static int avg_lockcalls_dir;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_lockcalls_dir, CTLFLAG_RD,
+    &avg_lockcalls_dir, 0, "Average number of lock direct callouts made per "
+    "callout_process call. Units = 1/1000");
+static int avg_mpcalls_dir;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls_dir, CTLFLAG_RD, &avg_mpcalls_dir,
+    0, "Average number of MP direct callouts made per callout_process call. "
+    "Units = 1/1000");
 #endif
 /*
  * TODO:
@@ -380,7 +392,7 @@ callout_process(struct bintime *now)
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
-	int cpu, first, future, gcalls, mpcalls, last, lockcalls,  
+	int cpu, depth_dir, first, future, mpcalls_dir, last, lockcalls_dir,
 	    need_softclock; 
 
 	/*
@@ -388,6 +400,9 @@ callout_process(struct bintime *now)
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
 	need_softclock = 0;
+	depth_dir = 0;
+	mpcalls_dir = 0;
+	lockcalls_dir = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	cpu = curcpu;
@@ -412,9 +427,11 @@ callout_process(struct bintime *now)
 				 * directly from hardware interrupt context.
 				 */
 				if (tmp->c_flags & CALLOUT_DIRECT) {
+					++depth_dir;
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
 					tmp = softclock_call_cc(tmp, cc, 
-					    &mpcalls, &lockcalls, &gcalls, 1);
+					    &mpcalls_dir, &lockcalls_dir,
+					     NULL, 1);
 				} else {
 					TAILQ_INSERT_TAIL(&cc->cc_expireq, 
 					    tmp, c_staiter);
@@ -491,6 +508,11 @@ callout_process(struct bintime *now)
 	if (callout_new_inserted != NULL) 
 		(*callout_new_inserted)(cpu, next);
 	cc->cc_lastscan = *now;
+#ifdef CALLOUT_PROFILING
+	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
+	avg_mpcalls_dir += (mpcalls_dir * 1000 - avg_mpcalls_dir) >> 8;
+	avg_lockcalls_dir += (lockcalls_dir * 1000 - avg_lockcalls_dir) >> 8;
+#endif
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	/*
 	 * swi_sched acquires the thread lock, so we don't want to call it
@@ -659,7 +681,12 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 		}
 		/* The callout cannot be stopped now. */
 		cc->cc_exec_entity[direct].cc_cancel = 1;
-		if (c_lock == &Giant.lock_object) {
+		/* 
+		 * In case we're processing a direct callout we
+		 * can't hold giant because holding a sleep mutex
+		 * from hardware interrupt context is not allowed.
+		 */
+		if ((c_lock == &Giant.lock_object) && gcalls != NULL) {
 			(*gcalls)++;
 			CTR3(KTR_CALLOUT, "callout %p func %p arg %p",
 			    c, c_func, c_arg);
@@ -798,6 +825,7 @@ softclock(void *arg)
 	struct callout_cpu *cc;
 	struct callout *c;
 	int steps;	/* #steps since we last allowed interrupts */
+	int depth;
 	int mpcalls;
 	int lockcalls;
 	int gcalls;
@@ -806,6 +834,7 @@ softclock(void *arg)
 #define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
 #endif /* MAX_SOFTCLOCK_STEPS */
 	
+	depth = 0;
 	mpcalls = 0;
 	lockcalls = 0;
 	gcalls = 0;
@@ -815,6 +844,7 @@ softclock(void *arg)
 
 	c = TAILQ_FIRST(&cc->cc_expireq);
 	while (c != NULL) {
+		++depth;
 		++steps;
 		if (steps >= MAX_SOFTCLOCK_STEPS) {
 			cc->cc_exec_next = c;
