@@ -96,7 +96,6 @@ struct pipemapping {
 #define PIPE_DIRECTW	0x400	/* Pipe direct write active. */
 #define PIPE_DIRECTOK	0x800	/* Direct mode ok. */
 #define PIPE_NAMED	0x1000	/* Is a named pipe. */
-#define PIPE_SAMEWGEN	0x2000	/* same write generation for named pipes. */
 
 /*
  * Per-pipe data structure.
@@ -115,6 +114,7 @@ struct pipe {
 	u_int	pipe_state;		/* pipe status info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
 	int	pipe_present;		/* still present? */
+	int	pipe_wgen;		/* writer generation for named pipe */
 	ino_t	pipe_ino;		/* fake inode for stat(2) */
 };
 
