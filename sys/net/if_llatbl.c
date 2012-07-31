@@ -118,8 +118,8 @@ llentry_free(struct llentry *lle)
 		pkts_dropped++;
 	}
 
-	KASSERT(lle->la_numheld == 0, 
-		("%s: la_numheld %d > 0, pkts_droped %zd", __func__, 
+	KASSERT(lle->la_numheld == 0,
+		("%s: la_numheld %d > 0, pkts_droped %zd", __func__,
 		 lle->la_numheld, pkts_dropped));
 
 	lle->la_flags &= ~LLE_VALID;
@@ -144,7 +144,7 @@ llentry_update(struct llentry **llep, struct lltable *lt,
 	la = lla_lookup(lt, LLE_EXCLUSIVE,
 	    (struct sockaddr *)dst);
 	IF_AFDATA_RUNLOCK(ifp);
-	if ((la == NULL) && 
+	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		IF_AFDATA_WLOCK(ifp);
 		la = lla_lookup(lt,
@@ -182,7 +182,7 @@ lltable_free(struct lltable *llt)
 	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
 	LLTABLE_WUNLOCK();
 
-	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			int canceled;
 
@@ -227,7 +227,7 @@ lltable_drain(int af)
 
 void
 lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
-	    u_int flags)
+    u_int flags)
 {
 	struct lltable *llt;
 
@@ -297,7 +297,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		if (rtm->rtm_flags & RTF_ANNOUNCE) {
 			flags |= LLE_PUB;
 #ifdef INET
-			if (dst->sa_family == AF_INET && 
+			if (dst->sa_family == AF_INET &&
 			    ((struct sockaddr_inarp *)dst)->sin_other != 0) {
 				struct rtentry *rt;
 				((struct sockaddr_inarp *)dst)->sin_other = 0;
@@ -378,7 +378,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 #ifdef INET
 			/*  gratuitous ARP */
 			if ((laflags & LLE_PUB) && dst->sa_family == AF_INET) {
-				arprequest(ifp, 
+				arprequest(ifp,
 				    &((struct sockaddr_in *)dst)->sin_addr,
 				    &((struct sockaddr_in *)dst)->sin_addr,
 				    ((laflags & LLE_PROXY) ?
