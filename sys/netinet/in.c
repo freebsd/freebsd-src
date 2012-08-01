@@ -1431,7 +1431,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	if (lle == NULL) {
 #ifdef DIAGNOSTIC
 		if (flags & LLE_DELETE)
-			log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);	
+			log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);
 #endif
 		if (!(flags & LLE_CREATE))
 			return (NULL);
@@ -1465,11 +1465,11 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
+			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
 #endif
 		}
 		lle = (void *)-1;
-		
+
 	}
 	if (LLE_IS_VALID(lle)) {
 		if (flags & LLE_EXCLUSIVE)
@@ -1501,7 +1501,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
 			struct sockaddr_dl *sdl;
-			
+
 			/* skip deleted entries */
 			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
 				continue;
