@@ -67,7 +67,7 @@ exit(int v)
 void
 loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
 {
-	static char malloc[512*1024];
+	static char malloc[1024*1024];
 	int i;
 
         if (version != USERBOOT_VERSION_1)
@@ -82,7 +82,7 @@ loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
 	 * alloc() is usable. The stack is buried inside us, so this is
 	 * safe.
 	 */
-	setheap((void *)malloc, (void *)(malloc + 512*1024));
+	setheap((void *)malloc, (void *)(malloc + 1024*1024));
 
         /*
          * Hook up the console
