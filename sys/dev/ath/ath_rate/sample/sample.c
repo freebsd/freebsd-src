@@ -504,7 +504,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 
 	mrr = sc->sc_mrretry;
 	/* XXX check HT protmode too */
-	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT) && !sc->sc_mrrprot)
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT && !sc->sc_mrrprot))
 		mrr = 0;
 
 	best_rix = pick_best_rate(an, rt, size_bin, !mrr);
@@ -914,7 +914,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	}
 	mrr = sc->sc_mrretry;
 	/* XXX check HT protmode too */
-	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT) && !sc->sc_mrrprot)
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT && !sc->sc_mrrprot))
 		mrr = 0;
 
 	if (!mrr || ts->ts_finaltsi == 0) {
