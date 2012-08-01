@@ -284,7 +284,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
 	case SIOCGETMIFCNT_IN6:
-		/*	
+		/*
 		 * XXX mrt_ioctl has a 3rd, unused, FIB argument in route.c.
 		 * We cannot see how that would be needed, so do not adjust the
 		 * KPI blindly; more likely should clean up the IPv4 variant.
@@ -2612,8 +2612,8 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 			lle->la_flags = LLE_DELETED;
 			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
-#endif	
+			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
+#endif
 		}
 		lle = (void *)-1;
 	}
