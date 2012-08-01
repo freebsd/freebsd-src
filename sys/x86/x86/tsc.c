@@ -354,8 +354,7 @@ init_TSC(void)
  * timecounters use MFENCE for AMD CPUs, and LFENCE for others (Intel
  * and VIA) when SSE2 is present, and nothing on older machines which
  * also do not issue RDTSC prematurely.  There, testing for SSE2 and
- * vendor is too cumbersome, and we learn about TSC presence from
- * CPUID.
+ * vendor is too cumbersome, and we learn about TSC presence from CPUID.
  *
  * Do not use do_cpuid(), since we do not need CPUID results, which
  * have to be written into memory with do_cpuid().
