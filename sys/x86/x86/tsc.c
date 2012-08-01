@@ -82,7 +82,11 @@ static void tsc_freq_changed(void *arg, const struct cf_level *level,
 static void tsc_freq_changing(void *arg, const struct cf_level *level,
     int *status);
 static unsigned tsc_get_timecount(struct timecounter *tc);
-static unsigned tsc_get_timecount_low(struct timecounter *tc);
+static inline unsigned tsc_get_timecount_low(struct timecounter *tc);
+static unsigned tsc_get_timecount_lfence(struct timecounter *tc);
+static unsigned tsc_get_timecount_low_lfence(struct timecounter *tc);
+static unsigned tsc_get_timecount_mfence(struct timecounter *tc);
+static unsigned tsc_get_timecount_low_mfence(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
 
 static struct timecounter tsc_timecounter = {
@@ -262,6 +266,10 @@ probe_tsc_freq(void)
 		    (vm_guest == VM_GUEST_NO &&
 		    CPUID_TO_FAMILY(cpu_id) >= 0x10))
 			tsc_is_invariant = 1;
+		if (cpu_feature & CPUID_SSE2) {
+			tsc_timecounter.tc_get_timecount =
+			    tsc_get_timecount_mfence;
+		}
 		break;
 	case CPU_VENDOR_INTEL:
 		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
@@ -271,6 +279,10 @@ probe_tsc_freq(void)
 		    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
 		    CPUID_TO_MODEL(cpu_id) >= 0x3))))
 			tsc_is_invariant = 1;
+		if (cpu_feature & CPUID_SSE2) {
+			tsc_timecounter.tc_get_timecount =
+			    tsc_get_timecount_lfence;
+		}
 		break;
 	case CPU_VENDOR_CENTAUR:
 		if (vm_guest == VM_GUEST_NO &&
@@ -278,6 +290,10 @@ probe_tsc_freq(void)
 		    CPUID_TO_MODEL(cpu_id) >= 0xf &&
 		    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 			tsc_is_invariant = 1;
+		if (cpu_feature & CPUID_SSE2) {
+			tsc_timecounter.tc_get_timecount =
+			    tsc_get_timecount_lfence;
+		}
 		break;
 	}
 
@@ -328,16 +344,31 @@ init_TSC(void)
 
 #ifdef SMP
 
-/* rmb is required here because rdtsc is not a serializing instruction. */
-#define	TSC_READ(x)			\
-static void				\
-tsc_read_##x(void *arg)			\
-{					\
-	uint32_t *tsc = arg;		\
-	u_int cpu = PCPU_GET(cpuid);	\
-					\
-	rmb();				\
-	tsc[cpu * 3 + x] = rdtsc32();	\
+/*
+ * RDTSC is not a serializing instruction, and does not drain
+ * instruction stream, so we need to drain the stream before executing
+ * it.  It could be fixed by use of RDTSCP, except the instruction is
+ * not available everywhere.
+ *
+ * Use CPUID for draining in the boot-time SMP constistency test.  The
+ * timecounters use MFENCE for AMD CPUs, and LFENCE for others (Intel
+ * and VIA) when SSE2 is present, and nothing on older machines which
+ * also do not issue RDTSC prematurely.  There, testing for SSE2 and
+ * vendor is too cumbersome, and we learn about TSC presence from
+ * CPUID.
+ *
+ * Do not use do_cpuid(), since we do not need CPUID results, which
+ * have to be written into memory with do_cpuid().
+ */
+#define	TSC_READ(x)							\
+static void								\
+tsc_read_##x(void *arg)							\
+{									\
+	uint32_t *tsc = arg;						\
+	u_int cpu = PCPU_GET(cpuid);					\
+									\
+	__asm __volatile("cpuid" : : : "eax", "ebx", "ecx", "edx");	\
+	tsc[cpu * 3 + x] = rdtsc32();					\
 }
 TSC_READ(0)
 TSC_READ(1)
@@ -487,7 +518,16 @@ init:
 	for (shift = 0; shift < 31 && (tsc_freq >> shift) > max_freq; shift++)
 		;
 	if (shift > 0) {
-		tsc_timecounter.tc_get_timecount = tsc_get_timecount_low;
+		if (cpu_feature & CPUID_SSE2) {
+			if (cpu_vendor_id == CPU_VENDOR_AMD) {
+				tsc_timecounter.tc_get_timecount =
+				    tsc_get_timecount_low_mfence;
+			} else {
+				tsc_timecounter.tc_get_timecount =
+				    tsc_get_timecount_low_lfence;
+			}
+		} else
+			tsc_timecounter.tc_get_timecount = tsc_get_timecount_low;
 		tsc_timecounter.tc_name = "TSC-low";
 		if (bootverbose)
 			printf("TSC timecounter discards lower %d bit(s)\n",
@@ -599,14 +639,46 @@ tsc_get_timecount(struct timecounter *tc __unused)
 	return (rdtsc32());
 }
 
-static u_int
+static inline u_int
 tsc_get_timecount_low(struct timecounter *tc)
 {
 	uint32_t rv;
 
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
-	: "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
+	    : "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
 	return (rv);
+}
+
+static u_int
+tsc_get_timecount_lfence(struct timecounter *tc __unused)
+{
+
+	lfence();
+	return (rdtsc32());
+}
+
+static u_int
+tsc_get_timecount_low_lfence(struct timecounter *tc)
+{
+
+	lfence();
+	return (tsc_get_timecount_low(tc));
+}
+
+static u_int
+tsc_get_timecount_mfence(struct timecounter *tc __unused)
+{
+
+	mfence();
+	return (rdtsc32());
+}
+
+static u_int
+tsc_get_timecount_low_mfence(struct timecounter *tc)
+{
+
+	mfence();
+	return (tsc_get_timecount_low(tc));
 }
 
 uint32_t
