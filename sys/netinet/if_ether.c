@@ -322,15 +322,15 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		}
 	}
 retry:
-	IF_AFDATA_RLOCK(ifp);	
+	IF_AFDATA_RLOCK(ifp);
 	la = lla_lookup(LLTABLE(ifp), flags, dst);
-	IF_AFDATA_RUNLOCK(ifp);	
+	IF_AFDATA_RUNLOCK(ifp);
 	if ((la == NULL) && ((flags & LLE_EXCLUSIVE) == 0)
-	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {		
+	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {
 		flags |= (LLE_CREATE | LLE_EXCLUSIVE);
-		IF_AFDATA_WLOCK(ifp);	
+		IF_AFDATA_WLOCK(ifp);
 		la = lla_lookup(LLTABLE(ifp), flags, dst);
-		IF_AFDATA_WUNLOCK(ifp);	
+		IF_AFDATA_WUNLOCK(ifp);
 	}
 	if (la == NULL) {
 		if (flags & LLE_CREATE)
@@ -354,7 +354,7 @@ retry:
 			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
 			la->la_preempt--;
 		}
-		
+
 		*lle = la;
 		error = 0;
 		goto done;
@@ -402,7 +402,7 @@ retry:
 			flags &= ~LLE_EXCLUSIVE;
 			LLE_DOWNGRADE(la);
 		}
-		
+
 	}
 	/*
 	 * Return EWOULDBLOCK if we have tried less than arp_maxtries. It
@@ -802,7 +802,7 @@ reply:
 
 			if (!V_arp_proxyall)
 				goto drop;
-			
+
 			sin.sin_addr = itaddr;
 			/* XXX MRT use table 0 for arp reply  */
 			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
@@ -830,7 +830,7 @@ reply:
 			 * wrong network.
 			 */
 			sin.sin_addr = isaddr;
-			
+
 			/* XXX MRT use table 0 for arp checks */
 			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
 			if (!rt)

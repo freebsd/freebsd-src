@@ -140,7 +140,7 @@ llentry_update(struct llentry **llep, struct lltable *lt,
 {
 	struct llentry *la;
 
-	IF_AFDATA_RLOCK(ifp);	
+	IF_AFDATA_RLOCK(ifp);
 	la = lla_lookup(lt, LLE_EXCLUSIVE,
 	    (struct sockaddr *)dst);
 	IF_AFDATA_RUNLOCK(ifp);
@@ -150,7 +150,7 @@ llentry_update(struct llentry **llep, struct lltable *lt,
 		la = lla_lookup(lt,
 		    (LLE_CREATE | LLE_EXCLUSIVE),
 		    (struct sockaddr *)dst);
-		IF_AFDATA_WUNLOCK(ifp);	
+		IF_AFDATA_WUNLOCK(ifp);
 	}
 	if (la != NULL && (*llep != la)) {
 		if (*llep != NULL)
@@ -342,7 +342,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	if (flags & LLE_CREATE)
 		flags |= LLE_EXCLUSIVE;
-	
+
 	IF_AFDATA_LOCK(ifp);
 	lle = lla_lookup(llt, flags, dst);
 	IF_AFDATA_UNLOCK(ifp);
@@ -451,7 +451,7 @@ llatbl_lle_show(struct llentry_sa *la)
 
 		sin = (struct sockaddr_in *)&la->l3_addr;
 		inet_ntoa_r(sin->sin_addr, l3s);
-		db_printf(" l3_addr=%s\n", l3s);	
+		db_printf(" l3_addr=%s\n", l3s);
 		break;
 	}
 #endif
@@ -463,7 +463,7 @@ llatbl_lle_show(struct llentry_sa *la)
 
 		sin6 = (struct sockaddr_in6 *)&la->l3_addr;
 		ip6_sprintf(l3s, &sin6->sin6_addr);
-		db_printf(" l3_addr=%s\n", l3s);	
+		db_printf(" l3_addr=%s\n", l3s);
 		break;
 	}
 #endif
