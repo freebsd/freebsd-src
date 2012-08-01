@@ -3439,7 +3439,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
-	boolean_t invlva;
 
 	va = trunc_page(va);
 	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
@@ -3537,7 +3536,6 @@ retry:
 				newpte |= PG_MANAGED;
 				if ((newpte & PG_RW) != 0)
 					vm_page_aflag_set(m, PGA_WRITEABLE);
-				om = m;
 			}
 			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
 				goto unchanged;
@@ -3576,30 +3574,40 @@ retry:
 	 */
 	if ((origpte & PG_V) != 0) {
 validate:
-		invlva = FALSE;
 		origpte = pte_load_store(pte, newpte);
 		opa = origpte & PG_FRAME;
-		if ((origpte & PG_A) != 0 && (opa != pa ||
-		    ((origpte & PG_NX) == 0 && (newpte & PG_NX) != 0)))
-			invlva = TRUE;
-		if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+		if (opa != pa) {
+			if ((origpte & PG_MANAGED) != 0) {
+				if ((origpte & (PG_M | PG_RW)) == (PG_M |
+				    PG_RW))
+					vm_page_dirty(om);
+				if ((origpte & PG_A) != 0)
+					vm_page_aflag_set(om, PGA_REFERENCED);
+				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+				pmap_pvh_free(&om->md, pmap, va);
+				if ((om->aflags & PGA_WRITEABLE) != 0 &&
+				    TAILQ_EMPTY(&om->md.pv_list) &&
+				    ((om->flags & PG_FICTITIOUS) != 0 ||
+				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+					vm_page_aflag_clear(om, PGA_WRITEABLE);
+			}
+		} else if ((newpte & PG_M) == 0 && (origpte & (PG_M |
+		    PG_RW)) == (PG_M | PG_RW)) {
 			if ((origpte & PG_MANAGED) != 0)
-				vm_page_dirty(om);
-			if ((newpte & PG_RW) == 0)
-				invlva = TRUE;
+				vm_page_dirty(m);
+
+			/*
+			 * Although the PTE may still have PG_RW set, TLB
+			 * invalidation may nonetheless be required because
+			 * the PTE no longer has PG_M set.
+			 */
+		} else if ((origpte & PG_NX) != 0 || (newpte & PG_NX) == 0) {
+			/*
+			 * This PTE change does not require TLB invalidation.
+			 */
+			goto unchanged;
 		}
-		if (opa != pa && (origpte & PG_MANAGED) != 0) {
-			if ((origpte & PG_A) != 0)
-				vm_page_aflag_set(om, PGA_REFERENCED);
-			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
-			pmap_pvh_free(&om->md, pmap, va);
-			if ((om->aflags & PGA_WRITEABLE) != 0 &&
-			    TAILQ_EMPTY(&om->md.pv_list) &&
-			    ((om->flags & PG_FICTITIOUS) != 0 ||
-			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
-				vm_page_aflag_clear(om, PGA_WRITEABLE);
-		}
-		if (invlva)
+		if ((origpte & PG_A) != 0)
 			pmap_invalidate_page(pmap, va);
 	} else
 		pte_store(pte, newpte);
