@@ -106,10 +106,19 @@ llentry_free(struct llentry *lle)
 	size_t pkts_dropped;
 	struct mbuf *next;
 
-	pkts_dropped = 0;
+	IF_AFDATA_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
 	LLE_WLOCK_ASSERT(lle);
-	LIST_REMOVE(lle, lle_next);
 
+	/* XXX: guard against race with other llentry_free(). */
+	if (!(lle->la_flags & LLE_LINKED)) {
+		LLE_FREE_LOCKED(lle);
+		return (0);
+	}
+
+	LIST_REMOVE(lle, lle_next);
+	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
+
+	pkts_dropped = 0;
 	while ((lle->la_numheld > 0) && (lle->la_hold != NULL)) {
 		next = lle->la_hold->m_nextpkt;
 		m_freem(lle->la_hold);
@@ -122,7 +131,6 @@ llentry_free(struct llentry *lle)
 		("%s: la_numheld %d > 0, pkts_droped %zd", __func__,
 		 lle->la_numheld, pkts_dropped));
 
-	lle->la_flags &= ~LLE_VALID;
 	LLE_FREE_LOCKED(lle);
 
 	return (pkts_dropped);
@@ -173,17 +181,16 @@ lltable_free(struct lltable *llt)
 	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
 	LLTABLE_WUNLOCK();
 
+	IF_AFDATA_WLOCK(llt->llt_ifp);
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
-			int canceled;
-
-			canceled = callout_drain(&lle->la_timer);
 			LLE_WLOCK(lle);
-			if (canceled)
+			if (callout_stop(&lle->la_timer))
 				LLE_REMREF(lle);
 			llentry_free(lle);
 		}
 	}
+	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	free(llt, M_LLTABLE);
 }

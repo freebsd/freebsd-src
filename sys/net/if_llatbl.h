@@ -103,26 +103,28 @@ struct llentry {
 #define	LLE_ADDREF(lle) do {					\
 	LLE_WLOCK_ASSERT(lle);					\
 	KASSERT((lle)->lle_refcnt >= 0,				\
-		("negative refcnt %d", (lle)->lle_refcnt));	\
+	    ("negative refcnt %d on lle %p",			\
+	    (lle)->lle_refcnt, (lle)));				\
 	(lle)->lle_refcnt++;					\
 } while (0)
 
 #define	LLE_REMREF(lle)	do {					\
 	LLE_WLOCK_ASSERT(lle);					\
-	KASSERT((lle)->lle_refcnt > 1,				\
-		("bogus refcnt %d", (lle)->lle_refcnt));	\
+	KASSERT((lle)->lle_refcnt > 0,				\
+	    ("bogus refcnt %d on lle %p",			\
+	    (lle)->lle_refcnt, (lle)));				\
 	(lle)->lle_refcnt--;					\
 } while (0)
 
 #define	LLE_FREE_LOCKED(lle) do {				\
-	if ((lle)->lle_refcnt <= 1)				\
-		(lle)->lle_free((lle)->lle_tbl, (lle));\
+	if ((lle)->lle_refcnt == 1)				\
+		(lle)->lle_free((lle)->lle_tbl, (lle));		\
 	else {							\
-		(lle)->lle_refcnt--;				\
+		LLE_REMREF(lle);				\
 		LLE_WUNLOCK(lle);				\
 	}							\
 	/* guard against invalid refs */			\
-	lle = NULL;						\
+	(lle) = NULL;						\
 } while (0)
 
 #define	LLE_FREE(lle) do {					\
@@ -172,6 +174,7 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_VALID	0x0008	/* ll_addr is valid */
 #define	LLE_PROXY	0x0010	/* proxy entry ??? */
 #define	LLE_PUB		0x0020	/* publish entry ??? */
+#define	LLE_LINKED	0x0040	/* linked to lookup structure */
 #define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
 #define	LLE_DELETE	0x4000	/* delete on a lookup - match LLE_IFADDR */
 #define	LLE_CREATE	0x8000	/* create on a lookup miss */

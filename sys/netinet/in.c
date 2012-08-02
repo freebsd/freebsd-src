@@ -1280,7 +1280,6 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	callout_init(&lle->base.la_timer, CALLOUT_MPSAFE);
 	/*
 	 * For IPv4 this will trigger "arpresolve" to generate
 	 * an ARP request.
@@ -1290,7 +1289,10 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
-	return &lle->base;
+	callout_init_rw(&lle->base.la_timer, &lle->base.lle_lock,
+	    CALLOUT_RETURNUNLOCKED);
+
+	return (&lle->base);
 }
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
@@ -1306,6 +1308,7 @@ in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 	int i;
 	size_t pkts_dropped;
 
+	IF_AFDATA_WLOCK(llt->llt_ifp);
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			/*
@@ -1315,17 +1318,15 @@ in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 			if (IN_ARE_MASKED_ADDR_EQUAL(satosin(L3_ADDR(lle)),
 			    pfx, msk) && ((flags & LLE_STATIC) ||
 			    !(lle->la_flags & LLE_STATIC))) {
-				int canceled;
-
-				canceled = callout_drain(&lle->la_timer);
 				LLE_WLOCK(lle);
-				if (canceled)
+				if (callout_stop(&lle->la_timer))
 					LLE_REMREF(lle);
 				pkts_dropped = llentry_free(lle);
 				ARPSTAT_ADD(dropped, pkts_dropped);
 			}
 		}
 	}
+	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 }
 
 
@@ -1457,11 +1458,12 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 
 		lle->lle_tbl  = llt;
 		lle->lle_head = lleh;
+		lle->la_flags |= LLE_LINKED;
 		LIST_INSERT_HEAD(lleh, lle, lle_next);
 	} else if (flags & LLE_DELETE) {
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
-			lle->la_flags = LLE_DELETED;
+			lle->la_flags |= LLE_DELETED;
 			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
