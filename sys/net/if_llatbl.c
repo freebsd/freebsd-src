@@ -129,42 +129,33 @@ llentry_free(struct llentry *lle)
 }
 
 /*
- * Update an llentry for address dst (equivalent to rtalloc for new-arp)
- * Caller must pass in a valid struct llentry * (or NULL)
+ * (al)locate an llentry for address dst (equivalent to rtalloc for new-arp).
  *
- * if found the llentry * is returned referenced and unlocked
+ * If found the llentry * is returned referenced and unlocked.
  */
-int
-llentry_update(struct llentry **llep, struct lltable *lt,
-    struct sockaddr_storage *dst, struct ifnet *ifp)
+struct llentry *
+llentry_alloc(struct ifnet *ifp, struct lltable *lt,
+    struct sockaddr_storage *dst)
 {
 	struct llentry *la;
 
 	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(lt, LLE_EXCLUSIVE,
-	    (struct sockaddr *)dst);
+	la = lla_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);
 	IF_AFDATA_RUNLOCK(ifp);
 	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		IF_AFDATA_WLOCK(ifp);
-		la = lla_lookup(lt,
-		    (LLE_CREATE | LLE_EXCLUSIVE),
+		la = lla_lookup(lt, (LLE_CREATE | LLE_EXCLUSIVE),
 		    (struct sockaddr *)dst);
 		IF_AFDATA_WUNLOCK(ifp);
 	}
-	if (la != NULL && (*llep != la)) {
-		if (*llep != NULL)
-			LLE_FREE(*llep);
+
+	if (la != NULL) {
 		LLE_ADDREF(la);
 		LLE_WUNLOCK(la);
-		*llep = la;
-	} else if (la != NULL)
-		LLE_WUNLOCK(la);
+	}
 
-	if (la == NULL)
-		return (ENOENT);
-
-	return (0);
+	return (la);
 }
 
 /*
