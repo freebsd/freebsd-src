@@ -43,7 +43,7 @@ is a framework for fast and safe access to network devices
 .Nm
 uses memory mapped buffers and metadata
 (buffer indexes and lengths) to communicate with the kernel,
-which is in charge of validating information through 
+which is in charge of validating information through
 .Pa ioctl()
 and
 .Pa select()/poll().
@@ -65,7 +65,7 @@ to bind the file descriptor to a network device.
 When a device is put in
 .Nm
 mode, its data path is disconnected from the host stack.
-The processes owning the file descriptor 
+The processes owning the file descriptor
 can exchange packets with the device, or with the host stack,
 through an mmapped memory region that contains pre-allocated
 buffers and metadata.
