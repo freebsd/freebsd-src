@@ -2522,7 +2522,6 @@ igb_allocate_msix(struct adapter *adapter)
 				"Bound queue %d to cpu %d\n",
 				i,igb_last_bind_cpu);
 			igb_last_bind_cpu = CPU_NEXT(igb_last_bind_cpu);
-			igb_last_bind_cpu = igb_last_bind_cpu % mp_ncpus;
 		}
 #if __FreeBSD_version >= 800000
 		TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start,
