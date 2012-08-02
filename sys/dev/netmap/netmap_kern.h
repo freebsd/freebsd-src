@@ -241,7 +241,7 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
 int netmap_ring_reinit(struct netmap_kring *);
 
-extern int netmap_buf_size;
+extern u_int netmap_buf_size;
 #define NETMAP_BUF_SIZE	netmap_buf_size
 extern int netmap_mitigate;
 extern int netmap_no_pendintr;
