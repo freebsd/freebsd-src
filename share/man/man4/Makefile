@@ -509,6 +509,7 @@ MAN=	aac.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
+	vale.4 \
 	vga.4 \
 	vge.4 \
 	viapm.4 \
