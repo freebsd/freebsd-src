@@ -56,7 +56,7 @@
 
 #ifdef linux
 #include "bsd_glue.h"
-static netdev_tx_t netmap_start_linux(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t linux_netmap_start(struct sk_buff *skb, struct net_device *dev);
 #endif /* linux */
 
 #ifdef __APPLE__
@@ -1331,7 +1331,7 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 		/* prepare a clone of the netdev ops */
 		na->nm_ndo = *ifp->netdev_ops;
 	}
-	na->nm_ndo.ndo_start_xmit = netmap_start_linux;
+	na->nm_ndo.ndo_start_xmit = linux_netmap_start;
 #endif
 	D("%s for %s", buf ? "ok" : "failed", ifp->if_xname);
 
@@ -1554,7 +1554,7 @@ linux_netmap_poll(struct file * file, struct poll_table_struct *pwait)
 }
 
 static int
-netmap_mmap(struct file *f, struct vm_area_struct *vma)
+linux_netmap_mmap(struct file *f, struct vm_area_struct *vma)
 {
 	int lut_skip, i, j;
 	int user_skip = 0;
@@ -1596,7 +1596,7 @@ netmap_mmap(struct file *f, struct vm_area_struct *vma)
 }
 
 static netdev_tx_t
-netmap_start_linux(struct sk_buff *skb, struct net_device *dev)
+linux_netmap_start(struct sk_buff *skb, struct net_device *dev)
 {
 	netmap_start(dev, skb);
 	return (NETDEV_TX_OK);
@@ -1637,7 +1637,7 @@ netmap_release(struct inode *inode, struct file *file)
 
 
 static struct file_operations netmap_fops = {
-    .mmap = netmap_mmap,
+    .mmap = linux_netmap_mmap,
     LIN_IOCTL_NAME = linux_netmap_ioctl,
     .poll = linux_netmap_poll,
     .release = netmap_release,
@@ -1652,7 +1652,13 @@ static struct miscdevice netmap_cdevsw = {	/* same name as FreeBSD */
 static int netmap_init(void);
 static void netmap_fini(void);
 
-module_init(netmap_init);
+/* Errors have negative values on linux */
+static int linux_netmap_init(void)
+{
+	return -netmap_init();
+}
+
+module_init(linux_netmap_init);
 module_exit(netmap_fini);
 /* export certain symbols to other modules */
 EXPORT_SYMBOL(netmap_attach);		// driver attach routines
@@ -2038,7 +2044,7 @@ netmap_init(void)
 
 	error = netmap_memory_init();
 	if (error != 0) {
-		printf("netmap: unable to initialize the memory allocator.");
+		printf("netmap: unable to initialize the memory allocator.\n");
 		return (error);
 	}
 	printf("netmap: loaded module with %d Mbytes\n",
