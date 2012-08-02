@@ -51,7 +51,6 @@ and
 can exploit the parallelism in multiqueue devices and
 multicore systems.
 .Pp
-.Pp
 .Nm
 requires explicit support in device drivers.
 For a list of supported devices, see the end of this manual page.
@@ -89,7 +88,6 @@ are relative (offsets or indexes). Some macros help converting
 them into actual pointers.
 .Pp
 The data structures in shared memory are the following:
-.Pp
 .Bl -tag -width XXX
 .It Dv struct netmap_if (one per interface)
 indicates the number of rings supported by an interface, their
@@ -162,7 +160,6 @@ int i = txring->slot[txring->cur].buf_idx;
 char *buf = NETMAP_BUF(txring, i);
 .Ed
 .Sh IOCTLS
-.Pp
 .Nm
 supports some ioctl() to synchronize the state of the rings
 between the kernel and the user processes, plus some

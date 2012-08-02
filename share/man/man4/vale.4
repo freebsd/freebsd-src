@@ -50,7 +50,6 @@ is implemented completely in software, and is extremely fast.
 On a modern machine it can move almost 20 Million packets per
 second (Mpps) per core with small frames, and about 70 Gbit/s
 with 1500 byte frames.
-.Pp
 .Sh OPERATION
 .Nm
 dynamically creates switches and ports as client connect
@@ -81,7 +80,6 @@ for details on the API.
 currently supports up to 4 switches, 16 ports per switch,
 1024 buffers per port. These hard limits will be
 changed to sysctl variables in future releases.
-.Pp
 .Sh SYSCTL VARIABLES
 .Nm
 uses the following sysctl variables to control operation:
@@ -95,7 +93,6 @@ with throughput.
 .It dev.netmap.verbose
 Set to non-zero values to enable in-kernel diagnostics.
 .El
-.Pp
 .Sh EXAMPLES
 Create one switch, with a traffic generator connected to one
 port, and a netmap-enabled tcpdump instance on another port:
