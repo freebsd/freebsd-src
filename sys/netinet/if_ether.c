@@ -163,49 +163,40 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 static void
 arptimer(void *arg)
 {
+	struct llentry *lle = (struct llentry *)arg;
 	struct ifnet *ifp;
-	struct llentry   *lle;
-	int pkts_dropped;
+	size_t pkts_dropped;
 
-	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
-	lle = (struct llentry *)arg;
+	if (lle->la_flags & LLE_STATIC) {
+		LLE_WUNLOCK(lle);
+		return;
+	}
+
 	ifp = lle->lle_tbl->llt_ifp;
 	CURVNET_SET(ifp->if_vnet);
+
+	if (lle->la_flags != LLE_DELETED) {
+		int evt;
+
+		if (lle->la_flags & LLE_VALID)
+			evt = LLENTRY_EXPIRED;
+		else
+			evt = LLENTRY_TIMEDOUT;
+		EVENTHANDLER_INVOKE(lle_event, lle, evt);
+	}
+
+	callout_stop(&lle->la_timer);
+
+	/* XXX: LOR avoidance. We still have ref on lle. */
+	LLE_WUNLOCK(lle);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
-	if (lle->la_flags & LLE_STATIC)
-		LLE_WUNLOCK(lle);
-	else {
-		if (!callout_pending(&lle->la_timer) &&
-		    callout_active(&lle->la_timer)) {
-			callout_stop(&lle->la_timer);
-			LLE_REMREF(lle);
 
-			if (lle->la_flags != LLE_DELETED) {
-				int evt;
-
-				if (lle->la_flags & LLE_VALID)
-					evt = LLENTRY_EXPIRED;
-				else
-					evt = LLENTRY_TIMEDOUT;
-				EVENTHANDLER_INVOKE(lle_event, lle, evt);
-			}
-
-			pkts_dropped = llentry_free(lle);
-			ARPSTAT_ADD(dropped, pkts_dropped);
-			ARPSTAT_INC(timeouts);
-		} else {
-#ifdef DIAGNOSTIC
-			struct sockaddr *l3addr = L3_ADDR(lle);
-			log(LOG_INFO,
-			    "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
-			    inet_ntoa(
-			        ((const struct sockaddr_in *)l3addr)->sin_addr));
-#endif
-			LLE_WUNLOCK(lle);
-		}
-	}
+	LLE_REMREF(lle);
+	pkts_dropped = llentry_free(lle);
 	IF_AFDATA_UNLOCK(ifp);
+	ARPSTAT_ADD(dropped, pkts_dropped);
+	ARPSTAT_INC(timeouts);
 	CURVNET_RESTORE();
 }
 
