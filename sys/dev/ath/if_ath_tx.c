@@ -515,9 +515,12 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 
 	/*
 	 * Setup the last descriptor in the list.
-	 * bf_prev points to the last; bf is NULL here.
+	 *
+	 * bf_first->bf_lastds already points to it; the rate
+	 * control information needs to be squirreled away here
+	 * as well ans clearing the moreaggr/paddelim fields.
 	 */
-	ath_hal_setuplasttxdesc(sc->sc_ah, bf_prev->bf_desc,
+	ath_hal_setuplasttxdesc(sc->sc_ah, bf_first->bf_lastds,
 	    bf_first->bf_desc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
