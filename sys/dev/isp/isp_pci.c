@@ -1482,16 +1482,18 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	segs->ds_addr += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 	imushp->vbase += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 
-	imushp->isp->isp_osinfo.ecmd_dma = segs->ds_addr;
-	imushp->isp->isp_osinfo.ecmd_free = (isp_ecmd_t *)imushp->vbase;
-	imushp->isp->isp_osinfo.ecmd_base = imushp->isp->isp_osinfo.ecmd_free;
-	for (ecmd = imushp->isp->isp_osinfo.ecmd_free; ecmd < &imushp->isp->isp_osinfo.ecmd_free[N_XCMDS]; ecmd++) {
-		if (ecmd == &imushp->isp->isp_osinfo.ecmd_free[N_XCMDS - 1]) {
-			ecmd->next = NULL;
-		} else {
-			ecmd->next = ecmd + 1;
-		}
-	}
+	if (imushp->isp->isp_type >= ISP_HA_FC_2300) {
+        imushp->isp->isp_osinfo.ecmd_dma = segs->ds_addr;
+        imushp->isp->isp_osinfo.ecmd_free = (isp_ecmd_t *)imushp->vbase;
+        imushp->isp->isp_osinfo.ecmd_base = imushp->isp->isp_osinfo.ecmd_free;
+        for (ecmd = imushp->isp->isp_osinfo.ecmd_free; ecmd < &imushp->isp->isp_osinfo.ecmd_free[N_XCMDS]; ecmd++) {
+            if (ecmd == &imushp->isp->isp_osinfo.ecmd_free[N_XCMDS - 1]) {
+                ecmd->next = NULL;
+            } else {
+                ecmd->next = ecmd + 1;
+            }
+        }
+    }
 #ifdef	ISP_TARGET_MODE
 	segs->ds_addr += (N_XCMDS * XCMD_SIZE);
 	imushp->vbase += (N_XCMDS * XCMD_SIZE);
