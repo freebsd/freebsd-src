@@ -23,6 +23,7 @@ SUBDIR=	adduser \
 	digictl \
 	diskinfo \
 	dumpcis \
+	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
@@ -141,6 +142,10 @@ SUBDIR+=	rndc-confgen
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
+.endif
+
+.if ${MK_BSDCONFIG} != "no"
+SUBDIR+=	bsdconfig
 .endif
 
 .if ${MK_BSNMP} != "no"

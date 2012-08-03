@@ -3502,13 +3502,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
-	boolean_t invlva;
 
 	va = trunc_page(va);
 	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
+	KASSERT((prot & access) == access, ("pmap_enter: access not in prot"));
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
 	    va >= kmi.clean_eva,
 	    ("pmap_enter: managed mapping within the clean submap"));
@@ -3516,9 +3516,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	    VM_OBJECT_LOCKED(m->object),
 	    ("pmap_enter: page %p is not busy", m));
 	pa = VM_PAGE_TO_PHYS(m);
-	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
-	if ((m->oflags & VPO_UNMANAGED) == 0)
-		newpte |= PG_MANAGED;
+	newpte = (pt_entry_t)(pa | PG_A | PG_V);
+	if ((access & VM_PROT_WRITE) != 0)
+		newpte |= PG_M;
 	if ((prot & VM_PROT_WRITE) != 0)
 		newpte |= PG_RW;
 	if ((prot & VM_PROT_EXECUTE) == 0)
@@ -3529,6 +3529,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_U;
 	if (pmap == kernel_pmap)
 		newpte |= PG_G;
+	newpte |= pmap_cache_bits(m->md.pat_mode, 0);
 
 	mpte = om = NULL;
 
@@ -3540,109 +3541,111 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
 	 */
-	if (va < VM_MAXUSER_ADDRESS)
-		mpte = pmap_allocpte(pmap, va, &lock);
-
+retry:
 	pde = pmap_pde(pmap, va);
-	if (pde != NULL && (*pde & PG_V) != 0) {
-		if ((*pde & PG_PS) != 0)
-			panic("pmap_enter: attempted pmap_enter on 2MB page");
+	if (pde != NULL && (*pde & PG_V) != 0 && ((*pde & PG_PS) == 0 ||
+	    pmap_demote_pde_locked(pmap, pde, va, &lock))) {
 		pte = pmap_pde_to_pte(pde, va);
+		if (va < VM_MAXUSER_ADDRESS && mpte == NULL) {
+			mpte = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
+			mpte->wire_count++;
+		}
+	} else if (va < VM_MAXUSER_ADDRESS) {
+		/*
+		 * Here if the pte page isn't mapped, or if it has been
+		 * deallocated.
+		 */
+		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va), &lock);
+		goto retry;
 	} else
 		panic("pmap_enter: invalid page directory va=%#lx", va);
 
 	origpte = *pte;
-	opa = origpte & PG_FRAME;
 
 	/*
-	 * Mapping has not changed, must be protection or wiring change.
+	 * Is the specified virtual address already mapped?
 	 */
-	if (origpte && (opa == pa)) {
+	if ((origpte & PG_V) != 0) {
 		/*
 		 * Wiring change, just update stats. We don't worry about
 		 * wiring PT pages as they remain resident as long as there
 		 * are valid mappings in them. Hence, if a user page is wired,
 		 * the PT page will be also.
 		 */
-		if (wired && ((origpte & PG_W) == 0))
+		if ((newpte & PG_W) != 0 && (origpte & PG_W) == 0)
 			pmap->pm_stats.wired_count++;
-		else if (!wired && (origpte & PG_W))
+		else if ((newpte & PG_W) == 0 && (origpte & PG_W) != 0)
 			pmap->pm_stats.wired_count--;
 
 		/*
-		 * Remove extra pte reference
+		 * Remove the extra PT page reference.
 		 */
-		if (mpte)
-			mpte->wire_count--;
-
-		if ((origpte & PG_MANAGED) != 0)
-			om = m;
-		goto validate;
-	} 
-
-	/*
-	 * Mapping has changed, invalidate old range and fall through to
-	 * handle validating new mapping.
-	 */
-	if (opa) {
-		if (origpte & PG_W)
-			pmap->pm_stats.wired_count--;
-		if ((origpte & PG_MANAGED) != 0)
-			om = PHYS_TO_VM_PAGE(opa);
 		if (mpte != NULL) {
 			mpte->wire_count--;
 			KASSERT(mpte->wire_count > 0,
 			    ("pmap_enter: missing reference to page table page,"
 			     " va: 0x%lx", va));
 		}
-	} else
-		pmap_resident_count_inc(pmap, 1);
 
-	/*
-	 * Increment the counters.
-	 */
-	if (wired)
-		pmap->pm_stats.wired_count++;
+		/*
+		 * Has the physical page changed?
+		 */
+		opa = origpte & PG_FRAME;
+		if (opa == pa) {
+			/*
+			 * No, might be a protection or wiring change.
+			 */
+			if ((origpte & PG_MANAGED) != 0) {
+				newpte |= PG_MANAGED;
+				if ((newpte & PG_RW) != 0)
+					vm_page_aflag_set(m, PGA_WRITEABLE);
+			}
+			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
+				goto unchanged;
+			goto validate;
+		} else {
+			/*
+			 * Yes, fall through to validate the new mapping.
+			 */
+			if ((origpte & PG_MANAGED) != 0)
+				om = PHYS_TO_VM_PAGE(opa);
+		}
+	} else {
+		/*
+		 * Increment the counters.
+		 */
+		if ((newpte & PG_W) != 0)
+			pmap->pm_stats.wired_count++;
+		pmap_resident_count_inc(pmap, 1);
+	}
 
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((newpte & PG_MANAGED) != 0) {
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
+		newpte |= PG_MANAGED;
 		pv = get_pv_entry(pmap, &lock);
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		if ((newpte & PG_RW) != 0)
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
 
-validate:
-
 	/*
-	 * Update the PTE only if the mapping or protection/wiring bits are
-	 * different.
+	 * Update the PTE.
 	 */
-	if ((origpte & ~(PG_M | PG_A)) != newpte) {
-		newpte |= PG_A;
-		if ((access & VM_PROT_WRITE) != 0)
-			newpte |= PG_M;
-		if ((newpte & (PG_MANAGED | PG_RW)) == (PG_MANAGED | PG_RW))
-			vm_page_aflag_set(m, PGA_WRITEABLE);
-		if (origpte & PG_V) {
-			invlva = FALSE;
-			origpte = pte_load_store(pte, newpte);
-			if (origpte & PG_A) {
-				if (origpte & PG_MANAGED)
-					vm_page_aflag_set(om, PGA_REFERENCED);
-				if (opa != pa || ((origpte & PG_NX) == 0 &&
-				    (newpte & PG_NX) != 0))
-					invlva = TRUE;
-			}
-			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
-				if ((origpte & PG_MANAGED) != 0)
+	if ((origpte & PG_V) != 0) {
+validate:
+		origpte = pte_load_store(pte, newpte);
+		opa = origpte & PG_FRAME;
+		if (opa != pa) {
+			if ((origpte & PG_MANAGED) != 0) {
+				if ((origpte & (PG_M | PG_RW)) == (PG_M |
+				    PG_RW))
 					vm_page_dirty(om);
-				if ((newpte & PG_RW) == 0)
-					invlva = TRUE;
-			}
-			if (opa != pa && (origpte & PG_MANAGED) != 0) {
+				if ((origpte & PG_A) != 0)
+					vm_page_aflag_set(om, PGA_REFERENCED);
 				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 				pmap_pvh_free(&om->md, pmap, va);
 				if ((om->aflags & PGA_WRITEABLE) != 0 &&
@@ -3651,11 +3654,28 @@ validate:
 				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 					vm_page_aflag_clear(om, PGA_WRITEABLE);
 			}
-			if (invlva)
-				pmap_invalidate_page(pmap, va);
-		} else
-			pte_store(pte, newpte);
-	}
+		} else if ((newpte & PG_M) == 0 && (origpte & (PG_M |
+		    PG_RW)) == (PG_M | PG_RW)) {
+			if ((origpte & PG_MANAGED) != 0)
+				vm_page_dirty(m);
+
+			/*
+			 * Although the PTE may still have PG_RW set, TLB
+			 * invalidation may nonetheless be required because
+			 * the PTE no longer has PG_M set.
+			 */
+		} else if ((origpte & PG_NX) != 0 || (newpte & PG_NX) == 0) {
+			/*
+			 * This PTE change does not require TLB invalidation.
+			 */
+			goto unchanged;
+		}
+		if ((origpte & PG_A) != 0)
+			pmap_invalidate_page(pmap, va);
+	} else
+		pte_store(pte, newpte);
+
+unchanged:
 
 	/*
 	 * If both the page table page and the reservation are fully

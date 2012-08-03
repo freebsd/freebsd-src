@@ -2025,7 +2025,7 @@ pmap_lazyfix_action(void)
 	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
 #endif
 	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+		load_cr3(curpcb->pcb_cr3);
 	CPU_CLR_ATOMIC(PCPU_GET(cpuid), lazymask);
 	atomic_store_rel_int(&lazywait, 1);
 }
@@ -2035,7 +2035,7 @@ pmap_lazyfix_self(u_int cpuid)
 {
 
 	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+		load_cr3(curpcb->pcb_cr3);
 	CPU_CLR_ATOMIC(cpuid, lazymask);
 }
 
@@ -2102,7 +2102,7 @@ pmap_lazyfix(pmap_t pmap)
 
 	cr3 = vtophys(pmap->pm_pdir);
 	if (cr3 == rcr3()) {
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+		load_cr3(curpcb->pcb_cr3);
 		CPU_CLR(PCPU_GET(cpuid), &pmap->pm_active);
 	}
 }

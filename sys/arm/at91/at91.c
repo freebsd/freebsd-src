@@ -242,15 +242,29 @@ at91_identify(driver_t *drv, device_t parent)
 	BUS_ADD_CHILD(parent, 0, "atmelarm", 0);
 }
 
+static void
+at91_cpu_add_builtin_children(device_t dev, const struct cpu_devs *walker)
+{
+	int i;
+
+	for (i = 1; walker->name; i++, walker++) {
+		at91_add_child(dev, i, walker->name, walker->unit,
+		    walker->mem_base, walker->mem_len, walker->irq0,
+		    walker->irq1, walker->irq2);
+	}
+}
+
 static int
 at91_attach(device_t dev)
 {
 	struct at91_softc *sc = device_get_softc(dev);
 	const struct pmap_devmap *pdevmap;
+	int i;
 
 	at91_softc = sc;
 	sc->sc_st = &at91_bs_tag;
 	sc->sc_sh = AT91_BASE;
+	sc->sc_aic_sh = AT91_BASE + AT91_SYS_BASE;
 	sc->dev = dev;
 
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
@@ -269,13 +283,34 @@ at91_attach(device_t dev)
 			panic("at91_attach: failed to set up memory rman");
 	}
 
-
 	/*
-         * Our device list will be added automatically by the cpu device
-	 * e.g. at91rm9200.c when it is identified. To ensure that the
-	 * CPU and PMC are attached first any other "identified" devices
-	 * call BUS_ADD_CHILD(9) with an "order" of at least 2.
+	 * Setup the interrupt table.
+	 */
+	if (soc_info.soc_data == NULL || soc_info.soc_data->soc_irq_prio == NULL)
+		panic("Interrupt priority table missing\n");
+	for (i = 0; i < 32; i++) {
+		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
+		    i * 4, i);
+		/* Priority. */
+		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
+		    soc_info.soc_data->soc_irq_prio[i]);
+		if (i < 8)
+			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
+			    1);
+	}
+
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
+	/* No debug. */
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
+	/* Disable and clear all interrupts. */
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
+
+        /*
+         * Add this device's children...
          */
+	at91_cpu_add_builtin_children(dev, soc_info.soc_data->soc_children);
+	soc_info.soc_data->soc_clock_init();
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -362,7 +397,6 @@ at91_setup_intr(device_t dev, device_t child,
     struct resource *ires, int flags, driver_filter_t *filt,
     driver_intr_t *intr, void *arg, void **cookiep)
 {
-	struct at91_softc *sc = device_get_softc(dev);
 	int error;
 
 	if (rman_get_start(ires) == AT91_IRQ_SYSTEM && filt == NULL)
@@ -372,8 +406,6 @@ at91_setup_intr(device_t dev, device_t child,
 	if (error)
 		return (error);
 
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IECR,
-	    1 << rman_get_start(ires));
 	return (0);
 }
 

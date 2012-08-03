@@ -21,7 +21,7 @@ III - libfdt
 
 IV - Utility Tools
     1) convert-dtsv0 -- Conversion to Version 1
-    1) ftdump
+    1) fdtdump
 
 
 I - "dtc", the device tree compiler
@@ -105,6 +105,9 @@ Options:
 
     -O <output_format>
 	The generated output format, as listed above.
+
+    -d <dependency_filename>
+	Generate a dependency file during compilation.
 
     -q
 	Quiet: -q suppress warnings, -qq errors, -qqq all
@@ -643,10 +646,10 @@ a new file with a "v1" appended the filename.
 Comments, empty lines, etc. are preserved.
 
 
-2) ftdump -- Flat Tree dumping utility
+2) fdtdump -- Flat Device Tree dumping utility
 
-The ftdump program prints a readable version of a flat device tree file.
+The fdtdump program prints a readable version of a flat device tree file.
 
-The syntax of the ftdump command line is:
+The syntax of the fdtdump command line is:
 
-    ftdump <DTB-file-name>
+    fdtdump <DTB-file-name>

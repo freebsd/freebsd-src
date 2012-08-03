@@ -71,6 +71,9 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getTxIntrQueue		= ar5212GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5212IntrReqTxDesc,
 	.ah_getTxCompletionRates	= ar5212GetTxCompletionRates,
+	.ah_setTxDescLink		= ar5212SetTxDescLink,
+	.ah_getTxDescLink		= ar5212GetTxDescLink,
+	.ah_getTxDescLinkPtr		= ar5212GetTxDescLinkPtr,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5212GetRxDP,
@@ -821,6 +824,7 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTurboGSupport = pCap->halWirelessModes & HAL_MODE_108G;
 
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
+	pCap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
 	pCap->halMcastKeySrchSupport = AH_TRUE;

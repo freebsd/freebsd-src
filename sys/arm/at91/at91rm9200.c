@@ -46,14 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pmcvar.h>
 #include <arm/at91/at91soc.h>
 
-
-struct at91rm92_softc {
-	device_t dev;
-	bus_space_tag_t sc_st;
-	bus_space_handle_t sc_sh;
-	bus_space_handle_t sc_sys_sh;
-	bus_space_handle_t sc_aic_sh;
-};
 /*
  * Standard priority levels for the system.  0 is lowest and 7 is highest.
  * These values are the ones Atmel uses for its Linux port, which differ
@@ -137,19 +129,6 @@ static const struct cpu_devs at91_devs[] =
 	{	0, 0, 0, 0, 0 }
 };
 
-static void
-at91_cpu_add_builtin_children(device_t dev)
-{
-	int i;
-	const struct cpu_devs *walker;
-	
-	for (i = 1, walker = at91_devs; walker->name; i++, walker++) {
-		at91_add_child(dev, i, walker->name, walker->unit,
-		    walker->mem_base, walker->mem_len, walker->irq0,
-		    walker->irq1, walker->irq2);
-	}
-}
-
 static uint32_t
 at91_pll_outb(int freq)
 {
@@ -160,71 +139,19 @@ at91_pll_outb(int freq)
 		return (0x8000);
 }
 
-static void
-at91_identify(driver_t *drv, device_t parent)
-{
-
-	if (at91_cpu_is(AT91_T_RM9200)) {
-		at91_add_child(parent, 0, "at91rm920", 0, 0, 0, -1, 0, 0);
-		at91_cpu_add_builtin_children(parent);
-	}
-}
-
-static int
-at91_probe(device_t dev)
-{
-
-	device_set_desc(dev, soc_info.name);
-	return (0);
-}
-
-static int
-at91_attach(device_t dev)
-{
-	struct at91_pmc_clock *clk;
-	struct at91rm92_softc *sc = device_get_softc(dev);
-	int i;
-
-	struct at91_softc *at91sc = device_get_softc(device_get_parent(dev));
-
-	sc->sc_st = at91sc->sc_st;
-	sc->sc_sh = at91sc->sc_sh;
-	sc->dev = dev;
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_SYS_BASE,
-	    AT91RM92_SYS_SIZE, &sc->sc_sys_sh) != 0)
-		panic("Enable to map system registers");
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_AIC_BASE,
-	    AT91RM92_AIC_SIZE, &sc->sc_aic_sh) != 0)
-		panic("Enable to map system registers");
-
-	/* XXX Hack to tell atmelarm about the AIC */
-	at91sc->sc_aic_sh = sc->sc_aic_sh;
-
-	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
-		    i * 4, i);
-		/* Priority. */
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
-		    at91_irq_prio[i]);
-		if (i < 8)
-			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
-			    1);
-	}
-
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
-	/* No debug. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
-	/* Disable and clear all interrupts. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
-
+#if 0
+/* -- XXX are these needed? */
 	/* Disable all interrupts for RTC (0xe24 == RTC_IDR) */
 	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, 0xe24, 0xffffffff);
 
 	/* Disable all interrupts for the SDRAM controller */
 	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, 0xfa8, 0xffffffff);
+#endif
+
+static void
+at91_clock_init(void)
+{
+	struct at91_pmc_clock *clk;
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");
@@ -260,30 +187,14 @@ at91_attach(device_t dev)
 	clk->pll_div_mask  = RM9200_PLL_B_DIV_MASK;
 	clk->set_outb      = at91_pll_outb;
 	at91_pmc_clock_deref(clk);
-
-	return (0);
 }
-
-static device_method_t at91_methods[] = {
-	DEVMETHOD(device_probe, at91_probe),
-	DEVMETHOD(device_attach, at91_attach),
-	DEVMETHOD(device_identify, at91_identify),
-	{0, 0},
-};
-
-static driver_t at91rm92_driver = {
-	"at91rm920",
-	at91_methods,
-	sizeof(struct at91rm92_softc),
-};
-
-static devclass_t at91rm92_devclass;
-
-DRIVER_MODULE(at91rm920, atmelarm, at91rm92_driver, at91rm92_devclass, 0, 0);
 
 static struct at91_soc_data soc_data = {
 	.soc_delay = at91_st_delay,
-	.soc_reset = at91_st_cpu_reset
+	.soc_reset = at91_st_cpu_reset,
+	.soc_clock_init = at91_clock_init,
+	.soc_irq_prio = at91_irq_prio,
+	.soc_children = at91_devs,
 };
 
 AT91_SOC(AT91_T_RM9200, &soc_data);

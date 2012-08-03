@@ -796,8 +796,10 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	if (!buffer)
 		return ENOMEM;
 
-	if ((cm = mps_alloc_command(sc)) == NULL)
+	if ((cm = mps_alloc_command(sc)) == NULL) {
+		free(buffer, M_MPT2);
 		return (EBUSY);
+	}
 	mpi_request = (MPI2_SATA_PASSTHROUGH_REQUEST *)cm->cm_req;
 	bzero(mpi_request,sizeof(MPI2_SATA_PASSTHROUGH_REQUEST));
 	mpi_request->Function = MPI2_FUNCTION_SATA_PASSTHROUGH;

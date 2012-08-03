@@ -435,7 +435,6 @@ i81342_setup_intr(device_t dev, device_t child, struct resource *ires,
 	    filt, intr, arg, cookiep);
 	if (error)
 		return (error);
-	arm_unmask_irq(rman_get_start(ires));
 	return (0);
 }
 

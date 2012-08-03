@@ -344,7 +344,7 @@ trap(struct trapframe *frame)
 
         if ((ISPL(frame->tf_cs) == SEL_UPL) ||
 	    ((frame->tf_eflags & PSL_VM) && 
-		!(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL))) {
+		!(curpcb->pcb_flags & PCB_VM86CALL))) {
 		/* user trap */
 
 		td->td_pticks = 0;
@@ -369,7 +369,7 @@ trap(struct trapframe *frame)
 
 		case T_ARITHTRAP:	/* arithmetic trap */
 #ifdef DEV_NPX
-			ucode = npxtrap();
+			ucode = npxtrap_x87();
 			if (ucode == -1)
 				goto userout;
 #else
@@ -532,7 +532,13 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-			ucode = 0; /* XXX */
+#if defined(DEV_NPX) && !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
+			ucode = npxtrap_sse();
+			if (ucode == -1)
+				goto userout;
+#else
+			ucode = 0;
+#endif
 			i = SIGFPE;
 			break;
 		}
@@ -587,7 +593,7 @@ trap(struct trapframe *frame)
 			/* FALL THROUGH */
 
 		case T_SEGNPFLT:	/* segment not present fault */
-			if (PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)
+			if (curpcb->pcb_flags & PCB_VM86CALL)
 				break;
 
 			/*
@@ -600,7 +606,7 @@ trap(struct trapframe *frame)
 			 * a signal.
 			 */
 			if (frame->tf_eip == (int)cpu_switch_load_gs) {
-				PCPU_GET(curpcb)->pcb_gs = 0;
+				curpcb->pcb_gs = 0;
 #if 0				
 				PROC_LOCK(p);
 				kern_psignal(p, SIGBUS);
@@ -638,9 +644,9 @@ trap(struct trapframe *frame)
 				frame->tf_eip = (int)doreti_popl_fs_fault;
 				goto out;
 			}
-			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
+			if (curpcb->pcb_onfault != NULL) {
 				frame->tf_eip =
-				    (int)PCPU_GET(curpcb)->pcb_onfault;
+				    (int)curpcb->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -690,7 +696,7 @@ trap(struct trapframe *frame)
 			 * debugging the kernel.
 			 */
 			if (user_dbreg_trap() && 
-			   !(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)) {
+			   !(curpcb->pcb_flags & PCB_VM86CALL)) {
 				/*
 				 * Reset breakpoint bits because the
 				 * processor doesn't
@@ -871,7 +877,7 @@ trap_pfault(frame, usermode, eva)
 		 * it normally, and panic immediately.
 		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+		    curpcb->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}
@@ -929,8 +935,8 @@ trap_pfault(frame, usermode, eva)
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
-		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
-			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
+		    curpcb->pcb_onfault != NULL) {
+			frame->tf_eip = (int)curpcb->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);

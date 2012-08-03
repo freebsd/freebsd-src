@@ -38,6 +38,22 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120712: OpenSSL 1.0.1c import
+OLD_LIBS+=lib/libcrypto.so.6
+OLD_LIBS+=usr/lib/libssl.so.6
+OLD_LIBS+=usr/lib32/libcrypto.so.6
+OLD_LIBS+=usr/lib32/libssl.so.6
+OLD_FILES+=usr/include/openssl/aes_locl.h
+OLD_FILES+=usr/include/openssl/bio_lcl.h
+OLD_FILES+=usr/include/openssl/e_os.h
+OLD_FILES+=usr/include/openssl/fips.h
+OLD_FILES+=usr/include/openssl/fips_rand.h
+OLD_FILES+=usr/include/openssl/md2.h
+OLD_FILES+=usr/include/openssl/pq_compat.h
+OLD_FILES+=usr/include/openssl/store.h
+OLD_FILES+=usr/include/openssl/tmdiff.h
+OLD_FILES+=usr/include/openssl/ui_locl.h
+OLD_FILES+=usr/share/openssl/man/man3/CRYPTO_set_id_callback.3.gz
 # 20120621: remove old man page
 OLD_FILES+=usr/share/man/man8/vnconfig.8.gz
 # 20120613: auth.conf removed
@@ -1342,6 +1358,11 @@ OLD_FILES+=usr/share/man/man2/kse_thr_interrupt.2.gz
 OLD_FILES+=usr/share/man/man2/kse_wakeup.2.gz
 OLD_FILES+=usr/lib32/libkse.so
 OLD_LIBS+=usr/lib32/libkse.so.3
+# 20080225: bsdar/bsdranlib rename to ar/ranlib
+OLD_FILES+=usr/bin/bsdar
+OLD_FILES+=usr/bin/bsdranlib
+OLD_FILES+=usr/share/man/man1/bsdar.1.gz
+OLD_FILES+=usr/share/man/man1/bsdranlib.1.gz
 # 20080220: geom_lvm rename to geom_linux_lvm
 OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal

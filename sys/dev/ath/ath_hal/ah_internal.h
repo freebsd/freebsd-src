@@ -252,6 +252,7 @@ typedef struct {
 	int		halRxStatusLen;
 	int		halRxHpFifoDepth;
 	int		halRxLpFifoDepth;
+	int		halNumMRRetries;
 } HAL_CAPABILITIES;
 
 struct regDomain;

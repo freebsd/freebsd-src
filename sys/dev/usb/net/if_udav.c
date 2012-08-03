@@ -169,7 +169,7 @@ MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
 MODULE_VERSION(udav, 1);
 
-static const struct usb_ether_methods udav_ue_methods = {
+static struct usb_ether_methods udav_ue_methods = {
 	.ue_attach_post = udav_attach_post,
 	.ue_start = udav_start,
 	.ue_init = udav_init,
@@ -206,7 +206,8 @@ static const STRUCT_USB_HOST_ID udav_devs[] = {
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
 	/* Kontron AG USB Ethernet */
 	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
-	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082, 0)},
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082,
+	    UDAV_FLAG_NO_PHY)},
 };
 
 static void
@@ -257,6 +258,16 @@ udav_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
+	}
+
+	/*
+	 * The JP1082 has an unusable PHY and provides no link information.
+	 */
+	if (sc->sc_flags & UDAV_FLAG_NO_PHY) {
+		udav_ue_methods.ue_tick = NULL;
+		udav_ue_methods.ue_mii_upd = NULL;
+		udav_ue_methods.ue_mii_sts = NULL;
+		sc->sc_flags |= UDAV_FLAG_LINK;
 	}
 
 	ue->ue_sc = sc;
@@ -712,7 +723,8 @@ udav_stop(struct usb_ether *ue)
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sc->sc_flags &= ~UDAV_FLAG_LINK;
+	if (!(sc->sc_flags & UDAV_FLAG_NO_PHY))
+		sc->sc_flags &= ~UDAV_FLAG_LINK;
 
 	/*
 	 * stop all the transfers, if not already stopped:
