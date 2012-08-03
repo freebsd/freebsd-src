@@ -1,6 +1,7 @@
 /* $FreeBSD$ */
 
 struct spi_command {
+	int	cs;
 	void	*tx_cmd;
 	uint32_t tx_cmd_sz;
 	void	*rx_cmd;
@@ -10,3 +11,5 @@ struct spi_command {
 	void	*rx_data;
 	uint32_t rx_data_sz;
 };
+
+#define	SPI_CHIP_SELECT_HIGH	0x1		/* Chip select high (else low) */

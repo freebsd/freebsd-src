@@ -1,5 +1,5 @@
 /*
- * ftdump.c - Contributed by Pantelis Antoniou <pantelis.antoniou AT gmail.com>
+ * fdtdump.c - Contributed by Pantelis Antoniou <pantelis.antoniou AT gmail.com>
  */
 
 #include <stdint.h>
@@ -11,35 +11,11 @@
 #include <fdt.h>
 #include <libfdt_env.h>
 
-#define FTDUMP_BUF_SIZE	65536
+#include "util.h"
 
 #define ALIGN(x, a)	(((x) + ((a) - 1)) & ~((a) - 1))
 #define PALIGN(p, a)	((void *)(ALIGN((unsigned long)(p), (a))))
 #define GET_CELL(p)	(p += 4, *((const uint32_t *)(p-4)))
-
-static int is_printable_string(const void *data, int len)
-{
-	const char *s = data;
-	const char *ss;
-
-	/* zero length is not */
-	if (len == 0)
-		return 0;
-
-	/* must terminate with zero */
-	if (s[len - 1] != '\0')
-		return 0;
-
-	ss = s;
-	while (*s && isprint(*s))
-		s++;
-
-	/* not zero, or not done yet */
-	if (*s != '\0' || (s + 1 - ss) < len)
-		return 0;
-
-	return 1;
-}
 
 static void print_data(const char *data, int len)
 {
@@ -50,7 +26,7 @@ static void print_data(const char *data, int len)
 	if (len == 0)
 		return;
 
-	if (is_printable_string(data, len)) {
+	if (util_is_printable_string(data, len)) {
 		printf(" = \"%s\"", (const char *)data);
 	} else if ((len % 4) == 0) {
 		printf(" = <");
@@ -169,40 +145,18 @@ static void dump_blob(void *blob)
 
 int main(int argc, char *argv[])
 {
-	FILE *fp;
 	char *buf;
-	int size;
 
 	if (argc < 2) {
 		fprintf(stderr, "supply input filename\n");
 		return 5;
 	}
 
-	if (strcmp(argv[1], "-") == 0) {
-		fp = stdin;
-	} else {
-		fp = fopen(argv[1], "rb");
-		if (fp == NULL) {
-			fprintf(stderr, "unable to open %s\n", argv[1]);
-			return 10;
-		}
-	}
-
-	buf = malloc(FTDUMP_BUF_SIZE);
-	if (!buf) {
-		fprintf(stderr, "Couldn't allocate %d byte buffer\n", FTDUMP_BUF_SIZE);
+	buf = utilfdt_read(argv[1]);
+	if (buf)
+		dump_blob(buf);
+	else
 		return 10;
-	}
-
-	size = fread(buf, 1, FTDUMP_BUF_SIZE, fp);
-	if (size == FTDUMP_BUF_SIZE) {
-		fprintf(stderr, "file too large (maximum is %d bytes)\n", FTDUMP_BUF_SIZE);
-		return 10;
-	}
-
-	dump_blob(buf);
-
-	fclose(fp);
 
 	return 0;
 }

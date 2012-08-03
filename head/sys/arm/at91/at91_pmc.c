@@ -65,6 +65,7 @@ MALLOC_DEFINE(M_PMC, "at91_pmc_clocks", "AT91 PMC Clock descriptors");
 #define AT91_PMC_BASE 0xffffc00
 
 static void at91_pmc_set_pllb_mode(struct at91_pmc_clock *, int);
+static void at91_pmc_set_upll_mode(struct at91_pmc_clock *, int);
 static void at91_pmc_set_sys_mode(struct at91_pmc_clock *, int);
 static void at91_pmc_set_periph_mode(struct at91_pmc_clock *, int);
 static void at91_pmc_clock_alias(const char *name, const char *alias);
@@ -110,6 +111,18 @@ static struct at91_pmc_clock pllb = {
 	.set_mode = &at91_pmc_set_pllb_mode,
 };
 
+/* Used by USB on at91sam9g45 */
+static struct at91_pmc_clock upll = {
+	.name = "upll",		// UTMI PLL, used for USB functions on 9G45
+	.parent = &main_ck,
+	.refcnt = 0,
+	.id = 0,
+	.primary = 1,
+	.pll = 1,
+	.pmc_mask = (1 << 6),
+	.set_mode = &at91_pmc_set_upll_mode,
+};
+
 static struct at91_pmc_clock udpck = {
 	.name = "udpck",
 	.parent = &pllb,
@@ -143,6 +156,7 @@ static struct at91_pmc_clock *clock_list[16+32] = {
 	&main_ck,
 	&plla,
 	&pllb,
+	&upll,
 	&udpck,
 	&uhpck,
 	&mck,
@@ -196,6 +210,26 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 	WR4(sc, CKGR_PLLBR, value);
 	while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
 		continue;
+}
+
+static void
+at91_pmc_set_upll_mode(struct at91_pmc_clock *clk, int on)
+{
+	struct at91_pmc_softc *sc = pmc_softc;
+	uint32_t value;
+
+	if (on) {
+		on = PMC_IER_LOCKU;
+		value = CKGR_UCKR_UPLLEN | CKGR_UCKR_BIASEN;
+	} else
+		value = 0;
+
+	WR4(sc, CKGR_UCKR, RD4(sc, CKGR_UCKR) | value);
+	while ((RD4(sc, PMC_SR) & PMC_IER_LOCKU) != on)
+		continue;
+
+	WR4(sc, PMC_USB, PMC_USB_USBDIV(9) | PMC_USB_USBS);
+	WR4(sc, PMC_SCER, PMC_SCER_UHP_SAM9);
 }
 
 static void
@@ -466,6 +500,12 @@ at91_pmc_init_clock(void)
 		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
 		udpck.pmc_mask = PMC_SCER_UDP_SAM9;
 	}
+	/* There is no pllb on AT91SAM9G45 */
+	if (at91_cpu_is(AT91_T_SAM9G45)) {
+		uhpck.parent = &upll;
+		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
+	}
+
 	mckr = RD4(sc, PMC_MCKR);
 	main_ck.hz = main_clock;
 
@@ -506,8 +546,14 @@ at91_pmc_init_clock(void)
 
 	mdiv = (mckr & PMC_MCKR_MDIV_MASK) >> 8;
 	if (at91_is_sam9() || at91_is_sam9xe()) {
+		/*
+		 * On AT91SAM9G45 when mdiv == 3 we need to divide
+		 * MCK by 3 but not, for example, on 9g20.
+		 */
+		if (!at91_cpu_is(AT91_T_SAM9G45) || mdiv <= 2)
+			mdiv *= 2;
 		if (mdiv > 0)
-			mck.hz /= mdiv * 2;
+			mck.hz /= mdiv;
 	} else
 		mck.hz /= (1 + mdiv);
 

@@ -249,4 +249,5 @@ FBSD_1.3 {
 	ctanf;
 	ctanh;
 	ctanhf;
+	expl;
 };

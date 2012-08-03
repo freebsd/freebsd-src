@@ -130,9 +130,13 @@ archive_read_open_filename_w(struct archive *a, const wchar_t *wfilename,
 		archive_string_init(&fn);
 		if (archive_string_append_from_wcs(&fn, wfilename,
 		    wcslen(wfilename)) != 0) {
-			archive_set_error(a, EINVAL,
-			    "Failed to convert a wide-character filename to"
-			    " a multi-byte filename");
+			if (errno == ENOMEM)
+				archive_set_error(a, errno,
+				    "Can't allocate memory");
+			else
+				archive_set_error(a, EINVAL,
+				    "Failed to convert a wide-character"
+				    " filename to a multi-byte filename");
 			archive_string_free(&fn);
 			return (ARCHIVE_FATAL);
 		}
@@ -450,7 +454,7 @@ static int64_t
 file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
-	off_t r;
+	int64_t r;
 
 	/* We use off_t here because lseek() is declared that way. */
 	/* See above for notes about when off_t is less than 64 bits. */

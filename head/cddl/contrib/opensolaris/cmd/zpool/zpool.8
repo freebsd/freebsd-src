@@ -1636,21 +1636,22 @@ for unixtime
 .Op Fl v
 .Xc
 .Pp
-Displays all pools formatted using a different
+Displays pools which do not have all supported features enabled and pools
+formatted using a legacy
 .Tn ZFS
-pool on-disk version. Older versions can continue to be used, but some
-features may not be available. These pools can be upgraded using
-.Qq Nm Cm upgrade Fl a .
-Pools that are formatted with a more recent version are also displayed,
-although these pools will be inaccessible on the system.
+version number.
+These pools can continue to be used, but some features may not be available.
+Use
+.Nm Cm upgrade Fl a
+to enable all features on all pools.
 .Bl -tag -width indent
 .It Fl v
-Displays
+Displays legacy
 .Tn ZFS
-pool versions supported by the current software. The current
-.Tn ZFS
-pool version and all previous supported versions are displayed, along
-with an explanation of the features provided with each version.
+versions supported by the current software.
+See
+.Xr zpool-features.5
+for a description of feature flags features supported by the current software.
 .El
 .It Xo
 .Nm
@@ -1659,18 +1660,22 @@ with an explanation of the features provided with each version.
 .Fl a | Ar pool ...
 .Xc
 .Pp
-Upgrades the given pool to the latest on-disk pool version. Once this is done,
-the pool will no longer be accessible on systems running older versions of the
-software.
+Enables all supported features on the given pool.
+Once this is done, the pool will no longer be accessible on systems that do
+not support feature flags.
+See
+.Xr zpool-features.5
+for details on compatability with system sthat support feature flags, but do
+not support all features enabled on the pool.
 .Bl -tag -width indent
 .It Fl a
-Upgrades all pools.
+Enables all supported features on all pools.
 .It Fl V Ar version
-Upgrade to the specified version. If the
+Upgrade to the specified legacy version. If the
 .Fl V
-flag is not specified, the pool is upgraded to the most recent version. This
-option can only be used to increase the version number, and only up to the most
-recent version supported by this software.
+flag is specified, no features will be enabled on the pool.
+This option can only be used to increase version number up to the last
+supported legacy version number.
 .El
 .El
 .Sh EXAMPLES

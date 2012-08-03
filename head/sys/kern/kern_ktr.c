@@ -283,7 +283,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	{
 		do {
 			saveindex = ktr_idx;
-			newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
+			newindex = (saveindex + 1) % KTR_ENTRIES;
 		} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 		entry = &ktr_buf[saveindex];
 	}
@@ -338,7 +338,7 @@ static	int db_mach_vtrace(void);
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
 	
-	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
+	tstate.cur = (ktr_idx - 1) % KTR_ENTRIES;
 	tstate.first = -1;
 	db_ktr_verbose = 0;
 	db_ktr_verbose |= (strchr(modif, 'v') != NULL) ? 2 : 0;

@@ -16,12 +16,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2011
+.Dd July 26, 2012
 .Dt USLCOM 4
 .Os
 .Sh NAME
 .Nm uslcom
-.Nd Silicon Laboratories CP2101/CP2102 based USB serial adapter
+.Nd Silicon Laboratories CP2101/CP2102/CP2103/CP2104 based USB serial adapter
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -41,7 +41,8 @@ uslcom_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver supports Silicon Laboratories CP2101/CP2102 based USB serial adapters.
+driver supports Silicon Laboratories CP2101/CP2102/CP2103/CP2104
+based USB serial adapters.
 .Sh HARDWARE
 The following devices should work with the
 .Nm
@@ -49,29 +50,147 @@ driver:
 .Pp
 .Bl -bullet -compact
 .It
+AC-Services CAN, CIS-IBUS, IBUS and OBD interfaces
+.It
+Aerocomm Radio
+.It
+AKTACOM ACE-1001 cable
+.It
+AMBER Wireless AMB2560
+.It
+Arkham DS-101 Adapter
+.It
 Argussoft ISP
 .It
+Arygon Technologies Mifare RFID Reader
+.It
+AVIT Research USB-TTL interface
+.It
+B&G H3000 Data Cable
+.It
+Balluff RFID reader
+.It
 Baltech card reader
+.It
+BEI USB VCP Sensor
 .It
 Burnside Telecom Desktop Mobile
 .It
 chip45.com Crumb128 module
 .It
+Clipsal 5000CT2, 5500PACA, 5500PCU, 560884, 5800PC, C5000CT2
+and L51xx C-Bus Home Automation products
+.It
+Commander 2 EDGE(GSM) Modem
+.It
+Cygnal Fasttrax GPS and Debug adapter
+.It
+DataApex MultiCOM USB to RS232 converter
+.It
+Degree Controls USB adapter
+.It
+DekTec DTA Plus VHF/UHF Booster
+.It
+Dell DW700 GPS Receiver
+.It
+Digianswer ZigBee/802.15.4 MAC
+.It
+Dynastream ANT Development kits
+.It
+Elan USBcount50, USBscope50, USBpulse100 and USBwave12
+.It
+ELV USB-I2C interface
+.It
+EMS C1007 HF RFID controller
+.It
+Festo CPX-USB and CMSP interfaces
+.It
+Gemalto Prox-PU/CU contactless card reader
+.It
+Helicomm IP-Link 1220-DVM
+.It
+IMS USB-RS422 adapter
+.It
+Infinity GPS-MIC-1 Radio Monophone
+.It
+INSYS Modem
+.It
+IRZ SG-10 and MC35pu GSM/GPRS Modems
+.It
 Jablotron PC-60B
 .It
-Lipowsky Baby-JTAG
+Kamstrup M-Bus Master MultiPort 250D
+and Optical Eye/3 wire utility meter interfaces
 .It
-Lipowsky Baby-LIN
+Kyocera GPS
 .It
-Lipowsky HARP-1
+Link Instruments MS-019 and MS-028
+Oscilloscope/Logic Analyzer/Pattern Generators
+.It
+Lipowsky Baby-JTAG, Baby-LIN and HARP-1
+.It
+MEI CashFlow SC and Series 2000 cash acceptors
+.It
+MJS USB-TOSLINK Adapter
+.It
+MobiData GPRS USB Modems
+.It
+MSD DashHawk
+.It
+Multiplex RC adapter
+.It
+Optris MSpro LT Thermometer
+.It
+Owen AC4 USB-RS485 converter
+.It
+Pirelli DP-L10 SIP phone
+.It
+PLX CA-42 Phone cable
 .It
 Pololu USB to Serial
 .It
-Silicon Laboratories CP2101
+Procyon AVS Mind Machine
 .It
-Silicon Laboratories CP2102
+Renesas RX-Stick for RX610
+.It
+Siemens MC60 Cable
+.It
+Silicon Laboratories generic CP2101/CP2102/CP2103/CP2104 chips
+.It
+Software Bisque Paramount ME
+.It
+SPORTident BSM7-D USB
+.It
+Suunto Sports Instrument
+.It
+Syntech CipherLab USB Barcode Scanner
+.It
+T-Com TC 300 SIP phone
+.It
+Tams Master Easy Control
+.It
+Telegesis ETRX2USB
+.It
+Timewave HamLinkUSB
+.It
+Tracient RFID Reader
 .It
 Track Systems Traqmate
+.It
+Vaisala USB Instrument cable
+.It
+VStabi Controller
+.It
+WAGO 750-923 USB Service Cable
+.It
+WaveSense Jazz Blood Glucose Meter
+.It
+WIENER Plein & Baus CML Data Logger, RCM Remote,
+and PL512 and MPOD PSUs
+.It
+WMR RIGblaster Plug&Play and RIGtalk RT1
+.It
+Zephyr Bioharness
 .El
 .Sh SEE ALSO
 .Xr tty 4 ,
@@ -92,7 +211,5 @@ The
 driver was written by
 .An Jonathan Gray Aq jsg@openbsd.org .
 .Sh CAVEATS
-Setting hardware flow control is not currently supported.
-.Pp
-Silicon Laboratories do not release any programming information
-on their products.
+On devices with multiple ports attached to a single chip,
+only the first port is currently supported.

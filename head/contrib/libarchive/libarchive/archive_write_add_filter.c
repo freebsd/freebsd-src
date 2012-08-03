@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2012 Ondrej Holy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -22,21 +21,46 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef LAFE_PATHMATCH_H
-#define LAFE_PATHMATCH_H
+#include "archive_platform.h"
+__FBSDID("$FreeBSD$");
 
-/* Don't anchor at beginning unless the pattern starts with "^" */
-#define PATHMATCH_NO_ANCHOR_START	1
-/* Don't anchor at end unless the pattern ends with "$" */
-#define PATHMATCH_NO_ANCHOR_END 	2
-
-/* Note that "^" and "$" are not special unless you set the corresponding
- * flag above. */
-
-int lafe_pathmatch(const char *p, const char *s, int flags);
-
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
 #endif
+
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
+#include "archive.h"
+#include "archive_private.h"
+
+/* A table that maps filter codes to functions. */
+static
+struct { int code; int (*setter)(struct archive *); } codes[] =
+{
+	{ ARCHIVE_FILTER_NONE,		archive_write_add_filter_none },
+	{ ARCHIVE_FILTER_GZIP,		archive_write_add_filter_gzip },
+	{ ARCHIVE_FILTER_BZIP2,		archive_write_add_filter_bzip2 },
+	{ ARCHIVE_FILTER_COMPRESS,	archive_write_add_filter_compress },
+	{ ARCHIVE_FILTER_LZMA,		archive_write_add_filter_lzma },
+	{ ARCHIVE_FILTER_XZ,		archive_write_add_filter_xz },
+	{ ARCHIVE_FILTER_LZIP,		archive_write_add_filter_lzip },
+	{ -1,			NULL }
+};
+
+int
+archive_write_add_filter(struct archive *a, int code)
+{
+	int i;
+
+	for (i = 0; codes[i].code != -1; i++) {
+		if (code == codes[i].code)
+			return ((codes[i].setter)(a));
+	}
+
+	archive_set_error(a, EINVAL, "No such filter");
+	return (ARCHIVE_FATAL);
+}

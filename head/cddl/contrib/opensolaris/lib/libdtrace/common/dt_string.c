@@ -29,23 +29,6 @@
 #include <ctype.h>
 
 #include <dt_string.h>
-#include <dt_impl.h>
-
-/*
- * Create a copy of string s, but only duplicate the first n bytes.
- */
-char *
-strndup(const char *s, size_t n)
-{
-	char *s2 = malloc(n + 1);
-
-	if (s2 == NULL)
-		longjmp(yypcb->pcb_jmpbuf, EDT_NOMEM);
-
-	(void) strncpy(s2, s, n);
-	s2[n] = '\0';
-	return (s2);
-}
 
 /*
  * Transform string s inline, converting each embedded C escape sequence string

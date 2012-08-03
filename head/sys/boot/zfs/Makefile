@@ -33,5 +33,7 @@ machine:
 .include <bsd.lib.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"
+.if !exists(machine)
 beforedepend ${OBJS}: machine
+.endif
 .endif

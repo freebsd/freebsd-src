@@ -934,6 +934,8 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_mcastq_overflow",
 	    CTLFLAG_RD, &sc->sc_stats.ast_tx_mcastq_overflow, 0,
 	    "Number of multicast frames exceeding maximum mcast queue depth");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_keymiss", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_keymiss, 0, "");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

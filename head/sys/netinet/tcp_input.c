@@ -909,7 +909,7 @@ findpcb:
 	/*
 	 * A previous connection in TIMEWAIT state is supposed to catch stray
 	 * or duplicate segments arriving late.  If this segment was a
-	 * legitimate new connection attempt the old INPCB gets removed and
+	 * legitimate new connection attempt, the old INPCB gets removed and
 	 * we can try again to find a listening socket.
 	 *
 	 * At this point, due to earlier optimism, we may hold only an inpcb
@@ -1438,15 +1438,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * If this is either a state-changing packet or current state isn't
 	 * established, we require a write lock on tcbinfo.  Otherwise, we
-	 * allow either a read lock or a write lock, as we may have acquired
-	 * a write lock due to a race.
-	 *
-	 * Require a global write lock for SYN/FIN/RST segments or
-	 * non-established connections; otherwise accept either a read or
-	 * write lock, as we may have conservatively acquired a write lock in
-	 * certain cases in tcp_input() (is this still true?).  Currently we
-	 * will never enter with no lock, so we try to drop it quickly in the
-	 * common pure ack/pure data cases.
+	 * allow the tcbinfo to be in either alocked or unlocked, as the
+	 * caller may have unnecessarily acquired a write lock due to a race.
 	 */
 	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
 	    tp->t_state != TCPS_ESTABLISHED) {
