@@ -596,8 +596,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 		    (u_int) (c->c_time.frac & 0xffffffff)); 
 	} 
 	bucket = get_bucket(&c->c_time);
-	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket & callwheelmask], 
-	    c, c_links.tqe);
+	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe); 
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout 
 	 * that has been inserted, but only if really required.
@@ -824,41 +823,20 @@ softclock(void *arg)
 {
 	struct callout_cpu *cc;
 	struct callout *c;
-	int steps;	/* #steps since we last allowed interrupts */
-	int depth;
-	int mpcalls;
-	int lockcalls;
-	int gcalls;
+	int depth, gcalls, lockcalls, mpcalls;
 
-#ifndef MAX_SOFTCLOCK_STEPS
-#define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
-#endif /* MAX_SOFTCLOCK_STEPS */
-	
 	depth = 0;
 	mpcalls = 0;
 	lockcalls = 0;
 	gcalls = 0;
-	steps = 0;
 	cc = (struct callout_cpu *)arg;
 	CC_LOCK(cc);
-
 	c = TAILQ_FIRST(&cc->cc_expireq);
 	while (c != NULL) {
 		++depth;
-		++steps;
-		if (steps >= MAX_SOFTCLOCK_STEPS) {
-			cc->cc_exec_next = c;
-			/* Give interrupts a chance. */
-			CC_UNLOCK(cc);
-			;	/* nothing */
-			CC_LOCK(cc);
-			c = cc->cc_exec_next;
-			steps = 0;
-		} else {
-			TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
-			c = softclock_call_cc(c, cc, &mpcalls,
-			    &lockcalls, &gcalls, 0);
-		}	
+		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
+		c = softclock_call_cc(c, cc, &mpcalls,
+		    &lockcalls, &gcalls, 0);
 	}
 #ifdef CALLOUT_PROFILING
 	avg_depth += (depth * 1000 - avg_depth) >> 8;
@@ -866,7 +844,6 @@ softclock(void *arg)
 	avg_lockcalls += (lockcalls * 1000 - avg_lockcalls) >> 8;
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
 #endif
-	cc->cc_exec_next = NULL;
 	CC_UNLOCK(cc);
 }
 
