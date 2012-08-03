@@ -232,6 +232,9 @@ typedef	__pid_t		pid_t;
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 #define	F_DUPFD_CLOEXEC	17		/* Like F_DUPFD, but FD_CLOEXEC is set */
 #endif
+#if __BSD_VISIBLE
+#define	F_DUP2FD_CLOEXEC 18		/* Like F_DUP2FD, but FD_CLOEXEC is set */
+#endif
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define	FD_CLOEXEC	1		/* close-on-exec flag */

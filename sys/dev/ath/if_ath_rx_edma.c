@@ -828,9 +828,6 @@ ath_recv_setup_edma(struct ath_softc *sc)
 
 	/* Fetch EDMA field and buffer sizes */
 	(void) ath_hal_getrxstatuslen(sc->sc_ah, &sc->sc_rx_statuslen);
-	(void) ath_hal_gettxdesclen(sc->sc_ah, &sc->sc_tx_desclen);
-	(void) ath_hal_gettxstatuslen(sc->sc_ah, &sc->sc_tx_statuslen);
-	(void) ath_hal_getntxmaps(sc->sc_ah, &sc->sc_tx_nmaps);
 
 	/* Configure the hardware with the RX buffer size */
 	(void) ath_hal_setrxbufsize(sc->sc_ah, sc->sc_edma_bufsize -
@@ -838,14 +835,8 @@ ath_recv_setup_edma(struct ath_softc *sc)
 
 	device_printf(sc->sc_dev, "RX status length: %d\n",
 	    sc->sc_rx_statuslen);
-	device_printf(sc->sc_dev, "TX descriptor length: %d\n",
-	    sc->sc_tx_desclen);
-	device_printf(sc->sc_dev, "TX status length: %d\n",
-	    sc->sc_tx_statuslen);
-	device_printf(sc->sc_dev, "TX/RX buffer size: %d\n",
+	device_printf(sc->sc_dev, "RX buffer size: %d\n",
 	    sc->sc_edma_bufsize);
-	device_printf(sc->sc_dev, "TX buffers per descriptor: %d\n",
-	    sc->sc_tx_nmaps);
 
 	sc->sc_rx.recv_stop = ath_edma_stoprecv;
 	sc->sc_rx.recv_start = ath_edma_startrecv;

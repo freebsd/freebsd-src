@@ -217,6 +217,10 @@ extern struct pcpu *pcpup;
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
 #define	OFFSETOF_CURTHREAD	0
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnull-dereference"
+#endif
 static __inline __pure2 struct thread *
 __curthread(void)
 {
@@ -226,6 +230,9 @@ __curthread(void)
 	    : "m" (*(char *)OFFSETOF_CURTHREAD));
 	return (td);
 }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #define	curthread		(__curthread())
 
 #define	OFFSETOF_CURPCB		32

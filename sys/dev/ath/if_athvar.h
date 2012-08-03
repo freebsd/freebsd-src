@@ -277,6 +277,7 @@ typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 struct ath_descdma {
 	const char*		dd_name;
 	struct ath_desc		*dd_desc;	/* descriptors */
+	int			dd_descsize;	/* size of single descriptor */
 	bus_addr_t		dd_desc_paddr;	/* physical addr of dd_desc */
 	bus_size_t		dd_desc_len;	/* size of dd_desc */
 	bus_dma_segment_t	dd_dseg;
@@ -396,6 +397,30 @@ struct ath_rx_edma {
 	struct mbuf	*m_rxpending;
 };
 
+struct ath_tx_edma_fifo {
+	struct ath_buf	**m_fifo;
+	int		m_fifolen;
+	int		m_fifo_head;
+	int		m_fifo_tail;
+	int		m_fifo_depth;
+};
+
+struct ath_tx_methods {
+	int		(*xmit_setup)(struct ath_softc *sc);
+	int		(*xmit_teardown)(struct ath_softc *sc);
+	void		(*xmit_attach_comp_func)(struct ath_softc *sc);
+
+	void		(*xmit_dma_restart)(struct ath_softc *sc,
+			    struct ath_txq *txq);
+	void		(*xmit_handoff)(struct ath_softc *sc,
+			    struct ath_txq *txq, struct ath_buf *bf);
+
+	void		(*xmit_drainq)(struct ath_softc *sc,
+			    struct ath_txq *txq);
+	int		(*xmit_processq)(struct ath_softc *sc,
+			    struct ath_txq *txq, int dosched);
+};
+
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
@@ -411,6 +436,9 @@ struct ath_softc {
 
 	struct ath_rx_methods	sc_rx;
 	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
+	struct ath_tx_methods	sc_tx;
+	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
+
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
 	int			sc_tx_statuslen;
@@ -435,6 +463,7 @@ struct ath_softc {
 	void			(*sc_setdefantenna)(struct ath_softc *, u_int);
 	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
 				sc_mrretry  : 1,/* multi-rate retry support */
+				sc_mrrprot  : 1,/* MRR + protection support */
 				sc_softled  : 1,/* enable LED gpio status */
 				sc_hardled  : 1,/* enable MAC LED status */
 				sc_splitmic : 1,/* split TKIP MIC keys */
@@ -549,6 +578,7 @@ struct ath_softc {
 	int			sc_txbuf_cnt;	/* how many buffers avail */
 	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */
 	ath_bufhead		sc_txbuf_mgmt;	/* mgmt transmit buffer */
+	struct ath_descdma	sc_txsdma;	/* EDMA TX status desc's */
 	struct mtx		sc_txbuflock;	/* txbuf lock */
 	char			sc_txname[12];	/* e.g. "ath0_buf" */
 	u_int			sc_txqsetup;	/* h/w queues setup */
@@ -557,6 +587,11 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+
+	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
+	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
+	char			sc_txcompname[12];	/* eg ath0_txcomp */
+
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
@@ -733,6 +768,19 @@ struct ath_softc {
 #define	ATH_TXBUF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txbuflock)
 #define	ATH_TXBUF_LOCK_ASSERT(_sc) \
 	mtx_assert(&(_sc)->sc_txbuflock, MA_OWNED)
+
+#define	ATH_TXSTATUS_LOCK_INIT(_sc) do { \
+	snprintf((_sc)->sc_txcompname, sizeof((_sc)->sc_txcompname), \
+		"%s_buf", \
+		device_get_nameunit((_sc)->sc_dev)); \
+	mtx_init(&(_sc)->sc_txcomplock, (_sc)->sc_txcompname, NULL, \
+		MTX_DEF); \
+} while (0)
+#define	ATH_TXSTATUS_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_LOCK(_sc)		mtx_lock(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_txcomplock)
+#define	ATH_TXSTATUS_LOCK_ASSERT(_sc) \
+	mtx_assert(&(_sc)->sc_txcomplock, MA_OWNED)
 
 int	ath_attach(u_int16_t, struct ath_softc *);
 int	ath_detach(struct ath_softc *);
@@ -1073,6 +1121,9 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getTxDescLink)((_ah), (_ds), (_link)))
 #define ath_hal_gettxdesclinkptr(_ah, _ds, _linkptr) \
 	((*(_ah)->ah_getTxDescLinkPtr)((_ah), (_ds), (_linkptr)))
+#define	ath_hal_setuptxstatusring(_ah, _tsstart, _tspstart, _size) \
+	((*(_ah)->ah_setupTxStatusRing)((_ah), (_tsstart), (_tspstart), \
+		(_size)))
 
 #define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
@@ -1091,7 +1142,7 @@ void	ath_intr(void *);
 	(_series), (_ns), (_flags)))
 
 #define	ath_hal_set11n_aggr_first(_ah, _ds, _len, _num) \
-	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len), (_num)))
+	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len)))
 #define	ath_hal_set11naggrmiddle(_ah, _ds, _num) \
 	((*(_ah)->ah_set11nAggrMiddle)((_ah), (_ds), (_num)))
 #define	ath_hal_set11n_aggr_last(_ah, _ds) \

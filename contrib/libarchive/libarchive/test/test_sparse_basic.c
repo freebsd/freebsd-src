@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Michihiro NAKAJIMA
+ * Copyright (c) 2010-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,9 +30,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif
-#ifdef HAVE_SYS_UTSNAME_H
-#include <sys/utsname.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -169,31 +166,12 @@ is_sparse_supported(const char *path)
 		{ HOLE,	 1024 }, { DATA, 10240 },
 		{ END,	0 }
 	};
-	struct utsname ut;
-	char *p, *e;
-	long d;
 	int fd, r;
 	struct fiemap *fm;
 	char buff[1024];
 	const char *testfile = "can_sparse";
 
 	(void)path; /* UNUSED */
-	memset(&ut, 0, sizeof(ut));
-	assertEqualInt(uname(&ut), 0);
-	p = ut.release;
-	d = strtol(p, &e, 10);
-	if (d < 2 || *e != '.')
-		return (0);
-	if (d == 2) {
-		p = e + 1;
-		d = strtol(p, &e, 10);
-		if (d < 6 || *e != '.')
-			return (0);
-		p = e + 1;
-		d = strtol(p, NULL, 10);
-		if (d < 28)
-			return (0);
-	}
 	create_sparse_file(testfile, sparse_file);
 	fd = open(testfile,  O_RDWR);
 	if (fd < 0)
@@ -205,11 +183,9 @@ is_sparse_supported(const char *path)
 	fm->fm_extent_count = (sizeof(buff) - sizeof(*fm))/
 		sizeof(struct fiemap_extent);
 	r = ioctl(fd, FS_IOC_FIEMAP, fm);
-	if (r < 0 && (errno == ENOTTY || errno == EOPNOTSUPP))
-		return (0);/* Not supported. */
 	close(fd);
 	unlink(testfile);
-	return (1);
+	return (r >= 0);
 }
 
 #else

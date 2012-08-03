@@ -1090,7 +1090,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 	case MD_VNODE:
 		break;
 	case MD_SWAP:
-		if (mdio->md_mediasize == 0 ||
+		if (mdio->md_mediasize <= 0 ||
 		    (mdio->md_mediasize % PAGE_SIZE) != 0)
 			return (EDOM);
 		oldpages = OFF_TO_IDX(round_page(sc->mediasize));
@@ -1148,7 +1148,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * Range check.  Disallow negative sizes or any size less then the
 	 * size of a page.  Then round to a page.
 	 */
-	if (sc->mediasize == 0 || (sc->mediasize % PAGE_SIZE) != 0)
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
 		return (EDOM);
 
 	/*
@@ -1189,6 +1189,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 	struct md_ioctl *mdio;
 	struct md_s *sc;
 	int error, i;
+	unsigned sectsize;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1217,6 +1218,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		default:
 			return (EINVAL);
 		}
+		if (mdio->md_sectorsize == 0)
+			sectsize = DEV_BSIZE;
+		else
+			sectsize = mdio->md_sectorsize;
+		if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
+			return (EINVAL);
 		if (mdio->md_options & MD_AUTOUNIT)
 			sc = mdnew(-1, &error, mdio->md_type);
 		else {
@@ -1229,10 +1236,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
 		sc->mediasize = mdio->md_mediasize;
-		if (mdio->md_sectorsize == 0)
-			sc->sectorsize = DEV_BSIZE;
-		else
-			sc->sectorsize = mdio->md_sectorsize;
+		sc->sectorsize = sectsize;
 		error = EDOOFUS;
 		switch (sc->type) {
 		case MD_MALLOC:
@@ -1282,6 +1286,8 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
 			return (ENOENT);
+		if (mdio->md_mediasize < sc->sectorsize)
+			return (EINVAL);
 		if (mdio->md_mediasize < sc->mediasize &&
 		    !(sc->flags & MD_FORCE) &&
 		    !(mdio->md_options & MD_FORCE))

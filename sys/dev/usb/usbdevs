@@ -659,6 +659,7 @@ vendor SENAO		0x1740	Senao
 vendor ASUS2		0x1761	ASUS
 vendor SWEEX2		0x177f	Sweex
 vendor METAGEEK		0x1781	MetaGeek
+vendor KAMSTRUP		0x17a8	Kamstrup A/S
 vendor WAVESENSE	0x17f4	WaveSense
 vendor VAISALA		0x1843	Vaisala
 vendor AMIT		0x18c5	AMIT
@@ -672,6 +673,7 @@ vendor STELERA		0x1a8d	Stelera Wireless
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor OVISLINK		0x1b75	OvisLink
 vendor TCTMOBILE	0x1bbb  TCT Mobile
+vendor SUNPLUS		0x1bcf	Sunplus Innovation Technology Inc.
 vendor WAGO		0x1be3  WAGO Kontakttechnik GmbH.
 vendor TELIT		0x1bc7  Telit
 vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
@@ -683,6 +685,7 @@ vendor QISDA		0x1da5  Qisda
 vendor METAGEEK2	0x1dd5	MetaGeek
 vendor ALINK		0x1e0e  Alink
 vendor AIRTIES		0x1eda	AirTies
+vendor FESTO		0x1e29	Festo
 vendor VERTEX		0x1fe7  Vertex Wireless Co., Ltd.
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
@@ -699,6 +702,7 @@ vendor HIROSE		0x2631	Hirose Electric
 vendor NHJ		0x2770	NHJ
 vendor PLANEX		0x2c02	Planex Communications
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
+vendor LINKINSTRUMENTS	0x3195	Link Instruments Inc.
 vendor AEI		0x3334	AEI
 vendor HANK		0x3353	Hank Connection
 vendor PQI		0x3538	PQI
@@ -1245,7 +1249,13 @@ product CISCOLINKSYS2 RT3070	0x4001	RT3070
 product CISCOLINKSYS3 RT3070	0x0101	RT3070
 
 /* Clipsal products */
-product CLIPSAL 5500PCU		0x0303	5500PCU C-Bus
+product CLIPSAL 560884		0x0101	560884 C-Bus Audio Matrix Switch
+product CLIPSAL 5500PACA	0x0201	5500PACA C-Bus Pascal Automation Controller
+product CLIPSAL 5800PC		0x0301	5800PC C-Bus Wireless Interface
+product CLIPSAL 5500PCU		0x0303	5500PCU C-Bus Interface
+product CLIPSAL 5000CT2		0x0304	5000CT2 C-Bus Touch Screen
+product CLIPSAL C5000CT2	0x0305	C5000CT2 C-Bus Touch Screen
+product CLIPSAL L51xx		0x0401	L51xx C-Bus Dimmer
 
 /* CMOTECH products */
 product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
@@ -1591,6 +1601,10 @@ product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 product FEIYA AC110		0x6300	AC-110 Card Reader
 
+/* Festo */
+product FESTO CPX_USB		0x0102	CPX-USB
+product FESTO CMSP		0x0501	CMSP
+
 /* Fiberline */
 product FIBERLINE WL430U	0x6003	WL-430U
 
@@ -1658,7 +1672,7 @@ product FUJITSUSIEMENS SCR	0x0009	Fujitsu-Siemens SCR USB Reader
 product GARMIN IQUE_3600	0x0004	iQue 3600
 
 /* Gemalto products */
-product GEMALTO PROXPU		0x5501	Prox-PU/CU
+product GEMALTO PROXPU		0x5501	Prox-PU/CU RFID Card Reader
 
 /* General Instruments (Motorola) products */
 product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
@@ -1895,6 +1909,7 @@ product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI E3131_INIT	0x14fe	3G modem initial
+product HUAWEI E392		0x1505	LTE modem
 product HUAWEI E3131		0x1506	3G modem
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
 product HUAWEI ETS2055		0x1803	CDMA modem
@@ -1990,6 +2005,10 @@ product JVC MP_PRX1		0x3008	MP-PRX1 Ethernet
 /* JRC products */
 product JRC AH_J3001V_J3002V	0x0001	AirH PHONE AH-J3001V/J3002V
 
+/* Kamstrrup products */
+product KAMSTRUP OPTICALEYE	0x0001	Optical Eye/3-wire
+product KAMSTRUP MBUS_250D	0x0005	M-Bus Master MultiPort 250D
+
 /* Kawatsu products */
 product KAWATSU MH4000P		0x0003	MiniHub 4000P
 
@@ -2084,6 +2103,11 @@ product LEXMARK S2450		0x0009	Optra S 2450
 
 /* Liebert products */
 product LIEBERT POWERSURE_PXT	0xffff	PowerSure Personal XT
+
+/* Link Instruments Inc. products */
+product	LINKINSTRUMENTS MSO19	0xf190	Link Instruments MSO-19
+product	LINKINSTRUMENTS MSO28	0xf280	Link Instruments MSO-28
+product	LINKINSTRUMENTS MSO28_2	0xf281	Link Instruments MSO-28
 
 /* Linksys products */
 product LINKSYS MAUSB2		0x0105	Camedia MAUSB-2
@@ -2227,7 +2251,7 @@ product MGE UPS2		0xffff	MGE UPS SYSTEMS PROTECTIONCENTER 2
 
 /* MEI products */
 product MEI CASHFLOW_SC		0x1100	Cashflow-SC Cash Acceptor
-product MEI S2000		0x1101	Seies 2000 Combo Acceptor
+product MEI S2000		0x1101	Series 2000 Combo Acceptor
 
 /* Micro Star International products */
 product MSI BT_DONGLE		0x1967	Bluetooth USB dongle
@@ -2339,6 +2363,10 @@ product MOTOROLA2 USBLAN	0x600c	USBLAN
 product MOTOROLA2 USBLAN2	0x6027	USBLAN
 product MOTOROLA4 RT2770	0x9031	RT2770
 product MOTOROLA4 RT3070	0x9032	RT3070
+
+/* MpMan products */
+product MPMAN MPF400_2		0x25a8	MPF400 Music Player 2Go
+product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
 
 /* MultiTech products */
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
@@ -2666,6 +2694,7 @@ product PRIMAX HP_RH304AA	0x4d17	HP RH304AA mouse
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
+product PROLIFIC MOTOROLA	0x0307	Motorola Cable
 product PROLIFIC RSAQ2		0x04bb	PL2303 Serial (IODATA USB-RSAQ2)
 product PROLIFIC ALLTRONIX_GPRS	0x0609	Alltronix ACM003U00 modem
 product PROLIFIC ALDIGA_AL11U	0x0611	AlDiga AL-11U modem
@@ -3054,10 +3083,10 @@ product SILICOM U2E		0x0001	U2E
 product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
 /* SI Labs */
-product SILABS	VSTABI		0x0f91	Vstabi
+product SILABS	VSTABI		0x0f91	VStabi Controller
 product SILABS	ARKHAM_DS101_M	0x1101	Arkham DS101 Monitor
 product SILABS	ARKHAM_DS101_A	0x1601	Arkham DS101 Adapter
-product SILABS	BSM7DUSB	0x800a	BSM7-D-USB
+product SILABS	BSM7DUSB	0x800a	SPORTident BSM7-D USB
 product SILABS	POLOLU		0x803b	Pololu Serial
 product SILABS	CYGNAL_DEBUG	0x8044	Cygnal Debug Adapter
 product SILABS	SB_PARAMOUNT_ME	0x8043	Software Bisque Paramount ME
@@ -3066,6 +3095,7 @@ product SILABS	GSM2228		0x8054	Enfora GSM2228 USB
 product SILABS	ARGUSISP	0x8066	Argussoft ISP
 product SILABS	IMS_USB_RS422	0x806f	IMS USB-RS422
 product SILABS	CRUMB128	0x807a	Crumb128 board
+product SILABS	OPTRIS_MSPRO	0x80c4	Optris MSpro LT Thermometer
 product SILABS	DEGREE		0x80ca	Degree Controls Inc
 product SILABS	TRACIENT	0x80dd	Tracient RFID
 product SILABS	TRAQMATE	0x80ed	Track Systems Traqmate
@@ -3078,9 +3108,11 @@ product SILABS	WMRRIGBLASTER	0x814a	WMR RIGblaster Plug&Play
 product SILABS	WMRRIGTALK	0x814b	WMR RIGtalk RT1
 product SILABS	B_G_H3000	0x8156	B&G H3000 Data Cable
 product SILABS	HELICOM		0x815e	Helicomm IP-Link 1220-DVM
+product SILABS	HAMLINKUSB	0x815f	Timewave HamLinkUSB
 product SILABS	AVIT_USB_TTL	0x818b	AVIT Research USB-TTL
-product SILABS	MJS_TOSLINK	0x819f	MJS USB-TOSLINk
+product SILABS	MJS_TOSLINK	0x819f	MJS USB-TOSLINK
 product SILABS	WAVIT		0x81a6	ThinkOptics WavIt
+product SILABS	MULTIPLEX_RC	0x81a9	Multiplex RC adapter
 product SILABS	MSD_DASHHAWK	0x81ac	MSD DashHawk
 product SILABS	INSYS_MODEM	0x81ad	INSYS Modem
 product SILABS	LIPOWSKY_JTAG	0x81c8	Lipowsky Baby-JTAG
@@ -3091,16 +3123,24 @@ product SILABS	EMS_C1007	0x81f2	EMS C1007 HF RFID controller
 product SILABS	LIPOWSKY_HARP	0x8218	Lipowsky HARP-1
 product SILABS	C2_EDGE_MODEM	0x822b	Commander 2 EDGE(GSM) Modem
 product SILABS	CYGNAL_GPS	0x826b	Cygnal Fasttrax GPS
-product SILABS	TELEGESYS_ETRX2	0x8293	Telegesys ETRX2USB
+product SILABS	TELEGESIS_ETRX2	0x8293	Telegesis ETRX2USB
 product SILABS	PROCYON_AVS	0x82f9	Procyon AVS
 product SILABS	MC35PU		0x8341	MC35pu
 product SILABS	CYGNAL		0x8382	Cygnal
 product SILABS	AMBER_AMB2560	0x83a8	Amber Wireless AMB2560
+product SILABS	DEKTEK_DTAPLUS	0x83d8	DekTec DTA Plus VHF/UHF Booster
 product SILABS	KYOCERA_GPS	0x8411	Kyocera GPS
+product SILABS	IRZ_SG10	0x8418	IRZ SG-10 GSM/GPRS Modem
 product SILABS	BEI_VCP		0x846e	BEI USB Sensor (VCP)
 product SILABS	BALLUFF_RFID	0x8477	Balluff RFID reader
+product SILABS	AC_SERV_IBUS	0x85ea	AC-Services IBUS Interface
+product SILABS	AC_SERV_CIS	0x85eb	AC-Services CIS-IBUS
+product SILABS	AC_SERV_CAN	0x8664	AC-Services CAN Interface
+product SILABS	AC_SERV_OBD	0x8665	AC-Services OBD Interface
 product SILABS	CP2102		0xea60	SILABS USB UART
 product SILABS	CP210X_2	0xea61	CP210x Serial
+product SILABS	CP210X_3	0xea70	CP210x Serial
+product SILABS	CP210X_4	0xea80	CP210x Serial
 product SILABS	INFINITY_MIC	0xea71	Infinity GPS-MIC-1 Radio Monophone
 product SILABS	USBSCOPE50	0xf001	USBscope50
 product SILABS	USBWAVE12	0xf002	USBwave12
@@ -3240,10 +3280,6 @@ product STELERA E1010		0x1010	3G modem
 product STELERA E1011		0x1011	3G modem
 product STELERA E1012		0x1012	3G modem
 
-/* MpMan products */
-product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
-product MPMAN MPF400_2		0x25a8	MPF400 Music Player 2Go
-
 /* STMicroelectronics products */
 product STMICRO BIOCPU		0x2016	Biometric Coprocessor
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
@@ -3265,6 +3301,9 @@ product SUN KEYBOARD_TYPE_7	0x00a2	Type 7 USB keyboard
 /* XXX The above is a North American PC style keyboard possibly */
 product SUN MOUSE		0x0100	Type 6 USB mouse
 product SUN KBD_HUB		0x100e	Kbd Hub
+
+/* Sunplus Innovation Technology Inc. products */
+product SUNPLUS USBMOUSE	0x0007	USB Optical Mouse
 
 /* Super Top products */
 product	SUPERTOP IDE		0x6600	USB-IDE

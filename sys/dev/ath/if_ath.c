@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_ath_rx.h>
 #include <dev/ath/if_ath_rx_edma.h>
+#include <dev/ath/if_ath_tx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
 
@@ -253,6 +254,28 @@ SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
 
 MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
 
+void
+ath_legacy_attach_comp_func(struct ath_softc *sc)
+{
+
+	/*
+	 * Special case certain configurations.  Note the
+	 * CAB queue is handled by these specially so don't
+	 * include them when checking the txq setup mask.
+	 */
+	switch (sc->sc_txqsetup &~ (1<<sc->sc_cabq->axq_qnum)) {
+	case 0x01:
+		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0, sc);
+		break;
+	case 0x0f:
+		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0123, sc);
+		break;
+	default:
+		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc, sc);
+		break;
+	}
+}
+
 #define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
 #define	HAL_MODE_HT40 \
 	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
@@ -306,8 +329,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ath_hal_hasedma(sc->sc_ah)) {
 		sc->sc_isedma = 1;
 		ath_recv_setup_edma(sc);
-	} else
+		ath_xmit_setup_edma(sc);
+	} else {
 		ath_recv_setup_legacy(sc);
+		ath_xmit_setup_legacy(sc);
+	}
 
 	/*
 	 * Check if the MAC has multi-rate retry support.
@@ -367,14 +393,24 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_setcurmode(sc, IEEE80211_MODE_11A);
 
 	/*
-	 * Allocate tx+rx descriptors and populate the lists.
+	 * Allocate TX descriptors and populate the lists.
 	 */
 	error = ath_desc_alloc(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to allocate descriptors: %d\n", error);
+		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
+		    error);
+		goto bad;
+	}
+	error = ath_txdma_setup(sc);
+	if (error != 0) {
+		if_printf(ifp, "failed to allocate TX descriptors: %d\n",
+		    error);
 		goto bad;
 	}
 
+	/*
+	 * Allocate RX descriptors and populate the lists.
+	 */
 	error = ath_rxdma_setup(sc);
 	if (error != 0) {
 		if_printf(ifp, "failed to allocate RX descriptors: %d\n",
@@ -446,21 +482,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 
 	/*
-	 * Special case certain configurations.  Note the
-	 * CAB queue is handled by these specially so don't
-	 * include them when checking the txq setup mask.
+	 * Attach the TX completion function.
+	 *
+	 * The non-EDMA chips may have some special case optimisations;
+	 * this method gives everyone a chance to attach cleanly.
 	 */
-	switch (sc->sc_txqsetup &~ (1<<sc->sc_cabq->axq_qnum)) {
-	case 0x01:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0, sc);
-		break;
-	case 0x0f:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0123, sc);
-		break;
-	default:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc, sc);
-		break;
-	}
+	sc->sc_tx.xmit_attach_comp_func(sc);
 
 	/*
 	 * Setup rate control.  Some rate control modules
@@ -678,6 +705,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
 
+	/*
+	 * Disable MRR with protected frames by default.
+	 * Only 802.11n series NICs can handle this.
+	 */
+	sc->sc_mrrprot = 0;	/* XXX should be a capability */
+
 #ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
@@ -687,6 +720,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		int rxs, txs;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
+
+		sc->sc_mrrprot = 1;	/* XXX should be a capability */
+
 		ic->ic_htcaps = IEEE80211_HTC_HT	/* HT operation */
 			    | IEEE80211_HTC_AMPDU	/* A-MPDU tx/rx */
 			    | IEEE80211_HTC_AMSDU	/* A-MSDU tx/rx */
@@ -858,6 +894,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 bad2:
 	ath_tx_cleanup(sc);
 	ath_desc_free(sc);
+	ath_txdma_teardown(sc);
 	ath_rxdma_teardown(sc);
 bad:
 	if (ah)
@@ -901,6 +938,7 @@ ath_detach(struct ath_softc *sc)
 
 	ath_dfs_detach(sc);
 	ath_desc_free(sc);
+	ath_txdma_teardown(sc);
 	ath_rxdma_teardown(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
@@ -2749,28 +2787,32 @@ ath_load_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	*paddr = segs->ds_addr;
 }
 
+/*
+ * Allocate the descriptors and appropriate DMA tag/setup.
+ *
+ * For some situations (eg EDMA TX completion), there isn't a requirement
+ * for the ath_buf entries to be allocated.
+ */
 int
-ath_descdma_setup(struct ath_softc *sc,
+ath_descdma_alloc_desc(struct ath_softc *sc,
 	struct ath_descdma *dd, ath_bufhead *head,
-	const char *name, int nbuf, int ndesc)
+	const char *name, int ds_size, int ndesc)
 {
 #define	DS2PHYS(_dd, _ds) \
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
 	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
 	struct ifnet *ifp = sc->sc_ifp;
-	uint8_t *ds;
-	struct ath_buf *bf;
-	int i, bsize, error;
-	int desc_len;
+	int error;
 
-	desc_len = sizeof(struct ath_desc);
+	dd->dd_descsize = ds_size;
 
-	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA: %u buffers %u desc/buf\n",
-	    __func__, name, nbuf, ndesc);
+	DPRINTF(sc, ATH_DEBUG_RESET,
+	    "%s: %s DMA: %u desc, %d bytes per descriptor\n",
+	    __func__, name, ndesc, dd->dd_descsize);
 
 	dd->dd_name = name;
-	dd->dd_desc_len = desc_len * nbuf * ndesc;
+	dd->dd_desc_len = dd->dd_descsize * ndesc;
 
 	/*
 	 * Merlin work-around:
@@ -2778,8 +2820,8 @@ ath_descdma_setup(struct ath_softc *sc,
 	 * Assume one skipped descriptor per 4KB page.
 	 */
 	if (! ath_hal_split4ktrans(sc->sc_ah)) {
-		int numdescpage = 4096 / (desc_len * ndesc);
-		dd->dd_desc_len = (nbuf / numdescpage + 1) * 4096;
+		int numpages = dd->dd_desc_len / 4096;
+		dd->dd_desc_len += ds_size * numpages;
 	}
 
 	/*
@@ -2815,7 +2857,7 @@ ath_descdma_setup(struct ath_softc *sc,
 				 &dd->dd_dmamap);
 	if (error != 0) {
 		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
-			"error %u\n", nbuf * ndesc, dd->dd_name, error);
+			"error %u\n", ndesc, dd->dd_name, error);
 		goto fail1;
 	}
 
@@ -2829,10 +2871,49 @@ ath_descdma_setup(struct ath_softc *sc,
 		goto fail2;
 	}
 
-	ds = (uint8_t *) dd->dd_desc;
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
-	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    __func__, dd->dd_name, (uint8_t *) dd->dd_desc,
+	    (u_long) dd->dd_desc_len, (caddr_t) dd->dd_desc_paddr,
+	    /*XXX*/ (u_long) dd->dd_desc_len);
+
+	return (0);
+
+fail2:
+	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
+fail1:
+	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
+fail0:
+	bus_dma_tag_destroy(dd->dd_dmat);
+	memset(dd, 0, sizeof(*dd));
+	return error;
+#undef DS2PHYS
+#undef ATH_DESC_4KB_BOUND_CHECK
+}
+
+int
+ath_descdma_setup(struct ath_softc *sc,
+	struct ath_descdma *dd, ath_bufhead *head,
+	const char *name, int ds_size, int nbuf, int ndesc)
+{
+#define	DS2PHYS(_dd, _ds) \
+	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
+#define	ATH_DESC_4KB_BOUND_CHECK(_daddr, _len) \
+	((((u_int32_t)(_daddr) & 0xFFF) > (0x1000 - (_len))) ? 1 : 0)
+	struct ifnet *ifp = sc->sc_ifp;
+	uint8_t *ds;
+	struct ath_buf *bf;
+	int i, bsize, error;
+
+	/* Allocate descriptors */
+	error = ath_descdma_alloc_desc(sc, dd, head, name, ds_size,
+	    nbuf * ndesc);
+
+	/* Assume any errors during allocation were dealt with */
+	if (error != 0) {
+		return (error);
+	}
+
+	ds = (uint8_t *) dd->dd_desc;
 
 	/* allocate rx buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
@@ -2845,7 +2926,7 @@ ath_descdma_setup(struct ath_softc *sc,
 	dd->dd_bufptr = bf;
 
 	TAILQ_INIT(head);
-	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * desc_len)) {
+	for (i = 0; i < nbuf; i++, bf++, ds += (ndesc * dd->dd_descsize)) {
 		bf->bf_desc = (struct ath_desc *) ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
 		if (! ath_hal_split4ktrans(sc->sc_ah)) {
@@ -2855,7 +2936,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			 * in the descriptor.
 			 */
 			 if (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr,
-			     desc_len * ndesc)) {
+			     dd->dd_descsize)) {
 				/* Start at the next page */
 				ds += 0x1000 - (bf->bf_daddr & 0xFFF);
 				bf->bf_desc = (struct ath_desc *) ds;
@@ -2873,14 +2954,18 @@ ath_descdma_setup(struct ath_softc *sc,
 		bf->bf_lastds = bf->bf_desc;	/* Just an initial value */
 		TAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
+
+	/*
+	 * XXX TODO: ensure that ds doesn't overflow the descriptor
+	 * allocation otherwise weird stuff will occur and crash your
+	 * machine.
+	 */
 	return 0;
+	/* XXX this should likely just call ath_descdma_cleanup() */
 fail3:
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
-fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-fail1:
 	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -2915,7 +3000,8 @@ ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	 * However, dd_desc_len is used by ath_descdma_free() to determine
 	 * whether we have already freed this DMA mapping.
 	 */
-	dd->dd_desc_len = rx_status_len;
+	dd->dd_desc_len = rx_status_len * nbuf;
+	dd->dd_descsize = rx_status_len;
 
 	/* allocate rx buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
@@ -2964,27 +3050,32 @@ ath_descdma_cleanup(struct ath_softc *sc,
 		bus_dma_tag_destroy(dd->dd_dmat);
 	}
 
-	TAILQ_FOREACH(bf, head, bf_list) {
-		if (bf->bf_m) {
-			m_freem(bf->bf_m);
-			bf->bf_m = NULL;
-		}
-		if (bf->bf_dmamap != NULL) {
-			bus_dmamap_destroy(sc->sc_dmat, bf->bf_dmamap);
-			bf->bf_dmamap = NULL;
-		}
-		ni = bf->bf_node;
-		bf->bf_node = NULL;
-		if (ni != NULL) {
-			/*
-			 * Reclaim node reference.
-			 */
-			ieee80211_free_node(ni);
+	if (head != NULL) {
+		TAILQ_FOREACH(bf, head, bf_list) {
+			if (bf->bf_m) {
+				m_freem(bf->bf_m);
+				bf->bf_m = NULL;
+			}
+			if (bf->bf_dmamap != NULL) {
+				bus_dmamap_destroy(sc->sc_dmat, bf->bf_dmamap);
+				bf->bf_dmamap = NULL;
+			}
+			ni = bf->bf_node;
+			bf->bf_node = NULL;
+			if (ni != NULL) {
+				/*
+				 * Reclaim node reference.
+				 */
+				ieee80211_free_node(ni);
+			}
 		}
 	}
 
-	TAILQ_INIT(head);
-	free(dd->dd_bufptr, M_ATHDEV);
+	if (head != NULL)
+		TAILQ_INIT(head);
+
+	if (dd->dd_bufptr != NULL)
+		free(dd->dd_bufptr, M_ATHDEV);
 	memset(dd, 0, sizeof(*dd));
 }
 
@@ -2994,14 +3085,15 @@ ath_desc_alloc(struct ath_softc *sc)
 	int error;
 
 	error = ath_descdma_setup(sc, &sc->sc_txdma, &sc->sc_txbuf,
-			"tx", ath_txbuf, ATH_TXDESC);
+		    "tx", sc->sc_tx_desclen, ath_txbuf, ATH_TXDESC);
 	if (error != 0) {
 		return error;
 	}
 	sc->sc_txbuf_cnt = ath_txbuf;
 
 	error = ath_descdma_setup(sc, &sc->sc_txdma_mgmt, &sc->sc_txbuf_mgmt,
-			"tx_mgmt", ath_txbuf_mgmt, ATH_TXDESC);
+		    "tx_mgmt", sc->sc_tx_desclen, ath_txbuf_mgmt,
+		    ATH_TXDESC);
 	if (error != 0) {
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		return error;
@@ -3013,7 +3105,7 @@ ath_desc_alloc(struct ath_softc *sc)
 	 */
 
 	error = ath_descdma_setup(sc, &sc->sc_bdma, &sc->sc_bbuf,
-			"beacon", ATH_BCBUF, 1);
+			"beacon", sc->sc_tx_desclen, ATH_BCBUF, 1);
 	if (error != 0) {
 		ath_descdma_cleanup(sc, &sc->sc_txdma, &sc->sc_txbuf);
 		ath_descdma_cleanup(sc, &sc->sc_txdma_mgmt,
@@ -3493,8 +3585,8 @@ ath_tx_update_busy(struct ath_softc *sc)
  * Kick the packet scheduler if needed. This can occur from this
  * particular task.
  */
-static int
-ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
+int
+ath_legacy_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
@@ -3894,7 +3986,7 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 }
 
 void
-ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
+ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 #ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;

@@ -387,7 +387,7 @@ extern	void ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		u_int nseries, u_int flags);
 
 extern void ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds,
-		u_int aggrLen, u_int numDelims);
+		u_int aggrLen);
 extern	void ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims);
 extern void ar5416Set11nAggrLast(struct ath_hal *ah, struct ath_desc *ds);
 

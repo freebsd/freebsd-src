@@ -26,8 +26,8 @@
 __FBSDID("$FreeBSD");
 
 /*
- * Extract a non-encorded file.
- * The header of the 7z archive files is not encdoed.
+ * Extract a non-encoded file.
+ * The header of the 7z archive files is not encoded.
  */
 static void
 test_copy()
@@ -46,7 +46,7 @@ test_copy()
 
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(60, archive_entry_size(ae));
@@ -139,7 +139,7 @@ test_empty_file()
 
 /*
  * Extract an encoded file.
- * The header of the 7z archive files is not encdoed.
+ * The header of the 7z archive files is not encoded.
  */
 static void
 test_plain_header(const char *refname)
@@ -180,7 +180,7 @@ test_plain_header(const char *refname)
 
 /*
  * Extract multi files.
- * The header of the 7z archive files is encdoed with LZMA.
+ * The header of the 7z archive files is encoded with LZMA.
  */
 static void
 test_extract_all_files(const char *refname)
@@ -255,7 +255,7 @@ test_extract_all_files(const char *refname)
 
 /*
  * Extract last file.
- * The header of the 7z archive files is encdoed with LZMA.
+ * The header of the 7z archive files is encoded with LZMA.
  */
 static void
 test_extract_last_file(const char *refname)
@@ -323,7 +323,7 @@ test_extract_last_file(const char *refname)
 }
 
 /*
- * Extract a mixed archive file which has both  LZMA and LZMA2 encoded files.
+ * Extract a mixed archive file which has both LZMA and LZMA2 encoded files.
  *  LZMA: file1, file2, file3, file4
  *  LZMA2: zfile1, zfile2, zfile3, zfile4
  */
@@ -510,7 +510,7 @@ test_bcj(const char *refname)
 
 	/* Verify regular x86exe. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0555), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0444), archive_entry_mode(ae) & ~0111);
 	assertEqualString("x86exe", archive_entry_pathname(ae));
 	assertEqualInt(172802, archive_entry_mtime(ae));
 	assertEqualInt(27328, archive_entry_size(ae));
@@ -565,7 +565,7 @@ test_ppmd()
 
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("ppmd_test.txt", archive_entry_pathname(ae));
 	assertEqualInt(1322464589, archive_entry_mtime(ae));
 	assertEqualInt(102400, archive_entry_size(ae));

@@ -87,6 +87,10 @@ int in_waitcmd = 0;		/* are we in waitcmd()? */
 volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 static int ttyfd = -1;
 
+/* mode flags for dowait */
+#define DOWAIT_BLOCK	0x1 /* wait until a child exits */
+#define DOWAIT_SIG	0x2 /* if DOWAIT_BLOCK, abort on signals */
+
 #if JOBS
 static void restartjob(struct job *);
 #endif
@@ -94,7 +98,6 @@ static void freejob(struct job *);
 static struct job *getjob(char *);
 pid_t getjobpgrp(char *);
 static pid_t dowait(int, struct job *);
-static pid_t waitproc(int, int *);
 static void checkzombies(void);
 static void cmdtxt(union node *);
 static void cmdputs(const char *);
@@ -519,7 +522,7 @@ waitcmd(int argc, char **argv)
 					break;
 			}
 		}
-	} while (dowait(1, (struct job *)NULL) != -1);
+	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
 	return 0;
@@ -966,7 +969,7 @@ waitforjob(struct job *jp, int *origstatus)
 	INTOFF;
 	TRACE(("waitforjob(%%%td) called\n", jp - jobtab + 1));
 	while (jp->state == 0)
-		if (dowait(1, jp) == -1)
+		if (dowait(DOWAIT_BLOCK | (Tflag ? DOWAIT_SIG : 0), jp) == -1)
 			dotrap();
 #if JOBS
 	if (jp->jobctl) {
@@ -1004,14 +1007,20 @@ waitforjob(struct job *jp, int *origstatus)
 }
 
 
+static void
+dummy_handler(int sig)
+{
+}
 
 /*
  * Wait for a process to terminate.
  */
 
 static pid_t
-dowait(int block, struct job *job)
+dowait(int mode, struct job *job)
 {
+	struct sigaction sa, osa;
+	sigset_t mask, omask;
 	pid_t pid;
 	int status;
 	struct procstat *sp;
@@ -1021,15 +1030,49 @@ dowait(int block, struct job *job)
 	int stopped;
 	int sig;
 	int coredump;
+	int wflags;
+	int restore_sigchld;
 
 	TRACE(("dowait(%d) called\n", block));
+	restore_sigchld = 0;
+	if ((mode & DOWAIT_SIG) != 0) {
+		sigfillset(&mask);
+		sigprocmask(SIG_BLOCK, &mask, &omask);
+		INTOFF;
+		if (!issigchldtrapped()) {
+			restore_sigchld = 1;
+			sa.sa_handler = dummy_handler;
+			sa.sa_flags = 0;
+			sigemptyset(&sa.sa_mask);
+			sigaction(SIGCHLD, &sa, &osa);
+		}
+	}
 	do {
-		pid = waitproc(block, &status);
+#if JOBS
+		if (iflag)
+			wflags = WUNTRACED | WCONTINUED;
+		else
+#endif
+			wflags = 0;
+		if ((mode & (DOWAIT_BLOCK | DOWAIT_SIG)) != DOWAIT_BLOCK)
+			wflags |= WNOHANG;
+		pid = wait3(&status, wflags, (struct rusage *)NULL);
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
-	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
-		 (pid > 0 && WIFSTOPPED(status) && !iflag));
+		if (pid == 0 && (mode & DOWAIT_SIG) != 0) {
+			sigsuspend(&omask);
+			pid = -1;
+			if (int_pending())
+				break;
+		}
+	} while (pid == -1 && errno == EINTR && breakwaitcmd == 0);
 	if (pid == -1 && errno == ECHILD && job != NULL)
 		job->state = JOBDONE;
+	if ((mode & DOWAIT_SIG) != 0) {
+		if (restore_sigchld)
+			sigaction(SIGCHLD, &osa, NULL);
+		sigprocmask(SIG_SETMASK, &omask, NULL);
+		INTON;
+	}
 	if (breakwaitcmd != 0) {
 		breakwaitcmd = 0;
 		if (pid <= 0)
@@ -1050,7 +1093,11 @@ dowait(int block, struct job *job)
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
 						   (int)pid, sp->status,
 						   status));
-					sp->status = status;
+					if (WIFCONTINUED(status)) {
+						sp->status = -1;
+						jp->state = 0;
+					} else
+						sp->status = status;
 					thisjob = jp;
 				}
 				if (sp->status == -1)
@@ -1106,26 +1153,6 @@ dowait(int block, struct job *job)
 }
 
 
-
-/*
- * Do a wait system call.  If job control is compiled in, we accept
- * stopped processes.  If block is zero, we return a value of zero
- * rather than blocking.
- */
-static pid_t
-waitproc(int block, int *status)
-{
-	int flags;
-
-#if JOBS
-	flags = WUNTRACED;
-#else
-	flags = 0;
-#endif
-	if (block == 0)
-		flags |= WNOHANG;
-	return wait3(status, flags, (struct rusage *)NULL);
-}
 
 /*
  * return 1 if there are stopped jobs, otherwise 0

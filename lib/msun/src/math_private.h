@@ -207,6 +207,13 @@ do {								\
   (d) = se_u.e;							\
 } while (0)
 
+/* Long double constants are broken on i386.  This workaround is OK always. */
+#define	LD80C(m, ex, s, v) {					\
+	/* .e = v, */		/* overwritten */		\
+	.xbits.man = __CONCAT(m, ULL),				\
+	.xbits.expsign = (0x3fff + (ex)) | ((s) ? 0x8000 : 0),	\
+}
+
 #ifdef FLT_EVAL_METHOD
 /*
  * Attempt to get strict C99 semantics for assignment with non-C99 compilers.
@@ -225,7 +232,29 @@ do {								\
 	}					\
 } while (0)
 #endif
+#endif /* FLT_EVAL_METHOD */
+
+/* Support switching the mode to FP_PE if necessary. */
+#if defined(__i386__) && !defined(NO_FPSETPREC)
+#define	ENTERI()				\
+	long double __retval;			\
+	fp_prec_t __oprec;			\
+						\
+	if ((__oprec = fpgetprec()) != FP_PE)	\
+		fpsetprec(FP_PE);
+#define	RETURNI(x) do {				\
+	__retval = (x);				\
+	if (__oprec != FP_PE)			\
+		fpsetprec(__oprec);		\
+	RETURNF(__retval);			\
+} while (0)
+#else
+#define	ENTERI(x)
+#define	RETURNI(x)	RETURNF(x)
 #endif
+
+/* Default return statement if hack*_t() is not used. */
+#define      RETURNF(v)      return (v)
 
 /*
  * Common routine to process the arguments to nan(), nanf(), and nanl().
@@ -321,6 +350,18 @@ irint(double x)
 	return (n);
 }
 #define	HAVE_EFFICIENT_IRINT
+#endif
+
+#if defined(__amd64__) || defined(__i386__)
+static __inline int
+irintl(long double x)
+{
+	int n;
+
+	asm("fistl %0" : "=m" (n) : "t" (x));
+	return (n);
+}
+#define	HAVE_EFFICIENT_IRINTL
 #endif
 
 #endif /* __GNUCLIKE_ASM */

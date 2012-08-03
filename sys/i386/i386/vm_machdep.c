@@ -106,6 +106,10 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
+CTASSERT((struct thread **)OFFSETOF_CURTHREAD ==
+    &((struct pcpu *)NULL)->pc_curthread);
+CTASSERT((struct pcb **)OFFSETOF_CURPCB == &((struct pcpu *)NULL)->pc_curpcb);
+
 static void	cpu_reset_real(void);
 #ifdef SMP
 static void	cpu_reset_proxy(void);
