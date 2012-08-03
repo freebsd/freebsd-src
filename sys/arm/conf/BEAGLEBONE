@@ -112,11 +112,11 @@ device		loop
 device		ether
 device		mii
 device		smcphy
+device		cpsw
 device		bpf
 
 # USB ethernet support, requires miibus
 device		miibus
-device		cpsw
 device		axe			# ASIX Electronics USB Ethernet
 
 # Flattened Device Tree
