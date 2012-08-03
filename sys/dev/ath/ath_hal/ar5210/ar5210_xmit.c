@@ -630,3 +630,36 @@ ar5210GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *
 {
 	return AH_FALSE;
 }
+
+/*
+ * Set the TX descriptor link pointer
+ */
+void
+ar5210SetTxDescLink(struct ath_hal *ah, void *ds, uint32_t link)
+{
+	struct ar5210_desc *ads = AR5210DESC(ds);
+
+	ads->ds_link = link;
+}
+
+/*
+ * Get the TX descriptor link pointer
+ */
+void
+ar5210GetTxDescLink(struct ath_hal *ah, void *ds, uint32_t *link)
+{
+	struct ar5210_desc *ads = AR5210DESC(ds);
+
+	*link = ads->ds_link;
+}
+
+/*
+ * Get a pointer to the TX descriptor link pointer
+ */
+void
+ar5210GetTxDescLinkPtr(struct ath_hal *ah, void *ds, uint32_t **linkptr)
+{
+	struct ar5210_desc *ads = AR5210DESC(ds);
+
+	*linkptr = &ads->ds_link;
+}

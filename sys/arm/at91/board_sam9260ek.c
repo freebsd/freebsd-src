@@ -74,37 +74,55 @@ board_init(void)
 	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA20, 0);
 	/* EMDIO */
 	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA21, 0);
+	/* Not RMII */
+	/* ETX2 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA10, 0);
+	/* ETX3 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA11, 0);
+	/* ETXER */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA22, 0);
+	/* ERX2 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA25, 0);
+	/* ERX3 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA26, 0);
+	/* ERXCK */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA27, 0);
+	/* ECRS */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA28, 0);
+	/* ECOL */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA29, 0);
+
 
 	/*
-	 * MMC
+	 * MMC, wired to socket B.
 	 */
-	/* MCDA0 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA6, 1);
-	/* MCCDA */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA7, 1);
+	/* MCDB0 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA0, 1);
+	/* MCCDB */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA1, 1);
+	/* MCDB3 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA3, 1);
+	/* MCDB2 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA4, 1);
+	/* MCDB1 */
+	at91_pio_use_periph_b(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA5, 1);
 	/* MCCK */
 	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA8, 1);
-	/* MCDA1 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA9, 1);
-	/* MCDA2 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA10, 1);
-	/* MCDA3 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA11, 1);
 
 	/*
-	 * SPI0
+	 * SPI0 and MMC are wired together, since we don't support sharing
+	 * don't support the dataflash.  But if you did, you'd have to
+	 * use CS0 and CS1.
 	 */
-	/* MISO */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA0, 0);
-	/* MOSI */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA1, 0);
-	/* SPCK */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA2, 0);
-	/* NPCS0 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA3, 0);
 
 	/*
-	 * TWI
+	 * SPI1 is wired to a audio CODEC that we don't support, so
+	 * give it a pass.
+	 */
+
+	/*
+	 * TWI.  Only one child on the iic bus, which we take care of
+	 * via hints.
 	 */
 	/* TWD */
 	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA23, 1);
@@ -132,16 +150,18 @@ board_init(void)
 	at91_pio_use_periph_a(AT91SAM9260_PIOB_BASE, AT91C_PIO_PB27, 0);
 
 	/*
-	 * USART2
+	 * USART1
 	 */
-	/* RTS2 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA4, 1);
-	/* CTS2 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOA_BASE, AT91C_PIO_PA5, 0);
-	/* TXD2 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOB_BASE, AT91C_PIO_PB8, 1);
-	/* RXD2 */
-	at91_pio_use_periph_a(AT91SAM9260_PIOB_BASE, AT91C_PIO_PB9, 0);
+	/* RTS1 */
+	at91_pio_use_periph_a(AT91SAM9260_PIOB_BASE, AT91C_PIO_PB28, 1);
+	/* CTS1 */
+	at91_pio_use_periph_a(AT91SAM9260_PIOB_BASE, AT91C_PIO_PB29, 0);
+	/* TXD1 */
+	at91_pio_use_periph_a(AT91SAM9260_PIOB_BASE, AT91C_PIO_PB6, 1);
+	/* RXD1 */
+	at91_pio_use_periph_a(AT91SAM9260_PIOB_BASE, AT91C_PIO_PB7, 0);
+
+	/* USART2 - USART5 aren't wired up, except via PIO pins, ignore them. */
 
 	return (at91_ramsize());
 }

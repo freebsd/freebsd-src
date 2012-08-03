@@ -11,7 +11,7 @@
 
 ======================================================================
 
-	Major changes between "less" versions 444 and 449
+	Major changes between "less" versions 444 and 451
 
 * Add ESC-F command to keep reading data until a pattern is found.
 

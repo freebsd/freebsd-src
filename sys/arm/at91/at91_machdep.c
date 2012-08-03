@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_usartreg.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91sam9g45reg.h>
 
 /* Page table for mapping proc0 zero page */
 #define KERNEL_PT_SYS		0
@@ -201,6 +202,17 @@ const struct pmap_devmap at91_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
+	/*
+	 * The next should be good for the 9G45.
+	 */
+	{
+		/* Internal Memory 1MB  */
+		AT91SAM9G45_OHCI_BASE,
+		AT91SAM9G45_OHCI_PA_BASE,
+		0x00100000,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
 	{ 0, 0, 0, 0, 0, }
 };
 
@@ -213,7 +225,7 @@ extern int memsize[];
 long
 at91_ramsize(void)
 {
-	uint32_t cr, mr, *SDRAMC;
+	uint32_t cr, mdr, mr, *SDRAMC;
 	int banks, rows, cols, bw;
 #ifdef LINUX_BOOT_ABI
 	/*
@@ -231,6 +243,24 @@ at91_ramsize(void)
 		rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
 		cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
 		bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
+	} else if (at91_cpu_is(AT91_T_SAM9G45)) {
+		SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G45_DDRSDRC0_BASE);
+		cr = SDRAMC[AT91SAM9G45_DDRSDRC_CR / 4];
+		mdr = SDRAMC[AT91SAM9G45_DDRSDRC_MDR / 4];
+		banks = 0;
+		rows = ((cr & AT91SAM9G45_DDRSDRC_CR_NR_MASK) >> 2) + 11;
+		cols = (cr & AT91SAM9G45_DDRSDRC_CR_NC_MASK) + 8;
+		bw = (mdr & AT91SAM9G45_DDRSDRC_MDR_DBW_16) ? 1 : 2;
+
+		/* Fix the calculation for DDR memory */
+		mdr &= AT91SAM9G45_DDRSDRC_MDR_MASK;
+		if (mdr & AT91SAM9G45_DDRSDRC_MDR_LPDDR1 ||
+		    mdr & AT91SAM9G45_DDRSDRC_MDR_DDR2) {
+			/* The cols value is 1 higher for DDR */
+			cols += 1;
+			/* DDR has 4 internal banks. */
+			banks = 2;
+		}
 	} else {
 		/*
 		 * This should be good for the 9260, 9261, 9G20, 9G35 and 9X25

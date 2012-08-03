@@ -199,7 +199,7 @@ verify(const char *refname, enum comp_type comp)
 
 	/* Verify regular empty. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("empty", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -211,7 +211,7 @@ verify(const char *refname, enum comp_type comp)
 		 * file to check if we properly handle multiple CFDATA.
 		 */
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-		assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+		assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 		assertEqualString("zero", archive_entry_pathname(ae));
 		assertEqualInt(0, archive_entry_uid(ae));
 		assertEqualInt(0, archive_entry_gid(ae));
@@ -232,7 +232,7 @@ verify(const char *refname, enum comp_type comp)
 
 	/* Verify regular file1. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("dir1/file1", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -242,7 +242,7 @@ verify(const char *refname, enum comp_type comp)
 
 	/* Verify regular file2. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt((AE_IFREG | 0777), archive_entry_mode(ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
 	assertEqualString("dir2/file2", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
@@ -269,13 +269,121 @@ finish:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Skip beginning files and Read the last file.
+ */
+static void
+verify2(const char *refname, enum comp_type comp)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[128];
+	char zero[128];
+
+	memset(zero, 0, sizeof(zero));
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular empty. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	if (comp != STORE) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	}
+	/* Verify regular file1. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* Verify regular file2. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt((AE_IFREG | 0666), archive_entry_mode(ae));
+	assertEqualString("dir2/file2", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_uid(ae));
+	assertEqualInt(0, archive_entry_gid(ae));
+	assertEqualInt(file2_size, archive_entry_size(ae));
+	assertEqualInt(file2_size, archive_read_data(a, buff, file2_size));
+	assertEqualMem(buff, file2, file2_size);
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	if (comp != STORE) {
+		assertEqualInt(4, archive_file_count(a));
+	} else {
+		assertEqualInt(3, archive_file_count(a));
+	}
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * Skip all file like 'bsdtar tvf foo.cab'.
+ */
+static void
+verify3(const char *refname, enum comp_type comp)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char zero[128];
+
+	memset(zero, 0, sizeof(zero));
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular empty. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	if (comp != STORE) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	}
+	/* Verify regular file1. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* Verify regular file2. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	if (comp != STORE) {
+		assertEqualInt(4, archive_file_count(a));
+	} else {
+		assertEqualInt(3, archive_file_count(a));
+	}
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_cab)
 {
 	/* Verify Cabinet file in no compression. */
 	verify("test_read_format_cab_1.cab", STORE);
+	verify2("test_read_format_cab_1.cab", STORE);
+	verify3("test_read_format_cab_1.cab", STORE);
 	/* Verify Cabinet file in MSZIP. */
 	verify("test_read_format_cab_2.cab", MSZIP);
+	verify2("test_read_format_cab_2.cab", MSZIP);
+	verify3("test_read_format_cab_2.cab", MSZIP);
 	/* Verify Cabinet file in LZX. */
 	verify("test_read_format_cab_3.cab", LZX);
+	verify2("test_read_format_cab_3.cab", LZX);
+	verify3("test_read_format_cab_3.cab", LZX);
 }
 

@@ -133,7 +133,7 @@ cd9660_mount(struct mount *mp)
 	int error;
 	accmode_t accmode;
 	struct nameidata ndp;
-	struct iso_mnt *imp = 0;
+	struct iso_mnt *imp = NULL;
 
 	td = curthread;
 
@@ -214,7 +214,7 @@ iso_mountfs(devvp, mp)
 	int iso_bsize;
 	int iso_blknum;
 	int joliet_level;
-	struct iso_volume_descriptor *vdp = 0;
+	struct iso_volume_descriptor *vdp = NULL;
 	struct iso_primary_descriptor *pri = NULL;
 	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
 	struct iso_supplementary_descriptor *sup = NULL;

@@ -74,6 +74,8 @@ get_tclk(void)
 	soc_id(&dev, &rev);
 	if (dev == MV_DEV_88F6281 && (rev == 2 || rev == 3))
 		return (TCLK_200MHZ);
+	if (dev == MV_DEV_88F6282)
+		return (TCLK_200MHZ);
 
 	return (TCLK_166MHZ);
 }

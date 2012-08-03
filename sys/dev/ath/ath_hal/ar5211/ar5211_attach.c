@@ -75,6 +75,9 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_getTxIntrQueue		= ar5211GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5211IntrReqTxDesc,
 	.ah_getTxCompletionRates	= ar5211GetTxCompletionRates,
+	.ah_setTxDescLink		= ar5211SetTxDescLink,
+	.ah_getTxDescLink		= ar5211GetTxDescLink,
+	.ah_getTxDescLinkPtr		= ar5211GetTxDescLinkPtr,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5211GetRxDP,
@@ -493,6 +496,7 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halSleepAfterBeaconBroken = AH_TRUE;
 	pCap->halPSPollBroken = AH_TRUE;
 	pCap->halVEOLSupport = AH_TRUE;
+	pCap->halNumMRRetries = 1;	/* No hardware MRR support */
 
 	pCap->halTotalQueues = HAL_NUM_TX_QUEUES;
 	pCap->halKeyCacheSize = 128;

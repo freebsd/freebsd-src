@@ -230,8 +230,10 @@ wtap_beacon_intrp(void *arg)
 	struct ieee80211vap *vap = arg;
 	struct mbuf *m;
 
-	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
-	    ("not running, state %d", vap->iv_state));
+	if (vap->iv_state < IEEE80211_S_RUN) {
+	    DWTAP_PRINTF("Skip beacon, not running, state %d", vap->iv_state);
+	    return ;
+	}
 	DWTAP_PRINTF("[%d] beacon intrp\n", avp->id);	//burst mode
 	/*
 	 * Update dynamic beacon contents.  If this returns
@@ -289,6 +291,8 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		default:
 			goto bad;
 		}
+	} else if (nstate == IEEE80211_S_INIT) {
+		callout_stop(&avp->av_swba);
 	}
 	return 0;
 bad:

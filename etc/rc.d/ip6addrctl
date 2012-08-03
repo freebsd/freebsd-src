@@ -83,6 +83,9 @@ ip6addrctl_start()
 		# Backward compatibility when ipv6_prefer=NO
 		ip6addrctl_prefer_ipv4
 	;;
+	[Nn][Oo][Nn][Ee])
+		ip6addrctl flush >/dev/null 2>&1
+	;;
 	*)
 		warn "\$ip6addrctl_policy is invalid: ${ip6addrctl_policy}. " \
 		    " \"ipv4_prefer\" is used instead."

@@ -135,6 +135,7 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 #define set11nRateFlags(_series, _index) \
         ((_series)[_index].RateFlags & HAL_RATESERIES_2040 ? AR_2040_##_index : 0) \
         |((_series)[_index].RateFlags & HAL_RATESERIES_HALFGI ? AR_GI##_index : 0) \
+        |((_series)[_index].RateFlags & HAL_RATESERIES_STBC ? AR_STBC##_index : 0) \
         |SM((_series)[_index].ChSel, AR_ChainSel##_index)
 
 /*
@@ -727,16 +728,14 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 }
 
 void
-ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds,
-    u_int aggrLen, u_int numDelims)
+ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds, u_int aggrLen)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 
 	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
 
 	ads->ds_ctl6 &= ~(AR_AggrLen | AR_PadDelim);
-	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen) |
-	    SM(numDelims, AR_PadDelim);
+	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
 }
 
 void

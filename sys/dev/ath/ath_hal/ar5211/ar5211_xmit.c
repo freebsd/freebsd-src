@@ -671,3 +671,27 @@ ar5211GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *
 	return AH_FALSE;
 }
 
+
+void
+ar5211SetTxDescLink(struct ath_hal *ah, void *ds, uint32_t link)
+{
+	struct ar5211_desc *ads = AR5211DESC(ds);
+
+	ads->ds_link = link;
+}
+
+void
+ar5211GetTxDescLink(struct ath_hal *ah, void *ds, uint32_t *link)
+{
+	struct ar5211_desc *ads = AR5211DESC(ds);
+
+	*link = ads->ds_link;
+}
+
+void
+ar5211GetTxDescLinkPtr(struct ath_hal *ah, void *ds, uint32_t **linkptr)
+{
+	struct ar5211_desc *ads = AR5211DESC(ds);
+
+	*linkptr = &ads->ds_link;
+}

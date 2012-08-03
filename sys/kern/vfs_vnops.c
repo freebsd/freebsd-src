@@ -229,8 +229,10 @@ int
 vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
     struct thread *td, struct file *fp)
 {
+	struct mount *mp;
 	accmode_t accmode;
-	int error;
+	struct flock lf;
+	int error, have_flock, lock_flags, type;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 	if (vp->v_type == VLNK)
@@ -271,6 +273,51 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fp)) != 0)
 		return (error);
 
+	if (fmode & (O_EXLOCK | O_SHLOCK)) {
+		KASSERT(fp != NULL, ("open with flock requires fp"));
+		lock_flags = VOP_ISLOCKED(vp);
+		VOP_UNLOCK(vp, 0);
+		lf.l_whence = SEEK_SET;
+		lf.l_start = 0;
+		lf.l_len = 0;
+		if (fmode & O_EXLOCK)
+			lf.l_type = F_WRLCK;
+		else
+			lf.l_type = F_RDLCK;
+		type = F_FLOCK;
+		if ((fmode & FNONBLOCK) == 0)
+			type |= F_WAIT;
+		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type);
+		have_flock = (error == 0);
+		vn_lock(vp, lock_flags | LK_RETRY);
+		if (error == 0 && vp->v_iflag & VI_DOOMED)
+			error = ENOENT;
+		/*
+		 * Another thread might have used this vnode as an
+		 * executable while the vnode lock was dropped.
+		 * Ensure the vnode is still able to be opened for
+		 * writing after the lock has been obtained.
+		 */
+		if (error == 0 && accmode & VWRITE)
+			error = vn_writechk(vp);
+		if (error) {
+			VOP_UNLOCK(vp, 0);
+			if (have_flock) {
+				lf.l_whence = SEEK_SET;
+				lf.l_start = 0;
+				lf.l_len = 0;
+				lf.l_type = F_UNLCK;
+				(void) VOP_ADVLOCK(vp, fp, F_UNLCK, &lf,
+				    F_FLOCK);
+			}
+			vn_start_write(vp, &mp, V_WAIT);
+			vn_lock(vp, lock_flags | LK_RETRY);
+			(void)VOP_CLOSE(vp, fmode, cred, td);
+			vn_finished_write(mp);
+			return (error);
+		}
+		fp->f_flag |= FHASLOCK;
+	}
 	if (fmode & FWRITE) {
 		vp->v_writecount++;
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
@@ -1400,19 +1447,22 @@ vn_closefile(fp, td)
 	int error;
 
 	vp = fp->f_vnode;
+	fp->f_ops = &badfileops;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK)
+		vref(vp);
+
+	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
+
 	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
 		lf.l_type = F_UNLCK;
 		(void) VOP_ADVLOCK(vp, fp, F_UNLCK, &lf, F_FLOCK);
+		vrele(vp);
 	}
-
-	fp->f_ops = &badfileops;
-
-	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }

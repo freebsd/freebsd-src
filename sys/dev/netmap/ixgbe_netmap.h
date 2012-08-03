@@ -233,7 +233,7 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * seems very expensive, so we interrupt once every half ring,
 	 * or when requested with NS_REPORT
 	 */
-	int report_frequency = kring->nkr_num_slots >> 1;
+	u_int report_frequency = kring->nkr_num_slots >> 1;
 
 	if (k > lim)
 		return netmap_ring_reinit(kring);
