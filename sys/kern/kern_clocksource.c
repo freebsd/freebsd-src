@@ -205,19 +205,21 @@ handleevents(struct bintime *now, int fake)
 
 	runs = 0;
 	while (bintime_cmp(now, &state->nexthard, >=)) {
-		bintime_add(&state->nexthard, &hardperiod);
+		bintime_addx(&state->nexthard, hardperiod.frac);
 		runs++;
 	}
-	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 &&
-	    bintime_cmp(&state->nexthard, &nexthard, >))
-		nexthard = state->nexthard;
-	if (runs && fake < 2) {
-		hardclock_cnt(runs, usermode);
-		done = 1;
+	if (runs) {
+		if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 &&
+		    bintime_cmp(&state->nexthard, &nexthard, >))
+			nexthard = state->nexthard;
+		if (fake < 2) {
+			hardclock_cnt(runs, usermode);
+			done = 1;
+		}
 	}
 	runs = 0;
 	while (bintime_cmp(now, &state->nextstat, >=)) {
-		bintime_add(&state->nextstat, &statperiod);
+		bintime_addx(&state->nextstat, statperiod.frac);
 		runs++;
 	}
 	if (runs && fake < 2) {
@@ -227,7 +229,7 @@ handleevents(struct bintime *now, int fake)
 	if (profiling) {
 		runs = 0;
 		while (bintime_cmp(now, &state->nextprof, >=)) {
-			bintime_add(&state->nextprof, &profperiod);
+			bintime_addx(&state->nextprof, profperiod.frac);
 			runs++;
 		}
 		if (runs && !fake) {
@@ -356,7 +358,7 @@ timercb(struct eventtimer *et, void *arg)
 		next = &nexttick;
 	if (periodic) {
 		now = *next;	/* Ex-next tick time becomes present time. */
-		bintime_add(next, &timerperiod); /* Next tick in 1 period. */
+		bintime_addx(next, timerperiod.frac); /* Next tick in 1 period. */
 	} else {
 		binuptime(&now);	/* Get present time from hardware. */
 		next->sec = -1;		/* Next tick is not scheduled yet. */
@@ -433,7 +435,7 @@ loadtimer(struct bintime *now, int start)
 			new.sec = 0;
 			new.frac = timerperiod.frac - tmp;
 			if (new.frac < tmp)	/* Left less then passed. */
-				bintime_add(&new, &timerperiod);
+				bintime_addx(&new, timerperiod.frac);
 			CTR5(KTR_SPARE2, "load p at %d:   now %d.%08x first in %d.%08x",
 			    curcpu, now->sec, (unsigned int)(now->frac >> 32),
 			    new.sec, (unsigned int)(new.frac >> 32));
@@ -531,7 +533,7 @@ configtimer(int start)
 	if (start) {
 		/* Initialize time machine parameters. */
 		next = now;
-		bintime_add(&next, &timerperiod);
+		bintime_addx(&next, timerperiod.frac);
 		if (periodic)
 			nexttick = next;
 		else
