@@ -112,6 +112,7 @@ device		loop
 device		ether
 device		mii
 device		smcphy
+device		bpf
 
 # USB ethernet support, requires miibus
 device		miibus
