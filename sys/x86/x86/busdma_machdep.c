@@ -567,7 +567,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	/*
 	 * dmamem does not need to be bounced, so the map should be
 	 * NULL if malloc() was used and contig_dmamap if
-	 * contigmalloc() was used.
+	 * kmem_alloc_contig() was used.
 	 */
 	if (!(map == NULL || map == &contig_dmamap))
 		panic("bus_dmamem_free: Invalid map freed\n");
