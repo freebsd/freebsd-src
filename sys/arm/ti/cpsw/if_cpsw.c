@@ -511,6 +511,7 @@ cpsw_allocate_dma(struct cpsw_softc *sc)
 static int
 cpsw_free_dma(struct cpsw_softc *sc)
 {
+	(void)sc; /* UNUSED */
 	// TODO
 	return 0;
 }
@@ -727,6 +728,8 @@ cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCGIFMEDIA: /* fall through */
 		printf("%s: SIOCGIFMEDIA\n",__func__);
+		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
+		break;
 	case SIOCSIFMEDIA:
 		printf("%s: SIOCSIFMEDIA\n",__func__);
 		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
@@ -776,6 +779,7 @@ cpsw_ifmedia_upd(struct ifnet *ifp)
 static void
 cpsw_intr_rx_thresh(void *arg)
 {
+	(void)arg; /* UNUSED */
 }
 
 static void
