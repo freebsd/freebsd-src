@@ -111,7 +111,7 @@ device		da			# Direct Access (disks)
 device		loop
 device		ether
 device		mii
-device		smcphy
+device		smscphy
 device		cpsw
 device		bpf
 
