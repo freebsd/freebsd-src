@@ -660,6 +660,32 @@ disk_attr_changed(struct disk *dp, const char *attr, int flag)
 }
 
 void
+disk_media_changed(struct disk *dp, int flag)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = dp->d_geom;
+	if (gp != NULL) {
+		LIST_FOREACH(pp, &gp->provider, provider)
+			g_media_changed(pp, flag);
+	}
+}
+
+void
+disk_media_gone(struct disk *dp, int flag)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = dp->d_geom;
+	if (gp != NULL) {
+		LIST_FOREACH(pp, &gp->provider, provider)
+			g_media_gone(pp, flag);
+	}
+}
+
+void
 disk_resize(struct disk *dp)
 {
 	struct g_geom *gp;

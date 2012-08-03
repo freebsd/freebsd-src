@@ -79,10 +79,18 @@ struct txschedule {
  */
 #define NUM_PACKET_SIZE_BINS 2
 
+static const int packet_size_bins[NUM_PACKET_SIZE_BINS]  = { 250, 1600 };
+
+static inline int
+bin_to_size(int index)
+{
+	return packet_size_bins[index];
+}
+
 /* per-node state */
 struct sample_node {
 	int static_rix;			/* rate index of fixed tx rate */
-#define	SAMPLE_MAXRATES	32		/* NB: corresponds to hal info[32] */
+#define	SAMPLE_MAXRATES	64		/* NB: corresponds to hal info[32] */
 	uint32_t ratemask;		/* bit mask of valid rate indices */
 	const struct txschedule *sched;	/* tx schedule table */
 
@@ -101,6 +109,9 @@ struct sample_node {
 	int packets_since_sample[NUM_PACKET_SIZE_BINS];
 	unsigned sample_tt[NUM_PACKET_SIZE_BINS];
 };
+
+#ifdef	_KERNEL
+
 #define	ATH_NODE_SAMPLE(an)	((struct sample_node *)&(an)[1])
 #define	IS_RATE_DEFINED(sn, rix)	(((sn)->ratemask & (1<<(rix))) != 0)
 
@@ -225,4 +236,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	}
 	return tt;
 }
+
+#endif	/* _KERNEL */
+
 #endif /* _DEV_ATH_RATE_SAMPLE_H */

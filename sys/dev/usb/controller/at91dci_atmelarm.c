@@ -61,12 +61,12 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91_pmcvar.h>
 #include <arm/at91/at91rm92reg.h>
-#include <arm/at91/at91_pio_rm9200.h>
+#include <arm/at91/at91_pioreg.h>
 #include <arm/at91/at91_piovar.h>
 
 #define	MEM_RID	0
 
-/* Pin Definitions - do they belong here or somewhere else ? */
+/* Pin Definitions - do they belong here or somewhere else ? -- YES! */
 
 #define	VBUS_MASK	AT91C_PIO_PB24
 #define	VBUS_BASE	AT91RM92_PIOB_BASE

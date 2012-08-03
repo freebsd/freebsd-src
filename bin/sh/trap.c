@@ -368,6 +368,14 @@ ignoresig(int signo)
 }
 
 
+int
+issigchldtrapped(void)
+{
+
+	return (trap[SIGCHLD] != NULL && *trap[SIGCHLD] != '\0');
+}
+
+
 /*
  * Signal handler.
  */

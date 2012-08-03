@@ -470,31 +470,6 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		return (EINVAL);
 	}
 
-	g_topology_lock();
-
-	if (ggio->gctl_readprov[0] == '\0') {
-		ropp = NULL;
-	} else {
-		ropp = g_provider_by_name(ggio->gctl_readprov);
-		if (ropp == NULL) {
-			g_topology_unlock();
-			G_GATE_DEBUG(1, "Provider %s doesn't exist.",
-			    ggio->gctl_readprov);
-			return (EINVAL);
-		}
-		if ((ggio->gctl_readoffset % ggio->gctl_sectorsize) != 0) {
-			g_topology_unlock();
-			G_GATE_DEBUG(1, "Invalid read offset.");
-			return (EINVAL);
-		}
-		if (ggio->gctl_mediasize + ggio->gctl_readoffset >
-		    ropp->mediasize) {
-			g_topology_unlock();
-			G_GATE_DEBUG(1, "Invalid read offset or media size.");
-			return (EINVAL);
-		}
-	}
-
 	sc = malloc(sizeof(*sc), M_GATE, M_WAITOK | M_ZERO);
 	sc->sc_flags = (ggio->gctl_flags & G_GATE_USERFLAGS);
 	strlcpy(sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
@@ -509,53 +484,10 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	sc->sc_timeout = ggio->gctl_timeout;
 	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
 
-	gp = g_new_geomf(&g_gate_class, "%s", name);
-	gp->start = g_gate_start;
-	gp->access = g_gate_access;
-	gp->orphan = g_gate_orphan;
-	gp->dumpconf = g_gate_dumpconf;
-	gp->softc = sc;
-
-	if (ropp != NULL) {
-		cp = g_new_consumer(gp);
-		error = g_attach(cp, ropp);
-		if (error != 0) {
-			G_GATE_DEBUG(1, "Unable to attach to %s.", ropp->name);
-		} else {
-			error = g_access(cp, 1, 0, 0);
-			if (error != 0) {
-				G_GATE_DEBUG(1, "Unable to access %s.",
-				    ropp->name);
-				g_detach(cp);
-			}
-		}
-		if (error != 0) {
-			g_destroy_consumer(cp);
-			g_destroy_geom(gp);
-			g_topology_unlock();
-			mtx_destroy(&sc->sc_queue_mtx);
-			free(sc, M_GATE);
-			return (error);
-		}
-		sc->sc_readcons = cp;
-		sc->sc_readoffset = ggio->gctl_readoffset;
-	}
-
 	mtx_lock(&g_gate_units_lock);
 	sc->sc_unit = g_gate_getunit(ggio->gctl_unit, &error);
-	if (sc->sc_unit < 0) {
-		mtx_unlock(&g_gate_units_lock);
-		if (sc->sc_readcons != NULL) {
-			(void)g_access(sc->sc_readcons, -1, 0, 0);
-			g_detach(sc->sc_readcons);
-			g_destroy_consumer(sc->sc_readcons);
-		}
-		g_destroy_geom(gp);
-		g_topology_unlock();
-		mtx_destroy(&sc->sc_queue_mtx);
-		free(sc, M_GATE);
-		return (error);
-	}
+	if (sc->sc_unit < 0)
+		goto fail1;
 	if (ggio->gctl_unit == G_GATE_NAME_GIVEN)
 		snprintf(name, sizeof(name), "%s", ggio->gctl_name);
 	else {
@@ -568,22 +500,62 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 			continue;
 		if (strcmp(name, g_gate_units[unit]->sc_name) != 0)
 			continue;
-		mtx_unlock(&g_gate_units_lock);
-		if (sc->sc_readcons != NULL) {
-			(void)g_access(sc->sc_readcons, -1, 0, 0);
-			g_detach(sc->sc_readcons);
-			g_destroy_consumer(sc->sc_readcons);
-		}
-		g_destroy_geom(gp);
-		g_topology_unlock();
-		mtx_destroy(&sc->sc_queue_mtx);
-		free(sc, M_GATE);
-		return (EEXIST);
+		error = EEXIST;
+		goto fail1;
 	}
 	sc->sc_name = name;
 	g_gate_units[sc->sc_unit] = sc;
 	g_gate_nunits++;
 	mtx_unlock(&g_gate_units_lock);
+
+	g_topology_lock();
+
+	if (ggio->gctl_readprov[0] == '\0') {
+		ropp = NULL;
+	} else {
+		ropp = g_provider_by_name(ggio->gctl_readprov);
+		if (ropp == NULL) {
+			G_GATE_DEBUG(1, "Provider %s doesn't exist.",
+			    ggio->gctl_readprov);
+			error = EINVAL;
+			goto fail2;
+		}
+		if ((ggio->gctl_readoffset % ggio->gctl_sectorsize) != 0) {
+			G_GATE_DEBUG(1, "Invalid read offset.");
+			error = EINVAL;
+			goto fail2;
+		}
+		if (ggio->gctl_mediasize + ggio->gctl_readoffset >
+		    ropp->mediasize) {
+			G_GATE_DEBUG(1, "Invalid read offset or media size.");
+			error = EINVAL;
+			goto fail2;
+		}
+	}
+
+	gp = g_new_geomf(&g_gate_class, "%s", name);
+	gp->start = g_gate_start;
+	gp->access = g_gate_access;
+	gp->orphan = g_gate_orphan;
+	gp->dumpconf = g_gate_dumpconf;
+	gp->softc = sc;
+
+	if (ropp != NULL) {
+		cp = g_new_consumer(gp);
+		error = g_attach(cp, ropp);
+		if (error != 0) {
+			G_GATE_DEBUG(1, "Unable to attach to %s.", ropp->name);
+			goto fail3;
+		}
+		error = g_access(cp, 1, 0, 0);
+		if (error != 0) {
+			G_GATE_DEBUG(1, "Unable to access %s.", ropp->name);
+			g_detach(cp);
+			goto fail3;
+		}
+		sc->sc_readcons = cp;
+		sc->sc_readoffset = ggio->gctl_readoffset;
+	}
 
 	ggio->gctl_unit = sc->sc_unit;
 
@@ -604,6 +576,20 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		    g_gate_guard, sc);
 	}
 	return (0);
+fail3:
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
+fail2:
+	g_topology_unlock();
+	mtx_lock(&g_gate_units_lock);
+	g_gate_units[sc->sc_unit] = NULL;
+	KASSERT(g_gate_nunits > 0, ("negative g_gate_nunits?"));
+	g_gate_nunits--;
+fail1:
+	mtx_unlock(&g_gate_units_lock);
+	mtx_destroy(&sc->sc_queue_mtx);
+	free(sc, M_GATE);
+	return (error);
 }
 
 static int

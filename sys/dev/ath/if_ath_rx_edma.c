@@ -428,8 +428,9 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	ATH_PCU_LOCK(sc);
 	if (dosched && sc->sc_kickpcu) {
 		CTR0(ATH_KTR_ERR, "ath_edma_recv_proc_queue(): kickpcu");
-		device_printf(sc->sc_dev, "%s: handled %d descriptors\n",
-		    __func__, ngood);
+		device_printf(sc->sc_dev,
+		    "%s: handled npkts %d ngood %d\n",
+		    __func__, npkts, ngood);
 
 		/*
 		 * XXX TODO: what should occur here? Just re-poke and
@@ -827,9 +828,6 @@ ath_recv_setup_edma(struct ath_softc *sc)
 
 	/* Fetch EDMA field and buffer sizes */
 	(void) ath_hal_getrxstatuslen(sc->sc_ah, &sc->sc_rx_statuslen);
-	(void) ath_hal_gettxdesclen(sc->sc_ah, &sc->sc_tx_desclen);
-	(void) ath_hal_gettxstatuslen(sc->sc_ah, &sc->sc_tx_statuslen);
-	(void) ath_hal_getntxmaps(sc->sc_ah, &sc->sc_tx_nmaps);
 
 	/* Configure the hardware with the RX buffer size */
 	(void) ath_hal_setrxbufsize(sc->sc_ah, sc->sc_edma_bufsize -
@@ -837,14 +835,8 @@ ath_recv_setup_edma(struct ath_softc *sc)
 
 	device_printf(sc->sc_dev, "RX status length: %d\n",
 	    sc->sc_rx_statuslen);
-	device_printf(sc->sc_dev, "TX descriptor length: %d\n",
-	    sc->sc_tx_desclen);
-	device_printf(sc->sc_dev, "TX status length: %d\n",
-	    sc->sc_tx_statuslen);
-	device_printf(sc->sc_dev, "TX/RX buffer size: %d\n",
+	device_printf(sc->sc_dev, "RX buffer size: %d\n",
 	    sc->sc_edma_bufsize);
-	device_printf(sc->sc_dev, "TX buffers per descriptor: %d\n",
-	    sc->sc_tx_nmaps);
 
 	sc->sc_rx.recv_stop = ath_edma_stoprecv;
 	sc->sc_rx.recv_start = ath_edma_startrecv;

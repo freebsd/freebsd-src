@@ -113,6 +113,7 @@ static uma_zone_t file_zone;
 /* Flags for do_dup() */
 #define DUP_FIXED	0x1	/* Force fixed allocation */
 #define DUP_FCNTL	0x2	/* fcntl()-style errors */
+#define	DUP_CLOEXEC	0x4	/* Atomically set FD_CLOEXEC. */
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
@@ -366,7 +367,7 @@ int
 sys_fcntl(struct thread *td, struct fcntl_args *uap)
 {
 	struct flock fl;
-	struct oflock ofl;
+	struct __oflock ofl;
 	intptr_t arg;
 	int error;
 	int cmd;
@@ -479,9 +480,21 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		error = do_dup(td, DUP_FCNTL, fd, tmp, td->td_retval);
 		break;
 
+	case F_DUPFD_CLOEXEC:
+		tmp = arg;
+		error = do_dup(td, DUP_FCNTL | DUP_CLOEXEC, fd, tmp,
+		    td->td_retval);
+		break;
+
 	case F_DUP2FD:
 		tmp = arg;
 		error = do_dup(td, DUP_FIXED, fd, tmp, td->td_retval);
+		break;
+
+	case F_DUP2FD_CLOEXEC:
+		tmp = arg;
+		error = do_dup(td, DUP_FIXED | DUP_CLOEXEC, fd, tmp,
+		    td->td_retval);
 		break;
 
 	case F_GETFD:
@@ -842,6 +855,8 @@ do_dup(struct thread *td, int flags, int old, int new,
 	}
 	if (flags & DUP_FIXED && old == new) {
 		*retval = new;
+		if (flags & DUP_CLOEXEC)
+			fdp->fd_ofileflags[new] |= UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return (0);
 	}
@@ -895,7 +910,10 @@ do_dup(struct thread *td, int flags, int old, int new,
 	 * Duplicate the source descriptor.
 	 */
 	fdp->fd_ofiles[new] = fp;
-	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
+	if ((flags & DUP_CLOEXEC) != 0)
+		fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] | UF_EXCLOSE;
+	else
+		fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] & ~UF_EXCLOSE;
 	if (new > fdp->fd_lastfile)
 		fdp->fd_lastfile = new;
 	*retval = new;

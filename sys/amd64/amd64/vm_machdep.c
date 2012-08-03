@@ -90,6 +90,10 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
+CTASSERT((struct thread **)OFFSETOF_CURTHREAD ==
+    &((struct pcpu *)NULL)->pc_curthread);
+CTASSERT((struct pcb **)OFFSETOF_CURPCB == &((struct pcpu *)NULL)->pc_curpcb);
+
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
 {

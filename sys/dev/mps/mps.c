@@ -924,7 +924,7 @@ mps_alloc_requests(struct mps_softc *sc)
 				NULL, NULL,		/* filter, filterarg */
                                 BUS_SPACE_MAXSIZE_32BIT,/* maxsize */
                                 nsegs,			/* nsegments */
-                                BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
+                                BUS_SPACE_MAXSIZE_24BIT,/* maxsegsize */
                                 BUS_DMA_ALLOCNOW,	/* flags */
                                 busdma_lock_mutex,	/* lockfunc */
 				&sc->mps_mtx,		/* lockarg */
@@ -2014,7 +2014,6 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 	MPI2_SGE_SIMPLE64 *sge = sgep;
 	int error, type;
 	uint32_t saved_buf_len, saved_address_low, saved_address_high;
-	u32 sge_flags;
 
 	type = (tc->Flags & MPI2_SGE_FLAGS_ELEMENT_MASK);
 
@@ -2034,14 +2033,12 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 		break;
 	case MPI2_SGE_FLAGS_SIMPLE_ELEMENT:
 		/* Driver only uses 64-bit SGE simple elements */
-		sge = sgep;
 		if (len != MPS_SGE64_SIZE)
 			panic("SGE simple %p length %u or %zu?", sge,
 			    MPS_SGE64_SIZE, len);
-		if (((sge->FlagsLength >> MPI2_SGE_FLAGS_SHIFT) &
+		if (((le32toh(sge->FlagsLength) >> MPI2_SGE_FLAGS_SHIFT) &
 		    MPI2_SGE_FLAGS_ADDRESS_SIZE) == 0)
-			panic("SGE simple %p flags %02x not marked 64-bit?",
-			    sge, sge->FlagsLength >> MPI2_SGE_FLAGS_SHIFT);
+			panic("SGE simple %p not marked 64-bit?", sge);
 
 		break;
 	default:
@@ -2073,8 +2070,8 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 		 * Mark as last element in this chain if necessary.
 		 */
 		if (type == MPI2_SGE_FLAGS_SIMPLE_ELEMENT) {
-			sge->FlagsLength |=
-				(MPI2_SGE_FLAGS_LAST_ELEMENT << MPI2_SGE_FLAGS_SHIFT);
+			sge->FlagsLength |= htole32(
+			    MPI2_SGE_FLAGS_LAST_ELEMENT << MPI2_SGE_FLAGS_SHIFT);
 		}
 
 		/*
@@ -2083,11 +2080,6 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 		 * understanding the code.
 		 */
 		cm->cm_sglsize -= len;
-		/* Endian Safe code */
-		sge_flags = sge->FlagsLength;
-		sge->FlagsLength = htole32(sge_flags);
-		sge->Address.High = htole32(sge->Address.High);	
-		sge->Address.Low = 	htole32(sge->Address.Low);
 		bcopy(sgep, cm->cm_sge, len);
 		cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge + len);
 		return (mps_add_chain(cm));
@@ -2127,27 +2119,22 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 		 * 2 SGL's for a bi-directional request, they both use the same
 		 * DMA buffer (same cm command).
 		 */
-		saved_buf_len = sge->FlagsLength & 0x00FFFFFF;
+		saved_buf_len = le32toh(sge->FlagsLength) & 0x00FFFFFF;
 		saved_address_low = sge->Address.Low;
 		saved_address_high = sge->Address.High;
 		if (cm->cm_out_len) {
-			sge->FlagsLength = cm->cm_out_len |
+			sge->FlagsLength = htole32(cm->cm_out_len |
 			    ((uint32_t)(MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
 			    MPI2_SGE_FLAGS_END_OF_BUFFER |
 			    MPI2_SGE_FLAGS_HOST_TO_IOC |
 			    MPI2_SGE_FLAGS_64_BIT_ADDRESSING) <<
-			    MPI2_SGE_FLAGS_SHIFT);
+			    MPI2_SGE_FLAGS_SHIFT));
 			cm->cm_sglsize -= len;
-			/* Endian Safe code */
-			sge_flags = sge->FlagsLength;
-			sge->FlagsLength = htole32(sge_flags);
-			sge->Address.High = htole32(sge->Address.High);	
-			sge->Address.Low = 	htole32(sge->Address.Low);
 			bcopy(sgep, cm->cm_sge, len);
 			cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge
 			    + len);
 		}
-		sge->FlagsLength = saved_buf_len |
+		saved_buf_len |=
 		    ((uint32_t)(MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
 		    MPI2_SGE_FLAGS_END_OF_BUFFER |
 		    MPI2_SGE_FLAGS_LAST_ELEMENT |
@@ -2155,24 +2142,20 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 		    MPI2_SGE_FLAGS_64_BIT_ADDRESSING) <<
 		    MPI2_SGE_FLAGS_SHIFT);
 		if (cm->cm_flags & MPS_CM_FLAGS_DATAIN) {
-			sge->FlagsLength |=
+			saved_buf_len |=
 			    ((uint32_t)(MPI2_SGE_FLAGS_IOC_TO_HOST) <<
 			    MPI2_SGE_FLAGS_SHIFT);
 		} else {
-			sge->FlagsLength |=
+			saved_buf_len |=
 			    ((uint32_t)(MPI2_SGE_FLAGS_HOST_TO_IOC) <<
 			    MPI2_SGE_FLAGS_SHIFT);
 		}
+		sge->FlagsLength = htole32(saved_buf_len);
 		sge->Address.Low = saved_address_low;
 		sge->Address.High = saved_address_high;
 	}
 
 	cm->cm_sglsize -= len;
-	/* Endian Safe code */
-	sge_flags = sge->FlagsLength;
-	sge->FlagsLength = htole32(sge_flags);
-	sge->Address.High = htole32(sge->Address.High);	
-	sge->Address.Low = 	htole32(sge->Address.Low);
 	bcopy(sgep, cm->cm_sge, len);
 	cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge + len);
 	return (0);
@@ -2190,10 +2173,10 @@ mps_add_dmaseg(struct mps_command *cm, vm_paddr_t pa, size_t len, u_int flags,
 	/*
 	 * This driver always uses 64-bit address elements for simplicity.
 	 */
+	bzero(&sge, sizeof(sge));
 	flags |= MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
 	    MPI2_SGE_FLAGS_64_BIT_ADDRESSING;
-	/* Set Endian safe macro in mps_push_sge */
-	sge.FlagsLength = len | (flags << MPI2_SGE_FLAGS_SHIFT);
+	sge.FlagsLength = htole32(len | (flags << MPI2_SGE_FLAGS_SHIFT));
 	mps_from_u64(pa, &sge.Address);
 
 	return (mps_push_sge(cm, &sge, sizeof sge, segsleft));
@@ -2290,7 +2273,6 @@ mps_data_cb2(void *arg, bus_dma_segment_t *segs, int nsegs, bus_size_t mapsize,
 int
 mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 {
-	MPI2_SGE_SIMPLE32 *sge;
 	int error = 0;
 
 	if (cm->cm_flags & MPS_CM_FLAGS_USE_UIO) {
@@ -2301,15 +2283,8 @@ mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 		    cm->cm_data, cm->cm_length, mps_data_cb, cm, 0);
 	} else {
 		/* Add a zero-length element as needed */
-		if (cm->cm_sge != NULL) {
-			sge = (MPI2_SGE_SIMPLE32 *)cm->cm_sge;
-			sge->FlagsLength = htole32((MPI2_SGE_FLAGS_LAST_ELEMENT |
-			    MPI2_SGE_FLAGS_END_OF_BUFFER |
-			    MPI2_SGE_FLAGS_END_OF_LIST |
-			    MPI2_SGE_FLAGS_SIMPLE_ELEMENT) <<
-			    MPI2_SGE_FLAGS_SHIFT);
-			sge->Address = 0;
-		}
+		if (cm->cm_sge != NULL)
+			mps_add_dmaseg(cm, 0, 0, 0, 1);
 		mps_enqueue_request(sc, cm);	
 	}
 

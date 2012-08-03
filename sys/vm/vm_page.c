@@ -450,63 +450,6 @@ vm_page_startup(vm_offset_t vaddr)
 	return (vaddr);
 }
 
-
-CTASSERT(offsetof(struct vm_page, aflags) % sizeof(uint32_t) == 0);
-
-void
-vm_page_aflag_set(vm_page_t m, uint8_t bits)
-{
-	uint32_t *addr, val;
-
-	/*
-	 * The PGA_WRITEABLE flag can only be set if the page is managed and
-	 * VPO_BUSY.  Currently, this flag is only set by pmap_enter().
-	 */
-	KASSERT((bits & PGA_WRITEABLE) == 0 ||
-	    (m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == VPO_BUSY,
-	    ("PGA_WRITEABLE and !VPO_BUSY"));
-
-	/*
-	 * We want to use atomic updates for m->aflags, which is a
-	 * byte wide.  Not all architectures provide atomic operations
-	 * on the single-byte destination.  Punt and access the whole
-	 * 4-byte word with an atomic update.  Parallel non-atomic
-	 * updates to the fields included in the update by proximity
-	 * are handled properly by atomics.
-	 */
-	addr = (void *)&m->aflags;
-	MPASS(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0);
-	val = bits;
-#if BYTE_ORDER == BIG_ENDIAN
-	val <<= 24;
-#endif
-	atomic_set_32(addr, val);
-} 
-
-void
-vm_page_aflag_clear(vm_page_t m, uint8_t bits)
-{
-	uint32_t *addr, val;
-
-	/*
-	 * The PGA_REFERENCED flag can only be cleared if the object
-	 * containing the page is locked.
-	 */
-	KASSERT((bits & PGA_REFERENCED) == 0 || VM_OBJECT_LOCKED(m->object),
-	    ("PGA_REFERENCED and !VM_OBJECT_LOCKED"));
-
-	/*
-	 * See the comment in vm_page_aflag_set().
-	 */
-	addr = (void *)&m->aflags;
-	MPASS(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0);
-	val = bits;
-#if BYTE_ORDER == BIG_ENDIAN
-	val <<= 24;
-#endif
-	atomic_clear_32(addr, val);
-}
-
 void
 vm_page_reference(vm_page_t m)
 {
@@ -1684,7 +1627,7 @@ retry:
 	}
 	for (m = m_ret; m < &m_ret[npages]; m++) {
 		m->aflags = 0;
-		m->flags &= flags;
+		m->flags = (m->flags | PG_NODUMP) & flags;
 		if ((req & VM_ALLOC_WIRED) != 0)
 			m->wire_count = 1;
 		/* Unmanaged pages don't use "act_count". */

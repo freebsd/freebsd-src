@@ -54,9 +54,11 @@ softcore.c: ${SOFTWORDS} softcore.awk
 	    | awk -f softcore.awk -v datestamp="`LC_ALL=C date`") > ${.TARGET}
 
 .if ${MACHINE_CPUARCH} == "amd64"
+.if !exists(machine)
 ${SRCS:M*.c:R:S/$/.o/g}: machine
 
 beforedepend ${OBJS}: machine
+.endif
 
 machine:
 	ln -sf ${.CURDIR}/../../i386/include machine

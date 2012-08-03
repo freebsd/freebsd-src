@@ -2383,7 +2383,7 @@ suj_verifyino(union dinode *ip)
 		return (-1);
 	}
 
-	if (DIP(ip, di_size) < SUJ_MIN || DIP(ip, di_size) > SUJ_MAX) {
+	if (DIP(ip, di_size) < SUJ_MIN) {
 		printf("Invalid size %jd for journal inode %d\n",
 		    DIP(ip, di_size), sujino);
 		return (-1);

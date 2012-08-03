@@ -849,6 +849,78 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 }
 
 static void
+g_multipath_ctl_prefer(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_geom *gp;
+	struct g_multipath_softc *sc;
+	struct g_consumer *cp;
+	const char *name, *mpname;
+	static const char devpf[6] = "/dev/";
+	int *nargs;
+
+	g_topology_assert();
+
+	mpname = gctl_get_asciiparam(req, "arg0");
+        if (mpname == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, mpname);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s is invalid", mpname);
+		return;
+	}
+	sc = gp->softc;
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No 'nargs' argument");
+		return;
+	}
+	if (*nargs != 2) {
+		gctl_error(req, "missing device");
+		return;
+	}
+
+	name = gctl_get_asciiparam(req, "arg1");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg1' argument");
+		return;
+	}
+	if (strncmp(name, devpf, 5) == 0) {
+		name += 5;
+	}
+
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (cp->provider != NULL
+                      && strcmp(cp->provider->name, name) == 0)
+		    break;
+	}
+
+	if (cp == NULL) {
+		gctl_error(req, "Provider %s not found", name);
+		return;
+	}
+
+	mtx_lock(&sc->sc_mtx);
+
+	if (cp->index & MP_BAD) {
+		gctl_error(req, "Consumer %s is invalid", name);
+		mtx_unlock(&sc->sc_mtx);
+		return;
+	}
+
+	/* Here when the consumer is present and in good shape */
+
+	sc->sc_active = cp;
+	if (!sc->sc_active_active)
+	    printf("GEOM_MULTIPATH: %s now active path in %s\n",
+		sc->sc_active->provider->name, sc->sc_name);
+
+	mtx_unlock(&sc->sc_mtx);
+}
+
+static void
 g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_multipath_softc *sc;
@@ -1278,6 +1350,8 @@ g_multipath_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		gctl_error(req, "Userland and kernel parts are out of sync");
 	} else if (strcmp(verb, "add") == 0) {
 		g_multipath_ctl_add(req, mp);
+	} else if (strcmp(verb, "prefer") == 0) {
+		g_multipath_ctl_prefer(req, mp);
 	} else if (strcmp(verb, "create") == 0) {
 		g_multipath_ctl_create(req, mp);
 	} else if (strcmp(verb, "configure") == 0) {

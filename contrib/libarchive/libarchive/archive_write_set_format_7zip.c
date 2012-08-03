@@ -199,7 +199,7 @@ struct _7zip {
 	/*
 	 * Compressed data buffer.
 	 */
-	unsigned char		 wbuff[1024 * 64];
+	unsigned char		 wbuff[512 * 20 * 6];
 	size_t			 wbuff_remaining;
 
 	/*
@@ -498,7 +498,7 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 	if (archive_entry_filetype(entry) == AE_IFLNK) {
 		ssize_t bytes;
 		const void *p = (const void *)archive_entry_symlink(entry);
-		bytes = compress_out(a, p, file->size, ARCHIVE_Z_RUN);
+		bytes = compress_out(a, p, (size_t)file->size, ARCHIVE_Z_RUN);
 		if (bytes < 0)
 			return ((int)bytes);
 		zip->entry_crc32 = crc32(zip->entry_crc32, p, bytes);
@@ -580,11 +580,11 @@ compress_out(struct archive_write *a, const void *buff, size_t s,
 	} while (zip->stream.avail_in);
 	if (run == ARCHIVE_Z_FINISH) {
 		uint64_t bytes = sizeof(zip->wbuff) - zip->stream.avail_out;
-		if (write_to_temp(a, zip->wbuff, bytes) != ARCHIVE_OK)
+		if (write_to_temp(a, zip->wbuff, (size_t)bytes) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		if ((zip->crc32flg & ENCODED_CRC32) && bytes)
 			zip->encoded_crc32 = crc32(zip->encoded_crc32,
-			    zip->wbuff, bytes);
+			    zip->wbuff, (unsigned)bytes);
 	}
 
 	return (s);
@@ -599,7 +599,7 @@ _7z_write_data(struct archive_write *a, const void *buff, size_t s)
 	zip = (struct _7zip *)a->format_data;
 
 	if (s > zip->entry_bytes_remaining)
-		s = zip->entry_bytes_remaining;
+		s = (size_t)zip->entry_bytes_remaining;
 	if (s == 0 || zip->cur_file == NULL)
 		return (0);
 	bytes = compress_out(a, buff, s, ARCHIVE_Z_RUN);
@@ -622,7 +622,7 @@ _7z_finish_entry(struct archive_write *a)
 		return (ARCHIVE_OK);
 
 	while (zip->entry_bytes_remaining > 0) {
-		s = zip->entry_bytes_remaining;
+		s = (size_t)zip->entry_bytes_remaining;
 		if (s > a->null_length)
 			s = a->null_length;
 		r = _7z_write_data(a, a->nulls, s);
@@ -1151,7 +1151,7 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 	struct _7zip *zip = (struct _7zip *)a->format_data;
 	struct file *file;
 	int r;
-	uint8_t mask, byte;
+	uint8_t b, mask;
 
 	/*
 	 * Make Time Bools.
@@ -1188,23 +1188,23 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 		if (r < 0)
 			return (r);
 
-		byte = 0;
+		b = 0;
 		mask = 0x80;
 		file = zip->file_list.first;
 		for (;file != NULL; file = file->next) {
 			if (file->flg & flg)
-				byte |= mask;
+				b |= mask;
 			mask >>= 1;
 			if (mask == 0) {
-				r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+				r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 				if (r < 0)
 					return (r);
 				mask = 0x80;
-				byte = 0;
+				b = 0;
 			}
 		}
 		if (mask != 0x80) {
-			r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+			r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 			if (r < 0)
 				return (r);
 		}
@@ -1240,7 +1240,7 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 	struct _7zip *zip = (struct _7zip *)a->format_data;
 	struct file *file;
 	int r;
-	uint8_t mask, byte;
+	uint8_t b, mask;
 
 	/*
 	 * Make FilesInfo.
@@ -1288,23 +1288,23 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 		if (r < 0)
 			return (r);
 
-		byte = 0;
+		b = 0;
 		mask = 0x80;
 		file = zip->file_list.first;
 		for (;file != NULL; file = file->next) {
 			if (file->size == 0)
-				byte |= mask;
+				b |= mask;
 			mask >>= 1;
 			if (mask == 0) {
-				r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+				r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 				if (r < 0)
 					return (r);
 				mask = 0x80;
-				byte = 0;
+				b = 0;
 			}
 		}
 		if (mask != 0x80) {
-			r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+			r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 			if (r < 0)
 				return (r);
 		}
@@ -1321,25 +1321,25 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 		if (r < 0)
 			return (r);
 
-		byte = 0;
+		b = 0;
 		mask = 0x80;
 		file = zip->file_list.first;
 		for (;file != NULL; file = file->next) {
 			if (file->size)
 				continue;
 			if (!file->dir)
-				byte |= mask;
+				b |= mask;
 			mask >>= 1;
 			if (mask == 0) {
-				r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+				r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 				if (r < 0)
 					return (r);
 				mask = 0x80;
-				byte = 0;
+				b = 0;
 			}
 		}
 		if (mask != 0x80) {
-			r = compress_out(a, &byte, 1, ARCHIVE_Z_RUN);
+			r = compress_out(a, &b, 1, ARCHIVE_Z_RUN);
 			if (r < 0)
 				return (r);
 		}
@@ -1492,6 +1492,7 @@ file_new(struct archive_write *a, struct archive_entry *entry,
 
 	if (0 > archive_entry_pathname_l(entry, &u16, &u16len, zip->sconv)) {
 		if (errno == ENOMEM) {
+			free(file);
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for UTF-16LE");
 			return (ARCHIVE_FATAL);
@@ -1503,6 +1504,7 @@ file_new(struct archive_write *a, struct archive_entry *entry,
 	}
 	file->utf16name = malloc(u16len + 2);
 	if (file->utf16name == NULL) {
+		free(file);
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory for Name");
 		return (ARCHIVE_FATAL);
@@ -1676,10 +1678,10 @@ compression_init_encoder_deflate(struct archive *a,
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
 	strm->avail_in = lastrm->avail_in;
-	strm->total_in = lastrm->total_in;
+	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
 	strm->avail_out = lastrm->avail_out;
-	strm->total_out = lastrm->total_out;
+	strm->total_out = (uLong)lastrm->total_out;
 	if (deflateInit2(strm, level, Z_DEFLATED,
 	    (withheader)?15:-15,
 	    8, Z_DEFAULT_STRATEGY) != Z_OK) {
@@ -1709,10 +1711,10 @@ compression_code_deflate(struct archive *a,
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
 	strm->avail_in = lastrm->avail_in;
-	strm->total_in = lastrm->total_in;
+	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
 	strm->avail_out = lastrm->avail_out;
-	strm->total_out = lastrm->total_out;
+	strm->total_out = (uLong)lastrm->total_out;
 	r = deflate(strm,
 	    (action == ARCHIVE_Z_FINISH)? Z_FINISH: Z_NO_FLUSH);
 	lastrm->next_in = strm->next_in;
@@ -1914,6 +1916,7 @@ compression_init_encoder_lzma(struct archive *a,
 	if (level > 6)
 		level = 6;
 	if (lzma_lzma_preset(&lzma_opt, level)) {
+		free(strm);
 		lastrm->real_stream = NULL;
 		archive_set_error(a, ENOMEM,
 		    "Internal error initializing compression library");

@@ -52,9 +52,9 @@ struct emitter {
 	void (*string)(void *, char *, int);
 	void (*align)(void *, int);
 	void (*data)(void *, struct data);
-	void (*beginnode)(void *, const char *);
-	void (*endnode)(void *, const char *);
-	void (*property)(void *, const char *);
+	void (*beginnode)(void *, struct label *labels);
+	void (*endnode)(void *, struct label *labels);
+	void (*property)(void *, struct label *labels);
 };
 
 static void bin_emit_cell(void *e, cell_t val)
@@ -89,17 +89,17 @@ static void bin_emit_data(void *e, struct data d)
 	*dtbuf = data_append_data(*dtbuf, d.val, d.len);
 }
 
-static void bin_emit_beginnode(void *e, const char *label)
+static void bin_emit_beginnode(void *e, struct label *labels)
 {
 	bin_emit_cell(e, FDT_BEGIN_NODE);
 }
 
-static void bin_emit_endnode(void *e, const char *label)
+static void bin_emit_endnode(void *e, struct label *labels)
 {
 	bin_emit_cell(e, FDT_END_NODE);
 }
 
-static void bin_emit_property(void *e, const char *label)
+static void bin_emit_property(void *e, struct label *labels)
 {
 	bin_emit_cell(e, FDT_PROP);
 }
@@ -191,37 +191,40 @@ static void asm_emit_data(void *e, struct data d)
 	assert(off == d.len);
 }
 
-static void asm_emit_beginnode(void *e, const char *label)
+static void asm_emit_beginnode(void *e, struct label *labels)
 {
 	FILE *f = e;
+	struct label *l;
 
-	if (label) {
-		fprintf(f, "\t.globl\t%s\n", label);
-		fprintf(f, "%s:\n", label);
+	for_each_label(labels, l) {
+		fprintf(f, "\t.globl\t%s\n", l->label);
+		fprintf(f, "%s:\n", l->label);
 	}
 	fprintf(f, "\t/* FDT_BEGIN_NODE */\n");
 	asm_emit_cell(e, FDT_BEGIN_NODE);
 }
 
-static void asm_emit_endnode(void *e, const char *label)
+static void asm_emit_endnode(void *e, struct label *labels)
 {
 	FILE *f = e;
+	struct label *l;
 
 	fprintf(f, "\t/* FDT_END_NODE */\n");
 	asm_emit_cell(e, FDT_END_NODE);
-	if (label) {
-		fprintf(f, "\t.globl\t%s_end\n", label);
-		fprintf(f, "%s_end:\n", label);
+	for_each_label(labels, l) {
+		fprintf(f, "\t.globl\t%s_end\n", l->label);
+		fprintf(f, "%s_end:\n", l->label);
 	}
 }
 
-static void asm_emit_property(void *e, const char *label)
+static void asm_emit_property(void *e, struct label *labels)
 {
 	FILE *f = e;
+	struct label *l;
 
-	if (label) {
-		fprintf(f, "\t.globl\t%s\n", label);
-		fprintf(f, "%s:\n", label);
+	for_each_label(labels, l) {
+		fprintf(f, "\t.globl\t%s\n", l->label);
+		fprintf(f, "%s:\n", l->label);
 	}
 	fprintf(f, "\t/* FDT_PROP */\n");
 	asm_emit_cell(e, FDT_PROP);
@@ -260,7 +263,7 @@ static void flatten_tree(struct node *tree, struct emitter *emit,
 	struct node *child;
 	int seen_name_prop = 0;
 
-	emit->beginnode(etarget, tree->label);
+	emit->beginnode(etarget, tree->labels);
 
 	if (vi->flags & FTF_FULLPATH)
 		emit->string(etarget, tree->fullpath, 0);
@@ -277,7 +280,7 @@ static void flatten_tree(struct node *tree, struct emitter *emit,
 
 		nameoff = stringtable_insert(strbuf, prop->name);
 
-		emit->property(etarget, prop->label);
+		emit->property(etarget, prop->labels);
 		emit->cell(etarget, prop->val.len);
 		emit->cell(etarget, nameoff);
 
@@ -304,7 +307,7 @@ static void flatten_tree(struct node *tree, struct emitter *emit,
 		flatten_tree(child, emit, etarget, strbuf, vi);
 	}
 
-	emit->endnode(etarget, tree->label);
+	emit->endnode(etarget, tree->labels);
 }
 
 static struct data flatten_reserve_list(struct reserve_info *reservelist,
@@ -525,9 +528,11 @@ void dt_to_asm(FILE *f, struct boot_info *bi, int version)
 	 * as it appears .quad isn't available in some assemblers.
 	 */
 	for (re = bi->reservelist; re; re = re->next) {
-		if (re->label) {
-			fprintf(f, "\t.globl\t%s\n", re->label);
-			fprintf(f, "%s:\n", re->label);
+		struct label *l;
+
+		for_each_label(re->labels, l) {
+			fprintf(f, "\t.globl\t%s\n", l->label);
+			fprintf(f, "%s:\n", l->label);
 		}
 		ASM_EMIT_BELONG(f, "0x%08x", (unsigned int)(re->re.address >> 32));
 		ASM_EMIT_BELONG(f, "0x%08x",
@@ -684,7 +689,7 @@ static struct property *flat_read_property(struct inbuf *dtbuf,
 
 	val = flat_read_data(dtbuf, proplen);
 
-	return build_property(name, val, NULL);
+	return build_property(name, val);
 }
 
 
@@ -692,7 +697,6 @@ static struct reserve_info *flat_read_mem_reserve(struct inbuf *inb)
 {
 	struct reserve_info *reservelist = NULL;
 	struct reserve_info *new;
-	const char *p;
 	struct fdt_reserve_entry re;
 
 	/*
@@ -701,7 +705,6 @@ static struct reserve_info *flat_read_mem_reserve(struct inbuf *inb)
 	 *
 	 * First pass, count entries.
 	 */
-	p = inb->ptr;
 	while (1) {
 		flat_read_chunk(inb, &re, sizeof(re));
 		re.address  = fdt64_to_cpu(re.address);
@@ -709,7 +712,7 @@ static struct reserve_info *flat_read_mem_reserve(struct inbuf *inb)
 		if (re.size == 0)
 			break;
 
-		new = build_reserve_entry(re.address, re.size, NULL);
+		new = build_reserve_entry(re.address, re.size);
 		reservelist = add_reserve_entry(reservelist, new);
 	}
 
@@ -797,7 +800,7 @@ static struct node *unflatten_tree(struct inbuf *dtbuf,
 
 struct boot_info *dt_from_blob(const char *fname)
 {
-	struct dtc_file *dtcf;
+	FILE *f;
 	uint32_t magic, totalsize, version, size_dt, boot_cpuid_phys;
 	uint32_t off_dt, off_str, off_mem_rsvmap;
 	int rc;
@@ -812,14 +815,14 @@ struct boot_info *dt_from_blob(const char *fname)
 	uint32_t val;
 	int flags = 0;
 
-	dtcf = dtc_open_file(fname, NULL);
+	f = srcfile_relative_open(fname, NULL);
 
-	rc = fread(&magic, sizeof(magic), 1, dtcf->file);
-	if (ferror(dtcf->file))
+	rc = fread(&magic, sizeof(magic), 1, f);
+	if (ferror(f))
 		die("Error reading DT blob magic number: %s\n",
 		    strerror(errno));
 	if (rc < 1) {
-		if (feof(dtcf->file))
+		if (feof(f))
 			die("EOF reading DT blob magic number\n");
 		else
 			die("Mysterious short read reading magic number\n");
@@ -829,11 +832,11 @@ struct boot_info *dt_from_blob(const char *fname)
 	if (magic != FDT_MAGIC)
 		die("Blob has incorrect magic number\n");
 
-	rc = fread(&totalsize, sizeof(totalsize), 1, dtcf->file);
-	if (ferror(dtcf->file))
+	rc = fread(&totalsize, sizeof(totalsize), 1, f);
+	if (ferror(f))
 		die("Error reading DT blob size: %s\n", strerror(errno));
 	if (rc < 1) {
-		if (feof(dtcf->file))
+		if (feof(f))
 			die("EOF reading DT blob size\n");
 		else
 			die("Mysterious short read reading blob size\n");
@@ -853,12 +856,12 @@ struct boot_info *dt_from_blob(const char *fname)
 	p = blob + sizeof(magic)  + sizeof(totalsize);
 
 	while (sizeleft) {
-		if (feof(dtcf->file))
+		if (feof(f))
 			die("EOF before reading %d bytes of DT blob\n",
 			    totalsize);
 
-		rc = fread(p, 1, sizeleft, dtcf->file);
-		if (ferror(dtcf->file))
+		rc = fread(p, 1, sizeleft, f);
+		if (ferror(f))
 			die("Error reading DT blob: %s\n",
 			    strerror(errno));
 
@@ -921,7 +924,7 @@ struct boot_info *dt_from_blob(const char *fname)
 
 	free(blob);
 
-	dtc_close_file(dtcf);
+	fclose(f);
 
 	return build_boot_info(reservelist, tree, boot_cpuid_phys);
 }
