@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 	.globl	.rtld_start
 	.type	.rtld_start,%function
 .rtld_start:
+	mov	r6, sp			/* save the stack pointer */
+	bic	sp, sp, #7		/* align the stack pointer */
 	sub	sp, sp, #8		/* make room for obj_main & exit proc */
 	mov	r4, r0			/* save ps_strings */
 	ldr	sl, .L2
@@ -52,13 +54,13 @@ __FBSDID("$FreeBSD$");
 	bl	_rtld_relocate_nonplt_self
 	mov	r1, sp
 	add	r2, sp, #4
-	add	r0, sp, #8
+	mov	r0, r6			/* load the sp the kernel gave us */
 	bl	_rtld			/* call the shared loader */
 	mov	r3, r0			/* save entry point */
 
 	ldr	r2, [sp, #0]		/* r2 = cleanup */
 	ldr	r1, [sp, #4]		/* r1 = obj_main */
-	add	sp, sp, #8		/* restore stack */
+	mov	sp, r6			/* restore stack */
 	mov	r0, r4			/* restore ps_strings */
 	mov	pc, r3			/* jump to the entry point */
 .L2:
