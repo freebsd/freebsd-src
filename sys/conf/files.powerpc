@@ -160,6 +160,7 @@ powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macgpio.c	optional	powermac pci 
 powerpc/powermac/macio.c	optional	powermac pci
+powerpc/powermac/nvbl.c		optional	powermac nvbl
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/platform_powermac.c optional	powermac
 powerpc/powermac/powermac_thermal.c optional	powermac
