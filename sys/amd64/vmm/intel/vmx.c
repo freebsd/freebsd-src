@@ -627,23 +627,38 @@ vmx_vpid(void)
 }
 
 static int
-vmx_setup_cr0_shadow(struct vmcs *vmcs)
+vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 {
-	int error;
-	uint64_t mask, shadow;
+	int error, mask_ident, shadow_ident;
+	uint64_t mask_value, shadow_value;
 
-	mask = cr0_ones_mask | cr0_zeros_mask;
-	error = vmcs_setreg(vmcs, VMCS_IDENT(VMCS_CR0_MASK), mask);
+	if (which != 0 && which != 4)
+		panic("vmx_setup_cr_shadow: unknown cr%d", which);
+
+	if (which == 0) {
+		mask_ident = VMCS_CR0_MASK;
+		mask_value = cr0_ones_mask | cr0_zeros_mask;
+		shadow_ident = VMCS_CR0_SHADOW;
+		shadow_value = cr0_ones_mask;
+	} else {
+		mask_ident = VMCS_CR4_MASK;
+		mask_value = cr4_ones_mask | cr4_zeros_mask;
+		shadow_ident = VMCS_CR4_SHADOW;
+		shadow_value = cr4_ones_mask;
+	}
+
+	error = vmcs_setreg(vmcs, VMCS_IDENT(mask_ident), mask_value);
 	if (error)
 		return (error);
 
-	shadow = cr0_ones_mask;
-	error = vmcs_setreg(vmcs, VMCS_IDENT(VMCS_CR0_SHADOW), shadow);
+	error = vmcs_setreg(vmcs, VMCS_IDENT(shadow_ident), shadow_value);
 	if (error)
 		return (error);
 
 	return (0);
 }
+#define	vmx_setup_cr0_shadow(vmcs)	vmx_setup_cr_shadow(0, (vmcs))
+#define	vmx_setup_cr4_shadow(vmcs)	vmx_setup_cr_shadow(4, (vmcs))
 
 static void *
 vmx_vminit(struct vm *vm)
@@ -744,6 +759,12 @@ vmx_vminit(struct vm *vm)
 			panic("vmcs_set_msr_save error %d", error);
 
 		error = vmx_setup_cr0_shadow(&vmx->vmcs[i]);
+		if (error != 0)
+			panic("vmx_setup_cr0_shadow %d", error);
+
+		error = vmx_setup_cr4_shadow(&vmx->vmcs[i]);
+		if (error != 0)
+			panic("vmx_setup_cr4_shadow %d", error);
 	}
 
 	return (vmx);
@@ -1031,12 +1052,16 @@ cantinject:
 static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
-	int error;
-	uint64_t regval;
+	int error, cr, vmcs_guest_cr;
+	uint64_t regval, ones_mask, zeros_mask;
 	const struct vmxctx *vmxctx;
 
-	/* We only handle mov to %cr0 at this time */
-	if ((exitqual & 0xff) != 0x00)
+	/* We only handle mov to %cr0 or %cr4 at this time */
+	if ((exitqual & 0xf0) != 0x00)
+		return (UNHANDLED);
+
+	cr = exitqual & 0xf;
+	if (cr != 0 && cr != 4)
 		return (UNHANDLED);
 
 	vmxctx = &vmx->ctx[vcpu];
@@ -1100,11 +1125,22 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 		break;
 	}
 
-	regval |= cr0_ones_mask;
-	regval &= ~cr0_zeros_mask;
-	error = vmwrite(VMCS_GUEST_CR0, regval);
-	if (error)
-		panic("vmx_emulate_cr_access: error %d writing cr0", error);
+	if (cr == 0) {
+		ones_mask = cr0_ones_mask;
+		zeros_mask = cr0_zeros_mask;
+		vmcs_guest_cr = VMCS_GUEST_CR0;
+	} else {
+		ones_mask = cr4_ones_mask;
+		zeros_mask = cr4_zeros_mask;
+		vmcs_guest_cr = VMCS_GUEST_CR4;
+	}
+	regval |= ones_mask;
+	regval &= ~zeros_mask;
+	error = vmwrite(vmcs_guest_cr, regval);
+	if (error) {
+		panic("vmx_emulate_cr_access: error %d writing cr%d",
+		      error, cr);
+	}
 
 	return (HANDLED);
 }
