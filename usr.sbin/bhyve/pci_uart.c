@@ -580,7 +580,7 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_emul_alloc_bar(pi, 0, bar, PCIBAR_IO, 8);
 	pci_lintr_request(pi, ivec);
 
-	if (!strcmp("stdio", opts) && !pci_uart_stdio) {
+	if (opts != NULL && !strcmp("stdio", opts) && !pci_uart_stdio) {
 		pci_uart_stdio = 1;
 		sc->stdio = 1;
 	}
