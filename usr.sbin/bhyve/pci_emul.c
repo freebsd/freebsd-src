@@ -808,7 +808,7 @@ pci_lintr_alloc(struct pci_devinst *pi, int vec)
 			}
 		}
 	} else {
-		if (lirq[i].li_owner != NULL) {
+		if (lirq[vec].li_owner != NULL) {
 			vec = -1;
 		}
 	}
