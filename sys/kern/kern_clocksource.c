@@ -356,13 +356,12 @@ timercb(struct eventtimer *et, void *arg)
 		next = &state->nexttick;
 	} else
 		next = &nexttick;
-	if (periodic) {
-		now = *next;	/* Ex-next tick time becomes present time. */
+	binuptime(&now); 
+	if (periodic) { 
+		*next = now;
 		bintime_addx(next, timerperiod.frac); /* Next tick in 1 period. */
-	} else {
-		binuptime(&now);	/* Get present time from hardware. */
-		next->sec = -1;		/* Next tick is not scheduled yet. */
-	}
+	} else
+		next->sec = -1;	/* Next tick is not scheduled yet. */
 	state->now = now;
 	CTR4(KTR_SPARE2, "intr at %d:    now  %d.%08x%08x",
 	    curcpu, (int)(now.sec), (u_int)(now.frac >> 32),
@@ -714,11 +713,7 @@ cpu_initclocks_ap(void)
 	state = DPCPU_PTR(timerstate);
 	binuptime(&now);
 	ET_HW_LOCK(state);
-	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 && periodic) {
-		state->now = nexttick;
-		bintime_sub(&state->now, &timerperiod);
-	} else
-		state->now = now;
+	state->now = now;
 	hardclock_sync(curcpu);
 	handleevents(&state->now, 2);
 	if (timer->et_flags & ET_FLAGS_PERCPU)
