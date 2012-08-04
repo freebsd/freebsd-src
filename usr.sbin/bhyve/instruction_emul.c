@@ -135,7 +135,7 @@ struct decoded_instruction
 	uint8_t *opcode;
 	uint8_t *modrm;
 	uint8_t *sib;
-	uint8_t *displacement;
+	uint8_t  *displacement;
 	uint8_t *immediate;
 
 	uint8_t opcode_flags;
@@ -337,9 +337,9 @@ decode_extension_operands(struct decoded_instruction *decoded)
 
 	if (decoded->displacement) {
 		if (decoded->addressing_mode == MOD_INDIRECT_DISP8) {
-			decoded->disp = (int32_t)*decoded->displacement;
+			decoded->disp = *((int8_t *)decoded->displacement);
 		} else if (decoded->addressing_mode == MOD_INDIRECT_DISP32) {
-			decoded->disp = *((int32_t*)decoded->displacement);
+			decoded->disp = *((int32_t *)decoded->displacement);
 		}
 	}
 
@@ -432,14 +432,6 @@ get_operand(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
 		*operand = reg;
 		return (0);
 	case MOD_INDIRECT:
-		target = gla2gpa(reg, guest_cr3);
-		emulated_memory = find_region(target);
-		if (emulated_memory) {
-			return emulated_memory->memread(vm, vcpu, target, 
-							4, operand, 
-							emulated_memory->arg);
-		}
-                return (-1);
 	case MOD_INDIRECT_DISP8:
 	case MOD_INDIRECT_DISP32:
 		target = gla2gpa(reg, guest_cr3);
@@ -450,7 +442,7 @@ get_operand(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
 							4, operand, 
 							emulated_memory->arg);
 		}
-		return (-1);
+                return (-1);
 	default:
 		return (-1);
 	}
@@ -473,19 +465,22 @@ perform_write(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
 	} else if (instruction->opcode_flags & TO_REG) {
 		reg = instruction->reg;
 		addressing_mode = MOD_DIRECT;
-	} else 
+	} else
 		return (-1);
 
 	regname = get_vm_reg_name(reg);
 	error = vm_get_register(vm, vcpu, regname, &reg);
-	if (error) 
+	if (error)
 		return (error);
 
 	switch(addressing_mode) {
 	case MOD_DIRECT:
 		return vm_set_register(vm, vcpu, regname, operand);
 	case MOD_INDIRECT:
+	case MOD_INDIRECT_DISP8:
+	case MOD_INDIRECT_DISP32:
 		target = gla2gpa(reg, guest_cr3);
+		target += instruction->disp;
 		emulated_memory = find_region(target);
 		if (emulated_memory) {
 			return emulated_memory->memwrite(vm, vcpu, target, 
@@ -506,7 +501,7 @@ emulate_decoded_instruction(struct vmctx *vm, int vcpu, uint64_t cr3,
 	int error;
 
 	error = get_operand(vm, vcpu, cr3, instruction, &operand);
-	if (error) 
+	if (error)
 		return (error);
 
 	return perform_write(vm, vcpu, cr3, instruction, operand);
@@ -519,17 +514,17 @@ emulate_instruction(struct vmctx *vm, int vcpu, uint64_t rip, uint64_t cr3)
 	int error;
 	void *instruction = gla2hla(rip, cr3);
 
-	if ((error = decode_instruction(instruction, &instr)) != 0) 
+	if ((error = decode_instruction(instruction, &instr)) != 0)
 		return (error);
-	
+
 	return emulate_decoded_instruction(vm, vcpu, cr3, &instr);
 }
 
 struct memory_region *
-register_emulated_memory(uintptr_t start, size_t len, emulated_read_func_t memread, 
+register_emulated_memory(uintptr_t start, size_t len, emulated_read_func_t memread,
 			 emulated_write_func_t memwrite, void *arg)
 {
-	if (registered_regions > MAX_EMULATED_REGIONS) 
+	if (registered_regions >= MAX_EMULATED_REGIONS) 
 		return (NULL);
 
 	struct memory_region *region = &emulated_regions[registered_regions];
@@ -552,4 +547,3 @@ move_memory_region(struct memory_region *region, uintptr_t start)
 	region->start = start;
 	region->end = start + len;
 }
-
