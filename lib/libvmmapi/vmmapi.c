@@ -49,10 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "vmmapi.h"
 #include "mptable.h"
 
-#ifndef	CR4_VMXE
-#define	CR4_VMXE	(1UL << 13)
-#endif
-
 #define BIOS_ROM_BASE		(0xf0000)
 #define BIOS_ROM_SIZE		(0x10000)
 
@@ -536,7 +532,7 @@ vcpu_reset(struct vmctx *vmctx, int vcpu)
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR3, zero)) != 0)
 		goto done;
 	
-	cr4 = CR4_VMXE;
+	cr4 = 0;
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR4, cr4)) != 0)
 		goto done;
 
