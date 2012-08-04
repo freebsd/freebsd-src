@@ -126,13 +126,14 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-ehBHP][-g <gdb port>][-z <hz>][-s <pci>][-p pincpu]"
-		"[-n <pci>][-m lowmem][-M highmem] <vm>\n"
+                "Usage: %s [-ehBHIP][-g <gdb port>][-z <hz>][-s <pci>]"
+		"[-S <pci>][-p pincpu][-n <pci>][-m lowmem][-M highmem] <vm>\n"
 		"       -g: gdb port (default is %d and 0 means don't open)\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
 		"       -B: inject breakpoint exception on vm entry\n"
 		"       -H: vmexit from the guest on hlt\n"
+		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
 		"	-e: exit on unhandled i/o access\n"
 		"       -h: help\n"
@@ -522,7 +523,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, inject_bkpt, tmp, err;
+	int c, error, gdb_port, inject_bkpt, tmp, err, ioapic;
 	struct vmctx *ctx;
 	uint64_t rip;
 
@@ -530,8 +531,9 @@ main(int argc, char *argv[])
 	progname = basename(argv[0]);
 	gdb_port = DEFAULT_GDB_PORT;
 	guest_ncpus = 1;
+	ioapic = 0;
 
-	while ((c = getopt(argc, argv, "ehBHPxp:g:c:z:s:S:n:m:M:")) != -1) {
+	while ((c = getopt(argc, argv, "ehBHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
 		switch (c) {
 		case 'B':
 			inject_bkpt = 1;
@@ -571,6 +573,9 @@ main(int argc, char *argv[])
 			break;
 		case 'H':
 			guest_vmexit_on_hlt = 1;
+			break;
+		case 'I':
+			ioapic = 1;
 			break;
 		case 'P':
 			guest_vmexit_on_pause = 1;
@@ -661,7 +666,7 @@ main(int argc, char *argv[])
 	/*
 	 * build the guest tables, MP etc.
 	 */
-	vm_build_tables(ctx, guest_ncpus, oem_tbl_start, oem_tbl_size);
+	vm_build_tables(ctx, guest_ncpus, ioapic, oem_tbl_start, oem_tbl_size);
 
 	/*
 	 * Add CPU 0
