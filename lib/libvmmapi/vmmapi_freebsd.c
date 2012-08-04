@@ -37,10 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include "vmmapi.h"
 
-#ifndef	CR4_VMXE
-#define	CR4_VMXE	(1UL << 13)
-#endif
-
 #define	DESC_UNUSABLE		0x00010000
 
 #define	GUEST_NULL_SEL		0
@@ -74,7 +70,7 @@ vm_setup_freebsd_registers(struct vmctx *vmctx, int vcpu,
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR0, cr0)) != 0)
 		goto done;
 
-	cr4 = CR4_PAE | CR4_VMXE;
+	cr4 = CR4_PAE;
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR4, cr4)) != 0)
 		goto done;
 
