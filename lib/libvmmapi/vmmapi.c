@@ -306,11 +306,12 @@ vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 }
 
 int
-vm_build_tables(struct vmctx *ctxt, int ncpu, void *oemtbl, int oemtblsz)
+vm_build_tables(struct vmctx *ctxt, int ncpu, int ioapic,
+		void *oemtbl, int oemtblsz)
 {
 
 	return (vm_build_mptable(ctxt, BIOS_ROM_BASE, BIOS_ROM_SIZE, ncpu,
-				 oemtbl, oemtblsz));
+				 ioapic, oemtbl, oemtblsz));
 }
 
 int
