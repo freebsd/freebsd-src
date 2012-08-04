@@ -314,6 +314,16 @@ vm_build_tables(struct vmctx *ctxt, int ncpu, void *oemtbl, int oemtblsz)
 }
 
 int
+vm_apicid2vcpu(struct vmctx *ctx, int apicid)
+{
+	/*
+	 * The apic id associated with the 'vcpu' has the same numerical value
+	 * as the 'vcpu' itself.
+	 */
+	return (apicid);
+}
+
+int
 vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector)
 {
 	struct vm_lapic_irq vmirq;

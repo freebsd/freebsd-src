@@ -60,6 +60,7 @@ int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
 int	vm_build_tables(struct vmctx *ctxt, int ncpus, void *oemtbl,
 			int oemtblsz);
+int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
 int	vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 			int vector);
 int	vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
