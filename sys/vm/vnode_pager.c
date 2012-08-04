@@ -985,37 +985,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			    mt));
 		}
 		
-		if (i != reqpage) {
-
-			/*
-			 * whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere. (it already is in the object). Result:
-			 * It appears that empirical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * just in case someone was asking for this page we
-			 * now tell them that it is ok to use
-			 */
-			if (!error) {
-				if (mt->oflags & VPO_WANTED) {
-					vm_page_lock(mt);
-					vm_page_activate(mt);
-					vm_page_unlock(mt);
-				} else {
-					vm_page_lock(mt);
-					vm_page_deactivate(mt);
-					vm_page_unlock(mt);
-				}
-				vm_page_wakeup(mt);
-			} else {
-				vm_page_lock(mt);
-				vm_page_free(mt);
-				vm_page_unlock(mt);
-			}
-		}
+		if (i != reqpage)
+			vm_page_readahead_finish(mt, error);
 	}
 	VM_OBJECT_UNLOCK(object);
 	if (error) {
