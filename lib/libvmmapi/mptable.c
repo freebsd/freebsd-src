@@ -118,20 +118,20 @@ mp_build_bus_entries(struct mpe_bus *mpeb)
 
 }
 
-#ifdef notyet
 static void
-mp_build_ioapic_entries(struct mpe_ioapic *mpei)
+mp_build_ioapic_entries(struct mpe_ioapic *mpei, int id)
 {
 	memset(mpei, 0, sizeof(*mpei));
 	mpei->entry_type = MP_ENTRY_IOAPIC;
-	mpei->ioapic_id = MPE_IOAPIC_ID;
+	mpei->ioapic_id = id;
 	mpei->ioapic_version = IOAPIC_VERSION;
 	mpei->ioapic_flags = MPE_IOAPIC_FLAG_EN;
 	mpei->ioapic_paddr = IOAPIC_PADDR;
 }
 
+#ifdef notyet
 static void
-mp_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins)
+mp_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins, int id)
 {
 	int pin;
 
@@ -147,7 +147,7 @@ mp_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins)
 		memset(mpeii, 0, sizeof(*mpeii));
 		mpeii->entry_type = MP_ENTRY_IOINT;
 		mpeii->src_bus_id = MPE_BUSID_ISA;
-		mpeii->dst_apic_id = MPE_IOAPIC_ID;
+		mpeii->dst_apic_id = id;
 
 		/*
 		 * All default configs route IRQs from bus 0 to the first 16 pins
@@ -285,7 +285,7 @@ mptable_dump(struct mp_floating_pointer *mpfp, struct mp_config_hdr *mpch)
 
 int
 vm_build_mptable(struct vmctx *ctx, vm_paddr_t gpa, int len, int ncpu,
-		 void *oemp, int oemsz)
+		 int ioapic, void *oemp, int oemsz)
 {
 	struct mp_config_hdr	*mpch;
 	char 			*mapaddr;
@@ -313,12 +313,16 @@ vm_build_mptable(struct vmctx *ctx, vm_paddr_t gpa, int len, int ncpu,
 	mp_build_bus_entries((struct mpe_bus*)mapaddr);
 	mapaddr += (sizeof(struct mpe_bus)*MPE_NUM_BUSES);
 	mpch->nr_entries += MPE_NUM_BUSES;
-#if 0
-	mp_build_ioapic_entries((struct mpe_ioapic*)mapaddr);
-	mapaddr += sizeof(struct mpe_ioapic);
-	mpch->nr_entries++;
 
-	mp_build_ioint_entries((struct mpe_ioint*)mapaddr, MPEII_MAX_IRQ);
+	if (ioapic) {
+		mp_build_ioapic_entries((struct mpe_ioapic*)mapaddr, ncpu + 1);
+		mapaddr += sizeof(struct mpe_ioapic);
+		mpch->nr_entries++;
+	}
+
+#ifdef notyet
+	mp_build_ioint_entries((struct mpe_ioint*)mapaddr, MPEII_MAX_IRQ,
+				ncpu + 1);
 	mapaddr += sizeof(struct mpe_ioint)*MPEII_MAX_IRQ;
 	mpch->nr_entries += MPEII_MAX_IRQ;
 

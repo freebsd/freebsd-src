@@ -128,7 +128,6 @@ struct mpe_bus {
 /*
  * MP IO APIC Entry
  */
-#define MPE_IOAPIC_ID		(2)
 #define MPE_IOAPIC_FLAG_EN	(1)
 struct mpe_ioapic {
 	uint8_t 	entry_type;
@@ -167,5 +166,5 @@ struct mpe_lint {
 };
 
 int	vm_build_mptable(struct vmctx *ctxt, vm_paddr_t gpa, int len,
-			 int ncpu, void *oemp, int oemsz);
+			 int ncpu, int ioapic, void *oemp, int oemsz);
 #endif	/* _MPTABLE_h_ */
