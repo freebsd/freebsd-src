@@ -2308,10 +2308,9 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 	if (zero_address) {
 		stcb = sctp_findassoc_by_vtag(NULL, dst, ntohl(sh->v_tag), inp_p,
 		    netp, sh->src_port, sh->dest_port, 1, vrf_id, 0);
-		/*
-		 * SCTP_PRINTF("findassociation_ep_asconf: zero lookup
-		 * address finds stcb 0x%x\n", (uint32_t)stcb);
-		 */
+		if (stcb != NULL) {
+			SCTP_INP_DECR_REF(*inp_p);
+		}
 	} else {
 		stcb = sctp_findassociation_ep_addr(inp_p,
 		    (struct sockaddr *)&remote_store, netp,
