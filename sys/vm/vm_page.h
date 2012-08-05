@@ -284,8 +284,6 @@ extern struct vpglocks pa_lock[];
 
 #include <sys/systm.h>
 
-#include <vm/vm_param.h>
-
 #include <machine/atomic.h>
 
 /*

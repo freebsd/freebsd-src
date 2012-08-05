@@ -38,6 +38,7 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
