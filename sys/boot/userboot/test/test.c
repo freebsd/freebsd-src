@@ -450,5 +450,5 @@ main(int argc, char** argv)
 	term.c_lflag &= ~(ICANON|ECHO);
 	tcsetattr(0, TCSAFLUSH, &term);
 
-	func(&cb, NULL, USERBOOT_VERSION_1, disk_fd >= 0);
+	func(&cb, NULL, USERBOOT_VERSION_2, disk_fd >= 0);
 }
