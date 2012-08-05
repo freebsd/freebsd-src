@@ -84,13 +84,12 @@
 #include <geom/geom.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
-
-#include <machine/vmparam.h>
 
 #define MD_MODVER 1
 
