@@ -135,7 +135,7 @@ struct uslcom_softc {
 
 	uint8_t		 sc_msr;
 	uint8_t		 sc_lsr;
-	uint8_t		 sc_IfIdx;
+	uint8_t		 sc_iface_no;
 };
 
 static device_probe_t uslcom_probe;
@@ -382,7 +382,8 @@ uslcom_attach(device_t dev)
 	usb_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_udev = uaa->device;
-	sc->sc_IfIdx = uaa->info.bIfaceIndex;
+	/* use the interface number from the USB interface descriptor */
+	sc->sc_iface_no = uaa->info.bIfaceNum;
 
 	error = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, uslcom_config,
@@ -437,7 +438,7 @@ uslcom_open(struct ucom_softc *ucom)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_UART;
 	USETW(req.wValue, USLCOM_UART_ENABLE);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -461,7 +462,7 @@ uslcom_close(struct ucom_softc *ucom)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_UART;
 	USETW(req.wValue, USLCOM_UART_DISABLE);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
 	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -485,7 +486,7 @@ uslcom_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_CTRL;
 	USETW(req.wValue, ctl);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -509,7 +510,7 @@ uslcom_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_CTRL;
 	USETW(req.wValue, ctl);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -540,7 +541,7 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_SET_BAUD_RATE;
 	USETW(req.wValue, 0);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, sizeof(baudrate));
 
 	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -577,7 +578,7 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_DATA;
 	USETW(req.wValue, data);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -599,7 +600,7 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_SET_FLOWCTRL;
 	USETW(req.wValue, 0);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, sizeof(flowctrl));
 
 	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -629,7 +630,7 @@ uslcom_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_BREAK;
 	USETW(req.wValue, brk);
-	USETW(req.wIndex, sc->sc_IfIdx);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -783,7 +784,7 @@ uslcom_control_callback(struct usb_xfer *xfer, usb_error_t error)
 		req.bmRequestType = USLCOM_READ;
 		req.bRequest = USLCOM_RCTRL;
 		USETW(req.wValue, 0);
-		USETW(req.wIndex, sc->sc_IfIdx);
+		USETW(req.wIndex, sc->sc_iface_no);
 		USETW(req.wLength, sizeof(buf));
                
 		usbd_xfer_set_frames(xfer, 2);
