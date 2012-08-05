@@ -30,6 +30,7 @@
  * USERBOOT interface versions
  */
 #define	USERBOOT_VERSION_1      1
+#define	USERBOOT_VERSION_2      2
 
 /*
  * Exit codes from the loader
