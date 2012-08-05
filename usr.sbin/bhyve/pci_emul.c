@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "inout.h"
 #include "pci_emul.h"
 #include "instruction_emul.h"
+#include "ioapic.h"
 
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
@@ -835,7 +836,7 @@ pci_lintr_assert(struct pci_devinst *pi)
 {
 
 	assert(pi->pi_lintr_pin);
-	/* ioapic_assert_pin(pi->pi_vmctx, pi->pi_lintr_pin); */
+	ioapic_assert_pin(pi->pi_vmctx, pi->pi_lintr_pin);
 }
 
 void
@@ -843,7 +844,7 @@ pci_lintr_deassert(struct pci_devinst *pi)
 {
 
 	assert(pi->pi_lintr_pin);
-	/* ioapic_deassert_pin(pi->pi_vmctx, pi->pi_lintr_pin); */
+	ioapic_deassert_pin(pi->pi_vmctx, pi->pi_lintr_pin);
 }
 
 
