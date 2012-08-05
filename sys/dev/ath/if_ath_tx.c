@@ -365,6 +365,9 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	HAL_DMA_ADDR bufAddrList[4];
+	uint32_t segLenList[4];
+
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
 	 * sizes must match.
@@ -378,25 +381,30 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	 * That's only going to occur for the first frame in an aggregate.
 	 */
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
+		bzero(bufAddrList, sizeof(bufAddrList));
+		bzero(segLenList, sizeof(segLenList));
 		if (i == bf->bf_nseg - 1)
 			ath_hal_settxdesclink(ah, ds, 0);
 		else
 			ath_hal_settxdesclink(ah, ds,
 			    bf->bf_daddr + dd->dd_descsize * (i + 1));
 
+		bufAddrList[0] = bf->bf_segs[i].ds_addr;
+		segLenList[0] = bf->bf_segs[i].ds_len;
+
 		/*
 		 * This performs the setup for an aggregate frame.
 		 * This includes enabling the aggregate flags if needed.
 		 */
 		ath_hal_chaintxdesc(ah, ds,
+		    bufAddrList,
+		    segLenList,
 		    bf->bf_state.bfs_pktlen,
 		    bf->bf_state.bfs_hdrlen,
 		    HAL_PKT_TYPE_AMPDU,	/* forces aggregate bits to be set */
 		    bf->bf_state.bfs_keyix,
 		    0,			/* cipher, calculated from keyix */
 		    bf->bf_state.bfs_ndelim,
-		    bf->bf_segs[i].ds_len,	/* segment length */
 		    i == 0,		/* first segment */
 		    i == bf->bf_nseg - 1,	/* last segment */
 		    bf->bf_next == NULL		/* last sub-frame in aggr */
