@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "xmsr.h"
 #include "instruction_emul.h"
+#include "ioapic.h"
 
 #define	DEFAULT_GUEST_HZ	100
 #define	DEFAULT_GUEST_TSLICE	200
@@ -651,6 +652,8 @@ main(int argc, char *argv[])
 
 	init_inout();
 	init_pci(ctx);
+	if (ioapic)
+		ioapic_init(0);
 
 	if (gdb_port != 0)
 		init_dbgport(gdb_port);
