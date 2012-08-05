@@ -4464,7 +4464,7 @@ static int
 smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
        int retry_count, int timeout)
 {
-	int c, error;
+	int c, error = 0;
 	union ccb *ccb;
 	uint8_t *smp_request = NULL, *smp_response = NULL;
 	int request_size = 0, response_size = 0;
