@@ -3468,7 +3468,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_G;
 	newpte |= pmap_cache_bits(m->md.pat_mode, 0);
 
-	mpte = om = NULL;
+	mpte = NULL;
 
 	lock = NULL;
 	rw_rlock(&pvh_global_lock);
@@ -3540,12 +3540,6 @@ retry:
 			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
 				goto unchanged;
 			goto validate;
-		} else {
-			/*
-			 * Yes, fall through to validate the new mapping.
-			 */
-			if ((origpte & PG_MANAGED) != 0)
-				om = PHYS_TO_VM_PAGE(opa);
 		}
 	} else {
 		/*
@@ -3578,6 +3572,7 @@ validate:
 		opa = origpte & PG_FRAME;
 		if (opa != pa) {
 			if ((origpte & PG_MANAGED) != 0) {
+				om = PHYS_TO_VM_PAGE(opa);
 				if ((origpte & (PG_M | PG_RW)) == (PG_M |
 				    PG_RW))
 					vm_page_dirty(om);
