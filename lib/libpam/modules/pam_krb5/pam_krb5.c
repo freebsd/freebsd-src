@@ -91,6 +91,7 @@ static void	compat_free_data_contents(krb5_context, krb5_data *);
 #define PAM_OPT_NO_CCACHE	"no_ccache"
 #define PAM_OPT_NO_USER_CHECK	"no_user_check"
 #define PAM_OPT_REUSE_CCACHE	"reuse_ccache"
+#define PAM_OPT_NO_USER_CHECK	"no_user_check"
 
 #define	PAM_LOG_KRB5_ERR(ctx, rv, fmt, ...)				\
 	do {								\
@@ -218,10 +219,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			PAM_LOG("PAM_USER Redone");
 		}
 
-		pwd = getpwnam(user);
-		if (pwd == NULL) {
-			retval = PAM_USER_UNKNOWN;
-			goto cleanup2;
+		if (!openpam_get_option(pamh, PAM_OPT_NO_USER_CHECK)) {
+			pwd = getpwnam(user);
+			if (pwd == NULL) {
+				retval = PAM_USER_UNKNOWN;
+				goto cleanup2;
+			}
 		}
 
 		PAM_LOG("Done getpwnam()");
