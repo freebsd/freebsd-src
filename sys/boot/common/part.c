@@ -389,7 +389,7 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 		entry = malloc(sizeof(*entry));
 		if (entry == NULL)
 			break;
-		entry->part.start = e1->part.start + start;
+		entry->part.start = offset + start;
 		entry->part.end = entry->part.start + end - 1;
 		entry->part.index = index++;
 		entry->part.type = mbr_parttype(dp[0].dp_typ);
