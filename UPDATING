@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20120806:	p10	FreeBSD-SA-12:05.bind
+	Fix named(8) DNSSEC validation Denial of Service.
+
 20120612:	p9	FreeBSD-SA-12:03.bind
 			FreeBSD-SA-12:04.sysret
 	Fix a problem where zero-length RDATA fields can cause named to crash.
