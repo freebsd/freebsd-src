@@ -1502,12 +1502,6 @@ igb_irq_fast(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-/*********************************************************************
- *
- *  Legacy polling routine : if using this code you MUST be sure that
- *  multiqueue is not defined, ie, set igb_num_queues to 1.
- *
- *********************************************************************/
 #if __FreeBSD_version >= 800000
 #define POLL_RETURN_COUNT(a) (a)
 static int
@@ -1518,8 +1512,8 @@ static void
 igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter		*adapter = ifp->if_softc;
-	struct igb_queue	*que = adapter->queues;
-	struct tx_ring		*txr = adapter->tx_rings;
+	struct igb_queue	*que;
+	struct tx_ring		*txr;
 	u32			reg_icr, rx_done = 0;
 	u32			loop = IGB_MAX_LOOP;
 	bool			more;
@@ -1541,20 +1535,26 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	IGB_CORE_UNLOCK(adapter);
 
-	igb_rxeof(que, count, &rx_done);
+	for (int i = 0; i < adapter->num_queues; i++) {
+		que = &adapter->queues[i];
+		txr = que->txr;
 
-	IGB_TX_LOCK(txr);
-	do {
-		more = igb_txeof(txr);
-	} while (loop-- && more);
+		igb_rxeof(que, count, &rx_done);
+
+		IGB_TX_LOCK(txr);
+		do {
+			more = igb_txeof(txr);
+		} while (loop-- && more);
 #if __FreeBSD_version >= 800000
-	if (!drbr_empty(ifp, txr->br))
-		igb_mq_start_locked(ifp, txr, NULL);
+		if (!drbr_empty(ifp, txr->br))
+			igb_mq_start_locked(ifp, txr, NULL);
 #else
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		igb_start_locked(txr, ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			igb_start_locked(txr, ifp);
 #endif
-	IGB_TX_UNLOCK(txr);
+		IGB_TX_UNLOCK(txr);
+	}
+
 	return POLL_RETURN_COUNT(rx_done);
 }
 #endif /* DEVICE_POLLING */
@@ -4901,7 +4901,7 @@ next_desc:
 	}
 
 	if (done != NULL)
-		*done = rxdone;
+		*done += rxdone;
 
 	IGB_RX_UNLOCK(rxr);
 	return ((staterr & E1000_RXD_STAT_DD) ? TRUE : FALSE);
