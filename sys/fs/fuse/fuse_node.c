@@ -252,7 +252,16 @@ fuse_vnode_get(struct mount *mp,
 		ASSERT_VOP_LOCKED(dvp, "fuse_vnode_get");
 		cache_enter(dvp, *vpp, cnp);
 	}
-	VTOFUD(*vpp)->nlookup++;
+
+	/*
+	 * In userland, libfuse uses cached lookups for dot and dotdot entries,
+	 * thus it does not really bump the nlookup counter for forget.
+	 * Follow the same semantic and avoid tu bump it in order to keep
+	 * nlookup counters consistent.
+	 */
+	if (cnp == NULL || ((cnp->cn_flags & ISDOTDOT) == 0 &&
+	    (cnp->cn_namelen != 1 || cnp->cn_nameptr[0] != '.')))
+		VTOFUD(*vpp)->nlookup++;
 
 	return 0;
 }
