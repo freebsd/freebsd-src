@@ -1081,7 +1081,8 @@ struct ath_hal {
 				u_int txRate2, u_int txTries2,
 				u_int txRate3, u_int txTries3);
 	HAL_BOOL  __ahdecl(*ah_fillTxDesc)(struct ath_hal *, struct ath_desc *,
-				u_int segLen, HAL_BOOL firstSeg,
+				HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+				u_int descId, u_int qcuId, HAL_BOOL firstSeg,
 				HAL_BOOL lastSeg, const struct ath_desc *);
 	HAL_STATUS __ahdecl(*ah_procTxDesc)(struct ath_hal *,
 				struct ath_desc *, struct ath_tx_status *);
@@ -1226,8 +1227,11 @@ struct ath_hal {
 
 	/* 802.11n Functions */
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
-				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
-				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
+				struct ath_desc *,
+				HAL_DMA_ADDR *bufAddrList,
+				uint32_t *segLenList,
+				u_int, u_int, HAL_PKT_TYPE,
+				u_int, HAL_CIPHER, uint8_t, HAL_BOOL,
 				HAL_BOOL, HAL_BOOL);
 	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, u_int,

@@ -302,6 +302,9 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	HAL_DMA_ADDR bufAddrList[4];
+	uint32_t segLenList[4];
+
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
 	 * sizes must match.
@@ -313,14 +316,30 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	 */
 	ds0 = ds = bf->bf_desc;
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
+		bufAddrList[0] = bf->bf_segs[i].ds_addr;
+		segLenList[0] = bf->bf_segs[i].ds_len;
+
+		/* Blank this out until multi-buf support is added for AR9300 */
+		bufAddrList[1] = bufAddrList[2] = bufAddrList[3] = 0;
+		segLenList[1] = segLenList[2] = segLenList[3] = 0;
+
 		if (i == bf->bf_nseg - 1)
 			ath_hal_settxdesclink(ah, ds, 0);
 		else
 			ath_hal_settxdesclink(ah, ds,
 			    bf->bf_daddr + dd->dd_descsize * (i + 1));
+
+		/*
+		 * XXX this assumes that bfs_txq is the actual destination
+		 * hardware queue at this point.  It may not have been assigned,
+		 * it may actually be pointing to the multicast software
+		 * TXQ id.  These must be fixed!
+		 */
 		ath_hal_filltxdesc(ah, ds
-			, bf->bf_segs[i].ds_len	/* segment length */
+			, bufAddrList
+			, segLenList
+			, 0			/* XXX desc id */
+			, bf->bf_state.bfs_txq->axq_qnum	/* XXX multicast? */
 			, i == 0		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
 			, ds0			/* first descriptor */
@@ -346,6 +365,9 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	HAL_DMA_ADDR bufAddrList[4];
+	uint32_t segLenList[4];
+
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
 	 * sizes must match.
@@ -359,25 +381,30 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	 * That's only going to occur for the first frame in an aggregate.
 	 */
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
+		bzero(bufAddrList, sizeof(bufAddrList));
+		bzero(segLenList, sizeof(segLenList));
 		if (i == bf->bf_nseg - 1)
 			ath_hal_settxdesclink(ah, ds, 0);
 		else
 			ath_hal_settxdesclink(ah, ds,
 			    bf->bf_daddr + dd->dd_descsize * (i + 1));
 
+		bufAddrList[0] = bf->bf_segs[i].ds_addr;
+		segLenList[0] = bf->bf_segs[i].ds_len;
+
 		/*
 		 * This performs the setup for an aggregate frame.
 		 * This includes enabling the aggregate flags if needed.
 		 */
 		ath_hal_chaintxdesc(ah, ds,
+		    bufAddrList,
+		    segLenList,
 		    bf->bf_state.bfs_pktlen,
 		    bf->bf_state.bfs_hdrlen,
 		    HAL_PKT_TYPE_AMPDU,	/* forces aggregate bits to be set */
 		    bf->bf_state.bfs_keyix,
 		    0,			/* cipher, calculated from keyix */
 		    bf->bf_state.bfs_ndelim,
-		    bf->bf_segs[i].ds_len,	/* segment length */
 		    i == 0,		/* first segment */
 		    i == bf->bf_nseg - 1,	/* last segment */
 		    bf->bf_next == NULL		/* last sub-frame in aggr */
@@ -526,6 +553,20 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
 
+/*
+ * Hand-off a frame to the multicast TX queue.
+ *
+ * This is a software TXQ which will be appended to the CAB queue
+ * during the beacon setup code.
+ *
+ * XXX TODO: since the AR9300 EDMA TX queue support wants the QCU ID
+ * as part of the TX descriptor, bf_state.bfs_txq must be updated
+ * with the actual hardware txq, or all of this will fall apart.
+ *
+ * XXX It may not be a bad idea to just stuff the QCU ID into bf_state
+ * and retire bfs_txq; then make sure the CABQ QCU ID is populated
+ * correctly.
+ */
 static void
 ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
@@ -1065,6 +1106,11 @@ ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
 /*
  * Setup the descriptor chain for a normal or fast-frame
  * frame.
+ *
+ * XXX TODO: extend to include the destination hardware QCU ID.
+ * Make sure that is correct.  Make sure that when being added
+ * to the mcastq, the CABQ QCUID is set or things will get a bit
+ * odd.
  */
 static void
 ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
@@ -1546,6 +1592,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, ac=%d, is_ampdu=%d\n",
 	    __func__, tid, pri, is_ampdu);
 
+	/* Set local packet state, used to queue packets to hardware */
+	bf->bf_state.bfs_tid = tid;
+	bf->bf_state.bfs_txq = txq;
+	bf->bf_state.bfs_pri = pri;
+
 	/*
 	 * When servicing one or more stations in power-save mode
 	 * (or) if there is some mcast data waiting on the mcast
@@ -1554,8 +1605,15 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 *
 	 * TODO: we should lock the mcastq before we check the length.
 	 */
-	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
+	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth)) {
 		txq = &avp->av_mcastq;
+		/*
+		 * Mark the frame as eventually belonging on the CAB
+		 * queue, so the descriptor setup functions will
+		 * correctly initialise the descriptor 'qcuId' field.
+		 */
+		bf->bf_state.bfs_txq = sc->sc_cabq;
+	}
 
 	/* Do the generic frame setup */
 	/* XXX should just bzero the bf_state? */
@@ -1564,6 +1622,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/*
 	 * Acquire the TXQ lock early, so both the encap and seqno
 	 * are allocated together.
+	 *
+	 * XXX should TXQ for CABQ traffic be the multicast queue,
+	 * or the TXQ the given PRI would allocate from? (eg for
+	 * sequence number allocation locking.)
 	 */
 	ATH_TXQ_LOCK(txq);
 
@@ -1808,6 +1870,11 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_txflags = flags;
 	bf->bf_state.bfs_shpream =
 	    !! (params->ibp_flags & IEEE80211_BPF_SHORTPRE);
+
+	/* Set local packet state, used to queue packets to hardware */
+	bf->bf_state.bfs_tid = WME_AC_TO_TID(pri);
+	bf->bf_state.bfs_txq = sc->sc_ac2q[pri];
+	bf->bf_state.bfs_pri = pri;
 
 	/* XXX this should be done in ath_tx_setrate() */
 	bf->bf_state.bfs_ctsrate = 0;
@@ -2380,11 +2447,19 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
  * Otherwise, schedule it as a single frame.
  */
 static void
-ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
+ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
+    struct ath_txq *txq, struct ath_buf *bf)
 {
 	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
-	struct ath_txq *txq = bf->bf_state.bfs_txq;
+//	struct ath_txq *txq = bf->bf_state.bfs_txq;
 	struct ieee80211_tx_ampdu *tap;
+
+	if (txq != bf->bf_state.bfs_txq) {
+		device_printf(sc->sc_dev, "%s: txq %d != bfs_txq %d!\n",
+		    __func__,
+		    txq->axq_qnum,
+		    bf->bf_state.bfs_txq->axq_qnum);
+	}
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 	ATH_TID_LOCK_ASSERT(sc, tid);
@@ -2464,6 +2539,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	    __func__, bf, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
 	/* Set local packet state, used to queue packets to hardware */
+	/* XXX potentially duplicate info, re-check */
+	/* XXX remember, txq must be the hardware queue, not the av_mcastq */
 	bf->bf_state.bfs_tid = tid;
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
@@ -2501,7 +2578,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		if (txq->axq_depth < sc->sc_hwq_limit) {
 			bf = TAILQ_FIRST(&atid->axq_q);
 			ATH_TXQ_REMOVE(atid, bf, bf_list);
-			ath_tx_xmit_aggr(sc, an, bf);
+			ath_tx_xmit_aggr(sc, an, txq, bf);
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
 			    "%s: xmit_aggr\n",
 			    __func__);

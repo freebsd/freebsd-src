@@ -143,7 +143,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     vm_offset_t			size;
     vm_offset_t			ssym, esym;
     char			*rootdevname;
-    int				bootdevnr, i, howto;
+    int				bootdevnr, howto;
     char			*kernelname;
     const char			*kernelpath;
 
