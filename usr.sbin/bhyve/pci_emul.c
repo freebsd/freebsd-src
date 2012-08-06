@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "fbsdrun.h"
 #include "inout.h"
 #include "pci_emul.h"
-#include "instruction_emul.h"
 #include "ioapic.h"
 
 #define CONF1_ADDR_PORT    0x0cf8
@@ -62,7 +61,8 @@ do {									\
 	}								\
 } while (0)
 
-#define MAXSLOTS	32
+#define MAXSLOTS	(PCI_SLOTMAX + 1)
+#define	MAXFUNCS	(PCI_FUNCMAX + 1)
 
 static struct slotinfo {
 	char	*si_name;
@@ -73,7 +73,7 @@ static struct slotinfo {
 	char	si_prefix;
 	char	si_suffix;
 	int	si_legacy;
-} pci_slotinfo[MAXSLOTS];
+} pci_slotinfo[MAXSLOTS][MAXFUNCS];
 
 /*
  * Used to keep track of legacy interrupt owners/requestors
@@ -114,7 +114,7 @@ static struct mptable_pci_devnames {
 		uint8_t  mds_suffix[4];
 		uint8_t  mds_prefix[4];
 		uint32_t mds_rsvd[3];
-	} md_slotinfo[MAXSLOTS];
+	} md_slotinfo[MAXSLOTS * MAXFUNCS];
 } pci_devnames;
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
@@ -142,15 +142,16 @@ static int devname_elems;
 /*
  * Slot options are in the form:
  *
- *  <slot>,<emul>[,<config>]
+ *  <slot>[:<func>],<emul>[,<config>]
  *
  *  slot is 0..31
+ *  func is 0..7
  *  emul is a string describing the type of PCI device e.g. virtio-net
  *  config is an optional string, depending on the device, that can be
  *  used for configuration.
  *   Examples are:
  *     1,virtio-net,tap0
- *     3,dummy
+ *     3:0,dummy
  */
 static void
 pci_parse_slot_usage(char *aopt)
@@ -162,14 +163,22 @@ pci_parse_slot_usage(char *aopt)
 void
 pci_parse_slot(char *opt, int legacy)
 {
-	char *slot, *emul, *config;
+	char *slot, *func, *emul, *config;
 	char *str, *cpy;
-	int snum;
+	int snum, fnum;
 
 	str = cpy = strdup(opt);
+
 	config = NULL;
 
-	slot = strsep(&str, ",");
+	if (strchr(str, ':') != NULL) {
+		slot = strsep(&str, ":");
+		func = strsep(&str, ",");
+	} else {
+		slot = strsep(&str, ",");
+		func = NULL;
+	}
+
 	emul = strsep(&str, ",");
 	if (str != NULL) {
 		config = strsep(&str, ",");
@@ -180,34 +189,33 @@ pci_parse_slot(char *opt, int legacy)
 		return;
 	}
 
-	snum = 255;
 	snum = atoi(slot);
-	if (snum < 0 || snum >= MAXSLOTS) {
+	fnum = func ? atoi(func) : 0;
+	if (snum < 0 || snum >= MAXSLOTS || fnum < 0 || fnum >= MAXFUNCS) {
 		pci_parse_slot_usage(cpy);
 	} else {
-		pci_slotinfo[snum].si_name = emul;
-		pci_slotinfo[snum].si_param = config;
-		pci_slotinfo[snum].si_legacy = legacy;
+		pci_slotinfo[snum][fnum].si_name = emul;
+		pci_slotinfo[snum][fnum].si_param = config;
+		pci_slotinfo[snum][fnum].si_legacy = legacy;
 	}
 }
-
 
 /*
  *
  * PCI MPTable names are of the form:
  *
- *  <slot>,[prefix]<digit><suffix>
+ *  <slot>[:<func>],[prefix]<digit><suffix>
  *
  *  .. with <prefix> an alphabetic char, <digit> a 1 or 2-digit string,
  * and <suffix> a single char.
  *
  *  Examples:
  *    1,e0c
- *    4,e0P
+ *    4:0,e0P
+ *    4:1,e0M
  *    6,43a
  *    7,0f
  *    10,1
- *    12,e0M
  *    2,12a
  *
  *  Note that this is NetApp-specific, but is ignored on other o/s's.
@@ -223,15 +231,23 @@ pci_parse_name(char *opt)
 {
 	char csnum[4];
 	char *namestr;
-	char *slotend;
+	char *slotend, *funcend, *funcstart;
 	char prefix, suffix;
 	int i;
 	int pslot;
-	int snum;
+	int snum, fnum;
 
 	pslot = -1;
 	prefix = suffix = 0;
-	slotend = strchr(opt, ',');
+
+	slotend = strchr(opt, ':');
+	if (slotend != NULL) {
+		funcstart = slotend + 1;
+		funcend = strchr(funcstart, ',');
+	} else {
+		slotend = strchr(opt, ',');
+		funcstart = funcend = NULL;
+	}
 
 	/*
 	 * A comma must be present, and can't be the first character
@@ -248,14 +264,31 @@ pci_parse_name(char *opt)
 	}
 	csnum[i] = '\0';
 	
-	snum = 255;
 	snum = atoi(csnum);
 	if (snum < 0 || snum >= MAXSLOTS) {
 		pci_parse_name_usage(opt);
 		return;
 	}
 
-	namestr = slotend + 1;
+	/*
+	 * Parse the function number (if provided)
+	 *
+	 * A comma must be present and can't be the first character.
+	 * The function cannot be greater than a single character and
+	 * must be between '0' and '7' inclusive.
+	 */
+	if (funcstart != NULL) {
+		if (funcend == NULL || funcend != funcstart + 1 ||
+		    *funcstart < '0' || *funcstart > '7') {
+			pci_parse_name_usage(opt);
+			return;
+		}
+		fnum = *funcstart - '0';
+	} else {
+		fnum = 0;
+	}
+
+	namestr = funcend ? funcend + 1 : slotend + 1;
 
 	if (strlen(namestr) > 3) {
 		pci_parse_name_usage(opt);
@@ -276,11 +309,10 @@ pci_parse_name(char *opt)
 		}
 		if (isalpha(*namestr) && *(namestr + 1) == 0) {
 			suffix = *namestr;
-			pci_slotinfo[snum].si_titled = 1;
-			pci_slotinfo[snum].si_pslot = pslot;
-			pci_slotinfo[snum].si_prefix = prefix;
-			pci_slotinfo[snum].si_suffix = suffix;
-			
+			pci_slotinfo[snum][fnum].si_titled = 1;
+			pci_slotinfo[snum][fnum].si_pslot = pslot;
+			pci_slotinfo[snum][fnum].si_prefix = prefix;
+			pci_slotinfo[snum][fnum].si_suffix = suffix;
 		} else {
 			pci_parse_name_usage(opt);
 		}
@@ -391,7 +423,8 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 		addr = mask = lobits = 0;
 		break;
 	case PCIBAR_IO:
-		if (hostbase && pci_slotinfo[pdi->pi_slot].si_legacy) {
+		if (hostbase &&
+		    pci_slotinfo[pdi->pi_slot][pdi->pi_func].si_legacy) {
 			assert(hostbase < PCI_EMUL_IOBASE);
 			baseptr = &hostbase;
 		} else {
@@ -536,7 +569,8 @@ pci_emul_finddev(char *name)
 }
 
 static void
-pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, char *params)
+pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
+	      char *params)
 {
 	struct pci_devinst *pdi;
 	pdi = malloc(sizeof(struct pci_devinst));
@@ -545,7 +579,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, char *params)
 	pdi->pi_vmctx = ctx;
 	pdi->pi_bus = 0;
 	pdi->pi_slot = slot;
-	pdi->pi_func = 0;
+	pdi->pi_func = func;
 	pdi->pi_d = pde;
 	snprintf(pdi->pi_name, PI_NAMESZ, "%s-pci-%d", pde->pe_emu, slot);
 
@@ -560,7 +594,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, char *params)
 		free(pdi);
 	} else {
 		pci_emul_devices++;
-		pci_slotinfo[slot].si_devi = pdi;
+		pci_slotinfo[slot][func].si_devi = pdi;
 	}	
 }
 
@@ -730,20 +764,22 @@ init_pci(struct vmctx *ctx)
 {
 	struct pci_devemu *pde;
 	struct slotinfo *si;
-	int i;
+	int slot, func;
 
 	pci_emul_iobase = PCI_EMUL_IOBASE;
 	pci_emul_membase32 = PCI_EMUL_MEMBASE32;
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
-	si = pci_slotinfo;
-
-	for (i = 0; i < MAXSLOTS; i++, si++) {
-		if (si->si_name != NULL) {
-			pde = pci_emul_finddev(si->si_name);
-			if (pde != NULL) {
-				pci_emul_init(ctx, pde, i, si->si_param);
-				pci_add_mptable_name(si);
+	for (slot = 0; slot < MAXSLOTS; slot++) {
+		for (func = 0; func < MAXFUNCS; func++) {
+			si = &pci_slotinfo[slot][func];
+			if (si->si_name != NULL) {
+				pde = pci_emul_finddev(si->si_name);
+				if (pde != NULL) {
+					pci_emul_init(ctx, pde, slot, func,
+						      si->si_param);
+					pci_add_mptable_name(si);
+				}
 			}
 		}
 	}
@@ -790,7 +826,7 @@ int
 pci_is_legacy(struct pci_devinst *pi)
 {
 
-	return (pci_slotinfo[pi->pi_slot].si_legacy);
+	return (pci_slotinfo[pi->pi_slot][pi->pi_func].si_legacy);
 }
 
 static int
@@ -847,7 +883,52 @@ pci_lintr_deassert(struct pci_devinst *pi)
 	ioapic_deassert_pin(pi->pi_vmctx, pi->pi_lintr_pin);
 }
 
+/*
+ * Return 1 if the emulated device in 'slot' is a multi-function device.
+ * Return 0 otherwise.
+ */
+static int
+pci_emul_is_mfdev(int slot)
+{
+	int f, numfuncs;
 
+	numfuncs = 0;
+	for (f = 0; f < MAXFUNCS; f++) {
+		if (pci_slotinfo[slot][f].si_devi != NULL) {
+			numfuncs++;
+		}
+	}
+	return (numfuncs > 1);
+}
+
+/*
+ * Ensure that the PCIM_MFDEV bit is properly set (or unset) depending on
+ * whether or not is a multi-function being emulated in the pci 'slot'.
+ */
+static void
+pci_emul_hdrtype_fixup(int slot, int off, int bytes, uint32_t *rv)
+{
+	int mfdev;
+
+	if (off <= PCIR_HDRTYPE && off + bytes > PCIR_HDRTYPE) {
+		mfdev = pci_emul_is_mfdev(slot);
+		switch (bytes) {
+		case 1:
+		case 2:
+			*rv &= ~PCIM_MFDEV;
+			if (mfdev) {
+				*rv |= PCIM_MFDEV;
+			}
+			break;
+		case 4:
+			*rv &= ~(PCIM_MFDEV << 16);
+			if (mfdev) {
+				*rv |= (PCIM_MFDEV << 16);
+			}
+			break;
+		}
+	}
+}
 
 static int cfgbus, cfgslot, cfgfunc, cfgoff;
 
@@ -878,12 +959,12 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 {
 	struct pci_devinst *pi;
 	struct pci_devemu *pe;
-	int coff, idx;
+	int coff, idx, needcfg;
 	uint64_t mask, bar;
 
 	assert(bytes == 1 || bytes == 2 || bytes == 4);
 	
-	pi = pci_slotinfo[cfgslot].si_devi;
+	pi = pci_slotinfo[cfgslot][cfgfunc].si_devi;
 	coff = cfgoff + (port - CONF1_DATA_PORT);
 
 #if 0
@@ -891,7 +972,11 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		in ? "read" : "write", coff, bytes, cfgbus, cfgslot, cfgfunc);
 #endif
 
-	if (pi == NULL || cfgfunc != 0) {
+	/*
+	 * Just return if there is no device at this cfgslot:cfgfunc or
+	 * if the guest is doing an un-aligned access
+	 */
+	if (pi == NULL || (coff & (bytes - 1)) != 0) {
 		if (in)
 			*eax = 0xffffffff;
 		return (0);
@@ -904,16 +989,23 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	 */
 	if (in) {
 		/* Let the device emulation override the default handler */
-		if (pe->pe_cfgread != NULL &&
-		    (*pe->pe_cfgread)(ctx, vcpu, pi, coff, bytes, eax) == 0)
-			return (0);
+		if (pe->pe_cfgread != NULL) {
+			needcfg = pe->pe_cfgread(ctx, vcpu, pi,
+						    coff, bytes, eax);
+		} else {
+			needcfg = 1;
+		}
 
-		if (bytes == 1)
-			*eax = pci_get_cfgdata8(pi, coff);
-		else if (bytes == 2)
-			*eax = pci_get_cfgdata16(pi, coff);
-		else
-			*eax = pci_get_cfgdata32(pi, coff);
+		if (needcfg) {
+			if (bytes == 1)
+				*eax = pci_get_cfgdata8(pi, coff);
+			else if (bytes == 2)
+				*eax = pci_get_cfgdata16(pi, coff);
+			else
+				*eax = pci_get_cfgdata32(pi, coff);
+		}
+
+		pci_emul_hdrtype_fixup(cfgslot, coff, bytes, eax);
 	} else {
 		/* Let the device emulation override the default handler */
 		if (pe->pe_cfgwrite != NULL &&
