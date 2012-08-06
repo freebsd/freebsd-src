@@ -16,6 +16,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	sun4v support still needs work to become production ready.
 
 
+20120806:	p13	FreeBSD-SA-12:05.bind
+	Fix named(8) DNSSEC validation Denial of Service.
+
 20120618:	p12	FreeBSD-SA-12:04.sysret
 	Correct patch for FreeBSD-SA-12:04.sysret.
 
