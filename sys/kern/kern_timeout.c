@@ -460,8 +460,10 @@ callout_process(struct bintime *now)
 		sc = &cc->cc_callwheel[last];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
 			tmp_max = tmp_min = tmp->c_time; 
-			bintime_add(&tmp_max, &tmp->c_precision);
-			bintime_sub(&tmp_min, &tmp->c_precision);
+			if (bintime_isset(&tmp->c_precision)) {
+				bintime_add(&tmp_max, &tmp->c_precision);
+				bintime_sub(&tmp_min, &tmp->c_precision);
+			}
 			/*
 			 * This is the fist event we're going to process or 
 			 * event maximal time is less than present minimal. 
@@ -490,24 +492,26 @@ callout_process(struct bintime *now)
 		last = (last + 1) & callwheelmask;
 	}
 	if (max.sec == TIME_T_MAX) { 
-		next.sec = 0;	
-		next.frac = (uint64_t)1 << (64 - 2);	
-		bintime_add(&next, now);
+		next = *now;
+		bintime_addx(&next, (uint64_t)1 << (64 - 2));
 	} else {
 		/*
 		 * Now that we found something to aggregate, schedule an  
 		 * interrupt in the middle of the previously calculated range.
 	 	 */
-		bintime_add(&max, &min);
-		next = max;
-		next.frac >>= 1;
-		if (next.sec & 1)	
-			next.frac |= ((uint64_t)1 << 63);
-		next.sec >>= 1;
+		if (bintime_cmp(&max, &min, !=)) {
+			bintime_add(&max, &min);
+			next = max;
+			next.frac >>= 1;
+			if (next.sec & 1)	
+				next.frac |= ((uint64_t)1 << 63);
+			next.sec >>= 1;
+		} else 
+			next = max;
 	}
-	cc->cc_firstevent = next;
 	if (callout_new_inserted != NULL) 
 		(*callout_new_inserted)(cpu, next);
+	cc->cc_firstevent = next;
 	cc->cc_lastscan = *now;
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
@@ -606,7 +610,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	bintime_add(&bt, &c->c_precision); 
 	if (callout_new_inserted != NULL && 
 	    (bintime_cmp(&bt, &cc->cc_firstevent, <) ||
-	    (cc->cc_firstevent.sec == 0 && cc->cc_firstevent.frac == 0))) {
+	    !bintime_isset(&cc->cc_firstevent))) {
 		cc->cc_firstevent = c->c_time;
 		(*callout_new_inserted)(cpu, c->c_time);
 	}
