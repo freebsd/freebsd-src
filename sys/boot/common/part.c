@@ -466,7 +466,7 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 	for (i = 0; i < dl->d_npartitions; i++, part++) {
 		if (i == RAW_PART)
 			continue;
-		if (part->p_size == 0 || part->p_fstype == 0)
+		if (part->p_size == 0)
 			continue;
 		entry = malloc(sizeof(*entry));
 		if (entry == NULL)
