@@ -398,7 +398,9 @@ g_gate_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sc = gp->softc;
 	if (sc == NULL || pp != NULL || cp != NULL)
 		return;
-	g_gate_hold(sc->sc_unit, NULL);
+	sc = g_gate_hold(sc->sc_unit, NULL);
+	if (sc == NULL)
+		return;
 	if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0) {
 		sbuf_printf(sb, "%s<access>%s</access>\n", indent, "read-only");
 	} else if ((sc->sc_flags & G_GATE_FLAG_WRITEONLY) != 0) {
