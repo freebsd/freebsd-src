@@ -448,6 +448,7 @@ callout_process(struct bintime *now)
 			break;
 		first = (first + 1) & callwheelmask;
 	}
+	cc->cc_exec_next_dir = NULL;
 	future = (last + hz / 4) & callwheelmask; 
 	max.sec = min.sec = TIME_T_MAX;
 	max.frac = min.frac = UINT64_MAX;
@@ -614,9 +615,10 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 static void
 callout_cc_del(struct callout *c, struct callout_cpu *cc, int direct)
 {
-	if (direct && cc->cc_exec_next_dir == c)
+	
+	if (cc->cc_exec_next_dir == c) 
 		cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
-	else if (!direct && cc->cc_exec_next == c)
+	else if (cc->cc_exec_next == c) 
 		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 		c->c_func = NULL;
@@ -649,12 +651,8 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 
 	if (direct) 
 		cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
-	else {
-		if ((c->c_flags & CALLOUT_PROCESSED) == 0) 	
-			cc->cc_exec_next = TAILQ_NEXT(c, c_links.tqe);
-		else 
-			cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
-	}
+	else 
+		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
 	class = (c->c_lock != NULL) ? LOCK_CLASS(c->c_lock) : NULL;
 	sharedlock = (c->c_flags & CALLOUT_SHAREDLOCK) ? 0 : 1;
 	c_lock = c->c_lock;
@@ -844,6 +842,7 @@ softclock(void *arg)
 	avg_lockcalls += (lockcalls * 1000 - avg_lockcalls) >> 8;
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
 #endif
+	cc->cc_exec_next = NULL;
 	CC_UNLOCK(cc);
 }
 
@@ -980,9 +979,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 	}
 	if (c->c_flags & CALLOUT_PENDING) {
 		if ((c->c_flags & CALLOUT_PROCESSED) == 0) {	
-			if (cc->cc_exec_next == c)
-				cc->cc_exec_next = TAILQ_NEXT(c, c_links.tqe);
-			else if (cc->cc_exec_next_dir == c) 
+			if (cc->cc_exec_next_dir == c) 
 				cc->cc_exec_next_dir = TAILQ_NEXT(c, 
 				    c_links.tqe);
 			bucket = get_bucket(&c->c_time);
