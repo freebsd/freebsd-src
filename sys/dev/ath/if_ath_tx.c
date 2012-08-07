@@ -751,7 +751,7 @@ ath_legacy_tx_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 		return;
 
 	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-	ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
+	ath_hal_gettxdesclinkptr(ah, bf_last->bf_lastds, &txq->axq_link);
 	ath_hal_txstart(ah, txq->axq_qnum);
 }
 
