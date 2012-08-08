@@ -1076,7 +1076,7 @@ main(int arc, char **argv)
 		pps = toc.tv_sec* 1000000 + toc.tv_usec;
 		if (pps < 10000)
 			continue;
-		pps = (my_count - prev)*1000000 / pps;
+		pps = ((my_count - prev) * 1000000 + pps / 2) / pps;
 		D("%" PRIu64 " pps", pps);
 		prev = my_count;
 		toc = now;
