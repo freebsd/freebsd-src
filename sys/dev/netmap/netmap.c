@@ -1282,7 +1282,8 @@ netmap_lock_wrapper(struct ifnet *dev, int what, u_int queueid)
  * kring	N+1	is only used for the selinfo for all queues.
  * Return 0 on success, ENOMEM otherwise.
  *
- * By default the receive and transmit adapter ring counts are both initialized  * to num_queues.  na->num_tx_rings can be set for cards with different tx/rx
+ * By default the receive and transmit adapter ring counts are both initialized
+ * to num_queues.  na->num_tx_rings can be set for cards with different tx/rx
  * setups.
  */
 int
