@@ -468,13 +468,14 @@ static void *
 sender_body(void *data)
 {
 	struct targ *targ = (struct targ *) data;
-
 	struct pollfd fds[1];
 	struct netmap_if *nifp = targ->nifp;
 	struct netmap_ring *txring;
 	int i, pkts_per_td = targ->g->npackets / targ->g->nthreads, sent = 0;
 	int continuous = 0;
 	int options = targ->g->options | OPT_COPY;
+	int retval;
+
 D("start");
 	if (pkts_per_td == 0) {
 		continuous = 1;
@@ -508,10 +509,14 @@ D("start");
 		/*
 		 * wait for available room in the send queue(s)
 		 */
-		if (poll(fds, 1, 2000) <= 0) {
+		if ((retval = poll(fds, 1, 2000)) <= 0) {
 			if (targ->cancel)
 				break;
-			D("poll error/timeout on queue %d\n", targ->me);
+			if (retval == 0)
+				D("poll timeout on queue %d\n", targ->me);
+			else
+				D("poll error on queue %d: %s\n", targ->me,
+				    strerror(errno));
 			goto quit;
 		}
 		/*
