@@ -105,6 +105,7 @@ struct td_sched {
 /* flags kept in td_flags */
 #define TDF_DIDRUN	TDF_SCHED0	/* thread actually ran. */
 #define TDF_BOUND	TDF_SCHED1	/* Bound to one CPU. */
+#define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
 
 /* flags kept in ts_flags */
 #define	TSF_AFFINITY	0x0001		/* Has a non-"full" CPU set. */
@@ -727,7 +728,7 @@ sched_clock(struct thread *td)
 	 */
 	if (!TD_IS_IDLETHREAD(td) && (--ts->ts_slice <= 0)) {
 		ts->ts_slice = sched_slice;
-		td->td_flags |= TDF_NEEDRESCHED;
+		td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
 	}
 
 	stat = DPCPU_PTR(idlestat);
@@ -943,6 +944,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	struct mtx *tmtx;
 	struct td_sched *ts;
 	struct proc *p;
+	int preempted;
 
 	tmtx = NULL;
 	ts = td->td_sched;
@@ -964,8 +966,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		sched_load_rem();
 
 	td->td_lastcpu = td->td_oncpu;
-	if (!(flags & SW_PREEMPT))
-		td->td_flags &= ~TDF_NEEDRESCHED;
+	preempted = !(td->td_flags & TDF_SLICEEND);
+	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_SLICEEND);
 	td->td_owepreempt = 0;
 	td->td_oncpu = NOCPU;
 
@@ -983,7 +985,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	} else {
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue. */
-			sched_add(td, (flags & SW_PREEMPT) ?
+			sched_add(td, preempted ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
 		}
