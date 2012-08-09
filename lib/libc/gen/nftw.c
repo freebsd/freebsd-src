@@ -65,6 +65,8 @@ nftw(const char *path, int (*fn)(const char *, const struct stat *, int,
 				continue;
 			fnflag = FTW_D;
 			break;
+		case FTS_DC:
+			continue;
 		case FTS_DNR:
 			fnflag = FTW_DNR;
 			break;
@@ -87,9 +89,6 @@ nftw(const char *path, int (*fn)(const char *, const struct stat *, int,
 		case FTS_SLNONE:
 			fnflag = FTW_SLN;
 			break;
-		case FTS_DC:
-			errno = ELOOP;
-			/* FALLTHROUGH */
 		default:
 			error = -1;
 			goto done;
