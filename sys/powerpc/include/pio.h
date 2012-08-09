@@ -39,7 +39,12 @@
  * I/O macros.
  */
 
-#define powerpc_iomb() __asm __volatile("eieio" : : : "memory")
+/*
+ * Use sync so that bus space operations cannot sneak out the bottom of
+ * mutex-protected sections (mutex release does not guarantee completion of
+ * accesses to caching-inhibited memory on some systems)
+ */
+#define powerpc_iomb() __asm __volatile("sync" : : : "memory")
 
 static __inline void
 __outb(volatile u_int8_t *a, u_int8_t v)

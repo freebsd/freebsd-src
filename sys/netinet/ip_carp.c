@@ -696,7 +696,7 @@ carp_prepare_ad(struct mbuf *m, struct carp_softc *sc, struct carp_header *ch)
 		CARPSTATS_INC(carps_onomem);
 		return (ENOMEM);
 	}
-	bcopy(&sc, (caddr_t)(mtag + 1), sizeof(struct carp_softc *));
+	bcopy(&sc, mtag + 1, sizeof(sc));
 	m_tag_prepend(m, mtag);
 
 	return (0);
@@ -1027,23 +1027,31 @@ carp_send_na(struct carp_softc *sc)
 	}
 }
 
+/*
+ * Returns ifa in case it's a carp address and it is MASTER, or if the address
+ * matches and is not a carp address.  Returns NULL otherwise.
+ */
 struct ifaddr *
 carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 {
 	struct ifaddr *ifa;
 
+	ifa = NULL;
 	IF_ADDR_RLOCK(ifp);
-	IFNET_FOREACH_IFA(ifp, ifa)
-		if (ifa->ifa_addr->sa_family == AF_INET6 &&
-		    ifa->ifa_carp->sc_state == MASTER &&
-		    IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa))) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		if (!IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa)))
+			continue;
+		if (ifa->ifa_carp && ifa->ifa_carp->sc_state != MASTER)
+			ifa = NULL;
+		else
 			ifa_ref(ifa);
-			IF_ADDR_RUNLOCK(ifp);
-			return (ifa);
-		}
+		break;
+	}
 	IF_ADDR_RUNLOCK(ifp);
 
-	return (NULL);
+	return (ifa);
 }
 
 caddr_t
@@ -1061,13 +1069,12 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 			IF_ADDR_RUNLOCK(ifp);
 
 			mtag = m_tag_get(PACKET_TAG_CARP,
-			    sizeof(struct ifnet *), M_NOWAIT);
+			    sizeof(struct carp_softc *), M_NOWAIT);
 			if (mtag == NULL)
 				/* Better a bit than nothing. */
 				return (LLADDR(&sc->sc_addr));
 
-			bcopy(&ifp, (caddr_t)(mtag + 1),
-			    sizeof(struct ifnet *));
+			bcopy(&sc, mtag + 1, sizeof(sc));
 			m_tag_prepend(m, mtag);
 
 			return (LLADDR(&sc->sc_addr));
@@ -1391,7 +1398,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa)
 	if (mtag == NULL)
 		return (0);
 
-	bcopy(mtag + 1, &sc, sizeof(struct carp_softc *));
+	bcopy(mtag + 1, &sc, sizeof(sc));
 
 	/* Set the source MAC address to the Virtual Router MAC Address. */
 	switch (ifp->if_type) {

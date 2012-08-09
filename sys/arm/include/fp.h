@@ -84,7 +84,7 @@ struct fpe_sp_state {
  * Type for a saved FP context, if we want to translate the context to a
  * user-readable form
  */
- 
+
 typedef struct {
 	u_int32_t fpsr;
 	fp_extended_precision_t regs[8];

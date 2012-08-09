@@ -57,12 +57,20 @@
 #endif
 #ifndef MACHINE_ARCH
 #ifdef __FreeBSD_ARCH_armv6__
+#ifdef __ARMEB__
+#define	MACHINE_ARCH	"armv6eb"
+#else
 #define	MACHINE_ARCH	"armv6"
+#endif
+#else
+#ifdef __ARMEB__
+#define	MACHINE_ARCH	"armeb"
 #else
 #define	MACHINE_ARCH	"arm"
 #endif
 #endif
-#define	MID_MACHINE	MID_ARM6 
+#endif
+#define	MID_MACHINE	MID_ARM6
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
@@ -78,7 +86,7 @@
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
+ * (within reasonable limits).
  */
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
 

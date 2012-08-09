@@ -34,39 +34,45 @@
 #ifdef	ATH_DEBUG
 
 enum { 
-	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
-	ATH_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
-	ATH_DEBUG_RECV		= 0x00000004,	/* basic recv operation */
-	ATH_DEBUG_RECV_DESC	= 0x00000008,	/* recv descriptors */
-	ATH_DEBUG_RATE		= 0x00000010,	/* rate control */
-	ATH_DEBUG_RESET		= 0x00000020,	/* reset processing */
-	ATH_DEBUG_MODE		= 0x00000040,	/* mode init/setup */
-	ATH_DEBUG_BEACON	= 0x00000080,	/* beacon handling */
-	ATH_DEBUG_WATCHDOG	= 0x00000100,	/* watchdog timeout */
-	ATH_DEBUG_INTR		= 0x00001000,	/* ISR */
-	ATH_DEBUG_TX_PROC	= 0x00002000,	/* tx ISR proc */
-	ATH_DEBUG_RX_PROC	= 0x00004000,	/* rx ISR proc */
-	ATH_DEBUG_BEACON_PROC	= 0x00008000,	/* beacon ISR proc */
-	ATH_DEBUG_CALIBRATE	= 0x00010000,	/* periodic calibration */
-	ATH_DEBUG_KEYCACHE	= 0x00020000,	/* key cache management */
-	ATH_DEBUG_STATE		= 0x00040000,	/* 802.11 state transitions */
-	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
-	ATH_DEBUG_LED		= 0x00100000,	/* led management */
-	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
-	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
-	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
-	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
-	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
-	ATH_DEBUG_SW_TX		= 0x04000000,	/* per-packet software TX */
-	ATH_DEBUG_SW_TX_BAW	= 0x08000000,	/* BAW handling */
-	ATH_DEBUG_SW_TX_CTRL	= 0x10000000,	/* queue control */
-	ATH_DEBUG_SW_TX_AGGR	= 0x20000000,	/* aggregate TX */
-	ATH_DEBUG_SW_TX_RETRIES	= 0x40000000,	/* software TX retries */
-	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
-	ATH_DEBUG_ANY		= 0xffffffff
+	ATH_DEBUG_XMIT		= 0x000000001ULL,	/* basic xmit operation */
+	ATH_DEBUG_XMIT_DESC	= 0x000000002ULL,	/* xmit descriptors */
+	ATH_DEBUG_RECV		= 0x000000004ULL,	/* basic recv operation */
+	ATH_DEBUG_RECV_DESC	= 0x000000008ULL,	/* recv descriptors */
+	ATH_DEBUG_RATE		= 0x000000010ULL,	/* rate control */
+	ATH_DEBUG_RESET		= 0x000000020ULL,	/* reset processing */
+	ATH_DEBUG_MODE		= 0x000000040ULL,	/* mode init/setup */
+	ATH_DEBUG_BEACON	= 0x000000080ULL,	/* beacon handling */
+	ATH_DEBUG_WATCHDOG	= 0x000000100ULL,	/* watchdog timeout */
+	ATH_DEBUG_INTR		= 0x000001000ULL,	/* ISR */
+	ATH_DEBUG_TX_PROC	= 0x000002000ULL,	/* tx ISR proc */
+	ATH_DEBUG_RX_PROC	= 0x000004000ULL,	/* rx ISR proc */
+	ATH_DEBUG_BEACON_PROC	= 0x000008000ULL,	/* beacon ISR proc */
+	ATH_DEBUG_CALIBRATE	= 0x000010000ULL,	/* periodic calibration */
+	ATH_DEBUG_KEYCACHE	= 0x000020000ULL,	/* key cache management */
+	ATH_DEBUG_STATE		= 0x000040000ULL,	/* 802.11 state transitions */
+	ATH_DEBUG_NODE		= 0x000080000ULL,	/* node management */
+	ATH_DEBUG_LED		= 0x000100000ULL,	/* led management */
+	ATH_DEBUG_FF		= 0x000200000ULL,	/* fast frames */
+	ATH_DEBUG_DFS		= 0x000400000ULL,	/* DFS processing */
+	ATH_DEBUG_TDMA		= 0x000800000ULL,	/* TDMA processing */
+	ATH_DEBUG_TDMA_TIMER	= 0x001000000ULL,	/* TDMA timer processing */
+	ATH_DEBUG_REGDOMAIN	= 0x002000000ULL,	/* regulatory processing */
+	ATH_DEBUG_SW_TX		= 0x004000000ULL,	/* per-packet software TX */
+	ATH_DEBUG_SW_TX_BAW	= 0x008000000ULL,	/* BAW handling */
+	ATH_DEBUG_SW_TX_CTRL	= 0x010000000ULL,	/* queue control */
+	ATH_DEBUG_SW_TX_AGGR	= 0x020000000ULL,	/* aggregate TX */
+	ATH_DEBUG_SW_TX_RETRIES	= 0x040000000ULL,	/* software TX retries */
+	ATH_DEBUG_FATAL		= 0x080000000ULL,	/* fatal errors */
+	ATH_DEBUG_SW_TX_BAR	= 0x100000000ULL,	/* BAR TX */
+	ATH_DEBUG_EDMA_RX	= 0x200000000ULL,	/* RX EDMA state */
+
+	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };
 
-extern int	ath_debug;
+#define	ATH_KTR_INTR	KTR_SPARE4
+#define	ATH_KTR_ERR	KTR_SPARE3
+
+extern uint64_t ath_debug;
 
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_debug & (m)) || \
@@ -85,6 +91,9 @@ extern	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
 extern	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
 	u_int qnum, u_int ix, int done);
 #else	/* ATH_DEBUG */
+#define	ATH_KTR_INTR	0
+#define	ATH_KTR_ERR	0
+
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 #define	DPRINTF(sc, m, fmt, ...) do {				\

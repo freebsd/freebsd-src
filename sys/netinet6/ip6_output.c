@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/ucred.h>
 
+#include <machine/in_cksum.h>
+
 #include <net/if.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -182,12 +184,39 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 	}\
     } while (/*CONSTCOND*/ 0)
 
+static void
+in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
+{
+	u_short csum;
+
+	csum = in_cksum_skip(m, offset + plen, offset);
+	if (m->m_pkthdr.csum_flags & CSUM_UDP_IPV6 && csum == 0)
+		csum = 0xffff;
+	offset += m->m_pkthdr.csum_data;	/* checksum offset */
+
+	if (offset + sizeof(u_short) > m->m_len) {
+		printf("%s: delayed m_pullup, m->len: %d plen %u off %u "
+		    "csum_flags=0x%04x\n", __func__, m->m_len, plen, offset,
+		    m->m_pkthdr.csum_flags);
+		/*
+		 * XXX this should not happen, but if it does, the correct
+		 * behavior may be to insert the checksum in the appropriate
+		 * next mbuf in the chain.
+		 */
+		return;
+	}
+	*(u_short *)(m->m_data + offset) = csum;
+}
+
 /*
  * IP6 output. The packet in mbuf chain m contains a skeletal IP6
  * header (with pri, len, nxt, hlim, src, dst).
  * This function may modify ver and hlim only.
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
+ * If route_in6 ro is present and has ro_rt initialized, route lookup would be
+ * skipped and ro->ro_rt would be used. If ro is present but ro->ro_rt is NULL,
+ * then result of route lookup is stored in ro->ro_rt.
  *
  * type of "mtu": rt_rmx.rmx_mtu is u_long, ifnet.ifr_mtu is int, and
  * nd_ifinfo.linkmtu is u_int32_t.  so we use u_long to hold largest one,
@@ -218,12 +247,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct in6_addr finaldst, src0, dst0;
 	u_int32_t zone;
 	struct route_in6 *ro_pmtu = NULL;
-	int flevalid = 0;
 	int hdrsplit = 0;
 	int needipsec = 0;
-#ifdef SCTP
-	int sw_csum;
-#endif
+	int sw_csum, tso;
 #ifdef IPSEC
 	struct ipsec_output_state state;
 	struct ip6_rthdr *rh = NULL;
@@ -269,17 +295,31 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
 	}
 
+#ifdef IPSEC
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 */
-#ifdef IPSEC
 	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp, &sp))
 	{
 	case 1:                 /* Bad packet */
 		goto freehdrs;
 	case -1:                /* Do IPSec */
 		needipsec = 1;
+		/*
+		 * Do delayed checksums now, as we may send before returning.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			plen = m->m_pkthdr.len - sizeof(*ip6);
+			in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
 	case 0:                 /* No IPSec */
 	default:
 		break;
@@ -483,22 +523,20 @@ skip_ipsec2:;
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 #ifdef FLOWTABLE
-	if (ro == &ip6route) {
+	if (ro->ro_rt == NULL) {
 		struct flentry *fle;
-		
+
 		/*
 		 * The flow table returns route entries valid for up to 30
 		 * seconds; we rely on the remainder of ip_output() taking no
 		 * longer than that long for the stability of ro_rt.  The
 		 * flow ID assignment must have happened before this point.
 		 */
-		if ((fle = flowtable_lookup_mbuf(V_ip6_ft, m, AF_INET6)) != NULL) {
+		fle = flowtable_lookup_mbuf(V_ip6_ft, m, AF_INET6);
+		if (fle != NULL)
 			flow_to_route_in6(fle, ro);
-			if (ro->ro_rt != NULL && ro->ro_lle != NULL)
-				flevalid = 1;
-		}
 	}
-#endif	
+#endif
 again:
 	/*
 	 * if specified, try to fill in the traffic class field.
@@ -604,7 +642,7 @@ again:
 	dst_sa.sin6_family = AF_INET6;
 	dst_sa.sin6_len = sizeof(dst_sa);
 	dst_sa.sin6_addr = ip6->ip6_dst;
-	if (flevalid) {
+	if (ro->ro_rt) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
 	} else if ((error = in6_selectroute_fib(&dst_sa, opt, im6o, ro,
@@ -644,7 +682,7 @@ again:
 
 	/*
 	 * The outgoing interface must be in the zone of source and
-	 * destination addresses.  
+	 * destination addresses.
 	 */
 	origifp = ifp;
 
@@ -670,7 +708,7 @@ again:
 		goto badscope;
 	}
 
-	/* We should use ia_ifp to support the case of 
+	/* We should use ia_ifp to support the case of
 	 * sending packets to an address of our own.
 	 */
 	if (ia != NULL && ia->ia_ifp)
@@ -862,15 +900,13 @@ again:
 			m->m_flags |= M_FASTFWD_OURS;
 			if (m->m_pkthdr.rcvif == NULL)
 				m->m_pkthdr.rcvif = V_loif;
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
 				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
 				m->m_pkthdr.csum_data = 0xffff;
 			}
-			m->m_pkthdr.csum_flags |=
-			    CSUM_IP_CHECKED | CSUM_IP_VALID;
 #ifdef SCTP
-			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
 				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 #endif
 			error = netisr_queue(NETISR_IPV6, m);
@@ -884,15 +920,15 @@ again:
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
 			m->m_pkthdr.rcvif = V_loif;
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
 			m->m_pkthdr.csum_flags |=
-			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 #ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-#endif   
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
+			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
 		error = netisr_queue(NETISR_IPV6, m);
 		goto done;
 	}
@@ -927,16 +963,32 @@ passout:
 	 * 4: if dontfrag == 1 && alwaysfrag == 1
 	 *	error, as we cannot handle this conflicting request
 	 */
+	sw_csum = m->m_pkthdr.csum_flags;
+	if (!hdrsplit) {
+		tso = ((sw_csum & ifp->if_hwassist & CSUM_TSO) != 0) ? 1 : 0;
+		sw_csum &= ~ifp->if_hwassist;
+	} else
+		tso = 0;
+	/*
+	 * If we added extension headers, we will not do TSO and calculate the
+	 * checksums ourselves for now.
+	 * XXX-BZ  Need a framework to know when the NIC can handle it, even
+	 * with ext. hdrs.
+	 */
+	if (sw_csum & CSUM_DELAY_DATA_IPV6) {
+		sw_csum &= ~CSUM_DELAY_DATA_IPV6;
+		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
+	}
 #ifdef SCTP
-	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
-	if (sw_csum & CSUM_SCTP) {
+	if (sw_csum & CSUM_SCTP_IPV6) {
+		sw_csum &= ~CSUM_SCTP_IPV6;
 		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
-		sw_csum &= ~CSUM_SCTP;
 	}
 #endif
+	m->m_pkthdr.csum_flags &= ifp->if_hwassist;
 	tlen = m->m_pkthdr.len;
 
-	if (opt && (opt->ip6po_flags & IP6PO_DONTFRAG))
+	if ((opt && (opt->ip6po_flags & IP6PO_DONTFRAG)) || tso)
 		dontfrag = 1;
 	else
 		dontfrag = 0;
@@ -945,7 +997,7 @@ passout:
 		error = EMSGSIZE;
 		goto bad;
 	}
-	if (dontfrag && tlen > IN6_LINKMTU(ifp)) {	/* case 2-b */
+	if (dontfrag && tlen > IN6_LINKMTU(ifp) && !tso) {	/* case 2-b */
 		/*
 		 * Even if the DONTFRAG option is specified, we cannot send the
 		 * packet when the data length is larger than the MTU of the
@@ -1033,6 +1085,22 @@ passout:
 			goto bad;
 		}
 
+
+		/*
+		 * If the interface will not calculate checksums on
+		 * fragmented packets, then do it here.
+		 * XXX-BZ handle the hw offloading case.  Need flags.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(m, plen, hlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, hlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
 		mnext = &m->m_nextpkt;
 
 		/*
@@ -1129,13 +1197,10 @@ sendorfree:
 		V_ip6stat.ip6s_fragmented++;
 
 done:
-	if (ro == &ip6route && ro->ro_rt && flevalid == 0) {
-                /* brace necessary for RTFREE */
-		RTFREE(ro->ro_rt);
-	} else if (ro_pmtu == &ip6route && ro_pmtu->ro_rt &&
-	    ((flevalid == 0) || (ro_pmtu != ro))) {
-		RTFREE(ro_pmtu->ro_rt);
-	}
+	if (ro == &ip6route)
+		RO_RTFREE(ro);
+	if (ro_pmtu == &ip6route)
+		RO_RTFREE(ro_pmtu);
 #ifdef IPSEC
 	if (sp != NULL)
 		KEY_FREESP(&sp);

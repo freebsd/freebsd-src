@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
  * "IEEE 802.11 Rate Adaptation: A Practical Approach" by
  *    Mathieu Lacage, Hossein Manshaei, Thierry Turletti
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 
@@ -418,6 +419,14 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 	if (rix != amn->amn_rix) {
 		ath_rate_update(sc, ni, rix);
 	}
+}
+
+static int
+ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+    struct ath_rateioctl *re)
+{
+
+	return (EINVAL);
 }
 
 static void

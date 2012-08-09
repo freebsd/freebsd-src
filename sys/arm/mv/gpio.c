@@ -155,7 +155,8 @@ mv_gpio_attach(device_t dev)
 		sc->pin_num = 32;
 		sc->irq_num = 4;
 
-	} else if (dev_id == MV_DEV_88F6281) {
+	} else if (dev_id == MV_DEV_88F6281 ||
+	    dev_id == MV_DEV_88F6282) {
 		sc->pin_num = 50;
 		sc->irq_num = 7;
 

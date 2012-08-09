@@ -240,7 +240,7 @@ int iconv_converter_tolowerstub(int c, void *handle);
 int iconv_converter_handler(module_t mod, int type, void *data);
 
 #ifdef ICONV_DEBUG
-#define ICDEBUG(format, ...) printf("%s: "format, __func__ , __VA_ARGS__)
+#define ICDEBUG(format, ...) printf("%s: "format, __func__ , ## __VA_ARGS__)
 #else
 #define ICDEBUG(format, ...)
 #endif

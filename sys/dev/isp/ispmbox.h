@@ -428,7 +428,8 @@ typedef struct {
 	uint8_t		req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -458,7 +459,8 @@ typedef struct {
 	uint8_t		req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -473,7 +475,8 @@ typedef struct {
 	uint16_t	req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -515,40 +518,10 @@ typedef struct {
 	uint8_t		req_cdb[44];
 } ispextreq_t;
 
-/* 24XX only */
-typedef struct {
-	uint16_t	fcd_length;
-	uint16_t	fcd_a1500;
-	uint16_t	fcd_a3116;
-	uint16_t	fcd_a4732;
-	uint16_t	fcd_a6348;
-} fcp_cmnd_ds_t;
 
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint16_t	req_nphdl;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint16_t	req_fc_rsp_dsd_length;
-	uint8_t		req_lun[8];
-	uint16_t	req_flags;
-	uint16_t	req_fc_cmnd_dsd_length;
-	uint16_t	req_fc_cmnd_dsd_a1500;
-	uint16_t	req_fc_cmnd_dsd_a3116;
-	uint16_t	req_fc_cmnd_dsd_a4732;
-	uint16_t	req_fc_cmnd_dsd_a6348;
-	uint16_t	req_fc_rsp_dsd_a1500;
-	uint16_t	req_fc_rsp_dsd_a3116;
-	uint16_t	req_fc_rsp_dsd_a4732;
-	uint16_t	req_fc_rsp_dsd_a6348;
-	uint32_t	req_totalcnt;
-	uint16_t	req_tidlo;
-	uint8_t		req_tidhi;
-	uint8_t		req_vpidx;
-	ispds64_t	req_dataseg;
-} ispreqt6_t;
-
+/*
+ * ISP24XX structures
+ */
 typedef struct {
 	isphdr_t	req_header;
 	uint32_t	req_handle;
@@ -847,19 +820,38 @@ typedef struct {
 #define	ISP2400_FW_ATTR_SB2	0x0008
 #define	ISP2400_FW_ATTR_T10CRC	0x0010
 #define	ISP2400_FW_ATTR_VI	0x0020
+#define	ISP2400_FW_ATTR_VP0	0x1000
 #define	ISP2400_FW_ATTR_EXPFW	0x2000
+#define	ISP2400_FW_ATTR_EXTNDED	0x8000
 
+/*
+ * These are either manifestly true or are dependent on f/w attributes
+ */
 #define	ISP_CAP_TMODE(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_TMODE))
 #define	ISP_CAP_SCCFW(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_SCCLUN))
 #define	ISP_CAP_2KLOGIN(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_2KLOGINS))
+
+/*
+ * This is only true for 24XX cards with this f/w attribute
+ */
 #define	ISP_CAP_MULTI_ID(isp)	\
 	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
-
 #define	ISP_GET_VPIDX(isp, tag) \
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
+
+/*
+ * This is true manifestly or is dependent on a f/w attribute
+ * but may or may not actually be *enabled*. In any case, it
+ * is enabled on a per-channel basis.
+ */
+#define	ISP_CAP_FCTAPE(isp)	\
+	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_FCTAPE))
+
+#define	ISP_FCTAPE_ENABLED(isp, chan)	\
+	(IS_24XX(isp)? (FCPARAM(isp, chan)->isp_xfwoptions & ICB2400_OPT2_FCTAPE) != 0 : (FCPARAM(isp, chan)->isp_xfwoptions & ICBXOPT_FCTAPE) != 0)
 
 /*
  * Reduced Interrupt Operation Response Queue Entries
@@ -926,7 +918,7 @@ typedef struct {
 #define	ICBOPT_SRCHDOWN		0x0400
 #define	ICBOPT_NOLIP		0x0200
 #define	ICBOPT_PDBCHANGE_AE	0x0100
-#define	ICBOPT_INI_TGTTYPE	0x0080
+#define	ICBOPT_TGT_TYPE		0x0080
 #define	ICBOPT_INI_ADISC	0x0040
 #define	ICBOPT_INI_DISABLE	0x0020
 #define	ICBOPT_TGT_ENABLE	0x0010
@@ -985,7 +977,9 @@ typedef struct {
 #define	ICB2400_OPT1_FAIRNESS		0x00000002
 #define	ICB2400_OPT1_HARD_ADDRESS	0x00000001
 
+#define	ICB2400_OPT2_TPRLIC		0x00004000
 #define	ICB2400_OPT2_FCTAPE		0x00001000
+#define	ICB2400_OPT2_FCSP		0x00000800
 #define	ICB2400_OPT2_CLASS2_ACK0	0x00000200
 #define	ICB2400_OPT2_CLASS2		0x00000100
 #define	ICB2400_OPT2_NO_PLAY		0x00000080
@@ -993,8 +987,7 @@ typedef struct {
 #define	ICB2400_OPT2_LOOP_ONLY		0x00000000
 #define	ICB2400_OPT2_PTP_ONLY		0x00000010
 #define	ICB2400_OPT2_LOOP_2_PTP		0x00000020
-#define	ICB2400_OPT2_PTP_2_LOOP		0x00000030
-#define	ICB2400_OPT2_TIMER_MASK		0x00000007
+#define	ICB2400_OPT2_TIMER_MASK		0x0000000f
 #define	ICB2400_OPT2_ZIO		0x00000005
 #define	ICB2400_OPT2_ZIO1		0x00000006
 
@@ -1024,7 +1017,7 @@ typedef struct {
 #define	ICB_DFLT_RCOUNT		3
 
 #define	ICB_LOGIN_TOV		30
-#define	ICB_LUN_ENABLE_TOV	180
+#define	ICB_LUN_ENABLE_TOV	15
 
 
 /*
@@ -1137,7 +1130,9 @@ typedef struct {
     ICB2400_VPINFO_OFF + 			\
     sizeof (isp_icb_2400_vpinfo_t) + ((chan - 1) * ICB2400_VPOPT_WRITE_SIZE)
 
-#define	ICB2400_VPGOPT_MID_DISABLE	0x02
+#define	ICB2400_VPGOPT_FCA		0x01	/* Assume Clean Address bit in FLOGI ACC set (works only in static configurations) */
+#define	ICB2400_VPGOPT_MID_DISABLE	0x02	/* when set, connection mode2 will work with NPIV-capable switched */
+#define	ICB2400_VPGOPT_VP0_DECOUPLE	0x04	/* Allow VP0 decoupling if firmware supports it */
 
 typedef struct {
 	isphdr_t	vp_ctrl_hdr;
@@ -1250,10 +1245,8 @@ typedef struct {
 #define	PDB_STATE_PLOGO		10
 #define	PDB_STATE_PLOG_ACK	11
 
-#define		SVC3_TGT_ROLE		0x10
-#define 	SVC3_INI_ROLE		0x20
-#define			SVC3_ROLE_MASK	0x30
-#define			SVC3_ROLE_SHIFT	4
+#define	SVC3_ROLE_MASK		0x30
+#define	SVC3_ROLE_SHIFT		4
 
 #define	BITS2WORD(x)		((x)[0] << 16 | (x)[3] << 8 | (x)[2])
 #define	BITS2WORD_24XX(x)	((x)[0] << 16 | (x)[1] << 8 | (x)[2])
@@ -1299,8 +1292,8 @@ typedef struct {
  */
 typedef struct {
 	uint16_t	handle;
-	uint16_t	reserved;
-	uint32_t	s3_role	: 8,
+	uint16_t	prli_word3;
+	uint32_t		: 8,
 			portid	: 24;
 	uint8_t		portname[8];
 	uint8_t		nodename[8];
@@ -1759,6 +1752,7 @@ typedef struct {
 #define	IN_PORT_CHANGED	0x2A	/* port changed */
 #define	IN_GLOBAL_LOGO	0x2E	/* all ports logged out */
 #define	IN_NO_NEXUS	0x3B	/* Nexus not established */
+#define	IN_SRR_RCVD	0x45	/* SRR received */
 
 /*
  * Values for the in_task_flags field- should only get one at a time!
@@ -1789,24 +1783,17 @@ typedef struct {
 	uint16_t	in_srr_iu;
 	uint16_t	in_srr_oxid;
 	/*
-	 * If bit 2 is set in in_flags, the following
-	 * two tags are valid. If the received ELS is
+	 * If bit 2 is set in in_flags, the N-Port and
+	 * handle tags are valid. If the received ELS is
 	 * a LOGO, then these tags contain the N Port ID
 	 * from the LOGO payload. If the received ELS
 	 * request is TPRLO, these tags contain the
 	 * Third Party Originator N Port ID.
 	 */
 	uint16_t	in_nport_id_hi;
+#define	in_prli_options in_nport_id_hi
 	uint8_t		in_nport_id_lo;
 	uint8_t		in_reserved3;
-	/*
-	 * If bit 2 is set in in_flags, the following
-	 * tag is valid. If the received ELS is a LOGO,
-	 * then this tag contains the n-port handle
-	 * from the LOGO payload. If the received ELS
-	 * request is TPRLO, this tag contain the
-	 * n-port handle for the Third Party Originator.
-	 */
 	uint16_t	in_np_handle;
 	uint8_t		in_reserved4[12];
 	uint8_t		in_reserved5;
@@ -2161,7 +2148,7 @@ typedef struct {
 	uint8_t 	ct_tag_val;	/* tag value */
 	uint8_t 	ct_tag_type;	/* tag type */
 	uint32_t	ct_xfrlen;	/* transfer length */
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	uint16_t	ct_timeout;
 	uint16_t	ct_seg_count;
 	ispds_t		ct_dataseg[ISP_RQDSEG];
@@ -2184,8 +2171,8 @@ typedef struct {
  * ct_flags values
  */
 #define CT_TQAE		0x00000002	/* bit  1, Tagged Queue Action enable */
-#define CT_DATA_IN	0x00000040	/* bits 6&7, Data direction */
-#define CT_DATA_OUT	0x00000080	/* bits 6&7, Data direction */
+#define CT_DATA_IN	0x00000040	/* bits 6&7, Data direction - *to* initiator */
+#define CT_DATA_OUT	0x00000080	/* bits 6&7, Data direction - *from* initiator */
 #define CT_NO_DATA	0x000000C0	/* bits 6&7, Data direction */
 #define	CT_CCINCR	0x00000100	/* bit 8, autoincrement atio count */
 #define CT_DATAMASK	0x000000C0	/* bits 6&7, Data direction */
@@ -2256,7 +2243,7 @@ typedef struct {
 	uint16_t	ct_timeout;
 	uint16_t	ct_seg_count;
 	uint32_t	ct_reloff;	/* relative offset */
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	union {
 		/*
 		 * The three different modes that the target driver
@@ -2295,7 +2282,10 @@ typedef struct {
 			uint16_t _reserved2;
 			uint16_t _reserved3;
 			uint32_t ct_datalen;
-			ispds_t ct_fcp_rsp_iudata;
+			union {
+				ispds_t	ct_fcp_rsp_iudata_32;
+				ispds64_t ct_fcp_rsp_iudata_64;
+			} u;
 		} m2;
 	} rsp;
 } ct2_entry_t;
@@ -2310,7 +2300,7 @@ typedef struct {
 	uint16_t	ct_timeout;
 	uint16_t	ct_seg_count;
 	uint32_t	ct_reloff;	/* relative offset */
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	union {
 		struct {
 			uint32_t _reserved;
@@ -2336,7 +2326,10 @@ typedef struct {
 			uint16_t _reserved2;
 			uint16_t _reserved3;
 			uint32_t ct_datalen;
-			ispds_t ct_fcp_rsp_iudata;
+			union {
+				ispds_t	ct_fcp_rsp_iudata_32;
+				ispds64_t ct_fcp_rsp_iudata_64;
+			} u;
 		} m2;
 	} rsp;
 } ct2e_entry_t;
@@ -2348,8 +2341,8 @@ typedef struct {
 #define	CT2_FLAG_MODE1	0x0001
 #define	CT2_FLAG_MODE2	0x0002
 #define		CT2_FLAG_MMASK	0x0003
-#define CT2_DATA_IN	0x0040
-#define CT2_DATA_OUT	0x0080
+#define CT2_DATA_IN	0x0040	/* *to* initiator */
+#define CT2_DATA_OUT	0x0080	/* *from* initiator */
 #define CT2_NO_DATA	0x00C0
 #define 	CT2_DATAMASK	0x00C0
 #define	CT2_CCINCR	0x0100
@@ -2390,7 +2383,7 @@ typedef struct {
 	uint32_t	ct_rxid;
 	uint16_t	ct_senselen;	/* mode 1 only */
 	uint16_t	ct_flags;
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	uint16_t	ct_oxid;
 	uint16_t	ct_scsi_status;	/* modes 0 && 1 only */
 	union {
@@ -2408,8 +2401,9 @@ typedef struct {
 		} m1;
 		struct {
 			uint32_t reserved0;
-			uint32_t ct_datalen;
 			uint32_t reserved1;
+			uint32_t ct_datalen;
+			uint32_t reserved2;
 			ispds64_t ct_fcp_rsp_iudata;
 		} m2;
 	} rsp;
@@ -2418,10 +2412,10 @@ typedef struct {
 /*
  * ct_flags values for CTIO7
  */
-#define CT7_DATA_IN	0x0002
-#define CT7_DATA_OUT	0x0001
 #define CT7_NO_DATA	0x0000
-#define 	CT7_DATAMASK	0x003
+#define CT7_DATA_OUT	0x0001	/* *from* initiator */
+#define CT7_DATA_IN	0x0002	/* *to* initiator */
+#define 	CT7_DATAMASK	0x3
 #define	CT7_DSD_ENABLE	0x0004
 #define	CT7_CONF_STSFD	0x0010
 #define	CT7_EXPLCT_CONF	0x0020
@@ -2429,9 +2423,9 @@ typedef struct {
 #define	CT7_FLAG_MODE1	0x0040
 #define	CT7_FLAG_MODE2	0x0080
 #define		CT7_FLAG_MMASK	0x00C0
-#define	CT7_NOACK	0x0100
+#define	CT7_NOACK	    0x0100
 #define	CT7_TASK_ATTR_SHIFT	9
-#define	CT7_CONFIRM	0x2000
+#define	CT7_CONFIRM     0x2000
 #define	CT7_TERMINATE	0x4000
 #define CT7_SENDSTATUS	0x8000
 

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 /*
  * John Bicket's SampleRate control algorithm.
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 #include "opt_ah.h"
@@ -104,8 +105,6 @@ __FBSDID("$FreeBSD$");
 
 static void	ath_rate_ctl_reset(struct ath_softc *, struct ieee80211_node *);
 
-static const int packet_size_bins[NUM_PACKET_SIZE_BINS] = { 250, 1600 };
-
 static __inline int
 size_to_bin(int size) 
 {
@@ -125,12 +124,6 @@ size_to_bin(int size)
 #error "add support for more packet sizes"
 #endif
 	return NUM_PACKET_SIZE_BINS-1;
-}
-
-static __inline int
-bin_to_size(int index)
-{
-	return packet_size_bins[index];
 }
 
 void
@@ -509,8 +502,10 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		goto done;
 	}
 
-	/* XXX TODO: this doesn't know about 11gn vs 11g protection; teach it */
-	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
+	mrr = sc->sc_mrretry;
+	/* XXX check HT protmode too */
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT && !sc->sc_mrrprot))
+		mrr = 0;
 
 	best_rix = pick_best_rate(an, rt, size_bin, !mrr);
 	if (best_rix >= 0) {
@@ -917,7 +912,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		    short_tries, long_tries);
 		return;
 	}
-	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
+	mrr = sc->sc_mrretry;
+	/* XXX check HT protmode too */
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT && !sc->sc_mrrprot))
+		mrr = 0;
+
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
 			badrate(ifp, 0, ts->ts_rate, long_tries, status);
@@ -1195,6 +1194,93 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		ni->ni_txrate = RATE(0);
 #undef RATE
 #undef DOT11RATE
+}
+
+/*
+ * Fetch the statistics for the given node.
+ *
+ * The ieee80211 node must be referenced and unlocked, however the ath_node
+ * must be locked.
+ *
+ * The main difference here is that we convert the rate indexes
+ * to 802.11 rates, or the userland output won't make much sense
+ * as it has no access to the rix table.
+ */
+int
+ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+    struct ath_rateioctl *rs)
+{
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct ath_rateioctl_tlv av;
+	struct ath_rateioctl_rt *tv;
+	int y;
+	int o = 0;
+
+	ATH_NODE_LOCK_ASSERT(an);
+
+	/*
+	 * Ensure there's enough space for the statistics.
+	 */
+	if (rs->len <
+	    sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct ath_rateioctl_rt) +
+	    sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct sample_node)) {
+		device_printf(sc->sc_dev, "%s: len=%d, too short\n",
+		    __func__,
+		    rs->len);
+		return (EINVAL);
+	}
+
+	/*
+	 * Take a temporary copy of the sample node state so we can
+	 * modify it before we copy it.
+	 */
+	tv = malloc(sizeof(struct ath_rateioctl_rt), M_TEMP,
+	    M_NOWAIT | M_ZERO);
+	if (tv == NULL) {
+		return (ENOMEM);
+	}
+
+	/*
+	 * Populate the rate table mapping TLV.
+	 */
+	tv->nentries = rt->rateCount;
+	for (y = 0; y < rt->rateCount; y++) {
+		tv->ratecode[y] = rt->info[y].dot11Rate & IEEE80211_RATE_VAL;
+		if (rt->info[y].phy == IEEE80211_T_HT)
+			tv->ratecode[y] |= IEEE80211_RATE_MCS;
+	}
+
+	o = 0;
+	/*
+	 * First TLV - rate code mapping
+	 */
+	av.tlv_id = ATH_RATE_TLV_RATETABLE;
+	av.tlv_len = sizeof(struct ath_rateioctl_rt);
+	copyout(&av, rs->buf + o, sizeof(struct ath_rateioctl_tlv));
+	o += sizeof(struct ath_rateioctl_tlv);
+	copyout(tv, rs->buf + o, sizeof(struct ath_rateioctl_rt));
+	o += sizeof(struct ath_rateioctl_rt);
+
+	/*
+	 * Second TLV - sample node statistics
+	 */
+	av.tlv_id = ATH_RATE_TLV_SAMPLENODE;
+	av.tlv_len = sizeof(struct sample_node);
+	copyout(&av, rs->buf + o, sizeof(struct ath_rateioctl_tlv));
+	o += sizeof(struct ath_rateioctl_tlv);
+
+	/*
+	 * Copy the statistics over to the provided buffer.
+	 */
+	copyout(sn, rs->buf + o, sizeof(struct sample_node));
+	o += sizeof(struct sample_node);
+
+	free(tv, M_TEMP);
+
+	return (0);
 }
 
 static void

@@ -282,7 +282,10 @@ static int
 bootstrap_pkg(void)
 {
 	FILE *remote;
+	FILE *config;
+	char *site;
 	char url[MAXPATHLEN];
+	char conf[MAXPATHLEN];
 	char abi[BUFSIZ];
 	char tmppkg[MAXPATHLEN];
 	char buf[10240];
@@ -290,7 +293,6 @@ bootstrap_pkg(void)
 	int fd, retry, ret;
 	struct url_stat st;
 	off_t done, r;
-	time_t begin_dl;
 	time_t now;
 	time_t last;
 
@@ -298,6 +300,7 @@ bootstrap_pkg(void)
 	last = 0;
 	ret = -1;
 	remote = NULL;
+	config = NULL;
 
 	printf("Bootstrapping pkg please wait\n");
 
@@ -307,7 +310,7 @@ bootstrap_pkg(void)
 	}
 
 	if (getenv("PACKAGESITE") != NULL)
-		snprintf(url, MAXPATHLEN, "%s/pkg.txz", getenv("PACKAGESITE"));
+		snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz", getenv("PACKAGESITE"));
 	else
 		snprintf(url, MAXPATHLEN, "%s/%s/latest/Latest/pkg.txz",
 		    getenv("PACKAGEROOT") ? getenv("PACKAGEROOT") : _PKGS_URL,
@@ -331,7 +334,6 @@ bootstrap_pkg(void)
 	if (remote == NULL)
 		goto fetchfail;
 
-	begin_dl = time(NULL);
 	while (done < st.size) {
 		if ((r = fread(buf, 1, sizeof(buf), remote)) < 1)
 			break;
@@ -353,14 +355,58 @@ bootstrap_pkg(void)
 	if ((ret = extract_pkg_static(fd, pkgstatic, MAXPATHLEN)) == 0)
 		ret = install_pkg_static(pkgstatic, tmppkg);
 
+	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
+	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
+
+	if (access(conf, R_OK) == -1) {
+		site = strrchr(url, '/');
+		if (site == NULL)
+			goto cleanup;
+		site[0] = '\0';
+		site = strrchr(url, '/');
+		if (site == NULL)
+			goto cleanup;
+		site[0] = '\0';
+
+		config = fopen(conf, "w+");
+		if (config == NULL)
+			goto cleanup;
+		fprintf(config, "packagesite: %s\n", url);
+		fclose(config);
+	}
+
 	goto cleanup;
 
 fetchfail:
 	warnx("Error fetching %s: %s", url, fetchLastErrString);
 
 cleanup:
+	if (remote != NULL)
+		fclose(remote);
 	close(fd);
 	unlink(tmppkg);
+
+	return (ret);
+}
+
+static const char confirmation_message[] =
+"The package management tool is not yet installed on your system.\n"
+"Do you want to fetch and install it now? [y/N]: ";
+
+static int
+pkg_query_yes_no(void)
+{
+	int ret, c;
+
+	c = getchar();
+
+	if (c == 'y' || c == 'Y')
+		ret = 1;
+	else
+		ret = 0;
+
+	while (c != '\n' && c != EOF)
+		c = getchar();
 
 	return (ret);
 }
@@ -373,9 +419,21 @@ main(__unused int argc, char *argv[])
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
-	if (access(pkgpath, X_OK) == -1)
+	if (access(pkgpath, X_OK) == -1) {
+		/*
+		 * Do not ask for confirmation if either of stdin or stdout is
+		 * not tty. Check the environment to see if user has answer
+		 * tucked in there already.
+		 */
+		if (getenv("ALWAYS_ASSUME_YES") == NULL &&
+		    isatty(fileno(stdin))) {
+			printf("%s", confirmation_message);
+			if (pkg_query_yes_no() == 0)
+				exit(EXIT_FAILURE);
+		}
 		if (bootstrap_pkg() != 0)
 			exit(EXIT_FAILURE);
+	}
 
 	execv(pkgpath, argv);
 

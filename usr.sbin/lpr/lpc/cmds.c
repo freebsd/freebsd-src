@@ -163,6 +163,14 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 				break;
 			}
 		}
+		if (argc < 1) {
+			printf("error: No printer name(s) specified before"
+			    " '-msg'.\n");
+			printf("usage: %s  {all | printer ...}",
+			    generic_cmdname);
+			printf(" [-msg <text> ...]\n");
+			return;
+		}
 	}
 
 	/* call initialization routine, if there is one for this cmd */
@@ -1001,12 +1009,30 @@ setstatus_gi(int argc __unused, char *argv[] __unused)
 void
 setstatus_q(struct printer *pp)
 {
+	struct stat stbuf;
+	int not_shown;
 	char lf[MAXPATHLEN];
 
 	lock_file_name(pp, lf, sizeof lf);
 	printf("%s:\n", pp->printer);
 
 	upstat(pp, generic_msg, 1);
+
+	/*
+	 * Warn the user if 'lpq' will not display this new status-message.
+	 * Note that if lock file does not exist, then the queue is enabled
+	 * for both queuing and printing.
+	 */
+	not_shown = 1;
+	if (stat(lf, &stbuf) >= 0) {
+		if (stbuf.st_mode & LFM_PRINT_DIS)
+			not_shown = 0;
+	}
+	if (not_shown) {
+		printf("\tnote: This queue currently has printing enabled,\n");
+		printf("\t    so this -msg will only be shown by 'lpq' if\n");
+		printf("\t    a job is actively printing on it.\n");
+	}
 }
 
 /*

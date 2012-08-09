@@ -387,7 +387,6 @@ ll_addrlist(struct ifaddr *ifap)
 	struct sockaddr sa;
 	struct sockaddr_dl sdl;
 	struct ifaddr *ifap0;
-	int error;
 
 	if (af && af != AF_LINK)
 		return;
@@ -404,7 +403,7 @@ ll_addrlist(struct ifaddr *ifap)
 		if (sdl.sdl_alen == 0)
 			goto nextifap;
 		addrbuf[0] = '\0';
-		error = getnameinfo((struct sockaddr *)&sdl, sdl.sdl_len,
+		getnameinfo((struct sockaddr *)&sdl, sdl.sdl_len,
 		    addrbuf, sizeof(addrbuf), NULL, 0, NI_NUMERICHOST);
 		printf("\tlink %s\n", addrbuf);
 	nextifap:
@@ -427,7 +426,7 @@ ll_addrlist(struct ifaddr *ifap)
 				goto nextmulti;
 			KREAD(ifm.ifma_addr, &sdl, struct sockaddr_dl);
 			addrbuf[0] = '\0';
-			error = getnameinfo((struct sockaddr *)&sdl,
+			getnameinfo((struct sockaddr *)&sdl,
 			    sdl.sdl_len, addrbuf, sizeof(addrbuf),
 			    NULL, 0, NI_NUMERICHOST);
 			printf("\t\tgroup %s refcnt %d\n",

@@ -412,7 +412,6 @@ vtballoon_send_page_frames(struct vtballoon_softc *sc, struct virtqueue *vq,
 	 * interrupt handler will wake us up.
 	 */
 	VTBALLOON_LOCK(sc);
-
 	while ((c = virtqueue_dequeue(vq, NULL)) == NULL)
 		msleep_spin(sc, VTBALLOON_MTX(sc), "vtbspf", 0);
 	VTBALLOON_UNLOCK(sc);

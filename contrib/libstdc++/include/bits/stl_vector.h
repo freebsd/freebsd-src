@@ -84,6 +84,11 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
 	_Tp*           _M_start;
 	_Tp*           _M_finish;
 	_Tp*           _M_end_of_storage;
+
+	_Vector_impl()
+	: _Tp_alloc_type(), _M_start(0), _M_finish(0), _M_end_of_storage(0)
+	{ }
+
 	_Vector_impl(_Tp_alloc_type const& __a)
 	: _Tp_alloc_type(__a), _M_start(0), _M_finish(0), _M_end_of_storage(0)
 	{ }
@@ -103,6 +108,9 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       allocator_type
       get_allocator() const
       { return allocator_type(_M_get_Tp_allocator()); }
+
+      _Vector_base()
+      : _M_impl() { }
 
       _Vector_base(const allocator_type& __a)
       : _M_impl(__a)
@@ -194,8 +202,11 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       /**
        *  @brief  Default constructor creates no elements.
        */
+      vector()
+      : _Base() { }
+
       explicit
-      vector(const allocator_type& __a = allocator_type())
+      vector(const allocator_type& __a)
       : _Base(__a)
       { }
 

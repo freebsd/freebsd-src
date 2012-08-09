@@ -115,7 +115,7 @@ struct pmap;
 	PCPU_MD_COMMON_FIELDS	\
 	PCPU_MD_AIM_FIELDS
 #endif
-#ifdef E500
+#if defined(BOOKE)
 #define	PCPU_MD_FIELDS		\
 	PCPU_MD_COMMON_FIELDS	\
 	PCPU_MD_BOOKE_FIELDS

@@ -38,10 +38,7 @@
 .Ft int
 .Fn socket PF_INET6 SOCK_RAW IPPROTO_SEND
 .Pp
-To enable
-.Ns Nm
-support, load the kernel side SeND as a module.
-To load it at boot time, add the following line to
+To load the driver as a module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 send_load="YES"

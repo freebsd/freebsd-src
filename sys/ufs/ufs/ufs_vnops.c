@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
+#include <sys/filio.h>
 #include <sys/stat.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -102,6 +103,7 @@ static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *, struct thread
 static vop_close_t	ufs_close;
 static vop_create_t	ufs_create;
 static vop_getattr_t	ufs_getattr;
+static vop_ioctl_t	ufs_ioctl;
 static vop_link_t	ufs_link;
 static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static vop_markatime_t	ufs_markatime;
@@ -2504,6 +2506,9 @@ ufs_pathconf(ap)
 		*ap->a_retval = 0;
 #endif
 		break;
+	case _PC_MIN_HOLE_SIZE:
+		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
+		break;
 	case _PC_ASYNC_IO:
 		/* _PC_ASYNC_IO should have been handled by upper layers. */
 		KASSERT(0, ("_PC_ASYNC_IO should not get here"));
@@ -2737,6 +2742,20 @@ bad:
 	return (error);
 }
 
+static int
+ufs_ioctl(struct vop_ioctl_args *ap)
+{
+
+	switch (ap->a_command) {
+	case FIOSEEKDATA:
+	case FIOSEEKHOLE:
+		return (vn_bmap_seekhole(ap->a_vp, ap->a_command,
+		    (off_t *)ap->a_data, ap->a_cred));
+	default:
+		return (ENOTTY);
+	}
+}
+
 /* Global vfs data structures for ufs. */
 struct vop_vector ufs_vnodeops = {
 	.vop_default =		&default_vnodeops,
@@ -2751,6 +2770,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_create =		ufs_create,
 	.vop_getattr =		ufs_getattr,
 	.vop_inactive =		ufs_inactive,
+	.vop_ioctl =		ufs_ioctl,
 	.vop_link =		ufs_link,
 	.vop_lookup =		vfs_cache_lookup,
 	.vop_markatime =	ufs_markatime,

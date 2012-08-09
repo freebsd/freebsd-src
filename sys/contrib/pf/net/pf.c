@@ -643,10 +643,10 @@ pf_src_connlimit(struct pf_state **state)
 				    (*state)->key[PF_SK_WIRE]->af &&
 				    (((*state)->direction == PF_OUT &&
 				    PF_AEQ(&(*state)->src_node->addr,
-					&sk->addr[0], sk->af)) ||
+					&sk->addr[1], sk->af)) ||
 				    ((*state)->direction == PF_IN &&
 				    PF_AEQ(&(*state)->src_node->addr,
-					&sk->addr[1], sk->af))) &&
+					&sk->addr[0], sk->af))) &&
 				    ((*state)->rule.ptr->flush &
 				    PF_FLUSH_GLOBAL ||
 				    (*state)->rule.ptr == st->rule.ptr)) {

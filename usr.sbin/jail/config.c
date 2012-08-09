@@ -330,7 +330,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		}
 	} else {
 		flags = PF_APPEND;
-		if (ipnum != 0) {
+		if (ipnum != IP__NULL) {
 			name = intparams[ipnum].name;
 			flags |= intparams[ipnum].flags;
 		} else if ((cs = strchr(value, '='))) {
@@ -352,7 +352,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 	}
 
 	/* See if this parameter has already been added. */
-	if (ipnum != 0)
+	if (ipnum != IP__NULL)
 		dp = j->intparams[ipnum];
 	else
 		TAILQ_FOREACH(dp, &j->params, tq)
@@ -377,10 +377,10 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		np->flags = flags;
 		np->gen = 0;
 		TAILQ_INSERT_TAIL(&j->params, np, tq);
-		if (ipnum != 0)
+		if (ipnum != IP__NULL)
 			j->intparams[ipnum] = np;
 		else
-			for (ipnum = 1; ipnum < IP_NPARAM; ipnum++)
+			for (ipnum = IP__NULL + 1; ipnum < IP_NPARAM; ipnum++)
 				if (!(intparams[ipnum].flags & PF_CONV) &&
 				    equalopts(name, intparams[ipnum].name)) {
 					j->intparams[ipnum] = np;

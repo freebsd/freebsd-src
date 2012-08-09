@@ -33,18 +33,21 @@
  */
 
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_enc.h>
 
 int
 main(int a, char **v)
 {
 	int fd;
 	long val;
-	ses_encstat stat;
+	encioc_enc_status_t stat;
 
 	if (a != 3) {
 		fprintf(stderr, "usage: %s device enclosure_status\n", *v);
@@ -57,9 +60,9 @@ main(int a, char **v)
 	}
 	
 	val =  strtol(v[2], NULL, 0);
-	stat = (ses_encstat) val;
-	if (ioctl(fd, SESIOC_SETENCSTAT, (caddr_t) &stat) < 0) {
-		perror("SESIOC_SETENCSTAT");
+	stat = (encioc_enc_status_t)val;
+	if (ioctl(fd, ENCIOC_SETENCSTAT, (caddr_t) &stat) < 0) {
+		perror("ENCIOC_SETENCSTAT");
 	}
 	(void) close(fd);
 	return (0);

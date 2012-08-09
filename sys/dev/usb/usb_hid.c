@@ -425,7 +425,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				s->loc_size = dval & mask;
 				break;
 			case 8:
-				hid_switch_rid(s, c, dval);
+				hid_switch_rid(s, c, dval & mask);
 				break;
 			case 9:
 				/* mask because value is unsigned */

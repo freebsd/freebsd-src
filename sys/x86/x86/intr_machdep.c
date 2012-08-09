@@ -566,14 +566,6 @@ intr_next_cpu(void)
 	return (PCPU_GET(apic_id));
 }
 
-/* Return EOPNOTSUPP in the UP case. */
-int
-intr_bind(u_int vector __unused, u_char cpu __unused)
-{
-
-	return (EOPNOTSUPP);
-}
-
 /* Use an empty stub for compatibility. */
 void
 intr_add_cpu(u_int cpu __unused)

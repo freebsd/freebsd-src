@@ -78,7 +78,7 @@
 #endif
 #define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #else /* LOCORE */
-#if !defined(__powerpc64__) && defined(E500)
+#if !defined(__powerpc64__) && defined(BOOKE)
 #define	VM_MIN_ADDRESS		0
 #define	VM_MAXUSER_ADDRESS	0x7ffff000
 #endif

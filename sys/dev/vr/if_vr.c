@@ -165,7 +165,8 @@ static void vr_txeof(struct vr_softc *);
 static void vr_tick(void *);
 static int vr_error(struct vr_softc *, uint16_t);
 static void vr_tx_underrun(struct vr_softc *);
-static void vr_intr(void *);
+static int vr_intr(void *);
+static void vr_int_task(void *, int);
 static void vr_start(struct ifnet *);
 static void vr_start_locked(struct ifnet *);
 static int vr_encap(struct vr_softc *, struct mbuf **);
@@ -658,6 +659,8 @@ vr_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = VR_TX_RING_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
+	TASK_INIT(&sc->vr_inttask, 0, vr_int_task, sc);
+
 	/* Configure Tx FIFO threshold. */
 	sc->vr_txthresh = VR_TXTHRESH_MIN;
 	if (sc->vr_revid < REV_ID_VT6105_A0) {
@@ -784,7 +787,7 @@ vr_attach(device_t dev)
 
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, vr_intr, sc, &sc->vr_intrhand);
+	    vr_intr, NULL, sc, &sc->vr_intrhand);
 
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
@@ -826,6 +829,7 @@ vr_detach(device_t dev)
 		vr_stop(sc);
 		VR_UNLOCK(sc);
 		callout_drain(&sc->vr_stat_callout);
+		taskqueue_drain(taskqueue_fast, &sc->vr_inttask);
 		ether_ifdetach(ifp);
 	}
 	if (sc->vr_miibus)
@@ -1653,8 +1657,28 @@ vr_tx_underrun(struct vr_softc *sc)
 	vr_tx_start(sc);
 }
 
-static void
+static int
 vr_intr(void *arg)
+{
+	struct vr_softc		*sc;
+	uint16_t		status;
+
+	sc = (struct vr_softc *)arg;
+
+	status = CSR_READ_2(sc, VR_ISR);
+	if (status == 0 || status == 0xffff || (status & VR_INTRS) == 0)
+		return (FILTER_STRAY);
+
+	/* Disable interrupts. */
+	CSR_WRITE_2(sc, VR_IMR, 0x0000);
+
+	taskqueue_enqueue_fast(taskqueue_fast, &sc->vr_inttask);
+
+	return (FILTER_HANDLED);
+}
+
+static void
+vr_int_task(void *arg, int npending)
 {
 	struct vr_softc		*sc;
 	struct ifnet		*ifp;
@@ -1668,9 +1692,6 @@ vr_intr(void *arg)
 		goto done_locked;
 
 	status = CSR_READ_2(sc, VR_ISR);
-	if (status == 0 || status == 0xffff || (status & VR_INTRS) == 0)
-		goto done_locked;
-
 	ifp = sc->vr_ifp;
 #ifdef DEVICE_POLLING
 	if ((ifp->if_capenable & IFCAP_POLLING) != 0)
@@ -1684,9 +1705,6 @@ vr_intr(void *arg)
 		CSR_WRITE_2(sc, VR_ISR, status);
 		goto done_locked;
 	}
-
-	/* Disable interrupts. */
-	CSR_WRITE_2(sc, VR_IMR, 0x0000);
 
 	for (; (status & VR_INTRS) != 0;) {
 		CSR_WRITE_2(sc, VR_ISR, status);
@@ -1707,14 +1725,15 @@ vr_intr(void *arg)
 			vr_rx_start(sc);
 		}
 		vr_txeof(sc);
+
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			vr_start_locked(ifp);
+
 		status = CSR_READ_2(sc, VR_ISR);
 	}
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
-
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vr_start_locked(ifp);
 
 done_locked:
 	VR_UNLOCK(sc);

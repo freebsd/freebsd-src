@@ -1,0 +1,39 @@
+The following demonstrates iosnoop. It was run on a system that was
+fairly quiet until a tar command was run,
+
+# ./iosnoop 
+  UID   PID D    BLOCK   SIZE       COMM PATHNAME
+    0     0 W     1067    512      sched <none>
+    0     0 W  6496304   1024      sched <none>
+    0     3 W  6498797    512    fsflush <none>
+    0     0 W     1067    512      sched <none>
+    0     0 W  6496304   1024      sched <none>
+  100   443 R   892288   4096       Xsun /usr/openwin/bin/Xsun
+  100   443 R   891456   4096       Xsun /usr/openwin/bin/Xsun
+  100 15795 R     3808   8192        tar /usr/bin/eject
+  100 15795 R    35904   6144        tar /usr/bin/eject
+  100 15795 R    39828   6144        tar /usr/bin/env
+  100 15795 R     3872   8192        tar /usr/bin/expr
+  100 15795 R    21120   7168        tar /usr/bin/expr
+  100 15795 R    43680   6144        tar /usr/bin/false
+  100 15795 R    44176   6144        tar /usr/bin/fdetach
+  100 15795 R     3920   8192        tar /usr/bin/fdformat
+  100 15795 R     3936   8192        tar /usr/bin/fdformat
+  100 15795 R     4080   8192        tar /usr/bin/fdformat
+  100 15795 R     9680   3072        tar /usr/bin/fdformat
+  100 15795 R     4096   8192        tar /usr/bin/fgrep
+  100 15795 R    46896   6144        tar /usr/bin/fgrep
+  100 15795 R     4112   8192        tar /usr/bin/file
+  100 15795 R     4128   8192        tar /usr/bin/file
+  100 15795 R     4144   8192        tar /usr/bin/file
+  100 15795 R    21552   7168        tar /usr/bin/file
+  100 15795 R     4192   8192        tar /usr/bin/fmli
+  100 15795 R     4208   8192        tar /usr/bin/fmli
+  100 15795 R     4224  57344        tar /usr/bin/fmli
+  100 15795 R     4336  24576        tar /usr/bin/fmli
+  100 15795 R   695792   8192        tar <none>
+  100 15795 R   696432  57344        tar /usr/bin/fmli
+[...]
+
+
+

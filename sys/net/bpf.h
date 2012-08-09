@@ -279,6 +279,24 @@ struct bpf_zbuf_header {
  */
 #define DLT_SYMANTEC_FIREWALL	99
 
+/*
+ * Values between 100 and 103 are used in capture file headers as
+ * link-layer header type LINKTYPE_ values corresponding to DLT_ types
+ * that differ between platforms; don't use those values for new DLT_
+ * new types.
+ */
+
+/*
+ * Values starting with 104 are used for newly-assigned link-layer
+ * header type values; for those link-layer header types, the DLT_
+ * value returned by pcap_datalink() and passed to pcap_open_dead(),
+ * and the LINKTYPE_ value that appears in capture files, are the
+ * same.
+ *
+ * DLT_MATCHING_MIN is the lowest such value; DLT_MATCHING_MAX is
+ * the highest such value.
+ */
+#define DLT_MATCHING_MIN	104
 
 /*
  * This value was defined by libpcap 0.5; platforms that have defined
@@ -978,8 +996,110 @@ struct bpf_zbuf_header {
  * Raw IPv4/IPv6; different from DLT_RAW in that the DLT_ value specifies
  * whether it's v4 or v6.  Requested by Darren Reed <Darren.Reed@Sun.COM>.
  */
-#define	DLT_IPV4			228
-#define	DLT_IPV6			229
+#define DLT_IPV4		228
+#define DLT_IPV6		229
+
+/*
+ * IEEE 802.15.4, exactly as it appears in the spec (no padding, no
+ * nothing), and with no FCS at the end of the frame; requested by
+ * Jon Smirl <jonsmirl@gmail.com>.
+ */
+#define DLT_IEEE802_15_4_NOFCS	230
+
+/*
+ * Raw D-Bus:
+ *
+ *	http://www.freedesktop.org/wiki/Software/dbus
+ *
+ * messages:
+ *
+ *	http://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-messages
+ *
+ * starting with the endianness flag, followed by the message type, etc.,
+ * but without the authentication handshake before the message sequence:
+ *
+ *	http://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
+ *
+ * Requested by Martin Vidner <martin@vidner.net>.
+ */
+#define DLT_DBUS		231
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>.
+ */
+#define DLT_JUNIPER_VS			232
+#define DLT_JUNIPER_SRX_E2E		233
+#define DLT_JUNIPER_FIBRECHANNEL	234
+
+/*
+ * DVB-CI (DVB Common Interface for communication between a PC Card
+ * module and a DVB receiver).  See
+ *
+ *	http://www.kaiser.cx/pcap-dvbci.html
+ *
+ * for the specification.
+ *
+ * Requested by Martin Kaiser <martin@kaiser.cx>.
+ */
+#define DLT_DVB_CI		235
+
+/*
+ * Variant of 3GPP TS 27.010 multiplexing protocol (similar to, but
+ * *not* the same as, 27.010).  Requested by Hans-Christoph Schemmel
+ * <hans-christoph.schemmel@cinterion.com>.
+ */
+#define DLT_MUX27010		236
+
+/*
+ * STANAG 5066 D_PDUs.  Requested by M. Baris Demiray
+ * <barisdemiray@gmail.com>.
+ */
+#define DLT_STANAG_5066_D_PDU	237
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>.
+ */
+#define DLT_JUNIPER_ATM_CEMIC	238
+
+/*
+ * NetFilter LOG messages 
+ * (payload of netlink NFNL_SUBSYS_ULOG/NFULNL_MSG_PACKET packets)
+ *
+ * Requested by Jakub Zawadzki <darkjames-ws@darkjames.pl>
+ */
+#define DLT_NFLOG		239
+
+/*
+ * Hilscher Gesellschaft fuer Systemautomation mbH link-layer type
+ * for Ethernet packets with a 4-byte pseudo-header and always
+ * with the payload including the FCS, as supplied by their
+ * netANALYZER hardware and software.
+ *
+ * Requested by Holger P. Frommer <HPfrommer@hilscher.com>
+ */
+#define DLT_NETANALYZER		240
+
+/*
+ * Hilscher Gesellschaft fuer Systemautomation mbH link-layer type
+ * for Ethernet packets with a 4-byte pseudo-header and FCS and
+ * with the Ethernet header preceded by 7 bytes of preamble and
+ * 1 byte of SFD, as supplied by their netANALYZER hardware and
+ * software.
+ *
+ * Requested by Holger P. Frommer <HPfrommer@hilscher.com>
+ */
+#define DLT_NETANALYZER_TRANSPARENT	241
+
+/*
+ * IP-over-Infiniband, as specified by RFC 4391.
+ *
+ * Requested by Petr Sumbera <petr.sumbera@oracle.com>.
+ */
+#define DLT_IPOIB		242
+
+#define DLT_MATCHING_MAX	242	/* highest value in the "matching" range */
 
 /*
  * DLT and savefile link type values are split into a class and
@@ -1105,6 +1225,7 @@ struct bpf_if {
 	struct ifnet *bif_ifp;		/* corresponding interface */
 	struct rwlock bif_lock;		/* interface lock */
 	LIST_HEAD(, bpf_d)	bif_wlist;	/* writer-only list */
+	int flags;			/* Interface flags */
 #endif
 };
 

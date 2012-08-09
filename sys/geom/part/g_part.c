@@ -83,6 +83,7 @@ struct g_part_alias_list {
 	{ "fat32", G_PART_ALIAS_MS_FAT32 },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
+	{ "freebsd-nandfs", G_PART_ALIAS_FREEBSD_NANDFS },
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
@@ -1256,6 +1257,7 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 	struct sbuf *sb;
 	quad_t end;
 	int error;
+	off_t mediasize;
 
 	gp = gpp->gpp_geom;
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
@@ -1300,8 +1302,11 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 	pp = entry->gpe_pp;
 	if ((g_debugflags & 16) == 0 &&
 	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)) {
-		gctl_error(req, "%d", EBUSY);
-		return (EBUSY);
+		if (entry->gpe_end - entry->gpe_start + 1 > gpp->gpp_size) {
+			/* Deny shrinking of an opened partition. */
+			gctl_error(req, "%d", EBUSY);
+			return (EBUSY);
+		} 
 	}
 
 	error = G_PART_RESIZE(table, entry, gpp);
@@ -1314,8 +1319,9 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_modified = 1;
 
 	/* update mediasize of changed provider */
-	pp->mediasize = (entry->gpe_end - entry->gpe_start + 1) *
+	mediasize = (entry->gpe_end - entry->gpe_start + 1) *
 		pp->sectorsize;
+	g_resize_provider(pp, mediasize);
 
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
@@ -2049,6 +2055,7 @@ g_part_spoiled(struct g_consumer *cp)
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, cp->provider->name));
 	g_topology_assert();
 
+	cp->flags |= G_CF_ORPHAN;
 	g_part_wither(cp->geom, ENXIO);
 }
 

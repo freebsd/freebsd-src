@@ -106,6 +106,7 @@ struct cam_sim {
 #define	CAM_SIM_MPSAFE			0x02
 #define	CAM_SIM_ON_DONEQ		0x04
 #define	CAM_SIM_POLLED			0x08
+#define	CAM_SIM_BATCH			0x10
 	struct callout		callout;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */

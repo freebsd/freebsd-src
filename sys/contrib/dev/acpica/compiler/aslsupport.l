@@ -92,19 +92,23 @@ static void
 AslDoLineDirective (
     void)
 {
-    char                    c;
+    int                     c;
     char                    *Token;
     UINT32                  LineNumber;
     char                    *Filename;
+    UINT32                  i;
 
 
     /* Eat the entire line that contains the #line directive */
 
-    while ((c = (char) input()) != '\n' && c != EOF)
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+
+    while ((c = input()) != '\n' && c != EOF)
     {
-        AslInsertLineBuffer (c);
+        *Gbl_LineBufPtr = c;
+        Gbl_LineBufPtr++;
     }
-    AslInsertLineBuffer (0);
+    *Gbl_LineBufPtr = 0;
 
     /* First argument is the actual line number */
 
@@ -114,10 +118,23 @@ AslDoLineDirective (
         goto ResetAndExit;
     }
 
-    /* Convert line number. Subtract one to handle _this_ line */
+    /* First argument is the line number */
 
     LineNumber = (UINT32) UtDoConstant (Token);
-    FlSetLineNumber (LineNumber - 1);
+
+    /* Emit the appropriate number of newlines */
+
+    Gbl_CurrentColumn = 0;
+    if (LineNumber > Gbl_CurrentLineNumber)
+    {
+        for (i = 0; i < (LineNumber - Gbl_CurrentLineNumber); i++)
+        {
+            FlWriteFile (ASL_FILE_SOURCE_OUTPUT, "\n", 1);
+            Gbl_CurrentColumn++;
+        }
+    }
+
+    FlSetLineNumber (LineNumber);
 
     /* Second argument is the optional filename (in double quotes) */
 
@@ -132,7 +149,12 @@ AslDoLineDirective (
     /* Third argument is not supported at this time */
 
 ResetAndExit:
-    AslResetCurrentLineBuffer ();
+
+    /* Reset globals for a new line */
+
+    Gbl_CurrentLineOffset += Gbl_CurrentColumn;
+    Gbl_CurrentColumn = 0;
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
 }
 
 
@@ -408,8 +430,8 @@ static char
 AslDoComment (
     void)
 {
-    char                c;
-    char                c1 = 0;
+    int                 c;
+    int                 c1 = 0;
 
 
     AslInsertLineBuffer ('/');
@@ -419,7 +441,7 @@ loop:
 
     /* Eat chars until end-of-comment */
 
-    while ((c = (char) input()) != '*' && c != EOF)
+    while ((c = input()) != '*' && c != EOF)
     {
         AslInsertLineBuffer (c);
         c1 = c;
@@ -446,7 +468,7 @@ loop:
 
     AslInsertLineBuffer (c);
 
-    if ((c1 = (char) input()) != '/' && c1 != EOF)
+    if ((c1 = input()) != '/' && c1 != EOF)
     {
         unput(c1);
         goto loop;
@@ -489,13 +511,13 @@ static char
 AslDoCommentType2 (
     void)
 {
-    char                c;
+    int                 c;
 
 
     AslInsertLineBuffer ('/');
     AslInsertLineBuffer ('/');
 
-    while ((c = (char) input()) != '\n' && c != EOF)
+    while ((c = input()) != '\n' && c != EOF)
     {
         AslInsertLineBuffer (c);
     }
@@ -531,7 +553,7 @@ AslDoStringLiteral (
     char                *StringBuffer = MsgBuffer;
     char                *EndBuffer = MsgBuffer + ASL_MSG_BUFFER_SIZE;
     char                *CleanString;
-    char                StringChar;
+    int                 StringChar;
     UINT32              State = ASL_NORMAL_CHAR;
     UINT32              i = 0;
     UINT8               Digit;
@@ -544,7 +566,7 @@ AslDoStringLiteral (
      * source line buffer.
      */
     AslInsertLineBuffer ('\"');
-    while ((StringChar = (char) input()) != EOF)
+    while ((StringChar = input()) != EOF)
     {
         AslInsertLineBuffer (StringChar);
 

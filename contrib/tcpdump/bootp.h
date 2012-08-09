@@ -37,7 +37,7 @@ struct bootp {
 	u_int8_t	bp_sname[64];	/* server host name */
 	u_int8_t	bp_file[128];	/* boot file name */
 	u_int8_t	bp_vend[64];	/* vendor-specific area */
-};
+} UNALIGNED;
 
 /*
  * UDP port numbers, server and client.
@@ -217,7 +217,7 @@ struct cmu_vend {
 	struct in_addr	v_ins1, v_ins2; /* IEN-116 name servers */
 	struct in_addr	v_ts1, v_ts2;	/* Time servers */
 	u_int8_t	v_unused[24];	/* currently unused */
-};
+} UNALIGNED;
 
 
 /* v_flags values */

@@ -76,6 +76,7 @@ struct at91_ohci_softc {
 static int
 ohci_atmelarm_probe(device_t dev)
 {
+
 	device_set_desc(dev, "AT91 integrated OHCI controller");
 	return (BUS_PROBE_DEFAULT);
 }

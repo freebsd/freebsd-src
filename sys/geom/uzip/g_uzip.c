@@ -313,13 +313,11 @@ g_uzip_orphan(struct g_consumer *cp)
 
 	g_trace(G_T_TOPOLOGY, "g_uzip_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
-	KASSERT(cp->provider->error != 0,
-		("g_uzip_orphan with error == 0"));
 
 	gp = cp->geom;
 	g_uzip_softc_free(gp->softc, gp);
 	gp->softc = NULL;
-	g_wither_geom(gp, cp->provider->error);
+	g_wither_geom(gp, ENXIO);
 }
 
 static int

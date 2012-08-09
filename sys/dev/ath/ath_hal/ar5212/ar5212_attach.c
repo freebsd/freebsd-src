@@ -29,7 +29,8 @@
 #define AH_5212_COMMON
 #include "ar5212/ar5212.ini"
 
-static void ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
 static void ar5212DisablePCIE(struct ath_hal *ah);
 
 static const struct ath_hal_private ar5212hal = {{
@@ -70,6 +71,9 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getTxIntrQueue		= ar5212GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5212IntrReqTxDesc,
 	.ah_getTxCompletionRates	= ar5212GetTxCompletionRates,
+	.ah_setTxDescLink		= ar5212SetTxDescLink,
+	.ah_getTxDescLink		= ar5212GetTxDescLink,
+	.ah_getTxDescLinkPtr		= ar5212GetTxDescLinkPtr,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5212GetRxDP,
@@ -125,9 +129,10 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getAckCTSRate		= ar5212GetAckCTSRate,
 	.ah_setCTSTimeout		= ar5212SetCTSTimeout,
 	.ah_getCTSTimeout		= ar5212GetCTSTimeout,
-	.ah_setDecompMask               = ar5212SetDecompMask,
-	.ah_setCoverageClass            = ar5212SetCoverageClass,
+	.ah_setDecompMask		= ar5212SetDecompMask,
+	.ah_setCoverageClass		= ar5212SetCoverageClass,
 	.ah_setQuiet			= ar5212SetQuiet,
+	.ah_getMibCycleCounts		= ar5212GetMibCycleCounts,
 
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,
@@ -369,7 +374,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 
 	if (AH_PRIVATE(ah)->ah_ispcie) {
 		/* XXX: build flag to disable this? */
-		ath_hal_configPCIE(ah, AH_FALSE);
+		ath_hal_configPCIE(ah, AH_FALSE, AH_FALSE);
 	}
 
 	if (!ar5212ChipTest(ah)) {
@@ -665,7 +670,7 @@ ar5212GetChannelEdges(struct ath_hal *ah,
  * XXX Clean up the magic numbers.
  */
 static void
-ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
@@ -819,6 +824,7 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTurboGSupport = pCap->halWirelessModes & HAL_MODE_108G;
 
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
+	pCap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
 	pCap->halMcastKeySrchSupport = AH_TRUE;

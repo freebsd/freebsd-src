@@ -67,7 +67,6 @@ extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
 static int		__setrunelocale(struct xlocale_ctype *l, const char *);
 
-#define __collate_load_error (table->__collate_load_error)
 #define __collate_substitute_nontrivial (table->__collate_substitute_nontrivial)
 #define __collate_substitute_table_ptr (table->__collate_substitute_table_ptr)
 #define __collate_char_pri_table_ptr (table->__collate_char_pri_table_ptr)
@@ -89,6 +88,17 @@ const _RuneLocale *__getCurrentRuneLocale(void)
 	return XLOCALE_CTYPE(__get_locale())->runes;
 }
 
+static void free_runes(_RuneLocale *rl)
+{
+	/* FIXME: The "EUC" check here is a hideous abstraction violation. */
+	if ((rl != &_DefaultRuneLocale) && (rl)) {
+		if (strcmp(rl->__encoding, "EUC") == 0) {
+			free(rl->__variable);
+		}
+		free(rl);
+	}
+}
+
 static int
 __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 {
@@ -102,6 +112,7 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	 * The "C" and "POSIX" locale are always here.
 	 */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
+		free_runes(saved.runes);
 		(void) _none_init(l, (_RuneLocale*)&_DefaultRuneLocale);
 		return (0);
 	}
@@ -153,13 +164,7 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 
 	if (ret == 0) {
 		/* Free the old runes if it exists. */
-		/* FIXME: The "EUC" check here is a hideous abstraction violation. */
-		if ((saved.runes != &_DefaultRuneLocale) && (saved.runes)) {
-			if (strcmp(saved.runes->__encoding, "EUC") == 0) {
-				free(saved.runes->__variable);
-			}
-			free(saved.runes);
-		}
+		free_runes(saved.runes);
 	} else {
 		/* Restore the saved version if this failed. */
 		memcpy(l, &saved, sizeof(struct xlocale_ctype));

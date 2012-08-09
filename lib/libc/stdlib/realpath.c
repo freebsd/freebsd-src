@@ -54,7 +54,7 @@ realpath(const char * __restrict path, char * __restrict resolved)
 	char *p, *q, *s;
 	size_t left_len, resolved_len;
 	unsigned symlinks;
-	int m, serrno, slen;
+	int m, slen;
 	char left[PATH_MAX], next_token[PATH_MAX], symlink[PATH_MAX];
 
 	if (path == NULL) {
@@ -65,7 +65,6 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		errno = ENOENT;
 		return (NULL);
 	}
-	serrno = errno;
 	if (resolved == NULL) {
 		resolved = malloc(PATH_MAX);
 		if (resolved == NULL)
@@ -132,8 +131,29 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			resolved[resolved_len++] = '/';
 			resolved[resolved_len] = '\0';
 		}
-		if (next_token[0] == '\0')
+		if (next_token[0] == '\0') {
+			/*
+			 * Handle consequential slashes.  The path
+			 * before slash shall point to a directory.
+			 *
+			 * Only the trailing slashes are not covered
+			 * by other checks in the loop, but we verify
+			 * the prefix for any (rare) "//" or "/\0"
+			 * occurence to not implement lookahead.
+			 */
+			if (lstat(resolved, &sb) != 0) {
+				if (m)
+					free(resolved);
+				return (NULL);
+			}
+			if (!S_ISDIR(sb.st_mode)) {
+				if (m)
+					free(resolved);
+				errno = ENOTDIR;
+				return (NULL);
+			}
 			continue;
+		}
 		else if (strcmp(next_token, ".") == 0)
 			continue;
 		else if (strcmp(next_token, "..") == 0) {
@@ -151,9 +171,7 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		}
 
 		/*
-		 * Append the next path component and lstat() it. If
-		 * lstat() fails we still can return successfully if
-		 * there are no more path components left.
+		 * Append the next path component and lstat() it.
 		 */
 		resolved_len = strlcat(resolved, next_token, PATH_MAX);
 		if (resolved_len >= PATH_MAX) {
@@ -163,10 +181,8 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			return (NULL);
 		}
 		if (lstat(resolved, &sb) != 0) {
-			if (errno == ENOENT && p == NULL) {
-				errno = serrno;
-				return (resolved);
-			}
+			if (errno != ENOENT || p != NULL)
+				errno = ENOTDIR;
 			if (m)
 				free(resolved);
 			return (NULL);

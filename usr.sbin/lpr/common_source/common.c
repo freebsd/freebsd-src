@@ -130,15 +130,17 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 		seteuid(uid);
 		return (-1);
 	}
-	if (fstat(dirp->dd_fd, &stbuf) < 0)
+	if (fstat(dirfd(dirp), &stbuf) < 0)
 		goto errdone;
 	seteuid(uid);
 
 	/*
 	 * Estimate the array size by taking the size of the directory file
-	 * and dividing it by a multiple of the minimum size entry. 
+	 * and dividing it by a multiple of the minimum size entry.
 	 */
 	arraysz = (stbuf.st_size / 24);
+	if (arraysz < 16)
+		arraysz = 16;
 	queue = (struct jobqueue **)malloc(arraysz * sizeof(struct jobqueue *));
 	if (queue == NULL)
 		goto errdone;
@@ -641,7 +643,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	 *   secs=<n>      - seconds it took to transfer the file
 	 *   bytes=<n>     - number of bytes transfered (ie, "bytecount")
 	 *   bps=<n.n>e<n> - Bytes/sec (if the transfer was "big enough"
-	 *		     for this to be useful) 
+	 *		     for this to be useful)
 	 * ! top=<str>     - type of printer (if the type is defined in
 	 *		     printcap, and if this statline is for sending
 	 *		     a file to that ptr)
@@ -719,7 +721,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	if (remspace > 1) {
 		strcpy(eostat, "\n");
 	} else {
-		/* probably should back up to just before the final " x=".. */  
+		/* probably should back up to just before the final " x=".. */
 		strcpy(statline+STATLINE_SIZE-2, "\n");
 	}
 	statfile = open(statfname, O_WRONLY|O_APPEND, 0664);
@@ -732,7 +734,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	close(statfile);
 
 	return;
-#undef UPD_EOSTAT	
+#undef UPD_EOSTAT
 }
 
 #include <stdarg.h>

@@ -23,6 +23,8 @@ CFLAGS+=-DPROBE_KEYBOARD
 CFLAGS+=-DALWAYS_SERIAL
 .endif
 
+CFLAGS+=-I${.CURDIR}/../common
+
 LOADERBIN= ${.OBJDIR}/../loader/loader.bin
 
 CLEANFILES+= ${BOOT}.tmp

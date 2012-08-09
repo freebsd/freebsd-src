@@ -1,0 +1,48 @@
+.TH j_syscalls.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+j_syscalls.d - count Java methods and syscalls using DTrace.
+.SH SYNOPSIS
+.B j_syscalls.d
+{ \-p PID | \-c cmd }	
+.SH DESCRIPTION
+This traces Java methods if the hotspot provider exists (1.6.0) and
+the flag "+ExtendedDTraceProbes" is used. eg,
+java -XX:+ExtendedDTraceProbes classfile
+.SH OS
+Solaris
+.SH STABILITY
+Evolving - uses the DTrace hotspot provider, which may change 
+as additional features are introduced. Check Java/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B j_syscalls.d
+.PP
+.SH FIELDS
+.TP
+PID
+Process ID
+.TP
+TYPE
+Type of call (method/syscall)
+.TP
+NAME
+Name of call
+.TP
+COUNT
+Number of calls during sample
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+j_syscalls.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

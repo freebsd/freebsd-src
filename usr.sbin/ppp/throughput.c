@@ -115,14 +115,14 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
   prompt_Printf(prompt, "%llu packets in, %llu packets out\n",
                 t->PacketsIn, t->PacketsOut);
   if (t->rolling) {
-    prompt_Printf(prompt, "  overall   %6qu bytes/sec\n",
+    prompt_Printf(prompt, "  overall   %6llu bytes/sec\n",
                   (t->OctetsIn + t->OctetsOut) / divisor);
-    prompt_Printf(prompt, "  %s %6qu bytes/sec in, %6qu bytes/sec out "
+    prompt_Printf(prompt, "  %s %6llu bytes/sec in, %6llu bytes/sec out "
                   "(over the last %d secs)\n",
                   t->downtime ? "average  " : "currently",
                   t->in.OctetsPerSecond, t->out.OctetsPerSecond,
                   secs_up > t->SamplePeriod ? t->SamplePeriod : secs_up);
-    prompt_Printf(prompt, "  peak      %6qu bytes/sec on %s",
+    prompt_Printf(prompt, "  peak      %6llu bytes/sec on %s",
                   t->BestOctetsPerSecond, ctime(&t->BestOctetsPerSecondTime));
   } else
     prompt_Printf(prompt, "Overall %llu bytes/sec\n",
@@ -266,7 +266,7 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
 
     if ((divisor = throughput_uptime(t)) == 0)
       divisor = 1;
-    prompt_Printf(prompt, "overall cleared (was %6qu bytes/sec)\n",
+    prompt_Printf(prompt, "overall cleared (was %6llu bytes/sec)\n",
                   (t->OctetsIn + t->OctetsOut) / divisor);
     t->OctetsIn = t->OctetsOut = t->PacketsIn = t->PacketsOut = 0;
     t->downtime = 0;
@@ -274,8 +274,8 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
   }
 
   if (clear_type & THROUGHPUT_CURRENT) {
-    prompt_Printf(prompt, "current cleared (was %6qu bytes/sec in,"
-                  " %6qu bytes/sec out)\n",
+    prompt_Printf(prompt, "current cleared (was %6llu bytes/sec in,"
+                  " %6llu bytes/sec out)\n",
                   t->in.OctetsPerSecond, t->out.OctetsPerSecond);
     t->in.OctetsPerSecond = t->out.OctetsPerSecond = 0;
   }
@@ -287,7 +287,7 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
     last = time_buf + strlen(time_buf);
     if (last > time_buf && *--last == '\n')
       *last = '\0';
-    prompt_Printf(prompt, "peak    cleared (was %6qu bytes/sec on %s)\n",
+    prompt_Printf(prompt, "peak    cleared (was %6llu bytes/sec on %s)\n",
                   t->BestOctetsPerSecond, time_buf);
     t->BestOctetsPerSecond = 0;
     time(&t->BestOctetsPerSecondTime);

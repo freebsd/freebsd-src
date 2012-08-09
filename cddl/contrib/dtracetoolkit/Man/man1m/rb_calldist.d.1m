@@ -1,0 +1,49 @@
+.TH rb_calldist.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+rb_calldist.d - measure Ruby elapsed times for types of operation.
+.SH SYNOPSIS
+.B rb_calldist.d
+
+.SH DESCRIPTION
+This traces Ruby activity from all programs running on the system with
+Ruby provider support.
+
+This script prints distribution plots of elapsed time for Ruby
+operations. Use rb_calltime.d for summary reports.
+
+Filename and method names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Ruby provider, which may change 
+as additional features are introduced. Check Ruby/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B rb_calldist.d
+.PP
+.SH FIELDS
+.TP
+1
+Filename of the Ruby program
+.TP
+2
+Type of call (method/obj-new/gc)
+.TP
+3
+Name of call
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+rb_calldist.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

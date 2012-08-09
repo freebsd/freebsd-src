@@ -830,7 +830,9 @@ siis_ch_intr_locked(void *data)
 	struct siis_channel *ch = device_get_softc(dev);
 
 	mtx_lock(&ch->mtx);
+	xpt_batch_start(ch->sim);
 	siis_ch_intr(data);
+	xpt_batch_done(ch->sim);
 	mtx_unlock(&ch->mtx);
 }
 
@@ -1882,7 +1884,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
 			d = &ch->user[ccb->ccb_h.target_id];
-		cts->protocol = PROTO_ATA;
+		cts->protocol = PROTO_UNSPECIFIED;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;

@@ -338,7 +338,7 @@ procdesc_reap(struct proc *p)
 
 /*
  * procdesc_close() - last close on a process descriptor.  If the process is
- * still running, terminate with SIGKILL (unless PD_DAEMON is set) and let
+ * still running, terminate with SIGKILL (unless PDF_DAEMON is set) and let
  * init(8) clean up the mess; if not, we have to clean up the zombie ourselves.
  */
 static int
@@ -386,7 +386,7 @@ procdesc_close(struct file *fp, struct thread *td)
 		 */
 		p->p_sigparent = SIGCHLD;
 		proc_reparent(p, initproc);
-		if ((pd->pd_flags & PD_DAEMON) == 0)
+		if ((pd->pd_flags & PDF_DAEMON) == 0)
 			kern_psignal(p, SIGKILL);
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);

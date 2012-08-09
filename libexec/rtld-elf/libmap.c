@@ -2,11 +2,13 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,9 +41,17 @@ struct lmp {
 	TAILQ_ENTRY(lmp) lmp_link;
 };
 
+static TAILQ_HEAD(lmc_list, lmc) lmc_head = TAILQ_HEAD_INITIALIZER(lmc_head);
+struct lmc {
+	char *path;
+	TAILQ_ENTRY(lmc) next;
+};
+
 static int lm_count;
 
 static void lmc_parse(char *, size_t);
+static void lmc_parse_file(char *);
+static void lmc_parse_dir(char *);
 static void lm_add(const char *, const char *, const char *);
 static void lm_free(struct lm_list *);
 static char *lml_find(struct lm_list *, const char *);
@@ -61,37 +71,13 @@ static const char *quickbasename(const char *);
 int
 lm_init(char *libmap_override)
 {
-	struct stat st;
-	char *lm_map, *p;
-	int fd;
+	char *p;
 
 	dbg("lm_init(\"%s\")", libmap_override);
 	TAILQ_INIT(&lmp_head);
 
-	fd = open(_PATH_LIBMAP_CONF, O_RDONLY);
-	if (fd == -1) {
-		dbg("lm_init: open(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
-		    rtld_strerror(errno));
-		goto override;
-	}
-	if (fstat(fd, &st) == -1) {
-		close(fd);
-		dbg("lm_init: fstat(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
-		    rtld_strerror(errno));
-		goto override;
-	}
-	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (lm_map == (const char *)MAP_FAILED) {
-		close(fd);
-		dbg("lm_init: mmap(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
-		    rtld_strerror(errno));
-		goto override;
-	}
-	close(fd);
-	lmc_parse(lm_map, st.st_size);
-	munmap(lm_map, st.st_size);
+	lmc_parse_file(_PATH_LIBMAP_CONF);
 
-override:
 	if (libmap_override) {
 		/*
 		 * Do some character replacement to make $LIBMAP look
@@ -116,14 +102,116 @@ override:
 }
 
 static void
+lmc_parse_file(char *path)
+{
+	struct lmc *p;
+	struct stat st;
+	int fd;
+	char *rpath;
+	char *lm_map;
+
+	rpath = realpath(path, NULL);
+	if (rpath == NULL)
+		return;
+
+	TAILQ_FOREACH(p, &lmc_head, next) {
+		if (strcmp(p->path, rpath) == 0) {
+			free(rpath);
+			return;
+		}
+	}
+
+	fd = open(rpath, O_RDONLY);
+	if (fd == -1) {
+		dbg("lm_parse_file: open(\"%s\") failed, %s", rpath,
+		    rtld_strerror(errno));
+		free(rpath);
+		return;
+	}
+	if (fstat(fd, &st) == -1) {
+		close(fd);
+		dbg("lm_parse_file: fstat(\"%s\") failed, %s", rpath,
+		    rtld_strerror(errno));
+		free(rpath);
+		return;
+	}
+	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (lm_map == (const char *)MAP_FAILED) {
+		close(fd);
+		dbg("lm_parse_file: mmap(\"%s\") failed, %s", rpath,
+		    rtld_strerror(errno));
+		free(rpath);
+		return;
+	}
+	close(fd);
+	p = xmalloc(sizeof(struct lmc));
+	p->path = rpath;
+	TAILQ_INSERT_HEAD(&lmc_head, p, next);
+	lmc_parse(lm_map, st.st_size);
+	munmap(lm_map, st.st_size);
+}
+
+static void
+lmc_parse_dir(char *idir)
+{
+	DIR *d;
+	struct dirent *dp;
+	struct lmc *p;
+	char conffile[MAXPATHLEN];
+	char *ext;
+	char *rpath;
+
+	rpath = realpath(idir, NULL);
+	if (rpath == NULL)
+		return;
+
+	TAILQ_FOREACH(p, &lmc_head, next) {
+		if (strcmp(p->path, rpath) == 0) {
+			free(rpath);
+			return;
+		}
+	}
+	d = opendir(idir);
+	if (d == NULL) {
+		free(rpath);
+		return;
+	}
+
+	p = xmalloc(sizeof(struct lmc));
+	p->path = rpath;
+	TAILQ_INSERT_HEAD(&lmc_head, p, next);
+
+	while ((dp = readdir(d)) != NULL) {
+		if (dp->d_ino == 0)
+			continue;
+		if (dp->d_type != DT_REG)
+			continue;
+		ext = strrchr(dp->d_name, '.');
+		if (ext == NULL)
+			continue;
+		if (strcmp(ext, ".conf") != 0)
+			continue;
+		if (strlcpy(conffile, idir, MAXPATHLEN) >= MAXPATHLEN)
+			continue; /* too long */
+		if (strlcat(conffile, "/", MAXPATHLEN) >= MAXPATHLEN)
+			continue; /* too long */
+		if (strlcat(conffile, dp->d_name, MAXPATHLEN) >= MAXPATHLEN)
+			continue; /* too long */
+		lmc_parse_file(conffile);
+	}
+	closedir(d);
+}
+
+static void
 lmc_parse(char *lm_p, size_t lm_len)
 {
 	char *cp, *f, *t, *c, *p;
 	char prog[MAXPATHLEN];
-	char line[MAXPATHLEN + 2];
+	/* allow includedir + full length path */
+	char line[MAXPATHLEN + 13];
 	size_t cnt;
 	int i;
-	
+
 	cnt = 0;
 	p = NULL;
 	while (cnt < lm_len) {
@@ -181,7 +269,8 @@ lmc_parse(char *lm_p, size_t lm_len)
 			while(rtld_isspace(*cp)) cp++;
 			if (!iseol(*cp)) continue;
 
-			strcpy(prog, c);
+			if (strlcpy(prog, c, sizeof prog) >= sizeof prog)
+				continue;
 			p = prog;
 			continue;
 		}
@@ -207,7 +296,12 @@ lmc_parse(char *lm_p, size_t lm_len)
 		if (!iseol(*cp)) continue;
 
 		*cp = '\0';
-		lm_add(p, f, t);
+		if (strcmp(f, "includedir") == 0)
+			lmc_parse_dir(t);
+		else if (strcmp(f, "include") == 0)
+			lmc_parse_file(t);
+		else
+			lm_add(p, f, t);
 	}
 }
 
@@ -232,8 +326,16 @@ void
 lm_fini (void)
 {
 	struct lmp *lmp;
+	struct lmc *p;
 
 	dbg("%s()", __func__);
+
+	while (!TAILQ_EMPTY(&lmc_head)) {
+		p = TAILQ_FIRST(&lmc_head);
+		TAILQ_REMOVE(&lmc_head, p, next);
+		free(p->path);
+		free(p);
+	}
 
 	while (!TAILQ_EMPTY(&lmp_head)) {
 		lmp = TAILQ_FIRST(&lmp_head);

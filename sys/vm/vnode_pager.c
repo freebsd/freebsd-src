@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -440,7 +441,7 @@ vnode_pager_setsize(vp, nsize)
 			 */
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
 		} else if ((nsize & PAGE_MASK) &&
-		    __predict_false(object->cache != NULL)) {
+		    vm_page_is_cached(object, OFF_TO_IDX(nsize))) {
 			vm_page_cache_free(object, OFF_TO_IDX(nsize),
 			    nobjsize);
 		}
@@ -985,37 +986,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			    mt));
 		}
 		
-		if (i != reqpage) {
-
-			/*
-			 * whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere. (it already is in the object). Result:
-			 * It appears that empirical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * just in case someone was asking for this page we
-			 * now tell them that it is ok to use
-			 */
-			if (!error) {
-				if (mt->oflags & VPO_WANTED) {
-					vm_page_lock(mt);
-					vm_page_activate(mt);
-					vm_page_unlock(mt);
-				} else {
-					vm_page_lock(mt);
-					vm_page_deactivate(mt);
-					vm_page_unlock(mt);
-				}
-				vm_page_wakeup(mt);
-			} else {
-				vm_page_lock(mt);
-				vm_page_free(mt);
-				vm_page_unlock(mt);
-			}
-		}
+		if (i != reqpage)
+			vm_page_readahead_finish(mt, error);
 	}
 	VM_OBJECT_UNLOCK(object);
 	if (error) {
@@ -1146,7 +1118,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				m = ma[ncount - 1];
 				KASSERT(m->busy > 0,
 		("vnode_pager_generic_putpages: page %p is not busy", m));
-				KASSERT((m->aflags & PGA_WRITEABLE) == 0,
+				KASSERT(!pmap_page_is_write_mapped(m),
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
 				    pgoff);

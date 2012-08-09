@@ -661,7 +661,7 @@
 .as doc-str-St--susv3          " (\*[Lq]\*[doc-Tn-font-size]SUSv3\*[doc-str-St]\*[Rq])
 .ds doc-str-St--svid4          System\~V Interface Definition, Fourth Edition
 .as doc-str-St--svid4          " (\*[Lq]\*[doc-Tn-font-size]SVID\*[doc-str-St]\^4\*[Rq])
-.ds doc-str-St--xbd5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] System Interface Definitions Issue\~5
+.ds doc-str-St--xbd5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Base Definitions Issue\~5
 .as doc-str-St--xbd5           " (\*[Lq]\*[doc-Tn-font-size]XBD\*[doc-str-St]\^5\*[Rq])
 .ds doc-str-St--xcu5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Commands and Utilities Issue\~5
 .as doc-str-St--xcu5           " (\*[Lq]\*[doc-Tn-font-size]XCU\*[doc-str-St]\^5\*[Rq])
@@ -814,7 +814,6 @@
 .ds doc-str-Lb-librt       \*[Px] \*[doc-str-Lb]Real-time Library (librt, \-lrt)
 .ds doc-str-Lb-libsdp      Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
 .ds doc-str-Lb-libssp      Buffer Overflow Protection Library (libssp, \-lssp)
-.ds doc-str-Lb-libstdthreads C11 Threads Library (libstdthreads, \-lstdthreads)
 .ds doc-str-Lb-libSystem   System Library (libSystem, \-lSystem)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
 .ds doc-str-Lb-libterminfo Terminal Information Library (libterminfo, \-lterminfo)

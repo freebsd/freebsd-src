@@ -1,3 +1,51 @@
+OpenPAM Micrampelis						2012-05-26
+
+ - FEATURE: Add an openpam_readword(3) function which reads the next
+   word from an input stream, applying shell quoting and escaping
+   rules.  Add numerous unit tests for openpam_readword(3).
+
+ - FEATURE: Add an openpam_readlinev(3) function which uses the
+   openpam_readword(3) function to read words from an input stream one
+   at a time until it reaches an unquoted, unescaped newline, and
+   returns an array of those words.  Add several unit tests for
+   openpam_readlinev(3).
+
+ - FEATURE: Add a PAM_HOST item which pam_start(3) initializes to the
+   machine's hostname.  This was implemented in Lycopsida but
+   inadvertantly left out of the release notes.
+
+ - FEATURE: In pam_get_authtok(3), if neither the application nor the
+   module have specified a prompt and PAM_HOST and PAM_RHOST are both
+   defined but not equal, use a different default prompt that includes
+   PAM_USER and PAM_HOST.
+
+ - ENHANCE: Rewrite the policy parser to used openpam_readlinev(),
+   which greatly simplifies the code.
+
+ - ENHANCE: The previous implementation of the policy parser relied on
+   the openpam_readline(3) function, which (by design) munges
+   whitespace and understands neither quotes nor backslash escapes.
+   As a result of the aforementioned rewrite, whitespace, quotes and
+   backslash escapes in policy files are now handled in a consistent
+   and predictable manner.
+
+ - ENHANCE: On platforms that have it, use fdlopen(3) to load modules.
+   This closes the race between the ownership / permission check and
+   the dlopen(3) call.
+
+ - ENHANCE: Reduce the amount of pointless error messages generated
+   while searching for a module.
+
+ - ENHANCE: Numerous documentation improvements, both in content and
+   formatting.
+
+ - BUGFIX: A patch incorporated in Lycopsida inadvertantly changed
+   OpenPAM's behavior when several policies exist for the same
+   service, from ignoring all but the first to concatenating them all.
+   Revert to the original behavior.
+
+ - BUGFIX: Plug a memory leak in the policy parser.
+============================================================================
 OpenPAM Lycopsida						2011-12-18
 
  - ENHANCE: removed static build autodetection, which didn't work
@@ -269,7 +317,7 @@ OpenPAM Cinchona						2002-04-08
  - ENHANCE: Add openpam_free_data(), a generic cleanup function for
    pam_set_data() consumers.
 ============================================================================
-OpenPAM	Centaury						2002-03-14
+OpenPAM Centaury						2002-03-14
 
  - BUGFIX: Add missing #include <string.h> to openpam_log.c.
 
@@ -308,7 +356,7 @@ OpenPAM Celandine						2002-03-05
    module with the same version number as the library itself to one
    with no version number at all.
 ============================================================================
-OpenPAM	Cantaloupe						2002-02-22
+OpenPAM Cantaloupe						2002-02-22
 
  - BUGFIX: The proper use of PAM_SYMBOL_ERR is to indicate an invalid
    argument to pam_[gs]et_item(3), not to indicate dlsym(3) failures.
@@ -338,7 +386,7 @@ OpenPAM	Cantaloupe						2002-02-22
  - ENHANCE: openpam_get_authtok() now respects the echo_pass,
    try_first_pass, and use_first_pass options.
 ============================================================================
-OpenPAM	Caliopsis						2002-02-13
+OpenPAM Caliopsis						2002-02-13
 
 Fixed a number of bugs in the previous release, including:
   - a number of bugs in and related to pam_[gs]et_item(3)
@@ -349,8 +397,8 @@ Fixed a number of bugs in the previous release, including:
   - missing 'continue' in openpam_dispatch.c caused successes to be
     counted as failures
 ============================================================================
-OpenPAM	Calamite						2002-02-09
+OpenPAM Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$Id: HISTORY 504 2011-12-18 14:11:12Z des $
+$Id: HISTORY 609 2012-05-26 13:57:45Z des $

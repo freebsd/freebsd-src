@@ -1,0 +1,58 @@
+The following are examples of php_cputime.d.
+
+This script traces the on-CPU time of PHP functions and prints a report. 
+Here it traces the example program, Code/Php/func_abc.php.
+
+# php_cputime.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Count,
+   FILE                 TYPE       NAME                                COUNT
+   func_abc.php         func       func_a                                  1
+   func_abc.php         func       func_b                                  1
+   func_abc.php         func       func_c                                  1
+   func_abc.php         func       sleep                                   3
+   -                    total      -                                       6
+
+Exclusive function on-CPU times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   func_abc.php         func       func_c                                 17
+   func_abc.php         func       func_b                                 25
+   func_abc.php         func       func_a                                 74
+   func_abc.php         func       sleep                                  93
+   -                    total      -                                     210
+
+Inclusive function on-CPU times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   func_abc.php         func       func_c                                 39
+   func_abc.php         func       func_b                                 87
+   func_abc.php         func       sleep                                  93
+   func_abc.php         func       func_a                                210
+
+In total, six functions were called; sleep was called three times and there
+was one call each of func_a(), func_b() and func_c().
+
+The exclusive subroutine on-CPU times show that func_a() spent around 74
+microseconds on-CPU, func_b() spent 25 microseconds on-CPU, and func_c() spent 
+17 microseconds on-CPU. This exclusive times excludes time spent in other 
+subroutines.
+
+The inclusive subroutine on-CPU times show that func_c() spent around 39
+microseconds on-CPU, func_b() spent around 87 microseconds on-CPU and 
+func_a() spent around 210 microseconds. This inclusive time includes the time 
+spent in other functions called (including sleep),  and since func_a() called 
+func_b() which called func_c(), these times make perfect sense.
+
+These on-CPU times are the time the program spent running on a CPU, from when
+the function began to when it completed. This does not include time
+spent off-CPU time such as sleeping for I/O or waiting for scheduling.
+
+On-CPU times are useful for showing who is causing the CPUs to be busy.
+See Notes/ALLoncpu_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive subroutine time.
+
+If you study the func_abc.php program alongside the above output, the numbers
+should make sense.
+

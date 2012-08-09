@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
@@ -217,36 +218,8 @@ nfs_getpages(struct vop_getpages_args *ap)
 			 */
 			;
 		}
-		if (i != ap->a_reqpage) {
-			/*
-			 * Whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere (it already is in the object).  Result:
-			 * It appears that emperical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * Just in case someone was asking for this page we
-			 * now tell them that it is ok to use.
-			 */
-			if (!error) {
-				if (m->oflags & VPO_WANTED) {
-					vm_page_lock(m);
-					vm_page_activate(m);
-					vm_page_unlock(m);
-				} else {
-					vm_page_lock(m);
-					vm_page_deactivate(m);
-					vm_page_unlock(m);
-				}
-				vm_page_wakeup(m);
-			} else {
-				vm_page_lock(m);
-				vm_page_free(m);
-				vm_page_unlock(m);
-			}
-		}
+		if (i != ap->a_reqpage)
+			vm_page_readahead_finish(m, error);
 	}
 	VM_OBJECT_UNLOCK(object);
 	return (0);
@@ -275,7 +248,11 @@ nfs_putpages(struct vop_putpages_args *ap)
 	vp = ap->a_vp;
 	np = VTONFS(vp);
 	td = curthread;				/* XXX */
-	cred = curthread->td_ucred;		/* XXX */
+	/* Set the cred to n_writecred for the write rpcs. */
+	if (np->n_writecred != NULL)
+		cred = crhold(np->n_writecred);
+	else
+		cred = crhold(curthread->td_ucred);	/* XXX */
 	nmp = VFSTONFS(vp->v_mount);
 	pages = ap->a_m;
 	count = ap->a_count;
@@ -339,6 +316,7 @@ nfs_putpages(struct vop_putpages_args *ap)
 	    iomode = NFSV3WRITE_FILESYNC;
 
 	error = (nmp->nm_rpcops->nr_writerpc)(vp, &uio, cred, &iomode, &must_commit);
+	crfree(cred);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &nfs_pbuf_freecnt);

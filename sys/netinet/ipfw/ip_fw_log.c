@@ -44,8 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/vnet.h>
 #include <net/if_types.h>	/* for IFT_ETHER */
 #include <net/bpf.h>		/* for BPF */
@@ -90,6 +93,15 @@ ipfw_log_bpf(int onoff)
 }
 #else /* !WITHOUT_BPF */
 static struct ifnet *log_if;	/* hook to attach to bpf */
+static struct rwlock log_if_lock;
+#define	LOGIF_LOCK_INIT(x)	rw_init(&log_if_lock, "ipfw log_if lock")
+#define	LOGIF_LOCK_DESTROY(x)	rw_destroy(&log_if_lock)
+#define	LOGIF_RLOCK(x)		rw_rlock(&log_if_lock)
+#define	LOGIF_RUNLOCK(x)	rw_runlock(&log_if_lock)
+#define	LOGIF_WLOCK(x)		rw_wlock(&log_if_lock)
+#define	LOGIF_WUNLOCK(x)	rw_wunlock(&log_if_lock)
+
+#define	IPFWNAME	"ipfw"
 
 /* we use this dummy function for all ifnet callbacks */
 static int
@@ -103,7 +115,7 @@ ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
 {
 	if (m != NULL)
-		m_freem(m);
+		FREE_PKT(m);
 	return EINVAL;
 }
 
@@ -116,37 +128,105 @@ ipfw_log_start(struct ifnet* ifp)
 static const u_char ipfwbroadcastaddr[6] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
+static int
+ipfw_log_clone_match(struct if_clone *ifc, const char *name)
+{
+
+	return (strncmp(name, IPFWNAME, sizeof(IPFWNAME) - 1) == 0);
+}
+
+static int
+ipfw_log_clone_create(struct if_clone *ifc, char *name, size_t len,
+    caddr_t params)
+{
+	int error;
+	int unit;
+	struct ifnet *ifp;
+
+	error = ifc_name2unit(name, &unit);
+	if (error)
+		return (error);
+
+	error = ifc_alloc_unit(ifc, &unit);
+	if (error)
+		return (error);
+
+	ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		ifc_free_unit(ifc, unit);
+		return (ENOSPC);
+	}
+	ifp->if_dname = IPFWNAME;
+	ifp->if_dunit = unit;
+	snprintf(ifp->if_xname, IFNAMSIZ, "%s%d", IPFWNAME, unit);
+	strlcpy(name, ifp->if_xname, len);
+	ifp->if_mtu = 65536;
+	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_init = (void *)log_dummy;
+	ifp->if_ioctl = log_dummy;
+	ifp->if_start = ipfw_log_start;
+	ifp->if_output = ipfw_log_output;
+	ifp->if_addrlen = 6;
+	ifp->if_hdrlen = 14;
+	ifp->if_broadcastaddr = ipfwbroadcastaddr;
+	ifp->if_baudrate = IF_Mbps(10);
+
+	LOGIF_WLOCK();
+	if (log_if == NULL)
+		log_if = ifp;
+	else {
+		LOGIF_WUNLOCK();
+		if_free(ifp);
+		ifc_free_unit(ifc, unit);
+		return (EEXIST);
+	}
+	LOGIF_WUNLOCK();
+	if_attach(ifp);
+	bpfattach(ifp, DLT_EN10MB, 14);
+
+	return (0);
+}
+
+static int
+ipfw_log_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
+{
+	int unit;
+
+	if (ifp == NULL)
+		return (0);
+
+	LOGIF_WLOCK();
+	if (log_if != NULL && ifp == log_if)
+		log_if = NULL;
+	else {
+		LOGIF_WUNLOCK();
+		return (EINVAL);
+	}
+	LOGIF_WUNLOCK();
+
+	unit = ifp->if_dunit;
+	bpfdetach(ifp);
+	if_detach(ifp);
+	if_free(ifp);
+	ifc_free_unit(ifc, unit);
+
+	return (0);
+}
+
+static struct if_clone ipfw_log_cloner = IFC_CLONE_INITIALIZER(
+    IPFWNAME, NULL, IF_MAXUNIT,
+    NULL, ipfw_log_clone_match, ipfw_log_clone_create, ipfw_log_clone_destroy);
+
 void
 ipfw_log_bpf(int onoff)
 {
-	struct ifnet *ifp;
 
 	if (onoff) {
-		if (log_if)
-			return;
-		ifp = if_alloc(IFT_ETHER);
-		if (ifp == NULL)
-			return;
-		if_initname(ifp, "ipfw", 0);
-		ifp->if_mtu = 65536;
-		ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
-		ifp->if_init = (void *)log_dummy;
-		ifp->if_ioctl = log_dummy;
-		ifp->if_start = ipfw_log_start;
-		ifp->if_output = ipfw_log_output;
-		ifp->if_addrlen = 6;
-		ifp->if_hdrlen = 14;
-		if_attach(ifp);
-		ifp->if_broadcastaddr = ipfwbroadcastaddr;
-		ifp->if_baudrate = IF_Mbps(10);
-		bpfattach(ifp, DLT_EN10MB, 14);
-		log_if = ifp;
+		LOGIF_LOCK_INIT();
+		if_clone_attach(&ipfw_log_cloner);
 	} else {
-		if (log_if) {
-			ether_ifdetach(log_if);
-			if_free(log_if);
-		}
-		log_if = NULL;
+		if_clone_detach(&ipfw_log_cloner);
+		LOGIF_LOCK_DESTROY();
 	}
 }
 #endif /* !WITHOUT_BPF */
@@ -166,9 +246,11 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 
 	if (V_fw_verbose == 0) {
 #ifndef WITHOUT_BPF
-
-		if (log_if == NULL || log_if->if_bpf == NULL)
+		LOGIF_RLOCK();
+		if (log_if == NULL || log_if->if_bpf == NULL) {
+			LOGIF_RUNLOCK();
 			return;
+		}
 
 		if (args->eh) /* layer2, use orig hdr */
 			BPF_MTAP2(log_if, args->eh, ETHER_HDR_LEN, m);
@@ -177,6 +259,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			 * more info in the header.
 			 */
 			BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
+		LOGIF_RUNLOCK();
 #endif /* !WITHOUT_BPF */
 		return;
 	}
@@ -367,8 +450,8 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			tcp = L3HDR(struct tcphdr, ip);
 			udp = L3HDR(struct udphdr, ip);
 
-			inet_ntoa_r(ip->ip_src, src);
-			inet_ntoa_r(ip->ip_dst, dst);
+			inet_ntop(AF_INET, &ip->ip_src, src, sizeof(src));
+			inet_ntop(AF_INET, &ip->ip_dst, dst, sizeof(dst));
 		}
 
 		switch (args->f_id.proto) {

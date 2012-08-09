@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd May 11, 2012
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -197,6 +197,8 @@ Callbacks invoked when an interface is cloned.
 Callbacks invoked when a new network interface appears.
 .It Vt ifnet_departure_event
 Callbacks invoked when a network interface is taken down.
+.It Vt bpf_track
+Callbacks invoked when a BPF listener attaches to/detaches from network interface.
 .It Vt power_profile_change
 Callbacks invoked when the power profile of the system changes.
 .It Vt process_exec

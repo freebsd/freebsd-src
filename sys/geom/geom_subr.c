@@ -68,9 +68,11 @@ static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 
 struct g_hh00 {
-	struct g_class	*mp;
-	int		error;
-	int		post;
+	struct g_class		*mp;
+	struct g_provider	*pp;
+	off_t			size;
+	int			error;
+	int			post;
 };
 
 /*
@@ -260,10 +262,11 @@ g_modevent(module_t mod, int type, void *data)
 static void
 g_retaste_event(void *arg, int flag)
 {
-	struct g_class *cp, *mp;
-	struct g_geom *gp, *gp2;
+	struct g_class *mp, *mp2;
+	struct g_geom *gp;
 	struct g_hh00 *hh;
 	struct g_provider *pp;
+	struct g_consumer *cp;
 
 	g_topology_assert();
 	if (flag == EV_CANCEL)  /* XXX: can't happen ? */
@@ -280,17 +283,20 @@ g_retaste_event(void *arg, int flag)
 	}
 	g_trace(G_T_TOPOLOGY, "g_retaste(%s)", mp->name);
 
-	LIST_FOREACH(cp, &g_classes, class) {
-		LIST_FOREACH(gp, &cp->geom, geom) {
+	LIST_FOREACH(mp2, &g_classes, class) {
+		LIST_FOREACH(gp, &mp2->geom, geom) {
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				if (pp->acr || pp->acw || pp->ace)
 					continue;
-				LIST_FOREACH(gp2, &mp->geom, geom) {
-					if (!strcmp(pp->name, gp2->name))
+				LIST_FOREACH(cp, &pp->consumers, consumers) {
+					if (cp->geom->class == mp &&
+					    (cp->flags & G_CF_ORPHAN) == 0)
 						break;
 				}
-				if (gp2 != NULL)
-					g_wither_geom(gp2, ENXIO);
+				if (cp != NULL) {
+					cp->flags |= G_CF_ORPHAN;
+					g_wither_geom(cp->geom, ENXIO);
+				}
 				mp->taste(mp, pp, 0);
 				g_topology_assert();
 			}
@@ -351,10 +357,12 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->start = mp->start;
 	gp->spoiled = mp->spoiled;
 	gp->attrchanged = mp->attrchanged;
+	gp->providergone = mp->providergone;
 	gp->dumpconf = mp->dumpconf;
 	gp->access = mp->access;
 	gp->orphan = mp->orphan;
 	gp->ioctl = mp->ioctl;
+	gp->resize = mp->resize;
 	return (gp);
 }
 
@@ -530,7 +538,7 @@ g_new_provider_event(void *arg, int flag)
 {
 	struct g_class *mp;
 	struct g_provider *pp;
-	struct g_consumer *cp;
+	struct g_consumer *cp, *next_cp;
 
 	g_topology_assert();
 	if (flag == EV_CANCEL)
@@ -541,11 +549,17 @@ g_new_provider_event(void *arg, int flag)
 	G_VALID_PROVIDER(pp);
 	KASSERT(!(pp->flags & G_PF_WITHER),
 	    ("g_new_provider_event but withered"));
+	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, next_cp) {
+		if ((cp->flags & G_CF_ORPHAN) == 0 &&
+		    cp->geom->attrchanged != NULL)
+			cp->geom->attrchanged(cp, "GEOM::media");
+	}
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
 		LIST_FOREACH(cp, &pp->consumers, consumers)
-			if (cp->geom->class == mp)
+			if (cp->geom->class == mp &&
+			    (cp->flags & G_CF_ORPHAN) == 0)
 				break;
 		if (cp != NULL)
 			continue;
@@ -600,6 +614,78 @@ g_error_provider(struct g_provider *pp, int error)
 	pp->error = error;
 }
 
+static void
+g_resize_provider_event(void *arg, int flag)
+{
+	struct g_hh00 *hh;
+	struct g_class *mp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_consumer *cp, *cp2;
+	off_t size;
+
+	g_topology_assert();
+	if (g_shutdown)
+		return;
+
+	hh = arg;
+	pp = hh->pp;
+	size = hh->size;
+	g_free(hh);
+
+	G_VALID_PROVIDER(pp);
+	g_trace(G_T_TOPOLOGY, "g_resize_provider_event(%p)", pp);
+
+	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
+		gp = cp->geom;
+		if (gp->resize == NULL && size < pp->mediasize) {
+			cp->flags |= G_CF_ORPHAN;
+			cp->geom->orphan(cp);
+		}
+	}
+
+	pp->mediasize = size;
+	
+	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
+		gp = cp->geom;
+		if (gp->resize != NULL)
+			gp->resize(cp);
+	}
+
+	/*
+	 * After resizing, the previously invalid GEOM class metadata
+	 * might become valid.  This means we should retaste.
+	 */
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (mp->taste == NULL)
+			continue;
+		LIST_FOREACH(cp, &pp->consumers, consumers)
+			if (cp->geom->class == mp &&
+			    (cp->flags & G_CF_ORPHAN) == 0)
+				break;
+		if (cp != NULL)
+			continue;
+		mp->taste(mp, pp, 0);
+		g_topology_assert();
+	}
+}
+
+void
+g_resize_provider(struct g_provider *pp, off_t size)
+{
+	struct g_hh00 *hh;
+
+	G_VALID_PROVIDER(pp);
+
+	if (size == pp->mediasize)
+		return;
+
+	hh = g_malloc(sizeof *hh, M_WAITOK | M_ZERO);
+	hh->pp = pp;
+	hh->size = size;
+	g_post_event(g_resize_provider_event, hh, M_WAITOK, NULL);
+}
+
 struct g_provider *
 g_provider_by_name(char const *arg)
 {
@@ -634,6 +720,13 @@ g_destroy_provider(struct g_provider *pp)
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
 	devstat_remove_entry(pp->stat);
+	/*
+	 * If a callback was provided, send notification that the provider
+	 * is now gone.
+	 */
+	if (gp->providergone != NULL)
+		gp->providergone(pp);
+
 	g_free(pp);
 	if ((gp->flags & G_GEOM_WITHER))
 		g_do_wither();
@@ -787,7 +880,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	 * are probably just ahead of the event telling us that.  Fail
 	 * now rather than having to unravel this later.
 	 */
-	if (cp->geom->spoiled != NULL && cp->spoiled &&
+	if (cp->geom->spoiled != NULL && (cp->flags & G_CF_SPOILED) &&
 	    (dcr > 0 || dcw > 0 || dce > 0))
 		return (ENXIO);
 
@@ -937,6 +1030,7 @@ g_std_spoiled(struct g_consumer *cp)
 	g_topology_assert();
 	G_VALID_CONSUMER(cp);
 	g_trace(G_T_TOPOLOGY, "g_std_spoiled(%p)", cp);
+	cp->flags |= G_CF_ORPHAN;
 	g_detach(cp);
 	gp = cp->geom;
 	LIST_FOREACH(pp, &gp->provider, provider)
@@ -972,9 +1066,9 @@ g_spoil_event(void *arg, int flag)
 	G_VALID_PROVIDER(pp);
 	for (cp = LIST_FIRST(&pp->consumers); cp != NULL; cp = cp2) {
 		cp2 = LIST_NEXT(cp, consumers);
-		if (!cp->spoiled)
+		if ((cp->flags & G_CF_SPOILED) == 0)
 			continue;
-		cp->spoiled = 0;
+		cp->flags &= ~G_CF_SPOILED;
 		if (cp->geom->spoiled == NULL)
 			continue;
 		cp->geom->spoiled(cp);
@@ -999,9 +1093,52 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 		KASSERT(cp2->acw == 0, ("spoiling cp->acw = %d", cp2->acw));
 */
 		KASSERT(cp2->ace == 0, ("spoiling cp->ace = %d", cp2->ace));
-		cp2->spoiled++;
+		cp2->flags |= G_CF_SPOILED;
 	}
 	g_post_event(g_spoil_event, pp, M_WAITOK, pp, NULL);
+}
+
+static void
+g_media_changed_event(void *arg, int flag)
+{
+	struct g_provider *pp;
+	int retaste;
+
+	g_topology_assert();
+	if (flag == EV_CANCEL)
+		return;
+	pp = arg;
+	G_VALID_PROVIDER(pp);
+
+	/*
+	 * If provider was not open for writing, queue retaste after spoiling.
+	 * If it was, retaste will happen automatically on close.
+	 */
+	retaste = (pp->acw == 0 && pp->error == 0 &&
+	    !(pp->geom->flags & G_GEOM_WITHER));
+	g_spoil_event(arg, flag);
+	if (retaste)
+		g_post_event(g_new_provider_event, pp, M_WAITOK, pp, NULL);
+}
+
+int
+g_media_changed(struct g_provider *pp, int flag)
+{
+	struct g_consumer *cp;
+
+	LIST_FOREACH(cp, &pp->consumers, consumers)
+		cp->flags |= G_CF_SPOILED;
+	return (g_post_event(g_media_changed_event, pp, flag, pp, NULL));
+}
+
+int
+g_media_gone(struct g_provider *pp, int flag)
+{
+	struct g_consumer *cp;
+
+	LIST_FOREACH(cp, &pp->consumers, consumers)
+		cp->flags |= G_CF_SPOILED;
+	return (g_post_event(g_spoil_event, pp, flag, pp, NULL));
 }
 
 int
@@ -1159,15 +1296,15 @@ db_show_geom_consumer(int indent, struct g_consumer *cp)
 			    cp->provider);
 		}
 		gprintln("  access:   r%dw%de%d", cp->acr, cp->acw, cp->ace);
-		gprintln("  spoiled:  %d", cp->spoiled);
+		gprintln("  flags:    0x%04x", cp->flags);
 		gprintln("  nstart:   %u", cp->nstart);
 		gprintln("  nend:     %u", cp->nend);
 	} else {
 		gprintf("consumer: %p (%s), access=r%dw%de%d", cp,
 		    cp->provider != NULL ? cp->provider->name : "none",
 		    cp->acr, cp->acw, cp->ace);
-		if (cp->spoiled)
-			db_printf(", spoiled=%d", cp->spoiled);
+		if (cp->flags)
+			db_printf(", flags=0x%04x", cp->flags);
 		db_printf("\n");
 	}
 }

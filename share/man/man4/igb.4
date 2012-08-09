@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2011
+.Dd May 12, 2012
 .Dt IGB 4
 .Os
 .Sh NAME
@@ -160,6 +160,14 @@ The minimum is 80, and the maximum is 4096.
 .It Va hw.igb.enable_aim
 If set to 1, enable Adaptive Interrupt Moderation.
 The default is to enable Adaptive Interrupt Moderation.
+.It Va kern.ipc.nmbclusters
+The maximum number of mbuf clusters allowed.
+If the system has more than one igb card or jumbo frames are
+enabled, this value will need to be increased.
+.It Va kern.ipc.nmbjumbo9k
+The maximum number of mbuf 9k jumbo clusters allowed.
+Increasing this to allow for at least 8192 extra clusters
+per interface can allow for an mtu of 8192.
 .El
 .Sh FILES
 .Bl -tag -width /dev/led/igb*

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "jailp.h"
 #include "y.tab.h"
 
+#define YY_NO_INPUT
 #define YY_NO_UNPUT
 
 extern int yynerrs;

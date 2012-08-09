@@ -228,7 +228,7 @@ LDADD		Additional loader objects.  Usually used for libraries.
 		For example, to load with the compatibility and utility
 		libraries, use:
 
-			LDFILES=-lutil -lcompat
+			LDADD=-lutil -lcompat
 
 LDFLAGS		Additional loader flags.
 
@@ -261,7 +261,7 @@ DPADD		Additional dependencies for the program.  Usually used for
 		libraries.  For example, to depend on the compatibility and
 		utility libraries use:
 
-			SRCLIB=${LIBCOMPAT} ${LIBUTIL}
+			DPADD=${LIBCOMPAT} ${LIBUTIL}
 
 		There is a predefined identifier for each (non-profiled,
 		non-shared) library and object.  Library file names are
@@ -351,6 +351,10 @@ SRCS		List of source files to build the library.  Suffix types
 		.s, .c, and .f are supported.  Note, .s files are preferred
 		to .c files of the same name.  (This is not the default for
 		versions of make.)
+
+SHLIB_LDSCRIPT	Template file to generate shared library linker script.
+		Unless used, a simple symlink is created to the real
+		shared object.
 
 The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.

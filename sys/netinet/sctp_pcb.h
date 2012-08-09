@@ -1,7 +1,8 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -29,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_pcb.h,v 1.21 2005/07/16 01:18:47 suz Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_pcb_h__
-#define __sctp_pcb_h__
+#ifndef _NETINET_SCTP_PCB_H_
+#define _NETINET_SCTP_PCB_H_
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp.h>
@@ -529,6 +528,7 @@ sctp_inpcb_bind(struct socket *, struct sockaddr *,
 
 struct sctp_tcb *
 sctp_findassociation_addr(struct mbuf *, int,
+    struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_chunkhdr *, struct sctp_inpcb **,
     struct sctp_nets **, uint32_t vrf_id);
 
@@ -559,7 +559,7 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *,
     sctp_assoc_t, int);
 
 struct sctp_tcb *
-sctp_findassociation_ep_asconf(struct mbuf *, int,
+sctp_findassociation_ep_asconf(struct mbuf *, int, struct sockaddr *,
     struct sctphdr *, struct sctp_inpcb **, struct sctp_nets **, uint32_t vrf_id);
 
 int sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id);
@@ -604,8 +604,8 @@ void sctp_add_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 void sctp_del_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 
 int
-sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int,
-    int, struct sctphdr *, struct sockaddr *);
+sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int, int,
+    struct sockaddr *, struct sockaddr *, struct sockaddr *);
 
 int
 sctp_set_primary_addr(struct sctp_tcb *, struct sockaddr *,

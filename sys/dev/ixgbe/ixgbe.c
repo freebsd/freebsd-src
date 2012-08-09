@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.4.5";
+char ixgbe_driver_version[] = "2.4.8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -80,8 +80,10 @@ static ixgbe_vendor_info_t ixgbe_vendor_info_array[] =
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_T3_LOM, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_COMBO_BACKPLANE, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BACKPLANE_FCOE, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF2, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_FCOE, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599EN_SFP, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T1, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
@@ -162,7 +164,7 @@ static void     ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
 static void	ixgbe_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 static bool	ixgbe_tx_ctx_setup(struct tx_ring *, struct mbuf *);
-static bool	ixgbe_tso_setup(struct tx_ring *, struct mbuf *, u32 *);
+static bool	ixgbe_tso_setup(struct tx_ring *, struct mbuf *, u32 *, u32 *);
 static void	ixgbe_set_ivar(struct adapter *, u8, u8, s8);
 static void	ixgbe_configure_ivars(struct adapter *);
 static u8 *	ixgbe_mc_array_itr(struct ixgbe_hw *, u8 **, u32 *);
@@ -242,10 +244,6 @@ TUNABLE_INT("hw.ixgbe.max_interrupt_rate", &ixgbe_max_interrupt_rate);
 static int ixgbe_rx_process_limit = 128;
 TUNABLE_INT("hw.ixgbe.rx_process_limit", &ixgbe_rx_process_limit);
 
-/* Flow control setting, default to full */
-static int ixgbe_flow_control = ixgbe_fc_full;
-TUNABLE_INT("hw.ixgbe.flow_control", &ixgbe_flow_control);
-
 /*
 ** Smart speed setting, default to on
 ** this only works as a compile option
@@ -322,7 +320,7 @@ static int fdir_pballoc = 1;
  * be a reference on how to implement netmap support in a driver.
  * Additional comments are in ixgbe_netmap.h .
  *
- * <dev/netma/ixgbe_netmap.h> contains functions for netmap support
+ * <dev/netmap/ixgbe_netmap.h> contains functions for netmap support
  * that extend the standard driver.
  */
 #include <dev/netmap/ixgbe_netmap.h>
@@ -526,28 +524,25 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 	}
 
-	/* Get Hardware Flow Control setting */
-	hw->fc.requested_mode = ixgbe_fc_full;
-	adapter->fc = hw->fc.requested_mode;
-	hw->fc.pause_time = IXGBE_FC_PAUSE;
-	hw->fc.low_water = IXGBE_FC_LO;
-	hw->fc.high_water[0] = IXGBE_FC_HI;
-	hw->fc.send_xon = TRUE;
-
 	error = ixgbe_init_hw(hw);
-	if (error == IXGBE_ERR_EEPROM_VERSION) {
+	switch (error) {
+	case IXGBE_ERR_EEPROM_VERSION:
 		device_printf(dev, "This device is a pre-production adapter/"
 		    "LOM.  Please be aware there may be issues associated "
 		    "with your hardware.\n If you are experiencing problems "
 		    "please contact your Intel or hardware representative "
 		    "who provided you with this hardware.\n");
-	} else if (error == IXGBE_ERR_SFP_NOT_SUPPORTED)
+		break;
+	case IXGBE_ERR_SFP_NOT_SUPPORTED:
 		device_printf(dev,"Unsupported SFP+ Module\n");
-
-	if (error) {
 		error = EIO;
 		device_printf(dev,"Hardware Initialization Failure\n");
 		goto err_late;
+	case IXGBE_ERR_SFP_NOT_PRESENT:
+		device_printf(dev,"No SFP+ Module found\n");
+		/* falls thru */
+	default:
+		break;
 	}
 
 	/* Detect and set physical type */
@@ -997,6 +992,8 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 		if (mask & IFCAP_TSO4)
 			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_TSO6)
+			ifp->if_capenable ^= IFCAP_TSO6;
 		if (mask & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
 		if (mask & IFCAP_VLAN_HWTAGGING)
@@ -1061,7 +1058,7 @@ ixgbe_init_locked(struct adapter *adapter)
 
 	/* Set the various hardware offload abilities */
 	ifp->if_hwassist = 0;
-	if (ifp->if_capenable & IFCAP_TSO4)
+	if (ifp->if_capenable & IFCAP_TSO)
 		ifp->if_hwassist |= CSUM_TSO;
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
@@ -1150,7 +1147,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		 * from the Intel linux driver 3.8.21.
 		 * Prefetching enables tx line rate even with 1 queue.
 		 */
-		txdctl |= (16 << 0) | (1 << 8);
+		txdctl |= (32 << 0) | (1 << 8);
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(i), txdctl);
 	}
 
@@ -1234,7 +1231,7 @@ ixgbe_init_locked(struct adapter *adapter)
 #ifdef IXGBE_FDIR
 	/* Init Flow director */
 	if (hw->mac.type != ixgbe_mac_82598EB) {
-		u32 hdrm = 64 << fdir_pballoc;
+		u32 hdrm = 32 << fdir_pballoc;
 
 		hw->mac.ops.setup_rxpba(hw, 0, hdrm, PBA_STRATEGY_EQUAL);
 		ixgbe_init_fdir_signature_82599(&adapter->hw, fdir_pballoc);
@@ -1259,6 +1256,35 @@ ixgbe_init_locked(struct adapter *adapter)
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
+
+	/* Hardware Packet Buffer & Flow Control setup */
+	{
+		u32 rxpb, frame, size, tmp;
+
+		frame = adapter->max_frame_size;
+
+		/* Calculate High Water */
+		if (hw->mac.type == ixgbe_mac_X540)
+			tmp = IXGBE_DV_X540(frame, frame);
+		else
+			tmp = IXGBE_DV(frame, frame);
+		size = IXGBE_BT2KB(tmp);
+		rxpb = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(0)) >> 10;
+		hw->fc.high_water[0] = rxpb - size;
+
+		/* Now calculate Low Water */
+		if (hw->mac.type == ixgbe_mac_X540)
+			tmp = IXGBE_LOW_DV_X540(frame);
+		else
+			tmp = IXGBE_LOW_DV(frame);
+		hw->fc.low_water[0] = IXGBE_BT2KB(tmp);
+		
+		adapter->fc = hw->fc.requested_mode = ixgbe_fc_full;
+		hw->fc.pause_time = IXGBE_FC_PAUSE;
+		hw->fc.send_xon = TRUE;
+	}
+	/* Initialize the FC settings */
+	ixgbe_start_hw(hw);
 
 	/* And now turn on interrupts */
 	ixgbe_enable_intr(adapter);
@@ -1366,7 +1392,7 @@ ixgbe_handle_que(void *context, int pending)
 			ixgbe_start_locked(txr, ifp);
 #endif
 		IXGBE_TX_UNLOCK(txr);
-		if (more || (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
+		if (more) {
 			taskqueue_enqueue(que->tq, &que->que_task);
 			return;
 		}
@@ -1549,10 +1575,8 @@ ixgbe_msix_link(void *arg)
 			/* This is probably overkill :) */
 			if (!atomic_cmpset_int(&adapter->fdir_reinit, 0, 1))
 				return;
-                	/* Clear the interrupt */
-			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_FLOW_DIR);
-			/* Turn off the interface */
-			adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+                	/* Disable the interrupt */
+			IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EICR_FLOW_DIR);
 			taskqueue_enqueue(adapter->tq, &adapter->fdir_task);
 		} else
 #endif
@@ -1767,9 +1791,8 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	** a packet.
 	*/
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-		if (ixgbe_tso_setup(txr, m_head, &paylen)) {
+		if (ixgbe_tso_setup(txr, m_head, &paylen, &olinfo_status)) {
 			cmd_type_len |= IXGBE_ADVTXD_DCMD_TSE;
-			olinfo_status |= IXGBE_TXD_POPTS_IXSM << 8;
 			olinfo_status |= IXGBE_TXD_POPTS_TXSM << 8;
 			olinfo_status |= paylen << IXGBE_ADVTXD_PAYLEN_SHIFT;
 			++adapter->tso_tx;
@@ -2055,6 +2078,8 @@ ixgbe_update_link_status(struct adapter *adapter)
 				    ((adapter->link_speed == 128)? 10:1),
 				    "Full Duplex");
 			adapter->link_active = TRUE;
+			/* Update any Flow Control changes */
+			ixgbe_fc_enable(&adapter->hw);
 			if_link_state_change(ifp, LINK_STATE_UP);
 		}
 	} else { /* Link down */
@@ -2562,7 +2587,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
-	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM;
+	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
 			     |  IFCAP_VLAN_HWTSO
@@ -3062,7 +3087,7 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 			txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
 			break;
                 }
-		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		txctrl &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		switch (hw->mac.type) {
 		case ixgbe_mac_82598EB:
 			IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), txctrl);
@@ -3234,6 +3259,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 			ip_hlen = sizeof(struct ip6_hdr);
+			/* XXX-BZ this will go badly in case of ext hdrs. */
 			ipproto = ip6->ip6_nxt;
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
 			break;
@@ -3292,17 +3318,23 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
  *
  **********************************************************************/
 static bool
-ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
+ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen,
+    u32 *olinfo_status)
 {
 	struct adapter *adapter = txr->adapter;
 	struct ixgbe_adv_tx_context_desc *TXD;
 	struct ixgbe_tx_buf        *tx_buffer;
 	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
-	u32 mss_l4len_idx = 0;
-	u16 vtag = 0;
-	int ctxd, ehdrlen,  hdrlen, ip_hlen, tcp_hlen;
+	u32 mss_l4len_idx = 0, len;
+	u16 vtag = 0, eh_type;
+	int ctxd, ehdrlen, ip_hlen, tcp_hlen;
 	struct ether_vlan_header *eh;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+#endif
+#ifdef INET
 	struct ip *ip;
+#endif
 	struct tcphdr *th;
 
 
@@ -3311,32 +3343,62 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 	 * Jump over vlan headers if already present
 	 */
 	eh = mtod(mp, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) 
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
 		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	else
+		eh_type = eh->evl_proto;
+	} else {
 		ehdrlen = ETHER_HDR_LEN;
+		eh_type = eh->evl_encap_proto;
+	}
 
         /* Ensure we have at least the IP+TCP header in the first mbuf. */
-        if (mp->m_len < ehdrlen + sizeof(struct ip) + sizeof(struct tcphdr))
-		return FALSE;
+	len = ehdrlen + sizeof(struct tcphdr);
+	switch (ntohs(eh_type)) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		if (mp->m_len < len + sizeof(struct ip6_hdr))
+			return FALSE;
+		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
+		/* XXX-BZ For now we do not pretend to support ext. hdrs. */
+		if (ip6->ip6_nxt != IPPROTO_TCP)
+			return FALSE;
+		ip_hlen = sizeof(struct ip6_hdr);
+		th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
+		th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
+		break;
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		if (mp->m_len < len + sizeof(struct ip))
+			return FALSE;
+		ip = (struct ip *)(mp->m_data + ehdrlen);
+		if (ip->ip_p != IPPROTO_TCP)
+			return FALSE;
+		ip->ip_sum = 0;
+		ip_hlen = ip->ip_hl << 2;
+		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
+		th->th_sum = in_pseudo(ip->ip_src.s_addr,
+		    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
+		/* Tell transmit desc to also do IPv4 checksum. */
+		*olinfo_status |= IXGBE_TXD_POPTS_IXSM << 8;
+		break;
+#endif
+	default:
+		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
+		    __func__, ntohs(eh_type));
+		break;
+	}
 
 	ctxd = txr->next_avail_desc;
 	tx_buffer = &txr->tx_buffers[ctxd];
 	TXD = (struct ixgbe_adv_tx_context_desc *) &txr->tx_base[ctxd];
 
-	ip = (struct ip *)(mp->m_data + ehdrlen);
-	if (ip->ip_p != IPPROTO_TCP)
-		return FALSE;   /* 0 */
-	ip->ip_sum = 0;
-	ip_hlen = ip->ip_hl << 2;
-	th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-	th->th_sum = in_pseudo(ip->ip_src.s_addr,
-	    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 	tcp_hlen = th->th_off << 2;
-	hdrlen = ehdrlen + ip_hlen + tcp_hlen;
 
 	/* This is used in the transmit desc in encap */
-	*paylen = mp->m_pkthdr.len - hdrlen;
+	*paylen = mp->m_pkthdr.len - ehdrlen - ip_hlen - tcp_hlen;
 
 	/* VLAN MACLEN IPLEN */
 	if (mp->m_flags & M_VLANTAG) {
@@ -3351,9 +3413,7 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 	/* ADV DTYPE TUCMD */
 	type_tucmd_mlhl |= IXGBE_ADVTXD_DCMD_DEXT | IXGBE_ADVTXD_DTYP_CTXT;
 	type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
-	type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
 	TXD->type_tucmd_mlhl |= htole32(type_tucmd_mlhl);
-
 
 	/* MSS L4LEN IDX */
 	mss_l4len_idx |= (mp->m_pkthdr.tso_segsz << IXGBE_ADVTXD_MSS_SHIFT);
@@ -4295,15 +4355,17 @@ ixgbe_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u32 ptype
 {
                  
         /*
-         * ATM LRO is only for IPv4/TCP packets and TCP checksum of the packet
+         * ATM LRO is only for IP/TCP packets and TCP checksum of the packet
          * should be computed by hardware. Also it should not have VLAN tag in
-         * ethernet header.
+         * ethernet header.  In case of IPv6 we do not yet support ext. hdrs.
          */
         if (rxr->lro_enabled &&
             (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
             (ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
-            (ptype & (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
-            (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP) &&
+            ((ptype & (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
+            (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP) ||
+            (ptype & (IXGBE_RXDADV_PKTTYPE_IPV6 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
+            (IXGBE_RXDADV_PKTTYPE_IPV6 | IXGBE_RXDADV_PKTTYPE_TCP)) &&
             (m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) ==
             (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) {
                 /*
@@ -5057,6 +5119,8 @@ ixgbe_reinit_fdir(void *context, int pending)
 		return;
 	ixgbe_reinit_fdir_tables_82599(&adapter->hw);
 	adapter->fdir_reinit = 0;
+	/* re-enable flow director interrupts */
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
 	/* Restart the interface */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	return;
@@ -5614,8 +5678,9 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 		default:
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
 	}
-
-	ixgbe_fc_enable(&adapter->hw, 0);
+	/* Don't autoneg if forcing a value */
+	adapter->hw.fc.disable_fc_autoneg = TRUE;
+	ixgbe_fc_enable(&adapter->hw);
 	return error;
 }
 
@@ -5631,9 +5696,9 @@ ixgbe_add_rx_process_limit(struct adapter *adapter, const char *name,
 
 /*
 ** Control link advertise speed:
-** 	0 - normal
 **	1 - advertise only 1G
 **	2 - advertise 100Mb
+**	3 - advertise normal
 */
 static int
 ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
@@ -5647,12 +5712,14 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 	adapter = (struct adapter *) arg1;
 	dev = adapter->dev;
 	hw = &adapter->hw;
-	last = hw->phy.autoneg_advertised;
+	last = adapter->advertise;
 
 	error = sysctl_handle_int(oidp, &adapter->advertise, 0, req);
-
 	if ((error) || (adapter->advertise == -1))
 		return (error);
+
+	if (adapter->advertise == last) /* no change */
+		return (0);
 
 	if (!((hw->phy.media_type == ixgbe_media_type_copper) ||
             (hw->phy.multispeed_fiber)))
@@ -5667,11 +5734,10 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
                 speed = IXGBE_LINK_SPEED_1GB_FULL;
 	else if (adapter->advertise == 2)
                 speed = IXGBE_LINK_SPEED_100_FULL;
-	else
+	else if (adapter->advertise == 3)
                 speed = IXGBE_LINK_SPEED_1GB_FULL |
 			IXGBE_LINK_SPEED_10GB_FULL;
-
-	if (speed == last) /* no change */
+	else /* bogus value */
 		return (error);
 
 	hw->mac.autotry_restart = TRUE;

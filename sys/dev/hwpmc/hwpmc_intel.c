@@ -143,7 +143,6 @@ pmc_intel_initialize(void)
 			nclasses = 5;
 			break;
 		case 0x2A:	/* Per Intel document 253669-039US 05/2011. */
-		case 0x2D:	/* Per Intel document 253669-041US 12/2011. */	
 			cputype = PMC_CPU_INTEL_SANDYBRIDGE;
 			nclasses = 5;
 			break;
@@ -196,10 +195,6 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_PIV:
 		error = pmc_p4_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P4_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -214,10 +209,6 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PIII:
 	case PMC_CPU_INTEL_PM:
 		error = pmc_p6_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P6_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 
 		/*
@@ -226,10 +217,6 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_P5:
 		error = pmc_p5_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 

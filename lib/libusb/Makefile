@@ -18,6 +18,9 @@ NOGCCERROR=
 
 WARNS?=		2
 
+DPADD=		${LIBPTHREAD}
+LDADD=		-lpthread
+
 MLINKS+=	libusb.3 usb.3
 
 # libusb 0.1 compat
@@ -74,6 +77,7 @@ MLINKS += libusb.3 libusb_get_active_config_descriptor.3
 MLINKS += libusb.3 libusb_get_config_descriptor.3
 MLINKS += libusb.3 libusb_get_config_descriptor_by_value.3
 MLINKS += libusb.3 libusb_free_config_descriptor.3
+MLINKS += libusb.3 libusb_get_string_descriptor.3
 MLINKS += libusb.3 libusb_get_string_descriptor_ascii.3
 MLINKS += libusb.3 libusb_parse_ss_endpoint_comp.3
 MLINKS += libusb.3 libusb_free_ss_endpoint_comp.3

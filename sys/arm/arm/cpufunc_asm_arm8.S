@@ -35,7 +35,7 @@
  * ARM8 assembly functions for CPU / MMU / TLB specific operations
  *
  */
- 
+
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 

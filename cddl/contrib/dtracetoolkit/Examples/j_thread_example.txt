@@ -1,0 +1,20 @@
+Following we see examples of the results of running j_thread.d.  
+
+Here it is running while Code/Java/Func_abc is executing.
+
+# j_thread.d
+TIME                     PID/TID   -- THREAD
+2007 Sep 24 04:01:34  311512/5     => Finalizer
+2007 Sep 24 04:01:34  311512/4     => Reference Handler
+2007 Sep 24 04:01:34  311512/7     => CompilerThread0
+2007 Sep 24 04:01:34  311512/6     => Signal Dispatcher
+2007 Sep 24 04:01:34  311512/8     => CompilerThread1
+2007 Sep 24 04:01:34  311512/9     => Low Memory Detector
+^C
+
+The fields of the output are, in order, Event time, Process ID/Thread ID,
+entry (=>) or exit (<=) and Thread name.
+
+In this example we see six different threads starting, but we do not see 
+thread exit events as the JVM exited when the program stopped. 
+

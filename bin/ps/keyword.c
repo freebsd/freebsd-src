@@ -76,6 +76,7 @@ static VAR var[] = {
 	{"comm", "COMMAND", NULL, LJUST, ucomm, 0, CHAR, NULL, 0},
 	{"command", "COMMAND", NULL, COMM|LJUST|USER, command, 0,
 		CHAR, NULL, 0},
+	{"cow", "COW", NULL, 0, kvar, KOFF(ki_cow), UINT, "u", 0},
 	{"cpu", "CPU", NULL, 0, kvar, KOFF(ki_estcpu), UINT, "d", 0},
 	{"cputime", "", "time", 0, NULL, 0, CHAR, NULL, 0},
 	{"egid", "", "gid", 0, NULL, 0, CHAR, NULL, 0},

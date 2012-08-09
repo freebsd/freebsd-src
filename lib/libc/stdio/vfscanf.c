@@ -125,7 +125,7 @@ static const mbstate_t initial_mbs;
  */
 
 static __inline int
-convert_char(FILE *fp, char * __restrict p, int width)
+convert_char(FILE *fp, char * p, int width)
 {
 	int n;
 
@@ -151,7 +151,7 @@ convert_char(FILE *fp, char * __restrict p, int width)
 		return (sum);
 	} else {
 		size_t r = __fread(p, 1, width, fp);
-		
+
 		if (r == 0)
 			return (-1);
 		return (r);
@@ -179,7 +179,7 @@ convert_wchar(FILE *fp, wchar_t *wcp, int width, locale_t locale)
 }
 
 static __inline int
-convert_ccl(FILE *fp, char * __restrict p, int width, const char *ccltab)
+convert_ccl(FILE *fp, char * p, int width, const char *ccltab)
 {
 	char *p0;
 	int n;
@@ -249,7 +249,7 @@ convert_wccl(FILE *fp, wchar_t *wcp, int width, const char *ccltab,
 }
 
 static __inline int
-convert_string(FILE *fp, char * __restrict p, int width)
+convert_string(FILE *fp, char * p, int width)
 {
 	char *p0;
 	int n;
@@ -387,7 +387,7 @@ parseint(FILE *fp, char * __restrict buf, int width, int base, int flags)
 				goto ok;
 			}
 			break;
-					
+
 		/*
 		 * x ok iff flag still set & 2nd char (or 3rd char if
 		 * we have a sign).

@@ -83,3 +83,10 @@ libkern/umoddi3.c		standard
 #XXX: We can't use these versions, as strcmp.c is included conf/files
 #libkern/arm/strcmp.S		standard
 #libkern/arm/strncmp.S		standard
+#
+kern/subr_dummy_vdso_tc.c	standard
+board_id.h			standard				   \
+	dependency	"$S/arm/conf/genboardid.awk $S/arm/conf/mach-types" \
+	compile-with	"${AWK} -f $S/arm/conf/genboardid.awk $S/arm/conf/mach-types > board_id.h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"board_id.h"

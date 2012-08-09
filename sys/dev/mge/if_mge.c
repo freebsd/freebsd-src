@@ -261,6 +261,8 @@ mge_ver_params(struct mge_softc *sc)
 
 	soc_id(&d, &r);
 	if (d == MV_DEV_88F6281 || d == MV_DEV_88F6781 ||
+	    d == MV_DEV_88F6282 ||
+	    d == MV_DEV_MV78100 ||
 	    d == MV_DEV_MV78100_Z0 ||
 	    (d & MV_DEV_FAMILY_MASK) == MV_DEV_DISCOVERY) {
 		sc->mge_ver = 2;

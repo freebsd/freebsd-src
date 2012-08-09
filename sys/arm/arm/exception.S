@@ -80,7 +80,10 @@ ASENTRY_NP(swi_entry)
 	PUSHFRAME
 
 	mov	r0, sp			/* Pass the frame to any function */
+	mov	r6, sp			/* Backup the stack pointer */
+	bic	sp, sp, #7		/* Align the stack pointer */
 	bl	_C_LABEL(swi_handler)	/* It's a SWI ! */
+	mov	sp, r6			/* Restore the stack */
 
 	DO_AST
 	PULLFRAME
@@ -189,7 +192,7 @@ Laddress_exception_msg:
  * This function uses PULLFRAMEFROMSVCANDEXIT and
  * DO_AST
  * only be called if the exception handler used PUSHFRAMEINSVC
- * 
+ *
  */
 
 exception_exit:

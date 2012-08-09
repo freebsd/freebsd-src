@@ -6,13 +6,13 @@ LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=	3.0.3
+BSDCPIO_VERSION_STRING=	3.0.4
 
 .PATH:	${LIBARCHIVEDIR}/cpio
 SRCS=	cpio.c cmdline.c
 
 .PATH:	${LIBARCHIVEDIR}/libarchive_fe
-SRCS+=	err.c line_reader.c matching.c pathmatch.c
+SRCS+=	err.c line_reader.c
 
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"${LIBARCHIVECONFDIR}/config_freebsd.h\"

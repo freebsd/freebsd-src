@@ -109,10 +109,10 @@ static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
     int tid);
 static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
     int tid);
+static ieee80211_seq ath_tx_tid_seqno_assign(struct ath_softc *sc,
+    struct ieee80211_node *ni, struct ath_buf *bf, struct mbuf *m0);
 static int ath_tx_action_frame_override_queue(struct ath_softc *sc,
     struct ieee80211_node *ni, struct mbuf *m0, int *tid);
-static int ath_tx_seqno_required(struct ath_softc *sc,
-    struct ieee80211_node *ni, struct ath_buf *bf, struct mbuf *m0);
 
 /*
  * Whether to use the 11n rate scenario functions or not
@@ -184,7 +184,7 @@ ath_txfrag_cleanup(struct ath_softc *sc,
 	TAILQ_FOREACH_SAFE(bf, frags, bf_list, next) {
 		/* NB: bf assumed clean */
 		TAILQ_REMOVE(frags, bf, bf_list);
-		TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+		ath_returnbuf_head(sc, bf);
 		ieee80211_node_decref(ni);
 	}
 }
@@ -203,7 +203,8 @@ ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
 
 	ATH_TXBUF_LOCK(sc);
 	for (m = m0->m_nextpkt; m != NULL; m = m->m_nextpkt) {
-		bf = _ath_getbuf_locked(sc);
+		/* XXX non-management? */
+		bf = _ath_getbuf_locked(sc, ATH_BUFTYPE_NORMAL);
 		if (bf == NULL) {	/* out of buffers, cleanup */
 			device_printf(sc->sc_dev, "%s: no buffer?\n",
 			    __func__);
@@ -301,19 +302,44 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	HAL_DMA_ADDR bufAddrList[4];
+	uint32_t segLenList[4];
+
+	/*
+	 * XXX There's txdma and txdma_mgmt; the descriptor
+	 * sizes must match.
+	 */
+	struct ath_descdma *dd = &sc->sc_txdma;
 
 	/*
 	 * Fillin the remainder of the descriptor info.
 	 */
 	ds0 = ds = bf->bf_desc;
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
+		bufAddrList[0] = bf->bf_segs[i].ds_addr;
+		segLenList[0] = bf->bf_segs[i].ds_len;
+
+		/* Blank this out until multi-buf support is added for AR9300 */
+		bufAddrList[1] = bufAddrList[2] = bufAddrList[3] = 0;
+		segLenList[1] = segLenList[2] = segLenList[3] = 0;
+
 		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
+			ath_hal_settxdesclink(ah, ds, 0);
 		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+			ath_hal_settxdesclink(ah, ds,
+			    bf->bf_daddr + dd->dd_descsize * (i + 1));
+
+		/*
+		 * XXX this assumes that bfs_txq is the actual destination
+		 * hardware queue at this point.  It may not have been assigned,
+		 * it may actually be pointing to the multicast software
+		 * TXQ id.  These must be fixed!
+		 */
 		ath_hal_filltxdesc(ah, ds
-			, bf->bf_segs[i].ds_len	/* segment length */
+			, bufAddrList
+			, segLenList
+			, 0			/* XXX desc id */
+			, bf->bf_state.bfs_txq->axq_qnum	/* XXX multicast? */
 			, i == 0		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
 			, ds0			/* first descriptor */
@@ -339,6 +365,14 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds, *ds0;
 	int i;
+	HAL_DMA_ADDR bufAddrList[4];
+	uint32_t segLenList[4];
+
+	/*
+	 * XXX There's txdma and txdma_mgmt; the descriptor
+	 * sizes must match.
+	 */
+	struct ath_descdma *dd = &sc->sc_txdma;
 
 	ds0 = ds = bf->bf_desc;
 
@@ -347,24 +381,30 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 	 * That's only going to occur for the first frame in an aggregate.
 	 */
 	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
+		bzero(bufAddrList, sizeof(bufAddrList));
+		bzero(segLenList, sizeof(segLenList));
 		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
+			ath_hal_settxdesclink(ah, ds, 0);
 		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+			ath_hal_settxdesclink(ah, ds,
+			    bf->bf_daddr + dd->dd_descsize * (i + 1));
+
+		bufAddrList[0] = bf->bf_segs[i].ds_addr;
+		segLenList[0] = bf->bf_segs[i].ds_len;
 
 		/*
 		 * This performs the setup for an aggregate frame.
 		 * This includes enabling the aggregate flags if needed.
 		 */
 		ath_hal_chaintxdesc(ah, ds,
+		    bufAddrList,
+		    segLenList,
 		    bf->bf_state.bfs_pktlen,
 		    bf->bf_state.bfs_hdrlen,
 		    HAL_PKT_TYPE_AMPDU,	/* forces aggregate bits to be set */
 		    bf->bf_state.bfs_keyix,
 		    0,			/* cipher, calculated from keyix */
 		    bf->bf_state.bfs_ndelim,
-		    bf->bf_segs[i].ds_len,	/* segment length */
 		    i == 0,		/* first segment */
 		    i == bf->bf_nseg - 1,	/* last segment */
 		    bf->bf_next == NULL		/* last sub-frame in aggr */
@@ -377,6 +417,50 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 		bf->bf_lastds = ds;
 		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
 		    BUS_DMASYNC_PREWRITE);
+	}
+}
+
+/*
+ * Set the rate control fields in the given descriptor based on
+ * the bf_state fields and node state.
+ *
+ * The bfs fields should already be set with the relevant rate
+ * control information, including whether MRR is to be enabled.
+ *
+ * Since the FreeBSD HAL currently sets up the first TX rate
+ * in ath_hal_setuptxdesc(), this will setup the MRR
+ * conditionally for the pre-11n chips, and call ath_buf_set_rate
+ * unconditionally for 11n chips. These require the 11n rate
+ * scenario to be set if MCS rates are enabled, so it's easier
+ * to just always call it. The caller can then only set rates 2, 3
+ * and 4 if multi-rate retry is needed.
+ */
+static void
+ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf)
+{
+	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
+
+	/* If mrr is disabled, blank tries 1, 2, 3 */
+	if (! bf->bf_state.bfs_ismrr)
+		rc[1].tries = rc[2].tries = rc[3].tries = 0;
+
+	/*
+	 * Always call - that way a retried descriptor will
+	 * have the MRR fields overwritten.
+	 *
+	 * XXX TODO: see if this is really needed - setting up
+	 * the first descriptor should set the MRR fields to 0
+	 * for us anyway.
+	 */
+	if (ath_tx_is_11n(sc)) {
+		ath_buf_set_rate(sc, ni, bf);
+	} else {
+		ath_hal_setupxtxdesc(sc->sc_ah, bf->bf_desc
+			, rc[1].ratecode, rc[1].tries
+			, rc[2].ratecode, rc[2].tries
+			, rc[3].ratecode, rc[3].tries
+		);
 	}
 }
 
@@ -413,7 +497,8 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 		 * to the beginning descriptor of this frame.
 		 */
 		if (bf_prev != NULL)
-			bf_prev->bf_lastds->ds_link = bf->bf_daddr;
+			ath_hal_settxdesclink(sc->sc_ah, bf_prev->bf_lastds,
+			    bf->bf_daddr);
 
 		/* Save a copy so we can link the next descriptor in */
 		bf_prev = bf;
@@ -438,13 +523,6 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	    bf_first->bf_state.bfs_ctsduration);
 
 	/*
-	 * Setup the last descriptor in the list.
-	 * bf_prev points to the last; bf is NULL here.
-	 */
-	ath_hal_setuplasttxdesc(sc->sc_ah, bf_prev->bf_desc,
-	    bf_first->bf_desc);
-
-	/*
 	 * Set the first descriptor bf_lastds field to point to
 	 * the last descriptor in the last subframe, that's where
 	 * the status update will occur.
@@ -457,9 +535,38 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	 */
 	bf_first->bf_last = bf_prev;
 
+	/*
+	 * setup first desc with rate and aggr info
+	 */
+	ath_tx_set_ratectrl(sc, bf_first->bf_node, bf_first);
+
+	/*
+	 * Setup the last descriptor in the list.
+	 *
+	 * bf_first->bf_lastds already points to it; the rate
+	 * control information needs to be squirreled away here
+	 * as well ans clearing the moreaggr/paddelim fields.
+	 */
+	ath_hal_setuplasttxdesc(sc->sc_ah, bf_first->bf_lastds,
+	    bf_first->bf_desc);
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
 
+/*
+ * Hand-off a frame to the multicast TX queue.
+ *
+ * This is a software TXQ which will be appended to the CAB queue
+ * during the beacon setup code.
+ *
+ * XXX TODO: since the AR9300 EDMA TX queue support wants the QCU ID
+ * as part of the TX descriptor, bf_state.bfs_txq must be updated
+ * with the actual hardware txq, or all of this will fall apart.
+ *
+ * XXX It may not be a bad idea to just stuff the QCU ID into bf_state
+ * and retire bfs_txq; then make sure the CABQ QCU ID is populated
+ * correctly.
+ */
 static void
 ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
@@ -481,7 +588,7 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		*txq->axq_link = bf->bf_daddr;
 	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	txq->axq_link = &bf->bf_lastds->ds_link;
+	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 }
 
 /*
@@ -615,7 +722,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 #endif /* IEEE80211_SUPPORT_TDMA */
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth++;
-		txq->axq_link = &bf->bf_lastds->ds_link;
+		ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 		ath_hal_txstart(ah, txq->axq_qnum);
 	}
 }
@@ -625,8 +732,8 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
  *
  * This must be called whether the queue is empty or not.
  */
-void
-ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
+static void
+ath_legacy_tx_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf, *bf_last;
@@ -644,7 +751,7 @@ ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
 		return;
 
 	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-	txq->axq_link = &bf_last->bf_lastds->ds_link;
+	ath_hal_gettxdesclinkptr(ah, bf_last->bf_lastds, &txq->axq_link);
 	ath_hal_txstart(ah, txq->axq_qnum);
 }
 
@@ -654,7 +761,8 @@ ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
  * The relevant hardware txq should be locked.
  */
 static void
-ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+ath_legacy_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_buf *bf)
 {
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -987,16 +1095,22 @@ ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
 	
 	/*
 	 * Must disable multi-rate retry when using RTS/CTS.
-	 * XXX TODO: only for pre-11n NICs.
 	 */
-	bf->bf_state.bfs_ismrr = 0;
-	bf->bf_state.bfs_try0 =
-	    bf->bf_state.bfs_rc[0].tries = ATH_TXMGTTRY;	/* XXX ew */
+	if (!sc->sc_mrrprot) {
+		bf->bf_state.bfs_ismrr = 0;
+		bf->bf_state.bfs_try0 =
+		    bf->bf_state.bfs_rc[0].tries = ATH_TXMGTTRY; /* XXX ew */
+	}
 }
 
 /*
  * Setup the descriptor chain for a normal or fast-frame
  * frame.
+ *
+ * XXX TODO: extend to include the destination hardware QCU ID.
+ * Make sure that is correct.  Make sure that when being added
+ * to the mcastq, the CABQ QCUID is set or things will get a bit
+ * odd.
  */
 static void
 ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
@@ -1024,7 +1138,9 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 	bf->bf_lastds = ds;
 	bf->bf_last = bf;
 
-	/* XXX TODO: Setup descriptor chain */
+	/* Set rate control and descriptor chain for this frame */
+	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
+	ath_tx_chaindesclist(sc, bf);
 }
 
 /*
@@ -1073,50 +1189,6 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
- * Set the rate control fields in the given descriptor based on
- * the bf_state fields and node state.
- *
- * The bfs fields should already be set with the relevant rate
- * control information, including whether MRR is to be enabled.
- *
- * Since the FreeBSD HAL currently sets up the first TX rate
- * in ath_hal_setuptxdesc(), this will setup the MRR
- * conditionally for the pre-11n chips, and call ath_buf_set_rate
- * unconditionally for 11n chips. These require the 11n rate
- * scenario to be set if MCS rates are enabled, so it's easier
- * to just always call it. The caller can then only set rates 2, 3
- * and 4 if multi-rate retry is needed.
- */
-static void
-ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
-    struct ath_buf *bf)
-{
-	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
-
-	/* If mrr is disabled, blank tries 1, 2, 3 */
-	if (! bf->bf_state.bfs_ismrr)
-		rc[1].tries = rc[2].tries = rc[3].tries = 0;
-
-	/*
-	 * Always call - that way a retried descriptor will
-	 * have the MRR fields overwritten.
-	 *
-	 * XXX TODO: see if this is really needed - setting up
-	 * the first descriptor should set the MRR fields to 0
-	 * for us anyway.
-	 */
-	if (ath_tx_is_11n(sc)) {
-		ath_buf_set_rate(sc, ni, bf);
-	} else {
-		ath_hal_setupxtxdesc(sc->sc_ah, bf->bf_desc
-			, rc[1].ratecode, rc[1].tries
-			, rc[2].ratecode, rc[2].tries
-			, rc[3].ratecode, rc[3].tries
-		);
-	}
-}
-
-/*
  * Transmit the given frame to the hardware.
  *
  * The frame must already be setup; rate control must already have
@@ -1141,8 +1213,6 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	ath_tx_set_rtscts(sc, bf);
 	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
-	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
-	ath_tx_chaindesclist(sc, bf);
 
 	/* Hand off to hardware */
 	ath_tx_handoff(sc, txq, bf);
@@ -1170,6 +1240,15 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
 	u_int pri;
+
+	/*
+	 * To ensure that both sequence numbers and the CCMP PN handling
+	 * is "correct", make sure that the relevant TID queue is locked.
+	 * Otherwise the CCMP PN and seqno may appear out of order, causing
+	 * re-ordered frames to have out of order CCMP PN's, resulting
+	 * in many, many frame drops.
+	 */
+	ATH_TXQ_LOCK_ASSERT(txq);
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
@@ -1299,6 +1378,40 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 
 	/*
+	 * There are two known scenarios where the frame AC doesn't match
+	 * what the destination TXQ is.
+	 *
+	 * + non-QoS frames (eg management?) that the net80211 stack has
+	 *   assigned a higher AC to, but since it's a non-QoS TID, it's
+	 *   being thrown into TID 16.  TID 16 gets the AC_BE queue.
+	 *   It's quite possible that management frames should just be
+	 *   direct dispatched to hardware rather than go via the software
+	 *   queue; that should be investigated in the future.  There are
+	 *   some specific scenarios where this doesn't make sense, mostly
+	 *   surrounding ADDBA request/response - hence why that is special
+	 *   cased.
+	 *
+	 * + Multicast frames going into the VAP mcast queue.  That shows up
+	 *   as "TXQ 11".
+	 *
+	 * This driver should eventually support separate TID and TXQ locking,
+	 * allowing for arbitrary AC frames to appear on arbitrary software
+	 * queues, being queued to the "correct" hardware queue when needed.
+	 */
+#if 0
+	if (txq != sc->sc_ac2q[pri]) {
+		device_printf(sc->sc_dev,
+		    "%s: txq=%p (%d), pri=%d, pri txq=%p (%d)\n",
+		    __func__,
+		    txq,
+		    txq->axq_qnum,
+		    pri,
+		    sc->sc_ac2q[pri],
+		    sc->sc_ac2q[pri]->axq_qnum);
+	}
+#endif
+
+	/*
 	 * Calculate miscellaneous flags.
 	 */
 	if (ismcast) {
@@ -1424,7 +1537,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	int ismcast;
 	const struct ieee80211_frame *wh;
 	int is_ampdu, is_ampdu_tx, is_ampdu_pending;
-	//ieee80211_seq seqno;
+	ieee80211_seq seqno;
 	uint8_t type, subtype;
 
 	/*
@@ -1476,9 +1589,13 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	is_ampdu_pending = ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid);
 	is_ampdu = is_ampdu_tx | is_ampdu_pending;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX,
-	    "%s: bf=%p, tid=%d, ac=%d, is_ampdu=%d\n",
-	    __func__, bf, tid, pri, is_ampdu);
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, ac=%d, is_ampdu=%d\n",
+	    __func__, tid, pri, is_ampdu);
+
+	/* Set local packet state, used to queue packets to hardware */
+	bf->bf_state.bfs_tid = tid;
+	bf->bf_state.bfs_txq = txq;
+	bf->bf_state.bfs_pri = pri;
 
 	/*
 	 * When servicing one or more stations in power-save mode
@@ -1488,40 +1605,50 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 *
 	 * TODO: we should lock the mcastq before we check the length.
 	 */
-	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
+	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth)) {
 		txq = &avp->av_mcastq;
+		/*
+		 * Mark the frame as eventually belonging on the CAB
+		 * queue, so the descriptor setup functions will
+		 * correctly initialise the descriptor 'qcuId' field.
+		 */
+		bf->bf_state.bfs_txq = sc->sc_cabq;
+	}
 
 	/* Do the generic frame setup */
 	/* XXX should just bzero the bf_state? */
 	bf->bf_state.bfs_dobaw = 0;
-	bf->bf_state.bfs_seqno_assigned = 0;
-	bf->bf_state.bfs_need_seqno = 0;
-	bf->bf_state.bfs_seqno = -1;	/* XXX debugging */
+
+	/*
+	 * Acquire the TXQ lock early, so both the encap and seqno
+	 * are allocated together.
+	 *
+	 * XXX should TXQ for CABQ traffic be the multicast queue,
+	 * or the TXQ the given PRI would allocate from? (eg for
+	 * sequence number allocation locking.)
+	 */
+	ATH_TXQ_LOCK(txq);
 
 	/* A-MPDU TX? Manually set sequence number */
-	/* Don't do it whilst pending; the net80211 layer still assigns them */
-	/* XXX do we need locking here? */
+	/*
+	 * Don't do it whilst pending; the net80211 layer still
+	 * assigns them.
+	 */
 	if (is_ampdu_tx) {
-		ATH_TXQ_LOCK(txq);
 		/*
 		 * Always call; this function will
 		 * handle making sure that null data frames
 		 * don't get a sequence number from the current
 		 * TID and thus mess with the BAW.
 		 */
-		//seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
-		if (ath_tx_seqno_required(sc, ni, bf, m0)) {
+		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
+
+		/*
+		 * Don't add QoS NULL frames to the BAW.
+		 */
+		if (IEEE80211_QOS_HAS_SEQ(wh) &&
+		    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL) {
 			bf->bf_state.bfs_dobaw = 1;
-			bf->bf_state.bfs_need_seqno = 1;
-		}
-		ATH_TXQ_UNLOCK(txq);
-	} else {
-		/* No AMPDU TX, we've been assigned a sequence number. */
-		if (IEEE80211_QOS_HAS_SEQ(wh)) {
-			bf->bf_state.bfs_seqno_assigned = 1;
-			/* XXX we should store the frag+seqno in bfs_seqno */
-			bf->bf_state.bfs_seqno =
-			    M_SEQNO_GET(m0) << IEEE80211_SEQ_SEQ_SHIFT;
 		}
 	}
 
@@ -1529,7 +1656,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * If needed, the sequence number has been assigned.
 	 * Squirrel it away somewhere easy to get to.
 	 */
-	//bf->bf_state.bfs_seqno = M_SEQNO_GET(m0) << IEEE80211_SEQ_SEQ_SHIFT;
+	bf->bf_state.bfs_seqno = M_SEQNO_GET(m0) << IEEE80211_SEQ_SEQ_SHIFT;
 
 	/* Is ampdu pending? fetch the seqno and print it out */
 	if (is_ampdu_pending)
@@ -1541,14 +1668,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	r = ath_tx_normal_setup(sc, ni, bf, m0, txq);
 
 	if (r != 0)
-		return r;
+		goto done;
 
 	/* At this point m0 could have changed! */
 	m0 = bf->bf_m;
-
-	DPRINTF(sc, ATH_DEBUG_SW_TX,
-	    "%s: DONE: bf=%p, tid=%d, ac=%d, is_ampdu=%d, dobaw=%d, seqno=%d\n",
-	    __func__, bf, tid, pri, is_ampdu, bf->bf_state.bfs_dobaw, M_SEQNO_GET(m0));
 
 #if 1
 	/*
@@ -1568,21 +1691,17 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * reached.)
 	 */
 	if (txq == &avp->av_mcastq) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: bf=%p: mcastq: TX'ing\n", __func__, bf);
-		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
-		ATH_TXQ_UNLOCK(txq);
 	} else if (type == IEEE80211_FC0_TYPE_CTL &&
 		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: BAR: TX'ing direct\n", __func__);
-		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
-		ATH_TXQ_UNLOCK(txq);
 	} else {
 		/* add to software queue */
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: bf=%p: swq: TX'ing\n", __func__, bf);
 		ath_tx_swq(sc, ni, txq, bf);
 	}
@@ -1591,10 +1710,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * For now, since there's no software queue,
 	 * direct-dispatch to the hardware.
 	 */
-	ATH_TXQ_LOCK(txq);
 	ath_tx_xmit_normal(sc, txq, bf);
-	ATH_TXQ_UNLOCK(txq);
 #endif
+done:
+	ATH_TXQ_UNLOCK(txq);
 
 	return 0;
 }
@@ -1630,9 +1749,28 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
 
-
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: ismcast=%d\n",
 	    __func__, ismcast);
+
+	pri = params->ibp_pri & 3;
+	/* Override pri if the frame isn't a QoS one */
+	if (! IEEE80211_QOS_HAS_SEQ(wh))
+		pri = ath_tx_getac(sc, m0);
+
+	/* XXX If it's an ADDBA, override the correct queue */
+	do_override = ath_tx_action_frame_override_queue(sc, ni, m0, &o_tid);
+
+	/* Map ADDBA to the correct priority */
+	if (do_override) {
+#if 0
+		device_printf(sc->sc_dev,
+		    "%s: overriding tid %d pri %d -> %d\n",
+		    __func__, o_tid, pri, TID_TO_WME_AC(o_tid));
+#endif
+		pri = TID_TO_WME_AC(o_tid);
+	}
+
+	ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 
 	/* Handle encryption twiddling if needed */
 	if (! ath_tx_tag_crypto(sc, ni,
@@ -1688,11 +1826,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA))
 		bf->bf_state.bfs_ctsrate0 = params->ibp_ctsrate;
 
-	pri = params->ibp_pri & 3;
-	/* Override pri if the frame isn't a QoS one */
-	if (! IEEE80211_QOS_HAS_SEQ(wh))
-		pri = ath_tx_getac(sc, m0);
-
 	/*
 	 * NB: we mark all packets as type PSPOLL so the h/w won't
 	 * set the sequence number, duration, etc.
@@ -1738,6 +1871,11 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_shpream =
 	    !! (params->ibp_flags & IEEE80211_BPF_SHORTPRE);
 
+	/* Set local packet state, used to queue packets to hardware */
+	bf->bf_state.bfs_tid = WME_AC_TO_TID(pri);
+	bf->bf_state.bfs_txq = sc->sc_ac2q[pri];
+	bf->bf_state.bfs_pri = pri;
+
 	/* XXX this should be done in ath_tx_setrate() */
 	bf->bf_state.bfs_ctsrate = 0;
 	bf->bf_state.bfs_ctsduration = 0;
@@ -1774,19 +1912,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* NB: no buffered multicast in power save support */
 
-	/* XXX If it's an ADDBA, override the correct queue */
-	do_override = ath_tx_action_frame_override_queue(sc, ni, m0, &o_tid);
-
-	/* Map ADDBA to the correct priority */
-	if (do_override) {
-#if 0
-		device_printf(sc->sc_dev,
-		    "%s: overriding tid %d pri %d -> %d\n",
-		    __func__, o_tid, pri, TID_TO_WME_AC(o_tid));
-#endif
-		pri = TID_TO_WME_AC(o_tid);
-	}
-
 	/*
 	 * If we're overiding the ADDBA destination, dump directly
 	 * into the hardware queue, right after any pending
@@ -1796,13 +1921,12 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	    __func__, do_override);
 
 	if (do_override) {
-		ATH_TXQ_LOCK(sc->sc_ac2q[pri]);
 		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 	} else {
 		/* Queue to software queue */
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
 	}
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 
 	return 0;
 }
@@ -1867,7 +1991,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/*
 	 * Grab a TX buffer and associated resources.
 	 */
-	bf = ath_getbuf(sc);
+	bf = ath_getbuf(sc, ATH_BUFTYPE_MGMT);
 	if (bf == NULL) {
 		sc->sc_stats.ast_tx_nobuf++;
 		m_freem(m);
@@ -1905,7 +2029,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad2:
 	ATH_TXBUF_LOCK(sc);
-	TAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
+	ath_returnbuf_head(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
 bad:
 	ATH_PCU_LOCK(sc);
@@ -2027,27 +2151,27 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	struct ieee80211_tx_ampdu *tap;
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	if (bf->bf_state.bfs_isretried)
 		return;
 
-	/*
-	 * If this occurs we're in a lot of trouble.  We should try to
-	 * recover from this without the session hanging?
-	 */
-	if (! bf->bf_state.bfs_seqno_assigned) {
-		device_printf(sc->sc_dev,
-		    "%s: bf=%p, seqno_assigned is 0?!\n", __func__, bf);
-		return;
-	}
-
 	tap = ath_tx_get_tx_tid(an, tid->tid);
+
+	if (! bf->bf_state.bfs_dobaw) {
+		device_printf(sc->sc_dev,
+		    "%s: dobaw=0, seqno=%d, window %d:%d\n",
+		    __func__,
+		    SEQNO(bf->bf_state.bfs_seqno),
+		    tap->txa_start,
+		    tap->txa_wnd);
+	}
 
 	if (bf->bf_state.bfs_addedbaw)
 		device_printf(sc->sc_dev,
-		    "%s: re-added? bf=%p, tid=%d, seqno %d; window %d:%d; "
+		    "%s: re-added? tid=%d, seqno %d; window %d:%d; "
 		    "baw head=%d tail=%d\n",
-		    __func__, bf, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
+		    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
 		    tap->txa_start, tap->txa_wnd, tid->baw_head,
 		    tid->baw_tail);
 
@@ -2063,7 +2187,6 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 		    __func__, bf, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
 		    tap->txa_start, tap->txa_wnd, tid->baw_head,
 		    tid->baw_tail);
-
 	}
 
 	/*
@@ -2073,9 +2196,9 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	index  = ATH_BA_INDEX(tap->txa_start, SEQNO(bf->bf_state.bfs_seqno));
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-	    "%s: bf=%p, tid=%d, seqno %d; window %d:%d; index=%d cindex=%d "
+	    "%s: tid=%d, seqno %d; window %d:%d; index=%d cindex=%d "
 	    "baw head=%d tail=%d\n",
-	    __func__, bf, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
+	    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
 	    tap->txa_start, tap->txa_wnd, index, cindex, tid->baw_head,
 	    tid->baw_tail);
 
@@ -2124,6 +2247,7 @@ ath_tx_switch_baw_buf(struct ath_softc *sc, struct ath_node *an,
 	int seqno = SEQNO(old_bf->bf_state.bfs_seqno);
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
@@ -2172,15 +2296,16 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 	int seqno = SEQNO(bf->bf_state.bfs_seqno);
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	index  = ATH_BA_INDEX(tap->txa_start, seqno);
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-	    "%s: bf=%p: tid=%d, baw=%d:%d, seqno=%d, index=%d, cindex=%d, "
+	    "%s: tid=%d, baw=%d:%d, seqno=%d, index=%d, cindex=%d, "
 	    "baw head=%d, tail=%d\n",
-	    __func__, bf, tid->tid, tap->txa_start, tap->txa_wnd, seqno, index,
+	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, seqno, index,
 	    cindex, tid->baw_head, tid->baw_tail);
 
 	/*
@@ -2261,51 +2386,11 @@ ath_tx_tid_unsched(struct ath_softc *sc, struct ath_tid *tid)
 }
 
 /*
- * Return whether a sequence number is actually required.
- *
- * A sequence number must only be allocated at the time that a frame
- * is considered for addition to the BAW/aggregate and being TXed.
- * The sequence number must not be allocated before the frame
- * is added to the BAW (protected by the same lock instance)
- * otherwise a the multi-entrant TX path may result in a later seqno
- * being added to the BAW first.  The subsequent addition of the
- * earlier seqno would then not go into the BAW as it's now outside
- * of said BAW.
- *
- * This routine is used by ath_tx_start() to mark whether the frame
- * should get a sequence number before adding it to the BAW.
- *
- * Then the actual aggregate TX routines will check whether this
- * flag is set and if the frame needs to go into the BAW, it'll
- * have a sequence number allocated for it.
- */
-static int
-ath_tx_seqno_required(struct ath_softc *sc, struct ieee80211_node *ni,
-    struct ath_buf *bf, struct mbuf *m0)
-{
-	const struct ieee80211_frame *wh;
-	uint8_t subtype;
-
-	wh = mtod(m0, const struct ieee80211_frame *);
-	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
-
-	/* XXX assert txq lock */
-	/* XXX assert ampdu is set */
-
-	return ((IEEE80211_QOS_HAS_SEQ(wh) &&
-	    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL));
-}
-
-/*
  * Assign a sequence number manually to the given frame.
  *
  * This should only be called for A-MPDU TX frames.
- *
- * If this is called after the initial frame setup, make sure you've flushed
- * the DMA map or you'll risk sending stale data to the NIC.  This routine
- * updates the actual frame contents with the relevant seqno.
  */
-int
+static ieee80211_seq
 ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0)
 {
@@ -2318,28 +2403,16 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	wh = mtod(m0, struct ieee80211_frame *);
 	pri = M_WME_GETAC(m0);			/* honor classification */
 	tid = WME_AC_TO_TID(pri);
-	DPRINTF(sc, ATH_DEBUG_SW_TX,
-	    "%s: bf=%p, pri=%d, tid=%d, qos has seq=%d\n",
-	    __func__, bf, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
-
-	if (! bf->bf_state.bfs_need_seqno) {
-		device_printf(sc->sc_dev, "%s: bf=%p: need_seqno not set?!\n",
-		    __func__, bf);
-		return -1;
-	}
-	/* XXX check for bfs_need_seqno? */
-	if (bf->bf_state.bfs_seqno_assigned) {
-		device_printf(sc->sc_dev,
-		    "%s: bf=%p: seqno already assigned (%d)?!\n",
-		    __func__, bf, SEQNO(bf->bf_state.bfs_seqno));
-		return bf->bf_state.bfs_seqno >> IEEE80211_SEQ_SEQ_SHIFT;
-	}
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pri=%d, tid=%d, qos has seq=%d\n",
+	    __func__, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
 	/* XXX Is it a control frame? Ignore */
 
 	/* Does the packet require a sequence number? */
 	if (! IEEE80211_QOS_HAS_SEQ(wh))
 		return -1;
+
+	ATH_TID_LOCK_ASSERT(sc, &(ATH_NODE(ni)->an_tid[tid]));
 
 	/*
 	 * Is it a QOS NULL Data frame? Give it a sequence number from
@@ -2352,6 +2425,7 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 	if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL) {
+		/* XXX no locking for this TID? This is a bit of a problem. */
 		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID];
 		INCR(ni->ni_txseqs[IEEE80211_NONQOS_TID], IEEE80211_SEQ_RANGE);
 	} else {
@@ -2361,14 +2435,9 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 	M_SEQNO_SET(m0, seqno);
-	bf->bf_state.bfs_seqno = seqno << IEEE80211_SEQ_SEQ_SHIFT;
-	bf->bf_state.bfs_seqno_assigned = 1;
 
 	/* Return so caller can do something with it if needed */
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p:  -> seqno=%d\n",
-	    __func__,
-	    bf,
-	    seqno);
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s:  -> seqno=%d\n", __func__, seqno);
 	return seqno;
 }
 
@@ -2378,100 +2447,37 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
  * Otherwise, schedule it as a single frame.
  */
 static void
-ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
+ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
+    struct ath_txq *txq, struct ath_buf *bf)
 {
-	struct ieee80211_node *ni = &an->an_node;
 	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
-	struct ath_txq *txq = bf->bf_state.bfs_txq;
+//	struct ath_txq *txq = bf->bf_state.bfs_txq;
 	struct ieee80211_tx_ampdu *tap;
 
+	if (txq != bf->bf_state.bfs_txq) {
+		device_printf(sc->sc_dev, "%s: txq %d != bfs_txq %d!\n",
+		    __func__,
+		    txq->axq_qnum,
+		    bf->bf_state.bfs_txq->axq_qnum);
+	}
+
 	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TID_LOCK_ASSERT(sc, tid);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	/* paused? queue */
 	if (tid->paused) {
-		ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
+		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 		/* XXX don't sched - we're paused! */
 		return;
-	}
-
-	/*
-	 * TODO: If it's _before_ the BAW left edge, complain very loudly.
-	 * This means something (else) has slid the left edge along
-	 * before we got a chance to be TXed.
-	 */
-
-	/*
-	 * Is there space in this BAW for another frame?
-	 * If not, don't bother trying to schedule it; just
-	 * throw it back on the queue.
-	 *
-	 * If we allocate the sequence number before we add
-	 * it to the BAW, we risk racing with another TX
-	 * thread that gets in a frame into the BAW with
-	 * seqno greater than ours.  We'd then fail the
-	 * below check and throw the frame on the tail of
-	 * the queue.  The sender would then have a hole.
-	 *
-	 * XXX again, we're protecting ni->ni_txseqs[tid]
-	 * behind this hardware TXQ lock, like the rest of
-	 * the TIDs that map to it.  Ugh.
-	 */
-	if (bf->bf_state.bfs_dobaw) {
-		ieee80211_seq seqno;
-
-		/*
-		 * If the sequence number is allocated, use it.
-		 * Otherwise, use the sequence number we WOULD
-		 * allocate.
-		 */
-		if (bf->bf_state.bfs_seqno_assigned)
-			seqno = SEQNO(bf->bf_state.bfs_seqno);
-		else
-			seqno = ni->ni_txseqs[bf->bf_state.bfs_tid];
-
-		/*
-		 * Check whether either the currently allocated
-		 * sequence number _OR_ the to-be allocated
-		 * sequence number is inside the BAW.
-		 */
-		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd, seqno)) {
-			ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
-			ath_tx_tid_sched(sc, tid);
-			return;
-		}
-		if (! bf->bf_state.bfs_seqno_assigned) {
-			int seqno;
-
-			seqno = ath_tx_tid_seqno_assign(sc, ni, bf, bf->bf_m);
-			if (seqno < 0) {
-				device_printf(sc->sc_dev,
-				    "%s: bf=%p, huh, seqno=-1?\n",
-				    __func__,
-				    bf);
-				/* XXX what can we even do here? */
-			}
-			/* Flush seqno update to RAM */
-			/*
-			 * XXX This is required because the dmasetup
-			 * XXX is done early rather than at dispatch
-			 * XXX time. Ew, we should fix this!
-			 */
-			bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-			    BUS_DMASYNC_PREWRITE);
-		}
 	}
 
 	/* outside baw? queue */
 	if (bf->bf_state.bfs_dobaw &&
 	    (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
 	    SEQNO(bf->bf_state.bfs_seqno)))) {
-		device_printf(sc->sc_dev,
-		    "%s: bf=%p, shouldn't be outside BAW now?!\n",
-		    __func__,
-		    bf);
-		ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
+		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 		ath_tx_tid_sched(sc, tid);
 		return;
 	}
@@ -2483,8 +2489,6 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	ath_tx_set_rtscts(sc, bf);
 	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
-	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
-	ath_tx_chaindesclist(sc, bf);
 
 	/* Statistics */
 	sc->sc_aggr_stats.aggr_low_hwq_single_pkt++;
@@ -2521,16 +2525,22 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	int pri, tid;
 	struct mbuf *m0 = bf->bf_m;
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	/* Fetch the TID - non-QoS frames get assigned to TID 16 */
 	wh = mtod(m0, struct ieee80211_frame *);
 	pri = ath_tx_getac(sc, m0);
 	tid = ath_tx_gettid(sc, m0);
 	atid = &an->an_tid[tid];
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p, pri=%d, tid=%d, qos=%d, seqno=%d\n",
-	    __func__, bf, pri, tid, IEEE80211_QOS_HAS_SEQ(wh), SEQNO(bf->bf_state.bfs_seqno));
+	ATH_TID_LOCK_ASSERT(sc, atid);
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p, pri=%d, tid=%d, qos=%d\n",
+	    __func__, bf, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
 	/* Set local packet state, used to queue packets to hardware */
+	/* XXX potentially duplicate info, re-check */
+	/* XXX remember, txq must be the hardware queue, not the av_mcastq */
 	bf->bf_state.bfs_tid = tid;
 	bf->bf_state.bfs_txq = txq;
 	bf->bf_state.bfs_pri = pri;
@@ -2541,41 +2551,53 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	 * If the TID is paused or the traffic it outside BAW, software
 	 * queue it.
 	 */
-	ATH_TXQ_LOCK(txq);
 	if (atid->paused) {
 		/* TID is paused, queue */
-		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: paused\n", __func__, bf);
+		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: paused\n", __func__);
 		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 	} else if (ath_tx_ampdu_pending(sc, an, tid)) {
 		/* AMPDU pending; queue */
-		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: pending\n", __func__, bf);
+		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pending\n", __func__);
 		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 		/* XXX sched? */
 	} else if (ath_tx_ampdu_running(sc, an, tid)) {
 		/* AMPDU running, attempt direct dispatch if possible */
+
+		/*
+		 * Always queue the frame to the tail of the list.
+		 */
+		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+
+		/*
+		 * If the hardware queue isn't busy, direct dispatch
+		 * the head frame in the list.  Don't schedule the
+		 * TID - let it build some more frames first?
+		 *
+		 * Otherwise, schedule the TID.
+		 */
 		if (txq->axq_depth < sc->sc_hwq_limit) {
+			bf = TAILQ_FIRST(&atid->axq_q);
+			ATH_TXQ_REMOVE(atid, bf, bf_list);
+			ath_tx_xmit_aggr(sc, an, txq, bf);
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
-			    "%s: bf=%p: xmit_aggr\n",
-			    __func__, bf);
-			ath_tx_xmit_aggr(sc, an, bf);
+			    "%s: xmit_aggr\n",
+			    __func__);
 		} else {
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
-			    "%s: bf=%p: ampdu; swq'ing\n",
-			    __func__, bf);
-			ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+			    "%s: ampdu; swq'ing\n",
+			    __func__);
 			ath_tx_tid_sched(sc, atid);
 		}
 	} else if (txq->axq_depth < sc->sc_hwq_limit) {
 		/* AMPDU not running, attempt direct dispatch */
-		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: xmit_normal\n", __func__, bf);
+		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
 		ath_tx_xmit_normal(sc, txq, bf);
 	} else {
 		/* Busy; queue */
-		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: bf=%p: swq'ing\n", __func__, bf);
+		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: swq'ing\n", __func__);
 		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
 		ath_tx_tid_sched(sc, atid);
 	}
-	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -2673,10 +2695,12 @@ ath_tx_tid_bar_suspend(struct ath_softc *sc, struct ath_tid *tid)
 {
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-	    "%s: tid=%p, called\n",
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
+	    "%s: tid=%p, bar_wait=%d, bar_tx=%d, called\n",
 	    __func__,
-	    tid);
+	    tid,
+	    tid->bar_wait,
+	    tid->bar_tx);
 
 	/* We shouldn't be called when bar_tx is 1 */
 	if (tid->bar_tx) {
@@ -2704,7 +2728,7 @@ ath_tx_tid_bar_unsuspend(struct ath_softc *sc, struct ath_tid *tid)
 {
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 	    "%s: tid=%p, called\n",
 	    __func__,
 	    tid);
@@ -2732,6 +2756,9 @@ ath_tx_tid_bar_tx_ready(struct ath_softc *sc, struct ath_tid *tid)
 	if (tid->bar_wait == 0 || tid->hwq_depth > 0)
 		return (0);
 
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR, "%s: tid=%p (%d), bar ready\n",
+	    __func__, tid, tid->tid);
+
 	return (1);
 }
 
@@ -2754,7 +2781,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 	    "%s: tid=%p, called\n",
 	    __func__,
 	    tid);
@@ -2776,7 +2803,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 
 	/* Don't do anything if we still have pending frames */
 	if (tid->hwq_depth > 0) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+		DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 		    "%s: tid=%p, hwq_depth=%d, waiting\n",
 		    __func__,
 		    tid,
@@ -2793,7 +2820,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 *
 	 * XXX verify this is _actually_ the valid value to begin at!
 	 */
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 	    "%s: tid=%p, new BAW left edge=%d\n",
 	    __func__,
 	    tid,
@@ -2856,25 +2883,24 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 		if (t == 0) {
 			device_printf(sc->sc_dev,
 			    "%s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
-			    "seqno_assign=%d, seqno_required=%d, seqno=%d, retry=%d\n",
+			    "seqno=%d, retry=%d\n",
 			    __func__, ni, bf,
 			    bf->bf_state.bfs_addedbaw,
 			    bf->bf_state.bfs_dobaw,
-			    bf->bf_state.bfs_need_seqno,
-			    bf->bf_state.bfs_seqno_assigned,
 			    SEQNO(bf->bf_state.bfs_seqno),
 			    bf->bf_state.bfs_retries);
 			device_printf(sc->sc_dev,
-			    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d\n",
+			    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d, bar_wait=%d\n",
 			    __func__, ni, bf,
 			    tid->axq_depth,
-			    tid->hwq_depth);
+			    tid->hwq_depth,
+			    tid->bar_wait);
 			device_printf(sc->sc_dev,
-			    "%s: node %p: bf=%p: tid %d: txq_depth=%d, "
+			    "%s: node %p: tid %d: txq_depth=%d, "
 			    "txq_aggr_depth=%d, sched=%d, paused=%d, "
 			    "hwq_depth=%d, incomp=%d, baw_head=%d, "
 			    "baw_tail=%d txa_start=%d, ni_txseqs=%d\n",
-			     __func__, ni, bf, tid->tid, txq->axq_depth,
+			     __func__, ni, tid->tid, txq->axq_depth,
 			     txq->axq_aggr_depth, tid->sched, tid->paused,
 			     tid->hwq_depth, tid->incomp, tid->baw_head,
 			     tid->baw_tail, tap == NULL ? -1 : tap->txa_start,
@@ -3088,14 +3114,14 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
  * The caller is responsible for pausing the TID.
  */
 static void
-ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
 	struct ath_buf *bf, *bf_next;
 	ath_bufhead bf_cq;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
 	    "%s: TID %d: called\n", __func__, tid);
 
 	TAILQ_INIT(&bf_cq);
@@ -3232,7 +3258,7 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 		 * the list.)
 		 */
 		ATH_TXBUF_LOCK(sc);
-		TAILQ_INSERT_HEAD(&sc->sc_txbuf, nbf, bf_list);
+		ath_returnbuf_head(sc, nbf);
 		ATH_TXBUF_UNLOCK(sc);
 		return NULL;
 	}
@@ -3562,7 +3588,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	int nframes = 0, nbad = 0, nf;
 	int pktlen;
 	/* XXX there's too much on the stack? */
-	struct ath_rc_series rc[4];
+	struct ath_rc_series rc[ATH_RC_NUM];
 	int txseq;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called; hwq_depth=%d\n",
@@ -3597,9 +3623,16 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	pktlen = bf_first->bf_state.bfs_pktlen;
 
 	/*
-	 * handle errors first
+	 * Handle errors first!
+	 *
+	 * Here, handle _any_ error as a "exceeded retries" error.
+	 * Later on (when filtered frames are to be specially handled)
+	 * it'll have to be expanded.
 	 */
+#if 0
 	if (ts.ts_status & HAL_TXERR_XRETRY) {
+#endif
+	if (ts.ts_status != 0) {
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		ath_tx_comp_aggr_error(sc, bf_first, atid);
 		return;
@@ -3648,6 +3681,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 		    "seq_st=%d\n",
 		    __func__, hasba, tx_ok, isaggr, seq_st);
 		/* XXX TODO: schedule an interface reset */
+#ifdef ATH_DEBUG
+		ath_printtxbuf(sc, bf_first,
+		    sc->sc_ac2q[atid->ac]->axq_qnum, 0, 0);
+#endif
 	}
 
 	/*
@@ -3839,7 +3876,10 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * Don't bother with the retry check if all frames
 	 * are being failed (eg during queue deletion.)
 	 */
+#if 0
 	if (fail == 0 && ts->ts_status & HAL_TXERR_XRETRY) {
+#endif
+	if (fail == 0 && ts->ts_status != 0) {
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: retry_unaggr\n",
 		    __func__);
@@ -3892,7 +3932,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 	struct ath_buf *bf;
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 	struct ieee80211_tx_ampdu *tap;
-	struct ieee80211_node *ni = &an->an_node;
 	ATH_AGGR_STATUS status;
 	ath_bufhead bf_q;
 
@@ -3940,9 +3979,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_set_rtscts(sc, bf);
 			ath_tx_rate_fill_rcflags(sc, bf);
 			ath_tx_setds(sc, bf);
-			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
-			ath_tx_set_ratectrl(sc, ni, bf);
 
 			sc->sc_aggr_stats.aggr_nonbaw_pkt++;
 
@@ -4000,9 +4037,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
 			ath_tx_setds(sc, bf);
-			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
-			ath_tx_set_ratectrl(sc, ni, bf);
 			if (status == ATH_AGGR_BAW_CLOSED)
 				sc->sc_aggr_stats.aggr_baw_closed_single_pkt++;
 			else
@@ -4037,10 +4072,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			 */
 			ath_tx_setds_11n(sc, bf);
 
-			/*
-			 * setup first desc with rate and aggr info
-			 */
-			ath_tx_set_ratectrl(sc, ni, bf);
 		}
 	queuepkt:
 		//txq = bf->bf_state.bfs_txq;
@@ -4080,7 +4111,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 {
 	struct ath_buf *bf;
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
-	struct ieee80211_node *ni = &an->an_node;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: node %p: TID %d: called\n",
 	    __func__, an, tid->tid);
@@ -4129,8 +4159,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		ath_tx_set_rtscts(sc, bf);
 		ath_tx_rate_fill_rcflags(sc, bf);
 		ath_tx_setds(sc, bf);
-		ath_tx_chaindesclist(sc, bf);
-		ath_tx_set_ratectrl(sc, ni, bf);
 
 		/* Track outstanding buffer count to hardware */
 		/* aggregates are "one" buffer */
@@ -4307,9 +4335,17 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 * it'll be "after" the left edge of the BAW and thus it'll
 	 * fall within it.
 	 */
-	ATH_TXQ_LOCK(sc->sc_ac2q[atid->tid]);
-	ath_tx_tid_pause(sc, atid);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->tid]);
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+	/*
+	 * This is a bit annoying.  Until net80211 HT code inherits some
+	 * (any) locking, we may have this called in parallel BUT only
+	 * one response/timeout will be called.  Grr.
+	 */
+	if (atid->addba_tx_pending == 0) {
+		ath_tx_tid_pause(sc, atid);
+		atid->addba_tx_pending = 1;
+	}
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 	    "%s: called; dialogtoken=%d, baparamset=%d, batimeout=%d\n",
@@ -4369,6 +4405,7 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	r = sc->sc_addba_response(ni, tap, status, code, batimeout);
 
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+	atid->addba_tx_pending = 0;
 	/*
 	 * XXX dirty!
 	 * Slide the BAW left edge to wherever net80211 left it for us.
@@ -4383,6 +4420,9 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 
 /*
  * Stop ADDBA on a queue.
+ *
+ * This can be called whilst BAR TX is currently active on the queue,
+ * so make sure this is unblocked before continuing.
  */
 void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
@@ -4394,20 +4434,32 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 
-	/* Pause TID traffic early, so there aren't any races */
-	ATH_TXQ_LOCK(sc->sc_ac2q[atid->tid]);
+	/*
+	 * Pause TID traffic early, so there aren't any races
+	 * Unblock the pending BAR held traffic, if it's currently paused.
+	 */
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	ath_tx_tid_pause(sc, atid);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->tid]);
+	if (atid->bar_wait) {
+		/*
+		 * bar_unsuspend() expects bar_tx == 1, as it should be
+		 * called from the TX completion path.  This quietens
+		 * the warning.  It's cleared for us anyway.
+		 */
+		atid->bar_tx = 1;
+		ath_tx_tid_bar_unsuspend(sc, atid);
+	}
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/* There's no need to hold the TXQ lock here */
 	sc->sc_addba_stop(ni, tap);
 
 	/*
-	 * ath_tx_cleanup will resume the TID if possible, otherwise
+	 * ath_tx_tid_cleanup will resume the TID if possible, otherwise
 	 * it'll set the cleanup flag, and it'll be unpaused once
 	 * things have been cleaned up.
 	 */
-	ath_tx_cleanup(sc, an, tid);
+	ath_tx_tid_cleanup(sc, an, tid);
 }
 
 /*
@@ -4430,8 +4482,15 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	struct ath_tid *atid = &an->an_tid[tid];
 	int attempts = tap->txa_attempts;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-	    "%s: called; status=%d\n", __func__, status);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
+	    "%s: called; tap=%p, atid=%p, txa_tid=%d, atid->tid=%d, status=%d, attempts=%d\n",
+	    __func__,
+	    tap,
+	    atid,
+	    tap->txa_tid,
+	    atid->tid,
+	    status,
+	    attempts);
 
 	/* Note: This may update the BAW details */
 	sc->sc_bar_response(ni, tap, status);
@@ -4465,6 +4524,10 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 	    "%s: called; resuming\n", __func__);
 
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+	atid->addba_tx_pending = 0;
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+
 	/* Note: This updates the aggregate state to (again) pending */
 	sc->sc_addba_response_timeout(ni, tap);
 
@@ -4472,4 +4535,41 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	ath_tx_tid_resume(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+}
+
+static int
+ath_legacy_dma_txsetup(struct ath_softc *sc)
+{
+
+	/* nothing new needed */
+	return (0);
+}
+
+static int
+ath_legacy_dma_txteardown(struct ath_softc *sc)
+{
+
+	/* nothing new needed */
+	return (0);
+}
+
+void
+ath_xmit_setup_legacy(struct ath_softc *sc)
+{
+	/*
+	 * For now, just set the descriptor length to sizeof(ath_desc);
+	 * worry about extracting the real length out of the HAL later.
+	 */
+	sc->sc_tx_desclen = sizeof(struct ath_desc);
+	sc->sc_tx_statuslen = 0;
+	sc->sc_tx_nmaps = 1;	/* only one buffer per TX desc */
+
+	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;
+	sc->sc_tx.xmit_teardown = ath_legacy_dma_txteardown;
+	sc->sc_tx.xmit_attach_comp_func = ath_legacy_attach_comp_func;
+
+	sc->sc_tx.xmit_dma_restart = ath_legacy_tx_dma_restart;
+	sc->sc_tx.xmit_handoff = ath_legacy_xmit_handoff;
+	sc->sc_tx.xmit_processq = ath_legacy_tx_processq;
+	sc->sc_tx.xmit_drainq = ath_legacy_tx_draintxq;
 }

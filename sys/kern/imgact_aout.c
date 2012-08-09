@@ -106,6 +106,7 @@ struct sysentvec aout_sysvec = {
 #define	AOUT32_USRSTACK	0xbfc00000
 #define	AOUT32_PS_STRINGS \
     (AOUT32_USRSTACK - sizeof(struct freebsd32_ps_strings))
+#define	AOUT32_MINUSER	FREEBSD32_MINUSER
 
 extern const char *freebsd32_syscallnames[];
 extern u_long ia32_maxssiz;
@@ -129,7 +130,7 @@ struct sysentvec aout_sysvec = {
 	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_pagesize	= IA32_PAGE_SIZE,
-	.sv_minuser	= 0,
+	.sv_minuser	= AOUT32_MINUSER,
 	.sv_maxuser	= AOUT32_USRSTACK,
 	.sv_usrstack	= AOUT32_USRSTACK,
 	.sv_psstrings	= AOUT32_PS_STRINGS,
@@ -174,9 +175,9 @@ exec_aout_imgact(struct image_params *imgp)
 	 * 0x64 for Linux, 0x86 for *BSD, 0x00 for BSDI.
 	 * NetBSD is in network byte order.. ugh.
 	 */
-	if (((a_out->a_magic >> 16) & 0xff) != 0x86 &&
-	    ((a_out->a_magic >> 16) & 0xff) != 0 &&
-	    ((((int)ntohl(a_out->a_magic)) >> 16) & 0xff) != 0x86)
+	if (((a_out->a_midmag >> 16) & 0xff) != 0x86 &&
+	    ((a_out->a_midmag >> 16) & 0xff) != 0 &&
+	    ((((int)ntohl(a_out->a_midmag)) >> 16) & 0xff) != 0x86)
                 return -1;
 
 	/*
@@ -184,7 +185,7 @@ exec_aout_imgact(struct image_params *imgp)
 	 *	We do two cases: host byte order and network byte order
 	 *	(for NetBSD compatibility)
 	 */
-	switch ((int)(a_out->a_magic & 0xffff)) {
+	switch ((int)(a_out->a_midmag & 0xffff)) {
 	case ZMAGIC:
 		virtual_offset = 0;
 		if (a_out->a_text) {
@@ -203,7 +204,7 @@ exec_aout_imgact(struct image_params *imgp)
 		break;
 	default:
 		/* NetBSD compatibility */
-		switch ((int)(ntohl(a_out->a_magic) & 0xffff)) {
+		switch ((int)(ntohl(a_out->a_midmag) & 0xffff)) {
 		case ZMAGIC:
 		case QMAGIC:
 			virtual_offset = PAGE_SIZE;

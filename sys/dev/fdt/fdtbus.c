@@ -89,8 +89,6 @@ static int fdtbus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
 static int fdtbus_setup_intr(device_t, device_t, struct resource *, int,
     driver_filter_t *, driver_intr_t *, void *, void **);
-static int fdtbus_teardown_intr(device_t, device_t, struct resource *,
-    void *);
 
 static const char *fdtbus_ofw_get_name(device_t, device_t);
 static phandle_t fdtbus_ofw_get_node(device_t, device_t);
@@ -121,8 +119,9 @@ static device_method_t fdtbus_methods[] = {
 	DEVMETHOD(bus_release_resource,	fdtbus_release_resource),
 	DEVMETHOD(bus_activate_resource, fdtbus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, fdtbus_deactivate_resource),
+	DEVMETHOD(bus_config_intr,	bus_generic_config_intr),
 	DEVMETHOD(bus_setup_intr,	fdtbus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	fdtbus_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_node,	fdtbus_ofw_get_node),
@@ -575,30 +574,41 @@ fdtbus_setup_intr(device_t bus, device_t child, struct resource *res,
     int flags, driver_filter_t *filter, driver_intr_t *ihand, void *arg,
     void **cookiep)
 {
-	int err;
+	struct fdtbus_devinfo *di;
+	enum intr_trigger trig;
+	enum intr_polarity pol;
+	int error, rid;
 
-	*cookiep = 0;
-	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
-		flags |= INTR_EXCL;
+	if (res == NULL)
+		return (EINVAL);
 
-	err = rman_activate_resource(res);
-	if (err)
-		return (err);
+	/*
+	 * We are responsible for configuring the interrupts of our direct
+	 * children.
+	 */
+	if (device_get_parent(child) == bus) {
+		di = device_get_ivars(child);
+		if (di == NULL)
+			return (ENXIO);
 
-#if defined(__powerpc__)
-	err = powerpc_setup_intr(device_get_nameunit(child),
-	    rman_get_start(res), filter, ihand, arg, flags, cookiep);
-#elif defined(__mips__)
-	cpu_establish_hardintr(device_get_nameunit(child), 
-		filter, ihand, arg, rman_get_start(res), flags, cookiep);
-#elif defined(__arm__)
-	arm_setup_irqhandler(device_get_nameunit(child),
-	    filter, ihand, arg, rman_get_start(res), flags, cookiep);
-	arm_unmask_irq(rman_get_start(res));
-	err = 0;
-#endif
+		rid = rman_get_rid(res);
+		if (rid >= DI_MAX_INTR_NUM)
+			return (ENOENT);
 
-	return (err);
+		trig = di->di_intr_sl[rid].trig;
+		pol = di->di_intr_sl[rid].pol;
+		if (trig != INTR_TRIGGER_CONFORM ||
+		    pol != INTR_POLARITY_CONFORM) {
+			error = bus_generic_config_intr(bus,
+			    rman_get_start(res), trig, pol);
+			if (error)
+				return (error);
+		}
+	}
+
+	error = bus_generic_setup_intr(bus, child, res, flags, filter, ihand,
+	    arg, cookiep);
+	return (error);
 }
 
 static int
@@ -615,21 +625,6 @@ fdtbus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 {
 
 	return (rman_deactivate_resource(res));
-}
-
-static int
-fdtbus_teardown_intr(device_t bus, device_t child, struct resource *res,
-    void *cookie)
-{
-
-#if defined(__powerpc__)
-	return (powerpc_teardown_intr(cookie));
-#elif defined(__mips__)
-	/* mips does not have a teardown yet */
-	return (0);
-#elif defined(__arm__)
-	return (arm_remove_irqhandler(rman_get_start(res), cookie));
-#endif
 }
 
 static const char *

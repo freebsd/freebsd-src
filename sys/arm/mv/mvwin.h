@@ -63,6 +63,12 @@
  * External devices: 0x80000000, 1 GB (VA == PA)
  * Includes Device Bus, PCI and PCIE.
  */
+#define MV_PCIE_IO_PHYS_BASE	(MV_PHYS_BASE + MV_SIZE)
+#define MV_PCIE_IO_BASE		MV_PCIE_IO_PHYS_BASE
+#define MV_PCIE_IO_SIZE		(1024 * 1024)
+#define MV_PCI_IO_PHYS_BASE	(MV_PCIE_IO_PHYS_BASE + MV_PCIE_IO_SIZE)
+#define MV_PCI_IO_BASE		MV_PCI_IO_PHYS_BASE
+#define MV_PCI_IO_SIZE		(1024 * 1024)
 
 #if defined(SOC_MV_ORION)
 #define MV_PCI_PORTS	2	/* 1x PCI + 1x PCIE */
@@ -102,20 +108,18 @@
 /*
  * Device Bus (VA == PA)
  */
-/* XXX DEV_BOOT, CSx are board specific, should be defined per platform */
+#define MV_DEV_BOOT_BASE    0xF9300000
+#define MV_DEV_BOOT_SIZE    (1024 * 1024)   /* 1 MB */
 
-/* NOR FLASH */
-#define MV_DEV_BOOT_PHYS_BASE	0xBEF00000
-#define MV_DEV_BOOT_SIZE	(1024 * 1024)	/* 1 MB */
-/* CS0: 7-seg LED */
-#define MV_DEV_CS0_PHYS_BASE	0xBEE00000
-#define MV_DEV_CS0_SIZE		(1024 * 1024)	/* 1MB, XXX u-boot has 2MB */
-/* CS1: 32MB NOR FLASH */
-#define MV_DEV_CS1_PHYS_BASE	0xBC000000
-#define MV_DEV_CS1_SIZE		(32 * 1024 * 1024)	/* 32 MB */
-/* CS2: 32MB NAND FLASH */
-#define MV_DEV_CS2_PHYS_BASE	0xBED00000
-#define MV_DEV_CS2_SIZE		(1024 * 1024)	/* 1 MB */
+#define MV_DEV_CS0_BASE     0xF9400000
+#define MV_DEV_CS0_SIZE     (1024 * 1024)   /* 1 MB */
+
+#define MV_DEV_CS1_BASE     0xF9500000
+#define MV_DEV_CS1_SIZE     (32 * 1024 * 1024)  /* 32 MB */
+
+#define MV_DEV_CS2_BASE     0xFB500000
+#define MV_DEV_CS2_SIZE     (1024 * 1024)   /* 1 MB */
+
 
 /*
  * Integrated SoC peripherals addresses
@@ -163,8 +167,6 @@
 
 #define MV_SDIO_BASE		(MV_BASE + 0x90000)
 #define MV_SDIO_SIZE		0x10000
-
-#define MV_DEV_CS0_BASE		MV_DEV_CS0_PHYS_BASE
 
 /*
  * Decode windows definitions and macros

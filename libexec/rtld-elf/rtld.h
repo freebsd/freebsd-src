@@ -126,6 +126,12 @@ typedef struct Struct_Ver_Entry {
 	const char  *file;
 } Ver_Entry;
 
+typedef struct Struct_Sym_Match_Result {
+    const Elf_Sym *sym_out;
+    const Elf_Sym *vsymp;
+    int vcount;
+} Sym_Match_Result;
+
 #define VER_INFO_HIDDEN	0x01
 
 /*
@@ -204,9 +210,19 @@ typedef struct Struct_Obj_Entry {
     const Elf_Hashelt *buckets;	/* Hash table buckets array */
     unsigned long nbuckets;	/* Number of buckets */
     const Elf_Hashelt *chains;	/* Hash table chain array */
-    unsigned long nchains;	/* Number of chains */
+    unsigned long nchains;	/* Number of entries in chain array */
+
+    Elf32_Word nbuckets_gnu;		/* Number of GNU hash buckets*/
+    Elf32_Word symndx_gnu;		/* 1st accessible symbol on dynsym table */
+    Elf32_Word maskwords_bm_gnu;  	/* Bloom filter words - 1 (bitmask) */
+    Elf32_Word shift2_gnu;		/* Bloom filter shift count */
+    Elf32_Word dynsymcount;		/* Total entries in dynsym table */
+    Elf_Addr *bloom_gnu;		/* Bloom filter used by GNU hash func */
+    const Elf_Hashelt *buckets_gnu;	/* GNU hash table bucket array */
+    const Elf_Hashelt *chain_zero_gnu;	/* GNU hash table value array (Zeroed) */
 
     char *rpath;		/* Search path specified in object */
+    char *runpath;		/* Search path with different priority */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
     Needed_Entry *needed_filtees;
     Needed_Entry *needed_aux_filtees;
@@ -243,6 +259,7 @@ typedef struct Struct_Obj_Entry {
     bool z_nodelete : 1;	/* Do not unload the object and dependencies */
     bool z_noopen : 1;		/* Do not load on dlopen */
     bool z_loadfltr : 1;	/* Immediately load filtees */
+    bool z_nodeflib : 1;	/* Don't search default library path */
     bool ref_nodel : 1;		/* Refcount increased to prevent dlclose */
     bool init_scanned: 1;	/* Object is already on init list. */
     bool on_fini_list: 1;	/* Object is already on fini list. */
@@ -251,6 +268,8 @@ typedef struct Struct_Obj_Entry {
     bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
     bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
     bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
+    bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
+    bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
@@ -304,12 +323,21 @@ struct Struct_RtldLockState {
 	sigjmp_buf env;
 };
 
+struct fill_search_info_args {
+	int request;
+	unsigned int flags;
+	struct dl_serinfo *serinfo;
+	struct dl_serpath *serpath;
+	char *strspace;
+};
+
 /*
  * The pack of arguments and results for the symbol lookup functions.
  */
 typedef struct Struct_SymLook {
     const char *name;
     unsigned long hash;
+    uint32_t hash_gnu;
     const Ver_Entry *ventry;
     int flags;
     const Obj_Entry *defobj_out;

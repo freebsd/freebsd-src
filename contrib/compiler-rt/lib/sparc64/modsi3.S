@@ -47,13 +47,13 @@
  */
 #include "../assembly.h"
 .text
-	.align 4
+	.align 32
 DEFINE_COMPILERRT_FUNCTION(__umodsi3)
-	save	%sp,-64,%sp		! do this for debugging
 	b	divide
 	mov	0,%g3			! result always nonnegative
+.text
+	.align 32
 DEFINE_COMPILERRT_FUNCTION(__modsi3)
-	save	%sp,-64,%sp		! do this for debugging
 	orcc	%o1,%o0,%g0	! are either %o0 or %o1 negative
 	bge	divide			! if not, skip this junk
 	mov	%o0,%g3		! record sign of result in sign of %g3
@@ -126,8 +126,8 @@ do_single_div:
 	nop
 	sub	%o3,%o5,%o3
 	mov	1,%o2
-	b	end_single_divloop
-	nop
+	b,a	end_single_divloop
+	! EMPTY
 single_divloop:
 	sll	%o2,1,%o2
 	bl	1f
@@ -144,8 +144,8 @@ single_divloop:
 		deccc	%g2
 		bge	single_divloop
 		tst	%o3
-		b	end_regular_divide
-		nop
+		b,a	end_regular_divide
+		! EMPTY
 not_really_big:
 1:
 	sll	%o5,4,%o5
@@ -317,17 +317,14 @@ end_regular_divide:
 	deccc	%o4
 	bge	divloop
 	tst	%o3
-	bge	got_result
-	nop
-	! non-restoring fixup here
+	bl,a	got_result
+	! non-restoring fixup if remainder < 0, otherwise annulled
 	add	%o3,%o1,%o3
 got_result:
 	tst	%g3
-	bge	1f
-	restore
-	! answer < 0
-	retl				! leaf-routine return
-	neg	%o3,%o0 		! remainder <- -%o3
+	bl,a	1f
+	! negate for answer < 0, otherwise annulled
+	neg	%o3,%o3 		! %o3 <- -%o3
 1:
 	retl				! leaf-routine return
 	mov	%o3,%o0			! remainder <- %o3

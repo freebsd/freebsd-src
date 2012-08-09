@@ -105,6 +105,7 @@ SUBDIR=	alias \
 	mkfifo \
 	mklocale \
 	mktemp \
+	mkulzma \
 	mkuzip \
 	mt \
 	ncal \
@@ -141,6 +142,7 @@ SUBDIR=	alias \
 	shar \
 	showmount \
 	sockstat \
+	sort \
 	split \
 	stat \
 	stdbuf \
@@ -206,10 +208,6 @@ SUBDIR+=	at
 SUBDIR+=	atm
 .endif
 
-.if ${MK_MAN_UTILS} != "no"
-SUBDIR+=	catman
-.endif
-
 .if ${MK_BIND_UTILS} != "no"
 SUBDIR+=	dig
 SUBDIR+=	host
@@ -233,6 +231,10 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_GROFF} != "no"
+SUBDIR+=	vgrind
+.endif
+
 .if ${MK_HESIOD} != "no"
 SUBDIR+=	hesinfo
 .endif
@@ -243,15 +245,8 @@ _mkcsmapper=	mkcsmapper
 _mkesdb=	mkesdb
 .endif
 
-.if ${MK_GROFF} != "no"
-SUBDIR+=	vgrind
-.endif
-
-.if ${MK_OPENSSL} != "no"
-SUBDIR+=	bc
-SUBDIR+=	chkey
-SUBDIR+=	dc
-SUBDIR+=	newkey
+.if ${MK_KERBEROS_SUPPORT} != "no"
+SUBDIR+=	compile_et
 .endif
 
 .if ${MK_LIBTHR} != "no"
@@ -260,10 +255,6 @@ SUBDIR+=	csup
 
 .if ${MK_LOCATE} != "no"
 SUBDIR+=	locate
-.endif
-
-.if ${MK_KERBEROS_SUPPORT} != "no"
-SUBDIR+=	compile_et
 .endif
 
 # XXX msgs?
@@ -279,6 +270,7 @@ SUBDIR+=	make
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
+SUBDIR+=	catman
 _makewhatis=	makewhatis
 _man=		man
 .endif
@@ -291,6 +283,13 @@ SUBDIR+=	nc
 SUBDIR+=	ypcat
 SUBDIR+=	ypmatch
 SUBDIR+=	ypwhich
+.endif
+
+.if ${MK_OPENSSL} != "no"
+SUBDIR+=	bc
+SUBDIR+=	chkey
+SUBDIR+=	dc
+SUBDIR+=	newkey
 .endif
 
 .if ${MK_QUOTAS} != "no"

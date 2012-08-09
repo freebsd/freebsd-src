@@ -60,7 +60,6 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	USLCOM_BULK_BUF_SIZE		1024
 #define	USLCOM_CONFIG_INDEX	0
-#define	USLCOM_IFACE_INDEX	0
 
 #define	USLCOM_SET_DATA_BITS(x)	((x) << 8)
 
@@ -70,12 +69,13 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 
 /* Request codes */
 #define	USLCOM_UART		0x00
-#define	USLCOM_BAUD_RATE	0x01	
+#define	USLCOM_SET_BAUD_DIV	0x01	
 #define	USLCOM_DATA		0x03
 #define	USLCOM_BREAK		0x05
 #define	USLCOM_CTRL		0x07
 #define	USLCOM_RCTRL            0x08
 #define	USLCOM_SET_FLOWCTRL     0x13
+#define	USLCOM_SET_BAUD_RATE	0x1e	
 #define	USLCOM_VENDOR_SPECIFIC	0xff
 
 /* USLCOM_UART values */
@@ -92,8 +92,8 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 #define	USLCOM_CTRL_RI          0x0040
 #define	USLCOM_CTRL_DCD		0x0080
 
-/* USLCOM_BAUD_RATE values */
-#define	USLCOM_BAUD_REF		0x384000
+/* USLCOM_SET_BAUD_DIV values */
+#define	USLCOM_BAUD_REF		3686400 /* 3.6864 MHz */
 
 /* USLCOM_DATA values */
 #define	USLCOM_STOP_BITS_1	0x00
@@ -101,8 +101,6 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 #define	USLCOM_PARITY_NONE	0x00
 #define	USLCOM_PARITY_ODD	0x10
 #define	USLCOM_PARITY_EVEN	0x20
-
-#define	USLCOM_PORT_NO		0x0000
 
 /* USLCOM_BREAK values */
 #define	USLCOM_BREAK_OFF	0x00
@@ -137,6 +135,7 @@ struct uslcom_softc {
 
 	uint8_t		 sc_msr;
 	uint8_t		 sc_lsr;
+	uint8_t		 sc_iface_no;
 };
 
 static device_probe_t uslcom_probe;
@@ -213,7 +212,13 @@ static struct ucom_callback uslcom_callback = {
 static const STRUCT_USB_HOST_ID uslcom_devs[] = {
 #define	USLCOM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     USLCOM_DEV(BALTECH, CARDREADER),
+    USLCOM_DEV(CLIPSAL, 5000CT2),
+    USLCOM_DEV(CLIPSAL, 5500PACA),
     USLCOM_DEV(CLIPSAL, 5500PCU),
+    USLCOM_DEV(CLIPSAL, 560884),
+    USLCOM_DEV(CLIPSAL, 5800PC),
+    USLCOM_DEV(CLIPSAL, C5000CT2),
+    USLCOM_DEV(CLIPSAL, L51xx),
     USLCOM_DEV(DATAAPEX, MULTICOM),
     USLCOM_DEV(DELL, DW700),
     USLCOM_DEV(DIGIANSWER, ZIGBEE802154),
@@ -221,17 +226,27 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(DYNASTREAM, ANTDEVBOARD2),
     USLCOM_DEV(DYNASTREAM, ANT2USB),
     USLCOM_DEV(ELV, USBI2C),
+    USLCOM_DEV(FESTO, CMSP),
+    USLCOM_DEV(FESTO, CPX_USB),
     USLCOM_DEV(FOXCONN, PIRELLI_DP_L10),
     USLCOM_DEV(FOXCONN, TCOM_TC_300),
     USLCOM_DEV(GEMALTO, PROXPU),
     USLCOM_DEV(JABLOTRON, PC60B),
+    USLCOM_DEV(KAMSTRUP, OPTICALEYE),
+    USLCOM_DEV(KAMSTRUP, MBUS_250D),
+    USLCOM_DEV(LINKINSTRUMENTS, MSO19),
+    USLCOM_DEV(LINKINSTRUMENTS, MSO28),
+    USLCOM_DEV(LINKINSTRUMENTS, MSO28_2),
     USLCOM_DEV(MEI, CASHFLOW_SC),
     USLCOM_DEV(MEI, S2000),
-    USLCOM_DEV(JABLOTRON, PC60B),
     USLCOM_DEV(OWEN, AC4),
     USLCOM_DEV(PHILIPS, ACE1001),
     USLCOM_DEV(PLX, CA42),
     USLCOM_DEV(RENESAS, RX610),
+    USLCOM_DEV(SILABS, AC_SERV_CAN),
+    USLCOM_DEV(SILABS, AC_SERV_CIS),
+    USLCOM_DEV(SILABS, AC_SERV_IBUS),
+    USLCOM_DEV(SILABS, AC_SERV_OBD),
     USLCOM_DEV(SILABS, AEROCOMM),
     USLCOM_DEV(SILABS, AMBER_AMB2560),
     USLCOM_DEV(SILABS, ARGUSISP),
@@ -247,16 +262,21 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(SILABS, C2_EDGE_MODEM),
     USLCOM_DEV(SILABS, CP2102),
     USLCOM_DEV(SILABS, CP210X_2),
+    USLCOM_DEV(SILABS, CP210X_3),
+    USLCOM_DEV(SILABS, CP210X_4),
     USLCOM_DEV(SILABS, CRUMB128),
     USLCOM_DEV(SILABS, CYGNAL),
     USLCOM_DEV(SILABS, CYGNAL_DEBUG),
     USLCOM_DEV(SILABS, CYGNAL_GPS),
     USLCOM_DEV(SILABS, DEGREE),
+    USLCOM_DEV(SILABS, DEKTEK_DTAPLUS),
     USLCOM_DEV(SILABS, EMS_C1007),
+    USLCOM_DEV(SILABS, HAMLINKUSB),
     USLCOM_DEV(SILABS, HELICOM),
     USLCOM_DEV(SILABS, IMS_USB_RS422),
     USLCOM_DEV(SILABS, INFINITY_MIC),
     USLCOM_DEV(SILABS, INSYS_MODEM),
+    USLCOM_DEV(SILABS, IRZ_SG10),
     USLCOM_DEV(SILABS, KYOCERA_GPS),
     USLCOM_DEV(SILABS, LIPOWSKY_HARP),
     USLCOM_DEV(SILABS, LIPOWSKY_JTAG),
@@ -264,12 +284,14 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(SILABS, MC35PU),
     USLCOM_DEV(SILABS, MJS_TOSLINK),
     USLCOM_DEV(SILABS, MSD_DASHHAWK),
+    USLCOM_DEV(SILABS, MULTIPLEX_RC),
+    USLCOM_DEV(SILABS, OPTRIS_MSPRO),
     USLCOM_DEV(SILABS, POLOLU),
     USLCOM_DEV(SILABS, PROCYON_AVS),
     USLCOM_DEV(SILABS, SB_PARAMOUNT_ME),
     USLCOM_DEV(SILABS, SUUNTO),
     USLCOM_DEV(SILABS, TAMSMASTER),
-    USLCOM_DEV(SILABS, TELEGESYS_ETRX2),
+    USLCOM_DEV(SILABS, TELEGESIS_ETRX2),
     USLCOM_DEV(SILABS, TRACIENT),
     USLCOM_DEV(SILABS, TRAQMATE),
     USLCOM_DEV(SILABS, USBCOUNT50),
@@ -343,9 +365,6 @@ uslcom_probe(device_t dev)
 	if (uaa->info.bConfigIndex != USLCOM_CONFIG_INDEX) {
 		return (ENXIO);
 	}
-	if (uaa->info.bIfaceIndex != USLCOM_IFACE_INDEX) {
-		return (ENXIO);
-	}
 	return (usbd_lookup_id_by_uaa(uslcom_devs, sizeof(uslcom_devs), uaa));
 }
 
@@ -363,6 +382,8 @@ uslcom_attach(device_t dev)
 	usb_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_udev = uaa->device;
+	/* use the interface number from the USB interface descriptor */
+	sc->sc_iface_no = uaa->info.bIfaceNum;
 
 	error = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, uslcom_config,
@@ -417,7 +438,7 @@ uslcom_open(struct ucom_softc *ucom)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_UART;
 	USETW(req.wValue, USLCOM_UART_ENABLE);
-	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -441,7 +462,7 @@ uslcom_close(struct ucom_softc *ucom)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_UART;
 	USETW(req.wValue, USLCOM_UART_DISABLE);
-	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
 	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -465,7 +486,7 @@ uslcom_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_CTRL;
 	USETW(req.wValue, ctl);
-	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -489,7 +510,7 @@ uslcom_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_CTRL;
 	USETW(req.wValue, ctl);
-	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -511,19 +532,20 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
-	uint32_t flowctrl[4];
+	uint32_t baudrate, flowctrl[4];
 	uint16_t data;
 
 	DPRINTF("\n");
 
+	baudrate = t->c_ospeed;
 	req.bmRequestType = USLCOM_WRITE;
-	req.bRequest = USLCOM_BAUD_RATE;
-	USETW(req.wValue, USLCOM_BAUD_REF / t->c_ospeed);
-	USETW(req.wIndex, USLCOM_PORT_NO);
-	USETW(req.wLength, 0);
+	req.bRequest = USLCOM_SET_BAUD_RATE;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, sc->sc_iface_no);
+	USETW(req.wLength, sizeof(baudrate));
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
-	    &req, NULL, 0, 1000)) {
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, &baudrate, 0, 1000)) {
 		DPRINTF("Set baudrate failed (ignored)\n");
 	}
 
@@ -556,7 +578,7 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_DATA;
 	USETW(req.wValue, data);
-	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -578,7 +600,7 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_SET_FLOWCTRL;
 	USETW(req.wValue, 0);
-	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, sizeof(flowctrl));
 
 	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -608,7 +630,7 @@ uslcom_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_BREAK;
 	USETW(req.wValue, brk);
-	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wIndex, sc->sc_iface_no);
 	USETW(req.wLength, 0);
 
         if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -762,7 +784,7 @@ uslcom_control_callback(struct usb_xfer *xfer, usb_error_t error)
 		req.bmRequestType = USLCOM_READ;
 		req.bRequest = USLCOM_RCTRL;
 		USETW(req.wValue, 0);
-		USETW(req.wIndex, USLCOM_PORT_NO);
+		USETW(req.wIndex, sc->sc_iface_no);
 		USETW(req.wLength, sizeof(buf));
                
 		usbd_xfer_set_frames(xfer, 2);

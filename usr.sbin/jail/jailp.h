@@ -71,7 +71,8 @@
 #define JF_DO_STOP(js)		(((js) & (JF_SET | JF_STOP)) == JF_STOP)
 
 enum intparam {
-	IP_ALLOW_DYING = 1,	/* Allow making changes to a dying jail */
+	IP__NULL = 0,		/* Null command */
+	IP_ALLOW_DYING,		/* Allow making changes to a dying jail */
 	IP_COMMAND,		/* Command run inside jail at creation */
 	IP_DEPEND,		/* Jail starts after (stops before) another */
 	IP_EXEC_CLEAN,		/* Run commands in a clean environment */
@@ -226,6 +227,7 @@ extern struct cfjails cfjails;
 extern struct cfjails ready;
 extern struct cfjails depend;
 extern const char *cfname;
+extern int iflag;
 extern int note_remove;
 extern int paralimit;
 extern int verbose;

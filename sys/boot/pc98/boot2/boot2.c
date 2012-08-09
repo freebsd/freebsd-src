@@ -126,13 +126,13 @@ static struct dsk {
     unsigned unit;
     unsigned head;
     unsigned sec;
-    unsigned slice;
-    unsigned part;
+    uint8_t slice;
+    uint8_t part;
     unsigned start;
 } dsk;
 static char cmd[512], cmddup[512], knamebuf[1024];
-static const char *kname = NULL;
-static uint32_t opts = 0;
+static const char *kname;
+static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -140,7 +140,6 @@ static uint8_t ioctrl = IO_KEYBOARD;
 void exit(int);
 static void load(void);
 static int parse(void);
-static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static void printf(const char *,...);
 static void putchar(int);
@@ -172,7 +171,7 @@ strcmp(const char *s1, const char *s2)
 #include "ufsread.c"
 
 static inline int
-xfsread(ino_t inode, void *buf, size_t nbyte)
+xfsread(ufs_ino_t inode, void *buf, size_t nbyte)
 {
     if ((size_t)fsread(inode, buf, nbyte) != nbyte) {
 	printf("Invalid %s\n", "format");
@@ -351,7 +350,7 @@ main(void)
     int i;
 #endif
     uint8_t autoboot;
-    ino_t ino;
+    ufs_ino_t ino;
     size_t nbyte;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
@@ -446,7 +445,7 @@ load(void)
     static Elf32_Phdr ep[2];
     static Elf32_Shdr es[2];
     caddr_t p;
-    ino_t ino;
+    ufs_ino_t ino;
     uint32_t addr;
     int i, j;
 
@@ -616,7 +615,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     struct pc98_partition *dp;
     struct disklabel *d;
     char *sec;
-    unsigned sl, i;
+    unsigned i;
+    uint8_t sl;
     u_char *p;
 
     if (!dsk_meta) {

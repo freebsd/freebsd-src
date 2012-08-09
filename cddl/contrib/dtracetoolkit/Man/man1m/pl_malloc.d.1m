@@ -1,0 +1,39 @@
+.TH pl_malloc.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+pl_malloc.d - Perl libc malloc analysis.
+.SH SYNOPSIS
+.B pl_malloc.d
+{ \-p PID | \-c cmd }	
+.SH DESCRIPTION
+This is an expiremental script to identify who is calling malloc() for
+memory allocation, and to print distribution plots of the requested bytes.
+If a malloc() occured while in a Perl subroutine, then that subroutine is
+identified as responsible; else the caller of malloc() is identified as
+responsible - which will be a function from the Perl engine.
+
+Filename and subroutine names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Perl provider, which may change 
+as additional features are introduced. Check Perl/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B pl_malloc.d
+.PP
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+pl_malloc.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

@@ -61,7 +61,7 @@ After both hooks have been connected and aliasing address was configured,
 a node is ready for aliasing operation.
 .It Dv NGM_NAT_SET_MODE Pq Li setmode
 Set node's operation mode using supplied
-.Vt "struct ng_nat_mode".
+.Vt "struct ng_nat_mode" .
 .Bd -literal
 struct ng_nat_mode {
 	uint32_t	flags;
@@ -193,7 +193,7 @@ are also ignored after
 was used (they are effectively replaced by server pool).
 .It Dv NGM_NAT_LIST_REDIRECTS Pq Li listredirects
 Return list of configured static redirects as
-.Vt "struct ng_nat_list_redirects".
+.Vt "struct ng_nat_list_redirects" .
 .Bd -literal
 struct ng_nat_listrdrs_entry {
 	uint32_t	id;		/* Anything except zero */

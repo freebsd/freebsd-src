@@ -1,8 +1,8 @@
-dnl $Id: configure.ac 507 2011-12-18 14:43:40Z des $
+dnl $Id: configure.ac 610 2012-05-26 14:03:45Z des $
 
 AC_PREREQ([2.62])
-AC_REVISION([$Id: configure.ac 507 2011-12-18 14:43:40Z des $])
-AC_INIT([OpenPAM], [20111218], [des@des.no])
+AC_REVISION([$Id: configure.ac 610 2012-05-26 14:03:45Z des $])
+AC_INIT([OpenPAM], [20120526], [des@des.no])
 AC_CONFIG_SRCDIR([lib/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
@@ -83,7 +83,7 @@ AM_CONDITIONAL([WITH_SU], [test x"$with_su" = x"yes"])
 
 AC_CHECK_HEADERS([crypt.h])
 
-AC_CHECK_FUNCS([fpurge strlcmp strlcpy])
+AC_CHECK_FUNCS([fdlopen fpurge strlcat strlcmp strlcpy])
 
 saved_LIBS="${LIBS}"
 LIBS=""
@@ -110,18 +110,21 @@ AC_ARG_ENABLE([werror],
     [CFLAGS="${CFLAGS} -Werror"])
 
 AC_CONFIG_FILES([
+    Makefile
     bin/Makefile
+    bin/openpam_dump_policy/Makefile
     bin/pamtest/Makefile
     bin/su/Makefile
+    doc/Makefile
+    doc/man/Makefile
     include/Makefile
     include/security/Makefile
     lib/Makefile
     modules/Makefile
-    modules/pam_unix/Makefile
     modules/pam_deny/Makefile
     modules/pam_permit/Makefile
-    doc/Makefile
-    doc/man/Makefile
-    Makefile
+    modules/pam_unix/Makefile
+    t/Makefile
 ])
+AC_CONFIG_FILES([pamgdb],[chmod +x pamgdb])
 AC_OUTPUT

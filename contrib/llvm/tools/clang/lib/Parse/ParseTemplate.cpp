@@ -652,6 +652,7 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
     //   end of the template-parameter-list rather than a greater-than
     //   operator.
     GreaterThanIsOperatorScope G(GreaterThanIsOperator, false);
+    EnterExpressionEvaluationContext Unevaluated(Actions, Sema::Unevaluated);
 
     DefaultArg = ParseAssignmentExpression();
     if (DefaultArg.isInvalid())
@@ -838,7 +839,7 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
     // later.
     Tok.setKind(tok::annot_template_id);
     TemplateIdAnnotation *TemplateId
-      = TemplateIdAnnotation::Allocate(TemplateArgs.size());
+      = TemplateIdAnnotation::Allocate(TemplateArgs.size(), TemplateIds);
     TemplateId->TemplateNameLoc = TemplateNameLoc;
     if (TemplateName.getKind() == UnqualifiedId::IK_Identifier) {
       TemplateId->Name = TemplateName.Identifier;

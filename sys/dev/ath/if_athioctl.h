@@ -161,11 +161,14 @@ struct ath_stats {
 	u_int32_t	ast_tx_aggr_ok;		/* aggregate TX ok */
 	u_int32_t	ast_tx_aggr_fail;	/* aggregate TX failed */
 	u_int32_t	ast_tx_mcastq_overflow;	/* multicast queue overflow */
-	u_int32_t	ast_pad[1];
+	u_int32_t	ast_rx_keymiss;
+
+	u_int32_t	ast_pad[16];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
 #define	SIOCZATHSTATS	_IOWR('i', 139, struct ifreq)
+#define	SIOCGATHAGSTATS	_IOWR('i', 141, struct ifreq)
 
 struct ath_diag {
 	char	ad_name[IFNAMSIZ];	/* if name, e.g. "ath0" */
@@ -183,10 +186,57 @@ struct ath_diag {
 #define	SIOCGATHDIAG	_IOWR('i', 138, struct ath_diag)
 #define	SIOCGATHPHYERR	_IOWR('i', 140, struct ath_diag)
 
+
+/*
+ * The rate control ioctl has to support multiple potential rate
+ * control classes.  For now, instead of trying to support an
+ * abstraction for this in the API, let's just use a TLV
+ * representation for the payload and let userspace sort it out.
+ */
+struct ath_rateioctl_tlv {
+	uint16_t	tlv_id;
+	uint16_t	tlv_len;	/* length excluding TLV header */
+};
+
+/*
+ * This is purely the six byte MAC address.
+ */
+#define	ATH_RATE_TLV_MACADDR		0xaab0
+
+/*
+ * The rate control modules may decide to push a mapping table
+ * of rix -> net80211 ratecode as part of the update.
+ */
+#define	ATH_RATE_TLV_RATETABLE_NENTRIES	64
+struct ath_rateioctl_rt {
+	uint16_t	nentries;
+	uint16_t	pad[1];
+	uint8_t		ratecode[ATH_RATE_TLV_RATETABLE_NENTRIES];
+};
+#define	ATH_RATE_TLV_RATETABLE		0xaab1
+
+/*
+ * This is the sample node statistics structure.
+ * More in ath_rate/sample/sample.h.
+ */
+#define	ATH_RATE_TLV_SAMPLENODE		0xaab2
+
+struct ath_rateioctl {
+	char	if_name[IFNAMSIZ];	/* if name */
+	union {
+		uint8_t		macaddr[IEEE80211_ADDR_LEN];
+		uint64_t	pad;
+	} is_u;
+	uint32_t		len;
+	caddr_t			buf;
+};
+#define	SIOCGATHNODERATESTATS	_IOWR('i', 149, struct ath_rateioctl)
+#define	SIOCGATHRATESTATS	_IOWR('i', 150, struct ath_rateioctl)
+
 /*
  * Radio capture format.
  */
-#define ATH_RX_RADIOTAP_PRESENT (		\
+#define ATH_RX_RADIOTAP_PRESENT_BASE (		\
 	(1 << IEEE80211_RADIOTAP_TSFT)		| \
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
 	(1 << IEEE80211_RADIOTAP_RATE)		| \
@@ -196,8 +246,80 @@ struct ath_diag {
 	(1 << IEEE80211_RADIOTAP_XCHANNEL)	| \
 	0)
 
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+#define	ATH_RX_RADIOTAP_PRESENT \
+	(ATH_RX_RADIOTAP_PRESENT_BASE		| \
+	(1 << IEEE80211_RADIOTAP_VENDOREXT)	| \
+	(1 << IEEE80211_RADIOTAP_EXT)		| \
+	0)
+#else
+#define	ATH_RX_RADIOTAP_PRESENT	ATH_RX_RADIOTAP_PRESENT_BASE
+#endif	/* ATH_ENABLE_RADIOTAP_PRESENT */
+
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+/*
+ * This is higher than the vendor bitmap used inside
+ * the Atheros reference codebase.
+ */
+
+/* Bit 8 */
+#define	ATH_RADIOTAP_VENDOR_HEADER	8
+
+/*
+ * Using four chains makes all the fields in the
+ * per-chain info header be 4-byte aligned.
+ */
+#define	ATH_RADIOTAP_MAX_CHAINS		4
+
+/*
+ * The vendor radiotap header data needs to be:
+ *
+ * + Aligned to a 4 byte address
+ * + .. so all internal fields are 4 bytes aligned;
+ * + .. and no 64 bit fields are allowed.
+ *
+ * So padding is required to ensure this is the case.
+ *
+ * Note that because of the lack of alignment with the
+ * vendor header (6 bytes), the first field must be
+ * two bytes so it can be accessed by alignment-strict
+ * platform (eg MIPS.)
+ */
+struct ath_radiotap_vendor_hdr {		/* 30 bytes */
+	uint8_t		vh_version;		/* 1 */
+	uint8_t		vh_rx_chainmask;	/* 1 */
+
+	/* At this point it should be 4 byte aligned */
+	uint32_t	evm[ATH_RADIOTAP_MAX_CHAINS];	/* 4 * 4 = 16 */
+
+	uint8_t		rssi_ctl[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
+	uint8_t		rssi_ext[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
+
+	uint8_t		vh_phyerr_code;	/* Phy error code, or 0xff */
+	uint8_t		vh_rs_status;	/* RX status */
+	uint8_t		vh_rssi;	/* Raw RSSI */
+	uint8_t		vh_pad1[1];	/* Pad to 4 byte boundary */
+} __packed;
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
+
 struct ath_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
+
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+	/* Vendor extension header bitmap */
+	uint32_t	wr_ext_bitmap;          /* 4 */
+
+	/*
+	 * This padding is needed because:
+	 * + the radiotap header is 8 bytes;
+	 * + the extension bitmap is 4 bytes;
+	 * + the tsf is 8 bytes, so it must start on an 8 byte
+	 *   boundary.
+	 */
+	uint32_t	wr_pad1;
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
+
+	/* Normal radiotap fields */
 	u_int64_t	wr_tsf;
 	u_int8_t	wr_flags;
 	u_int8_t	wr_rate;
@@ -209,6 +331,26 @@ struct ath_rx_radiotap_header {
 	u_int16_t	wr_chan_freq;
 	u_int8_t	wr_chan_ieee;
 	int8_t		wr_chan_maxpow;
+
+#ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
+	/*
+	 * Vendor header section, as required by the
+	 * presence of the vendor extension bit and bitmap
+	 * entry.
+	 *
+	 * XXX This must be aligned to a 4 byte address?
+	 * XXX or 8 byte address?
+	 */
+	struct ieee80211_radiotap_vendor_header wr_vh;  /* 6 bytes */
+
+	/*
+	 * Because of the lack of alignment enforced by the above
+	 * header, this vendor section won't be aligned in any
+	 * useful way.  So, this will include a two-byte version
+	 * value which will force the structure to be 4-byte aligned.
+	 */
+	struct ath_radiotap_vendor_hdr wr_v;
+#endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 } __packed;
 
 #define ATH_TX_RADIOTAP_PRESENT (		\

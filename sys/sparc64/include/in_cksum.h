@@ -65,6 +65,7 @@
 
 #define	in_cksum(m, len)	in_cksum_skip(m, len, 0)
 
+#if defined(IPVERSION) && (IPVERSION == 4)
 static __inline void
 in_cksum_update(struct ip *ip)
 {
@@ -73,6 +74,7 @@ in_cksum_update(struct ip *ip)
 	__tmp = (int)ip->ip_sum + 1;
 	ip->ip_sum = __tmp + (__tmp >> 16);
 }
+#endif
 
 static __inline u_short
 in_addword(u_short sum, u_short b)
@@ -106,6 +108,7 @@ in_pseudo(u_int sum, u_int b, u_int c)
 	return (sum);
 }
 
+#if defined(IPVERSION) && (IPVERSION == 4)
 static __inline u_int
 in_cksum_hdr(struct ip *ip)
 {
@@ -163,6 +166,7 @@ in_cksum_hdr(struct ip *ip)
 #undef __LD_ADD
 	return (__ret);
 }
+#endif
 
 #ifdef _KERNEL
 u_short	in_cksum_skip(struct mbuf *m, int len, int skip);

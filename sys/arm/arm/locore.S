@@ -38,16 +38,11 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/pte.h>
+
 __FBSDID("$FreeBSD$");
 
 /* What size should this really be ? It is only used by initarm() */
 #define INIT_ARM_STACK_SIZE	(2048 * 4)
-
-/*
- * This is for kvm_mkdb, and should be the address of the beginning
- * of the kernel text segment (not necessarily the same as kernbase).
- */
-
 
 #define	CPWAIT_BRANCH							 \
 	sub	pc, pc, #4
@@ -57,6 +52,10 @@ __FBSDID("$FreeBSD$");
 	mov	tmp, tmp		/* wait for it to complete */	;\
 	CPWAIT_BRANCH			/* branch to next insn */
 
+/*
+ * This is for kvm_mkdb, and should be the address of the beginning
+ * of the kernel text segment (not necessarily the same as kernbase).
+ */
 	.text
 	.align	0
 .globl kernbase
@@ -64,22 +63,25 @@ __FBSDID("$FreeBSD$");
 .globl physaddr
 .set physaddr,PHYSADDR
 
-ENTRY_NP(btext)
-
 /*
- * On entry:
- *	r0 - metadata pointer or 0
+ * On entry for FreeBSD boot ABI:
+ *	r0 - metadata pointer or 0 (boothowto on AT91's boot2)
  *	r1 - if (r0 == 0) then metadata pointer
+ * On entry for Linux boot ABI:
+ *	r0 - 0
+ *	r1 - machine type (passed as arg2 to initarm)
+ *	r2 - Pointer to a tagged list or dtb image (phys addr) (passed as arg1 initarm)
+ *
+ * For both types of boot we gather up the args, put them in a struct arm_boot_params
+ * structure and pass that to initarm.
  */
+ENTRY_NP(btext)
 ASENTRY_NP(_start)
+	mov	r9, r0		/* 0 or boot mode from boot2 */
+	mov	r8, r1		/* Save Machine type */
+	mov	ip, r2		/* Save meta data */
+	mov	fp, r3		/* Future expantion */
 
-	/* Move metadata ptr to r12 (ip) */
-	mov	ip, r0
-	ldr	r0, =0
-	cmp	ip, r0
-	bne	1f
-	mov	ip, r1
-1:
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
 	orr	r7, r7, #(I32_bit|F32_bit)
@@ -94,25 +96,25 @@ ASENTRY_NP(_start)
 	 */
 	mrc     p15, 0, r2, c1, c0, 0
 	ands	r2, r2, #CPU_CONTROL_MMU_ENABLE
-	ldreq	r8, =PHYSADDR
-	ldrne	r8, =LOADERRAMADDR
-	cmp	r7, r8
+	ldreq	r6, =PHYSADDR
+	ldrne	r6, =LOADERRAMADDR
+	cmp	r7, r6
 	bls 	flash_lower
 	cmp	r7, pc
 	bhi	from_ram
 	b	do_copy
 	
 flash_lower:
-	cmp	r8, pc
+	cmp	r6, pc
 	bls	from_ram
 do_copy:
-	ldr	r9, =KERNBASE
+	ldr	r7, =KERNBASE
 	adr	r1, _start
 	ldr	r0, Lreal_start
 	ldr	r2, Lend
 	sub	r2, r2, r0
-	sub	r0, r0, r9
-	add	r0, r0, r8
+	sub	r0, r0, r7
+	add	r0, r0, r6
 	mov	r4, r0
 	bl	memcpy
 	ldr	r0, Lram_offset
@@ -200,8 +202,14 @@ mmu_done:
 	ldr	pc, .Lvirt_done
 
 virt_done:
-	mov	r0, ip			/* Load argument: metadata ptr */
-
+	mov	r1, #20			/* loader info size is 20 bytes also second arg */
+	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
+	mov	r0, sp			/* loader info pointer is first arg */
+	str	r1, [r0]		/* Store length of loader info */
+	str	r9, [r0, #4]		/* Store r0 from boot loader */
+	str	r8, [r0, #8]		/* Store r1 from boot loader */
+	str	ip, [r0, #12]		/* store r2 from boot loader */
+	str	fp, [r0, #16]		/* store r3 from boot loader */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
@@ -252,11 +260,6 @@ mmu_init_table:
 	.word	_edata
 	.word	_end
 	.word	svcstk + INIT_ARM_STACK_SIZE
-
-#if defined(FLASHADDR) && defined(LOADERRAMADDR)
-.L_arm_memcpy:
-        .word   _C_LABEL(_arm_memcpy)
-#endif
 
 .Lvirt_done:
 	.word	virt_done

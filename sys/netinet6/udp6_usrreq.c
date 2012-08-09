@@ -185,6 +185,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
 #endif
+	uint16_t uh_sum;
 
 	ifp = m->m_pkthdr.rcvif;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -228,7 +229,18 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		UDPSTAT_INC(udps_nosum);
 		goto badunlocked;
 	}
-	if (in6_cksum(m, IPPROTO_UDP, off, ulen) != 0) {
+
+	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
+		if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+			uh_sum = m->m_pkthdr.csum_data;
+		else
+			uh_sum = in6_cksum_pseudo(ip6, ulen,
+			    IPPROTO_UDP, m->m_pkthdr.csum_data);
+		uh_sum ^= 0xffff;
+	} else
+		uh_sum = in6_cksum(m, IPPROTO_UDP, off, ulen);
+
+	if (uh_sum != 0) {
 		UDPSTAT_INC(udps_badsum);
 		goto badunlocked;
 	}
@@ -771,10 +783,9 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		ip6->ip6_src	= *laddr;
 		ip6->ip6_dst	= *faddr;
 
-		if ((udp6->uh_sum = in6_cksum(m, IPPROTO_UDP,
-				sizeof(struct ip6_hdr), plen)) == 0) {
-			udp6->uh_sum = 0xffff;
-		}
+		udp6->uh_sum = in6_cksum_pseudo(ip6, plen, IPPROTO_UDP, 0);
+		m->m_pkthdr.csum_flags = CSUM_UDP_IPV6;
+		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 
 		flags = 0;
 

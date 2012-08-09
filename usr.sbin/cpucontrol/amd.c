@@ -160,7 +160,7 @@ amd_update(const char *dev, const char *path)
 
 		args.data = fw_image;
 		args.size = st.st_size;
-		error = ioctl(fd, CPUCTL_UPDATE, &args);
+		error = ioctl(devfd, CPUCTL_UPDATE, &args);
 		if (error < 0) {
 			fprintf(stderr, "failed.\n");
 			warn("ioctl()");

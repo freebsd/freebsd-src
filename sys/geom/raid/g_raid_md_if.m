@@ -49,10 +49,19 @@ HEADER {
 # Default implementations of methods.
 CODE {
 	static int
-	g_raid_md_create_default(struct g_raid_md_object *md)
+	g_raid_md_create_default(struct g_raid_md_object *md,
+	    struct g_class *mp, struct g_geom **gp)
 	{
 
 		return (G_RAID_MD_TASTE_FAIL);
+	}
+
+	static int
+	g_raid_md_create_req_default(struct g_raid_md_object *md,
+	    struct g_class *mp, struct gctl_req *req, struct g_geom **gp)
+	{
+
+		return (G_RAID_MD_CREATE(md, mp, gp));
 	}
 
 	static int
@@ -94,6 +103,14 @@ METHOD int create {
 	struct g_class *mp;
 	struct g_geom **gp;
 } DEFAULT g_raid_md_create_default;
+
+# create_req() - create new node from scratch, with request argument.
+METHOD int create_req {
+	struct g_raid_md_object *md;
+	struct g_class *mp;
+	struct gctl_req *req;
+	struct g_geom **gp;
+} DEFAULT g_raid_md_create_req_default;
 
 # taste() - taste disk and, if needed, create new node.
 METHOD int taste {

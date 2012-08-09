@@ -261,6 +261,20 @@ struct ata_params {
 /*255*/ u_int16_t       integrity;
 } __packed;
 
+/*
+ * ATA Device Register
+ *
+ * bit 7 Obsolete (was 1 in early ATA specs)
+ * bit 6 Sets LBA/CHS mode. 1=LBA, 0=CHS 
+ * bit 5 Obsolete (was 1 in early ATA specs)
+ * bit 4 1 = Slave Drive, 0 = Master Drive
+ * bit 3-0 In LBA mode, 27-24 of address. In CHS mode, head number
+*/
+
+#define ATA_DEV_MASTER		0x00
+#define ATA_DEV_SLAVE		0x10
+#define ATA_DEV_LBA		0x40
+
 
 /* ATA transfer modes */
 #define ATA_MODE_MASK           0x0f
@@ -318,6 +332,7 @@ struct ata_params {
 #define ATA_READ_VERIFY48               0x42
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
+#define ATA_SEP_ATTN                    0x67    /* SEP request */
 #define ATA_SEEK                        0x70    /* seek */
 #define ATA_PACKET_CMD                  0xa0    /* packet command */
 #define ATA_ATAPI_IDENTIFY              0xa1    /* get ATAPI params*/

@@ -285,6 +285,8 @@ namespace llvm {
       UNPCKL,
       UNPCKH,
       VPERMILP,
+      VPERMV,
+      VPERMI,
       VPERM2X128,
       VBROADCAST,
 
@@ -855,7 +857,7 @@ namespace llvm {
                                                     unsigned notOpc,
                                                     unsigned EAXreg,
                                               const TargetRegisterClass *RC,
-                                                    bool invSrc = false) const;
+                                                    bool Invert = false) const;
 
     MachineBasicBlock *EmitAtomicBit6432WithCustomInserter(
                                                     MachineInstr *BInstr,
@@ -864,7 +866,7 @@ namespace llvm {
                                                     unsigned regOpcH,
                                                     unsigned immOpcL,
                                                     unsigned immOpcH,
-                                                    bool invSrc = false) const;
+                                                    bool Invert = false) const;
 
     /// Utility function to emit atomic min and max.  It takes the min/max
     /// instruction to expand, the associated basic block, and the associated

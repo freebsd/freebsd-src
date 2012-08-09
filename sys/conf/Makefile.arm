@@ -107,7 +107,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	>opt_kernname.h 
 	eval $$(stat -s ${KERNEL_KO}.tmp) && \
 	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
-	gzip -9 ${KERNEL_KO}.tmp
+	gzip -f9 ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
 	echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -ffreestanding -DKZIP -I. -I$S -c $S/kern/inflate.c -o \

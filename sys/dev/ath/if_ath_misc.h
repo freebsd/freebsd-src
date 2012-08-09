@@ -48,16 +48,24 @@
 	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
+extern int ath_rxbuf;
+extern int ath_txbuf;
+extern int ath_txbuf_mgmt;
+
 extern int ath_tx_findrix(const struct ath_softc *sc, uint8_t rate);
 
-extern struct ath_buf * ath_getbuf(struct ath_softc *sc);
-extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc);
+extern struct ath_buf * ath_getbuf(struct ath_softc *sc,
+	    ath_buf_type_t btype);
+extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc,
+	    ath_buf_type_t btype);
 extern struct ath_buf * ath_buf_clone(struct ath_softc *sc,
 	    const struct ath_buf *bf);
+/* XXX change this to NULL the buffer pointer? */
 extern void ath_freebuf(struct ath_softc *sc, struct ath_buf *bf);
+extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
+extern void ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf);
 
 extern int ath_reset(struct ifnet *, ATH_RESET_TYPE);
-extern void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
 extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf,
 	    int fail);
 extern void ath_tx_update_ratectrl(struct ath_softc *sc,
@@ -66,5 +74,46 @@ extern void ath_tx_update_ratectrl(struct ath_softc *sc,
 
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
+
+extern void ath_txqmove(struct ath_txq *dst, struct ath_txq *src);
+
+extern void ath_mode_init(struct ath_softc *sc);
+
+extern void ath_setdefantenna(struct ath_softc *sc, u_int antenna);
+
+extern void ath_setslottime(struct ath_softc *sc);
+
+extern	int ath_descdma_alloc_desc(struct ath_softc *sc,
+	    struct ath_descdma *dd, ath_bufhead *head, const char *name,
+	    int ds_size, int ndesc);
+extern	int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
+	    ath_bufhead *head, const char *name, int ds_size, int nbuf,
+	    int ndesc);
+extern	int ath_descdma_setup_rx_edma(struct ath_softc *sc,
+	    struct ath_descdma *dd, ath_bufhead *head, const char *name,
+	    int nbuf, int desclen);
+extern	void ath_descdma_cleanup(struct ath_softc *sc,
+	    struct ath_descdma *dd, ath_bufhead *head);
+
+extern	void ath_legacy_attach_comp_func(struct ath_softc *sc);
+extern	void ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
+extern	int ath_legacy_tx_processq(struct ath_softc *sc, struct ath_txq *txq,
+	    int dosched);
+
+/*
+ * This is only here so that the RX proc function can call it.
+ * It's very likely that the "start TX after RX" call should be
+ * done via something in if_ath.c, moving "rx tasklet" into
+ * if_ath.c and do the ath_start() call there.  Once that's done,
+ * we can kill this.
+ */
+extern void ath_start(struct ifnet *ifp);
+
+static inline void
+ath_tx_kick(struct ath_softc *sc)
+{
+
+	ath_start(sc->sc_ifp);
+}
 
 #endif

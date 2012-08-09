@@ -274,8 +274,8 @@
 #define ACPI_INSERT_BITS(Target, Mask, Source)          Target = ((Target & (~(Mask))) | (Source & Mask))
 
 /*
- * An ACPI_NAMESPACE_NODE can appear in some contexts
- * where a pointer to an ACPI_OPERAND_OBJECT can also
+ * An object of type ACPI_NAMESPACE_NODE can appear in some contexts
+ * where a pointer to an object of type ACPI_OPERAND_OBJECT can also
  * appear. This macro is used to distinguish them.
  *
  * The "Descriptor" field is the first field in both structures.

@@ -1,0 +1,37 @@
+.TH guess.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+guess.d \- guessing game. Uses DTrace.
+.SH SYNOPSIS
+.B guess.d
+.SH DESCRIPTION
+This is written to demonstrate this language versus the same program
+written in other languages.
+
+See http://www.brendangregg.com/guessinggame.html
+
+It exists in the DTraceToolkit as a curiosity, rather than something
+actually useful.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH EXAMPLES
+.TP
+Play the game,
+# 
+.B guess.d
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+guess.d will only exit when you win the game.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M)

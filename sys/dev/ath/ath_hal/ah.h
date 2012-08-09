@@ -73,6 +73,7 @@ typedef enum {
 	HAL_EINPROGRESS	= 15,	/* Operation incomplete */
 	HAL_EEBADREG	= 16,	/* EEPROM invalid regulatory contents */
 	HAL_EEBADCC	= 17,	/* EEPROM invalid country code */
+	HAL_INV_PMODE	= 18,	/* Couldn't bring out of sleep state */
 } HAL_STATUS;
 
 typedef enum {
@@ -109,7 +110,7 @@ typedef enum {
 	HAL_CAP_TPC_ACK		= 26,	/* ack txpower with per-packet tpc */
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
-
+	HAL_CAP_PCIE_PS		= 29,
 	HAL_CAP_HT		= 30,   /* hardware can support HT */
 	HAL_CAP_GTXTO		= 31,	/* hardware supports global tx timeout */
 	HAL_CAP_FAST_CC		= 32,	/* hardware supports fast channel change */
@@ -119,6 +120,9 @@ typedef enum {
 
 	HAL_CAP_CST		= 38,	/* hardware supports carrier sense timeout */
 
+	HAL_CAP_RIFS_RX		= 39,
+	HAL_CAP_RIFS_TX		= 40,
+	HAL_CAP_FORCE_PPM	= 41,
 	HAL_CAP_RTS_AGGR_LIMIT	= 42,	/* aggregation limit with RTS */
 	HAL_CAP_4ADDR_AGGR	= 43,	/* hardware is capable of 4addr aggregation */
 	HAL_CAP_DFS_DMN		= 44,	/* current DFS domain */
@@ -130,8 +134,32 @@ typedef enum {
 	HAL_CAP_MBSSID_AGGR_SUPPORT	= 49, /* Support for mBSSID Aggregation */
 	HAL_CAP_SPLIT_4KB_TRANS	= 50,	/* hardware supports descriptors straddling a 4k page boundary */
 	HAL_CAP_REG_FLAG	= 51,	/* Regulatory domain flags */
+	HAL_CAP_BB_RIFS_HANG	= 52,
+	HAL_CAP_RIFS_RX_ENABLED	= 53,
+	HAL_CAP_BB_DFS_HANG	= 54,
 
 	HAL_CAP_BT_COEX		= 60,	/* hardware is capable of bluetooth coexistence */
+	HAL_CAP_DYNAMIC_SMPS	= 61,	/* Dynamic MIMO Power Save hardware support */
+
+	HAL_CAP_DS		= 67,	/* 2 stream */
+	HAL_CAP_BB_RX_CLEAR_STUCK_HANG	= 68,
+	HAL_CAP_MAC_HANG	= 69,	/* can MAC hang */
+	HAL_CAP_MFP		= 70,	/* Management Frame Protection in hardware */
+
+	HAL_CAP_TS		= 72,	/* 3 stream */
+
+	HAL_CAP_ENHANCED_DMA_SUPPORT	= 75,	/* DMA FIFO support */
+	HAL_CAP_NUM_TXMAPS	= 76,	/* Number of buffers in a transmit descriptor */
+	HAL_CAP_TXDESCLEN	= 77,	/* Length of transmit descriptor */
+	HAL_CAP_TXSTATUSLEN	= 78,	/* Length of transmit status descriptor */
+	HAL_CAP_RXSTATUSLEN	= 79,	/* Length of transmit status descriptor */
+	HAL_CAP_RXFIFODEPTH	= 80,	/* Receive hardware FIFO depth */
+	HAL_CAP_RXBUFSIZE	= 81,	/* Receive Buffer Length */
+	HAL_CAP_NUM_MR_RETRIES	= 82,	/* limit on multirate retries */
+
+	HAL_CAP_OL_PWRCTRL	= 84,	/* Open loop TX power control */
+
+	HAL_CAP_BB_PANIC_WATCHDOG	= 92,
 
 	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
 
@@ -143,7 +171,6 @@ typedef enum {
 	HAL_CAP_INTMIT		= 229,	/* interference mitigation */
 	HAL_CAP_RXORN_FATAL	= 230,	/* HAL_INT_RXORN treated as fatal */
 	HAL_CAP_BB_HANG		= 235,	/* can baseband hang */
-	HAL_CAP_MAC_HANG	= 236,	/* can MAC hang */
 	HAL_CAP_INTRMASK	= 237,	/* bitmask of supported interrupts */
 	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
@@ -180,9 +207,20 @@ typedef enum {
 	HAL_TX_QUEUE_CAB	= 3,		/* "crap after beacon" xmit q */
 	HAL_TX_QUEUE_UAPSD	= 4,		/* u-apsd power save xmit q */
 	HAL_TX_QUEUE_PSPOLL	= 5,		/* power save poll xmit q */
+	HAL_TX_QUEUE_CFEND	= 6,
+	HAL_TX_QUEUE_PAPRD	= 7,
 } HAL_TX_QUEUE;
 
 #define	HAL_NUM_TX_QUEUES	10		/* max possible # of queues */
+
+typedef enum {
+	HAL_RX_QUEUE_HP = 0,			/* high priority recv queue */
+	HAL_RX_QUEUE_LP = 1,			/* low priority recv queue */
+} HAL_RX_QUEUE;
+
+#define	HAL_NUM_RX_QUEUES	2		/* max possible # of queues */
+
+#define	HAL_TXFIFO_DEPTH	8		/* transmit fifo depth */
 
 /*
  * Transmit queue subtype.  These map directly to
@@ -373,7 +411,10 @@ typedef enum {
  */
 typedef enum {
 	HAL_INT_RX	= 0x00000001,	/* Non-common mapping */
-	HAL_INT_RXDESC	= 0x00000002,
+	HAL_INT_RXDESC	= 0x00000002,	/* Legacy mapping */
+	HAL_INT_RXHP	= 0x00000001,	/* EDMA */
+	HAL_INT_RXLP	= 0x00000002,	/* EDMA */
+	HAL_INT_RXERR	= 0x00000004,
 	HAL_INT_RXNOFRM	= 0x00000008,
 	HAL_INT_RXEOL	= 0x00000010,
 	HAL_INT_RXORN	= 0x00000020,
@@ -420,14 +461,38 @@ typedef enum {
 			| HAL_INT_GPIO,
 } HAL_INT;
 
+/*
+ * MSI vector assignments
+ */
 typedef enum {
-	HAL_GPIO_MUX_OUTPUT		= 0,
-	HAL_GPIO_MUX_PCIE_ATTENTION_LED	= 1,
-	HAL_GPIO_MUX_PCIE_POWER_LED	= 2,
-	HAL_GPIO_MUX_TX_FRAME		= 3,
-	HAL_GPIO_MUX_RX_CLEAR_EXTERNAL	= 4,
-	HAL_GPIO_MUX_MAC_NETWORK_LED	= 5,
-	HAL_GPIO_MUX_MAC_POWER_LED	= 6
+	HAL_MSIVEC_MISC = 0,
+	HAL_MSIVEC_TX   = 1,
+	HAL_MSIVEC_RXLP = 2,
+	HAL_MSIVEC_RXHP = 3,
+} HAL_MSIVEC;
+
+typedef enum {
+	HAL_INT_LINE = 0,
+	HAL_INT_MSI  = 1,
+} HAL_INT_TYPE;
+
+/* For interrupt mitigation registers */
+typedef enum {
+	HAL_INT_RX_FIRSTPKT=0,
+	HAL_INT_RX_LASTPKT,
+	HAL_INT_TX_FIRSTPKT,
+	HAL_INT_TX_LASTPKT,
+	HAL_INT_THRESHOLD
+} HAL_INT_MITIGATION;
+
+typedef enum {
+	HAL_GPIO_OUTPUT_MUX_AS_OUTPUT		= 0,
+	HAL_GPIO_OUTPUT_MUX_PCIE_ATTENTION_LED	= 1,
+	HAL_GPIO_OUTPUT_MUX_PCIE_POWER_LED	= 2,
+	HAL_GPIO_OUTPUT_MUX_MAC_NETWORK_LED	= 3,
+	HAL_GPIO_OUTPUT_MUX_MAC_POWER_LED	= 4,
+	HAL_GPIO_OUTPUT_MUX_AS_WLAN_ACTIVE	= 5,
+	HAL_GPIO_OUTPUT_MUX_AS_TX_FRAME		= 6
 } HAL_GPIO_MUX_TYPE;
 
 typedef enum {
@@ -517,13 +582,16 @@ typedef enum {
 
 typedef struct {
 	u_int	Tries;
-	u_int	Rate;
+	u_int	Rate;		/* hardware rate code */
+	u_int	RateIndex;	/* rate series table index */
 	u_int	PktDuration;
 	u_int	ChSel;
 	u_int	RateFlags;
 #define	HAL_RATESERIES_RTS_CTS		0x0001	/* use rts/cts w/this series */
 #define	HAL_RATESERIES_2040		0x0002	/* use ext channel for series */
 #define	HAL_RATESERIES_HALFGI		0x0004	/* use half-gi for series */
+#define	HAL_RATESERIES_STBC		0x0008	/* use STBC for series */
+	u_int	tx_power_cap;
 } HAL_11N_RATE_SERIES;
 
 typedef enum {
@@ -568,7 +636,7 @@ typedef enum {
 
 typedef struct {
 	uint8_t		kv_type;		/* one of HAL_CIPHER */
-	uint8_t		kv_pad;
+	uint8_t		kv_apsd;		/* Mask for APSD enabled ACs */
 	uint16_t	kv_len;			/* length in bits */
 	uint8_t		kv_val[16];		/* enough for 128-bit keys */
 	uint8_t		kv_mic[8];		/* TKIP MIC key */
@@ -697,6 +765,7 @@ typedef enum {
 	HAL_ANI_SPUR_IMMUNITY_LEVEL = 5,	/* set level */
 	HAL_ANI_MODE = 6,			/* 0 => manual, 1 => auto (XXX do not change) */
 	HAL_ANI_PHYERR_RESET = 7,		/* reset phy error stats */
+	HAL_ANI_MRC_CCK = 8,
 } HAL_ANI_CMD;
 
 /*
@@ -714,6 +783,7 @@ typedef enum {
 	HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL = 6
 } HAL_CAP_INTMIT_CMD;
 
+/* DFS defines */
 typedef struct {
 	int32_t		pe_firpwr;	/* FIR pwr out threshold */
 	int32_t		pe_rrssi;	/* Radar rssi thresh */
@@ -777,6 +847,139 @@ struct hal_dfs_event {
 };
 typedef struct hal_dfs_event HAL_DFS_EVENT;
 
+/*
+ * BT Co-existence definitions
+ */
+typedef enum {
+	HAL_BT_MODULE_CSR_BC4	= 0,	/* CSR BlueCore v4 */
+	HAL_BT_MODULE_JANUS	= 1,	/* Kite + Valkyrie combo */
+	HAL_BT_MODULE_HELIUS	= 2,	/* Kiwi + Valkyrie combo */
+	HAL_MAX_BT_MODULES
+} HAL_BT_MODULE;
+
+typedef struct {
+	HAL_BT_MODULE	bt_module;
+	u_int8_t	bt_coex_config;
+	u_int8_t	bt_gpio_bt_active;
+	u_int8_t	bt_gpio_bt_priority;
+	u_int8_t	bt_gpio_wlan_active;
+	u_int8_t	bt_active_polarity;
+	HAL_BOOL	bt_single_ant;
+	u_int8_t	bt_dutyCycle;
+	u_int8_t	bt_isolation;
+	u_int8_t	bt_period;
+} HAL_BT_COEX_INFO;
+
+typedef enum {
+	HAL_BT_COEX_MODE_LEGACY		= 0,	/* legacy rx_clear mode */
+	HAL_BT_COEX_MODE_UNSLOTTED	= 1,	/* untimed/unslotted mode */
+	HAL_BT_COEX_MODE_SLOTTED	= 2,	/* slotted mode */
+	HAL_BT_COEX_MODE_DISALBED	= 3,	/* coexistence disabled */
+} HAL_BT_COEX_MODE;
+
+typedef enum {
+	HAL_BT_COEX_CFG_NONE,		/* No bt coex enabled */
+	HAL_BT_COEX_CFG_2WIRE_2CH,	/* 2-wire with 2 chains */
+	HAL_BT_COEX_CFG_2WIRE_CH1,	/* 2-wire with ch1 */
+	HAL_BT_COEX_CFG_2WIRE_CH0,	/* 2-wire with ch0 */
+	HAL_BT_COEX_CFG_3WIRE,		/* 3-wire */
+	HAL_BT_COEX_CFG_MCI		/* MCI */
+} HAL_BT_COEX_CFG;
+
+typedef enum {
+	HAL_BT_COEX_SET_ACK_PWR		= 0,	/* Change ACK power setting */
+	HAL_BT_COEX_LOWER_TX_PWR,		/* Change transmit power */
+	HAL_BT_COEX_ANTENNA_DIVERSITY,	/* Enable RX diversity for Kite */
+} HAL_BT_COEX_SET_PARAMETER;
+
+#define	HAL_BT_COEX_FLAG_LOW_ACK_PWR	0x00000001
+#define	HAL_BT_COEX_FLAG_LOWER_TX_PWR	0x00000002
+/* Check Rx Diversity is allowed */
+#define	HAL_BT_COEX_FLAG_ANT_DIV_ALLOW	0x00000004
+/* Check Diversity is on or off */
+#define	HAL_BT_COEX_FLAG_ANT_DIV_ENABLE	0x00000008
+
+#define	HAL_BT_COEX_ANTDIV_CONTROL1_ENABLE	0x0b
+/* main: LNA1, alt: LNA2 */
+#define	HAL_BT_COEX_ANTDIV_CONTROL2_ENABLE	0x09
+#define	HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_A	0x04
+#define	HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_A	0x09
+#define	HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_B	0x02
+#define	HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_B	0x06
+
+#define	HAL_BT_COEX_ISOLATION_FOR_NO_COEX	30
+
+#define	HAL_BT_COEX_ANT_DIV_SWITCH_COM	0x66666666
+
+#define	HAL_BT_COEX_HELIUS_CHAINMASK	0x02
+
+#define	HAL_BT_COEX_LOW_ACK_POWER	0x0
+#define	HAL_BT_COEX_HIGH_ACK_POWER	0x3f3f3f
+
+typedef enum {
+	HAL_BT_COEX_NO_STOMP = 0,
+	HAL_BT_COEX_STOMP_ALL,
+	HAL_BT_COEX_STOMP_LOW,
+	HAL_BT_COEX_STOMP_NONE,
+	HAL_BT_COEX_STOMP_ALL_FORCE,
+	HAL_BT_COEX_STOMP_LOW_FORCE,
+} HAL_BT_COEX_STOMP_TYPE;
+
+typedef struct {
+	/* extend rx_clear after tx/rx to protect the burst (in usec). */
+	u_int8_t	bt_time_extend;
+
+	/*
+	 * extend rx_clear as long as txsm is
+	 * transmitting or waiting for ack.
+	 */
+	HAL_BOOL	bt_txstate_extend;
+
+	/*
+	 * extend rx_clear so that when tx_frame
+	 * is asserted, rx_clear will drop.
+	 */
+	HAL_BOOL	bt_txframe_extend;
+
+	/*
+	 * coexistence mode
+	 */
+	HAL_BT_COEX_MODE	bt_mode;
+
+	/*
+	 * treat BT high priority traffic as
+	 * a quiet collision
+	 */
+	HAL_BOOL	bt_quiet_collision;
+
+	/*
+	 * invert rx_clear as WLAN_ACTIVE
+	 */
+	HAL_BOOL	bt_rxclear_polarity;
+
+	/*
+	 * slotted mode only. indicate the time in usec
+	 * from the rising edge of BT_ACTIVE to the time
+	 * BT_PRIORITY can be sampled to indicate priority.
+	 */
+	u_int8_t	bt_priority_time;
+
+	/*
+	 * slotted mode only. indicate the time in usec
+	 * from the rising edge of BT_ACTIVE to the time
+	 * BT_PRIORITY can be sampled to indicate tx/rx and
+	 * BT_FREQ is sampled.
+	 */
+	u_int8_t	bt_first_slot_time;
+
+	/*
+	 * slotted mode only. rx_clear and bt_ant decision
+	 * will be held the entire time that BT_ACTIVE is asserted,
+	 * otherwise the decision is made before every slot boundry.
+	 */
+	HAL_BOOL	bt_hold_rxclear;
+} HAL_BT_COEX_CONFIG;
+
 typedef struct
 {
 	int ah_debug;			/* only used if AH_DEBUG is defined */
@@ -832,7 +1035,8 @@ struct ath_hal {
 				HAL_BOOL bChannelChange, HAL_STATUS *status);
 	HAL_BOOL  __ahdecl(*ah_phyDisable)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_disable)(struct ath_hal *);
-	void	  __ahdecl(*ah_configPCIE)(struct ath_hal *, HAL_BOOL restore);
+	void	  __ahdecl(*ah_configPCIE)(struct ath_hal *, HAL_BOOL restore,
+				HAL_BOOL power_off);
 	void	  __ahdecl(*ah_disablePCIE)(struct ath_hal *);
 	void	  __ahdecl(*ah_setPCUConfig)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*,
@@ -877,7 +1081,8 @@ struct ath_hal {
 				u_int txRate2, u_int txTries2,
 				u_int txRate3, u_int txTries3);
 	HAL_BOOL  __ahdecl(*ah_fillTxDesc)(struct ath_hal *, struct ath_desc *,
-				u_int segLen, HAL_BOOL firstSeg,
+				HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+				u_int descId, u_int qcuId, HAL_BOOL firstSeg,
 				HAL_BOOL lastSeg, const struct ath_desc *);
 	HAL_STATUS __ahdecl(*ah_procTxDesc)(struct ath_hal *,
 				struct ath_desc *, struct ath_tx_status *);
@@ -885,10 +1090,19 @@ struct ath_hal {
 	void	   __ahdecl(*ah_reqTxIntrDesc)(struct ath_hal *, struct ath_desc*);
 	HAL_BOOL	__ahdecl(*ah_getTxCompletionRates)(struct ath_hal *,
 				const struct ath_desc *ds, int *rates, int *tries);
+	void	  __ahdecl(*ah_setTxDescLink)(struct ath_hal *ah, void *ds,
+				uint32_t link);
+	void	  __ahdecl(*ah_getTxDescLink)(struct ath_hal *ah, void *ds,
+				uint32_t *link);
+	void	  __ahdecl(*ah_getTxDescLinkPtr)(struct ath_hal *ah, void *ds,
+				uint32_t **linkptr);
+	void	  __ahdecl(*ah_setupTxStatusRing)(struct ath_hal *,
+				void *ts_start, uint32_t ts_paddr_start,
+				uint16_t size);
 
 	/* Receive Functions */
-	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*);
-	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp);
+	uint32_t __ahdecl(*ah_getRxDP)(struct ath_hal*, HAL_RX_QUEUE);
+	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp, HAL_RX_QUEUE);
 	void	  __ahdecl(*ah_enableReceive)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_stopDmaReceive)(struct ath_hal*);
 	void	  __ahdecl(*ah_startPcuReceive)(struct ath_hal*);
@@ -1013,8 +1227,11 @@ struct ath_hal {
 
 	/* 802.11n Functions */
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
-				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
-				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
+				struct ath_desc *,
+				HAL_DMA_ADDR *bufAddrList,
+				uint32_t *segLenList,
+				u_int, u_int, HAL_PKT_TYPE,
+				u_int, HAL_CIPHER, uint8_t, HAL_BOOL,
 				HAL_BOOL, HAL_BOOL);
 	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, u_int,
@@ -1025,7 +1242,7 @@ struct ath_hal {
 	    			struct ath_desc *, u_int, u_int,
 				HAL_11N_RATE_SERIES [], u_int, u_int);
 	void	  __ahdecl(*ah_set11nAggrFirst)(struct ath_hal *,
-				struct ath_desc *, u_int, u_int);
+				struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
@@ -1034,8 +1251,8 @@ struct ath_hal {
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
-	uint32_t  __ahdecl(*ah_get_mib_cycle_counts_pct) (struct ath_hal *,
-				uint32_t *, uint32_t *, uint32_t *, uint32_t *);
+	HAL_BOOL  __ahdecl(*ah_getMibCycleCounts) (struct ath_hal *,
+				HAL_SURVEY_SAMPLE *);
 
 	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
 	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,

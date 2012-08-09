@@ -765,6 +765,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
+	pt_entry_t *ptep;
 	pt_entry_t pte;
 	vm_page_t m;
 	vm_paddr_t pa;
@@ -773,8 +774,9 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	pa = 0;
 	PMAP_LOCK(pmap);
 retry:
-	pte = *pmap_pte(pmap, va);
-	if (pte != 0 && pte_test(&pte, PTE_V) &&
+	ptep = pmap_pte(pmap, va);
+	if ((ptep != NULL)  && ((pte = *ptep) != 0) && 
+	    pte_test(&pte, PTE_V) &&
 	    (pte_test(&pte, PTE_D) || (prot & VM_PROT_WRITE) == 0)) {
 		if (vm_page_pa_tryrelock(pmap, TLBLO_PTE_TO_PA(pte), &pa))
 			goto retry;
@@ -1032,9 +1034,9 @@ pmap_grow_direct_page_cache()
 {
 
 #ifdef __mips_n64
-	vm_contig_grow_cache(3, 0, MIPS_XKPHYS_LARGEST_PHYS);
+	vm_pageout_grow_cache(3, 0, MIPS_XKPHYS_LARGEST_PHYS);
 #else
-	vm_contig_grow_cache(3, 0, MIPS_KSEG0_LARGEST_PHYS);
+	vm_pageout_grow_cache(3, 0, MIPS_KSEG0_LARGEST_PHYS);
 #endif
 }
 
@@ -3144,16 +3146,16 @@ init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	pt_entry_t rw;
 
 	if (!(prot & VM_PROT_WRITE))
-		rw =  PTE_V | PTE_RO | PTE_C_CACHE;
+		rw =  PTE_V | PTE_RO;
 	else if ((m->oflags & VPO_UNMANAGED) == 0) {
 		if ((m->md.pv_flags & PV_TABLE_MOD) != 0)
-			rw =  PTE_V | PTE_D | PTE_C_CACHE;
+			rw =  PTE_V | PTE_D;
 		else
-			rw = PTE_V | PTE_C_CACHE;
+			rw = PTE_V;
 		vm_page_aflag_set(m, PGA_WRITEABLE);
 	} else
 		/* Needn't emulate a modified bit for unmanaged pages. */
-		rw =  PTE_V | PTE_D | PTE_C_CACHE;
+		rw =  PTE_V | PTE_D;
 	return (rw);
 }
 

@@ -364,7 +364,7 @@ void	sa11x0_drain_readbuf	(void);
 
 void	sa11x0_context_switch	(void);
 void	sa11x0_cpu_sleep	(int mode);
- 
+
 void	sa11x0_setup		(char *string);
 #endif
 
@@ -566,7 +566,7 @@ extern unsigned armv5_dcache_index_inc;
   defined(CPU_FA526) || defined(CPU_FA626TE) ||				\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
-  
+
 void	armv4_tlb_flushID	(void);
 void	armv4_tlb_flushI	(void);
 void	armv4_tlb_flushD	(void);
@@ -621,7 +621,7 @@ void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
 void	xscale_context_switch	(void);
 
 void	xscale_setup		(char *string);
-#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 
+#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
 	   CPU_XSCALE_80219 */
 
 #ifdef	CPU_XSCALE_81342
@@ -723,7 +723,7 @@ extern int	arm_picache_ways;
 
 extern int	arm_pdcache_size;	/* and unified */
 extern int	arm_pdcache_line_size;
-extern int	arm_pdcache_ways; 
+extern int	arm_pdcache_ways;
 
 extern int	arm_pcache_type;
 extern int	arm_pcache_unified;

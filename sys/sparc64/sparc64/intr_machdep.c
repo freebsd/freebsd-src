@@ -555,15 +555,6 @@ intr_shuffle_irqs(void *arg __unused)
 SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
     NULL);
 #else /* !SMP */
-
-/* Return EOPNOTSUPP in the UP case. */
-int
-intr_bind(int vec __unused, u_char cpu __unused)
-{
-
-	return (EOPNOTSUPP);
-}
-
 /* Use an empty stub for compatibility. */
 void
 intr_add_cpu(u_int cpu __unused)

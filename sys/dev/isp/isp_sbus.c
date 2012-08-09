@@ -78,19 +78,22 @@ static struct ispmdvec mdvec = {
 
 static int isp_sbus_probe (device_t);
 static int isp_sbus_attach (device_t);
+static int isp_sbus_detach (device_t);
 
 
 #define	ISP_SBD(isp)	((struct isp_sbussoftc *)isp)->sbus_dev
 struct isp_sbussoftc {
 	ispsoftc_t			sbus_isp;
 	device_t			sbus_dev;
-	struct resource *		sbus_reg;
+	struct resource *		regs;
+	void *				irq;
+	int				iqd;
+	int				rgd;
 	void *				ih;
 	int16_t				sbus_poff[_NREG_BLKS];
 	sdparam				sbus_param;
 	struct isp_spi			sbus_spi;
 	struct ispmdvec			sbus_mdvec;
-	struct resource *		sbus_ires;
 };
 
 
@@ -98,6 +101,7 @@ static device_method_t isp_sbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		isp_sbus_probe),
 	DEVMETHOD(device_attach,	isp_sbus_attach),
+	DEVMETHOD(device_detach,	isp_sbus_detach),
 	{ 0, 0 }
 };
 
@@ -106,6 +110,8 @@ static driver_t isp_sbus_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, sbus, isp_sbus_driver, isp_devclass, 0, 0);
+MODULE_DEPEND(isp, cam, 1, 1, 1);
+MODULE_DEPEND(isp, firmware, 1, 1, 1);
 
 static int
 isp_sbus_probe(device_t dev)
@@ -134,12 +140,20 @@ isp_sbus_probe(device_t dev)
 static int
 isp_sbus_attach(device_t dev)
 {
-	struct resource *regs;
-	int tval, iqd, isp_debug, role, rid, ispburst, default_id;
+	int tval, isp_debug, role, ispburst, default_id;
 	struct isp_sbussoftc *sbs;
 	ispsoftc_t *isp = NULL;
 	int locksetup = 0;
 	int ints_setup = 0;
+
+	sbs = device_get_softc(dev);
+	if (sbs == NULL) {
+		device_printf(dev, "cannot get softc\n");
+		return (ENOMEM);
+	}
+
+	sbs->sbus_dev = dev;
+	sbs->sbus_mdvec = mdvec;
 
 	/*
 	 * Figure out if we're supposed to skip this one.
@@ -163,23 +177,15 @@ isp_sbus_attach(device_t dev)
 		role = ISP_DEFAULT_ROLES;
 	}
 
-	sbs = malloc(sizeof (*sbs), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sbs == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENOMEM);
-	}
+	sbs->irq = sbs->regs = NULL;
+	sbs->rgd = sbs->iqd = 0;
 
-	regs = NULL;
-	iqd = 0;
-	rid = 0;
-	regs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-	if (regs == 0) {
+	sbs->regs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sbs->rgd,
+	    RF_ACTIVE);
+	if (sbs->regs == NULL) {
 		device_printf(dev, "unable to map registers\n");
 		goto bad;
 	}
-	sbs->sbus_dev = dev;
-	sbs->sbus_reg = regs;
-	sbs->sbus_mdvec = mdvec;
 
 	sbs->sbus_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
 	sbs->sbus_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = SBUS_MBOX_REGS_OFF;
@@ -187,8 +193,8 @@ isp_sbus_attach(device_t dev)
 	sbs->sbus_poff[RISC_BLOCK >> _BLK_REG_SHFT] = SBUS_RISC_REGS_OFF;
 	sbs->sbus_poff[DMA_BLOCK >> _BLK_REG_SHFT] = DMA_REGS_OFF;
 	isp = &sbs->sbus_isp;
-	isp->isp_bus_tag = rman_get_bustag(regs);
-	isp->isp_bus_handle = rman_get_bushandle(regs);
+	isp->isp_bus_tag = rman_get_bustag(sbs->regs);
+	isp->isp_bus_handle = rman_get_bushandle(sbs->regs);
 	isp->isp_mdvec = &sbs->sbus_mdvec;
 	isp->isp_bustype = ISP_BT_SBUS;
 	isp->isp_type = ISP_HA_SCSI_UNKNOWN;
@@ -242,7 +248,6 @@ isp_sbus_attach(device_t dev)
 		SDPARAM(isp, 0)->isp_ptisp = 1;
 	}
 
-
 	isp->isp_osinfo.fw = firmware_get("isp_1000");
 	if (isp->isp_osinfo.fw) {
 		union {
@@ -278,16 +283,15 @@ isp_sbus_attach(device_t dev)
 	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
 	locksetup++;
 
-	iqd = 0;
-	sbs->sbus_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
+	sbs->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sbs->iqd,
 	    RF_ACTIVE | RF_SHAREABLE);
-	if (sbs->sbus_ires == NULL) {
+	if (sbs->irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;
 	}
 
-	if (isp_setup_intr(dev, sbs->sbus_ires, ISP_IFLAGS, NULL,
-	    isp_platform_intr, isp, &sbs->ih)) {
+	if (isp_setup_intr(dev, sbs->irq, ISP_IFLAGS, NULL, isp_platform_intr,
+	    isp, &sbs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
@@ -331,25 +335,49 @@ isp_sbus_attach(device_t dev)
 bad:
 
 	if (sbs && ints_setup) {
-		(void) bus_teardown_intr(dev, sbs->sbus_ires, sbs->ih);
+		(void) bus_teardown_intr(dev, sbs->irq, sbs->ih);
 	}
 
-	if (sbs && sbs->sbus_ires) {
-		bus_release_resource(dev, SYS_RES_IRQ, iqd, sbs->sbus_ires);
+	if (sbs && sbs->irq) {
+		bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd, sbs->irq);
 	}
 
 	if (locksetup && isp) {
 		mtx_destroy(&isp->isp_osinfo.lock);
 	}
 
-	if (regs) {
-		(void) bus_release_resource(dev, SYS_RES_MEMORY, 0, regs);
-	}
-
-	if (sbs) {
-		free(sbs, M_DEVBUF);
+	if (sbs->regs) {
+		(void) bus_release_resource(dev, SYS_RES_MEMORY, sbs->rgd,
+		    sbs->regs);
 	}
 	return (ENXIO);
+}
+
+static int
+isp_sbus_detach(device_t dev)
+{
+	struct isp_sbussoftc *sbs;
+	ispsoftc_t *isp;
+	int status;
+
+	sbs = device_get_softc(dev);
+	if (sbs == NULL) {
+		return (ENXIO);
+	}
+	isp = (ispsoftc_t *) sbs;
+	status = isp_detach(isp);
+	if (status)
+		return (status);
+	ISP_LOCK(isp);
+	isp_uninit(isp);
+	if (sbs->ih) {
+		(void) bus_teardown_intr(dev, sbs->irq, sbs->ih);
+	}
+	ISP_UNLOCK(isp);
+	mtx_destroy(&isp->isp_osinfo.lock);
+	(void) bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd, sbs->irq);
+	(void) bus_release_resource(dev, SYS_RES_MEMORY, sbs->rgd, sbs->regs);
+	return (0);
 }
 
 #define	IspVirt2Off(a, x)	\
@@ -598,7 +626,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		ddir = ISP_NOXFR;
 	}
 
-	if (isp_send_cmd(isp, rq, dm_segs, nseg, XS_XFRLEN(csio), ddir) != CMD_QUEUED) {
+	if (isp_send_cmd(isp, rq, dm_segs, nseg, XS_XFRLEN(csio), ddir, NULL) != CMD_QUEUED) {
 		mp->error = MUSHERR_NOQENTRIES;
 	}
 }

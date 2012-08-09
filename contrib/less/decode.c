@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -79,6 +78,7 @@ static unsigned char cmdtable[] =
 	'w',0,				A_B_WINDOW,
 	ESC,' ',0,			A_FF_SCREEN,
 	'F',0,				A_F_FOREVER,
+	ESC,'F',0,			A_F_UNTIL_HILITE,
 	'R',0,				A_FREPAINT,
 	'r',0,				A_REPAINT,
 	CONTROL('R'),0,			A_REPAINT,

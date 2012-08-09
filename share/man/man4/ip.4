@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2011
+.Dd June 15, 2012
 .Dt IP 4
 .Os
 .Sh NAME
@@ -165,7 +165,7 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
@@ -184,7 +184,7 @@ structure followed by the
 address.
 The cmsghdr fields should have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_SENDSRCADDR
 .Ed
@@ -215,7 +215,8 @@ before transmission.
 This is in contrast to the default behavior of the
 system, which is to transmit undirected broadcasts
 via the first network interface with the
-.Dv IFF_BROADCAST flag set.
+.Dv IFF_BROADCAST
+flag set.
 .Pp
 This option allows applications to choose which
 interface is used to transmit an undirected broadcast
@@ -226,7 +227,7 @@ configured with the broadcast address 192.168.2.255:
 .Bd -literal
 char msg[512];
 struct sockaddr_in sin;
-u_char onesbcast = 1;	/* 0 = disable (default), 1 = enable */
+int onesbcast = 1;	/* 0 = disable (default), 1 = enable */
 
 setsockopt(s, IPPROTO_IP, IP_ONESBCAST, &onesbcast, sizeof(onesbcast));
 sin.sin_addr.s_addr = inet_addr("192.168.2.255");
@@ -235,12 +236,14 @@ sendto(s, msg, sizeof(msg), 0, &sin, sizeof(sin));
 .Ed
 .Pp
 It is the application's responsibility to set the
-.Dv IP_TTL option
+.Dv IP_TTL
+option
 to an appropriate value in order to prevent broadcast storms.
 The application must have sufficient credentials to set the
 .Dv SO_BROADCAST
 socket level option, otherwise the
-.Dv IP_ONESBCAST option has no effect.
+.Dv IP_ONESBCAST
+option has no effect.
 .Pp
 If the
 .Dv IP_BINDANY
@@ -276,9 +279,32 @@ that contains a cmsghdr structure followed by the
 .Tn TTL .
 The cmsghdr fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(u_char)
+cmsg_len = CMSG_LEN(sizeof(u_char))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVTTL
+.Ed
+.\"
+.Pp
+If the
+.Dv IP_RECVTOS
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TOS
+(type of service) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn TOS .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(u_char))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTOS
 .Ed
 .\"
 .Pp
@@ -304,7 +330,7 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct sockaddr_dl)
+cmsg_len = CMSG_LEN(sizeof(struct sockaddr_dl))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVIF
 .Ed
@@ -851,4 +877,5 @@ Before
 packets received on raw IP sockets had the
 .Va ip_hl
 subtracted from the
-.Va ip_len field.
+.Va ip_len
+field.

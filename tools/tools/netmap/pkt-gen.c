@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: pkt-gen.c 10637 2012-02-24 16:36:25Z luigi $
+ * $Id: pkt-gen.c 10967 2012-05-03 11:29:23Z luigi $
  *
  * Example program to show how to build a multithreaded packet
  * source/sink using the netmap device.
@@ -90,6 +90,36 @@ int verbose = 0;
 
 #define SKIP_PAYLOAD 1 /* do not check payload. */
 
+inline void prefetch (const void *x)
+{
+        __asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
+}
+
+// XXX only for multiples of 64 bytes, non overlapped.
+static inline void
+pkt_copy(void *_src, void *_dst, int l)
+{
+	uint64_t *src = _src;
+	uint64_t *dst = _dst;
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)       __builtin_expect(!!(x), 0)
+	if (unlikely(l >= 1024)) {
+		bcopy(src, dst, l);
+		return;
+	}
+	for (; l > 0; l-=64) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
+}
+
+
 #if EXPERIMENTAL
 /* Wrapper around `rdtsc' to take reliable timestamps flushing the pipeline */ 
 #define netmap_rdtsc(t) \
@@ -140,6 +170,11 @@ struct glob_arg {
 	int npackets;	/* total packets to send */
 	int nthreads;
 	int cpus;
+	int options;	/* testing */
+#define OPT_PREFETCH	1
+#define OPT_ACCESS	2
+#define OPT_COPY	4
+#define OPT_MEMCPY	8
 	int use_pcap;
 	pcap_t *p;
 };
@@ -156,6 +191,7 @@ struct targ {
 	struct glob_arg *g;
 	int used;
 	int completed;
+	int cancel;
 	int fd;
 	struct nmreq nmr;
 	struct netmap_if *nifp;
@@ -186,15 +222,8 @@ static int global_nthreads;
 static void
 sigint_h(__unused int sig)
 {
-	for (int i = 0; i < global_nthreads; i++) {
-		/* cancel active threads. */
-		if (targs[i].used == 0)
-			continue;
-
-		D("Cancelling thread #%d\n", i);
-		pthread_cancel(targs[i].thread);
-		targs[i].used = 0;
-	}
+	for (int i = 0; i < global_nthreads; i++)
+		targs[i].cancel = 1;
 
 	signal(SIGINT, SIG_DFL);
 }
@@ -394,19 +423,35 @@ check_payload(char *p, int psize)
  */
 static int
 send_packets(struct netmap_ring *ring, struct pkt *pkt, 
-		int size, u_int count, int fill_all)
+		int size, u_int count, int options)
 {
 	u_int sent, cur = ring->cur;
 
 	if (ring->avail < count)
 		count = ring->avail;
 
+#if 0
+	if (options & (OPT_COPY | OPT_PREFETCH) ) {
+		for (sent = 0; sent < count; sent++) {
+			struct netmap_slot *slot = &ring->slot[cur];
+			char *p = NETMAP_BUF(ring, slot->buf_idx);
+
+			prefetch(p);
+			cur = NETMAP_RING_NEXT(ring, cur);
+		}
+		cur = ring->cur;
+	}
+#endif
 	for (sent = 0; sent < count; sent++) {
 		struct netmap_slot *slot = &ring->slot[cur];
 		char *p = NETMAP_BUF(ring, slot->buf_idx);
 
-		if (fill_all)
+		if (options & OPT_COPY)
+			pkt_copy(pkt, p, size);
+		else if (options & OPT_MEMCPY)
 			memcpy(p, pkt, size);
+		else if (options & OPT_PREFETCH)
+			prefetch(p);
 
 		slot->len = size;
 		if (sent == count - 1)
@@ -423,13 +468,19 @@ static void *
 sender_body(void *data)
 {
 	struct targ *targ = (struct targ *) data;
-
 	struct pollfd fds[1];
 	struct netmap_if *nifp = targ->nifp;
 	struct netmap_ring *txring;
-	int i, n = targ->g->npackets / targ->g->nthreads, sent = 0;
-	int fill_all = 1;
+	int i, pkts_per_td = targ->g->npackets / targ->g->nthreads, sent = 0;
+	int continuous = 0;
+	int options = targ->g->options | OPT_COPY;
+	int retval;
 
+D("start");
+	if (pkts_per_td == 0) {
+		continuous = 1;
+		pkts_per_td = 100000;
+	}
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
 	/* setup poll(2) mechanism. */
@@ -444,38 +495,52 @@ sender_body(void *data)
 	void *pkt = &targ->pkt;
 	pcap_t *p = targ->g->p;
 
-	for (; sent < n; sent++) {
-		if (pcap_inject(p, pkt, size) == -1)
-			break;
+	for (i = 0; (sent < pkts_per_td && !targ->cancel) || continuous; i++) {
+		if (pcap_inject(p, pkt, size) != -1)
+			sent++;
+		if (i > 10000) {
+			targ->count = sent;
+			i = 0;
+		}
 	}
     } else {
-	while (sent < n) {
+	while (sent < pkts_per_td || continuous) {
 
 		/*
 		 * wait for available room in the send queue(s)
 		 */
-		if (poll(fds, 1, 2000) <= 0) {
-			D("poll error/timeout on queue %d\n", targ->me);
+		if ((retval = poll(fds, 1, 2000)) <= 0) {
+			if (targ->cancel)
+				break;
+			if (retval == 0)
+				D("poll timeout on queue %d\n", targ->me);
+			else
+				D("poll error on queue %d: %s\n", targ->me,
+				    strerror(errno));
 			goto quit;
 		}
 		/*
 		 * scan our queues and send on those with room
 		 */
-		if (sent > 100000)
-			fill_all = 0;
-		for (i = targ->qfirst; i < targ->qlast; i++) {
-			int m, limit = MIN(n - sent, targ->g->burst);
+		if (sent > 100000 && !(targ->g->options & OPT_COPY) )
+			options &= ~OPT_COPY;
+		for (i = targ->qfirst; i < targ->qlast && !targ->cancel; i++) {
+			int m, limit = targ->g->burst;
+			if (!continuous && pkts_per_td - sent < limit)
+				limit = pkts_per_td - sent;
 
 			txring = NETMAP_TXRING(nifp, i);
 			if (txring->avail == 0)
 				continue;
 			m = send_packets(txring, &targ->pkt, targ->g->pkt_size,
-					 limit, fill_all);
+					 limit, options);
 			sent += m;
 			targ->count = sent;
 		}
+		if (targ->cancel)
+			break; 
 	}
-	/* Tell the interface that we have new packets. */
+	/* flush any remaining packets */
 	ioctl(fds[0].fd, NIOCTXSYNC, NULL);
 
 	/* final part: wait all the TX queues to be empty. */
@@ -549,7 +614,7 @@ receiver_body(void *data)
 	fds[0].events = (POLLIN);
 
 	/* unbounded wait for the first packet. */
-	for (;;) {
+	while (!targ->cancel) {
 		i = poll(fds, 1, 1000);
 		if (i > 0 && !(fds[0].revents & POLLERR))
 			break;
@@ -559,11 +624,11 @@ receiver_body(void *data)
 	/* main loop, exit after 1s silence */
 	gettimeofday(&targ->tic, NULL);
     if (targ->g->use_pcap) {
-	for (;;) {
+	while (!targ->cancel) {
 		pcap_dispatch(targ->g->p, targ->g->burst, receive_pcap, NULL);
 	}
     } else {
-	while (1) {
+	while (!targ->cancel) {
 		/* Once we started to receive packets, wait at most 1 seconds
 		   before quitting. */
 		if (poll(fds, 1, 1 * 1000) <= 0) {
@@ -600,27 +665,41 @@ quit:
 	return (NULL);
 }
 
+static char *
+scaled_val(double val)
+{
+	static char buf[64];
+	const char *units[] = {"", "K", "M", "G"};
+	int i = 0;
+
+	while (val >= 1000 && i < 3) {
+		val /= 1000;
+		i++;
+	}
+	snprintf(buf, sizeof(buf), "%.2f%s", val, units[i]);
+	return (buf);
+}
+
 static void
 tx_output(uint64_t sent, int size, double delta)
 {
-	double amount = 8.0 * (1.0 * size * sent) / delta;
+	uint64_t bytes_sent = sent * size;
+	double bw = 8.0 * bytes_sent / delta;
 	double pps = sent / delta;
-	char units[4] = { '\0', 'K', 'M', 'G' };
-	int aunit = 0, punit = 0;
-
-	while (amount >= 1000) {
-		amount /= 1000;
-		aunit += 1;
-	}
-	while (pps >= 1000) {
-		pps /= 1000;
-		punit += 1;
-	}
+	/*
+	 * Assume Ethernet overhead of 24 bytes per packet excluding header:
+	 * FCS       4 bytes
+	 * Preamble  8 bytes
+	 * IFG      12 bytes
+	 */
+	double bw_with_overhead = 8.0 * (bytes_sent + sent * 24) / delta;
 
 	printf("Sent %" PRIu64 " packets, %d bytes each, in %.2f seconds.\n",
 	       sent, size, delta);
-	printf("Speed: %.2f%cpps. Bandwidth: %.2f%cbps.\n",
-	       pps, units[punit], amount, units[aunit]);
+	printf("Speed: %spps. ", scaled_val(pps));
+	printf("Bandwidth: %sbps ", scaled_val(bw));
+	printf("(%sbps with overhead).\n", scaled_val(bw_with_overhead));
+
 }
 
 
@@ -649,7 +728,7 @@ usage(void)
 		"Usage:\n"
 		"%s arguments\n"
 		"\t-i interface		interface name\n"
-		"\t-t pkts_to_send	also forces send mode\n"
+		"\t-t pkts_to_send	also forces send mode, 0 = continuous\n"
 		"\t-r pkts_to_receive	also forces receive mode\n"
 		"\t-l pkts_size		in bytes excluding CRC\n"
 		"\t-d dst-ip		end with %%n to sweep n addresses\n"
@@ -672,6 +751,7 @@ int
 main(int arc, char **argv)
 {
 	int i, fd;
+	char pcap_errbuf[PCAP_ERRBUF_SIZE];
 
 	struct glob_arg g;
 
@@ -696,11 +776,14 @@ main(int arc, char **argv)
 	g.cpus = 1;
 
 	while ( (ch = getopt(arc, argv,
-			"i:t:r:l:d:s:D:S:b:c:p:T:w:v")) != -1) {
+			"i:t:r:l:d:s:D:S:b:c:o:p:PT:w:v")) != -1) {
 		switch(ch) {
 		default:
 			D("bad option %c %s", ch, optarg);
 			usage();
+			break;
+		case 'o':
+			g.options = atoi(optarg);
 			break;
 		case 'i':	/* interface */
 			ifname = optarg;
@@ -775,6 +858,26 @@ main(int arc, char **argv)
 		usage();
 	}
 
+	if (td_body == sender_body && g.src_mac == NULL) {
+		static char mybuf[20] = "ff:ff:ff:ff:ff:ff";
+		/* retrieve source mac address. */
+		if (source_hwaddr(ifname, mybuf) == -1) {
+			D("Unable to retrieve source mac");
+			// continue, fail later
+		}
+		g.src_mac = mybuf;
+	}
+
+    if (g.use_pcap) {
+	D("using pcap on %s", ifname);
+	g.p = pcap_open_live(ifname, 0, 1, 100, pcap_errbuf);
+	if (g.p == NULL) {
+		D("cannot open pcap on %s", ifname);
+		usage();
+	}
+	mmap_addr = NULL;
+	fd = -1;
+    } else {
 	bzero(&nmr, sizeof(nmr));
 	nmr.nr_version = NETMAP_API;
 	/*
@@ -809,16 +912,6 @@ main(int arc, char **argv)
 	if (g.nthreads < 1 || g.nthreads > devqueues) {
 		D("bad nthreads %d, have %d queues", g.nthreads, devqueues);
 		// continue, fail later
-	}
-
-	if (td_body == sender_body && g.src_mac == NULL) {
-		static char mybuf[20] = "ff:ff:ff:ff:ff:ff";
-		/* retrieve source mac address. */
-		if (source_hwaddr(ifname, mybuf) == -1) {
-			D("Unable to retrieve source mac");
-			// continue, fail later
-		}
-		g.src_mac = mybuf;
 	}
 
 	/*
@@ -869,8 +962,15 @@ main(int arc, char **argv)
 		D("aborting");
 		usage();
 	}
+    }
 
-
+	if (g.options) {
+		D("special options:%s%s%s%s\n",
+			g.options & OPT_PREFETCH ? " prefetch" : "",
+			g.options & OPT_ACCESS ? " access" : "",
+			g.options & OPT_MEMCPY ? " memcpy" : "",
+			g.options & OPT_COPY ? " copy" : "");
+	}
 	/* Wait for PHY reset. */
 	D("Wait %d secs for phy reset", wait_link);
 	sleep(wait_link);
@@ -881,7 +981,12 @@ main(int arc, char **argv)
 	signal(SIGINT, sigint_h);
 
 	if (g.use_pcap) {
-		// XXX g.p = pcap_open_live(..);
+		g.p = pcap_open_live(ifname, 0, 1, 100, NULL);
+		if (g.p == NULL) {
+			D("cannot open pcap on %s", ifname);
+			usage();
+		} else
+			D("using pcap %p on %s", g.p, ifname);
 	}
 
 	targs = calloc(g.nthreads, sizeof(*targs));
@@ -976,7 +1081,7 @@ main(int arc, char **argv)
 		pps = toc.tv_sec* 1000000 + toc.tv_usec;
 		if (pps < 10000)
 			continue;
-		pps = (my_count - prev)*1000000 / pps;
+		pps = ((my_count - prev) * 1000000 + pps / 2) / pps;
 		D("%" PRIu64 " pps", pps);
 		prev = my_count;
 		toc = now;
@@ -1018,9 +1123,11 @@ main(int arc, char **argv)
 		rx_output(count, delta_t);
     }
 
+    if (g.use_pcap == 0) {
 	ioctl(fd, NIOCUNREGIF, &nmr);
 	munmap(mmap_addr, nmr.nr_memsize);
 	close(fd);
+    }
 
 	return (0);
 }

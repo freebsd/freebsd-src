@@ -49,6 +49,12 @@ typedef bus_space_tag_t HAL_BUS_TAG;
 typedef bus_space_handle_t HAL_BUS_HANDLE;
 
 /*
+ * Although the underlying hardware may support 64 bit DMA, the
+ * current Atheros hardware only supports 32 bit addressing.
+ */
+typedef uint32_t HAL_DMA_ADDR;
+
+/*
  * Linker set writearounds for chip and RF backend registration.
  */
 #define	OS_DATA_SET(set, item)	DATA_SET(set, item)
@@ -63,6 +69,7 @@ typedef bus_space_handle_t HAL_BUS_HANDLE;
 #define	OS_INLINE	__inline
 #define	OS_MEMZERO(_a, _n)	bzero((_a), (_n))
 #define	OS_MEMCPY(_d, _s, _n)	memcpy(_d,_s,_n)
+#define	OS_MEMCMP(_a, _b, _l)	memcmp((_a), (_b), (_l))
 
 #define	abs(_a)		__builtin_abs(_a)
 

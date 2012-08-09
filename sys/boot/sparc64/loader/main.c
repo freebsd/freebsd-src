@@ -7,7 +7,7 @@
  * unchanged, you can do what ever you want with this file.
  */
 /*-
- * Copyright (c) 2008 Marius Strobl <marius@FreeBSD.org>
+ * Copyright (c) 2008 - 2012 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/queue.h>
 #include <sys/types.h>
+#ifdef LOADER_ZFS_SUPPORT
+#include <sys/vtoc.h>
+#include "../zfs/libzfs.h"
+#endif
 
 #include <vm/vm.h>
 #include <machine/asi.h>
@@ -70,12 +74,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libofw.h"
 #include "dev_net.h"
-
-#ifndef CTASSERT
-#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
-#define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
-#endif
 
 extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
@@ -141,6 +139,7 @@ static u_int tlb_locked;
 static vm_offset_t curkva = 0;
 static vm_offset_t heapva;
 
+static char bootpath[64];
 static phandle_t root;
 
 /*
@@ -154,6 +153,9 @@ struct devsw *devsw[] = {
 #ifdef LOADER_NET_SUPPORT
 	&netdev,
 #endif
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_dev,
+#endif
 	0
 };
 struct arch_switch archsw;
@@ -166,12 +168,16 @@ struct file_format *file_formats[] = {
 	&sparc64_elf,
 	0
 };
+
 struct fs_ops *file_system[] = {
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
 #ifdef LOADER_CD9660_SUPPORT
 	&cd9660_fsops,
+#endif
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_fsops,
 #endif
 #ifdef LOADER_ZIP_SUPPORT
 	&zipfs_fsops,
@@ -721,10 +727,94 @@ tlb_init_sun4u(void)
 		panic("%s: can't allocate TLB store", __func__);
 }
 
+#ifdef LOADER_ZFS_SUPPORT
+static void
+sparc64_zfs_probe(void)
+{
+	struct vtoc8 vtoc;
+	struct zfs_devdesc zfs_currdev;
+	char alias[64], devname[sizeof(alias) + sizeof(":x") - 1];
+	char type[sizeof("device_type")];
+	char *bdev, *dev, *odev;
+	uint64_t guid;
+	int fd, len, part;
+	phandle_t aliases, options;
+
+	/* Get the GUID of the ZFS pool on the boot device. */
+	guid = 0;
+	zfs_probe_dev(bootpath, &guid);
+
+	/*
+	 * Get the GUIDs of the ZFS pools on any additional disks listed in
+	 * the boot-device environment variable.
+	 */
+	if ((aliases = OF_finddevice("/aliases")) == -1)
+		goto out;
+	options = OF_finddevice("/options");
+	len = OF_getproplen(options, "boot-device");
+	if (len <= 0)
+		goto out;
+	bdev = odev = malloc(len + 1);
+	if (bdev == NULL)
+		goto out;
+	if (OF_getprop(options, "boot-device", bdev, len) <= 0)
+		goto out;
+	bdev[len] = '\0';
+	while ((dev = strsep(&bdev, " ")) != NULL) {
+		if (*dev == '\0')
+			continue;
+		strcpy(alias, dev);
+		(void)OF_getprop(aliases, dev, alias, sizeof(alias));
+		/*
+		 * Don't probe the boot disk twice.  Note that bootpath
+		 * includes the partition specifier.
+		 */
+		if (strncmp(alias, bootpath, strlen(alias)) == 0)
+			continue;
+		if (OF_getprop(OF_finddevice(alias), "device_type", type,
+		    sizeof(type)) == -1)
+			continue;
+		if (strcmp(type, "block") != 0)
+			continue;
+
+		/* Find freebsd-zfs slices in the VTOC. */
+		fd = open(alias, O_RDONLY);
+		if (fd == -1)
+			continue;
+		lseek(fd, 0, SEEK_SET);
+		if (read(fd, &vtoc, sizeof(vtoc)) != sizeof(vtoc)) {
+			close(fd);
+			continue;
+		}
+		close(fd);
+
+		for (part = 0; part < 8; part++) {
+			if (part == 2 || vtoc.part[part].tag !=
+			    VTOC_TAG_FREEBSD_ZFS)
+				continue;
+			(void)sprintf(devname, "%s:%c", alias, part + 'a');
+			if (zfs_probe_dev(devname, NULL) == ENXIO)
+				break;
+		}
+	}
+	free(odev);
+
+ out:
+	if (guid != 0) {
+		zfs_currdev.pool_guid = guid;
+		zfs_currdev.root_guid = 0;
+		zfs_currdev.d_dev = &zfs_dev;
+		zfs_currdev.d_type = zfs_currdev.d_dev->dv_type;
+		(void)strncpy(bootpath, zfs_fmtdev(&zfs_currdev),
+		    sizeof(bootpath) - 1);
+		bootpath[sizeof(bootpath) - 1] = '\0';
+	}
+}
+#endif /* LOADER_ZFS_SUPPORT */
+
 int
 main(int (*openfirm)(void *))
 {
-	char bootpath[64];
 	char compatible[32];
 	struct devsw **dp;
 
@@ -738,6 +828,9 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = sparc64_readin;
 	archsw.arch_autoload = sparc64_autoload;
+#ifdef LOADER_ZFS_SUPPORT
+	archsw.arch_zfs_probe = sparc64_zfs_probe;
+#endif
 
 	if (init_heap() == (vm_offset_t)-1)
 		OF_exit();
@@ -756,14 +849,6 @@ main(int (*openfirm)(void *))
 	mmu_ops->tlb_init();
 
 	/*
-	 * Initialize devices.
-	 */
-	for (dp = devsw; *dp != 0; dp++) {
-		if ((*dp)->dv_init != 0)
-			(*dp)->dv_init();
-	}
-
-	/*
 	 * Set up the current device.
 	 */
 	OF_getprop(chosen, "bootpath", bootpath, sizeof(bootpath));
@@ -780,11 +865,23 @@ main(int (*openfirm)(void *))
 	 * needs to be altered.
 	 */
 	if (bootpath[strlen(bootpath) - 2] == ':' &&
-	    bootpath[strlen(bootpath) - 1] == 'f') {
+	    bootpath[strlen(bootpath) - 1] == 'f' &&
+	    strstr(bootpath, "cdrom") != NULL) {
 		bootpath[strlen(bootpath) - 1] = 'a';
 		printf("Boot path set to %s\n", bootpath);
 	}
 
+	/*
+	 * Initialize devices.
+	 */
+	for (dp = devsw; *dp != 0; dp++)
+		if ((*dp)->dv_init != 0)
+			(*dp)->dv_init();
+
+	/*
+	 * Now that sparc64_zfs_probe() might have altered bootpath,
+	 * export it.
+	 */
 	env_setenv("currdev", EV_VOLATILE, bootpath,
 	    ofw_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, bootpath,
@@ -798,6 +895,18 @@ main(int (*openfirm)(void *))
 	/* Give control to the machine independent loader code. */
 	interact();
 	return (1);
+}
+
+COMMAND_SET(heap, "heap", "show heap usage", command_heap);
+
+static int
+command_heap(int argc, char *argv[])
+{
+
+	mallocstats();
+	printf("heap base at %p, top at %p, upper limit at %p\n", heapva,
+	    sbrk(0), heapva + HEAPSZ);
+	return(CMD_OK);
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);

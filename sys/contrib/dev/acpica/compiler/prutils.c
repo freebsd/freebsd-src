@@ -246,13 +246,11 @@ PrOpenIncludeFile (
     ASL_INCLUDE_DIR         *NextDir;
 
 
-    /*
-     * start the actual include file on the next line
-     */
+    /* Start the actual include file on the next line */
+
     Gbl_CurrentLineOffset++;
 
     /* Attempt to open the include file */
-
     /* If the file specifies an absolute path, just open it */
 
     if ((Filename[0] == '/')  ||
@@ -330,13 +328,10 @@ PrOpenIncludeWithPrefix (
 
     /* Build the full pathname to the file */
 
-    Pathname = ACPI_ALLOCATE (strlen (PrefixDir) + strlen (Filename) + 1);
+    Pathname = FlMergePathnames (PrefixDir, Filename);
 
-    strcpy (Pathname, PrefixDir);
-    strcat (Pathname, Filename);
-
-    DbgPrint (ASL_PARSE_OUTPUT, "\n" PR_PREFIX_ID
-        "Opening include file: path %s\n",
+    DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
+        "Include: Opening file - \"%s\"\n",
         Gbl_CurrentLineNumber, Pathname);
 
     /* Attempt to open the file, push if successful */

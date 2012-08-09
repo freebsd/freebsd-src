@@ -1534,13 +1534,17 @@ AccessSpecifier Parser::getAccessSpecifierIfPresent() const {
   }
 }
 
-void Parser::HandleMemberFunctionDefaultArgs(Declarator& DeclaratorInfo,
-                                             Decl *ThisDecl) {
+/// \brief If the given declarator has any parts for which parsing has to be
+/// delayed, e.g., default arguments, create a late-parsed method declaration
+/// record to handle the parsing at the end of the class definition.
+void Parser::HandleMemberFunctionDeclDelays(Declarator& DeclaratorInfo,
+                                            Decl *ThisDecl) {
   // We just declared a member function. If this member function
   // has any default arguments, we'll need to parse them later.
   LateParsedMethodDeclaration *LateMethod = 0;
   DeclaratorChunk::FunctionTypeInfo &FTI
     = DeclaratorInfo.getFunctionTypeInfo();
+
   for (unsigned ParamIdx = 0; ParamIdx < FTI.NumArgs; ++ParamIdx) {
     if (LateMethod || FTI.ArgInfo[ParamIdx].DefaultArgTokens) {
       if (!LateMethod) {
@@ -1558,7 +1562,7 @@ void Parser::HandleMemberFunctionDefaultArgs(Declarator& DeclaratorInfo,
                              LateParsedDefaultArgument(FTI.ArgInfo[I].Param));
       }
 
-      // Add this parameter to the list of parameters (it or may
+      // Add this parameter to the list of parameters (it may or may
       // not have a default argument).
       LateMethod->DefaultArgs.push_back(
         LateParsedDefaultArgument(FTI.ArgInfo[ParamIdx].Param,
@@ -2043,10 +2047,10 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
       DeclsInGroup.push_back(ThisDecl);
     }
     
-    if (DeclaratorInfo.isFunctionDeclarator() &&
+    if (ThisDecl && DeclaratorInfo.isFunctionDeclarator() &&
         DeclaratorInfo.getDeclSpec().getStorageClassSpec()
           != DeclSpec::SCS_typedef) {
-      HandleMemberFunctionDefaultArgs(DeclaratorInfo, ThisDecl);
+      HandleMemberFunctionDeclDelays(DeclaratorInfo, ThisDecl);
     }
 
     DeclaratorInfo.complete(ThisDecl);
@@ -2334,13 +2338,11 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
                                               T.getCloseLocation(),
                                               attrs.getList());
 
-  // C++0x [class.mem]p2: Within the class member-specification, the class is
-  // regarded as complete within function bodies, default arguments, exception-
-  // specifications, and brace-or-equal-initializers for non-static data
-  // members (including such things in nested classes).
-  //
-  // FIXME: Only function bodies and brace-or-equal-initializers are currently
-  // handled. Fix the others!
+  // C++11 [class.mem]p2:
+  //   Within the class member-specification, the class is regarded as complete
+  //   within function bodies, default arguments, and
+  //   brace-or-equal-initializers for non-static data members (including such
+  //   things in nested classes).
   if (TagDecl && NonNestedClass) {
     // We are not inside a nested class. This class and its nested classes
     // are complete and we can parse the delayed portions of method
@@ -2349,6 +2351,10 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
     SourceLocation SavedPrevTokLocation = PrevTokLocation;
     ParseLexedAttributes(getCurrentClass());
     ParseLexedMethodDeclarations(getCurrentClass());
+
+    // We've finished with all pending member declarations.
+    Actions.ActOnFinishCXXMemberDecls();
+
     ParseLexedMemberInitializers(getCurrentClass());
     ParseLexedMethodDefs(getCurrentClass());
     PrevTokLocation = SavedPrevTokLocation;
@@ -2535,7 +2541,8 @@ Parser::MemInitResult Parser::ParseMemInitializer(Decl *ConstructorDecl) {
 ///         'noexcept'
 ///         'noexcept' '(' constant-expression ')'
 ExceptionSpecificationType
-Parser::MaybeParseExceptionSpecification(SourceRange &SpecificationRange,
+Parser::tryParseExceptionSpecification(
+                    SourceRange &SpecificationRange,
                     SmallVectorImpl<ParsedType> &DynamicExceptions,
                     SmallVectorImpl<SourceRange> &DynamicExceptionRanges,
                     ExprResult &NoexceptExpr) {

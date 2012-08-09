@@ -573,6 +573,9 @@ out:
 	PROC_UNLOCK(child);
 	PROC_UNLOCK(parent);
 
+	if (error != 0)
+		racct_proc_exit(child);
+
 	return (error);
 }
 

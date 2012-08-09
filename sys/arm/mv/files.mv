@@ -25,6 +25,7 @@ arm/arm/irq_dispatch.S		standard
 arm/mv/bus_space.c		standard
 arm/mv/common.c			standard
 arm/mv/gpio.c			standard
+arm/mv/mv_localbus.c		standard
 arm/mv/mv_machdep.c		standard
 arm/mv/mv_pci.c			optional	pci
 arm/mv/mv_sata.c		optional	ata | atamvsata
@@ -33,6 +34,7 @@ arm/mv/twsi.c			optional	iicbus
 
 dev/cesa/cesa.c			optional	cesa
 dev/mge/if_mge.c		optional	mge
+dev/nand/nfc_mv.c		optional	nand
 dev/mvs/mvs_soc.c		optional	mvs
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/usb/controller/ehci_mv.c	optional	ehci

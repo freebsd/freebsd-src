@@ -51,7 +51,7 @@ ___toupper_l(c, l)
 {
 	size_t lim;
 	FIX_LOCALE(l);
-	_RuneRange *rr = &XLOCALE_CTYPE(l)->runes->__maplower_ext;
+	_RuneRange *rr = &XLOCALE_CTYPE(l)->runes->__mapupper_ext;
 	_RuneEntry *base, *re;
 
 	if (c < 0 || c == EOF)

@@ -55,10 +55,10 @@ __FBSDID("$FreeBSD$");
 
 #define	HW_MCA_MAX_CPUID	255
 
-static char hw_mca_count[] = "hw.mca.count";
-static char hw_mca_first[] = "hw.mca.first";
-static char hw_mca_last[] = "hw.mca.last";
-static char hw_mca_recid[] = "hw.mca.%lu.%u";
+static const char hw_mca_count[] = "hw.mca.count";
+static const char hw_mca_first[] = "hw.mca.first";
+static const char hw_mca_last[] = "hw.mca.last";
+static const char hw_mca_recid[] = "hw.mca.%d.%u";
 
 static char default_dumpfile[] = "/var/log/mca.log";
 
@@ -162,7 +162,9 @@ show_cpu(struct mca_cpu_record *cpu)
 	char var[16];
 	struct mca_cpu_mod *mod;
 	struct mca_cpu_cpuid *cpuid;
+#ifdef notyet
 	struct mca_cpu_psi *psi;
+#endif
 	int i, n;
 
 	printf("    <cpu>\n");
@@ -200,8 +202,10 @@ show_cpu(struct mca_cpu_record *cpu)
 		show_value(6, var, "0x%016llx", (long long)cpuid->cpuid[i]);
 	}
 
-	psi = (struct mca_cpu_psi*)(cpuid + 1);
-	/* TODO: Dump PSI */
+#ifdef notyet
+	 psi = (struct mca_cpu_psi*)(cpuid + 1);
+#endif
+	 /* TODO: Dump PSI */
 
 	printf("    </cpu>\n");
 }

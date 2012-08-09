@@ -44,6 +44,18 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
 
 #define PG_FRAME	0xfffff000
 
+/* The PT_SIZE definition is misleading... A page table is only 0x400
+ * bytes long. But since VM mapping can only be done to 0x1000 a single
+ * 1KB blocks cannot be steered to a va by itself. Therefore the
+ * pages tables are allocated in blocks of 4. i.e. if a 1 KB block
+ * was allocated for a PT then the other 3KB would also get mapped
+ * whenever the 1KB was mapped.
+ */
+
+#define PT_RSIZE	0x0400		/* Real page table size */
+#define PT_SIZE		0x1000
+#define PD_SIZE		0x4000
+
 /* Page table types and masks */
 #define L1_PAGE		0x01	/* L1 page table mapping */
 #define L1_SECTION	0x02	/* L1 section mapping */
@@ -285,7 +297,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  *
  * Cache attributes with L2 present, S = 0
  * T E X C B   L1 i-cache L1 d-cache L1 DC WP  L2 cacheable write coalesce
- * 0 0 0 0 0	N	  N		-	N		N
+ * 0 0 0 0 0 	N	  N 		- 	N		N
  * 0 0 0 0 1	N	  N		-	N		Y
  * 0 0 0 1 0	Y	  Y		WT	N		Y
  * 0 0 0 1 1	Y	  Y		WB	Y		Y
@@ -312,7 +324,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  *
   * Cache attributes with L2 present, S = 1
  * T E X C B   L1 i-cache L1 d-cache L1 DC WP  L2 cacheable write coalesce
- * 0 0 0 0 0	N	  N		-	N		N
+ * 0 0 0 0 0 	N	  N 		- 	N		N
  * 0 0 0 0 1	N	  N		-	N		Y
  * 0 0 0 1 0	Y	  Y		-	N		Y
  * 0 0 0 1 1	Y	  Y		WT	Y		Y

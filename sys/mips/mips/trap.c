@@ -302,7 +302,7 @@ static int emulate_fp = 1;
 static int emulate_fp = 0;
 #endif
 SYSCTL_INT(_machdep, OID_AUTO, emulate_fp, CTLFLAG_RW,
-    &allow_unaligned_acc, 0, "Emulate unimplemented FPU instructions");
+    &emulate_fp, 0, "Emulate unimplemented FPU instructions");
 
 static int emulate_unaligned_access(struct trapframe *frame, int mode);
 

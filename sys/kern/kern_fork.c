@@ -475,7 +475,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	bcopy(&p2->p_comm, &td2->td_name, sizeof(td2->td_name));
 	td2->td_sigstk = td->td_sigstk;
-	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
 	td2->td_lend_user_pri = PRI_MAX;
 
@@ -922,8 +921,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		 */
 		*procp = newproc;
 #ifdef PROCDESC
-		if (flags & RFPROCDESC)
+		if (flags & RFPROCDESC) {
 			procdesc_finit(newproc->p_procdesc, fp_procdesc);
+			fdrop(fp_procdesc, td);
+		}
 #endif
 		racct_proc_fork_done(newproc);
 		return (0);
@@ -939,14 +940,16 @@ fail:
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif
-fail1:
 	racct_proc_exit(newproc);
+fail1:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 #ifdef PROCDESC
-	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL))
+	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL)) {
+		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
 		fdrop(fp_procdesc, td);
+	}
 #endif
 	pause("fork", hz / 2);
 	return (error);

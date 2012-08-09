@@ -328,7 +328,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
-			ucode = fputrap();
+			ucode = fputrap_x87();
 			if (ucode == -1)
 				goto userout;
 			i = SIGFPE;
@@ -442,7 +442,9 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-			ucode = 0; /* XXX */
+			ucode = fputrap_sse();
+			if (ucode == -1)
+				goto userout;
 			i = SIGFPE;
 			break;
 		}
@@ -518,9 +520,8 @@ trap(struct trapframe *frame)
 				frame->tf_rip = (long)fsbase_load_fault;
 				goto out;
 			}
-			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
-				frame->tf_rip =
-				    (long)PCPU_GET(curpcb)->pcb_onfault;
+			if (curpcb->pcb_onfault != NULL) {
+				frame->tf_rip = (long)curpcb->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -706,7 +707,7 @@ trap_pfault(frame, usermode)
 		 * it normally, and panic immediately.
 		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+		    curpcb->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}
@@ -762,8 +763,8 @@ trap_pfault(frame, usermode)
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
-		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
-			frame->tf_rip = (long)PCPU_GET(curpcb)->pcb_onfault;
+		    curpcb->pcb_onfault != NULL) {
+			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);
@@ -972,4 +973,15 @@ amd64_syscall(struct thread *td, int traced)
 	     syscallname(td->td_proc, sa.code)));
 
 	syscallret(td, error, &sa);
+
+	/*
+	 * If the user-supplied value of %rip is not a canonical
+	 * address, then some CPUs will trigger a ring 0 #GP during
+	 * the sysret instruction.  However, the fault handler would
+	 * execute in ring 0 with the user's %gs and %rsp which would
+	 * not be safe.  Instead, use the full return path which
+	 * catches the problem safely.
+	 */
+	if (td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS)
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }

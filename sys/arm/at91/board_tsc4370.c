@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2005-2008 Olivier Houchard.  All rights reserved.
- * Copyright (c) 2005-2008 Warner Losh.  All rights reserved.
+ * Copyright (c) 2005-2012 Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,39 +29,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/board.h>
 #include <arm/at91/at91board.h>
+#include <arm/at91/at91var.h>
 #include <arm/at91/at91rm92reg.h>
+#include <arm/at91/at91rm9200var.h>
 #include <arm/at91/at91_piovar.h>
-#include <arm/at91/at91_pio_rm9200.h>
+#include <arm/at91/at91_pioreg.h>
 
-long
+BOARD_INIT long
 board_init(void)
 {
-	/*
-	 * Since the USART supports RS-485 multidrop mode, it allows the
-	 * TX pins to float.  However, for RS-232 operations, we don't want
-	 * these pins to float.  Instead, they should be pulled up to avoid
-	 * mismatches.  Linux does something similar when it configures the
-	 * TX lines.  This implies that we also allow the RX lines to float
-	 * rather than be in the state they are left in by the boot loader.
-	 * Since they are input pins, I think that this is the right thing
-	 * to do.
-	 */
 
-	/* PIOA's A periph: Turn USART 0 and 2's TX/RX pins */
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
-	    AT91C_PA18_RXD0 | AT91C_PA22_RXD2, 0);
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
-	    AT91C_PA17_TXD0 | AT91C_PA23_TXD2, 1);
-	/* PIOA's B periph: Turn USART 3's TX/RX pins */
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA6_RXD3, 0);
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA5_TXD3, 1);
-	/* We're using TC0's A1 and A2 input */
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE,
-	    AT91C_PA19_TIOA1 | AT91C_PA21_TIOA2, 0);
-	/* PIOB's A periph: Turn USART 1's TX/RX pins */
-	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB21_RXD1, 0);
-	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB20_TXD1, 1);
+	at91rm9200_set_subtype(AT91_ST_RM9200_PQFP);
+
+	at91rm9200_config_uart(AT91_ID_DBGU, 0, 0);   /* DBGU just Tx and Rx */
+	at91rm9200_config_uart(AT91RM9200_ID_USART0, 1, 0);   /* Tx and Rx */
+	at91rm9200_config_uart(AT91RM9200_ID_USART1, 2, 0);   /* Tx and Rx */
+	at91rm9200_config_uart(AT91RM9200_ID_USART2, 3, 0);   /* Tx and Rx */
+	at91rm9200_config_uart(AT91RM9200_ID_USART3, 4, 0);   /* Tx and Rx */
+
+	at91rm9200_config_mci(0);			/* tsc4370 board has only 1 wire */
+							/* Newer boards may have 4 wires */
+
+	/* Configure TWI */
+	/* Configure SPI + dataflash */
+	/* Configure SSC */
+	/* Configure USB Host */
+	/* Configure FPGA attached to chip selects */
 
 	/* Pin assignment */
 	/* Assert PA24 low -- talk to rubidium */
@@ -73,3 +68,5 @@ board_init(void)
 
 	return (at91_ramsize());
 }
+
+ARM_BOARD(NONE, "TSC4370 Controller Board");

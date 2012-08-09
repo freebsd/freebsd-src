@@ -45,14 +45,16 @@ Boston, MA 02110-1301, USA.  */
 #define LINK_SPEC "%(link_arch)						\
   %{!mno-relax:%{!r:-relax}}						\
   %{p:%nconsider using `-pg' instead of `-p' with gprof(1)}		\
+  %{v:-V}								\
   %{assert*} %{R*} %{rpath*} %{defsym*}					\
   %{shared:-Bshareable %{h*} %{soname*}}				\
-  %{symbolic:-Bsymbolic}						\
   %{!shared:								\
     %{!static:								\
       %{rdynamic:-export-dynamic}					\
       %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
-    %{static:-Bstatic}}"
+    %{static:-Bstatic}}							\
+  %{!static:--hash-style=both --enable-new-dtags}			\
+  %{symbolic:-Bsymbolic}"
 
 
 /************************[  Target stuff  ]***********************************/

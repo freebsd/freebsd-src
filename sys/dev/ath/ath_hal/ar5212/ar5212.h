@@ -511,14 +511,16 @@ extern	HAL_BOOL ar5212GetDiagState(struct ath_hal *ah, int request,
 		void **result, uint32_t *resultsize);
 extern	HAL_STATUS ar5212SetQuiet(struct ath_hal *ah, uint32_t period,
 		uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
+extern	HAL_BOOL ar5212GetMibCycleCounts(struct ath_hal *,
+		HAL_SURVEY_SAMPLE *);
 
 extern	HAL_BOOL ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
 extern	HAL_POWER_MODE ar5212GetPowerMode(struct ath_hal *ah);
 extern	HAL_BOOL ar5212GetPowerStatus(struct ath_hal *ah);
 
-extern	uint32_t ar5212GetRxDP(struct ath_hal *ath);
-extern	void ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp);
+extern	uint32_t ar5212GetRxDP(struct ath_hal *ath, HAL_RX_QUEUE);
+extern	void ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5212EnableReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5212StopDmaReceive(struct ath_hal *ah);
 extern	void ar5212StartPcuReceive(struct ath_hal *ah);
@@ -592,7 +594,8 @@ extern	HAL_BOOL ar5212SetupXTxDesc(struct ath_hal *, struct ath_desc *,
 		u_int txRate2, u_int txRetries2,
 		u_int txRate3, u_int txRetries3);
 extern	HAL_BOOL ar5212FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
-		u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+		u_int descId, u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5212ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
@@ -600,6 +603,12 @@ extern  void ar5212GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5212IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
 extern	HAL_BOOL ar5212GetTxCompletionRates(struct ath_hal *ah,
 		const struct ath_desc *ds0, int *rates, int *tries);
+extern	void ar5212SetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t link);
+extern	void ar5212GetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t *link);
+extern	void ar5212GetTxDescLinkPtr(struct ath_hal *ah, void *ds,
+		uint32_t **linkptr);
 
 extern	const HAL_RATE_TABLE *ar5212GetRateTable(struct ath_hal *, u_int mode);
 

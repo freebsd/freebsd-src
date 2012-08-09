@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2008, Chelsio Inc.
+ * Copyright (c) 2007-2009, Chelsio Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,88 +32,63 @@
 #include <sys/condvar.h>
 #include <sys/mbufq.h>
 
+#define TP_DATASENT         	(1 << 0)
+#define TP_TX_WAIT_IDLE      	(1 << 1)
+#define TP_FIN_SENT          	(1 << 2)
+#define TP_ABORT_RPL_PENDING 	(1 << 3)
+#define TP_ABORT_SHUTDOWN    	(1 << 4)
+#define TP_ABORT_RPL_RCVD    	(1 << 5)
+#define TP_ABORT_REQ_RCVD    	(1 << 6)
+#define TP_ATTACHED	    	(1 << 7)
+#define TP_CPL_DONE		(1 << 8)
+#define TP_IS_A_SYNQ_ENTRY	(1 << 9)
+#define TP_ABORT_RPL_SENT	(1 << 10)
+#define TP_SEND_FIN          	(1 << 11)
+
 struct toepcb {
-	struct toedev 		*tp_toedev;
+	TAILQ_ENTRY(toepcb) link; /* toep_list */
+	int 			tp_flags;
+	struct toedev 		*tp_tod;
 	struct l2t_entry 	*tp_l2t;
-	unsigned int 		tp_tid;
+	int			tp_tid;
 	int 			tp_wr_max;
 	int 			tp_wr_avail;
 	int 			tp_wr_unacked;
 	int 			tp_delack_mode;
-	int 			tp_mtu_idx;
 	int 			tp_ulp_mode;
-	int 			tp_qset_idx;
-	int 			tp_mss_clamp;
 	int 			tp_qset;
-	int 			tp_flags;
-	int 			tp_enqueued_bytes;
-	int 			tp_page_count;
-	int 			tp_state;
+	int 			tp_enqueued;
+	int 			tp_rx_credits;
 
-	tcp_seq 		tp_iss;
-	tcp_seq 		tp_delack_seq;
-	tcp_seq 		tp_rcv_wup;
-	tcp_seq 		tp_copied_seq;
-	uint64_t 		tp_write_seq;
+	struct inpcb 		*tp_inp;
+	struct mbuf		*tp_m_last;
 
-	volatile int 		tp_refcount;
-	vm_page_t 		*tp_pages;
-	
-	struct tcpcb 		*tp_tp;
-	struct mbuf  		*tp_m_last;
-	bus_dma_tag_t		tp_tx_dmat;
-	bus_dma_tag_t		tp_rx_dmat;
-	bus_dmamap_t		tp_dmamap;
-
-	LIST_ENTRY(toepcb) 	synq_entry;
 	struct mbuf_head 	wr_list;
 	struct mbuf_head 	out_of_order_queue;
-	struct ddp_state 	tp_ddp_state;
-	struct cv		tp_cv;
-			   
 };
 
 static inline void
 reset_wr_list(struct toepcb *toep)
 {
-
 	mbufq_init(&toep->wr_list);
-}
-
-static inline void
-purge_wr_queue(struct toepcb *toep)
-{
-	struct mbuf *m;
-	
-	while ((m = mbufq_dequeue(&toep->wr_list)) != NULL) 
-		m_freem(m);
 }
 
 static inline void
 enqueue_wr(struct toepcb *toep, struct mbuf *m)
 {
-
 	mbufq_tail(&toep->wr_list, m);
 }
 
 static inline struct mbuf *
 peek_wr(const struct toepcb *toep)
 {
-
 	return (mbufq_peek(&toep->wr_list));
 }
 
 static inline struct mbuf *
 dequeue_wr(struct toepcb *toep)
 {
-
 	return (mbufq_dequeue(&toep->wr_list));
 }
 
-#define wr_queue_walk(toep, m) \
-	for (m = peek_wr(toep); m; m = m->m_nextpkt)
-
-
-
 #endif
-

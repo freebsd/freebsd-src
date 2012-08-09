@@ -263,7 +263,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
 				continue;
 			/*
-			 * Check if policy has an SA associated with it.
+			 * Check if policy has no SA associated with it.
 			 * This can happen when an SP has yet to acquire
 			 * an SA; e.g. on first reference.  If it occurs,
 			 * then we let ipsec4_process_packet do its thing.
@@ -291,15 +291,16 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
+		 * For IPv6 we do delayed checksums in ip6_output.c.
 		 */
+#ifdef INET
 		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			ipseclog((LOG_DEBUG,
 			    "%s: we do not support IPv4 over IPv6", __func__));
-#ifdef INET
 			in_delayed_cksum(*m);
-#endif
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
+#endif
 
 		/*
 		 * Preserve KAME behaviour: ENOENT can be returned

@@ -419,7 +419,7 @@ snap_print(const u_char *p, u_int length, u_int caplen, u_int bridge_pad)
 		 * Cisco hardware; the protocol ID is
 		 * an Ethernet protocol type.
 		 */
-		ret = ethertype_print(et, p, length, caplen);
+		ret = ethertype_print(gndo, et, p, length, caplen);
 		if (ret)
 			return (ret);
 		break;
@@ -434,7 +434,7 @@ snap_print(const u_char *p, u_int length, u_int caplen, u_int bridge_pad)
 			 * but used 0x000000 and an Ethernet
 			 * packet type for AARP packets.
 			 */
-			ret = ethertype_print(et, p, length, caplen);
+			ret = ethertype_print(gndo, et, p, length, caplen);
 			if (ret)
 				return (ret);
 		}
@@ -481,7 +481,7 @@ snap_print(const u_char *p, u_int length, u_int caplen, u_int bridge_pad)
 			/*
 			 * What remains is an Ethernet packet.
 			 */
-			ether_print(p, length, caplen, NULL, NULL);
+			ether_print(gndo, p, length, caplen, NULL, NULL);
 			return (1);
 
 		case PID_RFC2684_802_5_FCS:

@@ -516,8 +516,13 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		return (ENOSPC);
 
 	/* Check if port has already been associated to a lagg */
-	if (ifp->if_lagg != NULL)
+	if (ifp->if_lagg != NULL) {
+		/* Port is already in the current lagg? */
+		lp = (struct lagg_port *)ifp->if_lagg;
+		if (lp->lp_softc == sc)
+			return (EEXIST);
 		return (EBUSY);
+	}
 
 	/* XXX Disallow non-ethernet interfaces (this should be any of 802) */
 	if (ifp->if_type != IFT_ETHER)
@@ -764,28 +769,18 @@ fallback:
 	return (EINVAL);
 }
 
+/*
+ * For direct output to child ports.
+ */
 static int
 lagg_port_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
 {
 	struct lagg_port *lp = ifp->if_lagg;
-	struct ether_header *eh;
-	short type = 0;
 
 	switch (dst->sa_family) {
 		case pseudo_AF_HDRCMPLT:
 		case AF_UNSPEC:
-			eh = (struct ether_header *)dst->sa_data;
-			type = eh->ether_type;
-			break;
-	}
-
-	/*
-	 * Only allow ethernet types required to initiate or maintain the link,
-	 * aggregated frames take a different path.
-	 */
-	switch (ntohs(type)) {
-		case ETHERTYPE_PAE:	/* EAPOL PAE/802.1x */
 			return ((*lp->lp_output)(ifp, m, dst, ro));
 	}
 
@@ -801,6 +796,9 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct lagg_softc *sc;
 
 	if ((lp = ifp->if_lagg) == NULL)
+		return;
+	/* If the ifnet is just being renamed, don't do anything. */
+	if (ifp->if_flags & IFF_RENAMING)
 		return;
 
 	sc = lp->lp_softc;
