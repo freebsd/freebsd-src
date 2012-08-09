@@ -356,13 +356,20 @@ netmap_dtor_locked(void *data)
 			lim = na->tx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
 				netmap_free_buf(nifp, ring->slot[j].buf_idx);
+			/* knlist_destroy(&na->tx_rings[i].si.si_note); */
+			mtx_destroy(&na->tx_rings[i].q_lock);
 		}
 		for (i = 0; i < na->num_rx_rings + 1; i++) {
 			struct netmap_ring *ring = na->rx_rings[i].ring;
 			lim = na->rx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
 				netmap_free_buf(nifp, ring->slot[j].buf_idx);
+			/* knlist_destroy(&na->rx_rings[i].si.si_note); */
+			mtx_destroy(&na->rx_rings[i].q_lock);
 		}
+		/* XXX kqueue(9) needed; these will mirror knlist_init. */
+		/* knlist_destroy(&na->tx_si.si_note); */
+		/* knlist_destroy(&na->rx_si.si_note); */
 		NMA_UNLOCK();
 		netmap_free_rings(na);
 		wakeup(na);
@@ -1318,13 +1325,14 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 		ifp->if_capabilities |= IFCAP_NETMAP;
 
 		na = buf;
+		/* Core lock initialized here.  Others are initialized after
+		 * netmap_if_new.
+		 */
+		mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK,
+		    MTX_DEF);
 		if (na->nm_lock == NULL) {
 			ND("using default locks for %s", ifp->if_xname);
 			na->nm_lock = netmap_lock_wrapper;
-			/* core lock initialized here.
-			 * others initialized after netmap_if_new
-			 */
-			mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK, MTX_DEF);
 		}
 	}
 #ifdef linux
@@ -1348,22 +1356,13 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 void
 netmap_detach(struct ifnet *ifp)
 {
-	u_int i;
 	struct netmap_adapter *na = NA(ifp);
 
 	if (!na)
 		return;
 
-	for (i = 0; i < na->num_tx_rings + 1; i++) {
-		knlist_destroy(&na->tx_rings[i].si.si_note);
-		mtx_destroy(&na->tx_rings[i].q_lock);
-	}
-	for (i = 0; i < na->num_rx_rings + 1; i++) {
-		knlist_destroy(&na->rx_rings[i].si.si_note);
-		mtx_destroy(&na->rx_rings[i].q_lock);
-	}
-	knlist_destroy(&na->tx_si.si_note);
-	knlist_destroy(&na->rx_si.si_note);
+	mtx_destroy(&na->core_lock);
+
 	bzero(na, sizeof(*na));
 	WNA(ifp) = NULL;
 	free(na, M_DEVBUF);
