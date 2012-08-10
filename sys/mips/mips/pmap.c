@@ -1588,9 +1588,6 @@ pmap_remove(struct pmap *pmap, vm_offset_t sva, vm_offset_t eva)
 	pd_entry_t *pde, *pdpe;
 	pt_entry_t *pte;
 
-	if (pmap == NULL)
-		return;
-
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
@@ -1721,9 +1718,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pd_entry_t *pde, *pdpe;
 	vm_offset_t va_next;
 
-	if (pmap == NULL)
-		return;
-
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
 		return;
@@ -1805,9 +1799,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_page_t mpte, om;
 	pt_entry_t rw = 0;
-
-	if (pmap == NULL)
-		return;
 
 	va &= ~PAGE_MASK;
  	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
@@ -2250,9 +2241,6 @@ void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
 	pt_entry_t *pte;
-
-	if (pmap == NULL)
-		return;
 
 	PMAP_LOCK(pmap);
 	pte = pmap_pte(pmap, va);
