@@ -126,13 +126,13 @@ static struct dsk {
     unsigned unit;
     unsigned head;
     unsigned sec;
-    unsigned slice;
-    unsigned part;
+    uint8_t slice;
+    uint8_t part;
     unsigned start;
 } dsk;
 static char cmd[512], cmddup[512], knamebuf[1024];
-static const char *kname = NULL;
-static uint32_t opts = 0;
+static const char *kname;
+static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -615,7 +615,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     struct pc98_partition *dp;
     struct disklabel *d;
     char *sec;
-    unsigned sl, i;
+    unsigned i;
+    uint8_t sl;
     u_char *p;
 
     if (!dsk_meta) {

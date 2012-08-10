@@ -144,8 +144,8 @@ struct netmap_adapter {
 	int separate_locks; /* set if the interface suports different
 			       locks for rx, tx and core. */
 
-	u_int num_rx_rings; /* number of tx/rx ring pairs */
-	u_int num_tx_rings; // if nonzero, overrides num_rx_rings
+	u_int num_rx_rings; /* number of adapter receive rings */
+	u_int num_tx_rings; /* number of adapter transmit rings */
 
 	u_int num_tx_desc; /* number of descriptor in each queue */
 	u_int num_rx_desc;
