@@ -107,6 +107,7 @@ struct ucom_callback {
 	void    (*ucom_stop_write) (struct ucom_softc *);
 	void    (*ucom_tty_name) (struct ucom_softc *, char *pbuf, uint16_t buflen, uint16_t unit, uint16_t subunit);
 	void    (*ucom_poll) (struct ucom_softc *);
+	void	(*ucom_free) (struct ucom_softc *);
 };
 
 /* Line status register */
@@ -135,6 +136,8 @@ struct ucom_super_softc {
 	struct usb_process sc_tq;
 	int sc_unit;
 	int sc_subunits;
+	int sc_refs;
+	int sc_wait_refs;
 	struct sysctl_oid *sc_sysctl_ttyname;
 	struct sysctl_oid *sc_sysctl_ttyports;
 	char sc_ttyname[16];
@@ -158,7 +161,6 @@ struct ucom_softc {
 	struct ucom_cfg_task	sc_line_state_task[2];
 	struct ucom_cfg_task	sc_status_task[2];
 	struct ucom_param_task	sc_param_task[2];
-	struct cv sc_cv;
 	/* Used to set "UCOM_FLAG_GP_DATA" flag: */
 	struct usb_proc_msg	*sc_last_start_xfer;
 	const struct ucom_callback *sc_callback;
@@ -179,7 +181,6 @@ struct ucom_softc {
 	uint8_t	sc_lsr;
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;
-	uint8_t	sc_ttyfreed;		/* set when TTY has been freed */
 	/* programmed line state bits */
 	uint8_t sc_pls_set;		/* set bits */
 	uint8_t sc_pls_clr;		/* cleared bits */
@@ -189,6 +190,12 @@ struct ucom_softc {
 #define	UCOM_LS_BREAK	0x04
 #define	UCOM_LS_RING	0x08
 };
+
+#define	UCOM_MTX_ASSERT(sc, what) mtx_assert((sc)->sc_mtx, what)
+#define	UCOM_MTX_LOCK(sc) mtx_lock((sc)->sc_mtx)
+#define	UCOM_MTX_UNLOCK(sc) mtx_unlock((sc)->sc_mtx)
+#define	UCOM_UNLOAD_DRAIN(x) \
+SYSUNINIT(var, SI_SUB_KLD - 3, SI_ORDER_ANY, ucom_drain_all, 0)
 
 #define	ucom_cfg_do_request(udev,com,req,ptr,flags,timo) \
     usbd_do_request_proc(udev,&(com)->sc_super->sc_tq,req,ptr,flags,NULL,timo)
@@ -204,4 +211,8 @@ uint8_t	ucom_get_data(struct ucom_softc *, struct usb_page_cache *,
 void	ucom_put_data(struct ucom_softc *, struct usb_page_cache *,
 	    uint32_t, uint32_t);
 uint8_t	ucom_cfg_is_gone(struct ucom_softc *);
+void	ucom_drain(struct ucom_super_softc *);
+void	ucom_drain_all(void *);
+void	ucom_ref(struct ucom_super_softc *);
+int	ucom_unref(struct ucom_super_softc *);
 #endif					/* _USB_SERIAL_H_ */
