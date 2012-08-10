@@ -460,8 +460,11 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	if ((st = uma_zalloc(V_pf_state_z, M_NOWAIT | M_ZERO)) == NULL)
 		goto cleanup;
 
-	if ((skw = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
+	if ((skw = uma_zalloc(V_pf_state_key_z, M_NOWAIT | M_ZERO)) == NULL)
 		goto cleanup;
+
+	TAILQ_INIT(&skw->states[PF_SK_WIRE]);
+	TAILQ_INIT(&skw->states[PF_SK_STACK]);
 
 	if (PF_ANEQ(&sp->key[PF_SK_WIRE].addr[0],
 	    &sp->key[PF_SK_STACK].addr[0], sp->af) ||
@@ -469,8 +472,11 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	    &sp->key[PF_SK_STACK].addr[1], sp->af) ||
 	    sp->key[PF_SK_WIRE].port[0] != sp->key[PF_SK_STACK].port[0] ||
 	    sp->key[PF_SK_WIRE].port[1] != sp->key[PF_SK_STACK].port[1]) {
-		if ((sks = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
+		sks = uma_zalloc(V_pf_state_key_z, M_NOWAIT | M_ZERO);
+		if (sks == NULL)
 			goto cleanup;
+		TAILQ_INIT(&sks->states[PF_SK_WIRE]);
+		TAILQ_INIT(&sks->states[PF_SK_STACK]);
 	} else
 		sks = skw;
 
