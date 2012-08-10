@@ -202,7 +202,7 @@ usbd_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val)
 	/*
 	 * The default endpoint is always present and is checked separately:
 	 */
-	if ((udev->ctrl_ep.edesc) &&
+	if ((udev->ctrl_ep.edesc != NULL) &&
 	    ((udev->ctrl_ep.edesc->bEndpointAddress & EA_MASK) == ea_val)) {
 		ep = &udev->ctrl_ep;
 		goto found;
@@ -320,7 +320,7 @@ usbd_get_endpoint(struct usb_device *udev, uint8_t iface_index,
 	 * address" and "any direction" returns the first endpoint of the
 	 * interface. "iface_index" and "direction" is ignored:
 	 */
-	if ((udev->ctrl_ep.edesc) &&
+	if ((udev->ctrl_ep.edesc != NULL) &&
 	    ((udev->ctrl_ep.edesc->bEndpointAddress & ea_mask) == ea_val) &&
 	    ((udev->ctrl_ep.edesc->bmAttributes & type_mask) == type_val) &&
 	    (!index)) {
