@@ -119,9 +119,9 @@ struct td_sched {
 static struct td_sched td_sched0;
 struct mtx sched_lock;
 
-static int	realstathz;	/* stathz is sometimes 0 and run off of hz. */
+static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
-static int	sched_slice = 1; /* Thread run time before rescheduling. */
+static int	sched_slice = 12; /* Thread run time before rescheduling. */
 
 static void	setup_runqs(void);
 static void	schedcpu(void);
@@ -185,12 +185,32 @@ setup_runqs(void)
 	runq_init(&runq);
 }
 
+static int
+sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
+{
+	int error, new_val, period;
+
+	period = 1000000 / realstathz;
+	new_val = period * sched_slice;
+	error = sysctl_handle_int(oidp, &new_val, 0, req);
+        if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_val <= 0)
+		return (EINVAL);
+	sched_slice = max(1, (new_val + period / 2) / period);
+	hogticks = max(1, 2 * hz * sched_slice / realstathz);
+	return (0);
+}
+
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD, 0, "Scheduler");
 
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0,
     "Scheduler name");
+SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, sysctl_kern_quantum, "I",
+    "Length of time granted to timeshare threads in microseconds");
 SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
-    "Slice size for timeshare threads");
+    "Length of time granted to timeshare threads in stathz ticks");
 #ifdef SMP
 /* Enable forwarding of wakeups to all other cpus */
 static SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL,
@@ -629,21 +649,15 @@ resetpriority_thread(struct thread *td)
 static void
 sched_setup(void *dummy)
 {
-	setup_runqs();
 
-	/*
-	 * To avoid divide-by-zero, we set realstathz a dummy value
-	 * in case which sched_clock() called before sched_initticks().
-	 */
-	realstathz = hz;
-	sched_slice = realstathz / 10;	/* ~100ms */
+	setup_runqs();
 
 	/* Account for thread0. */
 	sched_load_add();
 }
 
 /*
- * This routine determines the sched_slice after stathz and hz are setup.
+ * This routine determines time constants after stathz and hz are setup.
  */
 static void
 sched_initticks(void *dummy)
@@ -651,6 +665,7 @@ sched_initticks(void *dummy)
 
 	realstathz = stathz ? stathz : hz;
 	sched_slice = realstathz / 10;	/* ~100ms */
+	hogticks = max(1, 2 * hz * sched_slice / realstathz);
 }
 
 /* External interfaces start here */
@@ -689,7 +704,7 @@ sched_rr_interval(void)
 {
 
 	/* Convert sched_slice from stathz to hz. */
-	return (hz / (realstathz / sched_slice));
+	return (max(1, (sched_slice * hz + realstathz / 2) / realstathz));
 }
 
 /*
@@ -724,9 +739,9 @@ sched_clock(struct thread *td)
 
 	/*
 	 * Force a context switch if the current thread has used up a full
-	 * quantum (default quantum is 100ms).
+	 * time slice (default is 100ms).
 	 */
-	if (!TD_IS_IDLETHREAD(td) && (--ts->ts_slice <= 0)) {
+	if (!TD_IS_IDLETHREAD(td) && --ts->ts_slice <= 0) {
 		ts->ts_slice = sched_slice;
 		td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
 	}
