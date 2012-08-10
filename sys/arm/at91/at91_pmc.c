@@ -500,6 +500,7 @@ at91_pmc_init_clock(void)
 		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
 		udpck.pmc_mask = PMC_SCER_UDP_SAM9;
 	}
+
 	/* There is no pllb on AT91SAM9G45 */
 	if (at91_cpu_is(AT91_T_SAM9G45)) {
 		uhpck.parent = &upll;
@@ -509,6 +510,9 @@ at91_pmc_init_clock(void)
 	mckr = RD4(sc, PMC_MCKR);
 	main_ck.hz = main_clock;
 
+	// Note: this means outa calc code for plla never used since
+	// we never change it.  If we did, we'd also have to mind
+	// ICPLLA to get the charge pump current right.
 	at91_pmc_pll_rate(&plla, RD4(sc, CKGR_PLLAR));
 
 	if (at91_cpu_is(AT91_T_SAM9G45) && (mckr & PMC_MCKR_PLLADIV2))
@@ -516,16 +520,17 @@ at91_pmc_init_clock(void)
 
 	/*
 	 * Initialize the usb clock.  This sets up pllb, but disables the
-	 * actual clock.
+	 * actual clock. XXX except for the if 0 :(
 	 */
-	pllb_init = at91_pmc_pll_calc(&pllb, 48000000 * 2) | 0x10000000;
-	at91_pmc_pll_rate(&pllb, pllb_init);
-
+	if (!at91_cpu_is(AT91_T_SAM9G45)) {
+		pllb_init = at91_pmc_pll_calc(&pllb, 48000000 * 2) | 0x10000000;
+		at91_pmc_pll_rate(&pllb, pllb_init);
 #if 0
-	/* Turn off USB clocks */
-	at91_pmc_set_periph_mode(&ohci_clk, 0);
-	at91_pmc_set_periph_mode(&udc_clk, 0);
+		/* Turn off USB clocks */
+		at91_pmc_set_periph_mode(&ohci_clk, 0);
+		at91_pmc_set_periph_mode(&udc_clk, 0);
 #endif
+	}
 
 	if (at91_is_rm92()) {
 		WR4(sc, PMC_SCDR, PMC_SCER_UHP | PMC_SCER_UDP);
