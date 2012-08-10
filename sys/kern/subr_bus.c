@@ -2406,8 +2406,8 @@ device_get_softc(device_t dev)
 void
 device_set_softc(device_t dev, void *softc)
 {
-	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
-		free(dev->softc, M_BUS_SC);
+	if (dev->softc != NULL && !(dev->flags & DF_EXTERNALSOFTC))
+		DEVICE_FREE_SOFTC(dev, dev->softc);
 	dev->softc = softc;
 	if (dev->softc)
 		dev->flags |= DF_EXTERNALSOFTC;
@@ -2604,8 +2604,8 @@ device_set_driver(device_t dev, driver_t *driver)
 	if (dev->driver == driver)
 		return (0);
 
-	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC)) {
-		free(dev->softc, M_BUS_SC);
+	if (dev->softc != NULL && !(dev->flags & DF_EXTERNALSOFTC)) {
+		DEVICE_FREE_SOFTC(dev, dev->softc);
 		dev->softc = NULL;
 	}
 	device_set_desc(dev, NULL);
@@ -4796,4 +4796,14 @@ bus_free_resource(device_t dev, int type, struct resource *r)
 	if (r == NULL)
 		return (0);
 	return (bus_release_resource(dev, type, rman_get_rid(r), r));
+}
+
+/*
+ * The "dev" argument passed to "device_free_softc()" is allowed to be
+ * NULL, if the device freeing the soft is not available.
+ */
+void
+device_free_softc(device_t dev, void *softc)
+{
+	free(softc, M_BUS_SC);
 }

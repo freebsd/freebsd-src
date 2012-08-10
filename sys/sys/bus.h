@@ -468,6 +468,7 @@ int	device_set_unit(device_t dev, int unit);	/* XXX DONT USE XXX */
 int	device_shutdown(device_t dev);
 void	device_unbusy(device_t dev);
 void	device_verbose(device_t dev);
+void	device_free_softc(device_t dev, void *softc);
 
 /*
  * Access functions for devclass.
