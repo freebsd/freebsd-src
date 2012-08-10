@@ -928,7 +928,6 @@ u3g_start_read(struct ucom_softc *ucom)
 
 	/* start read endpoint */
 	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
-	return;
 }
 
 static void
@@ -938,7 +937,6 @@ u3g_stop_read(struct ucom_softc *ucom)
 
 	/* stop read endpoint */
 	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
-	return;
 }
 
 static void
@@ -947,7 +945,6 @@ u3g_start_write(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
-	return;
 }
 
 static void
@@ -956,7 +953,6 @@ u3g_stop_write(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
-	return;
 }
 
 static void
@@ -985,7 +981,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -1016,5 +1011,4 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
