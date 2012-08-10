@@ -316,3 +316,14 @@ METHOD int resume {
 METHOD int quiesce {
 	device_t dev;
 } DEFAULT null_quiesce;
+
+/**
+ * @brief Free the device softc
+ *
+ * @param _dev		device pointer
+ * @param _softc	pointer to softc
+ */
+METHOD void free_softc {
+	device_t	_dev;
+	void		*_softc;
+} DEFAULT device_free_softc;
