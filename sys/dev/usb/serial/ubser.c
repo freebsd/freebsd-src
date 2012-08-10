@@ -141,7 +141,6 @@ struct ubser_softc {
 	uint8_t	sc_iface_no;
 	uint8_t	sc_iface_index;
 	uint8_t	sc_curr_tx_unit;
-	uint8_t	sc_name[16];
 };
 
 /* prototypes */
@@ -248,9 +247,6 @@ ubser_attach(device_t dev)
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ubser", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
 
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index = uaa->info.bIfaceIndex;

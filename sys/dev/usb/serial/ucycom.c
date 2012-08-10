@@ -101,7 +101,6 @@ struct ucycom_softc {
 #define	UCYCOM_CFG_STOPB	0x08
 #define	UCYCOM_CFG_DATAB	0x03
 	uint8_t	sc_ist;			/* status flags from last input */
-	uint8_t	sc_name[16];
 	uint8_t	sc_iface_no;
 	uint8_t	sc_temp_cfg[32];
 };
@@ -223,9 +222,6 @@ ucycom_attach(device_t dev)
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ucycom", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
 
 	DPRINTF("\n");
 
