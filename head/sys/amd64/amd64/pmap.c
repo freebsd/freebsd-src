@@ -3445,7 +3445,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
-	KASSERT((prot & access) == access, ("pmap_enter: access not in prot"));
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
 	    va >= kmi.clean_eva,
 	    ("pmap_enter: managed mapping within the clean submap"));
@@ -3458,6 +3457,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_M;
 	if ((prot & VM_PROT_WRITE) != 0)
 		newpte |= PG_RW;
+	KASSERT((newpte & (PG_M | PG_RW)) != PG_M,
+	    ("pmap_enter: access includes VM_PROT_WRITE but prot doesn't"));
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpte |= pg_nx;
 	if (wired)
@@ -3468,7 +3469,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_G;
 	newpte |= pmap_cache_bits(m->md.pat_mode, 0);
 
-	mpte = om = NULL;
+	mpte = NULL;
 
 	lock = NULL;
 	rw_rlock(&pvh_global_lock);
@@ -3540,12 +3541,6 @@ retry:
 			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
 				goto unchanged;
 			goto validate;
-		} else {
-			/*
-			 * Yes, fall through to validate the new mapping.
-			 */
-			if ((origpte & PG_MANAGED) != 0)
-				om = PHYS_TO_VM_PAGE(opa);
 		}
 	} else {
 		/*
@@ -3578,6 +3573,7 @@ validate:
 		opa = origpte & PG_FRAME;
 		if (opa != pa) {
 			if ((origpte & PG_MANAGED) != 0) {
+				om = PHYS_TO_VM_PAGE(opa);
 				if ((origpte & (PG_M | PG_RW)) == (PG_M |
 				    PG_RW))
 					vm_page_dirty(om);

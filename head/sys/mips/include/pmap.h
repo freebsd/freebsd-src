@@ -90,7 +90,6 @@ struct pmap {
 		u_int32_t gen:ASIDGEN_BITS;	/* its generation number */
 	}      pm_asid[MAXSMPCPU];
 	struct pmap_statistics pm_stats;	/* pmap statistics */
-	struct vm_page *pm_ptphint;	/* pmap ptp hint */
 	struct mtx pm_mtx;
 };
 
@@ -126,7 +125,6 @@ typedef struct pv_entry {
 	vm_offset_t pv_va;	/* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry) pv_list;
 	TAILQ_ENTRY(pv_entry) pv_plist;
-	vm_page_t pv_ptem;	/* VM page for pte */
 }       *pv_entry_t;
 
 /*

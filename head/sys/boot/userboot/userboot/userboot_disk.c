@@ -31,23 +31,31 @@ __FBSDID("$FreeBSD$");
  * Userboot disk image handling.
  */
 
+#include <sys/disk.h>
 #include <stand.h>
-
 #include <stdarg.h>
-#include <uuid.h>
-
 #include <bootstrap.h>
 
 #include "disk.h"
 #include "libuserboot.h"
 
+struct userdisk_info {
+	uint64_t	mediasize;
+	uint16_t	sectorsize;
+};
+
 int userboot_disk_maxunit = 0;
 
+static int userdisk_maxunit = 0;
+static struct userdisk_info	*ud_info;
+
 static int	userdisk_init(void);
+static void	userdisk_cleanup(void);
 static int	userdisk_strategy(void *devdata, int flag, daddr_t dblk,
 		    size_t size, char *buf, size_t *rsize);
 static int	userdisk_open(struct open_file *f, ...);
 static int	userdisk_close(struct open_file *f);
+static int	userdisk_ioctl(struct open_file *f, u_long cmd, void *data);
 static void	userdisk_print(int verbose);
 
 struct devsw userboot_disk = {
@@ -57,19 +65,45 @@ struct devsw userboot_disk = {
 	userdisk_strategy,
 	userdisk_open,
 	userdisk_close,
-	noioctl,
+	userdisk_ioctl,
 	userdisk_print,
-	NULL
+	userdisk_cleanup
 };
 
 /*
- * Nothing to do here.
+ * Initialize userdisk_info structure for each disk.
  */
 static int
 userdisk_init(void)
 {
+	off_t mediasize;
+	u_int sectorsize;
+	int i;
+
+	userdisk_maxunit = userboot_disk_maxunit;
+	if (userdisk_maxunit > 0) {
+		ud_info = malloc(sizeof(*ud_info) * userdisk_maxunit);
+		if (ud_info == NULL)
+			return (ENOMEM);
+		for (i = 0; i < userdisk_maxunit; i++) {
+			if (CALLBACK(diskioctl, i, DIOCGSECTORSIZE,
+			    &sectorsize) != 0 || CALLBACK(diskioctl, i,
+			    DIOCGMEDIASIZE, &mediasize) != 0)
+				return (ENXIO);
+			ud_info[i].mediasize = mediasize;
+			ud_info[i].sectorsize = sectorsize;
+		}
+	}
 
 	return(0);
+}
+
+static void
+userdisk_cleanup(void)
+{
+
+	if (userdisk_maxunit > 0)
+		free(ud_info);
 }
 
 /*
@@ -78,20 +112,23 @@ userdisk_init(void)
 static void
 userdisk_print(int verbose)
 {
-	int			i;
-	char			line[80];
-	struct disk_devdesc	dev;
+	struct disk_devdesc dev;
+	char line[80];
+	int i;
 
-	for (i = 0; i < userboot_disk_maxunit; i++) {
+	for (i = 0; i < userdisk_maxunit; i++) {
 		sprintf(line, "    disk%d:   Guest drive image\n", i);
 		pager_output(line);
 		dev.d_dev = &userboot_disk;
 		dev.d_unit = i;
 		dev.d_slice = -1;
 		dev.d_partition = -1;
-		dev.d_offset = 0;
-		sprintf(line, "    disk%d", i);
-		disk_print(&dev, line, verbose);
+		if (disk_open(&dev, ud_info[i].mediasize,
+		    ud_info[i].sectorsize) == 0) {
+			sprintf(line, "    disk%d", i);
+			disk_print(&dev, line, verbose);
+			disk_close(&dev);
+		}
 	}
 }
 
@@ -108,17 +145,20 @@ userdisk_open(struct open_file *f, ...)
 	dev = va_arg(ap, struct disk_devdesc *);
 	va_end(ap);
 
-	if (dev->d_unit < 0 || dev->d_unit >= userboot_disk_maxunit)
+	if (dev->d_unit < 0 || dev->d_unit >= userdisk_maxunit)
 		return (EIO);
 
-	return (disk_open(dev));
+	return (disk_open(dev, ud_info[dev->d_unit].mediasize,
+	    ud_info[dev->d_unit].sectorsize));
 }
 
 static int
 userdisk_close(struct open_file *f)
 {
+	struct disk_devdesc *dev;
 
-	return(0);
+	dev = (struct disk_devdesc *)f->f_devdata;
+	return (disk_close(dev));
 }
 
 static int
@@ -136,11 +176,20 @@ userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
 		return (EINVAL);
 	if (rsize)
 		*rsize = 0;
-	off = (dblk + dev->d_offset) * DISK_SECSIZE;
+	off = (dblk + dev->d_offset) * ud_info[dev->d_unit].sectorsize;
 	rc = CALLBACK(diskread, dev->d_unit, off, buf, size, &resid);
 	if (rc)
 		return (rc);
 	if (rsize)
 		*rsize = size - resid;
 	return (0);
+}
+
+static int
+userdisk_ioctl(struct open_file *f, u_long cmd, void *data)
+{
+	struct disk_devdesc *dev;
+
+	dev = (struct disk_devdesc *)f->f_devdata;
+	return (CALLBACK(diskioctl, dev->d_unit, cmd, data));
 }
