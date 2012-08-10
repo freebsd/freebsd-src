@@ -189,11 +189,13 @@ struct umoscom_softc {
 static device_probe_t umoscom_probe;
 static device_attach_t umoscom_attach;
 static device_detach_t umoscom_detach;
+static device_free_softc_t umoscom_free_softc;
 
 static usb_callback_t umoscom_write_callback;
 static usb_callback_t umoscom_read_callback;
 static usb_callback_t umoscom_intr_callback;
 
+static void	umoscom_free(struct ucom_softc *);
 static void	umoscom_cfg_open(struct ucom_softc *);
 static void	umoscom_cfg_close(struct ucom_softc *);
 static void	umoscom_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -258,13 +260,15 @@ static const struct ucom_callback umoscom_callback = {
 	.ucom_start_write = &umoscom_start_write,
 	.ucom_stop_write = &umoscom_stop_write,
 	.ucom_poll = &umoscom_poll,
+	.ucom_free = &umoscom_free,
 };
 
 static device_method_t umoscom_methods[] = {
 	DEVMETHOD(device_probe, umoscom_probe),
 	DEVMETHOD(device_attach, umoscom_attach),
 	DEVMETHOD(device_detach, umoscom_detach),
-	{0, 0}
+	DEVMETHOD(device_free_softc, umoscom_free_softc),
+	DEVMETHOD_END
 };
 
 static devclass_t umoscom_devclass;
@@ -317,6 +321,7 @@ umoscom_attach(device_t dev)
 	device_printf(dev, "<MOSCHIP USB Serial Port Adapter>\n");
 
 	mtx_init(&sc->sc_mtx, "umoscom", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	iface_index = UMOSCOM_IFACE_INDEX;
 	error = usbd_transfer_setup(uaa->device, &iface_index,
@@ -354,9 +359,28 @@ umoscom_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UMOSCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(umoscom);
+
+static void
+umoscom_free_softc(device_t dev, void *arg)
+{
+	struct umoscom_softc *sc = arg;
+
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		if (mtx_initialized(&sc->sc_mtx))
+			mtx_destroy(&sc->sc_mtx);
+		device_free_softc(dev, sc);
+	}
+}
+
+static void
+umoscom_free(struct ucom_softc *ucom)
+{
+	umoscom_free_softc(NULL, ucom->sc_parent);
 }
 
 static void

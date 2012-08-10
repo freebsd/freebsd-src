@@ -176,6 +176,7 @@ static usb_error_t uplcom_reset(struct uplcom_softc *, struct usb_device *);
 static usb_error_t uplcom_pl2303_do(struct usb_device *, int8_t, uint8_t,
 			uint16_t, uint16_t, uint16_t);
 static int	uplcom_pl2303_init(struct usb_device *, uint8_t);
+static void	uplcom_free(struct ucom_softc *);
 static void	uplcom_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uplcom_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	uplcom_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -192,6 +193,7 @@ static void	uplcom_poll(struct ucom_softc *ucom);
 static device_probe_t uplcom_probe;
 static device_attach_t uplcom_attach;
 static device_detach_t uplcom_detach;
+static device_free_softc_t uplcom_free_softc;
 
 static usb_callback_t uplcom_intr_callback;
 static usb_callback_t uplcom_write_callback;
@@ -242,6 +244,7 @@ static struct ucom_callback uplcom_callback = {
 	.ucom_start_write = &uplcom_start_write,
 	.ucom_stop_write = &uplcom_stop_write,
 	.ucom_poll = &uplcom_poll,
+	.ucom_free = &uplcom_free,
 };
 
 #define	UPLCOM_DEV(v,p)				\
@@ -315,7 +318,8 @@ static device_method_t uplcom_methods[] = {
 	DEVMETHOD(device_probe, uplcom_probe),
 	DEVMETHOD(device_attach, uplcom_attach),
 	DEVMETHOD(device_detach, uplcom_detach),
-	{0, 0}
+	DEVMETHOD(device_free_softc, uplcom_free_softc),
+	DEVMETHOD_END
 };
 
 static devclass_t uplcom_devclass;
@@ -364,6 +368,7 @@ uplcom_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uplcom", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	DPRINTF("sc = %p\n", sc);
 
@@ -465,9 +470,28 @@ uplcom_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UPLCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uplcom);
+
+static void
+uplcom_free_softc(device_t dev, void *arg)
+{
+	struct uplcom_softc *sc = arg;
+
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		if (mtx_initialized(&sc->sc_mtx))
+			mtx_destroy(&sc->sc_mtx);
+		device_free_softc(dev, sc);
+	}
+}
+
+static void
+uplcom_free(struct ucom_softc *ucom)
+{
+	uplcom_free_softc(NULL, ucom->sc_parent);
 }
 
 static usb_error_t
