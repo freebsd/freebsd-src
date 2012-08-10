@@ -110,8 +110,6 @@ struct uftdi_softc {
 	uint8_t	sc_hdrlen;
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;
-
-	uint8_t	sc_name[16];
 };
 
 struct uftdi_param_config {
@@ -889,9 +887,6 @@ uftdi_attach(device_t dev)
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
 
 	DPRINTF("\n");
 

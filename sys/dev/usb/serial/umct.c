@@ -115,7 +115,6 @@ struct umct_softc {
 	uint8_t	sc_mcr;
 	uint8_t	sc_iface_no;
 	uint8_t sc_swap_cb;
-	uint8_t	sc_name[16];
 };
 
 /* prototypes */
@@ -256,9 +255,6 @@ umct_attach(device_t dev)
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "umct", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
 
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 

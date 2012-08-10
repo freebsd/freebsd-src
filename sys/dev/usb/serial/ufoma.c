@@ -195,7 +195,6 @@ struct ufoma_softc {
 	uint8_t	sc_msr;
 	uint8_t	sc_modetoactivate;
 	uint8_t	sc_currentmode;
-	uint8_t	sc_name[16];
 };
 
 /* prototypes */
@@ -393,9 +392,6 @@ ufoma_attach(device_t dev)
 	cv_init(&sc->sc_cv, "CWAIT");
 
 	device_set_usb_desc(dev);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
 
 	DPRINTF("\n");
 
