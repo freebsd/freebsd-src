@@ -115,7 +115,7 @@ ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
 {
 	if (m != NULL)
-		m_freem(m);
+		FREE_PKT(m);
 	return EINVAL;
 }
 
@@ -450,8 +450,8 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			tcp = L3HDR(struct tcphdr, ip);
 			udp = L3HDR(struct udphdr, ip);
 
-			inet_ntoa_r(ip->ip_src, src);
-			inet_ntoa_r(ip->ip_dst, dst);
+			inet_ntop(AF_INET, &ip->ip_src, src, sizeof(src));
+			inet_ntop(AF_INET, &ip->ip_dst, dst, sizeof(dst));
 		}
 
 		switch (args->f_id.proto) {

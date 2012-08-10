@@ -138,6 +138,12 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
 
+# USB device (gadget) support
+device		at91_dci	# Atmel's usb device
+device		usfs		# emulate a flash
+device		cdce		# emulate an ethernet
+device		usb_template	# Control of the gadget
+
 options		IEEE80211_SUPPORT_MESH
 
 options		AH_SUPPORT_AR5416

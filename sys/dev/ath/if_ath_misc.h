@@ -66,7 +66,6 @@ extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
 extern void ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf);
 
 extern int ath_reset(struct ifnet *, ATH_RESET_TYPE);
-extern void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
 extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf,
 	    int fail);
 extern void ath_tx_update_ratectrl(struct ath_softc *sc,
@@ -95,6 +94,11 @@ extern	int ath_descdma_setup_rx_edma(struct ath_softc *sc,
 	    int nbuf, int desclen);
 extern	void ath_descdma_cleanup(struct ath_softc *sc,
 	    struct ath_descdma *dd, ath_bufhead *head);
+
+extern	void ath_legacy_attach_comp_func(struct ath_softc *sc);
+extern	void ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
+extern	int ath_legacy_tx_processq(struct ath_softc *sc, struct ath_txq *txq,
+	    int dosched);
 
 /*
  * This is only here so that the RX proc function can call it.

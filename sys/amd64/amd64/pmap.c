@@ -3439,7 +3439,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
-	boolean_t invlva;
 
 	va = trunc_page(va);
 	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
@@ -3453,9 +3452,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	    VM_OBJECT_LOCKED(m->object),
 	    ("pmap_enter: page %p is not busy", m));
 	pa = VM_PAGE_TO_PHYS(m);
-	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
+	newpte = (pt_entry_t)(pa | PG_A | PG_V);
+	if ((access & VM_PROT_WRITE) != 0)
+		newpte |= PG_M;
 	if ((prot & VM_PROT_WRITE) != 0)
 		newpte |= PG_RW;
+	KASSERT((newpte & (PG_M | PG_RW)) != PG_M,
+	    ("pmap_enter: access includes VM_PROT_WRITE but prot doesn't"));
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpte |= pg_nx;
 	if (wired)
@@ -3464,8 +3467,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_U;
 	if (pmap == kernel_pmap)
 		newpte |= PG_G;
+	newpte |= pmap_cache_bits(m->md.pat_mode, 0);
 
-	mpte = om = NULL;
+	mpte = NULL;
 
 	lock = NULL;
 	rw_rlock(&pvh_global_lock);
@@ -3495,7 +3499,6 @@ retry:
 		panic("pmap_enter: invalid page directory va=%#lx", va);
 
 	origpte = *pte;
-	opa = origpte & PG_FRAME;
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -3507,9 +3510,9 @@ retry:
 		 * are valid mappings in them. Hence, if a user page is wired,
 		 * the PT page will be also.
 		 */
-		if (wired && (origpte & PG_W) == 0)
+		if ((newpte & PG_W) != 0 && (origpte & PG_W) == 0)
 			pmap->pm_stats.wired_count++;
-		else if (!wired && (origpte & PG_W))
+		else if ((newpte & PG_W) == 0 && (origpte & PG_W) != 0)
 			pmap->pm_stats.wired_count--;
 
 		/*
@@ -3523,31 +3526,27 @@ retry:
 		}
 
 		/*
-		 * Has the mapping changed?
+		 * Has the physical page changed?
 		 */
+		opa = origpte & PG_FRAME;
 		if (opa == pa) {
 			/*
 			 * No, might be a protection or wiring change.
 			 */
 			if ((origpte & PG_MANAGED) != 0) {
 				newpte |= PG_MANAGED;
-				om = m;
+				if ((newpte & PG_RW) != 0)
+					vm_page_aflag_set(m, PGA_WRITEABLE);
 			}
-			if ((origpte & ~(PG_M | PG_A)) == newpte)
+			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
 				goto unchanged;
 			goto validate;
-		} else {
-			/*
-			 * Yes, fall through to validate the new mapping.
-			 */
-			if ((origpte & PG_MANAGED) != 0)
-				om = PHYS_TO_VM_PAGE(opa);
 		}
 	} else {
 		/*
 		 * Increment the counters.
 		 */
-		if (wired)
+		if ((newpte & PG_W) != 0)
 			pmap->pm_stats.wired_count++;
 		pmap_resident_count_inc(pmap, 1);
 	}
@@ -3561,42 +3560,50 @@ retry:
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		if ((newpte & PG_RW) != 0)
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
-
-validate:
 
 	/*
 	 * Update the PTE.
 	 */
-	newpte |= PG_A;
-	if ((access & VM_PROT_WRITE) != 0)
-		newpte |= PG_M;
-	if ((newpte & (PG_MANAGED | PG_RW)) == (PG_MANAGED | PG_RW))
-		vm_page_aflag_set(m, PGA_WRITEABLE);
 	if ((origpte & PG_V) != 0) {
-		invlva = FALSE;
+validate:
 		origpte = pte_load_store(pte, newpte);
-		if ((origpte & PG_A) != 0 && (opa != pa ||
-		    ((origpte & PG_NX) == 0 && (newpte & PG_NX) != 0)))
-			invlva = TRUE;
-		if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+		opa = origpte & PG_FRAME;
+		if (opa != pa) {
+			if ((origpte & PG_MANAGED) != 0) {
+				om = PHYS_TO_VM_PAGE(opa);
+				if ((origpte & (PG_M | PG_RW)) == (PG_M |
+				    PG_RW))
+					vm_page_dirty(om);
+				if ((origpte & PG_A) != 0)
+					vm_page_aflag_set(om, PGA_REFERENCED);
+				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+				pmap_pvh_free(&om->md, pmap, va);
+				if ((om->aflags & PGA_WRITEABLE) != 0 &&
+				    TAILQ_EMPTY(&om->md.pv_list) &&
+				    ((om->flags & PG_FICTITIOUS) != 0 ||
+				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+					vm_page_aflag_clear(om, PGA_WRITEABLE);
+			}
+		} else if ((newpte & PG_M) == 0 && (origpte & (PG_M |
+		    PG_RW)) == (PG_M | PG_RW)) {
 			if ((origpte & PG_MANAGED) != 0)
-				vm_page_dirty(om);
-			if ((newpte & PG_RW) == 0)
-				invlva = TRUE;
+				vm_page_dirty(m);
+
+			/*
+			 * Although the PTE may still have PG_RW set, TLB
+			 * invalidation may nonetheless be required because
+			 * the PTE no longer has PG_M set.
+			 */
+		} else if ((origpte & PG_NX) != 0 || (newpte & PG_NX) == 0) {
+			/*
+			 * This PTE change does not require TLB invalidation.
+			 */
+			goto unchanged;
 		}
-		if (opa != pa && (origpte & PG_MANAGED) != 0) {
-			if ((origpte & PG_A) != 0)
-				vm_page_aflag_set(om, PGA_REFERENCED);
-			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
-			pmap_pvh_free(&om->md, pmap, va);
-			if ((om->aflags & PGA_WRITEABLE) != 0 &&
-			    TAILQ_EMPTY(&om->md.pv_list) &&
-			    ((om->flags & PG_FICTITIOUS) != 0 ||
-			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
-				vm_page_aflag_clear(om, PGA_WRITEABLE);
-		}
-		if (invlva)
+		if ((origpte & PG_A) != 0)
 			pmap_invalidate_page(pmap, va);
 	} else
 		pte_store(pte, newpte);

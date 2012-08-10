@@ -80,9 +80,10 @@ ASENTRY_NP(swi_entry)
 	PUSHFRAME
 
 	mov	r0, sp			/* Pass the frame to any function */
-	sub	sp, sp, #4
+	mov	r6, sp			/* Backup the stack pointer */
+	bic	sp, sp, #7		/* Align the stack pointer */
 	bl	_C_LABEL(swi_handler)	/* It's a SWI ! */
-	add	sp, sp, #4
+	mov	sp, r6			/* Restore the stack */
 
 	DO_AST
 	PULLFRAME

@@ -85,7 +85,6 @@ device		uart			# Serial Ports
 
 # Ethernet
 device		ate		        # Ethernet Driver	
-#device		macb			# Alternate Ethernet driver
 device		mii
 option 		AT91_ATE_USE_RMII
 

@@ -586,22 +586,13 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 			continue;
 		}
 		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object) &&
+		if ((!VM_OBJECT_TRYLOCK(object) &&
 		    (!vm_pageout_fallback_object_lock(m, &next) ||
-		    m->hold_count != 0)) {
+		    m->hold_count != 0)) || (m->oflags & VPO_BUSY) != 0 ||
+		    m->busy != 0) {
 			vm_page_unlock(m);
 			VM_OBJECT_UNLOCK(object);
 			continue;
-		}
-		if ((m->oflags & VPO_BUSY) != 0 || m->busy != 0) {
-			if (tries == 0) {
-				vm_page_unlock(m);
-				VM_OBJECT_UNLOCK(object);
-				continue;
-			}
-			vm_page_sleep(m, "vpctw0");
-			VM_OBJECT_UNLOCK(object);
-			return (FALSE);
 		}
 		vm_page_test_dirty(m);
 		if (m->dirty == 0)

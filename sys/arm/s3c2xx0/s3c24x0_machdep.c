@@ -387,6 +387,7 @@ initarm(struct arm_boot_params *abp)
 		break;
 	}
 	cninit();
+printf("initarm\n");
 
 	/* Set stack for exception handlers */
 	data_abort_handler_address = (u_int)data_abort_handler;

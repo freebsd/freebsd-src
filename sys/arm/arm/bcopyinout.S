@@ -39,6 +39,7 @@
 #include "assym.s"
 
 #include <machine/asm.h>
+#include <sys/errno.h>
 
 .L_arm_memcpy:
 	.word	_C_LABEL(_arm_memcpy)
@@ -310,7 +311,7 @@ ENTRY(copyin)
 	RET
 
 .Lcopyfault:
-	mov	r0, #14 /* EFAULT */
+	ldr	r0, =EFAULT
 	str	r5, [r4, #PCB_ONFAULT]
 	RESTORE_REGS
 

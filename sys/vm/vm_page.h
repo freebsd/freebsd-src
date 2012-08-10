@@ -239,13 +239,14 @@ extern struct vpglocks pa_lock[];
 #define	vm_page_queue_free_mtx	vm_page_queue_free_lock.data
 
 /*
- * These are the flags defined for vm_page.
- *
- * aflags are updated by atomic accesses.  Use the vm_page_aflag_set()
- * and vm_page_aflag_clear() functions to set and clear the flags.
+ * The vm_page's aflags are updated using atomic operations.  To set or clear
+ * these flags, the functions vm_page_aflag_set() and vm_page_aflag_clear()
+ * must be used.  Neither these flags nor these functions are part of the KBI.
  *
  * PGA_REFERENCED may be cleared only if the object containing the page is
- * locked.  It is set by both the MI and MD VM layers.
+ * locked.  It is set by both the MI and MD VM layers.  However, kernel
+ * loadable modules should not directly set this flag.  They should call
+ * vm_page_reference() instead.
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
  * does so, the page must be VPO_BUSY.  The MI VM layer must never access this
@@ -281,7 +282,9 @@ extern struct vpglocks pa_lock[];
 
 #ifdef _KERNEL
 
-#include <vm/vm_param.h>
+#include <sys/systm.h>
+
+#include <machine/atomic.h>
 
 /*
  * Each pageable resident page falls into one of five lists:
@@ -310,7 +313,6 @@ extern struct vpglocks pa_lock[];
  *
  */
 
-struct vnode;
 extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
@@ -350,8 +352,6 @@ extern struct vpglocks vm_page_queue_lock;
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
-void vm_page_aflag_set(vm_page_t m, uint8_t bits);
-void vm_page_aflag_clear(vm_page_t m, uint8_t bits);
 void vm_page_busy(vm_page_t m);
 void vm_page_flash(vm_page_t m);
 void vm_page_io_start(vm_page_t m);
@@ -388,6 +388,7 @@ vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
 vm_page_t vm_page_prev(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
+void vm_page_readahead_finish(vm_page_t m, int error);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
@@ -427,6 +428,75 @@ void vm_page_object_lock_assert(vm_page_t m);
 #else
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
 #endif
+
+/*
+ * We want to use atomic updates for the aflags field, which is 8 bits wide.
+ * However, not all architectures support atomic operations on 8-bit
+ * destinations.  In order that we can easily use a 32-bit operation, we
+ * require that the aflags field be 32-bit aligned.
+ */
+CTASSERT(offsetof(struct vm_page, aflags) % sizeof(uint32_t) == 0);
+
+/*
+ *	Clear the given bits in the specified page.
+ */
+static inline void
+vm_page_aflag_clear(vm_page_t m, uint8_t bits)
+{
+	uint32_t *addr, val;
+
+	/*
+	 * The PGA_REFERENCED flag can only be cleared if the object
+	 * containing the page is locked.
+	 */
+	if ((bits & PGA_REFERENCED) != 0)
+		VM_PAGE_OBJECT_LOCK_ASSERT(m);
+
+	/*
+	 * Access the whole 32-bit word containing the aflags field with an
+	 * atomic update.  Parallel non-atomic updates to the other fields
+	 * within this word are handled properly by the atomic update.
+	 */
+	addr = (void *)&m->aflags;
+	KASSERT(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0,
+	    ("vm_page_aflag_clear: aflags is misaligned"));
+	val = bits;
+#if BYTE_ORDER == BIG_ENDIAN
+	val <<= 24;
+#endif
+	atomic_clear_32(addr, val);
+}
+
+/*
+ *	Set the given bits in the specified page.
+ */
+static inline void
+vm_page_aflag_set(vm_page_t m, uint8_t bits)
+{
+	uint32_t *addr, val;
+
+	/*
+	 * The PGA_WRITEABLE flag can only be set if the page is managed and
+	 * VPO_BUSY.  Currently, this flag is only set by pmap_enter().
+	 */
+	KASSERT((bits & PGA_WRITEABLE) == 0 ||
+	    (m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == VPO_BUSY,
+	    ("vm_page_aflag_set: PGA_WRITEABLE and !VPO_BUSY"));
+
+	/*
+	 * Access the whole 32-bit word containing the aflags field with an
+	 * atomic update.  Parallel non-atomic updates to the other fields
+	 * within this word are handled properly by the atomic update.
+	 */
+	addr = (void *)&m->aflags;
+	KASSERT(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0,
+	    ("vm_page_aflag_set: aflags is misaligned"));
+	val = bits;
+#if BYTE_ORDER == BIG_ENDIAN
+	val <<= 24;
+#endif
+	atomic_set_32(addr, val);
+} 
 
 /*
  *	vm_page_dirty:

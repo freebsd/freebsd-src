@@ -37,7 +37,8 @@ CFLAGS+= -DTERM_EMU
 # XXX: make alloca() useable
 CFLAGS+= -Dalloca=__builtin_alloca
 
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
+CFLAGS+=	-I${.CURDIR}/../../common \
+		-I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../i386/libi386 \
 		-I${.CURDIR}/../../.. -I.
 # the location of libstand

@@ -18,7 +18,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <float.h>
+#ifdef __i386__
 #include <ieeefp.h>
+#endif
 
 #include "fpmath.h"    
 #include "math.h"
@@ -52,7 +54,6 @@ cbrtl(long double x)
 		return (x + x);
 
 	ENTERI();
-
 	if (k == 0) {
 		/* If x = +-0, then cbrt(x) = +-0. */
 		if ((u.bits.manh | u.bits.manl) == 0)

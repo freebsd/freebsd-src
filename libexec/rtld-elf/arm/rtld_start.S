@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 	.type	.rtld_start,%function
 .rtld_start:
 	mov	r6, sp			/* save the stack pointer */
-	bic	sp, sp, #7
+	bic	sp, sp, #7		/* align the stack pointer */
 	sub	sp, sp, #8		/* make room for obj_main & exit proc */
 	mov	r4, r0			/* save ps_strings */
 	ldr	sl, .L2

@@ -408,6 +408,17 @@ struct ath_tx_edma_fifo {
 struct ath_tx_methods {
 	int		(*xmit_setup)(struct ath_softc *sc);
 	int		(*xmit_teardown)(struct ath_softc *sc);
+	void		(*xmit_attach_comp_func)(struct ath_softc *sc);
+
+	void		(*xmit_dma_restart)(struct ath_softc *sc,
+			    struct ath_txq *txq);
+	void		(*xmit_handoff)(struct ath_softc *sc,
+			    struct ath_txq *txq, struct ath_buf *bf);
+
+	void		(*xmit_drainq)(struct ath_softc *sc,
+			    struct ath_txq *txq);
+	int		(*xmit_processq)(struct ath_softc *sc,
+			    struct ath_txq *txq, int dosched);
 };
 
 struct ath_softc {
@@ -452,6 +463,7 @@ struct ath_softc {
 	void			(*sc_setdefantenna)(struct ath_softc *, u_int);
 	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
 				sc_mrretry  : 1,/* multi-rate retry support */
+				sc_mrrprot  : 1,/* MRR + protection support */
 				sc_softled  : 1,/* enable LED gpio status */
 				sc_hardled  : 1,/* enable MAC LED status */
 				sc_splitmic : 1,/* split TKIP MIC keys */
@@ -1095,8 +1107,9 @@ void	ath_intr(void *);
 		_txr1, _txtr1, _txr2, _txtr2, _txr3, _txtr3) \
 	((*(_ah)->ah_setupXTxDesc)((_ah), (_ds), \
 		(_txr1), (_txtr1), (_txr2), (_txtr2), (_txr3), (_txtr3)))
-#define	ath_hal_filltxdesc(_ah, _ds, _l, _first, _last, _ds0) \
-	((*(_ah)->ah_fillTxDesc)((_ah), (_ds), (_l), (_first), (_last), (_ds0)))
+#define	ath_hal_filltxdesc(_ah, _ds, _b, _l, _did, _qid, _first, _last, _ds0) \
+	((*(_ah)->ah_fillTxDesc)((_ah), (_ds), (_b), (_l), (_did), (_qid), \
+		(_first), (_last), (_ds0)))
 #define	ath_hal_txprocdesc(_ah, _ds, _ts) \
 	((*(_ah)->ah_procTxDesc)((_ah), (_ds), (_ts)))
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
@@ -1117,10 +1130,10 @@ void	ath_intr(void *);
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
 	((*(_ah)->ah_setupFirstTxDesc)((_ah), (_ds), (_aggrlen), (_flags), \
 	(_txpower), (_txr0), (_txtr0), (_antm), (_rcr), (_rcd)))
-#define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
-	_cipher, _delims, _seglen, _first, _last, _lastaggr) \
-	((*(_ah)->ah_chainTxDesc)((_ah), (_ds), (_pktlen), (_hdrlen), \
-	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
+#define	ath_hal_chaintxdesc(_ah, _ds, _bl, _sl, _pktlen, _hdrlen, _type, \
+	_keyix, _cipher, _delims, _first, _last, _lastaggr) \
+	((*(_ah)->ah_chainTxDesc)((_ah), (_ds), (_bl), (_sl), \
+	(_pktlen), (_hdrlen), (_type), (_keyix), (_cipher), (_delims), \
 	(_first), (_last), (_lastaggr)))
 #define	ath_hal_setuplasttxdesc(_ah, _ds, _ds0) \
 	((*(_ah)->ah_setupLastTxDesc)((_ah), (_ds), (_ds0)))

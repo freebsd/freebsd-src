@@ -33,7 +33,7 @@ arm/at91/at91rm9200_devices.c	optional	at91rm9200
 arm/at91/at91sam9260.c		optional	at91sam9260
 arm/at91/at91sam9g20.c		optional	at91sam9g20
 arm/at91/at91sam9g45.c		optional	at91sam9g45
-arm/at91/at91sam9x25.c		optional	at91sam9x25
+arm/at91/at91sam9x5.c		optional	at91sam9x5
 #
 # All the boards we support
 #

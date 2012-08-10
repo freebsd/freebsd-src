@@ -8,7 +8,8 @@ ident		ATMEL
 
 include "../at91/std.atmel"
 
-# Arbitrary values for testing purposes.
+# Typical values for most SoCs and board configurations.  Will not work for
+# at91sam9g45 or on some boards with non u-boot boot loaders.
 options 	STARTUP_PAGETABLE_ADDR=0x20800000
 makeoptions	KERNPHYSADDR=0x20000000
 makeoptions	KERNVIRTADDR=0xc0000000
@@ -165,6 +166,7 @@ device		umass		# Disks/Mass storage - Requires scbus and da
 device		at91_dci	# Atmel's usb device
 device		usfs		# emulate a flash
 device		cdce		# emulate an ethernet
+device		usb_template	# Control of the gadget
 
 # watchdog
 device		at91_wdt	# Atmel AT91 Watchdog Timer

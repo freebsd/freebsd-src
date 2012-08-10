@@ -48,6 +48,9 @@ Options:
                   (default: /usr/ports/)
   -s server    -- Server from which to fetch updates.
                   (default: portsnap.FreeBSD.org)
+  --interactive -- interactive: override auto-detection of calling process
+                  (use this when calling portsnap from an interactive, non-
+                  terminal application AND NEVER ELSE).
   path         -- Extract only parts of the tree starting with the given
                   string.  (extract command only)
 Commands:
@@ -84,6 +87,7 @@ init_params() {
 	SERVERNAME=""
 	REFUSE=""
 	LOCALDESC=""
+	INTERACTIVE=""
 }
 
 # Parse the command line
@@ -102,6 +106,9 @@ parse_cmdline() {
 			NDEBUG=" "
 			XARGST="-t"
 			DDSTATS=".."
+			;;
+		--interactive)
+			INTERACTIVE="YES"
 			;;
 		-f)
 			if [ $# -eq 1 ]; then usage; fi
@@ -228,6 +235,13 @@ default_params() {
 			eval ${X}=${__}
 		fi
 	done
+	if [ -z "${INTERACTIVE}" ]; then
+		if [ -t 0 ]; then
+			INTERACTIVE="YES"
+		else
+			INTERACTIVE="NO"
+		fi
+	fi
 }
 
 # Perform sanity checks and set some final parameters
@@ -1023,10 +1037,10 @@ get_params() {
 # Fetch command.  Make sure that we're being called
 # interactively, then run fetch_check_params and fetch_run
 cmd_fetch() {
-	if [ ! -t 0 ]; then
+	if [ "${INTERACTIVE}" != "YES" ]; then
 		echo -n "`basename $0` fetch should not "
 		echo "be run non-interactively."
-		echo "Run `basename $0` cron instead."
+		echo "Run `basename $0` cron instead"
 		exit 1
 	fi
 	fetch_check_params
@@ -1069,7 +1083,7 @@ cmd_update() {
 # whether stdin is a terminal; then run 'update' or
 # 'extract' depending on whether ${PORTSDIR} exists.
 cmd_alfred() {
-	if [ -t 0 ]; then
+	if [ "${INTERACTIVE}" = "YES" ]; then
 		cmd_fetch
 	else
 		cmd_cron

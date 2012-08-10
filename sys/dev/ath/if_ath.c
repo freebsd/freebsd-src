@@ -254,6 +254,28 @@ SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
 
 MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
 
+void
+ath_legacy_attach_comp_func(struct ath_softc *sc)
+{
+
+	/*
+	 * Special case certain configurations.  Note the
+	 * CAB queue is handled by these specially so don't
+	 * include them when checking the txq setup mask.
+	 */
+	switch (sc->sc_txqsetup &~ (1<<sc->sc_cabq->axq_qnum)) {
+	case 0x01:
+		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0, sc);
+		break;
+	case 0x0f:
+		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0123, sc);
+		break;
+	default:
+		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc, sc);
+		break;
+	}
+}
+
 #define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
 #define	HAL_MODE_HT40 \
 	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
@@ -460,21 +482,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 
 	/*
-	 * Special case certain configurations.  Note the
-	 * CAB queue is handled by these specially so don't
-	 * include them when checking the txq setup mask.
+	 * Attach the TX completion function.
+	 *
+	 * The non-EDMA chips may have some special case optimisations;
+	 * this method gives everyone a chance to attach cleanly.
 	 */
-	switch (sc->sc_txqsetup &~ (1<<sc->sc_cabq->axq_qnum)) {
-	case 0x01:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0, sc);
-		break;
-	case 0x0f:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc_q0123, sc);
-		break;
-	default:
-		TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc, sc);
-		break;
-	}
+	sc->sc_tx.xmit_attach_comp_func(sc);
 
 	/*
 	 * Setup rate control.  Some rate control modules
@@ -692,6 +705,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
 
+	/*
+	 * Disable MRR with protected frames by default.
+	 * Only 802.11n series NICs can handle this.
+	 */
+	sc->sc_mrrprot = 0;	/* XXX should be a capability */
+
 #ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
@@ -701,6 +720,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		int rxs, txs;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
+
+		sc->sc_mrrprot = 1;	/* XXX should be a capability */
+
 		ic->ic_htcaps = IEEE80211_HTC_HT	/* HT operation */
 			    | IEEE80211_HTC_AMPDU	/* A-MPDU tx/rx */
 			    | IEEE80211_HTC_AMSDU	/* A-MSDU tx/rx */
@@ -2914,7 +2936,7 @@ ath_descdma_setup(struct ath_softc *sc,
 			 * in the descriptor.
 			 */
 			 if (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr,
-			     dd->dd_descsize * ndesc)) {
+			     dd->dd_descsize)) {
 				/* Start at the next page */
 				ds += 0x1000 - (bf->bf_daddr & 0xFFF);
 				bf->bf_desc = (struct ath_desc *) ds;
@@ -2932,6 +2954,12 @@ ath_descdma_setup(struct ath_softc *sc,
 		bf->bf_lastds = bf->bf_desc;	/* Just an initial value */
 		TAILQ_INSERT_TAIL(head, bf, bf_list);
 	}
+
+	/*
+	 * XXX TODO: ensure that ds doesn't overflow the descriptor
+	 * allocation otherwise weird stuff will occur and crash your
+	 * machine.
+	 */
 	return 0;
 	/* XXX this should likely just call ath_descdma_cleanup() */
 fail3:
@@ -3557,8 +3585,8 @@ ath_tx_update_busy(struct ath_softc *sc)
  * Kick the packet scheduler if needed. This can occur from this
  * particular task.
  */
-static int
-ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
+int
+ath_legacy_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
@@ -3958,7 +3986,7 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 }
 
 void
-ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
+ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 #ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
