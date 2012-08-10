@@ -94,10 +94,12 @@ struct ugensa_softc {
 static device_probe_t ugensa_probe;
 static device_attach_t ugensa_attach;
 static device_detach_t ugensa_detach;
+static device_free_softc_t ugensa_free_softc;
 
 static usb_callback_t ugensa_bulk_write_callback;
 static usb_callback_t ugensa_bulk_read_callback;
 
+static void	ugensa_free(struct ucom_softc *);
 static void	ugensa_start_read(struct ucom_softc *);
 static void	ugensa_stop_read(struct ucom_softc *);
 static void	ugensa_start_write(struct ucom_softc *);
@@ -131,6 +133,7 @@ static const struct ucom_callback ugensa_callback = {
 	.ucom_start_write = &ugensa_start_write,
 	.ucom_stop_write = &ugensa_stop_write,
 	.ucom_poll = &ugensa_poll,
+	.ucom_free = &ugensa_free,
 };
 
 static device_method_t ugensa_methods[] = {
@@ -138,7 +141,8 @@ static device_method_t ugensa_methods[] = {
 	DEVMETHOD(device_probe, ugensa_probe),
 	DEVMETHOD(device_attach, ugensa_attach),
 	DEVMETHOD(device_detach, ugensa_detach),
-	{0, 0}
+	DEVMETHOD(device_free_softc, ugensa_free_softc),
+	DEVMETHOD_END
 };
 
 static devclass_t ugensa_devclass;
@@ -192,6 +196,7 @@ ugensa_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ugensa", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	/* Figure out how many interfaces this device has got */
 	for (cnt = 0; cnt < UGENSA_IFACE_MAX; cnt++) {
@@ -266,9 +271,28 @@ ugensa_detach(device_t dev)
 	for (x = 0; x < sc->sc_niface; x++) {
 		usbd_transfer_unsetup(sc->sc_sub[x].sc_xfer, UGENSA_N_TRANSFER);
 	}
-	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ugensa);
+
+static void
+ugensa_free_softc(device_t dev, void *arg)
+{
+	struct ugensa_softc *sc = arg;
+
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		if (mtx_initialized(&sc->sc_mtx))
+			mtx_destroy(&sc->sc_mtx);
+		device_free_softc(dev, sc);
+	}
+}
+
+static void
+ugensa_free(struct ucom_softc *ucom)
+{
+	ugensa_free_softc(NULL, ucom->sc_parent);
 }
 
 static void
