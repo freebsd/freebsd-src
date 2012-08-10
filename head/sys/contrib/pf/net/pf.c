@@ -1074,7 +1074,7 @@ pf_state_key_clone(struct pf_state_key *orig)
 	if (sk == NULL)
 		return (NULL);
 
-	bcopy(orig, sk, sizeof(struct pf_state_key_cmp));
+	bcopy(orig, sk, sizeof(struct pf_state_key));
 
 	return (sk);
 }
