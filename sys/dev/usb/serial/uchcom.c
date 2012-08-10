@@ -211,6 +211,7 @@ static const STRUCT_USB_HOST_ID uchcom_devs[] = {
 
 /* protypes */
 
+static void	uchcom_free(struct ucom_softc *);
 static int	uchcom_pre_param(struct ucom_softc *, struct termios *);
 static void	uchcom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
@@ -234,6 +235,7 @@ static void	uchcom_poll(struct ucom_softc *ucom);
 static device_probe_t uchcom_probe;
 static device_attach_t uchcom_attach;
 static device_detach_t uchcom_detach;
+static device_free_softc_t uchcom_free_softc;
 
 static usb_callback_t uchcom_intr_callback;
 static usb_callback_t uchcom_write_callback;
@@ -282,6 +284,7 @@ static struct ucom_callback uchcom_callback = {
 	.ucom_start_write = &uchcom_start_write,
 	.ucom_stop_write = &uchcom_stop_write,
 	.ucom_poll = &uchcom_poll,
+	.ucom_free = &uchcom_free,
 };
 
 /* ----------------------------------------------------------------------
@@ -319,6 +322,7 @@ uchcom_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uchcom", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -371,9 +375,28 @@ uchcom_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UCHCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uchcom);
+
+static void
+uchcom_free_softc(device_t dev, void *arg)
+{
+	struct uchcom_softc *sc = arg;
+
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		if (mtx_initialized(&sc->sc_mtx))
+			mtx_destroy(&sc->sc_mtx);
+		device_free_softc(dev, sc);
+	}
+}
+
+static void
+uchcom_free(struct ucom_softc *ucom)
+{
+	uchcom_free_softc(NULL, ucom->sc_parent);
 }
 
 /* ----------------------------------------------------------------------
@@ -841,8 +864,8 @@ static device_method_t uchcom_methods[] = {
 	DEVMETHOD(device_probe, uchcom_probe),
 	DEVMETHOD(device_attach, uchcom_attach),
 	DEVMETHOD(device_detach, uchcom_detach),
-
-	{0, 0}
+	DEVMETHOD(device_free_softc, uchcom_free_softc),
+	DEVMETHOD_END
 };
 
 static driver_t uchcom_driver = {

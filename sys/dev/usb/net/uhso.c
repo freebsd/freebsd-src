@@ -455,6 +455,7 @@ static int  uhso_driver_loaded(struct module *, int, void *);
 static int uhso_radio_sysctl(SYSCTL_HANDLER_ARGS);
 static int uhso_radio_ctrl(struct uhso_softc *, int);
 
+static void uhso_free(struct ucom_softc *);
 static void uhso_ucom_start_read(struct ucom_softc *);
 static void uhso_ucom_stop_read(struct ucom_softc *);
 static void uhso_ucom_start_write(struct ucom_softc *);
@@ -473,11 +474,13 @@ static void uhso_if_rxflush(void *);
 static device_probe_t uhso_probe;
 static device_attach_t uhso_attach;
 static device_detach_t uhso_detach;
+static device_free_softc_t uhso_free_softc;
 
 static device_method_t uhso_methods[] = {
 	DEVMETHOD(device_probe,		uhso_probe),
 	DEVMETHOD(device_attach,	uhso_attach),
 	DEVMETHOD(device_detach,	uhso_detach),
+	DEVMETHOD(device_free_softc,	uhso_free_softc),
 	{ 0, 0 }
 };
 
@@ -500,7 +503,8 @@ static struct ucom_callback uhso_ucom_callback = {
 	.ucom_start_read = uhso_ucom_start_read,
 	.ucom_stop_read = uhso_ucom_stop_read,
 	.ucom_start_write = uhso_ucom_start_write,
-	.ucom_stop_write = uhso_ucom_stop_write
+	.ucom_stop_write = uhso_ucom_stop_write,
+	.ucom_free = &uhso_free,
 };
 
 static int
@@ -552,6 +556,7 @@ uhso_attach(device_t self)
 	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
 	mtx_init(&sc->sc_mtx, "uhso", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_ucom = NULL;
 	sc->sc_ttys = 0;
@@ -692,8 +697,27 @@ uhso_detach(device_t self)
 		usbd_transfer_unsetup(sc->sc_if_xfer, UHSO_IFNET_MAX);
 	}
 
-	mtx_destroy(&sc->sc_mtx);
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uhso);
+
+static void
+uhso_free_softc(device_t dev, void *arg)
+{
+	struct uhso_softc *sc = arg;
+
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		if (mtx_initialized(&sc->sc_mtx))
+			mtx_destroy(&sc->sc_mtx);
+		device_free_softc(dev, sc);
+	}
+}
+
+static void
+uhso_free(struct ucom_softc *ucom)
+{
+	uhso_free_softc(NULL, ucom->sc_parent);
 }
 
 static void
