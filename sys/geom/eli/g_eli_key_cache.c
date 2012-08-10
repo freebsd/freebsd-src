@@ -193,24 +193,24 @@ g_eli_key_remove(struct g_eli_softc *sc, struct g_eli_key *key)
 void
 g_eli_key_init(struct g_eli_softc *sc)
 {
+	uint8_t *mkey;
 
 	mtx_lock(&sc->sc_ekeys_lock);
+
+	mkey = sc->sc_mkey + sizeof(sc->sc_ivkey);
+	if ((sc->sc_flags & G_ELI_FLAG_AUTH) == 0)
+		bcopy(mkey, sc->sc_ekey, G_ELI_DATAKEYLEN);
+	else {
+		/*
+		 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
+		 */
+		g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1,
+		    sc->sc_ekey, 0);
+	}
+
 	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0) {
-		uint8_t *mkey;
-
-		mkey = sc->sc_mkey + sizeof(sc->sc_ivkey);
-
 		sc->sc_ekeys_total = 1;
 		sc->sc_ekeys_allocated = 0;
-		if ((sc->sc_flags & G_ELI_FLAG_AUTH) == 0)
-			bcopy(mkey, sc->sc_ekey, G_ELI_DATAKEYLEN);
-		else {
-			/*
-			 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
-			 */
-			g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1,
-			    sc->sc_ekey, 0);
-		}
 	} else {
 		off_t mediasize;
 		size_t blocksize;
@@ -241,6 +241,7 @@ g_eli_key_init(struct g_eli_softc *sc)
 			    (uintmax_t)sc->sc_ekeys_allocated));
 		}
 	}
+
 	mtx_unlock(&sc->sc_ekeys_lock);
 }
 
