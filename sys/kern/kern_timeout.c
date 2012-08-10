@@ -558,7 +558,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
     int flags)
 {
 	struct bintime bt;
-	int bucket, r_shift, r_val;	
+	uint64_t r_val;
+	int bucket, r_shift;	
 	
 	CC_LOCK_ASSERT(cc);
 	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <)) 
