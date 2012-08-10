@@ -218,6 +218,8 @@ g_raid_subdisk_event2str(int event)
 	switch (event) {
 	case G_RAID_SUBDISK_E_NEW:
 		return ("NEW");
+	case G_RAID_SUBDISK_E_FAILED:
+		return ("FAILED");
 	case G_RAID_SUBDISK_E_DISCONNECTED:
 		return ("DISCONNECTED");
 	default:
