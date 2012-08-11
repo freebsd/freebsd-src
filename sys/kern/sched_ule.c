@@ -1383,7 +1383,8 @@ sched_initticks(void *dummy)
 
 	realstathz = stathz ? stathz : hz;
 	sched_slice = realstathz / 10;	/* ~100ms */
-	hogticks = max(1, 2 * hz * sched_slice / realstathz);
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
 
 	/*
 	 * tickincr is shifted out by 10 to avoid rounding errors due to
@@ -1406,7 +1407,7 @@ sched_initticks(void *dummy)
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 	if (sched_idlespinthresh < 0)
-		sched_idlespinthresh = max(16, 2 * hz / realstathz);
+		sched_idlespinthresh = imax(16, 2 * hz / realstathz);
 }
 
 
@@ -1595,7 +1596,7 @@ sched_rr_interval(void)
 {
 
 	/* Convert sched_slice from stathz to hz. */
-	return (max(1, (sched_slice * hz + realstathz / 2) / realstathz));
+	return (imax(1, (sched_slice * hz + realstathz / 2) / realstathz));
 }
 
 /*
@@ -2790,12 +2791,13 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	period = 1000000 / realstathz;
 	new_val = period * sched_slice;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
-        if (error != 0 || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (new_val <= 0)
 		return (EINVAL);
-	sched_slice = max(1, (new_val + period / 2) / period);
-	hogticks = max(1, 2 * hz * sched_slice / realstathz);
+	sched_slice = imax(1, (new_val + period / 2) / period);
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
 	return (0);
 }
 
@@ -2804,19 +2806,21 @@ SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ULE", 0,
     "Scheduler name");
 SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
     NULL, 0, sysctl_kern_quantum, "I",
-    "Length of time granted to timeshare threads in microseconds");
+    "Quantum for timeshare threads in microseconds");
 SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
-    "Length of time granted to timeshare threads in stathz ticks");
+    "Quantum for timeshare threads in stathz ticks");
 SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0,
-     "Interactivity score threshold");
-SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW, &preempt_thresh,
-     0,"Min priority for preemption, lower priorities have greater precedence");
-SYSCTL_INT(_kern_sched, OID_AUTO, static_boost, CTLFLAG_RW, &static_boost,
-     0,"Controls whether static kernel priorities are assigned to sleeping threads.");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespins, CTLFLAG_RW, &sched_idlespins,
-     0,"Number of times idle thread will spin waiting for new work.");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespinthresh, CTLFLAG_RW, &sched_idlespinthresh,
-     0,"Threshold before we will permit idle thread spinning.");
+    "Interactivity score threshold");
+SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW,
+    &preempt_thresh, 0,
+    "Maximal (lowest) priority for preemption");
+SYSCTL_INT(_kern_sched, OID_AUTO, static_boost, CTLFLAG_RW, &static_boost, 0,
+    "Assign static kernel priorities to sleeping threads");
+SYSCTL_INT(_kern_sched, OID_AUTO, idlespins, CTLFLAG_RW, &sched_idlespins, 0,
+    "Number of times idle thread will spin waiting for new work");
+SYSCTL_INT(_kern_sched, OID_AUTO, idlespinthresh, CTLFLAG_RW,
+    &sched_idlespinthresh, 0,
+    "Threshold before we will permit idle thread spinning");
 #ifdef SMP
 SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
     "Number of hz ticks to keep thread affinity for");
@@ -2828,7 +2832,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, balance_interval, CTLFLAG_RW,
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
-    "Minimum load on remote cpu before we'll steal");
+    "Minimum load on remote CPU before we'll steal");
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
     CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A",
     "XML dump of detected CPU topology");
