@@ -193,12 +193,13 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	period = 1000000 / realstathz;
 	new_val = period * sched_slice;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
-        if (error != 0 || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (new_val <= 0)
 		return (EINVAL);
-	sched_slice = max(1, (new_val + period / 2) / period);
-	hogticks = max(1, 2 * hz * sched_slice / realstathz);
+	sched_slice = imax(1, (new_val + period / 2) / period);
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
 	return (0);
 }
 
@@ -208,9 +209,9 @@ SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0,
     "Scheduler name");
 SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
     NULL, 0, sysctl_kern_quantum, "I",
-    "Length of time granted to timeshare threads in microseconds");
+    "Quantum for timeshare threads in microseconds");
 SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
-    "Length of time granted to timeshare threads in stathz ticks");
+    "Quantum for timeshare threads in stathz ticks");
 #ifdef SMP
 /* Enable forwarding of wakeups to all other cpus */
 static SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL,
@@ -665,7 +666,8 @@ sched_initticks(void *dummy)
 
 	realstathz = stathz ? stathz : hz;
 	sched_slice = realstathz / 10;	/* ~100ms */
-	hogticks = max(1, 2 * hz * sched_slice / realstathz);
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
 }
 
 /* External interfaces start here */
@@ -704,7 +706,7 @@ sched_rr_interval(void)
 {
 
 	/* Convert sched_slice from stathz to hz. */
-	return (max(1, (sched_slice * hz + realstathz / 2) / realstathz));
+	return (imax(1, (sched_slice * hz + realstathz / 2) / realstathz));
 }
 
 /*
