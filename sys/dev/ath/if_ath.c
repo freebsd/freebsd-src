@@ -443,7 +443,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 *
 	 * XXX PS-Poll
 	 */
-	sc->sc_bhalq = ath_beaconq_setup(ah);
+	sc->sc_bhalq = ath_beaconq_setup(sc);
 	if (sc->sc_bhalq == (u_int) -1) {
 		if_printf(ifp, "unable to setup a beacon xmit queue!\n");
 		error = EIO;
