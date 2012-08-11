@@ -120,7 +120,8 @@ static int ath_tx_action_frame_override_queue(struct ath_softc *sc,
 static inline int
 ath_tx_is_11n(struct ath_softc *sc)
 {
-	return (sc->sc_ah->ah_magic == 0x20065416);
+	return ((sc->sc_ah->ah_magic == 0x20065416) ||
+		    (sc->sc_ah->ah_magic == 0x19741014));
 }
 
 /*
