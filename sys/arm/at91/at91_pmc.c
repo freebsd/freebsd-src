@@ -187,6 +187,40 @@ WR4(struct at91_pmc_softc *sc, bus_size_t off, uint32_t val)
 		bus_write_4(sc->mem_res, off, val);
 }
 
+/*
+ * The following is unused currently since we don't ever set the PLLA
+ * frequency of the device.  If we did, we'd have to also pay attention
+ * to the ICPLLA bit in the PMC_PLLICPR register for frequencies lower
+ * than ~600MHz, which the PMC code doesn't do right now.
+ */
+uint32_t
+at91_pmc_800mhz_plla_outb(int freq)
+{
+	uint32_t outa;
+
+	/*
+	 * Set OUTA, per the data sheet.  See Table 46-16 titled
+	 * PLLA Frequency Regarding ICPLLA and OUTA in the SAM9X25 doc,
+	 * Table 46-17 in the SAM9G20 doc, or Table 46-16 in the SAM9G45 doc.
+	 * Note: the frequencies overlap by 5MHz, so we add 3 here to
+	 * center shoot the transition.
+	 */
+
+	freq /= 1000000;		/* MHz */
+	if (freq >= 800)
+		freq = 800;
+	freq += 3;			/* Allow for overlap. */
+	outa = 3 - ((freq / 50) & 3);	/* 750 / 50 = 7, see table */
+	return (1 << 29)| (outa << 14);
+}
+
+uint32_t
+at91_pmc_800mhz_pllb_outb(int freq)
+{
+
+	return (0);
+}
+
 void
 at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 {
