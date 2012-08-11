@@ -62,4 +62,6 @@ void at91_pmc_clock_deref(struct at91_pmc_clock *);
 void at91_pmc_clock_enable(struct at91_pmc_clock *);
 void at91_pmc_clock_disable(struct at91_pmc_clock *);
 
+uint32_t at91_pmc_800mhz_plla_outb(int freq);
+uint32_t at91_pmc_800mhz_pllb_outb(int freq);
 #endif /* ARM_AT91_AT91_PMCVAR_H */
