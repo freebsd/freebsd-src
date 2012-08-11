@@ -217,6 +217,7 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 	struct sleepqueue *sq;
 	int	recurse;
 	int	error;
+	int	defered;
 
 	if (curthread->wchan != NULL)
 		PANIC("thread was already on queue.");
@@ -230,13 +231,23 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 	 * us to check it without locking in pthread_cond_signal().
 	 */
 	cvp->__has_user_waiters = 1; 
-	curthread->will_sleep = 1;
-	(void)_mutex_cv_unlock(mp, &recurse);
+	defered = 0;
+	(void)_mutex_cv_unlock(mp, &recurse, &defered);
 	curthread->mutex_obj = mp;
 	_sleepq_add(cvp, curthread);
 	for(;;) {
 		_thr_clear_wake(curthread);
 		_sleepq_unlock(cvp);
+		if (defered) {
+			if ((mp->m_lock.m_owner & UMUTEX_CONTESTED) == 0)
+				(void)_umtx_op_err(&mp->m_lock, UMTX_OP_MUTEX_WAKE2,
+					 mp->m_lock.m_flags, 0, 0);
+		}
+		if (curthread->nwaiter_defer > 0) {
+			_thr_wake_all(curthread->defer_waiters,
+				curthread->nwaiter_defer);
+			curthread->nwaiter_defer = 0;
+		}
 
 		if (cancel) {
 			_thr_cancel_enter2(curthread, 0);

@@ -727,10 +727,10 @@ extern struct umutex	_thr_event_lock __hidden;
  */
 __BEGIN_DECLS
 int	_thr_setthreaded(int) __hidden;
-int	_mutex_cv_lock(struct pthread_mutex *, int count) __hidden;
-int	_mutex_cv_unlock(struct pthread_mutex *, int *count) __hidden;
-int     _mutex_cv_attach(struct pthread_mutex *, int count) __hidden;
-int     _mutex_cv_detach(struct pthread_mutex *, int *count) __hidden;
+int	_mutex_cv_lock(struct pthread_mutex *, int) __hidden;
+int	_mutex_cv_unlock(struct pthread_mutex *, int *, int *) __hidden;
+int     _mutex_cv_attach(struct pthread_mutex *, int) __hidden;
+int     _mutex_cv_detach(struct pthread_mutex *, int *) __hidden;
 int     _mutex_owned(struct pthread *, const struct pthread_mutex *) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
