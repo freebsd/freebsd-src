@@ -587,7 +587,7 @@ abs_timeout_init2(struct abs_timeout *timo, const struct _umtx_time *umtxtime)
 		&umtxtime->_timeout);
 }
 
-static void
+static inline void
 abs_timeout_update(struct abs_timeout *timo)
 {
 	kern_clock_gettime(curthread, timo->clockid, &timo->cur);
@@ -598,10 +598,10 @@ abs_timeout_gethz(struct abs_timeout *timo)
 {
 	struct timespec tts;
 
+	if (timespeccmp(&timo->end, &timo->cur, <=))
+		return (-1); 
 	tts = timo->end;
 	timespecsub(&tts, &timo->cur);
-	if (tts.tv_sec < 0 || (tts.tv_sec == 0 && tts.tv_nsec == 0))
-		return (-1);
 	return (tstohz(&tts));
 }
 
@@ -610,29 +610,29 @@ abs_timeout_gethz(struct abs_timeout *timo)
  * thread was removed from umtx queue.
  */
 static inline int
-umtxq_sleep(struct umtx_q *uq, const char *wmesg, struct abs_timeout *timo)
+umtxq_sleep(struct umtx_q *uq, const char *wmesg, struct abs_timeout *abstime)
 {
 	struct umtxq_chain *uc;
-	int error;
-	int pulse;
+	int error, timo;
 
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
 	for (;;) {
 		if (!(uq->uq_flags & UQF_UMTXQ))
 			return (0);
-		if (timo != NULL) {
-			pulse = abs_timeout_gethz(timo);
-			if (pulse < 0)
+		if (abstime != NULL) {
+			timo = abs_timeout_gethz(abstime);
+			if (timo < 0)
 				return (ETIMEDOUT);
 		} else
-			pulse = 0;
-		error = msleep(uq, &uc->uc_lock, PCATCH|PDROP, wmesg, pulse);
+			timo = 0;
+		error = msleep(uq, &uc->uc_lock, PCATCH | PDROP, wmesg, timo);
 		if (error != EWOULDBLOCK) {
 			umtxq_lock(&uq->uq_key);
 			break;
 		}
-		abs_timeout_update(timo);
+		if (abstime != NULL)
+			abs_timeout_update(abstime);
 		umtxq_lock(&uq->uq_key);
 	}
 	return (error);
