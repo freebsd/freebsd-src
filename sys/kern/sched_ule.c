@@ -1403,12 +1403,6 @@ sched_initticks(void *dummy)
 	 * what realstathz is.
 	 */
 	balance_interval = realstathz;
-	/*
-	 * Set steal thresh to roughly log2(mp_ncpu) but no greater than 4. 
-	 * This prevents excess thrashing on large machines and excess idle 
-	 * on smaller machines.
-	 */
-	steal_thresh = min(fls(mp_ncpus) - 1, 3);
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 	if (sched_idlespinthresh < 0)
