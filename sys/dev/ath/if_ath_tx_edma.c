@@ -132,7 +132,7 @@ MALLOC_DECLARE(M_ATHDEV);
 
 /*
  * Re-initialise the DMA FIFO with the current contents of
- * said FIFO.
+ * said TXQ.
  *
  * This should only be called as part of the chip reset path, as it
  * assumes the FIFO is currently empty.
@@ -149,6 +149,90 @@ ath_edma_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 	    __func__,
 	    txq,
 	    txq->axq_qnum);
+}
+
+/*
+ * Hand off this frame to a hardware queue.
+ *
+ * Things are a bit hairy in the EDMA world.  The TX FIFO is only
+ * 8 entries deep, so we need to keep track of exactly what we've
+ * pushed into the FIFO and what's just sitting in the TX queue,
+ * waiting to go out.
+ *
+ * So this is split into two halves - frames get appended to the
+ * TXQ; then a scheduler is called to push some frames into the
+ * actual TX FIFO.
+ */
+static void
+ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_buf *bf)
+{
+	struct ath_hal *ah = sc->sc_ah;
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+
+	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
+	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
+
+	/*
+	 * XXX TODO: write a hard-coded check to ensure that
+	 * the queue id in the TX descriptor matches txq->axq_qnum.
+	 */
+
+	/* Update aggr stats */
+	if (bf->bf_state.bfs_aggr)
+		txq->axq_aggr_depth++;
+
+	/* Push and update frame stats */
+	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+
+	/* Only schedule to the FIFO if there's space */
+	if (txq->axq_fifo_depth < HAL_TXFIFO_DEPTH) {
+		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
+		ath_hal_txstart(ah, txq->axq_qnum);
+	}
+}
+
+/*
+ * Hand off this frame to a multicast software queue.
+ *
+ * Unlike legacy DMA, this doesn't chain together frames via the
+ * link pointer.  Instead, they're just added to the queue.
+ * When it comes time to populate the CABQ, these frames should
+ * be individually pushed into the FIFO as appropriate.
+ *
+ * Yes, this does mean that I'll eventually have to flesh out some
+ * replacement code to handle populating the CABQ, rather than
+ * what's done in ath_beacon_generate().  It'll have to push each
+ * frame from the HW CABQ to the FIFO rather than just appending
+ * it to the existing TXQ and kicking off DMA.
+ */
+static void
+ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_buf *bf)
+{
+
+	ATH_TXQ_LOCK_ASSERT(txq);
+	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
+	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
+
+	/*
+	 * XXX this is mostly duplicated in ath_tx_handoff_mcast().
+	 */
+	if (ATH_TXQ_FIRST(txq) != NULL) {
+		struct ath_buf *bf_last = ATH_TXQ_LAST(txq, axq_q_s);
+		struct ieee80211_frame *wh;
+
+		/* mark previous frame */
+		wh = mtod(bf_last->bf_m, struct ieee80211_frame *);
+		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
+
+		/* sync descriptor to memory */
+		bus_dmamap_sync(sc->sc_dmat, bf_last->bf_dmamap,
+		   BUS_DMASYNC_PREWRITE);
+	}
+
+	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 }
 
 /*
@@ -173,17 +257,26 @@ ath_edma_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	device_printf(sc->sc_dev, "%s: called; bf=%p, txq=%p, qnum=%d\n",
 	    __func__,
 	    bf,
 	    txq,
 	    txq->axq_qnum);
 
+	if (txq->axq_qnum == ATH_TXQ_SWQ)
+		ath_edma_xmit_handoff_mcast(sc, txq, bf);
+	else
+		ath_edma_xmit_handoff_hw(sc, txq, bf);
+
+#if 0
 	/*
 	 * XXX For now this is a placeholder; free the buffer
 	 * and inform the stack that the TX failed.
 	 */
 	ath_tx_default_comp(sc, bf, 1);
+#endif
 }
 
 static int
@@ -255,26 +348,73 @@ ath_edma_dma_txteardown(struct ath_softc *sc)
 	return (0);
 }
 
+/*
+ * Process frames in the current queue and if necessary, re-schedule the
+ * software TXQ scheduler for this TXQ.
+ *
+ * XXX This is again a pain in the ass to do because the status descriptor
+ * information is in the TX status FIFO, not with the current descriptor.
+ */
 static int
 ath_edma_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
 	return (0);
 }
 
+/*
+ * Completely drain the TXQ, completing frames that were completed.
+ *
+ * XXX this is going to be a complete pain in the ass because the
+ * completion status is in the TX status FIFO, not with the descriptor
+ * itself.  Sigh.
+ */
 static void
 ath_edma_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
 }
 
+/*
+ * Process the TX status queue.
+ */
 static void
 ath_edma_tx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
+	struct ath_hal *ah = sc->sc_ah;
+	HAL_STATUS status;
+	struct ath_tx_status ts;
+	struct ath_txq *txq;
 
 	device_printf(sc->sc_dev, "%s: called, npending=%d\n",
 	    __func__, npending);
+
+	for (;;) {
+		ATH_TXSTATUS_LOCK(sc);
+		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
+		ATH_TXSTATUS_UNLOCK(sc);
+
+		if (status != HAL_OK)
+			break;
+
+		/*
+		 * At this point we have a valid status descriptor.
+		 * The QID and descriptor ID (which currently isn't set)
+		 * is part of the status.
+		 *
+		 * We then assume that the descriptor in question is the
+		 * -head- of the given QID.  Eventually we should verify
+		 * this by using the descriptor ID.
+		 */
+		device_printf(sc->sc_dev, "%s: qcuid=%d\n",
+		    __func__,
+		    ts.ts_queue_id);
+
+		txq = &sc->sc_txq[ts.ts_queue_id];
+	}
 }
 
 static void
