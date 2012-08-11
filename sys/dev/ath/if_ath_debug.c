@@ -158,7 +158,8 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 			    ds->ds_ctl0, ds->ds_ctl1,
 			    ds->ds_hw[0], ds->ds_hw[1],
 			    ds->ds_hw[2], ds->ds_hw[3]);
-			if (ah->ah_magic == 0x20065416) {
+			if (ah->ah_magic == 0x20065416 ||
+			    ah->ah_magic == 0x19741014) {
 				printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
 				    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],
 				    ds->ds_hw[7], ds->ds_hw[8], ds->ds_hw[9],
