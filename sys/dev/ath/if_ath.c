@@ -168,12 +168,13 @@ static struct ath_txq *ath_txq_setup(struct ath_softc*, int qtype, int subtype);
 static int	ath_tx_setup(struct ath_softc *, int, int);
 static void	ath_tx_cleanupq(struct ath_softc *, struct ath_txq *);
 static void	ath_tx_cleanup(struct ath_softc *);
+static int	ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq,
+		    int dosched);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
 static void	ath_txq_sched_tasklet(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
-static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
@@ -3585,8 +3586,8 @@ ath_tx_update_busy(struct ath_softc *sc)
  * Kick the packet scheduler if needed. This can occur from this
  * particular task.
  */
-int
-ath_legacy_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
+static int
+ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
@@ -4093,8 +4094,8 @@ ath_stoptxdma(struct ath_softc *sc)
 /*
  * Drain the transmit queues and reclaim resources.
  */
-static void
-ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
+void
+ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
 #ifdef	ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;

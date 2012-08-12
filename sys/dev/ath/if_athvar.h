@@ -417,10 +417,15 @@ struct ath_tx_methods {
 	void		(*xmit_handoff)(struct ath_softc *sc,
 			    struct ath_txq *txq, struct ath_buf *bf);
 
+	/*
+	 * This is only required by the CABQ code as well as
+	 * xmit_drain().
+	 */
 	void		(*xmit_drainq)(struct ath_softc *sc,
 			    struct ath_txq *txq);
-	int		(*xmit_processq)(struct ath_softc *sc,
-			    struct ath_txq *txq, int dosched);
+
+	void		(*xmit_drain)(struct ath_softc *sc,
+			    ATH_RESET_TYPE reset_type);
 };
 
 struct ath_softc {
