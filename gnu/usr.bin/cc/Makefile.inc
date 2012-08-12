@@ -26,6 +26,10 @@ CSTD?=	gnu89
 CFLAGS+=	-DCROSS_COMPILE
 .endif
 
+.if ${TARGET_CPUARCH} == "arm"
+CFLAGS+=	-DTARGET_ARM_EABI
+.endif
+
 .if ${TARGET_ARCH} == "armeb"
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
 .endif

@@ -15,6 +15,10 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
+.if ${TARGET_CPUARCH} == "arm"
+CFLAGS+=	-DTARGET_ARM_EABI
+.endif
+
 .if ${TARGET_CPUARCH} == "mips"
 LIB=		gcc
 .endif
