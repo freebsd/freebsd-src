@@ -28,9 +28,24 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * These calculate:
+ * q = n / m 
+ * With a remainer r.
+ *
+ * They take n in {r0, r1} and m in {r2, r3} then pass them into the
+ * helper function. The hepler functions return q in {r0, r1} as
+ * required by the API spec however r is returned on the stack. The
+ * ABI required us to return r in {r2, r3}.
+ *
+ * We need to allocate 8 bytes on the stack to store r, the link
+ * register, and a pointer to the space where the helper function
+ * will write r to. After returning from the helper fuinction we load
+ * the old link register and r from the stack and return.
+ */
 ENTRY_NP(__aeabi_ldivmod)
 	sub	sp, sp, #8	/* Space for the remainder */
-	stmfd	sp!, {sp, lr}	/* Sace the rem pointer and lr */
+	stmfd	sp!, {sp, lr}	/* Save a pointer to the above space and lr */
 	bl	PIC_SYM(_C_LABEL(__kern_ldivmod), PLT)
 	ldr	lr, [sp, #4]	/* Restore lr */
 	add	sp, sp, #8	/* Move sp to the remainder value */
@@ -39,7 +54,7 @@ ENTRY_NP(__aeabi_ldivmod)
 
 ENTRY_NP(__aeabi_uldivmod)
 	sub	sp, sp, #8	/* Space for the remainder */
-	stmfd	sp!, {sp, lr}	/* Sace the rem pointer and lr */
+	stmfd	sp!, {sp, lr}	/* Save a pointer to the above space and lr */
 	bl	PIC_SYM(_C_LABEL(__qdivrem), PLT)
 	ldr	lr, [sp, #4]	/* Restore lr */
 	add	sp, sp, #8	/* Move sp to the remainder value */
