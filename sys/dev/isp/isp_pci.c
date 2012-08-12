@@ -1690,18 +1690,20 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 				bus_dma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
-			for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
-				struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
-				if (n == NULL) {
-					while (fc->nexus_free_list) {
-						n = fc->nexus_free_list;
-						fc->nexus_free_list = n->next;
-						free(n, M_DEVBUF);
+			if (isp->isp_type >= ISP_HA_FC_2300) {
+				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
+					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
+					if (n == NULL) {
+						while (fc->nexus_free_list) {
+							n = fc->nexus_free_list;
+							fc->nexus_free_list = n->next;
+							free(n, M_DEVBUF);
+						}
+						goto bad;
 					}
-					goto bad;
+					n->next = fc->nexus_free_list;
+					fc->nexus_free_list = n;
 				}
-				n->next = fc->nexus_free_list;
-				fc->nexus_free_list = n;
 			}
 		}
 	}
