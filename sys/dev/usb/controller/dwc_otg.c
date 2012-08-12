@@ -1524,7 +1524,13 @@ dwc_otg_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-dwc_otg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+dwc_otg_xfer_stall(struct usb_xfer *xfer)
+{
+	dwc_otg_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+dwc_otg_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct dwc_otg_softc *sc;
@@ -1534,10 +1540,6 @@ dwc_otg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		dwc_otg_device_done(xfer, USB_ERR_STALLED);
-	}
 	sc = DWC_OTG_BUS2SC(udev->bus);
 
 	/* get endpoint address */
@@ -2625,6 +2627,7 @@ struct usb_bus_methods dwc_otg_bus_methods =
 	.xfer_setup = &dwc_otg_xfer_setup,
 	.xfer_unsetup = &dwc_otg_xfer_unsetup,
 	.get_hw_ep_profile = &dwc_otg_get_hw_ep_profile,
+	.xfer_stall = &dwc_otg_xfer_stall,
 	.set_stall = &dwc_otg_set_stall,
 	.clear_stall = &dwc_otg_clear_stall,
 	.roothub_exec = &dwc_otg_roothub_exec,

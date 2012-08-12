@@ -35,7 +35,15 @@
 #define	XHCI_MAX_COMMANDS	(16 * 1)
 #define	XHCI_MAX_RSEG		1
 #define	XHCI_MAX_TRANSFERS	4
-
+#if USB_MAX_EP_STREAMS == 8
+#define	XHCI_MAX_STREAMS	8
+#define	XHCI_MAX_STREAMS_LOG	3
+#elif USB_MAX_EP_STREAMS == 1
+#define	XHCI_MAX_STREAMS	1
+#define	XHCI_MAX_STREAMS_LOG	0
+#else
+#error "The USB_MAX_EP_STREAMS value is not supported."
+#endif
 #define	XHCI_DEV_CTX_ADDR_ALIGN		64	/* bytes */
 #define	XHCI_DEV_CTX_ALIGN		64	/* bytes */
 #define	XHCI_INPUT_CTX_ALIGN		64	/* bytes */
@@ -307,7 +315,8 @@ struct xhci_trb {
 } __aligned(4);
 
 struct xhci_dev_endpoint_trbs {
-	struct xhci_trb		trb[XHCI_MAX_ENDPOINTS][XHCI_MAX_TRANSFERS];
+	struct xhci_trb		trb[XHCI_MAX_ENDPOINTS]
+	    [(XHCI_MAX_STREAMS * XHCI_MAX_TRANSFERS) + XHCI_MAX_STREAMS];
 };
 
 #define	XHCI_TD_PAGE_NBUF	17	/* units, room enough for 64Kbytes */
@@ -353,11 +362,11 @@ struct xhci_hw_root {
 
 struct xhci_endpoint_ext {
 	struct xhci_trb		*trb;
-	struct usb_xfer		*xfer[XHCI_MAX_TRANSFERS - 1];
+	struct usb_xfer		*xfer[XHCI_MAX_TRANSFERS * XHCI_MAX_STREAMS];
 	struct usb_page_cache	*page_cache;
 	uint64_t		physaddr;
-	uint8_t			trb_used;
-	uint8_t			trb_index;
+	uint8_t			trb_used[XHCI_MAX_STREAMS];
+	uint8_t			trb_index[XHCI_MAX_STREAMS];
 	uint8_t			trb_halted;
 	uint8_t			trb_running;
 };

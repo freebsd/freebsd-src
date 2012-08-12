@@ -206,6 +206,11 @@ struct usb_fs_open {
 	uint8_t	ep_no;			/* bEndpointNumber */
 };
 
+struct usb_fs_open_streams {
+	struct usb_fs_open fs_open;
+	uint16_t stream_id;
+};
+
 struct usb_fs_close {
 	uint8_t	ep_index;
 };
@@ -302,6 +307,7 @@ struct usb_gen_quirk {
 #define	USB_FS_OPEN		_IOWR('U', 197, struct usb_fs_open)
 #define	USB_FS_CLOSE		_IOW ('U', 198, struct usb_fs_close)
 #define	USB_FS_CLEAR_STALL_SYNC _IOW ('U', 199, struct usb_fs_clear_stall_sync)
+#define	USB_FS_OPEN_STREAMS	_IOWR('U', 200, struct usb_fs_open_streams)
 
 /* USB quirk system interface */
 #define	USB_DEV_QUIRK_GET	_IOWR('Q', 0, struct usb_gen_quirk)
