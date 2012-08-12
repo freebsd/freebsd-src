@@ -239,6 +239,7 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 		_thr_clear_wake(curthread);
 		_sleepq_unlock(cvp);
 		if (defered) {
+			defered = 0;
 			if ((mp->m_lock.m_owner & UMUTEX_CONTESTED) == 0)
 				(void)_umtx_op_err(&mp->m_lock, UMTX_OP_MUTEX_WAKE2,
 					 mp->m_lock.m_flags, 0, 0);
