@@ -240,6 +240,8 @@ bd_int13probe(struct bdinfo *bd)
 		bd->bd_sectors = params.sectors;
 		bd->bd_sectorsize = params.sector_size;
 	}
+	DEBUG("unit 0x%x flags %x, sectors %llu, sectorsize %u",
+	    bd->bd_unit, bd->bd_flags, bd->bd_sectors, bd->bd_sectorsize);
 	return (1);
 }
 
