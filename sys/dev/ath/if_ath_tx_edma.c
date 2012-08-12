@@ -349,26 +349,21 @@ ath_edma_dma_txteardown(struct ath_softc *sc)
 }
 
 /*
- * Process frames in the current queue and if necessary, re-schedule the
- * software TXQ scheduler for this TXQ.
- *
- * XXX This is again a pain in the ass to do because the status descriptor
- * information is in the TX status FIFO, not with the current descriptor.
+ * Drain all TXQs, potentially after completing the existing completed
+ * frames.
  */
-static int
-ath_edma_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
+static void
+ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
 
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
-	return (0);
 }
 
 /*
  * Completely drain the TXQ, completing frames that were completed.
  *
- * XXX this is going to be a complete pain in the ass because the
- * completion status is in the TX status FIFO, not with the descriptor
- * itself.  Sigh.
+ * This is only called to _explictly_ drain the frames from a queue
+ * without caring if they were completed or not.
  */
 static void
 ath_edma_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
@@ -446,6 +441,6 @@ ath_xmit_setup_edma(struct ath_softc *sc)
 
 	sc->sc_tx.xmit_dma_restart = ath_edma_dma_restart;
 	sc->sc_tx.xmit_handoff = ath_edma_xmit_handoff;
-	sc->sc_tx.xmit_processq = ath_edma_tx_processq;
 	sc->sc_tx.xmit_drainq = ath_edma_tx_draintxq;
+	sc->sc_tx.xmit_drain = ath_edma_tx_drain;
 }
