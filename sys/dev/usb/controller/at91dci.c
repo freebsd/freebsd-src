@@ -1228,7 +1228,6 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 static void
 at91dci_xfer_stall(struct usb_xfer *xfer)
 {
-	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 	at91dci_device_done(xfer, USB_ERR_STALLED);
 }
 
