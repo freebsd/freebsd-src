@@ -1113,7 +1113,13 @@ atmegadci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+atmegadci_xfer_stall(struct usb_xfer *xfer)
+{
+	atmegadci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+atmegadci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct atmegadci_softc *sc;
@@ -1123,10 +1129,6 @@ atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		atmegadci_device_done(xfer, USB_ERR_STALLED);
-	}
 	sc = ATMEGA_BUS2SC(udev->bus);
 	/* get endpoint number */
 	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -2151,6 +2153,7 @@ struct usb_bus_methods atmegadci_bus_methods =
 	.xfer_setup = &atmegadci_xfer_setup,
 	.xfer_unsetup = &atmegadci_xfer_unsetup,
 	.get_hw_ep_profile = &atmegadci_get_hw_ep_profile,
+	.xfer_stall = &atmegadci_xfer_stall,
 	.set_stall = &atmegadci_set_stall,
 	.clear_stall = &atmegadci_clear_stall,
 	.roothub_exec = &atmegadci_roothub_exec,
