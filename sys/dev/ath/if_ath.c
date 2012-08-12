@@ -3987,7 +3987,7 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 }
 
 void
-ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
+ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 #ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
@@ -4013,6 +4013,17 @@ ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			txq->axq_link = NULL;
+			/*
+			 * There's currently no flag that indicates
+			 * a buffer is on the FIFO.  So until that
+			 * occurs, just clear the FIFO counter here.
+			 *
+			 * Yes, this means that if something in parallel
+			 * is pushing things onto this TXQ and pushing
+			 * _that_ into the hardware, things will get
+			 * very fruity very quickly.
+			 */
+			txq->axq_fifo_depth = 0;
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
@@ -4022,10 +4033,20 @@ ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+			int status = 0;
 
-			ath_printtxbuf(sc, bf, txq->axq_qnum, ix,
-				ath_hal_txprocdesc(ah, bf->bf_lastds,
+			/*
+			 * EDMA operation has a TX completion FIFO
+			 * separate from the TX descriptor, so this
+			 * method of checking the "completion" status
+			 * is wrong.
+			 */
+			if (! sc->sc_isedma) {
+				status = (ath_hal_txprocdesc(ah,
+				    bf->bf_lastds,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
+			}
+			ath_printtxbuf(sc, bf, txq->axq_qnum, ix, status);
 			ieee80211_dump_pkt(ic, mtod(bf->bf_m, const uint8_t *),
 			    bf->bf_m->m_len, 0, -1);
 		}

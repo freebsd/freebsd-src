@@ -134,9 +134,6 @@ extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
 	(_sc)->sc_tx.xmit_dma_restart((_sc), (_txq))
 #define	ath_tx_handoff(_sc, _txq, _bf)		\
 	(_sc)->sc_tx.xmit_handoff((_sc), (_txq), (_bf))
-
-#define	ath_tx_draintxq(_sc, _txq)		\
-	(_sc)->sc_tx.xmit_drainq((_sc), (_txq))
 #define	ath_draintxq(_sc, _rtype)		\
 	(_sc)->sc_tx.xmit_drain((_sc), (_rtype))
 
