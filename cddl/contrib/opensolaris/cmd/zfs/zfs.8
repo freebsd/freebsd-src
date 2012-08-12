@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2012
+.Dd August 12, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -3028,9 +3028,9 @@ a new snapshot, as follows:
 .Li # Ic zfs destroy -r pool/users@7daysago
 .Li # Ic zfs rename -r pool/users@6daysago @7daysago
 .Li # Ic zfs rename -r pool/users@5daysago @6daysago
-.Li # Ic zfs rename -r pool/users@yesterday @5daysago
-.Li # Ic zfs rename -r pool/users@yesterday @4daysago
-.Li # Ic zfs rename -r pool/users@yesterday @3daysago
+.Li # Ic zfs rename -r pool/users@4daysago @5daysago
+.Li # Ic zfs rename -r pool/users@3daysago @4daysago
+.Li # Ic zfs rename -r pool/users@2daysago @3daysago
 .Li # Ic zfs rename -r pool/users@yesterday @2daysago
 .Li # Ic zfs rename -r pool/users@today @yesterday
 .Li # Ic zfs snapshot -r pool/users@today
