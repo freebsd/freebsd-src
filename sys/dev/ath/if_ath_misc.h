@@ -97,7 +97,8 @@ extern	void ath_descdma_cleanup(struct ath_softc *sc,
 
 extern	void ath_legacy_attach_comp_func(struct ath_softc *sc);
 
-extern	void ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
+extern	void ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq);
+
 extern	void ath_legacy_tx_drain(struct ath_softc *sc,
 	    ATH_RESET_TYPE reset_type);
 
