@@ -63,13 +63,6 @@
  * External devices: 0x80000000, 1 GB (VA == PA)
  * Includes Device Bus, PCI and PCIE.
  */
-#define MV_PCIE_IO_PHYS_BASE	(MV_PHYS_BASE + MV_SIZE)
-#define MV_PCIE_IO_BASE		MV_PCIE_IO_PHYS_BASE
-#define MV_PCIE_IO_SIZE		(1024 * 1024)
-#define MV_PCI_IO_PHYS_BASE	(MV_PCIE_IO_PHYS_BASE + MV_PCIE_IO_SIZE)
-#define MV_PCI_IO_BASE		MV_PCI_IO_PHYS_BASE
-#define MV_PCI_IO_SIZE		(1024 * 1024)
-
 #if defined(SOC_MV_ORION)
 #define MV_PCI_PORTS	2	/* 1x PCI + 1x PCIE */
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_FREY)
@@ -225,8 +218,8 @@
 #define MV_WIN_CESA_ATTR		0
 #endif
 
-#define MV_WIN_USB_CTRL(n)		(0x320 * (n) + 0x0)
-#define MV_WIN_USB_BASE(n)		(0x320 * (n) + 0x4)
+#define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x320)
+#define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x324)
 #define MV_WIN_USB_MAX			4
 
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
