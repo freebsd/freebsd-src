@@ -155,6 +155,13 @@ int
 libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
     uint32_t MaxFrameCount, uint8_t ep_no)
 {
+	return (libusb20_tr_open_stream(xfer, MaxBufSize, MaxFrameCount, ep_no, 0));
+}
+
+int
+libusb20_tr_open_stream(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
+    uint32_t MaxFrameCount, uint8_t ep_no, uint16_t stream_id)
+{
 	uint32_t size;
 	uint8_t pre_scale;
 	int error;
@@ -188,7 +195,7 @@ libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	memset(xfer->ppBuffer, 0, size);
 
 	error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
-	    MaxFrameCount, ep_no, pre_scale);
+	    MaxFrameCount, ep_no, stream_id, pre_scale);
 
 	if (error) {
 		free(xfer->ppBuffer);
