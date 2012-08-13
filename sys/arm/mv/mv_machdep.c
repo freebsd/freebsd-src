@@ -806,7 +806,6 @@ platform_devmap_init(void)
 			 */
 			if (i + 1 >= FDT_DEVMAP_MAX)
 				return (ENOMEM);
-			}
 
 			/*
 			 * XXX this should account for PCI and multiple ranges
