@@ -173,7 +173,13 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		rc = ENXIO;
 		goto out;
 	}
-	if (dev->d_slice > 0) {
+	if (ptable_gettype(od->table) == PTABLE_BSD &&
+	    dev->d_partition >= 0) {
+		/* It doesn't matter what value has d_slice */
+		rc = ptable_getpart(od->table, &part, dev->d_partition);
+		if (rc == 0)
+			dev->d_offset = part.start;
+	} else if (dev->d_slice > 0) {
 		/* Try to get information about partition */
 		rc = ptable_getpart(od->table, &part, dev->d_slice);
 		if (rc != 0) /* Partition doesn't exist */
@@ -247,9 +253,9 @@ disk_fmtdev(struct disk_devdesc *dev)
 #ifdef LOADER_MBR_SUPPORT
 			cp += sprintf(cp, "s%d", dev->d_slice);
 #endif
-		if (dev->d_partition >= 0)
-			cp += sprintf(cp, "%c", dev->d_partition + 'a');
 	}
+	if (dev->d_partition >= 0)
+		cp += sprintf(cp, "%c", dev->d_partition + 'a');
 	strcat(cp, ":");
 	return (buf);
 }
