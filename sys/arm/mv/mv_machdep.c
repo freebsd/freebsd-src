@@ -139,7 +139,6 @@ struct pv_addr kernelstack;
 
 void set_stackptrs(int cpu);
 
-static struct trapframe proc0_tf;
 static struct mem_region availmem_regions[FDT_MEM_REGIONS];
 static int availmem_regions_sz;
 
