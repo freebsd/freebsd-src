@@ -185,10 +185,18 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		if (rc != 0) /* Partition doesn't exist */
 			goto out;
 		dev->d_offset = part.start;
-		if (dev->d_partition == -1 ||
-		    dev->d_partition == 255)
+		if (dev->d_partition == 255)
 			goto out; /* Nothing more to do */
-
+		if (dev->d_partition == -1) {
+			/*
+			 * If we are looking at a BSD slice, and the
+			 * partition is < 0, assume the 'a' partition.
+			 */
+			if (part.type == PART_FREEBSD)
+				dev->d_partition = 0;
+			else
+				goto out;
+		}
 		/* Try to read BSD label */
 		table = ptable_open(dev, part.end - part.start + 1,
 		    od->sectorsize, ptblread);
