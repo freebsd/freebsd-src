@@ -2112,8 +2112,8 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 	ifp = sc->rl_ifp;
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
-		NA(ifp)->rx_rings->nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&NA(ifp)->rx_rings->si, PI_NET);
+		NA(ifp)->rx_rings[0].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&NA(ifp)->rx_rings[0].si, PI_NET);
 		return 0;
 	}
 #endif /* DEV_NETMAP */
