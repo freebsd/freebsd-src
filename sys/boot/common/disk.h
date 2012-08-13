@@ -45,6 +45,11 @@
  * 	d_slice = MBR slice number (typically 1..4)
  * 	d_partition = disklabel partition (typically 0..7)
  *
+ * BSD disklabel partition on the true dedicated disk:
+ *
+ * 	d_slice = -1
+ * 	d_partition = disklabel partition (typically 0..7)
+ *
  * GPT partition:
  *
  * 	d_slice = GPT partition number (typically 1..N)
