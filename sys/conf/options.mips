@@ -75,3 +75,7 @@ IF_RT_DEBUG			opt_if_rt.h
 IF_RT_PHY_SUPPORT		opt_if_rt.h
 IF_RT_RING_DATA_COUNT		opt_if_rt.h
 
+#
+# Options that affect the pmap.
+#
+PV_STATS		opt_pmap.h
