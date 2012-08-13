@@ -1148,14 +1148,15 @@ ipi_startup(int apic_id, int vector)
 
 	/* wait for pending status end */
 	lapic_ipi_wait(-1);
+	DELAY(10000);		/* wait ~10mS */
 
 	/* do an INIT IPI: deassert RESET */
 	lapic_ipi_raw(APIC_DEST_ALLESELF | APIC_TRIGMOD_LEVEL |
 	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, 0);
 
 	/* wait for pending status end */
-	DELAY(10000);		/* wait ~10mS */
 	lapic_ipi_wait(-1);
+	DELAY(10000);		/* wait ~10mS */
 
 	/*
 	 * next we do a STARTUP IPI: the previous INIT IPI might still be
