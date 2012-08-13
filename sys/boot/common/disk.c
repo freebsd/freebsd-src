@@ -162,7 +162,7 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 	dev->d_opendata = od;
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
-	DEBUG("%s: unit %d, slice %d, partition %d",
+	DEBUG("%s unit %d, slice %d, partition %d",
 	    disk_fmtdev(dev), dev->d_unit, dev->d_slice, dev->d_partition);
 
 	/* Determine disk layout. */
@@ -217,9 +217,9 @@ out:
 		if (od->table != NULL)
 			ptable_close(od->table);
 		free(od);
-		DEBUG("%s: could not open", disk_fmtdev(dev));
+		DEBUG("%s could not open", disk_fmtdev(dev));
 	} else {
-		DEBUG("%s: offset %lld", disk_fmtdev(dev), dev->d_offset);
+		DEBUG("%s offset %lld", disk_fmtdev(dev), dev->d_offset);
 	}
 	return (rc);
 }
@@ -230,7 +230,7 @@ disk_close(struct disk_devdesc *dev)
 	struct open_disk *od;
 
 	od = (struct open_disk *)dev->d_opendata;
-	DEBUG("%s: closed", disk_fmtdev(dev));
+	DEBUG("%s closed", disk_fmtdev(dev));
 	ptable_close(od->table);
 	free(od);
 	return (0);
