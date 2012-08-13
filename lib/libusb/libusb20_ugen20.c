@@ -741,9 +741,13 @@ ugen20_process(struct libusb20_device *pdev)
 
 static int
 ugen20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
-    uint32_t MaxFrameCount, uint8_t ep_no, uint8_t pre_scale)
+    uint32_t MaxFrameCount, uint8_t ep_no, uint16_t stream_id,
+    uint8_t pre_scale)
 {
-	struct usb_fs_open temp;
+	union {
+		struct usb_fs_open fs_open;
+		struct usb_fs_open_stream fs_open_stream;
+	} temp;
 	struct usb_fs_endpoint *fsep;
 
 	if (pre_scale)
@@ -754,20 +758,26 @@ ugen20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	fsep = xfer->pdev->privBeData;
 	fsep += xfer->trIndex;
 
-	temp.max_bufsize = MaxBufSize;
-	temp.max_frames = MaxFrameCount;
-	temp.ep_index = xfer->trIndex;
-	temp.ep_no = ep_no;
+	temp.fs_open.max_bufsize = MaxBufSize;
+	temp.fs_open.max_frames = MaxFrameCount;
+	temp.fs_open.ep_index = xfer->trIndex;
+	temp.fs_open.ep_no = ep_no;
 
-	if (ioctl(xfer->pdev->file, USB_FS_OPEN, &temp)) {
-		return (LIBUSB20_ERROR_INVALID_PARAM);
+	if (stream_id != 0) {
+		temp.fs_open_stream.stream_id = stream_id;
+
+		if (ioctl(xfer->pdev->file, USB_FS_OPEN_STREAM, &temp.fs_open_stream))
+			return (LIBUSB20_ERROR_INVALID_PARAM);
+	} else {
+		if (ioctl(xfer->pdev->file, USB_FS_OPEN, &temp.fs_open))
+			return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
 	/* maximums might have changed - update */
-	xfer->maxFrames = temp.max_frames;
+	xfer->maxFrames = temp.fs_open.max_frames;
 
 	/* "max_bufsize" should be multiple of "max_packet_length" */
-	xfer->maxTotalLength = temp.max_bufsize;
-	xfer->maxPacketLen = temp.max_packet_length;
+	xfer->maxTotalLength = temp.fs_open.max_bufsize;
+	xfer->maxPacketLen = temp.fs_open.max_packet_length;
 
 	/* setup buffer and length lists using zero copy */
 	fsep->ppBuffer = libusb20_pass_ptr(xfer->ppBuffer);
