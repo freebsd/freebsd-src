@@ -2777,8 +2777,15 @@ usbd_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
     uint8_t ep_mode)
 {   
 	usb_error_t error;
+	uint8_t do_unlock;
 
-	sx_assert(&udev->enum_sx, SA_LOCKED);
+	/* automatic locking */
+	if (usbd_enum_is_locked(udev)) {
+		do_unlock = 0;
+	} else {
+		do_unlock = 1;
+		usbd_enum_lock(udev);
+	}
 
 	if (udev->bus->methods->set_endpoint_mode != NULL) {
 		error = (udev->bus->methods->set_endpoint_mode) (
@@ -2791,6 +2798,9 @@ usbd_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
 
 	/* only set new mode regardless of error */
 	ep->ep_mode = ep_mode;
+
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	return (error);
 }
