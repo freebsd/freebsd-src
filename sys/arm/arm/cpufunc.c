@@ -1297,8 +1297,7 @@ set_cpufuncs()
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
 		goto out;
-	} else if (cputype == CPU_ID_ARM926EJS  || cputype == CPU_ID_ARM926ES ||
-	    cputype == CPU_ID_ARM1026EJS) {
+	} else if (cputype == CPU_ID_ARM926EJS || cputype == CPU_ID_ARM1026EJS) {
 		cpufuncs = armv5_ec_cpufuncs;
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
