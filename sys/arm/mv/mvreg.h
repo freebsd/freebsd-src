@@ -34,9 +34,6 @@
 #ifndef _MVREG_H_
 #define _MVREG_H_
 
-#define BRIDGE_IRQ_CAUSE	0x10
-#define BRIGDE_IRQ_MASK		0x14
-
 #if defined(SOC_MV_DISCOVERY)
 #define IRQ_CAUSE_ERROR		0x0
 #define IRQ_CAUSE		0x4
