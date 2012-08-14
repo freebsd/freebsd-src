@@ -2944,7 +2944,8 @@ cxgbe_tick(void *arg)
 	ifp->if_omcasts = s->tx_mcast_frames - s->tx_pause;
 	ifp->if_imcasts = s->rx_mcast_frames - s->rx_pause;
 	ifp->if_iqdrops = s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
-	    s->rx_ovflow3;
+	    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
+	    s->rx_trunc3;
 
 	drops = s->tx_drop;
 	for_each_txq(pi, i, txq)
