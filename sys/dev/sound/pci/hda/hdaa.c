@@ -3068,8 +3068,7 @@ hdaa_audio_trace_adc(struct hdaa_devinfo *devinfo, int as, int seq, nid_t nid,
 		if ((only == 0 || only == w->nid) && (w->nid >= min) &&
 		    (onlylength == 0 || onlylength == depth)) {
 			m = w->nid;
-			if (length != NULL)
-				*length = depth;
+			*length = depth;
 		}
 		break;
 	case HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX:
@@ -3092,12 +3091,12 @@ hdaa_audio_trace_adc(struct hdaa_devinfo *devinfo, int as, int seq, nid_t nid,
 				    j, mixed, min, only, depth + 1,
 				    length, onlylength)) != 0) {
 					if (m == 0 || ret < m ||
-					    (ret == m && length != NULL &&
-					     *length < lm)) {
+					    (ret == m && *length < lm)) {
 						m = ret;
 						im = i;
 						lm = *length;
-					}
+					} else
+						*length = lm;
 					if (only)
 						break;
 				}
