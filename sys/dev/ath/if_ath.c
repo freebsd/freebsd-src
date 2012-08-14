@@ -1675,12 +1675,14 @@ ath_intr(void *arg)
 			 * and blank them. This is the only place we should be
 			 * doing this.
 			 */
-			ATH_PCU_LOCK(sc);
-			txqs = 0xffffffff;
-			ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
-			sc->sc_txq_active |= txqs;
+			if (! sc->sc_isedma) {
+				ATH_PCU_LOCK(sc);
+				txqs = 0xffffffff;
+				ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
+				sc->sc_txq_active |= txqs;
+				ATH_PCU_UNLOCK(sc);
+			}
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_txtask);
-			ATH_PCU_UNLOCK(sc);
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
@@ -3582,6 +3584,56 @@ ath_tx_update_busy(struct ath_softc *sc)
 }
 
 /*
+ * Process the completion of the given buffer.
+ *
+ * This calls the rate control update and then the buffer completion.
+ * This will either free the buffer or requeue it.  In any case, the
+ * bf pointer should be treated as invalid after this function is called.
+ */
+void
+ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_tx_status *ts, struct ath_buf *bf)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ath_node *an = NULL;
+
+	ATH_TXQ_UNLOCK_ASSERT(txq);
+
+	/* If unicast frame, update general statistics */
+	if (ni != NULL) {
+		an = ATH_NODE(ni);
+		/* update statistics */
+		ath_tx_update_stats(sc, ts, bf);
+	}
+
+	/*
+	 * Call the completion handler.
+	 * The completion handler is responsible for
+	 * calling the rate control code.
+	 *
+	 * Frames with no completion handler get the
+	 * rate control code called here.
+	 */
+	if (bf->bf_comp == NULL) {
+		if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
+		    (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) {
+			/*
+			 * XXX assume this isn't an aggregate
+			 * frame.
+			 */
+			ath_tx_update_ratectrl(sc, ni,
+			     bf->bf_state.bfs_rc, ts,
+			    bf->bf_state.bfs_pktlen, 1,
+			    (ts->ts_status == 0 ? 0 : 1));
+		}
+		ath_tx_default_comp(sc, bf, 0);
+	} else
+		bf->bf_comp(sc, bf, 0);
+}
+
+
+
+/*
  * Process completed xmit descriptors from the specified queue.
  * Kick the packet scheduler if needed. This can occur from this
  * particular task.
@@ -3594,7 +3646,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ath_desc *ds;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
-	struct ath_node *an;
 #ifdef	IEEE80211_SUPPORT_SUPERG
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 #endif	/* IEEE80211_SUPPORT_SUPERG */
@@ -3666,36 +3717,12 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		}
 		ATH_TXQ_UNLOCK(txq);
 
-		/* If unicast frame, update general statistics */
-		if (ni != NULL) {
-			an = ATH_NODE(ni);
-			/* update statistics */
-			ath_tx_update_stats(sc, ts, bf);
-		}
-
 		/*
-		 * Call the completion handler.
-		 * The completion handler is responsible for
-		 * calling the rate control code.
-		 *
-		 * Frames with no completion handler get the
-		 * rate control code called here.
+		 * Update statistics and call completion
 		 */
-		if (bf->bf_comp == NULL) {
-			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) {
-				/*
-				 * XXX assume this isn't an aggregate
-				 * frame.
-				 */
-				ath_tx_update_ratectrl(sc, ni,
-				     bf->bf_state.bfs_rc, ts,
-				    bf->bf_state.bfs_pktlen, 1,
-				    (ts->ts_status == 0 ? 0 : 1));
-			}
-			ath_tx_default_comp(sc, bf, 0);
-		} else
-			bf->bf_comp(sc, bf, 0);
+		ath_tx_process_buf_completion(sc, txq, ts, bf);
+
+
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
@@ -4087,7 +4114,7 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
 }
 
-static int
+int
 ath_stoptxdma(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
