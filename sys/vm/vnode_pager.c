@@ -987,7 +987,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		}
 		
 		if (i != reqpage)
-			vm_page_readahead_finish(mt, error);
+			vm_page_readahead_finish(mt);
 	}
 	VM_OBJECT_UNLOCK(object);
 	if (error) {
