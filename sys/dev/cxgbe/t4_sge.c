@@ -68,12 +68,37 @@ static struct fl_buf_info fl_buf_info[FL_BUF_SIZES];
 #define FL_BUF_TYPE(x)	(fl_buf_info[x].type)
 #define FL_BUF_ZONE(x)	(fl_buf_info[x].zone)
 
-enum {
-	FL_PKTSHIFT = 2
-};
+/*
+ * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
+ * 0-7 are valid values.
+ */
+static int fl_pktshift = 2;
+TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
 
-static int fl_pad = CACHE_LINE_SIZE;
-static int spg_len = 64;
+/*
+ * Pad ethernet payload up to this boundary.
+ * -1: driver should figure out a good value.
+ *  Any power of 2, from 32 to 4096 (both inclusive) is a valid value.
+ */
+static int fl_pad = -1;
+TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
+
+/*
+ * Status page length.
+ * -1: driver should figure out a good value.
+ *  64 or 128 are the only other valid values.
+ */
+static int spg_len = -1;
+TUNABLE_INT("hw.cxgbe.spg_len", &spg_len);
+
+/*
+ * Congestion drops.
+ * -1: no congestion feedback (not recommended).
+ *  0: backpressure the channel instead of dropping packets right away.
+ *  1: no backpressure, drop packets for the congested queue immediately.
+ */
+static int cong_drop = 0;
+TUNABLE_INT("hw.cxgbe.cong_drop", &cong_drop);
 
 /* Used to track coalesced tx work request */
 struct txpkts {
@@ -170,7 +195,8 @@ extern u_int cpu_clflush_line_size;
 #endif
 
 /*
- * Called on MOD_LOAD and fills up fl_buf_info[].
+ * Called on MOD_LOAD.  Fills up fl_buf_info[] and validates/calculates the SGE
+ * tunables.
  */
 void
 t4_sge_modload(void)
@@ -191,10 +217,49 @@ t4_sge_modload(void)
 		FL_BUF_ZONE(i) = m_getzone(bufsize[i]);
 	}
 
+	if (fl_pktshift < 0 || fl_pktshift > 7) {
+		printf("Invalid hw.cxgbe.fl_pktshift value (%d),"
+		    " using 2 instead.\n", fl_pktshift);
+		fl_pktshift = 2;
+	}
+
+	if (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad)) {
+		int pad;
+
 #if defined(__i386__) || defined(__amd64__)
-	fl_pad = max(cpu_clflush_line_size, 32);
-	spg_len = cpu_clflush_line_size > 64 ? 128 : 64;
+		pad = max(cpu_clflush_line_size, 32);
+#else
+		pad = max(CACHE_LINE_SIZE, 32);
 #endif
+		pad = min(pad, 4096);
+
+		if (fl_pad != -1) {
+			printf("Invalid hw.cxgbe.fl_pad value (%d),"
+			    " using %d instead.\n", fl_pad, pad);
+		}
+		fl_pad = pad;
+	}
+
+	if (spg_len != 64 && spg_len != 128) {
+		int len;
+
+#if defined(__i386__) || defined(__amd64__)
+		len = cpu_clflush_line_size > 64 ? 128 : 64;
+#else
+		len = 64;
+#endif
+		if (spg_len != -1) {
+			printf("Invalid hw.cxgbe.spg_len value (%d),"
+			    " using %d instead.\n", spg_len, len);
+		}
+		spg_len = len;
+	}
+
+	if (cong_drop < -1 || cong_drop > 1) {
+		printf("Invalid hw.cxgbe.cong_drop value (%d),"
+		    " using 0 instead.\n", cong_drop);
+		cong_drop = 0;
+	}
 }
 
 /**
@@ -215,7 +280,7 @@ t4_sge_init(struct adapter *sc)
 	ctrl_mask = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE |
 	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) |
 	    F_EGRSTATUSPAGESIZE;
-	ctrl_val = V_PKTSHIFT(FL_PKTSHIFT) | F_RXPKTCPLMODE |
+	ctrl_val = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
 	    V_INGPADBOUNDARY(ilog2(fl_pad) - 5) |
 	    V_EGRSTATUSPAGESIZE(spg_len == 128);
 
@@ -1050,9 +1115,9 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	KASSERT(m0 != NULL, ("%s: no payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	m0->m_pkthdr.len -= FL_PKTSHIFT;
-	m0->m_len -= FL_PKTSHIFT;
-	m0->m_data += FL_PKTSHIFT;
+	m0->m_pkthdr.len -= fl_pktshift;
+	m0->m_len -= fl_pktshift;
+	m0->m_data += fl_pktshift;
 
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_flags |= M_FLOWID;
@@ -1390,7 +1455,7 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 
 	/* large enough for a frame even when VLAN extraction is disabled */
 	bufsize = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ifp->if_mtu;
-	bufsize = roundup(bufsize + FL_PKTSHIFT, fl_pad);
+	bufsize = roundup(bufsize + fl_pktshift, fl_pad);
 	for_each_rxq(pi, i, rxq) {
 		fl = &rxq->fl;
 
@@ -1793,6 +1858,18 @@ free_mgmtq(struct adapter *sc)
 	return free_wrq(sc, &sc->sge.mgmtq);
 }
 
+static inline int
+tnl_cong(struct port_info *pi)
+{
+
+	if (cong_drop == -1)
+		return (-1);
+	else if (cong_drop == 1)
+		return (0);
+	else
+		return (1 << pi->tx_chan);
+}
+
 static int
 alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
     struct sysctl_oid *oid)
@@ -1801,7 +1878,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 	struct sysctl_oid_list *children;
 	char name[16];
 
-	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx, 1 << pi->tx_chan);
+	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx, tnl_cong(pi));
 	if (rc != 0)
 		return (rc);
 
