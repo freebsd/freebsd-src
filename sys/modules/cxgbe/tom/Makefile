@@ -2,6 +2,8 @@
 # $FreeBSD$
 #
 
+.include <bsd.own.mk>
+
 CXGBE = ${.CURDIR}/../../../dev/cxgbe
 .PATH: ${CXGBE}/tom
 
@@ -11,5 +13,13 @@ SRCS+= device_if.h bus_if.h pci_if.h
 SRCS+= opt_inet.h
 
 CFLAGS+= -I${CXGBE}
+
+.if !defined(KERNBUILDDIR)
+.if ${MK_INET_SUPPORT} != "no"
+opt_inet.h:
+	echo "#define INET 1" > ${.TARGET}
+	echo "#define TCP_OFFLOAD 1" >> ${.TARGET}
+.endif
+.endif
 
 .include <bsd.kmod.mk>
