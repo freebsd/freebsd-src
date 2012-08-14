@@ -613,17 +613,26 @@ Not all architectures use such buffers; see
 for details.
 .It Va kern.maxswzone
 Limits the amount of KVM to be used to hold swap
-meta information, which directly governs the
-maximum amount of swap the system can support.
-This value is specified in bytes of KVA space
-and defaults to 32MBytes on i386 and amd64.
-Care should be taken
-to not reduce this value such that the actual
-amount of configured swap exceeds 1/2 the
-kernel-supported swap.
-The default of 32MB allows
-the kernel to support a maximum of ~7GB of swap.
-Only change
+metadata, which directly governs the
+maximum amount of swap the system can support,
+at the rate of approximately 200 MB of swap space
+per 1 MB of metadata.
+This value is specified in bytes of KVA space.
+If no value is provided, the system allocates
+enough memory to handle an amount of swap
+that corresponds to eight times the amount of
+physical memory present in the system.
+.Pp
+Note that swap metadata can be fragmented,
+which means that the system can run out of
+space before it reaches the theoretical limit.
+Therefore, care should be taken to not configure
+more swap than approximately half of the
+theoretical maximum.
+.Pp
+Running out of space for swap metadata can leave
+the system in an unrecoverable state.
+Therefore, you should only change
 this parameter if you need to greatly extend the
 KVM reservation for other resources such as the
 buffer cache or
