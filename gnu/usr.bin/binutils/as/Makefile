@@ -42,6 +42,10 @@ SRCS+=	app.c \
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
 
+.if ${TARGET_ARCH} == "armv6" || ${TARGET_ARCH} == "armv6eb"
+CFLAGS+=	-DCPU_DEFAULT=ARM_ARCH_V6K
+.endif
+
 .if ${TARGET_CPUARCH} == "mips"
 SRCS+=	itbl-ops.c itbl-parse.y itbl-lex.l
 .if ${TARGET_ARCH:Mmips64*} != ""
