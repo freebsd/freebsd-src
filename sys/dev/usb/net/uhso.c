@@ -474,13 +474,12 @@ static void uhso_if_rxflush(void *);
 static device_probe_t uhso_probe;
 static device_attach_t uhso_attach;
 static device_detach_t uhso_detach;
-static device_free_softc_t uhso_free_softc;
+static void uhso_free_softc(struct uhso_softc *);
 
 static device_method_t uhso_methods[] = {
 	DEVMETHOD(device_probe,		uhso_probe),
 	DEVMETHOD(device_attach,	uhso_attach),
 	DEVMETHOD(device_detach,	uhso_detach),
-	DEVMETHOD(device_free_softc,	uhso_free_softc),
 	{ 0, 0 }
 };
 
@@ -697,27 +696,28 @@ uhso_detach(device_t self)
 		usbd_transfer_unsetup(sc->sc_if_xfer, UHSO_IFNET_MAX);
 	}
 
+	device_claim_softc(self);
+
+	uhso_free_softc(sc);
+
 	return (0);
 }
 
 UCOM_UNLOAD_DRAIN(uhso);
 
 static void
-uhso_free_softc(device_t dev, void *arg)
+uhso_free_softc(struct uhso_softc *sc)
 {
-	struct uhso_softc *sc = arg;
-
 	if (ucom_unref(&sc->sc_super_ucom)) {
-		if (mtx_initialized(&sc->sc_mtx))
-			mtx_destroy(&sc->sc_mtx);
-		device_free_softc(dev, sc);
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
 	}
 }
 
 static void
 uhso_free(struct ucom_softc *ucom)
 {
-	uhso_free_softc(NULL, ucom->sc_parent);
+	uhso_free_softc(ucom->sc_parent);
 }
 
 static void
