@@ -191,6 +191,7 @@ struct ath_buf {
 	int			bf_nseg;
 	HAL_STATUS		bf_rxstatus;
 	uint16_t		bf_flags;	/* status flags (below) */
+	uint16_t		bf_descid;	/* 16 bit descriptor ID */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */
@@ -576,6 +577,7 @@ struct ath_softc {
 	u_int			sc_monpass;	/* frames to pass in mon.mode */
 
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
+	uint16_t		sc_txbuf_descid;
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
 	int			sc_txbuf_cnt;	/* how many buffers avail */
 	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */

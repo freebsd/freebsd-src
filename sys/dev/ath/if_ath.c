@@ -2344,6 +2344,14 @@ _ath_getbuf_locked(struct ath_softc *sc, ath_buf_type_t btype)
 	bf->bf_comp = NULL;	/* XXX again, just to be sure */
 	bzero(&bf->bf_state, sizeof(bf->bf_state));
 
+	/*
+	 * Track the descriptor ID only if doing EDMA
+	 */
+	if (sc->sc_isedma) {
+		bf->bf_descid = sc->sc_txbuf_descid;
+		sc->sc_txbuf_descid++;
+	}
+
 	return bf;
 }
 
