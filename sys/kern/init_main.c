@@ -476,6 +476,7 @@ proc0_init(void *dummy __unused)
 	knlist_init_mtx(&p->p_klist, &p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
+	/* pid_max cannot be greater then PID_MAX */
 	td->td_tid = PID_MAX + 1;
 	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	td->td_state = TDS_RUNNING;
