@@ -297,7 +297,6 @@ static const uint16_t ht40_bps[32] = {
 
 /*
  * Calculate the transmit duration of an 11n frame.
- * This only works for MCS0->MCS15.
  */
 uint32_t
 ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams,
