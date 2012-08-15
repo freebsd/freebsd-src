@@ -372,8 +372,10 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 	if (buf == NULL)
 		return (table);
 	for (i = 0; i < MAXEBRENTRIES; i++) {
+#if 0
 		if (offset >= table->sectors)
 			break;
+#endif
 		if (dread(dev, buf, 1, offset) != 0)
 			break;
 		dp = (struct dos_partition *)(buf + DOSPARTOFF);
@@ -663,8 +665,10 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 		end = le32toh(dp[i].dp_size);
 		if (start == 0 || end == 0)
 			continue;
+#if 0
 		if (start + end - 1 >= sectors)
 			continue;	/* XXX: ignore */
+#endif
 		if (dp[i].dp_typ == DOSPTYP_EXT ||
 		    dp[i].dp_typ == DOSPTYP_EXTLBA)
 			has_ext = 1;
