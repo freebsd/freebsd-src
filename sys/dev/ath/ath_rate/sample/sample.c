@@ -1296,11 +1296,11 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 	uint64_t mask;
 	int rix, y;
 
-	printf("\n[%s] refcnt %d static_rix (%d %s) ratemask 0x%qx\n",
+	printf("\n[%s] refcnt %d static_rix (%d %s) ratemask 0x%jx\n",
 	    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni),
 	    dot11rate(rt, sn->static_rix),
 	    dot11rate_label(rt, sn->static_rix),
-	    sn->ratemask);
+	    (uintmax_t)sn->ratemask);
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		printf("[%4u] cur rix %d (%d %s) since switch: packets %d ticks %u\n",
 		    bin_to_size(y), sn->current_rix[y],
