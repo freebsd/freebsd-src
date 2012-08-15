@@ -35,16 +35,15 @@ kldload a.out
 .Sh DESCRIPTION
 The
 .Xr a.out 5
-executable format was used by
-.Fx
-of versions \*(Lt 3.0.
-Since only i386 architecture was supported at that time, the
+executable format was used before the release of
+.Fx 3.0.
+Since i386 was the only supported architecture at that time,
 .Xr a.out 5
-executables can only be activated on the platforms that support
-execution of i386 code, which are i386, amd64 and (partially) ia64.
+executables can only be activated on platforms that support
+execution of i386 code, such as i386, amd64 and (partially) ia64.
 .Pp
 To add kernel support for old syscalls and old syscall invocation methods,
-you need to place the following options in the kernel configuration file:
+place the following options in the kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options COMPAT_43"
 .br
@@ -57,14 +56,16 @@ option is only required on 64-bit CPU architectures.
 .Pp
 The
 .Va aout.ko
-module must be loaded to get support for
+module needs to be loaded with the
+.Xr kldload 8
+utility in order to support the
 .Xr a.out 5
-image activator.
-Use the command
+image activator:
 .Bd -ragged -offset indent
 .Ic kldload aout
 .Ed
-or put the following line in
+.Pp
+Alternatively, to load the module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 aout_load="YES"
@@ -72,9 +73,9 @@ aout_load="YES"
 .Pp
 The
 .Xr a.out 5
-format was mainstream quite long time ago.
-The reasonable default settings and security requirements of the
-modern OS contradict to the default environment of that time and
+format was mainstream quite a long time ago.
+Reasonable default settings and security requirements of
+modern operating systems today contradict the default environment of that time and
 require adjustments of the system to mimic natural environment for
 old binaries.
 .Pp
@@ -84,10 +85,10 @@ tunables are useful for this:
 .Bl -tag -offset indent -width "XXXXXXXXXXXXXXXXXXXXXXXXX"
 .It Xo Va security.bsd.map_at_zero
 .Xc
-Set to 1 to allow the mapping of process pages at the address 0.
+Set to 1 to allow mapping of process pages at address 0.
 Some very old
 .Va ZMAGIC
-executable images require the text mapping at the address 0.
+executable images require text mapping at address 0.
 .It Xo Va kern.pid_max
 .Xc
 Old versions of
@@ -96,12 +97,12 @@ used 16-bit types for
 .Vt pid_t .
 Current kernels use 32-bit type for
 .Vt pid_t ,
-and allow the process id's up to 99999.
+and allow process id's up to 99999.
 Such values cannot be represented by old
 .Vt pid_t ,
-mostly causing issues for the processes using
+mostly causing issues for processes using
 .Xr wait 2
-syscalls, for instance, shells.
+syscalls, for example shells.
 Set the sysctl to 30000 to work around the problem.
 .It Xo Va kern.elf32.read_exec
 .Xc
@@ -109,7 +110,7 @@ Set to 1 to force any accessible memory mapping performed by 32-bit
 process to allow execution, see
 .Xr mmap 2 .
 Old i386 CPUs did not have a bit in PTE which disallowed execution
-from the page, so many old programs did not specified
+from the page, so many old programs did not specify
 .Va PROT_EXEC
 even for mapping of executable code.
 The sysctl forces
@@ -123,8 +124,6 @@ non-executable mappings.
 .Xr a.out 5 ,
 .Xr elf 5 ,
 .Xr sysctl 8 .
-.Sh BUGS
-On 64bit architectures, not all wrappers for older syscalls are implemented.
 .Sh HISTORY
 The
 .Xr a.out 5
@@ -132,7 +131,7 @@ executable format was used on ancient
 .At
 and served as the main executable format for
 .Fx
-from inception up to
+from the beginning up to
 .Fx 2.2.9 .
 In
 .Fx 3.0
@@ -143,3 +142,5 @@ The
 .Nm
 manual page was written by
 .An Konstantin Belousov Aq kib@FreeBSD.org .
+.Sh BUGS
+On 64bit architectures, not all wrappers for older syscalls are implemented.
