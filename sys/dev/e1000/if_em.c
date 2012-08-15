@@ -1570,6 +1570,8 @@ em_msix_rx(void *arg)
 	bool		more;
 
 	++rxr->rx_irq;
+	if (!(adapter->ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return;
 	more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
