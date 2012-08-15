@@ -1,5 +1,3 @@
-set(LLVM_USED_LIBS clangBasic clangAST clangLex clangSema)
-
 add_clang_library(clangParse
   ParseAST.cpp
   ParseCXXInlineMethods.cpp
@@ -16,4 +14,21 @@ add_clang_library(clangParse
   Parser.cpp
   )
 
-add_dependencies(clangParse ClangAttrClasses ClangAttrList ClangDeclNodes ClangDiagnosticParse ClangStmtNodes ClangAttrLateParsed)
+add_dependencies(clangParse
+  ClangAttrClasses
+  ClangAttrLateParsed
+  ClangAttrList
+  ClangAttrParsedAttrList
+  ClangCommentNodes
+  ClangDeclNodes
+  ClangDiagnosticCommon
+  ClangDiagnosticParse
+  ClangStmtNodes
+  )
+
+target_link_libraries(clangParse
+  clangBasic
+  clangAST
+  clangLex
+  clangSema
+  )

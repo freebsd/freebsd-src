@@ -66,6 +66,64 @@ Preprocessor::Preprocessor(DiagnosticsEngine &diags, LangOptions &opts,
     Record(0), MIChainHead(0), MICache(0) 
 {
   OwnsHeaderSearch = OwnsHeaders;
+  
+  ScratchBuf = new ScratchBuffer(SourceMgr);
+  CounterValue = 0; // __COUNTER__ starts at 0.
+  
+  // Clear stats.
+  NumDirectives = NumDefined = NumUndefined = NumPragma = 0;
+  NumIf = NumElse = NumEndif = 0;
+  NumEnteredSourceFiles = 0;
+  NumMacroExpanded = NumFnMacroExpanded = NumBuiltinMacroExpanded = 0;
+  NumFastMacroExpanded = NumTokenPaste = NumFastTokenPaste = 0;
+  MaxIncludeStackDepth = 0;
+  NumSkipped = 0;
+  
+  // Default to discarding comments.
+  KeepComments = false;
+  KeepMacroComments = false;
+  SuppressIncludeNotFoundError = false;
+  
+  // Macro expansion is enabled.
+  DisableMacroExpansion = false;
+  MacroExpansionInDirectivesOverride = false;
+  InMacroArgs = false;
+  InMacroArgPreExpansion = false;
+  NumCachedTokenLexers = 0;
+  PragmasEnabled = true;
+
+  CachedLexPos = 0;
+  
+  // We haven't read anything from the external source.
+  ReadMacrosFromExternalSource = false;
+  
+  // "Poison" __VA_ARGS__, which can only appear in the expansion of a macro.
+  // This gets unpoisoned where it is allowed.
+  (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
+  SetPoisonReason(Ident__VA_ARGS__,diag::ext_pp_bad_vaargs_use);
+  
+  // Initialize the pragma handlers.
+  PragmaHandlers = new PragmaNamespace(StringRef());
+  RegisterBuiltinPragmas();
+  
+  // Initialize builtin macros like __LINE__ and friends.
+  RegisterBuiltinMacros();
+  
+  if(LangOpts.Borland) {
+    Ident__exception_info        = getIdentifierInfo("_exception_info");
+    Ident___exception_info       = getIdentifierInfo("__exception_info");
+    Ident_GetExceptionInfo       = getIdentifierInfo("GetExceptionInformation");
+    Ident__exception_code        = getIdentifierInfo("_exception_code");
+    Ident___exception_code       = getIdentifierInfo("__exception_code");
+    Ident_GetExceptionCode       = getIdentifierInfo("GetExceptionCode");
+    Ident__abnormal_termination  = getIdentifierInfo("_abnormal_termination");
+    Ident___abnormal_termination = getIdentifierInfo("__abnormal_termination");
+    Ident_AbnormalTermination    = getIdentifierInfo("AbnormalTermination");
+  } else {
+    Ident__exception_info = Ident__exception_code = Ident__abnormal_termination = 0;
+    Ident___exception_info = Ident___exception_code = Ident___abnormal_termination = 0;
+    Ident_GetExceptionInfo = Ident_GetExceptionCode = Ident_AbnormalTermination = 0;
+  }
 
   if (!DelayInitialization) {
     assert(Target && "Must provide target information for PP initialization");
@@ -114,63 +172,6 @@ void Preprocessor::Initialize(const TargetInfo &Target) {
   
   // Initialize information about built-ins.
   BuiltinInfo.InitializeTarget(Target);
-  
-  ScratchBuf = new ScratchBuffer(SourceMgr);
-  CounterValue = 0; // __COUNTER__ starts at 0.
-  
-  // Clear stats.
-  NumDirectives = NumDefined = NumUndefined = NumPragma = 0;
-  NumIf = NumElse = NumEndif = 0;
-  NumEnteredSourceFiles = 0;
-  NumMacroExpanded = NumFnMacroExpanded = NumBuiltinMacroExpanded = 0;
-  NumFastMacroExpanded = NumTokenPaste = NumFastTokenPaste = 0;
-  MaxIncludeStackDepth = 0;
-  NumSkipped = 0;
-  
-  // Default to discarding comments.
-  KeepComments = false;
-  KeepMacroComments = false;
-  SuppressIncludeNotFoundError = false;
-  
-  // Macro expansion is enabled.
-  DisableMacroExpansion = false;
-  InMacroArgs = false;
-  InMacroArgPreExpansion = false;
-  NumCachedTokenLexers = 0;
-  
-  CachedLexPos = 0;
-  
-  // We haven't read anything from the external source.
-  ReadMacrosFromExternalSource = false;
-  
-  // "Poison" __VA_ARGS__, which can only appear in the expansion of a macro.
-  // This gets unpoisoned where it is allowed.
-  (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
-  SetPoisonReason(Ident__VA_ARGS__,diag::ext_pp_bad_vaargs_use);
-  
-  // Initialize the pragma handlers.
-  PragmaHandlers = new PragmaNamespace(StringRef());
-  RegisterBuiltinPragmas();
-  
-  // Initialize builtin macros like __LINE__ and friends.
-  RegisterBuiltinMacros();
-  
-  if(LangOpts.Borland) {
-    Ident__exception_info        = getIdentifierInfo("_exception_info");
-    Ident___exception_info       = getIdentifierInfo("__exception_info");
-    Ident_GetExceptionInfo       = getIdentifierInfo("GetExceptionInformation");
-    Ident__exception_code        = getIdentifierInfo("_exception_code");
-    Ident___exception_code       = getIdentifierInfo("__exception_code");
-    Ident_GetExceptionCode       = getIdentifierInfo("GetExceptionCode");
-    Ident__abnormal_termination  = getIdentifierInfo("_abnormal_termination");
-    Ident___abnormal_termination = getIdentifierInfo("__abnormal_termination");
-    Ident_AbnormalTermination    = getIdentifierInfo("AbnormalTermination");
-  } else {
-    Ident__exception_info = Ident__exception_code = Ident__abnormal_termination = 0;
-    Ident___exception_info = Ident___exception_code = Ident___abnormal_termination = 0;
-    Ident_GetExceptionInfo = Ident_GetExceptionCode = Ident_AbnormalTermination = 0;
-  }
-  
   HeaderInfo.setTarget(Target);
 }
 
@@ -236,6 +237,20 @@ void Preprocessor::PrintStats() {
   llvm::errs() << (NumFastTokenPaste+NumTokenPaste)
              << " token paste (##) operations performed, "
              << NumFastTokenPaste << " on the fast path.\n";
+
+  llvm::errs() << "\nPreprocessor Memory: " << getTotalMemory() << "B total";
+
+  llvm::errs() << "\n  BumpPtr: " << BP.getTotalMemory();
+  llvm::errs() << "\n  Macro Expanded Tokens: "
+               << llvm::capacity_in_bytes(MacroExpandedTokens);
+  llvm::errs() << "\n  Predefines Buffer: " << Predefines.capacity();
+  llvm::errs() << "\n  Macros: " << llvm::capacity_in_bytes(Macros);
+  llvm::errs() << "\n  #pragma push_macro Info: "
+               << llvm::capacity_in_bytes(PragmaPushMacroInfo);
+  llvm::errs() << "\n  Poison Reasons: "
+               << llvm::capacity_in_bytes(PoisonReasons);
+  llvm::errs() << "\n  Comment Handlers: "
+               << llvm::capacity_in_bytes(CommentHandlers) << "\n";
 }
 
 Preprocessor::macro_iterator
@@ -514,9 +529,19 @@ void Preprocessor::HandleIdentifier(Token &Identifier) {
 
   // If the information about this identifier is out of date, update it from
   // the external source.
+  // We have to treat __VA_ARGS__ in a special way, since it gets
+  // serialized with isPoisoned = true, but our preprocessor may have
+  // unpoisoned it if we're defining a C99 macro.
   if (II.isOutOfDate()) {
+    bool CurrentIsPoisoned = false;
+    if (&II == Ident__VA_ARGS__)
+      CurrentIsPoisoned = Ident__VA_ARGS__->isPoisoned();
+
     ExternalSource->updateOutOfDateIdentifier(II);
     Identifier.setKind(II.getTokenID());
+
+    if (&II == Ident__VA_ARGS__)
+      II.setIsPoisoned(CurrentIsPoisoned);
   }
   
   // If this identifier was poisoned, and if it was not produced from a macro
@@ -622,14 +647,14 @@ void Preprocessor::LexAfterModuleImport(Token &Result) {
                                      /*IsIncludeDirective=*/false);
 }
 
-void Preprocessor::AddCommentHandler(CommentHandler *Handler) {
+void Preprocessor::addCommentHandler(CommentHandler *Handler) {
   assert(Handler && "NULL comment handler");
   assert(std::find(CommentHandlers.begin(), CommentHandlers.end(), Handler) ==
          CommentHandlers.end() && "Comment handler already registered");
   CommentHandlers.push_back(Handler);
 }
 
-void Preprocessor::RemoveCommentHandler(CommentHandler *Handler) {
+void Preprocessor::removeCommentHandler(CommentHandler *Handler) {
   std::vector<CommentHandler *>::iterator Pos
   = std::find(CommentHandlers.begin(), CommentHandlers.end(), Handler);
   assert(Pos != CommentHandlers.end() && "Comment handler not registered");

@@ -174,6 +174,39 @@
 // CHECK-UBUNTU-11-04: "-L[[SYSROOT]]/lib"
 // CHECK-UBUNTU-11-04: "-L[[SYSROOT]]/usr/lib"
 //
+// Check multi arch support on Ubuntu 12.04 LTS.
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target arm-unknown-linux-gnueabihf \
+// RUN:     --sysroot=%S/Inputs/ubuntu_12.04_LTS_multiarch_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-UBUNTU-12-04-ARM-HF %s
+// CHECK-UBUNTU-12-04-ARM-HF: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-UBUNTU-12-04-ARM-HF: "{{.*}}/usr/lib/gcc/arm-linux-gnueabihf/4.6.3/../../../arm-linux-gnueabihf/crt1.o"
+// CHECK-UBUNTU-12-04-ARM-HF: "{{.*}}/usr/lib/gcc/arm-linux-gnueabihf/4.6.3/../../../arm-linux-gnueabihf/crti.o"
+// CHECK-UBUNTU-12-04-ARM-HF: "{{.*}}/usr/lib/gcc/arm-linux-gnueabihf/4.6.3/crtbegin.o"
+// CHECK-UBUNTU-12-04-ARM-HF: "-L[[SYSROOT]]/usr/lib/gcc/arm-linux-gnueabihf/4.6.3"
+// CHECK-UBUNTU-12-04-ARM-HF: "-L[[SYSROOT]]/usr/lib/gcc/arm-linux-gnueabihf/4.6.3/../../../arm-linux-gnueabihf"
+// CHECK-UBUNTU-12-04-ARM-HF: "-L[[SYSROOT]]/lib/arm-linux-gnueabihf"
+// CHECK-UBUNTU-12-04-ARM-HF: "-L[[SYSROOT]]/usr/lib/arm-linux-gnueabihf"
+// CHECK-UBUNTU-12-04-ARM-HF: "-L[[SYSROOT]]/usr/lib/gcc/arm-linux-gnueabihf/4.6.3/../../.."
+// CHECK-UBUNTU-12-04-ARM-HF: "{{.*}}/usr/lib/gcc/arm-linux-gnueabihf/4.6.3/crtend.o"
+// CHECK-UBUNTU-12-04-ARM-HF: "{{.*}}/usr/lib/gcc/arm-linux-gnueabihf/4.6.3/../../../arm-linux-gnueabihf/crtn.o"
+//
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target arm-unknown-linux-gnueabi \
+// RUN:     --sysroot=%S/Inputs/ubuntu_12.04_LTS_multiarch_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-UBUNTU-12-04-ARM %s
+// CHECK-UBUNTU-12-04-ARM: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-UBUNTU-12-04-ARM: "{{.*}}/usr/lib/gcc/arm-linux-gnueabi/4.6.1/../../../arm-linux-gnueabi/crt1.o"
+// CHECK-UBUNTU-12-04-ARM: "{{.*}}/usr/lib/gcc/arm-linux-gnueabi/4.6.1/../../../arm-linux-gnueabi/crti.o"
+// CHECK-UBUNTU-12-04-ARM: "{{.*}}/usr/lib/gcc/arm-linux-gnueabi/4.6.1/crtbegin.o"
+// CHECK-UBUNTU-12-04-ARM: "-L[[SYSROOT]]/usr/lib/gcc/arm-linux-gnueabi/4.6.1"
+// CHECK-UBUNTU-12-04-ARM: "-L[[SYSROOT]]/usr/lib/gcc/arm-linux-gnueabi/4.6.1/../../../arm-linux-gnueabi"
+// CHECK-UBUNTU-12-04-ARM: "-L[[SYSROOT]]/lib/arm-linux-gnueabi"
+// CHECK-UBUNTU-12-04-ARM: "-L[[SYSROOT]]/usr/lib/arm-linux-gnueabi"
+// CHECK-UBUNTU-12-04-ARM: "-L[[SYSROOT]]/usr/lib/gcc/arm-linux-gnueabi/4.6.1/../../.."
+// CHECK-UBUNTU-12-04-ARM: "{{.*}}/usr/lib/gcc/arm-linux-gnueabi/4.6.1/crtend.o"
+// CHECK-UBUNTU-12-04-ARM: "{{.*}}/usr/lib/gcc/arm-linux-gnueabi/4.6.1/../../../arm-linux-gnueabi/crtn.o"
+//
 // Test the setup that shipped in SUSE 10.3 on ppc64.
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:     -target powerpc64-suse-linux \
@@ -185,6 +218,21 @@
 // CHECK-SUSE-10-3-PPC64: "-L[[SYSROOT]]/usr/lib/gcc/powerpc64-suse-linux/4.1.2/../../../../lib64"
 // CHECK-SUSE-10-3-PPC64: "-L[[SYSROOT]]/lib/../lib64"
 // CHECK-SUSE-10-3-PPC64: "-L[[SYSROOT]]/usr/lib/../lib64"
+//
+// Check dynamic-linker for different archs
+// RUN: %clang %s -### -o %t.o 2>&1 \
+// RUN:     -target arm-linux-gnueabi \
+// RUN:   | FileCheck --check-prefix=CHECK-ARM %s
+// CHECK-ARM: "{{.*}}ld{{(.exe)?}}"
+// CHECK-ARM: "-m" "armelf_linux_eabi"
+// CHECK-ARM: "-dynamic-linker" "{{.*}}/lib/ld-linux.so.3"
+//
+// RUN: %clang %s -### -o %t.o 2>&1 \
+// RUN:     -target arm-linux-gnueabihf \
+// RUN:   | FileCheck --check-prefix=CHECK-ARM-HF %s
+// CHECK-ARM-HF: "{{.*}}ld{{(.exe)?}}"
+// CHECK-ARM-HF: "-m" "armelf_linux_eabi"
+// CHECK-ARM-HF: "-dynamic-linker" "{{.*}}/lib/ld-linux-armhf.so.3"
 //
 // Check that we do not pass --hash-style=gnu and --hash-style=both to linker
 // and provide correct path to the dynamic linker and emulation mode when build
@@ -267,4 +315,86 @@
 // CHECK-DEBIAN-PPC64: "-L[[SYSROOT]]/usr/lib/gcc/powerpc64-linux-gnu/4.5/../../.."
 // CHECK-DEBIAN-PPC64: "-L[[SYSROOT]]/lib"
 // CHECK-DEBIAN-PPC64: "-L[[SYSROOT]]/usr/lib"
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target mips-linux-gnu \
+// RUN:     --sysroot=%S/Inputs/debian_multiarch_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-DEBIAN-MIPS %s
+// CHECK-DEBIAN-MIPS: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-DEBIAN-MIPS: "{{.*}}/usr/lib/gcc/mips-linux-gnu/4.5/crtbegin.o"
+// CHECK-DEBIAN-MIPS: "-L[[SYSROOT]]/usr/lib/gcc/mips-linux-gnu/4.5"
+// CHECK-DEBIAN-MIPS: "-L[[SYSROOT]]/usr/lib/gcc/mips-linux-gnu/4.5/../../../mips-linux-gnu"
+// CHECK-DEBIAN-MIPS: "-L[[SYSROOT]]/usr/lib/mips-linux-gnu"
+// CHECK-DEBIAN-MIPS: "-L[[SYSROOT]]/usr/lib/gcc/mips-linux-gnu/4.5/../../.."
+// CHECK-DEBIAN-MIPS: "-L[[SYSROOT]]/lib"
+// CHECK-DEBIAN-MIPS: "-L[[SYSROOT]]/usr/lib"
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target mipsel-linux-gnu \
+// RUN:     --sysroot=%S/Inputs/debian_multiarch_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-DEBIAN-MIPSEL %s
+// CHECK-DEBIAN-MIPSEL: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-DEBIAN-MIPSEL: "{{.*}}/usr/lib/gcc/mipsel-linux-gnu/4.5/crtbegin.o"
+// CHECK-DEBIAN-MIPSEL: "-L[[SYSROOT]]/usr/lib/gcc/mipsel-linux-gnu/4.5"
+// CHECK-DEBIAN-MIPSEL: "-L[[SYSROOT]]/usr/lib/gcc/mipsel-linux-gnu/4.5/../../../mipsel-linux-gnu"
+// CHECK-DEBIAN-MIPSEL: "-L[[SYSROOT]]/usr/lib/mipsel-linux-gnu"
+// CHECK-DEBIAN-MIPSEL: "-L[[SYSROOT]]/usr/lib/gcc/mipsel-linux-gnu/4.5/../../.."
+// CHECK-DEBIAN-MIPSEL: "-L[[SYSROOT]]/lib"
+// CHECK-DEBIAN-MIPSEL: "-L[[SYSROOT]]/usr/lib"
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target mips64-linux-gnu \
+// RUN:     --sysroot=%S/Inputs/debian_multiarch_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-DEBIAN-MIPS64 %s
+// CHECK-DEBIAN-MIPS64: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-DEBIAN-MIPS64: "{{.*}}/usr/lib/gcc/mips-linux-gnu/4.5/64/crtbegin.o"
+// CHECK-DEBIAN-MIPS64: "-L[[SYSROOT]]/usr/lib/gcc/mips-linux-gnu/4.5/64"
+// CHECK-DEBIAN-MIPS64: "-L[[SYSROOT]]/usr/lib/gcc/mips-linux-gnu/4.5"
+// CHECK-DEBIAN-MIPS64: "-L[[SYSROOT]]/usr/lib/gcc/mips-linux-gnu/4.5/../../.."
+// CHECK-DEBIAN-MIPS64: "-L[[SYSROOT]]/lib"
+// CHECK-DEBIAN-MIPS64: "-L[[SYSROOT]]/usr/lib"
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target mips64el-linux-gnu \
+// RUN:     --sysroot=%S/Inputs/debian_multiarch_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-DEBIAN-MIPS64EL %s
+// CHECK-DEBIAN-MIPS64EL: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-DEBIAN-MIPS64EL: "{{.*}}/usr/lib/gcc/mipsel-linux-gnu/4.5/64/crtbegin.o"
+// CHECK-DEBIAN-MIPS64EL: "-L[[SYSROOT]]/usr/lib/gcc/mipsel-linux-gnu/4.5/64"
+// CHECK-DEBIAN-MIPS64EL: "-L[[SYSROOT]]/usr/lib/gcc/mipsel-linux-gnu/4.5"
+// CHECK-DEBIAN-MIPS64EL: "-L[[SYSROOT]]/usr/lib/gcc/mipsel-linux-gnu/4.5/../../.."
+// CHECK-DEBIAN-MIPS64EL: "-L[[SYSROOT]]/lib"
+// CHECK-DEBIAN-MIPS64EL: "-L[[SYSROOT]]/usr/lib"
 //
+// Test linker invocation on Android.
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target arm-linux-androideabi \
+// RUN:     --sysroot=%S/Inputs/basic_android_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID %s
+// CHECK-ANDROID: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-ANDROID: "{{.*}}/crtbegin_dynamic.o"
+// CHECK-ANDROID: "-L[[SYSROOT]]/usr/lib"
+// CHECK-ANDROID-NOT: "gcc_s"
+// CHECK-ANDROID: "-lgcc"
+// CHECK-ANDROID-NOT: "gcc_s"
+// CHECK-ANDROID: "{{.*}}/crtend_android.o"
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target arm-linux-androideabi \
+// RUN:     --sysroot=%S/Inputs/basic_android_tree \
+// RUN:     -shared \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-SO %s
+// CHECK-ANDROID-SO: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-ANDROID-SO: "{{.*}}/crtbegin_so.o"
+// CHECK-ANDROID-SO: "-L[[SYSROOT]]/usr/lib"
+// CHECK-ANDROID-SO-NOT: "gcc_s"
+// CHECK-ANDROID-SO: "-lgcc"
+// CHECK-ANDROID-SO-NOT: "gcc_s"
+// CHECK-ANDROID-SO: "{{.*}}/crtend_so.o"
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target arm-linux-androideabi \
+// RUN:     --sysroot=%S/Inputs/basic_android_tree \
+// RUN:     -static \
+// RUN:   | FileCheck --check-prefix=CHECK-ANDROID-STATIC %s
+// CHECK-ANDROID-STATIC: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-ANDROID-STATIC: "{{.*}}/crtbegin_static.o"
+// CHECK-ANDROID-STATIC: "-L[[SYSROOT]]/usr/lib"
+// CHECK-ANDROID-STATIC-NOT: "gcc_s"
+// CHECK-ANDROID-STATIC: "-lgcc"
+// CHECK-ANDROID-STATIC-NOT: "gcc_s"
+// CHECK-ANDROID-STATIC: "{{.*}}/crtend_android.o"

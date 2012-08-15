@@ -22,6 +22,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/CallGraph.h"
+#include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/StaticAnalyzer/Frontend/CheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
@@ -57,6 +58,7 @@ STATISTIC(NumFunctionsAnalyzed, "The # of functions analysed (as top level).");
 STATISTIC(NumBlocksInAnalyzedFunctions,
                      "The # of basic blocks in the analyzed functions.");
 STATISTIC(PercentReachableBlocks, "The % of reachable basic blocks.");
+STATISTIC(MaxCFGSize, "The maximum number of basic blocks in a function.");
 
 //===----------------------------------------------------------------------===//
 // Special PathDiagnosticConsumers.
@@ -102,7 +104,7 @@ public:
   /// The local declaration to all declarations ratio might be very small when
   /// working with a PCH file.
   SetOfDecls LocalTUDecls;
-
+                           
   // PD is owned by AnalysisManager.
   PathDiagnosticConsumer *PD;
 
@@ -212,7 +214,6 @@ public:
                                   Opts.AnalysisPurgeOpt, Opts.EagerlyAssume,
                                   Opts.TrimGraph,
                                   Opts.UnoptimizedCFG, Opts.CFGAddImplicitDtors,
-                                  Opts.CFGAddInitializers,
                                   Opts.EagerlyTrimEGraph,
                                   Opts.IPAMode,
                                   Opts.InlineMaxStackDepth,
@@ -230,7 +231,7 @@ public:
 
   /// \brief Build the call graph for all the top level decls of this TU and
   /// use it to define the order in which the functions should be visited.
-  void HandleDeclsGallGraph();
+  void HandleDeclsGallGraph(const unsigned LocalTUDeclsSize);
 
   /// \brief Run analyzes(syntax or path sensitive) on the given function.
   /// \param Mode - determines if we are requesting syntax only or path
@@ -246,6 +247,7 @@ public:
                         SetOfConstDecls *VisitedCallees);
 
   /// Visitors for the RecursiveASTVisitor.
+  bool shouldWalkTypesOfTypeLocs() const { return false; }
 
   /// Handle callbacks for arbitrary Decls.
   bool VisitDecl(Decl *D) {
@@ -306,18 +308,22 @@ void AnalysisConsumer::storeTopLevelDecls(DeclGroupRef DG) {
     if (isa<ObjCMethodDecl>(*I))
       continue;
 
-    LocalTUDecls.insert(*I);
+    LocalTUDecls.push_back(*I);
   }
 }
 
-void AnalysisConsumer::HandleDeclsGallGraph() {
+void AnalysisConsumer::HandleDeclsGallGraph(const unsigned LocalTUDeclsSize) {
   // Otherwise, use the Callgraph to derive the order.
   // Build the Call Graph.
   CallGraph CG;
+
   // Add all the top level declarations to the graph.
-  for (SetOfDecls::iterator I = LocalTUDecls.begin(),
-                            E = LocalTUDecls.end(); I != E; ++I)
-    CG.addToCallGraph(*I);
+  // Note: CallGraph can trigger deserialization of more items from a pch
+  // (though HandleInterestingDecl); triggering additions to LocalTUDecls.
+  // We rely on random access to add the initially processed Decls to CG.
+  for (unsigned i = 0 ; i < LocalTUDeclsSize ; ++i) {
+    CG.addToCallGraph(LocalTUDecls[i]);
+  }
 
   // Find the top level nodes - children of root + the unreachable (parentless)
   // nodes.
@@ -338,11 +344,11 @@ void AnalysisConsumer::HandleDeclsGallGraph() {
   // translation unit. This step is very important for performance. It ensures 
   // that we analyze the root functions before the externally available 
   // subroutines.
-  std::queue<CallGraphNode*> BFSQueue;
+  std::deque<CallGraphNode*> BFSQueue;
   for (llvm::SmallVector<CallGraphNode*, 24>::reverse_iterator
          TI = TopLevelFunctions.rbegin(), TE = TopLevelFunctions.rend();
          TI != TE; ++TI)
-    BFSQueue.push(*TI);
+    BFSQueue.push_back(*TI);
 
   // BFS over all of the functions, while skipping the ones inlined into
   // the previously processed functions. Use external Visited set, which is
@@ -350,7 +356,14 @@ void AnalysisConsumer::HandleDeclsGallGraph() {
   SmallPtrSet<CallGraphNode*,24> Visited;
   while(!BFSQueue.empty()) {
     CallGraphNode *N = BFSQueue.front();
-    BFSQueue.pop();
+    BFSQueue.pop_front();
+
+    // Push the children into the queue.
+    for (CallGraphNode::const_iterator CI = N->begin(),
+         CE = N->end(); CI != CE; ++CI) {
+      if (!Visited.count(*CI))
+        BFSQueue.push_back(*CI);
+    }
 
     // Skip the functions which have been processed already or previously
     // inlined.
@@ -365,19 +378,13 @@ void AnalysisConsumer::HandleDeclsGallGraph() {
                (Mgr->InliningMode == All ? 0 : &VisitedCallees));
 
     // Add the visited callees to the global visited set.
-    for (SetOfConstDecls::const_iterator I = VisitedCallees.begin(),
-                                         E = VisitedCallees.end(); I != E; ++I){
+    for (SetOfConstDecls::iterator I = VisitedCallees.begin(),
+                                   E = VisitedCallees.end(); I != E; ++I) {
       CallGraphNode *VN = CG.getNode(*I);
       if (VN)
         Visited.insert(VN);
     }
     Visited.insert(N);
-
-    // Push the children into the queue.
-    for (CallGraphNode::const_iterator CI = N->begin(),
-                                       CE = N->end(); CI != CE; ++CI) {
-      BFSQueue.push(*CI);
-    }
   }
 }
 
@@ -402,12 +409,18 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
     RecVisitorBR = &BR;
 
     // Process all the top level declarations.
-    for (SetOfDecls::iterator I = LocalTUDecls.begin(),
-                              E = LocalTUDecls.end(); I != E; ++I)
-      TraverseDecl(*I);
+    //
+    // Note: TraverseDecl may modify LocalTUDecls, but only by appending more
+    // entries.  Thus we don't use an iterator, but rely on LocalTUDecls
+    // random access.  By doing so, we automatically compensate for iterators
+    // possibly being invalidated, although this is a bit slower.
+    const unsigned LocalTUDeclsSize = LocalTUDecls.size();
+    for (unsigned i = 0 ; i < LocalTUDeclsSize ; ++i) {
+      TraverseDecl(LocalTUDecls[i]);
+    }
 
     if (Mgr->shouldInlineCall())
-      HandleDeclsGallGraph();
+      HandleDeclsGallGraph(LocalTUDeclsSize);
 
     // After all decls handled, run checkers on the entire TranslationUnit.
     checkerMgr->runCheckersOnEndOfTranslationUnit(TU, *Mgr, BR);
@@ -475,6 +488,12 @@ void AnalysisConsumer::HandleCode(Decl *D, AnalysisMode Mode,
     return;
 
   DisplayFunction(D, Mode);
+  CFG *DeclCFG = Mgr->getCFG(D);
+  if (DeclCFG) {
+    unsigned CFGSize = DeclCFG->size();
+    MaxCFGSize = MaxCFGSize < CFGSize ? CFGSize : MaxCFGSize;
+  }
+
 
   // Clear the AnalysisManager of old AnalysisDeclContexts.
   Mgr->ClearContexts();
@@ -510,6 +529,10 @@ void AnalysisConsumer::ActionExprEngine(Decl *D, bool ObjCGCEnabled,
   if (!Mgr->getCFG(D))
     return;
 
+  // See if the LiveVariables analysis scales.
+  if (!Mgr->getAnalysisDeclContext(D)->getAnalysis<RelaxedLiveVariables>())
+    return;
+
   ExprEngine Eng(*Mgr, ObjCGCEnabled, VisitedCallees, &FunctionSummaries);
 
   // Set the graph auditor.
@@ -520,7 +543,7 @@ void AnalysisConsumer::ActionExprEngine(Decl *D, bool ObjCGCEnabled,
   }
 
   // Execute the worklist algorithm.
-  Eng.ExecuteWorkList(Mgr->getAnalysisDeclContextManager().getStackFrame(D, 0),
+  Eng.ExecuteWorkList(Mgr->getAnalysisDeclContextManager().getStackFrame(D),
                       Mgr->getMaxNodes());
 
   // Release the auditor (if any) so that it doesn't monitor the graph

@@ -57,7 +57,7 @@ namespace bitfield {
   // This could be a bit-field, but would be ill-formed due to the anonymous
   // member being initialized.
   struct S5 {
-    enum E : int { a = 1 } { b = 2 }; // expected-error {{expected member name}}
+    enum E : int { a = 1 } { b = 2 }; // expected-error {{expected ';' after enum}} expected-error {{expected member name}}
   };
   // This could be a bit-field.
   struct S6 {
@@ -85,7 +85,7 @@ namespace trailing_return {
 
   struct S {
     S(int);
-    S *operator()() const;
+    S *operator()(...) const;
     int n;
   };
 
@@ -94,7 +94,9 @@ namespace trailing_return {
       // This parses as a function declaration, but DR1223 makes the presence of
       // 'auto' be used for disambiguation.
       S(a)()->n; // ok, expression; expected-warning{{expression result unused}}
+      S(a)(int())->n; // ok, expression; expected-warning{{expression result unused}}
       auto(a)()->n; // ok, function declaration
+      auto(b)(int())->n; // ok, function declaration
       using T = decltype(a);
       using T = auto() -> n;
     }

@@ -9,14 +9,14 @@
 
 #include "IndexingContext.h"
 
-#include "clang/AST/RecursiveASTVisitor.h"
+#include "RecursiveASTVisitor.h"
 
 using namespace clang;
 using namespace cxindex;
 
 namespace {
 
-class BodyIndexer : public RecursiveASTVisitor<BodyIndexer> {
+class BodyIndexer : public cxindex::RecursiveASTVisitor<BodyIndexer> {
   IndexingContext &IndexCtx;
   const NamedDecl *Parent;
   const DeclContext *ParentDC;
@@ -90,13 +90,19 @@ public:
     return true;
   }
 
-  bool VisitObjCNumericLiteral(ObjCNumericLiteral *E) {
-    if (ObjCMethodDecl *MD = E->getObjCNumericLiteralMethod())
+  bool VisitObjCProtocolExpr(ObjCProtocolExpr *E) {
+    IndexCtx.handleReference(E->getProtocol(), E->getProtocolIdLoc(),
+                             Parent, ParentDC, E, CXIdxEntityRef_Direct);
+    return true;
+  }
+
+  bool VisitObjCBoxedExpr(ObjCBoxedExpr *E) {
+    if (ObjCMethodDecl *MD = E->getBoxingMethod())
       IndexCtx.handleReference(MD, E->getLocStart(),
                                Parent, ParentDC, E, CXIdxEntityRef_Implicit);
     return true;
   }
-
+  
   bool VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
     if (ObjCMethodDecl *MD = E->getDictWithObjectsMethod())
       IndexCtx.handleReference(MD, E->getLocStart(),

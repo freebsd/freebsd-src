@@ -233,7 +233,7 @@ float* intref(const int&);
 
 void intref_test() {
   float* ir1 = intref(5);
-  float* ir2 = intref(5.5); // expected-warning{{implicit conversion turns literal floating-point number into integer}}
+  float* ir2 = intref(5.5); // expected-warning{{implicit conversion from 'double' to 'int' changes value from 5.5 to 5}}
 }
 
 void derived5(C&); // expected-note{{candidate function not viable: cannot bind base class object of type 'A' to derived class reference 'C &' for 1st argument}}
@@ -260,14 +260,12 @@ struct Z : X, Y { };
 int& cvqual_subsume(X&); // expected-note{{candidate function}}
 float& cvqual_subsume(const Y&); // expected-note{{candidate function}}
 
-int& cvqual_subsume2(const X&); // expected-note{{candidate function}}
-float& cvqual_subsume2(const volatile Y&); // expected-note{{candidate function}}
-
-Z get_Z();
+int& cvqual_subsume2(X&); // expected-note{{candidate function}}
+float& cvqual_subsume2(volatile Y&); // expected-note{{candidate function}}
 
 void cvqual_subsume_test(Z z) {
   cvqual_subsume(z); // expected-error{{call to 'cvqual_subsume' is ambiguous}}
-  int& x = cvqual_subsume2(get_Z()); // expected-error{{call to 'cvqual_subsume2' is ambiguous}}
+  cvqual_subsume2(z); // expected-error{{call to 'cvqual_subsume2' is ambiguous}}
 }
 
 // Test overloading with cv-qualification differences in reference
@@ -319,14 +317,20 @@ namespace PR5756 {
 namespace test1 {
   template <class T> void foo(T t, unsigned N); // expected-note {{candidate function [with T = int] not viable: no known conversion from 'const char [6]' to 'unsigned int' for 2nd argument}}
   void foo(int n, char N); // expected-note {{candidate function not viable: no known conversion from 'const char [6]' to 'char' for 2nd argument}} 
-  void foo(int n); // expected-note {{candidate function not viable: requires 1 argument, but 2 were provided}}
-  void foo(unsigned n = 10); // expected-note {{candidate function not viable: requires at most 1 argument, but 2 were provided}}
   void foo(int n, const char *s, int t); // expected-note {{candidate function not viable: requires 3 arguments, but 2 were provided}}
   void foo(int n, const char *s, int t, ...); // expected-note {{candidate function not viable: requires at least 3 arguments, but 2 were provided}}
   void foo(int n, const char *s, int t, int u = 0); // expected-note {{candidate function not viable: requires at least 3 arguments, but 2 were provided}}
 
+  // PR 11857
+  void foo(int n); // expected-note {{candidate function not viable: requires single argument 'n', but 2 arguments were provided}}
+  void foo(unsigned n = 10); // expected-note {{candidate function not viable: allows at most single argument 'n', but 2 arguments were provided}}
+  void bar(int n, int u = 0); // expected-note {{candidate function not viable: requires at least argument 'n', but no arguments were provided}}
+  void baz(int n = 0, int u = 0); // expected-note {{candidate function not viable: requires at most 2 arguments, but 3 were provided}}
+
   void test() {
     foo(4, "hello"); //expected-error {{no matching function for call to 'foo'}}
+    bar(); //expected-error {{no matching function for call to 'bar'}}
+    baz(3, 4, 5); // expected-error {{no matching function for call to 'baz'}}
   }
 }
 
@@ -438,10 +442,10 @@ namespace PR6078 {
 namespace PR6177 {
   struct String { String(char const*); };
 
-  void f(bool const volatile&); // expected-note{{passing argument to parameter here}}
-  void f(String);
+  void f(bool const volatile&);
+  int &f(String);
 
-  void g() { f(""); } // expected-error{{volatile lvalue reference to type 'const volatile bool' cannot bind to a value of unrelated type 'const char [1]'}}
+  void g() { int &r = f(""); }
 }
 
 namespace PR7095 {
@@ -567,4 +571,12 @@ namespace IncompleteArg {
 namespace PR12142 {
   void fun(int (*x)[10]); // expected-note{{candidate function not viable: 1st argument ('const int (*)[10]') would lose const qualifier}}
   void g() { fun((const int(*)[10])0); } // expected-error{{no matching function for call to 'fun'}}
+}
+
+// DR1152: Take 'volatile' into account when handling reference bindings in
+//         overload resolution.
+namespace PR12931 {
+  void f(const int &, ...);
+  void f(const volatile int &, int);
+  void g() { f(0, 0); }
 }

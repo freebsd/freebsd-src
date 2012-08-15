@@ -53,6 +53,14 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     set(LLVM_TABLEGEN_EXE "${PATH_TO_LLVM_BUILD}/bin/Debug/llvm-tblgen${CMAKE_EXECUTABLE_SUFFIX}")
   endif()
 
+  # Define the default arguments to use with 'lit', and an option for the user
+  # to override.
+  set(LIT_ARGS_DEFAULT "-sv")
+  if (MSVC OR XCODE)
+    set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")
+  endif()
+  set(LLVM_LIT_ARGS "${LIT_ARGS_DEFAULT}" CACHE STRING "Default options for lit")
+
   set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
   set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
   set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
@@ -131,6 +139,10 @@ if (APPLE)
   set(CMAKE_MODULE_LINKER_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 endif ()
 
+# libxml2 is an optional dependency, required only to run validation
+# tests on XML output.
+find_package(LibXml2)
+
 configure_file(
   ${CLANG_SOURCE_DIR}/include/clang/Config/config.h.cmake
   ${CLANG_BINARY_DIR}/include/clang/Config/config.h)
@@ -192,20 +204,10 @@ macro(add_clang_library name)
     add_dependencies( ${name} ${LLVM_COMMON_DEPENDS} )
   endif( LLVM_COMMON_DEPENDS )
 
-  target_link_libraries( ${name} ${LLVM_USED_LIBS} )
   llvm_config( ${name} ${LLVM_LINK_COMPONENTS} )
   target_link_libraries( ${name} ${LLVM_COMMON_LIBS} )
   link_system_libs( ${name} )
 
-  add_dependencies(${name} ClangDiagnosticCommon)
-  if(MSVC)
-    get_target_property(cflag ${name} COMPILE_FLAGS)
-    if(NOT cflag)
-      set(cflag "")
-    endif(NOT cflag)
-    set(cflag "${cflag} /Za")
-    set_target_properties(${name} PROPERTIES COMPILE_FLAGS ${cflag})
-  endif(MSVC)
   install(TARGETS ${name}
     LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
     ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX}
@@ -252,13 +254,13 @@ mark_as_advanced(CLANG_EXECUTABLE_VERSION LIBCLANG_LIBRARY_VERSION)
 
 add_subdirectory(utils/TableGen)
 
-option(CLANG_BUILD_EXAMPLES "Build CLANG example programs by default." OFF)
-add_subdirectory(examples)
-
 add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)
 add_subdirectory(runtime)
+
+option(CLANG_BUILD_EXAMPLES "Build CLANG example programs by default." OFF)
+add_subdirectory(examples)
 
 # TODO: docs.
 add_subdirectory(test)
@@ -280,3 +282,4 @@ endif()
 
 set(BUG_REPORT_URL "http://llvm.org/bugs/" CACHE STRING
   "Default URL where bug reports are to be submitted.")
+

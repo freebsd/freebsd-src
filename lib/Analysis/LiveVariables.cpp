@@ -284,6 +284,14 @@ void TransferFunctions::Visit(Stmt *S) {
       }
       break;
     }
+    case Stmt::ObjCMessageExprClass: {
+      // In calls to super, include the implicit "self" pointer as being live.
+      ObjCMessageExpr *CE = cast<ObjCMessageExpr>(S);
+      if (CE->getReceiverKind() == ObjCMessageExpr::SuperInstance)
+        val.liveDecls = LV.DSetFact.add(val.liveDecls,
+                                        LV.analysisContext.getSelfDecl());
+      break;
+    }
     case Stmt::DeclStmtClass: {
       const DeclStmt *DS = cast<DeclStmt>(S);
       if (const VarDecl *VD = dyn_cast<VarDecl>(DS->getSingleDecl())) {
@@ -455,6 +463,12 @@ LiveVariablesImpl::runOnBlock(const CFGBlock *block,
   for (CFGBlock::const_reverse_iterator it = block->rbegin(),
        ei = block->rend(); it != ei; ++it) {
     const CFGElement &elem = *it;
+
+    if (const CFGAutomaticObjDtor *Dtor = dyn_cast<CFGAutomaticObjDtor>(&elem)){
+      val.liveDecls = DSetFact.add(val.liveDecls, Dtor->getVarDecl());
+      continue;
+    }
+
     if (!isa<CFGStmt>(elem))
       continue;
     
@@ -484,6 +498,11 @@ LiveVariables::computeLiveness(AnalysisDeclContext &AC,
   // No CFG?  Bail out.
   CFG *cfg = AC.getCFG();
   if (!cfg)
+    return 0;
+
+  // The analysis currently has scalability issues for very large CFGs.
+  // Bail out if it looks too large.
+  if (cfg->getNumBlockIDs() > 300000)
     return 0;
 
   LiveVariablesImpl *LV = new LiveVariablesImpl(AC, killAtAssign);

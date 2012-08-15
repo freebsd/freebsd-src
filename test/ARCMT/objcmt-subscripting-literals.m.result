@@ -1,12 +1,18 @@
 // RUN: rm -rf %t
 // RUN: %clang_cc1 -objcmt-migrate-literals -objcmt-migrate-subscripting -mt-migrate-directory %t %s -x objective-c -triple x86_64-apple-darwin11 
 // RUN: c-arcmt-test -mt-migrate-directory %t | arcmt-test -verify-transformed-files %s.result
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -x objective-c %s.result
 
 typedef signed char BOOL;
 #define nil ((void*) 0)
 
+typedef const struct __CFString * CFStringRef;
+
 @interface NSObject
 + (id)alloc;
+@end
+
+@protocol NSCopying
 @end
 
 @interface NSString : NSObject
@@ -16,7 +22,10 @@ typedef signed char BOOL;
 
 @interface NSArray : NSObject
 - (id)objectAtIndex:(unsigned long)index;
-- (id)objectAtIndexedSubscript:(int)index;
+@end
+
+@interface NSArray (NSExtendedArray)
+- (id)objectAtIndexedSubscript:(unsigned)idx;
 @end
 
 @interface NSArray (NSArrayCreation)
@@ -29,16 +38,21 @@ typedef signed char BOOL;
 - (id)initWithObjects:(const id [])objects count:(unsigned long)cnt;
 - (id)initWithObjects:(id)firstObj, ...;
 - (id)initWithArray:(NSArray *)array;
-
-- (id)objectAtIndex:(unsigned long)index;
 @end
 
 @interface NSMutableArray : NSArray
 - (void)replaceObjectAtIndex:(unsigned long)index withObject:(id)anObject;
-- (void)setObject:(id)object atIndexedSubscript:(int)index;
+@end
+
+@interface NSMutableArray (NSExtendedMutableArray)
+- (void)setObject:(id)obj atIndexedSubscript:(unsigned)idx;
 @end
 
 @interface NSDictionary : NSObject
+- (id)objectForKey:(id)aKey;
+@end
+
+@interface NSDictionary (NSExtendedDictionary)
 - (id)objectForKeyedSubscript:(id)key;
 @end
 
@@ -54,13 +68,14 @@ typedef signed char BOOL;
 - (id)initWithObjectsAndKeys:(id)firstObject, ...;
 - (id)initWithDictionary:(NSDictionary *)otherDictionary;
 - (id)initWithObjects:(NSArray *)objects forKeys:(NSArray *)keys;
-
-- (id)objectForKey:(id)aKey;
 @end
 
 @interface NSMutableDictionary : NSDictionary
 - (void)setObject:(id)anObject forKey:(id)aKey;
-- (void)setObject:(id)object forKeyedSubscript:(id)key;
+@end
+
+@interface NSMutableDictionary (NSExtendedMutableDictionary)
+- (void)setObject:(id)obj forKeyedSubscript:(id <NSCopying>)key;
 @end
 
 @interface NSNumber : NSObject
@@ -74,7 +89,9 @@ typedef signed char BOOL;
 #define PAIR(x) @#x, [NSNumber numberWithInt:(x)]
 #define TWO(x) ((x), (x))
 
-@interface I
+@interface I {
+  NSArray *ivarArr;
+}
 @end
 @implementation I
 -(void) foo {
@@ -133,5 +150,74 @@ typedef signed char BOOL;
   mdict[dict[@[@"arrkey"]]] = dict[@"key1"];
   __strong NSArray **parr = 0;
   o = (*parr)[2];
+  void *hd;
+  o = ((NSArray*)hd)[2];
+  o = ivarArr[2];
 }
 @end
+
+extern const CFStringRef globStr;
+
+void test1(NSString *str) {
+  NSDictionary *dict = @{(id)globStr: str};
+  dict = @{str: (id)globStr};
+  dict = @{(id)globStr: str};
+  dict = @{str: (id)globStr};
+
+  NSArray *arr = @[(id)globStr, (id)globStr];
+  arr = @[str, (id)globStr];
+  arr = @[(id)globStr, str];
+  arr = @[(id)globStr];
+}
+
+@interface Custom : NSObject
+- (id)objectAtIndex:(unsigned long)index;
+@end
+
+@interface Custom (Extended)
+- (id)objectAtIndexedSubscript:(unsigned)idx;
+@end
+
+@interface MutableCustom : Custom
+- (void)replaceObjectAtIndex:(unsigned long)index withObject:(id)anObject;
+@end
+
+@interface MutableCustom (Extended)
+- (void)setObject:(id)obj atIndexedSubscript:(unsigned)idx;
+@end
+
+@interface CustomUnavail : NSObject
+- (id)objectAtIndex:(unsigned long)index;
+@end
+
+@interface CustomUnavail (Extended)
+- (id)objectAtIndexedSubscript:(unsigned)idx __attribute__((unavailable));
+@end
+
+@interface MutableCustomUnavail : CustomUnavail
+- (void)replaceObjectAtIndex:(unsigned long)index withObject:(id)anObject;
+@end
+
+@interface MutableCustomUnavail (Extended)
+- (void)setObject:(id)obj atIndexedSubscript:(unsigned)idx __attribute__((unavailable));
+@end
+
+void test2() {
+  MutableCustom *mutc;
+  id o = mutc[4];
+  mutc[2] = @"val";
+
+  MutableCustomUnavail *mutcunaval;
+  o = [mutcunaval objectAtIndex:4];
+  [mutcunaval replaceObjectAtIndex:2 withObject:@"val"];
+}
+
+@interface NSLocale : NSObject
++ (id)systemLocale;
++ (id)currentLocale;
+- (id)objectForKey:(id)key;
+@end
+
+void test3(id key) {
+  id o = [[NSLocale currentLocale] objectForKey:key];
+}

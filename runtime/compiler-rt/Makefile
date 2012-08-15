@@ -74,8 +74,8 @@ RuntimeDirs :=
 ifeq ($(OS),Darwin)
 RuntimeDirs += darwin
 RuntimeLibrary.darwin.Configs := \
-	eprintf 10.4 osx ios cc_kext \
-	asan_osx profile_osx profile_ios
+	eprintf 10.4 osx cc_kext \
+	asan_osx profile_osx
 endif
 
 # On Linux, include a library which has all the runtime functions.
@@ -90,7 +90,7 @@ RuntimeLibrary.linux.Configs += \
 endif
 ifeq ($(ARCH),x86_64)
 RuntimeLibrary.linux.Configs += \
-	full-x86_64 profile-x86_64 asan-x86_64
+	full-x86_64 profile-x86_64 asan-x86_64 tsan-x86_64
 endif
 
 endif

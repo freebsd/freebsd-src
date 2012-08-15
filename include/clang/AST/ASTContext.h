@@ -27,6 +27,7 @@
 #include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/CanonicalType.h"
+#include "clang/AST/RawCommentList.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -51,7 +52,6 @@ namespace clang {
   class ASTMutationListener;
   class IdentifierTable;
   class SelectorTable;
-  class SourceManager;
   class TargetInfo;
   class CXXABI;
   // Decls
@@ -79,6 +79,10 @@ namespace clang {
   class UnresolvedSetIterator;
 
   namespace Builtin { class Context; }
+
+  namespace comments {
+    class FullComment;
+  }
 
 /// ASTContext - This class holds long-lived AST nodes (such as types and
 /// decls) that can be referred to throughout the semantic analysis of a file.
@@ -198,10 +202,9 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// \brief The typedef for the __uint128_t type.
   mutable TypedefDecl *UInt128Decl;
   
-  /// BuiltinVaListType - built-in va list type.
-  /// This is initially null and set by Sema::LazilyCreateBuiltin when
-  /// a builtin that takes a valist is encountered.
-  QualType BuiltinVaListType;
+  /// \brief The typedef for the target specific predefined
+  /// __builtin_va_list type.
+  mutable TypedefDecl *BuiltinVaListDecl;
 
   /// \brief The typedef for the predefined 'id' type.
   mutable TypedefDecl *ObjCIdDecl;
@@ -392,6 +395,11 @@ public:
   
   SourceManager& getSourceManager() { return SourceMgr; }
   const SourceManager& getSourceManager() const { return SourceMgr; }
+
+  llvm::BumpPtrAllocator &getAllocator() const {
+    return BumpAlloc;
+  }
+
   void *Allocate(unsigned Size, unsigned Align = 8) const {
     return BumpAlloc.Allocate(Size, Align);
   }
@@ -418,6 +426,85 @@ public:
   FullSourceLoc getFullLoc(SourceLocation Loc) const {
     return FullSourceLoc(Loc,SourceMgr);
   }
+
+  /// \brief All comments in this translation unit.
+  RawCommentList Comments;
+
+  /// \brief True if comments are already loaded from ExternalASTSource.
+  mutable bool CommentsLoaded;
+
+  class RawCommentAndCacheFlags {
+  public:
+    enum Kind {
+      /// We searched for a comment attached to the particular declaration, but
+      /// didn't find any.
+      ///
+      /// getRaw() == 0.
+      NoCommentInDecl = 0,
+
+      /// We have found a comment attached to this particular declaration.
+      ///
+      /// getRaw() != 0.
+      FromDecl,
+
+      /// This declaration does not have an attached comment, and we have
+      /// searched the redeclaration chain.
+      ///
+      /// If getRaw() == 0, the whole redeclaration chain does not have any
+      /// comments.
+      ///
+      /// If getRaw() != 0, it is a comment propagated from other
+      /// redeclaration.
+      FromRedecl
+    };
+
+    Kind getKind() const LLVM_READONLY {
+      return Data.getInt();
+    }
+
+    void setKind(Kind K) {
+      Data.setInt(K);
+    }
+
+    const RawComment *getRaw() const LLVM_READONLY {
+      return Data.getPointer();
+    }
+
+    void setRaw(const RawComment *RC) {
+      Data.setPointer(RC);
+    }
+
+  private:
+    llvm::PointerIntPair<const RawComment *, 2, Kind> Data;
+  };
+
+  /// \brief Mapping from declarations to comments attached to any
+  /// redeclaration.
+  ///
+  /// Raw comments are owned by Comments list.  This mapping is populated
+  /// lazily.
+  mutable llvm::DenseMap<const Decl *, RawCommentAndCacheFlags> RedeclComments;
+
+  /// \brief Return the documentation comment attached to a given declaration,
+  /// without looking into cache.
+  RawComment *getRawCommentForDeclNoCache(const Decl *D) const;
+
+public:
+  RawCommentList &getRawCommentList() {
+    return Comments;
+  }
+
+  void addComment(const RawComment &RC) {
+    Comments.addComment(RC, BumpAlloc);
+  }
+
+  /// \brief Return the documentation comment attached to a given declaration.
+  /// Returns NULL if no comment is attached.
+  const RawComment *getRawCommentForAnyRedecl(const Decl *D) const;
+
+  /// Return parsed documentation comment attached to a given declaration.
+  /// Returns NULL if no comment is attached.
+  comments::FullComment *getCommentForDecl(const Decl *D) const;
 
   /// \brief Retrieve the attributes for the given declaration.
   AttrVec& getDeclAttrs(const Decl *D);
@@ -557,6 +644,7 @@ public:
   CanQualType BoolTy;
   CanQualType CharTy;
   CanQualType WCharTy;  // [C++ 3.9.1p5], integer type in C99.
+  CanQualType WIntTy;   // [C99 7.24.1], integer type unchanged by default promotions.
   CanQualType Char16Ty; // [C++0x 3.9.1p5], integer type in C99.
   CanQualType Char32Ty; // [C++0x 3.9.1p5], integer type in C99.
   CanQualType SignedCharTy, ShortTy, IntTy, LongTy, LongLongTy, Int128Ty;
@@ -574,6 +662,10 @@ public:
   // Types for deductions in C++0x [stmt.ranged]'s desugaring. Built on demand.
   mutable QualType AutoDeductTy;     // Deduction against 'auto'.
   mutable QualType AutoRRefDeductTy; // Deduction against 'auto &&'.
+
+  // Type used to help define __builtin_va_list for some targets.
+  // The type is built when constructing 'BuiltinVaListDecl'.
+  mutable QualType VaListTagTy;
 
   ASTContext(LangOptions& LOpts, SourceManager &SM, const TargetInfo *t,
              IdentifierTable &idents, SelectorTable &sels,
@@ -929,6 +1021,10 @@ public:
   /// Used when in C++, as a GCC extension.
   QualType getUnsignedWCharType() const;
 
+  /// getWIntType - In C99, this returns a type compatible with the type
+  /// defined in <stddef.h> as defined by the target.
+  QualType getWIntType() const { return WIntTy; }
+
   /// getPointerDiffType - Return the unique type for "ptrdiff_t" (C99 7.17)
   /// defined in <stddef.h>. Pointer - pointer requires this (C99 6.5.6p9).
   QualType getPointerDiffType() const;
@@ -1148,8 +1244,19 @@ public:
     return getObjCInterfaceType(getObjCProtocolDecl());
   }
   
-  void setBuiltinVaListType(QualType T);
-  QualType getBuiltinVaListType() const { return BuiltinVaListType; }
+  /// \brief Retrieve the C type declaration corresponding to the predefined
+  /// __builtin_va_list type.
+  TypedefDecl *getBuiltinVaListDecl() const;
+
+  /// \brief Retrieve the type of the __builtin_va_list type.
+  QualType getBuiltinVaListType() const {
+    return getTypeDeclType(getBuiltinVaListDecl());
+  }
+
+  /// \brief Retrieve the C type declaration corresponding to the predefined
+  /// __va_list_tag type used to help define the __builtin_va_list type for
+  /// some targets.
+  QualType getVaListTagType() const;
 
   /// getCVRQualifiedType - Returns a type with additional const,
   /// volatile, or restrict qualifiers.
@@ -1210,10 +1317,10 @@ public:
                                         const TemplateArgument &ArgPack) const;
   
   enum GetBuiltinTypeError {
-    GE_None,              //< No error
-    GE_Missing_stdio,     //< Missing a type from <stdio.h>
-    GE_Missing_setjmp,    //< Missing a type from <setjmp.h>
-    GE_Missing_ucontext   //< Missing a type from <ucontext.h>
+    GE_None,              ///< No error
+    GE_Missing_stdio,     ///< Missing a type from <stdio.h>
+    GE_Missing_setjmp,    ///< Missing a type from <setjmp.h>
+    GE_Missing_ucontext   ///< Missing a type from <ucontext.h>
   };
 
   /// GetBuiltinType - Return the type for the specified builtin.  If 
@@ -1440,15 +1547,11 @@ public:
 
   /// \brief Retrieves the default calling convention to use for
   /// C++ instance methods.
-  CallingConv getDefaultMethodCallConv();
+  CallingConv getDefaultCXXMethodCallConv(bool isVariadic);
 
   /// \brief Retrieves the canonical representation of the given
   /// calling convention.
-  CallingConv getCanonicalCallConv(CallingConv CC) const {
-    if (!LangOpts.MRTD && CC == CC_C)
-      return CC_Default;
-    return CC;
-  }
+  CallingConv getCanonicalCallConv(CallingConv CC) const;
 
   /// \brief Determines whether two calling conventions name the same
   /// calling convention.
@@ -1463,7 +1566,7 @@ public:
   /// be used to refer to a given template. For most templates, this
   /// expression is just the template declaration itself. For example,
   /// the template std::vector can be referred to via a variety of
-  /// names---std::vector, ::std::vector, vector (if vector is in
+  /// names---std::vector, \::std::vector, vector (if vector is in
   /// scope), etc.---but all of these names map down to the same
   /// TemplateDecl, which is used to form the canonical template name.
   ///
@@ -1523,12 +1626,12 @@ public:
   /// This routine adjusts the given parameter type @p T to the actual
   /// parameter type used by semantic analysis (C99 6.7.5.3p[7,8],
   /// C++ [dcl.fct]p3). The adjusted parameter type is returned.
-  QualType getAdjustedParameterType(QualType T);
+  QualType getAdjustedParameterType(QualType T) const;
   
   /// \brief Retrieve the parameter type as adjusted for use in the signature
   /// of a function, decaying array and function types and removing top-level
   /// cv-qualifiers.
-  QualType getSignatureParameterType(QualType T);
+  QualType getSignatureParameterType(QualType T) const;
   
   /// getArrayDecayedType - Return the properly qualified result of decaying the
   /// specified array type to a pointer.  This operation is non-trivial when
@@ -1700,7 +1803,7 @@ public:
   /// \brief Get the implementation of ObjCCategoryDecl, or NULL if none exists.
   ObjCCategoryImplDecl   *getObjCImplementation(ObjCCategoryDecl *D);
 
-  /// \brief returns true if there is at lease one @implementation in TU.
+  /// \brief returns true if there is at least one \@implementation in TU.
   bool AnyObjCImplementation() {
     return !ObjCImpls.empty();
   }
@@ -1716,15 +1819,12 @@ public:
   /// interface, or null if non exists.
   const ObjCMethodDecl *getObjCMethodRedeclaration(
                                                const ObjCMethodDecl *MD) const {
-    llvm::DenseMap<const ObjCMethodDecl*, const ObjCMethodDecl*>::const_iterator
-      I = ObjCMethodRedecls.find(MD);
-    if (I == ObjCMethodRedecls.end())
-      return 0;
-    return I->second;
+    return ObjCMethodRedecls.lookup(MD);
   }
 
   void setObjCMethodRedeclaration(const ObjCMethodDecl *MD,
                                   const ObjCMethodDecl *Redecl) {
+    assert(!getObjCMethodRedeclaration(MD) && "MD already has a redeclaration");
     ObjCMethodRedecls[MD] = Redecl;
   }
 

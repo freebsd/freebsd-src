@@ -95,37 +95,6 @@ void HTMLDiagnostics::FlushDiagnosticsImpl(
   }
 }
 
-static void flattenPath(PathPieces &primaryPath, PathPieces &currentPath,
-                        const PathPieces &oldPath) {
-  for (PathPieces::const_iterator it = oldPath.begin(), et = oldPath.end();
-       it != et; ++it ) {
-    PathDiagnosticPiece *piece = it->getPtr();
-    if (const PathDiagnosticCallPiece *call =
-        dyn_cast<PathDiagnosticCallPiece>(piece)) {
-      IntrusiveRefCntPtr<PathDiagnosticEventPiece> callEnter =
-        call->getCallEnterEvent();
-      if (callEnter)
-        currentPath.push_back(callEnter);
-      flattenPath(primaryPath, primaryPath, call->path);
-      IntrusiveRefCntPtr<PathDiagnosticEventPiece> callExit =
-        call->getCallExitEvent();
-      if (callExit)
-        currentPath.push_back(callExit);
-      continue;
-    }
-    if (PathDiagnosticMacroPiece *macro =
-        dyn_cast<PathDiagnosticMacroPiece>(piece)) {
-      currentPath.push_back(piece);
-      PathPieces newPath;
-      flattenPath(primaryPath, newPath, macro->subPieces);
-      macro->subPieces = newPath;
-      continue;
-    }
-    
-    currentPath.push_back(piece);
-  }
-}
-
 void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
                                  SmallVectorImpl<std::string> *FilesMade) {
     
@@ -152,8 +121,7 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
     return;
 
   // First flatten out the entire path to make it easier to use.
-  PathPieces path;
-  flattenPath(path, path, D.path);
+  PathPieces path = D.path.flatten(/*ShouldFlattenMacros=*/false);
 
   // The path as already been prechecked that all parts of the path are
   // from the same file and that it is non-empty.
@@ -428,6 +396,15 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
     os << "<div class=\"PathIndex";
     if (Kind) os << " PathIndex" << Kind;
     os << "\">" << num << "</div>";
+
+    if (num > 1) {
+      os << "</td><td><div class=\"PathNav\"><a href=\"#Path"
+         << (num - 1)
+         << "\" title=\"Previous event ("
+         << (num - 1)
+         << ")\">&#x2190;</a></div></td>";
+    }
+
     os << "</td><td>";
   }
 
@@ -441,9 +418,10 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
       FullSourceLoc L = MP->getLocation().asLocation().getExpansionLoc();
       assert(L.isFileID());
       StringRef BufferInfo = L.getBufferData();
-      const char* MacroName = L.getDecomposedLoc().second + BufferInfo.data();
-      Lexer rawLexer(L, PP.getLangOpts(), BufferInfo.begin(),
-                     MacroName, BufferInfo.end());
+      std::pair<FileID, unsigned> LocInfo = L.getDecomposedLoc();
+      const char* MacroName = LocInfo.second + BufferInfo.data();
+      Lexer rawLexer(SM.getLocForStartOfFile(LocInfo.first), PP.getLangOpts(),
+                     BufferInfo.begin(), MacroName, BufferInfo.end());
 
       Token TheTok;
       rawLexer.LexFromRawLexer(TheTok);
@@ -453,8 +431,21 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
     os << "':\n";
 
-    if (max > 1)
-      os << "</td></tr></table>";
+    if (max > 1) {
+      os << "</td>";
+      if (num < max) {
+        os << "<td><div class=\"PathNav\"><a href=\"#";
+        if (num == max - 1)
+          os << "EndPath";
+        else
+          os << "Path" << (num + 1);
+        os << "\" title=\"Next event ("
+        << (num + 1)
+        << ")\">&#x2192;</a></div></td>";
+      }
+
+      os << "</tr></table>";
+    }
 
     // Within a macro piece.  Write out each event.
     ProcessMacroPiece(os, *MP, 0);
@@ -462,8 +453,21 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
   else {
     os << html::EscapeText(P.getString());
 
-    if (max > 1)
-      os << "</td></tr></table>";
+    if (max > 1) {
+      os << "</td>";
+      if (num < max) {
+        os << "<td><div class=\"PathNav\"><a href=\"#";
+        if (num == max - 1)
+          os << "EndPath";
+        else
+          os << "Path" << (num + 1);
+        os << "\" title=\"Next event ("
+           << (num + 1)
+           << ")\">&#x2192;</a></div></td>";
+      }
+      
+      os << "</tr></table>";
+    }
   }
 
   os << "</div></td></tr>";

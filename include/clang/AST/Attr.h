@@ -1,4 +1,4 @@
-//===--- Attr.h - Classes for representing expressions ----------*- C++ -*-===//
+//===--- Attr.h - Classes for representing attributes ----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -147,14 +147,12 @@ public:
 typedef SmallVector<Attr*, 2> AttrVec;
 typedef SmallVector<const Attr*, 2> ConstAttrVec;
 
-/// DestroyAttrs - Destroy the contents of an AttrVec.
-inline void DestroyAttrs (AttrVec& V, ASTContext &C) {
-}
-
 /// specific_attr_iterator - Iterates over a subrange of an AttrVec, only
 /// providing attributes that are of a specifc type.
-template <typename SpecificAttr>
+template <typename SpecificAttr, typename Container = AttrVec>
 class specific_attr_iterator {
+  typedef typename Container::const_iterator Iterator;
+
   /// Current - The current, underlying iterator.
   /// In order to ensure we don't dereference an invalid iterator unless
   /// specifically requested, we don't necessarily advance this all the
@@ -162,14 +160,14 @@ class specific_attr_iterator {
   /// operation is acting on what should be a past-the-end iterator,
   /// then we offer no guarantees, but this way we do not dererence a
   /// past-the-end iterator when we move to a past-the-end position.
-  mutable AttrVec::const_iterator Current;
+  mutable Iterator Current;
 
   void AdvanceToNext() const {
     while (!isa<SpecificAttr>(*Current))
       ++Current;
   }
 
-  void AdvanceToNext(AttrVec::const_iterator I) const {
+  void AdvanceToNext(Iterator I) const {
     while (Current != I && !isa<SpecificAttr>(*Current))
       ++Current;
   }
@@ -182,7 +180,7 @@ public:
   typedef std::ptrdiff_t            difference_type;
 
   specific_attr_iterator() : Current() { }
-  explicit specific_attr_iterator(AttrVec::const_iterator i) : Current(i) { }
+  explicit specific_attr_iterator(Iterator i) : Current(i) { }
 
   reference operator*() const {
     AdvanceToNext();
@@ -217,23 +215,27 @@ public:
   }
 };
 
-template <typename T>
-inline specific_attr_iterator<T> specific_attr_begin(const AttrVec& vec) {
-  return specific_attr_iterator<T>(vec.begin());
+template <typename SpecificAttr, typename Container>
+inline specific_attr_iterator<SpecificAttr, Container>
+          specific_attr_begin(const Container& container) {
+  return specific_attr_iterator<SpecificAttr, Container>(container.begin());
 }
-template <typename T>
-inline specific_attr_iterator<T> specific_attr_end(const AttrVec& vec) {
-  return specific_attr_iterator<T>(vec.end());
+template <typename SpecificAttr, typename Container>
+inline specific_attr_iterator<SpecificAttr, Container>
+          specific_attr_end(const Container& container) {
+  return specific_attr_iterator<SpecificAttr, Container>(container.end());
 }
 
-template <typename T>
-inline bool hasSpecificAttr(const AttrVec& vec) {
-  return specific_attr_begin<T>(vec) != specific_attr_end<T>(vec);
+template <typename SpecificAttr, typename Container>
+inline bool hasSpecificAttr(const Container& container) {
+  return specific_attr_begin<SpecificAttr>(container) !=
+          specific_attr_end<SpecificAttr>(container);
 }
-template <typename T>
-inline T *getSpecificAttr(const AttrVec& vec) {
-  specific_attr_iterator<T> i = specific_attr_begin<T>(vec);
-  if (i != specific_attr_end<T>(vec))
+template <typename SpecificAttr, typename Container>
+inline SpecificAttr *getSpecificAttr(const Container& container) {
+  specific_attr_iterator<SpecificAttr, Container> i =
+      specific_attr_begin<SpecificAttr>(container);
+  if (i != specific_attr_end<SpecificAttr>(container))
     return *i;
   else
     return 0;

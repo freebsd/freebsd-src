@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/DeclCXX.h"
 #include <algorithm>
@@ -96,7 +97,7 @@ bool CXXRecordDecl::isDerivedFrom(const CXXRecordDecl *Base,
                        Paths);
 }
 
-bool CXXRecordDecl::isVirtuallyDerivedFrom(CXXRecordDecl *Base) const {
+bool CXXRecordDecl::isVirtuallyDerivedFrom(const CXXRecordDecl *Base) const {
   if (!getNumVBases())
     return false;
 
@@ -106,8 +107,12 @@ bool CXXRecordDecl::isVirtuallyDerivedFrom(CXXRecordDecl *Base) const {
   if (getCanonicalDecl() == Base->getCanonicalDecl())
     return false;
   
-  Paths.setOrigin(const_cast<CXXRecordDecl*>(this));  
-  return lookupInBases(&FindVirtualBaseClass, Base->getCanonicalDecl(), Paths);
+  Paths.setOrigin(const_cast<CXXRecordDecl*>(this));
+
+  const void *BasePtr = static_cast<const void*>(Base->getCanonicalDecl());
+  return lookupInBases(&FindVirtualBaseClass,
+                       const_cast<void *>(BasePtr),
+                       Paths);
 }
 
 static bool BaseIsNot(const CXXRecordDecl *Base, void *OpaqueTarget) {
@@ -160,7 +165,7 @@ bool CXXRecordDecl::forallBases(ForallBasesCallback *BaseMatches,
   return AllMatches;
 }
 
-bool CXXBasePaths::lookupInBases(ASTContext &Context, 
+bool CXXBasePaths::lookupInBases(ASTContext &Context,
                                  const CXXRecordDecl *Record,
                                CXXRecordDecl::BaseMatchesCallback *BaseMatches, 
                                  void *UserData) {
@@ -505,12 +510,17 @@ void FinalOverriderCollector::Collect(const CXXRecordDecl *RD,
       CXXFinalOverriderMap *BaseOverriders = &ComputedBaseOverriders;
       if (Base->isVirtual()) {
         CXXFinalOverriderMap *&MyVirtualOverriders = VirtualOverriders[BaseDecl];
+        BaseOverriders = MyVirtualOverriders;
         if (!MyVirtualOverriders) {
           MyVirtualOverriders = new CXXFinalOverriderMap;
+
+          // Collect may cause VirtualOverriders to reallocate, invalidating the
+          // MyVirtualOverriders reference. Set BaseOverriders to the right
+          // value now.
+          BaseOverriders = MyVirtualOverriders;
+
           Collect(BaseDecl, true, BaseDecl, *MyVirtualOverriders);
         }
-
-        BaseOverriders = MyVirtualOverriders;
       } else
         Collect(BaseDecl, false, InVirtualSubobject, ComputedBaseOverriders);
 

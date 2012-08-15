@@ -155,7 +155,7 @@ bool FixItRecompile::BeginInvocation(CompilerInstance &CI) {
 ASTConsumer *RewriteObjCAction::CreateASTConsumer(CompilerInstance &CI,
                                                   StringRef InFile) {
   if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile, "cpp")) {
-    if (CI.getLangOpts().ObjCNonFragileABI)
+    if (CI.getLangOpts().ObjCRuntime.isNonFragile())
       return CreateModernObjCRewriter(InFile, OS,
                                 CI.getDiagnostics(), CI.getLangOpts(),
                                 CI.getDiagnosticOpts().NoRewriteMacros);
@@ -180,4 +180,13 @@ void RewriteTestAction::ExecuteAction() {
   if (!OS) return;
 
   DoRewriteTest(CI.getPreprocessor(), OS);
+}
+
+void RewriteIncludesAction::ExecuteAction() {
+  CompilerInstance &CI = getCompilerInstance();
+  raw_ostream *OS = CI.createDefaultOutputFile(true, getCurrentFile());
+  if (!OS) return;
+
+  RewriteIncludesInInput(CI.getPreprocessor(), OS,
+                         CI.getPreprocessorOutputOpts());
 }

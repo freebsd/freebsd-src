@@ -41,8 +41,6 @@ class AnalysisManager : public BugReporterData {
 
   CheckerManager *CheckerMgr;
 
-  enum AnalysisScope { ScopeTU, ScopeDecl } AScope;
-
   /// \brief The maximum number of exploded nodes the analyzer will generate.
   unsigned MaxNodes;
 
@@ -93,7 +91,7 @@ public:
                   bool vizdot, bool vizubi, AnalysisPurgeMode purge,
                   bool eager, bool trim,
                   bool useUnoptimizedCFG,
-                  bool addImplicitDtors, bool addInitializers,
+                  bool addImplicitDtors,
                   bool eagerlyTrimEGraph,
                   AnalysisIPAMode ipa,
                   unsigned inlineMaxStack,
@@ -171,7 +169,7 @@ public:
 
   bool shouldEagerlyAssume() const { return EagerlyAssume; }
 
-  bool shouldInlineCall() const { return (IPAMode == Inlining); }
+  bool shouldInlineCall() const { return (IPAMode != None); }
 
   CFG *getCFG(Decl const *D) {
     return AnaCtxMgr.getContext(D)->getCFG();
@@ -188,10 +186,6 @@ public:
 
   AnalysisDeclContext *getAnalysisDeclContext(const Decl *D) {
     return AnaCtxMgr.getContext(D);
-  }
-
-  AnalysisDeclContext *getAnalysisDeclContext(const Decl *D, idx::TranslationUnit *TU) {
-    return AnaCtxMgr.getContext(D, TU);
   }
 
 };

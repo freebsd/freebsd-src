@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/IdentifierTable.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
@@ -22,6 +23,21 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 //  Child Iterators for iterating over subexpressions/substatements
 //===----------------------------------------------------------------------===//
+
+bool CXXTypeidExpr::isPotentiallyEvaluated() const {
+  if (isTypeOperand())
+    return false;
+
+  // C++11 [expr.typeid]p3:
+  //   When typeid is applied to an expression other than a glvalue of
+  //   polymorphic class type, [...] the expression is an unevaluated operand.
+  const Expr *E = getExprOperand();
+  if (const CXXRecordDecl *RD = E->getType()->getAsCXXRecordDecl())
+    if (RD->isPolymorphic() && E->isGLValue())
+      return true;
+
+  return false;
+}
 
 QualType CXXTypeidExpr::getTypeOperand() const {
   assert(isTypeOperand() && "Cannot call getTypeOperand for typeid(expr)");
@@ -126,13 +142,6 @@ SourceLocation CXXNewExpr::getEndLoc() const {
 // CXXDeleteExpr
 QualType CXXDeleteExpr::getDestroyedType() const {
   const Expr *Arg = getArgument();
-  while (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(Arg)) {
-    if (ICE->getCastKind() != CK_UserDefinedConversion &&
-        ICE->getType()->isVoidPointerType())
-      Arg = ICE->getSubExpr();
-    else
-      break;
-  }
   // The type-to-delete may not be a pointer if it's a dependent type.
   const QualType ArgType = Arg->getType();
 
@@ -268,6 +277,7 @@ OverloadExpr::OverloadExpr(StmtClass K, ASTContext &C,
           isa<UnresolvedUsingValueDecl>(*I)) {
         ExprBits.TypeDependent = true;
         ExprBits.ValueDependent = true;
+        ExprBits.InstantiationDependent = true;
       }
     }
 
@@ -415,37 +425,37 @@ SourceRange CXXConstructExpr::getSourceRange() const {
   return SourceRange(Loc, End);
 }
 
-SourceRange CXXOperatorCallExpr::getSourceRange() const {
+SourceRange CXXOperatorCallExpr::getSourceRangeImpl() const {
   OverloadedOperatorKind Kind = getOperator();
   if (Kind == OO_PlusPlus || Kind == OO_MinusMinus) {
     if (getNumArgs() == 1)
       // Prefix operator
-      return SourceRange(getOperatorLoc(),
-                         getArg(0)->getSourceRange().getEnd());
+      return SourceRange(getOperatorLoc(), getArg(0)->getLocEnd());
     else
       // Postfix operator
-      return SourceRange(getArg(0)->getSourceRange().getBegin(),
-                         getOperatorLoc());
+      return SourceRange(getArg(0)->getLocStart(), getOperatorLoc());
   } else if (Kind == OO_Arrow) {
     return getArg(0)->getSourceRange();
   } else if (Kind == OO_Call) {
-    return SourceRange(getArg(0)->getSourceRange().getBegin(), getRParenLoc());
+    return SourceRange(getArg(0)->getLocStart(), getRParenLoc());
   } else if (Kind == OO_Subscript) {
-    return SourceRange(getArg(0)->getSourceRange().getBegin(), getRParenLoc());
+    return SourceRange(getArg(0)->getLocStart(), getRParenLoc());
   } else if (getNumArgs() == 1) {
-    return SourceRange(getOperatorLoc(), getArg(0)->getSourceRange().getEnd());
+    return SourceRange(getOperatorLoc(), getArg(0)->getLocEnd());
   } else if (getNumArgs() == 2) {
-    return SourceRange(getArg(0)->getSourceRange().getBegin(),
-                       getArg(1)->getSourceRange().getEnd());
+    return SourceRange(getArg(0)->getLocStart(), getArg(1)->getLocEnd());
   } else {
-    return SourceRange();
+    return getOperatorLoc();
   }
 }
 
 Expr *CXXMemberCallExpr::getImplicitObjectArgument() const {
-  if (const MemberExpr *MemExpr = 
-        dyn_cast<MemberExpr>(getCallee()->IgnoreParens()))
+  const Expr *Callee = getCallee()->IgnoreParens();
+  if (const MemberExpr *MemExpr = dyn_cast<MemberExpr>(Callee))
     return MemExpr->getBase();
+  if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(Callee))
+    if (BO->getOpcode() == BO_PtrMemD || BO->getOpcode() == BO_PtrMemI)
+      return BO->getLHS();
 
   // FIXME: Will eventually need to cope with member pointers.
   return 0;
@@ -461,7 +471,7 @@ CXXMethodDecl *CXXMemberCallExpr::getMethodDecl() const {
 }
 
 
-CXXRecordDecl *CXXMemberCallExpr::getRecordDecl() {
+CXXRecordDecl *CXXMemberCallExpr::getRecordDecl() const {
   Expr* ThisArg = getImplicitObjectArgument();
   if (!ThisArg)
     return 0;
@@ -555,6 +565,9 @@ bool CXXDynamicCastExpr::isAlwaysNull() const
     SrcType = SrcPTy->getPointeeType();
     DestType = DestType->castAs<PointerType>()->getPointeeType();
   }
+
+  if (DestType->isVoidType())
+    return false;
 
   const CXXRecordDecl *SrcRD = 
     cast<CXXRecordDecl>(SrcType->castAs<RecordType>()->getDecl());
@@ -796,10 +809,11 @@ LambdaExpr::LambdaExpr(QualType T,
                        ArrayRef<Expr *> CaptureInits,
                        ArrayRef<VarDecl *> ArrayIndexVars,
                        ArrayRef<unsigned> ArrayIndexStarts,
-                       SourceLocation ClosingBrace)
+                       SourceLocation ClosingBrace,
+                       bool ContainsUnexpandedParameterPack)
   : Expr(LambdaExprClass, T, VK_RValue, OK_Ordinary,
          T->isDependentType(), T->isDependentType(), T->isDependentType(),
-         /*ContainsUnexpandedParameterPack=*/false),
+         ContainsUnexpandedParameterPack),
     IntroducerRange(IntroducerRange),
     NumCaptures(Captures.size()),
     CaptureDefault(CaptureDefault),
@@ -856,7 +870,8 @@ LambdaExpr *LambdaExpr::Create(ASTContext &Context,
                                ArrayRef<Expr *> CaptureInits,
                                ArrayRef<VarDecl *> ArrayIndexVars,
                                ArrayRef<unsigned> ArrayIndexStarts,
-                               SourceLocation ClosingBrace) {
+                               SourceLocation ClosingBrace,
+                               bool ContainsUnexpandedParameterPack) {
   // Determine the type of the expression (i.e., the type of the
   // function object we're creating).
   QualType T = Context.getTypeDeclType(Class);
@@ -869,7 +884,7 @@ LambdaExpr *LambdaExpr::Create(ASTContext &Context,
   return new (Mem) LambdaExpr(T, IntroducerRange, CaptureDefault, 
                               Captures, ExplicitParams, ExplicitResultType,
                               CaptureInits, ArrayIndexVars, ArrayIndexStarts,
-                              ClosingBrace);
+                              ClosingBrace, ContainsUnexpandedParameterPack);
 }
 
 LambdaExpr *LambdaExpr::CreateDeserialized(ASTContext &C, unsigned NumCaptures,
@@ -944,7 +959,7 @@ CompoundStmt *LambdaExpr::getBody() const {
 }
 
 bool LambdaExpr::isMutable() const {
-  return (getCallOperator()->getTypeQualifiers() & Qualifiers::Const) == 0;
+  return !getCallOperator()->isConst();
 }
 
 ExprWithCleanups::ExprWithCleanups(Expr *subexpr,

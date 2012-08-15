@@ -126,21 +126,24 @@ struct Q {
 
 // A silly class used to demonstrate field-is-uninitialized in constructors with
 // multiple params.
+int IntParam(int i) { return 0; };
 class TwoInOne { public: TwoInOne(TwoInOne a, TwoInOne b) {} };
 class InitializeUsingSelfTest {
   bool A;
   char* B;
   int C;
   TwoInOne D;
-  InitializeUsingSelfTest(int E)
+  int E;
+  InitializeUsingSelfTest(int F)
       : A(A),  // expected-warning {{field is uninitialized when used here}}
         B((((B)))),  // expected-warning {{field is uninitialized when used here}}
         C(A && InitializeUsingSelfTest::C),  // expected-warning {{field is uninitialized when used here}}
         D(D,  // expected-warning {{field is uninitialized when used here}}
-          D) {}  // expected-warning {{field is uninitialized when used here}}
+          D), // expected-warning {{field is uninitialized when used here}}
+        E(IntParam(E)) {} // expected-warning {{field is uninitialized when used here}}
 };
 
-int IntWrapper(int i) { return 0; };
+int IntWrapper(int &i) { return 0; };
 class InitializeUsingSelfExceptions {
   int A;
   int B;
@@ -229,13 +232,13 @@ namespace PR7402 {
 // <rdar://problem/8308215>: don't crash.
 // Lots of questionable recovery here;  errors can change.
 namespace test3 {
-  class A : public std::exception {}; // expected-error {{undeclared identifier}} expected-error {{expected class name}} expected-note 3 {{candidate}} expected-note {{passing argument}}
+  class A : public std::exception {}; // expected-error {{undeclared identifier}} expected-error {{expected class name}} expected-note 2 {{candidate}}
   class B : public A {
   public:
     B(const String& s, int e=0) // expected-error {{unknown type name}} 
       : A(e), m_String(s) , m_ErrorStr(__null) {} // expected-error {{no matching constructor}} expected-error {{does not name}}
     B(const B& e)
-      : A(e), m_String(e.m_String), m_ErrorStr(__null) { // expected-error {{no viable conversion}} expected-error {{does not name}}
+      : A(e), m_String(e.m_String), m_ErrorStr(__null) { // expected-error {{does not name}} expected-error {{no member named 'm_String' in 'test3::B'}}
     }
   };
 }

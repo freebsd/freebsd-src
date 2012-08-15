@@ -19,8 +19,8 @@
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/StmtIterator.h"
 #include "clang/AST/DeclGroup.h"
-#include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
+#include "clang/Lex/Token.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
@@ -37,9 +37,11 @@ namespace clang {
   class ParmVarDecl;
   class QualType;
   class IdentifierInfo;
+  class LabelDecl;
   class SourceManager;
   class StringLiteral;
   class SwitchStmt;
+  class VarDecl;
 
   //===--------------------------------------------------------------------===//
   // ExprIterator - Iterators for iterating over Stmt* arrays that contain
@@ -499,6 +501,14 @@ public:
   decl_iterator decl_end() { return DG.end(); }
   const_decl_iterator decl_begin() const { return DG.begin(); }
   const_decl_iterator decl_end() const { return DG.end(); }
+
+  typedef std::reverse_iterator<decl_iterator> reverse_decl_iterator;
+  reverse_decl_iterator decl_rbegin() {
+    return reverse_decl_iterator(decl_end());
+  }
+  reverse_decl_iterator decl_rend() {
+    return reverse_decl_iterator(decl_begin());
+  }
 };
 
 /// NullStmt - This is the null statement ";": C99 6.8.3p3.
@@ -545,20 +555,13 @@ class CompoundStmt : public Stmt {
   Stmt** Body;
   SourceLocation LBracLoc, RBracLoc;
 public:
-  CompoundStmt(ASTContext& C, Stmt **StmtStart, unsigned NumStmts,
-               SourceLocation LB, SourceLocation RB)
-  : Stmt(CompoundStmtClass), LBracLoc(LB), RBracLoc(RB) {
-    CompoundStmtBits.NumStmts = NumStmts;
-    assert(CompoundStmtBits.NumStmts == NumStmts &&
-           "NumStmts doesn't fit in bits of CompoundStmtBits.NumStmts!");
+  CompoundStmt(ASTContext &C, Stmt **StmtStart, unsigned NumStmts,
+               SourceLocation LB, SourceLocation RB);
 
-    if (NumStmts == 0) {
-      Body = 0;
-      return;
-    }
-
-    Body = new (C) Stmt*[NumStmts];
-    memcpy(Body, StmtStart, NumStmts * sizeof(*Body));
+  // \brief Build an empty compound statment with a location.
+  explicit CompoundStmt(SourceLocation Loc)
+    : Stmt(CompoundStmtClass), Body(0), LBracLoc(Loc), RBracLoc(Loc) {
+    CompoundStmtBits.NumStmts = 0;
   }
 
   // \brief Build an empty compound statement.
@@ -803,24 +806,32 @@ public:
 class AttributedStmt : public Stmt {
   Stmt *SubStmt;
   SourceLocation AttrLoc;
-  AttrVec Attrs;
-  // TODO: It can be done as Attr *Attrs[1]; and variable size array as in
-  // StringLiteral
+  unsigned NumAttrs;
+  const Attr *Attrs[1];
 
   friend class ASTStmtReader;
 
-public:
-  AttributedStmt(SourceLocation loc, const AttrVec &attrs, Stmt *substmt)
-    : Stmt(AttributedStmtClass), SubStmt(substmt), AttrLoc(loc), Attrs(attrs) {
+  AttributedStmt(SourceLocation Loc, ArrayRef<const Attr*> Attrs, Stmt *SubStmt)
+    : Stmt(AttributedStmtClass), SubStmt(SubStmt), AttrLoc(Loc),
+      NumAttrs(Attrs.size()) {
+    memcpy(this->Attrs, Attrs.data(), Attrs.size() * sizeof(Attr*));
   }
 
-  // \brief Build an empty attributed statement.
-  explicit AttributedStmt(EmptyShell Empty)
-    : Stmt(AttributedStmtClass, Empty) {
+  explicit AttributedStmt(EmptyShell Empty, unsigned NumAttrs)
+    : Stmt(AttributedStmtClass, Empty), NumAttrs(NumAttrs) {
+    memset(Attrs, 0, NumAttrs * sizeof(Attr*));
   }
+
+public:
+  static AttributedStmt *Create(ASTContext &C, SourceLocation Loc,
+                                ArrayRef<const Attr*> Attrs, Stmt *SubStmt);
+  // \brief Build an empty attributed statement.
+  static AttributedStmt *CreateEmpty(ASTContext &C, unsigned NumAttrs);
 
   SourceLocation getAttrLoc() const { return AttrLoc; }
-  const AttrVec &getAttrs() const { return Attrs; }
+  ArrayRef<const Attr*> getAttrs() const {
+    return ArrayRef<const Attr*>(Attrs, NumAttrs);
+  }
   Stmt *getSubStmt() { return SubStmt; }
   const Stmt *getSubStmt() const { return SubStmt; }
 
@@ -1603,6 +1614,69 @@ public:
 
   child_range children() {
     return child_range(&Exprs[0], &Exprs[0] + NumOutputs + NumInputs);
+  }
+};
+
+/// MSAsmStmt - This represents a MS inline-assembly statement extension.
+///
+class MSAsmStmt : public Stmt {
+  SourceLocation AsmLoc, EndLoc;
+  std::string AsmStr;
+
+  bool IsSimple;
+  bool IsVolatile;
+
+  unsigned NumAsmToks;
+  unsigned NumLineEnds;
+  unsigned NumClobbers;
+
+  Token *AsmToks;
+  unsigned *LineEnds;
+  Stmt **Exprs;
+  StringRef *Clobbers;
+
+public:
+  MSAsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple,
+            bool isvolatile, ArrayRef<Token> asmtoks,
+            ArrayRef<unsigned> lineends, StringRef asmstr,
+            ArrayRef<StringRef> clobbers, SourceLocation endloc);
+
+  SourceLocation getAsmLoc() const { return AsmLoc; }
+  void setAsmLoc(SourceLocation L) { AsmLoc = L; }
+  SourceLocation getEndLoc() const { return EndLoc; }
+  void setEndLoc(SourceLocation L) { EndLoc = L; }
+
+  unsigned getNumAsmToks() { return NumAsmToks; }
+  Token *getAsmToks() { return AsmToks; }
+  unsigned getNumLineEnds() { return NumLineEnds; }
+  unsigned *getLineEnds() { return LineEnds; }
+
+  bool isVolatile() const { return IsVolatile; }
+  void setVolatile(bool V) { IsVolatile = V; }
+  bool isSimple() const { return IsSimple; }
+  void setSimple(bool V) { IsSimple = V; }
+
+  //===--- Asm String Analysis ---===//
+
+  const std::string *getAsmString() const { return &AsmStr; }
+  std::string *getAsmString() { return &AsmStr; }
+  void setAsmString(StringRef &E) { AsmStr = E.str(); }
+
+  //===--- Other ---===//
+
+  unsigned getNumClobbers() const { return NumClobbers; }
+  StringRef getClobber(unsigned i) { return Clobbers[i]; }
+
+  SourceRange getSourceRange() const LLVM_READONLY {
+    return SourceRange(AsmLoc, EndLoc);
+  }
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == MSAsmStmtClass;
+  }
+  static bool classof(const MSAsmStmt *) { return true; }
+
+  child_range children() {
+    return child_range(&Exprs[0], &Exprs[0]);
   }
 };
 

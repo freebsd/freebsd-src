@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -Wreadonly-setter-attrs -verify %s
+// RUN: %clang_cc1 -fsyntax-only -Wno-objc-root-class -Wreadonly-setter-attrs -verify %s
 
 @protocol P0
 @property(readonly,assign) id X; // expected-warning {{property attributes 'readonly' and 'assign' are mutually exclusive}}
@@ -29,4 +29,39 @@
 @end
 
 
+// rdar://11656982
+@interface I0 <P0> @end
+@implementation I0 
+@synthesize X;
+@end
+
+@interface I1 <P1> @end
+@implementation I1 
+@synthesize X;
+@end
+
+@interface I2 <P2> @end
+@implementation I2 
+@synthesize X;
+@end
+
+@interface I3 <P3> @end
+@implementation I3 
+@synthesize X;
+@end
+
+@interface I4 <P4> @end
+@implementation I4 
+@synthesize X;
+@end
+
+@interface I5 <P5> @end
+@implementation I5 
+@synthesize X;
+@end
+
+@interface I6 <P6> @end
+@implementation I6 
+@synthesize X;
+@end
 

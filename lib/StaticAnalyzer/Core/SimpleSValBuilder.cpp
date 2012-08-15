@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 
@@ -106,9 +107,7 @@ SVal SimpleSValBuilder::evalCastFromNonLoc(NonLoc val, QualType castTy) {
     return UnknownVal();
 
   llvm::APSInt i = cast<nonloc::ConcreteInt>(val).getValue();
-  i.setIsUnsigned(castTy->isUnsignedIntegerOrEnumerationType() || 
-                  Loc::isLocType(castTy));
-  i = i.extOrTrunc(Context.getTypeSize(castTy));
+  BasicVals.getAPSIntType(castTy).apply(i);
 
   if (isLocType)
     return makeIntLocVal(i);
@@ -139,9 +138,7 @@ SVal SimpleSValBuilder::evalCastFromLoc(Loc val, QualType castTy) {
       return makeLocAsInteger(val, BitWidth);
 
     llvm::APSInt i = cast<loc::ConcreteInt>(val).getValue();
-    i.setIsUnsigned(castTy->isUnsignedIntegerOrEnumerationType() || 
-                    Loc::isLocType(castTy));
-    i = i.extOrTrunc(BitWidth);
+    BasicVals.getAPSIntType(castTy).apply(i);
     return makeIntVal(i);
   }
 
@@ -272,14 +269,40 @@ SVal SimpleSValBuilder::MakeSymIntVal(const SymExpr *LHS,
       return evalCastFromNonLoc(nonloc::SymbolVal(LHS), resultTy);
 
   // If we reach this point, the expression cannot be simplified.
-  // Make a SymbolVal for the entire expression.
-  return makeNonLoc(LHS, op, RHS, resultTy);
+  // Make a SymbolVal for the entire expression, after converting the RHS.
+  const llvm::APSInt *ConvertedRHS = &RHS;
+  if (BinaryOperator::isComparisonOp(op)) {
+    // We're looking for a type big enough to compare the symbolic value
+    // with the given constant.
+    // FIXME: This is an approximation of Sema::UsualArithmeticConversions.
+    ASTContext &Ctx = getContext();
+    QualType SymbolType = LHS->getType(Ctx);
+    uint64_t ValWidth = RHS.getBitWidth();
+    uint64_t TypeWidth = Ctx.getTypeSize(SymbolType);
+
+    if (ValWidth < TypeWidth) {
+      // If the value is too small, extend it.
+      ConvertedRHS = &BasicVals.Convert(SymbolType, RHS);
+    } else if (ValWidth == TypeWidth) {
+      // If the value is signed but the symbol is unsigned, do the comparison
+      // in unsigned space. [C99 6.3.1.8]
+      // (For the opposite case, the value is already unsigned.)
+      if (RHS.isSigned() && !SymbolType->isSignedIntegerOrEnumerationType())
+        ConvertedRHS = &BasicVals.Convert(SymbolType, RHS);
+    }
+  } else
+    ConvertedRHS = &BasicVals.Convert(resultTy, RHS);
+
+  return makeNonLoc(LHS, op, *ConvertedRHS, resultTy);
 }
 
 SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
                                   BinaryOperator::Opcode op,
                                   NonLoc lhs, NonLoc rhs,
                                   QualType resultTy)  {
+  NonLoc InputLHS = lhs;
+  NonLoc InputRHS = rhs;
+
   // Handle trivial case where left-side and right-side are the same.
   if (lhs == rhs)
     switch (op) {
@@ -304,7 +327,7 @@ SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
   while (1) {
     switch (lhs.getSubKind()) {
     default:
-      return makeGenericVal(state, op, lhs, rhs, resultTy);
+      return makeSymExprValNN(state, op, lhs, rhs, resultTy);
     case nonloc::LocAsIntegerKind: {
       Loc lhsL = cast<nonloc::LocAsInteger>(lhs).getLoc();
       switch (rhs.getSubKind()) {
@@ -315,8 +338,7 @@ SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
         case nonloc::ConcreteIntKind: {
           // Transform the integer into a location and compare.
           llvm::APSInt i = cast<nonloc::ConcreteInt>(rhs).getValue();
-          i.setIsUnsigned(true);
-          i = i.extOrTrunc(Context.getTypeSize(Context.VoidPtrTy));
+          BasicVals.getAPSIntType(Context.VoidPtrTy).apply(i);
           return evalBinOpLL(state, op, lhsL, makeLoc(i), resultTy);
         }
         default:
@@ -327,86 +349,78 @@ SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
               return makeTruthVal(true, resultTy);
             default:
               // This case also handles pointer arithmetic.
-              return makeGenericVal(state, op, lhs, rhs, resultTy);
+              return makeSymExprValNN(state, op, InputLHS, InputRHS, resultTy);
           }
       }
     }
     case nonloc::ConcreteIntKind: {
-      const nonloc::ConcreteInt& lhsInt = cast<nonloc::ConcreteInt>(lhs);
+      llvm::APSInt LHSValue = cast<nonloc::ConcreteInt>(lhs).getValue();
 
-      // Is the RHS a symbol we can simplify?
-      // FIXME: This was mostly copy/pasted from the LHS-is-a-symbol case.
-      if (const nonloc::SymbolVal *srhs = dyn_cast<nonloc::SymbolVal>(&rhs)) {
-        SymbolRef RSym = srhs->getSymbol();
-        if (RSym->getType(Context)->isIntegerType()) {
-          if (const llvm::APSInt *Constant = state->getSymVal(RSym)) {
-            // The symbol evaluates to a constant.
-            const llvm::APSInt *rhs_I;
-            if (BinaryOperator::isRelationalOp(op))
-              rhs_I = &BasicVals.Convert(lhsInt.getValue(), *Constant);
-            else
-              rhs_I = &BasicVals.Convert(resultTy, *Constant);
-
-            rhs = nonloc::ConcreteInt(*rhs_I);
-          }
+      // If we're dealing with two known constants, just perform the operation.
+      if (const llvm::APSInt *KnownRHSValue = getKnownValue(state, rhs)) {
+        llvm::APSInt RHSValue = *KnownRHSValue;
+        if (BinaryOperator::isComparisonOp(op)) {
+          // We're looking for a type big enough to compare the two values.
+          // FIXME: This is not correct. char + short will result in a promotion
+          // to int. Unfortunately we have lost types by this point.
+          APSIntType CompareType = std::max(APSIntType(LHSValue),
+                                            APSIntType(RHSValue));
+          CompareType.apply(LHSValue);
+          CompareType.apply(RHSValue);
+        } else if (!BinaryOperator::isShiftOp(op)) {
+          APSIntType IntType = BasicVals.getAPSIntType(resultTy);
+          IntType.apply(LHSValue);
+          IntType.apply(RHSValue);
         }
+
+        const llvm::APSInt *Result =
+          BasicVals.evalAPSInt(op, LHSValue, RHSValue);
+        if (!Result)
+          return UndefinedVal();
+
+        return nonloc::ConcreteInt(*Result);
       }
 
-      if (isa<nonloc::ConcreteInt>(rhs)) {
-        return lhsInt.evalBinOp(*this, op, cast<nonloc::ConcreteInt>(rhs));
-      } else {
-        const llvm::APSInt& lhsValue = lhsInt.getValue();
-        
-        // Swap the left and right sides and flip the operator if doing so
-        // allows us to better reason about the expression (this is a form
-        // of expression canonicalization).
-        // While we're at it, catch some special cases for non-commutative ops.
-        NonLoc tmp = rhs;
-        rhs = lhs;
-        lhs = tmp;
-
-        switch (op) {
-          case BO_LT:
-          case BO_GT:
-          case BO_LE:
-          case BO_GE:
-            op = ReverseComparison(op);
-            continue;
-          case BO_EQ:
-          case BO_NE:
-          case BO_Add:
-          case BO_Mul:
-          case BO_And:
-          case BO_Xor:
-          case BO_Or:
-            continue;
-          case BO_Shr:
-            if (lhsValue.isAllOnesValue() && lhsValue.isSigned())
-              // At this point lhs and rhs have been swapped.
-              return rhs;
-            // FALL-THROUGH
-          case BO_Shl:
-            if (lhsValue == 0)
-              // At this point lhs and rhs have been swapped.
-              return rhs;
-            return makeGenericVal(state, op, rhs, lhs, resultTy);
-          default:
-            return makeGenericVal(state, op, rhs, lhs, resultTy);
-        }
+      // Swap the left and right sides and flip the operator if doing so
+      // allows us to better reason about the expression (this is a form
+      // of expression canonicalization).
+      // While we're at it, catch some special cases for non-commutative ops.
+      switch (op) {
+      case BO_LT:
+      case BO_GT:
+      case BO_LE:
+      case BO_GE:
+        op = ReverseComparison(op);
+        // FALL-THROUGH
+      case BO_EQ:
+      case BO_NE:
+      case BO_Add:
+      case BO_Mul:
+      case BO_And:
+      case BO_Xor:
+      case BO_Or:
+        std::swap(lhs, rhs);
+        continue;
+      case BO_Shr:
+        // (~0)>>a
+        if (LHSValue.isAllOnesValue() && LHSValue.isSigned())
+          return evalCastFromNonLoc(lhs, resultTy);
+        // FALL-THROUGH
+      case BO_Shl:
+        // 0<<a and 0>>a
+        if (LHSValue == 0)
+          return evalCastFromNonLoc(lhs, resultTy);
+        return makeSymExprValNN(state, op, InputLHS, InputRHS, resultTy);
+      default:
+        return makeSymExprValNN(state, op, InputLHS, InputRHS, resultTy);
       }
     }
     case nonloc::SymbolValKind: {
-      nonloc::SymbolVal *selhs = cast<nonloc::SymbolVal>(&lhs);
+      // We only handle LHS as simple symbols or SymIntExprs.
+      SymbolRef Sym = cast<nonloc::SymbolVal>(lhs).getSymbol();
 
       // LHS is a symbolic expression.
-      if (selhs->isExpression()) {
-
-        // Only handle LHS of the form "$sym op constant", at least for now.
-        const SymIntExpr *symIntExpr =
-            dyn_cast<SymIntExpr>(selhs->getSymbol());
-
-        if (!symIntExpr)
-          return makeGenericVal(state, op, lhs, rhs, resultTy);
+      if (const SymIntExpr *symIntExpr = dyn_cast<SymIntExpr>(Sym)) {
 
         // Is this a logical not? (!x is represented as x == 0.)
         if (op == BO_EQ && rhs.isZeroConstant()) {
@@ -452,95 +466,57 @@ SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
         }
 
         // For now, only handle expressions whose RHS is a constant.
-        const nonloc::ConcreteInt *rhsInt = dyn_cast<nonloc::ConcreteInt>(&rhs);
-        if (!rhsInt)
-          return makeGenericVal(state, op, lhs, rhs, resultTy);
+        if (const llvm::APSInt *RHSValue = getKnownValue(state, rhs)) {
+          // If both the LHS and the current expression are additive,
+          // fold their constants and try again.
+          if (BinaryOperator::isAdditiveOp(op)) {
+            BinaryOperator::Opcode lop = symIntExpr->getOpcode();
+            if (BinaryOperator::isAdditiveOp(lop)) {
+              // Convert the two constants to a common type, then combine them.
 
-        // If both the LHS and the current expression are additive,
-        // fold their constants.
-        if (BinaryOperator::isAdditiveOp(op)) {
-          BinaryOperator::Opcode lop = symIntExpr->getOpcode();
-          if (BinaryOperator::isAdditiveOp(lop)) {
-            // resultTy may not be the best type to convert to, but it's
-            // probably the best choice in expressions with mixed type
-            // (such as x+1U+2LL). The rules for implicit conversions should
-            // choose a reasonable type to preserve the expression, and will
-            // at least match how the value is going to be used.
-            const llvm::APSInt &first =
-                BasicVals.Convert(resultTy, symIntExpr->getRHS());
-            const llvm::APSInt &second =
-                BasicVals.Convert(resultTy, rhsInt->getValue());
-            const llvm::APSInt *newRHS;
-            if (lop == op)
-              newRHS = BasicVals.evalAPSInt(BO_Add, first, second);
-            else
-              newRHS = BasicVals.evalAPSInt(BO_Sub, first, second);
-            return MakeSymIntVal(symIntExpr->getLHS(), lop, *newRHS, resultTy);
+              // resultTy may not be the best type to convert to, but it's
+              // probably the best choice in expressions with mixed type
+              // (such as x+1U+2LL). The rules for implicit conversions should
+              // choose a reasonable type to preserve the expression, and will
+              // at least match how the value is going to be used.
+              APSIntType IntType = BasicVals.getAPSIntType(resultTy);
+              const llvm::APSInt &first = IntType.convert(symIntExpr->getRHS());
+              const llvm::APSInt &second = IntType.convert(*RHSValue);
+
+              const llvm::APSInt *newRHS;
+              if (lop == op)
+                newRHS = BasicVals.evalAPSInt(BO_Add, first, second);
+              else
+                newRHS = BasicVals.evalAPSInt(BO_Sub, first, second);
+
+              assert(newRHS && "Invalid operation despite common type!");
+              rhs = nonloc::ConcreteInt(*newRHS);
+              lhs = nonloc::SymbolVal(symIntExpr->getLHS());
+              op = lop;
+              continue;
+            }
           }
+
+          // Otherwise, make a SymIntExpr out of the expression.
+          return MakeSymIntVal(symIntExpr, op, *RHSValue, resultTy);
         }
 
-        // Otherwise, make a SymbolVal out of the expression.
-        return MakeSymIntVal(symIntExpr, op, rhsInt->getValue(), resultTy);
 
-      // LHS is a simple symbol (not a symbolic expression).
-      } else {
-        nonloc::SymbolVal *slhs = cast<nonloc::SymbolVal>(&lhs);
-        SymbolRef Sym = slhs->getSymbol();
-        QualType lhsType = Sym->getType(Context);
-
-        // The conversion type is usually the result type, but not in the case
-        // of relational expressions.
-        QualType conversionType = resultTy;
-        if (BinaryOperator::isRelationalOp(op))
-          conversionType = lhsType;
-
+      } else if (isa<SymbolData>(Sym)) {
         // Does the symbol simplify to a constant?  If so, "fold" the constant
         // by setting 'lhs' to a ConcreteInt and try again.
-        if (lhsType->isIntegerType())
-          if (const llvm::APSInt *Constant = state->getSymVal(Sym)) {
-            // The symbol evaluates to a constant. If necessary, promote the
-            // folded constant (LHS) to the result type.
-            const llvm::APSInt &lhs_I = BasicVals.Convert(conversionType,
-                *Constant);
-            lhs = nonloc::ConcreteInt(lhs_I);
-
-            // Also promote the RHS (if necessary).
-
-            // For shifts, it is not necessary to promote the RHS.
-            if (BinaryOperator::isShiftOp(op))
-              continue;
-
-            // Other operators: do an implicit conversion.  This shouldn't be
-            // necessary once we support truncation/extension of symbolic values.
-            if (nonloc::ConcreteInt *rhs_I = dyn_cast<nonloc::ConcreteInt>(&rhs)){
-              rhs = nonloc::ConcreteInt(BasicVals.Convert(conversionType,
-                  rhs_I->getValue()));
-            }
-
-            continue;
-          }
-
-        // Is the RHS a symbol we can simplify?
-        if (const nonloc::SymbolVal *srhs = dyn_cast<nonloc::SymbolVal>(&rhs)) {
-          SymbolRef RSym = srhs->getSymbol();
-          if (RSym->getType(Context)->isIntegerType()) {
-            if (const llvm::APSInt *Constant = state->getSymVal(RSym)) {
-              // The symbol evaluates to a constant.
-              const llvm::APSInt &rhs_I = BasicVals.Convert(conversionType,
-                  *Constant);
-              rhs = nonloc::ConcreteInt(rhs_I);
-            }
-          }
+        if (const llvm::APSInt *Constant = state->getSymVal(Sym)) {
+          lhs = nonloc::ConcreteInt(*Constant);
+          continue;
         }
 
-        if (isa<nonloc::ConcreteInt>(rhs)) {
-          return MakeSymIntVal(slhs->getSymbol(), op,
-              cast<nonloc::ConcreteInt>(rhs).getValue(),
-              resultTy);
-        }
-
-        return makeGenericVal(state, op, lhs, rhs, resultTy);
+        // Is the RHS a constant?
+        if (const llvm::APSInt *RHSValue = getKnownValue(state, rhs))
+          return MakeSymIntVal(Sym, op, *RHSValue, resultTy);
       }
+
+      // Give up -- this is not a symbolic expression we can handle.
+      return makeSymExprValNN(state, op, InputLHS, InputRHS, resultTy);
     }
     }
   }
@@ -697,11 +673,18 @@ SVal SimpleSValBuilder::evalBinOpLL(ProgramStateRef state,
       // regions, though.
       return UnknownVal();
 
-    // If both values wrap regions, see if they're from different base regions.
+    const MemSpaceRegion *LeftMS = LeftMR->getMemorySpace();
+    const MemSpaceRegion *RightMS = RightMR->getMemorySpace();
+    const MemSpaceRegion *UnknownMS = MemMgr.getUnknownRegion();
     const MemRegion *LeftBase = LeftMR->getBaseRegion();
     const MemRegion *RightBase = RightMR->getBaseRegion();
-    if (LeftBase != RightBase &&
-        !isa<SymbolicRegion>(LeftBase) && !isa<SymbolicRegion>(RightBase)) {
+
+    // If the two regions are from different known memory spaces they cannot be
+    // equal. Also, assume that no symbolic region (whose memory space is
+    // unknown) is on the stack.
+    if (LeftMS != RightMS &&
+        ((LeftMS != UnknownMS && RightMS != UnknownMS) ||
+         (isa<StackSpaceRegion>(LeftMS) || isa<StackSpaceRegion>(RightMS)))) {
       switch (op) {
       default:
         return UnknownVal();
@@ -712,24 +695,20 @@ SVal SimpleSValBuilder::evalBinOpLL(ProgramStateRef state,
       }
     }
 
-    // The two regions are from the same base region. See if they're both a
-    // type of region we know how to compare.
-    const MemSpaceRegion *LeftMS = LeftBase->getMemorySpace();
-    const MemSpaceRegion *RightMS = RightBase->getMemorySpace();
-
-    // Heuristic: assume that no symbolic region (whose memory space is
-    // unknown) is on the stack.
-    // FIXME: we should be able to be more precise once we can do better
-    // aliasing constraints for symbolic regions, but this is a reasonable,
-    // albeit unsound, assumption that holds most of the time.
-    if (isa<StackSpaceRegion>(LeftMS) ^ isa<StackSpaceRegion>(RightMS)) {
+    // If both values wrap regions, see if they're from different base regions.
+    // Note, heap base symbolic regions are assumed to not alias with
+    // each other; for example, we assume that malloc returns different address
+    // on each invocation.
+    if (LeftBase != RightBase &&
+        ((!isa<SymbolicRegion>(LeftBase) && !isa<SymbolicRegion>(RightBase)) ||
+         (isa<HeapSpaceRegion>(LeftMS) || isa<HeapSpaceRegion>(RightMS))) ){
       switch (op) {
-        default:
-          break;
-        case BO_EQ:
-          return makeTruthVal(false, resultTy);
-        case BO_NE:
-          return makeTruthVal(true, resultTy);
+      default:
+        return UnknownVal();
+      case BO_EQ:
+        return makeTruthVal(false, resultTy);
+      case BO_NE:
+        return makeTruthVal(true, resultTy);
       }
     }
 
@@ -885,6 +864,7 @@ SVal SimpleSValBuilder::evalBinOpLN(ProgramStateRef state,
         return evalBinOpLL(state, op, lhs, loc::ConcreteInt(*x), resultTy);
       }
     }
+    return UnknownVal();
   }
   
   // We are dealing with pointer arithmetic.

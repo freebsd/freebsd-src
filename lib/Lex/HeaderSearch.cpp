@@ -84,7 +84,7 @@ void HeaderSearch::PrintStats() {
 }
 
 /// CreateHeaderMap - This method returns a HeaderMap for the specified
-/// FileEntry, uniquing them through the the 'HeaderMaps' datastructure.
+/// FileEntry, uniquing them through the 'HeaderMaps' datastructure.
 const HeaderMap *HeaderSearch::CreateHeaderMap(const FileEntry *FE) {
   // We expect the number of headermaps to be small, and almost always empty.
   // If it ever grows, use of a linear search should be re-evaluated.
@@ -390,10 +390,10 @@ void HeaderSearch::setTarget(const TargetInfo &Target) {
 //===----------------------------------------------------------------------===//
 
 
-/// LookupFile - Given a "foo" or <foo> reference, look up the indicated file,
+/// LookupFile - Given a "foo" or \<foo> reference, look up the indicated file,
 /// return null on failure.  isAngled indicates whether the file reference is
-/// for system #include's or not (i.e. using <> instead of "").  CurFileEnt, if
-/// non-null, indicates where the #including file is, in case a relative search
+/// for system \#include's or not (i.e. using <> instead of "").  CurFileEnt, if
+/// non-null, indicates where the \#including file is, in case a relative search
 /// is needed.
 const FileEntry *HeaderSearch::LookupFile(
     StringRef Filename,
@@ -442,11 +442,19 @@ const FileEntry *HeaderSearch::LookupFile(
       // Leave CurDir unset.
       // This file is a system header or C++ unfriendly if the old file is.
       //
-      // Note that the temporary 'DirInfo' is required here, as either call to
-      // getFileInfo could resize the vector and we don't want to rely on order
-      // of evaluation.
-      unsigned DirInfo = getFileInfo(CurFileEnt).DirInfo;
-      getFileInfo(FE).DirInfo = DirInfo;
+      // Note that we only use one of FromHFI/ToHFI at once, due to potential
+      // reallocation of the underlying vector potentially making the first
+      // reference binding dangling.
+      HeaderFileInfo &FromHFI = getFileInfo(CurFileEnt);
+      unsigned DirInfo = FromHFI.DirInfo;
+      bool IndexHeaderMapHeader = FromHFI.IndexHeaderMapHeader;
+      StringRef Framework = FromHFI.Framework;
+
+      HeaderFileInfo &ToHFI = getFileInfo(FE);
+      ToHFI.DirInfo = DirInfo;
+      ToHFI.IndexHeaderMapHeader = IndexHeaderMapHeader;
+      ToHFI.Framework = Framework;
+
       if (SearchPath != NULL) {
         StringRef SearchPathRef(CurFileEnt->getDir()->getName());
         SearchPath->clear();
@@ -510,6 +518,16 @@ const FileEntry *HeaderSearch::LookupFile(
     if (HFI.DirInfo == SrcMgr::C_User && InUserSpecifiedSystemFramework)
       HFI.DirInfo = SrcMgr::C_System;
 
+    // If the filename matches a known system header prefix, override
+    // whether the file is a system header.
+    for (unsigned j = SystemHeaderPrefixes.size(); j; --j) {
+      if (Filename.startswith(SystemHeaderPrefixes[j-1].first)) {
+        HFI.DirInfo = SystemHeaderPrefixes[j-1].second ? SrcMgr::C_System
+                                                       : SrcMgr::C_User;
+        break;
+      }
+    }
+
     // If this file is found in a header map and uses the framework style of
     // includes, then this header is part of a framework we're building.
     if (CurDir->isIndexHeaderMap()) {
@@ -556,7 +574,7 @@ const FileEntry *HeaderSearch::LookupFile(
 }
 
 /// LookupSubframeworkHeader - Look up a subframework for the specified
-/// #include file.  For example, if #include'ing <HIToolbox/HIToolbox.h> from
+/// \#include file.  For example, if \#include'ing <HIToolbox/HIToolbox.h> from
 /// within ".../Carbon.framework/Headers/Carbon.h", check to see if HIToolbox
 /// is a subframework within Carbon.framework.  If so, return the FileEntry
 /// for the designated file, otherwise return null.
@@ -739,9 +757,6 @@ void HeaderSearch::setHeaderFileInfoForUID(HeaderFileInfo HFI, unsigned UID) {
   FileInfo[UID] = HFI;
 }
 
-/// ShouldEnterIncludeFile - Mark the specified file as a target of of a
-/// #include, #include_next, or #import directive.  Return false if #including
-/// the file will have no effect or true if we should include it.
 bool HeaderSearch::ShouldEnterIncludeFile(const FileEntry *File, bool isImport){
   ++NumIncluded; // Count # of attempted #includes.
 
@@ -1032,4 +1047,3 @@ void HeaderSearch::collectAllModules(llvm::SmallVectorImpl<Module *> &Modules) {
     Modules.push_back(M->getValue());
   }
 }
-

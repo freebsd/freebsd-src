@@ -1,7 +1,15 @@
 // RUN: %clang_cc1 -fsyntax-only -std=c++11 -Wc++98-compat -verify %s
 // RUN: %clang_cc1 -fsyntax-only -std=c++11 %s
 
-namespace std { struct type_info; }
+namespace std {
+  struct type_info;
+  using size_t = decltype(sizeof(0)); // expected-warning {{decltype}} expected-warning {{alias}}
+  template<typename T> struct initializer_list {
+    initializer_list(T*, size_t);
+    T *p;
+    size_t n;
+  };
+}
 
 template<typename ...T>  // expected-warning {{variadic templates are incompatible with C++98}}
 class Variadic1 {};
@@ -39,6 +47,14 @@ void Lambda() {
   []{}(); // expected-warning {{lambda expressions are incompatible with C++98}}
 }
 
+struct Ctor {
+  Ctor(int, char);
+  Ctor(double, long);
+};
+struct InitListCtor {
+  InitListCtor(std::initializer_list<bool>);
+};
+
 int InitList(int i = {}) { // expected-warning {{generalized initializer lists are incompatible with C++98}} \
                            // expected-warning {{scalar initialized from empty initializer list is incompatible with C++98}}
   (void)new int {}; // expected-warning {{generalized initializer lists are incompatible with C++98}} \
@@ -48,6 +64,14 @@ int InitList(int i = {}) { // expected-warning {{generalized initializer lists a
   int x { 0 }; // expected-warning {{generalized initializer lists are incompatible with C++98}}
   S<int> s = {}; // ok, aggregate
   s = {}; // expected-warning {{generalized initializer lists are incompatible with C++98}}
+  std::initializer_list<int> xs = { 1, 2, 3 }; // expected-warning {{initialization of initializer_list object is incompatible with C++98}}
+  auto ys = { 1, 2, 3 }; // expected-warning {{initialization of initializer_list object is incompatible with C++98}} \
+                         // expected-warning {{'auto' type specifier is incompatible with C++98}}
+  Ctor c1 = { 1, 2 }; // expected-warning {{constructor call from initializer list is incompatible with C++98}}
+  Ctor c2 = { 3.0, 4l }; // expected-warning {{constructor call from initializer list is incompatible with C++98}}
+  InitListCtor ilc = { true, false }; // expected-warning {{initialization of initializer_list object is incompatible with C++98}}
+  const int &r = { 0 }; // expected-warning {{reference initialized from initializer list is incompatible with C++98}}
+  struct { int a; const int &r; } rr = { 0, {{0}} }; // expected-warning {{reference initialized from initializer list is incompatible with C++98}}
   return { 0 }; // expected-warning {{generalized initializer lists are incompatible with C++98}}
 }
 struct DelayedDefaultArgumentParseInitList {
@@ -302,4 +326,39 @@ namespace NonTypeTemplateArgs {
   static void f() {} // expected-note {{here}}
   S<const int&, k> s1; // expected-warning {{non-type template argument referring to object 'k' with internal linkage is incompatible with C++98}}
   S<void(&)(), f> s2; // expected-warning {{non-type template argument referring to function 'f' with internal linkage is incompatible with C++98}}
+}
+
+namespace NullPointerTemplateArg {
+  struct A {};
+  template<int*> struct X {};
+  template<int A::*> struct Y {};
+  X<(int*)0> x; // expected-warning {{use of null pointer as non-type template argument is incompatible with C++98}}
+  Y<(int A::*)0> y; // expected-warning {{use of null pointer as non-type template argument is incompatible with C++98}}
+}
+
+namespace PR13480 {
+  struct basic_iterator {
+    basic_iterator(const basic_iterator &it) {}
+    basic_iterator(basic_iterator &it) {} // expected-note {{because type 'PR13480::basic_iterator' has a user-declared copy constructor}}
+  };
+
+  union test {
+    basic_iterator it; // expected-warning {{union member 'it' with a non-trivial copy constructor is incompatible with C++98}}
+  };
+}
+
+namespace AssignOpUnion {
+  struct a {
+    void operator=(const a &it) {}
+    void operator=(a &it) {} // expected-note {{because type 'AssignOpUnion::a' has a user-declared copy assignment operator}}
+  };
+
+  struct b {
+    void operator=(const b &it) {} // expected-note {{because type 'AssignOpUnion::b' has a user-declared copy assignment operator}}
+  };
+
+  union test1 {
+    a x; // expected-warning {{union member 'x' with a non-trivial copy assignment operator is incompatible with C++98}}
+    b y; // expected-warning {{union member 'y' with a non-trivial copy assignment operator is incompatible with C++98}}
+  };
 }

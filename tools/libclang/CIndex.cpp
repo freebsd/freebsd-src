@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIndexer.h"
+#include "CXComment.h"
 #include "CXCursor.h"
 #include "CXTranslationUnit.h"
 #include "CXString.h"
@@ -61,6 +62,7 @@ CXTranslationUnit cxtu::MakeCXTranslationUnit(CIndexer *CIdx, ASTUnit *TU) {
   D->TUData = TU;
   D->StringPool = createCXStringPool();
   D->Diagnostics = 0;
+  D->OverridenCursorsPool = createOverridenCXCursorsPool();
   return D;
 }
 
@@ -1067,7 +1069,8 @@ bool CursorVisitor::VisitObjCImplementationDecl(ObjCImplementationDecl *D) {
 
 bool CursorVisitor::VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *PD) {
   if (ObjCIvarDecl *Ivar = PD->getPropertyIvarDecl())
-    return Visit(MakeCursorMemberRef(Ivar, PD->getPropertyIvarDeclLoc(), TU));
+    if (PD->isIvarNameSpecified())
+      return Visit(MakeCursorMemberRef(Ivar, PD->getPropertyIvarDeclLoc(), TU));
   
   return false;
 }
@@ -2462,7 +2465,8 @@ CXTranslationUnit clang_createTranslationUnit(CXIndex CIdx,
                                   CXXIdx->getOnlyLocalDecls(),
                                   0, 0,
                                   /*CaptureDiagnostics=*/true,
-                                  /*AllowPCHWithCompilerErrors=*/true);
+                                  /*AllowPCHWithCompilerErrors=*/true,
+                                  /*UserFilesAreVolatile=*/true);
   return MakeCXTranslationUnit(CXXIdx, TU);
 }
 
@@ -2521,6 +2525,8 @@ static void clang_parseTranslationUnit_Impl(void *UserData) {
     = (options & CXTranslationUnit_Incomplete)? TU_Prefix : TU_Complete;
   bool CacheCodeCompetionResults
     = options & CXTranslationUnit_CacheCompletionResults;
+  bool IncludeBriefCommentsInCodeCompletion
+    = options & CXTranslationUnit_IncludeBriefCommentsInCodeCompletion;
   bool SkipFunctionBodies = options & CXTranslationUnit_SkipFunctionBodies;
 
   // Configure the diagnostics.
@@ -2605,8 +2611,10 @@ static void clang_parseTranslationUnit_Impl(void *UserData) {
                                  PrecompilePreamble,
                                  TUKind,
                                  CacheCodeCompetionResults,
+                                 IncludeBriefCommentsInCodeCompletion,
                                  /*AllowPCHWithCompilerErrors=*/true,
                                  SkipFunctionBodies,
+                                 /*UserFilesAreVolatile=*/true,
                                  &ErrUnit));
 
   if (NumErrors != Diags->getClient()->getNumErrors()) {
@@ -2691,6 +2699,8 @@ int clang_saveTranslationUnit(CXTranslationUnit TU, const char *FileName,
 
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU->TUData);
   ASTUnit::ConcurrencyCheck Check(*CXXUnit);
+  if (!CXXUnit->hasSema())
+    return CXSaveError_InvalidTU;
 
   SaveTranslationUnitInfo STUI = { TU, FileName, options, CXSaveError_None };
 
@@ -2734,6 +2744,7 @@ void clang_disposeTranslationUnit(CXTranslationUnit CTUnit) {
     delete static_cast<ASTUnit *>(CTUnit->TUData);
     disposeCXStringPool(CTUnit->StringPool);
     delete static_cast<CXDiagnosticSetImpl *>(CTUnit->Diagnostics);
+    disposeOverridenCXCursorsPool(CTUnit->OverridenCursorsPool);
     delete CTUnit;
   }
 }
@@ -2829,8 +2840,8 @@ CXString clang_getTranslationUnitSpelling(CXTranslationUnit CTUnit) {
 }
 
 CXCursor clang_getTranslationUnitCursor(CXTranslationUnit TU) {
-  CXCursor Result = { CXCursor_TranslationUnit, 0, { 0, 0, TU } };
-  return Result;
+  ASTUnit *CXXUnit = static_cast<ASTUnit*>(TU->TUData);
+  return MakeCXCursor(CXXUnit->getASTContext().getTranslationUnitDecl(), TU);
 }
 
 } // end: extern "C"
@@ -3501,6 +3512,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
       return createCXString("ReturnStmt");
   case CXCursor_AsmStmt:
       return createCXString("AsmStmt");
+  case CXCursor_MSAsmStmt:
+      return createCXString("MSAsmStmt");
   case CXCursor_ObjCAtTryStmt:
       return createCXString("ObjCAtTryStmt");
   case CXCursor_ObjCAtCatchStmt:
@@ -3609,12 +3622,15 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
 struct GetCursorData {
   SourceLocation TokenBeginLoc;
   bool PointsAtMacroArgExpansion;
+  bool VisitedObjCPropertyImplDecl;
+  SourceLocation VisitedDeclaratorDeclStartLoc;
   CXCursor &BestCursor;
 
   GetCursorData(SourceManager &SM,
                 SourceLocation tokenBegin, CXCursor &outputCursor)
     : TokenBeginLoc(tokenBegin), BestCursor(outputCursor) {
     PointsAtMacroArgExpansion = SM.isMacroArgExpansion(tokenBegin);
+    VisitedObjCPropertyImplDecl = false;
   }
 };
 
@@ -3654,6 +3670,32 @@ static enum CXChildVisitResult GetCursorVisitor(CXCursor cursor,
              !ID->isThisDeclarationADefinition())
            return CXChildVisit_Break;
         }
+
+    } else if (DeclaratorDecl *DD
+                    = dyn_cast_or_null<DeclaratorDecl>(getCursorDecl(cursor))) {
+      SourceLocation StartLoc = DD->getSourceRange().getBegin();
+      // Check that when we have multiple declarators in the same line,
+      // that later ones do not override the previous ones.
+      // If we have:
+      // int Foo, Bar;
+      // source ranges for both start at 'int', so 'Bar' will end up overriding
+      // 'Foo' even though the cursor location was at 'Foo'.
+      if (Data->VisitedDeclaratorDeclStartLoc == StartLoc)
+        return CXChildVisit_Break;
+      Data->VisitedDeclaratorDeclStartLoc = StartLoc;
+
+    } else if (ObjCPropertyImplDecl *PropImp
+              = dyn_cast_or_null<ObjCPropertyImplDecl>(getCursorDecl(cursor))) {
+      (void)PropImp;
+      // Check that when we have multiple @synthesize in the same line,
+      // that later ones do not override the previous ones.
+      // If we have:
+      // @synthesize Foo, Bar;
+      // source ranges for both start at '@', so 'Bar' will end up overriding
+      // 'Foo' even though the cursor location was at 'Foo'.
+      if (Data->VisitedObjCPropertyImplDecl)
+        return CXChildVisit_Break;
+      Data->VisitedObjCPropertyImplDecl = true;
     }
   }
 
@@ -5487,6 +5529,90 @@ enum CXAvailabilityKind clang_getCursorAvailability(CXCursor cursor) {
   return CXAvailability_Available;
 }
 
+static CXVersion convertVersion(VersionTuple In) {
+  CXVersion Out = { -1, -1, -1 };
+  if (In.empty())
+    return Out;
+
+  Out.Major = In.getMajor();
+  
+  if (llvm::Optional<unsigned> Minor = In.getMinor())
+    Out.Minor = *Minor;
+  else
+    return Out;
+
+  if (llvm::Optional<unsigned> Subminor = In.getSubminor())
+    Out.Subminor = *Subminor;
+  
+  return Out;
+}
+  
+int clang_getCursorPlatformAvailability(CXCursor cursor,
+                                        int *always_deprecated,
+                                        CXString *deprecated_message,
+                                        int *always_unavailable,
+                                        CXString *unavailable_message,
+                                        CXPlatformAvailability *availability,
+                                        int availability_size) {
+  if (always_deprecated)
+    *always_deprecated = 0;
+  if (deprecated_message)
+    *deprecated_message = cxstring::createCXString("", /*DupString=*/false);
+  if (always_unavailable)
+    *always_unavailable = 0;
+  if (unavailable_message)
+    *unavailable_message = cxstring::createCXString("", /*DupString=*/false);
+  
+  if (!clang_isDeclaration(cursor.kind))
+    return 0;
+  
+  Decl *D = cxcursor::getCursorDecl(cursor);
+  if (!D)
+    return 0;
+  
+  int N = 0;
+  for (Decl::attr_iterator A = D->attr_begin(), AEnd = D->attr_end(); A != AEnd;
+       ++A) {
+    if (DeprecatedAttr *Deprecated = dyn_cast<DeprecatedAttr>(*A)) {
+      if (always_deprecated)
+        *always_deprecated = 1;
+      if (deprecated_message)
+        *deprecated_message = cxstring::createCXString(Deprecated->getMessage());
+      continue;
+    }
+    
+    if (UnavailableAttr *Unavailable = dyn_cast<UnavailableAttr>(*A)) {
+      if (always_unavailable)
+        *always_unavailable = 1;
+      if (unavailable_message) {
+        *unavailable_message
+          = cxstring::createCXString(Unavailable->getMessage());
+      }
+      continue;
+    }
+    
+    if (AvailabilityAttr *Avail = dyn_cast<AvailabilityAttr>(*A)) {
+      if (N < availability_size) {
+        availability[N].Platform
+          = cxstring::createCXString(Avail->getPlatform()->getName());
+        availability[N].Introduced = convertVersion(Avail->getIntroduced());
+        availability[N].Deprecated = convertVersion(Avail->getDeprecated());
+        availability[N].Obsoleted = convertVersion(Avail->getObsoleted());
+        availability[N].Unavailable = Avail->getUnavailable();
+        availability[N].Message = cxstring::createCXString(Avail->getMessage());
+      }
+      ++N;
+    }
+  }
+  
+  return N;
+}
+  
+void clang_disposeCXPlatformAvailability(CXPlatformAvailability *availability) {
+  clang_disposeString(availability->Platform);
+  clang_disposeString(availability->Message);
+}
+
 CXLanguageKind clang_getCursorLanguage(CXCursor cursor) {
   if (clang_isDeclaration(cursor.kind))
     return getDeclLanguage(cxcursor::getCursorDecl(cursor));
@@ -5549,34 +5675,6 @@ CXCursor clang_getCursorLexicalParent(CXCursor cursor) {
   return clang_getNullCursor();
 }
 
-void clang_getOverriddenCursors(CXCursor cursor, 
-                                CXCursor **overridden,
-                                unsigned *num_overridden) {
-  if (overridden)
-    *overridden = 0;
-  if (num_overridden)
-    *num_overridden = 0;
-  if (!overridden || !num_overridden)
-    return;
-  if (!clang_isDeclaration(cursor.kind))
-    return;
-
-  SmallVector<CXCursor, 8> Overridden;
-  cxcursor::getOverriddenCursors(cursor, Overridden);
-
-  // Don't allocate memory if we have no overriden cursors.
-  if (Overridden.size() == 0)
-    return;
-
-  *num_overridden = Overridden.size();
-  *overridden = new CXCursor [Overridden.size()];
-  std::copy(Overridden.begin(), Overridden.end(), *overridden);
-}
-
-void clang_disposeOverriddenCursors(CXCursor *overridden) {
-  delete [] overridden;
-}
-
 CXFile clang_getIncludedFile(CXCursor cursor) {
   if (cursor.kind != CXCursor_InclusionDirective)
     return 0;
@@ -5584,9 +5682,66 @@ CXFile clang_getIncludedFile(CXCursor cursor) {
   InclusionDirective *ID = getCursorInclusionDirective(cursor);
   return (void *)ID->getFile();
 }
-  
-} // end: extern "C"
 
+CXSourceRange clang_Cursor_getCommentRange(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return clang_getNullRange();
+
+  const Decl *D = getCursorDecl(C);
+  ASTContext &Context = getCursorContext(C);
+  const RawComment *RC = Context.getRawCommentForAnyRedecl(D);
+  if (!RC)
+    return clang_getNullRange();
+
+  return cxloc::translateSourceRange(Context, RC->getSourceRange());
+}
+
+CXString clang_Cursor_getRawCommentText(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return createCXString((const char *) NULL);
+
+  const Decl *D = getCursorDecl(C);
+  ASTContext &Context = getCursorContext(C);
+  const RawComment *RC = Context.getRawCommentForAnyRedecl(D);
+  StringRef RawText = RC ? RC->getRawText(Context.getSourceManager()) :
+                           StringRef();
+
+  // Don't duplicate the string because RawText points directly into source
+  // code.
+  return createCXString(RawText, false);
+}
+
+CXString clang_Cursor_getBriefCommentText(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return createCXString((const char *) NULL);
+
+  const Decl *D = getCursorDecl(C);
+  const ASTContext &Context = getCursorContext(C);
+  const RawComment *RC = Context.getRawCommentForAnyRedecl(D);
+
+  if (RC) {
+    StringRef BriefText = RC->getBriefText(Context);
+
+    // Don't duplicate the string because RawComment ensures that this memory
+    // will not go away.
+    return createCXString(BriefText, false);
+  }
+
+  return createCXString((const char *) NULL);
+}
+
+CXComment clang_Cursor_getParsedComment(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return cxcomment::createCXComment(NULL);
+
+  const Decl *D = getCursorDecl(C);
+  const ASTContext &Context = getCursorContext(C);
+  const comments::FullComment *FC = Context.getCommentForDecl(D);
+
+  return cxcomment::createCXComment(FC);
+}
+
+} // end: extern "C"
 
 //===----------------------------------------------------------------------===//
 // C++ AST instrospection.

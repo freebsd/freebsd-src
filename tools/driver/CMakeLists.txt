@@ -1,4 +1,22 @@
-set( LLVM_USED_LIBS
+set( LLVM_LINK_COMPONENTS
+  ${LLVM_TARGETS_TO_BUILD}
+  asmparser
+  bitreader
+  bitwriter
+  codegen
+  instrumentation
+  ipo
+  linker
+  selectiondag
+  )
+
+add_clang_executable(clang
+  driver.cpp
+  cc1_main.cpp
+  cc1as_main.cpp
+  )
+
+target_link_libraries(clang
   clangFrontendTool
   clangAST
   clangAnalysis
@@ -19,25 +37,9 @@ set( LLVM_USED_LIBS
   clangStaticAnalyzerCore
   )
 
-set( LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
-  asmparser
-  bitreader
-  bitwriter
-  codegen
-  instrumentation
-  ipo
-  linker
-  selectiondag
-  )
-
-add_clang_executable(clang
-  driver.cpp
-  cc1_main.cpp
-  cc1as_main.cpp
-  )
-
 set_target_properties(clang PROPERTIES VERSION ${CLANG_EXECUTABLE_VERSION})
+
+add_dependencies(clang clang-headers)
 
 if(UNIX)
   set(CLANGXX_LINK_OR_COPY create_symlink)

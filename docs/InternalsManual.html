@@ -357,6 +357,12 @@ Clang:</p>
 <tr><td>Example:</td><td><tt>"candidate found by name lookup is %q0"</tt></td></tr>
 <tr><td>Class:</td><td>NamedDecl*</td></tr>
 <tr><td>Description</td><td><p>This formatter indicates that the fully-qualified name of the declaration should be printed, e.g., "std::vector" rather than "vector".</p></td></tr>
+
+<tr><td colspan="2"><b>"diff" format</b></td></tr>
+<tr><td>Example:</td><td><tt>"no known conversion %diff{from | to | }1,2"</tt></td></tr>
+<tr><td>Class:</td><td>QualType</td></tr>
+<tr><td>Description</td><td><p>This formatter takes two QualTypes and attempts to print a template difference between the two.  If tree printing is off, the text inside the braces before the pipe is printed, with the formatted text replacing the $.  If tree printing is on, the text after the pipe is printed and a type tree is printed after the diagnostic message.
+</p></td></tr>
     
 </table>
 
@@ -440,6 +446,18 @@ printer renders as a line of "insertions" below the caret line. <a
 href="#DiagnosticClient">Other diagnostic clients</a> might choose
 to render the code differently (e.g., as markup inline) or even give
 the user the ability to automatically fix the problem.</p>
+
+<p>Fix-it hints on errors and warnings need to obey these rules:</p>
+
+<ul>
+<li>Since they are automatically applied if <code>-Xclang -fixit</code>
+is passed to the driver, they should only be used when it's very likely they
+match the user's intent.</li>
+<li>Clang must recover from errors as if the fix-it had been applied.</li>
+</ul>
+
+<p>If a fix-it can't obey these rules, put the fix-it on a note. Fix-its on
+notes are not applied automatically.</p>
 
 <p>All fix-it hints are described by the <code>FixItHint</code> class,
 instances of which should be attached to the diagnostic using the
@@ -1686,7 +1704,7 @@ interacts with constant evaluation:</p>
 <li><b><tt>__extension__</tt></b>: The expression form of this extension causes
     any evaluatable subexpression to be accepted as an integer constant
     expression.</li>
-<li><b><tt>__builtin_constant_p</tt></b>: This returns true (as a integer
+<li><b><tt>__builtin_constant_p</tt></b>: This returns true (as an integer
     constant expression) if the operand evaluates to either a numeric value
     (that is, not a pointer cast to integral type) of integral, enumeration,
     floating or complex type, or if it evaluates to the address of the first
@@ -1750,18 +1768,6 @@ can appertain (roughly, attach).</p>
 then <tt>__attribute__((myattribute("Hello", 3)))</tt> will be a valid use.</p>
 
 <h4>Boilerplate</h4>
-
-<p>Add an element to the <tt>AttributeList::Kind</tt> enum in <a
-href="http://llvm.org/viewvc/llvm-project/cfe/trunk/include/clang/Sema/AttributeList.h?view=markup">include/clang/Sema/AttributeList.h</a>
-named <tt>AT_lower_with_underscores</tt>.  That is, a CamelCased
-<tt>AttributeName</tt> in <tt>Attr.td</tt> name should become
-<tt>AT_attribute_name</tt>.</p>
-
-<p>Add a case to the <tt>StringSwitch</tt> in <tt>AttributeList::getKind()</tt>
-in <a
-href="http://llvm.org/viewvc/llvm-project/cfe/trunk/lib/Sema/AttributeList.cpp?view=markup">lib/Sema/AttributeList.cpp</a>
-for each spelling of your attribute.  Less common attributes should come toward
-the end of that list.</p>
 
 <p>Write a new <tt>HandleYourAttr()</tt> function in <a
 href="http://llvm.org/viewvc/llvm-project/cfe/trunk/lib/Sema/SemaDeclAttr.cpp?view=markup">lib/Sema/SemaDeclAttr.cpp</a>,

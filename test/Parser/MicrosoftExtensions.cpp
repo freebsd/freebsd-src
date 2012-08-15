@@ -151,11 +151,24 @@ void missing_template_keyword(){
 
 class AAAA { };
 
+template <typename T>
+class SimpleTemplate {};
+
 template <class T>
 void redundant_typename() {
    typename T t;// expected-warning {{expected a qualified name after 'typename'}}
    typename AAAA a;// expected-warning {{expected a qualified name after 'typename'}}
+
    t = 3;
+   
+   typedef typename T* pointerT;// expected-warning {{expected a qualified name after 'typename'}}
+   typedef typename SimpleTemplate<int> templateT;// expected-warning {{expected a qualified name after 'typename'}}
+
+   pointerT pT = &t;
+   *pT = 4;
+
+   int var;
+   int k = typename var;// expected-error {{expected a qualified name after 'typename'}}
 }
 
 
@@ -284,28 +297,29 @@ int main () {
   missing_template_keyword<int>();
 }
 
-
-
-
 namespace access_protected_PTM {
+  class A {
+  protected:
+    void f(); // expected-note {{must name member using the type of the current context 'access_protected_PTM::B'}}
+  };
 
-class A {
-protected:
-  void f(); // expected-note {{must name member using the type of the current context 'access_protected_PTM::B'}}
-};
+  class B : public A{
+  public:
+    void test_access();
+    static void test_access_static();
+  };
 
-class B : public A{
-public:
-  void test_access();
-  static void test_access_static();
-};
+  void B::test_access() {
+    &A::f; // expected-error {{'f' is a protected member of 'access_protected_PTM::A'}}
+  }
 
-void B::test_access() {
-  &A::f; // expected-error {{'f' is a protected member of 'access_protected_PTM::A'}}
+  void B::test_access_static() {
+    &A::f;
+  }
 }
 
-void B::test_access_static() {
-  &A::f;
-}
-
+namespace Inheritance {
+  class __single_inheritance A;
+  class __multiple_inheritance B;
+  class __virtual_inheritance C;
 }

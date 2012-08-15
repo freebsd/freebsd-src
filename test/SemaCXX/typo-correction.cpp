@@ -190,3 +190,47 @@ namespace test1 {
   };
   test1::FooBar *b;  // expected-error{{no type named 'FooBar' in namespace 'test1'; did you mean 'Foobar'?}}
 }
+
+namespace ImplicitInt {
+  void f(int, unsinged); // expected-error{{did you mean 'unsigned'}}
+  struct S {
+    unsinged : 4; // expected-error{{did you mean 'unsigned'}}
+  };
+}
+
+namespace PR12951 {
+// If there are two corrections that have the same identifier and edit distance
+// and only differ by their namespaces, don't suggest either as a correction
+// since both are equally likely corrections.
+namespace foobar { struct Thing {}; }
+namespace bazquux { struct Thing {}; }
+void f() { Thing t; } // expected-error{{unknown type name 'Thing'}}
+}
+
+namespace PR13051 {
+  template<typename T> struct S {
+    template<typename U> void f();
+    operator bool() const;
+  };
+
+  void f() {
+    f(&S<int>::tempalte f<int>); // expected-error{{did you mean 'template'?}}
+    f(&S<int>::opeartor bool); // expected-error{{did you mean 'operator'?}}
+    f(&S<int>::foo); // expected-error-re{{no member named 'foo' in 'PR13051::S<int>'$}}
+  }
+}
+
+namespace PR6325 {
+class foo { }; // expected-note{{'foo' declared here}}
+// Note that for this example (pulled from the PR), if keywords are not excluded
+// as correction candidates then no suggestion would be given; correcting
+// 'boo' to 'bool' is the same edit distance as correcting 'boo' to 'foo'.
+class bar : boo { }; // expected-error{{unknown class name 'boo'; did you mean 'foo'?}}
+}
+
+namespace bogus_keyword_suggestion {
+void test() {
+   status = "OK"; // expected-error-re{{use of undeclared identifier 'status'$}}
+   return status; // expected-error-re{{use of undeclared identifier 'status'$}}
+ }
+}

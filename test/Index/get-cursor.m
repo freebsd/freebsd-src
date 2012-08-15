@@ -69,6 +69,28 @@ void foo3(Test3 *test3) {
 
 @class Forw1, Forw2, Forw3;
 
+@interface Test5 {
+  id prop1;
+  id prop2;
+}
+@property (assign) id prop1;
+@property (assign) id prop2;
+@property (assign) id prop3;
+@property (assign) id prop4;
+@end
+
+@implementation Test5
+@synthesize prop1, prop2;
+@dynamic prop3, prop4;
+
+-(id)meth1 {
+  return 0;
+}
+-(id)meth2{
+  return 0;
+}
+@end
+
 // RUN: c-index-test -cursor-at=%s:4:28 -cursor-at=%s:5:28 %s | FileCheck -check-prefix=CHECK-PROP %s
 // CHECK-PROP: ObjCPropertyDecl=foo1:4:26
 // CHECK-PROP: ObjCPropertyDecl=foo2:5:27
@@ -102,3 +124,14 @@ void foo3(Test3 *test3) {
 // CHECK-SPELLRANGE: 70:8 ObjCClassRef=Forw1:70:8 Extent=[70:8 - 70:13] Spelling=Forw1 ([70:8 - 70:13])
 // CHECK-SPELLRANGE: 70:15 ObjCClassRef=Forw2:70:15 Extent=[70:15 - 70:20] Spelling=Forw2 ([70:15 - 70:20])
 // CHECK-SPELLRANGE: 70:22 ObjCClassRef=Forw3:70:22 Extent=[70:22 - 70:27] Spelling=Forw3 ([70:22 - 70:27])
+
+// RUN: c-index-test -cursor-at=%s:83:15 -cursor-at=%s:83:21 \
+// RUN:              -cursor-at=%s:84:12 -cursor-at=%s:84:20 %s | FileCheck -check-prefix=CHECK-MULTISYNTH %s
+// CHECK-MULTISYNTH: 83:13 ObjCSynthesizeDecl=prop1:76:23 (Definition) Extent=[83:1 - 83:18] Spelling=prop1 ([83:13 - 83:18])
+// CHECK-MULTISYNTH: 83:20 ObjCSynthesizeDecl=prop2:77:23 (Definition) Extent=[83:1 - 83:25] Spelling=prop2 ([83:20 - 83:25])
+// CHECK-MULTISYNTH: 84:10 ObjCDynamicDecl=prop3:78:23 (Definition) Extent=[84:1 - 84:15] Spelling=prop3 ([84:10 - 84:15])
+// CHECK-MULTISYNTH: 84:17 ObjCDynamicDecl=prop4:79:23 (Definition) Extent=[84:1 - 84:22] Spelling=prop4 ([84:17 - 84:22])
+
+// RUN: c-index-test -cursor-at=%s:86:7 -cursor-at=%s:89:7 %s | FileCheck -check-prefix=CHECK-SELECTORLOC %s
+// CHECK-SELECTORLOC: 86:6 ObjCInstanceMethodDecl=meth1:86:6 (Definition) Extent=[86:1 - 88:2] Spelling=meth1 ([86:6 - 86:11]) Selector index=0
+// CHECK-SELECTORLOC: 89:6 ObjCInstanceMethodDecl=meth2:89:6 (Definition) Extent=[89:1 - 91:2] Spelling=meth2 ([89:6 - 89:11]) Selector index=0

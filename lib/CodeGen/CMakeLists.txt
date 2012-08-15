@@ -8,8 +8,6 @@ set(LLVM_LINK_COMPONENTS
   vectorize
   )
 
-set(LLVM_USED_LIBS clangBasic clangAST clangFrontend)
-
 add_clang_library(clangCodeGen
   BackendUtil.cpp
   CGBlocks.cpp
@@ -52,5 +50,19 @@ add_clang_library(clangCodeGen
   TargetInfo.cpp
   )
 
-add_dependencies(clangCodeGen ClangAttrClasses ClangAttrList ClangDeclNodes
-                 ClangStmtNodes)
+add_dependencies(clangCodeGen
+  ClangARMNeon
+  ClangAttrClasses
+  ClangAttrList
+  ClangCommentNodes
+  ClangDeclNodes
+  ClangDiagnosticCommon
+  ClangDiagnosticFrontend
+  ClangStmtNodes
+  )
+
+target_link_libraries(clangCodeGen
+  clangBasic
+  clangAST
+  clangFrontend
+  )

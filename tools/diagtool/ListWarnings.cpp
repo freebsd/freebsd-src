@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "DiagTool.h"
+#include "DiagnosticNames.h"
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/Support/Format.h"
 #include "llvm/ADT/StringMap.h"
@@ -24,28 +25,7 @@ DEF_DIAGTOOL("list-warnings",
              ListWarnings)
   
 using namespace clang;
-
-namespace {
-struct StaticDiagNameIndexRec {
-  const char *NameStr;
-  unsigned short DiagID;
-  uint8_t NameLen;
-
-  StringRef getName() const {
-    return StringRef(NameStr, NameLen);
-  }
-};
-}
-
-static const StaticDiagNameIndexRec StaticDiagNameIndex[] = {
-#define DIAG_NAME_INDEX(ENUM) { #ENUM, diag::ENUM, STR_SIZE(#ENUM, uint8_t) },
-#include "clang/Basic/DiagnosticIndexName.inc"
-#undef DIAG_NAME_INDEX
-  { 0, 0, 0 }
-};
-
-static const unsigned StaticDiagNameIndexSize =
-  sizeof(StaticDiagNameIndex)/sizeof(StaticDiagNameIndex[0])-1;
+using namespace diagtool;
 
 namespace {
 struct Entry {
@@ -73,9 +53,11 @@ int ListWarnings::run(unsigned int argc, char **argv, llvm::raw_ostream &out) {
   std::vector<Entry> Flagged, Unflagged;
   llvm::StringMap<std::vector<unsigned> > flagHistogram;
   
-  for (const StaticDiagNameIndexRec *di = StaticDiagNameIndex, *de = StaticDiagNameIndex + StaticDiagNameIndexSize;
+  ArrayRef<DiagnosticRecord> AllDiagnostics = getBuiltinDiagnosticsByName();
+
+  for (ArrayRef<DiagnosticRecord>::iterator di = AllDiagnostics.begin(),
+                                            de = AllDiagnostics.end();
        di != de; ++di) {
-    
     unsigned diagID = di->DiagID;
     
     if (DiagnosticIDs::isBuiltinNote(diagID))
@@ -95,9 +77,6 @@ int ListWarnings::run(unsigned int argc, char **argv, llvm::raw_ostream &out) {
     }
   }
   
-  std::sort(Flagged.begin(), Flagged.end());
-  std::sort(Unflagged.begin(), Unflagged.end());
-
   out << "Warnings with flags (" << Flagged.size() << "):\n";
   printEntries(Flagged, out);
   
@@ -119,6 +98,10 @@ int ListWarnings::run(unsigned int argc, char **argv, llvm::raw_ostream &out) {
   out << "  Average number of diagnostics per flag: "
       << llvm::format("%.4g", avgDiagsPerFlag) << '\n';
     
+  out << "  Number in -Wpedantic (not covered by other -W flags): "
+      << flagHistogram.GetOrCreateValue("pedantic").getValue().size()
+      << '\n';
+  
   out << '\n';
   
   return 0;

@@ -1,3 +1,4 @@
+// REQUIRES: arm-registered-target
 // RUN: %clang_cc1 -triple thumbv7-apple-darwin9 \
 // RUN:   -target-abi aapcs \
 // RUN:   -target-cpu cortex-a8 \
@@ -30,6 +31,13 @@ void test_array(struct nested_array arg) {
 extern void complex_callee(__complex__ double);
 // CHECK: define arm_aapcs_vfpcc void @test_complex(double %{{.*}}, double %{{.*}})
 void test_complex(__complex__ double cd) {
+  complex_callee(cd);
+}
+
+// Long double is the same as double on AAPCS, it should be homogeneous.
+extern void complex_long_callee(__complex__ long double);
+// CHECK: define arm_aapcs_vfpcc void @test_complex_long(double %{{.*}}, double %{{.*}})
+void test_complex_long(__complex__ long double cd) {
   complex_callee(cd);
 }
 
@@ -80,3 +88,7 @@ extern void neon_callee(struct neon_struct);
 void test_neon(struct neon_struct arg) {
   neon_callee(arg);
 }
+
+// CHECK: define arm_aapcs_vfpcc void @f33(%struct.s33* byval %s)
+struct s33 { char buf[32*32]; };
+void f33(struct s33 s) { }
