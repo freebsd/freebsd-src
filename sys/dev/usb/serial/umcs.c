@@ -176,7 +176,7 @@ static void umcs7840_poll(struct ucom_softc *ucom);
 static device_probe_t umcs7840_probe;
 static device_attach_t umcs7840_attach;
 static device_detach_t umcs7840_detach;
-static device_free_softc_t umcs7840_free_softc;
+static void umcs7840_free_softc(struct umcs7840_softc *);
 
 static usb_callback_t umcs7840_intr_callback;
 static usb_callback_t umcs7840_read_callback1;
@@ -265,7 +265,6 @@ static device_method_t umcs7840_methods[] = {
 	DEVMETHOD(device_probe, umcs7840_probe),
 	DEVMETHOD(device_attach, umcs7840_attach),
 	DEVMETHOD(device_detach, umcs7840_detach),
-	DEVMETHOD(device_free_softc, umcs7840_free_softc),
 	DEVMETHOD_END
 };
 
@@ -413,27 +412,28 @@ umcs7840_detach(device_t dev)
 		usbd_transfer_unsetup(sc->sc_ports[sc->sc_ucom[subunit].sc_portno].sc_xfer, UMCS7840_N_TRANSFERS);
 	usbd_transfer_unsetup(&sc->sc_intr_xfer, 1);
 
+	device_claim_softc(dev);
+
+	umcs7840_free_softc(sc);
+
 	return (0);
 }
 
 UCOM_UNLOAD_DRAIN(umcs7840);
 
 static void
-umcs7840_free_softc(device_t dev, void *arg)
+umcs7840_free_softc(struct umcs7840_softc *sc)
 {
-	struct umcs7840_softc *sc = arg;
-
 	if (ucom_unref(&sc->sc_super_ucom)) {
-		if (mtx_initialized(&sc->sc_mtx))
-			mtx_destroy(&sc->sc_mtx);
-		device_free_softc(dev, sc);
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
 	}
 }
 
 static void
 umcs7840_free(struct ucom_softc *ucom)
 {
-	umcs7840_free_softc(NULL, ucom->sc_parent);
+	umcs7840_free_softc(ucom->sc_parent);
 }
 
 static void
