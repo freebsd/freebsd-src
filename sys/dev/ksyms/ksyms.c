@@ -579,8 +579,6 @@ ksyms_close(struct cdev *dev, int flags __unused, int fmt __unused,
 	/* Unmap the buffer from the process address space. */
 	error = copyout_unmap(td, sc->sc_uaddr, sc->sc_usize);
 
-	devfs_clear_cdevpriv();
-
 	return (error);
 }
 
