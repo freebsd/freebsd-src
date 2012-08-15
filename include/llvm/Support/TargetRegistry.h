@@ -108,6 +108,7 @@ namespace llvm {
                                                   const MCRegisterInfo &MRI,
                                                   const MCSubtargetInfo &STI);
     typedef MCCodeEmitter *(*MCCodeEmitterCtorTy)(const MCInstrInfo &II,
+                                                  const MCRegisterInfo &MRI,
                                                   const MCSubtargetInfo &STI,
                                                   MCContext &Ctx);
     typedef MCStreamer *(*MCObjectStreamerCtorTy)(const Target &T,
@@ -405,11 +406,12 @@ namespace llvm {
 
     /// createMCCodeEmitter - Create a target specific code emitter.
     MCCodeEmitter *createMCCodeEmitter(const MCInstrInfo &II,
+                                       const MCRegisterInfo &MRI,
                                        const MCSubtargetInfo &STI,
                                        MCContext &Ctx) const {
       if (!MCCodeEmitterCtorFn)
         return 0;
-      return MCCodeEmitterCtorFn(II, STI, Ctx);
+      return MCCodeEmitterCtorFn(II, MRI, STI, Ctx);
     }
 
     /// createMCObjectStreamer - Create a target specific MCStreamer.
@@ -508,6 +510,21 @@ namespace llvm {
     /// \param Error - On failure, an error string describing why no target was
     /// found.
     static const Target *lookupTarget(const std::string &Triple,
+                                      std::string &Error);
+
+    /// lookupTarget - Lookup a target based on an architecture name
+    /// and a target triple.  If the architecture name is non-empty,
+    /// then the lookup is done by architecture.  Otherwise, the target
+    /// triple is used.
+    ///
+    /// \param ArchName - The architecture to use for finding a target.
+    /// \param TheTriple - The triple to use for finding a target.  The
+    /// triple is updated with canonical architecture name if a lookup
+    /// by architecture is done.
+    /// \param Error - On failure, an error string describing why no target was
+    /// found.
+    static const Target *lookupTarget(const std::string &ArchName,
+                                      Triple &TheTriple,
                                       std::string &Error);
 
     /// getClosestTargetForJIT - Pick the best target that is compatible with
@@ -1129,6 +1146,7 @@ namespace llvm {
 
   private:
     static MCCodeEmitter *Allocator(const MCInstrInfo &II,
+                                    const MCRegisterInfo &MRI,
                                     const MCSubtargetInfo &STI,
                                     MCContext &Ctx) {
       return new MCCodeEmitterImpl();

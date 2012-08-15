@@ -431,7 +431,7 @@ protected:
 
   // Make sure the index is not the Tombstone or Entry key of the DenseMap.
   static inline unsigned maskCacheIndex(unsigned I) {
-	return (I & ~0x02);
+    return (I & ~0x02);
   }
 
   unsigned incrementHeight(TreeTy* L, TreeTy* R) const {
@@ -667,7 +667,7 @@ public:
     return reinterpret_cast<TreeTy*>(stack.back() & ~Flags);
   }
 
-  uintptr_t getVisitState() {
+  uintptr_t getVisitState() const {
     assert(!stack.empty());
     return stack.back() & Flags;
   }

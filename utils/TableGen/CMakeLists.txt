@@ -11,6 +11,7 @@ add_tablegen(llvm-tblgen LLVM
   CodeGenDAGPatterns.cpp
   CodeGenInstruction.cpp
   CodeGenRegisters.cpp
+  CodeGenSchedule.cpp
   CodeGenTarget.cpp
   DAGISelEmitter.cpp
   DAGISelMatcherEmitter.cpp
@@ -27,7 +28,6 @@ add_tablegen(llvm-tblgen LLVM
   PseudoLoweringEmitter.cpp
   RegisterInfoEmitter.cpp
   SetTheory.cpp
-  StringMatcher.cpp
   SubtargetEmitter.cpp
   TGValueTypes.cpp
   TableGen.cpp

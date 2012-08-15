@@ -24,7 +24,7 @@ my $debugger_script_file = "$output_dir/$input_filename.debugger.script";
 my $output_file = "$output_dir/$input_filename.gdb.output";
 
 # Extract debugger commands from testcase. They are marked with DEBUGGER: 
-# at the beginnign of a comment line.
+# at the beginning of a comment line.
 open(INPUT, $testcase_file);
 open(OUTPUT, ">$debugger_script_file");
 while(<INPUT>) {
@@ -49,7 +49,7 @@ if (!$my_debugger) {
 my $debugger_options = "-q -batch -n -x";
 
 # run debugger and capture output.
-system("$my_debugger $debugger_options $debugger_script_file $executable_file >& $output_file");
+system("$my_debugger $debugger_options $debugger_script_file $executable_file > $output_file 2>&1");
 
 # validate output.
 system("FileCheck", "-input-file", "$output_file", "$testcase_file");

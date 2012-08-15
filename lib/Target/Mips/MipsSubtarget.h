@@ -86,6 +86,9 @@ protected:
   // HasBitCount - Count leading '1' and '0' bits.
   bool HasBitCount;
 
+  // InMips16 -- can process Mips16 instructions
+  bool InMips16Mode;
+
   InstrItineraryData InstrItins;
 
 public:
@@ -124,7 +127,10 @@ public:
   bool isSingleFloat() const { return IsSingleFloat; }
   bool isNotSingleFloat() const { return !IsSingleFloat; }
   bool hasVFPU() const { return HasVFPU; }
+  bool inMips16Mode() const { return InMips16Mode; }
   bool isLinux() const { return IsLinux; }
+
+  bool hasStandardEncoding() const { return !inMips16Mode(); }
 
   /// Features related to the presence of specific instructions.
   bool hasSEInReg()   const { return HasSEInReg; }

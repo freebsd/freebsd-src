@@ -169,9 +169,9 @@ _func:
         bl _bar
         blx _baz
 
-@ CHECK: bl	_bar                    @ encoding: [A,0xf0'A',A,0xf8'A']
+@ CHECK: bl	_bar                    @ encoding: [A,0xf0'A',A,0xd0'A']
              @   fixup A - offset: 0, value: _bar, kind: fixup_arm_thumb_bl
-@ CHECK: blx	_baz                    @ encoding: [A,0xf0'A',A,0xe8'A']
+@ CHECK: blx	_baz                    @ encoding: [A,0xf0'A',A,0xc0'A']
              @   fixup A - offset: 0, value: _baz, kind: fixup_arm_thumb_blx
 
 
@@ -635,13 +635,3 @@ _func:
 @ CHECK: uxth	r1, r4                  @ encoding: [0xa1,0xb2]
 
 
-@------------------------------------------------------------------------------
-@ WFE/WFI/YIELD
-@------------------------------------------------------------------------------
-        wfe
-        wfi
-        yield
-
-@ CHECK: wfe                             @ encoding: [0x20,0xbf]
-@ CHECK: wfi                             @ encoding: [0x30,0xbf]
-@ CHECK: yield                           @ encoding: [0x10,0xbf]

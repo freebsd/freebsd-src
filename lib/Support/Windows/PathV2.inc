@@ -301,11 +301,21 @@ error_code rename(const Twine &from, const Twine &to) {
   if (error_code ec = UTF8ToUTF16(f, wide_from)) return ec;
   if (error_code ec = UTF8ToUTF16(t, wide_to)) return ec;
 
-  if (!::MoveFileExW(wide_from.begin(), wide_to.begin(),
-                     MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING))
-    return windows_error(::GetLastError());
+  error_code ec = error_code::success();
+  for (int i = 0; i < 2000; i++) {
+    if (::MoveFileExW(wide_from.begin(), wide_to.begin(),
+                      MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING))
+      return error_code::success();
+    ec = windows_error(::GetLastError());
+    if (ec != windows_error::access_denied)
+      break;
+    // Retry MoveFile() at ACCESS_DENIED.
+    // System scanners (eg. indexer) might open the source file when
+    // It is written and closed.
+    ::Sleep(1);
+  }
 
-  return error_code::success();
+  return ec;
 }
 
 error_code resize_file(const Twine &path, uint64_t size) {
@@ -487,9 +497,46 @@ handle_status_error:
   return error_code::success();
 }
 
+
+// Modifies permissions on a file.
+error_code permissions(const Twine &path, perms prms) {
+#if 0 // verify code below before enabling:
+  // If the permissions bits are not trying to modify
+  // "write" permissions, there is nothing to do.
+  if (!(prms & (owner_write|group_write|others_write)))
+    return error_code::success();
+  
+  SmallString<128> path_storage;
+  SmallVector<wchar_t, 128> path_utf16;
+
+  if (error_code ec = UTF8ToUTF16(path.toStringRef(path_storage),
+                                  path_utf16))
+    return ec;
+
+  DWORD attributes = ::GetFileAttributesW(path_utf16.begin());
+
+  if (prms & add_perms) {
+    attributes &= ~FILE_ATTRIBUTE_READONLY;
+  }
+  else if (prms & remove_perms) {
+    attributes |= FILE_ATTRIBUTE_READONLY;
+  }
+  else {
+    assert(0 && "neither add_perms or remove_perms is set");
+  }
+
+  if ( ! ::SetFileAttributesW(path_utf16.begin(), attributes))
+    return windows_error(::GetLastError());
+#endif    
+  return error_code::success();
+}
+
+
+// FIXME: mode should be used here and default to user r/w only,
+// it currently comes in as a UNIX mode.
 error_code unique_file(const Twine &model, int &result_fd,
-                             SmallVectorImpl<char> &result_path,
-                             bool makeAbsolute) {
+                       SmallVectorImpl<char> &result_path,
+                       bool makeAbsolute, unsigned mode) {
   // Use result_path as temp storage.
   result_path.set_size(0);
   StringRef m = model.toStringRef(result_path);
@@ -742,6 +789,19 @@ error_code detail::directory_iterator_increment(detail::DirIterState &it) {
   it.CurrentEntry.replace_filename(Twine(directory_entry_path_utf8));
   return error_code::success();
 }
+
+error_code map_file_pages(const Twine &path, off_t file_offset, size_t size,  
+                                            bool map_writable, void *&result) {
+  assert(0 && "NOT IMPLEMENTED");
+  return windows_error::invalid_function;
+}
+
+error_code unmap_file_pages(void *base, size_t size) {
+  assert(0 && "NOT IMPLEMENTED");
+  return windows_error::invalid_function;
+}
+
+
 
 } // end namespace fs
 } // end namespace sys

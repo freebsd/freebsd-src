@@ -27,12 +27,12 @@ using namespace llvm;
 using namespace yaml;
 
 enum UnicodeEncodingForm {
-  UEF_UTF32_LE, //< UTF-32 Little Endian
-  UEF_UTF32_BE, //< UTF-32 Big Endian
-  UEF_UTF16_LE, //< UTF-16 Little Endian
-  UEF_UTF16_BE, //< UTF-16 Big Endian
-  UEF_UTF8,     //< UTF-8 or ascii.
-  UEF_Unknown   //< Not a valid Unicode encoding.
+  UEF_UTF32_LE, ///< UTF-32 Little Endian
+  UEF_UTF32_BE, ///< UTF-32 Big Endian
+  UEF_UTF16_LE, ///< UTF-16 Little Endian
+  UEF_UTF16_BE, ///< UTF-16 Big Endian
+  UEF_UTF8,     ///< UTF-8 or ascii.
+  UEF_Unknown   ///< Not a valid Unicode encoding.
 };
 
 /// EncodingInfo - Holds the encoding type and length of the byte order mark if
@@ -489,9 +489,6 @@ private:
   /// @brief Can the next token be the start of a simple key?
   bool IsSimpleKeyAllowed;
 
-  /// @brief Is the next token required to start a simple key?
-  bool IsSimpleKeyRequired;
-
   /// @brief True if an error has occurred.
   bool Failed;
 
@@ -658,7 +655,7 @@ std::string yaml::escape(StringRef Input) {
       EscapedInput += "\\r";
     else if (*i == 0x1B)
       EscapedInput += "\\e";
-    else if (*i >= 0 && *i < 0x20) { // Control characters not handled above.
+    else if ((unsigned char)*i < 0x20) { // Control characters not handled above.
       std::string HexStr = utohexstr(*i);
       EscapedInput += "\\x" + std::string(2 - HexStr.size(), '0') + HexStr;
     } else if (*i & 0x80) { // UTF-8 multiple code unit subsequence.
@@ -704,7 +701,6 @@ Scanner::Scanner(StringRef Input, SourceMgr &sm)
   , FlowLevel(0)
   , IsStartOfStream(true)
   , IsSimpleKeyAllowed(true)
-  , IsSimpleKeyRequired(false)
   , Failed(false) {
   InputBuffer = MemoryBuffer::getMemBuffer(Input, "YAML");
   SM.AddNewSourceBuffer(InputBuffer, SMLoc());
@@ -755,6 +751,8 @@ Token Scanner::getNext() {
 }
 
 StringRef::iterator Scanner::skip_nb_char(StringRef::iterator Position) {
+  if (Position == End)
+    return Position;
   // Check 7 bit c-printable - b-char.
   if (   *Position == 0x09
       || (*Position >= 0x20 && *Position <= 0x7E))
@@ -778,6 +776,8 @@ StringRef::iterator Scanner::skip_nb_char(StringRef::iterator Position) {
 }
 
 StringRef::iterator Scanner::skip_b_break(StringRef::iterator Position) {
+  if (Position == End)
+    return Position;
   if (*Position == 0x0D) {
     if (Position + 1 != End && *(Position + 1) == 0x0A)
       return Position + 2;
@@ -1211,7 +1211,9 @@ bool Scanner::scanFlowScalar(bool IsDoubleQuoted) {
         ++Current;
       // Repeat until the previous character was not a '\' or was an escaped
       // backslash.
-    } while (*(Current - 1) == '\\' && wasEscaped(Start + 1, Current));
+    } while (   Current != End
+             && *(Current - 1) == '\\'
+             && wasEscaped(Start + 1, Current));
   } else {
     skip(1);
     while (true) {
@@ -1624,9 +1626,7 @@ StringRef ScalarNode::getValue(SmallVectorImpl<char> &Storage) const {
     return UnquotedValue;
   }
   // Plain or block.
-  size_t trimtrail = Value.rfind(' ');
-  return Value.drop_back(
-    trimtrail == StringRef::npos ? 0 : Value.size() - trimtrail);
+  return Value.rtrim(" ");
 }
 
 StringRef ScalarNode::unescapeDoubleQuoted( StringRef UnquotedValue
@@ -1732,8 +1732,10 @@ StringRef ScalarNode::unescapeDoubleQuoted( StringRef UnquotedValue
           if (UnquotedValue.size() < 3)
             // TODO: Report error.
             break;
-          unsigned int UnicodeScalarValue = 0;
-          UnquotedValue.substr(1, 2).getAsInteger(16, UnicodeScalarValue);
+          unsigned int UnicodeScalarValue;
+          if (UnquotedValue.substr(1, 2).getAsInteger(16, UnicodeScalarValue))
+            // TODO: Report error.
+            UnicodeScalarValue = 0xFFFD;
           encodeUTF8(UnicodeScalarValue, Storage);
           UnquotedValue = UnquotedValue.substr(2);
           break;
@@ -1742,8 +1744,10 @@ StringRef ScalarNode::unescapeDoubleQuoted( StringRef UnquotedValue
           if (UnquotedValue.size() < 5)
             // TODO: Report error.
             break;
-          unsigned int UnicodeScalarValue = 0;
-          UnquotedValue.substr(1, 4).getAsInteger(16, UnicodeScalarValue);
+          unsigned int UnicodeScalarValue;
+          if (UnquotedValue.substr(1, 4).getAsInteger(16, UnicodeScalarValue))
+            // TODO: Report error.
+            UnicodeScalarValue = 0xFFFD;
           encodeUTF8(UnicodeScalarValue, Storage);
           UnquotedValue = UnquotedValue.substr(4);
           break;
@@ -1752,8 +1756,10 @@ StringRef ScalarNode::unescapeDoubleQuoted( StringRef UnquotedValue
           if (UnquotedValue.size() < 9)
             // TODO: Report error.
             break;
-          unsigned int UnicodeScalarValue = 0;
-          UnquotedValue.substr(1, 8).getAsInteger(16, UnicodeScalarValue);
+          unsigned int UnicodeScalarValue;
+          if (UnquotedValue.substr(1, 8).getAsInteger(16, UnicodeScalarValue))
+            // TODO: Report error.
+            UnicodeScalarValue = 0xFFFD;
           encodeUTF8(UnicodeScalarValue, Storage);
           UnquotedValue = UnquotedValue.substr(8);
           break;
@@ -2113,5 +2119,3 @@ bool Document::expectToken(int TK) {
   }
   return true;
 }
-
-OwningPtr<Document> document_iterator::NullDoc;

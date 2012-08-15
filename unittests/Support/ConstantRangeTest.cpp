@@ -114,11 +114,15 @@ TEST_F(ConstantRangeTest, SingleElement) {
 }
 
 TEST_F(ConstantRangeTest, GetSetSize) {
-  EXPECT_EQ(Full.getSetSize(), APInt(16, 0));
-  EXPECT_EQ(Empty.getSetSize(), APInt(16, 0));
-  EXPECT_EQ(One.getSetSize(), APInt(16, 1));
-  EXPECT_EQ(Some.getSetSize(), APInt(16, 0xaa0));
-  EXPECT_EQ(Wrap.getSetSize(), APInt(16, 0x10000 - 0xaa0));
+  EXPECT_EQ(Full.getSetSize(), APInt(17, 65536));
+  EXPECT_EQ(Empty.getSetSize(), APInt(17, 0));
+  EXPECT_EQ(One.getSetSize(), APInt(17, 1));
+  EXPECT_EQ(Some.getSetSize(), APInt(17, 0xaa0));
+
+  ConstantRange Wrap(APInt(4, 7), APInt(4, 3));
+  ConstantRange Wrap2(APInt(4, 8), APInt(4, 7));
+  EXPECT_EQ(Wrap.getSetSize(), APInt(5, 12));
+  EXPECT_EQ(Wrap2.getSetSize(), APInt(5, 15));
 }
 
 TEST_F(ConstantRangeTest, GetMinsAndMaxes) {
@@ -189,6 +193,10 @@ TEST_F(ConstantRangeTest, ZExt) {
   EXPECT_EQ(ZSome, ConstantRange(Some.getLower().zext(20),
                                  Some.getUpper().zext(20)));
   EXPECT_EQ(ZWrap, ConstantRange(APInt(20, 0), APInt(20, 0x10000)));
+
+  // zext([5, 0), 3->7) = [5, 8)
+  ConstantRange FiveZero(APInt(3, 5), APInt(3, 0));
+  EXPECT_EQ(FiveZero.zeroExtend(7), ConstantRange(APInt(7, 5), APInt(7, 8)));
 }
 
 TEST_F(ConstantRangeTest, SExt) {
@@ -232,6 +240,41 @@ TEST_F(ConstantRangeTest, IntersectWith) {
   ConstantRange LHS(APInt(16, 4), APInt(16, 2));
   ConstantRange RHS(APInt(16, 6), APInt(16, 5));
   EXPECT_TRUE(LHS.intersectWith(RHS) == LHS);
+
+  // previous bug: intersection of [min, 3) and [2, max) should be 2
+  LHS = ConstantRange(APInt(32, -2147483646), APInt(32, 3));
+  RHS = ConstantRange(APInt(32, 2), APInt(32, 2147483646));
+  EXPECT_EQ(LHS.intersectWith(RHS), ConstantRange(APInt(32, 2)));
+
+  // [2, 0) /\ [4, 3) = [2, 0)
+  LHS = ConstantRange(APInt(32, 2), APInt(32, 0));
+  RHS = ConstantRange(APInt(32, 4), APInt(32, 3));
+  EXPECT_EQ(LHS.intersectWith(RHS), ConstantRange(APInt(32, 2), APInt(32, 0)));
+
+  // [2, 0) /\ [4, 2) = [4, 0)
+  LHS = ConstantRange(APInt(32, 2), APInt(32, 0));
+  RHS = ConstantRange(APInt(32, 4), APInt(32, 2));
+  EXPECT_EQ(LHS.intersectWith(RHS), ConstantRange(APInt(32, 4), APInt(32, 0)));
+
+  // [4, 2) /\ [5, 1) = [5, 1)
+  LHS = ConstantRange(APInt(32, 4), APInt(32, 2));
+  RHS = ConstantRange(APInt(32, 5), APInt(32, 1));
+  EXPECT_EQ(LHS.intersectWith(RHS), ConstantRange(APInt(32, 5), APInt(32, 1)));
+
+  // [2, 0) /\ [7, 4) = [7, 4)
+  LHS = ConstantRange(APInt(32, 2), APInt(32, 0));
+  RHS = ConstantRange(APInt(32, 7), APInt(32, 4));
+  EXPECT_EQ(LHS.intersectWith(RHS), ConstantRange(APInt(32, 7), APInt(32, 4)));
+
+  // [4, 2) /\ [1, 0) = [1, 0)
+  LHS = ConstantRange(APInt(32, 4), APInt(32, 2));
+  RHS = ConstantRange(APInt(32, 1), APInt(32, 0));
+  EXPECT_EQ(LHS.intersectWith(RHS), ConstantRange(APInt(32, 4), APInt(32, 2)));
+ 
+  // [15, 0) /\ [7, 6) = [15, 0)
+  LHS = ConstantRange(APInt(32, 15), APInt(32, 0));
+  RHS = ConstantRange(APInt(32, 7), APInt(32, 6));
+  EXPECT_EQ(LHS.intersectWith(RHS), ConstantRange(APInt(32, 15), APInt(32, 0)));
 }
 
 TEST_F(ConstantRangeTest, UnionWith) {
@@ -252,6 +295,23 @@ TEST_F(ConstantRangeTest, UnionWith) {
   EXPECT_EQ(ConstantRange(APInt(16, 1), APInt(16, 0)).unionWith(
                                     ConstantRange(APInt(16, 2), APInt(16, 1))),
               ConstantRange(16));
+}
+
+TEST_F(ConstantRangeTest, SetDifference) {
+  EXPECT_EQ(Full.difference(Empty), Full);
+  EXPECT_EQ(Full.difference(Full), Empty);
+  EXPECT_EQ(Empty.difference(Empty), Empty);
+  EXPECT_EQ(Empty.difference(Full), Empty);
+
+  ConstantRange A(APInt(16, 3), APInt(16, 7));
+  ConstantRange B(APInt(16, 5), APInt(16, 9));
+  ConstantRange C(APInt(16, 3), APInt(16, 5));
+  ConstantRange D(APInt(16, 7), APInt(16, 9));
+  ConstantRange E(APInt(16, 5), APInt(16, 4));
+  ConstantRange F(APInt(16, 7), APInt(16, 3));
+  EXPECT_EQ(A.difference(B), C);
+  EXPECT_EQ(B.difference(A), D);
+  EXPECT_EQ(E.difference(A), F);
 }
 
 TEST_F(ConstantRangeTest, SubtractAPInt) {
@@ -325,6 +385,14 @@ TEST_F(ConstantRangeTest, Multiply) {
   EXPECT_EQ(Some.multiply(Some), Full);
   EXPECT_EQ(Some.multiply(Wrap), Full);
   EXPECT_EQ(Wrap.multiply(Wrap), Full);
+
+  ConstantRange Zero(APInt(16, 0));
+  EXPECT_EQ(Zero.multiply(Full), Zero);
+  EXPECT_EQ(Zero.multiply(Some), Zero);
+  EXPECT_EQ(Zero.multiply(Wrap), Zero);
+  EXPECT_EQ(Full.multiply(Zero), Zero);
+  EXPECT_EQ(Some.multiply(Zero), Zero);
+  EXPECT_EQ(Wrap.multiply(Zero), Zero);
 
   // http://llvm.org/PR4545
   EXPECT_EQ(ConstantRange(APInt(4, 1), APInt(4, 6)).multiply(

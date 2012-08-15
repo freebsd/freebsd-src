@@ -112,6 +112,8 @@ HOST_OS=@HOST_OS@
 # Target operating system for which LLVM will compile for.
 TARGET_OS=@TARGET_OS@
 
+# Host hardware architecture
+HOST_ARCH=@HOST_ARCH@
 # Target hardware architecture
 ARCH=@ARCH@
 TARGET_NATIVE_ARCH := $(ARCH)
@@ -189,8 +191,6 @@ GAS        := @GAS@
 POD2HTML   := @POD2HTML@
 POD2MAN    := @POD2MAN@
 PDFROFF    := @PDFROFF@
-RUNTEST    := @RUNTEST@
-TCLSH      := @TCLSH@
 ZIP        := @ZIP@
 
 HAVE_PTHREAD := @HAVE_PTHREAD@
@@ -217,6 +217,12 @@ RDYNAMIC := @RDYNAMIC@
 # When ENABLE_LIBCPP is enabled, LLVM uses libc++ by default to build.
 #ENABLE_LIBCPP = 0
 ENABLE_LIBCPP = @ENABLE_LIBCPP@
+
+# When ENABLE_CXX11 is enabled, LLVM uses c++11 mode by default to build.
+ENABLE_CXX11 = @ENABLE_CXX11@
+
+# When ENABLE_WERROR is enabled, we'll pass -Werror on the command line
+ENABLE_WERROR = @ENABLE_WERROR@
 
 # When ENABLE_OPTIMIZED is enabled, LLVM code is optimized and output is put
 # into the "Release" directories. Otherwise, LLVM code is not optimized and
@@ -343,6 +349,10 @@ LLVM_HAS_POLLY = @LLVM_HAS_POLLY@
 # Flags supported by the linker.
 # bfd ld / gold --version-script=file
 HAVE_LINK_VERSION_SCRIPT = @HAVE_LINK_VERSION_SCRIPT@
+
+# Flags to control using libxml2
+LIBXML2_LIBS := @LIBXML2_LIBS@
+LIBXML2_INC  := @LIBXML2_INC@
 
 # Flags to control building support for Intel JIT Events API
 USE_INTEL_JITEVENTS := @USE_INTEL_JITEVENTS@

@@ -1,4 +1,4 @@
-@ RUN: llvm-mc -triple=armv7-apple-darwin -show-encoding < %s | FileCheck %s
+@ RUN: llvm-mc -triple=armv7-apple-darwin -mcpu=cortex-a8 -show-encoding < %s | FileCheck %s
   .syntax unified
   .globl _func
 
@@ -141,6 +141,14 @@ Lforward:
 @ CHECK: adr	r2, #3                  @ encoding: [0x03,0x20,0x8f,0xe2]
 @ CHECK: adr	r2, #-3                 @ encoding: [0x03,0x20,0x4f,0xe2]
 
+        adr r1, #-0x0
+        adr r1, #-0x12000000
+        adr r1, #0x12000000
+
+@ CHECK: adr	r1, #-0                 @ encoding: [0x00,0x10,0x4f,0xe2]
+@ CHECK: adr	r1, #-301989888         @ encoding: [0x12,0x14,0x4f,0xe2]
+@ CHECK: adr	r1, #301989888          @ encoding: [0x12,0x14,0x8f,0xe2]
+
 
 @------------------------------------------------------------------------------
 @ ADD
@@ -206,6 +214,11 @@ Lforward:
 @ CHECK: sub	r0, r0, #4              @ encoding: [0x04,0x00,0x40,0xe2]
 @ CHECK: sub	r4, r5, #21             @ encoding: [0x15,0x40,0x45,0xe2]
 
+    @ Test right shift by 32, which is encoded as 0
+    add r3, r1, r2, lsr #32
+    add r3, r1, r2, asr #32
+@ CHECK: add	r3, r1, r2, lsr #32     @ encoding: [0x22,0x30,0x81,0xe0]
+@ CHECK: add	r3, r1, r2, asr #32     @ encoding: [0x42,0x30,0x81,0xe0]
 
 @------------------------------------------------------------------------------
 @ AND
@@ -264,6 +277,12 @@ Lforward:
 @ CHECK: and	r6, r6, r7, asr r2      @ encoding: [0x57,0x62,0x06,0xe0]
 @ CHECK: and	r6, r6, r7, ror r2      @ encoding: [0x77,0x62,0x06,0xe0]
 @ CHECK: and	r10, r10, r1, rrx       @ encoding: [0x61,0xa0,0x0a,0xe0]
+
+    @ Test right shift by 32, which is encoded as 0
+    and r3, r1, r2, lsr #32
+    and r3, r1, r2, asr #32
+@ CHECK: and	r3, r1, r2, lsr #32     @ encoding: [0x22,0x30,0x01,0xe0]
+@ CHECK: and	r3, r1, r2, asr #32     @ encoding: [0x42,0x30,0x01,0xe0]
 
 @------------------------------------------------------------------------------
 @ ASR
@@ -367,6 +386,12 @@ Lforward:
 @ CHECK: bic	r6, r6, r7, asr r2      @ encoding: [0x57,0x62,0xc6,0xe1]
 @ CHECK: bic	r6, r6, r7, ror r2      @ encoding: [0x77,0x62,0xc6,0xe1]
 @ CHECK: bic	r10, r10, r1, rrx       @ encoding: [0x61,0xa0,0xca,0xe1]
+
+    @ Test right shift by 32, which is encoded as 0
+    bic r3, r1, r2, lsr #32
+    bic r3, r1, r2, asr #32
+@ CHECK: bic	r3, r1, r2, lsr #32     @ encoding: [0x22,0x30,0xc1,0xe1]
+@ CHECK: bic	r3, r1, r2, asr #32     @ encoding: [0x42,0x30,0xc1,0xe1]
 
 @------------------------------------------------------------------------------
 @ BKPT
@@ -542,6 +567,23 @@ Lforward:
 @------------------------------------------------------------------------------
 @ DMB
 @------------------------------------------------------------------------------
+        dmb #0xf
+        dmb #0xe
+        dmb #0xd
+        dmb #0xc
+        dmb #0xb
+        dmb #0xa
+        dmb #0x9
+        dmb #0x8
+        dmb #0x7
+        dmb #0x6
+        dmb #0x5
+        dmb #0x4
+        dmb #0x3
+        dmb #0x2
+        dmb #0x1
+        dmb #0x0
+
         dmb sy
         dmb st
         dmb sh
@@ -555,6 +597,23 @@ Lforward:
         dmb osh
         dmb oshst
         dmb
+
+@ CHECK: dmb	sy                      @ encoding: [0x5f,0xf0,0x7f,0xf5]
+@ CHECK: dmb	st                      @ encoding: [0x5e,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0xd                    @ encoding: [0x5d,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0xc                    @ encoding: [0x5c,0xf0,0x7f,0xf5]
+@ CHECK: dmb	ish                     @ encoding: [0x5b,0xf0,0x7f,0xf5]
+@ CHECK: dmb	ishst                   @ encoding: [0x5a,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0x9                    @ encoding: [0x59,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0x8                    @ encoding: [0x58,0xf0,0x7f,0xf5]
+@ CHECK: dmb	nsh                     @ encoding: [0x57,0xf0,0x7f,0xf5]
+@ CHECK: dmb	nshst                   @ encoding: [0x56,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0x5                    @ encoding: [0x55,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0x4                    @ encoding: [0x54,0xf0,0x7f,0xf5]
+@ CHECK: dmb	osh                     @ encoding: [0x53,0xf0,0x7f,0xf5]
+@ CHECK: dmb	oshst                   @ encoding: [0x52,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0x1                    @ encoding: [0x51,0xf0,0x7f,0xf5]
+@ CHECK: dmb	#0x0                    @ encoding: [0x50,0xf0,0x7f,0xf5]
 
 @ CHECK: dmb	sy                      @ encoding: [0x5f,0xf0,0x7f,0xf5]
 @ CHECK: dmb	st                      @ encoding: [0x5e,0xf0,0x7f,0xf5]
@@ -573,6 +632,26 @@ Lforward:
 @------------------------------------------------------------------------------
 @ DSB
 @------------------------------------------------------------------------------
+        dsb #0xf
+        dsb #0xe
+        dsb #0xd
+        dsb #0xc
+        dsb #0xb
+        dsb #0xa
+        dsb #0x9
+        dsb #0x8
+        dsb #0x7
+        dsb #0x6
+        dsb #0x5
+        dsb #0x4
+        dsb #0x3
+        dsb #0x2
+        dsb #0x1
+        dsb #0x0
+
+        dsb 8
+        dsb 7
+
         dsb sy
         dsb st
         dsb sh
@@ -589,6 +668,26 @@ Lforward:
 
 @ CHECK: dsb	sy                      @ encoding: [0x4f,0xf0,0x7f,0xf5]
 @ CHECK: dsb	st                      @ encoding: [0x4e,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0xd                    @ encoding: [0x4d,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0xc                    @ encoding: [0x4c,0xf0,0x7f,0xf5]
+@ CHECK: dsb	ish                     @ encoding: [0x4b,0xf0,0x7f,0xf5]
+@ CHECK: dsb	ishst                   @ encoding: [0x4a,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0x9                    @ encoding: [0x49,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0x8                    @ encoding: [0x48,0xf0,0x7f,0xf5]
+@ CHECK: dsb	nsh                     @ encoding: [0x47,0xf0,0x7f,0xf5]
+@ CHECK: dsb	nshst                   @ encoding: [0x46,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0x5                    @ encoding: [0x45,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0x4                    @ encoding: [0x44,0xf0,0x7f,0xf5]
+@ CHECK: dsb	osh                     @ encoding: [0x43,0xf0,0x7f,0xf5]
+@ CHECK: dsb	oshst                   @ encoding: [0x42,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0x1                    @ encoding: [0x41,0xf0,0x7f,0xf5]
+@ CHECK: dsb	#0x0                    @ encoding: [0x40,0xf0,0x7f,0xf5]
+
+@ CHECK: dsb	#0x8                    @ encoding: [0x48,0xf0,0x7f,0xf5]
+@ CHECK: dsb	nsh                     @ encoding: [0x47,0xf0,0x7f,0xf5]
+
+@ CHECK: dsb	sy                      @ encoding: [0x4f,0xf0,0x7f,0xf5]
+@ CHECK: dsb	st                      @ encoding: [0x4e,0xf0,0x7f,0xf5]
 @ CHECK: dsb	ish                     @ encoding: [0x4b,0xf0,0x7f,0xf5]
 @ CHECK: dsb	ish                     @ encoding: [0x4b,0xf0,0x7f,0xf5]
 @ CHECK: dsb	ishst                   @ encoding: [0x4a,0xf0,0x7f,0xf5]
@@ -601,6 +700,12 @@ Lforward:
 @ CHECK: dsb	oshst                   @ encoding: [0x42,0xf0,0x7f,0xf5]
 @ CHECK: dsb	sy                      @ encoding: [0x4f,0xf0,0x7f,0xf5]
 
+@ With capitals
+        dsb SY
+        dsb OSHST
+
+@ CHECK: dsb	sy                      @ encoding: [0x4f,0xf0,0x7f,0xf5]
+@ CHECK: dsb	oshst                   @ encoding: [0x42,0xf0,0x7f,0xf5]
 @------------------------------------------------------------------------------
 @ EOR
 @------------------------------------------------------------------------------
@@ -658,6 +763,11 @@ Lforward:
 @ CHECK: eor	r6, r6, r7, ror r9      @ encoding: [0x77,0x69,0x26,0xe0]
 @ CHECK: eor	r4, r4, r5, rrx         @ encoding: [0x65,0x40,0x24,0xe0]
 
+    @ Test right shift by 32, which is encoded as 0
+    eor r3, r1, r2, lsr #32
+    eor r3, r1, r2, asr #32
+@ CHECK: eor	r3, r1, r2, lsr #32     @ encoding: [0x22,0x30,0x21,0xe0]
+@ CHECK: eor	r3, r1, r2, asr #32     @ encoding: [0x42,0x30,0x21,0xe0]
 
 @------------------------------------------------------------------------------
 @ ISB
@@ -1204,6 +1314,12 @@ Lforward:
 @ CHECK: orrne	r6, r6, r7, asr r9      @ encoding: [0x57,0x69,0x86,0x11]
 @ CHECK: orrslt	r6, r6, r7, ror r9      @ encoding: [0x77,0x69,0x96,0xb1]
 @ CHECK: orrsgt	r4, r4, r5, rrx         @ encoding: [0x65,0x40,0x94,0xc1]
+
+    @ Test right shift by 32, which is encoded as 0
+    orr r3, r1, r2, lsr #32
+    orr r3, r1, r2, asr #32
+@ CHECK: orr	r3, r1, r2, lsr #32     @ encoding: [0x22,0x30,0x81,0xe1]
+@ CHECK: orr	r3, r1, r2, asr #32     @ encoding: [0x42,0x30,0x81,0xe1]
 
 @------------------------------------------------------------------------------
 @ PKH
@@ -2210,6 +2326,11 @@ Lforward:
 @ CHECK: sub	r6, r6, r7, asr r9      @ encoding: [0x57,0x69,0x46,0xe0]
 @ CHECK: sub	r6, r6, r7, ror r9      @ encoding: [0x77,0x69,0x46,0xe0]
 
+    @ Test right shift by 32, which is encoded as 0
+    sub r3, r1, r2, lsr #32
+    sub r3, r1, r2, asr #32
+@ CHECK: sub	r3, r1, r2, lsr #32     @ encoding: [0x22,0x30,0x41,0xe0]
+@ CHECK: sub	r3, r1, r2, asr #32     @ encoding: [0x42,0x30,0x41,0xe0]
 
 @------------------------------------------------------------------------------
 @ SVC
@@ -2711,10 +2832,22 @@ Lforward:
         wfilt
         yield
         yieldne
+        hint #5
+        hint #4
+        hint #3
+        hint #2
+        hint #1
+        hint #0
 
-@ CHECK: wfe @ encoding: [0x02,0xf0,0x20,0xe3]
-@ CHECK: wfehi @ encoding: [0x02,0xf0,0x20,0x83]
-@ CHECK: wfi @ encoding: [0x03,0xf0,0x20,0xe3]
-@ CHECK: wfilt @ encoding: [0x03,0xf0,0x20,0xb3]
-@ CHECK: yield @ encoding: [0x01,0xf0,0x20,0xe3]
-@ CHECK: yieldne @ encoding: [0x01,0xf0,0x20,0x13]
+@ CHECK: wfe                            @ encoding: [0x02,0xf0,0x20,0xe3]
+@ CHECK: wfehi                          @ encoding: [0x02,0xf0,0x20,0x83]
+@ CHECK: wfi                            @ encoding: [0x03,0xf0,0x20,0xe3]
+@ CHECK: wfilt                          @ encoding: [0x03,0xf0,0x20,0xb3]
+@ CHECK: yield                          @ encoding: [0x01,0xf0,0x20,0xe3]
+@ CHECK: yieldne                        @ encoding: [0x01,0xf0,0x20,0x13]
+@ CHECK: hint	#5                      @ encoding: [0x05,0xf0,0x20,0xe3]
+@ CHECK: sev                            @ encoding: [0x04,0xf0,0x20,0xe3]
+@ CHECK: wfi                            @ encoding: [0x03,0xf0,0x20,0xe3]
+@ CHECK: wfe                            @ encoding: [0x02,0xf0,0x20,0xe3]
+@ CHECK: yield                          @ encoding: [0x01,0xf0,0x20,0xe3]
+@ CHECK: nop                            @ encoding: [0x00,0xf0,0x20,0xe3]

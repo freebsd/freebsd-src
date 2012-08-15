@@ -22,6 +22,10 @@ D: GVNPRE pass, TargetData refactoring, random improvements
 N: Henrik Bach
 D: MingW Win32 API portability layer
 
+N: Aaron Ballman
+E: aaron@aaronballman.com
+D: __declspec attributes, Windows support, general bug fixing
+
 N: Nate Begeman
 E: natebegeman@mac.com
 D: PowerPC backend developer
@@ -341,6 +345,10 @@ N: Vladimir Prus
 W: http://vladimir_prus.blogspot.com
 E: ghost@cs.msu.su
 D: Made inst_iterator behave like a proper iterator, LowerConstantExprs pass
+
+N: Kalle Raiskila
+E: kalle.rasikila@nokia.com
+D: Some bugfixes to CellSPU
 
 N: Xerxes Ranby
 E: xerxes@zafena.se

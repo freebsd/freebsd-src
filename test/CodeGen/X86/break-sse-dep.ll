@@ -1,5 +1,5 @@
-; RUN: llc < %s -mtriple=x86_64-linux -mattr=+sse2 | FileCheck %s
-; RUN: llc < %s -mtriple=x86_64-win32 -mattr=+sse2 | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-linux -mattr=+sse2 -mcpu=nehalem | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-win32 -mattr=+sse2 -mcpu=nehalem | FileCheck %s
 
 define double @t1(float* nocapture %x) nounwind readonly ssp {
 entry:
@@ -34,8 +34,7 @@ entry:
 define double @squirt(double* %x) nounwind {
 entry:
 ; CHECK: squirt:
-; CHECK: movsd ([[A0]]), %xmm0
-; CHECK: sqrtsd %xmm0, %xmm0
+; CHECK: sqrtsd ([[A0]]), %xmm0
   %z = load double* %x
   %t = call double @llvm.sqrt.f64(double %z)
   ret double %t

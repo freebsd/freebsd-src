@@ -11,7 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/DataStream.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Config/config.h"
 #include <string.h>
 
@@ -24,6 +30,12 @@
 #endif
 #ifdef _MSC_VER
 #include <intrin.h>
+#endif
+#if defined(__APPLE__) && (defined(__ppc__) || defined(__powerpc__))
+#include <mach/mach.h>
+#include <mach/mach_host.h>
+#include <mach/host_info.h>
+#include <mach/machine.h>
 #endif
 
 //===----------------------------------------------------------------------===//
@@ -230,11 +242,18 @@ std::string sys::getHostCPUName() {
       case 45:
         return "corei7-avx";
 
-      case 28: // Intel Atom processor. All processors are manufactured using
-               // the 45 nm process
+      // Ivy Bridge:
+      case 58:
+        return "core-avx-i";
+
+      case 28: // Most 45 nm Intel Atom processors
+      case 38: // 45 nm Atom Lincroft
+      case 39: // 32 nm Atom Medfield
+      case 53: // 32 nm Atom Midview
+      case 54: // 32 nm Atom Midview
         return "atom";
 
-      default: return "i686";
+      default: return (Em64T) ? "x86-64" : "i686";
       }
     case 15: {
       switch (Model) {
@@ -313,6 +332,179 @@ std::string sys::getHostCPUName() {
       return "generic";
     }
   }
+  return "generic";
+}
+#elif defined(__APPLE__) && (defined(__ppc__) || defined(__powerpc__))
+std::string sys::getHostCPUName() {
+  host_basic_info_data_t hostInfo;
+  mach_msg_type_number_t infoCount;
+
+  infoCount = HOST_BASIC_INFO_COUNT;
+  host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t)&hostInfo, 
+            &infoCount);
+            
+  if (hostInfo.cpu_type != CPU_TYPE_POWERPC) return "generic";
+
+  switch(hostInfo.cpu_subtype) {
+  case CPU_SUBTYPE_POWERPC_601:   return "601";
+  case CPU_SUBTYPE_POWERPC_602:   return "602";
+  case CPU_SUBTYPE_POWERPC_603:   return "603";
+  case CPU_SUBTYPE_POWERPC_603e:  return "603e";
+  case CPU_SUBTYPE_POWERPC_603ev: return "603ev";
+  case CPU_SUBTYPE_POWERPC_604:   return "604";
+  case CPU_SUBTYPE_POWERPC_604e:  return "604e";
+  case CPU_SUBTYPE_POWERPC_620:   return "620";
+  case CPU_SUBTYPE_POWERPC_750:   return "750";
+  case CPU_SUBTYPE_POWERPC_7400:  return "7400";
+  case CPU_SUBTYPE_POWERPC_7450:  return "7450";
+  case CPU_SUBTYPE_POWERPC_970:   return "970";
+  default: ;
+  }
+  
+  return "generic";
+}
+#elif defined(__linux__) && (defined(__ppc__) || defined(__powerpc__))
+std::string sys::getHostCPUName() {
+  // Access to the Processor Version Register (PVR) on PowerPC is privileged,
+  // and so we must use an operating-system interface to determine the current
+  // processor type. On Linux, this is exposed through the /proc/cpuinfo file.
+  const char *generic = "generic";
+
+  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
+  // memory buffer because the 'file' has 0 size (it can be read from only
+  // as a stream).
+
+  std::string Err;
+  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
+  if (!DS) {
+    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
+    return generic;
+  }
+
+  // The cpu line is second (after the 'processor: 0' line), so if this
+  // buffer is too small then something has changed (or is wrong).
+  char buffer[1024];
+  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
+  delete DS;
+
+  const char *CPUInfoStart = buffer;
+  const char *CPUInfoEnd = buffer + CPUInfoSize;
+
+  const char *CIP = CPUInfoStart;
+
+  const char *CPUStart = 0;
+  size_t CPULen = 0;
+
+  // We need to find the first line which starts with cpu, spaces, and a colon.
+  // After the colon, there may be some additional spaces and then the cpu type.
+  while (CIP < CPUInfoEnd && CPUStart == 0) {
+    if (CIP < CPUInfoEnd && *CIP == '\n')
+      ++CIP;
+
+    if (CIP < CPUInfoEnd && *CIP == 'c') {
+      ++CIP;
+      if (CIP < CPUInfoEnd && *CIP == 'p') {
+        ++CIP;
+        if (CIP < CPUInfoEnd && *CIP == 'u') {
+          ++CIP;
+          while (CIP < CPUInfoEnd && (*CIP == ' ' || *CIP == '\t'))
+            ++CIP;
+  
+          if (CIP < CPUInfoEnd && *CIP == ':') {
+            ++CIP;
+            while (CIP < CPUInfoEnd && (*CIP == ' ' || *CIP == '\t'))
+              ++CIP;
+  
+            if (CIP < CPUInfoEnd) {
+              CPUStart = CIP;
+              while (CIP < CPUInfoEnd && (*CIP != ' ' && *CIP != '\t' &&
+                                          *CIP != ',' && *CIP != '\n'))
+                ++CIP;
+              CPULen = CIP - CPUStart;
+            }
+          }
+        }
+      }
+    }
+
+    if (CPUStart == 0)
+      while (CIP < CPUInfoEnd && *CIP != '\n')
+        ++CIP;
+  }
+
+  if (CPUStart == 0)
+    return generic;
+
+  return StringSwitch<const char *>(StringRef(CPUStart, CPULen))
+    .Case("604e", "604e")
+    .Case("604", "604")
+    .Case("7400", "7400")
+    .Case("7410", "7400")
+    .Case("7447", "7400")
+    .Case("7455", "7450")
+    .Case("G4", "g4")
+    .Case("POWER4", "970")
+    .Case("PPC970FX", "970")
+    .Case("PPC970MP", "970")
+    .Case("G5", "g5")
+    .Case("POWER5", "g5")
+    .Case("A2", "a2")
+    .Case("POWER6", "pwr6")
+    .Case("POWER7", "pwr7")
+    .Default(generic);
+}
+#elif defined(__linux__) && defined(__arm__)
+std::string sys::getHostCPUName() {
+  // The cpuid register on arm is not accessible from user space. On Linux,
+  // it is exposed through the /proc/cpuinfo file.
+  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
+  // memory buffer because the 'file' has 0 size (it can be read from only
+  // as a stream).
+
+  std::string Err;
+  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
+  if (!DS) {
+    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
+    return "generic";
+  }
+
+  // Read 1024 bytes from /proc/cpuinfo, which should contain the CPU part line
+  // in all cases.
+  char buffer[1024];
+  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
+  delete DS;
+
+  StringRef Str(buffer, CPUInfoSize);
+
+  SmallVector<StringRef, 32> Lines;
+  Str.split(Lines, "\n");
+
+  // Look for the CPU implementer line.
+  StringRef Implementer;
+  for (unsigned I = 0, E = Lines.size(); I != E; ++I)
+    if (Lines[I].startswith("CPU implementer"))
+      Implementer = Lines[I].substr(15).ltrim("\t :");
+
+  if (Implementer == "0x41") // ARM Ltd.
+    // Look for the CPU part line.
+    for (unsigned I = 0, E = Lines.size(); I != E; ++I)
+      if (Lines[I].startswith("CPU part"))
+        // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
+        // values correspond to the "Part number" in the CP15/c0 register. The
+        // contents are specified in the various processor manuals.
+        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
+          .Case("0x926", "arm926ej-s")
+          .Case("0xb02", "mpcore")
+          .Case("0xb36", "arm1136j-s")
+          .Case("0xb56", "arm1156t2-s")
+          .Case("0xb76", "arm1176jz-s")
+          .Case("0xc08", "cortex-a8")
+          .Case("0xc09", "cortex-a9")
+          .Case("0xc20", "cortex-m0")
+          .Case("0xc23", "cortex-m3")
+          .Case("0xc24", "cortex-m4")
+          .Default("generic");
+
   return "generic";
 }
 #else

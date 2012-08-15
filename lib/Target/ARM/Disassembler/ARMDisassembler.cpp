@@ -24,10 +24,64 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+#include <vector>
 
 using namespace llvm;
 
 typedef MCDisassembler::DecodeStatus DecodeStatus;
+
+namespace {
+  // Handles the condition code status of instructions in IT blocks
+  class ITStatus
+  {
+    public:
+      // Returns the condition code for instruction in IT block
+      unsigned getITCC() {
+        unsigned CC = ARMCC::AL;
+        if (instrInITBlock())
+          CC = ITStates.back();
+        return CC;
+      }
+
+      // Advances the IT block state to the next T or E
+      void advanceITState() {
+        ITStates.pop_back();
+      }
+
+      // Returns true if the current instruction is in an IT block
+      bool instrInITBlock() {
+        return !ITStates.empty();
+      }
+
+      // Returns true if current instruction is the last instruction in an IT block
+      bool instrLastInITBlock() {
+        return ITStates.size() == 1;
+      }
+
+      // Called when decoding an IT instruction. Sets the IT state for the following
+      // instructions that for the IT block. Firstcond and Mask correspond to the 
+      // fields in the IT instruction encoding.
+      void setITState(char Firstcond, char Mask) {
+        // (3 - the number of trailing zeros) is the number of then / else.
+        unsigned CondBit0 = Firstcond & 1;
+        unsigned NumTZ = CountTrailingZeros_32(Mask);
+        unsigned char CCBits = static_cast<unsigned char>(Firstcond & 0xf);
+        assert(NumTZ <= 3 && "Invalid IT mask!");
+        // push condition codes onto the stack the correct order for the pops
+        for (unsigned Pos = NumTZ+1; Pos <= 3; ++Pos) {
+          bool T = ((Mask >> Pos) & 1) == CondBit0;
+          if (T)
+            ITStates.push_back(CCBits);
+          else
+            ITStates.push_back(CCBits ^ 1);
+        }
+        ITStates.push_back(CCBits);
+      }
+
+    private:
+      std::vector<unsigned char> ITStates;
+  };
+}
 
 namespace {
 /// ARMDisassembler - ARM disassembler for all ARM platforms.
@@ -78,7 +132,7 @@ public:
   /// getEDInfo - See MCDisassembler.
   const EDInstInfo *getEDInfo() const;
 private:
-  mutable std::vector<unsigned> ITBlock;
+  mutable ITStatus ITBlock;
   DecodeStatus AddThumbPredicate(MCInst&) const;
   void UpdateThumbVFPPredicate(MCInst&) const;
 };
@@ -549,7 +603,7 @@ static bool tryAddingSymbolicOperand(uint64_t Address, int32_t Value,
 /// These can often be values in a literal pool near the Address of the
 /// instruction.  The Address of the instruction and its immediate Value are
 /// used as a possible literal pool entry.  The SymbolLookUp call back will
-/// return the name of a symbol referenced by the the literal pool's entry if
+/// return the name of a symbol referenced by the literal pool's entry if
 /// the referenced address is that of a symbol.  Or it will return a pointer to
 /// a literal 'C' string if the referenced address of the literal pool's entry
 /// is an address into a section with 'C' string literals.
@@ -612,7 +666,7 @@ ThumbDisassembler::AddThumbPredicate(MCInst &MI) const {
     case ARM::tSETEND:
       // Some instructions (mostly conditional branches) are not
       // allowed in IT blocks.
-      if (!ITBlock.empty())
+      if (ITBlock.instrInITBlock())
         S = SoftFail;
       else
         return Success;
@@ -623,7 +677,7 @@ ThumbDisassembler::AddThumbPredicate(MCInst &MI) const {
     case ARM::t2TBH:
       // Some instructions (mostly unconditional branches) can
       // only appears at the end of, or outside of, an IT.
-      if (ITBlock.size() > 1)
+      if (ITBlock.instrInITBlock() && !ITBlock.instrLastInITBlock())
         S = SoftFail;
       break;
     default:
@@ -633,13 +687,11 @@ ThumbDisassembler::AddThumbPredicate(MCInst &MI) const {
   // If we're in an IT block, base the predicate on that.  Otherwise,
   // assume a predicate of AL.
   unsigned CC;
-  if (!ITBlock.empty()) {
-    CC = ITBlock.back();
-    if (CC == 0xF)
-      CC = ARMCC::AL;
-    ITBlock.pop_back();
-  } else
+  CC = ITBlock.getITCC();
+  if (CC == 0xF) 
     CC = ARMCC::AL;
+  if (ITBlock.instrInITBlock())
+    ITBlock.advanceITState();
 
   const MCOperandInfo *OpInfo = ARMInsts[MI.getOpcode()].OpInfo;
   unsigned short NumOps = ARMInsts[MI.getOpcode()].NumOperands;
@@ -674,11 +726,9 @@ ThumbDisassembler::AddThumbPredicate(MCInst &MI) const {
 // context as a post-pass.
 void ThumbDisassembler::UpdateThumbVFPPredicate(MCInst &MI) const {
   unsigned CC;
-  if (!ITBlock.empty()) {
-    CC = ITBlock.back();
-    ITBlock.pop_back();
-  } else
-    CC = ARMCC::AL;
+  CC = ITBlock.getITCC();
+  if (ITBlock.instrInITBlock())
+    ITBlock.advanceITState();
 
   const MCOperandInfo *OpInfo = ARMInsts[MI.getOpcode()].OpInfo;
   MCInst::iterator I = MI.begin();
@@ -726,7 +776,7 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   result = decodeThumbSBitInstruction16(MI, insn16, Address, this, STI);
   if (result) {
     Size = 2;
-    bool InITBlock = !ITBlock.empty();
+    bool InITBlock = ITBlock.instrInITBlock();
     Check(result, AddThumbPredicate(MI));
     AddThumb1SBit(MI, InITBlock);
     return result;
@@ -739,7 +789,7 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 
     // Nested IT blocks are UNPREDICTABLE.  Must be checked before we add
     // the Thumb predicate.
-    if (MI.getOpcode() == ARM::t2IT && !ITBlock.empty())
+    if (MI.getOpcode() == ARM::t2IT && ITBlock.instrInITBlock())
       result = MCDisassembler::SoftFail;
 
     Check(result, AddThumbPredicate(MI));
@@ -749,21 +799,9 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     // to the subsequent instructions.
     if (MI.getOpcode() == ARM::t2IT) {
 
-      // (3 - the number of trailing zeros) is the number of then / else.
-      unsigned firstcond = MI.getOperand(0).getImm();
+      unsigned Firstcond = MI.getOperand(0).getImm();
       unsigned Mask = MI.getOperand(1).getImm();
-      unsigned CondBit0 = Mask >> 4 & 1;
-      unsigned NumTZ = CountTrailingZeros_32(Mask);
-      assert(NumTZ <= 3 && "Invalid IT mask!");
-      for (unsigned Pos = 3, e = NumTZ; Pos > e; --Pos) {
-        bool T = ((Mask >> Pos) & 1) == CondBit0;
-        if (T)
-          ITBlock.insert(ITBlock.begin(), firstcond);
-        else
-          ITBlock.insert(ITBlock.begin(), firstcond ^ 1);
-      }
-
-      ITBlock.push_back(firstcond);
+      ITBlock.setITState(Firstcond, Mask);
     }
 
     return result;
@@ -783,7 +821,7 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   result = decodeThumbInstruction32(MI, insn32, Address, this, STI);
   if (result != MCDisassembler::Fail) {
     Size = 4;
-    bool InITBlock = ITBlock.size();
+    bool InITBlock = ITBlock.instrInITBlock();
     Check(result, AddThumbPredicate(MI));
     AddThumb1SBit(MI, InITBlock);
     return result;
@@ -1186,8 +1224,8 @@ static DecodeStatus DecodeSPRRegListOperand(MCInst &Inst, unsigned Val,
                                  uint64_t Address, const void *Decoder) {
   DecodeStatus S = MCDisassembler::Success;
 
-  unsigned Vd = fieldFromInstruction32(Val, 8, 4);
-  unsigned regs = Val & 0xFF;
+  unsigned Vd = fieldFromInstruction32(Val, 8, 5);
+  unsigned regs = fieldFromInstruction32(Val, 0, 8);
 
   if (!Check(S, DecodeSPRRegisterClass(Inst, Vd, Address, Decoder)))
     return MCDisassembler::Fail;
@@ -1203,8 +1241,10 @@ static DecodeStatus DecodeDPRRegListOperand(MCInst &Inst, unsigned Val,
                                  uint64_t Address, const void *Decoder) {
   DecodeStatus S = MCDisassembler::Success;
 
-  unsigned Vd = fieldFromInstruction32(Val, 8, 4);
-  unsigned regs = (Val & 0xFF) / 2;
+  unsigned Vd = fieldFromInstruction32(Val, 8, 5);
+  unsigned regs = fieldFromInstruction32(Val, 0, 8);
+
+  regs = regs >> 1;
 
   if (!Check(S, DecodeDPRRegisterClass(Inst, Vd, Address, Decoder)))
       return MCDisassembler::Fail;
@@ -2976,7 +3016,7 @@ static DecodeStatus DecodeThumbBROperand(MCInst &Inst, unsigned Val,
 
 static DecodeStatus DecodeT2BROperand(MCInst &Inst, unsigned Val,
                                  uint64_t Address, const void *Decoder) {
-  if (!tryAddingSymbolicOperand(Address, Address + SignExtend32<22>(Val<<1) + 4,
+  if (!tryAddingSymbolicOperand(Address, Address + SignExtend32<21>(Val) + 4,
                                 true, 4, Inst, Decoder))
     Inst.addOperand(MCOperand::CreateImm(SignExtend32<21>(Val)));
   return MCDisassembler::Success;
@@ -3111,9 +3151,14 @@ static DecodeStatus DecodeT2LoadShift(MCInst &Inst, unsigned Insn,
 
 static DecodeStatus DecodeT2Imm8S4(MCInst &Inst, unsigned Val,
                            uint64_t Address, const void *Decoder) {
-  int imm = Val & 0xFF;
-  if (!(Val & 0x100)) imm *= -1;
-  Inst.addOperand(MCOperand::CreateImm(imm << 2));
+  if (Val == 0)
+    Inst.addOperand(MCOperand::CreateImm(INT32_MIN));
+  else {
+    int imm = Val & 0xFF;
+
+    if (!(Val & 0x100)) imm *= -1;
+    Inst.addOperand(MCOperand::CreateImm(imm << 2));
+  }
 
   return MCDisassembler::Success;
 }
@@ -3258,9 +3303,9 @@ static DecodeStatus DecodeThumbAddSPReg(MCInst &Inst, uint16_t Insn,
 
     if (!Check(S, DecodeGPRRegisterClass(Inst, Rdm, Address, Decoder)))
     return MCDisassembler::Fail;
+    Inst.addOperand(MCOperand::CreateReg(ARM::SP));
     if (!Check(S, DecodeGPRRegisterClass(Inst, Rdm, Address, Decoder)))
     return MCDisassembler::Fail;
-    Inst.addOperand(MCOperand::CreateReg(ARM::SP));
   } else if (Inst.getOpcode() == ARM::tADDspr) {
     unsigned Rm = fieldFromInstruction16(Insn, 3, 4);
 
@@ -3299,10 +3344,25 @@ static DecodeStatus DecodePostIdxReg(MCInst &Inst, unsigned Insn,
 
 static DecodeStatus DecodeThumbBLXOffset(MCInst &Inst, unsigned Val,
                                  uint64_t Address, const void *Decoder) {
+  // Val is passed in as S:J1:J2:imm10H:imm10L:'0'
+  // Note only one trailing zero not two.  Also the J1 and J2 values are from
+  // the encoded instruction.  So here change to I1 and I2 values via:
+  // I1 = NOT(J1 EOR S);
+  // I2 = NOT(J2 EOR S);
+  // and build the imm32 with two trailing zeros as documented:
+  // imm32 = SignExtend(S:I1:I2:imm10H:imm10L:'00', 32);
+  unsigned S = (Val >> 23) & 1;
+  unsigned J1 = (Val >> 22) & 1;
+  unsigned J2 = (Val >> 21) & 1;
+  unsigned I1 = !(J1 ^ S);
+  unsigned I2 = !(J2 ^ S);
+  unsigned tmp = (Val & ~0x600000) | (I1 << 22) | (I2 << 21);
+  int imm32 = SignExtend32<25>(tmp << 1);
+
   if (!tryAddingSymbolicOperand(Address,
-                                (Address & ~2u) + SignExtend32<22>(Val << 1) + 4,
+                                (Address & ~2u) + imm32 + 4,
                                 true, 4, Inst, Decoder))
-    Inst.addOperand(MCOperand::CreateImm(SignExtend32<22>(Val << 1)));
+    Inst.addOperand(MCOperand::CreateImm(imm32));
   return MCDisassembler::Success;
 }
 
@@ -3408,35 +3468,39 @@ static DecodeStatus DecodeT2SOImm(MCInst &Inst, unsigned Val,
 static DecodeStatus
 DecodeThumbBCCTargetOperand(MCInst &Inst, unsigned Val,
                             uint64_t Address, const void *Decoder){
-  if (!tryAddingSymbolicOperand(Address, Address + SignExtend32<8>(Val<<1) + 4,
+  if (!tryAddingSymbolicOperand(Address, Address + SignExtend32<9>(Val<<1) + 4,
                                 true, 2, Inst, Decoder))
-    Inst.addOperand(MCOperand::CreateImm(SignExtend32<8>(Val << 1)));
+    Inst.addOperand(MCOperand::CreateImm(SignExtend32<9>(Val << 1)));
   return MCDisassembler::Success;
 }
 
 static DecodeStatus DecodeThumbBLTargetOperand(MCInst &Inst, unsigned Val,
                                        uint64_t Address, const void *Decoder){
-  if (!tryAddingSymbolicOperand(Address, Address + SignExtend32<22>(Val<<1) + 4,
+  // Val is passed in as S:J1:J2:imm10:imm11
+  // Note no trailing zero after imm11.  Also the J1 and J2 values are from
+  // the encoded instruction.  So here change to I1 and I2 values via:
+  // I1 = NOT(J1 EOR S);
+  // I2 = NOT(J2 EOR S);
+  // and build the imm32 with one trailing zero as documented:
+  // imm32 = SignExtend(S:I1:I2:imm10:imm11:'0', 32);
+  unsigned S = (Val >> 23) & 1;
+  unsigned J1 = (Val >> 22) & 1;
+  unsigned J2 = (Val >> 21) & 1;
+  unsigned I1 = !(J1 ^ S);
+  unsigned I2 = !(J2 ^ S);
+  unsigned tmp = (Val & ~0x600000) | (I1 << 22) | (I2 << 21);
+  int imm32 = SignExtend32<25>(tmp << 1);
+
+  if (!tryAddingSymbolicOperand(Address, Address + imm32 + 4,
                                 true, 4, Inst, Decoder))
-    Inst.addOperand(MCOperand::CreateImm(SignExtend32<22>(Val << 1)));
+    Inst.addOperand(MCOperand::CreateImm(imm32));
   return MCDisassembler::Success;
 }
 
 static DecodeStatus DecodeMemBarrierOption(MCInst &Inst, unsigned Val,
                                    uint64_t Address, const void *Decoder) {
-  switch (Val) {
-  default:
+  if (Val & ~0xf)
     return MCDisassembler::Fail;
-  case 0xF: // SY
-  case 0xE: // ST
-  case 0xB: // ISH
-  case 0xA: // ISHST
-  case 0x7: // NSH
-  case 0x6: // NSHST
-  case 0x3: // OSH
-  case 0x2: // OSHST
-    break;
-  }
 
   Inst.addOperand(MCOperand::CreateImm(Val));
   return MCDisassembler::Success;
@@ -4128,9 +4192,9 @@ static DecodeStatus DecodeVMOVSRR(MCInst &Inst, unsigned Insn,
   DecodeStatus S = MCDisassembler::Success;
   unsigned Rt  = fieldFromInstruction32(Insn, 12, 4);
   unsigned Rt2 = fieldFromInstruction32(Insn, 16, 4);
-  unsigned Rm  = fieldFromInstruction32(Insn,  0, 4);
+  unsigned Rm  = fieldFromInstruction32(Insn,  5, 1);
   unsigned pred = fieldFromInstruction32(Insn, 28, 4);
-  Rm |= fieldFromInstruction32(Insn, 5, 1) << 4;
+  Rm |= fieldFromInstruction32(Insn, 0, 4) << 1;
 
   if (Rt == 0xF || Rt2 == 0xF || Rm == 0x1F)
     S = MCDisassembler::SoftFail;
@@ -4154,9 +4218,9 @@ static DecodeStatus DecodeVMOVRRS(MCInst &Inst, unsigned Insn,
   DecodeStatus S = MCDisassembler::Success;
   unsigned Rt  = fieldFromInstruction32(Insn, 12, 4);
   unsigned Rt2 = fieldFromInstruction32(Insn, 16, 4);
-  unsigned Rm  = fieldFromInstruction32(Insn,  0, 4);
+  unsigned Rm  = fieldFromInstruction32(Insn,  5, 1);
   unsigned pred = fieldFromInstruction32(Insn, 28, 4);
-  Rm |= fieldFromInstruction32(Insn, 5, 1) << 4;
+  Rm |= fieldFromInstruction32(Insn, 0, 4) << 1;
 
   if (Rt == 0xF || Rt2 == 0xF || Rm == 0x1F)
     S = MCDisassembler::SoftFail;
@@ -4179,19 +4243,14 @@ static DecodeStatus DecodeIT(MCInst &Inst, unsigned Insn,
                              uint64_t Address, const void *Decoder) {
   DecodeStatus S = MCDisassembler::Success;
   unsigned pred = fieldFromInstruction16(Insn, 4, 4);
-  // The InstPrinter needs to have the low bit of the predicate in
-  // the mask operand to be able to print it properly.
-  unsigned mask = fieldFromInstruction16(Insn, 0, 5);
+  unsigned mask = fieldFromInstruction16(Insn, 0, 4);
 
   if (pred == 0xF) {
     pred = 0xE;
     S = MCDisassembler::SoftFail;
   }
 
-  if ((mask & 0xF) == 0) {
-    // Preserve the high bit of the mask, which is the low bit of
-    // the predicate.
-    mask &= 0x10;
+  if (mask == 0x0) {
     mask |= 0x8;
     S = MCDisassembler::SoftFail;
   }

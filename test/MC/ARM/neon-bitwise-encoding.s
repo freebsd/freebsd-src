@@ -30,11 +30,16 @@
 	vbic	q8, q8, q9
 	vbic.i32	d16, #0xFF000000
 	vbic.i32	q8, #0xFF000000
+        vbic q10, q11
+        vbic d9, d1
 
 @ CHECK: vbic	d16, d17, d16           @ encoding: [0xb0,0x01,0x51,0xf2]
 @ CHECK: vbic	q8, q8, q9              @ encoding: [0xf2,0x01,0x50,0xf2]
 @ CHECK: vbic.i32	d16, #0xff000000 @ encoding: [0x3f,0x07,0xc7,0xf3]
 @ CHECK: vbic.i32	q8, #0xff000000 @ encoding: [0x7f,0x07,0xc7,0xf3]
+@ CHECK: vbic	q10, q10, q11           @ encoding: [0xf6,0x41,0x54,0xf2]
+@ CHECK: vbic	d9, d9, d1              @ encoding: [0x11,0x91,0x19,0xf2]
+
 
 	vorn	d16, d17, d16
 	vorn	q8, q8, q9
@@ -232,31 +237,37 @@
 @ CHECK: vorr	q4, q7, q3              @ encoding: [0x56,0x81,0x2e,0xf2]
 
 @ Two-operand aliases
+	vand  q6, q5
 	vand.s8  q6, q5
 	vand.s16 q7, q1
 	vand.s32 q8, q2
 	vand.f64 q8, q2
 
+	veor   q6, q5
 	veor.8   q6, q5
 	veor.p16 q7, q1
 	veor.u32 q8, q2
 	veor.d   q8, q2
 
+	veor  q6, q5
 	veor.i8  q6, q5
 	veor.16  q7, q1
 	veor.f   q8, q2
 	veor.i64 q8, q2
 
 @ CHECK: vand	q6, q6, q5              @ encoding: [0x5a,0xc1,0x0c,0xf2]
+@ CHECK: vand	q6, q6, q5              @ encoding: [0x5a,0xc1,0x0c,0xf2]
 @ CHECK: vand	q7, q7, q1              @ encoding: [0x52,0xe1,0x0e,0xf2]
 @ CHECK: vand	q8, q8, q2              @ encoding: [0xd4,0x01,0x40,0xf2]
 @ CHECK: vand	q8, q8, q2              @ encoding: [0xd4,0x01,0x40,0xf2]
 
 @ CHECK: veor	q6, q6, q5              @ encoding: [0x5a,0xc1,0x0c,0xf3]
+@ CHECK: veor	q6, q6, q5              @ encoding: [0x5a,0xc1,0x0c,0xf3]
 @ CHECK: veor	q7, q7, q1              @ encoding: [0x52,0xe1,0x0e,0xf3]
 @ CHECK: veor	q8, q8, q2              @ encoding: [0xd4,0x01,0x40,0xf3]
 @ CHECK: veor	q8, q8, q2              @ encoding: [0xd4,0x01,0x40,0xf3]
 
+@ CHECK: veor	q6, q6, q5              @ encoding: [0x5a,0xc1,0x0c,0xf3]
 @ CHECK: veor	q6, q6, q5              @ encoding: [0x5a,0xc1,0x0c,0xf3]
 @ CHECK: veor	q7, q7, q1              @ encoding: [0x52,0xe1,0x0e,0xf3]
 @ CHECK: veor	q8, q8, q2              @ encoding: [0xd4,0x01,0x40,0xf3]

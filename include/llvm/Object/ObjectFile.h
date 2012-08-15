@@ -76,13 +76,13 @@ public:
   }
 };
 
-static bool operator ==(const DataRefImpl &a, const DataRefImpl &b) {
+inline bool operator ==(const DataRefImpl &a, const DataRefImpl &b) {
   // Check bitwise identical. This is the only legal way to compare a union w/o
   // knowing which member is in use.
   return std::memcmp(&a, &b, sizeof(DataRefImpl)) == 0;
 }
 
-static bool operator <(const DataRefImpl &a, const DataRefImpl &b) {
+inline bool operator <(const DataRefImpl &a, const DataRefImpl &b) {
   // Check bitwise identical. This is the only legal way to compare a union w/o
   // knowing which member is in use.
   return std::memcmp(&a, &b, sizeof(DataRefImpl)) < 0;
@@ -126,6 +126,8 @@ public:
   ///
   /// This is for display purposes only.
   error_code getValueString(SmallVectorImpl<char> &Result) const;
+
+  DataRefImpl getRawDataRefImpl() const;
 };
 typedef content_iterator<RelocationRef> relocation_iterator;
 
@@ -570,6 +572,11 @@ inline error_code RelocationRef::getValueString(SmallVectorImpl<char> &Result)
 inline error_code RelocationRef::getHidden(bool &Result) const {
   return OwningObject->getRelocationHidden(RelocationPimpl, Result);
 }
+
+inline DataRefImpl RelocationRef::getRawDataRefImpl() const {
+  return RelocationPimpl;
+}
+
 // Inline function definitions.
 inline LibraryRef::LibraryRef(DataRefImpl LibraryP, const ObjectFile *Owner)
   : LibraryPimpl(LibraryP)

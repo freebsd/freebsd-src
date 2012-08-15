@@ -7,19 +7,22 @@ entry:
   %x = alloca i32, align 4                        ; <i32*> [#uses=2]
   store volatile i32 2, i32* %x, align 4
   %0 = load volatile i32* %x, align 4             ; <i32> [#uses=1]
-; STATIC-O32: lui $[[R0:[0-9]+]], %hi($JTI0_0)
-; STATIC-O32: addiu ${{[0-9]+}}, $[[R0]], %lo($JTI0_0)
-; STATIC-O32: sll ${{[0-9]+}}, ${{[0-9]+}}, 2
-; PIC-O32: lw $[[R0:[0-9]+]], %got($JTI0_0)
-; PIC-O32: addiu ${{[0-9]+}}, $[[R0]], %lo($JTI0_0)
-; PIC-O32: sll ${{[0-9]+}}, ${{[0-9]+}}, 2
-; PIC-O32: addu $[[R1:[0-9]+]], ${{[0-9]+}}, $gp
-; PIC-O32: jr  $[[R1]]
-; PIC-N64: ld $[[R0:[0-9]+]], %got_page($JTI0_0)
-; PIC-N64: daddiu ${{[0-9]+}}, $[[R0]], %got_ofst($JTI0_0)
-; PIC-N64: dsll ${{[0-9]+}}, ${{[0-9]+}}, 3
-; PIC-N64: daddu $[[R1:[0-9]+]], ${{[0-9]+}}, $gp
-; PIC-N64: jr  $[[R1]]
+; STATIC-O32: sll $[[R0:[0-9]+]], ${{[0-9]+}}, 2
+; STATIC-O32: lui $[[R1:[0-9]+]], %hi($JTI0_0)
+; STATIC-O32: addu $[[R2:[0-9]+]], $[[R0]], $[[R1]]
+; STATIC-O32: lw $[[R3:[0-9]+]], %lo($JTI0_0)($[[R2]])
+; PIC-O32: sll $[[R0:[0-9]+]], ${{[0-9]+}}, 2
+; PIC-O32: lw $[[R1:[0-9]+]], %got($JTI0_0)
+; PIC-O32: addu $[[R2:[0-9]+]], $[[R0]], $[[R1]]
+; PIC-O32: lw $[[R4:[0-9]+]], %lo($JTI0_0)($[[R2]])
+; PIC-O32: addu $[[R5:[0-9]+]], $[[R4:[0-9]+]]
+; PIC-O32: jr  $[[R5]]
+; PIC-N64: dsll $[[R0:[0-9]+]], ${{[0-9]+}}, 3
+; PIC-N64: ld $[[R1:[0-9]+]], %got_page($JTI0_0)
+; PIC-N64: daddu $[[R2:[0-9]+]], $[[R0:[0-9]+]], $[[R1]]
+; PIC-N64: ld $[[R4:[0-9]+]], %got_ofst($JTI0_0)($[[R2]])
+; PIC-N64: daddu $[[R5:[0-9]+]], $[[R4:[0-9]+]]
+; PIC-N64: jr  $[[R5]]
   switch i32 %0, label %bb4 [
     i32 0, label %bb5
     i32 1, label %bb1
@@ -30,7 +33,6 @@ entry:
 bb1:                                              ; preds = %entry
   ret i32 2
 
-; CHECK: STATIC-O32: $BB0_2
 bb2:                                              ; preds = %entry
   ret i32 0
 

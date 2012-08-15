@@ -1,5 +1,5 @@
-; RUN: llc < %s -fast-isel -fast-isel-abort -march=x86 -mattr=sse2
-; RUN: llc < %s -fast-isel -fast-isel-abort -mtriple=x86_64-apple-darwin10
+; RUN: llc < %s -fast-isel -fast-isel-abort -verify-machineinstrs -march=x86 -mattr=sse2
+; RUN: llc < %s -fast-isel -fast-isel-abort -verify-machineinstrs -mtriple=x86_64-apple-darwin10
 
 ; This tests very minimal fast-isel functionality.
 
@@ -117,3 +117,11 @@ define i64* @life() nounwind {
   ret i64* %a3
 }
 
+declare void @llvm.donothing() readnone
+
+; CHECK: donada
+define void @donada() nounwind {
+entry:
+  call void @llvm.donothing()
+  ret void
+}

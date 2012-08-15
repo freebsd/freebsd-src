@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple=i386-apple-darwin -mattr=+sse2 -stats |& FileCheck %s
+; RUN: llc < %s -mtriple=i386-apple-darwin -mattr=+sse2 -stats 2>&1 | FileCheck %s
 ; Now this test spills one register. But a reload in the loop is cheaper than
 ; the divsd so it's a win.
 
@@ -17,8 +17,7 @@ bb:		; preds = %bb, %entry
 ; CHECK: %bb30.loopexit
 ; CHECK: divsd %xmm0
 ; CHECK: movsd %xmm0, 16(%esp)
-; CHECK: .align
-; CHECK-NEXT: %bb3
+; CHECK: %bb3
 bb3:		; preds = %bb30.loopexit, %bb25, %bb3
 	%2 = load i32* null, align 4		; <i32> [#uses=1]
 	%3 = mul i32 %2, 0		; <i32> [#uses=1]

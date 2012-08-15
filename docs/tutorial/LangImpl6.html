@@ -6,7 +6,7 @@
   <title>Kaleidoscope: Extending the Language: User-defined Operators</title>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <meta name="author" content="Chris Lattner">
-  <link rel="stylesheet" href="../llvm.css" type="text/css">
+  <link rel="stylesheet" href="../_static/llvm.css" type="text/css">
 </head>
 
 <body>
@@ -636,7 +636,7 @@ def mandelhelp(xmin xmax xstep   ymin ymax ystep)
     : putchard(10)
   )
  
-# mandel - This is a convenient helper function for ploting the mandelbrot set
+# mandel - This is a convenient helper function for plotting the mandelbrot set
 # from the specified position with the specified Magnification.
 def mandel(realstart imagstart realmag imagmag) 
   mandelhelp(realstart, realstart+realmag*78, realmag,
@@ -834,6 +834,7 @@ library, although doing that will cause problems on Windows.</p>
 #include "llvm/DerivedTypes.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
@@ -841,7 +842,6 @@ library, although doing that will cause problems on Windows.</p>
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/TargetSelect.h"
 #include &lt;cstdio&gt;
 #include &lt;string&gt;
@@ -1823,7 +1823,7 @@ int main() {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-10-16 10:06:54 +0200 (Sun, 16 Oct 2011) $
+  Last modified: $Date: 2012-07-31 09:05:57 +0200 (Tue, 31 Jul 2012) $
 </address>
 </body>
 </html>

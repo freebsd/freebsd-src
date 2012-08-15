@@ -4,7 +4,7 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>How to submit an LLVM bug report</title>
-  <link rel="stylesheet" href="llvm.css" type="text/css">
+  <link rel="stylesheet" href="_static/llvm.css" type="text/css">
 </head>
 <body>
 
@@ -30,9 +30,6 @@
   <p>Written by <a href="mailto:sabre@nondot.org">Chris Lattner</a> and
                 <a href="http://misha.brukman.net">Misha Brukman</a></p>
 </div>
-</td>
-<td class="right">
-  <img src="img/Debugging.gif" alt="Debugging" width="444" height="314">
 </td>
 </tr>
 </table>
@@ -226,12 +223,12 @@ we have chased down ended up being bugs in the program being compiled, not
  LLVM.</p>
 
 <p>Once you determine that the program itself is not buggy, you should choose 
-which code generator you wish to compile the program with (e.g. C backend, the 
-JIT, or LLC) and optionally a series of LLVM passes to run.  For example:</p>
+which code generator you wish to compile the program with (e.g. LLC or the JIT)
+and optionally a series of LLVM passes to run.  For example:</p>
 
 <div class="doc_code">
 <p><tt>
-<b>bugpoint</b> -run-cbe [... optzn passes ...] file-to-test.bc --args -- [program arguments]</tt></p>
+<b>bugpoint</b> -run-llc [... optzn passes ...] file-to-test.bc --args -- [program arguments]</tt></p>
 </div>
 
 <p><tt>bugpoint</tt> will try to narrow down your list of passes to the one pass
@@ -341,7 +338,7 @@ the following:</p>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2011-10-31 12:21:59 +0100 (Mon, 31 Oct 2011) $
+  Last modified: $Date: 2012-06-14 18:52:55 +0200 (Thu, 14 Jun 2012) $
 </address>
 
 </body>
