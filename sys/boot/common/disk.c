@@ -187,16 +187,14 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		dev->d_offset = part.start;
 		if (dev->d_partition == 255)
 			goto out; /* Nothing more to do */
-		if (dev->d_partition == -1) {
-			/*
-			 * If we are looking at a BSD slice, and the
-			 * partition is < 0, assume the 'a' partition.
-			 */
-			if (part.type == PART_FREEBSD)
-				dev->d_partition = 0;
-			else
-				goto out;
-		}
+		/*
+		 * If d_partition < 0 and we are looking at a BSD slice,
+		 * then try to read BSD label, otherwise return the
+		 * whole MBR slice.
+		 */
+		if (dev->d_partition == -1 &&
+		    part.type != PART_FREEBSD)
+			goto out;
 		/* Try to read BSD label */
 		table = ptable_open(dev, part.end - part.start + 1,
 		    od->sectorsize, ptblread);
@@ -204,6 +202,16 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 			DEBUG("Can't read BSD label");
 			rc = ENXIO;
 			goto out;
+		}
+		/*
+		 * If slice contains BSD label and d_partition < 0, then
+		 * assume the 'a' partition. Otherwise just return the
+		 * whole MBR slice, because it can contain ZFS.
+		 */
+		if (dev->d_partition < 0) {
+			if (ptable_gettype(table) != PTABLE_BSD)
+				goto out;
+			dev->d_partition = 0;
 		}
 		rc = ptable_getpart(table, &part, dev->d_partition);
 		if (rc != 0)
