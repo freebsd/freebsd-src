@@ -542,6 +542,18 @@ port_intr_iq(struct port_info *pi, int idx)
 	return (iq);
 }
 
+static inline int
+mtu_to_bufsize(int mtu)
+{
+	int bufsize;
+
+	/* large enough for a frame even when VLAN extraction is disabled */
+	bufsize = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + mtu;
+	bufsize = roundup(bufsize + fl_pktshift, fl_pad);
+
+	return (bufsize);
+}
+
 int
 t4_setup_port_queues(struct port_info *pi)
 {
@@ -558,6 +570,7 @@ t4_setup_port_queues(struct port_info *pi)
 	struct adapter *sc = pi->adapter;
 	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+	int bufsize = mtu_to_bufsize(pi->ifp->if_mtu);
 
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq", CTLFLAG_RD,
 	    NULL, "rx queues");
@@ -587,7 +600,7 @@ t4_setup_port_queues(struct port_info *pi)
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(&rxq->fl, pi->qsize_rxq / 8, pi->ifp->if_mtu, name);
+		init_fl(&rxq->fl, pi->qsize_rxq / 8, bufsize, name);
 
 		if (sc->flags & INTR_DIRECT
 #ifdef TCP_OFFLOAD
@@ -1451,11 +1464,8 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 	struct port_info *pi = ifp->if_softc;
 	struct sge_rxq *rxq;
 	struct sge_fl *fl;
-	int i, bufsize;
+	int i, bufsize = mtu_to_bufsize(ifp->if_mtu);
 
-	/* large enough for a frame even when VLAN extraction is disabled */
-	bufsize = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ifp->if_mtu;
-	bufsize = roundup(bufsize + fl_pktshift, fl_pad);
 	for_each_rxq(pi, i, rxq) {
 		fl = &rxq->fl;
 
