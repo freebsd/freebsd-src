@@ -100,11 +100,13 @@ uart_fdt_probe(device_t dev)
 	pcell_t clock, shift;
 	int err;
 
-	if (!ofw_bus_is_compatible(dev, "ns16550"))
-		return (ENXIO);
-
 	sc = device_get_softc(dev);
-	sc->sc_class = &uart_ns8250_class;
+	if (ofw_bus_is_compatible(dev, "ns16550"))
+		sc->sc_class = &uart_ns8250_class;
+	else if (ofw_bus_is_compatible(dev, "lpc,uart"))
+		sc->sc_class = &uart_lpc_class;
+	else
+		return (ENXIO);
 
 	node = ofw_bus_get_node(dev);
 
@@ -180,7 +182,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * Finalize configuration.
 	 */
-	class = &uart_quicc_class;
+	if (fdt_is_compatible(node, "quicc"))
+		class = &uart_quicc_class;
+	if (fdt_is_compatible(node, "lpc"))
+		class = &uart_lpc_class;
 	if (fdt_is_compatible(node, "ns16550"))
 		class = &uart_ns8250_class;
 
