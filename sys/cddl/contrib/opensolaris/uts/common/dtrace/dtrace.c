@@ -15517,8 +15517,6 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		kmem_free(state, 0);
 #if __FreeBSD_version < 800039
 		dev->si_drv1 = NULL;
-#else
-		devfs_clear_cdevpriv();
 #endif
 #endif
 	}

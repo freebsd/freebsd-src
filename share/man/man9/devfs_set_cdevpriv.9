@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2008
+.Dd August 15, 2012
 .Dt DEVFS_CDEVPRIV 9
 .Os
 .Sh NAME
@@ -79,6 +79,10 @@ finished operating, the
 callback is called, with private data supplied
 .Va data
 argument.
+The
+.Fn devfs_clear_cdevpriv
+function will be also be called if the open callback
+function returns an error code.
 .Pp
 On the last filedescriptor close, system automatically arranges
 .Fn devfs_clear_cdevpriv
