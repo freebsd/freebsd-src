@@ -257,8 +257,9 @@
 126	AUE_SETREUID	NOPROTO	{ int setreuid(int ruid, int euid); }
 127	AUE_SETREGID	NOPROTO	{ int setregid(int rgid, int egid); }
 128	AUE_RENAME	NOPROTO	{ int rename(char *from, char *to); }
-129	AUE_TRUNCATE	OBSOL	otruncate
-130	AUE_FTRUNCATE	OBSOL	ftruncate
+129	AUE_TRUNCATE	COMPAT|NOPROTO	{ int truncate(char *path, \
+					    int length); }
+130	AUE_FTRUNCATE	COMPAT|NOPROTO	{ int ftruncate(int fd, int length); }
 131	AUE_FLOCK	NOPROTO	{ int flock(int fd, int how); }
 132	AUE_MKFIFO	NOPROTO	{ int mkfifo(char *path, int mode); }
 133	AUE_SENDTO	NOPROTO	{ int sendto(int s, caddr_t buf, \
