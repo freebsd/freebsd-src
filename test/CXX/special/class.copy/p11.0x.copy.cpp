@@ -8,7 +8,7 @@ struct NonTrivial {
 
 // -- a variant member with a non-trivial corresponding constructor
 union DeletedNTVariant {
-  NonTrivial NT; // expected-note{{copy constructor of union 'DeletedNTVariant' is implicitly deleted because field 'NT' has a non-trivial copy constructor}}
+  NonTrivial NT; // expected-note{{copy constructor of 'DeletedNTVariant' is implicitly deleted because variant field 'NT' has a non-trivial copy constructor}}
   DeletedNTVariant();
 };
 DeletedNTVariant DVa;
@@ -16,7 +16,7 @@ DeletedNTVariant DVb(DVa); // expected-error{{call to implicitly-deleted copy co
 
 struct DeletedNTVariant2 {
   union {
-    NonTrivial NT; // expected-note{{copy constructor of union 'DeletedNTVariant2' is implicitly deleted because field 'NT' has a non-trivial copy constructor}}
+    NonTrivial NT; // expected-note{{copy constructor of 'DeletedNTVariant2' is implicitly deleted because variant field 'NT' has a non-trivial copy constructor}}
   };
   DeletedNTVariant2();
 };
@@ -119,3 +119,15 @@ struct RValue {
 };
 RValue RVa;
 RValue RVb(RVa); // expected-error{{call to implicitly-deleted copy constructor}}
+
+namespace PR13381 {
+  struct S {
+    S(const S&);
+    S(const volatile S&) = delete; // expected-note{{deleted here}}
+  };
+  struct T {
+    volatile S s; // expected-note{{field 's' has a deleted copy constructor}}
+  };
+  T &f();
+  T t = f(); // expected-error{{call to implicitly-deleted copy constructor}}
+}

@@ -22,10 +22,10 @@ void f() {
   (int())1; // expected-error {{C-style cast from 'int' to 'int ()' is not allowed}}
 
   // Declarations.
-  int fd(T(a)); // expected-warning {{parentheses were disambiguated as a function declarator}}
-  T(*d)(int(p)); // expected-warning {{parentheses were disambiguated as a function declarator}} expected-note {{previous definition is here}}
-  typedef T(*td)(int(p));
-  extern T(*tp)(int(p));
+  int fd(T(a)); // expected-warning {{disambiguated as a function declaration}} expected-note{{add a pair of parentheses}}
+  T(*d)(int(p)); // expected-note {{previous}}
+  typedef T td(int(p));
+  extern T tp(int(p));
   T d3(); // expected-warning {{empty parentheses interpreted as a function declaration}} expected-note {{replace parentheses with an initializer}}
   T d3v(void);
   typedef T d3t();
@@ -49,6 +49,7 @@ struct RAII {
 };
 
 void func();
+void func2(short);
 namespace N {
   struct S;
 
@@ -58,6 +59,10 @@ namespace N {
     func(); // expected-warning {{function declaration}} expected-note {{replace parentheses with an initializer}}
 
     S s(); // expected-warning {{function declaration}}
+  }
+  void nonEmptyParens() {
+    int f = 0, // g = 0; expected-note {{change this ',' to a ';' to call 'func2'}}
+    func2(short(f)); // expected-warning {{function declaration}} expected-note {{add a pair of parentheses}}
   }
 }
 
@@ -69,4 +74,24 @@ int g(C);
 void foo() {
   fn(1); // expected-error {{no matching function}}
   fn(g); // OK
+}
+
+namespace PR11874 {
+void foo(); // expected-note 3 {{class 'foo' is hidden by a non-type declaration of 'foo' here}}
+class foo {};
+class bar {
+  bar() {
+    const foo* f1 = 0; // expected-error {{must use 'class' tag to refer to type 'foo' in this scope}}
+    foo* f2 = 0; // expected-error {{must use 'class' tag to refer to type 'foo' in this scope}}
+    foo f3; // expected-error {{must use 'class' tag to refer to type 'foo' in this scope}}
+  }
+};
+
+int baz; // expected-note 2 {{class 'baz' is hidden by a non-type declaration of 'baz' here}}
+class baz {};
+void fizbin() {
+  const baz* b1 = 0; // expected-error {{must use 'class' tag to refer to type 'baz' in this scope}}
+  baz* b2; // expected-error {{use of undeclared identifier 'b2'}}
+  baz b3; // expected-error {{must use 'class' tag to refer to type 'baz' in this scope}}
+}
 }

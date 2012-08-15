@@ -313,7 +313,7 @@ interoperation:</p>
 <ul>
 <li>The type system must reliably identify which objects are to be
 managed.  An <tt>int*</tt> might be a pointer to a <tt>malloc</tt>'ed
-array, or it might be a interior pointer to such an array, or it might
+array, or it might be an interior pointer to such an array, or it might
 point to some field or local variable.  In contrast, values of the
 retainable object pointer types are never interior.</li>
 <li>The type system must reliably indicate how to
@@ -1863,7 +1863,7 @@ of these annotations.  A program is ill-formed if it annotates the
 same function with both <tt>cf_audited_transfer</tt>
 and <tt>cf_unknown_transfer</tt>.</p>
 
-<p>A pragma is provided to faciliate the mass annotation of interfaces:</p>
+<p>A pragma is provided to facilitate the mass annotation of interfaces:</p>
 
 <pre>#pragma arc_cf_code_audited begin
 ...

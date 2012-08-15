@@ -1,14 +1,3 @@
-set( LLVM_USED_LIBS
-  clangAST
-  clangBasic
-  clangDriver
-  clangEdit
-  clangLex
-  clangParse
-  clangSema
-  clangSerialization
-  )
-
 add_clang_library(clangFrontend
   ASTConsumers.cpp
   ASTMerge.cpp
@@ -41,21 +30,29 @@ add_clang_library(clangFrontend
   Warnings.cpp
   )
 
-IF(MSVC)
-  get_target_property(NON_ANSI_COMPILE_FLAGS clangFrontend COMPILE_FLAGS)
-  string(REPLACE /Za
-    "" NON_ANSI_COMPILE_FLAGS
-    ${NON_ANSI_COMPILE_FLAGS})
-  set_target_properties(clangFrontend PROPERTIES COMPILE_FLAGS ${NON_ANSI_COMPILE_FLAGS})
-ENDIF(MSVC)
-
-add_dependencies(clangFrontend 
+add_dependencies(clangFrontend
   ClangAttrClasses
   ClangAttrList
-  ClangCC1Options
-  ClangDiagnosticFrontend 
+  ClangAttrParsedAttrList
+  ClangCommentNodes
+  ClangDeclNodes
+  ClangDiagnosticAST
+  ClangDiagnosticCommon
+  ClangDiagnosticDriver
+  ClangDiagnosticFrontend
   ClangDiagnosticLex
   ClangDiagnosticSema
   ClangDriverOptions
-  ClangDeclNodes
-  ClangStmtNodes)
+  ClangStmtNodes
+  )
+
+target_link_libraries(clangFrontend
+  clangAST
+  clangBasic
+  clangDriver
+  clangEdit
+  clangLex
+  clangParse
+  clangSema
+  clangSerialization
+  )

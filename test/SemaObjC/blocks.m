@@ -73,3 +73,124 @@ void foo10() {
     NSLog(@"%@", myBlock);
 }
 
+
+// In C, enum constants have the type of the underlying integer type, not the
+// enumeration they are part of. We pretend the constants have enum type when
+// they are mixed with other expressions of enum type.
+enum CStyleEnum {
+  CSE_Value = 1
+};
+enum CStyleEnum getCSE();
+typedef enum CStyleEnum (^cse_block_t)();
+
+void testCStyleEnumInference(bool arg) {
+  cse_block_t a;
+
+  // No warnings here.
+  a = ^{ return getCSE(); };
+
+  a = ^{ // expected-error {{incompatible block pointer types assigning to 'cse_block_t' (aka 'enum CStyleEnum (^)()') from 'int (^)(void)'}}
+    return 1;
+  };
+  a = ^{ // expected-error {{incompatible block pointer types assigning to 'cse_block_t' (aka 'enum CStyleEnum (^)()') from 'int (^)(void)'}}
+    return CSE_Value;
+  };
+
+  // No warnings here.
+  a = ^{ if (arg) return CSE_Value; else return getCSE();  };
+  a = ^{ if (arg) return getCSE();  else return CSE_Value; };
+
+  // These two blocks actually return 'int'
+  a = ^{ // expected-error {{incompatible block pointer types assigning to 'cse_block_t' (aka 'enum CStyleEnum (^)()') from 'int (^)(void)'}}
+    if (arg)
+      return 1;
+    else
+      return CSE_Value;
+  };
+
+  a = ^{ // expected-error {{incompatible block pointer types assigning to 'cse_block_t' (aka 'enum CStyleEnum (^)()') from 'int (^)(void)'}}
+    if (arg)
+      return CSE_Value;
+    else
+      return 1;
+  };
+}
+
+
+enum FixedTypeEnum : unsigned {
+  FTE_Value = 1U
+};
+enum FixedTypeEnum getFTE();
+typedef enum FixedTypeEnum (^fte_block_t)();
+
+void testFixedTypeEnumInference(bool arg) {
+  fte_block_t a;
+  
+  // No warnings here.
+  a = ^{ return getFTE(); };
+
+  // Since we fixed the underlying type of the enum, this is considered a
+  // compatible block type.
+  a = ^{
+    return 1U;
+  };
+  a = ^{
+    return FTE_Value;
+  };
+
+  // No warnings here.
+  a = ^{ if (arg) return FTE_Value; else return FTE_Value; };
+  a = ^{ if (arg) return getFTE();  else return getFTE();  };
+  a = ^{ if (arg) return FTE_Value; else return getFTE();  };
+  a = ^{ if (arg) return getFTE();  else return FTE_Value; };
+  
+  // These two blocks actually return 'unsigned'.
+  a = ^{
+    if (arg)
+      return 1U;
+    else
+      return FTE_Value;
+  };
+  
+  a = ^{
+    if (arg)
+      return FTE_Value;
+    else
+      return 1U;
+  };
+}
+
+
+enum {
+  AnonymousValue = 1
+};
+
+enum : short {
+  FixedAnonymousValue = 1
+};
+
+typedef enum {
+  TDE_Value
+} TypeDefEnum;
+TypeDefEnum getTDE();
+
+typedef enum : short {
+  TDFTE_Value
+} TypeDefFixedTypeEnum;
+TypeDefFixedTypeEnum getTDFTE();
+
+typedef int (^int_block_t)();
+typedef short (^short_block_t)();
+void testAnonymousEnumTypes(int arg) {
+  int_block_t IB;
+  IB = ^{ return AnonymousValue; };
+  IB = ^{ if (arg) return TDE_Value; else return getTDE(); }; // expected-error {{incompatible block pointer}}
+  IB = ^{ if (arg) return getTDE(); else return TDE_Value; }; // expected-error {{incompatible block pointer}}
+
+  // Since we fixed the underlying type of the enum, these are considered
+  // compatible block types anyway.
+  short_block_t SB;
+  SB = ^{ return FixedAnonymousValue; };
+  SB = ^{ if (arg) return TDFTE_Value; else return getTDFTE(); };
+  SB = ^{ if (arg) return getTDFTE(); else return TDFTE_Value; };
+}

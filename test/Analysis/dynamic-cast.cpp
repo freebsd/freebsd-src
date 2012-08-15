@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core -verify %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,debug.ExprInspection -analyzer-ipa=none -verify %s
+
+void clang_analyzer_eval(bool);
 
 class A {
 public:
@@ -196,6 +198,9 @@ int testDynCastMostLikelyWillFail(C *c) {
   } else {
       res = 0;
   }
+
+  // Note: IPA is turned off for this test because the code below shows how the
+  // dynamic_cast could succeed.
   return *res; // expected-warning{{Dereference of null pointer}}
 }
 
@@ -205,7 +210,25 @@ void callTestDynCastMostLikelyWillFail() {
   testDynCastMostLikelyWillFail(&m);
 }
 
+
+void testDynCastToMiddleClass () {
+  class BBB : public BB {};
+  BBB obj;
+  A &ref = obj;
+
+  // These didn't always correctly layer base regions.
+  B *ptr = dynamic_cast<B*>(&ref);
+  clang_analyzer_eval(ptr != 0); // expected-warning{{TRUE}}
+
+  // This is actually statically resolved to be a DerivedToBase cast.
+  ptr = dynamic_cast<B*>(&obj);
+  clang_analyzer_eval(ptr != 0); // expected-warning{{TRUE}}
+}
+
+
+// -----------------------------
 // False positives/negatives.
+// -----------------------------
 
 // Due to symbolic regions not being typed.
 int testDynCastFalsePositive(BB *c) {

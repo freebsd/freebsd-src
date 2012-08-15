@@ -1,5 +1,3 @@
-set(LLVM_USED_LIBS clangBasic clangAST)
-
 add_clang_library(clangAnalysis
   AnalysisDeclContext.cpp
   CallGraph.cpp
@@ -20,5 +18,17 @@ add_clang_library(clangAnalysis
   UninitializedValues.cpp
   )
 
-add_dependencies(clangAnalysis ClangAttrClasses ClangAttrList
-                 ClangDiagnosticAnalysis ClangDeclNodes ClangStmtNodes)
+add_dependencies(clangAnalysis
+  ClangAttrClasses
+  ClangAttrList
+  ClangCommentNodes
+  ClangDiagnosticCommon
+  ClangDeclNodes
+  ClangDiagnosticAnalysis
+  ClangStmtNodes
+  )
+
+target_link_libraries(clangAnalysis
+  clangBasic
+  clangAST
+  )

@@ -100,3 +100,15 @@ long struct X { int x; } test15(); // expected-error {{'long struct' is invalid}
 
 void test16(i) int i j; { } // expected-error {{expected ';' at end of declaration}}
 void test17(i, j) int i, j k; { } // expected-error {{expected ';' at end of declaration}}
+
+
+// PR12595
+void test18() {
+  int x = 4+(5-12));  // expected-error {{extraneous ')' before ';'}}
+}
+
+enum E1 { e1 }: // expected-error {{expected ';'}}
+struct EnumBitfield {
+  enum E2 { e2 } : 4; // ok
+  struct S { int n; }: // expected-error {{expected ';'}}
+};

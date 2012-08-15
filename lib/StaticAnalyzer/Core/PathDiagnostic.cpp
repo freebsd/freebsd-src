@@ -16,6 +16,7 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/AST/StmtCXX.h"
@@ -58,6 +59,48 @@ PathDiagnosticMacroPiece::~PathDiagnosticMacroPiece() {}
 
 
 PathPieces::~PathPieces() {}
+
+void PathPieces::flattenTo(PathPieces &Primary, PathPieces &Current,
+                           bool ShouldFlattenMacros) const {
+  for (PathPieces::const_iterator I = begin(), E = end(); I != E; ++I) {
+    PathDiagnosticPiece *Piece = I->getPtr();
+
+    switch (Piece->getKind()) {
+    case PathDiagnosticPiece::Call: {
+      PathDiagnosticCallPiece *Call = cast<PathDiagnosticCallPiece>(Piece);
+      IntrusiveRefCntPtr<PathDiagnosticEventPiece> CallEnter =
+        Call->getCallEnterEvent();
+      if (CallEnter)
+        Current.push_back(CallEnter);
+      Call->path.flattenTo(Primary, Primary, ShouldFlattenMacros);
+      IntrusiveRefCntPtr<PathDiagnosticEventPiece> callExit =
+        Call->getCallExitEvent();
+      if (callExit)
+        Current.push_back(callExit);
+      break;
+    }
+    case PathDiagnosticPiece::Macro: {
+      PathDiagnosticMacroPiece *Macro = cast<PathDiagnosticMacroPiece>(Piece);
+      if (ShouldFlattenMacros) {
+        Macro->subPieces.flattenTo(Primary, Primary, ShouldFlattenMacros);
+      } else {
+        Current.push_back(Piece);
+        PathPieces NewPath;
+        Macro->subPieces.flattenTo(Primary, NewPath, ShouldFlattenMacros);
+        // FIXME: This probably shouldn't mutate the original path piece.
+        Macro->subPieces = NewPath;
+      }
+      break;
+    }
+    case PathDiagnosticPiece::Event:
+    case PathDiagnosticPiece::ControlFlow:
+      Current.push_back(Piece);
+      break;
+    }
+  }
+}
+
+
 PathDiagnostic::~PathDiagnostic() {}
 
 PathDiagnostic::PathDiagnostic(const Decl *declWithIssue,
@@ -147,23 +190,14 @@ void PathDiagnosticConsumer::HandlePathDiagnostic(PathDiagnostic *D) {
 
   if (PathDiagnostic *orig = Diags.FindNodeOrInsertPos(profile, InsertPos)) {
     // Keep the PathDiagnostic with the shorter path.
+    // Note, the enclosing routine is called in deterministic order, so the
+    // results will be consistent between runs (no reason to break ties if the
+    // size is the same).
     const unsigned orig_size = orig->full_size();
     const unsigned new_size = D->full_size();
-    
-    if (orig_size <= new_size) {
-      bool shouldKeepOriginal = true;
-      if (orig_size == new_size) {
-        // Here we break ties in a fairly arbitrary, but deterministic, way.
-        llvm::FoldingSetNodeID fullProfile, fullProfileOrig;
-        D->FullProfile(fullProfile);
-        orig->FullProfile(fullProfileOrig);
-        if (fullProfile.ComputeHash() < fullProfileOrig.ComputeHash())
-          shouldKeepOriginal = false;
-      }
+    if (orig_size <= new_size)
+      return;
 
-      if (shouldKeepOriginal)
-        return;
-    }
     Diags.RemoveNode(orig);
     delete orig;
   }
@@ -242,29 +276,85 @@ PathDiagnosticConsumer::FlushDiagnostics(SmallVectorImpl<std::string> *Files) {
 //===----------------------------------------------------------------------===//
 
 static SourceLocation getValidSourceLocation(const Stmt* S,
-                                             LocationOrAnalysisDeclContext LAC) {
-  SourceLocation L = S->getLocStart();
+                                             LocationOrAnalysisDeclContext LAC,
+                                             bool UseEnd = false) {
+  SourceLocation L = UseEnd ? S->getLocEnd() : S->getLocStart();
   assert(!LAC.isNull() && "A valid LocationContext or AnalysisDeclContext should "
                           "be passed to PathDiagnosticLocation upon creation.");
 
   // S might be a temporary statement that does not have a location in the
-  // source code, so find an enclosing statement and use it's location.
+  // source code, so find an enclosing statement and use its location.
   if (!L.isValid()) {
 
-    ParentMap *PM = 0;
+    AnalysisDeclContext *ADC;
     if (LAC.is<const LocationContext*>())
-      PM = &LAC.get<const LocationContext*>()->getParentMap();
+      ADC = LAC.get<const LocationContext*>()->getAnalysisDeclContext();
     else
-      PM = &LAC.get<AnalysisDeclContext*>()->getParentMap();
+      ADC = LAC.get<AnalysisDeclContext*>();
 
-    while (!L.isValid()) {
-      S = PM->getParent(S);
-      L = S->getLocStart();
-    }
+    ParentMap &PM = ADC->getParentMap();
+
+    const Stmt *Parent = S;
+    do {
+      Parent = PM.getParent(Parent);
+
+      // In rare cases, we have implicit top-level expressions,
+      // such as arguments for implicit member initializers.
+      // In this case, fall back to the start of the body (even if we were
+      // asked for the statement end location).
+      if (!Parent) {
+        const Stmt *Body = ADC->getBody();
+        if (Body)
+          L = Body->getLocStart();
+        else
+          L = ADC->getDecl()->getLocEnd();
+        break;
+      }
+
+      L = UseEnd ? Parent->getLocEnd() : Parent->getLocStart();
+    } while (!L.isValid());
   }
 
   return L;
 }
+
+static PathDiagnosticLocation
+getLocationForCaller(const StackFrameContext *SFC,
+                     const LocationContext *CallerCtx,
+                     const SourceManager &SM) {
+  const CFGBlock &Block = *SFC->getCallSiteBlock();
+  CFGElement Source = Block[SFC->getIndex()];
+
+  switch (Source.getKind()) {
+  case CFGElement::Invalid:
+    llvm_unreachable("Invalid CFGElement");
+  case CFGElement::Statement:
+    return PathDiagnosticLocation(cast<CFGStmt>(Source).getStmt(),
+                                  SM, CallerCtx);
+  case CFGElement::Initializer: {
+    const CFGInitializer &Init = cast<CFGInitializer>(Source);
+    return PathDiagnosticLocation(Init.getInitializer()->getInit(),
+                                  SM, CallerCtx);
+  }
+  case CFGElement::AutomaticObjectDtor: {
+    const CFGAutomaticObjDtor &Dtor = cast<CFGAutomaticObjDtor>(Source);
+    return PathDiagnosticLocation::createEnd(Dtor.getTriggerStmt(),
+                                             SM, CallerCtx);
+  }
+  case CFGElement::BaseDtor:
+  case CFGElement::MemberDtor: {
+    const AnalysisDeclContext *CallerInfo = CallerCtx->getAnalysisDeclContext();
+    if (const Stmt *CallerBody = CallerInfo->getBody())
+      return PathDiagnosticLocation::createEnd(CallerBody, SM, CallerCtx);
+    return PathDiagnosticLocation::create(CallerInfo->getDecl(), SM);
+  }
+  case CFGElement::TemporaryDtor:
+    llvm_unreachable("not yet implemented!");
+  }
+
+  llvm_unreachable("Unknown CFGElement kind");
+}
+
 
 PathDiagnosticLocation
   PathDiagnosticLocation::createBegin(const Decl *D,
@@ -277,6 +367,17 @@ PathDiagnosticLocation
                                       const SourceManager &SM,
                                       LocationOrAnalysisDeclContext LAC) {
   return PathDiagnosticLocation(getValidSourceLocation(S, LAC),
+                                SM, SingleLocK);
+}
+
+
+PathDiagnosticLocation
+PathDiagnosticLocation::createEnd(const Stmt *S,
+                                  const SourceManager &SM,
+                                  LocationOrAnalysisDeclContext LAC) {
+  if (const CompoundStmt *CS = dyn_cast<CompoundStmt>(S))
+    return createEndBrace(CS, SM);
+  return PathDiagnosticLocation(getValidSourceLocation(S, LAC, /*End=*/true),
                                 SM, SingleLocK);
 }
 
@@ -338,6 +439,19 @@ PathDiagnosticLocation
   }
   else if (const PostStmt *PS = dyn_cast<PostStmt>(&P)) {
     S = PS->getStmt();
+  }
+  else if (const PostImplicitCall *PIE = dyn_cast<PostImplicitCall>(&P)) {
+    return PathDiagnosticLocation(PIE->getLocation(), SMng);
+  }
+  else if (const CallEnter *CE = dyn_cast<CallEnter>(&P)) {
+    return getLocationForCaller(CE->getCalleeContext(),
+                                CE->getLocationContext(),
+                                SMng);
+  }
+  else if (const CallExitEnd *CEE = dyn_cast<CallExitEnd>(&P)) {
+    return getLocationForCaller(CEE->getCalleeContext(),
+                                CEE->getLocationContext(),
+                                SMng);
   }
 
   return PathDiagnosticLocation(S, SMng, P.getLocationContext());
@@ -495,25 +609,14 @@ PathDiagnosticLocation PathDiagnostic::getLocation() const {
 // Manipulation of PathDiagnosticCallPieces.
 //===----------------------------------------------------------------------===//
 
-static PathDiagnosticLocation getLastStmtLoc(const ExplodedNode *N,
-                                             const SourceManager &SM) {
-  while (N) {
-    ProgramPoint PP = N->getLocation();
-    if (const StmtPoint *SP = dyn_cast<StmtPoint>(&PP))
-      return PathDiagnosticLocation(SP->getStmt(), SM, PP.getLocationContext());
-    if (N->pred_empty())
-      break;
-    N = *N->pred_begin();
-  }
-  return PathDiagnosticLocation();
-}
-
 PathDiagnosticCallPiece *
 PathDiagnosticCallPiece::construct(const ExplodedNode *N,
-                                   const CallExit &CE,
+                                   const CallExitEnd &CE,
                                    const SourceManager &SM) {
-  const Decl *caller = CE.getLocationContext()->getParent()->getDecl();
-  PathDiagnosticLocation pos = getLastStmtLoc(N, SM);
+  const Decl *caller = CE.getLocationContext()->getDecl();
+  PathDiagnosticLocation pos = getLocationForCaller(CE.getCalleeContext(),
+                                                    CE.getLocationContext(),
+                                                    SM);
   return new PathDiagnosticCallPiece(caller, pos);
 }
 
@@ -528,11 +631,11 @@ PathDiagnosticCallPiece::construct(PathPieces &path,
 
 void PathDiagnosticCallPiece::setCallee(const CallEnter &CE,
                                         const SourceManager &SM) {
-  const Decl *D = CE.getCalleeContext()->getDecl();
-  Callee = D;
-  callEnter = PathDiagnosticLocation(CE.getCallExpr(), SM,
-                                     CE.getLocationContext());
-  callEnterWithin = PathDiagnosticLocation::createBegin(D, SM);
+  const StackFrameContext *CalleeCtx = CE.getCalleeContext();
+  Callee = CalleeCtx->getDecl();
+
+  callEnterWithin = PathDiagnosticLocation::createBegin(Callee, SM);
+  callEnter = getLocationForCaller(CalleeCtx, CE.getLocationContext(), SM);
 }
 
 IntrusiveRefCntPtr<PathDiagnosticEventPiece>
@@ -667,16 +770,15 @@ StackHintGenerator::~StackHintGenerator() {}
 
 std::string StackHintGeneratorForSymbol::getMessage(const ExplodedNode *N){
   ProgramPoint P = N->getLocation();
-  const CallExit *CExit = dyn_cast<CallExit>(&P);
-  assert(CExit && "Stack Hints should be constructed at CallExit points.");
+  const CallExitEnd *CExit = dyn_cast<CallExitEnd>(&P);
+  assert(CExit && "Stack Hints should be constructed at CallExitEnd points.");
 
-  const CallExpr *CE = dyn_cast_or_null<CallExpr>(CExit->getStmt());
+  // FIXME: Use CallEvent to abstract this over all calls.
+  const Stmt *CallSite = CExit->getCalleeContext()->getCallSite();
+  const CallExpr *CE = dyn_cast_or_null<CallExpr>(CallSite);
   if (!CE)
     return "";
 
-  // Get the successor node to make sure the return statement is evaluated and
-  // CE is set to the result value.
-  N = *N->succ_begin();
   if (!N)
     return getMessageForSymbolNotFound();
 

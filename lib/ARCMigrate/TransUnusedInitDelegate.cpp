@@ -22,6 +22,7 @@
 
 #include "Transforms.h"
 #include "Internals.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Sema/SemaDiagnostic.h"
 
 using namespace clang;
@@ -40,7 +41,7 @@ public:
   UnusedInitRewriter(MigrationPass &pass)
     : Body(0), Pass(pass) { }
 
-  void transformBody(Stmt *body) {
+  void transformBody(Stmt *body, Decl *ParentD) {
     Body = body;
     collectRemovables(body, Removables);
     TraverseStmt(body);

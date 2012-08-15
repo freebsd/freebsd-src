@@ -386,11 +386,11 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD)) {
+      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield(*Field, LastFD)) {
         --FieldNo;
         continue;
       }
-      LastFD = (*Field);
+      LastFD = *Field;
     }
     
     // If this is a union, skip all the fields that aren't being initialized.
@@ -399,7 +399,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
 
     // Don't emit anonymous bitfields, they just affect layout.
     if (Field->isUnnamedBitfield()) {
-      LastFD = (*Field);
+      LastFD = *Field;
       continue;
     }
 
@@ -486,11 +486,11 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD)) {
+      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield(*Field, LastFD)) {
         --FieldNo;
         continue;
       }
-      LastFD = (*Field);
+      LastFD = *Field;
     }
 
     // If this is a union, skip all the fields that aren't being initialized.
@@ -499,7 +499,7 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
 
     // Don't emit anonymous bitfields, they just affect layout.
     if (Field->isUnnamedBitfield()) {
-      LastFD = (*Field);
+      LastFD = *Field;
       continue;
     }
 
@@ -932,7 +932,8 @@ public:
         C = new llvm::GlobalVariable(CGM.getModule(), C->getType(),
                                      E->getType().isConstant(CGM.getContext()),
                                      llvm::GlobalValue::InternalLinkage,
-                                     C, ".compoundliteral", 0, false,
+                                     C, ".compoundliteral", 0,
+                                     llvm::GlobalVariable::NotThreadLocal,
                           CGM.getContext().getTargetAddressSpace(E->getType()));
       return C;
     }
@@ -1300,7 +1301,8 @@ FillInNullDataMemberPointers(CodeGenModule &CGM, QualType T,
       if (CGM.getTypes().isZeroInitializable(BaseDecl))
         continue;
 
-      uint64_t BaseOffset = Layout.getBaseClassOffsetInBits(BaseDecl);
+      uint64_t BaseOffset =
+        CGM.getContext().toBits(Layout.getBaseClassOffset(BaseDecl));
       FillInNullDataMemberPointers(CGM, I->getType(),
                                    Elements, StartOffset + BaseOffset);
     }

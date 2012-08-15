@@ -271,10 +271,24 @@ class Rdar9212495_A : public Rdar9212495_B {};
 const Rdar9212495_A& rdar9212495(const Rdar9212495_C* ptr) {
   const Rdar9212495_A& val = dynamic_cast<const Rdar9212495_A&>(*ptr);
   
+  // This is not valid C++; dynamic_cast with a reference type will throw an
+  // exception if the pointer does not match the expected type. However, our
+  // implementation of dynamic_cast will pass through a null pointer...or a
+  // "null reference"! So this branch is actually possible.
   if (&val == 0) {
-    val.bar(); // FIXME: This should eventually be a null dereference.
+    val.bar(); // expected-warning{{Called C++ object pointer is null}}
   }
   
+  return val;
+}
+
+const Rdar9212495_A* rdar9212495_ptr(const Rdar9212495_C* ptr) {
+  const Rdar9212495_A* val = dynamic_cast<const Rdar9212495_A*>(ptr);
+
+  if (val == 0) {
+    val->bar(); // expected-warning{{Called C++ object pointer is null}}
+  }
+
   return val;
 }
 
@@ -578,3 +592,37 @@ void rdar10924675(unsigned short x[], int index, int index2) {
   if (y == 0)
     return;
 }
+
+// Test handling CXXScalarValueInitExprs.
+void rdar11401827() {
+  int x = int();
+  if (!x) {
+    int *p = 0;
+    *p = 0xDEADBEEF; // expected-warning {{null pointer}}
+  }
+  else {
+    int *p = 0;
+    *p = 0xDEADBEEF;
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// Handle inlining of C++ method calls.
+//===---------------------------------------------------------------------===//
+
+struct A {
+  int *p;
+  void foo(int *q) {
+    p = q;
+  }
+  void bar() {
+    *p = 0; // expected-warning {{null pointer}}
+  }
+};
+
+void test_inline() {
+  A a;
+  a.foo(0);
+  a.bar();
+}
+

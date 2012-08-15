@@ -250,6 +250,39 @@ static bool ProcessUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
   return true;
 }
 
+/// MeasureUCNEscape - Determine the number of bytes within the resulting string
+/// which this UCN will occupy.
+static int MeasureUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
+                            const char *ThisTokEnd, unsigned CharByteWidth,
+                            const LangOptions &Features, bool &HadError) {
+  // UTF-32: 4 bytes per escape.
+  if (CharByteWidth == 4)
+    return 4;
+
+  uint32_t UcnVal = 0;
+  unsigned short UcnLen = 0;
+  FullSourceLoc Loc;
+
+  if (!ProcessUCNEscape(ThisTokBegin, ThisTokBuf, ThisTokEnd, UcnVal,
+                        UcnLen, Loc, 0, Features, true)) {
+    HadError = true;
+    return 0;
+  }
+
+  // UTF-16: 2 bytes for BMP, 4 bytes otherwise.
+  if (CharByteWidth == 2)
+    return UcnVal <= 0xFFFF ? 2 : 4;
+
+  // UTF-8.
+  if (UcnVal < 0x80)
+    return 1;
+  if (UcnVal < 0x800)
+    return 2;
+  if (UcnVal < 0x10000)
+    return 3;
+  return 4;
+}
+
 /// EncodeUCNEscape - Read the Universal Character Name, check constraints and
 /// convert the UTF32 to UTF8 or UTF16. This is a subroutine of
 /// StringLiteralParser. When we decide to implement UCN's for identifiers,
@@ -265,7 +298,7 @@ static void EncodeUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
   unsigned short UcnLen = 0;
   if (!ProcessUCNEscape(ThisTokBegin, ThisTokBuf, ThisTokEnd, UcnVal, UcnLen,
                         Loc, Diags, Features, true)) {
-    HadError = 1;
+    HadError = true;
     return;
   }
 
@@ -289,7 +322,7 @@ static void EncodeUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
     // using reinterpret_cast.
     UTF16 *ResultPtr = reinterpret_cast<UTF16*>(ResultBuf);
 
-    if (UcnVal < (UTF32)0xFFFF) {
+    if (UcnVal <= (UTF32)0xFFFF) {
       *ResultPtr = UcnVal;
       ResultBuf += 2;
       return;
@@ -756,6 +789,7 @@ NumericLiteralParser::GetFloatValue(llvm::APFloat &Result) {
 }
 
 
+/// \verbatim
 ///       user-defined-character-literal: [C++11 lex.ext]
 ///         character-literal ud-suffix
 ///       ud-suffix:
@@ -791,6 +825,7 @@ NumericLiteralParser::GetFloatValue(llvm::APFloat &Result) {
 ///         \U hex-quad hex-quad
 ///       hex-quad:
 ///         hex-digit hex-digit hex-digit hex-digit
+/// \endverbatim
 ///
 CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
                                      SourceLocation Loc, Preprocessor &PP,
@@ -971,7 +1006,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
     Value = (signed char)Value;
 }
 
-
+/// \verbatim
 ///       string-literal: [C++0x lex.string]
 ///         encoding-prefix " [s-char-sequence] "
 ///         encoding-prefix R raw-string
@@ -1023,6 +1058,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
 ///         \U hex-quad hex-quad
 ///       hex-quad:
 ///         hex-digit hex-digit hex-digit hex-digit
+/// \endverbatim
 ///
 StringLiteralParser::
 StringLiteralParser(const Token *StringToks, unsigned NumStringToks,
@@ -1037,10 +1073,8 @@ StringLiteralParser(const Token *StringToks, unsigned NumStringToks,
 void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
   // The literal token may have come from an invalid source location (e.g. due
   // to a PCH error), in which case the token length will be 0.
-  if (NumStringToks == 0 || StringToks[0].getLength() < 2) {
-    hadError = true;
-    return;
-  }
+  if (NumStringToks == 0 || StringToks[0].getLength() < 2)
+    return DiagnoseLexingError(SourceLocation());
 
   // Scan all of the string portions, remember the max individual token length,
   // computing a bound on the concatenated string length, and see whether any
@@ -1057,10 +1091,8 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
   // Implement Translation Phase #6: concatenation of string literals
   /// (C99 5.1.1.2p1).  The common case is only one string fragment.
   for (unsigned i = 1; i != NumStringToks; ++i) {
-    if (StringToks[i].getLength() < 2) {
-      hadError = true;
-      return;
-    }
+    if (StringToks[i].getLength() < 2)
+      return DiagnoseLexingError(StringToks[i].getLocation());
 
     // The string could be shorter than this if it needs cleaning, but this is a
     // reasonable bound, which is all we need.
@@ -1123,10 +1155,8 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
     unsigned ThisTokLen = 
       Lexer::getSpelling(StringToks[i], ThisTokBuf, SM, Features,
                          &StringInvalid);
-    if (StringInvalid) {
-      hadError = true;
-      continue;
-    }
+    if (StringInvalid)
+      return DiagnoseLexingError(StringToks[i].getLocation());
 
     const char *ThisTokBegin = ThisTokBuf;
     const char *ThisTokEnd = ThisTokBuf+ThisTokLen;
@@ -1192,7 +1222,11 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
         if (DiagnoseBadString(StringToks[i]))
           hadError = true;
     } else {
-      assert(ThisTokBuf[0] == '"' && "Expected quote, lexer broken?");
+      if (ThisTokBuf[0] != '"') {
+        // The file may have come from PCH and then changed after loading the
+        // PCH; Fail gracefully.
+        return DiagnoseLexingError(StringToks[i].getLocation());
+      }
       ++ThisTokBuf; // skip "
 
       // Check if this is a pascal string
@@ -1296,45 +1330,10 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
   }
 }
 
-
 /// copyStringFragment - This function copies from Start to End into ResultPtr.
 /// Performs widening for multi-byte characters.
 bool StringLiteralParser::CopyStringFragment(StringRef Fragment) {
-  assert(CharByteWidth==1 || CharByteWidth==2 || CharByteWidth==4);
-  ConversionResult result = conversionOK;
-  // Copy the character span over.
-  if (CharByteWidth == 1) {
-    if (!isLegalUTF8String(reinterpret_cast<const UTF8*>(Fragment.begin()),
-                           reinterpret_cast<const UTF8*>(Fragment.end())))
-      result = sourceIllegal;
-    memcpy(ResultPtr, Fragment.data(), Fragment.size());
-    ResultPtr += Fragment.size();
-  } else if (CharByteWidth == 2) {
-    UTF8 const *sourceStart = (UTF8 const *)Fragment.data();
-    // FIXME: Make the type of the result buffer correct instead of
-    // using reinterpret_cast.
-    UTF16 *targetStart = reinterpret_cast<UTF16*>(ResultPtr);
-    ConversionFlags flags = strictConversion;
-    result = ConvertUTF8toUTF16(
-	    &sourceStart,sourceStart + Fragment.size(),
-        &targetStart,targetStart + 2*Fragment.size(),flags);
-    if (result==conversionOK)
-      ResultPtr = reinterpret_cast<char*>(targetStart);
-  } else if (CharByteWidth == 4) {
-    UTF8 const *sourceStart = (UTF8 const *)Fragment.data();
-    // FIXME: Make the type of the result buffer correct instead of
-    // using reinterpret_cast.
-    UTF32 *targetStart = reinterpret_cast<UTF32*>(ResultPtr);
-    ConversionFlags flags = strictConversion;
-    result = ConvertUTF8toUTF32(
-        &sourceStart,sourceStart + Fragment.size(),
-        &targetStart,targetStart + 4*Fragment.size(),flags);
-    if (result==conversionOK)
-      ResultPtr = reinterpret_cast<char*>(targetStart);
-  }
-  assert((result != targetExhausted)
-         && "ConvertUTF8toUTFXX exhausted target buffer");
-  return result != conversionOK;
+  return !ConvertUTF8toWide(CharByteWidth, Fragment, ResultPtr);
 }
 
 bool StringLiteralParser::DiagnoseBadString(const Token &Tok) {
@@ -1347,6 +1346,12 @@ bool StringLiteralParser::DiagnoseBadString(const Token &Tok) {
   if (Diags)
     Diags->Report(FullSourceLoc(Tok.getLocation(), SM), Msg);
   return !NoErrorOnBadEncoding;
+}
+
+void StringLiteralParser::DiagnoseLexingError(SourceLocation Loc) {
+  hadError = true;
+  if (Diags)
+    Diags->Report(Loc, diag::err_lexing_string);
 }
 
 /// getOffsetOfStringByte - This function returns the offset of the
@@ -1365,14 +1370,31 @@ unsigned StringLiteralParser::getOffsetOfStringByte(const Token &Tok,
   if (StringInvalid)
     return 0;
 
-  assert(SpellingPtr[0] != 'L' && SpellingPtr[0] != 'u' &&
-         SpellingPtr[0] != 'U' && "Doesn't handle wide or utf strings yet");
-
-
   const char *SpellingStart = SpellingPtr;
   const char *SpellingEnd = SpellingPtr+TokLen;
 
-  // Skip over the leading quote.
+  // Handle UTF-8 strings just like narrow strings.
+  if (SpellingPtr[0] == 'u' && SpellingPtr[1] == '8')
+    SpellingPtr += 2;
+
+  assert(SpellingPtr[0] != 'L' && SpellingPtr[0] != 'u' &&
+         SpellingPtr[0] != 'U' && "Doesn't handle wide or utf strings yet");
+
+  // For raw string literals, this is easy.
+  if (SpellingPtr[0] == 'R') {
+    assert(SpellingPtr[1] == '"' && "Should be a raw string literal!");
+    // Skip 'R"'.
+    SpellingPtr += 2;
+    while (*SpellingPtr != '(') {
+      ++SpellingPtr;
+      assert(SpellingPtr < SpellingEnd && "Missing ( for raw string literal");
+    }
+    // Skip '('.
+    ++SpellingPtr;
+    return SpellingPtr - SpellingStart + ByteNo;
+  }
+
+  // Skip over the leading quote
   assert(SpellingPtr[0] == '"' && "Should be a string literal!");
   ++SpellingPtr;
 
@@ -1389,11 +1411,23 @@ unsigned StringLiteralParser::getOffsetOfStringByte(const Token &Tok,
 
     // Otherwise, this is an escape character.  Advance over it.
     bool HadError = false;
-    ProcessCharEscape(SpellingPtr, SpellingEnd, HadError,
-                      FullSourceLoc(Tok.getLocation(), SM),
-                      CharByteWidth*8, Diags);
+    if (SpellingPtr[1] == 'u' || SpellingPtr[1] == 'U') {
+      const char *EscapePtr = SpellingPtr;
+      unsigned Len = MeasureUCNEscape(SpellingStart, SpellingPtr, SpellingEnd,
+                                      1, Features, HadError);
+      if (Len > ByteNo) {
+        // ByteNo is somewhere within the escape sequence.
+        SpellingPtr = EscapePtr;
+        break;
+      }
+      ByteNo -= Len;
+    } else {
+      ProcessCharEscape(SpellingPtr, SpellingEnd, HadError,
+                        FullSourceLoc(Tok.getLocation(), SM),
+                        CharByteWidth*8, Diags);
+      --ByteNo;
+    }
     assert(!HadError && "This method isn't valid on erroneous strings");
-    --ByteNo;
   }
 
   return SpellingPtr-SpellingStart;

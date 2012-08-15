@@ -2,13 +2,13 @@
 // RUN: cp %s %t
 // RUN: not %clang_cc1 -fsyntax-only -fixit -x objective-c %t
 // RUN: %clang_cc1 -fsyntax-only -pedantic -Werror -x objective-c %t
-// RUN: grep arrayWithObjects %t
 
 typedef unsigned char BOOL;
 
-@interface NSNumber @end
+@interface NSObject
+@end
 
-@interface NSNumber (NSNumberCreation)
+@interface NSNumber : NSObject
 + (NSNumber *)numberWithChar:(char)value;
 + (NSNumber *)numberWithUnsignedChar:(unsigned char)value;
 + (NSNumber *)numberWithShort:(short)value;
@@ -24,15 +24,15 @@ typedef unsigned char BOOL;
 + (NSNumber *)numberWithBool:(BOOL)value;
 @end
 
-@interface NSArray
-@end
-
-@interface NSArray (NSArrayCreation)
+@interface NSArray : NSObject
 + (id)arrayWithObjects:(const id [])objects count:(unsigned long)cnt;
 @end
 
-@interface NSDictionary
+@interface NSDictionary : NSObject
 + (id)dictionaryWithObjects:(const id [])objects forKeys:(const id [])keys count:(unsigned long)cnt;
+@end
+
+@interface NSString : NSObject
 @end
 
 void fixes() {

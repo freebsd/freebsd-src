@@ -8,7 +8,7 @@ void f3() __attribute__((availability(otheros,introduced=2.2))); // expected-war
 
 // rdar://10095131
 extern void 
-ATSFontGetName(const char *oName) __attribute__((availability(macosx,introduced=8.0,deprecated=9.0, message="use CTFontCopyFullName")));
+ATSFontGetName(const char *oName) __attribute__((availability(macosx,introduced=8.0,deprecated=9.0, message="use CTFontCopyFullName"))); // expected-note {{'ATSFontGetName' declared here}}
 
 extern void
 ATSFontGetPostScriptName(int flags) __attribute__((availability(macosx,introduced=8.0,obsoleted=9.0, message="use ATSFontGetFullPostScriptName"))); // expected-note {{function has been explicitly marked unavailable here}}
@@ -24,3 +24,22 @@ enum {
     NSDataWritingFileProtectionWriteOnly = 0x30000000,
     NSDataWritingFileProtectionCompleteUntilUserAuthentication = 0x40000000,
 };
+
+void f4(int) __attribute__((availability(ios,deprecated=3.0)));
+void f4(int) __attribute__((availability(ios,introduced=4.0))); // expected-warning {{feature cannot be deprecated in iOS version 3.0 before it was introduced in version 4.0; attribute ignored}}
+
+void f5(int) __attribute__((availability(ios,deprecated=3.0),
+                            availability(ios,introduced=4.0)));  // expected-warning {{feature cannot be deprecated in iOS version 3.0 before it was introduced in version 4.0; attribute ignored}}
+
+void f6(int) __attribute__((availability(ios,deprecated=3.0))); // expected-note {{previous attribute is here}}
+void f6(int) __attribute__((availability(ios,deprecated=4.0))); // expected-warning {{availability does not match previous declaration}}
+
+void f7(int) __attribute__((availability(ios,introduced=2.0)));
+void f7(int) __attribute__((availability(ios,deprecated=3.0))); // expected-note {{previous attribute is here}}
+void f7(int) __attribute__((availability(ios,deprecated=4.0))); // expected-warning {{availability does not match previous declaration}}
+
+
+// <rdar://problem/11886458>
+#if !__has_feature(attribute_availability_with_message)
+# error "Missing __has_feature"
+#endif

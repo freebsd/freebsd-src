@@ -142,3 +142,52 @@ int test4(unsigned n, char (*p)[n][n+1][6]) {
   // CHECK-NEXT: ret i32 [[T7]]
   return p2 - p;
 }
+
+// rdar://11485774
+void test5(void)
+{
+  // CHECK: define void @test5(
+  int a[5], i = 0;
+  // CHECK: [[A:%.*]] = alloca [5 x i32], align 4
+  // CHECK-NEXT: [[I:%.*]] = alloca i32, align 4
+  // CHECK-NEXT: [[CL:%.*]] = alloca i32*, align 4
+  // CHECK-NEXT: store i32 0, i32* [[I]], align 4
+
+  (typeof(++i, (int (*)[i])a)){&a} += 0;
+  // CHECK-NEXT: [[Z:%.*]] = load i32* [[I]], align 4
+  // CHECK-NEXT: [[INC:%.*]]  = add nsw i32 [[Z]], 1
+  // CHECK-NEXT: store i32 [[INC]], i32* [[I]], align 4
+  // CHECK-NEXT: [[O:%.*]] = load i32* [[I]], align 4
+  // CHECK-NEXT: [[AR:%.*]] = getelementptr inbounds [5 x i32]* [[A]], i32 0, i32 0
+  // CHECK-NEXT: [[T:%.*]] = bitcast [5 x i32]* [[A]] to i32*
+  // CHECK-NEXT: store i32* [[T]], i32** [[CL]]
+  // CHECK-NEXT: [[TH:%.*]] = load i32** [[CL]]
+  // CHECK-NEXT: [[VLAIX:%.*]] = mul nsw i32 0, [[O]]
+  // CHECK-NEXT: [[ADDPTR:%.*]] = getelementptr inbounds i32* [[TH]], i32 [[VLAIX]]
+  // CHECK-NEXT: store i32* [[ADDPTR]], i32** [[CL]]
+}
+
+void test6(void)
+{
+  // CHECK: define void @test6(
+  int n = 20, **a, i=0;
+  // CHECK: [[N:%.*]] = alloca i32, align 4
+  // CHECK-NEXT: [[A:%.*]] = alloca i32**, align 4
+  // CHECK-NEXT: [[I:%.*]] = alloca i32, align 4
+ (int (**)[i]){&a}[0][1][5] = 0;
+  // CHECK-NEXT: [[CL:%.*]] = alloca i32**, align 4
+  // CHECK-NEXT: store i32 20, i32* [[N]], align 4
+  // CHECK-NEXT: store i32 0, i32* [[I]], align 4
+  // CHECK-NEXT: [[Z:%.*]] = load i32* [[I]], align 4
+  // CHECK-NEXT: [[O:%.*]] = bitcast i32*** [[A]] to i32**
+  // CHECK-NEXT: store i32** [[O]], i32*** [[CL]]
+  // CHECK-NEXT: [[T:%.*]] = load i32*** [[CL]]
+  // CHECK-NEXT: [[IX:%.*]] = getelementptr inbounds i32** [[T]], i32 0
+  // CHECK-NEXT: [[TH:%.*]] = load i32** [[IX]], align 4
+  // CHECK-NEXT: [[F:%.*]] = mul nsw i32 1, [[Z]]
+  // CHECK-NEXT: [[IX1:%.*]] = getelementptr inbounds i32* [[TH]], i32 [[F]]
+  // CHECK-NEXT: [[IX2:%.*]] = getelementptr inbounds i32* [[IX1]], i32 5
+  // CHECK-NEXT: store i32 0, i32* [[IX2]], align 4
+}
+
+

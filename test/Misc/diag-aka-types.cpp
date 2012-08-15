@@ -30,27 +30,6 @@ void test(Foo::foo* x) {
   bar::f(x); // expected-error{{cannot initialize a parameter of type 'Foo::foo *' (aka 'bar::Foo::foo *') with an lvalue of type 'Foo::foo *'}}
 }
 
-// PR9548 - "no known conversion from 'vector<string>' to 'vector<string>'"
-// vector<string> refers to two different types here.  Make sure the message
-// gives a way to tell them apart.
-class versa_string;
-typedef versa_string string;
-
-namespace std {template <typename T> class vector;}
-using std::vector;
-
-void f(vector<string> v);  // expected-note {{candidate function not viable: no known conversion from 'vector<string>' (aka 'std::vector<std::basic_string>') to 'vector<string>' (aka 'std::vector<versa_string>') for 1st argument}}
-
-namespace std {
-  class basic_string;
-  typedef basic_string string;
-  template <typename T> class vector {};
-  void g() {
-    vector<string> v;
-    f(v);  // expected-error{{no matching function for call to 'f'}}
-  }
-}
-
 namespace ns {
  struct str {
    static void method(struct data *) {}
@@ -61,7 +40,7 @@ struct data { int i; };
 
 typedef void (*callback)(struct data *);
 
-void helper(callback cb) {} // expected-note{{candidate function not viable: no known conversion from 'void (*)(struct data *)' (aka 'void (*)(ns::data *)') to 'callback' (aka 'void (*)(struct data *)') for 1st argument;}}
+void helper(callback cb) {} // expected-note{{candidate function not viable: no known conversion from 'void (*)(struct data *)' (aka 'void (*)(ns::data *)') to 'callback' (aka 'void (*)(struct data *)') for 1st argument}}
 
 void test() {
  helper(&ns::str::method); // expected-error{{no matching function for call to 'helper'}}

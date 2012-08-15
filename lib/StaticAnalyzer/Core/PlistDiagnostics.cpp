@@ -31,7 +31,6 @@ namespace {
     const std::string OutputFile;
     const LangOptions &LangOpts;
     OwningPtr<PathDiagnosticConsumer> SubPD;
-    bool flushed;
     const bool SupportsCrossFileDiagnostics;
   public:
     PlistDiagnostics(const std::string& prefix, const LangOptions &LangOpts,
@@ -61,7 +60,7 @@ PlistDiagnostics::PlistDiagnostics(const std::string& output,
                                    const LangOptions &LO,
                                    bool supportsMultipleFiles,
                                    PathDiagnosticConsumer *subPD)
-  : OutputFile(output), LangOpts(LO), SubPD(subPD), flushed(false),
+  : OutputFile(output), LangOpts(LO), SubPD(subPD),
     SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
 PathDiagnosticConsumer*
@@ -183,10 +182,18 @@ static void ReportControlFlow(raw_ostream &o,
        I!=E; ++I) {
     Indent(o, indent) << "<dict>\n";
     ++indent;
+
+    // Make the ranges of the start and end point self-consistent with adjacent edges
+    // by forcing to use only the beginning of the range.  This simplifies the layout
+    // logic for clients.
     Indent(o, indent) << "<key>start</key>\n";
-    EmitRange(o, SM, LangOpts, I->getStart().asRange(), FM, indent+1);
+    SourceLocation StartEdge = I->getStart().asRange().getBegin();
+    EmitRange(o, SM, LangOpts, SourceRange(StartEdge, StartEdge), FM, indent+1);
+
     Indent(o, indent) << "<key>end</key>\n";
-    EmitRange(o, SM, LangOpts, I->getEnd().asRange(), FM, indent+1);
+    SourceLocation EndEdge = I->getEnd().asRange().getBegin();
+    EmitRange(o, SM, LangOpts, SourceRange(EndEdge, EndEdge), FM, indent+1);
+
     --indent;
     Indent(o, indent) << "</dict>\n";
   }
@@ -382,6 +389,11 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
 
         if (const PathDiagnosticCallPiece *call =
             dyn_cast<PathDiagnosticCallPiece>(piece)) {
+          IntrusiveRefCntPtr<PathDiagnosticEventPiece>
+            callEnterWithin = call->getCallEnterWithinCallerEvent();
+          if (callEnterWithin)
+            AddFID(FM, Fids, SM, callEnterWithin->getLocation().asLocation());
+
           WorkList.push_back(&call->path);
         }
         else if (const PathDiagnosticMacroPiece *macro =
@@ -475,6 +487,17 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
           EmitString(o, declKind) << '\n';
           o << "  <key>issue_context</key>";
           EmitString(o, declName) << '\n';
+        }
+
+        // Output the bug hash for issue unique-ing. Currently, it's just an
+        // offset from the beginning of the function.
+        if (const Stmt *Body = DeclWithIssue->getBody()) {
+          FullSourceLoc Loc(SM->getExpansionLoc(D->getLocation().asLocation()),
+                            *SM);
+          FullSourceLoc FunLoc(SM->getExpansionLoc(Body->getLocStart()), *SM);
+          o << "  <key>issue_hash</key><integer>"
+              << Loc.getExpansionLineNumber() - FunLoc.getExpansionLineNumber()
+              << "</integer>\n";
         }
       }
     }

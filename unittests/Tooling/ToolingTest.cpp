@@ -15,6 +15,7 @@
 #include "clang/Tooling/CompilationDatabase.h"
 #include "clang/Tooling/Tooling.h"
 #include "gtest/gtest.h"
+#include <string>
 
 namespace clang {
 namespace tooling {
@@ -52,11 +53,16 @@ class FindTopLevelDeclConsumer : public clang::ASTConsumer {
 };
 } // end namespace
 
-TEST(runToolOnCode, FindsTopLevelDeclOnEmptyCode) {
+TEST(runToolOnCode, FindsNoTopLevelDeclOnEmptyCode) {
   bool FoundTopLevelDecl = false;
   EXPECT_TRUE(runToolOnCode(
       new TestAction(new FindTopLevelDeclConsumer(&FoundTopLevelDecl)), ""));
+#if !defined(_MSC_VER)
+  EXPECT_FALSE(FoundTopLevelDecl);
+#else
+  // FIXME: LangOpts.MicrosoftExt appends "class type_info;"
   EXPECT_TRUE(FoundTopLevelDecl);
+#endif
 }
 
 namespace {
@@ -98,7 +104,9 @@ TEST(newFrontendActionFactory, CreatesFrontendActionFactoryFromType) {
 }
 
 struct IndependentFrontendActionCreator {
-  FrontendAction *newFrontendAction() { return new SyntaxOnlyAction; }
+  ASTConsumer *newASTConsumer() {
+    return new FindTopLevelDeclConsumer(NULL);
+  }
 };
 
 TEST(newFrontendActionFactory, CreatesFrontendActionFactoryFromFactoryType) {
@@ -107,6 +115,19 @@ TEST(newFrontendActionFactory, CreatesFrontendActionFactoryFromFactoryType) {
     newFrontendActionFactory(&Creator));
   llvm::OwningPtr<FrontendAction> Action(Factory->create());
   EXPECT_TRUE(Action.get() != NULL);
+}
+
+TEST(ToolInvocation, TestMapVirtualFile) {
+  clang::FileManager Files((clang::FileSystemOptions()));
+  std::vector<std::string> Args;
+  Args.push_back("tool-executable");
+  Args.push_back("-Idef");
+  Args.push_back("-fsyntax-only");
+  Args.push_back("test.cpp");
+  clang::tooling::ToolInvocation Invocation(Args, new SyntaxOnlyAction, &Files);
+  Invocation.mapVirtualFile("test.cpp", "#include <abc>\n");
+  Invocation.mapVirtualFile("def/abc", "\n");
+  EXPECT_TRUE(Invocation.run());
 }
 
 } // end namespace tooling

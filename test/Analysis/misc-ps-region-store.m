@@ -673,7 +673,7 @@ typedef void (^RDar_7462324_Callback)(id obj);
   builder = ^(id object) {
     id x;
     if (object) {
-      builder(x); // expected-warning{{Function call argument is an uninitialized value}}
+      builder(x); // expected-warning{{Block call argument is an uninitialized value}}
     }
   };
   builder(target);
@@ -1341,3 +1341,23 @@ static unsigned rdar_11127008(void) {
     return values[index].value;
 }
 
+// Test handling invalidating arrays passed to a block via captured
+// pointer value (not a __block variable).
+typedef void (^radar11125868_cb)(int *, unsigned);
+
+void rdar11125868_aux(radar11125868_cb cb);
+
+int rdar11125868() {
+  int integersStackArray[1];
+  int *integers = integersStackArray;
+  rdar11125868_aux(^(int *integerValue, unsigned index) {
+      integers[index] = integerValue[index];
+    });
+  return integers[0] == 0; // no-warning
+}
+
+int rdar11125868_positive() {
+  int integersStackArray[1];
+  int *integers = integersStackArray;
+  return integers[0] == 0; // expected-warning {{he left operand of '==' is a}}
+}

@@ -2,8 +2,6 @@
 
 set(LLVM_LINK_COMPONENTS support)
 
-set(LLVM_USED_LIBS clangBasic)
-
 add_clang_library(clangLex
   HeaderMap.cpp
   HeaderSearch.cpp
@@ -28,4 +26,12 @@ add_clang_library(clangLex
   TokenLexer.cpp
   )
 
-add_dependencies(clangLex ClangDiagnosticLex ClangAttrSpellings)
+add_dependencies(clangLex
+  ClangAttrSpellings
+  ClangDiagnosticCommon
+  ClangDiagnosticLex
+  )
+
+target_link_libraries(clangLex
+  clangBasic
+  )

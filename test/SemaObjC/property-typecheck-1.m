@@ -73,10 +73,10 @@ typedef void (F)(void);
  NSArray* first;
 }
 
-@property (readonly) NSArray* pieces;  // expected-warning {{type of property 'pieces' does not match type of accessor 'pieces'}}
-@property (readonly) NSMutableArray* first; 
+@property (readonly) NSArray* pieces; // expected-warning {{type of property 'pieces' does not match type of accessor 'pieces'}}
+@property (readonly) NSMutableArray* first;
 
-- (NSMutableArray*) pieces; // expected-note {{declared here}} // expected-note {{declared here}}
+- (NSMutableArray*) pieces; // expected-note 2 {{declared here}}
 - (NSArray*) first;
 @end
 
@@ -95,7 +95,7 @@ typedef void (F)(void);
 
 - (id)firstPeice
 {
-  return container.first; 
+  return container.first;
 }
 @end
 

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -fobjc-fragile-abi -fsyntax-only -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -fobjc-runtime=macosx-fragile-10.5 -fsyntax-only -verify -Wno-objc-root-class %s
 
 @interface I 
 {
@@ -6,7 +6,7 @@
 	int name;
 }
 @property int d1;
-@property id  prop_id; // expected-warning {{no 'assign', 'retain', or 'copy' attribute is specified - 'assign' is assumed}}, expected-warning {{default property attribute 'assign' not appropriate for non-gc object}}
+@property id  prop_id; // expected-warning {{no 'assign', 'retain', or 'copy' attribute is specified - 'assign' is assumed}}, expected-warning {{default property attribute 'assign' not appropriate for non-GC object}}
 @property int name;
 @end
 

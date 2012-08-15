@@ -28,7 +28,7 @@ my $BuildName;
 my $BuildDate;
 
 my $TERM = $ENV{'TERM'};
-my $UseColor = (defined $TERM and $TERM eq 'xterm-color' and -t STDOUT
+my $UseColor = (defined $TERM and $TERM =~ 'xterm-.*color' and -t STDOUT
                 and defined $ENV{'SCAN_BUILD_COLOR'});
 
 my $UserName = HtmlEscape(getpwuid($<) || 'unknown');
@@ -36,6 +36,7 @@ my $HostName = HtmlEscape(hostname() || 'unknown');
 my $CurrentDir = HtmlEscape(getcwd());
 my $CurrentDirSuffix = basename($CurrentDir);
 
+my @PluginsToLoad;
 my $CmdArgs;
 
 my $HtmlTitle;
@@ -77,6 +78,21 @@ sub DieDiag {
 }
 
 ##----------------------------------------------------------------------------##
+# Print default checker names
+##----------------------------------------------------------------------------##
+
+if (grep /^--help-checkers$/, @ARGV) {
+    my @options = qx($0 -h);
+    foreach (@options) {
+	next unless /^ \+/;
+	s/^\s*//;
+	my ($sign, $name, @text) = split ' ', $_;
+	print $name, $/ if $sign eq '+';
+    }
+    exit 1;
+}
+
+##----------------------------------------------------------------------------##
 # Some initial preprocessing of Clang options.
 ##----------------------------------------------------------------------------##
 
@@ -91,13 +107,16 @@ if (!defined $ClangSB || ! -x $ClangSB) {
   $Clang = `which clang`;
   chomp $Clang;
   if ($Clang eq "") {
-    DieDiag("No 'clang' executable found in path.");
+    DieDiag("No 'clang' executable found in path.\n");
   }
 }
 else {
   $Clang = $ClangSB;
 }
-my $ClangCXX = $Clang . "++";
+my $ClangCXX = $Clang;
+$ClangCXX =~ s/\-\d+\.\d+$//;
+$ClangCXX .= "++";
+my $ClangVersion = HtmlEscape(`$Clang --version`);
 
 ##----------------------------------------------------------------------------##
 # GetHTMLRunDir - Construct an HTML directory name for the current sub-run.
@@ -590,6 +609,7 @@ function ToggleDisplay(CheckButton, ClassName) {
 <tr><th>User:</th><td>${UserName}\@${HostName}</td></tr>
 <tr><th>Working Directory:</th><td>${CurrentDir}</td></tr>
 <tr><th>Command Line:</th><td>${CmdArgs}</td></tr>
+<tr><th>Clang Version:</th><td>${ClangVersion}</td></tr>
 <tr><th>Date:</th><td>${Date}</td></tr>
 ENDTEXT
 
@@ -848,18 +868,86 @@ sub AddIfNotPresent {
   }
 }
 
-sub RunBuildCommand {
+sub SetEnv {
+  my $Options = shift @_;
+  foreach my $opt ('CC', 'CXX', 'CLANG', 'CLANG_CXX',
+                    'CCC_ANALYZER_ANALYSIS', 'CCC_ANALYZER_PLUGINS') {
+    die "$opt is undefined\n" if (!defined $opt);
+    $ENV{$opt} = $Options->{$opt};
+  }
+  foreach my $opt ('CCC_ANALYZER_STORE_MODEL',
+                    'CCC_ANALYZER_PLUGINS',
+                    'CCC_ANALYZER_INTERNAL_STATS',
+                    'CCC_ANALYZER_OUTPUT_FORMAT') {
+    my $x = $Options->{$opt};
+    if (defined $x) { $ENV{$opt} = $x }
+  }
+  my $Verbose = $Options->{'VERBOSE'};
+  if ($Verbose >= 2) {
+    $ENV{'CCC_ANALYZER_VERBOSE'} = 1;
+  }
+  if ($Verbose >= 3) {
+    $ENV{'CCC_ANALYZER_LOG'} = 1;
+  }
+}
+
+sub RunXcodebuild {
+  my $Args = shift;
+  my $IgnoreErrors = shift;
+  my $CCAnalyzer = shift;
+  my $CXXAnalyzer = shift;
+  my $Options = shift;
+
+  if ($IgnoreErrors) {
+    AddIfNotPresent($Args,"-PBXBuildsContinueAfterErrors=YES");
+  }
   
+  # Default to old behavior where we insert a bogus compiler.
+  SetEnv($Options);
+  
+  # Check if using iPhone SDK 3.0 (simulator).  If so the compiler being
+  # used should be gcc-4.2.
+  if (!defined $ENV{"CCC_CC"}) {
+    for (my $i = 0 ; $i < scalar(@$Args); ++$i) {
+      if ($Args->[$i] eq "-sdk" && $i + 1 < scalar(@$Args)) {
+        if (@$Args[$i+1] =~ /^iphonesimulator3/) {
+          $ENV{"CCC_CC"} = "gcc-4.2";
+          $ENV{"CCC_CXX"} = "g++-4.2";
+        }
+      }
+    }
+  }
+
+  # Disable PCH files until clang supports them.
+  AddIfNotPresent($Args,"GCC_PRECOMPILE_PREFIX_HEADER=NO");
+  
+  # When 'CC' is set, xcodebuild uses it to do all linking, even if we are
+  # linking C++ object files.  Set 'LDPLUSPLUS' so that xcodebuild uses 'g++'
+  # (via c++-analyzer) when linking such files.
+  $ENV{"LDPLUSPLUS"} = $CXXAnalyzer;
+ 
+  return (system(@$Args) >> 8); 
+}
+
+sub RunBuildCommand {  
   my $Args = shift;
   my $IgnoreErrors = shift;
   my $Cmd = $Args->[0];
   my $CCAnalyzer = shift;
   my $CXXAnalyzer = shift;
+  my $Options = shift;
   
   # Get only the part of the command after the last '/'.
   if ($Cmd =~ /\/([^\/]+)$/) {
     $Cmd = $1;
   }
+  
+  if ($Cmd eq "xcodebuild") {
+    return RunXcodebuild($Args, $IgnoreErrors, $CCAnalyzer, $CXXAnalyzer, $Options);
+  }
+  
+  # Setup the environment.
+  SetEnv($Options);
   
   if ($Cmd =~ /(.*\/?gcc[^\/]*$)/ or 
       $Cmd =~ /(.*\/?cc[^\/]*$)/ or
@@ -892,34 +980,8 @@ sub RunBuildCommand {
       AddIfNotPresent($Args,"-k");
       AddIfNotPresent($Args,"-i");
     }
-    elsif ($Cmd eq "xcodebuild") {
-      AddIfNotPresent($Args,"-PBXBuildsContinueAfterErrors=YES");
-    }
   } 
-  
-  if ($Cmd eq "xcodebuild") {
-    # Check if using iPhone SDK 3.0 (simulator).  If so the compiler being
-    # used should be gcc-4.2.
-    if (!defined $ENV{"CCC_CC"}) {
-      for (my $i = 0 ; $i < scalar(@$Args); ++$i) {
-        if ($Args->[$i] eq "-sdk" && $i + 1 < scalar(@$Args)) {
-          if (@$Args[$i+1] =~ /^iphonesimulator3/) {
-            $ENV{"CCC_CC"} = "gcc-4.2";
-            $ENV{"CCC_CXX"} = "g++-4.2";            
-          }
-        }
-      }
-    }
 
-    # Disable PCH files until clang supports them.
-    AddIfNotPresent($Args,"GCC_PRECOMPILE_PREFIX_HEADER=NO");
-    
-    # When 'CC' is set, xcodebuild uses it to do all linking, even if we are
-    # linking C++ object files.  Set 'LDPLUSPLUS' so that xcodebuild uses 'g++'
-    # (via c++-analyzer) when linking such files.
-    $ENV{"LDPLUSPLUS"} = $CXXAnalyzer;
-  }
-  
   return (system(@$Args) >> 8);
 }
 
@@ -1007,7 +1069,8 @@ ADVANCED OPTIONS:
  -maxloop N - specifiy the number of times a block can be visited before giving
               up. Default is 4. Increase for more comprehensive coverage at a
               cost of speed.
-
+ -internal-stats - Generate internal analyzer statistics.
+ 
 CONTROLLING CHECKERS:
 
  A default group of checkers are always run unless explicitly disabled.
@@ -1015,9 +1078,23 @@ CONTROLLING CHECKERS:
 
  -enable-checker [checker name]
  -disable-checker [checker name]
+ 
+LOADING CHECKERS:
+
+ Loading external checkers using the clang plugin interface:
+
+ -load-plugin [plugin library]
 ENDTEXT
 
 # Query clang for list of checkers that are enabled.
+
+# create a list to load the plugins via the 'Xclang' command line
+# argument
+my @PluginLoadCommandline_xclang;
+foreach my $param ( @PluginsToLoad ) {
+  push ( @PluginLoadCommandline_xclang, "-Xclang" );
+  push ( @PluginLoadCommandline_xclang, $param );
+}
 my %EnabledCheckers;
 foreach my $lang ("c", "objective-c", "objective-c++", "c++") {
   pipe(FROM_CHILD, TO_PARENT);
@@ -1026,7 +1103,7 @@ foreach my $lang ("c", "objective-c", "objective-c++", "c++") {
     close FROM_CHILD;
     open(STDOUT,">&", \*TO_PARENT);
     open(STDERR,">&", \*TO_PARENT);
-    exec $Clang, ('--analyze', '-x', $lang, '-', '-###');
+    exec $Clang, ( @PluginLoadCommandline_xclang, '--analyze', '-x', $lang, '-', '-###'); 
   }
   close(TO_PARENT);
   while(<FROM_CHILD>) {
@@ -1048,7 +1125,7 @@ if ($pid == 0) {
   close FROM_CHILD;
   open(STDOUT,">&", \*TO_PARENT);
   open(STDERR,">&", \*TO_PARENT);
-  exec $Clang, ('-cc1', '-analyzer-checker-help');
+  exec $Clang, ('-cc1', @PluginsToLoad , '-analyzer-checker-help');
 }
 close(TO_PARENT);
 my $foundCheckers = 0;
@@ -1084,7 +1161,9 @@ else {
         if ($EnabledCheckers{$aggregate}) {
           $enabled =1;
           last;
-        }        
+        }
+        # append a dot, if an additional domain is added in the next iteration
+        $aggregate .= ".";
       }
       
       if ($enabled) {
@@ -1160,6 +1239,7 @@ my $ExitStatusFoundBugs = 0; # Exit status reflects whether bugs were found
 my @AnalysesToRun;
 my $StoreModel;
 my $ConstraintsModel;
+my $InternalStats;
 my $OutputFormat = "html";
 my $AnalyzerStats = 0;
 my $MaxLoop = 0;
@@ -1291,6 +1371,12 @@ while (@ARGV) {
     $ConstraintsModel = shift @ARGV;
     next;
   }
+
+  if ($arg eq "-internal-stats") {
+    shift @ARGV;
+    $InternalStats = 1;
+    next;
+  }
   
   if ($arg eq "-plist") {
     shift @ARGV;
@@ -1327,7 +1413,12 @@ while (@ARGV) {
     push @AnalysesToRun, "-analyzer-disable-checker", shift @ARGV;
     next;
   }
-
+  if ($arg eq "-load-plugin") {
+    shift @ARGV;
+    push @PluginsToLoad, "-load", shift @ARGV;
+    next;
+  }
+  
   DieDiag("unrecognized option '$arg'\n") if ($arg =~ /^-/);
   
   last;
@@ -1371,42 +1462,42 @@ if (!defined $ClangSB || ! -x $ClangSB) {
   Diag("Using 'clang' from path: $Clang\n");
 }
 
-# Set the appropriate environment variables.
 SetHtmlEnv(\@ARGV, $HtmlDir);
-$ENV{'CC'} = $Cmd;
-$ENV{'CXX'} = $CmdCXX;
-$ENV{'CLANG'} = $Clang;
-$ENV{'CLANG_CXX'} = $ClangCXX;
-if ($Verbose >= 2) {
-  $ENV{'CCC_ANALYZER_VERBOSE'} = 1;
-}
-if ($Verbose >= 3) {
-  $ENV{'CCC_ANALYZER_LOG'} = 1;
-}
-if ($AnalyzeHeaders) {
-  push @AnalysesToRun,"-analyzer-opt-analyze-headers";  
-}
-if ($AnalyzerStats) {
-  push @AnalysesToRun, '-analyzer-checker', 'debug.Stats';
-}
-if ($MaxLoop > 0) {
-  push @AnalysesToRun, '-analyzer-max-loop ' . $MaxLoop;
-}
+if ($AnalyzeHeaders) { push @AnalysesToRun,"-analyzer-opt-analyze-headers"; }
+if ($AnalyzerStats) { push @AnalysesToRun, '-analyzer-checker=debug.Stats'; }
+if ($MaxLoop > 0) { push @AnalysesToRun, '-analyzer-max-loop=$MaxLoop'; }
 
-$ENV{'CCC_ANALYZER_ANALYSIS'} = join ' ',@AnalysesToRun;
+# Delay setting up other environment variables in case we can do true
+# interposition.
+my $CCC_ANALYZER_ANALYSIS = join ' ',@AnalysesToRun;
+my $CCC_ANALYZER_PLUGINS = join ' ',@PluginsToLoad;
+my %Options = (
+  'CC' => $Cmd,
+  'CXX' => $CmdCXX,
+  'CLANG' => $Clang,
+  'CLANG_CXX' => $ClangCXX,
+  'VERBOSE' => $Verbose,
+  'CCC_ANALYZER_ANALYSIS' => $CCC_ANALYZER_ANALYSIS,
+  'CCC_ANALYZER_PLUGINS' => $CCC_ANALYZER_PLUGINS,
+  'OUTPUT_DIR' => $HtmlDir
+);
 
 if (defined $StoreModel) {
-  $ENV{'CCC_ANALYZER_STORE_MODEL'} = $StoreModel;
+  $Options{'CCC_ANALYZER_STORE_MODEL'} = $StoreModel;
 }
 if (defined $ConstraintsModel) {
-  $ENV{'CCC_ANALYZER_CONSTRAINTS_MODEL'} = $ConstraintsModel;
+  $Options{'CCC_ANALYZER_CONSTRAINTS_MODEL'} = $ConstraintsModel;
+}
+if (defined $InternalStats) {
+  $Options{'CCC_ANALYZER_INTERNAL_STATS'} = 1;
 }
 if (defined $OutputFormat) {
-  $ENV{'CCC_ANALYZER_OUTPUT_FORMAT'} = $OutputFormat;
+  $Options{'CCC_ANALYZER_OUTPUT_FORMAT'} = $OutputFormat;
 }
 
 # Run the build.
-my $ExitStatus = RunBuildCommand(\@ARGV, $IgnoreErrors, $Cmd, $CmdCXX);
+my $ExitStatus = RunBuildCommand(\@ARGV, $IgnoreErrors, $Cmd, $CmdCXX,
+                                \%Options);
 
 if (defined $OutputFormat) {
   if ($OutputFormat =~ /plist/) {

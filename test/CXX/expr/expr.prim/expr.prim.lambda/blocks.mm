@@ -86,3 +86,41 @@ namespace overloading {
     int &ir = accept_lambda_conv([](int x) { return x + 1; });
   }
 }
+
+namespace PR13117 {
+  struct A {
+    template<typename ... Args> static void f(Args...);
+
+    template<typename ... Args> static void f1()
+    {
+      (void)^(Args args) { // expected-error{{block contains unexpanded parameter pack 'Args'}}
+      };
+    }
+
+    template<typename ... Args> static void f2()
+    {
+      // FIXME: Allow this.
+      f(
+        ^(Args args) // expected-error{{block contains unexpanded parameter pack 'Args'}}
+        { }
+        ... // expected-error{{pack expansion does not contain any unexpanded parameter packs}}
+      );
+    }
+
+    template<typename ... Args> static void f3()
+    {
+      (void)[](Args args) { // expected-error{{expression contains unexpanded parameter pack 'Args'}}
+      };
+    }
+
+    template<typename ... Args> static void f4()
+    {
+      f([](Args args) { } ...);
+    }
+  };
+
+  void g() {
+    A::f1<int, int>();
+    A::f2<int, int>();
+  }
+}

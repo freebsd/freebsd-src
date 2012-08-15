@@ -41,12 +41,13 @@
 // Test3
 @interface Test3 
 { 
-  id uid; 
+  id uid;  // expected-note {{ivar is declared here}}
 } 
-@property (readwrite, assign) id uid; 
+@property (readwrite, assign) id uid;  // expected-note {{property declared here}}
 @end
 
-@implementation Test3
+// rdar://11671080
+@implementation Test3 // expected-warning {{autosynthesized property 'uid' will use synthesized instance variable '_uid', not existing instance variable 'uid'}}
 // Oops, forgot to write @synthesize! will be default synthesized
 - (void) myMethod { 
    self.uid = 0; // Use of the “setter” 
@@ -113,4 +114,16 @@ int* _object;
   return _object;
 } 
 @end
+
+// rdar://11671080
+@interface Test8
+{
+  id _y;
+  id y; // expected-note {{ivar is declared here}}
+}
+@property(copy) id y; // expected-note {{property declared here}}
+@end
+
+
+@implementation Test8 @end // expected-warning {{autosynthesized property 'y' will use  instance variable '_y', not existing instance variable 'y'}}
 

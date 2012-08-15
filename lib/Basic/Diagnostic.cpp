@@ -17,6 +17,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CrashRecoveryContext.h"
+#include <cctype>
 
 using namespace clang;
 
@@ -48,6 +49,9 @@ DiagnosticsEngine::DiagnosticsEngine(
   ErrorsAsFatal = false;
   SuppressSystemWarnings = false;
   SuppressAllDiagnostics = false;
+  ElideType = true;
+  PrintTemplateTree = false;
+  ShowColors = false;
   ShowOverloads = Ovl_All;
   ExtBehavior = Ext_Ignore;
 
@@ -115,7 +119,7 @@ void DiagnosticsEngine::Reset() {
   // Create a DiagState and DiagStatePoint representing diagnostic changes
   // through command-line.
   DiagStates.push_back(DiagState());
-  PushDiagStatePoint(&DiagStates.back(), SourceLocation());
+  DiagStatePoints.push_back(DiagStatePoint(&DiagStates.back(), FullSourceLoc()));
 }
 
 void DiagnosticsEngine::SetDelayedDiagnostic(unsigned DiagID, StringRef Arg1,
@@ -155,12 +159,6 @@ DiagnosticsEngine::GetDiagStatePointForLoc(SourceLocation L) const {
   return Pos;
 }
 
-/// \brief This allows the client to specify that certain
-/// warnings are ignored.  Notes can never be mapped, errors can only be
-/// mapped to fatal, and WARNINGs and EXTENSIONs can be mapped arbitrarily.
-///
-/// \param The source location that this change of diagnostic state should
-/// take affect. It can be null if we are setting the latest state.
 void DiagnosticsEngine::setDiagnosticMapping(diag::kind Diag, diag::Mapping Map,
                                              SourceLocation L) {
   assert(Diag < diag::DIAG_UPPER_LIMIT &&
@@ -385,17 +383,34 @@ void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
   CurDiagID = ~0U;
 }
 
-bool DiagnosticsEngine::EmitCurrentDiagnostic() {
-  // Process the diagnostic, sending the accumulated information to the
-  // DiagnosticConsumer.
-  bool Emitted = ProcessDiag();
+bool DiagnosticsEngine::EmitCurrentDiagnostic(bool Force) {
+  assert(getClient() && "DiagnosticClient not set!");
+
+  bool Emitted;
+  if (Force) {
+    Diagnostic Info(this);
+
+    // Figure out the diagnostic level of this message.
+    DiagnosticIDs::Level DiagLevel
+      = Diags->getDiagnosticLevel(Info.getID(), Info.getLocation(), *this);
+
+    Emitted = (DiagLevel != DiagnosticIDs::Ignored);
+    if (Emitted) {
+      // Emit the diagnostic regardless of suppression level.
+      Diags->EmitDiag(*this, DiagLevel);
+    }
+  } else {
+    // Process the diagnostic, sending the accumulated information to the
+    // DiagnosticConsumer.
+    Emitted = ProcessDiag();
+  }
 
   // Clear out the current diagnostic object.
   unsigned DiagID = CurDiagID;
   Clear();
 
   // If there was a delayed diagnostic, emit it now.
-  if (DelayedDiagID && DelayedDiagID != DiagID)
+  if (!Force && DelayedDiagID && DelayedDiagID != DiagID)
     ReportDelayed();
 
   return Emitted;
@@ -666,6 +681,8 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
   /// QualTypeVals - Pass a vector of arrays so that QualType names can be
   /// compared to see if more information is needed to be printed.
   SmallVector<intptr_t, 2> QualTypeVals;
+  SmallVector<char, 64> Tree;
+
   for (unsigned i = 0, e = getNumArgs(); i < e; ++i)
     if (getArgKind(i) == DiagnosticsEngine::ak_qualtype)
       QualTypeVals.push_back(getRawArg(i));
@@ -717,7 +734,20 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
     assert(isdigit(*DiagStr) && "Invalid format for argument in diagnostic");
     unsigned ArgNo = *DiagStr++ - '0';
 
+    // Only used for type diffing.
+    unsigned ArgNo2 = ArgNo;
+
     DiagnosticsEngine::ArgumentKind Kind = getArgKind(ArgNo);
+    if (Kind == DiagnosticsEngine::ak_qualtype &&
+        ModifierIs(Modifier, ModifierLen, "diff")) {
+      Kind = DiagnosticsEngine::ak_qualtype_pair;
+      assert(*DiagStr == ',' && isdigit(*(DiagStr + 1)) &&
+             "Invalid format for diff modifier");
+      ++DiagStr;  // Comma.
+      ArgNo2 = *DiagStr++ - '0';
+      assert(getArgKind(ArgNo2) == DiagnosticsEngine::ak_qualtype &&
+             "Second value of type diff must be a qualtype");
+    }
     
     switch (Kind) {
     // ---- STRINGS ----
@@ -802,18 +832,91 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
                                      FormattedArgs.data(), FormattedArgs.size(),
                                      OutStr, QualTypeVals);
       break;
+    case DiagnosticsEngine::ak_qualtype_pair:
+      // Create a struct with all the info needed for printing.
+      TemplateDiffTypes TDT;
+      TDT.FromType = getRawArg(ArgNo);
+      TDT.ToType = getRawArg(ArgNo2);
+      TDT.ElideType = getDiags()->ElideType;
+      TDT.ShowColors = getDiags()->ShowColors;
+      TDT.TemplateDiffUsed = false;
+      intptr_t val = reinterpret_cast<intptr_t>(&TDT);
+
+      const char *ArgumentEnd = Argument + ArgumentLen;
+      const char *Pipe = ScanFormat(Argument, ArgumentEnd, '|');
+
+      // Print the tree.  If this diagnostic already has a tree, skip the
+      // second tree.
+      if (getDiags()->PrintTemplateTree && Tree.empty()) {
+        TDT.PrintFromType = true;
+        TDT.PrintTree = true;
+        getDiags()->ConvertArgToString(Kind, val,
+                                       Modifier, ModifierLen,
+                                       Argument, ArgumentLen,
+                                       FormattedArgs.data(),
+                                       FormattedArgs.size(),
+                                       Tree, QualTypeVals);
+        // If there is no tree information, fall back to regular printing.
+        if (!Tree.empty()) {
+          FormatDiagnostic(Pipe + 1, ArgumentEnd, OutStr);
+          break;
+        }
+      }
+
+      // Non-tree printing, also the fall-back when tree printing fails.
+      // The fall-back is triggered when the types compared are not templates.
+      const char *FirstDollar = ScanFormat(Argument, ArgumentEnd, '$');
+      const char *SecondDollar = ScanFormat(FirstDollar + 1, ArgumentEnd, '$');
+
+      // Append before text
+      FormatDiagnostic(Argument, FirstDollar, OutStr);
+
+      // Append first type
+      TDT.PrintTree = false;
+      TDT.PrintFromType = true;
+      getDiags()->ConvertArgToString(Kind, val,
+                                     Modifier, ModifierLen,
+                                     Argument, ArgumentLen,
+                                     FormattedArgs.data(), FormattedArgs.size(),
+                                     OutStr, QualTypeVals);
+      if (!TDT.TemplateDiffUsed)
+        FormattedArgs.push_back(std::make_pair(DiagnosticsEngine::ak_qualtype,
+                                               TDT.FromType));
+
+      // Append middle text
+      FormatDiagnostic(FirstDollar + 1, SecondDollar, OutStr);
+
+      // Append second type
+      TDT.PrintFromType = false;
+      getDiags()->ConvertArgToString(Kind, val,
+                                     Modifier, ModifierLen,
+                                     Argument, ArgumentLen,
+                                     FormattedArgs.data(), FormattedArgs.size(),
+                                     OutStr, QualTypeVals);
+      if (!TDT.TemplateDiffUsed)
+        FormattedArgs.push_back(std::make_pair(DiagnosticsEngine::ak_qualtype,
+                                               TDT.ToType));
+
+      // Append end text
+      FormatDiagnostic(SecondDollar + 1, Pipe, OutStr);
+      break;
     }
     
     // Remember this argument info for subsequent formatting operations.  Turn
     // std::strings into a null terminated string to make it be the same case as
     // all the other ones.
-    if (Kind != DiagnosticsEngine::ak_std_string)
+    if (Kind == DiagnosticsEngine::ak_qualtype_pair)
+      continue;
+    else if (Kind != DiagnosticsEngine::ak_std_string)
       FormattedArgs.push_back(std::make_pair(Kind, getRawArg(ArgNo)));
     else
       FormattedArgs.push_back(std::make_pair(DiagnosticsEngine::ak_c_string,
                                         (intptr_t)getArgStdStr(ArgNo).c_str()));
     
   }
+
+  // Append the type tree to the end of the diagnostics.
+  OutStr.append(Tree.begin(), Tree.end());
 }
 
 StoredDiagnostic::StoredDiagnostic() { }

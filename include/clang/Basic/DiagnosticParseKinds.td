@@ -20,23 +20,32 @@ def warn_file_asm_volatile : Warning<
 
 let CategoryName = "Parse Issue" in {
 
-def ext_empty_source_file : Extension<"ISO C forbids an empty source file">;
-def ext_top_level_semi : Extension<
-  "extra ';' outside of a function">;
+def ext_empty_translation_unit : Extension<
+  "ISO C requires a translation unit to contain at least one declaration.">,
+  InGroup<DiagGroup<"empty-translation-unit">>;
 def warn_cxx98_compat_top_level_semi : Warning<
   "extra ';' outside of a function is incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
-def ext_extra_struct_semi : Extension<
-  "extra ';' inside a %0">;
-def ext_extra_ivar_semi : Extension<
-  "extra ';' inside instance variable list">;
+def ext_extra_semi : Extension<
+  "extra ';' %select{"
+  "outside of a function|"
+  "inside a %1|"
+  "inside instance variable list|"
+  "after member function definition}0">,
+  InGroup<ExtraSemi>;
+def ext_extra_semi_cxx11 : Extension<
+  "extra ';' outside of a function is a C++11 extension">,
+  InGroup<CXX11ExtraSemi>;
+def warn_extra_semi_after_mem_fn_def : Warning<
+  "extra ';' after member function definition">,
+  InGroup<ExtraSemi>, DefaultIgnore;
 
 def ext_duplicate_declspec : Extension<"duplicate '%0' declaration specifier">;
 def ext_plain_complex : ExtWarn<
   "plain '_Complex' requires a type specifier; assuming '_Complex double'">;
 def ext_integer_complex : Extension<
   "complex integer types are an extension">;
-def ext_thread_before : Extension<"'__thread' before 'static'">;
+def ext_thread_before : Extension<"'__thread' before '%0'">;
 
 def ext_empty_struct_union : Extension<
   "empty %select{struct|union}0 is a GNU extension">, InGroup<GNU>;
@@ -58,9 +67,12 @@ def ext_c99_compound_literal : Extension<
   "compound literals are a C99-specific feature">, InGroup<C99>;
 def ext_c99_flexible_array_member : Extension<
   "Flexible array members are a C99-specific feature">, InGroup<C99>;
-def ext_enumerator_list_comma : Extension<
-  "commas at the end of enumerator lists are a %select{C99|C++11}0-specific "
-  "feature">;
+def ext_enumerator_list_comma_c : Extension<
+  "commas at the end of enumerator lists are a C99-specific "
+  "feature">, InGroup<C99>;
+def ext_enumerator_list_comma_cxx : Extension<
+  "commas at the end of enumerator lists are a C++11 extension">,
+  InGroup<CXX11>;
 def warn_cxx98_compat_enumerator_list_comma : Warning<
   "commas at the end of enumerator lists are incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
@@ -89,8 +101,8 @@ def err_duplicate_default_assoc : Error<
 def note_previous_default_assoc : Note<
   "previous default generic association is here">;
 
-def ext_c11_alignas : Extension<
-  "_Alignas is a C11-specific feature">, InGroup<C11>;
+def ext_c11_alignment : Extension<
+  "%0 is a C11-specific feature">, InGroup<C11>;
 
 def ext_gnu_indirect_goto : Extension<
   "use of GNU indirect-goto extension">, InGroup<GNU>;
@@ -311,7 +323,7 @@ def err_templated_using_directive : Error<
 def err_templated_using_declaration : Error<
   "cannot template a using declaration">;
 def err_unexected_colon_in_nested_name_spec : Error<
-  "unexpected ':' in nested name specifier">;
+  "unexpected ':' in nested name specifier; did you mean '::'?">;
 def err_bool_redeclaration : Error<
   "redeclaration of C++ built-in type 'bool'">;
 def ext_c11_static_assert : Extension<
@@ -336,6 +348,9 @@ def err_illegal_super_cast : Error<
   "cannot cast 'super' (it isn't an expression)">;
 def err_nsnumber_nonliteral_unary : Error<
   "@%0 must be followed by a number to form an NSNumber object">;
+def warn_cstyle_param : Warning<
+  "use of C-style parameters in Objective-C method declarations"
+  " is deprecated">, InGroup<DeprecatedDeclarations>;
 
 let CategoryName = "ARC Parse Issue" in {
 def err_arc_bridge_retain : Error<
@@ -377,6 +392,8 @@ def err_synthesized_property_name : Error<
 def warn_semicolon_before_method_body : Warning<
   "semicolon before method body is ignored">,
   InGroup<DiagGroup<"semicolon-before-method-body">>, DefaultIgnore;
+def note_extra_comma_message_arg : Note<
+  "comma separating Objective-C messaging arguments">;
 
 def err_expected_field_designator : Error<
   "expected a field designator, such as '.field = 4'">;
@@ -396,9 +413,8 @@ def err_expected_init_in_condition : Error<
   "variable declaration in condition must have an initializer">;
 def err_expected_init_in_condition_lparen : Error<
   "variable declaration in condition cannot have a parenthesized initializer">;
-def warn_parens_disambiguated_as_function_decl : Warning<
-  "parentheses were disambiguated as a function declarator">,
-  InGroup<VexingParse>;
+def err_extraneous_rparen_in_condition : Error<
+  "extraneous ')' after condition, expected a statement">;
 def warn_dangling_else : Warning<
   "add explicit braces to avoid dangling else">,
   InGroup<DanglingElse>;
@@ -474,6 +490,10 @@ def err_l_square_l_square_not_attribute : Error<
   "introducing an attribute">;
 def err_alignas_pack_exp_unsupported : Error<
   "pack expansions in alignment specifiers are not supported yet">;
+def err_ms_declspec_type : Error<
+  "__declspec attributes must be an identifier or string literal">;
+def warn_ms_declspec_unknown : Warning<
+  "unknown __declspec attribute %0 ignored">, InGroup<UnknownAttributes>;
 
 /// C++ Templates
 def err_expected_template : Error<"expected template">;
@@ -491,9 +511,12 @@ def err_id_after_template_in_nested_name_spec : Error<
   "expected template name after 'template' keyword in nested name specifier">;
 def err_two_right_angle_brackets_need_space : Error<
   "a space is required between consecutive right angle brackets (use '> >')">;
+def err_right_angle_bracket_equal_needs_space : Error<
+  "a space is required between a right angle bracket and an equals sign "
+  "(use '> =')">;
 def warn_cxx0x_right_shift_in_template_arg : Warning<
   "use of right-shift operator ('>>') in template argument will require "
-  "parentheses in C++11">;
+  "parentheses in C++11">, InGroup<CXX11Compat>;
 def warn_cxx98_compat_two_right_angle_brackets : Warning<
   "consecutive right angle brackets are incompatible with C++98 (use '> >')">,
   InGroup<CXX98Compat>, DefaultIgnore;
@@ -648,9 +671,11 @@ def err_availability_unknown_change : Error<
   "%0 is not an availability stage; use 'introduced', 'deprecated', or "
   "'obsoleted'">;
 def err_availability_redundant : Error<
-  "redundant %0 availability change; only the last specified change will "        "be used">;
+  "redundant %0 availability change; only the last specified change will "
+  "be used">;
 def warn_availability_and_unavailable : Warning<
-  "'unavailable' availability overrides all other availability information">;
+  "'unavailable' availability overrides all other availability information">,
+  InGroup<Availability>;
 
 // Language specific pragmas
 // - Generic warnings

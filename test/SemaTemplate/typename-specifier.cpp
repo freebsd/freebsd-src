@@ -22,8 +22,8 @@ typename N::C::type *ip3 = &i; // expected-error{{typename specifier refers to n
 // expected-warning{{'typename' occurs outside of a template}}
 
 void test(double d) {
-  typename N::A::type f(typename N::A::type(a)); // expected-warning{{parentheses were disambiguated as a function declarator}} \
-  // expected-warning 2{{'typename' occurs outside of a template}}
+  typename N::A::type f(typename N::A::type(a)); // expected-warning{{disambiguated as a function declaration}} \
+  // expected-note{{add a pair of parentheses}} expected-warning 2{{'typename' occurs outside of a template}}
   int five = f(5);
   
   using namespace N;
@@ -115,3 +115,40 @@ namespace PR10925 {
     using typename BasicGeometry<mydim, int>::operator[]; // expected-error {{typename is allowed for identifiers only}}
   };
 }
+
+
+namespace missing_typename {
+template <class T1, class T2> struct pair {}; // expected-note 7 {{template parameter is declared here}}
+
+template <class T1, class T2>
+struct map {
+  typedef T1* iterator;
+};
+
+template <class T>
+class ExampleClass1 {
+  struct ExampleItem;
+
+
+  struct ExampleItemSet {
+    typedef ExampleItem* iterator;
+    ExampleItem* operator[](unsigned);
+  };
+
+  void foo() {
+    pair<ExampleItemSet::iterator, int> i; // expected-error {{template argument for template type parameter must be a type; did you forget 'typename'?}}
+    pair<this->ExampleItemSet::iterator, int> i; // expected-error-re {{template argument for template type parameter must be a type$}}
+    pair<ExampleItemSet::operator[], int> i; // expected-error-re {{template argument for template type parameter must be a type$}}
+  }
+  pair<ExampleItemSet::iterator, int> elt; // expected-error {{template argument for template type parameter must be a type; did you forget 'typename'?}}
+
+
+  typedef map<int, ExampleItem*> ExampleItemMap;
+
+  static void bar() {
+    pair<ExampleItemMap::iterator, int> i; // expected-error {{template argument for template type parameter must be a type; did you forget 'typename'?}}
+  }
+  pair<ExampleItemMap::iterator, int> entry; // expected-error {{template argument for template type parameter must be a type; did you forget 'typename'?}}
+  pair<bar, int> foobar; // expected-error {{template argument for template type parameter must be a type}}
+};
+} // namespace missing_typename

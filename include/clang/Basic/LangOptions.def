@@ -50,8 +50,6 @@ LANGOPT(CPlusPlus         , 1, 0, "C++")
 LANGOPT(CPlusPlus0x       , 1, 0, "C++0x")
 LANGOPT(ObjC1             , 1, 0, "Objective-C 1")
 LANGOPT(ObjC2             , 1, 0, "Objective-C 2")
-LANGOPT(ObjCNonFragileABI , 1, 0, "Objective-C modern abi")
-LANGOPT(ObjCNonFragileABI2 , 1, 0, "Objective-C enhanced modern abi")
 BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0, 
                "Objective-C auto-synthesized properties")
 BENIGN_LANGOPT(ObjCInferRelatedResultType , 1, 1, 
@@ -80,7 +78,6 @@ LANGOPT(SjLjExceptions    , 1, 0, "setjmp-longjump exception handling")
 LANGOPT(TraditionalCPP    , 1, 0, "traditional CPP emulation")
 LANGOPT(RTTI              , 1, 1, "run-time type information")
 LANGOPT(MSBitfields       , 1, 0, "Microsoft-compatible structure layout")
-LANGOPT(NeXTRuntime       , 1, 1, "NeXT Objective-C runtime")
 LANGOPT(Freestanding, 1, 0, "freestanding implementation")
 LANGOPT(NoBuiltin         , 1, 0, "disable builtin functions")
 
@@ -102,6 +99,7 @@ LANGOPT(GNUInline         , 1, 0, "GNU inline semantics")
 LANGOPT(NoInlineDefine    , 1, 0, "__NO_INLINE__ predefined macro")
 LANGOPT(Deprecated        , 1, 0, "__DEPRECATED predefined macro")
 LANGOPT(FastMath          , 1, 0, "__FAST_MATH__ predefined macro")
+LANGOPT(FiniteMathOnly    , 1, 0, "__FINITE_MATH_ONLY__ predefined macro")
 
 BENIGN_LANGOPT(ObjCGCBitmapPrint , 1, 0, "printing of GC's bitmap layout for __weak/__strong ivars")
 
@@ -112,6 +110,7 @@ LANGOPT(ShortWChar        , 1, 0, "unsigned short wchar_t")
 LANGOPT(ShortEnums        , 1, 0, "short enum types")
 
 LANGOPT(OpenCL            , 1, 0, "OpenCL")
+LANGOPT(OpenCLVersion     , 32, 0, "OpenCL version")
 LANGOPT(CUDA              , 1, 0, "CUDA")
 
 LANGOPT(AssumeSaneOperatorNew , 1, 1, "implicit __attribute__((malloc)) for C++'s new operators")
@@ -125,7 +124,7 @@ BENIGN_LANGOPT(InlineVisibilityHidden , 1, 0, "hidden default visibility for inl
 BENIGN_LANGOPT(ParseUnknownAnytype, 1, 0, "__unknown_anytype")
 BENIGN_LANGOPT(DebuggerSupport , 1, 0, "debugger support")
 BENIGN_LANGOPT(DebuggerCastResultToId, 1, 0, "for 'po' in the debugger, cast the result to id if it is of unknown type")
-BENIGN_LANGOPT(DebuggerObjCLiteral , 1, 0, "debugger objective-C literals and subscripting support")
+BENIGN_LANGOPT(DebuggerObjCLiteral , 1, 0, "debugger Objective-C literals and subscripting support")
 BENIGN_LANGOPT(AddressSanitizer , 1, 0, "AddressSanitizer enabled")
 BENIGN_LANGOPT(ThreadSanitizer , 1, 0, "ThreadSanitizer enabled")
 
@@ -150,8 +149,9 @@ ENUM_LANGOPT(StackProtector, StackProtectorMode, 2, SSPOff,
              "stack protector mode")
 ENUM_LANGOPT(SignedOverflowBehavior, SignedOverflowBehaviorTy, 2, SOB_Undefined,
              "signed integer overflow handling")
+ENUM_LANGOPT(FPContractMode, FPContractModeKind, 2, FPC_On, "FP_CONTRACT mode")
 
-BENIGN_LANGOPT(InstantiationDepth, 32, 1024, 
+BENIGN_LANGOPT(InstantiationDepth, 32, 512, 
                "maximum template instantiation depth")
 BENIGN_LANGOPT(ConstexprCallDepth, 32, 512,
                "maximum constexpr call depth")
