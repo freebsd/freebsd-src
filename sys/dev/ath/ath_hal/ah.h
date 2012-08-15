@@ -550,7 +550,7 @@ enum {
 
 typedef struct {
 	int		rateCount;		/* NB: for proper padding */
-	uint8_t		rateCodeToIndex[144];	/* back mapping */
+	uint8_t		rateCodeToIndex[256];	/* back mapping */
 	struct {
 		uint8_t		valid;		/* valid for rate control use */
 		uint8_t		phy;		/* CCK/OFDM/XR */
@@ -564,12 +564,12 @@ typedef struct {
 						 * rate; used for dur. calcs */
 		uint16_t	lpAckDuration;	/* long preamble ACK duration */
 		uint16_t	spAckDuration;	/* short preamble ACK duration*/
-	} info[32];
+	} info[64];
 } HAL_RATE_TABLE;
 
 typedef struct {
 	u_int		rs_count;		/* number of valid entries */
-	uint8_t	rs_rates[32];		/* rates */
+	uint8_t	rs_rates[64];		/* rates */
 } HAL_RATE_SET;
 
 /*
