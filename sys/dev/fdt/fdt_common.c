@@ -426,7 +426,7 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 	pcell_t addr_cells, size_cells;
 	int tuple_size, tuples;
 	int i, rv;
-	long vaddr;
+	bus_space_handle_t vaddr;
 	long busaddr, bussize;
 
 	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
