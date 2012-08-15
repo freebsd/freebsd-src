@@ -4,7 +4,7 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>LLVM Testing Infrastructure Guide</title>
-  <link rel="stylesheet" href="llvm.css" type="text/css">
+  <link rel="stylesheet" href="_static/llvm.css" type="text/css">
 </head>
 <body>
       
@@ -626,6 +626,8 @@ define i8 @coerce_offset0(i32 %V, i32* %P) {
 
 <div>
 
+<!-- {% raw %} -->
+
 <p>The CHECK: and CHECK-NOT: directives both take a pattern to match.  For most
 uses of FileCheck, fixed string matching is perfectly sufficient.  For some
 things, a more flexible form of matching is desired.  To support this, FileCheck
@@ -650,6 +652,8 @@ braces like you would in C.  In the rare case that you want to match double
 braces explicitly from the input, you can use something ugly like
 <b>{{[{][{]}}</b> as your pattern.</p>
 
+<!-- {% endraw %} -->
+
 </div>
 
 <!-- _______________________________________________________________________ -->
@@ -658,6 +662,9 @@ braces explicitly from the input, you can use something ugly like
 </h4>
 
 <div>
+
+
+<!-- {% raw %} -->
 
 <p>It is often useful to match a pattern and then verify that it occurs again
 later in the file.  For codegen tests, this can be useful to allow any register,
@@ -689,6 +696,8 @@ you need to do something like this you can probably take advantage of the fact
 that FileCheck is not actually line-oriented when it matches, this allows you to
 define two separate CHECK lines that match on the same line.
 </p>
+
+<!-- {% endraw %} -->
 
 </div>
 
@@ -900,7 +909,7 @@ the <a href="TestSuiteMakefileGuide.html">Test Suite Makefile Guide.</a></p>
 
   John T. Criswell, Daniel Dunbar, Reid Spencer, and Tanya Lattner<br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2012-04-18 10:02:25 +0200 (Wed, 18 Apr 2012) $
+  Last modified: $Date: 2012-05-08 20:26:07 +0200 (Tue, 08 May 2012) $
 </address>
 </body>
 </html>

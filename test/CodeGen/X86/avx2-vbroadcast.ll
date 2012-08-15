@@ -160,6 +160,15 @@ entry:
   ret <8 x i32> %g
 }
 
+; CHECK: V113
+; CHECK: vbroadcastss
+; CHECK: ret
+define <8 x float> @V113(<8 x float> %in) nounwind uwtable readnone ssp {
+entry:
+  %g = fadd <8 x float> %in, <float 0xbf80000000000000, float 0xbf80000000000000, float 0xbf80000000000000, float 0xbf80000000000000, float 0xbf80000000000000, float 0xbf80000000000000, float 0xbf80000000000000, float 0xbf80000000000000>
+  ret <8 x float> %g
+}
+
 ; CHECK: _e2
 ; CHECK: vbroadcastss
 ; CHECK: ret
@@ -179,9 +188,170 @@ define <8 x i8> @_e4(i8* %ptr) nounwind uwtable readnone ssp {
   %vecinit1.i = insertelement <8 x i8> %vecinit0.i, i8 52, i32 1
   %vecinit2.i = insertelement <8 x i8> %vecinit1.i, i8 52, i32 2
   %vecinit3.i = insertelement <8 x i8> %vecinit2.i, i8 52, i32 3
-  %vecinit4.i = insertelement <8 x i8> %vecinit3.i, i8 52, i32 3
-  %vecinit5.i = insertelement <8 x i8> %vecinit4.i, i8 52, i32 3
-  %vecinit6.i = insertelement <8 x i8> %vecinit5.i, i8 52, i32 3
-  %vecinit7.i = insertelement <8 x i8> %vecinit6.i, i8 52, i32 3
+  %vecinit4.i = insertelement <8 x i8> %vecinit3.i, i8 52, i32 4
+  %vecinit5.i = insertelement <8 x i8> %vecinit4.i, i8 52, i32 5
+  %vecinit6.i = insertelement <8 x i8> %vecinit5.i, i8 52, i32 6
+  %vecinit7.i = insertelement <8 x i8> %vecinit6.i, i8 52, i32 7
   ret <8 x i8> %vecinit7.i
+}
+
+
+define void @crash() nounwind alwaysinline {
+WGLoopsEntry:
+  br i1 undef, label %ret, label %footer329VF
+
+footer329VF:
+  %A.0.inVF = fmul float undef, 6.553600e+04
+  %B.0.in407VF = fmul <8 x float> undef, <float 6.553600e+04, float 6.553600e+04, float 6.553600e+04, float 6.553600e+04, float 6.553600e+04, float 6.553600e+04, float 6.553600e+04, float 6.553600e+04>
+  %A.0VF = fptosi float %A.0.inVF to i32
+  %B.0408VF = fptosi <8 x float> %B.0.in407VF to <8 x i32>
+  %0 = and <8 x i32> %B.0408VF, <i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535>
+  %1 = and i32 %A.0VF, 65535
+  %temp1098VF = insertelement <8 x i32> undef, i32 %1, i32 0
+  %vector1099VF = shufflevector <8 x i32> %temp1098VF, <8 x i32> undef, <8 x i32> zeroinitializer
+  br i1 undef, label %preload1201VF, label %footer349VF
+
+preload1201VF:
+  br label %footer349VF
+
+footer349VF:
+  %2 = mul nsw <8 x i32> undef, %0
+  %3 = mul nsw <8 x i32> undef, %vector1099VF
+  br label %footer329VF
+
+ret:
+  ret void
+}
+
+; CHECK: _inreg0
+; CHECK: broadcastss
+; CHECK: ret
+define <8 x i32> @_inreg0(i32 %scalar) nounwind uwtable readnone ssp {
+  %in = insertelement <8 x i32> undef, i32 %scalar, i32 0
+  %wide = shufflevector <8 x i32> %in, <8 x i32> undef, <8 x i32> zeroinitializer
+  ret <8 x i32> %wide
+}
+
+; CHECK: _inreg1
+; CHECK: broadcastss
+; CHECK: ret
+define <8 x float> @_inreg1(float %scalar) nounwind uwtable readnone ssp {
+  %in = insertelement <8 x float> undef, float %scalar, i32 0
+  %wide = shufflevector <8 x float> %in, <8 x float> undef, <8 x i32> zeroinitializer
+  ret <8 x float> %wide
+}
+
+; CHECK: _inreg2
+; CHECK: broadcastss
+; CHECK: ret
+define <4 x float> @_inreg2(float %scalar) nounwind uwtable readnone ssp {
+  %in = insertelement <4 x float> undef, float %scalar, i32 0
+  %wide = shufflevector <4 x float> %in, <4 x float> undef, <4 x i32> zeroinitializer
+  ret <4 x float> %wide
+}
+
+; CHECK: _inreg3
+; CHECK: broadcastsd
+; CHECK: ret
+define <4 x double> @_inreg3(double %scalar) nounwind uwtable readnone ssp {
+  %in = insertelement <4 x double> undef, double %scalar, i32 0
+  %wide = shufflevector <4 x double> %in, <4 x double> undef, <4 x i32> zeroinitializer
+  ret <4 x double> %wide
+}
+
+;CHECK: _inreg8xfloat
+;CHECK: vbroadcastss
+;CHECK: ret
+define   <8 x float> @_inreg8xfloat(<8 x float> %a) {
+  %b = shufflevector <8 x float> %a, <8 x float> undef, <8 x i32> zeroinitializer
+  ret <8 x float> %b
+}
+
+;CHECK: _inreg4xfloat
+;CHECK: vbroadcastss
+;CHECK: ret
+define   <4 x float> @_inreg4xfloat(<4 x float> %a) {
+  %b = shufflevector <4 x float> %a, <4 x float> undef, <4 x i32> zeroinitializer
+  ret <4 x float> %b
+}
+
+;CHECK: _inreg16xi16
+;CHECK: vpbroadcastw
+;CHECK: ret
+define   <16 x i16> @_inreg16xi16(<16 x i16> %a) {
+  %b = shufflevector <16 x i16> %a, <16 x i16> undef, <16 x i32> zeroinitializer
+  ret <16 x i16> %b
+}
+
+;CHECK: _inreg8xi16
+;CHECK: vpbroadcastw
+;CHECK: ret
+define   <8 x i16> @_inreg8xi16(<8 x i16> %a) {
+  %b = shufflevector <8 x i16> %a, <8 x i16> undef, <8 x i32> zeroinitializer
+  ret <8 x i16> %b
+}
+
+
+;CHECK: _inreg4xi64
+;CHECK: vpbroadcastq
+;CHECK: ret
+define   <4 x i64> @_inreg4xi64(<4 x i64> %a) {
+  %b = shufflevector <4 x i64> %a, <4 x i64> undef, <4 x i32> zeroinitializer
+  ret <4 x i64> %b
+}
+
+;CHECK: _inreg2xi64
+;CHECK: vpbroadcastq
+;CHECK: ret
+define   <2 x i64> @_inreg2xi64(<2 x i64> %a) {
+  %b = shufflevector <2 x i64> %a, <2 x i64> undef, <2 x i32> zeroinitializer
+  ret <2 x i64> %b
+}
+
+;CHECK: _inreg4xdouble
+;CHECK: vbroadcastsd
+;CHECK: ret
+define   <4 x double> @_inreg4xdouble(<4 x double> %a) {
+  %b = shufflevector <4 x double> %a, <4 x double> undef, <4 x i32> zeroinitializer
+  ret <4 x double> %b
+}
+
+;CHECK: _inreg2xdouble
+;CHECK: vpbroadcastq
+;CHECK: ret
+define   <2 x double> @_inreg2xdouble(<2 x double> %a) {
+  %b = shufflevector <2 x double> %a, <2 x double> undef, <2 x i32> zeroinitializer
+  ret <2 x double> %b
+}
+
+;CHECK: _inreg8xi32
+;CHECK: vpbroadcastd
+;CHECK: ret
+define   <8 x i32> @_inreg8xi32(<8 x i32> %a) {
+  %b = shufflevector <8 x i32> %a, <8 x i32> undef, <8 x i32> zeroinitializer
+  ret <8 x i32> %b
+}
+
+;CHECK: _inreg4xi32
+;CHECK: vpbroadcastd
+;CHECK: ret
+define   <4 x i32> @_inreg4xi32(<4 x i32> %a) {
+  %b = shufflevector <4 x i32> %a, <4 x i32> undef, <4 x i32> zeroinitializer
+  ret <4 x i32> %b
+}
+
+;CHECK: _inreg32xi8
+;CHECK: vpbroadcastb
+;CHECK: ret
+define   <32 x i8> @_inreg32xi8(<32 x i8> %a) {
+  %b = shufflevector <32 x i8> %a, <32 x i8> undef, <32 x i32> zeroinitializer
+  ret <32 x i8> %b
+}
+
+;CHECK: _inreg16xi8
+;CHECK: vpbroadcastb
+;CHECK: ret
+define   <16 x i8> @_inreg16xi8(<16 x i8> %a) {
+  %b = shufflevector <16 x i8> %a, <16 x i8> undef, <16 x i32> zeroinitializer
+  ret <16 x i8> %b
 }

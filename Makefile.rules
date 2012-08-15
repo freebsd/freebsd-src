@@ -317,6 +317,15 @@ ifeq ($(ENABLE_LIBCPP),1)
   LD.Flags +=  -stdlib=libc++
 endif
 
+ifeq ($(ENABLE_CXX11),1)
+  CXX.Flags += -std=c++11
+endif
+
+ifeq ($(ENABLE_WERROR),1)
+  CXX.Flags += -Werror
+  C.Flags += -Werror
+endif
+
 ifeq ($(ENABLE_PROFILING),1)
   BuildMode := $(BuildMode)+Profile
   CXX.Flags := $(filter-out -fomit-frame-pointer,$(CXX.Flags)) -pg -g
@@ -538,9 +547,6 @@ ifeq ($(LLVM_CROSS_COMPILING),1)
 else
   LLVM_CONFIG := $(LLVMToolDir)/llvm-config$(EXEEXT)
 endif
-ifndef LLVMLD
-LLVMLD    := $(LLVMToolDir)/llvm-ld$(EXEEXT)
-endif
 ifndef LLVMDIS
 LLVMDIS  := $(LLVMToolDir)/llvm-dis$(EXEEXT)
 endif
@@ -555,6 +561,9 @@ LOPT     := $(LLVMToolDir)/opt$(EXEEXT)
 endif
 ifndef LBUGPOINT
 LBUGPOINT := $(LLVMToolDir)/bugpoint$(EXEEXT)
+endif
+ifndef LLVMLINK
+LLVMLINK      := $(LLVMToolDir)/llvm-link$(EXEEXT)
 endif
 
 #--------------------------------------------------------------------
@@ -1134,14 +1143,14 @@ $(warning Modules require LLVM capable compiler but none is available ****)
 else
 
 Module     := $(LibDir)/$(MODULE_NAME).bc
-LinkModule := $(LLVMLD) -r
+LinkModule := $(LLVMLINK)
 
 
 ifdef EXPORTED_SYMBOL_FILE
 LinkModule += -internalize-public-api-file=$(EXPORTED_SYMBOL_FILE)
 endif
 
-$(Module): $(BUILT_SOURCES) $(ObjectsBC) $(LibDir)/.dir $(LLVMLD)
+$(Module): $(BUILT_SOURCES) $(ObjectsBC) $(LibDir)/.dir $(LLVMLINK)
 	$(Echo) Building $(BuildMode) Bytecode Module $(notdir $@)
 	$(Verb) $(LinkModule) -o $@ $(ObjectsBC)
 
@@ -1276,9 +1285,9 @@ else
 all-local:: $(LibName.BCA)
 
 ifdef EXPORTED_SYMBOL_FILE
-BCLinkLib = $(LLVMLD) -internalize-public-api-file=$(EXPORTED_SYMBOL_FILE)
+BCLinkLib = $(LLVMLINK) -internalize-public-api-file=$(EXPORTED_SYMBOL_FILE)
 
-$(LibName.BCA): $(ObjectsBC) $(LibDir)/.dir $(LLVMLD) \
+$(LibName.BCA): $(ObjectsBC) $(LibDir)/.dir $(LLVMLINK) \
                 $(LLVMToolDir)/llvm-ar
 	$(Echo) Building $(BuildMode) Bytecode Archive $(notdir $@) \
 	  "(internalize)"
@@ -1964,19 +1973,8 @@ check::
 	  $(EchoCmd) No test directory ; \
 	fi
 
+# An alias dating from when both lit and DejaGNU test runners were used.
 check-lit:: check
-
-check-dg::
-	$(Verb) if test -d "$(PROJ_OBJ_ROOT)/test" ; then \
-	  if test -f "$(PROJ_OBJ_ROOT)/test/Makefile" ; then \
-	    $(EchoCmd) Running test suite ; \
-	    $(MAKE) -C $(PROJ_OBJ_ROOT)/test check-local-dg ; \
-	  else \
-	    $(EchoCmd) No Makefile in test directory ; \
-	  fi ; \
-	else \
-	  $(EchoCmd) No test directory ; \
-	fi
 
 check-all::
 	$(Verb) if test -d "$(PROJ_OBJ_ROOT)/test" ; then \

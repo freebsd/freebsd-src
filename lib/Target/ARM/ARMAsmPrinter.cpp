@@ -23,8 +23,8 @@
 #include "InstPrinter/ARMInstPrinter.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMMCExpr.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
 #include "llvm/Assembly/Writer.h"
@@ -283,9 +283,16 @@ void ARMAsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
   }
 }
 
-void ARMAsmPrinter::EmitFunctionEntryLabel() {
-  OutStreamer.ForceCodeRegion();
+void ARMAsmPrinter::EmitFunctionBodyEnd() {
+  // Make sure to terminate any constant pools that were at the end
+  // of the function.
+  if (!InConstantPool)
+    return;
+  InConstantPool = false;
+  OutStreamer.EmitDataRegion(MCDR_DataRegionEnd);
+}
 
+void ARMAsmPrinter::EmitFunctionEntryLabel() {
   if (AFI->isThumbFunction()) {
     OutStreamer.EmitAssemblerFlag(MCAF_Code16);
     OutStreamer.EmitThumbFunc(CurrentFnSym);
@@ -415,7 +422,9 @@ bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
     if (ExtraCode[1] != 0) return true; // Unknown modifier.
 
     switch (ExtraCode[0]) {
-    default: return true;  // Unknown modifier.
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNum, AsmVariant, ExtraCode, O);
     case 'a': // Print as a memory address.
       if (MI->getOperand(OpNum).isReg()) {
         O << "["
@@ -434,15 +443,18 @@ bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
       printOperand(MI, OpNum, O);
       return false;
     case 'y': // Print a VFP single precision register as indexed double.
-      // This uses the ordering of the alias table to get the first 'd' register
-      // that overlaps the 's' register. Also, s0 is an odd register, hence the
-      // odd modulus check below.
       if (MI->getOperand(OpNum).isReg()) {
         unsigned Reg = MI->getOperand(OpNum).getReg();
         const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();
-        O << ARMInstPrinter::getRegisterName(TRI->getAliasSet(Reg)[0]) <<
-        (((Reg % 2) == 1) ? "[0]" : "[1]");
-        return false;
+        // Find the 'd' register that has this 's' register as a sub-register,
+        // and determine the lane number.
+        for (MCSuperRegIterator SR(Reg, TRI); SR.isValid(); ++SR) {
+          if (!ARM::DPRRegClass.contains(*SR))
+            continue;
+          bool Lane0 = TRI->getSubReg(*SR, ARM::ssub_0) == Reg;
+          O << ARMInstPrinter::getRegisterName(*SR) << (Lane0 ? "[0]" : "[1]");
+          return false;
+        }
       }
       return true;
     case 'B': // Bitwise inverse of integer or symbol without a preceding #.
@@ -517,10 +529,23 @@ bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
       return false;
     }
 
-    // These modifiers are not yet supported.
+    // This modifier is not yet supported.
     case 'h': // A range of VFP/NEON registers suitable for VLD1/VST1.
-    case 'H': // The highest-numbered register of a pair.
       return true;
+    case 'H': // The highest-numbered register of a pair.
+      const MachineOperand &MO = MI->getOperand(OpNum);
+      if (!MO.isReg())
+        return true;
+      const TargetRegisterClass &RC = ARM::GPRRegClass;
+      const MachineFunction &MF = *MI->getParent()->getParent();
+      const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+
+      unsigned RegIdx = TRI->getEncodingValue(MO.getReg());
+      RegIdx |= 1; //The odd register is also the higher-numbered one of a pair.
+
+      unsigned Reg = RC.getRegister(RegIdx);
+      O << ARMInstPrinter::getRegisterName(Reg);
+      return false;
     }
   }
 
@@ -934,12 +959,12 @@ void ARMAsmPrinter::EmitJumpTable(const MachineInstr *MI) {
   const MachineOperand &MO2 = MI->getOperand(OpNum+1); // Unique Id
   unsigned JTI = MO1.getIndex();
 
-  // Tag the jump table appropriately for precise disassembly.
-  OutStreamer.EmitJumpTable32Region();
-
   // Emit a label for the jump table.
   MCSymbol *JTISymbol = GetARMJTIPICJumpTableLabel2(JTI, MO2.getImm());
   OutStreamer.EmitLabel(JTISymbol);
+
+  // Mark the jump table as data-in-code.
+  OutStreamer.EmitDataRegion(MCDR_DataRegionJT32);
 
   // Emit each entry of the table.
   const MachineJumpTableInfo *MJTI = MF->getJumpTableInfo();
@@ -969,6 +994,8 @@ void ARMAsmPrinter::EmitJumpTable(const MachineInstr *MI) {
                                      OutContext);
     OutStreamer.EmitValue(Expr, 4);
   }
+  // Mark the end of jump table data-in-code region.
+  OutStreamer.EmitDataRegion(MCDR_DataRegionEnd);
 }
 
 void ARMAsmPrinter::EmitJump2Table(const MachineInstr *MI) {
@@ -978,15 +1005,6 @@ void ARMAsmPrinter::EmitJump2Table(const MachineInstr *MI) {
   const MachineOperand &MO2 = MI->getOperand(OpNum+1); // Unique Id
   unsigned JTI = MO1.getIndex();
 
-  // Emit a label for the jump table.
-  if (MI->getOpcode() == ARM::t2TBB_JT) {
-    OutStreamer.EmitJumpTable8Region();
-  } else if (MI->getOpcode() == ARM::t2TBH_JT) {
-    OutStreamer.EmitJumpTable16Region();
-  } else {
-    OutStreamer.EmitJumpTable32Region();
-  }
-
   MCSymbol *JTISymbol = GetARMJTIPICJumpTableLabel2(JTI, MO2.getImm());
   OutStreamer.EmitLabel(JTISymbol);
 
@@ -995,10 +1013,15 @@ void ARMAsmPrinter::EmitJump2Table(const MachineInstr *MI) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   const std::vector<MachineBasicBlock*> &JTBBs = JT[JTI].MBBs;
   unsigned OffsetWidth = 4;
-  if (MI->getOpcode() == ARM::t2TBB_JT)
+  if (MI->getOpcode() == ARM::t2TBB_JT) {
     OffsetWidth = 1;
-  else if (MI->getOpcode() == ARM::t2TBH_JT)
+    // Mark the jump table as data-in-code.
+    OutStreamer.EmitDataRegion(MCDR_DataRegionJT8);
+  } else if (MI->getOpcode() == ARM::t2TBH_JT) {
     OffsetWidth = 2;
+    // Mark the jump table as data-in-code.
+    OutStreamer.EmitDataRegion(MCDR_DataRegionJT16);
+  }
 
   for (unsigned i = 0, e = JTBBs.size(); i != e; ++i) {
     MachineBasicBlock *MBB = JTBBs[i];
@@ -1031,6 +1054,11 @@ void ARMAsmPrinter::EmitJump2Table(const MachineInstr *MI) {
                                    OutContext);
     OutStreamer.EmitValue(Expr, OffsetWidth);
   }
+  // Mark the end of jump table data-in-code region. 32-bit offsets use
+  // actual branch instructions here, so we don't mark those as a data-region
+  // at all.
+  if (OffsetWidth != 4)
+    OutStreamer.EmitDataRegion(MCDR_DataRegionEnd);
 }
 
 void ARMAsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
@@ -1121,8 +1149,14 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
       assert(SrcReg == ARM::SP &&
              "Only stack pointer as a source reg is supported");
       for (unsigned i = StartOp, NumOps = MI->getNumOperands() - NumOffset;
-           i != NumOps; ++i)
-        RegList.push_back(MI->getOperand(i).getReg());
+           i != NumOps; ++i) {
+        const MachineOperand &MO = MI->getOperand(i);
+        // Actually, there should never be any impdef stuff here. Skip it
+        // temporary to workaround PR11902.
+        if (MO.isImplicit())
+          continue;
+        RegList.push_back(MO.getReg());
+      }
       break;
     case ARM::STR_PRE_IMM:
     case ARM::STR_PRE_REG:
@@ -1208,8 +1242,11 @@ extern cl::opt<bool> EnableARMEHABI;
 #include "ARMGenMCPseudoLowering.inc"
 
 void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  if (MI->getOpcode() != ARM::CONSTPOOL_ENTRY)
-    OutStreamer.EmitCodeRegion();
+  // If we just ended a constant pool, mark it as such.
+  if (InConstantPool && MI->getOpcode() != ARM::CONSTPOOL_ENTRY) {
+    OutStreamer.EmitDataRegion(MCDR_DataRegionEnd);
+    InConstantPool = false;
+  }
 
   // Emit unwinding stuff for frame-related instructions
   if (EnableARMEHABI && MI->getFlag(MachineInstr::FrameSetup))
@@ -1565,9 +1602,12 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     unsigned LabelId = (unsigned)MI->getOperand(0).getImm();
     unsigned CPIdx   = (unsigned)MI->getOperand(1).getIndex();
 
-    // Mark the constant pool entry as data if we're not already in a data
-    // region.
-    OutStreamer.EmitDataRegion();
+    // If this is the first entry of the pool, mark it.
+    if (!InConstantPool) {
+      OutStreamer.EmitDataRegion(MCDR_DataRegion);
+      InConstantPool = true;
+    }
+
     OutStreamer.EmitLabel(GetCPISymbol(LabelId));
 
     const MachineConstantPoolEntry &MCPE = MCP->getConstants()[CPIdx];

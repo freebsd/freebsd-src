@@ -84,7 +84,7 @@ namespace {
     bool PerformTrivialCoalescing(MachineInstr *MI, MachineBasicBlock *MBB);
     bool isPhysDefTriviallyDead(unsigned Reg,
                                 MachineBasicBlock::const_iterator I,
-                                MachineBasicBlock::const_iterator E) const ;
+                                MachineBasicBlock::const_iterator E) const;
     bool hasLivePhysRegDefUses(const MachineInstr *MI,
                                const MachineBasicBlock *MBB,
                                SmallSet<unsigned,8> &PhysRefs,
@@ -100,8 +100,7 @@ namespace {
     void ExitScope(MachineBasicBlock *MBB);
     bool ProcessBlock(MachineBasicBlock *MBB);
     void ExitScopeIfDone(MachineDomTreeNode *Node,
-                 DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren,
-                 DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> &ParentMap);
+                         DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren);
     bool PerformCSE(MachineDomTreeNode *Node);
   };
 } // end anonymous namespace
@@ -216,11 +215,12 @@ bool MachineCSE::hasLivePhysRegDefUses(const MachineInstr *MI,
     if (MO.isDef() &&
         (MO.isDead() || isPhysDefTriviallyDead(Reg, I, MBB->end())))
       continue;
-    PhysRefs.insert(Reg);
+    // Reading constant physregs is ok.
+    if (!MRI->isConstantPhysReg(Reg, *MBB->getParent()))
+      for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
+        PhysRefs.insert(*AI);
     if (MO.isDef())
       PhysDefs.push_back(Reg);
-    for (const uint16_t *Alias = TRI->getAliasSet(Reg); *Alias; ++Alias)
-      PhysRefs.insert(*Alias);
   }
 
   return !PhysRefs.empty();
@@ -326,6 +326,29 @@ bool MachineCSE::isProfitableToCSE(unsigned CSReg, unsigned Reg,
                                    MachineInstr *CSMI, MachineInstr *MI) {
   // FIXME: Heuristics that works around the lack the live range splitting.
 
+  // If CSReg is used at all uses of Reg, CSE should not increase register
+  // pressure of CSReg.
+  bool MayIncreasePressure = true;
+  if (TargetRegisterInfo::isVirtualRegister(CSReg) &&
+      TargetRegisterInfo::isVirtualRegister(Reg)) {
+    MayIncreasePressure = false;
+    SmallPtrSet<MachineInstr*, 8> CSUses;
+    for (MachineRegisterInfo::use_nodbg_iterator I =MRI->use_nodbg_begin(CSReg),
+         E = MRI->use_nodbg_end(); I != E; ++I) {
+      MachineInstr *Use = &*I;
+      CSUses.insert(Use);
+    }
+    for (MachineRegisterInfo::use_nodbg_iterator I = MRI->use_nodbg_begin(Reg),
+         E = MRI->use_nodbg_end(); I != E; ++I) {
+      MachineInstr *Use = &*I;
+      if (!CSUses.count(Use)) {
+        MayIncreasePressure = true;
+        break;
+      }
+    }
+  }
+  if (!MayIncreasePressure) return true;
+
   // Heuristics #1: Don't CSE "cheap" computation if the def is not local or in
   // an immediate predecessor. We don't want to increase register pressure and
   // end up causing other computation to be spilled.
@@ -396,6 +419,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
   bool Changed = false;
 
   SmallVector<std::pair<unsigned, unsigned>, 8> CSEPairs;
+  SmallVector<unsigned, 2> ImplicitDefsToUpdate;
   for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E; ) {
     MachineInstr *MI = &*I;
     ++I;
@@ -437,7 +461,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     // used, then it's not safe to replace it with a common subexpression.
     // It's also not safe if the instruction uses physical registers.
     bool CrossMBBPhysDef = false;
-    SmallSet<unsigned,8> PhysRefs;
+    SmallSet<unsigned, 8> PhysRefs;
     SmallVector<unsigned, 2> PhysDefs;
     if (FoundCSE && hasLivePhysRegDefUses(MI, MBB, PhysRefs, PhysDefs)) {
       FoundCSE = false;
@@ -465,21 +489,31 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 
     // Check if it's profitable to perform this CSE.
     bool DoCSE = true;
-    unsigned NumDefs = MI->getDesc().getNumDefs();
+    unsigned NumDefs = MI->getDesc().getNumDefs() +
+                       MI->getDesc().getNumImplicitDefs();
+    
     for (unsigned i = 0, e = MI->getNumOperands(); NumDefs && i != e; ++i) {
       MachineOperand &MO = MI->getOperand(i);
       if (!MO.isReg() || !MO.isDef())
         continue;
       unsigned OldReg = MO.getReg();
       unsigned NewReg = CSMI->getOperand(i).getReg();
-      if (OldReg == NewReg)
+
+      // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
+      // we should make sure it is not dead at CSMI.
+      if (MO.isImplicit() && !MO.isDead() && CSMI->getOperand(i).isDead())
+        ImplicitDefsToUpdate.push_back(i);
+      if (OldReg == NewReg) {
+        --NumDefs;
         continue;
+      }
 
       assert(TargetRegisterInfo::isVirtualRegister(OldReg) &&
              TargetRegisterInfo::isVirtualRegister(NewReg) &&
              "Do not CSE physical register defs!");
 
       if (!isProfitableToCSE(NewReg, OldReg, CSMI, MI)) {
+        DEBUG(dbgs() << "*** Not profitable, avoid CSE!\n");
         DoCSE = false;
         break;
       }
@@ -488,6 +522,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       // within the register class of the new instruction.
       const TargetRegisterClass *OldRC = MRI->getRegClass(OldReg);
       if (!MRI->constrainRegClass(NewReg, OldRC)) {
+        DEBUG(dbgs() << "*** Not the same register class, avoid CSE!\n");
         DoCSE = false;
         break;
       }
@@ -502,6 +537,11 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         MRI->replaceRegWith(CSEPairs[i].first, CSEPairs[i].second);
         MRI->clearKillFlags(CSEPairs[i].second);
       }
+
+      // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
+      // we should make sure it is not dead at CSMI.
+      for (unsigned i = 0, e = ImplicitDefsToUpdate.size(); i != e; ++i)
+        CSMI->getOperand(ImplicitDefsToUpdate[i]).setIsDead(false);
 
       if (CrossMBBPhysDef) {
         // Add physical register defs now coming in from a predecessor to MBB
@@ -522,11 +562,11 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         ++NumCommutes;
       Changed = true;
     } else {
-      DEBUG(dbgs() << "*** Not profitable, avoid CSE!\n");
       VNT.insert(MI, CurrVN++);
       Exps.push_back(MI);
     }
     CSEPairs.clear();
+    ImplicitDefsToUpdate.clear();
   }
 
   return Changed;
@@ -537,8 +577,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 /// up the dominator tree to destroy ancestors which are now done.
 void
 MachineCSE::ExitScopeIfDone(MachineDomTreeNode *Node,
-                DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren,
-                DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> &ParentMap) {
+                        DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren) {
   if (OpenChildren[Node])
     return;
 
@@ -546,7 +585,7 @@ MachineCSE::ExitScopeIfDone(MachineDomTreeNode *Node,
   ExitScope(Node->getBlock());
 
   // Now traverse upwards to pop ancestors whose offsprings are all done.
-  while (MachineDomTreeNode *Parent = ParentMap[Node]) {
+  while (MachineDomTreeNode *Parent = Node->getIDom()) {
     unsigned Left = --OpenChildren[Parent];
     if (Left != 0)
       break;
@@ -558,7 +597,6 @@ MachineCSE::ExitScopeIfDone(MachineDomTreeNode *Node,
 bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
   SmallVector<MachineDomTreeNode*, 32> Scopes;
   SmallVector<MachineDomTreeNode*, 8> WorkList;
-  DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> ParentMap;
   DenseMap<MachineDomTreeNode*, unsigned> OpenChildren;
 
   CurrVN = 0;
@@ -573,7 +611,6 @@ bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
     OpenChildren[Node] = NumChildren;
     for (unsigned i = 0; i != NumChildren; ++i) {
       MachineDomTreeNode *Child = Children[i];
-      ParentMap[Child] = Node;
       WorkList.push_back(Child);
     }
   } while (!WorkList.empty());
@@ -586,7 +623,7 @@ bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
     EnterScope(MBB);
     Changed |= ProcessBlock(MBB);
     // If it's a leaf node, it's done. Traverse upwards to pop ancestors.
-    ExitScopeIfDone(Node, OpenChildren, ParentMap);
+    ExitScopeIfDone(Node, OpenChildren);
   }
 
   return Changed;

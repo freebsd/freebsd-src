@@ -64,18 +64,6 @@ class Register<string n, list<string> altNames = []> {
   // register.
   list<RegAltNameIndex> RegAltNameIndices = [];
 
-  // CompositeIndices - Specify subreg indices that don't correspond directly to
-  // a register in SubRegs and are not inherited. The following formats are
-  // supported:
-  //
-  // (a)     Identity  - Reg:a == Reg
-  // (a b)   Alias     - Reg:a == Reg:b
-  // (a b,c) Composite - Reg:a == (Reg:b):c
-  //
-  // This can be used to disambiguate a sub-sub-register that exists in more
-  // than one subregister and other weird stuff.
-  list<dag> CompositeIndices = [];
-
   // DwarfNumbers - Numbers used internally by gcc/gdb to identify the register.
   // These values can be determined by locating the <target>.h file in the
   // directory llvmgcc/gcc/config/<target>/ and looking for REGISTER_NAMES.  The
@@ -96,6 +84,9 @@ class Register<string n, list<string> altNames = []> {
   // x86 register AX is covered by its sub-registers AL and AH, but EAX is not
   // covered by its sub-register AX.
   bit CoveredBySubRegs = 0;
+
+  // HWEncoding - The target specific hardware encoding for this register.
+  bits<16> HWEncoding = 0;
 }
 
 // RegisterWithSubRegs - This can be used to define instances of Register which
@@ -108,13 +99,20 @@ class RegisterWithSubRegs<string n, list<Register> subregs> : Register<n> {
   let SubRegs = subregs;
 }
 
+// DAGOperand - An empty base class that unifies RegisterClass's and other forms
+// of Operand's that are legal as type qualifiers in DAG patterns.  This should
+// only ever be used for defining multiclasses that are polymorphic over both
+// RegisterClass's and other Operand's.
+class DAGOperand { }
+
 // RegisterClass - Now that all of the registers are defined, and aliases
 // between registers are defined, specify which registers belong to which
 // register classes.  This also defines the default allocation order of
 // registers by register allocators.
 //
 class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
-                    dag regList, RegAltNameIndex idx = NoRegAltName> {
+                    dag regList, RegAltNameIndex idx = NoRegAltName>
+  : DAGOperand {
   string Namespace = namespace;
 
   // RegType - Specify the list ValueType of the registers in this register
@@ -150,10 +148,6 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
   // of this register class. Every register in the register class must have
   // a valid alternate name for the given index.
   RegAltNameIndex altNameIndex = idx;
-
-  // SubRegClasses - Specify the register class of subregisters as a list of
-  // dags: (RegClass SubRegIndex, SubRegindex, ...)
-  list<dag> SubRegClasses = [];
 
   // isAllocatable - Specify that the register class can be used for virtual
   // registers and register allocation.  Some register classes are only used to
@@ -192,7 +186,8 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
 // also in the second set.
 //
 // (sequence "R%u", 0, 15) -> [R0, R1, ..., R15]. Generate a sequence of
-// numbered registers.
+// numbered registers.  Takes an optional 4th operand which is a stride to use
+// when generating the sequence.
 //
 // (shl GPR, 4) - Remove the first N elements.
 //
@@ -245,9 +240,6 @@ class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs> {
   // SubRegIndices - N SubRegIndex instances. This provides the names of the
   // sub-registers in the synthesized super-registers.
   list<SubRegIndex> SubRegIndices = Indices;
-
-  // Compose sub-register indices like in a normal Register.
-  list<dag> CompositeIndices = [];
 }
 
 
@@ -402,6 +394,13 @@ class Instruction {
 
   string AsmMatchConverter = "";
 
+  /// TwoOperandAliasConstraint - Enable TableGen to auto-generate a
+  /// two-operand matcher inst-alias for a three operand instruction.
+  /// For example, the arm instruction "add r3, r3, r5" can be written
+  /// as "add r3, r5". The constraint is of the same form as a tied-operand
+  /// constraint. For example, "$Rn = $Rd".
+  string TwoOperandAliasConstraint = "";
+
   ///@}
 }
 
@@ -431,6 +430,10 @@ class Predicate<string cond> {
   /// e.g. "ModeThumb,FeatureThumb2" is translated to
   ///      "(Bits & ModeThumb) != 0 && (Bits & FeatureThumb2) != 0".
   string AssemblerCondString = "";
+
+  /// PredicateName - User-level name to use for the predicate. Mainly for use
+  /// in diagnostics such as missing feature errors in the asm matcher.
+  string PredicateName = "";
 }
 
 /// NoHonorSignDependentRounding - This predicate is true if support for
@@ -512,6 +515,11 @@ class AsmOperandClass {
   /// to immediates or registers and are very instruction specific (as flags to
   /// set in a processor register, coprocessor number, ...).
   string ParserMethod = ?;
+
+  // The diagnostic type to present when referencing this operand in a
+  // match failure error message. By default, use a generic "invalid operand"
+  // diagnostic. The target AsmParser maps these codes to text.
+  string DiagnosticType = "";
 }
 
 def ImmAsmOperand : AsmOperandClass {
@@ -521,7 +529,7 @@ def ImmAsmOperand : AsmOperandClass {
 /// Operand Types - These provide the built-in operand types that may be used
 /// by a target.  Targets can optionally provide their own operand types as
 /// needed, though this should not be needed for RISC targets.
-class Operand<ValueType ty> {
+class Operand<ValueType ty> : DAGOperand {
   ValueType Type = ty;
   string PrintMethod = "printOperand";
   string EncoderMethod = "";
@@ -541,7 +549,8 @@ class Operand<ValueType ty> {
   AsmOperandClass ParserMatchClass = ImmAsmOperand;
 }
 
-class RegisterOperand<RegisterClass regclass, string pm = "printOperand"> {
+class RegisterOperand<RegisterClass regclass, string pm = "printOperand">
+  : DAGOperand {
   // RegClass - The register class of the operand.
   RegisterClass RegClass = regclass;
   // PrintMethod - The target method to call to print register operands of
@@ -729,7 +738,7 @@ class AsmParser {
 def DefaultAsmParser : AsmParser;
 
 //===----------------------------------------------------------------------===//
-// AsmParserVariant - Subtargets can have multiple different assembly parsers 
+// AsmParserVariant - Subtargets can have multiple different assembly parsers
 // (e.g. AT&T vs Intel syntax on X86 for example). This class can be
 // implemented by targets to describe such variants.
 //
@@ -754,9 +763,10 @@ def DefaultAsmParserVariant : AsmParserVariant;
 
 /// AssemblerPredicate - This is a Predicate that can be used when the assembler
 /// matches instructions and aliases.
-class AssemblerPredicate<string cond> {
+class AssemblerPredicate<string cond, string name = ""> {
   bit AssemblerMatcherPredicate = 1;
   string AssemblerCondString = cond;
+  string PredicateName = name;
 }
 
 /// TokenAlias - This class allows targets to define assembler token
@@ -861,7 +871,7 @@ class Target {
   // AssemblyParsers - The AsmParser instances available for this target.
   list<AsmParser> AssemblyParsers = [DefaultAsmParser];
 
-  /// AssemblyParserVariants - The AsmParserVariant instances available for 
+  /// AssemblyParserVariants - The AsmParserVariant instances available for
   /// this target.
   list<AsmParserVariant> AssemblyParserVariants = [DefaultAsmParserVariant];
 
@@ -909,12 +919,24 @@ class Processor<string n, ProcessorItineraries pi, list<SubtargetFeature> f> {
   //
   string Name = n;
 
+  // SchedModel - The machine model for scheduling and instruction cost.
+  //
+  SchedMachineModel SchedModel = NoSchedModel;
+
   // ProcItin - The scheduling information for the target processor.
   //
   ProcessorItineraries ProcItin = pi;
 
   // Features - list of
   list<SubtargetFeature> Features = f;
+}
+
+// ProcessorModel allows subtargets to specify the more general
+// SchedMachineModel instead if a ProcessorItinerary. Subtargets will
+// gradually move to this newer form.
+class ProcessorModel<string n, SchedMachineModel m, list<SubtargetFeature> f>
+  : Processor<n, NoItineraries, f> {
+  let SchedModel = m;
 }
 
 //===----------------------------------------------------------------------===//

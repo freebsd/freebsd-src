@@ -29,7 +29,7 @@ endmacro(add_td_sources)
 
 
 macro(add_header_files srcs)
-  file(GLOB hds *.h *.def)
+  file(GLOB hds *.h)
   if( hds )
     set_source_files_properties(${hds} PROPERTIES HEADER_FILE_ONLY ON)
     list(APPEND ${srcs} ${hds})
@@ -50,6 +50,7 @@ function(llvm_process_sources OUT_VAR)
   endforeach(s)
   if( MSVC_IDE )
     # This adds .td and .h files to the Visual Studio solution:
+    # FIXME: Shall we handle *.def here?
     add_td_sources(sources)
     add_header_files(sources)
   endif()
@@ -81,10 +82,13 @@ function(llvm_check_source_file_list)
   file(GLOB globbed *.cpp)
   foreach(g ${globbed})
     get_filename_component(fn ${g} NAME)
-    list(FIND listed ${fn} idx)
+    list(FIND LLVM_OPTIONAL_SOURCES ${fn} idx)
     if( idx LESS 0 )
-      message(SEND_ERROR "Found unknown source file ${g}
+      list(FIND listed ${fn} idx)
+      if( idx LESS 0 )
+        message(SEND_ERROR "Found unknown source file ${g}
 Please update ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt\n")
+      endif()
     endif()
   endforeach()
 endfunction(llvm_check_source_file_list)

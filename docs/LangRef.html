@@ -7,7 +7,7 @@
   <meta name="author" content="Chris Lattner">
   <meta name="description"
   content="LLVM Assembly Language Reference Manual.">
-  <link rel="stylesheet" href="llvm.css" type="text/css">
+  <link rel="stylesheet" href="_static/llvm.css" type="text/css">
 </head>
 
 <body>
@@ -257,6 +257,8 @@
           <li><a href="#int_exp">'<tt>llvm.exp.*</tt>' Intrinsic</a></li>
           <li><a href="#int_log">'<tt>llvm.log.*</tt>' Intrinsic</a></li>
           <li><a href="#int_fma">'<tt>llvm.fma.*</tt>' Intrinsic</a></li>
+          <li><a href="#int_fabs">'<tt>llvm.fabs.*</tt>' Intrinsic</a></li>
+          <li><a href="#int_floor">'<tt>llvm.floor.*</tt>' Intrinsic</a></li>
         </ol>
       </li>
       <li><a href="#int_manip">Bit Manipulation Intrinsics</a>
@@ -275,6 +277,11 @@
           <li><a href="#int_usub_overflow">'<tt>llvm.usub.with.overflow.*</tt> Intrinsics</a></li>
           <li><a href="#int_smul_overflow">'<tt>llvm.smul.with.overflow.*</tt> Intrinsics</a></li>
           <li><a href="#int_umul_overflow">'<tt>llvm.umul.with.overflow.*</tt> Intrinsics</a></li>
+        </ol>
+      </li>
+      <li><a href="#spec_arithmetic">Specialised Arithmetic Intrinsics</a>
+        <ol>
+          <li><a href="#fmuladd">'<tt>llvm.fmuladd</tt> Intrinsic</a></li>
         </ol>
       </li>
       <li><a href="#int_fp16">Half Precision Floating Point Intrinsics</a>
@@ -307,12 +314,16 @@
             '<tt>llvm.annotation.*</tt>' Intrinsic</a></li>
           <li><a href="#int_trap">
             '<tt>llvm.trap</tt>' Intrinsic</a></li>
+          <li><a href="#int_debugtrap">
+            '<tt>llvm.debugtrap</tt>' Intrinsic</a></li>
           <li><a href="#int_stackprotector">
             '<tt>llvm.stackprotector</tt>' Intrinsic</a></li>
-	  <li><a href="#int_objectsize">
+          <li><a href="#int_objectsize">
             '<tt>llvm.objectsize</tt>' Intrinsic</a></li>
-	  <li><a href="#int_expect">
+          <li><a href="#int_expect">
             '<tt>llvm.expect</tt>' Intrinsic</a></li>
+          <li><a href="#int_donothing">
+            '<tt>llvm.donothing</tt>' Intrinsic</a></li>
         </ol>
       </li>
     </ol>
@@ -831,9 +842,32 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
 <p>Global variables define regions of memory allocated at compilation time
    instead of run-time.  Global variables may optionally be initialized, may
    have an explicit section to be placed in, and may have an optional explicit
-   alignment specified.  A variable may be defined as "thread_local", which
+   alignment specified.</p>
+
+<p>A variable may be defined as <tt>thread_local</tt>, which
    means that it will not be shared by threads (each thread will have a
-   separated copy of the variable).  A variable may be defined as a global
+   separated copy of the variable).  Not all targets support thread-local
+   variables.  Optionally, a TLS model may be specified:</p>
+
+<dl>
+  <dt><b><tt>localdynamic</tt></b>:</dt>
+  <dd>For variables that are only used within the current shared library.</dd>
+
+  <dt><b><tt>initialexec</tt></b>:</dt>
+  <dd>For variables in modules that will not be loaded dynamically.</dd>
+
+  <dt><b><tt>localexec</tt></b>:</dt>
+  <dd>For variables defined in the executable and only used within it.</dd>
+</dl>
+
+<p>The models correspond to the ELF TLS models; see
+   <a href="http://people.redhat.com/drepper/tls.pdf">ELF
+   Handling For Thread-Local Storage</a> for more information on under which
+   circumstances the different models may be used.  The target may choose a
+   different TLS model if the specified model is not supported, or if a better
+   choice of model can be made.</p>
+
+<p>A variable may be defined as a global
    "constant," which indicates that the contents of the variable
    will <b>never</b> be modified (enabling better optimization, allowing the
    global data to be placed in the read-only section of an executable, etc).
@@ -884,6 +918,13 @@ define i32 @main() {   <i>; i32()* </i>&nbsp;
 
 <pre class="doc_code">
 @G = addrspace(5) constant float 1.0, section "foo", align 4
+</pre>
+
+<p>The following example defines a thread-local global with
+   the <tt>initialexec</tt> TLS model:</p>
+
+<pre class="doc_code">
+@G = thread_local(initialexec) global i32 0, align 4
 </pre>
 
 </div>
@@ -1048,7 +1089,7 @@ declare signext i8 @returns_signed_char()
       value to the function.  The attribute implies that a hidden copy of the
       pointee
       is made between the caller and the callee, so the callee is unable to
-      modify the value in the callee.  This attribute is only valid on LLVM
+      modify the value in the caller.  This attribute is only valid on LLVM
       pointer arguments.  It is generally used to pass structs and arrays by
       value, but is also valid on pointers to scalars.  The copy is considered
       to belong to the caller not the callee (for example,
@@ -1166,6 +1207,13 @@ define void @f() optsize { ... }
   <dd>This attribute suppresses lazy symbol binding for the function. This
       may make calls to the function faster, at the cost of extra program
       startup time if the function is not called during program startup.</dd>
+
+  <dt><tt><b>ia_nsdialect</b></tt></dt>
+  <dd>This attribute indicates the associated inline assembly call is using a
+      non-standard assembly dialect.  The standard dialect is ATT, which is
+      assumed when this attribute is not present.  When present, the dialect
+      is assumed to be Intel.  Currently, ATT and Intel are the only supported
+      dialects.</dd>
 
   <dt><tt><b>inlinehint</b></tt></dt>
   <dd>This attribute indicates that the source code contained a hint that inlining
@@ -1392,7 +1440,7 @@ target datalayout = "<i>layout specification</i>"
   <li>If no match is found, and the type sought is an integer type, then the
       smallest integer type that is larger than the bitwidth of the sought type
       is used. If none of the specifications are larger than the bitwidth then
-      the the largest integer type is used. For example, given the default
+      the largest integer type is used. For example, given the default
       specifications above, the i7 type will use the alignment of i8 (next
       largest) while both i65 and i256 will use the alignment of i64 (largest
       specified).</li>
@@ -2287,8 +2335,9 @@ in signal handlers).</p>
    by <tt>0xM</tt> followed by 32 hexadecimal digits.  The IEEE 128-bit format
    is represented by <tt>0xL</tt> followed by 32 hexadecimal digits; no
    currently supported target uses this format.  Long doubles will only work if
-   they match the long double format on your target.  All hexadecimal formats
-   are big-endian (sign bit at the left).</p>
+   they match the long double format on your target. The IEEE 16-bit format
+   (half precision) is represented by <tt>0xH</tt> followed by 4 hexadecimal
+   digits. All hexadecimal formats are big-endian (sign bit at the left).</p>
 
 <p>There are no constants of type x86mmx.</p>
 </div>
@@ -2739,7 +2788,7 @@ second_end:
       make it fit in <tt>TYPE</tt>.</dd>
 
   <dt><b><tt>inttoptr (CST to TYPE)</tt></b></dt>
-  <dd>Convert a integer constant to a pointer constant.  TYPE must be a pointer
+  <dd>Convert an integer constant to a pointer constant.  TYPE must be a pointer
       type.  CST must be of integer type. The CST value is zero extended,
       truncated, or unchanged to make it fit in a pointer size. This one is
       <i>really</i> dangerous!</dd>
@@ -2826,8 +2875,9 @@ i32 (i32) asm "bswap $0", "=r,r"
 </pre>
 
 <p>Inline assembler expressions may <b>only</b> be used as the callee operand of
-   a <a href="#i_call"><tt>call</tt> instruction</a>.  Thus, typically we
-   have:</p>
+   a <a href="#i_call"><tt>call</tt></a> or an
+   <a href="#i_invoke"><tt>invoke</tt></a> instruction.
+   Thus, typically we have:</p>
 
 <pre class="doc_code">
 %X = call i32 asm "<a href="#int_bswap">bswap</a> $0", "=r,r"(i32 %Y)
@@ -3051,6 +3101,8 @@ call void @llvm.dbg.value(metadata !24, i64 0, metadata !25)
    <li>The range should not represent the full or empty set. That is,
        <tt>a!=b</tt>. </li>
 </ul>
+<p> In addition, the pairs must be in signed order of the lower bound and
+  they must be non-contiguous.</p>
 
 <p>Examples:</p>
 <div class="doc_code">
@@ -3058,10 +3110,12 @@ call void @llvm.dbg.value(metadata !24, i64 0, metadata !25)
   %a = load i8* %x, align 1, !range !0 ; Can only be 0 or 1
   %b = load i8* %y, align 1, !range !1 ; Can only be 255 (-1), 0 or 1
   %c = load i8* %z, align 1, !range !2 ; Can only be 0, 1, 3, 4 or 5
+  %d = load i8* %z, align 1, !range !3 ; Can only be -2, -1, 3, 4 or 5
 ...
 !0 = metadata !{ i8 0, i8 2 }
 !1 = metadata !{ i8 255, i8 2 }
 !2 = metadata !{ i8 0, i8 2, i8 3, i8 6 }
+!3 = metadata !{ i8 -2, i8 0, i8 3, i8 6 }
 </pre>
 </div>
 </div>
@@ -4727,7 +4781,7 @@ IfUnequal:
 
 <h5>Arguments:</h5>
 <p>The first two operands of a '<tt>shufflevector</tt>' instruction are vectors
-   with types that match each other. The third argument is a shuffle mask whose
+   with the same type.  The third argument is a shuffle mask whose
    element type is always 'i32'.  The result of the instruction is a vector
    whose length is the same as the shuffle mask and whose element type is the
    same as the element type of the first two operands.</p>
@@ -7464,6 +7518,74 @@ LLVM</a>.</p>
 
 </div>
 
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="int_fabs">'<tt>llvm.fabs.*</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<p>This is an overloaded intrinsic. You can use <tt>llvm.fabs</tt> on any
+   floating point or vector of floating point type. Not all targets support all
+   types however.</p>
+
+<pre>
+  declare float     @llvm.fabs.f32(float  %Val)
+  declare double    @llvm.fabs.f64(double %Val)
+  declare x86_fp80  @llvm.fabs.f80(x86_fp80  %Val)
+  declare fp128     @llvm.fabs.f128(fp128 %Val)
+  declare ppc_fp128 @llvm.fabs.ppcf128(ppc_fp128  %Val)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.fabs.*</tt>' intrinsics return the absolute value of
+   the operand.</p>
+
+<h5>Arguments:</h5>
+<p>The argument and return value are floating point numbers of the same
+   type.</p>
+
+<h5>Semantics:</h5>
+<p>This function returns the same values as the libm <tt>fabs</tt> functions
+   would, and handles error conditions in the same way.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="int_floor">'<tt>llvm.floor.*</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<p>This is an overloaded intrinsic. You can use <tt>llvm.floor</tt> on any
+   floating point or vector of floating point type. Not all targets support all
+   types however.</p>
+
+<pre>
+  declare float     @llvm.floor.f32(float  %Val)
+  declare double    @llvm.floor.f64(double %Val)
+  declare x86_fp80  @llvm.floor.f80(x86_fp80  %Val)
+  declare fp128     @llvm.floor.f128(fp128 %Val)
+  declare ppc_fp128 @llvm.floor.ppcf128(ppc_fp128  %Val)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.floor.*</tt>' intrinsics return the floor of
+   the operand.</p>
+
+<h5>Arguments:</h5>
+<p>The argument and return value are floating point numbers of the same
+   type.</p>
+
+<h5>Semantics:</h5>
+<p>This function returns the same values as the libm <tt>floor</tt> functions
+   would, and handles error conditions in the same way.</p>
+
+</div>
+
 </div>
 
 <!-- ======================================================================= -->
@@ -7940,12 +8062,59 @@ LLVM</a>.</p>
 
 <!-- ======================================================================= -->
 <h3>
+  <a name="spec_arithmetic">Specialised Arithmetic Intrinsics</a>
+</h3>
+
+<!-- _______________________________________________________________________ -->
+
+<h4>
+  <a name="fmuladd">'<tt>llvm.fmuladd.*</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  declare float @llvm.fmuladd.f32(float %a, float %b, float %c)
+  declare double @llvm.fmuladd.f64(double %a, double %b, double %c)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.fmuladd.*</tt>' intrinsic functions represent multiply-add
+expressions that can be fused if the code generator determines that the fused
+expression would be legal and efficient.</p>
+
+<h5>Arguments:</h5>
+<p>The '<tt>llvm.fmuladd.*</tt>' intrinsics each take three arguments: two
+multiplicands, a and b, and an addend c.</p>
+
+<h5>Semantics:</h5>
+<p>The expression:</p>
+<pre>
+  %0 = call float @llvm.fmuladd.f32(%a, %b, %c)
+</pre>
+<p>is equivalent to the expression a * b + c, except that rounding will not be
+performed between the multiplication and addition steps if the code generator
+fuses the operations. Fusion is not guaranteed, even if the target platform
+supports it. If a fused multiply-add is required the corresponding llvm.fma.*
+intrinsic function should be used instead.</p>
+
+<h5>Examples:</h5>
+<pre>
+  %r2 = call float @llvm.fmuladd.f32(float %a, float %b, float %c) ; yields {float}:r2 = (a * b) + c
+</pre>
+
+</div>
+
+<!-- ======================================================================= -->
+<h3>
   <a name="int_fp16">Half Precision Floating Point Intrinsics</a>
 </h3>
 
 <div>
 
-<p>Half precision floating point is a storage-only format. This means that it is
+<p>For most target platforms, half precision floating point is a storage-only
+   format. This means that it is
    a dense encoding (in memory) but does not support computation in the
    format.</p>
    
@@ -8382,7 +8551,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare void @llvm.trap()
+  declare void @llvm.trap() noreturn nounwind
 </pre>
 
 <h5>Overview:</h5>
@@ -8392,9 +8561,33 @@ LLVM</a>.</p>
 <p>None.</p>
 
 <h5>Semantics:</h5>
-<p>This intrinsics is lowered to the target dependent trap instruction. If the
+<p>This intrinsic is lowered to the target dependent trap instruction. If the
    target does not have a trap instruction, this intrinsic will be lowered to
-   the call of the <tt>abort()</tt> function.</p>
+   a call of the <tt>abort()</tt> function.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="int_debugtrap">'<tt>llvm.debugtrap</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  declare void @llvm.debugtrap() nounwind
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.debugtrap</tt>' intrinsic.</p>
+
+<h5>Arguments:</h5>
+<p>None.</p>
+
+<h5>Semantics:</h5>
+<p>This intrinsic is lowered to code which is intended to cause an execution
+   trap with the intention of requesting the attention of a debugger.</p>
 
 </div>
 
@@ -8441,8 +8634,8 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare i32 @llvm.objectsize.i32(i8* &lt;object&gt;, i1 &lt;type&gt;)
-  declare i64 @llvm.objectsize.i64(i8* &lt;object&gt;, i1 &lt;type&gt;)
+  declare i32 @llvm.objectsize.i32(i8* &lt;object&gt;, i1 &lt;min&gt;)
+  declare i64 @llvm.objectsize.i64(i8* &lt;object&gt;, i1 &lt;min&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -8455,15 +8648,15 @@ LLVM</a>.</p>
 <h5>Arguments:</h5>
 <p>The <tt>llvm.objectsize</tt> intrinsic takes two arguments. The first
    argument is a pointer to or into the <tt>object</tt>. The second argument
-   is a boolean 0 or 1. This argument determines whether you want the 
-   maximum (0) or minimum (1) bytes remaining. This needs to be a literal 0 or
-   1, variables are not allowed.</p>
+   is a boolean and determines whether <tt>llvm.objectsize</tt> returns 0 (if
+   true) or -1 (if false) when the object size is unknown.
+   The second argument only accepts constants.</p>
    
 <h5>Semantics:</h5>
-<p>The <tt>llvm.objectsize</tt> intrinsic is lowered to either a constant
-   representing the size of the object concerned, or <tt>i32/i64 -1 or 0</tt>,
-   depending on the <tt>type</tt> argument, if the size cannot be determined at
-   compile time.</p>
+<p>The <tt>llvm.objectsize</tt> intrinsic is lowered to a constant representing
+   the size of the object concerned. If the size cannot be determined at compile
+   time, <tt>llvm.objectsize</tt> returns <tt>i32/i64 -1 or 0</tt>
+   (depending on the <tt>min</tt> argument).</p>
 
 </div>
 <!-- _______________________________________________________________________ -->
@@ -8492,6 +8685,30 @@ LLVM</a>.</p>
 <p>This intrinsic is lowered to the <tt>val</tt>.</p>
 </div>
 
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="int_donothing">'<tt>llvm.donothing</tt>' Intrinsic</a>
+</h4>
+
+<div>
+
+<h5>Syntax:</h5>
+<pre>
+  declare void @llvm.donothing() nounwind readnone
+</pre>
+
+<h5>Overview:</h5>
+<p>The <tt>llvm.donothing</tt> intrinsic doesn't perform any operation. It's the
+only intrinsic that can be called with an invoke instruction.</p>
+
+<h5>Arguments:</h5>
+<p>None.</p>
+
+<h5>Semantics:</h5>
+<p>This intrinsic does nothing, and it's removed by optimizers and ignored by
+codegen.</p>
+</div>
+
 </div>
 
 </div>
@@ -8505,7 +8722,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2012-04-16 21:39:33 +0200 (Mon, 16 Apr 2012) $
+  Last modified: $Date: 2012-08-10 02:00:22 +0200 (Fri, 10 Aug 2012) $
 </address>
 
 </body>

@@ -43,10 +43,8 @@ static void write_int32(uint32_t i) {
 }
 
 static void write_int64(uint64_t i) {
-  uint32_t lo, hi;
-  lo = i >>  0;
-  hi = i >> 32;
-
+  uint32_t lo = i >>  0;
+  uint32_t hi = i >> 32;
   write_int32(lo);
   write_int32(hi);
 }
@@ -76,7 +74,6 @@ static char *mangle_filename(const char *orig_filename) {
   strcpy(filename, prefix);
   strcat(filename, "/");
   strcat(filename, orig_filename);
-
   return filename;
 }
 
@@ -85,17 +82,16 @@ static void recursive_mkdir(const char *filename) {
   int i, e;
 
   for (i = 1, e = strlen(filename); i != e; ++i) {
-    if (filename[i] == '/') {
-      pathname = malloc(i + 1);
-      strncpy(pathname, filename, i);
-      pathname[i] = '\0';
+    if (filename[i] != '/') continue;
+    pathname = malloc(i + 1);
+    strncpy(pathname, filename, i);
+    pathname[i] = '\0';
 #ifdef _WIN32
-      _mkdir(pathname);
+    _mkdir(pathname);
 #else
-      mkdir(pathname, 0750);  /* some of these will fail, ignore it. */
+    mkdir(pathname, 0750);  /* some of these will fail, ignore it. */
 #endif
-      free(pathname);
-    }
+    free(pathname);
   }
 }
 
@@ -111,17 +107,18 @@ void llvm_gcda_start_file(const char *orig_filename) {
   char *filename;
   filename = mangle_filename(orig_filename);
   recursive_mkdir(filename);
-  output_file = fopen(filename, "wb");
+  output_file = fopen(filename, "w+b");
 
   if (!output_file) {
     const char *cptr = strrchr(orig_filename, '/');
-    output_file = fopen(cptr ? cptr + 1 : orig_filename, "wb");
+    output_file = fopen(cptr ? cptr + 1 : orig_filename, "w+b");
 
     if (!output_file) {
-      fprintf(stderr, "LLVM profiling runtime: while opening '%s': ",
+      fprintf(stderr, "LLVM profiling runtime: cannot open '%s': ",
               cptr ? cptr + 1 : orig_filename);
       perror("");
-      exit(1);
+      free(filename);
+      return;
     }
   }
 
@@ -167,6 +164,7 @@ void llvm_gcda_emit_function(uint32_t ident, const char *function_name) {
 #ifdef DEBUG_GCDAPROFILING
   printf("llvmgcda: function id=%x\n", ident);
 #endif
+  if (!output_file) return;
 
   /* function tag */  
   fwrite("\0\0\0\1", 4, 1, output_file);
@@ -179,23 +177,24 @@ void llvm_gcda_emit_function(uint32_t ident, const char *function_name) {
 
 void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
   uint32_t i;
-  /* counter #1 (arcs) tag */
+
+  /* Counter #1 (arcs) tag */
+  if (!output_file) return;
   fwrite("\0\0\xa1\1", 4, 1, output_file);
   write_int32(num_counters * 2);
-  for (i = 0; i < num_counters; ++i) {
+  for (i = 0; i < num_counters; ++i)
     write_int64(counters[i]);
-  }
 
 #ifdef DEBUG_GCDAPROFILING
   printf("llvmgcda:   %u arcs\n", num_counters);
-  for (i = 0; i < num_counters; ++i) {
+  for (i = 0; i < num_counters; ++i)
     printf("llvmgcda:   %llu\n", (unsigned long long)counters[i]);
-  }
 #endif
 }
 
 void llvm_gcda_end_file() {
   /* Write out EOF record. */
+  if (!output_file) return;
   fwrite("\0\0\0\0\0\0\0\0", 8, 1, output_file);
   fclose(output_file);
   output_file = NULL;

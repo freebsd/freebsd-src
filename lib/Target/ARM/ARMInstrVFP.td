@@ -221,11 +221,13 @@ defm : VFPDTAnyInstAlias<"vpop${p}", "$r",
 // FP Binary Operations.
 //
 
+let TwoOperandAliasConstraint = "$Dn = $Dd" in
 def VADDD  : ADbI<0b11100, 0b11, 0, 0,
                   (outs DPR:$Dd), (ins DPR:$Dn, DPR:$Dm),
                   IIC_fpALU64, "vadd", ".f64\t$Dd, $Dn, $Dm",
                   [(set DPR:$Dd, (fadd DPR:$Dn, (f64 DPR:$Dm)))]>;
 
+let TwoOperandAliasConstraint = "$Sn = $Sd" in
 def VADDS  : ASbIn<0b11100, 0b11, 0, 0,
                    (outs SPR:$Sd), (ins SPR:$Sn, SPR:$Sm),
                    IIC_fpALU32, "vadd", ".f32\t$Sd, $Sn, $Sm",
@@ -235,11 +237,13 @@ def VADDS  : ASbIn<0b11100, 0b11, 0, 0,
   let D = VFPNeonA8Domain;
 }
 
+let TwoOperandAliasConstraint = "$Dn = $Dd" in
 def VSUBD  : ADbI<0b11100, 0b11, 1, 0,
                   (outs DPR:$Dd), (ins DPR:$Dn, DPR:$Dm),
                   IIC_fpALU64, "vsub", ".f64\t$Dd, $Dn, $Dm",
                   [(set DPR:$Dd, (fsub DPR:$Dn, (f64 DPR:$Dm)))]>;
 
+let TwoOperandAliasConstraint = "$Sn = $Sd" in
 def VSUBS  : ASbIn<0b11100, 0b11, 1, 0,
                    (outs SPR:$Sd), (ins SPR:$Sn, SPR:$Sm),
                    IIC_fpALU32, "vsub", ".f32\t$Sd, $Sn, $Sm",
@@ -249,21 +253,25 @@ def VSUBS  : ASbIn<0b11100, 0b11, 1, 0,
   let D = VFPNeonA8Domain;
 }
 
+let TwoOperandAliasConstraint = "$Dn = $Dd" in
 def VDIVD  : ADbI<0b11101, 0b00, 0, 0,
                   (outs DPR:$Dd), (ins DPR:$Dn, DPR:$Dm),
                   IIC_fpDIV64, "vdiv", ".f64\t$Dd, $Dn, $Dm",
                   [(set DPR:$Dd, (fdiv DPR:$Dn, (f64 DPR:$Dm)))]>;
 
+let TwoOperandAliasConstraint = "$Sn = $Sd" in
 def VDIVS  : ASbI<0b11101, 0b00, 0, 0,
                   (outs SPR:$Sd), (ins SPR:$Sn, SPR:$Sm),
                   IIC_fpDIV32, "vdiv", ".f32\t$Sd, $Sn, $Sm",
                   [(set SPR:$Sd, (fdiv SPR:$Sn, SPR:$Sm))]>;
 
+let TwoOperandAliasConstraint = "$Dn = $Dd" in
 def VMULD  : ADbI<0b11100, 0b10, 0, 0,
                   (outs DPR:$Dd), (ins DPR:$Dn, DPR:$Dm),
                   IIC_fpMUL64, "vmul", ".f64\t$Dd, $Dn, $Dm",
                   [(set DPR:$Dd, (fmul DPR:$Dn, (f64 DPR:$Dm)))]>;
 
+let TwoOperandAliasConstraint = "$Sn = $Sd" in
 def VMULS  : ASbIn<0b11100, 0b10, 0, 0,
                    (outs SPR:$Sd), (ins SPR:$Sn, SPR:$Sm),
                    IIC_fpMUL32, "vmul", ".f32\t$Sd, $Sn, $Sm",
@@ -559,8 +567,8 @@ def VMOVRRS  : AVConv3I<0b11000101, 0b1010,
   bits<4> Rt2;
 
   // Encode instruction operands.
-  let Inst{3-0}   = src1{3-0};
-  let Inst{5}     = src1{4};
+  let Inst{3-0}   = src1{4-1};
+  let Inst{5}     = src1{0};
   let Inst{15-12} = Rt;
   let Inst{19-16} = Rt2;
 
@@ -609,8 +617,8 @@ def VMOVSRR : AVConv5I<0b11000100, 0b1010,
   bits<4> src2;
 
   // Encode instruction operands.
-  let Inst{3-0}   = dst1{3-0};
-  let Inst{5}     = dst1{4};
+  let Inst{3-0}   = dst1{4-1};
+  let Inst{5}     = dst1{0};
   let Inst{15-12} = src1;
   let Inst{19-16} = src2;
 
@@ -819,9 +827,9 @@ let Constraints = "$a = $dst" in {
 // FP to Fixed-Point:
 
 // Single Precision register
-class AVConv1XInsS_Encode<bits<5> op1, bits<2> op2, bits<4> op3, bits<4> op4, bit op5, 
-                dag oops, dag iops, InstrItinClass itin, string opc, string asm,
-                list<dag> pattern>
+class AVConv1XInsS_Encode<bits<5> op1, bits<2> op2, bits<4> op3, bits<4> op4,
+                          bit op5, dag oops, dag iops, InstrItinClass itin,
+                          string opc, string asm, list<dag> pattern>
   : AVConv1XI<op1, op2, op3, op4, op5, oops, iops, itin, opc, asm, pattern> {
   bits<5> dst;
   // if dp_operation then UInt(D:Vd) else UInt(Vd:D);
@@ -830,9 +838,9 @@ class AVConv1XInsS_Encode<bits<5> op1, bits<2> op2, bits<4> op3, bits<4> op4, bi
 }
 
 // Double Precision register
-class AVConv1XInsD_Encode<bits<5> op1, bits<2> op2, bits<4> op3, bits<4> op4, bit op5, 
-                dag oops, dag iops, InstrItinClass itin, string opc, string asm,
-                list<dag> pattern>
+class AVConv1XInsD_Encode<bits<5> op1, bits<2> op2, bits<4> op3, bits<4> op4,
+                          bit op5, dag oops, dag iops, InstrItinClass itin,
+                          string opc, string asm, list<dag> pattern>
   : AVConv1XI<op1, op2, op3, op4, op5, oops, iops, itin, opc, asm, pattern> {
   bits<5> dst;
   // if dp_operation then UInt(D:Vd) else UInt(Vd:D);
@@ -1081,10 +1089,11 @@ def : Pat<(fadd_mlx SPR:$dstin, (fmul_su SPR:$a, SPR:$b)),
           Requires<[HasVFP4,DontUseNEONForFP,UseFusedMAC]>;
 
 // Match @llvm.fma.* intrinsics
-def : Pat<(f64 (fma DPR:$Ddin, DPR:$Dn, DPR:$Dm)),
+// (fma x, y, z) -> (vfms z, x, y)
+def : Pat<(f64 (fma DPR:$Dn, DPR:$Dm, DPR:$Ddin)),
           (VFMAD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
       Requires<[HasVFP4]>;
-def : Pat<(f32 (fma SPR:$Sdin, SPR:$Sn, SPR:$Sm)),
+def : Pat<(f32 (fma SPR:$Sn, SPR:$Sm, SPR:$Sdin)),
           (VFMAS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
 
@@ -1115,18 +1124,18 @@ def : Pat<(fsub_mlx SPR:$dstin, (fmul_su SPR:$a, SPR:$b)),
           Requires<[HasVFP4,DontUseNEONForFP,UseFusedMAC]>;
 
 // Match @llvm.fma.* intrinsics
-// (fma (fneg x), y, z) -> (vfms x, y, z)
-def : Pat<(f64 (fma (fneg DPR:$Ddin), DPR:$Dn, DPR:$Dm)),
+// (fma (fneg x), y, z) -> (vfms z, x, y)
+def : Pat<(f64 (fma (fneg DPR:$Dn), DPR:$Dm, DPR:$Ddin)),
           (VFMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
       Requires<[HasVFP4]>;
-def : Pat<(f32 (fma (fneg SPR:$Sdin), SPR:$Sn, SPR:$Sm)),
+def : Pat<(f32 (fma (fneg SPR:$Sn), SPR:$Sm, SPR:$Sdin)),
           (VFMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
-// (fneg (fma x, (fneg y), z) -> (vfms x, y, z)
-def : Pat<(fneg (f64 (fma DPR:$Ddin, (fneg DPR:$Dn), DPR:$Dm))),
+// (fma x, (fneg y), z) -> (vfms z, x, y)
+def : Pat<(f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin)),
           (VFMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
       Requires<[HasVFP4]>;
-def : Pat<(fneg (f32 (fma SPR:$Sdin, (fneg SPR:$Sn), SPR:$Sm))),
+def : Pat<(f32 (fma SPR:$Sn, (fneg SPR:$Sm), SPR:$Sdin)),
           (VFMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
 
@@ -1157,18 +1166,18 @@ def : Pat<(fsub_mlx (fneg (fmul_su SPR:$a, SPR:$b)), SPR:$dstin),
           Requires<[HasVFP4,DontUseNEONForFP,UseFusedMAC]>;
 
 // Match @llvm.fma.* intrinsics
-// (fneg (fma x, y, z)) -> (vfnma x, y, z)
-def : Pat<(fneg (fma (f64 DPR:$Ddin), (f64 DPR:$Dn), (f64 DPR:$Dm))),
+// (fneg (fma x, y, z)) -> (vfnma z, x, y)
+def : Pat<(fneg (fma (f64 DPR:$Dn), (f64 DPR:$Dm), (f64 DPR:$Ddin))),
           (VFNMAD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
       Requires<[HasVFP4]>;
-def : Pat<(fneg (fma (f32 SPR:$Sdin), (f32 SPR:$Sn), (f32 SPR:$Sm))),
+def : Pat<(fneg (fma (f32 SPR:$Sn), (f32 SPR:$Sm), (f32 SPR:$Sdin))),
           (VFNMAS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
-// (fma (fneg x), y, (fneg z)) -> (vfnma x, y, z)
-def : Pat<(f64 (fma (fneg DPR:$Ddin), DPR:$Dn, (fneg DPR:$Dm))),
+// (fma (fneg x), y, (fneg z)) -> (vfnma z, x, y)
+def : Pat<(f64 (fma (fneg DPR:$Dn), DPR:$Dm, (fneg DPR:$Ddin))),
           (VFNMAD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
       Requires<[HasVFP4]>;
-def : Pat<(f32 (fma (fneg SPR:$Sdin), SPR:$Sn, (fneg SPR:$Sm))),
+def : Pat<(f32 (fma (fneg SPR:$Sn), SPR:$Sm, (fneg SPR:$Sdin))),
           (VFNMAS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
 
@@ -1198,18 +1207,26 @@ def : Pat<(fsub_mlx (fmul_su SPR:$a, SPR:$b), SPR:$dstin),
           Requires<[HasVFP4,DontUseNEONForFP,UseFusedMAC]>;
 
 // Match @llvm.fma.* intrinsics
-// (fneg (fma (fneg x), y, z)) -> (vnfms x, y, z)
-def : Pat<(fneg (f64 (fma (fneg DPR:$Ddin), DPR:$Dn, DPR:$Dm))),
+
+// (fma x, y, (fneg z)) -> (vfnms z, x, y))
+def : Pat<(f64 (fma DPR:$Dn, DPR:$Dm, (fneg DPR:$Ddin))),
           (VFNMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
       Requires<[HasVFP4]>;
-def : Pat<(fneg (f32 (fma (fneg SPR:$Sdin), SPR:$Sn, SPR:$Sm))),
+def : Pat<(f32 (fma SPR:$Sn, SPR:$Sm, (fneg SPR:$Sdin))),
           (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
-// (fma x, (fneg y), z) -> (vnfms x, y, z)
-def : Pat<(f64 (fma DPR:$Ddin, (fneg DPR:$Dn), DPR:$Dm)),
+// (fneg (fma (fneg x), y, z)) -> (vfnms z, x, y)
+def : Pat<(fneg (f64 (fma (fneg DPR:$Dn), DPR:$Dm, DPR:$Ddin))),
           (VFNMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
       Requires<[HasVFP4]>;
-def : Pat<(f32 (fma SPR:$Sdin, (fneg SPR:$Sn), SPR:$Sm)),
+def : Pat<(fneg (f32 (fma (fneg SPR:$Sn), SPR:$Sm, SPR:$Sdin))),
+          (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
+      Requires<[HasVFP4]>;
+// (fneg (fma x, (fneg y), z) -> (vfnms z, x, y)
+def : Pat<(fneg (f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin))),
+          (VFNMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
+      Requires<[HasVFP4]>;
+def : Pat<(fneg (f32 (fma SPR:$Sn, (fneg SPR:$Sm), SPR:$Sdin))),
           (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
 
@@ -1425,22 +1442,6 @@ def : VFP2InstAlias<"vldr${p}.64 $Dd, $addr",
                     (VLDRD DPR:$Dd, addrmode5:$addr, pred:$p)>;
 def : VFP2InstAlias<"vstr${p}.64 $Dd, $addr",
                     (VSTRD DPR:$Dd, addrmode5:$addr, pred:$p)>;
-
-// VMUL has a two-operand form (implied destination operand)
-def : VFP2InstAlias<"vmul${p}.f64 $Dn, $Dm",
-                    (VMULD DPR:$Dn, DPR:$Dn, DPR:$Dm, pred:$p)>;
-def : VFP2InstAlias<"vmul${p}.f32 $Sn, $Sm",
-                    (VMULS SPR:$Sn, SPR:$Sn, SPR:$Sm, pred:$p)>;
-// VADD has a two-operand form (implied destination operand)
-def : VFP2InstAlias<"vadd${p}.f64 $Dn, $Dm",
-                    (VADDD DPR:$Dn, DPR:$Dn, DPR:$Dm, pred:$p)>;
-def : VFP2InstAlias<"vadd${p}.f32 $Sn, $Sm",
-                    (VADDS SPR:$Sn, SPR:$Sn, SPR:$Sm, pred:$p)>;
-// VSUB has a two-operand form (implied destination operand)
-def : VFP2InstAlias<"vsub${p}.f64 $Dn, $Dm",
-                    (VSUBD DPR:$Dn, DPR:$Dn, DPR:$Dm, pred:$p)>;
-def : VFP2InstAlias<"vsub${p}.f32 $Sn, $Sm",
-                    (VSUBS SPR:$Sn, SPR:$Sn, SPR:$Sm, pred:$p)>;
 
 // VMOV can accept optional 32-bit or less data type suffix suffix.
 def : VFP2InstAlias<"vmov${p}.8 $Rt, $Sn",

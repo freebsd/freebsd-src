@@ -14,14 +14,20 @@
 /* Directories clang will search for headers */
 #define C_INCLUDE_DIRS "${C_INCLUDE_DIRS}"
 
-/* Define if CBE is enabled for printf %a output */
-#cmakedefine ENABLE_CBE_PRINTF_A ${ENABLE_CBE_PRINTF_A}
+/* Default <path> to all compiler invocations for --sysroot=<path>. */
+#undef DEFAULT_SYSROOT
 
 /* Define if position independent code is enabled */
 #cmakedefine ENABLE_PIC
 
-/* Define if timestamp information (e.g., __DATE___) is allowed */
+/* Define if timestamp information (e.g., __DATE__) is allowed */
 #cmakedefine ENABLE_TIMESTAMPS ${ENABLE_TIMESTAMPS}
+
+/* Directory where gcc is installed. */
+#undef GCC_INSTALL_PREFIX
+
+/* Define to 1 if you have the `arc4random' function. */
+#cmakedefine HAVE_ARC4RANDOM
 
 /* Define to 1 if you have the `argz_append' function. */
 #cmakedefine HAVE_ARGZ_APPEND ${HAVE_ARGZ_APPEND}
@@ -155,7 +161,7 @@
 #cmakedefine HAVE_GETTIMEOFDAY ${HAVE_GETTIMEOFDAY}
 
 /* Define if the Graphviz program is available */
-#undef HAVE_GRAPHVIZ
+#cmakedefine HAVE_GRAPHVIZ ${HAVE_GRAPHVIZ}
 
 /* Define if the gv program is available */
 #cmakedefine HAVE_GV ${HAVE_GV}
@@ -548,6 +554,9 @@
 /* Has gcc/MSVC atomic intrinsics */
 #cmakedefine01 LLVM_HAS_ATOMICS
 
+/* Host triple LLVM will be executed on */
+#cmakedefine LLVM_HOSTTRIPLE "${LLVM_HOSTTRIPLE}"
+
 /* Installation directory for include files */
 #cmakedefine LLVM_INCLUDEDIR "${LLVM_INCLUDEDIR}"
 
@@ -616,6 +625,12 @@
 
 /* Installation prefix directory */
 #cmakedefine LLVM_PREFIX "${LLVM_PREFIX}"
+
+/* Define if we have the Intel JIT API runtime support library */
+#cmakedefine LLVM_USE_INTEL_JITEVENTS 1
+
+/* Define if we have the oprofile JIT-support library */
+#cmakedefine LLVM_USE_OPROFILE 1
 
 /* Major version of the LLVM API */
 #cmakedefine LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR}
@@ -712,11 +727,5 @@
 
 /* Added by Kevin -- Maximum path length */
 #cmakedefine MAXPATHLEN ${MAXPATHLEN}
-
-/* Support for Intel JIT Events API is enabled */
-#cmakedefine LLVM_USE_INTEL_JITEVENTS 1
-
-/* Support for OProfile JIT API is enabled */
-#cmakedefine LLVM_USE_OPROFILE 1
 
 #endif

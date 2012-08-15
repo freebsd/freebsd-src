@@ -90,8 +90,8 @@ define i32 @test9(<4 x i32> %a) nounwind {
 ; Extract a value which is the result of an undef mask.
 define i32 @test10(<4 x i32> %a) nounwind {
 ; CHECK: @test10
-; CHECK-NEXT: #
-; CHECK-NEXT: ret
+; CHECK-NOT: {{^[^#]*[a-z]}}
+; CHECK: ret
   %b = shufflevector <4 x i32> %a, <4 x i32> undef, <8 x i32> <i32 1, i32 1, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef>
   %r = extractelement <8 x i32> %b, i32 2
   ret i32 %r
@@ -149,17 +149,26 @@ entry:
 }
 
 ; PR12413
+; CHECK: shuf1
 ; CHECK: vpshufb
 ; CHECK: vpshufb
 ; CHECK: vpshufb
 ; CHECK: vpshufb
-define <32 x i8> @shuf(<32 x i8> %inval1, <32 x i8> %inval2) {
+define <32 x i8> @shuf1(<32 x i8> %inval1, <32 x i8> %inval2) {
 entry:
- %0 = shufflevector <32 x i8> %inval1, <32 x i8> %inval2, <32 x i32> <i32 0,
-i32 2, i32 4, i32 6, i32 8, i32 10, i32 12, i32 14, i32 16, i32 18, i32 20, i32
-22, i32 24, i32 26, i32 28, i32 30, i32 32, i32 34, i32 36, i32 38, i32 40, i32
-42, i32 44, i32 46, i32 48, i32 50, i32 52, i32 54, i32 56, i32 58, i32 60, i32
-62>
+ %0 = shufflevector <32 x i8> %inval1, <32 x i8> %inval2, <32 x i32> <i32 0, i32 2, i32 4, i32 6, i32 8, i32 10, i32 12, i32 14, i32 16, i32 18, i32 20, i32 22, i32 24, i32 26, i32 28, i32 30, i32 32, i32 34, i32 36, i32 38, i32 40, i32 42, i32 44, i32 46, i32 48, i32 50, i32 52, i32 54, i32 56, i32 58, i32 60, i32 62>
+ ret <32 x i8> %0
+}
+
+; handle the case where only half of the 256-bits is splittable
+; CHECK: shuf2
+; CHECK: vpshufb
+; CHECK: vpshufb
+; CHECK: vpextrb
+; CHECK: vpextrb
+define <32 x i8> @shuf2(<32 x i8> %inval1, <32 x i8> %inval2) {
+entry:
+ %0 = shufflevector <32 x i8> %inval1, <32 x i8> %inval2, <32 x i32> <i32 0, i32 2, i32 4, i32 6, i32 8, i32 10, i32 12, i32 14, i32 16, i32 18, i32 20, i32 22, i32 24, i32 26, i32 28, i32 30, i32 31, i32 34, i32 36, i32 38, i32 40, i32 42, i32 44, i32 46, i32 48, i32 50, i32 52, i32 54, i32 56, i32 58, i32 60, i32 62>
  ret <32 x i8> %0
 }
 
@@ -202,3 +211,40 @@ define <4 x i64> @blend4(<4 x i64> %a, <4 x i64> %b) nounwind alwaysinline {
   %t = shufflevector <4 x i64> %a, <4 x i64> %b, <4 x i32> <i32 0, i32 1, i32 2, i32 7>
   ret <4 x i64> %t
 }
+
+; CHECK: narrow
+; CHECK: vpermilps
+; CHECK: ret
+define <16 x i16> @narrow(<16 x i16> %a) nounwind alwaysinline {
+  %t = shufflevector <16 x i16> %a, <16 x i16> undef, <16 x i32> <i32 2, i32 3, i32 undef, i32 1, i32 6, i32 7, i32 4, i32 5, i32 10, i32 11, i32 8, i32 undef, i32 14, i32 15, i32 undef, i32 undef>
+  ret <16 x i16> %t
+}
+
+;CHECK: test17
+;CHECK-NOT: vinsertf128
+;CHECK: ret
+define   <8 x float> @test17(<4 x float> %y) {
+  %x = shufflevector <4 x float> %y, <4 x float> undef, <8 x i32> <i32 undef, i32 1, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef, i32 undef>
+  ret <8 x float> %x
+}
+
+; CHECK: test18
+; CHECK: vshufps
+; CHECK: vshufps
+; CHECK: vunpcklps
+; CHECK: ret
+define <8 x float> @test18(<8 x float> %A, <8 x float>%B) nounwind {
+  %S = shufflevector <8 x float> %A, <8 x float> %B, <8 x i32> <i32 1, i32 9, i32 3, i32 11, i32 5, i32 13, i32 7, i32 15>
+  ret <8 x float>%S
+}
+
+; CHECK: test19
+; CHECK: vshufps
+; CHECK: vshufps
+; CHECK: vunpcklps
+; CHECK: ret
+define <8 x float> @test19(<8 x float> %A, <8 x float>%B) nounwind {
+  %S = shufflevector <8 x float> %A, <8 x float> %B, <8 x i32> <i32 0, i32 8, i32 2, i32 10, i32 4, i32 12, i32 6, i32 14>
+  ret <8 x float>%S
+}
+

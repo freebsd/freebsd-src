@@ -40,6 +40,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "isel"
+#include "llvm/DebugInfo.h"
 #include "llvm/Function.h"
 #include "llvm/GlobalVariable.h"
 #include "llvm/Instructions.h"
@@ -51,10 +52,10 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -484,7 +485,7 @@ bool FastISel::SelectGetElementPtr(const User *I) {
       if (const ConstantInt *CI = dyn_cast<ConstantInt>(Idx)) {
         if (CI->isZero()) continue;
         // N = N + Offset
-        TotalOffs += 
+        TotalOffs +=
           TD.getTypeAllocSize(Ty)*cast<ConstantInt>(CI)->getSExtValue();
         if (TotalOffs >= MaxOffs) {
           N = FastEmit_ri_(VT, ISD::ADD, N, NIsKill, TotalOffs, VT);
@@ -573,7 +574,10 @@ bool FastISel::SelectCall(const User *I) {
     // At -O0 we don't care about the lifetime intrinsics.
   case Intrinsic::lifetime_start:
   case Intrinsic::lifetime_end:
+    // The donothing intrinsic does, well, nothing.
+  case Intrinsic::donothing:
     return true;
+
   case Intrinsic::dbg_declare: {
     const DbgDeclareInst *DI = cast<DbgDeclareInst>(Call);
     if (!DIVariable(DI->getVariable()).Verify() ||
@@ -642,7 +646,7 @@ bool FastISel::SelectCall(const User *I) {
         BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, II)
           .addCImm(CI).addImm(DI->getOffset())
           .addMetadata(DI->getVariable());
-      else 
+      else
         BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, II)
           .addImm(CI->getZExtValue()).addImm(DI->getOffset())
           .addMetadata(DI->getVariable());
@@ -786,13 +790,24 @@ FastISel::SelectInstruction(const Instruction *I) {
 
   MachineBasicBlock::iterator SavedInsertPt = FuncInfo.InsertPt;
 
+  // As a special case, don't handle calls to builtin library functions that
+  // may be translated directly to target instructions.
+  if (const CallInst *Call = dyn_cast<CallInst>(I)) {
+    const Function *F = Call->getCalledFunction();
+    LibFunc::Func Func;
+    if (F && !F->hasLocalLinkage() && F->hasName() &&
+        LibInfo->getLibFunc(F->getName(), Func) &&
+        LibInfo->hasOptimizedCodeGen(Func))
+      return false;
+  }
+
   // First, try doing target-independent selection.
   if (SelectOperator(I, I->getOpcode())) {
     ++NumFastIselSuccessIndependent;
     DL = DebugLoc();
     return true;
   }
-  // Remove dead code.  However, ignore call instructions since we've flushed 
+  // Remove dead code.  However, ignore call instructions since we've flushed
   // the local value map and recomputed the insert point.
   if (!isa<CallInst>(I)) {
     recomputeInsertPt();
@@ -1037,7 +1052,8 @@ FastISel::SelectOperator(const User *I, unsigned Opcode) {
   }
 }
 
-FastISel::FastISel(FunctionLoweringInfo &funcInfo)
+FastISel::FastISel(FunctionLoweringInfo &funcInfo,
+                   const TargetLibraryInfo *libInfo)
   : FuncInfo(funcInfo),
     MRI(FuncInfo.MF->getRegInfo()),
     MFI(*FuncInfo.MF->getFrameInfo()),
@@ -1046,7 +1062,8 @@ FastISel::FastISel(FunctionLoweringInfo &funcInfo)
     TD(*TM.getTargetData()),
     TII(*TM.getInstrInfo()),
     TLI(*TM.getTargetLowering()),
-    TRI(*TM.getRegisterInfo()) {
+    TRI(*TM.getRegisterInfo()),
+    LibInfo(libInfo) {
 }
 
 FastISel::~FastISel() {}
@@ -1306,6 +1323,30 @@ unsigned FastISel::FastEmitInst_rri(unsigned MachineInstOpcode,
   return ResultReg;
 }
 
+unsigned FastISel::FastEmitInst_rrii(unsigned MachineInstOpcode,
+                                     const TargetRegisterClass *RC,
+                                     unsigned Op0, bool Op0IsKill,
+                                     unsigned Op1, bool Op1IsKill,
+                                     uint64_t Imm1, uint64_t Imm2) {
+  unsigned ResultReg = createResultReg(RC);
+  const MCInstrDesc &II = TII.get(MachineInstOpcode);
+
+  if (II.getNumDefs() >= 1)
+    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, II, ResultReg)
+      .addReg(Op0, Op0IsKill * RegState::Kill)
+      .addReg(Op1, Op1IsKill * RegState::Kill)
+      .addImm(Imm1).addImm(Imm2);
+  else {
+    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, II)
+      .addReg(Op0, Op0IsKill * RegState::Kill)
+      .addReg(Op1, Op1IsKill * RegState::Kill)
+      .addImm(Imm1).addImm(Imm2);
+    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(TargetOpcode::COPY),
+            ResultReg).addReg(II.ImplicitDefs[0]);
+  }
+  return ResultReg;
+}
+
 unsigned FastISel::FastEmitInst_i(unsigned MachineInstOpcode,
                                   const TargetRegisterClass *RC,
                                   uint64_t Imm) {
@@ -1345,6 +1386,8 @@ unsigned FastISel::FastEmitInst_extractsubreg(MVT RetVT,
   unsigned ResultReg = createResultReg(TLI.getRegClassFor(RetVT));
   assert(TargetRegisterInfo::isVirtualRegister(Op0) &&
          "Cannot yet extract from physregs");
+  const TargetRegisterClass *RC = MRI.getRegClass(Op0);
+  MRI.constrainRegClass(Op0, TRI.getSubClassWithSubReg(RC, Idx));
   BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt,
           DL, TII.get(TargetOpcode::COPY), ResultReg)
     .addReg(Op0, getKillRegState(Op0IsKill), Idx);

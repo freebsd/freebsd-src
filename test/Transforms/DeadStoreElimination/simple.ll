@@ -164,7 +164,7 @@ define i32* @test13() {
 }
 
 declare noalias i8* @malloc(i32)
-
+declare noalias i8* @calloc(i32, i32)
 
 
 define void @test14(i32* %Q) {
@@ -258,3 +258,55 @@ define void @test20() {
 }
 ; CHECK: @test20
 ; CHECK-NEXT: ret void
+
+; CHECK: @test21
+define void @test21() {
+  %m = call i8* @calloc(i32 9, i32 7)
+  store i8 0, i8* %m
+; CHECK-NEXT: ret void
+  ret void
+}
+
+; CHECK: @test22(
+define void @test22(i1 %i, i32 %k, i32 %m) nounwind {
+  %k.addr = alloca i32
+  %m.addr = alloca i32
+  %k.addr.m.addr = select i1 %i, i32* %k.addr, i32* %m.addr
+  store i32 0, i32* %k.addr.m.addr, align 4
+; CHECK-NEXT: ret void
+  ret void
+}
+
+; PR13547
+; CHECK: @test23
+; CHECK: store i8 97
+; CHECK: store i8 0
+declare noalias i8* @strdup(i8* nocapture) nounwind
+define noalias i8* @test23() nounwind uwtable ssp {
+  %x = alloca [2 x i8], align 1
+  %arrayidx = getelementptr inbounds [2 x i8]* %x, i64 0, i64 0
+  store i8 97, i8* %arrayidx, align 1
+  %arrayidx1 = getelementptr inbounds [2 x i8]* %x, i64 0, i64 1
+  store i8 0, i8* %arrayidx1, align 1
+  %call = call i8* @strdup(i8* %arrayidx) nounwind
+  ret i8* %call
+}
+
+; Make sure same sized store to later element is deleted
+; CHECK: @test24
+; CHECK-NOT: store i32 0
+; CHECK-NOT: store i32 0
+; CHECK: store i32 %b
+; CHECK: store i32 %c
+; CHECK: ret void
+define void @test24([2 x i32]* %a, i32 %b, i32 %c) nounwind {
+  %1 = getelementptr inbounds [2 x i32]* %a, i64 0, i64 0
+  store i32 0, i32* %1, align 4
+  %2 = getelementptr inbounds [2 x i32]* %a, i64 0, i64 1
+  store i32 0, i32* %2, align 4
+  %3 = getelementptr inbounds [2 x i32]* %a, i64 0, i64 0
+  store i32 %b, i32* %3, align 4
+  %4 = getelementptr inbounds [2 x i32]* %a, i64 0, i64 1
+  store i32 %c, i32* %4, align 4
+  ret void
+}

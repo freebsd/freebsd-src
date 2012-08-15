@@ -75,7 +75,6 @@ const std::string StringMapTest::testKeyStr(testKey);
 
 // Empty map tests.
 TEST_F(StringMapTest, EmptyMapTest) {
-  SCOPED_TRACE("EmptyMapTest");
   assertEmptyMap();
 }
 
@@ -102,14 +101,12 @@ TEST_F(StringMapTest, ConstEmptyMapTest) {
 
 // A map with a single entry.
 TEST_F(StringMapTest, SingleEntryMapTest) {
-  SCOPED_TRACE("SingleEntryMapTest");
   testMap[testKey] = testValue;
   assertSingleItemMap();
 }
 
 // Test clear() method.
 TEST_F(StringMapTest, ClearTest) {
-  SCOPED_TRACE("ClearTest");
   testMap[testKey] = testValue;
   testMap.clear();
   assertEmptyMap();
@@ -117,7 +114,6 @@ TEST_F(StringMapTest, ClearTest) {
 
 // Test erase(iterator) method.
 TEST_F(StringMapTest, EraseIteratorTest) {
-  SCOPED_TRACE("EraseIteratorTest");
   testMap[testKey] = testValue;
   testMap.erase(testMap.begin());
   assertEmptyMap();
@@ -125,7 +121,6 @@ TEST_F(StringMapTest, EraseIteratorTest) {
 
 // Test erase(value) method.
 TEST_F(StringMapTest, EraseValueTest) {
-  SCOPED_TRACE("EraseValueTest");
   testMap[testKey] = testValue;
   testMap.erase(testKey);
   assertEmptyMap();
@@ -133,11 +128,32 @@ TEST_F(StringMapTest, EraseValueTest) {
 
 // Test inserting two values and erasing one.
 TEST_F(StringMapTest, InsertAndEraseTest) {
-  SCOPED_TRACE("InsertAndEraseTest");
   testMap[testKey] = testValue;
   testMap["otherKey"] = 2;
   testMap.erase("otherKey");
   assertSingleItemMap();
+}
+
+TEST_F(StringMapTest, SmallFullMapTest) {
+  // StringMap has a tricky corner case when the map is small (<8 buckets) and
+  // it fills up through a balanced pattern of inserts and erases. This can
+  // lead to inf-loops in some cases (PR13148) so we test it explicitly here.
+  llvm::StringMap<int> Map(2);
+
+  Map["eins"] = 1;
+  Map["zwei"] = 2;
+  Map["drei"] = 3;
+  Map.erase("drei");
+  Map.erase("eins");
+  Map["veir"] = 4;
+  Map["funf"] = 5;
+
+  EXPECT_EQ(3u, Map.size());
+  EXPECT_EQ(0, Map.lookup("eins"));
+  EXPECT_EQ(2, Map.lookup("zwei"));
+  EXPECT_EQ(0, Map.lookup("drei"));
+  EXPECT_EQ(4, Map.lookup("veir"));
+  EXPECT_EQ(5, Map.lookup("funf"));
 }
 
 // A more complex iteration test.

@@ -694,7 +694,7 @@ void llvm::ComputeMaskedBits(Value *V, APInt &KnownZero, APInt &KnownOne,
     // taking conservative care to avoid excessive recursion.
     if (Depth < MaxDepth - 1 && !KnownZero && !KnownOne) {
       // Skip if every incoming value references to ourself.
-      if (P->hasConstantValue() == P)
+      if (dyn_cast_or_null<UndefValue>(P->hasConstantValue()))
         break;
 
       KnownZero = APInt::getAllOnesValue(BitWidth);
@@ -1794,6 +1794,37 @@ llvm::GetUnderlyingObject(Value *V, const TargetData *TD, unsigned MaxLookup) {
     assert(V->getType()->isPointerTy() && "Unexpected operand type!");
   }
   return V;
+}
+
+void
+llvm::GetUnderlyingObjects(Value *V,
+                           SmallVectorImpl<Value *> &Objects,
+                           const TargetData *TD,
+                           unsigned MaxLookup) {
+  SmallPtrSet<Value *, 4> Visited;
+  SmallVector<Value *, 4> Worklist;
+  Worklist.push_back(V);
+  do {
+    Value *P = Worklist.pop_back_val();
+    P = GetUnderlyingObject(P, TD, MaxLookup);
+
+    if (!Visited.insert(P))
+      continue;
+
+    if (SelectInst *SI = dyn_cast<SelectInst>(P)) {
+      Worklist.push_back(SI->getTrueValue());
+      Worklist.push_back(SI->getFalseValue());
+      continue;
+    }
+
+    if (PHINode *PN = dyn_cast<PHINode>(P)) {
+      for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
+        Worklist.push_back(PN->getIncomingValue(i));
+      continue;
+    }
+
+    Objects.push_back(P);
+  } while (!Worklist.empty());
 }
 
 /// onlyUsedByLifetimeMarkers - Return true if the only users of this pointer

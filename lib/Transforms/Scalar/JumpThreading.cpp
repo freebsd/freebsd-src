@@ -670,6 +670,8 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
   } else if (SwitchInst *SI = dyn_cast<SwitchInst>(Terminator)) {
     Condition = SI->getCondition();
   } else if (IndirectBrInst *IB = dyn_cast<IndirectBrInst>(Terminator)) {
+    // Can't thread indirect branch with no successors.
+    if (IB->getNumSuccessors() == 0) return false;
     Condition = IB->getAddress()->stripPointerCasts();
     Preference = WantBlockAddress;
   } else {
@@ -859,7 +861,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
 
   // If all of the loads and stores that feed the value have the same TBAA tag,
   // then we can propagate it onto any newly inserted loads.
-  MDNode *TBAATag = LI->getMetadata(LLVMContext::MD_tbaa); 
+  MDNode *TBAATag = LI->getMetadata(LLVMContext::MD_tbaa);
 
   SmallPtrSet<BasicBlock*, 8> PredsScanned;
   typedef SmallVector<std::pair<BasicBlock*, Value*>, 8> AvailablePredsTy;
@@ -885,7 +887,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
       OneUnavailablePred = PredBB;
       continue;
     }
-    
+
     // If tbaa tags disagree or are not present, forget about them.
     if (TBAATag != ThisTBAATag) TBAATag = 0;
 
@@ -949,7 +951,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
     NewVal->setDebugLoc(LI->getDebugLoc());
     if (TBAATag)
       NewVal->setMetadata(LLVMContext::MD_tbaa, TBAATag);
-    
+
     AvailablePreds.push_back(std::make_pair(UnavailablePred, NewVal));
   }
 

@@ -70,8 +70,8 @@
         dbg #-1
         dbg #16
 
-@ CHECK-ERRORS: error: invalid operand for instruction
-@ CHECK-ERRORS: error: invalid operand for instruction
+@ CHECK-ERRORS: error: immediate operand must be in the range [0,15]
+@ CHECK-ERRORS: error: immediate operand must be in the range [0,15]
 @  Double-check that we're synced up with the right diagnostics.
 @ CHECK-ERRORS: dbg #16
 
@@ -86,8 +86,8 @@
 @ CHECK-ERRORS: error: invalid operand for instruction
 @ CHECK-ERRORS: error: invalid operand for instruction
 @ CHECK-ERRORS: error: invalid operand for instruction
-@ CHECK-ERRORS: error: invalid operand for instruction
-@ CHECK-ERRORS: error: invalid operand for instruction
+@ CHECK-ERRORS: error: immediate operand must be in the range [0,15]
+@ CHECK-ERRORS: error: immediate operand must be in the range [0,15]
 
 
         @ Out of range immediate for MOV
@@ -115,8 +115,8 @@
 @ CHECK-ERRORS: error: invalid operand for instruction
 @ CHECK-ERRORS: error: invalid operand for instruction
 @ CHECK-ERRORS: error: invalid operand for instruction
-@ CHECK-ERRORS: error: invalid operand for instruction
-@ CHECK-ERRORS: error: invalid operand for instruction
+@ CHECK-ERRORS: error: immediate operand must be in the range [0,15]
+@ CHECK-ERRORS: error: immediate operand must be in the range [0,15]
 
         @ Shifter operand validation for PKH instructions.
         pkhbt r2, r2, r3, lsl #-1
@@ -315,3 +315,9 @@
 @ CHECK-ERRORS: error: coprocessor option must be an immediate in range [0, 255]
 @ CHECK-ERRORS:         ldc2 p2, c8, [r1], { -1 }
 @ CHECK-ERRORS:                              ^
+
+        @ Bad CPS instruction format.
+        cps f,#1
+@ CHECK-ERRORS: error: invalid operand for instruction
+@ CHECK-ERRORS:         cps f,#1
+@ CHECK-ERRORS:               ^

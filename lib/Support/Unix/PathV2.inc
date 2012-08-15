@@ -17,11 +17,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "Unix.h"
+#include "llvm/Support/Process.h"
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
 #if HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
 #endif
 #if HAVE_DIRENT_H
 # include <dirent.h>
@@ -45,6 +49,12 @@
 #if HAVE_LIMITS_H
 #include <limits.h>
 #endif
+
+// Both stdio.h and cstdio are included via different pathes and
+// stdcxx's cstdio doesn't include stdio.h, so it doesn't #undef the macros
+// either.
+#undef ferror
+#undef feof
 
 // For GNU Hurd
 #if defined(__GNU__) && !defined(PATH_MAX)
@@ -272,8 +282,7 @@ error_code exists(const Twine &path, bool &result) {
   SmallString<128> path_storage;
   StringRef p = path.toNullTerminatedStringRef(path_storage);
 
-  struct stat status;
-  if (::stat(p.begin(), &status) == -1) {
+  if (::access(p.begin(), F_OK) == -1) {
     if (errno != errc::no_such_file_or_directory)
       return error_code(errno, system_category());
     result = false;
@@ -285,8 +294,8 @@ error_code exists(const Twine &path, bool &result) {
 
 bool equivalent(file_status A, file_status B) {
   assert(status_known(A) && status_known(B));
-  return A.st_dev == B.st_dev &&
-         A.st_ino == B.st_ino;
+  return A.fs_st_dev == B.fs_st_dev &&
+         A.fs_st_ino == B.fs_st_ino;
 }
 
 error_code equivalent(const Twine &A, const Twine &B, bool &result) {
@@ -325,30 +334,62 @@ error_code status(const Twine &path, file_status &result) {
     return ec;
   }
 
+  perms prms = static_cast<perms>(status.st_mode & perms_mask);
+  
   if (S_ISDIR(status.st_mode))
-    result = file_status(file_type::directory_file);
+    result = file_status(file_type::directory_file, prms);
   else if (S_ISREG(status.st_mode))
-    result = file_status(file_type::regular_file);
+    result = file_status(file_type::regular_file, prms);
   else if (S_ISBLK(status.st_mode))
-    result = file_status(file_type::block_file);
+    result = file_status(file_type::block_file, prms);
   else if (S_ISCHR(status.st_mode))
-    result = file_status(file_type::character_file);
+    result = file_status(file_type::character_file, prms);
   else if (S_ISFIFO(status.st_mode))
-    result = file_status(file_type::fifo_file);
+    result = file_status(file_type::fifo_file, prms);
   else if (S_ISSOCK(status.st_mode))
-    result = file_status(file_type::socket_file);
+    result = file_status(file_type::socket_file, prms);
   else
-    result = file_status(file_type::type_unknown);
+    result = file_status(file_type::type_unknown, prms);
 
-  result.st_dev = status.st_dev;
-  result.st_ino = status.st_ino;
+  result.fs_st_dev = status.st_dev;
+  result.fs_st_ino = status.st_ino;
 
   return error_code::success();
 }
 
+// Modifies permissions on a file.
+error_code permissions(const Twine &path, perms prms) {
+  if ((prms & add_perms) && (prms & remove_perms))
+    llvm_unreachable("add_perms and remove_perms are mutually exclusive");
+
+  // Get current permissions
+  file_status info;
+  if (error_code ec = status(path, info)) {
+    return ec;
+  }
+  
+  // Set updated permissions.
+  SmallString<128> path_storage;
+  StringRef p = path.toNullTerminatedStringRef(path_storage);
+  perms permsToSet;
+  if (prms & add_perms) {
+    permsToSet = (info.permissions() | prms) & perms_mask;
+  } else if (prms & remove_perms) {
+    permsToSet = (info.permissions() & ~prms) & perms_mask;
+  } else {
+    permsToSet = prms & perms_mask;
+  }
+  if (::chmod(p.begin(), static_cast<mode_t>(permsToSet))) {
+    return error_code(errno, system_category()); 
+  }
+
+  return error_code::success();
+}
+
+// Since this is most often used for temporary files, mode defaults to 0600.
 error_code unique_file(const Twine &model, int &result_fd,
-                             SmallVectorImpl<char> &result_path,
-                             bool makeAbsolute) {
+                       SmallVectorImpl<char> &result_path,
+                       bool makeAbsolute, unsigned mode) {
   SmallString<128> Model;
   model.toVector(Model);
   // Null terminate.
@@ -365,37 +406,20 @@ error_code unique_file(const Twine &model, int &result_fd,
     }
   }
 
-  // Replace '%' with random chars. From here on, DO NOT modify model. It may be
-  // needed if the randomly chosen path already exists.
-  SmallString<128> RandomPath;
-  RandomPath.reserve(Model.size() + 1);
-  ::srand(::time(NULL));
+  // From here on, DO NOT modify model. It may be needed if the randomly chosen
+  // path already exists.
+  SmallString<128> RandomPath = Model;
 
 retry_random_path:
-  // This is opened here instead of above to make it easier to track when to
-  // close it. Collisions should be rare enough for the possible extra syscalls
-  // not to matter.
-  FILE *RandomSource = ::fopen("/dev/urandom", "r");
-  RandomPath.set_size(0);
-  for (SmallVectorImpl<char>::const_iterator i = Model.begin(),
-                                             e = Model.end(); i != e; ++i) {
-    if (*i == '%') {
-      char val = 0;
-      if (RandomSource)
-        val = fgetc(RandomSource);
-      else
-        val = ::rand();
-      RandomPath.push_back("0123456789abcdef"[val & 15]);
-    } else
-      RandomPath.push_back(*i);
+  // Replace '%' with random chars.
+  for (unsigned i = 0, e = Model.size(); i != e; ++i) {
+    if (Model[i] == '%')
+      RandomPath[i] = "0123456789abcdef"[sys::Process::GetRandomNumber() & 15];
   }
-
-  if (RandomSource)
-    ::fclose(RandomSource);
 
   // Try to open + create the file.
 rety_open_create:
-  int RandomFD = ::open(RandomPath.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+  int RandomFD = ::open(RandomPath.c_str(), O_RDWR | O_CREAT | O_EXCL, mode);
   if (RandomFD == -1) {
     // If the file existed, try again, otherwise, error.
     if (errno == errc::file_exists)
@@ -510,6 +534,36 @@ error_code get_magic(const Twine &path, uint32_t len,
   result.set_size(len);
   return error_code::success();
 }
+
+error_code map_file_pages(const Twine &path, off_t file_offset, size_t size,  
+                                            bool map_writable, void *&result) {
+  SmallString<128> path_storage;
+  StringRef name = path.toNullTerminatedStringRef(path_storage);
+  int oflags = map_writable ? O_RDWR : O_RDONLY;
+  int ofd = ::open(name.begin(), oflags);
+  if ( ofd == -1 )
+    return error_code(errno, system_category());
+  AutoFD fd(ofd);
+  int flags = map_writable ? MAP_SHARED : MAP_PRIVATE;
+  int prot = map_writable ? (PROT_READ|PROT_WRITE) : PROT_READ;
+#ifdef MAP_FILE
+  flags |= MAP_FILE;
+#endif
+  result = ::mmap(0, size, prot, flags, fd, file_offset);
+  if (result == MAP_FAILED) {
+    return error_code(errno, system_category());
+  }
+  
+  return error_code::success();
+}
+
+error_code unmap_file_pages(void *base, size_t size) {
+  if ( ::munmap(base, size) == -1 )
+    return error_code(errno, system_category());
+   
+  return error_code::success();
+}
+
 
 } // end namespace fs
 } // end namespace sys

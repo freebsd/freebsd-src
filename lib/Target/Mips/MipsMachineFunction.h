@@ -14,8 +14,11 @@
 #ifndef MIPS_MACHINE_FUNCTION_INFO_H
 #define MIPS_MACHINE_FUNCTION_INFO_H
 
+#include "MipsSubtarget.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetMachine.h"
 #include <utility>
 
 namespace llvm {
@@ -45,8 +48,6 @@ class MipsFunctionInfo : public MachineFunctionInfo {
   // OutArgFIRange: Range of indices of all frame objects created during call to
   //                LowerCall except for the frame object for restoring $gp.
   std::pair<int, int> InArgFIRange, OutArgFIRange;
-  int GPFI; // Index of the frame object for restoring $gp
-  mutable int DynAllocFI; // Frame index of dynamically allocated stack area.
   unsigned MaxCallFrameSize;
 
   bool EmitNOAT;
@@ -55,8 +56,7 @@ public:
   MipsFunctionInfo(MachineFunction& MF)
   : MF(MF), SRetReturnReg(0), GlobalBaseReg(0),
     VarArgsFrameIndex(0), InArgFIRange(std::make_pair(-1, 0)),
-    OutArgFIRange(std::make_pair(-1, 0)), GPFI(0), DynAllocFI(0),
-    MaxCallFrameSize(0), EmitNOAT(false)
+    OutArgFIRange(std::make_pair(-1, 0)), MaxCallFrameSize(0), EmitNOAT(false)
   {}
 
   bool isInArgFI(int FI) const {
@@ -74,25 +74,9 @@ public:
     OutArgFIRange.second = LastFI;
   }
 
-  int getGPFI() const { return GPFI; }
-  void setGPFI(int FI) { GPFI = FI; }
-  bool needGPSaveRestore() const { return getGPFI(); }
-  bool isGPFI(int FI) const { return GPFI && GPFI == FI; }
-
-  // The first call to this function creates a frame object for dynamically
-  // allocated stack area.
-  int getDynAllocFI() const {
-    if (!DynAllocFI)
-      DynAllocFI = MF.getFrameInfo()->CreateFixedObject(4, 0, true);
-
-    return DynAllocFI;
-  }
-  bool isDynAllocFI(int FI) const { return DynAllocFI && DynAllocFI == FI; }
-
   unsigned getSRetReturnReg() const { return SRetReturnReg; }
   void setSRetReturnReg(unsigned Reg) { SRetReturnReg = Reg; }
 
-  bool globalBaseRegFixed() const;
   bool globalBaseRegSet() const;
   unsigned getGlobalBaseReg();
 

@@ -1,5 +1,9 @@
-; RUN: opt < %s -print-callgraph -disable-output |& \
-; RUN:   grep {calls function 'callee'} | count 2
+; RUN: opt < %s -print-callgraph -disable-output 2>&1 | FileCheck %s
+
+; CHECK: Call graph node <<null function>>
+; CHECK:  CS<{{.*}}> calls function 'callee'
+; CHECK: Call graph node for function: 'caller'
+; CHECK:  CS<{{.*}}> calls function 'callee'
 
 define internal void @callee(...) {
 entry:

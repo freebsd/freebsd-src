@@ -4,7 +4,7 @@
 <head>
   <meta http-equiv="Content-Type" Content="text/html; charset=UTF-8" >
   <title>Accurate Garbage Collection with LLVM</title>
-  <link rel="stylesheet" href="llvm.css" type="text/css">
+  <link rel="stylesheet" href="_static/llvm.css" type="text/css">
   <style type="text/css">
     .rowhead { text-align: left; background: inherit; }
     .indent { padding-left: 1em; }
@@ -475,7 +475,7 @@ Entry:
    ;; Tell LLVM that the stack space is a stack root.
    ;; Java has type-tags on objects, so we pass null as metadata.
    %tmp = bitcast %Object** %X to i8**
-   call void @llvm.gcroot(i8** %X, i8* null)
+   call void @llvm.gcroot(i8** %tmp, i8* null)
    ...
 
    ;; "CodeBlock" is the block corresponding to the start
@@ -1382,7 +1382,7 @@ Fergus Henderson. International Symposium on Memory Management 2002.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2012-03-03 05:32:33 +0100 (Sat, 03 Mar 2012) $
+  Last modified: $Date: 2012-05-03 17:25:19 +0200 (Thu, 03 May 2012) $
 </address>
 
 </body>

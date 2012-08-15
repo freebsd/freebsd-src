@@ -19,6 +19,25 @@
 # define __has_feature(x) 0
 #endif
 
+/// LLVM_HAS_RVALUE_REFERENCES - Does the compiler provide r-value references?
+/// This implies that <utility> provides the one-argument std::move;  it
+/// does not imply the existence of any other C++ library features.
+#if (__has_feature(cxx_rvalue_references)   \
+     || defined(__GXX_EXPERIMENTAL_CXX0X__) \
+     || _MSC_VER >= 1600)
+#define LLVM_USE_RVALUE_REFERENCES 1
+#else
+#define LLVM_USE_RVALUE_REFERENCES 0
+#endif
+
+/// llvm_move - Expands to ::std::move if the compiler supports
+/// r-value references; otherwise, expands to the argument.
+#if LLVM_USE_RVALUE_REFERENCES
+#define llvm_move(value) (::std::move(value))
+#else
+#define llvm_move(value) (value)
+#endif
+
 /// LLVM_LIBRARY_VISIBILITY - If a class marked with this attribute is linked
 /// into a shared library, then the class should be private to the library and
 /// not accessible from outside it.  Can also be used to mark variables and
@@ -102,7 +121,7 @@
 // 3.4 supported this but is buggy in various cases and produces unimplemented
 // errors, just use it in GCC 4.0 and later.
 #if __GNUC__ > 3
-#define LLVM_ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
+#define LLVM_ATTRIBUTE_ALWAYS_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
 #define LLVM_ATTRIBUTE_ALWAYS_INLINE __forceinline
 #else

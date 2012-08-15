@@ -78,8 +78,7 @@ static void storeToStack(MachineBasicBlock &MBB,
 //===----------------------------------------------------------------------===//
 
 XCoreFrameLowering::XCoreFrameLowering(const XCoreSubtarget &sti)
-  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 4, 0),
-    STI(sti) {
+  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 4, 0) {
   // Do nothing
 }
 
@@ -341,7 +340,7 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const TargetRegisterInfo *RegInfo = MF.getTarget().getRegisterInfo();
   bool LRUsed = MF.getRegInfo().isPhysRegUsed(XCore::LR);
-  const TargetRegisterClass *RC = XCore::GRRegsRegisterClass;
+  const TargetRegisterClass *RC = &XCore::GRRegsRegClass;
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   if (LRUsed) {
     MF.getRegInfo().setPhysRegUnused(XCore::LR);
@@ -371,9 +370,4 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                                RC->getAlignment(),
                                                false));
   }
-}
-
-void XCoreFrameLowering::
-processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
-
 }

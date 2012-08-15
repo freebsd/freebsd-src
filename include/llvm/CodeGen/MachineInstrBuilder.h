@@ -34,6 +34,7 @@ namespace RegState {
     Undef          = 0x20,
     EarlyClobber   = 0x40,
     Debug          = 0x80,
+    InternalRead   = 0x100,
     DefineNoRead   = Define | Undef,
     ImplicitDefine = Implicit | Define,
     ImplicitKill   = Implicit | Kill
@@ -67,7 +68,8 @@ public:
                                              flags & RegState::Undef,
                                              flags & RegState::EarlyClobber,
                                              SubReg,
-                                             flags & RegState::Debug));
+                                             flags & RegState::Debug,
+                                             flags & RegState::InternalRead));
     return *this;
   }
 
@@ -103,6 +105,12 @@ public:
                                                   int Offset = 0,
                                           unsigned char TargetFlags = 0) const {
     MI->addOperand(MachineOperand::CreateCPI(Idx, Offset, TargetFlags));
+    return *this;
+  }
+
+  const MachineInstrBuilder &addTargetIndex(unsigned Idx, int64_t Offset = 0,
+                                          unsigned char TargetFlags = 0) const {
+    MI->addOperand(MachineOperand::CreateTargetIndex(Idx, Offset, TargetFlags));
     return *this;
   }
 
@@ -309,6 +317,9 @@ inline unsigned getDeadRegState(bool B) {
 }
 inline unsigned getUndefRegState(bool B) {
   return B ? RegState::Undef : 0;
+}
+inline unsigned getInternalReadRegState(bool B) {
+  return B ? RegState::InternalRead : 0;
 }
 
 } // End llvm namespace

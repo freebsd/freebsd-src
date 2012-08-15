@@ -6,6 +6,9 @@
 /* Bug report URL. */
 #undef BUG_REPORT_URL
 
+/* Define if we have libxml2 */
+#undef CLANG_HAVE_LIBXML
+
 /* Relative directory for resource files */
 #undef CLANG_RESOURCE_DIR
 
@@ -18,11 +21,14 @@
 /* Define if position independent code is enabled */
 #undef ENABLE_PIC
 
-/* Define if timestamp information (e.g., __DATE___) is allowed */
+/* Define if timestamp information (e.g., __DATE__) is allowed */
 #undef ENABLE_TIMESTAMPS
 
 /* Directory where gcc is installed. */
 #undef GCC_INSTALL_PREFIX
+
+/* Define to 1 if you have the `arc4random' function. */
+#undef HAVE_ARC4RANDOM
 
 /* Define to 1 if you have the `argz_append' function. */
 #undef HAVE_ARGZ_APPEND
@@ -548,6 +554,9 @@
 
 /* Has gcc/MSVC atomic intrinsics */
 #undef LLVM_HAS_ATOMICS
+
+/* Host triple LLVM will be executed on */
+#undef LLVM_HOSTTRIPLE
 
 /* Installation directory for include files */
 #undef LLVM_INCLUDEDIR

@@ -62,8 +62,8 @@ public:
     x86_64,  // X86-64: amd64, x86_64
     xcore,   // XCore: xcore
     mblaze,  // MBlaze: mblaze
-    ptx32,   // PTX: ptx (32-bit)
-    ptx64,   // PTX: ptx (64-bit)
+    nvptx,   // NVPTX: 32-bit
+    nvptx64, // NVPTX: 64-bit
     le32,    // le32: generic little-endian 32-bit CPU (PNaCl / Emscripten)
     amdil   // amdil: amd IL
   };
@@ -98,7 +98,8 @@ public:
     Minix,
     RTEMS,
     NativeClient,
-    CNK         // BG/P Compute-Node Kernel
+    CNK,         // BG/P Compute-Node Kernel
+    Bitrig
   };
   enum EnvironmentType {
     UnknownEnvironment,
@@ -194,6 +195,11 @@ public:
   bool getMacOSXVersion(unsigned &Major, unsigned &Minor,
                         unsigned &Micro) const;
 
+  /// getiOSVersion - Parse the version number as with getOSVersion.  This should
+  /// only be called with IOS triples.
+  void getiOSVersion(unsigned &Major, unsigned &Minor,
+                     unsigned &Micro) const;
+
   /// @}
   /// @name Direct Component Access
   /// @{
@@ -266,7 +272,7 @@ public:
   /// compatibility, which handles supporting skewed version numbering schemes
   /// used by the "darwin" triples.
   unsigned isMacOSXVersionLT(unsigned Major, unsigned Minor = 0,
-			     unsigned Micro = 0) const {
+                             unsigned Micro = 0) const {
     assert(isMacOSX() && "Not an OS X triple!");
 
     // If this is OS X, expect a sane version number.

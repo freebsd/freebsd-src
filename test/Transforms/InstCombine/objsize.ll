@@ -42,7 +42,7 @@ define i32 @f() nounwind {
 
 define i1 @baz() nounwind {
 ; CHECK: @baz
-; CHECK-NEXT: ret i1 true
+; CHECK-NEXT: objectsize
   %1 = tail call i32 @llvm.objectsize.i32(i8* getelementptr inbounds ([0 x i8]* @window, i32 0, i32 0), i1 false)
   %2 = icmp eq i32 %1, -1
   ret i1 %2
@@ -106,7 +106,7 @@ bb12:
 
 %struct.data = type { [100 x i32], [100 x i32], [1024 x i8] }
 
-define i32 @test4() nounwind ssp {
+define i32 @test4(i8** %esc) nounwind ssp {
 ; CHECK: @test4
 entry:
   %0 = alloca %struct.data, align 8
@@ -115,13 +115,14 @@ entry:
 ; CHECK-NOT: @llvm.objectsize
 ; CHECK: @llvm.memset.p0i8.i32(i8* %1, i8 0, i32 1824, i32 8, i1 false)
   %3 = call i8* @__memset_chk(i8* %1, i32 0, i32 1824, i32 %2) nounwind
+  store i8* %1, i8** %esc
   ret i32 0
 }
 
 ; rdar://7782496
 @s = external global i8*
 
-define void @test5(i32 %n) nounwind ssp {
+define i8* @test5(i32 %n) nounwind ssp {
 ; CHECK: @test5
 entry:
   %0 = tail call noalias i8* @malloc(i32 20) nounwind
@@ -130,7 +131,7 @@ entry:
 ; CHECK-NOT: @llvm.objectsize
 ; CHECK: @llvm.memcpy.p0i8.p0i8.i32(i8* %0, i8* %1, i32 10, i32 1, i1 false)
   %3 = tail call i8* @__memcpy_chk(i8* %0, i8* %2, i32 10, i32 %1) nounwind
-  ret void
+  ret i8* %0
 }
 
 define void @test6(i32 %n) nounwind ssp {
@@ -149,12 +150,91 @@ declare i8* @__memset_chk(i8*, i32, i32, i32) nounwind
 
 declare noalias i8* @malloc(i32) nounwind
 
-define i32 @test7() {
+define i32 @test7(i8** %esc) {
 ; CHECK: @test7
   %alloc = call noalias i8* @malloc(i32 48) nounwind
+  store i8* %alloc, i8** %esc
   %gep = getelementptr inbounds i8* %alloc, i32 16
   %objsize = call i32 @llvm.objectsize.i32(i8* %gep, i1 false) nounwind readonly
-; CHECK-NEXT: ret i32 32
+; CHECK: ret i32 32
   ret i32 %objsize
 }
 
+declare noalias i8* @calloc(i32, i32) nounwind
+
+define i32 @test8(i8** %esc) {
+; CHECK: @test8
+  %alloc = call noalias i8* @calloc(i32 5, i32 7) nounwind
+  store i8* %alloc, i8** %esc
+  %gep = getelementptr inbounds i8* %alloc, i32 5
+  %objsize = call i32 @llvm.objectsize.i32(i8* %gep, i1 false) nounwind readonly
+; CHECK: ret i32 30
+  ret i32 %objsize
+}
+
+declare noalias i8* @strdup(i8* nocapture) nounwind
+declare noalias i8* @strndup(i8* nocapture, i32) nounwind
+
+; CHECK: @test9
+define i32 @test9(i8** %esc) {
+  %call = tail call i8* @strdup(i8* getelementptr inbounds ([8 x i8]* @.str, i64 0, i64 0)) nounwind
+  store i8* %call, i8** %esc, align 8
+  %1 = tail call i32 @llvm.objectsize.i32(i8* %call, i1 true)
+; CHECK: ret i32 8
+  ret i32 %1
+}
+
+; CHECK: @test10
+define i32 @test10(i8** %esc) {
+  %call = tail call i8* @strndup(i8* getelementptr inbounds ([8 x i8]* @.str, i64 0, i64 0), i32 3) nounwind
+  store i8* %call, i8** %esc, align 8
+  %1 = tail call i32 @llvm.objectsize.i32(i8* %call, i1 true)
+; CHECK: ret i32 4
+  ret i32 %1
+}
+
+; CHECK: @test11
+define i32 @test11(i8** %esc) {
+  %call = tail call i8* @strndup(i8* getelementptr inbounds ([8 x i8]* @.str, i64 0, i64 0), i32 7) nounwind
+  store i8* %call, i8** %esc, align 8
+  %1 = tail call i32 @llvm.objectsize.i32(i8* %call, i1 true)
+; CHECK: ret i32 8
+  ret i32 %1
+}
+
+; CHECK: @test12
+define i32 @test12(i8** %esc) {
+  %call = tail call i8* @strndup(i8* getelementptr inbounds ([8 x i8]* @.str, i64 0, i64 0), i32 8) nounwind
+  store i8* %call, i8** %esc, align 8
+  %1 = tail call i32 @llvm.objectsize.i32(i8* %call, i1 true)
+; CHECK: ret i32 8
+  ret i32 %1
+}
+
+; CHECK: @test13
+define i32 @test13(i8** %esc) {
+  %call = tail call i8* @strndup(i8* getelementptr inbounds ([8 x i8]* @.str, i64 0, i64 0), i32 57) nounwind
+  store i8* %call, i8** %esc, align 8
+  %1 = tail call i32 @llvm.objectsize.i32(i8* %call, i1 true)
+; CHECK: ret i32 8
+  ret i32 %1
+}
+
+; CHECK: @PR13390
+define i32 @PR13390(i1 %bool, i8* %a) {
+entry:
+  %cond = or i1 %bool, true
+  br i1 %cond, label %return, label %xpto
+
+xpto:
+  %select = select i1 %bool, i8* %select, i8* %a
+  %select2 = select i1 %bool, i8* %a, i8* %select2
+  %0 = tail call i32 @llvm.objectsize.i32(i8* %select, i1 true)
+  %1 = tail call i32 @llvm.objectsize.i32(i8* %select2, i1 true)
+  %2 = add i32 %0, %1
+; CHECK: ret i32 undef
+  ret i32 %2
+
+return:
+  ret i32 42
+}

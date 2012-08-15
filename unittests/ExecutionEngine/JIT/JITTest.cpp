@@ -7,29 +7,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "gtest/gtest.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Assembly/Parser.h"
 #include "llvm/BasicBlock.h"
-#include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Constant.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/ExecutionEngine/JIT.h"
-#include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/Function.h"
 #include "llvm/GlobalValue.h"
 #include "llvm/GlobalVariable.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
-#include "llvm/Support/IRBuilder.h"
+#include "llvm/Type.h"
+#include "llvm/TypeBuilder.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Assembly/Parser.h"
+#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/TypeBuilder.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Type.h"
 
+#include "gtest/gtest.h"
 #include <vector>
 
 using namespace llvm;
@@ -477,10 +477,11 @@ TEST_F(JITTest, ModuleDeletion) {
 }
 #endif // !defined(__arm__)
 
-// ARM and PPC still emit stubs for calls since the target may be too far away
-// to call directly.  This #if can probably be removed when
+// ARM, MIPS and PPC still emit stubs for calls since the target may be
+// too far away to call directly.  This #if can probably be removed when
 // http://llvm.org/PR5201 is fixed.
-#if !defined(__arm__) && !defined(__powerpc__) && !defined(__ppc__)
+#if !defined(__arm__) && !defined(__mips__) && \
+    !defined(__powerpc__) && !defined(__ppc__)
 typedef int (*FooPtr) ();
 
 TEST_F(JITTest, NoStubs) {
@@ -554,8 +555,9 @@ TEST_F(JITTest, FunctionPointersOutliveTheirCreator) {
 #endif
 }
 
-// ARM doesn't have an implementation of replaceMachineCodeForFunction(), so
-// recompileAndRelinkFunction doesn't work.
+// ARM does not have an implementation
+// of replaceMachineCodeForFunction(), so recompileAndRelinkFunction
+// doesn't work.
 #if !defined(__arm__)
 TEST_F(JITTest, FunctionIsRecompiledAndRelinked) {
   Function *F = Function::Create(TypeBuilder<int(void), false>::get(Context),

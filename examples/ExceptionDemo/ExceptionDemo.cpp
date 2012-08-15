@@ -52,6 +52,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
 #include "llvm/Intrinsics.h"
@@ -59,7 +60,6 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/TargetSelect.h"
 
@@ -1257,7 +1257,7 @@ llvm::Function *createCatchWrappedInvokeFunction(llvm::Module &module,
 
   // FIXME: Redundant storage which, beyond utilizing value of 
   //        caughtResultStore for unwindException storage, may be alleviated 
-  //        alltogether with a block rearrangement
+  //        altogether with a block rearrangement
   builder.CreateStore(caughtResult, caughtResultStorage);
   builder.CreateStore(unwindException, exceptionStorage);
   builder.CreateStore(ourExceptionThrownState, exceptionCaughtFlag);

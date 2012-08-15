@@ -5,10 +5,12 @@
 @i1 = global [3 x i32] [i32 1, i32 2, i32 3], align 4
 @i3 = common global i32* null, align 4
 
-; O32:  lw  ${{[0-9]+}}, %got(i3)($gp)
-; O32:  addiu ${{[0-9]+}}, $gp, %got(i1)
-; N64:  ld  ${{[0-9]+}}, %got_disp(i3)($gp)
-; N64:  daddiu ${{[0-9]+}}, $gp, %got_disp(i1)
+; O32:  lw $[[R0:[0-9]+]], %got(i3)
+; O32:  addiu $[[R1:[0-9]+]], ${{[0-9]+}}, %got(i1) 
+; O32:  movn $[[R0]], $[[R1]], ${{[0-9]+}} 
+; N64:  ldr $[[R0:[0-9]+]] 
+; N64:  ld $[[R1:[0-9]+]], %got_disp(i1)
+; N64:  movn $[[R0]], $[[R1]], ${{[0-9]+}} 
 define i32* @cmov1(i32 %s) nounwind readonly {
 entry:
   %tobool = icmp ne i32 %s, 0
@@ -21,12 +23,12 @@ entry:
 @d = global i32 0, align 4
 
 ; O32: cmov2:
-; O32: addiu $[[R1:[0-9]+]], $gp, %got(d)
-; O32: addiu $[[R0:[0-9]+]], $gp, %got(c)
+; O32: addiu $[[R1:[0-9]+]], ${{[a-z0-9]+}}, %got(d)
+; O32: addiu $[[R0:[0-9]+]], ${{[a-z0-9]+}}, %got(c)
 ; O32: movn  $[[R1]], $[[R0]], ${{[0-9]+}}
 ; N64: cmov2:
-; N64: daddiu $[[R1:[0-9]+]], $gp, %got_disp(d)
-; N64: daddiu $[[R0:[0-9]+]], $gp, %got_disp(c)
+; N64: daddiu $[[R1:[0-9]+]], ${{[0-9]+}}, %got_disp(d)
+; N64: daddiu $[[R0:[0-9]+]], ${{[0-9]+}}, %got_disp(c)
 ; N64: movn  $[[R1]], $[[R0]], ${{[0-9]+}}
 define i32 @cmov2(i32 %s) nounwind readonly {
 entry:
@@ -35,5 +37,25 @@ entry:
   %tmp2 = load i32* @d, align 4
   %cond = select i1 %tobool, i32 %tmp1, i32 %tmp2
   ret i32 %cond
+}
+
+; O32: cmov3:
+; O32: xori $[[R0:[0-9]+]], ${{[0-9]+}}, 234
+; O32: movz ${{[0-9]+}}, ${{[0-9]+}}, $[[R0]]
+define i32 @cmov3(i32 %a, i32 %b, i32 %c) nounwind readnone {
+entry:
+  %cmp = icmp eq i32 %a, 234
+  %cond = select i1 %cmp, i32 %b, i32 %c
+  ret i32 %cond
+}
+
+; N64: cmov4:
+; N64: xori $[[R0:[0-9]+]], ${{[0-9]+}}, 234
+; N64: movz ${{[0-9]+}}, ${{[0-9]+}}, $[[R0]]
+define i64 @cmov4(i32 %a, i64 %b, i64 %c) nounwind readnone {
+entry:
+  %cmp = icmp eq i32 %a, 234
+  %cond = select i1 %cmp, i64 %b, i64 %c
+  ret i64 %cond
 }
 
