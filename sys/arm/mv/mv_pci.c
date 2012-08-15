@@ -240,16 +240,16 @@ mv_pcib_attach(device_t self)
 	parnode = OF_parent(node);
 	if (fdt_is_compatible(node, "mrvl,pcie")) {
 		sc->sc_type = MV_TYPE_PCIE;
-		sc->sc_mem_win_target = MV_WIN_PCIE_MEM_TARGET;
-		sc->sc_mem_win_attr = MV_WIN_PCIE_MEM_ATTR;
-		sc->sc_io_win_target = MV_WIN_PCIE_IO_TARGET;
-		sc->sc_io_win_attr = MV_WIN_PCIE_IO_ATTR;
+		sc->sc_mem_win_target = MV_WIN_PCIE_TARGET(0);
+		sc->sc_mem_win_attr = MV_WIN_PCIE_MEM_ATTR(0);
+		sc->sc_io_win_target = MV_WIN_PCIE_TARGET(0);
+		sc->sc_io_win_attr = MV_WIN_PCIE_IO_ATTR(0);
 #ifdef SOC_MV_ORION
 	} else if (fdt_is_compatible(node, "mrvl,pci")) {
 		sc->sc_type = MV_TYPE_PCI;
-		sc->sc_mem_win_target = MV_WIN_PCI_MEM_TARGET;
+		sc->sc_mem_win_target = MV_WIN_PCI_TARGET;
 		sc->sc_mem_win_attr = MV_WIN_PCI_MEM_ATTR;
-		sc->sc_io_win_target = MV_WIN_PCI_IO_TARGET;
+		sc->sc_io_win_target = MV_WIN_PCI_TARGET;
 		sc->sc_io_win_attr = MV_WIN_PCI_IO_ATTR;
 #endif
 	} else
