@@ -7,7 +7,8 @@ arm/arm/bcopyinout.S		standard
 arm/arm/blockio.S		standard
 arm/arm/bootconfig.c		standard
 arm/arm/bus_space_asm_generic.S	standard
-arm/arm/busdma_machdep.c 	standard
+arm/arm/busdma_machdep.c 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
+arm/arm/busdma_machdep-v6.c 	optional	cpu_arm11 | cpu_cortexa | cpu_mv_pj4b
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
@@ -31,8 +32,11 @@ arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
 arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
+arm/arm/mp_machdep.c		optional	smp
 arm/arm/nexus.c			standard
-arm/arm/pmap.c			standard
+arm/arm/pl310.c			optional	pl310
+arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
+arm/arm/pmap-v6.c		optional	cpu_arm11 | cpu_cortexa | cpu_mv_pj4b
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
 arm/arm/stack_machdep.c		optional	ddb | stack
@@ -44,6 +48,7 @@ arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
 arm/arm/vectors.S		standard
 arm/arm/vm_machdep.c		standard
+arm/arm/vfp.c			optional	vfp
 arm/fpe-arm/armfpe_glue.S	optional	armfpe
 arm/fpe-arm/armfpe_init.c	optional	armfpe
 arm/fpe-arm/armfpe.S		optional	armfpe

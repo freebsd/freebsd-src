@@ -115,9 +115,6 @@ extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
-
 /* Physical and virtual addresses for some global pages */
 
 vm_paddr_t phys_avail[PXA2X0_SDRAM_BANKS * 2 + 4];

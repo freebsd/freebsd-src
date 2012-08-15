@@ -56,17 +56,25 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
+#ifdef __FreeBSD_ARCH_armv6__
+#ifdef __ARMEB__
+#define	MACHINE_ARCH	"armv6eb"
+#else
+#define	MACHINE_ARCH	"armv6"
+#endif
+#else
 #ifdef __ARMEB__
 #define	MACHINE_ARCH	"armeb"
 #else
 #define	MACHINE_ARCH	"arm"
 #endif
 #endif
+#endif
 #define	MID_MACHINE	MID_ARM6
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
-#define	MAXCPU		2
+#define	MAXCPU		4
 #endif
 #else
 #define	MAXCPU		1
