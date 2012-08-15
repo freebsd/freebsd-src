@@ -26,8 +26,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the SEEQ 80220 and 84220.
- * (Originally developed for the internal PHY on the SMSC LAN91C111.)
+ * Driver for the SMSC LAN8710A
  */
 
 #include <sys/param.h>
@@ -50,60 +49,52 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-static int	smcphy_probe(device_t);
-static int	smcphy_attach(device_t);
+static int	smscphy_probe(device_t);
+static int	smscphy_attach(device_t);
 
-static int	smcphy_service(struct mii_softc *, struct mii_data *, int);
-static void	smcphy_reset(struct mii_softc *);
-static void	smcphy_auto(struct mii_softc *, int);
-static void	smcphy_status(struct mii_softc *);
+static int	smscphy_service(struct mii_softc *, struct mii_data *, int);
+static void	smscphy_auto(struct mii_softc *, int);
+static void	smscphy_status(struct mii_softc *);
 
-static device_method_t smcphy_methods[] = {
+static device_method_t smscphy_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,		smcphy_probe),
-	DEVMETHOD(device_attach,	smcphy_attach),
+	DEVMETHOD(device_probe,		smscphy_probe),
+	DEVMETHOD(device_attach,	smscphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD_END
 };
 
-static devclass_t smcphy_devclass;
+static devclass_t smscphy_devclass;
 
-static driver_t smcphy_driver = {
-	"smcphy",
-	smcphy_methods,
+static driver_t smscphy_driver = {
+	"smscphy",
+	smscphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(smcphy, miibus, smcphy_driver, smcphy_devclass, 0, 0);
+DRIVER_MODULE(smscphy, miibus, smscphy_driver, smscphy_devclass, 0, 0);
 
-static const struct mii_phydesc smcphys[] = {
-	MII_PHY_DESC(SEEQ, 80220),
-	MII_PHY_DESC(SEEQ, 84220),
+static const struct mii_phydesc smscphys[] = {
+	MII_PHY_DESC(SMC, LAN8710A),
 	MII_PHY_END
 };
 
-static const struct mii_phy_funcs smcphy80220_funcs = {
-	smcphy_service,
-	smcphy_status,
+static const struct mii_phy_funcs smscphy_funcs = {
+	smscphy_service,
+	smscphy_status,
 	mii_phy_reset
 };
 
-static const struct mii_phy_funcs smcphy_funcs = {
-	smcphy_service,
-	smcphy_status,
-	smcphy_reset
-};
-
 static int
-smcphy_probe(device_t dev)
+smscphy_probe(device_t dev)
 {
 
-	return (mii_phy_dev_probe(dev, smcphys, BUS_PROBE_DEFAULT));
+	return (mii_phy_dev_probe(dev, smscphys, BUS_PROBE_DEFAULT));
 }
 
 static int
-smcphy_attach(device_t dev)
+smscphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -111,10 +102,7 @@ smcphy_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
-	if (MII_MODEL(ma->mii_id2) == MII_MODEL_SEEQ_80220)
-		mpf = &smcphy80220_funcs;
-	else
-		mpf = &smcphy_funcs;
+	mpf = &smscphy_funcs;
 	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE, mpf, 1);
 	mii_phy_setmedia(sc);
 
@@ -122,7 +110,7 @@ smcphy_attach(device_t dev)
 }
 
 static int
-smcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+smscphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
         struct	ifmedia_entry *ife;
         int	reg;
@@ -142,7 +130,7 @@ smcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
-			smcphy_auto(sc, ife->ifm_media);
+			smscphy_auto(sc, ife->ifm_media);
 			break;
 
 		default:
@@ -179,7 +167,7 @@ smcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		sc->mii_ticks = 0;
 		PHY_RESET(sc);
-		smcphy_auto(sc, ife->ifm_media);
+		smscphy_auto(sc, ife->ifm_media);
                 break;
         }
 
@@ -192,31 +180,7 @@ smcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-smcphy_reset(struct mii_softc *sc)
-{
-	u_int	bmcr;
-	int	timeout;
-
-	PHY_WRITE(sc, MII_BMCR, BMCR_RESET);
-
-	for (timeout = 2; timeout > 0; timeout--) {
-		DELAY(50000);
-		bmcr = PHY_READ(sc, MII_BMCR);
-		if ((bmcr & BMCR_RESET) == 0)
-			break;
-	}
-
-	if (bmcr & BMCR_RESET)
-		device_printf(sc->mii_dev, "reset failed\n");
-
-	PHY_WRITE(sc, MII_BMCR, 0x3000);
-
-	/* Mask interrupts, we poll instead. */
-	PHY_WRITE(sc, 0x1e, 0xffc0);
-}
-
-static void
-smcphy_auto(struct mii_softc *sc, int media)
+smscphy_auto(struct mii_softc *sc, int media)
 {
 	uint16_t	anar;
 
@@ -230,7 +194,7 @@ smcphy_auto(struct mii_softc *sc, int media)
 }
 
 static void
-smcphy_status(struct mii_softc *sc)
+smscphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii;
 	uint32_t bmcr, bmsr, status;
@@ -261,12 +225,12 @@ smcphy_status(struct mii_softc *sc)
 		}
 	}
 
-	status = PHY_READ(sc, 0x12);
-	if (status & 0x0080)
+	status = PHY_READ(sc, 0x1F);
+	if (status & 0x0008)
 		mii->mii_media_active |= IFM_100_TX;
 	else
 		mii->mii_media_active |= IFM_10_T;
-	if (status & 0x0040)
+	if (status & 0x0010)
 		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
