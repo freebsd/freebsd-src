@@ -41,12 +41,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_msgbuf.h"
 #include "opt_maxusers.h"
 
-#include <sys/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/limits.h>
 #include <sys/msgbuf.h>
+#include <sys/sysctl.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -92,6 +93,7 @@ int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
+pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
 long	maxpipekva;			/* Limit on pipe KVA */
@@ -250,6 +252,13 @@ init_param1(void)
 	TUNABLE_INT_FETCH("kern.ngroups", &ngroups_max);
 	if (ngroups_max < NGROUPS_MAX)
 		ngroups_max = NGROUPS_MAX;
+
+	/*
+	 * Only allow to lower the maximal pid.
+	 */
+	TUNABLE_INT_FETCH("kern.pid_max", &pid_max);
+	if (pid_max > PID_MAX)
+		pid_max = PID_MAX;
 }
 
 /*

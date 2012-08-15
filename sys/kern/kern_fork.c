@@ -209,8 +209,8 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 	pid = randompid;
 	error = sysctl_handle_int(oidp, &pid, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
-			pid = PID_MAX - 100;
+		if (pid < 0 || pid > pid_max - 100)	/* out of range */
+			pid = pid_max - 100;
 		else if (pid < 2)			/* NOP */
 			pid = 0;
 		else if (pid < 100)			/* Make it reasonable */
@@ -259,8 +259,8 @@ retry:
 	 * restart somewhat above 0, as the low-numbered procs
 	 * tend to include daemons that don't exit.
 	 */
-	if (trypid >= PID_MAX) {
-		trypid = trypid % PID_MAX;
+	if (trypid >= pid_max) {
+		trypid = trypid % pid_max;
 		if (trypid < 100)
 			trypid += 100;
 		pidchecked = 0;
