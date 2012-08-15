@@ -72,15 +72,25 @@ void __startC(void);
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 #elif defined(CPU_XSCALE_81342)
 #define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
+#elif defined(CPU_MV_PJ4B)
+#if !defined(SOC_MV_ARMADAXP)
+#define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
+#else
+#define cpu_idcache_wbinv_all()	armadaxp_idcache_wbinv_all
 #endif
+#endif /* CPU_MV_PJ4B */
 #ifdef CPU_XSCALE_81342
 #define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
+#elif defined(CPU_CORTEXA)
+#define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
+#define cpu_l2cache_wbinv_all()
 #else
 #define cpu_l2cache_wbinv_all()	
 #endif
 
+static void armadaxp_idcache_wbinv_all(void);
 
 int     arm_picache_size;
 int     arm_picache_line_size;
@@ -95,6 +105,10 @@ int     arm_pcache_unified;
 
 int     arm_dcache_align;
 int     arm_dcache_align_mask;
+
+u_int	arm_cache_level;
+u_int	arm_cache_type[14];
+u_int	arm_cache_loc;
 
 /* Additional cache information local to this file.  Log2 of some of the
       above numbers.  */
@@ -221,8 +235,6 @@ _startC(void)
 	if ((cpufunc_id() & 0x0000f000) == 0x00009000)
 		arm9_setup();
 #endif
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 #endif
 	__start();
 }
@@ -230,68 +242,102 @@ _startC(void)
 static void
 get_cachetype_cp15()
 {
-	u_int ctype, isize, dsize;
+	u_int ctype, isize, dsize, cpuid;
+	u_int clevel, csize, i, sel;
 	u_int multiplier;
+	u_char type;
 
 	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
-	    : "=r" (ctype));
-	
+		: "=r" (ctype));
+
+	cpuid = cpufunc_id();
 	/*
 	 * ...and thus spake the ARM ARM:
 	 *
- 	 * If an <opcode2> value corresponding to an unimplemented or
+	 * If an <opcode2> value corresponding to an unimplemented or
 	 * reserved ID register is encountered, the System Control
 	 * processor returns the value of the main ID register.
 	 */
-	if (ctype == cpufunc_id())
+	if (ctype == cpuid)
 		goto out;
-	
-	if ((ctype & CPU_CT_S) == 0)
-		arm_pcache_unified = 1;
 
-	/*
-	 * If you want to know how this code works, go read the ARM ARM.
-	 */
-	
-	arm_pcache_type = CPU_CT_CTYPE(ctype);
-        if (arm_pcache_unified == 0) {
-		isize = CPU_CT_ISIZE(ctype);
-	    	multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
-		arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
-		if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
-			if (isize & CPU_CT_xSIZE_M)
-				arm_picache_line_size = 0; /* not present */
-			else
-				arm_picache_ways = 1;
-		} else {
-			arm_picache_ways = multiplier <<
-			    (CPU_CT_xSIZE_ASSOC(isize) - 1);
+	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
+		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
+		    : "=r" (clevel));
+		arm_cache_level = clevel;
+		arm_cache_loc = CPU_CLIDR_LOC(arm_cache_level) + 1;
+		i = 0;
+		while ((type = (clevel & 0x7)) && i < 7) {
+			if (type == CACHE_DCACHE || type == CACHE_UNI_CACHE ||
+			    type == CACHE_SEP_CACHE) {
+				sel = i << 1;
+				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
+				    : : "r" (sel));
+				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
+				    : "=r" (csize));
+				arm_cache_type[sel] = csize;
+			}
+			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
+				sel = (i << 1) | 1;
+				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
+				    : : "r" (sel));
+				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
+				    : "=r" (csize));
+				arm_cache_type[sel] = csize;
+			}
+			i++;
+			clevel >>= 3;
 		}
-		arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
-	}
-	
-	dsize = CPU_CT_DSIZE(ctype);
-	multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
-	arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
-	if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
-		if (dsize & CPU_CT_xSIZE_M)
-			arm_pdcache_line_size = 0; /* not present */
-		else
-			arm_pdcache_ways = 1;
 	} else {
-		arm_pdcache_ways = multiplier <<
-		    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+		if ((ctype & CPU_CT_S) == 0)
+			arm_pcache_unified = 1;
+
+		/*
+		 * If you want to know how this code works, go read the ARM ARM.
+		 */
+
+		arm_pcache_type = CPU_CT_CTYPE(ctype);
+
+		if (arm_pcache_unified == 0) {
+			isize = CPU_CT_ISIZE(ctype);
+			multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
+			arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
+			if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
+				if (isize & CPU_CT_xSIZE_M)
+					arm_picache_line_size = 0; /* not present */
+				else
+					arm_picache_ways = 1;
+			} else {
+				arm_picache_ways = multiplier <<
+				    (CPU_CT_xSIZE_ASSOC(isize) - 1);
+			}
+			arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
+		}
+
+		dsize = CPU_CT_DSIZE(ctype);
+		multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
+		arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
+		if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
+			if (dsize & CPU_CT_xSIZE_M)
+				arm_pdcache_line_size = 0; /* not present */
+			else
+				arm_pdcache_ways = 1;
+		} else {
+			arm_pdcache_ways = multiplier <<
+			    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+		}
+		arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
+
+		arm_dcache_align = arm_pdcache_line_size;
+
+		arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
+		arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
+		arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
+		    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
+
+	out:
+		arm_dcache_align_mask = arm_dcache_align - 1;
 	}
-	arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
-	
-	arm_dcache_align = arm_pdcache_line_size;
-	
-	arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
-	arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
-	arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
-	    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
- out:
-	arm_dcache_align_mask = arm_dcache_align - 1;
 }
 
 static void
@@ -306,7 +352,18 @@ arm9_setup(void)
 	arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
 }
 
+static void
+armadaxp_idcache_wbinv_all(void)
+{
+	uint32_t feat;
 
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (feat));
+	if (feat & ARM_PFR0_THUMBEE_MASK)
+		armv7_idcache_wbinv_all();
+	else
+		armv6_idcache_wbinv_all();
+
+}
 #ifdef KZIP
 static  unsigned char *orig_input, *i_input, *i_output;
 
