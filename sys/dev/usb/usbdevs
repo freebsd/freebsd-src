@@ -687,6 +687,7 @@ vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor BAYER		0x1a79	Bayer
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor CORSAIR		0x1b1c	Corsair
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor OVISLINK		0x1b75	OvisLink
 vendor TML		0x1b91	The Mobility Lab
@@ -1372,6 +1373,9 @@ product COREGA CGWLUSB300GNM	0x0042	CG-WLUSB300GNM
 
 product COREGA WLUSB_11_STICK	0x7613	WLAN USB Stick 11
 product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
+
+/* Corsair products */
+product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
