@@ -63,7 +63,9 @@
 			 defined(CPU_XSCALE_PXA2X0) +			\
 			 defined(CPU_FA526) +				\
 			 defined(CPU_FA626TE) +				\
-			 defined(CPU_XSCALE_IXP425))
+			 defined(CPU_XSCALE_IXP425)) +			\
+			 defined(CPU_CORTEXA) +				\
+			 defined(CPU_MV_PJ4B)
 
 /*
  * Step 2: Determine which ARM architecture versions are configured.
@@ -86,18 +88,26 @@
 #define	ARM_ARCH_5	0
 #endif
 
-#if defined(CPU_ARM11)
+#if !defined(ARM_ARCH_6)
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
 #define ARM_ARCH_6	1
 #else
 #define ARM_ARCH_6	0
 #endif
+#endif
 
-#define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5 + ARM_ARCH_6)
+#if defined(CPU_CORTEXA)
+#define ARM_ARCH_7A	1
+#else
+#define ARM_ARCH_7A	0
+#endif
+
+#define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5 + ARM_ARCH_6 | ARM_ARCH_7A)
 #if ARM_NARCH == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NARCH is 0
 #endif
 
-#if ARM_ARCH_5 || ARM_ARCH_6
+#if ARM_ARCH_5 || ARM_ARCH_6 || ARM_ARCH_7A
 /*
  * We could support Thumb code on v4T, but the lack of clean interworking
  * makes that hard.
@@ -112,6 +122,10 @@
  *				and MMU for ARMv2 CPUs.
  *
  *	ARM_MMU_GENERIC		Generic ARM MMU, compatible with ARM6.
+ *
+ *	ARM_MMU_V6		ARMv6 MMU.
+ *
+ *	ARM_MMU_V7		ARMv7 MMU.
  *
  *	ARM_MMU_SA1		StrongARM SA-1 MMU.  Compatible with generic
  *				ARM MMU, but has no write-through cache mode.
@@ -128,11 +142,23 @@
 
 #if (defined(CPU_ARM6) || defined(CPU_ARM7) || defined(CPU_ARM7TDMI) ||	\
      defined(CPU_ARM8) || defined(CPU_ARM9) || defined(CPU_ARM9E) ||	\
-     defined(CPU_ARM10) || defined(CPU_ARM11) || defined(CPU_FA526) ||	\
+     defined(CPU_ARM10) || defined(CPU_FA526) ||	\
      defined(CPU_FA626TE))
 #define	ARM_MMU_GENERIC		1
 #else
 #define	ARM_MMU_GENERIC		0
+#endif
+
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+#define ARM_MMU_V6		1
+#else
+#define ARM_MMU_V6		0
+#endif
+
+#if defined(CPU_CORTEXA)
+#define ARM_MMU_V7		1
+#else
+#define ARM_MMU_V7		0
 #endif
 
 #if (defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) ||\
@@ -150,8 +176,8 @@
 #define	ARM_MMU_XSCALE		0
 #endif
 
-#define	ARM_NMMUS		(ARM_MMU_MEMC + ARM_MMU_GENERIC +	\
-				 ARM_MMU_SA1 + ARM_MMU_XSCALE)
+#define	ARM_NMMUS		(ARM_MMU_MEMC + ARM_MMU_GENERIC + ARM_MMU_V6 + \
+				 ARM_MMU_V7 + ARM_MMU_SA1 + ARM_MMU_XSCALE)
 #if ARM_NMMUS == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NMMUS is 0
 #endif

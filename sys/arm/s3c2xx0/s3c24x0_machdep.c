@@ -118,9 +118,6 @@ extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
-
 /* Physical and virtual addresses for some global pages */
 
 vm_paddr_t phys_avail[10];
@@ -241,8 +238,7 @@ initarm(struct arm_boot_params *abp)
 	set_cpufuncs();
 	cpufuncs.cf_sleep = s3c24x0_sleep;
 
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
 	init_param1();

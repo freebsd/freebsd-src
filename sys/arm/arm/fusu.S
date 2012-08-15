@@ -39,12 +39,15 @@
 #include "assym.s"
 __FBSDID("$FreeBSD$");
 
-#ifdef MULTIPROCESSOR
-.Lcpu_info:
-	.word	_C_LABEL(cpu_info)
+#ifdef _ARM_ARCH_6
+#define GET_PCB(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4; \
+	add	tmp, tmp, #(PC_CURPCB)
 #else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
+#define GET_PCB(tmp) \
+	ldr	tmp, .Lcurpcb
 #endif
 
 /*
@@ -54,18 +57,8 @@ __FBSDID("$FreeBSD$");
 
 ENTRY_NP(casuword32)
 ENTRY(casuword)
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r14}
-#else
-	ldr	r3, .Lcurpcb
+	GET_PCB(r3)
 	ldr	r3, [r3]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r3, #0x00000000
@@ -101,18 +94,8 @@ ENTRY(casuword)
 
 ENTRY_NP(fuword32)
 ENTRY(fuword)
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r2, #0x00000000
@@ -135,18 +118,8 @@ ENTRY(fuword)
  */
 
 ENTRY(fusword)
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r2, #0x00000000
@@ -180,18 +153,8 @@ ENTRY(fuswintr)
 	mvnne	r0, #0x00000000
 	RETne
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r2, #0x00000000
@@ -229,18 +192,8 @@ _C_LABEL(block_userspace_access):
  */
 
 ENTRY(fubyte)
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r2, #0x00000000
@@ -303,18 +256,8 @@ fusupcbfaulttext:
 
 ENTRY_NP(suword32)
 ENTRY(suword)
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0, r1, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r1, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r2, #0x00000000
@@ -343,17 +286,8 @@ ENTRY(suswintr)
 	mvnne	r0, #0x00000000
 	RETne
 
-#ifdef MULTIPROCESSOR
-	stmfd	sp!, {r0, r1, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r1, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r2, #0x00000000
@@ -382,17 +316,8 @@ ENTRY(suswintr)
  */
 
 ENTRY(susword)
-#ifdef MULTIPROCESSOR
-	stmfd	sp!, {r0, r1, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r1, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r2, #0x00000000
@@ -421,17 +346,8 @@ ENTRY(susword)
  */
 
 ENTRY(subyte)
-#ifdef MULTIPROCESSOR
-	stmfd	sp!, {r0, r1, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r2, .Lcpu_info
-	ldr	r2, [r2, r0, lsl #2]
-	ldr	r2, [r2, #CI_CURPCB]
-	ldmfd	sp!, {r0, r1, r14}
-#else
-	ldr	r2, .Lcurpcb
+	GET_PCB(r2)
 	ldr	r2, [r2]
-#endif
 
 
 #ifdef DIAGNOSTIC
