@@ -275,31 +275,38 @@ ath_hal_pkt_txtime(struct ath_hal *ah, const HAL_RATE_TABLE *rates, uint32_t fra
 
 	/* 11n frame - extract out the number of spatial streams */
 	numStreams = HT_RC_2_STREAMS(rc);
-	KASSERT(numStreams == 1 || numStreams == 2, ("number of spatial streams needs to be 1 or 2: MCS rate 0x%x!", rateix));
+	KASSERT(numStreams > 0 && numStreams <= 4,
+	    ("number of spatial streams needs to be 1..3: MCS rate 0x%x!",
+	    rateix));
 
 	return ath_computedur_ht(frameLen, rc, numStreams, isht40, shortPreamble);
 }
+
+static const uint16_t ht20_bps[32] = {
+    26, 52, 78, 104, 156, 208, 234, 260,
+    52, 104, 156, 208, 312, 416, 468, 520,
+    78, 156, 234, 312, 468, 624, 702, 780,
+    104, 208, 312, 416, 624, 832, 936, 1040
+};
+static const uint16_t ht40_bps[32] = {
+    54, 108, 162, 216, 324, 432, 486, 540,
+    108, 216, 324, 432, 648, 864, 972, 1080,
+    162, 324, 486, 648, 972, 1296, 1458, 1620,
+    216, 432, 648, 864, 1296, 1728, 1944, 2160
+};
 
 /*
  * Calculate the transmit duration of an 11n frame.
  * This only works for MCS0->MCS15.
  */
 uint32_t
-ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams, HAL_BOOL isht40,
-    HAL_BOOL isShortGI)
+ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams,
+    HAL_BOOL isht40, HAL_BOOL isShortGI)
 {
-	static const uint16_t ht20_bps[16] = {
-	    26, 52, 78, 104, 156, 208, 234, 260,
-	    52, 104, 156, 208, 312, 416, 468, 520
-	};
-	static const uint16_t ht40_bps[16] = {
-	    54, 108, 162, 216, 324, 432, 486, 540,
-	    108, 216, 324, 432, 648, 864, 972, 1080,
-	};
 	uint32_t bitsPerSymbol, numBits, numSymbols, txTime;
 
 	KASSERT(rate & IEEE80211_RATE_MCS, ("not mcs %d", rate));
-	KASSERT((rate &~ IEEE80211_RATE_MCS) < 16, ("bad mcs 0x%x", rate));
+	KASSERT((rate &~ IEEE80211_RATE_MCS) < 31, ("bad mcs 0x%x", rate));
 
 	if (isht40)
 		bitsPerSymbol = ht40_bps[rate & 0xf];
