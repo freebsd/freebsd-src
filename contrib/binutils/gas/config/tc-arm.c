@@ -20008,6 +20008,9 @@ static const struct arm_cpu_option_table arm_cpus[] =
   {"cortex-a8",		ARM_ARCH_V7A,	 ARM_FEATURE(0, FPU_VFP_V3
                                                         | FPU_NEON_EXT_V1),
                                                           NULL},
+  {"cortex-a9",		ARM_ARCH_V7A,	 ARM_FEATURE(0, FPU_VFP_V3
+                                                        | FPU_NEON_EXT_V1),
+                                                          NULL},
   {"cortex-r4",		ARM_ARCH_V7R,	 FPU_NONE,	  NULL},
   {"cortex-m3",		ARM_ARCH_V7M,	 FPU_NONE,	  NULL},
   /* ??? XSCALE is really an architecture.  */
@@ -20106,6 +20109,7 @@ static const struct arm_option_cpu_value_table arm_fpus[] =
   {"vfp",		FPU_ARCH_VFP_V2},
   {"vfp9",		FPU_ARCH_VFP_V2},
   {"vfp3",              FPU_ARCH_VFP_V3},
+  {"vfpv3",             FPU_ARCH_VFP_V3},
   {"vfp10",		FPU_ARCH_VFP_V2},
   {"vfp10-r0",		FPU_ARCH_VFP_V1},
   {"vfpxd",		FPU_ARCH_VFP_V1xD},
