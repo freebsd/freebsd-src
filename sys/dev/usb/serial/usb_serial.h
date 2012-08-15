@@ -137,7 +137,7 @@ struct ucom_super_softc {
 	int sc_unit;
 	int sc_subunits;
 	int sc_refs;
-	int sc_wait_refs;
+	int sc_flag;	/* see UCOM_FLAG_XXX */
 	struct sysctl_oid *sc_sysctl_ttyname;
 	struct sysctl_oid *sc_sysctl_ttyports;
 	char sc_ttyname[16];
@@ -178,6 +178,8 @@ struct ucom_softc {
 #define	UCOM_FLAG_LL_READY	0x20	/* set if low layer is ready */
 #define	UCOM_FLAG_HL_READY	0x40	/* set if high layer is ready */
 #define	UCOM_FLAG_CONSOLE	0x80	/* set if device is a console */
+#define	UCOM_FLAG_WAIT_REFS   0x0100	/* set if we must wait for refs */
+#define	UCOM_FLAG_FREE_UNIT   0x0200	/* set if we must free the unit */
 	uint8_t	sc_lsr;
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;

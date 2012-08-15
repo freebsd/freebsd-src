@@ -284,11 +284,14 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 		return (error);
 	}
 	ssc->sc_subunits = subunits;
+	ssc->sc_flag = UCOM_FLAG_ATTACHED |
+	    UCOM_FLAG_FREE_UNIT;
 
-	if (callback->ucom_free == NULL) {
-		ssc->sc_wait_refs = 1;
-		ucom_ref(ssc);
-	}
+	if (callback->ucom_free == NULL)
+		ssc->sc_flag |= UCOM_FLAG_WAIT_REFS;
+
+	/* increment reference count */
+	ucom_ref(ssc);
 
 	for (subunit = 0; subunit < ssc->sc_subunits; subunit++) {
 		sc[subunit].sc_subunit = subunit;
@@ -316,15 +319,15 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 }
 
 /*
- * NOTE: the following function will do nothing if
- * the structure pointed to by "ssc" and "sc" is zero.
+ * The following function will do nothing if the structure pointed to
+ * by "ssc" and "sc" is zero or has already been detached.
  */
 void
 ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
 	int subunit;
 
-	if (ssc->sc_subunits == 0)
+	if (!(ssc->sc_flag & UCOM_FLAG_ATTACHED))
 		return;		/* not initialized */
 
 	if (ssc->sc_sysctl_ttyname != NULL) {
@@ -350,17 +353,20 @@ ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	}
 	usb_proc_free(&ssc->sc_tq);
 
-	if (ssc->sc_wait_refs != 0) {
-		ucom_unref(ssc);
+	ucom_unref(ssc);
+
+	if (ssc->sc_flag & UCOM_FLAG_WAIT_REFS)
 		ucom_drain(ssc);
-	}
+
+	/* make sure we don't detach twice */
+	ssc->sc_flag &= ~UCOM_FLAG_ATTACHED;
 }
 
 void
 ucom_drain(struct ucom_super_softc *ssc)
 {
 	mtx_lock(&ucom_mtx);
-	while (ssc->sc_refs >= 2) {
+	while (ssc->sc_refs > 0) {
 		printf("ucom: Waiting for a TTY device to close.\n");
 		usb_pause_mtx(&ucom_mtx, hz);
 	}
@@ -1513,6 +1519,24 @@ ucom_ref(struct ucom_super_softc *ssc)
 }
 
 /*------------------------------------------------------------------------*
+ *	ucom_free_unit
+ *
+ * This function will free the super UCOM's allocated unit
+ * number. This function can be called on a zero-initialized
+ * structure. This function can be called multiple times.
+ *------------------------------------------------------------------------*/
+static void
+ucom_free_unit(struct ucom_super_softc *ssc)
+{
+	if (!(ssc->sc_flag & UCOM_FLAG_FREE_UNIT))
+		return;
+
+	ucom_unit_free(ssc->sc_unit);
+
+	ssc->sc_flag &= ~UCOM_FLAG_FREE_UNIT;
+}
+
+/*------------------------------------------------------------------------*
  *	ucom_unref
  *
  * This function will decrement the super UCOM reference count.
@@ -1525,21 +1549,15 @@ int
 ucom_unref(struct ucom_super_softc *ssc)
 {
 	int retval;
-	int free_unit;
 
 	mtx_lock(&ucom_mtx);
 	retval = (ssc->sc_refs < 2);
-	free_unit = (ssc->sc_refs == 1);
 	ssc->sc_refs--;
 	mtx_unlock(&ucom_mtx);
 
-	/*
-	 * This function might be called when the "ssc" is only zero
-	 * initialized and in that case the unit number should not be
-	 * freed.
-	 */
-	if (free_unit)
-		ucom_unit_free(ssc->sc_unit);
+	if (retval)
+		ucom_free_unit(ssc);
+
 	return (retval);
 }
 

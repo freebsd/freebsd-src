@@ -125,7 +125,7 @@ struct uftdi_param_config {
 static device_probe_t uftdi_probe;
 static device_attach_t uftdi_attach;
 static device_detach_t uftdi_detach;
-static device_free_softc_t uftdi_free_softc;
+static void uftdi_free_softc(struct uftdi_softc *);
 
 static usb_callback_t uftdi_write_callback;
 static usb_callback_t uftdi_read_callback;
@@ -190,7 +190,6 @@ static device_method_t uftdi_methods[] = {
 	DEVMETHOD(device_probe, uftdi_probe),
 	DEVMETHOD(device_attach, uftdi_attach),
 	DEVMETHOD(device_detach, uftdi_detach),
-	DEVMETHOD(device_free_softc, uftdi_free_softc),
 	DEVMETHOD_END
 };
 
@@ -960,27 +959,28 @@ uftdi_detach(device_t dev)
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UFTDI_N_TRANSFER);
 
+	device_claim_softc(dev);
+
+	uftdi_free_softc(sc);
+
 	return (0);
 }
 
 UCOM_UNLOAD_DRAIN(uftdi);
 
 static void
-uftdi_free_softc(device_t dev, void *arg)
+uftdi_free_softc(struct uftdi_softc *sc)
 {
-	struct uftdi_softc *sc = arg;
-
 	if (ucom_unref(&sc->sc_super_ucom)) {
-		if (mtx_initialized(&sc->sc_mtx))
-			mtx_destroy(&sc->sc_mtx);
-		device_free_softc(dev, sc);
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
 	}
 }
 
 static void
 uftdi_free(struct ucom_softc *ucom)
 {
-	uftdi_free_softc(NULL, ucom->sc_parent);
+	uftdi_free_softc(ucom->sc_parent);
 }
 
 static void

@@ -202,7 +202,7 @@ struct ufoma_softc {
 static device_probe_t ufoma_probe;
 static device_attach_t ufoma_attach;
 static device_detach_t ufoma_detach;
-static device_free_softc_t ufoma_free_softc;
+static void ufoma_free_softc(struct ufoma_softc *);
 
 static usb_callback_t ufoma_ctrl_read_callback;
 static usb_callback_t ufoma_ctrl_write_callback;
@@ -313,7 +313,6 @@ static device_method_t ufoma_methods[] = {
 	DEVMETHOD(device_probe, ufoma_probe),
 	DEVMETHOD(device_attach, ufoma_attach),
 	DEVMETHOD(device_detach, ufoma_detach),
-	DEVMETHOD(device_free_softc, ufoma_free_softc),
 	DEVMETHOD_END
 };
 
@@ -498,27 +497,28 @@ ufoma_detach(device_t dev)
 	}
 	cv_destroy(&sc->sc_cv);
 
+	device_claim_softc(dev);
+
+	ufoma_free_softc(sc);
+
 	return (0);
 }
 
 UCOM_UNLOAD_DRAIN(ufoma);
 
 static void
-ufoma_free_softc(device_t dev, void *arg)
+ufoma_free_softc(struct ufoma_softc *sc)
 {
-	struct ufoma_softc *sc = arg;
-
 	if (ucom_unref(&sc->sc_super_ucom)) {
-		if (mtx_initialized(&sc->sc_mtx))
-			mtx_destroy(&sc->sc_mtx);
-		device_free_softc(dev, sc);
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
 	}
 }
 
 static void
 ufoma_free(struct ucom_softc *ucom)
 {
-	ufoma_free_softc(NULL, ucom->sc_parent);
+	ufoma_free_softc(ucom->sc_parent);
 }
 
 static void *

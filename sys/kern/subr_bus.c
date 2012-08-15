@@ -2406,9 +2406,38 @@ device_get_softc(device_t dev)
 void
 device_set_softc(device_t dev, void *softc)
 {
-	if (dev->softc != NULL && !(dev->flags & DF_EXTERNALSOFTC))
-		DEVICE_FREE_SOFTC(dev, dev->softc);
+	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
+		free(dev->softc, M_BUS_SC);
 	dev->softc = softc;
+	if (dev->softc)
+		dev->flags |= DF_EXTERNALSOFTC;
+	else
+		dev->flags &= ~DF_EXTERNALSOFTC;
+}
+
+/**
+ * @brief Free claimed softc
+ *
+ * Most drivers do not need to use this since the softc is freed
+ * automatically when the driver is detached.
+ */
+void
+device_free_softc(void *softc)
+{
+	free(softc, M_BUS_SC);
+}
+
+/**
+ * @brief Claim softc
+ *
+ * This function can be used to let the driver free the automatically
+ * allocated softc using "device_free_softc()". This function is
+ * useful when the driver is refcounting the softc and the softc
+ * cannot be freed when the "device_detach" method is called.
+ */
+void
+device_claim_softc(device_t dev)
+{
 	if (dev->softc)
 		dev->flags |= DF_EXTERNALSOFTC;
 	else
@@ -2604,8 +2633,8 @@ device_set_driver(device_t dev, driver_t *driver)
 	if (dev->driver == driver)
 		return (0);
 
-	if (dev->softc != NULL && !(dev->flags & DF_EXTERNALSOFTC)) {
-		DEVICE_FREE_SOFTC(dev, dev->softc);
+	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC)) {
+		free(dev->softc, M_BUS_SC);
 		dev->softc = NULL;
 	}
 	device_set_desc(dev, NULL);
@@ -4796,14 +4825,4 @@ bus_free_resource(device_t dev, int type, struct resource *r)
 	if (r == NULL)
 		return (0);
 	return (bus_release_resource(dev, type, rman_get_rid(r), r));
-}
-
-/*
- * The "dev" argument passed to "device_free_softc()" is allowed to be
- * NULL, if the device freeing the soft is not available.
- */
-void
-device_free_softc(device_t dev, void *softc)
-{
-	free(softc, M_BUS_SC);
 }
