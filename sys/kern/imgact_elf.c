@@ -103,6 +103,14 @@ static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
 
+#if __ELF_WORD_SIZE == 32
+#if defined(__amd64__) || defined(__ia64__)
+int i386_read_exec = 0;
+SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
+    "enable execution from readable segments");
+#endif
+#endif
+
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
 #define	trunc_page_ps(va, ps)	((va) & ~(ps - 1))
@@ -1495,6 +1503,12 @@ __elfN(trans_prot)(Elf_Word flags)
 		prot |= VM_PROT_WRITE;
 	if (flags & PF_R)
 		prot |= VM_PROT_READ;
+#if __ELF_WORD_SIZE == 32
+#if defined(__amd64__) || defined(__ia64__)
+	if (i386_read_exec && (flags & PF_R))
+		prot |= VM_PROT_EXECUTE;
+#endif
+#endif
 	return (prot);
 }
 
