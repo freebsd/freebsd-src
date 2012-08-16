@@ -510,6 +510,7 @@ struct rss_header;
 typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 typedef int (*an_handler_t)(struct sge_iq *, const struct rsp_ctrl *);
+typedef int (*fw_msg_handler_t)(struct adapter *, const __be64 *);
 
 struct adapter {
 	SLIST_ENTRY(adapter) link;
@@ -582,7 +583,8 @@ struct adapter {
 	struct callout sfl_callout;
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	cpl_handler_t cpl_handler[256];
+	fw_msg_handler_t fw_msg_handler[4];	/* NUM_FW6_TYPES */
+	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
@@ -741,6 +743,7 @@ void t4_os_link_changed(struct adapter *, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
+int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
