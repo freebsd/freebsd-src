@@ -225,7 +225,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
 			status = AcpiEnterSleepStateS4bios();
 		else
-			status = AcpiEnterSleepState(state, acpi_sleep_flags);
+			status = AcpiEnterSleepState(state);
 		if (ACPI_FAILURE(status)) {
 			device_printf(sc->acpi_dev,
 			    "AcpiEnterSleepState failed - %s\n",
