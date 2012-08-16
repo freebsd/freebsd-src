@@ -515,12 +515,16 @@ t4_attach(device_t dev)
 		goto done; /* error message displayed already */
 
 	if (sc->flags & MASTER_PF) {
+		uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
 
 		/* final tweaks to some settings */
 
 		t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd,
 		    sc->params.b_wnd);
-		t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
+		/* 4K, 16K, 64K, 256K DDP "page sizes" */
+		t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(0) | V_HPZ1(2) |
+		    V_HPZ2(4) | V_HPZ3(6));
+		t4_set_reg_field(sc, A_ULP_RX_CTL, F_TDDPTAGTCB, F_TDDPTAGTCB);
 		t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
 		    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 | F_TUNNELCNGDROP3,
 		    F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
@@ -528,7 +532,7 @@ t4_attach(device_t dev)
 		t4_set_reg_field(sc, A_TP_PARA_REG5,
 		    V_INDICATESIZE(M_INDICATESIZE) |
 		    F_REARMDDPOFFSET | F_RESETDDPOFFSET,
-		    V_INDICATESIZE(M_INDICATESIZE) |
+		    V_INDICATESIZE(indsz) |
 		    F_REARMDDPOFFSET | F_RESETDDPOFFSET);
 	} else {
 		/*
@@ -3228,10 +3232,13 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.ddp = 0;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp", CTLFLAG_RW,
 		    &sc->tt.ddp, 0, "DDP allowed");
-		sc->tt.indsz = M_INDICATESIZE;
+
+		sc->tt.indsz = G_INDICATESIZE(t4_read_reg(sc, A_TP_PARA_REG5));
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "indsz", CTLFLAG_RW,
 		    &sc->tt.indsz, 0, "DDP max indicate size allowed");
-		sc->tt.ddp_thres = 3*4096;
+
+		sc->tt.ddp_thres =
+		    G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2));
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp_thres", CTLFLAG_RW,
 		    &sc->tt.ddp_thres, 0, "DDP threshold");
 	}

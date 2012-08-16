@@ -135,6 +135,7 @@ enum {
 #else
 	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
+	OFLD_BUF_SIZE = MJUM16BYTES,	/* size of fl buffer for TOE rxq */
 
 	CTRL_EQ_QSIZE = 128,
 
@@ -142,6 +143,12 @@ enum {
 	TX_SGL_SEGS = 36,
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
+
+#ifdef T4_PKT_TIMESTAMP
+#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
+#else
+#define RX_COPY_THRESHOLD MINCLSIZE
+#endif
 
 enum {
 	/* adapter intr_type */

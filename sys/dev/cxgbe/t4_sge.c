@@ -627,7 +627,7 @@ t4_setup_port_queues(struct port_info *pi)
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(&ofld_rxq->fl, pi->qsize_rxq / 8, MJUM16BYTES, name);
+		init_fl(&ofld_rxq->fl, pi->qsize_rxq / 8, OFLD_BUF_SIZE, name);
 
 		if (sc->flags & INTR_DIRECT ||
 		    (sc->intr_count > 1 && pi->nofldrxq > pi->nrxq)) {
@@ -1021,13 +1021,6 @@ service_iq(struct sge_iq *iq, int budget)
 
 	return (0);
 }
-
-
-#ifdef T4_PKT_TIMESTAMP
-#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
-#else
-#define RX_COPY_THRESHOLD MINCLSIZE
-#endif
 
 static struct mbuf *
 get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
