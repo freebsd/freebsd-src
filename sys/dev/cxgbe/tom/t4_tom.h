@@ -236,6 +236,7 @@ void t4_offload_socket(struct toedev *, void *, struct socket *);
 
 /* t4_cpl_io.c */
 void t4_init_cpl_io_handlers(struct adapter *);
+void t4_uninit_cpl_io_handlers(struct adapter *);
 void send_abort_rpl(struct adapter *, struct sge_wrq *, int , int);
 void send_flowc_wr(struct toepcb *, struct flowc_tx_params *);
 void send_reset(struct adapter *, struct toepcb *, uint32_t);
@@ -244,5 +245,7 @@ void t4_rcvd(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
+void t4_set_tcb_field(struct adapter *, struct toepcb *, uint16_t, uint64_t,
+    uint64_t);
 
 #endif

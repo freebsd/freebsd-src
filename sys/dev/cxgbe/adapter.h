@@ -744,6 +744,7 @@ void t4_iterate(void (*)(struct adapter *, void *), void *);
 int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
 int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
+int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
