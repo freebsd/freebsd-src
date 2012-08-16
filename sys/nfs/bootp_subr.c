@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 
 /* 
  * Wait 10 seconds for interface appearance
- * USB ethernet adapters might reqquire some time to pop up
+ * USB ethernet adapters might require some time to pop up
  */
 #ifndef	BOOTP_IFACE_WAIT_TIMEOUT
 #define	BOOTP_IFACE_WAIT_TIMEOUT	10
@@ -1523,8 +1523,11 @@ bootpc_init(void)
 #endif
 	struct nfsv3_diskless *nd;
 	struct thread *td;
-	int timeout = BOOTP_IFACE_WAIT_TIMEOUT * hz;
-	int delay = hz / 10;
+	int timeout;
+	int delay;
+
+	timeout = BOOTP_IFACE_WAIT_TIMEOUT * hz;
+	delay = hz / 10;
 
 	nd = &nfsv3_diskless;
 	td = curthread;
