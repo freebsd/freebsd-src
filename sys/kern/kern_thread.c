@@ -271,7 +271,7 @@ threadinit(void)
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
 
 	/*
-	 * pid_max cannot be greater then PID_MAX.
+	 * pid_max cannot be greater than PID_MAX.
 	 * leave one number for thread0.
 	 */
 	tid_unrhdr = new_unrhdr(PID_MAX + 2, INT_MAX, &tid_lock);
