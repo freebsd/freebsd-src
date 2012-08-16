@@ -77,13 +77,15 @@ static MALLOC_DEFINE(M_SSC, "ssc_disk", "Simulator Disk");
 static d_strategy_t sscstrategy;
 
 static LIST_HEAD(, ssc_s) ssc_softc_list = LIST_HEAD_INITIALIZER(ssc_softc_list);
+static struct mtx ssc_list_lock;
+MTX_SYSINIT(ssc_list, &ssc_list_lock, "ssc list", MTX_DEF);
 
 struct ssc_s {
 	int unit;
 	LIST_ENTRY(ssc_s) list;
 	struct bio_queue_head bio_queue;
 	struct disk *disk;
-	struct cdev *dev;
+	struct mtx lock;
 	int busy;
 	int fd;
 };
@@ -94,30 +96,27 @@ static void
 sscstrategy(struct bio *bp)
 {
 	struct ssc_s *sc;
-	int s;
 	struct disk_req req;
 	struct disk_stat stat;
 	u_long len, va, off;
 
 	sc = bp->bio_disk->d_drv1;
 
-	s = splbio();
-
+	mtx_lock(&sc->lock);
 	bioq_disksort(&sc->bio_queue, bp);
 
 	if (sc->busy) {
-		splx(s);
+		mtx_unlock(&sc->lock);
 		return;
 	}
-
 	sc->busy++;
-	
-	while (1) {
+
+	for (;;) {
 		bp = bioq_takefirst(&sc->bio_queue);
-		splx(s);
 		if (!bp)
 			break;
 
+		mtx_unlock(&sc->lock);
 		va = (u_long) bp->bio_data;
 		len = bp->bio_bcount;
 		off = bp->bio_pblkno << DEV_BSHIFT;
@@ -140,10 +139,11 @@ sscstrategy(struct bio *bp)
 		}
 		bp->bio_resid = 0;
 		biodone(bp);
-		s = splbio();
+		mtx_lock(&sc->lock);
 	}
 
 	sc->busy = 0;
+	mtx_unlock(&sc->lock);
 	return;
 }
 
@@ -158,17 +158,24 @@ ssccreate(int unit)
 	if (fd == -1)
 		return (NULL);
 
+	sc = malloc(sizeof(*sc), M_SSC, M_WAITOK | M_ZERO);
+
+	mtx_lock(&ssc_list_lock);
 	if (unit == -1)
 		unit = sscunits++;
 	/* Make sure this unit isn't already in action */
 	LIST_FOREACH(sc, &ssc_softc_list, list) {
-		if (sc->unit == unit)
+		if (sc->unit == unit) {
+			mtx_unlock(&ssc_list_lock);
+			free(sc, M_SSC);
 			return (NULL);
+		}
 	}
-	sc = malloc(sizeof(*sc), M_SSC, M_WAITOK | M_ZERO);
 	LIST_INSERT_HEAD(&ssc_softc_list, sc, list);
 	sc->unit = unit;
+	mtx_unlock(&ssc_list_lock);
 	bioq_init(&sc->bio_queue);
+	mtx_init(&sc->lock, "ssc", NULL, MTX_DEF);
 
 	sc->disk = disk_alloc();
 	sc->disk->d_drv1 = sc;
@@ -180,7 +187,6 @@ ssccreate(int unit)
 	sc->disk->d_sectorsize = DEV_BSIZE;
 	sc->disk->d_strategy = sscstrategy;
 	sc->disk->d_unit = sc->unit;
-	sc->disk->d_flags = DISKFLAG_NEEDSGIANT;
 	disk_create(sc->disk, DISK_VERSION);
 	sc->fd = fd;
 	if (sc->unit == 0) 
