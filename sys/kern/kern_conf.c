@@ -307,7 +307,6 @@ dead_strategy(struct bio *bp)
 
 static struct cdevsw dead_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT, /* XXX: does dead_strategy need this ? */
 	.d_open =	dead_open,
 	.d_close =	dead_close,
 	.d_read =	dead_read,
