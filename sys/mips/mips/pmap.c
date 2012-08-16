@@ -196,7 +196,7 @@ static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t);
-static pt_entry_t init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot);
+static pt_entry_t init_pte_prot(vm_page_t m, vm_prot_t prot);
 
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
@@ -1973,7 +1973,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pt_entry_t origpte, newpte;
 	pv_entry_t pv;
 	vm_page_t mpte, om;
-	pt_entry_t rw = 0;
+	pt_entry_t rw;
 
 	va &= ~PAGE_MASK;
  	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
@@ -2084,7 +2084,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 validate:
 	if ((access & VM_PROT_WRITE) != 0)
 		m->md.pv_flags |= PV_TABLE_MOD | PV_TABLE_REF;
-	rw = init_pte_prot(va, m, prot);
+	rw = init_pte_prot(m, prot);
 
 #ifdef PMAP_DEBUG
 	printf("pmap_enter:  va: %p -> pa: %p\n", (void *)va, (void *)pa);
@@ -3297,21 +3297,21 @@ page_is_managed(vm_paddr_t pa)
 }
 
 static pt_entry_t
-init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
+init_pte_prot(vm_page_t m, vm_prot_t prot)
 {
 	pt_entry_t rw;
 
 	if (!(prot & VM_PROT_WRITE))
-		rw =  PTE_V | PTE_RO;
+		rw = PTE_V | PTE_RO;
 	else if ((m->oflags & VPO_UNMANAGED) == 0) {
 		if ((m->md.pv_flags & PV_TABLE_MOD) != 0)
-			rw =  PTE_V | PTE_D;
+			rw = PTE_V | PTE_D;
 		else
 			rw = PTE_V;
 		vm_page_aflag_set(m, PGA_WRITEABLE);
 	} else
 		/* Needn't emulate a modified bit for unmanaged pages. */
-		rw =  PTE_V | PTE_D;
+		rw = PTE_V | PTE_D;
 	return (rw);
 }
 
