@@ -510,8 +510,12 @@ sysctl_kern_pid_max(SYSCTL_HANDLER_ARGS)
 		return (error);
 	sx_xlock(&proctree_lock);
 	sx_xlock(&allproc_lock);
-	/* Only permit the values less then PID_MAX. */
-	if (pm > PID_MAX)
+
+	/*
+	 * Only permit the values less then PID_MAX.
+	 * As a safety measure, do not allow to limit the pid_max too much.
+	 */
+	if (pm < 300 || pm > PID_MAX)
 		error = EINVAL;
 	else
 		pid_max = pm;

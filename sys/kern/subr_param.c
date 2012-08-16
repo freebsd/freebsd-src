@@ -255,10 +255,13 @@ init_param1(void)
 
 	/*
 	 * Only allow to lower the maximal pid.
+	 * Prevent setting up a non-bootable system if pid_max is too low.
 	 */
 	TUNABLE_INT_FETCH("kern.pid_max", &pid_max);
 	if (pid_max > PID_MAX)
 		pid_max = PID_MAX;
+	else if (pid_max < 300)
+		pid_max = 300;
 }
 
 /*
