@@ -2281,6 +2281,8 @@ enum {
 	FW6_TYPE_WR_RPL = 1,
 	FW6_TYPE_CQE = 2,
 	FW6_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+
+	NUM_FW6_TYPES
 };
 
 struct cpl_fw6_msg_ofld_connection_wr_rpl {
