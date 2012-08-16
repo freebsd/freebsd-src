@@ -346,8 +346,6 @@ static int del_filter(struct adapter *, struct t4_filter *);
 static void clear_filter(struct filter_entry *);
 static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
-static int filter_rpl(struct sge_iq *, const struct rss_header *,
-    struct mbuf *);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int read_card_mem(struct adapter *, struct t4_mem_range *);
 #ifdef TCP_OFFLOAD
@@ -465,7 +463,7 @@ t4_attach(device_t dev)
 		sc->cpl_handler[i] = cpl_not_handled;
 	for (i = 0; i < ARRAY_SIZE(sc->fw_msg_handler); i++)
 		sc->fw_msg_handler[i] = fw_msg_not_handled;
-	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, filter_rpl);
+	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
 
 	/* Prepare the adapter for operation */
 	rc = -t4_prep_adapter(sc);
@@ -5000,8 +4998,8 @@ del_filter_wr(struct adapter *sc, int fidx)
 	return (0);
 }
 
-static int
-filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+int
+t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_set_tcb_rpl *rpl = (const void *)(rss + 1);
