@@ -2242,7 +2242,7 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 	ieee80211_iter_func *f, void *arg)
 {
 	struct ieee80211_node **ni_arr;
-	unsigned long size;
+	size_t size;
 	int i;
 	uint16_t max_aid;
 
@@ -2260,13 +2260,12 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 	 * the table; just skip to the end and free the
 	 * temporary memory.
 	 */
-	if (!ieee80211_iterate_nt(nt, ni_arr, max_aid))
+	if (ieee80211_iterate_nt(nt, ni_arr, max_aid) != 0)
 		goto done;
 
 	for (i = 0; i < max_aid; i++) {
 		if (ni_arr[i] == NULL)	/* end of the list */
 			break;
-
 		(*f)(arg, ni_arr[i]);
 		/* ieee80211_free_node() locks by itself */
 		ieee80211_free_node(ni_arr[i]);
