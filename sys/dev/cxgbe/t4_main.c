@@ -306,6 +306,7 @@ static void cxgbe_vlan_config(void *, struct ifnet *, uint16_t);
 static int cpl_not_handled(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 static int an_not_handled(struct sge_iq *, const struct rsp_ctrl *);
+static int fw_msg_not_handled(struct adapter *, const __be64 *);
 static int t4_sysctls(struct adapter *);
 static int cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
@@ -380,6 +381,10 @@ struct t4_pciids {
 CTASSERT(offsetof(struct sge_ofld_rxq, iq) == offsetof(struct sge_rxq, iq));
 CTASSERT(offsetof(struct sge_ofld_rxq, fl) == offsetof(struct sge_rxq, fl));
 #endif
+
+/* No easy way to include t4_msg.h before adapter.h so we check this way */
+CTASSERT(ARRAY_SIZE(((struct adapter *)0)->cpl_handler) == NUM_CPL_CMDS);
+CTASSERT(ARRAY_SIZE(((struct adapter *)0)->fw_msg_handler) == NUM_FW6_TYPES);
 
 static int
 t4_probe(device_t dev)
@@ -458,6 +463,8 @@ t4_attach(device_t dev)
 	sc->an_handler = an_not_handled;
 	for (i = 0; i < ARRAY_SIZE(sc->cpl_handler); i++)
 		sc->cpl_handler[i] = cpl_not_handled;
+	for (i = 0; i < ARRAY_SIZE(sc->fw_msg_handler); i++)
+		sc->fw_msg_handler[i] = fw_msg_not_handled;
 	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, filter_rpl);
 
 	/* Prepare the adapter for operation */
@@ -2980,7 +2987,7 @@ cpl_not_handled(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	panic("%s: opcode 0x%02x on iq %p with payload %p",
 	    __func__, rss->opcode, iq, m);
 #else
-	log(LOG_ERR, "%s: opcode 0x%02x on iq %p with payload %p",
+	log(LOG_ERR, "%s: opcode 0x%02x on iq %p with payload %p\n",
 	    __func__, rss->opcode, iq, m);
 	m_freem(m);
 #endif
@@ -3009,7 +3016,7 @@ an_not_handled(struct sge_iq *iq, const struct rsp_ctrl *ctrl)
 #ifdef INVARIANTS
 	panic("%s: async notification on iq %p (ctrl %p)", __func__, iq, ctrl);
 #else
-	log(LOG_ERR, "%s: async notification on iq %p (ctrl %p)",
+	log(LOG_ERR, "%s: async notification on iq %p (ctrl %p)\n",
 	    __func__, iq, ctrl);
 #endif
 	return (EDOOFUS);
@@ -3022,6 +3029,35 @@ t4_register_an_handler(struct adapter *sc, an_handler_t h)
 
 	new = h ? (uintptr_t)h : (uintptr_t)an_not_handled;
 	loc = (uintptr_t *) &sc->an_handler;
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
+
+static int
+fw_msg_not_handled(struct adapter *sc, const __be64 *rpl)
+{
+	__be64 *r = __DECONST(__be64 *, rpl);
+	struct cpl_fw6_msg *cpl = member2struct(cpl_fw6_msg, data, r);
+
+#ifdef INVARIANTS
+	panic("%s: fw_msg type %d", __func__, cpl->type);
+#else
+	log(LOG_ERR, "%s: fw_msg type %d\n", __func__, cpl->type);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	if (type >= ARRAY_SIZE(sc->fw_msg_handler))
+		return (EINVAL);
+
+	new = h ? (uintptr_t)h : (uintptr_t)fw_msg_not_handled;
+	loc = (uintptr_t *) &sc->fw_msg_handler[type];
 	atomic_store_rel_ptr(loc, new);
 
 	return (0);

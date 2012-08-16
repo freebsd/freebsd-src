@@ -185,7 +185,7 @@ static void write_eqflush_wr(struct sge_eq *);
 static __be64 get_flit(bus_dma_segment_t *, int, int);
 static int handle_sge_egr_update(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
-static int handle_fw_rpl(struct sge_iq *, const struct rss_header *,
+static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
@@ -361,10 +361,12 @@ t4_sge_init(struct adapter *sc)
 	sc->sge.timer_val[4] = G_TIMERVALUE4(v) / core_ticks_per_usec(sc);
 	sc->sge.timer_val[5] = G_TIMERVALUE5(v) / core_ticks_per_usec(sc);
 
-	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_rpl);
-	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_rpl);
+	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_msg);
+	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
 	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
 	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
+
+	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 
 	return (rc);
 }
@@ -3520,17 +3522,15 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 }
 
 static int
-handle_fw_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
+	struct adapter *sc = iq->adapter;
 	const struct cpl_fw6_msg *cpl = (const void *)(rss + 1);
 
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	if (cpl->type == FW6_TYPE_CMD_RPL)
-		t4_handle_fw_rpl(iq->adapter, cpl->data);
-
-	return (0);
+	return (sc->fw_msg_handler[cpl->type](sc, &cpl->data[0]));
 }
 
 static int
