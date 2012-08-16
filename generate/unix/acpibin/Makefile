@@ -11,6 +11,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
+FINAL_PROG = ../$(BINDIR)/acpibin
 PROG = $(OBJDIR)/acpibin
 
 #
@@ -51,17 +52,6 @@ CFLAGS+= \
     -I$(ACPIBIN)
 
 #
-# Rules
+# Common Rules
 #
-$(PROG) : $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
-	$(COPYPROG)
-
-$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
-	$(COMPILE)
-
-clean :
-	rm -f $(PROG) $(PROG).exe $(OBJECTS)
-
-install :
-	$(INSTALLPROG)
+include ../Makefile.rules

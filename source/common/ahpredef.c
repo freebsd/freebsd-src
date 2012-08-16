@@ -198,7 +198,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_PIC",    "Interrupt Model", "Inform AML of the interrupt model in use"),
     AH_PREDEF ("_PIF",    "Power Source Information", "Returns a Power Source information block"),
     AH_PREDEF ("_PIN",    "Pin List", "Pin list, Resource Descriptor field"),
-    AH_PREDEF ("_PLD",    "Physical Device Location", "Returns a device's physical location information"),
+    AH_PREDEF ("_PLD",    "Physical Location of Device", "Returns a device's physical location information"),
     AH_PREDEF ("_PMC",    "Power Meter Capabilities", "Returns a list of Power Meter capabilities info"),
     AH_PREDEF ("_PMD",    "Power Metered Devices", "Returns a list of devices that are measured by the power meter device"),
     AH_PREDEF ("_PMM",    "Power Meter Measurement", "Returns the current value of the Power Meter"),

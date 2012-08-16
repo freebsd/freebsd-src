@@ -60,9 +60,13 @@
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("adisasm")
 
-
+/*
+ * Older versions of Bison won't emit this external in the generated header.
+ * Newer versions do emit the external, so we don't need to do it.
+ */
+#ifndef ASLCOMPILER_ASLCOMPILERPARSE_H
 extern int                  AslCompilerdebug;
-
+#endif
 
 ACPI_STATUS
 LsDisplayNamespace (

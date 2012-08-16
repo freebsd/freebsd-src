@@ -147,7 +147,7 @@ AsExaminePaths (
     UINT32                  *SourceFileType)
 {
     int                     Status;
-    char                    Response;
+    int                     Response;
 
 
     Status = stat (Source, &Gbl_StatBuf);
@@ -177,11 +177,11 @@ AsExaminePaths (
     if (!AsStricmp (Source, Target))
     {
         printf ("Target path is the same as the source path, overwrite?\n");
-        scanf ("%c", &Response);
+        Response = getchar ();
 
         /* Check response */
 
-        if ((char) Response != 'y')
+        if (Response != 'y')
         {
             return -1;
         }
@@ -194,11 +194,11 @@ AsExaminePaths (
         if (!Status)
         {
             printf ("Target path already exists, overwrite?\n");
-            scanf ("%c", &Response);
+            Response = getchar ();
 
             /* Check response */
 
-            if ((char) Response != 'y')
+            if (Response != 'y')
             {
                 return -1;
             }

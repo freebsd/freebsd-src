@@ -13,6 +13,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
+FINAL_PROG = ../$(BINDIR)/acpiexec
 PROG = $(OBJDIR)/acpiexec
 
 #
@@ -191,12 +192,13 @@ OBJECTS = \
 	$(OBJDIR)/utmisc.o \
 	$(OBJDIR)/utmutex.o \
 	$(OBJDIR)/utobject.o \
+	$(OBJDIR)/utosi.o \
 	$(OBJDIR)/utresrc.o \
 	$(OBJDIR)/utstate.o \
 	$(OBJDIR)/uttrack.o \
-	$(OBJDIR)/utosi.o \
 	$(OBJDIR)/utxface.o \
 	$(OBJDIR)/utxferror.o \
+	$(OBJDIR)/utxfinit.o \
 	$(OBJDIR)/utxfmutex.o
 
 #
@@ -208,17 +210,6 @@ CFLAGS+= \
 LDFLAGS += -lpthread -lrt
 
 #
-# Rules
+# Common Rules
 #
-$(PROG) : $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
-	$(COPYPROG)
-
-$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
-	$(COMPILE)
-
-clean :
-	rm -f $(PROG) $(PROG).exe $(OBJECTS)
-
-install :
-	$(INSTALLPROG)
+include ../Makefile.rules
