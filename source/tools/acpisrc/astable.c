@@ -411,6 +411,15 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_WALK_STATE",                     SRC_TYPE_STRUCT},
     {"ACPI_WHEA_HEADER",                    SRC_TYPE_STRUCT},
 
+    /* Buffers related to predefined ACPI names (_PLD, etc.) */
+
+    {"ACPI_FDE_INFO",                       SRC_TYPE_STRUCT},
+    {"ACPI_GRT_INFO",                       SRC_TYPE_STRUCT},
+    {"ACPI_GTM_INFO",                       SRC_TYPE_STRUCT},
+    {"ACPI_PLD_INFO",                       SRC_TYPE_STRUCT},
+
+    /* Resources */
+
     {"ACPI_RS_LENGTH",                      SRC_TYPE_SIMPLE},
     {"ACPI_RSDESC_SIZE",                    SRC_TYPE_SIMPLE},
 
@@ -474,6 +483,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_TABLE_BGRT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_BOOT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_CPEP",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_CSRT",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_DBG2",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_DBGP",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_DMAR",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_DRTM",                     SRC_TYPE_STRUCT},
@@ -521,6 +532,9 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_ASF_RMCP",                       SRC_TYPE_STRUCT},
     {"ACPI_BERT_REGION",                    SRC_TYPE_STRUCT},
     {"ACPI_CPEP_POLLING",                   SRC_TYPE_STRUCT},
+    {"ACPI_CSRT_GROUP",                     SRC_TYPE_STRUCT},
+    {"ACPI_CSRT_DESCRIPTOR",                SRC_TYPE_STRUCT},
+    {"ACPI_DBG2_DEVICE",                    SRC_TYPE_STRUCT},
     {"ACPI_DMAR_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_DMAR_DEVICE_SCOPE",              SRC_TYPE_STRUCT},
     {"ACPI_DMAR_ATSR",                      SRC_TYPE_STRUCT},

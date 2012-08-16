@@ -13,6 +13,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
+FINAL_PROG = ../$(BINDIR)/acpinames
 PROG = $(OBJDIR)/acpinames
 
 #
@@ -96,10 +97,11 @@ OBJECTS = \
 	$(OBJDIR)/utmisc.o \
 	$(OBJDIR)/utmutex.o \
 	$(OBJDIR)/utobject.o \
-	$(OBJDIR)/utstate.o \
 	$(OBJDIR)/utosi.o \
+	$(OBJDIR)/utstate.o \
+	$(OBJDIR)/utxface.o \
 	$(OBJDIR)/utxferror.o \
-	$(OBJDIR)/utxface.o
+	$(OBJDIR)/utxfinit.o
 
 #
 # Flags specific to acpinames utility
@@ -109,17 +111,6 @@ CFLAGS+= \
     -I$(ACPINAMES)
 
 #
-# Rules
+# Common Rules
 #
-$(PROG) : $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
-	$(COPYPROG)
-
-$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
-	$(COMPILE)
-
-clean :
-	rm -f $(PROG) $(PROG).exe $(OBJECTS)
-
-install :
-	$(INSTALLPROG)
+include ../Makefile.rules

@@ -7,6 +7,7 @@
 # string will be treated as a 64-bit OS. Otherwise, the default is 32-bit.
 #
 HARDWARE_NAME := $(shell uname -m)
+BITS=0
 
 #
 # Main rule will only generate versions that are appropriate for the running
@@ -15,16 +16,22 @@ HARDWARE_NAME := $(shell uname -m)
 all:	${PROGS}
 ${PROGS}: FORCE
 	@cd $(BUILD_DIRECTORY_PATH)/$@; \
-	if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
+	if [ $(BITS) -eq 32 ]; then \
+		echo "Forced 32-bit generation of $@"; \
+		mkdir -p obj32; \
+		make BITS=32; \
+		echo "32-bit version of $@:"; \
+		ls -al ../bin32/$@; \
+	elif [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
 		mkdir -p obj64; \
 		make BITS=64; \
 		echo "64-bit version of $@:"; \
-		ls -al obj64/$@; \
+		ls -al ../bin64/$@; \
 	else \
 		mkdir -p obj32; \
 		make BITS=32; \
 		echo "32-bit version of $@:"; \
-		ls -al obj32/$@; \
+		ls -al ../bin32/$@; \
 	fi;
 
 #
@@ -63,6 +70,7 @@ both:	32 64
 clean:	FORCE
 	@for toolname in ${PROGS}; do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
+		echo "Removing $$toolname"; \
 		pwd; \
 		if [ -d "obj32" ] ; then \
 			make BITS=32 clean; \
@@ -72,6 +80,7 @@ clean:	FORCE
 			make BITS=64 clean; \
 			rmdir obj64; \
 		fi; \
+		echo ""; \
 		); \
 	done;
 
@@ -83,12 +92,13 @@ install:	FORCE
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
 		pwd; \
 		if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
-			make BITS=64 install; \
+			make BITS=64 PROG=$$toolname install; \
 			echo "Installed 64-bit version of $$toolname"; \
 		else \
-			make BITS=32 install; \
+			make BITS=32 PROG=$$toolname install; \
 			echo "Installed 32-bit version of $$toolname"; \
 		fi; \
+		echo ""; \
 		); \
 	done;
 

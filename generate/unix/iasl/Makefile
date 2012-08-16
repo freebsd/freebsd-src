@@ -11,6 +11,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
+FINAL_PROG = ../$(BINDIR)/iasl
 PROG = $(OBJDIR)/iasl
 
 #
@@ -179,8 +180,8 @@ OBJECTS = \
 	$(OBJDIR)/utobject.o \
 	$(OBJDIR)/utresrc.o \
 	$(OBJDIR)/utstate.o \
-	$(OBJDIR)/utxferror.o \
-	$(OBJDIR)/utxface.o
+	$(OBJDIR)/utxface.o \
+	$(OBJDIR)/utxferror.o
 
 INTERMEDIATES = \
 	$(OBJDIR)/aslcompilerlex.c \
@@ -210,11 +211,10 @@ CFLAGS+= \
     -I$(OBJDIR)
 
 #
-# Root rule
+# Common Rules
 #
-$(PROG) : $(INTERMEDIATES) $(MISC) $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
-	$(COPYPROG)
+include ../Makefile.rules
+
 
 #
 # Parser and Lexer - intermediate C files
@@ -238,8 +238,9 @@ $(OBJDIR)/prparserparse.c $(OBJDIR)/prparserparse.h : $(ASL_COMPILER)/prparser.y
 	${YACC} ${YFLAGS} -pPrParser -o$@ $?
 
 
-# Rename headers produced by bison/yacc
-
+#
+# Rename the headers produced by bison/yacc
+#
 $(OBJDIR)/aslcompiler.y.h : $(OBJDIR)/aslcompilerparse.h
 	@echo Copy intermediate file:
 	@cp -f -v $(OBJDIR)/aslcompilerparse.h $(OBJDIR)/aslcompiler.y.h
@@ -276,13 +277,3 @@ $(OBJDIR)/prparserlex.o :      $(OBJDIR)/prparserlex.c
 
 $(OBJDIR)/prparserparse.o :    $(OBJDIR)/prparserparse.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
-
-
-$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
-	$(COMPILE)
-
-clean :
-	rm -f $(PROG) $(PROG).exe $(OBJECTS) $(INTERMEDIATES) $(MISC)
-
-install :
-	$(INSTALLPROG)

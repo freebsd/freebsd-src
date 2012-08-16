@@ -278,19 +278,6 @@ generate_source_package ()
 		#
 		# Unix/Linux-specific activities
 		#
-		
-		# Copy Linux/UNIX utility generation makefiles
-
-		cp generate/linux/Makefile.acpibin      $TEMP_DIR/source/tools/acpibin/Makefile
-		cp generate/linux/Makefile.acpiexec     $TEMP_DIR/source/tools/acpiexec/Makefile
-		cp generate/linux/Makefile.acpihelp     $TEMP_DIR/source/tools/acpihelp/Makefile
-		cp generate/linux/Makefile.acpinames    $TEMP_DIR/source/tools/acpinames/Makefile
-		cp generate/linux/Makefile.acpisrc      $TEMP_DIR/source/tools/acpisrc/Makefile
-		cp generate/linux/Makefile.acpixtract   $TEMP_DIR/source/tools/acpixtract/Makefile
-		cp generate/linux/Makefile.iasl         $TEMP_DIR/source/compiler/Makefile
-		cp generate/linux/README.acpica-unix    $TEMP_DIR/README
-
-		#
 		# For Unix2 case, insert the dual license header into all source files
 		#
 		if [ $LICENSE == Dual ]; then

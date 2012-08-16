@@ -48,11 +48,12 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20120711
+#define ACPI_CA_VERSION                 0x20120816
 
 #include "acconfig.h"
 #include "actypes.h"
 #include "actbl.h"
+#include "acbuffer.h"
 
 /*
  * Globals that are publically available
@@ -183,6 +184,11 @@ AcpiCheckAddressRange (
     ACPI_SIZE               Length,
     BOOLEAN                 Warn);
 
+ACPI_STATUS
+AcpiDecodePldBuffer (
+    UINT8                   *InBuffer,
+    ACPI_SIZE               Length,
+    ACPI_PLD_INFO           **ReturnBuffer);
 
 /*
  * ACPI Memory management
@@ -686,8 +692,7 @@ AcpiEnterSleepStatePrep (
 
 ACPI_STATUS
 AcpiEnterSleepState (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_HW_DEPENDENT_RETURN_STATUS (
 ACPI_STATUS
@@ -696,8 +701,7 @@ AcpiEnterSleepStateS4bios (
 
 ACPI_STATUS
 AcpiLeaveSleepStatePrep (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_STATUS
 AcpiLeaveSleepState (

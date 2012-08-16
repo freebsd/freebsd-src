@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acnames.h - Global names and strings
+ * Name: achaiku.h - OS specific defines, etc. for Haiku (www.haiku-os.org)
  *
  *****************************************************************************/
 
@@ -41,45 +41,65 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACNAMES_H__
-#define __ACNAMES_H__
+#ifndef __ACHAIKU_H__
+#define __ACHAIKU_H__
 
-/* Method names - these methods can appear anywhere in the namespace */
+#include "acgcc.h"
+#include <KernelExport.h>
 
-#define METHOD_NAME__SB_        "_SB_"
-#define METHOD_NAME__HID        "_HID"
-#define METHOD_NAME__CID        "_CID"
-#define METHOD_NAME__UID        "_UID"
-#define METHOD_NAME__ADR        "_ADR"
-#define METHOD_NAME__INI        "_INI"
-#define METHOD_NAME__STA        "_STA"
-#define METHOD_NAME__REG        "_REG"
-#define METHOD_NAME__SEG        "_SEG"
-#define METHOD_NAME__BBN        "_BBN"
-#define METHOD_NAME__PRT        "_PRT"
-#define METHOD_NAME__CRS        "_CRS"
-#define METHOD_NAME__PRS        "_PRS"
-#define METHOD_NAME__AEI        "_AEI"
-#define METHOD_NAME__PRW        "_PRW"
-#define METHOD_NAME__SRS        "_SRS"
-#define METHOD_NAME__PLD        "_PLD"
-
-/* Method names - these methods must appear at the namespace root */
-
-#define METHOD_PATHNAME__PTS    "\\_PTS"
-#define METHOD_PATHNAME__SST    "\\_SI._SST"
-#define METHOD_PATHNAME__WAK    "\\_WAK"
-
-/* Definitions of the predefined namespace names  */
-
-#define ACPI_UNKNOWN_NAME       (UINT32) 0x3F3F3F3F     /* Unknown name is "????" */
-#define ACPI_ROOT_NAME          (UINT32) 0x5F5F5F5C     /* Root name is    "\___" */
-
-#define ACPI_PREFIX_MIXED       (UINT32) 0x69706341     /* "Acpi" */
-#define ACPI_PREFIX_LOWER       (UINT32) 0x69706361     /* "acpi" */
-
-#define ACPI_NS_ROOT_PATH       "\\"
-
-#endif  /* __ACNAMES_H__  */
+struct mutex;
 
 
+/* Host-dependent types and defines for user- and kernel-space ACPICA */
+
+#define ACPI_USE_SYSTEM_CLIBRARY
+#define ACPI_USE_STANDARD_HEADERS
+
+#define ACPI_MUTEX_TYPE             ACPI_OSL_MUTEX
+#define ACPI_MUTEX                  struct mutex *
+
+#define ACPI_USE_NATIVE_DIVIDE
+
+// #define ACPI_THREAD_ID               thread_id
+#define ACPI_SEMAPHORE              sem_id
+#define ACPI_SPINLOCK               spinlock *
+#define ACPI_CPU_FLAGS              cpu_status
+
+#define COMPILER_DEPENDENT_INT64    int64
+#define COMPILER_DEPENDENT_UINT64   uint64
+
+
+#ifdef B_HAIKU_64_BIT
+#define ACPI_MACHINE_WIDTH          64
+#else
+#define ACPI_MACHINE_WIDTH          32
+#endif
+
+
+#ifdef _KERNEL_MODE
+/* Host-dependent types and defines for in-kernel ACPICA */
+
+/* ACPICA cache implementation is adequate. */
+#define ACPI_USE_LOCAL_CACHE
+
+#define ACPI_FLUSH_CPU_CACHE() __asm __volatile("wbinvd");
+
+/* Based on FreeBSD's due to lack of documentation */
+extern int AcpiOsAcquireGlobalLock(uint32 *lock);
+extern int AcpiOsReleaseGlobalLock(uint32 *lock);
+
+#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)    do {                \
+        (Acq) = AcpiOsAcquireGlobalLock(&((GLptr)->GlobalLock));    \
+} while (0)
+
+#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)    do {                \
+        (Acq) = AcpiOsReleaseGlobalLock(&((GLptr)->GlobalLock));    \
+} while (0)
+
+#else /* _KERNEL_MODE */
+/* Host-dependent types and defines for user-space ACPICA */
+
+#error "We only support kernel mode ACPI atm."
+
+#endif /* _KERNEL_MODE */
+#endif /* __ACHAIKU_H__ */
