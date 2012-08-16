@@ -2127,11 +2127,14 @@ hdaa_audio_ctl_dev_volume(struct hdaa_pcm_devinfo *pdevinfo, unsigned dev)
 		w = hdaa_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if (w->bindas < 0 && pdevinfo->index != 0)
-			continue;
-		if (w->bindas != pdevinfo->playas &&
-		    w->bindas != pdevinfo->recas)
-			continue;
+		if (w->bindas < 0) {
+			if (pdevinfo->index != 0)
+				continue;
+		} else {
+			if (w->bindas != pdevinfo->playas &&
+			    w->bindas != pdevinfo->recas)
+				continue;
+		}
 		if (dev == SOUND_MIXER_RECLEV &&
 		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
 			hdaa_audio_ctl_dest_volume(pdevinfo, dev,
