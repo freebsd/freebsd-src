@@ -58,7 +58,7 @@ SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfload.c tbxfroot.c
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
 SRCS+=	utdelete.c uteval.c utexcep.c utglobal.c utids.c utinit.c utlock.c
 SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c
-SRCS+=	utxface.c utxferror.c
+SRCS+=	utxface.c utxferror.c utxfinit.c
 #SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers
