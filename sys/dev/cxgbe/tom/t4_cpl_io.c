@@ -1262,6 +1262,51 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return (0);
 }
 
+static int
+do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_set_tcb_rpl *cpl = (const void *)(rss + 1);
+	unsigned int tid = GET_TID(cpl);
+#ifdef INVARIANTS
+	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
+#endif
+
+	KASSERT(opcode == CPL_SET_TCB_RPL,
+	    ("%s: unexpected opcode 0x%x", __func__, opcode));
+	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
+
+	if (tid >= sc->tids.ftid_base &&
+	    tid < sc->tids.ftid_base + sc->tids.nftids)
+		return (t4_filter_rpl(iq, rss, m)); /* TCB is a filter */
+
+	CXGBE_UNIMPLEMENTED(__func__);
+}
+
+void
+t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, uint16_t word,
+    uint64_t mask, uint64_t val)
+{
+	struct wrqe *wr;
+	struct cpl_set_tcb_field *req;
+
+	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
+	if (wr == NULL) {
+		/* XXX */
+		panic("%s: allocation failure.", __func__);
+	}
+	req = wrtod(wr);
+
+	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
+	req->reply_ctrl = htobe16(V_NO_REPLY(1) |
+	    V_QUEUENO(toep->ofld_rxq->iq.abs_id));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+
+	t4_wrq_tx(sc, wr);
+}
+
 void
 t4_init_cpl_io_handlers(struct adapter *sc)
 {
@@ -1272,5 +1317,13 @@ t4_init_cpl_io_handlers(struct adapter *sc)
 	t4_register_cpl_handler(sc, CPL_ABORT_RPL_RSS, do_abort_rpl);
 	t4_register_cpl_handler(sc, CPL_RX_DATA, do_rx_data);
 	t4_register_cpl_handler(sc, CPL_FW4_ACK, do_fw4_ack);
+	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, do_set_tcb_rpl);
+}
+
+void
+t4_uninit_cpl_io_handlers(struct adapter *sc)
+{
+
+	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
 }
 #endif
