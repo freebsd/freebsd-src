@@ -105,34 +105,34 @@ UtAttachNameseg (
  *
  ******************************************************************************/
 
+#define ACPI_TABLE_HELP_FORMAT  "%8u) %s    %s\n"
+
 void
 UtDisplaySupportedTables (
     void)
 {
     ACPI_DMTABLE_DATA       *TableData;
-    UINT32                  i = 6;
+    UINT32                  i;
 
 
-    printf ("\nACPI tables supported by iASL subsystems in "
-        "version %8.8X:\n"
-        "  ASL and Data Table compilers\n"
-        "  AML and Data Table disassemblers\n"
-        "  ACPI table template generator\n\n", ACPI_CA_VERSION);
+    printf ("\nACPI tables supported by iASL version %8.8X:\n"
+        "  (Compiler, Disassembler, Template Generator)\n\n",
+        ACPI_CA_VERSION);
 
     /* Special tables */
 
-    printf ("%8u) %s    %s\n", 1, ACPI_SIG_DSDT, "Differentiated System Description Table");
-    printf ("%8u) %s    %s\n", 2, ACPI_SIG_SSDT, "Secondary System Description Table");
-    printf ("%8u) %s    %s\n", 3, ACPI_SIG_FADT, "Fixed ACPI Description Table (FADT)");
-    printf ("%8u) %s    %s\n", 4, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
-    printf ("%8u) %s    %s\n", 5, ACPI_RSDP_NAME, "Root System Description Pointer");
+    printf ("  Special tables and AML tables:\n");
+    printf (ACPI_TABLE_HELP_FORMAT, 1, ACPI_RSDP_NAME, "Root System Description Pointer");
+    printf (ACPI_TABLE_HELP_FORMAT, 2, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
+    printf (ACPI_TABLE_HELP_FORMAT, 3, ACPI_SIG_DSDT, "Differentiated System Description Table");
+    printf (ACPI_TABLE_HELP_FORMAT, 4, ACPI_SIG_SSDT, "Secondary System Description Table");
 
     /* All data tables with common table header */
 
-    for (TableData = AcpiDmTableData; TableData->Signature; TableData++)
+    printf ("\n  Standard ACPI data tables:\n");
+    for (TableData = AcpiDmTableData, i = 5; TableData->Signature; TableData++, i++)
     {
-        printf ("%8u) %s    %s\n", i, TableData->Signature, TableData->Name);
-        i++;
+        printf (ACPI_TABLE_HELP_FORMAT, i, TableData->Signature, TableData->Name);
     }
 }
 
@@ -591,36 +591,23 @@ UtCheckIntegerRange (
     UINT32                  LowValue,
     UINT32                  HighValue)
 {
-    char                    *ParseError = NULL;
-    char                    Buffer[64];
-
 
     if (!Op)
     {
         return NULL;
     }
 
-    if (Op->Asl.Value.Integer < LowValue)
+    if ((Op->Asl.Value.Integer < LowValue) ||
+        (Op->Asl.Value.Integer > HighValue))
     {
-        ParseError = "Value below valid range";
-        Op->Asl.Value.Integer = LowValue;
+        sprintf (MsgBuffer, "0x%X, allowable: 0x%X-0x%X",
+            (UINT32) Op->Asl.Value.Integer, LowValue, HighValue);
+
+        AslError (ASL_ERROR, ASL_MSG_RANGE, Op, MsgBuffer);
+        return (NULL);
     }
 
-    if (Op->Asl.Value.Integer > HighValue)
-    {
-        ParseError = "Value above valid range";
-        Op->Asl.Value.Integer = HighValue;
-    }
-
-    if (ParseError)
-    {
-        sprintf (Buffer, "%s 0x%X-0x%X", ParseError, LowValue, HighValue);
-        AslCompilererror (Buffer);
-
-        return NULL;
-    }
-
-    return Op;
+    return (Op);
 }
 
 

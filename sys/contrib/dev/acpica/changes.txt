@@ -1,4 +1,97 @@
 ----------------------------------------
+16 August 2012. Summary of changes for version 20120816:
+
+This release is available at https://www.acpica.org/downloads
+The ACPI 5.0 specification is available at www.acpi.info
+
+1) ACPICA Kernel-resident Subsystem:
+
+Removed all use of the deprecated _GTS and _BFS predefined methods. The _GTS 
+(Going To Sleep) and _BFS (Back From Sleep) methods are essentially 
+deprecated and will probably be removed from the ACPI specification. Windows 
+does not invoke them, and reportedly never will. The final nail in the coffin 
+is that the ACPI specification states that these methods must be run with 
+interrupts off, which is not going to happen in a kernel interpreter. Note: 
+Linux has removed all use of the methods also. It was discovered that 
+invoking these functions caused failures on some machines, probably because 
+they were never tested since Windows does not call them. Affects two external 
+interfaces, AcpiEnterSleepState and AcpiLeaveSleepStatePrep. Tang Feng. 
+ACPICA BZ 969.
+
+Implemented support for complex bit-packed buffers returned from the _PLD 
+(Physical Location of Device) predefined method. Adds a new external 
+interface, AcpiDecodePldBuffer that parses the buffer into a more usable C 
+structure. Note: C Bitfields cannot be used for this type of predefined 
+structure since the memory layout of individual bitfields is not defined by 
+the C language. In addition, there are endian concerns where a compiler will 
+change the bitfield ordering based on the machine type. The new ACPICA 
+interface eliminates these issues, and should be called after _PLD is 
+executed. ACPICA BZ 954.
+
+Implemented a change to allow a scope change to root (via "Scope (\)") during 
+execution of module-level ASL code (code that is executed at table load 
+time.) Lin Ming.
+
+Added the Windows8/Server2012 string for the _OSI method. This change adds a 
+new _OSI string, "Windows 2012" for both Windows 8 and Windows Server 2012.
+
+Added header support for the new ACPI tables DBG2 (Debug Port Table Type 2) 
+and CSRT (Core System Resource Table).
+
+Added struct header support for the _FDE, _GRT, _GTM, and _SRT predefined 
+names. This simplifies access to the buffers returned by these predefined 
+names. Adds a new file, include/acbuffer.h. ACPICA BZ 956.
+
+GPE support: Removed an extraneous parameter from the various low-level 
+internal GPE functions. Tang Feng.
+
+Removed the linux makefiles from the unix packages. The generate/linux 
+makefiles are obsolete and have been removed from the unix tarball release 
+packages. The replacement makefiles are under generate/unix, and there is a 
+top-level makefile under the main acpica directory. ACPICA BZ 967, 912.
+
+Updates for Unix makefiles:
+1) Add -D_FORTIFY_SOURCE=2 for gcc generation. Arjan van de Ven.
+2) Update linker flags (move to end of command line) for AcpiExec utility. 
+Guan Chao.
+
+Split ACPICA initialization functions to new file, utxfinit.c. Split from 
+utxface.c to improve modularity and reduce file size.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  93.5K Code, 25.3K Data, 118.8K Total
+    Debug Version:     173.7K Code, 74.0K Data, 247.7K Total
+  Current Release:
+    Non-Debug Version:  93.8K Code, 25.3K Data, 119.1K Total
+    Debug Version:     175.7K Code, 74.8K Data, 250.5K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a problem with constant folding for fixed-length constant 
+expressions. The constant-folding code was not being invoked for constant 
+expressions that allow the use of type 3/4/5 opcodes to generate constants 
+for expressions such as ByteConstExpr, WordConstExpr, etc. This could result 
+in the generation of invalid AML bytecode. ACPICA BZ 970.
+
+iASL: Fixed a generation issue on newer versions of Bison. Newer versions 
+apparently automatically emit some of the necessary externals. This change 
+handles these versions in order to eliminate generation warnings.
+
+Disassembler: Added support to decode the DBG2 and CSRT ACPI tables.
+
+Disassembler: Add support to decode _PLD buffers. The decoded buffer appears 
+within comments in the output file.
+
+Debugger: Fixed a regression with the "Threads" command where 
+AE_BAD_PARAMETER was always returned.
+
+----------------------------------------
 11 July 2012. Summary of changes for version 20120711:
 
 This release is available at https://www.acpica.org/downloads The ACPI 5.0 
