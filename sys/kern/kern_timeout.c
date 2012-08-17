@@ -44,11 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
-#include <sys/condvar.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -395,10 +393,6 @@ callout_process(struct bintime *now)
 	int cpu, depth_dir, first, future, mpcalls_dir, last, lockcalls_dir,
 	    need_softclock; 
 
-	/*
-	 * Process callouts at a very low cpu priority, so we don't keep the
-	 * relatively high clock interrupt priority any longer than necessary.
-	 */
 	need_softclock = 0;
 	depth_dir = 0;
 	mpcalls_dir = 0;
