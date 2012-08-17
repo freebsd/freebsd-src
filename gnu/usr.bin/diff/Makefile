@@ -27,10 +27,4 @@ SUBDIR+=doc
 DPADD=	${LIBGNUREGEX}
 LDADD=	-lgnuregex
 
-.for f in diff.c context.c
-${f}: ${DIFFSRC}/${f} ${.CURDIR}/${f}.diff
-	patch -s -o ${.TARGET} < ${.CURDIR}/${f}.diff ${DIFFSRC}/${f}
-CLEANFILES+= ${f}
-.endfor
-
 .include <bsd.prog.mk>
