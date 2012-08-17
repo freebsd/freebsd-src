@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
+static struct protosw ddp_protosw;
+static struct pr_usrreqs ddp_usrreqs;
+
 /* Module ops */
 static int t4_tom_mod_load(void);
 static int t4_tom_mod_unload(void);
@@ -167,6 +170,8 @@ offload_socket(struct socket *so, struct toepcb *toep)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	sb->sb_flags |= SB_NOCOALESCE;
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		so->so_proto = &ddp_protosw;
 	SOCKBUF_UNLOCK(sb);
 
 	/* Update TCP PCB */
@@ -234,6 +239,9 @@ release_offload_resources(struct toepcb *toep)
 
 	CTR4(KTR_CXGBE, "%s: toep %p (tid %d, l2te %p)",
 	    __func__, toep, tid, toep->l2te);
+
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		release_ddp_resources(toep);
 
 	if (toep->l2te)
 		t4_l2t_release(toep->l2te);
@@ -568,6 +576,8 @@ free_tom_data(struct adapter *sc, struct tom_data *td)
 	    ("%s: lctx hash table is not empty.", __func__));
 
 	t4_uninit_l2t_cpl_handlers(sc);
+	t4_uninit_cpl_io_handlers(sc);
+	t4_uninit_ddp(sc, td);
 
 	if (td->listen_mask != 0)
 		hashdestroy(td->listen_hash, M_CXGBE, td->listen_mask);
@@ -612,6 +622,8 @@ t4_tom_activate(struct adapter *sc)
 	rc = alloc_tid_tabs(&sc->tids);
 	if (rc != 0)
 		goto done;
+
+	t4_init_ddp(sc, td);
 
 	/* CPL handlers */
 	t4_init_connect_cpl_handlers(sc);
@@ -688,6 +700,16 @@ static int
 t4_tom_mod_load(void)
 {
 	int rc;
+	struct protosw *tcp_protosw;
+
+	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
+	if (tcp_protosw == NULL)
+		return (ENOPROTOOPT);
+
+	bcopy(tcp_protosw, &ddp_protosw, sizeof(ddp_protosw));
+	bcopy(tcp_protosw->pr_usrreqs, &ddp_usrreqs, sizeof(ddp_usrreqs));
+	ddp_usrreqs.pru_soreceive = t4_soreceive_ddp;
+	ddp_protosw.pr_usrreqs = &ddp_usrreqs;
 
 	rc = t4_register_uld(&tom_uld_info);
 	if (rc != 0)
