@@ -3921,8 +3921,7 @@ key_ismyaddr(sa)
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
 		IN_IFADDR_RLOCK();
-		for (ia = V_in_ifaddrhead.tqh_first; ia;
-		     ia = ia->ia_link.tqe_next)
+		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
 		{
 			if (sin->sin_family == ia->ia_addr.sin_family &&
 			    sin->sin_len == ia->ia_addr.sin_len &&
