@@ -881,7 +881,7 @@ t4opt_to_tcpopt(const struct tcp_options *t4opt, struct tcpopt *to)
  */
 static uint32_t
 calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
-    const struct tcp_options *tcpopt, struct tcphdr *th)
+    const struct tcp_options *tcpopt, struct tcphdr *th, int ulp_mode)
 {
 	uint32_t opt2 = 0;
 	struct sge_ofld_rxq *ofld_rxq = &sc->sge.ofld_rxq[rxqid];
@@ -901,6 +901,11 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
 	opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
 	opt2 |= F_RSS_QUEUE_VALID | V_RSS_QUEUE(ofld_rxq->iq.abs_id);
+
+#ifdef USE_DDP_RX_FLOW_CONTROL
+	if (ulp_mode == ULP_MODE_TCPDDP)
+		opt2 |= F_RX_FC_VALID | F_RX_FC_DDP;
+#endif
 
 	return htobe32(opt2);
 }
@@ -985,7 +990,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	struct l2t_entry *e = NULL;
 	struct rtentry *rt;
 	struct sockaddr_in nam;
-	int rscale, mtu_idx, rx_credits, rxqid;
+	int rscale, mtu_idx, rx_credits, rxqid, ulp_mode;
 	struct synq_entry *synqe = NULL;
 	int reject_reason;
 	uint16_t vid;
@@ -1108,9 +1113,13 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	get_qids_from_mbuf(m, NULL, &rxqid);
 
 	INIT_TP_WR_MIT_CPL(rpl, CPL_PASS_ACCEPT_RPL, tid);
-	rpl->opt0 = calc_opt0(so, pi, e, mtu_idx, rscale, rx_credits,
-	    ULP_MODE_NONE);
-	rpl->opt2 = calc_opt2p(sc, pi, rxqid, &cpl->tcpopt, &th);
+	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0) {
+		ulp_mode = ULP_MODE_TCPDDP;
+		synqe_set_flag(synqe, TPF_SYNQE_TCPDDP);
+	} else
+		ulp_mode = ULP_MODE_NONE;
+	rpl->opt0 = calc_opt0(so, pi, e, mtu_idx, rscale, rx_credits, ulp_mode);
+	rpl->opt2 = calc_opt2p(sc, pi, rxqid, &cpl->tcpopt, &th, ulp_mode);
 
 	synqe->tid = tid;
 	synqe->lctx = lctx;
@@ -1313,7 +1322,10 @@ reset:
 	}
 	toep->tid = tid;
 	toep->l2te = &sc->l2t->l2tab[synqe->l2e_idx];
-	toep->ulp_mode = ULP_MODE_NONE;
+	if (synqe_flag(synqe, TPF_SYNQE_TCPDDP))
+		set_tcpddp_ulp_mode(toep);
+	else
+		toep->ulp_mode = ULP_MODE_NONE;
 	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
 	toep->rx_credits = synqe->rcv_bufsize;
 

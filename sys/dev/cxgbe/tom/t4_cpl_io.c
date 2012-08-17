@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "common/t4_tcb.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -299,11 +300,13 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 }
 
 static int
-send_rx_credits(struct adapter *sc, struct toepcb *toep, uint32_t credits)
+send_rx_credits(struct adapter *sc, struct toepcb *toep, int credits)
 {
 	struct wrqe *wr;
 	struct cpl_rx_data_ack *req;
 	uint32_t dack = F_RX_DACK_CHANGE | V_RX_DACK_MODE(1);
+
+	KASSERT(credits >= 0, ("%s: %d credits", __func__, credits));
 
 	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
 	if (wr == NULL)
@@ -323,25 +326,28 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 	struct adapter *sc = tod->tod_softc;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
-	struct sockbuf *so_rcv = &so->so_rcv;
+	struct sockbuf *sb = &so->so_rcv;
 	struct toepcb *toep = tp->t_toe;
-	int must_send;
+	int credits;
 
 	INP_WLOCK_ASSERT(inp);
 
-	SOCKBUF_LOCK(so_rcv);
-	KASSERT(toep->enqueued >= so_rcv->sb_cc,
-	    ("%s: so_rcv->sb_cc > enqueued", __func__));
-	toep->rx_credits += toep->enqueued - so_rcv->sb_cc;
-	toep->enqueued = so_rcv->sb_cc;
-	SOCKBUF_UNLOCK(so_rcv);
+	SOCKBUF_LOCK(sb);
+	KASSERT(toep->sb_cc >= sb->sb_cc,
+	    ("%s: sb %p has more data (%d) than last time (%d).",
+	    __func__, sb, sb->sb_cc, toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	toep->sb_cc = sb->sb_cc;
+	credits = toep->rx_credits;
+	SOCKBUF_UNLOCK(sb);
 
-	must_send = toep->rx_credits + 16384 >= tp->rcv_wnd;
-	if (must_send || toep->rx_credits >= 15 * 1024) {
-		int credits;
+	if (credits > 0 &&
+	    (credits + 16384 >= tp->rcv_wnd || credits >= 15 * 1024)) {
 
-		credits = send_rx_credits(sc, toep, toep->rx_credits);
+		credits = send_rx_credits(sc, toep, credits);
+		SOCKBUF_LOCK(sb);
 		toep->rx_credits -= credits;
+		SOCKBUF_UNLOCK(sb);
 		tp->rcv_wnd += credits;
 		tp->rcv_adv += credits;
 	}
@@ -537,7 +543,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
 
-	if (toep->ulp_mode != ULP_MODE_NONE)
+	if (__predict_false(toep->ulp_mode != ULP_MODE_NONE &&
+	    toep->ulp_mode != ULP_MODE_TCPDDP))
 		CXGBE_UNIMPLEMENTED("ulp_mode");
 
 	/*
@@ -765,7 +772,8 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct toepcb *toep = lookup_tid(sc, tid);
 	struct inpcb *inp = toep->inp;
 	struct tcpcb *tp = NULL;
-	struct socket *so = NULL;
+	struct socket *so;
+	struct sockbuf *sb;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -785,10 +793,35 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN))
 		goto done;
 
-	so = inp->inp_socket;
-
-	socantrcvmore(so);
 	tp->rcv_nxt++;	/* FIN */
+
+	so = inp->inp_socket;
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
+	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
+		m = m_get(M_NOWAIT, MT_DATA);
+		if (m == NULL)
+			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
+
+		m->m_len = be32toh(cpl->rcv_nxt) - tp->rcv_nxt;
+		m->m_flags |= M_DDP;	/* Data is already where it should be */
+		m->m_data = "nothing to see here";
+		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
+
+		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
+
+		KASSERT(toep->sb_cc >= sb->sb_cc,
+		    ("%s: sb %p has more data (%d) than last time (%d).",
+		    __func__, sb, sb->sb_cc, toep->sb_cc));
+		toep->rx_credits += toep->sb_cc - sb->sb_cc;
+#ifdef USE_DDP_RX_FLOW_CONTROL
+		toep->rx_credits -= m->m_len;	/* adjust for F_RX_FC_DDP */
+#endif
+		sbappendstream_locked(sb, m);
+		toep->sb_cc = sb->sb_cc;
+	}
+	socantrcvmore_locked(so);	/* unlocks the sockbuf */
+
 	KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
 	    ("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
 	    be32toh(cpl->rcv_nxt)));
@@ -1046,7 +1079,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct inpcb *inp = toep->inp;
 	struct tcpcb *tp;
 	struct socket *so;
-	struct sockbuf *so_rcv;
+	struct sockbuf *sb;
+	int len;
 
 	if (__predict_false(toepcb_flag(toep, TPF_SYNQE))) {
 		/*
@@ -1064,11 +1098,12 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/* strip off CPL header */
 	m_adj(m, sizeof(*cpl));
+	len = m->m_pkthdr.len;
 
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) {
 		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, m->m_pkthdr.len, inp->inp_flags);
+		    __func__, tid, len, inp->inp_flags);
 		INP_WUNLOCK(inp);
 		m_freem(m);
 		return (0);
@@ -1084,21 +1119,20 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 #endif
 
-	tp->rcv_nxt += m->m_pkthdr.len;
-	KASSERT(tp->rcv_wnd >= m->m_pkthdr.len,
-	    ("%s: negative window size", __func__));
-	tp->rcv_wnd -= m->m_pkthdr.len;
+	tp->rcv_nxt += len;
+	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
+	tp->rcv_wnd -= len;
 	tp->t_rcvtime = ticks;
 
 	so = inp_inpcbtosocket(inp);
-	so_rcv = &so->so_rcv;
-	SOCKBUF_LOCK(so_rcv);
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
 
-	if (__predict_false(so_rcv->sb_state & SBS_CANTRCVMORE)) {
+	if (__predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
 		CTR3(KTR_CXGBE, "%s: tid %u, excess rx (%d bytes)",
-		    __func__, tid, m->m_pkthdr.len);
+		    __func__, tid, len);
 		m_freem(m);
-		SOCKBUF_UNLOCK(so_rcv);
+		SOCKBUF_UNLOCK(sb);
 		INP_WUNLOCK(inp);
 
 		INP_INFO_WLOCK(&V_tcbinfo);
@@ -1112,23 +1146,76 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/* receive buffer autosize */
-	if (so_rcv->sb_flags & SB_AUTOSIZE &&
+	if (sb->sb_flags & SB_AUTOSIZE &&
 	    V_tcp_do_autorcvbuf &&
-	    so_rcv->sb_hiwat < V_tcp_autorcvbuf_max &&
-	    m->m_pkthdr.len > (sbspace(so_rcv) / 8 * 7)) {
-		unsigned int hiwat = so_rcv->sb_hiwat;
+	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
+	    len > (sbspace(sb) / 8 * 7)) {
+		unsigned int hiwat = sb->sb_hiwat;
 		unsigned int newsize = min(hiwat + V_tcp_autorcvbuf_inc,
 		    V_tcp_autorcvbuf_max);
 
-		if (!sbreserve_locked(so_rcv, newsize, so, NULL))
-			so_rcv->sb_flags &= ~SB_AUTOSIZE;
+		if (!sbreserve_locked(sb, newsize, so, NULL))
+			sb->sb_flags &= ~SB_AUTOSIZE;
 		else
 			toep->rx_credits += newsize - hiwat;
 	}
-	toep->enqueued += m->m_pkthdr.len;
-	sbappendstream_locked(so_rcv, m);
+
+	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
+
+		if (changed) {
+			if (__predict_false(!(toep->ddp_flags & DDP_SC_REQ))) {
+				/* XXX: handle this if legitimate */
+				panic("%s: unexpected DDP state change %d",
+				    __func__, cpl->ddp_off);
+			}
+			toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
+		}
+
+		if ((toep->ddp_flags & DDP_OK) == 0 &&
+		    time_uptime >= toep->ddp_disabled + DDP_RETRY_WAIT) {
+			toep->ddp_score = DDP_LOW_SCORE;
+			toep->ddp_flags |= DDP_OK;
+			CTR3(KTR_CXGBE, "%s: tid %u DDP_OK @ %u",
+			    __func__, tid, time_uptime);
+		}
+
+		if (toep->ddp_flags & DDP_ON) {
+
+			/*
+			 * CPL_RX_DATA with DDP on can only be an indicate.  Ask
+			 * soreceive to post a buffer or disable DDP.  The
+			 * payload that arrived in this indicate is appended to
+			 * the socket buffer as usual.
+			 */
+
+#if 0
+			CTR5(KTR_CXGBE,
+			    "%s: tid %u (0x%x) DDP indicate (seq 0x%x, len %d)",
+			    __func__, tid, toep->flags, be32toh(cpl->seq), len);
+#endif
+			sb->sb_flags |= SB_DDP_INDICATE;
+		} else if ((toep->ddp_flags & (DDP_OK|DDP_SC_REQ)) == DDP_OK &&
+		    tp->rcv_wnd > DDP_RSVD_WIN && len >= sc->tt.ddp_thres) {
+
+			/*
+			 * DDP allowed but isn't on (and a request to switch it
+			 * on isn't pending either), and conditions are ripe for
+			 * it to work.  Switch it on.
+			 */
+
+			enable_ddp(sc, toep);
+		}
+	}
+
+	KASSERT(toep->sb_cc >= sb->sb_cc,
+	    ("%s: sb %p has more data (%d) than last time (%d).",
+	    __func__, sb, sb->sb_cc, toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	sbappendstream_locked(sb, m);
+	toep->sb_cc = sb->sb_cc;
 	sorwakeup_locked(so);
-	SOCKBUF_UNLOCK_ASSERT(so_rcv);
+	SOCKBUF_UNLOCK_ASSERT(sb);
 
 	INP_WUNLOCK(inp);
 	return (0);
