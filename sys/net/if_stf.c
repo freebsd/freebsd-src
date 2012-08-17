@@ -618,10 +618,7 @@ stf_checkaddr4(sc, in, inifp)
 	 * reject packets with broadcast
 	 */
 	IN_IFADDR_RLOCK();
-	for (ia4 = TAILQ_FIRST(&V_in_ifaddrhead);
-	     ia4;
-	     ia4 = TAILQ_NEXT(ia4, ia_link))
-	{
+	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
 		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
