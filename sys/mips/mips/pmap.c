@@ -179,7 +179,6 @@ static vm_page_t pmap_pv_reclaim(pmap_t locked_pmap);
 static void pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
     vm_offset_t va);
-static __inline void pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va,
@@ -2664,8 +2663,6 @@ pmap_remove_pages(pmap_t pmap)
 
 /*
  * pmap_testbit tests bits in pte's
- * note that the testbit/changebit routines are inline,
- * and a lot of things compile-time evaluate.
  */
 static boolean_t
 pmap_testbit(vm_page_t m, int bit)
@@ -2689,51 +2686,6 @@ pmap_testbit(vm_page_t m, int bit)
 			break;
 	}
 	return (rv);
-}
-
-/*
- * this routine is used to clear dirty bits in ptes
- */
-static __inline void
-pmap_changebit(vm_page_t m, int bit, boolean_t setem)
-{
-	pv_entry_t pv;
-	pmap_t pmap;
-	pt_entry_t *pte;
-
-	if (m->oflags & VPO_UNMANAGED)
-		return;
-
-	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	/*
-	 * Loop over all current mappings setting/clearing as appropos If
-	 * setting RO do we need to clear the VAC?
-	 */
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		pte = pmap_pte(pmap, pv->pv_va);
-		if (setem) {
-			*pte |= bit;
-			pmap_update_page(pmap, pv->pv_va, *pte);
-		} else {
-			pt_entry_t pbits = *pte;
-
-			if (pbits & bit) {
-				if (bit == PTE_D) {
-					if (pbits & PTE_D)
-						vm_page_dirty(m);
-					*pte = (pbits & ~PTE_D) | PTE_RO;
-				} else {
-					*pte = pbits & ~bit;
-				}
-				pmap_update_page(pmap, pv->pv_va, *pte);
-			}
-		}
-		PMAP_UNLOCK(pmap);
-	}
-	if (!setem && bit == PTE_D)
-		vm_page_aflag_clear(m, PGA_WRITEABLE);
 }
 
 /*
@@ -2896,6 +2848,9 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 void
 pmap_clear_modify(vm_page_t m)
 {
+	pmap_t pmap;
+	pt_entry_t *pte;
+	pv_entry_t pv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
@@ -2911,10 +2866,17 @@ pmap_clear_modify(vm_page_t m)
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
-	if (m->md.pv_flags & PV_TABLE_MOD) {
-		pmap_changebit(m, PTE_D, FALSE);
-		m->md.pv_flags &= ~PV_TABLE_MOD;
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = PV_PMAP(pv);
+		PMAP_LOCK(pmap);
+		pte = pmap_pte(pmap, pv->pv_va);
+		if (pte_test(pte, PTE_D)) {
+			pte_clear(pte, PTE_D);
+			pmap_update_page(pmap, pv->pv_va, *pte);
+		}
+		PMAP_UNLOCK(pmap);
 	}
+	m->md.pv_flags &= ~PV_TABLE_MOD;
 	rw_wunlock(&pvh_global_lock);
 }
 
