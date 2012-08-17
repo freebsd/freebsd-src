@@ -225,6 +225,10 @@ int nfs_directio_enable = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &nfs_directio_enable, 0, "Enable NFS directio");
 
+static u_int	nametimeo = NFS_DEFAULT_NAMETIMEO;
+SYSCTL_UINT(_vfs_nfs, OID_AUTO, name_timeout, CTLFLAG_RW,
+	   &nametimeo, 0, "Positive name cache entry timeout");
+
 static u_int	negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 SYSCTL_UINT(_vfs_nfs, OID_AUTO, negative_name_timeout, CTLFLAG_RW,
 	   &negnametimeo, 0, "Negative name cache entry timeout");
@@ -908,7 +912,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * We only accept a positive hit in the cache if the
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
-		 * to doing a lookup RPC.
+		 * to doing a lookup RPC.  We also only trust cache
+		 * entries for less than nametimeo seconds.
 		 *
 		 * To better handle stale file handles and attributes,
 		 * clear the attribute cache of this node if it is a
@@ -927,7 +932,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			newnp->n_attrstamp = 0;
 			mtx_unlock(&newnp->n_mtx);
 		}
-		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td) == 0 &&
+		if ((u_int)(ticks - ncticks) < (nametimeo * hz) &&
+		    VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td) == 0 &&
 		    timespeccmp(&vattr.va_ctime, &nctime, ==)) {
 			nfsstats.lookupcache_hits++;
 			if (cnp->cn_nameiop != LOOKUP &&
