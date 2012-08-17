@@ -210,6 +210,7 @@
 #define	FREEBSD32_SYS_ffclock_getcounter	241
 #define	FREEBSD32_SYS_ffclock_setestimate	242
 #define	FREEBSD32_SYS_ffclock_getestimate	243
+#define	FREEBSD32_SYS_clock_getcpuclockid2	247
 #define	FREEBSD32_SYS_minherit	250
 #define	FREEBSD32_SYS_rfork	251
 #define	FREEBSD32_SYS_openbsd_poll	252
