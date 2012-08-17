@@ -278,6 +278,11 @@ routehandler(struct protocol *p)
 			    ifi->name);
 			goto die;
 		}
+		if (!interface_link_status(ifi->name)) {
+			warning("Interface %s is down, dhclient exiting",
+			    ifi->name);
+			goto die;
+		}
 		break;
 	case RTM_IFANNOUNCE:
 		ifan = (struct if_announcemsghdr *)rtm;
@@ -316,6 +321,8 @@ routehandler(struct protocol *p)
 
 die:
 	script_init("FAIL", NULL);
+	if (ifi->client->active)
+		script_write_params("old_", ifi->client->active);
 	if (ifi->client->alias)
 		script_write_params("alias_", ifi->client->alias);
 	script_go();
