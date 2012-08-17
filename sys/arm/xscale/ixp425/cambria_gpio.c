@@ -435,8 +435,7 @@ cambria_gpio_attach(device_t dev)
 	sc->sc_iot = ixp425_softc->sc_iot;
 	sc->sc_gpio_ioh = ixp425_softc->sc_gpio_ioh;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	for (pin = 0; pin < GPIO_PINS; pin++) {
 		struct cambria_gpio_pin *p = &cambria_gpio_pins[pin];
