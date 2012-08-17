@@ -1118,6 +1118,7 @@ product ASUS A730W		0x4202	ASUS MyPal A730W
 product ASUS P535		0x420f	ASUS P535 PDA
 product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
 product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
+product ASUS USB_N53		0x179d	ASUS Black Diamond Dual Band USB-N53
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
