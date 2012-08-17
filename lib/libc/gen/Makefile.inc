@@ -8,7 +8,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
 	_thread_init.c \
 	alarm.c arc4random.c assert.c auxv.c basename.c check_utility_compat.c \
-	clock.c closedir.c confstr.c \
+	clock.c clock_getcpuclockid.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirfd.c dirname.c disklabel.c \
 	dlfcn.c drand48.c elf_utils.c erand48.c err.c errlst.c errno.c \
 	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
