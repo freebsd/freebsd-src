@@ -187,7 +187,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 		if ((bp->b_flags & B_CACHE) == 0) {
 #ifdef DIAGNOSTIC
 			if (!daddr)
-				panic("ufs_bmaparray: indirect block not in cache");
+				panic("ext2_bmaparray: indirect block not in cache");
 #endif
 			bp->b_blkno = blkptrtodb(ump, daddr);
 			bp->b_iocmd = BIO_READ;
