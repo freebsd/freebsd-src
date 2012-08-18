@@ -428,6 +428,7 @@ soc_identify(void)
 
 	switch (d) {
 	case MV_DEV_88F6281:
+	case MV_DEV_88F6282:
 		mode = read_cpu_ctrl(CPU_L2_CONFIG) & CPU_L2_CONFIG_MODE;
 		printf("  256KB 4-way set-associative %s unified L2 cache\n",
 		    mode ? "write-through" : "write-back");
@@ -669,10 +670,9 @@ win_cpu_can_remap(int i)
 	if ((dev == MV_DEV_88F5182 && i < 2) ||
 	    (dev == MV_DEV_88F5281 && i < 4) ||
 	    (dev == MV_DEV_88F6281 && i < 4) ||
+	    (dev == MV_DEV_88F6282 && i < 4) ||
 	    (dev == MV_DEV_88RC8180 && i < 2) ||
 	    (dev == MV_DEV_88F6781 && i < 4) ||
-	    (dev == MV_DEV_88F6282 && i < 4) ||
-	    (dev == MV_DEV_MV78100 && i < 8) ||
 	    (dev == MV_DEV_MV78100_Z0 && i < 8) ||
 	    ((dev & MV_DEV_FAMILY_MASK) == MV_DEV_DISCOVERY && i < 8))
 		return (1);
@@ -1525,13 +1525,21 @@ xor_max_eng(void)
 	uint32_t dev, rev;
 
 	soc_id(&dev, &rev);
-	if (dev == MV_DEV_88F6281 ||
-	    dev == MV_DEV_88F6282)
+	switch (dev) {
+	case MV_DEV_88F6281:
+	case MV_DEV_88F6282:
+	case MV_DEV_MV78130:
+	case MV_DEV_MV78160:
+	case MV_DEV_MV78230:
+	case MV_DEV_MV78260:
+	case MV_DEV_MV78460:
 		return (2);
-	else if ((dev == MV_DEV_MV78100) || (dev == MV_DEV_MV78100_Z0))
+	case MV_DEV_MV78100:
+	case MV_DEV_MV78100_Z0:
 		return (1);
-	else
+	default:
 		return (0);
+	}
 }
 
 static void
