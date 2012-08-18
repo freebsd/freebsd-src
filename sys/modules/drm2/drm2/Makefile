@@ -33,7 +33,11 @@ SRCS	= \
 	drm_sysctl.c \
 	drm_vm.c
 
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCS	+= drm_ioc32.c
+.endif
+
 SRCS	+=device_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
-	opt_vm.h
+	opt_vm.h opt_compat.h
 
 .include <bsd.kmod.mk>
