@@ -627,7 +627,7 @@ i915_flush_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	return (ret);
 }
 
-static int i915_batchbuffer(struct drm_device *dev, void *data,
+int i915_batchbuffer(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -676,7 +676,7 @@ fail_free:
 	return ret;
 }
 
-static int i915_cmdbuffer(struct drm_device *dev, void *data,
+int i915_cmdbuffer(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -747,7 +747,7 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 	return ret;
 }
 
-static int i915_getparam(struct drm_device *dev, void *data,
+int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -1493,6 +1493,11 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_GET_SPRITE_COLORKEY, intel_sprite_get_colorkey, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 };
 
+#ifdef COMPAT_FREEBSD32
+extern drm_ioctl_desc_t i915_compat_ioctls[];
+extern int i915_compat_ioctls_nr;
+#endif
+
 struct drm_driver_info i915_driver_info = {
 	.driver_features =   DRIVER_USE_AGP | DRIVER_REQUIRE_AGP |
 	    DRIVER_USE_MTRR | DRIVER_HAVE_IRQ | DRIVER_LOCKLESS_IRQ |
@@ -1516,6 +1521,10 @@ struct drm_driver_info i915_driver_info = {
 	.sysctl_cleanup	= i915_sysctl_cleanup,
 
 	.ioctls		= i915_ioctls,
+#ifdef COMPAT_FREEBSD32
+	.compat_ioctls  = i915_compat_ioctls,
+	.compat_ioctls_nr = &i915_compat_ioctls_nr,
+#endif
 	.max_ioctl	= DRM_ARRAY_SIZE(i915_ioctls),
 
 	.name		= DRIVER_NAME,
