@@ -105,6 +105,7 @@ struct drm_file;
 #include <dev/drm2/drm_mm.h>
 #include <dev/drm2/drm_hashtab.h>
 
+#include "opt_compat.h"
 #include "opt_drm.h"
 #ifdef DRM_DEBUG
 #undef DRM_DEBUG
@@ -760,6 +761,10 @@ struct drm_driver_info {
 	int	(*device_is_agp) (struct drm_device * dev);
 
 	drm_ioctl_desc_t *ioctls;
+#ifdef COMPAT_FREEBSD32
+	drm_ioctl_desc_t *compat_ioctls;
+	int	*compat_ioctls_nr;
+#endif
 	int	max_ioctl;
 
 	int	buf_priv_size;
