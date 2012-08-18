@@ -2,6 +2,7 @@
 
 files	"../econa/files.econa"
 cpu		CPU_FA526
+machine 	arm
 makeoptions	CONF_CFLAGS=-march=armv4
 options	PHYSADDR=0x00000000
 makeoptions	KERNPHYSADDR=0x01000000
