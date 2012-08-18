@@ -3314,7 +3314,7 @@ nosys(td, args)
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK(p);
-	kern_psignal(p, SIGSYS);
+	tdsignal(td, SIGSYS);
 	PROC_UNLOCK(p);
 	return (ENOSYS);
 }
