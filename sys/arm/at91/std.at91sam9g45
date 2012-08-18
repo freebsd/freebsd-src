@@ -7,6 +7,7 @@
 
 files		"../at91/files.at91"
 cpu		CPU_ARM9
+machine 	arm
 makeoptions	CONF_CFLAGS=-mcpu=arm9
 options 	PHYSADDR=0x70000000
 options		NO_EVENTTIMERS
