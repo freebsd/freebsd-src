@@ -167,7 +167,8 @@ ofw_bus_is_compatible(device_t dev, const char *onecompat)
 	onelen = strlen(onecompat);
 
 	while (len > 0) {
-		if (strncasecmp(compat, onecompat, onelen) == 0)
+		if (strlen(compat) == onelen &&
+		    strncasecmp(compat, onecompat, onelen) == 0)
 			/* Found it. */
 			return (1);
 
@@ -183,14 +184,28 @@ int
 ofw_bus_is_compatible_strict(device_t dev, const char *compatible)
 {
 	const char *compat;
+	size_t len;
 
 	if ((compat = ofw_bus_get_compat(dev)) == NULL)
 		return (0);
 
-	if (strncasecmp(compat, compatible, strlen(compatible)) == 0)
+	len = strlen(compatible);
+	if (strlen(compat) == len &&
+	    strncasecmp(compat, compatible, len) == 0)
 		return (1);
 
 	return (0);
+}
+
+int
+ofw_bus_has_prop(device_t dev, const char *propname)
+{
+	phandle_t node;
+
+	if ((node = ofw_bus_get_node(dev)) == -1)
+		return (0);
+
+	return (OF_hasprop(node, propname));
 }
 
 #ifndef FDT
