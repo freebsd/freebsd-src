@@ -5,6 +5,7 @@
 
 files		"../lpc/files.lpc"
 cpu		CPU_ARM9
+machine 	arm
 makeoptions	CONF_CFLAGS="-march=armv5te"
 options		PHYSADDR=0x80000000
 options		STARTUP_PAGETABLE_ADDR=0x80000000
