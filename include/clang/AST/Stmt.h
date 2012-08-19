@@ -373,14 +373,8 @@ public:
 
   /// dumpPretty/printPretty - These two methods do a "pretty print" of the AST
   /// back to its original source language syntax.
-  void dumpPretty(ASTContext& Context) const;
+  void dumpPretty(ASTContext &Context) const;
   void printPretty(raw_ostream &OS, PrinterHelper *Helper,
-                   const PrintingPolicy &Policy,
-                   unsigned Indentation = 0) const {
-    printPretty(OS, *(ASTContext*)0, Helper, Policy, Indentation);
-  }
-  void printPretty(raw_ostream &OS, ASTContext &Context,
-                   PrinterHelper *Helper,
                    const PrintingPolicy &Policy,
                    unsigned Indentation = 0) const;
 
@@ -1620,36 +1614,40 @@ public:
 /// MSAsmStmt - This represents a MS inline-assembly statement extension.
 ///
 class MSAsmStmt : public Stmt {
-  SourceLocation AsmLoc, EndLoc;
+  SourceLocation AsmLoc, LBraceLoc, EndLoc;
   std::string AsmStr;
 
   bool IsSimple;
   bool IsVolatile;
 
   unsigned NumAsmToks;
-  unsigned NumLineEnds;
+  unsigned NumInputs;
+  unsigned NumOutputs;
   unsigned NumClobbers;
 
   Token *AsmToks;
-  unsigned *LineEnds;
+  IdentifierInfo **Names;
   Stmt **Exprs;
   StringRef *Clobbers;
 
 public:
-  MSAsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple,
-            bool isvolatile, ArrayRef<Token> asmtoks,
-            ArrayRef<unsigned> lineends, StringRef asmstr,
-            ArrayRef<StringRef> clobbers, SourceLocation endloc);
+  MSAsmStmt(ASTContext &C, SourceLocation asmloc, SourceLocation lbraceloc,
+            bool issimple, bool isvolatile, ArrayRef<Token> asmtoks,
+            ArrayRef<IdentifierInfo*> inputs, ArrayRef<IdentifierInfo*> outputs,
+            StringRef asmstr, ArrayRef<StringRef> clobbers,
+            SourceLocation endloc);
 
   SourceLocation getAsmLoc() const { return AsmLoc; }
   void setAsmLoc(SourceLocation L) { AsmLoc = L; }
+  SourceLocation getLBraceLoc() const { return LBraceLoc; }
+  void setLBraceLoc(SourceLocation L) { LBraceLoc = L; }
   SourceLocation getEndLoc() const { return EndLoc; }
   void setEndLoc(SourceLocation L) { EndLoc = L; }
 
+  bool hasBraces() const { return LBraceLoc.isValid(); }
+
   unsigned getNumAsmToks() { return NumAsmToks; }
   Token *getAsmToks() { return AsmToks; }
-  unsigned getNumLineEnds() { return NumLineEnds; }
-  unsigned *getLineEnds() { return LineEnds; }
 
   bool isVolatile() const { return IsVolatile; }
   void setVolatile(bool V) { IsVolatile = V; }
@@ -1665,7 +1663,7 @@ public:
   //===--- Other ---===//
 
   unsigned getNumClobbers() const { return NumClobbers; }
-  StringRef getClobber(unsigned i) { return Clobbers[i]; }
+  StringRef getClobber(unsigned i) const { return Clobbers[i]; }
 
   SourceRange getSourceRange() const LLVM_READONLY {
     return SourceRange(AsmLoc, EndLoc);

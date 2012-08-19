@@ -6174,6 +6174,7 @@ namespace {
     Decl *OrigDecl;
     bool isRecordType;
     bool isPODType;
+    bool isReferenceType;
 
   public:
     typedef EvaluatedExprVisitor<SelfReferenceChecker> Inherited;
@@ -6182,9 +6183,11 @@ namespace {
                                                     S(S), OrigDecl(OrigDecl) {
       isPODType = false;
       isRecordType = false;
+      isReferenceType = false;
       if (ValueDecl *VD = dyn_cast<ValueDecl>(OrigDecl)) {
         isPODType = VD->getType().isPODType(S.Context);
         isRecordType = VD->getType()->isRecordType();
+        isReferenceType = VD->getType()->isReferenceType();
       }
     }
 
@@ -6192,9 +6195,9 @@ namespace {
     // to determine which DeclRefExpr's to check.  Assume that the casts
     // are present and continue visiting the expression.
     void HandleExpr(Expr *E) {
-      // Skip checking T a = a where T is not a record type.  Doing so is a
-      // way to silence uninitialized warnings.
-      if (isRecordType)
+      // Skip checking T a = a where T is not a record or reference type.
+      // Doing so is a way to silence uninitialized warnings.
+      if (isRecordType || isReferenceType)
         if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
           HandleDeclRefExpr(DRE);
 
@@ -6309,11 +6312,11 @@ void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init,
   }
 
   // Check for self-references within variable initializers.
-  // Variables declared within a function/method body are handled
-  // by a dataflow analysis.
+  // Variables declared within a function/method body (except for references)
+  // are handled by a dataflow analysis.
   // Record types initialized by initializer list are handled here.
   // Initialization by constructors are handled in TryConstructorInitialization.
-  if (!VDecl->hasLocalStorage() && !VDecl->isStaticLocal() &&
+  if ((!VDecl->hasLocalStorage() || VDecl->getType()->isReferenceType()) &&
       (isa<InitListExpr>(Init) || !VDecl->getType()->isRecordType()))
     CheckSelfReference(RealDecl, Init);
 
@@ -6754,6 +6757,10 @@ void Sema::ActOnUninitializedDecl(Decl *RealDecl,
                                  diag::err_abstract_type_in_decl,
                                  AbstractVariableType))
         Var->setInvalidDecl();
+      if (!Type->isDependentType() && !Var->isInvalidDecl() &&
+          Var->getStorageClass() == SC_PrivateExtern)
+        Diag(Var->getLocation(), diag::warn_private_extern);
+        
       return;
 
     case VarDecl::TentativeDefinition:
@@ -7027,6 +7034,42 @@ void
 Sema::FinalizeDeclaration(Decl *ThisDecl) {
   // Note that we are no longer parsing the initializer for this declaration.
   ParsingInitForAutoVars.erase(ThisDecl);
+
+  // Now we have parsed the initializer and can update the table of magic
+  // tag values.
+  if (ThisDecl && ThisDecl->hasAttr<TypeTagForDatatypeAttr>()) {
+    const VarDecl *VD = dyn_cast<VarDecl>(ThisDecl);
+    if (VD && VD->getType()->isIntegralOrEnumerationType()) {
+      for (specific_attr_iterator<TypeTagForDatatypeAttr>
+               I = ThisDecl->specific_attr_begin<TypeTagForDatatypeAttr>(),
+               E = ThisDecl->specific_attr_end<TypeTagForDatatypeAttr>();
+           I != E; ++I) {
+        const Expr *MagicValueExpr = VD->getInit();
+        if (!MagicValueExpr) {
+          continue;
+        }
+        llvm::APSInt MagicValueInt;
+        if (!MagicValueExpr->isIntegerConstantExpr(MagicValueInt, Context)) {
+          Diag(I->getRange().getBegin(),
+               diag::err_type_tag_for_datatype_not_ice)
+            << LangOpts.CPlusPlus << MagicValueExpr->getSourceRange();
+          continue;
+        }
+        if (MagicValueInt.getActiveBits() > 64) {
+          Diag(I->getRange().getBegin(),
+               diag::err_type_tag_for_datatype_too_large)
+            << LangOpts.CPlusPlus << MagicValueExpr->getSourceRange();
+          continue;
+        }
+        uint64_t MagicValue = MagicValueInt.getZExtValue();
+        RegisterTypeTagForDatatype(I->getArgumentKind(),
+                                   MagicValue,
+                                   I->getMatchingCType(),
+                                   I->getLayoutCompatible(),
+                                   I->getMustBeNull());
+      }
+    }
+  }
 }
 
 Sema::DeclGroupPtrTy
@@ -7623,7 +7666,9 @@ Decl *Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, Decl *D) {
         << FD->getName() << "dllimport";
     }
   }
-  ActOnDocumentableDecl(FD);
+  // We want to attach documentation to original Decl (which might be
+  // a function template).
+  ActOnDocumentableDecl(D);
   return FD;
 }
 
@@ -7750,7 +7795,8 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
     // Verify that gotos and switch cases don't jump into scopes illegally.
     if (getCurFunction()->NeedsScopeChecking() &&
         !dcl->isInvalidDecl() &&
-        !hasAnyUnrecoverableErrorsInThisFunction())
+        !hasAnyUnrecoverableErrorsInThisFunction() &&
+        !PP.isCodeCompletionEnabled())
       DiagnoseInvalidJumps(Body);
 
     if (CXXDestructorDecl *Destructor = dyn_cast<CXXDestructorDecl>(dcl)) {
@@ -9907,6 +9953,13 @@ void Sema::ActOnFields(Scope* S,
           }
         }
       }
+      if (isa<ObjCContainerDecl>(EnclosingDecl) &&
+          RequireNonAbstractType(FD->getLocation(), FD->getType(),
+                                 diag::err_abstract_type_in_decl,
+                                 AbstractIvarType)) {
+        // Ivars can not have abstract class types
+        FD->setInvalidDecl();
+      }
       if (Record && FDTTy->getDecl()->hasObjectMember())
         Record->setHasObjectMember(true);
     } else if (FDTy->isObjCObjectType()) {
@@ -9915,8 +9968,7 @@ void Sema::ActOnFields(Scope* S,
         << FixItHint::CreateInsertion(FD->getLocation(), "*");
       QualType T = Context.getObjCObjectPointerType(FD->getType());
       FD->setType(T);
-    } 
-    else if (!getLangOpts().CPlusPlus) {
+    } else if (!getLangOpts().CPlusPlus) {
       if (getLangOpts().ObjCAutoRefCount && Record && !ARCErrReported) {
         // It's an error in ARC if a field has lifetime.
         // We don't want to report this in a system header, though,

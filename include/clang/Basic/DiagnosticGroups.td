@@ -155,6 +155,8 @@ def MethodAccess : DiagGroup<"objc-method-access">;
 def ObjCReceiver : DiagGroup<"receiver-expr">;
 def OverlengthStrings : DiagGroup<"overlength-strings">;
 def OverloadedVirtual : DiagGroup<"overloaded-virtual">;
+def PrivateExtern : DiagGroup<"private-extern">;
+def SelTypeCast : DiagGroup<"cast-of-sel-type">;
 def ObjCPropertyImpl : DiagGroup<"objc-property-implementation">;
 def ObjCPropertyNoAttribute : DiagGroup<"objc-property-no-attribute">;
 def ObjCMissingSuperCalls : DiagGroup<"objc-missing-super-calls">;
@@ -341,6 +343,8 @@ def FormatNonLiteral : DiagGroup<"format-nonliteral", [FormatSecurity]>;
 def Format2 : DiagGroup<"format=2",
                         [FormatNonLiteral, FormatSecurity, FormatY2K]>;
 
+def TypeSafety : DiagGroup<"type-safety">;
+
 def Extra : DiagGroup<"extra", [
     MissingFieldInitializers,
     IgnoredQualifiers,
@@ -371,7 +375,9 @@ def Most : DiagGroup<"most", [
     Unused,
     VolatileRegisterVar,
     ObjCMissingSuperCalls,
-    OverloadedVirtual
+    OverloadedVirtual,
+    PrivateExtern,
+    SelTypeCast
  ]>;
 
 // Thread Safety warnings 

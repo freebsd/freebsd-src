@@ -66,6 +66,12 @@ RawComment *ASTContext::getRawCommentForDeclNoCache(const Decl *D) const {
   if (D->isImplicit())
     return NULL;
 
+  // User can not attach documentation to implicit instantiations.
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    if (FD->getTemplateSpecializationKind() == TSK_ImplicitInstantiation)
+      return NULL;
+  }
+
   // TODO: handle comments for function parameters properly.
   if (isa<ParmVarDecl>(D))
     return NULL;
@@ -145,7 +151,6 @@ RawComment *ASTContext::getRawCommentForDeclNoCache(const Decl *D) const {
         SourceMgr.getLineNumber(DeclLocDecomp.first, DeclLocDecomp.second)
           == SourceMgr.getLineNumber(CommentBeginDecomp.first,
                                      CommentBeginDecomp.second)) {
-      (*Comment)->setDecl(D);
       return *Comment;
     }
   }
@@ -185,13 +190,13 @@ RawComment *ASTContext::getRawCommentForDeclNoCache(const Decl *D) const {
   if (Text.find_first_of(",;{}#@") != StringRef::npos)
     return NULL;
 
-   (*Comment)->setDecl(D);
   return *Comment;
 }
 
-const RawComment *ASTContext::getRawCommentForAnyRedecl(const Decl *D) const {
-  // If we have a 'templated' declaration for a template, adjust 'D' to
-  // refer to the actual template.
+namespace {
+/// If we have a 'templated' declaration for a template, adjust 'D' to
+/// refer to the actual template.
+const Decl *adjustDeclToTemplate(const Decl *D) {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     if (const FunctionTemplateDecl *FTD = FD->getDescribedFunctionTemplate())
       D = FTD;
@@ -200,6 +205,14 @@ const RawComment *ASTContext::getRawCommentForAnyRedecl(const Decl *D) const {
       D = CTD;
   }
   // FIXME: Alias templates?
+  return D;
+}
+} // unnamed namespace
+
+const RawComment *ASTContext::getRawCommentForAnyRedecl(
+                                                const Decl *D,
+                                                const Decl **OriginalDecl) const {
+  D = adjustDeclToTemplate(D);
 
   // Check whether we have cached a comment for this declaration already.
   {
@@ -207,13 +220,17 @@ const RawComment *ASTContext::getRawCommentForAnyRedecl(const Decl *D) const {
         RedeclComments.find(D);
     if (Pos != RedeclComments.end()) {
       const RawCommentAndCacheFlags &Raw = Pos->second;
-      if (Raw.getKind() != RawCommentAndCacheFlags::NoCommentInDecl)
+      if (Raw.getKind() != RawCommentAndCacheFlags::NoCommentInDecl) {
+        if (OriginalDecl)
+          *OriginalDecl = Raw.getOriginalDecl();
         return Raw.getRaw();
+      }
     }
   }
 
   // Search for comments attached to declarations in the redeclaration chain.
   const RawComment *RC = NULL;
+  const Decl *OriginalDeclForRC = NULL;
   for (Decl::redecl_iterator I = D->redecls_begin(),
                              E = D->redecls_end();
        I != E; ++I) {
@@ -223,16 +240,19 @@ const RawComment *ASTContext::getRawCommentForAnyRedecl(const Decl *D) const {
       const RawCommentAndCacheFlags &Raw = Pos->second;
       if (Raw.getKind() != RawCommentAndCacheFlags::NoCommentInDecl) {
         RC = Raw.getRaw();
+        OriginalDeclForRC = Raw.getOriginalDecl();
         break;
       }
     } else {
       RC = getRawCommentForDeclNoCache(*I);
+      OriginalDeclForRC = *I;
       RawCommentAndCacheFlags Raw;
       if (RC) {
         Raw.setRaw(RC);
         Raw.setKind(RawCommentAndCacheFlags::FromDecl);
       } else
         Raw.setKind(RawCommentAndCacheFlags::NoCommentInDecl);
+      Raw.setOriginalDecl(*I);
       RedeclComments[*I] = Raw;
       if (RC)
         break;
@@ -242,10 +262,14 @@ const RawComment *ASTContext::getRawCommentForAnyRedecl(const Decl *D) const {
   // If we found a comment, it should be a documentation comment.
   assert(!RC || RC->isDocumentation());
 
+  if (OriginalDecl)
+    *OriginalDecl = OriginalDeclForRC;
+
   // Update cache for every declaration in the redeclaration chain.
   RawCommentAndCacheFlags Raw;
   Raw.setRaw(RC);
   Raw.setKind(RawCommentAndCacheFlags::FromRedecl);
+  Raw.setOriginalDecl(OriginalDeclForRC);
 
   for (Decl::redecl_iterator I = D->redecls_begin(),
                              E = D->redecls_end();
@@ -259,11 +283,24 @@ const RawComment *ASTContext::getRawCommentForAnyRedecl(const Decl *D) const {
 }
 
 comments::FullComment *ASTContext::getCommentForDecl(const Decl *D) const {
-  const RawComment *RC = getRawCommentForAnyRedecl(D);
+  D = adjustDeclToTemplate(D);
+  const Decl *Canonical = D->getCanonicalDecl();
+  llvm::DenseMap<const Decl *, comments::FullComment *>::iterator Pos =
+      ParsedComments.find(Canonical);
+  if (Pos != ParsedComments.end())
+    return Pos->second;
+
+  const Decl *OriginalDecl;
+  const RawComment *RC = getRawCommentForAnyRedecl(D, &OriginalDecl);
   if (!RC)
     return NULL;
 
-  return RC->getParsed(*this);
+  if (D != OriginalDecl)
+    return getCommentForDecl(OriginalDecl);
+
+  comments::FullComment *FC = RC->parse(*this, D);
+  ParsedComments[Canonical] = FC;
+  return FC;
 }
 
 void 
@@ -5437,7 +5474,8 @@ ASTContext::getQualifiedTemplateName(NestedNameSpecifier *NNS,
   QualifiedTemplateName *QTN =
     QualifiedTemplateNames.FindNodeOrInsertPos(ID, InsertPos);
   if (!QTN) {
-    QTN = new (*this,4) QualifiedTemplateName(NNS, TemplateKeyword, Template);
+    QTN = new (*this, llvm::alignOf<QualifiedTemplateName>())
+        QualifiedTemplateName(NNS, TemplateKeyword, Template);
     QualifiedTemplateNames.InsertNode(QTN, InsertPos);
   }
 
@@ -5464,10 +5502,12 @@ ASTContext::getDependentTemplateName(NestedNameSpecifier *NNS,
 
   NestedNameSpecifier *CanonNNS = getCanonicalNestedNameSpecifier(NNS);
   if (CanonNNS == NNS) {
-    QTN = new (*this,4) DependentTemplateName(NNS, Name);
+    QTN = new (*this, llvm::alignOf<DependentTemplateName>())
+        DependentTemplateName(NNS, Name);
   } else {
     TemplateName Canon = getDependentTemplateName(CanonNNS, Name);
-    QTN = new (*this,4) DependentTemplateName(NNS, Name, Canon);
+    QTN = new (*this, llvm::alignOf<DependentTemplateName>())
+        DependentTemplateName(NNS, Name, Canon);
     DependentTemplateName *CheckQTN =
       DependentTemplateNames.FindNodeOrInsertPos(ID, InsertPos);
     assert(!CheckQTN && "Dependent type name canonicalization broken");
@@ -5498,10 +5538,12 @@ ASTContext::getDependentTemplateName(NestedNameSpecifier *NNS,
   
   NestedNameSpecifier *CanonNNS = getCanonicalNestedNameSpecifier(NNS);
   if (CanonNNS == NNS) {
-    QTN = new (*this,4) DependentTemplateName(NNS, Operator);
+    QTN = new (*this, llvm::alignOf<DependentTemplateName>())
+        DependentTemplateName(NNS, Operator);
   } else {
     TemplateName Canon = getDependentTemplateName(CanonNNS, Operator);
-    QTN = new (*this,4) DependentTemplateName(NNS, Operator, Canon);
+    QTN = new (*this, llvm::alignOf<DependentTemplateName>())
+        DependentTemplateName(NNS, Operator, Canon);
     
     DependentTemplateName *CheckQTN
       = DependentTemplateNames.FindNodeOrInsertPos(ID, InsertPos);
