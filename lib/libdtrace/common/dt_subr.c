@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/sysmacros.h>
@@ -577,8 +578,8 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 		size_t avail;
 
 		/*
-		 * It's not legal to use buffered ouput if there is not a
-		 * handler for buffered output.
+		 * Using buffered output is not allowed if a handler has
+		 * not been installed.
 		 */
 		if (dtp->dt_bufhdlr == NULL) {
 			va_end(ap);
