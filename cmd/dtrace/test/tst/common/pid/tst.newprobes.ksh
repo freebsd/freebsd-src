@@ -24,7 +24,9 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-# ident	"%Z%%M%	%I%	%E% SMI"
+
+#
+# Copyright (c) 2012 by Delphix. All rights reserved.
 #
 
 if [ $# != 1 ]; then
@@ -49,13 +51,13 @@ tick-1s
 tick-1s
 /(i % 2) == 0/
 {
-	system("dtrace -c date -ln 'pid\$target::main:entry' >/dev/null");
+	system("dtrace -c date -n 'pid\$target::main:entry' >/dev/null");
 }
 
 tick-1s
 /(i % 2) == 1/
 {
-	system("dtrace -c date -ln 'pid\$target::main:return' >/dev/null");
+	system("dtrace -c date -n 'pid\$target::main:return' >/dev/null");
 }
 EOF
 

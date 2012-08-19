@@ -27,6 +27,7 @@
 
 #
 # Copyright (c) 2011, Joyent, Inc. All rights reserved.
+# Copyright (c) 2012 by Delphix. All rights reserved.
 #
 require 5.8.4;
 
@@ -611,6 +612,8 @@ if ($opt_x) {
 
 die "$PNAME: failed to open $PNAME.$$.log: $!\n"
     unless (!$opt_l || open(LOG, ">$PNAME.$$.log"));
+
+$ENV{'DTRACE_DEBUG_REGSET'} = 'true';
 
 if ($opt_g) {
 	$ENV{'UMEM_DEBUG'} = 'default,verbose';

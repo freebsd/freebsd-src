@@ -24,7 +24,10 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
+
 /*
  * ASSERTION:
  * Verify the behavior of speculations with changes in specsize.
@@ -35,7 +38,7 @@
  */
 
 #pragma D option quiet
-#pragma D option specsize=40
+#pragma D option specsize=48
 
 BEGIN
 {
