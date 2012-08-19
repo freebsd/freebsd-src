@@ -2480,6 +2480,8 @@ also have the 'create' ability and 'mount' ability in the origin file system
 .Xc
 .It create Ta subcommand Ta Must also have the 'mount' ability
 .It destroy Ta subcommand Ta Must also have the 'mount' ability
+.It diff Ta subcommand Ta Allows lookup of paths within a dataset given an
+object number, and the ability to create snapshots necessary to 'zfs diff'
 .It hold Ta subcommand Ta Allows adding a user hold to a snapshot
 .It mount Ta subcommand Ta Allows mount/umount of Tn ZFS No datasets
 .It Xo promote Ta subcommand Ta Must
@@ -2683,43 +2685,43 @@ descendent file systems.
 .Op Ar snapshot Ns | Ns Ar filesystem
 .Xc
 .Pp
-Describes differences between a snapshot and a successor dataset. The
-successor dataset can be a later snapshot or the current filesystem.
+Display the difference between a snapshot of a given filesystem and another
+snapshot of that filesystem from a later time or the current contents of the
+filesystem.  The first column is a character indicating the type of change,
+the other columns indicate pathname, new pathname
+.Pq in case of rename ,
+change in link count, and optionally file type and/or change time.
 .Pp
-The changed files are displayed including the change type. The change type
-is displayed useing a single character. If a file or directory was renamed,
-the old and the new names are displayed.
-.Pp
-The following change types can be displayed:
-.Pp
-.Bl -column -offset indent "CHARACTER" "CHANGE TYPE"
-.It CHARACTER Ta CHANGE TYPE
-.It \&+ Ta file was added
-.It \&- Ta file was removed
-.It \&M Ta file was modified
-.It \&R Ta file was renamed
+The types of change are:
+.Bl -column -offset 2n indent
+.It \&- Ta path was removed
+.It \&+ Ta path was added
+.It \&M Ta path was modified
+.It \&R Ta path was renamed
 .El
 .Bl -tag -width indent
 .It Fl F
-Display a single letter for the file type in second to last column.
+Display an indication of the type of file, in a manner similar to the
+.Fl F
+option of
+.Xr ls 1 .
 .Pp
-The following file types can be displayed:
-.Pp
-.Bl -column -offset indent "CHARACTER" "FILE TYPE"
-.It CHARACTER Ta FILE TYPE
-.It \&F Ta file
-.It \&/ Ta directory
+.Bl -column -offset 2n indent
 .It \&B Ta block device
+.It \&C Ta character device
+.It \&F Ta regular file
+.It \&/ Ta directory
 .It \&@ Ta symbolic link
 .It \&= Ta socket
 .It \&> Ta door (not supported on Fx )
-.It \&| Ta FIFO (not supported on Fx )
-.It \&P Ta event portal (not supported on Fx )
+.It \&| Ta named pipe (not supported on Fx )
+.It \&P Ta event port (not supported on Fx )
 .El
 .It Fl H
-Machine-parseable output, fields separated a tab character.
+Give more parseable tab-separated output, without header lines and without
+arrows.
 .It Fl t
-Display a change timestamp in the first column.
+Display the path's inode change time as the first column of output.
 .El
 .It Xo
 .Nm
@@ -3170,6 +3172,22 @@ Create time permissions on (tank/users)
 Local+Descendent permissions on (tank/users)
         group staff @pset,create,mount
 -------------------------------------------------------------
+.Ed
+.It Sy Example 22 Showing the differences between a snapshot and a ZFS Dataset
+.Pp
+The following example shows how to see what has changed between a prior
+snapshot of a ZFS Dataset and its current state.  The
+.Fl F
+option is used to indicate type information for the files affected.
+.Pp
+.Bd -literal -offset 2n
+.Li # Ic zfs diff tank/test@before tank/test
+M       /       /tank/test/
+M       F       /tank/test/linked      (+1)
+R       F       /tank/test/oldname -> /tank/test/newname
+-       F       /tank/test/deleted
++       F       /tank/test/created
+M       F       /tank/test/modified
 .Ed
 .El
 .Sh EXIT STATUS
