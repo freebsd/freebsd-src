@@ -154,6 +154,11 @@ void ExprEngine::processCallExit(ExplodedNode *CEBNode) {
     }
   }
 
+  // Generate a CallEvent /before/ cleaning the state, so that we can get the
+  // correct value for 'this' (if necessary).
+  CallEventManager &CEMgr = getStateManager().getCallEventManager();
+  CallEventRef<> Call = CEMgr.getCaller(calleeCtx, state);
+
   // Step 3: BindedRetNode -> CleanedNodes
   // If we can find a statement and a block in the inlined function, run remove
   // dead bindings before returning from the call. This is important to ensure
@@ -203,21 +208,21 @@ void ExprEngine::processCallExit(ExplodedNode *CEBNode) {
         &Ctx);
     SaveAndRestore<unsigned> CBISave(currentStmtIdx, calleeCtx->getIndex());
 
-    CallEventManager &CEMgr = getStateManager().getCallEventManager();
-    CallEventRef<> Call = CEMgr.getCaller(calleeCtx, CEEState);
+    CallEventRef<> UpdatedCall = Call.cloneWithState(CEEState);
 
     ExplodedNodeSet DstPostCall;
-    getCheckerManager().runCheckersForPostCall(DstPostCall, CEENode, *Call,
-                                               *this, true);
+    getCheckerManager().runCheckersForPostCall(DstPostCall, CEENode,
+                                               *UpdatedCall, *this,
+                                               /*WasInlined=*/true);
 
     ExplodedNodeSet Dst;
-    if (isa<ObjCMethodCall>(Call)) {
-      getCheckerManager().runCheckersForPostObjCMessage(Dst, DstPostCall,
-                                                    cast<ObjCMethodCall>(*Call),
-                                                        *this, true);
+    if (const ObjCMethodCall *Msg = dyn_cast<ObjCMethodCall>(Call)) {
+      getCheckerManager().runCheckersForPostObjCMessage(Dst, DstPostCall, *Msg,
+                                                        *this,
+                                                        /*WasInlined=*/true);
     } else if (CE) {
       getCheckerManager().runCheckersForPostStmt(Dst, DstPostCall, CE,
-                                                 *this, true);
+                                                 *this, /*WasInlined=*/true);
     } else {
       Dst.insert(DstPostCall);
     }
@@ -555,12 +560,20 @@ void ExprEngine::defaultEvalCall(NodeBuilder &Bldr, ExplodedNode *Pred,
     RuntimeDefinition RD = Call->getRuntimeDefinition();
     const Decl *D = RD.getDecl();
     if (D) {
-      // Explore with and without inlining the call.
-      if (RD.mayHaveOtherDefinitions() &&
-          getAnalysisManager().IPAMode == DynamicDispatchBifurcate) {
-        BifurcateCall(RD.getDispatchRegion(), *Call, D, Bldr, Pred);
-        return;
+      if (RD.mayHaveOtherDefinitions()) {
+        // Explore with and without inlining the call.
+        if (getAnalysisManager().IPAMode == DynamicDispatchBifurcate) {
+          BifurcateCall(RD.getDispatchRegion(), *Call, D, Bldr, Pred);
+          return;
+        }
+
+        // Don't inline if we're not in any dynamic dispatch mode.
+        if (getAnalysisManager().IPAMode != DynamicDispatch) {
+          conservativeEvalCall(*Call, Bldr, Pred, State);
+          return;
+        }
       }
+
       // We are not bifurcating and we do have a Decl, so just inline.
       if (inlineCall(*Call, D, Bldr, Pred, State))
         return;
@@ -575,6 +588,7 @@ void ExprEngine::BifurcateCall(const MemRegion *BifurReg,
                                const CallEvent &Call, const Decl *D,
                                NodeBuilder &Bldr, ExplodedNode *Pred) {
   assert(BifurReg);
+  BifurReg = BifurReg->StripCasts();
 
   // Check if we've performed the split already - note, we only want
   // to split the path once per memory region.

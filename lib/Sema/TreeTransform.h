@@ -1185,10 +1185,10 @@ public:
   /// By default, performs semantic analysis to build the new statement.
   /// Subclasses may override this routine to provide different behavior.
   StmtResult RebuildMSAsmStmt(SourceLocation AsmLoc,
+                              SourceLocation LBraceLoc,
                               ArrayRef<Token> AsmToks,
-                              ArrayRef<unsigned> LineEnds,
                               SourceLocation EndLoc) {
-    return getSema().ActOnMSAsmStmt(AsmLoc, AsmToks, LineEnds, EndLoc);
+    return getSema().ActOnMSAsmStmt(AsmLoc, LBraceLoc, AsmToks, EndLoc);
   }
 
   /// \brief Build a new Objective-C \@try statement.
@@ -1277,12 +1277,11 @@ public:
   /// By default, performs semantic analysis to build the new statement.
   /// Subclasses may override this routine to provide different behavior.
   StmtResult RebuildObjCForCollectionStmt(SourceLocation ForLoc,
-                                          SourceLocation LParenLoc,
                                           Stmt *Element,
                                           Expr *Collection,
                                           SourceLocation RParenLoc,
                                           Stmt *Body) {
-    StmtResult ForEachStmt = getSema().ActOnObjCForCollectionStmt(ForLoc, LParenLoc,
+    StmtResult ForEachStmt = getSema().ActOnObjCForCollectionStmt(ForLoc,
                                                 Element,
                                                 Collection,
                                                 RParenLoc);
@@ -4205,7 +4204,7 @@ TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
 
   QualType ResultType;
 
-  if (TL.getTrailingReturn()) {
+  if (T->hasTrailingReturn()) {
     if (getDerived().TransformFunctionTypeParams(TL.getBeginLoc(),
                                                  TL.getParmArray(),
                                                  TL.getNumArgs(),
@@ -4262,7 +4261,6 @@ TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
   FunctionProtoTypeLoc NewTL = TLB.push<FunctionProtoTypeLoc>(Result);
   NewTL.setLocalRangeBegin(TL.getLocalRangeBegin());
   NewTL.setLocalRangeEnd(TL.getLocalRangeEnd());
-  NewTL.setTrailingReturn(TL.getTrailingReturn());
   for (unsigned i = 0, e = NewTL.getNumArgs(); i != e; ++i)
     NewTL.setArg(i, ParamDecls[i]);
 
@@ -4286,7 +4284,6 @@ QualType TreeTransform<Derived>::TransformFunctionNoProtoType(
   FunctionNoProtoTypeLoc NewTL = TLB.push<FunctionNoProtoTypeLoc>(Result);
   NewTL.setLocalRangeBegin(TL.getLocalRangeBegin());
   NewTL.setLocalRangeEnd(TL.getLocalRangeEnd());
-  NewTL.setTrailingReturn(false);
 
   return Result;
 }
@@ -5612,12 +5609,9 @@ StmtResult
 TreeTransform<Derived>::TransformMSAsmStmt(MSAsmStmt *S) {
   ArrayRef<Token> AsmToks =
     llvm::makeArrayRef(S->getAsmToks(), S->getNumAsmToks());
-  ArrayRef<unsigned> LineEnds =
-    llvm::makeArrayRef(S->getLineEnds(), S->getNumLineEnds());
 
-  // No need to transform the asm string literal.
-  return getDerived().RebuildMSAsmStmt(S->getAsmLoc(), AsmToks, LineEnds,
-                                       S->getEndLoc());
+  return getDerived().RebuildMSAsmStmt(S->getAsmLoc(), S->getLBraceLoc(),
+                                       AsmToks, S->getEndLoc());
 }
 
 template<typename Derived>
@@ -5808,7 +5802,6 @@ TreeTransform<Derived>::TransformObjCForCollectionStmt(
 
   // Build a new statement.
   return getDerived().RebuildObjCForCollectionStmt(S->getForLoc(),
-                                                   /*FIXME:*/S->getForLoc(),
                                                    Element.get(),
                                                    Collection.get(),
                                                    S->getRParenLoc(),

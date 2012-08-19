@@ -328,7 +328,7 @@ public:
 
   // For debugging purposes only
   void dump(raw_ostream &Out) const;
-  LLVM_ATTRIBUTE_USED void dump() const { dump(llvm::errs()); }
+  LLVM_ATTRIBUTE_USED void dump() const;
 
   static bool classof(const CallEvent *) { return true; }
 };
@@ -804,8 +804,12 @@ public:
     return getOriginExpr()->getReceiverInterface();
   }
 
+  /// Returns how the message was written in the source (property access,
+  /// subscript, or explicit message send).
   ObjCMessageKind getMessageKind() const;
 
+  /// Returns true if this property access or subscript is a setter (has the
+  /// form of an assignment).
   bool isSetter() const {
     switch (getMessageKind()) {
     case OCM_Message:

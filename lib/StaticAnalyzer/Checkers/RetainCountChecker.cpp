@@ -1107,18 +1107,6 @@ RetainSummaryManager::getFunctionSummary(const FunctionDecl *FD) {
     if (S)
       break;
 
-    // Enable this code once the semantics of NSDeallocateObject are resolved
-    // for GC.  <rdar://problem/6619988>
-#if 0
-    // Handle: NSDeallocateObject(id anObject);
-    // This method does allow 'nil' (although we don't check it now).
-    if (strcmp(FName, "NSDeallocateObject") == 0) {
-      return RetTy == Ctx.VoidTy
-        ? getPersistentSummary(RetEffect::MakeNoRet(), DoNothing, Dealloc)
-        : getPersistentStopSummary();
-    }
-#endif
-
     if (RetTy->isPointerType()) {
       // For CoreFoundation ('CF') types.
       if (cocoa::isRefType(RetTy, "CF", FName)) {
@@ -1591,27 +1579,11 @@ void RetainSummaryManager::InitializeMethodSummaries() {
 
   addClassMethSummary("NSWindow", "alloc", NoTrackYet);
 
-#if 0
-  addInstMethSummary("NSWindow", NoTrackYet, "initWithContentRect",
-                     "styleMask", "backing", "defer", NULL);
-
-  addInstMethSummary("NSWindow", NoTrackYet, "initWithContentRect",
-                     "styleMask", "backing", "defer", "screen", NULL);
-#endif
-
   // For NSPanel (which subclasses NSWindow), allocated objects are not
   //  self-owned.
   // FIXME: For now we don't track NSPanels. object for the same reason
   //   as for NSWindow objects.
   addClassMethSummary("NSPanel", "alloc", NoTrackYet);
-
-#if 0
-  addInstMethSummary("NSPanel", NoTrackYet, "initWithContentRect",
-                     "styleMask", "backing", "defer", NULL);
-
-  addInstMethSummary("NSPanel", NoTrackYet, "initWithContentRect",
-                     "styleMask", "backing", "defer", "screen", NULL);
-#endif
 
   // Don't track allocated autorelease pools yet, as it is okay to prematurely
   // exit a method.
@@ -1634,62 +1606,6 @@ void RetainSummaryManager::InitializeMethodSummaries() {
   addInstMethSummary("CIContext", CFAllocSumm, "createCGLayerWithSize",
            "info", NULL);
 }
-
-//===----------------------------------------------------------------------===//
-// AutoreleaseBindings - State used to track objects in autorelease pools.
-//===----------------------------------------------------------------------===//
-#define AUTORELEASE_POOL_MODELING (0)
-// We do not currently have complete modeling of autorelease pools.
-
-#if AUTORELEASE_POOL_MODELING
-
-typedef llvm::ImmutableMap<SymbolRef, unsigned> ARCounts;
-typedef llvm::ImmutableMap<SymbolRef, ARCounts> ARPoolContents;
-typedef llvm::ImmutableList<SymbolRef> ARStack;
-
-static int AutoRCIndex = 0;
-static int AutoRBIndex = 0;
-
-namespace { class AutoreleasePoolContents {}; }
-namespace { class AutoreleaseStack {}; }
-
-namespace clang {
-namespace ento {
-template<> struct ProgramStateTrait<AutoreleaseStack>
-  : public ProgramStatePartialTrait<ARStack> {
-  static inline void *GDMIndex() { return &AutoRBIndex; }
-};
-
-template<> struct ProgramStateTrait<AutoreleasePoolContents>
-  : public ProgramStatePartialTrait<ARPoolContents> {
-  static inline void *GDMIndex() { return &AutoRCIndex; }
-};
-} // end GR namespace
-} // end clang namespace
-
-static SymbolRef GetCurrentAutoreleasePool(ProgramStateRef state) {
-  ARStack stack = state->get<AutoreleaseStack>();
-  return stack.isEmpty() ? SymbolRef() : stack.getHead();
-}
-
-static ProgramStateRef 
-SendAutorelease(ProgramStateRef state,
-                ARCounts::Factory &F,
-                SymbolRef sym) {
-  SymbolRef pool = GetCurrentAutoreleasePool(state);
-  const ARCounts *cnts = state->get<AutoreleasePoolContents>(pool);
-  ARCounts newCnts(0);
-
-  if (cnts) {
-    const unsigned *cnt = (*cnts).lookup(sym);
-    newCnts = F.add(*cnts, sym, cnt ? *cnt  + 1 : 1);
-  }
-  else
-    newCnts = F.add(F.getEmptyMap(), sym, 1);
-
-  return state->set<AutoreleasePoolContents>(pool, newCnts);
-}
-#endif
 
 //===----------------------------------------------------------------------===//
 // Error reporting.
@@ -2431,11 +2347,6 @@ class RetainCountChecker
 
   mutable OwningPtr<RetainSummaryManager> Summaries;
   mutable OwningPtr<RetainSummaryManager> SummariesGC;
-
-#if AUTORELEASE_POOL_MODELING
-  mutable ARCounts::Factory ARCountFactory;
-#endif
-
   mutable SummaryLogTy SummaryLog;
   mutable bool ShouldResetSummaryLog;
 
@@ -2892,15 +2803,7 @@ void RetainCountChecker::checkSummary(const RetainSummary &Summ,
                                                           ResultTy));
 
       // FIXME: Add a flag to the checker where allocations are assumed to
-      // *not* fail. (The code below is out-of-date, though.)
-#if 0
-      if (RE.getKind() == RetEffect::OwnedAllocatedSymbol) {
-        bool isFeasible;
-        state = state.assume(loc::SymbolVal(Sym), true, isFeasible);
-        assert(isFeasible && "Cannot assume fresh symbol is non-null.");
-      }
-#endif
-
+      // *not* fail.
       break;
     }
 
@@ -3011,9 +2914,6 @@ RetainCountChecker::updateSymbol(ProgramStateRef state, SymbolRef sym,
 
     case NewAutoreleasePool:
       assert(!C.isObjCGCEnabled());
-#if AUTORELEASE_POOL_MODELING
-      state = state->add<AutoreleaseStack>(sym);
-#endif
       return state;
 
     case MayEscape:
@@ -3030,13 +2930,7 @@ RetainCountChecker::updateSymbol(ProgramStateRef state, SymbolRef sym,
     case Autorelease:
       if (C.isObjCGCEnabled())
         return state;
-
       // Update the autorelease counts.
-      // TODO: AutoreleasePoolContents are not currently used. We will need to
-      // call SendAutorelease after it's wired up.
-#if AUTORELEASE_POOL_MODELING
-      state = SendAutorelease(state, ARCountFactory, sym);
-#endif
       V = V.autorelease();
       break;
 
@@ -3719,35 +3613,6 @@ void RetainCountChecker::checkDeadSymbols(SymbolReaper &SymReaper,
   C.addTransition(state, Pred);
 }
 
-//===----------------------------------------------------------------------===//
-// Debug printing of refcount bindings and autorelease pools.
-//===----------------------------------------------------------------------===//
-
-#if AUTORELEASE_POOL_MODELING
-static void PrintPool(raw_ostream &Out, SymbolRef Sym,
-                      ProgramStateRef State) {
-  Out << ' ';
-  if (Sym)
-    Sym->dumpToStream(Out);
-  else
-    Out << "<pool>";
-  Out << ":{";
-
-  // Get the contents of the pool.
-  if (const ARCounts *Cnts = State->get<AutoreleasePoolContents>(Sym))
-    for (ARCounts::iterator I = Cnts->begin(), E = Cnts->end(); I != E; ++I)
-      Out << '(' << I.getKey() << ',' << I.getData() << ')';
-  Out << '}';
-}
-
-static bool UsesAutorelease(ProgramStateRef state) {
-  // A state uses autorelease if it allocated an autorelease pool or if it has
-  // objects in the caller's autorelease pool.
-  return !state->get<AutoreleaseStack>().isEmpty() ||
-          state->get<AutoreleasePoolContents>(SymbolRef());
-}
-#endif
-
 void RetainCountChecker::printState(raw_ostream &Out, ProgramStateRef State,
                                     const char *NL, const char *Sep) const {
 
@@ -3761,20 +3626,6 @@ void RetainCountChecker::printState(raw_ostream &Out, ProgramStateRef State,
     I->second.print(Out);
     Out << NL;
   }
-
-#if AUTORELEASE_POOL_MODELING
-  // Print the autorelease stack.
-  if (UsesAutorelease(State)) {
-    Out << Sep << NL << "AR pool stack:";
-    ARStack Stack = State->get<AutoreleaseStack>();
-
-    PrintPool(Out, SymbolRef(), State);  // Print the caller's pool.
-    for (ARStack::iterator I = Stack.begin(), E = Stack.end(); I != E; ++I)
-      PrintPool(Out, *I, State);
-
-    Out << NL;
-  }
-#endif
 }
 
 //===----------------------------------------------------------------------===//

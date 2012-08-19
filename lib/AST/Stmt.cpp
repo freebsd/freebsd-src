@@ -584,21 +584,26 @@ AsmStmt::AsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple,
 }
 
 MSAsmStmt::MSAsmStmt(ASTContext &C, SourceLocation asmloc,
-                     bool issimple, bool isvolatile, ArrayRef<Token> asmtoks,
-                     ArrayRef<unsigned> lineends, StringRef asmstr,
+                     SourceLocation lbraceloc, bool issimple, bool isvolatile,
+                     ArrayRef<Token> asmtoks, ArrayRef<IdentifierInfo*> inputs,
+                     ArrayRef<IdentifierInfo*> outputs, StringRef asmstr,
                      ArrayRef<StringRef> clobbers, SourceLocation endloc)
-  : Stmt(MSAsmStmtClass), AsmLoc(asmloc), EndLoc(endloc),
+  : Stmt(MSAsmStmtClass), AsmLoc(asmloc), LBraceLoc(lbraceloc), EndLoc(endloc),
     AsmStr(asmstr.str()), IsSimple(issimple), IsVolatile(isvolatile),
-    NumAsmToks(asmtoks.size()), NumLineEnds(lineends.size()),
-    NumClobbers(clobbers.size()) {
+    NumAsmToks(asmtoks.size()), NumInputs(inputs.size()),
+    NumOutputs(outputs.size()), NumClobbers(clobbers.size()) {
+
+  unsigned NumExprs = NumOutputs + NumInputs;
+
+  Names = new (C) IdentifierInfo*[NumExprs];
+  for (unsigned i = 0, e = NumOutputs; i != e; ++i)
+    Names[i] = outputs[i];
+  for (unsigned i = NumOutputs, e = NumExprs; i != e; ++i)
+    Names[i] = inputs[i];
 
   AsmToks = new (C) Token[NumAsmToks];
   for (unsigned i = 0, e = NumAsmToks; i != e; ++i)
     AsmToks[i] = asmtoks[i];
-
-  LineEnds = new (C) unsigned[NumLineEnds];
-  for (unsigned i = 0, e = NumLineEnds; i != e; ++i)
-    LineEnds[i] = lineends[i];
 
   Clobbers = new (C) StringRef[NumClobbers];
   for (unsigned i = 0, e = NumClobbers; i != e; ++i) {
