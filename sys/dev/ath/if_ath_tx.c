@@ -306,6 +306,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	HAL_DMA_ADDR bufAddrList[4];
 	uint32_t segLenList[4];
 	int numTxMaps = 1;
+	int isFirstDesc = 1;
 
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
@@ -369,10 +370,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			, segLenList
 			, bf->bf_descid		/* XXX desc id */
 			, bf->bf_state.bfs_txq->axq_qnum	/* XXX multicast? */
-			, i == 0		/* first segment */
+			, isFirstDesc		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
 			, ds0			/* first descriptor */
 		);
+		isFirstDesc = 0;
 		DPRINTF(sc, ATH_DEBUG_XMIT,
 			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
 			__func__, i, ds->ds_link, ds->ds_data,
