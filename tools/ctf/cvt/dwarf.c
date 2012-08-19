@@ -1839,21 +1839,53 @@ die_resolve(dwarf_t *dw)
 }
 
 /*
- * Any object containing at least one allocatable section of non-0 size is
- * taken to be a file which should contain DWARF type information
+ * Any object containing a function or object symbol at any scope should also
+ * contain DWARF data.
  */
 static boolean_t
 should_have_dwarf(Elf *elf)
 {
 	Elf_Scn *scn = NULL;
+	Elf_Data *data = NULL;
+	GElf_Shdr shdr;
+	GElf_Sym sym;
+	uint32_t symdx = 0;
+	size_t nsyms = 0;
+	boolean_t found = B_FALSE;
 
 	while ((scn = elf_nextscn(elf, scn)) != NULL) {
-		GElf_Shdr shdr;
 		gelf_getshdr(scn, &shdr);
 
-		if ((shdr.sh_flags & SHF_ALLOC) &&
-		    (shdr.sh_size != 0))
-			return (B_TRUE);
+		if (shdr.sh_type == SHT_SYMTAB) {
+			found = B_TRUE;
+			break;
+		}
+	}
+
+	if (!found)
+		terminate("cannot convert stripped objects\n");
+
+	data = elf_getdata(scn, NULL);
+	nsyms = shdr.sh_size / shdr.sh_entsize;
+
+	for (symdx = 0; symdx < nsyms; symdx++) {
+		gelf_getsym(data, symdx, &sym);
+
+		if ((GELF_ST_TYPE(sym.st_info) == STT_FUNC) ||
+		    (GELF_ST_TYPE(sym.st_info) == STT_TLS) ||
+		    (GELF_ST_TYPE(sym.st_info) == STT_OBJECT)) {
+			char *name;
+
+			name = elf_strptr(elf, shdr.sh_link, sym.st_name);
+
+			/* Studio emits these local symbols regardless */
+			if ((strcmp(name, "Bbss.bss") != 0) &&
+			    (strcmp(name, "Ttbss.bss") != 0) &&
+			    (strcmp(name, "Ddata.data") != 0) &&
+			    (strcmp(name, "Ttdata.data") != 0) &&
+			    (strcmp(name, "Drodata.rodata") != 0))
+				return (B_TRUE);
+		}
 	}
 
 	return (B_FALSE);
