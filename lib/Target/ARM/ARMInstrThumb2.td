@@ -757,6 +757,33 @@ multiclass T2I_bin_ii12rs<bits<3> op23_21, string opc, PatFrag opnode,
      let Inst{24} = 1;
      let Inst{23-21} = op23_21;
    }
+
+   // Predicated versions.
+   def CCri : t2PseudoExpand<(outs GPRnopc:$Rd),
+                             (ins GPRnopc:$Rfalse, GPRnopc:$Rn, t2_so_imm:$imm,
+                                  pred:$p, cc_out:$s), 4, IIC_iALUi, [],
+                             (!cast<Instruction>(NAME#ri) GPRnopc:$Rd,
+                              GPRnopc:$Rn, t2_so_imm:$imm, pred:$p, cc_out:$s)>,
+              RegConstraint<"$Rfalse = $Rd">;
+   def CCri12 : t2PseudoExpand<(outs GPRnopc:$Rd),
+                             (ins GPRnopc:$Rfalse, GPR:$Rn, imm0_4095:$imm,
+                                  pred:$p),
+                             4, IIC_iALUi, [],
+                             (!cast<Instruction>(NAME#ri12) GPRnopc:$Rd,
+                              GPR:$Rn, imm0_4095:$imm, pred:$p)>,
+                RegConstraint<"$Rfalse = $Rd">;
+   def CCrr : t2PseudoExpand<(outs GPRnopc:$Rd),
+                             (ins GPRnopc:$Rfalse, GPRnopc:$Rn, rGPR:$Rm,
+                                  pred:$p, cc_out:$s), 4, IIC_iALUr, [],
+                             (!cast<Instruction>(NAME#rr) GPRnopc:$Rd,
+                              GPRnopc:$Rn, rGPR:$Rm, pred:$p, cc_out:$s)>,
+              RegConstraint<"$Rfalse = $Rd">;
+   def CCrs : t2PseudoExpand<(outs GPRnopc:$Rd),
+                             (ins GPRnopc:$Rfalse, GPRnopc:$Rn, t2_so_reg:$Rm,
+                                  pred:$p, cc_out:$s), 4, IIC_iALUsi, [],
+                             (!cast<Instruction>(NAME#rs) GPRnopc:$Rd,
+                              GPRnopc:$Rn, t2_so_reg:$Rm, pred:$p, cc_out:$s)>,
+              RegConstraint<"$Rfalse = $Rd">;
 }
 
 /// T2I_adde_sube_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns
@@ -2938,7 +2965,7 @@ defm t2TEQ  : T2I_cmp_irs<0b0100, "teq",
 // a two-value operand where a dag node expects two operands. :(
 let neverHasSideEffects = 1 in {
 
-let isCommutable = 1 in
+let isCommutable = 1, isSelect = 1 in
 def t2MOVCCr : t2PseudoInst<(outs rGPR:$Rd),
                             (ins rGPR:$false, rGPR:$Rm, pred:$p),
                             4, IIC_iCMOVr,
@@ -3026,22 +3053,25 @@ multiclass T2I_bincc_irs<Instruction iri, Instruction irr, Instruction irs,
                    InstrItinClass iii, InstrItinClass iir, InstrItinClass iis> {
    // shifted imm
    def ri : t2PseudoExpand<(outs rGPR:$Rd),
-                           (ins rGPR:$Rn, t2_so_imm:$imm, pred:$p, cc_out:$s),
+                           (ins rGPR:$Rfalse, rGPR:$Rn, t2_so_imm:$imm,
+                                pred:$p, cc_out:$s),
                            4, iii, [],
                   (iri rGPR:$Rd, rGPR:$Rn, t2_so_imm:$imm, pred:$p, cc_out:$s)>,
-                           RegConstraint<"$Rn = $Rd">;
+                           RegConstraint<"$Rfalse = $Rd">;
    // register
    def rr : t2PseudoExpand<(outs rGPR:$Rd),
-                           (ins rGPR:$Rn, rGPR:$Rm, pred:$p, cc_out:$s),
+                           (ins rGPR:$Rfalse, rGPR:$Rn, rGPR:$Rm,
+                                pred:$p, cc_out:$s),
                            4, iir, [],
                         (irr rGPR:$Rd, rGPR:$Rn, rGPR:$Rm, pred:$p, cc_out:$s)>,
-                           RegConstraint<"$Rn = $Rd">;
+                           RegConstraint<"$Rfalse = $Rd">;
    // shifted register
    def rs : t2PseudoExpand<(outs rGPR:$Rd),
-                       (ins rGPR:$Rn, t2_so_reg:$ShiftedRm, pred:$p, cc_out:$s),
+                           (ins rGPR:$Rfalse, rGPR:$Rn, t2_so_reg:$ShiftedRm,
+                                pred:$p, cc_out:$s),
                            4, iis, [],
             (irs rGPR:$Rd, rGPR:$Rn, t2_so_reg:$ShiftedRm, pred:$p, cc_out:$s)>,
-                           RegConstraint<"$Rn = $Rd">;
+                           RegConstraint<"$Rfalse = $Rd">;
 } // T2I_bincc_irs
 
 defm t2ANDCC : T2I_bincc_irs<t2ANDri, t2ANDrr, t2ANDrs,

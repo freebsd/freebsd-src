@@ -5114,6 +5114,82 @@ X86TargetLowering::LowerVectorBroadcast(SDValue &Op, SelectionDAG &DAG) const {
   return SDValue();
 }
 
+// LowerVectorFpExtend - Recognize the scalarized FP_EXTEND from v2f32 to v2f64
+// and convert it into X86ISD::VFPEXT due to the current ISD::FP_EXTEND has the
+// constraint of matching input/output vector elements.
+SDValue
+X86TargetLowering::LowerVectorFpExtend(SDValue &Op, SelectionDAG &DAG) const {
+  DebugLoc DL = Op.getDebugLoc();
+  SDNode *N = Op.getNode();
+  EVT VT = Op.getValueType();
+  unsigned NumElts = Op.getNumOperands();
+
+  // Check supported types and sub-targets.
+  //
+  // Only v2f32 -> v2f64 needs special handling.
+  if (VT != MVT::v2f64 || !Subtarget->hasSSE2())
+    return SDValue();
+
+  SDValue VecIn;
+  EVT VecInVT;
+  SmallVector<int, 8> Mask;
+  EVT SrcVT = MVT::Other;
+
+  // Check the patterns could be translated into X86vfpext.
+  for (unsigned i = 0; i < NumElts; ++i) {
+    SDValue In = N->getOperand(i);
+    unsigned Opcode = In.getOpcode();
+
+    // Skip if the element is undefined.
+    if (Opcode == ISD::UNDEF) {
+      Mask.push_back(-1);
+      continue;
+    }
+
+    // Quit if one of the elements is not defined from 'fpext'.
+    if (Opcode != ISD::FP_EXTEND)
+      return SDValue();
+
+    // Check how the source of 'fpext' is defined.
+    SDValue L2In = In.getOperand(0);
+    EVT L2InVT = L2In.getValueType();
+
+    // Check the original type
+    if (SrcVT == MVT::Other)
+      SrcVT = L2InVT;
+    else if (SrcVT != L2InVT) // Quit if non-homogenous typed.
+      return SDValue();
+
+    // Check whether the value being 'fpext'ed is extracted from the same
+    // source.
+    Opcode = L2In.getOpcode();
+
+    // Quit if it's not extracted with a constant index.
+    if (Opcode != ISD::EXTRACT_VECTOR_ELT ||
+        !isa<ConstantSDNode>(L2In.getOperand(1)))
+      return SDValue();
+
+    SDValue ExtractedFromVec = L2In.getOperand(0);
+
+    if (VecIn.getNode() == 0) {
+      VecIn = ExtractedFromVec;
+      VecInVT = ExtractedFromVec.getValueType();
+    } else if (VecIn != ExtractedFromVec) // Quit if built from more than 1 vec.
+      return SDValue();
+
+    Mask.push_back(cast<ConstantSDNode>(L2In.getOperand(1))->getZExtValue());
+  }
+
+  // Fill the remaining mask as undef.
+  for (unsigned i = NumElts; i < VecInVT.getVectorNumElements(); ++i)
+    Mask.push_back(-1);
+
+  return DAG.getNode(X86ISD::VFPEXT, DL, VT,
+                     DAG.getVectorShuffle(VecInVT, DL,
+                                          VecIn, DAG.getUNDEF(VecInVT),
+                                          &Mask[0]));
+}
+
 SDValue
 X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
   DebugLoc dl = Op.getDebugLoc();
@@ -5145,6 +5221,10 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
   SDValue Broadcast = LowerVectorBroadcast(Op, DAG);
   if (Broadcast.getNode())
     return Broadcast;
+
+  SDValue FpExt = LowerVectorFpExtend(Op, DAG);
+  if (FpExt.getNode())
+    return FpExt;
 
   unsigned EVTBits = ExtVT.getSizeInBits();
 
@@ -11122,9 +11202,9 @@ static void ReplaceATOMIC_LOAD(SDNode *Node,
   Results.push_back(Swap.getValue(1));
 }
 
-void X86TargetLowering::
+static void
 ReplaceATOMIC_BINARY_64(SDNode *Node, SmallVectorImpl<SDValue>&Results,
-                        SelectionDAG &DAG, unsigned NewOp) const {
+                        SelectionDAG &DAG, unsigned NewOp) {
   DebugLoc dl = Node->getDebugLoc();
   assert (Node->getValueType(0) == MVT::i64 &&
           "Only know how to expand i64 atomics");
@@ -11245,26 +11325,40 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
     return;
   }
   case ISD::ATOMIC_LOAD_ADD:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMADD64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_AND:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMAND64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_NAND:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMNAND64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_OR:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMOR64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_SUB:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMSUB64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_XOR:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMXOR64_DAG);
+  case ISD::ATOMIC_SWAP: {
+    unsigned Opc;
+    switch (N->getOpcode()) {
+    default: llvm_unreachable("Unexpected opcode");
+    case ISD::ATOMIC_LOAD_ADD:
+      Opc = X86ISD::ATOMADD64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_AND:
+      Opc = X86ISD::ATOMAND64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_NAND:
+      Opc = X86ISD::ATOMNAND64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_OR:
+      Opc = X86ISD::ATOMOR64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_SUB:
+      Opc = X86ISD::ATOMSUB64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_XOR:
+      Opc = X86ISD::ATOMXOR64_DAG;
+      break;
+    case ISD::ATOMIC_SWAP:
+      Opc = X86ISD::ATOMSWAP64_DAG;
+      break;
+    }
+    ReplaceATOMIC_BINARY_64(N, Results, DAG, Opc);
     return;
-  case ISD::ATOMIC_SWAP:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMSWAP64_DAG);
-    return;
+  }
   case ISD::ATOMIC_LOAD:
     ReplaceATOMIC_LOAD(N, Results, DAG);
   }
@@ -11342,7 +11436,9 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::ATOMAND64_DAG:      return "X86ISD::ATOMAND64_DAG";
   case X86ISD::ATOMNAND64_DAG:     return "X86ISD::ATOMNAND64_DAG";
   case X86ISD::VZEXT_MOVL:         return "X86ISD::VZEXT_MOVL";
+  case X86ISD::VSEXT_MOVL:         return "X86ISD::VSEXT_MOVL";
   case X86ISD::VZEXT_LOAD:         return "X86ISD::VZEXT_LOAD";
+  case X86ISD::VFPEXT:             return "X86ISD::VFPEXT";
   case X86ISD::VSHLDQ:             return "X86ISD::VSHLDQ";
   case X86ISD::VSRLDQ:             return "X86ISD::VSRLDQ";
   case X86ISD::VSHL:               return "X86ISD::VSHL";
@@ -12792,16 +12888,31 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     // String/text processing lowering.
   case X86::PCMPISTRM128REG:
   case X86::VPCMPISTRM128REG:
-    return EmitPCMP(MI, BB, 3, false /* in-mem */);
   case X86::PCMPISTRM128MEM:
   case X86::VPCMPISTRM128MEM:
-    return EmitPCMP(MI, BB, 3, true /* in-mem */);
   case X86::PCMPESTRM128REG:
   case X86::VPCMPESTRM128REG:
-    return EmitPCMP(MI, BB, 5, false /* in mem */);
   case X86::PCMPESTRM128MEM:
-  case X86::VPCMPESTRM128MEM:
-    return EmitPCMP(MI, BB, 5, true /* in mem */);
+  case X86::VPCMPESTRM128MEM: {
+    unsigned NumArgs;
+    bool MemArg;
+    switch (MI->getOpcode()) {
+    default: llvm_unreachable("illegal opcode!");
+    case X86::PCMPISTRM128REG:
+    case X86::VPCMPISTRM128REG:
+      NumArgs = 3; MemArg = false; break;
+    case X86::PCMPISTRM128MEM:
+    case X86::VPCMPISTRM128MEM:
+      NumArgs = 3; MemArg = true; break;
+    case X86::PCMPESTRM128REG:
+    case X86::VPCMPESTRM128REG:
+      NumArgs = 5; MemArg = false; break;
+    case X86::PCMPESTRM128MEM:
+    case X86::VPCMPESTRM128MEM:
+      NumArgs = 5; MemArg = true; break;
+    }
+    return EmitPCMP(MI, BB, NumArgs, MemArg);
+  }
 
     // Thread synchronization.
   case X86::MONITOR:
