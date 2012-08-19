@@ -242,6 +242,9 @@ def UseFusedMAC      : Predicate<"(TM.Options.AllowFPOpFusion =="
 def DontUseFusedMAC  : Predicate<"!Subtarget->hasVFP4() || "
                                  "Subtarget->isTargetDarwin()">;
 
+def IsLE             : Predicate<"TLI.isLittleEndian()">;
+def IsBE             : Predicate<"TLI.isBigEndian()">;
+
 //===----------------------------------------------------------------------===//
 // ARM Flag Definitions.
 
@@ -3936,7 +3939,7 @@ def BCCZi64 : PseudoInst<(outs),
 // a two-value operand where a dag node expects two operands. :(
 let neverHasSideEffects = 1 in {
 
-let isCommutable = 1 in
+let isCommutable = 1, isSelect = 1 in
 def MOVCCr : ARMPseudoInst<(outs GPR:$Rd), (ins GPR:$false, GPR:$Rm, pred:$p),
                            4, IIC_iCMOVr,
   [/*(set GPR:$Rd, (ARMcmov GPR:$false, GPR:$Rm, imm:$cc, CCR:$ccr))*/]>,
@@ -3989,25 +3992,29 @@ multiclass AsI1_bincc_irs<Instruction iri, Instruction irr, Instruction irsi,
                           InstrItinClass iii, InstrItinClass iir,
                           InstrItinClass iis> {
   def ri  : ARMPseudoExpand<(outs GPR:$Rd),
-                            (ins GPR:$Rn, so_imm:$imm, pred:$p, cc_out:$s),
+                            (ins GPR:$Rfalse, GPR:$Rn, so_imm:$imm,
+                                 pred:$p, cc_out:$s),
                             4, iii, [],
                        (iri GPR:$Rd, GPR:$Rn, so_imm:$imm, pred:$p, cc_out:$s)>,
-                            RegConstraint<"$Rn = $Rd">;
+                            RegConstraint<"$Rfalse = $Rd">;
   def rr  : ARMPseudoExpand<(outs GPR:$Rd),
-                            (ins GPR:$Rn, GPR:$Rm, pred:$p, cc_out:$s),
+                            (ins GPR:$Rfalse, GPR:$Rn, GPR:$Rm,
+                                 pred:$p, cc_out:$s),
                             4, iir, [],
                            (irr GPR:$Rd, GPR:$Rn, GPR:$Rm, pred:$p, cc_out:$s)>,
-                            RegConstraint<"$Rn = $Rd">;
+                            RegConstraint<"$Rfalse = $Rd">;
   def rsi : ARMPseudoExpand<(outs GPR:$Rd),
-                           (ins GPR:$Rn, so_reg_imm:$shift, pred:$p, cc_out:$s),
+                            (ins GPR:$Rfalse, GPR:$Rn, so_reg_imm:$shift,
+                                 pred:$p, cc_out:$s),
                             4, iis, [],
                 (irsi GPR:$Rd, GPR:$Rn, so_reg_imm:$shift, pred:$p, cc_out:$s)>,
-                            RegConstraint<"$Rn = $Rd">;
+                            RegConstraint<"$Rfalse = $Rd">;
   def rsr : ARMPseudoExpand<(outs GPRnopc:$Rd),
-                       (ins GPRnopc:$Rn, so_reg_reg:$shift, pred:$p, cc_out:$s),
+                           (ins GPRnopc:$Rfalse, GPRnopc:$Rn, so_reg_reg:$shift,
+                                pred:$p, cc_out:$s),
                             4, iis, [],
                 (irsr GPR:$Rd, GPR:$Rn, so_reg_reg:$shift, pred:$p, cc_out:$s)>,
-                            RegConstraint<"$Rn = $Rd">;
+                            RegConstraint<"$Rfalse = $Rd">;
 }
 
 defm ANDCC : AsI1_bincc_irs<ANDri, ANDrr, ANDrsi, ANDrsr,
@@ -4015,6 +4022,10 @@ defm ANDCC : AsI1_bincc_irs<ANDri, ANDrr, ANDrsi, ANDrsr,
 defm ORRCC : AsI1_bincc_irs<ORRri, ORRrr, ORRrsi, ORRrsr,
                             IIC_iBITi, IIC_iBITr, IIC_iBITsr>;
 defm EORCC : AsI1_bincc_irs<EORri, EORrr, EORrsi, EORrsr,
+                            IIC_iBITi, IIC_iBITr, IIC_iBITsr>;
+defm ADDCC : AsI1_bincc_irs<ADDri, ADDrr, ADDrsi, ADDrsr,
+                            IIC_iBITi, IIC_iBITr, IIC_iBITsr>;
+defm SUBCC : AsI1_bincc_irs<SUBri, SUBrr, SUBrsi, SUBrsr,
                             IIC_iBITi, IIC_iBITr, IIC_iBITsr>;
 
 } // neverHasSideEffects

@@ -28,19 +28,15 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 
 CodeGenSubRegIndex::CodeGenSubRegIndex(Record *R, unsigned Enum)
-  : TheDef(R),
-    EnumValue(Enum)
-{}
-
-std::string CodeGenSubRegIndex::getNamespace() const {
-  if (TheDef->getValue("Namespace"))
-    return TheDef->getValueAsString("Namespace");
-  else
-    return "";
+  : TheDef(R), EnumValue(Enum) {
+  Name = R->getName();
+  if (R->getValue("Namespace"))
+    Namespace = R->getValueAsString("Namespace");
 }
 
-const std::string &CodeGenSubRegIndex::getName() const {
-  return TheDef->getName();
+CodeGenSubRegIndex::CodeGenSubRegIndex(StringRef N, StringRef Nspace,
+                                       unsigned Enum)
+  : TheDef(0), Name(N), Namespace(Nspace), EnumValue(Enum) {
 }
 
 std::string CodeGenSubRegIndex::getQualifiedName() const {
@@ -52,16 +48,31 @@ std::string CodeGenSubRegIndex::getQualifiedName() const {
 }
 
 void CodeGenSubRegIndex::updateComponents(CodeGenRegBank &RegBank) {
-  std::vector<Record*> Comps = TheDef->getValueAsListOfDefs("ComposedOf");
-  if (Comps.empty())
+  if (!TheDef)
     return;
-  if (Comps.size() != 2)
-    throw TGError(TheDef->getLoc(), "ComposedOf must have exactly two entries");
-  CodeGenSubRegIndex *A = RegBank.getSubRegIdx(Comps[0]);
-  CodeGenSubRegIndex *B = RegBank.getSubRegIdx(Comps[1]);
-  CodeGenSubRegIndex *X = A->addComposite(B, this);
-  if (X)
-    throw TGError(TheDef->getLoc(), "Ambiguous ComposedOf entries");
+
+  std::vector<Record*> Comps = TheDef->getValueAsListOfDefs("ComposedOf");
+  if (!Comps.empty()) {
+    if (Comps.size() != 2)
+      throw TGError(TheDef->getLoc(), "ComposedOf must have exactly two entries");
+    CodeGenSubRegIndex *A = RegBank.getSubRegIdx(Comps[0]);
+    CodeGenSubRegIndex *B = RegBank.getSubRegIdx(Comps[1]);
+    CodeGenSubRegIndex *X = A->addComposite(B, this);
+    if (X)
+      throw TGError(TheDef->getLoc(), "Ambiguous ComposedOf entries");
+  }
+
+  std::vector<Record*> Parts =
+    TheDef->getValueAsListOfDefs("CoveringSubRegIndices");
+  if (!Parts.empty()) {
+    if (Parts.size() < 2)
+      throw TGError(TheDef->getLoc(),
+                    "CoveredBySubRegs must have two or more entries");
+    SmallVector<CodeGenSubRegIndex*, 8> IdxParts;
+    for (unsigned i = 0, e = Parts.size(); i != e; ++i)
+      IdxParts.push_back(RegBank.getSubRegIdx(Parts[i]));
+    RegBank.addConcatSubRegIndex(IdxParts, this);
+  }
 }
 
 void CodeGenSubRegIndex::cleanComposites() {
@@ -937,7 +948,7 @@ void CodeGenRegisterClass::buildRegUnitSet(
 //                               CodeGenRegBank
 //===----------------------------------------------------------------------===//
 
-CodeGenRegBank::CodeGenRegBank(RecordKeeper &Records) : Records(Records) {
+CodeGenRegBank::CodeGenRegBank(RecordKeeper &Records) {
   // Configure register Sets to understand register classes and tuples.
   Sets.addFieldExpander("RegisterClass", "MemberList");
   Sets.addFieldExpander("CalleeSavedRegs", "SaveList");
@@ -947,7 +958,6 @@ CodeGenRegBank::CodeGenRegBank(RecordKeeper &Records) : Records(Records) {
   // More indices will be synthesized later.
   std::vector<Record*> SRIs = Records.getAllDerivedDefinitions("SubRegIndex");
   std::sort(SRIs.begin(), SRIs.end(), LessRecord());
-  NumNamedIndices = SRIs.size();
   for (unsigned i = 0, e = SRIs.size(); i != e; ++i)
     getSubRegIdx(SRIs[i]);
   // Build composite maps from ComposedOf fields.
@@ -1015,6 +1025,15 @@ CodeGenRegBank::CodeGenRegBank(RecordKeeper &Records) : Records(Records) {
   CodeGenRegisterClass::computeSubClasses(*this);
 }
 
+// Create a synthetic CodeGenSubRegIndex without a corresponding Record.
+CodeGenSubRegIndex*
+CodeGenRegBank::createSubRegIndex(StringRef Name, StringRef Namespace) {
+  CodeGenSubRegIndex *Idx = new CodeGenSubRegIndex(Name, Namespace,
+                                                   SubRegIndices.size() + 1);
+  SubRegIndices.push_back(Idx);
+  return Idx;
+}
+
 CodeGenSubRegIndex *CodeGenRegBank::getSubRegIdx(Record *Def) {
   CodeGenSubRegIndex *&Idx = Def2SubRegIdx[Def];
   if (Idx)
@@ -1079,7 +1098,7 @@ CodeGenRegBank::getCompositeSubRegIndex(CodeGenSubRegIndex *A,
 
   // None exists, synthesize one.
   std::string Name = A->getName() + "_then_" + B->getName();
-  Comp = getSubRegIdx(new Record(Name, SMLoc(), Records));
+  Comp = createSubRegIndex(Name, A->getNamespace());
   A->addComposite(B, Comp);
   return Comp;
 }
@@ -1099,7 +1118,7 @@ getConcatSubRegIndex(const SmallVector<CodeGenSubRegIndex*, 8> &Parts) {
     Name += '_';
     Name += Parts[i]->getName();
   }
-  return Idx = getSubRegIdx(new Record(Name, SMLoc(), Records));
+  return Idx = createSubRegIndex(Name, Parts.front()->getNamespace());
 }
 
 void CodeGenRegBank::computeComposites() {

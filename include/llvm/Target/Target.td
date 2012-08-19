@@ -28,6 +28,24 @@ class SubRegIndex<list<SubRegIndex> comps = []> {
   // ComposedOf - A list of two SubRegIndex instances, [A, B].
   // This indicates that this SubRegIndex is the result of composing A and B.
   list<SubRegIndex> ComposedOf = comps;
+
+  // CoveringSubRegIndices - A list of two or more sub-register indexes that
+  // cover this sub-register.
+  //
+  // This field should normally be left blank as TableGen can infer it.
+  //
+  // TableGen automatically detects sub-registers that straddle the registers
+  // in the SubRegs field of a Register definition. For example:
+  //
+  //   Q0    = dsub_0 -> D0, dsub_1 -> D1
+  //   Q1    = dsub_0 -> D2, dsub_1 -> D3
+  //   D1_D2 = dsub_0 -> D1, dsub_1 -> D2
+  //   QQ0   = qsub_0 -> Q0, qsub_1 -> Q1
+  //
+  // TableGen will infer that D1_D2 is a sub-register of QQ0. It will be given
+  // the synthetic index dsub_1_dsub_2 unless some SubRegIndex is defined with
+  // CoveringSubRegIndices = [dsub_1, dsub_2].
+  list<SubRegIndex> CoveringSubRegIndices = [];
 }
 
 // RegAltNameIndex - The alternate name set to use for register operands of
@@ -321,6 +339,7 @@ class Instruction {
   bit isCompare    = 0;     // Is this instruction a comparison instruction?
   bit isMoveImm    = 0;     // Is this instruction a move immediate instruction?
   bit isBitcast    = 0;     // Is this instruction a bitcast instruction?
+  bit isSelect     = 0;     // Is this instruction a select instruction?
   bit isBarrier    = 0;     // Can control flow fall through this instruction?
   bit isCall       = 0;     // Is this instruction a call instruction?
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?

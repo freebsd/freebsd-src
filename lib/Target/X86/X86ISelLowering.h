@@ -227,6 +227,9 @@ namespace llvm {
       // VSEXT_MOVL - Vector move low and sign extend.
       VSEXT_MOVL,
 
+      // VFPEXT - Vector FP extend.
+      VFPEXT,
+
       // VSHL, VSRL - 128-bit vector logical left / right shift
       VSHLDQ, VSRLDQ,
 
@@ -828,6 +831,8 @@ namespace llvm {
     SDValue LowerVectorBroadcast(SDValue &Op, SelectionDAG &DAG) const;
     SDValue NormalizeVectorShuffle(SDValue Op, SelectionDAG &DAG) const;
 
+    SDValue LowerVectorFpExtend(SDValue &Op, SelectionDAG &DAG) const;
+
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
                            CallingConv::ID CallConv, bool isVarArg,
@@ -858,9 +863,6 @@ namespace llvm {
                    bool isVarArg,
                    const SmallVectorImpl<ISD::OutputArg> &Outs,
                    LLVMContext &Context) const;
-
-    void ReplaceATOMIC_BINARY_64(SDNode *N, SmallVectorImpl<SDValue> &Results,
-                                 SelectionDAG &DAG, unsigned NewOp) const;
 
     /// Utility function to emit string processing sse4.2 instructions
     /// that return in xmm0.
