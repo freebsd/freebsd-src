@@ -1846,7 +1846,7 @@ IDM_OBJS +=	$(IDM_SHARED_OBJS) \
 
 VR_OBJS += vr.o
 
-ATGE_OBJS += atge_main.o atge_l1e.o atge_mii.o atge_l1.o
+ATGE_OBJS += atge_main.o atge_l1e.o atge_mii.o atge_l1.o atge_l1c.o
 
 YGE_OBJS = yge.o
 
@@ -1921,7 +1921,7 @@ IXGBE_OBJS =    ixgbe_82598.o ixgbe_82599.o ixgbe_api.o		\
                 ixgbe_buf.o ixgbe_debug.o ixgbe_gld.o           \
                 ixgbe_log.o ixgbe_main.o 	                \
                 ixgbe_osdep.o ixgbe_rx.o ixgbe_stat.o           \
-                ixgbe_tx.o
+                ixgbe_tx.o  ixgbe_x540.o ixgbe_mbx.o
 
 #
 #	NIU 10G/1G driver module

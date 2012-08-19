@@ -440,8 +440,10 @@ log_internal(nvlist_t *nvl, const char *operation, spa_t *spa,
 	 * If this is part of creating a pool, not everything is
 	 * initialized yet, so don't bother logging the internal events.
 	 */
-	if (tx->tx_txg == TXG_INITIAL)
+	if (tx->tx_txg == TXG_INITIAL) {
+		fnvlist_free(nvl);
 		return;
+	}
 
 	msg = kmem_alloc(vsnprintf(NULL, 0, fmt, adx) + 1, KM_SLEEP);
 	(void) vsprintf(msg, fmt, adx);
