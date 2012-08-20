@@ -307,7 +307,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	uint32_t segLenList[4];
 	int numTxMaps = 1;
 	int isFirstDesc = 1;
-	int qnum = 0;	/* XXX update */
+	int qnum;
 
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
@@ -366,11 +366,13 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 		 * it may actually be pointing to the multicast software
 		 * TXQ id.  These must be fixed!
 		 */
+		qnum = bf->bf_state.bfs_txq->axq_qnum;
+
 		ath_hal_filltxdesc(ah, (struct ath_desc *) ds
 			, bufAddrList
 			, segLenList
 			, bf->bf_descid		/* XXX desc id */
-			, bf->bf_state.bfs_txq->axq_qnum	/* XXX multicast? */
+			, qnum
 			, isFirstDesc		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
 			, (struct ath_desc *) ds0	/* first descriptor */
