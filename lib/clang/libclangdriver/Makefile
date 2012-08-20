@@ -7,7 +7,6 @@ SRCS=	Action.cpp \
 	Arg.cpp \
 	ArgList.cpp \
 	CC1AsOptions.cpp \
-	CC1Options.cpp \
 	Compilation.cpp \
 	Driver.cpp \
 	DriverOptions.cpp \
@@ -23,7 +22,6 @@ SRCS=	Action.cpp \
 	WindowsToolChain.cpp
 
 TGHDRS=	CC1AsOptions \
-	CC1Options \
 	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	Options

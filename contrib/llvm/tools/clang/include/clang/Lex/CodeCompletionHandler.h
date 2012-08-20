@@ -43,11 +43,11 @@ public:
   /// where the name of a macro is expected.
   ///
   /// \param IsDefinition Whether this is the definition of a macro, e.g.,
-  /// in a #define.
+  /// in a \#define.
   virtual void CodeCompleteMacroName(bool IsDefinition) { }
   
   /// \brief Callback invoked when performing code completion in a preprocessor
-  /// expression, such as the condition of an #if or #elif directive.
+  /// expression, such as the condition of an \#if or \#elif directive.
   virtual void CodeCompletePreprocessorExpression() { }
   
   /// \brief Callback invoked when performing code completion inside a 
@@ -62,7 +62,7 @@ public:
 
   /// \brief Callback invoked when performing code completion in a part of the
   /// file where we expect natural language, e.g., a comment, string, or 
-  /// #error directive.
+  /// \#error directive.
   virtual void CodeCompleteNaturalLanguage() { }
 };
   

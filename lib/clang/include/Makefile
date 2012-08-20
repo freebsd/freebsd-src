@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../../contrib/llvm/tools/clang/lib/Headers
 
-INCSDIR=${INCLUDEDIR}/clang/3.1
+INCSDIR=${INCLUDEDIR}/clang/3.2
 
 INCS=	altivec.h \
 	avx2intrin.h \

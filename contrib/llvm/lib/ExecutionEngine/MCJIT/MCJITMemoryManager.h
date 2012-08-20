@@ -22,24 +22,20 @@ namespace llvm {
 // matching LLVM IR counterparts in the module(s) being compiled.
 class MCJITMemoryManager : public RTDyldMemoryManager {
   virtual void anchor();
-  JITMemoryManager *JMM;
+  OwningPtr<JITMemoryManager> JMM;
 
-  // FIXME: Multiple modules.
-  Module *M;
 public:
-  MCJITMemoryManager(JITMemoryManager *jmm, Module *m) :
-    JMM(jmm?jmm:JITMemoryManager::CreateDefaultMemManager()), M(m) {}
-  // We own the JMM, so make sure to delete it.
-  ~MCJITMemoryManager() { delete JMM; }
+  MCJITMemoryManager(JITMemoryManager *jmm) :
+    JMM(jmm?jmm:JITMemoryManager::CreateDefaultMemManager()) {}
 
   uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
                                unsigned SectionID) {
-    return JMM->allocateSpace(Size, Alignment);
+    return JMM->allocateDataSection(Size, Alignment, SectionID);
   }
 
   uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
                                unsigned SectionID) {
-    return JMM->allocateSpace(Size, Alignment);
+    return JMM->allocateCodeSection(Size, Alignment, SectionID);
   }
 
   virtual void *getPointerToNamedFunction(const std::string &Name,

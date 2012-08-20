@@ -40,15 +40,6 @@ namespace llvm {
   /// definition and use points.
   ///
   class VNInfo {
-  private:
-    enum {
-      HAS_PHI_KILL    = 1,
-      IS_PHI_DEF      = 1 << 1,
-      IS_UNUSED       = 1 << 2
-    };
-
-    unsigned char flags;
-
   public:
     typedef BumpPtrAllocator Allocator;
 
@@ -60,60 +51,30 @@ namespace llvm {
 
     /// VNInfo constructor.
     VNInfo(unsigned i, SlotIndex d)
-      : flags(0), id(i), def(d)
+      : id(i), def(d)
     { }
 
     /// VNInfo construtor, copies values from orig, except for the value number.
     VNInfo(unsigned i, const VNInfo &orig)
-      : flags(orig.flags), id(i), def(orig.def)
+      : id(i), def(orig.def)
     { }
 
     /// Copy from the parameter into this VNInfo.
     void copyFrom(VNInfo &src) {
-      flags = src.flags;
       def = src.def;
-    }
-
-    /// Used for copying value number info.
-    unsigned getFlags() const { return flags; }
-    void setFlags(unsigned flags) { this->flags = flags; }
-
-    /// Merge flags from another VNInfo
-    void mergeFlags(const VNInfo *VNI) {
-      flags = (flags | VNI->flags) & ~IS_UNUSED;
-    }
-
-    /// Returns true if one or more kills are PHI nodes.
-    /// Obsolete, do not use!
-    bool hasPHIKill() const { return flags & HAS_PHI_KILL; }
-    /// Set the PHI kill flag on this value.
-    void setHasPHIKill(bool hasKill) {
-      if (hasKill)
-        flags |= HAS_PHI_KILL;
-      else
-        flags &= ~HAS_PHI_KILL;
     }
 
     /// Returns true if this value is defined by a PHI instruction (or was,
     /// PHI instrucions may have been eliminated).
-    bool isPHIDef() const { return flags & IS_PHI_DEF; }
-    /// Set the "phi def" flag on this value.
-    void setIsPHIDef(bool phiDef) {
-      if (phiDef)
-        flags |= IS_PHI_DEF;
-      else
-        flags &= ~IS_PHI_DEF;
-    }
+    /// PHI-defs begin at a block boundary, all other defs begin at register or
+    /// EC slots.
+    bool isPHIDef() const { return def.isBlock(); }
 
     /// Returns true if this value is unused.
-    bool isUnused() const { return flags & IS_UNUSED; }
-    /// Set the "is unused" flag on this value.
-    void setIsUnused(bool unused) {
-      if (unused)
-        flags |= IS_UNUSED;
-      else
-        flags &= ~IS_UNUSED;
-    }
+    bool isUnused() const { return !def.isValid(); }
+
+    /// Mark this value as unused.
+    void markUnused() { def = SlotIndex(); }
   };
 
   /// LiveRange structure - This represents a simple register range in the
@@ -274,6 +235,11 @@ namespace llvm {
       return VNI;
     }
 
+    /// createDeadDef - Make sure the interval has a value defined at Def.
+    /// If one already exists, return it. Otherwise allocate a new value and
+    /// add liveness for a dead def.
+    VNInfo *createDeadDef(SlotIndex Def, VNInfo::Allocator &VNInfoAllocator);
+
     /// Create a copy of the given value. The new value will be identical except
     /// for the Value number.
     VNInfo *createValueCopy(const VNInfo *orig,
@@ -287,17 +253,6 @@ namespace llvm {
     /// RenumberValues - Renumber all values in order of appearance and remove
     /// unused values.
     void RenumberValues(LiveIntervals &lis);
-
-    /// isOnlyLROfValNo - Return true if the specified live range is the only
-    /// one defined by the its val#.
-    bool isOnlyLROfValNo(const LiveRange *LR) {
-      for (const_iterator I = begin(), E = end(); I != E; ++I) {
-        const LiveRange *Tmp = I;
-        if (Tmp != LR && Tmp->valno == LR->valno)
-          return false;
-      }
-      return true;
-    }
 
     /// MergeValueNumberInto - This method is called when two value nubmers
     /// are found to be equivalent.  This eliminates V1, replacing all
@@ -377,14 +332,6 @@ namespace llvm {
       return I == end() ? 0 : &*I;
     }
 
-    const LiveRange *getLiveRangeBefore(SlotIndex Idx) const {
-      return getLiveRangeContaining(Idx.getPrevSlot());
-    }
-
-    LiveRange *getLiveRangeBefore(SlotIndex Idx) {
-      return getLiveRangeContaining(Idx.getPrevSlot());
-    }
-
     /// getVNInfoAt - Return the VNInfo that is live at Idx, or NULL.
     VNInfo *getVNInfoAt(SlotIndex Idx) const {
       const_iterator I = FindLiveRangeContaining(Idx);
@@ -410,11 +357,6 @@ namespace llvm {
       const_iterator I = find(Idx);
       return I != end() && I->start <= Idx ? I : end();
     }
-
-    /// findDefinedVNInfo - Find the by the specified
-    /// index (register interval) or defined
-    VNInfo *findDefinedVNInfoForRegInt(SlotIndex Idx) const;
-
 
     /// overlaps - Return true if the intersection of the two live intervals is
     /// not empty.
@@ -498,10 +440,6 @@ namespace llvm {
       weight = HUGE_VALF;
     }
 
-    /// ComputeJoinedWeight - Set the weight of a live interval after
-    /// Other has been merged into it.
-    void ComputeJoinedWeight(const LiveInterval &Other);
-
     bool operator<(const LiveInterval& other) const {
       const SlotIndex &thisIndex = beginIndex();
       const SlotIndex &otherIndex = other.beginIndex();
@@ -509,8 +447,17 @@ namespace llvm {
               (thisIndex == otherIndex && reg < other.reg));
     }
 
-    void print(raw_ostream &OS, const TargetRegisterInfo *TRI = 0) const;
+    void print(raw_ostream &OS) const;
     void dump() const;
+
+    /// \brief Walk the interval and assert if any invariants fail to hold.
+    ///
+    /// Note that this is a no-op when asserts are disabled.
+#ifdef NDEBUG
+    void verify() const {}
+#else
+    void verify() const;
+#endif
 
   private:
 
@@ -518,6 +465,9 @@ namespace llvm {
     void extendIntervalEndTo(Ranges::iterator I, SlotIndex NewEnd);
     Ranges::iterator extendIntervalStartTo(Ranges::iterator I, SlotIndex NewStr);
     void markValNoForDeletion(VNInfo *V);
+    void mergeIntervalRanges(const LiveInterval &RHS,
+                             VNInfo *LHSValNo = 0,
+                             const VNInfo *RHSValNo = 0);
 
     LiveInterval& operator=(const LiveInterval& rhs); // DO NOT IMPLEMENT
 
@@ -527,6 +477,91 @@ namespace llvm {
     LI.print(OS);
     return OS;
   }
+
+  /// LiveRangeQuery - Query information about a live range around a given
+  /// instruction. This class hides the implementation details of live ranges,
+  /// and it should be used as the primary interface for examining live ranges
+  /// around instructions.
+  ///
+  class LiveRangeQuery {
+    VNInfo *EarlyVal;
+    VNInfo *LateVal;
+    SlotIndex EndPoint;
+    bool Kill;
+
+  public:
+    /// Create a LiveRangeQuery for the given live range and instruction index.
+    /// The sub-instruction slot of Idx doesn't matter, only the instruction it
+    /// refers to is considered.
+    LiveRangeQuery(const LiveInterval &LI, SlotIndex Idx)
+      : EarlyVal(0), LateVal(0), Kill(false) {
+      // Find the segment that enters the instruction.
+      LiveInterval::const_iterator I = LI.find(Idx.getBaseIndex());
+      LiveInterval::const_iterator E = LI.end();
+      if (I == E)
+        return;
+      // Is this an instruction live-in segment?
+      if (SlotIndex::isEarlierInstr(I->start, Idx)) {
+        EarlyVal = I->valno;
+        EndPoint = I->end;
+        // Move to the potentially live-out segment.
+        if (SlotIndex::isSameInstr(Idx, I->end)) {
+          Kill = true;
+          if (++I == E)
+            return;
+        }
+      }
+      // I now points to the segment that may be live-through, or defined by
+      // this instr. Ignore segments starting after the current instr.
+      if (SlotIndex::isEarlierInstr(Idx, I->start))
+        return;
+      LateVal = I->valno;
+      EndPoint = I->end;
+    }
+
+    /// Return the value that is live-in to the instruction. This is the value
+    /// that will be read by the instruction's use operands. Return NULL if no
+    /// value is live-in.
+    VNInfo *valueIn() const {
+      return EarlyVal;
+    }
+
+    /// Return true if the live-in value is killed by this instruction. This
+    /// means that either the live range ends at the instruction, or it changes
+    /// value.
+    bool isKill() const {
+      return Kill;
+    }
+
+    /// Return true if this instruction has a dead def.
+    bool isDeadDef() const {
+      return EndPoint.isDead();
+    }
+
+    /// Return the value leaving the instruction, if any. This can be a
+    /// live-through value, or a live def. A dead def returns NULL.
+    VNInfo *valueOut() const {
+      return isDeadDef() ? 0 : LateVal;
+    }
+
+    /// Return the value defined by this instruction, if any. This includes
+    /// dead defs, it is the value created by the instruction's def operands.
+    VNInfo *valueDefined() const {
+      return EarlyVal == LateVal ? 0 : LateVal;
+    }
+
+    /// Return the end point of the last live range segment to interact with
+    /// the instruction, if any.
+    ///
+    /// The end point is an invalid SlotIndex only if the live range doesn't
+    /// intersect the instruction at all.
+    ///
+    /// The end point may be at or past the end of the instruction's basic
+    /// block. That means the value was live out of the block.
+    SlotIndex endPoint() const {
+      return EndPoint;
+    }
+  };
 
   /// ConnectedVNInfoEqClasses - Helper class that can divide VNInfos in a
   /// LiveInterval into equivalence clases of connected components. A

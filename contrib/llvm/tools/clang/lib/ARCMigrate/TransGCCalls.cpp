@@ -9,6 +9,7 @@
 
 #include "Transforms.h"
 #include "Internals.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Sema/SemaDiagnostic.h"
 
 using namespace clang;
@@ -20,13 +21,12 @@ namespace {
 class GCCollectableCallsChecker :
                          public RecursiveASTVisitor<GCCollectableCallsChecker> {
   MigrationContext &MigrateCtx;
-  ParentMap &PMap;
   IdentifierInfo *NSMakeCollectableII;
   IdentifierInfo *CFMakeCollectableII;
 
 public:
-  GCCollectableCallsChecker(MigrationContext &ctx, ParentMap &map)
-    : MigrateCtx(ctx), PMap(map) {
+  GCCollectableCallsChecker(MigrationContext &ctx)
+    : MigrateCtx(ctx) {
     IdentifierTable &Ids = MigrateCtx.Pass.Ctx.Idents;
     NSMakeCollectableII = &Ids.get("NSMakeCollectable");
     CFMakeCollectableII = &Ids.get("CFMakeCollectable");
@@ -78,7 +78,6 @@ public:
 } // anonymous namespace
 
 void GCCollectableCallsTraverser::traverseBody(BodyContext &BodyCtx) {
-  GCCollectableCallsChecker(BodyCtx.getMigrationContext(),
-                            BodyCtx.getParentMap())
+  GCCollectableCallsChecker(BodyCtx.getMigrationContext())
                                             .TraverseStmt(BodyCtx.getTopStmt());
 }

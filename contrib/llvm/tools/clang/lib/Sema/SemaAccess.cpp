@@ -152,7 +152,8 @@ struct AccessTarget : public AccessedEntity {
                CXXRecordDecl *NamingClass,
                DeclAccessPair FoundDecl,
                QualType BaseObjectType)
-    : AccessedEntity(Context, Member, NamingClass, FoundDecl, BaseObjectType) {
+    : AccessedEntity(Context.getDiagAllocator(), Member, NamingClass,
+                     FoundDecl, BaseObjectType) {
     initialize();
   }
 
@@ -161,7 +162,8 @@ struct AccessTarget : public AccessedEntity {
                CXXRecordDecl *BaseClass,
                CXXRecordDecl *DerivedClass,
                AccessSpecifier Access)
-    : AccessedEntity(Context, Base, BaseClass, DerivedClass, Access) {
+    : AccessedEntity(Context.getDiagAllocator(), Base, BaseClass, DerivedClass,
+                     Access) {
     initialize();
   }
 
@@ -781,7 +783,7 @@ static AccessResult HasAccess(Sema &S,
 
         // Emulate a MSVC bug where the creation of pointer-to-member
         // to protected member of base class is allowed but only from
-        // a static function member functions.
+        // static member functions.
         if (S.getLangOpts().MicrosoftMode && !EC.Functions.empty())
           if (CXXMethodDecl* MD = dyn_cast<CXXMethodDecl>(EC.Functions.front()))
             if (MD->isStatic()) return AR_accessible;
@@ -1391,9 +1393,6 @@ static Sema::AccessResult CheckAccess(Sema &S, SourceLocation Loc,
   if (Entity.getAccess() == AS_public)
     return Sema::AR_accessible;
 
-  if (S.SuppressAccessChecking)
-    return Sema::AR_accessible;
-
   // If we're currently parsing a declaration, we may need to delay
   // access control checking, because our effective context might be
   // different based on what the declaration comes out as.
@@ -1633,25 +1632,6 @@ Sema::AccessResult Sema::CheckConstructorAccess(SourceLocation UseLoc,
   return CheckAccess(*this, UseLoc, AccessEntity);
 } 
 
-/// Checks direct (i.e. non-inherited) access to an arbitrary class
-/// member.
-Sema::AccessResult Sema::CheckDirectMemberAccess(SourceLocation UseLoc,
-                                                 NamedDecl *Target,
-                                           const PartialDiagnostic &Diag) {
-  AccessSpecifier Access = Target->getAccess();
-  if (!getLangOpts().AccessControl ||
-      Access == AS_public)
-    return AR_accessible;
-
-  CXXRecordDecl *NamingClass = cast<CXXRecordDecl>(Target->getDeclContext());
-  AccessTarget Entity(Context, AccessTarget::Member, NamingClass,
-                      DeclAccessPair::make(Target, Access),
-                      QualType());
-  Entity.setDiag(Diag);
-  return CheckAccess(*this, UseLoc, Entity);
-}
-                                           
-
 /// Checks access to an overloaded operator new or delete.
 Sema::AccessResult Sema::CheckAllocationAccess(SourceLocation OpLoc,
                                                SourceRange PlacementRange,
@@ -1694,6 +1674,44 @@ Sema::AccessResult Sema::CheckMemberOperatorAccess(SourceLocation OpLoc,
   return CheckAccess(*this, OpLoc, Entity);
 }
 
+/// Checks access to the target of a friend declaration.
+Sema::AccessResult Sema::CheckFriendAccess(NamedDecl *target) {
+  assert(isa<CXXMethodDecl>(target) ||
+         (isa<FunctionTemplateDecl>(target) &&
+          isa<CXXMethodDecl>(cast<FunctionTemplateDecl>(target)
+                               ->getTemplatedDecl())));
+
+  // Friendship lookup is a redeclaration lookup, so there's never an
+  // inheritance path modifying access.
+  AccessSpecifier access = target->getAccess();
+
+  if (!getLangOpts().AccessControl || access == AS_public)
+    return AR_accessible;
+
+  CXXMethodDecl *method = dyn_cast<CXXMethodDecl>(target);
+  if (!method)
+    method = cast<CXXMethodDecl>(
+                     cast<FunctionTemplateDecl>(target)->getTemplatedDecl());
+  assert(method->getQualifier());
+
+  AccessTarget entity(Context, AccessTarget::Member,
+                      cast<CXXRecordDecl>(target->getDeclContext()),
+                      DeclAccessPair::make(target, access),
+                      /*no instance context*/ QualType());
+  entity.setDiag(diag::err_access_friend_function)
+    << method->getQualifierLoc().getSourceRange();
+
+  // We need to bypass delayed-diagnostics because we might be called
+  // while the ParsingDeclarator is active.
+  EffectiveContext EC(CurContext);
+  switch (CheckEffectiveAccess(*this, EC, target->getLocation(), entity)) {
+  case AR_accessible: return Sema::AR_accessible;
+  case AR_inaccessible: return Sema::AR_inaccessible;
+  case AR_dependent: return Sema::AR_dependent;
+  }
+  llvm_unreachable("falling off end");
+}
+
 Sema::AccessResult Sema::CheckAddressOfMemberAccess(Expr *OvlExpr,
                                                     DeclAccessPair Found) {
   if (!getLangOpts().AccessControl ||
@@ -1714,13 +1732,10 @@ Sema::AccessResult Sema::CheckAddressOfMemberAccess(Expr *OvlExpr,
 
 /// Checks access for a hierarchy conversion.
 ///
-/// \param IsBaseToDerived whether this is a base-to-derived conversion (true)
-///     or a derived-to-base conversion (false)
 /// \param ForceCheck true if this check should be performed even if access
 ///     control is disabled;  some things rely on this for semantics
 /// \param ForceUnprivileged true if this check should proceed as if the
 ///     context had no special privileges
-/// \param ADK controls the kind of diagnostics that are used
 Sema::AccessResult Sema::CheckBaseClassAccess(SourceLocation AccessLoc,
                                               QualType Base,
                                               QualType Derived,
@@ -1835,16 +1850,4 @@ bool Sema::IsSimplyAccessible(NamedDecl *Decl, DeclContext *Ctx) {
   }
   
   return true;
-}
-
-void Sema::ActOnStartSuppressingAccessChecks() {
-  assert(!SuppressAccessChecking &&
-         "Tried to start access check suppression when already started.");
-  SuppressAccessChecking = true;
-}
-
-void Sema::ActOnStopSuppressingAccessChecks() {
-  assert(SuppressAccessChecking &&
-         "Tried to stop access check suprression when already stopped.");
-  SuppressAccessChecking = false;
 }

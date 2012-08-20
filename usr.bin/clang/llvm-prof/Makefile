@@ -8,6 +8,7 @@ SRCS=	llvm-prof.cpp
 LIBDEPS=llvmanalysis \
 	llvmtarget \
 	llvmmc \
+	llvmobject \
 	llvmbitreader \
 	llvmcore \
 	llvmsupport

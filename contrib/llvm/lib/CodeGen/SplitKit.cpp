@@ -345,9 +345,11 @@ void SplitEditor::reset(LiveRangeEdit &LRE, ComplementSpillMode SM) {
   Values.clear();
 
   // Reset the LiveRangeCalc instances needed for this spill mode.
-  LRCalc[0].reset(&VRM.getMachineFunction());
+  LRCalc[0].reset(&VRM.getMachineFunction(), LIS.getSlotIndexes(), &MDT,
+                  &LIS.getVNInfoAllocator());
   if (SpillMode)
-    LRCalc[1].reset(&VRM.getMachineFunction());
+    LRCalc[1].reset(&VRM.getMachineFunction(), LIS.getSlotIndexes(), &MDT,
+                    &LIS.getVNInfoAllocator());
 
   // We don't need an AliasAnalysis since we will only be performing
   // cheap-as-a-copy remats anyway.
@@ -650,7 +652,7 @@ void SplitEditor::removeBackCopies(SmallVectorImpl<VNInfo*> &Copies) {
     // Adjust RegAssign if a register assignment is killed at VNI->def.  We
     // want to avoid calculating the live range of the source register if
     // possible.
-    AssignI.find(VNI->def.getPrevSlot());
+    AssignI.find(Def.getPrevSlot());
     if (!AssignI.valid() || AssignI.start() >= Def)
       continue;
     // If MI doesn't kill the assigned register, just leave it.
@@ -737,6 +739,8 @@ void SplitEditor::hoistCopiesForSize() {
   for (LiveInterval::vni_iterator VI = LI->vni_begin(), VE = LI->vni_end();
        VI != VE; ++VI) {
     VNInfo *VNI = *VI;
+    if (VNI->isUnused())
+      continue;
     VNInfo *ParentVNI = Edit->getParent().getVNInfoAt(VNI->def);
     assert(ParentVNI && "Parent not live at complement def");
 
@@ -810,6 +814,8 @@ void SplitEditor::hoistCopiesForSize() {
   for (LiveInterval::vni_iterator VI = LI->vni_begin(), VE = LI->vni_end();
        VI != VE; ++VI) {
     VNInfo *VNI = *VI;
+    if (VNI->isUnused())
+      continue;
     VNInfo *ParentVNI = Edit->getParent().getVNInfoAt(VNI->def);
     const DomPair &Dom = NearestDom[ParentVNI->id];
     if (!Dom.first || Dom.second == VNI->def)
@@ -924,11 +930,9 @@ bool SplitEditor::transferValues() {
     DEBUG(dbgs() << '\n');
   }
 
-  LRCalc[0].calculateValues(LIS.getSlotIndexes(), &MDT,
-                            &LIS.getVNInfoAllocator());
+  LRCalc[0].calculateValues();
   if (SpillMode)
-    LRCalc[1].calculateValues(LIS.getSlotIndexes(), &MDT,
-                              &LIS.getVNInfoAllocator());
+    LRCalc[1].calculateValues();
 
   return Skipped;
 }
@@ -953,8 +957,7 @@ void SplitEditor::extendPHIKillRanges() {
       if (Edit->getParent().liveAt(LastUse)) {
         assert(RegAssign.lookup(LastUse) == RegIdx &&
                "Different register assignment in phi predecessor");
-        LRC.extend(LI, End,
-                   LIS.getSlotIndexes(), &MDT, &LIS.getVNInfoAllocator());
+        LRC.extend(LI, End);
       }
     }
   }
@@ -1004,8 +1007,7 @@ void SplitEditor::rewriteAssigned(bool ExtendRanges) {
     } else
       Idx = Idx.getRegSlot(true);
 
-    getLRCalc(RegIdx).extend(LI, Idx.getNextSlot(), LIS.getSlotIndexes(),
-                             &MDT, &LIS.getVNInfoAllocator());
+    getLRCalc(RegIdx).extend(LI, Idx.getNextSlot());
   }
 }
 
@@ -1049,8 +1051,7 @@ void SplitEditor::finish(SmallVectorImpl<unsigned> *LRMap) {
     if (ParentVNI->isUnused())
       continue;
     unsigned RegIdx = RegAssign.lookup(ParentVNI->def);
-    VNInfo *VNI = defValue(RegIdx, ParentVNI, ParentVNI->def);
-    VNI->setIsPHIDef(ParentVNI->isPHIDef());
+    defValue(RegIdx, ParentVNI, ParentVNI->def);
 
     // Force rematted values to be recomputed everywhere.
     // The new live ranges may be truncated.

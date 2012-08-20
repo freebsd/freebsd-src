@@ -461,6 +461,9 @@ namespace {
     /// allocateCodeSection - Allocate memory for a code section.
     uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
                                  unsigned SectionID) {
+      // Grow the required block size to account for the block header
+      Size += sizeof(*CurBlock);
+
       // FIXME: Alignement handling.
       FreeRangeHeader* candidateBlock = FreeMemoryList;
       FreeRangeHeader* head = FreeMemoryList;
@@ -852,7 +855,7 @@ static int jit_noop() {
 /// for resolving library symbols, not code generated symbols.
 ///
 void *DefaultJITMemoryManager::getPointerToNamedFunction(const std::string &Name,
-                                     bool AbortOnFailure) {
+                                                         bool AbortOnFailure) {
   // Check to see if this is one of the functions we want to intercept.  Note,
   // we cast to intptr_t here to silence a -pedantic warning that complains
   // about casting a function pointer to a normal pointer.

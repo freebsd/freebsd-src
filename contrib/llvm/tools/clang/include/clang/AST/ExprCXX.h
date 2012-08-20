@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_AST_EXPRCXX_H
 #define LLVM_CLANG_AST_EXPRCXX_H
 
+#include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "clang/AST/TemplateBase.h"
@@ -50,14 +51,18 @@ class TemplateArgumentListInfo;
 class CXXOperatorCallExpr : public CallExpr {
   /// \brief The overloaded operator.
   OverloadedOperatorKind Operator;
+  SourceRange Range;
 
+  SourceRange getSourceRangeImpl() const LLVM_READONLY;
 public:
   CXXOperatorCallExpr(ASTContext& C, OverloadedOperatorKind Op, Expr *fn,
                       Expr **args, unsigned numargs, QualType t,
                       ExprValueKind VK, SourceLocation operatorloc)
     : CallExpr(C, CXXOperatorCallExprClass, fn, 0, args, numargs, t, VK,
                operatorloc),
-      Operator(Op) {}
+      Operator(Op) {
+    Range = getSourceRangeImpl();
+  }
   explicit CXXOperatorCallExpr(ASTContext& C, EmptyShell Empty) :
     CallExpr(C, CXXOperatorCallExprClass, Empty) { }
 
@@ -65,7 +70,6 @@ public:
   /// getOperator - Returns the kind of overloaded operator that this
   /// expression refers to.
   OverloadedOperatorKind getOperator() const { return Operator; }
-  void setOperator(OverloadedOperatorKind Kind) { Operator = Kind; }
 
   /// getOperatorLoc - Returns the location of the operator symbol in
   /// the expression. When @c getOperator()==OO_Call, this is the
@@ -74,12 +78,15 @@ public:
   /// bracket.
   SourceLocation getOperatorLoc() const { return getRParenLoc(); }
 
-  SourceRange getSourceRange() const LLVM_READONLY;
+  SourceRange getSourceRange() const { return Range; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXOperatorCallExprClass;
   }
   static bool classof(const CXXOperatorCallExpr *) { return true; }
+
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
 };
 
 /// CXXMemberCallExpr - Represents a call to a member function that
@@ -112,7 +119,7 @@ public:
   /// declaration as that of the class context of the CXXMethodDecl which this
   /// function is calling.
   /// FIXME: Returns 0 for member pointer call exprs.
-  CXXRecordDecl *getRecordDecl();
+  CXXRecordDecl *getRecordDecl() const;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXMemberCallExprClass;
@@ -369,10 +376,21 @@ public:
     return const_cast<UserDefinedLiteral*>(this)->getCookedLiteral();
   }
 
+  SourceLocation getLocStart() const {
+    if (getLiteralOperatorKind() == LOK_Template)
+      return getRParenLoc();
+    return getArg(0)->getLocStart();
+  }
+  SourceLocation getLocEnd() const { return getRParenLoc(); }
+  SourceRange getSourceRange() const {
+    return SourceRange(getLocStart(), getLocEnd());
+  }
+
+
   /// getUDSuffixLoc - Returns the location of a ud-suffix in the expression.
   /// For a string literal, there may be multiple identical suffixes. This
   /// returns the first.
-  SourceLocation getUDSuffixLoc() const { return getRParenLoc(); }
+  SourceLocation getUDSuffixLoc() const { return UDSuffixLoc; }
 
   /// getUDSuffix - Returns the ud-suffix specified for this literal.
   const IdentifierInfo *getUDSuffix() const;
@@ -480,6 +498,10 @@ public:
     else
       Operand = (TypeSourceInfo*)0;
   }
+
+  /// Determine whether this typeid has a type operand which is potentially
+  /// evaluated, per C++11 [expr.typeid]p3.
+  bool isPotentiallyEvaluated() const;
 
   bool isTypeOperand() const { return Operand.is<TypeSourceInfo *>(); }
 
@@ -859,7 +881,7 @@ public:
   child_range children() { return child_range(&SubExpr, &SubExpr + 1); }
 };
 
-/// CXXConstructExpr - Represents a call to a C++ constructor.
+/// \brief Represents a call to a C++ constructor.
 class CXXConstructExpr : public Expr {
 public:
   enum ConstructionKind {
@@ -983,6 +1005,7 @@ public:
 
   SourceRange getSourceRange() const LLVM_READONLY;
   SourceRange getParenRange() const { return ParenRange; }
+  void setParenRange(SourceRange Range) { ParenRange = Range; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXConstructExprClass ||
@@ -998,9 +1021,13 @@ public:
   friend class ASTStmtReader;
 };
 
-/// CXXFunctionalCastExpr - Represents an explicit C++ type conversion
-/// that uses "functional" notion (C++ [expr.type.conv]). Example: @c
-/// x = int(0.5);
+/// \brief Represents an explicit C++ type conversion that uses "functional"
+/// notation (C++ [expr.type.conv]).
+///
+/// Example:
+/// @code
+///   x = int(0.5);
+/// @endcode
 class CXXFunctionalCastExpr : public ExplicitCastExpr {
   SourceLocation TyBeginLoc;
   SourceLocation RParenLoc;
@@ -1231,7 +1258,8 @@ private:
              ArrayRef<Expr *> CaptureInits,
              ArrayRef<VarDecl *> ArrayIndexVars,
              ArrayRef<unsigned> ArrayIndexStarts,
-             SourceLocation ClosingBrace);
+             SourceLocation ClosingBrace,
+             bool ContainsUnexpandedParameterPack);
 
   /// \brief Construct an empty lambda expression.
   LambdaExpr(EmptyShell Empty, unsigned NumCaptures, bool HasArrayIndexVars)
@@ -1269,7 +1297,8 @@ public:
                             ArrayRef<Expr *> CaptureInits,
                             ArrayRef<VarDecl *> ArrayIndexVars,
                             ArrayRef<unsigned> ArrayIndexStarts,
-                            SourceLocation ClosingBrace);
+                            SourceLocation ClosingBrace,
+                            bool ContainsUnexpandedParameterPack);
 
   /// \brief Construct a new lambda expression that will be deserialized from
   /// an external source.
@@ -1419,15 +1448,16 @@ public:
   child_range children() { return child_range(); }
 };
 
-/// CXXNewExpr - A new expression for memory allocation and constructor calls,
-/// e.g: "new CXXNewExpr(foo)".
+/// @brief Represents a new-expression for memory allocation and constructor
+// calls, e.g: "new CXXNewExpr(foo)".
 class CXXNewExpr : public Expr {
   // Contains an optional array size expression, an optional initialization
   // expression, and any number of optional placement arguments, in that order.
   Stmt **SubExprs;
-  // Points to the allocation function used.
+  /// \brief Points to the allocation function used.
   FunctionDecl *OperatorNew;
-  // Points to the deallocation function used in case of error. May be null.
+  /// \brief Points to the deallocation function used in case of error. May be
+  /// null.
   FunctionDecl *OperatorDelete;
 
   /// \brief The allocated type-source information, as written in the source.
@@ -1607,8 +1637,8 @@ public:
   }
 };
 
-/// CXXDeleteExpr - A delete expression for memory deallocation and destructor
-/// calls, e.g. "delete[] pArray".
+/// \brief Represents a \c delete expression for memory deallocation and
+/// destructor calls, e.g. "delete[] pArray".
 class CXXDeleteExpr : public Expr {
   // Points to the operator delete overload that is used. Could be a member.
   FunctionDecl *OperatorDelete;
@@ -1678,8 +1708,7 @@ public:
   friend class ASTStmtReader;
 };
 
-/// \brief Structure used to store the type being destroyed by a
-/// pseudo-destructor expression.
+/// \brief Stores the type being destroyed by a pseudo-destructor expression.
 class PseudoDestructorTypeStorage {
   /// \brief Either the type source information or the name of the type, if
   /// it couldn't be resolved due to type-dependence.
@@ -1866,11 +1895,14 @@ public:
   child_range children() { return child_range(&Base, &Base + 1); }
 };
 
-/// UnaryTypeTraitExpr - A GCC or MS unary type trait, as used in the
-/// implementation of TR1/C++0x type trait templates.
+/// \brief Represents a GCC or MS unary type trait, as used in the
+/// implementation of TR1/C++11 type trait templates.
+///
 /// Example:
-/// __is_pod(int) == true
-/// __is_enum(std::string) == false
+/// @code
+///   __is_pod(int) == true
+///   __is_enum(std::string) == false
+/// @endcode
 class UnaryTypeTraitExpr : public Expr {
   /// UTT - The trait. A UnaryTypeTrait enum in MSVC compat unsigned.
   unsigned UTT : 31;
@@ -1921,10 +1953,13 @@ public:
   friend class ASTStmtReader;
 };
 
-/// BinaryTypeTraitExpr - A GCC or MS binary type trait, as used in the
-/// implementation of TR1/C++0x type trait templates.
+/// \brief Represents a GCC or MS binary type trait, as used in the
+/// implementation of TR1/C++11 type trait templates.
+///
 /// Example:
-/// __is_base_of(Base, Derived) == true
+/// @code
+///   __is_base_of(Base, Derived) == true
+/// @endcode
 class BinaryTypeTraitExpr : public Expr {
   /// BTT - The trait. A BinaryTypeTrait enum in MSVC compat unsigned.
   unsigned BTT : 8;
@@ -2086,30 +2121,33 @@ public:
 
 };
   
-/// ArrayTypeTraitExpr - An Embarcadero array type trait, as used in the
-/// implementation of __array_rank and __array_extent.
+/// \brief An Embarcadero array type trait, as used in the implementation of
+/// __array_rank and __array_extent.
+///
 /// Example:
-/// __array_rank(int[10][20]) == 2
-/// __array_extent(int, 1)    == 20
+/// @code
+///   __array_rank(int[10][20]) == 2
+///   __array_extent(int, 1)    == 20
+/// @endcode
 class ArrayTypeTraitExpr : public Expr {
   virtual void anchor();
 
-  /// ATT - The trait. An ArrayTypeTrait enum in MSVC compat unsigned.
+  /// \brief The trait. An ArrayTypeTrait enum in MSVC compat unsigned.
   unsigned ATT : 2;
 
-  /// The value of the type trait. Unspecified if dependent.
+  /// \brief The value of the type trait. Unspecified if dependent.
   uint64_t Value;
 
-  /// The array dimension being queried, or -1 if not used
+  /// \brief The array dimension being queried, or -1 if not used.
   Expr *Dimension;
 
-  /// Loc - The location of the type trait keyword.
+  /// \brief The location of the type trait keyword.
   SourceLocation Loc;
 
-  /// RParen - The location of the closing paren.
+  /// \brief The location of the closing paren.
   SourceLocation RParen;
 
-  /// The type being queried.
+  /// \brief The type being queried.
   TypeSourceInfo *QueriedType;
 
 public:
@@ -2156,22 +2194,26 @@ public:
   friend class ASTStmtReader;
 };
 
-/// ExpressionTraitExpr - An expression trait intrinsic
+/// \brief An expression trait intrinsic.
+///
 /// Example:
-/// __is_lvalue_expr(std::cout) == true
-/// __is_lvalue_expr(1) == false
+/// @code
+///   __is_lvalue_expr(std::cout) == true
+///   __is_lvalue_expr(1) == false
+/// @endcode
 class ExpressionTraitExpr : public Expr {
-  /// ET - The trait. A ExpressionTrait enum in MSVC compat unsigned.
+  /// \brief The trait. A ExpressionTrait enum in MSVC compat unsigned.
   unsigned ET : 31;
-  /// The value of the type trait. Unspecified if dependent.
+  /// \brief The value of the type trait. Unspecified if dependent.
   bool Value : 1;
 
-  /// Loc - The location of the type trait keyword.
+  /// \brief The location of the type trait keyword.
   SourceLocation Loc;
 
-  /// RParen - The location of the closing paren.
+  /// \brief The location of the closing paren.
   SourceLocation RParen;
 
+  /// \brief The expression being queried.
   Expr* QueriedExpression;
 public:
   ExpressionTraitExpr(SourceLocation loc, ExpressionTrait et,
@@ -2190,7 +2232,9 @@ public:
     : Expr(ExpressionTraitExprClass, Empty), ET(0), Value(false),
       QueriedExpression() { }
 
-  SourceRange getSourceRange() const LLVM_READONLY { return SourceRange(Loc, RParen);}
+  SourceRange getSourceRange() const LLVM_READONLY {
+    return SourceRange(Loc, RParen);
+  }
 
   ExpressionTrait getTrait() const { return static_cast<ExpressionTrait>(ET); }
 
@@ -2211,9 +2255,9 @@ public:
 
 
 /// \brief A reference to an overloaded function set, either an
-/// \t UnresolvedLookupExpr or an \t UnresolvedMemberExpr.
+/// \c UnresolvedLookupExpr or an \c UnresolvedMemberExpr.
 class OverloadExpr : public Expr {
-  /// The common name of these declarations.
+  /// \brief The common name of these declarations.
   DeclarationNameInfo NameInfo;
 
   /// \brief The nested-name-specifier that qualifies the name, if any.
@@ -2292,7 +2336,7 @@ public:
     return Result;
   }
 
-  /// Gets the naming class of this lookup, if any.
+  /// \brief Gets the naming class of this lookup, if any.
   CXXRecordDecl *getNamingClass() const;
 
   typedef UnresolvedSetImpl::iterator decls_iterator;
@@ -2301,25 +2345,25 @@ public:
     return UnresolvedSetIterator(Results + NumResults);
   }
 
-  /// Gets the number of declarations in the unresolved set.
+  /// \brief Gets the number of declarations in the unresolved set.
   unsigned getNumDecls() const { return NumResults; }
 
-  /// Gets the full name info.
+  /// \brief Gets the full name info.
   const DeclarationNameInfo &getNameInfo() const { return NameInfo; }
 
-  /// Gets the name looked up.
+  /// \brief Gets the name looked up.
   DeclarationName getName() const { return NameInfo.getName(); }
 
-  /// Gets the location of the name.
+  /// \brief Gets the location of the name.
   SourceLocation getNameLoc() const { return NameInfo.getLoc(); }
 
-  /// Fetches the nested-name qualifier, if one was given.
+  /// \brief Fetches the nested-name qualifier, if one was given.
   NestedNameSpecifier *getQualifier() const {
     return QualifierLoc.getNestedNameSpecifier();
   }
 
-  /// Fetches the nested-name qualifier with source-location information, if
-  /// one was given.
+  /// \brief Fetches the nested-name qualifier with source-location
+  /// information, if one was given.
   NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
 
   /// \brief Retrieve the location of the template keyword preceding
@@ -2343,10 +2387,10 @@ public:
     return getTemplateKWAndArgsInfo()->RAngleLoc;
   }
 
-  /// Determines whether the name was preceded by the template keyword.
+  /// \brief Determines whether the name was preceded by the template keyword.
   bool hasTemplateKeyword() const { return getTemplateKeywordLoc().isValid(); }
 
-  /// Determines whether this expression had explicit template arguments.
+  /// \brief Determines whether this expression had explicit template arguments.
   bool hasExplicitTemplateArgs() const { return getLAngleLoc().isValid(); }
 
   // Note that, inconsistently with the explicit-template-argument AST
@@ -2370,12 +2414,13 @@ public:
     return getExplicitTemplateArgs().NumTemplateArgs;
   }
 
-  /// Copies the template arguments into the given structure.
+  /// \brief Copies the template arguments into the given structure.
   void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
     getExplicitTemplateArgs().copyInto(List);
   }
 
   /// \brief Retrieves the optional explicit template arguments.
+  ///
   /// This points to the same data as getExplicitTemplateArgs(), but
   /// returns null if there are no explicit template arguments.
   const ASTTemplateArgumentListInfo *getOptionalExplicitTemplateArgs() {
@@ -2394,15 +2439,15 @@ public:
 };
 
 /// \brief A reference to a name which we were able to look up during
-/// parsing but could not resolve to a specific declaration.  This
-/// arises in several ways:
+/// parsing but could not resolve to a specific declaration.
+///
+/// This arises in several ways:
 ///   * we might be waiting for argument-dependent lookup
 ///   * the name might resolve to an overloaded function
 /// and eventually:
 ///   * the lookup might have included a function template
-/// These never include UnresolvedUsingValueDecls, which are always
-/// class members and therefore appear only in
-/// UnresolvedMemberLookupExprs.
+/// These never include UnresolvedUsingValueDecls, which are always class
+/// members and therefore appear only in UnresolvedMemberLookupExprs.
 class UnresolvedLookupExpr : public OverloadExpr {
   /// True if these lookup results should be extended by
   /// argument-dependent lookup if this is the operand of a function
@@ -2483,8 +2528,8 @@ public:
   /// argument-dependent lookup.
   bool requiresADL() const { return RequiresADL; }
 
-  /// True if namespace ::std should be artificially added to the set of
-  /// associated namespaecs for argument-dependent lookup purposes.
+  /// True if namespace \::std should be artificially added to the set of
+  /// associated namespaces for argument-dependent lookup purposes.
   bool isStdAssociatedNamespace() const { return StdIsAssociatedNamespace; }
 
   /// True if this lookup is overloaded.
@@ -2744,9 +2789,9 @@ public:
 /// type-dependent.
 ///
 /// The explicit type conversions expressed by
-/// CXXUnresolvedConstructExpr have the form \c T(a1, a2, ..., aN),
-/// where \c T is some type and \c a1, a2, ..., aN are values, and
-/// either \C T is a dependent type or one or more of the \c a's is
+/// CXXUnresolvedConstructExpr have the form <tt>T(a1, a2, ..., aN)</tt>,
+/// where \c T is some type and \c a1, \c a2, ..., \c aN are values, and
+/// either \c T is a dependent type or one or more of the <tt>a</tt>'s is
 /// type-dependent. For example, this would occur in a template such
 /// as:
 ///

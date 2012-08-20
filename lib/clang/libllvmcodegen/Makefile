@@ -15,6 +15,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	DeadMachineInstructionElim.cpp \
 	DFAPacketizer.cpp \
 	DwarfEHPrepare.cpp \
+	EarlyIfConversion.cpp \
 	EdgeBundles.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
@@ -34,6 +35,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveInterval.cpp \
 	LiveIntervalAnalysis.cpp \
 	LiveIntervalUnion.cpp \
+	LiveRegMatrix.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
 	LiveRangeCalc.cpp \
@@ -63,6 +65,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineSSAUpdater.cpp \
 	MachineScheduler.cpp \
 	MachineSink.cpp \
+	MachineTraceMetrics.cpp \
 	MachineVerifier.cpp \
 	OcamlGC.cpp \
 	OptimizePHIs.cpp \
@@ -81,8 +84,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	RegAllocPBQP.cpp \
 	RegisterClassInfo.cpp \
 	RegisterCoalescer.cpp \
+	RegisterPressure.cpp \
 	RegisterScavenging.cpp \
-	RenderMachineFunction.cpp \
 	ScheduleDAG.cpp \
 	ScheduleDAGInstrs.cpp \
 	ScheduleDAGPrinter.cpp \

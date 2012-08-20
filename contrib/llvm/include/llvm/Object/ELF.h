@@ -217,7 +217,7 @@ struct Elf_Verdef_Impl {
   }
 };
 
-/// Elf_Verdaux: This is the structure of auxilary data in the SHT_GNU_verdef
+/// Elf_Verdaux: This is the structure of auxiliary data in the SHT_GNU_verdef
 /// section (.gnu.version_d). This structure is identical for ELF32 and ELF64.
 template<support::endianness target_endianness, bool is64Bits>
 struct Elf_Verdaux_Impl {
@@ -505,9 +505,6 @@ private:
   const Elf_Rela *getRela(DataRefImpl Rela) const;
   const char     *getString(uint32_t section, uint32_t offset) const;
   const char     *getString(const Elf_Shdr *section, uint32_t offset) const;
-  error_code      getSymbolName(const Elf_Shdr *section,
-                                const Elf_Sym *Symb,
-                                StringRef &Res) const;
   error_code      getSymbolVersion(const Elf_Shdr *section,
                                    const Elf_Sym *Symb,
                                    StringRef &Version,
@@ -519,6 +516,11 @@ protected:
   void            validateSymbol(DataRefImpl Symb) const;
 
 public:
+  error_code      getSymbolName(const Elf_Shdr *section,
+                                const Elf_Sym *Symb,
+                                StringRef &Res) const;
+  error_code      getSectionName(const Elf_Shdr *section,
+                                 StringRef &Res) const;
   const Elf_Dyn  *getDyn(DataRefImpl DynData) const;
   error_code getSymbolVersion(SymbolRef Symb, StringRef &Version,
                               bool &IsDefault) const;
@@ -597,11 +599,15 @@ public:
   virtual StringRef getObjectType() const { return "ELF"; }
   virtual unsigned getArch() const;
   virtual StringRef getLoadName() const;
+  virtual error_code getSectionContents(const Elf_Shdr *sec,
+                                        StringRef &Res) const;
 
   uint64_t getNumSections() const;
   uint64_t getStringTableIndex() const;
   ELF::Elf64_Word getSymbolTableIndex(const Elf_Sym *symb) const;
   const Elf_Shdr *getSection(const Elf_Sym *symb) const;
+  const Elf_Shdr *getElfSection(section_iterator &It) const;
+  const Elf_Sym *getElfSymbol(symbol_iterator &It) const;
 
   // Methods for type inquiry through isa, cast, and dyn_cast
   bool isDyldType() const { return isDyldELFObject; }
@@ -780,6 +786,21 @@ ELFObjectFile<target_endianness, is64Bits>
   if (symb->st_shndx >= ELF::SHN_LORESERVE)
     return 0;
   return getSection(symb->st_shndx);
+}
+
+template<support::endianness target_endianness, bool is64Bits>
+const typename ELFObjectFile<target_endianness, is64Bits>::Elf_Shdr *
+ELFObjectFile<target_endianness, is64Bits>
+                             ::getElfSection(section_iterator &It) const {
+  llvm::object::DataRefImpl ShdrRef = It->getRawDataRefImpl();
+  return reinterpret_cast<const Elf_Shdr *>(ShdrRef.p);
+}
+
+template<support::endianness target_endianness, bool is64Bits>
+const typename ELFObjectFile<target_endianness, is64Bits>::Elf_Sym *
+ELFObjectFile<target_endianness, is64Bits>
+                             ::getElfSymbol(symbol_iterator &It) const {
+  return getSymbol(It->getRawDataRefImpl());
 }
 
 template<support::endianness target_endianness, bool is64Bits>
@@ -1055,6 +1076,15 @@ error_code ELFObjectFile<target_endianness, is64Bits>
   const Elf_Shdr *sec = reinterpret_cast<const Elf_Shdr *>(Sec.p);
   const char *start = (const char*)base() + sec->sh_offset;
   Result = StringRef(start, sec->sh_size);
+  return object_error::success;
+}
+
+template<support::endianness target_endianness, bool is64Bits>
+error_code ELFObjectFile<target_endianness, is64Bits>
+                        ::getSectionContents(const Elf_Shdr *Sec,
+                                             StringRef &Result) const {
+  const char *start = (const char*)base() + Sec->sh_offset;
+  Result = StringRef(start, Sec->sh_size);
   return object_error::success;
 }
 
@@ -1414,6 +1444,98 @@ error_code ELFObjectFile<target_endianness, is64Bits>
       res = "Unknown";
     }
     break;
+  case ELF::EM_HEXAGON:
+    switch (type) {
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_NONE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B22_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B15_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B7_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GPREL16_0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GPREL16_1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GPREL16_2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GPREL16_3);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_HL16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B13_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B9_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B32_PCREL_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B22_PCREL_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B15_PCREL_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B13_PCREL_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B9_PCREL_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B7_PCREL_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_12_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_11_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_10_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_9_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_8_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_7_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_32_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_COPY);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GLOB_DAT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_JMP_SLOT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_RELATIVE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_PLT_B22_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOTREL_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOTREL_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOTREL_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOT_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOT_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOT_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOT_16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPMOD_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPREL_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPREL_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPREL_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPREL_16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_PLT_B22_PCREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_GOT_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_GOT_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_GOT_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_GOT_16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_GOT_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_GOT_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_GOT_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_GOT_16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_LO16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_HI16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_6_PCREL_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOTREL_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOTREL_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOTREL_11_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOT_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOT_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GOT_11_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPREL_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPREL_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_DTPREL_11_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_GOT_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_GOT_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_GD_GOT_11_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_GOT_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_GOT_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_IE_GOT_11_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_32_6_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_16_X);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_11_X);
+    default:
+      res = "Unknown";
+    }
+    break;
   default:
     res = "Unknown";
   }
@@ -1488,6 +1610,9 @@ error_code ELFObjectFile<target_endianness, is64Bits>
     default:
       res = "Unknown";
     }
+    break;
+  case ELF::EM_HEXAGON:
+    res = symname;
     break;
   default:
     res = "Unknown";
@@ -1888,6 +2013,8 @@ StringRef ELFObjectFile<target_endianness, is64Bits>
       return "ELF32-x86-64";
     case ELF::EM_ARM:
       return "ELF32-arm";
+    case ELF::EM_HEXAGON:
+      return "ELF32-hexagon";
     default:
       return "ELF32-unknown";
     }
@@ -1915,6 +2042,8 @@ unsigned ELFObjectFile<target_endianness, is64Bits>::getArch() const {
     return Triple::x86_64;
   case ELF::EM_ARM:
     return Triple::arm;
+  case ELF::EM_HEXAGON:
+    return Triple::hexagon;
   default:
     return Triple::UnknownArch;
   }
@@ -2049,6 +2178,14 @@ error_code ELFObjectFile<target_endianness, is64Bits>
     // Use the default symbol table name section.
     Result = getString(dot_strtab_sec, symb->st_name);
   }
+  return object_error::success;
+}
+
+template<support::endianness target_endianness, bool is64Bits>
+error_code ELFObjectFile<target_endianness, is64Bits>
+                        ::getSectionName(const Elf_Shdr *section,
+                                        StringRef &Result) const {
+  Result = StringRef(getString(dot_shstrtab_sec, section->sh_name));
   return object_error::success;
 }
 
