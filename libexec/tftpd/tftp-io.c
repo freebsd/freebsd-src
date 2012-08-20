@@ -463,7 +463,8 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	}
 
 	if (pkt->th_opcode == ERROR) {
-		tftp_log(LOG_ERR, "Got ERROR packet: %s", pkt->th_msg);
+		tftp_log(pkt->th_code == EUNDEF ? LOG_DEBUG : LOG_ERR,
+		    "Got ERROR packet: %s", pkt->th_msg);
 		return (RP_ERROR);
 	}
 
