@@ -646,12 +646,6 @@ local_clock(
 			    msyslog(LOG_NOTICE,
 			    "kernel time sync error %04x", ntv.status);
 			ntv.status &= ~(STA_PPSFREQ | STA_PPSTIME);
-		} else {
-			if ((ntv.status ^ pll_status) & ~STA_FLL)
-				NLOG(NLOG_SYNCEVENT | NLOG_SYSEVENT)
-				    msyslog(LOG_NOTICE,
-				    "kernel time sync status change %04x",
-				    ntv.status);
 		}
 		pll_status = ntv.status;
 #ifdef STA_NANO
