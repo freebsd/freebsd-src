@@ -301,12 +301,13 @@ static void
 ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_desc *ds, *ds0;
+	char *ds, *ds0;
 	int i, bp, dsp;
 	HAL_DMA_ADDR bufAddrList[4];
 	uint32_t segLenList[4];
 	int numTxMaps = 1;
 	int isFirstDesc = 1;
+	int qnum = 0;	/* XXX update */
 
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
@@ -332,7 +333,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	 * For EDMA and later chips ensure the TX map is fully populated
 	 * before advancing to the next descriptor.
 	 */
-	ds0 = ds = bf->bf_desc;
+	ds0 = ds = (char *) bf->bf_desc;
 	bp = dsp = 0;
 	bzero(bufAddrList, sizeof(bufAddrList));
 	bzero(segLenList, sizeof(segLenList));
@@ -354,9 +355,9 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 		bp = 0;
 
 		if (i == bf->bf_nseg - 1)
-			ath_hal_settxdesclink(ah, ds, 0);
+			ath_hal_settxdesclink(ah, (struct ath_desc *) ds, 0);
 		else
-			ath_hal_settxdesclink(ah, ds,
+			ath_hal_settxdesclink(ah, (struct ath_desc *) ds,
 			    bf->bf_daddr + dd->dd_descsize * (dsp + 1));
 
 		/*
@@ -365,26 +366,24 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 		 * it may actually be pointing to the multicast software
 		 * TXQ id.  These must be fixed!
 		 */
-		ath_hal_filltxdesc(ah, ds
+		ath_hal_filltxdesc(ah, (struct ath_desc *) ds
 			, bufAddrList
 			, segLenList
 			, bf->bf_descid		/* XXX desc id */
 			, bf->bf_state.bfs_txq->axq_qnum	/* XXX multicast? */
 			, isFirstDesc		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
-			, ds0			/* first descriptor */
+			, (struct ath_desc *) ds0	/* first descriptor */
 		);
 		isFirstDesc = 0;
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
-			__func__, i, ds->ds_link, ds->ds_data,
-			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
-		bf->bf_lastds = ds;
+		if (sc->sc_debug & ATH_DEBUG_XMIT)
+			ath_printtxbuf(sc, bf, qnum, 0, 0);
+		bf->bf_lastds = (struct ath_desc *) ds;
 
 		/*
 		 * Don't forget to skip to the next descriptor.
 		 */
-		ds++;
+		ds += sc->sc_tx_desclen;
 		dsp++;
 
 		/*
