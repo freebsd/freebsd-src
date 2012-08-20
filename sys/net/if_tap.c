@@ -65,6 +65,7 @@
 #include <net/if.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
+#include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -602,12 +603,29 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct tap_softc	*tp = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct ifstat		*ifs = NULL;
-	int			 dummy;
+	struct ifmediareq	*ifmr = NULL;
+	int			 dummy, error = 0;
 
 	switch (cmd) {
 		case SIOCSIFFLAGS: /* XXX -- just like vmnet does */
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
+			break;
+
+		case SIOCGIFMEDIA:
+			ifmr = (struct ifmediareq *)data;
+			dummy = ifmr->ifm_count;
+			ifmr->ifm_count = 1;
+			ifmr->ifm_status = IFM_AVALID;
+			ifmr->ifm_active = IFM_ETHER;
+			if (tp->tap_flags & TAP_OPEN)
+				ifmr->ifm_status |= IFM_ACTIVE;
+			ifmr->ifm_current = ifmr->ifm_active;
+			if (dummy >= 1) {
+				int media = IFM_ETHER;
+				error = copyout(&media, ifmr->ifm_ulist,
+				    sizeof(int));
+			}
 			break;
 
 		case SIOCSIFMTU:
@@ -626,11 +644,11 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 
 		default:
-			return (ether_ioctl(ifp, cmd, data));
-			/* NOT REACHED */
+			error = ether_ioctl(ifp, cmd, data);
+			break;
 	}
 
-	return (0);
+	return (error);
 } /* tapifioctl */
 
 
