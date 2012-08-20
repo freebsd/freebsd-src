@@ -5459,6 +5459,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	STAILQ_INIT(&devlist.dev_queue);
 
 	rgrequest = malloc(sizeof(*rgrequest));
 	if (rgrequest == NULL) {
@@ -5527,7 +5528,6 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		goto bailout;
 	}
 
-	STAILQ_INIT(&devlist.dev_queue);
 	devlist.path_id = device->path_id;
 
 	retval = buildbusdevlist(&devlist);
