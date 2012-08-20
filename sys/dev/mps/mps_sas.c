@@ -3003,6 +3003,7 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	tm->cm_desc.HighPriority.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	tm->cm_complete = mpssas_resetdev_complete;
 	tm->cm_complete_data = ccb;
+	tm->cm_targ = targ;
 	mps_map_command(sc, tm);
 }
 
