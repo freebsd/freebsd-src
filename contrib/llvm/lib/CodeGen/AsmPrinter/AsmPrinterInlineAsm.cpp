@@ -326,11 +326,11 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
           OpNo += InlineAsm::getNumOperandRegisters(OpFlags) + 1;
         }
 
-	// We may have a location metadata attached to the end of the
-	// instruction, and at no point should see metadata at any
-	// other point while processing. It's an error if so.
+        // We may have a location metadata attached to the end of the
+        // instruction, and at no point should see metadata at any
+        // other point while processing. It's an error if so.
         if (OpNo >= MI->getNumOperands() ||
-	    MI->getOperand(OpNo).isMetadata()) {
+            MI->getOperand(OpNo).isMetadata()) {
           Error = true;
         } else {
           unsigned OpFlags = MI->getOperand(OpNo).getImm();
@@ -409,9 +409,28 @@ void AsmPrinter::PrintSpecial(const MachineInstr *MI, raw_ostream &OS,
 /// instruction, using the specified assembler variant.  Targets should
 /// override this to format as appropriate.
 bool AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
-                                 unsigned AsmVariant, const char *ExtraCode,
-                                 raw_ostream &O) {
-  // Target doesn't support this yet!
+    unsigned AsmVariant, const char *ExtraCode,
+    raw_ostream &O) {
+  // Does this asm operand have a single letter operand modifier?
+  if (ExtraCode && ExtraCode[0]) {
+    if (ExtraCode[1] != 0) return true; // Unknown modifier.
+
+    const MachineOperand &MO = MI->getOperand(OpNo);
+    switch (ExtraCode[0]) {
+    default:
+      return true;  // Unknown modifier.
+    case 'c': // Substitute immediate value without immediate syntax
+      if (MO.getType() != MachineOperand::MO_Immediate)
+        return true;
+      O << MO.getImm();
+      return false;
+    case 'n':  // Negate the immediate constant.
+      if (MO.getType() != MachineOperand::MO_Immediate)
+        return true;
+      O << -MO.getImm();
+      return false;
+    }
+  }
   return true;
 }
 

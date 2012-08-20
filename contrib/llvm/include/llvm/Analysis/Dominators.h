@@ -152,7 +152,7 @@ EXTERN_TEMPLATE_INSTANTIATION(class DomTreeNodeBase<BasicBlock>);
 EXTERN_TEMPLATE_INSTANTIATION(class DomTreeNodeBase<MachineBasicBlock>);
 
 template<class NodeT>
-static raw_ostream &operator<<(raw_ostream &o,
+inline raw_ostream &operator<<(raw_ostream &o,
                                const DomTreeNodeBase<NodeT> *Node) {
   if (Node->getBlock())
     WriteAsOperand(o, Node->getBlock(), false);
@@ -165,7 +165,7 @@ static raw_ostream &operator<<(raw_ostream &o,
 }
 
 template<class NodeT>
-static void PrintDomTree(const DomTreeNodeBase<NodeT> *N, raw_ostream &o,
+inline void PrintDomTree(const DomTreeNodeBase<NodeT> *N, raw_ostream &o,
                          unsigned Lev) {
   o.indent(2*Lev) << "[" << Lev << "] " << N;
   for (typename DomTreeNodeBase<NodeT>::const_iterator I = N->begin(),
@@ -705,6 +705,21 @@ DominatorTreeBase<NodeT>::properlyDominates(const NodeT *A, const NodeT *B) {
 
 EXTERN_TEMPLATE_INSTANTIATION(class DominatorTreeBase<BasicBlock>);
 
+class BasicBlockEdge {
+  const BasicBlock *Start;
+  const BasicBlock *End;
+public:
+  BasicBlockEdge(const BasicBlock *Start_, const BasicBlock *End_) :
+    Start(Start_), End(End_) { }
+  const BasicBlock *getStart() const {
+    return Start;
+  }
+  const BasicBlock *getEnd() const {
+    return End;
+  }
+  bool isSingleEdge() const;
+};
+
 //===-------------------------------------
 /// DominatorTree Class - Concrete subclass of DominatorTreeBase that is used to
 /// compute a normal dominator tree.
@@ -778,6 +793,8 @@ public:
   bool dominates(const Instruction *Def, const Use &U) const;
   bool dominates(const Instruction *Def, const Instruction *User) const;
   bool dominates(const Instruction *Def, const BasicBlock *BB) const;
+  bool dominates(const BasicBlockEdge &BBE, const Use &U) const;
+  bool dominates(const BasicBlockEdge &BBE, const BasicBlock *BB) const;
 
   bool properlyDominates(const DomTreeNode *A, const DomTreeNode *B) const {
     return DT->properlyDominates(A, B);

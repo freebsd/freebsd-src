@@ -18,7 +18,7 @@
 #include "llvm/MC/MCStreamer.h"
 using namespace llvm;
 
-void MCAsmInfoDarwin::anchor() { } 
+void MCAsmInfoDarwin::anchor() { }
 
 MCAsmInfoDarwin::MCAsmInfoDarwin() {
   // Common settings for all Darwin targets.
@@ -43,13 +43,6 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   HasMachoTBSSDirective = true; // Uses .tbss
   HasStaticCtorDtorReferenceInStaticMode = true;
 
-  CodeBegin = "L$start$code$";
-  DataBegin = "L$start$data$";
-  JT8Begin  = "L$start$jt8$";
-  JT16Begin = "L$start$jt16$";
-  JT32Begin = "L$start$jt32$";
-  SupportsDataRegions = true;
-
   // FIXME: Darwin 10 and newer don't need this.
   LinkerRequiresNonEmptyDwarfLines = true;
 
@@ -61,12 +54,10 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
 
   // Doesn't support protected visibility.
   ProtectedVisibilityAttr = MCSA_Invalid;
-  
+
   HasDotTypeDotSizeDirective = false;
   HasNoDeadStrip = true;
   HasSymbolResolver = true;
 
-  DwarfRequiresRelocationForSectionOffset = false;
-  DwarfUsesLabelOffsetForRanges = false;
-  DwarfUsesRelocationsForStringPool = false;
+  DwarfUsesRelocationsAcrossSections = false;
 }

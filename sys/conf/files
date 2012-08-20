@@ -719,8 +719,9 @@ dev/ath/if_ath_pci.c		optional ath_pci pci \
 dev/ath/if_ath_ahb.c		optional ath_ahb \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
+# XXX Work around clang warning, until maintainer approves fix.
 dev/ath/if_ath.c		optional ath \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} -I$S/dev/ath"
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
@@ -758,9 +759,10 @@ dev/ath/ath_hal/ah_eeprom_v14.c \
 dev/ath/ath_hal/ah_eeprom_v4k.c \
 	optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+# XXX Work around clang warning, until maintainer approves fix.
 dev/ath/ath_hal/ah_eeprom_9287.c \
 	optional ath_hal | ath_ar9287 \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} -I$S/dev/ath"
 dev/ath/ath_hal/ah_regdomain.c	optional ath \
 	compile-with "${NORMAL_C} ${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW} -I$S/dev/ath"
 # ar5210
@@ -1031,7 +1033,9 @@ dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
-dev/bwn/if_bwn.c		optional bwn siba_bwn
+# XXX Work around clang warning, until maintainer approves fix.
+dev/bwn/if_bwn.c		optional bwn siba_bwn \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bxe/if_bxe.c		optional bxe
 dev/bxe/bxe_link.c		optional bxe
 dev/cardbus/cardbus.c		optional cardbus
@@ -1314,7 +1318,9 @@ dev/iicbus/pcf8563.c		optional pcf8563
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
-dev/ips/ips.c			optional ips
+# XXX Work around clang warning, until maintainer approves fix.
+dev/ips/ips.c			optional ips \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/ips/ips_commands.c		optional ips
 dev/ips/ips_disk.c		optional ips
 dev/ips/ips_ioctl.c		optional ips
@@ -1632,7 +1638,9 @@ dev/mmc/mmcsd.c			optional mmcsd
 dev/mn/if_mn.c			optional mn pci
 dev/mps/mps.c			optional mps
 dev/mps/mps_config.c		optional mps
-dev/mps/mps_mapping.c		optional mps
+# XXX Work around clang warning, until maintainer approves fix.
+dev/mps/mps_mapping.c		optional mps \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/mps/mps_pci.c		optional mps pci
 dev/mps/mps_sas.c		optional mps \
 	compile-with "${NORMAL_C} ${NO_WUNNEEDED_INTERNAL_DECL}"

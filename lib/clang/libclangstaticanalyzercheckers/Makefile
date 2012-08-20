@@ -28,10 +28,11 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	DebugCheckers.cpp \
 	DereferenceChecker.cpp \
 	DivZeroChecker.cpp \
+	DynamicTypePropagation.cpp \
+	ExprInspectionChecker.cpp \
 	FixedAddressChecker.cpp \
 	GenericTaintChecker.cpp \
 	IdempotentOperationChecker.cpp \
-	IteratorsChecker.cpp \
 	LLVMConventionsChecker.cpp \
 	MacOSKeychainAPIChecker.cpp \
 	MacOSXAPIChecker.cpp \
@@ -56,6 +57,7 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	StackAddrEscapeChecker.cpp \
 	StreamChecker.cpp \
 	TaintTesterChecker.cpp \
+	TraversalChecker.cpp \
 	UndefBranchChecker.cpp \
 	UndefCapturedBlockVarChecker.cpp \
 	UndefResultChecker.cpp \
@@ -69,6 +71,7 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 TGHDRS=	AttrList \
 	Attrs \
 	Checkers \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	StmtNodes
