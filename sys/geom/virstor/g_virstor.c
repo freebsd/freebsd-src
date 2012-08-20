@@ -231,6 +231,12 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 			return;
 		}
 		sc = virstor_find_geom(cp, name);
+		if (sc == NULL) {
+			gctl_error(req, "Don't know anything about '%s'", name);
+			g_topology_unlock();
+			return;
+		}
+
 		LOG_MSG(LVL_INFO, "Stopping %s by the userland command",
 		    sc->geom->name);
 		update_metadata(sc);
