@@ -241,6 +241,7 @@ __END_DECLS
 #define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
 #define	IPPROTO_CARP		112		/* CARP */
 #define	IPPROTO_PGM		113		/* PGM */
+#define	IPPROTO_MPLS		137		/* MPLS-in-IP */
 #define	IPPROTO_PFSYNC		240		/* PFSYNC */
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion, no longer used */
