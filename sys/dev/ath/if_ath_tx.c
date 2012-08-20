@@ -376,8 +376,10 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			, (struct ath_desc *) ds0	/* first descriptor */
 		);
 		isFirstDesc = 0;
+#ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT)
 			ath_printtxbuf(sc, bf, qnum, 0, 0);
+#endif
 		bf->bf_lastds = (struct ath_desc *) ds;
 
 		/*
