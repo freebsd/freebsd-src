@@ -55,7 +55,7 @@ protected:
 
   /// X86ProcFamily - X86 processor family: Intel Atom, and others
   X86ProcFamilyEnum X86ProcFamily;
-  
+
   /// PICStyle - Which PIC style to use
   ///
   PICStyles::Style PICStyle;
@@ -85,11 +85,11 @@ protected:
   /// HasAES - Target has AES instructions
   bool HasAES;
 
-  /// HasCLMUL - Target has carry-less multiplication
-  bool HasCLMUL;
+  /// HasPCLMUL - Target has carry-less multiplication
+  bool HasPCLMUL;
 
-  /// HasFMA3 - Target has 3-operand fused multiply-add
-  bool HasFMA3;
+  /// HasFMA - Target has 3-operand fused multiply-add
+  bool HasFMA;
 
   /// HasFMA4 - Target has 4-operand fused multiply-add
   bool HasFMA4;
@@ -149,7 +149,7 @@ protected:
 
   /// TargetTriple - What processor and OS we're targeting.
   Triple TargetTriple;
-  
+
   /// Instruction itineraries for scheduling
   InstrItineraryData InstrItins;
 
@@ -203,8 +203,8 @@ public:
   bool has3DNowA() const { return X863DNowLevel >= ThreeDNowA; }
   bool hasPOPCNT() const { return HasPOPCNT; }
   bool hasAES() const { return HasAES; }
-  bool hasCLMUL() const { return HasCLMUL; }
-  bool hasFMA3() const { return HasFMA3; }
+  bool hasPCLMUL() const { return HasPCLMUL; }
+  bool hasFMA() const { return HasFMA; }
   bool hasFMA4() const { return HasFMA4; }
   bool hasXOP() const { return HasXOP; }
   bool hasMOVBE() const { return HasMOVBE; }
@@ -306,6 +306,8 @@ public:
   bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
                              TargetSubtargetInfo::AntiDepBreakMode& Mode,
                              RegClassVector& CriticalPathRCs) const;
+
+  bool postRAScheduler() const { return PostRAScheduler; }
 
   /// getInstrItins = Return the instruction itineraries based on the
   /// subtarget selection.

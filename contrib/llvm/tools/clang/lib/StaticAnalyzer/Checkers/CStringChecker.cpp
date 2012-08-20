@@ -66,7 +66,7 @@ public:
                        const StoreManager::InvalidatedSymbols *,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
-                       const CallOrObjCMessage *Call) const;
+                       const CallEvent *Call) const;
 
   typedef void (CStringChecker::*FnCheck)(CheckerContext &,
                                           const CallExpr *) const;
@@ -252,8 +252,7 @@ ProgramStateRef CStringChecker::checkNonNull(CheckerContext &C,
     BugReport *report = new BugReport(*BT, os.str(), N);
 
     report->addRange(S->getSourceRange());
-    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, S,
-                                                                    report));
+    bugreporter::addTrackNullOrUndefValueVisitor(N, S, report);
     C.EmitReport(report);
     return NULL;
   }
@@ -901,9 +900,10 @@ void CStringChecker::evalCopyCommon(CheckerContext &C,
 
   // If the size is zero, there won't be any actual memory access, so
   // just bind the return value to the destination buffer and return.
-  if (stateZeroSize) {
+  if (stateZeroSize && !stateNonZeroSize) {
     stateZeroSize = stateZeroSize->BindExpr(CE, LCtx, destVal);
     C.addTransition(stateZeroSize);
+    return;
   }
 
   // If the size can be nonzero, we have to check the other arguments.
@@ -1403,6 +1403,24 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
         // For strncpy, this is just checking that lenVal <= sizeof(dst)
         // (Yes, strncpy and strncat differ in how they treat termination.
         // strncat ALWAYS terminates, but strncpy doesn't.)
+
+        // We need a special case for when the copy size is zero, in which
+        // case strncpy will do no work at all. Our bounds check uses n-1
+        // as the last element accessed, so n == 0 is problematic.
+        ProgramStateRef StateZeroSize, StateNonZeroSize;
+        llvm::tie(StateZeroSize, StateNonZeroSize) =
+          assumeZero(C, state, *lenValNL, sizeTy);
+
+        // If the size is known to be zero, we're done.
+        if (StateZeroSize && !StateNonZeroSize) {
+          StateZeroSize = StateZeroSize->BindExpr(CE, LCtx, DstVal);
+          C.addTransition(StateZeroSize);
+          return;
+        }
+
+        // Otherwise, go ahead and figure out the last element we'll touch.
+        // We don't record the non-zero assumption here because we can't
+        // be sure. We won't warn on a possible zero.
         NonLoc one = cast<NonLoc>(svalBuilder.makeIntVal(1, sizeTy));
         maxLastElementIndex = svalBuilder.evalBinOpNN(state, BO_Sub, *lenValNL,
                                                       one, sizeTy);
@@ -1876,7 +1894,7 @@ CStringChecker::checkRegionChanges(ProgramStateRef state,
                                    const StoreManager::InvalidatedSymbols *,
                                    ArrayRef<const MemRegion *> ExplicitRegions,
                                    ArrayRef<const MemRegion *> Regions,
-                                   const CallOrObjCMessage *Call) const {
+                                   const CallEvent *Call) const {
   CStringLength::EntryMap Entries = state->get<CStringLength>();
   if (Entries.isEmpty())
     return state;

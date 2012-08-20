@@ -17,6 +17,7 @@
 #include "llvm/Config/config.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Errno.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
@@ -214,6 +215,14 @@ error_code MemoryBuffer::getFile(const char *Filename,
                                  OwningPtr<MemoryBuffer> &result,
                                  int64_t FileSize,
                                  bool RequiresNullTerminator) {
+  // First check that the "file" is not a directory
+  bool is_dir = false;
+  error_code err = sys::fs::is_directory(Filename, is_dir);
+  if (err)
+    return err;
+  if (is_dir)
+    return make_error_code(errc::is_a_directory);
+
   int OpenFlags = O_RDONLY;
 #ifdef O_BINARY
   OpenFlags |= O_BINARY;  // Open input file in binary mode on win32.
@@ -304,16 +313,6 @@ error_code MemoryBuffer::getOpenFile(int FD, const char *Filename,
                                                       RealMapOffset)) {
       result.reset(GetNamedBuffer<MemoryBufferMMapFile>(
           StringRef(Pages + Delta, MapSize), Filename, RequiresNullTerminator));
-
-      if (RequiresNullTerminator && result->getBufferEnd()[0] != '\0') {
-        // There could be a racing issue that resulted in the file being larger
-        // than the FileSize passed by the caller. We already have an assertion
-        // for this in MemoryBuffer::init() but have a runtime guarantee that
-        // the buffer will be null-terminated here, so do a copy that adds a
-        // null-terminator.
-        result.reset(MemoryBuffer::getMemBufferCopy(result->getBuffer(),
-                                                    Filename));
-      }
       return error_code::success();
     }
   }

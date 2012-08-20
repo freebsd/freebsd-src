@@ -21,9 +21,9 @@
 
 /* Need these includes to support the LLVM 'cast' template for the C++ 'wrap' 
    and 'unwrap' conversion functions. */
+#include "llvm/IRBuilder.h"
 #include "llvm/Module.h"
 #include "llvm/PassRegistry.h"
-#include "llvm/Support/IRBuilder.h"
 
 extern "C" {
 #endif
@@ -53,7 +53,7 @@ extern "C" {
  * The declared parameter names are descriptive and specify which type is
  * required. Additionally, each type hierarchy is documented along with the
  * functions that operate upon it. For more detail, refer to LLVM's C++ code.
- * If in doubt, refer to Core.cpp, which performs paramter downcasts in the
+ * If in doubt, refer to Core.cpp, which performs parameter downcasts in the
  * form unwrap<RequiredType>(Param).
  *
  * Many exotic languages can interoperate with C code but have a harder time
@@ -106,7 +106,7 @@ typedef struct LLVMOpaqueType *LLVMTypeRef;
 typedef struct LLVMOpaqueValue *LLVMValueRef;
 
 /**
- * Represents a basic block of instruction in LLVM IR.
+ * Represents a basic block of instructions in LLVM IR.
  *
  * This models llvm::BasicBlock.
  */
@@ -476,6 +476,15 @@ void LLVMSetTarget(LLVMModuleRef M, const char *Triple);
  * @see Module::dump()
  */
 void LLVMDumpModule(LLVMModuleRef M);
+
+/**
+ * Print a representation of a module to a file. The ErrorMessage needs to be
+ * disposed with LLVMDisposeMessage. Returns 0 on success, 1 otherwise.
+ *
+ * @see Module::print()
+ */
+LLVMBool LLVMPrintModuleToFile(LLVMModuleRef M, const char *Filename,
+                               char **ErrorMessage);
 
 /**
  * Set inline assembly for a module.
@@ -977,7 +986,7 @@ LLVMTypeRef LLVMX86MMXType(void);
  *
  * LLVMValueRef essentially represents llvm::Value. There is a rich
  * hierarchy of classes within this type. Depending on the instance
- * obtain, not all APIs are available.
+ * obtained, not all APIs are available.
  *
  * Callers can determine the type of a LLVMValueRef by calling the
  * LLVMIsA* family of functions (e.g. LLVMIsAArgument()). These
@@ -1153,7 +1162,7 @@ LLVM_FOR_EACH_VALUE_SUBCLASS(LLVM_DECLARE_VALUE_CAST)
  *
  * Uses are obtained in an iterator fashion. First, call this function
  * to obtain a reference to the first use. Then, call LLVMGetNextUse()
- * on that instance and all subsequently obtained instances untl
+ * on that instance and all subsequently obtained instances until
  * LLVMGetNextUse() returns NULL.
  *
  * @see llvm::Value::use_begin()
@@ -2106,7 +2115,7 @@ LLVMBasicBlockRef LLVMGetInstructionParent(LLVMValueRef Inst);
 LLVMValueRef LLVMGetNextInstruction(LLVMValueRef Inst);
 
 /**
- * Obtain the instruction that occured before this one.
+ * Obtain the instruction that occurred before this one.
  *
  * If the instruction is the first instruction in a basic block, NULL
  * will be returned.

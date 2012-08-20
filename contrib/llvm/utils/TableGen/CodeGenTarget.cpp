@@ -16,6 +16,7 @@
 
 #include "CodeGenTarget.h"
 #include "CodeGenIntrinsics.h"
+#include "CodeGenSchedule.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
@@ -112,7 +113,7 @@ std::string llvm::getQualifiedName(const Record *R) {
 /// getTarget - Return the current instance of the Target class.
 ///
 CodeGenTarget::CodeGenTarget(RecordKeeper &records)
-  : Records(records), RegBank(0) {
+  : Records(records), RegBank(0), SchedModels(0) {
   std::vector<Record*> Targets = Records.getAllDerivedDefinitions("Target");
   if (Targets.size() == 0)
     throw std::string("ERROR: No 'Target' subclasses defined!");
@@ -121,6 +122,10 @@ CodeGenTarget::CodeGenTarget(RecordKeeper &records)
   TargetRec = Targets[0];
 }
 
+CodeGenTarget::~CodeGenTarget() {
+  delete RegBank;
+  delete SchedModels;
+}
 
 const std::string &CodeGenTarget::getName() const {
   return TargetRec->getName();
@@ -155,18 +160,18 @@ Record *CodeGenTarget::getAsmParser() const {
 /// this target.
 ///
 Record *CodeGenTarget::getAsmParserVariant(unsigned i) const {
-  std::vector<Record*> LI = 
+  std::vector<Record*> LI =
     TargetRec->getValueAsListOfDefs("AssemblyParserVariants");
   if (i >= LI.size())
     throw "Target does not have an AsmParserVariant #" + utostr(i) + "!";
   return LI[i];
 }
 
-/// getAsmParserVariantCount - Return the AssmblyParserVariant definition 
+/// getAsmParserVariantCount - Return the AssmblyParserVariant definition
 /// available for this target.
 ///
 unsigned CodeGenTarget::getAsmParserVariantCount() const {
-  std::vector<Record*> LI = 
+  std::vector<Record*> LI =
     TargetRec->getValueAsListOfDefs("AssemblyParserVariants");
   return LI.size();
 }
@@ -235,6 +240,11 @@ void CodeGenTarget::ReadLegalValueTypes() const {
                         LegalValueTypes.end());
 }
 
+CodeGenSchedModels &CodeGenTarget::getSchedModels() const {
+  if (!SchedModels)
+    SchedModels = new CodeGenSchedModels(Records, *this);
+  return *SchedModels;
+}
 
 void CodeGenTarget::ReadInstructions() const {
   std::vector<Record*> Insts = Records.getAllDerivedDefinitions("Instruction");
@@ -387,6 +397,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
   isOverloaded = false;
   isCommutative = false;
   canThrow = false;
+  isNoReturn = false;
 
   if (DefName.size() <= 4 ||
       std::string(DefName.begin(), DefName.begin() + 4) != "int_")
@@ -511,6 +522,8 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       isCommutative = true;
     else if (Property->getName() == "Throws")
       canThrow = true;
+    else if (Property->getName() == "IntrNoReturn")
+      isNoReturn = true;
     else if (Property->isSubClassOf("NoCapture")) {
       unsigned ArgNo = Property->getValueAsInt("ArgNo");
       ArgumentAttributes.push_back(std::make_pair(ArgNo, NoCapture));

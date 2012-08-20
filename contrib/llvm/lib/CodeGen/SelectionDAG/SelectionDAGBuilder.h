@@ -180,17 +180,6 @@ private:
 
   typedef std::vector<CaseRec> CaseRecVector;
 
-  /// The comparison function for sorting the switch case values in the vector.
-  /// WARNING: Case ranges should be disjoint!
-  struct CaseCmp {
-    bool operator()(const Case &C1, const Case &C2) {
-      assert(isa<ConstantInt>(C1.Low) && isa<ConstantInt>(C2.High));
-      const ConstantInt* CI1 = cast<const ConstantInt>(C1.Low);
-      const ConstantInt* CI2 = cast<const ConstantInt>(C2.High);
-      return CI1->getValue().slt(CI2->getValue());
-    }
-  };
-
   struct CaseBitsCmp {
     bool operator()(const CaseBits &C1, const CaseBits &C2) {
       return C1.Bits > C2.Bits;
@@ -351,7 +340,7 @@ public:
   void clear();
 
   /// clearDanglingDebugInfo - Clear the dangling debug information
-  /// map. This function is seperated from the clear so that debug
+  /// map. This function is separated from the clear so that debug
   /// information that is dangling in a basic block can be properly
   /// resolved in a different basic block. This allows the
   /// SelectionDAG to resolve dangling debug information attached
@@ -531,6 +520,7 @@ private:
   void visitPHI(const PHINode &I);
   void visitCall(const CallInst &I);
   bool visitMemCmpCall(const CallInst &I);
+  bool visitUnaryFloatCall(const CallInst &I, unsigned Opcode);
   void visitAtomicLoad(const LoadInst &I);
   void visitAtomicStore(const StoreInst &I);
 

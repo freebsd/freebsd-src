@@ -16,6 +16,7 @@
 #ifndef LLVM_MC_MCINSTRITINERARIES_H
 #define LLVM_MC_MCINSTRITINERARIES_H
 
+#include "llvm/MC/MCSchedule.h"
 #include <algorithm>
 
 namespace llvm {
@@ -95,7 +96,7 @@ struct InstrStage {
 /// operands are read and written.
 ///
 struct InstrItinerary {
-  unsigned NumMicroOps;        ///< # of micro-ops, 0 means it's variable
+  int      NumMicroOps;        ///< # of micro-ops, -1 means it's variable
   unsigned FirstStage;         ///< Index of first stage in itinerary
   unsigned LastStage;          ///< Index of last + 1 stage in itinerary
   unsigned FirstOperandCycle;  ///< Index of first operand rd/wr
@@ -109,21 +110,22 @@ struct InstrItinerary {
 ///
 class InstrItineraryData {
 public:
+  const MCSchedModel   *SchedModel;     ///< Basic machine properties.
   const InstrStage     *Stages;         ///< Array of stages selected
   const unsigned       *OperandCycles;  ///< Array of operand cycles selected
   const unsigned       *Forwardings;    ///< Array of pipeline forwarding pathes
   const InstrItinerary *Itineraries;    ///< Array of itineraries selected
-  unsigned              IssueWidth;     ///< Max issue per cycle. 0=Unknown.
 
   /// Ctors.
   ///
-  InstrItineraryData() : Stages(0), OperandCycles(0), Forwardings(0),
-                         Itineraries(0), IssueWidth(0) {}
+  InstrItineraryData() : SchedModel(&MCSchedModel::DefaultSchedModel),
+                         Stages(0), OperandCycles(0),
+                         Forwardings(0), Itineraries(0) {}
 
-  InstrItineraryData(const InstrStage *S, const unsigned *OS,
-                     const unsigned *F, const InstrItinerary *I)
-    : Stages(S), OperandCycles(OS), Forwardings(F), Itineraries(I),
-      IssueWidth(0) {}
+  InstrItineraryData(const MCSchedModel *SM, const InstrStage *S,
+                     const unsigned *OS, const unsigned *F)
+    : SchedModel(SM), Stages(S), OperandCycles(OS), Forwardings(F),
+      Itineraries(SchedModel->InstrItineraries) {}
 
   /// isEmpty - Returns true if there are no itineraries.
   ///
@@ -155,15 +157,17 @@ public:
   /// class.  The latency is the maximum completion time for any stage
   /// in the itinerary.
   ///
+  /// InstrStages override the itinerary's MinLatency property. In fact, if the
+  /// stage latencies, which may be zero, are less than MinLatency,
+  /// getStageLatency returns a value less than MinLatency.
+  ///
+  /// If no stages exist, MinLatency is used. If MinLatency is invalid (<0),
+  /// then it defaults to one cycle.
   unsigned getStageLatency(unsigned ItinClassIndx) const {
     // If the target doesn't provide itinerary information, use a simple
-    // non-zero default value for all instructions.  Some target's provide a
-    // dummy (Generic) itinerary which should be handled as if it's itinerary is
-    // empty. We identify this by looking for a reference to stage zero (invalid
-    // stage). This is different from beginStage == endState != 0, which could
-    // be used for zero-latency pseudo ops.
-    if (isEmpty() || Itineraries[ItinClassIndx].FirstStage == 0)
-      return 1;
+    // non-zero default value for all instructions.
+    if (isEmpty())
+      return SchedModel->MinLatency < 0 ? 1 : SchedModel->MinLatency;
 
     // Calculate the maximum completion time for any stage.
     unsigned Latency = 0, StartCycle = 0;
@@ -238,15 +242,15 @@ public:
     return UseCycle;
   }
 
-  /// isMicroCoded - Return true if the instructions in the given class decode
-  /// to more than one micro-ops.
-  bool isMicroCoded(unsigned ItinClassIndx) const {
+  /// getNumMicroOps - Return the number of micro-ops that the given class
+  /// decodes to. Return -1 for classes that require dynamic lookup via
+  /// TargetInstrInfo.
+  int getNumMicroOps(unsigned ItinClassIndx) const {
     if (isEmpty())
-      return false;
-    return Itineraries[ItinClassIndx].NumMicroOps != 1;
+      return 1;
+    return Itineraries[ItinClassIndx].NumMicroOps;
   }
 };
-
 
 } // End llvm namespace
 

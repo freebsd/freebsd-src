@@ -15,6 +15,7 @@
 #define LLVM_CLANG_AST_EXPR_H
 
 #include "clang/AST/APValue.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/DeclAccessPair.h"
@@ -179,11 +180,12 @@ public:
   SourceLocation getExprLoc() const LLVM_READONLY;
 
   /// isUnusedResultAWarning - Return true if this immediate expression should
-  /// be warned about if the result is unused.  If so, fill in Loc and Ranges
-  /// with location to warn on and the source range[s] to report with the
-  /// warning.
-  bool isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
-                              SourceRange &R2, ASTContext &Ctx) const;
+  /// be warned about if the result is unused.  If so, fill in expr, location,
+  /// and ranges with expr to warn on and source locations/ranges appropriate
+  /// for a warning.
+  bool isUnusedResultAWarning(const Expr *&WarnExpr, SourceLocation &Loc,
+                              SourceRange &R1, SourceRange &R2,
+                              ASTContext &Ctx) const;
 
   /// isLValue - True if this expression is an "l-value" according to
   /// the rules of the current language.  C and C++ give somewhat
@@ -212,7 +214,8 @@ public:
     LV_InvalidMessageExpression,
     LV_MemberFunction,
     LV_SubObjCPropertySetting,
-    LV_ClassTemporary
+    LV_ClassTemporary,
+    LV_ArrayTemporary
   };
   /// Reasons why an expression might not be an l-value.
   LValueClassification ClassifyLValue(ASTContext &Ctx) const;
@@ -223,7 +226,7 @@ public:
   /// recursively, any member or element of all contained aggregates or unions)
   /// with a const-qualified type.
   ///
-  /// \param Loc [in] [out] - A source location which *may* be filled
+  /// \param Loc [in,out] - A source location which *may* be filled
   /// in with the location of the expression making this a
   /// non-modifiable lvalue, if specified.
   enum isModifiableLvalueResult {
@@ -241,7 +244,8 @@ public:
     MLV_MemberFunction,
     MLV_SubObjCPropertySetting,
     MLV_InvalidMessageExpression,
-    MLV_ClassTemporary
+    MLV_ClassTemporary,
+    MLV_ArrayTemporary
   };
   isModifiableLvalueResult isModifiableLvalue(ASTContext &Ctx,
                                               SourceLocation *Loc = 0) const;
@@ -260,7 +264,8 @@ public:
       CL_DuplicateVectorComponents, // A vector shuffle with dupes.
       CL_MemberFunction, // An expression referring to a member function
       CL_SubObjCPropertySetting,
-      CL_ClassTemporary, // A prvalue of class type
+      CL_ClassTemporary, // A temporary of class type, or subobject thereof.
+      CL_ArrayTemporary, // A temporary of array type.
       CL_ObjCMessageRValue, // ObjC message is an rvalue
       CL_PRValue // A prvalue for any other reason, of any other type
     };
@@ -505,9 +510,8 @@ public:
   bool isEvaluatable(const ASTContext &Ctx) const;
 
   /// HasSideEffects - This routine returns true for all those expressions
-  /// which must be evaluated each time and must not be optimized away
-  /// or evaluated at compile time. Example is a function call, volatile
-  /// variable read.
+  /// which have any effect other than producing a value. Example is a function
+  /// call, volatile variable read, or throwing an exception.
   bool HasSideEffects(const ASTContext &Ctx) const;
 
   /// \brief Determine whether this expression involves a call to any function
@@ -537,8 +541,15 @@ public:
     /// \brief Expression is not a Null pointer constant.
     NPCK_NotNull = 0,
 
-    /// \brief Expression is a Null pointer constant built from a zero integer.
-    NPCK_ZeroInteger,
+    /// \brief Expression is a Null pointer constant built from a zero integer
+    /// expression that is not a simple, possibly parenthesized, zero literal.
+    /// C++ Core Issue 903 will classify these expressions as "not pointers"
+    /// once it is adopted.
+    /// http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_active.html#903
+    NPCK_ZeroExpression,
+
+    /// \brief Expression is a Null pointer constant built from a literal zero.
+    NPCK_ZeroLiteral,
 
     /// \brief Expression is a C++0X nullptr.
     NPCK_CXX0X_nullptr,
@@ -591,6 +602,10 @@ public:
     return cast<Expr>(Stmt::IgnoreImplicit());
   }
 
+  const Expr *IgnoreImplicit() const LLVM_READONLY {
+    return const_cast<Expr*>(this)->IgnoreImplicit();
+  }
+
   /// IgnoreParens - Ignore parentheses.  If this Expr is a ParenExpr, return
   ///  its subexpression.  If that subexpression is also a ParenExpr,
   ///  then this method recursively returns its subexpression, and so forth.
@@ -630,6 +645,13 @@ public:
   /// ParenExpr or CastExprs, returning their operand.
   Expr *IgnoreParenNoopCasts(ASTContext &Ctx) LLVM_READONLY;
 
+  /// Ignore parentheses and derived-to-base casts.
+  Expr *ignoreParenBaseCasts() LLVM_READONLY;
+
+  const Expr *ignoreParenBaseCasts() const LLVM_READONLY {
+    return const_cast<Expr*>(this)->ignoreParenBaseCasts();
+  }
+
   /// \brief Determine whether this expression is a default function argument.
   ///
   /// Default arguments are implicitly generated in the abstract syntax tree
@@ -660,6 +682,15 @@ public:
   }
 
   static bool hasAnyTypeDependentArguments(llvm::ArrayRef<Expr *> Exprs);
+
+  /// \brief For an expression of class type or pointer to class type,
+  /// return the most derived class decl the expression is known to refer to.
+  ///
+  /// If this expression is a cast, this method looks through it to find the
+  /// most derived decl that can be inferred from the expression.
+  /// This is valid because derived-to-base conversions have undefined
+  /// behavior if the object isn't dynamically of the derived type.
+  const CXXRecordDecl *getBestDynamicClassType() const;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() >= firstExprConstant &&
@@ -1043,6 +1074,7 @@ public:
   enum IdentType {
     Func,
     Function,
+    LFunction,  // Same as Function, but as wide string.
     PrettyFunction,
     /// PrettyFunctionNoVirtual - The same as PrettyFunction, except that the
     /// 'virtual' keyword is omitted for virtual member functions.
@@ -1142,16 +1174,8 @@ class IntegerLiteral : public Expr, public APIntStorage {
 public:
   // type should be IntTy, LongTy, LongLongTy, UnsignedIntTy, UnsignedLongTy,
   // or UnsignedLongLongTy
-  IntegerLiteral(ASTContext &C, const llvm::APInt &V,
-                 QualType type, SourceLocation l)
-    : Expr(IntegerLiteralClass, type, VK_RValue, OK_Ordinary, false, false,
-           false, false),
-      Loc(l) {
-    assert(type->isIntegerType() && "Illegal type in IntegerLiteral");
-    assert(V.getBitWidth() == C.getIntWidth(type) &&
-           "Integer type is not the correct size for constant.");
-    setValue(C, V);
-  }
+  IntegerLiteral(ASTContext &C, const llvm::APInt &V, QualType type,
+                 SourceLocation l);
 
   /// \brief Returns a new integer literal with value 'V' and type 'type'.
   /// \param type - either IntTy, LongTy, LongLongTy, UnsignedIntTy,
@@ -1229,22 +1253,10 @@ class FloatingLiteral : public Expr, private APFloatStorage {
   SourceLocation Loc;
 
   FloatingLiteral(ASTContext &C, const llvm::APFloat &V, bool isexact,
-                  QualType Type, SourceLocation L)
-    : Expr(FloatingLiteralClass, Type, VK_RValue, OK_Ordinary, false, false,
-           false, false), Loc(L) {
-    FloatingLiteralBits.IsIEEE =
-      &C.getTargetInfo().getLongDoubleFormat() == &llvm::APFloat::IEEEquad;
-    FloatingLiteralBits.IsExact = isexact;
-    setValue(C, V);
-  }
+                  QualType Type, SourceLocation L);
 
   /// \brief Construct an empty floating-point literal.
-  explicit FloatingLiteral(ASTContext &C, EmptyShell Empty)
-    : Expr(FloatingLiteralClass, Empty) {
-    FloatingLiteralBits.IsIEEE =
-      &C.getTargetInfo().getLongDoubleFormat() == &llvm::APFloat::IEEEquad;
-    FloatingLiteralBits.IsExact = false;
-  }
+  explicit FloatingLiteral(ASTContext &C, EmptyShell Empty);
 
 public:
   static FloatingLiteral *Create(ASTContext &C, const llvm::APFloat &V,
@@ -1381,8 +1393,8 @@ public:
     return StringRef(StrData.asChar, getByteLength());
   }
 
-  /// Allow clients that need the byte representation, such as ASTWriterStmt
-  /// ::VisitStringLiteral(), access.
+  /// Allow access to clients that need the byte representation, such as
+  /// ASTWriterStmt::VisitStringLiteral().
   StringRef getBytes() const {
     // FIXME: StringRef may not be the right type to use as a result for this.
     if (CharByteWidth == 1)
@@ -1394,6 +1406,8 @@ public:
     return StringRef(reinterpret_cast<const char*>(StrData.asUInt16),
                      getByteLength());
   }
+
+  void outputString(raw_ostream &OS);
 
   uint32_t getCodeUnit(size_t i) const {
     assert(i < Length && "out of bounds access");

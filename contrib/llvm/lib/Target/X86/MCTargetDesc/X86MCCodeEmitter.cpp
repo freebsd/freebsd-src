@@ -139,6 +139,7 @@ public:
 
 
 MCCodeEmitter *llvm::createX86MCCodeEmitter(const MCInstrInfo &MCII,
+                                            const MCRegisterInfo &MRI,
                                             const MCSubtargetInfo &STI,
                                             MCContext &Ctx) {
   return new X86MCCodeEmitter(MCII, STI, Ctx);
@@ -569,7 +570,17 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
   }
 
   // Classify VEX_B, VEX_4V, VEX_R, VEX_X
+  unsigned NumOps = Desc.getNumOperands();
   unsigned CurOp = 0;
+  if (NumOps > 1 && Desc.getOperandConstraint(1, MCOI::TIED_TO) == 0)
+    ++CurOp;
+  else if (NumOps > 3 && Desc.getOperandConstraint(2, MCOI::TIED_TO) == 0) {
+    assert(Desc.getOperandConstraint(NumOps - 1, MCOI::TIED_TO) == 1);
+    // Special case for GATHER with 2 TIED_TO operands
+    // Skip the first 2 operands: dst, mask_wb
+    CurOp += 2;
+  }
+
   switch (TSFlags & X86II::FormMask) {
   case X86II::MRMInitReg: llvm_unreachable("FIXME: Remove this!");
   case X86II::MRMDestMem: {
@@ -602,11 +613,11 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
     //  FMA4:
     //  dst(ModR/M.reg), src1(VEX_4V), src2(ModR/M), src3(VEX_I8IMM)
     //  dst(ModR/M.reg), src1(VEX_4V), src2(VEX_I8IMM), src3(ModR/M),
-    if (X86II::isX86_64ExtendedReg(MI.getOperand(0).getReg()))
+    if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp++).getReg()))
       VEX_R = 0x0;
 
     if (HasVEX_4V)
-      VEX_4V = getVEXRegisterEncoding(MI, 1);
+      VEX_4V = getVEXRegisterEncoding(MI, CurOp);
 
     if (X86II::isX86_64ExtendedReg(
                MI.getOperand(MemOperand+X86::AddrBaseReg).getReg()))
@@ -616,7 +627,12 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
       VEX_X = 0x0;
 
     if (HasVEX_4VOp3)
-      VEX_4V = getVEXRegisterEncoding(MI, X86::AddrNumOperands+1);
+      // Instruction format for 4VOp3:
+      //   src1(ModR/M), MemAddr, src3(VEX_4V)
+      // CurOp points to start of the MemoryOperand,
+      //   it skips TIED_TO operands if exist, then increments past src1.
+      // CurOp + X86::AddrNumOperands will point to src3.
+      VEX_4V = getVEXRegisterEncoding(MI, CurOp+X86::AddrNumOperands);
     break;
   case X86II::MRM0m: case X86II::MRM1m:
   case X86II::MRM2m: case X86II::MRM3m:
@@ -961,11 +977,14 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   // FIXME: This should be handled during MCInst lowering.
   unsigned NumOps = Desc.getNumOperands();
   unsigned CurOp = 0;
-  if (NumOps > 1 && Desc.getOperandConstraint(1, MCOI::TIED_TO) != -1)
+  if (NumOps > 1 && Desc.getOperandConstraint(1, MCOI::TIED_TO) == 0)
     ++CurOp;
-  else if (NumOps > 2 && Desc.getOperandConstraint(NumOps-1, MCOI::TIED_TO)== 0)
-    // Skip the last source operand that is tied_to the dest reg. e.g. LXADD32
-    --NumOps;
+  else if (NumOps > 3 && Desc.getOperandConstraint(2, MCOI::TIED_TO) == 0) {
+    assert(Desc.getOperandConstraint(NumOps - 1, MCOI::TIED_TO) == 1);
+    // Special case for GATHER with 2 TIED_TO operands
+    // Skip the first 2 operands: dst, mask_wb
+    CurOp += 2;
+  }
 
   // Keep track of the current byte being emitted.
   unsigned CurByte = 0;
@@ -1037,7 +1056,7 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
     SrcRegNum = CurOp + X86::AddrNumOperands;
 
     if (HasVEX_4V) // Skip 1st src (which is encoded in VEX_VVVV)
-      SrcRegNum++;
+      ++SrcRegNum;
 
     EmitMemModRMByte(MI, CurOp,
                      GetX86RegNum(MI.getOperand(SrcRegNum)),
@@ -1050,15 +1069,15 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
     SrcRegNum = CurOp + 1;
 
     if (HasVEX_4V) // Skip 1st src (which is encoded in VEX_VVVV)
-      SrcRegNum++;
+      ++SrcRegNum;
 
-    if(HasMemOp4) // Skip 2nd src (which is encoded in I8IMM)
-      SrcRegNum++;
+    if (HasMemOp4) // Skip 2nd src (which is encoded in I8IMM)
+      ++SrcRegNum;
 
     EmitRegModRMByte(MI.getOperand(SrcRegNum),
                      GetX86RegNum(MI.getOperand(CurOp)), CurByte, OS);
 
-    // 2 operands skipped with HasMemOp4, comensate accordingly
+    // 2 operands skipped with HasMemOp4, compensate accordingly
     CurOp = HasMemOp4 ? SrcRegNum : SrcRegNum + 1;
     if (HasVEX_4VOp3)
       ++CurOp;
@@ -1071,7 +1090,7 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
       ++AddrOperands;
       ++FirstMemOp;  // Skip the register source (which is encoded in VEX_VVVV).
     }
-    if(HasMemOp4) // Skip second register source (encoded in I8IMM)
+    if (HasMemOp4) // Skip second register source (encoded in I8IMM)
       ++FirstMemOp;
 
     EmitByte(BaseOpcode, CurByte, OS);
@@ -1089,7 +1108,7 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   case X86II::MRM4r: case X86II::MRM5r:
   case X86II::MRM6r: case X86II::MRM7r:
     if (HasVEX_4V) // Skip the register dst (which is encoded in VEX_VVVV).
-      CurOp++;
+      ++CurOp;
     EmitByte(BaseOpcode, CurByte, OS);
     EmitRegModRMByte(MI.getOperand(CurOp++),
                      (TSFlags & X86II::FormMask)-X86II::MRM0r,
@@ -1100,7 +1119,7 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   case X86II::MRM4m: case X86II::MRM5m:
   case X86II::MRM6m: case X86II::MRM7m:
     if (HasVEX_4V) // Skip the register dst (which is encoded in VEX_VVVV).
-      CurOp++;
+      ++CurOp;
     EmitByte(BaseOpcode, CurByte, OS);
     EmitMemModRMByte(MI, CurOp, (TSFlags & X86II::FormMask)-X86II::MRM0m,
                      TSFlags, CurByte, OS, Fixups);
@@ -1149,22 +1168,23 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   }
 
   // If there is a remaining operand, it must be a trailing immediate.  Emit it
-  // according to the right size for the instruction.
-  if (CurOp != NumOps) {
+  // according to the right size for the instruction. Some instructions
+  // (SSE4a extrq and insertq) have two trailing immediates.
+  while (CurOp != NumOps && NumOps - CurOp <= 2) {
     // The last source register of a 4 operand instruction in AVX is encoded
     // in bits[7:4] of a immediate byte.
     if ((TSFlags >> X86II::VEXShift) & X86II::VEX_I8IMM) {
       const MCOperand &MO = MI.getOperand(HasMemOp4 ? MemOp4_I8IMMOperand
-                                                   : CurOp);
-      CurOp++;
-      bool IsExtReg = X86II::isX86_64ExtendedReg(MO.getReg());
-      unsigned RegNum = (IsExtReg ? (1 << 7) : 0);
-      RegNum |= GetX86RegNum(MO) << 4;
+                                                    : CurOp);
+      ++CurOp;
+      unsigned RegNum = GetX86RegNum(MO) << 4;
+      if (X86II::isX86_64ExtendedReg(MO.getReg()))
+        RegNum |= 1 << 7;
       // If there is an additional 5th operand it must be an immediate, which
       // is encoded in bits[3:0]
-      if(CurOp != NumOps) {
+      if (CurOp != NumOps) {
         const MCOperand &MIMM = MI.getOperand(CurOp++);
-        if(MIMM.isImm()) {
+        if (MIMM.isImm()) {
           unsigned Val = MIMM.getImm();
           assert(Val < 16 && "Immediate operand value out of range");
           RegNum |= Val;
