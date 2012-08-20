@@ -147,11 +147,9 @@ ath_printtxbuf_edma(struct ath_softc *sc, const struct ath_buf *first_bf,
 	 * Assume the TX map size is 4 for now and only walk
 	 * the appropriate number of segments.
 	 */
-	n = bf->bf_nseg / 4;
-	if (n == 0)
-		n = 1;
+	n = (bf->bf_nseg / 4) + 1;
 
-	printf("Q%u[%3u]", qnum, ix);
+	printf("Q%u[%3u] (nseg=%d)", qnum, ix, bf->bf_nseg);
 	while (bf != NULL) {
 		/*
 		 * XXX For now, assume the txmap size is 4.
