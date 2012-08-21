@@ -55,17 +55,17 @@
 
 /* TOE PCB flags */
 enum {
-	TPF_ATTACHED,		/* a tcpcb refers to this toepcb */
-	TPF_FLOWC_WR_SENT,	/* firmware flow context WR sent */
-	TPF_TX_DATA_SENT,	/* some data sent */
-	TPF_TX_SUSPENDED,	/* tx suspended for lack of resources */
-	TPF_SEND_FIN,		/* send FIN after sending all pending data */
-	TPF_FIN_SENT,		/* FIN has been sent */
-	TPF_ABORT_SHUTDOWN,	/* connection abort is in progress */
-	TPF_CPL_PENDING,	/* haven't received the last CPL */
-	TPF_SYNQE,		/* synq_entry, not really a toepcb */
-	TPF_SYNQE_NEEDFREE,	/* synq_entry was allocated externally */
-	TPF_SYNQE_TCPDDP,	/* ulp_mode TCPDDP when toepcb is allocated */
+	TPF_ATTACHED	   = (1 << 0),	/* a tcpcb refers to this toepcb */
+	TPF_FLOWC_WR_SENT  = (1 << 1),	/* firmware flow context WR sent */
+	TPF_TX_DATA_SENT   = (1 << 2),	/* some data sent */
+	TPF_TX_SUSPENDED   = (1 << 3),	/* tx suspended for lack of resources */
+	TPF_SEND_FIN	   = (1 << 4),	/* send FIN after all pending data */
+	TPF_FIN_SENT	   = (1 << 5),	/* FIN has been sent */
+	TPF_ABORT_SHUTDOWN = (1 << 6),	/* connection abort is in progress */
+	TPF_CPL_PENDING    = (1 << 7),	/* haven't received the last CPL */
+	TPF_SYNQE	   = (1 << 8),	/* synq_entry, not really a toepcb */
+	TPF_SYNQE_NEEDFREE = (1 << 9),	/* synq_entry was malloc'd separately */
+	TPF_SYNQE_TCPDDP   = (1 << 10),	/* ulp_mode TCPDDP in toepcb */
 };
 
 enum {
@@ -134,27 +134,6 @@ struct flowc_tx_params {
 	unsigned int mss;
 };
 
-static inline int
-toepcb_flag(struct toepcb *toep, int flag)
-{
-
-	return isset(&toep->flags, flag);
-}
-
-static inline void
-toepcb_set_flag(struct toepcb *toep, int flag)
-{
-
-	setbit(&toep->flags, flag);
-}
-
-static inline void
-toepcb_clr_flag(struct toepcb *toep, int flag)
-{
-
-	clrbit(&toep->flags, flag);
-}
-
 #define	DDP_RETRY_WAIT	5	/* seconds to wait before re-enabling DDP */
 #define	DDP_LOW_SCORE	1
 #define	DDP_HIGH_SCORE	3
@@ -185,27 +164,6 @@ struct synq_entry {
 	uint16_t l2e_idx;
 	uint16_t rcv_bufsize;
 };
-
-static inline int
-synqe_flag(struct synq_entry *synqe, int flag)
-{
-
-	return isset(&synqe->flags, flag);
-}
-
-static inline void
-synqe_set_flag(struct synq_entry *synqe, int flag)
-{
-
-	setbit(&synqe->flags, flag);
-}
-
-static inline void
-synqe_clr_flag(struct synq_entry *synqe, int flag)
-{
-
-	clrbit(&synqe->flags, flag);
-}
 
 /* listen_ctx flags */
 #define LCTX_RPL_PENDING 1	/* waiting for a CPL_PASS_OPEN_RPL */

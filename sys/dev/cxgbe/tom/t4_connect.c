@@ -358,7 +358,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 
 	rc = t4_l2t_send(sc, wr, e);
 	if (rc == 0) {
-		toepcb_set_flag(toep, TPF_CPL_PENDING);
+		toep->flags |= TPF_CPL_PENDING;
 		return (0);
 	}
 
