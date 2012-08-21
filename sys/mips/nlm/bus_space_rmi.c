@@ -366,7 +366,7 @@ rmi_bus_space_map(void *t __unused, bus_addr_t addr,
     bus_space_handle_t *bshp)
 {
 
-	*bshp = addr;
+	*bshp = MIPS_PHYS_TO_DIRECT_UNCACHED(addr);
 	return (0);
 }
 
