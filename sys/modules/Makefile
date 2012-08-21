@@ -326,6 +326,7 @@ SUBDIR=	\
 	usb \
 	utopia \
 	${_vesa} \
+	${_virtio} \
 	vge \
 	${_viawd} \
 	vkbd \
@@ -593,6 +594,7 @@ _padlock=	padlock
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+_virtio=	virtio
 _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
@@ -709,6 +711,7 @@ _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
 _viawd=		viawd
+_virtio=	virtio
 _vxge=  	vxge
 _x86bios=	x86bios
 _wbwd=		wbwd
