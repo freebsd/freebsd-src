@@ -215,7 +215,7 @@ at91_udp_attach(device_t dev)
 	    bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_vbus_irq_res == NULL) {
 		at91_pio_gpio_set_interrupt(VBUS_BASE, VBUS_MASK, 0);
-		device_printf(dev, "No VBUS IRQ!");
+		device_printf(dev, "No VBUS IRQ!\n");
 	}
 	sc->sc_dci.sc_bus.bdev = device_add_child(dev, "usbus", -1);
 	if (!(sc->sc_dci.sc_bus.bdev)) {
