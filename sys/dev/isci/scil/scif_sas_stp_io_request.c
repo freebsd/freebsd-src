@@ -171,6 +171,8 @@ SCI_STATUS scif_sas_stp_io_request_constructed_complete_handler(
          );
    }
 
+   sati_sequence_terminate(&fw_io->parent.stp.sequence, fw_io, fw_io);
+
    return SCI_SUCCESS;
 }
 /**
