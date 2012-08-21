@@ -35,17 +35,6 @@ INCLUDES+= -I$S/contrib/libfdt
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 
-.if defined(ARM_BIG_ENDIAN)
-CC += -mbig-endian
-SYSTEM_LD += -EB
-LD += -EB
-.else
-CC += -mlittle-endian
-SYSTEM_LD += -EL
-LD += -EL
-.endif
-
-
 .if !defined(DEBUG) && !defined(PROFLEVEL)
 STRIP_FLAGS = -S
 .endif
