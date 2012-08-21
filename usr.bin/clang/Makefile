@@ -4,7 +4,7 @@
 
 SUBDIR=	clang clang-tblgen tblgen
 
-.if ${MK_CLANG_EXTRAS} != "no"
+.if ${MK_CLANG_EXTRAS} != "no" && !defined(TOOLS_PREFIX)
 SUBDIR+=bugpoint \
 	llc \
 	lli \
