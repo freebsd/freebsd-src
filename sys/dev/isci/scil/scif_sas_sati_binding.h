@@ -183,22 +183,16 @@ extern "C" {
 {                                                                 \
    SCIF_SAS_REQUEST_T* fw_request = (SCIF_SAS_REQUEST_T*)scsi_io; \
    SCI_PHYSICAL_MEMORY_DESCRIPTOR_T mde;                          \
-   SCI_PHYSICAL_ADDRESS phys_addr;                                \
    mde.virtual_address = NULL;                                    \
-   sci_cb_make_physical_address(mde.physical_address, 0, 0);      \
    sci_base_mde_construct(                                        \
       &mde, 4, length, SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS    \
    );                                                             \
    scif_cb_controller_allocate_memory(                            \
       fw_request->device->domain->controller, &mde                \
    );                                                             \
-   scic_cb_io_request_get_physical_address(fw_request->device->domain->controller, \
-                                           NULL,                  \
-                                           mde.virtual_address,   \
-                                           &phys_addr);           \
    *(virt_address)       = mde.virtual_address;                      \
-   *(phys_address_low)   = sci_cb_physical_address_lower(phys_addr); \
-   *(phys_address_high)  = sci_cb_physical_address_upper(phys_addr); \
+   *(phys_address_low)   = sci_cb_physical_address_lower(mde.physical_address); \
+   *(phys_address_high)  = sci_cb_physical_address_upper(mde.physical_address); \
 }
 
 #define sati_cb_free_dma_buffer(scsi_io, virt_address)         \
@@ -206,7 +200,6 @@ extern "C" {
    SCIF_SAS_REQUEST_T* fw_request = (SCIF_SAS_REQUEST_T*)scsi_io; \
    SCI_PHYSICAL_MEMORY_DESCRIPTOR_T mde;                          \
    mde.virtual_address = virt_address;                         \
-   sci_cb_make_physical_address(mde.physical_address, 0, 0);      \
    sci_base_mde_construct(                                        \
       &mde, 4, 0, SCI_MDE_ATTRIBUTE_PHYSICALLY_CONTIGUOUS         \
    );                                                             \
