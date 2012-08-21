@@ -98,7 +98,7 @@
 #define	TDNAMLEN	16		/* size of returned thread name */
 #define	COMMLEN		19		/* size of returned ki_comm name */
 #define	KI_EMULNAMELEN	16		/* size of returned ki_emul */
-#define KI_NGROUPS	16		/* number of groups in ki_groups */
+#define	KI_NGROUPS	16		/* number of groups in ki_groups */
 #define	LOGNAMELEN	17		/* size of returned ki_login */
 #define	LOGINCLASSLEN	17		/* size of returned ki_loginclass */
 
