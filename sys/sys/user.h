@@ -146,7 +146,7 @@ struct kinfo_proc {
 	gid_t	ki_svgid;		/* Saved effective group id */
 	short	ki_ngroups;		/* number of groups */
 	short	ki_spare_short2;	/* unused (just here for alignment) */
-	gid_t 	ki_groups[KI_NGROUPS];	/* groups */
+	gid_t	ki_groups[KI_NGROUPS];	/* groups */
 	vm_size_t ki_size;		/* virtual size */
 	segsz_t ki_rssize;		/* current resident set size in pages */
 	segsz_t ki_swrss;		/* resident set size before last swap */
