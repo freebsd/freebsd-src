@@ -769,7 +769,9 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 }
 
 /*
- * Reuse, or allocate (and program the page pods for) a new DDP buffer.
+ * Reuse, or allocate (and program the page pods for) a new DDP buffer.  The
+ * "pages" array is handed over to this function and should not be used in any
+ * way by the caller after that.
  */
 static int
 select_ddp_buffer(struct adapter *sc, struct toepcb *toep, vm_page_t *pages,
@@ -843,13 +845,6 @@ unwire_ddp_buffer(struct ddp_buffer *db)
 	}
 }
 
-static inline void
-unhold_ddp_buffer(struct ddp_buffer *db)
-{
-
-	vm_page_unhold_pages(db->pages, db->npages);
-}
-
 static int
 handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 {
@@ -883,15 +878,24 @@ handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 	 * Fault in and then hold the pages of the uio buffers.  We'll wire them
 	 * a bit later if everything else works out.
 	 */
-	if (hold_uio(uio, &pages, &npages) != 0)
+	SOCKBUF_UNLOCK(sb);
+	if (hold_uio(uio, &pages, &npages) != 0) {
+		SOCKBUF_LOCK(sb);
 		goto no_ddp;
+	}
+	SOCKBUF_LOCK(sb);
+	if (__predict_false(so->so_error || sb->sb_state & SBS_CANTRCVMORE)) {
+		vm_page_unhold_pages(pages, npages);
+		free(pages, M_CXGBE);
+		goto no_ddp;
+	}
 
 	/*
 	 * Figure out which one of the two DDP buffers to use this time.
 	 */
 	db_idx = select_ddp_buffer(sc, toep, pages, npages,
 	    (uintptr_t)uio->uio_iov->iov_base & PAGE_MASK, uio->uio_resid);
-	pages = NULL;	/* pages either in use elsewhere or unheld + freed */
+	pages = NULL;	/* handed off to select_ddp_buffer */
 	if (db_idx < 0)
 		goto no_ddp;
 	db = toep->db[db_idx];
@@ -904,11 +908,17 @@ handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 	ddp_flags = select_ddp_flags(so, flags, db_idx);
 	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, sb->sb_cc, ddp_flags);
 	if (wr == NULL) {
-		unhold_ddp_buffer(db);
+		/*
+		 * Just unhold the pages.  The DDP buffer's software state is
+		 * left as-is in the toep.  The page pods were written
+		 * successfully and we may have an opportunity to use it in the
+		 * future.
+		 */
+		vm_page_unhold_pages(db->pages, db->npages);
 		goto no_ddp;
 	}
 
-	/* Wire the pages and give the chip the go-ahead. */
+	/* Wire (and then unhold) the pages, and give the chip the go-ahead. */
 	wire_ddp_buffer(db);
 	t4_wrq_tx(sc, wr);
 	sb->sb_flags &= ~SB_DDP_INDICATE;
