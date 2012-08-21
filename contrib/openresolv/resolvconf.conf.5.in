@@ -113,7 +113,7 @@ This file tells dnsmasq which nameservers to use for specific domains.
 This file tells dnsmasq which nameservers to use for global lookups.
 .Pp
 Example resolvconf.conf for dnsmasq:
-.D1 nameservers=127.0.0.1
+.D1 name_servers=127.0.0.1
 .D1 dnsmasq_conf=/etc/dnsmasq-conf.conf
 .D1 dnsmasq_resolv=/etc/dnsmasq-resolv.conf
 .Pp
@@ -129,7 +129,7 @@ Include this file in the named global scope, after the options block.
 This file tells named which nameservers to use for specific domains.
 .Pp
 Example resolvconf.conf for named:
-.D1 nameservers=127.0.0.1
+.D1 name_servers=127.0.0.1
 .D1 named_options=/etc/named-options.conf
 .D1 named_zones=/etc/named-zones.conf
 .Pp
@@ -152,7 +152,7 @@ If this variable is not set then it's written to
 .Pa pdnsd_conf .
 .Pp
 Example resolvconf.conf for pdnsd:
-.D1 nameservers=127.0.0.1
+.D1 name_servers=127.0.0.1
 .D1 pdnsd_conf=/etc/pdnsd.conf
 .D1 # pdnsd_resolv=/etc/pdnsd-resolv.conf
 .Pp
@@ -171,7 +171,7 @@ Example pdnsd.conf:
 This file tells unbound about specific and global nameservers.
 .Pp
 Example resolvconf.conf for unbound:
-.D1 nameservers=127.0.0.1
+.D1 name_servers=127.0.0.1
 .D1 unbound_conf=/etc/unbound-resolvconf.conf
 .Pp
 Example unbound.conf:
