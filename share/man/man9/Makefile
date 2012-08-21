@@ -27,6 +27,7 @@ MAN=	accept_filter.9 \
 	BUS_BIND_INTR.9 \
 	bus_child_present.9 \
 	BUS_CHILD_DELETED.9 \
+	BUS_CHILD_DETACHED.9 \
 	BUS_CONFIG_INTR.9 \
 	BUS_DESCRIBE_INTR.9 \
 	bus_dma.9 \
