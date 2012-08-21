@@ -427,7 +427,7 @@ ath_edma_tx_proc(void *arg, int npending)
 	struct ath_txq *txq;
 	struct ath_buf *bf;
 	struct ieee80211_node *ni;
-	int nacked;
+	int nacked = 0;
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
 	    __func__, npending);
