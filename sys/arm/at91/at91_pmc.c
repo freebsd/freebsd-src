@@ -369,12 +369,15 @@ at91_pmc_clock_ref(const char *name)
 void
 at91_pmc_clock_deref(struct at91_pmc_clock *clk)
 {
-
+	if (clk == NULL)
+		return;
 }
 
 void
 at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 {
+	if (clk == NULL)
+		return;
 
 	/* XXX LOCKING? XXX */
 	if (clk->parent)
@@ -386,6 +389,8 @@ at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 void
 at91_pmc_clock_disable(struct at91_pmc_clock *clk)
 {
+	if (clk == NULL)
+		return;
 
 	/* XXX LOCKING? XXX */
 	if (--clk->refcnt == 0 && clk->set_mode)
