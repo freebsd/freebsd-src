@@ -2555,10 +2555,12 @@ device		iicoc		# OpenCores I2C controller support
 # ds133x	Dallas Semiconductor DS1337, DS1338 and DS1339 RTC
 # ds1374	Dallas Semiconductor DS1374 RTC
 # ds1672	Dallas Semiconductor DS1672 RTC
+# s35390a	Seiko Instruments S-35390A RTC
 #
 device		ds133x
 device		ds1374
 device		ds1672
+device		s35390a
 
 # Parallel-Port Bus
 #
