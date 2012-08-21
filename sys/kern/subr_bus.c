@@ -1873,6 +1873,8 @@ device_delete_child(device_t dev, device_t child)
 		return (error);
 	if (child->devclass)
 		devclass_delete_device(child->devclass, child);
+	if (child->parent)
+		BUS_CHILD_DELETED(dev, child);
 	TAILQ_REMOVE(&dev->children, child, link);
 	TAILQ_REMOVE(&bus_data_devices, child, devlink);
 	kobj_delete((kobj_t) child, M_BUS);
