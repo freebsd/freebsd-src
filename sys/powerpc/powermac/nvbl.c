@@ -94,7 +94,7 @@ nvbl_probe(device_t dev)
 
 	handle = OF_finddevice("mac-io/backlight");
 
-	if (handle <= 0)
+	if (handle == -1)
 		return (ENXIO);
 
 	if (OF_getprop(handle, "backlight-control", &control, sizeof(control)) < 0)
