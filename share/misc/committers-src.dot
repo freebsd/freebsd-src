@@ -272,6 +272,7 @@ yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
 zack [label="Zack Kirsch\nzack@FreeBSD.org\n2010/11/05"]
 zec [label="Marko Zec\nzec@FreeBSD.org\n2008/06/22"]
 zml [label="Zachary Loafman\nzml@FreeBSD.org\n2009/05/27"]
+zont [label="Andrey Zonov\nzont@FreeBSD.org\n2012/08/21"]
 
 # Pseudo target representing rev 1.1 of commit.allow
 day1 [label="Birth of FreeBSD"]
@@ -480,6 +481,7 @@ kib -> rmh
 kib -> stas
 kib -> tijl
 kib -> trociny
+kib -> zont
 
 kmacy -> lstewart
 
