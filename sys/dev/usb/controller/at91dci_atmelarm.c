@@ -80,6 +80,7 @@ static device_detach_t at91_udp_detach;
 
 struct at91_udp_softc {
 	struct at91dci_softc sc_dci;	/* must be first */
+	struct at91_pmc_clock *sc_mclk;
 	struct at91_pmc_clock *sc_iclk;
 	struct at91_pmc_clock *sc_fclk;
 	struct resource *sc_vbus_irq_res;
@@ -107,6 +108,7 @@ at91_udp_clocks_on(void *arg)
 {
 	struct at91_udp_softc *sc = arg;
 
+	at91_pmc_clock_enable(sc->sc_mclk);
 	at91_pmc_clock_enable(sc->sc_iclk);
 	at91_pmc_clock_enable(sc->sc_fclk);
 }
@@ -118,6 +120,7 @@ at91_udp_clocks_off(void *arg)
 
 	at91_pmc_clock_disable(sc->sc_fclk);
 	at91_pmc_clock_disable(sc->sc_iclk);
+	at91_pmc_clock_disable(sc->sc_mclk);
 }
 
 static void
@@ -185,6 +188,7 @@ at91_udp_attach(device_t dev)
 	/* wait 10ms for pulldown to stabilise */
 	usb_pause_mtx(NULL, hz / 100);
 
+	sc->sc_mclk = at91_pmc_clock_ref("mck");
 	sc->sc_iclk = at91_pmc_clock_ref("udc_clk");
 	sc->sc_fclk = at91_pmc_clock_ref("udpck");
 
@@ -209,8 +213,9 @@ at91_udp_attach(device_t dev)
 	rid = 1;
 	sc->sc_vbus_irq_res =
 	    bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-	if (!(sc->sc_vbus_irq_res)) {
-		goto error;
+	if (sc->sc_vbus_irq_res == NULL) {
+		at91_pio_gpio_set_interrupt(VBUS_BASE, VBUS_MASK, 0);
+		device_printf(dev, "No VBUS IRQ!");
 	}
 	sc->sc_dci.sc_bus.bdev = device_add_child(dev, "usbus", -1);
 	if (!(sc->sc_dci.sc_bus.bdev)) {
@@ -230,11 +235,19 @@ at91_udp_attach(device_t dev)
 		goto error;
 	}
 #if (__FreeBSD_version >= 700031)
-	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
+	if (sc->sc_vbus_irq_res != NULL) {
+		err = bus_setup_intr(dev, sc->sc_vbus_irq_res,
+		    INTR_TYPE_BIO | INTR_MPSAFE,
+		    NULL, (driver_intr_t *)at91_vbus_poll, sc,
+		    &sc->sc_vbus_intr_hdl);
+	}
 #else
-	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
+	if (sc->sc_vbus_irq_res != NULL) {
+		err = bus_setup_intr(dev, sc->sc_vbus_irq_res,
+		    INTR_TYPE_BIO | INTR_MPSAFE,
+		    (driver_intr_t *)at91_vbus_poll, sc,
+		    &sc->sc_vbus_intr_hdl);
+	}
 #endif
 	if (err) {
 		sc->sc_vbus_intr_hdl = NULL;
@@ -317,8 +330,10 @@ at91_udp_detach(device_t dev)
 	/* disable clocks */
 	at91_pmc_clock_disable(sc->sc_iclk);
 	at91_pmc_clock_disable(sc->sc_fclk);
+	at91_pmc_clock_disable(sc->sc_mclk);
 	at91_pmc_clock_deref(sc->sc_fclk);
 	at91_pmc_clock_deref(sc->sc_iclk);
+	at91_pmc_clock_deref(sc->sc_mclk);
 
 	return (0);
 }
