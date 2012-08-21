@@ -726,9 +726,6 @@ int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 #define	isp_sim_alloc(a, b, c, d, e, f, g, h)	\
 	cam_sim_alloc(a, b, c, d, e, &(d)->isp_osinfo.lock, f, g, h)
 
-/* Should be BUS_SPACE_MAXSIZE, but MAXPHYS is larger than BUS_SPACE_MAXSIZE */
-#define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  
-
 #define	ISP_PATH_PRT(i, l, p, ...)					\
 	if ((l) == ISP_LOGALL || ((l)& (i)->isp_dblev) != 0) {		\
                 xpt_print(p, __VA_ARGS__);				\
