@@ -2698,7 +2698,8 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	     * This has to be done after we have loaded all of the
 	     * dependencies, so that we do not miss any.
 	     */
-	     process_nodelete(obj);
+	    if (obj != NULL)
+		process_nodelete(obj);
 	} else {
 	    /*
 	     * Bump the reference counts for objects on this DAG.  If
