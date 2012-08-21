@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
+#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -805,6 +806,7 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
 	toep->flags |= TPF_CPL_PENDING;
 	update_tid(sc, synqe->tid, toep);
+	synqe->flags |= TPF_SYNQE_EXPANDED;
 }
 
 static inline void
@@ -1347,6 +1349,24 @@ reset:
 	if (!toe_syncache_expand(&inc, &to, &th, &so) || so == NULL) {
 		free_toepcb(toep);
 		goto reset;
+	}
+
+	/*
+	 * This is for the unlikely case where the syncache entry that we added
+	 * has been evicted from the syncache, but the syncache_expand above
+	 * works because of syncookies.
+	 *
+	 * XXX: we've held the tcbinfo lock throughout so there's no risk of
+	 * anyone accept'ing a connection before we've installed our hooks, but
+	 * this somewhat defeats the purpose of having a tod_offload_socket :-(
+	 */
+	if (__predict_false(!(synqe->flags & TPF_SYNQE_EXPANDED))) {
+		struct inpcb *new_inp = sotoinpcb(so);
+
+		INP_WLOCK(new_inp);
+		tcp_timer_activate(intotcpcb(new_inp), TT_KEEP, 0);
+		t4_offload_socket(TOEDEV(ifp), synqe, so);
+		INP_WUNLOCK(new_inp);
 	}
 
 	/* Done with the synqe */
