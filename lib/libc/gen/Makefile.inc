@@ -52,7 +52,7 @@ SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 .sinclude "${.CURDIR}/${LIBC_ARCH}/gen/Makefile.inc"
 
 MAN+=	alarm.3 arc4random.3 \
-	basename.3 check_utility_compat.3 clock.3 \
+	basename.3 check_utility_compat.3 clock.3 clock_getcpuclockid.3 \
 	confstr.3 ctermid.3 daemon.3 devname.3 directory.3 dirname.3 \
 	dl_iterate_phdr.3 dladdr.3 dlinfo.3 dllockinit.3 dlopen.3 \
 	err.3 exec.3 \
