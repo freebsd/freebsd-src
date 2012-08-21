@@ -1007,8 +1007,8 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	CTR6(KTR_CXGBE,
 	    "%s: tid %d (%s), toep_flags 0x%x, inp_flags 0x%x, status %d",
-	    __func__, tid, tcpstates[tp->t_state], toep->flags, inp->inp_flags,
-	    cpl->status);
+	    __func__, tid, tp ? tcpstates[tp->t_state] : "no tp", toep->flags,
+	    inp->inp_flags, cpl->status);
 
 	/*
 	 * If we'd initiated an abort earlier the reply to it is responsible for
