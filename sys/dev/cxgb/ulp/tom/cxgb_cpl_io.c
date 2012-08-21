@@ -880,10 +880,10 @@ act_open_rpl_status_to_errno(int status)
 	case CPL_ERR_CONN_TIMEDOUT:
 		return (ETIMEDOUT);
 	case CPL_ERR_TCAM_FULL:
-		return (ENOMEM);
+		return (EAGAIN);
 	case CPL_ERR_CONN_EXIST:
 		log(LOG_ERR, "ACTIVE_OPEN_RPL: 4-tuple in use\n");
-		return (EADDRINUSE);
+		return (EAGAIN);
 	default:
 		return (EIO);
 	}
@@ -912,8 +912,7 @@ do_act_open_rpl(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	unsigned int atid = G_TID(ntohl(rpl->atid));
 	struct toepcb *toep = lookup_atid(&td->tid_maps, atid);
 	struct inpcb *inp = toep->tp_inp;
-	struct tcpcb *tp = intotcpcb(inp);
-	int s = rpl->status;
+	int s = rpl->status, rc;
 
 	CTR3(KTR_CXGB, "%s: atid %u, status %u ", __func__, atid, s);
 
@@ -923,17 +922,14 @@ do_act_open_rpl(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	if (act_open_has_tid(s))
 		queue_tid_release(tod, GET_TID(rpl));
 
-	if (s == CPL_ERR_TCAM_FULL || s == CPL_ERR_CONN_EXIST) {
-		INP_WLOCK(inp);
-		toe_connect_failed(tod, tp, EAGAIN);
-		toepcb_release(toep);	/* unlocks inp */
-	} else {
+	rc = act_open_rpl_status_to_errno(s);
+	if (rc != EAGAIN)
 		INP_INFO_WLOCK(&V_tcbinfo);
-		INP_WLOCK(inp);
-		toe_connect_failed(tod, tp, act_open_rpl_status_to_errno(s));
-		toepcb_release(toep);	/* unlocks inp */
+	INP_WLOCK(inp);
+	toe_connect_failed(tod, inp, rc);
+	toepcb_release(toep);	/* unlocks inp */
+	if (rc != EAGAIN)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	}
 
 	m_freem(m);
 	return (0);

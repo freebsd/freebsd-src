@@ -167,10 +167,10 @@ act_open_rpl_status_to_errno(int status)
 	case CPL_ERR_CONN_TIMEDOUT:
 		return (ETIMEDOUT);
 	case CPL_ERR_TCAM_FULL:
-		return (ENOMEM);
+		return (EAGAIN);
 	case CPL_ERR_CONN_EXIST:
 		log(LOG_ERR, "ACTIVE_OPEN_RPL: 4-tuple in use\n");
-		return (EADDRINUSE);
+		return (EAGAIN);
 	default:
 		return (EIO);
 	}
@@ -186,8 +186,8 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	unsigned int status = G_AOPEN_STATUS(be32toh(cpl->atid_status));
 	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
-	struct tcpcb *tp = intotcpcb(inp);
 	struct toedev *tod = &toep->td->tod;
+	int rc;
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == atid, ("%s: toep tid/atid mismatch", __func__));
@@ -204,17 +204,14 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	if (status && act_open_has_tid(status))
 		release_tid(sc, GET_TID(cpl), toep->ctrlq);
 
-	if (status == CPL_ERR_TCAM_FULL) {
-		INP_WLOCK(inp);
-		toe_connect_failed(tod, tp, EAGAIN);
-		final_cpl_received(toep);	/* unlocks inp */
-	} else {
+	rc = act_open_rpl_status_to_errno(status);
+	if (rc != EAGAIN)
 		INP_INFO_WLOCK(&V_tcbinfo);
-		INP_WLOCK(inp);
-		toe_connect_failed(tod, tp, act_open_rpl_status_to_errno(status));
-		final_cpl_received(toep);	/* unlocks inp */
+	INP_WLOCK(inp);
+	toe_connect_failed(tod, inp, rc);
+	final_cpl_received(toep);	/* unlocks inp */
+	if (rc != EAGAIN)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	}
 
 	return (0);
 }
