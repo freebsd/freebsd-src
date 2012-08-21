@@ -283,11 +283,11 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 
 	CTR4(KTR_CXGBE, "%s: synqe %p, tid %d%s",
 	    __func__, synqe, synqe->tid,
-	    synqe_flag(synqe, TPF_ABORT_SHUTDOWN) ?
+	    synqe->flags & TPF_ABORT_SHUTDOWN ?
 	    " (abort already in progress)" : "");
-	if (synqe_flag(synqe, TPF_ABORT_SHUTDOWN))
+	if (synqe->flags & TPF_ABORT_SHUTDOWN)
 		return;	/* abort already in progress */
-	synqe_set_flag(synqe, TPF_ABORT_SHUTDOWN);
+	synqe->flags |= TPF_ABORT_SHUTDOWN;
 
 	get_qids_from_mbuf(m, &txqid, &rxqid);
 	ofld_txq = &sc->sge.ofld_txq[txqid];
@@ -318,7 +318,7 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
         flowc->mnemval[2].val = htobe32(pi->tx_chan);
         flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
         flowc->mnemval[3].val = htobe32(ofld_rxq->iq.abs_id);
-	synqe_set_flag(synqe, TPF_FLOWC_WR_SENT);
+	synqe->flags |= TPF_FLOWC_WR_SENT;
 
 	/* ... then ABORT request */
 	INIT_TP_WR_MIT_CPL(req, CPL_ABORT_REQ, synqe->tid);
@@ -515,7 +515,7 @@ release_synqe(struct synq_entry *synqe)
 {
 
 	if (refcount_release(&synqe->refcnt)) {
-		int needfree = synqe_flag(synqe, TPF_SYNQE_NEEDFREE);
+		int needfree = synqe->flags & TPF_SYNQE_NEEDFREE;
 
 		m_freem(synqe->syn);
 		if (needfree)
@@ -740,7 +740,7 @@ do_abort_req_synqe(struct sge_iq *iq, const struct rss_header *rss,
 	 * cleaning up resources.  Otherwise we tear everything down right here
 	 * right now.  We owe the T4 a CPL_ABORT_RPL no matter what.
 	 */
-	if (synqe_flag(synqe, TPF_ABORT_SHUTDOWN)) {
+	if (synqe->flags & TPF_ABORT_SHUTDOWN) {
 		INP_WUNLOCK(inp);
 		goto done;
 	}
@@ -775,7 +775,7 @@ do_abort_rpl_synqe(struct sge_iq *iq, const struct rss_header *rss,
 	    __func__, tid, synqe, synqe->flags, synqe->lctx, cpl->status);
 
 	INP_WLOCK(inp);
-	KASSERT(synqe_flag(synqe, TPF_ABORT_SHUTDOWN),
+	KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
 	    ("%s: wasn't expecting abort reply for synqe %p (0x%x)",
 	    __func__, synqe, synqe->flags));
 
@@ -798,12 +798,12 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 
 	INP_INFO_LOCK_ASSERT(&V_tcbinfo); /* prevents bad race with accept() */
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(synqe_flag(synqe, TPF_SYNQE),
+	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: %p not a synq_entry?", __func__, arg));
 
 	offload_socket(so, toep);
 	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
-	toepcb_set_flag(toep, TPF_CPL_PENDING);
+	toep->flags |= TPF_CPL_PENDING;
 	update_tid(sc, synqe->tid, toep);
 }
 
@@ -843,13 +843,11 @@ mbuf_to_synqe(struct mbuf *m)
 		synqe = malloc(sizeof(*synqe), M_CXGBE, M_NOWAIT);
 		if (synqe == NULL)
 			return (NULL);
-	} else
+		synqe->flags = TPF_SYNQE | TPF_SYNQE_NEEDFREE;
+	} else {
 		synqe = (void *)(m->m_data + m->m_len + tspace - sizeof(*synqe));
-
-	synqe->flags = 0;
-	synqe_set_flag(synqe, TPF_SYNQE);
-	if (tspace < len)
-		synqe_set_flag(synqe, TPF_SYNQE_NEEDFREE);
+		synqe->flags = TPF_SYNQE;
+	}
 
 	return (synqe);
 }
@@ -1115,7 +1113,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	INIT_TP_WR_MIT_CPL(rpl, CPL_PASS_ACCEPT_RPL, tid);
 	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0) {
 		ulp_mode = ULP_MODE_TCPDDP;
-		synqe_set_flag(synqe, TPF_SYNQE_TCPDDP);
+		synqe->flags |= TPF_SYNQE_TCPDDP;
 	} else
 		ulp_mode = ULP_MODE_NONE;
 	rpl->opt0 = calc_opt0(so, pi, e, mtu_idx, rscale, rx_credits, ulp_mode);
@@ -1160,7 +1158,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		INP_WLOCK(inp);
 		if (__predict_false(inp->inp_flags & INP_DROPPED)) {
 			/* listener closed.  synqe must have been aborted. */
-			KASSERT(synqe_flag(synqe, TPF_ABORT_SHUTDOWN),
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
 			    ("%s: listener %p closed but synqe %p not aborted",
 			    __func__, inp, synqe));
 
@@ -1178,7 +1176,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * that can only happen if the listener was closed and we just
 		 * checked for that.
 		 */
-		KASSERT(!synqe_flag(synqe, TPF_ABORT_SHUTDOWN),
+		KASSERT(!(synqe->flags & TPF_ABORT_SHUTDOWN),
 		    ("%s: synqe %p aborted, but listener %p not dropped.",
 		    __func__, synqe, inp));
 
@@ -1275,7 +1273,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(lctx->stid == stid, ("%s: lctx stid mismatch", __func__));
-	KASSERT(synqe_flag(synqe, TPF_SYNQE),
+	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: tid %u (ctx %p) not a synqe", __func__, tid, synqe));
 
 	INP_INFO_WLOCK(&V_tcbinfo);	/* for syncache_expand */
@@ -1292,7 +1290,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 		 * on the lctx's synq.  do_abort_rpl for the tid is responsible
 		 * for cleaning up.
 		 */
-		KASSERT(synqe_flag(synqe, TPF_ABORT_SHUTDOWN),
+		KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
 		    ("%s: listen socket dropped but tid %u not aborted.",
 		    __func__, tid));
 
@@ -1322,7 +1320,7 @@ reset:
 	}
 	toep->tid = tid;
 	toep->l2te = &sc->l2t->l2tab[synqe->l2e_idx];
-	if (synqe_flag(synqe, TPF_SYNQE_TCPDDP))
+	if (synqe->flags & TPF_SYNQE_TCPDDP)
 		set_tcpddp_ulp_mode(toep);
 	else
 		toep->ulp_mode = ULP_MODE_NONE;

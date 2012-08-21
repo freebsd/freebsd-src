@@ -472,7 +472,7 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == tid, ("%s: toep tid/atid mismatch", __func__));
-	KASSERT(!toepcb_flag(toep, TPF_SYNQE),
+	KASSERT(!(toep->flags & TPF_SYNQE),
 	    ("%s: toep %p claims to be a synq entry", __func__, toep));
 
 	vld = be32toh(cpl->ddpvld);
@@ -497,7 +497,7 @@ do_rx_ddp_complete(struct sge_iq *iq, const struct rss_header *rss,
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == tid, ("%s: toep tid/atid mismatch", __func__));
-	KASSERT(!toepcb_flag(toep, TPF_SYNQE),
+	KASSERT(!(toep->flags & TPF_SYNQE),
 	    ("%s: toep %p claims to be a synq entry", __func__, toep));
 
 	handle_ddp_data(toep, cpl->ddp_report, cpl->rcv_nxt, 0);

@@ -141,9 +141,9 @@ void
 free_toepcb(struct toepcb *toep)
 {
 
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED) == 0,
+	KASSERT(!(toep->flags & TPF_ATTACHED),
 	    ("%s: attached to an inpcb", __func__));
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING) == 0,
+	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: CPL pending", __func__));
 
 	free(toep, M_CXGBE);
@@ -181,7 +181,7 @@ offload_socket(struct socket *so, struct toepcb *toep)
 
 	/* Install an extra hold on inp */
 	toep->inp = inp;
-	toepcb_set_flag(toep, TPF_ATTACHED);
+	toep->flags |= TPF_ATTACHED;
 	in_pcbref(inp);
 
 	/* Add the TOE PCB to the active list */
@@ -216,7 +216,7 @@ undo_offload_socket(struct socket *so)
 	tp->t_flags &= ~TF_TOE;
 
 	toep->inp = NULL;
-	toepcb_clr_flag(toep, TPF_ATTACHED);
+	toep->flags &= ~TPF_ATTACHED;
 	if (in_pcbrele_wlocked(inp))
 		panic("%s: inp freed.", __func__);
 
@@ -232,9 +232,9 @@ release_offload_resources(struct toepcb *toep)
 	struct adapter *sc = td_adapter(td);
 	int tid = toep->tid;
 
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING) == 0,
+	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: %p has CPL pending.", __func__, toep));
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED) == 0,
+	KASSERT(!(toep->flags & TPF_ATTACHED),
 	    ("%s: %p is still attached.", __func__, toep));
 
 	CTR4(KTR_CXGBE, "%s: toep %p (tid %d, l2te %p)",
@@ -277,7 +277,7 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED),
+	KASSERT(toep->flags & TPF_ATTACHED,
 	    ("%s: not attached", __func__));
 
 #ifdef KTR
@@ -295,9 +295,9 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 
 	tp->t_toe = NULL;
 	tp->t_flags &= ~TF_TOE;
-	toepcb_clr_flag(toep, TPF_ATTACHED);
+	toep->flags &= ~TPF_ATTACHED;
 
-	if (toepcb_flag(toep, TPF_CPL_PENDING) == 0)
+	if (!(toep->flags & TPF_CPL_PENDING))
 		release_offload_resources(toep);
 }
 
@@ -312,16 +312,16 @@ final_cpl_received(struct toepcb *toep)
 
 	KASSERT(inp != NULL, ("%s: inp is NULL", __func__));
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING),
+	KASSERT(toep->flags & TPF_CPL_PENDING,
 	    ("%s: CPL not pending already?", __func__));
 
 	CTR6(KTR_CXGBE, "%s: tid %d, toep %p (0x%x), inp %p (0x%x)",
 	    __func__, toep->tid, toep, toep->flags, inp, inp->inp_flags);
 
 	toep->inp = NULL;
-	toepcb_clr_flag(toep, TPF_CPL_PENDING);
+	toep->flags &= ~TPF_CPL_PENDING;
 
-	if (toepcb_flag(toep, TPF_ATTACHED) == 0)
+	if (!(toep->flags & TPF_ATTACHED))
 		release_offload_resources(toep);
 
 	if (!in_pcbrele_wlocked(inp))
