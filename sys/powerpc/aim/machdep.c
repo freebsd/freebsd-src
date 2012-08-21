@@ -257,7 +257,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	size_t		trap_offset;
 	void		*kmdp;
         char		*env;
-	register_t	msr, scratch;
+	register_t	msr, scratch, vers;
 	uint8_t		*cache_check;
 	int		cacheline_warn;
 	#ifndef __powerpc64__
@@ -267,6 +267,14 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	kmdp = NULL;
 	trap_offset = 0;
 	cacheline_warn = 0;
+
+	/*
+	 * The Wii loader doesn't pass us any environment so, mdp
+	 * points to garbage at this point. The Wii CPU is a 750CL.
+	 */
+	vers = mfpvr();
+	if ((vers & 0xfffff0e0) == (MPC750 << 16 | MPC750CL)) 
+		mdp = NULL;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
