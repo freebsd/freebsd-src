@@ -464,7 +464,7 @@ get_syscall(const char *name)
  */
 
 static int
-get_struct(int pid, void *offset, void *buf, int len)
+get_struct(pid_t pid, void *offset, void *buf, int len)
 {
 	struct ptrace_io_desc iorequest;
 
@@ -539,7 +539,7 @@ char *
 print_arg(struct syscall_args *sc, unsigned long *args, long retval, struct trussinfo *trussinfo)
 {
 	char *tmp = NULL;
-	int pid = trussinfo->pid;
+	pid_t pid = trussinfo->pid;
 
 	switch (sc->type & ARG_MASK) {
 	case Hex:

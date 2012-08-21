@@ -45,7 +45,7 @@ struct threadinfo
 
 struct trussinfo
 {
-	int pid;
+	pid_t pid;
 	int flags;
 	int pr_why;
 	int pr_data;
