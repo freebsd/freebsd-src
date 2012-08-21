@@ -81,7 +81,7 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
-	KASSERT(!toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
 	    ("%s: flowc for tid %u sent already", __func__, toep->tid));
 
 	CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
@@ -131,7 +131,7 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		toep->txsd_pidx = 0;
 	toep->txsd_avail--;
 
-	toepcb_set_flag(toep, TPF_FLOWC_WR_SENT);
+	toep->flags |= TPF_FLOWC_WR_SENT;
         t4_wrq_tx(sc, wr);
 }
 
@@ -151,15 +151,15 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	    inp->inp_flags & INP_DROPPED ? "inp dropped" :
 	    tcpstates[tp->t_state],
 	    toep->flags, inp->inp_flags,
-	    toepcb_flag(toep, TPF_ABORT_SHUTDOWN) ?
+	    toep->flags & TPF_ABORT_SHUTDOWN ?
 	    " (abort already in progress)" : "");
 
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN))
+	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		return;	/* abort already in progress */
 
-	toepcb_set_flag(toep, TPF_ABORT_SHUTDOWN);
+	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %d.", __func__, tid));
 
 	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
@@ -174,7 +174,7 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 		req->rsvd0 = htobe32(snd_nxt);
 	else
 		req->rsvd0 = htobe32(tp->snd_nxt);
-	req->rsvd1 = !toepcb_flag(toep, TPF_TX_DATA_SENT);
+	req->rsvd1 = !(toep->flags & TPF_TX_DATA_SENT);
 	req->cmd = CPL_ABORT_SEND_RST;
 
 	/*
@@ -364,12 +364,12 @@ close_conn(struct adapter *sc, struct toepcb *toep)
 	unsigned int tid = toep->tid;
 
 	CTR3(KTR_CXGBE, "%s: tid %u%s", __func__, toep->tid,
-	    toepcb_flag(toep, TPF_FIN_SENT) ? ", IGNORED" : "");
+	    toep->flags & TPF_FIN_SENT ? ", IGNORED" : "");
 
-	if (toepcb_flag(toep, TPF_FIN_SENT))
+	if (toep->flags & TPF_FIN_SENT)
 		return (0);
 
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, tid));
 
 	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
@@ -387,8 +387,8 @@ close_conn(struct adapter *sc, struct toepcb *toep)
         OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_CON_REQ, tid));
 	req->rsvd = 0;
 
-	toepcb_set_flag(toep, TPF_FIN_SENT);
-	toepcb_clr_flag(toep, TPF_SEND_FIN);
+	toep->flags |= TPF_FIN_SENT;
+	toep->flags &= ~TPF_SEND_FIN;
 	t4_l2t_send(sc, wr, toep->l2te);
 
 	return (0);
@@ -540,7 +540,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
 
 	if (__predict_false(toep->ulp_mode != ULP_MODE_NONE &&
@@ -551,7 +551,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 	 * This function doesn't resume by itself.  Someone else must clear the
 	 * flag and call this function.
 	 */
-	if (__predict_false(toepcb_flag(toep, TPF_TX_SUSPENDED)))
+	if (__predict_false(toep->flags & TPF_TX_SUSPENDED))
 		return;
 
 	do {
@@ -577,7 +577,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 				plen -= m->m_len;
 				if (plen == 0) {
 					/* Too few credits */
-					toepcb_set_flag(toep, TPF_TX_SUSPENDED);
+					toep->flags |= TPF_TX_SUSPENDED;
 					SOCKBUF_UNLOCK(sb);
 					return;
 				}
@@ -620,7 +620,7 @@ unlocked:
 			break;
 		}
 
-		if (__predict_false(toepcb_flag(toep, TPF_FIN_SENT)))
+		if (__predict_false(toep->flags & TPF_FIN_SENT))
 			panic("%s: excess tx.", __func__);
 
 		if (plen <= max_imm) {
@@ -631,7 +631,7 @@ unlocked:
 					toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
-				toepcb_set_flag(toep, TPF_TX_SUSPENDED);
+				toep->flags |= TPF_TX_SUSPENDED;
 				return;
 			}
 			txwr = wrtod(wr);
@@ -649,7 +649,7 @@ unlocked:
 			wr = alloc_wrqe(roundup(wr_len, 16), toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
-				toepcb_set_flag(toep, TPF_TX_SUSPENDED);
+				toep->flags |= TPF_TX_SUSPENDED;
 				return;
 			}
 			txwr = wrtod(wr);
@@ -678,7 +678,7 @@ unlocked:
 		sb->sb_sndptr = sb_sndptr;
 		SOCKBUF_UNLOCK(sb);
 
-		toepcb_set_flag(toep, TPF_TX_DATA_SENT);
+		toep->flags |= TPF_TX_DATA_SENT;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
 		txsd->plen = plen;
@@ -694,7 +694,7 @@ unlocked:
 	} while (m != NULL);
 
 	/* Send a FIN if requested, but only if there's no more data to send */
-	if (m == NULL && toepcb_flag(toep, TPF_SEND_FIN))
+	if (m == NULL && toep->flags & TPF_SEND_FIN)
 		close_conn(sc, toep);
 }
 
@@ -731,7 +731,7 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 	    ("%s: inp %p dropped.", __func__, inp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
-	toepcb_set_flag(toep, TPF_SEND_FIN);
+	toep->flags |= TPF_SEND_FIN;
 	t4_push_frames(sc, toep);
 
 	return (0);
@@ -752,7 +752,7 @@ t4_send_rst(struct toedev *tod, struct tcpcb *tp)
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
 	/* hmmmm */
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc for tid %u [%s] not sent already",
 	    __func__, toep->tid, tcpstates[tp->t_state]));
 
@@ -790,7 +790,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	CTR5(KTR_CXGBE, "%s: tid %u (%s), toep_flags 0x%x, inp %p", __func__,
 	    tid, tp ? tcpstates[tp->t_state] : "no tp", toep->flags, inp);
 
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN))
+	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
 	tp->rcv_nxt++;	/* FIN */
@@ -888,7 +888,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	CTR4(KTR_CXGBE, "%s: tid %u (%s), toep_flags 0x%x",
 	    __func__, tid, tp ? tcpstates[tp->t_state] : "no tp", toep->flags);
 
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN))
+	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
 	so = inp->inp_socket;
@@ -986,7 +986,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 
-	if (toepcb_flag(toep, TPF_SYNQE))
+	if (toep->flags & TPF_SYNQE)
 		return (do_abort_req_synqe(iq, rss, m));
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
@@ -1015,11 +1015,11 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	 * cleaning up resources.  Otherwise we tear everything down right here
 	 * right now.  We owe the T4 a CPL_ABORT_RPL no matter what.
 	 */
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN)) {
+	if (toep->flags & TPF_ABORT_SHUTDOWN) {
 		INP_WUNLOCK(inp);
 		goto done;
 	}
-	toepcb_set_flag(toep, TPF_ABORT_SHUTDOWN);
+	toep->flags |= TPF_ABORT_SHUTDOWN;
 
 	so_error_set(so, abort_status_to_errno(tp, cpl->status));
 	tp = tcp_close(tp);
@@ -1052,7 +1052,7 @@ do_abort_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 
-	if (toepcb_flag(toep, TPF_SYNQE))
+	if (toep->flags & TPF_SYNQE)
 		return (do_abort_rpl_synqe(iq, rss, m));
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
@@ -1060,7 +1060,7 @@ do_abort_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	CTR5(KTR_CXGBE, "%s: tid %u, toep %p, inp %p, status %d",
 	    __func__, tid, toep, inp, cpl->status);
 
-	KASSERT(toepcb_flag(toep, TPF_ABORT_SHUTDOWN),
+	KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
 	    ("%s: wasn't expecting abort reply", __func__));
 
 	INP_WLOCK(inp);
@@ -1082,13 +1082,13 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sockbuf *sb;
 	int len;
 
-	if (__predict_false(toepcb_flag(toep, TPF_SYNQE))) {
+	if (__predict_false(toep->flags & TPF_SYNQE)) {
 		/*
 		 * do_pass_establish failed and must be attempting to abort the
 		 * synqe's tid.  Meanwhile, the T4 has sent us data for such a
 		 * connection.
 		 */
-		KASSERT(toepcb_flag(toep, TPF_ABORT_SHUTDOWN),
+		KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
 		    ("%s: synqe and tid isn't being aborted.", __func__));
 		m_freem(m);
 		return (0);
@@ -1266,8 +1266,8 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	 * Very unusual case: we'd sent a flowc + abort_req for a synq entry and
 	 * now this comes back carrying the credits for the flowc.
 	 */
-	if (__predict_false(toepcb_flag(toep, TPF_SYNQE))) {
-		KASSERT(toepcb_flag(toep, TPF_ABORT_SHUTDOWN),
+	if (__predict_false(toep->flags & TPF_SYNQE)) {
+		KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
 		    ("%s: credits for a synq entry %p", __func__, toep));
 		return (0);
 	}
@@ -1281,7 +1281,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	INP_WLOCK(inp);
 
-	if (__predict_false(toepcb_flag(toep, TPF_ABORT_SHUTDOWN))) {
+	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN)) {
 		INP_WUNLOCK(inp);
 		return (0);
 	}
@@ -1337,11 +1337,11 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/* XXX */
-	if ((toepcb_flag(toep, TPF_TX_SUSPENDED) &&
+	if ((toep->flags & TPF_TX_SUSPENDED &&
 	    toep->tx_credits >= MIN_OFLD_TX_CREDITS) ||
 	    toep->tx_credits == toep->txsd_total *
 	    howmany((sizeof(struct fw_ofld_tx_data_wr) + 1), 16)) {
-		toepcb_clr_flag(toep, TPF_TX_SUSPENDED);
+		toep->flags &= ~TPF_TX_SUSPENDED;
 		t4_push_frames(sc, toep);
 	}
 	INP_WUNLOCK(inp);
