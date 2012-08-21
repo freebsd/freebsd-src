@@ -1216,6 +1216,11 @@ OLD_FILES+=usr/share/man/man2/kse_thr_interrupt.2.gz
 OLD_FILES+=usr/share/man/man2/kse_wakeup.2.gz
 OLD_FILES+=usr/lib32/libkse.so
 OLD_LIBS+=usr/lib32/libkse.so.3
+# 20080225: bsdar/bsdranlib rename to ar/ranlib
+OLD_FILES+=usr/bin/bsdar
+OLD_FILES+=usr/bin/bsdranlib
+OLD_FILES+=usr/share/man/man1/bsdar.1.gz
+OLD_FILES+=usr/share/man/man1/bsdranlib.1.gz
 # 20080220: geom_lvm rename to geom_linux_lvm
 OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal
