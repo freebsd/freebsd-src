@@ -1339,7 +1339,7 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			/*
 			 * If the parent interface is being detached,
-			 * all it's multicast addresses have already
+			 * all its multicast addresses have already
 			 * been removed.  Warn about errors if
 			 * if_delmulti() does fail, but don't abort as
 			 * all callers expect vlan destruction to
