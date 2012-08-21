@@ -32,8 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <sys/time.h>
 
-clockid_t
+int
 clock_getcpuclockid(pid_t pid, clockid_t *clock_id)
 {
-	return clock_getcpuclockid2(pid, CPUCLOCK_WHICH_PID, clock_id);
+	if (clock_getcpuclockid2(pid, CPUCLOCK_WHICH_PID, clock_id))
+		return (errno);
+	return (0);
 }
