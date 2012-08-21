@@ -32,7 +32,7 @@
  */
 
 extern int setup_and_wait(char **);
-extern int start_tracing(int);
+extern int start_tracing(pid_t);
 extern void restore_proc(int);
 extern void waitevent(struct trussinfo *);
 extern const char *ioctlname(unsigned long val);
