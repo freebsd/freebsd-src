@@ -1156,6 +1156,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 #endif
 		pl = addr;
 		pl->pl_lwpid = td2->td_tid;
+		pl->pl_event = PL_EVENT_NONE;
 		pl->pl_flags = 0;
 		if (td2->td_dbgflags & TDB_XSIG) {
 			pl->pl_event = PL_EVENT_SIGNAL;
