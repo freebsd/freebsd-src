@@ -156,16 +156,18 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
  * the kmem_map.  The memguard memory will be a submap.
  */
 unsigned long
-memguard_fudge(unsigned long km_size, unsigned long km_max)
+memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
 {
-	u_long mem_pgs = cnt.v_page_count;
+	u_long mem_pgs, parent_size;
 
 	vm_memguard_divisor = 10;
 	TUNABLE_INT_FETCH("vm.memguard.divisor", &vm_memguard_divisor);
 
+	parent_size = vm_map_max(parent_map) - vm_map_min(parent_map) +
+	    PAGE_SIZE;
 	/* Pick a conservative value if provided value sucks. */
 	if ((vm_memguard_divisor <= 0) ||
-	    ((km_size / vm_memguard_divisor) == 0))
+	    ((parent_size / vm_memguard_divisor) == 0))
 		vm_memguard_divisor = 10;
 	/*
 	 * Limit consumption of physical pages to
@@ -174,20 +176,19 @@ memguard_fudge(unsigned long km_size, unsigned long km_max)
 	 * This prevents memguard's page promotions from completely
 	 * using up memory, since most malloc(9) calls are sub-page.
 	 */
+	mem_pgs = cnt.v_page_count;
 	memguard_physlimit = (mem_pgs / vm_memguard_divisor) * PAGE_SIZE;
 	/*
 	 * We want as much KVA as we can take safely.  Use at most our
-	 * allotted fraction of kmem_max.  Limit this to twice the
-	 * physical memory to avoid using too much memory as pagetable
-	 * pages.
+	 * allotted fraction of the parent map's size.  Limit this to
+	 * twice the physical memory to avoid using too much memory as
+	 * pagetable pages (size must be multiple of PAGE_SIZE).
 	 */
-	memguard_mapsize = km_max / vm_memguard_divisor;
-	/* size must be multiple of PAGE_SIZE */
-	memguard_mapsize = round_page(memguard_mapsize);
+	memguard_mapsize = round_page(parent_size / vm_memguard_divisor);
 	if (memguard_mapsize / (2 * PAGE_SIZE) > mem_pgs)
 		memguard_mapsize = mem_pgs * 2 * PAGE_SIZE;
-	if (km_size + memguard_mapsize > km_max)
-		return (km_max);
+	if (km_size + memguard_mapsize > parent_size)
+		memguard_mapsize = 0;
 	return (km_size + memguard_mapsize);
 }
 
