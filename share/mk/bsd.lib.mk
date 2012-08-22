@@ -113,7 +113,9 @@ PO_FLAG=-pg
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
+.if !defined(_SKIP_BUILD)
 all: objwarn
+.endif
 
 .include <bsd.symver.mk>
 
@@ -219,10 +221,14 @@ ${LINTLIB}: ${LINTOBJS}
 
 .endif # !defined(INTERNALLIB)
 
+.if defined(_SKIP_BUILD)
+all:
+.else
 all: ${_LIBS}
 
 .if ${MK_MAN} != "no"
 all: _manpages
+.endif
 .endif
 
 _EXTRADEPEND:
@@ -397,3 +403,15 @@ clean:
 .include <bsd.obj.mk>
 
 .include <bsd.sys.mk>
+
+.if ${MK_STAGING} != "no"
+.if defined(_SKIP_BUILD)
+stage_libs stage_files stage_as:
+.else
+.if !empty(_LIBS)
+stage_libs: ${_LIBS}
+all: stage_libs
+.endif
+.include <meta.stage.mk>
+.endif
+.endif

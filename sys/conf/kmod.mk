@@ -251,6 +251,8 @@ SYSDIR=	${_dir}
 .error "can't find kernel source tree"
 .endif
 
+.NOPATH: ${_ILINKS}
+
 ${_ILINKS}:
 	@case ${.TARGET} in \
 	machine) \

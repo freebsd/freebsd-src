@@ -24,6 +24,8 @@ ${group}OWN?=	${BINOWN}
 ${group}GRP?=	${BINGRP}
 ${group}MODE?=	${NOBINMODE}
 ${group}DIR?=	${INCLUDEDIR}
+STAGE_SETS+=	${group}
+STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
 
 _${group}INCS=
 .for header in ${${group}}
@@ -39,6 +41,10 @@ ${group}NAME_${header:T}?=	${${group}NAME}
 .else
 ${group}NAME_${header:T}?=	${header:T}
 .endif
+STAGE_AS_SETS+= ${group}
+STAGE_AS_${header:T}= ${${group}NAME_${header:T}}
+stage_as.${group}: ${header}
+
 installincludes: _${group}INS_${header:T}
 _${group}INS_${header:T}: ${header}
 	${INSTALL} -C -o ${${group}OWN_${.ALLSRC:T}} \
@@ -50,6 +56,8 @@ _${group}INCS+= ${header}
 .endif
 .endfor
 .if !empty(_${group}INCS)
+stage_files.${group}: ${_${group}INCS}
+
 installincludes: _${group}INS
 _${group}INS: ${_${group}INCS}
 .if defined(${group}NAME)
@@ -80,5 +88,16 @@ installincludes:
 
 realinstall: installincludes
 .ORDER: beforeinstall installincludes
+
+.if ${MK_STAGING} != "no"
+.if !target(stage_includes)
+.if !empty(STAGE_SETS)
+buildincludes: stage_files
+.if !empty(STAGE_AS_SETS)
+buildincludes: stage_as
+.endif
+.endif
+.endif
+.endif
 
 .endif # !defined(NO_INCS) && ${MK_TOOLCHAIN} != "no"

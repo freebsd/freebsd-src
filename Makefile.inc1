@@ -81,6 +81,8 @@ SUBDIR+=sys usr.bin usr.sbin
 .if ${MK_OFED} != "no"
 SUBDIR+=contrib/ofed
 .endif
+SUBDIR+=external/bsd
+
 #
 # We must do etc/ last for install/distribute to work.
 #
@@ -240,6 +242,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
+		-DWITHOUT_META_MODE \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
@@ -251,12 +254,14 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
+		-DWITHOUT_META_MODE \
 		-DNO_LINT \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		-DWITHOUT_META_MODE \
 		-DWITHOUT_GDB
 
 # world stage
@@ -1678,3 +1683,5 @@ _xi-links:
 xdev xdev-buil xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
+
+.MAKE.MODE= normal

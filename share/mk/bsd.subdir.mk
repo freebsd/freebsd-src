@@ -31,6 +31,15 @@
 
 .include <bsd.init.mk>
 
+.if defined(.PARSEDIR) && !defined(NEED_SUBDIR)
+.if ${.MAKE.LEVEL} == 0 && ${.MAKE.MODE:Mmeta*} != "" && !empty(SUBDIR) && !(make(clean*) || make(destroy*))
+.include <meta.subdir.mk>
+# ignore this
+_SUBDIR:
+.endif
+.endif
+.if !target(_SUBDIR)
+
 DISTRIBUTION?=	base
 .if !target(distribute)
 distribute:
@@ -42,7 +51,7 @@ distribute:
 
 _SUBDIR: .USE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}for entry in ${SUBDIR}; do \
+	@${_+_}set -e; for entry in ${SUBDIR}; do \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH} (${.TARGET:realinstall=install})"; \
 			edir=$${entry}.${MACHINE_ARCH}; \
@@ -79,8 +88,10 @@ ${__stage}${__target}: _SUBDIR
 .endif
 .endfor
 ${__target}:
-	${_+_}cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+	${_+_}set -e; cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endfor
+
+.endif
 
 .if !target(install)
 .if !target(beforeinstall)

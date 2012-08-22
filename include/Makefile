@@ -126,7 +126,37 @@ _MARCHS=	${MACHINE_CPUARCH}
 _MARCHS+=	x86
 .endif
 
+.if ${MK_STAGING} != "no"
+# tell bsd.incs.mk that we have it covered
+stage_includes:
+.endif
+
 .include <bsd.prog.mk>
+
+.if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
+.if make(all)
+DESTDIR= ${STAGE_OBJTOP}
+# we want to keep this separate from the folk who
+# do staging "normally"
+INCLUDEDIR=	/include
+
+all:	stage_includes
+installincludes: buildincludes
+buildincludes: stage_prep
+
+stage_prep:
+	@mkdir -p ${DESTDIR}${INCLUDEDIR}
+	@touch $@
+
+stage_includes: .dirdep installincludes
+	@find ${DESTDIR}${INCLUDEDIR} -type d | while read d; do \
+		rm -f $$d/.dirdep; \
+		{ ln .dirdep $$d/.dirdep 2> /dev/null || \
+		cp -p .dirdep $$d/.dirdep; }; \
+	done
+	@touch $@
+.endif
+.endif
 
 installincludes: ${SHARED}
 ${SHARED}: compat
@@ -140,11 +170,11 @@ compat:
 .endfor
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
-	    -p ${DESTDIR}${INCLUDEDIR}
+	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
 .if ${MK_BIND_LIBS} != "no"
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BIND.include.dist \
-	    -p ${DESTDIR}${INCLUDEDIR}
+	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
 .endif
 
 copies:
