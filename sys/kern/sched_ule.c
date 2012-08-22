@@ -2581,6 +2581,7 @@ sched_idletd(void *dummy)
 	mtx_assert(&Giant, MA_NOTOWNED);
 	td = curthread;
 	tdq = TDQ_SELF();
+	THREAD_NO_SLEEPING();
 	for (;;) {
 #ifdef SMP
 		if (tdq_idled(tdq) == 0)
