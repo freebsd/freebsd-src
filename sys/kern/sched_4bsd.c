@@ -1598,6 +1598,7 @@ sched_idletd(void *dummy)
 {
 	struct pcpuidlestat *stat;
 
+	THREAD_NO_SLEEPING();
 	stat = DPCPU_PTR(idlestat);
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
