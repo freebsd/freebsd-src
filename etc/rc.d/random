@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: random
-# REQUIRE: var initrandom
+# REQUIRE: initrandom var
 # BEFORE: netif
 # KEYWORD: nojail shutdown
 
@@ -13,6 +13,9 @@
 name="random"
 start_cmd="random_start"
 stop_cmd="random_stop"
+
+extra_commands="saveseed"
+saveseed_cmd="${name}_stop"
 
 feed_dev_random()
 {
