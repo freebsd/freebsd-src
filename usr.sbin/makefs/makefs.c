@@ -349,7 +349,7 @@ usage(void)
 	fprintf(stderr,
 "usage: %s [-t fs-type] [-o fs-options] [-d debug-mask] [-B endian]\n"
 "\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-s image-size]\n"
-"\t[-b free-blocks] [-f free-files] [-F mtree-specfile] [-x] [-p]\n"
+"\t[-b free-blocks] [-f free-files] [-F mtree-specfile] [-px]\n"
 "\t[-N userdb-dir] image-file directory | manifest [extra-directory ...]\n",
 	    prog);
 	exit(1);
