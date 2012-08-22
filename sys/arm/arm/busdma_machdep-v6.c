@@ -618,10 +618,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	}
 	dmat->map_count++;
 
-	if (flags & BUS_DMA_COHERENT)
-		pmap_change_attr((vm_offset_t)*vaddr, len,
-		    BUS_DMA_NOCACHE);
-
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, 0);
 	return (0);
