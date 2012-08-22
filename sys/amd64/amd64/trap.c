@@ -176,9 +176,14 @@ static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
 TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
-static int prot_fault_translation = 0;
+static int prot_fault_translation;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
-	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
+    &prot_fault_translation, 0,
+    "Select signal to deliver on protection fault");
+static int uprintf_signal;
+SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
+    &uprintf_signal, 0,
+    "Print debugging information on trap signal to ctty");
 
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
@@ -609,6 +614,19 @@ trap(struct trapframe *frame)
 	ksi.ksi_code = ucode;
 	ksi.ksi_trapno = type;
 	ksi.ksi_addr = (void *)addr;
+	if (uprintf_signal) {
+		uprintf("pid %d comm %s: signal %d err %lx code %d type %d "
+		    "addr 0x%lx <%02x %02x %02x %02x %02x %02x %02x %02x>\n",
+		    p->p_pid, p->p_comm, i, frame->tf_err, ucode, type, addr,
+		    fubyte((void *)(frame->tf_rip + 0)),
+		    fubyte((void *)(frame->tf_rip + 1)),
+		    fubyte((void *)(frame->tf_rip + 2)),
+		    fubyte((void *)(frame->tf_rip + 3)),
+		    fubyte((void *)(frame->tf_rip + 4)),
+		    fubyte((void *)(frame->tf_rip + 5)),
+		    fubyte((void *)(frame->tf_rip + 6)),
+		    fubyte((void *)(frame->tf_rip + 7)));
+	}
 	trapsignal(td, &ksi);
 
 user:
