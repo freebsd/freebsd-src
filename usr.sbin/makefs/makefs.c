@@ -112,7 +112,7 @@ main(int argc, char *argv[])
 	start_time.tv_sec = start.tv_sec;
 	start_time.tv_nsec = start.tv_usec * 1000;
 
-	while ((ch = getopt(argc, argv, "B:b:d:f:F:M:m:N:o:s:S:t:x")) != -1) {
+	while ((ch = getopt(argc, argv, "B:b:d:f:F:M:m:N:o:ps:S:t:x")) != -1) {
 		switch (ch) {
 
 		case 'B':
@@ -199,6 +199,9 @@ main(int argc, char *argv[])
 			}
 			break;
 		}
+		case 'p':
+			fsoptions.sparse = 1;
+			break;
 
 		case 's':
 			fsoptions.minsize = fsoptions.maxsize =
@@ -346,7 +349,7 @@ usage(void)
 	fprintf(stderr,
 "usage: %s [-t fs-type] [-o fs-options] [-d debug-mask] [-B endian]\n"
 "\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-s image-size]\n"
-"\t[-b free-blocks] [-f free-files] [-F mtree-specfile] [-x]\n"
+"\t[-b free-blocks] [-f free-files] [-F mtree-specfile] [-x] [-p]\n"
 "\t[-N userdb-dir] image-file directory | manifest [extra-directory ...]\n",
 	    prog);
 	exit(1);

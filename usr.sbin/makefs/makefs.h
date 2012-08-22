@@ -129,6 +129,7 @@ typedef struct {
 	int	freeblockpc;	/* free block % */
 	int	needswap;	/* non-zero if byte swapping needed */
 	int	sectorsize;	/* sector size */
+	int	sparse;		/* sparse image, don't fill it with zeros */
 
 	void	*fs_specific;	/* File system specific additions. */
 } fsinfo_t;
