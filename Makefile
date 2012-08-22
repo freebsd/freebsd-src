@@ -124,9 +124,9 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 .error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
 	(in make.conf(5)) or command-line variable.
 .endif
-MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
+MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/${MAKE:T}.${MACHINE}
 BINMAKE= \
-	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
+	`if [ -x ${MAKEPATH}/${MAKE:T} ]; then echo ${MAKEPATH}/${MAKE:T}; else echo ${MAKE}; fi` \
 	-m ${.CURDIR}/share/mk
 _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
@@ -216,7 +216,7 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s; echo
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif
@@ -284,7 +284,7 @@ upgrade_checks:
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
-	    (cd ${.CURDIR} && ${MAKE} make); \
+	    (cd ${.CURDIR} && ${MAKE} ${MAKE:T}); \
 	fi
 
 #
@@ -303,9 +303,20 @@ MMAKE=		${MMAKEENV} ${MAKE} \
 make: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date make(1)"
+	@echo ">>> Building an up-to-date ${MAKE:T}(1)"
 	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/make; \
+	${_+_}@cd ${.CURDIR}/usr.bin/${MAKE:T}; \
+		${MMAKE} obj && \
+		${MMAKE} depend && \
+		${MMAKE} all && \
+		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
+
+bmake: .PHONY
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Building an up-to-date bmake(1)"
+	@echo "--------------------------------------------------------------"
+	${_+_}@cd ${.CURDIR}/external/bsd/bmake/usr.bin/bmake; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \

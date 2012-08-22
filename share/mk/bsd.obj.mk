@@ -44,8 +44,19 @@ __<bsd.obj.mk>__:
 
 .if defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
+.elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
+CANONICALOBJDIR:=${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
+.endif
+
+.if defined(.PARSEDIR) && !defined(NO_OBJ) && !defined(NO_AUTO_OBJ)
+.if ${MK_AUTO_OBJ} == "yes"
+__objdir?= ${CANONICALOBJDIR}
+# this is what auto.obj.mk wants to see
+MKOBJDIRS=auto
+.include "auto.obj.mk"
+.endif
 .endif
 
 #
@@ -115,6 +126,11 @@ cleanobj:
 cleanobj: clean cleandepend
 .endif
 	@if [ -L ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
+
+# Tell bmake not to look for generated files via .PATH
+.if !empty(CLEANFILES)
+.NOPATH: ${CLEANFILES}
+.endif
 
 .if !target(clean)
 clean:

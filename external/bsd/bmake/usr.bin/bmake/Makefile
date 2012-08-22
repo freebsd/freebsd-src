@@ -1,5 +1,10 @@
 # This is a generated file, do NOT edit!
-# See contrib/bmake/bsd.after-import.mk
+# See external/bsd/bmake/dist/bsd.after-import.mk
+#
+# $FreeBSD$
+
+SRCTOP?= ${.CURDIR:H:H:H:H:H}
+
 
 # look here first for config.h
 CFLAGS+= -I${.CURDIR}
@@ -7,13 +12,11 @@ CFLAGS+= -I${.CURDIR}
 #	$NetBSD: Makefile,v 1.56 2012/05/30 21:54:23 sjg Exp $
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
 
-#	$Id: Makefile.in,v 1.164 2012/06/20 22:44:26 sjg Exp $
-
-# $FreeBSD$
+#	$Id: Makefile.in,v 1.168 2012/07/05 04:10:23 sjg Exp $
 
 PROG=	bmake
 SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c main.c \
-	make.c parse.c str.c suff.c targ.c trace.c var.c util.c
+	make.c parse.c str.c suff.c targ.c trace.c var.c util.c 
 SRCS+=  strlist.c
 SRCS+=  make_malloc.c
 SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
@@ -25,30 +28,36 @@ SRCS += lstPrev.c
 
 # you can use this Makefile if you have an earlier version of bmake.
 prefix= /usr
-srcdir=	${.CURDIR}/../../dist
+srcdir= ${SRCTOP}/external/bsd/bmake/dist
+CC?= gcc
 
 # Base version on src date
-MAKE_VERSION= 20120620
+MAKE_VERSION= 20120704
 DEFAULT_SYS_PATH = .../share/mk:/usr/share/mk
 
+CPPFLAGS+= 
+CFLAGS+= ${CPPFLAGS}
 CFLAGS+= -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
-CFLAGS+= -I. -I${srcdir} -DHAVE_CONFIG_H  ${XDEFS} -DMAKE_NATIVE
-CFLAGS+= ${CFLAGS_${.TARGET:T}}
+CFLAGS+= -I. -I${srcdir} -DHAVE_CONFIG_H ${XDEFS} -DMAKE_NATIVE
+CFLAGS+= ${CFLAGS_${.TARGET:T}} 
 CFLAGS+= ${COPTS.${.ALLSRC:M*.c:T:u}}
 COPTS.main.c+= "-DMAKE_VERSION=\"${MAKE_VERSION}\""
-LDFLAGS=
-LIBOBJS= ${LIBOBJDIR}stresep$U.o
-LDADD=
+LDFLAGS= 
+LIBOBJS=  ${LIBOBJDIR}stresep$U.o
+LDADD= 
 
 .if !empty(LIBOBJS)
 SRCS+= ${LIBOBJS:T:.o=.c}
 .endif
 
-USE_META ?= yes
-.if ${USE_META:tl} != "no"
+USE_META = yes
+.if ${USE_META} != "no"
 SRCS+=	meta.c
 CPPFLAGS+= -DUSE_META
-COPTS.meta.c += -DHAVE_FILEMON_H
+FILEMON_H ?= /usr/include/dev/filemon/filemon.h
+.if exists(${FILEMON_H}) && ${FILEMON_H:T} == "filemon.h"
+COPTS.meta.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
+.endif
 .endif
 
 .PATH:	${srcdir}
@@ -56,11 +65,6 @@ COPTS.meta.c += -DHAVE_FILEMON_H
 
 OS!= uname -s
 ARCH!= uname -p 2>/dev/null || uname -m
-MAKEVER!=	${MAKE} -f /dev/null -V MAKE_VERSION
-.if ${MAKEVER} < 1197001010
-# Bmake vs. FreeBSD's traditional make ('MAKE_VERSION' format: RYYYYMMDDX)
-IS_BMAKE=	yes
-.endif
 
 # list of OS's which are derrived from BSD4.4
 isBSD44= NetBSD FreeBSD OpenBSD DragonFly
@@ -74,9 +78,6 @@ WARNS=4
 .if make(install) && exists(${DESTDIR}/usr/share/doc)
 SUBDIR=	PSD.doc
 .endif
-.endif
-.if ${OS} == "FreeBSD"
-WARNS?=	6
 .endif
 
 .if empty(isBSD44:M${OS})
@@ -93,8 +94,8 @@ SRCS+= sigcompat.c
 CFLAGS+= -DSIGNAL_FLAGS=SA_RESTART
 .endif
 .endif
+.if defined(.PARSEDIR)
 .if make(obj) || make(clean)
-.if defined(IS_BMAKE)
 SUBDIR+= unit-tests
 .endif
 .endif
@@ -144,9 +145,11 @@ _mfromdir=${srcdir}
 # sigh, FreeBSD at least includes bsd.subdir.mk via bsd.obj.mk
 # so the inclusion below, results in complaints about re-defined
 # targets.  For NetBSD though we need to explicitly include it.
-#.if defined(SUBDIR) && !target(${SUBDIR:[1]})
-#.-include <bsd.subdir.mk>
-#.endif
+.if defined(.PARSEDIR)
+.if defined(SUBDIR) && !target(${SUBDIR:[1]})
+.sinclude <bsd.subdir.mk>
+.endif
+.endif
 
 CPPFLAGS+= -DMAKE_NATIVE
 COPTS.var.c += -Wno-cast-qual
@@ -156,7 +159,7 @@ COPTS.var.c += -Wno-format-nonliteral
 
 # Force these
 BINDIR= ${prefix}/bin
-MANDIR= ${prefix}/share/man
+MANDIR= ${prefix}/man
 
 arch.o:	config.h
 # make sure that MAKE_VERSION gets updated.
@@ -200,8 +203,8 @@ MANDIR= /usr/share/man
 CFLAGS+= ${COPTS.${.IMPSRC:T}}
 CLEANFILES+= bootstrap
 
-after-import: ${.CURDIR}/../dist/bsd.after-import.mk
-	cd ${.CURDIR} && ${.MAKE} -f ${.CURDIR}/../dist/bsd.after-import.mk
+after-import: ${SRCTOP}/external/bsd/bmake/dist/bsd.after-import.mk
+	cd ${.CURDIR} && ${.MAKE} -f ${SRCTOP}/external/bsd/bmake/dist/bsd.after-import.mk
 
 .sinclude "Makefile.inc"
 

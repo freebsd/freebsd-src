@@ -125,3 +125,18 @@ CFLAGS+=	${SSP_CFLAGS}
 
 # Allow user-specified additional warning flags
 CFLAGS+=	${CWARNFLAGS}
+
+
+# Tell bmake not to misstake standard targets for things to be searched for
+# or expect to ever be up-to-date.
+PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
+		beforelinking build build-tools buildfiles buildincludes \
+		checkdpadd clean cleandepend cleandir cleanobj configure \
+		depend dependall distclean distribute exe extract fetch \
+		html includes install installfiles installincludes lint \
+		obj objlink objs objwarn patch realall realdepend \
+		realinstall regress subdir-all subdir-depend subdir-install \
+		tags whereobj
+
+.PHONY: ${PHONY_NOTMAIN}
+.NOTMAIN: ${PHONY_NOTMAIN}

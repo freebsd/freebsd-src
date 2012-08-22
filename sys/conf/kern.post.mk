@@ -166,13 +166,13 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${MFILES:T:S/.m$/.h/}
 .depend: .PRECIOUS ${SRCS}
 	rm -f .newdep
-	${MAKE} -V CFILES_NOZFS -V SYSTEM_CFILES -V GEN_CFILES | \
+	${MAKE} -V '$${CFILES_NOZFS}' -V '$${SYSTEM_CFILES}' -V '$${GEN_CFILES}' | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V CFILES_ZFS | \
+	${MAKE} -V '$${CFILES_ZFS}' | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS}
-	${MAKE} -V SFILES_NOZFS | \
+	${MAKE} -V '$${SFILES_NOZFS}' | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
-	${MAKE} -V SFILES_ZFS | \
+	${MAKE} -V '$${SFILES_ZFS}' | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
@@ -209,7 +209,7 @@ kernel-cleandepend:
 links:
 	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
 	    sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	${MAKE} -V CFILES | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
+	${MAKE} -V '$${CFILES}' | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
 	    sort -u | comm -23 - dontlink | \
 	    sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
 	sh makelinks; rm -f dontlink

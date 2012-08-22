@@ -2,8 +2,6 @@
 #
 # $NetBSD: Makefile,v 1.34 2012/06/19 23:25:53 sjg Exp $
 #
-# $FreeBSD$
-#
 # Unit tests for make(1)
 # The main targets are:
 # 
@@ -16,7 +14,7 @@
 # named makefile which should be added to SUBFILES to hook it in.
 # 
 
-srcdir=	${.CURDIR}/../../../dist/unit-tests
+srcdir= ${SRCTOP}/external/bsd/bmake/dist/unit-tests
 
 .MAIN: all
 
@@ -64,7 +62,7 @@ ${SUBFILES}:
 clean:
 	rm -f *.out *.fail *.core
 
-.-include <bsd.obj.mk>
+.sinclude <bsd.obj.mk>
 
 TEST_MAKE?= ${.MAKE}
 TOOL_SED?= sed

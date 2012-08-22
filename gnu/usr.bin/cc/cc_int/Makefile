@@ -98,4 +98,6 @@ SRCS+= ${OBJS-all:R:S/$/.c/g}
 toplev.o:	toplev.c
 	${CC} ${CFLAGS} -DTARGET_NAME=\"${GCC_TARGET}\" -c ${.IMPSRC}
 
+CLEANFILES+= ${OBJS-all}
+
 .include <bsd.lib.mk>

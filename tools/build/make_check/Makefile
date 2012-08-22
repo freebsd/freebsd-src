@@ -22,8 +22,17 @@ NIL=
 
 SMAKE=	MAKEFLAGS= ${MAKE} -C ${.CURDIR}
 
+.if !make(shell*)
+# check that make -V '${VARIABLE}' works
+V_expn != V_OK=ok ${SMAKE} -r -f /dev/null -V '$${V_OK}'
+.endif
+
 all:
-	@echo '1..16'
+	@echo '0..16'
+	@test "${V_expn}" != "" || \
+		{ echo ${MAKE} -V '$${VARIABLE}': no output; \
+		${MAKE} -C ${.CURDIR} failure; }
+	@echo "ok 0 - make -V # handles substitution"
 	@${SMAKE} C_check || { cd ${.CURDIR} ; ${MAKE} failure ; }
 	@echo "ok 1 - C_check # Test of -C flag existence detected no regression."
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
@@ -56,8 +65,12 @@ all:
 	@echo "ok 14 shell # Test shell detected no regression."
 	@${SMAKE} shell_1 || ${SMAKE} failure
 	@echo "ok 15 shell_1 # Test shell_1 detected no regression."
+.if defined(.PARSEDIR)
+	@echo "skipped 16 shell_2 # bmake handles shell errors differently"
+.else
 	@${SMAKE} shell_2 || ${SMAKE} failure
 	@echo "ok 16 shell_2 # Test shell_2 detected no regression."
+.endif
 
 .if make(C_check)
 C_check:

@@ -102,9 +102,13 @@ MAN1=	${MAN}
 .endif
 .endif
 
+.if defined(_SKIP_BUILD)
+all:
+.else
 all: objwarn ${PROG} ${SCRIPTS}
 .if ${MK_MAN} != "no"
 all: _manpages
+.endif
 .endif
 
 .if defined(PROG)
@@ -225,4 +229,26 @@ ${OBJS}: ${SRCS:M*.h}
 
 .if defined(PORTNAME)
 .include <bsd.pkg.mk>
+.endif
+
+.if ${MK_STAGING} != "no"
+.if defined(_SKIP_BUILD)
+stage_files stage_as:
+.else
+# normally only libs and includes are staged
+.if ${MK_STAGING_PROG:Uno} != "no"
+STAGE_SETS+= prog
+STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
+.if !empty(PROG)
+all: stage_files
+stage_files.prog: ${PROG}
+.endif
+.if !empty(SYMLINKS)
+all:   stage_symlinks
+stage_symlinks.prog: ${SYMLINKS}
+.endif
+
+.endif
+.include <meta.stage.mk>
+.endif
 .endif

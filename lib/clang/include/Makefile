@@ -28,6 +28,4 @@ INCS=	altivec.h \
 	x86intrin.h \
 	xmmintrin.h
 
-.include <bsd.init.mk>
-.include <bsd.incs.mk>
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>

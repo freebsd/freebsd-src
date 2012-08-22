@@ -414,6 +414,7 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    AUTO_OBJ \
     BSD_GREP \
     BSD_SORT \
     BIND_IDN \
@@ -427,10 +428,14 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     ICONV \
     IDEA \
+    INSTALL_AS_USER \
     LIBCPLUSPLUS \
+    META_MODE \
     NAND \
     OFED \
-    SHARED_TOOLCHAIN
+    SHARED_TOOLCHAIN \
+    STAGING \
+    STAGING_PROG
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -584,6 +589,16 @@ MK_GDB:=	no
 MK_CLANG_IS_CC:= no
 .endif
 
+.if !defined(.PARSEDIR)
+MK_AUTO_OBJ:=	no
+MK_META_MODE:=	no
+.endif
+
+.if ${MK_META_MODE} == "no"
+MK_STAGING:=	no
+MK_STAGING_PROG:= no
+.endif
+
 #
 # Set defaults for the MK_*_SUPPORT variables.
 #
@@ -644,6 +659,17 @@ CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
+
+.if ${MK_INSTALL_AS_USER} != "no"
+_uid!=	id -un
+.if ${_uid} != 0
+_gid!=	id -gn
+.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+$xOWN=	${_uid}
+$xGRP=	${_gid}
+.endfor
+.endif
+.endif
 
 .endif # !_WITHOUT_SRCCONF
 
