@@ -142,7 +142,7 @@ static struct {
 static int
 ti_edma3_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "ti,edma"))
+	if (!ofw_bus_is_compatible(dev, "ti,edma3"))
 		return (ENXIO);
 
 	device_set_desc(dev, "TI EDMA Controller");
