@@ -218,6 +218,7 @@ routehandler(struct protocol *p)
 	struct sockaddr *sa;
 	struct iaddr a;
 	ssize_t n;
+	int linkstat;
 
 	n = read(routefd, &msg, sizeof(msg));
 	rtm = (struct rt_msghdr *)msg;
@@ -278,10 +279,14 @@ routehandler(struct protocol *p)
 			    ifi->name);
 			goto die;
 		}
-		if (!interface_link_status(ifi->name)) {
-			warning("Interface %s is down, dhclient exiting",
-			    ifi->name);
-			goto die;
+		linkstat = interface_link_status(ifi->name);
+		if (linkstat != ifi->linkstat) {
+			debug("%s link state %s -> %s", ifi->name,
+			    ifi->linkstat ? "up" : "down",
+			    linkstat ? "up" : "down");
+			ifi->linkstat = linkstat;
+			if (linkstat)
+				state_reboot(ifi);
 		}
 		break;
 	case RTM_IFANNOUNCE:
@@ -321,8 +326,6 @@ routehandler(struct protocol *p)
 
 die:
 	script_init("FAIL", NULL);
-	if (ifi->client->active)
-		script_write_params("old_", ifi->client->active);
 	if (ifi->client->alias)
 		script_write_params("alias_", ifi->client->alias);
 	script_go();
@@ -437,6 +440,7 @@ main(int argc, char *argv[])
 		}
 		fprintf(stderr, " got link\n");
 	}
+	ifi->linkstat = 1;
 
 	if ((nullfd = open(_PATH_DEVNULL, O_RDWR, 0)) == -1)
 		error("cannot open %s: %m", _PATH_DEVNULL);
