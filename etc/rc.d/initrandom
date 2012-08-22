@@ -75,7 +75,7 @@ initrandom_start()
 			;;
 		esac
 
-		better_than_nothing()
+		better_than_nothing
 
 		echo -n ' kickstart'
 	fi
