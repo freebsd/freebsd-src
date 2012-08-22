@@ -364,6 +364,7 @@ _ftp-proxy=	ftp-proxy
 
 .if ${MK_PKGTOOLS} != "no"
 _pkg_install=	pkg_install
+SUBDIR+=	pkg
 .endif
 
 # XXX MK_TOOLCHAIN?
