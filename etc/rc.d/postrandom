@@ -15,9 +15,9 @@ start_cmd="${name}_start"
 stop_cmd=":"
 
 # This will remove old ${entropy_file} and generate a new one.
-# According to Bruce Schneier, this is strongly recomended in order
+# According to Bruce Schneier, this is strongly recommended in order
 # to avoid using same ${entropy_file} across reboots.
-# Reference: Chapter 10.6, Practical Cryptograpy, ISBN: 0-471-22357-3
+# Reference: Chapter 10.6, Practical Cryptography, ISBN: 0-471-22357-3
 
 postrandom_start()
 {
