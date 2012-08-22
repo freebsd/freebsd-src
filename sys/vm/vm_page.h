@@ -386,6 +386,7 @@ vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
 vm_page_t vm_page_prev(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
+void vm_page_readahead_finish(vm_page_t m);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);

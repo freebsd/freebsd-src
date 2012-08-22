@@ -754,6 +754,45 @@ vm_page_free_zero(vm_page_t m)
 }
 
 /*
+ * Unbusy and handle the page queueing for a page from the VOP_GETPAGES()
+ * array which is not the request page.
+ */
+void
+vm_page_readahead_finish(vm_page_t m)
+{
+
+	if (m->valid != 0) {
+		/*
+		 * Since the page is not the requested page, whether
+		 * it should be activated or deactivated is not
+		 * obvious.  Empirical results have shown that
+		 * deactivating the page is usually the best choice,
+		 * unless the page is wanted by another thread.
+		 */
+		if (m->oflags & VPO_WANTED) {
+			vm_page_lock(m);
+			vm_page_activate(m);
+			vm_page_unlock(m);
+		} else {
+			vm_page_lock(m);
+			vm_page_deactivate(m);
+			vm_page_unlock(m);
+		}
+		vm_page_wakeup(m);
+	} else {
+		/*
+		 * Free the completely invalid page.  Such page state
+		 * occurs due to the short read operation which did
+		 * not covered our page at all, or in case when a read
+		 * error happens.
+		 */
+		vm_page_lock(m);
+		vm_page_free(m);
+		vm_page_unlock(m);
+	}
+}
+
+/*
  *	vm_page_sleep:
  *
  *	Sleep and release the page and page queues locks.
