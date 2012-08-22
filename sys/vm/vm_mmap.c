@@ -208,11 +208,23 @@ sys_mmap(td, uap)
 
 	fp = NULL;
 
-	/* Make sure mapping fits into numeric range, etc. */
-	if ((uap->len == 0 && !SV_CURPROC_FLAG(SV_AOUT) &&
-	     curproc->p_osrel >= P_OSREL_MAP_ANON) ||
-	    ((flags & MAP_ANON) && (uap->fd != -1 || pos != 0)))
-		return (EINVAL);
+	/*
+	 * Enforce the constraints.
+	 * Mapping of length 0 is only allowed for old binaries.
+	 * Anonymous mapping shall specify -1 as filedescriptor and
+	 * zero position for new code. Be nice to ancient a.out
+	 * binaries and correct pos for anonymous mapping, since old
+	 * ld.so sometimes issues anonymous map requests with non-zero
+	 * pos.
+	 */
+	if (!SV_CURPROC_FLAG(SV_AOUT)) {
+		if ((uap->len == 0 && curproc->p_osrel >= P_OSREL_MAP_ANON) ||
+		    ((flags & MAP_ANON) != 0 && (uap->fd != -1 || pos != 0)))
+			return (EINVAL);
+	} else {
+		if ((flags & MAP_ANON) != 0)
+			pos = 0;
+	}
 
 	if (flags & MAP_STACK) {
 		if ((uap->fd != -1) ||
