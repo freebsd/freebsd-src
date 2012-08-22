@@ -42,7 +42,7 @@ geli2_start()
 	devices=`geli_make_list`
 
 	for provider in ${devices}; do
-		provider_=`ltr ${provider} '/' '_'`
+		provider_=`ltr ${provider} '/-' '_'`
 
 		eval "autodetach=\${geli_${provider_}_autodetach}"
 		if [ -z "${autodetach}" ]; then
