@@ -125,7 +125,7 @@ new file mode 100644
 index 0000000..9efab93
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,76 @@
 +/*
 + * Override settings that were generated in jemalloc_defs.h as necessary.
 + */
@@ -183,10 +183,6 @@ index 0000000..9efab93
 +
 +#ifndef JEMALLOC_TLS_MODEL
 +#  define JEMALLOC_TLS_MODEL	/* Default. */
-+#endif
-+#ifdef __clang__
-+#  undef JEMALLOC_TLS_MODEL
-+#  define JEMALLOC_TLS_MODEL	/* clang does not support tls_model yet. */
 +#endif
 +
 +#define	STATIC_PAGE_SHIFT	PAGE_SHIFT
