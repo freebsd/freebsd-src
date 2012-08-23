@@ -4758,7 +4758,10 @@ try_long:
 
 	smp_report_general_sbuf(response, sizeof(*response), sb);
 
-	sbuf_finish(sb);
+	if (sbuf_finish(sb) != 0) {
+		warnx("%s: sbuf_finish", __func__);
+		goto bailout;
+	}
 
 	printf("%s", sbuf_data(sb));
 
@@ -5129,7 +5132,10 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 
 	smp_report_manuf_info_sbuf(&response, sizeof(response), sb);
 
-	sbuf_finish(sb);
+	if (sbuf_finish(sb) != 0) {
+		warnx("%s: sbuf_finish", __func__);
+		goto bailout;
+	}
 
 	printf("%s", sbuf_data(sb));
 
