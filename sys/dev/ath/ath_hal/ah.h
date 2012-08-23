@@ -412,20 +412,23 @@ typedef enum {
 typedef enum {
 	HAL_INT_RX	= 0x00000001,	/* Non-common mapping */
 	HAL_INT_RXDESC	= 0x00000002,	/* Legacy mapping */
+	HAL_INT_RXERR	= 0x00000004,
 	HAL_INT_RXHP	= 0x00000001,	/* EDMA */
 	HAL_INT_RXLP	= 0x00000002,	/* EDMA */
-	HAL_INT_RXERR	= 0x00000004,
 	HAL_INT_RXNOFRM	= 0x00000008,
 	HAL_INT_RXEOL	= 0x00000010,
 	HAL_INT_RXORN	= 0x00000020,
 	HAL_INT_TX	= 0x00000040,	/* Non-common mapping */
 	HAL_INT_TXDESC	= 0x00000080,
 	HAL_INT_TIM_TIMER= 0x00000100,
+	HAL_INT_MCI	= 0x00000200,
+	HAL_INT_BBPANIC	= 0x00000400,
 	HAL_INT_TXURN	= 0x00000800,
 	HAL_INT_MIB	= 0x00001000,
 	HAL_INT_RXPHY	= 0x00004000,
 	HAL_INT_RXKCM	= 0x00008000,
 	HAL_INT_SWBA	= 0x00010000,
+	HAL_INT_BRSSI	= 0x00020000,
 	HAL_INT_BMISS	= 0x00040000,
 	HAL_INT_BNR	= 0x00100000,
 	HAL_INT_TIM	= 0x00200000,	/* Non-common mapping */
@@ -435,6 +438,8 @@ typedef enum {
 	HAL_INT_CABEND	= 0x02000000,	/* Non-common mapping */
 	HAL_INT_TSFOOR	= 0x04000000,	/* Non-common mapping */
 	HAL_INT_TBTT	= 0x08000000,	/* Non-common mapping */
+	/* Atheros ref driver has a generic timer interrupt now..*/
+	HAL_INT_GENTIMER	= 0x08000000,   /* Non-common mapping */
 	HAL_INT_CST	= 0x10000000,	/* Non-common mapping */
 	HAL_INT_GTT	= 0x20000000,	/* Non-common mapping */
 	HAL_INT_FATAL	= 0x40000000,	/* Non-common mapping */
@@ -457,6 +462,7 @@ typedef enum {
 			| HAL_INT_RXKCM
 			| HAL_INT_SWBA
 			| HAL_INT_BMISS
+			| HAL_INT_BRSSI
 			| HAL_INT_BNR
 			| HAL_INT_GPIO,
 } HAL_INT;
