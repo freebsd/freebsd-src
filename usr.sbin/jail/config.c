@@ -597,6 +597,7 @@ check_intparams(struct cfjail *j)
 					    "ip4.addr: bad netmask \"%s\"", cs);
 					error = -1;	
 				}
+				*cs = '\0';
 				s->len = cs - s->s;
 			}
 		}
@@ -620,6 +621,7 @@ check_intparams(struct cfjail *j)
 					    cs);
 					error = -1;	
 				}
+				*cs = '\0';
 				s->len = cs - s->s;
 			}
 		}
@@ -713,11 +715,10 @@ import_params(struct cfjail *j)
 			cs = value;
 			TAILQ_FOREACH_SAFE(s, &p->val, tq, ts) {
 				memcpy(cs, s->s, s->len);
-				if (ts != NULL) {
-					cs += s->len + 1;
-					cs[-1] = ',';
-				}
+				cs += s->len + 1;
+				cs[-1] = ',';
 			}
+			value[vallen - 1] = '\0';
 		}
 		if (jailparam_import(jp, value) < 0) {
 			error = -1;
