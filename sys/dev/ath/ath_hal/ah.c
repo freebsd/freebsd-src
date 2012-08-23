@@ -101,9 +101,9 @@ ath_hal_mac_name(struct ath_hal *ah)
 		return "5413";
 	case AR_SREV_VERSION_COBRA:
 		return "2415";
-	case AR_SREV_2425:
+	case AR_SREV_2425:	/* Swan */
 		return "2425";
-	case AR_SREV_2417:
+	case AR_SREV_2417:	/* Nala */
 		return "2417";
 	case AR_XSREV_VERSION_OWL_PCI:
 		return "5416";
