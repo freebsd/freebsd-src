@@ -830,6 +830,16 @@ typedef enum {
 } HAL_DFS_DOMAIN;
 
 /*
+ * MFP decryption options for initializing the MAC.
+ */
+
+typedef enum {
+	HAL_MFP_QOSDATA = 0,	/* Decrypt MFP frames like QoS data frames. All chips before Merlin. */
+	HAL_MFP_PASSTHRU,	/* Don't decrypt MFP frames at all. Passthrough */
+	HAL_MFP_HW_CRYPTO	/* hardware decryption enabled. Merlin can do it. */
+} HAL_MFP_OPT_T;
+
+/*
  * Flag for setting QUIET period
  */
 typedef enum {
@@ -1403,5 +1413,15 @@ int __ahdecl ath_hal_getcca(struct ath_hal *ah);
  */
 HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
 		u_int off, uint16_t *data);
+
+/*
+ * For now, simply pass through MFP frames.
+ */
+static inline u_int32_t
+ath_hal_get_mfp_qos(struct ath_hal *ah)
+{
+	//return AH_PRIVATE(ah)->ah_mfp_qos;
+	return HAL_MFP_QOSDATA;
+}
 
 #endif /* _ATH_AH_H_ */
