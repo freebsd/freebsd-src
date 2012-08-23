@@ -29,8 +29,6 @@ device		rtl8366rb
 
 # read MSDOS formatted disks - USB
 options		MSDOSFS
-options		GEOM_PART_BSD
-options		GEOM_PART_MBR
 
 # Enable the uboot environment stuff rather then the
 # redboot stuff.
