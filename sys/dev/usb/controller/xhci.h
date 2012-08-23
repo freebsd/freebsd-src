@@ -499,6 +499,7 @@ struct xhci_softc {
 
 /* prototypes */
 
+uint32_t	xhci_get_port_route(void);
 usb_error_t xhci_halt_controller(struct xhci_softc *);
 usb_error_t xhci_init(struct xhci_softc *, device_t);
 usb_error_t xhci_start_controller(struct xhci_softc *);
