@@ -24,6 +24,7 @@
 #include "ah_eeprom.h"			/* for 5ghz fast clock flag */
 
 #include "ar5416/ar5416reg.h"		/* NB: includes ar5212reg.h */
+#include "ar9003/ar9300_devid.h"
 
 /* linker set of registered chips */
 OS_SET_DECLARE(ah_chips, struct ath_hal_chip);
@@ -123,6 +124,21 @@ ath_hal_mac_name(struct ath_hal *ah)
 		if (AH_PRIVATE(ah)->ah_ispcie)
 			return "9287";
 		return "9227";
+	case AR_SREV_VERSION_AR9380:
+		if (ah->ah_macRev >= AR_SREV_REVISION_AR9580_10)
+			return "9580";
+		return "9380";
+	case AR_SREV_VERSION_AR9460:
+		return "9460";
+	case AR_SREV_VERSION_AR9330:
+		return "9330";
+	case AR_SREV_VERSION_AR9340:
+		return "9340";
+	case AR_SREV_VERSION_QCA9550:
+		/* XXX should say QCA, not AR */
+		return "9550";
+	case AR_SREV_VERSION_AR9485:
+		return "9485";
 	}
 	return "????";
 }
