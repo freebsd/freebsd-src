@@ -1,15 +1,15 @@
 # $FreeBSD$
 
-CLANG_SRCS=${LLVM_SRCS}/tools/clang
+CLANG_SRCS=	${LLVM_SRCS}/tools/clang
 
-CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
-	-I${LLVM_SRCS}/${SRCDIR} ${INCDIR:C/^/-I${LLVM_SRCS}\//} -I. \
-	-I${LLVM_SRCS}/../../lib/clang/include \
-	-DLLVM_ON_UNIX -DLLVM_ON_FREEBSD \
-	-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
+CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
+		-I${LLVM_SRCS}/${SRCDIR} ${INCDIR:C/^/-I${LLVM_SRCS}\//} -I. \
+		-I${LLVM_SRCS}/../../lib/clang/include \
+		-DLLVM_ON_UNIX -DLLVM_ON_FREEBSD \
+		-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
 # LLVM is not strict aliasing safe as of 12/31/2011
-CFLAGS+= -fno-strict-aliasing
+CFLAGS+=	-fno-strict-aliasing
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
@@ -19,23 +19,23 @@ CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOSTTRIPLE=\"${BUILD_TRIPLE}\"
 
 .ifndef LLVM_REQUIRES_EH
-CXXFLAGS+=-fno-exceptions
+CXXFLAGS+=	-fno-exceptions
 .else
 # If the library or program requires EH, it also requires RTTI.
 LLVM_REQUIRES_RTTI=
 .endif
 
 .ifndef LLVM_REQUIRES_RTTI
-CXXFLAGS+=-fno-rtti
+CXXFLAGS+=	-fno-rtti
 .endif
 
-CFLAGS+=-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
+CFLAGS+=	-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
-TBLGEN?=tblgen
-CLANG_TBLGEN?=clang-tblgen
-TBLINC+=-I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target
+TBLGEN?=	tblgen
+CLANG_TBLGEN?=	clang-tblgen
+TBLINC+=	-I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target
 
 Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
 	${TBLGEN} -I ${LLVM_SRCS}/lib/VMCore ${TBLINC} -gen-intrinsic \
