@@ -1759,15 +1759,15 @@ dmu_init(void)
 	dnode_init();
 	dbuf_init();
 	zfetch_init();
-	arc_init();
 	l2arc_init();
+	arc_init();
 }
 
 void
 dmu_fini(void)
 {
-	l2arc_fini();
 	arc_fini();
+	l2arc_fini();
 	zfetch_fini();
 	dbuf_fini();
 	dnode_fini();
