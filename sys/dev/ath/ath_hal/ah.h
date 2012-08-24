@@ -1223,6 +1223,8 @@ struct ath_hal {
 				HAL_PHYERR_PARAM *pe);
 	void	  __ahdecl(*ah_getDfsThresh)(struct ath_hal *ah,
 				HAL_PHYERR_PARAM *pe);
+	HAL_BOOL  __ahdecl(*ah_getDfsDefaultThresh)(struct ath_hal *ah,
+				HAL_PHYERR_PARAM *pe);
 	HAL_BOOL  __ahdecl(*ah_procRadarEvent)(struct ath_hal *ah,
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
