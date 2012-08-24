@@ -871,6 +871,14 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  <literal>export9</literal> hook has been added for NetFlow
 	  v9 data.  Note that data export can be done
 	  simultaneously in both version 5 and version 9.</para>
+
+	<para revision="239615">The IEEE 802.11s element identifiers have
+	  been updated to reflect the final version of the amendment.  This
+	  update breaks compatibility with older mesh setups but is necessary
+	  as the previous IDs are used by another amendment leading to
+	  unexpected results when trying to associate with an accesspoint
+	  using the affected IDs.</para>
+
     </sect3>
 
     <sect3 id="disks">
