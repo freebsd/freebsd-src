@@ -228,7 +228,8 @@ typedef struct {
 			halEnhancedDmaSupport		: 1;
 	uint32_t	halIsrRacSupport		: 1,
 			halApmEnable			: 1,
-			halIntrMitigation		: 1;
+			halIntrMitigation		: 1,
+			hal49GhzSupport			: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
@@ -245,7 +246,7 @@ typedef struct {
 	uint32_t	halIntrMask;
 	uint8_t		halTxStreams;
 	uint8_t		halRxStreams;
-
+	HAL_MFP_OPT_T	halMfpSupport;
 	int		halNumTxMaps;
 	int		halTxDescLen;
 	int		halTxStatusLen;
@@ -256,6 +257,12 @@ typedef struct {
 } HAL_CAPABILITIES;
 
 struct regDomain;
+
+/*
+ * Definitions for ah_flags in ath_hal_private
+ */
+#define		AH_USE_EEPROM	0x1
+#define		AH_IS_HB63	0x2
 
 /*
  * The ``private area'' follows immediately after the ``public area''
@@ -316,7 +323,9 @@ struct ath_hal_private {
 	uint16_t	ah_phyRev;		/* PHY revision */
 	uint16_t	ah_analog5GhzRev;	/* 2GHz radio revision */
 	uint16_t	ah_analog2GhzRev;	/* 5GHz radio revision */
+	uint32_t	ah_flags;		/* misc flags */
 	uint8_t		ah_ispcie;		/* PCIE, special treatment */
+	uint8_t		ah_devType;		/* card type - CB, PCI, PCIe */
 
 	HAL_OPMODE	ah_opmode;		/* operating mode from reset */
 	const struct ieee80211_channel *ah_curchan;/* operating channel */
