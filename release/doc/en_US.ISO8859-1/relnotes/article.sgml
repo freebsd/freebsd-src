@@ -282,6 +282,13 @@
       <para role="merged">A bug in TCP options padding, where the wrong padding
         bytes were used, has been fixed.</para>
 
+      <para role="merged">The IEEE 802.11s element identifiers have
+        been updated to reflect the final version of the amendment.  This
+        update breaks compatibility with older mesh setups but is necessary
+        as the previous IDs are used by another amendment leading to
+        unexpected results when trying to associate with an accesspoint
+        using the affected IDs.</para>
+
     </sect3>
 
     <sect3 id="disks">
