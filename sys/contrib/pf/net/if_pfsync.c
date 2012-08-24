@@ -594,8 +594,9 @@ pfsync_input(struct mbuf *m, __unused int off)
 
 	V_pfsyncstats.pfsyncs_ipackets++;
 
-	/* verify that we have a sync interface configured */
-	if (!sc || !sc->sc_sync_if || !V_pf_status.running)
+	/* Verify that we have a sync interface configured. */
+	if (!sc || !sc->sc_sync_if || !V_pf_status.running ||
+	    (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		goto done;
 
 	/* verify that the packet came in on the right interface */
