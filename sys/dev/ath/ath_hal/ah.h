@@ -163,8 +163,24 @@ typedef enum {
 
 	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
 
+	HAL_CAP_LDPC		= 99,
+
 	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
+
+	HAL_CAP_PHYRESTART_CLR_WAR	= 106,	/* in some cases, clear phy restart to fix bb hang */
+	HAL_CAP_ENTERPRISE_MODE	= 107,	/* Enterprise mode features */
+	HAL_CAP_LDPCWAR		= 108,
+	HAL_CAP_CHANNEL_SWITCH_TIME_USEC	= 109,	/* Channel change time, usec */
+	HAL_CAP_ENABLE_APM	= 110,	/* APM enabled */
+	HAL_CAP_PCIE_LCR_EXTSYNC_EN	= 111,
+	HAL_CAP_PCIE_LCR_OFFSET	= 112,
+
 	HAL_CAP_ENHANCED_DFS_SUPPORT	= 117,	/* hardware supports enhanced DFS */
+	HAL_CAP_MCI             = 118,
+	HAL_CAP_SMARTANTENNA    = 119,
+	HAL_CAP_TRAFFIC_FAST_RECOVER    = 120,
+	HAL_CAP_TX_DIVERSITY    = 121,
+	HAL_CAP_CRDC            = 122,
 
 	/* The following are private to the FreeBSD HAL (224 onward) */
 
