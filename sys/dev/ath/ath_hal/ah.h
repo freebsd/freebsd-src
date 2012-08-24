@@ -1392,7 +1392,7 @@ extern	u_int __ahdecl ath_hal_getwirelessmodes(struct ath_hal*);
 /*
  * Get the HAL wireless mode for the given channel.
  */
-extern int ath_hal_get_curmode(struct ath_hal *ah,
+extern	int ath_hal_get_curmode(struct ath_hal *ah,
     const struct ieee80211_channel *chan);
 
 /*
