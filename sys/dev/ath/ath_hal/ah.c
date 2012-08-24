@@ -718,7 +718,9 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
 		return pCap->halSerialiseRegWar ? HAL_OK : HAL_ENOTSUPP;
-
+	case HAL_CAP_MFP:			/* Management frame protection setting */
+		*result = pCap->halMfpSupport;
+		return HAL_OK;
 	default:
 		return HAL_EINVAL;
 	}
