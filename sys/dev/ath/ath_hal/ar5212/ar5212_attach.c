@@ -137,6 +137,7 @@ static const struct ath_hal_private ar5212hal = {{
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,
 	.ah_getDfsThresh		= ar5212GetDfsThresh,
+	.ah_getDfsDefaultThresh		= ar5212GetDfsDefaultThresh,
 	.ah_procRadarEvent		= ar5212ProcessRadarEvent,
 	.ah_isFastClockEnabled		= ar5212IsFastClockEnabled,
 	.ah_get11nExtBusy		= ar5212Get11nExtBusy,
