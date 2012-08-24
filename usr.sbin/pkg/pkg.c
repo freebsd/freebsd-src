@@ -427,10 +427,10 @@ main(__unused int argc, char *argv[])
 		 */
 		if (getenv("ASSUME_ALWAYS_YES") == NULL) {
 			printf("%s", confirmation_message);
-			if (isatty(fileno(stdin)) &&
-			    pkg_query_yes_no() == 0)
+			if (!isatty(fileno(stdin)))
 				exit(EXIT_FAILURE);
-			else
+
+			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}
 		if (bootstrap_pkg() != 0)
