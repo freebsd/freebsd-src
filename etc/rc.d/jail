@@ -641,7 +641,7 @@ jail_start()
 			i=$((i + 1))
 		done
 
-		eval ${_setfib} jail ${_flags} -i ${_rootdir} ${_hostname} \
+		eval ${_setfib} jail -n ${_jail} ${_flags} -i ${_rootdir} ${_hostname} \
 			\"${_addrl}\" ${_exec_start} > ${_tmp_jail} 2>&1 \
 			</dev/null
 
