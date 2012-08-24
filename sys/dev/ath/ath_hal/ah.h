@@ -176,11 +176,11 @@ typedef enum {
 	HAL_CAP_PCIE_LCR_OFFSET	= 112,
 
 	HAL_CAP_ENHANCED_DFS_SUPPORT	= 117,	/* hardware supports enhanced DFS */
-	HAL_CAP_MCI             = 118,
-	HAL_CAP_SMARTANTENNA    = 119,
-	HAL_CAP_TRAFFIC_FAST_RECOVER    = 120,
-	HAL_CAP_TX_DIVERSITY    = 121,
-	HAL_CAP_CRDC            = 122,
+	HAL_CAP_MCI		= 118,
+	HAL_CAP_SMARTANTENNA	= 119,
+	HAL_CAP_TRAFFIC_FAST_RECOVER	= 120,
+	HAL_CAP_TX_DIVERSITY	= 121,
+	HAL_CAP_CRDC		= 122,
 
 	/* The following are private to the FreeBSD HAL (224 onward) */
 
