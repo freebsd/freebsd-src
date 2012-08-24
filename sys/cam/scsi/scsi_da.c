@@ -1849,8 +1849,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 				     softc->params.secsize > softc->unmap_max_lba)
 					break;
 			} while (1);
-			scsi_ulto2b(count * 16 + 6, &buf[0]);
-			scsi_ulto2b(count * 16, &buf[2]);
+			scsi_ulto2b(ranges * 16 + 6, &buf[0]);
+			scsi_ulto2b(ranges * 16, &buf[2]);
 
 			scsi_unmap(&start_ccb->csio,
 					/*retries*/da_retry_count,
@@ -1858,7 +1858,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 					/*tag_action*/MSG_SIMPLE_Q_TAG,
 					/*byte2*/0,
 					/*data_ptr*/ buf,
-					/*dxfer_len*/ count * 16 + 8,
+					/*dxfer_len*/ ranges * 16 + 8,
 					/*sense_len*/SSD_FULL_SIZE,
 					da_default_timeout * 1000);
 			start_ccb->ccb_h.ccb_state = DA_CCB_DELETE;
