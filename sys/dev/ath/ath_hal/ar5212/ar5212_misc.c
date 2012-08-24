@@ -1160,7 +1160,12 @@ ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 		val &= ~AR_PHY_RADAR_0_INBAND;
 		val |= SM(pe->pe_inband, AR_PHY_RADAR_0_INBAND);
 	}
-	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
+	if (pe->pe_enabled)
+		val |= AR_PHY_RADAR_0_ENA;
+	else
+		val &= ~ AR_PHY_RADAR_0_ENA;
+
+	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val);
 }
 
 /*
@@ -1206,6 +1211,7 @@ ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	pe->pe_height =  MS(val, AR_PHY_RADAR_0_HEIGHT);
 	pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
 	pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
+	pe->pe_enabled = !! (val & AR_PHY_RADAR_0_ENA);
 
 	pe->pe_relpwr = 0;
 	pe->pe_relstep = 0;
