@@ -1390,6 +1390,12 @@ extern	void __ahdecl ath_hal_process_noisefloor(struct ath_hal *ah);
 extern	u_int __ahdecl ath_hal_getwirelessmodes(struct ath_hal*);
 
 /*
+ * Get the HAL wireless mode for the given channel.
+ */
+extern int ath_hal_get_curmode(struct ath_hal *ah,
+    const struct ieee80211_channel *chan);
+
+/*
  * Calculate the packet TX time for a legacy or 11n frame
  */
 extern uint32_t __ahdecl ath_hal_pkt_txtime(struct ath_hal *ah,
