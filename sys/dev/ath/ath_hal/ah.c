@@ -420,6 +420,50 @@ ath_hal_computetxtime(struct ath_hal *ah,
 	return txTime;
 }
 
+int
+ath_hal_get_curmode(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	/*
+	 * Pick a default mode at bootup. A channel change is inevitable.
+	 */
+	if (!chan)
+		return HAL_MODE_11NG_HT20;
+
+	if (IEEE80211_IS_CHAN_TURBO(chan))
+		return HAL_MODE_TURBO;
+
+	/* check for NA_HT before plain A, since IS_CHAN_A includes NA_HT */
+	if (IEEE80211_IS_CHAN_5GHZ(chan) && IEEE80211_IS_CHAN_HT20(chan))
+		return HAL_MODE_11NA_HT20;
+	if (IEEE80211_IS_CHAN_5GHZ(chan) && IEEE80211_IS_CHAN_HT40U(chan))
+		return HAL_MODE_11NA_HT40PLUS;
+	if (IEEE80211_IS_CHAN_5GHZ(chan) && IEEE80211_IS_CHAN_HT40D(chan))
+		return HAL_MODE_11NA_HT40MINUS;
+	if (IEEE80211_IS_CHAN_A(chan))
+		return HAL_MODE_11A;
+
+	/* check for NG_HT before plain G, since IS_CHAN_G includes NG_HT */
+	if (IEEE80211_IS_CHAN_2GHZ(chan) && IEEE80211_IS_CHAN_HT20(chan))
+		return HAL_MODE_11NG_HT20;
+	if (IEEE80211_IS_CHAN_2GHZ(chan) && IEEE80211_IS_CHAN_HT40U(chan))
+		return HAL_MODE_11NG_HT40PLUS;
+	if (IEEE80211_IS_CHAN_2GHZ(chan) && IEEE80211_IS_CHAN_HT40D(chan))
+		return HAL_MODE_11NG_HT40MINUS;
+
+	/*
+	 * XXX For FreeBSD, will this work correctly given the DYN
+	 * chan mode (OFDM+CCK dynamic) ? We have pure-G versions DYN-BG..
+	 */
+	if (IEEE80211_IS_CHAN_G(chan))
+		return HAL_MODE_11G;
+	if (IEEE80211_IS_CHAN_B(chan))
+		return HAL_MODE_11B;
+
+	HALASSERT(0);
+	return HAL_MODE_11NG_HT20;
+}
+
+
 typedef enum {
 	WIRELESS_MODE_11a   = 0,
 	WIRELESS_MODE_TURBO = 1,
