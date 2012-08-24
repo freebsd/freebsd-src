@@ -393,6 +393,13 @@ struct ath_hal_private {
 #define	ath_hal_setInterrupts(_ah, _mask) \
 	(_ah)->ah_setInterrupts(_ah, _mask)
 
+#define ath_hal_isrfkillenabled(_ah)  \
+    (ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 1, AH_NULL) == HAL_OK)
+#define ath_hal_enable_rfkill(_ah, _v) \
+    ath_hal_setcapability(_ah, HAL_CAP_RFSILENT, 1, _v, AH_NULL)
+#define ath_hal_hasrfkill_int(_ah)  \
+    (ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 3, AH_NULL) == HAL_OK)
+
 #define	ath_hal_eepromDetach(_ah) do {				\
 	if (AH_PRIVATE(_ah)->ah_eepromDetach != AH_NULL)	\
 		AH_PRIVATE(_ah)->ah_eepromDetach(_ah);		\
