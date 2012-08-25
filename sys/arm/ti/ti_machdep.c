@@ -339,9 +339,6 @@ initarm(struct arm_boot_params *abp)
 	    &memsize) != 0)
 		while(1);
 
-//	if (fdt_immr_addr(OMAP44XX_L4_PERIPH_VBASE) != 0)
-//		while (1);
-
 	/* Platform-specific initialisation */
 	pmap_bootstrap_lastaddr = DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE;
 
@@ -522,7 +519,7 @@ initarm(struct arm_boot_params *abp)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
-    init_proc0(kernelstack.pv_va);
+	init_proc0(kernelstack.pv_va);
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
