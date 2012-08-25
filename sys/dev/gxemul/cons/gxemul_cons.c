@@ -218,7 +218,7 @@ static void
 gxemul_cons_cnprobe(struct consdev *cp)
 {
 
-	sprintf(cp->cn_name, "gxcons");
+	sprintf(cp->cn_name, "ttyu0");
 	cp->cn_pri = CN_NORMAL;
 }
 
@@ -279,7 +279,7 @@ gxemul_cons_ttyinit(void *unused)
 
 	tp = tty_alloc(&gxemul_cons_ttydevsw, NULL);
 	tty_init_console(tp, 0);
-	tty_makedev(tp, NULL, "%s", "gxcons");
+	tty_makedev(tp, NULL, "%s", "ttyu0");
 	callout_init(&gxemul_cons_callout, CALLOUT_MPSAFE);
 	callout_reset(&gxemul_cons_callout, gxemul_cons_polltime,
 	    gxemul_cons_timeout, tp);
