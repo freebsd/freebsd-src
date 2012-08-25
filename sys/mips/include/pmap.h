@@ -73,7 +73,6 @@ struct md_page {
 	TAILQ_HEAD(, pv_entry) pv_list;
 };
 
-#define	PV_TABLE_MOD		0x01	/* modified */
 #define	PV_TABLE_REF		0x02	/* referenced */
 
 #define	ASID_BITS		8
