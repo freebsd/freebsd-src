@@ -33,6 +33,7 @@ MAN=	aac.4 \
 	ale.4 \
 	alpm.4 \
 	altera_avgen.4 \
+	altera_jtag_uart.4 \
 	altera_sdcard.4 \
 	altq.4 \
 	amdpm.4 \
