@@ -55,4 +55,7 @@ VM_MAXUSER_ADDRESS	opt_global.h
 AT91_ATE_USE_RMII	opt_at91.h
 AT91_MCI_HAS_4WIRE	opt_at91.h
 AT91_MCI_SLOT_B		opt_at91.h
+GFB_DEBUG		opt_gfb.h
+GFB_NO_FONT_LOADING	opt_gfb.h
+GFB_NO_MODE_CHANGE	opt_gfb.h
 AT91C_MAIN_CLOCK	opt_at91.h
