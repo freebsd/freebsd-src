@@ -52,6 +52,8 @@
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
 #define NIRQ		128
+#elif defined(CPU_ARM11)
+#define NIRQ		128
 #else
 #define NIRQ		32
 #endif
