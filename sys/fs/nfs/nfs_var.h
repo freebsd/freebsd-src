@@ -459,6 +459,8 @@ int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
 int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
 int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t,
     struct ucred *, NFSPROC_T *);
+int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
+    struct nfsclflayout **);
 void nfscl_freenfsclds(struct nfsclds *);
 
 /* nfs_clstate.c */
@@ -525,8 +527,8 @@ int nfscl_layout(struct nfsmount *, vnode_t, u_int8_t *, int, nfsv4stateid_t *,
     int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
     NFSPROC_T *);
 struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int,
-    int *);
-void nfscl_rellayout(struct nfscllayout *);
+    uint64_t, struct nfsclflayout **, int *);
+void nfscl_rellayout(struct nfscllayout *, int);
 struct nfscldevinfo *nfscl_getdevinfo(struct nfsclclient *, uint8_t *,
     struct nfscldevinfo *);
 void nfscl_reldevinfo(struct nfscldevinfo *);

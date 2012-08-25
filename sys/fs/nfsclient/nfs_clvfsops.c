@@ -80,6 +80,7 @@ extern int nfscl_ticks;
 extern struct timeval nfsboottime;
 extern struct nfsstats	newnfsstats;
 extern int nfsrv_useacl;
+extern int nfscl_debuglevel;
 NFSCLSTATEMUTEX;
 
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
@@ -297,7 +298,8 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	if (!error)
 		error = nfsrpc_statfs(vp, &sb, &fs, td->td_ucred, td, &nfsva,
 		    &attrflag, NULL);
-if (error) printf("statfs=%d\n", error);
+	if (error != 0)
+		NFSCL_DEBUG(2, "statfs=%d\n", error);
 	if (attrflag == 0) {
 		ret = nfsrpc_getattrnovp(nmp, nmp->nm_fh, nmp->nm_fhsize, 1,
 		    td->td_ucred, td, &nfsva, NULL, NULL);
@@ -1202,7 +1204,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	uint32_t lease;
 	static u_int64_t clval = 0;
 
-printf("in mnt\n");
+	NFSCL_DEBUG(3, "in mnt\n");
 	clp = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
@@ -1332,16 +1334,16 @@ printf("in mnt\n");
 		goto bad;
 	/* For NFSv4.1, get the clientid now. */
 	if (nmp->nm_minorvers > 0) {
-printf("at getcl\n");
+		NFSCL_DEBUG(3, "at getcl\n");
 		error = nfscl_getcl(mp, cred, td, 0, &clp);
-printf("aft getcl=%d\n", error);
+		NFSCL_DEBUG(3, "aft getcl=%d\n", error);
 		if (error != 0)
 			goto bad;
 	}
 
 	if (nmp->nm_fhsize == 0 && (nmp->nm_flag & NFSMNT_NFSV4) &&
 	    nmp->nm_dirpathlen > 0) {
-printf("in dirp\n");
+		NFSCL_DEBUG(3, "in dirp\n");
 		/*
 		 * If the fhsize on the mount point == 0 for V4, the mount
 		 * path needs to be looked up.
@@ -1350,7 +1352,7 @@ printf("in dirp\n");
 		do {
 			error = nfsrpc_getdirpath(nmp, NFSMNT_DIRPATH(nmp),
 			    cred, td);
-printf("aft dirp=%d\n",error);
+			NFSCL_DEBUG(3, "aft dirp=%d\n", error);
 			if (error)
 				(void) nfs_catnap(PZERO, error, "nfsgetdirp");
 		} while (error && --trycnt > 0);
@@ -1406,7 +1408,7 @@ printf("aft dirp=%d\n",error);
 		}
 		(void) nfscl_loadattrcache(vpp, &nfsva, NULL, NULL, 0, 1);
 		if (nmp->nm_minorvers > 0) {
-printf("lease=%d\n", lease);
+			NFSCL_DEBUG(3, "lease=%d\n", (int)lease);
 			NFSLOCKCLSTATE();
 			clp->nfsc_renew = NFSCL_RENEW(lease);
 			clp->nfsc_expire = NFSD_MONOSEC + clp->nfsc_renew;

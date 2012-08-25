@@ -231,6 +231,7 @@ struct nfscllayout {
 	TAILQ_ENTRY(nfscllayout)	nfsly_list;
 	LIST_ENTRY(nfscllayout)		nfsly_hash;
 	nfsv4stateid_t			nfsly_stateid;
+	struct nfsv4lock		nfsly_lock;
 	uint64_t			nfsly_filesid[2];
 	uint64_t			nfsly_lastbyte;
 	struct nfsclflayouthead		nfsly_flayread;
@@ -238,7 +239,6 @@ struct nfscllayout {
 	struct nfsclrecalllayouthead	nfsly_recall;
 	time_t				nfsly_timestamp;
 	struct nfsclclient		*nfsly_clp;
-	uint32_t			nfsly_refcnt;
 	uint16_t			nfsly_flags;
 	uint16_t			nfsly_fhlen;
 	uint8_t				nfsly_fh[1];

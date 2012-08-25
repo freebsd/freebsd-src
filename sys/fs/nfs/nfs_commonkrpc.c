@@ -94,6 +94,7 @@ extern struct nfsreqhead nfsd_reqq;
 extern int nfscl_ticks;
 extern void (*ncl_call_invalcaches)(struct vnode *);
 extern int nfs_numnfscbd;
+extern int nfscl_debuglevel;
 
 SVCPOOL		*nfscbd_pool;
 static int	nfsrv_gsscallbackson = 0;
@@ -805,7 +806,9 @@ tryagain:
 		 */
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		nd->nd_repstat = fxdr_unsigned(u_int32_t, *tl);
-if (nd->nd_repstat >= 10000) printf("proc=%d reps=%d\n",nd->nd_procnum,nd->nd_repstat);
+		if (nd->nd_repstat >= 10000)
+			NFSCL_DEBUG(1, "proc=%d reps=%d\n", (int)nd->nd_procnum,
+			    (int)nd->nd_repstat);
 
 		/*
 		 * Get rid of the tag, return count and SEQUENCE result for
@@ -821,11 +824,13 @@ if (nd->nd_repstat >= 10000) printf("proc=%d reps=%d\n",nd->nd_procnum,nd->nd_re
 			opcnt = fxdr_unsigned(int, *tl++);
 			i = fxdr_unsigned(int, *tl++);
 			j = fxdr_unsigned(int, *tl);
-if (j >= 10000) printf("fop=%d fst=%d\n",i,j);
+			if (j >= 10000)
+				NFSCL_DEBUG(1, "fop=%d fst=%d\n", i, j);
 			/*
 			 * If the first op is Sequence, free up the slot.
 			 */
-if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) printf("failed seq=%d\n", j);
+			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0)
+				NFSCL_DEBUG(1, "failed seq=%d\n", j);
 			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) {
 				NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
 				    5 * NFSX_UNSIGNED);
@@ -843,7 +848,6 @@ if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) printf("failed seq=%d\n", j)
 					sep->nfsess_foreslots = (retval < 64) ?
 					    (retval + 1) : 64;
 				mtx_unlock(&sep->nfsess_mtx);
-{ static int yyuuii = 0; int yuiop; yuiop = fxdr_unsigned(int, *++tl); if (yuiop != yyuuii) { yyuuii = yuiop; printf("seqfl=0x%x\n", yuiop); } }
 
 				/* Grab the op and status for the next one. */
 				if (opcnt > 1) {
@@ -910,12 +914,15 @@ if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) printf("failed seq=%d\n", j)
 			/*
 			 * If this op is Putfh, throw its results away.
 			 */
-if (j >= 10000) printf("nop=%d nst=%d\n",i,j);
+			if (j >= 10000)
+				NFSCL_DEBUG(1, "nop=%d nst=%d\n", i, j);
 			if (nmp != NULL && i == NFSV4OP_PUTFH && j == 0) {
 				NFSM_DISSECT(tl,u_int32_t *,2 * NFSX_UNSIGNED);
 				i = fxdr_unsigned(int, *tl++);
 				j = fxdr_unsigned(int, *tl);
-if (j >= 10000) printf("n2op=%d n2st=%d\n",i,j);
+				if (j >= 10000)
+					NFSCL_DEBUG(1, "n2op=%d n2st=%d\n", i,
+					    j);
 				/*
 				 * All Compounds that do an Op that must
 				 * be in sequence consist of NFSV4OP_PUTFH

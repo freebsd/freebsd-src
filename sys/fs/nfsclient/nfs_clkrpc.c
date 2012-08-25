@@ -51,6 +51,7 @@ static int nfs_cbproc(struct nfsrv_descript *, u_int32_t);
 
 extern u_long sb_max_adj;
 extern int nfs_numnfscbd;
+extern int nfscl_debuglevel;
 
 /*
  * NFS client system calls for handling callbacks.
@@ -90,7 +91,7 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nd.nd_mreq = NULL;
 	nd.nd_cred = NULL;
 
-printf("cbproc=%d\n",nd.nd_procnum);
+	NFSCL_DEBUG(1, "cbproc=%d\n",nd.nd_procnum);
 	if (nd.nd_procnum != NFSPROC_NULL) {
 		if (!svc_getcred(rqst, &nd.nd_cred, &credflavor)) {
 			svcerr_weakauth(rqst);
@@ -134,11 +135,10 @@ printf("cbproc=%d\n",nd.nd_procnum);
 		svcerr_auth(rqst, nd.nd_repstat & ~NFSERR_AUTHERR);
 		if (nd.nd_mreq != NULL)
 			m_freem(nd.nd_mreq);
-	} else if (!svc_sendreply_mbuf(rqst, nd.nd_mreq)) {
+	} else if (!svc_sendreply_mbuf(rqst, nd.nd_mreq))
 		svcerr_systemerr(rqst);
-} else {
-printf("cbrep sent\n");
-	}
+	else
+		NFSCL_DEBUG(1, "cbrep sent\n");
 	svc_freereq(rqst);
 }
 

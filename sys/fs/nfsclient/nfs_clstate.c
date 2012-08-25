@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 extern struct nfsstats newnfsstats;
 extern struct nfsreqhead nfsd_reqq;
 extern u_int32_t newnfs_false, newnfs_true;
+extern int nfscl_debuglevel;
 NFSREQSPINLOCK;
 NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
@@ -2633,13 +2634,21 @@ tryagain2:
 				/*
 				 * Wait for outstanding I/O ops to be done.
 				 */
-				if (lyp->nfsly_refcnt > 0) {
-printf("layrec io=%d\n", lyp->nfsly_refcnt);
-					(void)mtx_sleep(&lyp->nfsly_refcnt,
-					    NFSCLSTATEMUTEXPTR, PZERO, "nfslyd",
-					    0);
+				if (lyp->nfsly_lock.nfslock_usecnt > 0 ||
+				    (lyp->nfsly_lock.nfslock_lock &
+				     NFSV4LOCK_LOCK) != 0) {
+					lyp->nfsly_lock.nfslock_lock |=
+					    NFSV4LOCK_WANTED;
+					(void)nfsmsleep(&lyp->nfsly_lock,
+					    NFSCLSTATEMUTEXPTR, PZERO, "nfslyp",
+					    NULL);
 					goto tryagain2;
 				}
+				/* Move the layout to the recall list. */
+				TAILQ_REMOVE(&clp->nfsc_layout, lyp,
+				    nfsly_list);
+				LIST_REMOVE(lyp, nfsly_hash);
+				TAILQ_INSERT_HEAD(&rlh, lyp, nfsly_list);
 
 				/* Handle any layout commits. */
 				if (!NFSHASNOLAYOUTCOMMIT(clp->nfsc_nmp)) {
@@ -2647,40 +2656,32 @@ printf("layrec io=%d\n", lyp->nfsly_refcnt);
 					    nfsfl_list) {
 						if ((flp->nfsfl_flags &
 						    NFSFL_WRITTEN) != 0) {
-							lyp->nfsly_refcnt++;
 							flp->nfsfl_flags &=
 							    ~NFSFL_WRITTEN;
 							NFSUNLOCKCLSTATE();
-printf("do layoutcommit\n");
+							NFSCL_DEBUG(3,
+							   "do layoutcommit\n");
 							nfscl_dolayoutcommit(
 							    clp->nfsc_nmp, lyp,
 							    flp, cred, p);
 							NFSLOCKCLSTATE();
-							lyp->nfsly_refcnt--;
-							if (lyp->nfsly_refcnt ==
-							    0)
-							    wakeup(&lyp->
-								nfsly_refcnt);
 							goto tryagain2;
 						}
 					}
 				}
-
-				/* Move the layout to the recall list. */
-				TAILQ_REMOVE(&clp->nfsc_layout, lyp,
-				    nfsly_list);
-				LIST_REMOVE(lyp, nfsly_hash);
-				TAILQ_INSERT_HEAD(&rlh, lyp, nfsly_list);
 			}
 		}
+
 		/* Now, look for stale layouts. */
 		lyp = TAILQ_LAST(&clp->nfsc_layout, nfscllayouthead);
 		while (lyp != NULL) {
 			nlyp = TAILQ_PREV(lyp, nfscllayouthead, nfsly_list);
 			if (lyp->nfsly_timestamp < NFSD_MONOSEC &&
 			    (lyp->nfsly_flags & NFSLY_RECALL) == 0 &&
-			    lyp->nfsly_refcnt == 0) {
-printf("ret stale lay=%d\n", nfscl_layoutcnt);
+			    lyp->nfsly_lock.nfslock_usecnt == 0 &&
+			    lyp->nfsly_lock.nfslock_lock == 0) {
+				NFSCL_DEBUG(4, "ret stale lay=%d\n",
+				    nfscl_layoutcnt);
 				recallp = malloc(sizeof(*recallp),
 				    M_NFSLAYRECALL, M_NOWAIT);
 				if (recallp == NULL)
@@ -2698,7 +2699,7 @@ printf("ret stale lay=%d\n", nfscl_layoutcnt);
 		LIST_FOREACH_SAFE(dip, &clp->nfsc_devinfo, nfsdi_list, ndip) {
 			if (dip->nfsdi_layoutrefs == 0 &&
 			    dip->nfsdi_refcnt == 0) {
-printf("freeing devinfo\n");
+				NFSCL_DEBUG(4, "freeing devinfo\n");
 				LIST_REMOVE(dip, nfsdi_list);
 				nfscl_freedevinfo(dip);
 			}
@@ -2708,7 +2709,7 @@ printf("freeing devinfo\n");
 		/* Do layout return(s), as required. */
 		TAILQ_FOREACH_SAFE(lyp, &rlh, nfsly_list, nlyp) {
 			TAILQ_REMOVE(&rlh, lyp, nfsly_list);
-printf("ret layout\n");
+			NFSCL_DEBUG(4, "ret layout\n");
 			nfscl_layoutreturn(clp->nfsc_nmp, lyp, cred, p);
 			nfscl_freelayout(lyp);
 		}
@@ -3229,7 +3230,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 			newnfsstats.cbrpccnt[nd->nd_procnum]++;
 		switch (op) {
 		case NFSV4OP_CBGETATTR:
-printf("cbgetattr\n");
+			NFSCL_DEBUG(4, "cbgetattr\n");
 			mp = NULL;
 			vp = NULL;
 			error = nfsm_getfh(nd, &nfhp);
@@ -3293,7 +3294,7 @@ printf("cbgetattr\n");
 				    (uint64_t)0);
 			break;
 		case NFSV4OP_CBRECALL:
-printf("cbrecall\n");
+			NFSCL_DEBUG(4, "cbrecall\n");
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID +
 			    NFSX_UNSIGNED);
 			stateid.seqid = *tl++;
@@ -3329,7 +3330,7 @@ printf("cbrecall\n");
 				FREE((caddr_t)nfhp, M_NFSFH);
 			break;
 		case NFSV4OP_CBLAYOUTRECALL:
-printf("cblayrec\n");
+			NFSCL_DEBUG(4, "cblayrec\n");
 			nfhp = NULL;
 			NFSM_DISSECT(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 			laytype = fxdr_unsigned(int, *tl++);
@@ -3345,7 +3346,7 @@ printf("cblayrec\n");
 				error = NFSERR_NOMATCHLAYOUT;
 			else if (recalltype == NFSLAYOUTRETURN_FILE) {
 				error = nfsm_getfh(nd, &nfhp);
-printf("retfile getfh=%d\n", error);
+				NFSCL_DEBUG(4, "retfile getfh=%d\n", error);
 				if (error != 0)
 					goto nfsmout;
 				NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_HYPER +
@@ -3361,12 +3362,13 @@ printf("retfile getfh=%d\n", error);
 				if (error == 0) {
 					NFSLOCKCLSTATE();
 					clp = nfscl_getclntsess(sessionid);
-printf("cbly clp=%p\n", clp);
+					NFSCL_DEBUG(4, "cbly clp=%p\n", clp);
 					if (clp != NULL) {
 						lyp = nfscl_findlayout(clp,
 						    nfhp->nfh_fh,
 						    nfhp->nfh_len);
-printf("cblyp=%p\n", lyp);
+						NFSCL_DEBUG(4, "cblyp=%p\n",
+						    lyp);
 						if (lyp != NULL &&
 						    (lyp->nfsly_flags &
 						     NFSLY_FILES) != 0 &&
@@ -3381,7 +3383,9 @@ printf("cblyp=%p\n", lyp);
 							    recallp);
 							recallp = NULL;
 							wakeup(clp);
-printf("aft layrec=%d\n", error);
+							NFSCL_DEBUG(4,
+							    "aft layrcal=%d\n",
+							    error);
 						} else
 							error =
 							  NFSERR_NOMATCHLAYOUT;
@@ -3490,7 +3494,7 @@ printf("aft layrec=%d\n", error);
 			if (error == 0) {
 				gotseq_ok = 1;
 				if (rep != NULL) {
-printf("Got cbretry\n");
+					NFSCL_DEBUG(4, "Got cbretry\n");
 					m_freem(nd->nd_mreq);
 					nd->nd_mreq = rep;
 					rep = NULL;
@@ -3509,11 +3513,10 @@ printf("Got cbretry\n");
 		default:
 			if (i == 0 && minorvers == NFSV41_MINORVERSION)
 				error = NFSERR_OPNOTINSESS;
-			else
-{
-printf("unsupp callback %d\n", op);
+			else {
+				NFSCL_DEBUG(1, "unsupp callback %d\n", op);
 				error = NFSERR_NOTSUPP;
-}
+			}
 			break;
 		};
 		if (error) {
@@ -4678,6 +4681,10 @@ nfscl_errmap(struct nfsrv_descript *nd)
 
 /*
  * Called to find/add a layout to a client.
+ * This function returns the layout with a refcnt (shared lock) upon
+ * success (returns 0) or with no lock/refcnt on the layout when an
+ * error is returned.
+ * If a layout is passed in via lypp, it is locked (exclusively locked).
  */
 APPLESTATIC int
 nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
@@ -4689,50 +4696,76 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 	struct nfscllayout *lyp, *tlyp;
 	struct nfsclflayout *flp;
 	struct nfsnode *np = VTONFS(vp);
+	mount_t mp;
+	int layout_passed_in;
 
-	*lypp = NULL;
-	tlyp = malloc(sizeof(*tlyp) + fhlen - 1, M_NFSLAYOUT, M_WAITOK);
+	mp = nmp->nm_mountp;
+	layout_passed_in = 1;
+	tlyp = NULL;
+	lyp = *lypp;
+	if (lyp == NULL) {
+		layout_passed_in = 0;
+		tlyp = malloc(sizeof(*tlyp) + fhlen - 1, M_NFSLAYOUT,
+		    M_WAITOK | M_ZERO);
+	}
 
 	NFSLOCKCLSTATE();
 	clp = nmp->nm_clp;
 	if (clp == NULL) {
+		if (layout_passed_in != 0)
+			nfsv4_unlock(&lyp->nfsly_lock, 0);
 		NFSUNLOCKCLSTATE();
-		free(tlyp, M_NFSLAYOUT);
+		if (tlyp != NULL)
+			free(tlyp, M_NFSLAYOUT);
 		return (EPERM);
 	}
-	lyp = nfscl_findlayout(clp, fhp, fhlen);
 	if (lyp == NULL) {
-		lyp = tlyp;
-		tlyp = NULL;
+		/*
+		 * Although no lyp was passed in, another thread might have
+		 * allocated one. If one is found, just increment it's ref
+		 * count and return it.
+		 */
+		lyp = nfscl_findlayout(clp, fhp, fhlen);
+		if (lyp == NULL) {
+			lyp = tlyp;
+			tlyp = NULL;
+			lyp->nfsly_stateid.seqid = stateidp->seqid;
+			lyp->nfsly_stateid.other[0] = stateidp->other[0];
+			lyp->nfsly_stateid.other[1] = stateidp->other[1];
+			lyp->nfsly_stateid.other[2] = stateidp->other[2];
+			lyp->nfsly_lastbyte = 0;
+			LIST_INIT(&lyp->nfsly_flayread);
+			LIST_INIT(&lyp->nfsly_flayrw);
+			LIST_INIT(&lyp->nfsly_recall);
+			lyp->nfsly_filesid[0] = np->n_vattr.na_filesid[0];
+			lyp->nfsly_filesid[1] = np->n_vattr.na_filesid[1];
+			lyp->nfsly_clp = clp;
+			lyp->nfsly_flags = (retonclose != 0) ?
+			    (NFSLY_FILES | NFSLY_RETONCLOSE) : NFSLY_FILES;
+			lyp->nfsly_fhlen = fhlen;
+			NFSBCOPY(fhp, lyp->nfsly_fh, fhlen);
+			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+			LIST_INSERT_HEAD(NFSCLLAYOUTHASH(clp, fhp, fhlen), lyp,
+			    nfsly_hash);
+			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
+			nfscl_layoutcnt++;
+		} else {
+			if (retonclose != 0)
+				lyp->nfsly_flags |= NFSLY_RETONCLOSE;
+			TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
+			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
+		}
+		nfsv4_getref(&lyp->nfsly_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
+		if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+			NFSUNLOCKCLSTATE();
+			if (tlyp != NULL)
+				free(tlyp, M_NFSLAYOUT);
+			return (EPERM);
+		}
+		*lypp = lyp;
+	} else
 		lyp->nfsly_stateid.seqid = stateidp->seqid;
-		lyp->nfsly_stateid.other[0] = stateidp->other[0];
-		lyp->nfsly_stateid.other[1] = stateidp->other[1];
-		lyp->nfsly_stateid.other[2] = stateidp->other[2];
-		lyp->nfsly_lastbyte = 0;
-		LIST_INIT(&lyp->nfsly_flayread);
-		LIST_INIT(&lyp->nfsly_flayrw);
-		LIST_INIT(&lyp->nfsly_recall);
-		lyp->nfsly_filesid[0] = np->n_vattr.na_filesid[0];
-		lyp->nfsly_filesid[1] = np->n_vattr.na_filesid[1];
-		lyp->nfsly_clp = clp;
-		lyp->nfsly_flags = (retonclose != 0) ?
-		    (NFSLY_FILES | NFSLY_RETONCLOSE) : NFSLY_FILES;
-		lyp->nfsly_refcnt = 1;	/* Return with a reference cnt. */
-		lyp->nfsly_fhlen = fhlen;
-		NFSBCOPY(fhp, lyp->nfsly_fh, fhlen);
-		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
-		LIST_INSERT_HEAD(NFSCLLAYOUTHASH(clp, fhp, fhlen), lyp,
-		    nfsly_hash);
-		lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
-		nfscl_layoutcnt++;
-	} else {
-		lyp->nfsly_refcnt++;
-		if (retonclose != 0)
-			lyp->nfsly_flags |= NFSLY_RETONCLOSE;
-		TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
-		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
-		lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
-	}
 
 	/* Merge the new list of File Layouts into the list. */
 	flp = LIST_FIRST(fhlp);
@@ -4742,32 +4775,55 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 		else
 			nfscl_mergeflayouts(&lyp->nfsly_flayrw, fhlp);
 	}
+	if (layout_passed_in != 0)
+		nfsv4_unlock(&lyp->nfsly_lock, 1);
 	NFSUNLOCKCLSTATE();
 	if (tlyp != NULL)
 		free(tlyp, M_NFSLAYOUT);
-	*lypp = lyp;
 	return (0);
 }
 
 /*
- * Search for a layout by MDS file handle. If one is found, ref cnt it and
- * return a pointer to it.
+ * Search for a layout by MDS file handle.
+ * If one is found, it is returned with a refcnt (shared lock) iff
+ * retflpp returned non-NULL and locked (exclusive locked) iff retflpp is
+ * returned NULL.
  */
 struct nfscllayout *
 nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
-    int *recalledp)
+    uint64_t off, struct nfsclflayout **retflpp, int *recalledp)
 {
 	struct nfscllayout *lyp;
+	mount_t mp;
+	int error, igotlock;
 
+	mp = clp->nfsc_nmp->nm_mountp;
 	*recalledp = 0;
+	*retflpp = NULL;
 	NFSLOCKCLSTATE();
 	lyp = nfscl_findlayout(clp, fhp, fhlen);
 	if (lyp != NULL) {
 		if ((lyp->nfsly_flags & NFSLY_RECALL) == 0) {
-			lyp->nfsly_refcnt++;
 			TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
 			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
 			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
+			error = nfscl_findlayoutforio(lyp, off,
+			    NFSV4OPEN_ACCESSREAD, retflpp);
+			if (error == 0)
+				nfsv4_getref(&lyp->nfsly_lock, NULL,
+				    NFSCLSTATEMUTEXPTR, mp);
+			else {
+				do {
+					igotlock = nfsv4_lock(&lyp->nfsly_lock,
+					    1, NULL, NFSCLSTATEMUTEXPTR, mp);
+				} while (igotlock == 0 &&
+				    (mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0);
+				*retflpp = NULL;
+			}
+			if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+				lyp = NULL;
+				*recalledp = 1;
+			}
 		} else {
 			lyp = NULL;
 			*recalledp = 1;
@@ -4792,9 +4848,11 @@ tryagain:
 		/*
 		 * Wait for outstanding I/O ops to be done.
 		 */
-		if (lyp->nfsly_refcnt > 0) {
-			(void)mtx_sleep(&lyp->nfsly_refcnt,
-			    NFSCLSTATEMUTEXPTR, PZERO, "nfslyd", 0);
+		if (lyp->nfsly_lock.nfslock_usecnt != 0 ||
+		    lyp->nfsly_lock.nfslock_lock != 0) {
+			lyp->nfsly_lock.nfslock_lock |= NFSV4LOCK_WANTED;
+			(void)mtx_sleep(&lyp->nfsly_lock,
+			    NFSCLSTATEMUTEXPTR, PZERO, "nfslyc", 0);
 			goto tryagain;
 		}
 		nfscl_freelayout(lyp);
@@ -4805,13 +4863,14 @@ tryagain:
  * Dereference a layout.
  */
 void
-nfscl_rellayout(struct nfscllayout *lyp)
+nfscl_rellayout(struct nfscllayout *lyp, int exclocked)
 {
 
 	NFSLOCKCLSTATE();
-	lyp->nfsly_refcnt--;
-	if (lyp->nfsly_refcnt == 0)
-		wakeup(&lyp->nfsly_refcnt);
+	if (exclocked != 0)
+		nfsv4_unlock(&lyp->nfsly_lock, 0);
+	else
+		nfsv4_relref(&lyp->nfsly_lock);
 	NFSUNLOCKCLSTATE();
 }
 
@@ -5125,8 +5184,11 @@ nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
 	struct nfscllayout *lyp;
 	struct nfsclflayout *flp;
 	struct nfsnode *np = VTONFS(vp);
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	mount_t mp;
+	struct nfsmount *nmp;
 
+	mp = vnode_mount(vp);
+	nmp = VFSTONFS(mp);
 	if (NFSHASNOLAYOUTCOMMIT(nmp))
 		return (0);
 	NFSLOCKCLSTATE();
@@ -5140,22 +5202,24 @@ nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
 		NFSUNLOCKCLSTATE();
 		return (EPERM);
 	}
-	lyp->nfsly_refcnt++;
+	nfsv4_getref(&lyp->nfsly_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		NFSUNLOCKCLSTATE();
+		return (EPERM);
+	}
 tryagain:
 	LIST_FOREACH(flp, &lyp->nfsly_flayrw, nfsfl_list) {
 		if ((flp->nfsfl_flags & NFSFL_WRITTEN) != 0) {
 			flp->nfsfl_flags &= ~NFSFL_WRITTEN;
 			NFSUNLOCKCLSTATE();
-printf("do layoutcommit2\n");
+			NFSCL_DEBUG(4, "do layoutcommit2\n");
 			nfscl_dolayoutcommit(clp->nfsc_nmp, lyp, flp,
 			    NFSPROCCRED(p), p);
 			NFSLOCKCLSTATE();
 			goto tryagain;
 		}
 	}
-	lyp->nfsly_refcnt--;
-	if (lyp->nfsly_refcnt == 0)
-		wakeup(&lyp->nfsly_refcnt);
+	nfsv4_relref(&lyp->nfsly_lock);
 	NFSUNLOCKCLSTATE();
 	return (0);
 }

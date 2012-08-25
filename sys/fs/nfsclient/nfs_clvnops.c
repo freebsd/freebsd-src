@@ -103,6 +103,7 @@ uint32_t	nfscl_accesscache_load_done_id;
 
 extern struct nfsstats newnfsstats;
 extern int nfsrv_useacl;
+extern int nfscl_debuglevel;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
 /*
@@ -1359,7 +1360,7 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	if (NFSHASPNFS(nmp))
 		error = nfscl_doiods(vp, uiop, NULL, NULL,
 		    NFSV4OPEN_ACCESSREAD, cred, uiop->uio_td);
-printf("aft doiods=%d\n", error);
+	NFSCL_DEBUG(4, "readrpc: aft doiods=%d\n", error);
 	if (error != 0)
 		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
 		    &attrflag, NULL);
@@ -1390,7 +1391,7 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	if (NFSHASPNFS(nmp))
 		error = nfscl_doiods(vp, uiop, iomode, must_commit,
 		    NFSV4OPEN_ACCESSWRITE, cred, uiop->uio_td);
-printf("aft wr doiods=%d\n", error);
+	NFSCL_DEBUG(4, "writerpc: aft doiods=%d\n", error);
 	if (error != 0)
 		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
 		    uiop->uio_td, &nfsva, &attrflag, NULL,
