@@ -32,6 +32,7 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	altera_avgen.4 \
 	altq.4 \
 	amdpm.4 \
 	${_amdsbwd.4} \
