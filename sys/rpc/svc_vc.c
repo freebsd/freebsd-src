@@ -755,7 +755,6 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	struct mbuf *m;
 	XDR xdrs;
 
-printf("back rcv\n");
 	sx_xlock(&xprt->xp_lock);
 	ct = (struct ct_data *)xprt->xp_p2;
 	if (ct == NULL) {

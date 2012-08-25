@@ -814,7 +814,6 @@ clnt_vc_destroy(CLIENT *cl)
 	if (xprt != NULL) {
 		sx_xunlock(&xprt->xp_lock);
 		SVC_RELEASE(xprt);
-printf("xprt rel\n");
 	}
 
 	mtx_destroy(&ct->ct_lock);
@@ -983,7 +982,6 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				/* Check message direction. */
 				if (xid_plus_direction[1] == CALL) {
 					/* This is a backchannel request. */
-printf("bc req\n");
 					mtx_lock(&ct->ct_lock);
 					xprt = ct->ct_backchannelxprt;
 					if (xprt == NULL) {
@@ -1014,7 +1012,6 @@ printf("bc req\n");
 						ct->ct_record = NULL;
 						xprt_active(xprt);
 						mtx_unlock(&ct->ct_lock);
-printf("got bmsg\n");
 					}
 				} else {
 					mtx_lock(&ct->ct_lock);
