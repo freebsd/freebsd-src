@@ -195,7 +195,7 @@ static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t);
-static pt_entry_t init_pte_prot(vm_page_t m, vm_prot_t prot);
+static pt_entry_t init_pte_prot(vm_page_t m, vm_prot_t access, vm_prot_t prot);
 
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
@@ -1431,12 +1431,10 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 					vm_page_dirty(m);
 				if (m->md.pv_flags & PV_TABLE_REF)
 					vm_page_aflag_set(m, PGA_REFERENCED);
+				m->md.pv_flags &= ~PV_TABLE_REF;
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-				if (TAILQ_EMPTY(&m->md.pv_list)) {
+				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_aflag_clear(m, PGA_WRITEABLE);
-					m->md.pv_flags &= ~(PV_TABLE_REF |
-					    PV_TABLE_MOD);
-				}
 				pc->pc_map[field] |= 1UL << bit;
 				pmap_unuse_pt(pmap, va, *pde);
 				freed++;
@@ -1705,7 +1703,7 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va,
 		}
 		if (m->md.pv_flags & PV_TABLE_REF)
 			vm_page_aflag_set(m, PGA_REFERENCED);
-		m->md.pv_flags &= ~(PV_TABLE_REF | PV_TABLE_MOD);
+		m->md.pv_flags &= ~PV_TABLE_REF;
 
 		pmap_remove_entry(pmap, m, va);
 	}
@@ -1877,7 +1875,7 @@ pmap_remove_all(vm_page_t m)
 	}
 
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
-	m->md.pv_flags &= ~(PV_TABLE_REF | PV_TABLE_MOD);
+	m->md.pv_flags &= ~PV_TABLE_REF;
 	rw_wunlock(&pvh_global_lock);
 }
 
@@ -1936,7 +1934,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			if (page_is_managed(pa) && pte_test(&pbits, PTE_D)) {
 				m = PHYS_TO_VM_PAGE(pa);
 				vm_page_dirty(m);
-				m->md.pv_flags &= ~PV_TABLE_MOD;
 			}
 			pte_clear(&pbits, PTE_D);
 			pte_set(&pbits, PTE_RO);
@@ -2082,8 +2079,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 validate:
 	if ((access & VM_PROT_WRITE) != 0)
-		m->md.pv_flags |= PV_TABLE_MOD | PV_TABLE_REF;
-	rw = init_pte_prot(m, prot);
+		m->md.pv_flags |= PV_TABLE_REF;
+	rw = init_pte_prot(m, access, prot);
 
 #ifdef PMAP_DEBUG
 	printf("pmap_enter:  va: %p -> pa: %p\n", (void *)va, (void *)pa);
@@ -2114,8 +2111,7 @@ validate:
 			if (page_is_managed(opa) && (opa != pa)) {
 				if (om->md.pv_flags & PV_TABLE_REF)
 					vm_page_aflag_set(om, PGA_REFERENCED);
-				om->md.pv_flags &=
-				    ~(PV_TABLE_REF | PV_TABLE_MOD);
+				om->md.pv_flags &= ~PV_TABLE_REF;
 			}
 			if (pte_test(&origpte, PTE_D)) {
 				KASSERT(!pte_test(&origpte, PTE_RO),
@@ -2751,7 +2747,6 @@ pmap_remove_write(vm_page_t m)
 		if (pte_test(&pbits, PTE_D)) {
 			pte_clear(&pbits, PTE_D);
 			vm_page_dirty(m);
-			m->md.pv_flags &= ~PV_TABLE_MOD;
 		}
 		pte_set(&pbits, PTE_RO);
 		if (pbits != *pte) {
@@ -2808,10 +2803,7 @@ pmap_is_modified(vm_page_t m)
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	rw_wlock(&pvh_global_lock);
-	if (m->md.pv_flags & PV_TABLE_MOD)
-		rv = TRUE;
-	else
-		rv = pmap_testbit(m, PTE_D);
+	rv = pmap_testbit(m, PTE_D);
 	rw_wunlock(&pvh_global_lock);
 	return (rv);
 }
@@ -2876,7 +2868,6 @@ pmap_clear_modify(vm_page_t m)
 		}
 		PMAP_UNLOCK(pmap);
 	}
-	m->md.pv_flags &= ~PV_TABLE_MOD;
 	rw_wunlock(&pvh_global_lock);
 }
 
@@ -3259,14 +3250,14 @@ page_is_managed(vm_paddr_t pa)
 }
 
 static pt_entry_t
-init_pte_prot(vm_page_t m, vm_prot_t prot)
+init_pte_prot(vm_page_t m, vm_prot_t access, vm_prot_t prot)
 {
 	pt_entry_t rw;
 
 	if (!(prot & VM_PROT_WRITE))
 		rw = PTE_V | PTE_RO;
 	else if ((m->oflags & VPO_UNMANAGED) == 0) {
-		if ((m->md.pv_flags & PV_TABLE_MOD) != 0)
+		if ((access & VM_PROT_WRITE) != 0)
 			rw = PTE_V | PTE_D;
 		else
 			rw = PTE_V;
@@ -3318,7 +3309,7 @@ pmap_emulate_modified(pmap_t pmap, vm_offset_t va)
 	if (!page_is_managed(pa))
 		panic("pmap_emulate_modified: unmanaged page");
 	m = PHYS_TO_VM_PAGE(pa);
-	m->md.pv_flags |= (PV_TABLE_REF | PV_TABLE_MOD);
+	m->md.pv_flags |= PV_TABLE_REF;
 	PMAP_UNLOCK(pmap);
 	return (0);
 }
