@@ -46,6 +46,16 @@ hint.altera_avgen.0.devname="berirom"
 #hint.altera_avgen.0.mmapio="rwx"
 #hint.altera_avgen.0.devname="de4flash"
 
+#
+# General Intel StrataFlash driver
+#
+hint.isf.0.at="nexus0"
+hint.isf.0.maddr=0x74000000
+hint.isf.0.msize=0x2000000
+hint.isf.1.at="nexus0"
+hint.isf.1.maddr=0x76000000
+hint.isf.1.msize=0x2000000  
+
 # Reserved configuration blocks.  Don't touch.
 hint.map.0.at="isf0"
 hint.map.0.start=0x00000000

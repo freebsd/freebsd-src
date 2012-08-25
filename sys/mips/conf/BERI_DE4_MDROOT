@@ -25,4 +25,5 @@ device		altera_avgen
 device		altera_jtag_uart
 device		altera_sdcard
 
+device		isf
 #device		sc
