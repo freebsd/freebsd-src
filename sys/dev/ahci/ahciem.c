@@ -380,6 +380,8 @@ ahci_em_emulate_ses_on_led(device_t dev, union ccb *ccb)
 	    ccb->ataio.cmd.sector_count >= 16) {
 		bzero(buf, ccb->ataio.dxfer_len);
 		buf[0] = 64;		/* Valid bytes. */
+		buf[2] = 0x30;		/* NAA Locally Assigned. */
+		strncpy(&buf[3], device_get_nameunit(dev), 7);
 		strncpy(&buf[10], "AHCI    ", SID_VENDOR_SIZE);
 		strncpy(&buf[18], "SGPIO Enclosure ", SID_PRODUCT_SIZE);
 		strncpy(&buf[34], "1.00", SID_REVISION_SIZE);
