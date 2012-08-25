@@ -35,6 +35,7 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
+	isfctl \
 	kldxref \
 	mailwrapper \
 	makefs \
