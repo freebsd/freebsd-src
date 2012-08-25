@@ -1,4 +1,7 @@
 # $FreeBSD$
+dev/altera/jtag_uart/altera_jtag_uart_cons.c	optional altera_jtag_uart
+dev/altera/jtag_uart/altera_jtag_uart_tty.c	optional altera_jtag_uart
+dev/altera/jtag_uart/altera_jtag_uart_nexus.c	optional altera_jtag_uart
 mips/beri/beri_machdep.c		standard
 mips/mips/intr_machdep.c		standard
 mips/mips/tick.c			standard
