@@ -1,0 +1,4 @@
+# $FreeBSD$
+mips/beri/beri_machdep.c		standard
+mips/mips/intr_machdep.c		standard
+mips/mips/tick.c			standard
