@@ -24,6 +24,7 @@ options 	ROOTDEVNAME=\"ufs:md0\"
 device		altera_avgen
 device		altera_jtag_uart
 device		altera_sdcard
+device		terasic_mtl
 
 device		isf
-#device		sc
+device		sc

@@ -457,6 +457,7 @@ MAN=	aac.4 \
 	targ.4 \
 	tcp.4 \
 	tdfx.4 \
+	terasic_mtl.4 \
 	termios.4 \
 	textdump.4 \
 	ti.4 \

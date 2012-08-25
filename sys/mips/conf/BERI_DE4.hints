@@ -25,6 +25,17 @@ hint.altera_sdcardc.0.maddr=0x7f008000
 hint.altera_sdcardc.0.msize=0x400
 
 #
+# Terasic Multi-touch LCD (MTL), an optional feature in DE-4 configurations.
+#
+hint.terasic_mtl.0.at="nexus0"
+hint.terasic_mtl.0.reg_maddr=0x70400000
+hint.terasic_mtl.0.reg_msize=0x1000
+hint.terasic_mtl.0.pixel_maddr=0x70000000
+hint.terasic_mtl.0.pixel_msize=0x177000
+hint.terasic_mtl.0.text_maddr=0x70177000
+hint.terasic_mtl.0.text_msize=0x2000
+
+#
 # BERI Hardware Version ROM
 #
 hint.altera_avgen.0.at="nexus0"
