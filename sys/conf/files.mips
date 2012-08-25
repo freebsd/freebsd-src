@@ -122,3 +122,9 @@ dev/ofw/ofw_fdt.c		optional	fdt
 
 dev/fdt/fdt_mips.c		optional	fdt
 
+dev/fb/fb.c			optional	sc
+dev/kbd/kbd.c			optional	sc
+dev/syscons/scgfbrndr.c		optional	sc
+dev/syscons/scterm-teken.c	optional	sc
+dev/syscons/scvtb.c		optional	sc
+mips/mips/sc_machdep.c		optional	sc
