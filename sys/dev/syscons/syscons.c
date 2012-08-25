@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 
 #include <machine/clock.h>
-#if defined(__sparc64__) || defined(__powerpc__)
+#if defined(__sparc64__) || defined(__powerpc__) || defined(__mips__)
 #include <machine/sc_machdep.h>
 #else
 #include <machine/pc/display.h>
