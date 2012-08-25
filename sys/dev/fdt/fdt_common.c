@@ -524,7 +524,8 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 		debugf("no intr-cells defined, defaulting to 1\n");
 		intr_cells = 1;
 	}
-	intr_cells = fdt32_to_cpu(intr_cells);
+	else 
+		intr_cells = fdt32_to_cpu(intr_cells);
 
 	intr_num = OF_getprop_alloc(node, "interrupts",
 	    intr_cells * sizeof(pcell_t), (void **)&intr);
