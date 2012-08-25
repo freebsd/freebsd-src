@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/reboot.h>
 #include <sys/tty.h>
 
 #include <ddb/ddb.h>
@@ -219,7 +220,7 @@ gxemul_cons_cnprobe(struct consdev *cp)
 {
 
 	sprintf(cp->cn_name, "ttyu0");
-	cp->cn_pri = CN_NORMAL;
+	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
 }
 
 static void
