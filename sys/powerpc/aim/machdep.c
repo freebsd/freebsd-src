@@ -258,7 +258,10 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	size_t		trap_offset;
 	void		*kmdp;
         char		*env;
-	register_t	msr, scratch, vers;
+	register_t	msr, scratch;
+#ifdef WII
+	register_t 	vers;
+#endif
 	uint8_t		*cache_check;
 	int		cacheline_warn;
 	#ifndef __powerpc64__
