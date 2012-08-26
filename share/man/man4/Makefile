@@ -558,6 +558,7 @@ MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
 MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
+MLINKS+=altera_sdcard.4 altera_sdcardc.4
 MLINKS+=altq.4 ALTQ.4
 MLINKS+=ath.4 if_ath.4
 MLINKS+=ath_pci.4 if_ath_pci.4
