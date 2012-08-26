@@ -34,6 +34,8 @@ struct vmctx;
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
 void	vm_destroy(struct vmctx *ctx);
+size_t	vmm_get_mem_total(void);
+size_t	vmm_get_mem_free(void);
 int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa,
 			  vm_paddr_t *ret_hpa, size_t *ret_len);
 /*
