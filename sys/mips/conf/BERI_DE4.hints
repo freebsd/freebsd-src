@@ -66,6 +66,16 @@ hint.altera_avgen.0.devname="berirom"
 #hint.altera_avgen.0.devname="de4flash"
 
 #
+# Expose the DE4 buttons and switches via an Avalon "generic" device.
+# 
+hint.altera_avgen.0.at="nexus0"
+hint.altera_avgen.0.maddr=0x7f009000
+hint.altera_avgen.0.msize=2
+hint.altera_avgen.0.width=1
+hint.altera_avgen.0.fileio="r"
+hint.altera_avgen.0.devname="de4bsw"
+
+#
 # General Intel StrataFlash driver
 #
 hint.isf.0.at="nexus0"
@@ -73,7 +83,7 @@ hint.isf.0.maddr=0x74000000
 hint.isf.0.msize=0x2000000
 hint.isf.1.at="nexus0"
 hint.isf.1.maddr=0x76000000
-hint.isf.1.msize=0x2000000  
+hint.isf.1.msize=0x2000000
 
 # Reserved configuration blocks.  Don't touch.
 hint.map.0.at="isf0"
