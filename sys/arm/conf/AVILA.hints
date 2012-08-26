@@ -19,7 +19,7 @@ hint.uart.1.ier_rxbits=0x5d	# NB: need UUE+RTOIE
 # NPE Hardware Queue Manager
 hint.ixpqmgr.0.at="ixp0"
 
-# NPE wired NIC's, requires ixpqmgr
+# NPE wired NICs, requires ixpqmgr
 hint.npe.0.at="ixp0"
 hint.npe.0.npeid="B"
 hint.npe.0.mac="B"
