@@ -968,6 +968,68 @@ struct cpu_functions fa526_cpufuncs = {
 };
 #endif	/* CPU_FA526 || CPU_FA626TE */
 
+#if defined(CPU_ARM11)
+struct cpu_functions arm11_cpufuncs = {
+	/* CPU functions */
+	
+	cpufunc_id,                     /* id                   */
+	arm11_drain_writebuf,           /* cpwait               */
+	
+	/* MMU functions */
+	
+	cpufunc_control,                /* control              */
+	cpufunc_domains,                /* Domain               */
+	arm11_setttb,                   /* Setttb               */
+	cpufunc_faultstatus,            /* Faultstatus          */
+	cpufunc_faultaddress,           /* Faultaddress         */
+	
+	/* TLB functions */
+	
+	arm11_tlb_flushID,              /* tlb_flushID          */
+	arm11_tlb_flushID_SE,           /* tlb_flushID_SE       */
+	arm11_tlb_flushI,               /* tlb_flushI           */
+	arm11_tlb_flushI_SE,            /* tlb_flushI_SE        */
+	arm11_tlb_flushD,               /* tlb_flushD           */
+	arm11_tlb_flushD_SE,            /* tlb_flushD_SE        */
+	
+	/* Cache operations */
+	
+	armv6_icache_sync_all,          /* icache_sync_all      */
+	armv6_icache_sync_range,        /* icache_sync_range    */
+	
+	armv6_dcache_wbinv_all,         /* dcache_wbinv_all     */
+	armv6_dcache_wbinv_range,       /* dcache_wbinv_range   */
+	armv6_dcache_inv_range,         /* dcache_inv_range     */
+	armv6_dcache_wb_range,          /* dcache_wb_range      */
+	
+	armv6_idcache_wbinv_all,        /* idcache_wbinv_all    */
+	armv6_idcache_wbinv_range,      /* idcache_wbinv_range  */
+	
+	(void*)cpufunc_nullop,          /* l2cache_wbinv_all    */
+	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
+	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
+	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	
+	/* Other functions */
+	
+	cpufunc_nullop,                 /* flush_prefetchbuf    */
+	arm11_drain_writebuf,           /* drain_writebuf       */
+	cpufunc_nullop,                 /* flush_brnchtgt_C     */
+	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
+	
+	arm11_sleep,                    /* sleep                */
+	
+	/* Soft functions */
+	
+	cpufunc_null_fixup,             /* dataabt_fixup        */
+	cpufunc_null_fixup,             /* prefetchabt_fixup    */
+	
+	arm11_context_switch,           /* context_switch       */
+	
+	arm11_setup                     /* cpu setup            */
+};
+#endif /* CPU_ARM11 */
+
 #if defined(CPU_CORTEXA)
 struct cpu_functions cortexa_cpufuncs = {
 	/* CPU functions */
@@ -1324,6 +1386,15 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM10 */
+#ifdef CPU_ARM11
+	cpufuncs = arm11_cpufuncs;
+	cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
+	get_cachetype_cp15();
+	
+	pmap_pte_init_mmu_v6();
+
+	goto out;
+#endif /* CPU_ARM11 */
 #ifdef CPU_CORTEXA
 	if (cputype == CPU_ID_CORTEXA8R1 ||
 	    cputype == CPU_ID_CORTEXA8R2 ||
@@ -2197,38 +2268,36 @@ void
 arm11_setup(args)
 	char *args;
 {
-	int cpuctrl, cpuctrlmask;
+	int cpuctrl;
 
-	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_SYST_ENABLE
-	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
-	    /* | CPU_CONTROL_BPRD_ENABLE */;
-	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_SYST_ENABLE
-	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
-	    | CPU_CONTROL_ROM_ENABLE | CPU_CONTROL_BPRD_ENABLE
-	    | CPU_CONTROL_BEND_ENABLE | CPU_CONTROL_AFLT_ENABLE
-	    | CPU_CONTROL_ROUNDROBIN | CPU_CONTROL_CPCLK;
-
+	cpuctrl = CPU_CONTROL_MMU_ENABLE;
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
-
+	cpuctrl |= CPU_CONTROL_DC_ENABLE;
+	cpuctrl |= (0xf << 3);
 	cpuctrl = parse_cpu_options(args, arm11_options, cpuctrl);
-
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
 #endif
+	cpuctrl |= CPU_CONTROL_SYST_ENABLE;
+	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
+	cpuctrl |= CPU_CONTROL_IC_ENABLE;
+	if (vector_page == ARM_VECTORS_HIGH)
+		cpuctrl |= CPU_CONTROL_VECRELOC;
+	cpuctrl |= (0x5 << 16);
+	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
 
-	/* Clear out the cache */
+	/* Make sure caches are clean.  */
 	cpu_idcache_wbinv_all();
-
-	/* Now really make sure they are clean.  */
-	__asm __volatile ("mcr\tp15, 0, r0, c7, c7, 0" : : );
+	cpu_l2cache_wbinv_all();
 
 	/* Set the control register */
+	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 
-	/* And again. */
 	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 }
 #endif	/* CPU_ARM11 */
 
