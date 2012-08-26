@@ -1238,7 +1238,7 @@ keg_cachespread_init(uma_keg_t keg)
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
 	KASSERT(keg->uk_ipers <= uma_max_ipers,
-	    ("keg_small_init: keg->uk_ipers too high(%d) increase max_ipers",
+	    ("%s: keg->uk_ipers too high(%d) increase max_ipers", __func__,
 	    keg->uk_ipers));
 }
 
