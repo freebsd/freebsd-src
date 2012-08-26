@@ -35,4 +35,7 @@ void		vmm_mem_free(vm_paddr_t start, size_t size);
 vm_paddr_t	vmm_mem_maxaddr(void);
 void		vmm_mem_dump(void);
 
+size_t		vmm_mem_get_mem_total(void);
+size_t		vmm_mem_get_mem_free(void);
+
 #endif

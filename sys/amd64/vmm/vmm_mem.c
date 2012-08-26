@@ -63,6 +63,7 @@ static struct {
 } vmm_mem_avail[VMM_MEM_MAXSEGS];
 
 static int vmm_mem_nsegs;
+size_t vmm_mem_total_bytes;
 
 static vm_paddr_t maxaddr;
 
@@ -96,6 +97,7 @@ vmm_mem_steal_memory(void)
 	smapsize = *((uint32_t *)smapbase - 1);
 	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
 
+	vmm_mem_total_bytes = 0;
 	nsegs = 0;
 	for (smap = smapbase; smap < smapend; smap++) {
 		/*
@@ -131,6 +133,7 @@ vmm_mem_steal_memory(void)
 
 		vmm_mem_avail[nsegs].base = base;
 		vmm_mem_avail[nsegs].length = length;
+		vmm_mem_total_bytes += length;
 
 		if (base + length > maxaddr)
 			maxaddr = base + length;
@@ -342,6 +345,27 @@ vmm_mem_alloc(size_t size)
 	mtx_unlock(&vmm_mem_mtx);
 
 	return (addr);
+}
+
+size_t
+vmm_mem_get_mem_total(void)
+{
+	return vmm_mem_total_bytes;
+}
+
+size_t
+vmm_mem_get_mem_free(void)
+{
+	size_t length = 0;
+	int i;
+
+	mtx_lock(&vmm_mem_mtx);
+	for (i = 0; i < vmm_mem_nsegs; i++) {
+		length += vmm_mem_avail[i].length;
+	}
+	mtx_unlock(&vmm_mem_mtx);
+
+	return(length);
 }
 
 void
