@@ -25,6 +25,14 @@ hint.altera_sdcardc.0.maddr=0x7f008000
 hint.altera_sdcardc.0.msize=0x400
 
 #
+# On-board DE4 8-element LED
+#
+hint.terasic_de4led.0.at="nexus0"
+hint.terasic_de4led.0.maddr=0x7f006000
+hint.terasic_de4led.0.msize=1
+hint.terasic_de4led.0.de4led_0_cmd="f9"
+
+#
 # Terasic Multi-touch LCD (MTL), an optional feature in DE-4 configurations.
 #
 hint.terasic_mtl.0.at="nexus0"
