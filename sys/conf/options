@@ -906,11 +906,3 @@ RACCT		opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
-
-# At least one of the AR71XX ubiquiti boards has a Redboot configuration
-# that "lies" about the amount of RAM it has. Until a cleaner method is
-# defined, this option will suffice in overriding what Redboot says.
-AR71XX_REALMEM		opt_ar71xx.h
-AR71XX_ENV_UBOOT	opt_ar71xx.h
-AR71XX_ENV_REDBOOT	opt_ar71xx.h
-AR71XX_ATH_EEPROM	opt_ar71xx.h
