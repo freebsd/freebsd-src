@@ -495,8 +495,15 @@ void	pj4b_flush_brnchtgt_va		(u_int);
 void	pj4b_sleep			(int);
 
 void	armv6_icache_sync_all		(void);
+void	armv6_icache_sync_range		(vm_offset_t, vm_size_t);
+
 void	armv6_dcache_wbinv_all		(void);
+void	armv6_dcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	armv6_dcache_inv_range		(vm_offset_t, vm_size_t);
+void	armv6_dcache_wb_range		(vm_offset_t, vm_size_t);
+
 void	armv6_idcache_wbinv_all		(void);
+void	armv6_idcache_wbinv_range	(vm_offset_t, vm_size_t);
 
 void	armv7_setttb			(u_int);
 void	armv7_tlb_flushID		(void);
