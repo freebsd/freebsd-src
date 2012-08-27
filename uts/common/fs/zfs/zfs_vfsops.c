@@ -1831,9 +1831,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	/*
 	 * Evict cached data
 	 */
-	if (dmu_objset_is_dirty_anywhere(zfsvfs->z_os))
-		if (!(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
-			txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
+	if (dsl_dataset_is_dirty(dmu_objset_ds(zfsvfs->z_os)) &&
+	    !(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
+		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
 	(void) dmu_objset_evict_dbufs(zfsvfs->z_os);
 
 	return (0);
