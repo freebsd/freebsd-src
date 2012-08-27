@@ -196,7 +196,8 @@ extern	HAL_BOOL ar5211SetupXTxDesc(struct ath_hal *, struct ath_desc *,
 		u_int txRate2, u_int txRetries2,
 		u_int txRate3, u_int txRetries3);
 extern	HAL_BOOL ar5211FillTxDesc(struct ath_hal *, struct ath_desc *,
-		u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+		u_int descId, u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5211ProcTxDesc(struct ath_hal *,
 		struct ath_desc *, struct ath_tx_status *);

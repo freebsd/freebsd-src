@@ -270,6 +270,10 @@ ar724x_pci_fixup(device_t dev, long flash_addr, int len)
 	/* Save bar(0) address - just to flush bar(0) (SoC WAR) ? */
 	bar0 = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_BAR(0), 4);
 
+	/* Write temporary BAR0 to map the NIC into a fixed location */
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_BAR(0),
+	    AR71XX_PCI_MEM_BASE, 4);
+
 	val = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_COMMAND, 2);
 	val |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
 	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2); 

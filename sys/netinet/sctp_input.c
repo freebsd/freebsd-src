@@ -5600,7 +5600,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	struct mbuf *m = *mm;
 	int un_sent;
 	int cnt_ctrl_ready = 0;
-	struct sctp_inpcb *inp, *inp_decr = NULL;
+	struct sctp_inpcb *inp = NULL, *inp_decr = NULL;
 	struct sctp_tcb *stcb = NULL;
 	struct sctp_nets *net = NULL;
 

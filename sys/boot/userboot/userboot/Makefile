@@ -32,7 +32,6 @@ CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 CFLAGS+=	-ffreestanding -I.
-CFLAGS+=	-DLOADER_GPT_SUPPORT -DLOADER_MBR_SUPPORT
 
 LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
 

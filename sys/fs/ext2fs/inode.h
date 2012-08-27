@@ -151,7 +151,6 @@ struct inode {
 struct indir {
 	int32_t in_lbn;			/* Logical block number. */
 	int	in_off;			/* Offset in buffer. */
-	int	in_exists;		/* Flag if the block exists. */
 };
 
 /* Convert between inode pointers and vnode pointers. */

@@ -177,6 +177,12 @@ g_clone_bio(struct bio *bp)
 	if (bp2 != NULL) {
 		bp2->bio_parent = bp;
 		bp2->bio_cmd = bp->bio_cmd;
+		/*
+		 *  BIO_ORDERED flag may be used by disk drivers to enforce
+		 *  ordering restrictions, so this flag needs to be cloned.
+		 *  Other bio flags are not suitable for cloning.
+		 */
+		bp2->bio_flags = bp->bio_flags & BIO_ORDERED;
 		bp2->bio_length = bp->bio_length;
 		bp2->bio_offset = bp->bio_offset;
 		bp2->bio_data = bp->bio_data;

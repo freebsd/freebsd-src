@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 #include "extern.h"
 
-static int child_pid;
+static pid_t child_pid;
 
 /*
  * setup_and_wait() is called to start a process.  All it really does
@@ -69,7 +69,7 @@ static int child_pid;
 int
 setup_and_wait(char *command[])
 {
-	int pid;
+	pid_t pid;
 	int waitval;
 
 	pid = vfork();
@@ -100,7 +100,7 @@ setup_and_wait(char *command[])
  */
 
 int
-start_tracing(int pid)
+start_tracing(pid_t pid)
 {
 	int waitval;
 	int ret;

@@ -1160,7 +1160,41 @@ ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 		val &= ~AR_PHY_RADAR_0_INBAND;
 		val |= SM(pe->pe_inband, AR_PHY_RADAR_0_INBAND);
 	}
-	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
+	if (pe->pe_enabled)
+		val |= AR_PHY_RADAR_0_ENA;
+	else
+		val &= ~ AR_PHY_RADAR_0_ENA;
+
+	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val);
+}
+
+/*
+ * Parameters for the AR5212 PHY.
+ *
+ * TODO: figure out what values were added for the AR5413 and later
+ * PHY; update these here.
+ */
+#define	AR5212_DFS_FIRPWR	-41
+#define	AR5212_DFS_RRSSI	12
+#define	AR5212_DFS_HEIGHT	20
+#define	AR5212_DFS_PRSSI	22
+#define	AR5212_DFS_INBAND	6
+
+HAL_BOOL
+ar5212GetDfsDefaultThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+
+	pe->pe_firpwr = AR5212_DFS_FIRPWR;
+	pe->pe_rrssi = AR5212_DFS_RRSSI;
+	pe->pe_height = AR5212_DFS_HEIGHT;
+	pe->pe_prssi = AR5212_DFS_PRSSI;
+	pe->pe_inband = AR5212_DFS_INBAND;
+	/* XXX look up what is needed for the AR5413 */
+	pe->pe_relpwr = 0;
+	pe->pe_relstep = 0;
+	pe->pe_maxlen = 0;
+
+	return (AH_TRUE);
 }
 
 void
@@ -1177,6 +1211,7 @@ ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	pe->pe_height =  MS(val, AR_PHY_RADAR_0_HEIGHT);
 	pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
 	pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
+	pe->pe_enabled = !! (val & AR_PHY_RADAR_0_ENA);
 
 	pe->pe_relpwr = 0;
 	pe->pe_relstep = 0;
@@ -1250,7 +1285,7 @@ ar5212Get11nExtBusy(struct ath_hal *ah)
 }
 
 /*
- * There's no channel survey support for the AR5211.
+ * There's no channel survey support for the AR5212.
  */
 HAL_BOOL
 ar5212GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)

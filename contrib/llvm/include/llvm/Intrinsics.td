@@ -55,6 +55,8 @@ class NoCapture<int argNo> : IntrinsicProperty {
   int ArgNo = argNo;
 }
 
+def IntrNoReturn : IntrinsicProperty;
+
 //===----------------------------------------------------------------------===//
 // Types used by intrinsics.
 //===----------------------------------------------------------------------===//
@@ -63,10 +65,14 @@ class LLVMType<ValueType vt> {
   ValueType VT = vt;
 }
 
-class LLVMPointerType<LLVMType elty>
+class LLVMQualPointerType<LLVMType elty, int addrspace>
   : LLVMType<iPTR>{
   LLVMType ElTy = elty;
+  int AddrSpace = addrspace;
 }
+
+class LLVMPointerType<LLVMType elty>
+  : LLVMQualPointerType<elty, 0>;
 
 class LLVMAnyPointerType<LLVMType elty>
   : LLVMType<iPTRAny>{
@@ -127,9 +133,12 @@ def llvm_v16i16_ty     : LLVMType<v16i16>;   // 16 x i16
 def llvm_v2i32_ty      : LLVMType<v2i32>;    //  2 x i32
 def llvm_v4i32_ty      : LLVMType<v4i32>;    //  4 x i32
 def llvm_v8i32_ty      : LLVMType<v8i32>;    //  8 x i32
+def llvm_v16i32_ty     : LLVMType<v16i32>;   // 16 x i32
 def llvm_v1i64_ty      : LLVMType<v1i64>;    //  1 x i64
 def llvm_v2i64_ty      : LLVMType<v2i64>;    //  2 x i64
 def llvm_v4i64_ty      : LLVMType<v4i64>;    //  4 x i64
+def llvm_v8i64_ty      : LLVMType<v8i64>;    //  8 x i64
+def llvm_v16i64_ty     : LLVMType<v16i64>;   // 16 x i64
 
 def llvm_v2f32_ty      : LLVMType<v2f32>;    //  2 x float
 def llvm_v4f32_ty      : LLVMType<v4f32>;    //  4 x float
@@ -155,10 +164,11 @@ def llvm_vararg_ty     : LLVMType<isVoid>;   // this means vararg here
 //    intrinsic.
 //  * Properties can be set to describe the behavior of the intrinsic.
 //
+class SDPatternOperator;
 class Intrinsic<list<LLVMType> ret_types,
                 list<LLVMType> param_types = [],
                 list<IntrinsicProperty> properties = [],
-                string name = ""> {
+                string name = ""> : SDPatternOperator {
   string LLVMName = name;
   string TargetPrefix = "";   // Set to a prefix for target-specific intrinsics.
   list<LLVMType> RetTypes = ret_types;
@@ -253,12 +263,18 @@ let Properties = [IntrReadMem] in {
   def int_log2 : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
   def int_exp  : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
   def int_exp2 : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
+  def int_fabs : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
+  def int_floor : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
 }
 
 let Properties = [IntrNoMem] in {
   def int_fma  : Intrinsic<[llvm_anyfloat_ty],
                          [LLVMMatchType<0>, LLVMMatchType<0>,
                           LLVMMatchType<0>]>;
+
+  def int_fmuladd : Intrinsic<[llvm_anyfloat_ty],
+                              [LLVMMatchType<0>, LLVMMatchType<0>,
+                               LLVMMatchType<0>]>;
 }
 
 // NOTE: these are internal interfaces.
@@ -297,7 +313,7 @@ let Properties = [IntrNoMem] in {
 let Properties = [IntrNoMem] in {
   def int_dbg_declare      : Intrinsic<[],
                                        [llvm_metadata_ty, llvm_metadata_ty]>;
-  def int_dbg_value  	   : Intrinsic<[],
+  def int_dbg_value        : Intrinsic<[],
                                        [llvm_metadata_ty, llvm_i64_ty,
                                         llvm_metadata_ty]>;
 }
@@ -396,8 +412,13 @@ def int_invariant_end   : Intrinsic<[],
 //
 def int_flt_rounds : Intrinsic<[llvm_i32_ty]>,
                      GCCBuiltin<"__builtin_flt_rounds">;
-def int_trap : Intrinsic<[]>,
+def int_trap : Intrinsic<[], [], [IntrNoReturn]>,
                GCCBuiltin<"__builtin_trap">;
+def int_debugtrap : Intrinsic<[]>,
+                    GCCBuiltin<"__builtin_debugtrap">;
+
+// NOP: calls/invokes to this intrinsic are removed by codegen
+def int_donothing : Intrinsic<[], [], [IntrNoMem]>;
 
 // Intrisics to support half precision floating point format
 let Properties = [IntrNoMem] in {
@@ -439,5 +460,6 @@ include "llvm/IntrinsicsX86.td"
 include "llvm/IntrinsicsARM.td"
 include "llvm/IntrinsicsCellSPU.td"
 include "llvm/IntrinsicsXCore.td"
-include "llvm/IntrinsicsPTX.td"
 include "llvm/IntrinsicsHexagon.td"
+include "llvm/IntrinsicsNVVM.td"
+include "llvm/IntrinsicsMips.td"

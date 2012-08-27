@@ -425,9 +425,11 @@ main(__unused int argc, char *argv[])
 		 * not tty. Check the environment to see if user has answer
 		 * tucked in there already.
 		 */
-		if (getenv("ALWAYS_ASSUME_YES") == NULL &&
-		    isatty(fileno(stdin))) {
+		if (getenv("ASSUME_ALWAYS_YES") == NULL) {
 			printf("%s", confirmation_message);
+			if (!isatty(fileno(stdin)))
+				exit(EXIT_FAILURE);
+
 			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}

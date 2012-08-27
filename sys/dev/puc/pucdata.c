@@ -737,6 +737,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_2S, 0x10, 0, 8,
 	},
 
+	{   0x1415, 0x950a, 0x131f, 0x2032,
+	    "SIIG Cyber Serial Dual PCI 16C850",
+	    DEFAULT_RCLK * 10,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
 	{   0x1415, 0x950a, 0xffff, 0,
 	    "Oxford Semiconductor OX16PCI954 UARTs",
 	    DEFAULT_RCLK,
@@ -768,10 +774,35 @@ const struct puc_cfg puc_pci_devices[] = {
 	 */
 
 	{   0x155f, 0x0331, 0xffff, 0,
+	    "Perle Ultraport4 Express",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB012, 0xffff, 0,
+	    "Perle Speed2 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB022, 0xffff, 0,
+	    "Perle Speed2 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB004, 0xffff, 0,
 	    "Perle Speed4 LE",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_4S, 0x10, 0, 8,
 	},
+
+	{   0x155f, 0xB008, 0xffff, 0,
+	    "Perle Speed8 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, 8,
+	},
+
 
 	/*
 	 * Oxford Semiconductor PCI Express Expresso family

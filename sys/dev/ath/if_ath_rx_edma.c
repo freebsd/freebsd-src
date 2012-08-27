@@ -507,8 +507,6 @@ ath_edma_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_RX_LOCK_ASSERT(sc);
 
-//	device_printf(sc->sc_dev, "%s: called; bf=%p\n", __func__, bf);
-
 	m = m_getm(NULL, sc->sc_edma_bufsize, M_DONTWAIT, MT_DATA);
 	if (! m)
 		return (ENOBUFS);		/* XXX ?*/
@@ -798,8 +796,6 @@ ath_edma_dma_rxsetup(struct ath_softc *sc)
 static int
 ath_edma_dma_rxteardown(struct ath_softc *sc)
 {
-
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
 
 	ATH_RX_LOCK(sc);
 	ath_edma_rxfifo_flush(sc, HAL_RX_QUEUE_HP);

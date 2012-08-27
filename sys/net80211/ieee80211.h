@@ -772,7 +772,7 @@ struct ieee80211_country_ie {
 	(sizeof(struct ieee80211_country_ie) + 3*(IEEE80211_COUNTRY_MAX_BANDS-1))
 
 /*
- * 802.11h Channel Switch Announcement (CSA).
+ * 802.11h Quiet Time Element.
  */
 struct ieee80211_quiet_ie {
 	uint8_t		quiet_ie;		/* IEEE80211_ELEMID_QUIET */

@@ -13,6 +13,8 @@
 
 #include "MipsTargetMachine.h"
 #include "Mips.h"
+#include "MipsFrameLowering.h"
+#include "MipsInstrInfo.h"
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -22,8 +24,8 @@ extern "C" void LLVMInitializeMipsTarget() {
   // Register the target.
   RegisterTargetMachine<MipsebTargetMachine> X(TheMipsTarget);
   RegisterTargetMachine<MipselTargetMachine> Y(TheMipselTarget);
-  RegisterTargetMachine<Mips64ebTargetMachine> A(TheMips64Target);
-  RegisterTargetMachine<Mips64elTargetMachine> B(TheMips64elTarget);
+  RegisterTargetMachine<MipsebTargetMachine> A(TheMips64Target);
+  RegisterTargetMachine<MipselTargetMachine> B(TheMips64elTarget);
 }
 
 // DataLayout --> Big-endian, 32-bit pointer/ABI/alignment
@@ -48,8 +50,8 @@ MipsTargetMachine(const Target &T, StringRef TT,
                (Subtarget.isABI_N64() ?
                 "E-p:64:64:64-i8:8:32-i16:16:32-i64:64:64-f128:128:128-n32" :
                 "E-p:32:32:32-i8:8:32-i16:16:32-i64:64:64-n32")),
-    InstrInfo(*this),
-    FrameLowering(Subtarget),
+    InstrInfo(MipsInstrInfo::create(*this)),
+    FrameLowering(MipsFrameLowering::create(*this, Subtarget)),
     TLInfo(*this), TSInfo(*this), JITInfo() {
 }
 
@@ -71,24 +73,6 @@ MipselTargetMachine(const Target &T, StringRef TT,
                     CodeGenOpt::Level OL)
   : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
 
-void Mips64ebTargetMachine::anchor() { }
-
-Mips64ebTargetMachine::
-Mips64ebTargetMachine(const Target &T, StringRef TT,
-                      StringRef CPU, StringRef FS, const TargetOptions &Options,
-                      Reloc::Model RM, CodeModel::Model CM,
-                      CodeGenOpt::Level OL)
-  : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
-
-void Mips64elTargetMachine::anchor() { }
-
-Mips64elTargetMachine::
-Mips64elTargetMachine(const Target &T, StringRef TT,
-                      StringRef CPU, StringRef FS, const TargetOptions &Options,
-                      Reloc::Model RM, CodeModel::Model CM,
-                      CodeGenOpt::Level OL)
-  : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
-
 namespace {
 /// Mips Code Generator Pass Configuration Options.
 class MipsPassConfig : public TargetPassConfig {
@@ -105,8 +89,6 @@ public:
   }
 
   virtual bool addInstSelector();
-  virtual bool addPreRegAlloc();
-  virtual bool addPreSched2();
   virtual bool addPreEmitPass();
 };
 } // namespace
@@ -118,7 +100,7 @@ TargetPassConfig *MipsTargetMachine::createPassConfig(PassManagerBase &PM) {
 // Install an instruction selector pass using
 // the ISelDag to gen Mips code.
 bool MipsPassConfig::addInstSelector() {
-  PM->add(createMipsISelDag(getMipsTargetMachine()));
+  addPass(createMipsISelDag(getMipsTargetMachine()));
   return false;
 }
 
@@ -126,20 +108,13 @@ bool MipsPassConfig::addInstSelector() {
 // machine code is emitted. return true if -print-machineinstrs should
 // print out the code after the passes.
 bool MipsPassConfig::addPreEmitPass() {
-  PM->add(createMipsDelaySlotFillerPass(getMipsTargetMachine()));
-  return true;
-}
+  MipsTargetMachine &TM = getMipsTargetMachine();
+  addPass(createMipsDelaySlotFillerPass(TM));
 
-bool MipsPassConfig::addPreRegAlloc() {
-  // Do not restore $gp if target is Mips64.
-  // In N32/64, $gp is a callee-saved register.
-  if (!getMipsSubtarget().hasMips64())
-    PM->add(createMipsEmitGPRestorePass(getMipsTargetMachine()));
-  return true;
-}
+  // NOTE: long branch has not been implemented for mips16.
+  if (TM.getSubtarget<MipsSubtarget>().hasStandardEncoding())
+    addPass(createMipsLongBranchPass(TM));
 
-bool MipsPassConfig::addPreSched2() {
-  PM->add(createMipsExpandPseudoPass(getMipsTargetMachine()));
   return true;
 }
 

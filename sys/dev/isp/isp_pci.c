@@ -1525,7 +1525,7 @@ static int
 isp_pci_mbxdma(ispsoftc_t *isp)
 {
 	caddr_t base;
-	uint32_t len;
+	uint32_t len, nsegs;
 	int i, error, ns, cmap = 0;
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
@@ -1567,6 +1567,11 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 
+	if (isp->isp_osinfo.sixtyfourbit) {
+		nsegs = ISP_NSEG64_MAX;
+	} else {
+		nsegs = ISP_NSEG_MAX;
+	}
 #ifdef	ISP_TARGET_MODE
 	/*
 	 * XXX: We don't really support 64 bit target mode for parallel scsi yet
@@ -1579,7 +1584,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 #endif
 
-	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &isp->isp_osinfo.dmat)) {
+	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, nsegs, slim, 0, &isp->isp_osinfo.dmat)) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		ISP_LOCK(isp);
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
@@ -1690,18 +1695,20 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 				bus_dma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
-			for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
-				struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
-				if (n == NULL) {
-					while (fc->nexus_free_list) {
-						n = fc->nexus_free_list;
-						fc->nexus_free_list = n->next;
-						free(n, M_DEVBUF);
+			if (isp->isp_type >= ISP_HA_FC_2300) {
+				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
+					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
+					if (n == NULL) {
+						while (fc->nexus_free_list) {
+							n = fc->nexus_free_list;
+							fc->nexus_free_list = n->next;
+							free(n, M_DEVBUF);
+						}
+						goto bad;
 					}
-					goto bad;
+					n->next = fc->nexus_free_list;
+					fc->nexus_free_list = n;
 				}
-				n->next = fc->nexus_free_list;
-				fc->nexus_free_list = n;
 			}
 		}
 	}

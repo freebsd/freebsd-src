@@ -44,6 +44,7 @@
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_timer.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -93,8 +94,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <machine/sysarch.h>
 
-static struct trapframe proc0_tf;
+struct pcpu __pcpu[MAXCPU];
+struct pcpu *pcpup = &__pcpu[0];
 
+static struct trapframe proc0_tf;
 uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
@@ -278,8 +281,10 @@ static void
 cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
+#ifdef ARM_TP_ADDRESS
 #ifndef ARM_CACHE_LOCK_ENABLE
 	vm_page_t m;
+#endif
 #endif
 
 	cpu_setup("");
@@ -322,6 +327,7 @@ cpu_startup(void *dummy)
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
 	pmap_postinit();
+#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -331,6 +337,7 @@ cpu_startup(void *dummy)
 #endif
 	*(uint32_t *)ARM_RAS_START = 0;
 	*(uint32_t *)ARM_RAS_END = 0xffffffff;
+#endif
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -358,7 +365,20 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_idle(int busy)
 {
+	
+#ifndef NO_EVENTTIMERS
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+#endif
 	cpu_sleep(0);
+#ifndef NO_EVENTTIMERS
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+#endif
 }
 
 int
@@ -766,6 +786,19 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	preload_metadata = (void *)fake_preload;
 
 	return (lastaddr);
+}
+
+void
+pcpu0_init(void)
+{
+#if ARM_ARCH_6 || ARM_ARCH_7A || defined(CPU_MV_PJ4B)
+	set_pcpu(pcpup);
+#endif
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	PCPU_SET(curthread, &thread0);
+#ifdef ARM_VFP_SUPPORT
+	PCPU_SET(cpu, 0);
+#endif
 }
 
 #if defined(LINUX_BOOT_ABI)

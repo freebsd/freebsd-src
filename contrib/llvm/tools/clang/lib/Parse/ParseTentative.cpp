@@ -671,7 +671,7 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
       // initializer that follows the declarator. Note that ctor-style
       // initializers are not possible in contexts where abstract declarators
       // are allowed.
-      if (!mayBeAbstract && !isCXXFunctionDeclarator(false/*warnIfAmbiguous*/))
+      if (!mayBeAbstract && !isCXXFunctionDeclarator())
         break;
 
       // direct-declarator '(' parameter-declaration-clause ')'
@@ -735,6 +735,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw_alignof:
   case tok::kw_noexcept:
   case tok::kw_nullptr:
+  case tok::kw__Alignof:
   case tok::kw___null:
   case tok::kw___alignof:
   case tok::kw___builtin_choose_expr:
@@ -744,6 +745,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw___imag:
   case tok::kw___real:
   case tok::kw___FUNCTION__:
+  case tok::kw_L__FUNCTION__:
   case tok::kw___PRETTY_FUNCTION__:
   case tok::kw___has_nothrow_assign:
   case tok::kw___has_nothrow_copy:
@@ -826,6 +828,10 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
 /// specifier, TPResult::False() if it is not, TPResult::Ambiguous() if it could
 /// be either a decl-specifier or a function-style cast, and TPResult::Error()
 /// if a parsing error was found and reported.
+///
+/// If HasMissingTypename is provided, a name with a dependent scope specifier
+/// will be treated as ambiguous if the 'typename' keyword is missing. If this
+/// happens, *HasMissingTypename will be set to 'true'.
 ///
 ///         decl-specifier:
 ///           storage-class-specifier
@@ -918,7 +924,8 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
 /// [GNU]     restrict
 ///
 Parser::TPResult
-Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult) {
+Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
+                                  bool *HasMissingTypename) {
   switch (Tok.getKind()) {
   case tok::identifier:   // foo::bar
     // Check for need to substitute AltiVec __vector keyword
@@ -931,9 +938,12 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult) {
     // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
       return TPResult::Error();
-    if (Tok.is(tok::identifier))
-      return TPResult::False();
-    return isCXXDeclarationSpecifier(BracedCastResult);
+    if (Tok.is(tok::identifier)) {
+      const Token &Next = NextToken();
+      return (!getLangOpts().ObjC1 && Next.is(tok::identifier)) ?
+          TPResult::True() : TPResult::False();
+    }
+    return isCXXDeclarationSpecifier(BracedCastResult, HasMissingTypename);
 
   case tok::coloncolon: {    // ::foo::bar
     const Token &Next = NextToken();
@@ -947,7 +957,7 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult) {
     // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
       return TPResult::Error();
-    return isCXXDeclarationSpecifier(BracedCastResult);
+    return isCXXDeclarationSpecifier(BracedCastResult, HasMissingTypename);
 
     // decl-specifier:
     //   storage-class-specifier
@@ -1049,12 +1059,20 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult) {
           bool isIdentifier = Tok.is(tok::identifier);
           TPResult TPR = TPResult::False();
           if (!isIdentifier)
-            TPR = isCXXDeclarationSpecifier(BracedCastResult);
+            TPR = isCXXDeclarationSpecifier(BracedCastResult,
+                                            HasMissingTypename);
           PA.Revert();
 
           if (isIdentifier ||
               TPR == TPResult::True() || TPR == TPResult::Error())
             return TPResult::Error();
+
+          if (HasMissingTypename) {
+            // We can't tell whether this is a missing 'typename' or a valid
+            // expression.
+            *HasMissingTypename = true;
+            return TPResult::Ambiguous();
+          }
         }
       }
       return TPResult::False();
@@ -1218,21 +1236,24 @@ Parser::TPResult Parser::TryParseProtocolQualifiers() {
   return TPResult::Error();
 }
 
-Parser::TPResult Parser::TryParseDeclarationSpecifier() {
-  TPResult TPR = isCXXDeclarationSpecifier();
+Parser::TPResult
+Parser::TryParseDeclarationSpecifier(bool *HasMissingTypename) {
+  TPResult TPR = isCXXDeclarationSpecifier(TPResult::False(),
+                                           HasMissingTypename);
   if (TPR != TPResult::Ambiguous())
     return TPR;
 
   if (Tok.is(tok::kw_typeof))
     TryParseTypeofSpecifier();
   else {
+    if (Tok.is(tok::annot_cxxscope))
+      ConsumeToken();
     ConsumeToken();
     
     if (getLangOpts().ObjC1 && Tok.is(tok::less))
       TryParseProtocolQualifiers();
   }
 
-  assert(Tok.is(tok::l_paren) && "Expected '('!");
   return TPResult::Ambiguous();
 }
 
@@ -1246,7 +1267,7 @@ Parser::TPResult Parser::TryParseDeclarationSpecifier() {
 /// '(' parameter-declaration-clause ')' cv-qualifier-seq[opt]
 ///         exception-specification[opt]
 ///
-bool Parser::isCXXFunctionDeclarator(bool warnIfAmbiguous) {
+bool Parser::isCXXFunctionDeclarator(bool *IsAmbiguous) {
 
   // C++ 8.2p1:
   // The ambiguity arising from the similarity between a function-style cast and
@@ -1260,27 +1281,36 @@ bool Parser::isCXXFunctionDeclarator(bool warnIfAmbiguous) {
   TentativeParsingAction PA(*this);
 
   ConsumeParen();
-  TPResult TPR = TryParseParameterDeclarationClause();
-  if (TPR == TPResult::Ambiguous() && Tok.isNot(tok::r_paren))
-    TPR = TPResult::False();
-
-  SourceLocation TPLoc = Tok.getLocation();
-  PA.Revert();
-
-  // In case of an error, let the declaration parsing code handle it.
-  if (TPR == TPResult::Error())
-    return true;
-
+  bool InvalidAsDeclaration = false;
+  TPResult TPR = TryParseParameterDeclarationClause(&InvalidAsDeclaration);
   if (TPR == TPResult::Ambiguous()) {
-    // Function declarator has precedence over constructor-style initializer.
-    // Emit a warning just in case the author intended a variable definition.
-    if (warnIfAmbiguous)
-      Diag(Tok, diag::warn_parens_disambiguated_as_function_decl)
-        << SourceRange(Tok.getLocation(), TPLoc);
-    return true;
+    if (Tok.isNot(tok::r_paren))
+      TPR = TPResult::False();
+    else {
+      const Token &Next = NextToken();
+      if (Next.is(tok::amp) || Next.is(tok::ampamp) ||
+          Next.is(tok::kw_const) || Next.is(tok::kw_volatile) ||
+          Next.is(tok::kw_throw) || Next.is(tok::kw_noexcept) ||
+          Next.is(tok::l_square) || isCXX0XVirtSpecifier(Next) ||
+          Next.is(tok::l_brace) || Next.is(tok::kw_try) ||
+          Next.is(tok::equal) || Next.is(tok::arrow))
+        // The next token cannot appear after a constructor-style initializer,
+        // and can appear next in a function definition. This must be a function
+        // declarator.
+        TPR = TPResult::True();
+      else if (InvalidAsDeclaration)
+        // Use the absence of 'typename' as a tie-breaker.
+        TPR = TPResult::False();
+    }
   }
 
-  return TPR == TPResult::True();
+  PA.Revert();
+
+  if (IsAmbiguous && TPR == TPResult::Ambiguous())
+    *IsAmbiguous = true;
+
+  // In case of an error, let the declaration parsing code handle it.
+  return TPR != TPResult::False();
 }
 
 /// parameter-declaration-clause:
@@ -1300,10 +1330,11 @@ bool Parser::isCXXFunctionDeclarator(bool warnIfAmbiguous) {
 ///   attribute-specifier-seq[opt] decl-specifier-seq abstract-declarator[opt]
 ///     attributes[opt] '=' assignment-expression
 ///
-Parser::TPResult Parser::TryParseParameterDeclarationClause() {
+Parser::TPResult
+Parser::TryParseParameterDeclarationClause(bool *InvalidAsDeclaration) {
 
   if (Tok.is(tok::r_paren))
-    return TPResult::True();
+    return TPResult::Ambiguous();
 
   //   parameter-declaration-list[opt] '...'[opt]
   //   parameter-declaration-list ',' '...'
@@ -1333,7 +1364,7 @@ Parser::TPResult Parser::TryParseParameterDeclarationClause() {
     // decl-specifier-seq
     // A parameter-declaration's initializer must be preceded by an '=', so
     // decl-specifier-seq '{' is not a parameter in C++11.
-    TPResult TPR = TryParseDeclarationSpecifier();
+    TPResult TPR = TryParseDeclarationSpecifier(InvalidAsDeclaration);
     if (TPR != TPResult::Ambiguous())
       return TPR;
 

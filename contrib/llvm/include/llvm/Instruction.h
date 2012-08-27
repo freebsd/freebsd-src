@@ -215,6 +215,27 @@ public:
   bool isCommutative() const { return isCommutative(getOpcode()); }
   static bool isCommutative(unsigned op);
 
+  /// isIdempotent - Return true if the instruction is idempotent:
+  ///
+  ///   Idempotent operators satisfy:  x op x === x
+  ///
+  /// In LLVM, the And and Or operators are idempotent.
+  ///
+  bool isIdempotent() const { return isIdempotent(getOpcode()); }
+  static bool isIdempotent(unsigned op);
+
+  /// isNilpotent - Return true if the instruction is nilpotent:
+  ///
+  ///   Nilpotent operators satisfy:  x op x === Id,
+  ///
+  ///   where Id is the identity for the operator, i.e. a constant such that
+  ///     x op Id === x and Id op x === x for all x.
+  ///
+  /// In LLVM, the Xor operator is nilpotent.
+  ///
+  bool isNilpotent() const { return isNilpotent(getOpcode()); }
+  static bool isNilpotent(unsigned op);
+
   /// mayWriteToMemory - Return true if this instruction may modify memory.
   ///
   bool mayWriteToMemory() const;
@@ -260,6 +281,16 @@ public:
   /// ignores the SubclassOptionalData flags, which specify conditions
   /// under which the instruction's result is undefined.
   bool isIdenticalToWhenDefined(const Instruction *I) const;
+
+  /// When checking for operation equivalence (using isSameOperationAs) it is
+  /// sometimes useful to ignore certain attributes.
+  enum OperationEquivalenceFlags {
+    /// Check for equivalence ignoring load/store alignment.
+    CompareIgnoringAlignment = 1<<0,
+    /// Check for equivalence treating a type and a vector of that type
+    /// as equivalent.
+    CompareUsingScalarTypes = 1<<1
+  };
   
   /// This function determines if the specified instruction executes the same
   /// operation as the current one. This means that the opcodes, type, operand
@@ -269,7 +300,7 @@ public:
   /// @returns true if the specified instruction is the same operation as
   /// the current one.
   /// @brief Determine if one instruction is the same operation as another.
-  bool isSameOperationAs(const Instruction *I) const;
+  bool isSameOperationAs(const Instruction *I, unsigned flags = 0) const;
   
   /// isUsedOutsideOfBlock - Return true if there are any uses of this
   /// instruction in blocks other than the specified block.  Note that PHI nodes

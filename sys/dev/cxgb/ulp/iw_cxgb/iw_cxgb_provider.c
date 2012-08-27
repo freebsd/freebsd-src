@@ -487,7 +487,7 @@ static int iwch_reregister_phys_mem(struct ib_mr *mr,
 	__be64 *page_list = NULL;
 	int shift = 0;
 	u64 total_size;
-	int npages;
+	int npages = 0;
 	int ret;
 
 	CTR3(KTR_IW_CXGB, "%s ib_mr %p ib_pd %p", __FUNCTION__, mr, pd);

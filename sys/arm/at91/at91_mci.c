@@ -67,6 +67,53 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_at91.h"
 
+/*
+ * About running the MCI bus at 30mhz...
+ *
+ * Historically, the MCI bus has been run at 30mhz on systems with a 60mhz
+ * master clock, due to a bug in the mantissa table in dev/mmc.c making it
+ * appear that the card's max speed was always 30mhz.  Fixing that bug causes
+ * the mmc driver to request a 25mhz clock (as it should) and the logic in
+ * at91_mci_update_ios() picks the highest speed that doesn't exceed that limit.
+ * With a 60mhz MCK that would be 15mhz, and that's a real performance buzzkill
+ * when you've been getting away with 30mhz all along.
+ *
+ * By defining AT91_MCI_USE_30MHZ (or setting the 30mhz=1 device hint or
+ * sysctl) you can enable logic in at91_mci_update_ios() to overlcock the SD
+ * bus a little by running it at MCK / 2 when MCK is between greater than
+ * 50MHz and the requested speed is 25mhz.  This appears to work on virtually
+ * all SD cards, since it is what this driver has been doing prior to the
+ * introduction of this option, where the overclocking vs underclocking
+ * decision was automaticly "overclock".  Modern SD cards can run at
+ * 45mhz/1-bit in standard mode (high speed mode enable commands not sent)
+ * without problems.
+ *
+ * Speaking of high-speed mode, the rm9200 manual says the MCI device supports
+ * the SD v1.0 specification and can run up to 50mhz.  This is interesting in
+ * that the SD v1.0 spec caps the speed at 25mhz; high speed mode was added in
+ * the v1.10 spec.  Furthermore, high speed mode doesn't just crank up the
+ * clock, it alters the signal timing.  The rm9200 MCI device doesn't support
+ * these altered timings.  So while speeds over 25mhz may work, they only work
+ * in what the SD spec calls "default" speed mode, and it amounts to violating
+ * the spec by overclocking the bus.
+ *
+ * If you also enable 4-wire mode it's possible the 30mhz transfers will fail.
+ * On the AT91RM9200, due to bugs in the bus contention logic, if you have the
+ * USB host device and OHCI driver enabled will fail.  Even underclocking to
+ * 15MHz, intermittant overrun and underrun errors occur.  Note that you don't
+ * even need to have usb devices attached to the system, the errors begin to
+ * occur as soon as the OHCI driver sets the register bit to enable periodic
+ * transfers.  It appears (based on brief investigation) that the usb host
+ * controller uses so much ASB bandwidth that sometimes the DMA for MCI
+ * transfers doesn't get a bus grant in time and data gets dropped.  Adding
+ * even a modicum of network activity changes the symptom from intermittant to
+ * very frequent.  Members of the AT91SAM9 family have corrected this problem, or
+ * are at least better about their use of the bus.
+ */
+#ifndef AT91_MCI_USE_30MHZ
+#define AT91_MCI_USE_30MHZ 1
+#endif
+
 #define BBSZ	512
 
 struct at91_mci_softc {
@@ -76,9 +123,10 @@ struct at91_mci_softc {
 #define	CAP_HAS_4WIRE		1	/* Has 4 wire bus */
 #define	CAP_NEEDS_BYTESWAP	2	/* broken hardware needing bounce */
 	int flags;
-	int has_4wire;
 #define CMD_STARTED	1
 #define STOP_STARTED	2
+	int has_4wire;
+	int use_30mhz;
 	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
 	struct mtx sc_mtx;
@@ -188,8 +236,10 @@ at91_mci_attach(device_t dev)
 	device_t child;
 	int err;
 
-	sc->dev = dev;
+	sctx = device_get_sysctl_ctx(dev);
+	soid = device_get_sysctl_tree(dev);
 
+	sc->dev = dev;
 	sc->sc_cap = 0;
 	if (at91_is_rm92())
 		sc->sc_cap |= CAP_NEEDS_BYTESWAP;
@@ -225,27 +275,49 @@ at91_mci_attach(device_t dev)
 		goto out;
 	}
 
-	sctx = device_get_sysctl_ctx(dev);
-	soid = device_get_sysctl_tree(dev);
-	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "4wire",
-	    CTLFLAG_RW, &sc->has_4wire, 0, "has 4 wire SD Card bus");
-
-#ifdef AT91_MCI_HAS_4WIRE
+	/*
+	 * Allow 4-wire to be initially set via #define.
+	 * Allow a device hint to override that.
+	 * Allow a sysctl to override that.
+	 */
+#if defined(AT91_MCI_HAS_4WIRE) && AT91_MCI_HAS_4WIRE != 0
 	sc->has_4wire = 1;
 #endif
+	resource_int_value(device_get_name(dev), device_get_unit(dev), 
+			   "4wire", &sc->has_4wire);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "4wire",
+	    CTLFLAG_RW, &sc->has_4wire, 0, "has 4 wire SD Card bus");
 	if (sc->has_4wire)
 		sc->sc_cap |= CAP_HAS_4WIRE;
 
-	sc->host.f_min = at91_master_clock / 512;
+#if defined(AT91_MCI_USE_30MHZ) && AT91_MCI_USE_30MHZ != 0
+	sc->use_30mhz = 1;
+#endif
+	resource_int_value(device_get_name(dev), device_get_unit(dev), 
+			   "30mhz", &sc->use_30mhz);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "30mhz",
+	    CTLFLAG_RW, &sc->use_30mhz, 0, "use 30mhz clock for 25mhz request");
+
+	/*
+	 * Our real min freq is master_clock/512, but upper driver layers are
+	 * going to set the min speed during card discovery, and the right speed
+	 * for that is 400khz, so advertise a safe value just under that.
+	 *
+	 * For max speed, while the rm9200 manual says the max is 50mhz, it also
+	 * says it supports only the SD v1.0 spec, which means the real limit is
+	 * 25mhz. On the other hand, historical use has been to slightly violate
+	 * the standard by running the bus at 30mhz.  For more information on
+	 * that, see the comments at the top of this file.
+	 */
 	sc->host.f_min = 375000;
 	sc->host.f_max = at91_master_clock / 2;
-	if (sc->host.f_max > 50000000)	
-		sc->host.f_max = 50000000;	/* Limit to 50MHz */
-
+	if (sc->host.f_max > 25000000)	
+		sc->host.f_max = 25000000;	/* Limit to 25MHz */
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps = 0;
 	if (sc->sc_cap & CAP_HAS_4WIRE)
 		sc->host.caps |= MMC_CAP_4_BIT_DATA;
+
 	child = device_add_child(dev, "mmc", 0);
 	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
@@ -299,7 +371,7 @@ at91_mci_deactivate(device_t dev)
 	sc->intrhand = 0;
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	sc->mem_res = 0;
 	if (sc->irq_res)
@@ -338,23 +410,38 @@ static int
 at91_mci_update_ios(device_t brdev, device_t reqdev)
 {
 	struct at91_mci_softc *sc;
-	struct mmc_host *host;
 	struct mmc_ios *ios;
 	uint32_t clkdiv;
 
 	sc = device_get_softc(brdev);
-	host = &sc->host;
-	ios = &host->ios;
-	// bus mode?
+	ios = &sc->host.ios;
+
+	/*
+	 * Calculate our closest available clock speed that doesn't exceed the
+	 * requested speed.
+	 *
+	 * If the master clock is greater than 50MHz and the requested bus
+	 * speed is 25mhz and the use_30mhz flag is on, set clkdiv to zero to
+	 * get a master_clock / 2 (25-30MHz) MMC/SD clock rather than settle for
+	 * the next lower click (12-15MHz). See comments near the top of the
+	 * file for more info.
+	 *
+	 * Whatever we come up with, store it back into ios->clock so that the
+	 * upper layer drivers can report the actual speed of the bus.
+	 */
 	if (ios->clock == 0) {
 		WR4(sc, MCI_CR, MCI_CR_MCIDIS);
 		clkdiv = 0;
 	} else {
-		WR4(sc, MCI_CR, MCI_CR_MCIEN);
-		if ((at91_master_clock % (ios->clock * 2)) == 0)
+		WR4(sc, MCI_CR, MCI_CR_MCIEN|MCI_CR_PWSEN);
+		if (sc->use_30mhz && ios->clock == 25000000 &&
+		    at91_master_clock > 50000000)
+			clkdiv = 0;
+                else if ((at91_master_clock % (ios->clock * 2)) == 0)
 			clkdiv = ((at91_master_clock / ios->clock) / 2) - 1;
 		else
 			clkdiv = (at91_master_clock / ios->clock) / 2;
+		ios->clock = at91_master_clock / ((clkdiv+1) * 2);
 	}
 	if (ios->bus_width == bus_width_4)
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) | MCI_SDCR_SDCBUS);

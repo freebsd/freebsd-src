@@ -1072,8 +1072,6 @@ ath_legacy_dma_rxsetup(struct ath_softc *sc)
 {
 	int error;
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
-
 	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
 	    "rx", sizeof(struct ath_desc), ath_rxbuf, 1);
 	if (error != 0)
@@ -1086,8 +1084,6 @@ static int
 ath_legacy_dma_rxteardown(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
-	
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 	return (0);

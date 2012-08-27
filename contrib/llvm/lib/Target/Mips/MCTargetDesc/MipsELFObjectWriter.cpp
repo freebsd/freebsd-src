@@ -34,7 +34,7 @@ namespace {
 
   class MipsELFObjectWriter : public MCELFObjectTargetWriter {
   public:
-    MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI);
+    MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI, bool _isN64);
 
     virtual ~MipsELFObjectWriter();
 
@@ -52,9 +52,11 @@ namespace {
   };
 }
 
-MipsELFObjectWriter::MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI)
+MipsELFObjectWriter::MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI,
+                                         bool _isN64)
   : MCELFObjectTargetWriter(_is64Bit, OSABI, ELF::EM_MIPS,
-                            /*HasRelocationAddend*/ false) {}
+                            /*HasRelocationAddend*/ false,
+                            /*IsN64*/ _isN64) {}
 
 MipsELFObjectWriter::~MipsELFObjectWriter() {}
 
@@ -100,6 +102,9 @@ unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
     llvm_unreachable("invalid fixup kind!");
   case FK_Data_4:
     Type = ELF::R_MIPS_32;
+    break;
+  case FK_Data_8:
+    Type = ELF::R_MIPS_64;
     break;
   case FK_GPRel_4:
     Type = ELF::R_MIPS_GPREL32;
@@ -148,8 +153,32 @@ unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
   case Mips::fixup_Mips_PC16:
     Type = ELF::R_MIPS_PC16;
     break;
+  case Mips::fixup_Mips_GOT_PAGE:
+    Type = ELF::R_MIPS_GOT_PAGE;
+    break;
+  case Mips::fixup_Mips_GOT_OFST:
+    Type = ELF::R_MIPS_GOT_OFST;
+    break;
+  case Mips::fixup_Mips_GOT_DISP:
+    Type = ELF::R_MIPS_GOT_DISP;
+    break;
+  case Mips::fixup_Mips_GPOFF_HI:
+    Type = setRType((unsigned)ELF::R_MIPS_GPREL16, Type);
+    Type = setRType2((unsigned)ELF::R_MIPS_SUB, Type);
+    Type = setRType3((unsigned)ELF::R_MIPS_HI16, Type);
+    break;
+  case Mips::fixup_Mips_GPOFF_LO:
+    Type = setRType((unsigned)ELF::R_MIPS_GPREL16, Type);
+    Type = setRType2((unsigned)ELF::R_MIPS_SUB, Type);
+    Type = setRType3((unsigned)ELF::R_MIPS_LO16, Type);
+    break;
+  case Mips::fixup_Mips_HIGHER:
+    Type = ELF::R_MIPS_HIGHER;
+    break;
+  case Mips::fixup_Mips_HIGHEST:
+    Type = ELF::R_MIPS_HIGHEST;
+    break;
   }
-
   return Type;
 }
 
@@ -184,10 +213,10 @@ static int CompareOffset(const RelEntry &R0, const RelEntry &R1) {
 
 void MipsELFObjectWriter::sortRelocs(const MCAssembler &Asm,
                                      std::vector<ELFRelocationEntry> &Relocs) {
-  // Call the defualt function first. Relocations are sorted in descending
+  // Call the default function first. Relocations are sorted in descending
   // order of r_offset.
   MCELFObjectTargetWriter::sortRelocs(Asm, Relocs);
-  
+
   RelLs RelocLs;
   std::vector<RelLsIter> Unmatched;
 
@@ -244,6 +273,7 @@ MCObjectWriter *llvm::createMipsELFObjectWriter(raw_ostream &OS,
                                                 uint8_t OSABI,
                                                 bool IsLittleEndian,
                                                 bool Is64Bit) {
-  MCELFObjectTargetWriter *MOTW = new MipsELFObjectWriter(Is64Bit, OSABI);
+  MCELFObjectTargetWriter *MOTW = new MipsELFObjectWriter(Is64Bit, OSABI,
+                                                (Is64Bit) ? true : false);
   return createELFObjectWriter(MOTW, OS, IsLittleEndian);
 }

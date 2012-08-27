@@ -115,7 +115,7 @@ ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
 {
 	if (m != NULL)
-		m_freem(m);
+		FREE_PKT(m);
 	return EINVAL;
 }
 

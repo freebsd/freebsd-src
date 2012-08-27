@@ -154,6 +154,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/uma.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
@@ -165,7 +166,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/pcb.h>
@@ -3243,15 +3243,13 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				*ptep = pte;
 				PTE_SYNC(ptep);
 
-				if (pg != NULL) {
-					if (!(pg->oflags & VPO_UNMANAGED)) {
-						f = pmap_modify_pv(pg, pm, sva,
-						    PVF_WRITE, 0);
+				if (!(pg->oflags & VPO_UNMANAGED)) {
+					f = pmap_modify_pv(pg, pm, sva,
+					    PVF_WRITE, 0);
+					if (f & PVF_WRITE)
 						vm_page_dirty(pg);
-					} else
-						f = 0;
 				} else
-					f = PVF_REF | PVF_EXEC;
+					f = 0;
 
 				if (flush >= 0) {
 					flush++;

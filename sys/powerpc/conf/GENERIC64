@@ -188,12 +188,14 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
 device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
 device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
+device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
 
 # ADB support
 device		adb

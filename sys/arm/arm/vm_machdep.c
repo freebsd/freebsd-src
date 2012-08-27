@@ -146,7 +146,11 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = 0;
+#ifdef ARM_TP_ADDRESS
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
+#else
+	td2->td_md.md_tp = (register_t) get_tls();
+#endif
 }
 				
 void
@@ -369,11 +373,14 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	if (td != curthread)
-		td->td_md.md_tp = (register_t)tls_base;
-	else {
+	td->td_md.md_tp = (register_t)tls_base;
+	if (td == curthread) {
 		critical_enter();
+#ifdef ARM_TP_ADDRESS
 		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
+#else
+		set_tls((void *)tls_base);
+#endif
 		critical_exit();
 	}
 	return (0);
@@ -485,7 +492,11 @@ arm_remap_nocache(void *addr, vm_size_t size)
 		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
 		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
 			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
+#ifdef ARM_L2_PIPT
+			cpu_l2cache_wbinv_range(physaddr, PAGE_SIZE);
+#else
 			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
+#endif
 			pmap_kenter_nocache(tomap, physaddr);
 			cpu_tlb_flushID_SE(vaddr);
 			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i %

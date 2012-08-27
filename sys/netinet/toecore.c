@@ -478,15 +478,17 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 }
 
 void
-toe_connect_failed(struct toedev *tod, struct tcpcb *tp, int err)
+toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 {
-	struct inpcb *inp = tp->t_inpcb;
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(tp->t_flags & TF_TOE,
-	    ("%s: tp %p not offloaded.", __func__, tp));
 
 	if (!(inp->inp_flags & INP_DROPPED)) {
+		struct tcpcb *tp = intotcpcb(inp);
+
+		KASSERT(tp->t_flags & TF_TOE,
+		    ("%s: tp %p not offloaded.", __func__, tp));
+
 		if (err == EAGAIN) {
 
 			/*

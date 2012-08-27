@@ -48,6 +48,10 @@ static inline const Stmt *GetStmt(const ProgramPoint &P) {
     return SP->getStmt();
   else if (const BlockEdge *BE = dyn_cast<BlockEdge>(&P))
     return BE->getSrc()->getTerminator();
+  else if (const CallEnter *CE = dyn_cast<CallEnter>(&P))
+    return CE->getCallExpr();
+  else if (const CallExitEnd *CEE = dyn_cast<CallExitEnd>(&P))
+    return CEE->getCalleeContext()->getCallSite();
 
   return 0;
 }
@@ -427,7 +431,7 @@ static void GenerateMinimalPathDiagnostic(PathDiagnostic& PD,
 
     ProgramPoint P = N->getLocation();
     
-    if (const CallExit *CE = dyn_cast<CallExit>(&P)) {
+    if (const CallExitEnd *CE = dyn_cast<CallExitEnd>(&P)) {
       PathDiagnosticCallPiece *C =
         PathDiagnosticCallPiece::construct(N, *CE, SMgr);
       PD.getActivePath().push_front(C);
@@ -437,21 +441,23 @@ static void GenerateMinimalPathDiagnostic(PathDiagnostic& PD,
     }
     
     if (const CallEnter *CE = dyn_cast<CallEnter>(&P)) {
+      // Flush all locations, and pop the active path.
+      bool VisitedEntireCall = PD.isWithinCall();
       PD.popActivePath();
-      // The current active path should never be empty.  Either we
-      // just added a bunch of stuff to the top-level path, or
-      // we have a previous CallExit.  If the front of the active
-      // path is not a PathDiagnosticCallPiece, it means that the
+
+      // Either we just added a bunch of stuff to the top-level path, or
+      // we have a previous CallExitEnd.  If the former, it means that the
       // path terminated within a function call.  We must then take the
       // current contents of the active path and place it within
       // a new PathDiagnosticCallPiece.
-      assert(!PD.getActivePath().empty());
-      PathDiagnosticCallPiece *C = 
-        dyn_cast<PathDiagnosticCallPiece>(PD.getActivePath().front());
-      if (!C) {
+      PathDiagnosticCallPiece *C;
+      if (VisitedEntireCall) {
+        C = cast<PathDiagnosticCallPiece>(PD.getActivePath().front());
+      } else {
         const Decl *Caller = CE->getLocationContext()->getDecl();
         C = PathDiagnosticCallPiece::construct(PD.getActivePath(), Caller);
       }
+
       C->setCallee(*CE, SMgr);
       if (!CallStack.empty()) {
         assert(CallStack.back().first == C);
@@ -864,6 +870,7 @@ public:
   void rawAddEdge(PathDiagnosticLocation NewLoc);
 
   void addContext(const Stmt *S);
+  void addContext(const PathDiagnosticLocation &L);
   void addExtendedContext(const Stmt *S);
 };
 } // end anonymous namespace
@@ -1031,7 +1038,10 @@ void EdgeBuilder::addContext(const Stmt *S) {
     return;
 
   PathDiagnosticLocation L(S, PDB.getSourceManager(), PDB.LC);
+  addContext(L);
+}
 
+void EdgeBuilder::addContext(const PathDiagnosticLocation &L) {
   while (!CLocs.empty()) {
     const PathDiagnosticLocation &TopContextLoc = CLocs.back();
 
@@ -1051,6 +1061,78 @@ void EdgeBuilder::addContext(const Stmt *S) {
   CLocs.push_back(L);
 }
 
+// Cone-of-influence: support the reverse propagation of "interesting" symbols
+// and values by tracing interesting calculations backwards through evaluated
+// expressions along a path.  This is probably overly complicated, but the idea
+// is that if an expression computed an "interesting" value, the child
+// expressions are are also likely to be "interesting" as well (which then
+// propagates to the values they in turn compute).  This reverse propagation
+// is needed to track interesting correlations across function call boundaries,
+// where formal arguments bind to actual arguments, etc.  This is also needed
+// because the constraint solver sometimes simplifies certain symbolic values
+// into constants when appropriate, and this complicates reasoning about
+// interesting values.
+typedef llvm::DenseSet<const Expr *> InterestingExprs;
+
+static void reversePropagateIntererstingSymbols(BugReport &R,
+                                                InterestingExprs &IE,
+                                                const ProgramState *State,
+                                                const Expr *Ex,
+                                                const LocationContext *LCtx) {
+  SVal V = State->getSVal(Ex, LCtx);
+  if (!(R.isInteresting(V) || IE.count(Ex)))
+    return;
+  
+  switch (Ex->getStmtClass()) {
+    default:
+      if (!isa<CastExpr>(Ex))
+        break;
+      // Fall through.
+    case Stmt::BinaryOperatorClass:
+    case Stmt::UnaryOperatorClass: {
+      for (Stmt::const_child_iterator CI = Ex->child_begin(),
+            CE = Ex->child_end();
+            CI != CE; ++CI) {
+        if (const Expr *child = dyn_cast_or_null<Expr>(*CI)) {
+          IE.insert(child);
+          SVal ChildV = State->getSVal(child, LCtx);
+          R.markInteresting(ChildV);
+        }
+        break;
+      }
+    }
+  }
+  
+  R.markInteresting(V);
+}
+
+static void reversePropagateInterestingSymbols(BugReport &R,
+                                               InterestingExprs &IE,
+                                               const ProgramState *State,
+                                               const LocationContext *CalleeCtx,
+                                               const LocationContext *CallerCtx)
+{
+  // FIXME: Handle non-CallExpr-based CallEvents.
+  const StackFrameContext *Callee = CalleeCtx->getCurrentStackFrame();
+  const Stmt *CallSite = Callee->getCallSite();
+  if (const CallExpr *CE = dyn_cast_or_null<CallExpr>(CallSite)) {
+    if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(CalleeCtx->getDecl())) {
+      FunctionDecl::param_const_iterator PI = FD->param_begin(), 
+                                         PE = FD->param_end();
+      CallExpr::const_arg_iterator AI = CE->arg_begin(), AE = CE->arg_end();
+      for (; AI != AE && PI != PE; ++AI, ++PI) {
+        if (const Expr *ArgE = *AI) {
+          if (const ParmVarDecl *PD = *PI) {
+            Loc LV = State->getLValue(PD, CalleeCtx);
+            if (R.isInteresting(LV) || R.isInteresting(State->getRawSVal(LV)))
+              IE.insert(ArgE);
+          }
+        }
+      }
+    }
+  }
+}
+                                               
 static void GenerateExtensivePathDiagnostic(PathDiagnostic& PD,
                                             PathDiagnosticBuilder &PDB,
                                             const ExplodedNode *N,
@@ -1058,6 +1140,7 @@ static void GenerateExtensivePathDiagnostic(PathDiagnostic& PD,
   EdgeBuilder EB(PD, PDB);
   const SourceManager& SM = PDB.getSourceManager();
   StackDiagVector CallStack;
+  InterestingExprs IE;
 
   const ExplodedNode *NextNode = N->pred_empty() ? NULL : *(N->pred_begin());
   while (NextNode) {
@@ -1066,16 +1149,27 @@ static void GenerateExtensivePathDiagnostic(PathDiagnostic& PD,
     ProgramPoint P = N->getLocation();
 
     do {
-      if (const CallExit *CE = dyn_cast<CallExit>(&P)) {
-        const StackFrameContext *LCtx =
-        CE->getLocationContext()->getCurrentStackFrame();
-        PathDiagnosticLocation Loc(LCtx->getCallSite(),
-                                   PDB.getSourceManager(),
-                                   LCtx);
-        EB.addEdge(Loc, true);
-        EB.flushLocations();
+      if (const PostStmt *PS = dyn_cast<PostStmt>(&P)) {
+        if (const Expr *Ex = PS->getStmtAs<Expr>())
+          reversePropagateIntererstingSymbols(*PDB.getBugReport(), IE,
+                                              N->getState().getPtr(), Ex,
+                                              N->getLocationContext());
+      }
+      
+      if (const CallExitEnd *CE = dyn_cast<CallExitEnd>(&P)) {
+        const Stmt *S = CE->getCalleeContext()->getCallSite();
+        if (const Expr *Ex = dyn_cast_or_null<Expr>(S)) {
+            reversePropagateIntererstingSymbols(*PDB.getBugReport(), IE,
+                                                N->getState().getPtr(), Ex,
+                                                N->getLocationContext());
+        }
+        
         PathDiagnosticCallPiece *C =
           PathDiagnosticCallPiece::construct(N, *CE, SM);
+
+        EB.addEdge(C->callReturn, true);
+        EB.flushLocations();
+
         PD.getActivePath().push_front(C);
         PD.pushActivePath(&C->path);
         CallStack.push_back(StackDiagPair(C, N));
@@ -1092,26 +1186,26 @@ static void GenerateExtensivePathDiagnostic(PathDiagnostic& PD,
         EB.addEdge(pos);
         
         // Flush all locations, and pop the active path.
+        bool VisitedEntireCall = PD.isWithinCall();
         EB.flushLocations();
         PD.popActivePath();
-        assert(!PD.getActivePath().empty());
         PDB.LC = N->getLocationContext();
 
-        // The current active path should never be empty.  Either we
-        // just added a bunch of stuff to the top-level path, or
-        // we have a previous CallExit.  If the front of the active
-        // path is not a PathDiagnosticCallPiece, it means that the
+        // Either we just added a bunch of stuff to the top-level path, or
+        // we have a previous CallExitEnd.  If the former, it means that the
         // path terminated within a function call.  We must then take the
         // current contents of the active path and place it within
         // a new PathDiagnosticCallPiece.
-        PathDiagnosticCallPiece *C =
-          dyn_cast<PathDiagnosticCallPiece>(PD.getActivePath().front());
-        if (!C) {
-          const Decl * Caller = CE->getLocationContext()->getDecl();
+        PathDiagnosticCallPiece *C;
+        if (VisitedEntireCall) {
+          C = cast<PathDiagnosticCallPiece>(PD.getActivePath().front());
+        } else {
+          const Decl *Caller = CE->getLocationContext()->getDecl();
           C = PathDiagnosticCallPiece::construct(PD.getActivePath(), Caller);
         }
+
         C->setCallee(*CE, SM);
-        EB.addContext(CE->getCallExpr());
+        EB.addContext(C->getLocation());
 
         if (!CallStack.empty()) {
           assert(CallStack.back().first == C);
@@ -1127,7 +1221,19 @@ static void GenerateExtensivePathDiagnostic(PathDiagnostic& PD,
       PDB.LC = N->getLocationContext();
 
       // Block edges.
-      if (const BlockEdge *BE = dyn_cast<BlockEdge>(&P)) {        
+      if (const BlockEdge *BE = dyn_cast<BlockEdge>(&P)) {
+        // Does this represent entering a call?  If so, look at propagating
+        // interesting symbols across call boundaries.
+        if (NextNode) {
+          const LocationContext *CallerCtx = NextNode->getLocationContext();
+          const LocationContext *CalleeCtx = PDB.LC;
+          if (CallerCtx != CalleeCtx) {
+            reversePropagateInterestingSymbols(*PDB.getBugReport(), IE,
+                                               N->getState().getPtr(),
+                                               CalleeCtx, CallerCtx);
+          }
+        }
+       
         const CFGBlock &Blk = *BE->getSrc();
         const Stmt *Term = Blk.getTerminator();
 
@@ -1239,6 +1345,9 @@ BugReport::~BugReport() {
   for (visitor_iterator I = visitor_begin(), E = visitor_end(); I != E; ++I) {
     delete *I;
   }
+  while (!interestingSymbols.empty()) {
+    popInterestingSymbolsAndRegions();
+  }
 }
 
 const Decl *BugReport::getDeclWithIssue() const {
@@ -1280,11 +1389,11 @@ void BugReport::markInteresting(SymbolRef sym) {
     return;
 
   // If the symbol wasn't already in our set, note a configuration change.
-  if (interestingSymbols.insert(sym).second)
+  if (getInterestingSymbols().insert(sym).second)
     ++ConfigurationChangeToken;
 
   if (const SymbolMetadata *meta = dyn_cast<SymbolMetadata>(sym))
-    interestingRegions.insert(meta->getRegion());
+    getInterestingRegions().insert(meta->getRegion());
 }
 
 void BugReport::markInteresting(const MemRegion *R) {
@@ -1293,11 +1402,11 @@ void BugReport::markInteresting(const MemRegion *R) {
 
   // If the base region wasn't already in our set, note a configuration change.
   R = R->getBaseRegion();
-  if (interestingRegions.insert(R).second)
+  if (getInterestingRegions().insert(R).second)
     ++ConfigurationChangeToken;
 
   if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(R))
-    interestingSymbols.insert(SR->getSymbol());
+    getInterestingSymbols().insert(SR->getSymbol());
 }
 
 void BugReport::markInteresting(SVal V) {
@@ -1305,30 +1414,58 @@ void BugReport::markInteresting(SVal V) {
   markInteresting(V.getAsSymbol());
 }
 
-bool BugReport::isInteresting(SVal V) const {
+bool BugReport::isInteresting(SVal V) {
   return isInteresting(V.getAsRegion()) || isInteresting(V.getAsSymbol());
 }
 
-bool BugReport::isInteresting(SymbolRef sym) const {
+bool BugReport::isInteresting(SymbolRef sym) {
   if (!sym)
     return false;
   // We don't currently consider metadata symbols to be interesting
   // even if we know their region is interesting. Is that correct behavior?
-  return interestingSymbols.count(sym);
+  return getInterestingSymbols().count(sym);
 }
 
-bool BugReport::isInteresting(const MemRegion *R) const {
+bool BugReport::isInteresting(const MemRegion *R) {
   if (!R)
     return false;
   R = R->getBaseRegion();
-  bool b = interestingRegions.count(R);
+  bool b = getInterestingRegions().count(R);
   if (b)
     return true;
   if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(R))
-    return interestingSymbols.count(SR->getSymbol());
+    return getInterestingSymbols().count(SR->getSymbol());
   return false;
 }
-  
+
+void BugReport::lazyInitializeInterestingSets() {
+  if (interestingSymbols.empty()) {
+    interestingSymbols.push_back(new Symbols());
+    interestingRegions.push_back(new Regions());
+  }
+}
+
+BugReport::Symbols &BugReport::getInterestingSymbols() {
+  lazyInitializeInterestingSets();
+  return *interestingSymbols.back();
+}
+
+BugReport::Regions &BugReport::getInterestingRegions() {
+  lazyInitializeInterestingSets();
+  return *interestingRegions.back();
+}
+
+void BugReport::pushInterestingSymbolsAndRegions() {
+  interestingSymbols.push_back(new Symbols(getInterestingSymbols()));
+  interestingRegions.push_back(new Regions(getInterestingRegions()));
+}
+
+void BugReport::popInterestingSymbolsAndRegions() {
+  delete interestingSymbols.back();
+  interestingSymbols.pop_back();
+  delete interestingRegions.back();
+  interestingRegions.pop_back();
+}
 
 const Stmt *BugReport::getStmt() const {
   if (!ErrorNode)
@@ -1430,9 +1567,12 @@ void BugReporter::FlushReports() {
          I = bugTypes.begin(), E = bugTypes.end(); I != E; ++I)
     const_cast<BugType*>(*I)->FlushReports(*this);
 
-  typedef llvm::FoldingSet<BugReportEquivClass> SetTy;
-  for (SetTy::iterator EI=EQClasses.begin(), EE=EQClasses.end(); EI!=EE;++EI){
-    BugReportEquivClass& EQ = *EI;
+  // We need to flush reports in deterministic order to ensure the order
+  // of the reports is consistent between runs.
+  typedef std::vector<BugReportEquivClass *> ContVecTy;
+  for (ContVecTy::iterator EI=EQClassesVector.begin(), EE=EQClassesVector.end();
+       EI != EE; ++EI){
+    BugReportEquivClass& EQ = **EI;
     FlushReport(EQ);
   }
 
@@ -1684,12 +1824,13 @@ static void CompactPathDiagnostic(PathPieces &path, const SourceManager& SM) {
 }
 
 void GRBugReporter::GeneratePathDiagnostic(PathDiagnostic& PD,
-                        SmallVectorImpl<BugReport *> &bugReports) {
+                                           PathDiagnosticConsumer &PC,
+                                           ArrayRef<BugReport *> &bugReports) {
 
   assert(!bugReports.empty());
   SmallVector<const ExplodedNode *, 10> errorNodes;
-  for (SmallVectorImpl<BugReport*>::iterator I = bugReports.begin(),
-    E = bugReports.end(); I != E; ++I) {
+  for (ArrayRef<BugReport*>::iterator I = bugReports.begin(),
+                                      E = bugReports.end(); I != E; ++I) {
       errorNodes.push_back((*I)->getErrorNode());
   }
 
@@ -1709,8 +1850,7 @@ void GRBugReporter::GeneratePathDiagnostic(PathDiagnostic& PD,
   const ExplodedNode *N = GPair.second.first;
 
   // Start building the path diagnostic...
-  PathDiagnosticBuilder PDB(*this, R, BackMap.get(),
-                            getPathDiagnosticConsumer());
+  PathDiagnosticBuilder PDB(*this, R, BackMap.get(), &PC);
 
   // Register additional node visitors.
   R->addVisitor(new NilReceiverBRVisitor());
@@ -1758,6 +1898,8 @@ void GRBugReporter::GeneratePathDiagnostic(PathDiagnostic& PD,
     case PathDiagnosticConsumer::Minimal:
       GenerateMinimalPathDiagnostic(PD, PDB, N, visitors);
       break;
+    case PathDiagnosticConsumer::None:
+      llvm_unreachable("PathDiagnosticConsumer::None should never appear here");
     }
 
     // Clean up the visitors we used.
@@ -1768,9 +1910,11 @@ void GRBugReporter::GeneratePathDiagnostic(PathDiagnostic& PD,
   } while(finalReportConfigToken != originalReportConfigToken);
 
   // Finally, prune the diagnostic path of uninteresting stuff.
-  bool hasSomethingInteresting = RemoveUneededCalls(PD.getMutablePieces());
-  assert(hasSomethingInteresting);
-  (void) hasSomethingInteresting;
+  if (R->shouldPrunePath()) {
+    bool hasSomethingInteresting = RemoveUneededCalls(PD.getMutablePieces());
+    assert(hasSomethingInteresting);
+    (void) hasSomethingInteresting;
+  }
 }
 
 void BugReporter::Register(BugType *BT) {
@@ -1911,53 +2055,21 @@ FindReportInEquivalenceClass(BugReportEquivClass& EQ,
   return exampleReport;
 }
 
-//===----------------------------------------------------------------------===//
-// DiagnosticCache.  This is a hack to cache analyzer diagnostics.  It
-// uses global state, which eventually should go elsewhere.
-//===----------------------------------------------------------------------===//
-namespace {
-class DiagCacheItem : public llvm::FoldingSetNode {
-  llvm::FoldingSetNodeID ID;
-public:
-  DiagCacheItem(BugReport *R, PathDiagnostic *PD) {
-    R->Profile(ID);
-    PD->Profile(ID);
-  }
-  
-  void Profile(llvm::FoldingSetNodeID &id) {
-    id = ID;
-  }
-  
-  llvm::FoldingSetNodeID &getID() { return ID; }
-};
-}
-
-static bool IsCachedDiagnostic(BugReport *R, PathDiagnostic *PD) {
-  // FIXME: Eventually this diagnostic cache should reside in something
-  // like AnalysisManager instead of being a static variable.  This is
-  // really unsafe in the long term.
-  typedef llvm::FoldingSet<DiagCacheItem> DiagnosticCache;
-  static DiagnosticCache DC;
-  
-  void *InsertPos;
-  DiagCacheItem *Item = new DiagCacheItem(R, PD);
-  
-  if (DC.FindNodeOrInsertPos(Item->getID(), InsertPos)) {
-    delete Item;
-    return true;
-  }
-  
-  DC.InsertNode(Item, InsertPos);
-  return false;
-}
-
 void BugReporter::FlushReport(BugReportEquivClass& EQ) {
   SmallVector<BugReport*, 10> bugReports;
   BugReport *exampleReport = FindReportInEquivalenceClass(EQ, bugReports);
-  if (!exampleReport)
-    return;
-  
-  PathDiagnosticConsumer* PD = getPathDiagnosticConsumer();
+  if (exampleReport) {
+    const PathDiagnosticConsumers &C = getPathDiagnosticConsumers();
+    for (PathDiagnosticConsumers::const_iterator I=C.begin(),
+                                                 E=C.end(); I != E; ++I) {
+      FlushReport(exampleReport, **I, bugReports);
+    }
+  }
+}
+
+void BugReporter::FlushReport(BugReport *exampleReport,
+                              PathDiagnosticConsumer &PD,
+                              ArrayRef<BugReport*> bugReports) {
 
   // FIXME: Make sure we use the 'R' for the path that was actually used.
   // Probably doesn't make a difference in practice.
@@ -1966,65 +2078,39 @@ void BugReporter::FlushReport(BugReportEquivClass& EQ) {
   OwningPtr<PathDiagnostic>
     D(new PathDiagnostic(exampleReport->getDeclWithIssue(),
                          exampleReport->getBugType().getName(),
-                         !PD || PD->useVerboseDescription()
+                         PD.useVerboseDescription()
                          ? exampleReport->getDescription() 
                          : exampleReport->getShortDescription(),
                          BT.getCategory()));
 
-  if (!bugReports.empty())
-    GeneratePathDiagnostic(*D.get(), bugReports);
-  
+  // Generate the full path diagnostic, using the generation scheme
+  // specified by the PathDiagnosticConsumer.
+  if (PD.getGenerationScheme() != PathDiagnosticConsumer::None) {
+    if (!bugReports.empty())
+      GeneratePathDiagnostic(*D.get(), PD, bugReports);
+  }
+
+  // If the path is empty, generate a single step path with the location
+  // of the issue.
+  if (D->path.empty()) {
+    PathDiagnosticLocation L = exampleReport->getLocation(getSourceManager());
+    PathDiagnosticPiece *piece =
+      new PathDiagnosticEventPiece(L, exampleReport->getDescription());
+    BugReport::ranges_iterator Beg, End;
+    llvm::tie(Beg, End) = exampleReport->getRanges();
+    for ( ; Beg != End; ++Beg)
+      piece->addRange(*Beg);
+    D->getActivePath().push_back(piece);
+  }
+
   // Get the meta data.
-  const BugReport::ExtraTextList &Meta =
-                                  exampleReport->getExtraText();
+  const BugReport::ExtraTextList &Meta = exampleReport->getExtraText();
   for (BugReport::ExtraTextList::const_iterator i = Meta.begin(),
                                                 e = Meta.end(); i != e; ++i) {
     D->addMeta(*i);
   }
 
-  // Emit a summary diagnostic to the regular Diagnostics engine.
-  BugReport::ranges_iterator Beg, End;
-  llvm::tie(Beg, End) = exampleReport->getRanges();
-  DiagnosticsEngine &Diag = getDiagnostic();
-  
-  if (!IsCachedDiagnostic(exampleReport, D.get())) {
-    // Search the description for '%', as that will be interpretted as a
-    // format character by FormatDiagnostics.
-    StringRef desc = exampleReport->getShortDescription();
-
-    SmallString<512> TmpStr;
-    llvm::raw_svector_ostream Out(TmpStr);
-    for (StringRef::iterator I=desc.begin(), E=desc.end(); I!=E; ++I) {
-      if (*I == '%')
-        Out << "%%";
-      else
-        Out << *I;
-    }
-    
-    Out.flush();
-    unsigned ErrorDiag = Diag.getCustomDiagID(DiagnosticsEngine::Warning, TmpStr);
-
-    DiagnosticBuilder diagBuilder = Diag.Report(
-      exampleReport->getLocation(getSourceManager()).asLocation(), ErrorDiag);
-    for (BugReport::ranges_iterator I = Beg; I != End; ++I)
-      diagBuilder << *I;
-  }
-
-  // Emit a full diagnostic for the path if we have a PathDiagnosticConsumer.
-  if (!PD)
-    return;
-
-  if (D->path.empty()) {
-    PathDiagnosticPiece *piece = new PathDiagnosticEventPiece(
-                                 exampleReport->getLocation(getSourceManager()),
-                                 exampleReport->getDescription());
-    for ( ; Beg != End; ++Beg)
-      piece->addRange(*Beg);
-
-    D->getActivePath().push_back(piece);
-  }
-
-  PD->HandlePathDiagnostic(D.take());
+  PD.HandlePathDiagnostic(D.take());
 }
 
 void BugReporter::EmitBasicReport(const Decl *DeclWithIssue,

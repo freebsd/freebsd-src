@@ -60,9 +60,6 @@ MALLOC_DEFINE(M_SCSIENC, "SCSI ENC", "SCSI ENC buffers");
 
 /* Enclosure type independent driver */
 
-#define	SEN_ID		"UNISYS           SUN_SEN"
-#define	SEN_ID_LEN	24
-
 static	d_open_t	enc_open;
 static	d_close_t	enc_close;
 static	d_ioctl_t	enc_ioctl;
@@ -630,9 +627,8 @@ enc_log(struct enc_softc *enc, const char *fmt, ...)
 /*
  * Is this a device that supports enclosure services?
  *
- * It's a a pretty simple ruleset- if it is device type 0x0D (13), it's
- * an ENC device. If it happens to be an old UNISYS SEN device, we can
- * handle that too.
+ * It's a a pretty simple ruleset- if it is device type
+ * 0x0D (13), it's an ENCLOSURE device.
  */
 
 #define	SAFTE_START	44
@@ -659,13 +655,9 @@ enc_type(struct ccb_getdev *cgd)
 	iqd = (unsigned char *)&cgd->inq_data;
 	buflen = min(sizeof(cgd->inq_data),
 	    SID_ADDITIONAL_LENGTH(&cgd->inq_data));
-	if (buflen < 8+SEN_ID_LEN)
-		return (ENC_NONE);
 
 	if ((iqd[0] & 0x1f) == T_ENCLOSURE) {
-		if (STRNCMP(&iqd[8], SEN_ID, SEN_ID_LEN) == 0) {
-			return (ENC_SEN);
-		} else if ((iqd[2] & 0x7) > 2) {
+		if ((iqd[2] & 0x7) > 2) {
 			return (ENC_SES);
 		} else {
 			return (ENC_SES_SCSI2);
@@ -920,7 +912,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	case ENC_SEMB_SAFT:
 		err = safte_softc_init(enc);
 		break;
-	case ENC_SEN:
 	case ENC_NONE:
 	default:
 		ENC_FREE(enc);
@@ -996,9 +987,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		break;
         case ENC_SES_PASSTHROUGH:
 		tname = "ENC Passthrough Device";
-		break;
-        case ENC_SEN:
-		tname = "UNISYS SEN Device (NOT HANDLED YET)";
 		break;
         case ENC_SAFT:
 		tname = "SAF-TE Compliant Device";

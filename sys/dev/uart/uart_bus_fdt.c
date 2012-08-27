@@ -100,11 +100,13 @@ uart_fdt_probe(device_t dev)
 	pcell_t clock, shift;
 	int err;
 
-	if (!ofw_bus_is_compatible(dev, "ns16550"))
-		return (ENXIO);
-
 	sc = device_get_softc(dev);
-	sc->sc_class = &uart_ns8250_class;
+	if (ofw_bus_is_compatible(dev, "ns16550"))
+		sc->sc_class = &uart_ns8250_class;
+	else if (ofw_bus_is_compatible(dev, "lpc,uart"))
+		sc->sc_class = &uart_lpc_class;
+	else
+		return (ENXIO);
 
 	node = ofw_bus_get_node(dev);
 
@@ -137,7 +139,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	struct uart_class *class;
 	phandle_t node, chosen;
 	pcell_t shift, br, rclk;
-	u_long start, size;
+	u_long start, size, pbase, psize;
 	int err;
 
 	uart_bus_space_mem = fdtbus_bs_tag;
@@ -180,7 +182,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * Finalize configuration.
 	 */
-	class = &uart_quicc_class;
+	if (fdt_is_compatible(node, "quicc"))
+		class = &uart_quicc_class;
+	if (fdt_is_compatible(node, "lpc"))
+		class = &uart_lpc_class;
 	if (fdt_is_compatible(node, "ns16550"))
 		class = &uart_ns8250_class;
 
@@ -197,7 +202,9 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	err = fdt_regsize(node, &start, &size);
 	if (err)
 		return (ENXIO);
-	start += fdt_immr_va;
+
+	fdt_get_range(OF_parent(node), 0, &pbase, &psize);
+	start += pbase;
 
 	return (bus_space_map(di->bas.bst, start, size, 0, &di->bas.bsh));
 }
