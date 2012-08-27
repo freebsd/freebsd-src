@@ -175,6 +175,7 @@ struct ISCI_CONTROLLER
 	SCI_POOL_CREATE(remote_device_pool, struct ISCI_REMOTE_DEVICE *, SCI_MAX_REMOTE_DEVICES);
 	SCI_POOL_CREATE(request_pool, struct ISCI_REQUEST *, SCI_MAX_IO_REQUESTS);
 	SCI_POOL_CREATE(timer_pool, struct ISCI_TIMER *, SCI_MAX_TIMERS);
+	SCI_POOL_CREATE(unmap_buffer_pool, void *, SCI_MAX_REMOTE_DEVICES);
 };
 
 struct ISCI_REQUEST
