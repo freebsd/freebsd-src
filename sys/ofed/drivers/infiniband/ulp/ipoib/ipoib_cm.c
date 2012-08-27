@@ -1247,7 +1247,9 @@ static void ipoib_cm_mb_reap(struct work_struct *work)
 						   cm.mb_task);
 	struct mbuf *mb;
 	unsigned long flags;
+#if defined(INET) || defined(INET6)
 	unsigned mtu = priv->mcast_mtu;
+#endif
 	uint16_t proto;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1260,14 +1262,20 @@ static void ipoib_cm_mb_reap(struct work_struct *work)
 
 		proto = htons(*mtod(mb, uint16_t *));
 		m_adj(mb, IPOIB_ENCAP_LEN);
-		if (proto == ETHERTYPE_IP)
+		switch (proto) {
+#if defined(INET)
+		case ETHERTYPE_IP:
 			icmp_error(mb, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0, mtu);
-#if defined(INET6)
-		else if (proto == ETHERTYPE_IPV6)
-			icmp6_error(mb, ICMP6_PACKET_TOO_BIG, 0, mtu);
+			break;
 #endif
-		else
+#if defined(INET6)
+		case ETHERTYPE_IPV6:
+			icmp6_error(mb, ICMP6_PACKET_TOO_BIG, 0, mtu);
+			break;
+#endif
+		default:
 			m_freem(mb);
+		}
 
 		spin_lock_irqsave(&priv->lock, flags);
 	}
