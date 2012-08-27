@@ -39,6 +39,8 @@
 # done
 
 # 20120816: new clang import which bumps version from 3.1 to 3.2
+OLD_FILES+=usr/bin/llvm-ld
+OLD_FILES+=usr/bin/llvm-stub
 OLD_FILES+=usr/include/clang/3.1/altivec.h
 OLD_FILES+=usr/include/clang/3.1/avx2intrin.h
 OLD_FILES+=usr/include/clang/3.1/avxintrin.h
@@ -63,6 +65,7 @@ OLD_FILES+=usr/include/clang/3.1/wmmintrin.h
 OLD_FILES+=usr/include/clang/3.1/x86intrin.h
 OLD_FILES+=usr/include/clang/3.1/xmmintrin.h
 OLD_DIRS+=usr/include/clang/3.1
+OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
 # 20120712: OpenSSL 1.0.1c import
 OLD_LIBS+=lib/libcrypto.so.6
 OLD_LIBS+=usr/lib/libssl.so.6
