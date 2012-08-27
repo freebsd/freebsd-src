@@ -236,8 +236,10 @@ at91_mci_attach(device_t dev)
 	device_t child;
 	int err;
 
-	sc->dev = dev;
+	sctx = device_get_sysctl_ctx(dev);
+	soid = device_get_sysctl_tree(dev);
 
+	sc->dev = dev;
 	sc->sc_cap = 0;
 	if (at91_is_rm92())
 		sc->sc_cap |= CAP_NEEDS_BYTESWAP;
@@ -273,14 +275,18 @@ at91_mci_attach(device_t dev)
 		goto out;
 	}
 
-	sctx = device_get_sysctl_ctx(dev);
-	soid = device_get_sysctl_tree(dev);
-	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "4wire",
-	    CTLFLAG_RW, &sc->has_4wire, 0, "has 4 wire SD Card bus");
-
-#ifdef AT91_MCI_HAS_4WIRE
+	/*
+	 * Allow 4-wire to be initially set via #define.
+	 * Allow a device hint to override that.
+	 * Allow a sysctl to override that.
+	 */
+#if defined(AT91_MCI_HAS_4WIRE) && AT91_MCI_HAS_4WIRE != 0
 	sc->has_4wire = 1;
 #endif
+	resource_int_value(device_get_name(dev), device_get_unit(dev), 
+			   "4wire", &sc->has_4wire);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "4wire",
+	    CTLFLAG_RW, &sc->has_4wire, 0, "has 4 wire SD Card bus");
 	if (sc->has_4wire)
 		sc->sc_cap |= CAP_HAS_4WIRE;
 
