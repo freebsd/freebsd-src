@@ -988,7 +988,7 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			   params->cckTrigHigh / 1000) {
                         HALDEBUG(ah, HAL_DEBUG_ANI,
                             "%s: CCK err %u listenTime %u\n", __func__,
-                            aniState->ofdmPhyErrCount, aniState->listenTime);
+                            aniState->cckPhyErrCount, aniState->listenTime);
 			ar5416AniCckErrTrigger(ah);
 			ar5416AniRestart(ah, aniState);
 		}
