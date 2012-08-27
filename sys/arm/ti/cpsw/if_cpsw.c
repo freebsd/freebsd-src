@@ -216,13 +216,11 @@ cpsw_attach(device_t dev)
 	struct cpsw_softc *sc;
 	struct mii_softc *miisc;
 	struct ifnet *ifp;
-	uint8_t mac_addr[ETHER_ADDR_LEN];
 	int i, error, phy;
 	uint32_t reg;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	memcpy(sc->mac_addr, mac_addr, ETHER_ADDR_LEN);
 	sc->node = ofw_bus_get_node(dev);
 
 	/* Get phy address from fdt */
@@ -279,17 +277,17 @@ cpsw_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
-	/* Get low part of MAC address from control module (mac_id0_lo) */
-	ti_scm_reg_read_4(0x630, &reg);
-	mac_addr[0] = (reg >>  8) & 0xFF;
-	mac_addr[1] = reg & 0xFF;
-
 	/* Get high part of MAC address from control module (mac_id0_hi) */
 	ti_scm_reg_read_4(0x634, &reg);
-	mac_addr[2] = (reg >> 24) & 0xFF;
-	mac_addr[3] = (reg >> 16) & 0xFF;
-	mac_addr[4] = (reg >>  8) & 0xFF;
-	mac_addr[5] = reg & 0xFF;
+	sc->mac_addr[0] = reg & 0xFF;
+	sc->mac_addr[1] = (reg >>  8) & 0xFF;
+	sc->mac_addr[2] = (reg >> 16) & 0xFF;
+	sc->mac_addr[3] = (reg >> 24) & 0xFF;
+
+	/* Get low part of MAC address from control module (mac_id0_lo) */
+	ti_scm_reg_read_4(0x630, &reg);
+	sc->mac_addr[4] = reg & 0xFF;
+	sc->mac_addr[5] = (reg >>  8) & 0xFF;
 
 	ether_ifattach(ifp, sc->mac_addr);
 	callout_init(&sc->wd_callout, 0);
