@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2012
+.Dd Aug 27, 2012
 .Dt ZPOOL-FEATURES 8
 .Os
 .Sh NAME
@@ -32,8 +32,10 @@ ZFS pool on\-disk format versions are specified via "features" which replace
 the old on\-disk format numbers (the last supported on\-disk format number is
 28).
 To enable a feature on a pool use the
+.Cm upgrade
+subcommand of the
 .Xr zpool 8
-command to set the
+command, or set the
 .Sy feature@feature_name
 property to
 .Ar enabled .
@@ -154,6 +156,12 @@ The amount of space remaining to be reclaimed by the background process is
 available through the
 .Sy freeing
 property.
+.Pp
+This feature is only
+.Sy active
+while
+.Sy freeing
+is non\-zero.
 .Sh SEE ALSO
 .Xr zpool 8
 .Sh AUTHORS
