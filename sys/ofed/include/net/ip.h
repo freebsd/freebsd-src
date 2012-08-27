@@ -29,6 +29,8 @@
 #ifndef _LINUX_NET_IP_H_
 #define	_LINUX_NET_IP_H_
 
+#include "opt_inet.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -39,6 +41,7 @@
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 
+#ifdef INET
 static inline void inet_get_local_port_range(int *low, int *high)
 {
 	*low = V_ipport_firstauto;
@@ -73,5 +76,6 @@ ip_ib_mc_map(uint32_t addr, const unsigned char *bcast, char *buf)
 	buf[18] = (addr >> 8) & 0xff;
 	buf[19] = addr & 0xff;
 }
+#endif
 
 #endif	/* _LINUX_NET_IP_H_ */
