@@ -2135,7 +2135,7 @@ swapon_check_swzone(unsigned long npages)
 	if (npages > maxpages / 2) {
 		printf("warning: total configured swap (%lu pages) "
 		    "exceeds maximum recommended amount (%lu pages).\n",
-		    npages, maxpages);
+		    npages, maxpages / 2);
 		printf("warning: increase kern.maxswzone "
 		    "or reduce amount of swap.\n");
 		return (-1);
