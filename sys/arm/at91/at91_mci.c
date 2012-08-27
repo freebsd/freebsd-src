@@ -292,7 +292,8 @@ at91_mci_attach(device_t dev)
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "30mhz",
 	    CTLFLAG_RW, &sc->use_30mhz, 0, "use 30mhz clock for 25mhz request");
 
-	/* Our real min freq is master_clock/512, but upper driver layers are
+	/*
+	 * Our real min freq is master_clock/512, but upper driver layers are
 	 * going to set the min speed during card discovery, and the right speed
 	 * for that is 400khz, so advertise a safe value just under that.
 	 *
