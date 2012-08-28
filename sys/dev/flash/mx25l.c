@@ -104,6 +104,7 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "s25s1032",  0x01, 0x0215, 64 * 1024, 64,  FL_NONE },
 	{ "s25sl064a", 0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 	{ "w25q64bv",  0xef, 0x4017, 64 * 1024, 128, FL_ERASE_4K },
+	{ "w25x32",    0xef, 0x3016, 64 * 1024, 64, FL_ERASE_4K },
 };
 
 static uint8_t
