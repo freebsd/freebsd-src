@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 27, 2012
+.Dd Aug 28, 2012
 .Dt ZPOOL-FEATURES 8
 .Os
 .Sh NAME
@@ -162,6 +162,29 @@ This feature is only
 while
 .Sy freeing
 is non\-zero.
+.It Sy empty_bpobj
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:empty_bpobj"
+.It GUID Ta com.delphix:empty_bpobj
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature increases the performance of creating and using a large number
+of snapshots of a single filesystem or volume, and also reduces the disk
+space required.
+.Pp
+When there are many snapshots, each snapshot uses many Block Pointer Objects
+.Pq bpobj's
+to track blocks associated with that snapshot.
+However, in common use cases, most of these bpobj's are empty.
+This feature allows us to create each bpobj on-demand, thus eliminating the
+empty bpobjs.
+.Pp
+This feature is
+.Sy active
+while there are any filesystems, volumes, or snapshots which were created
+after enabling this feature.
+.El
 .Sh SEE ALSO
 .Xr zpool 8
 .Sh AUTHORS
