@@ -162,10 +162,6 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
-		if (dp->d_flags & DISKFLAG_CANDELETE)
-			pp->flags |= G_PF_CANDELETE;
-		else
-			pp->flags &= ~G_PF_CANDELETE;
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
 		dp->d_flags |= DISKFLAG_OPEN;
@@ -487,8 +483,6 @@ g_disk_create(void *arg, int flag)
 	pp = g_new_providerf(gp, "%s", gp->name);
 	pp->mediasize = dp->d_mediasize;
 	pp->sectorsize = dp->d_sectorsize;
-	if (dp->d_flags & DISKFLAG_CANDELETE)
-		pp->flags |= G_PF_CANDELETE;
 	pp->stripeoffset = dp->d_stripeoffset;
 	pp->stripesize = dp->d_stripesize;
 	if (bootverbose)
