@@ -68,50 +68,51 @@ __FBSDID("$FreeBSD$");
 #include "opt_at91.h"
 
 /*
- * About running the MCI bus at 30mhz...
+ * About running the MCI bus above 25MHz
  *
- * Historically, the MCI bus has been run at 30mhz on systems with a 60mhz
- * master clock, due to a bug in the mantissa table in dev/mmc.c making it
- * appear that the card's max speed was always 30mhz.  Fixing that bug causes
- * the mmc driver to request a 25mhz clock (as it should) and the logic in
- * at91_mci_update_ios() picks the highest speed that doesn't exceed that limit.
- * With a 60mhz MCK that would be 15mhz, and that's a real performance buzzkill
- * when you've been getting away with 30mhz all along.
+ * Historically, the MCI bus has been run at 30MHz on systems with a 60MHz
+ * master clock, in part due to a bug in dev/mmc.c making always request
+ * 30MHz, and in part over clocking the bus because 15MHz was too slow.
+ * Fixing that bug causes the mmc driver to request a 25MHz clock (as it
+ * should) and the logic in at91_mci_update_ios() picks the highest speed that
+ * doesn't exceed that limit.  With a 60MHz MCK that would be 15MHz, and
+ * that's a real performance buzzkill when you've been getting away with 30MHz
+ * all along.
  *
- * By defining AT91_MCI_USE_30MHZ (or setting the 30mhz=1 device hint or
- * sysctl) you can enable logic in at91_mci_update_ios() to overlcock the SD
- * bus a little by running it at MCK / 2 when MCK is between greater than
- * 50MHz and the requested speed is 25mhz.  This appears to work on virtually
- * all SD cards, since it is what this driver has been doing prior to the
- * introduction of this option, where the overclocking vs underclocking
- * decision was automaticly "overclock".  Modern SD cards can run at
- * 45mhz/1-bit in standard mode (high speed mode enable commands not sent)
- * without problems.
+ * By defining AT91_MCI_ALLOW_OVERCLOCK (or setting the allow_overclock=1
+ * device hint or sysctl) you can enable logic in at91_mci_update_ios() to
+ * overlcock the SD bus a little by running it at MCK / 2 when the requested
+ * speed is 25MHz and the next highest speed is 15MHz or less.  This appears
+ * to work on virtually all SD cards, since it is what this driver has been
+ * doing prior to the introduction of this option, where the overclocking vs
+ * underclocking decision was automaticly "overclock".  Modern SD cards can
+ * run at 45mhz/1-bit in standard mode (high speed mode enable commands not
+ * sent) without problems.
  *
  * Speaking of high-speed mode, the rm9200 manual says the MCI device supports
- * the SD v1.0 specification and can run up to 50mhz.  This is interesting in
- * that the SD v1.0 spec caps the speed at 25mhz; high speed mode was added in
+ * the SD v1.0 specification and can run up to 50MHz.  This is interesting in
+ * that the SD v1.0 spec caps the speed at 25MHz; high speed mode was added in
  * the v1.10 spec.  Furthermore, high speed mode doesn't just crank up the
  * clock, it alters the signal timing.  The rm9200 MCI device doesn't support
- * these altered timings.  So while speeds over 25mhz may work, they only work
+ * these altered timings.  So while speeds over 25MHz may work, they only work
  * in what the SD spec calls "default" speed mode, and it amounts to violating
  * the spec by overclocking the bus.
  *
- * If you also enable 4-wire mode it's possible the 30mhz transfers will fail.
- * On the AT91RM9200, due to bugs in the bus contention logic, if you have the
- * USB host device and OHCI driver enabled will fail.  Even underclocking to
- * 15MHz, intermittant overrun and underrun errors occur.  Note that you don't
- * even need to have usb devices attached to the system, the errors begin to
- * occur as soon as the OHCI driver sets the register bit to enable periodic
- * transfers.  It appears (based on brief investigation) that the usb host
- * controller uses so much ASB bandwidth that sometimes the DMA for MCI
- * transfers doesn't get a bus grant in time and data gets dropped.  Adding
- * even a modicum of network activity changes the symptom from intermittant to
- * very frequent.  Members of the AT91SAM9 family have corrected this problem, or
- * are at least better about their use of the bus.
+ * If you also enable 4-wire mode it's possible transfers faster than 25MHz
+ * will fail.  On the AT91RM9200, due to bugs in the bus contention logic, if
+ * you have the USB host device and OHCI driver enabled will fail.  Even
+ * underclocking to 15MHz, intermittant overrun and underrun errors occur.
+ * Note that you don't even need to have usb devices attached to the system,
+ * the errors begin to occur as soon as the OHCI driver sets the register bit
+ * to enable periodic transfers.  It appears (based on brief investigation)
+ * that the usb host controller uses so much ASB bandwidth that sometimes the
+ * DMA for MCI transfers doesn't get a bus grant in time and data gets
+ * dropped.  Adding even a modicum of network activity changes the symptom
+ * from intermittant to very frequent.  Members of the AT91SAM9 family have
+ * corrected this problem, or are at least better about their use of the bus.
  */
-#ifndef AT91_MCI_USE_30MHZ
-#define AT91_MCI_USE_30MHZ 1
+#ifndef AT91_MCI_ALLOW_OVERCLOCK
+#define AT91_MCI_ALLOW_OVERCLOCK 1
 #endif
 
 /*
@@ -146,7 +147,7 @@ struct at91_mci_softc {
 #define CMD_MULTIREAD	0x10
 #define CMD_MULTIWRITE	0x20
 	int has_4wire;
-	int use_30mhz;
+	int allow_overclock;
 	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
 	struct mtx sc_mtx;
@@ -194,7 +195,7 @@ WR4(struct at91_mci_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
-static void 
+static void
 at91_bswap_buf(struct at91_mci_softc *sc, void * dptr, void * sptr, uint32_t memsize)
 {
 	uint32_t * dst = (uint32_t *)dptr;
@@ -315,7 +316,7 @@ at91_mci_init(device_t dev)
 	WR4(sc, MCI_SDCR, 0);			/* SLOT A, 1 bit bus */
 #else
 	/*
-	 * XXX Really should add second "unit" but nobody using using 
+	 * XXX Really should add second "unit" but nobody using using
 	 * a two slot card that we know of. XXX
 	 */
 	WR4(sc, MCI_SDCR, 1);			/* SLOT B, 1 bit bus */
@@ -385,7 +386,7 @@ at91_mci_attach(device_t dev)
 	 * byte-swapping with the DMA operations.
 	 */
 	err = bus_dma_tag_create(bus_get_dma_tag(dev), 4096, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, 
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    BBSIZE, 1, BBSIZE, 0, NULL, NULL, &sc->dmatag);
 	if (err != 0)
 		goto out;
@@ -421,36 +422,35 @@ at91_mci_attach(device_t dev)
 #if defined(AT91_MCI_HAS_4WIRE) && AT91_MCI_HAS_4WIRE != 0
 	sc->has_4wire = 1;
 #endif
-	resource_int_value(device_get_name(dev), device_get_unit(dev), 
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
 			   "4wire", &sc->has_4wire);
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "4wire",
 	    CTLFLAG_RW, &sc->has_4wire, 0, "has 4 wire SD Card bus");
 	if (sc->has_4wire)
 		sc->sc_cap |= CAP_HAS_4WIRE;
 
-#if defined(AT91_MCI_USE_30MHZ) && AT91_MCI_USE_30MHZ != 0
-	sc->use_30mhz = 1;
-#endif
-	resource_int_value(device_get_name(dev), device_get_unit(dev), 
-			   "30mhz", &sc->use_30mhz);
-	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "30mhz",
-	    CTLFLAG_RW, &sc->use_30mhz, 0, "use 30mhz clock for 25mhz request");
+	sc->allow_overclock = AT91_MCI_ALLOW_OVERCLOCK;
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+			   "allow_overclock", &sc->allow_overclock);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "allow_overclock",
+	    CTLFLAG_RW, &sc->allow_overclock, 0,
+	    "Allow up to 30MHz clock for 25MHz request when next highest speed 15MHz or less.");
 
 	/*
 	 * Our real min freq is master_clock/512, but upper driver layers are
 	 * going to set the min speed during card discovery, and the right speed
-	 * for that is 400khz, so advertise a safe value just under that.
+	 * for that is 400kHz, so advertise a safe value just under that.
 	 *
 	 * For max speed, while the rm9200 manual says the max is 50mhz, it also
 	 * says it supports only the SD v1.0 spec, which means the real limit is
 	 * 25mhz. On the other hand, historical use has been to slightly violate
-	 * the standard by running the bus at 30mhz.  For more information on
+	 * the standard by running the bus at 30MHz.  For more information on
 	 * that, see the comments at the top of this file.
 	 */
 	sc->host.f_min = 375000;
 	sc->host.f_max = at91_master_clock / 2;
-	if (sc->host.f_max > 25000000)	
-		sc->host.f_max = 25000000;	/* Limit to 25MHz */
+	if (sc->host.f_max > 25000000)
+		sc->host.f_max = 25000000;
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps = 0;
 	if (sc->sc_cap & CAP_HAS_4WIRE)
@@ -549,6 +549,7 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 	struct at91_mci_softc *sc;
 	struct mmc_ios *ios;
 	uint32_t clkdiv;
+	uint32_t freq;
 
 	sc = device_get_softc(brdev);
 	ios = &sc->host.ios;
@@ -557,11 +558,10 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 	 * Calculate our closest available clock speed that doesn't exceed the
 	 * requested speed.
 	 *
-	 * If the master clock is 50MHz-62MHz and the requested bus speed is
-	 * 25mhz and the use_30mhz flag is on, set clkdiv to zero to get a
-	 * master_clock / 2 (25-31MHz) MMC/SD clock rather than settle for the
-	 * next lower click (12.5-15.5MHz). See comments near the top of the
-	 * file for more info.
+	 * When overclocking is allowed, the requested clock is 25MHz, the
+	 * computed frequency is 15MHz or smaller and clockdiv is 1, use
+	 * clockdiv of 0 to double that.  If less than 12.5MHz, double
+	 * regardless of the overclocking setting.
 	 *
 	 * Whatever we come up with, store it back into ios->clock so that the
 	 * upper layer drivers can report the actual speed of the bus.
@@ -571,15 +571,18 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 		clkdiv = 0;
 	} else {
 		WR4(sc, MCI_CR, MCI_CR_MCIEN|MCI_CR_PWSEN);
-		if (sc->use_30mhz && ios->clock == 25000000 &&
-		    at91_master_clock > 50000000 &&
-		    at91_master_clock < 62000000)
-			clkdiv = 0;
-		else if ((at91_master_clock % (ios->clock * 2)) == 0)
+		if ((at91_master_clock % (ios->clock * 2)) == 0)
 			clkdiv = ((at91_master_clock / ios->clock) / 2) - 1;
 		else
 			clkdiv = (at91_master_clock / ios->clock) / 2;
-		ios->clock = at91_master_clock / ((clkdiv+1) * 2);
+		freq = at91_master_clock / ((clkdiv+1) * 2);
+		if (clkdiv == 1 && ios->clock == 25000000 && freq <= 15000000) {
+			if (sc->allow_overclock || freq <= 12500000) {
+				clkdiv = 0;
+				freq = at91_master_clock / ((clkdiv+1) * 2);
+			}
+		}
+		ios->clock = freq;
 	}
 	if (ios->bus_width == bus_width_4)
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) | MCI_SDCR_SDCBUS);
@@ -636,8 +639,8 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	 */
 
 	if (data == NULL) {
-		uint32_t ier = MCI_SR_CMDRDY | 
-		    MCI_SR_RTOE | MCI_SR_RENDE | 
+		uint32_t ier = MCI_SR_CMDRDY |
+		    MCI_SR_RTOE | MCI_SR_RENDE |
 		    MCI_SR_RCRCE | MCI_SR_RDIRE | MCI_SR_RINDE;
 
 		at91_mci_pdc_disable(sc);
@@ -652,7 +655,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 			ier &= ~MCI_SR_RCRCE;
 
 		if (mci_debug)
-			printf("CMDR %x (opcode %d) ARGR %x no data\n", 
+			printf("CMDR %x (opcode %d) ARGR %x no data\n",
 			    cmdr, cmd->opcode, cmd->arg);
 
 		WR4(sc, MCI_ARGR, cmd->arg);
@@ -674,8 +677,8 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 		cmdr |= MCI_CMDR_TRTYP_STREAM;
 	else if (data->flags & MMC_DATA_MULTI) {
 		cmdr |= MCI_CMDR_TRTYP_MULTIPLE;
-		sc->flags |= (data->flags & MMC_DATA_READ) ? 
-				CMD_MULTIREAD : CMD_MULTIWRITE;
+		sc->flags |= (data->flags & MMC_DATA_READ) ?
+		    CMD_MULTIREAD : CMD_MULTIWRITE;
 	}
 
 	/*
@@ -687,10 +690,10 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	 * smaller blocks are possible, but never larger.
 	 */
 
-	WR4(sc, PDC_PTCR, PDC_PTCR_RXTDIS | PDC_PTCR_TXTDIS); 
+	WR4(sc, PDC_PTCR, PDC_PTCR_RXTDIS | PDC_PTCR_TXTDIS);
 
-	mr = RD4(sc,MCI_MR) & ~MCI_MR_BLKLEN; 
-	mr |=  min(data->len, 512) << 16; 
+	mr = RD4(sc,MCI_MR) & ~MCI_MR_BLKLEN;
+	mr |=  min(data->len, 512) << 16;
 	WR4(sc, MCI_MR, mr | MCI_MR_PDCMODE|MCI_MR_PDCPADV);
 
 	/*
@@ -740,12 +743,12 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				len = remaining / 2;
 			else
 				len = remaining;
-			err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[0], 
-			    sc->bbuf_vaddr[0], len, at91_mci_getaddr, 
+			err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[0],
+			    sc->bbuf_vaddr[0], len, at91_mci_getaddr,
 			    &paddr, BUS_DMA_NOWAIT);
 			if (err != 0)
 				panic("IO read dmamap_load failed\n");
-			bus_dmamap_sync(sc->dmatag, sc->bbuf_map[0], 
+			bus_dmamap_sync(sc->dmatag, sc->bbuf_map[0],
 			    BUS_DMASYNC_PREREAD);
 			WR4(sc, PDC_RPR, paddr);
 			WR4(sc, PDC_RCR, len / 4);
@@ -755,12 +758,12 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				sc->bbuf_len[1] = 0;
 			} else {
 				len = remaining;
-				err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[1], 
-				    sc->bbuf_vaddr[1], len, at91_mci_getaddr, 
+				err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[1],
+				    sc->bbuf_vaddr[1], len, at91_mci_getaddr,
 				    &paddr, BUS_DMA_NOWAIT);
 				if (err != 0)
 					panic("IO read dmamap_load failed\n");
-				bus_dmamap_sync(sc->dmatag, sc->bbuf_map[1], 
+				bus_dmamap_sync(sc->dmatag, sc->bbuf_map[1],
 				    BUS_DMASYNC_PREREAD);
 				WR4(sc, PDC_RNPR, paddr);
 				WR4(sc, PDC_RNCR, len / 4);
@@ -780,12 +783,12 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				memset(data->data, 0, 12);
 			}
 			at91_bswap_buf(sc, sc->bbuf_vaddr[0], data->data, len);
-			err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[0], 
-			    sc->bbuf_vaddr[0], len, at91_mci_getaddr, 
+			err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[0],
+			    sc->bbuf_vaddr[0], len, at91_mci_getaddr,
 			    &paddr, BUS_DMA_NOWAIT);
 			if (err != 0)
 				panic("IO write dmamap_load failed\n");
-			bus_dmamap_sync(sc->dmatag, sc->bbuf_map[0], 
+			bus_dmamap_sync(sc->dmatag, sc->bbuf_map[0],
 			    BUS_DMASYNC_PREWRITE);
 			WR4(sc, PDC_TPR,paddr);
 			WR4(sc, PDC_TCR, len / 4);
@@ -797,12 +800,12 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				len = remaining;
 				at91_bswap_buf(sc, sc->bbuf_vaddr[1],
 				    ((char *)data->data)+BBSIZE, len);
-				err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[1], 
-				    sc->bbuf_vaddr[1], len, at91_mci_getaddr, 
+				err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[1],
+				    sc->bbuf_vaddr[1], len, at91_mci_getaddr,
 				    &paddr, BUS_DMA_NOWAIT);
 				if (err != 0)
 					panic("IO write dmamap_load failed\n");
-				bus_dmamap_sync(sc->dmatag, sc->bbuf_map[1], 
+				bus_dmamap_sync(sc->dmatag, sc->bbuf_map[1],
 				    BUS_DMASYNC_PREWRITE);
 				WR4(sc, PDC_TNPR, paddr);
 				WR4(sc, PDC_TNCR, len / 4);
@@ -815,7 +818,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	}
 
 	if (mci_debug)
-		printf("CMDR %x (opcode %d) ARGR %x with data len %d\n", 
+		printf("CMDR %x (opcode %d) ARGR %x with data len %d\n",
 		       cmdr, cmd->opcode, cmd->arg, cmd->data->len);
 
 	WR4(sc, MCI_ARGR, cmd->arg);
@@ -1006,7 +1009,7 @@ at91_mci_stop_done(struct at91_mci_softc *sc, uint32_t sr)
 
 	/*
 	 * This is known to be true of at91rm9200 hardware; it may or may not
-	 * apply to more recent chips: 
+	 * apply to more recent chips:
 	 *
 	 * After stopping a multi-block write, the NOTBUSY bit in MCI_SR does
 	 * not properly reflect the actual busy state of the card as signaled
@@ -1193,10 +1196,10 @@ at91_mci_intr(void *arg)
 		 * helpful. XXX bootverbose?
 		 */
 		if (cmd->opcode != 8) {
-			device_printf(sc->dev, 
-			    "IO error; status MCI_SR = 0x%x cmd opcode = %d%s\n",  
+			device_printf(sc->dev,
+			    "IO error; status MCI_SR = 0x%x cmd opcode = %d%s\n",
 			    sr, cmd->opcode,
-			    (cmd->opcode != 12) ? "" : 
+			    (cmd->opcode != 12) ? "" :
 			    (sc->flags & CMD_MULTIREAD) ? " after read" : " after write");
 			at91_mci_reset(sc);
 		}
