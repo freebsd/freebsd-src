@@ -45,7 +45,7 @@ hint.map.1.at="flash/spi0"
 hint.map.1.start=0x00040000
 hint.map.1.end=0x00050000
 hint.map.1.name="cfg"
-hint.map.1.readonly=1
+hint.map.1.readonly=0
 
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x0050000
