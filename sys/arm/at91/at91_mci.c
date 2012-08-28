@@ -161,18 +161,6 @@ struct at91_mci_softc {
 	uint32_t     xfer_offset;	  /* offset so far into caller's buf */
 };
 
-static inline uint32_t
-RD4(struct at91_mci_softc *sc, bus_size_t off)
-{
-	return (bus_read_4(sc->mem_res, off));
-}
-
-static inline void
-WR4(struct at91_mci_softc *sc, bus_size_t off, uint32_t val)
-{
-	bus_write_4(sc->mem_res, off, val);
-}
-
 /* bus entry points */
 static int at91_mci_probe(device_t dev);
 static int at91_mci_attach(device_t dev);
@@ -192,6 +180,18 @@ static int at91_mci_is_mci1rev2xx(void);
 #define AT91_MCI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 #define AT91_MCI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define AT91_MCI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+
+static inline uint32_t
+RD4(struct at91_mci_softc *sc, bus_size_t off)
+{
+	return (bus_read_4(sc->mem_res, off));
+}
+
+static inline void
+WR4(struct at91_mci_softc *sc, bus_size_t off, uint32_t val)
+{
+	bus_write_4(sc->mem_res, off, val);
+}
 
 static void 
 at91_bswap_buf(struct at91_mci_softc *sc, void * dptr, void * sptr, uint32_t memsize)
