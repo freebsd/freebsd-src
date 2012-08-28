@@ -263,7 +263,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
 				continue;
 			/*
-			 * Check if policy has an SA associated with it.
+			 * Check if policy has no SA associated with it.
 			 * This can happen when an SP has yet to acquire
 			 * an SA; e.g. on first reference.  If it occurs,
 			 * then we let ipsec4_process_packet do its thing.
