@@ -557,10 +557,10 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 	 * Calculate our closest available clock speed that doesn't exceed the
 	 * requested speed.
 	 *
-	 * If the master clock is greater than 50MHz and the requested bus
-	 * speed is 25mhz and the use_30mhz flag is on, set clkdiv to zero to
-	 * get a master_clock / 2 (25-30MHz) MMC/SD clock rather than settle for
-	 * the next lower click (12-15MHz). See comments near the top of the
+	 * If the master clock is 50MHz-62MHz and the requested bus speed is
+	 * 25mhz and the use_30mhz flag is on, set clkdiv to zero to get a
+	 * master_clock / 2 (25-31MHz) MMC/SD clock rather than settle for the
+	 * next lower click (12.5-15.5MHz). See comments near the top of the
 	 * file for more info.
 	 *
 	 * Whatever we come up with, store it back into ios->clock so that the
@@ -572,7 +572,8 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 	} else {
 		WR4(sc, MCI_CR, MCI_CR_MCIEN|MCI_CR_PWSEN);
 		if (sc->use_30mhz && ios->clock == 25000000 &&
-		    at91_master_clock > 50000000)
+		    at91_master_clock > 50000000 &&
+		    at91_master_clock < 62000000)
 			clkdiv = 0;
 		else if ((at91_master_clock % (ios->clock * 2)) == 0)
 			clkdiv = ((at91_master_clock / ios->clock) / 2) - 1;
