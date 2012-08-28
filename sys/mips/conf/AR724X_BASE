@@ -50,6 +50,9 @@ options		DEBUG_MEMGUARD
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
 
+# .. And no sysctl strings
+options         NO_SYSCTL_DESCR
+
 options         FFS                     #Berkeley Fast Filesystem
 # options         SOFTUPDATES             #Enable FFS soft updates support
 # options         UFS_ACL                 #Support for access control lists
@@ -117,7 +120,7 @@ device		loop
 device		ether
 device		md
 device		bpf
-device		random
+#device		random
 #device		if_bridge
 #device		gif		# ip[46] in ip[46] tunneling protocol
 #device		gre		# generic encapsulation - only for IPv4 in IPv4 though atm
