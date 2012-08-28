@@ -392,7 +392,6 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
 	pp2 = LIST_FIRST(&gp->consumer)->provider;
-	pp->flags = pp2->flags & G_PF_CANDELETE;
 	pp->stripesize = pp2->stripesize;
 	pp->stripeoffset = pp2->stripeoffset + offset;
 	if (pp->stripesize > 0)
