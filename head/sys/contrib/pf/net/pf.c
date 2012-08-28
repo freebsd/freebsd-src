@@ -1503,6 +1503,18 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	else
 		PF_HASHROW_ASSERT(ih);
 
+	if (s->timeout == PFTM_UNLINKED) {
+		/*
+		 * State is being processed
+		 * by pf_unlink_state() in
+		 * an other thread.
+		 */
+		PF_HASHROW_UNLOCK(ih);
+		return (0);	/* XXXGL: undefined actually */
+	}
+
+	s->timeout = PFTM_UNLINKED;
+
 	if (s->src.state == PF_TCPS_PROXY_DST) {
 		/* XXX wire key the right one? */
 		pf_send_tcp(NULL, s->rule.ptr, s->key[PF_SK_WIRE]->af,
@@ -1520,7 +1532,6 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 		if (export_pflow_ptr != NULL)
 			export_pflow_ptr(s);
 #endif
-	s->timeout = PFTM_UNLINKED;
 	pf_src_tree_remove_state(s);
 	PF_HASHROW_UNLOCK(ih);
 
