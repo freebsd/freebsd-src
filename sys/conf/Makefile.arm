@@ -54,6 +54,8 @@ DDB_ENABLED!=	grep DDB opt_ddb.h || true
 
 .if empty(DDB_ENABLED)
 CFLAGS += -mno-apcs-frame
+.else
+CFLAGS += -funwind-tables
 .endif
 
 SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader \
