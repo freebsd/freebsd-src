@@ -139,6 +139,7 @@ struct at91_mci_softc {
 	int sc_cap;
 #define	CAP_HAS_4WIRE		1	/* Has 4 wire bus */
 #define	CAP_NEEDS_BYTESWAP	2	/* broken hardware needing bounce */
+#define	CAP_MCI1_REV2XX		4	/* MCI 1 rev 2.x */
 	int flags;
 #define PENDING_CMD	0x01
 #define PENDING_STOP	0x02
@@ -307,7 +308,7 @@ at91_mci_init(device_t dev)
 	WR4(sc, MCI_DTOR, MCI_DTOR_DTOMUL_1M | 1);
 	val = MCI_MR_PDCMODE;
 	val |= 0x34a;				/* PWSDIV = 3; CLKDIV = 74 */
-	if (at91_mci_is_mci1rev2xx())
+	if (sc->sc_cap & CAP_MCI1_REV2XX)
 		val |= MCI_MR_RDPROOF | MCI_MR_WRPROOF;
 	WR4(sc, MCI_MR, val);
 #ifndef  AT91_MCI_SLOT_B
@@ -405,6 +406,12 @@ at91_mci_attach(device_t dev)
 		AT91_MCI_LOCK_DESTROY(sc);
 		goto out;
 	}
+
+	/*
+	 * MCI1 Rev 2 controllers need some workarounds, flag if so.
+	 */
+	if (at91_mci_is_mci1rev2xx())
+		sc->sc_cap |= CAP_MCI1_REV2XX;
 
 	/*
 	 * Allow 4-wire to be initially set via #define.
@@ -767,7 +774,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 			 * a work-around for the "Data Write Operation and
 			 * number of bytes" erratum.
 			 */
-			if (at91_mci_is_mci1rev2xx() && data->len < 12) {
+			if ((sc->sc_cap & CAP_MCI1_REV2XX) && data->len < 12) {
 				len = 12;
 				memset(data->data, 0, 12);
 			}
