@@ -60,7 +60,7 @@ struct tty_list {
  * globals - yes yuk
  */
 #ifdef CONSOLE_TTY
-static char 	*Console = CONSOLE_TTY;
+static char	*Console = CONSOLE_TTY;
 #endif
 static time_t	Total = 0;
 static time_t	FirstTime = 0;
@@ -405,7 +405,6 @@ log_out(struct utmp_list *head, struct utmpx *up)
 		}
 	return head;
 }
-
 
 /*
  * if do_tty says ok, login a user
