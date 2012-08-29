@@ -143,10 +143,8 @@ ENTRY(acpi_restorecpu)
 	movq	%rax, %rdx
 	shrq	$32, %rdx
 	movl	$XCR0, %ecx
-/*	xsetbv	*/
-	.byte	0x0f, 0x01, 0xd1
-/*	xrstor	(%rbx) */
-	.byte	0x0f, 0xae, 0x2b
+	xsetbv
+	xrstor	(%rbx)
 	jmp	2f
 1:
 	fxrstor	(%rbx)
