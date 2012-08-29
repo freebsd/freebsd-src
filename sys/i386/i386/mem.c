@@ -72,8 +72,6 @@ __FBSDID("$FreeBSD$");
  */
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 
-struct mem_range_softc mem_range_softc;
-
 static struct sx memsxlock;
 SX_SYSINIT(memsxlockinit, &memsxlock, "/dev/mem lock");
 
