@@ -72,10 +72,25 @@ struct socket;
 struct file;
 struct ucred;
 
+#define	FOF_OFFSET	0x01	/* Use the offset in uio argument */
+#define	FOF_NOLOCK	0x02	/* Do not take FOFFSET_LOCK */
+#define	FOF_NEXTOFF	0x04	/* Also update f_nextoff */
+#define	FOF_NOUPDATE	0x10	/* Do not update f_offset */
+off_t foffset_lock(struct file *fp, int flags);
+void foffset_lock_uio(struct file *fp, struct uio *uio, int flags);
+void foffset_unlock(struct file *fp, off_t val, int flags);
+void foffset_unlock_uio(struct file *fp, struct uio *uio, int flags);
+
+static inline off_t
+foffset_get(struct file *fp)
+{
+
+	return (foffset_lock(fp, FOF_NOLOCK));
+}
+
 typedef int fo_rdwr_t(struct file *fp, struct uio *uio,
 		    struct ucred *active_cred, int flags,
 		    struct thread *td);
-#define	FOF_OFFSET	1	/* Use the offset in uio argument */
 typedef	int fo_truncate_t(struct file *fp, off_t length,
 		    struct ucred *active_cred, struct thread *td);
 typedef	int fo_ioctl_t(struct file *fp, u_long com, void *data,

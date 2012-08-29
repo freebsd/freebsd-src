@@ -1170,18 +1170,14 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	if (ioflag & O_DIRECT)
 		ioflag |= IO_DIRECT;
 
-	if ((flags & FOF_OFFSET) == 0)
-		uio->uio_offset = fp->f_offset;
-
+	foffset_lock_uio(fp, uio, flags | FOF_NOLOCK);
 	error = dsw->d_read(dev, uio, ioflag);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
 
-	if ((flags & FOF_OFFSET) == 0)
-		fp->f_offset = uio->uio_offset;
-	fp->f_nextoff = uio->uio_offset;
+	foffset_unlock_uio(fp, uio, flags | FOF_NOLOCK | FOF_NEXTOFF);
 	return (error);
 }
 
@@ -1648,8 +1644,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	ioflag = fp->f_flag & (O_NONBLOCK | O_DIRECT | O_FSYNC);
 	if (ioflag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	if ((flags & FOF_OFFSET) == 0)
-		uio->uio_offset = fp->f_offset;
+	foffset_lock_uio(fp, uio, flags | FOF_NOLOCK);
 
 	resid = uio->uio_resid;
 
@@ -1661,9 +1656,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
 
-	if ((flags & FOF_OFFSET) == 0)
-		fp->f_offset = uio->uio_offset;
-	fp->f_nextoff = uio->uio_offset;
+	foffset_unlock_uio(fp, uio, flags | FOF_NOLOCK | FOF_NEXTOFF);
 	return (error);
 }
 
