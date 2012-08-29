@@ -493,6 +493,7 @@ install_service() {
 			      -a "-D" -y tcpip "${cygwin_env[@]}" \
 			      -u "${run_service_as}" -w "${password}"
 	then
+	  /usr/bin/editrights -u "${run_service_as}" -a SeServiceLogonRight
 	  echo
 	  csih_inform "The sshd service has been installed under the '${run_service_as}'"
 	  csih_inform "account.  To start the service now, call \`net start sshd' or"

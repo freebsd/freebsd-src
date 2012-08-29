@@ -303,7 +303,7 @@ DESCRIPTION
              Port forwardings can also be specified in the configuration file.
              Privileged ports can be forwarded only when logging in as root on
              the remote machine.  IPv6 addresses can be specified by enclosing
-             the address in square braces.
+             the address in square brackets.
 
              By default, the listening socket on the server will be bound to
              the loopback interface only.  This may be overridden by
@@ -347,7 +347,7 @@ DESCRIPTION
      -W host:port
              Requests that standard input and output on the client be
              forwarded to host on port over the secure channel.  Implies -N,
-             -T, ExitOnForwardFailure and ClearAllForwardings and works with
+             -T, ExitOnForwardFailure and ClearAllForwardings.  Works with
              Protocol version 2 only.
 
      -w local_tun[:remote_tun]
@@ -835,8 +835,8 @@ FILES
      /etc/ssh/ssh_host_dsa_key
      /etc/ssh/ssh_host_ecdsa_key
      /etc/ssh/ssh_host_rsa_key
-             These three files contain the private parts of the host keys and
-             are used for host-based authentication.  If protocol version 1 is
+             These files contain the private parts of the host keys and are
+             used for host-based authentication.  If protocol version 1 is
              used, ssh must be setuid root, since the host key is readable
              only by root.  For protocol version 2, ssh uses ssh-keysign(8) to
              access the host keys, eliminating the requirement that ssh be
@@ -904,4 +904,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.0                   September 11, 2011                   OpenBSD 5.0
+OpenBSD 5.2                      June 18, 2012                     OpenBSD 5.2

@@ -179,6 +179,7 @@ void
 ssh_sandbox_child(struct ssh_sandbox *box)
 {
 	struct rlimit rl_zero;
+	int nnp_failed = 0;
 
 	/* Set rlimits for completeness if possible. */
 	rl_zero.rlim_cur = rl_zero.rlim_max = 0;
@@ -197,13 +198,18 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 #endif /* SANDBOX_SECCOMP_FILTER_DEBUG */
 
 	debug3("%s: setting PR_SET_NO_NEW_PRIVS", __func__);
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1)
-		fatal("%s: prctl(PR_SET_NO_NEW_PRIVS): %s",
+	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
+		debug("%s: prctl(PR_SET_NO_NEW_PRIVS): %s",
 		      __func__, strerror(errno));
+		nnp_failed = 1;
+	}
 	debug3("%s: attaching seccomp filter program", __func__);
 	if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &preauth_program) == -1)
-		fatal("%s: prctl(PR_SET_SECCOMP): %s",
+		debug("%s: prctl(PR_SET_SECCOMP): %s",
 		      __func__, strerror(errno));
+	else if (nnp_failed)
+		fatal("%s: SECCOMP_MODE_FILTER activated but "
+		    "PR_SET_NO_NEW_PRIVS failed", __func__);
 }
 
 void

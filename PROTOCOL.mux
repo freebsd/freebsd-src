@@ -110,9 +110,9 @@ A client may request the master to establish a port forward:
 	uint32	request id
 	uint32	forwarding type
 	string	listen host
-	string	listen port
+	uint32	listen port
 	string	connect host
-	string	connect port
+	uint32	connect port
 
 forwarding type may be MUX_FWD_LOCAL, MUX_FWD_REMOTE, MUX_FWD_DYNAMIC.
 
@@ -135,9 +135,9 @@ A client may request the master to close a port forward:
 	uint32	request id
 	uint32	forwarding type
 	string	listen host
-	string	listen port
+	uint32	listen port
 	string	connect host
-	string	connect port
+	uint32	connect port
 
 A server may reply with a MUX_S_OK, a MUX_S_PERMISSION_DENIED or a
 MUX_S_FAILURE.
@@ -219,4 +219,4 @@ XXX inject packet (what about replies)
 XXX server->client error/warning notifications
 XXX send signals via mux
 
-$OpenBSD: PROTOCOL.mux,v 1.8 2011/09/09 00:44:07 djm Exp $
+$OpenBSD: PROTOCOL.mux,v 1.9 2012/06/01 00:49:35 djm Exp $

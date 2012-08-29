@@ -1,4 +1,4 @@
-/* $Id: bsd-cygwin_util.h,v 1.14 2012/03/30 03:07:07 djm Exp $ */
+/* $Id: bsd-cygwin_util.h,v 1.15 2012/08/28 09:57:19 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000, 2001, 2011 Corinna Vinschen <vinschen@redhat.com>
@@ -35,6 +35,8 @@
 #ifdef HAVE_CYGWIN
 
 #undef ERROR
+
+#define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
 #include <sys/cygwin.h>

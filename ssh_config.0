@@ -361,7 +361,7 @@ DESCRIPTION
              ``no''.
 
      IdentityFile
-             Specifies a file from which the user's DSA, ECDSA or DSA
+             Specifies a file from which the user's DSA, ECDSA or RSA
              authentication identity is read.  The default is ~/.ssh/identity
              for protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and
              ~/.ssh/id_rsa for protocol version 2.  Additionally, any
@@ -463,9 +463,8 @@ DESCRIPTION
              must be comma-separated.  The default is:
 
                    hmac-md5,hmac-sha1,umac-64@openssh.com,
-                   hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
-                   hmac-sha2-256,hmac-sha2-256-96,hmac-sha2-512,
-                   hmac-sha2-512-96
+                   hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
+                   hmac-sha1-96,hmac-md5-96
 
      NoHostAuthenticationForLocalhost
              This option can be used if the home directory is shared across
@@ -764,4 +763,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.0                    September 9, 2011                   OpenBSD 5.0
+OpenBSD 5.2                      June 29, 2012                     OpenBSD 5.2

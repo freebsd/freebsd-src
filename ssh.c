@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.368 2011/10/24 02:10:46 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.370 2012/07/06 01:47:38 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -638,10 +638,6 @@ main(int ac, char **av)
 	/* Initialize the command to execute on remote host. */
 	buffer_init(&command);
 
-	if (options.request_tty == REQUEST_TTY_YES ||
-	    options.request_tty == REQUEST_TTY_FORCE)
-		tty_flag = 1;
-
 	/*
 	 * Save the command to execute on the remote host in a buffer. There
 	 * is no limit on the length of the command, except by the maximum
@@ -649,7 +645,6 @@ main(int ac, char **av)
 	 */
 	if (!ac) {
 		/* No command specified - execute shell on a tty. */
-		tty_flag = options.request_tty != REQUEST_TTY_NO;
 		if (subsystem_flag) {
 			fprintf(stderr,
 			    "You must specify a subsystem to invoke.\n");
@@ -669,22 +664,6 @@ main(int ac, char **av)
 	    !no_shell_flag)
 		fatal("Cannot fork into background without a command "
 		    "to execute.");
-
-	/* Allocate a tty by default if no command specified. */
-	if (buffer_len(&command) == 0)
-		tty_flag = options.request_tty != REQUEST_TTY_NO;
-
-	/* Force no tty */
-	if (options.request_tty == REQUEST_TTY_NO || muxclient_command != 0)
-		tty_flag = 0;
-	/* Do not allocate a tty if stdin is not a tty. */
-	if ((!isatty(fileno(stdin)) || stdin_null_flag) &&
-	    options.request_tty != REQUEST_TTY_FORCE) {
-		if (tty_flag)
-			logit("Pseudo-terminal will not be allocated because "
-			    "stdin is not a terminal.");
-		tty_flag = 0;
-	}
 
 	/*
 	 * Initialize "log" output.  Since we are the client all output
@@ -720,6 +699,26 @@ main(int ac, char **av)
 
 	/* reinit */
 	log_init(argv0, options.log_level, SYSLOG_FACILITY_USER, !use_syslog);
+
+	if (options.request_tty == REQUEST_TTY_YES ||
+	    options.request_tty == REQUEST_TTY_FORCE)
+		tty_flag = 1;
+
+	/* Allocate a tty by default if no command specified. */
+	if (buffer_len(&command) == 0)
+		tty_flag = options.request_tty != REQUEST_TTY_NO;
+
+	/* Force no tty */
+	if (options.request_tty == REQUEST_TTY_NO || muxclient_command != 0)
+		tty_flag = 0;
+	/* Do not allocate a tty if stdin is not a tty. */
+	if ((!isatty(fileno(stdin)) || stdin_null_flag) &&
+	    options.request_tty != REQUEST_TTY_FORCE) {
+		if (tty_flag)
+			logit("Pseudo-terminal will not be allocated because "
+			    "stdin is not a terminal.");
+		tty_flag = 0;
+	}
 
 	seed_rng();
 
@@ -1358,6 +1357,10 @@ ssh_session2_setup(int id, int success, void *arg)
 		channel_request_start(id, "auth-agent-req@openssh.com", 0);
 		packet_send();
 	}
+
+	/* Tell the packet module whether this is an interactive session. */
+	packet_set_interactive(interactive,
+	    options.ip_qos_interactive, options.ip_qos_bulk);
 
 	client_session2_setup(id, tty_flag, subsystem_flag, getenv("TERM"),
 	    NULL, fileno(stdin), &command, environ);

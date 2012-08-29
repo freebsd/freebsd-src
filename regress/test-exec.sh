@@ -12,6 +12,13 @@ OSF1*)
 	BIN_SH=xpg4
 	export BIN_SH
 	;;
+CYGWIN_NT-5.0)
+	os=cygwin
+	TEST_SSH_IPV6=no
+	;;
+CYGWIN*)
+	os=cygwin
+	;;
 esac
 
 if [ ! -z "$TEST_SSH_PORT" ]; then

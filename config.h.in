@@ -822,6 +822,9 @@
 /* Define to 1 if you have the `setgroups' function. */
 #undef HAVE_SETGROUPS
 
+/* Define to 1 if you have the `setlinebuf' function. */
+#undef HAVE_SETLINEBUF
+
 /* Define to 1 if you have the `setlogin' function. */
 #undef HAVE_SETLOGIN
 
@@ -1373,6 +1376,9 @@
 
 /* Sandbox using seccomp filter */
 #undef SANDBOX_SECCOMP_FILTER
+
+/* setrlimit RLIMIT_FSIZE works */
+#undef SANDBOX_SKIP_RLIMIT_FSIZE
 
 /* Sandbox using systrace(4) */
 #undef SANDBOX_SYSTRACE

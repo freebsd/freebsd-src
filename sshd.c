@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.388 2011/09/30 21:22:49 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.393 2012/07/10 02:19:15 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -419,9 +419,11 @@ sshd_exchange_identification(int sock_in, int sock_out)
 		major = PROTOCOL_MAJOR_1;
 		minor = PROTOCOL_MINOR_1;
 	}
-	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s%s", major, minor,
-	    SSH_VERSION, newline);
-	server_version_string = xstrdup(buf);
+
+	xasprintf(&server_version_string, "SSH-%d.%d-%.100s%s%s%s",
+	    major, minor, SSH_VERSION,
+	    *options.version_addendum == '\0' ? "" : " ",
+	    options.version_addendum, newline);
 
 	/* Send our protocol version identification. */
 	if (roaming_atomicio(vwrite, sock_out, server_version_string,
@@ -633,7 +635,7 @@ privsep_preauth(Authctxt *authctxt)
 	/* Store a pointer to the kex for later rekeying */
 	pmonitor->m_pkex = &xxx_kex;
 
-	if (use_privsep == PRIVSEP_SANDBOX)
+	if (use_privsep == PRIVSEP_ON)
 		box = ssh_sandbox_init();
 	pid = fork();
 	if (pid == -1) {
@@ -641,9 +643,9 @@ privsep_preauth(Authctxt *authctxt)
 	} else if (pid != 0) {
 		debug2("Network child is on pid %ld", (long)pid);
 
+		pmonitor->m_pid = pid;
 		if (box != NULL)
 			ssh_sandbox_parent_preauth(box, pid);
-		pmonitor->m_pid = pid;
 		monitor_child_preauth(authctxt, pmonitor);
 
 		/* Sync memory */
@@ -1174,7 +1176,10 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 			if (*newsock < 0) {
 				if (errno != EINTR && errno != EAGAIN &&
 				    errno != EWOULDBLOCK)
-					error("accept: %.100s", strerror(errno));
+					error("accept: %.100s",
+					    strerror(errno));
+				if (errno == EMFILE || errno == ENFILE)
+					usleep(100 * 1000);
 				continue;
 			}
 			if (unset_nonblock(*newsock) == -1) {
@@ -1320,14 +1325,14 @@ main(int ac, char **av)
 	int opt, i, j, on = 1;
 	int sock_in = -1, sock_out = -1, newsock = -1;
 	const char *remote_ip;
-	char *test_user = NULL, *test_host = NULL, *test_addr = NULL;
 	int remote_port;
-	char *line, *p, *cp;
+	char *line;
 	int config_s[2] = { -1 , -1 };
 	u_int64_t ibytes, obytes;
 	mode_t new_umask;
 	Key *key;
 	Authctxt *authctxt;
+	struct connection_info *connection_info = get_connection_info(0, 0);
 
 #ifdef HAVE_SECUREWARE
 	(void)set_auth_parameters(ac, av);
@@ -1449,20 +1454,9 @@ main(int ac, char **av)
 			test_flag = 2;
 			break;
 		case 'C':
-			cp = optarg;
-			while ((p = strsep(&cp, ",")) && *p != '\0') {
-				if (strncmp(p, "addr=", 5) == 0)
-					test_addr = xstrdup(p + 5);
-				else if (strncmp(p, "host=", 5) == 0)
-					test_host = xstrdup(p + 5);
-				else if (strncmp(p, "user=", 5) == 0)
-					test_user = xstrdup(p + 5);
-				else {
-					fprintf(stderr, "Invalid test "
-					    "mode specification %s\n", p);
-					exit(1);
-				}
-			}
+			if (parse_server_match_testspec(connection_info,
+			    optarg) == -1)
+				exit(1);
 			break;
 		case 'u':
 			utmp_len = (u_int)strtonum(optarg, 0, MAXHOSTNAMELEN+1, NULL);
@@ -1474,7 +1468,7 @@ main(int ac, char **av)
 		case 'o':
 			line = xstrdup(optarg);
 			if (process_server_config_line(&options, line,
-			    "command-line", 0, NULL, NULL, NULL, NULL) != 0)
+			    "command-line", 0, NULL, NULL) != 0)
 				exit(1);
 			xfree(line);
 			break;
@@ -1530,13 +1524,10 @@ main(int ac, char **av)
 	 * the parameters we need.  If we're not doing an extended test,
 	 * do not silently ignore connection test params.
 	 */
-	if (test_flag >= 2 &&
-	   (test_user != NULL || test_host != NULL || test_addr != NULL)
-	    && (test_user == NULL || test_host == NULL || test_addr == NULL))
+	if (test_flag >= 2 && server_match_spec_complete(connection_info) == 0)
 		fatal("user, host and addr are all required when testing "
 		   "Match configs");
-	if (test_flag < 2 && (test_user != NULL || test_host != NULL ||
-	    test_addr != NULL))
+	if (test_flag < 2 && server_match_spec_complete(connection_info) >= 0)
 		fatal("Config test connection parameter (-C) provided without "
 		   "test mode (-T)");
 
@@ -1548,7 +1539,7 @@ main(int ac, char **av)
 		load_server_config(config_file_name, &cfg);
 
 	parse_server_config(&options, rexeced_flag ? "rexec" : config_file_name,
-	    &cfg, NULL, NULL, NULL);
+	    &cfg, NULL);
 
 	seed_rng();
 
@@ -1710,9 +1701,8 @@ main(int ac, char **av)
 	}
 
 	if (test_flag > 1) {
-		if (test_user != NULL && test_addr != NULL && test_host != NULL)
-			parse_server_match_config(&options, test_user,
-			    test_host, test_addr);
+		if (server_match_spec_complete(connection_info) == 1)
+			parse_server_match_config(&options, connection_info);
 		dump_config(&options);
 	}
 

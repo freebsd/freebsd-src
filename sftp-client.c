@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.96 2011/09/12 08:46:15 markus Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.97 2012/07/02 12:13:26 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -757,7 +757,8 @@ do_realpath(struct sftp_conn *conn, char *path)
 	longname = buffer_get_string(&msg, NULL);
 	a = decode_attrib(&msg);
 
-	debug3("SSH_FXP_REALPATH %s -> %s", path, filename);
+	debug3("SSH_FXP_REALPATH %s -> %s size %lu", path, filename,
+	    (unsigned long)a->size);
 
 	xfree(longname);
 

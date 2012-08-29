@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.34 2012/01/07 21:11:36 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.36 2012/07/06 01:37:21 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -316,6 +316,8 @@ process_mux_new_session(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	cctx->term = NULL;
 	cctx->rid = rid;
 	cmd = reserved = NULL;
+	cctx->env = NULL;
+	env_len = 0;
 	if ((reserved = buffer_get_string_ret(m, NULL)) == NULL ||
 	    buffer_get_int_ret(&cctx->want_tty, m) != 0 ||
 	    buffer_get_int_ret(&cctx->want_x_fwd, m) != 0 ||
@@ -329,16 +331,19 @@ process_mux_new_session(u_int rid, Channel *c, Buffer *m, Buffer *r)
 			xfree(cmd);
 		if (reserved != NULL)
 			xfree(reserved);
+		for (j = 0; j < env_len; j++)
+			xfree(cctx->env[j]);
+		if (env_len > 0)
+			xfree(cctx->env);
 		if (cctx->term != NULL)
 			xfree(cctx->term);
+		xfree(cctx);
 		error("%s: malformed message", __func__);
 		return -1;
 	}
 	xfree(reserved);
 	reserved = NULL;
 
-	cctx->env = NULL;
-	env_len = 0;
 	while (buffer_len(m) > 0) {
 #define MUX_MAX_ENV_VARS	4096
 		if ((cp = buffer_get_string_ret(m, &len)) == NULL)
@@ -413,6 +418,7 @@ process_mux_new_session(u_int rid, Channel *c, Buffer *m, Buffer *r)
 			xfree(cctx->env);
 		}
 		buffer_free(&cctx->cmd);
+		xfree(cctx);
 		return 0;
 	}
 
@@ -1195,6 +1201,7 @@ muxserver_listen(void)
 				close(muxserver_sock);
 				muxserver_sock = -1;
 			}
+			xfree(orig_control_path);
 			xfree(options.control_path);
 			options.control_path = NULL;
 			options.control_master = SSHCTL_MASTER_NO;
@@ -1216,7 +1223,6 @@ muxserver_listen(void)
 		}
 		error("ControlSocket %s already exists, disabling multiplexing",
 		    orig_control_path);
-		xfree(orig_control_path);
 		unlink(options.control_path);
 		goto disable_mux_master;
 	}

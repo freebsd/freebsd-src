@@ -205,7 +205,8 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 		}
 
 		if (rr->_rr_class == rrset->rri_rdclass &&
-		    rr->_rr_type == LDNS_RR_TYPE_RRSIG) {
+		    rr->_rr_type == LDNS_RR_TYPE_RRSIG &&
+		    rrset->rri_sigs) {
 			rdata = &rrset->rri_sigs[index_sig++];
 		}
 

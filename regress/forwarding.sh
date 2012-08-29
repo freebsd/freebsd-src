@@ -1,4 +1,4 @@
-#	$OpenBSD: forwarding.sh,v 1.7 2010/01/11 02:53:44 dtucker Exp $
+#	$OpenBSD: forwarding.sh,v 1.8 2012/06/01 00:47:35 djm Exp $
 #	Placed in the Public Domain.
 
 tid="local and remote forwarding"
@@ -75,7 +75,7 @@ for p in 1 2; do
 	else
 		# this one should fail
 		${SSH} -$p -F $OBJ/ssh_config -p ${base}01 true \
-		     2>${TEST_SSH_LOGFILE} && \
+		     2>>$TEST_SSH_LOGFILE && \
 			fail "local forwarding not cleared"
 	fi
 	sleep 10
@@ -88,7 +88,7 @@ for p in 1 2; do
 	else
 		# this one should fail
 		${SSH} -$p -F $OBJ/ssh_config -p ${base}01 true \
-		     2>${TEST_SSH_LOGFILE} && \
+		     2>>$TEST_SSH_LOGFILE && \
 			fail "remote forwarding not cleared"
 	fi
 	sleep 10

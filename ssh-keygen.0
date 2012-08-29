@@ -19,8 +19,8 @@ SYNOPSIS
      ssh-keygen -R hostname [-f known_hosts_file]
      ssh-keygen -r hostname [-f input_keyfile] [-g]
      ssh-keygen -G output_file [-v] [-b bits] [-M memory] [-S start_point]
-     ssh-keygen -T output_file -f input_file [-v] [-a num_trials] [-K checkpt]
-                [-W generator]
+     ssh-keygen -T output_file -f input_file [-v] [-a num_trials]
+                [-J num_lines] [-j start_line] [-K checkpt] [-W generator]
      ssh-keygen -s ca_key -I certificate_identity [-h] [-n principals]
                 [-O option] [-V validity_interval] [-z serial_number] file ...
      ssh-keygen -L [-f input_keyfile]
@@ -150,6 +150,14 @@ DESCRIPTION
      -i      This option will read an unencrypted private (or public) key file
              in the format specified by the -m option and print an OpenSSH
              compatible private (or public) key to stdout.
+
+     -J num_lines
+             Exit after screening the specified number of lines while
+             performing DH candidate screening using the -T option.
+
+     -j start_line
+             Start screening at the specified line number while performing DH
+             candidate screening using the -T option.
 
      -K checkpt
              Write the last line processed to the file checkpt while
@@ -329,7 +337,7 @@ MODULI GENERATION
      length range.  This may be overridden using the -S option, which
      specifies a different start point (in hex).
 
-     Once a set of candidates have been generated, they must be tested for
+     Once a set of candidates have been generated, they must be screened for
      suitability.  This may be performed using the -T option.  In this mode
      ssh-keygen will read candidates from standard input (or a file specified
      using the -f option).  For example:
@@ -457,4 +465,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.0                    October 16, 2011                    OpenBSD 5.0
+OpenBSD 5.2                      July 6, 2012                      OpenBSD 5.2

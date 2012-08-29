@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.315 2011/09/23 07:45:05 markus Exp $ */
+/* $OpenBSD: channels.c,v 1.318 2012/04/23 08:18:17 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -311,6 +311,7 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 	c->istate = CHAN_INPUT_OPEN;
 	c->flags = 0;
 	channel_register_fds(c, rfd, wfd, efd, extusage, nonblock, 0);
+	c->notbefore = 0;
 	c->self = found;
 	c->type = type;
 	c->ctype = ctype;
@@ -1339,6 +1340,8 @@ channel_post_x11_listener(Channel *c, fd_set *readset, fd_set *writeset)
 		}
 		if (newsock < 0) {
 			error("accept: %.100s", strerror(errno));
+			if (errno == EMFILE || errno == ENFILE)
+				c->notbefore = time(NULL) + 1;
 			return;
 		}
 		set_nodelay(newsock);
@@ -1482,6 +1485,8 @@ channel_post_port_listener(Channel *c, fd_set *readset, fd_set *writeset)
 		newsock = accept(c->sock, (struct sockaddr *)&addr, &addrlen);
 		if (newsock < 0) {
 			error("accept: %.100s", strerror(errno));
+			if (errno == EMFILE || errno == ENFILE)
+				c->notbefore = time(NULL) + 1;
 			return;
 		}
 		set_nodelay(newsock);
@@ -1514,7 +1519,10 @@ channel_post_auth_listener(Channel *c, fd_set *readset, fd_set *writeset)
 		addrlen = sizeof(addr);
 		newsock = accept(c->sock, (struct sockaddr *)&addr, &addrlen);
 		if (newsock < 0) {
-			error("accept from auth socket: %.100s", strerror(errno));
+			error("accept from auth socket: %.100s",
+			    strerror(errno));
+			if (errno == EMFILE || errno == ENFILE)
+				c->notbefore = time(NULL) + 1;
 			return;
 		}
 		nc = channel_new("accepted auth socket",
@@ -1917,6 +1925,8 @@ channel_post_mux_listener(Channel *c, fd_set *readset, fd_set *writeset)
 	if ((newsock = accept(c->sock, (struct sockaddr*)&addr,
 	    &addrlen)) == -1) {
 		error("%s accept: %s", __func__, strerror(errno));
+		if (errno == EMFILE || errno == ENFILE)
+			c->notbefore = time(NULL) + 1;
 		return;
 	}
 
@@ -2067,16 +2077,21 @@ channel_garbage_collect(Channel *c)
 }
 
 static void
-channel_handler(chan_fn *ftab[], fd_set *readset, fd_set *writeset)
+channel_handler(chan_fn *ftab[], fd_set *readset, fd_set *writeset,
+    time_t *unpause_secs)
 {
 	static int did_init = 0;
 	u_int i, oalloc;
 	Channel *c;
+	time_t now;
 
 	if (!did_init) {
 		channel_handler_init();
 		did_init = 1;
 	}
+	now = time(NULL);
+	if (unpause_secs != NULL)
+		*unpause_secs = 0;
 	for (i = 0, oalloc = channels_alloc; i < oalloc; i++) {
 		c = channels[i];
 		if (c == NULL)
@@ -2087,10 +2102,30 @@ channel_handler(chan_fn *ftab[], fd_set *readset, fd_set *writeset)
 			else
 				continue;
 		}
-		if (ftab[c->type] != NULL)
-			(*ftab[c->type])(c, readset, writeset);
+		if (ftab[c->type] != NULL) {
+			/*
+			 * Run handlers that are not paused.
+			 */
+			if (c->notbefore <= now)
+				(*ftab[c->type])(c, readset, writeset);
+			else if (unpause_secs != NULL) {
+				/*
+				 * Collect the time that the earliest
+				 * channel comes off pause.
+				 */
+				debug3("%s: chan %d: skip for %d more seconds",
+				    __func__, c->self,
+				    (int)(c->notbefore - now));
+				if (*unpause_secs == 0 ||
+				    (c->notbefore - now) < *unpause_secs)
+					*unpause_secs = c->notbefore - now;
+			}
+		}
 		channel_garbage_collect(c);
 	}
+	if (unpause_secs != NULL && *unpause_secs != 0)
+		debug3("%s: first channel unpauses in %d seconds",
+		    __func__, (int)*unpause_secs);
 }
 
 /*
@@ -2099,7 +2134,7 @@ channel_handler(chan_fn *ftab[], fd_set *readset, fd_set *writeset)
  */
 void
 channel_prepare_select(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
-    u_int *nallocp, int rekeying)
+    u_int *nallocp, time_t *minwait_secs, int rekeying)
 {
 	u_int n, sz, nfdset;
 
@@ -2122,7 +2157,8 @@ channel_prepare_select(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 	memset(*writesetp, 0, sz);
 
 	if (!rekeying)
-		channel_handler(channel_pre, *readsetp, *writesetp);
+		channel_handler(channel_pre, *readsetp, *writesetp,
+		    minwait_secs);
 }
 
 /*
@@ -2132,7 +2168,7 @@ channel_prepare_select(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 void
 channel_after_select(fd_set *readset, fd_set *writeset)
 {
-	channel_handler(channel_post, readset, writeset);
+	channel_handler(channel_post, readset, writeset, NULL);
 }
 
 
@@ -3127,6 +3163,17 @@ channel_add_adm_permitted_opens(char *host, int port)
 }
 
 void
+channel_disable_adm_local_opens(void)
+{
+	if (num_adm_permitted_opens == 0) {
+		permitted_adm_opens = xmalloc(sizeof(*permitted_adm_opens));
+		permitted_adm_opens[num_adm_permitted_opens].host_to_connect
+		   = NULL;
+		num_adm_permitted_opens = 1;
+	}
+}
+
+void
 channel_clear_permitted_opens(void)
 {
 	int i;
@@ -3167,7 +3214,9 @@ channel_print_adm_permitted_opens(void)
 		return;
 	}
 	for (i = 0; i < num_adm_permitted_opens; i++)
-		if (permitted_adm_opens[i].host_to_connect != NULL)
+		if (permitted_adm_opens[i].host_to_connect == NULL)
+			printf(" none");
+		else
 			printf(" %s:%d", permitted_adm_opens[i].host_to_connect,
 			    permitted_adm_opens[i].port_to_connect);
 	printf("\n");

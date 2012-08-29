@@ -40,9 +40,10 @@ DESCRIPTION
              file that would apply to the specified user, host, and address
              will be set before the configuration is written to standard
              output.  The connection parameters are supplied as keyword=value
-             pairs.  The keywords are ``user'', ``host'', and ``addr''.  All
-             are required and may be supplied in any order, either with
-             multiple -C options or as a comma-separated list.
+             pairs.  The keywords are ``user'', ``host'', ``laddr'',
+             ``lport'', and ``addr''.  All are required and may be supplied in
+             any order, either with multiple -C options or as a comma-
+             separated list.
 
      -c host_certificate_file
              Specifies a path to a certificate file to identify sshd during
@@ -571,19 +572,19 @@ FILES
      /etc/ssh/ssh_host_dsa_key
      /etc/ssh/ssh_host_ecdsa_key
      /etc/ssh/ssh_host_rsa_key
-             These three files contain the private parts of the host keys.
-             These files should only be owned by root, readable only by root,
-             and not accessible to others.  Note that sshd does not start if
-             these files are group/world-accessible.
+             These files contain the private parts of the host keys.  These
+             files should only be owned by root, readable only by root, and
+             not accessible to others.  Note that sshd does not start if these
+             files are group/world-accessible.
 
      /etc/ssh/ssh_host_key.pub
      /etc/ssh/ssh_host_dsa_key.pub
      /etc/ssh/ssh_host_ecdsa_key.pub
      /etc/ssh/ssh_host_rsa_key.pub
-             These three files contain the public parts of the host keys.
-             These files should be world-readable but writable only by root.
-             Their contents should match the respective private parts.  These
-             files are not really used for anything; they are provided for the
+             These files contain the public parts of the host keys.  These
+             files should be world-readable but writable only by root.  Their
+             contents should match the respective private parts.  These files
+             are not really used for anything; they are provided for the
              convenience of the user so their contents can be copied to known
              hosts files.  These files are created using ssh-keygen(1).
 
@@ -633,4 +634,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are
      disabled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 5.0                   September 23, 2011                   OpenBSD 5.0
+OpenBSD 5.2                      June 18, 2012                     OpenBSD 5.2

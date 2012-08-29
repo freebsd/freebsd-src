@@ -46,6 +46,9 @@ rm -f $PIDFILE
 
 cp $OBJ/sshd_config.orig $OBJ/sshd_config
 
+# cygwin can't fork a deleted binary
+if [ "$os" != "cygwin" ]; then
+
 verbose "test reexec fallback"
 
 start_sshd_copy
@@ -69,4 +72,4 @@ copy_tests
 $SUDO kill `$SUDO cat $PIDFILE`
 rm -f $PIDFILE
 
-
+fi
