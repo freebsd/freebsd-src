@@ -313,6 +313,7 @@ struct thread {
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 	struct trapframe *td_intr_frame;/* (k) Frame of the current irq */
 	struct proc *td_rfppwait_p;	/* (k) The vforked child */
+	struct rl_q_entry *td_rlqe;	/* (k) Associated range lock entry. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
