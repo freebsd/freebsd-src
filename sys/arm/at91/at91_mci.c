@@ -211,7 +211,7 @@ at91_bswap_buf(struct at91_mci_softc *sc, void * dptr, void * sptr, uint32_t mem
 	 * ansley.com)
 	 */
 	if (!(sc->sc_cap & CAP_NEEDS_BYTESWAP)) {
-		bcopy(dptr, sptr, memsize);
+		memcpy(dptr, sptr, memsize);
 		return;
 	}
 
@@ -364,6 +364,12 @@ at91_mci_attach(device_t dev)
 	sc->sc_cap = 0;
 	if (at91_is_rm92())
 		sc->sc_cap |= CAP_NEEDS_BYTESWAP;
+	/*
+	 * MCI1 Rev 2 controllers need some workarounds, flag if so.
+	 */
+	if (at91_mci_is_mci1rev2xx())
+		sc->sc_cap |= CAP_MCI1_REV2XX;
+
 	err = at91_mci_activate(dev);
 	if (err)
 		goto out;
@@ -407,12 +413,6 @@ at91_mci_attach(device_t dev)
 		AT91_MCI_LOCK_DESTROY(sc);
 		goto out;
 	}
-
-	/*
-	 * MCI1 Rev 2 controllers need some workarounds, flag if so.
-	 */
-	if (at91_mci_is_mci1rev2xx())
-		sc->sc_cap |= CAP_MCI1_REV2XX;
 
 	/*
 	 * Allow 4-wire to be initially set via #define.
