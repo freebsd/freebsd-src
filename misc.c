@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.85 2011/03/29 18:54:17 stevesk Exp $ */
+/* $OpenBSD: misc.c,v 1.86 2011/09/05 05:59:08 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -941,7 +941,7 @@ static const struct {
 	{ "af11", IPTOS_DSCP_AF11 },
 	{ "af12", IPTOS_DSCP_AF12 },
 	{ "af13", IPTOS_DSCP_AF13 },
-	{ "af14", IPTOS_DSCP_AF21 },
+	{ "af21", IPTOS_DSCP_AF21 },
 	{ "af22", IPTOS_DSCP_AF22 },
 	{ "af23", IPTOS_DSCP_AF23 },
 	{ "af31", IPTOS_DSCP_AF31 },

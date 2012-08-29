@@ -3,7 +3,7 @@
 
 tid="login with different key types"
 
-TIME=`which time` 2>/dev/null
+TIME=`which time 2>/dev/null`
 if test ! -x "$TIME"; then
 	TIME=""
 fi

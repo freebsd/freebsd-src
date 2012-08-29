@@ -36,21 +36,20 @@ install-inetd-config:
 
 install-sshdoc:
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(sshdocdir)
-	$(INSTALL) -m 644 $(srcdir)/CREDITS $(DESTDIR)$(sshdocdir)/CREDITS
-	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(sshdocdir)/ChangeLog
-	$(INSTALL) -m 644 $(srcdir)/LICENCE $(DESTDIR)$(sshdocdir)/LICENCE
-	$(INSTALL) -m 644 $(srcdir)/OVERVIEW $(DESTDIR)$(sshdocdir)/OVERVIEW
-	$(INSTALL) -m 644 $(srcdir)/PROTOCOL $(DESTDIR)$(sshdocdir)/PROTOCOL
-	$(INSTALL) -m 644 $(srcdir)/PROTOCOL.agent $(DESTDIR)$(sshdocdir)/PROTOCOL.agent
-	$(INSTALL) -m 644 $(srcdir)/PROTOCOL.certkeys $(DESTDIR)$(sshdocdir)/PROTOCOL.certkeys
-	$(INSTALL) -m 644 $(srcdir)/PROTOCOL.mux $(DESTDIR)$(sshdocdir)/PROTOCOL.mux
-	$(INSTALL) -m 644 $(srcdir)/README $(DESTDIR)$(sshdocdir)/README
-	$(INSTALL) -m 644 $(srcdir)/README.dns $(DESTDIR)$(sshdocdir)/README.dns
-	$(INSTALL) -m 644 $(srcdir)/README.platform $(DESTDIR)$(sshdocdir)/README.platform
-	$(INSTALL) -m 644 $(srcdir)/README.privsep $(DESTDIR)$(sshdocdir)/README.privsep
-	$(INSTALL) -m 644 $(srcdir)/README.tun $(DESTDIR)$(sshdocdir)/README.tun
-	$(INSTALL) -m 644 $(srcdir)/TODO $(DESTDIR)$(sshdocdir)/TODO
-	$(INSTALL) -m 644 $(srcdir)/WARNING.RNG $(DESTDIR)$(sshdocdir)/WARNING.RNG
+	-$(INSTALL) -m 644 $(srcdir)/CREDITS $(DESTDIR)$(sshdocdir)/CREDITS
+	-$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(sshdocdir)/ChangeLog
+	-$(INSTALL) -m 644 $(srcdir)/LICENCE $(DESTDIR)$(sshdocdir)/LICENCE
+	-$(INSTALL) -m 644 $(srcdir)/OVERVIEW $(DESTDIR)$(sshdocdir)/OVERVIEW
+	-$(INSTALL) -m 644 $(srcdir)/PROTOCOL $(DESTDIR)$(sshdocdir)/PROTOCOL
+	-$(INSTALL) -m 644 $(srcdir)/PROTOCOL.agent $(DESTDIR)$(sshdocdir)/PROTOCOL.agent
+	-$(INSTALL) -m 644 $(srcdir)/PROTOCOL.certkeys $(DESTDIR)$(sshdocdir)/PROTOCOL.certkeys
+	-$(INSTALL) -m 644 $(srcdir)/PROTOCOL.mux $(DESTDIR)$(sshdocdir)/PROTOCOL.mux
+	-$(INSTALL) -m 644 $(srcdir)/README $(DESTDIR)$(sshdocdir)/README
+	-$(INSTALL) -m 644 $(srcdir)/README.dns $(DESTDIR)$(sshdocdir)/README.dns
+	-$(INSTALL) -m 644 $(srcdir)/README.platform $(DESTDIR)$(sshdocdir)/README.platform
+	-$(INSTALL) -m 644 $(srcdir)/README.privsep $(DESTDIR)$(sshdocdir)/README.privsep
+	-$(INSTALL) -m 644 $(srcdir)/README.tun $(DESTDIR)$(sshdocdir)/README.tun
+	-$(INSTALL) -m 644 $(srcdir)/TODO $(DESTDIR)$(sshdocdir)/TODO
 
 install-cygwindoc: README
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(cygdocdir)

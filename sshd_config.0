@@ -294,7 +294,7 @@ DESCRIPTION
 
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for the
              connection.  Accepted values are ``af11'', ``af12'', ``af13'',
-             ``af14'', ``af22'', ``af23'', ``af31'', ``af32'', ``af33'',
+             ``af21'', ``af22'', ``af23'', ``af31'', ``af32'', ``af33'',
              ``af41'', ``af42'', ``af43'', ``cs0'', ``cs1'', ``cs2'', ``cs3'',
              ``cs4'', ``cs5'', ``cs6'', ``cs7'', ``ef'', ``lowdelay'',
              ``throughput'', ``reliability'', or a numeric value.  This option
@@ -715,4 +715,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.0                     August 2, 2011                     OpenBSD 5.0
+OpenBSD 5.0                    September 9, 2011                   OpenBSD 5.0

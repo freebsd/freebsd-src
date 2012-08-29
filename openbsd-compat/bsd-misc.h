@@ -1,4 +1,4 @@
-/* $Id: bsd-misc.h,v 1.19 2010/11/08 22:26:23 tim Exp $ */
+/* $Id: bsd-misc.h,v 1.20 2012/02/14 18:03:31 tim Exp $ */
 
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
@@ -86,7 +86,7 @@ int tcsendbreak(int, int);
 #endif
 
 #ifndef HAVE_UNSETENV
-void unsetenv(const char *);
+int unsetenv(const char *);
 #endif
 
 /* wrapper for signal interface */

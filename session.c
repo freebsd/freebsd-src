@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.258 2010/11/25 04:10:09 djm Exp $ */
+/* $OpenBSD: session.c,v 1.259 2011/10/24 02:13:13 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -2166,7 +2166,7 @@ session_break_req(Session *s)
 	packet_get_int();	/* ignored */
 	packet_check_eom();
 
-	if (s->ttyfd == -1 || tcsendbreak(s->ttyfd, 0) < 0)
+	if (s->ptymaster == -1 || tcsendbreak(s->ptymaster, 0) < 0)
 		return 0;
 	return 1;
 }

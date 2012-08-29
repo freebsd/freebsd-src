@@ -4,7 +4,7 @@ NAME
      ssh-add - adds private key identities to the authentication agent
 
 SYNOPSIS
-     ssh-add [-cDdLlXx] [-t life] [file ...]
+     ssh-add [-cDdkLlXx] [-t life] [file ...]
      ssh-add -s pkcs11
      ssh-add -e pkcs11
 
@@ -44,6 +44,9 @@ DESCRIPTION
 
      -e pkcs11
              Remove keys provided by the PKCS#11 shared library pkcs11.
+
+     -k      When loading keys into the agent, load plain private keys only
+             and skip certificates.
 
      -L      Lists public key parameters of all identities currently
              represented by the agent.
@@ -112,4 +115,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.0                    October 28, 2010                    OpenBSD 5.0
+OpenBSD 5.0                    October 18, 2011                    OpenBSD 5.0

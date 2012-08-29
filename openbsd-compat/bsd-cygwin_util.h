@@ -1,4 +1,4 @@
-/* $Id: bsd-cygwin_util.h,v 1.13 2011/08/17 01:31:09 djm Exp $ */
+/* $Id: bsd-cygwin_util.h,v 1.14 2012/03/30 03:07:07 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001, 2011 Corinna Vinschen <vinschen@redhat.com>
@@ -39,6 +39,12 @@
 #include <windows.h>
 #include <sys/cygwin.h>
 #include <io.h>
+
+/* Make sure _WIN32 isn't defined later in the code, otherwise headers from
+   other packages might get the wrong idea about the target system. */
+#ifdef _WIN32
+#undef _WIN32
+#endif
 
 int binary_open(const char *, int , ...);
 int check_ntsec(const char *);

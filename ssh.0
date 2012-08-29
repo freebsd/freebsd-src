@@ -202,9 +202,10 @@ DESCRIPTION
              the -O option is specified, the ctl_cmd argument is interpreted
              and passed to the master process.  Valid commands are: ``check''
              (check that the master process is running), ``forward'' (request
-             forwardings without command execution), ``exit'' (request the
-             master to exit), and ``stop'' (request the master to stop
-             accepting further multiplexing requests).
+             forwardings without command execution), ``cancel'' (cancel
+             forwardings), ``exit'' (request the master to exit), and ``stop''
+             (request the master to stop accepting further multiplexing
+             requests).
 
      -o option
              Can be used to give options in the format used in the
@@ -227,11 +228,13 @@ DESCRIPTION
                    ConnectTimeout
                    ControlMaster
                    ControlPath
+                   ControlPersist
                    DynamicForward
                    EscapeChar
                    ExitOnForwardFailure
                    ForwardAgent
                    ForwardX11
+                   ForwardX11Timeout
                    ForwardX11Trusted
                    GatewayPorts
                    GlobalKnownHostsFile
@@ -246,6 +249,7 @@ DESCRIPTION
                    IdentityFile
                    IdentitiesOnly
                    IPQoS
+                   KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
                    LocalCommand
@@ -523,10 +527,12 @@ ESCAPE CHARACTERS
 
      ~C      Open command line.  Currently this allows the addition of port
              forwardings using the -L, -R and -D options (see above).  It also
-             allows the cancellation of existing remote port-forwardings using
-             -KR[bind_address:]port.  !command allows the user to execute a
-             local command if the PermitLocalCommand option is enabled in
-             ssh_config(5).  Basic help is available, using the -h option.
+             allows the cancellation of existing port-forwardings with
+             -KL[bind_address:]port for local, -KR[bind_address:]port for
+             remote and -KD[bind_address:]port for dynamic port-forwardings.
+             !command allows the user to execute a local command if the
+             PermitLocalCommand option is enabled in ssh_config(5).  Basic
+             help is available, using the -h option.
 
      ~R      Request rekeying of the connection (only useful for SSH protocol
              version 2 and if the peer supports it).
@@ -898,4 +904,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.0                     August 2, 2011                     OpenBSD 5.0
+OpenBSD 5.0                   September 11, 2011                   OpenBSD 5.0

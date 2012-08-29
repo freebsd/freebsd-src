@@ -77,6 +77,7 @@ DESCRIPTION
                    ConnectTimeout
                    ControlMaster
                    ControlPath
+                   ControlPersist
                    GlobalKnownHostsFile
                    GSSAPIAuthentication
                    GSSAPIDelegateCredentials
@@ -89,6 +90,7 @@ DESCRIPTION
                    IdentityFile
                    IdentitiesOnly
                    IPQoS
+                   KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
                    LogLevel
@@ -153,4 +155,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 5.0                    December 9, 2010                    OpenBSD 5.0
+OpenBSD 5.0                    September 5, 2011                   OpenBSD 5.0

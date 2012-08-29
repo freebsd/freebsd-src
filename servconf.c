@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.222 2011/06/22 21:57:01 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.223 2011/09/23 00:22:04 dtucker Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -1341,7 +1341,7 @@ process_server_config_line(ServerOptions *options, char *line,
 				fatal("%s line %d: missing host in PermitOpen",
 				    filename, linenum);
 			p = cleanhostname(p);
-			if (arg == NULL || (port = a2port(arg)) <= 0)
+			if (arg == NULL || ((port = permitopen_port(arg)) < 0))
 				fatal("%s line %d: bad port number in "
 				    "PermitOpen", filename, linenum);
 			if (*activep && n == -1)

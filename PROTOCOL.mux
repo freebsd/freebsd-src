@@ -133,6 +133,7 @@ A client may request the master to close a port forward:
 
 	uint32	MUX_C_CLOSE_FWD
 	uint32	request id
+	uint32	forwarding type
 	string	listen host
 	string	listen port
 	string	connect host
@@ -218,4 +219,4 @@ XXX inject packet (what about replies)
 XXX server->client error/warning notifications
 XXX send signals via mux
 
-$OpenBSD: PROTOCOL.mux,v 1.7 2011/05/08 12:52:01 djm Exp $
+$OpenBSD: PROTOCOL.mux,v 1.8 2011/09/09 00:44:07 djm Exp $
