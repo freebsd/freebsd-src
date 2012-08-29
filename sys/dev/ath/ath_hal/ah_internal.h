@@ -79,6 +79,11 @@ typedef enum {
 } HAL_PHYDIAG_CAPS;
 
 /*
+ * Enable/disable strong signal fast diversity
+ */
+#define	HAL_CAP_STRONG_DIV		2
+
+/*
  * Each chip or class of chips registers to offer support.
  */
 struct ath_hal_chip {
