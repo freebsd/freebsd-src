@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.188 2011/05/24 07:15:47 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.189 2012/06/22 12:30:26 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -1893,8 +1893,6 @@ authmethod_get(char *authlist)
 			return current;
 		}
 	}
-	if (name != NULL)
-		xfree(name);
 }
 
 static char *

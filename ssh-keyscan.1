@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.29 2010/08/31 11:54:45 djm Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.30 2012/04/11 13:34:17 djm Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -6,7 +6,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd $Mdocdate: August 31 2010 $
+.Dd $Mdocdate: April 11 2012 $
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -94,8 +94,11 @@ or
 .Dq rsa
 for protocol version 2.
 Multiple values may be specified by separating them with commas.
-The default is
-.Dq rsa .
+The default is to fetch
+.Dq rsa
+and
+.Dq ecdsa
+keys.
 .It Fl v
 Verbose mode.
 Causes

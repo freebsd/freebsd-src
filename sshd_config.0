@@ -102,14 +102,14 @@ DESCRIPTION
              AuthorizedPrincipalsFile is taken to be an absolute path or one
              relative to the user's home directory.
 
-             The default is not to use a principals file - in this case, the
-             username of the user must appear in a certificate's principals
-             list for it to be accepted.  Note that AuthorizedPrincipalsFile
-             is only used when authentication proceeds using a CA listed in
-             TrustedUserCAKeys and is not consulted for certification
-             authorities trusted via ~/.ssh/authorized_keys, though the
-             principals= key option offers a similar facility (see sshd(8) for
-             details).
+             The default is ``none'', i.e. not to use a principals file - in
+             this case, the username of the user must appear in a
+             certificate's principals list for it to be accepted.  Note that
+             AuthorizedPrincipalsFile is only used when authentication
+             proceeds using a CA listed in TrustedUserCAKeys and is not
+             consulted for certification authorities trusted via
+             ~/.ssh/authorized_keys, though the principals= key option offers
+             a similar facility (see sshd(8) for details).
 
      Banner  The contents of the specified file are sent to the remote user
              before authentication is allowed.  If the argument is ``none''
@@ -376,9 +376,8 @@ DESCRIPTION
              separated.  The default is:
 
                    hmac-md5,hmac-sha1,umac-64@openssh.com,
-                   hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
-                   hmac-sha2-256,hmac-sha256-96,hmac-sha2-512,
-                   hmac-sha2-512-96
+                   hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
+                   hmac-sha1-96,hmac-md5-96
 
      Match   Introduces a conditional block.  If all of the criteria on the
              Match line are satisfied, the keywords on the following lines
@@ -386,10 +385,11 @@ DESCRIPTION
              until either another Match line or the end of the file.
 
              The arguments to Match are one or more criteria-pattern pairs.
-             The available criteria are User, Group, Host, and Address.  The
-             match patterns may consist of single entries or comma-separated
-             lists and may use the wildcard and negation operators described
-             in the PATTERNS section of ssh_config(5).
+             The available criteria are User, Group, Host, LocalAddress,
+             LocalPort, and Address.  The match patterns may consist of single
+             entries or comma-separated lists and may use the wildcard and
+             negation operators described in the PATTERNS section of
+             ssh_config(5).
 
              The patterns in an Address criteria may additionally contain
              addresses to match in CIDR address/masklen format, e.g.
@@ -400,10 +400,11 @@ DESCRIPTION
              example, ``192.0.2.0/33'' and ``192.0.2.0/8'' respectively.
 
              Only a subset of keywords may be used on the lines following a
-             Match keyword.  Available keywords are AllowAgentForwarding,
-             AllowTcpForwarding, AuthorizedKeysFile, AuthorizedPrincipalsFile,
-             Banner, ChrootDirectory, ForceCommand, GatewayPorts,
-             GSSAPIAuthentication, HostbasedAuthentication,
+             Match keyword.  Available keywords are AcceptEnv,
+             AllowAgentForwarding, AllowGroups, AllowTcpForwarding,
+             AllowUsers, AuthorizedKeysFile, AuthorizedPrincipalsFile, Banner,
+             ChrootDirectory, DenyGroups, DenyUsers, ForceCommand,
+             GatewayPorts, GSSAPIAuthentication, HostbasedAuthentication,
              HostbasedUsesNameFromPacketOnly, KbdInteractiveAuthentication,
              KerberosAuthentication, MaxAuthTries, MaxSessions,
              PasswordAuthentication, PermitEmptyPasswords, PermitOpen,
@@ -454,8 +455,9 @@ DESCRIPTION
 
              Multiple forwards may be specified by separating them with
              whitespace.  An argument of ``any'' can be used to remove all
-             restrictions and permit any forwarding requests.  By default all
-             port forwarding requests are permitted.
+             restrictions and permit any forwarding requests.  An argument of
+             ``none'' can be used to prohibit all forwarding requests.  By
+             default all port forwarding requests are permitted.
 
      PermitRootLogin
              Specifies whether root can log in using ssh(1).  The argument
@@ -632,6 +634,11 @@ DESCRIPTION
              ``sandbox'' then the pre-authentication unprivileged process is
              subject to additional restrictions.
 
+     VersionAddendum
+             Optionally specifies additional text to append to the SSH
+             protocol banner sent by the server upon connection.  The default
+             is ``none''.
+
      X11DisplayOffset
              Specifies the first display number available for sshd(8)'s X11
              forwarding.  This prevents sshd from interfering with real X11
@@ -715,4 +722,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.0                    September 9, 2011                   OpenBSD 5.0
+OpenBSD 5.2                      June 29, 2012                     OpenBSD 5.2

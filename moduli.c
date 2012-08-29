@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.25 2011/10/19 00:06:10 djm Exp $ */
+/* $OpenBSD: moduli.c,v 1.26 2012/07/06 00:41:59 dtucker Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -140,7 +140,8 @@ static u_int32_t largebits, largememory;	/* megabytes */
 static BIGNUM *largebase;
 
 int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
-int prime_test(FILE *, FILE *, u_int32_t, u_int32_t, char *);
+int prime_test(FILE *, FILE *, u_int32_t, u_int32_t, char *, unsigned long,
+    unsigned long);
 
 /*
  * print moduli out in consistent form,
@@ -495,14 +496,14 @@ read_checkpoint(char *cpfile)
  */
 int
 prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
-    char *checkpoint_file)
+    char *checkpoint_file, unsigned long start_lineno, unsigned long num_lines)
 {
 	BIGNUM *q, *p, *a;
 	BN_CTX *ctx;
 	char *cp, *lp;
 	u_int32_t count_in = 0, count_out = 0, count_possible = 0;
 	u_int32_t generator_known, in_tests, in_tries, in_type, in_size;
-	unsigned long last_processed = 0;
+	unsigned long last_processed = 0, end_lineno;
 	time_t time_start, time_stop;
 	int res;
 
@@ -525,10 +526,17 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 
 	if (checkpoint_file != NULL)
 		last_processed = read_checkpoint(checkpoint_file);
+	if (start_lineno > last_processed)
+		last_processed = start_lineno;
+	if (num_lines == 0)
+		end_lineno = ULONG_MAX;
+	else
+		end_lineno = last_processed + num_lines;
+	debug2("process line %lu to line %lu", last_processed, end_lineno);
 
 	res = 0;
 	lp = xmalloc(QLINESIZE + 1);
-	while (fgets(lp, QLINESIZE + 1, in) != NULL) {
+	while (fgets(lp, QLINESIZE + 1, in) != NULL && count_in < end_lineno) {
 		count_in++;
 		if (checkpoint_file != NULL) {
 			if (count_in <= last_processed) {

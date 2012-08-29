@@ -209,6 +209,7 @@ sys_auth_passwd(Authctxt *authctxt, const char *password)
 	 * Authentication is accepted if the encrypted passwords
 	 * are identical.
 	 */
-	return (strcmp(encrypted_password, pw_password) == 0);
+	return encrypted_password != NULL &&
+	    strcmp(encrypted_password, pw_password) == 0;
 }
 #endif

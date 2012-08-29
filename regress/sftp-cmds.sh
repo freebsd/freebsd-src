@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-cmds.sh,v 1.11 2010/12/04 00:21:19 djm Exp $
+#	$OpenBSD: sftp-cmds.sh,v 1.12 2012/06/01 00:52:52 djm Exp $
 #	Placed in the Public Domain.
 
 # XXX - TODO: 
@@ -17,20 +17,6 @@ do
 	fi
 done
 
-if have_prog uname
-then
-	case `uname` in
-	CYGWIN*)
-		os=cygwin
-		;;
-	*)
-		os=`uname`
-		;;
-	esac
-else
-	os="unknown"
-fi
-
 # Path with embedded quote
 QUOTECOPY=${COPY}".\"blah\""
 QUOTECOPY_ARG=${COPY}'.\"blah\"'
@@ -40,7 +26,7 @@ SPACECOPY_ARG="${COPY}\ this\ has\ spaces.txt"
 # File with glob metacharacters
 GLOBMETACOPY="${COPY} [metachar].txt"
 
-rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${COPY}.dd2 ${BATCH}.*
+rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${COPY}.dd2
 mkdir ${COPY}.dd
 
 verbose "$tid: lls"
@@ -242,7 +228,7 @@ verbose "$tid: lchdir"
 echo "lchdir ${COPY}.dd" | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "lchdir failed"
 
-rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${COPY}.dd2 ${BATCH}.*
+rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${COPY}.dd2
 rm -rf ${QUOTECOPY} "$SPACECOPY" "$GLOBMETACOPY"
 
 

@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.154 2011/09/09 00:43:00 djm Exp $
-.Dd $Mdocdate: September 9 2011 $
+.\" $OpenBSD: ssh_config.5,v 1.157 2012/06/29 13:57:25 naddy Exp $
+.Dd $Mdocdate: June 29 2012 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -612,7 +612,7 @@ offers many different identities.
 The default is
 .Dq no .
 .It Cm IdentityFile
-Specifies a file from which the user's DSA, ECDSA or DSA authentication
+Specifies a file from which the user's DSA, ECDSA or RSA authentication
 identity is read.
 The default is
 .Pa ~/.ssh/identity
@@ -793,9 +793,8 @@ Multiple algorithms must be comma-separated.
 The default is:
 .Bd -literal -offset indent
 hmac-md5,hmac-sha1,umac-64@openssh.com,
-hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
-hmac-sha2-256,hmac-sha2-256-96,hmac-sha2-512,
-hmac-sha2-512-96
+hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
+hmac-sha1-96,hmac-md5-96
 .Ed
 .It Cm NoHostAuthenticationForLocalhost
 This option can be used if the home directory is shared across machines.

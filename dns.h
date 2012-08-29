@@ -1,4 +1,4 @@
-/* $OpenBSD: dns.h,v 1.11 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: dns.h,v 1.12 2012/05/23 03:28:28 djm Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -29,14 +29,17 @@
 #define DNS_H
 
 enum sshfp_types {
-	SSHFP_KEY_RESERVED,
-	SSHFP_KEY_RSA,
-	SSHFP_KEY_DSA
+	SSHFP_KEY_RESERVED = 0,
+	SSHFP_KEY_RSA = 1,
+	SSHFP_KEY_DSA = 2,
+	SSHFP_KEY_ECDSA = 3
 };
 
 enum sshfp_hashes {
-	SSHFP_HASH_RESERVED,
-	SSHFP_HASH_SHA1
+	SSHFP_HASH_RESERVED = 0,
+	SSHFP_HASH_SHA1 = 1,
+	SSHFP_HASH_SHA256 = 2,
+	SSHFP_HASH_MAX = 3
 };
 
 #define DNS_RDATACLASS_IN	1

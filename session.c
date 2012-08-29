@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.259 2011/10/24 02:13:13 djm Exp $ */
+/* $OpenBSD: session.c,v 1.260 2012/03/15 03:10:27 guenther Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -1390,7 +1390,7 @@ do_nologin(struct passwd *pw)
 	struct stat sb;
 
 #ifdef HAVE_LOGIN_CAP
-	if (login_getcapbool(lc, "ignorenologin", 0) && pw->pw_uid)
+	if (login_getcapbool(lc, "ignorenologin", 0) || pw->pw_uid == 0)
 		return;
 	nl = login_getcapstr(lc, "nologin", def_nl, def_nl);
 #else

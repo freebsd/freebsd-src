@@ -1,4 +1,4 @@
-#	$OpenBSD: multiplex.sh,v 1.12 2009/05/05 07:51:36 dtucker Exp $
+#	$OpenBSD: multiplex.sh,v 1.13 2012/06/01 00:47:36 djm Exp $
 #	Placed in the Public Domain.
 
 CTL=/tmp/openssh.regress.ctl-sock.$$
@@ -12,7 +12,6 @@ fi
 
 DATA=/bin/ls${EXEEXT}
 COPY=$OBJ/ls.copy
-LOG=$TEST_SSH_LOGFILE
 
 start_sshd
 
@@ -48,13 +47,13 @@ cmp ${DATA} ${COPY}		|| fail "ssh -S ctl: corrupted copy of ${DATA}"
 rm -f ${COPY}
 trace "sftp transfer over multiplexed connection and check result"
 echo "get ${DATA} ${COPY}" | \
-	${SFTP} -S ${SSH} -F $OBJ/ssh_config -oControlPath=$CTL otherhost >$LOG 2>&1
+	${SFTP} -S ${SSH} -F $OBJ/ssh_config -oControlPath=$CTL otherhost >>$TEST_SSH_LOGFILE 2>&1
 test -f ${COPY}			|| fail "sftp: failed copy ${DATA}" 
 cmp ${DATA} ${COPY}		|| fail "sftp: corrupted copy of ${DATA}"
 
 rm -f ${COPY}
 trace "scp transfer over multiplexed connection and check result"
-${SCP} -S ${SSH} -F $OBJ/ssh_config -oControlPath=$CTL otherhost:${DATA} ${COPY} >$LOG 2>&1
+${SCP} -S ${SSH} -F $OBJ/ssh_config -oControlPath=$CTL otherhost:${DATA} ${COPY} >>$TEST_SSH_LOGFILE 2>&1
 test -f ${COPY}			|| fail "scp: failed copy ${DATA}" 
 cmp ${DATA} ${COPY}		|| fail "scp: corrupted copy of ${DATA}"
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.98 2011/10/18 04:58:26 djm Exp $ */
+/* $OpenBSD: key.c,v 1.99 2012/05/23 03:28:28 djm Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -342,6 +342,11 @@ key_fingerprint_raw(Key *k, enum fp_type dgst_type, u_int *dgst_raw_length)
 	case SSH_FP_SHA1:
 		md = EVP_sha1();
 		break;
+#ifdef HAVE_EVP_SHA256
+	case SSH_FP_SHA256:
+		md = EVP_sha256();
+		break;
+#endif
 	default:
 		fatal("key_fingerprint_raw: bad digest type %d",
 		    dgst_type);

@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.323 2011/09/11 06:59:05 okan Exp $
-.Dd $Mdocdate: September 11 2011 $
+.\" $OpenBSD: ssh.1,v 1.326 2012/06/18 12:17:18 dtucker Exp $
+.Dd $Mdocdate: June 18 2012 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -506,7 +506,7 @@ from the local machine.
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
 logging in as root on the remote machine.
-IPv6 addresses can be specified by enclosing the address in square braces.
+IPv6 addresses can be specified by enclosing the address in square brackets.
 .Pp
 By default, the listening socket on the server will be bound to the loopback
 interface only.
@@ -587,8 +587,8 @@ Implies
 .Fl T ,
 .Cm ExitOnForwardFailure
 and
-.Cm ClearAllForwardings
-and works with Protocol version 2 only.
+.Cm ClearAllForwardings .
+Works with Protocol version 2 only.
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun
 .Xc
@@ -1375,7 +1375,7 @@ The file format and configuration options are described in
 .It Pa /etc/ssh/ssh_host_dsa_key
 .It Pa /etc/ssh/ssh_host_ecdsa_key
 .It Pa /etc/ssh/ssh_host_rsa_key
-These three files contain the private parts of the host keys
+These files contain the private parts of the host keys
 and are used for host-based authentication.
 If protocol version 1 is used,
 .Nm

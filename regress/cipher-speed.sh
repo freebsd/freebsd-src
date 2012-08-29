@@ -1,4 +1,4 @@
-#	$OpenBSD: cipher-speed.sh,v 1.4 2011/08/02 01:23:41 djm Exp $
+#	$OpenBSD: cipher-speed.sh,v 1.5 2012/06/28 05:07:45 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="cipher speed"
@@ -18,7 +18,7 @@ ciphers="aes128-cbc 3des-cbc blowfish-cbc cast128-cbc
 	aes128-ctr aes192-ctr aes256-ctr"
 macs="hmac-sha1 hmac-md5 umac-64@openssh.com hmac-sha1-96 hmac-md5-96"
 config_defined HAVE_EVP_SHA256 &&
-    macs="$macs hmac-sha2-256 hmac-sha2-256-96 hmac-sha2-512 hmac-sha2-512-96"
+    macs="$macs hmac-sha2-256 hmac-sha2-512"
 
 for c in $ciphers; do for m in $macs; do
 	trace "proto 2 cipher $c mac $m"

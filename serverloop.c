@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.160 2011/05/15 08:09:01 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.162 2012/06/20 04:42:58 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -281,8 +281,17 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 {
 	struct timeval tv, *tvp;
 	int ret;
+	time_t minwait_secs = 0;
 	int client_alive_scheduled = 0;
 	int program_alive_scheduled = 0;
+
+	/* Allocate and update select() masks for channel descriptors. */
+	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp,
+	    &minwait_secs, 0);
+
+	if (minwait_secs != 0)
+		max_time_milliseconds = MIN(max_time_milliseconds,
+		    (u_int)minwait_secs * 1000);
 
 	/*
 	 * if using client_alive, set the max timeout accordingly,
@@ -297,9 +306,6 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 		client_alive_scheduled = 1;
 		max_time_milliseconds = options.client_alive_interval * 1000;
 	}
-
-	/* Allocate and update select() masks for channel descriptors. */
-	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp, 0);
 
 	if (compat20) {
 #if 0
