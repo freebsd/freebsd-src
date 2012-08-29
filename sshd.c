@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.385 2011/06/23 09:34:13 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.388 2011/09/30 21:22:49 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -239,6 +239,7 @@ int startup_pipe;		/* in child */
 /* variables used for privilege separation */
 int use_privsep = -1;
 struct monitor *pmonitor = NULL;
+int privsep_is_preauth = 1;
 
 /* global authentication context */
 Authctxt *the_authctxt = NULL;
@@ -650,10 +651,13 @@ privsep_preauth(Authctxt *authctxt)
 
 		/* Wait for the child's exit status */
 		while (waitpid(pid, &status, 0) < 0) {
-			if (errno != EINTR)
-				fatal("%s: waitpid: %s", __func__,
-				    strerror(errno));
+			if (errno == EINTR)
+				continue;
+			pmonitor->m_pid = -1;
+			fatal("%s: waitpid: %s", __func__, strerror(errno));
 		}
+		privsep_is_preauth = 0;
+		pmonitor->m_pid = -1;
 		if (WIFEXITED(status)) {
 			if (WEXITSTATUS(status) != 0)
 				fatal("%s: preauth child exited with status %d",
@@ -1507,7 +1511,7 @@ main(int ac, char **av)
 	 * root's environment
 	 */
 	if (getenv("KRB5CCNAME") != NULL)
-		unsetenv("KRB5CCNAME");
+		(void) unsetenv("KRB5CCNAME");
 
 #ifdef _UNICOS
 	/* Cray can define user privs drop all privs now!
@@ -2360,8 +2364,16 @@ do_ssh2_kex(void)
 void
 cleanup_exit(int i)
 {
-	if (the_authctxt)
+	if (the_authctxt) {
 		do_cleanup(the_authctxt);
+		if (use_privsep && privsep_is_preauth && pmonitor->m_pid > 1) {
+			debug("Killing privsep child %d", pmonitor->m_pid);
+			if (kill(pmonitor->m_pid, SIGKILL) != 0 &&
+			    errno != ESRCH)
+				error("%s: kill(%d): %s", __func__,
+				    pmonitor->m_pid, strerror(errno));
+		}
+	}
 #ifdef SSH_AUDIT_EVENTS
 	/* done after do_cleanup so it can cancel the PAM auth 'thread' */
 	if (!use_privsep || mm_is_monitor())

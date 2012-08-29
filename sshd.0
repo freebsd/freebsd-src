@@ -369,7 +369,8 @@ AUTHORIZED_KEYS FILE FORMAT
              specified by enclosing the address in square brackets.  Multiple
              permitopen options may be applied separated by commas.  No
              pattern matching is performed on the specified hostnames, they
-             must be literal domains or addresses.
+             must be literal domains or addresses.  A port specification of *
+             matches any port.
 
      principals="principals"
              On a cert-authority line, specifies allowed principals for
@@ -632,4 +633,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are
      disabled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 5.0                     August 2, 2011                     OpenBSD 5.0
+OpenBSD 5.0                   September 23, 2011                   OpenBSD 5.0

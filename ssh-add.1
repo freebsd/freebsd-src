@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.55 2010/10/28 18:33:28 jmc Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.56 2011/10/18 05:00:48 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: October 28 2010 $
+.Dd $Mdocdate: October 18 2011 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd adds private key identities to the authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl cDdLlXx
+.Op Fl cDdkLlXx
 .Op Fl t Ar life
 .Op Ar
 .Nm ssh-add
@@ -110,6 +110,9 @@ and retry.
 .It Fl e Ar pkcs11
 Remove keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
+.It Fl k
+When loading keys into the agent, load plain private keys only and skip
+certificates.
 .It Fl L
 Lists public key parameters of all identities currently represented
 by the agent.

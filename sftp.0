@@ -103,6 +103,7 @@ DESCRIPTION
                    ConnectTimeout
                    ControlMaster
                    ControlPath
+                   ControlPersist
                    GlobalKnownHostsFile
                    GSSAPIAuthentication
                    GSSAPIDelegateCredentials
@@ -115,6 +116,7 @@ DESCRIPTION
                    IdentityFile
                    IdentitiesOnly
                    IPQoS
+                   KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
                    LogLevel
@@ -334,4 +336,4 @@ SEE ALSO
      draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
      material.
 
-OpenBSD 5.0                     August 7, 2011                     OpenBSD 5.0
+OpenBSD 5.0                    September 5, 2011                   OpenBSD 5.0

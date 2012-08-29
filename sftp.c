@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.132 2010/12/04 00:18:01 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.134 2011/11/16 12:24:28 oga Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -793,7 +793,8 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 	memset(&g, 0, sizeof(g));
 
 	if (remote_glob(conn, path,
-	    GLOB_MARK|GLOB_NOCHECK|GLOB_BRACE|GLOB_KEEPSTAT, NULL, &g) ||
+	    GLOB_MARK|GLOB_NOCHECK|GLOB_BRACE|GLOB_KEEPSTAT|GLOB_NOSORT,
+	    NULL, &g) ||
 	    (g.gl_pathc && !g.gl_matchc)) {
 		if (g.gl_pathc)
 			globfree(&g);
@@ -1630,8 +1631,10 @@ complete_cmd_parse(EditLine *el, char *cmd, int lastarg, char quote,
 	}
 	list[count] = NULL;
 
-	if (count == 0)
+	if (count == 0) {
+		xfree(list);
 		return 0;
+	}
 
 	/* Complete ambigious command */
 	tmp = complete_ambiguous(cmd, list, count);

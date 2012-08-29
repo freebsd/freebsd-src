@@ -1,4 +1,4 @@
-%define ver 5.9p1
+%define ver 6.0p1
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -335,7 +335,7 @@ fi
 
 %files
 %defattr(-,root,root)
-%doc CREDITS ChangeLog INSTALL LICENCE OVERVIEW README* PROTOCOL* TODO WARNING*
+%doc CREDITS ChangeLog INSTALL LICENCE OVERVIEW README* PROTOCOL* TODO
 %attr(0755,root,root) %{_bindir}/scp
 %attr(0644,root,root) %{_mandir}/man1/scp.1*
 %attr(0755,root,root) %dir %{_sysconfdir}/ssh
