@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sysent.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
@@ -2832,10 +2833,9 @@ mfi_user_command(struct mfi_softc *sc, struct mfi_ioc_passthru *ioc)
 
 
 	if (ioc->buf_size > 0) {
-		ioc_buf = malloc(ioc->buf_size, M_MFIBUF, M_WAITOK);
-		if (ioc_buf == NULL) {
+		if (ioc->buf_size > 1024 * 1024)
 			return (ENOMEM);
-		}
+		ioc_buf = malloc(ioc->buf_size, M_MFIBUF, M_WAITOK);
 		error = copyin(ioc->buf, ioc_buf, ioc->buf_size);
 		if (error) {
 			device_printf(sc->mfi_dev, "failed to copyin\n");
@@ -3244,6 +3244,10 @@ out:
 		}
 #ifdef COMPAT_FREEBSD32
 	case MFIIO_PASSTHRU32:
+		if (!SV_CURPROC_FLAG(SV_ILP32)) {
+			error = ENOTTY;
+			break;
+		}
 		iop_swab.ioc_frame	= iop32->ioc_frame;
 		iop_swab.buf_size	= iop32->buf_size;
 		iop_swab.buf		= PTRIN(iop32->buf);
@@ -3259,7 +3263,7 @@ out:
 		break;
 	default:
 		device_printf(sc->mfi_dev, "IOCTL 0x%lx not handled\n", cmd);
-		error = ENOENT;
+		error = ENOTTY;
 		break;
 	}
 
