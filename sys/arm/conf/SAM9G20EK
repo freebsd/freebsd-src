@@ -105,7 +105,7 @@ device		at91_mci
 device		mmc
 device		mmcsd
 option		AT91_MCI_SLOT_B
-option		AT91_MCI_HAS_4WIRE
+#option		AT91_MCI_HAS_4WIRE
 
 # iic
 device		iic
