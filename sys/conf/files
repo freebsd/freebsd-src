@@ -764,7 +764,6 @@ dev/ath/ath_hal/ah_eeprom_v14.c \
 dev/ath/ath_hal/ah_eeprom_v4k.c \
 	optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
-# XXX Work around clang warning, until maintainer approves fix.
 dev/ath/ath_hal/ah_eeprom_9287.c \
 	optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
