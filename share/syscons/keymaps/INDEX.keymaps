@@ -117,6 +117,8 @@ danish.cp865.kbd:fr:Danois Code page 865
 danish.cp865.kbd:pt:DinamarquÍs Codepage 865
 danish.cp865.kbd:es:DanÈs Codepage 865
 
+dutch.iso.acc.kbd:en:Dutch ISO keymap (accent keys)
+
 eee_nordic.kbd:en:Nordic layout on Asus eeePC
 eee_nordic.kbd:fr:NorvÈgien phonÈtique sur Asus eeePC
 
@@ -368,6 +370,14 @@ ru.koi8-r.shift.kbd:pt:Russo koi8-r (shift)
 ru.koi8-r.shift.kbd:es:Ruso koi8-r (shift)
 ru.koi8-r.shift.kbd:uk:Úœ”¶ ”ÿÀ¡ koi8-r (shift)
 
+ru.koi8-r.win.kbd:en:Russian koi8-r (winkeys)
+ru.koi8-r.win.kbd:de:Russisch koi8-r (winkeys)
+ru.koi8-r.win.kbd:ru:Ú’””À…  koi8-r (winkeys)
+ru.koi8-r.win.kbd:fr:Russe koi8-r (winkeys)
+ru.koi8-r.win.kbd:pt:Russo koi8-r (winkeys)
+ru.koi8-r.win.kbd:es:Ruso koi8-r (winkeys)
+ru.koi8-r.win.kbd:uk:Úœ”¶ ”ÿÀ¡ koi8-r (winkeys)
+
 spanish.iso.kbd:en:Spanish ISO-8859-1
 spanish.iso.kbd:de:Spanisch ISO-8859-1
 spanish.iso.kbd:fr:Espagnol ISO-8859-1
@@ -456,11 +466,15 @@ uk.iso.kbd:fr:Royaume Uni ISO-8859-1
 uk.iso.kbd:pt:Reino Unido ISO-8859-1
 uk.iso.kbd:es:Brit·nico ISO-8859-1
 
+uk.iso-ctrl.kbd:en:United Kingdom ISO-8859-1 (Caps Lock acts as Left Ctrl)
+
 uk.cp850.kbd:en:United Kingdom Codepage 850
 uk.cp850.kbd:de:Vereinigtes Kˆnigreich Codeseite 850
 uk.cp850.kbd:fr:Royaume Uni Code page 850
 uk.cp850.kbd:pt:Reino Unido Codepage 850
 uk.cp850.kbd:es:Brit·nico Codepage 850
+
+uk.cp850-ctrl.kbd:en:United Kingdom Codepage 850 (Caps Lock acts as Left Ctrl)
 
 uk.dvorak.kbd:en:United Kingdom Dvorak
 uk.dvorak.kbd:de:Vereinigtes K\xf6nigreich Dvorak
@@ -509,6 +523,8 @@ us.emacs.kbd:de:US-amerikanisch f¸r Emacs optimiert
 us.emacs.kbd:fr:…tats Unis d'AmÈrique emacs
 us.emacs.kbd:pt:Estados Unidos da AmÈrica emacs
 us.emacs.kbd:es:Estadounidense optimizado para Emacs
+
+us.pc-ctrl.kbd:en:United States of America ISO-8859-1 (Caps Lock acts as Left Ctrl)
 
 us.unix.kbd:en:United States of America Traditional Unix Workstation
 us.unix.kbd:de:US-amerikanisch traditionelles Unix Layout
