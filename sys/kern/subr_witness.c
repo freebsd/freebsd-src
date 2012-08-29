@@ -929,6 +929,8 @@ witness_ddb_display_descendants(int(*prnt)(const char *fmt, ...),
 	indent++;
 	WITNESS_INDEX_ASSERT(w->w_index);
 	for (i = 1; i <= w_max_used_index; i++) {
+		if (db_pager_quit)
+			return;
 		if (w_rmatrix[w->w_index][i] & WITNESS_PARENT)
 			witness_ddb_display_descendants(prnt, &w_data[i],
 			    indent);
@@ -947,6 +949,8 @@ witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
 
 		/* This lock has no anscestors - display its descendants. */
 		witness_ddb_display_descendants(prnt, w, 0);
+		if (db_pager_quit)
+			return;
 	}
 }
 	
@@ -968,12 +972,16 @@ witness_ddb_display(int(*prnt)(const char *fmt, ...))
 	 */
 	prnt("Sleep locks:\n");
 	witness_ddb_display_list(prnt, &w_sleep);
+	if (db_pager_quit)
+		return;
 	
 	/*
 	 * Now do spin locks which have been acquired at least once.
 	 */
 	prnt("\nSpin locks:\n");
 	witness_ddb_display_list(prnt, &w_spin);
+	if (db_pager_quit)
+		return;
 	
 	/*
 	 * Finally, any locks which have not been acquired yet.
@@ -984,6 +992,8 @@ witness_ddb_display(int(*prnt)(const char *fmt, ...))
 			continue;
 		prnt("%s (type: %s, depth: %d)\n", w->w_name,
 		    w->w_class->lc_name, w->w_ddb_level);
+		if (db_pager_quit)
+			return;
 	}
 }
 #endif /* DDB */
@@ -2370,6 +2380,8 @@ DB_SHOW_ALL_COMMAND(locks, db_witness_list_all)
 			db_printf("Process %d (%s) thread %p (%d)\n", p->p_pid,
 			    p->p_comm, td, td->td_tid);
 			witness_ddb_list(td);
+			if (db_pager_quit)
+				return;
 		}
 	}
 }
