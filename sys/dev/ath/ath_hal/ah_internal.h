@@ -234,7 +234,8 @@ typedef struct {
 	uint32_t	halIsrRacSupport		: 1,
 			halApmEnable			: 1,
 			halIntrMitigation		: 1,
-			hal49GhzSupport			: 1;
+			hal49GhzSupport			: 1,
+			halAntDivCombSupport		: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
