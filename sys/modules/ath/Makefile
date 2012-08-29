@@ -150,6 +150,5 @@ opt_ah.h:
 
 CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW}
 # XXX Work around clang warnings, until maintainer approves fix.
-CWARNFLAGS.ah_eeprom_9287.c=	${NO_WSOMETIMES_UNINITIALIZED}
 CWARNFLAGS.if_ath.c=		${NO_WSOMETIMES_UNINITIALIZED}
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
