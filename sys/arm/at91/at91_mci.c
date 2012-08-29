@@ -309,8 +309,8 @@ at91_mci_init(device_t dev)
 	WR4(sc, MCI_DTOR, MCI_DTOR_DTOMUL_1M | 1);
 	val = MCI_MR_PDCMODE;
 	val |= 0x34a;				/* PWSDIV = 3; CLKDIV = 74 */
-	if (sc->sc_cap & CAP_MCI1_REV2XX)
-		val |= MCI_MR_RDPROOF | MCI_MR_WRPROOF;
+//	if (sc->sc_cap & CAP_MCI1_REV2XX)
+//		val |= MCI_MR_RDPROOF | MCI_MR_WRPROOF;
 	WR4(sc, MCI_MR, val);
 #ifndef  AT91_MCI_SLOT_B
 	WR4(sc, MCI_SDCR, 0);			/* SLOT A, 1 bit bus */
@@ -778,9 +778,9 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 			 * a work-around for the "Data Write Operation and
 			 * number of bytes" erratum.
 			 */
-			if ((sc->sc_cap & CAP_MCI1_REV2XX) && data->len < 12) {
+			if ((sc->sc_cap & CAP_MCI1_REV2XX) && len < 12) {
 				len = 12;
-				memset(data->data, 0, 12);
+				memset(sc->bbuf_vaddr[0], 0, 12);
 			}
 			at91_bswap_buf(sc, sc->bbuf_vaddr[0], data->data, len);
 			err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[0],
@@ -1034,8 +1034,11 @@ at91_mci_stop_done(struct at91_mci_softc *sc, uint32_t sr)
 	 *
 	 * After doing the reset, wait for a NOTBUSY interrupt before
 	 * continuing with the next operation.
+	 *
+	 * This workaround breaks multiwrite on the rev2xx parts, but some other
+	 * workaround is needed.
 	 */
-	if (sc->flags & CMD_MULTIWRITE) {
+	if ((sc->flags & CMD_MULTIWRITE) && (sc->sc_cap & CAP_NEEDS_BYTESWAP)) {
 		at91_mci_reset(sc);
 		WR4(sc, MCI_IER, MCI_SR_ERROR | MCI_SR_NOTBUSY);
 		return;
@@ -1051,8 +1054,10 @@ at91_mci_stop_done(struct at91_mci_softc *sc, uint32_t sr)
 	 * additional words of data get buffered up in some unmentioned
 	 * internal fifo and if we don't read and discard them here they end
 	 * up on the front of the next read DMA transfer we do.
+	 *
+	 * This appears to be unnecessary for rev2xx parts.
 	 */
-	if (sc->flags & CMD_MULTIREAD) {
+	if ((sc->flags & CMD_MULTIREAD) && (sc->sc_cap & CAP_NEEDS_BYTESWAP)) {
 		uint32_t sr;
 		int count = 0;
 
@@ -1064,8 +1069,8 @@ at91_mci_stop_done(struct at91_mci_softc *sc, uint32_t sr)
 			}
 		} while (sr & MCI_SR_RXRDY);
 		at91_mci_reset(sc);
-//              if (count != 0)
-//                      printf("Had to soak up %d words after read\n", count);
+		if (count != 0)
+			printf("Had to soak up %d words after read\n", count);
 	}
 
 	cmd->error = MMC_ERR_NONE;
@@ -1306,7 +1311,15 @@ at91_mci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = MAX_BLOCKS;
+		/*
+		 * Something is wrong with the 2x parts and multiblock, so
+		 * just do 1 block at a time for now, which really kills
+		 * performance.
+		 */
+		if (sc->sc_cap & CAP_MCI1_REV2XX)
+			*(int *)result = 1;
+		else
+			*(int *)result = MAX_BLOCKS;
 		break;
 	}
 	return (0);
