@@ -924,6 +924,8 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 		db_printf("%18s %12ju %12juK %12ju\n",
 		    mtp->ks_shortdesc, allocs - frees,
 		    (alloced - freed + 1023) / 1024, allocs);
+		if (db_pager_quit)
+			break;
 	}
 }
 #endif
