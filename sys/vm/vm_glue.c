@@ -224,13 +224,6 @@ vsunlock(void *addr, size_t len)
 	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
-
-#ifdef RACCT
-	PROC_LOCK(curproc);
-	racct_set(curproc, RACCT_MEMLOCK,
-	    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
-	PROC_UNLOCK(curproc);
-#endif
 }
 
 /*
