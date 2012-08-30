@@ -351,7 +351,7 @@ amr_startup(void *arg)
     /*
      * Start the timeout routine.
      */
-/*    sc->amr_timeout = timeout(amr_periodic, sc, hz);*/
+/*    callout_reset(&sc->amr_timeout, hz, amr_periodic, sc);*/
 
     return;
 }
@@ -392,7 +392,7 @@ amr_free(struct amr_softc *sc)
 	device_delete_child(sc->amr_dev, sc->amr_pass);
 
     /* cancel status timeout */
-    untimeout(amr_periodic, sc, sc->amr_timeout);
+    callout_drain(&sc->amr_timeout);
     
     /* throw away any command buffers */
     while ((acc = TAILQ_FIRST(&sc->amr_cmd_clusters)) != NULL) {
@@ -979,7 +979,7 @@ amr_periodic(void *data)
     amr_done(sc);
 
     /* reschedule */
-    sc->amr_timeout = timeout(amr_periodic, sc, hz);
+    callout_reset(&sc->amr_timeout, hz, amr_periodic, sc);
 }
 
 /********************************************************************************
