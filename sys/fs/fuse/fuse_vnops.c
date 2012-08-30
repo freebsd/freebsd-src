@@ -310,17 +310,17 @@ fuse_vnop_create(struct vop_create_args *ap)
 	struct ucred *cred = cnp->cn_cred;
 
 	struct fuse_open_in *foi;
-	struct fuse_mknod_in fmni;
 	struct fuse_entry_out *feo;
 	struct fuse_dispatcher fdi;
 	struct fuse_dispatcher *fdip = &fdi;
 
 	int err;
-	int gone_good_old = 0;
 
 	struct mount *mp = vnode_mount(dvp);
 	uint64_t parentnid = VTOFUD(dvp)->nid;
 	mode_t mode = MAKEIMODE(vap->va_type, vap->va_mode);
+	uint64_t x_fh_id;
+	uint32_t x_open_flags;
 
 	fuse_trace_printf_vnop();
 
@@ -330,8 +330,9 @@ fuse_vnop_create(struct vop_create_args *ap)
 	bzero(&fdi, sizeof(fdi));
 
 	/* XXX:	Will we ever want devices ? */
-	    if ((vap->va_type != VREG) || !fsess_isimpl(mp, FUSE_CREATE)) {
-		goto good_old;
+	if ((vap->va_type != VREG)) {
+		MPASS(vap->va_type != VFIFO);
+		goto bringup;
 	}
 	debug_printf("parent nid = %ju, mode = %x\n", (uintmax_t)parentnid,
 	    mode);
@@ -339,7 +340,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	fdisp_init(fdip, sizeof(*foi) + cnp->cn_namelen + 1);
 	if (!fsess_isimpl(mp, FUSE_CREATE)) {
 		debug_printf("eh, daemon doesn't implement create?\n");
-		goto good_old;
+		return (EINVAL);
 	}
 	fdisp_make(fdip, FUSE_CREATE, vnode_mount(dvp), parentnid, td, cred);
 
@@ -357,23 +358,8 @@ fuse_vnop_create(struct vop_create_args *ap)
 		debug_printf("create: got ENOSYS from daemon\n");
 		fsess_set_notimpl(mp, FUSE_CREATE);
 		fdisp_destroy(fdip);
-		goto good_old;
 	} else if (err) {
 		debug_printf("create: darn, got err=%d from daemon\n", err);
-		goto out;
-	}
-	goto bringup;
-
-good_old:
-	gone_good_old = 1;
-	fmni.mode = mode;		/* fvdat->flags; */
-	fmni.rdev = 0;
-	fdisp_init(&fdi, 0);
-	fuse_internal_newentry_makerequest(vnode_mount(dvp), parentnid, cnp,
-	    FUSE_MKNOD, &fmni, sizeof(fmni),
-	    fdip);
-	err = fdisp_wait_answ(fdip);
-	if (err) {
 		goto out;
 	}
 bringup:
@@ -384,36 +370,27 @@ bringup:
 	}
 	err = fuse_vnode_get(mp, feo->nodeid, dvp, vpp, cnp, VREG);
 	if (err) {
-		if (gone_good_old) {
-			fuse_internal_forget_send(mp, td, cred, feo->nodeid, 1);
-		} else {
-			struct fuse_release_in *fri;
-			uint64_t nodeid = feo->nodeid;
-			uint64_t fh_id = ((struct fuse_open_out *)(feo + 1))->fh;
+		struct fuse_release_in *fri;
+		uint64_t nodeid = feo->nodeid;
+		uint64_t fh_id = ((struct fuse_open_out *)(feo + 1))->fh;
 
-			fdisp_init(fdip, sizeof(*fri));
-			fdisp_make(fdip, FUSE_RELEASE, mp, nodeid, td, cred);
-			fri = fdip->indata;
-			fri->fh = fh_id;
-			fri->flags = OFLAGS(mode);
-			fuse_insert_callback(fdip->tick, 
-					     fuse_internal_forget_callback);
-			fuse_insert_message(fdip->tick);
-		}
+		fdisp_init(fdip, sizeof(*fri));
+		fdisp_make(fdip, FUSE_RELEASE, mp, nodeid, td, cred);
+		fri = fdip->indata;
+		fri->fh = fh_id;
+		fri->flags = OFLAGS(mode);
+		fuse_insert_callback(fdip->tick, fuse_internal_forget_callback);
+		fuse_insert_message(fdip->tick);
 		return err;
 	}
 	ASSERT_VOP_ELOCKED(*vpp, "fuse_vnop_create");
 
-	fdip->answ = gone_good_old ? NULL : feo + 1;
+	fdip->answ = feo + 1;
 
-	if (!gone_good_old) {
-		uint64_t x_fh_id = ((struct fuse_open_out *)(feo + 1))->fh;
-		uint32_t x_open_flags = ((struct fuse_open_out *)
-					 (feo + 1))->open_flags;
-
-		fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, x_fh_id);
-		fuse_vnode_open(*vpp, x_open_flags, td);
-	}
+	x_fh_id = ((struct fuse_open_out *)(feo + 1))->fh;
+	x_open_flags = ((struct fuse_open_out *)(feo + 1))->open_flags;
+	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, x_fh_id);
+	fuse_vnode_open(*vpp, x_open_flags, td);
 	cache_purge_negative(dvp);
 
 out:
@@ -1140,30 +1117,8 @@ fuse_vnop_mkdir(struct vop_mkdir_args *ap)
 static int
 fuse_vnop_mknod(struct vop_mknod_args *ap)
 {
-	struct vnode *dvp = ap->a_dvp;
-	struct vnode **vpp = ap->a_vpp;
-	struct componentname *cnp = ap->a_cnp;
-	struct vattr *vap = ap->a_vap;
 
-	struct fuse_mknod_in fmni;
-
-	int err;
-
-	fuse_trace_printf_vnop();
-
-	if (fuse_isdeadfs(dvp)) {
-		panic("FUSE: fuse_vnop_mknod(): called on a dead file system");
-	}
-	fmni.mode = MAKEIMODE(vap->va_type, vap->va_mode);
-	fmni.rdev = vap->va_rdev;
-
-	err = fuse_internal_newentry(dvp, vpp, cnp, FUSE_MKNOD, &fmni,
-	    sizeof(fmni), vap->va_type);
-
-	if (err == 0) {
-		fuse_invalidate_attr(dvp);
-	}
-	return err;
+	return (EINVAL);
 }
 
 

@@ -192,11 +192,6 @@ struct fuse_attr_out {
 	struct fuse_attr attr;
 };
 
-struct fuse_mknod_in {
-	__u32	mode;
-	__u32	rdev;
-};
-
 struct fuse_mkdir_in {
 	__u32	mode;
 	__u32	padding;
