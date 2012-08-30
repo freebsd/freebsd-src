@@ -252,8 +252,8 @@ fuse_vfsop_mount(struct mount *mp)
 		return err;
 
 	/* `fd' contains the filedescriptor for this session; REQUIRED */
-	if (!vfs_scanopt(opts, "fd", "%d", &fd))
-		return err;
+	if (vfs_scanopt(opts, "fd", "%d", &fd) != 1)
+		return EINVAL;
 
 	err = fuse_getdevice(fspec, td, &fdev);
 	if (err != 0)
