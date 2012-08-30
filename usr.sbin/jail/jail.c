@@ -145,7 +145,7 @@ main(int argc, char **argv)
 	cfname = CONF_FILE;
 	JidFile = NULL;
 
-	while ((ch = getopt(argc, argv, "cdf:hiJ:lmn:p:qrRs:U:v")) != -1) {
+	while ((ch = getopt(argc, argv, "cdf:hiJ:lmn:p:qrRs:u:U:v")) != -1) {
 		switch (ch) {
 		case 'c':
 			op |= JF_START;
