@@ -100,15 +100,6 @@ __FBSDID("$FreeBSD$");
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #endif
-#ifdef XEN
-#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
-#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
-#else
-#define	start_emulating()	__asm __volatile( \
-				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				    : : "n" (CR0_TS) : "ax")
-#define	stop_emulating()	__asm __volatile("clts")
-#endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
 void	fldcw(u_short cw);
@@ -123,10 +114,16 @@ void	frstor(caddr_t addr);
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
 #endif
-void	start_emulating(void);
-void	stop_emulating(void);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
+
+#ifdef XEN
+#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
+#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
+#else
+#define	start_emulating()	load_cr0(rcr0() | CR0_TS)
+#define	stop_emulating()	clts()
+#endif
 
 #ifdef CPU_ENABLE_SSE
 #define GET_FPU_CW(thread) \
