@@ -274,6 +274,13 @@ outw(u_int port, u_short data)
 }
 
 static __inline void
+lfence(void)
+{
+
+	__asm __volatile("lfence" : : : "memory");
+}
+
+static __inline void
 mfence(void)
 {
 
