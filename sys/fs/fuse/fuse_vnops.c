@@ -636,9 +636,6 @@ fuse_vnop_link(struct vop_link_args *ap)
 	fuse_invalidate_attr(tdvp);
 	fuse_invalidate_attr(vp);
 
-	if (err == 0) {
-		VTOFUD(vp)->nlookup++;
-	}
 out:
 	fdisp_destroy(&fdi);
 	return err;
