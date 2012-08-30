@@ -836,7 +836,7 @@ rescan0:
 		object = m->object;
 		if (!VM_OBJECT_TRYLOCK(object) &&
 		    (!vm_pageout_fallback_object_lock(m, &next) ||
-			m->hold_count != 0)) {
+		    m->hold_count != 0)) {
 			VM_OBJECT_UNLOCK(object);
 			vm_page_unlock(m);
 			addl_page_shortage++;
@@ -867,8 +867,8 @@ rescan0:
 		 * level VM system not knowing anything about existing 
 		 * references.
 		 */
-		} else if (((m->aflags & PGA_REFERENCED) == 0) &&
-			(actcount = pmap_ts_referenced(m))) {
+		} else if ((m->aflags & PGA_REFERENCED) == 0 &&
+		    (actcount = pmap_ts_referenced(m)) != 0) {
 			vm_page_activate(m);
 			vm_page_unlock(m);
 			m->act_count += actcount + ACT_ADVANCE;
