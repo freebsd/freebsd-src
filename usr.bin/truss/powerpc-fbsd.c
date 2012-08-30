@@ -115,12 +115,11 @@ clear_fsc(void) {
 
 void
 powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
-  char buf[32];
   struct reg regs;
   void *args;
   int syscall_num;
   int i;
-  unsigned int regargs;
+  int regargs;
   struct syscall *sc;
 
   /* Account for a 64-bit argument with corresponding alignment. */
