@@ -33,7 +33,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#if __has_feature(cxx_atomic)
+#if __has_extension(c_atomic) || __has_extension(cxx_atomic)
 #define	__CLANG_ATOMICS
 #elif __GNUC_PREREQ__(4, 7)
 #define	__GNUC_ATOMICS
