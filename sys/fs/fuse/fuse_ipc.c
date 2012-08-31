@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <vm/uma.h>
 
@@ -123,6 +125,27 @@ SYSCTL_INT(_vfs_fuse, OID_AUTO, iov_credit, CTLFLAG_RW,
 
 MALLOC_DEFINE(M_FUSEMSG, "fuse_msgbuf", "fuse message buffer");
 static uma_zone_t ticket_zone;
+
+static void
+fuse_block_sigs(sigset_t *oldset)
+{
+	sigset_t newset;
+
+	SIGFILLSET(newset);
+	SIGDELSET(newset, SIGKILL);
+	if (kern_sigprocmask(curthread, SIG_BLOCK, &newset, oldset, 0))
+		panic("%s: Invalid operation for kern_sigprocmask()",
+		    __func__);
+}
+
+static void
+fuse_restore_sigs(sigset_t *oldset)
+{
+
+	if (kern_sigprocmask(curthread, SIG_SETMASK, oldset, NULL, 0))
+		panic("%s: Invalid operation for kern_sigprocmask()",
+		    __func__);
+}
 
 void
 fiov_init(struct fuse_iov *fiov, size_t size)
@@ -289,6 +312,7 @@ fticket_refresh(struct fuse_ticket *ftick)
 static int
 fticket_wait_answer(struct fuse_ticket *ftick)
 {
+	sigset_t tset;
 	int err = 0;
 	struct fuse_data *data;
 
@@ -305,8 +329,10 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 		fticket_set_answered(ftick);
 		goto out;
 	}
+	fuse_block_sigs(&tset);
 	err = msleep(ftick, &ftick->tk_aw_mtx, PCATCH, "fu_ans",
 	    data->daemon_timeout * hz);
+	fuse_restore_sigs(&tset);
 	if (err == EAGAIN) {		/* same as EWOULDBLOCK */
 #ifdef XXXIP				/* die conditionally */
 		if (!fdata_get_dead(data)) {
