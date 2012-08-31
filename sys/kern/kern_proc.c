@@ -725,9 +725,7 @@ sess_release(struct session *s)
 	}
 }
 
-#include "opt_ddb.h"
 #ifdef DDB
-#include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 {

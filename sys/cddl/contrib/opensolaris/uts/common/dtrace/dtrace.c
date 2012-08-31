@@ -15342,10 +15342,7 @@ dtrace_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 
 #if !defined(sun)
 #if __FreeBSD_version >= 800039
-static void
-dtrace_dtr(void *data __unused)
-{
-}
+static void dtrace_dtr(void *);
 #endif
 #endif
 
@@ -15470,11 +15467,15 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 }
 
 /*ARGSUSED*/
-static int
 #if defined(sun)
+static int
 dtrace_close(dev_t dev, int flag, int otyp, cred_t *cred_p)
-#else
+#elif __FreeBSD_version < 800039
+static int
 dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
+#else
+static void
+dtrace_dtr(void *data)
 #endif
 {
 #if defined(sun)
@@ -15493,8 +15494,7 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	if (dev2unit(dev) == 0)
 		return (0);
 #else
-	dtrace_state_t *state;
-	devfs_get_cdevpriv((void **) &state);
+	dtrace_state_t *state = data;
 #endif
 
 #endif
@@ -15517,8 +15517,6 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		kmem_free(state, 0);
 #if __FreeBSD_version < 800039
 		dev->si_drv1 = NULL;
-#else
-		devfs_clear_cdevpriv();
 #endif
 #endif
 	}
@@ -15539,7 +15537,9 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	destroy_dev_sched(dev);
 #endif
 
+#if defined(sun) || __FreeBSD_version < 800039
 	return (0);
+#endif
 }
 
 #if defined(sun)
@@ -16586,8 +16586,10 @@ void dtrace_invop_uninit(void);
 
 static struct cdevsw dtrace_cdevsw = {
 	.d_version	= D_VERSION,
+#if __FreeBSD_version < 800039
 	.d_flags	= D_TRACKCLOSE | D_NEEDMINOR,
 	.d_close	= dtrace_close,
+#endif
 	.d_ioctl	= dtrace_ioctl,
 	.d_open		= dtrace_open,
 	.d_name		= "dtrace",
@@ -16595,7 +16597,6 @@ static struct cdevsw dtrace_cdevsw = {
 
 static struct cdevsw helper_cdevsw = {
 	.d_version	= D_VERSION,
-	.d_flags	= D_TRACKCLOSE | D_NEEDMINOR,
 	.d_ioctl	= dtrace_ioctl_helper,
 	.d_name		= "helper",
 };

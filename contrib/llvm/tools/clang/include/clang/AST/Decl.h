@@ -99,7 +99,7 @@ public:
 };
 
 /// NamedDecl - This represents a decl with a name.  Many decls have names such
-/// as ObjCMethodDecl, but not @class, etc.
+/// as ObjCMethodDecl, but not \@class, etc.
 class NamedDecl : public Decl {
   virtual void anchor();
   /// Name - The name of this declaration, which is typically a normal
@@ -218,6 +218,7 @@ public:
     Visibility visibility_;
     bool explicit_;
 
+    void setVisibility(Visibility V, bool E) { visibility_ = V; explicit_ = E; }
   public:
     LinkageInfo() : linkage_(ExternalLinkage), visibility_(DefaultVisibility),
                     explicit_(false) {}
@@ -242,8 +243,6 @@ public:
     bool visibilityExplicit() const { return explicit_; }
 
     void setLinkage(Linkage L) { linkage_ = L; }
-    void setVisibility(Visibility V, bool E) { visibility_ = V; explicit_ = E; }
-
     void mergeLinkage(Linkage L) {
       setLinkage(minLinkage(linkage(), L));
     }
@@ -256,15 +255,15 @@ public:
     // down to one of its members. If the member has no explicit visibility,
     // the class visibility wins.
     void mergeVisibility(Visibility V, bool E = false) {
-      // If one has explicit visibility and the other doesn't, keep the
-      // explicit one.
-      if (visibilityExplicit() && !E)
+      // Never increase the visibility
+      if (visibility() < V)
         return;
-      if (!visibilityExplicit() && E)
-        setVisibility(V, E);
 
-      // If both are explicit or both are implicit, keep the minimum.
-      setVisibility(minVisibility(visibility(), V), visibilityExplicit() || E);
+      // If we have an explicit visibility, keep it
+      if (visibilityExplicit())
+        return;
+
+      setVisibility(V, E);
     }
     // Merge the visibility V, keeping the most restrictive one.
     // This is used for cases like merging the visibility of a template
@@ -275,9 +274,16 @@ public:
       if (visibility() < V)
         return;
 
+      // FIXME: this
       // If this visibility is explicit, keep it.
       if (visibilityExplicit() && !E)
         return;
+
+      // should be replaced with this
+      // Don't lose the explicit bit for nothing
+      //      if (visibility() == V && visibilityExplicit())
+      //        return;
+
       setVisibility(V, E);
     }
     void mergeVisibility(LinkageInfo Other) {
@@ -294,11 +300,6 @@ public:
     void mergeWithMin(LinkageInfo Other) {
       mergeLinkage(Other);
       mergeVisibilityWithMin(Other);
-    }
-
-    friend LinkageInfo merge(LinkageInfo L, LinkageInfo R) {
-      L.merge(R);
-      return L;
     }
   };
 
@@ -1151,7 +1152,7 @@ public:
   }
 
   /// \brief Determine whether this variable is the exception variable in a
-  /// C++ catch statememt or an Objective-C @catch statement.
+  /// C++ catch statememt or an Objective-C \@catch statement.
   bool isExceptionVariable() const {
     return VarDeclBits.ExceptionVar;
   }
@@ -1182,7 +1183,7 @@ public:
   bool isARCPseudoStrong() const { return VarDeclBits.ARCPseudoStrong; }
   void setARCPseudoStrong(bool ps) { VarDeclBits.ARCPseudoStrong = ps; }
 
-  /// Whether this variable is (C++0x) constexpr.
+  /// Whether this variable is (C++11) constexpr.
   bool isConstexpr() const { return VarDeclBits.IsConstexpr; }
   void setConstexpr(bool IC) { VarDeclBits.IsConstexpr = IC; }
 
@@ -1735,9 +1736,9 @@ public:
   bool hasInheritedPrototype() const { return HasInheritedPrototype; }
   void setHasInheritedPrototype(bool P = true) { HasInheritedPrototype = P; }
 
-  /// Whether this is a (C++0x) constexpr function or constexpr constructor.
+  /// Whether this is a (C++11) constexpr function or constexpr constructor.
   bool isConstexpr() const { return IsConstexpr; }
-  void setConstexpr(bool IC) { IsConstexpr = IC; }
+  void setConstexpr(bool IC);
 
   /// \brief Whether this function has been deleted.
   ///
@@ -2092,25 +2093,26 @@ class FieldDecl : public DeclaratorDecl {
   bool Mutable : 1;
   mutable unsigned CachedFieldIndex : 31;
 
-  /// \brief A pointer to either the in-class initializer for this field (if
-  /// the boolean value is false), or the bit width expression for this bit
-  /// field (if the boolean value is true).
+  /// \brief An InClassInitStyle value, and either a bit width expression (if
+  /// the InClassInitStyle value is ICIS_NoInit), or a pointer to the in-class
+  /// initializer for this field (otherwise).
   ///
   /// We can safely combine these two because in-class initializers are not
   /// permitted for bit-fields.
   ///
-  /// If the boolean is false and the initializer is null, then this field has
-  /// an in-class initializer which has not yet been parsed and attached.
-  llvm::PointerIntPair<Expr *, 1, bool> InitializerOrBitWidth;
+  /// If the InClassInitStyle is not ICIS_NoInit and the initializer is null,
+  /// then this field has an in-class initializer which has not yet been parsed
+  /// and attached.
+  llvm::PointerIntPair<Expr *, 2, unsigned> InitializerOrBitWidth;
 protected:
   FieldDecl(Kind DK, DeclContext *DC, SourceLocation StartLoc,
             SourceLocation IdLoc, IdentifierInfo *Id,
             QualType T, TypeSourceInfo *TInfo, Expr *BW, bool Mutable,
-            bool HasInit)
+            InClassInitStyle InitStyle)
     : DeclaratorDecl(DK, DC, IdLoc, Id, T, TInfo, StartLoc),
       Mutable(Mutable), CachedFieldIndex(0),
-      InitializerOrBitWidth(BW, !HasInit) {
-    assert(!(BW && HasInit) && "got initializer for bitfield");
+      InitializerOrBitWidth(BW, InitStyle) {
+    assert((!BW || InitStyle == ICIS_NoInit) && "got initializer for bitfield");
   }
 
 public:
@@ -2118,7 +2120,7 @@ public:
                            SourceLocation StartLoc, SourceLocation IdLoc,
                            IdentifierInfo *Id, QualType T,
                            TypeSourceInfo *TInfo, Expr *BW, bool Mutable,
-                           bool HasInit);
+                           InClassInitStyle InitStyle);
 
   static FieldDecl *CreateDeserialized(ASTContext &C, unsigned ID);
   
@@ -2129,12 +2131,10 @@ public:
   /// isMutable - Determines whether this field is mutable (C++ only).
   bool isMutable() const { return Mutable; }
 
-  /// \brief Set whether this field is mutable (C++ only).
-  void setMutable(bool M) { Mutable = M; }
-
   /// isBitfield - Determines whether this field is a bitfield.
   bool isBitField() const {
-    return InitializerOrBitWidth.getInt() && InitializerOrBitWidth.getPointer();
+    return getInClassInitStyle() == ICIS_NoInit &&
+           InitializerOrBitWidth.getPointer();
   }
 
   /// @brief Determines whether this is an unnamed bitfield.
@@ -2150,39 +2150,44 @@ public:
     return isBitField() ? InitializerOrBitWidth.getPointer() : 0;
   }
   unsigned getBitWidthValue(const ASTContext &Ctx) const;
-  void setBitWidth(Expr *BW) {
-    assert(!InitializerOrBitWidth.getPointer() &&
-           "bit width or initializer already set");
-    InitializerOrBitWidth.setPointer(BW);
-    InitializerOrBitWidth.setInt(1);
-  }
-  /// removeBitWidth - Remove the bitfield width from this member.
+
+  /// setBitWidth - Set the bit-field width for this member.
+  // Note: used by some clients (i.e., do not remove it).
+  void setBitWidth(Expr *Width);
+  /// removeBitWidth - Remove the bit-field width from this member.
+  // Note: used by some clients (i.e., do not remove it).
   void removeBitWidth() {
-    assert(isBitField() && "no bit width to remove");
+    assert(isBitField() && "no bitfield width to remove");
     InitializerOrBitWidth.setPointer(0);
   }
 
-  /// hasInClassInitializer - Determine whether this member has a C++0x in-class
+  /// getInClassInitStyle - Get the kind of (C++11) in-class initializer which
+  /// this field has.
+  InClassInitStyle getInClassInitStyle() const {
+    return static_cast<InClassInitStyle>(InitializerOrBitWidth.getInt());
+  }
+
+  /// hasInClassInitializer - Determine whether this member has a C++11 in-class
   /// initializer.
   bool hasInClassInitializer() const {
-    return !InitializerOrBitWidth.getInt();
+    return getInClassInitStyle() != ICIS_NoInit;
   }
-  /// getInClassInitializer - Get the C++0x in-class initializer for this
+  /// getInClassInitializer - Get the C++11 in-class initializer for this
   /// member, or null if one has not been set. If a valid declaration has an
   /// in-class initializer, but this returns null, then we have not parsed and
   /// attached it yet.
   Expr *getInClassInitializer() const {
     return hasInClassInitializer() ? InitializerOrBitWidth.getPointer() : 0;
   }
-  /// setInClassInitializer - Set the C++0x in-class initializer for this
+  /// setInClassInitializer - Set the C++11 in-class initializer for this
   /// member.
   void setInClassInitializer(Expr *Init);
-  /// removeInClassInitializer - Remove the C++0x in-class initializer from this
+  /// removeInClassInitializer - Remove the C++11 in-class initializer from this
   /// member.
   void removeInClassInitializer() {
-    assert(!InitializerOrBitWidth.getInt() && "no initializer to remove");
+    assert(hasInClassInitializer() && "no initializer to remove");
     InitializerOrBitWidth.setPointer(0);
-    InitializerOrBitWidth.setInt(1);
+    InitializerOrBitWidth.setInt(ICIS_NoInit);
   }
 
   /// getParent - Returns the parent of this field declaration, which
@@ -2201,6 +2206,9 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const FieldDecl *D) { return true; }
   static bool classofKind(Kind K) { return K >= firstField && K <= lastField; }
+
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// EnumConstantDecl - An instance of this object exists for each enum constant
@@ -2308,7 +2316,10 @@ protected:
     : NamedDecl(DK, DC, L, Id), TypeForDecl(0), LocStart(StartL) {}
 
 public:
-  // Low-level accessor
+  // Low-level accessor. If you just want the type defined by this node,
+  // check out ASTContext::getTypeDeclType or one of
+  // ASTContext::getTypedefType, ASTContext::getRecordType, etc. if you
+  // already know the specific kind of node this is.
   const Type *getTypeForDecl() const { return TypeForDecl; }
   void setTypeForDecl(const Type *TD) { TypeForDecl = TD; }
 
@@ -2602,6 +2613,7 @@ public:
 
   void setCompleteDefinition(bool V) { IsCompleteDefinition = V; }
 
+  // FIXME: Return StringRef;
   const char *getKindName() const {
     return TypeWithKeyword::getTagTypeKindName(getTagKind());
   }
@@ -3214,8 +3226,8 @@ public:
 ///   @__experimental_modules_import std.vector;
 /// \endcode
 ///
-/// Import declarations can also be implicitly generated from #include/#import 
-/// directives.
+/// Import declarations can also be implicitly generated from
+/// \#include/\#import directives.
 class ImportDecl : public Decl {
   /// \brief The imported module, along with a bit that indicates whether
   /// we have source-location information for each identifier in the module

@@ -212,14 +212,18 @@ nfs_getpages(struct vop_getpages_args *ap)
 			    ("nfs_getpages: page %p is dirty", m));
 		} else {
 			/*
-			 * Read operation was short.  If no error occured
-			 * we may have hit a zero-fill section.   We simply
-			 * leave valid set to 0.
+			 * Read operation was short.  If no error
+			 * occured we may have hit a zero-fill
+			 * section.  We leave valid set to 0, and page
+			 * is freed by vm_page_readahead_finish() if
+			 * its index is not equal to requested, or
+			 * page is zeroed and set valid by
+			 * vm_pager_get_pages() for requested page.
 			 */
 			;
 		}
 		if (i != ap->a_reqpage)
-			vm_page_readahead_finish(m, error);
+			vm_page_readahead_finish(m);
 	}
 	VM_OBJECT_UNLOCK(object);
 	return (0);

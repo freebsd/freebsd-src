@@ -69,6 +69,7 @@ static device_detach_t ohci_atmelarm_detach;
 
 struct at91_ohci_softc {
 	struct ohci_softc sc_ohci;	/* must be first */
+	struct at91_pmc_clock *mclk;
 	struct at91_pmc_clock *iclk;
 	struct at91_pmc_clock *fclk;
 };
@@ -98,6 +99,7 @@ ohci_atmelarm_attach(device_t dev)
 	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
+	sc->mclk = at91_pmc_clock_ref("mck");
 	sc->iclk = at91_pmc_clock_ref("ohci_clk");
 	sc->fclk = at91_pmc_clock_ref("uhpck");
 
@@ -143,6 +145,7 @@ ohci_atmelarm_attach(device_t dev)
 	/*
 	 * turn on the clocks from the AT91's point of view.  Keep the unit in reset.
 	 */
+	at91_pmc_clock_enable(sc->mclk);
 	at91_pmc_clock_enable(sc->iclk);
 	at91_pmc_clock_enable(sc->fclk);
 	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl,
@@ -191,8 +194,10 @@ ohci_atmelarm_detach(device_t dev)
 
 	at91_pmc_clock_disable(sc->fclk);
 	at91_pmc_clock_disable(sc->iclk);
+	at91_pmc_clock_disable(sc->mclk);
 	at91_pmc_clock_deref(sc->fclk);
 	at91_pmc_clock_deref(sc->iclk);
+	at91_pmc_clock_deref(sc->mclk);
 
 	if (sc->sc_ohci.sc_irq_res && sc->sc_ohci.sc_intr_hdl) {
 		/*

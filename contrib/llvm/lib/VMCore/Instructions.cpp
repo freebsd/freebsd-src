@@ -161,8 +161,14 @@ Value *PHINode::hasConstantValue() const {
   // Exploit the fact that phi nodes always have at least one entry.
   Value *ConstantValue = getIncomingValue(0);
   for (unsigned i = 1, e = getNumIncomingValues(); i != e; ++i)
-    if (getIncomingValue(i) != ConstantValue)
-      return 0; // Incoming values not all the same.
+    if (getIncomingValue(i) != ConstantValue && getIncomingValue(i) != this) {
+      if (ConstantValue != this)
+        return 0; // Incoming values not all the same.
+       // The case where the first value is this PHI.
+      ConstantValue = getIncomingValue(i);
+    }
+  if (ConstantValue == this)
+    return UndefValue::get(getType());
   return ConstantValue;
 }
 
@@ -3158,6 +3164,7 @@ SwitchInst::SwitchInst(const SwitchInst &SI)
     OL[i] = InOL[i];
     OL[i+1] = InOL[i+1];
   }
+  TheSubsets = SI.TheSubsets;
   SubclassOptionalData = SI.SubclassOptionalData;
 }
 
@@ -3169,6 +3176,16 @@ SwitchInst::~SwitchInst() {
 /// addCase - Add an entry to the switch instruction...
 ///
 void SwitchInst::addCase(ConstantInt *OnVal, BasicBlock *Dest) {
+  IntegersSubsetToBB Mapping;
+  
+  // FIXME: Currently we work with ConstantInt based cases.
+  // So inititalize IntItem container directly from ConstantInt.
+  Mapping.add(IntItem::fromConstantInt(OnVal));
+  IntegersSubset CaseRanges = Mapping.getCase();
+  addCase(CaseRanges, Dest);
+}
+
+void SwitchInst::addCase(IntegersSubset& OnVal, BasicBlock *Dest) {
   unsigned NewCaseIdx = getNumCases(); 
   unsigned OpNo = NumOperands;
   if (OpNo+2 > ReservedSpace)
@@ -3176,14 +3193,17 @@ void SwitchInst::addCase(ConstantInt *OnVal, BasicBlock *Dest) {
   // Initialize some new operands.
   assert(OpNo+1 < ReservedSpace && "Growing didn't work!");
   NumOperands = OpNo+2;
-  CaseIt Case(this, NewCaseIdx);
-  Case.setValue(OnVal);
+
+  SubsetsIt TheSubsetsIt = TheSubsets.insert(TheSubsets.end(), OnVal);
+  
+  CaseIt Case(this, NewCaseIdx, TheSubsetsIt);
+  Case.updateCaseValueOperand(OnVal);
   Case.setSuccessor(Dest);
 }
 
 /// removeCase - This method removes the specified case and its successor
 /// from the switch instruction.
-void SwitchInst::removeCase(CaseIt i) {
+void SwitchInst::removeCase(CaseIt& i) {
   unsigned idx = i.getCaseIndex();
   
   assert(2 + idx*2 < getNumOperands() && "Case index out of range!!!");
@@ -3200,6 +3220,16 @@ void SwitchInst::removeCase(CaseIt i) {
   // Nuke the last value.
   OL[NumOps-2].set(0);
   OL[NumOps-2+1].set(0);
+
+  // Do the same with TheCases collection:
+  if (i.SubsetIt != --TheSubsets.end()) {
+    *i.SubsetIt = TheSubsets.back();
+    TheSubsets.pop_back();
+  } else {
+    TheSubsets.pop_back();
+    i.SubsetIt = TheSubsets.end();
+  }
+  
   NumOperands = NumOps-2;
 }
 

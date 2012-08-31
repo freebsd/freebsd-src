@@ -504,6 +504,9 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTxStreams = 1;
 	pCap->halRxStreams = 1;
 
+	if (ar9285_check_div_comb(ah))
+		pCap->halAntDivCombSupport = AH_TRUE;
+
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;
 	pCap->halRifsTxSupport = AH_TRUE;

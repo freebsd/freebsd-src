@@ -15,6 +15,7 @@
 #define LLVM_CLANG_AST_DECLBASE_H
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/DeclarationName.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/PointerUnion.h"
@@ -692,17 +693,17 @@ public:
     Decl *Starter;
 
   public:
-    typedef Decl*                     value_type;
-    typedef Decl*                     reference;
-    typedef Decl*                     pointer;
+    typedef Decl *value_type;
+    typedef const value_type &reference;
+    typedef const value_type *pointer;
     typedef std::forward_iterator_tag iterator_category;
-    typedef std::ptrdiff_t            difference_type;
+    typedef std::ptrdiff_t difference_type;
 
     redecl_iterator() : Current(0) { }
     explicit redecl_iterator(Decl *C) : Current(C), Starter(C) { }
 
     reference operator*() const { return Current; }
-    pointer operator->() const { return Current; }
+    value_type operator->() const { return Current; }
 
     redecl_iterator& operator++() {
       assert(Current && "Advancing while iterator has reached end");
@@ -856,7 +857,10 @@ public:
   static void printGroup(Decl** Begin, unsigned NumDecls,
                          raw_ostream &Out, const PrintingPolicy &Policy,
                          unsigned Indentation = 0);
+  // Debuggers don't usually respect default arguments.
   LLVM_ATTRIBUTE_USED void dump() const;
+  void dump(raw_ostream &Out) const;
+  // Debuggers don't usually respect default arguments.
   LLVM_ATTRIBUTE_USED void dumpXML() const;
   void dumpXML(raw_ostream &OS) const;
 
@@ -1141,7 +1145,7 @@ public:
   /// inline, its enclosing namespace, recursively.
   bool InEnclosingNamespaceSetOf(const DeclContext *NS) const;
 
-  /// \\brief Collects all of the declaration contexts that are semantically
+  /// \brief Collects all of the declaration contexts that are semantically
   /// connected to this declaration context.
   ///
   /// For declaration contexts that have multiple semantically connected but
@@ -1173,9 +1177,9 @@ public:
     Decl *Current;
 
   public:
-    typedef Decl*                     value_type;
-    typedef Decl*                     reference;
-    typedef Decl*                     pointer;
+    typedef Decl *value_type;
+    typedef const value_type &reference;
+    typedef const value_type *pointer;
     typedef std::forward_iterator_tag iterator_category;
     typedef std::ptrdiff_t            difference_type;
 
@@ -1183,7 +1187,8 @@ public:
     explicit decl_iterator(Decl *C) : Current(C) { }
 
     reference operator*() const { return Current; }
-    pointer operator->() const { return Current; }
+    // This doesn't meet the iterator requirements, but it's convenient
+    value_type operator->() const { return Current; }
 
     decl_iterator& operator++() {
       Current = Current->getNextDeclInContext();
@@ -1207,14 +1212,14 @@ public:
   /// decls_begin/decls_end - Iterate over the declarations stored in
   /// this context.
   decl_iterator decls_begin() const;
-  decl_iterator decls_end() const;
+  decl_iterator decls_end() const { return decl_iterator(); }
   bool decls_empty() const;
 
   /// noload_decls_begin/end - Iterate over the declarations stored in this
   /// context that are currently loaded; don't attempt to retrieve anything
   /// from an external source.
   decl_iterator noload_decls_begin() const;
-  decl_iterator noload_decls_end() const;
+  decl_iterator noload_decls_end() const { return decl_iterator(); }
 
   /// specific_decl_iterator - Iterates over a subrange of
   /// declarations stored in a DeclContext, providing only those that
@@ -1237,9 +1242,11 @@ public:
     }
 
   public:
-    typedef SpecificDecl* value_type;
-    typedef SpecificDecl* reference;
-    typedef SpecificDecl* pointer;
+    typedef SpecificDecl *value_type;
+    // TODO: Add reference and pointer typedefs (with some appropriate proxy
+    // type) if we ever have a need for them.
+    typedef void reference;
+    typedef void pointer;
     typedef std::iterator_traits<DeclContext::decl_iterator>::difference_type
       difference_type;
     typedef std::forward_iterator_tag iterator_category;
@@ -1258,8 +1265,9 @@ public:
       SkipToNextDecl();
     }
 
-    reference operator*() const { return cast<SpecificDecl>(*Current); }
-    pointer operator->() const { return cast<SpecificDecl>(*Current); }
+    value_type operator*() const { return cast<SpecificDecl>(*Current); }
+    // This doesn't meet the iterator requirements, but it's convenient
+    value_type operator->() const { return **this; }
 
     specific_decl_iterator& operator++() {
       ++Current;
@@ -1311,16 +1319,18 @@ public:
     }
 
   public:
-    typedef SpecificDecl* value_type;
-    typedef SpecificDecl* reference;
-    typedef SpecificDecl* pointer;
+    typedef SpecificDecl *value_type;
+    // TODO: Add reference and pointer typedefs (with some appropriate proxy
+    // type) if we ever have a need for them.
+    typedef void reference;
+    typedef void pointer;
     typedef std::iterator_traits<DeclContext::decl_iterator>::difference_type
       difference_type;
     typedef std::forward_iterator_tag iterator_category;
 
     filtered_decl_iterator() : Current() { }
 
-    /// specific_decl_iterator - Construct a new iterator over a
+    /// filtered_decl_iterator - Construct a new iterator over a
     /// subset of the declarations the range [C,
     /// end-of-declarations). If A is non-NULL, it is a pointer to a
     /// member function of SpecificDecl that should return true for
@@ -1332,8 +1342,8 @@ public:
       SkipToNextDecl();
     }
 
-    reference operator*() const { return cast<SpecificDecl>(*Current); }
-    pointer operator->() const { return cast<SpecificDecl>(*Current); }
+    value_type operator*() const { return cast<SpecificDecl>(*Current); }
+    value_type operator->() const { return cast<SpecificDecl>(*Current); }
 
     filtered_decl_iterator& operator++() {
       ++Current;
@@ -1410,7 +1420,9 @@ public:
   /// and enumerator names preceding any tag name. Note that this
   /// routine will not look into parent contexts.
   lookup_result lookup(DeclarationName Name);
-  lookup_const_result lookup(DeclarationName Name) const;
+  lookup_const_result lookup(DeclarationName Name) const {
+    return const_cast<DeclContext*>(this)->lookup(Name);
+  }
 
   /// \brief A simplistic name lookup mechanism that performs name lookup
   /// into this declaration context without consulting the external source.

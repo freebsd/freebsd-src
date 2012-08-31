@@ -21,20 +21,25 @@ using namespace llvm;
 
 //===----------------------------------------------------------------------===//
 //  TargetInstrInfo
-//===----------------------------------------------------------------------===//
+//
+// Methods that depend on CodeGen are implemented in
+// TargetInstrInfoImpl.cpp. Invoking them without linking libCodeGen raises a
+// link error.
+// ===----------------------------------------------------------------------===//
 
 TargetInstrInfo::~TargetInstrInfo() {
 }
 
 const TargetRegisterClass*
 TargetInstrInfo::getRegClass(const MCInstrDesc &MCID, unsigned OpNum,
-                             const TargetRegisterInfo *TRI) const {
+                             const TargetRegisterInfo *TRI,
+                             const MachineFunction &MF) const {
   if (OpNum >= MCID.getNumOperands())
     return 0;
 
   short RegClass = MCID.OpInfo[OpNum].RegClass;
   if (MCID.OpInfo[OpNum].isLookupPtrRegClass())
-    return TRI->getPointerRegClass(RegClass);
+    return TRI->getPointerRegClass(MF, RegClass);
 
   // Instructions like INSERT_SUBREG do not have fixed register classes.
   if (RegClass < 0)
@@ -44,61 +49,12 @@ TargetInstrInfo::getRegClass(const MCInstrDesc &MCID, unsigned OpNum,
   return TRI->getRegClass(RegClass);
 }
 
-unsigned
-TargetInstrInfo::getNumMicroOps(const InstrItineraryData *ItinData,
-                                const MachineInstr *MI) const {
-  if (!ItinData || ItinData->isEmpty())
-    return 1;
-
-  unsigned Class = MI->getDesc().getSchedClass();
-  unsigned UOps = ItinData->Itineraries[Class].NumMicroOps;
-  if (UOps)
-    return UOps;
-
-  // The # of u-ops is dynamically determined. The specific target should
-  // override this function to return the right number.
-  return 1;
-}
-
-int
-TargetInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
-                             const MachineInstr *DefMI, unsigned DefIdx,
-                             const MachineInstr *UseMI, unsigned UseIdx) const {
-  if (!ItinData || ItinData->isEmpty())
-    return -1;
-
-  unsigned DefClass = DefMI->getDesc().getSchedClass();
-  unsigned UseClass = UseMI->getDesc().getSchedClass();
-  return ItinData->getOperandLatency(DefClass, DefIdx, UseClass, UseIdx);
-}
-
-int TargetInstrInfo::getInstrLatency(const InstrItineraryData *ItinData,
-                                     const MachineInstr *MI,
-                                     unsigned *PredCost) const {
-  if (!ItinData || ItinData->isEmpty())
-    return 1;
-
-  return ItinData->getStageLatency(MI->getDesc().getSchedClass());
-}
-
-bool TargetInstrInfo::hasLowDefLatency(const InstrItineraryData *ItinData,
-                                       const MachineInstr *DefMI,
-                                       unsigned DefIdx) const {
-  if (!ItinData || ItinData->isEmpty())
-    return false;
-
-  unsigned DefClass = DefMI->getDesc().getSchedClass();
-  int DefCycle = ItinData->getOperandCycle(DefClass, DefIdx);
-  return (DefCycle != -1 && DefCycle <= 1);
-}
-
 /// insertNoop - Insert a noop into the instruction stream at the specified
 /// point.
 void TargetInstrInfo::insertNoop(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI) const {
   llvm_unreachable("Target didn't implement insertNoop!");
 }
-
 
 /// Measure the specified inline asm to determine an approximation of its
 /// length.

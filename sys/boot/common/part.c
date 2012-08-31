@@ -372,8 +372,10 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 	if (buf == NULL)
 		return (table);
 	for (i = 0; i < MAXEBRENTRIES; i++) {
+#if 0	/* Some BIOSes return an incorrect number of sectors */
 		if (offset >= table->sectors)
 			break;
+#endif
 		if (dread(dev, buf, 1, offset) != 0)
 			break;
 		dp = (struct dos_partition *)(buf + DOSPARTOFF);
@@ -466,7 +468,7 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 	for (i = 0; i < dl->d_npartitions; i++, part++) {
 		if (i == RAW_PART)
 			continue;
-		if (part->p_size == 0 || part->p_fstype == 0)
+		if (part->p_size == 0)
 			continue;
 		entry = malloc(sizeof(*entry));
 		if (entry == NULL)
@@ -663,8 +665,10 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 		end = le32toh(dp[i].dp_size);
 		if (start == 0 || end == 0)
 			continue;
+#if 0	/* Some BIOSes return an incorrect number of sectors */
 		if (start + end - 1 >= sectors)
 			continue;	/* XXX: ignore */
+#endif
 		if (dp[i].dp_typ == DOSPTYP_EXT ||
 		    dp[i].dp_typ == DOSPTYP_EXTLBA)
 			has_ext = 1;

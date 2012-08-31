@@ -3243,15 +3243,13 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				*ptep = pte;
 				PTE_SYNC(ptep);
 
-				if (pg != NULL) {
-					if (!(pg->oflags & VPO_UNMANAGED)) {
-						f = pmap_modify_pv(pg, pm, sva,
-						    PVF_WRITE, 0);
+				if (!(pg->oflags & VPO_UNMANAGED)) {
+					f = pmap_modify_pv(pg, pm, sva,
+					    PVF_WRITE, 0);
+					if (f & PVF_WRITE)
 						vm_page_dirty(pg);
-					} else
-						f = 0;
 				} else
-					f = PVF_REF | PVF_EXEC;
+					f = 0;
 
 				if (flush >= 0) {
 					flush++;

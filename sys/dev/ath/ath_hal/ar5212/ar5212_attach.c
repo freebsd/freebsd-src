@@ -137,6 +137,7 @@ static const struct ath_hal_private ar5212hal = {{
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,
 	.ah_getDfsThresh		= ar5212GetDfsThresh,
+	.ah_getDfsDefaultThresh		= ar5212GetDfsDefaultThresh,
 	.ah_procRadarEvent		= ar5212ProcessRadarEvent,
 	.ah_isFastClockEnabled		= ar5212IsFastClockEnabled,
 	.ah_get11nExtBusy		= ar5212Get11nExtBusy,
@@ -825,6 +826,7 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
 	pCap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
+	pCap->halNumTxMaps = 1;			/* Single TX ptr per descr */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
 	pCap->halMcastKeySrchSupport = AH_TRUE;

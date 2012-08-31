@@ -546,6 +546,8 @@ struct usb_endpoint_ss_comp_descriptor {
 	uByte	bDescriptorType;
 	uByte	bMaxBurst;
 	uByte	bmAttributes;
+#define	UE_GET_BULK_STREAMS(x) ((x) & 0x0F)
+#define	UE_GET_SS_ISO_MULT(x) ((x) & 0x03)
 	uWord	wBytesPerInterval;
 } __packed;
 typedef struct usb_endpoint_ss_comp_descriptor
@@ -744,7 +746,7 @@ enum usb_revision {
 #define	USB_REV_MAX	(USB_REV_3_0+1)
 
 /*
- * Supported host contoller modes.
+ * Supported host controller modes.
  */
 enum usb_hc_mode {
 	USB_MODE_HOST,		/* initiates transfers */
@@ -754,7 +756,7 @@ enum usb_hc_mode {
 #define	USB_MODE_MAX	(USB_MODE_DUAL+1)
 
 /*
- * The "USB_MODE" macros defines all the supported device states.
+ * The "USB_STATE" enums define all the supported device states.
  */
 enum usb_dev_state {
 	USB_STATE_DETACHED,
@@ -764,4 +766,18 @@ enum usb_dev_state {
 	USB_STATE_CONFIGURED,
 };
 #define	USB_STATE_MAX	(USB_STATE_CONFIGURED+1)
+
+/*
+ * The "USB_EP_MODE" macros define all the currently supported
+ * endpoint modes.
+ */
+enum usb_ep_mode {
+	USB_EP_MODE_DEFAULT,
+	USB_EP_MODE_STREAMS,	/* USB3.0 specific */
+	USB_EP_MODE_HW_MASS_STORAGE,
+	USB_EP_MODE_HW_SERIAL,
+	USB_EP_MODE_HW_ETHERNET_CDC,
+	USB_EP_MODE_HW_ETHERNET_NCM,
+	USB_EP_MODE_MAX
+};
 #endif					/* _USB_STANDARD_H_ */

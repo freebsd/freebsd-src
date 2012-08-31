@@ -31,6 +31,9 @@ def DefaultStmt : DStmt<SwitchCase>;
 // GNU Extensions
 def AsmStmt : Stmt;
 
+// MS Extensions
+def MSAsmStmt : Stmt;
+
 // Obj-C statements
 def ObjCAtTryStmt : Stmt;
 def ObjCAtCatchStmt : Stmt;
@@ -134,7 +137,7 @@ def LambdaExpr : DStmt<Expr>;
 
 // Obj-C Expressions.
 def ObjCStringLiteral : DStmt<Expr>;
-def ObjCNumericLiteral : DStmt<Expr>;
+def ObjCBoxedExpr : DStmt<Expr>;
 def ObjCArrayLiteral : DStmt<Expr>;
 def ObjCDictionaryLiteral : DStmt<Expr>;
 def ObjCEncodeExpr : DStmt<Expr>;

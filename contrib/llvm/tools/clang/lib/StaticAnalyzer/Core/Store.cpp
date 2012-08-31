@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclObjC.h"
@@ -23,10 +24,21 @@ StoreManager::StoreManager(ProgramStateManager &stateMgr)
   : svalBuilder(stateMgr.getSValBuilder()), StateMgr(stateMgr),
     MRMgr(svalBuilder.getRegionManager()), Ctx(stateMgr.getContext()) {}
 
-StoreRef StoreManager::enterStackFrame(ProgramStateRef state,
-                                       const LocationContext *callerCtx,
-                                       const StackFrameContext *calleeCtx) {
-  return StoreRef(state->getStore(), *this);
+StoreRef StoreManager::enterStackFrame(Store OldStore,
+                                       const CallEvent &Call,
+                                       const StackFrameContext *LCtx) {
+  StoreRef Store = StoreRef(OldStore, *this);
+
+  SmallVector<CallEvent::FrameBindingTy, 16> InitialBindings;
+  Call.getInitialStackFrameContents(LCtx, InitialBindings);
+
+  for (CallEvent::BindingsTy::iterator I = InitialBindings.begin(),
+                                       E = InitialBindings.end();
+       I != E; ++I) {
+    Store = Bind(Store.getStore(), I->first, I->second);
+  }
+
+  return Store;
 }
 
 const MemRegion *StoreManager::MakeElementRegion(const MemRegion *Base,
@@ -210,6 +222,17 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
   llvm_unreachable("unreachable");
 }
 
+SVal StoreManager::evalDerivedToBase(SVal Derived, const CastExpr *Cast) {
+  // Walk through the cast path to create nested CXXBaseRegions.
+  SVal Result = Derived;
+  for (CastExpr::path_const_iterator I = Cast->path_begin(),
+                                     E = Cast->path_end();
+       I != E; ++I) {
+    Result = evalDerivedToBase(Result, (*I)->getType());
+  }
+  return Result;
+}
+
 
 /// CastRetrievedVal - Used by subclasses of StoreManager to implement
 ///  implicit casts that arise from loads from regions that are reinterpreted
@@ -357,6 +380,3 @@ bool StoreManager::FindUniqueBinding::HandleBinding(StoreManager& SMgr,
 
   return true;
 }
-
-void SubRegionMap::anchor() { }
-void SubRegionMap::Visitor::anchor() { }

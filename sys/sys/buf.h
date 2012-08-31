@@ -466,10 +466,7 @@ extern int	dirtybufthresh;
 extern int	bdwriteskip;
 extern int	dirtybufferflushes;
 extern int	altbufferflushes;
-extern int      buf_maxio;              /* nominal maximum I/O for buffer */
 extern struct	buf *buf;		/* The buffer headers. */
-extern char	*buffers;		/* The buffer contents. */
-extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 extern int	cluster_pbuf_freecnt;	/* Number of pbufs for clusters */

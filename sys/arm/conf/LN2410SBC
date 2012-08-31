@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		LN2410SBC
 
 include 	"../s3c2xx0/std.ln2410sbc"

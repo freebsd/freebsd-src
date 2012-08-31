@@ -651,12 +651,12 @@ cpusetobj_strprint(char *buf, const cpuset_t *set)
 	bytesp = 0;
 	bufsiz = CPUSETBUFSIZ;
 
-	for (i = _NCPUWORDS - 1; i > 0; i--) {
-		bytesp = snprintf(tbuf, bufsiz, "%lx, ", set->__bits[i]);
+	for (i = 0; i < (_NCPUWORDS - 1); i++) {
+		bytesp = snprintf(tbuf, bufsiz, "%lx,", set->__bits[i]);
 		bufsiz -= bytesp;
 		tbuf += bytesp;
 	}
-	snprintf(tbuf, bufsiz, "%lx", set->__bits[0]);
+	snprintf(tbuf, bufsiz, "%lx", set->__bits[_NCPUWORDS - 1]);
 	return (buf);
 }
 
@@ -682,16 +682,16 @@ cpusetobj_strscan(cpuset_t *set, const char *buf)
 		return (-1);
 
 	CPU_ZERO(set);
-	for (i = nwords - 1; i > 0; i--) {
-		ret = sscanf(buf, "%lx, ", &set->__bits[i]);
+	for (i = 0; i < (nwords - 1); i++) {
+		ret = sscanf(buf, "%lx,", &set->__bits[i]);
 		if (ret == 0 || ret == -1)
 			return (-1);
-		buf = strstr(buf, " ");
+		buf = strstr(buf, ",");
 		if (buf == NULL)
 			return (-1);
 		buf++;
 	}
-	ret = sscanf(buf, "%lx", &set->__bits[0]);
+	ret = sscanf(buf, "%lx", &set->__bits[nwords - 1]);
 	if (ret == 0 || ret == -1)
 		return (-1);
 	return (0);

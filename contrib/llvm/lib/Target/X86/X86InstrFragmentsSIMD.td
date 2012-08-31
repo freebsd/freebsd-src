@@ -71,11 +71,21 @@ def X86insrtps : SDNode<"X86ISD::INSERTPS",
                                       SDTCisVT<2, v4f32>, SDTCisPtrTy<3>]>>;
 def X86vzmovl  : SDNode<"X86ISD::VZEXT_MOVL",
                  SDTypeProfile<1, 1, [SDTCisSameAs<0,1>]>>;
+
+def X86vzmovly  : SDNode<"X86ISD::VZEXT_MOVL",
+                 SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>, 
+                                      SDTCisOpSmallerThanOp<1, 0> ]>>;
+
 def X86vsmovl  : SDNode<"X86ISD::VSEXT_MOVL",
                  SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisInt<1>, SDTCisInt<0>]>>;
-                 
+
 def X86vzload  : SDNode<"X86ISD::VZEXT_LOAD", SDTLoad,
                         [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
+
+def X86vfpext  : SDNode<"X86ISD::VFPEXT",
+                        SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>,
+                                             SDTCisFP<0>, SDTCisFP<1>]>>;
+
 def X86vshldq  : SDNode<"X86ISD::VSHLDQ",    SDTIntShiftOp>;
 def X86vshrdq  : SDNode<"X86ISD::VSRLDQ",    SDTIntShiftOp>;
 def X86cmpp    : SDNode<"X86ISD::CMPP",      SDTX86VFCMP>;
@@ -102,13 +112,6 @@ def SDTX86CmpPTest : SDTypeProfile<1, 2, [SDTCisVT<0, i32>,
 def X86ptest   : SDNode<"X86ISD::PTEST", SDTX86CmpPTest>;
 def X86testp   : SDNode<"X86ISD::TESTP", SDTX86CmpPTest>;
 
-def X86vpcom   : SDNode<"X86ISD::VPCOM",
-                        SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
-                                      SDTCisSameAs<0,2>, SDTCisVT<3, i8>]>>;
-def X86vpcomu  : SDNode<"X86ISD::VPCOMU",
-                        SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
-                                      SDTCisSameAs<0,2>, SDTCisVT<3, i8>]>>;
-
 def X86pmuludq : SDNode<"X86ISD::PMULUDQ",
                         SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisVec<1>,
                                       SDTCisSameAs<1,2>]>>;
@@ -127,7 +130,10 @@ def SDTShuff3OpI : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
 
 def SDTVBroadcast : SDTypeProfile<1, 1, [SDTCisVec<0>]>;
 def SDTBlend : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
-SDTCisSameAs<1,2>, SDTCisVT<3, i32>]>;
+                             SDTCisSameAs<1,2>, SDTCisVT<3, i32>]>;
+
+def SDTFma : SDTypeProfile<1, 3, [SDTCisSameAs<0,1>,
+                           SDTCisSameAs<1,2>, SDTCisSameAs<1,3>]>;
 
 def X86PAlign : SDNode<"X86ISD::PALIGN", SDTShuff3OpI>;
 
@@ -162,9 +168,26 @@ def X86VPerm2x128 : SDNode<"X86ISD::VPERM2X128", SDTShuff3OpI>;
 
 def X86VBroadcast : SDNode<"X86ISD::VBROADCAST", SDTVBroadcast>;
 
-def X86Blendpw : SDNode<"X86ISD::BLENDPW", SDTBlend>;
-def X86Blendps : SDNode<"X86ISD::BLENDPS", SDTBlend>;
-def X86Blendpd : SDNode<"X86ISD::BLENDPD", SDTBlend>;
+def X86Blendpw   : SDNode<"X86ISD::BLENDPW",   SDTBlend>;
+def X86Blendps   : SDNode<"X86ISD::BLENDPS",   SDTBlend>;
+def X86Blendpd   : SDNode<"X86ISD::BLENDPD",   SDTBlend>;
+def X86Fmadd     : SDNode<"X86ISD::FMADD",     SDTFma>;
+def X86Fnmadd    : SDNode<"X86ISD::FNMADD",    SDTFma>;
+def X86Fmsub     : SDNode<"X86ISD::FMSUB",     SDTFma>;
+def X86Fnmsub    : SDNode<"X86ISD::FNMSUB",    SDTFma>;
+def X86Fmaddsub  : SDNode<"X86ISD::FMSUBADD",  SDTFma>;
+def X86Fmsubadd  : SDNode<"X86ISD::FMADDSUB",  SDTFma>;
+
+def SDT_PCMPISTRI : SDTypeProfile<2, 3, [SDTCisVT<0, i32>, SDTCisVT<1, i32>,
+                                         SDTCisVT<2, v16i8>, SDTCisVT<3, v16i8>,
+                                         SDTCisVT<4, i8>]>;
+def SDT_PCMPESTRI : SDTypeProfile<2, 5, [SDTCisVT<0, i32>, SDTCisVT<1, i32>,
+                                         SDTCisVT<2, v16i8>, SDTCisVT<3, i32>,
+                                         SDTCisVT<4, v16i8>, SDTCisVT<5, i32>,
+                                         SDTCisVT<6, i8>]>;
+
+def X86pcmpistri : SDNode<"X86ISD::PCMPISTRI", SDT_PCMPISTRI>;
+def X86pcmpestri : SDNode<"X86ISD::PCMPESTRI", SDT_PCMPESTRI>;
 
 //===----------------------------------------------------------------------===//
 // SSE Complex Patterns
@@ -304,7 +327,7 @@ def nontemporalstore : PatFrag<(ops node:$val, node:$ptr),
 }]>;
 
 def alignednontemporalstore : PatFrag<(ops node:$val, node:$ptr),
-			           (st node:$val, node:$ptr), [{
+                                    (st node:$val, node:$ptr), [{
   if (StoreSDNode *ST = dyn_cast<StoreSDNode>(N))
     return ST->isNonTemporal() && !ST->isTruncatingStore() &&
            ST->getAddressingMode() == ISD::UNINDEXED &&
@@ -313,7 +336,7 @@ def alignednontemporalstore : PatFrag<(ops node:$val, node:$ptr),
 }]>;
 
 def unalignednontemporalstore : PatFrag<(ops node:$val, node:$ptr),
-			           (st node:$val, node:$ptr), [{
+                                      (st node:$val, node:$ptr), [{
   if (StoreSDNode *ST = dyn_cast<StoreSDNode>(N))
     return ST->isNonTemporal() &&
            ST->getAlignment() < 16;

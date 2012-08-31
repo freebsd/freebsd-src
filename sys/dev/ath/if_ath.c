@@ -168,12 +168,13 @@ static struct ath_txq *ath_txq_setup(struct ath_softc*, int qtype, int subtype);
 static int	ath_tx_setup(struct ath_softc *, int, int);
 static void	ath_tx_cleanupq(struct ath_softc *, struct ath_txq *);
 static void	ath_tx_cleanup(struct ath_softc *);
+static int	ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq,
+		    int dosched);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
 static void	ath_txq_sched_tasklet(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
-static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
@@ -443,7 +444,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 *
 	 * XXX PS-Poll
 	 */
-	sc->sc_bhalq = ath_beaconq_setup(ah);
+	sc->sc_bhalq = ath_beaconq_setup(sc);
 	if (sc->sc_bhalq == (u_int) -1) {
 		if_printf(ifp, "unable to setup a beacon xmit queue!\n");
 		error = EIO;
@@ -1674,12 +1675,14 @@ ath_intr(void *arg)
 			 * and blank them. This is the only place we should be
 			 * doing this.
 			 */
-			ATH_PCU_LOCK(sc);
-			txqs = 0xffffffff;
-			ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
-			sc->sc_txq_active |= txqs;
+			if (! sc->sc_isedma) {
+				ATH_PCU_LOCK(sc);
+				txqs = 0xffffffff;
+				ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
+				sc->sc_txq_active |= txqs;
+				ATH_PCU_UNLOCK(sc);
+			}
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_txtask);
-			ATH_PCU_UNLOCK(sc);
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
@@ -2341,6 +2344,14 @@ _ath_getbuf_locked(struct ath_softc *sc, ath_buf_type_t btype)
 	bf->bf_comp = NULL;	/* XXX again, just to be sure */
 	bzero(&bf->bf_state, sizeof(bf->bf_state));
 
+	/*
+	 * Track the descriptor ID only if doing EDMA
+	 */
+	if (sc->sc_isedma) {
+		bf->bf_descid = sc->sc_txbuf_descid;
+		sc->sc_txbuf_descid++;
+	}
+
 	return bf;
 }
 
@@ -2845,13 +2856,6 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 	}
 
 	/* allocate descriptors */
-	error = bus_dmamap_create(dd->dd_dmat, BUS_DMA_NOWAIT, &dd->dd_dmamap);
-	if (error != 0) {
-		if_printf(ifp, "unable to create dmamap for %s descriptors, "
-			"error %u\n", dd->dd_name, error);
-		goto fail0;
-	}
-
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &dd->dd_dmamap);
@@ -2881,8 +2885,6 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
 fail1:
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -2965,7 +2967,6 @@ ath_descdma_setup(struct ath_softc *sc,
 fail3:
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -3046,7 +3047,6 @@ ath_descdma_cleanup(struct ath_softc *sc,
 	if (dd->dd_dmamap != 0) {
 		bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 		bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-		bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 		bus_dma_tag_destroy(dd->dd_dmat);
 	}
 
@@ -3581,19 +3581,68 @@ ath_tx_update_busy(struct ath_softc *sc)
 }
 
 /*
+ * Process the completion of the given buffer.
+ *
+ * This calls the rate control update and then the buffer completion.
+ * This will either free the buffer or requeue it.  In any case, the
+ * bf pointer should be treated as invalid after this function is called.
+ */
+void
+ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
+    struct ath_tx_status *ts, struct ath_buf *bf)
+{
+	struct ieee80211_node *ni = bf->bf_node;
+	struct ath_node *an = NULL;
+
+	ATH_TXQ_UNLOCK_ASSERT(txq);
+
+	/* If unicast frame, update general statistics */
+	if (ni != NULL) {
+		an = ATH_NODE(ni);
+		/* update statistics */
+		ath_tx_update_stats(sc, ts, bf);
+	}
+
+	/*
+	 * Call the completion handler.
+	 * The completion handler is responsible for
+	 * calling the rate control code.
+	 *
+	 * Frames with no completion handler get the
+	 * rate control code called here.
+	 */
+	if (bf->bf_comp == NULL) {
+		if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
+		    (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) {
+			/*
+			 * XXX assume this isn't an aggregate
+			 * frame.
+			 */
+			ath_tx_update_ratectrl(sc, ni,
+			     bf->bf_state.bfs_rc, ts,
+			    bf->bf_state.bfs_pktlen, 1,
+			    (ts->ts_status == 0 ? 0 : 1));
+		}
+		ath_tx_default_comp(sc, bf, 0);
+	} else
+		bf->bf_comp(sc, bf, 0);
+}
+
+
+
+/*
  * Process completed xmit descriptors from the specified queue.
  * Kick the packet scheduler if needed. This can occur from this
  * particular task.
  */
-int
-ath_legacy_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
+static int
+ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
 	struct ath_desc *ds;
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
-	struct ath_node *an;
 #ifdef	IEEE80211_SUPPORT_SUPERG
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 #endif	/* IEEE80211_SUPPORT_SUPERG */
@@ -3665,36 +3714,12 @@ ath_legacy_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		}
 		ATH_TXQ_UNLOCK(txq);
 
-		/* If unicast frame, update general statistics */
-		if (ni != NULL) {
-			an = ATH_NODE(ni);
-			/* update statistics */
-			ath_tx_update_stats(sc, ts, bf);
-		}
-
 		/*
-		 * Call the completion handler.
-		 * The completion handler is responsible for
-		 * calling the rate control code.
-		 *
-		 * Frames with no completion handler get the
-		 * rate control code called here.
+		 * Update statistics and call completion
 		 */
-		if (bf->bf_comp == NULL) {
-			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) {
-				/*
-				 * XXX assume this isn't an aggregate
-				 * frame.
-				 */
-				ath_tx_update_ratectrl(sc, ni,
-				     bf->bf_state.bfs_rc, ts,
-				    bf->bf_state.bfs_pktlen, 1,
-				    (ts->ts_status == 0 ? 0 : 1));
-			}
-			ath_tx_default_comp(sc, bf, 0);
-		} else
-			bf->bf_comp(sc, bf, 0);
+		ath_tx_process_buf_completion(sc, txq, ts, bf);
+
+
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
@@ -3986,7 +4011,7 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 }
 
 void
-ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
+ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 {
 #ifdef ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
@@ -4012,6 +4037,17 @@ ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			txq->axq_link = NULL;
+			/*
+			 * There's currently no flag that indicates
+			 * a buffer is on the FIFO.  So until that
+			 * occurs, just clear the FIFO counter here.
+			 *
+			 * Yes, this means that if something in parallel
+			 * is pushing things onto this TXQ and pushing
+			 * _that_ into the hardware, things will get
+			 * very fruity very quickly.
+			 */
+			txq->axq_fifo_depth = 0;
 			ATH_TXQ_UNLOCK(txq);
 			break;
 		}
@@ -4021,10 +4057,20 @@ ath_legacy_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+			int status = 0;
 
-			ath_printtxbuf(sc, bf, txq->axq_qnum, ix,
-				ath_hal_txprocdesc(ah, bf->bf_lastds,
+			/*
+			 * EDMA operation has a TX completion FIFO
+			 * separate from the TX descriptor, so this
+			 * method of checking the "completion" status
+			 * is wrong.
+			 */
+			if (! sc->sc_isedma) {
+				status = (ath_hal_txprocdesc(ah,
+				    bf->bf_lastds,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
+			}
+			ath_printtxbuf(sc, bf, txq->axq_qnum, ix, status);
 			ieee80211_dump_pkt(ic, mtod(bf->bf_m, const uint8_t *),
 			    bf->bf_m->m_len, 0, -1);
 		}
@@ -4065,7 +4111,7 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
 }
 
-static int
+int
 ath_stoptxdma(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -4093,8 +4139,8 @@ ath_stoptxdma(struct ath_softc *sc)
 /*
  * Drain the transmit queues and reclaim resources.
  */
-static void
-ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
+void
+ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
 #ifdef	ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;

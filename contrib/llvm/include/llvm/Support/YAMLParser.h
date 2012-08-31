@@ -130,7 +130,7 @@ public:
   void setError(const Twine &Message, Token &Location) const;
   bool failed() const;
 
-  virtual void skip() {};
+  virtual void skip() {}
 
   unsigned int getType() const { return TypeID; }
   static inline bool classof(const Node *) { return true; }
@@ -336,7 +336,7 @@ public:
   enum MappingType {
     MT_Block,
     MT_Flow,
-    MT_Inline //< An inline mapping node is used for "[key: value]".
+    MT_Inline ///< An inline mapping node is used for "[key: value]".
   };
 
   MappingNode(OwningPtr<Document> &D, StringRef Anchor, MappingType MT)
@@ -513,37 +513,44 @@ private:
 /// @brief Iterator abstraction for Documents over a Stream.
 class document_iterator {
 public:
-  document_iterator() : Doc(NullDoc) {}
-  document_iterator(OwningPtr<Document> &D) : Doc(D) {}
+  document_iterator() : Doc(0) {}
+  document_iterator(OwningPtr<Document> &D) : Doc(&D) {}
 
   bool operator ==(const document_iterator &Other) {
-    return Doc == Other.Doc;
+    if (isAtEnd() || Other.isAtEnd())
+      return isAtEnd() && Other.isAtEnd();
+
+    return *Doc == *Other.Doc;
   }
   bool operator !=(const document_iterator &Other) {
     return !(*this == Other);
   }
 
   document_iterator operator ++() {
-    if (!Doc->skip()) {
-      Doc.reset(0);
+    assert(Doc != 0 && "incrementing iterator past the end.");
+    if (!(*Doc)->skip()) {
+      Doc->reset(0);
     } else {
-      Stream &S = Doc->stream;
-      Doc.reset(new Document(S));
+      Stream &S = (*Doc)->stream;
+      Doc->reset(new Document(S));
     }
     return *this;
   }
 
   Document &operator *() {
-    return *Doc;
+    return *Doc->get();
   }
 
   OwningPtr<Document> &operator ->() {
-    return Doc;
+    return *Doc;
   }
 
 private:
-  static OwningPtr<Document> NullDoc;
-  OwningPtr<Document> &Doc;
+  bool isAtEnd() const {
+    return Doc == 0 || *Doc == 0;
+  }
+
+  OwningPtr<Document> *Doc;
 };
 
 }

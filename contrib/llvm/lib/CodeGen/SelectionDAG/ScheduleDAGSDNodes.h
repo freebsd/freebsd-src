@@ -61,6 +61,7 @@ namespace llvm {
       if (isa<BasicBlockSDNode>(Node))     return true;
       if (isa<FrameIndexSDNode>(Node))     return true;
       if (isa<ConstantPoolSDNode>(Node))   return true;
+      if (isa<TargetIndexSDNode>(Node))    return true;
       if (isa<JumpTableSDNode>(Node))      return true;
       if (isa<ExternalSymbolSDNode>(Node)) return true;
       if (isa<BlockAddressSDNode>(Node))   return true;
@@ -97,12 +98,6 @@ namespace llvm {
     /// computeLatency - Compute node latency.
     ///
     virtual void computeLatency(SUnit *SU);
-
-    /// computeOperandLatency - Override dependence edge latency using
-    /// operand use/def information
-    ///
-    virtual void computeOperandLatency(SUnit *Def, SUnit *Use,
-                                       SDep& dep) const { }
 
     virtual void computeOperandLatency(SDNode *Def, SDNode *Use,
                                        unsigned OpIdx, SDep& dep) const;

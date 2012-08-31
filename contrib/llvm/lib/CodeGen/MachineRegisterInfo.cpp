@@ -102,17 +102,9 @@ MachineRegisterInfo::createVirtualRegister(const TargetRegisterClass *RegClass){
 
   // New virtual register number.
   unsigned Reg = TargetRegisterInfo::index2VirtReg(getNumVirtRegs());
-
-  // Add a reg, but keep track of whether the vector reallocated or not.
-  const unsigned FirstVirtReg = TargetRegisterInfo::index2VirtReg(0);
-  void *ArrayBase = getNumVirtRegs() == 0 ? 0 : &VRegInfo[FirstVirtReg];
   VRegInfo.grow(Reg);
   VRegInfo[Reg].first = RegClass;
   RegAllocHints.grow(Reg);
-
-  if (ArrayBase && &VRegInfo[FirstVirtReg] != ArrayBase)
-    // The vector reallocated, handle this now.
-    HandleVRegListReallocation();
   return Reg;
 }
 
@@ -126,19 +118,66 @@ void MachineRegisterInfo::clearVirtRegs() {
   VRegInfo.clear();
 }
 
-/// HandleVRegListReallocation - We just added a virtual register to the
-/// VRegInfo info list and it reallocated.  Update the use/def lists info
-/// pointers.
-void MachineRegisterInfo::HandleVRegListReallocation() {
-  // The back pointers for the vreg lists point into the previous vector.
-  // Update them to point to their correct slots.
-  for (unsigned i = 0, e = getNumVirtRegs(); i != e; ++i) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
-    MachineOperand *List = VRegInfo[Reg].second;
-    if (!List) continue;
-    // Update the back-pointer to be accurate once more.
-    List->Contents.Reg.Prev = &VRegInfo[Reg].second;
+/// Add MO to the linked list of operands for its register.
+void MachineRegisterInfo::addRegOperandToUseList(MachineOperand *MO) {
+  assert(!MO->isOnRegUseList() && "Already on list");
+  MachineOperand *&HeadRef = getRegUseDefListHead(MO->getReg());
+  MachineOperand *const Head = HeadRef;
+
+  // Head points to the first list element.
+  // Next is NULL on the last list element.
+  // Prev pointers are circular, so Head->Prev == Last.
+
+  // Head is NULL for an empty list.
+  if (!Head) {
+    MO->Contents.Reg.Prev = MO;
+    MO->Contents.Reg.Next = 0;
+    HeadRef = MO;
+    return;
   }
+  assert(MO->getReg() == Head->getReg() && "Different regs on the same list!");
+
+  // Insert MO between Last and Head in the circular Prev chain.
+  MachineOperand *Last = Head->Contents.Reg.Prev;
+  assert(Last && "Inconsistent use list");
+  assert(MO->getReg() == Last->getReg() && "Different regs on the same list!");
+  Head->Contents.Reg.Prev = MO;
+  MO->Contents.Reg.Prev = Last;
+
+  // Def operands always precede uses. This allows def_iterator to stop early.
+  // Insert def operands at the front, and use operands at the back.
+  if (MO->isDef()) {
+    // Insert def at the front.
+    MO->Contents.Reg.Next = Head;
+    HeadRef = MO;
+  } else {
+    // Insert use at the end.
+    MO->Contents.Reg.Next = 0;
+    Last->Contents.Reg.Next = MO;
+  }
+}
+
+/// Remove MO from its use-def list.
+void MachineRegisterInfo::removeRegOperandFromUseList(MachineOperand *MO) {
+  assert(MO->isOnRegUseList() && "Operand not on use list");
+  MachineOperand *&HeadRef = getRegUseDefListHead(MO->getReg());
+  MachineOperand *const Head = HeadRef;
+  assert(Head && "List already empty");
+
+  // Unlink this from the doubly linked list of operands.
+  MachineOperand *Next = MO->Contents.Reg.Next;
+  MachineOperand *Prev = MO->Contents.Reg.Prev;
+
+  // Prev links are circular, next link is NULL instead of looping back to Head.
+  if (MO == Head)
+    HeadRef = Next;
+  else
+    Prev->Contents.Reg.Next = Next;
+
+  (Next ? Next : Head)->Contents.Reg.Prev = Prev;
+
+  MO->Contents.Reg.Prev = 0;
+  MO->Contents.Reg.Next = 0;
 }
 
 /// replaceRegWith - Replace all instances of FromReg with ToReg in the
@@ -162,14 +201,20 @@ void MachineRegisterInfo::replaceRegWith(unsigned FromReg, unsigned ToReg) {
 MachineInstr *MachineRegisterInfo::getVRegDef(unsigned Reg) const {
   // Since we are in SSA form, we can use the first definition.
   def_iterator I = def_begin(Reg);
+  assert((I.atEnd() || llvm::next(I) == def_end()) &&
+         "getVRegDef assumes a single definition or no definition");
   return !I.atEnd() ? &*I : 0;
 }
 
-bool MachineRegisterInfo::hasOneUse(unsigned RegNo) const {
-  use_iterator UI = use_begin(RegNo);
-  if (UI == use_end())
-    return false;
-  return ++UI == use_end();
+/// getUniqueVRegDef - Return the unique machine instr that defines the
+/// specified virtual register or null if none is found.  If there are
+/// multiple definitions or no definition, return null.
+MachineInstr *MachineRegisterInfo::getUniqueVRegDef(unsigned Reg) const {
+  if (def_empty(Reg)) return 0;
+  def_iterator I = def_begin(Reg);
+  if (llvm::next(I) != def_end())
+    return 0;
+  return &*I;
 }
 
 bool MachineRegisterInfo::hasOneNonDBGUse(unsigned RegNo) const {
@@ -268,15 +313,15 @@ bool MachineRegisterInfo::isConstantPhysReg(unsigned PhysReg,
   assert(TargetRegisterInfo::isPhysicalRegister(PhysReg));
 
   // Check if any overlapping register is modified.
-  for (const uint16_t *R = TRI->getOverlaps(PhysReg); *R; ++R)
-    if (!def_empty(*R))
+  for (MCRegAliasIterator AI(PhysReg, TRI, true); AI.isValid(); ++AI)
+    if (!def_empty(*AI))
       return false;
 
   // Check if any overlapping register is allocatable so it may be used later.
   if (AllocatableRegs.empty())
     AllocatableRegs = TRI->getAllocatableSet(MF);
-  for (const uint16_t *R = TRI->getOverlaps(PhysReg); *R; ++R)
-    if (AllocatableRegs.test(*R))
+  for (MCRegAliasIterator AI(PhysReg, TRI, true); AI.isValid(); ++AI)
+    if (AllocatableRegs.test(*AI))
       return false;
   return true;
 }

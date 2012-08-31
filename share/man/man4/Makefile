@@ -32,6 +32,9 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	altera_avgen.4 \
+	altera_jtag_uart.4 \
+	altera_sdcard.4 \
 	altq.4 \
 	amdpm.4 \
 	${_amdsbwd.4} \
@@ -40,6 +43,7 @@ MAN=	aac.4 \
 	${_bxe.4} \
 	amr.4 \
 	an.4 \
+	${_aout.4} \
 	${_apic.4} \
 	arcmsr.4 \
 	${_asmc.4} \
@@ -188,6 +192,7 @@ MAN=	aac.4 \
 	ipwfw.4 \
 	isci.4 \
 	iscsi_initiator.4 \
+	isf.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -452,6 +457,7 @@ MAN=	aac.4 \
 	targ.4 \
 	tcp.4 \
 	tdfx.4 \
+	terasic_mtl.4 \
 	termios.4 \
 	textdump.4 \
 	ti.4 \
@@ -552,6 +558,7 @@ MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
 MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
+MLINKS+=altera_sdcard.4 altera_sdcardc.4
 MLINKS+=altq.4 ALTQ.4
 MLINKS+=ath.4 if_ath.4
 MLINKS+=ath_pci.4 if_ath_pci.4
@@ -710,6 +717,7 @@ _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
 _aesni.4=	aesni.4
+_aout.4=	aout.4
 _apic.4=	apic.4
 _atrtc.4=	atrtc.4
 _attimer.4=	attimer.4

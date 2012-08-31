@@ -163,8 +163,24 @@ typedef enum {
 
 	HAL_CAP_HT20_SGI	= 96,	/* hardware supports HT20 short GI */
 
+	HAL_CAP_LDPC		= 99,
+
 	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
+
+	HAL_CAP_PHYRESTART_CLR_WAR	= 106,	/* in some cases, clear phy restart to fix bb hang */
+	HAL_CAP_ENTERPRISE_MODE	= 107,	/* Enterprise mode features */
+	HAL_CAP_LDPCWAR		= 108,
+	HAL_CAP_CHANNEL_SWITCH_TIME_USEC	= 109,	/* Channel change time, usec */
+	HAL_CAP_ENABLE_APM	= 110,	/* APM enabled */
+	HAL_CAP_PCIE_LCR_EXTSYNC_EN	= 111,
+	HAL_CAP_PCIE_LCR_OFFSET	= 112,
+
 	HAL_CAP_ENHANCED_DFS_SUPPORT	= 117,	/* hardware supports enhanced DFS */
+	HAL_CAP_MCI		= 118,
+	HAL_CAP_SMARTANTENNA	= 119,
+	HAL_CAP_TRAFFIC_FAST_RECOVER	= 120,
+	HAL_CAP_TX_DIVERSITY	= 121,
+	HAL_CAP_CRDC		= 122,
 
 	/* The following are private to the FreeBSD HAL (224 onward) */
 
@@ -412,20 +428,23 @@ typedef enum {
 typedef enum {
 	HAL_INT_RX	= 0x00000001,	/* Non-common mapping */
 	HAL_INT_RXDESC	= 0x00000002,	/* Legacy mapping */
+	HAL_INT_RXERR	= 0x00000004,
 	HAL_INT_RXHP	= 0x00000001,	/* EDMA */
 	HAL_INT_RXLP	= 0x00000002,	/* EDMA */
-	HAL_INT_RXERR	= 0x00000004,
 	HAL_INT_RXNOFRM	= 0x00000008,
 	HAL_INT_RXEOL	= 0x00000010,
 	HAL_INT_RXORN	= 0x00000020,
 	HAL_INT_TX	= 0x00000040,	/* Non-common mapping */
 	HAL_INT_TXDESC	= 0x00000080,
 	HAL_INT_TIM_TIMER= 0x00000100,
+	HAL_INT_MCI	= 0x00000200,
+	HAL_INT_BBPANIC	= 0x00000400,
 	HAL_INT_TXURN	= 0x00000800,
 	HAL_INT_MIB	= 0x00001000,
 	HAL_INT_RXPHY	= 0x00004000,
 	HAL_INT_RXKCM	= 0x00008000,
 	HAL_INT_SWBA	= 0x00010000,
+	HAL_INT_BRSSI	= 0x00020000,
 	HAL_INT_BMISS	= 0x00040000,
 	HAL_INT_BNR	= 0x00100000,
 	HAL_INT_TIM	= 0x00200000,	/* Non-common mapping */
@@ -435,6 +454,8 @@ typedef enum {
 	HAL_INT_CABEND	= 0x02000000,	/* Non-common mapping */
 	HAL_INT_TSFOOR	= 0x04000000,	/* Non-common mapping */
 	HAL_INT_TBTT	= 0x08000000,	/* Non-common mapping */
+	/* Atheros ref driver has a generic timer interrupt now..*/
+	HAL_INT_GENTIMER	= 0x08000000,   /* Non-common mapping */
 	HAL_INT_CST	= 0x10000000,	/* Non-common mapping */
 	HAL_INT_GTT	= 0x20000000,	/* Non-common mapping */
 	HAL_INT_FATAL	= 0x40000000,	/* Non-common mapping */
@@ -457,6 +478,7 @@ typedef enum {
 			| HAL_INT_RXKCM
 			| HAL_INT_SWBA
 			| HAL_INT_BMISS
+			| HAL_INT_BRSSI
 			| HAL_INT_BNR
 			| HAL_INT_GPIO,
 } HAL_INT;
@@ -550,7 +572,7 @@ enum {
 
 typedef struct {
 	int		rateCount;		/* NB: for proper padding */
-	uint8_t		rateCodeToIndex[144];	/* back mapping */
+	uint8_t		rateCodeToIndex[256];	/* back mapping */
 	struct {
 		uint8_t		valid;		/* valid for rate control use */
 		uint8_t		phy;		/* CCK/OFDM/XR */
@@ -564,12 +586,12 @@ typedef struct {
 						 * rate; used for dur. calcs */
 		uint16_t	lpAckDuration;	/* long preamble ACK duration */
 		uint16_t	spAckDuration;	/* short preamble ACK duration*/
-	} info[32];
+	} info[64];
 } HAL_RATE_TABLE;
 
 typedef struct {
 	u_int		rs_count;		/* number of valid entries */
-	uint8_t	rs_rates[32];		/* rates */
+	uint8_t	rs_rates[64];		/* rates */
 } HAL_RATE_SET;
 
 /*
@@ -822,6 +844,39 @@ typedef enum {
 	HAL_DFS_ETSI_DOMAIN	= 2,	/* ETSI dfs domain */
 	HAL_DFS_MKK4_DOMAIN	= 3,	/* Japan dfs domain */
 } HAL_DFS_DOMAIN;
+
+/*
+ * MFP decryption options for initializing the MAC.
+ */
+
+typedef enum {
+	HAL_MFP_QOSDATA = 0,	/* Decrypt MFP frames like QoS data frames. All chips before Merlin. */
+	HAL_MFP_PASSTHRU,	/* Don't decrypt MFP frames at all. Passthrough */
+	HAL_MFP_HW_CRYPTO	/* hardware decryption enabled. Merlin can do it. */
+} HAL_MFP_OPT_T;
+
+/* LNA config supported */
+typedef enum {
+	HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2	= 0,
+	HAL_ANT_DIV_COMB_LNA2			= 1,
+	HAL_ANT_DIV_COMB_LNA1			= 2,
+	HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2		= 3,
+} HAL_ANT_DIV_COMB_LNA_CONF;
+
+typedef struct {
+	u_int8_t	main_lna_conf;
+	u_int8_t	alt_lna_conf;
+	u_int8_t	fast_div_bias;
+	u_int8_t	main_gaintb;
+	u_int8_t	alt_gaintb;
+	u_int8_t	antdiv_configgroup;
+	int8_t		lna1_lna2_delta;
+} HAL_ANT_COMB_CONFIG;
+
+#define	DEFAULT_ANTDIV_CONFIG_GROUP	0x00
+#define	HAL_ANTDIV_CONFIG_GROUP_1	0x01
+#define	HAL_ANTDIV_CONFIG_GROUP_2	0x02
+#define	HAL_ANTDIV_CONFIG_GROUP_3	0x03
 
 /*
  * Flag for setting QUIET period
@@ -1191,6 +1246,8 @@ struct ath_hal {
 				HAL_PHYERR_PARAM *pe);
 	void	  __ahdecl(*ah_getDfsThresh)(struct ath_hal *ah,
 				HAL_PHYERR_PARAM *pe);
+	HAL_BOOL  __ahdecl(*ah_getDfsDefaultThresh)(struct ath_hal *ah,
+				HAL_PHYERR_PARAM *pe);
 	HAL_BOOL  __ahdecl(*ah_procRadarEvent)(struct ath_hal *ah,
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
@@ -1358,6 +1415,12 @@ extern	void __ahdecl ath_hal_process_noisefloor(struct ath_hal *ah);
 extern	u_int __ahdecl ath_hal_getwirelessmodes(struct ath_hal*);
 
 /*
+ * Get the HAL wireless mode for the given channel.
+ */
+extern	int ath_hal_get_curmode(struct ath_hal *ah,
+    const struct ieee80211_channel *chan);
+
+/*
  * Calculate the packet TX time for a legacy or 11n frame
  */
 extern uint32_t __ahdecl ath_hal_pkt_txtime(struct ath_hal *ah,
@@ -1397,5 +1460,15 @@ int __ahdecl ath_hal_getcca(struct ath_hal *ah);
  */
 HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
 		u_int off, uint16_t *data);
+
+/*
+ * For now, simply pass through MFP frames.
+ */
+static inline u_int32_t
+ath_hal_get_mfp_qos(struct ath_hal *ah)
+{
+	//return AH_PRIVATE(ah)->ah_mfp_qos;
+	return HAL_MFP_QOSDATA;
+}
 
 #endif /* _ATH_AH_H_ */

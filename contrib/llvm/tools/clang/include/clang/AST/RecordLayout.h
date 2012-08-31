@@ -14,10 +14,9 @@
 #ifndef LLVM_CLANG_AST_LAYOUTINFO_H
 #define LLVM_CLANG_AST_LAYOUTINFO_H
 
-#include "llvm/Support/DataTypes.h"
-#include "llvm/ADT/DenseMap.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclCXX.h"
+#include "llvm/ADT/DenseMap.h"
 
 namespace clang {
   class ASTContext;
@@ -33,17 +32,42 @@ namespace clang {
 /// ObjCInterfaceDecl. FIXME - Find appropriate name.
 /// These objects are managed by ASTContext.
 class ASTRecordLayout {
+public:
+  struct VBaseInfo {
+    /// The offset to this virtual base in the complete-object layout
+    /// of this class.
+    CharUnits VBaseOffset;
+
+  private:
+    /// Whether this virtual base requires a vtordisp field in the
+    /// Microsoft ABI.  These fields are required for certain operations
+    /// in constructors and destructors.
+    bool HasVtorDisp;
+
+  public:
+    bool hasVtorDisp() const { return HasVtorDisp; }
+
+    VBaseInfo() : HasVtorDisp(false) {}
+
+    VBaseInfo(CharUnits VBaseOffset, bool hasVtorDisp) :
+     VBaseOffset(VBaseOffset), HasVtorDisp(hasVtorDisp) {}
+  };
+
+  typedef llvm::DenseMap<const CXXRecordDecl *, VBaseInfo>
+    VBaseOffsetsMapTy;
+
+private:
   /// Size - Size of record in characters.
   CharUnits Size;
 
   /// DataSize - Size of record in characters without tail padding.
   CharUnits DataSize;
 
-  /// FieldOffsets - Array of field offsets in bits.
-  uint64_t *FieldOffsets;
-
   // Alignment - Alignment of record in characters.
   CharUnits Alignment;
+
+  /// FieldOffsets - Array of field offsets in bits.
+  uint64_t *FieldOffsets;
 
   // FieldCount - Number of fields.
   unsigned FieldCount;
@@ -63,11 +87,13 @@ class ASTRecordLayout {
     /// any empty subobjects.
     CharUnits SizeOfLargestEmptySubobject;
 
-    /// VFPtrOffset - Virtual function table offset (Microsoft-only).
-    CharUnits VFPtrOffset;
-
     /// VBPtrOffset - Virtual base table offset (Microsoft-only).
     CharUnits VBPtrOffset;
+
+    /// HasOwnVFPtr - Does this class provide a virtual function table
+    /// (vtable in Itanium, vftbl in Microsoft) that is independent from
+    /// its base classes?
+    bool HasOwnVFPtr; // TODO: stash this somewhere more efficient
     
     /// PrimaryBase - The primary base info for this record.
     llvm::PointerIntPair<const CXXRecordDecl *, 1, bool> PrimaryBase;
@@ -79,7 +105,7 @@ class ASTRecordLayout {
     BaseOffsetsMapTy BaseOffsets;
 
     /// VBaseOffsets - Contains a map from vbase classes to their offset.
-    BaseOffsetsMapTy VBaseOffsets;
+    VBaseOffsetsMapTy VBaseOffsets;
   };
 
   /// CXXInfo - If the record layout is for a C++ record, this will have
@@ -96,7 +122,7 @@ class ASTRecordLayout {
   typedef CXXRecordLayoutInfo::BaseOffsetsMapTy BaseOffsetsMapTy;
   ASTRecordLayout(const ASTContext &Ctx,
                   CharUnits size, CharUnits alignment,
-                  CharUnits vfptroffset, CharUnits vbptroffset,
+                  bool hasOwnVFPtr, CharUnits vbptroffset,
                   CharUnits datasize,
                   const uint64_t *fieldoffsets, unsigned fieldcount,
                   CharUnits nonvirtualsize, CharUnits nonvirtualalign,
@@ -104,7 +130,7 @@ class ASTRecordLayout {
                   const CXXRecordDecl *PrimaryBase,
                   bool IsPrimaryBaseVirtual,
                   const BaseOffsetsMapTy& BaseOffsets,
-                  const BaseOffsetsMapTy& VBaseOffsets);
+                  const VBaseOffsetsMapTy& VBaseOffsets);
 
   ~ASTRecordLayout() {}
 
@@ -180,27 +206,7 @@ public:
     assert(CXXInfo && "Record layout does not have C++ specific info!");
     assert(CXXInfo->VBaseOffsets.count(VBase) && "Did not find base!");
 
-    return CXXInfo->VBaseOffsets[VBase];
-  }
-
-  /// getBaseClassOffsetInBits - Get the offset, in bits, for the given
-  /// base class.
-  uint64_t getBaseClassOffsetInBits(const CXXRecordDecl *Base) const {
-    assert(CXXInfo && "Record layout does not have C++ specific info!");
-    assert(CXXInfo->BaseOffsets.count(Base) && "Did not find base!");
-
-    return getBaseClassOffset(Base).getQuantity() *
-      Base->getASTContext().getCharWidth();
-  }
-
-  /// getVBaseClassOffsetInBits - Get the offset, in bits, for the given
-  /// base class.
-  uint64_t getVBaseClassOffsetInBits(const CXXRecordDecl *VBase) const {
-    assert(CXXInfo && "Record layout does not have C++ specific info!");
-    assert(CXXInfo->VBaseOffsets.count(VBase) && "Did not find base!");
-
-    return getVBaseClassOffset(VBase).getQuantity() *
-      VBase->getASTContext().getCharWidth();
+    return CXXInfo->VBaseOffsets[VBase].VBaseOffset;
   }
 
   CharUnits getSizeOfLargestEmptySubobject() const {
@@ -208,11 +214,16 @@ public:
     return CXXInfo->SizeOfLargestEmptySubobject;
   }
 
-  /// getVFPtrOffset - Get the offset for virtual function table pointer.
-  /// This is only meaningful with the Microsoft ABI.
-  CharUnits getVFPtrOffset() const {
+  /// hasOwnVFPtr - Does this class provide its own virtual-function
+  /// table pointer, rather than inheriting one from a primary base
+  /// class?  If so, it is at offset zero.
+  ///
+  /// This implies that the ABI has no primary base class, meaning
+  /// that it has no base classes that are suitable under the conditions
+  /// of the ABI.
+  bool hasOwnVFPtr() const {
     assert(CXXInfo && "Record layout does not have C++ specific info!");
-    return CXXInfo->VFPtrOffset;
+    return CXXInfo->HasOwnVFPtr;
   }
 
   /// getVBPtrOffset - Get the offset for virtual base table pointer.
@@ -220,6 +231,11 @@ public:
   CharUnits getVBPtrOffset() const {
     assert(CXXInfo && "Record layout does not have C++ specific info!");
     return CXXInfo->VBPtrOffset;
+  }
+
+  const VBaseOffsetsMapTy &getVBaseOffsetsMap() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+    return CXXInfo->VBaseOffsets;
   }
 };
 

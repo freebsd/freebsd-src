@@ -986,19 +986,23 @@ Value *InstCombiner::FoldAndOfFCmps(FCmpInst *LHS, FCmpInst *RHS) {
     bool Op1Ordered;
     unsigned Op0Pred = getFCmpCode(Op0CC, Op0Ordered);
     unsigned Op1Pred = getFCmpCode(Op1CC, Op1Ordered);
+    // uno && ord -> false
+    if (Op0Pred == 0 && Op1Pred == 0 && Op0Ordered != Op1Ordered)
+        return ConstantInt::get(CmpInst::makeCmpResultType(LHS->getType()), 0);
     if (Op1Pred == 0) {
       std::swap(LHS, RHS);
       std::swap(Op0Pred, Op1Pred);
       std::swap(Op0Ordered, Op1Ordered);
     }
     if (Op0Pred == 0) {
-      // uno && ueq -> uno && (uno || eq) -> ueq
+      // uno && ueq -> uno && (uno || eq) -> uno
       // ord && olt -> ord && (ord && lt) -> olt
-      if (Op0Ordered == Op1Ordered)
+      if (!Op0Ordered && (Op0Ordered == Op1Ordered))
+        return LHS;
+      if (Op0Ordered && (Op0Ordered == Op1Ordered))
         return RHS;
       
       // uno && oeq -> uno && (ord && eq) -> false
-      // uno && ord -> false
       if (!Op0Ordered)
         return ConstantInt::get(CmpInst::makeCmpResultType(LHS->getType()), 0);
       // ord && ueq -> ord && (uno || eq) -> oeq
@@ -1932,8 +1936,13 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
 
   // A | ( A ^ B) -> A |  B
   // A | (~A ^ B) -> A | ~B
+  // (A & B) | (A ^ B)
   if (match(Op1, m_Xor(m_Value(A), m_Value(B)))) {
     if (Op0 == A || Op0 == B)
+      return BinaryOperator::CreateOr(A, B);
+
+    if (match(Op0, m_And(m_Specific(A), m_Specific(B))) ||
+        match(Op0, m_And(m_Specific(B), m_Specific(A))))
       return BinaryOperator::CreateOr(A, B);
 
     if (Op1->hasOneUse() && match(A, m_Not(m_Specific(Op0)))) {
@@ -2212,7 +2221,7 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
   if (Op0I && Op1I && Op0I->isShift() && 
       Op0I->getOpcode() == Op1I->getOpcode() && 
       Op0I->getOperand(1) == Op1I->getOperand(1) &&
-      (Op1I->hasOneUse() || Op1I->hasOneUse())) {
+      (Op0I->hasOneUse() || Op1I->hasOneUse())) {
     Value *NewOp =
       Builder->CreateXor(Op0I->getOperand(0), Op1I->getOperand(0),
                          Op0I->getName());

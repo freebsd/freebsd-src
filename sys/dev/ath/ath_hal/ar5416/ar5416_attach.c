@@ -156,6 +156,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	/* DFS Functions */
 	ah->ah_enableDfs		= ar5416EnableDfs;
 	ah->ah_getDfsThresh		= ar5416GetDfsThresh;
+	ah->ah_getDfsDefaultThresh	= ar5416GetDfsDefaultThresh;
 	ah->ah_procRadarEvent		= ar5416ProcessRadarEvent;
 	ah->ah_isFastClockEnabled	= ar5416IsFastClockEnabled;
 
@@ -893,6 +894,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
 	pCap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
+	pCap->halNumTxMaps = 1;			/* Single TX ptr per descr */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
 	pCap->halMcastKeySrchSupport = AH_TRUE;	/* Works on AR5416 and later */

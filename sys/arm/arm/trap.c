@@ -900,14 +900,13 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 static void
-syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
+syscall(struct thread *td, trapframe_t *frame)
 {
 	struct syscall_args sa;
 	int error;
 
-	td->td_frame = frame;
-	sa.insn = insn;
-	switch (insn & SWI_OS_MASK) {
+	sa.insn = *(uint32_t *)(frame->tf_pc - INSN_SIZE);
+	switch (sa.insn & SWI_OS_MASK) {
 	case 0: /* XXX: we need our own one. */
 		sa.nap = 4;
 		break;
@@ -927,7 +926,6 @@ void
 swi_handler(trapframe_t *frame)
 {
 	struct thread *td = curthread;
-	uint32_t insn;
 
 	td->td_frame = frame;
 	
@@ -941,7 +939,6 @@ swi_handler(trapframe_t *frame)
 		userret(td, frame);
 		return;
 	}
-	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
 	/*
 	 * Enable interrupts if they were enabled before the exception.
 	 * Since all syscalls *should* come from user mode it will always
@@ -954,6 +951,6 @@ swi_handler(trapframe_t *frame)
 			enable_interrupts(F32_bit);
 	}
 
-	syscall(td, frame, insn);
+	syscall(td, frame);
 }
 

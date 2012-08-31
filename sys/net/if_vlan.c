@@ -192,7 +192,7 @@ static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_transmit(struct ifnet *ifp, struct mbuf *m);
 static	void vlan_unconfig(struct ifnet *ifp);
-static	void vlan_unconfig_locked(struct ifnet *ifp);
+static	void vlan_unconfig_locked(struct ifnet *ifp, int departing);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
 static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
@@ -577,7 +577,7 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 #ifdef VLAN_ARRAY
 	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
 		if ((ifv = ifp->if_vlantrunk->vlans[i])) {
-			vlan_unconfig_locked(ifv->ifv_ifp);
+			vlan_unconfig_locked(ifv->ifv_ifp, 1);
 			if (ifp->if_vlantrunk == NULL)
 				break;
 		}
@@ -585,7 +585,7 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 restart:
 	for (i = 0; i < (1 << ifp->if_vlantrunk->hwidth); i++)
 		if ((ifv = LIST_FIRST(&ifp->if_vlantrunk->hash[i]))) {
-			vlan_unconfig_locked(ifv->ifv_ifp);
+			vlan_unconfig_locked(ifv->ifv_ifp, 1);
 			if (ifp->if_vlantrunk)
 				goto restart;	/* trunk->hwidth can change */
 			else
@@ -968,7 +968,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		error = vlan_config(ifv, p, vid);
 		if (error != 0) {
 			/*
-			 * Since we've partialy failed, we need to back
+			 * Since we've partially failed, we need to back
 			 * out all the way, otherwise userland could get
 			 * confused.  Thus, we destroy the interface.
 			 */
@@ -1307,17 +1307,18 @@ vlan_unconfig(struct ifnet *ifp)
 {
 
 	VLAN_LOCK();
-	vlan_unconfig_locked(ifp);
+	vlan_unconfig_locked(ifp, 0);
 	VLAN_UNLOCK();
 }
 
 static void
-vlan_unconfig_locked(struct ifnet *ifp)
+vlan_unconfig_locked(struct ifnet *ifp, int departing)
 {
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
 	struct ifnet  *parent;
+	int error;
 
 	VLAN_LOCK_ASSERT();
 
@@ -1337,14 +1338,21 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		 */
 		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			/*
-			 * This may fail if the parent interface is
-			 * being detached.  Regardless, we should do a
-			 * best effort to free this interface as much
-			 * as possible as all callers expect vlan
-			 * destruction to succeed.
+			 * If the parent interface is being detached,
+			 * all its multicast addresses have already
+			 * been removed.  Warn about errors if
+			 * if_delmulti() does fail, but don't abort as
+			 * all callers expect vlan destruction to
+			 * succeed.
 			 */
-			(void)if_delmulti(parent,
-			    (struct sockaddr *)&mc->mc_addr);
+			if (!departing) {
+				error = if_delmulti(parent,
+				    (struct sockaddr *)&mc->mc_addr);
+				if (error)
+					if_printf(ifp,
+		    "Failed to delete multicast address from parent: %d\n",
+					    error);
+			}
 			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
 			free(mc, M_VLAN);
 		}

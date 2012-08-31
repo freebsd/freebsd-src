@@ -104,7 +104,10 @@ static uint32_t mge_rx_ipg(uint32_t val, int ver);
 static void mge_ver_params(struct mge_softc *sc);
 
 static void mge_intrs_ctrl(struct mge_softc *sc, int enable);
+static void mge_intr_rxtx(void *arg);
 static void mge_intr_rx(void *arg);
+static void mge_intr_rx_check(struct mge_softc *sc, uint32_t int_cause,
+    uint32_t int_cause_ext);
 static int mge_intr_rx_locked(struct mge_softc *sc, int count);
 static void mge_intr_tx(void *arg);
 static void mge_intr_tx_locked(struct mge_softc *sc);
@@ -171,15 +174,14 @@ static struct resource_spec res_spec[] = {
 	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE },
 	{ SYS_RES_IRQ, 1, RF_ACTIVE | RF_SHAREABLE },
 	{ SYS_RES_IRQ, 2, RF_ACTIVE | RF_SHAREABLE },
-	{ SYS_RES_IRQ, 3, RF_ACTIVE | RF_SHAREABLE },
-	{ SYS_RES_IRQ, 4, RF_ACTIVE | RF_SHAREABLE },
 	{ -1, 0 }
 };
 
 static struct {
 	driver_intr_t *handler;
 	char * description;
-} mge_intrs[MGE_INTR_COUNT] = {
+} mge_intrs[MGE_INTR_COUNT + 1] = {
+	{ mge_intr_rxtx,"GbE aggregated interrupt" },
 	{ mge_intr_rx,	"GbE receive interrupt" },
 	{ mge_intr_tx,	"GbE transmit interrupt" },
 	{ mge_intr_misc,"GbE misc interrupt" },
@@ -258,10 +260,11 @@ mge_ver_params(struct mge_softc *sc)
 	uint32_t d, r;
 
 	soc_id(&d, &r);
-	if (d == MV_DEV_88F6281 ||
+	if (d == MV_DEV_88F6281 || d == MV_DEV_88F6781 ||
 	    d == MV_DEV_88F6282 ||
 	    d == MV_DEV_MV78100 ||
-	    d == MV_DEV_MV78100_Z0) {
+	    d == MV_DEV_MV78100_Z0 ||
+	    (d & MV_DEV_FAMILY_MASK) == MV_DEV_DISCOVERY) {
 		sc->mge_ver = 2;
 		sc->mge_mtu = 0x4e8;
 		sc->mge_tfut_ipg_max = 0xFFFF;
@@ -278,6 +281,15 @@ mge_ver_params(struct mge_softc *sc)
 		sc->mge_tx_tok_cfg = 0x3FFFFFFF;
 		sc->mge_tx_tok_cnt = 0x3FFFFFFF;
 	}
+	if (d == MV_DEV_88RC8180)
+		sc->mge_intr_cnt = 1;
+	else
+		sc->mge_intr_cnt = 2;
+
+	if (d == MV_DEV_MV78160 || d == MV_DEV_MV78260 || d == MV_DEV_MV78460)
+		sc->mge_hw_csum = 0;
+	else
+		sc->mge_hw_csum = 1;
 }
 
 static void
@@ -442,7 +454,7 @@ mge_alloc_desc_dma(struct mge_softc *sc, struct mge_desc_wrapper* tab,
 
 	/* Allocate a busdma tag for mbufs. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),	/* parent */
-	    8, 0,				/* alignment, boundary */
+	    1, 0,				/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL, NULL,				/* filtfunc, filtfuncarg */
@@ -681,9 +693,12 @@ mge_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST;
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_MTU;
+	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	if (sc->mge_hw_csum) {
+		ifp->if_capabilities |= IFCAP_HWCSUM;
+		ifp->if_hwassist = MGE_CHECKSUM_FEATURES;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_hwassist = MGE_CHECKSUM_FEATURES;
 
 #ifdef DEVICE_POLLING
 	/* Advertise that polling is supported */
@@ -717,13 +732,15 @@ mge_attach(device_t dev)
 	MGE_WRITE(sc, MGE_REG_PHYDEV, miisc->mii_phy);
 
 	/* Attach interrupt handlers */
-	for (i = 0; i < 2; ++i) {
-		error = bus_setup_intr(dev, sc->res[1 + i],
-		    INTR_TYPE_NET | INTR_MPSAFE, NULL, *mge_intrs[i].handler,
-		    sc, &sc->ih_cookie[i]);
+	/* TODO: review flags, in part. mark RX as INTR_ENTROPY ? */
+	for (i = 1; i <= sc->mge_intr_cnt; ++i) {
+		error = bus_setup_intr(dev, sc->res[i],
+		    INTR_TYPE_NET | INTR_MPSAFE,
+		    NULL, *mge_intrs[(sc->mge_intr_cnt == 1 ? 0 : i)].handler,
+		    sc, &sc->ih_cookie[i - 1]);
 		if (error) {
 			device_printf(dev, "could not setup %s\n",
-			    mge_intrs[i].description);
+			    mge_intrs[(sc->mge_intr_cnt == 1 ? 0 : i)].description);
 			mge_detach(dev);
 			return (error);
 		}
@@ -748,14 +765,14 @@ mge_detach(device_t dev)
         callout_drain(&sc->wd_callout);
 
 	/* Stop and release all interrupts */
-	for (i = 0; i < 2; ++i) {
+	for (i = 0; i < sc->mge_intr_cnt; ++i) {
 		if (!sc->ih_cookie[i])
 			continue;
 
 		error = bus_teardown_intr(dev, sc->res[1 + i], sc->ih_cookie[i]);
 		if (error)
 			device_printf(dev, "could not release %s\n",
-			    mge_intrs[i].description);
+			    mge_intrs[(sc->mge_intr_cnt == 1 ? 0 : i + 1)].description);
 	}
 
 	/* Detach network interface */
@@ -983,6 +1000,41 @@ mge_init_locked(void *arg)
 }
 
 static void
+mge_intr_rxtx(void *arg)
+{
+	struct mge_softc *sc = arg;
+	uint32_t int_cause, int_cause_ext;
+
+	MGE_GLOBAL_LOCK(sc);
+
+#ifdef DEVICE_POLLING
+	if (sc->ifp->if_capenable & IFCAP_POLLING) {
+		MGE_GLOBAL_UNLOCK(sc);
+		return;
+	}
+#endif
+
+	/* Get interrupt cause */
+	int_cause = MGE_READ(sc, MGE_PORT_INT_CAUSE);
+	int_cause_ext = MGE_READ(sc, MGE_PORT_INT_CAUSE_EXT);
+
+	/* Check for Transmit interrupt */
+	if (int_cause_ext & (MGE_PORT_INT_EXT_TXBUF0 |
+	    MGE_PORT_INT_EXT_TXUR)) {
+		MGE_WRITE(sc, MGE_PORT_INT_CAUSE_EXT, ~(int_cause_ext &
+		    (MGE_PORT_INT_EXT_TXBUF0 | MGE_PORT_INT_EXT_TXUR)));
+		mge_intr_tx_locked(sc);
+	}
+
+	MGE_TRANSMIT_UNLOCK(sc);
+
+	/* Check for Receive interrupt */
+	mge_intr_rx_check(sc, int_cause, int_cause_ext);
+
+	MGE_RECEIVE_UNLOCK(sc);
+}
+
+static void
 mge_intr_err(void *arg)
 {
 	struct mge_softc *sc = arg;
@@ -1020,11 +1072,20 @@ mge_intr_rx(void *arg) {
 	int_cause = MGE_READ(sc, MGE_PORT_INT_CAUSE);
 	int_cause_ext = MGE_READ(sc, MGE_PORT_INT_CAUSE_EXT);
 
+	mge_intr_rx_check(sc, int_cause, int_cause_ext);
+
+	MGE_RECEIVE_UNLOCK(sc);
+}
+
+static void
+mge_intr_rx_check(struct mge_softc *sc, uint32_t int_cause,
+    uint32_t int_cause_ext)
+{
 	/* Check for resource error */
 	if (int_cause & MGE_PORT_INT_RXERRQ0) {
 		mge_reinit_rx(sc);
 		MGE_WRITE(sc, MGE_PORT_INT_CAUSE,
-		    int_cause & ~MGE_PORT_INT_RXERRQ0);
+		    ~(int_cause & MGE_PORT_INT_RXERRQ0));
 	}
 
 	int_cause &= MGE_PORT_INT_RXQ0;
@@ -1035,10 +1096,7 @@ mge_intr_rx(void *arg) {
 		MGE_WRITE(sc, MGE_PORT_INT_CAUSE_EXT, ~int_cause_ext);
 		mge_intr_rx_locked(sc, -1);
 	}
-
-	MGE_RECEIVE_UNLOCK(sc);
 }
-
 
 static int
 mge_intr_rx_locked(struct mge_softc *sc, int count)
@@ -1130,8 +1188,8 @@ mge_intr_tx(void *arg)
 
 	/* Ack the interrupt */
 	int_cause_ext = MGE_READ(sc, MGE_PORT_INT_CAUSE_EXT);
-	MGE_WRITE(sc, MGE_PORT_INT_CAUSE_EXT,
-	    int_cause_ext & ~MGE_PORT_INT_EXT_TXBUF0);
+	MGE_WRITE(sc, MGE_PORT_INT_CAUSE_EXT, ~(int_cause_ext &
+	    (MGE_PORT_INT_EXT_TXBUF0 | MGE_PORT_INT_EXT_TXUR)));
 
 	mge_intr_tx_locked(sc);
 
@@ -1401,12 +1459,12 @@ mge_encap(struct mge_softc *sc, struct mbuf *m0)
 		dw->mge_desc->byte_count = segs[seg].ds_len;
 		dw->mge_desc->buffer = segs[seg].ds_addr;
 		dw->buffer = m0;
-		dw->mge_desc->cmd_status = MGE_TX_LAST | MGE_TX_FIRST |
-		    MGE_TX_ETH_CRC | MGE_TX_EN_INT | MGE_TX_PADDING |
-		    MGE_DMA_OWNED;
-
+		dw->mge_desc->cmd_status = 0;
 		if (seg == 0)
 			mge_offload_setup_descriptor(sc, dw);
+		dw->mge_desc->cmd_status |= MGE_TX_LAST | MGE_TX_FIRST |
+		    MGE_TX_ETH_CRC | MGE_TX_EN_INT | MGE_TX_PADDING |
+		    MGE_DMA_OWNED;
 	}
 
 	bus_dmamap_sync(sc->mge_desc_dtag, dw->desc_dmap,

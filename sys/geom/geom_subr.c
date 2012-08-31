@@ -1261,7 +1261,6 @@ provider_flags_to_string(struct g_provider *pp, char *str, size_t size)
 		strlcpy(str, "NONE", size);
 		return (str);
 	}
-	ADDFLAG(pp, G_PF_CANDELETE, "G_PF_CANDELETE");
 	ADDFLAG(pp, G_PF_WITHER, "G_PF_WITHER");
 	ADDFLAG(pp, G_PF_ORPHAN, "G_PF_ORPHAN");
 	return (str);

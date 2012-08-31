@@ -19,6 +19,7 @@ TGHDRS=	AttrList \
 	AttrPCHWrite \
 	AttrParsedAttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \

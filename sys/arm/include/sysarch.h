@@ -50,9 +50,18 @@
  * if ARM_RAS_END moves in relation to ARM_RAS_START (look for occurrances
  * of ldr/str rm,[rn, #4]).
  */
+
+/* ARM_TP_ADDRESS is needed for processors that don't support
+ * the exclusive-access opcodes introduced with ARMv6K. */
+/* TODO: #if !defined(_HAVE_ARMv6K_INSTRUCTIONS) */
+#if !defined (__ARM_ARCH_7__) && \
+	!defined (__ARM_ARCH_7A__) && \
+	!defined (__ARM_ARCH_6K__) &&  \
+	!defined (__ARM_ARCH_6ZK__)
 #define ARM_TP_ADDRESS		(ARM_VECTORS_HIGH + 0x1000)
 #define ARM_RAS_START		(ARM_TP_ADDRESS + 4)
 #define ARM_RAS_END		(ARM_TP_ADDRESS + 8)
+#endif
 
 #ifndef LOCORE
 #ifndef __ASSEMBLER__

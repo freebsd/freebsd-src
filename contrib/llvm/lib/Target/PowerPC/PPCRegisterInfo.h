@@ -35,7 +35,8 @@ public:
   
   /// getPointerRegClass - Return the register class to use to hold pointers.
   /// This is used for addressing modes.
-  virtual const TargetRegisterClass *getPointerRegClass(unsigned Kind=0) const;  
+  virtual const TargetRegisterClass *
+  getPointerRegClass(const MachineFunction &MF, unsigned Kind=0) const;
 
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const;
@@ -46,9 +47,13 @@ public:
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
+  virtual bool avoidWriteAfterWrite(const TargetRegisterClass *RC) const;
+
   /// requiresRegisterScavenging - We require a register scavenger.
   /// FIXME (64-bit): Should be inlined.
   bool requiresRegisterScavenging(const MachineFunction &MF) const;
+
+  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,

@@ -133,7 +133,7 @@ module_register_init(const void *arg)
 		MOD_XLOCK;
 		if (mod->file) {
 			/*
-			 * Once a module is succesfully loaded, move
+			 * Once a module is successfully loaded, move
 			 * it to the head of the module list for this
 			 * linker file.  This resorts the list so that
 			 * when the kernel linker iterates over the

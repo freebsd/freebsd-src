@@ -13,6 +13,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/ParentMap.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/SaveAndRestore.h"
 
 namespace clang {
   class Decl;
@@ -154,6 +155,8 @@ public:
 bool canApplyWeak(ASTContext &Ctx, QualType type,
                   bool AllowOnUnknownClass = false);
 
+bool isPlusOneAssign(const BinaryOperator *E);
+
 /// \brief 'Loc' is the end of a statement range. This returns the location
 /// immediately after the semicolon following the statement.
 /// If no semicolon is found or the location is inside a macro, the returned
@@ -174,14 +177,21 @@ StringRef getNilString(ASTContext &Ctx);
 template <typename BODY_TRANS>
 class BodyTransform : public RecursiveASTVisitor<BodyTransform<BODY_TRANS> > {
   MigrationPass &Pass;
+  Decl *ParentD;
 
+  typedef RecursiveASTVisitor<BodyTransform<BODY_TRANS> > base;
 public:
-  BodyTransform(MigrationPass &pass) : Pass(pass) { }
+  BodyTransform(MigrationPass &pass) : Pass(pass), ParentD(0) { }
 
   bool TraverseStmt(Stmt *rootS) {
     if (rootS)
-      BODY_TRANS(Pass).transformBody(rootS);
+      BODY_TRANS(Pass).transformBody(rootS, ParentD);
     return true;
+  }
+
+  bool TraverseObjCMethodDecl(ObjCMethodDecl *D) {
+    SaveAndRestore<Decl *> SetParent(ParentD, D);
+    return base::TraverseObjCMethodDecl(D);
   }
 };
 

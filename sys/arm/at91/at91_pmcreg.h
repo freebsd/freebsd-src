@@ -57,6 +57,11 @@
 #define PMC_IDR		0x64		/* Interrupt Disable Register */
 #define PMC_SR		0x68		/* Status Register */
 #define PMC_IMR		0x6c		/* Interrupt Mask Register */
+		/*	0x70		   reserved */
+		/*	0x74		   reserved */
+		/*	0x78		   reserved */
+		/*	0x7c		   reserved */
+#define	PMC_PLLICPR	0x80		/* PLL Charge Pump Current Register */
 
 /* PMC System Clock Enable Register */
 /* PMC System Clock Disable Register */

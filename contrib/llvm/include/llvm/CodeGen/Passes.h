@@ -24,14 +24,13 @@ namespace llvm {
   class FunctionPass;
   class MachineFunctionPass;
   class PassInfo;
+  class PassManagerBase;
   class TargetLowering;
   class TargetRegisterClass;
   class raw_ostream;
 }
 
 namespace llvm {
-
-extern char &NoPassID; // Allow targets to choose not to run a pass.
 
 class PassConfigImpl;
 
@@ -54,9 +53,15 @@ public:
   /// optimization after regalloc.
   static char PostRAMachineLICMID;
 
+private:
+  PassManagerBase *PM;
+  AnalysisID StartAfter;
+  AnalysisID StopAfter;
+  bool Started;
+  bool Stopped;
+
 protected:
   TargetMachine *TM;
-  PassManagerBase *PM;
   PassConfigImpl *Impl; // Internal data structures
   bool Initialized;     // Flagged after all passes are configured.
 
@@ -91,6 +96,18 @@ public:
 
   CodeGenOpt::Level getOptLevel() const { return TM->getOptLevel(); }
 
+  /// setStartStopPasses - Set the StartAfter and StopAfter passes to allow
+  /// running only a portion of the normal code-gen pass sequence.  If the
+  /// Start pass ID is zero, then compilation will begin at the normal point;
+  /// otherwise, clear the Started flag to indicate that passes should not be
+  /// added until the starting pass is seen.  If the Stop pass ID is zero,
+  /// then compilation will continue to the end.
+  void setStartStopPasses(AnalysisID Start, AnalysisID Stop) {
+    StartAfter = Start;
+    StopAfter = Stop;
+    Started = (StartAfter == 0);
+  }
+
   void setDisableVerify(bool Disable) { setOpt(DisableVerify, Disable); }
 
   bool getEnableTailMerge() const { return EnableTailMerge; }
@@ -98,16 +115,19 @@ public:
 
   /// Allow the target to override a specific pass without overriding the pass
   /// pipeline. When passes are added to the standard pipeline at the
-  /// point where StadardID is expected, add TargetID in its place.
-  void substitutePass(char &StandardID, char &TargetID);
+  /// point where StandardID is expected, add TargetID in its place.
+  void substitutePass(AnalysisID StandardID, AnalysisID TargetID);
+
+  /// Insert InsertedPassID pass after TargetPassID pass.
+  void insertPass(AnalysisID TargetPassID, AnalysisID InsertedPassID);
 
   /// Allow the target to enable a specific standard pass by default.
-  void enablePass(char &ID) { substitutePass(ID, ID); }
+  void enablePass(AnalysisID PassID) { substitutePass(PassID, PassID); }
 
   /// Allow the target to disable a specific standard pass by default.
-  void disablePass(char &ID) { substitutePass(ID, NoPassID); }
+  void disablePass(AnalysisID PassID) { substitutePass(PassID, 0); }
 
-  /// Return the pass ssubtituted for StandardID by the target.
+  /// Return the pass substituted for StandardID by the target.
   /// If no substitution exists, return StandardID.
   AnalysisID getPassSubstitution(AnalysisID StandardID) const;
 
@@ -117,6 +137,9 @@ public:
   /// Add common target configurable passes that perform LLVM IR to IR
   /// transforms following machine independent optimization.
   virtual void addIRPasses();
+
+  /// Add passes to lower exception handling for the code generator.
+  void addPassesToHandleExceptions();
 
   /// Add common passes that perform LLVM IR to IR transforms in preparation for
   /// instruction selection.
@@ -172,6 +195,18 @@ protected:
   /// LLVMTargetMachine provides standard regalloc passes for most targets.
   virtual void addOptimizedRegAlloc(FunctionPass *RegAllocPass);
 
+  /// addPreRewrite - Add passes to the optimized register allocation pipeline
+  /// after register allocation is complete, but before virtual registers are
+  /// rewritten to physical registers.
+  ///
+  /// These passes must preserve VirtRegMap and LiveIntervals, and when running
+  /// after RABasic or RAGreedy, they should take advantage of LiveRegMatrix.
+  /// When these passes run, VirtRegMap contains legal physreg assignments for
+  /// all virtual registers.
+  virtual bool addPreRewrite() {
+    return false;
+  }
+
   /// addFinalizeRegAlloc - This method may be implemented by targets that want
   /// to run passes within the regalloc pipeline, immediately after the register
   /// allocation pass itself. These passes run as soon as virtual regisiters
@@ -216,8 +251,12 @@ protected:
   ///
 
   /// Add a CodeGen pass at this point in the pipeline after checking overrides.
-  /// Return the pass that was added, or NoPassID.
-  AnalysisID addPass(char &ID);
+  /// Return the pass that was added, or zero if no pass was added.
+  AnalysisID addPass(AnalysisID PassID);
+
+  /// Add a pass to the PassManager if that pass is supposed to be run, as
+  /// determined by the StartAfter and StopAfter options.
+  void addPass(Pass *P);
 
   /// addMachinePasses helper to create the target-selected or overriden
   /// regalloc pass.
@@ -226,7 +265,7 @@ protected:
   /// printAndVerify - Add a pass to dump then verify the machine function, if
   /// those steps are enabled.
   ///
-  void printAndVerify(const char *Banner) const;
+  void printAndVerify(const char *Banner);
 };
 } // namespace llvm
 
@@ -276,6 +315,10 @@ namespace llvm {
   ///  This pass is still in development
   extern char &StrongPHIEliminationID;
 
+  /// LiveIntervals - This analysis keeps track of the live ranges of virtual
+  /// and physical registers.
+  extern char &LiveIntervalsID;
+
   /// LiveStacks pass. An analysis keeping track of the liveness of stack slots.
   extern char &LiveStacksID;
 
@@ -296,6 +339,10 @@ namespace llvm {
   /// SpillPlacement analysis. Suggest optimal placement of spill code between
   /// basic blocks.
   extern char &SpillPlacementID;
+
+  /// VirtRegRewriter pass. Rewrite virtual registers to physical registers as
+  /// assigned in VirtRegMap.
+  extern char &VirtRegRewriterID;
 
   /// UnreachableMachineBlockElimination - This pass removes unreachable
   /// machine basic blocks.
@@ -342,9 +389,20 @@ namespace llvm {
   /// branches.
   extern char &BranchFolderPassID;
 
+  /// MachineFunctionPrinterPass - This pass prints out MachineInstr's.
+  extern char &MachineFunctionPrinterPassID;
+
   /// TailDuplicate - Duplicate blocks with unconditional branches
   /// into tails of their predecessors.
   extern char &TailDuplicateID;
+
+  /// MachineTraceMetrics - This pass computes critical path and CPU resource
+  /// usage in an ensemble of traces.
+  extern char &MachineTraceMetricsID;
+
+  /// EarlyIfConverter - This pass performs if-conversion on SSA form by
+  /// inserting cmov instructions.
+  extern char &EarlyIfConverterID;
 
   /// IfConverter - This pass performs machine code if conversion.
   extern char &IfConverterID;
