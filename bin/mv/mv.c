@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 /* Exit code for a failed exec. */
 #define EXEC_FAILED 127
 
-static int	fflg, iflg, nflg, vflg;
+static int	fflg, hflg, iflg, nflg, vflg;
 
 static int	copy(const char *, const char *);
 static int	do_move(const char *, const char *);
@@ -87,8 +87,11 @@ main(int argc, char *argv[])
 	int ch;
 	char path[PATH_MAX];
 
-	while ((ch = getopt(argc, argv, "finv")) != -1)
+	while ((ch = getopt(argc, argv, "fhinv")) != -1)
 		switch (ch) {
+		case 'h':
+			hflg = 1;
+			break;
 		case 'i':
 			iflg = 1;
 			fflg = nflg = 0;
@@ -121,6 +124,17 @@ main(int argc, char *argv[])
 		if (argc > 2)
 			usage();
 		exit(do_move(argv[0], argv[1]));
+	}
+
+	/*
+	 * If -h was specified, treat the target as a symlink instead of
+	 * directory.
+	 */
+	if (hflg) {
+		if (argc > 2)
+			usage();
+		if (lstat(argv[1], &sb) == 0 && S_ISLNK(sb.st_mode))
+			exit(do_move(argv[0], argv[1]));
 	}
 
 	/* It's a directory, move each file into it. */
@@ -483,7 +497,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i | -n] [-v] source target",
+		      "usage: mv [-f | -i | -n] [-hv] source target",
 		      "       mv [-f | -i | -n] [-v] source ... directory");
 	exit(EX_USAGE);
 }
