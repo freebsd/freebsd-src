@@ -513,25 +513,21 @@ static char fpetable[128] = {
 };
 
 /*
- * Preserve the FP status word, clear FP exceptions for x87, then
- * generate a SIGFPE.
+ * Read the FP status and control words, then generate si_code value
+ * for SIGFPE.  The error code chosen will be one of the
+ * FPE_... macros. It will be sent as the second argument to old
+ * BSD-style signal handlers and as "siginfo_t->si_code" (second
+ * argument) to SA_SIGINFO signal handlers.
  *
- * Clearing exceptions was necessary mainly to avoid IRQ13 bugs and is
- * engraved in our i386 ABI.  We now depend on longjmp() restoring a
- * usable state.  Restoring the state or examining it might fail if we
- * didn't clear exceptions.
+ * Some time ago, we cleared the x87 exceptions with FNCLEX there.
+ * Clearing exceptions was necessary mainly to avoid IRQ13 bugs.  The
+ * usermode code which understands the FPU hardware enough to enable
+ * the exceptions, can also handle clearing the exception state in the
+ * handler. The only consequence of not clearing the exception is the
+ * rethrow of the SIGFPE on return from the signal handler and
+ * reexecution of the corresponding instruction.
  *
- * For SSE exceptions, the exceptions are not cleared.
- *
- * The error code chosen will be one of the FPE_... macros. It will be
- * sent as the second argument to old BSD-style signal handlers and as
- * "siginfo_t->si_code" (second argument) to SA_SIGINFO signal handlers.
- *
- * XXX the FP state is not preserved across signal handlers.  So signal
- * handlers cannot afford to do FP unless they preserve the state or
- * longjmp() out.  Both preserving the state and longjmp()ing may be
- * destroyed by IRQ13 bugs.  Clearing FP exceptions is not an acceptable
- * solution for signals other than SIGFPE.
+ * For XMM traps, the exceptions were never cleared.
  */
 int
 fputrap_x87(void)
@@ -553,7 +549,6 @@ fputrap_x87(void)
 	} else {
 		fnstcw(&control);
 		fnstsw(&status);
-		fnclex();
 	}
 
 	critical_exit();
