@@ -3734,21 +3734,30 @@ no_split:
 			mp = rxbuf->m_pack;
 
 		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
-		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
-		    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) {
-			printf("Refresh mbufs: payload dmamap load"
-			    " failure - %d\n", error);
-			m_free(mp);
-			rxbuf->m_pack = NULL;
-			goto update;
+
+		/* If we're dealing with an mbuf that was copied rather
+		 * than replaced, there's no need to go through busdma.
+		 */
+		if ((rxbuf->flags & IXGBE_RX_COPY) == 0) {
+			/* Get the memory mapping */
+			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+			    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
+			if (error != 0) {
+				printf("Refresh mbufs: payload dmamap load"
+				    " failure - %d\n", error);
+				m_free(mp);
+				rxbuf->m_pack = NULL;
+				goto update;
+			}
+			rxbuf->m_pack = mp;
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+			    BUS_DMASYNC_PREREAD);
+			rxbuf->paddr = rxr->rx_base[i].read.pkt_addr =
+			    htole64(pseg[0].ds_addr);
+		} else {
+			rxr->rx_base[i].read.pkt_addr = rxbuf->paddr;
+			rxbuf->flags &= ~IXGBE_RX_COPY;
 		}
-		rxbuf->m_pack = mp;
-		bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
-		    BUS_DMASYNC_PREREAD);
-		rxr->rx_base[i].read.pkt_addr =
-		    htole64(pseg[0].ds_addr);
 
 		refreshed = TRUE;
 		/* Next is precalculated */
@@ -4061,6 +4070,7 @@ skip_head:
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
 	rxr->rx_split_packets = 0;
+	rxr->rx_copies = 0;
 	rxr->rx_bytes = 0;
 	rxr->discard = FALSE;
 	rxr->vtag_strip = FALSE;
@@ -4618,14 +4628,37 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 			** that determines what we are
 			*/
 			sendmp = rbuf->fmp;
-			rbuf->m_pack = rbuf->fmp = NULL;
 
 			if (sendmp != NULL) {  /* secondary frag */
+				rbuf->m_pack = rbuf->fmp = NULL;
 				mp->m_flags &= ~M_PKTHDR;
 				sendmp->m_pkthdr.len += mp->m_len;
 			} else {
+				/*
+				 * Optimize.  This might be a small packet,
+				 * maybe just a TCP ACK.  Do a fast copy that
+				 * is cache aligned into a new mbuf, and
+				 * leave the old mbuf+cluster for re-use.
+				 */
+				if (eop && plen <= IXGBE_RX_COPY_LEN) {
+					prefetch(mp->m_data);
+					sendmp = m_gethdr(M_DONTWAIT, MT_DATA);
+					if (sendmp != NULL) {
+						sendmp->m_data +=
+						    IXGBE_RX_COPY_ALIGN;
+						ixgbe_bcopy(mp->m_data,
+						    sendmp->m_data, plen);
+						sendmp->m_len = plen;
+						rxr->rx_copies++;
+						rbuf->flags |= IXGBE_RX_COPY;
+					}
+				}
+				if (sendmp == NULL) {
+					rbuf->m_pack = rbuf->fmp = NULL;
+					sendmp = mp;
+				}
+
 				/* first desc of a non-ps chain */
-				sendmp = mp;
 				sendmp->m_flags |= M_PKTHDR;
 				sendmp->m_pkthdr.len = mp->m_len;
 				if (staterr & IXGBE_RXD_STAT_VP) {
@@ -5476,6 +5509,9 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
 				CTLFLAG_RD, &rxr->rx_bytes,
 				"Queue Bytes Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_copies",
+				CTLFLAG_RD, &rxr->rx_copies,
+				"Copied RX Frames");
 		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_queued",
 				CTLFLAG_RD, &lro->lro_queued, 0,
 				"LRO Queued");
