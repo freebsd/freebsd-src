@@ -5,13 +5,11 @@ PROG=	md5
 
 LINKS=	${BINDIR}/md5 ${BINDIR}/rmd160 \
 	${BINDIR}/md5 ${BINDIR}/sha1 \
-	${BINDIR}/md5 ${BINDIR}/sha256 \
-	${BINDIR}/md5 ${BINDIR}/sha512
+	${BINDIR}/md5 ${BINDIR}/sha256
 
 MLINKS=	md5.1 rmd160.1 \
 	md5.1 sha1.1 \
-	md5.1 sha256.1 \
-	md5.1 sha512.1
+	md5.1 sha256.1
 
 WARNS?=	6
 WFORMAT?=	1
