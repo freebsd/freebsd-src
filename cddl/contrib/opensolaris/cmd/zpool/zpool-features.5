@@ -67,7 +67,7 @@ however a feature's short name may differ across ZFS implementations if
 following the convention would result in name conflicts.
 .Ss Feature states
 Features can be in one of three states:
-.Bl -tag
+.Bl -tag -width "XXXXXXXX"
 .It Sy active
 This feature's on\-disk format changes are in effect on the pool.
 Support for this feature is required to import the pool in read\-write mode.
@@ -93,6 +93,7 @@ unless an administrator moves the feature to the
 state.
 Features cannot be disabled once they have been enabled.
 .El
+.Pp
 The state of supported features is exposed through pool properties of the form
 .Sy feature@short_name .
 .Ss Read\-only compatibility
@@ -111,7 +112,7 @@ named
 .Sy unsupported@feature_guid
 will indicate why the import was allowed despite the unsupported feature.
 Possible values for this property are:
-.Bl -tag
+.Bl -tag -width "XXXXXXXX"
 .It Sy inactive
 The feature is in the
 .Sy enabled
@@ -127,7 +128,7 @@ properly.
 Enabling a feature will automatically enable any features it depends on.
 .Sh FEATURES
 The following features are supported on this system:
-.Bl -tag
+.Bl -tag -width "XXXXXXXX"
 .It Sy async_destroy
 .Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:async_destroy"
 .It GUID Ta com.delphix:async_destroy
