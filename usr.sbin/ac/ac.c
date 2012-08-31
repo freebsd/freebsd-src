@@ -269,8 +269,7 @@ show_today(struct timeval today)
 	struct user_entry *up;
 	struct utmpx_entry *lp;
 	char date[64];
-	struct timeval usec = { 0, 1 };
-	struct timeval yesterday;
+	struct timeval diff, total = { 0, 0 }, usec = { 0, 1 }, yesterday;
 	static int d_first = -1;
 
 	if (d_first < 0)
@@ -280,23 +279,19 @@ show_today(struct timeval today)
 		       d_first ? "%e %b  total" : "%b %e  total",
 		       localtime(&yesterday.tv_sec));
 
-	/* restore the missing second */
-	timeradd(&today, &usec, &yesterday);
-
 	SLIST_FOREACH(lp, &CurUtmpx, next) {
-		timersub(&yesterday, &lp->time, &today);
-		update_user(lp->user, today);
+		timersub(&today, &lp->time, &diff);
+		update_user(lp->user, diff);
 		/* As if they just logged in. */
-		lp->time = yesterday;
+		lp->time = today;
 	}
-	timerclear(&today);
 	SLIST_FOREACH(up, &Users, next) {
-		timeradd(&today, &up->time, &today);
+		timeradd(&total, &up->time, &total);
 		/* For next day. */
 		timerclear(&up->time);
 	}
-	if (timerisset(&today))
-		(void)printf("%s %11.2f\n", date, (double)today.tv_sec / 3600);
+	if (timerisset(&total))
+		(void)printf("%s %11.2f\n", date, (double)total.tv_sec / 3600);
 }
 
 /*
