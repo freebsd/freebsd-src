@@ -131,8 +131,8 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
-NORMAL_FW= uudecode -o ${.TARGET} ${.IMPSRC}
-NORMAL_FWO= ${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ${.IMPSRC}
+NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
+NORMAL_FWO= ${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ${.ALLSRC:M*.fw}
 
 # Special flags for managing the compat compiles for ZFS
 ZFS_CFLAGS=	-DFREEBSD_NAMECACHE -DBUILDING_ZFS -nostdinc -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common/fs/zfs -I$S/cddl/contrib/opensolaris/uts/common/zmod -I$S/cddl/contrib/opensolaris/uts/common -I$S -I$S/cddl/contrib/opensolaris/common/zfs -I$S/cddl/contrib/opensolaris/common ${CFLAGS} -Wno-unknown-pragmas -Wno-missing-prototypes -Wno-undef -Wno-strict-prototypes -Wno-cast-qual -Wno-parentheses -Wno-redundant-decls -Wno-missing-braces -Wno-uninitialized -Wno-unused -Wno-inline -Wno-switch -Wno-pointer-arith -Wno-unknown-pragmas
