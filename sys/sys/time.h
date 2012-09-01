@@ -311,7 +311,6 @@ extern struct timeval boottime;
  * much faster than the functions without "get" prefix and should
  * be used where a precision of 1/hz seconds is acceptable or where
  * performance is priority. (NB: "precision", _not_ "resolution" !)
- *
  */
 
 void	binuptime(struct bintime *bt);
