@@ -1472,18 +1472,22 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 					break;
 #define OPTSET(bit) \
 do { \
+	INP_WLOCK(in6p); \
 	if (optval) \
 		in6p->inp_flags |= (bit); \
 	else \
 		in6p->inp_flags &= ~(bit); \
+	INP_WUNLOCK(in6p); \
 } while (/*CONSTCOND*/ 0)
 #define OPTSET2292(bit) \
 do { \
+	INP_WLOCK(in6p); \
 	in6p->inp_flags |= IN6P_RFC2292; \
 	if (optval) \
 		in6p->inp_flags |= (bit); \
 	else \
 		in6p->inp_flags &= ~(bit); \
+	INP_WUNLOCK(in6p); \
 } while (/*CONSTCOND*/ 0)
 #define OPTBIT(bit) (in6p->inp_flags & (bit) ? 1 : 0)
 
@@ -1737,6 +1741,7 @@ do { \
 				if (error)
 					break;
 
+				INP_WLOCK(in6p);
 				switch (optval) {
 				case IPV6_PORTRANGE_DEFAULT:
 					in6p->inp_flags &= ~(INP_LOWPORT);
@@ -1757,6 +1762,7 @@ do { \
 					error = EINVAL;
 					break;
 				}
+				INP_WUNLOCK(in6p);
 				break;
 
 #ifdef IPSEC
