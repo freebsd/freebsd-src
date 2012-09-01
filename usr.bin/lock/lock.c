@@ -54,9 +54,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/signal.h>
 #include <sys/consio.h>
+
 #include <err.h>
 #include <ctype.h>
 #include <errno.h>
@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <syslog.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 #define	TIMEOUT	15
@@ -89,10 +90,9 @@ int
 main(int argc, char **argv)
 {
 	struct passwd *pw;
-	struct timeval timval;
-	time_t timval_sec;
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
+	time_t timval;
 	int ch, failures, sectimeout, usemine, vtylock;
 	char *ap, *cryptpw, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
@@ -138,11 +138,9 @@ main(int argc, char **argv)
 		errx(1, "not a terminal?");
 	if (strncmp(ttynam, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		ttynam += strlen(_PATH_DEV);
-	if (gettimeofday(&timval, (struct timezone *)NULL))
-		err(1, "gettimeofday");
-	nexttime = timval.tv_sec + (sectimeout * 60);
-	timval_sec = timval.tv_sec;
-	timp = localtime(&timval_sec);
+	timval = time(NULL);
+	nexttime = timval + (sectimeout * 60);
+	timp = localtime(&timval);
 	ap = asctime(timp);
 	tzn = timp->tm_zone;
 
@@ -256,17 +254,16 @@ usage(void)
 static void
 hi(int signo __unused)
 {
-	struct timeval timval;
+	time_t timval;
 
-	if (!gettimeofday(&timval, (struct timezone *)NULL)) {
-		(void)printf("lock: type in the unlock key. ");
-		if (no_timeout) {
-			(void)putchar('\n');
-		} else {
-			(void)printf("timeout in %jd:%jd minutes\n",
-			    (intmax_t)(nexttime - timval.tv_sec) / 60,
-			    (intmax_t)(nexttime - timval.tv_sec) % 60);
-		}
+	timval = time(NULL);
+	(void)printf("lock: type in the unlock key. ");
+	if (no_timeout) {
+		(void)putchar('\n');
+	} else {
+		(void)printf("timeout in %jd:%jd minutes\n",
+		    (intmax_t)(nexttime - timval) / 60,
+		    (intmax_t)(nexttime - timval) % 60);
 	}
 }
 

@@ -232,7 +232,7 @@ main(argc, argv)
 	}
 
 	/* choose a unique seed for random number generation */
-	(void)gettimeofday(&ntime, 0);
+	(void)gettimeofday(&ntime, NULL);
 	srandom(ntime.tv_sec + ntime.tv_usec);
 
 	sequence = random();     /* initial seq number */
@@ -701,11 +701,9 @@ casual(inf, sup)
 char *
 date()
 {
-	struct	timeval tv;
 	time_t	tv_sec;
 
-	(void)gettimeofday(&tv, (struct timezone *)0);
-	tv_sec = tv.tv_sec;
+	tv_sec = time(NULL);
 	return (ctime(&tv_sec));
 }
 
