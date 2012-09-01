@@ -83,7 +83,7 @@ slave()
 	refusetime = 0;
 	adjtime = 0;
 
-	(void)gettimeofday(&ntime, 0);
+	(void)gettimeofday(&ntime, NULL);
 	electiontime = ntime.tv_sec + delay2;
 	fastelection = ntime.tv_sec + FASTTOUT;
 	if (justquit)
@@ -103,7 +103,7 @@ slave()
 
 loop:
 	get_goodgroup(0);
-	(void)gettimeofday(&ntime, (struct timezone *)0);
+	(void)gettimeofday(&ntime, NULL);
 	if (ntime.tv_sec > electiontime) {
 		if (trace)
 			fprintf(fd, "election timer expired\n");
@@ -132,7 +132,7 @@ loop:
 			makeslave(slavenet);	/* prune extras */
 			setstatus();
 		}
-		(void)gettimeofday(&ntime, 0);
+		(void)gettimeofday(&ntime, NULL);
 		looktime = ntime.tv_sec + delay2;
 	}
 	if (ntime.tv_sec >= looptime) {
@@ -153,7 +153,7 @@ loop:
 			}
 		    }
 		}
-		(void)gettimeofday(&ntime, 0);
+		(void)gettimeofday(&ntime, NULL);
 		looptime = ntime.tv_sec + delay2;
 	}
 
@@ -225,7 +225,7 @@ loop:
 			 * Otherwise the clocks can race until the loop
 			 * is found.
 			 */
-			(void)gettimeofday(&otime, 0);
+			(void)gettimeofday(&otime, NULL);
 			if (adjtime < otime.tv_sec)
 				looptime -= (looptime-otime.tv_sec)/2 + 1;
 
@@ -234,7 +234,7 @@ loop:
 				seq = msg->tsp_seq;
 				synch(tvtomsround(msg->tsp_time));
 			}
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			fastelection = ntime.tv_sec + FASTTOUT;
 			adjtime = ntime.tv_sec + SAMPLEINTVL*2;
@@ -248,7 +248,7 @@ loop:
 			seq = msg->tsp_seq;
 
 			/* adjust time for residence on the queue */
-			(void)gettimeofday(&otime, 0);
+			(void)gettimeofday(&otime, NULL);
 			adj_msg_time(msg,&otime);
 			/*
 			 * the following line is necessary due to syslog
@@ -289,7 +289,7 @@ loop:
 				if (status & MASTER)
 					spreadtime();
 			}
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			fastelection = ntime.tv_sec + FASTTOUT;
 
@@ -327,7 +327,7 @@ loop:
 			setstatus();
 			answerdelay();
 			xmit(TSP_SLAVEUP, 0, &from);
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			fastelection = ntime.tv_sec + FASTTOUT;
 			refusetime = 0;
@@ -336,7 +336,7 @@ loop:
 		case TSP_MASTERREQ:
 			if (fromnet->status != SLAVE)
 				break;
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			break;
 
@@ -381,7 +381,7 @@ loop:
 
 		case TSP_ELECTION:
 			if (fromnet->status == SLAVE) {
-				(void)gettimeofday(&ntime, 0);
+				(void)gettimeofday(&ntime, NULL);
 				electiontime = ntime.tv_sec + delay2;
 				fastelection = ntime.tv_sec + FASTTOUT;
 				seq = 0;
@@ -538,7 +538,7 @@ loop:
 					electiontime = 0;
 				    }
 				}
-				(void)gettimeofday(&ntime, 0);
+				(void)gettimeofday(&ntime, NULL);
 				looptime = ntime.tv_sec + FASTTOUT;
 			    } else {
 				if (msg->tsp_hopcnt-- < 1)
@@ -590,7 +590,7 @@ loop:
 					(void)remmach(htp);
 				}
 			    }
-			    (void)gettimeofday(&ntime, 0);
+			    (void)gettimeofday(&ntime, NULL);
 			    looptime = ntime.tv_sec + FASTTOUT;
 			}
 			break;
@@ -660,7 +660,7 @@ schgdate(msg, newdate)
 	       msg->tsp_name, newdate);
 
 	/* adjust time for residence on the queue */
-	(void)gettimeofday(&otime, 0);
+	(void)gettimeofday(&otime, NULL);
 	adj_msg_time(msg, &otime);
 
 	to.tsp_type = TSP_SETDATEREQ;
