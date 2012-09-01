@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_clone.h>
 #include <net/vnet.h>
-#include <net/if_types.h>	/* for IFT_ETHER */
+#include <net/if_types.h>	/* for IFT_PFLOG */
 #include <net/bpf.h>		/* for BPF */
 
 #include <netinet/in.h>
@@ -151,7 +151,7 @@ ipfw_log_clone_create(struct if_clone *ifc, char *name, size_t len,
 	if (error)
 		return (error);
 
-	ifp = if_alloc(IFT_ETHER);
+	ifp = if_alloc(IFT_PFLOG);
 	if (ifp == NULL) {
 		ifc_free_unit(ifc, unit);
 		return (ENOSPC);
