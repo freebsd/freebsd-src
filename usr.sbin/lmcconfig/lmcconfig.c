@@ -1076,9 +1076,8 @@ print_events(void)
 {
   char *time;
   struct timeval tv;
-  struct timezone tz;
 
-  gettimeofday(&tv, &tz);
+  gettimeofday(&tv, NULL);
   time = (char *)ctime((time_t *)&tv);
   printf("Current time:\t\t%s", time);
   if (status.cntrs.reset_time.tv_sec < 1000)
