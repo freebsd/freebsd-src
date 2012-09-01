@@ -56,8 +56,8 @@
 .Op Fl dnpRrv
 .Sm off
 .Ar snapshot
-.Ns Op % Ns Ar snapname
-.Ns Op , Ns Ar ...
+.Op % Ns Ar snapname
+.Op , Ns Ar ...
 .Sm on
 .Nm
 .Cm snapshot
@@ -1496,8 +1496,8 @@ behavior for mounted file systems in use.
 .Op Fl dnpRrv
 .Sm off
 .Ar snapshot
-.Ns Op % Ns Ar snapname
-.Ns Op , Ns Ar ...
+.Op % Ns Ar snapname
+.Op , Ns Ar ...
 .Sm on
 .Xc
 .Pp
@@ -2472,10 +2472,10 @@ subcommand or change a
 property. The following permissions are available:
 .Bl -column -offset 4n "secondarycache" "subcommand"
 .It NAME Ta TYPE Ta NOTES
-.It Xo allow Ta subcommand Ta Must
+.It allow Ta subcommand Ta Must Xo
 also have the permission that is being allowed
 .Xc
-.It Xo clone Ta subcommand Ta Must
+.It clone Ta subcommand Ta Must Xo
 also have the 'create' ability and 'mount' ability in the origin file system
 .Xc
 .It create Ta subcommand Ta Must also have the 'mount' ability
@@ -2484,14 +2484,14 @@ also have the 'create' ability and 'mount' ability in the origin file system
 object number, and the ability to create snapshots necessary to 'zfs diff'
 .It hold Ta subcommand Ta Allows adding a user hold to a snapshot
 .It mount Ta subcommand Ta Allows mount/umount of Tn ZFS No datasets
-.It Xo promote Ta subcommand Ta Must
+.It promote Ta subcommand Ta Must Xo
 also have the 'mount' and 'promote' ability in the origin file system
 .Xc
 .It receive Ta subcommand Ta Must also have the 'mount' and 'create' ability
-.It Xo release Ta subcommand Ta Allows
+.It release Ta subcommand Ta Allows Xo
 releasing a user hold which might destroy the snapshot
 .Xc
-.It Xo rename Ta subcommand Ta Must
+.It rename Ta subcommand Ta Must Xo
 also have the 'mount' and 'create' ability in the new parent
 .Xc
 .It rollback Ta subcommand Ta Must also have the 'mount' ability
@@ -2507,7 +2507,6 @@ protocol
 .It userprop Ta other Ta Allows changing any user property
 .It userquota Ta other Ta Allows accessing any userquota@... property
 .It userused Ta other Ta Allows reading any userused@... property
-.It  Ta 
 .It aclinherit Ta property
 .It aclmode Ta property
 .It atime Ta property
@@ -2705,7 +2704,6 @@ Display an indication of the type of file, in a manner similar to the
 .Fl F
 option of
 .Xr ls 1 .
-.Pp
 .Bl -column -offset 2n indent
 .It \&B Ta block device
 .It \&C Ta character device
@@ -2756,6 +2754,16 @@ Detaches the specified
 .Ar filesystem
 from the jail identified by JID
 .Ar jailid .
+.El
+.Sh EXIT STATUS
+The following exit values are returned:
+.Bl -tag -offset 2n -width 2n
+.It 0
+Successful completion.
+.It 1
+An error occurred.
+.It 2
+Invalid command line options were specified.
 .El
 .Sh EXAMPLES
 .Bl -tag -width 0n
@@ -3179,7 +3187,6 @@ The following example shows how to see what has changed between a prior
 snapshot of a ZFS Dataset and its current state.  The
 .Fl F
 option is used to indicate type information for the files affected.
-.Pp
 .Bd -literal -offset 2n
 .Li # Ic zfs diff tank/test@before tank/test
 M       /       /tank/test/
@@ -3189,16 +3196,6 @@ R       F       /tank/test/oldname -> /tank/test/newname
 +       F       /tank/test/created
 M       F       /tank/test/modified
 .Ed
-.El
-.Sh EXIT STATUS
-The following exit values are returned:
-.Bl -tag -offset 2n -width 2n
-.It 0
-Successful completion.
-.It 1
-An error occurred.
-.It 2
-Invalid command line options were specified.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,
