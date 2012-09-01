@@ -624,7 +624,7 @@ privilege with
 .Qq Nm Cm allow ,
 can access everyone's usage.
 .Pp
-The 
+The
 .Sy userused@ Ns ...
 properties are not displayed by
 .Qq Nm Cm get all .
@@ -1134,7 +1134,7 @@ will not use configured pool log devices.
 will instead optimize synchronous operations for global pool throughput and
 efficient use of resources.
 .It Sy snapdir Ns = Ns Cm hidden | visible
-Controls whether the 
+Controls whether the
 .Pa \&.zfs
 directory is hidden or visible in the root of the file system as discussed in
 the
@@ -1201,7 +1201,7 @@ are not reflected in the reservation.
 The
 .Sy vscan
 property is currently not supported on
-.Fx . 
+.Fx .
 .It Sy xattr Ns = Ns Cm off | on
 The
 .Sy xattr
@@ -1288,7 +1288,7 @@ properties. The correlation between properties and mount options is as follows:
 In addition, these options can be set on a per-mount basis using the
 .Fl o
 option, without affecting the property that is stored on disk. The values
-specified on the command line override the values stored in the dataset. These 
+specified on the command line override the values stored in the dataset. These
 properties are reported as "temporary" by the
 .Qq Nm Cm get
 command. If the properties are changed while the dataset is mounted, the new
@@ -1327,7 +1327,7 @@ domain name for the
 .Ar module
 component of property names to reduce the chance that two
 independently-developed packages use the same property name for different
-purposes. Property names beginning with 
+purposes. Property names beginning with
 .Em com.sun
 are reserved for use by Sun Microsystems.
 .Pp
@@ -2216,7 +2216,7 @@ and it is assumed to be from the same file system as the last
 .Ar snapshot .
 .Pp
 If the destination is a clone, the source may be the origin snapshot, which
-must be fully specified (for example, 
+must be fully specified (for example,
 .Cm pool/fs@origin ,
 not just
 .Cm @origin ) .
@@ -2830,7 +2830,7 @@ Snapshots are displayed if the
 .Sy listsnaps
 property is
 .Cm on .
-The default is 
+The default is
 .Cm off .
 See
 .Xr zpool 8
