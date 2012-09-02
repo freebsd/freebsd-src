@@ -44,10 +44,6 @@
 
 #include <netconfig.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #define	_RPC_NONE	0
 #define	_RPC_NETPATH	1
 #define	_RPC_VISIBLE	2
@@ -64,9 +60,5 @@ extern void __rpc_endconf(void *);
 extern struct netconfig *__rpc_getconf(void *);
 extern struct netconfig *__rpc_getconfip(const char *);
 __END_DECLS
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif	/* !_RPC_NETTYPE_H */

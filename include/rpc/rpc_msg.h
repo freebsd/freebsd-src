@@ -43,10 +43,6 @@
 #ifndef _RPC_RPC_MSG_H
 #define _RPC_RPC_MSG_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #define RPC_MSG_VERSION		((u_int32_t) 2)
 #define RPC_SERVICE_PORT	((u_short) 2048)
 
@@ -214,9 +210,5 @@ extern bool_t	xdr_rejected_reply(XDR *, struct rejected_reply *);
  */
 extern void	_seterr_reply(struct rpc_msg *, struct rpc_err *);
 __END_DECLS
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* !_RPC_RPC_MSG_H */

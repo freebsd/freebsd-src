@@ -51,10 +51,6 @@
 #include <sys/cdefs.h>
 #include <sys/socket.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #define MAX_AUTH_BYTES	400
 #define MAXNETNAMELEN	255	/* maximum length of network user's name */
 
@@ -369,9 +365,5 @@ __END_DECLS
 #define	RPCSEC_GSS_KRB5		390003
 #define	RPCSEC_GSS_KRB5I	390004
 #define	RPCSEC_GSS_KRB5P	390005
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* !_RPC_AUTH_H */
