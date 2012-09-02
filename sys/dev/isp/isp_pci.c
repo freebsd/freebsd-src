@@ -1461,6 +1461,7 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		imushp->error = EINVAL;
 		return;
 	}
+	isp_prt(imushp->isp, ISP_LOGDEBUG0, "request/result area @ 0x%jx/0x%jx", (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
 	imushp->isp->isp_rquest = imushp->vbase;
 	imushp->isp->isp_rquest_dma = segs->ds_addr;
 	segs->ds_addr += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(imushp->isp));
@@ -1490,6 +1491,7 @@ imc1(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		imushp->error = EINVAL;
 		return;
 	}
+	isp_prt(imushp->isp, ISP_LOGDEBUG0, "scdma @ 0x%jx/0x%jx", (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
 	FCPARAM(imushp->isp, imushp->chan)->isp_scdma = segs->ds_addr;
 	FCPARAM(imushp->isp, imushp->chan)->isp_scratch = imushp->vbase;
 }
