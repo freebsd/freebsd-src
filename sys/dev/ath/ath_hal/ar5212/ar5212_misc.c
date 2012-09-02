@@ -960,13 +960,13 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		case 1:	/* setting */
 			if (ahp->ah_phyPowerOn) {
 				if (capability == HAL_CAP_STRONG_DIV) {
-							}
-				v = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-				if (setting)
-					v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-				else
-					v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-				OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
+					v = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+					if (setting)
+						v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+					else
+						v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+					OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
+				}
 			}
 			ahp->ah_diversity = (setting != 0);
 			return AH_TRUE;
@@ -1243,11 +1243,11 @@ ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 /*
  * Parameters for the AR5212 PHY.
  */
-#define	AR5212_DFS_FIRPWR	-41
-#define	AR5212_DFS_RRSSI	12
-#define	AR5212_DFS_HEIGHT	20
-#define	AR5212_DFS_PRSSI	22
-#define	AR5212_DFS_INBAND	6
+#define	AR5212_DFS_FIRPWR	-35
+#define	AR5212_DFS_RRSSI	20
+#define	AR5212_DFS_HEIGHT	14
+#define	AR5212_DFS_PRSSI	6
+#define	AR5212_DFS_INBAND	4
 
 /*
  * Default parameters for the AR5413 PHY.
@@ -1260,7 +1260,6 @@ ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 #define	AR5413_DFS_RELPWR	8
 #define	AR5413_DFS_RELSTEP	31
 #define	AR5413_DFS_MAXLEN	255
-
 
 HAL_BOOL
 ar5212GetDfsDefaultThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
