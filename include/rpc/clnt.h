@@ -64,6 +64,10 @@
 #include <netconfig.h>
 #include <sys/un.h>
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 /*
  * Well-known IPV6 RPC broadcast address.
  */
@@ -550,6 +554,10 @@ extern enum clnt_stat rpc_broadcast_exp(const rpcprog_t, const rpcvers_t,
 					const resultproc_t, const int,
 					const int, const char *);
 __END_DECLS
+
+#ifdef	__cplusplus
+}
+#endif
 
 /* For backward compatibility */
 #include <rpc/clnt_soc.h>

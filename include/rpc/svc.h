@@ -65,6 +65,10 @@
  * parameters, struct svc_req * and SVCXPRT *, defined below.
  */
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 /*
  *      Service control requests
  */
@@ -467,6 +471,9 @@ int __rpc_get_local_uid(SVCXPRT *_transp, uid_t *_uid);
 
 __END_DECLS
 
+#ifdef	__cplusplus
+}
+#endif
 
 /* for backward compatibility */
 #include <rpc/svc_soc.h>

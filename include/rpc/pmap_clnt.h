@@ -66,6 +66,10 @@
 #define _RPC_PMAP_CLNT_H_
 #include <sys/cdefs.h>
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 __BEGIN_DECLS
 extern bool_t		pmap_set(u_long, u_long, int, int);
 extern bool_t		pmap_unset(u_long, u_long);
@@ -82,5 +86,9 @@ extern enum clnt_stat	clnt_broadcast(u_long, u_long, u_long,
 extern u_short		pmap_getport(struct sockaddr_in *,
 				     u_long, u_long, u_int);
 __END_DECLS
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif /* !_RPC_PMAP_CLNT_H_ */
