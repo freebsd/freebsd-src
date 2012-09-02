@@ -710,8 +710,11 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			0x6666, 0x6677, 0x1122, 0x33ff,
 			0x0000, 0x0001, 0x1000, 0x1010,
 		};
+		int nmbox = ISP_NMBOX(isp);
+		if (IS_SCSI(isp))
+			nmbox = 6;
 		MBSINIT(&mbs, MBOX_MAILBOX_REG_TEST, MBLOGALL, 0);
-		for (i = 1; i < ISP_NMBOX(isp); i++) {
+		for (i = 1; i < nmbox; i++) {
 			mbs.param[i] = patterns[i];
 		}
 		isp_mboxcmd(isp, &mbs);
@@ -719,7 +722,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			ISP_RESET0(isp);
 			return;
 		}
-		for (i = 1; i < ISP_NMBOX(isp); i++) {
+		for (i = 1; i < nmbox; i++) {
 			if (mbs.param[i] != patterns[i]) {
 				ISP_RESET0(isp);
 				isp_prt(isp, ISP_LOGERR, "Register Test Failed at Register %d: should have 0x%04x but got 0x%04x", i, patterns[i], mbs.param[i]);
