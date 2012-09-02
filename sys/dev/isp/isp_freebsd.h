@@ -145,6 +145,7 @@ struct isp_pcmd {
 	bus_dmamap_t 		dmap;	/* dma map for this command */
 	struct ispsoftc *	isp;	/* containing isp */
 	struct callout		wdog;	/* watchdog timer */
+	uint8_t 		crn;	/* command reference number */
 };
 #define	ISP_PCMD(ccb)		(ccb)->ccb_h.spriv_ptr1
 #define	PISP_PCMD(ccb)		((struct isp_pcmd *)ISP_PCMD(ccb))
@@ -193,6 +194,7 @@ struct isp_fc {
 	struct proc *		target_proc;
 #endif
 #endif
+	uint8_t	crnseed;	/* next command reference number */
 };
 
 struct isp_spi {
@@ -255,7 +257,6 @@ struct isposinfo {
 #else
 				: 2,
 #endif
-		forcemulti	: 1,
 		timer_active	: 1,
 		autoconf	: 1,
 		ehook_active	: 1,
@@ -307,6 +308,16 @@ struct isposinfo {
 	} else {					\
 		ISP_FC_PC(isp, chan)-> tag = val;	\
 	}
+
+#define	FCP_NEXT_CRN(isp, cmd, rslt, chan, tgt, lun)				\
+	if ((isp)->isp_osinfo.pc.fc[(chan)].crnseed == 0) {			\
+		(isp)->isp_osinfo.pc.fc[(chan)].crnseed = 1;			\
+	}									\
+	if (cmd) {								\
+		PISP_PCMD(cmd)->crn = (isp)->isp_osinfo.pc.fc[(chan)].crnseed;	\
+	}									\
+	(rslt) = (isp)->isp_osinfo.pc.fc[(chan)].crnseed++
+	
 
 #define	isp_lock	isp_osinfo.lock
 #define	isp_bus_tag	isp_osinfo.bus_tag
@@ -630,7 +641,6 @@ extern int isp_autoconfig;
 #define	XS_CMD_S_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_WPEND
 #define	XS_CMD_C_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_WPEND
 #define	XS_CMD_WPEND_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_WPEND)
-
 
 #define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
 
