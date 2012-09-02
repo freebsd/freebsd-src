@@ -374,6 +374,7 @@ static devclass_t isp_devclass;
 DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 MODULE_DEPEND(isp, firmware, 1, 1, 1);
+static int isp_nvports = 0;
 
 static int
 isp_pci_probe(device_t dev)
@@ -451,7 +452,7 @@ isp_pci_probe(device_t dev)
 }
 
 static void
-isp_get_generic_options(device_t dev, ispsoftc_t *isp, int *nvp)
+isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
 	int tval;
 
@@ -483,12 +484,10 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp, int *nvp)
 	if (bootverbose) {
 		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
 	}
-	tval = 0;
+	tval = -1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "vports", &tval);
 	if (tval > 0 && tval < 127) {
-		*nvp =  tval;
-	} else {
-		*nvp = 0;
+		isp_nvports = tval;
 	}
 	tval = 1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "autoconfig", &tval);
@@ -527,7 +526,7 @@ static void
 isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 {
 	const char *sptr;
-	int tval;
+	int tval = 0;
 
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "iid", &tval)) {
 		if (IS_FC(isp)) {
@@ -648,7 +647,6 @@ static int
 isp_pci_attach(device_t dev)
 {
 	int i, m1, m2, locksetup = 0;
-	int isp_nvports = 0;
 	uint32_t data, cmd, linesz, did;
 	struct isp_pcisoftc *pcs;
 	ispsoftc_t *isp;
@@ -670,7 +668,8 @@ isp_pci_attach(device_t dev)
 	/*
 	 * Get Generic Options
 	 */
-	isp_get_generic_options(dev, isp, &isp_nvports);
+	isp_nvports = 0;
+	isp_get_generic_options(dev, isp);
 
 	/*
 	 * Check to see if options have us disabled
@@ -876,21 +875,16 @@ isp_pci_attach(device_t dev)
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER are set.
 	 */
-	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN |
-		PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
-
+	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
 	if (IS_2300(isp)) {	/* per QLogic errata */
 		cmd &= ~PCIM_CMD_INVEN;
 	}
-
 	if (IS_2322(isp) || pci_get_devid(dev) == PCI_QLOGIC_ISP6312) {
 		cmd &= ~PCIM_CMD_INTX_DISABLE;
 	}
-
 	if (IS_24XX(isp)) {
 		cmd &= ~PCIM_CMD_INTX_DISABLE;
 	}
-
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
 	/*
