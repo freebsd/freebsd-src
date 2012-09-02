@@ -45,9 +45,6 @@
 /*	#pragma ident "@(#)rpcent.h   1.13    94/04/25 SMI"	*/
 /*      @(#)rpcent.h 1.1 88/12/06 SMI   */
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 struct rpcent {
       char    *r_name;        /* name of server for this rpc program */
@@ -66,9 +63,5 @@ extern struct rpcent *getrpcent(void);
 extern void setrpcent(int);
 extern void endrpcent(void);
 __END_DECLS
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* !_RPC_CENT_H */

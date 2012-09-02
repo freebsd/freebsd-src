@@ -43,10 +43,6 @@
 #define _RPC_XDR_H
 #include <sys/cdefs.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * XDR provides a conventional way for converting between C data
  * types and an external bit-string representation.  Library supplied
@@ -369,9 +365,5 @@ extern bool_t xdrrec_skiprecord(XDR *);
 extern bool_t xdrrec_eof(XDR *);
 extern u_int xdrrec_readbytes(XDR *, caddr_t, u_int);
 __END_DECLS
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* !_RPC_XDR_H */

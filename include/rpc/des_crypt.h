@@ -47,10 +47,6 @@
 #include <sys/cdefs.h>
 #include <rpc/rpc.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #define DES_MAXDATA 8192	/* max bytes encrypted in one call */
 #define DES_DIRMASK (1 << 0)
 #define DES_ENCRYPT (0*DES_DIRMASK)	/* Encrypt */
@@ -106,9 +102,5 @@ __END_DECLS
 __BEGIN_DECLS
 void des_setparity( char *);
 __END_DECLS
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif  /* _DES_DES_CRYPT_H */
