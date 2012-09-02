@@ -49,10 +49,6 @@
  * with TS-RPC
  */
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /*
  *  Approved way of getting address of caller
  */
@@ -116,9 +112,5 @@ __END_DECLS
 __BEGIN_DECLS
 extern SVCXPRT *svcfd_create(int, u_int, u_int);
 __END_DECLS
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* !_RPC_SVC_SOC_H */

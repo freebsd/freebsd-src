@@ -48,10 +48,6 @@
 #define _RPC_AUTH_UNIX_H
 #include <sys/cdefs.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /* The machine name is part of a credential; it may not exceed 255 bytes */
 #define MAX_MACHINE_NAME 255
 
@@ -84,9 +80,5 @@ __END_DECLS
 struct short_hand_verf {
 	struct opaque_auth new_cred;
 };
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* !_RPC_AUTH_UNIX_H */
