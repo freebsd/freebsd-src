@@ -76,6 +76,13 @@
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 
 #ifdef	ISP_TARGET_MODE
+/* Not quite right, but there was no bump for this change */
+#if __FreeBSD_version < 225469
+#define	SDFIXED(x)	(&x)
+#else
+#define	SDFIXED(x)	((struct scsi_sense_data_fixed *)(&x))
+#endif
+
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
 
