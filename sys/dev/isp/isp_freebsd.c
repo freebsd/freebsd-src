@@ -3248,10 +3248,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		xpt_print(atio->ccb_h.path, "[0x%x] Non-Zero Lun %d: cdb0=0x%x\n", atio->tag_id, return_lun, cdb[0]);
 		if (cdb[0] != INQUIRY && cdb[0] != REPORT_LUNS && cdb[0] != REQUEST_SENSE) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_ILLEGAL_REQUEST;
-			atio->sense_data.add_sense_code = 0x25;
-			atio->sense_data.add_sense_code_qual = 0x0;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_ILLEGAL_REQUEST;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x25;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x0;
+			atio->sense_len = SSD_MIN_SIZE;
 		}
 		return_lun = CAM_LUN_WILDCARD;
 	}
@@ -3275,10 +3275,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 	case READ_16:
 		if (isptarg_rwparm(cdb, disk_data, disk_size, atio->ccb_h.ccb_data_offset, &data_ptr, &data_len, &last)) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x24;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x24;
+			atio->sense_len = SSD_MIN_SIZE;
 		} else {
 #ifdef	ISP_FORCE_TIMEOUT
 			{
@@ -3314,10 +3314,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 	case WRITE_16:
 		if (isptarg_rwparm(cdb, disk_data, disk_size, atio->ccb_h.ccb_data_offset, &data_ptr, &data_len, &last)) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x24;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x24;
+			atio->sense_len = SSD_MIN_SIZE;
 		} else {
 #ifdef	ISP_FORCE_TIMEOUT
 			{
@@ -3351,10 +3351,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		flags |= CAM_DIR_IN;
 		if (cdb[1] || cdb[2] || cdb[3]) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x20;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x20;
+			atio->sense_len = SSD_MIN_SIZE;
 			break;
 		}
 		data_len = sizeof (iqd);
@@ -3375,10 +3375,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		if (ca) {
 			ca = 0;
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x28;
-			atio->sense_data.add_sense_code_qual = 0x0;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x28;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x0;
+			atio->sense_len = SSD_MIN_SIZE;
 		}
 		break;
 	case SYNCHRONIZE_CACHE:
@@ -3393,10 +3393,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		flags |= CAM_DIR_IN;
 		if (cdb[2] || cdb[3] || cdb[4] || cdb[5]) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x24;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x24;
+			atio->sense_len = SSD_MIN_SIZE;
 			break;
 		}
 		if (cdb[8] & 0x1) { /* PMI */
@@ -3447,10 +3447,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 	default:
 		flags |= CAM_DIR_NONE;
 		status = SCSI_STATUS_CHECK_COND;
-		atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-		atio->sense_data.add_sense_code = 0x5;
-		atio->sense_data.add_sense_code_qual = 0x20;
-		atio->sense_len = sizeof (atio->sense_data);
+		SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+		SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+		SDFIXED(atio->sense_data)->add_sense_code_qual = 0x20;
+		atio->sense_len = SSD_MIN_SIZE;
 		break;
 	}
 
