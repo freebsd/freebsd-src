@@ -1154,10 +1154,27 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 static ISP_INLINE void
 destroy_lun_state(ispsoftc_t *isp, tstate_t *tptr)
 {
+	union ccb *ccb;
 	struct tslist *lhp;
 
 	KASSERT((tptr->hold != 0), ("tptr is not held"));
 	KASSERT((tptr->hold == 1), ("tptr still held (%d)", tptr->hold));
+	do {
+		ccb = (union ccb *)SLIST_FIRST(&tptr->atios);
+		if (ccb) {
+			SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
+			ccb->ccb_h.status = CAM_REQ_ABORTED;
+			xpt_done(ccb);
+		}
+	} while (ccb);
+	do {
+		ccb = (union ccb *)SLIST_FIRST(&tptr->inots);
+		if (ccb) {
+			SLIST_REMOVE_HEAD(&tptr->inots, sim_links.sle);
+			ccb->ccb_h.status = CAM_REQ_ABORTED;
+			xpt_done(ccb);
+		}
+	} while (ccb);
 	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
 	SLIST_REMOVE(lhp, tptr, tstate, next);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, tptr->owner, "destroyed tstate\n");
@@ -1472,8 +1489,8 @@ done:
 	}
 	ccb->ccb_h.status = status;
 	if (status == CAM_REQ_CMP) {
-		xpt_print(ccb->ccb_h.path, "lun now disabled for target mode\n");
 		destroy_lun_state(isp, tptr);
+		xpt_print(ccb->ccb_h.path, "lun now disabled for target mode\n");
 	} else {
 		if (tptr)
 			rls_lun_statep(isp, tptr);
