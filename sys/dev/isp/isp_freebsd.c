@@ -779,8 +779,13 @@ static ISP_INLINE void
 isp_free_pcmd(ispsoftc_t *isp, union ccb *ccb)
 {
 	if (ISP_PCMD(ccb)) {
-		memset(ISP_PCMD(ccb), 0, sizeof (struct isp_pcmd));
-		((struct isp_pcmd *)ISP_PCMD(ccb))->next = isp->isp_osinfo.pcmd_free;
+#ifdef	ISP_TARGET_MODE
+		PISP_PCMD(ccb)->datalen = 0;
+		PISP_PCMD(ccb)->totslen = 0;
+		PISP_PCMD(ccb)->cumslen = 0;
+		PISP_PCMD(ccb)->crn = 0;
+#endif
+		PISP_PCMD(ccb)->next = isp->isp_osinfo.pcmd_free;
 		isp->isp_osinfo.pcmd_free = ISP_PCMD(ccb);
 		ISP_PCMD(ccb) = NULL;
 	}
@@ -6326,12 +6331,20 @@ isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
 int
 isp_fcp_next_crn(ispsoftc_t *isp, uint8_t *crnp, XS_T *cmd)
 {
-	uint32_t chan = XS_CHANNEL(cmd);
-	uint32_t tgt = XS_TGT(cmd);
-	uint32_t lun = XS_LUN(cmd);
-	struct isp_fc *fc = &isp->isp_osinfo.pc.fc[chan];
-	int idx = NEXUS_HASH(tgt, lun);
-	struct isp_nexus *nxp = fc->nexus_hash[idx];
+	uint32_t chan, tgt, lun;
+	struct isp_fc *fc;
+	struct isp_nexus *nxp;
+	int idx;
+
+	if (isp->isp_type < ISP_HA_FC_2300)
+		return (0);
+
+	chan = XS_CHANNEL(cmd);
+	tgt = XS_TGT(cmd);
+	lun = XS_LUN(cmd);
+	fc = &isp->isp_osinfo.pc.fc[chan];
+	idx = NEXUS_HASH(tgt, lun);
+	nxp = fc->nexus_hash[idx];
 
 	while (nxp) {
 		if (nxp->tgt == tgt && nxp->lun == lun)
