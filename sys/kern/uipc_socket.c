@@ -1695,8 +1695,8 @@ dontblock:
 		 * examined ('type'), end the receive operation.
 	 	 */
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-		if (m->m_type == MT_OOBDATA) {
-			if (type != MT_OOBDATA)
+		if (m->m_type == MT_OOBDATA || m->m_type == MT_CONTROL) {
+			if (type != m->m_type)
 				break;
 		} else if (type == MT_OOBDATA)
 			break;
