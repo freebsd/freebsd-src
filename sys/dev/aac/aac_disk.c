@@ -332,9 +332,6 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 void
 aac_biodone(struct bio *bp)
 {
-	struct aac_disk	*sc;
-
-	sc = (struct aac_disk *)bp->bio_disk->d_drv1;
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	if (bp->bio_flags & BIO_ERROR)
