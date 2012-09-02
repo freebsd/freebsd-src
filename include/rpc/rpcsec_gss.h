@@ -29,6 +29,10 @@
 #ifndef _RPCSEC_GSS_H
 #define _RPCSEC_GSS_H
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 #include <gssapi/gssapi.h>
 
 #ifndef MAX_GSS_MECH
@@ -175,5 +179,9 @@ bool_t	__rpc_gss_unwrap(AUTH *auth, XDR* xdrs, xdrproc_t xdr_args,
 bool_t __rpc_gss_set_error(int rpc_gss_error, int system_error);
 
 __END_DECLS
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif /* !_RPCSEC_GSS_H */

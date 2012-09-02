@@ -42,9 +42,13 @@
 #ifndef _RPC_RPCCOM_H
 #define	_RPC_RPCCOM_H
 
+/* #pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI" */
+
 #include <sys/cdefs.h>
 
-/* #pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI" */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * The max size of the transport, if the size cannot be determined
@@ -79,5 +83,9 @@ bool_t rpc_control(int,void *);
 char *_get_next_token(char *, int);
 
 __END_DECLS
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _RPC_RPCCOM_H */

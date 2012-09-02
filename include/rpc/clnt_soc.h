@@ -49,6 +49,10 @@
 
 #include <sys/cdefs.h>
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 #define UDPMSGSIZE      8800    /* rpc imposed limit on udp msg size */  
 
 /*
@@ -102,5 +106,9 @@ extern CLIENT *clntudp_create(struct sockaddr_in *, u_long, u_long,
 extern CLIENT *clntudp_bufcreate(struct sockaddr_in *, u_long, u_long,
 				 struct timeval, int *, u_int, u_int);
 __END_DECLS
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif /* _RPC_CLNT_SOC_H */
