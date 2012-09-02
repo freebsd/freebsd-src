@@ -851,19 +851,34 @@ typedef struct {
 #define	ISP2400_FW_ATTR_EXPFW	0x2000
 #define	ISP2400_FW_ATTR_EXTNDED	0x8000
 
-#define	ISP_CAP_FCTAPE(isp)	\
-	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_FCTAPE))
+/*
+ * These are either manifestly true or are dependent on f/w attributes
+ */
 #define	ISP_CAP_TMODE(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_TMODE))
 #define	ISP_CAP_SCCFW(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_SCCLUN))
 #define	ISP_CAP_2KLOGIN(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_2KLOGINS))
+
+/*
+ * This is only true for 24XX cards with this f/w attribute
+ */
 #define	ISP_CAP_MULTI_ID(isp)	\
 	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
-
 #define	ISP_GET_VPIDX(isp, tag) \
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
+
+/*
+ * This is true manifestly or is dependent on a f/w attribute
+ * but may or may not actually be *enabled*. In any case, it
+ * is enabled on a per-channel basis.
+ */
+#define	ISP_CAP_FCTAPE(isp)	\
+	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_FCTAPE))
+
+#define	ISP_FCTAPE_ENABLED(isp, chan)	\
+	(IS_24XX(isp)? (FCPARAM(isp, chan)->isp_xfwoptions & ICB2400_OPT2_FCTAPE) != 0 : (FCPARAM(isp, chan)->isp_xfwoptions & ICBXOPT_FCTAPE) != 0)
 
 /*
  * Reduced Interrupt Operation Response Queue Entries
