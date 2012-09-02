@@ -1969,14 +1969,24 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pt_entry_t origpte, newpte;
 	pv_entry_t pv;
 	vm_page_t mpte, om;
-	pt_entry_t rw;
 
 	va &= ~PAGE_MASK;
  	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
+	    va >= kmi.clean_eva,
+	    ("pmap_enter: managed mapping within the clean submap"));
 	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0,
 	    ("pmap_enter: page %p is not busy", m));
 	pa = VM_PAGE_TO_PHYS(m);
-	newpte = TLBLO_PA_TO_PFN(pa) | PTE_V;
+	newpte = TLBLO_PA_TO_PFN(pa) | init_pte_prot(m, access, prot);
+	if (wired)
+		newpte |= PTE_W;
+	if (is_kernel_pmap(pmap))
+		newpte |= PTE_G;
+	if (is_cacheable_mem(pa))
+		newpte |= PTE_C_CACHE;
+	else
+		newpte |= PTE_C_UNCACHED;
 
 	mpte = NULL;
 
@@ -2031,6 +2041,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		if (pte_test(&origpte, PTE_MANAGED)) {
 			om = m;
 			newpte |= PTE_MANAGED;
+			if (!pte_test(&newpte, PTE_RO))
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 		}
 		goto validate;
 	}
@@ -2059,18 +2071,16 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pmap->pm_stats.resident_count++;
 
 	/*
-	 * Enter on the PV list if part of our managed memory. Note that we
-	 * raise IPL while manipulating pv_table since pmap_enter can be
-	 * called at interrupt time.
+	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
-		    ("pmap_enter: managed mapping within the clean submap"));
 		if (pv == NULL)
 			pv = get_pv_entry(pmap, FALSE);
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 		newpte |= PTE_MANAGED;
+		if (!pte_test(&newpte, PTE_RO))
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 	} else if (pv != NULL)
 		free_pv_entry(pmap, pv);
 
@@ -2083,26 +2093,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 validate:
 	if ((access & VM_PROT_WRITE) != 0)
 		m->md.pv_flags |= PV_TABLE_REF;
-	rw = init_pte_prot(m, access, prot);
 
 #ifdef PMAP_DEBUG
 	printf("pmap_enter:  va: %p -> pa: %p\n", (void *)va, (void *)pa);
 #endif
-	/*
-	 * Now validate mapping with desired protection/wiring.
-	 */
-	newpte |= rw;
-
-	if (is_cacheable_mem(pa))
-		newpte |= PTE_C_CACHE;
-	else
-		newpte |= PTE_C_UNCACHED;
-
-	if (wired)
-		newpte |= PTE_W;
-
-	if (is_kernel_pmap(pmap))
-	         newpte |= PTE_G;
 
 	/*
 	 * if the mapping or permission bits are different, we need to
@@ -3248,7 +3242,6 @@ init_pte_prot(vm_page_t m, vm_prot_t access, vm_prot_t prot)
 			rw = PTE_V | PTE_D;
 		else
 			rw = PTE_V;
-		vm_page_aflag_set(m, PGA_WRITEABLE);
 	} else
 		/* Needn't emulate a modified bit for unmanaged pages. */
 		rw = PTE_V | PTE_D;
