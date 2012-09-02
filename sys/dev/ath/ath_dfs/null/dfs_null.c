@@ -132,6 +132,13 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 	ath_hal_enabledfs(sc->sc_ah, &pe);
 
+	/*
+	 * Disable strong signal fast diversity - needed for
+	 * AR5212 and similar PHYs for reliable short pulse
+	 * duration.
+	 */
+	(void) ath_hal_setcapability(sc->sc_ah, HAL_CAP_DIVERSITY, 2, 0, NULL);
+
 	return (1);
 #else
 	return (0);
