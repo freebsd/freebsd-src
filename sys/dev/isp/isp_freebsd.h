@@ -102,7 +102,7 @@ typedef struct {
 	void *		next;
 	uint32_t	orig_datalen;
 	uint32_t	bytes_xfered;
-	uint32_t	last_xframt;
+	uint32_t	bytes_in_transit;
 	uint32_t	tag;		/* typically f/w RX_ID */
 	uint32_t	lun;
 	uint32_t	nphdl;
@@ -112,6 +112,7 @@ typedef struct {
 	uint16_t	oxid;	/* wire oxid */
 	uint16_t	word3;	/* PRLI word3 params */
 	uint16_t	ctcnt;	/* number of CTIOs currently active */
+	uint8_t		seqno;	/* CTIO sequence number */
 	uint32_t
 			srr_notify_rcvd	: 1,
 			cdb0		: 8,
@@ -134,6 +135,14 @@ typedef struct {
 #define	ATPD_STATE_LAST_CTIO		4
 #define	ATPD_STATE_PDON			5
 
+#define	ATPD_CCB_OUTSTANDING		16
+
+#define	ATPD_SEQ_MASK			0x7f
+#define	ATPD_SEQ_NOTIFY_CAM		0x80
+#define	ATPD_SET_SEQNO(hdrp, atp)	((isphdr_t *)hdrp)->rqs_seqno &= ~ATPD_SEQ_MASK, ((isphdr_t *)hdrp)->rqs_seqno |= (atp)->seqno
+#define	ATPD_GET_SEQNO(hdrp)		(((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_MASK)
+#define	ATPD_GET_NCAM(hdrp)		((((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0)
+
 typedef union inot_private_data inot_private_data_t;
 union inot_private_data {
 	inot_private_data_t *next;
@@ -149,9 +158,11 @@ typedef struct isp_timed_notify_ack {
 	uint8_t data[64];	 /* sb QENTRY_LEN, but order of definitions is wrong */
 } isp_tna_t;
 
+TAILQ_HEAD(isp_ccbq, ccb_hdr);
 typedef struct tstate {
 	SLIST_ENTRY(tstate) next;
 	struct cam_path *owner;
+	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
 	uint32_t hold;
@@ -179,6 +190,7 @@ struct isp_pcmd {
 	bus_dmamap_t 		dmap;		/* dma map for this command */
 	struct ispsoftc *	isp;		/* containing isp */
 	struct callout		wdog;		/* watchdog timer */
+	uint32_t		datalen;	/* data length for this command (target mode only) */
 	uint8_t			totslen;	/* sense length on status response */
 	uint8_t			cumslen;	/* sense length on status response */
 	uint8_t 		crn;		/* command reference number */
