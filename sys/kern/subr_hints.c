@@ -72,10 +72,11 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 	/* Migrate from static to dynamic hints */
 	switch (hintmode) {
 	case 0:
-		if (dynamic_kenv)
+		if (dynamic_kenv) {
 			/* Already here */
 			hintmode = value; /* XXX: Need we switch or not ? */
 			return (0);
+		}
 		from_kenv = 1;
 		cp = kern_envp;
 		break;
