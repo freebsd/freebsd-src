@@ -12,6 +12,7 @@
 
 #include "llvm/Support/type_traits.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <limits>
@@ -292,6 +293,16 @@ namespace llvm {
     /// Note: O(size() + Chars.size())
     size_type find_last_of(StringRef Chars, size_t From = npos) const;
 
+    /// find_last_not_of - Find the last character in the string that is not
+    /// \arg C, or npos if not found.
+    size_type find_last_not_of(char C, size_t From = npos) const;
+
+    /// find_last_not_of - Find the last character in the string that is not in
+    /// \arg Chars, or npos if not found.
+    ///
+    /// Note: O(size() + Chars.size())
+    size_type find_last_not_of(StringRef Chars, size_t From = npos) const;
+
     /// @}
     /// @name Helpful Algorithms
     /// @{
@@ -478,6 +489,24 @@ namespace llvm {
       if (Idx == npos)
         return std::make_pair(*this, StringRef());
       return std::make_pair(slice(0, Idx), slice(Idx+1, npos));
+    }
+
+    /// ltrim - Return string with consecutive characters in \arg Chars starting
+    /// from the left removed.
+    StringRef ltrim(StringRef Chars = " \t\n\v\f\r") const {
+      return drop_front(std::min(Length, find_first_not_of(Chars)));
+    }
+
+    /// rtrim - Return string with consecutive characters in \arg Chars starting
+    /// from the right removed.
+    StringRef rtrim(StringRef Chars = " \t\n\v\f\r") const {
+      return drop_back(Length - std::min(Length, find_last_not_of(Chars) + 1));
+    }
+
+    /// trim - Return string with consecutive characters in \arg Chars starting
+    /// from the left and right removed.
+    StringRef trim(StringRef Chars = " \t\n\v\f\r") const {
+      return ltrim(Chars).rtrim(Chars);
     }
 
     /// @}

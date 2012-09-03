@@ -1593,7 +1593,7 @@ geli_make_list()
 
 # Find scripts in local_startup directories that use the old syntax
 #
-find_local_scripts_old () {
+find_local_scripts_old() {
 	zlist=''
 	slist=''
 	for dir in ${local_startup}; do
@@ -1612,7 +1612,7 @@ find_local_scripts_old () {
 	done
 }
 
-find_local_scripts_new () {
+find_local_scripts_new() {
 	local_rc=''
 	for dir in ${local_startup}; do
 		if [ -d "${dir}" ]; then

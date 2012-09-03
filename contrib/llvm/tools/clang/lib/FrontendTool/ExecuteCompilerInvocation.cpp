@@ -16,7 +16,7 @@
 #include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
 #include "clang/ARCMigrate/ARCMTActions.h"
 #include "clang/CodeGen/CodeGenAction.h"
-#include "clang/Driver/CC1Options.h"
+#include "clang/Driver/Options.h"
 #include "clang/Driver/OptTable.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -32,6 +32,7 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   using namespace clang::frontend;
 
   switch (CI.getFrontendOpts().ProgramAction) {
+  case ASTDeclList:            return new ASTDeclListAction();
   case ASTDump:                return new ASTDumpAction();
   case ASTDumpXML:             return new ASTDumpXMLAction();
   case ASTPrint:               return new ASTPrintAction();
@@ -71,7 +72,12 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
 
   case PrintDeclContext:       return new DeclContextPrintAction();
   case PrintPreamble:          return new PrintPreambleAction();
-  case PrintPreprocessedInput: return new PrintPreprocessedAction();
+  case PrintPreprocessedInput: {
+    if (CI.getPreprocessorOutputOpts().RewriteIncludes)
+      return new RewriteIncludesAction();
+    return new PrintPreprocessedAction();
+  }
+
   case RewriteMacros:          return new RewriteMacrosAction();
   case RewriteObjC:            return new RewriteObjCAction();
   case RewriteTest:            return new RewriteTestAction();
@@ -129,7 +135,7 @@ static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
 bool clang::ExecuteCompilerInvocation(CompilerInstance *Clang) {
   // Honor -help.
   if (Clang->getFrontendOpts().ShowHelp) {
-    OwningPtr<driver::OptTable> Opts(driver::createCC1OptTable());
+    OwningPtr<driver::OptTable> Opts(driver::createDriverOptTable());
     Opts->PrintHelp(llvm::outs(), "clang -cc1",
                     "LLVM 'Clang' Compiler: http://clang.llvm.org");
     return 0;

@@ -58,26 +58,18 @@
 
 /* Original version from Steven Schoch <schoch@sheba.arc.nasa.gov> */
 
-#include <stdio.h>
 #include "cryptlib.h"
-#include <openssl/bn.h>
 #include <openssl/dsa.h>
-#include <openssl/rand.h>
-#include <openssl/asn1.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
-#include <openssl/asn1_mac.h>
 
 int DSA_do_verify(const unsigned char *dgst, int dgst_len, DSA_SIG *sig,
 		  DSA *dsa)
 	{
 #ifdef OPENSSL_FIPS
-	if(FIPS_mode() && !(dsa->flags & DSA_FLAG_NON_FIPS_ALLOW))
+	if (FIPS_mode() && !(dsa->meth->flags & DSA_FLAG_FIPS_METHOD)
+			&& !(dsa->flags & DSA_FLAG_NON_FIPS_ALLOW))
 		{
-		DSAerr(DSA_F_DSA_DO_VERIFY, DSA_R_OPERATION_NOT_ALLOWED_IN_FIPS_MODE);
-		return 0;
+		DSAerr(DSA_F_DSA_DO_VERIFY, DSA_R_NON_FIPS_DSA_METHOD);
+		return -1;
 		}
 #endif
 	return dsa->meth->dsa_do_verify(dgst, dgst_len, sig, dsa);

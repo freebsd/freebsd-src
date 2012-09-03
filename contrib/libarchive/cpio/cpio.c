@@ -82,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include "cpio.h"
 #include "err.h"
 #include "line_reader.h"
-#include "matching.h"
 
 /* Fixed size of uname/gname caches. */
 #define	name_cache_size 101
@@ -190,6 +189,10 @@ main(int argc, char *argv[])
 	cpio->bytes_per_block = 512;
 	cpio->filename = NULL;
 
+	cpio->matching = archive_match_new();
+	if (cpio->matching == NULL)
+		lafe_errc(1, 0, "Out of memory");
+
 	while ((opt = cpio_getopt(cpio)) != -1) {
 		switch (opt) {
 		case '0': /* GNU convention: --null, -0 */
@@ -216,14 +219,20 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_NO_AUTODIR;
 			break;
 		case 'E': /* NetBSD/OpenBSD */
-			lafe_include_from_file(&cpio->matching,
-			    cpio->argument, cpio->option_null);
+			if (archive_match_include_pattern_from_file(
+			    cpio->matching, cpio->argument,
+			    cpio->option_null) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(cpio->matching));
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
 			cpio->filename = cpio->argument;
 			break;
 		case 'f': /* POSIX 1997 */
-			lafe_exclude(&cpio->matching, cpio->argument);
+			if (archive_match_exclude_pattern(cpio->matching,
+			    cpio->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(cpio->matching));
 			break;
 		case 'H': /* GNU cpio (also --format) */
 			cpio->format = cpio->argument;
@@ -369,9 +378,6 @@ main(int argc, char *argv[])
 	/* -v overrides -V */
 	if (cpio->dot && cpio->verbose)
 		cpio->dot = 0;
-	/* -v overrides -V */
-	if (cpio->dot && cpio->verbose)
-		cpio->dot = 0;
 	/* TODO: Flag other nonsensical combinations. */
 
 	switch (cpio->mode) {
@@ -385,7 +391,10 @@ main(int argc, char *argv[])
 		break;
 	case 'i':
 		while (*cpio->argv != NULL) {
-			lafe_include(&cpio->matching, *cpio->argv);
+			if (archive_match_include_pattern(cpio->matching,
+			    *cpio->argv) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(cpio->matching));
 			--cpio->argc;
 			++cpio->argv;
 		}
@@ -405,6 +414,7 @@ main(int argc, char *argv[])
 		    "Must specify at least one of -i, -o, or -p");
 	}
 
+	archive_match_free(cpio->matching);
 	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
 	return (cpio->return_value);
@@ -909,7 +919,7 @@ mode_in(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (lafe_excluded(cpio->matching, archive_entry_pathname(entry)))
+		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
 		if (cpio->option_rename) {
 			destpath = cpio_rename(archive_entry_pathname(entry));
@@ -1011,7 +1021,7 @@ mode_list(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (lafe_excluded(cpio->matching, archive_entry_pathname(entry)))
+		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);
@@ -1306,7 +1316,8 @@ lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
 	if (pwent == NULL) {
 		*name = NULL;
 		if (errno != 0 && errno != ENOENT)
-			lafe_warnc(errno, "getpwuid(%d) failed", id);
+			lafe_warnc(errno, "getpwuid(%s) failed",
+			    cpio_i64toa((int64_t)id));
 		return (errno);
 	}
 
@@ -1333,7 +1344,8 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 	if (grent == NULL) {
 		*name = NULL;
 		if (errno != 0)
-			lafe_warnc(errno, "getgrgid(%d) failed", id);
+			lafe_warnc(errno, "getgrgid(%s) failed",
+			    cpio_i64toa((int64_t)id));
 		return (errno);
 	}
 

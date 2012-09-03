@@ -135,7 +135,17 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		return (ret);
 
 	if (data->compressed == NULL) {
-		data->compressed_buffer_size = 65536;
+		size_t bs = 65536, bpb;
+		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
+			/* Buffer size should be a multiple number of the of bytes
+			 * per block for performance. */
+			bpb = archive_write_get_bytes_per_block(f->archive);
+			if (bpb > bs)
+				bs = bpb;
+			else if (bpb != 0)
+				bs -= bs % bpb;
+		}
+		data->compressed_buffer_size = bs;
 		data->compressed
 		    = (unsigned char *)malloc(data->compressed_buffer_size);
 		if (data->compressed == NULL) {
@@ -155,10 +165,10 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->compressed[1] = 0x8b;
 	data->compressed[2] = 0x08; /* "Deflate" compression */
 	data->compressed[3] = 0; /* No options */
-	data->compressed[4] = (t)&0xff;  /* Timestamp */
-	data->compressed[5] = (t>>8)&0xff;
-	data->compressed[6] = (t>>16)&0xff;
-	data->compressed[7] = (t>>24)&0xff;
+	data->compressed[4] = (uint8_t)(t)&0xff;  /* Timestamp */
+	data->compressed[5] = (uint8_t)(t>>8)&0xff;
+	data->compressed[6] = (uint8_t)(t>>16)&0xff;
+	data->compressed[7] = (uint8_t)(t>>24)&0xff;
 	data->compressed[8] = 0; /* No deflate options */
 	data->compressed[9] = 3; /* OS=Unix */
 	data->stream.next_out += 10;
@@ -270,14 +280,14 @@ archive_compressor_gzip_close(struct archive_write_filter *f)
 	}
 	if (ret == ARCHIVE_OK) {
 		/* Build and write out 8-byte trailer. */
-		trailer[0] = (data->crc)&0xff;
-		trailer[1] = (data->crc >> 8)&0xff;
-		trailer[2] = (data->crc >> 16)&0xff;
-		trailer[3] = (data->crc >> 24)&0xff;
-		trailer[4] = (data->total_in)&0xff;
-		trailer[5] = (data->total_in >> 8)&0xff;
-		trailer[6] = (data->total_in >> 16)&0xff;
-		trailer[7] = (data->total_in >> 24)&0xff;
+		trailer[0] = (uint8_t)(data->crc)&0xff;
+		trailer[1] = (uint8_t)(data->crc >> 8)&0xff;
+		trailer[2] = (uint8_t)(data->crc >> 16)&0xff;
+		trailer[3] = (uint8_t)(data->crc >> 24)&0xff;
+		trailer[4] = (uint8_t)(data->total_in)&0xff;
+		trailer[5] = (uint8_t)(data->total_in >> 8)&0xff;
+		trailer[6] = (uint8_t)(data->total_in >> 16)&0xff;
+		trailer[7] = (uint8_t)(data->total_in >> 24)&0xff;
 		ret = __archive_write_filter(f->next_filter, trailer, 8);
 	}
 

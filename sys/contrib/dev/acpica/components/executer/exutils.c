@@ -121,7 +121,7 @@ AcpiExEnterInterpreter (
  *
  * DESCRIPTION: Reacquire the interpreter execution region from within the
  *              interpreter code. Failure to enter the interpreter region is a
- *              fatal system error. Used in  conjuction with
+ *              fatal system error. Used in conjunction with
  *              RelinquishInterpreter
  *
  ******************************************************************************/

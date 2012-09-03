@@ -683,6 +683,13 @@ pcib_attach_common(device_t dev)
      *     would be more widely routed than absolutely necessary.  We could
      *     then do a walk of the tree later and fix it.
      */
+
+    /*
+     * Always enable busmastering on bridges so that transactions
+     * initiated on the secondary bus are passed through to the
+     * primary bus.
+     */
+    pci_enable_busmaster(dev);
 }
 
 int

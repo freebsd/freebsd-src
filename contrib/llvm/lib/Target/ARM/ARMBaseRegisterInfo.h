@@ -109,7 +109,8 @@ public:
                                        SmallVectorImpl<unsigned> &SubIndices,
                                        unsigned &NewSubIdx) const;
 
-  const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
+  const TargetRegisterClass*
+  getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
   const TargetRegisterClass*
   getCrossCopyRegClass(const TargetRegisterClass *RC) const;
 
@@ -172,6 +173,8 @@ public:
   virtual bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;
 
   virtual bool requiresRegisterScavenging(const MachineFunction &MF) const;
+
+  virtual bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
 
   virtual bool requiresFrameIndexScavenging(const MachineFunction &MF) const;
 

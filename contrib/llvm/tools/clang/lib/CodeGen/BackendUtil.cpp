@@ -121,6 +121,12 @@ static void addObjCARCOptPass(const PassManagerBuilder &Builder, PassManagerBase
     PM.add(createObjCARCOptPass());
 }
 
+static unsigned BoundsChecking;
+static void addBoundsCheckingPass(const PassManagerBuilder &Builder,
+                                    PassManagerBase &PM) {
+  PM.add(createBoundsCheckingPass(BoundsChecking));
+}
+
 static void addAddressSanitizerPass(const PassManagerBuilder &Builder,
                                     PassManagerBase &PM) {
   PM.add(createAddressSanitizerPass());
@@ -158,6 +164,14 @@ void EmitAssemblyHelper::CreatePasses() {
                            addObjCARCAPElimPass);
     PMBuilder.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
                            addObjCARCOptPass);
+  }
+
+  if (CodeGenOpts.BoundsChecking > 0) {
+    BoundsChecking = CodeGenOpts.BoundsChecking;
+    PMBuilder.addExtension(PassManagerBuilder::EP_ScalarOptimizerLate,
+                           addBoundsCheckingPass);
+    PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                           addBoundsCheckingPass);
   }
 
   if (LangOpts.AddressSanitizer) {
@@ -219,7 +233,7 @@ void EmitAssemblyHelper::CreatePasses() {
                                     CodeGenOpts.EmitGcovArcs,
                                     TargetTriple.isMacOSX()));
 
-    if (!CodeGenOpts.DebugInfo)
+    if (CodeGenOpts.DebugInfo == CodeGenOptions::NoDebugInfo)
       MPM->add(createStripSymbolsPass(true));
   }
   
@@ -324,6 +338,9 @@ bool EmitAssemblyHelper::AddEmitPasses(BackendAction Action,
     Options.NoFramePointerElimNonLeaf = true;
   }
 
+  if (CodeGenOpts.UseInitArray)
+    Options.UseInitArray = true;
+
   // Set float ABI type.
   if (CodeGenOpts.FloatABI == "soft" || CodeGenOpts.FloatABI == "softfp")
     Options.FloatABIType = llvm::FloatABI::Soft;
@@ -332,6 +349,19 @@ bool EmitAssemblyHelper::AddEmitPasses(BackendAction Action,
   else {
     assert(CodeGenOpts.FloatABI.empty() && "Invalid float abi!");
     Options.FloatABIType = llvm::FloatABI::Default;
+  }
+
+  // Set FP fusion mode.
+  switch (LangOpts.getFPContractMode()) {
+  case LangOptions::FPC_Off:
+    Options.AllowFPOpFusion = llvm::FPOpFusion::Strict;
+    break;
+  case LangOptions::FPC_On:
+    Options.AllowFPOpFusion = llvm::FPOpFusion::Standard;
+    break;
+  case LangOptions::FPC_Fast:
+    Options.AllowFPOpFusion = llvm::FPOpFusion::Fast;
+    break;              
   }
 
   Options.LessPreciseFPMADOption = CodeGenOpts.LessPreciseFPMAD;

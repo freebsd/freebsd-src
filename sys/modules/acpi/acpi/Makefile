@@ -54,11 +54,11 @@ SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c pstree.c psutils.c
 SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
 SRCS+=	rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
-SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
+SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfload.c tbxfroot.c
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
-SRCS+=	utdelete.c uteval.c utglobal.c utids.c utinit.c utlock.c utmath.c
-SRCS+=	utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c utxface.c
-SRCS+=	utxferror.c
+SRCS+=	utdelete.c uteval.c utexcep.c utglobal.c utids.c utinit.c utlock.c
+SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c
+SRCS+=	utxface.c utxferror.c utxfinit.c
 #SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers
@@ -85,6 +85,9 @@ SRCS+=	opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h opt_hwpmc_hooks.h
 .if !defined(KERNBUILDDIR)
 .if KTR
 CFLAGS+=-DKTR
+.endif
+.if SMP
+CFLAGS+=-DSMP
 .endif
 .if ACPI_MAX_TASKS
 CFLAGS+=-DACPI_MAX_TASKS=${ACPI_MAX_TASKS}
@@ -113,14 +116,6 @@ ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
 NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 NM?=		nm
 
-.if ${MACHINE_CPUARCH} == "amd64"
-.if !defined(KERNBUILDDIR)
-CFLAGS+=-DSMP
-.endif
-SRCS+=	acpi_switch.S
-acpi_switch.o:	acpi_switch.S
-	${NORMAL_S}
-.endif
 acpi_wakecode.o: acpi_wakecode.S assym.s
 	${NORMAL_S}
 acpi_wakecode.bin: acpi_wakecode.o

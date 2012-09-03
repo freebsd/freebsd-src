@@ -112,7 +112,7 @@ ext2_mount(struct mount *mp)
 	struct vfsoptlist *opts;
 	struct vnode *devvp;
 	struct thread *td;
-	struct ext2mount *ump = 0;
+	struct ext2mount *ump = NULL;
 	struct m_ext2fs *fs;
 	struct nameidata nd, *ndp = &nd;
 	accmode_t accmode;

@@ -1080,7 +1080,13 @@ avr32dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-avr32dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+avr32dci_xfer_stall(struct usb_xfer *xfer)
+{
+	avr32dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+avr32dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *pipe, uint8_t *did_stall)
 {
 	struct avr32dci_softc *sc;
@@ -1090,10 +1096,6 @@ avr32dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		avr32dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	sc = AVR32_BUS2SC(udev->bus);
 	/* get endpoint number */
 	ep_no = (pipe->edesc->bEndpointAddress & UE_ADDR);
@@ -2096,6 +2098,7 @@ struct usb_bus_methods avr32dci_bus_methods =
 	.xfer_setup = &avr32dci_xfer_setup,
 	.xfer_unsetup = &avr32dci_xfer_unsetup,
 	.get_hw_ep_profile = &avr32dci_get_hw_ep_profile,
+	.xfer_stall = &avr32dci_xfer_stall,
 	.set_stall = &avr32dci_set_stall,
 	.clear_stall = &avr32dci_clear_stall,
 	.roothub_exec = &avr32dci_roothub_exec,

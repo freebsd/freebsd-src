@@ -197,6 +197,7 @@ sata_probe(device_t dev)
 		sc->sc_edma_qlen = 128;
 		break;
 	case MV_DEV_88F6281:
+	case MV_DEV_88F6282:
 	case MV_DEV_MV78100:
 	case MV_DEV_MV78100_Z0:
 		sc->sc_version = 2;

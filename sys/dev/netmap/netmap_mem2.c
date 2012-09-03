@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_mem2.c 10830 2012-03-22 18:06:01Z luigi $
+ * $Id: netmap_mem2.c 11445 2012-07-30 10:49:07Z luigi $
  *
  * New memory allocator for netmap
  */
@@ -300,12 +300,13 @@ netmap_obj_free_va(struct netmap_obj_pool *p, void *vaddr)
 
 
 static void
-netmap_new_bufs(struct netmap_if *nifp __unused,
+netmap_new_bufs(struct netmap_if *nifp,
                 struct netmap_slot *slot, u_int n)
 {
 	struct netmap_obj_pool *p = nm_mem->nm_buf_pool;
 	uint32_t i = 0;	/* slot counter */
 
+	(void)nifp;	/* UNUSED */
 	for (i = 0; i < n; i++) {
 		void *vaddr = netmap_buf_malloc();
 		if (vaddr == NULL) {
@@ -679,11 +680,11 @@ netmap_if_new(const char *ifname, struct netmap_adapter *na)
 #ifdef linux
 	// XXX initialize the selrecord structs.
 	for (i = 0; i < ntx; i++)
-		init_waitqueue_head(&na->rx_rings[i].si);
-	for (i = 0; i < nrx; i++)
 		init_waitqueue_head(&na->tx_rings[i].si);
-	init_waitqueue_head(&na->rx_si);
+	for (i = 0; i < nrx; i++)
+		init_waitqueue_head(&na->rx_rings[i].si);
 	init_waitqueue_head(&na->tx_si);
+	init_waitqueue_head(&na->rx_si);
 #endif
 final:
 	/*

@@ -278,12 +278,12 @@ isci_remote_device_release_lun_queue(struct ISCI_REMOTE_DEVICE *remote_device,
 	if (remote_device->frozen_lun_mask & (1 << lun)) {
 		struct cam_path *path;
 
+		remote_device->frozen_lun_mask &= ~(1 << lun);
 		xpt_create_path(&path, xpt_periph,
 		    cam_sim_path(remote_device->domain->controller->sim),
 		    remote_device->index, lun);
 		xpt_release_devq(path, 1, TRUE);
 		xpt_free_path(path);
-		remote_device->frozen_lun_mask &= ~(1 << lun);
 	}
 }
 

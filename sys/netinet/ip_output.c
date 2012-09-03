@@ -124,7 +124,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int n;	/* scratchpad */
 	int error = 0;
 	struct sockaddr_in *dst;
-	struct in_ifaddr *ia = NULL;
+	struct in_ifaddr *ia;
 	int isbroadcast, sw_csum;
 	struct route iproute;
 	struct rtentry *rte;	/* cache for ro->ro_rt */
@@ -198,6 +198,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
+	ia = NULL;
 	/*
 	 * If there is a cached route,
 	 * check that it is to the same destination
@@ -533,8 +534,11 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else
+		} else {
+			if (ia != NULL)
+				ifa_free(&ia->ia_ifa);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 #ifdef IPFIREWALL_FORWARD
@@ -564,6 +568,8 @@ sendit:
 		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m_tag_delete(m, fwd_tag);
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
 #endif /* IPFIREWALL_FORWARD */

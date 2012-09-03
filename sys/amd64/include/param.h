@@ -123,14 +123,6 @@
 #define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 
 /*
- * Ceiling on amount of swblock kva space, can be changed via
- * the kern.maxswzone /boot/loader.conf variable.
- */
-#ifndef VM_SWZONE_SIZE_MAX
-#define	VM_SWZONE_SIZE_MAX	(32 * 1024 * 1024)
-#endif
-
-/*
  * Mach derived conversion macros
  */
 #define	round_page(x)	((((unsigned long)(x)) + PAGE_MASK) & ~(PAGE_MASK))

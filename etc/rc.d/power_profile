@@ -27,7 +27,7 @@ LOGGER="logger -t power_profile -p daemon.notice"
 # $highest_value: maximum value for this sysctl, when $value is "HIGH"
 # $lowest_value: minimum value for this sysctl, when $value is "LOW"
 #
-sysctl_set ()
+sysctl_set()
 {
 	# Check if the node exists
 	if [ -z "$(sysctl -n ${node} 2> /dev/null)" ]; then

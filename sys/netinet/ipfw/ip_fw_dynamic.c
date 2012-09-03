@@ -275,9 +275,9 @@ unlink_dyn_rule_print(struct ipfw_flow_id *id)
 #endif
 	{
 		da.s_addr = htonl(id->src_ip);
-		inet_ntoa_r(da, src);
+		inet_ntop(AF_INET, &da, src, sizeof(src));
 		da.s_addr = htonl(id->dst_ip);
-		inet_ntoa_r(da, dst);
+		inet_ntop(AF_INET, &da, dst, sizeof(dst));
 	}
 	printf("ipfw: unlink entry %s %d -> %s %d, %d left\n",
 	    src, id->src_port, dst, id->dst_port, V_dyn_count - 1);
@@ -656,9 +656,9 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 #endif
 		{
 			da.s_addr = htonl(r->id.src_ip);
-			inet_ntoa_r(da, src);
+			inet_ntop(AF_INET, &da, src, sizeof(src));
 			da.s_addr = htonl(r->id.dst_ip);
-			inet_ntoa_r(da, dst);
+			inet_ntop(AF_INET, &da, dst, sizeof(dst));
 		}
 		printf("ipfw: add dyn entry ty %d %s %d -> %s %d, total %d\n",
 		    dyn_type, src, r->id.src_port, dst, r->id.dst_port,
@@ -740,9 +740,9 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 #endif
 	{
 		da.s_addr = htonl(args->f_id.src_ip);
-		inet_ntoa_r(da, src);
+		inet_ntop(AF_INET, &da, src, sizeof(src));
 		da.s_addr = htonl(args->f_id.dst_ip);
-		inet_ntoa_r(da, dst);
+		inet_ntop(AF_INET, &da, dst, sizeof(dst));
 	}
 	printf("ipfw: %s: type %d %s %u -> %s %u\n",
 	    __func__, cmd->o.opcode, src, args->f_id.src_port,
@@ -850,10 +850,12 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 					{
 						da.s_addr =
 						    htonl(args->f_id.src_ip);
-						inet_ntoa_r(da, src);
+						inet_ntop(AF_INET, &da, src,
+						    sizeof(src));
 						da.s_addr =
 						    htonl(args->f_id.dst_ip);
-						inet_ntoa_r(da, dst);
+						inet_ntop(AF_INET, &da, dst,
+						    sizeof(dst));
 					}
 					log(LOG_SECURITY | LOG_DEBUG,
 					    "ipfw: %d %s %s:%u -> %s:%u, %s\n",

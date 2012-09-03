@@ -176,12 +176,14 @@ struct ubsa_softc {
 static device_probe_t ubsa_probe;
 static device_attach_t ubsa_attach;
 static device_detach_t ubsa_detach;
+static void ubsa_free_softc(struct ubsa_softc *);
 
 static usb_callback_t ubsa_write_callback;
 static usb_callback_t ubsa_read_callback;
 static usb_callback_t ubsa_intr_callback;
 
 static void	ubsa_cfg_request(struct ubsa_softc *, uint8_t, uint16_t);
+static void	ubsa_free(struct ucom_softc *);
 static void	ubsa_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	ubsa_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	ubsa_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -237,6 +239,7 @@ static const struct ucom_callback ubsa_callback = {
 	.ucom_start_write = &ubsa_start_write,
 	.ucom_stop_write = &ubsa_stop_write,
 	.ucom_poll = &ubsa_poll,
+	.ucom_free = &ubsa_free,
 };
 
 static const STRUCT_USB_HOST_ID ubsa_devs[] = {
@@ -262,7 +265,7 @@ static device_method_t ubsa_methods[] = {
 	DEVMETHOD(device_probe, ubsa_probe),
 	DEVMETHOD(device_attach, ubsa_attach),
 	DEVMETHOD(device_detach, ubsa_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t ubsa_devclass;
@@ -306,6 +309,7 @@ ubsa_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ubsa", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
@@ -348,9 +352,29 @@ ubsa_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	ubsa_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ubsa);
+
+static void
+ubsa_free_softc(struct ubsa_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+ubsa_free(struct ucom_softc *ucom)
+{
+	ubsa_free_softc(ucom->sc_parent);
 }
 
 static void

@@ -807,6 +807,17 @@ seekable(f)
 }
 
 /*
+ * Force EOF to be at the current read position.
+ * This is used after an ignore_eof read, during which the EOF may change.
+ */
+	public void
+ch_set_eof()
+{
+	ch_fsize = ch_fpos;
+}
+
+
+/*
  * Initialize file state for a new file.
  */
 	public void

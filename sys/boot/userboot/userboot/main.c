@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 #include "libuserboot.h"
 
+#define	USERBOOT_VERSION	USERBOOT_VERSION_2
+
 struct loader_callbacks_v1 *callbacks;
 void *callbacks_arg;
 
@@ -70,7 +72,7 @@ loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
 	static char malloc[512*1024];
 	int i;
 
-        if (version != USERBOOT_VERSION_1)
+        if (version != USERBOOT_VERSION)
                 abort();
 
 	callbacks = cb;

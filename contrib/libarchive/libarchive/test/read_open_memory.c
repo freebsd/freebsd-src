@@ -68,7 +68,7 @@ read_open_memory(struct archive *a, void *buff, size_t size, size_t read_size)
  * that internals work correctly with just the minimal entry points.
  */
 int
-read_open_memory2(struct archive *a, void *buff, size_t size, size_t read_size)
+read_open_memory_minimal(struct archive *a, void *buff, size_t size, size_t read_size)
 {
 	return read_open_memory_internal(a, buff, size, read_size, 1);
 }

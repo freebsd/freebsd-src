@@ -98,7 +98,7 @@
 #define	TDNAMLEN	16		/* size of returned thread name */
 #define	COMMLEN		19		/* size of returned ki_comm name */
 #define	KI_EMULNAMELEN	16		/* size of returned ki_emul */
-#define KI_NGROUPS	16		/* number of groups in ki_groups */
+#define	KI_NGROUPS	16		/* number of groups in ki_groups */
 #define	LOGNAMELEN	17		/* size of returned ki_login */
 #define	LOGINCLASSLEN	17		/* size of returned ki_loginclass */
 
@@ -146,7 +146,7 @@ struct kinfo_proc {
 	gid_t	ki_svgid;		/* Saved effective group id */
 	short	ki_ngroups;		/* number of groups */
 	short	ki_spare_short2;	/* unused (just here for alignment) */
-	gid_t 	ki_groups[KI_NGROUPS];	/* groups */
+	gid_t	ki_groups[KI_NGROUPS];	/* groups */
 	vm_size_t ki_size;		/* virtual size */
 	segsz_t ki_rssize;		/* current resident set size in pages */
 	segsz_t ki_swrss;		/* resident set size before last swap */
@@ -413,6 +413,8 @@ struct kinfo_file {
 #define	KVME_FLAG_NEEDS_COPY	0x00000002
 #define	KVME_FLAG_NOCOREDUMP	0x00000004
 #define	KVME_FLAG_SUPER		0x00000008
+#define	KVME_FLAG_GROWS_UP	0x00000010
+#define	KVME_FLAG_GROWS_DOWN	0x00000020
 
 #if defined(__amd64__)
 #define	KINFO_OVMENTRY_SIZE	1168

@@ -965,9 +965,7 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 		mtx_lock(&PMAP2mutex);
 		newpf = *pde & PG_FRAME;
 		if ((*PMAP2 & PG_FRAME) != newpf) {
-			vm_page_lock_queues();
 			PT_SET_MA(PADDR2, newpf | PG_V | PG_A | PG_M);
-			vm_page_unlock_queues();
 			CTR3(KTR_PMAP, "pmap_pte: pmap=%p va=0x%x newpte=0x%08x",
 			    pmap, va, (*PMAP2 & 0xffffffff));
 		}

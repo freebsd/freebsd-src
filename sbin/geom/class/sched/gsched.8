@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2010
+.Dd July 26, 2012
 .Dt GSCHED 8
 .Os
 .Sh NAME
@@ -135,19 +135,19 @@ maximum amount of debug information is printed.
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 The following example shows how to create a scheduling provider for disk
-.Pa /dev/ad0 ,
+.Pa /dev/ada0 ,
 and how to destroy it.
 .Bd -literal -offset indent
 # Load the geom_sched module:
 kldload geom_sched
 # Load some scheduler classes used by geom_sched:
 kldload gsched_rr
-# Configure device ad0 to use scheduler "rr":
-geom sched insert -a rr ad0
-# Now provider ad0 uses the "rr" algorithm;
-# the new geom is ad0.sched.
+# Configure device ada0 to use scheduler "rr":
+geom sched insert -a rr ada0
+# Now provider ada0 uses the "rr" algorithm;
+# the new geom is ada0.sched.
 # Remove the scheduler on the device:
-geom sched destroy -v ad0.sched.
+geom sched destroy -v ada0.sched.
 .Ed
 .Sh SEE ALSO
 .Xr geom 4 ,

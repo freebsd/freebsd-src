@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2012
+.Dd Aug 28, 2012
 .Dt ZPOOL-FEATURES 8
 .Os
 .Sh NAME
@@ -32,8 +32,10 @@ ZFS pool on\-disk format versions are specified via "features" which replace
 the old on\-disk format numbers (the last supported on\-disk format number is
 28).
 To enable a feature on a pool use the
+.Cm upgrade
+subcommand of the
 .Xr zpool 8
-command to set the
+command, or set the
 .Sy feature@feature_name
 property to
 .Ar enabled .
@@ -65,7 +67,7 @@ however a feature's short name may differ across ZFS implementations if
 following the convention would result in name conflicts.
 .Ss Feature states
 Features can be in one of three states:
-.Bl -tag
+.Bl -tag -width "XXXXXXXX"
 .It Sy active
 This feature's on\-disk format changes are in effect on the pool.
 Support for this feature is required to import the pool in read\-write mode.
@@ -91,6 +93,7 @@ unless an administrator moves the feature to the
 state.
 Features cannot be disabled once they have been enabled.
 .El
+.Pp
 The state of supported features is exposed through pool properties of the form
 .Sy feature@short_name .
 .Ss Read\-only compatibility
@@ -109,7 +112,7 @@ named
 .Sy unsupported@feature_guid
 will indicate why the import was allowed despite the unsupported feature.
 Possible values for this property are:
-.Bl -tag
+.Bl -tag -width "XXXXXXXX"
 .It Sy inactive
 The feature is in the
 .Sy enabled
@@ -125,7 +128,7 @@ properly.
 Enabling a feature will automatically enable any features it depends on.
 .Sh FEATURES
 The following features are supported on this system:
-.Bl -tag
+.Bl -tag -width "XXXXXXXX"
 .It Sy async_destroy
 .Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:async_destroy"
 .It GUID Ta com.delphix:async_destroy
@@ -154,6 +157,35 @@ The amount of space remaining to be reclaimed by the background process is
 available through the
 .Sy freeing
 property.
+.Pp
+This feature is only
+.Sy active
+while
+.Sy freeing
+is non\-zero.
+.It Sy empty_bpobj
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:empty_bpobj"
+.It GUID Ta com.delphix:empty_bpobj
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature increases the performance of creating and using a large number
+of snapshots of a single filesystem or volume, and also reduces the disk
+space required.
+.Pp
+When there are many snapshots, each snapshot uses many Block Pointer Objects
+.Pq bpobj's
+to track blocks associated with that snapshot.
+However, in common use cases, most of these bpobj's are empty.
+This feature allows us to create each bpobj on-demand, thus eliminating the
+empty bpobjs.
+.Pp
+This feature is
+.Sy active
+while there are any filesystems, volumes, or snapshots which were created
+after enabling this feature.
+.El
 .Sh SEE ALSO
 .Xr zpool 8
 .Sh AUTHORS

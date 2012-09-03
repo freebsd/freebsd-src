@@ -154,6 +154,19 @@
 #define IXGBE_FC_HI		0x20000
 #define IXGBE_FC_LO		0x10000
 
+/*
+ * Used for optimizing small rx mbufs.  Effort is made to keep the copy
+ * small and aligned for the CPU L1 cache.
+ * 
+ * MHLEN is typically 168 bytes, giving us 8-byte alignment.  Getting
+ * 32 byte alignment needed for the fast bcopy results in 8 bytes being
+ * wasted.  Getting 64 byte alignment, which _should_ be ideal for
+ * modern Intel CPUs, results in 40 bytes wasted and a significant drop
+ * in observed efficiency of the optimization, 97.9% -> 81.8%.
+ */
+#define IXGBE_RX_COPY_LEN	160
+#define IXGBE_RX_COPY_ALIGN	(MHLEN - IXGBE_RX_COPY_LEN)
+
 /* Keep older OS drivers building... */
 #if !defined(SYSCTL_ADD_UQUAD)
 #define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
@@ -245,6 +258,9 @@ struct ixgbe_rx_buf {
 	struct mbuf	*fmp;
 	bus_dmamap_t	hmap;
 	bus_dmamap_t	pmap;
+	u_int		flags;
+#define IXGBE_RX_COPY	0x01
+	uint64_t	paddr;
 };
 
 /*
@@ -339,6 +355,7 @@ struct rx_ring {
 	/* Soft stats */
 	u64			rx_irq;
 	u64			rx_split_packets;
+	u64			rx_copies;
 	u64			rx_packets;
 	u64 			rx_bytes;
 	u64 			rx_discarded;

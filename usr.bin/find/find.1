@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2012
+.Dd July 25, 2012
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -470,7 +470,9 @@ is numeric and there is no such group name, then
 .Ar gname
 is treated as a group ID.
 .It Ic -ignore_readdir_race
-This option is for GNU find compatibility and is ignored.
+Ignore errors because a file or a directory is deleted
+after reading the name from a directory.
+This option does not affect errors occurring on starting points.
 .It Ic -ilname Ar pattern
 Like
 .Ic -lname ,
@@ -618,7 +620,9 @@ is equivalent to
 .It Ic -nogroup
 True if the file belongs to an unknown group.
 .It Ic -noignore_readdir_race
-This option is for GNU find compatibility and is ignored.
+Turn off the effect of
+.Ic -ignore_readdir_race .
+This is default behaviour.
 .It Ic -noleaf
 This option is for GNU find compatibility.
 In GNU find it disables an optimization not relevant to

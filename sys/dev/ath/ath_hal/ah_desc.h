@@ -57,16 +57,19 @@ struct ath_tx_status {
 	uint8_t		ts_finaltsi;	/* final transmit series index */
 #ifdef AH_SUPPORT_AR5416
 					/* 802.11n status */
-	uint8_t    	ts_flags;   	/* misc flags */
-	int8_t      	ts_rssi_ctl[3];	/* tx ack RSSI [ctl, chain 0-2] */
-	int8_t      	ts_rssi_ext[3];	/* tx ack RSSI [ext, chain 0-2] */
-/* #define ts_rssi ts_rssi_combined */
-	uint32_t   	ts_ba_low;	/* blockack bitmap low */
-	uint32_t   	ts_ba_high;	/* blockack bitmap high */
+	uint8_t		ts_flags;	/* misc flags */
+	uint8_t		ts_queue_id;	/* AR9300: TX queue id */
+	uint8_t		ts_desc_id;	/* AR9300: TX descriptor id */
 	uint8_t		ts_tid;		/* TID */
-	uint32_t  	ts_evm0;	/* evm bytes */
-	uint32_t   	ts_evm1;
-	uint32_t   	ts_evm2;
+/* #define ts_rssi ts_rssi_combined */
+	uint32_t	ts_ba_low;	/* blockack bitmap low */
+	uint32_t	ts_ba_high;	/* blockack bitmap high */
+	uint32_t	ts_evm0;	/* evm bytes */
+	uint32_t	ts_evm1;
+	uint32_t	ts_evm2;
+	int8_t		ts_rssi_ctl[3];	/* tx ack RSSI [ctl, chain 0-2] */
+	int8_t		ts_rssi_ext[3];	/* tx ack RSSI [ext, chain 0-2] */
+	uint8_t		ts_pad[2];
 #endif /* AH_SUPPORT_AR5416 */
 };
 
@@ -220,6 +223,12 @@ struct ath_desc {
 	uint32_t	ds_hw[HAL_DESC_HW_SIZE];	/* opaque h/w region */
 };
 
+struct ath_desc_txedma {
+	uint32_t	ds_info;
+	uint32_t	ds_link;
+	uint32_t	ds_hw[21];	/* includes buf/len */
+};
+
 struct ath_desc_status {
 	union {
 		struct ath_tx_status tx;/* xmit status */
@@ -243,6 +252,8 @@ struct ath_desc_status {
 #define	HAL_TXDESC_EXT_ONLY	0x0080	/* send on ext channel only (11n) */
 #define	HAL_TXDESC_EXT_AND_CTL	0x0100	/* send on ext + ctl channels (11n) */
 #define	HAL_TXDESC_VMF		0x0200	/* virtual more frag */
+#define	HAL_TXDESC_LOWRXCHAIN	0x0400	/* switch to low RX chain */
+#define	HAL_TXDESC_LDPC		0x1000
 
 /* flags passed to rx descriptor setup methods */
 #define	HAL_RXDESC_INTREQ	0x0020	/* enable per-descriptor interrupt */

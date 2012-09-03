@@ -348,8 +348,8 @@ AcpiPsExecuteMethod (
     }
 
     /*
-     * Start method evaluation with an implicit return of zero. This is done
-     * for Windows compatibility.
+     * Start method evaluation with an implicit return of zero.
+     * This is done for Windows compatibility.
      */
     if (AcpiGbl_EnableInterpreterSlack)
     {

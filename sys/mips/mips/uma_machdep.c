@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	static vm_pindex_t color;
 	vm_paddr_t pa;
 	vm_page_t m;
 	int pflags;
@@ -56,7 +55,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		pflags = VM_ALLOC_SYSTEM;
 
 	for (;;) {
-		m = pmap_alloc_direct_page(color++, pflags);
+		m = pmap_alloc_direct_page(0, pflags);
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);

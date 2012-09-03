@@ -50,14 +50,12 @@
       %{rdynamic:-export-dynamic}					\
       %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
     %{static:-Bstatic}}							\
-  %{!static:--hash-style=both}						\
+  %{!static:--hash-style=both --enable-new-dtags}			\
   %{symbolic:-Bsymbolic}						\
   -X %{mbig-endian:-EB} %{mlittle-endian:-EL}"
 
 /************************[  Target stuff  ]***********************************/
 
-#undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
 
 #ifndef TARGET_ENDIAN_DEFAULT
 #define TARGET_ENDIAN_DEFAULT 0
@@ -87,8 +85,22 @@
 /* We use the GCC defaults here.  */
 #undef WCHAR_TYPE
 
+#if defined(FREEBSD_ARCH_armv6)
+#undef  SUBTARGET_CPU_DEFAULT
+#define SUBTARGET_CPU_DEFAULT	TARGET_CPU_arm1176jzs
+#undef FBSD_TARGET_CPU_CPP_BUILTINS
+#define FBSD_TARGET_CPU_CPP_BUILTINS()		\
+  do {						\
+    builtin_define ("__FreeBSD_ARCH_armv6__");	\
+  } while (0)
+#undef  TARGET_VERSION
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/armv6 ELF)");
+#else
 #undef  SUBTARGET_CPU_DEFAULT
 #define SUBTARGET_CPU_DEFAULT	TARGET_CPU_strongarm
+#undef  TARGET_VERSION
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
+#endif
 
 /* FreeBSD does its profiling differently to the Acorn compiler. We
    don't need a word following the mcount call; and to skip it

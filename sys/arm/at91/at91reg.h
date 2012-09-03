@@ -85,4 +85,6 @@
 #define	AT91_EXID_SAM9G25	0x00000003
 #define	AT91_EXID_SAM9X25	0x00000004
 
+#define AT91_IRQ_SYSTEM		1
+
 #endif /* _AT91REG_H_ */

@@ -318,6 +318,7 @@ estimate_redir_addr(int *ac, char ***av)
 	char *sep = **av;
 	u_int c = 0;
 
+	(void)ac;	/* UNUSED */
 	while ((sep = strchr(sep, ',')) != NULL) {
 		c++;
 		sep++;
@@ -379,6 +380,7 @@ estimate_redir_port(int *ac, char ***av)
 	char *sep = **av;
 	u_int c = 0;
 
+	(void)ac;	/* UNUSED */
 	while ((sep = strchr(sep, ',')) != NULL) {
 		c++;
 		sep++;

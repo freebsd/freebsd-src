@@ -368,6 +368,14 @@ ignoresig(int signo)
 }
 
 
+int
+issigchldtrapped(void)
+{
+
+	return (trap[SIGCHLD] != NULL && *trap[SIGCHLD] != '\0');
+}
+
+
 /*
  * Signal handler.
  */
@@ -416,6 +424,7 @@ dotrap(void)
 
 	in_dotrap++;
 	for (;;) {
+		pendingsigs = 0;
 		for (i = 1; i < NSIG; i++) {
 			if (gotsig[i]) {
 				gotsig[i] = 0;
@@ -467,7 +476,6 @@ dotrap(void)
 			break;
 	}
 	in_dotrap--;
-	pendingsigs = 0;
 }
 
 

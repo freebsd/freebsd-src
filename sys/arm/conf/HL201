@@ -70,7 +70,7 @@ device		random
 device		loop
 device		ether
 device		uart
-device		macb
+device		ate
 device		mii
 #device		lxtphy
 

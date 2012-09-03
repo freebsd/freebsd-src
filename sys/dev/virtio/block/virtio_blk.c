@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <geom/geom_disk.h>
-#include <vm/uma.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -119,7 +118,7 @@ static int	vtblk_shutdown(device_t);
 static int	vtblk_open(struct disk *);
 static int	vtblk_close(struct disk *);
 static int	vtblk_ioctl(struct disk *, u_long, void *, int,
-	            struct thread *);
+		    struct thread *);
 static int	vtblk_dump(void *, void *, vm_offset_t, off_t, size_t);
 static void	vtblk_strategy(struct bio *);
 
@@ -193,15 +192,13 @@ TUNABLE_INT("hw.vtblk.no_ident", &vtblk_no_ident);
 				mtx_assert(VTBLK_MTX((_sc)), MA_NOTOWNED)
 
 #define VTBLK_DISK_NAME		"vtbd"
-#define	VTBLK_QUIESCE_TIMEOUT	(30 * hz)
+#define VTBLK_QUIESCE_TIMEOUT	(30 * hz)
 
 /*
  * Each block request uses at least two segments - one for the header
  * and one for the status.
  */
 #define VTBLK_MIN_SEGMENTS	2
-
-static uma_zone_t vtblk_req_zone;
 
 static device_method_t vtblk_methods[] = {
 	/* Device methods. */
@@ -236,19 +233,8 @@ vtblk_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		vtblk_req_zone = uma_zcreate("vtblk_request",
-		    sizeof(struct vtblk_request),
-		    NULL, NULL, NULL, NULL, 0, 0);
-		break;
 	case MOD_QUIESCE:
 	case MOD_UNLOAD:
-		if (uma_zone_get_cur(vtblk_req_zone) > 0)
-			error = EBUSY;
-		else if (type == MOD_UNLOAD) {
-			uma_zdestroy(vtblk_req_zone);
-			vtblk_req_zone = NULL;
-		}
-		break;
 	case MOD_SHUTDOWN:
 		break;
 	default:
@@ -316,7 +302,7 @@ vtblk_attach(device_t dev)
 	}
 
 	sc->vtblk_max_nsegs = vtblk_maximum_segments(sc, &blkcfg);
-        if (sc->vtblk_max_nsegs <= VTBLK_MIN_SEGMENTS) {
+	if (sc->vtblk_max_nsegs <= VTBLK_MIN_SEGMENTS) {
 		error = EINVAL;
 		device_printf(dev, "fewer than minimum number of segments "
 		    "allowed: %d\n", sc->vtblk_max_nsegs);
@@ -493,7 +479,6 @@ vtblk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	int error;
 
 	dp = arg;
-	error = 0;
 
 	if ((sc = dp->d_drv1) == NULL)
 		return (ENXIO);
@@ -539,7 +524,7 @@ vtblk_strategy(struct bio *bp)
 		return;
 	}
 
-#ifdef	INVARIANTS
+#ifdef INVARIANTS
 	/*
 	 * Prevent read/write buffers spanning too many segments from
 	 * getting into the queue. This should only trip if d_maxsize
@@ -547,13 +532,13 @@ vtblk_strategy(struct bio *bp)
 	 */
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		int nsegs, max_nsegs;
-		
+
 		nsegs = sglist_count(bp->bio_data, bp->bio_bcount);
 		max_nsegs = sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS;
 
 		KASSERT(nsegs <= max_nsegs,
-		    ("bio spanned too many segments: %d, max: %d",
-		    nsegs, max_nsegs));
+		    ("bio %p spanned too many segments: %d, max: %d",
+		    bp, nsegs, max_nsegs));
 	}
 #endif
 
@@ -800,27 +785,22 @@ vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	VTBLK_LOCK_ASSERT(sc);
 
 	sglist_reset(sg);
-	error = sglist_append(sg, &req->vbr_hdr,
-	    sizeof(struct virtio_blk_outhdr));
-	KASSERT(error == 0, ("error adding header to sglist"));
-	KASSERT(sg->sg_nseg == 1,
-	    ("header spanned multiple segments: %d", sg->sg_nseg));
+
+	sglist_append(sg, &req->vbr_hdr, sizeof(struct virtio_blk_outhdr));
 
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		error = sglist_append(sg, bp->bio_data, bp->bio_bcount);
-		KASSERT(error == 0, ("error adding buffer to sglist"));
+		if (error || sg->sg_nseg == sg->sg_maxseg)
+			panic("%s: data buffer too big bio:%p error:%d",
+			    __FUNCTION__, bp, error);
 
 		/* BIO_READ means the host writes into our buffer. */
 		if (bp->bio_cmd == BIO_READ)
-			writable += sg->sg_nseg - 1;
+			writable = sg->sg_nseg - 1;
 	}
 
-	error = sglist_append(sg, &req->vbr_ack, sizeof(uint8_t));
-	KASSERT(error == 0, ("error adding ack to sglist"));
 	writable++;
-
-	KASSERT(sg->sg_nseg >= VTBLK_MIN_SEGMENTS,
-	    ("fewer than min segments: %d", sg->sg_nseg));
+	sglist_append(sg, &req->vbr_ack, sizeof(uint8_t));
 
 	readable = sg->sg_nseg - writable;
 
@@ -995,12 +975,10 @@ vtblk_flush_dump(struct vtblk_softc *sc)
 static int
 vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 {
-	device_t dev;
 	struct virtqueue *vq;
 	struct vtblk_request *r;
 	int error;
 
-	dev = sc->vtblk_dev;
 	vq = sc->vtblk_vq;
 
 	if (!virtqueue_empty(vq))
@@ -1013,12 +991,12 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	virtqueue_notify(vq);
 
 	r = virtqueue_poll(vq, NULL);
-	KASSERT(r == req, ("unexpected request response"));
+	KASSERT(r == req, ("unexpected request response: %p/%p", r, req));
 
 	error = vtblk_request_error(req);
 	if (error && bootverbose) {
-		device_printf(dev, "vtblk_poll_request: IO error: %d\n",
-		    error);
+		device_printf(sc->vtblk_dev,
+		    "%s: IO error: %d\n", __FUNCTION__, error);
 	}
 
 	return (error);
@@ -1090,6 +1068,20 @@ vtblk_drain(struct vtblk_softc *sc)
 	vtblk_free_requests(sc);
 }
 
+#ifdef INVARIANTS
+static void
+vtblk_request_invariants(struct vtblk_request *req)
+{
+	int hdr_nsegs, ack_nsegs;
+
+	hdr_nsegs = sglist_count(&req->vbr_hdr, sizeof(req->vbr_hdr));
+	ack_nsegs = sglist_count(&req->vbr_ack, sizeof(req->vbr_ack));
+
+	KASSERT(hdr_nsegs == 1, ("request header crossed page boundary"));
+	KASSERT(ack_nsegs == 1, ("request ack crossed page boundary"));
+}
+#endif
+
 static int
 vtblk_alloc_requests(struct vtblk_softc *sc)
 {
@@ -1107,9 +1099,13 @@ vtblk_alloc_requests(struct vtblk_softc *sc)
 		nreqs /= VTBLK_MIN_SEGMENTS;
 
 	for (i = 0; i < nreqs; i++) {
-		req = uma_zalloc(vtblk_req_zone, M_NOWAIT);
+		req = malloc(sizeof(struct vtblk_request), M_DEVBUF, M_NOWAIT);
 		if (req == NULL)
 			return (ENOMEM);
+
+#ifdef INVARIANTS
+		vtblk_request_invariants(req);
+#endif
 
 		sc->vtblk_request_count++;
 		vtblk_enqueue_request(sc, req);
@@ -1128,10 +1124,11 @@ vtblk_free_requests(struct vtblk_softc *sc)
 
 	while ((req = vtblk_dequeue_request(sc)) != NULL) {
 		sc->vtblk_request_count--;
-		uma_zfree(vtblk_req_zone, req);
+		free(req, M_DEVBUF);
 	}
 
-	KASSERT(sc->vtblk_request_count == 0, ("leaked requests"));
+	KASSERT(sc->vtblk_request_count == 0,
+	    ("leaked requests: %d", sc->vtblk_request_count));
 }
 
 static struct vtblk_request *

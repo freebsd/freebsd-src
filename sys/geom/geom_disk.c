@@ -162,10 +162,6 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
-		if (dp->d_flags & DISKFLAG_CANDELETE)
-			pp->flags |= G_PF_CANDELETE;
-		else
-			pp->flags &= ~G_PF_CANDELETE;
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
 		dp->d_flags |= DISKFLAG_OPEN;
@@ -487,8 +483,6 @@ g_disk_create(void *arg, int flag)
 	pp = g_new_providerf(gp, "%s", gp->name);
 	pp->mediasize = dp->d_mediasize;
 	pp->sectorsize = dp->d_sectorsize;
-	if (dp->d_flags & DISKFLAG_CANDELETE)
-		pp->flags |= G_PF_CANDELETE;
 	pp->stripeoffset = dp->d_stripeoffset;
 	pp->stripesize = dp->d_stripesize;
 	if (bootverbose)
@@ -657,6 +651,32 @@ disk_attr_changed(struct disk *dp, const char *attr, int flag)
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			(void)g_attr_changed(pp, attr, flag);
+}
+
+void
+disk_media_changed(struct disk *dp, int flag)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = dp->d_geom;
+	if (gp != NULL) {
+		LIST_FOREACH(pp, &gp->provider, provider)
+			g_media_changed(pp, flag);
+	}
+}
+
+void
+disk_media_gone(struct disk *dp, int flag)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	gp = dp->d_geom;
+	if (gp != NULL) {
+		LIST_FOREACH(pp, &gp->provider, provider)
+			g_media_gone(pp, flag);
+	}
 }
 
 void

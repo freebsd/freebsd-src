@@ -28,7 +28,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2011
+.Dd July 18, 2012
 .Dt DU 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nm
 .Op Fl Aclnx
 .Op Fl H | L | P
-.Op Fl h | k | m
+.Op Fl g | h | k | m
 .Op Fl a | s | d Ar depth
 .Op Fl B Ar blocksize
 .Op Fl I Ar mask
@@ -63,9 +63,9 @@ Calculate block counts in
 .Ar blocksize
 byte blocks.
 This is different from the
-.Fl h, k
+.Fl h, k, m
 and
-.Fl  m
+.Fl  g
 options or setting
 .Ev BLOCKSIZE
 and gives an estimate of how much space the examined file hierarchy would
@@ -95,13 +95,15 @@ Display a grand total.
 Display an entry for all files and directories
 .Ar depth
 directories deep.
+.It Fl g
+Display block counts in 1073741824-byte (1 GiB) blocks.
 .It Fl h
 .Dq Human-readable
 output.
 Use unit suffixes: Byte, Kilobyte, Megabyte,
 Gigabyte, Terabyte and Petabyte.
 .It Fl k
-Display block counts in 1024-byte (1-Kbyte) blocks.
+Display block counts in 1024-byte (1 kiB) blocks.
 .It Fl l
 If a file has multiple hard links, count its size multiple times.
 The default behavior of
@@ -112,7 +114,7 @@ When the
 option is specified, the hard link checks are disabled, and these files
 are counted (and displayed) as many times as they are found.
 .It Fl m
-Display block counts in 1048576-byte (1-Mbyte) blocks.
+Display block counts in 1048576-byte (1 MiB) blocks.
 .It Fl n
 Ignore files and directories with user
 .Dq nodump

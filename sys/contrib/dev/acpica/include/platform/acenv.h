@@ -108,9 +108,9 @@
 #endif
 
 #ifdef ACPI_HELP_APP
-#define ACPI_DEBUG_OUTPUT
 #define ACPI_APPLICATION
 #define ACPI_SINGLE_THREADED
+#define ACPI_NO_ERROR_MESSAGES
 #endif
 
 /* Linkable ACPICA library */
@@ -179,6 +179,9 @@
 
 #elif defined(_AED_EFI)
 #include "acefi.h"
+
+#elif defined(__HAIKU__)
+#include "achaiku.h"
 
 #else
 

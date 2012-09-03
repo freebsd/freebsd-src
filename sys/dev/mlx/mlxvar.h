@@ -47,7 +47,7 @@
  * making that fit cleanly without crossing page boundaries requires rounding up
  * to the next power of two.
  */
-#define MLX_MAXPHYS	(128 * 124)
+#define MLX_MAXPHYS	(128 * 1024)
 #define MLX_NSEG	64
 
 #define MLX_NSLOTS	256		/* max number of command slots */

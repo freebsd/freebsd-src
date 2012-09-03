@@ -513,6 +513,10 @@ knote_fork(struct knlist *list, int pid)
 	list->kl_unlock(list->kl_lockarg);
 }
 
+/*
+ * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
+ * interval timer support code.
+ */
 static int
 timertoticks(intptr_t data)
 {
@@ -526,7 +530,6 @@ timertoticks(intptr_t data)
 	return tticks;
 }
 
-/* XXX - move to kern_timeout.c? */
 static void
 filt_timerexpire(void *knx)
 {
@@ -536,9 +539,16 @@ filt_timerexpire(void *knx)
 	kn->kn_data++;
 	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
 
+	/*
+	 * timertoticks() uses tvtohz() which always adds 1 to allow
+	 * for the time until the next clock interrupt being strictly
+	 * less than 1 clock tick.  We don't want that here since we
+	 * want to appear to be in sync with the clock interrupt even
+	 * when we're delayed.
+	 */
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata),
+		callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata) - 1,
 		    filt_timerexpire, kn);
 	}
 }
@@ -546,7 +556,6 @@ filt_timerexpire(void *knx)
 /*
  * data contains amount of time to sleep, in milliseconds
  */
-/* XXX - move to kern_timeout.c? */
 static int
 filt_timerattach(struct knote *kn)
 {
@@ -570,7 +579,6 @@ filt_timerattach(struct knote *kn)
 	return (0);
 }
 
-/* XXX - move to kern_timeout.c? */
 static void
 filt_timerdetach(struct knote *kn)
 {
@@ -583,7 +591,6 @@ filt_timerdetach(struct knote *kn)
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove usually clears it */
 }
 
-/* XXX - move to kern_timeout.c? */
 static int
 filt_timer(struct knote *kn, long hint)
 {

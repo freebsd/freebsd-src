@@ -68,15 +68,15 @@ AcpiExStoreObjectToIndex (
  * FUNCTION:    AcpiExStore
  *
  * PARAMETERS:  *SourceDesc         - Value to be stored
- *              *DestDesc           - Where to store it.  Must be an NS node
- *                                    or an ACPI_OPERAND_OBJECT of type
+ *              *DestDesc           - Where to store it. Must be an NS node
+ *                                    or ACPI_OPERAND_OBJECT of type
  *                                    Reference;
  *              WalkState           - Current walk state
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Store the value described by SourceDesc into the location
- *              described by DestDesc.  Called by various interpreter
+ *              described by DestDesc. Called by various interpreter
  *              functions to store the result of an operation into
  *              the destination operand -- not just simply the actual "Store"
  *              ASL operator.

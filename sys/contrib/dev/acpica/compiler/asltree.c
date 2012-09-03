@@ -68,9 +68,9 @@ TrGetNodeFlagName (
  *
  * PARAMETERS:  None
  *
- * RETURN:      New parse node.  Aborts on allocation failure
+ * RETURN:      New parse node. Aborts on allocation failure
  *
- * DESCRIPTION: Allocate a new parse node for the parse tree.  Bypass the local
+ * DESCRIPTION: Allocate a new parse node for the parse tree. Bypass the local
  *              dynamic memory manager for performance reasons (This has a
  *              major impact on the speed of the compiler.)
  *
@@ -98,7 +98,7 @@ TrGetNextNode (
  *
  * PARAMETERS:  ParseOpcode         - Opcode to be assigned to the node
  *
- * RETURN:      New parse node.  Aborts on allocation failure
+ * RETURN:      New parse node. Aborts on allocation failure
  *
  * DESCRIPTION: Allocate and initialize a new parse node for the parse tree
  *
@@ -133,7 +133,7 @@ TrAllocateNode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: "release" a node.  In truth, nothing is done since the node
+ * DESCRIPTION: "release" a node. In truth, nothing is done since the node
  *              is part of a larger buffer
  *
  ******************************************************************************/
@@ -156,9 +156,9 @@ TrReleaseNode (
  *
  * RETURN:      The updated node
  *
- * DESCRIPTION: Change the parse opcode assigned to a node.  Usually used to
+ * DESCRIPTION: Change the parse opcode assigned to a node. Usually used to
  *              change an opcode to DEFAULT_ARG so that the node is ignored
- *              during the code generation.  Also used to set generic integers
+ *              during the code generation. Also used to set generic integers
  *              to a specific size (8, 16, 32, or 64 bits)
  *
  ******************************************************************************/
@@ -186,19 +186,21 @@ TrUpdateNode (
         switch (ParseOpcode)
         {
         case PARSEOP_BYTECONST:
-            Op->Asl.Value.Integer = 0xFF;
+            Op->Asl.Value.Integer = ACPI_UINT8_MAX;
             break;
 
         case PARSEOP_WORDCONST:
-            Op->Asl.Value.Integer = 0xFFFF;
+            Op->Asl.Value.Integer = ACPI_UINT16_MAX;
             break;
 
         case PARSEOP_DWORDCONST:
-            Op->Asl.Value.Integer = 0xFFFFFFFF;
+            Op->Asl.Value.Integer = ACPI_UINT32_MAX;
             break;
 
+        /* Don't need to do the QWORD case */
+
         default:
-            /* Don't care about others, don't need to check QWORD */
+            /* Don't care about others */
             break;
         }
     }
@@ -213,15 +215,18 @@ TrUpdateNode (
     switch (ParseOpcode)
     {
     case PARSEOP_BYTECONST:
-        Op = UtCheckIntegerRange (Op, 0x00, ACPI_UINT8_MAX);
+        UtCheckIntegerRange (Op, 0x00, ACPI_UINT8_MAX);
+        Op->Asl.Value.Integer &= ACPI_UINT8_MAX;
         break;
 
     case PARSEOP_WORDCONST:
-        Op = UtCheckIntegerRange (Op, 0x00, ACPI_UINT16_MAX);
+        UtCheckIntegerRange (Op, 0x00, ACPI_UINT16_MAX);
+        Op->Asl.Value.Integer &= ACPI_UINT16_MAX;
         break;
 
     case PARSEOP_DWORDCONST:
-        Op = UtCheckIntegerRange (Op, 0x00, ACPI_UINT32_MAX);
+        UtCheckIntegerRange (Op, 0x00, ACPI_UINT32_MAX);
+        Op->Asl.Value.Integer &= ACPI_UINT32_MAX;
         break;
 
     default:
@@ -315,7 +320,7 @@ TrGetNodeFlagName (
  *
  * RETURN:      The updated parser op
  *
- * DESCRIPTION: Set bits in the node flags word.  Will not clear bits, only set
+ * DESCRIPTION: Set bits in the node flags word. Will not clear bits, only set
  *
  ******************************************************************************/
 
@@ -335,8 +340,41 @@ TrSetNodeFlags (
     }
 
     Op->Asl.CompileFlags |= Flags;
+    return (Op);
+}
 
-    return Op;
+
+/*******************************************************************************
+ *
+ * FUNCTION:    TrSetNodeAmlLength
+ *
+ * PARAMETERS:  Op                  - An existing parse node
+ *              Length              - AML Length
+ *
+ * RETURN:      The updated parser op
+ *
+ * DESCRIPTION: Set the AML Length in a node. Used by the parser to indicate
+ *              the presence of a node that must be reduced to a fixed length
+ *              constant.
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+TrSetNodeAmlLength (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Length)
+{
+
+    DbgPrint (ASL_PARSE_OUTPUT,
+        "\nSetNodeAmlLength: Op %p, %8.8X\n", Op, Length);
+
+    if (!Op)
+    {
+        return NULL;
+    }
+
+    Op->Asl.AmlLength = Length;
+    return (Op);
 }
 
 
@@ -376,7 +414,7 @@ TrSetEndLineNumber (
  *
  * PARAMETERS:  ParseOpcode         - New opcode to be assigned to the node
  *
- * RETURN:      Pointer to the new node.  Aborts on allocation failure
+ * RETURN:      Pointer to the new node. Aborts on allocation failure
  *
  * DESCRIPTION: Create a simple leaf node (no children or peers, and no value
  *              assigned to the node)
@@ -406,7 +444,7 @@ TrCreateLeafNode (
  *
  * PARAMETERS:  ParseOpcode         - The constant opcode
  *
- * RETURN:      Pointer to the new node.  Aborts on allocation failure
+ * RETURN:      Pointer to the new node. Aborts on allocation failure
  *
  * DESCRIPTION: Create a leaf node (no children or peers) for one of the
  *              special constants - __LINE__, __FILE__, and __DATE__.
@@ -488,7 +526,7 @@ TrCreateConstantLeafNode (
  * PARAMETERS:  ParseOpcode         - New opcode to be assigned to the node
  *              Value               - Value to be assigned to the node
  *
- * RETURN:      Pointer to the new node.  Aborts on allocation failure
+ * RETURN:      Pointer to the new node. Aborts on allocation failure
  *
  * DESCRIPTION: Create a leaf node (no children or peers) with a value
  *              assigned to it
@@ -553,9 +591,9 @@ TrCreateValuedLeafNode (
  * PARAMETERS:  ParseOpcode         - Opcode to be assigned to the node
  *              NumChildren         - Number of children to follow
  *              ...                 - A list of child nodes to link to the new
- *                                    node.  NumChildren long.
+ *                                    node. NumChildren long.
  *
- * RETURN:      Pointer to the new node.  Aborts on allocation failure
+ * RETURN:      Pointer to the new node. Aborts on allocation failure
  *
  * DESCRIPTION: Create a new parse node and link together a list of child
  *              nodes underneath the new node.
@@ -621,7 +659,7 @@ TrCreateNode (
 
         /*
          * If child is NULL, this means that an optional argument
-         * was omitted.  We must create a placeholder with a special
+         * was omitted. We must create a placeholder with a special
          * opcode (DEFAULT_ARG) so that the code generator will know
          * that it must emit the correct default for this argument
          */
@@ -675,7 +713,7 @@ TrCreateNode (
  * PARAMETERS:  Op                - An existing parse node
  *              NumChildren         - Number of children to follow
  *              ...                 - A list of child nodes to link to the new
- *                                    node.  NumChildren long.
+ *                                    node. NumChildren long.
  *
  * RETURN:      The updated (linked) node
  *
@@ -745,7 +783,7 @@ TrLinkChildren (
 
         /*
          * If child is NULL, this means that an optional argument
-         * was omitted.  We must create a placeholder with a special
+         * was omitted. We must create a placeholder with a special
          * opcode (DEFAULT_ARG) so that the code generator will know
          * that it must emit the correct default for this argument
          */
@@ -800,7 +838,7 @@ TrLinkChildren (
  *
  * RETURN:      Op1 or the non-null node.
  *
- * DESCRIPTION: Link two nodes as peers.  Handles cases where one peer is null.
+ * DESCRIPTION: Link two nodes as peers. Handles cases where one peer is null.
  *
  ******************************************************************************/
 

@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_new 3"
-.TH SSL_CTX_new 3 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH SSL_CTX_new 3 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -136,7 +136,7 @@ SSL_CTX_new \- create a new SSL_CTX object as framework for TLS/SSL enabled func
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
-\& SSL_CTX *SSL_CTX_new(SSL_METHOD *method);
+\& SSL_CTX *SSL_CTX_new(const SSL_METHOD *method);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"

@@ -81,15 +81,19 @@ protected:
   typedef llvm::DenseSet<SymbolRef> Symbols;
   typedef llvm::DenseSet<const MemRegion *> Regions;
 
-  /// A set of symbols that are registered with this report as being
-  /// "interesting", and thus used to help decide which diagnostics
-  /// to include when constructing the final path diagnostic.
-  Symbols interestingSymbols;
+  /// A (stack of) a set of symbols that are registered with this
+  /// report as being "interesting", and thus used to help decide which
+  /// diagnostics to include when constructing the final path diagnostic.
+  /// The stack is largely used by BugReporter when generating PathDiagnostics
+  /// for multiple PathDiagnosticConsumers.
+  llvm::SmallVector<Symbols *, 2> interestingSymbols;
 
-  /// A set of regions that are registered with this report as being
+  /// A (stack of) set of regions that are registered with this report as being
   /// "interesting", and thus used to help decide which diagnostics
   /// to include when constructing the final path diagnostic.
-  Regions interestingRegions;
+  /// The stack is largely used by BugReporter when generating PathDiagnostics
+  /// for multiple PathDiagnosticConsumers.
+  llvm::SmallVector<Regions *, 2> interestingRegions;
 
   /// A set of custom visitors which generate "event" diagnostics at
   /// interesting points in the path.
@@ -101,20 +105,36 @@ protected:
   /// Used for clients to tell if the report's configuration has changed
   /// since the last time they checked.
   unsigned ConfigurationChangeToken;
+  
+  /// When set, this flag disables all callstack pruning from a diagnostic
+  /// path.  This is useful for some reports that want maximum fidelty
+  /// when reporting an issue.
+  bool DoNotPrunePath;
+
+private:
+  // Used internally by BugReporter.
+  Symbols &getInterestingSymbols();
+  Regions &getInterestingRegions();
+
+  void lazyInitializeInterestingSets();
+  void pushInterestingSymbolsAndRegions();
+  void popInterestingSymbolsAndRegions();
 
 public:
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode)
     : BT(bt), DeclWithIssue(0), Description(desc), ErrorNode(errornode),
-      ConfigurationChangeToken(0) {}
+      ConfigurationChangeToken(0), DoNotPrunePath(false) {}
 
   BugReport(BugType& bt, StringRef shortDesc, StringRef desc,
             const ExplodedNode *errornode)
     : BT(bt), DeclWithIssue(0), ShortDescription(shortDesc), Description(desc),
-      ErrorNode(errornode), ConfigurationChangeToken(0) {}
+      ErrorNode(errornode), ConfigurationChangeToken(0),
+      DoNotPrunePath(false) {}
 
   BugReport(BugType& bt, StringRef desc, PathDiagnosticLocation l)
     : BT(bt), DeclWithIssue(0), Description(desc), Location(l), ErrorNode(0),
-      ConfigurationChangeToken(0) {}
+      ConfigurationChangeToken(0),
+      DoNotPrunePath(false) {}
 
   /// \brief Create a BugReport with a custom uniqueing location.
   ///
@@ -142,13 +162,20 @@ public:
     return ShortDescription.empty() ? Description : ShortDescription;
   }
 
+  /// Indicates whether or not any path pruning should take place
+  /// when generating a PathDiagnostic from this BugReport.
+  bool shouldPrunePath() const { return !DoNotPrunePath; }
+
+  /// Disable all path pruning when generating a PathDiagnostic.
+  void disablePathPruning() { DoNotPrunePath = true; }
+  
   void markInteresting(SymbolRef sym);
   void markInteresting(const MemRegion *R);
   void markInteresting(SVal V);
   
-  bool isInteresting(SymbolRef sym) const;
-  bool isInteresting(const MemRegion *R) const;
-  bool isInteresting(SVal V) const;
+  bool isInteresting(SymbolRef sym);
+  bool isInteresting(const MemRegion *R);
+  bool isInteresting(SVal V);
 
   unsigned getConfigurationChangeToken() const {
     return ConfigurationChangeToken;
@@ -281,7 +308,7 @@ class BugReporterData {
 public:
   virtual ~BugReporterData();
   virtual DiagnosticsEngine& getDiagnostic() = 0;
-  virtual PathDiagnosticConsumer* getPathDiagnosticConsumer() = 0;
+  virtual ArrayRef<PathDiagnosticConsumer*> getPathDiagnosticConsumers() = 0;
   virtual ASTContext &getASTContext() = 0;
   virtual SourceManager& getSourceManager() = 0;
 };
@@ -303,6 +330,12 @@ private:
 
   /// Generate and flush the diagnostics for the given bug report.
   void FlushReport(BugReportEquivClass& EQ);
+
+  /// Generate and flush the diagnostics for the given bug report
+  /// and PathDiagnosticConsumer.
+  void FlushReport(BugReport *exampleReport,
+                   PathDiagnosticConsumer &PD,
+                   ArrayRef<BugReport*> BugReports);
 
   /// The set of bug reports tracked by the BugReporter.
   llvm::FoldingSet<BugReportEquivClass> EQClasses;
@@ -327,8 +360,8 @@ public:
     return D.getDiagnostic();
   }
 
-  PathDiagnosticConsumer* getPathDiagnosticConsumer() {
-    return D.getPathDiagnosticConsumer();
+  ArrayRef<PathDiagnosticConsumer*> getPathDiagnosticConsumers() {
+    return D.getPathDiagnosticConsumers();
   }
 
   /// \brief Iterator over the set of BugTypes tracked by the BugReporter.
@@ -346,7 +379,8 @@ public:
   SourceManager& getSourceManager() { return D.getSourceManager(); }
 
   virtual void GeneratePathDiagnostic(PathDiagnostic& pathDiagnostic,
-        SmallVectorImpl<BugReport *> &bugReports) {}
+                                      PathDiagnosticConsumer &PC,
+                                      ArrayRef<BugReport *> &bugReports) {}
 
   void Register(BugType *BT);
 
@@ -407,7 +441,8 @@ public:
   ProgramStateManager &getStateManager();
 
   virtual void GeneratePathDiagnostic(PathDiagnostic &pathDiagnostic,
-                     SmallVectorImpl<BugReport*> &bugReports);
+                                      PathDiagnosticConsumer &PC,
+                                      ArrayRef<BugReport*> &bugReports);
 
   /// classof - Used by isa<>, cast<>, and dyn_cast<>.
   static bool classof(const BugReporter* R) {

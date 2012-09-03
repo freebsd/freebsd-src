@@ -366,7 +366,7 @@ archive_write_ar_data(struct archive_write *a, const void *buff, size_t s)
 
 	ar = (struct ar_w *)a->format_data;
 	if (s > ar->entry_bytes_remaining)
-		s = ar->entry_bytes_remaining;
+		s = (size_t)ar->entry_bytes_remaining;
 
 	if (ar->is_strtab > 0) {
 		if (ar->has_strtab > 0) {

@@ -25,7 +25,7 @@ _misc [label="Miscellaneous Hats"]
 
 # Development teams go here alphabetically sorted
 
-core [label="Core Team\ncore@FreeBSD.org\nwilko, brooks, keramida, imp,\ngnn, wes, hrs, murray,\nrwatson"]
+core [label="Core Team\ncore@FreeBSD.org\ntabthorpe, gavin, jhb, kib,\ntheraven, attilio, hrs,\npeter, miwi"]
 coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\ngavin"]
 doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
 doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\ngjb, blackend,\ngabor, hrs"]

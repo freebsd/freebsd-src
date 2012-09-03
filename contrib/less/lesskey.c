@@ -449,7 +449,7 @@ tstr(pp, xlate)
 		}
 	case '^':
 		/*
-		 * Carat means CONTROL.
+		 * Caret means CONTROL.
 		 */
 		*pp = p+2;
 		buf[0] = CONTROL(p[1]);

@@ -1203,11 +1203,18 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 	uint16_t rport;
 
 	inp = *inp_p;
-	if (remote->sa_family == AF_INET) {
+	switch (remote->sa_family) {
+#ifdef INET
+	case AF_INET:
 		rport = (((struct sockaddr_in *)remote)->sin_port);
-	} else if (remote->sa_family == AF_INET6) {
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 		rport = (((struct sockaddr_in6 *)remote)->sin6_port);
-	} else {
+		break;
+#endif
+	default:
 		return (NULL);
 	}
 	if (locked_tcb) {
@@ -2048,8 +2055,6 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
 	struct sctp_nets *net;
 	struct sctp_tcb *stcb;
 
-	*netp = NULL;
-	*inp_p = NULL;
 	SCTP_INP_INFO_RLOCK();
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(vtag,
 	    SCTP_BASE_INFO(hashasocmark))];
@@ -2303,10 +2308,9 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 	if (zero_address) {
 		stcb = sctp_findassoc_by_vtag(NULL, dst, ntohl(sh->v_tag), inp_p,
 		    netp, sh->src_port, sh->dest_port, 1, vrf_id, 0);
-		/*
-		 * SCTP_PRINTF("findassociation_ep_asconf: zero lookup
-		 * address finds stcb 0x%x\n", (uint32_t)stcb);
-		 */
+		if (stcb != NULL) {
+			SCTP_INP_DECR_REF(*inp_p);
+		}
 	} else {
 		stcb = sctp_findassociation_ep_addr(inp_p,
 		    (struct sockaddr *)&remote_store, netp,
@@ -3009,6 +3013,7 @@ continue_anyway:
 
 		memset(&store_sa, 0, sizeof(store_sa));
 		switch (addr->sa_family) {
+#ifdef INET
 		case AF_INET:
 			{
 				struct sockaddr_in *sin;
@@ -3018,6 +3023,8 @@ continue_anyway:
 				sin->sin_port = 0;
 				break;
 			}
+#endif
+#ifdef INET6
 		case AF_INET6:
 			{
 				struct sockaddr_in6 *sin6;
@@ -3027,6 +3034,7 @@ continue_anyway:
 				sin6->sin6_port = 0;
 				break;
 			}
+#endif
 		default:
 			break;
 		}
@@ -4864,6 +4872,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		/* now clean up any chunks here */
 		TAILQ_FOREACH_SAFE(sp, &outs->outqueue, next, nsp) {
 			TAILQ_REMOVE(&outs->outqueue, sp, next);
+			sctp_free_spbufspace(stcb, asoc, sp);
 			if (sp->data) {
 				if (so) {
 					/* Still an open socket - report */
@@ -4874,19 +4883,14 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 					sctp_m_freem(sp->data);
 					sp->data = NULL;
 					sp->tail_mbuf = NULL;
+					sp->length = 0;
 				}
 			}
 			if (sp->net) {
 				sctp_free_remote_addr(sp->net);
 				sp->net = NULL;
 			}
-			sctp_free_spbufspace(stcb, asoc, sp);
-			if (sp->holds_key_ref)
-				sctp_auth_key_release(stcb, sp->auth_keyid, SCTP_SO_LOCKED);
-			/* Free the zone stuff  */
-			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_strmoq), sp);
-			SCTP_DECR_STRMOQ_COUNT();
-			/* sa_ignore FREED_MEMORY */
+			sctp_free_a_strmoq(stcb, sp, SCTP_SO_LOCKED);
 		}
 	}
 	/* sa_ignore FREED_MEMORY */
@@ -5188,12 +5192,16 @@ sctp_destination_is_reachable(struct sctp_tcb *stcb, struct sockaddr *destaddr)
 	}
 	/* NOTE: all "scope" checks are done when local addresses are added */
 	switch (destaddr->sa_family) {
+#ifdef INET6
 	case AF_INET6:
 		answer = inp->ip_inp.inp.inp_vflag & INP_IPV6;
 		break;
+#endif
+#ifdef INET
 	case AF_INET:
 		answer = inp->ip_inp.inp.inp_vflag & INP_IPV4;
 		break;
+#endif
 	default:
 		/* invalid family, so it's unreachable */
 		answer = 0;
@@ -5284,7 +5292,7 @@ sctp_add_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa, uint32_t ac
 			inp->ip_inp.inp.inp_vflag |= INP_IPV6;
 			break;
 #endif
-#ifdef INET6
+#ifdef INET
 		case AF_INET:
 			inp->ip_inp.inp.inp_vflag |= INP_IPV4;
 			break;

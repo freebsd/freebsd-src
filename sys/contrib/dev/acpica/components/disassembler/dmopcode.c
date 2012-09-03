@@ -665,6 +665,11 @@ AcpiDmDisassembleOneOp (
             Op->Common.DisasmOpcode = ACPI_DASM_STRING;
             AcpiOsPrintf ("Buffer");
         }
+        else if (AcpiDmIsPldBuffer (Op))
+        {
+            Op->Common.DisasmOpcode = ACPI_DASM_PLD_METHOD;
+            AcpiOsPrintf ("Buffer");
+        }
         else
         {
             Op->Common.DisasmOpcode = ACPI_DASM_BUFFER;

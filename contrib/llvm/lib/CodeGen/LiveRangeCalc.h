@@ -34,6 +34,11 @@ template <class NodeT> class DomTreeNodeBase;
 typedef DomTreeNodeBase<MachineBasicBlock> MachineDomTreeNode;
 
 class LiveRangeCalc {
+  const MachineRegisterInfo *MRI;
+  SlotIndexes *Indexes;
+  MachineDominatorTree *DomTree;
+  VNInfo::Allocator *Alloc;
+
   /// Seen - Bit vector of active entries in LiveOut, also used as a visited
   /// set by findReachingDefs.  One entry per basic block, indexed by block
   /// number.  This is kept as a separate bit vector because it can be cleared
@@ -100,26 +105,27 @@ class LiveRangeCalc {
   /// to be live-in are added to LiveIn.  If a unique reaching def is found,
   /// its value is returned, if Kill is jointly dominated by multiple values,
   /// NULL is returned.
+  ///
+  /// PhysReg, when set, is used to verify live-in lists on basic blocks.
   VNInfo *findReachingDefs(LiveInterval *LI,
                            MachineBasicBlock *KillMBB,
                            SlotIndex Kill,
-                           SlotIndexes *Indexes,
-                           MachineDominatorTree *DomTree);
+                           unsigned PhysReg);
 
   /// updateSSA - Compute the values that will be live in to all requested
   /// blocks in LiveIn.  Create PHI-def values as required to preserve SSA form.
   ///
   /// Every live-in block must be jointly dominated by the added live-out
   /// blocks.  No values are read from the live ranges.
-  void updateSSA(SlotIndexes *Indexes,
-                 MachineDominatorTree *DomTree,
-                 VNInfo::Allocator *Alloc);
+  void updateSSA();
 
   /// updateLiveIns - Add liveness as specified in the LiveIn vector, using VNI
   /// as a wildcard value for LiveIn entries without a value.
-  void updateLiveIns(VNInfo *VNI, SlotIndexes*);
+  void updateLiveIns(VNInfo *VNI);
 
 public:
+  LiveRangeCalc() : MRI(0), Indexes(0), DomTree(0), Alloc(0) {}
+
   //===--------------------------------------------------------------------===//
   // High-level interface.
   //===--------------------------------------------------------------------===//
@@ -132,14 +138,14 @@ public:
   /// that may overlap a previously computed live range, and before the first
   /// live range in a function.  If live ranges are not known to be
   /// non-overlapping, call reset before each.
-  void reset(const MachineFunction *MF);
+  void reset(const MachineFunction *MF,
+             SlotIndexes*,
+             MachineDominatorTree*,
+             VNInfo::Allocator*);
 
   /// calculate - Calculate the live range of a virtual register from its defs
   /// and uses.  LI must be empty with no values.
-  void calculate(LiveInterval *LI,
-                 MachineRegisterInfo *MRI,
-                 SlotIndexes *Indexes,
-                 VNInfo::Allocator *Alloc);
+  void calculate(LiveInterval *LI);
 
   //===--------------------------------------------------------------------===//
   // Mid-level interface.
@@ -154,21 +160,30 @@ public:
   /// Kill is not dominated by a single existing value, PHI-defs are inserted
   /// as required to preserve SSA form.  If Kill is known to be dominated by a
   /// single existing value, Alloc may be null.
-  void extend(LiveInterval *LI,
-              SlotIndex Kill,
-              SlotIndexes *Indexes,
-              MachineDominatorTree *DomTree,
-              VNInfo::Allocator *Alloc);
+  ///
+  /// PhysReg, when set, is used to verify live-in lists on basic blocks.
+  void extend(LiveInterval *LI, SlotIndex Kill, unsigned PhysReg = 0);
 
-  /// extendToUses - Extend the live range of LI to reach all uses.
+  /// createDeadDefs - Create a dead def in LI for every def operand of Reg.
+  /// Each instruction defining Reg gets a new VNInfo with a corresponding
+  /// minimal live range.
+  void createDeadDefs(LiveInterval *LI, unsigned Reg);
+
+  /// createDeadDefs - Create a dead def in LI for every def of LI->reg.
+  void createDeadDefs(LiveInterval *LI) {
+    createDeadDefs(LI, LI->reg);
+  }
+
+  /// extendToUses - Extend the live range of LI to reach all uses of Reg.
   ///
   /// All uses must be jointly dominated by existing liveness.  PHI-defs are
   /// inserted as needed to preserve SSA form.
-  void extendToUses(LiveInterval *LI,
-                    MachineRegisterInfo *MRI,
-                    SlotIndexes *Indexes,
-                    MachineDominatorTree *DomTree,
-                    VNInfo::Allocator *Alloc);
+  void extendToUses(LiveInterval *LI, unsigned Reg);
+
+  /// extendToUses - Extend the live range of LI to reach all uses of LI->reg.
+  void extendToUses(LiveInterval *LI) {
+    extendToUses(LI, LI->reg);
+  }
 
   //===--------------------------------------------------------------------===//
   // Low-level interface.
@@ -216,9 +231,7 @@ public:
   ///
   /// Every predecessor of a live-in block must have been given a value with
   /// setLiveOutValue, the value may be null for live-trough blocks.
-  void calculateValues(SlotIndexes *Indexes,
-                       MachineDominatorTree *DomTree,
-                       VNInfo::Allocator *Alloc);
+  void calculateValues();
 };
 
 } // end namespace llvm

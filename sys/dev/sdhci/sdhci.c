@@ -364,7 +364,7 @@ sdhci_lower_frequency(device_t dev)
 
 	/*
 	 * Some SD/MMC cards don't work with the default base
-	 * clock frequency of 200MHz.  Lower it to 50Hz.
+	 * clock frequency of 200MHz.  Lower it to 50MHz.
 	 */
 	pci_write_config(dev, SDHC_PCI_BASE_FREQ_KEY, 0x01, 1);
 	pci_write_config(dev, SDHC_PCI_BASE_FREQ, 50, 1);

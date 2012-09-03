@@ -215,11 +215,6 @@ extern int	acpi_quirks;
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 
 /*
- * Sleep flags.  See actypes.h for available flags.
- */
-extern int	acpi_sleep_flags;
-
-/*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.

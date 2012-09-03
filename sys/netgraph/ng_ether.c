@@ -71,6 +71,8 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_ether.h>
 
+MODULE_VERSION(ng_ether, 1);
+
 #define IFP2NG(ifp)  (IFP2AC((ifp))->ac_netgraph)
 
 /* Per-node private data */

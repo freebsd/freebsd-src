@@ -42,6 +42,7 @@ foreach $file (sort keys %files) {
     my @deps = map { $_ =~ s/^\.\///; $_ } @{$files{$file}};
 
     foreach $dep (sort @deps) {
+	$dep=~s/^\.\///;
 	next if $prevdep eq $dep; # to exterminate duplicates...
 	$prevdep = $dep;
 	$len=0 if $len+length($dep)+1 >= 80;

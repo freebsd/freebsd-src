@@ -2747,13 +2747,14 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 	struct sctp_paramhdr tmp_param, *ph;
 	uint16_t plen, ptype;
 	struct sctp_ifa *sctp_ifa;
-	struct sctp_ipv6addr_param addr_store;
 
 #ifdef INET6
+	struct sctp_ipv6addr_param addr6_store;
 	struct sockaddr_in6 sin6;
 
 #endif
 #ifdef INET
+	struct sctp_ipv4addr_param addr4_store;
 	struct sockaddr_in sin;
 
 #endif
@@ -2802,7 +2803,7 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 				a6p = (struct sctp_ipv6addr_param *)
 				    sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv6addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr6_store);
 				if (plen != sizeof(struct sctp_ipv6addr_param) ||
 				    a6p == NULL) {
 					return;
@@ -2821,7 +2822,7 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 				/* get the entire IPv4 address param */
 				a4p = (struct sctp_ipv4addr_param *)sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv4addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr4_store);
 				if (plen != sizeof(struct sctp_ipv4addr_param) ||
 				    a4p == NULL) {
 					return;
@@ -2899,16 +2900,17 @@ sctp_addr_in_initack(struct mbuf *m, uint32_t offset, uint32_t length, struct so
 {
 	struct sctp_paramhdr tmp_param, *ph;
 	uint16_t plen, ptype;
-	struct sctp_ipv6addr_param addr_store;
 
 #ifdef INET
 	struct sockaddr_in *sin;
 	struct sctp_ipv4addr_param *a4p;
+	struct sctp_ipv6addr_param addr4_store;
 
 #endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
 	struct sctp_ipv6addr_param *a6p;
+	struct sctp_ipv6addr_param addr6_store;
 	struct sockaddr_in6 sin6_tmp;
 
 #endif
@@ -2954,7 +2956,7 @@ sctp_addr_in_initack(struct mbuf *m, uint32_t offset, uint32_t length, struct so
 				a6p = (struct sctp_ipv6addr_param *)
 				    sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv6addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr6_store);
 				if (a6p == NULL) {
 					return (0);
 				}
@@ -2984,7 +2986,7 @@ sctp_addr_in_initack(struct mbuf *m, uint32_t offset, uint32_t length, struct so
 				a4p = (struct sctp_ipv4addr_param *)
 				    sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv4addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr4_store);
 				if (a4p == NULL) {
 					return (0);
 				}

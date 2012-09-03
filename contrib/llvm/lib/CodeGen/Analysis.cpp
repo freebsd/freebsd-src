@@ -203,6 +203,63 @@ ISD::CondCode llvm::getICmpCondCode(ICmpInst::Predicate Pred) {
   }
 }
 
+
+/// getNoopInput - If V is a noop (i.e., lowers to no machine code), look
+/// through it (and any transitive noop operands to it) and return its input
+/// value.  This is used to determine if a tail call can be formed.
+///
+static const Value *getNoopInput(const Value *V, const TargetLowering &TLI) {
+  // If V is not an instruction, it can't be looked through.
+  const Instruction *I = dyn_cast<Instruction>(V);
+  if (I == 0 || !I->hasOneUse() || I->getNumOperands() == 0) return V;
+  
+  Value *Op = I->getOperand(0);
+
+  // Look through truly no-op truncates.
+  if (isa<TruncInst>(I) &&
+      TLI.isTruncateFree(I->getOperand(0)->getType(), I->getType()))
+    return getNoopInput(I->getOperand(0), TLI);
+  
+  // Look through truly no-op bitcasts.
+  if (isa<BitCastInst>(I)) {
+    // No type change at all.
+    if (Op->getType() == I->getType())
+      return getNoopInput(Op, TLI);
+
+    // Pointer to pointer cast.
+    if (Op->getType()->isPointerTy() && I->getType()->isPointerTy())
+      return getNoopInput(Op, TLI);
+    
+    if (isa<VectorType>(Op->getType()) && isa<VectorType>(I->getType()) &&
+        TLI.isTypeLegal(EVT::getEVT(Op->getType())) &&
+        TLI.isTypeLegal(EVT::getEVT(I->getType())))
+      return getNoopInput(Op, TLI);
+  }
+  
+  // Look through inttoptr.
+  if (isa<IntToPtrInst>(I) && !isa<VectorType>(I->getType())) {
+    // Make sure this isn't a truncating or extending cast.  We could support
+    // this eventually, but don't bother for now.
+    if (TLI.getPointerTy().getSizeInBits() == 
+          cast<IntegerType>(Op->getType())->getBitWidth())
+      return getNoopInput(Op, TLI);
+  }
+
+  // Look through ptrtoint.
+  if (isa<PtrToIntInst>(I) && !isa<VectorType>(I->getType())) {
+    // Make sure this isn't a truncating or extending cast.  We could support
+    // this eventually, but don't bother for now.
+    if (TLI.getPointerTy().getSizeInBits() == 
+        cast<IntegerType>(I->getType())->getBitWidth())
+      return getNoopInput(Op, TLI);
+  }
+
+
+  // Otherwise it's not something we can look through.
+  return V;
+}
+
+
 /// Test if the given instruction is in a position to be optimized
 /// with a tail-call. This roughly means that it's in a block with
 /// a return and there's nothing that needs to be scheduled
@@ -226,7 +283,8 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
   // been fully understood.
   if (!Ret &&
       (!TLI.getTargetMachine().Options.GuaranteedTailCallOpt ||
-       !isa<UnreachableInst>(Term))) return false;
+       !isa<UnreachableInst>(Term)))
+    return false;
 
   // If I will have a chain, make sure no other instruction that will have a
   // chain interposes between I and the return.
@@ -264,28 +322,28 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
     return false;
 
   // Otherwise, make sure the unmodified return value of I is the return value.
-  for (const Instruction *U = dyn_cast<Instruction>(Ret->getOperand(0)); ;
-       U = dyn_cast<Instruction>(U->getOperand(0))) {
-    if (!U)
+  // We handle two cases: multiple return values + scalars.
+  Value *RetVal = Ret->getOperand(0);
+  if (!isa<InsertValueInst>(RetVal) || !isa<StructType>(RetVal->getType()))
+    // Handle scalars first.
+    return getNoopInput(Ret->getOperand(0), TLI) == I;
+  
+  // If this is an aggregate return, look through the insert/extract values and
+  // see if each is transparent.
+  for (unsigned i = 0, e =cast<StructType>(RetVal->getType())->getNumElements();
+       i != e; ++i) {
+    const Value *InScalar = FindInsertedValue(RetVal, i);
+    if (InScalar == 0) return false;
+    InScalar = getNoopInput(InScalar, TLI);
+    
+    // If the scalar value being inserted is an extractvalue of the right index
+    // from the call, then everything is good.
+    const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(InScalar);
+    if (EVI == 0 || EVI->getOperand(0) != I || EVI->getNumIndices() != 1 ||
+        EVI->getIndices()[0] != i)
       return false;
-    if (!U->hasOneUse())
-      return false;
-    if (U == I)
-      break;
-    // Check for a truly no-op truncate.
-    if (isa<TruncInst>(U) &&
-        TLI.isTruncateFree(U->getOperand(0)->getType(), U->getType()))
-      continue;
-    // Check for a truly no-op bitcast.
-    if (isa<BitCastInst>(U) &&
-        (U->getOperand(0)->getType() == U->getType() ||
-         (U->getOperand(0)->getType()->isPointerTy() &&
-          U->getType()->isPointerTy())))
-      continue;
-    // Otherwise it's not a true no-op.
-    return false;
   }
-
+  
   return true;
 }
 

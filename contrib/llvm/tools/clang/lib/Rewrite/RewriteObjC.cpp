@@ -227,7 +227,7 @@ namespace {
       // Get the new text.
       std::string SStr;
       llvm::raw_string_ostream S(SStr);
-      New->printPretty(S, *Context, 0, PrintingPolicy(LangOpts));
+      New->printPretty(S, 0, PrintingPolicy(LangOpts));
       const std::string &Str = S.str();
 
       // If replacement succeeded or warning disabled return with no warning.
@@ -349,13 +349,18 @@ namespace {
     virtual void RewriteIvarOffsetComputation(ObjCIvarDecl *ivar,
                                          std::string &Result) = 0;
     
-    // Misc. AST transformation routines. Somtimes they end up calling
+    // Misc. AST transformation routines. Sometimes they end up calling
     // rewriting routines on the new ASTs.
     CallExpr *SynthesizeCallToFunctionDecl(FunctionDecl *FD,
                                            Expr **args, unsigned nargs,
                                            SourceLocation StartLoc=SourceLocation(),
                                            SourceLocation EndLoc=SourceLocation());
-
+    CallExpr *SynthMsgSendStretCallExpr(FunctionDecl *MsgSendStretFlavor,
+                                        QualType msgSendType, 
+                                        QualType returnType, 
+                                        SmallVectorImpl<QualType> &ArgTypes,
+                                        SmallVectorImpl<Expr*> &MsgExprs,
+                                        ObjCMethodDecl *Method);
     Stmt *SynthMessageExpr(ObjCMessageExpr *Exp,
                            SourceLocation StartLoc=SourceLocation(),
                            SourceLocation EndLoc=SourceLocation());
@@ -1715,8 +1720,7 @@ Stmt *RewriteObjC::RewriteObjCSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
                                       CK, syncExpr);
   std::string syncExprBufS;
   llvm::raw_string_ostream syncExprBuf(syncExprBufS);
-  syncExpr->printPretty(syncExprBuf, *Context, 0,
-                        PrintingPolicy(LangOpts));
+  syncExpr->printPretty(syncExprBuf, 0, PrintingPolicy(LangOpts));
   syncBuf += syncExprBuf.str();
   syncBuf += ");";
   
@@ -2548,8 +2552,7 @@ Stmt *RewriteObjC::RewriteObjCStringLiteral(ObjCStringLiteral *Exp) {
   // The pretty printer for StringLiteral handles escape characters properly.
   std::string prettyBufS;
   llvm::raw_string_ostream prettyBuf(prettyBufS);
-  Exp->getString()->printPretty(prettyBuf, *Context, 0,
-                                PrintingPolicy(LangOpts));
+  Exp->getString()->printPretty(prettyBuf, 0, PrintingPolicy(LangOpts));
   Preamble += prettyBuf.str();
   Preamble += ",";
   Preamble += utostr(Exp->getString()->getByteLength()) + "};\n";
@@ -2592,7 +2595,7 @@ QualType RewriteObjC::getSuperStructType() {
                                                  FieldTypes[i], 0,
                                                  /*BitWidth=*/0,
                                                  /*Mutable=*/false,
-                                                 /*HasInit=*/false));
+                                                 ICIS_NoInit));
     }
 
     SuperStructDecl->completeDefinition();
@@ -2625,13 +2628,47 @@ QualType RewriteObjC::getConstantStringStructType() {
                                                     FieldTypes[i], 0,
                                                     /*BitWidth=*/0,
                                                     /*Mutable=*/true,
-                                                    /*HasInit=*/false));
+                                                    ICIS_NoInit));
     }
 
     ConstantStringDecl->completeDefinition();
   }
   return Context->getTagDeclType(ConstantStringDecl);
 }
+
+CallExpr *RewriteObjC::SynthMsgSendStretCallExpr(FunctionDecl *MsgSendStretFlavor,
+                                                QualType msgSendType, 
+                                                QualType returnType, 
+                                                SmallVectorImpl<QualType> &ArgTypes,
+                                                SmallVectorImpl<Expr*> &MsgExprs,
+                                                ObjCMethodDecl *Method) {
+  // Create a reference to the objc_msgSend_stret() declaration.
+  DeclRefExpr *STDRE = new (Context) DeclRefExpr(MsgSendStretFlavor,
+                                                 false, msgSendType,
+                                                 VK_LValue, SourceLocation());
+  // Need to cast objc_msgSend_stret to "void *" (see above comment).
+  CastExpr *cast = NoTypeInfoCStyleCastExpr(Context,
+                                  Context->getPointerType(Context->VoidTy),
+                                  CK_BitCast, STDRE);
+  // Now do the "normal" pointer to function cast.
+  QualType castType = getSimpleFunctionType(returnType, &ArgTypes[0], ArgTypes.size(),
+                                            Method ? Method->isVariadic() : false);
+  castType = Context->getPointerType(castType);
+  cast = NoTypeInfoCStyleCastExpr(Context, castType, CK_BitCast,
+                                            cast);
+  
+  // Don't forget the parens to enforce the proper binding.
+  ParenExpr *PE = new (Context) ParenExpr(SourceLocation(), SourceLocation(), cast);
+  
+  const FunctionType *FT = msgSendType->getAs<FunctionType>();
+  CallExpr *STCE = new (Context) CallExpr(*Context, PE, &MsgExprs[0],
+                                          MsgExprs.size(),
+                                          FT->getResultType(), VK_RValue,
+                                          SourceLocation());
+  return STCE;
+  
+}
+
 
 Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
                                     SourceLocation StartLoc,
@@ -3023,30 +3060,11 @@ Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
     // call to objc_msgSend_stret and hang both varieties on a conditional
     // expression which dictate which one to envoke depending on size of
     // method's return type.
-
-    // Create a reference to the objc_msgSend_stret() declaration.
-    DeclRefExpr *STDRE = new (Context) DeclRefExpr(MsgSendStretFlavor,
-                                                   false, msgSendType,
-                                                   VK_LValue, SourceLocation());
-    // Need to cast objc_msgSend_stret to "void *" (see above comment).
-    cast = NoTypeInfoCStyleCastExpr(Context,
-                                    Context->getPointerType(Context->VoidTy),
-                                    CK_BitCast, STDRE);
-    // Now do the "normal" pointer to function cast.
-    castType = getSimpleFunctionType(returnType, &ArgTypes[0], ArgTypes.size(),
-      Exp->getMethodDecl() ? Exp->getMethodDecl()->isVariadic() : false);
-    castType = Context->getPointerType(castType);
-    cast = NoTypeInfoCStyleCastExpr(Context, castType, CK_BitCast,
-                                    cast);
-
-    // Don't forget the parens to enforce the proper binding.
-    PE = new (Context) ParenExpr(SourceLocation(), SourceLocation(), cast);
-
-    FT = msgSendType->getAs<FunctionType>();
-    CallExpr *STCE = new (Context) CallExpr(*Context, PE, &MsgExprs[0],
-                                            MsgExprs.size(),
-                                            FT->getResultType(), VK_RValue,
-                                            SourceLocation());
+    
+    CallExpr *STCE = SynthMsgSendStretCallExpr(MsgSendStretFlavor, 
+                                               msgSendType, returnType, 
+                                               ArgTypes, MsgExprs,
+                                               Exp->getMethodDecl());
 
     // Build sizeof(returnType)
     UnaryExprOrTypeTraitExpr *sizeofExpr =
@@ -3887,7 +3905,7 @@ Stmt *RewriteObjC::SynthesizeBlockCall(CallExpr *Exp, const Expr *BlockExp) {
                                     &Context->Idents.get("FuncPtr"),
                                     Context->VoidPtrTy, 0,
                                     /*BitWidth=*/0, /*Mutable=*/true,
-                                    /*HasInit=*/false);
+                                    ICIS_NoInit);
   MemberExpr *ME = new (Context) MemberExpr(PE, true, FD, SourceLocation(),
                                             FD->getType(), VK_LValue,
                                             OK_Ordinary);
@@ -3936,7 +3954,7 @@ Stmt *RewriteObjC::RewriteBlockDeclRefExpr(DeclRefExpr *DeclRefExp) {
                                     &Context->Idents.get("__forwarding"), 
                                     Context->VoidPtrTy, 0,
                                     /*BitWidth=*/0, /*Mutable=*/true,
-                                    /*HasInit=*/false);
+                                    ICIS_NoInit);
   MemberExpr *ME = new (Context) MemberExpr(DeclRefExp, isArrow,
                                             FD, SourceLocation(),
                                             FD->getType(), VK_LValue,
@@ -3947,7 +3965,7 @@ Stmt *RewriteObjC::RewriteBlockDeclRefExpr(DeclRefExpr *DeclRefExp) {
                          &Context->Idents.get(Name), 
                          Context->VoidPtrTy, 0,
                          /*BitWidth=*/0, /*Mutable=*/true,
-                         /*HasInit=*/false);
+                         ICIS_NoInit);
   ME = new (Context) MemberExpr(ME, true, FD, SourceLocation(),
                                 DeclRefExp->getType(), VK_LValue, OK_Ordinary);
   
@@ -4865,7 +4883,7 @@ Stmt *RewriteObjC::RewriteFunctionBodyOrGlobalInitializer(Stmt *S) {
     // Get the new text.
     std::string SStr;
     llvm::raw_string_ostream Buf(SStr);
-    Replacement->printPretty(Buf, *Context);
+    Replacement->printPretty(Buf);
     const std::string &Str = Buf.str();
 
     printf("CAST = %s\n", &Str[0]);
@@ -5442,10 +5460,10 @@ void RewriteObjCFragileABI::RewriteObjCClassMetaData(ObjCImplementationDecl *IDe
       IVE = CDecl->ivar_end();
     }
     Result += "\t,{{\"";
-    Result += (*IVI)->getNameAsString();
+    Result += IVI->getNameAsString();
     Result += "\", \"";
     std::string TmpString, StrEncoding;
-    Context->getObjCEncodingForType((*IVI)->getType(), TmpString, *IVI);
+    Context->getObjCEncodingForType(IVI->getType(), TmpString, *IVI);
     QuoteDoublequotes(TmpString, StrEncoding);
     Result += StrEncoding;
     Result += "\", ";
@@ -5453,14 +5471,14 @@ void RewriteObjCFragileABI::RewriteObjCClassMetaData(ObjCImplementationDecl *IDe
     Result += "}\n";
     for (++IVI; IVI != IVE; ++IVI) {
       Result += "\t  ,{\"";
-      Result += (*IVI)->getNameAsString();
+      Result += IVI->getNameAsString();
       Result += "\", \"";
       std::string TmpString, StrEncoding;
-      Context->getObjCEncodingForType((*IVI)->getType(), TmpString, *IVI);
+      Context->getObjCEncodingForType(IVI->getType(), TmpString, *IVI);
       QuoteDoublequotes(TmpString, StrEncoding);
       Result += StrEncoding;
       Result += "\", ";
-      RewriteIvarOffsetComputation((*IVI), Result);
+      RewriteIvarOffsetComputation(*IVI, Result);
       Result += "}\n";
     }
     
@@ -5476,11 +5494,11 @@ void RewriteObjCFragileABI::RewriteObjCClassMetaData(ObjCImplementationDecl *IDe
   for (ObjCImplDecl::propimpl_iterator Prop = IDecl->propimpl_begin(),
        PropEnd = IDecl->propimpl_end();
        Prop != PropEnd; ++Prop) {
-    if ((*Prop)->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
+    if (Prop->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
       continue;
-    if (!(*Prop)->getPropertyIvarDecl())
+    if (!Prop->getPropertyIvarDecl())
       continue;
-    ObjCPropertyDecl *PD = (*Prop)->getPropertyDecl();
+    ObjCPropertyDecl *PD = Prop->getPropertyDecl();
     if (!PD)
       continue;
     if (ObjCMethodDecl *Getter = PD->getGetterMethodDecl())
@@ -5761,11 +5779,11 @@ void RewriteObjCFragileABI::RewriteObjCCategoryImplDecl(ObjCCategoryImplDecl *ID
   for (ObjCImplDecl::propimpl_iterator Prop = IDecl->propimpl_begin(),
        PropEnd = IDecl->propimpl_end();
        Prop != PropEnd; ++Prop) {
-    if ((*Prop)->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
+    if (Prop->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
       continue;
-    if (!(*Prop)->getPropertyIvarDecl())
+    if (!Prop->getPropertyIvarDecl())
       continue;
-    ObjCPropertyDecl *PD = (*Prop)->getPropertyDecl();
+    ObjCPropertyDecl *PD = Prop->getPropertyDecl();
     if (!PD)
       continue;
     if (ObjCMethodDecl *Getter = PD->getGetterMethodDecl())
@@ -6015,4 +6033,3 @@ Stmt *RewriteObjCFragileABI::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV) {
   ReplaceStmtWithRange(IV, Replacement, OldRange);
   return Replacement;  
 }
-

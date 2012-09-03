@@ -53,42 +53,25 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 	struct pthread	*curthread = _get_curthread();
 	int	ret;
 
-	if (pthread == curthread) {
+	if (pthread == curthread)
 		THR_LOCK(curthread);
-		if (curthread->attr.sched_policy == policy &&
-		    (policy == SCHED_OTHER ||
-		     curthread->attr.prio == param->sched_priority)) {
-			pthread->attr.prio = param->sched_priority;
-			THR_UNLOCK(curthread);
-			return (0);
-		}
-		ret = _thr_setscheduler(curthread->tid, policy, param);
-		if (ret == -1)
-			ret = errno;
-		else {
-			curthread->attr.sched_policy = policy;
-			curthread->attr.prio = param->sched_priority;
-		}
-		THR_UNLOCK(curthread);
-	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
-		== 0) {
-		THR_THREAD_LOCK(curthread, pthread);
-		if (pthread->attr.sched_policy == policy &&
-		    (policy == SCHED_OTHER ||
-		     pthread->attr.prio == param->sched_priority)) {
-			pthread->attr.prio = param->sched_priority;
-			THR_THREAD_UNLOCK(curthread, pthread);
-			return (0);
-		}
-		ret = _thr_setscheduler(pthread->tid, policy, param);
-		if (ret == -1)
-			ret = errno;
-		else {
-			pthread->attr.sched_policy = policy;
-			pthread->attr.prio = param->sched_priority;
-		}
+	else if ((ret = _thr_find_thread(curthread, pthread,
+		 /*include dead*/0)) != 0)
+		return (ret);
+	if (pthread->attr.sched_policy == policy &&
+	    (policy == SCHED_OTHER ||
+	     pthread->attr.prio == param->sched_priority)) {
+		pthread->attr.prio = param->sched_priority;
 		THR_THREAD_UNLOCK(curthread, pthread);
-		_thr_ref_delete(curthread, pthread);
+		return (0);
 	}
+	ret = _thr_setscheduler(pthread->tid, policy, param);
+	if (ret == -1)
+		ret = errno;
+	else {
+		pthread->attr.sched_policy = policy;
+		pthread->attr.prio = param->sched_priority;
+	}
+	THR_THREAD_UNLOCK(curthread, pthread);
 	return (ret);
 }

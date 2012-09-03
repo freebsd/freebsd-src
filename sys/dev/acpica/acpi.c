@@ -97,9 +97,6 @@ struct mtx	acpi_mutex;
 /* Bitmap of device quirks. */
 int		acpi_quirks;
 
-/* Optional ACPI methods for suspend and resume, e.g., _GTS and _BFS. */
-int		acpi_sleep_flags;
-
 /* Supported sleep states. */
 static BOOLEAN	acpi_sleep_states[ACPI_S_STATE_COUNT];
 
@@ -291,11 +288,6 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
 
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
-
-/* Execute optional ACPI methods for suspend and resume. */
-TUNABLE_INT("debug.acpi.sleep_flags", &acpi_sleep_flags);
-SYSCTL_INT(_debug_acpi, OID_AUTO, sleep_flags, CTLFLAG_RW | CTLFLAG_TUN,
-    &acpi_sleep_flags, 0, "Execute optional ACPI methods for suspend/resume.");
 
 static int acpi_susp_bounce;
 SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_bounce, CTLFLAG_RW,
@@ -1985,7 +1977,7 @@ acpi_shutdown_final(void *arg, int howto)
 	}
 	device_printf(sc->acpi_dev, "Powering system off\n");
 	intr = intr_disable();
-	status = AcpiEnterSleepState(ACPI_STATE_S5, acpi_sleep_flags);
+	status = AcpiEnterSleepState(ACPI_STATE_S5);
 	if (ACPI_FAILURE(status)) {
 	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
@@ -2750,7 +2742,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (state != ACPI_STATE_S1) {
 	sleep_result = acpi_sleep_machdep(sc, state);
 	acpi_wakeup_machdep(sc, state, sleep_result, 0);
-	AcpiLeaveSleepStatePrep(state, acpi_sleep_flags);
+	AcpiLeaveSleepStatePrep(state);
 	intr_restore(intr);
 
 	/* call acpi_wakeup_machdep() again with interrupt enabled */
@@ -2763,8 +2755,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	if (state == ACPI_STATE_S4)
 	    AcpiEnable();
     } else {
-	status = AcpiEnterSleepState(state, acpi_sleep_flags);
-	AcpiLeaveSleepStatePrep(state, acpi_sleep_flags);
+	status = AcpiEnterSleepState(state);
+	AcpiLeaveSleepStatePrep(state);
 	intr_restore(intr);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",

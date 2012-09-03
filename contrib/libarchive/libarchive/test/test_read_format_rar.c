@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2011 Andres Mejia
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -278,9 +279,19 @@ test_unicode_UTF8(void)
   assertEqualInt(41453, archive_entry_mode(ae));
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
+  /* Sixth header */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualUTF8String(
+    "abcdefghijklmnopqrs\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88.txt",
+    archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(16, archive_entry_size(ae));
+  assertEqualInt(33204, archive_entry_mode(ae));
+  assertEqualIntA(a, 16, archive_read_data(a, buff, sizeof(buff)));
+
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
-  assertEqualInt(5, archive_file_count(a));
+  assertEqualInt(6, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -364,9 +375,19 @@ test_unicode_CP932(void)
   assertEqualInt(41453, archive_entry_mode(ae));
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
+  /* Sixth header */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualUTF8String(
+    "abcdefghijklmnopqrs\x83\x65\x83\x58\x83\x67.txt",
+    archive_entry_pathname(ae));
+  assertA((int)archive_entry_mtime(ae));
+  assertEqualInt(16, archive_entry_size(ae));
+  assertEqualInt(33204, archive_entry_mode(ae));
+  assertEqualIntA(a, 16, archive_read_data(a, buff, sizeof(buff)));
+
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
-  assertEqualInt(5, archive_file_count(a));
+  assertEqualInt(6, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

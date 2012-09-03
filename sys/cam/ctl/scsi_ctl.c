@@ -1081,11 +1081,81 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 	}
 }
 
+static int
+ctlfe_adjust_cdb(struct ccb_accept_tio *atio, uint32_t offset)
+{
+	uint64_t lba;
+	uint32_t num_blocks, nbc;
+	uint8_t *cmdbyt = (atio->ccb_h.flags & CAM_CDB_POINTER)?
+	    atio->cdb_io.cdb_ptr : atio->cdb_io.cdb_bytes;
+
+	nbc = offset >> 9;	/* ASSUMING 512 BYTE BLOCKS */
+
+	switch (cmdbyt[0]) {
+	case READ_6:
+	case WRITE_6:
+	{
+		struct scsi_rw_6 *cdb = (struct scsi_rw_6 *)cmdbyt;
+		lba = scsi_3btoul(cdb->addr);
+		lba &= 0x1fffff;
+		num_blocks = cdb->length;
+		if (num_blocks == 0)
+			num_blocks = 256;
+		lba += nbc;
+		num_blocks -= nbc;
+		scsi_ulto3b(lba, cdb->addr);
+		cdb->length = num_blocks;
+		break;
+	}
+	case READ_10:
+	case WRITE_10:
+	{
+		struct scsi_rw_10 *cdb = (struct scsi_rw_10 *)cmdbyt;
+		lba = scsi_4btoul(cdb->addr);
+		num_blocks = scsi_2btoul(cdb->length);
+		lba += nbc;
+		num_blocks -= nbc;
+		scsi_ulto4b(lba, cdb->addr);
+		scsi_ulto2b(num_blocks, cdb->length);
+		break;
+	}
+	case READ_12:
+	case WRITE_12:
+	{
+		struct scsi_rw_12 *cdb = (struct scsi_rw_12 *)cmdbyt;
+		lba = scsi_4btoul(cdb->addr);
+		num_blocks = scsi_4btoul(cdb->length);
+		lba += nbc;
+		num_blocks -= nbc;
+		scsi_ulto4b(lba, cdb->addr);
+		scsi_ulto4b(num_blocks, cdb->length);
+		break;
+	}
+	case READ_16:
+	case WRITE_16:
+	{
+		struct scsi_rw_16 *cdb = (struct scsi_rw_16 *)cmdbyt;
+		lba = scsi_8btou64(cdb->addr);
+		num_blocks = scsi_4btoul(cdb->length);
+		lba += nbc;
+		num_blocks -= nbc;
+		scsi_u64to8b(lba, cdb->addr);
+		scsi_ulto4b(num_blocks, cdb->length);
+		break;
+	}
+	default:
+		return -1;
+	}
+	return (0);
+}
+
 static void
 ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct ctlfe_lun_softc *softc;
 	struct ctlfe_softc *bus_softc;
+	struct ccb_accept_tio *atio = NULL;
+	union ctl_io *io = NULL;
 
 #ifdef CTLFE_DEBUG
 	printf("%s: entered, func_code = %#x, type = %#lx\n", __func__,
@@ -1123,13 +1193,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	switch (done_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO: {
-		union ctl_io *io;
-		struct ccb_accept_tio *atio;
 
 		atio = &done_ccb->atio;
 
 		softc->atios_returned++;
 
+ resubmit:
 		/*
 		 * Allocate a ctl_io, pass it to CTL, and wait for the
 		 * datamove or done.
@@ -1213,8 +1282,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	}
 	case XPT_CONT_TARGET_IO: {
-		struct ccb_accept_tio *atio;
-		union ctl_io *io;
+		int srr = 0;
+		uint32_t srr_off = 0;
 
 		atio = (struct ccb_accept_tio *)done_ccb->ccb_h.ccb_atio;
 		io = (union ctl_io *)atio->ccb_h.io_ptr;
@@ -1224,6 +1293,57 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		printf("%s: got XPT_CONT_TARGET_IO tag %#x flags %#x\n",
 		       __func__, atio->tag_id, done_ccb->ccb_h.flags);
 #endif
+		/*
+		 * Handle SRR case were the data pointer is pushed back hack
+		 */
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_MESSAGE_RECV
+		    && done_ccb->csio.msg_ptr != NULL
+		    && done_ccb->csio.msg_ptr[0] == MSG_EXTENDED
+		    && done_ccb->csio.msg_ptr[1] == 5
+       		    && done_ccb->csio.msg_ptr[2] == 0) {
+			srr = 1;
+			srr_off =
+			    (done_ccb->csio.msg_ptr[3] << 24)
+			    | (done_ccb->csio.msg_ptr[4] << 16)
+			    | (done_ccb->csio.msg_ptr[5] << 8)
+			    | (done_ccb->csio.msg_ptr[6]);
+		}
+
+		if (srr && (done_ccb->ccb_h.flags & CAM_SEND_STATUS)) {
+			/*
+			 * If status was being sent, the back end data is now
+			 * history. Hack it up and resubmit a new command with
+			 * the CDB adjusted. If the SIM does the right thing,
+			 * all of the resid math should work.
+			 */
+			softc->ccbs_freed++;
+			xpt_release_ccb(done_ccb);
+			ctl_free_io(io);
+			if (ctlfe_adjust_cdb(atio, srr_off) == 0) {
+				done_ccb = (union ccb *)atio;
+				goto resubmit;
+			}
+			/*
+			 * Fall through to doom....
+			 */
+		} else if (srr) {
+			/*
+			 * If we have an srr and we're still sending data, we
+			 * should be able to adjust offsets and cycle again.
+			 */
+			io->scsiio.kern_rel_offset =
+			    io->scsiio.ext_data_filled = srr_off;
+			io->scsiio.ext_data_len = io->scsiio.kern_total_len -
+			    io->scsiio.kern_rel_offset;
+			softc->ccbs_freed++;
+			io->scsiio.io_hdr.status = CTL_STATUS_NONE;
+			xpt_release_ccb(done_ccb);
+			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
+					  periph_links.tqe);
+			xpt_schedule(periph, /*priority*/ 1);
+			return;
+		}
+
 		/*
 		 * If we were sending status back to the initiator, free up
 		 * resources.  If we were doing a datamove, call the

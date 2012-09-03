@@ -12,9 +12,9 @@ SUBDIR= ${_toolkit}
 _toolkit=	toolkit
 .endif
 
-SCRIPTS=	nfsclienttime
+SCRIPTS=	nfsclienttime hotopen
 
-SCRIPTSDIR= ${SHAREDIR}/dtrace/
+SCRIPTSDIR= ${SHAREDIR}/dtrace
 
 NO_OBJ=
 

@@ -63,6 +63,7 @@ static struct {
 } mvs_ids[] = {
 	{MV_DEV_88F5182, 0x00,   "Marvell 88F5182",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_88F6281, 0x00,   "Marvell 88F6281",	2, MVS_Q_GENIIE|MVS_Q_SOC},
+	{MV_DEV_88F6282, 0x00,   "Marvell 88F6282",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_MV78100, 0x00,   "Marvell MV78100",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_MV78100_Z0, 0x00,"Marvell MV78100",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{0,              0x00,   NULL,			0, 0}

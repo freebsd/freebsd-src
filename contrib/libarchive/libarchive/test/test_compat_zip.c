@@ -238,19 +238,19 @@ test_compat_zip_5(void)
 	assertEqualString("Metadata/Job_PT.xml", archive_entry_pathname(ae));
 	assertEqualInt(3559, archive_entry_size(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0777, archive_entry_perm(ae));
+	assertEqualInt(0666, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Metadata/MXDC_Empty_PT.xml", archive_entry_pathname(ae));
 	assertEqualInt(456, archive_entry_size(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0777, archive_entry_perm(ae));
+	assertEqualInt(0666, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Documents/1/Metadata/Page1_Thumbnail.JPG", archive_entry_pathname(ae));
 	assertEqualInt(1495, archive_entry_size(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0777, archive_entry_perm(ae));
+	assertEqualInt(0666, archive_entry_perm(ae));
 	/* TODO: Read some of the file data and verify it.
 	   The code to read uncompressed Zip entries with "file at end" semantics
 	   is tricky and should be verified more carefully. */
@@ -298,21 +298,21 @@ test_compat_zip_5(void)
 	assertEqualInt(0, archive_entry_size(ae));
 	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0777, archive_entry_perm(ae));
+	assertEqualInt(0666, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Metadata/MXDC_Empty_PT.xml", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0777, archive_entry_perm(ae));
+	assertEqualInt(0666, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Documents/1/Metadata/Page1_Thumbnail.JPG", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(0777, archive_entry_perm(ae));
+	assertEqualInt(0666, archive_entry_perm(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("Documents/1/Pages/_rels/1.fpage.rels", archive_entry_pathname(ae));
@@ -420,7 +420,7 @@ test_compat_zip_7(void)
 	for (i = 1; i < 1000; ++i) {
 		assert((a = archive_read_new()) != NULL);
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
-		assertEqualIntA(a, ARCHIVE_OK, read_open_memory2(a, p, s, i));
+		assertEqualIntA(a, ARCHIVE_OK, read_open_memory_minimal(a, p, s, i));
 
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));

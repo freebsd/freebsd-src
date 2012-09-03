@@ -51,47 +51,6 @@
         ACPI_MODULE_NAME    ("utdecode")
 
 
-/*******************************************************************************
- *
- * FUNCTION:    AcpiFormatException
- *
- * PARAMETERS:  Status       - The ACPI_STATUS code to be formatted
- *
- * RETURN:      A string containing the exception text. A valid pointer is
- *              always returned.
- *
- * DESCRIPTION: This function translates an ACPI exception into an ASCII string
- *              It is here instead of utxface.c so it is always present.
- *
- ******************************************************************************/
-
-const char *
-AcpiFormatException (
-    ACPI_STATUS             Status)
-{
-    const char              *Exception = NULL;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    Exception = AcpiUtValidateException (Status);
-    if (!Exception)
-    {
-        /* Exception code was not recognized */
-
-        ACPI_ERROR ((AE_INFO,
-            "Unknown exception code: 0x%8.8X", Status));
-
-        Exception = "UNKNOWN_STATUS_CODE";
-    }
-
-    return (ACPI_CAST_PTR (const char, Exception));
-}
-
-ACPI_EXPORT_SYMBOL (AcpiFormatException)
-
-
 /*
  * Properties of the ACPI Object Types, both internal and external.
  * The table is indexed by values of ACPI_OBJECT_TYPE
@@ -180,16 +139,17 @@ AcpiUtHexToAsciiChar (
 
 const char        *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
 {
-    "SystemMemory",
-    "SystemIO",
-    "PCI_Config",
-    "EmbeddedControl",
-    "SMBus",
-    "SystemCMOS",
-    "PCIBARTarget",
-    "IPMI",
-    "GeneralPurposeIo",
-    "GenericSerialBus"
+    "SystemMemory",     /* 0x00 */
+    "SystemIO",         /* 0x01 */
+    "PCI_Config",       /* 0x02 */
+    "EmbeddedControl",  /* 0x03 */
+    "SMBus",            /* 0x04 */
+    "SystemCMOS",       /* 0x05 */
+    "PCIBARTarget",     /* 0x06 */
+    "IPMI",             /* 0x07 */
+    "GeneralPurposeIo", /* 0x08 */
+    "GenericSerialBus", /* 0x09 */
+    "PCC"               /* 0x0A */
 };
 
 

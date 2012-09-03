@@ -130,6 +130,7 @@ namespace {
   private:
     void printLinkageType(GlobalValue::LinkageTypes LT);
     void printVisibilityType(GlobalValue::VisibilityTypes VisTypes);
+    void printThreadLocalMode(GlobalVariable::ThreadLocalMode TLM);
     void printCallingConv(CallingConv::ID cc);
     void printEscapedString(const std::string& str);
     void printCFP(const ConstantFP* CFP);
@@ -325,6 +326,26 @@ void CppWriter::printVisibilityType(GlobalValue::VisibilityTypes VisType) {
   }
 }
 
+void CppWriter::printThreadLocalMode(GlobalVariable::ThreadLocalMode TLM) {
+  switch (TLM) {
+    case GlobalVariable::NotThreadLocal:
+      Out << "GlobalVariable::NotThreadLocal";
+      break;
+    case GlobalVariable::GeneralDynamicTLSModel:
+      Out << "GlobalVariable::GeneralDynamicTLSModel";
+      break;
+    case GlobalVariable::LocalDynamicTLSModel:
+      Out << "GlobalVariable::LocalDynamicTLSModel";
+      break;
+    case GlobalVariable::InitialExecTLSModel:
+      Out << "GlobalVariable::InitialExecTLSModel";
+      break;
+    case GlobalVariable::LocalExecTLSModel:
+      Out << "GlobalVariable::LocalExecTLSModel";
+      break;
+  }
+}
+
 // printEscapedString - Print each character of the specified string, escaping
 // it if it is not printable or if it is an escape char.
 void CppWriter::printEscapedString(const std::string &Str) {
@@ -496,7 +517,7 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
       Out << "Attrs.push_back(PAWI);";
       nl(Out);
     }
-    Out << name << "_PAL = AttrListPtr::get(Attrs.begin(), Attrs.end());";
+    Out << name << "_PAL = AttrListPtr::get(Attrs);";
     nl(Out);
     out(); nl(Out);
     Out << '}'; nl(Out);
@@ -996,7 +1017,9 @@ void CppWriter::printVariableHead(const GlobalVariable *GV) {
   }
   if (GV->isThreadLocal()) {
     printCppName(GV);
-    Out << "->setThreadLocal(true);";
+    Out << "->setThreadLocalMode(";
+    printThreadLocalMode(GV->getThreadLocalMode());
+    Out << ");";
     nl(Out);
   }
   if (is_inline) {
@@ -1105,7 +1128,7 @@ void CppWriter::printInstruction(const Instruction *I,
     nl(Out);
     for (SwitchInst::ConstCaseIt i = SI->case_begin(), e = SI->case_end();
          i != e; ++i) {
-      const ConstantInt* CaseVal = i.getCaseValue();
+      const IntegersSubset CaseVal = i.getCaseValueEx();
       const BasicBlock *BB = i.getCaseSuccessor();
       Out << iName << "->addCase("
           << getOpName(CaseVal) << ", "
@@ -2078,7 +2101,9 @@ char CppWriter::ID = 0;
 bool CPPTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
                                            formatted_raw_ostream &o,
                                            CodeGenFileType FileType,
-                                           bool DisableVerify) {
+                                           bool DisableVerify,
+                                           AnalysisID StartAfter,
+                                           AnalysisID StopAfter) {
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   PM.add(new CppWriter(o));
   return false;

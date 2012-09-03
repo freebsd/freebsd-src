@@ -129,7 +129,7 @@ usbpf_ifname2ubus(const char *ifname)
 	int unit;
 	int error;
 
-	if (strncmp(ifname, USBUSNAME, sizeof(USBUSNAME)) <= 0)
+	if (strncmp(ifname, USBUSNAME, sizeof(USBUSNAME) - 1) != 0)
 		return (NULL);
 	error = ifc_name2unit(ifname, &unit);
 	if (error || unit < 0)
@@ -167,8 +167,10 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct usb_bus *ubus;
 
 	error = ifc_name2unit(name, &unit);
-	if (error || unit < 0)
+	if (error)
 		return (error);
+ 	if (unit < 0)
+		return (EINVAL);
 
 	ubus = usbpf_ifname2ubus(name);
 	if (ubus == NULL)

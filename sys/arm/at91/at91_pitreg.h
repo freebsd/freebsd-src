@@ -25,8 +25,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef ARM_AT91_AT91PITREG_H
-#define ARM_AT91_AT91PITREG_H
+#ifndef ARM_AT91_AT91_PITREG_H
+#define ARM_AT91_AT91_PITREG_H
 
 #define PIT_MR		0x0
 #define PIT_SR		0x4
@@ -42,4 +42,6 @@
 /* PIT_SR */
 #define PIT_PITS_DONE	1 /* interrupt done */
 
-#endif /* ARM_AT91_AT91PITREG_H */
+void at91_pit_delay(int us);
+
+#endif /* ARM_AT91_AT91_PITREG_H */

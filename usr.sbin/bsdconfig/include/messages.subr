@@ -1,0 +1,56 @@
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+field_username="Username:"
+field_password="Password:"
+hline_alnum_punc_tab_enter="Use alpha-numeric, punctuation, TAB or ENTER"
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+msg_cancel="Cancel"
+msg_cannot_create_permission_denied="%s: cannot create %s: Permission denied"
+msg_directory_not_found="%s: Directory not found."
+msg_exit="Exit"
+msg_exit_bsdconfig="Exit bsdconfig"
+msg_help_text="This menu allows you to configure your system after the installation\nprocess is complete.  At the minimum, you should probably set the root\npassword and the system time zone.\n\nFor extra goodies like bash, emacs, firefox, etc., you should look at the\n'Packages' item in this menu.\n\nFor setting the timezone after the system is installed, use the 'Time\nZone' item in this menu.\n\nFor more information on the overall general system configuration, see the\n/etc/rc.conf and /etc/defaults/rc.conf files. (Note: to inhibit displaying\nof this message, create an empty file: \$HOME/.bsdconfigrc or copy it from\n/usr/share/examples/bsdconfig/bsdconfigrc)"
+msg_main_menu="Main Menu"
+msg_menu_text="If you've already installed FreeBSD, you may use\nthis menu to customize it somewhat to suit your\nparticular configuration.  Most importantly, you\ncan use the Packages utility to load extra '3rd\nparty' software not provided in the base\ndistributions."
+msg_must_be_root_to_execute="%s: must be root to execute"
+msg_nfailed_attempts="%u incorrect password attempts"
+msg_no="No"
+msg_no_such_file_or_directory="%s: %s: No such file or directory"
+msg_no_username="No username provided!"
+msg_not_found="not found"
+msg_ok="OK"
+msg_permission_denied="%s: %s: permission denied"
+msg_please_enter_password="Please enter your password for sudo(8):"
+msg_please_enter_username_password="Please enter a username and password for sudo(8):"
+msg_previous_syntax_errors="%s: Not overwriting \`%s' due to previous syntax errors"
+msg_secure_mode_requires_x11="Secure-mode requires X11 (use \`-X')!"
+msg_secure_mode_requires_root="Secure-mode requires root-access!"
+msg_sorry_try_again="Sorry, try again."
+msg_unknown_user="Unknown user: %s"
+msg_user_disallowed="User disallowed: %s"
+msg_yes="Yes"

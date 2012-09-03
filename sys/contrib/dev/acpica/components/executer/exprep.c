@@ -418,8 +418,8 @@ AcpiExPrepCommonFieldObject (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Construct an ACPI_OPERAND_OBJECT of type DefField and
- *              connect it to the parent Node.
+ * DESCRIPTION: Construct an object of type ACPI_OPERAND_OBJECT with a
+ *              subtype of DefField and connect it to the parent Node.
  *
  ******************************************************************************/
 

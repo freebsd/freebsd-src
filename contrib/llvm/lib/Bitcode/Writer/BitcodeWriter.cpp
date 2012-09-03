@@ -62,7 +62,10 @@ enum {
   FUNCTION_INST_CAST_ABBREV,
   FUNCTION_INST_RET_VOID_ABBREV,
   FUNCTION_INST_RET_VAL_ABBREV,
-  FUNCTION_INST_UNREACHABLE_ABBREV
+  FUNCTION_INST_UNREACHABLE_ABBREV,
+  
+  // SwitchInst Magic
+  SWITCH_INST_MAGIC = 0x4B5 // May 2012 => 1205 => Hex
 };
 
 static unsigned GetEncodedCastOpcode(unsigned Opcode) {
@@ -174,18 +177,7 @@ static void WriteAttributeTable(const ValueEnumerator &VE,
     for (unsigned i = 0, e = A.getNumSlots(); i != e; ++i) {
       const AttributeWithIndex &PAWI = A.getSlot(i);
       Record.push_back(PAWI.Index);
-
-      // FIXME: remove in LLVM 3.0
-      // Store the alignment in the bitcode as a 16-bit raw value instead of a
-      // 5-bit log2 encoded value. Shift the bits above the alignment up by
-      // 11 bits.
-      uint64_t FauxAttr = PAWI.Attrs.Raw() & 0xffff;
-      if (PAWI.Attrs & Attribute::Alignment)
-        FauxAttr |= (1ull<<16)<<
-            (((PAWI.Attrs & Attribute::Alignment).Raw()-1) >> 16);
-      FauxAttr |= (PAWI.Attrs.Raw() & (0x3FFull << 21)) << 11;
-
-      Record.push_back(FauxAttr);
+      Record.push_back(Attribute::encodeLLVMAttributesForBitcode(PAWI.Attrs));
     }
 
     Stream.EmitRecord(bitc::PARAMATTR_CODE_ENTRY, Record);
@@ -387,6 +379,17 @@ static unsigned getEncodedVisibility(const GlobalValue *GV) {
   llvm_unreachable("Invalid visibility");
 }
 
+static unsigned getEncodedThreadLocalMode(const GlobalVariable *GV) {
+  switch (GV->getThreadLocalMode()) {
+    case GlobalVariable::NotThreadLocal:         return 0;
+    case GlobalVariable::GeneralDynamicTLSModel: return 1;
+    case GlobalVariable::LocalDynamicTLSModel:   return 2;
+    case GlobalVariable::InitialExecTLSModel:    return 3;
+    case GlobalVariable::LocalExecTLSModel:      return 4;
+  }
+  llvm_unreachable("Invalid TLS model");
+}
+
 // Emit top-level description of module, including target triple, inline asm,
 // descriptors for global variables, and function prototype info.
 static void WriteModuleInfo(const Module *M, const ValueEnumerator &VE,
@@ -495,7 +498,7 @@ static void WriteModuleInfo(const Module *M, const ValueEnumerator &VE,
         GV->getVisibility() != GlobalValue::DefaultVisibility ||
         GV->hasUnnamedAddr()) {
       Vals.push_back(getEncodedVisibility(GV));
-      Vals.push_back(GV->isThreadLocal());
+      Vals.push_back(getEncodedThreadLocalMode(GV));
       Vals.push_back(GV->hasUnnamedAddr());
     } else {
       AbbrevToUse = SimpleGVarAbbrev;
@@ -719,6 +722,41 @@ static void WriteModuleMetadataStore(const Module *M, BitstreamWriter &Stream) {
   Stream.ExitBlock();
 }
 
+static void EmitAPInt(SmallVectorImpl<uint64_t> &Vals,
+                      unsigned &Code, unsigned &AbbrevToUse, const APInt &Val,
+                      bool EmitSizeForWideNumbers = false
+                      ) {
+  if (Val.getBitWidth() <= 64) {
+    uint64_t V = Val.getSExtValue();
+    if ((int64_t)V >= 0)
+      Vals.push_back(V << 1);
+    else
+      Vals.push_back((-V << 1) | 1);
+    Code = bitc::CST_CODE_INTEGER;
+    AbbrevToUse = CONSTANTS_INTEGER_ABBREV;
+  } else {
+    // Wide integers, > 64 bits in size.
+    // We have an arbitrary precision integer value to write whose
+    // bit width is > 64. However, in canonical unsigned integer
+    // format it is likely that the high bits are going to be zero.
+    // So, we only write the number of active words.
+    unsigned NWords = Val.getActiveWords();
+    
+    if (EmitSizeForWideNumbers)
+      Vals.push_back(NWords);
+    
+    const uint64_t *RawWords = Val.getRawData();
+    for (unsigned i = 0; i != NWords; ++i) {
+      int64_t V = RawWords[i];
+      if (V >= 0)
+        Vals.push_back(V << 1);
+      else
+        Vals.push_back((-V << 1) | 1);
+    }
+    Code = bitc::CST_CODE_WIDE_INTEGER;
+  }
+}
+
 static void WriteConstants(unsigned FirstVal, unsigned LastVal,
                            const ValueEnumerator &VE,
                            BitstreamWriter &Stream, bool isGlobal) {
@@ -801,30 +839,7 @@ static void WriteConstants(unsigned FirstVal, unsigned LastVal,
     } else if (isa<UndefValue>(C)) {
       Code = bitc::CST_CODE_UNDEF;
     } else if (const ConstantInt *IV = dyn_cast<ConstantInt>(C)) {
-      if (IV->getBitWidth() <= 64) {
-        uint64_t V = IV->getSExtValue();
-        if ((int64_t)V >= 0)
-          Record.push_back(V << 1);
-        else
-          Record.push_back((-V << 1) | 1);
-        Code = bitc::CST_CODE_INTEGER;
-        AbbrevToUse = CONSTANTS_INTEGER_ABBREV;
-      } else {                             // Wide integers, > 64 bits in size.
-        // We have an arbitrary precision integer value to write whose
-        // bit width is > 64. However, in canonical unsigned integer
-        // format it is likely that the high bits are going to be zero.
-        // So, we only write the number of active words.
-        unsigned NWords = IV->getValue().getActiveWords();
-        const uint64_t *RawWords = IV->getValue().getRawData();
-        for (unsigned i = 0; i != NWords; ++i) {
-          int64_t V = RawWords[i];
-          if (V >= 0)
-            Record.push_back(V << 1);
-          else
-            Record.push_back((-V << 1) | 1);
-        }
-        Code = bitc::CST_CODE_WIDE_INTEGER;
-      }
+      EmitAPInt(Record, Code, AbbrevToUse, IV->getValue());
     } else if (const ConstantFP *CFP = dyn_cast<ConstantFP>(C)) {
       Code = bitc::CST_CODE_FLOAT;
       Type *Ty = CFP->getType();
@@ -1137,16 +1152,63 @@ static void WriteInstruction(const Instruction &I, unsigned InstID,
     break;
   case Instruction::Switch:
     {
+      // Redefine Vals, since here we need to use 64 bit values
+      // explicitly to store large APInt numbers.
+      SmallVector<uint64_t, 128> Vals64;
+      
       Code = bitc::FUNC_CODE_INST_SWITCH;
       SwitchInst &SI = cast<SwitchInst>(I);
-      Vals.push_back(VE.getTypeID(SI.getCondition()->getType()));
-      Vals.push_back(VE.getValueID(SI.getCondition()));
-      Vals.push_back(VE.getValueID(SI.getDefaultDest()));
+      
+      uint32_t SwitchRecordHeader = SI.hash() | (SWITCH_INST_MAGIC << 16); 
+      Vals64.push_back(SwitchRecordHeader);      
+      
+      Vals64.push_back(VE.getTypeID(SI.getCondition()->getType()));
+      Vals64.push_back(VE.getValueID(SI.getCondition()));
+      Vals64.push_back(VE.getValueID(SI.getDefaultDest()));
+      Vals64.push_back(SI.getNumCases());
       for (SwitchInst::CaseIt i = SI.case_begin(), e = SI.case_end();
            i != e; ++i) {
-        Vals.push_back(VE.getValueID(i.getCaseValue()));
-        Vals.push_back(VE.getValueID(i.getCaseSuccessor()));
+        IntegersSubset& CaseRanges = i.getCaseValueEx();
+        unsigned Code, Abbrev; // will unused.
+        
+        if (CaseRanges.isSingleNumber()) {
+          Vals64.push_back(1/*NumItems = 1*/);
+          Vals64.push_back(true/*IsSingleNumber = true*/);
+          EmitAPInt(Vals64, Code, Abbrev, CaseRanges.getSingleNumber(0), true);
+        } else {
+          
+          Vals64.push_back(CaseRanges.getNumItems());
+          
+          if (CaseRanges.isSingleNumbersOnly()) {
+            for (unsigned ri = 0, rn = CaseRanges.getNumItems();
+                 ri != rn; ++ri) {
+              
+              Vals64.push_back(true/*IsSingleNumber = true*/);
+              
+              EmitAPInt(Vals64, Code, Abbrev,
+                        CaseRanges.getSingleNumber(ri), true);
+            }
+          } else
+            for (unsigned ri = 0, rn = CaseRanges.getNumItems();
+                 ri != rn; ++ri) {
+              IntegersSubset::Range r = CaseRanges.getItem(ri);
+              bool IsSingleNumber = CaseRanges.isSingleNumber(ri);
+    
+              Vals64.push_back(IsSingleNumber);
+              
+              EmitAPInt(Vals64, Code, Abbrev, r.getLow(), true);
+              if (!IsSingleNumber)
+                EmitAPInt(Vals64, Code, Abbrev, r.getHigh(), true);
+            }
+        }
+        Vals64.push_back(VE.getValueID(i.getCaseSuccessor()));
       }
+      
+      Stream.EmitRecord(Code, Vals64, AbbrevToUse);
+      
+      // Also do expected action - clear external Vals collection:
+      Vals.clear();
+      return;
     }
     break;
   case Instruction::IndirectBr:

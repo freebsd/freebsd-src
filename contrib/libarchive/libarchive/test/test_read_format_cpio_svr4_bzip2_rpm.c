@@ -51,7 +51,7 @@ Name: ${NAME}
 Version: 1.0.0
 Release: 1
 License: BSD
-URL: http://code.google.com/p/libarchive
+URL: http://libarchive.github.com/
 BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-root
 

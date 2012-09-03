@@ -29,17 +29,27 @@ except for properties with empty (zero length) value which have the
 form:
 	[label:] property-name;
 
-Property values may be defined as an array of 32-bit integer cells, as
-NUL-terminated strings, as bytestrings or a combination of these.
+Property values may be defined as an array of 8, 16, 32, or 64-bit integer
+elements, as NUL-terminated strings, as bytestrings or a combination of these.
 
-* Arrays of cells are represented by angle brackets surrounding a
-  space separated list of C-style integers
+* Arrays are represented by angle brackets surrounding a space separated list
+  of C-style integers or character literals.  Array elements default to 32-bits
+  in size.  An array of 32-bit elements is also known as a cell list or a list
+  of cells.  A cell being an unsigned 32-bit integer.
 
 	e.g. interrupts = <17 0xc>;
 
-* A 64-bit value is represented with two 32-bit cells.
+* A 64-bit value can be represented with two 32-bit elements.
 
 	e.g. clock-frequency = <0x00000001 0x00000000>;
+
+* The storage size of an element can be changed using the /bits/ prefix.  The
+  /bits/ prefix allows for the creation of 8, 16, 32, and 64-bit elements.
+  The resulting array will not be padded to a multiple of the default 32-bit
+  element size.
+
+	e.g. interrupts = /bits/ 8 <17 0xc>;
+	e.g. clock-frequency = /bits/ 64 <0x0000000100000000>;
 
 * A NUL-terminated string value is represented using double quotes
   (the property value is considered to include the terminating NUL
@@ -59,19 +69,20 @@ NUL-terminated strings, as bytestrings or a combination of these.
 	e.g. compatible = "ns16550", "ns8250";
 	     example = <0xf00f0000 19>, "a strange property format";
 
-* In a cell array a reference to another node will be expanded to that
-  node's phandle.  References may by '&' followed by a node's label:
+* In an array a reference to another node will be expanded to that node's
+  phandle.  References may by '&' followed by a node's label:
 	e.g. interrupt-parent = < &mpic >;
   or they may be '&' followed by a node's full path in braces:
 	e.g. interrupt-parent = < &{/soc/interrupt-controller@40000} >;
+  References are only permitted in arrays that have an element size of
+  32-bits.
 
-* Outside a cell array, a reference to another node will be expanded
-  to that node's full path.
+* Outside an array, a reference to another node will be expanded to that
+  node's full path.
 	e.g. ethernet0 = &EMAC0;
 
 * Labels may also appear before or after any component of a property
-  value, or between cells of a cell array, or between bytes of a
-  bytestring.
+  value, or between elements of an array, or between bytes of a bytestring.
 	e.g. reg = reglabel: <0 sizelabel: 0x1000000>;
 	e.g. prop = [ab cd ef byte4: 00 ff fe];
 	e.g. str = start: "string value" end: ;
@@ -108,3 +119,4 @@ Version 1 DTS files have the overall layout:
 
 	-- David Gibson <david@gibson.dropbear.id.au>
 	-- Yoder Stuart <stuart.yoder@freescale.com>
+	-- Anton Staaf <robotboy@chromium.org>

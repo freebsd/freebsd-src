@@ -69,6 +69,9 @@ enum {
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };
 
+#define	ATH_KTR_INTR	KTR_SPARE4
+#define	ATH_KTR_ERR	KTR_SPARE3
+
 extern uint64_t ath_debug;
 
 #define	IFF_DUMPPKTS(sc, m) \
@@ -88,6 +91,9 @@ extern	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
 extern	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
 	u_int qnum, u_int ix, int done);
 #else	/* ATH_DEBUG */
+#define	ATH_KTR_INTR	0
+#define	ATH_KTR_ERR	0
+
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 #define	DPRINTF(sc, m, fmt, ...) do {				\

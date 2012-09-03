@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	lib4758cca libaep libatalla libcswift libchil libnuron \
+SUBDIR=	lib4758cca libaep libatalla libchil libcswift libgost libnuron \
 	libsureware libubsec
 
 .include <bsd.subdir.mk>

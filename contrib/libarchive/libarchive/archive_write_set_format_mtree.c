@@ -389,13 +389,13 @@ dir_len(struct mtree_entry *me)
 		else if (*p == '/')
 			al = p - path;
 	}
-	if (l == -1)
+	if (l == (size_t)-1)
 		goto alen;
 	size = p - path;
 	rp = p = path;
 	while (*p != '\0') {
 		l = mbtowc(&wc, p, size);
-		if (l == -1)
+		if (l == (size_t)-1)
 			goto alen;
 		if (l == 1 && (wc == L'/' || wc == L'\\'))
 			rp = p;
@@ -404,7 +404,7 @@ dir_len(struct mtree_entry *me)
 	}
 	return (rp - path + 1);
 alen:
-	if (al == -1)
+	if (al == (size_t)-1)
 		return (0);
 	return (al + 1);
 }
@@ -1079,7 +1079,7 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 	struct mtree_writer *mtree= a->format_data;
 
 	if (n > mtree->entry_bytes_remaining)
-		n = mtree->entry_bytes_remaining;
+		n = (size_t)mtree->entry_bytes_remaining;
 	mtree->entry_bytes_remaining -= n;
 
 	/* We don't need to compute a regular file sum */

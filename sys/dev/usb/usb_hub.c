@@ -1757,9 +1757,11 @@ usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time)
 			data_len += len;
 		}
 
-		/* check double buffered transfers */
-
-		TAILQ_FOREACH(pipe_xfer, &xfer->endpoint->endpoint_q.head,
+		/*
+		 * Check double buffered transfers. Only stream ID
+		 * equal to zero is valid here!
+		 */
+		TAILQ_FOREACH(pipe_xfer, &xfer->endpoint->endpoint_q[0].head,
 		    wait_entry) {
 
 			/* skip self, if any */

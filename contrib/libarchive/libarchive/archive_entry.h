@@ -29,7 +29,7 @@
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
 /* Note: Compiler will complain if this does not match archive.h! */
-#define	ARCHIVE_VERSION_NUMBER 3000003
+#define	ARCHIVE_VERSION_NUMBER 3000004
 
 /*
  * Note: archive_entry.h is for use outside of libarchive; the
@@ -47,21 +47,9 @@
 #include <windows.h>
 #endif
 
-/* Get appropriate definitions of standard POSIX-style types. */
-/* These should match the types used in 'struct stat' */
+/* Get a suitable 64-bit integer type. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define	__LA_INT64_T	__int64
-# if defined(__BORLANDC__)
-#  define	__LA_UID_T	uid_t  /* Remove in libarchive 3.2 */
-#  define	__LA_GID_T	gid_t  /* Remove in libarchive 3.2 */
-#  define	__LA_DEV_T	dev_t
-#  define	__LA_MODE_T	mode_t
-# else
-#  define	__LA_UID_T	short  /* Remove in libarchive 3.2 */
-#  define	__LA_GID_T	short  /* Remove in libarchive 3.2 */
-#  define	__LA_DEV_T	unsigned int
-#  define	__LA_MODE_T	unsigned short
-# endif
+# define	__LA_INT64_T	__int64
 #else
 #include <unistd.h>
 # if defined(_SCO_DS)
@@ -69,17 +57,17 @@
 # else
 #  define	__LA_INT64_T	int64_t
 # endif
-# define	__LA_UID_T	uid_t /* Remove in libarchive 3.2 */
-# define	__LA_GID_T	gid_t /* Remove in libarchive 3.2 */
-# define	__LA_DEV_T	dev_t
-# define	__LA_MODE_T	mode_t
 #endif
 
-/*
- * Remove this for libarchive 3.2, since ino_t is no longer used.
- */
-#define	__LA_INO_T	ino_t
-
+/* Get a suitable definition for mode_t */
+#if ARCHIVE_VERSION_NUMBER >= 3999000
+/* Switch to plain 'int' for libarchive 4.0.  It's less broken than 'mode_t' */
+# define	__LA_MODE_T	int
+#elif defined(_WIN32) && !defined(__CYGWIN__) && !defined(__BORLANDC__)
+# define	__LA_MODE_T	unsigned short
+#else
+# define	__LA_MODE_T	mode_t
+#endif
 
 /*
  * On Windows, define LIBARCHIVE_STATIC if you're building or using a
@@ -149,14 +137,18 @@ struct archive_entry;
  * portable values to platform-native values when entries are read from
  * or written to disk.
  */
-#define	AE_IFMT		0170000
-#define	AE_IFREG	0100000
-#define	AE_IFLNK	0120000
-#define	AE_IFSOCK	0140000
-#define	AE_IFCHR	0020000
-#define	AE_IFBLK	0060000
-#define	AE_IFDIR	0040000
-#define	AE_IFIFO	0010000
+/*
+ * In libarchive 4.0, we can drop the casts here.
+ * They're needed to work around Borland C's broken mode_t.
+ */
+#define AE_IFMT		((__LA_MODE_T)0170000)
+#define AE_IFREG	((__LA_MODE_T)0100000)
+#define AE_IFLNK	((__LA_MODE_T)0120000)
+#define AE_IFSOCK	((__LA_MODE_T)0140000)
+#define AE_IFCHR	((__LA_MODE_T)0020000)
+#define AE_IFBLK	((__LA_MODE_T)0060000)
+#define AE_IFDIR	((__LA_MODE_T)0040000)
+#define AE_IFIFO	((__LA_MODE_T)0010000)
 
 /*
  * Basic object manipulation
@@ -321,7 +313,10 @@ __LA_DECL int	archive_entry_update_uname_utf8(struct archive_entry *, const char
  * manipulate archives on systems different than the ones they were
  * created on.
  *
- * TODO: On Linux, provide both stat32 and stat64 versions of these functions.
+ * TODO: On Linux and other LFS systems, provide both stat32 and
+ * stat64 versions of these functions and all of the macro glue so
+ * that archive_entry_stat is magically defined to
+ * archive_entry_stat32 or archive_entry_stat64 as appropriate.
  */
 __LA_DECL const struct stat	*archive_entry_stat(struct archive_entry *);
 __LA_DECL void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);

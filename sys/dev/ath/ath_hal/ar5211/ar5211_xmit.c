@@ -577,10 +577,14 @@ ar5211IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *ds)
 
 HAL_BOOL
 ar5211FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
-	u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+	HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList, u_int qcuId,
+	u_int descId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 	const struct ath_desc *ds0)
 {
 	struct ar5211_desc *ads = AR5211DESC(ds);
+	uint32_t segLen = segLenList[0];
+
+	ds->ds_data = bufAddrList[0];
 
 	HALASSERT((segLen &~ AR_BufLen) == 0);
 
@@ -671,3 +675,27 @@ ar5211GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *
 	return AH_FALSE;
 }
 
+
+void
+ar5211SetTxDescLink(struct ath_hal *ah, void *ds, uint32_t link)
+{
+	struct ar5211_desc *ads = AR5211DESC(ds);
+
+	ads->ds_link = link;
+}
+
+void
+ar5211GetTxDescLink(struct ath_hal *ah, void *ds, uint32_t *link)
+{
+	struct ar5211_desc *ads = AR5211DESC(ds);
+
+	*link = ads->ds_link;
+}
+
+void
+ar5211GetTxDescLinkPtr(struct ath_hal *ah, void *ds, uint32_t **linkptr)
+{
+	struct ar5211_desc *ads = AR5211DESC(ds);
+
+	*linkptr = &ads->ds_link;
+}

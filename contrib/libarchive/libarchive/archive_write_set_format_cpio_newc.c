@@ -350,7 +350,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
-	cpio->padding = PAD4(cpio->entry_bytes_remaining);
+	cpio->padding = (int)PAD4(cpio->entry_bytes_remaining);
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0') {
@@ -380,7 +380,7 @@ archive_write_newc_data(struct archive_write *a, const void *buff, size_t s)
 
 	cpio = (struct cpio *)a->format_data;
 	if (s > cpio->entry_bytes_remaining)
-		s = cpio->entry_bytes_remaining;
+		s = (size_t)cpio->entry_bytes_remaining;
 
 	ret = __archive_write_output(a, buff, s);
 	cpio->entry_bytes_remaining -= s;
@@ -453,5 +453,6 @@ archive_write_newc_finish_entry(struct archive_write *a)
 	struct cpio *cpio;
 
 	cpio = (struct cpio *)a->format_data;
-	return (__archive_write_nulls(a, cpio->entry_bytes_remaining + cpio->padding));
+	return (__archive_write_nulls(a,
+		(size_t)cpio->entry_bytes_remaining + cpio->padding));
 }

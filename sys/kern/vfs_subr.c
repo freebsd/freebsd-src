@@ -41,6 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_watchdog.h"
 
@@ -3111,21 +3112,49 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 /*
  * Fill in a struct xvfsconf based on a struct vfsconf.
  */
-static void
-vfsconf2x(struct vfsconf *vfsp, struct xvfsconf *xvfsp)
+static int
+vfsconf2x(struct sysctl_req *req, struct vfsconf *vfsp)
 {
+	struct xvfsconf xvfsp;
 
-	strcpy(xvfsp->vfc_name, vfsp->vfc_name);
-	xvfsp->vfc_typenum = vfsp->vfc_typenum;
-	xvfsp->vfc_refcount = vfsp->vfc_refcount;
-	xvfsp->vfc_flags = vfsp->vfc_flags;
+	bzero(&xvfsp, sizeof(xvfsp));
+	strcpy(xvfsp.vfc_name, vfsp->vfc_name);
+	xvfsp.vfc_typenum = vfsp->vfc_typenum;
+	xvfsp.vfc_refcount = vfsp->vfc_refcount;
+	xvfsp.vfc_flags = vfsp->vfc_flags;
 	/*
 	 * These are unused in userland, we keep them
 	 * to not break binary compatibility.
 	 */
-	xvfsp->vfc_vfsops = NULL;
-	xvfsp->vfc_next = NULL;
+	xvfsp.vfc_vfsops = NULL;
+	xvfsp.vfc_next = NULL;
+	return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
 }
+
+#ifdef COMPAT_FREEBSD32
+struct xvfsconf32 {
+	uint32_t	vfc_vfsops;
+	char		vfc_name[MFSNAMELEN];
+	int32_t		vfc_typenum;
+	int32_t		vfc_refcount;
+	int32_t		vfc_flags;
+	uint32_t	vfc_next;
+};
+
+static int
+vfsconf2x32(struct sysctl_req *req, struct vfsconf *vfsp)
+{
+	struct xvfsconf32 xvfsp;
+
+	strcpy(xvfsp.vfc_name, vfsp->vfc_name);
+	xvfsp.vfc_typenum = vfsp->vfc_typenum;
+	xvfsp.vfc_refcount = vfsp->vfc_refcount;
+	xvfsp.vfc_flags = vfsp->vfc_flags;
+	xvfsp.vfc_vfsops = 0;
+	xvfsp.vfc_next = 0;
+	return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
+}
+#endif
 
 /*
  * Top level filesystem related information gathering.
@@ -3134,14 +3163,16 @@ static int
 sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 {
 	struct vfsconf *vfsp;
-	struct xvfsconf xvfsp;
 	int error;
 
 	error = 0;
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
-		bzero(&xvfsp, sizeof(xvfsp));
-		vfsconf2x(vfsp, &xvfsp);
-		error = SYSCTL_OUT(req, &xvfsp, sizeof xvfsp);
+#ifdef COMPAT_FREEBSD32
+		if (req->flags & SCTL_MASK32)
+			error = vfsconf2x32(req, vfsp);
+		else
+#endif
+			error = vfsconf2x(req, vfsp);
 		if (error)
 			break;
 	}
@@ -3161,7 +3192,6 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1 - 1;	/* XXX */
 	u_int namelen = arg2 + 1;	/* XXX */
 	struct vfsconf *vfsp;
-	struct xvfsconf xvfsp;
 
 	log(LOG_WARNING, "userland calling deprecated sysctl, "
 	    "please rebuild world\n");
@@ -3185,9 +3215,12 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 				break;
 		if (vfsp == NULL)
 			return (EOPNOTSUPP);
-		bzero(&xvfsp, sizeof(xvfsp));
-		vfsconf2x(vfsp, &xvfsp);
-		return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
+#ifdef COMPAT_FREEBSD32
+		if (req->flags & SCTL_MASK32)
+			return (vfsconf2x32(req, vfsp));
+		else
+#endif
+			return (vfsconf2x(req, vfsp));
 	}
 	return (EOPNOTSUPP);
 }

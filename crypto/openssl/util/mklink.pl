@@ -15,21 +15,13 @@
 # Apart from this, this script should be able to handle even the most
 # pathological cases.
 
-my $pwd;
-eval 'use Cwd;';
-if ($@)
-	{
-	$pwd = `pwd`;
-	}
-else
-	{
-	$pwd = getcwd();
-	}
+use Cwd;
 
 my $from = shift;
 my @files = @ARGV;
 
 my @from_path = split(/[\\\/]/, $from);
+my $pwd = getcwd();
 chomp($pwd);
 my @pwd_path = split(/[\\\/]/, $pwd);
 
@@ -59,6 +51,7 @@ my $to = join('/', @to_path);
 
 my $file;
 $symlink_exists=eval {symlink("",""); 1};
+if ($^O eq "msys") { $symlink_exists=0 };
 foreach $file (@files) {
     my $err = "";
     if ($symlink_exists) {

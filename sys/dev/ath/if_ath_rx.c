@@ -115,9 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
-#define	ATH_KTR_INTR	KTR_SPARE4
-#define	ATH_KTR_ERR	KTR_SPARE3
-
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -536,6 +533,14 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 			if (rs->rs_keyix == HAL_RXKEYIX_INVALID)
 				goto rx_accept;
 			sc->sc_stats.ast_rx_badcrypt++;
+		}
+		/*
+		 * Similar as above - if the failure was a keymiss
+		 * just punt it up to the upper layers for now.
+		 */
+		if (rs->rs_status & HAL_RXERR_KEYMISS) {
+			sc->sc_stats.ast_rx_keymiss++;
+			goto rx_accept;
 		}
 		if (rs->rs_status & HAL_RXERR_MIC) {
 			sc->sc_stats.ast_rx_badmic++;
@@ -1067,10 +1072,8 @@ ath_legacy_dma_rxsetup(struct ath_softc *sc)
 {
 	int error;
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
-
 	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
-	    "rx", ath_rxbuf, 1);
+	    "rx", sizeof(struct ath_desc), ath_rxbuf, 1);
 	if (error != 0)
 		return (error);
 
@@ -1081,8 +1084,6 @@ static int
 ath_legacy_dma_rxteardown(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
-	
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 	return (0);
@@ -1092,7 +1093,8 @@ void
 ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "DMA setup: legacy\n");
+	/* Sensible legacy defaults */
+	sc->sc_rx_statuslen = 0;
 
 	sc->sc_rx.recv_start = ath_legacy_startrecv;
 	sc->sc_rx.recv_stop = ath_legacy_stoprecv;

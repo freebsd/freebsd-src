@@ -52,6 +52,27 @@ void ARMInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
                                StringRef Annot) {
   unsigned Opcode = MI->getOpcode();
 
+  // Check for HINT instructions w/ canonical names.
+  if (Opcode == ARM::HINT || Opcode == ARM::t2HINT) {
+    switch (MI->getOperand(0).getImm()) {
+    case 0: O << "\tnop"; break;
+    case 1: O << "\tyield"; break;
+    case 2: O << "\twfe"; break;
+    case 3: O << "\twfi"; break;
+    case 4: O << "\tsev"; break;
+    default:
+      // Anything else should just print normally.
+      printInstruction(MI, O);
+      printAnnotation(O, Annot);
+      return;
+    }
+    printPredicateOperand(MI, 1, O);
+    if (Opcode == ARM::t2HINT)
+      O << ".w";
+    printAnnotation(O, Annot);
+    return;
+  }
+
   // Check for MOVs and print canonical forms, instead.
   if (Opcode == ARM::MOVsr) {
     // FIXME: Thumb variants?
@@ -426,9 +447,13 @@ void ARMInstPrinter::printAM3PreOrOffsetIndexOp(const MCInst *MI, unsigned Op,
     return;
   }
 
-  if (unsigned ImmOffs = ARM_AM::getAM3Offset(MO3.getImm()))
+  //If the op is sub we have to print the immediate even if it is 0 
+  unsigned ImmOffs = ARM_AM::getAM3Offset(MO3.getImm());
+  ARM_AM::AddrOpc op = ARM_AM::getAM3Op(MO3.getImm());
+ 
+  if (ImmOffs || (op == ARM_AM::sub))
     O << ", #"
-      << ARM_AM::getAddrOpcStr(ARM_AM::getAM3Op(MO3.getImm()))
+      << ARM_AM::getAddrOpcStr(op)
       << ImmOffs;
   O << ']';
 }
@@ -643,22 +668,50 @@ void ARMInstPrinter::printMSRMaskOperand(const MCInst *MI, unsigned OpNum,
   unsigned Mask = Op.getImm() & 0xf;
 
   if (getAvailableFeatures() & ARM::FeatureMClass) {
-    switch (Op.getImm()) {
+    unsigned SYSm = Op.getImm();
+    unsigned Opcode = MI->getOpcode();
+    // For reads of the special registers ignore the "mask encoding" bits
+    // which are only for writes.
+    if (Opcode == ARM::t2MRS_M)
+      SYSm &= 0xff;
+    switch (SYSm) {
     default: llvm_unreachable("Unexpected mask value!");
-    case 0: O << "apsr"; return;
-    case 1: O << "iapsr"; return;
-    case 2: O << "eapsr"; return;
-    case 3: O << "xpsr"; return;
-    case 5: O << "ipsr"; return;
-    case 6: O << "epsr"; return;
-    case 7: O << "iepsr"; return;
-    case 8: O << "msp"; return;
-    case 9: O << "psp"; return;
-    case 16: O << "primask"; return;
-    case 17: O << "basepri"; return;
-    case 18: O << "basepri_max"; return;
-    case 19: O << "faultmask"; return;
-    case 20: O << "control"; return;
+    case     0:
+    case 0x800: O << "apsr"; return; // with _nzcvq bits is an alias for aspr
+    case 0x400: O << "apsr_g"; return;
+    case 0xc00: O << "apsr_nzcvqg"; return;
+    case     1:
+    case 0x801: O << "iapsr"; return; // with _nzcvq bits is an alias for iapsr
+    case 0x401: O << "iapsr_g"; return;
+    case 0xc01: O << "iapsr_nzcvqg"; return;
+    case     2:
+    case 0x802: O << "eapsr"; return; // with _nzcvq bits is an alias for eapsr
+    case 0x402: O << "eapsr_g"; return;
+    case 0xc02: O << "eapsr_nzcvqg"; return;
+    case     3:
+    case 0x803: O << "xpsr"; return; // with _nzcvq bits is an alias for xpsr
+    case 0x403: O << "xpsr_g"; return;
+    case 0xc03: O << "xpsr_nzcvqg"; return;
+    case     5:
+    case 0x805: O << "ipsr"; return;
+    case     6:
+    case 0x806: O << "epsr"; return;
+    case     7:
+    case 0x807: O << "iepsr"; return;
+    case     8:
+    case 0x808: O << "msp"; return;
+    case     9:
+    case 0x809: O << "psp"; return;
+    case  0x10:
+    case 0x810: O << "primask"; return;
+    case  0x11:
+    case 0x811: O << "basepri"; return;
+    case  0x12:
+    case 0x812: O << "basepri_max"; return;
+    case  0x13:
+    case 0x813: O << "faultmask"; return;
+    case  0x14:
+    case 0x814: O << "control"; return;
     }
   }
 
@@ -739,6 +792,25 @@ void ARMInstPrinter::printPCLabel(const MCInst *MI, unsigned OpNum,
   llvm_unreachable("Unhandled PC-relative pseudo-instruction!");
 }
 
+void ARMInstPrinter::printAdrLabelOperand(const MCInst *MI, unsigned OpNum,
+                                  raw_ostream &O) {
+  const MCOperand &MO = MI->getOperand(OpNum);
+
+  if (MO.isExpr()) {
+    O << *MO.getExpr();
+    return;
+  }
+
+  int32_t OffImm = (int32_t)MO.getImm();
+
+  if (OffImm == INT32_MIN)
+    O << "#-0";
+  else if (OffImm < 0)
+    O << "#-" << -OffImm;
+  else
+    O << "#" << OffImm;
+}
+
 void ARMInstPrinter::printThumbS4ImmOperand(const MCInst *MI, unsigned OpNum,
                                             raw_ostream &O) {
   O << "#" << MI->getOperand(OpNum).getImm() * 4;
@@ -754,7 +826,8 @@ void ARMInstPrinter::printThumbITMask(const MCInst *MI, unsigned OpNum,
                                       raw_ostream &O) {
   // (3 - the number of trailing zeros) is the number of then / else.
   unsigned Mask = MI->getOperand(OpNum).getImm();
-  unsigned CondBit0 = Mask >> 4 & 1;
+  unsigned Firstcond = MI->getOperand(OpNum-1).getImm();
+  unsigned CondBit0 = Firstcond & 1;
   unsigned NumTZ = CountTrailingZeros_32(Mask);
   assert(NumTZ <= 3 && "Invalid IT mask!");
   for (unsigned Pos = 3, e = NumTZ; Pos > e; --Pos) {
@@ -899,12 +972,17 @@ void ARMInstPrinter::printT2AddrModeImm8s4Operand(const MCInst *MI,
 
   O << "[" << getRegisterName(MO1.getReg());
 
-  int32_t OffImm = (int32_t)MO2.getImm() / 4;
+  int32_t OffImm = (int32_t)MO2.getImm();
+
+  assert(((OffImm & 0x3) == 0) && "Not a valid immediate!");
+
   // Don't print +0.
-  if (OffImm < 0)
-    O << ", #-" << -OffImm * 4;
+  if (OffImm == INT32_MIN)
+    O << ", #-0";
+  else if (OffImm < 0)
+    O << ", #-" << -OffImm;
   else if (OffImm > 0)
-    O << ", #" << OffImm * 4;
+    O << ", #" << OffImm;
   O << "]";
 }
 
@@ -936,15 +1014,17 @@ void ARMInstPrinter::printT2AddrModeImm8s4OffsetOperand(const MCInst *MI,
                                                         unsigned OpNum,
                                                         raw_ostream &O) {
   const MCOperand &MO1 = MI->getOperand(OpNum);
-  int32_t OffImm = (int32_t)MO1.getImm() / 4;
+  int32_t OffImm = (int32_t)MO1.getImm();
+
+  assert(((OffImm & 0x3) == 0) && "Not a valid immediate!");
+
   // Don't print +0.
-  if (OffImm != 0) {
-    O << ", ";
-    if (OffImm < 0)
-      O << "#-" << -OffImm * 4;
-    else if (OffImm > 0)
-      O << "#" << OffImm * 4;
-  }
+  if (OffImm == INT32_MIN)
+    O << ", #-0";
+  else if (OffImm < 0)
+    O << ", #-" << -OffImm;
+  else if (OffImm > 0)
+    O << ", #" << OffImm;
 }
 
 void ARMInstPrinter::printT2AddrModeSoRegOperand(const MCInst *MI,

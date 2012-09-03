@@ -12,20 +12,20 @@ LIBDEPS=llvmmcdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvmarmdesc \
-	llvmarminstprinter \
 	llvmarminfo \
+	llvmarminstprinter \
 	llvmmipscodegen \
+	llvmmipsdisassembler \
+	llvmmipsasmparser \
 	llvmmipsdesc \
-	llvmmipsinstprinter \
 	llvmmipsinfo \
+	llvmmipsinstprinter \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
-	llvmx86disassembler \
+	llvmpowerpcinstprinter \
 	llvmx86asmparser \
 	llvmx86codegen \
-	llvmx86desc \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
@@ -35,12 +35,15 @@ LIBDEPS=llvmmcdisassembler \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
+	llvmx86disassembler \
+	llvmx86desc \
+	llvmx86info \
 	llvmtarget \
 	llvmx86instprinter \
+	llvmmc \
+	llvmobject \
 	llvmx86utils \
 	llvmcore \
-	llvmx86info \
-	llvmmc \
 	llvmsupport
 
 .include "../clang.prog.mk"

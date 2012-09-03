@@ -77,7 +77,7 @@ struct ispmdvec {
  */
 #define	MAX_TARGETS		16
 #ifndef	MAX_FC_TARG
-#define	MAX_FC_TARG		512
+#define	MAX_FC_TARG		256
 #endif
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
@@ -400,9 +400,9 @@ typedef struct {
 	 * A device is 'autologin' if the firmware automatically logs into
 	 * it (re-logins as needed). Basically, local private loop devices.
 	 *
-	 * The state is the current state of this entry.
+	 * PRLI word 3 parameters contains role as well as other things.
 	 *
-	 * Role is Initiator, Target, Both
+	 * The state is the current state of this entry.
 	 *
 	 * Portid is obvious, as are node && port WWNs. The new_role and
 	 * new_portid is for when we are pending a change.
@@ -412,17 +412,18 @@ typedef struct {
 	 * You should also never see anything with an initiator role
 	 * with this set.
 	 */
+	uint16_t	prli_word3;		/* PRLI parameters */
+	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
 	uint16_t	dev_map_idx	: 12,
 			autologin	: 1,	/* F/W does PLOGI/PLOGO */
 			state		: 3;
-	uint32_t	reserved	: 5,
+	uint32_t			: 7,
 			target_mode	: 1,
-			roles		: 2,
 			portid		: 24;
 	uint32_t
+					: 6,
+			announced	: 1,
 			dirty		: 1,	/* commands have been run */
-			new_reserved	: 5,
-			new_roles	: 2,
 			new_portid	: 24;
 	uint64_t	node_wwn;
 	uint64_t	port_wwn;
@@ -447,6 +448,7 @@ typedef struct {
 
 typedef struct {
 	uint32_t
+				fctape_enabled	: 1,
 				link_active	: 1,
 				sendmarker	: 1,
 				role		: 2,
@@ -680,21 +682,24 @@ struct ispsoftc {
 /*
  * ISP Runtime Configuration Options
  */
-#define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
-#define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
-#define	ISP_CFG_TWOGB		0x20	/* force 2GB connection (23XX only) */
-#define	ISP_CFG_ONEGB		0x10	/* force 1GB connection (23XX only) */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
-#define	ISP_CFG_PORT_PREF	0x0C	/* Mask for Port Prefs (2200 only) */
+#define	ISP_CFG_PORT_PREF	0x0c	/* Mask for Port Prefs (all FC except 2100) */
 #define	ISP_CFG_LPORT		0x00	/* prefer {N/F}L-Port connection */
 #define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
 #define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
-#define	ISP_CFG_LPORT_ONLY	0x0C	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_LPORT_ONLY	0x0c	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_ONEGB		0x10	/* force 1GB connection (23XX only) */
+#define	ISP_CFG_TWOGB		0x20	/* force 2GB connection (23XX only) */
+#define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
+#define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
+#define	ISP_CFG_NOFCTAPE	0x100	/* disable FC-Tape */
+#define	ISP_CFG_FCTAPE		0x200	/* enable FC-Tape */
 #define	ISP_CFG_OWNFSZ		0x400	/* override NVRAM frame size */
 #define	ISP_CFG_OWNLOOPID	0x800	/* override NVRAM loopid */
 #define	ISP_CFG_OWNEXCTHROTTLE	0x1000	/* override NVRAM execution throttle */
 #define	ISP_CFG_FOURGB		0x2000	/* force 4GB connection (24XX only) */
 #define	ISP_CFG_EIGHTGB		0x4000	/* force 8GB connection (25XX only) */
+#define	ISP_CFG_SIXTEENGB	0x8000	/* force 16GB connection (82XX only) */
 
 /*
  * For each channel, the outer layers should know what role that channel
@@ -951,6 +956,7 @@ typedef enum {
 	ISPASYNC_DEV_STAYED,		/* FC Device Stayed */
 	ISPASYNC_DEV_GONE,		/* FC Device Departure */
 	ISPASYNC_TARGET_NOTIFY,		/* All target async notification */
+	ISPASYNC_TARGET_NOTIFY_ACK,	/* All target notify ack required */
 	ISPASYNC_TARGET_ACTION,		/* All target action requested */
 	ISPASYNC_FW_CRASH,		/* All Firmware has crashed */
 	ISPASYNC_FW_RESTARTED		/* All Firmware has been restarted */
@@ -987,8 +993,9 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
 #define	ISP_LOGDEBUG1	0x20	/* log intermediate debug messages */
 #define	ISP_LOGDEBUG2	0x40	/* log most debug messages */
 #define	ISP_LOGDEBUG3	0x80	/* log high frequency debug messages */
-#define	ISP_LOGSANCFG	0x100	/* log SAN configuration */
+#define	ISP_LOG_SANCFG	0x100	/* log SAN configuration */
 #define	ISP_LOG_CWARN	0x200	/* log SCSI command "warnings" (e.g., check conditions) */
+#define	ISP_LOG_WARN1	0x400	/* log WARNS we might be interested at some time */
 #define	ISP_LOGTINFO	0x1000	/* log informational messages (target mode) */
 #define	ISP_LOGTDEBUG0	0x2000	/* log simple debug messages (target mode) */
 #define	ISP_LOGTDEBUG1	0x4000	/* log intermediate debug messages (target) */
@@ -1063,7 +1070,8 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	XS_GET_RESID(xs, resid)	sets the current residual count
  *	XS_STSP(xs)		gets a pointer to the SCSI status byte ""
  *	XS_SNSP(xs)		gets a pointer to the associate sense data
- *	XS_SNSLEN(xs)		gets the length of sense data storage
+ *	XS_TOT_SNSLEN(xs)	gets the total length of sense data storage
+ *	XS_CUR_SNSLEN(xs)	gets the currently used lenght of sense data storage
  *	XS_SNSKEY(xs)		dereferences XS_SNSP to get the current stored Sense Key
  *	XS_SNSASC(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code
  *	XS_SNSASCQ(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code Qualifier
@@ -1085,7 +1093,9 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	XS_NOERR(xs)	there is no error currently set
  *	XS_INITERR(xs)	initialize error state
  *
- *	XS_SAVE_SENSE(xs, sp, len)	save sense data
+ *	XS_SAVE_SENSE(xs, sp, total_len, this_len)	save sense data (total and current amount)
+ *
+ *	XS_APPEND_SENSE(xs, sp, len)	append more sense data
  *
  *	XS_SENSE_VALID(xs)		indicates whether sense is valid
  *
@@ -1154,8 +1164,8 @@ int isp_acknak_abts(ispsoftc_t *, void *, int);
  * Enable/Disable/Modify a logical unit.
  * (softc, cmd, bus, tgt, lun, cmd_cnt, inotify_cnt)
  */
-#define	DFLT_CMND_CNT	0xfe	/* unmonitored */
-#define	DFLT_INOT_CNT	0xfe	/* unmonitored */
+#define	DFLT_CMND_CNT	0xff	/* unmonitored */
+#define	DFLT_INOT_CNT	0xff	/* unmonitored */
 int isp_lun_cmd(ispsoftc_t *, int, int, int, int, int);
 
 /*

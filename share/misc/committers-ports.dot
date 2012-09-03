@@ -57,6 +57,7 @@ avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2010/07/27"]
+bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2012/07/31"]
 beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
 beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
 bf [label="Brendan Fabeny\nbf@FreeBSD.org\n2010/06/02"]
@@ -226,6 +227,7 @@ asami -> obrien
 
 avilla -> rakuco
 
+bapt -> bdrewery
 bapt -> eadler
 bapt -> jlaffaye
 
@@ -263,6 +265,7 @@ delphij -> rafan
 demon -> mat
 
 eadler -> ak
+eadler -> bdrewery
 eadler -> gjb
 eadler -> tj
 

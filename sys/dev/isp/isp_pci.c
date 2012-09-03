@@ -588,6 +588,20 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		}
 	}
 
+	tval = 0;
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "nofctape", &tval);
+	if (tval) {
+		isp->isp_confopts |= ISP_CFG_NOFCTAPE;
+	}
+
+	tval = 0;
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "fctape", &tval);
+	if (tval) {
+		isp->isp_confopts &= ~ISP_CFG_NOFCTAPE;
+		isp->isp_confopts |= ISP_CFG_FCTAPE;
+	}
+
+
 	/*
 	 * Because the resource_*_value functions can neither return
 	 * 64 bit integer values, nor can they be directly coerced
@@ -664,6 +678,8 @@ isp_pci_attach(device_t dev)
 	isp = &pcs->pci_isp;
 	isp->isp_dev = dev;
 	isp->isp_nchan = 1;
+	if (sizeof (bus_addr_t) > 4)
+		isp->isp_osinfo.sixtyfourbit = 1;
 
 	/*
 	 * Get Generic Options
@@ -1028,6 +1044,9 @@ isp_pci_detach(device_t dev)
 		pci_release_msi(dev);
 	}
 	(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
+	/*
+	 * XXX: THERE IS A LOT OF LEAKAGE HERE
+	 */
 	if (pcs->pci_isp.isp_param) {
 		free(pcs->pci_isp.isp_param, M_DEVBUF);
 		pcs->pci_isp.isp_param = NULL;
@@ -1429,7 +1448,7 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 static int
 isp_pci_mbxdma(ispsoftc_t *isp)
 {
-	uint32_t len;
+	uint32_t len, nsegs;
 	int i, error, ns, cmap = 0;
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
@@ -1470,11 +1489,16 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 
+	if (isp->isp_osinfo.sixtyfourbit) {
+		nsegs = ISP_NSEG64_MAX;
+	} else {
+		nsegs = ISP_NSEG_MAX;
+	}
+#ifdef	ISP_TARGET_MODE
 	/*
 	 * XXX: We don't really support 64 bit target mode for parallel scsi yet
 	 */
-#ifdef	ISP_TARGET_MODE
-	if (IS_SCSI(isp) && sizeof (bus_addr_t) > 4) {
+	if (IS_SCSI(isp) && isp->isp_osinfo.sixtyfourbit) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		isp_prt(isp, ISP_LOGERR, "we cannot do DAC for SPI cards yet");
 		ISP_LOCK(isp);
@@ -1483,7 +1507,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 #endif
 
 	error = busdma_tag_create(ISP_PCD(isp), 1, slim, llim,
-	    BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &isp->isp_osinfo.dmat);
+	    BUS_SPACE_MAXSIZE, nsegs, slim, 0, &isp->isp_osinfo.dmat);
 	if (error) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		ISP_LOCK(isp);
@@ -1521,7 +1545,9 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 	/*
 	 * Allocate and map the request and result queues (and ATIO queue
-	 * if we're a 2400 supporting target mode).
+	 * if we're a 2400 supporting target mode), and a region for
+	 * external dma addressable command/status structures (23XX and
+	 * later).
 	 */
 	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
 	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
@@ -1530,7 +1556,9 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 	}
 #endif
-
+	if (isp->isp_type >= ISP_HA_FC_2300) {
+		len += (N_XCMDS * XCMD_SIZE);
+	}
 	ns = (len / PAGE_SIZE) + 1;
 
 	/*
@@ -1596,6 +1624,21 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 			    busdma_md_get_busaddr(fc->tdmd, 0);
 			FCPARAM(isp, cmap)->isp_scratch =
 			    (void *)busdma_md_get_vaddr(fc->tdmd, 0);
+			if (isp->isp_type >= ISP_HA_FC_2300) {
+				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
+					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
+					if (n == NULL) {
+						while (fc->nexus_free_list) {
+							n = fc->nexus_free_list;
+							fc->nexus_free_list = n->next;
+							free(n, M_DEVBUF);
+						}
+						goto bad;
+					}
+					n->next = fc->nexus_free_list;
+					fc->nexus_free_list = n;
+				}
+			}
 		}
 	}
 
@@ -1625,6 +1668,11 @@ bad:
 		struct isp_fc *fc = ISP_FC_PC(isp, cmap);
 		busdma_mem_free(fc->tdmd);
 		busdma_tag_destroy(fc->tdmat);
+		while (fc->nexus_free_list) {
+			struct isp_nexus *n = fc->nexus_free_list;
+			fc->nexus_free_list = n->next;
+			free(n, M_DEVBUF);
+		}
 	}
 	busdma_mem_free(isp->isp_osinfo.cdmd);
 	busdma_tag_destroy(isp->isp_osinfo.cdmat);
@@ -1671,7 +1719,7 @@ tdma_cb(void *arg, busdma_md_t md, int error)
 	ddir = ISP_NOXFR;
 	nseg = busdma_md_get_nsegs(md);
 	if (nseg) {
-		if (sizeof (bus_addr_t) > 4) {
+		if (isp->isp_osinfo.sixtyfourbit) {
 			if (nseg >= ISP_NSEG64_MAX) {
 				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG64_MAX);
 				mp->error = EFAULT;
@@ -1696,9 +1744,14 @@ tdma_cb(void *arg, busdma_md_t md, int error)
 		}
 	}
 
-	if (isp_send_tgt_cmd(isp, rq, md, XS_XFRLEN(csio), ddir,
-	    &csio->sense_data, csio->sense_len) != CMD_QUEUED) {
+	error = isp_send_tgt_cmd(isp, rq, md, XS_XFRLEN(csio), ddir, &csio->sense_data, csio->sense_len);
+	switch (error) {
+	case CMD_EAGAIN:
 		mp->error = MUSHERR_NOQENTRIES;
+	case CMD_QUEUED:
+		break;
+	default:
+		mp->error = EIO;
 	}
 }
 #endif
@@ -1724,7 +1777,7 @@ dma_cb(void *arg, busdma_md_t md, int error)
 	ddir = ISP_NOXFR;
 	nseg = busdma_md_get_nsegs(md);
 	if (nseg) {
-		if (sizeof (bus_addr_t) > 4) {
+		if (isp->isp_osinfo.sixtyfourbit) {
 			if (nseg >= ISP_NSEG64_MAX) {
 				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG64_MAX);
 				mp->error = EFAULT;
@@ -1751,8 +1804,16 @@ dma_cb(void *arg, busdma_md_t md, int error)
 		}
 	}
 
-	if (isp_send_cmd(isp, rq, md, XS_XFRLEN(csio), ddir) != CMD_QUEUED) {
+	error = isp_send_cmd(isp, rq, md, XS_XFRLEN(csio), ddir, (ispds64_t *)csio->req_map);
+	switch (error) {
+	case CMD_EAGAIN:
 		mp->error = MUSHERR_NOQENTRIES;
+		break;
+	case CMD_QUEUED:
+		break;
+	default:
+		mp->error = EIO;
+		break;
 	}
 }
 
@@ -1847,11 +1908,11 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 		if (mp->error == MUSHERR_NOQENTRIES) {
 			retval = CMD_EAGAIN;
 		} else if (mp->error == EFBIG) {
-			XS_SETERR(csio, CAM_REQ_TOO_BIG);
+			csio->ccb_h.status = CAM_REQ_TOO_BIG;
 		} else if (mp->error == EINVAL) {
-			XS_SETERR(csio, CAM_REQ_INVALID);
+			csio->ccb_h.status = CAM_REQ_INVALID;
 		} else {
-			XS_SETERR(csio, CAM_UNREC_HBA_ERROR);
+			csio->ccb_h.status = CAM_UNREC_HBA_ERROR;
 		}
 		return (retval);
 	}

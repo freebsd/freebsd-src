@@ -207,6 +207,13 @@ do {								\
   (d) = se_u.e;							\
 } while (0)
 
+/* Long double constants are broken on i386.  This workaround is OK always. */
+#define	LD80C(m, ex, s, v) {					\
+	/* .e = v, */		/* overwritten */		\
+	.xbits.man = __CONCAT(m, ULL),				\
+	.xbits.expsign = (0x3fff + (ex)) | ((s) ? 0x8000 : 0),	\
+}
+
 #ifdef FLT_EVAL_METHOD
 /*
  * Attempt to get strict C99 semantics for assignment with non-C99 compilers.
@@ -225,7 +232,29 @@ do {								\
 	}					\
 } while (0)
 #endif
+#endif /* FLT_EVAL_METHOD */
+
+/* Support switching the mode to FP_PE if necessary. */
+#if defined(__i386__) && !defined(NO_FPSETPREC)
+#define	ENTERI()				\
+	long double __retval;			\
+	fp_prec_t __oprec;			\
+						\
+	if ((__oprec = fpgetprec()) != FP_PE)	\
+		fpsetprec(FP_PE);
+#define	RETURNI(x) do {				\
+	__retval = (x);				\
+	if (__oprec != FP_PE)			\
+		fpsetprec(__oprec);		\
+	RETURNF(__retval);			\
+} while (0)
+#else
+#define	ENTERI(x)
+#define	RETURNI(x)	RETURNF(x)
 #endif
+
+/* Default return statement if hack*_t() is not used. */
+#define      RETURNF(v)      return (v)
 
 /*
  * Common routine to process the arguments to nan(), nanf(), and nanl().
@@ -323,6 +352,18 @@ irint(double x)
 #define	HAVE_EFFICIENT_IRINT
 #endif
 
+#if defined(__amd64__) || defined(__i386__)
+static __inline int
+irintl(long double x)
+{
+	int n;
+
+	asm("fistl %0" : "=m" (n) : "t" (x));
+	return (n);
+}
+#define	HAVE_EFFICIENT_IRINTL
+#endif
+
 #endif /* __GNUCLIKE_ASM */
 
 /*
@@ -390,10 +431,9 @@ irint(double x)
 int	__kernel_rem_pio2(double*,double*,int,int,int);
 
 /* double precision kernel functions */
-#ifdef INLINE_REM_PIO2
-__inline
-#endif
+#ifndef INLINE_REM_PIO2
 int	__ieee754_rem_pio2(double,double*);
+#endif
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
@@ -403,22 +443,18 @@ double complex __ldexp_cexp(double complex,int);
 #endif
 
 /* float precision kernel functions */
-#ifdef INLINE_REM_PIO2F
-__inline
-#endif
+#ifndef INLINE_REM_PIO2F
 int	__ieee754_rem_pio2f(float,double*);
-#ifdef INLINE_KERNEL_SINDF
-__inline
 #endif
+#ifndef INLINE_KERNEL_SINDF
 float	__kernel_sindf(double);
-#ifdef INLINE_KERNEL_COSDF
-__inline
 #endif
+#ifndef INLINE_KERNEL_COSDF
 float	__kernel_cosdf(double);
-#ifdef INLINE_KERNEL_TANDF
-__inline
 #endif
+#ifndef INLINE_KERNEL_TANDF
 float	__kernel_tandf(double,int);
+#endif
 float	__ldexp_expf(float,int);
 #ifdef _COMPLEX_H
 float complex __ldexp_cexpf(float complex,int);

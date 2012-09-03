@@ -26,7 +26,7 @@ MCAsmInfoCOFF::MCAsmInfoCOFF() {
   PrivateGlobalPrefix = "L";  // Prefix for private global symbols
   WeakRefDirective = "\t.weak\t";
   LinkOnceDirective = "\t.linkonce discard\n";
-  
+
   // Doesn't support visibility:
   HiddenVisibilityAttr = HiddenDeclarationVisibilityAttr = MCSA_Invalid;
   ProtectedVisibilityAttr = MCSA_Invalid;
@@ -36,8 +36,6 @@ MCAsmInfoCOFF::MCAsmInfoCOFF() {
   SupportsDebugInformation = true;
   DwarfSectionOffsetDirective = "\t.secrel32\t";
   HasMicrosoftFastStdCallMangling = true;
-
-  SupportsDataRegions = false;
 }
 
 void MCAsmInfoMicrosoft::anchor() { }

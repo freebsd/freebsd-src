@@ -307,7 +307,6 @@ dead_strategy(struct bio *bp)
 
 static struct cdevsw dead_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT, /* XXX: does dead_strategy need this ? */
 	.d_open =	dead_open,
 	.d_close =	dead_close,
 	.d_read =	dead_read,
@@ -1432,10 +1431,7 @@ DB_SHOW_COMMAND(cdev, db_show_cdev)
 	SI_FLAG(SI_NAMED);
 	SI_FLAG(SI_CHEAPCLONE);
 	SI_FLAG(SI_CHILD);
-	SI_FLAG(SI_DEVOPEN);
-	SI_FLAG(SI_CONSOPEN);
 	SI_FLAG(SI_DUMPDEV);
-	SI_FLAG(SI_CANDELETE);
 	SI_FLAG(SI_CLONELIST);
 	db_printf("si_flags %s\n", buf);
 

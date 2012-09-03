@@ -207,7 +207,10 @@ namespace clang {
       PREPROCESSOR_DETAIL_BLOCK_ID,
       
       /// \brief The block containing the submodule structure.
-      SUBMODULE_BLOCK_ID
+      SUBMODULE_BLOCK_ID,
+
+      /// \brief The block containing comments.
+      COMMENTS_BLOCK_ID
     };
 
     /// \brief Record types that occur within the AST block itself.
@@ -405,7 +408,7 @@ namespace clang {
       /// sets.
       CXX_BASE_SPECIFIER_OFFSETS = 37,
 
-      /// \brief Record code for #pragma diagnostic mappings.
+      /// \brief Record code for \#pragma diagnostic mappings.
       DIAG_PRAGMA_MAPPINGS = 38,
 
       /// \brief Record code for special CUDA declarations.
@@ -417,7 +420,7 @@ namespace clang {
       /// \brief The directory that the PCH was originally created in.
       ORIGINAL_PCH_DIR = 41,
 
-      /// \brief Record code for floating point #pragma options.
+      /// \brief Record code for floating point \#pragma options.
       FP_PRAGMA_OPTIONS = 42,
 
       /// \brief Record code for enabled OpenCL extensions.
@@ -441,7 +444,7 @@ namespace clang {
       MODULE_OFFSET_MAP = 47,
 
       /// \brief Record code for the source manager line table information,
-      /// which stores information about #line directives.
+      /// which stores information about \#line directives.
       SOURCE_MANAGER_LINE_TABLE = 48,
 
       /// \brief Record code for map of Objective-C class definition IDs to the 
@@ -469,7 +472,7 @@ namespace clang {
       ///
       /// This array can only be interpreted properly using the Objective-C
       /// categories map.
-      OBJC_CATEGORIES
+      OBJC_CATEGORIES = 54
     };
 
     /// \brief Record types used within a source manager block.
@@ -500,8 +503,8 @@ namespace clang {
       PP_MACRO_OBJECT_LIKE = 1,
 
       /// \brief A function-like macro definition.
-      /// [PP_MACRO_FUNCTION_LIKE, <ObjectLikeStuff>, IsC99Varargs, IsGNUVarars,
-      ///  NumArgs, ArgIdentInfoID* ]
+      /// [PP_MACRO_FUNCTION_LIKE, \<ObjectLikeStuff>, IsC99Varargs,
+      /// IsGNUVarars, NumArgs, ArgIdentInfoID* ]
       PP_MACRO_FUNCTION_LIKE = 2,
 
       /// \brief Describes one token.
@@ -545,7 +548,12 @@ namespace clang {
       /// \brief Specifies a required feature.
       SUBMODULE_REQUIRES = 7
     };
-    
+
+    /// \brief Record types used within a comments block.
+    enum CommentRecordTypes {
+      COMMENTS_RAW_COMMENT = 0
+    };
+
     /// \defgroup ASTAST AST file AST constants
     ///
     /// The constants in this group describe various components of the
@@ -557,7 +565,7 @@ namespace clang {
     ///
     /// These type IDs correspond to predefined types in the AST
     /// context, such as built-in types (int) and special place-holder
-    /// types (the <overload> and <dependent> type markers). Such
+    /// types (the \<overload> and \<dependent> type markers). Such
     /// types are never actually serialized, since they will be built
     /// by the AST context when it is created.
     enum PredefinedTypeIDs {
@@ -632,7 +640,9 @@ namespace clang {
       /// \brief ARC's unbridged-cast placeholder type.
       PREDEF_TYPE_ARC_UNBRIDGED_CAST = 34,
       /// \brief The pseudo-object placeholder type.
-      PREDEF_TYPE_PSEUDO_OBJECT = 35
+      PREDEF_TYPE_PSEUDO_OBJECT = 35,
+      /// \brief The __va_list_tag placeholder type.
+      PREDEF_TYPE_VA_LIST_TAG = 36
     };
 
     /// \brief The number of predefined type IDs that are reserved for
@@ -738,28 +748,26 @@ namespace clang {
     /// The constants in this enumeration are indices into the
     /// SPECIAL_TYPES record.
     enum SpecialTypeIDs {
-      /// \brief __builtin_va_list
-      SPECIAL_TYPE_BUILTIN_VA_LIST             = 0,
       /// \brief CFConstantString type
-      SPECIAL_TYPE_CF_CONSTANT_STRING          = 1,
+      SPECIAL_TYPE_CF_CONSTANT_STRING          = 0,
       /// \brief C FILE typedef type
-      SPECIAL_TYPE_FILE                        = 2,
+      SPECIAL_TYPE_FILE                        = 1,
       /// \brief C jmp_buf typedef type
-      SPECIAL_TYPE_JMP_BUF                     = 3,
+      SPECIAL_TYPE_JMP_BUF                     = 2,
       /// \brief C sigjmp_buf typedef type
-      SPECIAL_TYPE_SIGJMP_BUF                  = 4,
+      SPECIAL_TYPE_SIGJMP_BUF                  = 3,
       /// \brief Objective-C "id" redefinition type
-      SPECIAL_TYPE_OBJC_ID_REDEFINITION        = 5,
+      SPECIAL_TYPE_OBJC_ID_REDEFINITION        = 4,
       /// \brief Objective-C "Class" redefinition type
-      SPECIAL_TYPE_OBJC_CLASS_REDEFINITION     = 6,
+      SPECIAL_TYPE_OBJC_CLASS_REDEFINITION     = 5,
       /// \brief Objective-C "SEL" redefinition type
-      SPECIAL_TYPE_OBJC_SEL_REDEFINITION       = 7,
+      SPECIAL_TYPE_OBJC_SEL_REDEFINITION       = 6,
       /// \brief C ucontext_t typedef type
-      SPECIAL_TYPE_UCONTEXT_T                  = 8
+      SPECIAL_TYPE_UCONTEXT_T                  = 7
     };
     
     /// \brief The number of special type IDs.
-    const unsigned NumSpecialTypeIDs = 9;
+    const unsigned NumSpecialTypeIDs = 8;
 
     /// \brief Predefined declaration IDs.
     ///
@@ -793,14 +801,17 @@ namespace clang {
       PREDEF_DECL_UNSIGNED_INT_128_ID = 7,
       
       /// \brief The internal 'instancetype' typedef.
-      PREDEF_DECL_OBJC_INSTANCETYPE_ID = 8
+      PREDEF_DECL_OBJC_INSTANCETYPE_ID = 8,
+
+      /// \brief The internal '__builtin_va_list' typedef.
+      PREDEF_DECL_BUILTIN_VA_LIST_ID = 9
     };
 
     /// \brief The number of declaration IDs that are predefined.
     ///
     /// For more information about predefined declarations, see the
     /// \c PredefinedDeclIDs type and the PREDEF_DECL_*_ID constants.
-    const unsigned int NUM_PREDEF_DECL_IDS = 9;
+    const unsigned int NUM_PREDEF_DECL_IDS = 10;
     
     /// \brief Record codes for each kind of declaration.
     ///
@@ -862,7 +873,7 @@ namespace clang {
       /// in the order in which those declarations were added to the
       /// declaration context. This data is used when iterating over
       /// the contents of a DeclContext, e.g., via
-      /// DeclContext::decls_begin()/DeclContext::decls_end().
+      /// DeclContext::decls_begin() and DeclContext::decls_end().
       DECL_CONTEXT_LEXICAL,
       /// \brief A record that stores the set of declarations that are
       /// visible from a given DeclContext.
@@ -1066,7 +1077,7 @@ namespace clang {
       /// \brief An ObjCStringLiteral record.
       EXPR_OBJC_STRING_LITERAL,
 
-      EXPR_OBJC_NUMERIC_LITERAL,
+      EXPR_OBJC_BOXED_EXPRESSION,
       EXPR_OBJC_ARRAY_LITERAL,
       EXPR_OBJC_DICTIONARY_LITERAL,
 
@@ -1089,7 +1100,7 @@ namespace clang {
       EXPR_OBJC_MESSAGE_EXPR,
       /// \brief An ObjCIsa Expr record.
       EXPR_OBJC_ISA,
-      /// \breif An ObjCIndirectCopyRestoreExpr record.
+      /// \brief An ObjCIndirectCopyRestoreExpr record.
       EXPR_OBJC_INDIRECT_COPY_RESTORE,
 
       /// \brief An ObjCForCollectionStmt record.

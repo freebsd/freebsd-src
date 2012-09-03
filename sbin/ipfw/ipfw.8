@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2012
+.Dd July 16, 2012
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -2967,9 +2967,11 @@ This will let the firewall install dynamic rules only for
 those connection which start with a regular SYN packet coming
 from the inside of our network.
 Dynamic rules are checked when encountering the first
-.Cm check-state
-or
+occurrence of a
+.Cm check-state ,
 .Cm keep-state
+or
+.Cm limit
 rule.
 A
 .Cm check-state

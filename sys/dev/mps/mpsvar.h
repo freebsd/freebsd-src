@@ -32,7 +32,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"14.00.00.01-fbsd"
+#define MPS_DRIVER_VERSION	"14.00.00.02-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -627,15 +627,15 @@ do {								\
 static __inline void
 mps_from_u64(uint64_t data, U64 *mps)
 {
-	(mps)->High = (uint32_t)((data) >> 32);
-	(mps)->Low = (uint32_t)((data) & 0xffffffff);
+	(mps)->High = htole32((uint32_t)((data) >> 32));
+	(mps)->Low = htole32((uint32_t)((data) & 0xffffffff));
 }
 
 static __inline uint64_t
 mps_to_u64(U64 *data)
 {
 
-	return (((uint64_t)data->High << 32) | data->Low);
+	return (((uint64_t)le32toh(data->High) << 32) | le32toh(data->Low));
 }
 
 static __inline void

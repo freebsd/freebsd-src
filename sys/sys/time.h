@@ -31,7 +31,7 @@
  */
 
 #ifndef _SYS_TIME_H_
-#define _SYS_TIME_H_
+#define	_SYS_TIME_H_
 
 #include <sys/_timeval.h>
 #include <sys/types.h>
@@ -137,7 +137,7 @@ timespec2bintime(const struct timespec *ts, struct bintime *bt)
 
 	bt->sec = ts->tv_sec;
 	/* 18446744073 = int(2^64 / 1000000000) */
-	bt->frac = ts->tv_nsec * (uint64_t)18446744073LL; 
+	bt->frac = ts->tv_nsec * (uint64_t)18446744073LL;
 }
 
 static __inline void
@@ -167,7 +167,7 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
 	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#define timespecadd(vvp, uvp)						\
+#define	timespecadd(vvp, uvp)						\
 	do {								\
 		(vvp)->tv_sec += (uvp)->tv_sec;				\
 		(vvp)->tv_nsec += (uvp)->tv_nsec;			\
@@ -176,7 +176,7 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 			(vvp)->tv_nsec -= 1000000000;			\
 		}							\
 	} while (0)
-#define timespecsub(vvp, uvp)						\
+#define	timespecsub(vvp, uvp)						\
 	do {								\
 		(vvp)->tv_sec -= (uvp)->tv_sec;				\
 		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
@@ -207,7 +207,7 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
 	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#define timeradd(tvp, uvp, vvp)						\
+#define	timeradd(tvp, uvp, vvp)						\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
 		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;	\
@@ -216,7 +216,7 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 			(vvp)->tv_usec -= 1000000;			\
 		}							\
 	} while (0)
-#define timersub(tvp, uvp, vvp)						\
+#define	timersub(tvp, uvp, vvp)						\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
 		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
@@ -253,24 +253,30 @@ struct clockinfo {
 
 /* These macros are also in time.h. */
 #ifndef CLOCK_REALTIME
-#define CLOCK_REALTIME	0
-#define CLOCK_VIRTUAL	1
-#define CLOCK_PROF	2
-#define CLOCK_MONOTONIC	4
-#define CLOCK_UPTIME	5		/* FreeBSD-specific. */
-#define CLOCK_UPTIME_PRECISE	7	/* FreeBSD-specific. */
-#define CLOCK_UPTIME_FAST	8	/* FreeBSD-specific. */
-#define CLOCK_REALTIME_PRECISE	9	/* FreeBSD-specific. */
-#define CLOCK_REALTIME_FAST	10	/* FreeBSD-specific. */
-#define CLOCK_MONOTONIC_PRECISE	11	/* FreeBSD-specific. */
-#define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
-#define CLOCK_SECOND	13		/* FreeBSD-specific. */
-#define CLOCK_THREAD_CPUTIME_ID	14
+#define	CLOCK_REALTIME	0
+#define	CLOCK_VIRTUAL	1
+#define	CLOCK_PROF	2
+#define	CLOCK_MONOTONIC	4
+#define	CLOCK_UPTIME	5		/* FreeBSD-specific. */
+#define	CLOCK_UPTIME_PRECISE	7	/* FreeBSD-specific. */
+#define	CLOCK_UPTIME_FAST	8	/* FreeBSD-specific. */
+#define	CLOCK_REALTIME_PRECISE	9	/* FreeBSD-specific. */
+#define	CLOCK_REALTIME_FAST	10	/* FreeBSD-specific. */
+#define	CLOCK_MONOTONIC_PRECISE	11	/* FreeBSD-specific. */
+#define	CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
+#define	CLOCK_SECOND	13		/* FreeBSD-specific. */
+#define	CLOCK_THREAD_CPUTIME_ID	14
+#define	CLOCK_PROCESS_CPUTIME_ID	15
 #endif
 
 #ifndef TIMER_ABSTIME
-#define TIMER_RELTIME	0x0	/* relative timer */
-#define TIMER_ABSTIME	0x1	/* absolute timer */
+#define	TIMER_RELTIME	0x0	/* relative timer */
+#define	TIMER_ABSTIME	0x1	/* absolute timer */
+#endif
+
+#if __BSD_VISIBLE
+#define	CPUCLOCK_WHICH_PID	0
+#define	CPUCLOCK_WHICH_TID	1
 #endif
 
 #ifdef _KERNEL
@@ -295,7 +301,7 @@ extern struct timeval boottime;
  * "bin"   == struct bintime  == seconds + 64 bit fraction of seconds.
  * "nano"  == struct timespec == seconds + nanoseconds.
  * "micro" == struct timeval  == seconds + microseconds.
- *              
+ *
  * Functions containing "up" returns time relative to boot and
  * should be used for calculating time intervals.
  *
@@ -304,8 +310,7 @@ extern struct timeval boottime;
  * Functions with the "get" prefix returns a less precise result
  * much faster than the functions without "get" prefix and should
  * be used where a precision of 1/hz seconds is acceptable or where
- * performance is priority. (NB: "precision", _not_ "resolution" !) 
- * 
+ * performance is priority. (NB: "precision", _not_ "resolution" !)
  */
 
 void	binuptime(struct bintime *bt);
@@ -344,6 +349,7 @@ int	utimes(const char *, const struct timeval *);
 
 #if __BSD_VISIBLE
 int	adjtime(const struct timeval *, struct timeval *);
+int	clock_getcpuclockid2(id_t, int, clockid_t *);
 int	futimes(int, const struct timeval *);
 int	futimesat(int, const char *, const struct timeval [2]);
 int	lutimes(const char *, const struct timeval *);

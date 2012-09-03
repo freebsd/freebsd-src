@@ -31,15 +31,13 @@
 #ifndef _GSSAPI_GSSAPI_H_
 #define _GSSAPI_GSSAPI_H_
 
-/*
- * First, include stddef.h to get size_t defined.
- */
-#include <stddef.h>
+#include <sys/cdefs.h>
+#include <sys/_types.h>
 
-/*
- * Include stdint.h to get explicitly sized data types.
- */
-#include <stdint.h>
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
 
 #ifndef _SSIZE_T_DECLARED
 typedef	__ssize_t	ssize_t;
@@ -67,7 +65,7 @@ typedef struct _gss_name_t *gss_name_t;
  * unsigned integer supported by the platform that has at least
  * 32 bits of precision.
  */
-typedef uint32_t gss_uint32;
+typedef __uint32_t gss_uint32;
 
 
 #ifdef OM_STRING
@@ -89,7 +87,7 @@ typedef OM_object_identifier gss_OID_desc, *gss_OID;
  */
 
 typedef gss_uint32 OM_uint32;
-typedef uint64_t OM_uint64;
+typedef __uint64_t OM_uint64;
 
 typedef struct gss_OID_desc_struct {
   OM_uint32 length;

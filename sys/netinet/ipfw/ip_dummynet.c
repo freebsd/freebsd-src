@@ -77,9 +77,10 @@ static struct task	dn_task;
 static struct taskqueue	*dn_tq = NULL;
 
 static void
-dummynet(void * __unused unused)
+dummynet(void *arg)
 {
 
+	(void)arg;	/* UNUSED */
 	taskqueue_enqueue(dn_tq, &dn_task);
 }
 
@@ -1286,7 +1287,7 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
         }
 	if (nfs->flags & DN_HAVE_MASK) {
 		/* make sure we have some buckets */
-		ipdn_bound_var(&nfs->buckets, dn_cfg.hash_size,
+		ipdn_bound_var((int *)&nfs->buckets, dn_cfg.hash_size,
 			1, dn_cfg.max_hash_size, "flowset buckets");
 	} else {
 		nfs->buckets = 1;	/* we only need 1 */
@@ -1371,7 +1372,7 @@ config_sched(struct dn_sch *_nsch, struct dn_id *arg)
 		return EINVAL;
 	/* make sure we have some buckets */
 	if (a.sch->flags & DN_HAVE_MASK)
-		ipdn_bound_var(&a.sch->buckets, dn_cfg.hash_size,
+		ipdn_bound_var((int *)&a.sch->buckets, dn_cfg.hash_size,
 			1, dn_cfg.max_hash_size, "sched buckets");
 	/* XXX other sanity checks */
 	bzero(&p, sizeof(p));

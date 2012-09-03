@@ -412,7 +412,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
  * and calls setsockopt().
  * Function returns 0 on success or -1 otherwise.
  */
-int
+static int
 do_setcmd3(int optname, void *optval, socklen_t optlen)
 {
 	socklen_t len;
@@ -976,8 +976,9 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 #define	HAVE_OPTIONS	0x8000
 
 static void
-show_prerequisites(int *flags, int want, int cmd __unused)
+show_prerequisites(int *flags, int want, int cmd)
 {
+	(void)cmd;	/* UNUSED */
 	if (co.comment_only)
 		return;
 	if ( (*flags & HAVE_IP) == HAVE_IP)
@@ -3930,6 +3931,7 @@ ipfw_table_handler(int ac, char *av[])
 	uint32_t a, type, mask, addrlen;
 	uint32_t tables_max;
 
+	mask = 0;	// XXX uninitialized ?
 	len = sizeof(tables_max);
 	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
 		NULL, 0) == -1)
@@ -4135,7 +4137,7 @@ table_list(uint16_t num, int need_header)
 		if (sz < xent->len)
 			break;
 		sz -= xent->len;
-		xent = (void *)xent + xent->len;
+		xent = (ipfw_table_xentry *)((char *)xent + xent->len);
 	}
 
 	free(tbl);

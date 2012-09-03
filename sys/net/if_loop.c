@@ -257,10 +257,20 @@ looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES;
 		break;
 	case AF_INET6:
+#if 0
+		/*
+		 * XXX-BZ for now always claim the checksum is good despite
+		 * any interface flags.   This is a workaround for 9.1-R and
+		 * a proper solution ought to be sought later.
+		 */
 		if (ifp->if_capenable & IFCAP_RXCSUM_IPV6) {
 			m->m_pkthdr.csum_data = 0xffff;
 			m->m_pkthdr.csum_flags = LO_CSUM_SET;
 		}
+#else
+		m->m_pkthdr.csum_data = 0xffff;
+		m->m_pkthdr.csum_flags = LO_CSUM_SET;
+#endif
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
 		break;
 	case AF_IPX:
@@ -446,15 +456,29 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 		if ((mask & IFCAP_TXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-		if ((mask & IFCAP_RXCSUM_IPV6) != 0)
+		if ((mask & IFCAP_RXCSUM_IPV6) != 0) {
+#if 0
 			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
-		if ((mask & IFCAP_TXCSUM_IPV6) != 0)
+#else
+			error = EOPNOTSUPP;
+			break;
+#endif
+		}
+		if ((mask & IFCAP_TXCSUM_IPV6) != 0) {
+#if 0
 			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+#else
+			error = EOPNOTSUPP;
+			break;
+#endif
+		}
 		ifp->if_hwassist = 0;
 		if (ifp->if_capenable & IFCAP_TXCSUM)
 			ifp->if_hwassist = LO_CSUM_FEATURES;
+#if 0
 		if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 			ifp->if_hwassist |= LO_CSUM_FEATURES6;
+#endif
 		break;
 
 	default:

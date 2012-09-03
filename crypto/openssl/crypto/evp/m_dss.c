@@ -66,6 +66,7 @@
 #endif
 
 #ifndef OPENSSL_NO_SHA
+#ifndef OPENSSL_FIPS
 
 static int init(EVP_MD_CTX *ctx)
 	{ return SHA1_Init(ctx->md_data); }
@@ -81,7 +82,7 @@ static const EVP_MD dsa_md=
 	NID_dsaWithSHA,
 	NID_dsaWithSHA,
 	SHA_DIGEST_LENGTH,
-	EVP_MD_FLAG_FIPS,
+	EVP_MD_FLAG_PKEY_DIGEST,
 	init,
 	update,
 	final,
@@ -96,4 +97,5 @@ const EVP_MD *EVP_dss(void)
 	{
 	return(&dsa_md);
 	}
+#endif
 #endif

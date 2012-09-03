@@ -68,11 +68,9 @@ CLEANFILES=	${GENSRCS}
 CLEANDIRS=	sys
 CFLAGS+=	-I${.CURDIR} -I.
 
-sys/elf32.h sys/elf64.h sys/elf_common.h: sys
-	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
-
-sys:
+sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
 	mkdir -p ${.OBJDIR}/sys
+	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
 
 SHLIB_MAJOR=	1
 

@@ -69,27 +69,6 @@ static inline unsigned UnknownPadding(unsigned LogAlign, unsigned KnownBits) {
   return 0;
 }
 
-/// WorstCaseAlign - Assuming only the low KnownBits bits in Offset are exact,
-/// add padding such that:
-///
-/// 1. The result is aligned to 1 << LogAlign.
-///
-/// 2. No other value of the unknown bits would require more padding.
-///
-/// This may add more padding than is required to satisfy just one of the
-/// constraints.  It is necessary to compute alignment this way to guarantee
-/// that we don't underestimate the padding before an aligned block.  If the
-/// real padding before a block is larger than we think, constant pool entries
-/// may go out of range.
-static inline unsigned WorstCaseAlign(unsigned Offset, unsigned LogAlign,
-                                      unsigned KnownBits) {
-  // Add the worst possible padding that the unknown bits could cause.
-  Offset += UnknownPadding(LogAlign, KnownBits);
-
-  // Then align the result.
-  return RoundUpToAlignment(Offset, 1u << LogAlign);
-}
-
 namespace {
   /// ARMConstantIslands - Due to limited PC-relative displacements, ARM
   /// requires constant pool entries to be scattered among the instructions
@@ -109,7 +88,12 @@ namespace {
       /// Offset - Distance from the beginning of the function to the beginning
       /// of this basic block.
       ///
-      /// The offset is always aligned as required by the basic block.
+      /// Offsets are computed assuming worst case padding before an aligned
+      /// block. This means that subtracting basic block offsets always gives a
+      /// conservative estimate of the real distance which may be smaller.
+      ///
+      /// Because worst case padding is used, the computed offset of an aligned
+      /// block may not actually be aligned.
       unsigned Offset;
 
       /// Size - Size of the basic block in bytes.  If the block contains
@@ -140,7 +124,12 @@ namespace {
       /// This number should be used to predict worst case padding when
       /// splitting the block.
       unsigned internalKnownBits() const {
-        return Unalign ? Unalign : KnownBits;
+        unsigned Bits = Unalign ? Unalign : KnownBits;
+        // If the block size isn't a multiple of the known bits, assume the
+        // worst case padding.
+        if (Size & ((1u << Bits) - 1))
+          Bits = CountTrailingZeros_32(Size);
+        return Bits;
       }
 
       /// Compute the offset immediately following this block.  If LogAlign is
@@ -152,7 +141,7 @@ namespace {
         if (!LA)
           return PO;
         // Add alignment padding from the terminator.
-        return WorstCaseAlign(PO, LA, internalKnownBits());
+        return PO + UnknownPadding(LA, internalKnownBits());
       }
 
       /// Compute the number of known low bits of postOffset.  If this block
@@ -342,9 +331,7 @@ void ARMConstantIslands::verify() {
   for (MachineFunction::iterator MBBI = MF->begin(), E = MF->end();
        MBBI != E; ++MBBI) {
     MachineBasicBlock *MBB = MBBI;
-    unsigned Align = MBB->getAlignment();
     unsigned MBBId = MBB->getNumber();
-    assert(BBInfo[MBBId].Offset % (1u << Align) == 0);
     assert(!MBBId || BBInfo[MBBId - 1].postOffset() <= BBInfo[MBBId].Offset);
   }
   DEBUG(dbgs() << "Verifying " << CPUsers.size() << " CP users.\n");
@@ -428,7 +415,7 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &mf) {
 
   // ARM and Thumb2 functions need to be 4-byte aligned.
   if (!isThumb1)
-    MF->EnsureAlignment(2);  // 2 = log2(4)
+    MF->ensureAlignment(2);  // 2 = log2(4)
 
   // Perform the initial placement of the constant pool entries.  To start with,
   // we put them all at the end of the function.
@@ -529,7 +516,7 @@ ARMConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
 
   // The function needs to be as aligned as the basic blocks. The linker may
   // move functions around based on their alignment.
-  MF->EnsureAlignment(BB->getAlignment());
+  MF->ensureAlignment(BB->getAlignment());
 
   // Order the entries in BB by descending alignment.  That ensures correct
   // alignment of all entries as long as BB is sufficiently aligned.  Keep
@@ -828,7 +815,7 @@ void ARMConstantIslands::computeBlockSize(MachineBasicBlock *MBB) {
   // tBR_JTr contains a .align 2 directive.
   if (!MBB->empty() && MBB->back().getOpcode() == ARM::tBR_JTr) {
     BBI.PostAlign = 2;
-    MBB->getParent()->EnsureAlignment(2);
+    MBB->getParent()->ensureAlignment(2);
   }
 }
 
@@ -1045,7 +1032,6 @@ bool ARMConstantIslands::isCPEntryInRange(MachineInstr *MI, unsigned UserOffset,
                                       MachineInstr *CPEMI, unsigned MaxDisp,
                                       bool NegOk, bool DoDump) {
   unsigned CPEOffset  = getOffsetOf(CPEMI);
-  assert(CPEOffset % 4 == 0 && "Misaligned CPE");
 
   if (DoDump) {
     DEBUG({
@@ -1256,11 +1242,8 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
   if (BBHasFallthrough(UserMBB)) {
     // Size of branch to insert.
     unsigned Delta = isThumb1 ? 2 : 4;
-    // End of UserBlock after adding a branch.
-    unsigned UserBlockEnd = UserBBI.postOffset() + Delta;
     // Compute the offset where the CPE will begin.
-    unsigned CPEOffset = WorstCaseAlign(UserBlockEnd, CPELogAlign,
-                                        UserBBI.postKnownBits());
+    unsigned CPEOffset = UserBBI.postOffset(CPELogAlign) + Delta;
 
     if (isOffsetInRange(UserOffset, CPEOffset, U)) {
       DEBUG(dbgs() << "Split at end of BB#" << UserMBB->getNumber()
@@ -1299,19 +1282,15 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
   // up the insertion point.
 
   // Try to split the block so it's fully aligned.  Compute the latest split
-  // point where we can add a 4-byte branch instruction, and then
-  // WorstCaseAlign to LogAlign.
+  // point where we can add a 4-byte branch instruction, and then align to
+  // LogAlign which is the largest possible alignment in the function.
   unsigned LogAlign = MF->getAlignment();
   assert(LogAlign >= CPELogAlign && "Over-aligned constant pool entry");
   unsigned KnownBits = UserBBI.internalKnownBits();
   unsigned UPad = UnknownPadding(LogAlign, KnownBits);
-  unsigned BaseInsertOffset = UserOffset + U.getMaxDisp();
+  unsigned BaseInsertOffset = UserOffset + U.getMaxDisp() - UPad;
   DEBUG(dbgs() << format("Split in middle of big block before %#x",
                          BaseInsertOffset));
-
-  // Account for alignment and unknown padding.
-  BaseInsertOffset &= ~((1u << LogAlign) - 1);
-  BaseInsertOffset -= UPad;
 
   // The 4 in the following is for the unconditional branch we'll be inserting
   // (allows for long branch on Thumb1).  Alignment of the island is handled
@@ -1327,11 +1306,11 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
   // pool entries following this block; only the last one is in the water list.
   // Back past any possible branches (allow for a conditional and a maximally
   // long unconditional).
-  if (BaseInsertOffset >= BBInfo[UserMBB->getNumber()+1].Offset)
-    BaseInsertOffset = BBInfo[UserMBB->getNumber()+1].Offset -
-      (isThumb1 ? 6 : 8);
-  unsigned EndInsertOffset =
-    WorstCaseAlign(BaseInsertOffset + 4, LogAlign, KnownBits) +
+  if (BaseInsertOffset + 8 >= UserBBI.postOffset()) {
+    BaseInsertOffset = UserBBI.postOffset() - UPad - 8;
+    DEBUG(dbgs() << format("Move inside block: %#x\n", BaseInsertOffset));
+  }
+  unsigned EndInsertOffset = BaseInsertOffset + 4 + UPad +
     CPEMI->getOperand(2).getImm();
   MachineBasicBlock::iterator MI = UserMI;
   ++MI;
@@ -1342,6 +1321,7 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
        Offset < BaseInsertOffset;
        Offset += TII->GetInstSizeInBytes(MI),
        MI = llvm::next(MI)) {
+    assert(MI != UserMBB->end() && "Fell off end of block");
     if (CPUIndex < NumCPUsers && CPUsers[CPUIndex].MI == MI) {
       CPUser &U = CPUsers[CPUIndex];
       if (!isOffsetInRange(Offset, EndInsertOffset, U)) {
@@ -1353,9 +1333,7 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
       // reused within the block, but it doesn't matter much.  Also assume CPEs
       // are added in order with alignment padding.  We may eventually be able
       // to pack the aligned CPEs better.
-      EndInsertOffset = RoundUpToAlignment(EndInsertOffset,
-                                           1u << getCPELogAlign(U.CPEMI)) +
-        U.CPEMI->getOperand(2).getImm();
+      EndInsertOffset += U.CPEMI->getOperand(2).getImm();
       CPUIndex++;
     }
 

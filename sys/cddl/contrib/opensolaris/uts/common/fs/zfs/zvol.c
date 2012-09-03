@@ -177,15 +177,9 @@ zvol_size_changed(zvol_state_t *zv)
 	pp = zv->zv_provider;
 	if (pp == NULL)
 		return;
-	if (zv->zv_volsize == pp->mediasize)
-		return;
-	/*
-	 * Changing provider size is not really supported by GEOM, but it
-	 * should be safe when provider is closed.
-	 */
-	if (zv->zv_total_opens > 0)
-		return;
-	pp->mediasize = zv->zv_volsize;
+	g_topology_lock();
+	g_resize_provider(pp, zv->zv_volsize);
+	g_topology_unlock();
 #endif	/* !sun */
 }
 
@@ -677,8 +671,18 @@ zvol_last_close(zvol_state_t *zv)
 {
 	zil_close(zv->zv_zilog);
 	zv->zv_zilog = NULL;
+
 	dmu_buf_rele(zv->zv_dbuf, zvol_tag);
 	zv->zv_dbuf = NULL;
+
+	/*
+	 * Evict cached data
+	 */
+	if (dsl_dataset_is_dirty(dmu_objset_ds(zv->zv_objset)) &&
+	    !(zv->zv_flags & ZVOL_RDONLY))
+		txg_wait_synced(dmu_objset_pool(zv->zv_objset), 0);
+	(void) dmu_objset_evict_dbufs(zv->zv_objset);
+
 	dmu_objset_disown(zv->zv_objset, zvol_tag);
 	zv->zv_objset = NULL;
 }
