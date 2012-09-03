@@ -119,18 +119,18 @@ SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "Maximum memory for swap metadata");
 SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
     "Maximum value of vfs.maxbufspace");
-SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RDTUN | CTLFLAG_RW, &maxtsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxtsiz, 0,
     "Maximum text size");
-SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RDTUN | CTLFLAG_RW, &dfldsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RW | CTLFLAG_TUN, &dfldsiz, 0,
     "Initial data size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RDTUN | CTLFLAG_RW, &maxdsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxdsiz, 0,
     "Maximum data size");
-SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RDTUN | CTLFLAG_RW, &dflssiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RW | CTLFLAG_TUN, &dflssiz, 0,
     "Initial stack size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RDTUN | CTLFLAG_RW, &maxssiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RW | CTLFLAG_TUN, &maxssiz, 0,
     "Maximum stack size");
-SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN | CTLFLAG_RW, &sgrowsiz,
-    0, "Amount to grow stack on a stack fault");
+SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RW | CTLFLAG_TUN, &sgrowsiz, 0,
+    "Amount to grow stack on a stack fault");
 SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     NULL, 0, sysctl_kern_vm_guest, "A",
     "Virtual machine guest detected? (none|generic|xen)");
