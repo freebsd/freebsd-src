@@ -636,7 +636,10 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 #
 
 # Non-base distributions produced by the base system
-EXTRA_DISTRIBUTIONS=	doc games
+EXTRA_DISTRIBUTIONS=	doc
+.if ${MK_GAMES} != "no"
+EXTRA_DISTRIBUTIONS+=	games
+.endif
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
