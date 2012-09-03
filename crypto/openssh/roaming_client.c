@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming_client.c,v 1.3 2010/01/18 01:50:27 dtucker Exp $ */
+/* $OpenBSD: roaming_client.c,v 1.4 2011/12/07 05:44:38 djm Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -72,7 +72,7 @@ roaming_reply(int type, u_int32_t seq, void *ctxt)
 	cookie = packet_get_int64();
 	key1 = oldkey1 = packet_get_int64();
 	key2 = oldkey2 = packet_get_int64();
-	set_out_buffer_size(packet_get_int() +  get_snd_buf_size());
+	set_out_buffer_size(packet_get_int() + get_snd_buf_size());
 	roaming_enabled = 1;
 }
 

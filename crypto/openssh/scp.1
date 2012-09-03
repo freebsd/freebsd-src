@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.56 2010/12/09 14:13:32 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.58 2011/09/05 07:01:44 jmc Exp $
 .\"
-.Dd December 9, 2010
+.Dd September 5 2011
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -31,7 +31,7 @@
 .Oo
 .Op Ar user No @
 .Ar host1 No :
-.Oc Ns Ar file1
+.Oc Ar file1
 .Sm on
 .Ar ...
 .Sm off
@@ -140,6 +140,7 @@ For full details of the options listed below, and their possible values, see
 .It ConnectTimeout
 .It ControlMaster
 .It ControlPath
+.It ControlPersist
 .It GlobalKnownHostsFile
 .It GSSAPIAuthentication
 .It GSSAPIDelegateCredentials
@@ -152,6 +153,7 @@ For full details of the options listed below, and their possible values, see
 .It IdentityFile
 .It IdentitiesOnly
 .It IPQoS
+.It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
 .It KexAlgorithms
 .It LogLevel
