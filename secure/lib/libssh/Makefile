@@ -23,8 +23,6 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 SRCS+=	bsd-misc.c fmt_scaled.c getrrsetbyname.c glob.c \
 	openssl-compat.c port-tun.c strtonum.c timingsafe_bcmp.c \
 	vis.c xcrypt.c xmmap.c
-# FreeBSD additions
-SRCS+=	version.c
 
 .if defined(COMPAT_GETADDRINFO)
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
