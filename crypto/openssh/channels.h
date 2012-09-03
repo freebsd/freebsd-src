@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.105 2011/06/22 22:08:42 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.111 2012/04/11 13:16:19 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -58,6 +58,8 @@
 #define SSH_CHANNEL_MUX_CLIENT		16	/* Conn. to mux slave */
 #define SSH_CHANNEL_MAX_TYPE		17
 
+#define CHANNEL_CANCEL_PORT_STATIC	-1
+
 struct Channel;
 typedef struct Channel Channel;
 
@@ -104,6 +106,7 @@ struct Channel {
 	int     wfd_isatty;	/* wfd is a tty */
 	int	client_tty;	/* (client) TTY has been requested */
 	int     force_drain;	/* force close on iEOF */
+	time_t	notbefore;	/* Pause IO until deadline (time_t) */
 	int     delayed;	/* post-select handlers for newly created
 				 * channels are delayed until the first call
 				 * to a matching pre-select handler. 
@@ -117,6 +120,7 @@ struct Channel {
 	char    *path;
 		/* path for unix domain sockets, or host name for forwards */
 	int     listening_port;	/* port being listened for forwards */
+	char   *listening_addr;	/* addr being listened for forwards */
 	int     host_port;	/* remote port to connect for forwards */
 	char   *remote_name;	/* remote hostname */
 
@@ -239,7 +243,8 @@ void	 channel_input_status_confirm(int, u_int32_t, void *);
 
 /* file descriptor handling (read/write) */
 
-void	 channel_prepare_select(fd_set **, fd_set **, int *, u_int*, int);
+void	 channel_prepare_select(fd_set **, fd_set **, int *, u_int*,
+	     time_t*, int);
 void     channel_after_select(fd_set *, fd_set *);
 void     channel_output_poll(void);
 
@@ -254,6 +259,8 @@ void	 channel_set_af(int af);
 void     channel_permit_all_opens(void);
 void	 channel_add_permitted_opens(char *, int);
 int	 channel_add_adm_permitted_opens(char *, int);
+void	 channel_disable_adm_local_opens(void);
+void	 channel_update_permitted_opens(int, int);
 void	 channel_clear_permitted_opens(void);
 void	 channel_clear_adm_permitted_opens(void);
 void 	 channel_print_adm_permitted_opens(void);
@@ -265,9 +272,11 @@ int	 channel_request_remote_forwarding(const char *, u_short,
 	     const char *, u_short);
 int	 channel_setup_local_fwd_listener(const char *, u_short,
 	     const char *, u_short, int);
-void	 channel_request_rforward_cancel(const char *host, u_short port);
+int	 channel_request_rforward_cancel(const char *host, u_short port);
 int	 channel_setup_remote_fwd_listener(const char *, u_short, int *, int);
 int	 channel_cancel_rport_listener(const char *, u_short);
+int	 channel_cancel_lport_listener(const char *, u_short, int, int);
+int	 permitopen_port(const char *);
 
 /* x11 forwarding */
 

@@ -1,4 +1,4 @@
-/*	$OpenBSD: inet_ntop.c,v 1.7 2005/08/06 20:30:03 espie Exp $	*/
+/*	$OpenBSD: inet_ntop.c,v 1.8 2008/12/09 19:38:38 otto Exp $	*/
 
 /* Copyright (c) 1996 by Internet Software Consortium.
  *
@@ -57,13 +57,13 @@ static const char *inet_ntop6(const u_char *src, char *dst, size_t size);
  *	Paul Vixie, 1996.
  */
 const char *
-inet_ntop(int af, const void *src, char *dst, size_t size)
+inet_ntop(int af, const void *src, char *dst, socklen_t size)
 {
 	switch (af) {
 	case AF_INET:
-		return (inet_ntop4(src, dst, size));
+		return (inet_ntop4(src, dst, (size_t)size));
 	case AF_INET6:
-		return (inet_ntop6(src, dst, size));
+		return (inet_ntop6(src, dst, (size_t)size));
 	default:
 		errno = EAFNOSUPPORT;
 		return (NULL);
