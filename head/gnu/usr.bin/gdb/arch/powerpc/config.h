@@ -175,7 +175,7 @@
 
 /* nativefile */
 #ifndef CROSS_DEBUGGER
-#define GDB_NM_FILE config/ia64/nm-fbsd.h
+#define GDB_NM_FILE config/powerpc/nm-fbsd.h
 #endif
 
 /* Define to 1 so <sys/proc.h> gets a definition of anon_hdl.  Works

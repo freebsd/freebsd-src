@@ -120,7 +120,8 @@ static int ath_tx_action_frame_override_queue(struct ath_softc *sc,
 static inline int
 ath_tx_is_11n(struct ath_softc *sc)
 {
-	return (sc->sc_ah->ah_magic == 0x20065416);
+	return ((sc->sc_ah->ah_magic == 0x20065416) ||
+		    (sc->sc_ah->ah_magic == 0x19741014));
 }
 
 /*
@@ -300,10 +301,13 @@ static void
 ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_desc *ds, *ds0;
-	int i;
+	char *ds, *ds0;
+	int i, bp, dsp;
 	HAL_DMA_ADDR bufAddrList[4];
 	uint32_t segLenList[4];
+	int numTxMaps = 1;
+	int isFirstDesc = 1;
+	int qnum;
 
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
@@ -314,20 +318,47 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	/*
 	 * Fillin the remainder of the descriptor info.
 	 */
-	ds0 = ds = bf->bf_desc;
-	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		bufAddrList[0] = bf->bf_segs[i].ds_addr;
-		segLenList[0] = bf->bf_segs[i].ds_len;
 
-		/* Blank this out until multi-buf support is added for AR9300 */
-		bufAddrList[1] = bufAddrList[2] = bufAddrList[3] = 0;
-		segLenList[1] = segLenList[2] = segLenList[3] = 0;
+	/*
+	 * For now the HAL doesn't implement halNumTxMaps for non-EDMA
+	 * (ie it's 0.)  So just work around it.
+	 *
+	 * XXX TODO: populate halNumTxMaps for each HAL chip and
+	 * then undo this hack.
+	 */
+	if (sc->sc_ah->ah_magic == 0x19741014)
+		numTxMaps = 4;
+
+	/*
+	 * For EDMA and later chips ensure the TX map is fully populated
+	 * before advancing to the next descriptor.
+	 */
+	ds0 = ds = (char *) bf->bf_desc;
+	bp = dsp = 0;
+	bzero(bufAddrList, sizeof(bufAddrList));
+	bzero(segLenList, sizeof(segLenList));
+	for (i = 0; i < bf->bf_nseg; i++) {
+		bufAddrList[bp] = bf->bf_segs[i].ds_addr;
+		segLenList[bp] = bf->bf_segs[i].ds_len;
+		bp++;
+
+		/*
+		 * Go to the next segment if this isn't the last segment
+		 * and there's space in the current TX map.
+		 */
+		if ((i != bf->bf_nseg - 1) && (bp < numTxMaps))
+			continue;
+
+		/*
+		 * Last segment or we're out of buffer pointers.
+		 */
+		bp = 0;
 
 		if (i == bf->bf_nseg - 1)
-			ath_hal_settxdesclink(ah, ds, 0);
+			ath_hal_settxdesclink(ah, (struct ath_desc *) ds, 0);
 		else
-			ath_hal_settxdesclink(ah, ds,
-			    bf->bf_daddr + dd->dd_descsize * (i + 1));
+			ath_hal_settxdesclink(ah, (struct ath_desc *) ds,
+			    bf->bf_daddr + dd->dd_descsize * (dsp + 1));
 
 		/*
 		 * XXX this assumes that bfs_txq is the actual destination
@@ -335,20 +366,35 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 		 * it may actually be pointing to the multicast software
 		 * TXQ id.  These must be fixed!
 		 */
-		ath_hal_filltxdesc(ah, ds
+		qnum = bf->bf_state.bfs_txq->axq_qnum;
+
+		ath_hal_filltxdesc(ah, (struct ath_desc *) ds
 			, bufAddrList
 			, segLenList
-			, 0			/* XXX desc id */
-			, bf->bf_state.bfs_txq->axq_qnum	/* XXX multicast? */
-			, i == 0		/* first segment */
+			, bf->bf_descid		/* XXX desc id */
+			, qnum
+			, isFirstDesc		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
-			, ds0			/* first descriptor */
+			, (struct ath_desc *) ds0	/* first descriptor */
 		);
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
-			__func__, i, ds->ds_link, ds->ds_data,
-			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
-		bf->bf_lastds = ds;
+		isFirstDesc = 0;
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT)
+			ath_printtxbuf(sc, bf, qnum, 0, 0);
+#endif
+		bf->bf_lastds = (struct ath_desc *) ds;
+
+		/*
+		 * Don't forget to skip to the next descriptor.
+		 */
+		ds += sc->sc_tx_desclen;
+		dsp++;
+
+		/*
+		 * .. and don't forget to blank these out!
+		 */
+		bzero(bufAddrList, sizeof(bufAddrList));
+		bzero(segLenList, sizeof(segLenList));
 	}
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 }
@@ -4570,6 +4616,6 @@ ath_xmit_setup_legacy(struct ath_softc *sc)
 
 	sc->sc_tx.xmit_dma_restart = ath_legacy_tx_dma_restart;
 	sc->sc_tx.xmit_handoff = ath_legacy_xmit_handoff;
-	sc->sc_tx.xmit_processq = ath_legacy_tx_processq;
-	sc->sc_tx.xmit_drainq = ath_legacy_tx_draintxq;
+
+	sc->sc_tx.xmit_drain = ath_legacy_tx_drain;
 }

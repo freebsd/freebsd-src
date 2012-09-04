@@ -13,22 +13,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Attributes.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Intrinsics.h"
-#include "llvm/Attributes.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Module.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/IRBuilder.h"
+#include "llvm/Target/TargetData.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 bool llvm::InlineFunction(CallInst *CI, InlineFunctionInfo &IFI,
@@ -43,10 +43,10 @@ bool llvm::InlineFunction(InvokeInst *II, InlineFunctionInfo &IFI,
 namespace {
   /// A class for recording information about inlining through an invoke.
   class InvokeInliningInfo {
-    BasicBlock *OuterResumeDest; //< Destination of the invoke's unwind.
-    BasicBlock *InnerResumeDest; //< Destination for the callee's resume.
-    LandingPadInst *CallerLPad;  //< LandingPadInst associated with the invoke.
-    PHINode *InnerEHValuesPHI;   //< PHI for EH values from landingpad insts.
+    BasicBlock *OuterResumeDest; ///< Destination of the invoke's unwind.
+    BasicBlock *InnerResumeDest; ///< Destination for the callee's resume.
+    LandingPadInst *CallerLPad;  ///< LandingPadInst associated with the invoke.
+    PHINode *InnerEHValuesPHI;   ///< PHI for EH values from landingpad insts.
     SmallVector<Value*, 8> UnwindDestPHIValues;
 
   public:

@@ -2461,11 +2461,11 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 				}
 				if (errno == EPERM) {
 					if (debug)
-						warnx("can't change attributes for %s",
-						    dirp);
+						warnx("can't change attributes for %s: %s",
+						    dirp, errmsg);
 					syslog(LOG_ERR,
-					   "can't change attributes for %s",
-					    dirp);
+					   "can't change attributes for %s: %s",
+					    dirp, errmsg);
 					ret = 1;
 					goto error_exit;
 				}

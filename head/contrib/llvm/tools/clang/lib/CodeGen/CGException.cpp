@@ -126,7 +126,7 @@ static llvm::Constant *getTerminateFn(CodeGenFunction &CGF) {
   if (CGF.getLangOpts().CPlusPlus)
     name = "_ZSt9terminatev"; // FIXME: mangling!
   else if (CGF.getLangOpts().ObjC1 &&
-           CGF.CGM.getCodeGenOpts().ObjCRuntimeHasTerminate)
+           CGF.getLangOpts().ObjCRuntime.hasTerminate())
     name = "objc_terminate";
   else
     name = "abort";
@@ -180,12 +180,18 @@ static const EHPersonality &getCPersonality(const LangOptions &L) {
 }
 
 static const EHPersonality &getObjCPersonality(const LangOptions &L) {
-  if (L.NeXTRuntime) {
-    if (L.ObjCNonFragileABI) return EHPersonality::NeXT_ObjC;
-    else return getCPersonality(L);
-  } else {
+  switch (L.ObjCRuntime.getKind()) {
+  case ObjCRuntime::FragileMacOSX:
+    return getCPersonality(L);
+  case ObjCRuntime::MacOSX:
+  case ObjCRuntime::iOS:
+    return EHPersonality::NeXT_ObjC;
+  case ObjCRuntime::GNUstep:
+  case ObjCRuntime::GCC:
+  case ObjCRuntime::ObjFW:
     return EHPersonality::GNU_ObjC;
   }
+  llvm_unreachable("bad runtime kind");
 }
 
 static const EHPersonality &getCXXPersonality(const LangOptions &L) {
@@ -198,22 +204,28 @@ static const EHPersonality &getCXXPersonality(const LangOptions &L) {
 /// Determines the personality function to use when both C++
 /// and Objective-C exceptions are being caught.
 static const EHPersonality &getObjCXXPersonality(const LangOptions &L) {
+  switch (L.ObjCRuntime.getKind()) {
   // The ObjC personality defers to the C++ personality for non-ObjC
   // handlers.  Unlike the C++ case, we use the same personality
   // function on targets using (backend-driven) SJLJ EH.
-  if (L.NeXTRuntime) {
-    if (L.ObjCNonFragileABI)
-      return EHPersonality::NeXT_ObjC;
+  case ObjCRuntime::MacOSX:
+  case ObjCRuntime::iOS:
+    return EHPersonality::NeXT_ObjC;
 
-    // In the fragile ABI, just use C++ exception handling and hope
-    // they're not doing crazy exception mixing.
-    else
-      return getCXXPersonality(L);
-  }
+  // In the fragile ABI, just use C++ exception handling and hope
+  // they're not doing crazy exception mixing.
+  case ObjCRuntime::FragileMacOSX:
+    return getCXXPersonality(L);
 
-  // The GNU runtime's personality function inherently doesn't support
+  // The GCC runtime's personality function inherently doesn't support
   // mixed EH.  Use the C++ personality just to avoid returning null.
-  return EHPersonality::GNU_ObjCXX;
+  case ObjCRuntime::GCC:
+  case ObjCRuntime::ObjFW: // XXX: this will change soon
+    return EHPersonality::GNU_ObjC;
+  case ObjCRuntime::GNUstep:
+    return EHPersonality::GNU_ObjCXX;
+  }
+  llvm_unreachable("bad runtime kind");
 }
 
 const EHPersonality &EHPersonality::get(const LangOptions &L) {
@@ -1127,14 +1139,6 @@ static void BeginCatch(CodeGenFunction &CGF, const CXXCatchStmt *S) {
   CGF.EmitAutoVarCleanups(var);
 }
 
-namespace {
-  struct CallRethrow : EHScopeStack::Cleanup {
-    void Emit(CodeGenFunction &CGF, Flags flags) {
-      CGF.EmitCallOrInvoke(getReThrowFn(CGF));
-    }
-  };
-}
-
 /// Emit the structure of the dispatch block for the given catch scope.
 /// It is an invariant that the dispatch block already exists.
 static void emitCatchDispatchBlock(CodeGenFunction &CGF,
@@ -1246,11 +1250,12 @@ void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
   if (HaveInsertPoint())
     Builder.CreateBr(ContBB);
 
-  // Determine if we need an implicit rethrow for all these catch handlers.
-  bool ImplicitRethrow = false;
+  // Determine if we need an implicit rethrow for all these catch handlers;
+  // see the comment below.
+  bool doImplicitRethrow = false;
   if (IsFnTryBlock)
-    ImplicitRethrow = isa<CXXDestructorDecl>(CurCodeDecl) ||
-                      isa<CXXConstructorDecl>(CurCodeDecl);
+    doImplicitRethrow = isa<CXXDestructorDecl>(CurCodeDecl) ||
+                        isa<CXXConstructorDecl>(CurCodeDecl);
 
   // Perversely, we emit the handlers backwards precisely because we
   // want them to appear in source order.  In all of these cases, the
@@ -1273,14 +1278,23 @@ void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
     // Initialize the catch variable and set up the cleanups.
     BeginCatch(*this, C);
 
-    // If there's an implicit rethrow, push a normal "cleanup" to call
-    // _cxa_rethrow.  This needs to happen before __cxa_end_catch is
-    // called, and so it is pushed after BeginCatch.
-    if (ImplicitRethrow)
-      EHStack.pushCleanup<CallRethrow>(NormalCleanup);
-
     // Perform the body of the catch.
     EmitStmt(C->getHandlerBlock());
+
+    // [except.handle]p11:
+    //   The currently handled exception is rethrown if control
+    //   reaches the end of a handler of the function-try-block of a
+    //   constructor or destructor.
+
+    // It is important that we only do this on fallthrough and not on
+    // return.  Note that it's illegal to put a return in a
+    // constructor function-try-block's catch handler (p14), so this
+    // really only applies to destructors.
+    if (doImplicitRethrow && HaveInsertPoint()) {
+      EmitCallOrInvoke(getReThrowFn(*this));
+      Builder.CreateUnreachable();
+      Builder.ClearInsertionPoint();
+    }
 
     // Fall out through the catch cleanups.
     CatchScope.ForceCleanup();

@@ -215,7 +215,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
 
   // If this is a function-like macro, read the arguments.
   if (MI->isFunctionLike()) {
-    // C99 6.10.3p10: If the preprocessing token immediately after the the macro
+    // C99 6.10.3p10: If the preprocessing token immediately after the macro
     // name isn't a '(', this macro should not be expanded.
     if (!isNextPPTokenLParen())
       return true;
@@ -242,9 +242,27 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
 
   // Remember where the token is expanded.
   SourceLocation ExpandLoc = Identifier.getLocation();
+  SourceRange ExpansionRange(ExpandLoc, ExpansionEnd);
 
-  if (Callbacks) Callbacks->MacroExpands(Identifier, MI,
-                                         SourceRange(ExpandLoc, ExpansionEnd));
+  if (Callbacks) {
+    if (InMacroArgs) {
+      // We can have macro expansion inside a conditional directive while
+      // reading the function macro arguments. To ensure, in that case, that
+      // MacroExpands callbacks still happen in source order, queue this
+      // callback to have it happen after the function macro callback.
+      DelayedMacroExpandsCallbacks.push_back(
+                              MacroExpandsInfo(Identifier, MI, ExpansionRange));
+    } else {
+      Callbacks->MacroExpands(Identifier, MI, ExpansionRange);
+      if (!DelayedMacroExpandsCallbacks.empty()) {
+        for (unsigned i=0, e = DelayedMacroExpandsCallbacks.size(); i!=e; ++i) {
+          MacroExpandsInfo &Info = DelayedMacroExpandsCallbacks[i];
+          Callbacks->MacroExpands(Info.Tok, Info.MI, Info.Range);
+        }
+        DelayedMacroExpandsCallbacks.clear();
+      }
+    }
+  }
   
   // If we started lexing a macro, enter the macro expansion body.
 
@@ -469,10 +487,12 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
     } else if (MI->isVariadic() &&
                (NumActuals+1 == MinArgsExpected ||  // A(x, ...) -> A(X)
                 (NumActuals == 0 && MinArgsExpected == 2))) {// A(x,...) -> A()
-      // Varargs where the named vararg parameter is missing: ok as extension.
-      // #define A(x, ...)
-      // A("blah")
+      // Varargs where the named vararg parameter is missing: OK as extension.
+      //   #define A(x, ...)
+      //   A("blah")
       Diag(Tok, diag::ext_missing_varargs_arg);
+      Diag(MI->getDefinitionLoc(), diag::note_macro_here)
+        << MacroName.getIdentifierInfo();
 
       // Remember this occurred, allowing us to elide the comma when used for
       // cases like:
@@ -599,6 +619,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("address_sanitizer", LangOpts.AddressSanitizer)
            .Case("attribute_analyzer_noreturn", true)
            .Case("attribute_availability", true)
+           .Case("attribute_availability_with_message", true)
            .Case("attribute_cf_returns_not_retained", true)
            .Case("attribute_cf_returns_retained", true)
            .Case("attribute_deprecated_with_message", true)
@@ -612,6 +633,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("attribute_objc_method_family", true)
            .Case("attribute_overloadable", true)
            .Case("attribute_unavailable_with_message", true)
+           .Case("attribute_unused_on_fields", true)
            .Case("blocks", LangOpts.Blocks)
            .Case("cxx_exceptions", LangOpts.Exceptions)
            .Case("cxx_rtti", LangOpts.RTTI)
@@ -625,15 +647,16 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("objc_fixed_enum", LangOpts.ObjC2)
            .Case("objc_instancetype", LangOpts.ObjC2)
            .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
-           .Case("objc_nonfragile_abi", LangOpts.ObjCNonFragileABI)
-           .Case("objc_weak_class", LangOpts.ObjCNonFragileABI)
+           .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
+           .Case("objc_weak_class", LangOpts.ObjCRuntime.hasWeakClassImport())
            .Case("ownership_holds", true)
            .Case("ownership_returns", true)
            .Case("ownership_takes", true)
            .Case("objc_bool", true)
-           .Case("objc_subscripting", LangOpts.ObjCNonFragileABI)
+           .Case("objc_subscripting", LangOpts.ObjCRuntime.isNonFragile())
            .Case("objc_array_literals", LangOpts.ObjC2)
            .Case("objc_dictionary_literals", LangOpts.ObjC2)
+           .Case("objc_boxed_expressions", LangOpts.ObjC2)
            .Case("arc_cf_code_audited", true)
            // C11 features
            .Case("c_alignas", LangOpts.C11)
@@ -772,6 +795,7 @@ static bool HasAttribute(const IdentifierInfo *II) {
   if (Name.startswith("__") && Name.endswith("__") && Name.size() >= 4)
     Name = Name.substr(2, Name.size() - 4);
 
+  // FIXME: Do we need to handle namespaces here?
   return llvm::StringSwitch<bool>(Name)
 #include "clang/Lex/AttrSpellings.inc"
         .Default(false);
@@ -1030,7 +1054,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     if (Tok.is(tok::l_paren)) {
       // Read the identifier
       Lex(Tok);
-      if (Tok.is(tok::identifier)) {
+      if (Tok.is(tok::identifier) || Tok.is(tok::kw_const)) {
         FeatureII = Tok.getIdentifierInfo();
 
         // Read the ')'.

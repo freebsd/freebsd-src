@@ -12,15 +12,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "Unix.h"
+#include "llvm/ADT/Hashing.h"
+#include "llvm/Support/TimeValue.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
-// DragonFly BSD has deprecated <malloc.h> for <stdlib.h> instead,
-//  Unix.h includes this for us already.
-#if defined(HAVE_MALLOC_H) && !defined(__DragonFly__)
+// DragonFlyBSD, OpenBSD, and Bitrig have deprecated <malloc.h> for
+// <stdlib.h> instead. Unix.h includes this for us already.
+#if defined(HAVE_MALLOC_H) && !defined(__DragonFly__) && \
+    !defined(__OpenBSD__) && !defined(__Bitrig__)
 #include <malloc.h>
 #endif
 #ifdef HAVE_MALLOC_MALLOC_H
@@ -247,16 +250,18 @@ static bool terminalHasColors() {
   return false;
 }
 
+bool Process::FileDescriptorHasColors(int fd) {
+  // A file descriptor has colors if it is displayed and the terminal has
+  // colors.
+  return FileDescriptorIsDisplayed(fd) && terminalHasColors();
+}
+
 bool Process::StandardOutHasColors() {
-  if (!StandardOutIsDisplayed())
-    return false;
-  return terminalHasColors();
+  return FileDescriptorHasColors(STDOUT_FILENO);
 }
 
 bool Process::StandardErrHasColors() {
-  if (!StandardErrIsDisplayed())
-    return false;
-  return terminalHasColors();
+  return FileDescriptorHasColors(STDERR_FILENO);
 }
 
 bool Process::ColorNeedsFlush() {
@@ -296,4 +301,34 @@ const char *Process::OutputReverse() {
 
 const char *Process::ResetColor() {
   return "\033[0m";
+}
+
+#if !defined(HAVE_ARC4RANDOM)
+static unsigned GetRandomNumberSeed() {
+  // Attempt to get the initial seed from /dev/urandom, if possible.
+  if (FILE *RandomSource = ::fopen("/dev/urandom", "r")) {
+    unsigned seed;
+    int count = ::fread((void *)&seed, sizeof(seed), 1, RandomSource);
+    ::fclose(RandomSource);
+
+    // Return the seed if the read was successful.
+    if (count == 1)
+      return seed;
+  }
+
+  // Otherwise, swizzle the current time and the process ID to form a reasonable
+  // seed.
+  TimeValue Now = llvm::TimeValue::now();
+  return hash_combine(Now.seconds(), Now.nanoseconds(), ::getpid());
+}
+#endif
+
+unsigned llvm::sys::Process::GetRandomNumber() {
+#if defined(HAVE_ARC4RANDOM)
+  return arc4random();
+#else
+  static int x = (::srand(GetRandomNumberSeed()), 0);
+  (void)x;
+  return ::rand();
+#endif
 }

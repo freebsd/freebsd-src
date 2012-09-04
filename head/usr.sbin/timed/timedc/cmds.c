@@ -131,7 +131,7 @@ daydiff(hostname)
 			}
 			sec -= BU;
 
-			(void)gettimeofday(&now, (struct timezone*)0);
+			(void)gettimeofday(&now, NULL);
 			return (sec - now.tv_sec);
 		}
 	}

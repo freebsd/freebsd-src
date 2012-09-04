@@ -423,7 +423,6 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	    pp->sectorsize;
 	entry->gpe_pp->mediasize -= entry->gpe_offset - offset;
 	entry->gpe_pp->sectorsize = pp->sectorsize;
-	entry->gpe_pp->flags = pp->flags & G_PF_CANDELETE;
 	entry->gpe_pp->stripesize = pp->stripesize;
 	entry->gpe_pp->stripeoffset = pp->stripeoffset + entry->gpe_offset;
 	if (pp->stripesize > 0)

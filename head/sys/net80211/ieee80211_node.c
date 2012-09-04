@@ -2156,30 +2156,123 @@ ieee80211_node_timeout(void *arg)
 		ieee80211_node_timeout, ic);
 }
 
+/*
+ * Iterate over the node table and return an array of ref'ed nodes.
+ *
+ * This is separated out from calling the actual node function so that
+ * no LORs will occur.
+ *
+ * If there are too many nodes (ie, the number of nodes doesn't fit
+ * within 'max_aid' entries) then the node references will be freed
+ * and an error will be returned.
+ *
+ * The responsibility of allocating and freeing "ni_arr" is up to
+ * the caller.
+ */
+int
+ieee80211_iterate_nt(struct ieee80211_node_table *nt,
+    struct ieee80211_node **ni_arr, uint16_t max_aid)
+{
+	u_int gen;
+	int i, j, ret;
+	struct ieee80211_node *ni;
+
+	IEEE80211_NODE_ITERATE_LOCK(nt);
+	IEEE80211_NODE_LOCK(nt);
+
+	gen = ++nt->nt_scangen;
+	i = ret = 0;
+
+	/*
+	 * We simply assume here that since the node
+	 * scan generation doesn't change (as
+	 * we are holding both the node table and
+	 * node table iteration locks), we can simply
+	 * assign it to the node here.
+	 */
+	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
+		if (i >= max_aid) {
+			ret = E2BIG;
+			if_printf(nt->nt_ic->ic_ifp,
+			    "Node array overflow: max=%u", max_aid);
+			break;
+		}
+		ni_arr[i] = ieee80211_ref_node(ni);
+		ni_arr[i]->ni_scangen = gen;
+		i++;
+	}
+
+	/*
+	 * It's safe to unlock here.
+	 *
+	 * If we're successful, the list is returned.
+	 * If we're unsuccessful, the list is ignored
+	 * and we remove our references.
+	 *
+	 * This avoids any potential LOR with
+	 * ieee80211_free_node().
+	 */
+	IEEE80211_NODE_UNLOCK(nt);
+	IEEE80211_NODE_ITERATE_UNLOCK(nt);
+
+	/*
+	 * If ret is non-zero, we hit some kind of error.
+	 * Rather than walking some nodes, we'll walk none
+	 * of them.
+	 */
+	if (ret) {
+		for (j = 0; j < i; j++) {
+			/* ieee80211_free_node() locks by itself */
+			ieee80211_free_node(ni_arr[j]);
+		}
+	}
+
+	return (ret);
+}
+
+/*
+ * Just a wrapper, so we don't have to change every ieee80211_iterate_nodes()
+ * reference in the source.
+ *
+ * Note that this fetches 'max_aid' from the first VAP, rather than finding
+ * the largest max_aid from all VAPs.
+ */
 void
 ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 	ieee80211_iter_func *f, void *arg)
 {
-	struct ieee80211_node *ni;
-	u_int gen;
+	struct ieee80211_node **ni_arr;
+	size_t size;
+	int i;
+	uint16_t max_aid;
 
-	IEEE80211_NODE_ITERATE_LOCK(nt);
-	gen = ++nt->nt_scangen;
-restart:
-	IEEE80211_NODE_LOCK(nt);
-	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-		if (ni->ni_scangen != gen) {
-			ni->ni_scangen = gen;
-			(void) ieee80211_ref_node(ni);
-			IEEE80211_NODE_UNLOCK(nt);
-			(*f)(arg, ni);
-			ieee80211_free_node(ni);
-			goto restart;
-		}
+	max_aid = TAILQ_FIRST(&nt->nt_ic->ic_vaps)->iv_max_aid;
+	size = max_aid * sizeof(struct ieee80211_node *);
+	ni_arr = (struct ieee80211_node **) malloc(size, M_80211_NODE,
+	    M_NOWAIT | M_ZERO);
+	if (ni_arr == NULL)
+		return;
+
+	/*
+	 * If this fails, the node table won't have any
+	 * valid entries - ieee80211_iterate_nt() frees
+	 * the references to them.  So don't try walking
+	 * the table; just skip to the end and free the
+	 * temporary memory.
+	 */
+	if (ieee80211_iterate_nt(nt, ni_arr, max_aid) != 0)
+		goto done;
+
+	for (i = 0; i < max_aid; i++) {
+		if (ni_arr[i] == NULL)	/* end of the list */
+			break;
+		(*f)(arg, ni_arr[i]);
+		/* ieee80211_free_node() locks by itself */
+		ieee80211_free_node(ni_arr[i]);
 	}
-	IEEE80211_NODE_UNLOCK(nt);
 
-	IEEE80211_NODE_ITERATE_UNLOCK(nt);
+done:
+	free(ni_arr, M_80211_NODE);
 }
 
 void

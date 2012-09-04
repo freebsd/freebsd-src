@@ -38,7 +38,7 @@ namespace CodeGen {
   class CodeGenFunction;
   class CodeGenModule;
 
-/// Implements C++ ABI-specific code generation functions.
+/// \brief Implements C++ ABI-specific code generation functions.
 class CGCXXABI {
 protected:
   CodeGenModule &CGM;
@@ -70,6 +70,9 @@ protected:
   void EmitThisParam(CodeGenFunction &CGF);
 
   ASTContext &getContext() const { return CGM.getContext(); }
+
+  virtual bool requiresArrayCookie(const CXXDeleteExpr *E, QualType eltType);
+  virtual bool requiresArrayCookie(const CXXNewExpr *E);
 
 public:
 
@@ -190,18 +193,20 @@ public:
   virtual void EmitReturnFromThunk(CodeGenFunction &CGF,
                                    RValue RV, QualType ResultType);
 
+  /// Gets the pure virtual member call function.
+  virtual StringRef GetPureVirtualCallName() = 0;
+
   /**************************** Array cookies ******************************/
 
   /// Returns the extra size required in order to store the array
-  /// cookie for the given type.  May return 0 to indicate that no
+  /// cookie for the given new-expression.  May return 0 to indicate that no
   /// array cookie is required.
   ///
   /// Several cases are filtered out before this method is called:
   ///   - non-array allocations never need a cookie
-  ///   - calls to ::operator new(size_t, void*) never need a cookie
+  ///   - calls to \::operator new(size_t, void*) never need a cookie
   ///
-  /// \param ElementType - the allocated type of the expression,
-  ///   i.e. the pointee type of the expression result type
+  /// \param expr - the new-expression being allocated.
   virtual CharUnits GetArrayCookieSize(const CXXNewExpr *expr);
 
   /// Initialize the array cookie for the given allocation.
@@ -209,7 +214,8 @@ public:
   /// \param NewPtr - a char* which is the presumed-non-null
   ///   return value of the allocation function
   /// \param NumElements - the computed number of elements,
-  ///   potentially collapsed from the multidimensional array case
+  ///   potentially collapsed from the multidimensional array case;
+  ///   always a size_t
   /// \param ElementType - the base element allocated type,
   ///   i.e. the allocated type after stripping all array types
   virtual llvm::Value *InitializeArrayCookie(CodeGenFunction &CGF,
@@ -236,6 +242,27 @@ public:
                                QualType ElementType, llvm::Value *&NumElements,
                                llvm::Value *&AllocPtr, CharUnits &CookieSize);
 
+protected:
+  /// Returns the extra size required in order to store the array
+  /// cookie for the given type.  Assumes that an array cookie is
+  /// required.
+  virtual CharUnits getArrayCookieSizeImpl(QualType elementType);
+
+  /// Reads the array cookie for an allocation which is known to have one.
+  /// This is called by the standard implementation of ReadArrayCookie.
+  ///
+  /// \param ptr - a pointer to the allocation made for an array, as a char*
+  /// \param cookieSize - the computed cookie size of an array
+  ///
+  /// Other parameters are as above.
+  ///
+  /// \return a size_t
+  virtual llvm::Value *readArrayCookieImpl(CodeGenFunction &IGF,
+                                           llvm::Value *ptr,
+                                           CharUnits cookieSize);
+
+public:
+
   /*************************** Static local guards ****************************/
 
   /// Emits the guarded initializer and destructor setup for the given
@@ -249,6 +276,18 @@ public:
   virtual void EmitGuardedInit(CodeGenFunction &CGF, const VarDecl &D,
                                llvm::GlobalVariable *DeclPtr, bool PerformInit);
 
+  /// Emit code to force the execution of a destructor during global
+  /// teardown.  The default implementation of this uses atexit.
+  ///
+  /// \param dtor - a function taking a single pointer argument
+  /// \param addr - a pointer to pass to the destructor function.
+  virtual void registerGlobalDtor(CodeGenFunction &CGF, llvm::Constant *dtor,
+                                  llvm::Constant *addr);
+
+  /***************************** Virtual Tables *******************************/
+
+  /// Generates and emits the virtual tables for a class.
+  virtual void EmitVTables(const CXXRecordDecl *Class) = 0;
 };
 
 /// Creates an instance of a C++ ABI class.

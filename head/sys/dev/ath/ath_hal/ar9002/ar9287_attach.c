@@ -137,6 +137,13 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 
 	ar5416InitState(AH5416(ah), devid, sc, st, sh, status);
 
+	if (eepromdata != AH_NULL) {
+		AH_PRIVATE(ah)->ah_eepromRead = ath_hal_EepromDataRead;
+		AH_PRIVATE(ah)->ah_eepromWrite = NULL;
+		ah->ah_eepromdata = eepromdata;
+	}
+
+
 	/* XXX override with 9280 specific state */
 	/* override 5416 methods for our needs */
 	AH5416(ah)->ah_initPLL = ar9280InitPLL;

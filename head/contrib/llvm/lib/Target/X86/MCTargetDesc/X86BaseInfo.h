@@ -94,39 +94,82 @@ namespace X86II {
     MO_PLT,
 
     /// MO_TLSGD - On a symbol operand this indicates that the immediate is
-    /// some TLS offset.
+    /// the offset of the GOT entry with the TLS index structure that contains
+    /// the module number and variable offset for the symbol. Used in the
+    /// general dynamic TLS access model.
     ///
     /// See 'ELF Handling for Thread-Local Storage' for more details.
     ///    SYMBOL_LABEL @TLSGD
     MO_TLSGD,
 
+    /// MO_TLSLD - On a symbol operand this indicates that the immediate is
+    /// the offset of the GOT entry with the TLS index for the module that
+    /// contains the symbol. When this index is passed to a call to to
+    /// __tls_get_addr, the function will return the base address of the TLS
+    /// block for the symbol. Used in the x86-64 local dynamic TLS access model.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details.
+    ///    SYMBOL_LABEL @TLSLD
+    MO_TLSLD,
+
+    /// MO_TLSLDM - On a symbol operand this indicates that the immediate is
+    /// the offset of the GOT entry with the TLS index for the module that
+    /// contains the symbol. When this index is passed to a call to to
+    /// ___tls_get_addr, the function will return the base address of the TLS
+    /// block for the symbol. Used in the IA32 local dynamic TLS access model.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details.
+    ///    SYMBOL_LABEL @TLSLDM
+    MO_TLSLDM,
+
     /// MO_GOTTPOFF - On a symbol operand this indicates that the immediate is
-    /// some TLS offset.
+    /// the offset of the GOT entry with the thread-pointer offset for the
+    /// symbol. Used in the x86-64 initial exec TLS access model.
     ///
     /// See 'ELF Handling for Thread-Local Storage' for more details.
     ///    SYMBOL_LABEL @GOTTPOFF
     MO_GOTTPOFF,
 
     /// MO_INDNTPOFF - On a symbol operand this indicates that the immediate is
-    /// some TLS offset.
+    /// the absolute address of the GOT entry with the negative thread-pointer
+    /// offset for the symbol. Used in the non-PIC IA32 initial exec TLS access
+    /// model.
     ///
     /// See 'ELF Handling for Thread-Local Storage' for more details.
     ///    SYMBOL_LABEL @INDNTPOFF
     MO_INDNTPOFF,
 
     /// MO_TPOFF - On a symbol operand this indicates that the immediate is
-    /// some TLS offset.
+    /// the thread-pointer offset for the symbol. Used in the x86-64 local
+    /// exec TLS access model.
     ///
     /// See 'ELF Handling for Thread-Local Storage' for more details.
     ///    SYMBOL_LABEL @TPOFF
     MO_TPOFF,
 
+    /// MO_DTPOFF - On a symbol operand this indicates that the immediate is
+    /// the offset of the GOT entry with the TLS offset of the symbol. Used
+    /// in the local dynamic TLS access model.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details.
+    ///    SYMBOL_LABEL @DTPOFF
+    MO_DTPOFF,
+
     /// MO_NTPOFF - On a symbol operand this indicates that the immediate is
-    /// some TLS offset.
+    /// the negative thread-pointer offset for the symbol. Used in the IA32
+    /// local exec TLS access model.
     ///
     /// See 'ELF Handling for Thread-Local Storage' for more details.
     ///    SYMBOL_LABEL @NTPOFF
     MO_NTPOFF,
+
+    /// MO_GOTNTPOFF - On a symbol operand this indicates that the immediate is
+    /// the offset of the GOT entry with the negative thread-pointer offset for
+    /// the symbol. Used in the PIC IA32 initial exec TLS access model.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details.
+    ///    SYMBOL_LABEL @GOTNTPOFF
+    MO_GOTNTPOFF,
 
     /// MO_DLLIMPORT - On a symbol operand "FOO", this indicates that the
     /// reference is actually to the "__imp_FOO" symbol.  This is used for
@@ -438,17 +481,17 @@ namespace X86II {
   // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
   // specified machine instruction.
   //
-  static inline unsigned char getBaseOpcodeFor(uint64_t TSFlags) {
+  inline unsigned char getBaseOpcodeFor(uint64_t TSFlags) {
     return TSFlags >> X86II::OpcodeShift;
   }
 
-  static inline bool hasImm(uint64_t TSFlags) {
+  inline bool hasImm(uint64_t TSFlags) {
     return (TSFlags & X86II::ImmMask) != 0;
   }
 
   /// getSizeOfImm - Decode the "size of immediate" field from the TSFlags field
   /// of the specified instruction.
-  static inline unsigned getSizeOfImm(uint64_t TSFlags) {
+  inline unsigned getSizeOfImm(uint64_t TSFlags) {
     switch (TSFlags & X86II::ImmMask) {
     default: llvm_unreachable("Unknown immediate size");
     case X86II::Imm8:
@@ -463,7 +506,7 @@ namespace X86II {
 
   /// isImmPCRel - Return true if the immediate of the specified instruction's
   /// TSFlags indicates that it is pc relative.
-  static inline unsigned isImmPCRel(uint64_t TSFlags) {
+  inline unsigned isImmPCRel(uint64_t TSFlags) {
     switch (TSFlags & X86II::ImmMask) {
     default: llvm_unreachable("Unknown immediate size");
     case X86II::Imm8PCRel:
@@ -486,9 +529,11 @@ namespace X86II {
   /// is duplicated in the MCInst (e.g. "EAX = addl EAX, [mem]") it is only
   /// counted as one operand.
   ///
-  static inline int getMemoryOperandNo(uint64_t TSFlags, unsigned Opcode) {
+  inline int getMemoryOperandNo(uint64_t TSFlags, unsigned Opcode) {
     switch (TSFlags & X86II::FormMask) {
-    case X86II::MRMInitReg:  llvm_unreachable("FIXME: Remove this form");
+    case X86II::MRMInitReg:
+        // FIXME: Remove this form.
+        return -1;
     default: llvm_unreachable("Unknown FormMask value in getMemoryOperandNo!");
     case X86II::Pseudo:
     case X86II::RawFrm:
@@ -546,7 +591,7 @@ namespace X86II {
 
   /// isX86_64ExtendedReg - Is the MachineOperand a x86-64 extended (r8 or
   /// higher) register?  e.g. r8, xmm8, xmm13, etc.
-  static inline bool isX86_64ExtendedReg(unsigned RegNo) {
+  inline bool isX86_64ExtendedReg(unsigned RegNo) {
     switch (RegNo) {
     default: break;
     case X86::R8:    case X86::R9:    case X86::R10:   case X86::R11:
@@ -568,7 +613,7 @@ namespace X86II {
     return false;
   }
   
-  static inline bool isX86_64NonExtLowByteReg(unsigned reg) {
+  inline bool isX86_64NonExtLowByteReg(unsigned reg) {
     return (reg == X86::SPL || reg == X86::BPL ||
             reg == X86::SIL || reg == X86::DIL);
   }

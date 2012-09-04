@@ -325,11 +325,12 @@ void html::AddHeaderFooterInternalBuiltinCSS(Rewriter& R, FileID FID,
       " .msgControl { background-color:#bbbbbb; color:#000000 }\n"
       " .mrange { background-color:#dfddf3 }\n"
       " .mrange { border-bottom:1px solid #6F9DBE }\n"
-      " .PathIndex { font-weight: bold; padding:0px 5px 0px 5px; "
+      " .PathIndex { font-weight: bold; padding:0px 5px; "
         "margin-right:5px; }\n"
       " .PathIndex { -webkit-border-radius:8px }\n"
       " .PathIndexEvent { background-color:#bfba87 }\n"
       " .PathIndexControl { background-color:#8c8c8c }\n"
+      " .PathNav a { text-decoration:none; font-size: larger }\n"
       " .CodeInsertionHint { font-weight: bold; background-color: #10dd10 }\n"
       " .CodeRemovalHint { background-color:#de1010 }\n"
       " .CodeRemovalHint { border-bottom:1px solid #6F9DBE }\n"
@@ -495,6 +496,11 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
   // Inform the preprocessor that we don't want comments.
   TmpPP.SetCommentRetentionState(false, false);
 
+  // We don't want pragmas either. Although we filtered out #pragma, removing
+  // _Pragma and __pragma is much harder.
+  bool PragmasPreviouslyEnabled = TmpPP.getPragmasEnabled();
+  TmpPP.setPragmasEnabled(false);
+
   // Enter the tokens we just lexed.  This will cause them to be macro expanded
   // but won't enter sub-files (because we removed #'s).
   TmpPP.EnterTokenStream(&TokenStream[0], TokenStream.size(), false, false);
@@ -571,6 +577,7 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
                    "<span class='macro'>", Expansion.c_str());
   }
 
-  // Restore diagnostics object back to its own thing.
+  // Restore the preprocessor's old state.
   TmpPP.setDiagnostics(*OldDiags);
+  TmpPP.setPragmasEnabled(PragmasPreviouslyEnabled);
 }

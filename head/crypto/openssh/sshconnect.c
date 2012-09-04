@@ -582,10 +582,12 @@ ssh_exchange_identification(int timeout_ms)
 		    (options.protocol & SSH_PROTO_2) ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 		    remote_major);
 	/* Send our own protocol version identification. */
-	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s%s",
+	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s%s%s%s%s",
 	    compat20 ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 	    compat20 ? PROTOCOL_MINOR_2 : minor1,
-	    ssh_version_get(options.hpn_disabled), compat20 ? "\r\n" : "\n");
+	    SSH_VERSION, options.hpn_disabled ? "" : SSH_VERSION_HPN,
+	    *options.version_addendum == '\0' ? "" : " ",
+	    options.version_addendum, compat20 ? "\r\n" : "\n");
 	if (roaming_atomicio(vwrite, connection_out, buf, strlen(buf))
 	    != strlen(buf))
 		fatal("write: %.100s", strerror(errno));

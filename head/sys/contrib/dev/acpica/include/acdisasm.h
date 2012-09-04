@@ -235,6 +235,13 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBert[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBgrt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Device[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Addr[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Size[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Name[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbgp[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmarHdr[];
@@ -393,6 +400,14 @@ AcpiDmDumpAsf (
 
 void
 AcpiDmDumpCpep (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpCsrt (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpDbg2 (
     ACPI_TABLE_HEADER       *Table);
 
 void
@@ -611,6 +626,10 @@ AcpiDmIsUnicodeBuffer (
 
 BOOLEAN
 AcpiDmIsStringBuffer (
+    ACPI_PARSE_OBJECT       *Op);
+
+BOOLEAN
+AcpiDmIsPldBuffer (
     ACPI_PARSE_OBJECT       *Op);
 
 

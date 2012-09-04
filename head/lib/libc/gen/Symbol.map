@@ -382,6 +382,7 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	clock_getcpuclockid;
 	dirfd;
 	 fdlopen;
 	__FreeBSD_libc_enter_restricted_mode;

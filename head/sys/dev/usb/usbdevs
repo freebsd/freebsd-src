@@ -687,6 +687,7 @@ vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor BAYER		0x1a79	Bayer
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor CORSAIR		0x1b1c	Corsair
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor OVISLINK		0x1b75	OvisLink
 vendor TML		0x1b91	The Mobility Lab
@@ -1117,6 +1118,7 @@ product ASUS A730W		0x4202	ASUS MyPal A730W
 product ASUS P535		0x420f	ASUS P535 PDA
 product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
 product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
+product ASUS USB_N53		0x179d	ASUS Black Diamond Dual Band USB-N53
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
@@ -1372,6 +1374,9 @@ product COREGA CGWLUSB300GNM	0x0042	CG-WLUSB300GNM
 
 product COREGA WLUSB_11_STICK	0x7613	WLAN USB Stick 11
 product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
+
+/* Corsair products */
+product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
@@ -1694,6 +1699,7 @@ product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
+product FTDI SERIAL_232RL	0x6006	FT232RL Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 product FTDI 232H		0x6014	FTDI compatible adapter
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
@@ -3855,6 +3861,7 @@ product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
 product SMC2 2514HUB		0x2514	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
+product SMC2 LAN9514_ETH	0xec00	USB/Ethernet
 
 /* SOHOware products */
 product SOHOWARE NUB100		0x9100	10/100 USB Ethernet

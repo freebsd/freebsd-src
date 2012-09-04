@@ -1074,18 +1074,16 @@ print_hssi_sigs(void)
 static void
 print_events(void)
 {
-  char *time;
-  struct timeval tv;
-  struct timezone tz;
+  const char *reset_time;
+  time_t now;
 
-  gettimeofday(&tv, &tz);
-  time = (char *)ctime((time_t *)&tv);
-  printf("Current time:\t\t%s", time);
+  now = time(NULL);
+  printf("Current time:\t\t%s", ctime(&now));
   if (status.cntrs.reset_time.tv_sec < 1000)
-    time = "Never\n";
+    reset_time = "Never\n";
   else
-    time = (char *)ctime((time_t *)&status.cntrs.reset_time.tv_sec);
-  printf("Cntrs reset:\t\t%s", time);
+    reset_time = ctime(&status.cntrs.reset_time.tv_sec);
+  printf("Cntrs reset:\t\t%s", reset_time);
 
   if (status.cntrs.ibytes)     printf("Rx bytes:\t\t%ju\n",    (uintmax_t)status.cntrs.ibytes);
   if (status.cntrs.obytes)     printf("Tx bytes:\t\t%ju\n",    (uintmax_t)status.cntrs.obytes);

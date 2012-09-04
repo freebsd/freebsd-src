@@ -420,6 +420,12 @@ public:
     return hasProperty(MCID::Bitcast, Type);
   }
 
+  /// isSelect - Return true if this instruction is a select instruction.
+  ///
+  bool isSelect(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::Select, Type);
+  }
+
   /// isNotDuplicable - Return true if this instruction cannot be safely
   /// duplicated.  For example, if the instruction has a unique labels attached
   /// to it, duplicating it would cause multiple definition errors.
@@ -633,6 +639,30 @@ public:
   bool isIdentityCopy() const {
     return isCopy() && getOperand(0).getReg() == getOperand(1).getReg() &&
       getOperand(0).getSubReg() == getOperand(1).getSubReg();
+  }
+
+  /// isTransient - Return true if this is a transient instruction that is
+  /// either very likely to be eliminated during register allocation (such as
+  /// copy-like instructions), or if this instruction doesn't have an
+  /// execution-time cost.
+  bool isTransient() const {
+    switch(getOpcode()) {
+    default: return false;
+    // Copy-like instructions are usually eliminated during register allocation.
+    case TargetOpcode::PHI:
+    case TargetOpcode::COPY:
+    case TargetOpcode::INSERT_SUBREG:
+    case TargetOpcode::SUBREG_TO_REG:
+    case TargetOpcode::REG_SEQUENCE:
+    // Pseudo-instructions that don't produce any real output.
+    case TargetOpcode::IMPLICIT_DEF:
+    case TargetOpcode::KILL:
+    case TargetOpcode::PROLOG_LABEL:
+    case TargetOpcode::EH_LABEL:
+    case TargetOpcode::GC_LABEL:
+    case TargetOpcode::DBG_VALUE:
+      return true;
+    }
   }
 
   /// getBundleSize - Return the number of instructions inside the MI bundle.
@@ -912,12 +942,12 @@ private:
   /// RemoveRegOperandsFromUseLists - Unlink all of the register operands in
   /// this instruction from their respective use lists.  This requires that the
   /// operands already be on their use lists.
-  void RemoveRegOperandsFromUseLists();
+  void RemoveRegOperandsFromUseLists(MachineRegisterInfo&);
 
   /// AddRegOperandsToUseLists - Add all of the register operands in
   /// this instruction from their respective use lists.  This requires that the
   /// operands not be on their use lists yet.
-  void AddRegOperandsToUseLists(MachineRegisterInfo &RegInfo);
+  void AddRegOperandsToUseLists(MachineRegisterInfo&);
 
   /// hasPropertyInBundle - Slow path for hasProperty when we're dealing with a
   /// bundle.

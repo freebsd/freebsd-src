@@ -71,7 +71,7 @@ static void at91_pmc_set_periph_mode(struct at91_pmc_clock *, int);
 static void at91_pmc_clock_alias(const char *name, const char *alias);
 
 static struct at91_pmc_clock slck = {
-	.name = "slck",		// 32,768 Hz slow clock
+	.name = "slck",		/* 32,768 Hz slow clock */
 	.hz = 32768,
 	.refcnt = 1,
 	.id = 0,
@@ -83,7 +83,7 @@ static struct at91_pmc_clock slck = {
  * are now created automatically. Only "system" clocks need be defined here.
  */
 static struct at91_pmc_clock main_ck = {
-	.name = "main",		// Main clock
+	.name = "main",		/* Main clock */
 	.refcnt = 0,
 	.id = 1,
 	.primary = 1,
@@ -91,7 +91,7 @@ static struct at91_pmc_clock main_ck = {
 };
 
 static struct at91_pmc_clock plla = {
-	.name = "plla",		// PLLA Clock, used for CPU clocking
+	.name = "plla",		/* PLLA Clock, used for CPU clocking */
 	.parent = &main_ck,
 	.refcnt = 1,
 	.id = 0,
@@ -101,7 +101,7 @@ static struct at91_pmc_clock plla = {
 };
 
 static struct at91_pmc_clock pllb = {
-	.name = "pllb",		// PLLB Clock, used for USB functions
+	.name = "pllb",		/* PLLB Clock, used for USB functions */
 	.parent = &main_ck,
 	.refcnt = 0,
 	.id = 0,
@@ -113,7 +113,7 @@ static struct at91_pmc_clock pllb = {
 
 /* Used by USB on at91sam9g45 */
 static struct at91_pmc_clock upll = {
-	.name = "upll",		// UTMI PLL, used for USB functions on 9G45
+	.name = "upll",		/* UTMI PLL, used for USB functions on 9G45 family */
 	.parent = &main_ck,
 	.refcnt = 0,
 	.id = 0,
@@ -138,13 +138,13 @@ static struct at91_pmc_clock uhpck = {
 };
 
 static struct at91_pmc_clock mck = {
-	.name = "mck",		// Master (Peripheral) Clock
+	.name = "mck",		/* Master (Peripheral) Clock */
 	.pmc_mask = PMC_IER_MCKRDY,
 	.refcnt = 0,
 };
 
 static struct at91_pmc_clock cpu = {
-	.name = "cpu",		// CPU Clock
+	.name = "cpu",		/* CPU Clock */
 	.parent = &plla,
 	.pmc_mask = PMC_SCER_PCK,
 	.refcnt = 0,
@@ -185,6 +185,40 @@ WR4(struct at91_pmc_softc *sc, bus_size_t off, uint32_t val)
 		*p = val;
 	} else
 		bus_write_4(sc->mem_res, off, val);
+}
+
+/*
+ * The following is unused currently since we don't ever set the PLLA
+ * frequency of the device.  If we did, we'd have to also pay attention
+ * to the ICPLLA bit in the PMC_PLLICPR register for frequencies lower
+ * than ~600MHz, which the PMC code doesn't do right now.
+ */
+uint32_t
+at91_pmc_800mhz_plla_outb(int freq)
+{
+	uint32_t outa;
+
+	/*
+	 * Set OUTA, per the data sheet.  See Table 46-16 titled
+	 * PLLA Frequency Regarding ICPLLA and OUTA in the SAM9X25 doc,
+	 * Table 46-17 in the SAM9G20 doc, or Table 46-16 in the SAM9G45 doc.
+	 * Note: the frequencies overlap by 5MHz, so we add 3 here to
+	 * center shoot the transition.
+	 */
+
+	freq /= 1000000;		/* MHz */
+	if (freq >= 800)
+		freq = 800;
+	freq += 3;			/* Allow for overlap. */
+	outa = 3 - ((freq / 50) & 3);	/* 750 / 50 = 7, see table */
+	return (1 << 29)| (outa << 14);
+}
+
+uint32_t
+at91_pmc_800mhz_pllb_outb(int freq)
+{
+
+	return (0);
 }
 
 void
@@ -329,19 +363,21 @@ at91_pmc_clock_ref(const char *name)
 			return (clock_list[i]);
 	}
 
-	//printf("at91_pmc: Warning - did not find clock '%s'", name);
 	return (NULL);
 }
 
 void
 at91_pmc_clock_deref(struct at91_pmc_clock *clk)
 {
-
+	if (clk == NULL)
+		return;
 }
 
 void
 at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 {
+	if (clk == NULL)
+		return;
 
 	/* XXX LOCKING? XXX */
 	if (clk->parent)
@@ -353,6 +389,8 @@ at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 void
 at91_pmc_clock_disable(struct at91_pmc_clock *clk)
 {
+	if (clk == NULL)
+		return;
 
 	/* XXX LOCKING? XXX */
 	if (--clk->refcnt == 0 && clk->set_mode)
@@ -510,9 +548,11 @@ at91_pmc_init_clock(void)
 	mckr = RD4(sc, PMC_MCKR);
 	main_ck.hz = main_clock;
 
-	// Note: this means outa calc code for plla never used since
-	// we never change it.  If we did, we'd also have to mind
-	// ICPLLA to get the charge pump current right.
+	/*
+	 * Note: this means outa calc code for plla never used since
+	 * we never change it.  If we did, we'd also have to mind
+	 * ICPLLA to get the charge pump current right.
+	 */
 	at91_pmc_pll_rate(&plla, RD4(sc, CKGR_PLLAR));
 
 	if (at91_cpu_is(AT91_T_SAM9G45) && (mckr & PMC_MCKR_PLLADIV2))

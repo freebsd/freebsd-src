@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.153 2011/08/02 01:22:11 djm Exp $
+.\" $OpenBSD: ssh_config.5,v 1.157 2012/06/29 13:57:25 naddy Exp $
 .\" $FreeBSD$
-.Dd August 2, 2011
+.Dd June 29 2012
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -613,7 +613,7 @@ offers many different identities.
 The default is
 .Dq no .
 .It Cm IdentityFile
-Specifies a file from which the user's DSA, ECDSA or DSA authentication
+Specifies a file from which the user's DSA, ECDSA or RSA authentication
 identity is read.
 The default is
 .Pa ~/.ssh/identity
@@ -659,7 +659,7 @@ Accepted values are
 .Dq af11 ,
 .Dq af12 ,
 .Dq af13 ,
-.Dq af14 ,
+.Dq af21 ,
 .Dq af22 ,
 .Dq af23 ,
 .Dq af31 ,
@@ -794,9 +794,8 @@ Multiple algorithms must be comma-separated.
 The default is:
 .Bd -literal -offset indent
 hmac-md5,hmac-sha1,umac-64@openssh.com,
-hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
-hmac-sha2-256,hmac-sha2-256-96,hmac-sha2-512,
-hmac-sha2-512-96
+hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
+hmac-sha1-96,hmac-md5-96
 .Ed
 .It Cm NoHostAuthenticationForLocalhost
 This option can be used if the home directory is shared across machines.
@@ -1217,7 +1216,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20111001 .
+.Dq FreeBSD-20120901 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,

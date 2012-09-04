@@ -1210,7 +1210,13 @@ uss820dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+uss820dci_xfer_stall(struct usb_xfer *xfer)
+{
+	uss820dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+uss820dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct uss820dci_softc *sc;
@@ -1223,10 +1229,6 @@ uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		uss820dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = USS820_DCI_BUS2SC(udev->bus);
 	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -2385,6 +2387,7 @@ struct usb_bus_methods uss820dci_bus_methods =
 	.xfer_setup = &uss820dci_xfer_setup,
 	.xfer_unsetup = &uss820dci_xfer_unsetup,
 	.get_hw_ep_profile = &uss820dci_get_hw_ep_profile,
+	.xfer_stall = &uss820dci_xfer_stall,
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,
 	.roothub_exec = &uss820dci_roothub_exec,

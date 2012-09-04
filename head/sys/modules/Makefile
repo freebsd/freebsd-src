@@ -72,6 +72,7 @@ SUBDIR=	\
 	${_coff} \
 	${_coretemp} \
 	${_cp} \
+	${_cpsw} \
 	${_cpuctl} \
 	${_cpufreq} \
 	${_crypto} \
@@ -735,6 +736,7 @@ _zfs=		zfs
 
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
+_cpsw=		cpsw
 .endif
 
 .if ${MACHINE_CPUARCH} == "ia64"

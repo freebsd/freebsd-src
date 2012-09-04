@@ -565,7 +565,7 @@ taskqueue_fast_run(void *dummy)
 }
 
 TASKQUEUE_FAST_DEFINE(fast, taskqueue_fast_enqueue, NULL,
-	swi_add(NULL, "Fast task queue", taskqueue_fast_run, NULL,
+	swi_add(NULL, "fast taskq", taskqueue_fast_run, NULL,
 	SWI_TQ_FAST, INTR_MPSAFE, &taskqueue_fast_ih));
 
 int

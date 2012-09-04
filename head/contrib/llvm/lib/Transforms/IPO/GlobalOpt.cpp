@@ -254,6 +254,8 @@ static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
             GS.StoredType = GlobalStatus::isStored;
           }
         }
+      } else if (isa<BitCastInst>(I)) {
+        if (AnalyzeGlobal(I, GS, PHIUsers)) return true;
       } else if (isa<GetElementPtrInst>(I)) {
         if (AnalyzeGlobal(I, GS, PHIUsers)) return true;
       } else if (isa<SelectInst>(I)) {
@@ -292,6 +294,168 @@ static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
   }
 
   return false;
+}
+
+/// isLeakCheckerRoot - Is this global variable possibly used by a leak checker
+/// as a root?  If so, we might not really want to eliminate the stores to it.
+static bool isLeakCheckerRoot(GlobalVariable *GV) {
+  // A global variable is a root if it is a pointer, or could plausibly contain
+  // a pointer.  There are two challenges; one is that we could have a struct
+  // the has an inner member which is a pointer.  We recurse through the type to
+  // detect these (up to a point).  The other is that we may actually be a union
+  // of a pointer and another type, and so our LLVM type is an integer which
+  // gets converted into a pointer, or our type is an [i8 x #] with a pointer
+  // potentially contained here.
+
+  if (GV->hasPrivateLinkage())
+    return false;
+
+  SmallVector<Type *, 4> Types;
+  Types.push_back(cast<PointerType>(GV->getType())->getElementType());
+
+  unsigned Limit = 20;
+  do {
+    Type *Ty = Types.pop_back_val();
+    switch (Ty->getTypeID()) {
+      default: break;
+      case Type::PointerTyID: return true;
+      case Type::ArrayTyID:
+      case Type::VectorTyID: {
+        SequentialType *STy = cast<SequentialType>(Ty);
+        Types.push_back(STy->getElementType());
+        break;
+      }
+      case Type::StructTyID: {
+        StructType *STy = cast<StructType>(Ty);
+        if (STy->isOpaque()) return true;
+        for (StructType::element_iterator I = STy->element_begin(),
+                 E = STy->element_end(); I != E; ++I) {
+          Type *InnerTy = *I;
+          if (isa<PointerType>(InnerTy)) return true;
+          if (isa<CompositeType>(InnerTy))
+            Types.push_back(InnerTy);
+        }
+        break;
+      }
+    }
+    if (--Limit == 0) return true;
+  } while (!Types.empty());
+  return false;
+}
+
+/// Given a value that is stored to a global but never read, determine whether
+/// it's safe to remove the store and the chain of computation that feeds the
+/// store.
+static bool IsSafeComputationToRemove(Value *V) {
+  do {
+    if (isa<Constant>(V))
+      return true;
+    if (!V->hasOneUse())
+      return false;
+    if (isa<LoadInst>(V) || isa<InvokeInst>(V) || isa<Argument>(V) ||
+        isa<GlobalValue>(V))
+      return false;
+    if (isAllocationFn(V))
+      return true;
+
+    Instruction *I = cast<Instruction>(V);
+    if (I->mayHaveSideEffects())
+      return false;
+    if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(I)) {
+      if (!GEP->hasAllConstantIndices())
+        return false;
+    } else if (I->getNumOperands() != 1) {
+      return false;
+    }
+
+    V = I->getOperand(0);
+  } while (1);
+}
+
+/// CleanupPointerRootUsers - This GV is a pointer root.  Loop over all users
+/// of the global and clean up any that obviously don't assign the global a
+/// value that isn't dynamically allocated.
+///
+static bool CleanupPointerRootUsers(GlobalVariable *GV) {
+  // A brief explanation of leak checkers.  The goal is to find bugs where
+  // pointers are forgotten, causing an accumulating growth in memory
+  // usage over time.  The common strategy for leak checkers is to whitelist the
+  // memory pointed to by globals at exit.  This is popular because it also
+  // solves another problem where the main thread of a C++ program may shut down
+  // before other threads that are still expecting to use those globals.  To
+  // handle that case, we expect the program may create a singleton and never
+  // destroy it.
+
+  bool Changed = false;
+
+  // If Dead[n].first is the only use of a malloc result, we can delete its
+  // chain of computation and the store to the global in Dead[n].second.
+  SmallVector<std::pair<Instruction *, Instruction *>, 32> Dead;
+
+  // Constants can't be pointers to dynamically allocated memory.
+  for (Value::use_iterator UI = GV->use_begin(), E = GV->use_end();
+       UI != E;) {
+    User *U = *UI++;
+    if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
+      Value *V = SI->getValueOperand();
+      if (isa<Constant>(V)) {
+        Changed = true;
+        SI->eraseFromParent();
+      } else if (Instruction *I = dyn_cast<Instruction>(V)) {
+        if (I->hasOneUse())
+          Dead.push_back(std::make_pair(I, SI));
+      }
+    } else if (MemSetInst *MSI = dyn_cast<MemSetInst>(U)) {
+      if (isa<Constant>(MSI->getValue())) {
+        Changed = true;
+        MSI->eraseFromParent();
+      } else if (Instruction *I = dyn_cast<Instruction>(MSI->getValue())) {
+        if (I->hasOneUse())
+          Dead.push_back(std::make_pair(I, MSI));
+      }
+    } else if (MemTransferInst *MTI = dyn_cast<MemTransferInst>(U)) {
+      GlobalVariable *MemSrc = dyn_cast<GlobalVariable>(MTI->getSource());
+      if (MemSrc && MemSrc->isConstant()) {
+        Changed = true;
+        MTI->eraseFromParent();
+      } else if (Instruction *I = dyn_cast<Instruction>(MemSrc)) {
+        if (I->hasOneUse())
+          Dead.push_back(std::make_pair(I, MTI));
+      }
+    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(U)) {
+      if (CE->use_empty()) {
+        CE->destroyConstant();
+        Changed = true;
+      }
+    } else if (Constant *C = dyn_cast<Constant>(U)) {
+      if (SafeToDestroyConstant(C)) {
+        C->destroyConstant();
+        // This could have invalidated UI, start over from scratch.
+        Dead.clear();
+        CleanupPointerRootUsers(GV);
+        return true;
+      }
+    }
+  }
+
+  for (int i = 0, e = Dead.size(); i != e; ++i) {
+    if (IsSafeComputationToRemove(Dead[i].first)) {
+      Dead[i].second->eraseFromParent();
+      Instruction *I = Dead[i].first;
+      do {
+	if (isAllocationFn(I))
+	  break;
+        Instruction *J = dyn_cast<Instruction>(I->getOperand(0));
+        if (!J)
+          break;
+        I->eraseFromParent();
+        I = J;
+      } while (1);
+      I->eraseFromParent();
+    }
+  }
+
+  return Changed;
 }
 
 /// CleanupConstantGlobalUsers - We just marked GV constant.  Loop over all
@@ -517,7 +681,7 @@ static GlobalVariable *SRAGlobal(GlobalVariable *GV, const TargetData &TD) {
       GlobalVariable *NGV = new GlobalVariable(STy->getElementType(i), false,
                                                GlobalVariable::InternalLinkage,
                                                In, GV->getName()+"."+Twine(i),
-                                               GV->isThreadLocal(),
+                                               GV->getThreadLocalMode(),
                                               GV->getType()->getAddressSpace());
       Globals.insert(GV, NGV);
       NewGlobals.push_back(NGV);
@@ -550,7 +714,7 @@ static GlobalVariable *SRAGlobal(GlobalVariable *GV, const TargetData &TD) {
       GlobalVariable *NGV = new GlobalVariable(STy->getElementType(), false,
                                                GlobalVariable::InternalLinkage,
                                                In, GV->getName()+"."+Twine(i),
-                                               GV->isThreadLocal(),
+                                               GV->getThreadLocalMode(),
                                               GV->getType()->getAddressSpace());
       Globals.insert(GV, NGV);
       NewGlobals.push_back(NGV);
@@ -810,13 +974,18 @@ static bool OptimizeAwayTrappingUsesOfLoads(GlobalVariable *GV, Constant *LV,
   // If we nuked all of the loads, then none of the stores are needed either,
   // nor is the global.
   if (AllNonStoreUsesGone) {
-    DEBUG(dbgs() << "  *** GLOBAL NOW DEAD!\n");
-    CleanupConstantGlobalUsers(GV, 0, TD, TLI);
+    if (isLeakCheckerRoot(GV)) {
+      Changed |= CleanupPointerRootUsers(GV);
+    } else {
+      Changed = true;
+      CleanupConstantGlobalUsers(GV, 0, TD, TLI);
+    }
     if (GV->use_empty()) {
+      DEBUG(dbgs() << "  *** GLOBAL NOW DEAD!\n");
+      Changed = true;
       GV->eraseFromParent();
       ++NumDeleted;
     }
-    Changed = true;
   }
   return Changed;
 }
@@ -866,7 +1035,7 @@ static GlobalVariable *OptimizeGlobalAddressOfMalloc(GlobalVariable *GV,
                                              UndefValue::get(GlobalType),
                                              GV->getName()+".body",
                                              GV,
-                                             GV->isThreadLocal());
+                                             GV->getThreadLocalMode());
 
   // If there are bitcast users of the malloc (which is typical, usually we have
   // a malloc + bitcast) then replace them with uses of the new global.  Update
@@ -899,7 +1068,7 @@ static GlobalVariable *OptimizeGlobalAddressOfMalloc(GlobalVariable *GV,
     new GlobalVariable(Type::getInt1Ty(GV->getContext()), false,
                        GlobalValue::InternalLinkage,
                        ConstantInt::getFalse(GV->getContext()),
-                       GV->getName()+".init", GV->isThreadLocal());
+                       GV->getName()+".init", GV->getThreadLocalMode());
   bool InitBoolUsed = false;
 
   // Loop over all uses of GV, processing them in turn.
@@ -1321,7 +1490,7 @@ static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV, CallInst *CI,
                          PFieldTy, false, GlobalValue::InternalLinkage,
                          Constant::getNullValue(PFieldTy),
                          GV->getName() + ".f" + Twine(FieldNo), GV,
-                         GV->isThreadLocal());
+                         GV->getThreadLocalMode());
     FieldGlobals.push_back(NGV);
 
     unsigned TypeSize = TD->getTypeAllocSize(FieldTy);
@@ -1567,8 +1736,10 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
       Instruction *Cast = new BitCastInst(Malloc, CI->getType(), "tmp", CI);
       CI->replaceAllUsesWith(Cast);
       CI->eraseFromParent();
-      CI = dyn_cast<BitCastInst>(Malloc) ?
-        extractMallocCallFromBitCast(Malloc) : cast<CallInst>(Malloc);
+      if (BitCastInst *BCI = dyn_cast<BitCastInst>(Malloc))
+        CI = cast<CallInst>(BCI->getOperand(0));
+      else
+        CI = cast<CallInst>(Malloc);
     }
 
     GVI = PerformHeapAllocSRoA(GV, CI, getMallocArraySize(CI, TD, true), TD);
@@ -1645,7 +1816,7 @@ static bool TryToShrinkGlobalToBoolean(GlobalVariable *GV, Constant *OtherVal) {
                                              GlobalValue::InternalLinkage,
                                         ConstantInt::getFalse(GV->getContext()),
                                              GV->getName()+".b",
-                                             GV->isThreadLocal());
+                                             GV->getThreadLocalMode());
   GV->getParent()->getGlobalList().insert(GV, NewGV);
 
   Constant *InitVal = GV->getInitializer();
@@ -1716,7 +1887,7 @@ static bool TryToShrinkGlobalToBoolean(GlobalVariable *GV, Constant *OtherVal) {
 /// possible.  If we make a change, return true.
 bool GlobalOpt::ProcessGlobal(GlobalVariable *GV,
                               Module::global_iterator &GVI) {
-  if (!GV->hasLocalLinkage())
+  if (!GV->isDiscardableIfUnused())
     return false;
 
   // Do more involved optimizations if the global is internal.
@@ -1728,6 +1899,9 @@ bool GlobalOpt::ProcessGlobal(GlobalVariable *GV,
     ++NumDeleted;
     return true;
   }
+
+  if (!GV->hasLocalLinkage())
+    return false;
 
   SmallPtrSet<const PHINode*, 16> PHIUsers;
   GlobalStatus GS;
@@ -1787,10 +1961,15 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
   if (!GS.isLoaded) {
     DEBUG(dbgs() << "GLOBAL NEVER LOADED: " << *GV);
 
-    // Delete any stores we can find to the global.  We may not be able to
-    // make it completely dead though.
-    bool Changed = CleanupConstantGlobalUsers(GV, GV->getInitializer(),
-                                              TD, TLI);
+    bool Changed;
+    if (isLeakCheckerRoot(GV)) {
+      // Delete any constant stores to the global.
+      Changed = CleanupPointerRootUsers(GV);
+    } else {
+      // Delete any stores we can find to the global.  We may not be able to
+      // make it completely dead though.
+      Changed = CleanupConstantGlobalUsers(GV, GV->getInitializer(), TD, TLI);
+    }
 
     // If the global is dead now, delete it.
     if (GV->use_empty()) {
@@ -1838,7 +2017,7 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
 
         if (GV->use_empty()) {
           DEBUG(dbgs() << "   *** Substituting initializer allowed us to "
-                << "simplify all users and delete global!\n");
+                       << "simplify all users and delete global!\n");
           GV->eraseFromParent();
           ++NumDeleted;
         } else {
@@ -1870,6 +2049,8 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
 /// function, changing them to FastCC.
 static void ChangeCalleesToFastCall(Function *F) {
   for (Value::use_iterator UI = F->use_begin(), E = F->use_end(); UI != E;++UI){
+    if (isa<BlockAddress>(*UI))
+      continue;
     CallSite User(cast<Instruction>(*UI));
     User.setCallingConv(CallingConv::Fast);
   }
@@ -1890,6 +2071,8 @@ static AttrListPtr StripNest(const AttrListPtr &Attrs) {
 static void RemoveNestAttribute(Function *F) {
   F->setAttributes(StripNest(F->getAttributes()));
   for (Value::use_iterator UI = F->use_begin(), E = F->use_end(); UI != E;++UI){
+    if (isa<BlockAddress>(*UI))
+      continue;
     CallSite User(cast<Instruction>(*UI));
     User.setAttributes(StripNest(User.getAttributes()));
   }
@@ -2045,7 +2228,7 @@ static GlobalVariable *InstallGlobalCtors(GlobalVariable *GCL,
   // Create the new global and insert it next to the existing list.
   GlobalVariable *NGV = new GlobalVariable(CA->getType(), GCL->isConstant(),
                                            GCL->getLinkage(), CA, "",
-                                           GCL->isThreadLocal());
+                                           GCL->getThreadLocalMode());
   GCL->getParent()->getGlobalList().insert(GCL, NGV);
   NGV->takeName(GCL);
 
@@ -2701,7 +2884,7 @@ static bool EvaluateStaticConstructor(Function *F, const TargetData *TD,
           << " stores.\n");
     for (DenseMap<Constant*, Constant*>::const_iterator I =
            Eval.getMutatedMemory().begin(), E = Eval.getMutatedMemory().end();
-	 I != E; ++I)
+         I != E; ++I)
       CommitValueTo(I->second, I->first);
     for (SmallPtrSet<GlobalVariable*, 8>::const_iterator I =
            Eval.getInvariants().begin(), E = Eval.getInvariants().end();

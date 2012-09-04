@@ -699,10 +699,10 @@ vm_page_free_zero(vm_page_t m)
  * array which is not the request page.
  */
 void
-vm_page_readahead_finish(vm_page_t m, int error)
+vm_page_readahead_finish(vm_page_t m)
 {
 
-	if (error == 0) {
+	if (m->valid != 0) {
 		/*
 		 * Since the page is not the requested page, whether
 		 * it should be activated or deactivated is not
@@ -721,6 +721,12 @@ vm_page_readahead_finish(vm_page_t m, int error)
 		}
 		vm_page_wakeup(m);
 	} else {
+		/*
+		 * Free the completely invalid page.  Such page state
+		 * occurs due to the short read operation which did
+		 * not covered our page at all, or in case when a read
+		 * error happens.
+		 */
 		vm_page_lock(m);
 		vm_page_free(m);
 		vm_page_unlock(m);

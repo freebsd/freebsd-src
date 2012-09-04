@@ -46,10 +46,18 @@
 #include <popcntintrin.h>
 #endif
 
+#ifdef __SSE4A__
+#include <ammintrin.h>
+#endif
+
 #ifdef __FMA4__
 #include <fma4intrin.h>
 #endif
 
-// FIXME: SSE4A, XOP, LWP, ABM
+#ifdef __XOP__
+#include <xopintrin.h>
+#endif
+
+// FIXME: LWP
 
 #endif /* __X86INTRIN_H */

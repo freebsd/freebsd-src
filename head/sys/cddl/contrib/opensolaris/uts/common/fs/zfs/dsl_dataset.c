@@ -106,14 +106,8 @@ dsl_dataset_block_born(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx)
 	ASSERT(BP_GET_TYPE(bp) != DMU_OT_NONE);
 	ASSERT(DMU_OT_IS_VALID(BP_GET_TYPE(bp)));
 	if (ds == NULL) {
-		/*
-		 * Account for the meta-objset space in its placeholder
-		 * dsl_dir.
-		 */
-		ASSERT3U(compressed, ==, uncompressed); /* it's all metadata */
-		dsl_dir_diduse_space(tx->tx_pool->dp_mos_dir, DD_USED_HEAD,
-		    used, compressed, uncompressed, tx);
-		dsl_dir_dirty(tx->tx_pool->dp_mos_dir, tx);
+		dsl_pool_mos_diduse_space(tx->tx_pool,
+		    used, compressed, uncompressed);
 		return;
 	}
 	dmu_buf_will_dirty(ds->ds_dbuf, tx);
@@ -149,15 +143,9 @@ dsl_dataset_block_kill(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx,
 
 	ASSERT(used > 0);
 	if (ds == NULL) {
-		/*
-		 * Account for the meta-objset space in its placeholder
-		 * dataset.
-		 */
 		dsl_free(tx->tx_pool, tx->tx_txg, bp);
-
-		dsl_dir_diduse_space(tx->tx_pool->dp_mos_dir, DD_USED_HEAD,
-		    -used, -compressed, -uncompressed, tx);
-		dsl_dir_dirty(tx->tx_pool->dp_mos_dir, tx);
+		dsl_pool_mos_diduse_space(tx->tx_pool,
+		    -used, -compressed, -uncompressed);
 		return (used);
 	}
 	ASSERT3P(tx->tx_pool, ==, ds->ds_dir->dd_pool);
@@ -1116,26 +1104,26 @@ dsl_dataset_destroy(dsl_dataset_t *ds, void *tag, boolean_t defer)
 	dummy_ds.ds_dir = dd;
 	dummy_ds.ds_object = ds->ds_object;
 
-	/*
-	 * Check for errors and mark this ds as inconsistent, in
-	 * case we crash while freeing the objects.
-	 */
-	err = dsl_sync_task_do(dd->dd_pool, dsl_dataset_destroy_begin_check,
-	    dsl_dataset_destroy_begin_sync, ds, NULL, 0);
-	if (err)
-		goto out;
-
-	err = dmu_objset_from_ds(ds, &os);
-	if (err)
-		goto out;
-
-	/*
-	 * If async destruction is not enabled try to remove all objects
-	 * while in the open context so that there is less work to do in
-	 * the syncing context.
-	 */
 	if (!spa_feature_is_enabled(dsl_dataset_get_spa(ds),
 	    &spa_feature_table[SPA_FEATURE_ASYNC_DESTROY])) {
+		/*
+		 * Check for errors and mark this ds as inconsistent, in
+		 * case we crash while freeing the objects.
+		 */
+		err = dsl_sync_task_do(dd->dd_pool,
+		    dsl_dataset_destroy_begin_check,
+		    dsl_dataset_destroy_begin_sync, ds, NULL, 0);
+		if (err)
+			goto out;
+
+		err = dmu_objset_from_ds(ds, &os);
+		if (err)
+			goto out;
+
+		/*
+		 * Remove all objects while in the open context so that
+		 * there is less work to do in the syncing context.
+		 */
 		for (obj = 0; err == 0; err = dmu_object_next(os, &obj, FALSE,
 		    ds->ds_phys->ds_prev_snap_txg)) {
 			/*
@@ -1146,30 +1134,25 @@ dsl_dataset_destroy(dsl_dataset_t *ds, void *tag, boolean_t defer)
 		}
 		if (err != ESRCH)
 			goto out;
-	}
 
-	/*
-	 * Only the ZIL knows how to free log blocks.
-	 */
-	zil_destroy(dmu_objset_zil(os), B_FALSE);
+		/*
+		 * Sync out all in-flight IO.
+		 */
+		txg_wait_synced(dd->dd_pool, 0);
 
-	/*
-	 * Sync out all in-flight IO.
-	 */
-	txg_wait_synced(dd->dd_pool, 0);
+		/*
+		 * If we managed to free all the objects in open
+		 * context, the user space accounting should be zero.
+		 */
+		if (ds->ds_phys->ds_bp.blk_fill == 0 &&
+		    dmu_objset_userused_enabled(os)) {
+			uint64_t count;
 
-	/*
-	 * If we managed to free all the objects in open
-	 * context, the user space accounting should be zero.
-	 */
-	if (ds->ds_phys->ds_bp.blk_fill == 0 &&
-	    dmu_objset_userused_enabled(os)) {
-		uint64_t count;
-
-		ASSERT(zap_count(os, DMU_USERUSED_OBJECT, &count) != 0 ||
-		    count == 0);
-		ASSERT(zap_count(os, DMU_GROUPUSED_OBJECT, &count) != 0 ||
-		    count == 0);
+			ASSERT(zap_count(os, DMU_USERUSED_OBJECT,
+			    &count) != 0 || count == 0);
+			ASSERT(zap_count(os, DMU_GROUPUSED_OBJECT,
+			    &count) != 0 || count == 0);
+		}
 	}
 
 	rw_enter(&dd->dd_pool->dp_config_rwlock, RW_READER);
@@ -1273,6 +1256,17 @@ dsl_dataset_dirty(dsl_dataset_t *ds, dmu_tx_t *tx)
 		/* up the hold count until we can be written out */
 		dmu_buf_add_ref(ds->ds_dbuf, ds);
 	}
+}
+
+boolean_t
+dsl_dataset_is_dirty(dsl_dataset_t *ds)
+{
+	for (int t = 0; t < TXG_SIZE; t++) {
+		if (txg_list_member(&ds->ds_dir->dd_pool->dp_dirty_datasets,
+		    ds, t))
+			return (B_TRUE);
+	}
+	return (B_FALSE);
 }
 
 /*
@@ -1906,6 +1900,7 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, dmu_tx_t *tx)
 	} else {
 		zfeature_info_t *async_destroy =
 		    &spa_feature_table[SPA_FEATURE_ASYNC_DESTROY];
+		objset_t *os;
 
 		/*
 		 * There's no next snapshot, so this is a head dataset.
@@ -1917,6 +1912,8 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, dmu_tx_t *tx)
 		dsl_deadlist_free(mos, ds->ds_phys->ds_deadlist_obj, tx);
 		ds->ds_phys->ds_deadlist_obj = 0;
 
+		VERIFY3U(0, ==, dmu_objset_from_ds(ds, &os));
+
 		if (!spa_feature_is_enabled(dp->dp_spa, async_destroy)) {
 			err = old_synchronous_dataset_destroy(ds, tx);
 		} else {
@@ -1926,12 +1923,12 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, dmu_tx_t *tx)
 			 */
 			uint64_t used, comp, uncomp;
 
-			ASSERT(err == 0 || err == EBUSY);
+			zil_destroy_sync(dmu_objset_zil(os), tx);
+
 			if (!spa_feature_is_active(dp->dp_spa, async_destroy)) {
 				spa_feature_incr(dp->dp_spa, async_destroy, tx);
-				dp->dp_bptree_obj = bptree_alloc(
-				    dp->dp_meta_objset, tx);
-				VERIFY(zap_add(dp->dp_meta_objset,
+				dp->dp_bptree_obj = bptree_alloc(mos, tx);
+				VERIFY(zap_add(mos,
 				    DMU_POOL_DIRECTORY_OBJECT,
 				    DMU_POOL_BPTREE_OBJ, sizeof (uint64_t), 1,
 				    &dp->dp_bptree_obj, tx) == 0);
@@ -1944,7 +1941,7 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, dmu_tx_t *tx)
 			ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) ||
 			    ds->ds_phys->ds_unique_bytes == used);
 
-			bptree_add(dp->dp_meta_objset, dp->dp_bptree_obj,
+			bptree_add(mos, dp->dp_bptree_obj,
 			    &ds->ds_phys->ds_bp, ds->ds_phys->ds_prev_snap_txg,
 			    used, comp, uncomp, tx);
 			dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD,
@@ -2233,7 +2230,6 @@ dsl_dataset_sync(dsl_dataset_t *ds, zio_t *zio, dmu_tx_t *tx)
 	dmu_buf_will_dirty(ds->ds_dbuf, tx);
 	ds->ds_phys->ds_fsid_guid = ds->ds_fsid_guid;
 
-	dsl_dir_dirty(ds->ds_dir, tx);
 	dmu_objset_sync(ds->ds_objset, zio, tx);
 }
 
@@ -3510,10 +3506,6 @@ dsl_dataset_set_quota_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	if (ds->ds_quota != effective_value) {
 		dmu_buf_will_dirty(ds->ds_dbuf, tx);
 		ds->ds_quota = effective_value;
-
-		spa_history_log_internal(LOG_DS_REFQUOTA,
-		    ds->ds_dir->dd_pool->dp_spa, tx, "%lld dataset = %llu ",
-		    (longlong_t)ds->ds_quota, ds->ds_object);
 	}
 }
 
@@ -3617,10 +3609,6 @@ dsl_dataset_set_reservation_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 
 	dsl_dir_diduse_space(ds->ds_dir, DD_USED_REFRSRV, delta, 0, 0, tx);
 	mutex_exit(&ds->ds_dir->dd_lock);
-
-	spa_history_log_internal(LOG_DS_REFRESERV,
-	    ds->ds_dir->dd_pool->dp_spa, tx, "%lld dataset = %llu",
-	    (longlong_t)effective_value, ds->ds_object);
 }
 
 int
@@ -3969,6 +3957,11 @@ dsl_dataset_user_release_sync(void *arg1, void *tag, dmu_tx_t *tx)
 	VERIFY(error == 0 || error == ENOENT);
 	zapobj = ds->ds_phys->ds_userrefs_obj;
 	VERIFY(0 == zap_remove(mos, zapobj, ra->htag, tx));
+
+	spa_history_log_internal(LOG_DS_USER_RELEASE,
+	    dp->dp_spa, tx, "<%s> %lld dataset = %llu",
+	    ra->htag, (longlong_t)refs, dsobj);
+
 	if (ds->ds_userrefs == 0 && ds->ds_phys->ds_num_children == 1 &&
 	    DS_IS_DEFER_DESTROY(ds)) {
 		struct dsl_ds_destroyarg dsda = {0};
@@ -3979,10 +3972,6 @@ dsl_dataset_user_release_sync(void *arg1, void *tag, dmu_tx_t *tx)
 		/* We already did the destroy_check */
 		dsl_dataset_destroy_sync(&dsda, tag, tx);
 	}
-
-	spa_history_log_internal(LOG_DS_USER_RELEASE,
-	    dp->dp_spa, tx, "<%s> %lld dataset = %llu",
-	    ra->htag, (longlong_t)refs, dsobj);
 }
 
 static int

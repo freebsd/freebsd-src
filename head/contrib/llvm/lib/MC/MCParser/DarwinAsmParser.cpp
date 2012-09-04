@@ -14,6 +14,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -49,12 +50,18 @@ public:
     AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveDumpOrLoad>(".dump");
     AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveDumpOrLoad>(".load");
     AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveSection>(".section");
+    AddDirectiveHandler<&DarwinAsmParser::ParseDirectivePushSection>(".pushsection");
+    AddDirectiveHandler<&DarwinAsmParser::ParseDirectivePopSection>(".popsection");
+    AddDirectiveHandler<&DarwinAsmParser::ParseDirectivePrevious>(".previous");
     AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveSecureLogUnique>(
       ".secure_log_unique");
     AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveSecureLogReset>(
       ".secure_log_reset");
     AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveTBSS>(".tbss");
     AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveZerofill>(".zerofill");
+
+    AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveDataRegion>(".data_region");
+    AddDirectiveHandler<&DarwinAsmParser::ParseDirectiveDataRegionEnd>(".end_data_region");
 
     // Special section directives.
     AddDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveConst>(".const");
@@ -108,11 +115,16 @@ public:
   bool ParseDirectiveDumpOrLoad(StringRef, SMLoc);
   bool ParseDirectiveLsym(StringRef, SMLoc);
   bool ParseDirectiveSection(StringRef, SMLoc);
+  bool ParseDirectivePushSection(StringRef, SMLoc);
+  bool ParseDirectivePopSection(StringRef, SMLoc);
+  bool ParseDirectivePrevious(StringRef, SMLoc);
   bool ParseDirectiveSecureLogReset(StringRef, SMLoc);
   bool ParseDirectiveSecureLogUnique(StringRef, SMLoc);
   bool ParseDirectiveSubsectionsViaSymbols(StringRef, SMLoc);
   bool ParseDirectiveTBSS(StringRef, SMLoc);
   bool ParseDirectiveZerofill(StringRef, SMLoc);
+  bool ParseDirectiveDataRegion(StringRef, SMLoc);
+  bool ParseDirectiveDataRegionEnd(StringRef, SMLoc);
 
   // Named Section Directive
   bool ParseSectionDirectiveConst(StringRef, SMLoc) {
@@ -291,7 +303,7 @@ public:
 
 };
 
-}
+} // end anonymous namespace
 
 bool DarwinAsmParser::ParseSectionSwitch(const char *Segment,
                                          const char *Section,
@@ -448,6 +460,37 @@ bool DarwinAsmParser::ParseDirectiveSection(StringRef, SMLoc) {
                                 Segment, Section, TAA, StubSize,
                                 isText ? SectionKind::getText()
                                 : SectionKind::getDataRel()));
+  return false;
+}
+
+/// ParseDirectivePushSection:
+///   ::= .pushsection identifier (',' identifier)*
+bool DarwinAsmParser::ParseDirectivePushSection(StringRef S, SMLoc Loc) {
+  getStreamer().PushSection();
+
+  if (ParseDirectiveSection(S, Loc)) {
+    getStreamer().PopSection();
+    return true;
+  }
+
+  return false;
+}
+
+/// ParseDirectivePopSection:
+///   ::= .popsection
+bool DarwinAsmParser::ParseDirectivePopSection(StringRef, SMLoc) {
+  if (!getStreamer().PopSection())
+    return TokError(".popsection without corresponding .pushsection");
+  return false;
+}
+
+/// ParseDirectivePrevious:
+///   ::= .previous
+bool DarwinAsmParser::ParseDirectivePrevious(StringRef DirName, SMLoc) {
+  const MCSection *PreviousSection = getStreamer().getPreviousSection();
+  if (PreviousSection == NULL)
+      return TokError(".previous without corresponding .section");
+  getStreamer().SwitchSection(PreviousSection);
   return false;
 }
 
@@ -659,10 +702,46 @@ bool DarwinAsmParser::ParseDirectiveZerofill(StringRef, SMLoc) {
   return false;
 }
 
+/// ParseDirectiveDataRegion
+///  ::= .data_region [ ( jt8 | jt16 | jt32 ) ]
+bool DarwinAsmParser::ParseDirectiveDataRegion(StringRef, SMLoc) {
+  if (getLexer().is(AsmToken::EndOfStatement)) {
+    Lex();
+    getStreamer().EmitDataRegion(MCDR_DataRegion);
+    return false;
+  }
+  StringRef RegionType;
+  SMLoc Loc = getParser().getTok().getLoc();
+  if (getParser().ParseIdentifier(RegionType))
+    return TokError("expected region type after '.data_region' directive");
+  int Kind = StringSwitch<int>(RegionType)
+    .Case("jt8", MCDR_DataRegionJT8)
+    .Case("jt16", MCDR_DataRegionJT16)
+    .Case("jt32", MCDR_DataRegionJT32)
+    .Default(-1);
+  if (Kind == -1)
+    return Error(Loc, "unknown region type in '.data_region' directive");
+  Lex();
+
+  getStreamer().EmitDataRegion((MCDataRegionType)Kind);
+  return false;
+}
+
+/// ParseDirectiveDataRegionEnd
+///  ::= .end_data_region
+bool DarwinAsmParser::ParseDirectiveDataRegionEnd(StringRef, SMLoc) {
+  if (getLexer().isNot(AsmToken::EndOfStatement))
+    return TokError("unexpected token in '.end_data_region' directive");
+
+  Lex();
+  getStreamer().EmitDataRegion(MCDR_DataRegionEnd);
+  return false;
+}
+
 namespace llvm {
 
 MCAsmParserExtension *createDarwinAsmParser() {
   return new DarwinAsmParser;
 }
 
-}
+} // end llvm namespace

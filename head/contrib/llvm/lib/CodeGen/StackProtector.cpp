@@ -28,6 +28,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/ADT/Triple.h"
 using namespace llvm;
 
 // SSPBufferSize - The lower bound for a buffer to be considered for stack
@@ -46,7 +47,7 @@ namespace {
     Function *F;
     Module *M;
 
-    DominatorTree* DT;
+    DominatorTree *DT;
 
     /// InsertStackProtectors - Insert code into the prologue and epilogue of
     /// the function.
@@ -70,8 +71,8 @@ namespace {
     }
     StackProtector(const TargetLowering *tli)
       : FunctionPass(ID), TLI(tli) {
-        initializeStackProtectorPass(*PassRegistry::getPassRegistry());
-      }
+      initializeStackProtectorPass(*PassRegistry::getPassRegistry());
+    }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addPreserved<DominatorTree>();
@@ -95,7 +96,7 @@ bool StackProtector::runOnFunction(Function &Fn) {
   DT = getAnalysisIfAvailable<DominatorTree>();
 
   if (!RequiresStackProtector()) return false;
-  
+
   return InsertStackProtectors();
 }
 
@@ -111,6 +112,8 @@ bool StackProtector::RequiresStackProtector() const {
     return false;
 
   const TargetData *TD = TLI->getTargetData();
+  const TargetMachine &TM = TLI->getTargetMachine();
+  Triple Trip(TM.getTargetTriple());
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
     BasicBlock *BB = I;
@@ -123,11 +126,17 @@ bool StackProtector::RequiresStackProtector() const {
           // protectors.
           return true;
 
-        if (ArrayType *AT = dyn_cast<ArrayType>(AI->getAllocatedType()))
+        if (ArrayType *AT = dyn_cast<ArrayType>(AI->getAllocatedType())) {
+          // If we're on a non-Darwin platform, don't add stack protectors
+          // unless the array is a character array.
+          if (!Trip.isOSDarwin() && !AT->getElementType()->isIntegerTy(8))
+            continue;
+
           // If an array has more than SSPBufferSize bytes of allocated space,
           // then we emit stack protectors.
           if (SSPBufferSize <= TD->getTypeAllocSize(AT))
             return true;
+        }
       }
   }
 
@@ -159,17 +168,17 @@ bool StackProtector::InsertStackProtectors() {
       //     StackGuardSlot = alloca i8*
       //     StackGuard = load __stack_chk_guard
       //     call void @llvm.stackprotect.create(StackGuard, StackGuardSlot)
-      // 
+      //
       PointerType *PtrTy = Type::getInt8PtrTy(RI->getContext());
       unsigned AddressSpace, Offset;
       if (TLI->getStackCookieLocation(AddressSpace, Offset)) {
         Constant *OffsetVal =
           ConstantInt::get(Type::getInt32Ty(RI->getContext()), Offset);
-        
+
         StackGuardVar = ConstantExpr::getIntToPtr(OffsetVal,
                                       PointerType::get(PtrTy, AddressSpace));
       } else {
-        StackGuardVar = M->getOrInsertGlobal("__stack_chk_guard", PtrTy); 
+        StackGuardVar = M->getOrInsertGlobal("__stack_chk_guard", PtrTy);
       }
 
       BasicBlock &Entry = F->getEntryBlock();

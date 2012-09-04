@@ -122,21 +122,30 @@ static const struct cpu_devs at91_devs[] =
 	{ 0, 0, 0, 0, 0 }
 };
 
+/*
+ * The following is unused currently since we don't ever set the PLLA
+ * frequency of the device.
+ */
 static uint32_t
 at91_pll_outa(int freq)
 {
+	uint32_t outa = 0;
 
-	if (freq > 195000000)
-		return (0x20000000);
-	else
-		return (0x20008000);
+	/*
+	 * Set OUTA, per the data sheet.  See Table 40-15 titled
+	 * PLLA Characteristics in the SAM9260 doc.
+	 */
+
+	if (freq > 155000000)
+		outa = 2 << 14;
+	return ((1 << 29) | outa);
 }
 
 static uint32_t
 at91_pll_outb(int freq)
 {
 
-	return (0x4000);
+	return (1 << 14);
 }
 
 static void
@@ -173,7 +182,7 @@ at91_clock_init(void)
 	 * to be near the optimal 2 MHz per datasheet.  We know
 	 * we are going to be using this for the USB clock at 96 MHz.
 	 * Causes no extra frequency deviation for all recomended crystal
-	 * values.
+	 * values.  See Note 1, table 40-16 SAM9260 doc.
 	 */
 	clk = at91_pmc_clock_ref("pllb");
 	clk->pll_min_in    = SAM9260_PLL_B_MIN_IN_FREQ;		/*   1 MHz */
