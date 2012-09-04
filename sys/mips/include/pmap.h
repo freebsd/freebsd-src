@@ -66,14 +66,13 @@
  * Pmap stuff
  */
 struct pv_entry;
+struct pv_chunk;
 
 struct md_page {
-	int pv_list_count;
 	int pv_flags;
 	TAILQ_HEAD(, pv_entry) pv_list;
 };
 
-#define	PV_TABLE_MOD		0x01	/* modified */
 #define	PV_TABLE_REF		0x02	/* referenced */
 
 #define	ASID_BITS		8
@@ -82,8 +81,7 @@ struct md_page {
 
 struct pmap {
 	pd_entry_t *pm_segtab;	/* KVA of segment table */
-	TAILQ_HEAD(, pv_entry) pm_pvlist;	/* list of mappings in
-						 * pmap */
+	TAILQ_HEAD(, pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t	pm_active;		/* active on cpus */
 	struct {
 		u_int32_t asid:ASID_BITS;	/* TLB address space tag */
@@ -121,11 +119,28 @@ extern struct pmap	kernel_pmap_store;
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
  */
 typedef struct pv_entry {
-	pmap_t pv_pmap;		/* pmap where mapping lies */
 	vm_offset_t pv_va;	/* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry) pv_list;
-	TAILQ_ENTRY(pv_entry) pv_plist;
 }       *pv_entry_t;
+
+/*
+ * pv_entries are allocated in chunks per-process.  This avoids the
+ * need to track per-pmap assignments.
+ */
+#ifdef __mips_n64
+#define	_NPCM	3
+#define	_NPCPV	168
+#else
+#define	_NPCM	11
+#define	_NPCPV	336
+#endif
+struct pv_chunk {
+	pmap_t			pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_list;
+	u_long			pc_map[_NPCM];	/* bitmap; 1 = free */
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	struct pv_entry		pc_pventry[_NPCPV];
+};
 
 /*
  * physmem_desc[] is a superset of phys_avail[] and describes all the
@@ -156,7 +171,6 @@ void pmap_bootstrap(void);
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
-int page_is_managed(vm_paddr_t pa);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr);
 void pmap_kremove(vm_offset_t va);

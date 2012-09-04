@@ -13,6 +13,7 @@
 
 #include "HexagonSubtarget.h"
 #include "Hexagon.h"
+#include "HexagonRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
@@ -29,11 +30,17 @@ static cl::opt<bool>
 EnableMemOps(
     "enable-hexagon-memops",
     cl::Hidden, cl::ZeroOrMore, cl::ValueDisallowed,
-    cl::desc("Generate V4 MEMOP in code generation for Hexagon target"));
+    cl::desc("Generate V4 memop instructions."));
+
+static cl::opt<bool>
+EnableIEEERndNear(
+    "enable-hexagon-ieee-rnd-near",
+    cl::Hidden, cl::ZeroOrMore, cl::init(false),
+    cl::desc("Generate non-chopped conversion from fp to int."));
 
 HexagonSubtarget::HexagonSubtarget(StringRef TT, StringRef CPU, StringRef FS):
   HexagonGenSubtargetInfo(TT, CPU, FS),
-  HexagonArchVersion(V1),
+  HexagonArchVersion(V2),
   CPUString(CPU.str()) {
   ParseSubtargetFeatures(CPU, FS);
 
@@ -45,18 +52,27 @@ HexagonSubtarget::HexagonSubtarget(StringRef TT, StringRef CPU, StringRef FS):
     break;
   case HexagonSubtarget::V4:
     break;
+  case HexagonSubtarget::V5:
+    break;
   default:
-    llvm_unreachable("Unknown Architecture Version.");
+    // If the programmer has not specified a Hexagon version, default
+    // to -mv4.
+    CPUString = "hexagonv4";
+    HexagonArchVersion = HexagonSubtarget::V4;
+    break;
   }
 
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);
 
-  // Max issue per cycle == bundle width.
-  InstrItins.IssueWidth = 4;
-
   if (EnableMemOps)
     UseMemOps = true;
   else
     UseMemOps = false;
+
+  if (EnableIEEERndNear)
+    ModeIEEERndNear = true;
+  else
+    ModeIEEERndNear = false;
 }
+

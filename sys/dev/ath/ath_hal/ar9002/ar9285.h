@@ -20,13 +20,6 @@
 
 #include "ar5416/ar5416.h"
 
-enum ar9285_ant_div_comb_lna_conf {
-	ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2 = 0,
-	ATH_ANT_DIV_COMB_LNA2 = 1,
-	ATH_ANT_DIV_COMB_LNA1 = 2,
-	ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2 = 3,
-};
-
 struct ar9285_ant_comb {
 	uint16_t count;
 	uint16_t total_pkt_count;
@@ -46,8 +39,8 @@ struct ar9285_ant_comb {
 	HAL_BOOL alt_good;
 	int quick_scan_cnt;
 	int main_conf;
-	enum ar9285_ant_div_comb_lna_conf first_quick_scan_conf;
-	enum ar9285_ant_div_comb_lna_conf second_quick_scan_conf;
+	HAL_ANT_DIV_COMB_LNA_CONF first_quick_scan_conf;
+	HAL_ANT_DIV_COMB_LNA_CONF second_quick_scan_conf;
 	int first_bias;
 	int second_bias;
 	HAL_BOOL first_ratio;

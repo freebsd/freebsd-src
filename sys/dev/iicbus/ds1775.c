@@ -172,12 +172,11 @@ ds1775_start(void *xdev)
 {
 	phandle_t child;
 	struct ds1775_softc *sc;
-	struct sysctl_oid *sensroot_oid;
+	struct sysctl_oid *oid, *sensroot_oid;
 	struct sysctl_ctx_list *ctx;
 	ssize_t plen;
 	int i;
 	char sysctl_name[40], sysctl_desc[40];
-	const char *units;
 
 	device_t dev = (device_t)xdev;
 
@@ -186,7 +185,9 @@ ds1775_start(void *xdev)
 	child = ofw_bus_get_node(dev);
 
 	ctx = device_get_sysctl_ctx(dev);
-	sensroot_oid = device_get_sysctl_tree(dev);
+	sensroot_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "sensor",
+	    CTLFLAG_RD, 0, "DS1775 Sensor Information");
 
 	if (OF_getprop(child, "hwsensor-zone", &sc->sc_sensor.zone,
 		       sizeof(int)) < 0)
@@ -194,7 +195,6 @@ ds1775_start(void *xdev)
 
 	plen = OF_getprop(child, "hwsensor-location", sc->sc_sensor.name,
 			  sizeof(sc->sc_sensor.name));
-	units = "C";
 
 	if (plen == -1) {
 		strcpy(sysctl_name, "sensor");
@@ -221,9 +221,11 @@ ds1775_start(void *xdev)
 	    (int (*)(struct pmac_therm *sc))(ds1775_sensor_read);
 	pmac_thermal_sensor_register(&sc->sc_sensor);
 
-	sprintf(sysctl_desc,"%s (%s)", sc->sc_sensor.name, units);
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(sensroot_oid), OID_AUTO,
-			sysctl_name,
+	sprintf(sysctl_desc,"%s %s", sc->sc_sensor.name, "(C)");
+	oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sensroot_oid),
+			      OID_AUTO, sysctl_name, CTLFLAG_RD, 0,
+			      "Sensor Information");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "temp",
 			CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev,
 			0, ds1775_sensor_sysctl, "IK", sysctl_desc);
 

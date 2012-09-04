@@ -178,7 +178,7 @@ bool CallAnalyzer::lookupSROAArgAndCost(
 
 /// \brief Disable SROA for the candidate marked by this cost iterator.
 ///
-/// This markes the candidate as no longer viable for SROA, and adds the cost
+/// This marks the candidate as no longer viable for SROA, and adds the cost
 /// savings associated with it back into the inline cost measurement.
 void CallAnalyzer::disableSROA(DenseMap<Value *, int>::iterator CostIt) {
   // If we're no longer able to perform SROA we need to undo its cost savings
@@ -398,10 +398,7 @@ bool CallAnalyzer::visitPtrToInt(PtrToIntInst &I) {
   if (lookupSROAArgAndCost(I.getOperand(0), SROAArg, CostIt))
     SROAArgValues[&I] = SROAArg;
 
-  // A ptrtoint cast is free so long as the result is large enough to store the
-  // pointer, and a legal integer type.
-  return TD && TD->isLegalInteger(IntegerSize) &&
-         IntegerSize >= TD->getPointerSizeInBits();
+  return isInstructionFree(&I, TD);
 }
 
 bool CallAnalyzer::visitIntToPtr(IntToPtrInst &I) {
@@ -428,10 +425,7 @@ bool CallAnalyzer::visitIntToPtr(IntToPtrInst &I) {
   if (lookupSROAArgAndCost(Op, SROAArg, CostIt))
     SROAArgValues[&I] = SROAArg;
 
-  // An inttoptr cast is free so long as the input is a legal integer type
-  // which doesn't contain values outside the range of a pointer.
-  return TD && TD->isLegalInteger(IntegerSize) &&
-         IntegerSize <= TD->getPointerSizeInBits();
+  return isInstructionFree(&I, TD);
 }
 
 bool CallAnalyzer::visitCastInst(CastInst &I) {
@@ -445,24 +439,7 @@ bool CallAnalyzer::visitCastInst(CastInst &I) {
   // Disable SROA in the face of arbitrary casts we don't whitelist elsewhere.
   disableSROA(I.getOperand(0));
 
-  // No-op casts don't have any cost.
-  if (I.isLosslessCast())
-    return true;
-
-  // trunc to a native type is free (assuming the target has compare and
-  // shift-right of the same width).
-  if (TD && isa<TruncInst>(I) &&
-      TD->isLegalInteger(TD->getTypeSizeInBits(I.getType())))
-    return true;
-
-  // Result of a cmp instruction is often extended (to be used by other
-  // cmp instructions, logical or return instructions). These are usually
-  // no-ops on most sane targets.
-  if (isa<CmpInst>(I.getOperand(0)))
-    return true;
-
-  // Assume the rest of the casts require work.
-  return false;
+  return isInstructionFree(&I, TD);
 }
 
 bool CallAnalyzer::visitUnaryInstruction(UnaryInstruction &I) {
@@ -636,21 +613,11 @@ bool CallAnalyzer::visitCallSite(CallSite CS) {
     default:
       return Base::visitCallSite(CS);
 
-    case Intrinsic::dbg_declare:
-    case Intrinsic::dbg_value:
-    case Intrinsic::invariant_start:
-    case Intrinsic::invariant_end:
-    case Intrinsic::lifetime_start:
-    case Intrinsic::lifetime_end:
     case Intrinsic::memset:
     case Intrinsic::memcpy:
     case Intrinsic::memmove:
-    case Intrinsic::objectsize:
-    case Intrinsic::ptr_annotation:
-    case Intrinsic::var_annotation:
-      // SROA can usually chew through these intrinsics and they have no cost
-      // so don't pay the price of analyzing them in detail.
-      return true;
+      // SROA can usually chew through these intrinsics, but they aren't free.
+      return false;
     }
   }
 
@@ -662,7 +629,7 @@ bool CallAnalyzer::visitCallSite(CallSite CS) {
       return false;
     }
 
-    if (!callIsSmall(F)) {
+    if (!callIsSmall(CS)) {
       // We account for the average 1 instruction per call argument setup
       // here.
       Cost += CS.arg_size() * InlineConstants::InstrCost;
@@ -706,6 +673,11 @@ bool CallAnalyzer::visitCallSite(CallSite CS) {
 }
 
 bool CallAnalyzer::visitInstruction(Instruction &I) {
+  // Some instructions are free. All of the free intrinsics can also be
+  // handled by SROA, etc.
+  if (isInstructionFree(&I, TD))
+    return true;
+
   // We found something we don't understand or can't handle. Mark any SROA-able
   // values in the operand list as no longer viable.
   for (User::op_iterator OI = I.op_begin(), OE = I.op_end(); OI != OE; ++OI)
@@ -825,9 +797,33 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
     FiftyPercentVectorBonus = Threshold;
     TenPercentVectorBonus = Threshold / 2;
 
-    // Subtract off one instruction per call argument as those will be free after
-    // inlining.
-    Cost -= CS.arg_size() * InlineConstants::InstrCost;
+    // Give out bonuses per argument, as the instructions setting them up will
+    // be gone after inlining.
+    for (unsigned I = 0, E = CS.arg_size(); I != E; ++I) {
+      if (TD && CS.isByValArgument(I)) {
+        // We approximate the number of loads and stores needed by dividing the
+        // size of the byval type by the target's pointer size.
+        PointerType *PTy = cast<PointerType>(CS.getArgument(I)->getType());
+        unsigned TypeSize = TD->getTypeSizeInBits(PTy->getElementType());
+        unsigned PointerSize = TD->getPointerSizeInBits();
+        // Ceiling division.
+        unsigned NumStores = (TypeSize + PointerSize - 1) / PointerSize;
+
+        // If it generates more than 8 stores it is likely to be expanded as an
+        // inline memcpy so we take that as an upper bound. Otherwise we assume
+        // one load and one store per word copied.
+        // FIXME: The maxStoresPerMemcpy setting from the target should be used
+        // here instead of a magic number of 8, but it's not available via
+        // TargetData.
+        NumStores = std::min(NumStores, 8U);
+
+        Cost -= 2 * NumStores * InlineConstants::InstrCost;
+      } else {
+        // For non-byval arguments subtract off one instruction per call
+        // argument.
+        Cost -= InlineConstants::InstrCost;
+      }
+    }
 
     // If there is only one call of the function, and it has internal linkage,
     // the cost of inlining it drops dramatically.

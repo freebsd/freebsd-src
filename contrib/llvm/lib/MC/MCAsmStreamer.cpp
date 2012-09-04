@@ -138,6 +138,7 @@ public:
   virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
                                    MCSymbol *EHSymbol);
   virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
+  virtual void EmitDataRegion(MCDataRegionType Kind);
   virtual void EmitThumbFunc(MCSymbol *Func);
 
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
@@ -170,7 +171,7 @@ public:
                                      unsigned ByteAlignment);
 
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
-                            unsigned Size = 0, unsigned ByteAlignment = 0);
+                            uint64_t Size = 0, unsigned ByteAlignment = 0);
 
   virtual void EmitTBSSSymbol (const MCSection *Section, MCSymbol *Symbol,
                                uint64_t Size, unsigned ByteAlignment = 0);
@@ -352,6 +353,21 @@ void MCAsmStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   EmitEOL();
 }
 
+void MCAsmStreamer::EmitDataRegion(MCDataRegionType Kind) {
+  MCContext &Ctx = getContext();
+  const MCAsmInfo &MAI = Ctx.getAsmInfo();
+  if (!MAI.doesSupportDataRegionDirectives())
+    return;
+  switch (Kind) {
+  case MCDR_DataRegion:            OS << "\t.data_region"; break;
+  case MCDR_DataRegionJT8:         OS << "\t.data_region jt8"; break;
+  case MCDR_DataRegionJT16:        OS << "\t.data_region jt16"; break;
+  case MCDR_DataRegionJT32:        OS << "\t.data_region jt32"; break;
+  case MCDR_DataRegionEnd:         OS << "\t.end_data_region"; break;
+  }
+  EmitEOL();
+}
+
 void MCAsmStreamer::EmitThumbFunc(MCSymbol *Func) {
   // This needs to emit to a temporary string to get properly quoted
   // MCSymbols when they have spaces in them.
@@ -513,7 +529,7 @@ void MCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 }
 
 void MCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
-                                 unsigned Size, unsigned ByteAlignment) {
+                                 uint64_t Size, unsigned ByteAlignment) {
   // Note: a .zerofill directive does not switch sections.
   OS << ".zerofill ";
 
@@ -826,7 +842,7 @@ void MCAsmStreamer::EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
 
   if (IsVerboseAsm) {
     OS.PadToColumn(MAI.getCommentColumn());
-    OS << MAI.getCommentString() << ' ' << FileName << ':' 
+    OS << MAI.getCommentString() << ' ' << FileName << ':'
        << Line << ':' << Column;
   }
   EmitEOL();
@@ -1009,7 +1025,7 @@ void MCAsmStreamer::EmitCFISignalFrame() {
   if (!UseCFI)
     return;
 
-  OS << "\t.cif_signal_frame";
+  OS << "\t.cfi_signal_frame";
   EmitEOL();
 }
 

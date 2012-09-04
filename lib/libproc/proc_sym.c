@@ -254,7 +254,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 	 */
 	if ((data = elf_getdata(dynsymscn, NULL)) == NULL) {
 		DPRINTF("ERROR: elf_getdata() failed");
-		goto err2;
+		goto symtab;
 	}
 	i = 0;
 	while (gelf_getsym(data, i++, &sym) != NULL) {
@@ -274,11 +274,11 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 				 * the function.
 				 */
 				symcopy->st_value = rsym;
-				error = 0;
 				goto out;
 			}
 		}
 	}
+symtab:
 	/*
 	 * Iterate over the Symbols Table to find the symbol.
 	 * Then look up the string name in STRTAB (.dynstr)
@@ -430,18 +430,17 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	 * Iterate over the Dynamic Symbols table to find the symbol.
 	 * Then look up the string name in STRTAB (.dynstr)
 	 */
-	if ((data = elf_getdata(dynsymscn, NULL)) == NULL) {
+	if ((data = elf_getdata(dynsymscn, NULL))) {
 		DPRINTF("ERROR: elf_getdata() failed");
-		goto err2;
-	}
-	i = 0;
-	while (gelf_getsym(data, i++, &sym) != NULL) {
-		s = elf_strptr(e, dynsymstridx, sym.st_name);
-		if (s && strcmp(s, symbol) == 0) {
-			memcpy(symcopy, &sym, sizeof(sym));
-			symcopy->st_value = map->pr_vaddr + sym.st_value;
-			error = 0;
-			goto out;
+		i = 0;
+		while (gelf_getsym(data, i++, &sym) != NULL) {
+			s = elf_strptr(e, dynsymstridx, sym.st_name);
+			if (s && strcmp(s, symbol) == 0) {
+				memcpy(symcopy, &sym, sizeof(sym));
+				symcopy->st_value = map->pr_vaddr + sym.st_value;
+				error = 0;
+				goto out;
+			}
 		}
 	}
 	/*
@@ -450,17 +449,15 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	 */
 	if (symtabscn == NULL)
 		goto err2;
-	if ((data = elf_getdata(symtabscn, NULL)) == NULL) {
-		DPRINTF("ERROR: elf_getdata() failed");
-		goto err2;
-	}
-	i = 0;
-	while (gelf_getsym(data, i++, &sym) != NULL) {
-		s = elf_strptr(e, symtabstridx, sym.st_name);
-		if (s && strcmp(s, symbol) == 0) {
-			memcpy(symcopy, &sym, sizeof(sym));
-			error = 0;
-			goto out;
+	if ((data = elf_getdata(symtabscn, NULL))) {
+		i = 0;
+		while (gelf_getsym(data, i++, &sym) != NULL) {
+			s = elf_strptr(e, symtabstridx, sym.st_name);
+			if (s && strcmp(s, symbol) == 0) {
+				memcpy(symcopy, &sym, sizeof(sym));
+				error = 0;
+				goto out;
+			}
 		}
 	}
 out:

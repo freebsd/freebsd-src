@@ -151,7 +151,7 @@ namespace llvm {
     // Inline asm support
     std::pair<unsigned, const TargetRegisterClass*>
     getRegForInlineAsmConstraint(const std::string &Constraint,
-				 EVT VT) const;
+                                 EVT VT) const;
 
     // Expand specifics
     SDValue TryExpandADDWithMul(SDNode *Op, SelectionDAG &DAG) const;
@@ -174,12 +174,7 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
-      LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
-                bool isVarArg, bool doesNotRet, bool &isTailCall,
-                const SmallVectorImpl<ISD::OutputArg> &Outs,
-                const SmallVectorImpl<SDValue> &OutVals,
-                const SmallVectorImpl<ISD::InputArg> &Ins,
-                DebugLoc dl, SelectionDAG &DAG,
+      LowerCall(TargetLowering::CallLoweringInfo &CLI,
                 SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
@@ -191,7 +186,7 @@ namespace llvm {
 
     virtual bool
       CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
-		     bool isVarArg,
+                     bool isVarArg,
                      const SmallVectorImpl<ISD::OutputArg> &ArgsFlags,
                      LLVMContext &Context) const;
   };

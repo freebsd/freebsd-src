@@ -4758,7 +4758,10 @@ try_long:
 
 	smp_report_general_sbuf(response, sizeof(*response), sb);
 
-	sbuf_finish(sb);
+	if (sbuf_finish(sb) != 0) {
+		warnx("%s: sbuf_finish", __func__);
+		goto bailout;
+	}
 
 	printf("%s", sbuf_data(sb));
 
@@ -5129,7 +5132,10 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 
 	smp_report_manuf_info_sbuf(&response, sizeof(response), sb);
 
-	sbuf_finish(sb);
+	if (sbuf_finish(sb) != 0) {
+		warnx("%s: sbuf_finish", __func__);
+		goto bailout;
+	}
 
 	printf("%s", sbuf_data(sb));
 
@@ -5459,6 +5465,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	STAILQ_INIT(&devlist.dev_queue);
 
 	rgrequest = malloc(sizeof(*rgrequest));
 	if (rgrequest == NULL) {
@@ -5527,7 +5534,6 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		goto bailout;
 	}
 
-	STAILQ_INIT(&devlist.dev_queue);
 	devlist.path_id = device->path_id;
 
 	retval = buildbusdevlist(&devlist);

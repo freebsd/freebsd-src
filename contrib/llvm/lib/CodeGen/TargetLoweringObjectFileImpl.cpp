@@ -93,8 +93,9 @@ getELFKindForNamedSection(StringRef Name, SectionKind K) {
   // N.B.: The defaults used in here are no the same ones used in MC.
   // We follow gcc, MC follows gas. For example, given ".section .eh_frame",
   // both gas and MC will produce a section with no flags. Given
-  // section(".eh_frame") gcc will produce
-  // .section	.eh_frame,"a",@progbits
+  // section(".eh_frame") gcc will produce:
+  //
+  //   .section   .eh_frame,"a",@progbits
   if (Name.empty() || Name[0] != '.') return K;
 
   // Some lame default implementation based on some magic section names.
@@ -349,10 +350,17 @@ TargetLoweringObjectFileELF::getStaticCtorSection(unsigned Priority) const {
   if (Priority == 65535)
     return StaticCtorSection;
 
-  std::string Name = std::string(".ctors.") + utostr(65535 - Priority);
-  return getContext().getELFSection(Name, ELF::SHT_PROGBITS,
-                                    ELF::SHF_ALLOC |ELF::SHF_WRITE,
-                                    SectionKind::getDataRel());
+  if (UseInitArray) {
+    std::string Name = std::string(".init_array.") + utostr(Priority);
+    return getContext().getELFSection(Name, ELF::SHT_INIT_ARRAY,
+                                      ELF::SHF_ALLOC | ELF::SHF_WRITE,
+                                      SectionKind::getDataRel());
+  } else {
+    std::string Name = std::string(".ctors.") + utostr(65535 - Priority);
+    return getContext().getELFSection(Name, ELF::SHT_PROGBITS,
+                                      ELF::SHF_ALLOC |ELF::SHF_WRITE,
+                                      SectionKind::getDataRel());
+  }
 }
 
 const MCSection *
@@ -362,10 +370,35 @@ TargetLoweringObjectFileELF::getStaticDtorSection(unsigned Priority) const {
   if (Priority == 65535)
     return StaticDtorSection;
 
-  std::string Name = std::string(".dtors.") + utostr(65535 - Priority);
-  return getContext().getELFSection(Name, ELF::SHT_PROGBITS,
-                                    ELF::SHF_ALLOC |ELF::SHF_WRITE,
-                                    SectionKind::getDataRel());
+  if (UseInitArray) {
+    std::string Name = std::string(".fini_array.") + utostr(Priority);
+    return getContext().getELFSection(Name, ELF::SHT_FINI_ARRAY,
+                                      ELF::SHF_ALLOC | ELF::SHF_WRITE,
+                                      SectionKind::getDataRel());
+  } else {
+    std::string Name = std::string(".dtors.") + utostr(65535 - Priority);
+    return getContext().getELFSection(Name, ELF::SHT_PROGBITS,
+                                      ELF::SHF_ALLOC |ELF::SHF_WRITE,
+                                      SectionKind::getDataRel());
+  }
+}
+
+void
+TargetLoweringObjectFileELF::InitializeELF(bool UseInitArray_) {
+  UseInitArray = UseInitArray_;
+  if (!UseInitArray)
+    return;
+
+  StaticCtorSection =
+    getContext().getELFSection(".init_array", ELF::SHT_INIT_ARRAY,
+                               ELF::SHF_WRITE |
+                               ELF::SHF_ALLOC,
+                               SectionKind::getDataRel());
+  StaticDtorSection =
+    getContext().getELFSection(".fini_array", ELF::SHT_FINI_ARRAY,
+                               ELF::SHF_WRITE |
+                               ELF::SHF_ALLOC,
+                               SectionKind::getDataRel());
 }
 
 //===----------------------------------------------------------------------===//
@@ -379,7 +412,7 @@ emitModuleFlags(MCStreamer &Streamer,
                 ArrayRef<Module::ModuleFlagEntry> ModuleFlags,
                 Mangler *Mang, const TargetMachine &TM) const {
   unsigned VersionVal = 0;
-  unsigned GCFlags = 0;
+  unsigned ImageInfoFlags = 0;
   StringRef SectionVal;
 
   for (ArrayRef<Module::ModuleFlagEntry>::iterator
@@ -396,8 +429,9 @@ emitModuleFlags(MCStreamer &Streamer,
     if (Key == "Objective-C Image Info Version")
       VersionVal = cast<ConstantInt>(Val)->getZExtValue();
     else if (Key == "Objective-C Garbage Collection" ||
-             Key == "Objective-C GC Only")
-      GCFlags |= cast<ConstantInt>(Val)->getZExtValue();
+             Key == "Objective-C GC Only" ||
+             Key == "Objective-C Is Simulated")
+      ImageInfoFlags |= cast<ConstantInt>(Val)->getZExtValue();
     else if (Key == "Objective-C Image Info Section")
       SectionVal = cast<MDString>(Val)->getString();
   }
@@ -424,7 +458,7 @@ emitModuleFlags(MCStreamer &Streamer,
   Streamer.EmitLabel(getContext().
                      GetOrCreateSymbol(StringRef("L_OBJC_IMAGE_INFO")));
   Streamer.EmitIntValue(VersionVal, 4);
-  Streamer.EmitIntValue(GCFlags, 4);
+  Streamer.EmitIntValue(ImageInfoFlags, 4);
   Streamer.AddBlankLine();
 }
 

@@ -108,8 +108,9 @@ __FBSDID("$FreeBSD$");
  * Setup a h/w transmit queue for beacons.
  */
 int
-ath_beaconq_setup(struct ath_hal *ah)
+ath_beaconq_setup(struct ath_softc *sc)
 {
+	struct ath_hal *ah = sc->sc_ah;
 	HAL_TXQ_INFO qi;
 
 	memset(&qi, 0, sizeof(qi));
@@ -118,6 +119,10 @@ ath_beaconq_setup(struct ath_hal *ah)
 	qi.tqi_cwmax = HAL_TXQ_USEDEFAULT;
 	/* NB: for dynamic turbo, don't enable any other interrupts */
 	qi.tqi_qflags = HAL_TXQ_TXDESCINT_ENABLE;
+	if (sc->sc_isedma)
+		qi.tqi_qflags |= HAL_TXQ_TXOKINT_ENABLE |
+		    HAL_TXQ_TXERRINT_ENABLE;
+
 	return ath_hal_setuptxqueue(ah, HAL_TX_QUEUE_BEACON, &qi);
 }
 
@@ -268,6 +273,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 	u_int8_t rix, rate;
 	HAL_DMA_ADDR bufAddrList[4];
 	uint32_t segLenList[4];
+	HAL_11N_RATE_SERIES rc[4];
 
 	DPRINTF(sc, ATH_DEBUG_BEACON_PROC, "%s: m %p len %u\n",
 		__func__, m, m->m_len);
@@ -324,6 +330,26 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		, 0				/* rts/cts rate */
 		, 0				/* rts/cts duration */
 	);
+
+	/*
+	 * The EDMA HAL currently assumes that _all_ rate control
+	 * settings are done in ath_hal_set11nratescenario(), rather
+	 * than in ath_hal_setuptxdesc().
+	 */
+	if (sc->sc_isedma) {
+		memset(&rc, 0, sizeof(rc));
+
+		rc[0].ChSel = sc->sc_txchainmask;
+		rc[0].Tries = 1;
+		rc[0].Rate = rt->info[rix].rateCode;
+		rc[0].RateIndex = rix;
+		rc[0].tx_power_cap = 0x3f;
+		rc[0].PktDuration =
+		    ath_hal_computetxtime(ah, rt, roundup(m->m_len, 4),
+		        rix, 0);
+		ath_hal_set11nratescenario(ah, ds, 0, 0, rc, 4, flags);
+	}
+
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
 	segLenList[0] = roundup(m->m_len, 4);
 	segLenList[1] = segLenList[2] = segLenList[3] = 0;
@@ -458,12 +484,15 @@ ath_beacon_proc(void *arg, int pending)
 		 * This should never fail since we check above that no frames
 		 * are still pending on the queue.
 		 */
-		if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
-			DPRINTF(sc, ATH_DEBUG_ANY,
-				"%s: beacon queue %u did not stop?\n",
-				__func__, sc->sc_bhalq);
+		if (! sc->sc_isedma) {
+			if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
+				DPRINTF(sc, ATH_DEBUG_ANY,
+					"%s: beacon queue %u did not stop?\n",
+					__func__, sc->sc_bhalq);
+			}
 		}
 		/* NB: cabq traffic should already be queued and primed */
+
 		ath_hal_puttxbuf(ah, sc->sc_bhalq, bfaddr);
 		ath_hal_txstart(ah, sc->sc_bhalq);
 
@@ -673,6 +702,7 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211_node *ni;
 	u_int32_t nexttbtt, intval, tsftu;
+	u_int32_t nexttbtt_u8, intval_u8;
 	u_int64_t tsf;
 
 	if (vap == NULL)
@@ -836,7 +866,21 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 			sc->sc_imask |= HAL_INT_SWBA;	/* beacon prepare */
 			ath_beaconq_config(sc);
 		}
-		ath_hal_beaconinit(ah, nexttbtt, intval);
+
+		/*
+		 * Now dirty things because for now, the EDMA HAL has
+		 * nexttbtt and intval is TU/8.
+		 */
+		if (sc->sc_isedma) {
+			nexttbtt_u8 = (nexttbtt << 3);
+			intval_u8 = (intval << 3);
+			if (intval & HAL_BEACON_ENA)
+				intval_u8 |= HAL_BEACON_ENA;
+			if (intval & HAL_BEACON_RESET_TSF)
+				intval_u8 |= HAL_BEACON_RESET_TSF;
+			ath_hal_beaconinit(ah, nexttbtt_u8, intval_u8);
+		} else
+			ath_hal_beaconinit(ah, nexttbtt, intval);
 		sc->sc_bmisscount = 0;
 		ath_hal_intrset(ah, sc->sc_imask);
 		/*

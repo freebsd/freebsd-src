@@ -32,6 +32,7 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
+dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
@@ -53,6 +54,7 @@ dev/sec/sec.c			optional	sec mpc85xx
 dev/sound/macio/aoa.c		optional	snd_davbus | snd_ai2s powermac
 dev/sound/macio/davbus.c	optional	snd_davbus powermac
 dev/sound/macio/i2s.c		optional	snd_ai2s powermac
+dev/sound/macio/onyx.c		optional	snd_ai2s iicbus powermac
 dev/sound/macio/snapper.c	optional	snd_ai2s iicbus powermac
 dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
@@ -226,6 +228,12 @@ powerpc/psim/iobus.c 		optional	psim
 powerpc/psim/ata_iobus.c	optional	ata psim
 powerpc/psim/openpic_iobus.c	optional	psim
 powerpc/psim/uart_iobus.c	optional	uart psim
+powerpc/wii/platform_wii.c	optional	wii
+powerpc/wii/wii_bus.c		optional	wii
+powerpc/wii/wii_pic.c		optional	wii
+powerpc/wii/wii_fb.c		optional	wii
+powerpc/wii/wii_gpio.c		optional	wii
+powerpc/wii/wii_ipc.c		optional	wii
 
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32

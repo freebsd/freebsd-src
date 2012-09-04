@@ -436,6 +436,7 @@ contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
+contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
 #contrib/dev/acpica/components/utilities/utxfmutex.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
 	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/contrib/ipfilter"
@@ -658,6 +659,11 @@ dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
+dev/altera/avgen/altera_avgen.c		optional altera_avgen
+dev/altera/sdcard/altera_sdcard.c	optional altera_sdcard
+dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
+dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
+dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
 dev/amr/amr_disk.c		optional amr
@@ -718,8 +724,9 @@ dev/ath/if_ath_pci.c		optional ath_pci pci \
 dev/ath/if_ath_ahb.c		optional ath_ahb \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
+# XXX Work around clang warning, until maintainer approves fix.
 dev/ath/if_ath.c		optional ath \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} -I$S/dev/ath"
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
@@ -1030,7 +1037,9 @@ dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
-dev/bwn/if_bwn.c		optional bwn siba_bwn
+# XXX Work around clang warning, until maintainer approves fix.
+dev/bwn/if_bwn.c		optional bwn siba_bwn \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bxe/if_bxe.c		optional bxe
 dev/bxe/bxe_link.c		optional bxe
 dev/cardbus/cardbus.c		optional cardbus
@@ -1310,10 +1319,13 @@ dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
 dev/iicbus/pcf8563.c		optional pcf8563
+dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
-dev/ips/ips.c			optional ips
+# XXX Work around clang warning, until maintainer approves fix.
+dev/ips/ips.c			optional ips \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/ips/ips_commands.c		optional ips
 dev/ips/ips_disk.c		optional ips
 dev/ips/ips_ioctl.c		optional ips
@@ -1325,12 +1337,12 @@ ipwbssfw.c			optional ipwbssfw | ipwfw		\
 	clean		"ipwbssfw.c"
 ipw_bss.fwo			optional ipwbssfw | ipwfw		\
 	dependency	"ipw_bss.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ipw_bss.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"ipw_bss.fwo"
 ipw_bss.fw			optional ipwbssfw | ipwfw		\
 	dependency	"$S/contrib/dev/ipw/ipw2100-1.3.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_bss.fw"
 ipwibssfw.c			optional ipwibssfw | ipwfw		\
@@ -1339,12 +1351,12 @@ ipwibssfw.c			optional ipwibssfw | ipwfw		\
 	clean		"ipwibssfw.c"
 ipw_ibss.fwo			optional ipwibssfw | ipwfw		\
 	dependency	"ipw_ibss.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ipw_ibss.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"ipw_ibss.fwo"
 ipw_ibss.fw			optional ipwibssfw | ipwfw		\
 	dependency	"$S/contrib/dev/ipw/ipw2100-1.3-i.fw.uu"	\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3-i.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_ibss.fw"
 ipwmonitorfw.c			optional ipwmonitorfw | ipwfw		\
@@ -1353,12 +1365,12 @@ ipwmonitorfw.c			optional ipwmonitorfw | ipwfw		\
 	clean		"ipwmonitorfw.c"
 ipw_monitor.fwo			optional ipwmonitorfw | ipwfw		\
 	dependency	"ipw_monitor.fw"				\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ipw_monitor.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"ipw_monitor.fwo"
 ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	dependency	"$S/contrib/dev/ipw/ipw2100-1.3-p.fw.uu"	\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3-p.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
 dev/iscsi/initiator/iscsi.c	optional iscsi_initiator scbus
@@ -1367,6 +1379,8 @@ dev/iscsi/initiator/isc_cam.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
+dev/isf/isf.c			optional isf
+dev/isf/isf_nexus.c		optional isf
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
 dev/isp/isp_library.c		optional isp
@@ -1381,12 +1395,12 @@ iwibssfw.c			optional iwibssfw | iwifw		\
 	clean		"iwibssfw.c"
 iwi_bss.fwo			optional iwibssfw | iwifw		\
 	dependency	"iwi_bss.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwi_bss.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwi_bss.fwo"
 iwi_bss.fw			optional iwibssfw | iwifw		\
 	dependency	"$S/contrib/dev/iwi/ipw2200-bss.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-bss.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwi_bss.fw"
 iwiibssfw.c			optional iwiibssfw | iwifw		\
@@ -1395,12 +1409,12 @@ iwiibssfw.c			optional iwiibssfw | iwifw		\
 	clean		"iwiibssfw.c"
 iwi_ibss.fwo			optional iwiibssfw | iwifw		\
 	dependency	"iwi_ibss.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwi_ibss.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwi_ibss.fwo"
 iwi_ibss.fw			optional iwiibssfw | iwifw		\
 	dependency	"$S/contrib/dev/iwi/ipw2200-ibss.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-ibss.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwi_ibss.fw"
 iwimonitorfw.c			optional iwimonitorfw | iwifw		\
@@ -1409,12 +1423,12 @@ iwimonitorfw.c			optional iwimonitorfw | iwifw		\
 	clean		"iwimonitorfw.c"
 iwi_monitor.fwo			optional iwimonitorfw | iwifw		\
 	dependency	"iwi_monitor.fw"				\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwi_monitor.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwi_monitor.fwo"
 iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	dependency	"$S/contrib/dev/iwi/ipw2200-sniffer.fw.uu"	\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-sniffer.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwi_monitor.fw"
 dev/iwn/if_iwn.c		optional iwn
@@ -1424,12 +1438,12 @@ iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	clean		"iwn1000fw.c"
 iwn1000fw.fwo			optional iwn1000fw | iwnfw		\
 	dependency	"iwn1000.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn1000.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn1000fw.fwo"
 iwn1000.fw			optional iwn1000fw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-1000-39.31.5.1.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-1000-39.31.5.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
 iwn4965fw.c			optional iwn4965fw | iwnfw		\
@@ -1438,12 +1452,12 @@ iwn4965fw.c			optional iwn4965fw | iwnfw		\
 	clean		"iwn4965fw.c"
 iwn4965fw.fwo			optional iwn4965fw | iwnfw		\
 	dependency	"iwn4965.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn4965.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn4965fw.fwo"
 iwn4965.fw			optional iwn4965fw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-4965-228.61.2.24.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-228.61.2.24.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn4965.fw"
 iwn5000fw.c			optional iwn5000fw | iwnfw		\
@@ -1452,12 +1466,12 @@ iwn5000fw.c			optional iwn5000fw | iwnfw		\
 	clean		"iwn5000fw.c"
 iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
 	dependency	"iwn5000.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn5000.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn5000fw.fwo"
 iwn5000.fw			optional iwn5000fw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-5000-8.83.5.1.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-8.83.5.1.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn5000.fw"
 iwn5150fw.c			optional iwn5150fw | iwnfw		\
@@ -1466,12 +1480,12 @@ iwn5150fw.c			optional iwn5150fw | iwnfw		\
 	clean		"iwn5150fw.c"
 iwn5150fw.fwo			optional iwn5150fw | iwnfw		\
 	dependency	"iwn5150.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn5150.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn5150fw.fwo"
 iwn5150.fw			optional iwn5150fw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-5150-8.24.2.2.fw.uu"\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5150-8.24.2.2.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn5150.fw"
 iwn6000fw.c			optional iwn6000fw | iwnfw		\
@@ -1480,12 +1494,12 @@ iwn6000fw.c			optional iwn6000fw | iwnfw		\
 	clean		"iwn6000fw.c"
 iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	dependency	"iwn6000.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn6000fw.fwo"
 iwn6000.fw			optional iwn6000fw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-6000-9.221.4.1.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.221.4.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
 iwn6000g2afw.c			optional iwn6000g2afw | iwnfw		\
@@ -1494,12 +1508,12 @@ iwn6000g2afw.c			optional iwn6000g2afw | iwnfw		\
 	clean		"iwn6000g2afw.c"
 iwn6000g2afw.fwo		optional iwn6000g2afw | iwnfw		\
 	dependency	"iwn6000g2a.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000g2a.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn6000g2afw.fwo"
 iwn6000g2a.fw			optional iwn6000g2afw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6000g2a.fw"
 iwn6000g2bfw.c			optional iwn6000g2bfw | iwnfw		\
@@ -1508,12 +1522,12 @@ iwn6000g2bfw.c			optional iwn6000g2bfw | iwnfw		\
 	clean		"iwn6000g2bfw.c"
 iwn6000g2bfw.fwo		optional iwn6000g2bfw | iwnfw		\
 	dependency	"iwn6000g2b.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000g2b.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn6000g2bfw.fwo"
 iwn6000g2b.fw			optional iwn6000g2bfw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6000g2b.fw"
 iwn6050fw.c			optional iwn6050fw | iwnfw		\
@@ -1522,12 +1536,12 @@ iwn6050fw.c			optional iwn6050fw | iwnfw		\
 	clean		"iwn6050fw.c"
 iwn6050fw.fwo			optional iwn6050fw | iwnfw		\
 	dependency	"iwn6050.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6050.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"iwn6050fw.fwo"
 iwn6050.fw			optional iwn6050fw | iwnfw		\
 	dependency	"$S/contrib/dev/iwn/iwlwifi-6050-41.28.5.1.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6050-41.28.5.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6050.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
@@ -1612,6 +1626,7 @@ dev/mii/rgephy.c		optional miibus | rgephy
 dev/mii/rlphy.c			optional miibus | rlphy
 dev/mii/rlswitch.c		optional rlswitch
 dev/mii/smcphy.c		optional miibus | smcphy
+dev/mii/smscphy.c		optional miibus | smscphy
 dev/mii/tdkphy.c		optional miibus | tdkphy
 dev/mii/tlphy.c			optional miibus | tlphy
 dev/mii/truephy.c		optional miibus | truephy
@@ -1630,7 +1645,9 @@ dev/mmc/mmcsd.c			optional mmcsd
 dev/mn/if_mn.c			optional mn pci
 dev/mps/mps.c			optional mps
 dev/mps/mps_config.c		optional mps
-dev/mps/mps_mapping.c		optional mps
+# XXX Work around clang warning, until maintainer approves fix.
+dev/mps/mps_mapping.c		optional mps \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/mps/mps_pci.c		optional mps pci
 dev/mps/mps_sas.c		optional mps \
 	compile-with "${NORMAL_C} ${NO_WUNNEEDED_INTERNAL_DECL}"
@@ -1656,22 +1673,22 @@ mwlfw.c				optional mwlfw				\
 	clean		"mwlfw.c"
 mw88W8363.fwo		optional mwlfw					\
 	dependency	"mw88W8363.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} mw88W8363.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"mw88W8363.fwo"
 mw88W8363.fw		optional mwlfw					\
 	dependency	"$S/contrib/dev/mwl/mw88W8363.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/mwl/mw88W8363.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"mw88W8363.fw"
 mwlboot.fwo		optional mwlfw					\
 	dependency	"mwlboot.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} mwlboot.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"mwlboot.fwo"
 mwlboot.fw		optional mwlfw					\
 	dependency	"$S/contrib/dev/mwl/mwlboot.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/mwl/mwlboot.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"mwlboot.fw"
 dev/mxge/if_mxge.c		optional mxge pci
@@ -1803,12 +1820,12 @@ rt2561fw.c			optional rt2561fw | ralfw		\
 	clean		"rt2561fw.c"
 rt2561fw.fwo			optional rt2561fw | ralfw		\
 	dependency	"rt2561.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"rt2561fw.fwo"
 rt2561.fw			optional rt2561fw | ralfw		\
 	dependency	"$S/contrib/dev/ral/rt2561.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2561.fw"
 rt2561sfw.c			optional rt2561sfw | ralfw		\
@@ -1817,12 +1834,12 @@ rt2561sfw.c			optional rt2561sfw | ralfw		\
 	clean		"rt2561sfw.c"
 rt2561sfw.fwo			optional rt2561sfw | ralfw		\
 	dependency	"rt2561s.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561s.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"rt2561sfw.fwo"
 rt2561s.fw			optional rt2561sfw | ralfw		\
 	dependency	"$S/contrib/dev/ral/rt2561s.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561s.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2561s.fw"
 rt2661fw.c			optional rt2661fw | ralfw		\
@@ -1831,12 +1848,12 @@ rt2661fw.c			optional rt2661fw | ralfw		\
 	clean		"rt2661fw.c"
 rt2661fw.fwo			optional rt2661fw | ralfw		\
 	dependency	"rt2661.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2661.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"rt2661fw.fwo"
 rt2661.fw			optional rt2661fw | ralfw		\
 	dependency	"$S/contrib/dev/ral/rt2661.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2661.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2661.fw"
 rt2860fw.c			optional rt2860fw | ralfw		\
@@ -1845,12 +1862,12 @@ rt2860fw.c			optional rt2860fw | ralfw		\
 	clean		"rt2860fw.c"
 rt2860fw.fwo			optional rt2860fw | ralfw		\
 	dependency	"rt2860.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2860.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"rt2860fw.fwo"
 rt2860.fw			optional rt2860fw | ralfw		\
 	dependency	"$S/contrib/dev/ral/rt2860.fw.uu"		\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2860.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
 dev/random/harvest.c		standard
@@ -2048,6 +2065,7 @@ dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_dbg.c		optional uart gdb
 dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250
+dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
 dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
 dev/uart/uart_dev_sab82532.c	optional uart scc
@@ -2118,11 +2136,12 @@ dev/usb/net/if_ipheth.c		optional ipheth
 dev/usb/net/if_kue.c		optional kue
 dev/usb/net/if_mos.c		optional mos
 dev/usb/net/if_rue.c		optional rue
+dev/usb/net/if_smsc.c		optional smsc
 dev/usb/net/if_udav.c		optional udav
 dev/usb/net/if_usie.c		optional usie
 dev/usb/net/ruephy.c		optional rue
 dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
-					 rue | udav
+					 rue | smsc | udav
 dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
@@ -2135,12 +2154,12 @@ runfw.c				optional runfw							\
 	clean		"runfw.c"
 runfw.fwo			optional runfw							\
 	dependency	"runfw"									\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} runfw"		\
+	compile-with	"${NORMAL_FWO}"								\
 	no-implicit-rule									\
 	clean		"runfw.fwo"
 runfw				optional runfw							\
 	dependency	"$S/contrib/dev/run/rt2870.fw.uu"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/run/rt2870.fw.uu"		\
+	compile-with	"${NORMAL_FW}"								\
 	no-obj no-implicit-rule									\
 	clean		"runfw"
 dev/usb/wlan/if_uath.c		optional uath
@@ -2258,12 +2277,12 @@ wpifw.c			optional wpifw					\
 	clean		"wpifw.c"
 wpifw.fwo			optional wpifw				\
 	dependency	"wpi.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} wpi.fw" \
+	compile-with	"${NORMAL_FWO}"					\
 	no-implicit-rule						\
 	clean		"wpifw.fwo"
 wpi.fw			optional wpifw					\
 	dependency	"$S/contrib/dev/wpi/iwlwifi-3945-15.32.2.9.fw.uu"	\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/wpi/iwlwifi-3945-15.32.2.9.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"wpi.fw"
 dev/xe/if_xe.c			optional xe
@@ -2778,6 +2797,7 @@ libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/inet_ntop.c		standard
 libkern/inet_pton.c		standard
+libkern/jenkins_hash.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
 libkern/memcmp.c		standard
@@ -3610,7 +3630,7 @@ gnu/fs/xfs/xfs_dir.c		optional xfs \
 gnu/fs/xfs/xfs_dir2.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2_block.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2_data.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2_leaf.c	optional xfs \
@@ -3618,7 +3638,7 @@ gnu/fs/xfs/xfs_dir2_leaf.c	optional xfs \
 gnu/fs/xfs/xfs_dir2_node.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2_sf.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2_trace.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir_leaf.c	optional xfs \
@@ -3708,7 +3728,7 @@ gnu/fs/xfs/FreeBSD/xfs_sysctl.c	optional xfs \
 gnu/fs/xfs/FreeBSD/xfs_fs_subr.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_ioctl.c	optional xfs \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/debug.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/ktrace.c	optional xfs \

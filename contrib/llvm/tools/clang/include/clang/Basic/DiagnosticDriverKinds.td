@@ -33,8 +33,6 @@ def err_drv_use_of_Z_option : Error<
   "unsupported use of internal gcc -Z option '%0'">;
 def err_drv_output_argument_with_multiple_files : Error<
   "cannot specify -o when generating multiple output files">;
-def err_drv_unable_to_make_temp : Error<
-  "unable to make temporary file: %0">;
 def err_drv_unable_to_remove_file : Error<
   "unable to remove file: %0">;
 def err_drv_command_failure : Error<
@@ -94,23 +92,32 @@ def err_drv_invalid_arch_for_deployment_target : Error<
 def err_drv_objc_gc_arr : Error<
   "cannot specify both '-fobjc-arc' and '%0'">;
 def err_arc_nonfragile_abi : Error<
-  "-fobjc-arc is not supported with fragile abi">;
+  "-fobjc-arc is not supported with legacy abi">;
 def err_arc_unsupported : Error<
   "-fobjc-arc is not supported on current deployment target">;
 def err_drv_mg_requires_m_or_mm : Error<
   "option '-MG' requires '-M' or '-MM'">;
+def err_drv_asan_android_requires_pie : Error<
+  "AddressSanitizer on Android requires '-pie'">;
+def err_drv_unknown_objc_runtime : Error<
+  "unknown or ill-formed Objective-C runtime '%0'">;
 
 def warn_c_kext : Warning<
-  "ignoring -fapple-kext which is valid for c++ and objective-c++ only">;
+  "ignoring -fapple-kext which is valid for C++ and Objective-C++ only">;
 def warn_drv_input_file_unused : Warning<
-  "%0: '%1' input unused when '%2' is present">;
+  "%0: '%1' input unused%select{ when '%3' is present|}2">,
+  InGroup<DiagGroup<"unused-command-line-argument">>;
+def warn_drv_input_file_unused_by_cpp : Warning<
+  "%0: '%1' input unused in cpp mode">,
+  InGroup<DiagGroup<"unused-command-line-argument">>;
 def warn_drv_preprocessed_input_file_unused : Warning<
-  "%0: previously preprocessed input unused when '%1' is present">;
+  "%0: previously preprocessed input%select{ unused when '%2' is present|}1">,
+  InGroup<DiagGroup<"unused-command-line-argument">>;
 def warn_drv_unused_argument : Warning<
   "argument unused during compilation: '%0'">,
   InGroup<DiagGroup<"unused-command-line-argument">>;
 def warn_drv_empty_joined_argument : Warning<
-  "joined argument expects addition arg: '%0'">,
+  "joined argument expects additional value: '%0'">,
   InGroup<DiagGroup<"unused-command-line-argument">>;
 def warn_drv_not_using_clang_cpp : Warning<
   "not using the clang preprocessor due to user override">;

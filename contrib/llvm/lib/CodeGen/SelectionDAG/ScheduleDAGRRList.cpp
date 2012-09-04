@@ -266,7 +266,8 @@ static void GetCostForDef(const ScheduleDAGSDNodes::RegDefIter &RegDefPos,
                           const TargetLowering *TLI,
                           const TargetInstrInfo *TII,
                           const TargetRegisterInfo *TRI,
-                          unsigned &RegClass, unsigned &Cost) {
+                          unsigned &RegClass, unsigned &Cost,
+                          const MachineFunction &MF) {
   EVT VT = RegDefPos.GetValue();
 
   // Special handling for untyped values.  These values can only come from
@@ -285,7 +286,7 @@ static void GetCostForDef(const ScheduleDAGSDNodes::RegDefIter &RegDefPos,
 
     unsigned Idx = RegDefPos.GetIdx();
     const MCInstrDesc Desc = TII->get(Opcode);
-    const TargetRegisterClass *RC = TII->getRegClass(Desc, Idx, TRI);
+    const TargetRegisterClass *RC = TII->getRegClass(Desc, Idx, TRI, MF);
     RegClass = RC->getID();
     // FIXME: Cost arbitrarily set to 1 because there doesn't seem to be a
     // better way to determine it.
@@ -852,7 +853,7 @@ void ScheduleDAGRRList::UnscheduleNodeBottomUp(SUnit *SU) {
 }
 
 /// After backtracking, the hazard checker needs to be restored to a state
-/// corresponding the the current cycle.
+/// corresponding the current cycle.
 void ScheduleDAGRRList::RestoreHazardCheckerBottomUp() {
   HazardRec->Reset();
 
@@ -1181,7 +1182,7 @@ static void CheckForLiveRegDef(SUnit *SU, unsigned Reg,
                                SmallSet<unsigned, 4> &RegAdded,
                                SmallVector<unsigned, 4> &LRegs,
                                const TargetRegisterInfo *TRI) {
-  for (const uint16_t *AliasI = TRI->getOverlaps(Reg); *AliasI; ++AliasI) {
+  for (MCRegAliasIterator AliasI(Reg, TRI, true); AliasI.isValid(); ++AliasI) {
 
     // Check if Ref is live.
     if (!LiveRegDefs[*AliasI]) continue;
@@ -1920,7 +1921,7 @@ bool RegReductionPQBase::HighRegPressure(const SUnit *SU) const {
     for (ScheduleDAGSDNodes::RegDefIter RegDefPos(PredSU, scheduleDAG);
          RegDefPos.IsValid(); RegDefPos.Advance()) {
       unsigned RCId, Cost;
-      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost);
+      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost, MF);
 
       if ((RegPressure[RCId] + Cost) >= RegLimit[RCId])
         return true;
@@ -2034,7 +2035,7 @@ void RegReductionPQBase::scheduledNode(SUnit *SU) {
         continue;
 
       unsigned RCId, Cost;
-      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost);
+      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost, MF);
       RegPressure[RCId] += Cost;
       break;
     }
@@ -2049,7 +2050,7 @@ void RegReductionPQBase::scheduledNode(SUnit *SU) {
     if (SkipRegDefs > 0)
       continue;
     unsigned RCId, Cost;
-    GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost);
+    GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost, MF);
     if (RegPressure[RCId] < Cost) {
       // Register pressure tracking is imprecise. This can happen. But we try
       // hard not to let it happen because it likely results in poor scheduling.
@@ -2330,22 +2331,21 @@ static int BUCompareLatency(SUnit *left, SUnit *right, bool checkPref,
   // and latency.
   if (!checkPref || (left->SchedulingPref == Sched::ILP ||
                      right->SchedulingPref == Sched::ILP)) {
-    if (DisableSchedCycles) {
+    // If neither instruction stalls (!LStall && !RStall) and HazardRecognizer
+    // is enabled, grouping instructions by cycle, then its height is already
+    // covered so only its depth matters. We also reach this point if both stall
+    // but have the same height.
+    if (!SPQ->getHazardRec()->isEnabled()) {
       if (LHeight != RHeight)
         return LHeight > RHeight ? 1 : -1;
     }
-    else {
-      // If neither instruction stalls (!LStall && !RStall) then
-      // its height is already covered so only its depth matters. We also reach
-      // this if both stall but have the same height.
-      int LDepth = left->getDepth() - LPenalty;
-      int RDepth = right->getDepth() - RPenalty;
-      if (LDepth != RDepth) {
-        DEBUG(dbgs() << "  Comparing latency of SU (" << left->NodeNum
-              << ") depth " << LDepth << " vs SU (" << right->NodeNum
-              << ") depth " << RDepth << "\n");
-        return LDepth < RDepth ? 1 : -1;
-      }
+    int LDepth = left->getDepth() - LPenalty;
+    int RDepth = right->getDepth() - RPenalty;
+    if (LDepth != RDepth) {
+      DEBUG(dbgs() << "  Comparing latency of SU (" << left->NodeNum
+            << ") depth " << LDepth << " vs SU (" << right->NodeNum
+            << ") depth " << RDepth << "\n");
+      return LDepth < RDepth ? 1 : -1;
     }
     if (left->Latency != right->Latency)
       return left->Latency > right->Latency ? 1 : -1;
@@ -2363,7 +2363,7 @@ static bool BURRSort(SUnit *left, SUnit *right, RegReductionPQBase *SPQ) {
     bool RHasPhysReg = right->hasPhysRegDefs;
     if (LHasPhysReg != RHasPhysReg) {
       #ifndef NDEBUG
-      const char *PhysRegMsg[] = {" has no physreg", " defines a physreg"};
+      const char *const PhysRegMsg[] = {" has no physreg"," defines a physreg"};
       #endif
       DEBUG(dbgs() << "  SU (" << left->NodeNum << ") "
             << PhysRegMsg[LHasPhysReg] << " SU(" << right->NodeNum << ") "

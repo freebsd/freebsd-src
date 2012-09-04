@@ -422,6 +422,7 @@ zfs_probe_partition(void *arg, const char *partname,
 
 	ppa = (struct zfs_probe_args *)arg;
 	strncpy(devname, ppa->devname, strlen(ppa->devname) - 1);
+	devname[strlen(ppa->devname) - 1] = '\0';
 	sprintf(devname, "%s%s:", devname, partname);
 	pa.fd = open(devname, O_RDONLY);
 	if (pa.fd == -1)

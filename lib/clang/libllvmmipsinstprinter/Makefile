@@ -8,6 +8,7 @@ SRCS=	MipsInstPrinter.cpp
 
 TGHDRS=	MipsGenAsmWriter \
 	MipsGenInstrInfo \
-	MipsGenRegisterInfo
+	MipsGenRegisterInfo \
+	MipsGenSubtargetInfo
 
 .include "../clang.lib.mk"

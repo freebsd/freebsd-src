@@ -13,12 +13,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/ParentMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include <vector>
 
 using namespace clang;
@@ -57,7 +59,7 @@ ExplodedGraph::~ExplodedGraph() {}
 //===----------------------------------------------------------------------===//
 
 bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
-  // Reclaimn all nodes that match *all* the following criteria:
+  // Reclaim all nodes that match *all* the following criteria:
   //
   // (1) 1 predecessor (that has one successor)
   // (2) 1 successor (that has one predecessor)
@@ -67,6 +69,9 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
   // (6) The 'GDM' is the same as the predecessor.
   // (7) The LocationContext is the same as the predecessor.
   // (8) The PostStmt is for a non-consumed Stmt or Expr.
+  // (9) The successor is not a CallExpr StmtPoint (so that we would be able to
+  //     find it when retrying a call with no inlining).
+  // FIXME: It may be safe to reclaim PreCall and PostCall nodes as well.
 
   // Conditions 1 and 2.
   if (node->pred_size() != 1 || node->succ_size() != 1)
@@ -82,8 +87,7 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
 
   // Condition 3.
   ProgramPoint progPoint = node->getLocation();
-  if (!isa<PostStmt>(progPoint) ||
-      (isa<CallEnter>(progPoint) || isa<CallExit>(progPoint)))
+  if (!isa<PostStmt>(progPoint))
     return false;
 
   // Condition 4.
@@ -108,7 +112,13 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
       return false;
   }
   
-  return true; 
+  // Condition 9.
+  const ProgramPoint SuccLoc = succ->getLocation();
+  if (const StmtPoint *SP = dyn_cast<StmtPoint>(&SuccLoc))
+    if (CallEvent::mayBeInlined(SP->getStmt()))
+      return false;
+
+  return true;
 }
 
 void ExplodedGraph::collectNode(ExplodedNode *node) {

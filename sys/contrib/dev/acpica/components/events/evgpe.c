@@ -92,7 +92,7 @@ AcpiEvUpdateGpeEnableMask (
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo, GpeRegisterInfo);
+    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
 
     /* Clear the run bit up front */
 
@@ -431,6 +431,13 @@ AcpiEvGpeDetect (
             if (!(GpeRegisterInfo->EnableForRun |
                   GpeRegisterInfo->EnableForWake))
             {
+                ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
+                    "Ignore disabled registers for GPE%02X-GPE%02X: "
+                    "RunEnable=%02X, WakeEnable=%02X\n",
+                    GpeRegisterInfo->BaseGpeNumber,
+                    GpeRegisterInfo->BaseGpeNumber + (ACPI_GPE_REGISTER_WIDTH - 1),
+                    GpeRegisterInfo->EnableForRun,
+                    GpeRegisterInfo->EnableForWake));
                 continue;
             }
 
@@ -451,8 +458,13 @@ AcpiEvGpeDetect (
             }
 
             ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
-                "Read GPE Register at GPE%02X: Status=%02X, Enable=%02X\n",
-                GpeRegisterInfo->BaseGpeNumber, StatusReg, EnableReg));
+                "Read registers for GPE%02X-GPE%02X: Status=%02X, Enable=%02X, "
+                "RunEnable=%02X, WakeEnable=%02X\n",
+                GpeRegisterInfo->BaseGpeNumber,
+                GpeRegisterInfo->BaseGpeNumber + (ACPI_GPE_REGISTER_WIDTH - 1),
+                StatusReg, EnableReg,
+                GpeRegisterInfo->EnableForRun,
+                GpeRegisterInfo->EnableForWake));
 
             /* Check if there is anything active at all in this register */
 

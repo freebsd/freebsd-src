@@ -1093,8 +1093,6 @@ void
 ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "DMA setup: legacy\n");
-
 	/* Sensible legacy defaults */
 	sc->sc_rx_statuslen = 0;
 

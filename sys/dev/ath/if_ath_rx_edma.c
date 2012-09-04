@@ -817,8 +817,6 @@ void
 ath_recv_setup_edma(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "DMA setup: EDMA\n");
-
 	/* Set buffer size to 4k */
 	sc->sc_edma_bufsize = 4096;
 

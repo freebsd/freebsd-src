@@ -36,7 +36,7 @@ static int SelectDigraphErrorMessage(tok::TokenKind Kind) {
 }
 
 // Are the two tokens adjacent in the same source file?
-static bool AreTokensAdjacent(Preprocessor &PP, Token &First, Token &Second) {
+bool Parser::areTokensAdjacent(const Token &First, const Token &Second) {
   SourceManager &SM = PP.getSourceManager();
   SourceLocation FirstLoc = SM.getSpellingLoc(First.getLocation());
   SourceLocation FirstEnd = FirstLoc.getLocWithOffset(First.getLength());
@@ -80,7 +80,7 @@ void Parser::CheckForTemplateAndDigraph(Token &Next, ParsedType ObjectType,
     return;
 
   Token SecondToken = GetLookAheadToken(2);
-  if (!SecondToken.is(tok::colon) || !AreTokensAdjacent(PP, Next, SecondToken))
+  if (!SecondToken.is(tok::colon) || !areTokensAdjacent(Next, SecondToken))
     return;
 
   TemplateTy Template;
@@ -642,7 +642,13 @@ llvm::Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro){
   while (Tok.isNot(tok::r_square)) {
     if (!first) {
       if (Tok.isNot(tok::comma)) {
-        if (Tok.is(tok::code_completion)) {
+        // Provide a completion for a lambda introducer here. Except
+        // in Objective-C, where this is Almost Surely meant to be a message
+        // send. In that case, fail here and let the ObjC message
+        // expression parser perform the completion.
+        if (Tok.is(tok::code_completion) &&
+            !(getLangOpts().ObjC1 && Intro.Default == LCD_None &&
+              !Intro.Captures.empty())) {
           Actions.CodeCompleteLambdaIntroducer(getCurScope(), Intro, 
                                                /*AfterAmpersand=*/false);
           ConsumeCodeCompletionToken();
@@ -792,10 +798,10 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     MaybeParseCXX0XAttributes(Attr, &DeclEndLoc);
 
     // Parse trailing-return-type[opt].
-    ParsedType TrailingReturnType;
+    TypeResult TrailingReturnType;
     if (Tok.is(tok::arrow)) {
       SourceRange Range;
-      TrailingReturnType = ParseTrailingReturnType(Range).get();
+      TrailingReturnType = ParseTrailingReturnType(Range);
       if (Range.getEnd().isValid())
         DeclEndLoc = Range.getEnd();
     }
@@ -804,7 +810,7 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
 
     D.AddTypeInfo(DeclaratorChunk::getFunction(/*hasProto=*/true,
                                            /*isVariadic=*/EllipsisLoc.isValid(),
-                                           EllipsisLoc,
+                                           /*isAmbiguous=*/false, EllipsisLoc,
                                            ParamInfo.data(), ParamInfo.size(),
                                            DS.getTypeQualifiers(),
                                            /*RefQualifierIsLValueRef=*/true,
@@ -838,10 +844,10 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     }
     
     // Parse the return type, if there is one.
-    ParsedType TrailingReturnType;
+    TypeResult TrailingReturnType;
     if (Tok.is(tok::arrow)) {
       SourceRange Range;
-      TrailingReturnType = ParseTrailingReturnType(Range).get();
+      TrailingReturnType = ParseTrailingReturnType(Range);
       if (Range.getEnd().isValid())
         DeclEndLoc = Range.getEnd();      
     }
@@ -849,6 +855,7 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     ParsedAttributes Attr(AttrFactory);
     D.AddTypeInfo(DeclaratorChunk::getFunction(/*hasProto=*/true,
                      /*isVariadic=*/false,
+                     /*isAmbiguous=*/false,
                      /*EllipsisLoc=*/SourceLocation(),
                      /*Params=*/0, /*NumParams=*/0,
                      /*TypeQuals=*/0,
@@ -921,7 +928,7 @@ ExprResult Parser::ParseCXXCasts() {
   // diagnose error, suggest fix, and recover parsing.
   Token Next = NextToken();
   if (Tok.is(tok::l_square) && Tok.getLength() == 2 && Next.is(tok::colon) &&
-      AreTokensAdjacent(PP, Tok, Next))
+      areTokensAdjacent(Tok, Next))
     FixDigraph(*this, PP, Tok, Next, Kind, /*AtDigraph*/true);
 
   if (ExpectAndConsume(tok::less, diag::err_expected_less_after, CastName))
@@ -1235,8 +1242,6 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
                                              MultiExprArg(&InitList, 1),
                                              SourceLocation());
   } else {
-    GreaterThanIsOperatorScope G(GreaterThanIsOperator, true);
-
     BalancedDelimiterTracker T(*this, tok::l_paren);
     T.consumeOpen();
 
@@ -1298,7 +1303,12 @@ bool Parser::ParseCXXCondition(ExprResult &ExprOut,
     return true;
   }
 
+  ParsedAttributesWithRange attrs(AttrFactory);
+  MaybeParseCXX0XAttributes(attrs);
+
   if (!isCXXConditionDeclaration()) {
+    ProhibitAttributes(attrs);
+
     // Parse the expression.
     ExprOut = ParseExpression(); // expression
     DeclOut = 0;
@@ -1376,39 +1386,6 @@ bool Parser::ParseCXXCondition(ExprResult &ExprOut,
 
   Actions.FinalizeDeclaration(DeclOut);
   
-  return false;
-}
-
-/// \brief Determine whether the current token starts a C++
-/// simple-type-specifier.
-bool Parser::isCXXSimpleTypeSpecifier() const {
-  switch (Tok.getKind()) {
-  case tok::annot_typename:
-  case tok::kw_short:
-  case tok::kw_long:
-  case tok::kw___int64:
-  case tok::kw___int128:
-  case tok::kw_signed:
-  case tok::kw_unsigned:
-  case tok::kw_void:
-  case tok::kw_char:
-  case tok::kw_int:
-  case tok::kw_half:
-  case tok::kw_float:
-  case tok::kw_double:
-  case tok::kw_wchar_t:
-  case tok::kw_char16_t:
-  case tok::kw_char32_t:
-  case tok::kw_bool:
-  case tok::kw_decltype:
-  case tok::kw_typeof:
-  case tok::kw___underlying_type:
-    return true;
-
-  default:
-    break;
-  }
-
   return false;
 }
 
@@ -2426,10 +2403,14 @@ Parser::ParseCXXDeleteExpression(bool UseGlobal, SourceLocation Start) {
   // Array delete?
   bool ArrayDelete = false;
   if (Tok.is(tok::l_square) && NextToken().is(tok::r_square)) {
-    // FIXME: This could be the start of a lambda-expression. We should
-    // disambiguate this, but that will require arbitrary lookahead if
-    // the next token is '(':
-    //   delete [](int*){ /* ... */
+    // C++11 [expr.delete]p1:
+    //   Whenever the delete keyword is followed by empty square brackets, it
+    //   shall be interpreted as [array delete].
+    //   [Footnote: A lambda expression with a lambda-introducer that consists
+    //              of empty square brackets can follow the delete keyword if
+    //              the lambda expression is enclosed in parentheses.]
+    // FIXME: Produce a better diagnostic if the '[]' is unambiguously a
+    //        lambda-introducer.
     ArrayDelete = true;
     BalancedDelimiterTracker T(*this, tok::l_square);
 

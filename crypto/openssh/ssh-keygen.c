@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.210 2011/04/18 00:46:05 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.216 2012/07/06 06:38:03 jmc Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -154,7 +154,8 @@ char hostname[MAXHOSTNAMELEN];
 
 /* moduli.c */
 int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
-int prime_test(FILE *, FILE *, u_int32_t, u_int32_t);
+int prime_test(FILE *, FILE *, u_int32_t, u_int32_t, char *, unsigned long,
+    unsigned long);
 
 static void
 type_bits_valid(int type, u_int32_t *bitsp)
@@ -265,6 +266,10 @@ do_convert_to_ssh2(struct passwd *pw, Key *k)
 	u_char *blob;
 	char comment[61];
 
+	if (k->type == KEY_RSA1) {
+		fprintf(stderr, "version 1 keys are not supported\n");
+		exit(1);
+	}
 	if (key_to_blob(k, &blob, &len) <= 0) {
 		fprintf(stderr, "key_to_blob failed\n");
 		exit(1);
@@ -288,6 +293,7 @@ static void
 do_convert_to_pkcs8(Key *k)
 {
 	switch (key_type_plain(k->type)) {
+	case KEY_RSA1:
 	case KEY_RSA:
 		if (!PEM_write_RSA_PUBKEY(stdout, k->rsa))
 			fatal("PEM_write_RSA_PUBKEY failed");
@@ -312,6 +318,7 @@ static void
 do_convert_to_pem(Key *k)
 {
 	switch (key_type_plain(k->type)) {
+	case KEY_RSA1:
 	case KEY_RSA:
 		if (!PEM_write_RSAPublicKey(stdout, k->rsa))
 			fatal("PEM_write_RSAPublicKey failed");
@@ -344,10 +351,6 @@ do_convert_to(struct passwd *pw)
 			fprintf(stderr, "load failed\n");
 			exit(1);
 		}
-	}
-	if (k->type == KEY_RSA1) {
-		fprintf(stderr, "version 1 keys are not supported\n");
-		exit(1);
 	}
 
 	switch (convert_format) {
@@ -857,7 +860,9 @@ do_gen_all_hostkeys(struct passwd *pw)
 		{ "rsa1", "RSA1", _PATH_HOST_KEY_FILE },
 		{ "rsa", "RSA" ,_PATH_HOST_RSA_KEY_FILE },
 		{ "dsa", "DSA", _PATH_HOST_DSA_KEY_FILE },
+#ifdef OPENSSL_HAS_ECC
 		{ "ecdsa", "ECDSA",_PATH_HOST_ECDSA_KEY_FILE },
+#endif
 		{ NULL, NULL, NULL }
 	};
 
@@ -1884,6 +1889,9 @@ usage(void)
 	fprintf(stderr, "  -h          Generate host certificate instead of a user certificate.\n");
 	fprintf(stderr, "  -I key_id   Key identifier to include in certificate.\n");
 	fprintf(stderr, "  -i          Import foreign format to OpenSSH key file.\n");
+	fprintf(stderr, "  -J number   Screen this number of moduli lines.\n");
+	fprintf(stderr, "  -j number   Start screening moduli at specified line.\n");
+	fprintf(stderr, "  -K checkpt  Write checkpoints to this file.\n");
 	fprintf(stderr, "  -L          Print the contents of a certificate.\n");
 	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
 	fprintf(stderr, "  -M memory   Amount of memory (MB) to use for generating DH-GEX moduli.\n");
@@ -1916,6 +1924,7 @@ int
 main(int argc, char **argv)
 {
 	char dotsshdir[MAXPATHLEN], comment[1024], *passphrase1, *passphrase2;
+	char *checkpoint = NULL;
 	char out_file[MAXPATHLEN], *rr_hostname = NULL;
 	Key *private, *public;
 	struct passwd *pw;
@@ -1924,6 +1933,7 @@ main(int argc, char **argv)
 	u_int32_t memory = 0, generator_wanted = 0, trials = 100;
 	int do_gen_candidates = 0, do_screen_candidates = 0;
 	int gen_all_hostkeys = 0;
+	unsigned long start_lineno = 0, lines_to_process = 0;
 	BIGNUM *start = NULL;
 	FILE *f;
 	const char *errstr;
@@ -1952,8 +1962,8 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	while ((opt = getopt(argc, argv, "AegiqpclBHLhvxXyF:b:f:t:D:I:P:m:N:n:"
-	    "O:C:r:g:R:T:G:M:S:s:a:V:W:z:")) != -1) {
+	while ((opt = getopt(argc, argv, "AegiqpclBHLhvxXyF:b:f:t:D:I:J:j:K:P:"
+	    "m:N:n:O:C:r:g:R:T:G:M:S:s:a:V:W:z")) != -1) {
 		switch (opt) {
 		case 'A':
 			gen_all_hostkeys = 1;
@@ -1974,6 +1984,12 @@ main(int argc, char **argv)
 		case 'I':
 			cert_key_id = optarg;
 			break;
+		case 'J':
+			lines_to_process = strtoul(optarg, NULL, 10);
+                        break;
+		case 'j':
+			start_lineno = strtoul(optarg, NULL, 10);
+                        break;
 		case 'R':
 			delete_host = 1;
 			rr_hostname = optarg;
@@ -2103,6 +2119,11 @@ main(int argc, char **argv)
 			    sizeof(out_file))
 				fatal("Output filename too long");
 			break;
+		case 'K':
+			if (strlen(optarg) >= MAXPATHLEN)
+				fatal("Checkpoint filename too long");
+			checkpoint = xstrdup(optarg);
+			break;
 		case 'S':
 			/* XXX - also compare length against bits */
 			if (BN_hex2bn(&start, optarg) == 0)
@@ -2183,6 +2204,8 @@ main(int argc, char **argv)
 			    _PATH_HOST_RSA_KEY_FILE, rr_hostname);
 			n += do_print_resource_record(pw,
 			    _PATH_HOST_DSA_KEY_FILE, rr_hostname);
+			n += do_print_resource_record(pw,
+			    _PATH_HOST_ECDSA_KEY_FILE, rr_hostname);
 
 			if (n == 0)
 				fatal("no keys found.");
@@ -2225,7 +2248,8 @@ main(int argc, char **argv)
 			fatal("Couldn't open moduli file \"%s\": %s",
 			    out_file, strerror(errno));
 		}
-		if (prime_test(in, out, trials, generator_wanted) != 0)
+		if (prime_test(in, out, trials, generator_wanted, checkpoint,
+		    start_lineno, lines_to_process) != 0)
 			fatal("modulus screening failed");
 		return (0);
 	}

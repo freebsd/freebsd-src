@@ -1472,7 +1472,13 @@ musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+musbotg_xfer_stall(struct usb_xfer *xfer)
+{
+	musbotg_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+musbotg_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct musbotg_softc *sc;
@@ -1482,10 +1488,6 @@ musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(4, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		musbotg_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = MUSBOTG_BUS2SC(udev->bus);
 
@@ -2801,6 +2803,7 @@ struct usb_bus_methods musbotg_bus_methods =
 	.xfer_setup = &musbotg_xfer_setup,
 	.xfer_unsetup = &musbotg_xfer_unsetup,
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,
+	.xfer_stall = &musbotg_xfer_stall,
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
 	.roothub_exec = &musbotg_roothub_exec,

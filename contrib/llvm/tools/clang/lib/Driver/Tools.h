@@ -18,6 +18,8 @@
 #include "llvm/Support/Compiler.h"
 
 namespace clang {
+  class ObjCRuntime;
+
 namespace driver {
   class Driver;
 
@@ -39,9 +41,15 @@ namespace tools {
     void AddARMTargetArgs(const ArgList &Args, ArgStringList &CmdArgs,
                           bool KernelOrKext) const;
     void AddMIPSTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
+    void AddPPCTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
     void AddSparcTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
     void AddX86TargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
     void AddHexagonTargetArgs (const ArgList &Args, ArgStringList &CmdArgs) const;
+
+    enum RewriteKind { RK_None, RK_Fragile, RK_NonFragile };
+
+    ObjCRuntime AddObjCRuntimeArgs(const ArgList &args, ArgStringList &cmdArgs,
+                                   RewriteKind rewrite) const;
 
   public:
     Clang(const ToolChain &TC) : Tool("clang", "clang frontend", TC) {}
@@ -368,6 +376,36 @@ namespace openbsd {
                               const char *LinkingOutput) const;
   };
 } // end namespace openbsd
+
+  /// bitrig -- Directly call GNU Binutils assembler and linker
+namespace bitrig {
+  class LLVM_LIBRARY_VISIBILITY Assemble : public Tool  {
+  public:
+    Assemble(const ToolChain &TC) : Tool("bitrig::Assemble", "assembler",
+                                         TC) {}
+
+    virtual bool hasIntegratedCPP() const { return false; }
+
+    virtual void ConstructJob(Compilation &C, const JobAction &JA,
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
+                              const char *LinkingOutput) const;
+  };
+  class LLVM_LIBRARY_VISIBILITY Link : public Tool  {
+  public:
+    Link(const ToolChain &TC) : Tool("bitrig::Link", "linker", TC) {}
+
+    virtual bool hasIntegratedCPP() const { return false; }
+    virtual bool isLinkJob() const { return true; }
+
+    virtual void ConstructJob(Compilation &C, const JobAction &JA,
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
+                              const char *LinkingOutput) const;
+  };
+} // end namespace bitrig
 
   /// freebsd -- Directly call GNU Binutils assembler and linker
 namespace freebsd {

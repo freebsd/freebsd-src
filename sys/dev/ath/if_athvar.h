@@ -191,6 +191,7 @@ struct ath_buf {
 	int			bf_nseg;
 	HAL_STATUS		bf_rxstatus;
 	uint16_t		bf_flags;	/* status flags (below) */
+	uint16_t		bf_descid;	/* 16 bit descriptor ID */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */
@@ -304,6 +305,7 @@ struct ath_txq {
 #define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_aggr_depth;	/* how many aggregates are queued */
+	u_int			axq_fifo_depth;	/* depth of FIFO frames */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
@@ -326,7 +328,10 @@ struct ath_txq {
 #define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
 #define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
-#define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+#define	ATH_TXQ_LOCK_ASSERT(_tq)	\
+	    mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+#define	ATH_TXQ_UNLOCK_ASSERT(_tq)	\
+	    mtx_assert(&(_tq)->axq_lock, MA_NOTOWNED)
 #define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
 
 #define	ATH_TID_LOCK_ASSERT(_sc, _tid)	\
@@ -344,6 +349,7 @@ struct ath_txq {
 	TAILQ_REMOVE(&(_tq)->axq_q, _elm, _field); \
 	(_tq)->axq_depth--; \
 } while (0)
+#define	ATH_TXQ_FIRST(_tq)		TAILQ_FIRST(&(_tq)->axq_q)
 #define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
 
 struct ath_vap {
@@ -414,11 +420,8 @@ struct ath_tx_methods {
 			    struct ath_txq *txq);
 	void		(*xmit_handoff)(struct ath_softc *sc,
 			    struct ath_txq *txq, struct ath_buf *bf);
-
-	void		(*xmit_drainq)(struct ath_softc *sc,
-			    struct ath_txq *txq);
-	int		(*xmit_processq)(struct ath_softc *sc,
-			    struct ath_txq *txq, int dosched);
+	void		(*xmit_drain)(struct ath_softc *sc,
+			    ATH_RESET_TYPE reset_type);
 };
 
 struct ath_softc {
@@ -574,6 +577,7 @@ struct ath_softc {
 	u_int			sc_monpass;	/* frames to pass in mon.mode */
 
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
+	uint16_t		sc_txbuf_descid;
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
 	int			sc_txbuf_cnt;	/* how many buffers avail */
 	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */
@@ -1181,6 +1185,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_enableDfs)((_ah), (_param)))
 #define	ath_hal_getdfsthresh(_ah, _param) \
 	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
+#define	ath_hal_getdfsdefaultthresh(_ah, _param) \
+	((*(_ah)->ah_getDfsDefaultThresh)((_ah), (_param)))
 #define	ath_hal_procradarevent(_ah, _rxs, _fulltsf, _buf, _event) \
 	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), \
 	(_buf), (_event)))

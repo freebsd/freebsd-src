@@ -496,6 +496,7 @@ arpintr(struct mbuf *m)
 static int log_arp_wrong_iface = 1;
 static int log_arp_movements = 1;
 static int log_arp_permanent_modify = 1;
+static int allow_multicast = 0;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
@@ -506,7 +507,8 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_movements, CTLFLAG_RW,
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
 	&log_arp_permanent_modify, 0,
 	"log arp replies from MACs different than the one in the permanent arp entry");
-
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, allow_multicast, CTLFLAG_RW,
+	&allow_multicast, 0, "accept multicast addresses");
 
 static void
 in_arpinput(struct mbuf *m)
@@ -551,8 +553,8 @@ in_arpinput(struct mbuf *m)
 		return;
 	}
 
-	if (ETHER_IS_MULTICAST(ar_sha(ah))) {
-		log(LOG_NOTICE, "in_arp: %*D is multicast\n",
+	if (allow_multicast == 0 && ETHER_IS_MULTICAST(ar_sha(ah))) {
+		log(LOG_NOTICE, "arp: %*D is multicast\n",
 		    ifp->if_addrlen, (u_char *)ar_sha(ah), ":");
 		return;
 	}

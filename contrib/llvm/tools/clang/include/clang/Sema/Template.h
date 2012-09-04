@@ -152,10 +152,11 @@ namespace clang {
 
     /// \brief Construct an integral non-type template argument that
     /// has been deduced, possibly from an array bound.
-    DeducedTemplateArgument(const llvm::APSInt &Value,
+    DeducedTemplateArgument(ASTContext &Ctx,
+                            const llvm::APSInt &Value,
                             QualType ValueType,
                             bool DeducedFromArrayBound)
-      : TemplateArgument(Value, ValueType), 
+      : TemplateArgument(Ctx, Value, ValueType),
         DeducedFromArrayBound(DeducedFromArrayBound) { }
 
     /// \brief For a non-type template argument, determine whether the
@@ -371,8 +372,10 @@ namespace clang {
   public:
     TemplateDeclInstantiator(Sema &SemaRef, DeclContext *Owner,
                              const MultiLevelTemplateArgumentList &TemplateArgs)
-      : SemaRef(SemaRef), SubstIndex(SemaRef, -1), Owner(Owner), 
-        TemplateArgs(TemplateArgs), LateAttrs(0), StartingScope(0) { }
+      : SemaRef(SemaRef),
+        SubstIndex(SemaRef, SemaRef.ArgumentPackSubstitutionIndex),
+        Owner(Owner), TemplateArgs(TemplateArgs), LateAttrs(0), StartingScope(0)
+    { }
 
     // FIXME: Once we get closer to completion, replace these manually-written
     // declarations with automatically-generated ones from

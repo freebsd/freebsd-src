@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 #include "extern.h"
 
-static int child_pid;
+static pid_t child_pid;
 
 /*
  * setup_and_wait() is called to start a process.  All it really does
@@ -69,19 +69,18 @@ static int child_pid;
 int
 setup_and_wait(char *command[])
 {
-	int pid;
+	pid_t pid;
 	int waitval;
 
 	pid = vfork();
-	if (pid == -1) {
+	if (pid == -1)
 		err(1, "fork failed");
-	}
 	if (pid == 0) {	/* Child */
 		ptrace(PT_TRACE_ME, 0, 0, 0);
 		execvp(command[0], command);
 		err(1, "execvp %s", command[0]);
 	}
-	
+
 	/* Only in the parent here */
 	if (waitpid(pid, &waitval, 0) < 0) {
 		err(1, "unexpect stop in waitpid");
@@ -89,7 +88,7 @@ setup_and_wait(char *command[])
 	}
 
 	child_pid = pid;
-	
+
 	return (pid);
 }
 
@@ -100,21 +99,20 @@ setup_and_wait(char *command[])
  */
 
 int
-start_tracing(int pid)
+start_tracing(pid_t pid)
 {
-	int waitval;
-	int ret;
-	int retry = 10;
+	int ret, retry, waitval;
 
+	retry = 10;
 	do {
 		ret = ptrace(PT_ATTACH, pid, NULL, 0);
 		usleep(200);
-	} while(ret && retry-- > 0);
+	} while (ret && retry-- > 0);
 	if (ret)
 		err(1, "can not attach to target process");
 
-	child_pid = pid;	
-	if (waitpid(pid, &waitval, 0) < 0) 
+	child_pid = pid;
+	if (waitpid(pid, &waitval, 0) < 0)
 		err(1, "Unexpect stop in waitpid");
 
 	return (0);
@@ -131,14 +129,14 @@ restore_proc(int signo __unused)
 {
 	int waitval;
 
-	/* stop the child so that we can detach */	
+	/* stop the child so that we can detach */
 	kill(child_pid, SIGSTOP);
 	if (waitpid(child_pid, &waitval, 0) < 0)
 		err(1, "Unexpected stop in waitpid");
 
 	if (ptrace(PT_DETACH, child_pid, (caddr_t)1, 0) < 0)
 		err(1, "Can not detach the process");
-	
+
 	kill(child_pid, SIGCONT);
 	exit(0);
 }
@@ -150,12 +148,13 @@ restore_proc(int signo __unused)
 static void
 find_thread(struct trussinfo *info, lwpid_t lwpid)
 {
-	info->curthread = NULL;
 	struct threadinfo *np;
+
+	info->curthread = NULL;
 	SLIST_FOREACH(np, &info->threadlist, entries) {
-	if (np->tid == lwpid) {
-		info->curthread = np;
-		return;
+		if (np->tid == lwpid) {
+			info->curthread = np;
+			return;
 		}
 	}
 
@@ -177,16 +176,16 @@ find_thread(struct trussinfo *info, lwpid_t lwpid)
 void
 waitevent(struct trussinfo *info)
 {
-	int waitval;
+	struct ptrace_lwpinfo lwpinfo;
 	static int pending_signal = 0;
-	
+	int waitval;
+
 	ptrace(PT_SYSCALL, info->pid, (caddr_t)1, pending_signal);
 	pending_signal = 0;
 
-	if (waitpid(info->pid, &waitval, 0) < 0) {
+	if (waitpid(info->pid, &waitval, 0) < 0)
 		err(1, "Unexpected stop in waitpid");
-	}
-	
+
 	if (WIFCONTINUED(waitval)) {
 		info->pr_why = S_NONE;
 		return;
@@ -197,10 +196,10 @@ waitevent(struct trussinfo *info)
 		return;
 	}
 	if (WIFSTOPPED(waitval)) {
-		struct ptrace_lwpinfo lwpinfo;
-		ptrace(PT_LWPINFO, info->pid, (caddr_t)&lwpinfo, sizeof(lwpinfo));	
+		ptrace(PT_LWPINFO, info->pid, (caddr_t)&lwpinfo,
+		    sizeof(lwpinfo));
 		find_thread(info, lwpinfo.pl_lwpid);
-		switch(WSTOPSIG(waitval)) {
+		switch (WSTOPSIG(waitval)) {
 		case SIGTRAP:
 			if (lwpinfo.pl_flags & PL_FLAG_SCE) {
 				info->pr_why = S_SCE;

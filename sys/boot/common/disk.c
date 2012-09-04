@@ -162,7 +162,7 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 	dev->d_opendata = od;
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
-	DEBUG("open '%s', unit %d slice %d partition %d",
+	DEBUG("%s unit %d, slice %d, partition %d",
 	    disk_fmtdev(dev), dev->d_unit, dev->d_slice, dev->d_partition);
 
 	/* Determine disk layout. */
@@ -173,16 +173,28 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		rc = ENXIO;
 		goto out;
 	}
-	if (dev->d_slice > 0) {
+	if (ptable_gettype(od->table) == PTABLE_BSD &&
+	    dev->d_partition >= 0) {
+		/* It doesn't matter what value has d_slice */
+		rc = ptable_getpart(od->table, &part, dev->d_partition);
+		if (rc == 0)
+			dev->d_offset = part.start;
+	} else if (dev->d_slice > 0) {
 		/* Try to get information about partition */
 		rc = ptable_getpart(od->table, &part, dev->d_slice);
 		if (rc != 0) /* Partition doesn't exist */
 			goto out;
 		dev->d_offset = part.start;
-		if (dev->d_partition == -1 ||
-		    dev->d_partition == 255)
+		if (dev->d_partition == 255)
 			goto out; /* Nothing more to do */
-
+		/*
+		 * If d_partition < 0 and we are looking at a BSD slice,
+		 * then try to read BSD label, otherwise return the
+		 * whole MBR slice.
+		 */
+		if (dev->d_partition == -1 &&
+		    part.type != PART_FREEBSD)
+			goto out;
 		/* Try to read BSD label */
 		table = ptable_open(dev, part.end - part.start + 1,
 		    od->sectorsize, ptblread);
@@ -190,6 +202,16 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 			DEBUG("Can't read BSD label");
 			rc = ENXIO;
 			goto out;
+		}
+		/*
+		 * If slice contains BSD label and d_partition < 0, then
+		 * assume the 'a' partition. Otherwise just return the
+		 * whole MBR slice, because it can contain ZFS.
+		 */
+		if (dev->d_partition < 0) {
+			if (ptable_gettype(table) != PTABLE_BSD)
+				goto out;
+			dev->d_partition = 0;
 		}
 		rc = ptable_getpart(table, &part, dev->d_partition);
 		if (rc != 0)
@@ -206,10 +228,14 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 out:
 	if (table != NULL)
 		ptable_close(table);
+
 	if (rc != 0) {
 		if (od->table != NULL)
 			ptable_close(od->table);
 		free(od);
+		DEBUG("%s could not open", disk_fmtdev(dev));
+	} else {
+		DEBUG("%s offset %lld", disk_fmtdev(dev), dev->d_offset);
 	}
 	return (rc);
 }
@@ -220,6 +246,7 @@ disk_close(struct disk_devdesc *dev)
 	struct open_disk *od;
 
 	od = (struct open_disk *)dev->d_opendata;
+	DEBUG("%s closed", disk_fmtdev(dev));
 	ptable_close(od->table);
 	free(od);
 	return (0);
@@ -242,9 +269,9 @@ disk_fmtdev(struct disk_devdesc *dev)
 #ifdef LOADER_MBR_SUPPORT
 			cp += sprintf(cp, "s%d", dev->d_slice);
 #endif
-		if (dev->d_partition >= 0)
-			cp += sprintf(cp, "%c", dev->d_partition + 'a');
 	}
+	if (dev->d_partition >= 0)
+		cp += sprintf(cp, "%c", dev->d_partition + 'a');
 	strcat(cp, ":");
 	return (buf);
 }

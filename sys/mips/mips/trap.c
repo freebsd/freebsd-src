@@ -1465,15 +1465,17 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 		read_or_write = "read";
 		break;
 	default:
-		read_or_write = "";
+		read_or_write = "unknown";
 	}
 
 	pc = frame->pc + (DELAYBRANCH(frame->cause) ? 4 : 0);
-	log(LOG_ERR, "%s: pid %d tid %ld (%s), uid %d: pc %#jx got a %s fault at %#jx\n",
+	log(LOG_ERR, "%s: pid %d tid %ld (%s), uid %d: pc %#jx got a %s fault "
+	    "(type %#x) at %#jx\n",
 	    msg, p->p_pid, (long)td->td_tid, p->p_comm,
 	    p->p_ucred ? p->p_ucred->cr_uid : -1,
 	    (intmax_t)pc,
 	    read_or_write,
+	    trap_type,
 	    (intmax_t)frame->badvaddr);
 
 	/* log registers in trap frame */

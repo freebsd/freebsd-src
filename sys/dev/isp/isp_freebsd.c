@@ -779,8 +779,13 @@ static ISP_INLINE void
 isp_free_pcmd(ispsoftc_t *isp, union ccb *ccb)
 {
 	if (ISP_PCMD(ccb)) {
-		memset(ISP_PCMD(ccb), 0, sizeof (struct isp_pcmd));
-		((struct isp_pcmd *)ISP_PCMD(ccb))->next = isp->isp_osinfo.pcmd_free;
+#ifdef	ISP_TARGET_MODE
+		PISP_PCMD(ccb)->datalen = 0;
+		PISP_PCMD(ccb)->totslen = 0;
+		PISP_PCMD(ccb)->cumslen = 0;
+		PISP_PCMD(ccb)->crn = 0;
+#endif
+		PISP_PCMD(ccb)->next = isp->isp_osinfo.pcmd_free;
 		isp->isp_osinfo.pcmd_free = ISP_PCMD(ccb);
 		ISP_PCMD(ccb) = NULL;
 	}
@@ -1149,10 +1154,27 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 static ISP_INLINE void
 destroy_lun_state(ispsoftc_t *isp, tstate_t *tptr)
 {
+	union ccb *ccb;
 	struct tslist *lhp;
 
 	KASSERT((tptr->hold != 0), ("tptr is not held"));
 	KASSERT((tptr->hold == 1), ("tptr still held (%d)", tptr->hold));
+	do {
+		ccb = (union ccb *)SLIST_FIRST(&tptr->atios);
+		if (ccb) {
+			SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
+			ccb->ccb_h.status = CAM_REQ_ABORTED;
+			xpt_done(ccb);
+		}
+	} while (ccb);
+	do {
+		ccb = (union ccb *)SLIST_FIRST(&tptr->inots);
+		if (ccb) {
+			SLIST_REMOVE_HEAD(&tptr->inots, sim_links.sle);
+			ccb->ccb_h.status = CAM_REQ_ABORTED;
+			xpt_done(ccb);
+		}
+	} while (ccb);
 	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
 	SLIST_REMOVE(lhp, tptr, tstate, next);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, tptr->owner, "destroyed tstate\n");
@@ -1467,8 +1489,8 @@ done:
 	}
 	ccb->ccb_h.status = status;
 	if (status == CAM_REQ_CMP) {
-		xpt_print(ccb->ccb_h.path, "lun now disabled for target mode\n");
 		destroy_lun_state(isp, tptr);
+		xpt_print(ccb->ccb_h.path, "lun now disabled for target mode\n");
 	} else {
 		if (tptr)
 			rls_lun_statep(isp, tptr);
@@ -6326,12 +6348,20 @@ isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
 int
 isp_fcp_next_crn(ispsoftc_t *isp, uint8_t *crnp, XS_T *cmd)
 {
-	uint32_t chan = XS_CHANNEL(cmd);
-	uint32_t tgt = XS_TGT(cmd);
-	uint32_t lun = XS_LUN(cmd);
-	struct isp_fc *fc = &isp->isp_osinfo.pc.fc[chan];
-	int idx = NEXUS_HASH(tgt, lun);
-	struct isp_nexus *nxp = fc->nexus_hash[idx];
+	uint32_t chan, tgt, lun;
+	struct isp_fc *fc;
+	struct isp_nexus *nxp;
+	int idx;
+
+	if (isp->isp_type < ISP_HA_FC_2300)
+		return (0);
+
+	chan = XS_CHANNEL(cmd);
+	tgt = XS_TGT(cmd);
+	lun = XS_LUN(cmd);
+	fc = &isp->isp_osinfo.pc.fc[chan];
+	idx = NEXUS_HASH(tgt, lun);
+	nxp = fc->nexus_hash[idx];
 
 	while (nxp) {
 		if (nxp->tgt == tgt && nxp->lun == lun)

@@ -29,8 +29,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/bus.h>
 
 /*
@@ -40,6 +42,82 @@ __FBSDID("$FreeBSD$");
 static int checkmethod = 1;
 static int use_kenv;
 static char *hintp;
+
+/*
+ * Define kern.hintmode sysctl, which only accept value 2, that cause to
+ * switch from Static KENV mode to Dynamic KENV. So systems that have hints
+ * compiled into kernel will be able to see/modify KENV (and hints too).
+ */
+
+static int
+sysctl_hintmode(SYSCTL_HANDLER_ARGS)
+{
+	int error, i, from_kenv, value, eqidx;
+	const char *cp;
+	char *line, *eq;
+
+	from_kenv = 0;
+	cp = kern_envp;
+	value = hintmode;
+
+	/* Fetch candidate for new hintmode value */
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (value != 2)
+		/* Only accept swithing to hintmode 2 */
+		return (EINVAL);
+
+	/* Migrate from static to dynamic hints */
+	switch (hintmode) {
+	case 0:
+		if (dynamic_kenv) {
+			/* Already here */
+			hintmode = value; /* XXX: Need we switch or not ? */
+			return (0);
+		}
+		from_kenv = 1;
+		cp = kern_envp;
+		break;
+	case 1:
+		cp = static_hints;
+		break;
+	case 2:
+		/* Nothing to do, hintmode already 2 */
+		return (0);
+	}
+
+	while (cp) {
+		i = strlen(cp);
+		if (i == 0)
+			break;
+		if (from_kenv) {
+			if (strncmp(cp, "hint.", 5) != 0)
+				/* kenv can have not only hints */
+				continue;
+		}
+		eq = strchr(cp, '=');
+		if (!eq)
+			/* Bad hint value */
+			continue;
+		eqidx = eq - cp;
+
+		line = malloc(i+1, M_TEMP, M_WAITOK);
+		strcpy(line, cp);
+		line[eqidx] = '\0';
+		setenv(line, line + eqidx + 1);
+		free(line, M_TEMP);
+		cp += i + 1;
+	}
+
+	hintmode = value;
+	use_kenv = 1;
+	return (0);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, hintmode, CTLTYPE_INT|CTLFLAG_RW,
+    &hintmode, 0, sysctl_hintmode, "I", "Get/set current hintmode");
 
 /*
  * Evil wildcarding resource string lookup.

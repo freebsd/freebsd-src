@@ -1804,6 +1804,7 @@ restart:
 static void
 swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 {
+	static volatile int exhausted;
 	struct swblock *swap;
 	struct swblock **pswap;
 	int idx;
@@ -1847,7 +1848,9 @@ retry:
 			mtx_unlock(&swhash_mtx);
 			VM_OBJECT_UNLOCK(object);
 			if (uma_zone_exhausted(swap_zone)) {
-				printf("swap zone exhausted, increase kern.maxswzone\n");
+				if (atomic_cmpset_rel_int(&exhausted, 0, 1))
+					printf("swap zone exhausted, "
+					    "increase kern.maxswzone\n");
 				vm_pageout_oom(VM_OOM_SWAPZ);
 				pause("swzonex", 10);
 			} else
@@ -1855,6 +1858,9 @@ retry:
 			VM_OBJECT_LOCK(object);
 			goto retry;
 		}
+
+		if (atomic_cmpset_rel_int(&exhausted, 1, 0))
+			printf("swap zone ok\n");
 
 		swap->swb_hnext = NULL;
 		swap->swb_object = object;
@@ -2112,6 +2118,31 @@ done:
 	return (error);
 }
 
+/*
+ * Check that the total amount of swap currently configured does not
+ * exceed half the theoretical maximum.  If it does, print a warning
+ * message and return -1; otherwise, return 0.
+ */
+static int
+swapon_check_swzone(unsigned long npages)
+{
+	unsigned long maxpages;
+
+	/* absolute maximum we can handle assuming 100% efficiency */
+	maxpages = uma_zone_get_max(swap_zone) * SWAP_META_PAGES;
+
+	/* recommend using no more than half that amount */
+	if (npages > maxpages / 2) {
+		printf("warning: total configured swap (%lu pages) "
+		    "exceeds maximum recommended amount (%lu pages).\n",
+		    npages, maxpages / 2);
+		printf("warning: increase kern.maxswzone "
+		    "or reduce amount of swap.\n");
+		return (-1);
+	}
+	return (0);
+}
+
 static void
 swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strategy, sw_close_t *close, dev_t dev)
 {
@@ -2175,6 +2206,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	nswapdev++;
 	swap_pager_avail += nblks;
 	swap_total += (vm_ooffset_t)nblks * PAGE_SIZE;
+	swapon_check_swzone(swap_total / PAGE_SIZE);
 	swp_sizecheck();
 	mtx_unlock(&sw_dev_mtx);
 }

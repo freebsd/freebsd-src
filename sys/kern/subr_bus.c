@@ -1873,6 +1873,8 @@ device_delete_child(device_t dev, device_t child)
 		return (error);
 	if (child->devclass)
 		devclass_delete_device(child->devclass, child);
+	if (child->parent)
+		BUS_CHILD_DELETED(dev, child);
 	TAILQ_REMOVE(&dev->children, child, link);
 	TAILQ_REMOVE(&bus_data_devices, child, devlink);
 	kobj_delete((kobj_t) child, M_BUS);
@@ -2409,6 +2411,35 @@ device_set_softc(device_t dev, void *softc)
 	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
 		free(dev->softc, M_BUS_SC);
 	dev->softc = softc;
+	if (dev->softc)
+		dev->flags |= DF_EXTERNALSOFTC;
+	else
+		dev->flags &= ~DF_EXTERNALSOFTC;
+}
+
+/**
+ * @brief Free claimed softc
+ *
+ * Most drivers do not need to use this since the softc is freed
+ * automatically when the driver is detached.
+ */
+void
+device_free_softc(void *softc)
+{
+	free(softc, M_BUS_SC);
+}
+
+/**
+ * @brief Claim softc
+ *
+ * This function can be used to let the driver free the automatically
+ * allocated softc using "device_free_softc()". This function is
+ * useful when the driver is refcounting the softc and the softc
+ * cannot be freed when the "device_detach" method is called.
+ */
+void
+device_claim_softc(device_t dev)
+{
 	if (dev->softc)
 		dev->flags |= DF_EXTERNALSOFTC;
 	else
