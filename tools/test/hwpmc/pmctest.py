@@ -67,6 +67,10 @@ def main():
 
     (options, args) = parser.parse_args()
 
+    if (options.program == None):
+        print "specify program, such as ls, with -p/--program"
+        sys.exit()
+        
     p = subprocess.Popen(["pmccontrol", "-L"], stdout=PIPE)
     counters = p.communicate()[0]
 
