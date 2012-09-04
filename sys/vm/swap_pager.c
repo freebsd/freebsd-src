@@ -1848,7 +1848,7 @@ retry:
 			mtx_unlock(&swhash_mtx);
 			VM_OBJECT_UNLOCK(object);
 			if (uma_zone_exhausted(swap_zone)) {
-				if (atomic_cmpset_rel_int(&exhausted, 0, 1))
+				if (atomic_cmpset_int(&exhausted, 0, 1))
 					printf("swap zone exhausted, "
 					    "increase kern.maxswzone\n");
 				vm_pageout_oom(VM_OOM_SWAPZ);
@@ -1859,7 +1859,7 @@ retry:
 			goto retry;
 		}
 
-		if (atomic_cmpset_rel_int(&exhausted, 1, 0))
+		if (atomic_cmpset_int(&exhausted, 1, 0))
 			printf("swap zone ok\n");
 
 		swap->swb_hnext = NULL;
