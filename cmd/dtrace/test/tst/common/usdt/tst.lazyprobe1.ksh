@@ -21,7 +21,7 @@
 #
 
 #
-# Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
 
@@ -29,8 +29,35 @@
 # Copyright (c) 2012 by Delphix. All rights reserved.
 #
 
+if [ $# != 1 ]; then
+	echo expected one argument: '<'dtrace-path'>'
+	exit 2
+fi
+
+dtrace=$1
+
 #
-# For this test we simply require a process that will generate a bunch of
-# activity and run for a little while.
+# Verify that USDT objects built with -xlazyload don't fire by default.
 #
-exec find / -type f -exec sleep 1 \; >/dev/null 2>&1
+
+./tst.lazyprobe.exe &
+id=$!
+
+ret=1
+
+$dtrace -Z -s /dev/stdin <<-EOF
+	lazyprobe*:::fire
+	{
+		exit(1);
+	}
+	tick-10hz
+	/i++ > 20/
+	{
+		exit(0);
+	}
+EOF
+ret=$?
+
+kill -9 $id
+
+exit $ret
