@@ -31,8 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 
 /*
@@ -52,9 +52,9 @@ static char *hintp;
 static int
 sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, from_kenv, value, eqidx;
 	const char *cp;
 	char *line, *eq;
+	int eqidx, error, from_kenv, i, value;
 
 	from_kenv = 0;
 	cp = kern_envp;
@@ -62,7 +62,7 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 
 	/* Fetch candidate for new hintmode value */
 	error = sysctl_handle_int(oidp, &value, 0, req);
-	if (error || !req->newptr)
+	if (error || req->newptr == NULL)
 		return (error);
 
 	if (value != 2)
@@ -73,8 +73,11 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 	switch (hintmode) {
 	case 0:
 		if (dynamic_kenv) {
-			/* Already here */
-			hintmode = value; /* XXX: Need we switch or not ? */
+			/*
+			 * Already here. But assign hintmode to 2, to not
+			 * check it in the future.
+			 */
+			hintmode = 2;
 			return (0);
 		}
 		from_kenv = 1;
@@ -98,7 +101,7 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 				continue;
 		}
 		eq = strchr(cp, '=');
-		if (!eq)
+		if (eq == NULL)
 			/* Bad hint value */
 			continue;
 		eqidx = eq - cp;
