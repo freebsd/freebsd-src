@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -131,8 +130,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <net/route.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
 
 /*
  * Size of the route hash table.  Must be a power of two.
@@ -2981,7 +2978,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 {
 	int snap, error, i, hlen;
 	struct ether_header *eh1, eh2;
-	struct ip_fw_args args;
 	struct ip *ip;
 	struct llc llc1;
 	u_int16_t ether_type;
@@ -3055,6 +3051,16 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 				goto bad;
 	}
 
+	/* Run the packet through pfil before stripping link headers */
+	if (PFIL_HOOKED(&V_link_pfil_hook) && pfil_ipfw != 0 &&
+			dir == PFIL_OUT && ifp != NULL) {
+
+		error = pfil_run_hooks(&V_link_pfil_hook, mp, ifp, dir, NULL);
+
+		if (*mp == NULL || error != 0) /* packet consumed by filter */
+			return (error);
+	}
+
 	/* Strip off the Ethernet header and keep a copy. */
 	m_copydata(*mp, 0, ETHER_HDR_LEN, (caddr_t) &eh2);
 	m_adj(*mp, ETHER_HDR_LEN);
@@ -3085,63 +3091,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	/* XXX this section is also in if_ethersubr.c */
-	// XXX PFIL_OUT or DIR_OUT ?
-	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 &&
-			dir == PFIL_OUT && ifp != NULL) {
-		struct m_tag *mtag;
-
-		error = -1;
-		/* fetch the start point from existing tags, if any */
-		mtag = m_tag_locate(*mp, MTAG_IPFW_RULE, 0, NULL);
-		if (mtag == NULL) {
-			args.rule.slot = 0;
-		} else {
-			struct ipfw_rule_ref *r;
-
-			/* XXX can we free the tag after use ? */
-			mtag->m_tag_id = PACKET_TAG_NONE;
-			r = (struct ipfw_rule_ref *)(mtag + 1);
-			/* packet already partially processed ? */
-			if (r->info & IPFW_ONEPASS)
-				goto ipfwpass;
-			args.rule = *r;
-		}
-
-		args.m = *mp;
-		args.oif = ifp;
-		args.next_hop = NULL;
-		args.next_hop6 = NULL;
-		args.eh = &eh2;
-		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
-		i = V_ip_fw_chk_ptr(&args);
-		*mp = args.m;
-
-		if (*mp == NULL)
-			return (error);
-
-		if (ip_dn_io_ptr && (i == IP_FW_DUMMYNET)) {
-
-			/* put the Ethernet header back on */
-			M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
-			if (*mp == NULL)
-				return (error);
-			bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
-
-			/*
-			 * Pass the pkt to dummynet, which consumes it. The
-			 * packet will return to us via bridge_dummynet().
-			 */
-			args.oif = ifp;
-			ip_dn_io_ptr(mp, DIR_FWD | PROTO_IFB, &args);
-			return (error);
-		}
-
-		if (i != IP_FW_PASS) /* drop */
-			goto bad;
-	}
-
-ipfwpass:
 	error = 0;
 
 	/*
