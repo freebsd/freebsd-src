@@ -264,6 +264,17 @@ main(int argc, char *argv[])
 				need_mask = 1;
 				break;
 			case OP_REMOVE_EXT:
+				/*
+				 * Don't try to call remove_ext() for empty
+				 * default ACL.
+				 */
+				if (acl_type == ACL_TYPE_DEFAULT &&
+				    acl_get_entry(acl, ACL_FIRST_ENTRY,
+				    &unused_entry) == 0) {
+					local_error += remove_default(&acl,
+					    file->filename);
+					break;
+				}
 				remove_ext(&acl, file->filename);
 				need_mask = 0;
 				break;
