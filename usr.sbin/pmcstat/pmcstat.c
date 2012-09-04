@@ -509,6 +509,7 @@ pmcstat_show_usage(void)
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
+	    "\t -m file\t print sampled PCs to \"file\"\n"
 	    "\t -n rate\t set sampling rate\n"
 	    "\t -o file\t send print output to \"file\"\n"
 	    "\t -p spec\t allocate a process-private counting PMC\n"
