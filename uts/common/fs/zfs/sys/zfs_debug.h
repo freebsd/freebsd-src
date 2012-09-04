@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_DEBUG_H
@@ -74,6 +75,10 @@ typedef struct zfs_dbgmsg {
 extern void zfs_dbgmsg_init(void);
 extern void zfs_dbgmsg_fini(void);
 extern void zfs_dbgmsg(const char *fmt, ...);
+
+#ifndef _KERNEL
+extern int dprintf_find_string(const char *string);
+#endif
 
 #ifdef	__cplusplus
 }

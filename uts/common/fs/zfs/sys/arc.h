@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_ARC_H
@@ -134,6 +135,11 @@ void l2arc_init(void);
 void l2arc_fini(void);
 void l2arc_start(void);
 void l2arc_stop(void);
+
+#ifndef _KERNEL
+extern boolean_t arc_watch;
+extern int arc_procfd;
+#endif
 
 #ifdef	__cplusplus
 }
