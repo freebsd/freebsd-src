@@ -1,0 +1,11 @@
+# ATF pkg-config file
+
+cxx=__CXX__
+includedir=__INCLUDEDIR__
+libdir=__LIBDIR__
+
+Name: atf-c++
+Description: Automated Testing Framework (C++ binding)
+Version: __ATF_VERSION__
+Cflags: -I${includedir}
+Libs: -L${libdir} -latf-c++ -latf-c
