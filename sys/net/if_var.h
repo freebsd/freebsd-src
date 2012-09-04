@@ -99,6 +99,9 @@ TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifmultihead, ifmultiaddr);
 TAILQ_HEAD(ifgrouphead, ifg_group);
 
+VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
+#define	V_link_pfil_hook	VNET(link_pfil_hook)
+
 /*
  * Structure defining a queue for a network interface.
  */

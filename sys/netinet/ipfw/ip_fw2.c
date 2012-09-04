@@ -2645,10 +2645,9 @@ vnet_ipfw_init(const void *unused)
 	V_ipfw_vnet_ready = 1;		/* Open for business */
 
 	/*
-	 * Hook the sockopt handler, and the layer2 (V_ip_fw_chk_ptr)
-	 * and pfil hooks for ipv4 and ipv6. Even if the latter two fail
-	 * we still keep the module alive because the sockopt and
-	 * layer2 paths are still useful.
+	 * Hook the sockopt handler and pfil hooks for ipv4 and ipv6.
+	 * Even if the latter two fail we still keep the module alive
+	 * because the sockopt and layer2 paths are still useful.
 	 * ipfw[6]_hook return 0 on success, ENOENT on failure,
 	 * so we can ignore the exact return value and just set a flag.
 	 *
@@ -2659,7 +2658,6 @@ vnet_ipfw_init(const void *unused)
 	 * is checked on each packet because there are no pfil hooks.
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl;
-	V_ip_fw_chk_ptr = ipfw_chk;
 	error = ipfw_attach_hooks(1);
 	return (error);
 }
@@ -2681,7 +2679,6 @@ vnet_ipfw_uninit(const void *unused)
 	 * sure the update is propagated and nobody will be in.
 	 */
 	(void)ipfw_attach_hooks(0 /* detach */);
-	V_ip_fw_chk_ptr = NULL;
 	V_ip_fw_ctl_ptr = NULL;
 	IPFW_UH_WLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
