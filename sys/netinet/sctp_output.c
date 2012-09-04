@@ -3371,7 +3371,7 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 			return (found);
 		}
 		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
-		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(struct cmsghdr))) {
+		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(cmh))) {
 			/* We dont't have a complete CMSG header. */
 			return (found);
 		}
@@ -3386,11 +3386,11 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 		    (cmh.cmsg_type == SCTP_PRINFO) ||
 		    (cmh.cmsg_type == SCTP_AUTHINFO))))) {
 			if (c_type == cmh.cmsg_type) {
-				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < cpsize) {
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < cpsize) {
 					return (found);
 				}
 				/* It is exactly what we want. Copy it out. */
-				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), cpsize, (caddr_t)data);
+				m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), cpsize, (caddr_t)data);
 				return (1);
 			} else {
 				struct sctp_sndrcvinfo *sndrcvinfo;
@@ -3404,10 +3404,10 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 				}
 				switch (cmh.cmsg_type) {
 				case SCTP_SNDINFO:
-					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_sndinfo)) {
+					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct sctp_sndinfo)) {
 						return (found);
 					}
-					m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_sndinfo), (caddr_t)&sndinfo);
+					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_sndinfo), (caddr_t)&sndinfo);
 					sndrcvinfo->sinfo_stream = sndinfo.snd_sid;
 					sndrcvinfo->sinfo_flags = sndinfo.snd_flags;
 					sndrcvinfo->sinfo_ppid = sndinfo.snd_ppid;
@@ -3415,18 +3415,18 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 					sndrcvinfo->sinfo_assoc_id = sndinfo.snd_assoc_id;
 					break;
 				case SCTP_PRINFO:
-					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_prinfo)) {
+					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct sctp_prinfo)) {
 						return (found);
 					}
-					m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_prinfo), (caddr_t)&prinfo);
+					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_prinfo), (caddr_t)&prinfo);
 					sndrcvinfo->sinfo_timetolive = prinfo.pr_value;
 					sndrcvinfo->sinfo_flags |= prinfo.pr_policy;
 					break;
 				case SCTP_AUTHINFO:
-					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_authinfo)) {
+					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct sctp_authinfo)) {
 						return (found);
 					}
-					m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_authinfo), (caddr_t)&authinfo);
+					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_authinfo), (caddr_t)&authinfo);
 					sndrcvinfo->sinfo_keynumber_valid = 1;
 					sndrcvinfo->sinfo_keynumber = authinfo.auth_keynumber;
 					break;
@@ -3466,7 +3466,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 			return (1);
 		}
 		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
-		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(struct cmsghdr))) {
+		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(cmh))) {
 			/* We dont't have a complete CMSG header. */
 			*error = EINVAL;
 			return (1);
@@ -3479,11 +3479,11 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 		if (cmh.cmsg_level == IPPROTO_SCTP) {
 			switch (cmh.cmsg_type) {
 			case SCTP_INIT:
-				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_initmsg)) {
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct sctp_initmsg)) {
 					*error = EINVAL;
 					return (1);
 				}
-				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_initmsg), (caddr_t)&initmsg);
+				m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_initmsg), (caddr_t)&initmsg);
 				if (initmsg.sinit_max_attempts)
 					stcb->asoc.max_init_times = initmsg.sinit_max_attempts;
 				if (initmsg.sinit_num_ostreams)
@@ -3523,7 +3523,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 				break;
 #ifdef INET
 			case SCTP_DSTADDRV4:
-				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in_addr)) {
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct in_addr)) {
 					*error = EINVAL;
 					return (1);
 				}
@@ -3531,7 +3531,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 				sin.sin_family = AF_INET;
 				sin.sin_len = sizeof(struct sockaddr_in);
 				sin.sin_port = stcb->rport;
-				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in_addr), (caddr_t)&sin.sin_addr);
+				m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct in_addr), (caddr_t)&sin.sin_addr);
 				if ((sin.sin_addr.s_addr == INADDR_ANY) ||
 				    (sin.sin_addr.s_addr == INADDR_BROADCAST) ||
 				    IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
@@ -3547,7 +3547,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 #endif
 #ifdef INET6
 			case SCTP_DSTADDRV6:
-				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in6_addr)) {
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct in6_addr)) {
 					*error = EINVAL;
 					return (1);
 				}
@@ -3555,7 +3555,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 				sin6.sin6_family = AF_INET6;
 				sin6.sin6_len = sizeof(struct sockaddr_in6);
 				sin6.sin6_port = stcb->rport;
-				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in6_addr), (caddr_t)&sin6.sin6_addr);
+				m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct in6_addr), (caddr_t)&sin6.sin6_addr);
 				if (IN6_IS_ADDR_UNSPECIFIED(&sin6.sin6_addr) ||
 				    IN6_IS_ADDR_MULTICAST(&sin6.sin6_addr)) {
 					*error = EINVAL;
@@ -3623,7 +3623,7 @@ sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
 			return (NULL);
 		}
 		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
-		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(struct cmsghdr))) {
+		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(cmh))) {
 			/* We dont't have a complete CMSG header. */
 			*error = EINVAL;
 			return (NULL);
@@ -3637,7 +3637,7 @@ sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
 			switch (cmh.cmsg_type) {
 #ifdef INET
 			case SCTP_DSTADDRV4:
-				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in_addr)) {
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct in_addr)) {
 					*error = EINVAL;
 					return (NULL);
 				}
@@ -3645,13 +3645,13 @@ sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
 				sin.sin_family = AF_INET;
 				sin.sin_len = sizeof(struct sockaddr_in);
 				sin.sin_port = port;
-				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in_addr), (caddr_t)&sin.sin_addr);
+				m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct in_addr), (caddr_t)&sin.sin_addr);
 				addr = (struct sockaddr *)&sin;
 				break;
 #endif
 #ifdef INET6
 			case SCTP_DSTADDRV6:
-				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in6_addr)) {
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct in6_addr)) {
 					*error = EINVAL;
 					return (NULL);
 				}
@@ -3659,7 +3659,7 @@ sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
 				sin6.sin6_family = AF_INET6;
 				sin6.sin6_len = sizeof(struct sockaddr_in6);
 				sin6.sin6_port = port;
-				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in6_addr), (caddr_t)&sin6.sin6_addr);
+				m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct in6_addr), (caddr_t)&sin6.sin6_addr);
 #ifdef INET
 				if (IN6_IS_ADDR_V4MAPPED(&sin6.sin6_addr)) {
 					in6_sin6_2_sin(&sin, &sin6);
