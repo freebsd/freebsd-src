@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #pragma D option destructive
 #pragma D option jstackstrsize=1
@@ -32,7 +34,13 @@
 
 BEGIN
 {
-	system("java -version");
+	/*
+	 * Since some java versions are erroneously compiled with -xlazyload
+	 * and therefore don't activate their ustack() helper by default, we
+	 * use the DTrace helper audit library to activate it.
+	 */
+	system("LD_AUDIT_32=/usr/lib/dtrace/libdtrace_forceload.so %s",
+	    "java -version");
 }
 
 syscall:::entry
