@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 /*
@@ -64,6 +63,7 @@ cvt_text(odst, osrc, chpos, lenp, ops)
 	int ops;
 {
 	char *dst;
+	char *edst = odst;
 	char *src;
 	register char *src_end;
 	LWCHAR ch;
@@ -98,23 +98,17 @@ cvt_text(odst, osrc, chpos, lenp, ops)
 			if ((ops & CVT_TO_LC) && IS_UPPER(ch))
 				ch = TO_LOWER(ch);
 			put_wchar(&dst, ch);
-			/*
-			 * Record the original position of the char.
-			 * But if we've already recorded a position
-			 * for this char (due to a backspace), leave
-			 * it alone; if multiple source chars map to
-			 * one destination char, we want the position
-			 * of the first one.
-			 */
-			if (chpos != NULL && chpos[dst_pos] < 0)
+			/* Record the original position of the char. */
+			if (chpos != NULL)
 				chpos[dst_pos] = src_pos;
 		}
+		if (dst > edst)
+			edst = dst;
 	}
-	if ((ops & CVT_CRLF) && dst > odst && dst[-1] == '\r')
-		dst--;
-	*dst = '\0';
+	if ((ops & CVT_CRLF) && edst > odst && edst[-1] == '\r')
+		edst--;
+	*edst = '\0';
 	if (lenp != NULL)
-		*lenp = dst - odst;
-	if (chpos != NULL)
-		chpos[dst - odst] = src - osrc;
+		*lenp = edst - odst;
+	/* FIXME: why was this here?  if (chpos != NULL) chpos[dst - odst] = src - osrc; */
 }
