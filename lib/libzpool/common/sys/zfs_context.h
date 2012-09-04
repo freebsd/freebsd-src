@@ -61,6 +61,7 @@ extern "C" {
 #include <atomic.h>
 #include <dirent.h>
 #include <time.h>
+#include <procfs.h>
 #include <libsysevent.h>
 #include <sys/note.h>
 #include <sys/types.h>

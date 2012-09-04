@@ -2302,7 +2302,6 @@ dsl_dataset_stats(dsl_dataset_t *ds, nvlist_t *nv)
 			}
 		}
 	}
-
 }
 
 void
