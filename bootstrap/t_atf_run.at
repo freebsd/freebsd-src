@@ -1,0 +1,178 @@
+dnl
+dnl Automated Testing Framework (atf)
+dnl
+dnl Copyright (c) 2007 The NetBSD Foundation, Inc.
+dnl All rights reserved.
+dnl
+dnl Redistribution and use in source and binary forms, with or without
+dnl modification, are permitted provided that the following conditions
+dnl are met:
+dnl 1. Redistributions of source code must retain the above copyright
+dnl    notice, this list of conditions and the following disclaimer.
+dnl 2. Redistributions in binary form must reproduce the above copyright
+dnl    notice, this list of conditions and the following disclaimer in the
+dnl    documentation and/or other materials provided with the distribution.
+dnl
+dnl THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+dnl CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+dnl INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+dnl MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+dnl IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+dnl DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+dnl DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+dnl GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+dnl INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+dnl IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+dnl OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+dnl IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+dnl
+
+AT_SETUP([atf-run: execution of tests])
+AT_TESTED(atf-run)
+
+m4_define([CREATE_PASS_TEST],
+[AT_CHECK([sed -e 's,@TC_NAME@,$2,g' <TEST_HELPER_NO_S(tp_pass)],
+           [0], [stdout], [])
+AT_CHECK([mv stdout $1], [0], [], [])
+AT_CHECK([chmod +x $1], [0], [], [])
+])
+
+m4_define([CREATE_FAIL_TEST],
+[AT_CHECK([sed -e 's,@TC_NAME@,$2,g' <TEST_HELPER_NO_S(tp_fail)],
+           [0], [stdout], [])
+AT_CHECK([mv stdout $1], [0], [], [])
+AT_CHECK([chmod +x $1], [0], [], [])
+])
+
+AT_CHECK([mkdir top], [0], [], [])
+AT_CHECK([mkdir top/dir1], [0], [], [])
+AT_CHECK([mkdir top/dir2], [0], [], [])
+AT_DATA([top/Atffile],
+[Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: dir1
+tp: dir2
+tp: test1
+tp: test2
+])
+AT_DATA([top/dir1/Atffile],
+[Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: test3
+])
+AT_DATA([top/dir2/Atffile],
+[Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: test4
+tp: test5
+])
+CREATE_PASS_TEST([top/test1], [tc_1])
+CREATE_FAIL_TEST([top/test2], [tc_2])
+CREATE_PASS_TEST([top/dir1/test3], [tc_3])
+CREATE_FAIL_TEST([top/dir2/test4], [tc_4])
+CREATE_PASS_TEST([top/dir2/test5], [tc_5])
+
+AT_CHECK([cd top/dir1 && atf-run], [0], [stdout], [])
+CHECK_TPS_TCR(tc_3, passed, stdout)
+AT_CHECK([grep -i 'tc_@<:@1245@:>@' stdout], [1], [], [])
+AT_CHECK([grep 'tc-so:ignore-me' stdout], [0], [ignore], [])
+AT_CHECK([grep 'tc-se:ignore-me' stdout], [0], [ignore], [])
+
+AT_CHECK([cd top/dir2 && atf-run], [1], [stdout], [stderr])
+CHECK_TPS_TCR(tc_4, failed, stdout)
+CHECK_TPS_TCR(tc_5, passed, stdout)
+AT_CHECK([grep -i 'tc_@<:@123@:>@' stdout], [1], [], [])
+AT_CHECK([grep 'tc-so:ignore-me' stdout], [0], [ignore], [])
+AT_CHECK([grep 'tc-se:ignore-me' stdout], [0], [ignore], [])
+
+AT_CHECK([cd top && atf-run], [1], [stdout], [stderr])
+CHECK_TPS_TCR(tc_1, passed, stdout)
+CHECK_TPS_TCR(tc_2, failed, stdout)
+CHECK_TPS_TCR(tc_3, passed, stdout)
+CHECK_TPS_TCR(tc_4, failed, stdout)
+CHECK_TPS_TCR(tc_5, passed, stdout)
+AT_CHECK([grep 'tc-so:ignore-me' stdout], [0], [ignore], [])
+AT_CHECK([grep 'tc-se:ignore-me' stdout], [0], [ignore], [])
+
+dnl Repeat previous but using a glob that matches everything.
+AT_DATA([top/Atffile],
+[Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp-glob: *
+])
+AT_CHECK([cd top && atf-run], [1], [stdout], [stderr])
+CHECK_TPS_TCR(tc_1, passed, stdout)
+CHECK_TPS_TCR(tc_2, failed, stdout)
+CHECK_TPS_TCR(tc_3, passed, stdout)
+CHECK_TPS_TCR(tc_4, failed, stdout)
+CHECK_TPS_TCR(tc_5, passed, stdout)
+AT_CHECK([grep 'tc-so:ignore-me' stdout], [0], [ignore], [])
+AT_CHECK([grep 'tc-se:ignore-me' stdout], [0], [ignore], [])
+
+dnl Repeat previous but using a glob that matches directories only.
+AT_DATA([top/Atffile],
+[Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp-glob: d*
+])
+AT_CHECK([cd top && atf-run], [1], [stdout], [stderr])
+CHECK_TPS_TCR(tc_3, passed, stdout)
+CHECK_TPS_TCR(tc_4, failed, stdout)
+CHECK_TPS_TCR(tc_5, passed, stdout)
+AT_CHECK([grep 'tc-so:ignore-me' stdout], [0], [ignore], [])
+AT_CHECK([grep 'tc-se:ignore-me' stdout], [0], [ignore], [])
+
+dnl Make sure globs do not match non-executable nor hidden files.
+dnl XXX This is not really part of the bootstrap test suite.  Move to
+dnl tests/atf/tools/t_atf_run.sh when it exists.
+AT_CHECK([rm -rf top], [0], [], [])
+AT_CHECK([mkdir top], [0], [], [])
+CREATE_PASS_TEST([top/test1], [tc_1])
+CREATE_PASS_TEST([top/test2], [tc_2])
+CREATE_PASS_TEST([top/test3], [tc_3])
+AT_CHECK([chmod -x top/test3], [0], [], [])
+CREATE_PASS_TEST([top/.test4], [tc_4])
+AT_CHECK([chmod -x top/.test4], [0], [], [])
+AT_DATA([top/Atffile],
+[Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp-glob: *
+])
+AT_CHECK([cd top && atf-run], [0], [stdout], [stderr])
+CHECK_TPS_TCR(tc_1, passed, stdout)
+CHECK_TPS_TCR(tc_2, passed, stdout)
+AT_CHECK([grep -i 'tc_3' stdout], [1], [ignore], [])
+AT_CHECK([grep -i 'tc_4' stdout], [1], [ignore], [])
+
+dnl Run all test cases from a test program.
+AT_CHECK([rm -rf top], [0], [], [])
+AT_CHECK([mkdir top], [0], [], [])
+AT_CHECK([cp TEST_HELPER_NO_S(tp_basic_sh) top])
+AT_DATA([top/Atffile],
+[Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: h_tp_basic_sh
+])
+AT_CHECK([cd top && atf-run], [1], [stdout], [stderr])
+CHECK_TPS_TCR(pass, passed, stdout)
+CHECK_TPS_TCR(fail, failed, stdout)
+CHECK_TPS_TCR(skip, skipped, stdout)
+CHECK_TPS_TCR(default, passed, stdout)
+
+AT_CLEANUP()
+
+dnl vim: syntax=m4:expandtab:shiftwidth=4:softtabstop=4
