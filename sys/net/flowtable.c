@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bitstring.h>
 #include <sys/condvar.h>
 #include <sys/callout.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>  
 #include <sys/kthread.h>
 #include <sys/limits.h>
@@ -73,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/sctp.h>
 
-#include <libkern/jenkins.h>
 #include <ddb/ddb.h>
 
 struct ipv4_tuple {
@@ -585,7 +585,7 @@ ipv4_flow_lookup_hash_internal(
 	} else
 		offset = V_flow_hashjitter + proto;
 
-	return (jenkins_hashword(key, 3, offset));
+	return (jenkins_hash32(key, 3, offset));
 }
 
 static struct flentry *
@@ -791,7 +791,7 @@ ipv6_flow_lookup_hash_internal(
 	} else
 		offset = V_flow_hashjitter + proto;
 
-	return (jenkins_hashword(key, 9, offset));
+	return (jenkins_hash32(key, 9, offset));
 }
 
 static struct flentry *
