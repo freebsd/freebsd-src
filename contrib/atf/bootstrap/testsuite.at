@@ -1,0 +1,84 @@
+dnl
+dnl Automated Testing Framework (atf)
+dnl
+dnl Copyright (c) 2007 The NetBSD Foundation, Inc.
+dnl All rights reserved.
+dnl
+dnl Redistribution and use in source and binary forms, with or without
+dnl modification, are permitted provided that the following conditions
+dnl are met:
+dnl 1. Redistributions of source code must retain the above copyright
+dnl    notice, this list of conditions and the following disclaimer.
+dnl 2. Redistributions in binary form must reproduce the above copyright
+dnl    notice, this list of conditions and the following disclaimer in the
+dnl    documentation and/or other materials provided with the distribution.
+dnl
+dnl THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+dnl CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+dnl INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+dnl MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+dnl IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+dnl DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+dnl DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+dnl GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+dnl INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+dnl IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+dnl OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+dnl IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+dnl
+
+AT_INIT([bootstrap tests])
+
+m4_define([GUESS_TOPDIR], {
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})
+
+m4_define([APP_HELPER], [$(GUESS_TOPDIR)/bootstrap/h_$1])
+
+m4_define([TEST_HELPER_NO_S], [$(GUESS_TOPDIR)/bootstrap/h_$1])
+
+m4_define([TEST_HELPER], [$(GUESS_TOPDIR)/bootstrap/h_$1 \
+                          -s $(GUESS_TOPDIR)/bootstrap])
+
+m4_define(COUNT_IN_LINES,
+          [test @S|@[($1 | wc -l | awk '{ print @S|@1 }')] = $2])
+
+m4_define(COUNT_LINES, [test @S|@[(wc -l $1 | awk '{ print @S|@1 }')] = $2])
+
+m4_define(TCR_DATA, [echo '$2' >$1 <<EOF
+$2
+EOF
+          m4_ifnblank([$3], [echo "$2: $3" >$1])])
+
+m4_define(CHECK_TCR, [TCR_DATA([expres], $2, $3)
+                      AT_CHECK([diff -u expres $1], [0], [], [])])
+
+m4_define(CHECK_TCS_TCR,
+          [AT_CHECK([grep '^tc-end: @<:@0-9. @:>@*, $1, $2' $3], [0],
+          [ignore], [])])
+
+m4_define(CHECK_TPS_TCR,
+          [AT_CHECK([grep '^tc-end: @<:@0-9. @:>@*, $1, $2' $3], [0],
+          [ignore], [])])
+
+dnl The tests below are sorted depending on how important they are.
+m4_include(bootstrap/t_test_program_filter.at)
+m4_include(bootstrap/t_test_program_run.at)
+m4_include(bootstrap/t_test_program_list.at)
+m4_include(bootstrap/t_test_program_compare.at)
+m4_include(bootstrap/t_subr_atf_check.at)
+
+m4_if([ENABLE_TOOLS], yes, [
+    m4_include(bootstrap/t_application_opts_args.at)
+    m4_include(bootstrap/t_application_help.at)
+    m4_include(bootstrap/t_atf_config.at)
+    m4_include(bootstrap/t_atf_run.at)
+])
+
+dnl vim: syntax=m4:expandtab:shiftwidth=4:softtabstop=4
