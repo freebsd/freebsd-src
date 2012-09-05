@@ -190,7 +190,7 @@ static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte,
 static void pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte);
 static void pmap_invalidate_all(pmap_t pmap);
 static void pmap_invalidate_page(pmap_t pmap, vm_offset_t va);
-static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
+static void _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
@@ -928,29 +928,26 @@ pmap_qremove(vm_offset_t va, int count)
  * Page table page management routines.....
  ***************************************************/
 
-/*  Revision 1.507
- *
- * Simplify the reference counting of page table pages.	 Specifically, use
- * the page table page's wired count rather than its hold count to contain
- * the reference count.
- */
-
 /*
- * This routine unholds page table pages, and if the hold count
- * drops to zero, then it decrements the wire count.
+ * Decrements a page table page's wire count, which is used to record the
+ * number of valid page table entries within the page.  If the wire count
+ * drops to zero, then the page table page is unmapped.  Returns TRUE if the
+ * page table page was unmapped and FALSE otherwise.
  */
-static PMAP_INLINE int
-pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
+static PMAP_INLINE boolean_t
+pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
+
 	--m->wire_count;
-	if (m->wire_count == 0)
-		return (_pmap_unwire_pte_hold(pmap, va, m));
-	else
-		return (0);
+	if (m->wire_count == 0) {
+		_pmap_unwire_ptp(pmap, va, m);
+		return (TRUE);
+	} else
+		return (FALSE);
 }
 
-static int
-_pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
+static void
+_pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pd_entry_t *pde;
 
@@ -979,7 +976,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		 */
 		pdp = (pd_entry_t *)*pmap_segmap(pmap, va);
 		pdpg = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(pdp));
-		pmap_unwire_pte_hold(pmap, va, pdpg);
+		pmap_unwire_ptp(pmap, va, pdpg);
 	}
 #endif
 
@@ -988,7 +985,6 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	 */
 	vm_page_free_zero(m);
 	atomic_subtract_int(&cnt.v_wire_count, 1);
-	return (1);
 }
 
 /*
@@ -1004,7 +1000,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
 		return (0);
 	KASSERT(pde != 0, ("pmap_unuse_pt: pde != 0"));
 	mpte = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(pde));
-	return (pmap_unwire_pte_hold(pmap, va, mpte));
+	return (pmap_unwire_ptp(pmap, va, mpte));
 }
 
 void
@@ -2227,7 +2223,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0 &&
 	    !pmap_try_insert_pv_entry(pmap, mpte, va, m)) {
 		if (mpte != NULL) {
-			pmap_unwire_pte_hold(pmap, va, mpte);
+			pmap_unwire_ptp(pmap, va, mpte);
 			mpte = NULL;
 		}
 		return (mpte);
