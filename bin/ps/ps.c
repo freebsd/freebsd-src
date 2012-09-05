@@ -857,8 +857,8 @@ add_list(struct listinfo *inf, const char *argp)
 	int toolong;
 	char elemcopy[PATH_MAX];
 
-	if (*argp == 0)
-		inf->addelem(inf, elemcopy);
+	if (*argp == '\0')
+		inf->addelem(inf, argp);
 	while (*argp != '\0') {
 		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
 			argp++;
