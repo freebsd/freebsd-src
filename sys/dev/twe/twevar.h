@@ -125,6 +125,7 @@ struct twe_softc
     u_int16_t		twe_aen_queue[TWE_Q_LENGTH];	/* AENs queued for userland tool(s) */
     int			twe_aen_head, twe_aen_tail;	/* ringbuffer pointers for AEN queue */
     int			twe_wait_aen;    		/* wait-for-aen notification */
+    char		twe_aen_buf[80];		/* AEN format buffer */
 
     /* controller status */
     int			twe_state;
