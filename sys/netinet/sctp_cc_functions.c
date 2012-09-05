@@ -984,7 +984,7 @@ sctp_cwnd_update_exit_pf_common(struct sctp_tcb *stcb, struct sctp_nets *net)
 	    stcb->asoc.my_vtag, ((stcb->sctp_ep->sctp_lport << 16) | (stcb->rport)), net,
 	    old_cwnd, net->cwnd);
 	SCTPDBG(SCTP_DEBUG_INDATA1, "Destination %p moved from PF to reachable with cwnd %d.\n",
-	    net, net->cwnd);
+	    (void *)net, net->cwnd);
 }
 
 
