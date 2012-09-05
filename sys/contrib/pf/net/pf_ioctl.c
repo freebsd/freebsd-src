@@ -44,59 +44,41 @@ __FBSDID("$FreeBSD$");
 #include "opt_pf.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/mbuf.h>
-#include <sys/endian.h>
-#include <sys/filio.h>
-#include <sys/fcntl.h>
-#include <sys/interrupt.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/ucred.h>
-#include <sys/jail.h>
-#include <sys/module.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
+#include <sys/endian.h>
+#include <sys/fcntl.h>
+#include <sys/filio.h>
+#include <sys/interrupt.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <sys/md5.h>
+#include <net/pfil.h>
 
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/vnet.h>
 #include <net/route.h>
+#include <net/pfvar.h>
+#include <net/if_pfsync.h>
+#include <net/if_pflog.h>
 
 #include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 
-#include <sys/md5.h>
-#include <net/pfvar.h>
-
-#include <net/if_pfsync.h>
-#include <net/if_pflog.h>
-
 #ifdef INET6
 #include <netinet/ip6.h>
-#include <netinet/in_pcb.h>
 #endif /* INET6 */
 
 #ifdef ALTQ
 #include <altq/altq.h>
 #endif
-
-#include <sys/limits.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <net/pfil.h>
 
 static int		 pfattach(void);
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,

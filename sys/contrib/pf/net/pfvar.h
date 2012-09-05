@@ -34,23 +34,14 @@
 #define _NET_PFVAR_H_
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/refcount.h>
 #include <sys/queue.h>
+#include <sys/refcount.h>
 #include <sys/tree.h>
-#include <sys/lock.h>
 
 #include <net/radix.h>
-#include <net/route.h>
-#include <net/if_clone.h>
-#include <net/pf_mtag.h>
-#include <vm/uma.h>
-
 #include <netinet/in.h>
-#include <netinet/tcp_fsm.h>
 
-struct ip;
-struct ip6_hdr;
+#include <net/pf_mtag.h>
 
 #define	PF_TCPS_PROXY_SRC	((TCP_NSTATES)+0)
 #define	PF_TCPS_PROXY_DST	((TCP_NSTATES)+1)

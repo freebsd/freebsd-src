@@ -33,37 +33,34 @@
  * PURPOSE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
-#include <sys/kernel.h>
-#include <sys/limits.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/sockio.h>
 
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_clone.h>
+#include <net/if_pflog.h>
 #include <net/if_types.h>
-#include <net/route.h>
-#include <net/bpf.h>
+#include <net/pfvar.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #endif
 #ifdef	INET
 #include <netinet/in_var.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #endif
 
@@ -71,9 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 #endif /* INET6 */
-
-#include <net/pfvar.h>
-#include <net/if_pflog.h>
 
 #ifdef INET
 #include <machine/in_cksum.h>

@@ -30,22 +30,24 @@
  *
  */
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/socket.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/refcount.h>
+#include <sys/rwlock.h>
+#include <sys/socket.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
-#include <net/route.h>
-#include <netinet/in.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 
 #define	ACCEPT_FLAGS(flags, oklist)		\

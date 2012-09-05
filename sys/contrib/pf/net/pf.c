@@ -35,69 +35,61 @@
  *
  */
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #include <sys/cdefs.h>
+
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/mbuf.h>
-#include <sys/interrupt.h>
-#include <sys/filio.h>
-#include <sys/hash.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/random.h>
-#include <sys/sysctl.h>
 #include <sys/endian.h>
-#include <sys/proc.h>
+#include <sys/hash.h>
+#include <sys/interrupt.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <sys/lock.h>
-#include <sys/taskqueue.h>
-
+#include <sys/limits.h>
+#include <sys/mbuf.h>
 #include <sys/md5.h>
+#include <sys/random.h>
+#include <sys/refcount.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
+#include <sys/ucred.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
-#include <net/bpf.h>
 #include <net/route.h>
-#ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
-#endif
-
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/in_pcb.h>
-#include <netinet/tcp_timer.h>
-#include <netinet/tcp_var.h>
-#include <netinet/udp_var.h>
-#include <netinet/icmp_var.h>
-#include <netinet/if_ether.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h> /* XXX: only for DIR_IN/DIR_OUT */
+#include <net/vnet.h>
 
 #include <net/pfvar.h>
+#include <net/pf_mtag.h>
 #include <net/if_pflog.h>
 #include <net/if_pfsync.h>
 
+#include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/icmp_var.h>
+#include <netinet/ip_var.h>
+#include <netinet/ipfw/ip_fw_private.h> /* XXX: only for DIR_IN/DIR_OUT */
+#include <netinet/tcp.h>
+#include <netinet/tcp_fsm.h>
+#include <netinet/tcp_seq.h>
+#include <netinet/tcp_timer.h>
+#include <netinet/tcp_var.h>
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
+
 #ifdef INET6
 #include <netinet/ip6.h>
-#include <netinet/in_pcb.h>
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
@@ -105,8 +97,6 @@ __FBSDID("$FreeBSD$");
 #endif /* INET6 */
 
 #include <machine/in_cksum.h>
-#include <sys/limits.h>
-#include <sys/ucred.h>
 #include <security/mac/mac_framework.h>
 
 #define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x

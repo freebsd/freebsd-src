@@ -54,62 +54,44 @@
  * 1.173 - correct expire time processing
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_pf.h"
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
 #include <sys/endian.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
-#include <sys/sockio.h>
-#include <sys/taskqueue.h>
+#include <sys/interrupt.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
-#include <net/route.h>
-#include <net/bpf.h>
-#include <net/netisr.h>
-#include <net/vnet.h>
-
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
-
-#ifdef	INET
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#endif
-
-#ifdef INET6
-#include <netinet6/nd6.h>
-#endif /* INET6 */
-
-#include <netinet/ip_carp.h>
-
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 
+#include <netinet/if_ether.h>
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_carp.h>
+#include <netinet/ip_var.h>
+#include <netinet/tcp.h>
+#include <netinet/tcp_fsm.h>
+#include <netinet/tcp_seq.h>
 
 #define PFSYNC_MINPKT ( \
 	sizeof(struct ip) + \
