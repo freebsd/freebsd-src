@@ -305,6 +305,8 @@ device		wpi		# Intel 3945ABG wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
+options 	PADLOCK_RNG	# VIA Padlock RNG
+options 	IVY_RNG		# Intel Bull Mountain RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
