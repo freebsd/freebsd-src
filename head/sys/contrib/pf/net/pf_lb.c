@@ -43,12 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_pf.h"
 
-#ifdef DEV_PFLOW
-#define	NPFLOW	DEV_PFLOW
-#else
-#define	NPFLOW	0
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -88,7 +82,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
-#include <net/if_pflow.h>
 
 #ifdef INET6
 #include <netinet/ip6.h>

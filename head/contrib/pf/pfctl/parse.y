@@ -159,8 +159,7 @@ enum	{ PF_STATE_OPT_MAX, PF_STATE_OPT_NOSYNC, PF_STATE_OPT_SRCTRACK,
 	    PF_STATE_OPT_MAX_SRC_STATES, PF_STATE_OPT_MAX_SRC_CONN,
 	    PF_STATE_OPT_MAX_SRC_CONN_RATE, PF_STATE_OPT_MAX_SRC_NODES,
 	    PF_STATE_OPT_OVERLOAD, PF_STATE_OPT_STATELOCK,
-	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY, 
-	    PF_STATE_OPT_PFLOW };
+	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY, };
 
 enum	{ PF_SRCTRACK_NONE, PF_SRCTRACK, PF_SRCTRACK_GLOBAL, PF_SRCTRACK_RULE };
 
@@ -451,7 +450,7 @@ int	parseport(char *, struct range *r, int);
 %token	QUEUE PRIORITY QLIMIT RTABLE
 %token	LOAD RULESET_OPTIMIZATION
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
-%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW
+%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY
 %token	<v.string>		STRING
@@ -2081,15 +2080,6 @@ pfrule		: action dir logquick interface route af proto fromto
 					}
 					r.rule_flag |= PFRULE_STATESLOPPY;
 					break;
-				case PF_STATE_OPT_PFLOW:
-					if (r.rule_flag & PFRULE_PFLOW) {
-						yyerror("state pflow "
-						    "option: multiple "
-						    "definitions");
-						YYERROR;
-					}
-					r.rule_flag |= PFRULE_PFLOW;
-					break;
 				case PF_STATE_OPT_TIMEOUT:
 					if (o->data.timeout.number ==
 					    PFTM_ADAPTIVE_START ||
@@ -3574,14 +3564,6 @@ state_opt_item	: MAXIMUM NUMBER		{
 			if ($$ == NULL)
 				err(1, "state_opt_item: calloc");
 			$$->type = PF_STATE_OPT_SLOPPY;
-			$$->next = NULL;
-			$$->tail = $$;
-		}
-		| PFLOW {
-			$$ = calloc(1, sizeof(struct node_state_opt));
-			if ($$ == NULL)
-				err(1, "state_opt_item: calloc");
-			$$->type = PF_STATE_OPT_PFLOW;
 			$$->next = NULL;
 			$$->tail = $$;
 		}
@@ -5300,7 +5282,6 @@ lookup(char *s)
 		{ "out",		OUT},
 		{ "overload",		OVERLOAD},
 		{ "pass",		PASS},
-		{ "pflow",		PFLOW},
 		{ "port",		PORT},
 		{ "priority",		PRIORITY},
 		{ "priq",		PRIQ},
