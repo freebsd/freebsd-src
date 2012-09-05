@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/interrupt.h>
 #include <sys/filio.h>
+#include <sys/hash.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/kernel.h>
@@ -395,57 +396,17 @@ SYSCTL_VNET_UINT(_net_pf, OID_AUTO, source_nodes_hashsize, CTLFLAG_RDTUN,
 
 VNET_DEFINE(void *, pf_swi_cookie);
 
-/*
- * Hash function shamelessly taken from ng_netflow(4), trusting
- * mav@ and melifaro@ data on its decent distribution.
- */
-static __inline u_int
+VNET_DEFINE(uint32_t, pf_hashseed);
+#define	V_pf_hashseed	VNET(pf_hashseed)
+
+static __inline uint32_t
 pf_hashkey(struct pf_state_key *sk)
 {
-	u_int h;
+	uint32_t h;
 
-#define	FULL_HASH(a1, a2, p1, p2)	\
-	(((a1) ^ ((a1) >> 16) ^		\
-	htons((a2) ^ ((a2) >> 16))) ^	\
-	(p1) ^ htons(p2))
- 
-#define	ADDR_HASH(a1, a2)		\
-	((a1) ^ ((a1) >> 16) ^		\
-	htons((a2) ^ ((a2) >> 16)))
-
-	switch (sk->af) {
-	case AF_INET:
-		switch (sk->proto) {
-		case IPPROTO_TCP:
-		case IPPROTO_UDP:
-			h = FULL_HASH(sk->addr[0].v4.s_addr,
-			    sk->addr[1].v4.s_addr, sk->port[0], sk->port[1]);
-			break;
-		default:
-			h = ADDR_HASH(sk->addr[0].v4.s_addr,
-			    sk->addr[1].v4.s_addr);
-			break;
-		}
-		break;
-	case AF_INET6:
-		switch (sk->proto) {
-		case IPPROTO_TCP:
-		case IPPROTO_UDP:
-			h = FULL_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
-			    sk->addr[1].v6.__u6_addr.__u6_addr32[3],
-			    sk->port[0], sk->port[1]);
-			break;
-		default:
-			h = ADDR_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
-			    sk->addr[1].v6.__u6_addr.__u6_addr32[3]);
-			break;
-		}
-		break;
-	default:
-		panic("%s: unknown address family %u", __func__, sk->af);
-	}
-#undef FULL_HASH
-#undef ADDR_HASH
+	h = jenkins_hash32((uint32_t *)sk,
+	    sizeof(struct pf_state_key_cmp)/sizeof(uint32_t),
+	    V_pf_hashseed);
 
 	return (h & V_pf_hashmask);
 }
@@ -732,6 +693,8 @@ pf_initialize()
 	TUNABLE_ULONG_FETCH("net.pf.source_nodes_hashsize", &V_pf_srchashsize);
 	if (V_pf_srchashsize == 0 || !powerof2(V_pf_srchashsize))
 		V_pf_srchashsize = PF_HASHSIZ / 4;
+
+	V_pf_hashseed = arc4random();
 
 	/* States and state keys storage. */
 	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
