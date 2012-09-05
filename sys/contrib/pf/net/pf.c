@@ -44,13 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#ifdef DEV_PFLOW
-#define	NPFLOW		DEV_PFLOW
-#else
-#define	NPFLOW		0
-#endif
-
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -100,7 +93,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
-#include <net/if_pflow.h>
 #include <net/if_pfsync.h>
 
 #ifdef INET6
@@ -1490,11 +1482,6 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	}
 
 	LIST_REMOVE(s, entry);
-#if NPFLOW > 0
-	if (s->state_flags & PFSTATE_PFLOW)
-		if (export_pflow_ptr != NULL)
-			export_pflow_ptr(s);
-#endif
 	pf_src_tree_remove_state(s);
 	PF_HASHROW_UNLOCK(ih);
 
@@ -3355,8 +3342,6 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		s->state_flags |= PFSTATE_ALLOWOPTS;
 	if (r->rule_flag & PFRULE_STATESLOPPY)
 		s->state_flags |= PFSTATE_SLOPPY;
-	if (r->rule_flag & PFRULE_PFLOW)
-		s->state_flags |= PFSTATE_PFLOW;
 	s->log = r->log & PF_LOG_ALL;
 	s->sync_state = PFSYNC_S_NONE;
 	if (nr != NULL)

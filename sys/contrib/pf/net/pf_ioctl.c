@@ -210,8 +210,6 @@ pfsync_update_state_t		*pfsync_update_state_ptr = NULL;
 pfsync_delete_state_t		*pfsync_delete_state_ptr = NULL;
 pfsync_clear_states_t		*pfsync_clear_states_ptr = NULL;
 pfsync_defer_t			*pfsync_defer_ptr = NULL;
-/* pflow */
-export_pflow_t			*export_pflow_ptr = NULL;
 /* pflog */
 pflog_packet_t			*pflog_packet_ptr = NULL;
 

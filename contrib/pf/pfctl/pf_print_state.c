@@ -336,8 +336,6 @@ print_state(struct pfsync_state *s, int opts)
 			printf(", rule %u", ntohl(s->rule));
 		if (s->state_flags & PFSTATE_SLOPPY)
 			printf(", sloppy");
-		if (s->state_flags & PFSTATE_PFLOW)
-			printf(", pflow");
 		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
 			printf(", source-track");
 		if (s->sync_flags & PFSYNC_FLAG_NATSRCNODE)

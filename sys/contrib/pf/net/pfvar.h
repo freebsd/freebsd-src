@@ -689,7 +689,6 @@ struct pf_rule {
 /* rule flags again */
 #define PFRULE_IFBOUND		0x00010000	/* if-bound */
 #define PFRULE_STATESLOPPY	0x00020000	/* sloppy state tracking */
-#define PFRULE_PFLOW		0x00040000
 
 #define PFSTATE_HIWAT		10000	/* default state table size */
 #define PFSTATE_ADAPT_START	6000	/* default adaptive timeout start */
@@ -818,7 +817,7 @@ struct pf_state {
 	u_int8_t		 state_flags;
 #define	PFSTATE_ALLOWOPTS	0x01
 #define	PFSTATE_SLOPPY		0x02
-#define	PFSTATE_PFLOW		0x04
+/*  was	PFSTATE_PFLOW		0x04 */
 #define	PFSTATE_NOSYNC		0x08
 #define	PFSTATE_ACK		0x10
 	u_int8_t		 timeout;
@@ -902,11 +901,6 @@ extern pfsync_defer_t		*pfsync_defer_ptr;
 
 void			pfsync_state_export(struct pfsync_state *,
 			    struct pf_state *);
-
-/* pflow */
-typedef int		export_pflow_t(struct pf_state *);
-
-extern export_pflow_t		*export_pflow_ptr;
 
 /* pflog */
 struct pf_ruleset;
