@@ -23,10 +23,11 @@
 .\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
+.\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2012
+.Dd September 5, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -1083,7 +1084,7 @@ bit is respected for the file system. The default value is
 .It Sy sharesmb Ns = Ns Cm on | off | Ar opts
 The
 .Sy sharesmb
-property has currently no effect o
+property currently has no effect on
 .Fx .
 .It Sy sharenfs Ns = Ns Cm on | off | Ar opts
 Controls whether the file system is shared via
@@ -2031,7 +2032,7 @@ The default is
 .Pp
 The default can be changed to include group types.
 .It Fl i
-Translate SID to POSIX ID. This flag has currently no effect on
+Translate SID to POSIX ID. This flag currently has no effect on
 .Fx .
 .El
 .It Xo
