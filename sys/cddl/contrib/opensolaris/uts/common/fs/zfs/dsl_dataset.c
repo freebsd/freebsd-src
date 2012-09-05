@@ -2343,7 +2343,6 @@ dsl_dataset_stats(dsl_dataset_t *ds, nvlist_t *nv)
 			}
 		}
 	}
-
 	ratio = ds->ds_phys->ds_compressed_bytes == 0 ? 100 :
 	    (ds->ds_phys->ds_uncompressed_bytes * 100 /
 	    ds->ds_phys->ds_compressed_bytes);
