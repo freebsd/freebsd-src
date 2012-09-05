@@ -17,7 +17,6 @@ hints		"BERI_SIM.hints"	#Default places to look for devices.
 #
 options 	MD_ROOT			# MD is a potential root device
 options 	MD_ROOT_SIZE=8192
-makeoptions	MFS_IMAGE=/local/scratch/rnw24/mdroot.img
 options 	ROOTDEVNAME=\"ufs:md0\"
 
 device		altera_avgen
