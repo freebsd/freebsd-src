@@ -48,13 +48,14 @@ __FBSDID("$FreeBSD$");
 	.globl	CNAME(__error)
 	.type	CNAME(__error),@function
 HIDENAME(cerror):
-	pushl	%eax
 #ifdef PIC
-	/* The caller must execute the PIC prologue before jumping to cerror. */
+	PIC_PROLOGUE
+	pushl	%eax
 	call	PIC_PLT(CNAME(__error))
 	popl	%ecx
 	PIC_EPILOGUE
 #else
+	pushl	%eax
 	call	CNAME(__error)
 	popl	%ecx
 #endif
