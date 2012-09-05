@@ -35,61 +35,21 @@
  *
  */
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "opt_pf.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/filio.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
 #include <sys/sysctl.h>
-#include <sys/proc.h>
-#include <sys/kthread.h>
-#include <sys/lock.h>
-#include <sys/sx.h>
-
-#include <sys/md5.h>
 
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/route.h>
-#include <net/radix_mpath.h>
-
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/in_pcb.h>
-#include <netinet/tcp_timer.h>
-#include <netinet/tcp_var.h>
-#include <netinet/udp_var.h>
-#include <netinet/icmp_var.h>
-#include <netinet/if_ether.h>
-
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet/in_pcb.h>
-#include <netinet/icmp6.h>
-#include <netinet6/nd6.h>
-#endif /* INET6 */
-
+#include <net/pf_mtag.h>
 
 #define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 

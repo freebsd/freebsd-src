@@ -21,14 +21,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 

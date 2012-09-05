@@ -25,42 +25,37 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_pf.h"
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
-#include <sys/filio.h>
-#include <sys/fcntl.h>
+#include <sys/mutex.h>
+#include <sys/refcount.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
+
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/bpf.h>
-#include <net/route.h>
+#include <net/vnet.h>
+#include <net/pfvar.h>
+#include <net/pf_mtag.h>
 #include <net/if_pflog.h>
 
 #include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
 
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif /* INET6 */
-
-#include <net/pfvar.h>
 
 struct pf_frent {
 	LIST_ENTRY(pf_frent) fr_next;

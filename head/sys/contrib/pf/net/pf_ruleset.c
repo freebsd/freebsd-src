@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #ifdef _KERNEL
 # include <sys/systm.h>
+# include <sys/refcount.h>
 #endif /* _KERNEL */
 #include <sys/mbuf.h>
 
