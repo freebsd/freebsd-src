@@ -68,7 +68,7 @@ static int	twe_del_unit(struct twe_softc *sc, int unit);
 /*
  * Command I/O to controller.
  */
-static void	twe_done(struct twe_softc *sc);
+static void	twe_done(struct twe_softc *sc, int startio);
 static void	twe_complete(struct twe_softc *sc);
 static int	twe_wait_status(struct twe_softc *sc, u_int32_t status, int timeout);
 static int	twe_drain_response_queue(struct twe_softc *sc);
@@ -388,7 +388,7 @@ twe_intr(struct twe_softc *sc)
     if (status_reg & TWE_STATUS_COMMAND_INTERRUPT)
 	twe_command_intr(sc);
     if (status_reg & TWE_STATUS_RESPONSE_INTERRUPT)
-	twe_done(sc);
+	twe_done(sc, 1);
 };
 
 /********************************************************************************
@@ -996,7 +996,7 @@ twe_immediate_request(struct twe_request *tr, int usetmp)
     /* Wait up to 5 seconds for the command to complete */
     while ((count++ < 5000) && (tr->tr_status == TWE_CMD_BUSY)){
 	DELAY(1000);
-	twe_done(sc);
+	twe_done(sc, 1);
     }
     if (usetmp && (tr->tr_data != NULL))
 	bcopy(sc->twe_immediate, tr->tr_data, tr->tr_length);
@@ -1144,7 +1144,8 @@ twe_start(struct twe_request *tr)
 	    }
 #endif
 	    return(0);
-	}
+	} else if (!(status_reg & TWE_STATUS_RESPONSE_QUEUE_EMPTY) && i > 1)
+	    twe_done(sc, 0);
     }
 
     /* 
@@ -1162,7 +1163,7 @@ twe_start(struct twe_request *tr)
  * Can be called at any interrupt level, with or without interrupts enabled.
  */
 static void
-twe_done(struct twe_softc *sc)
+twe_done(struct twe_softc *sc, int startio)
 {
     TWE_Response_Queue	rq;
     TWE_Command		*cmd;
@@ -1198,7 +1199,7 @@ twe_done(struct twe_softc *sc)
     }
 
     /* if we've completed any commands, try posting some more */
-    if (found)
+    if (found && startio)
 	twe_startio(sc);
 
     /* handle completion and timeouts */
@@ -1768,7 +1769,6 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
 static char *
 twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 {
-    static char	buf[80];
     device_t	child;
     char	*code, *msg;
 
@@ -1785,25 +1785,28 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 
     case 'c':
 	if ((child = sc->twe_drive[TWE_AEN_UNIT(aen)].td_disk) != NULL) {
-	    sprintf(buf, "twed%d: %s", device_get_unit(child), msg);
+	    snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf), "twed%d: %s",
+		device_get_unit(child), msg);
 	} else {
-	    sprintf(buf, "twe%d: %s for unknown unit %d", device_get_unit(sc->twe_dev),
-		    msg, TWE_AEN_UNIT(aen));
+	    snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf),
+		"twe%d: %s for unknown unit %d", device_get_unit(sc->twe_dev),
+		msg, TWE_AEN_UNIT(aen));
 	}
-	return(buf);
+	return(sc->twe_aen_buf);
 
     case 'p':
-	sprintf(buf, "twe%d: port %d: %s", device_get_unit(sc->twe_dev), TWE_AEN_UNIT(aen),
-		msg);
-	return(buf);
+	snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf),
+	    "twe%d: port %d: %s", device_get_unit(sc->twe_dev),
+	    TWE_AEN_UNIT(aen), msg);
+	return(sc->twe_aen_buf);
 
 	
     case 'x':
     default:
 	break;
     }
-    sprintf(buf, "unknown AEN 0x%x", aen);
-    return(buf);
+    snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf), "unknown AEN 0x%x", aen);
+    return(sc->twe_aen_buf);
 }
 
 /********************************************************************************
