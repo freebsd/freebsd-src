@@ -219,7 +219,7 @@ pfi_kif_attach(struct pfi_kif *kif, const char *kif_name)
 	 * time value have pfi_get_ifaces handle this case. In
 	 * pfi_get_ifaces it uses time_second if it sees the time is 0.
 	 */
-        kif->pfik_tzero = time_second > 1 ? time_second : 0;
+	kif->pfik_tzero = time_second > 1 ? time_second : 0;
 	TAILQ_INIT(&kif->pfik_dynaddrs);
 
 	RB_INSERT(pfi_ifhead, &V_pfi_ifs, kif);

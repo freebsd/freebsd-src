@@ -332,7 +332,7 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	 *
 	 * one is O(N) and is better for large 'n'
 	 * one is O(n*LOG(N)) and is better for small 'n'
-	 * 
+	 *
 	 * following code try to decide which one is best.
 	 */
 	for (i = kt->pfrkt_cnt; i > 0; i >>= 1)
@@ -601,7 +601,7 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 	w.pfrw_free = kt->pfrkt_cnt;
 	rv = kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
 	if (!rv)
-		rv = kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, 
+		rv = kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree,
 		    &w);
 	if (!rv && (flags & PFR_FLAG_CLSTATS)) {
 		pfr_enqueue_addrs(kt, &workq, NULL, 0);
@@ -708,11 +708,11 @@ pfr_enqueue_addrs(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 	w.pfrw_op = sweep ? PFRW_SWEEP : PFRW_ENQUEUE;
 	w.pfrw_workq = workq;
 	if (kt->pfrkt_ip4 != NULL)
-		if (kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, 
+		if (kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree,
 		    &w))
 			printf("pfr_enqueue_addrs: IPv4 walktree failed.\n");
 	if (kt->pfrkt_ip6 != NULL)
-		if (kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, 
+		if (kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree,
 		    &w))
 			printf("pfr_enqueue_addrs: IPv6 walktree failed.\n");
 	if (naddr != NULL)
@@ -1924,7 +1924,7 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
-	     }
+	    }
 #endif /* INET6 */
 	}
 	match = (ke && !ke->pfrke_not);
@@ -1959,7 +1959,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
-	     }
+	    }
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:

@@ -289,7 +289,7 @@ pf_free_fragment(struct pf_fragment *frag)
 			    LIST_FIRST(&frag->fr_queue)->fr_off >
 			    frent->fr_end),
 			    ("! (LIST_EMPTY() || LIST_FIRST()->fr_off >"
-			      " frent->fr_end): %s", __func__));
+			    " frent->fr_end): %s", __func__));
 
 			uma_zfree(V_pf_frent_z, frent);
 		}
@@ -671,8 +671,8 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				m_adj(*m0, (h->ip_hl << 2) -
 				    (*m0)->m_pkthdr.len);
 
-				KASSERT(((*m0)->m_next == NULL), 
-				    ("(*m0)->m_next != NULL: %s", 
+				KASSERT(((*m0)->m_next == NULL),
+				    ("(*m0)->m_next != NULL: %s",
 				    __FUNCTION__));
 				m_adj(m, precut + (h->ip_hl << 2));
 				m_cat(*m0, m);
@@ -1412,7 +1412,7 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 	u_int8_t hdr[60];
 	u_int8_t *opt;
 
-	KASSERT((src->scrub == NULL), 
+	KASSERT((src->scrub == NULL),
 	    ("pf_normalize_tcp_init: src->scrub != NULL"));
 
 	src->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
@@ -1511,7 +1511,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	int copyback = 0;
 	int got_ts = 0;
 
-	KASSERT((src->scrub || dst->scrub), 
+	KASSERT((src->scrub || dst->scrub),
 	    ("%s: src->scrub && dst->scrub!", __func__));
 
 	/*
@@ -1663,7 +1663,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		 * measurement of RTT (round trip time) and PAWS
 		 * (protection against wrapped sequence numbers).  PAWS
 		 * gives us a set of rules for rejecting packets on
-		 * long fat pipes (packets that were somehow delayed 
+		 * long fat pipes (packets that were somehow delayed
 		 * in transit longer than the time it took to send the
 		 * full TCP sequence space of 4Gb).  We can use these
 		 * rules and infer a few others that will let us treat

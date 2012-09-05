@@ -1,10 +1,10 @@
 /*	$OpenBSD: if_pflog.c,v 1.26 2007/10/18 21:58:18 mpf Exp $	*/
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),
- * Angelos D. Keromytis (kermit@csd.uch.gr) and 
+ * Angelos D. Keromytis (kermit@csd.uch.gr) and
  * Niels Provos (provos@physnet.uni-hamburg.de).
  *
- * This code was written by John Ioannidis for BSD/OS in Athens, Greece, 
+ * This code was written by John Ioannidis for BSD/OS in Athens, Greece,
  * in November 1995.
  *
  * Ported to OpenBSD and NetBSD, with additional transforms, in December 1996,
@@ -20,7 +20,7 @@
  * Permission to use, copy, and modify this software with or without fee
  * is hereby granted, provided that this entire notice is included in
  * all copies of any software which is or includes a copy or
- * modification of this software. 
+ * modification of this software.
  * You may use this code under the GNU public license if you so wish. Please
  * contribute changes back to the authors under this freer than GPL license
  * so that we may further the use of strong encryption without limitations to

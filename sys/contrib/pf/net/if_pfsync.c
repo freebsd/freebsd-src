@@ -363,7 +363,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	 */
 	while (sc->sc_deferred > 0) {
 		struct pfsync_deferral *pd = TAILQ_FIRST(&sc->sc_deferrals);
-	
+
 		TAILQ_REMOVE(&sc->sc_deferrals, pd, pd_entry);
 		sc->sc_deferred--;
 		if (callout_stop(&pd->pd_tmo)) {
@@ -1215,7 +1215,7 @@ pfsync_update_net_tdb(struct pfsync_tdb *pt)
 	/* check for invalid values */
 	if (ntohl(pt->spi) <= SPI_RESERVED_MAX ||
 	    (pt->dst.sa.sa_family != AF_INET &&
-	     pt->dst.sa.sa_family != AF_INET6))
+	    pt->dst.sa.sa_family != AF_INET6))
 		goto bad;
 
 	tdb = gettdb(pt->spi, &pt->dst, pt->sproto);
@@ -1648,7 +1648,7 @@ pfsync_sendout(int schedswi)
 		_IF_ENQUEUE(&sc->sc_ifp->if_snd, m);
 	else {
 		m_freem(m);
-                sc->sc_ifp->if_snd.ifq_drops++;
+		sc->sc_ifp->if_snd.ifq_drops++;
 	}
 	if (schedswi)
 		swi_sched(V_pfsync_swi_cookie, 0);

@@ -1711,7 +1711,7 @@ VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_active);
 VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_inactive);
 #define	V_pf_altqs_inactive		 VNET(pf_altqs_inactive)
 
-VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);  
+VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
 
 void				 pf_initialize(void);

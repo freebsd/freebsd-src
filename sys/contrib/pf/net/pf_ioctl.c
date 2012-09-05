@@ -160,7 +160,7 @@ static void		 tag_unref(struct pf_tags *, u_int16_t);
 #define DPFPRINTF(n, x) if (V_pf_status.debug >= (n)) printf x
 
 struct cdev *pf_dev;
- 
+
 /*
  * XXX - These are new and need to be checked when moveing to a new version
  */
@@ -168,7 +168,7 @@ static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_src_node *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
- 
+
 /*
  * Wrapper functions for pfil(9) hooks
  */
@@ -184,7 +184,7 @@ static int pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp,
 static int pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp,
     int dir, struct inpcb *inp);
 #endif
- 
+
 static int		hook_pf(void);
 static int		dehook_pf(void);
 static int		shutdown_pf(void);
@@ -2311,7 +2311,7 @@ DIOCGETSTATES_full:
 				newpa->kif = NULL;
 
 			switch (newpa->addr.type) {
-			case PF_ADDR_DYNIFTL: 
+			case PF_ADDR_DYNIFTL:
 				error = pfi_dynaddr_setup(&newpa->addr,
 				    pca->af);
 				break;
@@ -3423,7 +3423,7 @@ shutdown_pf(void)
 	int error = 0;
 	u_int32_t t[5];
 	char nn = '\0';
- 
+
 	V_pf_status.running = 0;
 	do {
 		if ((error = pf_begin_rules(&t[0], PF_RULESET_SCRUB, &nn))
@@ -3434,22 +3434,22 @@ shutdown_pf(void)
 		if ((error = pf_begin_rules(&t[1], PF_RULESET_FILTER, &nn))
 		    != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: FILTER\n"));
-			break;          /* XXX: rollback? */
+			break;		/* XXX: rollback? */
 		}
 		if ((error = pf_begin_rules(&t[2], PF_RULESET_NAT, &nn))
 		    != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: NAT\n"));
-			break;          /* XXX: rollback? */
+			break;		/* XXX: rollback? */
 		}
 		if ((error = pf_begin_rules(&t[3], PF_RULESET_BINAT, &nn))
 		    != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: BINAT\n"));
-			break;          /* XXX: rollback? */
+			break;		/* XXX: rollback? */
 		}
 		if ((error = pf_begin_rules(&t[4], PF_RULESET_RDR, &nn))
 		    != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: RDR\n"));
-			break;          /* XXX: rollback? */
+			break;		/* XXX: rollback? */
 		}
 
 		/* XXX: these should always succeed here */
@@ -3492,7 +3492,7 @@ pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 * in network stack. OpenBSD's network stack have converted
 	 * ip_len/ip_off to host byte order frist as FreeBSD.
 	 * Now this is not true anymore , so we should convert back to network
-	 * byte order. 
+	 * byte order.
 	 */
 	struct ip *h = NULL;
 	int chk;
@@ -3529,7 +3529,7 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 * in network stack. OpenBSD's network stack have converted
 	 * ip_len/ip_off to host byte order frist as FreeBSD.
 	 * Now this is not true anymore , so we should convert back to network
-	 * byte order. 
+	 * byte order.
 	 */
 	struct ip *h = NULL;
 	int chk;
@@ -3627,7 +3627,7 @@ hook_pf(void)
 #endif
 
 	if (V_pf_pfil_hooked)
-		return (0); 
+		return (0);
 
 #ifdef INET
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
@@ -3781,7 +3781,7 @@ pf_modevent(module_t mod, int type, void *data)
 
 	return (error);
 }
- 
+
 static moduledata_t pf_mod = {
 	"pf",
 	pf_modevent,
