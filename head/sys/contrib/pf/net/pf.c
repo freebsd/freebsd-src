@@ -194,8 +194,8 @@ static struct mtx pf_sendqueue_mtx;
 struct pf_flush_entry {
 	SLIST_ENTRY(pf_flush_entry)	next;
 	struct pf_addr  		addr;
-	sa_family_t     		af;
-	uint8_t         		dir;
+	sa_family_t			af;
+	uint8_t				dir;
 	struct pf_rule  		*rule;  /* never dereferenced */
 };
 
@@ -700,7 +700,7 @@ pf_initialize()
 	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
-        uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
+	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
 
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
@@ -1289,7 +1289,7 @@ pf_intr(void *v)
 		}
 		free(pfse, M_PFTEMP);
 	}
-	
+
 	CURVNET_RESTORE();
 }
 
@@ -1376,7 +1376,7 @@ pf_state_expires(const struct pf_state *state)
 		return (0);
 	KASSERT(state->timeout != PFTM_UNLINKED,
 	    ("pf_state_expires: timeout == PFTM_UNLINKED"));
-	KASSERT((state->timeout < PFTM_MAX), 
+	KASSERT((state->timeout < PFTM_MAX),
 	    ("pf_state_expires: timeout > PFTM_MAX"));
 	timeout = state->rule.ptr->timeout[state->timeout];
 	if (!timeout)
@@ -1409,7 +1409,7 @@ pf_purge_expired_src_nodes()
 
 	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
 	    PF_HASHROW_LOCK(sh);
-	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next) 
+	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next)
 		if (cur->states <= 0 && cur->expire <= time_uptime) {
 			if (cur->rule.ptr != NULL)
 				cur->rule.ptr->src_nodes--;
@@ -5218,7 +5218,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 #endif
 	m0->m_pkthdr.csum_flags &= ifp->if_hwassist;
 
-        /*
+	/*
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
@@ -5237,7 +5237,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	/* Balk when DF bit is set or the interface didn't support TSO. */
 	if ((ip->ip_off & IP_DF) || (m0->m_pkthdr.csum_flags & CSUM_TSO)) {
-		error = EMSGSIZE; 
+		error = EMSGSIZE;
 		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (r->rt != PF_DUPTO) {
 			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
@@ -5443,7 +5443,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 			} else {
 				ip = mtod(m, struct ip *);
 				sum = in_pseudo(ip->ip_src.s_addr,
-				ip->ip_dst.s_addr, htonl((u_short)len + 
+				ip->ip_dst.s_addr, htonl((u_short)len +
 				m->m_pkthdr.csum_data + IPPROTO_TCP));
 			}
 			sum ^= 0xffff;
@@ -5574,7 +5574,7 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (PF_PASS);
-	
+
 	if (m->m_pkthdr.len < (int)sizeof(struct ip)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_SHORT);
