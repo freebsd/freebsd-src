@@ -44,33 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500001
 #include <sys/bio.h>
-#endif	/* __FreeBSD__ */
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 
-#ifdef __NetBSD__
-#include <sys/device.h>
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-#include <i386/Cbus/dev/tmc18c30reg.h>
-#include <i386/Cbus/dev/tmc18c30var.h>
-#endif /* __NetBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/cpu.h>
 #include <machine/bus.h>
 
@@ -80,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_low.h>
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>
-#endif /* __FreeBSD__ */
 
 /***************************************************
  * USER SETTINGS
@@ -301,7 +279,7 @@ stghw_attention(sc)
 	sc->sc_busc |= BCTL_ATN;
 	sc->sc_busimg |= BCTL_ATN;
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, tmc_bctl, sc->sc_busimg);
-	SCSI_LOW_DELAY(10);
+	DELAY(10);
 }
 
 static void
@@ -314,7 +292,7 @@ stghw_bus_reset(sc)
 	bus_space_write_1(iot, ioh, tmc_ictl, 0);
 	bus_space_write_1(iot, ioh, tmc_fctl, 0);
 	stghw_bcr_write_1(sc, BCTL_RST);
-	SCSI_LOW_DELAY(100000);
+	DELAY(100000);
 	stghw_bcr_write_1(sc, BCTL_BUSFREE);
 }
 
@@ -454,7 +432,7 @@ stgprint(aux, name)
 
 	if (name != NULL)
 		printf("%s: scsibus ", name);
-	return UNCONF;
+	return 1;
 }
 
 void
@@ -591,7 +569,7 @@ stg_pio_read(sc, ti, thold)
 					break;
 				if (sp->scp_datalen <= 0)
 					break;
-				SCSI_LOW_DELAY(1);
+				DELAY(1);
 				continue;
 			}
 		}
@@ -691,7 +669,7 @@ stg_pio_write(sc, ti, thold)
 			res = bus_space_read_2(iot, ioh, tmc_fdcnt);
 			if (res > sc->sc_maxwsize / 2)
 			{
-				SCSI_LOW_DELAY(1);
+				DELAY(1);
 				continue;
 			}
 		}
@@ -736,7 +714,7 @@ stg_negate_signal(struct stg_softc *sc, u_int8_t mask, u_char *s)
 		if ((regv & mask) == 0)
 			return 1;
 
-		SCSI_LOW_DELAY(STG_DELAY_INTERVAL);
+		DELAY(STG_DELAY_INTERVAL);
 	}
 
 	printf("%s: %s stg_negate_signal timeout\n", slp->sl_xname, s);
@@ -763,7 +741,7 @@ stg_expect_signal(struct stg_softc *sc, u_int8_t phase, u_int8_t mask)
 		if ((ph & mask) != 0)
 			return 1;
 
-		SCSI_LOW_DELAY(STG_DELAY_INTERVAL);
+		DELAY(STG_DELAY_INTERVAL);
 	}
 
 	printf("%s: stg_expect_signal timeout\n", slp->sl_xname);
@@ -857,13 +835,13 @@ stg_reselected(sc)
 		if ((regv & (BSTAT_IO | BSTAT_SEL | BSTAT_BSY)) == 
 			    (BSTAT_IO | BSTAT_SEL))
 		{
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 			regv = bus_space_read_1(iot, ioh, tmc_bstat);
 			if ((regv & (BSTAT_IO | BSTAT_SEL | BSTAT_BSY)) == 
 				    (BSTAT_IO | BSTAT_SEL))
 				goto reselect_start;
 		}
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 	}
 	printf("%s: reselction timeout I\n", slp->sl_xname);
 	return EJUSTRETURN;
@@ -886,7 +864,7 @@ reselect_start:
 		regv = bus_space_read_1(iot, ioh, tmc_bstat);
 		if ((regv & (BSTAT_SEL | BSTAT_BSY)) == BSTAT_BSY)
 			goto reselected;
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 	}
 	printf("%s: reselction timeout II\n", slp->sl_xname);
 	return EJUSTRETURN;
@@ -983,10 +961,10 @@ stghw_select_targ_wait(sc, mu)
 	{
 		if ((bus_space_read_1(iot, ioh, tmc_bstat) & BSTAT_BSY) == 0)
 		{
-			SCSI_LOW_DELAY(STGHW_SELECT_INTERVAL);
+			DELAY(STGHW_SELECT_INTERVAL);
 			continue;
 		}
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 		if ((bus_space_read_1(iot, ioh, tmc_bstat) & BSTAT_BSY) != 0)
 		{
 			return 0;
@@ -1060,7 +1038,7 @@ stgintr(arg)
 		       status, astatus);
 #ifdef	KDB
 		if (stg_debug > 1)
-			SCSI_LOW_DEBUGGER("stg");
+			kdb_enter(KDB_WHY_CAM, "stg");
 #endif	/* KDB */
 	}
 #endif	/* STG_DEBUG */
@@ -1398,7 +1376,7 @@ stg_timeout(sc)
 
 			if (bus_space_read_2(iot, ioh, tmc_fdcnt) != 0)
 			{
-				SCSI_LOW_DELAY(1);
+				DELAY(1);
 				continue;
 			}
 
