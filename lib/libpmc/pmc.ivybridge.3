@@ -199,40 +199,40 @@ Ivy Bridge programmable PMCs support the following events:
 .Bl -tag -width indent
 .It Li LD_BLOCKS.STORE_FORWARD
 .Pq Event 03H , Umask 02H
-loads blocked by overlapping with store buffer that cannot be forwarded . 
+loads blocked by overlapping with store buffer that cannot be forwarded .
 .It Li MISALIGN_MEM_REF.LOADS
 .Pq Event 05H , Umask 01H
-Speculative cache-line split load uops dispatched to L1D. 
+Speculative cache-line split load uops dispatched to L1D.
 .It Li MISALIGN_MEM_REF.STORES
 .Pq Event 05H , Umask 02H
-Speculative cache-line split Store- address uops dispatched to L1D. 
+Speculative cache-line split Store- address uops dispatched to L1D.
 .It Li LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
 .Pq Event 07H , Umask 01H
-False dependencies in MOB due to partial compare on address. 
+False dependencies in MOB due to partial compare on address.
 .It Li DTLB_LOAD_MISSES.DEMAND_LD_MISS_CAUSES_A_WALK
 .Pq Event 08H , Umask 81H
-Misses in all TLB levels that cause a page walk of any page size from demand loads. 
+Misses in all TLB levels that cause a page walk of any page size from demand loads.
 .It Li DTLB_LOAD_MISSES.DEMAND_LD_WALK_COMPLETED
 .Pq Event 08H , Umask 82H
-Misses in all TLB levels that caused page walk completed of any size by demand loads. 
+Misses in all TLB levels that caused page walk completed of any size by demand loads.
 .It Li DTLB_LOAD_MISSES.DEMAND_LD_WALK_DURATION
 .Pq Event 08H , Umask 84H
-Cycle PMH is busy with a walk due to demand loads. 
+Cycle PMH is busy with a walk due to demand loads.
 .It Li UOPS_ISSUED.ANY
 .Pq Event 0EH , Umask 01H
-Increments each cycle the # of Uops issued by the RAT to RS. 
+Increments each cycle the # of Uops issued by the RAT to RS.
 Set Cmask = 1, Inv = 1to count stalled cycles.
-Set Cmask = 1, Inv = 1, Any= 1to count stalled cycles of this core. 
+Set Cmask = 1, Inv = 1, Any= 1to count stalled cycles of this core.
 .It Li UOPS_ISSUED.FLAGS_MERGE
 .Pq Event 0EH , Umask 10H
-Number of flags-merge uops allocated. Such uops adds delay. 
+Number of flags-merge uops allocated. Such uops adds delay.
 .It Li UOPS_ISSUED.SLOW_LEA
 .Pq Event 0EH , Umask 20H
 Number of slow LEA or similar uops allocated. Such uop has 3 sources (e.g. 2
 sources + immediate) regardless if as a result of LEA instruction or not.
 .It Li UOPS_ISSUED.SINGLE_MUL
 .Pq Event 0EH , Umask 40H
-Number of multiply packed/scalar single precision uops allocated. 
+Number of multiply packed/scalar single precision uops allocated.
 .It Li ARITH.FPU_DIV_ACTIVE
 .Pq Event 14H , Umask 01H
 Cycles that the divider is active, includes INT and FP. Set 'edge =1,
@@ -245,31 +245,31 @@ Demand Data Read requests that hit L2 cache.
 Counts any demand and L1 HW prefetch data load requests to L2.
 .It Li L2_RQSTS.RFO_HITS
 .Pq Event 24H , Umask 04H
-Counts the number of store RFO requests that hit the L2 cache. 
+Counts the number of store RFO requests that hit the L2 cache.
 .It Li L2_RQSTS.RFO_MISS
 .Pq Event 24H , Umask 08H
-Counts the number of store RFO requests that miss the L2 cache. 
+Counts the number of store RFO requests that miss the L2 cache.
 .It Li L2_RQSTS.ALL_RFO
 .Pq Event 24H , Umask 0CH
-Counts all L2 store RFO requests. 
+Counts all L2 store RFO requests.
 .It Li L2_RQSTS.CODE_RD_HIT
 .Pq Event 24H , Umask 10H
-Number of instruction fetches that hit the L2 cache. 
+Number of instruction fetches that hit the L2 cache.
 .It Li L2_RQSTS.CODE_RD_MISS
 .Pq Event 24H , Umask 20H
-Number of instruction fetches that missed the L2 cache. 
+Number of instruction fetches that missed the L2 cache.
 .It Li L2_RQSTS.ALL_CODE_RD
 .Pq Event 24H , Umask 30H
-Counts all L2 code requests. 
+Counts all L2 code requests.
 .It Li L2_RQSTS.PF_HIT
 .Pq Event 24H , Umask 40H
-Counts all L2 HW prefetcher requests that hit L2. 
+Counts all L2 HW prefetcher requests that hit L2.
 .It Li L2_RQSTS.PF_MISS
 .Pq Event 24H , Umask 80H
-Counts all L2 HW prefetcher requests that missed L2. 
+Counts all L2 HW prefetcher requests that missed L2.
 .It Li L2_RQSTS.ALL_PF
 .Pq Event 24H , Umask C0H
-Counts all L2 HW prefetcher requests. 
+Counts all L2 HW prefetcher requests.
 .It Li L2_STORE_LOCK_RQSTS.MISS
 .Pq Event 27H , Umask 01H
 RFOs that miss cache lines.
@@ -307,13 +307,13 @@ core frequency may change from time to time due to power or thermal
 throttling.
 .It Li CPU_CLK_THREAD_UNHALTED.REF_XCLK
 .Pq Event 3CH , Umask 01H
-Increments at the frequency of XCLK (100 MHz) when not halted. 
+Increments at the frequency of XCLK (100 MHz) when not halted.
 .It Li L1D_PEND_MISS.PENDING
 .Pq Event 48H , Umask 01H
 Increments the number of outstanding L1D misses every cycle. Set Cmaks = 1
 and Edge =1 to count occurrences.
 Counter 2 only.
-Set Cmask = 1 to count cycles. 
+Set Cmask = 1 to count cycles.
 .It Li DTLB_STORE_MISSES.MISS_CAUSES_A_WALK
 .Pq Event 49H , Umask 01H
 Miss in all TLB levels causes an page walk of any page size (4K/2M/4M/1G).
@@ -339,16 +339,16 @@ Non-SW-prefetch load dispatches that hit fill buffer allocated for H/W prefetch.
 Counts the number of lines brought into the L1 data cache.
 .It Li MOVE_ELIMINATION.INT_NOT_ELIMINATED
 .Pq Event 58H , Umask 01H
-Number of integer Move Elimination candidate uops that were not eliminated. 
+Number of integer Move Elimination candidate uops that were not eliminated.
 .It Li MOVE_ELIMINATION.SIMD_NOT_ELIMINATED
 .Pq Event 58H , Umask 02H
-Number of SIMD Move Elimination candidate uops that were not eliminated. 
+Number of SIMD Move Elimination candidate uops that were not eliminated.
 .It Li MOVE_ELIMINATION.INT_ELIMINATED
 .Pq Event 58H , Umask 04H
-Number of integer Move Elimination candidate uops that were eliminated. 
+Number of integer Move Elimination candidate uops that were eliminated.
 .It Li MOVE_ELIMINATION.SIMD_ELIMINATED
 .Pq Event 58H , Umask 08H
-Number of SIMD Move Elimination candidate uops that were eliminated. 
+Number of SIMD Move Elimination candidate uops that were eliminated.
 .It Li CPL_CYCLES.RING0
 .Pq Event 5CH , Umask 01H
 Unhalted core cycles when the thread is in ring 0.
@@ -389,14 +389,14 @@ Cycles in which the L1D is locked.
 Counts cycles the IDQ is empty.
 .It Li IDQ.MITE_UOPS
 .Pq Event 79H , Umask 04H
-Increment each cycle # of uops delivered to IDQ from MITE path. 
+Increment each cycle # of uops delivered to IDQ from MITE path.
 Can combine Umask 04H and 20H.
-Set Cmask = 1 to count cycles. 
+Set Cmask = 1 to count cycles.
 .It Li IDQ.DSB_UOPS
 .Pq Event 79H , Umask 08H
-Increment each cycle. # of uops delivered to IDQ from DSB path. 
-Can combine Umask 08H and 10H 
-Set Cmask = 1 to count cycles. 
+Increment each cycle. # of uops delivered to IDQ from DSB path.
+Can combine Umask 08H and 10H
+Set Cmask = 1 to count cycles.
 .It Li IDQ.MS_DSB_UOPS
 .Pq Event 79H , Umask 10H
 Increment each cycle # of uops delivered to IDQ when MS_busy by DSB. Set
@@ -466,7 +466,7 @@ returns.
 Must combine with umask 80H.
 .It Li BR_INST_EXEC.RETURN_NEAR
 .Pq Event 88H , Umask 08H
-Qualify indirect near branches that have a return mnemonic. 
+Qualify indirect near branches that have a return mnemonic.
 Must combine with umask 80H.
 .It Li BR_INST_EXEC.DIRECT_NEAR_CALL
 .Pq Event 88H , Umask 10H
@@ -544,7 +544,7 @@ Cycles which a store address uop is dispatched on port 2.
 Cycles which a Uop is dispatched on port 2.
 .It Li UOPS_DISPATCHED_PORT.PORT_3_LD
 .Pq Event A1H , Umask 10H
-Cycles which a load uop is dispatched on port 3. 
+Cycles which a load uop is dispatched on port 3.
 .It Li UOPS_DISPATCHED_PORT.PORT_3_STA
 .Pq Event A1H , Umask 20H
 Cycles which a store address uop is dispatched on port 3.
@@ -621,7 +621,7 @@ DTLB flush attempts of the thread- specific entries.
 Count number of STLB flush attempts.
 .It Li INST_RETIRED.ANY_P
 .Pq Event C0H , Umask 00H
-Number of instructions at retirement. 
+Number of instructions at retirement.
 .It Li INST_RETIRED.ALL
 .Pq Event C0H , Umask 01H
 Precise instruction retired event with HW to reduce effect of PEBS shadow in
@@ -630,7 +630,7 @@ PMC1 only.
 Must quiesce other PMCs.
 .It Li OTHER_ASSISTS.AVX_STORE
 .Pq Event C1H , Umask 08H
-Number of assists associated with 256-bit AVX store operations. 
+Number of assists associated with 256-bit AVX store operations.
 .It Li OTHER_ASSISTS.AVX_TO_SSE
 .Pq Event C1H , Umask 10H
 Number of transitions from AVX- 256 to legacy SSE when penalty applicable.
@@ -725,7 +725,7 @@ Specify threshold in MSR 0x3F6.
 .It Li MEM_TRANS_RETIRED.PRECISE_STORE
 .Pq Event CDH , Umask 02H
 Sample stores and collect precise store operation via PEBS record.
-PMC3 only. 
+PMC3 only.
 .It Li MEM_UOP_RETIRED.LOADS
 .Pq Event D0H , Umask 01H
 Qualify retired memory uops that are loads. Combine with umask 10H, 20H,
@@ -798,47 +798,47 @@ RFO requests that access L2 cache.
 L2 cache accesses when fetching instructions.
 .It Li L2_TRANS.ALL_PF
 .Pq Event F0H , Umask 08H
-Any MLC or LLC HW prefetch accessing L2, including rejects. 
+Any MLC or LLC HW prefetch accessing L2, including rejects.
 .It Li L2_TRANS.L1D_WB
 .Pq Event F0H , Umask 10H
-L1D writebacks that access L2 cache. 
+L1D writebacks that access L2 cache.
 .It Li L2_TRANS.L2_FILL
 .Pq Event F0H , Umask 20H
-L2 fill requests that access L2 cache. 
+L2 fill requests that access L2 cache.
 .It Li L2_TRANS.L2_WB
 .Pq Event F0H , Umask 40H
-L2 writebacks that access L2 cache. 
+L2 writebacks that access L2 cache.
 .It Li L2_TRANS.ALL_REQUESTS
 .Pq Event F0H , Umask 80H
-Transactions accessing L2 pipe. 
+Transactions accessing L2 pipe.
 .It Li L2_LINES_IN.I
 .Pq Event F1H , Umask 01H
-L2 cache lines in I state filling L2. 
-Counting does not cover rejects. 
+L2 cache lines in I state filling L2.
+Counting does not cover rejects.
 .It Li L2_LINES_IN.S
 .Pq Event F1H , Umask 02H
-L2 cache lines in S state filling L2. 
-Counting does not cover rejects. 
+L2 cache lines in S state filling L2.
+Counting does not cover rejects.
 .It Li L2_LINES_IN.E
 .Pq Event F1H , Umask 04H
-L2 cache lines in E state filling L2. 
-Counting does not cover rejects. 
+L2 cache lines in E state filling L2.
+Counting does not cover rejects.
 .It Li L2_LINES_IN.ALL
 .Pq Event F1H , Umask 07H
-L2 cache lines filling L2. 
-Counting does not cover rejects. 
+L2 cache lines filling L2.
+Counting does not cover rejects.
 .It Li L2_LINES_OUT.DEMAND_CLEAN
 .Pq Event F2H , Umask 01H
-Clean L2 cache lines evicted by demand. 
+Clean L2 cache lines evicted by demand.
 .It Li L2_LINES_OUT.DEMAND_DIRTY
 .Pq Event F2H , Umask 02H
-Dirty L2 cache lines evicted by demand. 
+Dirty L2 cache lines evicted by demand.
 .It Li L2_LINES_OUT.PF_CLEAN
 .Pq Event F2H , Umask 04H
-Clean L2 cache lines evicted by the MLC prefetcher. 
+Clean L2 cache lines evicted by the MLC prefetcher.
 .It Li L2_LINES_OUT.PF_DIRTY
 .Pq Event F2H , Umask 08H
-Dirty L2 cache lines evicted by the MLC prefetcher. 
+Dirty L2 cache lines evicted by the MLC prefetcher.
 .El
 .Sh SEE ALSO
 .Xr pmc 3 ,
