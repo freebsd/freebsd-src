@@ -45,33 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__) && __FreeBSD_version > 500001
 #include <sys/bio.h>
-#endif	/* __ FreeBSD__ */
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 
-#ifdef __NetBSD__
-#include <sys/device.h>
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-#include <i386/Cbus/dev/nspreg.h>
-#include <i386/Cbus/dev/nspvar.h>
-#endif /* __NetBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/cpu.h>
 #include <machine/bus.h>
 
@@ -81,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_low.h>
 #include <dev/nsp/nspreg.h>
 #include <dev/nsp/nspvar.h>
-#endif /* __FreeBSD__ */
 
 /***************************************************
  * USER SETTINGS
@@ -248,7 +226,7 @@ nsp_expect_signal(struct nsp_softc *sc, u_int8_t curphase, u_int8_t mask)
 		if ((ph & mask) != 0 && (ph & SCBUSMON_PHMASK) == curphase)
 			return 1;
 
-		SCSI_LOW_DELAY(NSP_DELAY_INTERVAL);
+		DELAY(NSP_DELAY_INTERVAL);
 	}
 
 	printf("%s: nsp_expect_signal timeout\n", slp->sl_xname);
@@ -312,7 +290,7 @@ nsphw_attention(sc)
 
 	cr = nsp_cr_read_1(bst, bsh, NSPR_SCBUSCR)/*  & ~SCBUSCR_ACK */;
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr | SCBUSCR_ATN);
-	SCSI_LOW_DELAY(10);
+	DELAY(10);
 }
 
 static void
@@ -326,7 +304,7 @@ nsphw_bus_reset(sc)
 	bus_space_write_1(bst, bsh, nsp_irqcr, IRQCR_ALLMASK);
 
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, SCBUSCR_RST);
-	SCSI_LOW_DELAY(100 * 1000);	/* 100ms */
+	DELAY(100 * 1000);	/* 100ms */
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, 0);
 	for (i = 0; i < 5; i ++)
 		(void) nsp_cr_read_1(bst, bsh, NSPR_IRQPHS);
@@ -350,7 +328,7 @@ nsphw_selection_done_and_expect_msgout(sc)
 	/* deassert sel and assert atten */
 	sc->sc_seltout = 0;
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, sc->sc_busc);
-	SCSI_LOW_DELAY(1);
+	DELAY(1);
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, 
 			sc->sc_busc | SCBUSCR_ADIR | SCBUSCR_ACKEN);
 	SCSI_LOW_ASSERT_ATN(slp);
@@ -392,7 +370,7 @@ nsphw_start_selection(sc, cb)
 	{
 		/* XXX: what a stupid chip! */
 		arbs = nsp_cr_read_1(bst, bsh, NSPR_ARBITS);
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 	} 
 	while ((arbs & (ARBITS_WIN | ARBITS_FAIL)) == 0 && wc -- > 0);
 
@@ -410,19 +388,19 @@ nsphw_start_selection(sc, cb)
 	scsi_low_arbit_win(slp);
 
 	s = splhigh();
-	SCSI_LOW_DELAY(3);
+	DELAY(3);
 	nsp_cr_write_1(bst, bsh, NSPR_DATA,
 		       sc->sc_idbit | (1 << ti->ti_id));
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR,
 			SCBUSCR_SEL | SCBUSCR_BSY | sc->sc_busc);
-	SCSI_LOW_DELAY(3);
+	DELAY(3);
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, SCBUSCR_SEL |
 			SCBUSCR_BSY | SCBUSCR_DOUT | sc->sc_busc);
 	nsp_cr_write_1(bst, bsh, NSPR_ARBITS, ARBITS_CLR);
-	SCSI_LOW_DELAY(3);
+	DELAY(3);
 	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR,
 		       SCBUSCR_SEL | SCBUSCR_DOUT | sc->sc_busc);
-	SCSI_LOW_DELAY(1);
+	DELAY(1);
 
 	if ((nsp_io_control & NSP_WAIT_FOR_SELECT) != 0)
 	{
@@ -436,11 +414,11 @@ nsphw_start_selection(sc, cb)
 			ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
 			if ((ph & SCBUSMON_BSY) == 0)
 			{
-				SCSI_LOW_DELAY(NSP_SEL_CHECK_INTERVAL);
+				DELAY(NSP_SEL_CHECK_INTERVAL);
 				continue;
 			}
 
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 			ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
 			if ((ph & SCBUSMON_BSY) != 0)
 			{
@@ -631,7 +609,7 @@ nspprint(aux, name)
 
 	if (name != NULL)
 		printf("%s: scsibus ", name);
-	return UNCONF;
+	return 1;
 }
 
 void
@@ -1023,7 +1001,7 @@ nsp_wait_interrupt(sc)
 			}
 			return 1;
 		}
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 	}
 	return 0;
 }
@@ -1088,7 +1066,7 @@ ReadLoop:
 			if ((sc->sc_icr & SCIENR_FIFO) != 0)
 				break;
 
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 
 		if ((-- tout) <= 0)
@@ -1200,7 +1178,7 @@ WriteLoop:
 			if ((sc->sc_icr & SCIENR_FIFO) != 0)
 				break;
 
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 
 		if ((-- tout) <= 0)
@@ -1234,7 +1212,7 @@ nsp_negate_signal(struct nsp_softc *sc, u_int8_t mask, u_char *s)
 			return -1;
 		if ((regv & mask) == 0)
 			return 1;
-		SCSI_LOW_DELAY(NSP_DELAY_INTERVAL);
+		DELAY(NSP_DELAY_INTERVAL);
 	}
 
 	printf("%s: %s nsp_negate_signal timeout\n", slp->sl_xname, s);
@@ -1519,7 +1497,7 @@ nspintr(arg)
 		scsi_low_print(slp, NULL);
 #ifdef	KDB
 		if (nsp_debug > 1)
-			SCSI_LOW_DEBUGGER("nsp");
+			kdb_enter(KDB_WHY_CAM, "nsp");
 #endif	/* KDB */
 	}
 #endif	/* NSP_DEBUG */
@@ -1899,7 +1877,7 @@ nsp_timeout(sc)
 			regv = bus_space_read_1(iot, ioh, nsp_fifosr);
 			if ((regv & FIFOSR_FULLEMP) == 0)
 			{
-				SCSI_LOW_DELAY(1);
+				DELAY(1);
 				continue;
 			}
 

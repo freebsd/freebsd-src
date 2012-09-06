@@ -42,37 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500001
 #include <sys/bio.h>
-#endif	/* __FreeBSD__ */
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 
-#ifdef __NetBSD__
-#include <sys/device.h>
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-
-#include <i386/Cbus/dev/ncr53c500reg.h>
-#include <i386/Cbus/dev/ncr53c500hw.h>
-#include <i386/Cbus/dev/ncr53c500var.h>
-
-#include <i386/Cbus/dev/ncr53c500hwtab.h>
-#endif /* __NetBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/cpu.h>
 #include <machine/bus.h>
 
@@ -86,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ncv/ncr53c500var.h>
 
 #include <dev/ncv/ncr53c500hwtab.h>
-#endif /* __FreeBSD__ */
 
 #define	NCV_MAX_DATA_SIZE	(64 * 1024)
 #define	NCV_DELAY_MAX		(2 * 1000 * 1000)
@@ -274,12 +248,12 @@ ncvhw_check(iot, ioh, hw)
 	bus_space_write_1(iot, ioh, cr0_cmd, CMD_FLUSH);
 	bus_space_write_1(iot, ioh, cr0_cmd, CMD_RSTSCSI);
 	bus_space_write_1(iot, ioh, cr0_cmd, CMD_NOP | CMD_DMA);
-	SCSI_LOW_DELAY(100 * 1000);
+	DELAY(100 * 1000);
 
 	/* check response */
 	bus_space_read_1(iot, ioh, cr0_stat);
 	stat = bus_space_read_1(iot, ioh, cr0_istat);
-	SCSI_LOW_DELAY(1000);
+	DELAY(1000);
 
 	if (((stat & INTR_SBR) == 0) ||
 	    (bus_space_read_1(iot, ioh, cr0_istat) & INTR_SBR))
@@ -387,7 +361,7 @@ ncvhw_attention(sc)
 {
 
 	bus_space_write_1(sc->sc_iot, sc->sc_ioh, cr0_cmd, CMD_SETATN);
-	SCSI_LOW_DELAY(10);
+	DELAY(10);
 }
 
 static void
@@ -493,7 +467,7 @@ ncv_world_start(sc, fdone)
 	ncvhw_select_register_0(iot, ioh, &sc->sc_hw);
 	bus_space_read_1(sc->sc_iot, sc->sc_ioh, cr0_stat);
 	stat = bus_space_read_1(sc->sc_iot, sc->sc_ioh, cr0_istat);
-	SCSI_LOW_DELAY(1000);
+	DELAY(1000);
 
 	if (((stat & INTR_SBR) == 0) ||
 	    (bus_space_read_1(sc->sc_iot, sc->sc_ioh, cr0_istat) & INTR_SBR))
@@ -641,7 +615,7 @@ ncvprint(aux, name)
 
 	if (name != NULL)
 		printf("%s: scsibus ", name);
-	return UNCONF;
+	return 1;
 }
 
 void
@@ -782,7 +756,7 @@ ncv_pio_read(sc, buf, reqlen)
 			if (fstat & FIFO_BRK)
 				break;
 
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 	}
 
@@ -799,7 +773,7 @@ ncv_pio_read(sc, buf, reqlen)
 			 if (fstat & FIFO_BRK)
 				break;
 
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 	}
 
@@ -845,7 +819,7 @@ ncv_pio_write(sc, buf, reqlen)
 		}
 		else
 		{
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 	}
 
@@ -862,7 +836,7 @@ ncv_pio_write(sc, buf, reqlen)
 		}
 		else
 		{
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 	}
 
@@ -977,7 +951,7 @@ ncv_catch_intr(sc)
 		if ((status & STAT_INT) != 0)
 			return 0;
 
-		SCSI_LOW_DELAY(NCV_DELAY_INTERVAL);
+		DELAY(NCV_DELAY_INTERVAL);
 	}
 	return EJUSTRETURN;
 }
@@ -1035,7 +1009,7 @@ again:
 			status, ireason);
 #ifdef	KDB
 		if (ncv_debug > 1)
-			SCSI_LOW_DEBUGGER("ncv");
+			kdb_enter(KDB_WHY_CAM, "ncv");
 #endif	/* KDB */
 	}
 #endif	/* NCV_DEBUG */
@@ -1155,7 +1129,7 @@ again:
 			{
 				u_int8_t padding[NCV_PADDING_SIZE];
 
-				SCSI_LOW_BZERO(padding, sizeof(padding));
+				bzero(padding, sizeof(padding));
 				ncv_pio_write(sc, padding, sizeof(padding));
 			}
 			else
