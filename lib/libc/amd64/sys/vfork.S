@@ -50,12 +50,7 @@ ENTRY(__sys_vfork)
 	jmp	*%rsi
 1:
 	pushq	%rsi
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
 	jmp	HIDENAME(cerror)
-#endif
 END(__sys_vfork)
 
 	.section .note.GNU-stack,"",%progbits
