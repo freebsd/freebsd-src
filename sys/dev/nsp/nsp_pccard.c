@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
@@ -49,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <compat/netbsd/dvcfg.h>
 
-#include <sys/device_port.h>
+#include <sys/bus.h>
 
 #include <dev/pccard/pccardvar.h>
 
@@ -65,10 +66,10 @@ __FBSDID("$FreeBSD$");
 
 #define	PIO_MODE 0x100		/* pd_flags */
 
-static int nspprobe(DEVPORT_PDEVICE devi);
-static int nspattach(DEVPORT_PDEVICE devi);
+static int nspprobe(device_t devi);
+static int nspattach(device_t devi);
 
-static	void	nsp_card_unload	(DEVPORT_PDEVICE);
+static	void	nsp_card_unload	(device_t);
 
 const struct pccard_product nsp_products[] = {
   	PCMCIA_CARD(IODATA3, CBSC16),
@@ -139,7 +140,7 @@ nsp_alloc_resource(device_t dev)
 
 	/* No need to allocate memory if not configured and it's in PIO mode */
 	if (maddr == 0 || msize == 0) {
-		if ((DEVPORT_PDEVFLAGS(dev) & PIO_MODE) == 0) {
+		if ((device_get_flags(dev) & PIO_MODE) == 0) {
 			printf("Memory window was not configured. Configure or use in PIO mode.");
 			nsp_release_resource(dev);
 			return(ENOMEM);
@@ -229,9 +230,9 @@ MODULE_DEPEND(nsp, scsi_low, 1, 1, 1);
 DRIVER_MODULE(nsp, pccard, nsp_pccard_driver, nsp_devclass, 0, 0);
 
 static void
-nsp_card_unload(DEVPORT_PDEVICE devi)
+nsp_card_unload(device_t devi)
 {
-	struct nsp_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
+	struct nsp_softc *sc = device_get_softc(devi);
 	intrmask_t s;
 
 	s = splcam();
@@ -241,25 +242,25 @@ nsp_card_unload(DEVPORT_PDEVICE devi)
 }
 
 static	int
-nspprobe(DEVPORT_PDEVICE devi)
+nspprobe(device_t devi)
 {
 	int rv;
 	struct nsp_softc *sc = device_get_softc(devi);
 
 	rv = nspprobesubr(rman_get_bustag(sc->port_res),
 			  rman_get_bushandle(sc->port_res),
-			  DEVPORT_PDEVFLAGS(devi));
+			  device_get_flags(devi));
 
 	return rv;
 }
 
 static	int
-nspattach(DEVPORT_PDEVICE devi)
+nspattach(device_t devi)
 {
 	struct nsp_softc *sc;
 	struct scsi_low_softc *slp;
-	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
-	u_int	iobase = DEVPORT_PDEVIOBASE(devi);
+	u_int32_t flags = device_get_flags(devi);
+	u_int	iobase = bus_get_resource_start(devi, SYS_RES_IOPORT, 0);
 	intrmask_t s;
 	char	dvname[16];
 
@@ -270,7 +271,7 @@ nspattach(DEVPORT_PDEVICE devi)
 		return (0);
 	}
 
-	sc = DEVPORT_PDEVALLOC_SOFTC(devi);
+	sc = device_get_softc(devi);
 	if (sc == NULL)
 		return (0);
 
