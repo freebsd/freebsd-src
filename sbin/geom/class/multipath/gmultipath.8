@@ -66,6 +66,11 @@
 .Op Fl v
 .Ar name
 .Nm
+.Cm prefer
+.Op Fl v
+.Ar name
+.Ar prov
+.Nm
 .Cm getactive
 .Op Fl v
 .Ar name
@@ -171,7 +176,9 @@ If there are other paths present, new requests will be forwarded there.
 Mark specified provider as a path of the specified multipath device as
 operational, allowing it to handle requests.
 .It Cm rotate
-Change the active provider/path in Active/Passive mode.
+Change the active provider/path to the next available provider in Active/Passive mode.
+.It Cm prefer
+Change the active provider/path to the specified provider in Active/Passive mode.
 .It Cm getactive
 Get the currently active provider(s)/path(s).
 .It Cm destroy
