@@ -46,6 +46,8 @@
 
 #include "_libproc.h"
 
+extern char *__cxa_demangle(const char *, char *, size_t *, int *);
+
 static void	proc_rdl2prmap(rd_loadobj_t *, prmap_t *);
 
 static void
@@ -266,7 +268,11 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 		if (addr >= rsym && addr <= (rsym + sym.st_size)) {
 			s = elf_strptr(e, dynsymstridx, sym.st_name);
 			if (s) {
-				strlcpy(name, s, namesz);
+				if (strlen(s) > 2 && 
+				    s[0] == '_' && s[1] == 'Z')
+					__cxa_demangle(s, name, &namesz, NULL);
+				else
+					strlcpy(name, s, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain
@@ -302,7 +308,11 @@ symtab:
 		if (addr >= rsym && addr <= (rsym + sym.st_size)) {
 			s = elf_strptr(e, symtabstridx, sym.st_name);
 			if (s) {
-				strlcpy(name, s, namesz);
+				if (strlen(s) > 2 && 
+				    s[0] == '_' && s[1] == 'Z')
+					__cxa_demangle(s, name, &namesz, NULL);
+				else
+					strlcpy(name, s, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain
