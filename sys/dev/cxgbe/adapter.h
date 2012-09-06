@@ -135,6 +135,7 @@ enum {
 #else
 	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
+	OFLD_BUF_SIZE = MJUM16BYTES,	/* size of fl buffer for TOE rxq */
 
 	CTRL_EQ_QSIZE = 128,
 
@@ -142,6 +143,12 @@ enum {
 	TX_SGL_SEGS = 36,
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
+
+#ifdef T4_PKT_TIMESTAMP
+#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
+#else
+#define RX_COPY_THRESHOLD MINCLSIZE
+#endif
 
 enum {
 	/* adapter intr_type */
@@ -510,6 +517,7 @@ struct rss_header;
 typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 typedef int (*an_handler_t)(struct sge_iq *, const struct rsp_ctrl *);
+typedef int (*fw_msg_handler_t)(struct adapter *, const __be64 *);
 
 struct adapter {
 	SLIST_ENTRY(adapter) link;
@@ -582,7 +590,8 @@ struct adapter {
 	struct callout sfl_callout;
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	cpl_handler_t cpl_handler[256];
+	fw_msg_handler_t fw_msg_handler[4];	/* NUM_FW6_TYPES */
+	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
@@ -741,6 +750,8 @@ void t4_os_link_changed(struct adapter *, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
+int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
+int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
