@@ -78,6 +78,7 @@ SUBDIR=	\
 	${_crypto} \
 	${_cryptodev} \
 	${_cs} \
+	${_ct} \
 	${_ctau} \
 	${_cxgb} \
 	cxgbe \
@@ -607,6 +608,7 @@ _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
+_ct=		ct
 _pmc=		pmc
 _snc=		snc
 .endif
