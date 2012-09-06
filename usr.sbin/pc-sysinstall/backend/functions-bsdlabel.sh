@@ -164,6 +164,38 @@ gen_glabel_name()
   export VAL="${NAME}${NUM}" 
 };
 
+# Function to determine the size we can safely use when 0 is specified
+get_autosize()
+{
+  # Disk tag to look for
+  dTag="$1"
+
+  # Total MB Avail
+  get_disk_mediasize_mb "$2"
+  local _aSize=$VAL
+
+  while read line
+  do
+    # Check for data on this slice
+    echo $line | grep -q "^${_dTag}-part=" 2>/dev/null
+    if [ $? -ne 0 ] ; then continue ; fi
+
+    get_value_from_string "${line}"
+    STRING="$VAL"
+
+    # Get the size of this partition
+    SIZE=`echo $STRING | tr -s '\t' ' ' | cut -d ' ' -f 2` 
+    if [ $SIZE -eq 0 ] ; then continue ; fi
+    _aSize=`expr $_aSize - $SIZE`
+  done <${CFGF}
+
+  # Pad the size a bit
+  _aSize=`expr $_aSize - 2`
+
+  VAL="$_aSize"
+  export VAL
+};
+
 # Function to setup partitions using gpart
 setup_gpart_partitions()
 {
@@ -173,6 +205,7 @@ setup_gpart_partitions()
   local _sNum="$4"
   local _pType="$5"
   FOUNDPARTS="1"
+  USEDAUTOSIZE=0
 
   # Lets read in the config file now and setup our partitions
   if [ "${_pType}" = "gpt" ] ; then
@@ -245,7 +278,15 @@ setup_gpart_partitions()
 
       if [ "$SIZE" = "0" ]
       then
-        SOUT=""
+	if [ $USEDAUTOSIZE -eq 1 ] ; then
+          exit_err "ERROR: You can not have two partitions with a size of 0 specified!"
+	fi
+        case ${_pType} in
+	  gpt|apm) get_autosize "${_dTag}" "$_pDisk" ;;
+	        *) get_autosize "${_dTag}" "$_wSlice" ;;
+        esac
+        SOUT="-s ${VAL}M"
+	USEDAUTOSIZE=1
       else
         SOUT="-s ${SIZE}M"
       fi
