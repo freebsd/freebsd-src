@@ -1584,13 +1584,13 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
  *   pmap_remove_pv: remove a mappiing from a vm_page list
  *
  * NOTE: pmap_enter_pv expects to lock the pvh itself
- *       pmap_remove_pv expects te caller to lock the pvh before calling
+ *       pmap_remove_pv expects the caller to lock the pvh before calling
  */
 
 /*
  * pmap_enter_pv: enter a mapping onto a vm_page lst
  *
- * => caller should hold the proper lock on pmap_main_lock
+ * => caller should hold the proper lock on pvh_global_lock
  * => caller should have pmap locked
  * => we will gain the lock on the vm_page and allocate the new pv_entry
  * => caller should adjust ptp's wire_count before calling
@@ -1600,12 +1600,11 @@ static void
 pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
     vm_offset_t va, u_int flags)
 {
-
 	int km;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 
-	if (pg->md.pv_kva) {
+	if (pg->md.pv_kva != 0) {
 		/* PMAP_ASSERT_LOCKED(pmap_kernel()); */
 		pve->pv_pmap = pmap_kernel();
 		pve->pv_va = pg->md.pv_kva;
@@ -1617,10 +1616,8 @@ pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
 		TAILQ_INSERT_HEAD(&pg->md.pv_list, pve, pv_list);
 		TAILQ_INSERT_HEAD(&pve->pv_pmap->pm_pvlist, pve, pv_plist);
 		PMAP_UNLOCK(pmap_kernel());
-		rw_wunlock(&pvh_global_lock);
 		if ((pve = pmap_get_pv_entry()) == NULL)
-			panic("pmap_kenter_internal: no pv entries");
-		rw_wlock(&pvh_global_lock);
+			panic("pmap_kenter_pv: no pv entries");
 		if (km)
 			PMAP_LOCK(pmap_kernel());
 	}
@@ -2824,22 +2821,20 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 		*pte |= L2_S_PROT_U;
 	PTE_SYNC(pte);
 
-		/* kernel direct mappings can be shared, so use a pv_entry
-		 * to ensure proper caching.
-		 *
-		 * The pvzone is used to delay the recording of kernel
-		 * mappings until the VM is running.
-		 *
-		 * This expects the physical memory to have vm_page_array entry.
-		 */
-	if (pvzone != NULL && (m = vm_phys_paddr_to_vm_page(pa))) {
+	/*
+	 * A kernel mapping may not be the page's only mapping, so create a PV
+	 * entry to ensure proper caching.
+ 	 *
+	 * The existence test for the pvzone is used to delay the recording of
+	 * kernel mappings until the VM system is fully initialized.
+	 *
+	 * This expects the physical memory to have a vm_page_array entry.
+	 */
+	if (pvzone != NULL && (m = vm_phys_paddr_to_vm_page(pa)) != NULL) {
 		rw_wlock(&pvh_global_lock);
-		if (!TAILQ_EMPTY(&m->md.pv_list) || m->md.pv_kva) {
-			/* release vm_page lock for pv_entry UMA */
-			rw_wunlock(&pvh_global_lock);
+		if (!TAILQ_EMPTY(&m->md.pv_list) || m->md.pv_kva != 0) {
 			if ((pve = pmap_get_pv_entry()) == NULL)
 				panic("pmap_kenter_internal: no pv entries");	
-			rw_wlock(&pvh_global_lock);
 			PMAP_LOCK(pmap_kernel());
 			pmap_enter_pv(m, pve, pmap_kernel(), va,
 			    PVF_WRITE | PVF_UNMAN);
