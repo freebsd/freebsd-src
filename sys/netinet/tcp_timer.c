@@ -494,7 +494,7 @@ tcp_timer_rexmt(void * xtp)
 	callout_deactivate(&tp->t_timers->tt_rexmt);
 	if ((inp->inp_flags & INP_DROPPED) != 0) {
 		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 		return;
 	}
