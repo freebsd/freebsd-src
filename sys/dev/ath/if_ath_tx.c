@@ -2528,6 +2528,25 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 		return;
 	}
 
+	/*
+	 * This is a temporary check and should be removed once
+	 * all the relevant code paths have been fixed.
+	 *
+	 * During aggregate retries, it's possible that the head
+	 * frame will fail (which has the bfs_aggr and bfs_nframes
+	 * fields set for said aggregate) and will be retried as
+	 * a single frame.  In this instance, the values should
+	 * be reset or the completion code will get upset with you.
+	 */
+	if (bf->bf_state.bfs_aggr != 0 || bf->bf_state.bfs_nframes > 1) {
+		device_printf(sc->sc_dev, "%s: bfs_aggr=%d, bfs_nframes=%d\n",
+		    __func__,
+		    bf->bf_state.bfs_aggr,
+		    bf->bf_state.bfs_nframes);
+		bf->bf_state.bfs_aggr = 0;
+		bf->bf_state.bfs_nframes = 1;
+	}
+
 	/* Direct dispatch to hardware */
 	ath_tx_do_ratelookup(sc, bf);
 	ath_tx_calc_duration(sc, bf);
@@ -2624,6 +2643,16 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		if (txq->axq_depth < sc->sc_hwq_limit) {
 			bf = TAILQ_FIRST(&atid->axq_q);
 			ATH_TXQ_REMOVE(atid, bf, bf_list);
+
+			/*
+			 * Ensure it's definitely treated as a non-AMPDU
+			 * frame - this information may have been left
+			 * over from a previous attempt.
+			 */
+			bf->bf_state.bfs_aggr = 0;
+			bf->bf_state.bfs_nframes = 1;
+
+			/* Queue to the hardware */
 			ath_tx_xmit_aggr(sc, an, txq, bf);
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
 			    "%s: xmit_aggr\n",
@@ -4018,7 +4047,23 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			    "%s: non-baw packet\n",
 			    __func__);
 			ATH_TXQ_REMOVE(tid, bf, bf_list);
+
+			if (bf->bf_state.bfs_nframes > 1)
+				device_printf(sc->sc_dev,
+				    "%s: aggr=%d, nframes=%d\n",
+				    __func__,
+				    bf->bf_state.bfs_aggr,
+				    bf->bf_state.bfs_nframes);
+
+			/*
+			 * This shouldn't happen - such frames shouldn't
+			 * ever have been queued as an aggregate in the
+			 * first place.  However, make sure the fields
+			 * are correctly setup just to be totally sure.
+			 */
 			bf->bf_state.bfs_aggr = 0;
+			bf->bf_state.bfs_nframes = 1;
+
 			ath_tx_do_ratelookup(sc, bf);
 			ath_tx_calc_duration(sc, bf);
 			ath_tx_calc_protection(sc, bf);
