@@ -114,7 +114,7 @@ struct twe_softc
 {
     /* controller queues and arrays */
     TAILQ_HEAD(, twe_request)	twe_free;			/* command structures available for reuse */
-    twe_bioq 			twe_bioq;			/* outstanding I/O operations */
+    struct bio_queue_head	twe_bioq;			/* outstanding I/O operations */
     TAILQ_HEAD(, twe_request)	twe_ready;			/* requests ready for the controller */
     TAILQ_HEAD(, twe_request)	twe_busy;			/* requests busy in the controller */
     TAILQ_HEAD(, twe_request)	twe_complete;			/* active commands (busy or waiting for completion) */
@@ -166,7 +166,7 @@ extern int	twe_detach_drive(struct twe_softc *sc,
 					 int unit);		/* detach drive */
 extern void	twe_clear_pci_parity_error(struct twe_softc *sc);
 extern void	twe_clear_pci_abort(struct twe_softc *sc);
-extern void	twed_intr(twe_bio *bp);				/* return bio from core */
+extern void	twed_intr(struct bio *bp);				/* return bio from core */
 extern struct twe_request *twe_allocate_request(struct twe_softc *sc, int tag);	/* allocate request structure */
 extern void	twe_free_request(struct twe_request *tr);	/* free request structure */
 extern int	twe_map_request(struct twe_request *tr);	/* make request visible to controller, do s/g */
@@ -249,24 +249,24 @@ TWEQ_REQUEST_QUEUE(complete, TWEQ_COMPLETE)
 static __inline void
 twe_initq_bio(struct twe_softc *sc)
 {
-    TWE_BIO_QINIT(sc->twe_bioq);
+    bioq_init(&sc->twe_bioq);
     TWEQ_INIT(sc, TWEQ_BIO);
 }
 
 static __inline void
-twe_enqueue_bio(struct twe_softc *sc, twe_bio *bp)
+twe_enqueue_bio(struct twe_softc *sc, struct bio *bp)
 {
-    TWE_BIO_QINSERT(sc->twe_bioq, bp);
+    bioq_insert_tail(&sc->twe_bioq, bp);
     TWEQ_ADD(sc, TWEQ_BIO);
 }
 
-static __inline twe_bio *
+static __inline struct bio *
 twe_dequeue_bio(struct twe_softc *sc)
 {
-    twe_bio	*bp;
+    struct bio	*bp;
 
-    if ((bp = TWE_BIO_QFIRST(sc->twe_bioq)) != NULL) {
-	TWE_BIO_QREMOVE(sc->twe_bioq, bp);
+    if ((bp = bioq_first(&sc->twe_bioq)) != NULL) {
+	bioq_remove(&sc->twe_bioq, bp);
 	TWEQ_REMOVE(sc, TWEQ_BIO);
     }
     return(bp);
