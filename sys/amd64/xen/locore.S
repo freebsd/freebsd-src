@@ -47,7 +47,8 @@
 #endif
 
 .section __xen_guest
-	.ascii "LOADER=generic,GUEST_OS=freebsd,GUEST_VER=9.0,XEN_VER=xen-3.0,BSD_SYMTAB,VIRT_BASE="__XSTRING(KERNBASE)
+	.ascii "LOADER=generic,GUEST_OS=freebsd,GUEST_VER=9.0,XEN_VER=xen-3.0,BSD_SYMTAB,VIRT_BASE="
+	.ascii __XSTRING(KERNBASE)
 	.byte 0
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz, "FreeBSD")
