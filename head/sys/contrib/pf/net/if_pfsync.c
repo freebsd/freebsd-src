@@ -1504,7 +1504,7 @@ pfsync_sendout(int schedswi)
 
 	KASSERT(sc != NULL, ("%s: null sc", __func__));
 	KASSERT(sc->sc_len > PFSYNC_MINPKT,
-	    ("%s: sc_len %lu", __func__, sc->sc_len));
+	    ("%s: sc_len %zu", __func__, sc->sc_len));
 	PFSYNC_LOCK_ASSERT(sc);
 
 	if (ifp->if_bpf == NULL && sc->sc_sync_if == NULL) {
