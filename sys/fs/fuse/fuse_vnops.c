@@ -325,7 +325,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(dvp)) {
-		panic("FUSE: fuse_vnop_create(): called on a dead file system");
+		return ENXIO;
 	}
 	bzero(&fdi, sizeof(fdi));
 
@@ -614,7 +614,7 @@ fuse_vnop_link(struct vop_link_args *ap)
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(vp)) {
-		panic("FUSE: fuse_vnop_link(): called on a dead file system");
+		return ENXIO;
 	}
 	if (vnode_mount(tdvp) != vnode_mount(vp)) {
 		return EXDEV;
@@ -1090,7 +1090,7 @@ fuse_vnop_mkdir(struct vop_mkdir_args *ap)
 	fuse_trace_printf_vnop();
 
 	if (fuse_isdeadfs(dvp)) {
-		panic("FUSE: fuse_vnop_mkdir(): called on a dead file system");
+		return ENXIO;
 	}
 	fmdi.mode = MAKEIMODE(vap->va_type, vap->va_mode);
 
@@ -1356,7 +1356,7 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 	    (uintmax_t)VTOI(vp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(vp)) {
-		panic("FUSE: fuse_vnop_remove(): called on a dead file system");
+		return ENXIO;
 	}
 	if (vnode_isdir(vp)) {
 		return EPERM;
@@ -1401,7 +1401,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	    (int)tcnp->cn_namelen, tcnp->cn_nameptr);
 
 	if (fuse_isdeadfs(fdvp)) {
-		panic("FUSE: fuse_vnop_rename(): called on a dead file system");
+		return ENXIO;
 	}
 	if (fvp->v_mount != tdvp->v_mount ||
 	    (tvp && fvp->v_mount != tvp->v_mount)) {
@@ -1473,7 +1473,7 @@ fuse_vnop_rmdir(struct vop_rmdir_args *ap)
 	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
-		panic("FUSE: fuse_vnop_rmdir(): called on a dead file system");
+		return ENXIO;
 	}
 	if (VTOFUD(vp) == VTOFUD(dvp)) {
 		return EINVAL;
@@ -1693,7 +1693,7 @@ fuse_vnop_symlink(struct vop_symlink_args *ap)
 	    (uintmax_t)VTOI(dvp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(dvp)) {
-		panic("FUSE: fuse_vnop_symlink(): called on a dead file system");
+		return ENXIO;
 	}
 	/*
          * Unlike the other creator type calls, here we have to create a message
