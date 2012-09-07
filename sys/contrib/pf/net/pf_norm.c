@@ -121,19 +121,21 @@ static RB_PROTOTYPE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 static RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 
 /* Private prototypes */
-static void		 pf_ip2key(struct pf_fragment *, struct ip *);
-static void		 pf_remove_fragment(struct pf_fragment *);
-static void		 pf_flush_fragments(void);
 static void		 pf_free_fragment(struct pf_fragment *);
+static void		 pf_remove_fragment(struct pf_fragment *);
+static int		 pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
+			    struct tcphdr *, int, sa_family_t);
+#ifdef INET
+static void		 pf_ip2key(struct pf_fragment *, struct ip *);
+static void		 pf_scrub_ip(struct mbuf **, u_int32_t, u_int8_t,
+			    u_int8_t);
+static void		 pf_flush_fragments(void);
 static struct pf_fragment *pf_find_fragment(struct ip *, struct pf_frag_tree *);
 static struct mbuf	*pf_reassemble(struct mbuf **, struct pf_fragment **,
 			    struct pf_frent *, int);
 static struct mbuf	*pf_fragcache(struct mbuf **, struct ip*,
 			    struct pf_fragment **, int, int, int *);
-static int		 pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
-			    struct tcphdr *, int, sa_family_t);
-static void		 pf_scrub_ip(struct mbuf **, u_int32_t, u_int8_t,
-			    u_int8_t);
+#endif /* INET */
 #ifdef INET6
 static void		 pf_scrub_ip6(struct mbuf **, u_int8_t);
 #endif
@@ -231,10 +233,10 @@ pf_purge_expired_fragments(void)
 	PF_FRAG_UNLOCK();
 }
 
+#ifdef INET
 /*
  * Try to flush old fragments to make space for new ones
  */
-
 static void
 pf_flush_fragments(void)
 {
@@ -256,9 +258,9 @@ pf_flush_fragments(void)
 			break;
 	}
 }
+#endif /* INET */
 
 /* Frees the fragments and all associated entries */
-
 static void
 pf_free_fragment(struct pf_fragment *frag)
 {
@@ -293,6 +295,7 @@ pf_free_fragment(struct pf_fragment *frag)
 	pf_remove_fragment(frag);
 }
 
+#ifdef INET
 static void
 pf_ip2key(struct pf_fragment *key, struct ip *ip)
 {
@@ -327,6 +330,7 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 
 	return (frag);
 }
+#endif /* INET */
 
 /* Removes a fragment from the fragment queue and frees the fragment */
 
@@ -347,6 +351,7 @@ pf_remove_fragment(struct pf_fragment *frag)
 	}
 }
 
+#ifdef INET
 #define FR_IP_OFF(fr)	((ntohs((fr)->fr_ip->ip_off) & IP_OFFMASK) << 3)
 static struct mbuf *
 pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
@@ -854,7 +859,6 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 	return (NULL);
 }
 
-#ifdef INET
 int
 pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
     struct pf_pdesc *pd)
@@ -1937,6 +1941,7 @@ pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
 	return (rewrite);
 }
 
+#ifdef INET
 static void
 pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 {
@@ -1978,6 +1983,7 @@ pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
 	}
 }
+#endif /* INET */
 
 #ifdef INET6
 static void

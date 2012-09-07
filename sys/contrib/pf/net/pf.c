@@ -219,13 +219,6 @@ static void		 pf_change_ap(struct pf_addr *, u_int16_t *,
 			    u_int16_t, u_int8_t, sa_family_t);
 static int		 pf_modulate_sack(struct mbuf *, int, struct pf_pdesc *,
 			    struct tcphdr *, struct pf_state_peer *);
-#ifdef INET6
-static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
-			    struct pf_addr *, u_int8_t);
-static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
-			    struct ifnet *, struct pf_state *,
-			    struct pf_pdesc *);
-#endif /* INET6 */
 static void		 pf_change_icmp(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, struct pf_addr *, u_int16_t,
 			    u_int16_t *, u_int16_t *, u_int16_t *,
@@ -277,9 +270,6 @@ static int		 pf_test_state_icmp(struct pf_state **, int,
 			    void *, struct pf_pdesc *, u_short *);
 static int		 pf_test_state_other(struct pf_state **, int,
 			    struct pfi_kif *, struct mbuf *, struct pf_pdesc *);
-static void		 pf_route(struct mbuf **, struct pf_rule *, int,
-			    struct ifnet *, struct pf_state *,
-			    struct pf_pdesc *);
 static u_int8_t		 pf_get_wscale(struct mbuf *, int, u_int16_t,
 			    sa_family_t);
 static u_int16_t	 pf_get_mss(struct mbuf *, int, u_int16_t,
@@ -304,6 +294,18 @@ static int		 pf_purge_expired_states(int);
 static void		 pf_purge_unlinked_rules(void);
 static int		 pf_mtag_init(void *, int, int);
 static void		 pf_mtag_free(struct m_tag *);
+#ifdef INET
+static void		 pf_route(struct mbuf **, struct pf_rule *, int,
+			    struct ifnet *, struct pf_state *,
+			    struct pf_pdesc *);
+#endif /* INET */
+#ifdef INET6
+static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
+			    struct pf_addr *, u_int8_t);
+static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
+			    struct ifnet *, struct pf_state *,
+			    struct pf_pdesc *);
+#endif /* INET6 */
 
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 
