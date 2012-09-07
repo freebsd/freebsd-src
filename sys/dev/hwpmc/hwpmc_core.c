@@ -1695,35 +1695,28 @@ iap_event_westmere_ok_on_counter(enum pmc_event pe, int ri)
 }
 
 static int
-iap_event_sandybridge_ok_on_counter(enum pmc_event pe, int ri)
+iap_event_sb_ib_ok_on_counter(enum pmc_event pe, int ri)
 {
 	uint32_t mask;
-	
+
 	switch (pe) {
-		/*
-		 * Events valid only on counter 2.
-		 */
+		/* Events valid only on counter 0. */
+	case PMC_EV_IAP_EVENT_B7H_01H:
+		mask = 0x1;
+		break;
+		/* Events valid only on counter 1. */
+	case PMC_EV_IAP_EVENT_C0H_01H:
+		mask = 0x1;
+		break;
+		/* Events valid only on counter 2. */
 	case PMC_EV_IAP_EVENT_48H_01H:
 		mask = 0x4;
 		break;
-	default:
-		mask = ~0;	/* Any row index is ok. */
-	}
-	
-	return (mask & (1 << ri));
-}
-
-static int
-iap_event_ivybridge_ok_on_counter(enum pmc_event pe, int ri)
-{
-	uint32_t mask;
-
-	switch (pe) {
-		/*
-		 * Events valid only on counter 2.
-		 */
-	case PMC_EV_IAP_EVENT_48H_01H:
-		mask = 0x4;
+		/* Events valid only on counter 3. */
+	case PMC_EV_IAP_EVENT_BBH_01H:
+	case PMC_EV_IAP_EVENT_CDH_01H:
+	case PMC_EV_IAP_EVENT_CDH_02H:
+		mask = 0x8;
 		break;
 	default:
 		mask = ~0;	/* Any row index is ok. */
@@ -1808,12 +1801,9 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		if (iap_event_corei7_ok_on_counter(ev, ri) == 0)
 			return (EINVAL);
 		break;
-	case PMC_CPU_INTEL_IVYBRIDGE:
-		if (iap_event_ivybridge_ok_on_counter(ev, ri) == 0)
-			return (EINVAL);
-		break;
 	case PMC_CPU_INTEL_SANDYBRIDGE:
-		if (iap_event_sandybridge_ok_on_counter(ev, ri) == 0)
+	case PMC_CPU_INTEL_IVYBRIDGE:
+		if (iap_event_sb_ib_ok_on_counter(ev, ri) == 0)
 			return (EINVAL);
 		break;
 	case PMC_CPU_INTEL_WESTMERE:
