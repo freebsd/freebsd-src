@@ -359,7 +359,7 @@ pmap_pde(pmap_t pmap, vm_offset_t va)
 	pd_entry_t *pdpe;
 
 	pdpe = pmap_segmap(pmap, va);
-	if (pdpe == NULL || *pdpe == NULL)
+	if (*pdpe == NULL)
 		return (NULL);
 
 	return (pmap_pdpe_to_pde(pdpe, va));
@@ -1914,7 +1914,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			va_next = eva;
 
 		pde = pmap_pdpe_to_pde(pdpe, sva);
-		if (pde == NULL || *pde == NULL)
+		if (*pde == NULL)
 			continue;
 		if (va_next > eva)
 			va_next = eva;
