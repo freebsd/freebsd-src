@@ -123,21 +123,21 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 		    sn->packets_since_sample[y],
 		    sn->sample_tt[y]);
 	}
+	printf("   TX Rate     TXTOTAL:TXOK       EWMA          T/   F"
+	    "     avg last xmit\n");
 	for (mask = sn->ratemask, rix = 0; mask != 0; mask >>= 1, rix++) {
 		if ((mask & 1) == 0)
 				continue;
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
-			printf("[%2u %s:%4u] %8ju:%-8ju (%3d%%) "
-			    "(EWMA %3d.%1d%%) T %8ju F %4d avg %5u last %u\n",
+			printf("[%2u %s:%4u] %8ju:%-8ju "
+			    "(%3d.%1d%%) %8ju/%4d %5ums %u\n",
 			    dot11rate(rt, rix),
 			    dot11str(rt, rix),
 			    bin_to_size(y),
 			    (uintmax_t) sn->stats[y][rix].total_packets,
 			    (uintmax_t) sn->stats[y][rix].packets_acked,
-			    (int) ((sn->stats[y][rix].packets_acked * 100ULL) /
-			     sn->stats[y][rix].total_packets),
 			    sn->stats[y][rix].ewma_pct / 10,
 			    sn->stats[y][rix].ewma_pct % 10,
 			    (uintmax_t) sn->stats[y][rix].tries,
