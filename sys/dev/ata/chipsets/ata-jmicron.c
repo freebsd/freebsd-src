@@ -67,6 +67,7 @@ ata_jmicron_probe(device_t dev)
     static const struct ata_chip_id const ids[] =
     {{ ATA_JMB360, 0, 1, 0, ATA_SA300, "JMB360" },
      { ATA_JMB361, 0, 1, 1, ATA_UDMA6, "JMB361" },
+     { ATA_JMB362, 0, 2, 0, ATA_SA300, "JMB362" },
      { ATA_JMB363, 0, 2, 1, ATA_UDMA6, "JMB363" },
      { ATA_JMB365, 0, 1, 2, ATA_UDMA6, "JMB365" },
      { ATA_JMB366, 0, 2, 2, ATA_UDMA6, "JMB366" },
