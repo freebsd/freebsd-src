@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/interrupt.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/mbuf.h>
@@ -59,10 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/md5.h>
-#include <net/pfil.h>
+#include <sys/ucred.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/pfil.h>
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 #include <net/if_pflog.h>
