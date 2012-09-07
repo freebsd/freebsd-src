@@ -195,8 +195,9 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
 	if (offset + sizeof(u_short) > m->m_len) {
-		printf("%s: delayed m_pullup, m->len: %d off: %d\n",
-		    __func__, m->m_len, offset);
+		printf("%s: delayed m_pullup, m->len: %d plen %u off %u "
+		    "csum_flags=0x%04x\n", __func__, m->m_len, plen, offset,
+		    m->m_pkthdr.csum_flags);
 		/*
 		 * XXX this should not happen, but if it does, the correct
 		 * behavior may be to insert the checksum in the appropriate
@@ -292,11 +293,11 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
 	}
 
+#ifdef IPSEC
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 */
-#ifdef IPSEC
 	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp, &sp))
 	{
 	case 1:                 /* Bad packet */
