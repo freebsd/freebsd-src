@@ -5862,6 +5862,8 @@ main(int argc, char **argv)
 
 	(void) setvbuf(stdout, NULL, _IOLBF, 0);
 
+	dprintf_setup(&argc, argv);
+
 	if (!ischild) {
 		process_options(argc, argv);
 

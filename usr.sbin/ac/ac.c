@@ -1,16 +1,29 @@
-/*
- *      Copyright (c) 1994 Christopher G. Demetriou.
- *      @(#)Copyright (c) 1994, Simon J. Gerraty.
+/*-
+ * Copyright (c) 1994 Christopher G. Demetriou
+ * Copyright (c) 1994 Simon J. Gerraty
+ * Copyright (c) 2012 Ed Schouten <ed@FreeBSD.org>
+ * All rights reserved.
  *
- *      This is free software.  It comes with NO WARRANTY.
- *      Permission to use, modify and distribute this source code
- *      is granted subject to the following conditions.
- *      1/ that the above copyright notice and this notice
- *      are preserved in all copies and that due credit be given
- *      to the author.
- *      2/ that any changes to this code are clearly commented
- *      as such so that the author does not get blamed for bugs
- *      other than his own.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -269,8 +282,7 @@ show_today(struct timeval today)
 	struct user_entry *up;
 	struct utmpx_entry *lp;
 	char date[64];
-	struct timeval usec = { 0, 1 };
-	struct timeval yesterday;
+	struct timeval diff, total = { 0, 0 }, usec = { 0, 1 }, yesterday;
 	static int d_first = -1;
 
 	if (d_first < 0)
@@ -280,23 +292,19 @@ show_today(struct timeval today)
 		       d_first ? "%e %b  total" : "%b %e  total",
 		       localtime(&yesterday.tv_sec));
 
-	/* restore the missing second */
-	timeradd(&today, &usec, &yesterday);
-
 	SLIST_FOREACH(lp, &CurUtmpx, next) {
-		timersub(&yesterday, &lp->time, &today);
-		update_user(lp->user, today);
+		timersub(&today, &lp->time, &diff);
+		update_user(lp->user, diff);
 		/* As if they just logged in. */
-		lp->time = yesterday;
+		lp->time = today;
 	}
-	timerclear(&today);
 	SLIST_FOREACH(up, &Users, next) {
-		timeradd(&today, &up->time, &today);
+		timeradd(&total, &up->time, &total);
 		/* For next day. */
 		timerclear(&up->time);
 	}
-	if (timerisset(&today))
-		(void)printf("%s %11.2f\n", date, (double)today.tv_sec / 3600);
+	if (timerisset(&total))
+		(void)printf("%s %11.2f\n", date, (double)total.tv_sec / 3600);
 }
 
 /*

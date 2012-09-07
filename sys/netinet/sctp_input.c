@@ -91,7 +91,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 	struct mbuf *op_err;
 
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_init: handling INIT tcb:%p\n",
-	    stcb);
+	    (void *)stcb);
 	if (stcb == NULL) {
 		SCTP_INP_RLOCK(inp);
 	}
@@ -2652,7 +2652,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				SCTP_INP_INCR_REF((*stcb)->sctp_ep);
 				if ((*stcb)->sctp_ep != l_inp) {
 					SCTP_PRINTF("Huh? ep:%p diff then l_inp:%p?\n",
-					    (*stcb)->sctp_ep, l_inp);
+					    (void *)(*stcb)->sctp_ep, (void *)l_inp);
 				}
 			}
 		}
@@ -3455,9 +3455,9 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 }
 
 void
-sctp_reset_in_stream(struct sctp_tcb *stcb, int number_entries, uint16_t * list)
+sctp_reset_in_stream(struct sctp_tcb *stcb, uint32_t number_entries, uint16_t * list)
 {
-	int i;
+	uint32_t i;
 	uint16_t temp;
 
 	/*
@@ -3511,7 +3511,7 @@ struct sctp_stream_reset_out_request *
 sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chunk **bchk)
 {
 	struct sctp_association *asoc;
-	struct sctp_stream_reset_out_req *req;
+	struct sctp_chunkhdr *ch;
 	struct sctp_stream_reset_out_request *r;
 	struct sctp_tmit_chunk *chk;
 	int len, clen;
@@ -3534,8 +3534,8 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 		*bchk = chk;
 	}
 	clen = chk->send_size;
-	req = mtod(chk->data, struct sctp_stream_reset_out_req *);
-	r = &req->sr_req;
+	ch = mtod(chk->data, struct sctp_chunkhdr *);
+	r = (struct sctp_stream_reset_out_request *)(ch + 1);
 	if (ntohl(r->request_seq) == seq) {
 		/* found it */
 		return (r);
@@ -3888,8 +3888,7 @@ sctp_handle_str_reset_request_out(struct sctp_tcb *stcb,
 			}
 			liste->tsn = tsn;
 			liste->number_entries = number_entries;
-			memcpy(&liste->req, req,
-			    (sizeof(struct sctp_stream_reset_out_request) + (number_entries * sizeof(uint16_t))));
+			memcpy(&liste->list_of_streams, req->list_of_streams, number_entries * sizeof(uint16_t));
 			TAILQ_INSERT_TAIL(&asoc->resetHead, liste, next_resp);
 			asoc->last_reset_action[0] = SCTP_STREAM_RESET_RESULT_PERFORMED;
 		}
@@ -4059,7 +4058,7 @@ __attribute__((noinline))
 #endif
 	static int
 	    sctp_handle_stream_reset(struct sctp_tcb *stcb, struct mbuf *m, int offset,
-        struct sctp_stream_reset_out_req *sr_req)
+        struct sctp_chunkhdr *ch_req)
 {
 	int chk_length, param_len, ptype;
 	struct sctp_paramhdr pstore;
@@ -4074,7 +4073,7 @@ __attribute__((noinline))
 	int num_param = 0;
 
 	/* now it may be a reset or a reset-response */
-	chk_length = ntohs(sr_req->ch.chunk_length);
+	chk_length = ntohs(ch_req->chunk_length);
 
 	/* setup for adding the response */
 	sctp_alloc_a_chunk(stcb, chk);
@@ -4404,7 +4403,7 @@ __attribute__((noinline))
 #endif
 
 	SCTPDBG(SCTP_DEBUG_INPUT1, "sctp_process_control: iphlen=%u, offset=%u, length=%u stcb:%p\n",
-	    iphlen, *offset, length, stcb);
+	    iphlen, *offset, length, (void *)stcb);
 
 	/* validate chunk header length... */
 	if (ntohs(ch->chunk_length) < sizeof(*ch)) {
@@ -5023,7 +5022,7 @@ process_control_chunks:
 			break;
 		case SCTP_ABORT_ASSOCIATION:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ABORT, stcb %p\n",
-			    stcb);
+			    (void *)stcb);
 			if ((stcb) && netp && *netp)
 				sctp_handle_abort((struct sctp_abort_chunk *)ch,
 				    stcb, *netp);
@@ -5032,7 +5031,7 @@ process_control_chunks:
 			break;
 		case SCTP_SHUTDOWN:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN, stcb %p\n",
-			    stcb);
+			    (void *)stcb);
 			if ((stcb == NULL) || (chk_length != sizeof(struct sctp_shutdown_chunk))) {
 				*offset = length;
 				if (locked_tcb) {
@@ -5052,7 +5051,7 @@ process_control_chunks:
 			}
 			break;
 		case SCTP_SHUTDOWN_ACK:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-ACK, stcb %p\n", stcb);
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-ACK, stcb %p\n", (void *)stcb);
 			if ((stcb) && (netp) && (*netp))
 				sctp_handle_shutdown_ack((struct sctp_shutdown_ack_chunk *)ch, stcb, *netp);
 			*offset = length;
@@ -5068,7 +5067,7 @@ process_control_chunks:
 			break;
 		case SCTP_COOKIE_ECHO:
 			SCTPDBG(SCTP_DEBUG_INPUT3,
-			    "SCTP_COOKIE-ECHO, stcb %p\n", stcb);
+			    "SCTP_COOKIE-ECHO, stcb %p\n", (void *)stcb);
 			if ((stcb) && (stcb->asoc.total_output_queue_size)) {
 				;
 			} else {
@@ -5170,7 +5169,7 @@ process_control_chunks:
 			}
 			break;
 		case SCTP_COOKIE_ACK:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_COOKIE-ACK, stcb %p\n", stcb);
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_COOKIE-ACK, stcb %p\n", (void *)stcb);
 			if ((stcb == NULL) || chk_length != sizeof(struct sctp_cookie_ack_chunk)) {
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
@@ -5260,7 +5259,7 @@ process_control_chunks:
 			}
 			break;
 		case SCTP_SHUTDOWN_COMPLETE:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-COMPLETE, stcb %p\n", stcb);
+			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN-COMPLETE, stcb %p\n", (void *)stcb);
 			/* must be first and only chunk */
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
@@ -5413,7 +5412,7 @@ process_control_chunks:
 				 */
 				stcb->asoc.peer_supports_strreset = 1;
 			}
-			if (sctp_handle_stream_reset(stcb, m, *offset, (struct sctp_stream_reset_out_req *)ch)) {
+			if (sctp_handle_stream_reset(stcb, m, *offset, ch)) {
 				/* stop processing */
 				*offset = length;
 				return (NULL);
@@ -5619,7 +5618,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		sh->checksum = check;
 		if (calc_check != check) {
 			SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
-			    calc_check, check, m, length, iphlen);
+			    calc_check, check, (void *)m, length, iphlen);
 			stcb = sctp_findassociation_addr(m, offset, src, dst,
 			    sh, ch, &inp, &net, vrf_id);
 			if ((net != NULL) && (port != 0)) {
@@ -5724,13 +5723,13 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	}
 #endif
 	SCTPDBG(SCTP_DEBUG_INPUT1, "Ok, Common input processing called, m:%p iphlen:%d offset:%d length:%d stcb:%p\n",
-	    m, iphlen, offset, length, stcb);
+	    (void *)m, iphlen, offset, length, (void *)stcb);
 	if (stcb) {
 		/* always clear this before beginning a packet */
 		stcb->asoc.authenticated = 0;
 		stcb->asoc.seen_a_sack_this_pkt = 0;
 		SCTPDBG(SCTP_DEBUG_INPUT1, "stcb:%p state:%x\n",
-		    stcb, stcb->asoc.state);
+		    (void *)stcb, stcb->asoc.state);
 
 		if ((stcb->asoc.state & SCTP_STATE_WAS_ABORTED) ||
 		    (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED)) {
@@ -5968,9 +5967,9 @@ static void
 sctp_print_mbuf_chain(struct mbuf *m)
 {
 	for (; m; m = SCTP_BUF_NEXT(m)) {
-		SCTP_PRINTF("%p: m_len = %ld\n", m, SCTP_BUF_LEN(m));
+		SCTP_PRINTF("%p: m_len = %ld\n", (void *)m, SCTP_BUF_LEN(m));
 		if (SCTP_BUF_IS_EXTENDED(m))
-			SCTP_PRINTF("%p: extend_size = %d\n", m, SCTP_BUF_EXTEND_SIZE(m));
+			SCTP_PRINTF("%p: extend_size = %d\n", (void *)m, SCTP_BUF_EXTEND_SIZE(m));
 	}
 }
 

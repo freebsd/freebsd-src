@@ -181,7 +181,8 @@ dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/hpt27xx/os_bsd.c		optional hpt27xx
-dev/hpt27xx/osm_bsd.c		optional hpt27xx
+dev/hpt27xx/osm_bsd.c		optional hpt27xx \
+	compile-with "${NORMAL_C} ${NO_WFORMAT_SECURITY}"
 dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
 dev/hptmv/entry.c		optional hptmv
 dev/hptmv/mv.c			optional hptmv
@@ -226,7 +227,8 @@ dev/nfe/if_nfe.c		optional nfe pci
 dev/nve/if_nve.c		optional nve pci
 dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
-dev/random/nehemiah.c		optional random
+dev/random/ivy.c		optional random ivy_rng
+dev/random/nehemiah.c		optional random padlock_rng
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
 dev/sbni/if_sbni_pci.c		optional sbni pci

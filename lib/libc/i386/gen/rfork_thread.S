@@ -113,8 +113,7 @@ ENTRY(rfork_thread)
 	popl	%esi
 	movl	%ebp, %esp
 	popl	%ebp
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
+	jmp	HIDENAME(cerror)
 END(rfork_thread)
 
 	.section .note.GNU-stack,"",%progbits

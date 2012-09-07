@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <compat/netbsd/dvcfg.h>
 
-#include <sys/device_port.h>
+#include <sys/bus.h>
 
 #include <dev/pccard/pccardvar.h>
 

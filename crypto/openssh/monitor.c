@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.115 2011/06/23 23:35:42 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.117 2012/06/22 12:30:26 dtucker Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -479,9 +479,6 @@ monitor_child_postauth(struct monitor *pmonitor)
 
 	for (;;)
 		monitor_read(pmonitor, mon_dispatch, NULL);
-
-	close(pmonitor->m_sendfd);
-	pmonitor->m_sendfd = -1;
 }
 
 void
@@ -507,6 +504,7 @@ monitor_read_log(struct monitor *pmonitor)
 	if (atomicio(read, pmonitor->m_log_recvfd,
 	    buffer_ptr(&logmsg), buffer_len(&logmsg)) != buffer_len(&logmsg)) {
 		if (errno == EPIPE) {
+			buffer_free(&logmsg);
 			debug("%s: child log fd closed", __func__);
 			close(pmonitor->m_log_recvfd);
 			pmonitor->m_log_recvfd = -1;

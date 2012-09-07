@@ -718,7 +718,7 @@ stopme:
 		/*
 		 * We have gotten rid of all the other threads and we
 		 * are about to either exit or exec. In either case,
-		 * we try our utmost  to revert to being a non-threaded
+		 * we try our utmost to revert to being a non-threaded
 		 * process.
 		 */
 		p->p_singlethread = NULL;

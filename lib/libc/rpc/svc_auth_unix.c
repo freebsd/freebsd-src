@@ -68,7 +68,7 @@ _svcauth_unix(rqst, msg)
 	struct area {
 		struct authunix_parms area_aup;
 		char area_machname[MAX_MACHINE_NAME+1];
-		int area_gids[NGRPS];
+		gid_t area_gids[NGRPS];
 	} *area;
 	u_int auth_len;
 	size_t str_len, gid_len;

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
@@ -50,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <compat/netbsd/dvcfg.h>
 
-#include <sys/device_port.h>
+#include <sys/bus.h>
 
 #include <dev/pccard/pccardvar.h>
 
@@ -67,10 +68,10 @@ __FBSDID("$FreeBSD$");
 
 #include "pccarddevs.h"
 
-static int ncvprobe(DEVPORT_PDEVICE devi);
-static int ncvattach(DEVPORT_PDEVICE devi);
+static int ncvprobe(device_t devi);
+static int ncvattach(device_t devi);
 
-static void	ncv_card_unload(DEVPORT_PDEVICE);
+static void	ncv_card_unload(device_t);
 
 static const struct ncv_product {
 	struct pccard_product	prod;
@@ -102,7 +103,7 @@ ncv_pccard_intr(void * arg)
 }
 
 static void
-ncv_release_resource(DEVPORT_PDEVICE dev)
+ncv_release_resource(device_t dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
 
@@ -132,10 +133,10 @@ ncv_release_resource(DEVPORT_PDEVICE dev)
 }
 
 static int
-ncv_alloc_resource(DEVPORT_PDEVICE dev)
+ncv_alloc_resource(device_t dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
-	u_int32_t		flags = DEVPORT_PDEVFLAGS(dev);
+	u_int32_t		flags = device_get_flags(dev);
 	u_long			ioaddr, iosize, maddr, msize;
 	int			error;
 	bus_addr_t		offset = 0;
@@ -290,9 +291,9 @@ MODULE_DEPEND(ncv, scsi_low, 1, 1, 1);
 DRIVER_MODULE(ncv, pccard, ncv_pccard_driver, ncv_devclass, 0, 0);
 
 static void
-ncv_card_unload(DEVPORT_PDEVICE devi)
+ncv_card_unload(device_t devi)
 {
-	struct ncv_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
+	struct ncv_softc *sc = device_get_softc(devi);
 	intrmask_t s;
 
 	s = splcam();
@@ -302,11 +303,11 @@ ncv_card_unload(DEVPORT_PDEVICE devi)
 }
 
 static int
-ncvprobe(DEVPORT_PDEVICE devi)
+ncvprobe(device_t devi)
 {
 	int rv;
 	struct ncv_softc *sc = device_get_softc(devi);
-	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
+	u_int32_t flags = device_get_flags(devi);
 
 	rv = ncvprobesubr(rman_get_bustag(sc->port_res),
 			  rman_get_bushandle(sc->port_res),
@@ -316,17 +317,17 @@ ncvprobe(DEVPORT_PDEVICE devi)
 }
 
 static int
-ncvattach(DEVPORT_PDEVICE devi)
+ncvattach(device_t devi)
 {
 	struct ncv_softc *sc;
 	struct scsi_low_softc *slp;
-	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
+	u_int32_t flags = device_get_flags(devi);
 	intrmask_t s;
 	char dvname[16]; /* SCSI_LOW_DVNAME_LEN */
 
 	strcpy(dvname, "ncv");
 
-	sc = DEVPORT_PDEVALLOC_SOFTC(devi);
+	sc = device_get_softc(devi);
 	if (sc == NULL) {
 		return(0);
 	}

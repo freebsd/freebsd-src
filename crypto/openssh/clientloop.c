@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.236 2011/06/22 22:08:42 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.240 2012/06/20 04:42:58 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -282,6 +282,23 @@ set_control_persist_exit_time(void)
 	/* else we are already counting down to the timeout */
 }
 
+#define SSH_X11_VALID_DISPLAY_CHARS ":/.-_"
+static int
+client_x11_display_valid(const char *display)
+{
+	size_t i, dlen;
+
+	dlen = strlen(display);
+	for (i = 0; i < dlen; i++) {
+		if (!isalnum(display[i]) &&
+		    strchr(SSH_X11_VALID_DISPLAY_CHARS, display[i]) == NULL) {
+			debug("Invalid character '%c' in DISPLAY", display[i]);
+			return 0;
+		}
+	}
+	return 1;
+}
+
 #define SSH_X11_PROTO "MIT-MAGIC-COOKIE-1"
 void
 client_x11_get_proto(const char *display, const char *xauth_path,
@@ -304,6 +321,9 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 
 	if (xauth_path == NULL ||(stat(xauth_path, &st) == -1)) {
 		debug("No xauth program.");
+	} else if (!client_x11_display_valid(display)) {
+		logit("DISPLAY '%s' invalid, falling back to fake xauth data",
+		    display);
 	} else {
 		if (display == NULL) {
 			debug("x11_get_proto: DISPLAY not set");
@@ -564,10 +584,12 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 {
 	struct timeval tv, *tvp;
 	int timeout_secs;
+	time_t minwait_secs = 0;
 	int ret;
 
 	/* Add any selections by the channel mechanism. */
-	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp, rekeying);
+	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp,
+	    &minwait_secs, rekeying);
 
 	if (!compat20) {
 		/* Read from the connection, unless our buffers are full. */
@@ -620,6 +642,8 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 		if (timeout_secs < 0)
 			timeout_secs = 0;
 	}
+	if (minwait_secs != 0)
+		timeout_secs = MIN(timeout_secs, (int)minwait_secs);
 	if (timeout_secs == INT_MAX)
 		tvp = NULL;
 	else {
@@ -840,9 +864,8 @@ process_cmdline(void)
 {
 	void (*handler)(int);
 	char *s, *cmd, *cancel_host;
-	int delete = 0;
-	int local = 0, remote = 0, dynamic = 0;
-	int cancel_port;
+	int delete = 0, local = 0, remote = 0, dynamic = 0;
+	int cancel_port, ok;
 	Forward fwd;
 
 	bzero(&fwd, sizeof(fwd));
@@ -868,8 +891,12 @@ process_cmdline(void)
 		    "Request remote forward");
 		logit("      -D[bind_address:]port                  "
 		    "Request dynamic forward");
+		logit("      -KL[bind_address:]port                 "
+		    "Cancel local forward");
 		logit("      -KR[bind_address:]port                 "
 		    "Cancel remote forward");
+		logit("      -KD[bind_address:]port                 "
+		    "Cancel dynamic forward");
 		if (!options.permit_local_command)
 			goto out;
 		logit("      !args                                  "
@@ -898,11 +925,7 @@ process_cmdline(void)
 		goto out;
 	}
 
-	if ((local || dynamic) && delete) {
-		logit("Not supported.");
-		goto out;
-	}
-	if (remote && delete && !compat20) {
+	if (delete && !compat20) {
 		logit("Not supported for SSH protocol version 1.");
 		goto out;
 	}
@@ -925,7 +948,21 @@ process_cmdline(void)
 			logit("Bad forwarding close port");
 			goto out;
 		}
-		channel_request_rforward_cancel(cancel_host, cancel_port);
+		if (remote)
+			ok = channel_request_rforward_cancel(cancel_host,
+			    cancel_port) == 0;
+		else if (dynamic)
+                	ok = channel_cancel_lport_listener(cancel_host,
+			    cancel_port, 0, options.gateway_ports) > 0;
+		else
+                	ok = channel_cancel_lport_listener(cancel_host,
+			    cancel_port, CHANNEL_CANCEL_PORT_STATIC,
+			    options.gateway_ports) > 0;
+		if (!ok) {
+			logit("Unkown port forwarding.");
+			goto out;
+		}
+		logit("Canceled forwarding.");
 	} else {
 		if (!parse_forward(&fwd, s, dynamic, remote)) {
 			logit("Bad forwarding specification.");
@@ -946,7 +983,6 @@ process_cmdline(void)
 				goto out;
 			}
 		}
-
 		logit("Forwarding port.");
 	}
 
