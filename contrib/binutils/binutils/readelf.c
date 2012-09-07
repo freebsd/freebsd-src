@@ -128,7 +128,7 @@ Elf_Internal_Syminfo *dynamic_syminfo;
 unsigned long dynamic_syminfo_offset;
 unsigned int dynamic_syminfo_nent;
 char program_interpreter[64];
-bfd_vma dynamic_info[DT_JMPREL + 1];
+bfd_vma dynamic_info[DT_ENCODING];
 bfd_vma version_info[16];
 Elf_Internal_Ehdr elf_header;
 Elf_Internal_Shdr *section_headers;
