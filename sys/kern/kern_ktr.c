@@ -70,6 +70,10 @@ __FBSDID("$FreeBSD$");
 #define	KTR_MASK	(0)
 #endif
 
+#ifndef KTR_CPUMASK
+#define	KTR_CPUMASK	CPUSET_FSET
+#endif
+
 #ifndef KTR_TIME
 #define	KTR_TIME	get_cyclecount()
 #endif
@@ -99,19 +103,13 @@ int	ktr_version = KTR_VERSION;
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
 
-cpuset_t ktr_cpumask;
+cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
 static char ktr_cpumask_str[CPUSETBUFSIZ];
 TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask_str, sizeof(ktr_cpumask_str));
 
 static void
 ktr_cpumask_initializer(void *dummy __unused)
 {
-
-	CPU_FILL(&ktr_cpumask);
-#ifdef KTR_CPUMASK
-	if (cpusetobj_strscan(&ktr_cpumask, KTR_CPUMASK) == -1)
-		CPU_FILL(&ktr_cpumask);
-#endif
 
 	/*
 	 * TUNABLE_STR() runs with SI_ORDER_MIDDLE priority, thus it must be
@@ -283,7 +281,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	{
 		do {
 			saveindex = ktr_idx;
-			newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
+			newindex = (saveindex + 1) % KTR_ENTRIES;
 		} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 		entry = &ktr_buf[saveindex];
 	}
@@ -338,7 +336,7 @@ static	int db_mach_vtrace(void);
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
 	
-	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
+	tstate.cur = (ktr_idx - 1) % KTR_ENTRIES;
 	tstate.first = -1;
 	db_ktr_verbose = 0;
 	db_ktr_verbose |= (strchr(modif, 'v') != NULL) ? 2 : 0;

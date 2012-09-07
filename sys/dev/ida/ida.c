@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/stat.h>
 
 #include <sys/bio.h>
@@ -56,17 +58,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ida/idaio.h>
 
 /* prototypes */
-static void ida_alloc_qcb(struct ida_softc *ida);
-static void ida_construct_qcb(struct ida_softc *ida);
-static void ida_start(struct ida_softc *ida);
+static int ida_alloc_qcbs(struct ida_softc *ida);
 static void ida_done(struct ida_softc *ida, struct ida_qcb *qcb);
+static void ida_start(struct ida_softc *ida);
+static void ida_startio(struct ida_softc *ida);
+static void ida_startup(void *arg);
+static void ida_timeout(void *arg);
 static int ida_wait(struct ida_softc *ida, struct ida_qcb *qcb);
-static void ida_timeout (void *arg);
 
 static d_ioctl_t ida_ioctl;
 static struct cdevsw ida_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	ida_ioctl,
 	.d_name =	"ida",
 };
@@ -76,10 +78,16 @@ ida_free(struct ida_softc *ida)
 {
 	int i;
 
+	if (ida->ih != NULL)
+		bus_teardown_intr(ida->dev, ida->irq, ida->ih);
+
+	mtx_lock(&ida->lock);
 	callout_stop(&ida->ch);
+	mtx_unlock(&ida->lock);
+	callout_drain(&ida->ch);
 
 	if (ida->buffer_dmat) {
-		for (i = 0; i < ida->num_qcbs; i++)
+		for (i = 0; i < IDA_QCB_MAX; i++)
 			bus_dmamap_destroy(ida->buffer_dmat, ida->qcbs[i].dmamap);
 		bus_dma_tag_destroy(ida->buffer_dmat);
 	}
@@ -96,9 +104,6 @@ ida_free(struct ida_softc *ida)
 	if (ida->qcbs != NULL)
 		free(ida->qcbs, M_DEVBUF);
 
-	if (ida->ih != NULL)
-		bus_teardown_intr(ida->dev, ida->irq, ida->ih);
-
 	if (ida->irq != NULL)
 		bus_release_resource(ida->dev, ida->irq_res_type,
 		    0, ida->irq);
@@ -109,6 +114,8 @@ ida_free(struct ida_softc *ida)
 	if (ida->regs != NULL)
 		bus_release_resource(ida->dev, ida->regs_res_type,
 		    ida->regs_res_id, ida->regs);
+
+	mtx_destroy(&ida->lock);
 }
 
 /*
@@ -130,12 +137,19 @@ ida_get_qcb(struct ida_softc *ida)
 
 	if ((qcb = SLIST_FIRST(&ida->free_qcbs)) != NULL) {
 		SLIST_REMOVE_HEAD(&ida->free_qcbs, link.sle);
-	} else {
-		ida_alloc_qcb(ida);
-		if ((qcb = SLIST_FIRST(&ida->free_qcbs)) != NULL)
-			SLIST_REMOVE_HEAD(&ida->free_qcbs, link.sle);
+		bzero(qcb->hwqcb, sizeof(struct ida_hdr) + sizeof(struct ida_req));
 	}
 	return (qcb);
+}
+
+static __inline void
+ida_free_qcb(struct ida_softc *ida, struct ida_qcb *qcb)
+{
+
+	qcb->state = QCB_FREE;
+	qcb->buf = NULL;
+	qcb->error = 0;
+	SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
 }
 
 static __inline bus_addr_t
@@ -155,42 +169,35 @@ idahwqcbptov(struct ida_softc *ida, bus_addr_t hwqcb_addr)
 	return (hwqcb->qcb);
 }
 
-/*
- * XXX
- * since we allocate all QCB space up front during initialization, then
- * why bother with this routine?
- */
-static void
-ida_alloc_qcb(struct ida_softc *ida)
+static int
+ida_alloc_qcbs(struct ida_softc *ida)
 {
 	struct ida_qcb *qcb;
-	int error;
+	int error, i;
 
-	if (ida->num_qcbs >= IDA_QCB_MAX)
-		return;
+	for (i = 0; i < IDA_QCB_MAX; i++) {
+		qcb = &ida->qcbs[i];
 
-	qcb = &ida->qcbs[ida->num_qcbs];
+		error = bus_dmamap_create(ida->buffer_dmat, /*flags*/0, &qcb->dmamap);
+		if (error != 0)
+			return (error);
 
-	error = bus_dmamap_create(ida->buffer_dmat, /*flags*/0, &qcb->dmamap);
-	if (error != 0)
-		return;
-
-	qcb->flags = QCB_FREE;
-	qcb->hwqcb = &ida->hwqcbs[ida->num_qcbs];
-	qcb->hwqcb->qcb = qcb;
-	qcb->hwqcb_busaddr = idahwqcbvtop(ida, qcb->hwqcb);
-	SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
-	ida->num_qcbs++;
+		qcb->ida = ida;
+		qcb->flags = QCB_FREE;
+		qcb->hwqcb = &ida->hwqcbs[i];
+		qcb->hwqcb->qcb = qcb;
+		qcb->hwqcb_busaddr = idahwqcbvtop(ida, qcb->hwqcb);
+		SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
+	}
+	return (0);
 }
 
 int
 ida_init(struct ida_softc *ida)
 {
-	int error;
-
-	ida->unit = device_get_unit(ida->dev);
-	ida->tag = rman_get_bustag(ida->regs);
-	ida->bsh = rman_get_bushandle(ida->regs);
+	struct ida_controller_info cinfo;
+	device_t child;
+	int error, i, unit;
 
 	SLIST_INIT(&ida->free_qcbs);
 	STAILQ_INIT(&ida->qcb_queue);
@@ -219,8 +226,8 @@ ida_init(struct ida_softc *ida)
 		/* nsegments	*/ 1,
 		/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 		/* flags	*/ 0,
-		/* lockfunc	*/ busdma_lock_mutex,
-		/* lockarg	*/ &Giant,
+		/* lockfunc	*/ NULL,
+		/* lockarg	*/ NULL,
 		&ida->hwqcb_dmat);
 	if (error)
 		return (ENOMEM);
@@ -258,26 +265,19 @@ ida_init(struct ida_softc *ida)
 
 	bzero(ida->hwqcbs, IDA_QCB_MAX * sizeof(struct ida_hardware_qcb));
 
-	ida_alloc_qcb(ida);		/* allocate an initial qcb */
+	error = ida_alloc_qcbs(ida);
+	if (error)
+		return (error);
 
-	callout_init(&ida->ch, CALLOUT_MPSAFE);
-
-	return (0);
-}
-
-void
-ida_attach(struct ida_softc *ida)
-{
-	struct ida_controller_info cinfo;
-	int error, i;
-
+	mtx_lock(&ida->lock);
 	ida->cmd.int_enable(ida, 0);
 
 	error = ida_command(ida, CMD_GET_CTRL_INFO, &cinfo, sizeof(cinfo),
 	    IDA_CONTROLLER, 0, DMA_DATA_IN);
 	if (error) {
+		mtx_unlock(&ida->lock);
 		device_printf(ida->dev, "CMD_GET_CTRL_INFO failed.\n");
-		return;
+		return (error);
 	}
 
 	device_printf(ida->dev, "drives=%d firm_rev=%c%c%c%c\n",
@@ -290,32 +290,67 @@ ida_attach(struct ida_softc *ida)
 		error = ida_command(ida, CMD_START_FIRMWARE,
 		    &data, sizeof(data), IDA_CONTROLLER, 0, DMA_DATA_IN);
 		if (error) {
+			mtx_unlock(&ida->lock);
 			device_printf(ida->dev, "CMD_START_FIRMWARE failed.\n");
-			return;
+			return (error);
 		}
 	}
+	
+	ida->cmd.int_enable(ida, 1);
+	ida->flags |= IDA_ATTACHED;
+	mtx_unlock(&ida->lock);
 
-	ida->ida_dev_t = make_dev(&ida_cdevsw, ida->unit,
+	for (i = 0; i < cinfo.num_drvs; i++) {
+		child = device_add_child(ida->dev, /*"idad"*/NULL, -1);
+		if (child != NULL)
+			device_set_ivars(child, (void *)(intptr_t)i);
+	}
+
+	ida->ich.ich_func = ida_startup;
+	ida->ich.ich_arg = ida;
+	if (config_intrhook_establish(&ida->ich) != 0) {
+		device_delete_children(ida->dev);
+		device_printf(ida->dev, "Cannot establish configuration hook\n");
+		return (error);
+	}
+
+	unit = device_get_unit(ida->dev);
+	ida->ida_dev_t = make_dev(&ida_cdevsw, unit,
 				 UID_ROOT, GID_OPERATOR, S_IRUSR | S_IWUSR,
-				 "ida%d", ida->unit);
+				 "ida%d", unit);
 	ida->ida_dev_t->si_drv1 = ida;
 
-	ida->num_drives = 0;
-	for (i = 0; i < cinfo.num_drvs; i++)
-		device_add_child(ida->dev, /*"idad"*/NULL, -1);
+	return (0);
+}
 
+static void
+ida_startup(void *arg)
+{
+	struct ida_softc *ida;
+
+	ida = arg;
+
+	config_intrhook_disestablish(&ida->ich);
+
+	mtx_lock(&Giant);
 	bus_generic_attach(ida->dev);
-
-	ida->cmd.int_enable(ida, 1);
+	mtx_unlock(&Giant);
 }
 
 int
 ida_detach(device_t dev)
 {
 	struct ida_softc *ida;
-	int error = 0;
+	int error;
 
 	ida = (struct ida_softc *)device_get_softc(dev);
+
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
+	error = device_delete_children(dev);
+	if (error)
+		return (error);
 
 	/*
 	 * XXX
@@ -335,11 +370,25 @@ ida_detach(device_t dev)
 }
 
 static void
-ida_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+ida_data_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 {
-	struct ida_hardware_qcb *hwqcb = (struct ida_hardware_qcb *)arg;
+	struct ida_hardware_qcb *hwqcb;
+	struct ida_softc *ida;
+	struct ida_qcb *qcb;
+	bus_dmasync_op_t op;
 	int i;
 
+	qcb = arg;
+	ida = qcb->ida;
+	if (!dumping)
+		mtx_assert(&ida->lock, MA_OWNED);
+	if (error) {
+		qcb->error = error;
+		ida_done(ida, qcb);
+		return;
+	}
+
+	hwqcb = qcb->hwqcb;
 	hwqcb->hdr.size = htole16((sizeof(struct ida_req) +
 	    sizeof(struct ida_sgb) * IDA_NSEG) >> 2);
 
@@ -348,6 +397,47 @@ ida_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 		hwqcb->seg[i].length = htole32(segs[i].ds_len);
 	}
 	hwqcb->req.sgcount = nsegments;
+	if (qcb->flags & DMA_DATA_TRANSFER) {
+		switch (qcb->flags & DMA_DATA_TRANSFER) {
+		case DMA_DATA_TRANSFER:
+			op = BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE;
+			break;
+		case DMA_DATA_IN:
+			op = BUS_DMASYNC_PREREAD;
+			break;
+		default:
+			KASSERT((qcb->flags & DMA_DATA_TRANSFER) ==
+			    DMA_DATA_OUT, ("bad DMA data flags"));
+			op = BUS_DMASYNC_PREWRITE;
+			break;
+		}
+		bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
+	}
+	bus_dmamap_sync(ida->hwqcb_dmat, ida->hwqcb_dmamap,
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+
+	STAILQ_INSERT_TAIL(&ida->qcb_queue, qcb, link.stqe);
+	ida_start(ida);
+	ida->flags &= ~IDA_QFROZEN;
+}
+
+static int
+ida_map_qcb(struct ida_softc *ida, struct ida_qcb *qcb, void *data,
+    bus_size_t datasize)
+{
+	int error, flags;
+
+	if (ida->flags & IDA_INTERRUPTS)
+		flags = BUS_DMA_WAITOK;
+	else
+		flags = BUS_DMA_NOWAIT;
+	error = bus_dmamap_load(ida->buffer_dmat, qcb->dmamap, data, datasize,
+	    ida_data_cb, qcb, flags);
+	if (error == EINPROGRESS) {
+		ida->flags |= IDA_QFROZEN;
+		error = 0;
+	}
+	return (error);
 }
 
 int
@@ -356,105 +446,96 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 {
 	struct ida_hardware_qcb *hwqcb;
 	struct ida_qcb *qcb;
-	bus_dmasync_op_t op;
-	int s, error;
+	int error;
 
-	s = splbio();
+	if (!dumping)
+		mtx_assert(&ida->lock, MA_OWNED);
 	qcb = ida_get_qcb(ida);
-	splx(s);
 
 	if (qcb == NULL) {
-		printf("ida_command: out of QCBs");
+		device_printf(ida->dev, "out of QCBs\n");
 		return (EAGAIN);
 	}
 
+	qcb->flags = flags | IDA_COMMAND;
 	hwqcb = qcb->hwqcb;
-	bzero(hwqcb, sizeof(struct ida_hdr) + sizeof(struct ida_req));
-
-	bus_dmamap_load(ida->buffer_dmat, qcb->dmamap,
-	    (void *)data, datasize, ida_setup_dmamap, hwqcb, 0);
-	op = qcb->flags & DMA_DATA_IN ?
-	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE;
-	bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
-
 	hwqcb->hdr.drive = drive;
 	hwqcb->req.blkno = htole32(pblkno);
 	hwqcb->req.bcount = htole16(howmany(datasize, DEV_BSIZE));
 	hwqcb->req.command = command;
 
-	qcb->flags = flags | IDA_COMMAND;
-
-	s = splbio();
-	STAILQ_INSERT_TAIL(&ida->qcb_queue, qcb, link.stqe);
-	ida_start(ida);
-	error = ida_wait(ida, qcb);
-	splx(s);
+	error = ida_map_qcb(ida, qcb, data, datasize);
+	if (error == 0) {
+		error = ida_wait(ida, qcb);
+		/* Don't free QCB on a timeout in case it later completes. */
+		if (error)
+			return (error);
+		error = qcb->error;
+	}
 
 	/* XXX should have status returned here? */
 	/* XXX have "status pointer" area in QCB? */
 
+	ida_free_qcb(ida, qcb);
 	return (error);
 }
 
 void
 ida_submit_buf(struct ida_softc *ida, struct bio *bp)
 {
+	mtx_lock(&ida->lock);
 	bioq_insert_tail(&ida->bio_queue, bp);
-	ida_construct_qcb(ida);
-	ida_start(ida);
+	ida_startio(ida);
+	mtx_unlock(&ida->lock);
 }
 
 static void
-ida_construct_qcb(struct ida_softc *ida)
+ida_startio(struct ida_softc *ida)
 {
 	struct ida_hardware_qcb *hwqcb;
 	struct ida_qcb *qcb;
-	bus_dmasync_op_t op;
+	struct idad_softc *drv;
 	struct bio *bp;
+	int error;
 
-	bp = bioq_first(&ida->bio_queue);
-	if (bp == NULL)
-		return;				/* no more buffers */
+	mtx_assert(&ida->lock, MA_OWNED);
+	for (;;) {
+		if (ida->flags & IDA_QFROZEN)
+			return;
+		bp = bioq_first(&ida->bio_queue);
+		if (bp == NULL)
+			return;				/* no more buffers */
 
-	qcb = ida_get_qcb(ida);
-	if (qcb == NULL)
-		return;				/* out of resources */
+		qcb = ida_get_qcb(ida);
+		if (qcb == NULL)
+			return;				/* out of resources */
 
-	bioq_remove(&ida->bio_queue, bp);
-	qcb->buf = bp;
-	qcb->flags = bp->bio_cmd == BIO_READ ? DMA_DATA_IN : DMA_DATA_OUT;
+		bioq_remove(&ida->bio_queue, bp);
+		qcb->buf = bp;
+		qcb->flags = bp->bio_cmd == BIO_READ ? DMA_DATA_IN : DMA_DATA_OUT;
 
-	hwqcb = qcb->hwqcb;
-	bzero(hwqcb, sizeof(struct ida_hdr) + sizeof(struct ida_req));
-
-	bus_dmamap_load(ida->buffer_dmat, qcb->dmamap,
-	    (void *)bp->bio_data, bp->bio_bcount, ida_setup_dmamap, hwqcb, 0);
-	op = qcb->flags & DMA_DATA_IN ?
-	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE;
-	bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
-
-	{
-		struct idad_softc *drv = (struct idad_softc *)bp->bio_driver1;
+		hwqcb = qcb->hwqcb;
+		drv = bp->bio_driver1;
 		hwqcb->hdr.drive = drv->drive;
+		hwqcb->req.blkno = bp->bio_pblkno;
+		hwqcb->req.bcount = howmany(bp->bio_bcount, DEV_BSIZE);
+		hwqcb->req.command = bp->bio_cmd == BIO_READ ? CMD_READ : CMD_WRITE;
+
+		error = ida_map_qcb(ida, qcb, bp->bio_data, bp->bio_bcount);
+		if (error) {
+			qcb->error = error;
+			ida_done(ida, qcb);
+		}
 	}
-
-	hwqcb->req.blkno = bp->bio_pblkno;
-	hwqcb->req.bcount = howmany(bp->bio_bcount, DEV_BSIZE);
-	hwqcb->req.command = bp->bio_cmd == BIO_READ ? CMD_READ : CMD_WRITE;
-
-	STAILQ_INSERT_TAIL(&ida->qcb_queue, qcb, link.stqe);
 }
 
-/*
- * This routine will be called from ida_intr in order to queue up more
- * I/O, meaning that we may be in an interrupt context.  Hence, we should
- * not muck around with spl() in this routine.
- */
 static void
 ida_start(struct ida_softc *ida)
 {
 	struct ida_qcb *qcb;
 
+	if (!dumping)
+		mtx_assert(&ida->lock, MA_OWNED);
 	while ((qcb = STAILQ_FIRST(&ida->qcb_queue)) != NULL) {
 		if (ida->cmd.fifo_full(ida))
 			break;
@@ -465,7 +546,7 @@ ida_start(struct ida_softc *ida)
 		 */
 
 		/* Set a timeout. */
-		if (!ida->qactive)
+		if (!ida->qactive && !dumping)
 			callout_reset(&ida->ch, hz * 5, ida_timeout, ida);
 		ida->qactive++;
 
@@ -481,17 +562,23 @@ ida_wait(struct ida_softc *ida, struct ida_qcb *qcb)
 	bus_addr_t completed;
 	int delay;
 
+	if (!dumping)
+		mtx_assert(&ida->lock, MA_OWNED);
 	if (ida->flags & IDA_INTERRUPTS) {
-		if (tsleep(qcb, PRIBIO, "idacmd", 5 * hz))
+		if (mtx_sleep(qcb, &ida->lock, PRIBIO, "idacmd", 5 * hz)) {
+			qcb->state = QCB_TIMEDOUT;
 			return (ETIMEDOUT);
+		}
 		return (0);
 	}
 
 again:
 	delay = 5 * 1000 * 100;			/* 5 sec delay */
 	while ((completed = ida->cmd.done(ida)) == 0) {
-		if (delay-- == 0)
+		if (delay-- == 0) {
+			qcb->state = QCB_TIMEDOUT;
 			return (ETIMEDOUT);
+		}
 		DELAY(10);
 	}
 
@@ -511,8 +598,11 @@ ida_intr(void *data)
 
 	ida = (struct ida_softc *)data;
 
-	if (ida->cmd.int_pending(ida) == 0)
+	mtx_lock(&ida->lock);
+	if (ida->cmd.int_pending(ida) == 0) {
+		mtx_unlock(&ida->lock);
 		return;				/* not our interrupt */
+	}
 
 	while ((completed = ida->cmd.done(ida)) != 0) {
 		qcb = idahwqcbptov(ida, completed & ~3);
@@ -527,7 +617,8 @@ ida_intr(void *data)
 			qcb->hwqcb->req.error = CMD_REJECTED;
 		ida_done(ida, qcb);
 	}
-	ida_start(ida);
+	ida_startio(ida);
+	mtx_unlock(&ida->lock);
 }
 
 /*
@@ -536,19 +627,35 @@ ida_intr(void *data)
 static void
 ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 {
-	int error = 0;
+	bus_dmasync_op_t op;
+	int active, error = 0;
 
 	/*
 	 * finish up command
 	 */
-	if (qcb->flags & DMA_DATA_TRANSFER) {
-		bus_dmasync_op_t op;
-
-		op = qcb->flags & DMA_DATA_IN ?
-		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE;
+	if (!dumping)
+		mtx_assert(&ida->lock, MA_OWNED);
+	active = (qcb->state != QCB_FREE);
+	if (qcb->flags & DMA_DATA_TRANSFER && active) {
+		switch (qcb->flags & DMA_DATA_TRANSFER) {
+		case DMA_DATA_TRANSFER:
+			op = BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE;
+			break;
+		case DMA_DATA_IN:
+			op = BUS_DMASYNC_POSTREAD;
+			break;
+		default:
+			KASSERT((qcb->flags & DMA_DATA_TRANSFER) ==
+			    DMA_DATA_OUT, ("bad DMA data flags"));
+			op = BUS_DMASYNC_POSTWRITE;
+			break;
+		}
 		bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
 		bus_dmamap_unload(ida->buffer_dmat, qcb->dmamap);
 	}
+	if (active)
+		bus_dmamap_sync(ida->hwqcb_dmat, ida->hwqcb_dmamap,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	if (qcb->hwqcb->req.error & SOFT_ERROR) {
 		if (qcb->buf)
@@ -571,16 +678,26 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 		error = 1;
 		device_printf(ida->dev, "invalid request\n");
 	}
+	if (qcb->error) {
+		error = 1;
+		device_printf(ida->dev, "request failed to map: %d\n", qcb->error);
+	}
 
 	if (qcb->flags & IDA_COMMAND) {
 		if (ida->flags & IDA_INTERRUPTS)
 			wakeup(qcb);
+		if (qcb->state == QCB_TIMEDOUT)
+			ida_free_qcb(ida, qcb);
 	} else {
 		KASSERT(qcb->buf != NULL, ("ida_done(): qcb->buf is NULL!"));
 		if (error)
 			qcb->buf->bio_flags |= BIO_ERROR;
 		idad_intr(qcb->buf);
+		ida_free_qcb(ida, qcb);
 	}
+
+	if (!active)
+		return;
 
 	ida->qactive--;
 	/* Reschedule or cancel timeout */
@@ -588,15 +705,10 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 		callout_reset(&ida->ch, hz * 5, ida_timeout, ida);
 	else
 		callout_stop(&ida->ch);
-
-	qcb->state = QCB_FREE;
-	qcb->buf = NULL;
-	SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
-	ida_construct_qcb(ida);
 }
 
 static void
-ida_timeout (void *arg)
+ida_timeout(void *arg)
 {
 	struct ida_softc *ida;
 
@@ -661,8 +773,10 @@ ida_ioctl (struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thre
 			daddr = &data;
 			len = sizeof(data);
 		}
+		mtx_lock(&sc->lock);
 		error = ida_command(sc, uc->command, daddr, len,
 				    uc->drive, uc->blkno, flags);
+		mtx_unlock(&sc->lock);
 		break;
 	default:
 		error = ENOIOCTL;

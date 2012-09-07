@@ -23,6 +23,7 @@ SRCS=	AnalysisDeclContext.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticAnalysisKinds \
 	DiagnosticCommonKinds \

@@ -1224,6 +1224,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* clock_getcpuclockid2 */
+	case 247: {
+		struct clock_getcpuclockid2_args *p = params;
+		iarg[0] = p->id; /* id_t */
+		iarg[1] = p->which; /* int */
+		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
+		*n_args = 3;
+		break;
+	}
 	/* minherit */
 	case 250: {
 		struct minherit_args *p = params;
@@ -4986,6 +4995,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
+		switch(ndx) {
+		case 0:
+			p = "id_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "clockid_t *";
 			break;
 		default:
 			break;
@@ -8887,6 +8912,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ffclock_getestimate */
 	case 243:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

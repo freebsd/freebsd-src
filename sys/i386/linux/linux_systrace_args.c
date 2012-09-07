@@ -570,7 +570,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 84: {
 		struct linux_lstat_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		uarg[1] = (intptr_t) p->up; /* struct ostat * */
+		uarg[1] = (intptr_t) p->up; /* struct l_stat * */
 		*n_args = 2;
 		break;
 	}
@@ -3192,7 +3192,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "char *";
 			break;
 		case 1:
-			p = "struct ostat *";
+			p = "struct l_stat *";
 			break;
 		default:
 			break;

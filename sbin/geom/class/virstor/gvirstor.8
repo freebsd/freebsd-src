@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2011
+.Dd August 3, 2012
 .Dt GVIRSTOR 8
 .Os
 .Sh NAME
@@ -40,6 +40,10 @@
 .Ar prov ...
 .Nm
 .Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm destroy
 .Op Fl fv
 .Ar name ...
 .Nm
@@ -107,6 +111,9 @@ Turn off an existing virtual device with the given
 .Ar name .
 This command does not touch on-disk metadata.
 As with other GEOM classes, stopped geoms cannot be started manually.
+.It Cm destroy
+Same as
+.Cm stop.
 .It Cm add
 Adds new components to existing virtual device with the given
 .Ar name .

@@ -50,11 +50,8 @@ ENTRY(ptrace)
 #endif
 	mov	$SYS_ptrace,%eax
 	KERNCALL
-	jb	err
+	jb	HIDENAME(cerror)
 	ret
-err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
 END(ptrace)
 
 	.section .note.GNU-stack,"",%progbits

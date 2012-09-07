@@ -1093,8 +1093,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct file *fp;
 	struct vnode *vp;
 	int cmode;
-	int type, indx = -1, error;
-	struct flock lf;
+	int indx = -1, error;
 	struct nameidata nd;
 	int vfslocked;
 	cap_rights_t rights_needed = CAP_LOOKUP;
@@ -1180,26 +1179,11 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	if (fp->f_ops == &badfileops) {
 		KASSERT(vp->v_type != VFIFO, ("Unexpected fifo."));
 		fp->f_seqcount = 1;
-		finit(fp, flags & FMASK, DTYPE_VNODE, vp, &vnops);
+		finit(fp, (flags & FMASK) | (fp->f_flag & FHASLOCK), DTYPE_VNODE,
+		    vp, &vnops);
 	}
 
 	VOP_UNLOCK(vp, 0);
-	if (fp->f_type == DTYPE_VNODE && (flags & (O_EXLOCK | O_SHLOCK)) != 0) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		if (flags & O_EXLOCK)
-			lf.l_type = F_WRLCK;
-		else
-			lf.l_type = F_RDLCK;
-		type = F_FLOCK;
-		if ((flags & FNONBLOCK) == 0)
-			type |= F_WAIT;
-		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
-		    type)) != 0)
-			goto bad;
-		atomic_set_int(&fp->f_flag, FHASLOCK);
-	}
 	if (flags & O_TRUNC) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error)
@@ -4483,9 +4467,8 @@ sys_fhopen(td, uap)
 	struct mount *mp;
 	struct vnode *vp;
 	struct fhandle fhp;
-	struct flock lf;
 	struct file *fp;
-	int fmode, error, type;
+	int fmode, error;
 	int vfslocked;
 	int indx;
 
@@ -4542,24 +4525,9 @@ sys_fhopen(td, uap)
 #endif
 	fp->f_vnode = vp;
 	fp->f_seqcount = 1;
-	finit(fp, fmode & FMASK, DTYPE_VNODE, vp, &vnops);
+	finit(fp, (fmode & FMASK) | (fp->f_flag & FHASLOCK), DTYPE_VNODE, vp,
+	    &vnops);
 	VOP_UNLOCK(vp, 0);
-	if (fmode & (O_EXLOCK | O_SHLOCK)) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		if (fmode & O_EXLOCK)
-			lf.l_type = F_WRLCK;
-		else
-			lf.l_type = F_RDLCK;
-		type = F_FLOCK;
-		if ((fmode & FNONBLOCK) == 0)
-			type |= F_WAIT;
-		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
-		    type)) != 0)
-			goto bad;
-		atomic_set_int(&fp->f_flag, FHASLOCK);
-	}
 	if (fmode & O_TRUNC) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error)

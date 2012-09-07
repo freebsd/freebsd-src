@@ -7,7 +7,7 @@ PROG=	athratestats
 
 SRCS=	main.c opt_ah.h ah_osdep.h
 
-CLEANFILES+=	opt_ah.h
+CLEANFILES+=	opt_ah.h ah_osdep.h
 
 .include <../Makefile.inc>
 
@@ -23,5 +23,6 @@ ah_osdep.h:
 	echo 'typedef void *HAL_SOFTC;' >ah_osdep.h
 	echo 'typedef int HAL_BUS_TAG;' >>ah_osdep.h
 	echo 'typedef void *HAL_BUS_HANDLE;' >>ah_osdep.h
+	echo 'typedef uint32_t *HAL_DMA_ADDR;' >>ah_osdep.h
 
 .include <bsd.prog.mk>

@@ -6,10 +6,11 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This file defines the Module class, which describes a module in the source
-// code.
-//
+///
+/// \file
+/// \brief Defines the clang::Module class, which describes a module in the
+/// source code.
+///
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_CLANG_BASIC_MODULE_H
 #define LLVM_CLANG_BASIC_MODULE_H
@@ -137,7 +138,7 @@ public:
   llvm::SmallVector<ExportDecl, 2> Exports;
   
   /// \brief Describes an exported module that has not yet been resolved
-  /// (perhaps because tASThe module it refers to has not yet been loaded).
+  /// (perhaps because the module it refers to has not yet been loaded).
   struct UnresolvedExportDecl {
     /// \brief The location of the 'export' keyword in the module map file.
     SourceLocation ExportLoc;
@@ -243,7 +244,7 @@ public:
     return Umbrella && Umbrella.is<const DirectoryEntry *>();
   }
 
-  /// \briaf Add the given feature requirement to the list of features
+  /// \brief Add the given feature requirement to the list of features
   /// required by this module.
   ///
   /// \param Feature The feature that is required by this module (and

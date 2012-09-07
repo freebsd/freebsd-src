@@ -277,12 +277,16 @@ ar5416SetupXTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 
 HAL_BOOL
 ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
-	u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+	HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList, u_int descId,
+	u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 	const struct ath_desc *ds0)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t segLen = segLenList[0];
 
 	HALASSERT((segLen &~ AR_BufLen) == 0);
+
+	ds->ds_data = bufAddrList[0];
 
 	if (firstSeg) {
 		/*
@@ -331,13 +335,14 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
  */
 HAL_BOOL
 ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+	HAL_DMA_ADDR *bufAddrList,
+	uint32_t *segLenList,
 	u_int pktLen,
 	u_int hdrLen,
 	HAL_PKT_TYPE type,
 	u_int keyIx,
 	HAL_CIPHER cipher,
 	uint8_t delims,
-	u_int segLen,
 	HAL_BOOL firstSeg,
 	HAL_BOOL lastSeg,
 	HAL_BOOL lastAggr)
@@ -345,6 +350,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	struct ar5416_desc *ads = AR5416DESC(ds);
 	uint32_t *ds_txstatus = AR5416_DS_TXSTATUS(ah,ads);
 	struct ath_hal_5416 *ahp = AH5416(ah);
+	u_int segLen = segLenList[0];
 
 	int isaggr = 0;
 	uint32_t last_aggr = 0;
@@ -353,6 +359,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	(void) ah;
 
 	HALASSERT((segLen &~ AR_BufLen) == 0);
+	ds->ds_data = bufAddrList[0];
 
 	HALASSERT(isValidPktType(type));
 	if (type == HAL_PKT_TYPE_AMPDU) {

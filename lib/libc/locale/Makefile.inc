@@ -47,6 +47,11 @@ MAN+=	big5.5 euc.5 gb18030.5 gb2312.5 gbk.5 mskanji.5 utf8.5
 
 MLINKS+=btowc.3 wctob.3
 MLINKS+=isdigit.3 isnumber.3
+MLINKS+=isgraph.3 isgraph_l.3
+MLINKS+=islower.3 islower_l.3
+MLINKS+=ispunct.3 ispunct_l.3
+MLINKS+=isspace.3 isspace_l.3
+MLINKS+=nl_langinfo.3 nl_langinfo_l.3
 MLINKS+=iswalnum.3 iswalpha.3 iswalnum.3 iswascii.3 iswalnum.3 iswblank.3 \
 	iswalnum.3 iswcntrl.3 iswalnum.3 iswdigit.3 iswalnum.3 iswgraph.3 \
 	iswalnum.3 iswhexnumber.3 \

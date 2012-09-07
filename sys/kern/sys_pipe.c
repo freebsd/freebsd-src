@@ -227,7 +227,6 @@ static int pipe_create(struct pipe *pipe, int backing);
 static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
-static __inline void pipeselwakeup(struct pipe *cpipe);
 #ifndef PIPE_NODIRECT
 static int pipe_build_write_buffer(struct pipe *wpipe, struct uio *uio);
 static void pipe_destroy_write_buffer(struct pipe *wpipe);
@@ -607,7 +606,7 @@ pipeunlock(cpipe)
 	}
 }
 
-static __inline void
+void
 pipeselwakeup(cpipe)
 	struct pipe *cpipe;
 {
@@ -738,7 +737,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 			rpipe->pipe_map.pos += size;
 			rpipe->pipe_map.cnt -= size;
 			if (rpipe->pipe_map.cnt == 0) {
-				rpipe->pipe_state &= ~PIPE_DIRECTW;
+				rpipe->pipe_state &= ~(PIPE_DIRECTW|PIPE_WANTW);
 				wakeup(rpipe);
 			}
 #endif
@@ -1001,6 +1000,7 @@ retry:
 			wakeup(wpipe);
 		}
 		pipeselwakeup(wpipe);
+		wpipe->pipe_state |= PIPE_WANTW;
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe), PRIBIO | PCATCH,
 		    "pipdwt", 0);
@@ -1442,7 +1442,7 @@ pipe_poll(fp, events, active_cred, td)
 	levents = events &
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
 	if (rpipe->pipe_state & PIPE_NAMED && fp->f_flag & FREAD && levents &&
-	    rpipe->pipe_state & PIPE_SAMEWGEN)
+	    fp->f_seqcount == rpipe->pipe_wgen)
 		events |= POLLINIGNEOF;
 
 	if ((events & POLLINIGNEOF) == 0) {

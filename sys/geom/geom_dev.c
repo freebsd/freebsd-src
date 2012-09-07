@@ -208,15 +208,11 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		}
 	}
 
-	if (pp->flags & G_PF_CANDELETE)
-		dev->si_flags |= SI_CANDELETE;
 	dev->si_iosize_max = MAXPHYS;
 	gp->softc = dev;
 	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;
 	if (adev != NULL) {
-		if (pp->flags & G_PF_CANDELETE)
-			adev->si_flags |= SI_CANDELETE;
 		adev->si_iosize_max = MAXPHYS;
 		adev->si_drv1 = gp;
 		adev->si_drv2 = cp;

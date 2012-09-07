@@ -547,7 +547,7 @@ mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 	struct mv_gpio_softc sc;
 
 	pincnt = 0;
-	if (OF_getproplen(ctrl, "gpio-controller") <= 0)
+	if (!OF_hasprop(ctrl, "gpio-controller"))
 		/* Node is not a GPIO controller. */
 		return (ENXIO);
 

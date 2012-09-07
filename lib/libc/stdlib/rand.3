@@ -32,7 +32,7 @@
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2010
+.Dd September 4, 2012
 .Dt RAND 3
 .Os
 .Sh NAME
@@ -55,9 +55,15 @@
 .Fn rand_r "unsigned *ctx"
 .Sh DESCRIPTION
 .Bf -symbolic
+The functions described in this manual page are not cryptographically
+secure.
+Cryptographic applications should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
 These interfaces are obsoleted by
 .Xr random 3 .
-.Ef
 .Pp
 The
 .Fn rand
@@ -88,9 +94,6 @@ The
 function initializes a seed using the
 .Xr random 4
 random number device which returns good random numbers.
-However, the
-.Fn rand
-function still remains unsuitable for cryptographic use.
 .Pp
 The
 .Fn rand_r
@@ -105,8 +108,6 @@ For better generator quality, use
 .Xr random 3
 or
 .Xr lrand48 3 .
-Applications requiring cryptographic quality randomness should use
-.Xr arc4random 3 .
 .Sh SEE ALSO
 .Xr arc4random 3 ,
 .Xr lrand48 3 ,

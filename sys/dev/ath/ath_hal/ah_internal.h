@@ -79,6 +79,11 @@ typedef enum {
 } HAL_PHYDIAG_CAPS;
 
 /*
+ * Enable/disable strong signal fast diversity
+ */
+#define	HAL_CAP_STRONG_DIV		2
+
+/*
  * Each chip or class of chips registers to offer support.
  */
 struct ath_hal_chip {
@@ -228,7 +233,9 @@ typedef struct {
 			halEnhancedDmaSupport		: 1;
 	uint32_t	halIsrRacSupport		: 1,
 			halApmEnable			: 1,
-			halIntrMitigation		: 1;
+			halIntrMitigation		: 1,
+			hal49GhzSupport			: 1,
+			halAntDivCombSupport		: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
@@ -245,7 +252,7 @@ typedef struct {
 	uint32_t	halIntrMask;
 	uint8_t		halTxStreams;
 	uint8_t		halRxStreams;
-
+	HAL_MFP_OPT_T	halMfpSupport;
 	int		halNumTxMaps;
 	int		halTxDescLen;
 	int		halTxStatusLen;
@@ -256,6 +263,12 @@ typedef struct {
 } HAL_CAPABILITIES;
 
 struct regDomain;
+
+/*
+ * Definitions for ah_flags in ath_hal_private
+ */
+#define		AH_USE_EEPROM	0x1
+#define		AH_IS_HB63	0x2
 
 /*
  * The ``private area'' follows immediately after the ``public area''
@@ -316,7 +329,9 @@ struct ath_hal_private {
 	uint16_t	ah_phyRev;		/* PHY revision */
 	uint16_t	ah_analog5GhzRev;	/* 2GHz radio revision */
 	uint16_t	ah_analog2GhzRev;	/* 5GHz radio revision */
+	uint32_t	ah_flags;		/* misc flags */
 	uint8_t		ah_ispcie;		/* PCIE, special treatment */
+	uint8_t		ah_devType;		/* card type - CB, PCI, PCIe */
 
 	HAL_OPMODE	ah_opmode;		/* operating mode from reset */
 	const struct ieee80211_channel *ah_curchan;/* operating channel */
@@ -383,6 +398,13 @@ struct ath_hal_private {
 	(_ah)->ah_disablePCIE(_ah)
 #define	ath_hal_setInterrupts(_ah, _mask) \
 	(_ah)->ah_setInterrupts(_ah, _mask)
+
+#define ath_hal_isrfkillenabled(_ah)  \
+    (ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 1, AH_NULL) == HAL_OK)
+#define ath_hal_enable_rfkill(_ah, _v) \
+    ath_hal_setcapability(_ah, HAL_CAP_RFSILENT, 1, _v, AH_NULL)
+#define ath_hal_hasrfkill_int(_ah)  \
+    (ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 3, AH_NULL) == HAL_OK)
 
 #define	ath_hal_eepromDetach(_ah) do {				\
 	if (AH_PRIVATE(_ah)->ah_eepromDetach != AH_NULL)	\
@@ -505,7 +527,8 @@ isBigEndian(void)
 
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
-	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
+	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | \
+	    (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
 #define	OS_A_REG_WRITE(_a, _r, _v) \
 	do { OS_REG_WRITE(_a, _r, _v); OS_DELAY(100); } while (0)
 

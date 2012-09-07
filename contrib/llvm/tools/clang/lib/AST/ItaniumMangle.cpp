@@ -657,7 +657,7 @@ void CXXNameMangler::mangleFloat(const llvm::APFloat &f) {
   // mistake; see the discussion on cxx-abi-dev beginning on
   // 2012-01-16.
 
-  // Our requirements here are just barely wierd enough to justify
+  // Our requirements here are just barely weird enough to justify
   // using a custom algorithm instead of post-processing APInt::toString().
 
   llvm::APInt valueBits = f.bitcastToAPInt();
@@ -1032,17 +1032,14 @@ static const FieldDecl *FindFirstNamedDataMember(const RecordDecl *RD) {
   
   for (RecordDecl::field_iterator I = RD->field_begin(), E = RD->field_end();
        I != E; ++I) {
-    const FieldDecl *FD = *I;
+    if (I->getIdentifier())
+      return *I;
     
-    if (FD->getIdentifier())
-      return FD;
-    
-    if (const RecordType *RT = FD->getType()->getAs<RecordType>()) {
+    if (const RecordType *RT = I->getType()->getAs<RecordType>())
       if (const FieldDecl *NamedDataMember = 
           FindFirstNamedDataMember(RT->getDecl()))
         return NamedDataMember;
     }
-  }
 
   // We didn't find a named data member.
   return 0;
@@ -1892,12 +1889,23 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
 }
 
 // <type>          ::= <function-type>
-// <function-type> ::= F [Y] <bare-function-type> E
+// <function-type> ::= [<CV-qualifiers>] F [Y]
+//                      <bare-function-type> [<ref-qualifier>] E
+// (Proposal to cxx-abi-dev, 2012-05-11)
 void CXXNameMangler::mangleType(const FunctionProtoType *T) {
+  // Mangle CV-qualifiers, if present.  These are 'this' qualifiers,
+  // e.g. "const" in "int (A::*)() const".
+  mangleQualifiers(Qualifiers::fromCVRMask(T->getTypeQuals()));
+
   Out << 'F';
+
   // FIXME: We don't have enough information in the AST to produce the 'Y'
   // encoding for extern "C" function types.
   mangleBareFunctionType(T, /*MangleReturnType=*/true);
+
+  // Mangle the ref-qualifier, if present.
+  mangleRefQualifier(T->getRefQualifier());
+
   Out << 'E';
 }
 void CXXNameMangler::mangleType(const FunctionNoProtoType *T) {
@@ -1990,8 +1998,6 @@ void CXXNameMangler::mangleType(const MemberPointerType *T) {
   mangleType(QualType(T->getClass(), 0));
   QualType PointeeType = T->getPointeeType();
   if (const FunctionProtoType *FPT = dyn_cast<FunctionProtoType>(PointeeType)) {
-    mangleQualifiers(Qualifiers::fromCVRMask(FPT->getTypeQuals()));
-    mangleRefQualifier(FPT->getRefQualifier());
     mangleType(FPT);
     
     // Itanium C++ ABI 5.1.8:
@@ -2005,9 +2011,11 @@ void CXXNameMangler::mangleType(const MemberPointerType *T) {
     //   which the function is a member is considered part of the type of 
     //   function.
 
+    // Given that we already substitute member function pointers as a
+    // whole, the net effect of this rule is just to unconditionally
+    // suppress substitution on the function type in a member pointer.
     // We increment the SeqID here to emulate adding an entry to the
-    // substitution table. We can't actually add it because we don't want this
-    // particular function type to be substituted.
+    // substitution table.
     ++SeqID;
   } else
     mangleType(PointeeType);
@@ -2390,7 +2398,7 @@ recurse:
   case Expr::ObjCProtocolExprClass:
   case Expr::ObjCSelectorExprClass:
   case Expr::ObjCStringLiteralClass:
-  case Expr::ObjCNumericLiteralClass:
+  case Expr::ObjCBoxedExprClass:
   case Expr::ObjCArrayLiteralClass:
   case Expr::ObjCDictionaryLiteralClass:
   case Expr::ObjCSubscriptRefExprClass:
@@ -2981,7 +2989,7 @@ void CXXNameMangler::mangleFunctionParam(const ParmVarDecl *parm) {
 
   // Top-level qualifiers.  We don't have to worry about arrays here,
   // because parameters declared as arrays should already have been
-  // tranformed to have pointer type. FIXME: apparently these don't
+  // transformed to have pointer type. FIXME: apparently these don't
   // get mangled if used as an rvalue of a known non-class type?
   assert(!parm->getType()->isArrayType()
          && "parameter's type is still an array type?");
@@ -3124,7 +3132,7 @@ void CXXNameMangler::mangleTemplateArg(const NamedDecl *P,
     break;
   }
   case TemplateArgument::Integral:
-    mangleIntegerLiteral(A.getIntegralType(), *A.getAsIntegral());
+    mangleIntegerLiteral(A.getIntegralType(), A.getAsIntegral());
     break;
   case TemplateArgument::Declaration: {
     assert(P && "Missing template parameter for declaration argument");

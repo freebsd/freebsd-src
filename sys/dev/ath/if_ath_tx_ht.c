@@ -560,14 +560,12 @@ ath_rateseries_print(struct ath_softc *sc, HAL_11N_RATE_SERIES *series)
  * This isn't useful for sending beacon frames, which has different needs
  * wrt what's passed into the rate scenario function.
  */
-
 void
 ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf)
 {
 	HAL_11N_RATE_SERIES series[4];
 	struct ath_desc *ds = bf->bf_desc;
-	struct ath_desc *lastds = NULL;
 	struct ath_hal *ah = sc->sc_ah;
 	int is_pspoll = (bf->bf_state.bfs_atype == HAL_PKT_TYPE_PSPOLL);
 	int ctsrate = bf->bf_state.bfs_ctsrate;
@@ -577,13 +575,6 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	memset(&series, 0, sizeof(series));
 
 	ath_rateseries_setup(sc, ni, bf, series);
-
-	/* Enforce AR5416 aggregate limit - can't do RTS w/ an agg frame > 8k */
-
-	/* Enforce RTS and CTS are mutually exclusive */
-
-	/* Get a pointer to the last tx descriptor in the list */
-	lastds = bf->bf_lastds;
 
 #if 0
 	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
@@ -601,21 +592,6 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	    series,	/* 11n rate series */
 	    4,		/* number of series */
 	    flags);
-
-	/* Setup the last descriptor in the chain */
-	/*
-	 * XXX Why is this done here, and not in the upper layer?
-	 * The rate control code stores a copy of the RC info in
-	 * the last descriptor as well as the first, then uses
-	 * the shadow copy in the last descriptor to see what the RC
-	 * decisions were.  I'm not sure why; perhaps earlier hardware
-	 * overwrote the first descriptor contents.
-	 *
-	 * In the 802.11n case, it also clears the moreaggr/delim
-	 * fields.  Again, this should be done by the caller of
-	 * ath_buf_set_rate().
-	 */
-	ath_hal_setuplasttxdesc(ah, lastds, ds);
 
 	/* Set burst duration */
 	/*

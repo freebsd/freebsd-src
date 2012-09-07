@@ -306,6 +306,7 @@ static void cxgbe_vlan_config(void *, struct ifnet *, uint16_t);
 static int cpl_not_handled(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 static int an_not_handled(struct sge_iq *, const struct rsp_ctrl *);
+static int fw_msg_not_handled(struct adapter *, const __be64 *);
 static int t4_sysctls(struct adapter *);
 static int cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
@@ -345,8 +346,6 @@ static int del_filter(struct adapter *, struct t4_filter *);
 static void clear_filter(struct filter_entry *);
 static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
-static int filter_rpl(struct sge_iq *, const struct rss_header *,
-    struct mbuf *);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int read_card_mem(struct adapter *, struct t4_mem_range *);
 #ifdef TCP_OFFLOAD
@@ -380,6 +379,10 @@ struct t4_pciids {
 CTASSERT(offsetof(struct sge_ofld_rxq, iq) == offsetof(struct sge_rxq, iq));
 CTASSERT(offsetof(struct sge_ofld_rxq, fl) == offsetof(struct sge_rxq, fl));
 #endif
+
+/* No easy way to include t4_msg.h before adapter.h so we check this way */
+CTASSERT(ARRAY_SIZE(((struct adapter *)0)->cpl_handler) == NUM_CPL_CMDS);
+CTASSERT(ARRAY_SIZE(((struct adapter *)0)->fw_msg_handler) == NUM_FW6_TYPES);
 
 static int
 t4_probe(device_t dev)
@@ -458,7 +461,9 @@ t4_attach(device_t dev)
 	sc->an_handler = an_not_handled;
 	for (i = 0; i < ARRAY_SIZE(sc->cpl_handler); i++)
 		sc->cpl_handler[i] = cpl_not_handled;
-	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, filter_rpl);
+	for (i = 0; i < ARRAY_SIZE(sc->fw_msg_handler); i++)
+		sc->fw_msg_handler[i] = fw_msg_not_handled;
+	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
 
 	/* Prepare the adapter for operation */
 	rc = -t4_prep_adapter(sc);
@@ -510,18 +515,24 @@ t4_attach(device_t dev)
 		goto done; /* error message displayed already */
 
 	if (sc->flags & MASTER_PF) {
+		uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
 
 		/* final tweaks to some settings */
 
 		t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd,
 		    sc->params.b_wnd);
-		t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
+		/* 4K, 16K, 64K, 256K DDP "page sizes" */
+		t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(0) | V_HPZ1(2) |
+		    V_HPZ2(4) | V_HPZ3(6));
+		t4_set_reg_field(sc, A_ULP_RX_CTL, F_TDDPTAGTCB, F_TDDPTAGTCB);
 		t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
-		    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 | F_TUNNELCNGDROP3, 0);
+		    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 | F_TUNNELCNGDROP3,
+		    F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
+		    F_TUNNELCNGDROP3);
 		t4_set_reg_field(sc, A_TP_PARA_REG5,
 		    V_INDICATESIZE(M_INDICATESIZE) |
 		    F_REARMDDPOFFSET | F_RESETDDPOFFSET,
-		    V_INDICATESIZE(M_INDICATESIZE) |
+		    V_INDICATESIZE(indsz) |
 		    F_REARMDDPOFFSET | F_RESETDDPOFFSET);
 	} else {
 		/*
@@ -2942,7 +2953,8 @@ cxgbe_tick(void *arg)
 	ifp->if_omcasts = s->tx_mcast_frames - s->tx_pause;
 	ifp->if_imcasts = s->rx_mcast_frames - s->rx_pause;
 	ifp->if_iqdrops = s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
-	    s->rx_ovflow3;
+	    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
+	    s->rx_trunc3;
 
 	drops = s->tx_drop;
 	for_each_txq(pi, i, txq)
@@ -2977,7 +2989,7 @@ cpl_not_handled(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	panic("%s: opcode 0x%02x on iq %p with payload %p",
 	    __func__, rss->opcode, iq, m);
 #else
-	log(LOG_ERR, "%s: opcode 0x%02x on iq %p with payload %p",
+	log(LOG_ERR, "%s: opcode 0x%02x on iq %p with payload %p\n",
 	    __func__, rss->opcode, iq, m);
 	m_freem(m);
 #endif
@@ -3006,7 +3018,7 @@ an_not_handled(struct sge_iq *iq, const struct rsp_ctrl *ctrl)
 #ifdef INVARIANTS
 	panic("%s: async notification on iq %p (ctrl %p)", __func__, iq, ctrl);
 #else
-	log(LOG_ERR, "%s: async notification on iq %p (ctrl %p)",
+	log(LOG_ERR, "%s: async notification on iq %p (ctrl %p)\n",
 	    __func__, iq, ctrl);
 #endif
 	return (EDOOFUS);
@@ -3019,6 +3031,35 @@ t4_register_an_handler(struct adapter *sc, an_handler_t h)
 
 	new = h ? (uintptr_t)h : (uintptr_t)an_not_handled;
 	loc = (uintptr_t *) &sc->an_handler;
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
+
+static int
+fw_msg_not_handled(struct adapter *sc, const __be64 *rpl)
+{
+	__be64 *r = __DECONST(__be64 *, rpl);
+	struct cpl_fw6_msg *cpl = member2struct(cpl_fw6_msg, data, r);
+
+#ifdef INVARIANTS
+	panic("%s: fw_msg type %d", __func__, cpl->type);
+#else
+	log(LOG_ERR, "%s: fw_msg type %d\n", __func__, cpl->type);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	if (type >= ARRAY_SIZE(sc->fw_msg_handler))
+		return (EINVAL);
+
+	new = h ? (uintptr_t)h : (uintptr_t)fw_msg_not_handled;
+	loc = (uintptr_t *) &sc->fw_msg_handler[type];
 	atomic_store_rel_ptr(loc, new);
 
 	return (0);
@@ -3191,10 +3232,13 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.ddp = 0;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp", CTLFLAG_RW,
 		    &sc->tt.ddp, 0, "DDP allowed");
-		sc->tt.indsz = M_INDICATESIZE;
+
+		sc->tt.indsz = G_INDICATESIZE(t4_read_reg(sc, A_TP_PARA_REG5));
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "indsz", CTLFLAG_RW,
 		    &sc->tt.indsz, 0, "DDP max indicate size allowed");
-		sc->tt.ddp_thres = 3*4096;
+
+		sc->tt.ddp_thres =
+		    G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2));
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp_thres", CTLFLAG_RW,
 		    &sc->tt.ddp_thres, 0, "DDP threshold");
 	}
@@ -4961,8 +5005,8 @@ del_filter_wr(struct adapter *sc, int fidx)
 	return (0);
 }
 
-static int
-filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+int
+t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_set_tcb_rpl *rpl = (const void *)(rss + 1);

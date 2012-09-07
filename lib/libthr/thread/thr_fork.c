@@ -200,9 +200,6 @@ _fork(void)
 			_rtld_atfork_post(rtld_locks);
 		_thr_setthreaded(0);
 
-		/* reinitialize libc spinlocks. */
-		_thr_spinlock_init();
-
 		/* reinitalize library. */
 		_libpthread_init(curthread);
 

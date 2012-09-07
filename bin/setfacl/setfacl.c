@@ -73,6 +73,7 @@ main(int argc, char *argv[])
 {
 	acl_t acl;
 	acl_type_t acl_type;
+	acl_entry_t unused_entry;
 	char filename[PATH_MAX];
 	int local_error, carried_error, ch, i, entry_number, ret;
 	int h_flag;
@@ -263,6 +264,17 @@ main(int argc, char *argv[])
 				need_mask = 1;
 				break;
 			case OP_REMOVE_EXT:
+				/*
+				 * Don't try to call remove_ext() for empty
+				 * default ACL.
+				 */
+				if (acl_type == ACL_TYPE_DEFAULT &&
+				    acl_get_entry(acl, ACL_FIRST_ENTRY,
+				    &unused_entry) == 0) {
+					local_error += remove_default(&acl,
+					    file->filename);
+					break;
+				}
 				remove_ext(&acl, file->filename);
 				need_mask = 0;
 				break;
@@ -294,6 +306,20 @@ main(int argc, char *argv[])
 				need_mask = 1;
 				break;
 			}
+		}
+
+		/*
+		 * Don't try to set an empty default ACL; it will always fail.
+		 * Use acl_delete_def_file(3) instead.
+		 */
+		if (acl_type == ACL_TYPE_DEFAULT &&
+		    acl_get_entry(acl, ACL_FIRST_ENTRY, &unused_entry) == 0) {
+			if (acl_delete_def_file(file->filename) == -1) {
+				warn("%s: acl_delete_def_file() failed",
+				    file->filename);
+				carried_error++;
+			}
+			continue;
 		}
 
 		/* don't bother setting the ACL if something is broken */

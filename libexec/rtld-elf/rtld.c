@@ -1743,6 +1743,26 @@ init_dag(Obj_Entry *root)
     root->dag_inited = true;
 }
 
+static void
+process_nodelete(Obj_Entry *root)
+{
+	const Objlist_Entry *elm;
+
+	/*
+	 * Walk over object DAG and process every dependent object that
+	 * is marked as DF_1_NODELETE. They need to grow their own DAG,
+	 * which then should have its reference upped separately.
+	 */
+	STAILQ_FOREACH(elm, &root->dagmembers, link) {
+		if (elm->obj != NULL && elm->obj->z_nodelete &&
+		    !elm->obj->ref_nodel) {
+			dbg("obj %s nodelete", elm->obj->path);
+			init_dag(elm->obj);
+			ref_dag(elm->obj);
+			elm->obj->ref_nodel = true;
+		}
+	}
+}
 /*
  * Initialize the dynamic linker.  The argument is the address at which
  * the dynamic linker has been mapped into memory.  The primary task of
@@ -1932,12 +1952,6 @@ process_needed(Obj_Entry *obj, Needed_Entry *needed, int flags)
 	  flags & ~RTLD_LO_NOLOAD);
 	if (obj1 == NULL && !ld_tracing && (flags & RTLD_LO_FILTEES) == 0)
 	    return (-1);
-	if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
-	    dbg("obj %s nodelete", obj1->path);
-	    init_dag(obj1);
-	    ref_dag(obj1);
-	    obj1->ref_nodel = true;
-	}
     }
     return (0);
 }
@@ -2833,8 +2847,15 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		/* Make list of init functions to call. */
 		initlist_add_objects(obj, &obj->next, &initlist);
 	    }
+	    /*
+	     * Process all no_delete objects here, given them own
+	     * DAGs to prevent their dependencies from being unloaded.
+	     * This has to be done after we have loaded all of the
+	     * dependencies, so that we do not miss any.
+	     */
+	    if (obj != NULL)
+		process_nodelete(obj);
 	} else {
-
 	    /*
 	     * Bump the reference counts for objects on this DAG.  If
 	     * this is the first dlopen() call for the object that was

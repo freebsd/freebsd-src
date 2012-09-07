@@ -39,10 +39,6 @@ CFLAGS+= -DSMBIOS_LITTLE_ENDIAN_UUID
 .endif
 .endif
 
-.if !defined(LOADER_NO_GPT_SUPPORT)
-CFLAGS+=	-DLOADER_GPT_SUPPORT
-.endif
-
 # Include simple terminal emulation (cons25-compatible)
 CFLAGS+= -DTERM_EMU
 

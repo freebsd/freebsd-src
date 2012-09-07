@@ -26,7 +26,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the internal PHY on the SMSC LAN91C111.
+ * Driver for the SEEQ 80220 and 84220.
+ * (Originally developed for the internal PHY on the SMSC LAN91C111.)
  */
 
 #include <sys/param.h>

@@ -56,7 +56,7 @@
 
 #ifdef linux
 #include "bsd_glue.h"
-static netdev_tx_t netmap_start_linux(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t linux_netmap_start(struct sk_buff *skb, struct net_device *dev);
 #endif /* linux */
 
 #ifdef __APPLE__
@@ -90,12 +90,13 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/bpf.h>		/* BIOCIMMEDIATE */
 #include <net/vnet.h>
-#include <net/netmap.h>
-#include <dev/netmap/netmap_kern.h>
 #include <machine/bus.h>	/* bus_dmamap_* */
 
 MALLOC_DEFINE(M_NETMAP, "netmap", "Network memory map");
 #endif /* __FreeBSD__ */
+
+#include <net/netmap.h>
+#include <dev/netmap/netmap_kern.h>
 
 /*
  * lock and unlock for the netmap memory allocator
@@ -118,8 +119,8 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, verbose,
     CTLFLAG_RW, &netmap_verbose, 0, "Verbose mode");
 SYSCTL_INT(_dev_netmap, OID_AUTO, no_timestamp,
     CTLFLAG_RW, &netmap_no_timestamp, 0, "no_timestamp");
-int netmap_buf_size = 2048;
-TUNABLE_INT("hw.netmap.buf_size", &netmap_buf_size);
+u_int netmap_buf_size = 2048;
+TUNABLE_INT("hw.netmap.buf_size", (u_int *)&netmap_buf_size);
 SYSCTL_INT(_dev_netmap, OID_AUTO, buf_size,
     CTLFLAG_RD, &netmap_buf_size, 0, "Size of packet buffers");
 int netmap_mitigate = 1;
@@ -355,13 +356,20 @@ netmap_dtor_locked(void *data)
 			lim = na->tx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
 				netmap_free_buf(nifp, ring->slot[j].buf_idx);
+			/* knlist_destroy(&na->tx_rings[i].si.si_note); */
+			mtx_destroy(&na->tx_rings[i].q_lock);
 		}
 		for (i = 0; i < na->num_rx_rings + 1; i++) {
 			struct netmap_ring *ring = na->rx_rings[i].ring;
 			lim = na->rx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
 				netmap_free_buf(nifp, ring->slot[j].buf_idx);
+			/* knlist_destroy(&na->rx_rings[i].si.si_note); */
+			mtx_destroy(&na->rx_rings[i].q_lock);
 		}
+		/* XXX kqueue(9) needed; these will mirror knlist_init. */
+		/* knlist_destroy(&na->tx_si.si_note); */
+		/* knlist_destroy(&na->rx_si.si_note); */
 		NMA_UNLOCK();
 		netmap_free_rings(na);
 		wakeup(na);
@@ -764,8 +772,8 @@ netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
  * Return 0 on success, errno otherwise.
  */
 static int
-netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
-	__unused int fflag, struct thread *td)
+netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
+	int fflag, struct thread *td)
 {
 	struct netmap_priv_d *priv = NULL;
 	struct ifnet *ifp;
@@ -775,6 +783,8 @@ netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
 	u_int i, lim;
 	struct netmap_if *nifp;
 
+	(void)dev;	/* UNUSED */
+	(void)fflag;	/* UNUSED */
 #ifdef linux
 #define devfs_get_cdevpriv(pp)				\
 	({ *(struct netmap_priv_d **)pp = ((struct file *)td)->private_data; 	\
@@ -1279,7 +1289,9 @@ netmap_lock_wrapper(struct ifnet *dev, int what, u_int queueid)
  * kring	N+1	is only used for the selinfo for all queues.
  * Return 0 on success, ENOMEM otherwise.
  *
- * na->num_tx_rings can be set for cards with different tx/rx setups
+ * By default the receive and transmit adapter ring counts are both initialized
+ * to num_queues.  na->num_tx_rings can be set for cards with different tx/rx
+ * setups.
  */
 int
 netmap_attach(struct netmap_adapter *na, int num_queues)
@@ -1313,13 +1325,14 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 		ifp->if_capabilities |= IFCAP_NETMAP;
 
 		na = buf;
+		/* Core lock initialized here.  Others are initialized after
+		 * netmap_if_new.
+		 */
+		mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK,
+		    MTX_DEF);
 		if (na->nm_lock == NULL) {
 			ND("using default locks for %s", ifp->if_xname);
 			na->nm_lock = netmap_lock_wrapper;
-			/* core lock initialized here.
-			 * others initialized after netmap_if_new
-			 */
-			mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK, MTX_DEF);
 		}
 	}
 #ifdef linux
@@ -1328,7 +1341,7 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 		/* prepare a clone of the netdev ops */
 		na->nm_ndo = *ifp->netdev_ops;
 	}
-	na->nm_ndo.ndo_start_xmit = netmap_start_linux;
+	na->nm_ndo.ndo_start_xmit = linux_netmap_start;
 #endif
 	D("%s for %s", buf ? "ok" : "failed", ifp->if_xname);
 
@@ -1343,22 +1356,13 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 void
 netmap_detach(struct ifnet *ifp)
 {
-	u_int i;
 	struct netmap_adapter *na = NA(ifp);
 
 	if (!na)
 		return;
 
-	for (i = 0; i < na->num_tx_rings + 1; i++) {
-		knlist_destroy(&na->tx_rings[i].si.si_note);
-		mtx_destroy(&na->tx_rings[i].q_lock);
-	}
-	for (i = 0; i < na->num_rx_rings + 1; i++) {
-		knlist_destroy(&na->rx_rings[i].si.si_note);
-		mtx_destroy(&na->rx_rings[i].q_lock);
-	}
-	knlist_destroy(&na->tx_si.si_note);
-	knlist_destroy(&na->rx_si.si_note);
+	mtx_destroy(&na->core_lock);
+
 	bzero(na, sizeof(*na));
 	WNA(ifp) = NULL;
 	free(na, M_DEVBUF);
@@ -1376,7 +1380,7 @@ netmap_start(struct ifnet *ifp, struct mbuf *m)
 	struct netmap_adapter *na = NA(ifp);
 	struct netmap_kring *kring = &na->rx_rings[na->num_rx_rings];
 	u_int i, len = MBUF_LEN(m);
-	int error = EBUSY, lim = kring->nkr_num_slots - 1;
+	u_int error = EBUSY, lim = kring->nkr_num_slots - 1;
 	struct netmap_slot *slot;
 
 	if (netmap_verbose & NM_VERB_HOST)
@@ -1551,7 +1555,7 @@ linux_netmap_poll(struct file * file, struct poll_table_struct *pwait)
 }
 
 static int
-netmap_mmap(__unused struct file *f, struct vm_area_struct *vma)
+linux_netmap_mmap(struct file *f, struct vm_area_struct *vma)
 {
 	int lut_skip, i, j;
 	int user_skip = 0;
@@ -1565,6 +1569,7 @@ netmap_mmap(__unused struct file *f, struct vm_area_struct *vma)
 	 * vma->vm_end: end of the mapping user address space
 	 */
 
+	(void)f;	/* UNUSED */
 	// XXX security checks
 
 	for (i = 0; i < 3; i++) {  /* loop through obj_pools */
@@ -1592,14 +1597,14 @@ netmap_mmap(__unused struct file *f, struct vm_area_struct *vma)
 }
 
 static netdev_tx_t
-netmap_start_linux(struct sk_buff *skb, struct net_device *dev)
+linux_netmap_start(struct sk_buff *skb, struct net_device *dev)
 {
 	netmap_start(dev, skb);
 	return (NETDEV_TX_OK);
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,38)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)	// XXX was 38
 #define LIN_IOCTL_NAME	.ioctl
 int
 linux_netmap_ioctl(struct inode *inode, struct file *file, u_int cmd, u_long data /* arg */)
@@ -1623,8 +1628,9 @@ linux_netmap_ioctl(struct file *file, u_int cmd, u_long data /* arg */)
 
 
 static int
-netmap_release(__unused struct inode *inode, struct file *file)
+netmap_release(struct inode *inode, struct file *file)
 {
+	(void)inode;	/* UNUSED */
 	if (file->private_data)
 		netmap_dtor(file->private_data);
 	return (0);
@@ -1632,7 +1638,7 @@ netmap_release(__unused struct inode *inode, struct file *file)
 
 
 static struct file_operations netmap_fops = {
-    .mmap = netmap_mmap,
+    .mmap = linux_netmap_mmap,
     LIN_IOCTL_NAME = linux_netmap_ioctl,
     .poll = linux_netmap_poll,
     .release = netmap_release,
@@ -1647,7 +1653,13 @@ static struct miscdevice netmap_cdevsw = {	/* same name as FreeBSD */
 static int netmap_init(void);
 static void netmap_fini(void);
 
-module_init(netmap_init);
+/* Errors have negative values on linux */
+static int linux_netmap_init(void)
+{
+	return -netmap_init();
+}
+
+module_init(linux_netmap_init);
 module_exit(netmap_fini);
 /* export certain symbols to other modules */
 EXPORT_SYMBOL(netmap_attach);		// driver attach routines
@@ -1944,7 +1956,7 @@ bdg_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	struct netmap_adapter *na = NA(ifp);
 	struct netmap_kring *kring = &na->rx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
-	int j, n, lim = kring->nkr_num_slots - 1;
+	u_int j, n, lim = kring->nkr_num_slots - 1;
 	u_int k = ring->cur, resvd = ring->reserved;
 
 	ND("%s ring %d lock %d avail %d",
@@ -2033,7 +2045,7 @@ netmap_init(void)
 
 	error = netmap_memory_init();
 	if (error != 0) {
-		printf("netmap: unable to initialize the memory allocator.");
+		printf("netmap: unable to initialize the memory allocator.\n");
 		return (error);
 	}
 	printf("netmap: loaded module with %d Mbytes\n",

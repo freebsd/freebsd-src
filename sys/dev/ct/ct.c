@@ -42,36 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__) && __FreeBSD_version > 500001
 #include <sys/bio.h>
-#endif	/* __ FreeBSD__ */
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 
-#ifdef __NetBSD__
-#include <sys/device.h>
-
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-
-#include <dev/ic/wd33c93reg.h>
-#include <i386/Cbus/dev/ct/ctvar.h>
-#include <i386/Cbus/dev/ct/ct_machdep.h>
-#endif /* __NetBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/bus.h>
 
 #include <compat/netbsd/dvcfg.h>
@@ -82,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ic/wd33c93reg.h>
 #include <dev/ct/ctvar.h>
 #include <dev/ct/ct_machdep.h>
-#endif /* __FreeBSD__ */
 
 #define	CT_NTARGETS		8
 #define	CT_NLUNS		8
@@ -227,7 +202,7 @@ cthw_chip_reset(chp, chiprevp, chipclk, hostid)
 
 	/* issue abort cmd */
 	ct_cr_write_1(chp, wd3s_cmd, WD3S_ABORT);
-	SCSI_LOW_DELAY(1000);	/* 1ms wait */
+	DELAY(1000);	/* 1ms wait */
 	(void) ct_stat_read_1(chp);
 	(void) ct_cr_read_1(chp, wd3s_stat);
 
@@ -274,7 +249,7 @@ cthw_chip_reset(chp, chiprevp, chipclk, hostid)
 
 			ct_cr_write_1(chp, wd3s_cmd, WD3S_RESET);
 		}
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 	}
 	if (wc == 0)
 		return ENXIO;
@@ -381,7 +356,7 @@ ctprint(aux, name)
 
 	if (name != NULL)
 		printf("%s: scsibus ", name);
-	return UNCONF;
+	return 1;
 }
 
 void
@@ -411,7 +386,7 @@ cthw_attention(ct)
 		return;
 
 	ct_cr_write_1(chp, wd3s_cmd, WD3S_ASSERT_ATN);
-	SCSI_LOW_DELAY(10);
+	DELAY(10);
 	if ((ct_stat_read_1(chp) & STR_LCI) == 0)
 		ct->sc_atten = 0;
 	ct_unbusy(ct);
@@ -689,7 +664,7 @@ ct_xfer(ct, data, len, direction, statp)
 		}
 		else
 		{
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 
 		/* check phase miss */
@@ -721,7 +696,7 @@ ct_io_xfer(ct)
 		slp->sl_error |= PDMAERR;
 
 		if (slp->sl_scp.scp_direction == SCSI_LOW_WRITE)
-			SCSI_LOW_BZERO(pbuf, CT_PADDING_BUF_SIZE);
+			bzero(pbuf, CT_PADDING_BUF_SIZE);
 		ct_xfer(ct, pbuf, CT_PADDING_BUF_SIZE, 
 			sp->scp_direction, &stat);
 	}
@@ -926,7 +901,7 @@ ct_unbusy(ct)
 		if (regv == (u_int8_t) -1)
 			return EIO;
 
-		SCSI_LOW_DELAY(CT_DELAY_INTERVAL);
+		DELAY(CT_DELAY_INTERVAL);
 	}
 
 	printf("%s: unbusy timeout\n", slp->sl_xname);
@@ -947,7 +922,7 @@ ct_catch_intr(ct)
 		if ((regv & (STR_INT | STR_BSY | STR_CIP)) == STR_INT)
 			return 0;
 
-		SCSI_LOW_DELAY(CT_DELAY_INTERVAL);
+		DELAY(CT_DELAY_INTERVAL);
 	}
 	return EJUSTRETURN;
 }
@@ -1003,7 +978,7 @@ again:
 		       (u_int) scsi_status);
 #ifdef	KDB
 		if (ct_debug > 1)
-			SCSI_LOW_DEBUGGER("ct");
+			kdb_enter(KDB_WHY_CAM, "ct");
 #endif	/* KDB */
 	}
 #endif	/* CT_DEBUG */

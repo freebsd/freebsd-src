@@ -403,8 +403,10 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf("type %d", (flags & PCIM_EXP_FLAGS_TYPE) >> 4);
 		break;
 	}
+	if (flags & PCIM_EXP_FLAGS_SLOT)
+		printf(" slot");
 	if (flags & PCIM_EXP_FLAGS_IRQ)
-		printf(" IRQ %d", (flags & PCIM_EXP_FLAGS_IRQ) >> 8);
+		printf(" IRQ %d", (flags & PCIM_EXP_FLAGS_IRQ) >> 9);
 	val = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_DEVICE_CAP, 4);
 	flags = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_DEVICE_CTL, 2);
 	printf(" max data %d(%d)",

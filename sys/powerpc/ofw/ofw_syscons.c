@@ -940,6 +940,12 @@ ofwfb_scidentify(driver_t *driver, device_t parent)
 	device_t child;
 
 	/*
+	 * The Nintendo Wii doesn't have open firmware, so don't probe ofwfb
+	 * because otherwise we will crash.
+	 */
+	if (strcmp(installed_platform(), "wii") == 0)
+		return;
+	/*
 	 * Add with a priority guaranteed to make it last on
 	 * the device list
 	 */

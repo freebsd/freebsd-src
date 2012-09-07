@@ -3046,7 +3046,7 @@ fOsCommandDone(_VBUS_ARG PCommand pCmd)
 	if (pCmd->cf_data_in) {
 		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_POSTREAD);
 	}
-	else if (pCmd->cf_data_in) {
+	else if (pCmd->cf_data_out) {
 		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_POSTWRITE);
 	}
 	

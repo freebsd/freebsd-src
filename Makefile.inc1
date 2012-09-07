@@ -137,7 +137,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6eb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -636,7 +636,10 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 #
 
 # Non-base distributions produced by the base system
-EXTRA_DISTRIBUTIONS=	doc games
+EXTRA_DISTRIBUTIONS=	doc
+.if ${MK_GAMES} != "no"
+EXTRA_DISTRIBUTIONS+=	games
+.endif
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
@@ -1260,7 +1263,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
-		${_cddl_lib_libumem} \
+		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl}
@@ -1284,6 +1287,7 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
+_cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib= cddl/lib
 .endif
 

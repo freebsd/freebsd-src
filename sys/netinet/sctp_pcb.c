@@ -553,7 +553,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		    (sctp_ifap->ifn_p->ifn_index == ifn_index)) {
 			SCTPDBG(SCTP_DEBUG_PCB4, "Using existing ifn %s (0x%x) for ifa %p\n",
 			    sctp_ifap->ifn_p->ifn_name, ifn_index,
-			    sctp_ifap);
+			    (void *)sctp_ifap);
 			if (new_ifn_af) {
 				/* Remove the created one that we don't want */
 				sctp_delete_ifn(sctp_ifnp, SCTP_ADDR_LOCKED);
@@ -575,7 +575,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 				 * old one
 				 */
 				SCTPDBG(SCTP_DEBUG_PCB4, "Moving ifa %p from %s (0x%x) to %s (0x%x)\n",
-				    sctp_ifap, sctp_ifap->ifn_p->ifn_name,
+				    (void *)sctp_ifap, sctp_ifap->ifn_p->ifn_name,
 				    sctp_ifap->ifn_p->ifn_index, if_name,
 				    ifn_index);
 				/* remove the address from the old ifn */
@@ -587,7 +587,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 				/* repair ifnp which was NULL ? */
 				sctp_ifap->localifa_flags = SCTP_ADDR_VALID;
 				SCTPDBG(SCTP_DEBUG_PCB4, "Repairing ifn %p for ifa %p\n",
-				    sctp_ifnp, sctp_ifap);
+				    (void *)sctp_ifnp, (void *)sctp_ifap);
 				sctp_add_ifa_to_ifn(sctp_ifnp, sctp_ifap);
 			}
 			goto exit_stage_left;
@@ -763,7 +763,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 				return;
 			}
 		}
-		SCTPDBG(SCTP_DEBUG_PCB4, "Deleting ifa %p\n", sctp_ifap);
+		SCTPDBG(SCTP_DEBUG_PCB4, "Deleting ifa %p\n", (void *)sctp_ifap);
 		sctp_ifap->localifa_flags &= SCTP_ADDR_VALID;
 		sctp_ifap->localifa_flags |= SCTP_BEING_DELETED;
 		vrf->total_ifa_count--;
@@ -1678,7 +1678,7 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 				continue;
 			}
 			SCTPDBG(SCTP_DEBUG_PCB1, "Ok laddr->ifa:%p is possible, ",
-			    laddr->ifa);
+			    (void *)laddr->ifa);
 			if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
 				SCTPDBG(SCTP_DEBUG_PCB1, "Huh IFA being deleted\n");
 				continue;
@@ -2055,8 +2055,6 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
 	struct sctp_nets *net;
 	struct sctp_tcb *stcb;
 
-	*netp = NULL;
-	*inp_p = NULL;
 	SCTP_INP_INFO_RLOCK();
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(vtag,
 	    SCTP_BASE_INFO(hashasocmark))];
@@ -2183,7 +2181,7 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 		retval = sctp_findassociation_addr_sa(src, dst, &inp, netp,
 		    find_tcp_pool, vrf_id);
 	}
-	SCTPDBG(SCTP_DEBUG_PCB1, "retval:%p inp:%p\n", retval, inp);
+	SCTPDBG(SCTP_DEBUG_PCB1, "retval:%p inp:%p\n", (void *)retval, (void *)inp);
 	if (retval == NULL && inp) {
 		/* Found a EP but not this address */
 		if ((ch->chunk_type == SCTP_INITIATION) ||
@@ -2209,7 +2207,7 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 			}
 		}
 	}
-	SCTPDBG(SCTP_DEBUG_PCB1, "retval is %p\n", retval);
+	SCTPDBG(SCTP_DEBUG_PCB1, "retval is %p\n", (void *)retval);
 	return (retval);
 }
 
@@ -2310,10 +2308,9 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 	if (zero_address) {
 		stcb = sctp_findassoc_by_vtag(NULL, dst, ntohl(sh->v_tag), inp_p,
 		    netp, sh->src_port, sh->dest_port, 1, vrf_id, 0);
-		/*
-		 * SCTP_PRINTF("findassociation_ep_asconf: zero lookup
-		 * address finds stcb 0x%x\n", (uint32_t)stcb);
-		 */
+		if (stcb != NULL) {
+			SCTP_INP_DECR_REF(*inp_p);
+		}
 	} else {
 		stcb = sctp_findassociation_ep_addr(inp_p,
 		    (struct sockaddr *)&remote_store, netp,
@@ -3103,7 +3100,7 @@ continue_anyway:
 	/* put it in the bucket */
 	LIST_INSERT_HEAD(head, inp, sctp_hash);
 	SCTPDBG(SCTP_DEBUG_PCB1, "Main hash to bind at head:%p, bound port:%d - in tcp_pool=%d\n",
-	    head, ntohs(lport), port_reuse_active);
+	    (void *)head, ntohs(lport), port_reuse_active);
 	/* set in the port */
 	inp->sctp_lport = lport;
 
@@ -3371,7 +3368,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 					    sctp_streamhead);
 					if (sp == NULL) {
 						SCTP_PRINTF("Error, sp is NULL, locked on sending is %p strm:%d\n",
-						    asoc->asoc.locked_on_sending,
+						    (void *)asoc->asoc.locked_on_sending,
 						    asoc->asoc.locked_on_sending->stream_no);
 					} else {
 						if ((sp->length == 0) && (sp->msg_is_complete == 0))
@@ -4344,7 +4341,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		LIST_INSERT_HEAD(head, stcb, sctp_tcbhash);
 	}
 	SCTP_INP_WUNLOCK(inp);
-	SCTPDBG(SCTP_DEBUG_PCB1, "Association %p now allocated\n", stcb);
+	SCTPDBG(SCTP_DEBUG_PCB1, "Association %p now allocated\n", (void *)stcb);
 	return (stcb);
 }
 

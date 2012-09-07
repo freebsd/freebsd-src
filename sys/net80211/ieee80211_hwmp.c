@@ -840,7 +840,7 @@ hwmp_rootmode_cb(void *arg)
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, vap->iv_bss,
 	    "%s", "send broadcast PREQ");
 
-	preq.preq_flags = IEEE80211_MESHPREQ_FLAGS_AM;
+	preq.preq_flags = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_GATE)
 		preq.preq_flags |= IEEE80211_MESHPREQ_FLAGS_GATE;
 	if (hs->hs_rootmode == IEEE80211_HWMP_ROOTMODE_PROACTIVE)
@@ -912,6 +912,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
 	struct ieee80211_meshprep_ie prep;
 	ieee80211_hwmp_seq preqid;	/* last seen preqid for orig */
+	uint32_t metric = 0;
 
 	if (ni == vap->iv_bss ||
 	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
@@ -951,7 +952,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		hrtarg = IEEE80211_MESH_ROUTE_PRIV(rttarg,
 		    struct ieee80211_hwmp_route);
 	/* Address mode: ucast */
-	if((preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_AM) == 0 &&
+	if(preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_AM &&
 	    rttarg == NULL &&
 	    !IEEE80211_ADDR_EQ(vap->iv_myaddr, PREQ_TADDR(0))) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_HWMP,
@@ -985,13 +986,13 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	/* Data creation and update of forwarding information
 	 * according to Table 11C-8 for originator mesh STA.
 	 */
+	metric = preq->preq_metric + ms->ms_pmetric->mpm_metric(ni);
 	if (HWMP_SEQ_GT(preq->preq_origseq, hrorig->hr_seq) ||
 	    (HWMP_SEQ_EQ(preq->preq_origseq, hrorig->hr_seq) &&
-	    preq->preq_metric < rtorig->rt_metric)) {
+	    metric < rtorig->rt_metric)) {
 		hrorig->hr_seq = preq->preq_origseq;
 		IEEE80211_ADDR_COPY(rtorig->rt_nexthop, wh->i_addr2);
-		rtorig->rt_metric = preq->preq_metric +
-			ms->ms_pmetric->mpm_metric(ni);
+		rtorig->rt_metric = metric;
 		rtorig->rt_nhops  = preq->preq_hopcount + 1;
 		ieee80211_mesh_rt_update(rtorig, preq->preq_lifetime);
 		/* path to orig is valid now */
@@ -1029,6 +1030,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		hs->hs_seq = HWMP_SEQ_MAX(hs->hs_seq, PREQ_TSEQ(0)) + 1;
 
 		prep.prep_flags = 0;
+		prep.prep_hopcount = 0;
+		IEEE80211_ADDR_COPY(prep.prep_targetaddr, vap->iv_myaddr);
 		if (rttarg != NULL && /* if NULL it means we are the target */
 		    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY) {
 			IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
@@ -1038,13 +1041,13 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			    rttarg->rt_dest);
 			/* update proxy seqno to HWMP seqno */
 			rttarg->rt_ext_seq = hs->hs_seq;
+			prep.prep_hopcount = rttarg->rt_nhops;
+			IEEE80211_ADDR_COPY(prep.prep_targetaddr, rttarg->rt_mesh_gate);
 		}
 		/*
 		 * Build and send a PREP frame.
 		 */
-		prep.prep_hopcount = 0;
 		prep.prep_ttl = ms->ms_ttl;
-		IEEE80211_ADDR_COPY(prep.prep_targetaddr, vap->iv_myaddr);
 		prep.prep_targetseq = hs->hs_seq;
 		prep.prep_lifetime = preq->preq_lifetime;
 		prep.prep_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
@@ -1286,7 +1289,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 			    "discard PREP from %6D, new metric %u > %u",
 			    prep->prep_targetaddr, ":",
-			    prep->prep_metric, rt->rt_metric);
+			    metric, rt->rt_metric);
 			return;
 		}
 	}
@@ -1296,7 +1299,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID ?
 	    "prefer" : "update",
 	    prep->prep_targetaddr, ":",
-	    rt->rt_nhops, prep->prep_hopcount,
+	    rt->rt_nhops, prep->prep_hopcount + 1,
 	    rt->rt_metric, metric);
 
 	hr->hr_seq = prep->prep_targetseq;
@@ -1368,7 +1371,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		    rtext->rt_flags & IEEE80211_MESHRT_FLAGS_VALID ?
 		    "prefer" : "update",
 		    prep->prep_target_ext_addr, ":",
-		    rtext->rt_nhops, prep->prep_hopcount,
+		    rtext->rt_nhops, prep->prep_hopcount + 1,
 		    rtext->rt_metric, metric);
 
 		rtext->rt_flags = IEEE80211_MESHRT_FLAGS_PROXY |

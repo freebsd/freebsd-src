@@ -80,10 +80,6 @@
 #error unsupported platform
 #endif
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_NETMAP);
-#endif
-
 #define ND(format, ...)
 #define D(format, ...)						\
 	do {							\
@@ -148,8 +144,8 @@ struct netmap_adapter {
 	int separate_locks; /* set if the interface suports different
 			       locks for rx, tx and core. */
 
-	u_int num_rx_rings; /* number of tx/rx ring pairs */
-	u_int num_tx_rings; // if nonzero, overrides num_rx_rings
+	u_int num_rx_rings; /* number of adapter receive rings */
+	u_int num_tx_rings; /* number of adapter transmit rings */
 
 	u_int num_tx_desc; /* number of descriptor in each queue */
 	u_int num_rx_desc;
@@ -245,7 +241,7 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
 int netmap_ring_reinit(struct netmap_kring *);
 
-extern int netmap_buf_size;
+extern u_int netmap_buf_size;
 #define NETMAP_BUF_SIZE	netmap_buf_size
 extern int netmap_mitigate;
 extern int netmap_no_pendintr;

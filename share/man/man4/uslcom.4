@@ -16,12 +16,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2012
+.Dd August 4, 2012
 .Dt USLCOM 4
 .Os
 .Sh NAME
 .Nm uslcom
-.Nd Silicon Laboratories CP2101/CP2102/CP2103/CP2104 based USB serial adapter
+.Nd Silicon Laboratories CP2101/CP2102/CP2103/CP2104/CP2105 based USB serial adapter
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -41,7 +41,7 @@ uslcom_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver supports Silicon Laboratories CP2101/CP2102/CP2103/CP2104
+driver supports Silicon Laboratories CP2101/CP2102/CP2103/CP2104/CP2105
 based USB serial adapters.
 .Sh HARDWARE
 The following devices should work with the
@@ -155,7 +155,7 @@ Renesas RX-Stick for RX610
 .It
 Siemens MC60 Cable
 .It
-Silicon Laboratories generic CP2101/CP2102/CP2103/CP2104 chips
+Silicon Laboratories generic CP2101/CP2102/CP2103/CP2104/CP2105 chips
 .It
 Software Bisque Paramount ME
 .It
@@ -210,6 +210,3 @@ The
 .Nm
 driver was written by
 .An Jonathan Gray Aq jsg@openbsd.org .
-.Sh CAVEATS
-On devices with multiple ports attached to a single chip,
-only the first port is currently supported.

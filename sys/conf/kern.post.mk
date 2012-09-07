@@ -121,7 +121,7 @@ gdbinit:
 .endif
 .endif
 
-${FULLKERNEL}: ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -133,7 +133,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 .if defined(MFS_IMAGE)
-	@sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
+	sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
 .endif
 
 .if !exists(${.OBJDIR}/.depend)

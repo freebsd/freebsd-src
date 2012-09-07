@@ -72,11 +72,13 @@ SUBDIR=	\
 	${_coff} \
 	${_coretemp} \
 	${_cp} \
+	${_cpsw} \
 	${_cpuctl} \
 	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
 	${_cs} \
+	${_ct} \
 	${_ctau} \
 	${_cxgb} \
 	cxgbe \
@@ -606,6 +608,7 @@ _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
+_ct=		ct
 _pmc=		pmc
 _snc=		snc
 .endif
@@ -735,6 +738,7 @@ _zfs=		zfs
 
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
+_cpsw=		cpsw
 .endif
 
 .if ${MACHINE_CPUARCH} == "ia64"

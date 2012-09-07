@@ -269,7 +269,11 @@ threadinit(void)
 {
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
-	/* leave one number for thread0 */
+
+	/*
+	 * pid_max cannot be greater than PID_MAX.
+	 * leave one number for thread0.
+	 */
 	tid_unrhdr = new_unrhdr(PID_MAX + 2, INT_MAX, &tid_lock);
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
@@ -714,7 +718,7 @@ stopme:
 		/*
 		 * We have gotten rid of all the other threads and we
 		 * are about to either exit or exec. In either case,
-		 * we try our utmost  to revert to being a non-threaded
+		 * we try our utmost to revert to being a non-threaded
 		 * process.
 		 */
 		p->p_singlethread = NULL;

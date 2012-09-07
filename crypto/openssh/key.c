@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.97 2011/05/17 07:13:31 djm Exp $ */
+/* $OpenBSD: key.c,v 1.99 2012/05/23 03:28:28 djm Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -342,6 +342,11 @@ key_fingerprint_raw(Key *k, enum fp_type dgst_type, u_int *dgst_raw_length)
 	case SSH_FP_SHA1:
 		md = EVP_sha1();
 		break;
+#ifdef HAVE_EVP_SHA256
+	case SSH_FP_SHA256:
+		md = EVP_sha256();
+		break;
+#endif
 	default:
 		fatal("key_fingerprint_raw: bad digest type %d",
 		    dgst_type);
@@ -1353,11 +1358,6 @@ cert_parse(Buffer *b, Key *key, const u_char *blob, u_int blen)
 	    buffer_get_string_ptr_ret(b, NULL) == NULL || /* reserved */
 	    (sig_key = buffer_get_string_ret(b, &sklen)) == NULL) {
 		error("%s: parse error", __func__);
-		goto out;
-	}
-
-	if (kidlen != strlen(key->cert->key_id)) {
-		error("%s: key ID contains \\0 character", __func__);
 		goto out;
 	}
 

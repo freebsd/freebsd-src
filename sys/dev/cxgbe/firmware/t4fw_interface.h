@@ -7413,7 +7413,7 @@ enum fw_hdr_chip {
 #define G_FW_HDR_FW_VER_BUILD(x) \
     (((x) >> S_FW_HDR_FW_VER_BUILD) & M_FW_HDR_FW_VER_BUILD)
 
-enum fw_hdr_intfver {
+enum {
 	FW_HDR_INTFVER_NIC	= 0x00,
 	FW_HDR_INTFVER_VNIC	= 0x00,
 	FW_HDR_INTFVER_OFLD	= 0x00,

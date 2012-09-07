@@ -167,10 +167,10 @@ act_open_rpl_status_to_errno(int status)
 	case CPL_ERR_CONN_TIMEDOUT:
 		return (ETIMEDOUT);
 	case CPL_ERR_TCAM_FULL:
-		return (ENOMEM);
+		return (EAGAIN);
 	case CPL_ERR_CONN_EXIST:
 		log(LOG_ERR, "ACTIVE_OPEN_RPL: 4-tuple in use\n");
-		return (EADDRINUSE);
+		return (EAGAIN);
 	default:
 		return (EIO);
 	}
@@ -186,8 +186,8 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	unsigned int status = G_AOPEN_STATUS(be32toh(cpl->atid_status));
 	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
-	struct tcpcb *tp = intotcpcb(inp);
 	struct toedev *tod = &toep->td->tod;
+	int rc;
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == atid, ("%s: toep tid/atid mismatch", __func__));
@@ -204,17 +204,14 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	if (status && act_open_has_tid(status))
 		release_tid(sc, GET_TID(cpl), toep->ctrlq);
 
-	if (status == CPL_ERR_TCAM_FULL) {
-		INP_WLOCK(inp);
-		toe_connect_failed(tod, tp, EAGAIN);
-		final_cpl_received(toep);	/* unlocks inp */
-	} else {
+	rc = act_open_rpl_status_to_errno(status);
+	if (rc != EAGAIN)
 		INP_INFO_WLOCK(&V_tcbinfo);
-		INP_WLOCK(inp);
-		toe_connect_failed(tod, tp, act_open_rpl_status_to_errno(status));
-		final_cpl_received(toep);	/* unlocks inp */
+	INP_WLOCK(inp);
+	toe_connect_failed(tod, inp, rc);
+	final_cpl_received(toep);	/* unlocks inp */
+	if (rc != EAGAIN)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-	}
 
 	return (0);
 }
@@ -247,9 +244,13 @@ calc_opt2a(struct socket *so)
 	opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
 	opt2 |= F_RSS_QUEUE_VALID | V_RSS_QUEUE(toep->ofld_rxq->iq.abs_id);
 
+#ifdef USE_DDP_RX_FLOW_CONTROL
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		opt2 |= F_RX_FC_VALID | F_RX_FC_DDP;
+#endif
+
 	return (htobe32(opt2));
 }
-
 
 void
 t4_init_connect_cpl_handlers(struct adapter *sc)
@@ -320,7 +321,10 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 
 	toep->tid = atid;
 	toep->l2te = e;
-	toep->ulp_mode = ULP_MODE_NONE;
+	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0)
+		set_tcpddp_ulp_mode(toep);
+	else
+		toep->ulp_mode = ULP_MODE_NONE;
 	SOCKBUF_LOCK(&so->so_rcv);
 	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
 	toep->rx_credits = min(select_rcv_wnd(so) >> 10, M_RCV_BUFSIZ);
@@ -354,7 +358,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 
 	rc = t4_l2t_send(sc, wr, e);
 	if (rc == 0) {
-		toepcb_set_flag(toep, TPF_CPL_PENDING);
+		toep->flags |= TPF_CPL_PENDING;
 		return (0);
 	}
 

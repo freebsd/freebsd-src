@@ -49,6 +49,7 @@ uint32_t version = G_MULTIPATH_VERSION;
 static void mp_main(struct gctl_req *, unsigned int);
 static void mp_label(struct gctl_req *);
 static void mp_clear(struct gctl_req *);
+static void mp_prefer(struct gctl_req *);
 
 struct g_command class_commands[] = {
 	{
@@ -85,6 +86,10 @@ struct g_command class_commands[] = {
 	{
 		"remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 		"[-v] name prov"
+	},
+	{
+		"prefer", G_FLAG_VERBOSE, mp_main, G_NULL_OPTS,
+		"[-v] prov ..."
 	},
 	{
 		"fail", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
@@ -131,6 +136,8 @@ mp_main(struct gctl_req *req, unsigned int flags __unused)
 		mp_label(req);
 	} else if (strcmp(name, "clear") == 0) {
 		mp_clear(req);
+	} else if (strcmp(name, "prefer") == 0) {
+		mp_prefer(req);
 	} else {
 		gctl_error(req, "Unknown command: %s.", name);
 	}
@@ -294,3 +301,22 @@ mp_clear(struct gctl_req *req)
 	}
 }
 
+static void
+mp_prefer(struct gctl_req *req)
+{
+	const char *name, *comp, *errstr;
+	int nargs;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 2) {
+		gctl_error(req, "Usage: prefer GEOM PROVIDER");
+		return;
+	}
+	name = gctl_get_ascii(req, "arg0");
+	comp = gctl_get_ascii(req, "arg1");
+	errstr = gctl_issue (req);
+	if (errstr != NULL) {
+		fprintf(stderr, "Can't set %s preferred provider to %s: %s.\n",
+		    name, comp, errstr);
+	}
+}

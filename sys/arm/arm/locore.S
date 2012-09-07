@@ -1,6 +1,7 @@
 /*	$NetBSD: locore.S,v 1.14 2003/04/20 16:21:40 thorpej Exp $	*/
 
 /*-
+ * Copyright 2011 Semihalf
  * Copyright (C) 1994-1997 Mark Brinicombe
  * Copyright (C) 1994 Brini
  * All rights reserved.
@@ -41,7 +42,7 @@
 __FBSDID("$FreeBSD$");
 
 /* What size should this really be ? It is only used by initarm() */
-#define INIT_ARM_STACK_SIZE	2048
+#define INIT_ARM_STACK_SIZE	(2048 * 4)
 
 #define	CPWAIT_BRANCH							 \
 	sub	pc, pc, #4
@@ -161,15 +162,26 @@ Lunmapped:
 	orrne	r5, r5, #PHYSADDR
 	movne	pc, r5
 
+#if defined(SMP)
+	orr 	r0, r0, #2		/* Set TTB shared memory flag */
+#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
+
+#if defined(CPU_ARM11) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+	mov	r0, #0
+	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
+#endif
 
 	/* Set the Domain Access register.  Very important! */
 	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-	orr	r0, r0, #CPU_CONTROL_MMU_ENABLE
+#if defined(CPU_ARM11) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+#endif
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop
@@ -225,13 +237,23 @@ Lend:
 	.word	_edata
 Lstartup_pagetable:
 	.word	STARTUP_PAGETABLE_ADDR
+#ifdef SMP
+Lstartup_pagetable_secondary:
+	.word	temp_pagetable
+#endif
 mmu_init_table:
 	/* fill all table VA==PA */
 	/* map SDRAM VA==PA, WT cacheable */
+#if !defined(SMP)
 	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-
+#else
+	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
+	/* map VA 0xc0000000..0xc3ffffff to PA */
+	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
+	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
+#endif
 	.word 0	/* end of table */
 #endif
 .Lstart:
@@ -241,6 +263,11 @@ mmu_init_table:
 
 .Lvirt_done:
 	.word	virt_done
+#if defined(SMP)
+.Lmpvirt_done:
+	.word	mpvirt_done
+#endif
+
 .Lmainreturned:
 	.asciz	"main() returned"
 	.align	0
@@ -254,6 +281,133 @@ svcstk:
 
 .Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
+
+#if defined(SMP)
+Lsramaddr:
+	.word	0xffff0080
+
+#if 0
+#define	AP_DEBUG(tmp)			\
+	mrc	p15, 0, r1, c0, c0, 5;	\
+	ldr	r0, Lsramaddr;		\
+	add	r0, r1, lsl #2;		\
+	mov	r1, tmp;		\
+	str	r1, [r0], #0x0000;
+#else
+#define AP_DEBUG(tmp)
+#endif
+
+
+ASENTRY_NP(mptramp)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c7, 0
+
+	AP_DEBUG(#1)
+
+	mrs	r3, cpsr_all
+	bic	r3, r3, #(PSR_MODE)
+	orr	r3, r3, #(PSR_SVC32_MODE)
+        msr	cpsr_all, r3
+
+	mrc	p15, 0, r0, c0, c0, 5
+	and	r0, #0x0f		/* Get CPU ID */
+
+	/* Read boot address for CPU */
+	mov	r1, #0x100
+	mul	r2, r0, r1
+	ldr	r1, Lpmureg
+	add	r0, r2, r1
+	ldr	r1, [r0], #0x00
+
+	mov pc, r1
+
+Lpmureg:
+        .word   0xd0022124
+
+ASENTRY_NP(mpentry)
+
+	AP_DEBUG(#2)
+
+	/* Make sure interrupts are disabled. */
+	mrs	r7, cpsr
+	orr	r7, r7, #(I32_bit|F32_bit)
+	msr	cpsr_c, r7
+
+
+	adr     r7, Ltag
+	bic     r7, r7, #0xf0000000
+	orr     r7, r7, #PHYSADDR
+			
+	/* Disable MMU for a while */
+	mrc	p15, 0, r2, c1, c0, 0
+	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
+	    CPU_CONTROL_WBUF_ENABLE)
+	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
+	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
+	mcr	p15, 0, r2, c1, c0, 0
+
+	nop
+	nop
+	nop
+
+	AP_DEBUG(#3)
+
+Ltag:
+	ldr	r0, Lstartup_pagetable_secondary
+	bic	r0, r0, #0xf0000000
+	orr	r0, r0, #PHYSADDR
+	ldr	r0, [r0]
+#if defined(SMP)
+	orr 	r0, r0, #0		/* Set TTB shared memory flag */
+#endif
+	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
+	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
+
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+	mov	r0, #0
+	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
+#endif
+
+	AP_DEBUG(#4)
+
+	/* Set the Domain Access register.  Very important! */
+	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mcr	p15, 0, r0, c3, c0, 0
+	/* Enable MMU */
+	mrc	p15, 0, r0, c1, c0, 0
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+#endif
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
+	mcr	p15, 0, r0, c1, c0, 0
+	nop
+	nop
+	nop
+	CPWAIT(r0)
+
+	adr	r1, .Lstart
+	ldmia	r1, {r1, r2, sp}	/* Set initial stack and */
+	mrc	p15, 0, r0, c0, c0, 5
+	and	r0, r0, #15
+	mov	r1, #2048
+	mul	r2, r1, r0
+	sub	sp, sp, r2
+	str	r1, [sp]
+	ldr	pc, .Lmpvirt_done
+
+mpvirt_done:
+
+	mov	fp, #0			/* trace back starts here */
+	bl	_C_LABEL(init_secondary)	/* Off we go */
+
+	adr	r0, .Lmpreturned
+	b	_C_LABEL(panic)
+	/* NOTREACHED */
+
+.Lmpreturned:
+	.asciz	"main() returned"
+	.align	0
+#endif
 
 ENTRY_NP(cpu_halt)
 	mrs     r2, cpsr

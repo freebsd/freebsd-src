@@ -34,99 +34,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef	__NetBSD__
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/device.h>
-#include <sys/errno.h>
-
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/isa/isareg.h>
-#include <dev/isa/isavar.h>
-
-#include <dev/isa/pisaif.h>
-
-#include <machine/dvcfg.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-#include <i386/Cbus/dev/scsi_low_pisa.h>
-
-#define	SCSIBUS_RESCAN
-
-int
-scsi_low_deactivate_pisa(dh)
-	pisa_device_handle_t dh;
-{
-	struct scsi_low_softc *sc = PISA_DEV_SOFTC(dh);
-
-	if (scsi_low_deactivate(sc) != 0)
-		return EBUSY;
-	return 0;
-}
-
-int
-scsi_low_activate_pisa(dh)
-	pisa_device_handle_t dh;
-{
-	struct scsi_low_softc *sc = PISA_DEV_SOFTC(dh);
-	slot_device_res_t dr = PISA_RES_DR(dh);
-
-	sc->sl_cfgflags = DVCFG_MKCFG(DVCFG_MAJOR(sc->sl_cfgflags), \
-				      DVCFG_MINOR(PISA_DR_DVCFG(dr)));
-	sc->sl_irq = PISA_DR_IRQ(dr);
-
-	if (scsi_low_activate(sc) != 0)
-		return EBUSY;
-
-	/* rescan the scsi bus */
-#ifdef	SCSIBUS_RESCAN
-	if (scsi_low_is_busy(sc) == 0 &&
-	    PISA_RES_EVENT(dh) == PISA_EVENT_INSERT)
-		scsi_probe_busses((int) sc->sl_si.si_splp->scsipi_scsi.scsibus,
-				  -1, -1);
-#endif
-	return 0;
-}
-
-int
-scsi_low_notify_pisa(dh, ev)
-	pisa_device_handle_t dh;
-	pisa_event_t ev;
-{
-	struct scsi_low_softc *sc = PISA_DEV_SOFTC(dh);
-
-	switch(ev)
-	{
-	case PISA_EVENT_QUERY_SUSPEND:
-		if (scsi_low_is_busy(sc) != 0)
-			return SD_EVENT_STATUS_BUSY;
-		break;
-
-	default:
-		break;
-	}
-	return 0;
-}
-#endif	/* __NetBSD__ */
-
-#ifdef	__FreeBSD__ 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#if __FreeBSD_version >= 500001
 #include <sys/bio.h>
-#endif
 #include <sys/buf.h>
 #include <sys/queue.h>
-#include <sys/device_port.h>
+#include <sys/bus.h>
 #include <sys/module.h>
 
 #include <cam/scsi/scsi_low.h>
@@ -165,4 +79,3 @@ static moduledata_t scsi_low_moduledata = {
 DECLARE_MODULE(scsi_low, scsi_low_moduledata, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_VERSION(scsi_low, 1);
 MODULE_DEPEND(scsi_low, cam, 1, 1, 1);
-#endif	/* __FreeBSD__ */

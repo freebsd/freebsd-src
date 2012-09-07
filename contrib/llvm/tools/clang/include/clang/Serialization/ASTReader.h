@@ -199,6 +199,8 @@ class ASTReader
     public ExternalSLocEntrySource
 {
 public:
+  typedef SmallVector<uint64_t, 64> RecordData;
+
   enum ASTReadResult { Success, Failure, IgnorePCH };
   /// \brief Types of AST files.
   friend class PCHValidator;
@@ -454,7 +456,7 @@ private:
   /// consumer eagerly.
   SmallVector<uint64_t, 16> ExternalDefinitions;
 
-  /// \brief The IDs of all tentative definitions stored in the the chain.
+  /// \brief The IDs of all tentative definitions stored in the chain.
   ///
   /// Sema keeps track of all tentative definitions in a TU because it has to
   /// complete them and pass them on to CodeGen. Thus, tentative definitions in
@@ -591,11 +593,14 @@ private:
   /// indicates how many separate module file load operations have occurred.
   unsigned CurrentGeneration;
 
+  typedef llvm::DenseMap<unsigned, SwitchCase *> SwitchCaseMapTy;
   /// \brief Mapping from switch-case IDs in the chain to switch-case statements
   ///
   /// Statements usually don't have IDs, but switch cases need them, so that the
   /// switch statement can refer to them.
-  std::map<unsigned, SwitchCase *> SwitchCaseStmts;
+  SwitchCaseMapTy SwitchCaseStmts;
+
+  SwitchCaseMapTy *CurrSwitchCaseStmts;
 
   /// \brief The number of stat() calls that hit/missed the stat
   /// cache.
@@ -798,7 +803,7 @@ private:
   llvm::BitstreamCursor &SLocCursorForID(int ID);
   SourceLocation getImportLocation(ModuleFile *F);
   ASTReadResult ReadSubmoduleBlock(ModuleFile &F);
-  bool ParseLanguageOptions(const SmallVectorImpl<uint64_t> &Record);
+  bool ParseLanguageOptions(const RecordData &Record);
   
   struct RecordLocation {
     RecordLocation(ModuleFile *M, uint64_t O)
@@ -821,19 +826,19 @@ private:
   RecordLocation getLocalBitOffset(uint64_t GlobalOffset);
   uint64_t getGlobalBitOffset(ModuleFile &M, uint32_t LocalOffset);
 
-  /// \brief Returns the first preprocessed entity ID that ends after \arg BLoc.
+  /// \brief Returns the first preprocessed entity ID that ends after BLoc.
   serialization::PreprocessedEntityID
     findBeginPreprocessedEntity(SourceLocation BLoc) const;
 
-  /// \brief Returns the first preprocessed entity ID that begins after \arg
-  /// ELoc.
+  /// \brief Returns the first preprocessed entity ID that begins after ELoc.
   serialization::PreprocessedEntityID
     findEndPreprocessedEntity(SourceLocation ELoc) const;
 
-  /// \brief \arg SLocMapI points at a chunk of a module that contains no
-  /// preprocessed entities or the entities it contains are not the ones we are
-  /// looking for. Find the next module that contains entities and return the ID
+  /// \brief Find the next module that contains entities and return the ID
   /// of the first entry.
+  /// \arg SLocMapI points at a chunk of a module that contains no
+  /// preprocessed entities or the entities it contains are not the
+  /// ones we are looking for.
   serialization::PreprocessedEntityID
     findNextPreprocessedEntity(
                         GlobalSLocOffsetMapType::const_iterator SLocMapI) const;
@@ -859,8 +864,6 @@ private:
   ASTReader(const ASTReader&); // do not implement
   ASTReader &operator=(const ASTReader &); // do not implement
 public:
-  typedef SmallVector<uint64_t, 64> RecordData;
-
   /// \brief Load the AST file and validate its contents against the given
   /// Preprocessor.
   ///
@@ -907,8 +910,8 @@ public:
   ///
   /// \param Mod The module whose names should be made visible.
   ///
-  /// \param Visibility The level of visibility to give the names in the module.
-  /// Visibility can only be increased over time.
+  /// \param NameVisibility The level of visibility to give the names in the
+  /// module.  Visibility can only be increased over time.
   void makeModuleVisible(Module *Mod, 
                          Module::NameVisibilityKind NameVisibility);
   
@@ -1498,6 +1501,13 @@ public:
   SwitchCase *getSwitchCaseWithID(unsigned ID);
 
   void ClearSwitchCaseIDs();
+
+  /// \brief Cursors for comments blocks.
+  SmallVector<std::pair<llvm::BitstreamCursor,
+                        serialization::ModuleFile *>, 8> CommentsCursors;
+
+  /// \brief Loads comments ranges.
+  void ReadComments();
 };
 
 /// \brief Helper class that saves the current stream position and

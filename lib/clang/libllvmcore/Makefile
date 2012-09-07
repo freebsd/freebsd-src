@@ -10,6 +10,8 @@ SRCS=	AsmWriter.cpp \
 	ConstantFold.cpp \
 	Constants.cpp \
 	Core.cpp \
+	DIBuilder.cpp \
+	DebugInfo.cpp \
 	DebugLoc.cpp \
 	Dominators.cpp \
 	Function.cpp \
@@ -30,6 +32,7 @@ SRCS=	AsmWriter.cpp \
 	PassRegistry.cpp \
 	PrintModulePass.cpp \
 	Type.cpp \
+	TypeFinder.cpp \
 	Use.cpp \
 	User.cpp \
 	Value.cpp \

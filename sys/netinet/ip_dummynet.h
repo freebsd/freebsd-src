@@ -171,8 +171,8 @@ struct dn_flow {
 	struct ipfw_flow_id fid;
 	uint64_t	tot_pkts; /* statistics counters  */
 	uint64_t	tot_bytes;
-	uint32_t	length; /* Queue lenght, in packets */
-	uint32_t	len_bytes; /* Queue lenght, in bytes */
+	uint32_t	length; /* Queue length, in packets */
+	uint32_t	len_bytes; /* Queue length, in bytes */
 	uint32_t	drops;
 };
 

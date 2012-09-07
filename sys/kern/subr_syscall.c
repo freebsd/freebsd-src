@@ -188,6 +188,9 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 	KASSERT((td->td_pflags & TDP_NOSLEEPING) == 0,
 	    ("System call %s returning with sleep disabled",
 	     syscallname(p, sa->code)));
+	KASSERT(td->td_pinned == 0,
+	    ("System call %s returning with pinned thread",
+	     syscallname(p, sa->code)));
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues

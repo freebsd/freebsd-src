@@ -357,10 +357,11 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d\n",
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, axq_fifo_depth=%d\n",
 			    i,
 			    sc->sc_txq[i].axq_depth,
-			    sc->sc_txq[i].axq_aggr_depth);
+			    sc->sc_txq[i].axq_aggr_depth,
+			    sc->sc_txq[i].axq_fifo_depth);
 		}
 	}
 

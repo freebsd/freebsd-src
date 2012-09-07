@@ -135,9 +135,11 @@ vm_offset_t vm_max_kernel_address;
 struct pmap kernel_pmap_store;
 
 /*
- * Global tte list lock
+ * Isolate the global TTE list lock from data and other locks to prevent
+ * false sharing within the cache (see also the declaration of struct
+ * tte_list_lock).
  */
-struct rwlock tte_list_global_lock;
+struct tte_list_lock tte_list_global __aligned(CACHE_LINE_SIZE);
 
 /*
  * Allocate physical memory for use in pmap_bootstrap.
@@ -672,7 +674,7 @@ pmap_bootstrap(u_int cpu_impl)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
 	CPU_FILL(&pm->pm_active);
 
- 	/*
+	/*
 	 * Initialize the global tte list lock, which is more commonly
 	 * known as the pmap pv global lock.
 	 */

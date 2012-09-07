@@ -231,6 +231,7 @@ struct ath_rateioctl {
 	caddr_t			buf;
 };
 #define	SIOCGATHNODERATESTATS	_IOWR('i', 149, struct ath_rateioctl)
+#define	SIOCGATHRATESTATS	_IOWR('i', 150, struct ath_rateioctl)
 
 /*
  * Radio capture format.

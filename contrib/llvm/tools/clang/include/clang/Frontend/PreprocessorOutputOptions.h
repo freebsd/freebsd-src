@@ -18,9 +18,10 @@ class PreprocessorOutputOptions {
 public:
   unsigned ShowCPP : 1;            ///< Print normal preprocessed output.
   unsigned ShowComments : 1;       ///< Show comments.
-  unsigned ShowLineMarkers : 1;    ///< Show #line markers.
+  unsigned ShowLineMarkers : 1;    ///< Show \#line markers.
   unsigned ShowMacroComments : 1;  ///< Show comments, even in macros.
   unsigned ShowMacros : 1;         ///< Print macro definitions.
+  unsigned RewriteIncludes : 1;    ///< Preprocess include directives only.
 
 public:
   PreprocessorOutputOptions() {
@@ -29,6 +30,7 @@ public:
     ShowLineMarkers = 1;
     ShowMacroComments = 0;
     ShowMacros = 0;
+    RewriteIncludes = 0;
   }
 };
 

@@ -44,6 +44,8 @@ def FeatureN64         : SubtargetFeature<"n64", "MipsABI", "N64",
                                 "Enable n64 ABI">;
 def FeatureEABI        : SubtargetFeature<"eabi", "MipsABI", "EABI",
                                 "Enable eabi ABI">;
+def FeatureAndroid     : SubtargetFeature<"android", "IsAndroid", "true",
+                                "Target is android">;
 def FeatureVFPU        : SubtargetFeature<"vfpu", "HasVFPU",
                                 "true", "Enable vector FPU instructions.">;
 def FeatureSEInReg     : SubtargetFeature<"seinreg", "HasSEInReg", "true",
@@ -72,6 +74,9 @@ def FeatureMips64r2    : SubtargetFeature<"mips64r2", "MipsArchVersion",
                                 "Mips64r2", "Mips64r2 ISA Support",
                                 [FeatureMips64, FeatureMips32r2]>;
 
+def FeatureMips16  : SubtargetFeature<"mips16", "InMips16Mode", "true",
+                                      "Mips16 mode">;
+
 //===----------------------------------------------------------------------===//
 // Mips processors supported.
 //===----------------------------------------------------------------------===//
@@ -83,6 +88,7 @@ def : Proc<"mips32", [FeatureMips32]>;
 def : Proc<"mips32r2", [FeatureMips32r2]>;
 def : Proc<"mips64", [FeatureMips64]>;
 def : Proc<"mips64r2", [FeatureMips64r2]>;
+def : Proc<"mips16", [FeatureMips16]>;
 
 def MipsAsmWriter : AsmWriter {
   string AsmWriterClassName  = "InstPrinter";

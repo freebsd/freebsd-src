@@ -65,6 +65,10 @@ ENTRY(cpufunc_id)
 	mrc	p15, 0, r0, c0, c0, 0
 	RET
 
+ENTRY(cpufunc_cpuid)
+	mrc	p15, 0, r0, c0, c0, 0
+	RET
+
 ENTRY(cpu_get_control)
 	mrc	p15, 0, r0, c1, c0, 0
 	RET

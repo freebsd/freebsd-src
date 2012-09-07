@@ -443,21 +443,30 @@ ifc_alloc_unit(struct if_clone *ifc, int *unit)
 
 	wildcard = (*unit < 0);
 retry:
-	if (wildcard) {
+	if (*unit > ifc->ifc_maxunit)
+		return (ENOSPC);
+	if (*unit < 0) {
 		*unit = alloc_unr(ifc->ifc_unrhdr);
 		if (*unit == -1)
 			return (ENOSPC);
 	} else {
 		*unit = alloc_unr_specific(ifc->ifc_unrhdr, *unit);
-		if (*unit == -1)
-			return (EEXIST);
+		if (*unit == -1) {
+			if (wildcard) {
+				(*unit)++;
+				goto retry;
+			} else
+				return (EEXIST);
+		}
 	}
 
 	snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, *unit);
 	if (ifunit(name) != NULL) {
-		if (wildcard)
-			goto retry;	/* XXXGL: yep, it's a unit leak */
-		else
+		free_unr(ifc->ifc_unrhdr, *unit);
+		if (wildcard) {
+			(*unit)++;
+			goto retry;
+		} else
 			return (EEXIST);
 	}
 

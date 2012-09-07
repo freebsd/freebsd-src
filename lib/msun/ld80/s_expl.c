@@ -88,7 +88,7 @@ P6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
  * the first 47 (?!) bits of the significand is stored in hi and the next 53
  * bits are in lo.
  */
-#define	INTERVALS		128
+#define	INTERVALS	128
 
 static const struct {
 	double	hi;

@@ -114,18 +114,15 @@ AcpiHwClearAcpiStatus (
  */
 ACPI_STATUS
 AcpiHwLegacySleep (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_STATUS
 AcpiHwLegacyWakePrep (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_STATUS
 AcpiHwLegacyWake (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 
 /*
@@ -138,18 +135,15 @@ AcpiHwExecuteSleepMethod (
 
 ACPI_STATUS
 AcpiHwExtendedSleep (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_STATUS
 AcpiHwExtendedWakePrep (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_STATUS
 AcpiHwExtendedWake (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 
 /*
@@ -173,8 +167,7 @@ AcpiHwWritePort (
  */
 UINT32
 AcpiHwGetGpeRegisterBit (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo);
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 ACPI_STATUS
 AcpiHwLowSetGpe (

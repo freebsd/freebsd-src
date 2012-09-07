@@ -315,10 +315,7 @@ recalculate:
 			 * restoring disrtcset, since we don't clean up
 			 * anything.
 			 */
-			if (gettimeofday(&tv, (struct timezone *)NULL)) {
-				syslog(LOG_ERR, "gettimeofday: %m");
-				return 1;
-			}
+			(void)gettimeofday(&tv, NULL);
 			tv.tv_sec += diff;
 			stv = &tv;
 		}

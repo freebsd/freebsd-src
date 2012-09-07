@@ -546,12 +546,16 @@ ar5210IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *ds)
 
 HAL_BOOL
 ar5210FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
-	u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+	HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList, u_int descId,
+	u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 	const struct ath_desc *ds0)
 {
 	struct ar5210_desc *ads = AR5210DESC(ds);
+	uint32_t segLen = segLenList[0];
 
 	HALASSERT((segLen &~ AR_BufLen) == 0);
+
+	ds->ds_data = bufAddrList[0];
 
 	if (firstSeg) {
 		/*

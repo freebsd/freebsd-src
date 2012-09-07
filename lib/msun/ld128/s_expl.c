@@ -58,7 +58,7 @@ P9 = 2.75573192240103867817876199544468806e-6L,
 P10 = 2.75573236172670046201884000197885520e-7L,
 P11 = 2.50517544183909126492878226167697856e-8L;
 
-#define	INTERVALS		128
+#define	INTERVALS	128
 
 static const struct {
 	long double	hi;
@@ -205,7 +205,7 @@ expl(long double x)
 	/* Filter out exceptional cases. */
 	u.e = x;
 	hx = u.xbits.expsign;
-	ix = hx &  0x7fff;
+	ix = hx & 0x7fff;
 	if (ix >= BIAS + 13) {		/* |x| >= 8192 or x is NaN */
 		if (ix == BIAS + LDBL_MAX_EXP) {
 			if (u.xbits.manh != 0

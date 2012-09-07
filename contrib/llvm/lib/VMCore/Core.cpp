@@ -115,6 +115,25 @@ void LLVMDumpModule(LLVMModuleRef M) {
   unwrap(M)->dump();
 }
 
+LLVMBool LLVMPrintModuleToFile(LLVMModuleRef M, const char *Filename,
+                               char **ErrorMessage) {
+  std::string error;
+  raw_fd_ostream dest(Filename, error);
+  if (!error.empty()) {
+    *ErrorMessage = strdup(error.c_str());
+    return true;
+  }
+
+  unwrap(M)->print(dest, NULL);
+
+  if (!error.empty()) {
+    *ErrorMessage = strdup(error.c_str());
+    return true;
+  }
+  dest.flush();
+  return false;
+}
+
 /*--.. Operations on inline assembler ......................................--*/
 void LLVMSetModuleInlineAsm(LLVMModuleRef M, const char *Asm) {
   unwrap(M)->setModuleInlineAsm(StringRef(Asm));
@@ -1191,7 +1210,7 @@ LLVMValueRef LLVMAddGlobalInAddressSpace(LLVMModuleRef M, LLVMTypeRef Ty,
                                          unsigned AddressSpace) {
   return wrap(new GlobalVariable(*unwrap(M), unwrap(Ty), false,
                                  GlobalValue::ExternalLinkage, 0, Name, 0,
-                                 false, AddressSpace));
+                                 GlobalVariable::NotThreadLocal, AddressSpace));
 }
 
 LLVMValueRef LLVMGetNamedGlobal(LLVMModuleRef M, const char *Name) {

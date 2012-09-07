@@ -3245,7 +3245,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 {
 	vm_map_entry_t new_entry, prev_entry;
 	vm_offset_t bot, top;
-	vm_size_t init_ssize;
+	vm_size_t growsize, init_ssize;
 	int orient, rv;
 	rlim_t vmemlim;
 
@@ -3264,7 +3264,8 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	    addrbos + max_ssize < addrbos)
 		return (KERN_NO_SPACE);
 
-	init_ssize = (max_ssize < sgrowsiz) ? max_ssize : sgrowsiz;
+	growsize = sgrowsiz;
+	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
 
 	PROC_LOCK(curthread->td_proc);
 	vmemlim = lim_cur(curthread->td_proc, RLIMIT_VMEM);
@@ -3357,6 +3358,7 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	struct vmspace *vm = p->p_vmspace;
 	vm_map_t map = &vm->vm_map;
 	vm_offset_t end;
+	vm_size_t growsize;
 	size_t grow_amount, max_grow;
 	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
@@ -3476,8 +3478,9 @@ Retry:
 	PROC_UNLOCK(p);
 #endif
 
-	/* Round up the grow amount modulo SGROWSIZ */
-	grow_amount = roundup (grow_amount, sgrowsiz);
+	/* Round up the grow amount modulo sgrowsiz */
+	growsize = sgrowsiz;
+	grow_amount = roundup(grow_amount, growsize);
 	if (grow_amount > stack_entry->avail_ssize)
 		grow_amount = stack_entry->avail_ssize;
 	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim)) {

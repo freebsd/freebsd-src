@@ -124,11 +124,11 @@ namespace llvm {
     }
 
     /// isClobber - Return true if this MemDepResult represents a query that is
-    /// a instruction clobber dependency.
+    /// an instruction clobber dependency.
     bool isClobber() const { return Value.getInt() == Clobber; }
 
     /// isDef - Return true if this MemDepResult represents a query that is
-    /// a instruction definition dependency.
+    /// an instruction definition dependency.
     bool isDef() const { return Value.getInt() == Def; }
     
     /// isNonLocal - Return true if this MemDepResult represents a query that
@@ -431,9 +431,6 @@ namespace llvm {
 
     void RemoveCachedNonLocalPointerDependencies(ValueIsLoadPair P);
     
-    AliasAnalysis::ModRefResult
-    getModRefInfo(const Instruction *Inst, const AliasAnalysis::Location &Loc);
-
     /// verifyRemoved - Verify that the specified instruction does not occur
     /// in our internal data structures.
     void verifyRemoved(Instruction *Inst) const;
