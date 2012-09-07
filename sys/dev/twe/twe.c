@@ -400,7 +400,7 @@ twe_startio(struct twe_softc *sc)
 {
     struct twe_request	*tr;
     TWE_Command		*cmd;
-    twe_bio		*bp;
+    struct bio		*bp;
     int			error;
 
     debug_called(4);
@@ -431,10 +431,10 @@ twe_startio(struct twe_softc *sc)
 	    /* connect the bio to the command */
 	    tr->tr_complete = twe_completeio;
 	    tr->tr_private = bp;
-	    tr->tr_data = TWE_BIO_DATA(bp);
-	    tr->tr_length = TWE_BIO_LENGTH(bp);
+	    tr->tr_data = bp->bio_data;
+	    tr->tr_length = bp->bio_bcount;
 	    cmd = TWE_FIND_COMMAND(tr);
-	    if (TWE_BIO_IS_READ(bp)) {
+	    if (bp->bio_cmd == BIO_READ) {
 		tr->tr_flags |= TWE_CMD_DATAIN;
 		cmd->io.opcode = TWE_OP_READ;
 	    } else {
@@ -444,9 +444,9 @@ twe_startio(struct twe_softc *sc)
 	
 	    /* build a suitable I/O command (assumes 512-byte rounded transfers) */
 	    cmd->io.size = 3;
-	    cmd->io.unit = TWE_BIO_UNIT(bp);
+	    cmd->io.unit = *(int *)(bp->bio_driver1);
 	    cmd->io.block_count = (tr->tr_length + TWE_BLOCK_SIZE - 1) / TWE_BLOCK_SIZE;
-	    cmd->io.lba = TWE_BIO_LBA(bp);
+	    cmd->io.lba = bp->bio_pblkno;
 	}
 	
 	/* did we find something to do? */
@@ -461,8 +461,9 @@ twe_startio(struct twe_softc *sc)
 		break;
 	    tr->tr_status = TWE_CMD_ERROR;
 	    if (tr->tr_private != NULL) {
-		bp = (twe_bio *)(tr->tr_private);
-		TWE_BIO_SET_ERROR(bp, error);
+		bp = (struct bio *)(tr->tr_private);
+		bp->bio_error = error;
+		bp->bio_flags |= BIO_ERROR;
 		tr->tr_private = NULL;
 		twed_intr(bp);
 	        twe_release_request(tr);
@@ -1012,15 +1013,17 @@ twe_completeio(struct twe_request *tr)
 {
     TWE_Command		*cmd = TWE_FIND_COMMAND(tr);
     struct twe_softc	*sc = tr->tr_sc;
-    twe_bio		*bp = (twe_bio *)tr->tr_private;
+    struct bio		*bp = tr->tr_private;
 
     debug_called(4);
 
     if (tr->tr_status == TWE_CMD_COMPLETE) {
 
 	if (cmd->generic.status)
-	    if (twe_report_request(tr))
-		TWE_BIO_SET_ERROR(bp, EIO);
+	    if (twe_report_request(tr)) {
+		bp->bio_error = EIO;
+		bp->bio_flags |= BIO_ERROR;
+	    }
 
     } else {
 	twe_panic(sc, "twe_completeio on incomplete command");
