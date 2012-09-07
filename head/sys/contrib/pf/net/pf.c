@@ -1238,7 +1238,6 @@ pf_intr(void *v)
 {
 	struct pf_send_head queue;
 	struct pf_send_entry *pfse, *next;
-	struct pf_sen
 
 	CURVNET_SET((struct vnet *)v);
 
@@ -1273,7 +1272,6 @@ pf_intr(void *v)
 		}
 		free(pfse, M_PFTEMP);
 	}
-
 	CURVNET_RESTORE();
 }
 
