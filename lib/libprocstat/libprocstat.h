@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+__BEGIN_DECLS
+
 #ifndef _LIBPROCSTAT_H_
 #define	_LIBPROCSTAT_H_
 
@@ -166,3 +168,6 @@ struct procstat	*procstat_open_sysctl(void);
 struct procstat	*procstat_open_kvm(const char *nlistf, const char *memf);
 
 #endif	/* !_LIBPROCSTAT_H_ */
+
+__END_DECLS
+
