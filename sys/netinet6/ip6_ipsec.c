@@ -291,16 +291,16 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
-		 * XXX-BZ CSUM_DELAY_DATA_IPV6?
+		 * For IPv6 we do delayed checksums in ip6_output.c.
 		 */
+#ifdef INET
 		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			ipseclog((LOG_DEBUG,
 			    "%s: we do not support IPv4 over IPv6", __func__));
-#ifdef INET
 			in_delayed_cksum(*m);
-#endif
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
+#endif
 
 		/*
 		 * Preserve KAME behaviour: ENOENT can be returned
