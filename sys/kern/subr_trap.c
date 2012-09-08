@@ -260,7 +260,6 @@ ast(struct trapframe *framep)
 	}
 
 	userret(td, framep);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 const char *
