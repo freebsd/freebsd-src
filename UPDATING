@@ -24,6 +24,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20120908:
+	The pf(4) packet filter ABI has been changed. pfctl(8) and
+	snmp_pf module need to be recompiled to work with new kernel.
+
 20120828:
 	A new ZFS feature flag "com.delphix:empty_bpobj" has been merged
 	to -HEAD. Pools that have empty_bpobj in active state can not be

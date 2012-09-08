@@ -144,7 +144,6 @@ static const struct {
 	{ "states",		PF_LIMIT_STATES },
 	{ "src-nodes",		PF_LIMIT_SRC_NODES },
 	{ "frags",		PF_LIMIT_FRAGS },
-	{ "tables",		PF_LIMIT_TABLES },
 	{ "table-entries",	PF_LIMIT_TABLE_ENTRIES },
 	{ NULL,			0 }
 };
@@ -1553,9 +1552,6 @@ pfctl_fopen(const char *name, const char *mode)
 void
 pfctl_init_options(struct pfctl *pf)
 {
-	int64_t mem;
-	int mib[2];
-	size_t size;
 
 	pf->timeout[PFTM_TCP_FIRST_PACKET] = PFTM_TCP_FIRST_PACKET_VAL;
 	pf->timeout[PFTM_TCP_OPENING] = PFTM_TCP_OPENING_VAL;
@@ -1581,20 +1577,7 @@ pfctl_init_options(struct pfctl *pf)
 	pf->limit[PF_LIMIT_STATES] = PFSTATE_HIWAT;
 	pf->limit[PF_LIMIT_FRAGS] = PFFRAG_FRENT_HIWAT;
 	pf->limit[PF_LIMIT_SRC_NODES] = PFSNODE_HIWAT;
-	pf->limit[PF_LIMIT_TABLES] = PFR_KTABLE_HIWAT;
 	pf->limit[PF_LIMIT_TABLE_ENTRIES] = PFR_KENTRY_HIWAT;
-
-	mib[0] = CTL_HW;
-#ifdef __FreeBSD__
-	mib[1] = HW_PHYSMEM;
-#else
-	mib[1] = HW_PHYSMEM64;
-#endif
-	size = sizeof(mem);
-	if (sysctl(mib, 2, &mem, &size, NULL, 0) == -1)
-		err(1, "sysctl");
-	if (mem <= 100*1024*1024)
-		pf->limit[PF_LIMIT_TABLE_ENTRIES] = PFR_KENTRY_HIWAT_SMALL; 
 
 	pf->debug = PF_DEBUG_URGENT;
 }
