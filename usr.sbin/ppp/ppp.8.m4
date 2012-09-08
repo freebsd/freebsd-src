@@ -292,7 +292,7 @@ In direct mode,
 acts as server which accepts incoming
 .Em PPP
 connections on stdin/stdout.
-.It "Supports PAP and CHAP (rfc 1994, 2433 and 2759) authentication.
+.It Supports PAP and CHAP (rfc 1994, 2433 and 2759) authentication.
 With PAP or CHAP, it is possible to skip the Unix style
 .Xr login 1
 procedure, and use the
@@ -1019,12 +1019,11 @@ This behaviour can be changed using the
 .Dq set redial
 command:
 .Pp
-.No set redial Ar secs Ns Xo
+.No set redial Ar secs Ns
 .Oo + Ns Ar inc Ns
-.Op - Ns Ar max Ns
-.Oc Ns Op . Ns Ar next
+.Oo - Ns Ar max Ns Oc Oc Ns
+.Op . Ns Ar next
 .Op Ar attempts
-.Xc
 .Pp
 .Bl -tag -width attempts -compact
 .It Ar secs
@@ -1083,7 +1082,6 @@ are specified, the total number of attempts is still 4 (it does not
 attempt each number 4 times).
 .Pp
 Alternatively,
-.Pp
 .Bd -literal -offset indent
 set redial 10+10-5.3 20
 .Ed
@@ -2029,11 +2027,8 @@ dialing and redialing separated by either a pipe
 or a colon
 .Pq Dq \&: :
 .Bd -ragged -offset indent
-.No set phone Ar telno Ns Xo
-.Oo \&| Ns Ar backupnumber
-.Oc Ns ... Ns Oo : Ns Ar nextnumber
-.Oc Ns ...
-.Xc
+.No set phone Ar telno Ns
+.Oo \&| Ns Ar backupnumber Oc Ns ... Ns Oo : Ns Ar nextnumber Oc Ns ...
 .Ed
 .Pp
 Numbers after the first in a pipe-separated list are only used if the
@@ -2530,7 +2525,6 @@ will show the same information at the
 link level.
 .Pp
 Armed with this information, the following configuration might be used:
-.Pp
 .Bd -literal -offset indent
 mp:
  set timeout 0
@@ -2554,13 +2548,11 @@ Usually, the link will be configured first, then cloned.
 If you wish all links
 to be up all the time, you can add the following line to the end of your
 configuration.
-.Pp
 .Bd -literal -offset indent
   link 1,2,3 set mode ddial
 .Ed
 .Pp
 If you want the links to dial on demand, this command could be used:
-.Pp
 .Bd -literal -offset indent
   link * set mode auto
 .Ed
@@ -2570,7 +2562,6 @@ Links may be tied to specific names by removing the
 line above, and specifying the following after the
 .Dq clone
 command:
-.Pp
 .Bd -literal -offset indent
  link 1 set device /dev/cuad0
  link 2 set device /dev/cuad1
@@ -3218,9 +3209,7 @@ Disabling this option will prevent the re-application of sticky routes,
 although the
 .Sq stick route
 list will still be maintained.
-.It Op tcp Ns Xo
-.No mssfixup
-.Xc
+.It Oo tcp Oc Ns No mssfixup
 Default: Enabled.
 This option tells
 .Nm
@@ -3474,7 +3463,7 @@ be logged to the file
 .Ar remotePort Ns
 .Oo
 .No - Ns Ar remotePort
-.Oc Ns
+.Oc
 .Oc
 .Xc
 This command causes incoming
@@ -3606,7 +3595,7 @@ These commands are also discussed in the file
 .Pa README.nat
 which comes with the source distribution.
 .Pp
-.It Op !\& Ns Xo
+.It Oo !\& Oc Ns Xo
 .No bg Ar command
 .Xc
 The given
@@ -3808,7 +3797,7 @@ command is used
 .Dq !\& ) ,
 .Nm
 will not complain if the route does not already exist.
-.It dial|call Op Ar label Ns Xo
+.It dial|call Oo Ar label Oc Ns Xo
 .No ...
 .Xc
 This command is the equivalent of
@@ -3945,10 +3934,9 @@ When invoked with
 .Ar sub-command ,
 only the synopsis for the given sub-command is shown.
 .El
-.It Op data Ns Xo
+.It Oo data Oc Ns Xo
 .No link
-.Ar name Ns Op , Ns Ar name Ns
-.No ... Ar command Op Ar args
+.Ar name Ns Oo , Ns Ar name Oc Ns ... Ar command Op Ar args
 .Xc
 This command may prefix any other command if the user wishes to
 specify which link the command should affect.
@@ -3970,7 +3958,7 @@ is
 .Dq * ,
 .Ar command
 is executed on all links.
-.It load Op Ar label Ns Xo
+.It load Oo Ar label Oc Ns Xo
 .No ...
 .Xc
 Load the given
@@ -4196,7 +4184,7 @@ certain characters from end to end (such as XON/XOFF etc).
 .Pp
 For the XON/XOFF scenario, use
 .Dq set accmap 000a0000 .
-.It set Op auth Ns Xo
+.It set Oo auth Oc Ns Xo
 .No key Ar value
 .Xc
 This sets the authentication key (or password) used in client mode
@@ -4360,7 +4348,6 @@ as an option.
 The
 .Ar option Ns No s
 are as follows (in this order of preference):
-.Pp
 .Bl -tag -width Ds
 .It auth
 The callee is expected to decide the callback number based on
@@ -4993,11 +4980,8 @@ If you wish to assign a dynamic IP number to the peer,
 .Ar hisaddr
 may also be specified as a range of IP numbers in the format
 .Bd -ragged -offset indent
-.Ar \&IP Ns Oo \&- Ns Ar \&IP Ns Xo
-.Oc Ns Oo , Ns Ar \&IP Ns
-.Op \&- Ns Ar \&IP Ns
-.Oc Ns ...
-.Xc
+.Ar \&IP Ns Oo \&- Ns Ar \&IP Ns Oc Ns Oo , Ns Ar \&IP Ns
+.Oo \&- Ns Ar \&IP Ns Oc Oc Ns ...
 .Ed
 .Pp
 for example:
@@ -5319,10 +5303,7 @@ This allows the line parity to be set.
 The default value is
 .Ar none .
 .It set phone Ar telno Ns Xo
-.Oo \&| Ns Ar backupnumber
-.Oc Ns ... Ns Oo : Ns Ar nextnumber
-.Oc Ns ...
-.Xc
+.Oo \&| Ns Ar backupnumber Oc Ns ... Ns Oo : Ns Ar nextnumber Oc Ns ... Xc
 This allows the specification of the phone number to be used in
 place of the \\\\T string in the dial and login chat scripts.
 Multiple phone numbers may be given separated either by a pipe
@@ -5350,7 +5331,7 @@ This option configures the underlying
 .Xr ng_pppoe 4
 node to either standard RFC2516 PPPoE or proprietary 3Com mode.
 If not set the system default will be used.
-.It set Op proc Ns Xo
+.It set Oo proc Oc Ns Xo
 .No title Op Ar value
 .Xc
 The current process title as displayed by
@@ -5599,7 +5580,6 @@ NAS-Port-Id.
 The
 .Ar option Ns No s
 are as follows:
-.Pp
 .Bl -tag -width Ds
 .It pid
 PID of the corresponding tunnel.
@@ -5634,8 +5614,8 @@ If
 is unspecified or zero, the default kernel controlled value is used.
 .It set redial Ar secs Ns Xo
 .Oo + Ns Ar inc Ns
-.Op - Ns Ar max Ns
-.Oc Ns Op . Ns Ar next
+.Oo - Ns Ar max Ns Oc Oc Ns
+.Op . Ns Ar next
 .Op Ar attempts
 .Xc
 .Nm
@@ -5935,7 +5915,7 @@ Show the current IPCP statistics.
 Show the protocol layers currently in use.
 .It show lcp
 Show the current LCP statistics.
-.It show Op data Ns Xo
+.It show Oo data Oc Ns Xo
 .No link
 .Xc
 Show high level link information.
