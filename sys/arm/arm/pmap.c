@@ -154,6 +154,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/uma.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
@@ -165,7 +166,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/pcb.h>

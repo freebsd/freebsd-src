@@ -279,8 +279,6 @@ extern struct vpglocks pa_lock[];
 
 #ifdef _KERNEL
 
-#include <vm/vm_param.h>
-
 /*
  * Each pageable resident page falls into one of five lists:
  *
