@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 31 2009
+.Dd June 29 2012
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1421,7 +1421,7 @@ has the socket open where the packet is sourced from or destined to
 (depending on which socket is local).
 This is in addition to the normal information logged.
 .Pp
-Due to the problems described in the BUGS section only the first packet
+Only the first packet
 logged via
 .Ar log (all, user)
 will have the user credentials logged when using stateful matching.
@@ -1479,13 +1479,6 @@ of the following keywords:
 .Bl -tag -width xxxxxxxxxxxxxx -compact
 .It Ar any
 Any address.
-.It Ar route Aq Ar label
-Any address whose associated route has label
-.Aq Ar label .
-See
-.Xr route 4
-and
-.Xr route 8 .
 .It Ar no-route
 Any address which is not currently routable.
 .It Ar urpf-failed
@@ -1594,7 +1587,6 @@ pass in proto tcp from any to any port 25
 pass in proto tcp from 10.0.0.0/8 port \*(Gt 1024 \e
       to ! 10.1.2.3 port != ssh
 pass in proto tcp from any os "OpenBSD"
-pass in proto tcp from route "DTAG"
 .Ed
 .It Ar all
 This is equivalent to "from any to any".
@@ -2949,9 +2941,9 @@ proto-list     = ( proto-name | proto-number ) [ [ "," ] proto-list ]
 
 hosts          = "all" |
                  "from" ( "any" | "no-route" | "urpf-failed" | "self" | host |
-                 "{" host-list "}" | "route" string ) [ port ] [ os ]
+                 "{" host-list "}" ) [ port ] [ os ]
                  "to"   ( "any" | "no-route" | "self" | host |
-                 "{" host-list "}" | "route" string ) [ port ]
+                 "{" host-list "}" ) [ port ]
 
 ipspec         = "any" | host | "{" host-list "}"
 host           = [ "!" ] ( address [ "/" mask-bits ] | "\*(Lt" string "\*(Gt" )
@@ -3048,28 +3040,6 @@ Protocol name database.
 .It Pa /etc/services
 Service name database.
 .El
-.Sh BUGS
-Due to a lock order reversal (LOR) with the socket layer, the use of the
-.Ar group
-and
-.Ar user
-filter parameter in conjuction with a Giant-free netstack
-can result in a deadlock.
-A workaround is available under the
-.Va debug.pfugidhack
-sysctl which is automatically enabled when a
-.Ar user
-/
-.Ar group
-rule is added or
-.Ar log (user)
-is specified.
-.Pp
-Route labels are not supported by the
-.Fx
-.Xr route 4
-system.
-Rules with a route label do not match any traffic.
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr carp 4 ,
@@ -3080,7 +3050,6 @@ Rules with a route label do not match any traffic.
 .Xr pf 4 ,
 .Xr pflow 4 ,
 .Xr pfsync 4 ,
-.Xr route 4 ,
 .Xr tcp 4 ,
 .Xr udp 4 ,
 .Xr hosts 5 ,
@@ -3090,7 +3059,6 @@ Rules with a route label do not match any traffic.
 .Xr ftp-proxy 8 ,
 .Xr pfctl 8 ,
 .Xr pflogd 8 ,
-.Xr route 8
 .Sh HISTORY
 The
 .Nm

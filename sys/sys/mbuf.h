@@ -749,16 +749,6 @@ m_last(struct mbuf *m)
 	return (m);
 }
 
-extern void (*m_addr_chg_pf_p)(struct mbuf *m);
-
-static __inline void
-m_addr_changed(struct mbuf *m)
-{
-
-	if (m_addr_chg_pf_p)
-		m_addr_chg_pf_p(m);
-}
-
 /*
  * mbuf, cluster, and external object allocation macros (for compatibility
  * purposes).
@@ -998,7 +988,7 @@ struct mbuf	*m_unshare(struct mbuf *, int how);
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
 #define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
-#define	PACKET_TAG_PF				21 /* PF + ALTQ information */
+#define	PACKET_TAG_PF		(21 | MTAG_PERSISTENT) /* PF/ALTQ information */
 #define	PACKET_TAG_RTSOCKFAM			25 /* rtsock sa family */
 #define	PACKET_TAG_IPOPTIONS			27 /* Saved IP options */
 #define	PACKET_TAG_CARP				28 /* CARP info */
