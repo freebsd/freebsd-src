@@ -48,6 +48,8 @@
 #include <unistd.h>
 #include <err.h>
 
+#include <curses.h>
+
 #include "ah.h"
 #include "ah_desc.h"
 #include "net80211/ieee80211_ioctl.h"
@@ -57,11 +59,20 @@
 
 #include "ath_rate/sample/sample.h"
 
+static int do_loop = 0;
+
 /*
  * This needs to be big enough to fit the two TLVs, the rate table
  * and the rate statistics table for a single node.
  */
 #define	STATS_BUF_SIZE	8192
+
+#define	PRINTMSG(...) do {			\
+	if (do_loop == 0)			\
+		printf(__VA_ARGS__);		\
+	else					\
+		printw(__VA_ARGS__);		\
+	} while (0)
 
 struct ath_ratestats {
 	int s;
@@ -96,12 +107,12 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 	uint32_t mask;
 	int rix, y;
 
-	printf("static_rix (%d) ratemask 0x%x\n",
+	PRINTMSG("static_rix (%d) ratemask 0x%x\n",
 	    sn->static_rix,
 	    sn->ratemask);
 
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
-		printf("[%4u] cur rate %d %s since switch: "
+		PRINTMSG("[%4u] cur rate %d %s since switch: "
 		    "packets %d ticks %u\n",
 		    bin_to_size(y),
 		    dot11rate(rt, sn->current_rix[y]),
@@ -109,7 +120,7 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 		    sn->packets_since_switch[y],
 		    sn->ticks_since_switch[y]);
 
-		printf("[%4u] last sample (%d %s) cur sample (%d %s) "
+		PRINTMSG("[%4u] last sample (%d %s) cur sample (%d %s) "
 		    "packets sent %d\n",
 		    bin_to_size(y),
 		    dot11rate(rt, sn->last_sample_rix[y]),
@@ -118,12 +129,12 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 		    dot11str(rt, sn->current_sample_rix[y]),
 		    sn->packets_sent[y]);
 
-		printf("[%4u] packets since sample %d sample tt %u\n",
+		PRINTMSG("[%4u] packets since sample %d sample tt %u\n",
 		    bin_to_size(y),
 		    sn->packets_since_sample[y],
 		    sn->sample_tt[y]);
 	}
-	printf("   TX Rate     TXTOTAL:TXOK       EWMA          T/   F"
+	PRINTMSG("   TX Rate     TXTOTAL:TXOK       EWMA          T/   F"
 	    "     avg last xmit\n");
 	for (mask = sn->ratemask, rix = 0; mask != 0; mask >>= 1, rix++) {
 		if ((mask & 1) == 0)
@@ -131,8 +142,8 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
-			printf("[%2u %s:%4u] %8ju:%-8ju "
-			    "(%3d.%1d%%) %8ju/%4d %5ums %u\n",
+			PRINTMSG("[%2u %s:%4u] %8ju:%-8ju "
+			    "(%3d.%1d%%) %8ju/%4d %5uuS %u\n",
 			    dot11rate(rt, rix),
 			    dot11str(rt, rix),
 			    bin_to_size(y),
@@ -223,6 +234,29 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 	ath_sample_stats(r, rt, sn);
 }
 
+static void
+fetch_and_print_stats(struct ath_ratestats *r, struct ether_addr *e,
+    uint8_t *buf)
+{
+
+	/* Zero the buffer before it's passed in */
+	memset(buf, '\0', STATS_BUF_SIZE);
+
+	/*
+	 * Set the station address for this lookup.
+	 */
+	ath_setsta(r, e->octet);
+
+	/*
+	 * Fetch the data from the driver.
+	 */
+	ath_rate_ioctl(r);
+
+	/*
+	 * Decode and parse statistics.
+	 */
+	rate_node_stats(r, e);
+}
 
 int
 main(int argc, char *argv[])
@@ -233,12 +267,14 @@ main(int argc, char *argv[])
 	struct ether_addr *e;
 	struct ath_ratestats r;
 	uint8_t *buf;
+	useconds_t sleep_period;
+	float f;
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
 		ifname = "ath0";
 
-	while ((c = getopt(argc, argv, "ahi:m:")) != -1) {
+	while ((c = getopt(argc, argv, "ahi:m:s:")) != -1) {
 		switch (c) {
 		case 'a':
 			do_all = 1;
@@ -249,10 +285,14 @@ main(int argc, char *argv[])
 		case 'm':
 			macaddr = optarg;
 			break;
-			
+		case 's':
+			sscanf(optarg, "%f", &f);
+			do_loop = 1;
+			sleep_period = (useconds_t) (f * 1000000.0);
+			break;
 		default:
 			errx(1,
-			    "usage: %s [-h] [-i ifname] [-a] [-m macaddr]\n",
+			    "usage: %s [-h] [-i ifname] [-a] [-m macaddr] [-s sleep period]\n",
 			    argv[0]);
 			/* NOTREACHED */
 		}
@@ -283,24 +323,30 @@ main(int argc, char *argv[])
 	if (r.s < 0) {
 		err(1, "socket");
 	}
+
 	/* XXX error check */
 	ath_setifname(&r, ifname);
 
-	/* Zero the buffer before it's passed in */
-	memset(buf, '\0', STATS_BUF_SIZE);
+	if (do_loop) {
+		initscr();
+		start_color();
+		use_default_colors();
+		cbreak();
+		noecho();
+		nonl();
+		nodelay(stdscr, 1);
+		intrflush(stdscr, FALSE);
+		keypad(stdscr, TRUE);
 
-	/*
-	 * Set the station address for this lookup.
-	 */
-	ath_setsta(&r, e->octet);
+		while (1) {
+			clear();
+			move(0, 0);
+			fetch_and_print_stats(&r, e, buf);
+			refresh();
+			usleep(sleep_period);
+		}
+	} else
+		fetch_and_print_stats(&r, e, buf);
 
-	/*
-	 * Fetch the data from the driver.
-	 */
-	ath_rate_ioctl(&r);
-
-	/*
-	 * Decode and parse statistics.
-	 */
-	rate_node_stats(&r, e);
+	exit(0);
 }
