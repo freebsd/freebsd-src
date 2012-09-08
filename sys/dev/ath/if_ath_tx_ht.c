@@ -742,7 +742,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * subsequent frame with this config.
 		 */
 		bf->bf_state.bfs_txflags &=
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		    ~ (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
 		bf->bf_state.bfs_txflags |=
 		    bf_first->bf_state.bfs_txflags &
 		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
