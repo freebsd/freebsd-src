@@ -621,8 +621,7 @@ print_iface(struct pfi_kif *p, int opts)
 	if (!(opts & PF_OPT_VERBOSE2))
 		return;
 	printf("\tCleared:     %s", ctime(&tzero));
-	printf("\tReferences:  [ States:  %-18d Rules: %-18d ]\n",
-	    p->pfik_states, p->pfik_rules);
+	printf("\tReferences:  %-18d\n", p->pfik_rulerefs);
 	for (i = 0; i < 8; i++) {
 		af = (i>>2) & 1;
 		dir = (i>>1) &1;
