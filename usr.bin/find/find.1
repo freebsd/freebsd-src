@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2012
+.Dd September 9, 2012
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -741,6 +741,10 @@ Note, the
 primary has no effect if the
 .Fl d
 option was specified.
+.It Ic -quit
+Causes
+.Nm
+to immediately terminate.
 .It Ic -regex Ar pattern
 True if the whole path of the file matches
 .Ar pattern
