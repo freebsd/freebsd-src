@@ -103,10 +103,18 @@ udp_init_port(struct tport *tp)
 	struct udp_port *p = (struct udp_port *)tp;
 	struct sockaddr_in addr;
 	u_int32_t ip;
+	const int on = 1;
 
 	if ((p->input.fd = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
 		syslog(LOG_ERR, "creating UDP socket: %m");
 		return (SNMP_ERR_RES_UNAVAIL);
+	}
+	if (setsockopt(p->input.fd, IPPROTO_IP, IP_RECVDSTADDR, &on,
+	    sizeof(on)) == -1) {
+		syslog(LOG_ERR, "setsockopt(IP_RECVDSTADDR): %m");
+		close(p->input.fd);
+		p->input.fd = -1;
+		return (SNMP_ERR_GENERR);
 	}
 	ip = (p->addr[0] << 24) | (p->addr[1] << 16) | (p->addr[2] << 8) |
 	    p->addr[3];
