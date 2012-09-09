@@ -557,7 +557,6 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 
 	temp = sc->sc_hcchar[td->channel];
 	temp &= ~HCCHAR_EPDIR_IN;
-	temp |= HCCHAR_CHENA;
 
 	/* must enable channel before writing data to FIFO */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel), temp);
@@ -878,7 +877,7 @@ not_complete:
 	sc->sc_haint_mask |= (1 << td->channel);
 	DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, sc->sc_haint_mask);
 
-	temp |= HCCHAR_CHENA | HCCHAR_EPDIR_IN;
+	temp |= HCCHAR_EPDIR_IN;
 
 	/* must enable channel before data can be received */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel), temp);
@@ -1114,8 +1113,7 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 	/* TODO: HCTSIZ_DOPNG */
 
 	temp = sc->sc_hcchar[td->channel];
-	temp &= ~(HCCHAR_EPDIR_IN);
-	temp |= HCCHAR_CHENA;
+	temp &= ~HCCHAR_EPDIR_IN;
 
 	/* must enable before writing data to FIFO */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel), temp);
@@ -2066,7 +2064,8 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 			(xfer->address << HCCHAR_DEVADDR_SHIFT) |
 			(xfer_type << HCCHAR_EPTYPE_SHIFT) |
 			((xfer->endpointno & UE_ADDR) << HCCHAR_EPNUM_SHIFT) |
-			(xfer->max_packet_size << HCCHAR_MPS_SHIFT);
+			(xfer->max_packet_size << HCCHAR_MPS_SHIFT) |
+			HCCHAR_CHENA;
 
 		if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_LOW)
 			td->hcchar |= HCCHAR_LSPDDEV;
@@ -2281,7 +2280,6 @@ dwc_otg_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 			sc->sc_haint_mask &= ~(1 << td->channel);
 			DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, sc->sc_haint_mask);
-			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(td->channel), 0);
 			DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel),
 			    HCCHAR_CHENA | HCCHAR_CHDIS);
 
@@ -3565,13 +3563,69 @@ dwc_otg_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 static void
 dwc_otg_device_resume(struct usb_device *udev)
 {
+	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(udev->bus);
+	struct usb_xfer *xfer;
+	struct dwc_otg_td *td;
+
 	DPRINTF("\n");
+
+	/* Disable relevant Host channels before going to suspend */
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->xroot->udev == udev) {
+
+			td = xfer->td_transfer_cache;
+			if (td != NULL &&
+			    td->channel < DWC_OTG_MAX_CHANNELS) {
+
+				sc->sc_hcchar[td->channel] =
+				    (sc->sc_hcchar[td->channel] & ~HCCHAR_CHDIS) |
+				    HCCHAR_CHENA;
+
+				DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel),
+				    sc->sc_hcchar[td->channel]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
 }
 
 static void
 dwc_otg_device_suspend(struct usb_device *udev)
 {
+	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(udev->bus);
+	struct usb_xfer *xfer;
+	struct dwc_otg_td *td;
+
 	DPRINTF("\n");
+
+	/* Disable relevant Host channels before going to suspend */
+
+	USB_BUS_LOCK(udev->bus);
+
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+
+		if (xfer->xroot->udev == udev) {
+
+			td = xfer->td_transfer_cache;
+			if (td != NULL &&
+			    td->channel < DWC_OTG_MAX_CHANNELS) {
+
+				sc->sc_hcchar[td->channel] =
+				    (DWC_OTG_READ_4(sc, DOTG_HCCHAR(td->channel)) |
+				    HCCHAR_CHDIS) & ~HCCHAR_CHENA;
+
+				DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel),
+				    sc->sc_hcchar[td->channel]);
+			}
+		}
+	}
+
+	USB_BUS_UNLOCK(udev->bus);
 }
 
 struct usb_bus_methods dwc_otg_bus_methods =
