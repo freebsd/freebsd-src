@@ -373,6 +373,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_NO_IOPF	0x00000100	/* Disallow page faults during reads
 					   and writes. Filesystem shall properly
 					   handle i/o state on EFAULT. */
+#define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
