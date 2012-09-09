@@ -599,12 +599,19 @@ g_error_provider(struct g_provider *pp, int error)
 	pp->error = error;
 }
 
+#ifndef	_PATH_DEV
+#define	_PATH_DEV	"/dev/"
+#endif
+
 struct g_provider *
 g_provider_by_name(char const *arg)
 {
 	struct g_class *cp;
 	struct g_geom *gp;
 	struct g_provider *pp;
+
+	if (strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		arg += sizeof(_PATH_DEV) - 1;
 
 	LIST_FOREACH(cp, &g_classes, class) {
 		LIST_FOREACH(gp, &cp->geom, geom) {
@@ -614,6 +621,7 @@ g_provider_by_name(char const *arg)
 			}
 		}
 	}
+
 	return (NULL);
 }
 
