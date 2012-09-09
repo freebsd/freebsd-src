@@ -2463,6 +2463,7 @@ dt_buf_oldest(void *elem, void *arg)
 
 	while (offs < buf->dtbd_size) {
 		dtrace_rechdr_t *dtrh =
+		    /* LINTED - alignment */
 		    (dtrace_rechdr_t *)(buf->dtbd_data + offs);
 		if (dtrh->dtrh_epid == DTRACE_EPIDNONE) {
 			offs += sizeof (dtrace_epid_t);
