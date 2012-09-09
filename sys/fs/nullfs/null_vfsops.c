@@ -65,6 +65,7 @@ static vfs_statfs_t	nullfs_statfs;
 static vfs_unmount_t	nullfs_unmount;
 static vfs_vget_t	nullfs_vget;
 static vfs_extattrctl_t	nullfs_extattrctl;
+static vfs_reclaim_lowervp_t nullfs_reclaim_lowervp;
 
 /*
  * Mount null layer
@@ -121,8 +122,10 @@ nullfs_mount(struct mount *mp)
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, curthread);
 	error = namei(ndp);
+
 	/*
 	 * Re-lock vnode.
+	 * XXXKIB This is deadlock-prone as well.
 	 */
 	if (isvnunlocked)
 		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
@@ -146,7 +149,7 @@ nullfs_mount(struct mount *mp)
 	}
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
-				M_NULLFSMNT, M_WAITOK);	/* XXX */
+	    M_NULLFSMNT, M_WAITOK);
 
 	/*
 	 * Save reference to underlying FS
@@ -186,10 +189,15 @@ nullfs_mount(struct mount *mp)
 	}
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
-	    (MNTK_MPSAFE | MNTK_SHARED_WRITES);
+	    (MNTK_MPSAFE | MNTK_SHARED_WRITES | MNTK_LOOKUP_SHARED |
+	    MNTK_EXTENDED_SHARED);
+	mp->mnt_kern_flag |= MNTK_LOOKUP_EXCL_DOTDOT;
 	MNT_IUNLOCK(mp);
 	mp->mnt_data = xmp;
 	vfs_getnewfsid(mp);
+	MNT_ILOCK(xmp->nullm_vfs);
+	TAILQ_INSERT_TAIL(&xmp->nullm_vfs->mnt_uppers, mp, mnt_upper_link);
+	MNT_IUNLOCK(xmp->nullm_vfs);
 
 	vfs_mountedfrom(mp, target);
 
@@ -206,14 +214,16 @@ nullfs_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
 {
-	void *mntdata;
-	int error;
-	int flags = 0;
+	struct null_mount *mntdata;
+	struct mount *ump;
+	int error, flags;
 
 	NULLFSDEBUG("nullfs_unmount: mp = %p\n", (void *)mp);
 
 	if (mntflags & MNT_FORCE)
-		flags |= FORCECLOSE;
+		flags = FORCECLOSE;
+	else
+		flags = 0;
 
 	/* There is 1 extra root vnode reference (nullm_rootvp). */
 	error = vflush(mp, 1, flags, curthread);
@@ -224,9 +234,17 @@ nullfs_unmount(mp, mntflags)
 	 * Finally, throw away the null_mount structure
 	 */
 	mntdata = mp->mnt_data;
+	ump = mntdata->nullm_vfs;
+	MNT_ILOCK(ump);
+	while ((ump->mnt_kern_flag & MNTK_VGONE_UPPER) != 0) {
+		ump->mnt_kern_flag |= MNTK_VGONE_WAITER;
+		msleep(&ump->mnt_uppers, &ump->mnt_mtx, 0, "vgnupw", 0);
+	}
+	TAILQ_REMOVE(&ump->mnt_uppers, mp, mnt_upper_link);
+	MNT_IUNLOCK(ump);
 	mp->mnt_data = NULL;
 	free(mntdata, M_NULLFSMNT);
-	return 0;
+	return (0);
 }
 
 static int
@@ -316,13 +334,10 @@ nullfs_vget(mp, ino, flags, vpp)
 
 	KASSERT((flags & LK_TYPE_MASK) != 0,
 	    ("nullfs_vget: no lock requested"));
-	flags &= ~LK_TYPE_MASK;
-	flags |= LK_EXCLUSIVE;
 
 	error = VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, flags, vpp);
-	if (error)
+	if (error != 0)
 		return (error);
-
 	return (null_nodeget(mp, *vpp, vpp));
 }
 
@@ -334,11 +349,11 @@ nullfs_fhtovp(mp, fidp, flags, vpp)
 	struct vnode **vpp;
 {
 	int error;
-	error = VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, LK_EXCLUSIVE,
-	    vpp);
-	if (error)
-		return (error);
 
+	error = VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, flags,
+	    vpp);
+	if (error != 0)
+		return (error);
 	return (null_nodeget(mp, *vpp, vpp));
 }
 
@@ -350,10 +365,22 @@ nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname)
 	int namespace;
 	const char *attrname;
 {
-	return VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, filename_vp,
-	    namespace, attrname);
+
+	return (VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd,
+	    filename_vp, namespace, attrname));
 }
 
+static void
+nullfs_reclaim_lowervp(struct mount *mp, struct vnode *lowervp)
+{
+	struct vnode *vp;
+
+	vp = null_hashget(mp, lowervp);
+	if (vp == NULL)
+		return;
+	vgone(vp);
+	vn_lock(lowervp, LK_EXCLUSIVE | LK_RETRY);
+}
 
 static struct vfsops null_vfsops = {
 	.vfs_extattrctl =	nullfs_extattrctl,
@@ -367,6 +394,7 @@ static struct vfsops null_vfsops = {
 	.vfs_uninit =		nullfs_uninit,
 	.vfs_unmount =		nullfs_unmount,
 	.vfs_vget =		nullfs_vget,
+	.vfs_reclaim_lowervp =	nullfs_reclaim_lowervp,
 };
 
 VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK | VFCF_JAIL);
