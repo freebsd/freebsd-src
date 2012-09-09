@@ -63,7 +63,7 @@ checksum <algorithm>
 compression <algorithm>
 timeout <seconds>
 exec <path>
-metaflush "on" | "off"
+metaflush on | off
 pidfile <path>
 
 on <node> {
@@ -89,14 +89,14 @@ resource <name> {
 	local <path>
 	timeout <seconds>
 	exec <path>
-	metaflush "on" | "off"
+	metaflush on | off
 
 	on <node> {
 		# Resource-node section
 		name <name>
 		# Required
 		local <path>
-		metaflush "on" | "off"
+		metaflush on | off
 		# Required
 		remote <addr>
 		source <addr>
@@ -106,7 +106,7 @@ resource <name> {
 		name <name>
 		# Required
 		local <path>
-		metaflush "on" | "off"
+		metaflush on | off
 		# Required
 		remote <addr>
 		source <addr>
