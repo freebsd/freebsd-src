@@ -2688,6 +2688,58 @@ vgone(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
+static void
+vgonel_reclaim_lowervp_vfs(struct mount *mp __unused,
+    struct vnode *lowervp __unused)
+{
+}
+
+/*
+ * Notify upper mounts about reclaimed vnode.
+ */
+static void
+vgonel_reclaim_lowervp(struct vnode *vp)
+{
+	static struct vfsops vgonel_vfsops = {
+		.vfs_reclaim_lowervp = vgonel_reclaim_lowervp_vfs
+	};
+	struct mount *mp, *ump, *mmp;
+
+	mp = vp->v_mount;
+	if (mp == NULL)
+		return;
+
+	MNT_ILOCK(mp);
+	if (TAILQ_EMPTY(&mp->mnt_uppers))
+		goto unlock;
+	MNT_IUNLOCK(mp);
+	mmp = malloc(sizeof(struct mount), M_TEMP, M_WAITOK | M_ZERO);
+	mmp->mnt_op = &vgonel_vfsops;
+	mmp->mnt_kern_flag |= MNTK_MARKER;
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_VGONE_UPPER;
+	for (ump = TAILQ_FIRST(&mp->mnt_uppers); ump != NULL;) {
+		if ((ump->mnt_kern_flag & MNTK_MARKER) != 0) {
+			ump = TAILQ_NEXT(ump, mnt_upper_link);
+			continue;
+		}
+		TAILQ_INSERT_AFTER(&mp->mnt_uppers, ump, mmp, mnt_upper_link);
+		MNT_IUNLOCK(mp);
+		VFS_RECLAIM_LOWERVP(ump, vp);
+		MNT_ILOCK(mp);
+		ump = TAILQ_NEXT(mmp, mnt_upper_link);
+		TAILQ_REMOVE(&mp->mnt_uppers, mmp, mnt_upper_link);
+	}
+	free(mmp, M_TEMP);
+	mp->mnt_kern_flag &= ~MNTK_VGONE_UPPER;
+	if ((mp->mnt_kern_flag & MNTK_VGONE_WAITER) != 0) {
+		mp->mnt_kern_flag &= ~MNTK_VGONE_WAITER;
+		wakeup(&mp->mnt_uppers);
+	}
+unlock:
+	MNT_IUNLOCK(mp);
+}
+
 /*
  * vgone, with the vp interlock held.
  */
@@ -2712,6 +2764,7 @@ vgonel(struct vnode *vp)
 	if (vp->v_iflag & VI_DOOMED)
 		return;
 	vp->v_iflag |= VI_DOOMED;
+
 	/*
 	 * Check to see if the vnode is in use.  If so, we have to call
 	 * VOP_CLOSE() and VOP_INACTIVE().
@@ -2719,6 +2772,8 @@ vgonel(struct vnode *vp)
 	active = vp->v_usecount;
 	oweinact = (vp->v_iflag & VI_OWEINACT);
 	VI_UNLOCK(vp);
+	vgonel_reclaim_lowervp(vp);
+
 	/*
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
