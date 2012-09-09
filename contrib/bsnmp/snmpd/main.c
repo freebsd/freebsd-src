@@ -1106,10 +1106,11 @@ recv_stream(struct port_input *pi)
  * Each receive should return one datagram.
  */
 static int
-recv_dgram(struct port_input *pi)
+recv_dgram(struct port_input *pi, struct in_addr *laddr)
 {
 	u_char embuf[1000];
-	char cbuf[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX))];
+	char cbuf[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
+	    CMSG_SPACE(sizeof(struct in_addr))];
 	struct msghdr msg;
 	struct iovec iov[1];
 	ssize_t len;
@@ -1159,6 +1160,9 @@ recv_dgram(struct port_input *pi)
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == IPPROTO_IP &&
+		    cmsg->cmsg_type == IP_RECVDSTADDR)
+			memcpy(laddr, CMSG_DATA(cmsg), sizeof(struct in_addr));
 		if (cmsg->cmsg_level == SOL_SOCKET &&
 		    cmsg->cmsg_type == SCM_CREDS)
 			cred = (struct sockcred *)CMSG_DATA(cmsg);
@@ -1187,12 +1191,27 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 #ifdef USE_TCPWRAPPERS
 	char client[16];
 #endif
+	struct msghdr msg;
+	struct iovec iov[1];
+	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
+	struct cmsghdr *cmsgp;
 
 	/* get input depending on the transport */
 	if (pi->stream) {
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+
 		ret = recv_stream(pi);
 	} else {
-		ret = recv_dgram(pi);
+		memset(cbuf, 0, CMSG_SPACE(sizeof(struct in_addr)));
+		msg.msg_control = cbuf;
+		msg.msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
+		cmsgp = CMSG_FIRSTHDR(&msg);
+		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
+		cmsgp->cmsg_level = IPPROTO_IP;
+		cmsgp->cmsg_type = IP_SENDSRCADDR;
+		
+		ret = recv_dgram(pi, (struct in_addr *)CMSG_DATA(cmsgp));
 	}
 
 	if (ret == -1)
@@ -1337,11 +1356,19 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		slen = sendto(pi->fd, sndbuf, sndlen, 0, pi->peer, pi->peerlen);
+		msg.msg_name = pi->peer;
+		msg.msg_namelen = pi->peerlen;
+		msg.msg_iov = iov;
+		msg.msg_iovlen = 1;
+		msg.msg_flags = 0;
+		iov[0].iov_base = sndbuf;
+		iov[0].iov_len = sndlen;
+
+		slen = sendmsg(pi->fd, &msg, 0);
 		if (slen == -1)
-			syslog(LOG_ERR, "sendto: %m");
+			syslog(LOG_ERR, "sendmsg: %m");
 		else if ((size_t)slen != sndlen)
-			syslog(LOG_ERR, "sendto: short write %zu/%zu",
+			syslog(LOG_ERR, "sendmsg: short write %zu/%zu",
 			    sndlen, (size_t)slen);
 	}
 	snmp_pdu_free(&pdu);
