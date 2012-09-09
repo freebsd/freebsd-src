@@ -23,6 +23,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
+
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved	*/
 
@@ -114,14 +118,18 @@ _NOTE(CONSTCOND) } while (0)
 #define	VERIFY3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
 #define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
 #define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
+#define	VERIFY0(x)		VERIFY3_IMPL(x, ==, 0, uintmax_t)
+
 #if DEBUG
 #define	ASSERT3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
 #define	ASSERT3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
 #define	ASSERT3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
+#define	ASSERT0(x)		VERIFY3_IMPL(x, ==, 0, uintmax_t)
 #else
 #define	ASSERT3S(x, y, z)	((void)0)
 #define	ASSERT3U(x, y, z)	((void)0)
 #define	ASSERT3P(x, y, z)	((void)0)
+#define	ASSERT0(x)		((void)0)
 #endif
 
 #ifdef	_KERNEL
