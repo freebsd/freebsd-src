@@ -377,6 +377,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			, i == bf->bf_nseg - 1	/* last segment */
 			, (struct ath_desc *) ds0	/* first descriptor */
 		);
+
+		/* Make sure the 11n aggregate fields are cleared */
+		if (ath_tx_is_11n(sc))
+			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
+
 		isFirstDesc = 0;
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT)
@@ -3459,6 +3464,7 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid->ac]);
 
+	/* XXX clr11naggr should be done for all subframes */
 	ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 	ath_hal_set11nburstduration(sc->sc_ah, bf->bf_desc, 0);
 	/* ath_hal_set11n_virtualmorefrag(sc->sc_ah, bf->bf_desc, 0); */
@@ -3498,6 +3504,11 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 
 	ath_tx_set_retry(sc, bf);
 	bf->bf_next = NULL;		/* Just to make sure */
+
+	/* Clear the aggregate state */
+	bf->bf_state.bfs_aggr = 0;
+	bf->bf_state.bfs_ndelim = 0;	/* ??? needed? */
+	bf->bf_state.bfs_nframes = 1;
 
 	TAILQ_INSERT_TAIL(bf_q, bf, bf_list);
 	return 0;
@@ -4127,6 +4138,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
+			bf->bf_state.bfs_ndelim = 0;
 			ath_tx_setds(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			if (status == ATH_AGGR_BAW_CLOSED)
