@@ -36,7 +36,6 @@ extern "C" {
 #define	_SYS_RWLOCK_H
 #define	_SYS_CONDVAR_H
 #define	_SYS_SYSTM_H
-#define	_SYS_DEBUG_H
 #define	_SYS_T_LOCK_H
 #define	_SYS_VNODE_H
 #define	_SYS_VFS_H
@@ -79,6 +78,7 @@ extern "C" {
 #include <sys/sysevent/eventdefs.h>
 #include <sys/sysevent/dev.h>
 #include <sys/sunddi.h>
+#include <sys/debug.h>
 
 /*
  * Debugging
@@ -110,60 +110,6 @@ extern void vpanic(const char *, __va_list);
 #define	fm_panic	panic
 
 extern int aok;
-
-/* This definition is copied from assert.h. */
-#if defined(__STDC__)
-#if __STDC_VERSION__ - 0 >= 199901L
-#define	zverify(EX) (void)((EX) || (aok) || \
-	(__assert_c99(#EX, __FILE__, __LINE__, __func__), 0))
-#else
-#define	zverify(EX) (void)((EX) || (aok) || \
-	(__assert(#EX, __FILE__, __LINE__), 0))
-#endif /* __STDC_VERSION__ - 0 >= 199901L */
-#else
-#define	zverify(EX) (void)((EX) || (aok) || \
-	(_assert("EX", __FILE__, __LINE__), 0))
-#endif	/* __STDC__ */
-
-
-#define	VERIFY	zverify
-#define	ASSERT	zverify
-#undef	assert
-#define	assert	zverify
-
-extern void __assert(const char *, const char *, int);
-
-#ifdef lint
-#define	VERIFY3_IMPL(x, y, z, t)	if (x == z) ((void)0)
-#else
-/* BEGIN CSTYLED */
-#define	VERIFY3_IMPL(LEFT, OP, RIGHT, TYPE) do { \
-	const TYPE __left = (TYPE)(LEFT); \
-	const TYPE __right = (TYPE)(RIGHT); \
-	if (!(__left OP __right) && (!aok)) { \
-		char *__buf = alloca(256); \
-		(void) snprintf(__buf, 256, "%s %s %s (0x%llx %s 0x%llx)", \
-			#LEFT, #OP, #RIGHT, \
-			(u_longlong_t)__left, #OP, (u_longlong_t)__right); \
-		__assert(__buf, __FILE__, __LINE__); \
-	} \
-_NOTE(CONSTCOND) } while (0)
-/* END CSTYLED */
-#endif /* lint */
-
-#define	VERIFY3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
-#define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
-#define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
-
-#ifdef NDEBUG
-#define	ASSERT3S(x, y, z)	((void)0)
-#define	ASSERT3U(x, y, z)	((void)0)
-#define	ASSERT3P(x, y, z)	((void)0)
-#else
-#define	ASSERT3S(x, y, z)	VERIFY3S(x, y, z)
-#define	ASSERT3U(x, y, z)	VERIFY3U(x, y, z)
-#define	ASSERT3P(x, y, z)	VERIFY3P(x, y, z)
-#endif
 
 /*
  * DTrace SDT probes have different signatures in userland than they do in
