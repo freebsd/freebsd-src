@@ -189,8 +189,8 @@ void		lltable_drain(int);
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
 size_t		llentry_free(struct llentry *);
-int		llentry_update(struct llentry **, struct lltable *,
-		    struct sockaddr_storage *, struct ifnet *);
+struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
+		    struct sockaddr_storage *);
 
 /*
  * Generic link layer address lookup function.
