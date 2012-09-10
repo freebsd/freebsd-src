@@ -121,8 +121,8 @@ llentry_free(struct llentry *lle)
 		pkts_dropped++;
 	}
 
-	KASSERT(lle->la_numheld == 0, 
-		("%s: la_numheld %d > 0, pkts_droped %zd", __func__, 
+	KASSERT(lle->la_numheld == 0,
+		("%s: la_numheld %d > 0, pkts_droped %zd", __func__,
 		 lle->la_numheld, pkts_dropped));
 
 	lle->la_flags &= ~LLE_VALID;
@@ -143,17 +143,17 @@ llentry_update(struct llentry **llep, struct lltable *lt,
 {
 	struct llentry *la;
 
-	IF_AFDATA_RLOCK(ifp);	
+	IF_AFDATA_RLOCK(ifp);
 	la = lla_lookup(lt, LLE_EXCLUSIVE,
 	    (struct sockaddr *)dst);
 	IF_AFDATA_RUNLOCK(ifp);
-	if ((la == NULL) && 
+	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		IF_AFDATA_WLOCK(ifp);
 		la = lla_lookup(lt,
 		    (LLE_CREATE | LLE_EXCLUSIVE),
 		    (struct sockaddr *)dst);
-		IF_AFDATA_WUNLOCK(ifp);	
+		IF_AFDATA_WUNLOCK(ifp);
 	}
 	if (la != NULL && (*llep != la)) {
 		if (*llep != NULL)
@@ -185,7 +185,7 @@ lltable_free(struct lltable *llt)
 	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
 	LLTABLE_WUNLOCK();
 
-	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			int canceled;
 
@@ -230,7 +230,7 @@ lltable_drain(int af)
 
 void
 lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
-	    u_int flags)
+    u_int flags)
 {
 	struct lltable *llt;
 
@@ -300,7 +300,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		if (rtm->rtm_flags & RTF_ANNOUNCE) {
 			flags |= LLE_PUB;
 #ifdef INET
-			if (dst->sa_family == AF_INET && 
+			if (dst->sa_family == AF_INET &&
 			    ((struct sockaddr_inarp *)dst)->sin_other != 0) {
 				struct rtentry *rt;
 				((struct sockaddr_inarp *)dst)->sin_other = 0;
@@ -345,7 +345,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	if (flags & LLE_CREATE)
 		flags |= LLE_EXCLUSIVE;
-	
+
 	IF_AFDATA_LOCK(ifp);
 	lle = lla_lookup(llt, flags, dst);
 	IF_AFDATA_UNLOCK(ifp);
@@ -381,7 +381,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 #ifdef INET
 			/*  gratuitous ARP */
 			if ((laflags & LLE_PUB) && dst->sa_family == AF_INET) {
-				arprequest(ifp, 
+				arprequest(ifp,
 				    &((struct sockaddr_in *)dst)->sin_addr,
 				    &((struct sockaddr_in *)dst)->sin_addr,
 				    ((laflags & LLE_PROXY) ?
@@ -454,7 +454,7 @@ llatbl_lle_show(struct llentry_sa *la)
 
 		sin = (struct sockaddr_in *)&la->l3_addr;
 		inet_ntoa_r(sin->sin_addr, l3s);
-		db_printf(" l3_addr=%s\n", l3s);	
+		db_printf(" l3_addr=%s\n", l3s);
 		break;
 	}
 #endif
@@ -466,7 +466,7 @@ llatbl_lle_show(struct llentry_sa *la)
 
 		sin6 = (struct sockaddr_in6 *)&la->l3_addr;
 		ip6_sprintf(l3s, &sin6->sin6_addr);
-		db_printf(" l3_addr=%s\n", l3s);	
+		db_printf(" l3_addr=%s\n", l3s);
 		break;
 	}
 #endif
