@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 
 #include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
 
 #include <cam/scsi/scsi_low.h>
 
@@ -297,7 +296,6 @@ ct_isa_attach(device_t dev)
 
 	slp->sl_dev = dev;
 	slp->sl_hostid = bs->sc_hostid;
-	slp->sl_irq = isa_get_irq(dev);
 	slp->sl_cfgflags = device_get_flags(dev);
 
 	s = splcam();
