@@ -19,9 +19,13 @@
  * CDDL HEADER END
  *
  * $FreeBSD$
- *
+ */
+/*
+ * Copyright 2007 John Birrell <jb@FreeBSD.org>. All rights reserved.
+ * Copyright 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
+#include <sys/assfail.h>
 #include <sys/cmn_err.h>
 
 void
@@ -67,4 +71,20 @@ cmn_err(int type, const char *fmt, ...)
 	va_start(ap, fmt);
 	vcmn_err(type, fmt, ap);
 	va_end(ap);
+}
+
+int
+assfail(const char *a, const char *f, int l) {
+
+	panic("solaris assert: %s, file: %s, line: %d", a, f, l);
+
+	return (0);
+}
+
+void
+assfail3(const char *a, uintmax_t lv, const char *op, uintmax_t rv,
+    const char *f, int l) {
+
+	panic("solaris assert: %s (0x%jx %s 0x%jx), file: %s, line: %d",
+	    a, lv, op, rv, f, l);
 }
