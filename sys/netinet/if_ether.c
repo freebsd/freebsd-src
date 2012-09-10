@@ -87,8 +87,8 @@ static VNET_DEFINE(int, arp_maxtries) = 5;
 VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
 					 * local traffic */
 static VNET_DEFINE(int, arp_proxyall) = 0;
-static VNET_DEFINE(int, arpt_down) = 20;      /* keep incomplete entries for
-					       * 20 seconds */
+static VNET_DEFINE(int, arpt_down) = 20;	/* keep incomplete entries for
+						 * 20 seconds */
 VNET_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
 
 static VNET_DEFINE(int, arp_maxhold) = 1;
@@ -119,7 +119,7 @@ SYSCTL_VNET_STRUCT(_net_link_ether_arp, OID_AUTO, stats, CTLFLAG_RW,
 	&VNET_NAME(arpstat), arpstat,
 	"ARP statistics (struct arpstat, net/if_arp.h)");
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
-	&VNET_NAME(arp_maxhold), 0, 
+	&VNET_NAME(arp_maxhold), 0,
 	"Number of packets to hold per ARP entry");
 
 static void	arp_init(void);
@@ -190,7 +190,7 @@ arptimer(void *arg)
 		} else {
 #ifdef DIAGNOSTIC
 			struct sockaddr *l3addr = L3_ADDR(lle);
-			log(LOG_INFO, 
+			log(LOG_INFO,
 			    "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
 			    inet_ntoa(
 			        ((const struct sockaddr_in *)l3addr)->sin_addr));
@@ -233,7 +233,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 			    SIN(ifa->ifa_netmask)->sin_addr.s_addr) )
 				break;  /* found it. */
 		}
-		if (sip == NULL) {  
+		if (sip == NULL) {
 			printf("%s: cannot find matching address\n", __func__);
 			return;
 		}
@@ -303,15 +303,15 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		}
 	}
 retry:
-	IF_AFDATA_RLOCK(ifp);	
+	IF_AFDATA_RLOCK(ifp);
 	la = lla_lookup(LLTABLE(ifp), flags, dst);
-	IF_AFDATA_RUNLOCK(ifp);	
+	IF_AFDATA_RUNLOCK(ifp);
 	if ((la == NULL) && ((flags & LLE_EXCLUSIVE) == 0)
-	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {		
+	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {
 		flags |= (LLE_CREATE | LLE_EXCLUSIVE);
-		IF_AFDATA_WLOCK(ifp);	
+		IF_AFDATA_WLOCK(ifp);
 		la = lla_lookup(LLTABLE(ifp), flags, dst);
-		IF_AFDATA_WUNLOCK(ifp);	
+		IF_AFDATA_WUNLOCK(ifp);
 	}
 	if (la == NULL) {
 		if (flags & LLE_CREATE)
@@ -320,7 +320,7 @@ retry:
 			    inet_ntoa(SIN(dst)->sin_addr));
 		m_freem(m);
 		return (EINVAL);
-	} 
+	}
 
 	if ((la->la_flags & LLE_VALID) &&
 	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
@@ -337,12 +337,12 @@ retry:
 
 			la->la_preempt--;
 		}
-		
+
 		*lle = la;
 		error = 0;
 		goto done;
-	} 
-			    
+	}
+
 	if (la->la_flags & LLE_STATIC) {   /* should not happen! */
 		log(LOG_DEBUG, "arpresolve: ouch, empty static llinfo for %s\n",
 		    inet_ntoa(SIN(dst)->sin_addr));
@@ -372,20 +372,20 @@ retry:
 				la->la_numheld--;
 				ARPSTAT_INC(dropped);
 			}
-		} 
+		}
 		if (la->la_hold != NULL) {
 			curr = la->la_hold;
 			while (curr->m_nextpkt != NULL)
 				curr = curr->m_nextpkt;
 			curr->m_nextpkt = m;
-		} else 
+		} else
 			la->la_hold = m;
 		la->la_numheld++;
 		if (renew == 0 && (flags & LLE_EXCLUSIVE)) {
 			flags &= ~LLE_EXCLUSIVE;
 			LLE_DOWNGRADE(la);
 		}
-		
+
 	}
 	/*
 	 * Return EWOULDBLOCK if we have tried less than arp_maxtries. It
@@ -494,11 +494,11 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
 	"log arp packets arriving on the wrong interface");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_movements, CTLFLAG_RW,
-        &log_arp_movements, 0,
-        "log arp replies from MACs different than the one in the cache");
+	&log_arp_movements, 0,
+	"log arp replies from MACs different than the one in the cache");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
-        &log_arp_permanent_modify, 0,
-        "log arp replies from MACs different than the one in the permanent arp entry");
+	&log_arp_permanent_modify, 0,
+	"log arp replies from MACs different than the one in the permanent arp entry");
 
 
 static void
@@ -534,7 +534,7 @@ in_arpinput(struct mbuf *m)
 	}
 
 	ah = mtod(m, struct arphdr *);
-	/* 
+	/*
 	 * ARP is only for IPv4 so we can reject packets with
 	 * a protocol length not equal to an IPv4 address.
 	 */
@@ -677,7 +677,7 @@ match:
 	sin.sin_addr = isaddr;
 	flags = (itaddr.s_addr == myaddr.s_addr) ? LLE_CREATE : 0;
 	flags |= LLE_EXCLUSIVE;
-	IF_AFDATA_LOCK(ifp); 
+	IF_AFDATA_LOCK(ifp);
 	la = lla_lookup(LLTABLE(ifp), flags, (struct sockaddr *)&sin);
 	IF_AFDATA_UNLOCK(ifp);
 	if (la != NULL) {
@@ -707,7 +707,7 @@ match:
 				goto reply;
 			}
 			if (log_arp_movements) {
-			        log(LOG_INFO, "arp: %s moved from %*D "
+				log(LOG_INFO, "arp: %s moved from %*D "
 				    "to %*D on %s\n",
 				    inet_ntoa(isaddr),
 				    ifp->if_addrlen,
@@ -716,7 +716,7 @@ match:
 				    ifp->if_xname);
 			}
 		}
-		    
+
 		if (ifp->if_addrlen != ah->ar_hln) {
 			LLE_WUNLOCK(la);
 			log(LOG_WARNING, "arp from %*D: addr len: new %d, "
@@ -742,7 +742,7 @@ match:
 		}
 		la->la_asked = 0;
 		la->la_preempt = V_arp_maxtries;
-		/* 
+		/*
 		 * The packets are all freed within the call to the output
 		 * routine.
 		 *
@@ -778,7 +778,7 @@ reply:
 		struct llentry *lle = NULL;
 
 		sin.sin_addr = itaddr;
-		IF_AFDATA_LOCK(ifp); 
+		IF_AFDATA_LOCK(ifp);
 		lle = lla_lookup(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
 		IF_AFDATA_UNLOCK(ifp);
 
@@ -793,7 +793,7 @@ reply:
 
 			if (!V_arp_proxyall)
 				goto drop;
-			
+
 			sin.sin_addr = itaddr;
 			/* XXX MRT use table 0 for arp reply  */
 			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
@@ -821,7 +821,7 @@ reply:
 			 * wrong network.
 			 */
 			sin.sin_addr = isaddr;
-			
+
 			/* XXX MRT use table 0 for arp checks */
 			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
 			if (!rt)
@@ -837,8 +837,7 @@ reply:
 			RTFREE_LOCKED(rt);
 
 #ifdef DEBUG_PROXY
-			printf("arp: proxying for %s\n",
-			       inet_ntoa(itaddr));
+			printf("arp: proxying for %s\n", inet_ntoa(itaddr));
 #endif
 		}
 	}
@@ -860,8 +859,8 @@ reply:
 	(void)memcpy(ar_spa(ah), &itaddr, ah->ar_pln);
 	ah->ar_op = htons(ARPOP_REPLY);
 	ah->ar_pro = htons(ETHERTYPE_IP); /* let's be sure! */
-	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);   
-	m->m_pkthdr.len = m->m_len;   
+	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);
+	m->m_pkthdr.len = m->m_len;
 	m->m_pkthdr.rcvif = NULL;
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
@@ -882,7 +881,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY) {
 		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
 				&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
-		/* 
+		/*
 		 * interface address is considered static entry
 		 * because the output of the arp utility shows
 		 * that L2 entry as permanent
