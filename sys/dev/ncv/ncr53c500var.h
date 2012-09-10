@@ -82,12 +82,6 @@ struct ncv_targ_info {
  *****************************************************************/
 int ncvprobesubr(bus_space_tag_t, bus_space_handle_t ioh, u_int, int);
 void ncvattachsubr(struct ncv_softc *);
-int ncvprint(void *, const char *);
 int ncvintr(void *);
 
-#if	defined(__i386__) && 0
-#define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
-#else	/* !__i386__ */
-#define	SOFT_INTR_REQUIRED(slp)
-#endif	/* !__i386__ */
 #endif	/* !_NCR53C500VAR_H_ */

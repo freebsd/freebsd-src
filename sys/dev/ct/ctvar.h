@@ -132,6 +132,5 @@ struct ct_targ_info {
  *****************************************************************/
 int ctprobesubr(struct ct_bus_access_handle *, u_int, int, u_int, int *);
 void ctattachsubr(struct ct_softc *);
-int ctprint(void *, const char *);
 int ctintr(void *);
 #endif	/* !_CTVAR_H_ */

@@ -90,12 +90,6 @@ struct stg_targ_info {
  *****************************************************************/
 int stgprobesubr(bus_space_tag_t, bus_space_handle_t, u_int);
 void stgattachsubr(struct stg_softc *);
-int stgprint(void *, const char *);
 int stgintr(void *);
 
-#if	defined(__i386__) && 0
-#define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
-#else	/* !__i386__ */
-#define	SOFT_INTR_REQUIRED(slp)
-#endif	/* !__i386__ */
 #endif	/* !_TMC18C30VAR_H_ */

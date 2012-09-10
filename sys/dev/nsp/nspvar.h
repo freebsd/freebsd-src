@@ -91,12 +91,6 @@ struct nsp_targ_info {
  *****************************************************************/
 int nspprobesubr(bus_space_tag_t, bus_space_handle_t, u_int);
 void nspattachsubr(struct nsp_softc *);
-int nspprint(void *, const char *);
 int nspintr(void *);
 
-#if	defined(__i386__) && 0
-#define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
-#else	/* !__i386__ */
-#define	SOFT_INTR_REQUIRED(slp)
-#endif	/* !__i386__ */
 #endif	/* !_NSPVAR_H_ */

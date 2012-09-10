@@ -83,12 +83,6 @@ struct scsi_low_osdep_interface {
 #endif
 };
 
-struct scsi_low_osdep_targ_interface {
-};
-
-struct scsi_low_osdep_lun_interface {
-};
-
 /******** os depend interface functions *************/
 struct slccb;
 struct scsi_low_softc;
@@ -252,8 +246,6 @@ TAILQ_HEAD(targ_info_tab, targ_info);
 LIST_HEAD(lun_info_tab, lun_info);
 
 struct lun_info {
-	struct scsi_low_osdep_lun_interface li_sloi;
-
 	int li_lun;
 	struct targ_info *li_ti;		/* my target */
 
@@ -340,8 +332,6 @@ struct scsi_low_msg_log {
 };
 
 struct targ_info {
-	struct scsi_low_osdep_targ_interface ti_slti;
-
 	TAILQ_ENTRY(targ_info) ti_chain;	/* targ_info link */
 
 	struct scsi_low_softc *ti_sc;		/* our softc */
@@ -500,7 +490,6 @@ struct scsi_low_softc {
 	struct scsi_low_osdep_interface sl_si;
 #define	sl_dev	sl_si.si_dev
 	struct scsi_low_osdep_funcs *sl_osdep_fp;
-	u_char sl_xname[16];
 				
 	/* our chain */
 	LIST_ENTRY(scsi_low_softc) sl_chain;
@@ -605,10 +594,6 @@ struct scsi_low_softc {
 
 	/* targinfo size */
 	int sl_targsize;
-
-#if	defined(i386) || defined(__i386__)
-	u_int sl_irq;		/* XXX */
-#endif	/* i386 */
 };
 
 /*************************************************

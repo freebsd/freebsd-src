@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/bus.h>
 
-#include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
-
 #include <cam/scsi/scsi_low.h>
 #include <dev/nsp/nspreg.h>
 #include <dev/nsp/nspvar.h>
@@ -229,7 +226,7 @@ nsp_expect_signal(struct nsp_softc *sc, u_int8_t curphase, u_int8_t mask)
 		DELAY(NSP_DELAY_INTERVAL);
 	}
 
-	printf("%s: nsp_expect_signal timeout\n", slp->sl_xname);
+	device_printf(slp->sl_dev, "nsp_expect_signal timeout\n");
 	return -1;
 }
 
@@ -463,7 +460,6 @@ nsp_world_start(sc, fdone)
 	nsphw_init(sc);
 	scsi_low_bus_reset(slp);
 
-	SOFT_INTR_REQUIRED(slp);
 	return 0;
 }
 
@@ -598,17 +594,6 @@ nspprobesubr(iot, ioh, dvcfg)
 	regv = bus_space_read_1(iot, ioh, nsp_fifosr);
 	if (regv < 0x11 || regv >= 0x20)
 		return 0;
-	return 1;
-}
-
-int
-nspprint(aux, name)
-	void *aux;
-	const char *name;
-{
-
-	if (name != NULL)
-		printf("%s: scsibus ", name);
 	return 1;
 }
 
@@ -761,8 +746,8 @@ nsp_pdma_end(sc, ti)
 			else
 			{
 				slp->sl_error |= PDMAERR;
-				printf("%s len %x >= datalen %x\n",
-					slp->sl_xname,
+				device_printf(slp->sl_dev,
+					"len %x >= datalen %x\n",
 					len, slp->sl_scp.scp_datalen);
 			}
 		}
@@ -772,8 +757,9 @@ nsp_pdma_end(sc, ti)
 			    sc->sc_cnt > cb->ccb_scp.scp_datalen)
 			{
 				slp->sl_error |= PDMAERR;
-				printf("%s: data read count error %x != %x (%x)\n",
-					slp->sl_xname, sc->sc_cnt, cnt,
+				device_printf(slp->sl_dev,
+					"data read count error %x != %x (%x)\n",
+					sc->sc_cnt, cnt,
 					cb->ccb_scp.scp_datalen);
 			}
 		}
@@ -783,7 +769,7 @@ nsp_pdma_end(sc, ti)
 	else
 	{
 
-		printf("%s data phase miss\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "data phase miss\n");
 		slp->sl_error |= PDMAERR;
 	}
 }
@@ -834,8 +820,8 @@ nsp_read_fifo(sc, suspendio)
 #ifdef	NSP_DEBUG
 	if (res < sc->sc_cnt || res == (u_int) -1)
 	{
-		printf("%s: strange fifo ack count 0x%x < 0x%x\n", 
-			slp->sl_xname, res, sc->sc_cnt);
+		device_printf(slp->sl_dev,
+		    "strange fifo ack count 0x%x < 0x%x\n", res, sc->sc_cnt);
 		return 0;
 	}
 #endif	/* NSP_DEBUG */
@@ -845,8 +831,8 @@ nsp_read_fifo(sc, suspendio)
 	{
 		if ((slp->sl_error & PDMAERR) == 0)
 		{
-			printf("%s: data overrun 0x%x > 0x%x\n",
-				slp->sl_xname, res, slp->sl_scp.scp_datalen);
+			device_printf(slp->sl_dev, "data overrun 0x%x > 0x%x\n",
+			    res, slp->sl_scp.scp_datalen);
 		}
 
 		slp->sl_error |= PDMAERR;
@@ -854,7 +840,7 @@ nsp_read_fifo(sc, suspendio)
 
 		if ((slp->sl_flags & HW_READ_PADDING) == 0)
 		{
-			printf("%s: read padding required\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "read padding required\n");
 			return 0;
 		}
 
@@ -924,8 +910,9 @@ nsp_write_fifo(sc, suspendio)
 #ifdef	NSP_DEBUG
 		if ((slp->sl_scp.scp_datalen % WFIFO_CRIT) != 0)
 		{
-			printf("%s: strange write length 0x%x\n",
-				slp->sl_xname, slp->sl_scp.scp_datalen);
+			device_printf(slp->sl_dev,
+			    "strange write length 0x%x\n",
+			    slp->sl_scp.scp_datalen);
 		}
 #endif	/* NSP_DEBUG */
 		res = slp->sl_scp.scp_datalen % suspendio;
@@ -1071,7 +1058,7 @@ ReadLoop:
 
 		if ((-- tout) <= 0)
 		{
-			printf("%s: nsp_pio_read: timeout\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "nsp_pio_read: timeout\n");
 			return;
 		}
 	}
@@ -1183,7 +1170,7 @@ WriteLoop:
 
 		if ((-- tout) <= 0)
 		{
-			printf("%s: nsp_pio_write: timeout\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "nsp_pio_write: timeout\n");
 			return;
 		}
 	}
@@ -1215,7 +1202,7 @@ nsp_negate_signal(struct nsp_softc *sc, u_int8_t mask, u_char *s)
 		DELAY(NSP_DELAY_INTERVAL);
 	}
 
-	printf("%s: %s nsp_negate_signal timeout\n", slp->sl_xname, s);
+	device_printf(slp->sl_dev, "%s nsp_negate_signal timeout\n", s);
 	return -1;
 }
 
@@ -1329,9 +1316,9 @@ nsp_error(struct nsp_softc * sc, u_char *s, u_int8_t isrc, u_int8_t ph,
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 
-	printf("%s: %s\n", slp->sl_xname, s);
-	printf("%s: isrc 0x%x scmon 0x%x irqphs 0x%x\n",
-	       slp->sl_xname, (u_int) isrc, (u_int) ph, (u_int) irqphs);
+	device_printf(slp->sl_dev, "%s\n", s);
+	device_printf(slp->sl_dev, "isrc 0x%x scmon 0x%x irqphs 0x%x\n",
+	    (u_int) isrc, (u_int) ph, (u_int) irqphs);
 }
 
 static int
@@ -1404,8 +1391,8 @@ nsp_phase_match(struct nsp_softc *sc, u_int8_t phase, u_int8_t stat)
 
 	if ((stat & SCBUSMON_PHMASK) != phase)
 	{
-		printf("%s: phase mismatch 0x%x != 0x%x\n",
-			slp->sl_xname, (u_int) phase, (u_int) stat);
+		device_printf(slp->sl_dev, "phase mismatch 0x%x != 0x%x\n",
+		    (u_int) phase, (u_int) stat);
 		return EINVAL;
 	}
 
@@ -1424,7 +1411,6 @@ nspintr(arg)
 	bus_space_tag_t bst = sc->sc_iot;
 	bus_space_handle_t bsh = sc->sc_ioh;
 	struct targ_info *ti;
-	struct physio_proc *pp;
 	struct buf *bp;
 	u_int derror, flags;
 	int len, rv;
@@ -1572,8 +1558,8 @@ nspintr(arg)
 		nsp_target_nexus_establish(sc);
 		if ((ph & SCBUSMON_PHMASK) != PHASE_MSGIN)
 		{
-			printf("%s: unexpected phase after reselect\n",
-			       slp->sl_xname);
+			device_printf(slp->sl_dev,
+			    "unexpected phase after reselect\n");
 			slp->sl_error |= FATALIO;
 			scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_ABORT, 1);
 			return 1;
@@ -1653,9 +1639,7 @@ nspintr(arg)
 			scsi_low_attention(slp);
 		}
 	
-		pp = physio_proc_enter(bp);
 		nsp_pio_write(sc, sc->sc_suspendio);
-		physio_proc_leave(pp);
 		break;
 
 	case IRQPHS_DATAIN:
@@ -1665,9 +1649,7 @@ nspintr(arg)
 			scsi_low_attention(slp);
 		}
 
-		pp = physio_proc_enter(bp);
 		nsp_pio_read(sc, sc->sc_suspendio);
-		physio_proc_leave(pp);
 		break;
 
 	case IRQPHS_STATUS:
@@ -1864,7 +1846,7 @@ nsp_timeout(sc)
 	        slp->sl_error |= PDMAERR;
 		if ((slp->sl_flags & HW_WRITE_PADDING) == 0)
 		{
-			printf("%s: write padding required\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "write padding required\n");
 			break;
 		}
 
