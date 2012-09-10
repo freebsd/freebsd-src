@@ -157,7 +157,7 @@ static struct scsi_low_softc_tab sl_tab = LIST_HEAD_INITIALIZER(sl_tab);
 #ifdef	SCSI_LOW_INFO_DETAIL
 #define	SCSI_LOW_INFO(slp, ti, s) scsi_low_info((slp), (ti), (s))
 #else	/* !SCSI_LOW_INFO_DETAIL */
-#define	SCSI_LOW_INFO(slp, ti, s) printf("%s: %s\n", (slp)->sl_xname, (s))
+#define	SCSI_LOW_INFO(slp, ti, s) device_printf((slp)->sl_dev, "%s\n", (s))
 #endif	/* !SCSI_LOW_INFO_DETAIL */
 
 #ifdef	SCSI_LOW_STATICS
@@ -439,8 +439,9 @@ scsi_low_scsi_action_cam(sim, ccb)
 #ifdef	SCSI_LOW_DEBUG
 	if (SCSI_LOW_DEBUG_GO(SCSI_LOW_DEBUG_ACTION, target) != 0)
 	{
-		printf("%s: cam_action: func code 0x%x target: %d, lun: %d\n",
-			slp->sl_xname, ccb->ccb_h.func_code, target, lun);
+		device_printf(slp->sl_dev,
+		    "cam_action: func code 0x%x target: %d, lun: %d\n",
+		    ccb->ccb_h.func_code, target, lun);
 	}
 #endif	/* SCSI_LOW_DEBUG */
 
@@ -449,7 +450,7 @@ scsi_low_scsi_action_cam(sim, ccb)
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD || lun == CAM_LUN_WILDCARD)
 		{
-			printf("%s: invalid target/lun\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "invalid target/lun\n");
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
@@ -502,7 +503,7 @@ scsi_low_scsi_action_cam(sim, ccb)
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD || lun == CAM_LUN_WILDCARD)
 		{
-			printf("%s: invalid target/lun\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "invalid target/lun\n");
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
@@ -530,7 +531,7 @@ scsi_low_scsi_action_cam(sim, ccb)
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD)
 		{
-			printf("%s: invalid target\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "invalid target\n");
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
@@ -603,7 +604,7 @@ scsi_low_scsi_action_cam(sim, ccb)
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD)
 		{
-			printf("%s: invalid target\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "invalid target\n");
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
@@ -624,8 +625,8 @@ scsi_low_scsi_action_cam(sim, ccb)
 			if (li->li_flags_valid != SCSI_LOW_LUN_FLAGS_ALL_VALID)
 			{
 				ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-				printf("%s: invalid GET_TRANS_CURRENT_SETTINGS call\n",
-					slp->sl_xname);
+				device_printf(slp->sl_dev,
+				    "invalid GET_TRANS_CURRENT_SETTINGS call\n");
 				goto settings_out;
 			}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
@@ -687,7 +688,7 @@ settings_out:
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD)
 		{
-			printf("%s: invalid target\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "invalid target\n");
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
@@ -766,9 +767,6 @@ scsi_low_attach_cam(slp)
 {
 	struct cam_devq *devq;
 	int tagged_openings;
-
-	sprintf(slp->sl_xname, "%s%d",
-		device_get_name(slp->sl_dev), device_get_unit(slp->sl_dev));
 
 	devq = cam_simq_alloc(SCSI_LOW_NCCB);
 	if (devq == NULL)
@@ -890,8 +888,8 @@ scsi_low_done_cam(slp, cb)
 		    (scsi_low_cmd_flags[cb->ccb_scp.scp_cmd[0]] &
 		     SCSI_LOW_CMD_ABORT_WARNING) != 0)
 		{
-			printf("%s: WARNING: scsi_low IO abort\n",
-				slp->sl_xname);
+			device_printf(slp->sl_dev,
+			    "WARNING: scsi_low IO abort\n");
 			scsi_low_print(slp, NULL);
 		}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
@@ -1203,7 +1201,7 @@ scsi_low_alloc_ti(slp, targ)
 
 	ti = SCSI_LOW_MALLOC(slp->sl_targsize);
 	if (ti == NULL)
-		panic("%s short of memory", slp->sl_xname);
+		panic("%s short of memory", device_get_nameunit(slp->sl_dev));
 
 	bzero(ti, slp->sl_targsize);
 	ti->ti_id = targ;
@@ -1310,7 +1308,8 @@ scsi_low_timeout_check(slp)
 			cb->ccb_flags |= CCB_NORETRY;
 			cb->ccb_error |= SELTIMEOUTIO;
 			if (scsi_low_revoke_ccb(slp, cb, 1) != NULL)
-				panic("%s: ccb not finished", slp->sl_xname);
+				panic("%s: ccb not finished",
+				    device_get_nameunit(slp->sl_dev));
 		}
 
 		if (slp->sl_Tnexus == NULL)
@@ -1393,7 +1392,7 @@ step1:
 
 bus_reset:
 	cb->ccb_error |= TIMEOUTIO;
-	printf("%s: slccb (0x%lx) timeout!\n", slp->sl_xname, (u_long) cb);
+	device_printf(slp->sl_dev, "slccb (0x%lx) timeout!\n", (u_long) cb);
 	scsi_low_info(slp, NULL, "scsi bus hangup. try to recover.");
 	scsi_low_init(slp, SCSI_LOW_RESTART_HARD);
 	scsi_low_start(slp);
@@ -1434,7 +1433,8 @@ scsi_low_abort_ccb(slp, cb)
 	else if ((cb->ccb_flags & CCB_DISCQ) != 0)
 	{
 		if (scsi_low_revoke_ccb(slp, cb, 0) == NULL)
-			panic("%s: revoked ccb done", slp->sl_xname);
+			panic("%s: revoked ccb done",
+			    device_get_nameunit(slp->sl_dev));
 
 		cb->ccb_flags |= CCB_STARTQ;
 		TAILQ_INSERT_HEAD(&slp->sl_start, cb, ccb_chain);
@@ -1445,7 +1445,8 @@ scsi_low_abort_ccb(slp, cb)
 	else
 	{
 		if (scsi_low_revoke_ccb(slp, cb, 1) != NULL)
-			panic("%s: revoked ccb retried", slp->sl_xname);
+			panic("%s: revoked ccb retried",
+			    device_get_nameunit(slp->sl_dev));
 	}
 	return 0;
 }
@@ -1509,8 +1510,8 @@ scsi_low_attach(slp, openings, ntargs, nluns, targsize, lunsize)
 	if (rv != 0)
 	{
 		splx(s);
-		printf("%s: scsi_low_attach: osdep attach failed\n",
-			slp->sl_xname);
+		device_printf(slp->sl_dev,
+		    "scsi_low_attach: osdep attach failed\n");
 		return EINVAL;
 	}
 
@@ -1519,8 +1520,8 @@ scsi_low_attach(slp, openings, ntargs, nluns, targsize, lunsize)
 	if (scsi_low_init(slp, SCSI_LOW_RESTART_HARD) != 0)
 	{
 		splx(s);
-		printf("%s: scsi_low_attach: initialization failed\n",
-			slp->sl_xname);
+		device_printf(slp->sl_dev,
+		    "scsi_low_attach: initialization failed\n");
 		return EINVAL;
 	}
 
@@ -1735,7 +1736,7 @@ scsi_low_setup_start(slp, ti, li, cb)
 		return SCSI_LOW_START_QTAG;
 
 	default:
-		panic("%s: no setup phase", slp->sl_xname);
+		panic("%s: no setup phase", device_get_nameunit(slp->sl_dev));
 	}
 
 	return SCSI_LOW_START_NO_QTAG;
@@ -1791,7 +1792,7 @@ scsi_low_start(slp)
 	if (slp->sl_Tnexus || slp->sl_Lnexus || slp->sl_Qnexus)
 	{
 		scsi_low_info(slp, NULL, "NEXUS INCOSISTENT");
-		panic("%s: inconsistent", slp->sl_xname);
+		panic("%s: inconsistent", device_get_nameunit(slp->sl_dev));
 	}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 
@@ -1928,7 +1929,7 @@ scsi_low_arbit_fail(slp, cb)
 	if (slp->sl_disc == 0)
 	{
 #ifdef	SCSI_LOW_DIAGNOSTIC
-		printf("%s: try selection again\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "try selection again\n");
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 		slp->sl_retry_sel = 1;
 	}
@@ -2356,7 +2357,7 @@ scsi_low_bus_reset(slp)
 
 	(*slp->sl_funcs->scsi_low_bus_reset) (slp);
 
-	printf("%s: try to reset scsi bus  ", slp->sl_xname);
+	device_printf(slp->sl_dev, "try to reset scsi bus  ");
 	for (i = 0; i <= SCSI2_RESET_DELAY / TWIDDLEWAIT ; i++)
 		scsi_low_twiddle_wait();
 	cnputc('\b');
@@ -2372,7 +2373,7 @@ scsi_low_restart(slp, flags, s)
 	int error;
 
 	if (s != NULL)
-		printf("%s: scsi bus restart. reason: %s\n", slp->sl_xname, s);
+		device_printf(slp->sl_dev, "scsi bus restart. reason: %s\n", s);
 
 	if ((error = scsi_low_init(slp, flags)) != 0)
 		return error;
@@ -2411,8 +2412,8 @@ found:
 #ifdef	SCSI_LOW_DEBUG
 	if (SCSI_LOW_DEBUG_TEST_GO(SCSI_LOW_NEXUS_CHECK, ti->ti_id) != 0)
 	{
-		printf("%s: nexus(0x%lx) abort check start\n",
-			slp->sl_xname, (u_long) cb);
+		device_printf(slp->sl_dev, "nexus(0x%lx) abort check start\n",
+		    (u_long) cb);
 		cb->ccb_flags |= (CCB_NORETRY | CCB_SILENT);
 		scsi_low_revoke_ccb(slp, cb, 1);
 		return NULL;
@@ -2514,7 +2515,7 @@ scsi_low_reselected(slp, targ)
 	return ti;
 
 world_restart:
-	printf("%s: reselect(%x:unknown) %s\n", slp->sl_xname, targ, s);
+	device_printf(slp->sl_dev, "reselect(%x:unknown) %s\n", targ, s);
 	scsi_low_restart(slp, SCSI_LOW_RESTART_HARD, 
 		         "reselect: scsi world confused");
 	return NULL;
@@ -2894,7 +2895,7 @@ scsi_low_errfunc_qtag(slp, msgflags)
 			slp->sl_Lnexus->li_cfgflags &= ~SCSI_LOW_QTAG;
 			scsi_low_calcf_lun(slp->sl_Lnexus);
 		}
-		printf("%s: scsi_low: qtag msg rejected\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "scsi_low: qtag msg rejected\n");
 	}
 	return 0;
 }
@@ -2920,7 +2921,7 @@ scsi_low_msgout(slp, ti, fl)
 	slp->sl_ph_count ++;
 	if (slp->sl_ph_count > SCSI_LOW_MAX_PHCHANGES)
 	{
-		printf("%s: too many phase changes\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "too many phase changes\n");
 		slp->sl_error |= FATALIO;
 		scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_ABORT, 0);
 	}
@@ -2945,7 +2946,7 @@ scsi_low_msgout(slp, ti, fl)
 		ti->ti_msgflags |= ti->ti_omsgflags;
 		ti->ti_omsgflags = 0;
 #ifdef	SCSI_LOW_DIAGNOSTIC
-		printf("%s: scsi_low_msgout: retry msgout\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "scsi_low_msgout: retry msgout\n");
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 	}
 
@@ -3020,7 +3021,7 @@ scsi_low_msginfunc_rejop(slp)
 	struct targ_info *ti = slp->sl_Tnexus;
 	u_int8_t msg = ti->ti_msgin[0];
 
-	printf("%s: MSGIN: msg 0x%x rejected\n", slp->sl_xname, (u_int) msg);
+	device_printf(slp->sl_dev, "MSGIN: msg 0x%x rejected\n", (u_int) msg);
 	scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_REJECT, 0);
 	return 0;
 }
@@ -3128,7 +3129,8 @@ cmd_link_start:
 	cb->ccb_tag = SCSI_LOW_UNKTAG;
 	cb->ccb_otag = SCSI_LOW_UNKTAG;
 	if (scsi_low_done(slp, cb) == SCSI_LOW_DONE_RETRY)
-		panic("%s: linked ccb retried", slp->sl_xname);
+		panic("%s: linked ccb retried",
+		    device_get_nameunit(slp->sl_dev));
 
 	slp->sl_Qnexus = ncb;
 	slp->sl_ph_count = 0;
@@ -3220,8 +3222,8 @@ scsi_low_synch(slp)
 		 */
 		ti->ti_maxsynch.period = 0;
 		ti->ti_maxsynch.offset = 0;
-		printf("%s: target brain damaged. async transfer\n",
-			slp->sl_xname);
+		device_printf(slp->sl_dev,
+		    "target brain damaged. async transfer\n");
 		return EINVAL;
 	}
 
@@ -3236,8 +3238,8 @@ scsi_low_synch(slp)
 		 * for our adapter.
 		 * The adapter changes max synch and max offset.
 		 */
-		printf("%s: synch neg failed. retry synch msg neg ...\n",
-			slp->sl_xname);
+		device_printf(slp->sl_dev,
+		    "synch neg failed. retry synch msg neg ...\n");
 		return error;
 	}
 
@@ -3257,8 +3259,9 @@ scsi_low_synch(slp)
 			return 0;
 #endif	/* SCSI_LOW_NEGOTIATE_BEFORE_SENSE */
 
-		printf("%s(%d:*): <%s> offset %d period %dns ",
-			slp->sl_xname, ti->ti_id, s, offset, period * 4);
+		device_printf(slp->sl_dev,
+		    "(%d:*): <%s> offset %d period %dns ",
+		    ti->ti_id, s, offset, period * 4);
 
 		if (period != 0)
 		{
@@ -3285,8 +3288,8 @@ scsi_low_wide(slp)
 		 * Current width is not acceptable for our adapter.
 		 * The adapter changes max width.
 		 */
-		printf("%s: wide neg failed. retry wide msg neg ...\n",
-			slp->sl_xname);
+		device_printf(slp->sl_dev,
+		    "wide neg failed. retry wide msg neg ...\n");
 		return error;
 	}
 
@@ -3307,8 +3310,8 @@ scsi_low_wide(slp)
 			return 0;
 #endif	/* SCSI_LOW_NEGOTIATE_BEFORE_SENSE */
 
-		printf("%s(%d:*): transfer width %d bits\n",
-			slp->sl_xname, ti->ti_id, 1 << (3 + ti->ti_width));
+		device_printf(slp->sl_dev, "(%d:*): transfer width %d bits\n",
+		    ti->ti_id, 1 << (3 + ti->ti_width));
 	}
 	return 0;
 }
@@ -3452,8 +3455,8 @@ scsi_low_msginfunc_msg_reject(slp)
 
 	if (ti->ti_emsgflags != 0)
 	{
-		printf("%s: msg flags [0x%x] rejected\n",
-		       slp->sl_xname, ti->ti_emsgflags);
+		device_printf(slp->sl_dev, "msg flags [0x%x] rejected\n",
+		    ti->ti_emsgflags);
 		msgflags = SCSI_LOW_MSG_REJECT;
 		mdp = &scsi_low_msgout_data[0];
 		for ( ; mdp->md_flags != SCSI_LOW_MSG_ALL; mdp ++)
@@ -3505,7 +3508,7 @@ scsi_low_msgin(slp, ti, c)
 		slp->sl_ph_count ++;
 		if (slp->sl_ph_count > SCSI_LOW_MAX_PHCHANGES)
 		{
-			printf("%s: too many phase changes\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "too many phase changes\n");
 			slp->sl_error |= FATALIO;
 			scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_ABORT, 0);
 		}
@@ -3798,7 +3801,8 @@ scsi_low_revoke_ccb(slp, cb, fdone)
 	if ((cb->ccb_flags & (CCB_STARTQ | CCB_DISCQ)) == 
 	    (CCB_STARTQ | CCB_DISCQ))
 	{
-		panic("%s: ccb in both queue", slp->sl_xname);
+		panic("%s: ccb in both queue",
+		    device_get_nameunit(slp->sl_dev));
 	}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 
@@ -3825,7 +3829,8 @@ scsi_low_revoke_ccb(slp, cb, fdone)
 		cb->ccb_error |= FATALIO;
 		cb->ccb_flags &= ~CCB_AUTOSENSE;
 		if (scsi_low_done(slp, cb) != SCSI_LOW_DONE_COMPLETE)
-			panic("%s: done ccb retried", slp->sl_xname);
+			panic("%s: done ccb retried",
+			    device_get_nameunit(slp->sl_dev));
 		return NULL;
 	}
 	else
@@ -3992,8 +3997,9 @@ scsi_low_calcf_target(ti)
 #ifdef	SCSI_LOW_DEBUG
 	if (SCSI_LOW_DEBUG_GO(SCSI_LOW_DEBUG_CALCF, ti->ti_id) != 0)
 	{
-		printf("%s(%d:*): max period(%dns) offset(%d) width(%d)\n",
-			slp->sl_xname, ti->ti_id,
+		device_printf(slp->sl_dev,
+			"(%d:*): max period(%dns) offset(%d) width(%d)\n",
+			ti->ti_id,
 			ti->ti_maxsynch.period * 4,
 			ti->ti_maxsynch.offset,
 			ti->ti_width);
@@ -4008,8 +4014,9 @@ scsi_low_calcf_show(li)
 	struct targ_info *ti = li->li_ti;
 	struct scsi_low_softc *slp = ti->ti_sc;
 
-	printf("%s(%d:%d): period(%d ns) offset(%d) width(%d) flags 0x%b\n",
-		slp->sl_xname, ti->ti_id, li->li_lun,
+	device_printf(slp->sl_dev,
+		"(%d:%d): period(%d ns) offset(%d) width(%d) flags 0x%b\n",
+		ti->ti_id, li->li_lun,
 		ti->ti_maxsynch.period * 4,
 		ti->ti_maxsynch.offset,
 		ti->ti_width,
@@ -4031,7 +4038,7 @@ scsi_low_start_up(slp)
 	struct slccb *cb;
 	int target, lun;
 
-	printf("%s: scsi_low: probing all devices ....\n", slp->sl_xname);
+	device_printf(slp->sl_dev, "scsi_low: probing all devices ....\n");
 
 	for (target = 0; target < slp->sl_ntargs; target ++)
 	{
@@ -4039,16 +4046,17 @@ scsi_low_start_up(slp)
 		{
 			if ((slp->sl_show_result & SHOW_PROBE_RES) != 0)
 			{
-				printf("%s: scsi_low: target %d (host card)\n",
-					slp->sl_xname, target);
+				device_printf(slp->sl_dev,
+				    "scsi_low: target %d (host card)\n",
+				    target);
 			}
 			continue;
 		}
 
 		if ((slp->sl_show_result & SHOW_PROBE_RES) != 0)
 		{
-			printf("%s: scsi_low: target %d lun ",
-				slp->sl_xname, target);
+			device_printf(slp->sl_dev, "scsi_low: target %d lun ",
+			    target);
 		}
 
 		ti = slp->sl_ti[target];
@@ -4125,8 +4133,8 @@ scsi_low_test_abort(slp, ti, li)
 		acb = TAILQ_FIRST(&li->li_discq); 
 		if (scsi_low_abort_ccb(slp, acb) == 0)
 		{
-			printf("%s: aborting ccb(0x%lx) start\n",
-				slp->sl_xname, (u_long) acb);
+			device_printf(slp->sl_dev,
+			    "aborting ccb(0x%lx) start\n", (u_long) acb);
 		}
 	}
 }
@@ -4141,7 +4149,7 @@ scsi_low_test_atten(slp, ti, msg)
 	if (slp->sl_ph_count < SCSI_LOW_MAX_ATTEN_CHECK)
 		scsi_low_assert_msg(slp, ti, msg, 0);
 	else
-		printf("%s: atten check OK\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "atten check OK\n");
 }
 
 static void
@@ -4216,9 +4224,9 @@ scsi_low_print(slp, ti)
 	}
  	sp = &slp->sl_scp;
 
-	printf("%s: === NEXUS T(0x%lx) L(0x%lx) Q(0x%lx) NIO(%d) ===\n",
-		slp->sl_xname, (u_long) ti, (u_long) li, (u_long) cb,
-		slp->sl_nio);
+	device_printf(slp->sl_dev,
+	    "=== NEXUS T(0x%lx) L(0x%lx) Q(0x%lx) NIO(%d) ===\n",
+	    (u_long) ti, (u_long) li, (u_long) cb, slp->sl_nio);
 
 	/* target stat */
 	if (ti != NULL)
@@ -4234,8 +4242,8 @@ scsi_low_print(slp, ti)
 			nqio = li->li_nqio;
 		}
 
-		printf("%s(%d:%d) ph<%s> => ph<%s> DISC(%d) QIO(%d:%d)\n",
-			slp->sl_xname,
+		device_printf(slp->sl_dev,
+		       "(%d:%d) ph<%s> => ph<%s> DISC(%d) QIO(%d:%d)\n",
 		       ti->ti_id, lun, phase[(int) ti->ti_ophase], 
 		       phase[(int) ti->ti_phase], ti->ti_disc,
 		       nqio, maxnqio);

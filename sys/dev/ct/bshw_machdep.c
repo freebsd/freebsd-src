@@ -53,9 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
 
-#include <sys/module.h> /* XXX: Hack */
 #include <cam/scsi/scsi_low.h>
 
 #include <dev/ic/wd33c93reg.h>
@@ -115,8 +113,9 @@ bshw_bus_reset(ct)
 	/* open hardware busmaster mode */
 	if (hw->hw_dma_init != NULL && ((*hw->hw_dma_init)(ct)) != 0)
 	{
-		printf("%s: change mode using external DMA (%x)\n",
-		    slp->sl_xname, (u_int)ct_cr_read_1(chp, 0x37));
+		device_printf(slp->sl_dev,
+		    "change mode using external DMA (%x)\n",
+		    (u_int)ct_cr_read_1(chp, 0x37));
 	}
 
 	/* clear hardware synch registers */
@@ -240,7 +239,7 @@ bshw_lc_smit_fstat(ct, wc, read)
 		}
 	}
 
-	printf("%s: SMIT fifo status timeout\n", ct->sc_sclow.sl_xname);
+	device_printf(ct->sc_sclow.sl_dev, "SMIT fifo status timeout\n");
 	return EIO;
 }
 
@@ -279,14 +278,15 @@ bshw_smit_xfer_stop(ct)
 		else if (count > bs->sc_sdatalen)
 		{
 bad:
-			printf("%s: smit_xfer_end: cnt error\n", slp->sl_xname);
+			device_printf(slp->sl_dev,
+			    "smit_xfer_end: cnt error\n");
 			slp->sl_error |= PDMAERR;
 		}
 		scsi_low_data_finish(slp);
 	}
 	else
 	{
-		printf("%s: smit_xfer_end: phase miss\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "smit_xfer_end: phase miss\n");
 		slp->sl_error |= PDMAERR;
 	}
 }
@@ -488,8 +488,9 @@ bshw_dma_xfer_stop(ct)
 		}
 		else if (count > (u_int) bs->sc_seglen)
 		{
-			printf("%s: port data %x != seglen %x\n",
-				slp->sl_xname, count, bs->sc_seglen);
+			device_printf(slp->sl_dev,
+			    "port data %x != seglen %x\n",
+			    count, bs->sc_seglen);
 			slp->sl_error |= PDMAERR;
 		}
 
@@ -497,7 +498,7 @@ bshw_dma_xfer_stop(ct)
 	}
 	else
 	{
-		printf("%s: extra DMA interrupt\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "extra DMA interrupt\n");
 		slp->sl_error |= PDMAERR;
 	}
 

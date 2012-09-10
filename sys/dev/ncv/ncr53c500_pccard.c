@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pccard/pccardvar.h>
 
 #include <cam/scsi/scsi_low.h>
-#include <cam/scsi/scsi_low_pisa.h>
 
 #include <dev/ncv/ncr53c500reg.h>
 #include <dev/ncv/ncr53c500hw.h>
