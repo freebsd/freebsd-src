@@ -1257,7 +1257,7 @@ uncached:
 			
 			else
 				l3addr = (struct sockaddr_storage *)&ro->ro_dst;
-			llentry_update(&lle, LLTABLE6(ifp), l3addr, ifp);
+			lle = llentry_alloc(ifp, LLTABLE6(ifp), l3addr);
 		}
 #endif	
 #ifdef INET
@@ -1266,7 +1266,7 @@ uncached:
 				l3addr = (struct sockaddr_storage *)rt->rt_gateway;
 			else
 				l3addr = (struct sockaddr_storage *)&ro->ro_dst;
-			llentry_update(&lle, LLTABLE(ifp), l3addr, ifp);	
+			lle = llentry_alloc(ifp, LLTABLE(ifp), l3addr);	
 		}
 			
 #endif
