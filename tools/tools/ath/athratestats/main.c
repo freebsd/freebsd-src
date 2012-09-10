@@ -74,6 +74,17 @@ static int do_loop = 0;
 		printw(__VA_ARGS__);		\
 	} while (0)
 
+#define	PRINTATTR_ON(_x) do {			\
+	if (do_loop)				\
+		attron(_x);			\
+	} while(0)
+
+
+#define	PRINTATTR_OFF(_x) do {			\
+	if (do_loop)				\
+		attroff(_x);			\
+	} while(0)
+
 struct ath_ratestats {
 	int s;
 	struct ath_rateioctl re;
@@ -112,6 +123,7 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 	    sn->ratemask);
 
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
+		PRINTATTR_ON(COLOR_PAIR(y+4) | A_BOLD);
 		PRINTMSG("[%4u] cur rate %d %s since switch: "
 		    "packets %d ticks %u\n",
 		    bin_to_size(y),
@@ -128,11 +140,15 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 		    dot11rate(rt, sn->current_sample_rix[y]),
 		    dot11str(rt, sn->current_sample_rix[y]),
 		    sn->packets_sent[y]);
-
+		PRINTATTR_OFF(COLOR_PAIR(y+4) | A_BOLD);
+		
+		PRINTATTR_ON(COLOR_PAIR(3) | A_BOLD);
 		PRINTMSG("[%4u] packets since sample %d sample tt %u\n",
 		    bin_to_size(y),
 		    sn->packets_since_sample[y],
 		    sn->sample_tt[y]);
+		PRINTATTR_OFF(COLOR_PAIR(3) | A_BOLD);
+		PRINTMSG("\n");
 	}
 	PRINTMSG("   TX Rate     TXTOTAL:TXOK       EWMA          T/   F"
 	    "     avg last xmit\n");
@@ -142,6 +158,16 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
+			if (rix == sn->current_rix[y])
+				PRINTATTR_ON(COLOR_PAIR(y+4) | A_BOLD);
+			else if (rix == sn->last_sample_rix[y])
+				PRINTATTR_ON(COLOR_PAIR(3) | A_BOLD);
+#if 0
+			else if (sn->stats[y][rix].ewma_pct / 10 < 50)
+				PRINTATTR_ON(COLOR_PAIR(2) | A_BOLD);
+			else if (sn->stats[y][rix].ewma_pct / 10 < 75)
+				PRINTATTR_ON(COLOR_PAIR(1) | A_BOLD);
+#endif
 			PRINTMSG("[%2u %s:%4u] %8ju:%-8ju "
 			    "(%3d.%1d%%) %8ju/%4d %5uuS %u\n",
 			    dot11rate(rt, rix),
@@ -155,6 +181,16 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 			    sn->stats[y][rix].successive_failures,
 			    sn->stats[y][rix].average_tx_time,
 			    sn->stats[y][rix].last_tx);
+			if (rix == sn->current_rix[y])
+				PRINTATTR_OFF(COLOR_PAIR(y+4) | A_BOLD);
+			else if (rix == sn->last_sample_rix[y])
+				PRINTATTR_OFF(COLOR_PAIR(3) | A_BOLD);
+#if 0
+			else if (sn->stats[y][rix].ewma_pct / 10 < 50)
+				PRINTATTR_OFF(COLOR_PAIR(2) | A_BOLD);
+			else if (sn->stats[y][rix].ewma_pct / 10 < 75)
+				PRINTATTR_OFF(COLOR_PAIR(1) | A_BOLD);
+#endif
 		}
 	}
 }
@@ -269,6 +305,7 @@ main(int argc, char *argv[])
 	uint8_t *buf;
 	useconds_t sleep_period;
 	float f;
+	short cf, cb;
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
@@ -331,6 +368,17 @@ main(int argc, char *argv[])
 		initscr();
 		start_color();
 		use_default_colors();
+		pair_content(0, &cf, &cb);
+		/* Error - medium */
+		init_pair(1, COLOR_YELLOW, cb);
+		/* Error - high */
+		init_pair(2, COLOR_RED, cb);
+		/* Sample */
+		init_pair(3, COLOR_CYAN, cb);
+		/* 250 byte frames */
+		init_pair(4, COLOR_BLUE, cb);
+		/* 1600 byte frames */
+		init_pair(5, COLOR_MAGENTA, cb);
 		cbreak();
 		noecho();
 		nonl();
