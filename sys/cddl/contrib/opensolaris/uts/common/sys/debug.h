@@ -21,6 +21,7 @@
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -31,6 +32,9 @@
 
 #include <sys/types.h>
 #include <sys/note.h>
+#ifdef _KERNEL
+#include <sys/systm.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
