@@ -26,22 +26,15 @@ _misc [label="Miscellaneous Hats"]
 # Development teams go here alphabetically sorted
 
 core [label="Core Team\ncore@FreeBSD.org\ntabthorpe, gavin, jhb, kib,\ntheraven, attilio, hrs,\npeter, miwi"]
-coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\ngavin"]
+coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\npgj"]
 doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
 doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\ngjb, blackend,\ngabor, hrs"]
 portscommitters [label="Ports Committers\nports-committers@FreeBSD.org"]
 portmgr [label="Port Management Team\nportmgr@FreeBSD.org\ntabthorpe, marcus, bapt, beat,\nerwin, linimon, pav,\nitetcu, miwi"]
 portmgrsecretary [label="Port Management Team Secretary\nportmgr-secretary@FreeBSD.org\ntabthorpe"]
-re [label="Primary Release Engineering Team\nre@FreeBSD.org\nmux, bmah, hrs, kensmith,\nmurray, rwatson, dwhite"]
-realpha [label="FreeBSD/alpha Release Engineering Team\nre-alpha@FreeBSD.org\nwilko, murray, rwatson"]
-reamd64 [label="FreeBSD/amd64 Release Engineering Team\nre-amd64@FreeBSD.org\nobrien"]
-rei386 [label="FreeBSD/i386 Release Engineering Team\nre-i386@FreeBSD.org\nmurray, rwatson"]
-reia64 [label="FreeBSD/ia64 Release Engineering Team\nre-ia64@FreeBSD.org\nmarcel"]
-repc98 [label="FreeBSD/pc98 Release Engineering Team\nre-pc98@FreeBSD.org\nnyan"]
-reppc [label="FreeBSD/ppc Release Engineering Team\nre-ppc@FreeBSD.org\ngrehan"]
-resparc64 [label="FreeBSD/sparc64 Release Engineering Team\nre-sparc64@FreeBSD.org\njake, phk, tmm, obrien,\nkensmith, murray, rwatson"]
+re [label="Primary Release Engineering Team\nre@FreeBSD.org\nkib, blackend, jpaetzel, hrs, hrs, kensmith,\nrwatson, bz"]
 secteam [label="Security Team\nsecteam@FreeBSD.org\nsimon, qingli, delphij,\nremko, philip, stas, cperciva,\ncsjp, rwatson, miwi, bz"]
-portssecteam [label="Ports Security Team\nports-secteam@FreeBSD.org\n"]
+portssecteam [label="Ports Security Team\nports-secteam@FreeBSD.org\nmiwi, rea, swills, wxs,\njgh, sbz, eadler, zi, remko, simon"]
 secteamsecretary [label="Security Team Secretary\nsecteam-secretary@FreeBSD.org\nremko"]
 securityofficer [label="Security Officer Team\nsecurity-officer@FreeBSD.org\ncperciva, simon, nectar"]
 srccommitters [label="Src Committers\nsrc-committers@FreeBSD.org"]
@@ -104,14 +97,6 @@ doceng -> doccommitters
 
 portmgr -> portmgrsecretary
 portmgr -> portscommitters
-
-re -> realpha
-re -> reamd64
-re -> rei386
-re -> reia64
-re -> repc98
-re -> reppc
-re -> resparc64
 
 securityofficer -> secteam
 securityofficer -> portssecteam
