@@ -262,7 +262,6 @@ struct vif {
     u_long		v_pkt_out;	/* # pkts out on interface           */
     u_long		v_bytes_in;	/* # bytes in on interface	     */
     u_long		v_bytes_out;	/* # bytes out on interface	     */
-    struct route	v_route;	/* cached route */
 };
 
 #ifdef _KERNEL
