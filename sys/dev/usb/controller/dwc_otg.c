@@ -488,19 +488,26 @@ dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 
 			/* check if channel is enabled */
 			temp = DWC_OTG_READ_4(sc, DOTG_HCCHAR(x));
-			if (temp & HCCHAR_CHENA)
+			if (temp & HCCHAR_CHENA) {
+				DPRINTF("CH=%d is BUSY\n", x);
 				continue;
+			}
 
 			sc->sc_hcchar[x] = td->hcchar;
 
-			DPRINTF("HCCHAR=0x%08x HCSPLT=0x%08x\n",
-			    td->hcchar, td->hcsplt);
+			DPRINTF("HCCHAR=0x%08x(0x%08x) HCSPLT=0x%08x\n",
+			    td->hcchar, temp, td->hcsplt);
 
 			temp = DWC_OTG_READ_4(sc, DOTG_HCINT(x));
 			DWC_OTG_WRITE_4(sc, DOTG_HCINT(x), temp);
 			DWC_OTG_WRITE_4(sc, DOTG_HCSPLT(x), td->hcsplt);
 			DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(x), 0);
 			DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(x), 0);
+
+			/* reset TX FIFO */
+			DWC_OTG_WRITE_4(sc, DOTG_GRSTCTL,
+			    GRSTCTL_TXFIFO(x) |
+			    GRSTCTL_TXFFLSH);
 
 			/* set channel */
 			td->channel = x;
@@ -534,7 +541,8 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 	DPRINTF("HPTXSTS=0x%08x\n", temp);
 
 	max_buffer = 4 * (temp & HPTXSTS_PTXFSPCAVAIL_MASK);
-	max_frames = (temp & HPTXSTS_PTXQSPCAVAIL_MASK) >> HPTXSTS_PTXQSPCAVAIL_SHIFT;
+	max_frames = (temp & HPTXSTS_PTXQSPCAVAIL_MASK)
+	    >> HPTXSTS_PTXQSPCAVAIL_SHIFT;
 
 	max_buffer = max_buffer - (max_buffer % td->max_packet_size);
 	if (max_buffer == 0 || max_frames == 0)
@@ -563,11 +571,9 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 
 	/* enable interrupts */
 	DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(td->channel),
-	    HCINT_STALL | HCINT_DATATGLERR | HCINT_BBLERR |
-	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XFERCOMPL);
-
-	sc->sc_haint_mask |= (1 << td->channel);
-	DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, sc->sc_haint_mask);
+	    HCINT_STALL | HCINT_BBLERR |
+	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XACTERR |
+	    HCINT_XFERCOMPL);
 
 	/* transfer data into FIFO */
 	bus_space_write_region_4(sc->sc_io_tag, sc->sc_io_hdl,
@@ -744,8 +750,8 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 		return (0);		/* complete */
 	}
 
-	if (temp & (HCINT_DATATGLERR | HCINT_BBLERR |
-	    HCINT_AHBERR | HCINT_CHHLTD)) {
+	if (temp & (HCINT_BBLERR |
+	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XACTERR)) {
 		td->error_any = 1;
 		return (0);		/* complete */
 	}
@@ -871,11 +877,9 @@ not_complete:
 
 	/* enable interrupts */
 	DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(td->channel),
-	    HCINT_STALL | HCINT_DATATGLERR | HCINT_BBLERR |
-	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XFERCOMPL);
-
-	sc->sc_haint_mask |= (1 << td->channel);
-	DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, sc->sc_haint_mask);
+	    HCINT_STALL | HCINT_BBLERR |
+	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XACTERR |
+	    HCINT_XFERCOMPL);
 
 	temp |= HCCHAR_EPDIR_IN;
 
@@ -1029,8 +1033,8 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		return (0);		/* complete */
 	}
 
-	if (temp & (HCINT_DATATGLERR | HCINT_BBLERR |
-	    HCINT_AHBERR | HCINT_CHHLTD)) {
+	if (temp & (HCINT_BBLERR |
+	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XACTERR)) {
 		td->error_any = 1;
 		return (0);		/* complete */
 	}
@@ -1067,7 +1071,8 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 	temp = DWC_OTG_READ_4(sc, DOTG_HPTXSTS);
 
 	max_buffer = 4 * (temp & HPTXSTS_PTXFSPCAVAIL_MASK);
-	max_frames = (temp & HPTXSTS_PTXQSPCAVAIL_MASK) >> HPTXSTS_PTXQSPCAVAIL_SHIFT;
+	max_frames = (temp & HPTXSTS_PTXQSPCAVAIL_MASK)
+	    >> HPTXSTS_PTXQSPCAVAIL_SHIFT;
 
 	max_buffer = max_buffer - (max_buffer % td->max_packet_size);
 	if (max_buffer == 0 || max_frames < 2)
@@ -1120,11 +1125,9 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 
 	/* enable interrupts */
 	DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(td->channel),
-	    HCINT_STALL | HCINT_DATATGLERR | HCINT_BBLERR |
-	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XFERCOMPL);
-
-	sc->sc_haint_mask |= (1 << td->channel);
-	DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, sc->sc_haint_mask);
+	    HCINT_STALL | HCINT_BBLERR |
+	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XACTERR |
+	    HCINT_XFERCOMPL);
 
 	if (count != 0) {
 
@@ -1372,8 +1375,8 @@ dwc_otg_host_data_tx_sync(struct dwc_otg_td *td)
 		return (0);		/* complete */
 	}
 
-	if (temp & (HCINT_DATATGLERR | HCINT_BBLERR |
-	    HCINT_AHBERR | HCINT_CHHLTD)) {
+	if (temp & (HCINT_BBLERR |
+	    HCINT_AHBERR | HCINT_CHHLTD | HCINT_XACTERR)) {
 		td->error_any = 1;
 		return (0);		/* complete */
 	}
@@ -1615,6 +1618,7 @@ void
 dwc_otg_interrupt(struct dwc_otg_softc *sc)
 {
 	uint32_t status;
+	uint32_t haint;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
@@ -1622,13 +1626,13 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 	status = DWC_OTG_READ_4(sc, DOTG_GINTSTS);
 	DWC_OTG_WRITE_4(sc, DOTG_GINTSTS, status);
 
-	DPRINTFN(14, "GINTSTS=0x%08x\n", status);
+	haint = DWC_OTG_READ_4(sc, DOTG_HAINT);
 
-	if (status & GINTSTS_HCHINT) {
-		uint32_t temp = DWC_OTG_READ_4(sc, DOTG_HAINT);
-		DWC_OTG_WRITE_4(sc, DOTG_HAINT, temp);
-		DPRINTFN(14, "HAINT=0x%08x HFNUM=0x%08x\n",
-		    temp, DWC_OTG_READ_4(sc, DOTG_HFNUM));
+	DPRINTFN(14, "GINTSTS=0x%08x HAINT=0x%08x HFNUM=0x%08x\n",
+	    status, haint, DWC_OTG_READ_4(sc, DOTG_HFNUM));
+
+	if (haint != 0) {
+
 	}
 
 	if (status & GINTSTS_USBRST) {
@@ -2208,8 +2212,7 @@ dwc_otg_standard_done_sub(struct usb_xfer *xfer)
 
 	xfer->td_transfer_cache = td;
 
-	return (error ?
-	    USB_ERR_STALLED : USB_ERR_NORMAL_COMPLETION);
+	return (error);
 }
 
 static void
@@ -2278,8 +2281,7 @@ dwc_otg_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 			struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
 
-			sc->sc_haint_mask &= ~(1 << td->channel);
-			DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, sc->sc_haint_mask);
+			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(td->channel), 0);
 			DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel),
 			    HCCHAR_CHENA | HCCHAR_CHDIS);
 
@@ -2627,16 +2629,15 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 		uint8_t x;
 
 		for (x = 0; x != sc->sc_host_ch_max; x++) {
-			/* disable interrupt */
+			/* disable channel interrupts */
 			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(x), 0);
-			DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(x), HCCHAR_CHENA | HCCHAR_CHDIS);
-			temp = DWC_OTG_READ_4(sc, DOTG_HCINT(x));
-			DWC_OTG_WRITE_4(sc, DOTG_HCINT(x), temp);
+			DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(x),
+			    HCCHAR_CHENA | HCCHAR_CHDIS);
 		}
 
-		/* disable host channel interrupts */
-		sc->sc_haint_mask = 0;
-		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, 0);
+		/* enable host channel interrupts */
+		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK,
+		    (1 << sc->sc_host_ch_max) - 1);
 
 		/* setup clocks */
 		temp = DWC_OTG_READ_4(sc, DOTG_HCFG);
@@ -3569,7 +3570,7 @@ dwc_otg_device_resume(struct usb_device *udev)
 
 	DPRINTF("\n");
 
-	/* Disable relevant Host channels before going to suspend */
+	/* Enable relevant Host channels before resuming */
 
 	USB_BUS_LOCK(udev->bus);
 
