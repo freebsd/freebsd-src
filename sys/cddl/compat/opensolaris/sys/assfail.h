@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,23 +26,21 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_DEBUG_H_
-#define	_OPENSOLARIS_SYS_DEBUG_H_
+#ifndef _OPENSOLARIS_SYS_ASSFAIL_H_
+#define	_OPENSOLARIS_SYS_ASSFAIL_H_
 
-#ifdef _KERNEL
 #include <sys/types.h>
-#include <sys/systm.h>
 
-#include_next <sys/debug.h>
-
-#define	assfail(a, f, l)						\
-	(panic("solaris assert: %s, file: %s, line: %d", (a), (f), (l)), 0)
-
-#define	assfail3(a, lv, op, rv, f, l)					\
-	panic("solaris assert: %s (0x%jx %s 0x%jx), file: %s, line: %d", \
-	    (a), (uintmax_t)(lv), (op), (uintmax_t)(rv), (f), (l))
-#else	/* !_KERNEL */
-#include_next <sys/debug.h>
+#ifdef	__cplusplus
+extern "C" {
 #endif
 
-#endif	/* _OPENSOLARIS_SYS_DEBUG_H_ */
+int assfail(const char *, const char *, int);
+void assfail3(const char *, uintmax_t, const char *, uintmax_t, const char *,
+    int);
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif	/* _OPENSOLARIS_SYS_ASSFAIL_H_ */
