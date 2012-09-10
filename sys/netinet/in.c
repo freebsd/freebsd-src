@@ -1323,6 +1323,20 @@ struct in_llentry {
 	struct sockaddr_in	l3_addr4;
 };
 
+/*
+ * Deletes an address from the address table.
+ * This function is called by the timer functions
+ * such as arptimer() and nd6_llinfo_timer(), and
+ * the caller does the locking.
+ */
+static void
+in_lltable_free(struct lltable *llt, struct llentry *lle)
+{
+	LLE_WUNLOCK(lle);
+	LLE_LOCK_DESTROY(lle);
+	free(lle, M_LLTABLE);
+}
+
 static struct llentry *
 in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 {
@@ -1340,24 +1354,10 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	lle->base.la_expire = time_uptime; /* mark expired */
 	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
 	lle->base.lle_refcnt = 1;
+	lle->base.lle_free = in_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
 	return &lle->base;
 }
-
-/*
- * Deletes an address from the address table.
- * This function is called by the timer functions
- * such as arptimer() and nd6_llinfo_timer(), and
- * the caller does the locking.
- */
-static void
-in_lltable_free(struct lltable *llt, struct llentry *lle)
-{
-	LLE_WUNLOCK(lle);
-	LLE_LOCK_DESTROY(lle);
-	free(lle, M_LLTABLE);
-}
-
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
 	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
@@ -1640,7 +1640,6 @@ in_domifattach(struct ifnet *ifp)
 
 	llt = lltable_init(ifp, AF_INET);
 	if (llt != NULL) {
-		llt->llt_free = in_lltable_free;
 		llt->llt_prefix_free = in_lltable_prefix_free;
 		llt->llt_lookup = in_lltable_lookup;
 		llt->llt_dump = in_lltable_dump;
