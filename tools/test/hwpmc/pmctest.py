@@ -53,7 +53,7 @@ from subprocess import PIPE
 
 # A list of strings that are not really counters, just
 # name tags that are output by pmccontrol -L
-notcounter = ["IAF", "IAP", "TSC", "UNC", "UCF", "UCP"]
+notcounter = ["IAF", "IAP", "TSC", "UNC", "UCF", "UCP", "SOFT" ]
 
 def main():
 
