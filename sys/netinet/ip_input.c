@@ -1495,8 +1495,7 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	if (error == EMSGSIZE && ro.ro_rt)
 		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
-	if (ro.ro_rt)
-		RTFREE(ro.ro_rt);
+	RO_RTFREE(&ro);
 
 	if (error)
 		IPSTAT_INC(ips_cantforward);
