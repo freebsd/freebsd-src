@@ -1788,7 +1788,7 @@ openpr(const struct printer *pp)
 		of_pid = 0;
 		return;
 	} else if (*pp->lp) {
-		if ((cp = strchr(pp->lp, '@')) != NULL)
+		if (strchr(pp->lp, '@') != NULL)
 			opennet(pp);
 		else
 			opentty(pp);
