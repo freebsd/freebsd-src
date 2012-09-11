@@ -70,7 +70,6 @@ int
 setup_and_wait(char *command[])
 {
 	pid_t pid;
-	int waitval;
 
 	pid = vfork();
 	if (pid == -1)
@@ -82,10 +81,8 @@ setup_and_wait(char *command[])
 	}
 
 	/* Only in the parent here */
-	if (waitpid(pid, &waitval, 0) < 0) {
+	if (waitpid(pid, NULL, 0) < 0)
 		err(1, "unexpect stop in waitpid");
-		return 0;
-	}
 
 	child_pid = pid;
 
@@ -101,7 +98,7 @@ setup_and_wait(char *command[])
 int
 start_tracing(pid_t pid)
 {
-	int ret, retry, waitval;
+	int ret, retry;
 
 	retry = 10;
 	do {
@@ -112,7 +109,7 @@ start_tracing(pid_t pid)
 		err(1, "can not attach to target process");
 
 	child_pid = pid;
-	if (waitpid(pid, &waitval, 0) < 0)
+	if (waitpid(pid, NULL, 0) < 0)
 		err(1, "Unexpect stop in waitpid");
 
 	return (0);
