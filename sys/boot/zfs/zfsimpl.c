@@ -1581,9 +1581,7 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
 	fat_zap_t z;
-	uint64_t *ptrtbl;
-	uint64_t hash;
-	int rc;
+	int i, j;
 
 	if (zh.zap_magic != ZAP_MAGIC)
 		return (EIO);
@@ -1592,59 +1590,34 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 	z.zap_phys = (zap_phys_t *) zap_scratch;
 
 	/*
-	 * Figure out where the pointer table is and read it in if necessary.
+	 * This assumes that the leaf blocks start at block 1. The
+	 * documentation isn't exactly clear on this.
 	 */
-	if (zh.zap_ptrtbl.zt_blk) {
-		rc = dnode_read(spa, dnode, zh.zap_ptrtbl.zt_blk * bsize,
-			       zap_scratch, bsize);
-		if (rc)
-			return (rc);
-		ptrtbl = (uint64_t *) zap_scratch;
-	} else {
-		ptrtbl = &ZAP_EMBEDDED_PTRTBL_ENT(&z, 0);
-	}
-
-	hash = zap_hash(zh.zap_salt, name);
-
 	zap_leaf_t zl;
 	zl.l_bs = z.zap_block_shift;
+	for (i = 0; i < zh.zap_num_leafs; i++) {
+		off_t off = (i + 1) << zl.l_bs;
 
-	off_t off = ptrtbl[hash >> (64 - zh.zap_ptrtbl.zt_shift)] << zl.l_bs;
-	zap_leaf_chunk_t *zc;
+		if (dnode_read(spa, dnode, off, zap_scratch, bsize))
+			return (EIO);
 
-	rc = dnode_read(spa, dnode, off, zap_scratch, bsize);
-	if (rc)
-		return (rc);
+		zl.l_phys = (zap_leaf_phys_t *) zap_scratch;
 
-	zl.l_phys = (zap_leaf_phys_t *) zap_scratch;
+		for (j = 0; j < ZAP_LEAF_NUMCHUNKS(&zl); j++) {
+			zap_leaf_chunk_t *zc;
 
-	/*
-	 * Make sure this chunk matches our hash.
-	 */
-	if (zl.l_phys->l_hdr.lh_prefix_len > 0
-	    && zl.l_phys->l_hdr.lh_prefix
-	    != hash >> (64 - zl.l_phys->l_hdr.lh_prefix_len))
-		return (ENOENT);
+			zc = &ZAP_LEAF_CHUNK(&zl, j);
+			if (zc->l_entry.le_type != ZAP_CHUNK_ENTRY)
+				continue;
+			if (zc->l_entry.le_value_intlen != 8 ||
+			    zc->l_entry.le_value_numints != 1)
+				continue;
 
-	/*
-	 * Hash within the chunk to find our entry.
-	 */
-	int shift = (64 - ZAP_LEAF_HASH_SHIFT(&zl) - zl.l_phys->l_hdr.lh_prefix_len);
-	int h = (hash >> shift) & ((1 << ZAP_LEAF_HASH_SHIFT(&zl)) - 1);
-	h = zl.l_phys->l_hash[h];
-	if (h == 0xffff)
-		return (ENOENT);
-	zc = &ZAP_LEAF_CHUNK(&zl, h);
-	while (zc->l_entry.le_hash != hash) {
-		if (zc->l_entry.le_next == 0xffff) {
-			zc = 0;
-			break;
+			if (fzap_leaf_value(&zl, zc) == value) {
+				fzap_name_copy(&zl, zc, name);
+				return (0);
+			}
 		}
-		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
-	}
-	if (fzap_leaf_value(&zl, zc) == value) {
-		fzap_name_copy(&zl, zc, name);
-		return (0);
 	}
 
 	return (ENOENT);
