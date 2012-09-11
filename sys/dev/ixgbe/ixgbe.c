@@ -4641,7 +4641,6 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 				 * leave the old mbuf+cluster for re-use.
 				 */
 				if (eop && plen <= IXGBE_RX_COPY_LEN) {
-					prefetch(mp->m_data);
 					sendmp = m_gethdr(M_DONTWAIT, MT_DATA);
 					if (sendmp != NULL) {
 						sendmp->m_data +=
