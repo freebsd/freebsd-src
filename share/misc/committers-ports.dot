@@ -105,6 +105,7 @@ jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
 jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
+jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
@@ -226,6 +227,7 @@ arved -> stefan
 
 asami -> obrien
 
+avilla -> jhale
 avilla -> rakuco
 
 bapt -> bdrewery
@@ -369,6 +371,7 @@ marcus -> eik
 marcus -> jmallett
 
 makc -> bf
+makc -> jhale
 makc -> rakuco
 
 mat -> thierry
