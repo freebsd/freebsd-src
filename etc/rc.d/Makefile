@@ -107,6 +107,7 @@ FILES=	DAEMON \
 	pf \
 	pflog \
 	pfsync \
+	postrandom \
 	powerd \
 	power_profile \
 	ppp \
