@@ -1484,7 +1484,8 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode)
 			 */
 			value = fzap_leaf_value(&zl, zc);
 
-			printf("%s 0x%jx\n", name, (uintmax_t)value);
+			//printf("%s 0x%jx\n", name, (uintmax_t)value);
+			printf("%s\n", name);
 		}
 	}
 
