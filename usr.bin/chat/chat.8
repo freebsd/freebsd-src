@@ -508,9 +508,9 @@ If you send a null string then it will still
 send the return character.
 This sequence may either be a pair of apostrophe
 or quote characters.
-.It \\\\b
+.It \eb
 represents a backspace character.
-.It \\\\c
+.It \ec
 Suppresses the newline at the end of the reply string.
 This is the only
 method to send a string without a trailing return character.
@@ -519,44 +519,44 @@ be at the end of the send string.
 For example,
 the sequence hello\\c will simply send the characters h, e, l, l, o
 .Pq Em not valid in expect .
-.It \\\\d
+.It \ed
 Delay for one second.
 The program uses sleep(1) which will delay to a
 maximum of one second
 .Pq Em not valid in expect .
-.It \\\\K
+.It \eK
 Insert a
 .Dv BREAK
 .Pq Em not valid in expect .
-.It \\\\n
+.It \en
 Send a newline or linefeed character.
-.It \\\\N
+.It \eN
 Send a null character.
 The same sequence may be represented by \\0
 .Pq Em not valid in expect .
-.It \\\\p
+.It \ep
 Pause for a fraction of a second.
 The delay is 1/10th of a second
 .Pq Em not valid in expect .
-.It \\\\q
+.It \eq
 Suppress writing the string to
 .Xr syslogd 8 .
 The string ?????? is
 written to the log in its place
 .Pq Em not valid in expect .
-.It \\\\r
+.It \er
 Send or expect a carriage return.
-.It \\\\s
+.It \es
 Represents a space character in the string.
 This may be used when it
 is not desirable to quote the strings which contains spaces.
 The
 sequence 'HI TIM' and HI\\sTIM are the same.
-.It \\\\t
+.It \et
 Send or expect a tab character.
-.It \\\\\\\\
+.It \e
 Send or expect a backslash character.
-.It \\\\ddd
+.It \eddd
 Collapse the octal digits (ddd) into a single ASCII character and send that
 character
 .Pq Em some characters are not valid in expect .
