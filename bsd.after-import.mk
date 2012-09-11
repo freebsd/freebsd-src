@@ -1,4 +1,4 @@
-# $Id: bsd.after-import.mk,v 1.6 2012/06/27 18:23:32 sjg Exp $
+# $Id: bsd.after-import.mk,v 1.7 2012/07/06 03:03:44 sjg Exp $
 
 # This makefile is for use when integrating bmake into a BSD build
 # system.  Use this makefile after importing bmake.
@@ -13,7 +13,7 @@ all: _makefile
 all: after-import
 
 # we rely on bmake
-.if !defined(.MAKE.LEVEL)
+.if !defined(.PARSEDIR)
 .error this makefile requires bmake
 .endif
 
@@ -75,7 +75,11 @@ after-import: bootstrap ${MAKEFILE}
 .for f in ${configured_files:M*Makefile}
 	@echo Capturing $f
 	@mkdir -p ${${.CURDIR}/$f:L:H}
-	@${MAKEFILE_SED} ${HOST_OS}/$f > ${.CURDIR}/$f
+	@(echo '# This is a generated file, do NOT edit!'; \
+	echo '# See ${_this:S,${SRCTOP}/,,}'; \
+	echo '#'; echo '# $$${OS}$$'; echo; \
+	echo 'SRCTOP?= $${.CURDIR:${${.CURDIR}/$f:L:H:S,${SRCTOP}/,,:C,[^/]+,H,g:S,/,:,g}}'; echo; \
+	${MAKEFILE_SED} ${HOST_OS}/$f ) > ${.CURDIR}/$f
 .endfor
 
 # this needs the most work
