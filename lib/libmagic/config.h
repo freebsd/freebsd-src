@@ -39,9 +39,7 @@
 #define HAVE_FSEEKO 1
 
 /* Define to 1 if you have the `getline' function. */
-#ifndef HOSTPROG
 #define HAVE_GETLINE 1
-#endif
 
 /* Define to 1 if you have the <getopt.h> header file. */
 #define HAVE_GETOPT_H 1
