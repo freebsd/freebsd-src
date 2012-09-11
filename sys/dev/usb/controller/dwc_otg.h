@@ -66,9 +66,10 @@ struct dwc_otg_td {
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;
 	uint8_t	did_stall:1;
-	uint8_t	did_ping:1;
 	uint8_t toggle:1;
 	uint8_t set_toggle:1;
+	uint8_t did_nak:1;
+	uint8_t did_complete:1;
 };
 
 struct dwc_otg_std_temp {
@@ -150,6 +151,8 @@ struct dwc_otg_softc {
 	uint32_t sc_hcchar[DWC_OTG_MAX_CHANNELS];
 	uint32_t sc_sof_refs;
 	uint32_t sc_sof_val;
+	uint32_t sc_interrupt_refs;
+	uint32_t sc_interrupt_val;
 	uint32_t sc_hprt_val;
 
 	uint16_t sc_active_rx_ep;
