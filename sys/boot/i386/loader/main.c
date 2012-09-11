@@ -322,13 +322,13 @@ command_heap(int argc, char *argv[])
 }
 
 /* ISA bus access functions for PnP, derived from <machine/cpufunc.h> */
-static int		
+static int
 isa_inb(int port)
 {
     u_char	data;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
+
+    if (__builtin_constant_p(port) &&
+	(((port) & 0xffff) < 0x100) &&
 	((port) < 0x10000)) {
 	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
     } else {
@@ -341,9 +341,9 @@ static void
 isa_outb(int port, int value)
 {
     u_char	al = value;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
+
+    if (__builtin_constant_p(port) &&
+	(((port) & 0xffff) < 0x100) &&
 	((port) < 0x10000)) {
 	__asm __volatile("outb %0,%1" : : "a" (al), "id" ((u_short)(port)));
     } else {
