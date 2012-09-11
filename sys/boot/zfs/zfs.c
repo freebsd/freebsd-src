@@ -318,7 +318,7 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 		if (zc->l_entry.le_type != ZAP_CHUNK_ENTRY)
 			goto fzap_next;
 
-		namelen = zc->l_entry.le_name_length;
+		namelen = zc->l_entry.le_name_numints;
 		if (namelen > sizeof(d->d_name))
 			namelen = sizeof(d->d_name);
 
