@@ -862,7 +862,6 @@ acpi_cpu_startup(void *arg)
     cpu_cx_lowest_lim = 0;
     cpu_disable_idle = FALSE;
     cpu_idle_hook = acpi_cpu_idle;
-    free(cpu_devices, M_TEMP);
 }
 
 static void
