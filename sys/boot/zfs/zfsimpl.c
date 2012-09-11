@@ -1355,6 +1355,8 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint6
 		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
 	}
 	if (fzap_name_equal(&zl, zc, name)) {
+		if (zc->l_entry.le_value_intlen * zc->l_entry.le_value_numints > 8)
+			return (E2BIG);
 		*value = fzap_leaf_value(&zl, zc);
 		return (0);
 	}
