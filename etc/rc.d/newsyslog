@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: newsyslog
-# REQUIRE: cleanvar mountcritremote
+# REQUIRE: FILESYSTEMS mountcritremote
 
 . /etc/rc.subr
 
