@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.64 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: nonints.h,v 1.65 2012/08/30 21:17:05 sjg Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -120,6 +120,7 @@ void Finish(int) MAKE_ATTR_DEAD;
 int eunlink(const char *);
 void execError(const char *, const char *);
 char *getTmpdir(void);
+Boolean getBoolean(const char *, Boolean);
 
 /* parse.c */
 void Parse_Error(int, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);

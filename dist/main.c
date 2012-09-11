@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.200 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: main.c,v 1.203 2012/08/31 07:00:36 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.200 2012/06/12 19:21:51 joerg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.203 2012/08/31 07:00:36 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.200 2012/06/12 19:21:51 joerg Exp $");
+__RCSID("$NetBSD: main.c,v 1.203 2012/08/31 07:00:36 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -159,6 +159,7 @@ int			maxJobs;	/* -j argument */
 static int		maxJobTokens;	/* -j argument */
 Boolean			compatMake;	/* -B argument */
 int			debug;		/* -d argument */
+Boolean			debugVflag;	/* -dV */
 Boolean			noExecute;	/* -n flag */
 Boolean			noRecursiveExecute;	/* -N flag */
 Boolean			keepgoing;	/* -k flag */
@@ -270,6 +271,9 @@ parse_debug_options(const char *argvalue)
 			break;
 		case 't':
 			debug |= DEBUG_TARG;
+			break;
+		case 'V':
+			debugVflag = TRUE;
 			break;
 		case 'v':
 			debug |= DEBUG_VAR;
@@ -910,6 +914,7 @@ main(int argc, char **argv)
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
 	printVars = FALSE;
+	debugVflag = FALSE;
 	variables = Lst_Init(FALSE);
 	beSilent = FALSE;		/* Print commands as executed */
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
@@ -1253,7 +1258,12 @@ main(int argc, char **argv)
 	/* print the values of any variables requested by the user */
 	if (printVars) {
 		LstNode ln;
+		Boolean expandVars;
 
+		if (debugVflag)
+			expandVars = FALSE;
+		else
+			expandVars = getBoolean(".MAKE.EXPAND_VARIABLES", FALSE);
 		for (ln = Lst_First(variables); ln != NULL;
 		    ln = Lst_Succ(ln)) {
 			char *var = (char *)Lst_Datum(ln);
@@ -1261,6 +1271,13 @@ main(int argc, char **argv)
 			
 			if (strchr(var, '$')) {
 				value = p1 = Var_Subst(NULL, var, VAR_GLOBAL, 0);
+			} else if (expandVars) {
+				char tmp[128];
+								
+				if (snprintf(tmp, sizeof(tmp), "${%s}", var) >= (int)(sizeof(tmp)))
+					Fatal("%s: variable name too big: %s",
+					      progname, var);
+				value = p1 = Var_Subst(NULL, tmp, VAR_GLOBAL, 0);
 			} else {
 				value = Var_Value(var, VAR_GLOBAL, &p1);
 			}
@@ -2075,4 +2092,50 @@ mkTempFile(const char *pattern, char **fnamep)
 	unlink(tfile);			/* we just want the descriptor */
     }
     return fd;
+}
+
+
+/*
+ * Return a Boolean based on setting of a knob.
+ *
+ * If the knob is not set, the supplied default is the return value.
+ * If set, anything that looks or smells like "No", "False", "Off", "0" etc,
+ * is FALSE, otherwise TRUE.
+ */
+Boolean
+getBoolean(const char *name, Boolean bf)
+{
+    char tmp[64];
+    char *cp;
+
+    if (snprintf(tmp, sizeof(tmp), "${%s:tl}", name) < (int)(sizeof(tmp))) {
+	cp = Var_Subst(NULL, tmp, VAR_GLOBAL, 0);
+
+	if (cp) {
+	    switch(*cp) {
+	    case '\0':			/* not set - the default wins */
+		break;
+	    case '0':
+	    case 'f':
+	    case 'n':
+		bf = FALSE;
+		break;
+	    case 'o':
+		switch (cp[1]) {
+		case 'f':
+		    bf = FALSE;
+		    break;
+		default:
+		    bf = TRUE;
+		    break;
+		}
+		break;
+	    default:
+		bf = TRUE;
+		break;
+	    }
+	    free(cp);
+	}
+    }
+    return (bf);
 }

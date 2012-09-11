@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.204 2012/04/24 20:12:16 sjg Exp $
+.\"	$NetBSD: make.1,v 1.206 2012/08/30 22:35:37 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd April 24, 2012
+.Dd August 30, 2012
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -203,6 +203,10 @@ Print debugging information about makefile parsing.
 Print debugging information about suffix-transformation rules.
 .It Ar t
 Print debugging information about target list maintenance.
+.It Ar V
+Force the
+.Fl V
+option to print raw values of variables.
 .It Ar v
 Print debugging information about variable assignment.
 .It Ar x
@@ -675,6 +679,10 @@ and cannot be confused with the special target with the same name.
 Names the makefile (default
 .Ql Pa .depend )
 from which generated dependencies are read.
+.It Va .MAKE.EXPAND_VARIABLES
+A boolean that controls the default behavior of the
+.Fl V
+option.
 .It Va .MAKE.EXPORTED
 The list of variables exported by
 .Nm .

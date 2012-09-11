@@ -1,3 +1,22 @@
+2012-08-31  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120831
+	  Merge with NetBSD make, pick up
+	  o cast sizeof() to int for comparison
+	  o minor make.1 tweak
+
+2012-08-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120830
+	  Merge with NetBSD make, pick up
+	  o .MAKE.EXPAND_VARIABLES knob can control default behavior of -V
+	  o debug flag -dV causes -V to show raw value regardless.
+	
+2012-07-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* bsd.after-import.mk (after-import): ensure unit-tests/Makefile
+	  gets SRCTOP set.
+
 2012-07-04  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile.in (MAKE_VERSION): bump version to 20120704
