@@ -380,7 +380,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 
 		/* Make sure the 11n aggregate fields are cleared */
 		if (ath_tx_is_11n(sc))
-			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
+			ath_hal_clr11n_aggr(sc->sc_ah, (struct ath_desc *) ds);
 
 		isFirstDesc = 0;
 #ifdef	ATH_DEBUG
