@@ -1245,7 +1245,7 @@ fzap_name_equal(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, const char *na
 	const zap_leaf_chunk_t *nc;
 	const char *p;
 
-	namelen = zc->l_entry.le_name_length;
+	namelen = zc->l_entry.le_name_numints;
 			
 	nc = &ZAP_LEAF_CHUNK(zl, zc->l_entry.le_name_chunk);
 	p = name;
@@ -1458,7 +1458,7 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode)
 			zc = &ZAP_LEAF_CHUNK(&zl, j);
 			if (zc->l_entry.le_type != ZAP_CHUNK_ENTRY)
 				continue;
-			namelen = zc->l_entry.le_name_length;
+			namelen = zc->l_entry.le_name_numints;
 			if (namelen > sizeof(name))
 				namelen = sizeof(name);
 
@@ -1557,7 +1557,7 @@ fzap_name_copy(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, char *name)
 	const zap_leaf_chunk_t *nc;
 	char *p;
 
-	namelen = zc->l_entry.le_name_length;
+	namelen = zc->l_entry.le_name_numints;
 
 	nc = &ZAP_LEAF_CHUNK(zl, zc->l_entry.le_name_chunk);
 	p = name;
