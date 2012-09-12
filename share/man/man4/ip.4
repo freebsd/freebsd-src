@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2012
+.Dd September 12, 2012
 .Dt IP 4
 .Os
 .Sh NAME
@@ -172,9 +172,7 @@ cmsg_type = IP_RECVDSTADDR
 .Pp
 The source address to be used for outgoing
 .Tn UDP
-datagrams on a socket that is not bound to a specific
-.Tn IP
-address can be specified as ancillary data with a type code of
+datagrams on a socket can be specified as ancillary data with a type code of
 .Dv IP_SENDSRCADDR .
 The msg_control field in the msghdr structure should point to a buffer
 that contains a
@@ -188,6 +186,22 @@ cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_SENDSRCADDR
 .Ed
+.Pp
+The socket should be bound to a local port.
+The socket may be bound or not bound to a local address.
+In the former case address supplied with
+.Dv IP_SENDSRCADDR
+overrides bound address.
+If the socket is bound to a local address and the address supplied with
+.Dv IP_SENDSRCADDR
+is
+.Dv INADDR_ANY ,
+then bound address is overriden via generic source address selection logic,
+which would choose IP address of interface closest to destination.
+If the socket is not bound to a local address, then address supplied with
+.Dv IP_SENDSRCADDR
+can't be
+.Dv INADDR_ANY .
 .Pp
 For convenience,
 .Dv IP_SENDSRCADDR
