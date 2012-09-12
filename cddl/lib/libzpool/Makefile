@@ -64,4 +64,7 @@ NO_PROFILE=
 
 CSTD=	c99
 
+CFLAGS+=	-DDEBUG=1
+#DEBUG_FLAGS+=	-g
+
 .include <bsd.lib.mk>
