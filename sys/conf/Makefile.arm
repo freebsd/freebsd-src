@@ -39,8 +39,6 @@ SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 STRIP_FLAGS = -S
 .endif
 
-DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo
-
 .if empty(DDB_ENABLED)
 CFLAGS += -mno-apcs-frame
 .endif
