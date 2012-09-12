@@ -260,7 +260,7 @@ raw_cat(int rfd)
 	wfd = fileno(stdout);
 	if (buf == NULL) {
 		if (fstat(wfd, &sbuf))
-			err(1, "%s", filename);
+			err(1, "stdout");
 		if (S_ISREG(sbuf.st_mode)) {
 			/* If there's plenty of RAM, use a large copy buffer */
 			if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
