@@ -160,6 +160,23 @@ dwc_otg_get_hw_ep_profile(struct usb_device *udev,
 		*ppf = NULL;
 }
 
+static void
+dwc_otg_request_sof(struct dwc_otg_softc *sc)
+{
+	sc->sc_sof_refs++;
+	sc->sc_irq_mask |= GINTMSK_SOFMSK;
+	DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+}
+
+static void
+dwc_otg_release_sof(struct dwc_otg_softc *sc)
+{
+	if (--(sc->sc_sof_refs) == 0) {
+		sc->sc_irq_mask &= ~GINTMSK_SOFMSK;
+		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+	}
+}
+
 static int
 dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 {
@@ -523,6 +540,9 @@ dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 			/* set active EP */
 			sc->sc_active_rx_ep |= (1 << x);
 
+			/* request SOF's */
+			dwc_otg_request_sof(sc);
+
 			return (0);	/* allocated */
 		}
 	}
@@ -576,6 +596,10 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 			td->remainder -= td->tx_bytes;
 			td->toggle = 1;
 			return (0);	/* complete */
+		} else {
+			if ((sc->sc_sof_val & 1) != (td->sof_val & 1))
+				return (1);	/* busy */
+			td->sof_val += 1;
 		}
 	} else {
 		return (1);	/* busy */
@@ -882,12 +906,19 @@ not_complete:
 		/* DATA 0 */
 		td->toggle = 0;
 	} else if (ep_type == UE_INTERRUPT) {
-		if ((sc->sc_interrupt_val & 0xFF) != td->sof_val)
+		if ((sc->sc_sof_val & 0xFF) != td->sof_val)
 			return (1);	/* busy */
 		td->sof_val += td->sof_res;
-	} else if (td->set_toggle) {
-		td->set_toggle = 0;
-		td->toggle = 1;
+	} else {
+		if (td->did_nak) {
+			if ((sc->sc_sof_val & 1) != (td->sof_val & 1))
+				return (1);	/* busy */
+			td->sof_val += 1;
+		}
+		if (td->set_toggle) {
+			td->set_toggle = 0;
+			td->toggle = 1;
+		}
 	}
 
 	/* receive one packet */
@@ -1078,7 +1109,11 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 
 				/* else we need to transmit a short packet */
 			}
-		}
+		} else {
+			if ((sc->sc_sof_val & 1) != (td->sof_val & 1))
+				return (1);	/* busy */
+			td->sof_val += 1;
+ 		}
 	} else {
 		return (1);	/* busy */
 	}
@@ -1098,7 +1133,7 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		td->toggle = 0;
 
 	} else if (ep_type == UE_INTERRUPT) {
-		if ((sc->sc_interrupt_val & 0xFF) != td->sof_val)
+		if ((sc->sc_sof_val & 0xFF) != td->sof_val)
 			return (1);	/* busy */
 		td->sof_val += td->sof_res;
 	} else if (td->set_toggle) {
@@ -1775,21 +1810,8 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 	}
 
 	/* check for Start Of Frame IRQ */
-	if (status & GINTMSK_SOFMSK) {
-
-		uint32_t temp;
-
-		temp = DWC_OTG_READ_4(sc, DOTG_HFNUM);
-		temp &= HFNUM_FRNUM_MASK;
-
-		if (sc->sc_flags.status_high_speed) {
-			if ((temp & 7) == (sc->sc_sof_val & 7))
-				sc->sc_sof_val++;
-		} else {
-			if ((temp & 1) == (sc->sc_sof_val & 1))
-				sc->sc_sof_val++;
-		}
-	}
+	if (status & GINTMSK_SOFMSK)
+		sc->sc_sof_val++;
 
 	/* poll FIFO(s) */
 	dwc_otg_interrupt_poll(sc);
@@ -2058,6 +2080,16 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 			} else {
 				td->hcsplt = 0;
 			}
+			if (xfer_type == UE_INTERRUPT) {
+				uint32_t ival;
+				ival = xfer->interval;
+				if (ival == 0)
+					ival = 1;
+				else if (ival > 255)
+					ival = 255;
+				td->sof_val = sc->sc_sof_val + ival;
+				td->sof_res = ival;
+			}
 			break;
 		case USB_SPEED_HIGH:
 			td->hcsplt = 0;
@@ -2065,6 +2097,16 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 			    xfer_type == UE_INTERRUPT) {
 				td->hcchar |= ((xfer->max_packet_count & 3)
 				    << HCCHAR_MC_SHIFT);
+			}
+			if (xfer_type == UE_INTERRUPT) {
+				uint32_t ival;
+				ival = xfer->interval * 8;
+				if (ival == 0)
+					ival = 1;
+				else if (ival > 255)
+					ival = 255;
+				td->sof_val = sc->sc_sof_val + ival;
+				td->sof_res = ival;
 			}
 			break;
 		default:
@@ -2075,9 +2117,9 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 		if (xfer_type == UE_ISOCHRONOUS) {
 			td->sof_val = xfer->endpoint->isoc_next & 0xFF;
 			td->sof_res = 1 << usbd_xfer_get_fps_shift(xfer);
-		} else if (xfer_type == UE_INTERRUPT) {
-			td->sof_val = sc->sc_interrupt_val;
-			td->sof_res = 0;	/* TODO */
+		} else if (xfer_type != UE_INTERRUPT) {
+			td->sof_val = sc->sc_sof_val + 1;
+			td->sof_res = 1;
 		}
 	}
 }
@@ -2269,6 +2311,9 @@ dwc_otg_device_done(struct usb_xfer *xfer, usb_error_t error)
 			sc->sc_active_rx_ep &= ~(1 << td->channel);
 
 			td->channel = DWC_OTG_MAX_CHANNELS;
+
+			/* release SOF's */
+			dwc_otg_release_sof(sc);
 		}
 	}
 	/* dequeue transfer and start next transfer */
@@ -2742,32 +2787,22 @@ struct usb_pipe_methods dwc_otg_device_non_isoc_methods =
 static void
 dwc_otg_device_isoc_open(struct usb_xfer *xfer)
 {
-	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
-
 	if (xfer->xroot->udev->flags.usb_mode == USB_MODE_HOST) {
-		xfer->qh_pos = 1;
-		sc->sc_sof_refs++;
-		sc->sc_irq_mask |= GINTMSK_SOFMSK;
-		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+		struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
 
-		usb_hs_bandwidth_alloc(xfer);
+		xfer->qh_pos = 1;
+		dwc_otg_request_sof(sc);
 	}
 }
 
 static void
 dwc_otg_device_isoc_close(struct usb_xfer *xfer)
 {
-	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
-
 	if (xfer->qh_pos != 0) {
+		struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
+
 		xfer->qh_pos = 0;
-		if (--(sc->sc_sof_refs) == 0) {
-			sc->sc_irq_mask &= ~GINTMSK_SOFMSK;
-			DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
-		}
-	}
-	if (xfer->xroot->udev->flags.usb_mode == USB_MODE_HOST) {
-		usb_hs_bandwidth_free(xfer);
+		dwc_otg_release_sof(sc);
 	}
 	dwc_otg_device_done(xfer, USB_ERR_CANCELLED);
 }
