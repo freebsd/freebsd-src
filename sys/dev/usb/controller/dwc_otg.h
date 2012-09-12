@@ -151,8 +151,6 @@ struct dwc_otg_softc {
 	uint32_t sc_hcchar[DWC_OTG_MAX_CHANNELS];
 	uint32_t sc_sof_refs;
 	uint32_t sc_sof_val;
-	uint32_t sc_interrupt_refs;
-	uint32_t sc_interrupt_val;
 	uint32_t sc_hprt_val;
 
 	uint16_t sc_active_rx_ep;
