@@ -163,6 +163,7 @@ strsig(int sig)
 int
 main(int ac, char **av)
 {
+	struct sigaction sa;
 	struct ex_types *funcs;
 	struct trussinfo *trussinfo;
 	char *fname;
@@ -257,10 +258,13 @@ main(int ac, char **av)
 		signal(SIGTERM, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 	} else {
+		sa.sa_handler = restore_proc;
+		sa.sa_flags = 0;
+		sigemptyset(&sa.sa_mask);
+		sigaction(SIGINT, &sa, NULL);
+		sigaction(SIGQUIT, &sa, NULL);
+		sigaction(SIGTERM, &sa, NULL);
 		start_tracing(trussinfo->pid);
-		signal(SIGINT, restore_proc);
-		signal(SIGTERM, restore_proc);
-		signal(SIGQUIT, restore_proc);
 	}
 
 
@@ -366,7 +370,8 @@ START_TRACE:
 		default:
 			break;
 		}
-	} while (trussinfo->pr_why != S_EXIT);
+	} while (trussinfo->pr_why != S_EXIT &&
+	    trussinfo->pr_why != S_DETACHED);
 
 	if (trussinfo->flags & FOLLOWFORKS) {
 		do {
