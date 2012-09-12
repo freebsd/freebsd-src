@@ -70,6 +70,7 @@ struct dwc_otg_td {
 	uint8_t set_toggle:1;
 	uint8_t did_nak:1;
 	uint8_t did_complete:1;
+	uint8_t got_short:1;
 };
 
 struct dwc_otg_std_temp {
