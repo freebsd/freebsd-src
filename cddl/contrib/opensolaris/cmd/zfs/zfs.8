@@ -137,17 +137,21 @@
 .Fl a | Ar filesystem
 .Nm
 .Cm userspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
 .Nm
 .Cm groupspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -1987,9 +1991,11 @@ Upgrade the specified file system.
 .It Xo
 .Nm
 .Cm userspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -2007,9 +2013,9 @@ Print numeric ID instead of user/group name.
 .It Fl H
 Do not print headers, use tab-delimited output.
 .It Fl p
-Use exact (parseable) numeric output.
+Use exact (parsable) numeric output.
 .It Fl o Ar field Ns Op , Ns Ar ...
-Display only the specified fields from the following set,
+Display only the specified fields from the following set:
 .Sy type,name,used,quota .
 The default is to display all fields.
 .It Fl s Ar field
@@ -2024,7 +2030,7 @@ another. The default is
 Sort by this field in reverse order. See
 .Fl s .
 .It Fl t Ar type Ns Op , Ns Ar ...
-Print only the specified types from the following set,
+Print only the specified types from the following set:
 .Sy all,posixuser,smbuser,posixgroup,smbgroup .
 .Pp
 The default is
@@ -2038,9 +2044,11 @@ Translate SID to POSIX ID. This flag currently has no effect on
 .It Xo
 .Nm
 .Cm groupspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot

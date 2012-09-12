@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>
+ * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,57 +26,17 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_ASSFAIL_H_
-#define	_OPENSOLARIS_SYS_ASSFAIL_H_
-
-#include <sys/types.h>
-#ifndef _KERNEL
-#include <stdio.h>
-#include <stdlib.h>
-#endif
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
+#ifndef _OPENSOLARIS_SYS_DEBUG_H_
+#define	_OPENSOLARIS_SYS_DEBUG_H_
 
 #ifdef _KERNEL
-int assfail(const char *, const char *, int);
-void assfail3(const char *, uintmax_t, const char *, uintmax_t, const char *,
-    int);
-#else	/* !defined(_KERNEL) */
+#include <sys/systm.h>
 
-#ifndef HAVE_ASSFAIL
-static __inline int
-__assfail(const char *expr, const char *file, int line)
-{
+#include_next <sys/debug.h>
+#else	/* !_KERNEL */
 
-	(void)fprintf(stderr, "Assertion failed: (%s), file %s, line %d.\n",
-	    expr, file, line);
-	abort();
-	/* NOTREACHED */
-	return (0);
-}
-#define assfail __assfail
-#endif
+#include_next <sys/debug.h>
+#include <sys/assfail.h>
+#endif	/* _KERNEL */
 
-#ifndef HAVE_ASSFAIL3
-static __inline void
-__assfail3(const char *expr, uintmax_t lv, const char *op, uintmax_t rv,
-    const char *file, int line) {
-
-	(void)fprintf(stderr,
-	    "Assertion failed: %s (0x%jx %s 0x%jx), file %s, line %d.\n",
-	    expr, lv, op, rv, file, line);
-        abort();
-        /* NOTREACHED */
-}
-#define assfail3 __assfail3
-#endif
-
-#endif	/* !defined(_KERNEL) */
-
-#ifdef	__cplusplus
-}
-#endif
-
-#endif	/* _OPENSOLARIS_SYS_ASSFAIL_H_ */
+#endif	/* _OPENSOLARIS_SYS_DEBUG_H_ */
