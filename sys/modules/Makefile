@@ -708,7 +708,7 @@ _padlock=	padlock
 .endif
 _pccard=	pccard
 _qlxgb=		qlxgb
-_rdma=		rdma	
+_rdma=		rdma
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
