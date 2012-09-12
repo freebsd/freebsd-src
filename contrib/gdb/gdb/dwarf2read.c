@@ -4604,6 +4604,9 @@ read_attribute_value (struct attribute *attr, unsigned form,
       DW_UNSND (attr) = read_1_byte (abfd, info_ptr);
       info_ptr += 1;
       break;
+    case DW_FORM_flag_present:
+      DW_UNSND (attr) = 1;
+      break;
     case DW_FORM_sdata:
       DW_SND (attr) = read_signed_leb128 (abfd, info_ptr, &bytes_read);
       info_ptr += bytes_read;
@@ -7225,6 +7228,9 @@ dump_die (struct die_info *die)
 	    fprintf_unfiltered (gdb_stderr, "flag: TRUE");
 	  else
 	    fprintf_unfiltered (gdb_stderr, "flag: FALSE");
+	  break;
+	case DW_FORM_flag_present:
+	  fprintf_unfiltered (gdb_stderr, "flag: TRUE");
 	  break;
 	case DW_FORM_indirect:
 	  /* the reader will have reduced the indirect form to
