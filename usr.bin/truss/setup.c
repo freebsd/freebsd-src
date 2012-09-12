@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 #include "extern.h"
 
-static pid_t child_pid;
+static sig_atomic_t detaching;
 
 /*
  * setup_and_wait() is called to start a process.  All it really does
@@ -84,8 +84,6 @@ setup_and_wait(char *command[])
 	if (waitpid(pid, NULL, 0) < 0)
 		err(1, "unexpect stop in waitpid");
 
-	child_pid = pid;
-
 	return (pid);
 }
 
@@ -108,7 +106,6 @@ start_tracing(pid_t pid)
 	if (ret)
 		err(1, "can not attach to target process");
 
-	child_pid = pid;
 	if (waitpid(pid, NULL, 0) < 0)
 		err(1, "Unexpect stop in waitpid");
 
@@ -121,21 +118,30 @@ start_tracing(pid_t pid)
  * applies if truss was told to monitor an already-existing
  * process.
  */
+
 void
 restore_proc(int signo __unused)
+{
+
+	detaching = 1;
+}
+
+static int
+detach_proc(pid_t pid)
 {
 	int waitval;
 
 	/* stop the child so that we can detach */
-	kill(child_pid, SIGSTOP);
-	if (waitpid(child_pid, &waitval, 0) < 0)
+	kill(pid, SIGSTOP);
+	if (waitpid(pid, &waitval, 0) < 0)
 		err(1, "Unexpected stop in waitpid");
 
-	if (ptrace(PT_DETACH, child_pid, (caddr_t)1, 0) < 0)
+	if (ptrace(PT_DETACH, pid, (caddr_t)1, 0) < 0)
 		err(1, "Can not detach the process");
 
-	kill(child_pid, SIGCONT);
-	exit(0);
+	kill(pid, SIGCONT);
+
+	return (waitval);
 }
 
 /*
@@ -180,8 +186,19 @@ waitevent(struct trussinfo *info)
 	ptrace(PT_SYSCALL, info->pid, (caddr_t)1, pending_signal);
 	pending_signal = 0;
 
-	if (waitpid(info->pid, &waitval, 0) < 0)
+detach:
+	if (detaching) {
+		waitval = detach_proc(info->pid);
+		info->pr_why = S_DETACHED;
+		info->pr_data = WEXITSTATUS(waitval);
+		return;
+	}
+
+	if (waitpid(info->pid, &waitval, 0) == -1) {
+		if (errno == EINTR)
+			goto detach;
 		err(1, "Unexpected stop in waitpid");
+	}
 
 	if (WIFCONTINUED(waitval)) {
 		info->pr_why = S_NONE;
