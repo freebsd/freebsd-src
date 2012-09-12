@@ -289,7 +289,7 @@ struct {								\
 #define	STAILQ_LAST(head, type, field)					\
 	(STAILQ_EMPTY((head)) ?						\
 		NULL :							\
-		__member2struct(type, field, (head)->stqh_last))
+		__member2struct(type, field.stqe_next, (head)->stqh_last))
 
 #define	STAILQ_NEXT(elm, field)	((elm)->field.stqe_next)
 
@@ -427,7 +427,7 @@ struct {								\
 #define	LIST_PREV(elm, head, type, field)				\
 	((elm)->field.le_prev == &LIST_FIRST((head)) ?			\
 		NULL :							\
-		__member2struct(type, field, (elm)->field.le_prev))
+		__member2struct(type, field.le_next, (elm)->field.le_prev))
 
 #define	LIST_REMOVE(elm, field) do {					\
 	QMD_SAVELINK(oldnext, (elm)->field.le_next);			\
