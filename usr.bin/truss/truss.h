@@ -87,3 +87,4 @@ struct trussinfo
 #define	S_EXIT	3
 #define	S_SIG	4
 #define	S_EXEC	5
+#define	S_DETACHED	6
