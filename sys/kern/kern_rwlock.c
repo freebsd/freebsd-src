@@ -242,6 +242,9 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 	MPASS(curthread != NULL);
+	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	    ("rw_wlock() by idle thread %p on rwlock %s @ %s:%d",
+	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
@@ -260,6 +263,9 @@ _rw_try_wlock(struct rwlock *rw, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return (1);
 
+	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	    ("rw_try_wlock() by idle thread %p on rwlock %s @ %s:%d",
+	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_try_wlock() of destroyed rwlock @ %s:%d", file, line));
 
@@ -333,6 +339,9 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
+	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	    ("rw_rlock() by idle thread %p on rwlock %s @ %s:%d",
+	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_rlock() of destroyed rwlock @ %s:%d", file, line));
 	KASSERT(rw_wowner(rw) != curthread,
@@ -520,6 +529,10 @@ _rw_try_rlock(struct rwlock *rw, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return (1);
+
+	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	    ("rw_try_rlock() by idle thread %p on rwlock %s @ %s:%d",
+	    curthread, rw->lock_object.lo_name, file, line));
 
 	for (;;) {
 		x = rw->rw_lock;
