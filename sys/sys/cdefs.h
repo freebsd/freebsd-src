@@ -402,6 +402,8 @@
 #endif
 #define	__rangeof(type, start, end) \
 	(__offsetof(type, end) - __offsetof(type, start))
+#define	__member2struct(s, m, x)					\
+	((struct s *)(void *)((char *)(x) - __offsetof(struct s, m)))
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like
