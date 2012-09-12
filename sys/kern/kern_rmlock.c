@@ -498,6 +498,9 @@ void _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
+	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	    ("rm_wlock() by idle thread %p on rmlock %s @ %s:%d",
+	    curthread, rm->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line, NULL);
 
@@ -540,6 +543,9 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 	if (SCHEDULER_STOPPED())
 		return (1);
 
+	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	    ("rm_rlock() by idle thread %p on rmlock %s @ %s:%d",
+	    curthread, rm->lock_object.lo_name, file, line));
 	if (!trylock && (rm->lock_object.lo_flags & RM_SLEEPABLE))
 		WITNESS_CHECKORDER(&rm->rm_lock_sx.lock_object, LOP_NEWORDER,
 		    file, line, NULL);
