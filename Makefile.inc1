@@ -46,6 +46,7 @@ TARGET_ARCH=${TARGET}
 
 .include <bsd.own.mk>
 .include <bsd.arch.inc.mk>
+.include <bsd.compiler.mk>
 
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
@@ -235,7 +236,8 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
 		VERSION="${VERSION}" \
-		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
+		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
+		COMPILER_TYPE=${COMPILER_TYPE}
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
@@ -270,6 +272,16 @@ WMAKEENV=	${CROSSENV} \
 .if ${MK_CDDL} == "no"
 WMAKEENV+=	NO_CTF=1
 .endif
+.if ${CC:T:Mgcc} == "gcc"
+WMAKE_COMPILER_TYPE=	gcc
+.elif ${CC:T:Mclang} == "clang"
+WMAKE_COMPILER_TYPE=	clang
+.elif ${MK_CLANG_IS_CC} == "no"
+WMAKE_COMPILER_TYPE=	gcc
+.else
+WMAKE_COMPILER_TYPE=	clang
+.endif
+WMAKEENV+=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
@@ -313,7 +325,8 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		CC="${CC} ${LIB32FLAGS}" \
 		CXX="${CXX} ${LIB32FLAGS}" \
 		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
+		SHLIBDIR=/usr/lib32 \
+		COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
