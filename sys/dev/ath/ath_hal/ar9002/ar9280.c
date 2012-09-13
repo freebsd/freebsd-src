@@ -112,7 +112,17 @@ ar9280SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 		switch (frac_n_5g) {
 		case 0:
-			if ((freq % 20) == 0) {
+			/*
+			 * Enable fractional mode for half/quarter rate
+			 * channels.
+			 *
+			 * This is from the Linux ath9k code, rather than
+			 * the Atheros HAL code.
+			 */
+			if (IEEE80211_IS_CHAN_QUARTER(chan) ||
+			    IEEE80211_IS_CHAN_HALF(chan))
+				aModeRefSel = 0;
+			else if ((freq % 20) == 0) {
 				aModeRefSel = 3;
 			} else if ((freq % 10) == 0) {
 				aModeRefSel = 2;
