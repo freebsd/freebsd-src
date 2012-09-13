@@ -168,6 +168,22 @@ If set to
 .Dq Li NO ,
 no swapfile is installed, otherwise the value is used as the full
 pathname to a file to use for additional swap space.
+.It Va Ns Ao Ar name Ac Ns Va _chroot
+.Pq Vt str
+.Xr chroot
+to this directory before running the service.
+.It Va Ns Ao Ar name Ac Ns Va _user
+.Pq Vt str
+Run the service under this user account.
+.It Va Ns Ao Ar name Ac Ns Va _group
+.Pq Vt str
+Run the chrooted service under this system group. Unlike the _user
+setting, this setting has no effect if the service is not chrooted.
+.It Ns Ao Ar name Ac Ns Va _nice
+.Pq Vt int
+The
+.Xr nice 1
+value to run the service under.
 .It Va apm_enable
 .Pq Vt bool
 If set to
