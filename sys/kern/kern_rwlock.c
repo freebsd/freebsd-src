@@ -241,7 +241,6 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(!TD_IS_IDLETHREAD(curthread),
 	    ("rw_wlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
@@ -292,7 +291,6 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wunlock() of destroyed rwlock @ %s:%d", file, line));
 	_rw_assert(rw, RA_WLOCKED, file, line);
