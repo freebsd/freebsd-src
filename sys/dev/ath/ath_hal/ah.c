@@ -514,6 +514,13 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 			clks <<= 1;
 	} else
 		clks = usecs * CLOCK_RATE[WIRELESS_MODE_11b];
+
+	/* Compensate for half/quarter rate */
+	if (c != AH_NULL && IEEE80211_IS_CHAN_HALF(c))
+		clks = clks / 2;
+	else if (c != AH_NULL && IEEE80211_IS_CHAN_QUARTER(c))
+		clks = clks / 4;
+
 	return clks;
 }
 
