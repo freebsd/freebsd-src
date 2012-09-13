@@ -249,7 +249,6 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return (0);
-	MPASS(curthread != NULL);
 	KASSERT(!TD_IS_IDLETHREAD(curthread),
 	    ("sx_slock() by idle thread %p on sx %s @ %s:%d",
 	    curthread, sx->lock_object.lo_name, file, line));
@@ -303,7 +302,6 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return (0);
-	MPASS(curthread != NULL);
 	KASSERT(!TD_IS_IDLETHREAD(curthread),
 	    ("sx_xlock() by idle thread %p on sx %s @ %s:%d",
 	    curthread, sx->lock_object.lo_name, file, line));
@@ -330,7 +328,6 @@ sx_try_xlock_(struct sx *sx, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return (1);
 
-	MPASS(curthread != NULL);
 	KASSERT(!TD_IS_IDLETHREAD(curthread),
 	    ("sx_try_xlock() by idle thread %p on sx %s @ %s:%d",
 	    curthread, sx->lock_object.lo_name, file, line));
@@ -361,7 +358,6 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SA_SLOCKED, file, line);
@@ -378,7 +374,6 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SA_XLOCKED, file, line);
