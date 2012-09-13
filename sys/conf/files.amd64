@@ -214,7 +214,7 @@ dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
 dev/nvram/nvram.c		optional	nvram isa
-dev/random/ivy.c		optional	random ivy_rng
+dev/random/ivy.c		optional	random rdrand_rng
 dev/random/nehemiah.c		optional	random padlock_rng
 dev/qlxgb/qla_dbg.c		optional	qlxgb pci
 dev/qlxgb/qla_hw.c		optional	qlxgb pci
