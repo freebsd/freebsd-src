@@ -1588,11 +1588,11 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
  */
 
 /*
- * pmap_enter_pv: enter a mapping onto a vm_page lst
+ * pmap_enter_pv: enter a mapping onto a vm_page's PV list
  *
  * => caller should hold the proper lock on pvh_global_lock
  * => caller should have pmap locked
- * => we will gain the lock on the vm_page and allocate the new pv_entry
+ * => we will (someday) gain the lock on the vm_page's PV list
  * => caller should adjust ptp's wire_count before calling
  * => caller should not adjust pmap's wire_count
  */
@@ -1600,33 +1600,26 @@ static void
 pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
     vm_offset_t va, u_int flags)
 {
-	int km;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
-
+	PMAP_ASSERT_LOCKED(pm);
 	if (pg->md.pv_kva != 0) {
-		/* PMAP_ASSERT_LOCKED(pmap_kernel()); */
-		pve->pv_pmap = pmap_kernel();
+		pve->pv_pmap = kernel_pmap;
 		pve->pv_va = pg->md.pv_kva;
 		pve->pv_flags = PVF_WRITE | PVF_UNMAN;
-		pg->md.pv_kva = 0;
-
-		if (!(km = PMAP_OWNED(pmap_kernel())))
-			PMAP_LOCK(pmap_kernel());
+		if (pm != kernel_pmap)
+			PMAP_LOCK(kernel_pmap);
 		TAILQ_INSERT_HEAD(&pg->md.pv_list, pve, pv_list);
-		TAILQ_INSERT_HEAD(&pve->pv_pmap->pm_pvlist, pve, pv_plist);
-		PMAP_UNLOCK(pmap_kernel());
+		TAILQ_INSERT_HEAD(&kernel_pmap->pm_pvlist, pve, pv_plist);
+		if (pm != kernel_pmap)
+			PMAP_UNLOCK(kernel_pmap);
+		pg->md.pv_kva = 0;
 		if ((pve = pmap_get_pv_entry()) == NULL)
 			panic("pmap_kenter_pv: no pv entries");
-		if (km)
-			PMAP_LOCK(pmap_kernel());
 	}
-
-	PMAP_ASSERT_LOCKED(pm);
 	pve->pv_pmap = pm;
 	pve->pv_va = va;
 	pve->pv_flags = flags;
-
 	TAILQ_INSERT_HEAD(&pg->md.pv_list, pve, pv_list);
 	TAILQ_INSERT_HEAD(&pm->pm_pvlist, pve, pv_plist);
 	pg->md.pvh_attrs |= flags & (PVF_REF | PVF_MOD);
