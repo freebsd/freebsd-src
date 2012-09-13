@@ -52,6 +52,10 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
+int g_raid_enable = 1;
+TUNABLE_INT("kern.geom.raid.enable", &g_raid_enable);
+SYSCTL_INT(_kern_geom_raid, OID_AUTO, enable, CTLFLAG_RW,
+    &g_raid_enable, 0, "Enable on-disk metadata taste");
 u_int g_raid_aggressive_spare = 0;
 TUNABLE_INT("kern.geom.raid.aggressive_spare", &g_raid_aggressive_spare);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RW,
@@ -1922,6 +1926,8 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 
 	G_RAID_DEBUG1(2, vol->v_softc, "Starting volume %s.", vol->v_name);
 	LIST_FOREACH(class, &g_raid_tr_classes, trc_list) {
+		if (!class->trc_enable)
+			continue;
 		G_RAID_DEBUG1(2, vol->v_softc,
 		    "Tasting volume %s for %s transformation.",
 		    vol->v_name, class->name);
@@ -2144,6 +2150,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
+	if (!g_raid_enable)
+		return (NULL);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
 	gp = g_new_geomf(mp, "raid:taste");
@@ -2156,6 +2164,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	geom = NULL;
 	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
+		if (!class->mdc_enable)
+			continue;
 		G_RAID_DEBUG(2, "Tasting provider %s for %s metadata.",
 		    pp->name, class->name);
 		obj = (void *)kobj_create((kobj_class_t)class, M_RAID,

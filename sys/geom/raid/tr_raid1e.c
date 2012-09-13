@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #define N	2
 
-SYSCTL_DECL(_kern_geom_raid);
-static SYSCTL_NODE(_kern_geom_raid, OID_AUTO, raid1e, CTLFLAG_RW, 0,
-    "RAID1E parameters");
+SYSCTL_DECL(_kern_geom_raid_raid1e);
 
 #define RAID1E_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
 static int g_raid1e_rebuild_slab = RAID1E_REBUILD_SLAB;
@@ -135,6 +133,7 @@ static struct g_raid_tr_class g_raid_tr_raid1e_class = {
 	"RAID1E",
 	g_raid_tr_raid1e_methods,
 	sizeof(struct g_raid_tr_raid1e_object),
+	.trc_enable = 1,
 	.trc_priority = 200
 };
 
@@ -1236,4 +1235,4 @@ g_raid_tr_free_raid1e(struct g_raid_tr_object *tr)
 	return (0);
 }
 
-G_RAID_TR_DECLARE(g_raid_tr_raid1e);
+G_RAID_TR_DECLARE(raid1e, "RAID1E");
