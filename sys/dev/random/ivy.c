@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
 
-#ifdef IVY_RNG
+#ifdef RDRAND_RNG
 
 #include <sys/param.h>
 #include <sys/time.h>
