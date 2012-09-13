@@ -525,7 +525,7 @@ virtqueue_dequeue(struct virtqueue *vq, uint32_t *len)
 	used_idx = vq->vq_used_cons_idx++ & (vq->vq_nentries - 1);
 	uep = &vq->vq_ring.used->ring[used_idx];
 
-	mb();
+	rmb();
 	desc_idx = (uint16_t) uep->id;
 	if (len != NULL)
 		*len = uep->len;
@@ -623,7 +623,7 @@ vq_ring_update_avail(struct virtqueue *vq, uint16_t desc_idx)
 	avail_idx = vq->vq_ring.avail->idx & (vq->vq_nentries - 1);
 	vq->vq_ring.avail->ring[avail_idx] = desc_idx;
 
-	mb();
+	wmb();
 	vq->vq_ring.avail->idx++;
 
 	/* Keep pending count until virtqueue_notify(). */
