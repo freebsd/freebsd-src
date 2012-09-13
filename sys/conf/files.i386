@@ -227,7 +227,7 @@ dev/nfe/if_nfe.c		optional nfe pci
 dev/nve/if_nve.c		optional nve pci
 dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
-dev/random/ivy.c		optional random ivy_rng
+dev/random/ivy.c		optional random rdrand_rng
 dev/random/nehemiah.c		optional random padlock_rng
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
