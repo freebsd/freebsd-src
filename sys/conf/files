@@ -1090,6 +1090,40 @@ dev/cxgbe/t4_l2t.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/common/t4_hw.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+t4fw_cfg.c		optional cxgbe					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t4fw_cfg.fw:t4fw_cfg t4fw_cfg_uwire.fw:t4fw_cfg_uwire t4fw.fw:t4fw -mt4fw_cfg -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"t4fw_cfg.c"
+t4fw_cfg.fwo		optional cxgbe					\
+	dependency	"t4fw_cfg.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t4fw_cfg.fwo"
+t4fw_cfg.fw		optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t4fw_cfg.txt"		\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t4fw_cfg.fw"
+t4fw_cfg_uwire.fwo	optional cxgbe					\
+	dependency	"t4fw_cfg_uwire.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t4fw_cfg_uwire.fwo"
+t4fw_cfg_uwire.fw	optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t4fw_cfg_uwire.txt"	\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t4fw_cfg_uwire.fw"
+t4fw.fwo		optional cxgbe					\
+	dependency	"t4fw.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t4fw.fwo"
+t4fw.fw			optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.6.2.0.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"t4fw.fw"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci

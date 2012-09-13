@@ -18,6 +18,7 @@ LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 M=		${MACHINE_CPUARCH}
 
 AWK?=		awk
+CP?=		cp
 LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
