@@ -27,7 +27,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
     FTP ou NFS, depuis ce r&eacute;pertoire, la seule chose
     n&eacute;cesaire est de cr&eacute;er les disquettes 1.44Mb bootables
     depuis les fichiers se trouvant dans le r&eacute;pertoire floppies
-    (voir <xref linkend="floppies"> pour les instructions sur la façon
+    (voir <xref linkend="floppies"/> pour les instructions sur la façon
     de proc&eacute;der), de d&eacute;marrer grace &agrave; elles et de
     suivre les instructions. Le reste des donn&eacute;es
     n&eacute;cessaires a l'installation serontcharg&eacute;es
@@ -58,7 +58,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
       <listitem>
         <para><filename>docbook.css</filename> est un fichier de 
 	style(CSS) utilis&eacute; par certains browsers WWW pour formatter 
-	la documentation HTML.
+	la documentation HTML.</para>
       </listitem>
       <listitem>
 	<para>Les r&eacute;pertoire <filename>bin</filename>,
@@ -94,7 +94,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	<para>Le sous-r&eacute;pertoire <filename>floppies/</filename>
         contient les images de la disquette d'installation. Plus
         d'informations sur son utilisation dans <xref
-        linkend="floppies">.</para>
+        linkend="floppies"/>.</para>
       </listitem>
       <listitem>
 
