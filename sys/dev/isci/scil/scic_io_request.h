@@ -706,7 +706,7 @@ void * scic_stp_io_request_get_h2d_reg_address(
  * @brief This method will return the address of the device to host register
  *        fis region for the io request object.
  *
- * @param[in] scic_io_request This parameter specifies teh handle to the io
+ * @param[in] scic_io_request This parameter specifies the handle to the io
  *       request object from which to get the device to host register fis
  *       buffer.
  *
