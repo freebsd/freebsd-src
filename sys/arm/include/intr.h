@@ -55,7 +55,12 @@
 #elif defined(CPU_ARM11)
 #define NIRQ		128
 #elif defined(SOC_MV_ARMADAXP)
-#define NIRQ		148
+#define MAIN_IRQ_NUM		116
+#define ERR_IRQ_NUM		32
+#define ERR_IRQ			(MAIN_IRQ_NUM)
+#define MSI_IRQ_NUM		32
+#define MSI_IRQ			(ERR_IRQ + ERR_IRQ_NUM)
+#define NIRQ			(MAIN_IRQ_NUM + ERR_IRQ_NUM + MSI_IRQ_NUM)
 #else
 #define NIRQ		32
 #endif

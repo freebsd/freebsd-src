@@ -134,4 +134,6 @@ uint32_t mv_drbl_get_cause(int dir, int unit);
 void	mv_drbl_set_msg(uint32_t val, int mnr, int dir, int unit);
 uint32_t mv_drbl_get_msg(int mnr, int dir, int unit);
 
+int	mv_msi_data(int irq, uint64_t *addr, uint32_t *data);
+
 #endif /* _MVVAR_H_ */
