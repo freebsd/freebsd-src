@@ -270,19 +270,19 @@ cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
 contrib/altq/altq/altq_cbq.c	optional altq \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+	compile-with "${NORMAL_C}"
 contrib/altq/altq/altq_cdnr.c	optional altq
 contrib/altq/altq/altq_hfsc.c	optional altq \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+	compile-with "${NORMAL_C}"
 contrib/altq/altq/altq_priq.c	optional altq \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+	compile-with "${NORMAL_C}"
 contrib/altq/altq/altq_red.c	optional altq \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+	compile-with "${NORMAL_C}"
 contrib/altq/altq/altq_rio.c	optional altq \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+	compile-with "${NORMAL_C}"
 contrib/altq/altq/altq_rmclass.c optional altq
 contrib/altq/altq/altq_subr.c	optional altq \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+	compile-with "${NORMAL_C}"
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbexec.c		optional acpi acpi_debug
@@ -513,27 +513,6 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
-contrib/pf/net/if_pflog.c	optional pflog pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/if_pfsync.c	optional pfsync pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf.c		optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_if.c		optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_ioctl.c	optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_lb.c		optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_norm.c	optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_osfp.c	optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_ruleset.c	optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_table.c	optional pf inet \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec 
 crypto/blowfish/bf_skey.c	optional crypto | ipsec 
 crypto/camellia/camellia.c	optional crypto | ipsec 
@@ -2881,8 +2860,7 @@ net/if_edsc.c			optional edsc
 net/if_ef.c			optional ef
 net/if_enc.c			optional enc ipsec inet | enc ipsec inet6
 net/if_epair.c			optional epair
-net/if_ethersubr.c		optional ether \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+net/if_ethersubr.c		optional ether
 net/if_faith.c			optional faith
 net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
@@ -3061,30 +3039,12 @@ netinet/ip_id.c			optional inet
 netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
-netinet/in_proto.c		optional inet | inet6 \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
-netinet/ipfw/dn_heap.c		optional inet dummynet
-netinet/ipfw/dn_sched_fifo.c	optional inet dummynet
-netinet/ipfw/dn_sched_prio.c	optional inet dummynet
-netinet/ipfw/dn_sched_qfq.c	optional inet dummynet 
-netinet/ipfw/dn_sched_rr.c	optional inet dummynet
-netinet/ipfw/dn_sched_wf2q.c	optional inet dummynet 
-netinet/ipfw/ip_dummynet.c	optional inet dummynet
-netinet/ipfw/ip_dn_io.c		optional inet dummynet
-netinet/ipfw/ip_dn_glue.c	optional inet dummynet
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
 netinet/ip_fastfwd.c		optional inet
-netinet/ipfw/ip_fw2.c		optional inet ipfirewall \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-netinet/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_log.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_pfil.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_table.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netinet/ip_icmp.c		optional inet | inet6
 netinet/ip_input.c		optional inet
 netinet/ip_ipsec.c		optional inet ipsec
@@ -3192,6 +3152,33 @@ netncp/ncp_nls.c		optional ncp
 netncp/ncp_rq.c			optional ncp
 netncp/ncp_sock.c		optional ncp
 netncp/ncp_subr.c		optional ncp
+netpfil/ipfw/dn_heap.c		optional inet dummynet
+netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
+netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
+netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet 
+netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
+netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet 
+netpfil/ipfw/ip_dummynet.c	optional inet dummynet
+netpfil/ipfw/ip_dn_io.c		optional inet dummynet
+netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
+netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
+netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_table.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
+netpfil/pf/if_pflog.c		optional pflog pf inet
+netpfil/pf/if_pfsync.c		optional pfsync pf inet
+netpfil/pf/pf.c			optional pf inet
+netpfil/pf/pf_if.c		optional pf inet
+netpfil/pf/pf_ioctl.c		optional pf inet
+netpfil/pf/pf_lb.c		optional pf inet
+netpfil/pf/pf_norm.c		optional pf inet
+netpfil/pf/pf_osfp.c		optional pf inet
+netpfil/pf/pf_ruleset.c		optional pf inet
+netpfil/pf/pf_table.c		optional pf inet
+netpfil/pf/in4_cksum.c		optional pf inet
 netsmb/smb_conn.c		optional netsmb
 netsmb/smb_crypt.c		optional netsmb
 netsmb/smb_dev.c		optional netsmb

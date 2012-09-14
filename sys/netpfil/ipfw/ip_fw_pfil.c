@@ -60,8 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
-#include <netinet/ipfw/ip_fw_private.h>
+
 #include <netgraph/ng_ipfw.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #include <machine/in_cksum.h>
 
