@@ -627,7 +627,7 @@ enc_log(struct enc_softc *enc, const char *fmt, ...)
 /*
  * Is this a device that supports enclosure services?
  *
- * It's a a pretty simple ruleset- if it is device type
+ * It's a pretty simple ruleset- if it is device type
  * 0x0D (13), it's an ENCLOSURE device.
  */
 
