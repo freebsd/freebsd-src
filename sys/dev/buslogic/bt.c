@@ -1945,7 +1945,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	bt_outb(bt, COMMAND_REG, opcode);
 
 	/*
-	 * Wait for up to 1sec for each byte of the the
+	 * Wait for up to 1sec for each byte of the
 	 * parameter list sent to be sent.
 	 */
 	timeout = 10000;

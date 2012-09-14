@@ -881,7 +881,7 @@ vm_pageout_scan(int pass)
 	uma_reclaim();
 
 	/*
-	 * The addl_page_shortage is the the number of temporarily
+	 * The addl_page_shortage is the number of temporarily
 	 * stuck pages in the inactive queue.  In other words, the
 	 * number of pages from cnt.v_inactive_count that should be
 	 * discounted in setting the target for the active queue scan.

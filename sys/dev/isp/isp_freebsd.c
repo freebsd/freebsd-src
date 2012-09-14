@@ -1889,7 +1889,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			 * Mode 1, status, no data. Only possible when we are sending status, have
 			 * no data to transfer, and the sense length can fit in the ct7_entry.
 			 *
-			 * Mode 2, status, no data. We have to use this in the case the the response
+			 * Mode 2, status, no data. We have to use this in the case the response
 			 * length won't fit into a ct2_entry_t.
 			 *
 			 * We'll fill out this structure with information as if this were a

@@ -237,7 +237,7 @@ enum SCIC_SDS_REMOTE_NODE_CONTEXT_DESTINATION_STATE
  *
  * @brief  This structure contains the data associated with the remote
  *         node context object.  The remote node context (RNC) object models
- *         the the remote device information necessary to manage the
+ *         the remote device information necessary to manage the
  *         silicon RNC.
  */
 typedef struct SCIC_SDS_REMOTE_NODE_CONTEXT
