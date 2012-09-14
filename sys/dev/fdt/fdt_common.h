@@ -110,5 +110,6 @@ int fdt_pci_route_intr(int, int, int, int, struct fdt_pci_intr *, int *);
 int fdt_ranges_verify(pcell_t *, int, int, int, int);
 int fdt_reg_to_rl(phandle_t, struct resource_list *);
 int fdt_pm(phandle_t);
+int fdt_get_unit(device_t);
 
 #endif /* _FDT_COMMON_H_ */
