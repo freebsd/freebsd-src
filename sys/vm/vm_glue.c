@@ -199,14 +199,6 @@ vslock(void *addr, size_t len)
 	npages = atop(end - start);
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
-	PROC_LOCK(curproc);
-	if (ptoa(npages +
-	    pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))) >
-	    lim_cur(curproc, RLIMIT_MEMLOCK)) {
-		PROC_UNLOCK(curproc);
-		return (ENOMEM);
-	}
-	PROC_UNLOCK(curproc);
 #if 0
 	/*
 	 * XXX - not yet
