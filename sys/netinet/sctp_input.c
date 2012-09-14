@@ -3122,7 +3122,7 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sct
 {
 	/*
 	 * Here we get a CWR from the peer. We must look in the outqueue and
-	 * make sure that we have a covered ECNE in teh control chunk part.
+	 * make sure that we have a covered ECNE in the control chunk part.
 	 * If so remove it.
 	 */
 	struct sctp_tmit_chunk *chk;
