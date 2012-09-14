@@ -567,7 +567,9 @@ enum AcpiHestNotifyTypes
     ACPI_HEST_NOTIFY_LOCAL      = 2,
     ACPI_HEST_NOTIFY_SCI        = 3,
     ACPI_HEST_NOTIFY_NMI        = 4,
-    ACPI_HEST_NOTIFY_RESERVED   = 5     /* 5 and greater are reserved */
+    ACPI_HEST_NOTIFY_CMCI       = 5,    /* ACPI 5.0 */
+    ACPI_HEST_NOTIFY_MCE        = 6,    /* ACPI 5.0 */
+    ACPI_HEST_NOTIFY_RESERVED   = 7     /* 7 and greater are reserved */
 };
 
 /* Values for ConfigWriteEnable bitfield above */

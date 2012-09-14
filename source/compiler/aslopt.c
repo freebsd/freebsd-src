@@ -441,7 +441,6 @@ OptOptimizeNameDeclaration (
 {
     ACPI_STATUS             Status;
     char                    *NewPathExternal;
-    ACPI_GENERIC_STATE      ScopeInfo;
     ACPI_NAMESPACE_NODE     *Node;
 
 
@@ -473,9 +472,10 @@ OptOptimizeNameDeclaration (
          * Check to make sure that the optimization finds the node we are
          * looking for.  This is simply a sanity check on the new
          * path that has been created.
+         *
+         * We know that we are at the root, so NULL is used for the scope.
          */
-        ScopeInfo.Scope.Node = CurrentNode;
-        Status = AcpiNsLookup (&ScopeInfo, *NewPath,
+        Status = AcpiNsLookup (NULL, *NewPath,
                         ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
                         ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
         if (ACPI_SUCCESS (Status))
@@ -624,11 +624,21 @@ OptOptimizeNamePath (
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "NAME"));
 
         /*
-         * The node of interest is the parent of this node
-         * (the containing scope)
+         * The node of interest is the parent of this node (the containing
+         * scope). The actual namespace node may be up more than one level
+         * of parse op or it may not exist at all (if we traverse back
+         * up to the root.)
          */
-        CurrentNode = Op->Asl.Parent->Asl.Node;
-        if (!CurrentNode)
+        NextOp = Op->Asl.Parent;
+        while (NextOp && (!NextOp->Asl.Node))
+        {
+            NextOp = NextOp->Asl.Parent;
+        }
+        if (NextOp && NextOp->Asl.Node)
+        {
+            CurrentNode = NextOp->Asl.Node;
+        }
+        else
         {
             CurrentNode = AcpiGbl_RootNode;
         }
