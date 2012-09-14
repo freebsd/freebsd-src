@@ -175,7 +175,7 @@ ACPI_EXPORT_SYMBOL (AcpiInitializeTables)
  * DESCRIPTION: Reallocate Root Table List into dynamic memory. Copies the
  *              root list from the previously provided scratch area. Should
  *              be called once dynamic memory allocation is available in the
- *              kernel
+ *              kernel.
  *
  ******************************************************************************/
 
@@ -183,9 +183,7 @@ ACPI_STATUS
 AcpiReallocateRootTable (
     void)
 {
-    ACPI_TABLE_DESC         *Tables;
-    ACPI_SIZE               NewSize;
-    ACPI_SIZE               CurrentSize;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE (AcpiReallocateRootTable);
@@ -200,38 +198,10 @@ AcpiReallocateRootTable (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    /*
-     * Get the current size of the root table and add the default
-     * increment to create the new table size.
-     */
-    CurrentSize = (ACPI_SIZE)
-        AcpiGbl_RootTableList.CurrentTableCount * sizeof (ACPI_TABLE_DESC);
+    AcpiGbl_RootTableList.Flags |= ACPI_ROOT_ALLOW_RESIZE;
 
-    NewSize = CurrentSize +
-        (ACPI_ROOT_TABLE_SIZE_INCREMENT * sizeof (ACPI_TABLE_DESC));
-
-    /* Create new array and copy the old array */
-
-    Tables = ACPI_ALLOCATE_ZEROED (NewSize);
-    if (!Tables)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables, CurrentSize);
-
-    /*
-     * Update the root table descriptor. The new size will be the current
-     * number of tables plus the increment, independent of the reserved
-     * size of the original table list.
-     */
-    AcpiGbl_RootTableList.Tables = Tables;
-    AcpiGbl_RootTableList.MaxTableCount =
-        AcpiGbl_RootTableList.CurrentTableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT;
-    AcpiGbl_RootTableList.Flags =
-        ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
-
-    return_ACPI_STATUS (AE_OK);
+    Status = AcpiTbResizeRootTableList ();
+    return_ACPI_STATUS (Status);
 }
 
 ACPI_EXPORT_SYMBOL (AcpiReallocateRootTable)
