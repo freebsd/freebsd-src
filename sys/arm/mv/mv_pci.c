@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/endian.h>
 
+#include <machine/intr.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -73,6 +75,12 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
 
+#ifdef DEBUG
+#define debugf(fmt, args...) do { printf(fmt,##args); } while (0)
+#else
+#define debugf(fmt, args...)
+#endif
+
 #define PCI_CFG_ENA		(1 << 31)
 #define PCI_CFG_BUS(bus)	(((bus) & 0xff) << 16)
 #define PCI_CFG_DEV(dev)	(((dev) & 0x1f) << 11)
@@ -81,7 +89,6 @@ __FBSDID("$FreeBSD$");
 
 #define PCI_REG_CFG_ADDR	0x0C78
 #define PCI_REG_CFG_DATA	0x0C7C
-#define PCI_REG_P2P_CONF	0x1D14
 
 #define PCIE_REG_CFG_ADDR	0x18F8
 #define PCIE_REG_CFG_DATA	0x18FC
@@ -127,6 +134,9 @@ struct mv_pcib_softc {
 	bus_space_tag_t	sc_bst;
 	int		sc_rid;
 
+	struct mtx	sc_msi_mtx;
+	uint32_t	sc_msi_bitmap;
+
 	int		sc_busnr;		/* Host bridge bus number */
 	int		sc_devnr;		/* Host bridge device number */
 	int		sc_type;
@@ -166,6 +176,11 @@ static uint32_t mv_pcib_read_config(device_t, u_int, u_int, u_int, u_int, int);
 static void mv_pcib_write_config(device_t, u_int, u_int, u_int, u_int,
     uint32_t, int);
 static int mv_pcib_route_interrupt(device_t, device_t, int);
+#if defined(SOC_MV_ARMADAXP)
+static int mv_pcib_alloc_msi(device_t, device_t, int, int, int *);
+static int mv_pcib_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
+static int mv_pcib_release_msi(device_t, device_t, int, int *);
+#endif
 
 /*
  * Bus interface definitions.
@@ -190,7 +205,13 @@ static device_method_t mv_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config,		mv_pcib_read_config),
 	DEVMETHOD(pcib_write_config,		mv_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,		mv_pcib_route_interrupt),
-	
+
+#if defined(SOC_MV_ARMADAXP)
+	DEVMETHOD(pcib_alloc_msi,		mv_pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		mv_pcib_release_msi),
+	DEVMETHOD(pcib_map_msi,			mv_pcib_map_msi),
+#endif
+
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_compat,   ofw_bus_gen_get_compat),
 	DEVMETHOD(ofw_bus_get_model,    ofw_bus_gen_get_model),
@@ -318,6 +339,7 @@ mv_pcib_attach(device_t self)
 		device_add_child(self, "pci_ep", -1);
 	}
 
+	mtx_init(&sc->sc_msi_mtx, "msi_mtx", NULL, MTX_DEF);
 	return (bus_generic_attach(self));
 
 error:
@@ -927,3 +949,80 @@ mv_pcib_intr_info(phandle_t node, struct mv_pcib_softc *sc)
 	return (0);
 }
 
+#if defined(SOC_MV_ARMADAXP)
+static int
+mv_pcib_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	struct mv_pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	irq = irq - MSI_IRQ;
+
+	/* validate parameters */
+	if (isclr(&sc->sc_msi_bitmap, irq)) {
+		device_printf(dev, "invalid MSI 0x%x\n", irq);
+		return (EINVAL);
+	}
+
+	mv_msi_data(irq, addr, data);
+
+	debugf("%s: irq: %d addr: %jx data: %x\n",
+	    __func__, irq, *addr, *data);
+
+	return (0);
+}
+
+static int
+mv_pcib_alloc_msi(device_t dev, device_t child, int count,
+    int maxcount __unused, int *irqs)
+{
+	struct mv_pcib_softc *sc;
+	u_int start = 0, i;
+
+	if (powerof2(count) == 0 || count > MSI_IRQ_NUM)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+	mtx_lock(&sc->sc_msi_mtx);
+
+	for (start = 0; (start + count) < MSI_IRQ_NUM; start++) {
+		for (i = start; i < start + count; i++) {
+			if (isset(&sc->sc_msi_bitmap, i))
+				break;
+		}
+		if (i == start + count)
+			break;
+	}
+
+	if ((start + count) == MSI_IRQ_NUM) {
+		mtx_unlock(&sc->sc_msi_mtx);
+		return (ENXIO);
+	}
+
+	for (i = start; i < start + count; i++) {
+		setbit(&sc->sc_msi_bitmap, i);
+		irqs[i] = MSI_IRQ + i;
+	}
+	debugf("%s: start: %x count: %x\n", __func__, start, count);
+
+	mtx_unlock(&sc->sc_msi_mtx);
+	return (0);
+}
+
+static int
+mv_pcib_release_msi(device_t dev, device_t child, int count, int *irqs)
+{
+	struct mv_pcib_softc *sc;
+	u_int i;
+
+	sc = device_get_softc(dev);
+	mtx_lock(&sc->sc_msi_mtx);
+
+	for (i = 0; i < count; i++)
+		clrbit(&sc->sc_msi_bitmap, irqs[i] - MSI_IRQ);
+
+	mtx_unlock(&sc->sc_msi_mtx);
+	return (0);
+}
+#endif
