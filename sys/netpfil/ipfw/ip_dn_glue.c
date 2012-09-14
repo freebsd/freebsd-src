@@ -50,11 +50,12 @@
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
-#include <netinet/ipfw/dn_heap.h>
 #include <netinet/ip_dummynet.h>
-#include <netinet/ipfw/ip_dn_private.h>
-#include <netinet/ipfw/dn_sched.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
+#include <netpfil/ipfw/dn_heap.h>
+#include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/dn_sched.h>
 
 /* FREEBSD7.2 ip_dummynet.h r191715*/
 

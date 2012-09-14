@@ -64,9 +64,6 @@ INCLUDES+= -I$S/contrib/altq
 # ... and the same for ipfilter
 INCLUDES+= -I$S/contrib/ipfilter
 
-# ... and the same for pf
-INCLUDES+= -I$S/contrib/pf
-
 # ... and the same for ath
 INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
 

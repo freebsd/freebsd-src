@@ -46,9 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
