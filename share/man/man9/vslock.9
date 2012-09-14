@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2004
+.Dd August 29, 2012
 .Dt VSLOCK 9
 .Os
 .Sh NAME
@@ -82,9 +82,6 @@ machine address space.
 .It Bq Er ENOMEM
 The size of the specified address range exceeds the system
 limit on locked memory.
-.It Bq Er ENOMEM
-Locking the requested address range would cause the process to exceed
-its per-process locked memory limit.
 .It Bq Er EFAULT
 Some portion of the indicated address range is not allocated.
 There was an error faulting/mapping a page.
