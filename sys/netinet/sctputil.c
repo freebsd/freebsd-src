@@ -58,8 +58,7 @@ extern struct sctp_cc_functions sctp_cc_functions[];
 extern struct sctp_ss_functions sctp_ss_functions[];
 
 void
-sctp_sblog(struct sockbuf *sb,
-    struct sctp_tcb *stcb, int from, int incr)
+sctp_sblog(struct sockbuf *sb, struct sctp_tcb *stcb, int from, int incr)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -102,7 +101,6 @@ sctp_log_closing(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int16_t loc)
 	    sctp_clog.x.misc.log3,
 	    sctp_clog.x.misc.log4);
 }
-
 
 void
 rto_logging(struct sctp_nets *net, int from)
@@ -198,8 +196,7 @@ sctp_log_map(uint32_t map, uint32_t cum, uint32_t high, int from)
 }
 
 void
-sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn,
-    int from)
+sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -242,8 +239,7 @@ sctp_log_mb(struct mbuf *m, int from)
 }
 
 void
-sctp_log_strm_del(struct sctp_queued_to_read *control, struct sctp_queued_to_read *poschk,
-    int from)
+sctp_log_strm_del(struct sctp_queued_to_read *control, struct sctp_queued_to_read *poschk, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -4215,7 +4211,6 @@ sctp_print_address(struct sockaddr *sa)
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	ip6buf[0] = 0;
 #endif
 
 	switch (sa->sa_family) {
