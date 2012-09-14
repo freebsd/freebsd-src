@@ -102,8 +102,8 @@ EOT
 
 if ($only_list_out) {
     # Print the default device preamble entities
-    print "<span class='hwlist.preamble.pre'>The</span>\n";
-    print "<span class='hwlist.preamble.post'>driver supports:</span>\n";
+    print "<!ENTITY hwlist.preamble.pre 'The'>\n";
+    print "<!ENTITY hwlist.preamble.post 'driver supports:'>\n";
 }
 
 foreach my $page (@ARGV) {
