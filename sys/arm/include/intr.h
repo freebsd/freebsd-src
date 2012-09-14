@@ -54,6 +54,8 @@
 #define NIRQ		128
 #elif defined(CPU_ARM11)
 #define NIRQ		128
+#elif defined(SOC_MV_ARMADAXP)
+#define NIRQ		148
 #else
 #define NIRQ		32
 #endif

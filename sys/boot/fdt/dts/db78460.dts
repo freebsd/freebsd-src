@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Marvell DB-88F78160 Device Tree Source.
+ * Marvell DB-78460 Device Tree Source.
  *
  * $FreeBSD$
  */
@@ -32,7 +32,7 @@
 /dts-v1/;
 
 / {
-	model = "mrvl,DB-78160";
+	model = "mrvl,DB-78460";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -60,10 +60,10 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x40000000>;		// 2G at 0x0
+		reg = <0x0 0x80000000>;		// 2G at 0x0
 	};
 
-	soc78160@d0000000 {
+	soc78460@d0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
@@ -115,7 +115,7 @@
 			reg = <0x12000 0x20>;
 			reg-shift = <2>;
 			current-speed = <115200>;
-			clock-frequency = <200000000>;
+			clock-frequency = <0>;
 			interrupts = <41>;
 			interrupt-parent = <&MPIC>;
 		};
@@ -125,7 +125,7 @@
 			reg = <0x12100 0x20>;
 			reg-shift = <2>;
 			current-speed = <115200>;
-			clock-frequency = <200000000>;
+			clock-frequency = <0>;
 			interrupts = <42>;
 			interrupt-parent = <&MPIC>;
 		};
@@ -135,7 +135,7 @@
 			reg = <0x12200 0x20>;
 			reg-shift = <2>;
 			current-speed = <115200>;
-			clock-frequency = <200000000>;
+			clock-frequency = <0>;
 			interrupts = <43>;
 			interrupt-parent = <&MPIC>;
 		};
@@ -145,7 +145,7 @@
 			reg = <0x12300 0x20>;
 			reg-shift = <2>;
 			current-speed = <115200>;
-			clock-frequency = <200000000>;
+			clock-frequency = <0>;
 			interrupts = <44>;
 			interrupt-parent = <&MPIC>;
 		};
@@ -281,25 +281,25 @@
 		};
 	};
 
-	pci0: pcie@f1040000 {
+	pci0: pcie@d0040000 {
 		compatible = "mrvl,pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0xf1040000 0x2000>;
+		reg = <0xd0040000 0x2000>;
 		bus-range = <0 255>;
 		ranges = <0x02000000 0x0 0x80000000 0x80000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0xa0000000 0x0 0x08000000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&MPIC>;
-		interrupts = <58>;
+		interrupts = <120>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
-			0x0800 0x0 0x0 0x1 &MPIC 0x20
-			0x0800 0x0 0x0 0x2 &MPIC 0x21
-			0x0800 0x0 0x0 0x3 &MPIC 0x22
-			0x0800 0x0 0x0 0x4 &MPIC 0x23
+			0x0800 0x0 0x0 0x1 &MPIC 0x3A
+			0x0800 0x0 0x0 0x2 &MPIC 0x3A
+			0x0800 0x0 0x0 0x3 &MPIC 0x3A
+			0x0800 0x0 0x0 0x4 &MPIC 0x3A
 			>;
 	};
 
