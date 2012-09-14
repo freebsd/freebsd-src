@@ -697,3 +697,14 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
 out:
 	return (rv);
 }
+
+int
+fdt_get_unit(device_t dev)
+{
+	const char * name;
+
+	name = ofw_bus_get_name(dev);
+	name = strchr(name, '@') + 1;
+
+	return (strtol(name,NULL,0));
+}
