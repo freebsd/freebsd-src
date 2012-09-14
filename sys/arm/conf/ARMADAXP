@@ -96,6 +96,9 @@ options		HZ=1000
 options		DEVICE_POLLING
 device		vlan
 
+#PCI/PCIE
+device		pci
+
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
