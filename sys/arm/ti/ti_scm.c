@@ -202,7 +202,7 @@ ti_scm_padconf_set(const char *padname, const char *muxmode, unsigned int state)
  *	ti_scm_padconf_get - gets the muxmode and state for a pad/pin
  *	@padname: the name of the pad, i.e. "c12"
  *	@muxmode: upon return will contain the name of the muxmode of the pin
- *	@state: upon return will contain the state of the the pad/pin
+ *	@state: upon return will contain the state of the pad/pin
  *	
  *
  *	LOCKING:

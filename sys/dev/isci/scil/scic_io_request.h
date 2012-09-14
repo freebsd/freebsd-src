@@ -260,12 +260,12 @@ typedef struct SCIC_SMP_PASSTHRU_REQUEST_CALLBACKS
    */
    U8 (* scic_cb_smp_passthru_get_frame_type) ( void *);
    /**
-   * Function pointer to get the function in the the smp request
+   * Function pointer to get the function in the smp request
    */
    U8 (* scic_cb_smp_passthru_get_function) ( void * );
 
    /**
-   * Function pointer to get the "allocated response length" in the the smp request
+   * Function pointer to get the "allocated response length" in the smp request
    */
    U8 (* scic_cb_smp_passthru_get_allocated_response_length) ( void * );
 
