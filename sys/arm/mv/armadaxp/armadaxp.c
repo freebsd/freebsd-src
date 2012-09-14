@@ -160,11 +160,3 @@ get_l2clk(void)
 	return (l2clk_freq);
 }
 
-int
-fdt_pci_devmap(phandle_t node, struct pmap_devmap *devmap, vm_offset_t io_va,
-    vm_offset_t mem_va)
-{
-
-	return (0);
-}
-
