@@ -31,7 +31,7 @@ from {alpha,i386}/INSTALL.TXT.
 
   <para>Si vous effectuez une mise &agrave; jour depuis une version
   pr&eacute;cedente de &os;, r&eacute;f&eacute;rez vous aux, <xref
-  linkend="upgrading">, instructions sur la mise &agrave; jour.</para>
+  linkend="upgrading"/>, instructions sur la mise &agrave; jour.</para>
 
   <sect2 id="getting-started">
     <title>Pour commencer</title>
@@ -61,7 +61,7 @@ from {alpha,i386}/INSTALL.TXT.
     l'installation.</para>
 
     <para>Si vous avez des probl&egrave;mes, voyez la <xref
-    linkend="trouble">, qui contient certaines informations
+    linkend="trouble"/>, qui contient certaines informations
     interessantes. Vous pouvez aussi lire une copie &agrave; jour du
     fichier <filename>ERRATA.TXT</filename> avant l'installation, qui
     vous alertera sur les probl&egrave;mes rencontr&eacute;s depuis la mise
@@ -76,6 +76,7 @@ from {alpha,i386}/INSTALL.TXT.
       que vous n'avez pas effectu&eacute; une sauvegarde de vos donn&eacute;es
       importantes.</para>
     </important>
+  </sect2>
 
   <sect2>
     <title>Mat&eacute;riel N&eacute;cessaire</title>
@@ -216,7 +217,7 @@ from {alpha,i386}/INSTALL.TXT.
             depuis le r&eacute;pertoire <filename>floppies/</filename>. En
             utilisant le script <filename>makeflp.bat</filename>
             depuis DOS ou en lisant la 
-            <xref linkend="floppies"> pour plus d'informations sur la
+            <xref linkend="floppies"/> pour plus d'informations sur la
             cr&eacute;ation de disquettes de d&eacute;marrage sous
             diff&eacute;rents syst&egrave;mes. Vous d&eacute;marrerez depuis la
             premi&egrave;re disquette et vous vous trouverez rapidement
@@ -233,11 +234,11 @@ from {alpha,i386}/INSTALL.TXT.
       depuis les fichiers <filename>floppies/kern.flp</filename> et
       <filename>floppies/mfsroot.flp</filename> en suivant les
       instructions que vous trouverez &agrave; la  
-      <xref linkend="floppies">. Red&eacute;marrez votre ordinateur en utilisant
+      <xref linkend="floppies"/>. Red&eacute;marrez votre ordinateur en utilisant
       la disquette <filename>kern.flp</filename> et lorsqu'on vous le
       demande, inserez alors la disquette
       <filename>mfsroot.flp</filename>. Allez &agrave; la <xref
-      linkend="ftpnfs"> pour plus d'information sur l'installation
+      linkend="ftpnfs"/> pour plus d'information sur l'installation
       via FTP ou NFS.</para>
 
       <para arch="alpha">La fa&ccedil;on la plus simple d'effectuer
@@ -256,7 +257,7 @@ from {alpha,i386}/INSTALL.TXT.
       de &os; depuis les fichiers <filename>floppies/kern.flp</filename> et
       <filename>floppies/mfsroot.flp</filename> en suivant les
       instructions que vous trouverez &agrave; la  <xref
-      linkend="floppies">. Depuis l'invite de console SRM
+      linkend="floppies"/>. Depuis l'invite de console SRM
       (<literal>&gt;&gt;&gt;</literal>), inserez la disquette
       <filename>kern.flp</filename> et tapez la commande suivante pour
       d&eacute;marrer l'installation:</para>
@@ -346,7 +347,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <title>Installation depuis un CDROM r&eacute;seau</title>
 
       <para>Si vous d&eacute;sirez installer depuis un lecteur de CDROM
-      local voyez la <xref linkend="start-installation">. Si vous ne
+      local voyez la <xref linkend="start-installation"/>. Si vous ne
       disposez pas d'un lecteur de CDROM sur votre syst&egrave;me et que
       vous d&eacute;sirez utiliser une distribution CD de &os; dans le
       lecteur CDROM d'une autre machine que vous pouvez acc&eacute;der via
@@ -411,9 +412,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       quelques disquettes pour l'installation.</para>
 
       <para>Premi&egrave;rement, cr&eacute;ez vos disquettes de d&eacute;marrage
-      comme indiqu&eacute; &agrave; la <xref linkend="floppies">.</para>
+      comme indiqu&eacute; &agrave; la <xref linkend="floppies"/>.</para>
 
-      <para>Deuxi&egrave;emement, lisez la <xref linkend="layout"> et
+      <para>Deuxi&egrave;emement, lisez la <xref linkend="layout"/> et
       faites attention &agrave; la section <quote>Format de la
       distribution</quote> qui d&eacute;crit quels fichiers vous devez
       copier sur disquette et ceux que vous pouvez ne pas copier.</para>
@@ -514,7 +515,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       tout simplement en format tar sur la bande, donc apr&egrave;s avoir
       r&eacute;cup&eacute;rer l'ensemble des fichiers des distributions
       n&eacute;cessaires, utilisez simplement la commande &man.tar.1; pour
-      les mettre sur la bande, comme cela :/<para>
+      les mettre sur la bande, comme cela :</para>
 
       <screen>&prompt.root; <userinput>cd <replaceable>/where/you/have/your/dists</replaceable></userinput>
 &prompt.root; <userinput>tar cvf /dev/rsa0 <replaceable>dist1</replaceable> .. <replaceable>dist2</replaceable></userinput></screen>
@@ -537,7 +538,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       </note>
 
       <para>Ensuite cr&eacute;ez une disquette de d&eacute;marrage comme
-      indiqu&eacute; &agrave; la  <xref linkend="floppies"> et proc&eacute;dez
+      indiqu&eacute; &agrave; la  <xref linkend="floppies"/> et proc&eacute;dez
       &agrave; l'installation.</para>
     </sect3>
 
@@ -739,6 +740,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
               correspond au num&eacute;ro du port du serveur FTP proxy.</para>
 	    </listitem>
 	  </itemizedlist>
+	</para>
 
       </sect4>
     </sect3>
@@ -766,7 +768,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  <para>Si vous n'obtenez aucun caract&egrave;re sur votre console
           s&eacute;rie, branchez le clavier et attendez des sonneries. Si
           vous d&eacute;marrez depuis le CDROM, allez &agrave; <xref
-	  linkend="hitspace"> aussi vite que possible.</para>
+	  linkend="hitspace"/> aussi vite que possible.</para>
 	</step>
 	<step>
 	  <para>Pour une installation via des disquettes, la premi&egrave;re
