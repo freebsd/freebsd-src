@@ -1415,6 +1415,7 @@ set_cpufuncs()
 #if defined(CPU_MV_PJ4B)
 	if (cputype == CPU_ID_MV88SV581X_V6 ||
 	    cputype == CPU_ID_MV88SV581X_V7 ||
+	    cputype == CPU_ID_MV88SV584X_V7 ||
 	    cputype == CPU_ID_ARM_88SV581X_V6 ||
 	    cputype == CPU_ID_ARM_88SV581X_V7) {
 		if (cpu_pfr(0) & ARM_PFR0_THUMBEE_MASK)
@@ -1425,8 +1426,8 @@ set_cpufuncs()
 		get_cachetype_cp15();
 		pmap_pte_init_mmu_v6();
 		goto out;
-	} else if (cputype == CPU_ID_ARM_88SV584X ||
-	    cputype == CPU_ID_MV88SV584X) {
+	} else if (cputype == CPU_ID_ARM_88SV584X_V6 ||
+	    cputype == CPU_ID_MV88SV584X_V6) {
 		cpufuncs = pj4bv6_cpufuncs;
 		get_cachetype_cp15();
 		pmap_pte_init_mmu_v6();
