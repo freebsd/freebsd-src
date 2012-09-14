@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
 #include <net/route.h>
@@ -61,8 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
 #include <netinet/ip_fw.h>
-#include <sys/queue.h> /* LIST_HEAD */
-#include <netinet/ipfw/ip_fw_private.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #ifdef MAC
 #include <security/mac/mac_framework.h>

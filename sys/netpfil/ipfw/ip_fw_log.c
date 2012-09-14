@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 
@@ -67,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet6/in6_var.h>	/* ip6_sprintf() */
 #endif
+
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #ifdef MAC
 #include <security/mac/mac_framework.h>

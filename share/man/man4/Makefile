@@ -354,6 +354,9 @@ MAN=	aac.4 \
 	pcii.4 \
 	pcm.4 \
 	pcn.4 \
+	pf.4 \
+	pflog.4 \
+	pfsync.4 \
 	pim.4 \
 	polling.4 \
 	ppbus.4 \

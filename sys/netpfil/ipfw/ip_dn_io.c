@@ -54,16 +54,15 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>		/* ip_len, ip_off */
 #include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
-#include <netinet/ipfw/dn_heap.h>
 #include <netinet/ip_dummynet.h>
-#include <netinet/ipfw/ip_dn_private.h>
-#include <netinet/ipfw/dn_sched.h>
-
 #include <netinet/if_ether.h> /* various ether_* routines */
-
 #include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
 #include <netinet6/ip6_var.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
+#include <netpfil/ipfw/dn_heap.h>
+#include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/dn_sched.h>
 
 /*
  * We keep a private variable for the simulation time, but we could

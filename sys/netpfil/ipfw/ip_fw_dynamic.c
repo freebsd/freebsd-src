@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>	/* ip_defttl */
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 
@@ -66,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #endif
+
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 

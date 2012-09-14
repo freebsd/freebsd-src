@@ -48,10 +48,11 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
