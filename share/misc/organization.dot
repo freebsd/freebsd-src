@@ -59,7 +59,7 @@ webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\nnik, kuriyama, simon,\n
 
 donations [label="Donations Team\ndonations@FreeBSD.org\ngjb, wilko, gahr, pgolluci,\nobrien, trhodes, ds,\nrwatson"]
 marketing [label="Marketing Team\nmarketing@FreeBSD.org\nSteven Beedle, Denise Ebery, deb,\njkoshy, Dru Lavigne, mwlucas, imp,\nKris Moore, murray, mattt,\nJeremy C. Reed, rwatson"]
-vendorrelations [label="Vendor Relations Team\nvendor-relations@FreeBSD.org\ngioria, jmg, rik,\nphilip, hmp, marks,\nmurray"]
+vendorrelations [label="Vendor Relations\nvendor-relations@FreeBSD.org\ncore, FreeBSD Foundation"]
 
 # Here are the team relationships.
 # Group together all the entries for the superior team.
