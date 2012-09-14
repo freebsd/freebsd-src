@@ -615,7 +615,7 @@ Changes between release 2.4.3 (03Dec93) and release 2.4.2:
 	  sources.  One side-effect of this change is that -+ and -CF
 	  are now incompatible.
 
-	- libfl.a now supplies private versions of the the <string.h>/
+	- libfl.a now supplies private versions of the <string.h>/
 	  <strings.h> string routines needed by flex and the scanners
 	  it generates, to enhance portability to some BSD systems.
 

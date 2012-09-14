@@ -658,7 +658,7 @@ void scic_sds_phy_construct(
    // Clear out the error counter data
    memset(this_phy->error_counter, 0, sizeof(this_phy->error_counter));
 
-   // Initialize the the substate machines
+   // Initialize the substate machines
    sci_base_state_machine_construct(
       &this_phy->starting_substate_machine,
       &this_phy->parent.parent,
