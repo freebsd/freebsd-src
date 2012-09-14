@@ -541,6 +541,8 @@
 #define	HCSPLT_PRTADDR_SHIFT		0
 #define	HCSPLT_PRTADDR_MASK		0x0000007f
 
+#define	HCINT_SUSPEND_ONLY		(1<<21)	/* BSD only */
+#define	HCINT_SOFTWARE_ONLY		(1<<20)	/* BSD only */
 #define	HCINT_DATATGLERR		(1<<10)
 #define	HCINT_FRMOVRUN			(1<<9)
 #define	HCINT_BBLERR			(1<<8)

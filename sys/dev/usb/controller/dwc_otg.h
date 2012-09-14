@@ -68,8 +68,6 @@ struct dwc_otg_td {
 	uint8_t	did_stall:1;
 	uint8_t toggle:1;
 	uint8_t set_toggle:1;
-	uint8_t did_nak:1;
-	uint8_t did_complete:1;
 	uint8_t got_short:1;
 };
 
@@ -128,6 +126,18 @@ struct dwc_otg_profile {
 	uint16_t max_buffer;
 };
 
+struct dwc_otg_chan_state {
+	uint32_t hcchar;
+	uint32_t hcint;
+	uint32_t hcsplt;
+	uint8_t state;
+#define	DWC_CHAN_ST_START 0
+#define	DWC_CHAN_ST_WAIT_ANE 1
+#define	DWC_CHAN_ST_WAIT_S_ANE 2
+#define	DWC_CHAN_ST_WAIT_C_ANE 3
+	uint8_t sof_requested;
+};
+
 struct dwc_otg_softc {
 	struct usb_bus sc_bus;
 	union dwc_otg_hub_temp sc_hub_temp;
@@ -149,7 +159,7 @@ struct dwc_otg_softc {
 	uint32_t sc_last_rx_status;
 	uint32_t sc_out_ctl[DWC_OTG_MAX_ENDPOINTS];
 	uint32_t sc_in_ctl[DWC_OTG_MAX_ENDPOINTS];
-	uint32_t sc_hcchar[DWC_OTG_MAX_CHANNELS];
+	struct dwc_otg_chan_state sc_chan_state[DWC_OTG_MAX_CHANNELS];
 	uint32_t sc_sof_refs;
 	uint32_t sc_sof_val;
 	uint32_t sc_hprt_val;
