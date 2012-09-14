@@ -76,8 +76,6 @@ struct mv_mpic_softc {
 	bus_space_handle_t	mpic_bsh;
 	bus_space_tag_t		cpu_bst;
 	bus_space_handle_t	cpu_bsh;
-	int			mpic_high_regs;
-	int			mpic_error_regs;
 };
 
 static struct resource_spec mv_mpic_spec[] = {
