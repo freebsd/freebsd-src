@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2006 Benno Rice.
  * Copyright (C) 2007-2011 MARVELL INTERNATIONAL LTD.
+ * Copyright (c) 2012 Semihalf.
  * All rights reserved.
  *
  * Developed by Semihalf.
@@ -46,23 +47,34 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/smp.h>
 
+#include <arm/mv/mvvar.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_common.h>
 
-#define IRQ_ERR			4
-#define MAIN_IRQS		116
+#ifdef DEBUG
+#define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
+    printf(fmt,##args); } while (0)
+#else
+#define debugf(fmt, args...)
+#endif
+
+#define MPIC_INT_ERR			4
+#define MPIC_INT_MSI			96
 
 #define IRQ_MASK		0x3ff
 
 #define MPIC_CTRL		0x0
 #define MPIC_SOFT_INT		0x4
+#define MPIC_SOFT_INT_DRBL1	(1 << 5)
 #define MPIC_ERR_CAUSE		0x20
 #define MPIC_ISE		0x30
 #define MPIC_ICE		0x34
 
 
-#define MPIC_IN_DOORBELL	0x78
-#define MPIC_IN_DOORBELL_MASK	0x7c
+#define MPIC_IN_DRBL		0x78
+#define MPIC_IN_DRBL_MASK	0x7c
 #define MPIC_CTP		0xb0
 #define MPIC_CTP		0xb0
 #define MPIC_IIACK		0xb4
@@ -71,16 +83,20 @@ __FBSDID("$FreeBSD$");
 #define MPIC_ERR_MASK		0xec0
 
 struct mv_mpic_softc {
-	struct resource	*	mpic_res[2];
+	device_t		sc_dev;
+	struct resource	*	mpic_res[3];
 	bus_space_tag_t		mpic_bst;
 	bus_space_handle_t	mpic_bsh;
 	bus_space_tag_t		cpu_bst;
 	bus_space_handle_t	cpu_bsh;
+	bus_space_tag_t		drbl_bst;
+	bus_space_handle_t	drbl_bsh;
 };
 
 static struct resource_spec mv_mpic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
+	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },
 	{ -1, 0 }
 };
 
@@ -92,13 +108,20 @@ static int	mv_mpic_probe(device_t);
 static int	mv_mpic_attach(device_t);
 uint32_t	mv_mpic_get_cause(void);
 uint32_t	mv_mpic_get_cause_err(void);
+uint32_t	mv_mpic_get_msi(void);
 static void	arm_mask_irq_err(uintptr_t);
 static void	arm_unmask_irq_err(uintptr_t);
+static void	arm_unmask_msi(void);
 
 #define MPIC_CPU_WRITE(softc, reg, val) \
     bus_space_write_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg), (val))
 #define MPIC_CPU_READ(softc, reg) \
     bus_space_read_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg))
+
+#define MPIC_DRBL_WRITE(softc, reg, val) \
+    bus_space_write_4((softc)->drbl_bst, (softc)->drbl_bsh, (reg), (val))
+#define MPIC_DRBL_READ(softc, reg) \
+    bus_space_read_4((softc)->drbl_bst, (softc)->drbl_bsh, (reg))
 
 static int
 mv_mpic_probe(device_t dev)
@@ -123,6 +146,8 @@ mv_mpic_attach(device_t dev)
 		return (ENXIO);
 	mv_mpic_sc = sc;
 
+	sc->sc_dev = dev;
+
 	error = bus_alloc_resources(dev, mv_mpic_spec, sc->mpic_res);
 	if (error) {
 		device_printf(dev, "could not allocate resources\n");
@@ -135,9 +160,14 @@ mv_mpic_attach(device_t dev)
 	sc->cpu_bst = rman_get_bustag(sc->mpic_res[1]);
 	sc->cpu_bsh = rman_get_bushandle(sc->mpic_res[1]);
 
+	sc->drbl_bst = rman_get_bustag(sc->mpic_res[2]);
+	sc->drbl_bsh = rman_get_bushandle(sc->mpic_res[2]);
+
 	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 	    MPIC_CTRL, 1);
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 0);
+
+	arm_unmask_msi();
 
 	return (0);
 }
@@ -167,8 +197,10 @@ arm_get_next_irq(int last)
 	CTR2(KTR_INTR, "%s: irq:%#x", __func__, irq);
 
 	if (irq != IRQ_MASK) {
-		if (irq == IRQ_ERR)
+		if (irq == MPIC_INT_ERR)
 			irq = mv_mpic_get_cause_err();
+		if (irq == MPIC_INT_MSI)
+			irq = mv_mpic_get_msi();
 		next = irq;
 	}
 
@@ -186,11 +218,11 @@ arm_mask_irq(uintptr_t nb)
 
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 1);
 
-	if (nb < MAIN_IRQS) {
+	if (nb < ERR_IRQ) {
 		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 		    MPIC_ICE, nb);
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ISM, nb);
-	} else
+	} else if (nb < MSI_IRQ)
 		arm_mask_irq_err(nb);
 }
 
@@ -201,7 +233,7 @@ arm_mask_irq_err(uintptr_t nb)
 	uint32_t mask;
 	uint8_t bit_off;
 
-	bit_off = nb - MAIN_IRQS;
+	bit_off = nb - ERR_IRQ;
 	mask = MPIC_CPU_READ(mv_mpic_sc, MPIC_ERR_MASK);
 	mask &= ~(1 << bit_off);
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ERR_MASK, mask);
@@ -213,15 +245,15 @@ arm_unmask_irq(uintptr_t nb)
 
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 0);
 
-	if (nb < MAIN_IRQS) {
+	if (nb < ERR_IRQ) {
 		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 		    MPIC_ISE, nb);
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, nb);
-	} else
+	} else if (nb < MSI_IRQ)
 		arm_unmask_irq_err(nb);
 
 	if (nb == 0)
-		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_IN_DOORBELL_MASK, 0xffffffff);
+		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_IN_DRBL_MASK, 0xffffffff);
 }
 
 void
@@ -231,13 +263,20 @@ arm_unmask_irq_err(uintptr_t nb)
 	uint8_t bit_off;
 
 	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ISE, IRQ_ERR);
-	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, IRQ_ERR);
+	    MPIC_ISE, MPIC_INT_ERR);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, MPIC_INT_ERR);
 
-	bit_off = nb - MAIN_IRQS;
+	bit_off = nb - ERR_IRQ;
 	mask = MPIC_CPU_READ(mv_mpic_sc, MPIC_ERR_MASK);
 	mask |= (1 << bit_off);
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ERR_MASK, mask);
+}
+
+static void
+arm_unmask_msi(void)
+{
+
+	arm_unmask_irq(MPIC_INT_MSI);
 }
 
 uint32_t
@@ -260,7 +299,61 @@ mv_mpic_get_cause_err(void)
 		bit_off = ffs(err_cause) - 1;
 	else
 		return (-1);
-	return (MAIN_IRQS + bit_off);
+
+	debugf("%s: irq:%x cause:%x\n", __func__, bit_off, err_cause);
+	return (ERR_IRQ + bit_off);
+}
+
+uint32_t
+mv_mpic_get_msi(void)
+{
+	uint32_t cause;
+	uint8_t bit_off;
+
+	cause = MPIC_DRBL_READ(mv_mpic_sc, 0);
+
+	if (cause)
+		bit_off = ffs(cause) - 1;
+	else
+		return (-1);
+
+	debugf("%s: irq:%x cause:%x\n", __func__, bit_off, cause);
+
+	cause &= ~(1 << bit_off);
+	MPIC_DRBL_WRITE(mv_mpic_sc, 0, cause);
+
+	return (MSI_IRQ + bit_off);
+}
+
+int
+mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
+{
+	u_long phys, base, size;
+	phandle_t node;
+	int error;
+
+	node = ofw_bus_get_node(mv_mpic_sc->sc_dev);
+
+	/* Get physical addres of register space */
+	error = fdt_get_range(OF_parent(node), 0, &phys, &size);
+	if (error) {
+		printf("%s: Cannot get register physical address, err:%d",
+		    __func__, error);
+		return (error);
+	}
+
+	/* Get offset of MPIC register space */
+	error = fdt_regsize(node, &base, &size);
+	if (error) {
+		printf("%s: Cannot get MPIC register offset, err:%d",
+		    __func__, error);
+		return (error);
+	}
+
+	*addr = phys + base + MPIC_SOFT_INT;
+	*data = MPIC_SOFT_INT_DRBL1 | irq;
+
+	return (0);
 }
 
 #if defined(SMP)
@@ -283,7 +376,7 @@ pic_ipi_get(int i __unused)
 {
 	uint32_t val;
 
-	val = MPIC_CPU_READ(mv_mpic_sc, MPIC_IN_DOORBELL);
+	val = MPIC_CPU_READ(mv_mpic_sc, MPIC_IN_DRBL);
 	if (val)
 		return (ffs(val) - 1);
 
@@ -296,7 +389,7 @@ pic_ipi_clear(int ipi)
 	uint32_t val;
 
 	val = ~(1 << ipi);
-	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_IN_DOORBELL, val);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_IN_DRBL, val);
 }
 
 #endif
