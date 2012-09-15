@@ -1629,7 +1629,7 @@ pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 
 	pv = pmap_pvh_remove(pvh, pmap, va);
 	KASSERT(pv != NULL, ("pmap_pvh_free: pv not found, pa %lx va %lx",
-	     (u_long)VM_PAGE_TO_PHYS(member2struct(vm_page, md, pvh)),
+	     (u_long)VM_PAGE_TO_PHYS(__containerof(pvh, struct vm_page, md)),
 	     (u_long)va));
 	free_pv_entry(pmap, pv);
 }
