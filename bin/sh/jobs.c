@@ -250,15 +250,13 @@ restartjob(struct job *jp)
 
 
 int
-jobscmd(int argc, char *argv[])
+jobscmd(int argc __unused, char *argv[] __unused)
 {
 	char *id;
 	int ch, mode;
 
-	optind = optreset = 1;
-	opterr = 0;
 	mode = SHOWJOBS_DEFAULT;
-	while ((ch = getopt(argc, argv, "lps")) != -1) {
+	while ((ch = nextopt("lps")) != '\0') {
 		switch (ch) {
 		case 'l':
 			mode = SHOWJOBS_VERBOSE;
@@ -269,18 +267,13 @@ jobscmd(int argc, char *argv[])
 		case 's':
 			mode = SHOWJOBS_PIDS;
 			break;
-		case '?':
-		default:
-			error("unknown option: -%c", optopt);
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
-	if (argc == 0)
+	if (*argptr == NULL)
 		showjobs(0, mode);
 	else
-		while ((id = *argv++) != NULL)
+		while ((id = *argptr++) != NULL)
 			showjob(getjob(id), mode);
 
 	return (0);
