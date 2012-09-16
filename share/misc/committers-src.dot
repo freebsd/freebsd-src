@@ -215,6 +215,7 @@ obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n????/??/??"]
+peterj [label="Peter Jeremy\npeterj@FreeBSD.org\n2012/09/14"]
 pfg [label="Pedro Giffuni\npfg@FreeBSD.org\n2011/12/01"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
@@ -396,6 +397,7 @@ gnn -> davide
 
 grog -> edwin
 grog -> le
+grog -> peterj
 
 imp -> akiyama
 imp -> ambrisko
@@ -439,9 +441,11 @@ jhb -> arr
 jhb -> avg
 jhb -> jeff
 jhb -> kbyanc
-jhb -> rnoland
+jhb -> peterj
 jhb -> pfg
+jhb -> rnoland
 
+jkh -> grog
 jkh -> imp
 jkh -> jlemon
 jkh -> joerg
