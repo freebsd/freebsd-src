@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2004
+.Dd September 16, 2012
 .Dt PFIL 9
 .Os
 .Sh NAME
@@ -122,6 +122,18 @@ The filter returns an error (errno) if the packet processing is to stop, or 0
 if the processing is to continue.
 If the packet processing is to stop, it is the responsibility of the
 filter to free the packet.
+.Sh FILTERING POINTS
+Currently, filtering points are implemented for the following link types:
+.Pp
+.Bl -tag -width "AF_INET6" -offset XXX -compact
+.It AF_INET
+.It AF_INET6
+IPv4 and IPv6 packets. Note that packet header is already
+.Cm converted to host format.
+Host format has to be preserved in case of header modifications.
+.It AF_LINK
+Link-layer packets. 
+.El
 .Sh RETURN VALUES
 If successful,
 .Fn pfil_head_get
@@ -186,23 +198,6 @@ The
 .Fn pfil_hook_get
 function
 is only safe for internal use.
-.Pp
-.Fx
-implements only hooks for
-.Dv AF_INET
-and
-.Dv AF_INET6 .
-Packets diverted through these hooks have data in
-host byte order contrary to the above statements.
-.Pp
-The
-.Xr if_bridge 4
-diverts
-.Dv AF_INET
-and
-.Dv AF_INET6
-traffic according to its sysctl settings, but contrary to the above
-statements, the data is provided in host byte order.
 .Pp
 When a
 .Vt pfil_head
