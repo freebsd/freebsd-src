@@ -713,8 +713,6 @@ cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		sc->cpsw_if_flags = ifp->if_flags;
 		CPSW_GLOBAL_UNLOCK(sc);
 		break;
-		printf("%s: SIOCSIFFLAGS\n",__func__);
-		break;
 	case SIOCADDMULTI:
 		printf("%s: SIOCADDMULTI\n",__func__);
 		break;
@@ -724,12 +722,10 @@ cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		printf("%s: SIOCSIFCAP\n",__func__);
 		break;
-	case SIOCGIFMEDIA: /* fall through */
-		printf("%s: SIOCGIFMEDIA\n",__func__);
+	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
 		break;
 	case SIOCSIFMEDIA:
-		printf("%s: SIOCSIFMEDIA\n",__func__);
 		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
 		break;
 	default:
