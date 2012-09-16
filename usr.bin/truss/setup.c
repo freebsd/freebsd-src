@@ -161,12 +161,10 @@ find_thread(struct trussinfo *info, lwpid_t lwpid)
 		}
 	}
 
-	np = (struct threadinfo *)malloc(sizeof(struct threadinfo));
+	np = (struct threadinfo *)calloc(1, sizeof(struct threadinfo));
 	if (np == NULL)
-		errx(1, "malloc() failed");
+		err(1, "calloc() failed");
 	np->tid = lwpid;
-	np->in_fork = 0;
-	np->in_syscall = 0;
 	SLIST_INSERT_HEAD(&info->threadlist, np, entries);
 	info->curthread = np;
 }
