@@ -50,7 +50,7 @@ options 	NFSCL			#New Network Filesystem Client
 
 options 	ROOTDEVNAME=\"ufs:/dev/da0s1\"
 
-options		ALT_BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 
 #options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem

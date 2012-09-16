@@ -92,8 +92,8 @@ device		mge			# Marvell Gigabit Ethernet controller
 device		mii
 device		e1000phy
 device		bpf
-options		HZ=1000
-options		DEVICE_POLLING
+options 	HZ=1000
+options 	DEVICE_POLLING
 device		vlan
 
 #PCI/PCIE
