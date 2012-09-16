@@ -56,8 +56,8 @@ device		ether
 device		mge			# Marvell Gigabit Ethernet controller
 device		mii
 device		bpf
-options		HZ=1000
-options		DEVICE_POLLING
+options 	HZ=1000
+options 	DEVICE_POLLING
 device		vlan
 
 # USB
@@ -71,5 +71,5 @@ device		da
 
 # Flattened Device Tree
 options 	FDT
-options		FDT_DTB_STATIC
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=dockstar.dts
