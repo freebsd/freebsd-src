@@ -107,6 +107,12 @@ struct ath_tid {
 	int			ac;		/* which AC gets this trafic */
 	int			hwq_depth;	/* how many buffers are on HW */
 
+	struct {
+		TAILQ_HEAD(,ath_buf) axq_q;		/* filtered queue */
+		u_int			axq_depth;	/* SW queue depth */
+		char			axq_name[48];	/* lock name */
+	} filtq;
+
 	/*
 	 * Entry on the ath_txq; when there's traffic
 	 * to send
@@ -114,9 +120,16 @@ struct ath_tid {
 	TAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
 	int			paused;	/* >0 if the TID has been paused */
+
+	/*
+	 * These are flags - perhaps later collapse
+	 * down to a single uint32_t ?
+	 */
 	int			addba_tx_pending;	/* TX ADDBA pending */
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
+	int			isfiltered;	/* is this node currently filtered */
+	int			clrdmask;	/* has clrdmask been set */
 
 	/*
 	 * Is the TID being cleaned up after a transition
@@ -336,6 +349,8 @@ struct ath_txq {
 
 #define	ATH_TID_LOCK_ASSERT(_sc, _tid)	\
 	    ATH_TXQ_LOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
+#define	ATH_TID_UNLOCK_ASSERT(_sc, _tid)	\
+	    ATH_TXQ_UNLOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
 
 #define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
 	TAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
