@@ -35,7 +35,7 @@
  * This is intended to be used by various statistics gathering operations
  * (NF, RSSI, EVM).
  */
-#define	AH_MIMO_MAX_CHAINS		3
+#define	AH_MAX_CHAINS			3
 #define	AH_MIMO_MAX_EVM_PILOTS		6
 
 /*

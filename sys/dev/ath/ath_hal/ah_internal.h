@@ -153,8 +153,8 @@ typedef struct {
 	int16_t		rawNoiseFloor;
 	int16_t		noiseFloorAdjust;
 #ifdef	AH_SUPPORT_AR5416
-	int16_t		noiseFloorCtl[AH_MIMO_MAX_CHAINS];
-	int16_t		noiseFloorExt[AH_MIMO_MAX_CHAINS];
+	int16_t		noiseFloorCtl[AH_MAX_CHAINS];
+	int16_t		noiseFloorExt[AH_MAX_CHAINS];
 #endif	/* AH_SUPPORT_AR5416 */
 	uint16_t	mainSpur;	/* cached spur value for this channel */
 } HAL_CHANNEL_INTERNAL;
