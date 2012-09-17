@@ -126,6 +126,8 @@
         ..
         nand
         ..
+        nvme
+        ..
         ofw
         ..
         pbio
