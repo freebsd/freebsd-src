@@ -1735,7 +1735,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 
 			/*
 			 * Mode 1, status, no data. Only possible when we are sending status, have
-			 * no data to transfer, and any sense data can fit in the ct7_entry.
+			 * no data to transfer, and any sense data can fit into a ct7_entry_t.
 			 *
 			 * Mode 2, status, no data. We have to use this in the case that
 			 * the sense data won't fit into a ct7_entry_t.
