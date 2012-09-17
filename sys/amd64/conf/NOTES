@@ -428,6 +428,11 @@ device		isci
 options		ISCI_LOGGING	# enable debugging in isci HAL
 
 #
+# NVM Express (NVMe) support
+device         nvme    # base NVMe driver
+device         nvd     # expose NVMe namespaces as disks, depends on nvme
+
+#
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
 # it's tested on a big-endian machine
 #
