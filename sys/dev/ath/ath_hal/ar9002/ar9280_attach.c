@@ -114,6 +114,10 @@ ar9280InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		 * Else, set PLL to 0x2850 to prevent reset-to-reset variation 
 		 */
 		pll = IS_5GHZ_FAST_CLOCK_EN(ah, chan) ? 0x142c : 0x2850;
+		if (IEEE80211_IS_CHAN_HALF(chan))
+			pll |= SM(0x1, AR_RTC_SOWL_PLL_CLKSEL);
+		else if (IEEE80211_IS_CHAN_QUARTER(chan))
+			pll |= SM(0x2, AR_RTC_SOWL_PLL_CLKSEL);
 	} else if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
 		pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);
 		if (chan != AH_NULL) {

@@ -90,8 +90,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <screenco>
       <areaspec>
-	<area id="prompt-single" coords="1 5">
-	<area id="prompt-smp" coords="2 5">
+	<area id="prompt-single" coords="1 5"/>
+	<area id="prompt-smp" coords="2 5"/>
       </areaspec>
 
       <screen><prompt>ok     </prompt>
@@ -126,8 +126,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       cdrom</command>.  The system should boot into single-user mode
       now, and you can create the disk label and install the base
       system archive as described in <xref
-      linkend="creating-disk-label"> and <xref
-      linkend="creating-root-filesystem">.</para>
+      linkend="creating-disk-label"/> and <xref
+      linkend="creating-root-filesystem"/>.</para>
   </sect2>
 
   <sect2 id="prepare-network">
@@ -302,7 +302,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
       <para>With the daemons on the netboot server configured, the
 	next step is to copy the kernel (obtained during the steps of
-	<xref linkend="downloading">) to an appropriate directory.
+	<xref linkend="downloading"/>) to an appropriate directory.
 	There are two ways of retrieving a kernel over the network:
 	TFTP and NFS.  (You specified one of these two alternatives by
 	picking a loader.)</para>
@@ -362,7 +362,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
       <para>If all goes well, you can now boot the &os; on your &arch;
 	machine by dropping into the PROM prompt as described in <xref
-	linkend="getting-to-prom-prompt">.  Now, just type
+	linkend="getting-to-prom-prompt"/>.  Now, just type
 	<command>boot net</command> and the system should boot.
 	Specifically, the loader is retrieved via TFTP, it then does a
 	BOOTP request and will proceed to load the kernel (either
@@ -519,7 +519,7 @@ drivedata: 0
 
     <para>To create filesystems and to install the base system, boot
       from CDROM or via NFS and create a disk label as described in
-      <xref linkend="creating-disk-label">.</para>
+      <xref linkend="creating-disk-label"/>.</para>
 
     <para>When booting the first time and you have not entered your
       root partition into <filename>/etc/fstab</filename> yet, you may

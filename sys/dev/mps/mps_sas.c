@@ -360,7 +360,7 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 
 	mps_printf(sc, "Reset aborted %u commands\n", reply->TerminationCount);
 	mps_free_reply(sc, tm->cm_reply_data);
-	tm->cm_reply = NULL;	/* Ensures the the reply won't get re-freed */
+	tm->cm_reply = NULL;	/* Ensures the reply won't get re-freed */
 
 	mps_printf(sc, "clearing target %u handle 0x%04x\n", targ->tid, handle);
 	
@@ -550,7 +550,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 	mps_dprint(sc, MPS_INFO, "Reset aborted %u commands\n",
 	    le32toh(reply->TerminationCount));
 	mps_free_reply(sc, tm->cm_reply_data);
-	tm->cm_reply = NULL;	/* Ensures the the reply won't get re-freed */
+	tm->cm_reply = NULL;	/* Ensures the reply won't get re-freed */
 
 	/* Reuse the existing command */
 	req = (MPI2_SAS_IOUNIT_CONTROL_REQUEST *)tm->cm_req;

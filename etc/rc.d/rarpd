@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: rarpd
-# REQUIRE: DAEMON cleanvar
+# REQUIRE: DAEMON FILESYSTEMS
 # BEFORE:  LOGIN
 # KEYWORD: nojail
 

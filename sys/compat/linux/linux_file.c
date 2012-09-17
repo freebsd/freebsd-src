@@ -384,11 +384,6 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	auio.uio_resid = buflen;
 	auio.uio_offset = off;
 
-	if (cookies) {
-		free(cookies, M_TEMP);
-		cookies = NULL;
-	}
-
 #ifdef MAC
 	/*
 	 * Do directory search MAC check using non-cached credentials.

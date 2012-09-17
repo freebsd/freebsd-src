@@ -412,6 +412,8 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 	printf(" max data %d(%d)",
 	    MAX_PAYLOAD((flags & PCIM_EXP_CTL_MAX_PAYLOAD) >> 5),
 	    MAX_PAYLOAD(val & PCIM_EXP_CAP_MAX_PAYLOAD));
+	if (val & PCIM_EXP_CAP_FLR)
+		printf(" FLR");
 	val = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_LINK_CAP, 4);
 	flags = read_config(fd, &p->pc_sel, ptr+ PCIR_EXPRESS_LINK_STA, 2);
 	printf(" link x%d(x%d)", (flags & PCIM_LINK_STA_WIDTH) >> 4,
@@ -561,7 +563,7 @@ ecap_aer(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	uint32_t sta, mask;
 
 	printf("AER %d", ver);
-	if (ver != 1)
+	if (ver < 1)
 		return;
 	sta = read_config(fd, &p->pc_sel, ptr + PCIR_AER_UC_STATUS, 4);
 	mask = read_config(fd, &p->pc_sel, ptr + PCIR_AER_UC_SEVERITY, 4);
@@ -577,7 +579,7 @@ ecap_vc(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	uint32_t cap1;
 
 	printf("VC %d", ver);
-	if (ver != 1)
+	if (ver < 1)
 		return;
 	cap1 = read_config(fd, &p->pc_sel, ptr + PCIR_VC_CAP1, 4);
 	printf(" max VC%d", cap1 & PCIM_VC_CAP1_EXT_COUNT);
@@ -592,7 +594,7 @@ ecap_sernum(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	uint32_t high, low;
 
 	printf("Serial %d", ver);
-	if (ver != 1)
+	if (ver < 1)
 		return;
 	low = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_LOW, 4);
 	high = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_HIGH, 4);
@@ -600,10 +602,58 @@ ecap_sernum(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 }
 
 static void
+ecap_vendor(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	uint32_t val;
+
+	printf("Vendor %d", ver);
+	if (ver < 1)
+		return;
+	val = read_config(fd, &p->pc_sel, ptr + 4, 4);
+	printf(" ID %d", val & 0xffff);
+}
+
+static void
+ecap_sec_pcie(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	uint32_t val;
+
+	printf("PCIe Sec %d", ver);
+	if (ver < 1)
+		return;
+	val = read_config(fd, &p->pc_sel, ptr + 8, 4);
+	printf(" lane errors %#x", val);
+}
+
+struct {
+	uint16_t id;
+	const char *name;
+} ecap_names[] = {
+	{ PCIZ_PWRBDGT, "Power Budgeting" },
+	{ PCIZ_RCLINK_DCL, "Root Complex Link Declaration" },
+	{ PCIZ_RCLINK_CTL, "Root Complex Internal Link Control" },
+	{ PCIZ_RCEC_ASSOC, "Root Complex Event Collector ASsociation" },
+	{ PCIZ_MFVC, "MFVC" },
+	{ PCIZ_RCRB, "RCRB" },
+	{ PCIZ_ACS, "ACS" },
+	{ PCIZ_ARI, "ARI" },
+	{ PCIZ_ATS, "ATS" },
+	{ PCIZ_SRIOV, "SRIOV" },
+	{ PCIZ_MULTICAST, "Multicast" },
+	{ PCIZ_RESIZE_BAR, "Resizable BAR" },
+	{ PCIZ_DPA, "DPA" },
+	{ PCIZ_TPH_REQ, "TPH Requester" },
+	{ PCIZ_LTR, "LTR" },
+	{ 0, NULL }
+};
+
+static void
 list_ecaps(int fd, struct pci_conf *p)
 {
+	const char *name;
 	uint32_t ecap;
 	uint16_t ptr;
+	int i;
 
 	ptr = PCIR_EXTCAP;
 	ecap = read_config(fd, &p->pc_sel, ptr, 4);
@@ -621,8 +671,20 @@ list_ecaps(int fd, struct pci_conf *p)
 		case PCIZ_SERNUM:
 			ecap_sernum(fd, p, ptr, PCI_EXTCAP_VER(ecap));
 			break;
+		case PCIZ_VENDOR:
+			ecap_vendor(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
+		case PCIZ_SEC_PCIE:
+			ecap_sec_pcie(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
 		default:
-			printf("unknown %d", PCI_EXTCAP_VER(ecap));
+			name = "unknown";
+			for (i = 0; ecap_names[i].name != NULL; i++)
+				if (ecap_names[i].id == PCI_EXTCAP_ID(ecap)) {
+					name = ecap_names[i].name;
+					break;
+				}
+			printf("%s %d", name, PCI_EXTCAP_VER(ecap));
 			break;
 		}
 		printf("\n");

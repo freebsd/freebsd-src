@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
 
 #include <cam/scsi/scsi_low.h>
 
@@ -326,7 +325,7 @@ ncvhw_power(sc, flags)
 
 	if (flags == SCSI_LOW_POWDOWN)
 	{
-		printf("%s power down\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "power down\n");
 		ncvhw_select_register_1(iot, ioh, &sc->sc_hw);
 		bus_space_write_1(iot, ioh, cr1_atacmd, ATACMD_POWDOWN);
 	}
@@ -335,13 +334,13 @@ ncvhw_power(sc, flags)
 		switch (sc->sc_rstep)
 		{
 		case 0:
-			printf("%s resume step O\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "resume step O\n");
 			ncvhw_select_register_1(iot, ioh, &sc->sc_hw);
 			bus_space_write_1(iot, ioh, cr1_atacmd, ATACMD_ENGAGE);
 			break;
 
 		case 1:
-			printf("%s resume step I\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "resume step I\n");
 			ncvhw_reset(iot, ioh, &sc->sc_hw);
 			ncvhw_init(iot, ioh, &sc->sc_hw);
 			break;
@@ -473,7 +472,6 @@ ncv_world_start(sc, fdone)
 	    (bus_space_read_1(sc->sc_iot, sc->sc_ioh, cr0_istat) & INTR_SBR))
 		return ENODEV;
 
-	SOFT_INTR_REQUIRED(slp);
 	return 0;
 }
 
@@ -607,17 +605,6 @@ ncvprobesubr(iot, ioh, dvcfg, hsid)
 	return 1;
 }
 
-int
-ncvprint(aux, name)
-	void *aux;
-	const char *name;
-{
-
-	if (name != NULL)
-		printf("%s: scsibus ", name);
-	return 1;
-}
-
 void
 ncvattachsubr(sc)
 	struct ncv_softc *sc;
@@ -696,9 +683,9 @@ ncv_pdma_end(sc, ti)
 bad:
 			if ((slp->sl_error & PDMAERR) == 0)
 			{
-				printf("%s: stragne cnt hw 0x%x soft 0x%x\n",
-					slp->sl_xname, len,
-					slp->sl_scp.scp_datalen);
+				device_printf(slp->sl_dev,
+				    "strange cnt hw 0x%x soft 0x%x\n", len,
+				    slp->sl_scp.scp_datalen);
 			}
 			slp->sl_error |= PDMAERR;
 		}
@@ -706,7 +693,7 @@ bad:
 	}
 	else
 	{
-		printf("%s: data phase miss\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "data phase miss\n");
 		slp->sl_error |= PDMAERR;
 	}
 
@@ -859,7 +846,7 @@ ncv_reselected(sc)
 
 	if ((bus_space_read_1(iot, ioh, cr0_sffl) & CR0_SFFLR_BMASK) != 2)
 	{
-		printf("%s illegal fifo bytes\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "illegal fifo bytes\n");
 		scsi_low_restart(slp, SCSI_LOW_RESTART_HARD, "chip confused");
 		return EJUSTRETURN;
 	}
@@ -965,7 +952,6 @@ ncvintr(arg)
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
 	struct targ_info *ti;
-	struct physio_proc *pp;
 	struct buf *bp;
 	u_int derror, flags;
 	int len;
@@ -1005,7 +991,7 @@ again:
 	if (ncv_debug)
 	{
 		scsi_low_print(slp, NULL);
-		printf("%s st %x ist %x\n\n", slp->sl_xname,
+		device_printf(slp->sl_dev, "st %x ist %x\n\n",
 			status, ireason);
 #ifdef	KDB
 		if (ncv_debug > 1)
@@ -1087,8 +1073,8 @@ again:
 		ncv_target_nexus_establish(sc);
 		if ((status & PHASE_MASK) != MESSAGE_IN_PHASE)
 		{
-			printf("%s: unexpected phase after reselect\n",
-				slp->sl_xname);
+			device_printf(slp->sl_dev,
+			    "unexpected phase after reselect\n");
 			slp->sl_error |= FATALIO;
 			scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_ABORT, 1);
 			return 1;
@@ -1115,14 +1101,13 @@ again:
 			scsi_low_attention(slp);
 		}
 
-		pp = physio_proc_enter(bp);
 		if (slp->sl_scp.scp_datalen <= 0)
 		{
 			if ((ireason & INTR_BS) == 0)
 				break;
 
 			if ((slp->sl_error & PDMAERR) == 0)
-				printf("%s: data underrun\n", slp->sl_xname);
+				device_printf(slp->sl_dev, "data underrun\n");
 			slp->sl_error |= PDMAERR;
 
 			if ((slp->sl_flags & HW_WRITE_PADDING) != 0)
@@ -1134,8 +1119,8 @@ again:
 			}
 			else
 			{
-				printf("%s: write padding required\n",
-					slp->sl_xname);
+				device_printf(slp->sl_dev,
+				    "write padding required\n");
 			}
 		}
 		else
@@ -1148,7 +1133,6 @@ again:
 			}
 			ncv_pio_write(sc, slp->sl_scp.scp_data, len);
 		}
-		physio_proc_leave(pp);
 		break;
 
 	case DATA_IN_PHASE: /* data in */
@@ -1158,14 +1142,13 @@ again:
 			scsi_low_attention(slp);
 		}
 
-		pp = physio_proc_enter(bp);
 		if (slp->sl_scp.scp_datalen <= 0)
 		{
 			if ((ireason & INTR_BS) == 0)
 				break;
 
 			if ((slp->sl_error & PDMAERR) == 0)
-				printf("%s: data overrun\n", slp->sl_xname);
+				device_printf(slp->sl_dev, "data overrun\n");
 			slp->sl_error |= PDMAERR;
 
 			if ((slp->sl_flags & HW_READ_PADDING) != 0)
@@ -1176,8 +1159,8 @@ again:
 			}
 			else
 			{
-				printf("%s: read padding required\n",
-					slp->sl_xname);
+				device_printf(slp->sl_dev,
+				    "read padding required\n");
 				break;
 			}
 		}
@@ -1191,7 +1174,6 @@ again:
 			}
 			ncv_pio_read(sc, slp->sl_scp.scp_data, len);
 		}
-		physio_proc_leave(pp);
 		break;
 
 	case COMMAND_PHASE: /* cmd out */

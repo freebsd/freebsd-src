@@ -53,9 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/bus.h>
 
-#include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
-
 #include <cam/scsi/scsi_low.h>
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>
@@ -349,7 +346,6 @@ stg_world_start(sc, fdone)
 	scsi_low_bus_reset(slp);
 	stghw_init(sc);
 
-	SOFT_INTR_REQUIRED(slp);
 	return 0;
 }
 
@@ -424,17 +420,6 @@ stgprobesubr(iot, ioh, dvcfg)
 	return 0;
 }
 
-int
-stgprint(aux, name)
-	void *aux;
-	const char *name;
-{
-
-	if (name != NULL)
-		printf("%s: scsibus ", name);
-	return 1;
-}
-
 void
 stgattachsubr(sc)
 	struct stg_softc *sc;
@@ -494,8 +479,8 @@ stg_pdma_end(sc, ti)
 				else
 				{
 					slp->sl_error |= PDMAERR;
-					printf("%s len %x >= datalen %x\n",
-						slp->sl_xname,
+					device_printf(slp->sl_dev,
+						"len %x >= datalen %x\n",
 						len, slp->sl_scp.scp_datalen);
 				}
 			}
@@ -505,8 +490,8 @@ stg_pdma_end(sc, ti)
 			if (len != 0)
 			{
 				slp->sl_error |= PDMAERR;
-				printf("%s: len %x left in fifo\n",
-					slp->sl_xname, len);
+				device_printf(slp->sl_dev,
+				    "len %x left in fifo\n", len);
 			}
 		}
 		scsi_low_data_finish(slp);
@@ -514,7 +499,7 @@ stg_pdma_end(sc, ti)
 	else
 	{
 
-		printf("%s data phase miss\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "data phase miss\n");
 		slp->sl_error |= PDMAERR;
 	}
 
@@ -583,8 +568,8 @@ stg_pio_read(sc, ti, thold)
 			slp->sl_error |= PDMAERR;
 			if ((slp->sl_flags & HW_READ_PADDING) == 0)
 			{
-				printf("%s: read padding required\n",
-					slp->sl_xname);
+				device_printf(slp->sl_dev,
+				    "read padding required\n");
 				break;
 			}
 
@@ -612,7 +597,7 @@ stg_pio_read(sc, ti, thold)
 	}
 
 	if (tout <= 0)
-		printf("%s: pio read timeout\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "pio read timeout\n");
 }
 
 static void
@@ -694,7 +679,7 @@ stg_pio_write(sc, ti, thold)
 	}
 
 	if (tout <= 0)
-		printf("%s: pio write timeout\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "pio write timeout\n");
 }
 
 static int
@@ -717,7 +702,7 @@ stg_negate_signal(struct stg_softc *sc, u_int8_t mask, u_char *s)
 		DELAY(STG_DELAY_INTERVAL);
 	}
 
-	printf("%s: %s stg_negate_signal timeout\n", slp->sl_xname, s);
+	device_printf(slp->sl_dev, "%s stg_negate_signal timeout\n", s);
 	return -1;
 }
 
@@ -744,7 +729,7 @@ stg_expect_signal(struct stg_softc *sc, u_int8_t phase, u_int8_t mask)
 		DELAY(STG_DELAY_INTERVAL);
 	}
 
-	printf("%s: stg_expect_signal timeout\n", slp->sl_xname);
+	device_printf(slp->sl_dev, "stg_expect_signal timeout\n");
 	return -1;
 }
 
@@ -819,7 +804,7 @@ stg_reselected(sc)
 	}
 	else if (slp->sl_Tnexus != NULL)
 	{
-		printf("%s: unexpected termination\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "unexpected termination\n");
 		stg_disconnected(sc, slp->sl_Tnexus);
 	}
 
@@ -843,7 +828,7 @@ stg_reselected(sc)
 		}
 		DELAY(1);
 	}
-	printf("%s: reselction timeout I\n", slp->sl_xname);
+	device_printf(slp->sl_dev, "reselction timeout I\n");
 	return EJUSTRETURN;
 	
 reselect_start:
@@ -866,7 +851,7 @@ reselect_start:
 			goto reselected;
 		DELAY(1);
 	}
-	printf("%s: reselction timeout II\n", slp->sl_xname);
+	device_printf(slp->sl_dev, "reselction timeout II\n");
 	return EJUSTRETURN;
 
 reselected:
@@ -996,7 +981,6 @@ stgintr(arg)
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
 	struct targ_info *ti;
-	struct physio_proc *pp;
 	struct buf *bp;
 	u_int derror, flags;
 	int len, s;
@@ -1034,7 +1018,7 @@ stgintr(arg)
 	if (stg_debug)
 	{
 		scsi_low_print(slp, NULL);
-		printf("%s: st %x ist %x\n\n", slp->sl_xname,
+		device_printf(slp->sl_dev, "st %x ist %x\n\n",
 		       status, astatus);
 #ifdef	KDB
 		if (stg_debug > 1)
@@ -1151,8 +1135,8 @@ arb_fail:
 		stg_target_nexus_establish(sc);
 		if ((status & PHASE_MASK) != MESSAGE_IN_PHASE)
 		{
-			printf("%s: unexpected phase after reselect\n",
-			       slp->sl_xname);
+			device_printf(slp->sl_dev,
+			    "unexpected phase after reselect\n");
 			slp->sl_error |= FATALIO;
 			scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_ABORT, 1);
 			goto out;
@@ -1189,7 +1173,7 @@ arb_fail:
 		if (stg_xfer(sc, slp->sl_scp.scp_cmd, slp->sl_scp.scp_cmdlen,
 			     COMMAND_PHASE, 0) != 0)
 		{
-			printf("%s: CMDOUT short\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "CMDOUT short\n");
 		}
 		break;
 
@@ -1200,12 +1184,10 @@ arb_fail:
 			scsi_low_attention(slp);
 		}
 
-		pp = physio_proc_enter(bp);
 		if ((sc->sc_icinit & ICTL_FIFO) != 0)
 			stg_pio_write(sc, ti, sc->sc_wthold);
 		else
 			stg_pio_write(sc, ti, 0);
-		physio_proc_leave(pp);
 		break;
 
 	case DATA_IN_PHASE:
@@ -1215,12 +1197,10 @@ arb_fail:
 			scsi_low_attention(slp);
 		}
 
-		pp = physio_proc_enter(bp);
 		if ((sc->sc_icinit & ICTL_FIFO) != 0)
 			stg_pio_read(sc, ti, sc->sc_rthold);
 		else
 			stg_pio_read(sc, ti, 0);
-		physio_proc_leave(pp);
 		break;
 
 	case STATUS_PHASE:
@@ -1236,7 +1216,7 @@ arb_fail:
 		}
 		if (regv != bus_space_read_1(iot, ioh, tmc_rdata))
 		{
-			printf("%s: STATIN: data mismatch\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "STATIN: data mismatch\n");
 		}
 		stg_negate_signal(sc, BSTAT_ACK, "statin<ACK>");
 		break;
@@ -1258,7 +1238,7 @@ arb_fail:
 		if (stg_xfer(sc, ti->ti_msgoutstr, len, MESSAGE_OUT_PHASE,
 			     slp->sl_clear_atten) != 0)
 		{
-			printf("%s: MSGOUT short\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "MSGOUT short\n");
 		}
 		else
 		{
@@ -1290,7 +1270,7 @@ arb_fail:
 		/* read data with ACK */
 		if (regv != bus_space_read_1(iot, ioh, tmc_rdata))
 		{
-			printf("%s: MSGIN: data mismatch\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "MSGIN: data mismatch\n");
 		}
 
 		/* wait for the ack negated */
@@ -1303,14 +1283,14 @@ arb_fail:
 		break;
 
 	case BUSFREE_PHASE:
-		printf("%s: unexpected disconnect\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "unexpected disconnect\n");
 		stg_disconnected(sc, ti);
 		break;
 
 	default:
 		slp->sl_error |= FATALIO;
-		printf("%s: unknown phase bus %x intr %x\n",
-			slp->sl_xname, status, astatus);
+		device_printf(slp->sl_dev, "unknown phase bus %x intr %x\n",
+		    status, astatus);
 		break;
 	}
 
@@ -1338,7 +1318,7 @@ stg_timeout(sc)
 		if (sc->sc_ubf_timeout ++ == 0)
 			return 0;
 
-		printf("%s: unexpected bus free detected\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "unexpected bus free detected\n");
 		slp->sl_error |= FATALIO;
 		scsi_low_print(slp, slp->sl_Tnexus);
 		stg_disconnected(sc, slp->sl_Tnexus);
@@ -1360,8 +1340,7 @@ stg_timeout(sc)
 	        slp->sl_error |= PDMAERR;
 		if ((slp->sl_flags & HW_WRITE_PADDING) == 0)
 		{
-			printf("%s: write padding required\n",
-				slp->sl_xname);
+			device_printf(slp->sl_dev, "write padding required\n");
 			break;
 		}	
 

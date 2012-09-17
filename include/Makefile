@@ -186,9 +186,6 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
 .endif
-	cd ${.CURDIR}/../sys/contrib/pf/net; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${DESTDIR}${INCLUDEDIR}/net
 	cd ${.CURDIR}/../sys/crypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
@@ -272,11 +269,6 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
-	cd ${.CURDIR}/../sys/contrib/pf/net; \
-	for h in *.h; do \
-		ln -fs ../../../sys/contrib/pf/net/$$h \
-		    ${DESTDIR}${INCLUDEDIR}/net; \
-	done
 	cd ${.CURDIR}/../sys/crypto; \
 	for h in rijndael/rijndael.h; do \
 		ln -fs ../../../sys/crypto/$$h \

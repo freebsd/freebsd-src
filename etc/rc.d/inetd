@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: inetd
-# REQUIRE: DAEMON LOGIN cleanvar
+# REQUIRE: DAEMON LOGIN FILESYSTEMS
 # KEYWORD: shutdown
 
 . /etc/rc.subr

@@ -776,5 +776,5 @@ static struct vfsops ntfs_vfsops = {
 	.vfs_unmount =	ntfs_unmount,
 	.vfs_vget =	ntfs_vget,
 };
-VFS_SET(ntfs_vfsops, ntfs, 0);
+VFS_SET(ntfs_vfsops, ntfs, VFCF_READONLY);
 MODULE_VERSION(ntfs, 1);

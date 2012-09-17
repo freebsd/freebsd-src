@@ -197,7 +197,7 @@ release_ddp_resources(struct toepcb *toep)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(toep->db); i++) {
+	for (i = 0; i < nitems(toep->db); i++) {
 		if (toep->db[i] != NULL) {
 			free_ddp_buffer(toep->td, toep->db[i]);
 			toep->db[i] = NULL;
@@ -662,7 +662,7 @@ alloc_ddp_buffer(struct tom_data *td, vm_page_t *pages, int npages, int offset,
 		return (NULL);
 	}
 
-	for (idx = ARRAY_SIZE(t4_ddp_pgsz) - 1; idx > 0; idx--) {
+	for (idx = nitems(t4_ddp_pgsz) - 1; idx > 0; idx--) {
 		if (hcf % t4_ddp_pgsz[idx] == 0)
 			break;
 	}
@@ -745,7 +745,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 			    V_PPOD_OFST(db->offset));
 			ppod->rsvd = 0;
 			idx = i * PPOD_PAGES * (ddp_pgsz / PAGE_SIZE);
-			for (k = 0; k < ARRAY_SIZE(ppod->addr); k++) {
+			for (k = 0; k < nitems(ppod->addr); k++) {
 				if (idx < db->npages) {
 					ppod->addr[k] =
 					    htobe64(db->pages[idx]->phys_addr);
@@ -782,7 +782,7 @@ select_ddp_buffer(struct adapter *sc, struct toepcb *toep, vm_page_t *pages,
 	int i, empty_slot = -1;
 
 	/* Try to reuse */
-	for (i = 0; i < ARRAY_SIZE(toep->db); i++) {
+	for (i = 0; i < nitems(toep->db); i++) {
 		if (bufcmp(toep->db[i], pages, npages, db_off, db_len) == 0) {
 			free(pages, M_CXGBE);
 			return (i);	/* pages still held */
@@ -805,7 +805,7 @@ select_ddp_buffer(struct adapter *sc, struct toepcb *toep, vm_page_t *pages,
 
 	i = empty_slot;
 	if (i < 0) {
-		i = arc4random() % ARRAY_SIZE(toep->db);
+		i = arc4random() % nitems(toep->db);
 		free_ddp_buffer(td, toep->db[i]);
 	}
 	toep->db[i] = db;

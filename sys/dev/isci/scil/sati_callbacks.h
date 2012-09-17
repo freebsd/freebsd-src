@@ -153,7 +153,7 @@ void sati_cb_get_data_byte(
 );
 
 /**
- * @brief This callback method gets the the task type for the SCSI task
+ * @brief This callback method gets the task type for the SCSI task
  *        request.
  *
  * @param[in] scsi_task This parameter specifies the user's SCSI Task request.

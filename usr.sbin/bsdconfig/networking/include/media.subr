@@ -56,7 +56,7 @@ f_ifconfig_options()
 		set -- $( f_sysrc_get ifconfig_$interface )
 
 		#
-		# Return if the the interface is configured for DHCP
+		# Return if the interface is configured for DHCP
 		#
 		glob="[Dd][Hh][Cc][Pp]"
 		case "$*" in

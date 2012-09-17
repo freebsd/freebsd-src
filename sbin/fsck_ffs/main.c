@@ -279,8 +279,8 @@ checkfilesys(char *filesys)
 					exit(0);
 				exit(4);
 			} else {
-				pfatal("UNEXPECTED INCONSISTENCY, %s\n",
-				    "CANNOT RUN FAST FSCK\n");
+				pfatal(
+			    "UNEXPECTED INCONSISTENCY, CANNOT RUN FAST FSCK\n");
 			}
 		}
 	}
@@ -297,8 +297,8 @@ checkfilesys(char *filesys)
 			pfatal("NOT MOUNTED, CANNOT RUN IN BACKGROUND\n");
 		} else if ((mntp->f_flags & MNT_SOFTDEP) == 0) {
 			bkgrdflag = 0;
-			pfatal("NOT USING SOFT UPDATES, %s\n",
-			    "CANNOT RUN IN BACKGROUND");
+			pfatal(
+			  "NOT USING SOFT UPDATES, CANNOT RUN IN BACKGROUND\n");
 		} else if ((mntp->f_flags & MNT_RDONLY) != 0) {
 			bkgrdflag = 0;
 			pfatal("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
@@ -306,8 +306,8 @@ checkfilesys(char *filesys)
 			if (readsb(0) != 0) {
 				if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ)) {
 					bkgrdflag = 0;
-					pfatal("UNEXPECTED INCONSISTENCY, %s\n",
-					    "CANNOT RUN IN BACKGROUND\n");
+					pfatal(
+			"UNEXPECTED INCONSISTENCY, CANNOT RUN IN BACKGROUND\n");
 				}
 				if ((sblock.fs_flags & FS_UNCLEAN) == 0 &&
 				    skipclean && ckclean) {
@@ -315,8 +315,8 @@ checkfilesys(char *filesys)
 					 * file system is clean;
 					 * skip snapshot and report it clean
 					 */
-					pwarn("FILE SYSTEM CLEAN; %s\n",
-					    "SKIPPING CHECKS");
+					pwarn(
+					"FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
 					goto clean;
 				}
 			}
@@ -328,24 +328,23 @@ checkfilesys(char *filesys)
 			if (stat(snapname, &snapdir) < 0) {
 				if (errno != ENOENT) {
 					bkgrdflag = 0;
-					pfatal("CANNOT FIND %s %s: %s, %s\n",
-					    "SNAPSHOT DIRECTORY",
-					    snapname, strerror(errno),
-					    "CANNOT RUN IN BACKGROUND");
+					pfatal(
+	"CANNOT FIND SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
+					    snapname, strerror(errno));
 				} else if ((grp = getgrnam("operator")) == 0 ||
 				    mkdir(snapname, 0770) < 0 ||
 				    chown(snapname, -1, grp->gr_gid) < 0 ||
 				    chmod(snapname, 0770) < 0) {
 					bkgrdflag = 0;
-					pfatal("CANNOT CREATE %s %s: %s, %s\n",
-					    "SNAPSHOT DIRECTORY",
-					    snapname, strerror(errno),
-					    "CANNOT RUN IN BACKGROUND");
+					pfatal(
+	"CANNOT CREATE SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
+					    snapname, strerror(errno));
 				}
 			} else if (!S_ISDIR(snapdir.st_mode)) {
 				bkgrdflag = 0;
-				pfatal("%s IS NOT A DIRECTORY, %s\n", snapname,
-				    "CANNOT RUN IN BACKGROUND");
+				pfatal(
+			"%s IS NOT A DIRECTORY, CANNOT RUN IN BACKGROUND\n",
+				    snapname);
 			}
 		}
 		if (bkgrdflag) {
@@ -636,8 +635,7 @@ static void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "usage: %s [-BEFfnpry] [-b block] [-c level] [-m mode] "
-			"filesystem ...\n",
+"usage: %s [-BEFfnpry] [-b block] [-c level] [-m mode] filesystem ...\n",
 	    getprogname());
 	exit(1);
 }

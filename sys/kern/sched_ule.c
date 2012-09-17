@@ -1639,7 +1639,7 @@ sched_thread_priority(struct thread *td, u_char prio)
 	    "prio:%d", td->td_priority, "new prio:%d", prio,
 	    KTR_ATTR_LINKED, sched_tdname(curthread));
 	SDT_PROBE3(sched, , , change_pri, td, td->td_proc, prio);
-	if (td != curthread && prio > td->td_priority) {
+	if (td != curthread && prio < td->td_priority) {
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));

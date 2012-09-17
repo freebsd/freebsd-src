@@ -1095,7 +1095,6 @@ out:
 	 * Note: we should only get here if returning to user mode.
 	 */
 	userret(td, trapframe);
-	mtx_assert(&Giant, MA_NOTOWNED);
 	return (trapframe->pc);
 }
 

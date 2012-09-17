@@ -92,7 +92,7 @@ typedef enum _SCI_BASE_DOMAIN_STATES
    SCI_BASE_DOMAIN_STATE_STARTING,
 
    /**
-    * This state indicates the the domain is now ready.  Thus, the user
+    * This state indicates the domain is now ready.  Thus, the user
     * is able to perform IO operations to remote devices in this domain.
     * This state is entered from the STOPPED state.
     * This state is entered from the STOPPING state.
