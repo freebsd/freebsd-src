@@ -36,6 +36,7 @@
 
 #define	UAUDIO_VERSION		0x0100
 #define	UAUDIO_VERSION_20	0x0200
+#define	UAUDIO_VERSION_30	0x0300
 
 #define	UAUDIO_PROTOCOL_20	0x20
 
@@ -54,7 +55,7 @@
 #define	UDESCSUB_AC_FEATURE	6
 #define	UDESCSUB_AC_PROCESSING	7
 #define	UDESCSUB_AC_EXTENSION	8
-/* ==== USB audio 2.0 ==== */
+/* ==== USB audio v2.0 ==== */
 #define	UDESCSUB_AC_EFFECT	7
 #define	UDESCSUB_AC_PROCESSING_V2 8
 #define	UDESCSUB_AC_EXTENSION_V2 9
@@ -365,7 +366,7 @@ struct usb_audio_extension_unit_1 {
 #define	DELAY_CONTROL	0x08
 #define	BASS_BOOST_CONTROL 0x09
 #define	LOUDNESS_CONTROL 0x0a
-/* ==== USB audio 2.0 ==== */
+/* ==== USB audio v2.0 ==== */
 #define	INPUT_GAIN_CONTROL 0x0b
 #define	INPUT_GAIN_PAD_CONTROL 0x0c
 #define	PHASE_INVERTER_CONTROL 0x0d
@@ -380,7 +381,7 @@ struct usb_audio_extension_unit_1 {
 #define	AS_GENERAL	1
 #define	FORMAT_TYPE	2
 #define	FORMAT_SPECIFIC 3
-/* ==== USB audio 2.0 ==== */
+/* ==== USB audio v2.0 ==== */
 #define	FORMAT_ENCODER	3
 #define	FORMAT_DECODER	4
 
@@ -434,7 +435,7 @@ struct usb_audio_extension_unit_1 {
  * USB audio v2.0 definitions
  *------------------------------------------------------------------------*/
 
-struct usb_audio20_as_iface_descriptor {
+struct usb_audio20_streaming_interface_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
@@ -488,12 +489,9 @@ struct usb_audio20_feedback_endpoint_descriptor {
 	uByte	bInterval;
 } __packed;
 
-#define	UA20_GET_CUR	0x81
-#define	UA20_SET_CUR	0x01
-#define	UA20_GET_RANGE	0x82
-#define	UA20_SET_RANGE	0x02
-#define	UA20_GET_MEM	0x83
-#define	UA20_SET_MEM	0x03
+#define	UA20_CS_CUR	0x01
+#define	UA20_CS_RANGE	0x02
+#define	UA20_CS_MEM	0x03
 
 struct usb_audio20_cur1_parameter {
 	uByte	bCur;
@@ -595,12 +593,18 @@ struct usb_audio20_clock_source_unit {
 } __packed;
 
 /* UDESCSUB_AC_CLOCK_SEL */
-struct usb_audio20_clock_selector_unit {
+struct usb_audio20_clock_selector_unit_0 {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
 	uByte	bClockId;
 	uByte	bNrInPins;
+	uByte	baCSourceId[0];
+} __packed;
+
+struct usb_audio20_clock_selector_unit_1 {
+	uByte	bmControls;
+	uByte	iClockSelector;
 } __packed;
 
 /* UDESCSUB_AC_CLOCK_MUL */
@@ -767,8 +771,6 @@ struct usb_audio20_cluster {
 #define	UA20_TF_AV			0x0B
 #define	UA20_TF_CONTROL_PANEL		0x0C
 #define	UA20_TF_OTHER			0xFF
-
-#define	UA20_EP_GENERAL			0x01
 
 #define	UA20_CS_SAM_FREQ_CONTROL	0x01
 #define	UA20_CS_CLOCK_VALID_CONTROL 	0x02
