@@ -3,14 +3,10 @@
 # generate-release.sh: check out source trees, and build release components with
 #  totally clean, fresh trees.
 #
-#  Usage: generate-release.sh [-r revision] svn-branch scratch-dir
+#  Usage: generate-release.sh [-r revision] [-d docrevision] \
+#	[-p portsrevision] svn-branch scratch-dir
 #
 # Environment variables:
-#  CVSUP_HOST: Host of a cvsup server to obtain the ports and documentation
-#   trees. This or CVSROOT must be set to include ports and documentation.
-#  CVSROOT:    CVS root to obtain the ports and documentation trees. This or
-#   CVSUP_HOST must be set to include ports and documentation.
-#  CVS_TAG:    CVS tag for ports and documentation (HEAD by default)
 #  SVNROOT:    SVN URL to FreeBSD source repository (by default, 
 #   svn://svn.freebsd.org/base)
 #  MAKE_FLAGS: optional flags to pass to make (e.g. -j)
