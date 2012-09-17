@@ -36,7 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/sx.h>
 
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -84,10 +86,17 @@ mlxd_open(struct disk *dp)
 	return (ENXIO);
 
     /* controller not active? */
-    if (sc->mlxd_controller->mlx_state & MLX_STATE_SHUTDOWN)
+    MLX_CONFIG_LOCK(sc->mlxd_controller);
+    MLX_IO_LOCK(sc->mlxd_controller);
+    if (sc->mlxd_controller->mlx_state & MLX_STATE_SHUTDOWN) {
+	MLX_IO_UNLOCK(sc->mlxd_controller);
+	MLX_CONFIG_UNLOCK(sc->mlxd_controller);
 	return(ENXIO);
+    }
 
     sc->mlxd_flags |= MLXD_OPEN;
+    MLX_IO_UNLOCK(sc->mlxd_controller);
+    MLX_CONFIG_UNLOCK(sc->mlxd_controller);
     return (0);
 }
 
@@ -97,10 +106,14 @@ mlxd_close(struct disk *dp)
     struct mlxd_softc	*sc = (struct mlxd_softc *)dp->d_drv1;
 
     debug_called(1);
-	
+
     if (sc == NULL)
 	return (ENXIO);
+    MLX_CONFIG_LOCK(sc->mlxd_controller);
+    MLX_IO_LOCK(sc->mlxd_controller);
     sc->mlxd_flags &= ~MLXD_OPEN;
+    MLX_IO_UNLOCK(sc->mlxd_controller);
+    MLX_CONFIG_UNLOCK(sc->mlxd_controller);
     return (0);
 }
 
@@ -142,13 +155,16 @@ mlxd_strategy(mlx_bio *bp)
     }
 
     /* XXX may only be temporarily offline - sleep? */
+    MLX_IO_LOCK(sc->mlxd_controller);
     if (sc->mlxd_drive->ms_state == MLX_SYSD_OFFLINE) {
+	MLX_IO_UNLOCK(sc->mlxd_controller);
 	MLX_BIO_SET_ERROR(bp, ENXIO);
 	goto bad;
     }
 
     MLX_BIO_STATS_START(bp);
     mlx_submit_buf(sc->mlxd_controller, bp);
+    MLX_IO_UNLOCK(sc->mlxd_controller);
     return;
 
  bad:
@@ -232,7 +248,6 @@ mlxd_attach(device_t dev)
     sc->mlxd_disk->d_mediasize = MLX_BLKSIZE * (off_t)sc->mlxd_drive->ms_size;
     sc->mlxd_disk->d_fwsectors = sc->mlxd_drive->ms_sectors;
     sc->mlxd_disk->d_fwheads = sc->mlxd_drive->ms_heads;
-    sc->mlxd_disk->d_flags = DISKFLAG_NEEDSGIANT;
 
     /* 
      * Set maximum I/O size to the lesser of the recommended maximum and the practical
