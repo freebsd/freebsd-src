@@ -179,7 +179,11 @@ int	fuse_lookup_cache_enable = 1;
 SYSCTL_INT(_vfs_fuse, OID_AUTO, lookup_cache_enable, CTLFLAG_RW,
     &fuse_lookup_cache_enable, 0, "");
 
-static int fuse_reclaim_revoked = 1;
+/*
+ * XXX: This feature is highly experimental and can bring to instabilities,
+ * needs revisiting before to be enabled by default.
+ */
+static int fuse_reclaim_revoked = 0;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, reclaim_revoked, CTLFLAG_RW,
     &fuse_reclaim_revoked, 0, "");
