@@ -2408,6 +2408,35 @@ device_set_softc(device_t dev, void *softc)
 }
 
 /**
+ * @brief Free claimed softc
+ *
+ * Most drivers do not need to use this since the softc is freed
+ * automatically when the driver is detached.
+ */
+void
+device_free_softc(void *softc)
+{
+	free(softc, M_BUS_SC);
+}
+
+/**
+ * @brief Claim softc
+ *
+ * This function can be used to let the driver free the automatically
+ * allocated softc using "device_free_softc()". This function is
+ * useful when the driver is refcounting the softc and the softc
+ * cannot be freed when the "device_detach" method is called.
+ */
+void
+device_claim_softc(device_t dev)
+{
+	if (dev->softc)
+		dev->flags |= DF_EXTERNALSOFTC;
+	else
+		dev->flags &= ~DF_EXTERNALSOFTC;
+}
+
+/**
  * @brief Get the device's ivars field
  *
  * The ivars field is used by the parent device to store per-device
