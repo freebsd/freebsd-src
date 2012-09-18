@@ -1808,6 +1808,7 @@ DIOCGETSTATES_full:
 		    (!pnl->dport || !pnl->sport)))
 			error = EINVAL;
 		else {
+			bzero(&key, sizeof(key));
 			key.af = pnl->af;
 			key.proto = pnl->proto;
 			PF_ACPY(&key.addr[sidx], &pnl->saddr, pnl->af);
