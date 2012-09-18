@@ -141,7 +141,7 @@ the firewall will have a
 .Em stateful
 behaviour, i.e., upon a match it will create
 .Em dynamic rules ,
-i.e. rules that match packets with the same 5-tuple
+i.e., rules that match packets with the same 5-tuple
 (protocol, source and destination addresses and ports)
 as the packet which caused their creation.
 Dynamic rules, which have a limited lifetime, are checked
@@ -223,14 +223,15 @@ When listing and
 is specified, also show expired dynamic rules.
 .It Fl f
 Do not ask for confirmation for commands that can cause problems
-if misused,
-.No i.e. Cm flush .
+if misused, i.e.,
+.Cm flush .
 If there is no tty associated with the process, this is implied.
 .It Fl i
 When listing a table (see the
 .Sx LOOKUP TABLES
 section below for more information on lookup tables), format values
-as IP addresses. By default, values are shown as integers.
+as IP addresses.
+By default, values are shown as integers.
 .It Fl n
 Only check syntax of the command strings, without actually passing
 them to the kernel.
@@ -421,7 +422,7 @@ Keywords are case-sensitive, whereas arguments may
 or may not be case-sensitive depending on their nature
 (e.g.\& uid's are, hostnames are not).
 .Pp
-Some arguments (e.g. port or address lists) are comma-separated
+Some arguments (e.g., port or address lists) are comma-separated
 lists of values.
 In this case, spaces after commas ',' are allowed to make
 the line more readable.
@@ -873,7 +874,8 @@ Takes rule number saved to internal stack by the last
 action and returns ruleset processing to the first rule
 with number greater than number of corresponding
 .Cm call
-rule. See description of the
+rule.
+See description of the
 .Cm call
 action for more details.
 .Pp
@@ -960,23 +962,29 @@ Initially this is limited to the values 0 through 15, see
 Processing continues at the next rule.
 It is possible to use the
 .Cm tablearg
-keyword with a setfib. If tablearg value is not within compiled FIB range packet fib is set to 0.
+keyword with a setfib.
+If tablearg value is not within compiled FIB range packet fib is set to 0.
 .It Cm reass
 Queue and reassemble ip fragments.
-If the packet is not fragmented, counters are updated and processing continues with the next rule.
+If the packet is not fragmented, counters are updated and
+processing continues with the next rule.
 If the packet is the last logical fragment, the packet is reassembled and, if
 .Va net.inet.ip.fw.one_pass
-is set to 0, processing continues with the next rule, else packet is allowed to pass and search terminates.
-If the packet is a fragment in the middle, it is consumed and processing stops immediately.
+is set to 0, processing continues with the next rule, else packet is
+allowed to pass and search terminates.
+If the packet is a fragment in the middle, it is consumed and
+processing stops immediately.
 .Pp
 Fragments handling can be tuned via
 .Va net.inet.ip.maxfragpackets
 and
 .Va net.inet.ip.maxfragsperpacket
-which limit, respectively, the maximum number of processable fragments (default: 800) and
+which limit, respectively, the maximum number of processable
+fragments (default: 800) and
 the maximum number of fragments per packet (default: 16).
 .Pp
-NOTA BENE: since fragments do not contain port numbers, they should be avoided with the
+NOTA BENE: since fragments do not contain port numbers,
+they should be avoided with the
 .Nm reass
 rule.
 Alternatively, direction-based (like
@@ -1596,7 +1604,8 @@ This is the short form of
 .It Cm sockarg
 Matches packets that are associated to a local socket and
 for which the SO_USER_COOKIE socket option has been set
-to a non-zero value. As a side effect, the value of the
+to a non-zero value.
+As a side effect, the value of the
 option is made available as
 .Cm tablearg
 value, which in turn can be used as
@@ -1746,7 +1755,7 @@ connected networks instead of all source addresses.
 .El
 .Sh LOOKUP TABLES
 Lookup tables are useful to handle large sparse sets of
-addresses or other search keys (e.g. ports, jail IDs, interface names).
+addresses or other search keys (e.g., ports, jail IDs, interface names).
 In the rest of this section we will use the term ``address''.
 There may be up to 65535 different lookup tables, numbered 0 to 65534.
 .Pp
@@ -1784,7 +1793,8 @@ the routing table (see
 .Xr route 4 ) .
 .Pp
 Lookup tables currently support only ports, jail IDs, IPv4/IPv6  addresses
-and interface names. Wildcards is not supported for interface names.
+and interface names.
+Wildcards is not supported for interface names.
 .Pp
 The
 .Cm tablearg
@@ -1813,7 +1823,8 @@ Section for example usage of tables and the tablearg keyword.
 When used with the
 .Cm skipto
 action, the user should be aware that the code will walk the ruleset
-up to a rule equal to, or past, the given number, and should therefore try keep the
+up to a rule equal to, or past, the given number,
+and should therefore try keep the
 ruleset compact between the skipto and the target rules.
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
@@ -2021,10 +2032,12 @@ As an example, using ``src-ip 0xffffff00'' creates one instance
 for each /24 destination subnet.
 .Pp
 The FLOW_MASK, together with the SCHED_MASK, is used to split
-packets into flows. As an example, using
+packets into flows.
+As an example, using
 ``src-ip 0x000000ff''
 together with the previous SCHED_MASK makes a flow for
-each individual source address. In turn, flows for each /24
+each individual source address.
+In turn, flows for each /24
 subnet will be sent to the same scheduler instance.
 .Pp
 The above diagram holds even for the
@@ -2143,12 +2156,13 @@ A file specifying the additional overhead incurred in the transmission
 of a packet on the link.
 .Pp
 Some link types introduce extra delays in the transmission
-of a packet, e.g. because of MAC level framing, contention on
+of a packet, e.g., because of MAC level framing, contention on
 the use of the channel, MAC level retransmissions and so on.
 From our point of view, the channel is effectively unavailable
 for this extra time, which is constant or variable depending
-on the link type. Additionally, packets may be dropped after this
-time (e.g. on a wireless link after too many retransmissions).
+on the link type.
+Additionally, packets may be dropped after this
+time (e.g., on a wireless link after too many retransmissions).
 We can model the additional delay with an empirical curve
 that represents its distribution.
 .Bd -literal -offset indent
@@ -2184,7 +2198,7 @@ If not specified here, it must be present
 explicitly as a configuration parameter for the pipe;
 .It Cm loss-level Ar L
 the probability above which packets are lost.
-(0.0 <= L <= 1.0, default 1.0 i.e. no loss);
+(0.0 <= L <= 1.0, default 1.0 i.e., no loss);
 .It Cm samples Ar N
 the number of samples used in the internal
 representation of the curve (2..1024; default 100);
@@ -2249,7 +2263,8 @@ but gives no service guarantees.
 .It Cm wf2q+
 implements the WF2Q+ algorithm, which is a Weighted Fair Queueing
 algorithm which permits flows to share bandwidth according to
-their weights. Note that weights are not priorities; even a flow
+their weights.
+Note that weights are not priorities; even a flow
 with a minuscule weight will never starve.
 WF2Q+ has O(log N) per-packet processing cost, where N is the number
 of flows, and is the default algorithm used by previous versions
@@ -2535,7 +2550,8 @@ in
 .Xr natd 8
 for more information.
 .It Cm tablearg
-Uses argument supplied in lookup table. See
+Uses argument supplied in lookup table.
+See
 .Sx LOOKUP TABLES
 section below for more information on lookup tables.
 .El
@@ -2597,11 +2613,13 @@ or
 before ipfw module gets loaded.
 .Bl -tag -width indent
 .It Va net.inet.ip.fw.default_to_accept: No 0
-Defines ipfw last rule behavior. This value overrides
+Defines ipfw last rule behavior.
+This value overrides
 .Cd "options IPFW_DEFAULT_TO_(ACCEPT|DENY)"
 from kernel configuration file.
 .It Va net.inet.ip.fw.tables_max: No 128
-Defines number of tables available in ipfw. Number cannot exceed 65534.
+Defines number of tables available in ipfw.
+Number cannot exceed 65534.
 .El
 .Sh SYSCTL VARIABLES
 A set of
@@ -2631,12 +2649,14 @@ Option 1 should never be selected as this forms a security risk.
 An attacker can
 establish multiple fake associations by sending AddIP messages.
 .It Va net.inet.ip.alias.sctp.chunk_proc_limit: No 5
-Defines the maximum number of chunks in an SCTP packet that will be parsed for a
+Defines the maximum number of chunks in an SCTP packet that will be
+parsed for a
 packet that matches an existing association.
 This value is enforced to be greater or equal than
 .Cm net.inet.ip.alias.sctp.initialising_chunk_proc_limit .
 A high value is
-a DoS risk yet setting too low a value may result in important control chunks in
+a DoS risk yet setting too low a value may result in
+important control chunks in
 the packet not being located and parsed.
 .It Va net.inet.ip.alias.sctp.error_on_ootb: No 1
 Defines when the
@@ -2658,7 +2678,8 @@ This value is only useful if the
 .Nm nat
 is tracking global IP addresses.
 .It Cm 3
-ErrorM is sent in response to all OOTB packets on both the local and global side
+ErrorM is sent in response to all OOTB packets on both
+the local and global side
 (DoS risk).
 .El
 .Pp
@@ -2709,12 +2730,14 @@ will only be an INIT or ASCONF-AddIP packet.
 A higher value may become a DoS
 risk as malformed packets can consume processing resources.
 .It Va net.inet.ip.alias.sctp.param_proc_limit: No 25
-Defines the maximum number of parameters within a chunk that will be parsed in a
+Defines the maximum number of parameters within a chunk that will be
+parsed in a
 packet.
 As for other similar sysctl variables, larger values pose a DoS risk.
 .It Va net.inet.ip.alias.sctp.log_level: No 0
 Level of detail in the system log messages (0 \- minimal, 1 \- event,
-2 \- info, 3 \- detail, 4 \- debug, 5 \- max debug). May be a good
+2 \- info, 3 \- detail, 4 \- debug, 5 \- max debug).
+May be a good
 option in high loss environments.
 .It Va net.inet.ip.alias.sctp.shutdown_time: No 15
 Timeout value while waiting for SHUTDOWN-COMPLETE.
@@ -2733,7 +2756,8 @@ association is limited to this value
 .El
 .Pp
 This variable is fully dynamic, the new value will be adopted for all newly
-arriving associations, existing associations are treated as they were previously.
+arriving associations, existing associations are treated
+as they were previously.
 Global tracking will decrease the number of collisions within the
 .Nm nat
 at a cost
@@ -3280,7 +3304,8 @@ Some early work (1999-2000) on the
 traffic shaper supported by Akamba Corp.
 .Pp
 The ipfw core (ipfw2) has been completely redesigned and
-reimplemented by Luigi Rizzo in summer 2002. Further
+reimplemented by Luigi Rizzo in summer 2002.
+Further
 actions and
 options have been added by various developer over the years.
 .Pp
