@@ -430,6 +430,7 @@ NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
 PCBGROUP		opt_pcbgroup.h
+PF_DEFAULT_TO_DROP	opt_pf.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
