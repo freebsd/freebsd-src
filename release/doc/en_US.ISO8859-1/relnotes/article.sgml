@@ -1264,7 +1264,7 @@ nfsuserd_enable="YES"</programlisting>
 	when a login daemon crashes or fails to remove the entry
 	during shutdown.</para>
 
-      <para revision="224171">The &man.zpool.8: utility now supports a
+      <para revision="224171">The &man.zpool.8; utility now supports a
 	<command>zpool labelclear</command> command.  This allows to
 	wipe the label data from a drive that is not active in a
 	pool.</para>
