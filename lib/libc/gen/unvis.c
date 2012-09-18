@@ -48,6 +48,14 @@ __RCSID("$NetBSD: unvis.c,v 1.39 2012/03/13 21:13:37 christos Exp $");
 #include <errno.h>
 #include <vis.h>
 
+#define	_DIAGASSERT(x)	assert(x)
+
+/*
+ * Return the number of elements in a statically-allocated array,
+ * __x.
+ */
+#define	__arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
+
 #ifdef __weak_alias
 __weak_alias(strnunvisx,_strnunvisx)
 #endif

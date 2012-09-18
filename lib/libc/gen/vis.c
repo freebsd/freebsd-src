@@ -78,6 +78,8 @@ __weak_alias(strvisx,_strvisx)
 #include <stdio.h>
 #include <string.h>
 
+#define _DIAGASSERT(x)  assert(x)
+
 static char *do_svis(char *, size_t *, int, int, int, const char *);
 
 #undef BELL
