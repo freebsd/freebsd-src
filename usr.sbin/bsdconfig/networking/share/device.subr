@@ -28,18 +28,18 @@ if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/networking/ipaddr.subr
+f_include $BSDCFG_SHARE/networking/media.subr
+f_include $BSDCFG_SHARE/networking/netmask.subr
+f_include $BSDCFG_SHARE/networking/resolv.subr
+f_include $BSDCFG_SHARE/networking/routing.subr
 
-APP_DIR="120.networking"
-f_include $BSDCFG_LIBE/$APP_DIR/include/common.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/ipaddr.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/media.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/netmask.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/resolv.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/routing.subr
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ############################################################ GLOBALS
