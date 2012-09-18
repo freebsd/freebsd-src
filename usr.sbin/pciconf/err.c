@@ -63,18 +63,18 @@ static struct bit_table pci_status[] = {
 
 /* Error indicators in the PCI-Express device status register. */
 static struct bit_table pcie_device_status[] = {
-	{ PCIM_EXP_STA_CORRECTABLE_ERROR, "Correctable Error Detected" },
-	{ PCIM_EXP_STA_NON_FATAL_ERROR, "Non-Fatal Error Detected" },	
-	{ PCIM_EXP_STA_FATAL_ERROR, "Fatal Error Detected" },	
-	{ PCIM_EXP_STA_UNSUPPORTED_REQ, "Unsupported Request Detected" },	
+	{ PCIEM_STA_CORRECTABLE_ERROR, "Correctable Error Detected" },
+	{ PCIEM_STA_NON_FATAL_ERROR, "Non-Fatal Error Detected" },	
+	{ PCIEM_STA_FATAL_ERROR, "Fatal Error Detected" },	
+	{ PCIEM_STA_UNSUPPORTED_REQ, "Unsupported Request Detected" },	
 	{ 0, NULL },
 };
 
 /* Valid error indicator bits in the PCI-Express device status register. */
-#define	PCIE_ERRORS	(PCIM_EXP_STA_CORRECTABLE_ERROR |		\
-			 PCIM_EXP_STA_NON_FATAL_ERROR |			\
-			 PCIM_EXP_STA_FATAL_ERROR |			\
-			 PCIM_EXP_STA_UNSUPPORTED_REQ)
+#define	PCIE_ERRORS	(PCIEM_STA_CORRECTABLE_ERROR |		\
+			 PCIEM_STA_NON_FATAL_ERROR |			\
+			 PCIEM_STA_FATAL_ERROR |			\
+			 PCIEM_STA_UNSUPPORTED_REQ)
 
 /* AER Uncorrected errors. */
 static struct bit_table aer_uc[] = {
@@ -153,7 +153,7 @@ list_errors(int fd, struct pci_conf *p)
 		return;
 
 	/* Check for PCI-e errors. */
-	sta = read_config(fd, &p->pc_sel, pcie + PCIR_EXPRESS_DEVICE_STA, 2);
+	sta = read_config(fd, &p->pc_sel, pcie + PCIER_DEVICE_STA, 2);
 	print_bits("PCI-e errors", pcie_device_status, sta & PCIE_ERRORS);
 
 	/* See if this device supports AER. */

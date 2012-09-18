@@ -369,55 +369,55 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 	uint32_t val;
 	uint16_t flags;
 
-	flags = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_FLAGS, 2);
-	printf("PCI-Express %d ", flags & PCIM_EXP_FLAGS_VERSION);
-	switch (flags & PCIM_EXP_FLAGS_TYPE) {
-	case PCIM_EXP_TYPE_ENDPOINT:
+	flags = read_config(fd, &p->pc_sel, ptr + PCIER_FLAGS, 2);
+	printf("PCI-Express %d ", flags & PCIEM_FLAGS_VERSION);
+	switch (flags & PCIEM_FLAGS_TYPE) {
+	case PCIEM_TYPE_ENDPOINT:
 		printf("endpoint");
 		break;
-	case PCIM_EXP_TYPE_LEGACY_ENDPOINT:
+	case PCIEM_TYPE_LEGACY_ENDPOINT:
 		printf("legacy endpoint");
 		break;
-	case PCIM_EXP_TYPE_ROOT_PORT:
+	case PCIEM_TYPE_ROOT_PORT:
 		printf("root port");
 		break;
-	case PCIM_EXP_TYPE_UPSTREAM_PORT:
+	case PCIEM_TYPE_UPSTREAM_PORT:
 		printf("upstream port");
 		break;
-	case PCIM_EXP_TYPE_DOWNSTREAM_PORT:
+	case PCIEM_TYPE_DOWNSTREAM_PORT:
 		printf("downstream port");
 		break;
-	case PCIM_EXP_TYPE_PCI_BRIDGE:
+	case PCIEM_TYPE_PCI_BRIDGE:
 		printf("PCI bridge");
 		break;
-	case PCIM_EXP_TYPE_PCIE_BRIDGE:
+	case PCIEM_TYPE_PCIE_BRIDGE:
 		printf("PCI to PCIe bridge");
 		break;
-	case PCIM_EXP_TYPE_ROOT_INT_EP:
+	case PCIEM_TYPE_ROOT_INT_EP:
 		printf("root endpoint");
 		break;
-	case PCIM_EXP_TYPE_ROOT_EC:
+	case PCIEM_TYPE_ROOT_EC:
 		printf("event collector");
 		break;
 	default:
-		printf("type %d", (flags & PCIM_EXP_FLAGS_TYPE) >> 4);
+		printf("type %d", (flags & PCIEM_FLAGS_TYPE) >> 4);
 		break;
 	}
-	if (flags & PCIM_EXP_FLAGS_SLOT)
+	if (flags & PCIEM_FLAGS_SLOT)
 		printf(" slot");
-	if (flags & PCIM_EXP_FLAGS_IRQ)
-		printf(" IRQ %d", (flags & PCIM_EXP_FLAGS_IRQ) >> 9);
-	val = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_DEVICE_CAP, 4);
-	flags = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_DEVICE_CTL, 2);
+	if (flags & PCIEM_FLAGS_IRQ)
+		printf(" IRQ %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
+	val = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
+	flags = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL, 2);
 	printf(" max data %d(%d)",
-	    MAX_PAYLOAD((flags & PCIM_EXP_CTL_MAX_PAYLOAD) >> 5),
-	    MAX_PAYLOAD(val & PCIM_EXP_CAP_MAX_PAYLOAD));
-	if (val & PCIM_EXP_CAP_FLR)
+	    MAX_PAYLOAD((flags & PCIEM_CTL_MAX_PAYLOAD) >> 5),
+	    MAX_PAYLOAD(val & PCIEM_CAP_MAX_PAYLOAD));
+	if (val & PCIEM_CAP_FLR)
 		printf(" FLR");
-	val = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_LINK_CAP, 4);
-	flags = read_config(fd, &p->pc_sel, ptr+ PCIR_EXPRESS_LINK_STA, 2);
-	printf(" link x%d(x%d)", (flags & PCIM_LINK_STA_WIDTH) >> 4,
-	    (val & PCIM_LINK_CAP_MAX_WIDTH) >> 4);
+	val = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
+	flags = read_config(fd, &p->pc_sel, ptr+ PCIER_LINK_STA, 2);
+	printf(" link x%d(x%d)", (flags & PCIEM_LINK_STA_WIDTH) >> 4,
+	    (val & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
 }
 
 static void
