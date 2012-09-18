@@ -913,5 +913,36 @@ extern	int16_t ath_ee_interpolate(uint16_t target, uint16_t srcLeft,
 	 AH_PRIVATE((_ah))->ah_caps.halSupportsFastClock5GHz && \
 	ath_hal_eepromGetFlag((_ah), AR_EEP_FSTCLK_5G))
 
+/*
+ * Fetch the maximum regulatory domain power for the given channel
+ * in 1/2dBm steps.
+ */
+static inline int
+ath_hal_get_twice_max_regpower(struct ath_hal_private *ahp,
+    const HAL_CHANNEL_INTERNAL *ichan, const struct ieee80211_channel *chan)
+{
+	struct ath_hal *ah = &ahp->h;
+
+	if (! chan) {
+		ath_hal_printf(ah, "%s: called with chan=NULL!\n", __func__);
+		return (0);
+	}
+	return (chan->ic_maxpower);
+}
+
+/*
+ * Get the maximum antenna gain allowed, in 1/2dBm steps.
+ */
+static inline int
+ath_hal_getantennaallowed(struct ath_hal *ah,
+    const struct ieee80211_channel *chan)
+{
+
+	if (! chan)
+		return (0);
+
+	return (chan->ic_maxantgain);
+}
+
 
 #endif /* _ATH_AH_INTERAL_H_ */
