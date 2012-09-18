@@ -381,7 +381,10 @@ FBSD_1.3 {
 	 fdlopen;
 	__FreeBSD_libc_enter_restricted_mode;
 	getcontextx;
+	gid_from_group;
 	nvis;
+	pwcache_userdb;
+	pwcache_groupdb;
 	snvis;
 	strnunvis;
 	strnunvisx;
@@ -396,6 +399,7 @@ FBSD_1.3 {
 	strvis;
 	strvisx;
 	svis;
+	uid_from_user;
 	unvis;
 	vis;
 };
