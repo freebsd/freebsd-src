@@ -392,7 +392,7 @@ g_disk_start(struct bio *bp)
 			error = ENOIOCTL;
 		break;
 	case BIO_FLUSH:
-		g_trace(G_T_TOPOLOGY, "g_disk_flushcache(%s)",
+		g_trace(G_T_BIO, "g_disk_flushcache(%s)",
 		    bp->bio_to->name);
 		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
 			error = EOPNOTSUPP;
