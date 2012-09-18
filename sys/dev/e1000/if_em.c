@@ -5113,11 +5113,11 @@ em_disable_aspm(struct adapter *adapter)
 	}
 	if (pci_find_cap(dev, PCIY_EXPRESS, &base) != 0)
 		return;
-	reg = base + PCIR_EXPRESS_LINK_CAP;
+	reg = base + PCIER_LINK_CAP;
 	link_cap = pci_read_config(dev, reg, 2);
-	if ((link_cap & PCIM_LINK_CAP_ASPM) == 0)
+	if ((link_cap & PCIEM_LINK_CAP_ASPM) == 0)
 		return;
-	reg = base + PCIR_EXPRESS_LINK_CTL;
+	reg = base + PCIER_LINK_CTL;
 	link_ctrl = pci_read_config(dev, reg, 2);
 	link_ctrl &= 0xFFFC; /* turn off bit 1 and 2 */
 	pci_write_config(dev, reg, link_ctrl, 2);
