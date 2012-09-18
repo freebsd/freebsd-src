@@ -575,6 +575,7 @@ ipip_output(
 			itos = ntohl(itos32) >> 20;
 
 			ip6o->ip6_nxt = IPPROTO_IPV6;
+			break;
 		}
 		default:
 			goto nofamily;
