@@ -218,19 +218,15 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 	}
 #endif
 
-	cl = malloc(sizeof(struct rm_class),
-	       M_DEVBUF, M_WAITOK);
+	cl = malloc(sizeof(struct rm_class), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (cl == NULL)
 		return (NULL);
-	bzero(cl, sizeof(struct rm_class));
 	CALLOUT_INIT(&cl->callout_);
-	cl->q_ = malloc(sizeof(class_queue_t),
-	       M_DEVBUF, M_WAITOK);
+	cl->q_ = malloc(sizeof(class_queue_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (cl->q_ == NULL) {
 		free(cl, M_DEVBUF);
 		return (NULL);
 	}
-	bzero(cl->q_, sizeof(class_queue_t));
 
 	/*
 	 * Class initialization.
