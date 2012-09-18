@@ -513,7 +513,7 @@ struct nvme_controller_data {
 
 	/* bytes 3072-4095: vendor specific */
 	uint8_t			reserved7[1024];
-} __packed;
+} __packed __aligned(4);
 
 struct nvme_namespace_data {
 
@@ -603,7 +603,7 @@ struct nvme_namespace_data {
 	uint8_t			reserved6[192];
 
 	uint8_t			vendor_specific[3712];
-};
+} __packed __aligned(4);
 
 enum nvme_log_page {
 
@@ -661,7 +661,7 @@ struct nvme_health_information_page {
 	uint64_t		num_error_info_log_entries[2];
 
 	uint8_t			reserved2[320];
-} __packed;
+} __packed __aligned(4);
 
 #define NVME_TEST_MAX_THREADS	128
 
