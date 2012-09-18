@@ -1343,14 +1343,14 @@ re_attach(device_t dev)
 	/* Disable ASPM L0S/L1. */
 	if (sc->rl_expcap != 0) {
 		cap = pci_read_config(dev, sc->rl_expcap +
-		    PCIR_EXPRESS_LINK_CAP, 2);
-		if ((cap & PCIM_LINK_CAP_ASPM) != 0) {
+		    PCIER_LINK_CAP, 2);
+		if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
 			ctl = pci_read_config(dev, sc->rl_expcap +
-			    PCIR_EXPRESS_LINK_CTL, 2);
+			    PCIER_LINK_CTL, 2);
 			if ((ctl & 0x0003) != 0) {
 				ctl &= ~0x0003;
 				pci_write_config(dev, sc->rl_expcap +
-				    PCIR_EXPRESS_LINK_CTL, ctl, 2);
+				    PCIER_LINK_CTL, ctl, 2);
 				device_printf(dev, "ASPM disabled\n");
 			}
 		} else

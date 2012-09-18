@@ -848,10 +848,10 @@ fsl_pcib_err_init(device_t dev)
 		    0xffffffff);
 
 		dsr = fsl_pcib_cfgread(sc, 0, 0, 0,
-		    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_STA, 2);
+		    sc->sc_pcie_capreg + PCIER_DEVICE_STA, 2);
 		if (dsr)
 			fsl_pcib_cfgwrite(sc, 0, 0, 0,
-			    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_STA,
+			    sc->sc_pcie_capreg + PCIER_DEVICE_STA,
 			    0xffff, 2);
 
 		/* Enable all errors reporting */
@@ -861,11 +861,11 @@ fsl_pcib_err_init(device_t dev)
 
 		/* Enable error reporting: URR, FER, NFER */
 		dcr = fsl_pcib_cfgread(sc, 0, 0, 0,
-		    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_CTL, 4);
-		dcr |= PCIM_EXP_CTL_URR_ENABLE | PCIM_EXP_CTL_FER_ENABLE |
-		    PCIM_EXP_CTL_NFER_ENABLE;
+		    sc->sc_pcie_capreg + PCIER_DEVICE_CTL, 4);
+		dcr |= PCIEM_CTL_URR_ENABLE | PCIEM_CTL_FER_ENABLE |
+		    PCIEM_CTL_NFER_ENABLE;
 		fsl_pcib_cfgwrite(sc, 0, 0, 0,
-		    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_CTL, dcr, 4);
+		    sc->sc_pcie_capreg + PCIER_DEVICE_CTL, dcr, 4);
 	}
 }
 
