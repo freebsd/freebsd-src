@@ -210,6 +210,6 @@
     <para><filename>/usr/src/UPDATING</filename> contains important
     information on updating a &os; system from source code.  It lists
     various issues resulting from changes in &os; that may affect an
-    upgrade.<para>
+    upgrade.</para>
   </sect2>
 </sect1>  
