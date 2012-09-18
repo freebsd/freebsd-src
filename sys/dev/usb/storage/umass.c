@@ -1046,6 +1046,11 @@ umass_detach(device_t dev)
 	usbd_transfer_unsetup(sc->sc_xfer, UMASS_T_MAX);
 
 	mtx_lock(&sc->sc_mtx);
+
+	/* cancel any leftover CCB's */
+
+	umass_cancel_ccb(sc);
+
 	umass_cam_detach_sim(sc);
 
 	mtx_unlock(&sc->sc_mtx);
@@ -1571,8 +1576,7 @@ umass_command_start(struct umass_softc *sc, uint8_t dir,
 	if (sc->sc_xfer[sc->sc_last_xfer_index]) {
 		usbd_transfer_start(sc->sc_xfer[sc->sc_last_xfer_index]);
 	} else {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
+		umass_cancel_ccb(sc);
 	}
 }
 
