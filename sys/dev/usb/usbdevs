@@ -407,6 +407,7 @@ vendor ALLIEDCABLE	0x07e6	Allied Cable
 vendor STSN		0x07ef	STSN
 vendor CENTURY		0x07f7	Century Corp
 vendor NEWLINK		0x07ff	NEWlink
+vendor MAGTEK		0x0801	Mag-Tek
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor PCS		0x0810	Personal Communication Systems
 vendor ALPHASMART	0x081e	AlphaSmart, Inc.
@@ -2493,6 +2494,9 @@ product LUWEN EASYDISK		0x0005	EasyDisc
 /* Macally products */
 product MACALLY MOUSE1		0x0101	mouse
 
+/* Mag-Tek products */
+product MAGTEK USBSWIPE		0x0002	USB Mag Stripe Swipe Reader
+
 /* Marvell Technology Group, Ltd. products */
 product MARVELL SHEEVAPLUG	0x9e8f	SheevaPlug serial interface
 
@@ -3446,6 +3450,7 @@ product RALINK RT3071		0x3071	RT3071
 product RALINK RT3072		0x3072	RT3072
 product RALINK RT3370		0x3370	RT3370
 product RALINK RT3572		0x3572	RT3572
+product RALINK RT5370		0x5370	RT5370
 product RALINK RT8070		0x8070	RT8070
 product RALINK RT2570_3		0x9020	RT2500USB Wireless Adapter
 product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
