@@ -203,7 +203,7 @@
 
 #ifdef __STDC__
 #define ELFNOTE(name, type, desctype, descdata...) \
-.pushsection .note.name                 ;       \
+.pushsection .note.name, "", @note                 ;   \
   .align 4                              ;       \
   .long 2f - 1f         /* namesz */    ;       \
   .long 4f - 3f         /* descsz */    ;       \
@@ -215,7 +215,7 @@
 .popsection
 #else /* !__STDC__, i.e. -traditional */
 #define ELFNOTE(name, type, desctype, descdata) \
-.pushsection .note.name                 ;       \
+.pushsection .note.name, "", @note                 ;	\
   .align 4                              ;       \
   .long 2f - 1f         /* namesz */    ;       \
   .long 4f - 3f         /* descsz */    ;       \
