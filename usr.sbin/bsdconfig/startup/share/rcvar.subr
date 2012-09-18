@@ -28,9 +28,9 @@ if [ ! "$_STARTUP_RCVAR_SUBR" ]; then _STARTUP_RCVAR_SUBR=1
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/sysrc.subr
 
 ############################################################ CONFIGURATION
 

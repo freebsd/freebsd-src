@@ -2,8 +2,8 @@
 
 NO_OBJ=
 
-FILESDIR=	${LIBEXECDIR}/bsdconfig/include
-FILES=		messages.subr
+FILESDIR=	${SHAREDIR}/bsdconfig/startup
+FILES=		rcconf.subr rcedit.subr rcvar.subr
 
 beforeinstall:
 	mkdir -p ${DESTDIR}${FILESDIR}

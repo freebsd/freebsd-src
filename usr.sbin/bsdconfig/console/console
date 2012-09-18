@@ -28,12 +28,12 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
 
-APP_DIR="080.console"
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )

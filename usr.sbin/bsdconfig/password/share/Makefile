@@ -2,8 +2,8 @@
 
 NO_OBJ=
 
-FILESDIR=	${LIBEXECDIR}/bsdconfig/include
-FILES=		messages.subr
+FILESDIR=	${SHAREDIR}/bsdconfig/password
+FILES=		password.subr
 
 beforeinstall:
 	mkdir -p ${DESTDIR}${FILESDIR}
