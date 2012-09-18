@@ -26,7 +26,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$OpenBSD: pfvar.h,v 1.282 2009/01/29 15:12:28 pyr Exp $ */
+ *	$OpenBSD: pfvar.h,v 1.282 2009/01/29 15:12:28 pyr Exp $
  *	$FreeBSD$
  */
 
