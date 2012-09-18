@@ -381,6 +381,11 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 	return (nvme_ctrlr_enable(ctrlr));
 }
 
+/*
+ * Disable this code for now, since Chatham doesn't support
+ *  AERs so I have no good way to test them.
+ */
+#if 0
 static void
 nvme_async_event_cb(void *arg, const struct nvme_completion *status)
 {
@@ -398,6 +403,7 @@ nvme_async_event_cb(void *arg, const struct nvme_completion *status)
 	nvme_ctrlr_cmd_asynchronous_event_request(ctrlr, nvme_async_event_cb,
 	    ctrlr);
 }
+#endif
 
 static int
 nvme_ctrlr_identify(struct nvme_controller *ctrlr)
