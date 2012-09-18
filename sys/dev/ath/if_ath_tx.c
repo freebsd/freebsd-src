@@ -3955,6 +3955,12 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: called; hwq_depth=%d\n",
 	    __func__, atid->hwq_depth);
 
+	/*
+	 * Take a copy; this may be needed -after- bf_first
+	 * has been completed and freed.
+	 */
+	ts = bf_first->bf_status.ds_txstat;
+
 	TAILQ_INIT(&bf_q);
 	TAILQ_INIT(&bf_cq);
 
@@ -3970,6 +3976,8 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	 * If the TID is filtered, handle completing the filter
 	 * transition before potentially kicking it to the cleanup
 	 * function.
+	 *
+	 * XXX this is duplicate work, ew.
 	 */
 	if (atid->isfiltered)
 		ath_tx_tid_filt_comp_complete(sc, atid);
@@ -4029,11 +4037,6 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 		goto finish_send_bar;
 	}
 
-	/*
-	 * Take a copy; this may be needed -after- bf_first
-	 * has been completed and freed.
-	 */
-	ts = bf_first->bf_status.ds_txstat;
 	/*
 	 * XXX for now, use the first frame in the aggregate for
 	 * XXX rate control completion; it's at least consistent.
@@ -4255,8 +4258,14 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	struct ath_node *an = ATH_NODE(ni);
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
-	struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	struct ath_tx_status ts;
 	int drops = 0;
+
+	/*
+	 * Take a copy of this; filtering/cloning the frame may free the
+	 * bf pointer.
+	 */
+	ts = bf->bf_status.ds_txstat;
 
 	/*
 	 * Update rate control status here, before we possibly
@@ -4268,7 +4277,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
 		    &bf->bf_status.ds_txstat,
 		    bf->bf_state.bfs_pktlen,
-		    1, (ts->ts_status == 0) ? 0 : 1);
+		    1, (ts.ts_status == 0) ? 0 : 1);
 
 	/*
 	 * This is called early so atid->hwq_depth can be tracked.
@@ -4328,8 +4337,8 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * list as it will end up being recycled without having
 	 * been made available for the hardware.
 	 */
-	if ((ts->ts_status & HAL_TXERR_FILT) ||
-	    (ts->ts_status != 0 && atid->isfiltered)) {
+	if ((ts.ts_status & HAL_TXERR_FILT) ||
+	    (ts.ts_status != 0 && atid->isfiltered)) {
 		int freeframe;
 
 		if (fail != 0)
@@ -4383,7 +4392,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 #if 0
 	if (fail == 0 && ts->ts_status & HAL_TXERR_XRETRY) {
 #endif
-	if (fail == 0 && ts->ts_status != 0) {
+	if (fail == 0 && ts.ts_status != 0) {
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: retry_unaggr\n",
 		    __func__);
