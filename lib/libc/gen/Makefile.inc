@@ -32,8 +32,9 @@ SRCS+=  __getosreldate.c __xuname.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c tls.c \
-	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c \
-	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
+	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c unvis-compat.c \
+	usleep.c utime.c utxdb.c valloc.c vis.c vis-compat.c \
+	wait.c wait3.c waitpid.c \
 	wordexp.c
 
 MISRCS+=modf.c

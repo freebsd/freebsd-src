@@ -91,7 +91,7 @@ static char *do_svis(char *, size_t *, int, int, int, const char *);
 #define xtoa(c)		"0123456789abcdef"[c]
 #define XTOA(c)		"0123456789ABCDEF"[c]
 
-#define MAXEXTRAS	5
+#define MAXEXTRAS	9
 
 #define MAKEEXTRALIST(flag, extra, orig_str)				      \
 do {									      \
@@ -105,6 +105,12 @@ do {									      \
 	for (o = orig, e = extra; (*e++ = *o++) != '\0';)		      \
 		continue;						      \
 	e--;								      \
+	if (flag & VIS_GLOB) {						      \
+		*e++ = '*';						      \
+		*e++ = '?';						      \
+		*e++ = '[';						      \
+		*e++ = '#';						      \
+	}								      \
 	if (flag & VIS_SP) *e++ = ' ';					      \
 	if (flag & VIS_TAB) *e++ = '\t';				      \
 	if (flag & VIS_NL) *e++ = '\n';					      \

@@ -298,15 +298,9 @@ FBSD_1.0 {
 	ualarm;
 	ulimit;
 	uname;
-	unvis;
-	strunvis;
-	strunvisx;
 	usleep;
 	utime;
 	valloc;
-	vis;
-	strvis;
-	strvisx;
 	wait;
 	wait3;
 	waitpid;
@@ -387,6 +381,23 @@ FBSD_1.3 {
 	 fdlopen;
 	__FreeBSD_libc_enter_restricted_mode;
 	getcontextx;
+	nvis;
+	snvis;
+	strnunvis;
+	strnunvisx;
+	strunvis;
+	strunvisx;
+	strnvis;
+	strnvisx;
+	strsnvis;
+	strsnvisx;
+	strsvis;
+	strsvisx;
+	strvis;
+	strvisx;
+	svis;
+	unvis;
+	vis;
 };
 
 FBSDprivate_1.0 {

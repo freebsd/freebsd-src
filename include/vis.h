@@ -62,6 +62,7 @@
 #define	VIS_HTTP1866	0x200	/* http-style &#num; or &string; */
 #define	VIS_NOESCAPE	0x400	/* don't decode `\' */
 #define	_VIS_END	0x800	/* for unvis */
+#define	VIS_GLOB	0x1000	/* encode glob(3) magics */
 
 /*
  * unvis return codes
