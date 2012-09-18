@@ -540,7 +540,6 @@ uhso_attach(device_t self)
 {
 	struct uhso_softc *sc = device_get_softc(self);
 	struct usb_attach_arg *uaa = device_get_ivars(self);
-	struct usb_config_descriptor *cd;
 	struct usb_interface_descriptor *id;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
@@ -561,7 +560,6 @@ uhso_attach(device_t self)
 	sc->sc_ttys = 0;
 	sc->sc_radio = 1;
 
-	cd = usbd_get_config_descriptor(uaa->device);
 	id = usbd_get_interface_descriptor(uaa->iface);
 	sc->sc_ctrl_iface_no = id->bInterfaceNumber;
 
