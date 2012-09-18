@@ -1,3 +1,14 @@
+<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
+<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//DE">
+%entities;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!ENTITY release.4x "4.<replaceable>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+]>
+
 <!--
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
@@ -5,30 +16,6 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.24 2003/05/25 12:44:41 mheinen Exp $
   basiert auf: 1.15
 -->
-
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-
-<!ENTITY % freebsd PUBLIC "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
-%freebsd;
-
-<!ENTITY % authors PUBLIC "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-
-<!ENTITY % teams PUBLIC "-//FreeBSD//ENTITIES DocBook Team Entities//EN">
-%teams;
-
-<!ENTITY % mailing-lists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
-%mailing-lists;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-
-<!ENTITY release.4x "4.<replaceable>X</replaceable>">
-<!ENTITY release.5x "5.<replaceable>X</replaceable>">
-
-]>
 
 <article lang="de">
   <articleinfo>
