@@ -140,7 +140,7 @@ fileFindByPath(const char *base, const char *fname)
 {
     static char tmp[FILENAME_MAX];
     char *cp;
-    const char *suffixes[] = {".tbz", ".tgz", ".tar", NULL};
+    const char *suffixes[] = {".tbz", ".tgz", ".tar", ".txz", NULL};
     int i;
 
     if (fexists(fname) && isfile(fname)) {
