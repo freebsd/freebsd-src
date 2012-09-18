@@ -97,9 +97,9 @@
 
       <informaltable frame="none" pgwide="1">
 	<tgroup cols="3">
-	  <colspec colwidth="1*">
-	  <colspec colwidth="1*">
-	  <colspec colwidth="3*">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="3*"/>
 	  <thead>
 	    <row>
 	      <entry>Advisory</entry>
@@ -295,8 +295,8 @@
 
       <informaltable frame="none" pgwide="1">
 	<tgroup cols="2">
-	  <colspec colwidth="1*">
-	  <colspec colwidth="3*">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="3*"/>
 	  <thead>
 	    <row>
 	      <entry>&man.sysctl.8; variable name</entry>

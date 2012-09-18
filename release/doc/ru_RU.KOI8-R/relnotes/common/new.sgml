@@ -287,8 +287,8 @@
 
     <informaltable frame="none">
       <tgroup cols="2">
-	<colspec colwidth="1*">
-	<colspec colwidth="3*">
+	<colspec colwidth="1*"/>
+	<colspec colwidth="3*"/>
 	<thead>
 	  <row>
 	    <entry>Значение</entry>
