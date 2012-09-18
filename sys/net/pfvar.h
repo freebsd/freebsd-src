@@ -1,5 +1,3 @@
-/*	$OpenBSD: pfvar.h,v 1.282 2009/01/29 15:12:28 pyr Exp $ */
-
 /*
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.
@@ -28,6 +26,8 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
+ *	$OpenBSD: pfvar.h,v 1.282 2009/01/29 15:12:28 pyr Exp $ */
+ *	$FreeBSD$
  */
 
 #ifndef _NET_PFVAR_H_
