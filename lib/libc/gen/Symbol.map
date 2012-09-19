@@ -301,6 +301,9 @@ FBSD_1.0 {
 	usleep;
 	utime;
 	valloc;
+	vis;
+	strvis;
+	strvisx;
 	wait;
 	wait3;
 	waitpid;
@@ -396,12 +399,9 @@ FBSD_1.3 {
 	strsnvisx;
 	strsvis;
 	strsvisx;
-	strvis;
-	strvisx;
 	svis;
 	uid_from_user;
 	unvis;
-	vis;
 };
 
 FBSDprivate_1.0 {

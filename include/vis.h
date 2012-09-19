@@ -55,14 +55,14 @@
 /*
  * other
  */
-#define	VIS_NOSLASH	0x040	/* inhibit printing '\' */
-#define	VIS_HTTP1808	0x080	/* http-style escape % hex hex */
-#define	VIS_HTTPSTYLE	0x080	/* http-style escape % hex hex */
-#define	VIS_MIMESTYLE	0x100	/* mime-style escape = HEX HEX */
-#define	VIS_HTTP1866	0x200	/* http-style &#num; or &string; */
-#define	VIS_NOESCAPE	0x400	/* don't decode `\' */
-#define	_VIS_END	0x800	/* for unvis */
-#define	VIS_GLOB	0x1000	/* encode glob(3) magics */
+#define	VIS_NOSLASH	0x0040	/* inhibit printing '\' */
+#define	VIS_HTTP1808	0x0080	/* http-style escape % hex hex */
+#define	VIS_HTTPSTYLE	0x0080	/* http-style escape % hex hex */
+#define	VIS_GLOB	0x0100	/* encode glob(3) magics */
+#define	VIS_MIMESTYLE	0x0200	/* mime-style escape = HEX HEX */
+#define	VIS_HTTP1866	0x0400	/* http-style &#num; or &string; */
+#define	VIS_NOESCAPE	0x0800	/* don't decode `\' */
+#define	_VIS_END	0x1000	/* for unvis */
 
 /*
  * unvis return codes
