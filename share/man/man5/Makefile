@@ -50,8 +50,6 @@ MAN=	acct.5 \
 	passwd.5 \
 	pbm.5 \
 	periodic.conf.5 \
-	pf.conf.5 \
-	pf.os.5 \
 	phones.5 \
 	portindex.5 \
 	portsnap.conf.5 \
@@ -89,6 +87,11 @@ MAN+=	hesiod.conf.5
 
 .if ${MK_NAND} != "no"
 MAN+=	nandfs.5
+.endif
+
+.if ${MK_PF} != "no"
+MAN+=	pf.conf.5 \
+	pf.os.5
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"

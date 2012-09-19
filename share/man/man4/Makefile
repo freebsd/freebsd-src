@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 MAN=	aac.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
@@ -354,9 +356,9 @@ MAN=	aac.4 \
 	pcii.4 \
 	pcm.4 \
 	pcn.4 \
-	pf.4 \
-	pflog.4 \
-	pfsync.4 \
+	${_pf.4} \
+	${_pflog.4} \
+	${_pfsync.4} \
 	pim.4 \
 	polling.4 \
 	ppbus.4 \
@@ -796,6 +798,12 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_PF} != "no"
+_pf.4=		pf.4
+_pflog.4=	pflog.4
+_pfsync.4=	pfsync.4
 .endif
 
 .include <bsd.prog.mk>
