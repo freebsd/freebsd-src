@@ -5119,7 +5119,7 @@ em_disable_aspm(struct adapter *adapter)
 		return;
 	reg = base + PCIER_LINK_CTL;
 	link_ctrl = pci_read_config(dev, reg, 2);
-	link_ctrl &= 0xFFFC; /* turn off bit 1 and 2 */
+	link_ctrl &= ~PCIEM_LINK_CTL_ASPMC;
 	pci_write_config(dev, reg, link_ctrl, 2);
 	return;
 }
