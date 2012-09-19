@@ -120,7 +120,6 @@ strsignal(int num)
 			UPREFIX,
 #endif
 			sizeof(sig_ebuf));
-	}
 
 	signum = num;
 	if (num < 0)
@@ -143,6 +142,7 @@ strsignal(int num)
 			break;
 	}
 	*p = '\0';
+	}
 
 #if defined(NLS)
 	catclose(catd);
