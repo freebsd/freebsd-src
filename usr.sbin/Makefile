@@ -56,6 +56,7 @@ SUBDIR=	adduser \
 	nfsdumpstate \
 	nfsrevoke \
 	nfsuserd \
+	nmtree \
 	nologin \
 	pc-sysinstall \
 	pciconf \
