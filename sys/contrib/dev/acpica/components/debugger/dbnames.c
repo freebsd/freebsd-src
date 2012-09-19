@@ -102,7 +102,7 @@ AcpiDbBusWalk (
  * Arguments for the Objects command
  * These object types map directly to the ACPI_TYPES
  */
-static ARGUMENT_INFO        AcpiDbObjectTypes [] =
+static ACPI_DB_ARGUMENT_INFO    AcpiDbObjectTypes [] =
 {
     {"ANY"},
     {"INTEGERS"},

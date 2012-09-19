@@ -54,31 +54,6 @@
         ACPI_MODULE_NAME    ("aslutils")
 
 
-char                        AslHexLookup[] =
-{
-    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
-};
-
-/* Table below must match ASL_FILE_TYPES in asltypes.h */
-
-static const char       *AslFileTypeNames [ASL_NUM_FILES] =
-{
-    "stdout:       ",
-    "stderr:       ",
-    "Table Input:  ",
-    "Binary Output:",
-    "Source Output:",
-    "Preprocessor: ",
-    "Listing File: ",
-    "Hex Dump:     ",
-    "Namespace:    ",
-    "Debug File:   ",
-    "ASM Source:   ",
-    "C Source:     ",
-    "ASM Include:  ",
-    "C Include:    "
-};
-
 
 /* Local prototypes */
 
@@ -547,7 +522,7 @@ UtDisplaySummary (
         }
 
         FlPrintFile (FileId, "%14s %s - %u bytes\n",
-            AslFileTypeNames [i],
+            Gbl_Files[i].ShortDescription,
             Gbl_Files[i].Filename, FlGetFileSize (i));
     }
 
@@ -643,6 +618,79 @@ UtGetStringBuffer (
     Gbl_StringCacheNext += Length;
 
     return (Buffer);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtExpandLineBuffers
+ *
+ * PARAMETERS:  None. Updates global line buffer pointers.
+ *
+ * RETURN:      None. Reallocates the global line buffers
+ *
+ * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
+ *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
+ *              Also used for the initial allocation of the buffers, when
+ *              all of the buffer pointers are NULL. Initial allocations are
+ *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
+ *
+ *****************************************************************************/
+
+void
+UtExpandLineBuffers (
+    void)
+{
+    UINT32                  NewSize;
+
+
+    /* Attempt to double the size of all line buffers */
+
+    NewSize = Gbl_LineBufferSize * 2;
+    if (Gbl_CurrentLineBuffer)
+    {
+        DbgPrint (ASL_DEBUG_OUTPUT,"Increasing line buffer size from %u to %u\n",
+            Gbl_LineBufferSize, NewSize);
+    }
+
+    Gbl_CurrentLineBuffer = realloc (Gbl_CurrentLineBuffer, NewSize);
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+    if (!Gbl_CurrentLineBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_MainTokenBuffer = realloc (Gbl_MainTokenBuffer, NewSize);
+    if (!Gbl_MainTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_MacroTokenBuffer = realloc (Gbl_MacroTokenBuffer, NewSize);
+    if (!Gbl_MacroTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_ExpressionTokenBuffer = realloc (Gbl_ExpressionTokenBuffer, NewSize);
+    if (!Gbl_ExpressionTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_LineBufferSize = NewSize;
+    return;
+
+
+    /* On error above, simply issue error messages and abort, cannot continue */
+
+ErrorExit:
+    printf ("Could not increase line buffer size from %u to %u\n",
+        Gbl_LineBufferSize, Gbl_LineBufferSize * 2);
+
+    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION,
+        NULL, NULL);
+    AslAbort ();
 }
 
 
