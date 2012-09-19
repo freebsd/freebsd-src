@@ -219,6 +219,14 @@ except space, tab, and newline are encoded.
 The following flags
 alter this:
 .Bl -tag -width VIS_WHITEX
+.It Dv VIS_GLOB
+Also encode magic characters
+.Ql ( * ,
+.Ql \&? ,
+.Ql \&[
+and
+.Ql # )
+recognized by glob(3).
 .It Dv VIS_SP
 Also encode space.
 .It Dv VIS_TAB
@@ -408,6 +416,7 @@ The destination buffer size is not large enough to perform the conversion.
 .Sh SEE ALSO
 .Xr unvis 1 ,
 .Xr vis 1 ,
+.Xr glob 3 ,
 .Xr unvis 3
 .Rs
 .%A T. Berners-Lee
