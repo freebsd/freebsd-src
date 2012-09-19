@@ -48,6 +48,7 @@
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
+#include <signal.h>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -69,6 +70,10 @@ FilenameHelp (
 static void
 Usage (
     void);
+
+static void ACPI_SYSTEM_XFACE
+AslSignalHandler (
+    int                     Sig);
 
 static void
 AslInitialize (
@@ -96,7 +101,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b|c|d^D:e:fgh^i|I:l^mno|p:P^r:s|t|T:G^v^w|x:z"
+#define ASL_SUPPORTED_OPTIONS   "@:2b|c|d^D:e:fgh^i|I:l^m:no|p:P^r:s|t|T:G^v^w|x:z"
 
 
 /*******************************************************************************
@@ -163,10 +168,10 @@ Options (
     printf ("\nAML Disassembler:\n");
     ACPI_OPTION ("-d  [file]",      "Disassemble or decode binary ACPI table to file (*.dsl)");
     ACPI_OPTION ("-da [f1,f2]",     "Disassemble multiple tables from single namespace");
+    ACPI_OPTION ("-db",             "Do not translate Buffers to Resource Templates");
     ACPI_OPTION ("-dc [file]",      "Disassemble AML and immediately compile it");
     ACPI_OPTION ("",                "(Obtain DSDT from current system if no input file)");
     ACPI_OPTION ("-e  [f1,f2]",     "Include ACPI table(s) for external symbol resolution");
-    ACPI_OPTION ("-m",              "Do not translate Buffers to Resource Templates");
     ACPI_OPTION ("-2",              "Emit ACPI 2.0 compatible ASL code");
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
 
@@ -238,6 +243,49 @@ Usage (
 }
 
 
+/******************************************************************************
+ *
+ * FUNCTION:    AslSignalHandler
+ *
+ * PARAMETERS:  Sig                 - Signal that invoked this handler
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Control-C handler. Delete any intermediate files and any
+ *              output files that may be left in an indeterminate state.
+ *
+ *****************************************************************************/
+
+static void ACPI_SYSTEM_XFACE
+AslSignalHandler (
+    int                     Sig)
+{
+    UINT32                  i;
+
+
+    signal (Sig, SIG_IGN);
+    printf ("Aborting\n\n");
+
+    /* Close all open files */
+
+    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+
+    for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
+    {
+        FlCloseFile (i);
+    }
+
+    /* Delete any output files */
+
+    for (i = ASL_FILE_AML_OUTPUT; i < ASL_MAX_FILE_TYPE; i++)
+    {
+        FlDeleteFile (i);
+    }
+
+    exit (0);
+}
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AslInitialize
@@ -261,7 +309,6 @@ AslInitialize (
     _CrtSetDbgFlag (_CRTDBG_CHECK_ALWAYS_DF | _CrtSetDbgFlag(0));
 #endif
 
-    AcpiDbgLevel = 0;
 
     for (i = 0; i < ASL_NUM_FILES; i++)
     {
@@ -274,6 +321,11 @@ AslInitialize (
 
     Gbl_Files[ASL_FILE_STDERR].Handle   = stderr;
     Gbl_Files[ASL_FILE_STDERR].Filename = "STDERR";
+
+    /* Allocate the line buffer(s) */
+
+    Gbl_LineBufferSize /= 2;
+    UtExpandLineBuffers ();
 }
 
 
@@ -475,6 +527,10 @@ AslDoOptions (
             Gbl_DisassembleAll = TRUE;
             break;
 
+        case 'b':   /* Do not convert buffers to resource descriptors */
+            AcpiGbl_NoResourceDisassembly = TRUE;
+            break;
+
         case 'c':
             break;
 
@@ -613,8 +669,13 @@ AslDoOptions (
         break;
 
 
-    case 'm':   /* Do not convert buffers to resource descriptors */
-        AcpiGbl_NoResourceDisassembly = TRUE;
+    case 'm':   /* Set line buffer size */
+        Gbl_LineBufferSize = (UINT32) strtoul (AcpiGbl_Optarg, NULL, 0) * 1024;
+        if (Gbl_LineBufferSize < ASL_DEFAULT_LINE_BUFFER_SIZE)
+        {
+            Gbl_LineBufferSize = ASL_DEFAULT_LINE_BUFFER_SIZE;
+        }
+        printf ("Line Buffer Size: %u\n", Gbl_LineBufferSize);
         break;
 
 
@@ -946,7 +1007,10 @@ main (
     int                     Index2;
 
 
+    signal (SIGINT, AslSignalHandler);
+
     AcpiGbl_ExternalFileList = NULL;
+    AcpiDbgLevel = 0;
 
 #ifdef _DEBUG
     _CrtSetDbgFlag (_CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF |
@@ -955,9 +1019,10 @@ main (
 
     /* Init and command line */
 
+    Index1 = Index2 = AslCommandLine (argc, argv);
+
     AslInitialize ();
     PrInitializePreprocessor ();
-    Index1 = Index2 = AslCommandLine (argc, argv);
 
     /* Options that have no additional parameters or pathnames */
 
