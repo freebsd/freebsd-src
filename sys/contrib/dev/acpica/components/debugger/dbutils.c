@@ -85,7 +85,7 @@ static char                 *Converter = "0123456789ABCDEF";
 ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     char                    *UserArgument,
-    ARGUMENT_INFO           *Arguments)
+    ACPI_DB_ARGUMENT_INFO   *Arguments)
 {
     UINT32                  i;
 
