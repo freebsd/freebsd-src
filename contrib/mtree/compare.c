@@ -43,6 +43,7 @@ __RCSID("$NetBSD: compare.c,v 1.52 2008/12/28 19:36:30 christos Exp $");
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -462,6 +463,7 @@ typeerr:		LABEL;
 			free(digestbuf);
 		}
 	}
+#ifndef NO_SHA384
 	if (s->flags & F_SHA384) {
 		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
@@ -478,6 +480,7 @@ typeerr:		LABEL;
 			free(digestbuf);
 		}
 	}
+#endif	/* ! NO_SHA384 */
 	if (s->flags & F_SHA512) {
 		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;

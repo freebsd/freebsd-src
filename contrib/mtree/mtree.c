@@ -63,7 +63,7 @@ int	cflag, Cflag, dflag, Dflag, eflag, iflag, lflag, mflag,
     	rflag, sflag, tflag, uflag, Uflag;
 char	fullpath[MAXPATHLEN];
 
-__dead static	void	usage(void);
+__dead2 static	void	usage(void);
 
 int
 main(int argc, char **argv)

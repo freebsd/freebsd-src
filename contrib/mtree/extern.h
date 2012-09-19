@@ -60,7 +60,7 @@ void	 cwalk(void);
 void	 dump_nodes(const char *, NODE *, int);
 void	 init_excludes(void);
 int	 matchtags(NODE *);
-__dead __printflike(1,2) void	 mtree_err(const char *, ...);
+__dead2 __printflike(1,2) void	 mtree_err(const char *, ...);
 const char *nodetype(u_int);
 u_int	 parsekey(const char *, int *);
 void	 parsetags(slist_t *, char *);

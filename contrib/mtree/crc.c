@@ -114,7 +114,6 @@ static const u_int32_t crctab[] = {
  * locations to store the crc and the number of bytes read.  It returns 0 on
  * success and 1 on failure.  Errno is set on failure.
  */
-extern int sflag;
 u_int32_t crc_total = ~0;		/* The crc over a number of files. */
 
 int

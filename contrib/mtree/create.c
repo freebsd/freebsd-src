@@ -83,7 +83,7 @@ static uid_t uid;
 static mode_t mode;
 static u_long flags;
 
-static int	dcmp(const FTSENT **, const FTSENT **);
+static int	dcmp(const FTSENT * const *, const FTSENT * const *);
 static void	output(int *, const char *, ...)
 	__attribute__((__format__(__printf__, 2, 3)));
 static int	statd(FTS *, FTSENT *, uid_t *, gid_t *, mode_t *, u_long *);
@@ -242,12 +242,14 @@ statf(FTSENT *p)
 		output(&indent, "sha256=%s", digestbuf);
 		free(digestbuf);
 	}
+#ifndef NO_SHA384
 	if (keys & F_SHA384 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA384_File failed: %s", p->fts_accpath, strerror(errno));
 		output(&indent, "sha384=%s", digestbuf);
 		free(digestbuf);
 	}
+#endif
 	if (keys & F_SHA512 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA512_File failed: %s", p->fts_accpath, strerror(errno));
@@ -398,7 +400,7 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode,
  * Keep this in sync with nodecmp() in spec.c.
  */
 static int
-dcmp(const FTSENT **a, const FTSENT **b)
+dcmp(const FTSENT * const *a, const FTSENT * const *b)
 {
 
 	if (S_ISDIR((*a)->fts_statp->st_mode)) {
