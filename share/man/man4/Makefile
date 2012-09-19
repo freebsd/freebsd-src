@@ -118,6 +118,7 @@ MAN=	aac.4 \
 	fatm.4 \
 	fd.4 \
 	fdc.4 \
+	filemon.4 \
 	firewire.4 \
 	fpa.4 \
 	fwe.4 \

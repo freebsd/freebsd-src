@@ -2,7 +2,8 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	${_3dfx} \
+SUBDIR=	\
+	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
 	accf_data \
@@ -96,6 +97,7 @@ SUBDIR=	${_3dfx} \
 	fdc \
 	fdescfs \
 	${_fe} \
+	${_filemon} \
 	firewire \
 	firmware \
 	fxp \
@@ -335,6 +337,10 @@ SUBDIR=	${_3dfx} \
 	xl \
 	${_zfs} \
 	zlib \
+
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+_filemon=	filemon
+.endif
 
 .if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "arm" && \
 	${MACHINE_ARCH} != "mips"
