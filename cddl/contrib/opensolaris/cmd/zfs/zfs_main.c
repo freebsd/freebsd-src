@@ -6300,9 +6300,9 @@ do_jail(int argc, char **argv, int attach)
 		usage(B_FALSE);
 	}
 
-	jailid = atoi(argv[1]);
-	if (jailid == 0) {
-		(void) fprintf(stderr, gettext("invalid jailid\n"));
+	jailid = jail_getid(argv[1]);
+	if (jailid < 0) {
+		(void) fprintf(stderr, gettext("invalid jail id or name\n"));
 		usage(B_FALSE);
 	}
 
