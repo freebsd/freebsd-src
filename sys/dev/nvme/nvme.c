@@ -84,28 +84,29 @@ static int
 nvme_probe (device_t device)
 {
 	struct _pcsid	*ep;
-	int		probe_val = ENXIO;
 	u_int32_t	type;
 
 	type = pci_get_devid(device);
 	ep = pci_ids;
-
-#if defined(PCIS_STORAGE_NVM)
-	if (pci_get_class(device)    == PCIC_STORAGE &&
-	    pci_get_subclass(device) == PCIS_STORAGE_NVM &&
-	    pci_get_progif(device)   == PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0)
-		probe_val = BUS_PROBE_GENERIC;
-#endif
 
 	while (ep->type && ep->type != type)
 		++ep;
 
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
-		probe_val = BUS_PROBE_DEFAULT;
+		return (BUS_PROBE_DEFAULT);
 	}
 
-	return (probe_val);
+#if defined(PCIS_STORAGE_NVM)
+	if (pci_get_class(device)    == PCIC_STORAGE &&
+	    pci_get_subclass(device) == PCIS_STORAGE_NVM &&
+	    pci_get_progif(device)   == PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0) {
+		device_set_desc(device, "Generic NVMe Device");
+		return (BUS_PROBE_GENERIC);
+	}
+#endif
+
+	return (ENXIO);
 }
 
 static void
