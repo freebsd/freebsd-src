@@ -694,10 +694,10 @@ alc_aspm(struct alc_softc *sc, int media)
 
 	if ((sc->alc_flags & ALC_FLAG_APS) != 0) {
 		/* Disable extended sync except AR8152 B v1.0 */
-		linkcfg &= ~0x80;
+		linkcfg &= ~PCIEM_LINK_CTL_EXTENDED_SYNC;
 		if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B &&
 		    sc->alc_rev == ATHEROS_AR8152_B_V10)
-			linkcfg |= 0x80;
+			linkcfg |= PCIEM_LINK_CTL_EXTENDED_SYNC;
 		CSR_WRITE_2(sc, sc->alc_expcap + PCIER_LINK_CTL,
 		    linkcfg);
 		pmcfg &= ~(PM_CFG_EN_BUFS_RX_L0S | PM_CFG_SA_DLY_ENB |
@@ -834,15 +834,15 @@ alc_attach(device_t dev)
 		cap = CSR_READ_2(sc, base + PCIER_LINK_CAP);
 		if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
 			ctl = CSR_READ_2(sc, base + PCIER_LINK_CTL);
-			if ((ctl & 0x08) != 0)
+			if ((ctl & PCIEM_LINK_CTL_RCB) != 0)
 				sc->alc_rcb = DMA_CFG_RCB_128;
 			if (bootverbose)
 				device_printf(dev, "RCB %u bytes\n",
 				    sc->alc_rcb == DMA_CFG_RCB_64 ? 64 : 128);
-			state = ctl & 0x03;
-			if (state & 0x01)
+			state = ctl & PCIEM_LINK_CTL_ASPMC;
+			if (state & PCIEM_LINK_CTL_ASPMC_L0S)
 				sc->alc_flags |= ALC_FLAG_L0S;
-			if (state & 0x02)
+			if (state & PCIEM_LINK_CTL_ASPMC_L1)
 				sc->alc_flags |= ALC_FLAG_L1S;
 			if (bootverbose)
 				device_printf(sc->alc_dev, "ASPM %s %s\n",
