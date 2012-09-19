@@ -3625,17 +3625,17 @@ bge_reset(struct bge_softc *sc)
 			pci_write_config(dev, 0xC4, val | (1 << 15), 4);
 		}
 		devctl = pci_read_config(dev,
-		    sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+		    sc->bge_expcap + PCIER_DEVICE_CTL, 2);
 		/* Clear enable no snoop and disable relaxed ordering. */
-		devctl &= ~(PCIM_EXP_CTL_RELAXED_ORD_ENABLE |
-		    PCIM_EXP_CTL_NOSNOOP_ENABLE);
-		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
+		devctl &= ~(PCIEM_CTL_RELAXED_ORD_ENABLE |
+		    PCIEM_CTL_NOSNOOP_ENABLE);
+		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_CTL,
 		    devctl, 2);
 		/* Clear error status. */
-		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_STA,
-		    PCIM_EXP_STA_CORRECTABLE_ERROR |
-		    PCIM_EXP_STA_NON_FATAL_ERROR | PCIM_EXP_STA_FATAL_ERROR |
-		    PCIM_EXP_STA_UNSUPPORTED_REQ, 2);
+		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_STA,
+		    PCIEM_STA_CORRECTABLE_ERROR |
+		    PCIEM_STA_NON_FATAL_ERROR | PCIEM_STA_FATAL_ERROR |
+		    PCIEM_STA_UNSUPPORTED_REQ, 2);
 	}
 
 	/* Reset some of the PCI state that got zapped by reset. */

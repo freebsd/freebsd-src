@@ -216,7 +216,11 @@ pfattach(void)
 
 	/* default rule should never be garbage collected */
 	V_pf_default_rule.entries.tqe_prev = &V_pf_default_rule.entries.tqe_next;
+#ifdef PF_DEFAULT_TO_DROP
+	V_pf_default_rule.action = PF_DROP;
+#else
 	V_pf_default_rule.action = PF_PASS;
+#endif
 	V_pf_default_rule.nr = -1;
 	V_pf_default_rule.rtableid = -1;
 
@@ -1808,6 +1812,7 @@ DIOCGETSTATES_full:
 		    (!pnl->dport || !pnl->sport)))
 			error = EINVAL;
 		else {
+			bzero(&key, sizeof(key));
 			key.af = pnl->af;
 			key.proto = pnl->proto;
 			PF_ACPY(&key.addr[sidx], &pnl->saddr, pnl->af);

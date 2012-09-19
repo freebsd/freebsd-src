@@ -743,8 +743,8 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 			 */
 			pcie_chipset = 1;
 			cfg->pcie.pcie_location = ptr;
-			val = REG(ptr + PCIR_EXPRESS_FLAGS, 2);
-			cfg->pcie.pcie_type = val & PCIM_EXP_FLAGS_TYPE;
+			val = REG(ptr + PCIER_FLAGS, 2);
+			cfg->pcie.pcie_type = val & PCIEM_FLAGS_TYPE;
 			break;
 		default:
 			break;
@@ -1791,8 +1791,8 @@ pci_get_max_read_req(device_t dev)
 	cap = dinfo->cfg.pcie.pcie_location;
 	if (cap == 0)
 		return (0);
-	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	val &= PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
+	val &= PCIEM_CTL_MAX_READ_REQUEST;
 	val >>= 12;
 	return (1 << (val + 7));
 }
@@ -1812,10 +1812,10 @@ pci_set_max_read_req(device_t dev, int size)
 	if (size > 4096)
 		size = 4096;
 	size = (1 << (fls(size) - 1));
-	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
+	val &= ~PCIEM_CTL_MAX_READ_REQUEST;
 	val |= (fls(size) - 8) << 12;
-	pci_write_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
+	pci_write_config(dev, cap + PCIER_DEVICE_CTL, val, 2);
 	return (size);
 }
 
@@ -4469,28 +4469,28 @@ pci_cfg_restore_pcie(device_t dev, struct pci_devinfo *dinfo)
 	cfg = &dinfo->cfg.pcie;
 	pos = cfg->pcie_location;
 
-	version = cfg->pcie_flags & PCIM_EXP_FLAGS_VERSION;
+	version = cfg->pcie_flags & PCIEM_FLAGS_VERSION;
 
-	WREG(PCIR_EXPRESS_DEVICE_CTL, cfg->pcie_device_ctl);
+	WREG(PCIER_DEVICE_CTL, cfg->pcie_device_ctl);
 
-	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
-	    cfg->pcie_type == PCIM_EXP_TYPE_ENDPOINT ||
-	    cfg->pcie_type == PCIM_EXP_TYPE_LEGACY_ENDPOINT)
-		WREG(PCIR_EXPRESS_LINK_CTL, cfg->pcie_link_ctl);
+	if (version > 1 || cfg->pcie_type == PCIEM_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIEM_TYPE_ENDPOINT ||
+	    cfg->pcie_type == PCIEM_TYPE_LEGACY_ENDPOINT)
+		WREG(PCIER_LINK_CTL, cfg->pcie_link_ctl);
 
-	if (version > 1 || (cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
-	    (cfg->pcie_type == PCIM_EXP_TYPE_DOWNSTREAM_PORT &&
-	     (cfg->pcie_flags & PCIM_EXP_FLAGS_SLOT))))
-		WREG(PCIR_EXPRESS_SLOT_CTL, cfg->pcie_slot_ctl);
+	if (version > 1 || (cfg->pcie_type == PCIEM_TYPE_ROOT_PORT ||
+	    (cfg->pcie_type == PCIEM_TYPE_DOWNSTREAM_PORT &&
+	     (cfg->pcie_flags & PCIEM_FLAGS_SLOT))))
+		WREG(PCIER_SLOT_CTL, cfg->pcie_slot_ctl);
 
-	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
-	    cfg->pcie_type == PCIM_EXP_TYPE_ROOT_EC)
-		WREG(PCIR_EXPRESS_ROOT_CTL, cfg->pcie_root_ctl);
+	if (version > 1 || cfg->pcie_type == PCIEM_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIEM_TYPE_ROOT_EC)
+		WREG(PCIER_ROOT_CTL, cfg->pcie_root_ctl);
 
 	if (version > 1) {
-		WREG(PCIR_EXPRESS_DEVICE_CTL2, cfg->pcie_device_ctl2);
-		WREG(PCIR_EXPRESS_LINK_CTL2, cfg->pcie_link_ctl2);
-		WREG(PCIR_EXPRESS_SLOT_CTL2, cfg->pcie_slot_ctl2);
+		WREG(PCIER_DEVICE_CTL2, cfg->pcie_device_ctl2);
+		WREG(PCIER_LINK_CTL2, cfg->pcie_link_ctl2);
+		WREG(PCIER_SLOT_CTL2, cfg->pcie_slot_ctl2);
 	}
 #undef WREG
 }
@@ -4562,30 +4562,30 @@ pci_cfg_save_pcie(device_t dev, struct pci_devinfo *dinfo)
 	cfg = &dinfo->cfg.pcie;
 	pos = cfg->pcie_location;
 
-	cfg->pcie_flags = RREG(PCIR_EXPRESS_FLAGS);
+	cfg->pcie_flags = RREG(PCIER_FLAGS);
 
-	version = cfg->pcie_flags & PCIM_EXP_FLAGS_VERSION;
+	version = cfg->pcie_flags & PCIEM_FLAGS_VERSION;
 
-	cfg->pcie_device_ctl = RREG(PCIR_EXPRESS_DEVICE_CTL);
+	cfg->pcie_device_ctl = RREG(PCIER_DEVICE_CTL);
 
-	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
-	    cfg->pcie_type == PCIM_EXP_TYPE_ENDPOINT ||
-	    cfg->pcie_type == PCIM_EXP_TYPE_LEGACY_ENDPOINT)
-		cfg->pcie_link_ctl = RREG(PCIR_EXPRESS_LINK_CTL);
+	if (version > 1 || cfg->pcie_type == PCIEM_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIEM_TYPE_ENDPOINT ||
+	    cfg->pcie_type == PCIEM_TYPE_LEGACY_ENDPOINT)
+		cfg->pcie_link_ctl = RREG(PCIER_LINK_CTL);
 
-	if (version > 1 || (cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
-	    (cfg->pcie_type == PCIM_EXP_TYPE_DOWNSTREAM_PORT &&
-	     (cfg->pcie_flags & PCIM_EXP_FLAGS_SLOT))))
-		cfg->pcie_slot_ctl = RREG(PCIR_EXPRESS_SLOT_CTL);
+	if (version > 1 || (cfg->pcie_type == PCIEM_TYPE_ROOT_PORT ||
+	    (cfg->pcie_type == PCIEM_TYPE_DOWNSTREAM_PORT &&
+	     (cfg->pcie_flags & PCIEM_FLAGS_SLOT))))
+		cfg->pcie_slot_ctl = RREG(PCIER_SLOT_CTL);
 
-	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
-	    cfg->pcie_type == PCIM_EXP_TYPE_ROOT_EC)
-		cfg->pcie_root_ctl = RREG(PCIR_EXPRESS_ROOT_CTL);
+	if (version > 1 || cfg->pcie_type == PCIEM_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIEM_TYPE_ROOT_EC)
+		cfg->pcie_root_ctl = RREG(PCIER_ROOT_CTL);
 
 	if (version > 1) {
-		cfg->pcie_device_ctl2 = RREG(PCIR_EXPRESS_DEVICE_CTL2);
-		cfg->pcie_link_ctl2 = RREG(PCIR_EXPRESS_LINK_CTL2);
-		cfg->pcie_slot_ctl2 = RREG(PCIR_EXPRESS_SLOT_CTL2);
+		cfg->pcie_device_ctl2 = RREG(PCIER_DEVICE_CTL2);
+		cfg->pcie_link_ctl2 = RREG(PCIER_LINK_CTL2);
+		cfg->pcie_slot_ctl2 = RREG(PCIER_SLOT_CTL2);
 	}
 #undef RREG
 }

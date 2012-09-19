@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 29 2012
+.Dd September 18 2012
 .Dt PF 4
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd packet filter
 .Sh SYNOPSIS
 .Cd "device pf"
+.Cd "options PF_DEFAULT_TO_DROP"
 .Sh DESCRIPTION
 Packet filtering takes place in the kernel.
 A pseudo-device,
@@ -94,6 +95,15 @@ Read only
 .Xr sysctl 8
 variables with matching names are provided to obtain current values
 at runtime.
+.Sh KERNEL OPTIONS
+The following options in the kernel configuration file are related to
+.Nm
+operation:
+.Pp
+.Bl -tag -width ".Dv PF_DEFAULT_TO_DROP" -compact
+.It Dv PF_DEFAULT_TO_DROP
+Change default policy to drop by default
+.El
 .Sh IOCTL INTERFACE
 .Nm
 supports the following

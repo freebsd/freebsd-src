@@ -429,9 +429,9 @@ t4_attach(device_t dev)
 		uint32_t v;
 
 		pci_set_max_read_req(dev, 4096);
-		v = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
-		v |= PCIM_EXP_CTL_RELAXED_ORD_ENABLE;
-		pci_write_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, v, 2);
+		v = pci_read_config(dev, i + PCIER_DEVICE_CTL, 2);
+		v |= PCIEM_CTL_RELAXED_ORD_ENABLE;
+		pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
 	}
 
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",

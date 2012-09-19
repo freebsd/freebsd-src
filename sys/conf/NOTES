@@ -918,6 +918,8 @@ device		lagg
 # packets without touching the TTL).  This can be useful to hide firewalls
 # from traceroute and similar tools.
 #
+# PF_DEFAULT_TO_DROP causes the default pf(4) rule to deny everything.
+#
 # TCPDEBUG enables code which keeps traces of the TCP state machine
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
@@ -937,6 +939,7 @@ options 	IPFILTER_LOG		#ipfilter logging
 options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
+options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPDEBUG
 options 	RADIX_MPATH
 
