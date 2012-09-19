@@ -1,6 +1,7 @@
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
-%articles.ent;
+<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
+<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//EN">
+%entities;
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
@@ -96,9 +97,9 @@
 
       <informaltable frame="none" pgwide="1">
 	<tgroup cols="3">
-	  <colspec colwidth="1*">
-	  <colspec colwidth="1*">
-	  <colspec colwidth="3*">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="3*"/>
 	  <thead>
 	    <row>
 	      <entry>Advisory</entry>
@@ -294,8 +295,8 @@
 
       <informaltable frame="none" pgwide="1">
 	<tgroup cols="2">
-	  <colspec colwidth="1*">
-	  <colspec colwidth="3*">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="3*"/>
 	  <thead>
 	    <row>
 	      <entry>&man.sysctl.8; variable name</entry>
@@ -1264,7 +1265,7 @@ nfsuserd_enable="YES"</programlisting>
 	when a login daemon crashes or fails to remove the entry
 	during shutdown.</para>
 
-      <para revision="224171">The &man.zpool.8: utility now supports a
+      <para revision="224171">The &man.zpool.8; utility now supports a
 	<command>zpool labelclear</command> command.  This allows to
 	wipe the label data from a drive that is not active in a
 	pool.</para>
