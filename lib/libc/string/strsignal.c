@@ -121,27 +121,27 @@ strsignal(int num)
 #endif
 			sizeof(sig_ebuf));
 
-	signum = num;
-	if (num < 0)
-		signum = -signum;
+		signum = num;
+		if (num < 0)
+			signum = -signum;
 
-	t = tmp;
-	do {
-		*t++ = "0123456789"[signum % 10];
-	} while (signum /= 10);
-	if (num < 0)
-		*t++ = '-';
+		t = tmp;
+		do {
+			*t++ = "0123456789"[signum % 10];
+		} while (signum /= 10);
+		if (num < 0)
+			*t++ = '-';
 
-	p = (ebuf + n);
-	*p++ = ':';
-	*p++ = ' ';
+		p = (ebuf + n);
+		*p++ = ':';
+		*p++ = ' ';
 
-	for (;;) {
-		*p++ = *--t;
-		if (t <= tmp)
-			break;
-	}
-	*p = '\0';
+		for (;;) {
+			*p++ = *--t;
+			if (t <= tmp)
+				break;
+		}
+		*p = '\0';
 	}
 
 #if defined(NLS)
