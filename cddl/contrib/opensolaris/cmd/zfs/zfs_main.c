@@ -240,9 +240,9 @@ get_usage(zfs_help_t idx)
 		return (gettext("\tupgrade [-v]\n"
 		    "\tupgrade [-r] [-V version] <-a | filesystem ...>\n"));
 	case HELP_JAIL:
-		return (gettext("\tjail <jailid> <filesystem>\n"));
+		return (gettext("\tjail <jailid|jailname> <filesystem>\n"));
 	case HELP_UNJAIL:
-		return (gettext("\tunjail <jailid> <filesystem>\n"));
+		return (gettext("\tunjail <jailid|jailname> <filesystem>\n"));
 	case HELP_LIST:
 		return (gettext("\tlist [-rH][-d max] "
 		    "[-o property[,...]] [-t type[,...]] [-s property] ...\n"
