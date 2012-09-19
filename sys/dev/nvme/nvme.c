@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/module.h>
 
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include "nvme_private.h"
@@ -82,17 +83,29 @@ static struct _pcsid
 static int
 nvme_probe (device_t device)
 {
-	u_int32_t type = pci_get_devid(device);
-	struct _pcsid *ep = pci_ids;
+	struct _pcsid	*ep;
+	int		probe_val = ENXIO;
+	u_int32_t	type;
+
+	type = pci_get_devid(device);
+	ep = pci_ids;
+
+#if defined(PCIS_STORAGE_NVM)
+	if (pci_get_class(device)    == PCIC_STORAGE &&
+	    pci_get_subclass(device) == PCIS_STORAGE_NVM &&
+	    pci_get_progif(device)   == PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0)
+		probe_val = BUS_PROBE_GENERIC;
+#endif
 
 	while (ep->type && ep->type != type)
 		++ep;
 
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
-		return (BUS_PROBE_DEFAULT);
-	} else
-		return (ENXIO);
+		probe_val = BUS_PROBE_DEFAULT;
+	}
+
+	return (probe_val);
 }
 
 static void
