@@ -846,11 +846,8 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 
     /* handle inbound data buffer */
     real_length = amr_ioctl_buffer_length(au_length);
+    dp = malloc(real_length, M_AMR, M_WAITOK|M_ZERO);
     if (au_length != 0 && au_cmd[0] != 0x06) {
-	if ((dp = malloc(real_length, M_AMR, M_WAITOK|M_ZERO)) == NULL) {
-	    error = ENOMEM;
-	    goto out;
-	}
 	if ((error = copyin(au_buffer, dp, au_length)) != 0) {
 	    free(dp, M_AMR);
 	    return (error);
@@ -920,8 +917,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	error = copyout(dp, au_buffer, au_length);
     }
     debug(2, "copyout %ld bytes from %p -> %p", au_length, dp, au_buffer);
-    if (dp != NULL)
-	debug(2, "%p status 0x%x", dp, ac->ac_status);
+    debug(2, "%p status 0x%x", dp, ac->ac_status);
     *au_statusp = ac->ac_status;
 
 out:
