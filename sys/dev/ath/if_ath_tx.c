@@ -1289,8 +1289,18 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	ath_tx_handoff(sc, txq, bf);
 }
 
-
-
+/*
+ * Do the basic frame setup stuff that's required before the frame
+ * is added to a software queue.
+ *
+ * All frames get mostly the same treatment and it's done once.
+ * Retransmits fiddle with things like the rate control setup,
+ * setting the retransmit bit in the packet; doing relevant DMA/bus
+ * syncing and relinking it (back) into the hardware TX queue.
+ *
+ * Note that this may cause the mbuf to be reallocated, so
+ * m0 may not be valid.
+ */
 static int
 ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0, struct ath_txq *txq)
@@ -2699,20 +2709,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		ath_tx_tid_sched(sc, atid);
 	}
 }
-
-/*
- * Do the basic frame setup stuff that's required before the frame
- * is added to a software queue.
- *
- * All frames get mostly the same treatment and it's done once.
- * Retransmits fiddle with things like the rate control setup,
- * setting the retransmit bit in the packet; doing relevant DMA/bus
- * syncing and relinking it (back) into the hardware TX queue.
- *
- * Note that this may cause the mbuf to be reallocated, so
- * m0 may not be valid.
- */
-
 
 /*
  * Configure the per-TID node state.
