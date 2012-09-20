@@ -5043,10 +5043,19 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 * XXX if this is attempt=50, the TID will be downgraded
 	 * XXX to a non-aggregate session. So we must unpause the
 	 * XXX TID here or it'll never be done.
+	 *
+	 * Also, don't call it if bar_tx/bar_wait are 0; something
+	 * has beaten us to the punch? (XXX figure out what?)
 	 */
 	if (status == 0 || attempts == 50) {
 		ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
-		ath_tx_tid_bar_unsuspend(sc, atid);
+		if (atid->bar_tx == 0 || atid->bar_wait == 0)
+			device_printf(sc->sc_dev,
+			    "%s: huh? bar_tx=%d, bar_wait=%d\n",
+			    __func__,
+			    atid->bar_tx, atid->bar_wait);
+		else
+			ath_tx_tid_bar_unsuspend(sc, atid);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 	}
 }
