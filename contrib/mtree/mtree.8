@@ -492,7 +492,10 @@ and
 These may be specified without leading or trailing commas, but will be
 stored internally with them.
 .It Sy time
-The last modification time of the file.
+The last modification time of the file,
+in second and nanoseconds.
+The value should include a period character and exactly nine digits after
+the period.
 .It Sy type
 The type of the file; may be set to any one of the following:
 .Pp

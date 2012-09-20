@@ -358,7 +358,7 @@ dump_nodes(const char *dir, NODE *root, int pathlast)
 		if (MATCHFLAG(F_SIZE))
 			appendfield(pathlast, "size=%lld", (long long)cur->st_size);
 		if (MATCHFLAG(F_TIME))
-			appendfield(pathlast, "time=%lld.%ld",
+			appendfield(pathlast, "time=%lld.%09ld",
 			    (long long)cur->st_mtimespec.tv_sec,
 			    cur->st_mtimespec.tv_nsec);
 		if (MATCHFLAG(F_CKSUM))
