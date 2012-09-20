@@ -1730,28 +1730,6 @@ extern int			 pf_state_insert(struct pfi_kif *,
 				    struct pf_state *);
 extern void			 pf_free_state(struct pf_state *);
 
-static __inline u_int
-pf_hashsrc(struct pf_addr *addr, sa_family_t af)
-{
-	u_int h;
-
-#define	ADDR_HASH(a)	((a) ^ ((a) >> 16))
-
-	switch (af) {
-	case AF_INET:
-		h = ADDR_HASH(addr->v4.s_addr);
-		break;
-	case AF_INET6:
-		h = ADDR_HASH(addr->v6.__u6_addr.__u6_addr32[3]);
-		break;
-	default:
-		panic("%s: unknown address family %u", __func__, af);
-	}
-#undef ADDR_HASH
-
-	return (h & V_pf_srchashmask);
-}
-
 static __inline void
 pf_ref_state(struct pf_state *s)
 {
