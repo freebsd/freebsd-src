@@ -175,8 +175,16 @@ miss(NODE *p, char *tail)
 		if (p->type != F_DIR && (dflag || p->flags & F_VISIT))
 			continue;
 		strcpy(tail, p->name);
-		if (!(p->flags & F_VISIT))
-			printf("missing: %s", path);
+		if (!(p->flags & F_VISIT)) {
+			/* Don't print missing message if file exists as a 
+			   symbolic link and the -q flag is set. */
+			struct stat statbuf;
+
+			if (qflag && stat(path, &statbuf) == 0)
+				p->flags |= F_VISIT;
+			else
+				(void)printf("%s missing", path);
+		}
 		switch (p->type) {
 		case F_BLOCK:
 		case F_CHAR:

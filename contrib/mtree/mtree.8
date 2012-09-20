@@ -229,6 +229,12 @@ This is the default.
 Use the file hierarchy rooted in
 .Ar path  ,
 instead of the current directory.
+.It Fl q
+Quiet mode.
+Do not complain when a
+.Dq missing
+directory cannot be created because it already exists.
+This occurs when the directory is a symbolic link.
 .It Fl R Ar keywords
 Remove the specified (whitespace or comma separated) keywords from the current
 set of keywords.
