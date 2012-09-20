@@ -112,9 +112,11 @@ cwalk(void)
 		    "<unknown>";
 	}
 
-	printf(
-	    "#\t   user: %s\n#\tmachine: %s\n#\t   tree: %s\n#\t   date: %s",
-	    user, host, fullpath, ctime(&clocktime));
+	if (!nflag)
+		printf(
+	    	    "#\t   user: %s\n#\tmachine: %s\n#\t   tree: %s\n"
+		    "#\t   date: %s",
+		    user, host, fullpath, ctime(&clocktime));
 
 	if ((t = fts_open(argv, ftsoptions, dcmp)) == NULL)
 		mtree_err("fts_open: %s", strerror(errno));
@@ -125,12 +127,13 @@ cwalk(void)
 		}
 		switch(p->fts_info) {
 		case FTS_D:
-			printf("\n# %s\n", p->fts_path);
+			if (!nflag)
+				printf("\n# %s\n", p->fts_path);
 			statd(t, p, &uid, &gid, &mode, &flags);
 			statf(p);
 			break;
 		case FTS_DP:
-			if (p->fts_level > 0)
+			if (!nflag && p->fts_level > 0)
 				printf("# %s\n..\n\n", p->fts_path);
 			break;
 		case FTS_DNR:
