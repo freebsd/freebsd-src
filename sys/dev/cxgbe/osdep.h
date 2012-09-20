@@ -125,7 +125,7 @@ typedef boolean_t bool;
 #define PCI_EXP_LNKSTA		PCIER_LINK_STA
 #define PCI_EXP_LNKSTA_CLS	PCIEM_LINK_STA_SPEED
 #define PCI_EXP_LNKSTA_NLW	PCIEM_LINK_STA_WIDTH
-#define PCI_EXP_DEVCTL2		0x28
+#define PCI_EXP_DEVCTL2		PCIER_DEVICE_CTL2
 
 static inline int
 ilog2(long x)

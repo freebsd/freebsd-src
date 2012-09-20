@@ -559,6 +559,7 @@ struct nfsrv_descript {
 #define	ND_EXGSSINTEGRITY	0x00200000
 #define	ND_EXGSSPRIVACY		0x00400000
 #define	ND_INCRSEQID		0x00800000
+#define	ND_NFSCL		0x01000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.

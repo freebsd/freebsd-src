@@ -1347,8 +1347,8 @@ re_attach(device_t dev)
 		if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
 			ctl = pci_read_config(dev, sc->rl_expcap +
 			    PCIER_LINK_CTL, 2);
-			if ((ctl & 0x0003) != 0) {
-				ctl &= ~0x0003;
+			if ((ctl & PCIEM_LINK_CTL_ASPMC) != 0) {
+				ctl &= ~PCIEM_LINK_CTL_ASPMC;
 				pci_write_config(dev, sc->rl_expcap +
 				    PCIER_LINK_CTL, ctl, 2);
 				device_printf(dev, "ASPM disabled\n");
