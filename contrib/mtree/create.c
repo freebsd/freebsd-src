@@ -137,8 +137,12 @@ cwalk(void)
 			break;
 		case FTS_DP:
 			if (!nflag && p->fts_level > 0)
-				printf("%*s# %s\n%*s..\n\n", indent, "",
-				    p->fts_path, indent, "");
+				printf("%*s# %s\n", indent, "", p->fts_path);
+#ifndef __FreeBSD__
+			if (p->fts_level > 0)
+#endif
+				printf("%*s..\n\n", indent, "");
+
 			break;
 		case FTS_DNR:
 		case FTS_ERR:
@@ -202,7 +206,11 @@ statf(int indent, FTSENT *p)
 		    (long long)p->fts_statp->st_rdev);
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
 		output(indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
-	if (keys & F_SIZE && S_ISREG(p->fts_statp->st_mode))
+	if (keys & F_SIZE
+#ifndef __FreeBSD__
+	    && S_ISREG(p->fts_statp->st_mode)
+#endif
+	    )
 		output(indent, &offset, "size=%lld",
 		    (long long)p->fts_statp->st_size);
 	if (keys & F_TIME)
@@ -233,7 +241,11 @@ statf(int indent, FTSENT *p)
 	if (keys & F_RMD160 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: RMD160File failed: %s", p->fts_accpath, strerror(errno));
+#ifndef __FreeBSD__
 		output(indent, &offset, "rmd160=%s", digestbuf);
+#else
+		output(indent, &offset, "ripemd160digest=%s", digestbuf);
+#endif
 		free(digestbuf);
 	}
 #endif	/* ! NO_RMD160 */
