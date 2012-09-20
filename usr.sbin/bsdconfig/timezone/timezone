@@ -91,14 +91,19 @@ dialog_menu_main()
 			\"\"         \
 	        	$continent_menu_list )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--title \"\$title\"             \
 		--backtitle \"\$btitle\"        \
 		--ok-label \"\$msg_ok\"         \
 		--cancel-label \"\$msg_cancel\" \
 		--menu \"\$prompt\" $size       \
 		$continent_menu_list            \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN
@@ -354,15 +359,17 @@ while :; do
 			#
 			# Launch the country selection menu
 			#
-			eval $DIALOG \
+			dialog_menu=$( eval $DIALOG \
 				--title \"\$title\"             \
 				--backtitle \"\$btitle\"        \
 				--ok-label \"\$msg_ok\"         \
 				--cancel-label \"\$msg_cancel\" \
 				--menu \"\$prompt\" $size       \
 				$menu_list                      \
-				2> "$DIALOG_TMPDIR/dialog.menu.$$"
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_MENU_$$ "$dialog_menu"
 			tag=$( f_dialog_menutag )
 
 			if [ $retval -ne 0 ]; then
@@ -409,15 +416,17 @@ while :; do
 		# Launch the zone selection menu
 		# NOTE: This is as deep as we go
 		#
-		eval $DIALOG \
+		dialog_menu=$( eval $DIALOG \
 			--title \"\$title\"             \
 			--backtitle \"\$btitle\"        \
 			--ok-label \"\$msg_ok\"         \
 			--cancel-label \"\$msg_cancel\" \
 			--menu \"\$prompt\" $size       \
 			$menu_list                      \
-			2> "$DIALOG_TMPDIR/dialog.menu.$$"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 		retval=$?
+		setvar DIALOG_MENU_$$ "$dialog_menu"
 		n=$( f_dialog_menutag )
 
 		if [ $retval -ne 0 ]; then

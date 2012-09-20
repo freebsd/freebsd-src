@@ -177,7 +177,8 @@ dialog_menu_main()
 	        	\"\"         \
 	        	$menu_list   )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear                                 \
 		--title \"\$title\"                     \
 		--backtitle \"\$btitle\"                \
@@ -185,7 +186,11 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"                 \
 		--cancel-label \"\$msg_exit_bsdconfig\" \
 		--menu \"\$prompt\" $size $menu_list    \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN
