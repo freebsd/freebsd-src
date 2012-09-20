@@ -137,8 +137,8 @@ cwalk(void)
 			break;
 		case FTS_DP:
 			if (!nflag && p->fts_level > 0)
-				printf("%*s# %s\n..\n\n", indent, "",
-				    p->fts_path);
+				printf("%*s# %s\n%*s..\n\n", indent, "",
+				    p->fts_path, indent, "");
 			break;
 		case FTS_DNR:
 		case FTS_ERR:
