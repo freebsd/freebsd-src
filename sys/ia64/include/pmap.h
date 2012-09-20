@@ -118,6 +118,7 @@ extern int pmap_vhpt_log2size;
 
 #define	pmap_page_get_memattr(m)	((m)->md.memattr)
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 #define	pmap_mapbios(pa, sz)	pmap_mapdev(pa, sz)
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev(va, sz)
 
