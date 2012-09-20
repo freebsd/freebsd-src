@@ -72,6 +72,7 @@ static KEY keylist[] = {
 	{"mode",	F_MODE,		NEEDVALUE},
 	{"nlink",	F_NLINK,	NEEDVALUE},
 	{"optional",	F_OPT,		0},
+	{"ripemd160digest", F_RMD160,	NEEDVALUE},
 	{"rmd160",	F_RMD160,	NEEDVALUE},
 	{"rmd160digest",F_RMD160,	NEEDVALUE},
 	{"sha1",	F_SHA1,		NEEDVALUE},

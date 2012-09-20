@@ -414,13 +414,22 @@ typeerr:		LABEL;
 	if (s->flags & F_RMD160) {
 		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
+#ifndef __FreeBSD__
 			printf("%srmd160: %s: %s\n",
+#else
+			printf("%sripemd160digest: %s: %s\n",
+#endif
+
 			    tab, p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else {
 			if (strcmp(s->rmd160digest, digestbuf)) {
 				LABEL;
+#ifndef __FreeBSD__
 				printf("%srmd160 (0x%s, 0x%s)\n",
+#else
+				printf("%sripemd160digest (0x%s, 0x%s)\n",
+#endif
 				    tab, s->rmd160digest, digestbuf);
 			}
 			tab = "\t";

@@ -366,7 +366,12 @@ dump_nodes(const char *dir, NODE *root, int pathlast)
 		if (MATCHFLAG(F_MD5))
 			appendfield(pathlast, "md5=%s", cur->md5digest);
 		if (MATCHFLAG(F_RMD160))
+#ifndef __FreeBSD__
 			appendfield(pathlast, "rmd160=%s", cur->rmd160digest);
+#else
+			appendfield(pathlast, "ripemd160digest=%s",
+			    cur->rmd160digest);
+#endif
 		if (MATCHFLAG(F_SHA1))
 			appendfield(pathlast, "sha1=%s", cur->sha1digest);
 		if (MATCHFLAG(F_SHA256))
