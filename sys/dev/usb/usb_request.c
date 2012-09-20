@@ -87,7 +87,7 @@ struct usb_ctrl_debug {
 	int bus_index;		/* target bus */
 	int dev_index;		/* target address */
 	int ds_fail;		/* fail data stage */
-	int ss_fail;		/* fail data stage */
+	int ss_fail;		/* fail status stage */
 	int ds_delay;		/* data stage delay in ms */
 	int ss_delay;		/* status stage delay in ms */
 	int bmRequestType_value;
