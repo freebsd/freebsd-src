@@ -1743,6 +1743,7 @@ pf_hashsrc(struct pf_addr *addr, sa_family_t af)
 		break;
 	case AF_INET6:
 		h = ADDR_HASH(addr->v6.__u6_addr.__u6_addr32[3]);
+		break;
 	default:
 		panic("%s: unknown address family %u", __func__, af);
 	}
