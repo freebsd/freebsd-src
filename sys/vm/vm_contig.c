@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -87,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 static int
-vm_contig_launder_page(vm_page_t m, vm_page_t *next)
+vm_contig_launder_page(vm_page_t m, vm_page_t *next, int tries)
 {
 	vm_object_t object;
 	vm_page_t m_tmp;
@@ -96,7 +97,10 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 	int vfslocked;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	vm_page_lock_assert(m, MA_OWNED);
+	if (!vm_pageout_page_lock(m, next) || m->hold_count != 0) {
+		vm_page_unlock(m);
+		return (EAGAIN);
+	}
 	object = m->object;
 	if (!VM_OBJECT_TRYLOCK(object) &&
 	    (!vm_pageout_fallback_object_lock(m, next) || m->hold_count != 0)) {
@@ -104,7 +108,13 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 		VM_OBJECT_UNLOCK(object);
 		return (EAGAIN);
 	}
-	if (vm_page_sleep_if_busy(m, TRUE, "vpctw0")) {
+	if ((m->oflags & VPO_BUSY) != 0 || m->busy != 0) {
+		if (tries == 0) {
+			vm_page_unlock(m);
+			VM_OBJECT_UNLOCK(object);
+			return (EAGAIN);
+		}
+		vm_page_sleep(m, "vpctw0");
 		VM_OBJECT_UNLOCK(object);
 		vm_page_lock_queues();
 		return (EBUSY);
@@ -114,7 +124,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 		pmap_remove_all(m);
 	if (m->dirty != 0) {
 		vm_page_unlock(m);
-		if ((object->flags & OBJ_DEAD) != 0) {
+		if (tries == 0 || (object->flags & OBJ_DEAD) != 0) {
 			VM_OBJECT_UNLOCK(object);
 			return (EAGAIN);
 		}
@@ -150,34 +160,25 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(object);
-	return (0);
+	return (EAGAIN);
 }
 
 static int
-vm_contig_launder(int queue, vm_paddr_t low, vm_paddr_t high)
+vm_contig_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 {
 	vm_page_t m, next;
 	vm_paddr_t pa;
 	int error;
 
 	TAILQ_FOREACH_SAFE(m, &vm_page_queues[queue].pl, pageq, next) {
-
-		/* Skip marker pages */
+		KASSERT(m->queue == queue,
+		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
-
 		pa = VM_PAGE_TO_PHYS(m);
 		if (pa < low || pa + PAGE_SIZE > high)
 			continue;
-
-		if (!vm_pageout_page_lock(m, &next) || m->hold_count != 0) {
-			vm_page_unlock(m);
-			continue;
-		}
-		KASSERT(m->queue == queue,
-		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
-		error = vm_contig_launder_page(m, &next);
-		vm_page_lock_assert(m, MA_NOTOWNED);
+		error = vm_contig_launder_page(m, &next, tries);
 		if (error == 0)
 			return (TRUE);
 		if (error == EBUSY)
@@ -203,24 +204,47 @@ vm_page_release_contig(vm_page_t m, vm_pindex_t count)
 }
 
 /*
- * Increase the number of cached pages.
+ * Increase the number of cached pages.  The specified value, "tries",
+ * determines which categories of pages are cached:
+ *
+ *  0: All clean, inactive pages within the specified physical address range
+ *     are cached.  Will not sleep.
+ *  1: The vm_lowmem handlers are called.  All inactive pages within
+ *     the specified physical address range are cached.  May sleep.
+ *  2: The vm_lowmem handlers are called.  All inactive and active pages
+ *     within the specified physical address range are cached.  May sleep.
  */
 void
 vm_contig_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 {
 	int actl, actmax, inactl, inactmax;
 
+	if (tries > 0) {
+		/*
+		 * Decrease registered cache sizes.  The vm_lowmem handlers
+		 * may acquire locks and/or sleep, so they can only be invoked
+		 * when "tries" is greater than zero.
+		 */
+		EVENTHANDLER_INVOKE(vm_lowmem, 0);
+
+		/*
+		 * We do this explicitly after the caches have been drained
+		 * above.
+		 */
+		uma_reclaim();
+	}
 	vm_page_lock_queues();
 	inactl = 0;
-	inactmax = tries < 1 ? 0 : cnt.v_inactive_count;
+	inactmax = cnt.v_inactive_count;
 	actl = 0;
 	actmax = tries < 2 ? 0 : cnt.v_active_count;
 again:
-	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE, low, high)) {
+	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE, tries, low,
+	    high)) {
 		inactl++;
 		goto again;
 	}
-	if (actl < actmax && vm_contig_launder(PQ_ACTIVE, low, high)) {
+	if (actl < actmax && vm_contig_launder(PQ_ACTIVE, tries, low, high)) {
 		actl++;
 		goto again;
 	}
