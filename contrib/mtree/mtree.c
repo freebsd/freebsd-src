@@ -77,7 +77,7 @@ main(int argc, char **argv)
 	init_excludes();
 
 	while ((ch = getopt(argc, argv,
-	    "cCdDeE:f:I:ik:K:lLmMnN:p:PqrR:s:StuUWxX:"))
+	    "cCdDeE:f:I:ik:K:lLmMnN:p:PqrR:s:StuUwWxX:"))
 	    != -1) {
 		switch((char)ch) {
 		case 'c':
@@ -176,6 +176,9 @@ main(int argc, char **argv)
 			break;
 		case 'U':
 			Uflag = uflag = 1;
+			break;
+		case 'w':
+			/* Ignored for compatibility with FreeBSD's mtree. */
 			break;
 		case 'W':
 			mtree_Wflag = 1;
