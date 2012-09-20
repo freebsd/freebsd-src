@@ -282,7 +282,8 @@ f_dialog_input_view_details()
 
 	f_dialog_title "$msg_choose_view_details"
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -290,9 +291,11 @@ f_dialog_input_view_details()
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
 	local mtag="$( f_dialog_menutag )"
 
 	f_dialog_title_restore
@@ -390,7 +393,8 @@ f_dialog_input_rclist()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -399,7 +403,11 @@ f_dialog_input_rclist()
 		${SHOW_DESC:+--item-help}          \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 # f_dialog_input_rcvar [$init]
@@ -425,7 +433,8 @@ f_dialog_input_rcvar()
 		        	"$_input"           \
 		        	"$hline"            )
 
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -433,9 +442,11 @@ f_dialog_input_rcvar()
 			--cancel-label \"\$msg_cancel\"    \
 			--inputbox \"\$msg\" $size         \
 			\"\$_input\"                       \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_input=$( f_dialog_inputstr )
 
 		# Return if user either pressed ESC or chosen Cancel/No

@@ -167,7 +167,8 @@ f_dialog_input_ipaddr()
 	# Loop until the user provides taint-free input.
 	#
 	while :; do
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 		        --backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -175,9 +176,11 @@ f_dialog_input_ipaddr()
 			--cancel-label \"\$msg_cancel\"    \
 			--inputbox \"\$msg\" $size         \
 			\"\$_ipaddr\"                      \
-			2> "$DIALOG_TMPDIR/dialog.inputbox.$$"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		local retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_input=$( f_dialog_inputstr )
 
 		#

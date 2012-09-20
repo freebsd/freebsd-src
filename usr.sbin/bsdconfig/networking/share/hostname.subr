@@ -146,7 +146,8 @@ f_dialog_input_hostname()
 		         	"$msg"              \
 		         	"$hostname"         \
 		         	"$hline"            )
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -154,9 +155,11 @@ f_dialog_input_hostname()
 			--cancel-label \"\$msg_cancel\"    \
 			--inputbox \"\$msg\" $size         \
 			\"\$hostname\"                     \
-			2> "$DIALOG_TMPDIR/dialog.inputbox.$$"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		local retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		hostname=$( f_dialog_inputstr )
 
 		[ $retval -eq $SUCCESS ] || return $retval
