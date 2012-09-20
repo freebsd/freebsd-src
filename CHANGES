@@ -1,3 +1,8 @@
+	--- 9.8.3-P3 released ---
+
+3364.	[security]	Named could die on specially crafted record.
+			[RT #30416]
+
 	--- 9.8.3-P2 released ---
 
 3346.	[security]	Bad-cache data could be used before it was
