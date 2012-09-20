@@ -154,6 +154,20 @@ and
 If no inclusion list is provided, the default is to display all files.
 .It Fl i
 If specified, set the schg and/or sappnd flags.
+.It Fl j
+Indent the output 4 spaces each time a directory level is descended when  
+creating a specification with the
+.Fl c
+option.
+This does not affect either the /set statements or the comment before each
+directory.
+It does however affect the comment before the close of each directory.
+This is the equivalent of the
+.Fl i
+option in the
+.Fx
+version of
+.Nm .
 .It Fl K Ar keywords
 Add the specified (whitespace or comma separated) keywords to the current
 set of keywords.

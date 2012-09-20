@@ -69,7 +69,7 @@ void	 read_excludes_file(const char *);
 const char *rlink(const char *);
 int	 verify(void);
 
-extern int	dflag, eflag, iflag, lflag, mflag,
+extern int	dflag, eflag, iflag, jflag, lflag, mflag,
 		nflag, qflag, rflag, sflag, tflag, uflag;
 extern int	mtree_Mflag, mtree_Sflag, mtree_Wflag;
 extern size_t	mtree_lineno;

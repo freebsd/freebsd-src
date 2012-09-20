@@ -84,10 +84,10 @@ static mode_t mode;
 static u_long flags;
 
 static int	dcmp(const FTSENT * const *, const FTSENT * const *);
-static void	output(int *, const char *, ...)
-	__attribute__((__format__(__printf__, 2, 3)));
+static void	output(int, int *, const char *, ...)
+	__attribute__((__format__(__printf__, 3, 4)));
 static int	statd(FTS *, FTSENT *, uid_t *, gid_t *, mode_t *, u_long *);
-static void	statf(FTSENT *);
+static void	statf(int, FTSENT *);
 
 void
 cwalk(void)
@@ -99,6 +99,7 @@ cwalk(void)
 	const char *user;
 	char *argv[2];
 	char  dot[] = ".";
+	int indent = 0;
 
 	argv[0] = dot;
 	argv[1] = NULL;
@@ -121,6 +122,8 @@ cwalk(void)
 	if ((t = fts_open(argv, ftsoptions, dcmp)) == NULL)
 		mtree_err("fts_open: %s", strerror(errno));
 	while ((p = fts_read(t)) != NULL) {
+		if (jflag)
+			indent = p->fts_level * 4;
 		if (check_excludes(p->fts_name, p->fts_path)) {
 			fts_set(t, p, FTS_SKIP);
 			continue;
@@ -130,11 +133,12 @@ cwalk(void)
 			if (!nflag)
 				printf("\n# %s\n", p->fts_path);
 			statd(t, p, &uid, &gid, &mode, &flags);
-			statf(p);
+			statf(indent, p);
 			break;
 		case FTS_DP:
 			if (!nflag && p->fts_level > 0)
-				printf("# %s\n..\n\n", p->fts_path);
+				printf("%*s# %s\n..\n\n", indent, "",
+				    p->fts_path);
 			break;
 		case FTS_DNR:
 		case FTS_ERR:
@@ -144,7 +148,7 @@ cwalk(void)
 			break;
 		default:
 			if (!dflag)
-				statf(p);
+				statf(indent, p);
 			break;
 
 		}
@@ -155,56 +159,59 @@ cwalk(void)
 }
 
 static void
-statf(FTSENT *p)
+statf(int indent, FTSENT *p)
 {
 	u_int32_t len, val;
-	int fd, indent;
+	int fd, offset;
 	const char *name;
 #if !defined(NO_MD5) || !defined(NO_RMD160) || !defined(NO_SHA1) || !defined(NO_SHA2)
 	char *digestbuf;
 #endif
 
-	indent = printf("%s%s",
+	offset = printf("%*s%s%s", indent, "",
 	    S_ISDIR(p->fts_statp->st_mode) ? "" : "    ", vispath(p->fts_name));
 
-	if (indent > INDENTNAMELEN)
-		indent = MAXLINELEN;
+	if (offset > (INDENTNAMELEN + indent))
+		offset = MAXLINELEN;
 	else
-		indent += printf("%*s", INDENTNAMELEN - indent, "");
+		offset += printf("%*s", (INDENTNAMELEN + indent) - offset, "");
 
 	if (!S_ISREG(p->fts_statp->st_mode))
-		output(&indent, "type=%s", inotype(p->fts_statp->st_mode));
+		output(indent, &offset, "type=%s",
+		    inotype(p->fts_statp->st_mode));
 	if (keys & (F_UID | F_UNAME) && p->fts_statp->st_uid != uid) {
 		if (keys & F_UNAME &&
 		    (name = user_from_uid(p->fts_statp->st_uid, 1)) != NULL)
-			output(&indent, "uname=%s", name);
+			output(indent, &offset, "uname=%s", name);
 		else /* if (keys & F_UID) */
-			output(&indent, "uid=%u", p->fts_statp->st_uid);
+			output(indent, &offset, "uid=%u", p->fts_statp->st_uid);
 	}
 	if (keys & (F_GID | F_GNAME) && p->fts_statp->st_gid != gid) {
 		if (keys & F_GNAME &&
 		    (name = group_from_gid(p->fts_statp->st_gid, 1)) != NULL)
-			output(&indent, "gname=%s", name);
+			output(indent, &offset, "gname=%s", name);
 		else /* if (keys & F_GID) */
-			output(&indent, "gid=%u", p->fts_statp->st_gid);
+			output(indent, &offset, "gid=%u", p->fts_statp->st_gid);
 	}
 	if (keys & F_MODE && (p->fts_statp->st_mode & MBITS) != mode)
-		output(&indent, "mode=%#o", p->fts_statp->st_mode & MBITS);
+		output(indent, &offset, "mode=%#o",
+		    p->fts_statp->st_mode & MBITS);
 	if (keys & F_DEV &&
 	    (S_ISBLK(p->fts_statp->st_mode) || S_ISCHR(p->fts_statp->st_mode)))
-		output(&indent, "device=%#llx",
+		output(indent, &offset, "device=%#llx",
 		    (long long)p->fts_statp->st_rdev);
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
-		output(&indent, "nlink=%u", p->fts_statp->st_nlink);
+		output(indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
 	if (keys & F_SIZE && S_ISREG(p->fts_statp->st_mode))
-		output(&indent, "size=%lld", (long long)p->fts_statp->st_size);
+		output(indent, &offset, "size=%lld",
+		    (long long)p->fts_statp->st_size);
 	if (keys & F_TIME)
 #if defined(BSD4_4) && !defined(HAVE_NBTOOL_CONFIG_H)
-		output(&indent, "time=%ld.%ld",
+		output(indent, &offset, "time=%ld.%ld",
 		    (long)p->fts_statp->st_mtimespec.tv_sec,
 		    p->fts_statp->st_mtimespec.tv_nsec);
 #else
-		output(&indent, "time=%ld.%ld",
+		output(indent, &offset, "time=%ld.%ld",
 		    (long)p->fts_statp->st_mtime, (long)0);
 #endif
 	if (keys & F_CKSUM && S_ISREG(p->fts_statp->st_mode)) {
@@ -212,13 +219,13 @@ statf(FTSENT *p)
 		    crc(fd, &val, &len))
 			mtree_err("%s: %s", p->fts_accpath, strerror(errno));
 		close(fd);
-		output(&indent, "cksum=%lu", (long)val);
+		output(indent, &offset, "cksum=%lu", (long)val);
 	}
 #ifndef NO_MD5
 	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = MD5File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: MD5File failed: %s", p->fts_accpath, strerror(errno));
-		output(&indent, "md5=%s", digestbuf);
+		output(indent, &offset, "md5=%s", digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_MD5 */
@@ -226,7 +233,7 @@ statf(FTSENT *p)
 	if (keys & F_RMD160 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: RMD160File failed: %s", p->fts_accpath, strerror(errno));
-		output(&indent, "rmd160=%s", digestbuf);
+		output(indent, &offset, "rmd160=%s", digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_RMD160 */
@@ -234,7 +241,7 @@ statf(FTSENT *p)
 	if (keys & F_SHA1 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA1File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA1File failed: %s", p->fts_accpath, strerror(errno));
-		output(&indent, "sha1=%s", digestbuf);
+		output(indent, &offset, "sha1=%s", digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_SHA1 */
@@ -242,31 +249,32 @@ statf(FTSENT *p)
 	if (keys & F_SHA256 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA256_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA256_File failed: %s", p->fts_accpath, strerror(errno));
-		output(&indent, "sha256=%s", digestbuf);
+		output(indent, &offset, "sha256=%s", digestbuf);
 		free(digestbuf);
 	}
 #ifndef NO_SHA384
 	if (keys & F_SHA384 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA384_File failed: %s", p->fts_accpath, strerror(errno));
-		output(&indent, "sha384=%s", digestbuf);
+		output(indent, &offset, "sha384=%s", digestbuf);
 		free(digestbuf);
 	}
 #endif
 	if (keys & F_SHA512 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA512_File failed: %s", p->fts_accpath, strerror(errno));
-		output(&indent, "sha512=%s", digestbuf);
+		output(indent, &offset, "sha512=%s", digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_SHA2 */
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
-		output(&indent, "link=%s", vispath(rlink(p->fts_accpath)));
+		output(indent, &offset, "link=%s",
+		    vispath(rlink(p->fts_accpath)));
 #if HAVE_STRUCT_STAT_ST_FLAGS
 	if (keys & F_FLAGS && p->fts_statp->st_flags != flags) {
 		char *str = flags_to_string(p->fts_statp->st_flags, "none");
-		output(&indent, "flags=%s", str);
+		output(indent, &offset, "flags=%s", str);
 		free(str);
 	}
 #endif
@@ -415,7 +423,7 @@ dcmp(const FTSENT * const *a, const FTSENT * const *b)
 }
 
 void
-output(int *offset, const char *fmt, ...)
+output(int indent, int *offset, const char *fmt, ...)
 {
 	va_list ap;
 	char buf[1024];
@@ -425,8 +433,8 @@ output(int *offset, const char *fmt, ...)
 	va_end(ap);
 
 	if (*offset + strlen(buf) > MAXLINELEN - 3) {
-		printf(" \\\n%*s", INDENTNAMELEN, "");
-		*offset = INDENTNAMELEN;
+		printf(" \\\n%*s", INDENTNAMELEN + indent, "");
+		*offset = INDENTNAMELEN + indent;
 	}
 	*offset += printf(" %s", buf) + 1;
 }

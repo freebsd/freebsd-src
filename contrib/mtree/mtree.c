@@ -59,7 +59,7 @@ __RCSID("$NetBSD: mtree.c,v 1.37 2011/08/29 20:37:43 joerg Exp $");
 #include "extern.h"
 
 int	ftsoptions = FTS_PHYSICAL;
-int	cflag, Cflag, dflag, Dflag, eflag, iflag, lflag, mflag,
+int	cflag, Cflag, dflag, Dflag, eflag, iflag, jflag, lflag, mflag,
     	nflag, qflag, rflag, sflag, tflag, uflag, Uflag;
 char	fullpath[MAXPATHLEN];
 
@@ -77,7 +77,7 @@ main(int argc, char **argv)
 	init_excludes();
 
 	while ((ch = getopt(argc, argv,
-	    "cCdDeE:f:I:ik:K:lLmMnN:p:PqrR:s:StuUwWxX:"))
+	    "cCdDeE:f:I:ijk:K:lLmMnN:p:PqrR:s:StuUwWxX:"))
 	    != -1) {
 		switch((char)ch) {
 		case 'c':
@@ -107,6 +107,9 @@ main(int argc, char **argv)
 			break;
 		case 'I':
 			parsetags(&includetags, optarg);
+			break;
+		case 'j':
+			jflag = 1;
 			break;
 		case 'k':
 			keys = F_TYPE;
