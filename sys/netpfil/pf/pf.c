@@ -673,6 +673,11 @@ pf_remove_src_node(struct pf_src_node *src)
 	PF_HASHROW_LOCK(sh);
 	LIST_REMOVE(src, entry);
 	PF_HASHROW_UNLOCK(sh);
+
+	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
+	V_pf_status.src_nodes--;
+
+	uma_zfree(V_pf_sources_z, src);
 }
 
 /* Data storage structures initialization. */
@@ -3547,18 +3552,12 @@ csfailed:
 	if (nk != NULL)
 		uma_zfree(V_pf_state_key_z, nk);
 
-	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
+	if (sn != NULL && sn->states == 0 && sn->expire == 0)
 		pf_remove_src_node(sn);
-		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_sources_z, sn);
-	}
-	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
+
+	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0)
 		pf_remove_src_node(nsn);
-		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_sources_z, nsn);
-	}
+
 	return (PF_DROP);
 }
 
