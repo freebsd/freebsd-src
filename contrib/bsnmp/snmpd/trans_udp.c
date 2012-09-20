@@ -109,13 +109,6 @@ udp_init_port(struct tport *tp)
 		syslog(LOG_ERR, "creating UDP socket: %m");
 		return (SNMP_ERR_RES_UNAVAIL);
 	}
-	if (setsockopt(p->input.fd, IPPROTO_IP, IP_RECVDSTADDR, &on,
-	    sizeof(on)) == -1) {
-		syslog(LOG_ERR, "setsockopt(IP_RECVDSTADDR): %m");
-		close(p->input.fd);
-		p->input.fd = -1;
-		return (SNMP_ERR_GENERR);
-	}
 	ip = (p->addr[0] << 24) | (p->addr[1] << 16) | (p->addr[2] << 8) |
 	    p->addr[3];
 	memset(&addr, 0, sizeof(addr));
@@ -123,6 +116,14 @@ udp_init_port(struct tport *tp)
 	addr.sin_port = htons(p->port);
 	addr.sin_family = AF_INET;
 	addr.sin_len = sizeof(addr);
+	if (addr.sin_addr.s_addr == INADDR_ANY &&
+	    setsockopt(p->input.fd, IPPROTO_IP, IP_RECVDSTADDR, &on,
+	    sizeof(on)) == -1) {
+		syslog(LOG_ERR, "setsockopt(IP_RECVDSTADDR): %m");
+		close(p->input.fd);
+		p->input.fd = -1;
+		return (SNMP_ERR_GENERR);
+	}
 	if (bind(p->input.fd, (struct sockaddr *)&addr, sizeof(addr))) {
 		if (errno == EADDRNOTAVAIL) {
 			close(p->input.fd);
