@@ -144,16 +144,15 @@ fails it will return
 .Ss Descriptor Parsing Functions
 To parse the report descriptor the
 .Fn hid_start_parse
-function should be called with a report descriptor and a set that
-describes which items that are interesting.
+function should be called with a report descriptor, a set that
+describes which items that are interesting, and the desired report
+ID (or -1 to obtain items of all report IDs).
 The set is obtained by OR-ing together values
 .Fa "(1 << k)"
 where
 .Fa k
 is an item of type
 .Vt hid_kind_t .
-The report ID (if present) is given by
-.Fa id .
 The function returns
 .Dv NULL
 if the initialization fails, otherwise an opaque value to be used
