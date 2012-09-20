@@ -174,7 +174,7 @@ typedef struct nsu_requestinfo {
 static void
 sendrequest(isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
 	    dns_message_t *msg, dns_request_t **request);
-ISC_PLATFORM_NORETURN_POST static void
+ISC_PLATFORM_NORETURN_PRE static void
 fatal(const char *format, ...)
 ISC_FORMAT_PRINTF(1, 2) ISC_PLATFORM_NORETURN_POST;
 

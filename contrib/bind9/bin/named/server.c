@@ -228,7 +228,7 @@ static const struct {
 	{ NULL, ISC_FALSE }
 };
 
-ISC_PLATFORM_NORETURN_POST static void
+ISC_PLATFORM_NORETURN_PRE static void
 fatal(const char *msg, isc_result_t result) ISC_PLATFORM_NORETURN_POST;
 
 static void
