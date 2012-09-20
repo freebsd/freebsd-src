@@ -109,14 +109,19 @@ f_dialog_menu_user_list()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\" $size $menu_list       \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 # f_dialog_input_member_groups [$member_groups]
@@ -155,7 +160,8 @@ f_dialog_input_member_groups()
 		        	\"\"                   \
 		        	\"\$hline\"            \
 		        	$checklist_groups      )
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--separate-output                  \
@@ -164,9 +170,11 @@ f_dialog_input_member_groups()
 			--cancel-label \"\$msg_cancel\"    \
 			--checklist \"\$msg\" $size        \
 			$checklist_groups                  \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_member_groups=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -223,7 +231,8 @@ f_dialog_input_name()
 		        	"$_input"           \
 		        	"$hline"            )
 
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -231,9 +240,11 @@ f_dialog_input_name()
 			--cancel-label \"\$msg_cancel\"    \
 			--inputbox \"\$msg\" $size         \
 			\"\$_input\"                       \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_input=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -306,7 +317,8 @@ f_dialog_input_password()
 	#
 	local retval _password1 _password2
 	while :; do
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -314,15 +326,17 @@ f_dialog_input_password()
 			--cancel-label \"\$msg_cancel\"    \
 			--insecure                         \
 			--passwordbox \"\$msg\" $size      \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_password1=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
 
-		eval $DIALOG \
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -330,9 +344,11 @@ f_dialog_input_password()
 			--cancel-label \"\$msg_cancel\"    \
 			--insecure                         \
 			--passwordbox \"\$rmsg\" $rsize    \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_password2=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -384,7 +400,8 @@ f_dialog_input_gecos()
 	        	"$_input"           \
 	        	"$hline"            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -392,9 +409,11 @@ f_dialog_input_gecos()
 		--cancel-label \"\$msg_cancel\"    \
 		--inputbox \"\$msg\" $size         \
 		\"\$_input\"                       \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	# Return if user has either pressed ESC or chosen Cancel/No
@@ -427,7 +446,8 @@ f_dialog_input_uid()
 	        	"$_input"           \
 	        	"$hline"            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -435,9 +455,11 @@ f_dialog_input_uid()
 		--cancel-label \"\$msg_cancel\"    \
 		--inputbox \"\$msg\" $size         \
 		\"\$_input\"                       \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	# Return if user has either pressed ESC or chosen Cancel/No
@@ -470,7 +492,8 @@ f_dialog_input_gid()
 	        	"$_input"           \
 	        	"$hline"            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -478,9 +501,11 @@ f_dialog_input_gid()
 		--cancel-label \"\$msg_cancel\"    \
 		--inputbox \"\$msg\" $size         \
 		\"\$_input\"                       \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	# Return if user has either pressed ESC or chosen Cancel/No
@@ -513,7 +538,8 @@ f_dialog_input_class()
 	        	"$_input"           \
 	        	"$hline"            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -521,9 +547,11 @@ f_dialog_input_class()
 		--cancel-label \"\$msg_cancel\"    \
 		--inputbox \"\$msg\" $size         \
 		\"\$_input\"                       \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	# Return if user has either pressed ESC or chosen Cancel/No
@@ -569,7 +597,8 @@ f_dialog_input_change()
 		        	\"\$hline\"            \
 		        	$menu_list             )
 
-		eval $DIALOG \
+		local dialog_menu
+		dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -577,8 +606,10 @@ f_dialog_input_change()
 			--cancel-label \"\$msg_cancel\"    \
 			--menu \"\$msg\" $menu_size        \
 			$menu_list                         \
-			2> $DIALOG_TMPDIR/dialog.menu.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 	        retval=$?
+		setvar DIALOG_MENU_$$ "$dialog_menu"
 	        date_type=$( f_dialog_menutag )
 	        f_dprintf "retval=$retval date_type=[$date_type]"
 
@@ -602,7 +633,8 @@ f_dialog_input_change()
 			                 	"$DIALOG_BACKTITLE" \
 			                 	"$msg"              \
 			                 	"$hline"            )
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"          \
 				--backtitle \"\$DIALOG_BACKTITLE\"  \
 				--hline \"\$hline\"                 \
@@ -610,8 +642,10 @@ f_dialog_input_change()
 				--cancel-label \"\$msg_cancel\"     \
 				--calendar \"\$msg\" $calendar_size \
 				$_input_date                        \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_date=$( f_dialog_inputstr )
 			f_dprintf "retval=$retval ret_date=[$ret_date]"
 
@@ -626,7 +660,8 @@ f_dialog_input_change()
 			                	"$DIALOG_BACKTITLE" \
 			                	"$msg"              \
 			                	"$hline"            )
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -634,8 +669,10 @@ f_dialog_input_change()
 				--cancel-label \"\$msg_cancel\"    \
 				--timebox \"\$msg\" $timebox_size  \
 				$_input_time                       \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_time=$( f_dialog_inputstr )
 			f_dprintf "retval=$retval ret_time=[$ret_time]"
 
@@ -666,7 +703,8 @@ f_dialog_input_change()
 			        	"$ret_days"         \
 			        	"$hline"            )
 
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -674,8 +712,10 @@ f_dialog_input_change()
 				--cancel-label \"\$msg_cancel\"    \
 				--inputbox \"\$msg\" $size         \
 				\"\$ret_days\"                     \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_days=$( f_dialog_inputstr )
 
 			# Return to menu if either ESC or Cancel/No
@@ -707,7 +747,8 @@ f_dialog_input_change()
 			        	"$msg"              \
 			        	"$_input"           \
 			        	"$hline"            )
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -715,9 +756,11 @@ f_dialog_input_change()
 				--cancel-label \"\$msg_cancel\"    \
 				--inputbox \"\$msg\" $size         \
 				\"\$_input\"                       \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_secs=$( f_dialog_inputstr )
 
 			# Return to menu if either ESC or Cancel/No
@@ -779,7 +822,8 @@ f_dialog_input_expire()
 		        	\"\$hline\"            \
 		        	$menu_list             )
 
-		eval $DIALOG \
+		local dialog_menu
+		dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -787,8 +831,10 @@ f_dialog_input_expire()
 			--cancel-label \"\$msg_cancel\"    \
 			--menu \"\$msg\" $menu_size        \
 			$menu_list                         \
-			2> $DIALOG_TMPDIR/dialog.menu.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 	        retval=$?
+		setvar DIALOG_MENU_$$ "$dialog_menu"
 	        date_type=$( f_dialog_menutag )
 	        f_dprintf "retval=$retval date_type=[$date_type]"
 
@@ -812,7 +858,8 @@ f_dialog_input_expire()
 			                 	"$DIALOG_BACKTITLE" \
 			                 	"$msg"              \
 			                 	"$hline"            )
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"          \
 				--backtitle \"\$DIALOG_BACKTITLE\"  \
 				--hline \"\$hline\"                 \
@@ -820,8 +867,10 @@ f_dialog_input_expire()
 				--cancel-label \"\$msg_cancel\"     \
 				--calendar \"\$msg\" $calendar_size \
 				$_input_date                        \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_date=$( f_dialog_inputstr )
 			f_dprintf "retval=$retval ret_date=[$ret_date]"
 
@@ -836,7 +885,7 @@ f_dialog_input_expire()
 			                	"$DIALOG_BACKTITLE" \
 			                	"$msg"              \
 			                	"$hline"            )
-			eval $DIALOG \
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -844,8 +893,10 @@ f_dialog_input_expire()
 				--cancel-label \"\$msg_cancel\"    \
 				--timebox \"\$msg\" $timebox_size  \
 				$_input_time                       \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_time=$( f_dialog_inputstr )
 			f_dprintf "retval=$retval ret_time=[$ret_time]"
 
@@ -876,7 +927,8 @@ f_dialog_input_expire()
 			        	"$ret_days"         \
 			        	"$hline"            )
 
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -884,8 +936,10 @@ f_dialog_input_expire()
 				--cancel-label \"\$msg_cancel\"    \
 				--inputbox \"\$msg\" $size         \
 				\"\$ret_days\"                     \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_days=$( f_dialog_inputstr )
 
 			# Return to menu if either ESC or Cancel/No
@@ -917,7 +971,8 @@ f_dialog_input_expire()
 			        	"$msg"              \
 			        	"$_input"           \
 			        	"$hline"            )
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -925,9 +980,11 @@ f_dialog_input_expire()
 				--cancel-label \"\$msg_cancel\"    \
 				--inputbox \"\$msg\" $size         \
 				\"\$_input\"                       \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_secs=$( f_dialog_inputstr )
 
 			# Return to menu if either ESC or Cancel/No
@@ -976,7 +1033,8 @@ f_dialog_input_home_dir()
 	        	"$_input"           \
 	        	"$hline"            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -984,9 +1042,11 @@ f_dialog_input_home_dir()
 		--cancel-label \"\$msg_cancel\"    \
 		--inputbox \"\$msg\" $size         \
 		\"\$_input\"                       \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	# Return if user has either pressed ESC or chosen Cancel/No
@@ -1153,7 +1213,8 @@ f_dialog_input_shell()
 	        	\"\$hline\"            \
 	        	$shell_list            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -1161,9 +1222,11 @@ f_dialog_input_shell()
 		--cancel-label \"\$msg_cancel\"    \
 		--radiolist \"\$prompt\" $size     \
 		$shell_list                        \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	# Return if user has either pressed ESC or chosen Cancel/No

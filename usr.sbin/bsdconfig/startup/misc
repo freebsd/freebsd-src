@@ -230,7 +230,8 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -238,7 +239,11 @@ dialog_menu_main()
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 # dialog_input_value [ $prompt [ $init ] ]
@@ -260,7 +265,8 @@ dialog_input_value()
 	        	"$_input"           \
 	        	"$hline"            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -268,9 +274,11 @@ dialog_input_value()
 		--cancel-label \"\$msg_cancel\"    \
 		--inputbox \"\$prompt\" $size      \
 		\"\$_input\"                       \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	f_dialog_title_restore

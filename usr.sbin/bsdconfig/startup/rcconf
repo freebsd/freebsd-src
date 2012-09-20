@@ -168,7 +168,8 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$RCCONF_MENU_LIST      )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -179,7 +180,11 @@ dialog_menu_main()
 		${SHOW_DESC:+--item-help}          \
 		--menu \"\$prompt\" $size          \
 		$RCCONF_MENU_LIST                  \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN

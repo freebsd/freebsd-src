@@ -119,7 +119,8 @@ f_become_root_via_sudo()
 				[ $retval -eq 255 ] &&
 					f_die $retval "$password"
 			else
-				$DIALOG \
+				local dialog_inputbox
+				dialog_inputbox=$( $DIALOG \
 					--title "$DIALOG_TITLE"         \
 					--backtitle "$DIALOG_BACKTITLE" \
 					--hline "$hline"                \
@@ -127,8 +128,10 @@ f_become_root_via_sudo()
 					--cancel-label "$msg_cancel"    \
 					--insecure                      \
 					--passwordbox "$msg" $size      \
-					2> "$DIALOG_TMPDIR/dialog.inputbox.$$"
+					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+				)
 				retval=$?
+				setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 				password=$( f_dialog_inputstr )
 			fi
 

@@ -342,7 +342,8 @@ f_dialog_input_nameserver()
 	#
 	while :; do
 
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 		        --backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -350,9 +351,11 @@ f_dialog_input_nameserver()
 			--cancel-label \"\$msg_cancel\"    \
 			--inputbox \"\$msg\" $size         \
 			\"\$ns\"                           \
-			2> "$DIALOG_TMPDIR/dialog.inputbox.$$"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		local retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		new_ns=$( f_dialog_inputstr )
 
 		[ $retval -eq $SUCCESS ] || return $retval
@@ -476,7 +479,8 @@ f_dialog_menu_nameservers()
 		        	\"\$prompt\"           \
 		        	\"\$hline\"            \
 		        	$menu_list             )
-		eval $DIALOG \
+		local dialog_menu
+		dialog_menu=$( eval $DIALOG \
 			--clear --title \"\$DIALOG_TITLE\" \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -484,9 +488,11 @@ f_dialog_menu_nameservers()
 			--cancel-label \"\$msg_cancel\"    \
 			--menu \"\$prompt\" $size          \
 			$menu_list                         \
-			2> "$DIALOG_TMPDIR/dialog.menu.$$"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		local retval=$?
+		setvar DIALOG_MENU_$$ "$dialog_menu"
 		local tag="$( f_dialog_menutag )" ns=""
 
 		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)

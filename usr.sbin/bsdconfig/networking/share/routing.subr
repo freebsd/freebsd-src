@@ -110,7 +110,8 @@ f_dialog_input_defaultrouter()
 	# Loop until the user provides taint-free input.
 	#
 	while :; do
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -118,9 +119,11 @@ f_dialog_input_defaultrouter()
 			--cancel-label \"\$msg_cancel\"    \
 			--inputbox \"\$msg\" $size         \
 			\"\$defaultrouter\"                \
-			2> "$DIALOG_TMPDIR/dialog.inputbox.$$"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		local retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		defaultrouter=$( f_dialog_inputstr )
 
 		[ "$defaultrouter" ] || return $SUCCESS

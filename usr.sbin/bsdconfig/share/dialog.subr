@@ -38,9 +38,11 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 ############################################################ CONFIGURATION
 
 #
-# Default directory to store dialog(1) temporary files
+# Default file descriptor to link to stdout for dialog(1) passthru allowing
+# execution of dialog from within a sub-shell (so-long as its standard output
+# is explicitly redirected to this file descriptor).
 #
-: ${DIALOG_TMPDIR:="/tmp"}
+: ${DIALOG_TERMINAL_PASSTHRU_FD:=3}
 
 ############################################################ GLOBALS
 
@@ -1108,12 +1110,8 @@ f_dialog_noyes()
 #
 f_dialog_inputstr()
 {
-	local tmpfile="$DIALOG_TMPDIR/dialog.inputbox.$$"
-
-	[ -f "$tmpfile" ] || return $FAILURE
-
 	# Skip warnings and trim leading/trailing whitespace from user input
-	awk '
+	eval echo \"\$DIALOG_INPUTBOX_$$\" | awk '
 		BEGIN { found = 0 }
 		{
 			if ( ! found )
@@ -1126,9 +1124,8 @@ f_dialog_inputstr()
 			sub(/[[:space:]]*$/, "")
 			print
 		}
-	' "$tmpfile" 2> /dev/null
-	f_quietly rm -f "$tmpfile"
-
+	'
+	setvar DIALOG_INPUTBOX_$$ "" # scrub memory in case data was sensitive
 	return $SUCCESS
 }
 
@@ -1141,11 +1138,8 @@ f_dialog_inputstr()
 #
 f_dialog_menutag()
 {
-	local tmpfile="$DIALOG_TMPDIR/dialog.menu.$$"
-
-	[ -f "$tmpfile" ] || return $FAILURE
-
-	awk '
+	# Skip warnings
+	eval echo \"\$DIALOG_MENU_$$\" | awk '
 		BEGIN { found = 0 }
 		{
 			if ( found ) # ... just spew
@@ -1158,9 +1152,8 @@ f_dialog_menutag()
 			found = 1
 			print
 		}
-	' "$tmpfile" 2> /dev/null
-	f_quietly rm -f "$tmpfile"
-
+	'
+	setvar DIALOG_MENU_$$ "" # scrub memory in case data was sensitive
 	return $SUCCESS
 }
 
@@ -1320,6 +1313,11 @@ f_dialog_init()
 	DIALOG_SELF_INITIALIZE=
 
 	#
+	# Clone terminal stdout so we can redirect to it from within sub-shells
+	#
+	eval exec $DIALOG_TERMINAL_PASSTHRU_FD\>\&1
+
+	#
 	# Process stored command-line arguments
 	#
 	SECURE=$( set -- "$ARGV"
@@ -1421,23 +1419,5 @@ f_dialog_init()
 		unset _DIALOG_TITLE
 	fi
 }
-
-############################################################ CLEAN-UP FUNCTIONS
-
-# f_clean_up
-#
-# Clean-up routines (run when script exits or is killed).
-#
-f_clean_up()
-{
-	f_quietly rm -f "$DIALOG_TMPDIR"/dialog.*.$$
-}
-
-############################################################ MAIN
-
-#
-# Trap signals so we can recover gracefully
-#
-trap 'f_clean_up' EXIT
 
 fi # ! $_DIALOG_SUBR
