@@ -837,10 +837,10 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
 #ifdef PMAP_DEBUG
 	printf("pmap_kenter:  va: %p -> pa: %p\n", (void *)va, (void *)pa);
 #endif
-	npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G | PTE_W | attr;
 
 	pte = pmap_pte(kernel_pmap, va);
 	opte = *pte;
+	npte = TLBLO_PA_TO_PFN(pa) | attr | PTE_D | PTE_V | PTE_G;
 	*pte = npte;
 	if (pte_test(&opte, PTE_V) && opte != npte)
 		pmap_update_page(kernel_pmap, va, npte);
@@ -2877,7 +2877,7 @@ void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
 #ifndef __mips_n64
-	vm_offset_t base, offset, tmpva;
+	vm_offset_t base, offset;
 
 	/* If the address is within KSEG1 then there is nothing to do */
 	if (va >= MIPS_KSEG1_START && va <= MIPS_KSEG1_END)
@@ -2886,8 +2886,6 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(size + offset, PAGE_SIZE);
-	for (tmpva = base; tmpva < base + size; tmpva += PAGE_SIZE)
-		pmap_kremove(tmpva);
 	kmem_free(kernel_map, base, size);
 #endif
 }
