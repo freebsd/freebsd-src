@@ -1,3 +1,11 @@
+	--- 9.6-ESV-R7-P3 released ---
+
+3364.	[security]	Named could die on specially crafted record.
+			[RT #30416]
+
+3358	[bug]		Fix declaration of fatal in bin/named/server.c
+			and bin/nsupdate/main.c. [RT #30522]
+
 	--- 9.6-ESV-R7-P2 released ---
 
 3346.	[security]	Bad-cache data could be used before it was
