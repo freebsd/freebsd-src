@@ -28,8 +28,8 @@ if [ ! "$_NETWORKING_COMMON_SUBR" ]; then _NETWORKING_COMMON_SUBR=1
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
 
 ############################################################ FUNCTIONS
 

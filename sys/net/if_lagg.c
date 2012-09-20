@@ -110,7 +110,8 @@ static int	lagg_ether_cmdmulti(struct lagg_port *, int);
 static	int	lagg_setflag(struct lagg_port *, int, int,
 		    int (*func)(struct ifnet *, int));
 static	int	lagg_setflags(struct lagg_port *, int status);
-static void	lagg_start(struct ifnet *);
+static int	lagg_transmit(struct ifnet *, struct mbuf *);
+static void	lagg_qflush(struct ifnet *);
 static int	lagg_media_change(struct ifnet *);
 static void	lagg_media_status(struct ifnet *, struct ifmediareq *);
 static struct lagg_port *lagg_link_active(struct lagg_softc *,
@@ -312,14 +313,11 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_softc = sc;
-	ifp->if_start = lagg_start;
+	ifp->if_transmit = lagg_transmit;
+	ifp->if_qflush = lagg_qflush;
 	ifp->if_init = lagg_init;
 	ifp->if_ioctl = lagg_ioctl;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
 	 * Attach as an ordinary ethernet device, children will be attached
@@ -1222,35 +1220,45 @@ lagg_setflags(struct lagg_port *lp, int status)
 	return (0);
 }
 
-static void
-lagg_start(struct ifnet *ifp)
+static int
+lagg_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
-	struct mbuf *m;
-	int error = 0;
+	int error, len, mcast;
+
+	len = m->m_pkthdr.len;
+	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1 : 0;
 
 	LAGG_RLOCK(sc);
 	/* We need a Tx algorithm and at least one port */
 	if (sc->sc_proto == LAGG_PROTO_NONE || sc->sc_count == 0) {
-		IF_DRAIN(&ifp->if_snd);
 		LAGG_RUNLOCK(sc);
-		return;
+		m_freem(m);
+		ifp->if_oerrors++;
+		return (ENXIO);
 	}
 
-	for (;; error = 0) {
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
+	ETHER_BPF_MTAP(ifp, m);
 
-		ETHER_BPF_MTAP(ifp, m);
-
-		error = (*sc->sc_start)(sc, m);
-		if (error == 0)
-			ifp->if_opackets++;
-		else
-			ifp->if_oerrors++;
-	}
+	error = (*sc->sc_start)(sc, m);
 	LAGG_RUNLOCK(sc);
+
+	if (error == 0) {
+		ifp->if_opackets++;
+		ifp->if_omcasts += mcast;
+		ifp->if_obytes += len;
+	} else
+		ifp->if_oerrors++;
+
+	return (error);
+}
+
+/*
+ * The ifp->if_qflush entry point for lagg(4) is no-op.
+ */
+static void
+lagg_qflush(struct ifnet *ifp __unused)
+{
 }
 
 static struct mbuf *

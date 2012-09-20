@@ -28,8 +28,10 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 #
 ############################################################ INCLUDES
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
 f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 ############################################################ CONFIGURATION

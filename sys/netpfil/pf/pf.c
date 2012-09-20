@@ -387,6 +387,27 @@ pf_hashkey(struct pf_state_key *sk)
 	return (h & V_pf_hashmask);
 }
 
+static __inline uint32_t
+pf_hashsrc(struct pf_addr *addr, sa_family_t af)
+{
+	uint32_t h;
+
+	switch (af) {
+	case AF_INET:
+		h = jenkins_hash32((uint32_t *)&addr->v4,
+		    sizeof(addr->v4)/sizeof(uint32_t), V_pf_hashseed);
+		break;
+	case AF_INET6:
+		h = jenkins_hash32((uint32_t *)&addr->v6,
+		    sizeof(addr->v6)/sizeof(uint32_t), V_pf_hashseed);
+		break;
+	default:
+		panic("%s: unknown address family %u", __func__, af);
+	}
+
+	return (h & V_pf_srchashmask);
+}
+
 #ifdef INET6
 void
 pf_addrcpy(struct pf_addr *dst, struct pf_addr *src, sa_family_t af)
@@ -652,6 +673,11 @@ pf_remove_src_node(struct pf_src_node *src)
 	PF_HASHROW_LOCK(sh);
 	LIST_REMOVE(src, entry);
 	PF_HASHROW_UNLOCK(sh);
+
+	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
+	V_pf_status.src_nodes--;
+
+	uma_zfree(V_pf_sources_z, src);
 }
 
 /* Data storage structures initialization. */
@@ -3526,18 +3552,12 @@ csfailed:
 	if (nk != NULL)
 		uma_zfree(V_pf_state_key_z, nk);
 
-	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
+	if (sn != NULL && sn->states == 0 && sn->expire == 0)
 		pf_remove_src_node(sn);
-		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_sources_z, sn);
-	}
-	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
+
+	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0)
 		pf_remove_src_node(nsn);
-		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_sources_z, nsn);
-	}
+
 	return (PF_DROP);
 }
 

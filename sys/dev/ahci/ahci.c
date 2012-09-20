@@ -543,7 +543,7 @@ ahci_ctlr_reset(device_t dev)
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	int timeout;
 
-	if (pci_read_config(dev, 0x00, 4) == 0x28298086 &&
+	if (pci_read_config(dev, PCIR_DEVVENDOR, 4) == 0x28298086 &&
 	    (pci_read_config(dev, 0x92, 1) & 0xfe) == 0x04)
 		pci_write_config(dev, 0x92, 0x01, 1);
 	/* Enable AHCI mode */
