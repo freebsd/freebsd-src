@@ -73,7 +73,7 @@ usage()
 	# Determine the maximum width of terminal/console
 	#
 	local max_size max_width
-	max_size=$( stty size 2> /dev/null )
+	max_size=$( stty size 2>&- )
 	: ${max_size:="24 80"}
 	max_width="${max_size#*[$IFS]}"
 	f_dprintf "max_width=[$max_width]"
@@ -242,8 +242,8 @@ if [ "$1" ]; then
 	#
 	lang="${LANG:-$LC_ALL}"
 	if [ "$lang" ]; then
-		sel=$( grep "^menu_selection=\"$1|" */INDEX.$lang \
-		       		2> /dev/null | tail -1 )
+		sel=$( grep "^menu_selection=\"$1|" */INDEX.$lang 2>&- |
+		       	tail -1 )
 
 		# Fall-back to non-i18n sources if nothing was found
 		[ "$sel" ] ||

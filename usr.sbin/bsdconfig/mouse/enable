@@ -86,7 +86,7 @@ flags=$( f_sysrc_get moused_flags )
 #
 f_dialog_info "$msg_trying_to_start_the_mouse_daemon"
 [ -r "$MOUSED_PIDFILE" ] &&
-	f_quietly kill "$( cat "$MOUSED_PIDFILE" 2> /dev/null )"
+	f_quietly kill "$( cat "$MOUSED_PIDFILE" 2>&- )"
 f_quietly vidcontrol -m on
 f_quietly moused -t "$type" -p "$port" $flags
 
