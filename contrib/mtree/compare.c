@@ -396,14 +396,14 @@ typeerr:		LABEL;
 	if (s->flags & F_MD5) {
 		if ((digestbuf = MD5File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
-			printf("%smd5: %s: %s\n",
-			    tab, p->fts_accpath, strerror(errno));
+			printf("%s%s: %s: %s\n",
+			    tab, MD5KEY, p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else {
 			if (strcmp(s->md5digest, digestbuf)) {
 				LABEL;
-				printf("%smd5 (0x%s, 0x%s)\n",
-				    tab, s->md5digest, digestbuf);
+				printf("%s%s (0x%s, 0x%s)\n",
+				    tab, MD5KEY, s->md5digest, digestbuf);
 			}
 			tab = "\t";
 			free(digestbuf);
@@ -414,23 +414,14 @@ typeerr:		LABEL;
 	if (s->flags & F_RMD160) {
 		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
-#ifndef __FreeBSD__
-			printf("%srmd160: %s: %s\n",
-#else
-			printf("%sripemd160digest: %s: %s\n",
-#endif
-
-			    tab, p->fts_accpath, strerror(errno));
+			printf("%s%s: %s: %s\n",
+			    tab, RMD160KEY, p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else {
 			if (strcmp(s->rmd160digest, digestbuf)) {
 				LABEL;
-#ifndef __FreeBSD__
-				printf("%srmd160 (0x%s, 0x%s)\n",
-#else
-				printf("%sripemd160digest (0x%s, 0x%s)\n",
-#endif
-				    tab, s->rmd160digest, digestbuf);
+				printf("%s%s (0x%s, 0x%s)\n",
+				    tab, RMD160KEY, s->rmd160digest, digestbuf);
 			}
 			tab = "\t";
 			free(digestbuf);
@@ -441,14 +432,14 @@ typeerr:		LABEL;
 	if (s->flags & F_SHA1) {
 		if ((digestbuf = SHA1File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
-			printf("%ssha1: %s: %s\n",
-			    tab, p->fts_accpath, strerror(errno));
+			printf("%s%s: %s: %s\n",
+			    tab, SHA1KEY, p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else {
 			if (strcmp(s->sha1digest, digestbuf)) {
 				LABEL;
-				printf("%ssha1 (0x%s, 0x%s)\n",
-				    tab, s->sha1digest, digestbuf);
+				printf("%s%s (0x%s, 0x%s)\n",
+				    tab, SHA1KEY, s->sha1digest, digestbuf);
 			}
 			tab = "\t";
 			free(digestbuf);
@@ -459,14 +450,14 @@ typeerr:		LABEL;
 	if (s->flags & F_SHA256) {
 		if ((digestbuf = SHA256_File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
-			printf("%ssha256: %s: %s\n",
-			    tab, p->fts_accpath, strerror(errno));
+			printf("%s%s: %s: %s\n",
+			    tab, SHA256KEY, p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else {
 			if (strcmp(s->sha256digest, digestbuf)) {
 				LABEL;
-				printf("%ssha256 (0x%s, 0x%s)\n",
-				    tab, s->sha256digest, digestbuf);
+				printf("%s%s (0x%s, 0x%s)\n",
+				    tab, SHA256KEY, s->sha256digest, digestbuf);
 			}
 			tab = "\t";
 			free(digestbuf);
@@ -476,14 +467,14 @@ typeerr:		LABEL;
 	if (s->flags & F_SHA384) {
 		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
-			printf("%ssha384: %s: %s\n",
-			    tab, p->fts_accpath, strerror(errno));
+			printf("%s%s: %s: %s\n",
+			    tab, SHA384KEY, p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else {
 			if (strcmp(s->sha384digest, digestbuf)) {
 				LABEL;
-				printf("%ssha384 (0x%s, 0x%s)\n",
-				    tab, s->sha384digest, digestbuf);
+				printf("%s%s (0x%s, 0x%s)\n",
+				    tab, SHA384KEY, s->sha384digest, digestbuf);
 			}
 			tab = "\t";
 			free(digestbuf);
@@ -493,14 +484,14 @@ typeerr:		LABEL;
 	if (s->flags & F_SHA512) {
 		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
-			printf("%ssha512: %s: %s\n",
-			    tab, p->fts_accpath, strerror(errno));
+			printf("%s%s: %s: %s\n",
+			    tab, SHA512KEY, p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else {
 			if (strcmp(s->sha512digest, digestbuf)) {
 				LABEL;
-				printf("%ssha512 (0x%s, 0x%s)\n",
-				    tab, s->sha512digest, digestbuf);
+				printf("%s%s (0x%s, 0x%s)\n",
+				    tab, SHA512KEY, s->sha512digest, digestbuf);
 			}
 			tab = "\t";
 			free(digestbuf);

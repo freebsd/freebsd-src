@@ -79,17 +79,19 @@ shownode(NODE *n, int f, char const *path)
 			printf(" uname=%s", pw->pw_name);
 	}
 	if (f & F_MD5)
-		printf(" md5digest=%s", n->md5digest);
+		printf(" %s=%s", MD5KEY, n->md5digest);
 	if (f & F_SHA1)
-		printf(" sha1digest=%s", n->sha1digest);
+		printf(" %s=%s", SHA1KEY, n->sha1digest);
 	if (f & F_RMD160)
-		printf(" rmd160digest=%s", n->rmd160digest);
+		printf(" %s=%s", RMD160KEY, n->rmd160digest);
+	if (f & F_SHA1)
+		printf(" %s=%s", SHA1KEY, n->sha256digest);
 	if (f & F_SHA256)
-		printf(" sha256digest=%s", n->sha256digest);
+		printf(" %s=%s", SHA256KEY, n->sha256digest);
 	if (f & F_SHA384)
-		printf(" sha384=%s", n->sha384digest);
+		printf(" %s=%s", SHA384KEY, n->sha384digest);
 	if (f & F_SHA512)
-		printf(" sha512=%s", n->sha512digest);
+		printf(" %s=%s", SHA512KEY,  n->sha512digest);
 	if (f & F_FLAGS)
 		printf(" flags=%s", flags_to_string(n->st_flags, "none"));
 	printf("\n");

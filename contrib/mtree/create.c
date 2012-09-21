@@ -233,7 +233,7 @@ statf(int indent, FTSENT *p)
 	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = MD5File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: MD5File failed: %s", p->fts_accpath, strerror(errno));
-		output(indent, &offset, "md5=%s", digestbuf);
+		output(indent, &offset, "%s=%s", MD5KEY, digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_MD5 */
@@ -241,11 +241,7 @@ statf(int indent, FTSENT *p)
 	if (keys & F_RMD160 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: RMD160File failed: %s", p->fts_accpath, strerror(errno));
-#ifndef __FreeBSD__
-		output(indent, &offset, "rmd160=%s", digestbuf);
-#else
-		output(indent, &offset, "ripemd160digest=%s", digestbuf);
-#endif
+		output(indent, &offset, "%s=%s", RMD160KEY, digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_RMD160 */
@@ -253,7 +249,7 @@ statf(int indent, FTSENT *p)
 	if (keys & F_SHA1 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA1File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA1File failed: %s", p->fts_accpath, strerror(errno));
-		output(indent, &offset, "sha1=%s", digestbuf);
+		output(indent, &offset, "%s=%s", SHA1KEY, digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_SHA1 */
@@ -261,21 +257,21 @@ statf(int indent, FTSENT *p)
 	if (keys & F_SHA256 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA256_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA256_File failed: %s", p->fts_accpath, strerror(errno));
-		output(indent, &offset, "sha256=%s", digestbuf);
+		output(indent, &offset, "%s=%s", SHA256KEY, digestbuf);
 		free(digestbuf);
 	}
 #ifndef NO_SHA384
 	if (keys & F_SHA384 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA384_File failed: %s", p->fts_accpath, strerror(errno));
-		output(indent, &offset, "sha384=%s", digestbuf);
+		output(indent, &offset, "%s=%s", SHA384KEY, digestbuf);
 		free(digestbuf);
 	}
 #endif
 	if (keys & F_SHA512 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL)
 			mtree_err("%s: SHA512_File failed: %s", p->fts_accpath, strerror(errno));
-		output(indent, &offset, "sha512=%s", digestbuf);
+		output(indent, &offset, "%s=%s", SHA512KEY, digestbuf);
 		free(digestbuf);
 	}
 #endif	/* ! NO_SHA2 */

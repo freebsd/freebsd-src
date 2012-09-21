@@ -124,6 +124,19 @@ int		 mtree_specspec(FILE *, FILE *);
 void		 free_nodes(NODE *);
 char		*vispath(const char *);
 
+#ifndef __FreeBSD__
+#define	MD5KEY		"md5"
+#define	RMD160KEY	"rmd160"
+#define	SHA1KEY		"sha1"
+#define	SHA256KEY	"sha256"
+#else
+#define	MD5KEY		"md5digest"
+#define	RMD160KEY	"ripemd160digest"
+#define	SHA1KEY		"sha1digest"
+#define	SHA256KEY	"sha256digest"
+#endif
+#define	SHA384KEY	"sha384"
+#define	SHA512KEY	"sha512"
 
 #define	RP(p)	\
 	((p)->fts_path[0] == '.' && (p)->fts_path[1] == '/' ? \
