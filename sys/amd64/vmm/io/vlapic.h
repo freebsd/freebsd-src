@@ -102,4 +102,7 @@ void vlapic_intr_accepted(struct vlapic *vlapic, int vector);
 void vlapic_set_intr_ready(struct vlapic *vlapic, int vector);
 void vlapic_timer_tick(struct vlapic *vlapic);
 
+uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
+void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
+
 #endif	/* _VLAPIC_H_ */
