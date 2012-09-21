@@ -72,7 +72,7 @@ f_err()
 #
 f_quietly()
 {
-	"$@" >&- 2>&-
+	"$@" > /dev/null 2>&1
 }
 
 # f_have $anything ...

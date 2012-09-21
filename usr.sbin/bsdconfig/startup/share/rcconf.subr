@@ -63,9 +63,9 @@ STARTUP_RCCONF_MAP_CACHEFILE="/var/run/bsdconfig/startup_rcconf_map.cache"
 f_startup_rcconf_list()
 {
 	( # Operate within a sub-shell to protect the parent environment
-		. "$RC_DEFAULTS" >&-
+		. "$RC_DEFAULTS" > /dev/null
 		f_clean_env --except PATH STARTUP_RCCONF_REGEX rc_conf_files
-		source_rc_confs >&-
+		source_rc_confs > /dev/null
 		export _rc_conf_files_file="$( f_sysrc_find rc_conf_files )"
 		export RC_DEFAULTS
 		set | awk -F= "
