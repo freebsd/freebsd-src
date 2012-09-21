@@ -415,7 +415,8 @@ dump_nodes(const char *dir, NODE *root, int pathlast)
 char *
 vispath(const char *path)
 {
-	const char extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
+	const char extra[] = { ' ', '\t', '\n', '\\', '#', '*', '?', '[',
+	    '#', '\0' };
 	static char pathbuf[4*MAXPATHLEN + 1];
 
 	strsvis(pathbuf, path, VIS_CSTYLE, extra);
