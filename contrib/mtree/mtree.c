@@ -223,6 +223,13 @@ main(int argc, char **argv)
 	if (argc)
 		usage();
 
+	if (spec2 && (cflag || Cflag || Dflag))
+		mtree_err("Double -f, -c, -C and -D flags are mutually "
+		    "exclusive");
+
+	if (dir && spec2)
+		mtree_err("Double -f and -p flags are mutually exclusive");
+
 	if (dir && chdir(dir))
 		mtree_err("%s: %s", dir, strerror(errno));
 
