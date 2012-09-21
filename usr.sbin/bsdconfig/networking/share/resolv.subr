@@ -65,7 +65,7 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_resolv_conf_domain()
 {
-	tail -r "$RESOLV_CONF" 2>&- | awk \
+	tail -r "$RESOLV_CONF" 2> /dev/null | awk \
 	'
 		BEGIN { found = 0 }
 		( tolower($1) == "domain" ) \
@@ -84,7 +84,7 @@ f_resolv_conf_domain()
 #
 f_resolv_conf_search()
 {
-	tail -r "$RESOLV_CONF" 2>&- | awk \
+	tail -r "$RESOLV_CONF" 2> /dev/null | awk \
 	'
 		BEGIN { found = 0 }
 		{
@@ -118,7 +118,7 @@ f_resolv_conf_nameservers()
 		}
 		END { exit ! found }
 	' \
-	"$RESOLV_CONF" 2>&-
+	"$RESOLV_CONF" 2> /dev/null
 }
 
 # f_dialog_resolv_conf_update $hostname
@@ -225,8 +225,8 @@ f_dialog_resolv_conf_update()
 		# permissions and ownership to match resolv.conf(5) before
 		# we write it out and mv(1) it into place).
 		#
-		local mode="$( stat -f '%#Lp' "$RESOLV_CONF" 2>&- )"
-		local owner="$( stat -f '%u:%g' "$RESOLV_CONF" 2>&- )"
+		local mode="$( stat -f '%#Lp' "$RESOLV_CONF" 2> /dev/null )"
+		local owner="$( stat -f '%u:%g' "$RESOLV_CONF" 2> /dev/null )"
 		f_quietly chmod "${mode:-0644}" "$tmpfile"
 		f_quietly chown "${owner:-root:wheel}" "$tmpfile"
 
@@ -246,7 +246,7 @@ f_dialog_resolv_conf_update()
 		#
 		local domain="${hostname#*.}" new_contents
 		[ "$domain" = "$hostname" ] && domain=
-		new_contents=$( tail -r "$RESOLV_CONF" 2>&- )
+		new_contents=$( tail -r "$RESOLV_CONF" 2> /dev/null )
 		new_contents=$( echo "$new_contents" | awk \
 			-v domain="$domain" \
 			-v search_all="${RESOLVER_SEARCH_DOMAINS_ALL:-1}" \
@@ -397,8 +397,8 @@ f_dialog_input_nameserver()
 		# Quietly fixup permissions and ownership
 		#
 		local mode owner
-		mode=$( stat -f '%#Lp' "$RESOLV_CONF" 2>&- )
-		owner=$( stat -f '%u:%g' "$RESOLV_CONF" 2>&- )
+		mode=$( stat -f '%#Lp' "$RESOLV_CONF" 2> /dev/null )
+		owner=$( stat -f '%u:%g' "$RESOLV_CONF" 2> /dev/null )
 		f_quietly chmod "${mode:-0644}" "$tmpfile"
 		f_quietly chown "${owner:-root:wheel}" "$tmpfile"
 

@@ -54,7 +54,7 @@ RCCONF_MENU_LIST=
 # Options
 #
 # Inherit SHOW_DESC value if set, otherwise default to 1
-( : ${SHOW_DESC?} ) >&- 2>&- || SHOW_DESC=1
+( : ${SHOW_DESC?} ) > /dev/null 2>&1 || SHOW_DESC=1
 # Selectively inherit SHOW_* value (in order of preference)
 if [ "$SHOW_DEFAULT_VALUE" ]; then
 	SHOW_DEFAULT_VALUE=1
@@ -110,8 +110,8 @@ dialog_menu_main()
 		f_dialog_info "$msg_creating_menu_list"
 
 	RCCONF_MENU_LIST="$RCCONF_MENU_LIST $(
-		. "$RC_DEFAULTS" >&-
-		source_rc_confs >&-
+		. "$RC_DEFAULTS" > /dev/null
+		source_rc_confs > /dev/null
 		var_list=$( f_startup_rcconf_list )
 		for var in $var_list; do
 			eval export $var

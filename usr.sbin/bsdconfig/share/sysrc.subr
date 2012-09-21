@@ -134,7 +134,7 @@ f_sysrc_get()
 		#
 		f_clean_env --except RC_CONFS RC_DEFAULTS SUCCESS
 
-		. "$RC_DEFAULTS" >&- 2>&-
+		. "$RC_DEFAULTS" > /dev/null 2>&1
 
 		unset RC_DEFAULTS
 			# no longer needed
@@ -153,7 +153,7 @@ f_sysrc_get()
 		# If RC_CONFS is defined, set $rc_conf_files to an explicit
 		# value, modifying the default behavior of source_rc_confs().
 		#
-		( : ${RC_CONFS?} ) >&- 2>&-
+		( : ${RC_CONFS?} ) > /dev/null 2>&1
 		if [ $? -eq ${SUCCESS:-0} ]; then
 			rc_conf_files="$RC_CONFS"
 			_rc_confs_set=1
@@ -162,7 +162,7 @@ f_sysrc_get()
 		unset SUCCESS
 			# no longer needed
 
-		source_rc_confs >&- 2>&-
+		source_rc_confs > /dev/null 2>&1
 
 		#
 		# If the query was for `rc_conf_files' AND after calling
@@ -190,7 +190,7 @@ f_sysrc_get()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2>&-
+		eval echo '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
@@ -221,7 +221,7 @@ f_sysrc_get_default()
 		#
 		f_clean_env --except RC_DEFAULTS
 
-		. "$RC_DEFAULTS" >&- 2>&-
+		. "$RC_DEFAULTS" > /dev/null 2>&1
 
 		unset RC_DEFAULTS
 			# no longer needed
@@ -232,7 +232,7 @@ f_sysrc_get_default()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2>&-
+		eval echo '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
@@ -477,7 +477,7 @@ f_sysrc_set()
 	# permissions from the temporary file).
 	#
 	local mode
-	mode=$( stat -f '%#Lp' "$file" 2>&- )
+	mode=$( stat -f '%#Lp' "$file" 2> /dev/null )
 	f_quietly chmod "${mode:-0644}" "$tmpfile"
 
 	#
@@ -486,14 +486,14 @@ f_sysrc_set()
 	# permissions (so we throw stderr into the bit-bucket).
 	#
 	local owner
-	owner=$( stat -f '%u:%g' "$file" 2>&- )
+	owner=$( stat -f '%u:%g' "$file" 2> /dev/null )
 	f_quietly chown "${owner:-root:wheel}" "$tmpfile"
 
 	#
 	# Operate on the matching file, replacing only the last occurrence.
 	#
 	local new_contents retval
-	new_contents=$( tail -r $file 2>&- )
+	new_contents=$( tail -r $file 2> /dev/null )
 	new_contents=$( echo "$new_contents" | awk -v varname="$varname" \
 		-v new_value="$new_value" "$f_sysrc_set_awk" )
 	retval=$?
@@ -572,8 +572,8 @@ f_sysrc_delete()
 		# permissions) to instead match the destination file.
 		#
 		local mode owner
-		mode=$( stat -f '%#Lp' "$file" 2>&- )
-		owner=$( stat -f '%u:%g' "$file" 2>&- )
+		mode=$( stat -f '%#Lp' "$file" 2> /dev/null )
+		owner=$( stat -f '%u:%g' "$file" 2> /dev/null )
 		f_quietly chmod "${mode:-0644}" "$tmpfile"
 		f_quietly chown "${owner:-root:wheel}" "$tmpfile"
 

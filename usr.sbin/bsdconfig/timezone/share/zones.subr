@@ -610,7 +610,7 @@ f_install_zoneinfo()
 
 	# Save knowledge for later
 	if [ "$REALLYDOIT" -a $rv -eq $SUCCESS ]; then
-		if : 2>&- > "$_PATH_DB"; then
+		if : 2> /dev/null > "$_PATH_DB"; then
 			cat <<-EOF > "$_PATH_DB"
 			$zoneinfo
 			EOF
