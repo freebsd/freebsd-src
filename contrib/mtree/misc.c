@@ -71,6 +71,7 @@ static KEY keylist[] = {
 	{"md5digest",	F_MD5,		NEEDVALUE},
 	{"mode",	F_MODE,		NEEDVALUE},
 	{"nlink",	F_NLINK,	NEEDVALUE},
+	{"nochange",	F_NOCHANGE,	0},
 	{"optional",	F_OPT,		0},
 	{"ripemd160digest", F_RMD160,	NEEDVALUE},
 	{"rmd160",	F_RMD160,	NEEDVALUE},

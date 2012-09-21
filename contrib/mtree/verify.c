@@ -124,7 +124,8 @@ vwalk(void)
 			    !fnmatch(ep->name, p->fts_name, FNM_PATHNAME)) ||
 			    !strcmp(ep->name, p->fts_name)) {
 				ep->flags |= F_VISIT;
-				if (compare(ep, p))
+				if ((ep->flags & F_NOCHANGE) == 0 &&
+				    compare(ep, p))
 					rval = MISMATCHEXIT;
 				if (!(ep->flags & F_IGN) &&
 				    ep->type == F_DIR &&
