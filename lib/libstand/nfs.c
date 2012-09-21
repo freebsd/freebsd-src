@@ -486,6 +486,9 @@ nfs_open(const char *upath, struct open_file *f)
 	desc->destip = rootip;
 	if ((error = nfs_getrootfh(desc, rootpath, nfs_root_node.fh)))
 		return (error);
+	nfs_root_node.fa.fa_type  = htonl(NFDIR);
+	nfs_root_node.fa.fa_mode  = htonl(0755);
+	nfs_root_node.fa.fa_nlink = htonl(2);
 	nfs_root_node.iodesc = desc;
 
 	fh = &nfs_root_node.fh[0];
@@ -498,14 +501,15 @@ nfs_open(const char *upath, struct open_file *f)
 	setenv("boot.nfsroot.path", rootpath, 1);
 	setenv("boot.nfsroot.nfshandle", buf, 1);
 
-#ifndef NFS_NOSYMLINK
-	/* Fake up attributes for the root dir. */
-	fa = &nfs_root_node.fa;
-	fa->fa_type  = htonl(NFDIR);
-	fa->fa_mode  = htonl(0755);
-	fa->fa_nlink = htonl(2);
+	/* Allocate file system specific data structure */
+	currfd = malloc(sizeof(*newfd));
+	if (currfd == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
 
-	currfd = &nfs_root_node;
+#ifndef NFS_NOSYMLINK
+	bcopy(&nfs_root_node, currfd, sizeof(*currfd));
 	newfd = 0;
 
 	cp = path = strdup(upath);
@@ -533,7 +537,6 @@ nfs_open(const char *upath, struct open_file *f)
 		/* allocate file system specific data structure */
 		newfd = malloc(sizeof(*newfd));
 		newfd->iodesc = currfd->iodesc;
-		newfd->off = 0;
 
 		/*
 		 * Get next component of path name.
@@ -585,11 +588,8 @@ nfs_open(const char *upath, struct open_file *f)
 			 * If relative pathname, restart at parent directory.
 			 */
 			cp = namebuf;
-			if (*cp == '/') {
-				if (currfd != &nfs_root_node)
-					free(currfd);
-				currfd = &nfs_root_node;
-			}
+			if (*cp == '/')
+				bcopy(&nfs_root_node, currfd, sizeof(*currfd));
 
 			free(newfd);
 			newfd = 0;
@@ -597,8 +597,7 @@ nfs_open(const char *upath, struct open_file *f)
 			continue;
 		}
 
-		if (currfd != &nfs_root_node)
-			free(currfd);
+		free(currfd);
 		currfd = newfd;
 		newfd = 0;
 	}
@@ -611,14 +610,12 @@ out:
 	if (path)
 		free(path);
 #else
-        /* allocate file system specific data structure */
-        currfd = malloc(sizeof(*currfd));
         currfd->iodesc = desc;
-        currfd->off = 0;
 
         error = nfs_lookupfh(&nfs_root_node, upath, currfd);
 #endif
 	if (!error) {
+		currfd->off = 0;
 		f->f_fsdata = (void *)currfd;
 		return (0);
 	}
@@ -628,10 +625,7 @@ out:
 		printf("nfs_open: %s lookupfh failed: %s\n",
 		    path, strerror(error));
 #endif
-#ifndef NFS_NOSYMLINK
-	if (currfd != &nfs_root_node)
-#endif
-		free(currfd);
+	free(currfd);
 
 	return (error);
 }
@@ -646,7 +640,7 @@ nfs_close(struct open_file *f)
 		printf("nfs_close: fp=0x%lx\n", (u_long)fp);
 #endif
 
-	if (fp != &nfs_root_node && fp)
+	if (fp)
 		free(fp);
 	f->f_fsdata = (void *)0;
 
@@ -1133,6 +1127,9 @@ nfs_open(const char *upath, struct open_file *f)
 	if ((error = nfs_getrootfh(desc, rootpath, &nfs_root_node.fhsize,
 	    nfs_root_node.fh)))
 		return (error);
+	nfs_root_node.fa.fa_type  = htonl(NFDIR);
+	nfs_root_node.fa.fa_mode  = htonl(0755);
+	nfs_root_node.fa.fa_nlink = htonl(2);
 	nfs_root_node.iodesc = desc;
 
 	fh = &nfs_root_node.fh[0];
@@ -1147,14 +1144,14 @@ nfs_open(const char *upath, struct open_file *f)
 	sprintf(buf, "%d", nfs_root_node.fhsize);
 	setenv("boot.nfsroot.nfshandlelen", buf, 1);
 
+	/* Allocate file system specific data structure */
+	currfd = malloc(sizeof(*newfd));
+	if (currfd == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
 #ifndef NFS_NOSYMLINK
-	/* Fake up attributes for the root dir. */
-	fa = &nfs_root_node.fa;
-	fa->fa_type  = htonl(NFDIR);
-	fa->fa_mode  = htonl(0755);
-	fa->fa_nlink = htonl(2);
-
-	currfd = &nfs_root_node;
+	bcopy(&nfs_root_node, currfd, sizeof(*currfd));
 	newfd = 0;
 
 	cp = path = strdup(upath);
@@ -1186,7 +1183,6 @@ nfs_open(const char *upath, struct open_file *f)
 			goto out;
 		}
 		newfd->iodesc = currfd->iodesc;
-		newfd->off = 0;
 
 		/*
 		 * Get next component of path name.
@@ -1238,11 +1234,8 @@ nfs_open(const char *upath, struct open_file *f)
 			 * If relative pathname, restart at parent directory.
 			 */
 			cp = namebuf;
-			if (*cp == '/') {
-				if (currfd != &nfs_root_node)
-					free(currfd);
-				currfd = &nfs_root_node;
-			}
+			if (*cp == '/')
+				bcopy(&nfs_root_node, currfd, sizeof(*currfd));
 
 			free(newfd);
 			newfd = 0;
@@ -1250,8 +1243,7 @@ nfs_open(const char *upath, struct open_file *f)
 			continue;
 		}
 
-		if (currfd != &nfs_root_node)
-			free(currfd);
+		free(currfd);
 		currfd = newfd;
 		newfd = 0;
 	}
@@ -1262,17 +1254,12 @@ out:
 	free(newfd);
 	free(path);
 #else
-	/* allocate file system specific data structure */
-	currfd = malloc(sizeof(*currfd));
-	if (currfd != NULL) {
-		currfd->iodesc = desc;
-		currfd->off = 0;
+	currfd->iodesc = desc;
 
-		error = nfs_lookupfh(&nfs_root_node, upath, currfd);
-	} else
-		error = ENOMEM;
+	error = nfs_lookupfh(&nfs_root_node, upath, currfd);
 #endif
 	if (!error) {
+		currfd->off = 0;
 		f->f_fsdata = (void *)currfd;
 		return (0);
 	}
@@ -1282,10 +1269,7 @@ out:
 		printf("nfs_open: %s lookupfh failed: %s\n",
 		    path, strerror(error));
 #endif
-#ifndef NFS_NOSYMLINK
-	if (currfd != &nfs_root_node)
-#endif
-		free(currfd);
+	free(currfd);
 
 	return (error);
 }
@@ -1300,7 +1284,7 @@ nfs_close(struct open_file *f)
 		printf("nfs_close: fp=0x%lx\n", (u_long)fp);
 #endif
 
-	if (fp != &nfs_root_node && fp)
+	if (fp)
 		free(fp);
 	f->f_fsdata = (void *)0;
 
