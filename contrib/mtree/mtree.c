@@ -79,8 +79,12 @@ main(int argc, char **argv)
 	spec1 = stdin;
 	spec2 = NULL;
 
+#ifdef __FreeBSD__
+	tflag = 1;
+#endif
+
 	while ((ch = getopt(argc, argv,
-	    "cCdDeE:f:I:ijk:K:lLmMnN:p:PqrR:s:StuUwWxX:"))
+	    "cCdDeE:f:I:ijk:K:lLmMnN:p:PqrR:s:StTuUwWxX:"))
 	    != -1) {
 		switch((char)ch) {
 		case 'c':
@@ -186,6 +190,9 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			tflag = 1;
+			break;
+		case 'T':
+			tflag = 0;
 			break;
 		case 'u':
 			uflag = 1;

@@ -300,6 +300,16 @@ The checksum is seeded with the specified value.
 .It Fl t
 Modify the modified time of existing files, the device type of devices, and
 symbolic link targets, to match the specification.
+This is the default on
+.Fx
+systems.
+.It Fl T
+.Em Do not
+modify the modified timeof existing files, the device type of devices, and
+symbolic link targets, to match the specification.
+This is the default on systems other than
+.Fx
+.
 .It Fl U
 Same as
 .Fl u
