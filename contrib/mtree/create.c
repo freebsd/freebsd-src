@@ -187,14 +187,14 @@ statf(int indent, FTSENT *p)
 		if (keys & F_UNAME &&
 		    (name = user_from_uid(p->fts_statp->st_uid, 1)) != NULL)
 			output(indent, &offset, "uname=%s", name);
-		else /* if (keys & F_UID) */
+		if (keys & F_UID || (keys & F_UNAME && name == NULL))
 			output(indent, &offset, "uid=%u", p->fts_statp->st_uid);
 	}
 	if (keys & (F_GID | F_GNAME) && p->fts_statp->st_gid != gid) {
 		if (keys & F_GNAME &&
 		    (name = group_from_gid(p->fts_statp->st_gid, 1)) != NULL)
 			output(indent, &offset, "gname=%s", name);
-		else /* if (keys & F_GID) */
+		if (keys & F_GID || (keys & F_GNAME && name == NULL))
 			output(indent, &offset, "gid=%u", p->fts_statp->st_gid);
 	}
 	if (keys & F_MODE && (p->fts_statp->st_mode & MBITS) != mode)
@@ -385,14 +385,14 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode,
 			if (keys & F_UNAME &&
 			    (name = user_from_uid(saveuid, 1)) != NULL)
 				printf(" uname=%s", name);
-			else /* if (keys & F_UID) */
+			if (keys & F_UID || (keys & F_UNAME && name == NULL))
 				printf(" uid=%lu", (u_long)saveuid);
 		}
 		if (keys & (F_GID | F_GNAME)) {
 			if (keys & F_GNAME &&
 			    (name = group_from_gid(savegid, 1)) != NULL)
 				printf(" gname=%s", name);
-			else /* if (keys & F_UID) */
+			if (keys & F_GID || (keys & F_GNAME && name == NULL))
 				printf(" gid=%lu", (u_long)savegid);
 		}
 		if (keys & F_MODE)
