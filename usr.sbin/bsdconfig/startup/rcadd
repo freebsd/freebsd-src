@@ -46,7 +46,7 @@ ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 # Options
 #
 # Inherit SHOW_DESC value if set, otherwise default to 1
-( : ${SHOW_DESC?} ) > /dev/null 2>&1 || SHOW_DESC=1
+( : ${SHOW_DESC?} ) >&- 2>&- || SHOW_DESC=1
 
 ############################################################ FUNCTIONS
 

@@ -46,7 +46,7 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_route_get_default()
 {
-	route -n get default 2> /dev/null | awk \
+	route -n get default 2>&- | awk \
 	'
 		BEGIN { found = 0 }
 		( $1 == "gateway:" ) \
