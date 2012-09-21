@@ -85,7 +85,7 @@ f_become_root_via_sudo()
 	#
 	# Check sudo(8) access before prompting for password.
 	#
-	:| sudo -S -v 2> /dev/null
+	:| sudo -S -v 2>&-
 	if [ $? -ne $SUCCESS ]; then
 		#
 		# sudo(8) access denied. Prompt for their password.
@@ -112,7 +112,7 @@ f_become_root_via_sudo()
 					--ok-label "$msg_ok"               \
 					--cancel-label "$msg_cancel"       \
 					--password --inputbox "$msg" $size \
-					2>&1 > /dev/null )
+					2>&1 >&- )
 				retval=$?
 
 				# Catch X11-related errors
@@ -141,7 +141,7 @@ f_become_root_via_sudo()
 			#
 			# Validate sudo(8) credentials
 			#
-			sudo -S -v 2> /dev/null <<-EOF
+			sudo -S -v 2>&- <<-EOF
 			$password
 			EOF
 			retval=$?
@@ -186,7 +186,7 @@ f_become_root_via_sudo()
 		displaynum="${DISPLAY#*:}"
 		xauth -f ~/.Xauthority extract - $HOSTNAME/unix:$displaynum \
 			$HOSTNAME:$displaynum | sudo sh -c 'xauth -ivf \
-			~root/.Xauthority merge - > /dev/null 2>&1'
+			~root/.Xauthority merge - >&- 2>&-'
 	fi
 
 	# Re-execute ourselves with sudo(8)
@@ -254,7 +254,7 @@ f_authenticate_some_user()
 			$height $width                  \
 			"$field_username" ""            \
 			"$field_password" ""            \
-			2>&1 > /dev/null )
+			2>&1 >&- )
 		retval=$?
 
 		# Catch X11-related errors
@@ -302,7 +302,7 @@ f_authenticate_some_user()
 		su -m "$user" <<-EOF
 			sh <<EOS
 				sudo -k
-				sudo -S -v 2> /dev/null <<EOP
+				sudo -S -v 2>&- <<EOP
 				$password
 				EOP
 			EOS
