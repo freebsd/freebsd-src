@@ -11,7 +11,8 @@ CFLAGS+=	-DNO_SHA384 -I${.CURDIR}
 LDADD+=		-lmd -lutil
 #MAN=    mtree.8
 MAN=
-SRCS=   compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c \
+SRCS=   compare.c crc.c create.c excludes.c misc.c mtree.c spec.c specspec.c \
+	verify.c \
         getid.c pack_dev.c
 
 SRCS+=	sha1.h sha2.h util.c util.h
