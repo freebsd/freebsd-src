@@ -86,6 +86,10 @@ shownode(NODE *n, int f, char const *path)
 		printf(" rmd160digest=%s", n->rmd160digest);
 	if (f & F_SHA256)
 		printf(" sha256digest=%s", n->sha256digest);
+	if (f & F_SHA384)
+		printf(" sha384=%s", n->sha384digest);
+	if (f & F_SHA512)
+		printf(" sha512=%s", n->sha512digest);
 	if (f & F_FLAGS)
 		printf(" flags=%s", flags_to_string(n->st_flags, "none"));
 	printf("\n");
@@ -166,6 +170,10 @@ compare_nodes(NODE *n1, NODE *n2, char const *path)
 		differs |= F_RMD160;
 	if (FS(n1, n2, F_SHA256, sha256digest))
 		differs |= F_SHA256;
+	if (FS(n1, n2, F_SHA384, sha384digest))
+		differs |= F_SHA384;
+	if (FS(n1, n2, F_SHA512, sha512digest))
+		differs |= F_SHA512;
 	if (FF(n1, n2, F_FLAGS, st_flags))
 		differs |= F_FLAGS;
 	if (differs) {
