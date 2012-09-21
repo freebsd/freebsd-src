@@ -204,22 +204,6 @@ static void	ath_dfs_tasklet(void *, int);
 #include <dev/ath/if_ath_tdma.h>
 #endif
 
-#if 0
-#define	TDMA_EP_MULTIPLIER	(1<<10) /* pow2 to optimize out * and / */
-#define	TDMA_LPF_LEN		6
-#define	TDMA_DUMMY_MARKER	0x127
-#define	TDMA_EP_MUL(x, mul)	((x) * (mul))
-#define	TDMA_IN(x)		(TDMA_EP_MUL((x), TDMA_EP_MULTIPLIER))
-#define	TDMA_LPF(x, y, len) \
-    ((x != TDMA_DUMMY_MARKER) ? (((x) * ((len)-1) + (y)) / (len)) : (y))
-#define	TDMA_SAMPLE(x, y) do {					\
-	x = TDMA_LPF((x), TDMA_IN(y), TDMA_LPF_LEN);		\
-} while (0)
-#define	TDMA_EP_RND(x,mul) \
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-#define	TDMA_AVG(x)		TDMA_EP_RND(x, TDMA_EP_MULTIPLIER)
-#endif /* IEEE80211_SUPPORT_TDMA */
-
 SYSCTL_DECL(_hw_ath);
 
 /* XXX validate sysctl values */
@@ -2856,13 +2840,6 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 	}
 
 	/* allocate descriptors */
-	error = bus_dmamap_create(dd->dd_dmat, BUS_DMA_NOWAIT, &dd->dd_dmamap);
-	if (error != 0) {
-		if_printf(ifp, "unable to create dmamap for %s descriptors, "
-			"error %u\n", dd->dd_name, error);
-		goto fail0;
-	}
-
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &dd->dd_dmamap);
@@ -2892,8 +2869,6 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
 fail1:
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -2976,7 +2951,6 @@ ath_descdma_setup(struct ath_softc *sc,
 fail3:
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -3057,7 +3031,6 @@ ath_descdma_cleanup(struct ath_softc *sc,
 	if (dd->dd_dmamap != 0) {
 		bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 		bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-		bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 		bus_dma_tag_destroy(dd->dd_dmat);
 	}
 

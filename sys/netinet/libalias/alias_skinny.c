@@ -340,7 +340,7 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 	 * through the packet using len to determine message boundaries.
 	 * This comes into play big time with port messages being in the
 	 * same packet as register messages.  Also, open receive channel
-	 * acks are usually buried in a pakcet some 400 bytes long.
+	 * acks are usually buried in a packet some 400 bytes long.
 	 */
 	while (dlen >= skinny_hdr_len) {
 		len = (sd->len);

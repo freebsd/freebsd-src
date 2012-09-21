@@ -1,4 +1,5 @@
 # $FreeBSD$
+*Makefile*
 *README.XML.STUFF
 *bz-common.xsl
 *bz-fo.xsl
@@ -12,10 +13,11 @@
 *bzip2.txt
 *bzmore
 *bzmore.1
-*dlltest.dsp
+*dlltest.*
 *entities.xml
 *format.pl
 *libbz2.dsp
+*makefile.msc
 *manual.html
 *manual.pdf
 *manual.ps

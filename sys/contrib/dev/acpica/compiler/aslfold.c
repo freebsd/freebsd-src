@@ -200,6 +200,19 @@ OpcAmlCheckForConstant (
     DbgPrint (ASL_PARSE_OUTPUT, "[%.4d] Opcode: %12.12s ",
                 Op->Asl.LogicalLineNumber, Op->Asl.ParseOpName);
 
+    /*
+     * These opcodes do not appear in the OpcodeInfo table, but
+     * they represent constants, so abort the constant walk now.
+     */
+    if ((WalkState->Opcode == AML_RAW_DATA_BYTE) ||
+        (WalkState->Opcode == AML_RAW_DATA_WORD) ||
+        (WalkState->Opcode == AML_RAW_DATA_DWORD) ||
+        (WalkState->Opcode == AML_RAW_DATA_QWORD))
+    {
+        WalkState->WalkType = ACPI_WALK_CONST_OPTIONAL;
+        return (AE_TYPE);
+    }
+
     if (!(WalkState->OpInfo->Flags & AML_CONSTANT))
     {
         /* The opcode is not a Type 3/4/5 opcode */
@@ -254,8 +267,8 @@ OpcAmlCheckForConstant (
     {
         DbgPrint (ASL_PARSE_OUTPUT, " TERMARG");
     }
-    DbgPrint (ASL_PARSE_OUTPUT, "\n");
 
+    DbgPrint (ASL_PARSE_OUTPUT, "\n");
     return (AE_OK);
 }
 

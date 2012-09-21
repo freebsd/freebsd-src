@@ -537,8 +537,6 @@ extern uma_zone_t l2zone;
 
 struct mtx smallalloc_mtx;
 
-static MALLOC_DEFINE(M_VMSMALLALLOC, "vm_small_alloc", "VM Small alloc data");
-
 vm_offset_t alloc_firstaddr;
 
 #ifdef ARM_HAVE_SUPERSECTIONS

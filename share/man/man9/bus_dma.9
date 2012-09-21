@@ -580,8 +580,13 @@ The status of the mapping has been delivered to the callback.
 The mapping has been deferred for lack of resources.
 The callback will be called as soon as resources are available.
 Callbacks are serviced in FIFO order.
-To ensure that ordering is guaranteed, all subsequent load requests will also
-be deferred until all callbacks have been processed.
+.Pp
+Note that subsequent load operations for the same tag that do not require
+extra resources will still succeed.
+This may result in out-of-order processing of requests.
+If the caller requires the order of requests to be preserved,
+then the caller is required to stall subsequent requests until a pending
+request's callback is invoked.
 .It Er ENOMEM
 The load request has failed due to insufficient resources, and the caller
 specifically used the

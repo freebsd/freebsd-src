@@ -243,14 +243,13 @@ __END_DECLS
  * System style authentication
  * AUTH *authunix_create(machname, uid, gid, len, aup_gids)
  *	char *machname;
- *	int uid;
- *	int gid;
+ *	uid_t uid;
+ *	gid_t gid;
  *	int len;
- *	int *aup_gids;
+ *	gid_t *aup_gids;
  */
 __BEGIN_DECLS
-extern AUTH *authunix_create(char *, int, int, int,
-    int *);
+extern AUTH *authunix_create(char *, uid_t, gid_t, int, gid_t *);
 extern AUTH *authunix_create_default(void);	/* takes no parameters */
 extern AUTH *authnone_create(void);		/* takes no parameters */
 __END_DECLS

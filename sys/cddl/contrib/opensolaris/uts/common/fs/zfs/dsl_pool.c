@@ -151,8 +151,6 @@ dsl_pool_open(dsl_pool_t *dp)
 	dsl_dataset_t *ds;
 	uint64_t obj;
 
-	ASSERT(!dmu_objset_is_dirty_anywhere(dp->dp_meta_objset));
-
 	rw_enter(&dp->dp_config_rwlock, RW_WRITER);
 	err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 	    DMU_POOL_ROOT_DATASET, sizeof (uint64_t), 1,
@@ -205,6 +203,15 @@ dsl_pool_open(dsl_pool_t *dp)
 		err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 		    DMU_POOL_BPTREE_OBJ, sizeof (uint64_t), 1,
 		    &dp->dp_bptree_obj);
+		if (err != 0)
+			goto out;
+	}
+
+	if (spa_feature_is_active(dp->dp_spa,
+	    &spa_feature_table[SPA_FEATURE_EMPTY_BPOBJ])) {
+		err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
+		    DMU_POOL_EMPTY_BPOBJ, sizeof (uint64_t), 1,
+		    &dp->dp_empty_bpobj);
 		if (err != 0)
 			goto out;
 	}
@@ -282,7 +289,7 @@ dsl_pool_create(spa_t *spa, nvlist_t *zplprops, uint64_t txg)
 	/* create the pool directory */
 	err = zap_create_claim(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 	    DMU_OT_OBJECT_DIRECTORY, DMU_OT_NONE, 0, tx);
-	ASSERT3U(err, ==, 0);
+	ASSERT0(err);
 
 	/* Initialize scan structures */
 	VERIFY3U(0, ==, dsl_scan_init(dp, txg));

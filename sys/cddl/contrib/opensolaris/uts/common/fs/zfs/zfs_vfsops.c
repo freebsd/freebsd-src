@@ -1839,9 +1839,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	/*
 	 * Evict cached data
 	 */
-	if (dmu_objset_is_dirty_anywhere(zfsvfs->z_os))
-		if (!(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
-			txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
+	if (dsl_dataset_is_dirty(dmu_objset_ds(zfsvfs->z_os)) &&
+	    !(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
+		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
 	(void) dmu_objset_evict_dbufs(zfsvfs->z_os);
 
 	return (0);
@@ -2362,7 +2362,7 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 
 		error = zap_add(os, MASTER_NODE_OBJ,
 		    ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
-		ASSERT3U(error, ==, 0);
+		ASSERT0(error);
 
 		VERIFY(0 == sa_set_sa_object(os, sa_obj));
 		sa_register_update_callback(os, zfs_sa_upgrade);

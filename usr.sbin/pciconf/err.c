@@ -63,18 +63,18 @@ static struct bit_table pci_status[] = {
 
 /* Error indicators in the PCI-Express device status register. */
 static struct bit_table pcie_device_status[] = {
-	{ PCIM_EXP_STA_CORRECTABLE_ERROR, "Correctable Error Detected" },
-	{ PCIM_EXP_STA_NON_FATAL_ERROR, "Non-Fatal Error Detected" },	
-	{ PCIM_EXP_STA_FATAL_ERROR, "Fatal Error Detected" },	
-	{ PCIM_EXP_STA_UNSUPPORTED_REQ, "Unsupported Request Detected" },	
+	{ PCIEM_STA_CORRECTABLE_ERROR, "Correctable Error Detected" },
+	{ PCIEM_STA_NON_FATAL_ERROR, "Non-Fatal Error Detected" },	
+	{ PCIEM_STA_FATAL_ERROR, "Fatal Error Detected" },	
+	{ PCIEM_STA_UNSUPPORTED_REQ, "Unsupported Request Detected" },	
 	{ 0, NULL },
 };
 
 /* Valid error indicator bits in the PCI-Express device status register. */
-#define	PCIE_ERRORS	(PCIM_EXP_STA_CORRECTABLE_ERROR |		\
-			 PCIM_EXP_STA_NON_FATAL_ERROR |			\
-			 PCIM_EXP_STA_FATAL_ERROR |			\
-			 PCIM_EXP_STA_UNSUPPORTED_REQ)
+#define	PCIE_ERRORS	(PCIEM_STA_CORRECTABLE_ERROR |		\
+			 PCIEM_STA_NON_FATAL_ERROR |			\
+			 PCIEM_STA_FATAL_ERROR |			\
+			 PCIEM_STA_UNSUPPORTED_REQ)
 
 /* AER Uncorrected errors. */
 static struct bit_table aer_uc[] = {
@@ -91,6 +91,10 @@ static struct bit_table aer_uc[] = {
 	{ PCIM_AER_UC_ECRC_ERROR, "ECRC Error" },
 	{ PCIM_AER_UC_UNSUPPORTED_REQUEST, "Unsupported Request" },
 	{ PCIM_AER_UC_ACS_VIOLATION, "ACS Violation" },
+	{ PCIM_AER_UC_INTERNAL_ERROR, "Uncorrectable Internal Error" },
+	{ PCIM_AER_UC_MC_BLOCKED_TLP, "MC Blocked TLP" },
+	{ PCIM_AER_UC_ATOMIC_EGRESS_BLK, "AtomicOp Egress Blocked" },
+	{ PCIM_AER_UC_TLP_PREFIX_BLOCKED, "TLP Prefix Blocked Error" },
 	{ 0, NULL },
 };
 
@@ -102,6 +106,8 @@ static struct bit_table aer_cor[] = {
 	{ PCIM_AER_COR_REPLAY_ROLLOVER, "REPLAY_NUM Rollover" },
 	{ PCIM_AER_COR_REPLAY_TIMEOUT, "Replay Timer Timeout" },
 	{ PCIM_AER_COR_ADVISORY_NF_ERROR, "Advisory Non-Fatal Error" },
+	{ PCIM_AER_COR_INTERNAL_ERROR, "Corrected Internal Error" },
+	{ PCIM_AER_COR_HEADER_LOG_OVFLOW, "Header Log Overflow" },
 	{ 0, NULL },
 };
 
@@ -147,7 +153,7 @@ list_errors(int fd, struct pci_conf *p)
 		return;
 
 	/* Check for PCI-e errors. */
-	sta = read_config(fd, &p->pc_sel, pcie + PCIR_EXPRESS_DEVICE_STA, 2);
+	sta = read_config(fd, &p->pc_sel, pcie + PCIER_DEVICE_STA, 2);
 	print_bits("PCI-e errors", pcie_device_status, sta & PCIE_ERRORS);
 
 	/* See if this device supports AER. */

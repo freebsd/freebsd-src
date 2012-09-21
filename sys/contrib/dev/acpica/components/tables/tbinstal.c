@@ -374,6 +374,7 @@ AcpiTbResizeRootTableList (
     void)
 {
     ACPI_TABLE_DESC         *Tables;
+    UINT32                  TableCount;
 
 
     ACPI_FUNCTION_TRACE (TbResizeRootTableList);
@@ -389,9 +390,17 @@ AcpiTbResizeRootTableList (
 
     /* Increase the Table Array size */
 
+    if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
+    {
+        TableCount = AcpiGbl_RootTableList.MaxTableCount;
+    }
+    else
+    {
+        TableCount = AcpiGbl_RootTableList.CurrentTableCount;
+    }
+
     Tables = ACPI_ALLOCATE_ZEROED (
-        ((ACPI_SIZE) AcpiGbl_RootTableList.MaxTableCount +
-            ACPI_ROOT_TABLE_SIZE_INCREMENT) *
+        ((ACPI_SIZE) TableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT) *
         sizeof (ACPI_TABLE_DESC));
     if (!Tables)
     {
@@ -404,7 +413,7 @@ AcpiTbResizeRootTableList (
     if (AcpiGbl_RootTableList.Tables)
     {
         ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables,
-            (ACPI_SIZE) AcpiGbl_RootTableList.MaxTableCount * sizeof (ACPI_TABLE_DESC));
+            (ACPI_SIZE) TableCount * sizeof (ACPI_TABLE_DESC));
 
         if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
         {
@@ -413,8 +422,9 @@ AcpiTbResizeRootTableList (
     }
 
     AcpiGbl_RootTableList.Tables = Tables;
-    AcpiGbl_RootTableList.MaxTableCount += ACPI_ROOT_TABLE_SIZE_INCREMENT;
-    AcpiGbl_RootTableList.Flags |= (UINT8) ACPI_ROOT_ORIGIN_ALLOCATED;
+    AcpiGbl_RootTableList.MaxTableCount =
+        TableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT;
+    AcpiGbl_RootTableList.Flags |= ACPI_ROOT_ORIGIN_ALLOCATED;
 
     return_ACPI_STATUS (AE_OK);
 }

@@ -293,26 +293,16 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 		}
 
 		/*
-		 * When doing aggregation, successive failures don't happen
-		 * as often, as sometimes some of the sub-frames get through.
-		 *
-		 * If the sample rix average tx time is greater than the
-		 * average tx time of the current rix, don't immediately use
-		 * the rate for sampling.
+		 * For HT, only sample a few rates on either side of the
+		 * current rix; there's quite likely a lot of them.
 		 */
 		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
-			if ((sn->stats[size_bin][rix].average_tx_time * 10 >
-			    sn->stats[size_bin][current_rix].average_tx_time * 9) &&
-			    (ticks - sn->stats[size_bin][rix].last_tx < ssc->stale_failure_timeout)) {
+			if (rix < (current_rix - 3) ||
+			    rix > (current_rix + 3)) {
 				mask &= ~((uint64_t) 1<<rix);
 				goto nextrate;
 			}
 		}
-
-		/*
-		 * XXX TODO
-		 * For HT, limit sample somehow?
-		 */
 
 		/* Don't sample more than 2 rates higher for rates > 11M for non-HT rates */
 		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
@@ -929,7 +919,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * Only one rate was used; optimize work.
 		 */
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "%s: size %d (%d bytes) %s rate/try %d %s/%d/%d nframes/nbad [%d/%d]",
+		     &an->an_node, "%s: size %d (%d bytes) %s rate/short/long %d %s/%d/%d nframes/nbad [%d/%d]",
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
@@ -961,11 +951,12 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
-"%s: size %d (%d bytes) finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d] nframes/nbad [%d/%d]", 
+"%s: size %d (%d bytes) finaltsidx %d short %d long %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d] nframes/nbad [%d/%d]", 
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
 		     finalTSIdx,
+		     short_tries,
 		     long_tries,
 		     status ? "FAIL" : "OK",
 		     dot11rate(rt, rc[0].rix),
@@ -1419,7 +1410,7 @@ ath_rate_attach(struct ath_softc *sc)
 	if (ssc == NULL)
 		return NULL;
 	ssc->arc.arc_space = sizeof(struct sample_node);
-	ssc->smoothing_rate = 95;		/* ewma percentage ([0..99]) */
+	ssc->smoothing_rate = 75;		/* ewma percentage ([0..99]) */
 	ssc->smoothing_minpackets = 100 / (100 - ssc->smoothing_rate);
 	ssc->sample_rate = 10;			/* %time to try diff tx rates */
 	ssc->max_successive_failures = 3;	/* threshold for rate sampling*/

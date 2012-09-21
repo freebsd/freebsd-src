@@ -720,6 +720,7 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_TCPSTATE,
 	FW_FLOWC_MNEM_UOSTATE,
 	FW_FLOWC_MNEM_SCHEDCLASS,
+	FW_FLOWC_MNEM_DCBPRIO,
 };
 
 struct fw_flowc_mnemval {
@@ -1732,7 +1733,7 @@ struct fw_ri_wr {
 
 #define	FW_FOISCSI_NAME_MAX_LEN		224
 #define	FW_FOISCSI_ALIAS_MAX_LEN	224
-#define FW_FOISCSI_MAX_CHAP_NAME_LEN	64
+#define FW_FOISCSI_CHAP_SEC_MAX_LEN	128
 #define	FW_FOISCSI_INIT_NODE_MAX	8
 
 enum fw_chnet_ifconf_wr_subop {
@@ -1796,6 +1797,11 @@ struct fw_chnet_ifconf_wr {
 			} ipv6;
 		} in_attr;
 	} param;
+};
+
+enum fw_foiscsi_node_type {
+	FW_FOISCSI_NODE_TYPE_INITIATOR = 0,
+	FW_FOISCSI_NODE_TYPE_TARGET,
 };
 
 enum fw_foiscsi_session_type {
@@ -2160,7 +2166,7 @@ struct fw_foiscsi_ctrl_wr {
 		__be32 r1;
 	} sess_attr;
 	struct fw_foiscsi_conn_attr {
-		__be32 hdigest_to_auth_policy;
+		__be32 hdigest_to_ddp_pgsz;
 		__be32 max_rcv_dsl;
 		__be32 ping_tmo;
 		__be16 dst_port;
@@ -2178,7 +2184,7 @@ struct fw_foiscsi_ctrl_wr {
 	} conn_attr;
 	__u8   tgt_name_len;
 	__u8   r3[7];
-	__u8   tgt_name[224];
+	__u8   tgt_name[FW_FOISCSI_NAME_MAX_LEN];
 };
 
 #define S_FW_FOISCSI_CTRL_WR_SESS_TYPE		30
@@ -2262,6 +2268,13 @@ struct fw_foiscsi_ctrl_wr {
     (((x) >> S_FW_FOISCSI_CTRL_WR_AUTH_POLICY) & \
      M_FW_FOISCSI_CTRL_WR_AUTH_POLICY)
 
+#define S_FW_FOISCSI_CTRL_WR_DDP_PGSZ		21
+#define M_FW_FOISCSI_CTRL_WR_DDP_PGSZ		0x3
+#define V_FW_FOISCSI_CTRL_WR_DDP_PGSZ(x)	\
+    ((x) << S_FW_FOISCSI_CTRL_WR_DDP_PGSZ)
+#define G_FW_FOISCSI_CTRL_WR_DDP_PGSZ(x)	\
+    (((x) >> S_FW_FOISCSI_CTRL_WR_DDP_PGSZ) & M_FW_FOISCSI_CTRL_WR_DDP_PGSZ)
+
 struct fw_foiscsi_chap_wr {
 	__be32 op_compl;
 	__be32 flowid_len16;
@@ -2269,14 +2282,11 @@ struct fw_foiscsi_chap_wr {
 	__u8   status;
 	__u8   id_len;
 	__u8   sec_len;
-	__u8   tgt_id_len;
-	__u8   tgt_sec_len;
+	__u8   node_type;
 	__be16 node_id;
-	__u8   r2;
-	__u8   chap_id[64];
-	__u8   chap_sec[16];
-	__u8   tgt_id[64];
-	__u8   tgt_sec[16];
+	__u8   r3[2];
+	__u8   chap_id[FW_FOISCSI_NAME_MAX_LEN];
+	__u8   chap_sec[FW_FOISCSI_CHAP_SEC_MAX_LEN];
 };
 
 /******************************************************************************
@@ -3408,6 +3418,9 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_TPREV = 0x0C,
 	FW_PARAMS_PARAM_DEV_CF = 0x0D,
 	FW_PARAMS_PARAM_DEV_BYPASS = 0x0E,
+	FW_PARAMS_PARAM_DEV_PHYFW = 0x0F,
+	FW_PARAMS_PARAM_DEV_LOAD = 0x10,
+	FW_PARAMS_PARAM_DEV_DIAG = 0x11,
 };
 
 /*
@@ -3482,6 +3495,15 @@ enum fw_params_param_dev_bypass {
 	FW_PARAMS_PARAM_DEV_BYPASS_NORMAL = 0x00,
 	FW_PARAMS_PARAM_DEV_BYPASS_DROP	= 0x1,
 	FW_PARAMS_PARAM_DEV_BYPASS_BYPASS = 0x2,
+};
+
+enum fw_params_phyfw_actions {
+	FW_PARAMS_PARAM_PHYFW_DOWNLOAD	= 0x00,
+	FW_PARAMS_PARAM_PHYFW_VERSION	= 0x01,
+};
+
+enum fw_params_param_dev_diag {
+	FW_PARAM_DEV_DIAG_TMP = 0x00,
 };
 
 #define S_FW_PARAMS_MNEM	24
@@ -5163,6 +5185,13 @@ struct fw_vi_enable_cmd {
     (((x) >> S_FW_VI_ENABLE_CMD_LED) & M_FW_VI_ENABLE_CMD_LED)
 #define F_FW_VI_ENABLE_CMD_LED	V_FW_VI_ENABLE_CMD_LED(1U)
 
+#define S_FW_VI_ENABLE_CMD_DCB_INFO	28
+#define M_FW_VI_ENABLE_CMD_DCB_INFO	0x1
+#define V_FW_VI_ENABLE_CMD_DCB_INFO(x)	((x) << S_FW_VI_ENABLE_CMD_DCB_INFO)
+#define G_FW_VI_ENABLE_CMD_DCB_INFO(x)	\
+    (((x) >> S_FW_VI_ENABLE_CMD_DCB_INFO) & M_FW_VI_ENABLE_CMD_DCB_INFO)
+#define F_FW_VI_ENABLE_CMD_DCB_INFO	V_FW_VI_ENABLE_CMD_DCB_INFO(1U)
+
 /* VI VF stats offset definitions */
 #define VI_VF_NUM_STATS	16
 enum fw_vi_stats_vf_index {
@@ -5442,6 +5471,9 @@ enum fw_port_action {
 	FW_PORT_ACTION_GET_PORT_INFO	= 0x0003,
 	FW_PORT_ACTION_L2_PPP_CFG	= 0x0004,
 	FW_PORT_ACTION_L2_DCB_CFG	= 0x0005,
+	FW_PORT_ACTION_DCB_READ_TRANS	= 0x0006,
+	FW_PORT_ACTION_DCB_READ_RECV	= 0x0007,
+	FW_PORT_ACTION_DCB_READ_DET	= 0x0008,
 	FW_PORT_ACTION_LOW_PWR_TO_NORMAL = 0x0010,
 	FW_PORT_ACTION_L1_LOW_PWR_EN	= 0x0011,
 	FW_PORT_ACTION_L2_WOL_MODE_EN	= 0x0012,
@@ -5450,13 +5482,14 @@ enum fw_port_action {
 	FW_PORT_ACTION_MAC_LPBK		= 0x0022,
 	FW_PORT_ACTION_L1_WS_LPBK_ASIC	= 0x0023,
 	FW_PORT_ACTION_L1_EXT_LPBK      = 0x0026,
+	FW_PORT_ACTION_DIAGNOSTICS	= 0x0027,
 	FW_PORT_ACTION_PCS_LPBK		= 0x0028,
 	FW_PORT_ACTION_PHY_RESET	= 0x0040,
 	FW_PORT_ACTION_PMA_RESET	= 0x0041,
 	FW_PORT_ACTION_PCS_RESET	= 0x0042,
 	FW_PORT_ACTION_PHYXS_RESET	= 0x0043,
 	FW_PORT_ACTION_DTEXS_REEST	= 0x0044,
-	FW_PORT_ACTION_AN_RESET		= 0x0045
+	FW_PORT_ACTION_AN_RESET		= 0x0045,
 };
 
 enum fw_port_l2cfg_ctlbf {
@@ -5486,6 +5519,11 @@ enum fw_port_dcb_type {
 	FW_PORT_DCB_TYPE_PRIORATE	= 0x02,
 	FW_PORT_DCB_TYPE_PFC		= 0x03,
 	FW_PORT_DCB_TYPE_APP_ID		= 0x04,
+	FW_PORT_DCB_TYPE_CONTROL	= 0x05,
+};
+
+enum fw_port_diag_ops {
+	FW_PORT_DIAGS_TEMP		= 0x00,
 };
 
 struct fw_port_cmd {
@@ -5521,6 +5559,10 @@ struct fw_port_cmd {
 			__be32 r8;
 			__be64 r9;
 		} info;
+		struct fw_port_diags {
+			__be32 diagop_diagval;
+			__be32 r;
+		} diags;
 		union fw_port_dcb {
 			struct fw_port_dcb_pgid {
 				__u8   type;
@@ -5557,6 +5599,12 @@ struct fw_port_cmd {
 				__be16 protocolid;
 				__be64 r12;
 			} app_priority;
+			struct fw_port_dcb_control {
+				__u8   type;
+				__u8   all_syncd_pkd;
+				__be16   r10_lo[3];
+				__be64 r11;
+			} control;
 		} dcb;
 	} u;
 };
@@ -5700,12 +5748,31 @@ struct fw_port_cmd {
 #define G_FW_PORT_CMD_MODTYPE(x)	\
     (((x) >> S_FW_PORT_CMD_MODTYPE) & M_FW_PORT_CMD_MODTYPE)
 
+#define S_FW_PORT_CMD_DIAGOP	24
+#define M_FW_PORT_CMD_DIAGOP	0xff
+#define V_FW_PORT_CMD_DIAGOP(x)	((x) << S_FW_PORT_CMD_DIAGOP)
+#define G_FW_PORT_CMD_DIAGOP(x)	\
+    (((x) >> S_FW_PORT_CMD_DIAGOP) & M_FW_PORT_CMD_DIAGOP)
+
+#define S_FW_PORT_CMD_DIAGVAL		0
+#define M_FW_PORT_CMD_DIAGVAL		0xffffff
+#define V_FW_PORT_CMD_DIAGVAL(x)	((x) << S_FW_PORT_CMD_DIAGVAL)
+#define G_FW_PORT_CMD_DIAGVAL(x)	\
+    (((x) >> S_FW_PORT_CMD_DIAGVAL) & M_FW_PORT_CMD_DIAGVAL)
+
 #define S_FW_PORT_CMD_APPLY	7
 #define M_FW_PORT_CMD_APPLY	0x1
 #define V_FW_PORT_CMD_APPLY(x)	((x) << S_FW_PORT_CMD_APPLY)
 #define G_FW_PORT_CMD_APPLY(x)	\
     (((x) >> S_FW_PORT_CMD_APPLY) & M_FW_PORT_CMD_APPLY)
 #define F_FW_PORT_CMD_APPLY	V_FW_PORT_CMD_APPLY(1U)
+
+#define S_FW_PORT_CMD_ALL_SYNCD		7
+#define M_FW_PORT_CMD_ALL_SYNCD		0x1
+#define V_FW_PORT_CMD_ALL_SYNCD(x)	((x) << S_FW_PORT_CMD_ALL_SYNCD)
+#define G_FW_PORT_CMD_ALL_SYNCD(x)	\
+    (((x) >> S_FW_PORT_CMD_ALL_SYNCD) & M_FW_PORT_CMD_ALL_SYNCD)
+#define F_FW_PORT_CMD_ALL_SYNCD	V_FW_PORT_CMD_ALL_SYNCD(1U)
 
 /*
  *	These are configured into the VPD and hence tools that generate
@@ -5768,6 +5835,7 @@ enum fw_port_link_dn_rc {
 	FW_PORT_LINK_DN_RC_REMFLT,
 	FW_PORT_LINK_DN_ANEG_F,
 	FW_PORT_LINK_DN_MS_RES_F,
+	FW_PORT_LINK_DN_OVERHEAT,
 	FW_PORT_LINK_DN_UNKNOWN
 };
 
@@ -6706,18 +6774,34 @@ struct fw_devlog_cmd {
      M_FW_DEVLOG_CMD_MEMADDR16_DEVLOG)
 
 enum fw_watchdog_actions {
-	FW_WATCHDOG_ACTION_FLR = 0x1,
-	FW_WATCHDOG_ACTION_BYPASS = 0x2,
+	FW_WATCHDOG_ACTION_SHUTDOWN = 0,
+	FW_WATCHDOG_ACTION_FLR = 1,
+	FW_WATCHDOG_ACTION_BYPASS = 2,
+	FW_WATCHDOG_ACTION_TMPCHK = 3,
+
+	FW_WATCHDOG_ACTION_MAX = 4,
 };
 
 #define FW_WATCHDOG_MAX_TIMEOUT_SECS	60
 
 struct fw_watchdog_cmd {
-	__be32 op_to_write;
+	__be32 op_to_vfn;
 	__be32 retval_len16;
 	__be32 timeout;
-	__be32 actions;
+	__be32 action;
 };
+
+#define S_FW_WATCHDOG_CMD_PFN		8
+#define M_FW_WATCHDOG_CMD_PFN		0x7
+#define V_FW_WATCHDOG_CMD_PFN(x)	((x) << S_FW_WATCHDOG_CMD_PFN)
+#define G_FW_WATCHDOG_CMD_PFN(x)	\
+    (((x) >> S_FW_WATCHDOG_CMD_PFN) & M_FW_WATCHDOG_CMD_PFN)
+
+#define S_FW_WATCHDOG_CMD_VFN		0
+#define M_FW_WATCHDOG_CMD_VFN		0xff
+#define V_FW_WATCHDOG_CMD_VFN(x)	((x) << S_FW_WATCHDOG_CMD_VFN)
+#define G_FW_WATCHDOG_CMD_VFN(x)	\
+    (((x) >> S_FW_WATCHDOG_CMD_VFN) & M_FW_WATCHDOG_CMD_VFN)
 
 struct fw_clip_cmd {
 	__be32 op_to_write;

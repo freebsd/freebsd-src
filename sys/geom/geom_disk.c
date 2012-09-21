@@ -162,10 +162,6 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
-		if (dp->d_flags & DISKFLAG_CANDELETE)
-			pp->flags |= G_PF_CANDELETE;
-		else
-			pp->flags &= ~G_PF_CANDELETE;
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
 		dp->d_flags |= DISKFLAG_OPEN;
@@ -396,7 +392,7 @@ g_disk_start(struct bio *bp)
 			error = ENOIOCTL;
 		break;
 	case BIO_FLUSH:
-		g_trace(G_T_TOPOLOGY, "g_disk_flushcache(%s)",
+		g_trace(G_T_BIO, "g_disk_flushcache(%s)",
 		    bp->bio_to->name);
 		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
 			error = EOPNOTSUPP;
@@ -487,8 +483,6 @@ g_disk_create(void *arg, int flag)
 	pp = g_new_providerf(gp, "%s", gp->name);
 	pp->mediasize = dp->d_mediasize;
 	pp->sectorsize = dp->d_sectorsize;
-	if (dp->d_flags & DISKFLAG_CANDELETE)
-		pp->flags |= G_PF_CANDELETE;
 	pp->stripeoffset = dp->d_stripeoffset;
 	pp->stripesize = dp->d_stripesize;
 	if (bootverbose)

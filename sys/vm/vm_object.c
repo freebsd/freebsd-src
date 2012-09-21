@@ -2003,6 +2003,14 @@ restart:
 			if ((options & OBJPR_NOTMAPPED) == 0) {
 				pmap_remove_all(p);
 				/* Account for removal of wired mappings. */
+				if (wirings != 0) {
+					KASSERT(p->wire_count == wirings,
+					    ("inconsistent wire count %d %d %p",
+					    p->wire_count, wirings, p));
+					p->wire_count = 0;
+					atomic_subtract_int(&cnt.v_wire_count,
+					    1);
+				}
 				if (wirings != 0)
 					p->wire_count -= wirings;
 			}

@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.19 2011/05/10 01:13:38 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.20 2012/01/17 03:03:39 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -130,5 +130,10 @@ int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
 int ssh_EVP_Cipher(EVP_CIPHER_CTX *, char *, char *, int);
 int ssh_EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *);
 void ssh_OpenSSL_add_all_algorithms(void);
+
+# ifndef HAVE_HMAC_CTX_INIT
+#  define HMAC_CTX_init(a)
+# endif
+
 #endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */
 

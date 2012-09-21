@@ -121,7 +121,7 @@ enum SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATES
 {
    /**
     * This is the idle substate for the stp remote device.  When there are no
-    * active IO for the device it is is in this state.
+    * active IO for the device it is in this state.
     */
    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE,
 

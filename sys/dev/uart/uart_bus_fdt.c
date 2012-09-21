@@ -105,6 +105,8 @@ uart_fdt_probe(device_t dev)
 		sc->sc_class = &uart_ns8250_class;
 	else if (ofw_bus_is_compatible(dev, "lpc,uart"))
 		sc->sc_class = &uart_lpc_class;
+	else if (ofw_bus_is_compatible(dev, "arm,pl011"))
+		sc->sc_class = &uart_pl011_class;
 	else
 		return (ENXIO);
 
@@ -188,6 +190,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		class = &uart_lpc_class;
 	if (fdt_is_compatible(node, "ns16550"))
 		class = &uart_ns8250_class;
+	if (fdt_is_compatible(node, "arm,pl011"))
+		class = &uart_pl011_class;
 
 	di->bas.chan = 0;
 	di->bas.regshft = (u_int)shift;

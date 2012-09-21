@@ -28,13 +28,13 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
 
-APP_DIR="110.mouse"
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="110.mouse"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
@@ -86,7 +86,7 @@ flags=$( f_sysrc_get moused_flags )
 #
 f_dialog_info "$msg_trying_to_start_the_mouse_daemon"
 [ -r "$MOUSED_PIDFILE" ] &&
-	f_quietly kill "$( cat "$MOUSED_PIDFILE" 2> /dev/null )"
+	f_quietly kill "$( cat "$MOUSED_PIDFILE" 2>&- )"
 f_quietly vidcontrol -m on
 f_quietly moused -t "$type" -p "$port" $flags
 

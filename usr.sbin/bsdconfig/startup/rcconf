@@ -28,14 +28,14 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/startup/rcconf.subr
 
-APP_DIR="140.startup"
-f_include $BSDCFG_LIBE/$APP_DIR/include/rcconf.subr
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
@@ -54,7 +54,7 @@ RCCONF_MENU_LIST=
 # Options
 #
 # Inherit SHOW_DESC value if set, otherwise default to 1
-( : ${SHOW_DESC?} ) > /dev/null 2>&1 || SHOW_DESC=1
+( : ${SHOW_DESC?} ) >&- 2>&- || SHOW_DESC=1
 # Selectively inherit SHOW_* value (in order of preference)
 if [ "$SHOW_DEFAULT_VALUE" ]; then
 	SHOW_DEFAULT_VALUE=1
@@ -110,8 +110,8 @@ dialog_menu_main()
 		f_dialog_info "$msg_creating_menu_list"
 
 	RCCONF_MENU_LIST="$RCCONF_MENU_LIST $(
-		. "$RC_DEFAULTS" > /dev/null
-		source_rc_confs > /dev/null
+		. "$RC_DEFAULTS" >&-
+		source_rc_confs >&-
 		var_list=$( f_startup_rcconf_list )
 		for var in $var_list; do
 			eval export $var
@@ -168,7 +168,8 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$RCCONF_MENU_LIST      )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -179,7 +180,11 @@ dialog_menu_main()
 		${SHOW_DESC:+--item-help}          \
 		--menu \"\$prompt\" $size          \
 		$RCCONF_MENU_LIST                  \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN

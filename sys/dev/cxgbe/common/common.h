@@ -64,7 +64,7 @@ enum {
 };
 
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 5
+#define FW_VERSION_MINOR 6
 #define FW_VERSION_MICRO 2
 
 struct port_stats {

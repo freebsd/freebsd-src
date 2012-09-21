@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: jail
-# REQUIRE: LOGIN cleanvar
+# REQUIRE: LOGIN FILESYSTEMS
 # BEFORE: securelevel
 # KEYWORD: nojail shutdown
 

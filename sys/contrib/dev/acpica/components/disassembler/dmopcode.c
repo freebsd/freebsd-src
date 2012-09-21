@@ -254,6 +254,10 @@ AcpiDmFieldPredefinedDescription (
     /* Major cheat: We previously put the Tag ptr in the Node field */
 
     Tag = ACPI_CAST_PTR (char, IndexOp->Common.Node);
+    if (!Tag)
+    {
+        return;
+    }
 
     /* Match the name in the info table */
 

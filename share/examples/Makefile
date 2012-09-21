@@ -54,14 +54,12 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	csh/dot.cshrc \
 	cvsup/README \
 	cvsup/cvs-supfile \
-	cvsup/doc-supfile \
 	cvsup/gnats-supfile \
 	cvsup/ports-supfile \
 	cvsup/refuse \
 	cvsup/refuse.README \
 	cvsup/stable-supfile \
 	cvsup/standard-supfile \
-	cvsup/www-supfile \
 	diskless/ME \
 	diskless/README.BOOTP \
 	diskless/README.TEMPLATING \

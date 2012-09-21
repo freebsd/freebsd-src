@@ -35,7 +35,7 @@
  * This is intended to be used by various statistics gathering operations
  * (NF, RSSI, EVM).
  */
-#define	AH_MIMO_MAX_CHAINS		3
+#define	AH_MAX_CHAINS			3
 #define	AH_MIMO_MAX_EVM_PILOTS		6
 
 /*
@@ -854,6 +854,29 @@ typedef enum {
 	HAL_MFP_PASSTHRU,	/* Don't decrypt MFP frames at all. Passthrough */
 	HAL_MFP_HW_CRYPTO	/* hardware decryption enabled. Merlin can do it. */
 } HAL_MFP_OPT_T;
+
+/* LNA config supported */
+typedef enum {
+	HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2	= 0,
+	HAL_ANT_DIV_COMB_LNA2			= 1,
+	HAL_ANT_DIV_COMB_LNA1			= 2,
+	HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2		= 3,
+} HAL_ANT_DIV_COMB_LNA_CONF;
+
+typedef struct {
+	u_int8_t	main_lna_conf;
+	u_int8_t	alt_lna_conf;
+	u_int8_t	fast_div_bias;
+	u_int8_t	main_gaintb;
+	u_int8_t	alt_gaintb;
+	u_int8_t	antdiv_configgroup;
+	int8_t		lna1_lna2_delta;
+} HAL_ANT_COMB_CONFIG;
+
+#define	DEFAULT_ANTDIV_CONFIG_GROUP	0x00
+#define	HAL_ANTDIV_CONFIG_GROUP_1	0x01
+#define	HAL_ANTDIV_CONFIG_GROUP_2	0x02
+#define	HAL_ANTDIV_CONFIG_GROUP_3	0x03
 
 /*
  * Flag for setting QUIET period

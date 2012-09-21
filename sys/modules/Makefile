@@ -78,6 +78,7 @@ SUBDIR=	\
 	${_crypto} \
 	${_cryptodev} \
 	${_cs} \
+	${_ct} \
 	${_ctau} \
 	${_cxgb} \
 	cxgbe \
@@ -243,7 +244,9 @@ SUBDIR=	\
 	ntfs \
 	ntfs_iconv \
 	nullfs \
+	${_nvd} \
 	${_nve} \
+	${_nvme} \
 	${_nvram} \
 	${_nwfs} \
 	${_nxge} \
@@ -585,9 +588,11 @@ _ixgb=		ixgb
 _ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
+_nvd=		nvd
 .if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
 .endif
+_nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
@@ -607,6 +612,7 @@ _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
+_ct=		ct
 _pmc=		pmc
 _snc=		snc
 .endif
@@ -693,9 +699,11 @@ _mthca=		mthca
 .endif
 _ndis=		ndis
 _nfe=		nfe
+_nvd=		nvd
 .if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
 .endif
+_nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
@@ -706,7 +714,7 @@ _padlock=	padlock
 .endif
 _pccard=	pccard
 _qlxgb=		qlxgb
-_rdma=		rdma	
+_rdma=		rdma
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low

@@ -79,6 +79,11 @@ typedef enum {
 } HAL_PHYDIAG_CAPS;
 
 /*
+ * Enable/disable strong signal fast diversity
+ */
+#define	HAL_CAP_STRONG_DIV		2
+
+/*
  * Each chip or class of chips registers to offer support.
  */
 struct ath_hal_chip {
@@ -148,8 +153,8 @@ typedef struct {
 	int16_t		rawNoiseFloor;
 	int16_t		noiseFloorAdjust;
 #ifdef	AH_SUPPORT_AR5416
-	int16_t		noiseFloorCtl[AH_MIMO_MAX_CHAINS];
-	int16_t		noiseFloorExt[AH_MIMO_MAX_CHAINS];
+	int16_t		noiseFloorCtl[AH_MAX_CHAINS];
+	int16_t		noiseFloorExt[AH_MAX_CHAINS];
 #endif	/* AH_SUPPORT_AR5416 */
 	uint16_t	mainSpur;	/* cached spur value for this channel */
 } HAL_CHANNEL_INTERNAL;
@@ -229,7 +234,8 @@ typedef struct {
 	uint32_t	halIsrRacSupport		: 1,
 			halApmEnable			: 1,
 			halIntrMitigation		: 1,
-			hal49GhzSupport			: 1;
+			hal49GhzSupport			: 1,
+			halAntDivCombSupport		: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
@@ -906,6 +912,37 @@ extern	int16_t ath_ee_interpolate(uint16_t target, uint16_t srcLeft,
 	(IEEE80211_IS_CHAN_5GHZ(_c) && \
 	 AH_PRIVATE((_ah))->ah_caps.halSupportsFastClock5GHz && \
 	ath_hal_eepromGetFlag((_ah), AR_EEP_FSTCLK_5G))
+
+/*
+ * Fetch the maximum regulatory domain power for the given channel
+ * in 1/2dBm steps.
+ */
+static inline int
+ath_hal_get_twice_max_regpower(struct ath_hal_private *ahp,
+    const HAL_CHANNEL_INTERNAL *ichan, const struct ieee80211_channel *chan)
+{
+	struct ath_hal *ah = &ahp->h;
+
+	if (! chan) {
+		ath_hal_printf(ah, "%s: called with chan=NULL!\n", __func__);
+		return (0);
+	}
+	return (chan->ic_maxpower);
+}
+
+/*
+ * Get the maximum antenna gain allowed, in 1/2dBm steps.
+ */
+static inline int
+ath_hal_getantennaallowed(struct ath_hal *ah,
+    const struct ieee80211_channel *chan)
+{
+
+	if (! chan)
+		return (0);
+
+	return (chan->ic_maxantgain);
+}
 
 
 #endif /* _ATH_AH_INTERAL_H_ */

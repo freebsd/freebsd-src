@@ -332,7 +332,7 @@ stick_get_timecount_mp(struct timecounter *tc)
 	if (curcpu == 0)
 		stick = rdstick();
 	else
-		ipi_wait(ipi_rd(0, tl_ipi_stick_rd, &stick));
+		ipi_wait_unlocked(ipi_rd(0, tl_ipi_stick_rd, &stick));
 	sched_unpin();
 	return (stick);
 }
@@ -346,7 +346,7 @@ tick_get_timecount_mp(struct timecounter *tc)
 	if (curcpu == 0)
 		tick = rd(tick);
 	else
-		ipi_wait(ipi_rd(0, tl_ipi_tick_rd, &tick));
+		ipi_wait_unlocked(ipi_rd(0, tl_ipi_tick_rd, &tick));
 	sched_unpin();
 	return (tick);
 }

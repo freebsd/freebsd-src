@@ -370,7 +370,6 @@ ata_end_transaction(struct ata_request *request)
 			      "%s trying to write on read buffer\n",
 			   ata_cmd2str(request));
 		goto end_finished;
-		break;
 	    }
 	    ata_pio_write(request, length);
 	    request->donecount += length;

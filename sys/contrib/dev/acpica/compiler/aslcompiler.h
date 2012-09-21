@@ -661,6 +661,10 @@ FlPrintFile (
     ...);
 
 void
+FlDeleteFile (
+    UINT32                  FileId);
+
+void
 FlSetLineNumber (
     UINT32                  LineNumber);
 
@@ -778,6 +782,10 @@ UtSetParseOpName (
 char *
 UtGetStringBuffer (
     UINT32                  Length);
+
+void
+UtExpandLineBuffers (
+    void);
 
 ACPI_STATUS
 UtInternalizeName (

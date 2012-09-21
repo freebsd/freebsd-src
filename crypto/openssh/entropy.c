@@ -211,9 +211,14 @@ seed_rng(void)
 #endif
 	/*
 	 * OpenSSL version numbers: MNNFFPPS: major minor fix patch status
-	 * We match major, minor, fix and status (not patch)
+	 * We match major, minor, fix and status (not patch) for <1.0.0.
+	 * After that, we acceptable compatible fix versions (so we
+	 * allow 1.0.1 to work with 1.0.0). Going backwards is only allowed
+	 * within a patch series.
 	 */
-	if ((SSLeay() ^ OPENSSL_VERSION_NUMBER) & ~0xff0L)
+	u_long version_mask = SSLeay() >= 0x1000000f ?  ~0xffff0L : ~0xff0L;
+	if (((SSLeay() ^ OPENSSL_VERSION_NUMBER) & version_mask) ||
+	    (SSLeay() >> 12) < (OPENSSL_VERSION_NUMBER >> 12))
 		fatal("OpenSSL version mismatch. Built against %lx, you "
 		    "have %lx", (u_long)OPENSSL_VERSION_NUMBER, SSLeay());
 

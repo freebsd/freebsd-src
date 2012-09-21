@@ -29,11 +29,13 @@
 #
 ############################################################ INCLUDES
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/strings.subr
+
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/strings.subr
 f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 ############################################################ FUNCTIONS
@@ -71,7 +73,7 @@ usage()
 	# Determine the maximum width of terminal/console
 	#
 	local max_size max_width
-	max_size=$( stty size 2> /dev/null )
+	max_size=$( stty size 2>&- )
 	: ${max_size:="24 80"}
 	max_width="${max_size#*[$IFS]}"
 	f_dprintf "max_width=[$max_width]"
@@ -175,7 +177,8 @@ dialog_menu_main()
 	        	\"\"         \
 	        	$menu_list   )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear                                 \
 		--title \"\$title\"                     \
 		--backtitle \"\$btitle\"                \
@@ -183,7 +186,11 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"                 \
 		--cancel-label \"\$msg_exit_bsdconfig\" \
 		--menu \"\$prompt\" $size $menu_list    \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN
@@ -235,8 +242,8 @@ if [ "$1" ]; then
 	#
 	lang="${LANG:-$LC_ALL}"
 	if [ "$lang" ]; then
-		sel=$( grep "^menu_selection=\"$1|" */INDEX.$lang \
-		       		2> /dev/null | tail -1 )
+		sel=$( grep "^menu_selection=\"$1|" */INDEX.$lang 2>&- |
+		       	tail -1 )
 
 		# Fall-back to non-i18n sources if nothing was found
 		[ "$sel" ] ||

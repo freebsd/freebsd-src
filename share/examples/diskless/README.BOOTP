@@ -85,7 +85,7 @@ options		NULLFS			# nullfs to map /var/tmp to /tmp
 
 				BOOTP SERVER SETUP
 
-    The BOOTP server must be running on the same logical LAN as the the
+    The BOOTP server must be running on the same logical LAN as the
     BOOTP client(s).  You need to setup two things:
 
     (1) You need to NFS-export /, /usr, and /var.

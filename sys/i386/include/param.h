@@ -123,6 +123,20 @@
 #define KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 
 /*
+ * Ceiling on amount of swblock kva space, can be changed via
+ * the kern.maxswzone /boot/loader.conf variable.
+ *
+ * 276 is sizeof(struct swblock), but we do not always have a definition
+ * in scope for struct swblock, so we have to hardcode it.  Each struct
+ * swblock holds metadata for 32 pages, so in theory, this is enough for
+ * 16 GB of swap.  In practice, however, the usable amount is considerably
+ * lower due to fragmentation.
+ */
+#ifndef VM_SWZONE_SIZE_MAX
+#define VM_SWZONE_SIZE_MAX	(276 * 128 * 1024)
+#endif
+
+/*
  * Ceiling on size of buffer cache (really only effects write queueing,
  * the VM page cache is not effected), can be changed via
  * the kern.maxbcache /boot/loader.conf variable.

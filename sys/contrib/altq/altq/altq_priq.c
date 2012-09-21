@@ -132,11 +132,9 @@ priq_add_altq(struct pf_altq *a)
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);
 
-	pif = malloc(sizeof(struct priq_if),
-	    M_DEVBUF, M_WAITOK);
+	pif = malloc(sizeof(struct priq_if), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (pif == NULL)
 		return (ENOMEM);
-	bzero(pif, sizeof(struct priq_if));
 	pif->pif_bandwidth = a->ifbandwidth;
 	pif->pif_maxpri = -1;
 	pif->pif_ifq = &ifp->if_snd;
@@ -318,17 +316,15 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 			red_destroy(cl->cl_red);
 #endif
 	} else {
-		cl = malloc(sizeof(struct priq_class),
-		       M_DEVBUF, M_WAITOK);
+		cl = malloc(sizeof(struct priq_class), M_DEVBUF,
+		    M_NOWAIT | M_ZERO);
 		if (cl == NULL)
 			return (NULL);
-		bzero(cl, sizeof(struct priq_class));
 
-		cl->cl_q = malloc(sizeof(class_queue_t),
-		       M_DEVBUF, M_WAITOK);
+		cl->cl_q = malloc(sizeof(class_queue_t), M_DEVBUF,
+		    M_NOWAIT | M_ZERO);
 		if (cl->cl_q == NULL)
 			goto err_ret;
-		bzero(cl->cl_q, sizeof(class_queue_t));
 	}
 
 	pif->pif_classes[pri] = cl;

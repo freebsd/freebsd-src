@@ -170,14 +170,14 @@ struct file_format *file_formats[] = {
 };
 
 struct fs_ops *file_system[] = {
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_fsops,
+#endif
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
 #ifdef LOADER_CD9660_SUPPORT
 	&cd9660_fsops,
-#endif
-#ifdef LOADER_ZFS_SUPPORT
-	&zfs_fsops,
 #endif
 #ifdef LOADER_ZIP_SUPPORT
 	&zipfs_fsops,

@@ -89,6 +89,11 @@ MAN+=	hesiod.conf.5
 MAN+=	nandfs.5
 .endif
 
+.if ${MK_PF} != "no"
+MAN+=	pf.conf.5 \
+	pf.os.5
+.endif
+
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _boot.config.5=	boot.config.5
 .endif

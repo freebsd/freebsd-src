@@ -46,15 +46,15 @@ options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	NFSCLIENT		#Network Filesystem Client
 device		snp
-#options		NFSCL
+#options 	NFSCL
 #options 	NFSSERVER		#Network Filesystem Server
 options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
-options		BREAK_TO_DEBUGGER
-options		BOOTP_NFSROOT
-options		BOOTP_COMPAT
-options		BOOTP
-options		BOOTP_NFSV3
-options		BOOTP_WIRED_TO=ue0
+options 	BREAK_TO_DEBUGGER
+options 	BOOTP_NFSROOT
+options 	BOOTP_COMPAT
+options 	BOOTP
+options 	BOOTP_NFSV3
+options 	BOOTP_WIRED_TO=ue0
 options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
 #options 	PROCFS			#Process filesystem (requires PSEUDOFS)
@@ -93,7 +93,7 @@ device		pty
 
 device		pl310			#  PL310 L2 cache controller
 # Debugging for use in -current
-#options		VERBOSE_SYSINIT		#Enable verbose sysinit messages
+#options 	VERBOSE_SYSINIT		#Enable verbose sysinit messages
 options 	KDB
 options 	DDB			#Enable the kernel debugger
 #options 	INVARIANTS		#Enable calls of extra sanity checking
@@ -106,16 +106,16 @@ device		md
 
 # The following enables MFS as root, this seems similar to an initramfs or initrd
 # as used in Linux.
-# options		MD_ROOT
-# options		MD_ROOT_SIZE=7560
+#options 	MD_ROOT
+#options 	MD_ROOT_SIZE=7560
 
 device		random		# Entropy device
 
 # USB support
 device		usb
 options 	USB_DEBUG
-#options	USB_REQ_DEBUG
-#options		USB_VERBOSE
+#options 	USB_REQ_DEBUG
+#options 	USB_VERBOSE
 device		ohci
 device		ehci
 device		umass
@@ -125,7 +125,7 @@ device		da		# Direct Access (disks)
 
 # USB Ethernet support, requires miibus
 device		miibus
-# device		axe			# ASIX Electronics USB Ethernet
+#device		axe		# ASIX Electronics USB Ethernet
 device		smsc		# SMSC LAN95xx USB Ethernet
 
 
@@ -140,5 +140,5 @@ options         FDT
 options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=pandaboard.dts
 
-# device		vfp			# vfp/neon
-# options		ARM_VFP_SUPPORT		# vfp/neon
+#device		vfp			# vfp/neon
+#options 	ARM_VFP_SUPPORT		# vfp/neon

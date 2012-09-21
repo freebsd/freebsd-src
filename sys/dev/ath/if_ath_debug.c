@@ -178,10 +178,10 @@ ath_printtxbuf_edma(struct ath_softc *sc, const struct ath_buf *first_bf,
 			    eds->ds_hw[8], eds->ds_hw[9],
 			    eds->ds_hw[10], eds->ds_hw[11],
 			    eds->ds_hw[12], eds->ds_hw[13]);
-			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
 			    eds->ds_hw[14], eds->ds_hw[15], eds->ds_hw[16],
 			    eds->ds_hw[17], eds->ds_hw[18], eds->ds_hw[19],
-			    eds->ds_hw[20], eds->ds_hw[21]);
+			    eds->ds_hw[20]);
 #if 0
 			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
 			    ds->ds_hw[22],ds->ds_hw[23],ds->ds_hw[24],

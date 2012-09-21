@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -131,8 +130,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <net/route.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
 
 /*
  * Size of the route hash table.  Must be a power of two.
@@ -245,11 +242,12 @@ static void	bridge_ifdetach(void *arg __unused, struct ifnet *);
 static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
 static void	bridge_stop(struct ifnet *, int);
-static void	bridge_start(struct ifnet *);
+static int	bridge_transmit(struct ifnet *, struct mbuf *);
+static void	bridge_qflush(struct ifnet *);
 static struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
 static int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);
-static void	bridge_enqueue(struct bridge_softc *, struct ifnet *,
+static int	bridge_enqueue(struct bridge_softc *, struct ifnet *,
 		    struct mbuf *);
 static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
@@ -600,12 +598,10 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bridge_ioctl;
-	ifp->if_start = bridge_start;
+	ifp->if_transmit = bridge_transmit;
+	ifp->if_qflush = bridge_qflush;
 	ifp->if_init = bridge_init;
 	ifp->if_type = IFT_BRIDGE;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
 	 * Generate an ethernet address with a locally administered address.
@@ -1780,7 +1776,7 @@ bridge_stop(struct ifnet *ifp, int disable)
  *	Enqueue a packet on a bridge member interface.
  *
  */
-static void
+static int
 bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 {
 	int len, err = 0;
@@ -1823,6 +1819,8 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 		if (mflags & M_MCAST)
 			sc->sc_ifp->if_omcasts++;
 	}
+
+	return (err);
 }
 
 /*
@@ -1981,44 +1979,43 @@ sendunicast:
 }
 
 /*
- * bridge_start:
+ * bridge_transmit:
  *
- *	Start output on a bridge.
+ *	Do output on a bridge.
  *
  */
-static void
-bridge_start(struct ifnet *ifp)
+static int
+bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc;
-	struct mbuf *m;
-	struct ether_header *eh;
-	struct ifnet *dst_if;
+	int error = 0;
 
 	sc = ifp->if_softc;
 
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	for (;;) {
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == 0)
-			break;
-		ETHER_BPF_MTAP(ifp, m);
+	ETHER_BPF_MTAP(ifp, m);
+
+
+	BRIDGE_LOCK(sc);
+	if ((m->m_flags & (M_BCAST|M_MCAST)) == 0) {
+		struct ether_header *eh;
+		struct ifnet *dst_if;
 
 		eh = mtod(m, struct ether_header *);
-		dst_if = NULL;
+		dst_if = bridge_rtlookup(sc, eh->ether_dhost, 1);
+		BRIDGE_UNLOCK(sc);
+		error = bridge_enqueue(sc, dst_if, m);
+	} else
+		bridge_broadcast(sc, ifp, m, 0);
 
-		BRIDGE_LOCK(sc);
-		if ((m->m_flags & (M_BCAST|M_MCAST)) == 0) {
-			dst_if = bridge_rtlookup(sc, eh->ether_dhost, 1);
-		}
+	return (error);
+}
 
-		if (dst_if == NULL)
-			bridge_broadcast(sc, ifp, m, 0);
-		else {
-			BRIDGE_UNLOCK(sc);
-			bridge_enqueue(sc, dst_if, m);
-		}
-	}
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+/*
+ * The ifp->if_qflush entry point for if_bridge(4) is no-op.
+ */
+static void
+bridge_qflush(struct ifnet *ifp __unused)
+{
 }
 
 /*
@@ -2981,7 +2978,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 {
 	int snap, error, i, hlen;
 	struct ether_header *eh1, eh2;
-	struct ip_fw_args args;
 	struct ip *ip;
 	struct llc llc1;
 	u_int16_t ether_type;
@@ -3055,6 +3051,16 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 				goto bad;
 	}
 
+	/* Run the packet through pfil before stripping link headers */
+	if (PFIL_HOOKED(&V_link_pfil_hook) && pfil_ipfw != 0 &&
+			dir == PFIL_OUT && ifp != NULL) {
+
+		error = pfil_run_hooks(&V_link_pfil_hook, mp, ifp, dir, NULL);
+
+		if (*mp == NULL || error != 0) /* packet consumed by filter */
+			return (error);
+	}
+
 	/* Strip off the Ethernet header and keep a copy. */
 	m_copydata(*mp, 0, ETHER_HDR_LEN, (caddr_t) &eh2);
 	m_adj(*mp, ETHER_HDR_LEN);
@@ -3085,63 +3091,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	/* XXX this section is also in if_ethersubr.c */
-	// XXX PFIL_OUT or DIR_OUT ?
-	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 &&
-			dir == PFIL_OUT && ifp != NULL) {
-		struct m_tag *mtag;
-
-		error = -1;
-		/* fetch the start point from existing tags, if any */
-		mtag = m_tag_locate(*mp, MTAG_IPFW_RULE, 0, NULL);
-		if (mtag == NULL) {
-			args.rule.slot = 0;
-		} else {
-			struct ipfw_rule_ref *r;
-
-			/* XXX can we free the tag after use ? */
-			mtag->m_tag_id = PACKET_TAG_NONE;
-			r = (struct ipfw_rule_ref *)(mtag + 1);
-			/* packet already partially processed ? */
-			if (r->info & IPFW_ONEPASS)
-				goto ipfwpass;
-			args.rule = *r;
-		}
-
-		args.m = *mp;
-		args.oif = ifp;
-		args.next_hop = NULL;
-		args.next_hop6 = NULL;
-		args.eh = &eh2;
-		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
-		i = V_ip_fw_chk_ptr(&args);
-		*mp = args.m;
-
-		if (*mp == NULL)
-			return (error);
-
-		if (ip_dn_io_ptr && (i == IP_FW_DUMMYNET)) {
-
-			/* put the Ethernet header back on */
-			M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
-			if (*mp == NULL)
-				return (error);
-			bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
-
-			/*
-			 * Pass the pkt to dummynet, which consumes it. The
-			 * packet will return to us via bridge_dummynet().
-			 */
-			args.oif = ifp;
-			ip_dn_io_ptr(mp, DIR_FWD | PROTO_IFB, &args);
-			return (error);
-		}
-
-		if (i != IP_FW_PASS) /* drop */
-			goto bad;
-	}
-
-ipfwpass:
 	error = 0;
 
 	/*

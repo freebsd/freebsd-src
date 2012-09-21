@@ -12,7 +12,7 @@
 .\"     @(#)rand48.3 V1.0 MB 8 Oct 1993
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2010
+.Dd September 4, 2012
 .Dt RAND48 3
 .Os
 .Sh NAME
@@ -49,6 +49,14 @@
 .Ft void
 .Fn lcong48 "unsigned short p[7]"
 .Sh DESCRIPTION
+.Bf -symbolic
+The functions described in this manual page are not cryptographically
+secure.
+Cryptographic applications should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
 The
 .Fn rand48
 family of functions generates pseudo-random numbers using a linear
@@ -174,10 +182,8 @@ It is thus not possible to use values greater than 0xffff as the addend.
 Note that all three methods of seeding the random number generator
 always also set the multiplicand and addend for any of the six
 generator calls.
-.Pp
-For a more powerful random number generator, see
-.Xr random 3 .
 .Sh SEE ALSO
+.Xr arc4random 3 ,
 .Xr rand 3 ,
 .Xr random 3
 .Sh AUTHORS
