@@ -627,7 +627,7 @@ f_dialog_input_change()
 			local secs="$_input"
 			{ f_isinteger "$secs" && [ $secs -gt 0 ]; } || secs=
 			_input_date=$( date -j -f "%s" -- "$secs" \
-			               		"+%d %m %Y" 2>&- )
+			               		"+%d %m %Y" 2> /dev/null )
 			calendar_size=$( f_dialog_calendar_size \
 			                 	"$DIALOG_TITLE"     \
 			                 	"$DIALOG_BACKTITLE" \
@@ -654,7 +654,7 @@ f_dialog_input_change()
 
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
-				-f %s -- "$_input" "+%H %M %S" 2>&- )
+				-f %s -- "$_input" "+%H %M %S" 2> /dev/null )
 			timebox_size=$( f_dialog_timebox_size \
 			                	"$DIALOG_TITLE"     \
 			                	"$DIALOG_BACKTITLE" \
@@ -682,7 +682,7 @@ f_dialog_input_change()
 			_input=$( date \
 			          	-j -f "%d/%m/%Y %T" \
 			          	-- "$ret_date $ret_time" \
-			          	+%s 2>&- )
+			          	+%s 2> /dev/null )
 			f_dprintf "_input=[$_input]"
 			break ;;
 
@@ -852,7 +852,7 @@ f_dialog_input_expire()
 			local secs="$_input"
 			{ f_isinteger "$secs" && [ $secs -gt 0 ]; } || secs=
 			_input_date=$( date -j -f "%s" -- "$secs" \
-			               		"+%d %m %Y" 2>&- )
+			               		"+%d %m %Y" 2> /dev/null )
 			calendar_size=$( f_dialog_calendar_size \
 			                 	"$DIALOG_TITLE"     \
 			                 	"$DIALOG_BACKTITLE" \
@@ -879,7 +879,7 @@ f_dialog_input_expire()
 
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
-				-f %s -- "$_input" "+%H %M %S" 2>&- )
+				-f %s -- "$_input" "+%H %M %S" 2> /dev/null )
 			timebox_size=$( f_dialog_timebox_size \
 			                	"$DIALOG_TITLE"     \
 			                	"$DIALOG_BACKTITLE" \
@@ -906,7 +906,7 @@ f_dialog_input_expire()
 			_input=$( date \
 			          	-j -f "%d/%m/%Y %T" \
 			          	-- "$ret_date $ret_time" \
-			          	+%s 2>&- )
+			          	+%s 2> /dev/null )
 			f_dprintf "_input=[$_input]"
 			break ;;
 

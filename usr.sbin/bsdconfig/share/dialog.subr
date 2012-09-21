@@ -1321,7 +1321,7 @@ f_dialog_init()
 	# Process stored command-line arguments
 	#
 	SECURE=$( set -- "$ARGV"
-		while getopts S flag >&-; do
+		while getopts S flag > /dev/null; do
 			case "$flag" in
 			S) echo 1;;
 			\?) continue;;
@@ -1329,7 +1329,7 @@ f_dialog_init()
 		done
 	)
 	USE_XDIALOG=$( set -- "$ARGV"
-		while getopts SX flag >&-; do
+		while getopts SX flag > /dev/null; do
 			case "$flag" in
 			S|X) echo 1;;
 			\?) continue;;
@@ -1372,7 +1372,7 @@ f_dialog_init()
 		eval xauth -if \~$SUDO_USER/.Xauthority extract - \
 			\"\$HOSTNAME/unix:\$displaynum\" \
 			\"\$HOSTNAME:\$displaynum\" | sudo sh -c 'xauth -ivf \
-			~root/.Xauthority merge - >&- 2>&-'
+			~root/.Xauthority merge - > /dev/null 2>&1'
 	fi
 
 	#

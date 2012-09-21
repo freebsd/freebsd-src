@@ -83,7 +83,7 @@ f_ifconfig_options()
 f_ifconfig_media()
 {
 	local interface="$1"
-	ifconfig -m "$interface" 2>&- | awk \
+	ifconfig -m "$interface" 2> /dev/null | awk \
 	'
 		BEGIN { media_found = 0 }
 		{

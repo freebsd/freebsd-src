@@ -98,7 +98,7 @@ f_isinteger()
 	# Attempt to perform arithmetic divison (an operation which will exit
 	# with error unless arg is a valid positive/negative whole integer).
 	#
-	( : $((0/$arg)) ) >&- 2>&-
+	( : $((0/$arg)) ) > /dev/null 2>&1
 }
 
 fi # ! $_STRINGS_SUBR
