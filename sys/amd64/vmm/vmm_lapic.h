@@ -31,8 +31,10 @@
 
 struct vm;
 
-int	lapic_write(struct vm *vm, int cpu, u_int offset, uint64_t val);
-int	lapic_read(struct vm *vm, int cpu, u_int offset, uint64_t *retval);
+boolean_t lapic_msr(u_int num);
+int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval);
+int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval);
+
 void	lapic_timer_tick(struct vm *vm, int cpu);
 
 /*

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 
 #include <machine/clock.h>
+#include <x86/specialreg.h>
 #include <x86/apicreg.h>
 
 #include <machine/vmm.h>
@@ -86,6 +87,8 @@ static MALLOC_DEFINE(M_VLAPIC, "vlapic", "vlapic");
 #define VLAPIC_VERSION		(16)
 #define VLAPIC_MAXLVT_ENTRIES	(5)
 
+#define	x2apic(vlapic)		((vlapic)->msr_apicbase & APICBASE_X2APIC)
+
 struct vlapic {
 	struct vm		*vm;
 	int			vcpuid;
@@ -107,6 +110,8 @@ struct vlapic {
 	 */
 	uint8_t			 isrvec_stk[ISRVEC_STK_SIZE];
 	int			 isrvec_stk_top;
+
+	uint64_t		msr_apicbase;
 };
 
 static void
@@ -161,7 +166,6 @@ vlapic_op_reset(void* dev)
 	struct LAPIC	*lapic = &vlapic->apic;
 
 	memset(lapic, 0, sizeof(*lapic));
-	lapic->id = vlapic->vcpuid << 24;
 	lapic->apr = vlapic->vcpuid;
 	vlapic_init_ipi(vlapic);
 	
@@ -542,7 +546,10 @@ vlapic_op_mem_read(void* dev, uint64_t gpa, opsize_t size, uint64_t *data)
 	switch(offset)
 	{
 		case APIC_OFFSET_ID:
-			*data = lapic->id;
+			if (x2apic(vlapic))
+				*data = vlapic->vcpuid;
+			else
+				*data = vlapic->vcpuid << 24;
 			break;
 		case APIC_OFFSET_VER:
 			*data = lapic->version;
@@ -631,7 +638,6 @@ vlapic_op_mem_write(void* dev, uint64_t gpa, opsize_t size, uint64_t data)
 	switch(offset)
 	{
 		case APIC_OFFSET_ID:
-			lapic->id = data;
 			break;
 		case APIC_OFFSET_TPR:
 			lapic->tpr = data & 0xff;
@@ -760,6 +766,14 @@ vlapic_init(struct vm *vm, int vcpuid)
 	vlapic = malloc(sizeof(struct vlapic), M_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = vm;
 	vlapic->vcpuid = vcpuid;
+
+	vlapic->msr_apicbase = DEFAULT_APIC_BASE |
+			       APICBASE_ENABLED |
+			       APICBASE_X2APIC;
+
+	if (vcpuid == 0)
+		vlapic->msr_apicbase |= APICBASE_BSP;
+
 	vlapic->ops = &vlapic_dev_ops;
 
 	vlapic->mmio = vlapic_mmio + vcpuid;
@@ -781,4 +795,18 @@ vlapic_cleanup(struct vlapic *vlapic)
 	vlapic_op_halt(vlapic);
 	vdev_unregister(vlapic);
 	free(vlapic, M_VLAPIC);
+}
+
+uint64_t
+vlapic_get_apicbase(struct vlapic *vlapic)
+{
+
+	return (vlapic->msr_apicbase);
+}
+
+void
+vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val)
+{
+
+	vlapic->msr_apicbase = val;
 }

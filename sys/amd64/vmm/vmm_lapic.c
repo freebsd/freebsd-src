@@ -33,19 +33,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/smp.h>
 
+#include <x86/specialreg.h>
+
 #include <machine/vmm.h>
 #include "vmm_ipi.h"
 #include "vmm_lapic.h"
 #include "vlapic.h"
 
-int
-lapic_write(struct vm *vm, int cpu, u_int offset, uint64_t val)
+static int
+lapic_write(struct vlapic *vlapic, u_int offset, uint64_t val)
 {
 	int handled;
-
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
 
 	if (vlapic_op_mem_write(vlapic, offset, DWORD, val) == 0)
 		handled = 1;
@@ -55,14 +53,10 @@ lapic_write(struct vm *vm, int cpu, u_int offset, uint64_t val)
 	return (handled);
 }
 
-int
-lapic_read(struct vm *vm, int cpu, u_int offset, uint64_t *rv)
+static int
+lapic_read(struct vlapic *vlapic, u_int offset, uint64_t *rv)
 {
 	int handled;
-
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
 
 	if (vlapic_op_mem_read(vlapic, offset, DWORD, rv) == 0)
 		handled = 1;
@@ -119,4 +113,64 @@ lapic_timer_tick(struct vm *vm, int cpu)
 	vlapic = vm_lapic(vm, cpu);
 
 	vlapic_timer_tick(vlapic);
+}
+
+static boolean_t
+x2apic_msr(u_int msr)
+{
+	if (msr >= 0x800 && msr <= 0xBFF)
+		return (TRUE);
+	else
+		return (FALSE);
+}
+
+static u_int
+x2apic_msr_to_regoff(u_int msr)
+{
+
+	return ((msr - 0x800) << 4);
+}
+
+boolean_t
+lapic_msr(u_int msr)
+{
+
+	if (x2apic_msr(msr) || (msr == MSR_APICBASE))
+		return (TRUE);
+	else
+		return (FALSE);
+}
+
+int
+lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval)
+{
+	int handled;
+	struct vlapic *vlapic;
+
+	vlapic = vm_lapic(vm, cpu);
+
+	if (msr == MSR_APICBASE) {
+		*rval = vlapic_get_apicbase(vlapic);
+		handled = 1;
+	} else
+		handled = lapic_read(vlapic, x2apic_msr_to_regoff(msr), rval);
+
+	return (handled);
+}
+
+int
+lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val)
+{
+	int handled;
+	struct vlapic *vlapic;
+
+	vlapic = vm_lapic(vm, cpu);
+
+	if (msr == MSR_APICBASE) {
+		vlapic_set_apicbase(vlapic, val);
+		handled = 1;
+	} else
+		handled = lapic_write(vlapic, x2apic_msr_to_regoff(msr), val);
+
+	return (handled);
 }

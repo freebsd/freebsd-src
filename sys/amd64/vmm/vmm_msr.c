@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 
 #include <machine/specialreg.h>
-#include <x86/apicreg.h>
 
 #include <machine/vmm.h>
 #include "vmm_lapic.h"
@@ -56,7 +55,6 @@ static struct vmm_msr vmm_msr[] = {
 	{ MSR_STAR,	0 },
 	{ MSR_SF_MASK,	0 },
 	{ MSR_PAT,      VMM_MSR_F_EMULATE | VMM_MSR_F_INVALID },
-	{ MSR_APICBASE,	VMM_MSR_F_EMULATE },
 	{ MSR_BIOS_SIGN,VMM_MSR_F_EMULATE },
 	{ MSR_MCG_CAP,	VMM_MSR_F_EMULATE | VMM_MSR_F_READONLY },
 };
@@ -107,12 +105,6 @@ guest_msrs_init(struct vm *vm, int cpu)
 		case MSR_MCG_CAP:
 			guest_msrs[i] = 0;
 			break;
-		case MSR_APICBASE:
-			guest_msrs[i] = DEFAULT_APIC_BASE | APICBASE_ENABLED |
-					APICBASE_X2APIC;
-			if (cpu == 0)
-				guest_msrs[i] |= APICBASE_BSP;
-			break;
 		case MSR_PAT:
 			guest_msrs[i] = PAT_VALUE(0, PAT_WRITE_BACK)      |
 				PAT_VALUE(1, PAT_WRITE_THROUGH)   |
@@ -128,29 +120,6 @@ guest_msrs_init(struct vm *vm, int cpu)
 			      "0x%0x", vmm_msr[i].num);
 		}
 	}
-}
-
-static boolean_t
-x2apic_msr(u_int num)
-{
-
-	if (num >= 0x800 && num <= 0xBFF)
-		return (TRUE);
-	else
-		return (FALSE);
-}
-
-static u_int
-x2apic_msr_to_regoff(u_int msr)
-{
-
-	return ((msr - 0x800) << 4);
-}
-
-static boolean_t
-x2apic_msr_id(u_int num)
-{
-	return (num == 0x802);
 }
 
 static int
@@ -173,8 +142,8 @@ emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val)
 
 	handled = 0;
 
-	if (x2apic_msr(num))
-		return (lapic_write(vm, cpu, x2apic_msr_to_regoff(num), val));
+	if (lapic_msr(num))
+		return (lapic_wrmsr(vm, cpu, num, val));
 
 	idx = msr_num_to_idx(num);
 	if (idx < 0)
@@ -208,15 +177,8 @@ emulate_rdmsr(struct vm *vm, int cpu, u_int num)
 
 	handled = 0;
 
-	if (x2apic_msr(num)) {
-		handled = lapic_read(vm, cpu, x2apic_msr_to_regoff(num),
-				     &result);
-		/*
-		 * The version ID needs to be massaged
-		 */
-		if (x2apic_msr_id(num)) {
-			result = result >> 24;
-		}
+	if (lapic_msr(num)) {
+		handled = lapic_rdmsr(vm, cpu, num, &result);
 		goto done;
 	}
 
