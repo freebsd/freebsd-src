@@ -64,11 +64,11 @@ static void	miss(NODE *, char *);
 static int	vwalk(void);
 
 int
-verify(void)
+verify(FILE *fi)
 {
 	int rval;
 
-	root = spec(stdin);
+	root = spec(fi);
 	rval = vwalk();
 	miss(root, path);
 	return (rval);

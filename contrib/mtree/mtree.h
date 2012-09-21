@@ -120,6 +120,7 @@ const char	*inotype(u_int);
 u_int		 nodetoino(u_int);
 int		 setup_getid(const char *);
 NODE		*spec(FILE *);
+int		 mtree_specspec(FILE *, FILE *);
 void		 free_nodes(NODE *);
 char		*vispath(const char *);
 

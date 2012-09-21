@@ -67,7 +67,7 @@ void	 parsetags(slist_t *, char *);
 u_int	 parsetype(const char *);
 void	 read_excludes_file(const char *);
 const char *rlink(const char *);
-int	 verify(void);
+int	 verify(FILE *);
 
 extern int	dflag, eflag, iflag, jflag, lflag, mflag,
 		nflag, qflag, rflag, sflag, tflag, uflag;
