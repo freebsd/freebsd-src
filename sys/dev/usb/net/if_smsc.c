@@ -334,7 +334,7 @@ static int
 smsc_eeprom_read(struct smsc_softc *sc, uint16_t off, uint8_t *buf, uint16_t buflen)
 {
 	usb_ticks_t start_ticks;
-	usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
+	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 	int err;
 	int locked;
 	uint32_t val;
@@ -365,8 +365,8 @@ smsc_eeprom_read(struct smsc_softc *sc, uint16_t off, uint8_t *buf, uint16_t buf
 				break;
 
 			uether_pause(&sc->sc_ue, hz / 100);
-		} while ((ticks - start_ticks) < max_ticks);
-		
+		} while (((usb_ticks_t)(ticks - start_ticks)) < max_ticks);
+
 		if (val & (SMSC_EEPROM_CMD_BUSY | SMSC_EEPROM_CMD_TIMEOUT)) {
 			smsc_warn_printf(sc, "eeprom command failed\n");
 			err = USB_ERR_IOERROR;
@@ -1247,7 +1247,7 @@ smsc_phy_init(struct smsc_softc *sc)
 {
 	int bmcr;
 	usb_ticks_t start_ticks;
-	usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
+	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1260,7 +1260,7 @@ smsc_phy_init(struct smsc_softc *sc)
 		bmcr = smsc_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR);
 	} while ((bmcr & MII_BMCR) && ((ticks - start_ticks) < max_ticks));
 
-	if ((ticks - start_ticks) >= max_ticks) {
+	if (((usb_ticks_t)(ticks - start_ticks)) >= max_ticks) {
 		smsc_err_printf(sc, "PHY reset timed-out");
 		return (EIO);
 	}
