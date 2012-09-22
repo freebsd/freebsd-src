@@ -54,7 +54,7 @@ RCVAR_MENU_LIST=
 # Options
 #
 # Inherit SHOW_DESC value if set, otherwise default to 1
-( ${SHOW_DESC?} ) > /dev/null 2>&1 || SHOW_DESC=1
+[ "${SHOW_DESC+set}" ] || SHOW_DESC=1
 
 ############################################################ FUNCTIONS
 

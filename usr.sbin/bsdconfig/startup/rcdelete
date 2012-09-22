@@ -54,7 +54,7 @@ RCCONF_MENU_LIST=
 # Options
 #
 # Inherit SHOW_DESC value if set, otherwise default to 1
-( : ${SHOW_DESC?} ) > /dev/null 2>&1 || SHOW_DESC=1
+[ "${SHOW_DESC+set}" ] || SHOW_DESC=1
 # Selectively inherit SHOW_* value (in order of preference)
 if [ "$SHOW_DEFAULT_VALUE" ]; then
 	SHOW_DEFAULT_VALUE=1
@@ -348,7 +348,7 @@ while :; do
 		var="${mtag# }"
 
 		# Toggle the state-variable and loop back to menu
-		if ( eval : \${_${var}_delete?} ) > /dev/null 2>&1; then
+		if eval [ \"\${_${var}_delete+set}\" ]; then
 			unset _${var}_delete
 		else
 			setvar _${var}_delete 1
