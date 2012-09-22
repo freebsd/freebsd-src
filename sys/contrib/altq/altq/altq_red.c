@@ -235,6 +235,13 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	if (rp == NULL)
 		return (NULL);
 
+	/* allocate weight table */
+	rp->red_wtab = wtab_alloc(rp->red_weight);
+	if (rp->red_wtab == NULL) {
+		free(rp, M_DEVBUF);
+		return (NULL);
+	}
+
 	rp->red_avg = 0;
 	rp->red_idle = 1;
 
@@ -300,9 +307,6 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	 */
 	rp->red_probd = (2 * (rp->red_thmax - rp->red_thmin)
 			 * rp->red_inv_pmax) << FP_SHIFT;
-
-	/* allocate weight table */
-	rp->red_wtab = wtab_alloc(rp->red_weight);
 
 	microtime(&rp->red_last);
 	return (rp);
@@ -638,10 +642,9 @@ wtab_alloc(int weight)
 			return (w);
 		}
 
-	w = malloc(sizeof(struct wtab), M_DEVBUF, M_WAITOK);
+	w = malloc(sizeof(struct wtab), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (w == NULL)
-		panic("wtab_alloc: malloc failed!");
-	bzero(w, sizeof(struct wtab));
+		return (NULL);
 	w->w_weight = weight;
 	w->w_refcount = 1;
 	w->w_next = wtab_list;
