@@ -260,7 +260,6 @@ int	lkmressys(struct thread *, struct nosys_args *);
 int	syscall_thread_enter(struct thread *td, struct sysent *se);
 void	syscall_thread_exit(struct thread *td, struct sysent *se);
 
-struct sf_buf;
 int shared_page_alloc(int size, int align);
 int shared_page_fill(int size, int align, const void *data);
 void shared_page_write(int base, int size, const void *data);
