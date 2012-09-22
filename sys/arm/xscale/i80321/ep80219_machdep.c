@@ -104,11 +104,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
@@ -329,16 +324,7 @@ initarm(struct arm_boot_params *abp)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-
-				
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
-
-
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....

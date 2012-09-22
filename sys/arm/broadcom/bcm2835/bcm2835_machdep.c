@@ -108,11 +108,6 @@ __FBSDID("$FreeBSD$");
  */
 #define KERNEL_PT_MAX	78
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 extern unsigned char kernbase[];
 extern unsigned char _etext[];
 extern unsigned char _edata[];
@@ -146,8 +141,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-
-void set_stackptrs(int cpu);
 
 static struct mem_region availmem_regions[FDT_MEM_REGIONS];
 static int availmem_regions_sz;
@@ -542,18 +535,6 @@ initarm(struct arm_boot_params *abp)
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
-}
-
-void
-set_stackptrs(int cpu)
-{
-
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + ((IRQ_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ((ABT_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
 }
 
 #define FDT_DEVMAP_MAX	(2)		// FIXME
