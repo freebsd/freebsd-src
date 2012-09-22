@@ -173,7 +173,7 @@ static void addr_send_arp(struct sockaddr_in *dst_in)
 	*dst = *dst_in;
 
 	rtalloc(&iproute);
-	if (iproute.ro_rt == NULL);
+	if (iproute.ro_rt == NULL)
 		return;
 
 	arpresolve(iproute.ro_rt->rt_ifp, iproute.ro_rt, NULL, 
