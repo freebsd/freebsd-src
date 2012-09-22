@@ -834,7 +834,7 @@ pfr_insert_kentry(struct pfr_ktable *kt, struct pfr_addr *ad, long tzero)
 		return (0);
 	p = pfr_create_kentry(ad);
 	if (p == NULL)
-		return (EINVAL);
+		return (ENOMEM);
 
 	rv = pfr_route_kentry(kt, p);
 	if (rv)
