@@ -116,7 +116,7 @@ tid_free(lwpid_t tid)
 	mtx_lock(&tid_lock);
 	if ((tid_tail + 1) % TID_BUFFER_SIZE == tid_head) {
 		tmp_tid = tid_buffer[tid_head++];
-		tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
+		tid_head %= TID_BUFFER_SIZE;
 	}
 	tid_buffer[tid_tail++] = tid;
 	tid_tail %= TID_BUFFER_SIZE;
