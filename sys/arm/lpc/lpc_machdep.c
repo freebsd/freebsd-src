@@ -306,7 +306,7 @@ initarm(struct arm_boot_params *abp)
 	set_cpufuncs();
 
 	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp != NULL) 
+	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	else
 		dtbp = (vm_offset_t)NULL;
@@ -318,7 +318,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	if (dtbp == (vm_offset_t)NULL)
 		dtbp = (vm_offset_t)&fdt_static_dtb;
-
 #endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
@@ -427,7 +426,7 @@ initarm(struct arm_boot_params *abp)
 		    &kernel_pt_table[i]);
 
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
-	
+
 	/* Map kernel code and data */
 	pmap_map_chunk(l1pagetable, KERNVIRTADDR, KERNPHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
@@ -480,7 +479,7 @@ initarm(struct arm_boot_params *abp)
 #endif
 
 	cninit();
-	
+
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
@@ -547,6 +546,7 @@ initarm(struct arm_boot_params *abp)
 	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
+
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }

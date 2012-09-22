@@ -301,19 +301,18 @@ initarm(struct arm_boot_params *abp)
 	u_int l1pagetable;
 	int i = 0, j = 0, err_devmap = 0;
 
-        lastaddr = parse_boot_param(abp);
+	lastaddr = parse_boot_param(abp);
 	memsize = 0;
 	set_cpufuncs();
 
 	/*
 	 * Find the dtb passed in by the boot loader.
 	 */
-        kmdp = preload_search_by_type("elf kernel");
-        if (kmdp != NULL)
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	else
 		dtbp = (vm_offset_t)NULL;
-		
 
 #if defined(FDT_DTB_STATIC)
 	/*
@@ -429,7 +428,7 @@ initarm(struct arm_boot_params *abp)
 		    &kernel_pt_table[i]);
 
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
-	
+
 	/* Map kernel code and data */
 	pmap_map_chunk(l1pagetable, KERNVIRTADDR, KERNPHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
@@ -493,7 +492,7 @@ initarm(struct arm_boot_params *abp)
 
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
-                    err_devmap);
+		    err_devmap);
 
 	/*
 	 * Re-initialise decode windows
@@ -554,6 +553,7 @@ initarm(struct arm_boot_params *abp)
 	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
+
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
