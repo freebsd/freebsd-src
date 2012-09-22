@@ -34,6 +34,7 @@
 
 #ifndef _LIBC_PRIVATE_H_
 #define _LIBC_PRIVATE_H_
+#include <sys/_types.h>
 #include <sys/_pthreadtypes.h>
 
 /*
@@ -244,6 +245,12 @@ extern void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t)
 
 /* Without back-compat translation */
 extern int	__sys_fcntl(int, int, ...);
+
+struct timespec;
+struct timeval;
+struct timezone;
+int	__sys_gettimeofday(struct timeval *, struct timezone *);
+int	__sys_clock_gettime(__clockid_t, struct timespec *ts);
 
 /* execve() with PATH processing to implement posix_spawnp() */
 int _execvpe(const char *, char * const *, char * const *);
