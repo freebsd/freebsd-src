@@ -94,10 +94,10 @@ struct audata {
 AUTH *
 authunix_create(machname, uid, gid, len, aup_gids)
 	char *machname;
-	int uid;
-	int gid;
+	uid_t uid;
+	gid_t gid;
 	int len;
-	int *aup_gids;
+	gid_t *aup_gids;
 {
 	struct authunix_parms aup;
 	char mymem[MAX_AUTH_BYTES];
@@ -207,9 +207,7 @@ authunix_create_default()
 		abort();
 	if (ngids > NGRPS)
 		ngids = NGRPS;
-	/* XXX: interface problem; those should all have been unsigned */
-	auth = authunix_create(machname, (int)uid, (int)gid, ngids,
-	    (int *)gids);
+	auth = authunix_create(machname, uid, gid, ngids, gids);
 	free(gids);
 	return (auth);
 }
