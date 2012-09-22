@@ -296,7 +296,7 @@ static int
 smsc_wait_for_bits(struct smsc_softc *sc, uint32_t reg, uint32_t bits)
 {
 	usb_ticks_t start_ticks;
-	usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
+	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 	uint32_t val;
 	int err;
 	
@@ -310,7 +310,7 @@ smsc_wait_for_bits(struct smsc_softc *sc, uint32_t reg, uint32_t bits)
 			return (0);
 		
 		uether_pause(&sc->sc_ue, hz / 100);
-	} while ((ticks - start_ticks) < max_ticks);
+	} while (((usb_ticks_t)(ticks - start_ticks)) < max_ticks);
 
 	return (USB_ERR_TIMEOUT);
 }
