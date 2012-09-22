@@ -231,10 +231,9 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	int	 w, i;
 	int	 npkts_per_sec;
 
-	rp = malloc(sizeof(red_t), M_DEVBUF, M_WAITOK);
+	rp = malloc(sizeof(red_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rp == NULL)
 		return (NULL);
-	bzero(rp, sizeof(red_t));
 
 	rp->red_avg = 0;
 	rp->red_idle = 1;
