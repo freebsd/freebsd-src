@@ -224,7 +224,7 @@ do {								\
 #define	STRICT_ASSIGN(type, lval, rval) do {	\
 	volatile type __lval;			\
 						\
-	if (sizeof(type) >= sizeof(double))	\
+	if (sizeof(type) >= sizeof(long double))	\
 		(lval) = (rval);		\
 	else {					\
 		__lval = (rval);		\
@@ -241,7 +241,7 @@ do {								\
 	fp_prec_t __oprec;			\
 						\
 	if ((__oprec = fpgetprec()) != FP_PE)	\
-		fpsetprec(FP_PE);
+		fpsetprec(FP_PE)
 #define	RETURNI(x) do {				\
 	__retval = (x);				\
 	if (__oprec != FP_PE)			\
