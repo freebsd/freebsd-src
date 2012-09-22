@@ -344,6 +344,9 @@ initarm(struct arm_boot_params *abp)
 	memsize = 0;
 	set_cpufuncs();
 
+	/*
+	 * Find the dtb passed in by the boot loader.
+	 */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
@@ -520,7 +523,7 @@ initarm(struct arm_boot_params *abp)
 
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
-			err_devmap);
+		    err_devmap);
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -553,8 +556,8 @@ initarm(struct arm_boot_params *abp)
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
-	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
+	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;

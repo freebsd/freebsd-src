@@ -305,13 +305,15 @@ initarm(struct arm_boot_params *abp)
 	memsize = 0;
 	set_cpufuncs();
 
-
+	/*
+	 * Find the dtb passed in by the boot loader.
+	 */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	else
 		dtbp = (vm_offset_t)NULL;
- 
+
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not retrieved (from metadata) try
@@ -423,7 +425,7 @@ initarm(struct arm_boot_params *abp)
 		    &kernel_pt_table[i]);
 
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
-	
+
 	/* Map kernel code and data */
 	pmap_map_chunk(l1pagetable, KERNVIRTADDR, KERNPHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
@@ -480,7 +482,7 @@ initarm(struct arm_boot_params *abp)
 
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
-			err_devmap);
+		    err_devmap);
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -513,8 +515,8 @@ initarm(struct arm_boot_params *abp)
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
-	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
+	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
