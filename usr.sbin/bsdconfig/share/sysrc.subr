@@ -17,7 +17,7 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -166,7 +166,7 @@ f_sysrc_get()
 
 		#
 		# If the query was for `rc_conf_files' AND after calling
-		# source_rc_confs the vaue has not changed, then we should
+		# source_rc_confs the value has not changed, then we should
 		# restore the value to the one inherited from RC_DEFAULTS
 		# before performing the final query (preventing us from
 		# returning what was set via RC_CONFS when the intent was
