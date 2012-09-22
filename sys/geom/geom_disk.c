@@ -635,10 +635,13 @@ disk_gone(struct disk *dp)
 	struct g_geom *gp;
 	struct g_provider *pp;
 
+	g_topology_lock();
 	gp = dp->d_geom;
-	if (gp != NULL)
+	if (gp != NULL) {
 		LIST_FOREACH(pp, &gp->provider, provider)
 			g_wither_provider(pp, ENXIO);
+	}
+	g_topology_unlock();
 }
 
 void
