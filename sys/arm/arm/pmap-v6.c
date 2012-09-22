@@ -357,14 +357,6 @@ struct l2_dtable {
 #define	L2_NEXT_BUCKET(va)	(((va) & L1_S_FRAME) + L1_S_SIZE)
 
 /*
- * L2 allocation.
- */
-#define	pmap_alloc_l2_dtable()		\
-		(void*)uma_zalloc(l2table_zone, M_NOWAIT|M_USE_RESERVE)
-#define	pmap_free_l2_dtable(l2)		\
-		uma_zfree(l2table_zone, l2)
-
-/*
  * We try to map the page tables write-through, if possible.  However, not
  * all CPUs have a write-through cache mode, so on those we have to sync
  * the cache when we frob page tables.
@@ -621,10 +613,9 @@ pmap_alloc_l2_bucket(pmap_t pm, vm_offset_t va)
 		 * no entry in the L1 table.
 		 * Need to allocate a new l2_dtable.
 		 */
-again_l2table:
 		PMAP_UNLOCK(pm);
 		rw_wunlock(&pvh_global_lock);
-		if ((l2 = pmap_alloc_l2_dtable()) == NULL) {
+		if ((l2 = uma_zalloc(l2table_zone, M_NOWAIT)) == NULL) {
 			rw_wlock(&pvh_global_lock);
 			PMAP_LOCK(pm);
 			return (NULL);
@@ -632,18 +623,12 @@ again_l2table:
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pm);
 		if (pm->pm_l2[L2_IDX(l1idx)] != NULL) {
-			PMAP_UNLOCK(pm);
-			rw_wunlock(&pvh_global_lock);
-			uma_zfree(l2table_zone, l2);
-			rw_wlock(&pvh_global_lock);
-			PMAP_LOCK(pm);
-			l2 = pm->pm_l2[L2_IDX(l1idx)];
-			if (l2 == NULL)
-				goto again_l2table;
 			/*
 			 * Someone already allocated the l2_dtable while
 			 * we were doing the same.
 			 */
+			uma_zfree(l2table_zone, l2);
+			l2 = pm->pm_l2[L2_IDX(l1idx)];
 		} else {
 			bzero(l2, sizeof(*l2));
 			/*
@@ -665,21 +650,14 @@ again_l2table:
 		 * No L2 page table has been allocated. Chances are, this
 		 * is because we just allocated the l2_dtable, above.
 		 */
-again_ptep:
 		PMAP_UNLOCK(pm);
 		rw_wunlock(&pvh_global_lock);
-		ptep = (void*)uma_zalloc(l2zone, M_NOWAIT|M_USE_RESERVE);
+		ptep = uma_zalloc(l2zone, M_NOWAIT);
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pm);
 		if (l2b->l2b_kva != 0) {
 			/* We lost the race. */
-			PMAP_UNLOCK(pm);
-			rw_wunlock(&pvh_global_lock);
 			uma_zfree(l2zone, ptep);
-			rw_wlock(&pvh_global_lock);
-			PMAP_LOCK(pm);
-			if (l2b->l2b_kva == 0)
-				goto again_ptep;
 			return (l2b);
 		}
 		l2b->l2b_phys = vtophys(ptep);
@@ -691,7 +669,7 @@ again_ptep:
 			 */
 			if (l2->l2_occupancy == 0) {
 				pm->pm_l2[L2_IDX(l1idx)] = NULL;
-				pmap_free_l2_dtable(l2);
+				uma_zfree(l2table_zone, l2);
 			}
 			return (NULL);
 		}
@@ -789,7 +767,7 @@ pmap_free_l2_bucket(pmap_t pm, struct l2_bucket *l2b, u_int count)
 	 * the pointer in the parent pmap and free the l2_dtable.
 	 */
 	pm->pm_l2[L2_IDX(l1idx)] = NULL;
-	pmap_free_l2_dtable(l2);
+	uma_zfree(l2table_zone, l2);
 }
 
 /*
@@ -1175,28 +1153,25 @@ pmap_init(void)
 
 	PDEBUG(1, printf("pmap_init: phys_start = %08x\n", PHYSADDR));
 
+	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+
 	/*
-	 * init the pv free list
+	 * Initialize the PV entry allocator.
 	 */
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
+	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
 	/*
 	 * Now it is safe to enable pv_table recording.
 	 */
 	PDEBUG(1, printf("pmap_init: done!\n"));
-
-	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
-	pv_entry_high_water = 9 * (pv_entry_max / 10);
-	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
-
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
-
 }
 
 int
@@ -2544,7 +2519,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 }
 
 /*
- *	The page queues and pmap must be locked.
+ *	The pvh global and pmap locks must be held.
  */
 static void
 pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
