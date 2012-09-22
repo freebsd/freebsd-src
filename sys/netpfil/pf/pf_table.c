@@ -742,6 +742,8 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 	struct radix_node_head	*head = NULL;
 	struct pfr_kentry	*ke;
 
+	PF_RULES_ASSERT();
+
 	bzero(&sa, sizeof(sa));
 	if (ad->pfra_af == AF_INET) {
 		FILLIN_SIN(sa.sin, ad->pfra_ip4addr);
@@ -928,6 +930,8 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 	union sockaddr_union	 mask;
 	struct radix_node	*rn;
 	struct radix_node_head	*head = NULL;
+
+	PF_RULES_WASSERT();
 
 	bzero(ke->pfrke_node, sizeof(ke->pfrke_node));
 	if (ke->pfrke_af == AF_INET)
