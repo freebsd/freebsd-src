@@ -1954,6 +1954,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	    {
 		struct sockaddr_in sin;
 
+		bzero(&sin, sizeof(sin));
 		sin.sin_len = sizeof(sin);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = a->addr32[0];
@@ -1968,6 +1969,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	    {
 		struct sockaddr_in6 sin6;
 
+		bzero(&sin6, sizeof(sin6));
 		sin6.sin6_len = sizeof(sin6);
 		sin6.sin6_family = AF_INET6;
 		bcopy(a, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
@@ -1978,7 +1980,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	    }
 #endif /* INET6 */
 	default:
-		;
+		panic("%s: unknown address family %u", __func__, af);
 	}
 	if ((ke == NULL || ke->pfrke_not) != notrule) {
 		if (op_pass != PFR_OP_PASS)
