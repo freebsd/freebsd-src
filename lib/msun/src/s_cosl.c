@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <float.h>
+#ifdef __i386__
+#include <ieeefp.h>
+#endif
 
 #include "math.h"
 #include "math_private.h"
@@ -63,9 +66,11 @@ cosl(long double x)
 	if (z.bits.exp == 32767)
 		return ((x - x) / (x - x));
 
+	ENTERI();
+
 	/* Optimize the case where x is already within range. */
 	if (z.e < M_PI_4)
-		return (__kernel_cosl(z.e, 0));
+		RETURNI(__kernel_cosl(z.e, 0));
 
 	e0 = __ieee754_rem_pio2l(x, y);
 	hi = y[0];
@@ -86,5 +91,5 @@ cosl(long double x)
 	    break;
 	}
 	
-	return (hi);
+	RETURNI(hi);
 }
