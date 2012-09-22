@@ -2371,7 +2371,7 @@ pfsync_modevent(module_t mod, int type, void *data)
 		/*
 		 * Module should not be unloaded due to race conditions.
 		 */
-		error = EPERM;
+		error = EBUSY;
 		break;
 	case MOD_UNLOAD:
 		pfsync_uninit();
