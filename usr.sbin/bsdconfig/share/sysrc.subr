@@ -132,7 +132,7 @@ f_sysrc_get()
 		# Clear the environment of all variables, preventing the
 		# expansion of normals such as `PS1', `TERM', etc.
 		#
-		f_clean_env --except RC_CONFS RC_DEFAULTS SUCCESS
+		f_clean_env --except RC_CONFS RC_DEFAULTS
 
 		. "$RC_DEFAULTS" > /dev/null 2>&1
 
@@ -153,14 +153,10 @@ f_sysrc_get()
 		# If RC_CONFS is defined, set $rc_conf_files to an explicit
 		# value, modifying the default behavior of source_rc_confs().
 		#
-		( : ${RC_CONFS?} ) > /dev/null 2>&1
-		if [ $? -eq ${SUCCESS:-0} ]; then
+		if [ "${RC_CONFS+set}" ]; then
 			rc_conf_files="$RC_CONFS"
 			_rc_confs_set=1
 		fi
-
-		unset SUCCESS
-			# no longer needed
 
 		source_rc_confs > /dev/null 2>&1
 
