@@ -63,12 +63,12 @@ f_dprintf()
 #
 f_err()
 {
-	printf "$@" >&2 
+	printf "$@" >&2
 }
 
 # f_quietly $command [ $arguments ... ]
 #
-# run a command quietly (quell any output to stdout or stderr)
+# Run a command quietly (quell any output to stdout or stderr)
 #
 f_quietly()
 {
@@ -76,7 +76,7 @@ f_quietly()
 }
 
 # f_have $anything ...
-# 
+#
 # A wrapper to the `type' built-in. Returns true if argument is a valid shell
 # built-in, keyword, or externally-tracked binary, otherwise false.
 #

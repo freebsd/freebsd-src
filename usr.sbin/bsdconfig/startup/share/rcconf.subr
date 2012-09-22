@@ -113,8 +113,8 @@ f_startup_rcconf_map()
 
 	#
 	# Calculate digest used to determine if the on-disk global persistant
-	# cache file (containg this digest on the first line) is valid and can
-	# be used to quickly populate the cache value for immediate return.
+	# cache file (containing this digest on the first line) is valid and
+	# can be used to quickly populate the cache value for immediate return.
 	#
 	local rc_defaults_digest
 	rc_defaults_digest=$( md5 < "$RC_DEFAULTS" )
