@@ -362,8 +362,9 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 		if (flags & PRCF_RIO) {
 			cl->cl_red = (red_t *)rio_alloc(0, NULL,
 						red_flags, red_pkttime);
-			if (cl->cl_red != NULL)
-				qtype(cl->cl_q) = Q_RIO;
+			if (cl->cl_red == NULL)
+				goto err_ret;
+			qtype(cl->cl_q) = Q_RIO;
 		} else
 #endif
 		if (flags & PRCF_RED) {
@@ -371,8 +372,9 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 			    qlimit(cl->cl_q) * 10/100,
 			    qlimit(cl->cl_q) * 30/100,
 			    red_flags, red_pkttime);
-			if (cl->cl_red != NULL)
-				qtype(cl->cl_q) = Q_RED;
+			if (cl->cl_red == NULL)
+				goto err_ret;
+			qtype(cl->cl_q) = Q_RED;
 		}
 	}
 #endif /* ALTQ_RED */
