@@ -878,27 +878,36 @@ zvol_open(struct g_provider *pp, int flag, int count)
 {
 	zvol_state_t *zv;
 	int err = 0;
+	boolean_t locked = B_FALSE;
 
-	if (MUTEX_HELD(&spa_namespace_lock)) {
-		/*
-		 * If the spa_namespace_lock is being held, it means that ZFS
-		 * is trying to open ZVOL as its VDEV. This is not supported.
-		 */
-		return (EOPNOTSUPP);
+	/*
+	 * Protect against recursively entering spa_namespace_lock
+	 * when spa_open() is used for a pool on a (local) ZVOL(s).
+	 * This is needed since we replaced upstream zfsdev_state_lock
+	 * with spa_namespace_lock in the ZVOL code.
+	 * We are using the same trick as spa_open().
+	 * Note that calls in zvol_first_open which need to resolve
+	 * pool name to a spa object will enter spa_open()
+	 * recursively, but that function already has all the
+	 * necessary protection.
+	 */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
 	}
-
-	mutex_enter(&spa_namespace_lock);
 
 	zv = pp->private;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (ENXIO);
 	}
 
 	if (zv->zv_total_opens == 0)
 		err = zvol_first_open(zv);
 	if (err) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (err);
 	}
 	if ((flag & FWRITE) && (zv->zv_flags & ZVOL_RDONLY)) {
@@ -920,13 +929,15 @@ zvol_open(struct g_provider *pp, int flag, int count)
 #endif
 
 	zv->zv_total_opens += count;
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 
 	return (err);
 out:
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	return (err);
 }
 
@@ -936,12 +947,18 @@ zvol_close(struct g_provider *pp, int flag, int count)
 {
 	zvol_state_t *zv;
 	int error = 0;
+	boolean_t locked = B_FALSE;
 
-	mutex_enter(&spa_namespace_lock);
+	/* See comment in zvol_open(). */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
+	}
 
 	zv = pp->private;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (ENXIO);
 	}
 
@@ -964,7 +981,8 @@ zvol_close(struct g_provider *pp, int flag, int count)
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
 
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	return (error);
 }
 
