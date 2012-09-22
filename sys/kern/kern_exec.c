@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
+#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
@@ -64,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
+#include <sys/vdso.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #ifdef KTRACE
@@ -1517,42 +1519,13 @@ exec_unregister(execsw_arg)
 static struct sx shared_page_alloc_sx;
 static vm_object_t shared_page_obj;
 static int shared_page_free;
-
-struct sf_buf *
-shared_page_write_start(int base)
-{
-	vm_page_t m;
-	struct sf_buf *s;
-
-	VM_OBJECT_LOCK(shared_page_obj);
-	m = vm_page_grab(shared_page_obj, OFF_TO_IDX(base), VM_ALLOC_RETRY);
-	VM_OBJECT_UNLOCK(shared_page_obj);
-	s = sf_buf_alloc(m, SFB_DEFAULT);
-	return (s);
-}
-
-void
-shared_page_write_end(struct sf_buf *sf)
-{
-	vm_page_t m;
-
-	m = sf_buf_page(sf);
-	sf_buf_free(sf);
-	VM_OBJECT_LOCK(shared_page_obj);
-	vm_page_wakeup(m);
-	VM_OBJECT_UNLOCK(shared_page_obj);
-}
+char *shared_page_mapping;
 
 void
 shared_page_write(int base, int size, const void *data)
 {
-	struct sf_buf *sf;
-	vm_offset_t sk;
 
-	sf = shared_page_write_start(base);
-	sk = sf_buf_kva(sf);
-	bcopy(data, (void *)(sk + (base & PAGE_MASK)), size);
-	shared_page_write_end(sf);
+	bcopy(data, shared_page_mapping + base, size);
 }
 
 static int
@@ -1596,6 +1569,7 @@ static void
 shared_page_init(void *dummy __unused)
 {
 	vm_page_t m;
+	vm_offset_t addr;
 
 	sx_init(&shared_page_alloc_sx, "shpsx");
 	shared_page_obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
@@ -1605,15 +1579,95 @@ shared_page_init(void *dummy __unused)
 	    VM_ALLOC_ZERO);
 	m->valid = VM_PAGE_BITS_ALL;
 	VM_OBJECT_UNLOCK(shared_page_obj);
+	addr = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	pmap_qenter(addr, &m, 1);
+	shared_page_mapping = (char *)addr;
 }
 
 SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
     NULL);
 
+static void
+timehands_update(struct sysentvec *sv)
+{
+	struct vdso_timehands th;
+	struct vdso_timekeep *tk;
+	uint32_t enabled, idx;
+
+	enabled = tc_fill_vdso_timehands(&th);
+	tk = (struct vdso_timekeep *)(shared_page_mapping +
+	    sv->sv_timekeep_off);
+	idx = sv->sv_timekeep_curr;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, 0);
+	if (++idx >= VDSO_TH_NUM)
+		idx = 0;
+	sv->sv_timekeep_curr = idx;
+	if (++sv->sv_timekeep_gen == 0)
+		sv->sv_timekeep_gen = 1;
+	th.th_gen = 0;
+	if (enabled)
+		tk->tk_th[idx] = th;
+	tk->tk_enabled = enabled;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
+	tk->tk_current = idx;
+}
+
+#ifdef COMPAT_FREEBSD32
+static void
+timehands_update32(struct sysentvec *sv)
+{
+	struct vdso_timekeep32 *tk;
+	struct vdso_timehands32 th;
+	uint32_t enabled, idx;
+
+	enabled = tc_fill_vdso_timehands32(&th);
+	tk = (struct vdso_timekeep32 *)(shared_page_mapping +
+	    sv->sv_timekeep_off);
+	idx = sv->sv_timekeep_curr;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, 0);
+	if (++idx >= VDSO_TH_NUM)
+		idx = 0;
+	sv->sv_timekeep_curr = idx;
+	if (++sv->sv_timekeep_gen == 0)
+		sv->sv_timekeep_gen = 1;
+	th.th_gen = 0;
+	if (enabled)
+		tk->tk_th[idx] = th;
+	tk->tk_enabled = enabled;
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
+	tk->tk_current = idx;
+}
+#endif
+
+/*
+ * This is hackish, but easiest way to avoid creating list structures
+ * that needs to be iterated over from the hardclock interrupt
+ * context.
+ */
+static struct sysentvec *host_sysentvec;
+#ifdef COMPAT_FREEBSD32
+static struct sysentvec *compat32_sysentvec;
+#endif
+
+void
+timekeep_push_vdso(void)
+{
+
+	if (host_sysentvec != NULL && host_sysentvec->sv_timekeep_base != 0)
+		timehands_update(host_sysentvec);
+#ifdef COMPAT_FREEBSD32
+	if (compat32_sysentvec != NULL &&
+	    compat32_sysentvec->sv_timekeep_base != 0)
+		timehands_update32(compat32_sysentvec);
+#endif
+}
+
 void
 exec_sysvec_init(void *param)
 {
 	struct sysentvec *sv;
+	int tk_base;
+	uint32_t tk_ver;
 
 	sv = (struct sysentvec *)param;
 
@@ -1622,4 +1676,32 @@ exec_sysvec_init(void *param)
 	sv->sv_shared_page_obj = shared_page_obj;
 	sv->sv_sigcode_base = sv->sv_shared_page_base +
 	    shared_page_fill(*(sv->sv_szsigcode), 16, sv->sv_sigcode);
+	if ((sv->sv_flags & SV_ABI_MASK) != SV_ABI_FREEBSD)
+		return;
+	tk_ver = VDSO_TK_VER_CURR;
+#ifdef COMPAT_FREEBSD32
+	if ((sv->sv_flags & SV_ILP32) != 0) {
+		tk_base = shared_page_alloc(sizeof(struct vdso_timekeep32) +
+		    sizeof(struct vdso_timehands32) * VDSO_TH_NUM, 16);
+		KASSERT(tk_base != -1, ("tk_base -1 for 32bit"));
+		shared_page_write(tk_base + offsetof(struct vdso_timekeep32,
+		    tk_ver), sizeof(uint32_t), &tk_ver);
+		KASSERT(compat32_sysentvec == 0,
+		    ("Native compat32 already registered"));
+		compat32_sysentvec = sv;
+	} else {
+#endif
+		tk_base = shared_page_alloc(sizeof(struct vdso_timekeep) +
+		    sizeof(struct vdso_timehands) * VDSO_TH_NUM, 16);
+		KASSERT(tk_base != -1, ("tk_base -1 for native"));
+		shared_page_write(tk_base + offsetof(struct vdso_timekeep,
+		    tk_ver), sizeof(uint32_t), &tk_ver);
+		KASSERT(host_sysentvec == 0, ("Native already registered"));
+		host_sysentvec = sv;
+#ifdef COMPAT_FREEBSD32
+	}
+#endif
+	sv->sv_timekeep_base = sv->sv_shared_page_base + tk_base;
+	sv->sv_timekeep_off = tk_base;
+	timekeep_push_vdso();
 }
