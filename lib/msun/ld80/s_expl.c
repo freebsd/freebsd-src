@@ -249,7 +249,7 @@ expl(long double x)
 			return (huge * huge);
 		if (x < u_threshold.e)
 			return (tiny * tiny);
-	} else if (ix <= BIAS - 34) {	/* |x| < 0x1p-33 */
+	} else if (ix < BIAS - 66) {	/* |x| < 0x1p-66 */
 					/* includes pseudo-denormals */
 		if (huge + x > 1.0L)	/* trigger inexact iff x != 0 */
 			return (1.0L + x);
