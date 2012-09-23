@@ -33,6 +33,7 @@
 #define	DWC_OTG_MAX_TXN (0x200 * DWC_OTG_MAX_TXP)
 #define	DWC_OTG_MAX_CHANNELS 16
 #define	DWC_OTG_MAX_ENDPOINTS 16
+#define	DWC_OTG_HOST_TIMER_RATE 10 /* ms */
 
 #define	DWC_OTG_READ_4(sc, reg) \
   bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -56,10 +57,20 @@ struct dwc_otg_td {
 	uint32_t hcsplt;		/* HOST CFG */
 	uint16_t max_packet_size;	/* packet_size */
 	uint16_t npkt;
-	uint8_t sof_res;
-	uint8_t sof_val;
+	uint8_t errcnt;
+	uint8_t tmr_res;
+	uint8_t tmr_val;
 	uint8_t	ep_no;
 	uint8_t channel;
+	uint8_t state;
+#define	DWC_CHAN_ST_START 0
+#define	DWC_CHAN_ST_WAIT_ANE 1
+#define	DWC_CHAN_ST_WAIT_S_ANE 2
+#define	DWC_CHAN_ST_WAIT_C_ANE 3
+#define	DWC_CHAN_ST_RX_PKT 4
+#define	DWC_CHAN_ST_RX_SPKT 5
+#define	DWC_CHAN_ST_TX_PKT 4
+#define	DWC_CHAN_ST_TX_CPKT 5
 	uint8_t	error:1;
 	uint8_t	error_any:1;
 	uint8_t	error_stall:1;
@@ -69,6 +80,7 @@ struct dwc_otg_td {
 	uint8_t toggle:1;
 	uint8_t set_toggle:1;
 	uint8_t got_short:1;
+	uint8_t did_nak:1;
 };
 
 struct dwc_otg_std_temp {
@@ -127,21 +139,16 @@ struct dwc_otg_profile {
 };
 
 struct dwc_otg_chan_state {
-	uint32_t hcchar;
 	uint32_t hcint;
-	uint32_t hcsplt;
-	uint8_t state;
-#define	DWC_CHAN_ST_START 0
-#define	DWC_CHAN_ST_WAIT_ANE 1
-#define	DWC_CHAN_ST_WAIT_S_ANE 2
-#define	DWC_CHAN_ST_WAIT_C_ANE 3
-	uint8_t sof_requested;
+	uint8_t allocated;
+	uint8_t suspended;
 };
 
 struct dwc_otg_softc {
 	struct usb_bus sc_bus;
 	union dwc_otg_hub_temp sc_hub_temp;
 	struct dwc_otg_profile sc_hw_ep_profile[DWC_OTG_MAX_ENDPOINTS];
+	struct usb_callout sc_timer;
 
 	struct usb_device *sc_devices[DWC_OTG_MAX_DEVICES];
 	struct resource *sc_io_res;
@@ -160,12 +167,12 @@ struct dwc_otg_softc {
 	uint32_t sc_out_ctl[DWC_OTG_MAX_ENDPOINTS];
 	uint32_t sc_in_ctl[DWC_OTG_MAX_ENDPOINTS];
 	struct dwc_otg_chan_state sc_chan_state[DWC_OTG_MAX_CHANNELS];
-	uint32_t sc_sof_refs;
-	uint32_t sc_sof_val;
+	uint32_t sc_tmr_val;
 	uint32_t sc_hprt_val;
 
 	uint16_t sc_active_rx_ep;
 
+	uint8_t sc_timer_active;
 	uint8_t	sc_dev_ep_max;
 	uint8_t sc_dev_in_ep_max;
 	uint8_t	sc_host_ch_max;
