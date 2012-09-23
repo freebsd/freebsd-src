@@ -334,11 +334,8 @@ initarm(struct arm_boot_params *abp)
 	    &memsize) != 0)
 		while(1);
 
-	if (fdt_immr_addr(MV_BASE) != 0)
-		while (1);
-
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
+	pmap_bootstrap_lastaddr = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -472,12 +469,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-	/*
-	 * Re-initialise MPP. It is important to call this prior to using
-	 * console as the physical connection can be routed via MPP.
-	 */
-	if (platform_mpp_init() != 0)
-		while (1);
+	initarm_gpio_init();
 
 	cninit();
 
@@ -494,17 +486,7 @@ initarm(struct arm_boot_params *abp)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
 		    err_devmap);
 
-	/*
-	 * Re-initialise decode windows
-	 */
-#if !defined(SOC_MV_FREY)
-	if (soc_decode_win() != 0)
-		printf("WARNING: could not re-initialise decode windows! "
-		    "Running with existing settings...\n");
-#else
-	/* Disable watchdog and timers */
-	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
-#endif
+	initarm_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -690,6 +672,45 @@ moveon:
 	}
 
 	return (0);
+}
+
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	if (fdt_immr_addr(MV_BASE) != 0)
+		while (1);
+
+	/* Platform-specific initialisation */
+	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
+}
+
+void
+initarm_gpio_init(void)
+{
+
+	/*
+	 * Re-initialise MPP. It is important to call this prior to using
+	 * console as the physical connection can be routed via MPP.
+	 */
+	if (platform_mpp_init() != 0)
+		while (1);
+}
+
+void
+initarm_late_init(void)
+{
+	/*
+	 * Re-initialise decode windows
+	 */
+#if !defined(SOC_MV_FREY)
+	if (soc_decode_win() != 0)
+		printf("WARNING: could not re-initialise decode windows! "
+		    "Running with existing settings...\n");
+#else
+	/* Disable watchdog and timers */
+	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
+#endif
 }
 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
