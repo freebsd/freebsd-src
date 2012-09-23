@@ -207,9 +207,9 @@ main(void)
 static void
 extract_currdev(void)
 {
-    struct i386_devdesc	new_currdev;
-    int			major;
-    int			biosdev = -1;
+    struct i386_devdesc		new_currdev;
+    int				major;
+    int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;
@@ -255,7 +255,7 @@ extract_currdev(void)
 	}
     }
     new_currdev.d_type = new_currdev.d_dev->dv_type;
-    
+
     /*
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
@@ -266,6 +266,7 @@ extract_currdev(void)
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
 	new_currdev.d_unit = 0;
     }
+
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
@@ -307,7 +308,7 @@ command_heap(int argc, char *argv[])
 }
 
 /* ISA bus access functions for PnP, derived from <machine/cpufunc.h> */
-static int		
+static int
 isa_inb(int port)
 {
     u_char	data;
@@ -335,4 +336,3 @@ isa_outb(int port, int value)
         __asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
     }
 }
-
