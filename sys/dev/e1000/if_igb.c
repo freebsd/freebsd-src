@@ -4759,7 +4759,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		/* Make sure all segments of a bad packet are discarded */
 		if (((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0) ||
 		    (rxr->discard)) {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
 				rxr->discard = TRUE;

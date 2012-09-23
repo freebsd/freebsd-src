@@ -3562,7 +3562,7 @@ skip:
 				adapter->lmp = NULL;
 			}
 		} else {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 discard:
 			/* Reuse loaded DMA map and just update mbuf chain */
 			mp = adapter->rx_buffer_area[i].m_head;
