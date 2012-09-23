@@ -281,9 +281,19 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		phys_avail[j] = availmem_regions[i].mr_start;
-		phys_avail[j + 1] = availmem_regions[i].mr_start +
-		    availmem_regions[i].mr_size;
+		/*
+		 * We should not map the page at PA 0x0000000, the VM can't
+		 * handle it, as pmap_extract() == 0 means failure.
+		 */
+		if (availmem_regions[i].mr_start > 0 ||
+		    availmem_regions[i].mr_size > PAGE_SIZE) {
+			phys_avail[j] = availmem_regions[i].mr_start;
+			if (phys_avail[j] == 0)
+				phys_avail[j] += PAGE_SIZE;
+			phys_avail[j + 1] = availmem_regions[i].mr_start +
+			    availmem_regions[i].mr_size;
+		} else
+			j -= 2;
 	}
 	phys_avail[j] = 0;
 	phys_avail[j + 1] = 0;

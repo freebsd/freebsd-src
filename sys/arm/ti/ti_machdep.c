@@ -205,7 +205,6 @@ physmap_init(void)
 
 	phys_kernelend = KERNPHYSADDR + (virtual_avail - KERNVIRTADDR);
 	kernload = KERNPHYSADDR;
-	ti_cpu_reset = NULL;
 
 	/*
 	 * Remove kernel physical address range from avail
@@ -282,9 +281,19 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		phys_avail[j] = availmem_regions[i].mr_start;
-		phys_avail[j + 1] = availmem_regions[i].mr_start +
-		    availmem_regions[i].mr_size;
+		/*
+		 * We should not map the page at PA 0x0000000, the VM can't
+		 * handle it, as pmap_extract() == 0 means failure.
+		 */
+		if (availmem_regions[i].mr_start > 0 ||
+		    availmem_regions[i].mr_size > PAGE_SIZE) {
+			phys_avail[j] = availmem_regions[i].mr_start;
+			if (phys_avail[j] == 0)
+				phys_avail[j] += PAGE_SIZE;
+			phys_avail[j + 1] = availmem_regions[i].mr_start +
+			    availmem_regions[i].mr_size;
+		} else
+			j -= 2;
 	}
 	phys_avail[j] = 0;
 	phys_avail[j + 1] = 0;
@@ -336,6 +345,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Platform-specific initialisation */
 	pmap_bootstrap_lastaddr = DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE;
+	ti_cpu_reset = NULL;
 
 	pcpu0_init();
 
