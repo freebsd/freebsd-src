@@ -308,9 +308,9 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize, l2size;
 	void *kmdp;
 	u_int l1pagetable;
-	int i = 0, j = 0;
+	int i = 0, j = 0, err_devmap = 0;
 
-	lastaddr = fake_preload_metadata(abp);
+	lastaddr = parse_boot_param(abp);
 	memsize = 0;
 	set_cpufuncs();
 
@@ -440,6 +440,7 @@ initarm(struct arm_boot_params *abp)
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
+
 	/* Map L1 directory and allocated L2 page tables */
 	pmap_map_chunk(l1pagetable, kernel_l1pt.pv_va, kernel_l1pt.pv_pa,
 	    L1_TABLE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
@@ -454,12 +455,6 @@ initarm(struct arm_boot_params *abp)
 	    freemempos - dpcpu.pv_va,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-
-	/* Map allocated DPCPU, stacks and msgbuf */
-	pmap_map_chunk(l1pagetable, 0xf2200000, 0x20200000,
-	    0x00100000, 
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-
 	/* Link and map the vector page */
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH,
 	    &kernel_pt_table[l2size - 1]);
@@ -467,8 +462,7 @@ initarm(struct arm_boot_params *abp)
 	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
 	/* Map pmap_devmap[] entries */
-	if (platform_devmap_init() != 0)
-		while (1);
+	err_devmap = platform_devmap_init();
 	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
@@ -496,6 +490,10 @@ initarm(struct arm_boot_params *abp)
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
 	print_kenv();
+
+	if (err_devmap != 0)
+		printf("WARNING: could not fully configure devmap, error=%d\n",
+		    err_devmap);
 
 	initarm_late_init();
 
