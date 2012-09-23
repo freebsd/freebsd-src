@@ -256,7 +256,7 @@ f_sysrc_find()
 	# If RC_CONFS is defined, set $rc_conf_files to an explicit
 	# value, modifying the default behavior of source_rc_confs().
 	#
-	[ "$RC_CONFS" ] && rc_conf_files="$RC_CONFS"
+	[ "${RC_CONFS+set}" ] && rc_conf_files="$RC_CONFS"
 
 	#
 	# Reverse the order of files in rc_conf_files (the boot process sources
@@ -435,7 +435,7 @@ f_sysrc_set()
 		# If RC_CONFS is defined, use $RC_CONFS
 		# rather than $rc_conf_files.
 		#
-		if [ "$RC_CONFS" ]; then
+		if [ "${RC_CONFS+set}" ]; then
 			file="${RC_CONFS%%[$IFS]*}"
 		else
 			file=$( f_sysrc_get rc_conf_files )
@@ -554,7 +554,7 @@ f_sysrc_delete()
 	#
 	# Operate on each of the specified files
 	#
-	for file in ${RC_CONFS:-$( f_sysrc_get rc_conf_files )}; do
+	for file in ${RC_CONFS-$( f_sysrc_get rc_conf_files )}; do
 		[ -e "$file" ] || continue
 
 		#
