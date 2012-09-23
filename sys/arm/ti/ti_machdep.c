@@ -344,8 +344,7 @@ initarm(struct arm_boot_params *abp)
 		while(1);
 
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE;
-	ti_cpu_reset = NULL;
+	pmap_bootstrap_lastaddr = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -479,6 +478,8 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
+	initarm_gpio_init();
+
 	cninit();
 
 	physmem = memsize / PAGE_SIZE;
@@ -493,6 +494,8 @@ initarm(struct arm_boot_params *abp)
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
 		    err_devmap);
+
+	initarm_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -544,6 +547,24 @@ initarm(struct arm_boot_params *abp)
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
+}
+
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	ti_cpu_reset = NULL;
+	return (DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE);
+}
+
+void
+initarm_gpio_init(void)
+{
+}
+
+void
+initarm_late_init(void)
+{
 }
 
 #define FDT_DEVMAP_MAX	(2)		// FIXME
