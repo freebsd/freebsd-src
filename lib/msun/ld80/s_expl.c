@@ -251,7 +251,7 @@ expl(long double x)
 			return (tiny * tiny);
 	} else if (ix <= BIAS - 34) {	/* |x| < 0x1p-33 */
 					/* includes pseudo-denormals */
-	    	if (huge + x > 1.0L)	/* trigger inexact iff x != 0 */
+		if (huge + x > 1.0L)	/* trigger inexact iff x != 0 */
 			return (1.0L + x);
 	}
 
