@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
+/*-
  * Compute the exponential of x for Intel 80-bit format.  This is based on:
  *
  *   PTP Tang, "Table-driven implementation of the exponential function
@@ -70,9 +70,9 @@ static const double __aligned(64)
  * have at least 22 (= log2(|LDBL_MIN_EXP-extras|) + log2(INTERVALS)) lowest
  * bits zero so that multiplication of it by n is exact.
  */
+INV_L = 1.8466496523378731e+2,		/*  0x171547652b82fe.0p-45 */
 L1 =  5.4152123484527692e-3,		/*  0x162e42ff000000.0p-60 */
 L2 = -3.2819649005320973e-13,		/* -0x1718432a1b0e26.0p-94 */
-INV_L = 1.8466496523378731e+2,		/*  0x171547652b82fe.0p-45 */
 /*
  * Domain [-0.002708, 0.002708], range ~[-5.7136e-24, 5.7110e-24]:
  * |exp(x) - p(x)| < 2**-77.2
@@ -231,7 +231,7 @@ long double
 expl(long double x)
 {
 	union IEEEl2bits u, v;
-	long double fn, r, r1, r2, q, t, t23, t45, twopk, twopkp10000, z;
+	long double fn, q, r, r1, r2, t, t23, t45, twopk, twopkp10000, z;
 	int k, n, n2;
 	uint16_t hx, ix;
 
@@ -268,7 +268,7 @@ expl(long double x)
 #else
 	n  = (int)fn;
 #endif
-	n2 = (unsigned)n % INTERVALS;		/* Tang's j. */
+	n2 = (unsigned)n % INTERVALS;
 	k = (n - n2) / INTERVALS;
 	r1 = x - fn * L1;
 	r2 = -fn * L2;
