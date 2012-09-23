@@ -1256,8 +1256,10 @@ nfs_open(const char *upath, struct open_file *f)
 	error = 0;
 
 out:
-	free(newfd);
-	free(path);
+	if (newfd)
+		free(newfd);
+	if (path)
+		free(path);
 #else
 	currfd->iodesc = desc;
 
