@@ -27,24 +27,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * ld128 version of s_expl.c.  See ../ld80/s_expl.c for most comments.
+ */
+
 #include <float.h>
 
 #include "fpmath.h"
 #include "math.h"
 #include "math_private.h"
 
+#define	INTERVALS	128
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
-/* XXX Prevent gcc from erroneously constant folding this: */
-static volatile const long double twom10000 = 0x1p-10000L, tiny = 0x1p-10000L;
+static volatile const long double tiny = 0x1p-10000L;
 
 static const long double
-huge = 0x1p10000L,
-o_threshold =  11356.523406294143949491931077970763428L,
-u_threshold = -11433.462743336297878837243843452621503L,
+INV_L = 1.84664965233787316142070359168242182e+02L,
 L1 = 5.41521234812457272982212595914567508e-03L,
 L2 = -1.02536706388947310094527932552595546e-29L,
-INV_L = 1.84664965233787316142070359168242182e+02L;
+huge = 0x1p10000L,
+o_threshold =  11356.523406294143949491931077970763428L,
+twom10000 = 0x1p-10000L,
+u_threshold = -11433.462743336297878837243843452621503L;
 
 static const long double
 P2 = 5.00000000000000000000000000000000000e-1L,
@@ -57,8 +62,6 @@ P8 = 2.48015873015869681884882576649543128e-5L,
 P9 = 2.75573192240103867817876199544468806e-6L,
 P10 = 2.75573236172670046201884000197885520e-7L,
 P11 = 2.50517544183909126492878226167697856e-8L;
-
-#define	INTERVALS	128
 
 static const struct {
 	long double	hi;
@@ -225,9 +228,10 @@ expl(long double x)
 			return (1.0L + x);
 	}
 
+	/* Reduce x to (k*ln2 + midpoint[n2] + r1 + r2). */
 	fn = x * INV_L + 0x1.8p112 - 0x1.8p112;
 	n  = (int)fn;
-	n2 = (unsigned)n % INTERVALS;		/* Tang's j. */
+	n2 = (unsigned)n % INTERVALS;
 	k = (n - n2) / INTERVALS;
 	r1 = x - fn * L1;
 	r2 = -fn * L2;
