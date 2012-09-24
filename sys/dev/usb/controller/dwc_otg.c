@@ -101,12 +101,18 @@ __FBSDID("$FreeBSD$");
    GINTMSK_HCHINTMSK |			\
    GINTSTS_PRTINT)
 
-#define DWC_OTG_USE_HSIC 0
+static int dwc_otg_use_hsic;
+
+static SYSCTL_NODE(_hw_usb, OID_AUTO, dwc_otg, CTLFLAG_RW, 0, "USB DWC OTG");
+
+SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, use_hsic, CTLFLAG_RD,
+    &dwc_otg_use_hsic, 0, "DWC OTG uses HSIC interface");
+
+TUNABLE_INT("hw.usb.dwc_otg.use_hsic", &dwc_otg_use_hsic);
 
 #ifdef USB_DEBUG
 static int dwc_otg_debug;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, dwc_otg, CTLFLAG_RW, 0, "USB DWC OTG");
 SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, debug, CTLFLAG_RW,
     &dwc_otg_debug, 0, "DWC OTG debug level");
 #endif
@@ -701,6 +707,15 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 		}
 	}
 
+	/* treat NYET like NAK, if SPLIT transactions are used */
+	if (hcint & HCINT_NYET) {
+		if (td->hcsplt != 0) {
+			DPRINTF("CH=%d NYET+SPLIT\n", td->channel);
+			hcint &= ~HCINT_NYET;
+			hcint |= HCINT_NAK;
+		}
+	}
+
 	/* channel must be disabled before we can complete the transfer */
 
 	if (hcint & (HCINT_ERRORS | HCINT_RETRY |
@@ -1038,6 +1053,15 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 		if (td->hcsplt != 0 || td->errcnt >= 3) {
 			td->error_any = 1;
 			return (0);		/* complete */
+		}
+	}
+
+	/* treat NYET like NAK, if SPLIT transactions are used */
+	if (hcint & HCINT_NYET) {
+		if (td->hcsplt != 0) {
+			DPRINTF("CH=%d NYET+SPLIT\n", td->channel);
+			hcint &= ~HCINT_NYET;
+			hcint |= HCINT_NAK;
 		}
 	}
 
@@ -1388,6 +1412,15 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		if (td->hcsplt != 0 || td->errcnt >= 3) {
 			td->error_any = 1;
 			return (0);		/* complete */
+		}
+	}
+
+	/* treat NYET like NAK, if SPLIT transactions are used */
+	if (hcint & HCINT_NYET) {
+		if (td->hcsplt != 0) {
+			DPRINTF("CH=%d NYET+SPLIT\n", td->channel);
+			hcint &= ~HCINT_NYET;
+			hcint |= HCINT_NAK;
 		}
 	}
 
@@ -2979,7 +3012,7 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 	}
 
 	/* select HSIC or non-HSIC mode */
-	if (DWC_OTG_USE_HSIC) {
+	if (dwc_otg_use_hsic) {
 		DWC_OTG_WRITE_4(sc, DOTG_GUSBCFG,
 		    GUSBCFG_PHYIF |
 		    GUSBCFG_TRD_TIM_SET(5) | temp);
