@@ -2012,6 +2012,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: dooverride=%d\n",
 	    __func__, do_override);
 
+#if 1
 	if (do_override) {
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
@@ -2019,6 +2020,11 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		/* Queue to software queue */
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
 	}
+#else
+	/* Direct-dispatch to the hardware */
+	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+	ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
+#endif
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 
 	return 0;
