@@ -836,10 +836,6 @@ clnt_vc_destroy(CLIENT *cl)
 		soclose(so);
 	}
 	mem_free(ct, sizeof(struct ct_data));
-	if (cl->cl_netid && cl->cl_netid[0])
-		mem_free(cl->cl_netid, strlen(cl->cl_netid) +1);
-	if (cl->cl_tp && cl->cl_tp[0])
-		mem_free(cl->cl_tp, strlen(cl->cl_tp) +1);
 	mem_free(cl, sizeof(CLIENT));
 }
 
