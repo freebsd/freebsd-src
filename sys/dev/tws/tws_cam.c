@@ -529,10 +529,10 @@ tws_scsi_err_complete(struct tws_request *req, struct tws_command_header *hdr)
 
         if ( ccb->ccb_h.target_lun ) {
             TWS_TRACE_DEBUG(sc, "invalid lun error",0,0);
-            ccb->ccb_h.status |= CAM_LUN_INVALID;
+            ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
         } else {
             TWS_TRACE_DEBUG(sc, "invalid target error",0,0);
-            ccb->ccb_h.status |= CAM_TID_INVALID;
+            ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
         }
 
     } else {
