@@ -336,21 +336,21 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av)
 	 * Note d[1] points to struct in6_add r mask6 of cmd
 	 */
 
-       cmd->o.len &= ~F_LEN_MASK;	/* zero len */
+	cmd->o.len &= ~F_LEN_MASK;	/* zero len */
 
-       if (strcmp(av, "any") == 0)
-	       return (1);
+	if (strcmp(av, "any") == 0)
+		return (1);
 
 
-       if (strcmp(av, "me") == 0) {	/* Set the data for "me" opt*/
-	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
-	       return (1);
-       }
+	if (strcmp(av, "me") == 0) {	/* Set the data for "me" opt*/
+		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		return (1);
+	}
 
-       if (strcmp(av, "me6") == 0) {	/* Set the data for "me" opt*/
-	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
-	       return (1);
-       }
+	if (strcmp(av, "me6") == 0) {	/* Set the data for "me" opt*/
+		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		return (1);
+	}
 
 	if (strncmp(av, "table(", 6) == 0) {
 		char *p = strchr(av + 6, ',');
@@ -368,8 +368,8 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av)
 		return (1);
 	}
 
-       av = strdup(av);
-       while (av) {
+	av = strdup(av);
+	while (av) {
 		/*
 		 * After the address we can have '/' indicating a mask,
 		 * or ',' indicating another address follows.
