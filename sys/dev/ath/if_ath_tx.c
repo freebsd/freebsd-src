@@ -722,6 +722,10 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 
 		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 		qbusy = ath_hal_txqenabled(ah, txq->axq_qnum);
+
+		ATH_KTR(sc, ATH_KTR_TX, 4,
+		    "ath_tx_handoff: txq=%u, add bf=%p, qbusy=%d, depth=%d",
+		    txq->axq_qnum, bf, qbusy, txq->axq_depth);
 		if (txq->axq_link == NULL) {
 			/*
 			 * Be careful writing the address to TXDP.  If
@@ -738,15 +742,24 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 				    bf->bf_daddr);
 				txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
 				DPRINTF(sc, ATH_DEBUG_XMIT,
-				    "%s: TXDP[%u] = %p (%p) depth %d\n",
+				    "%s: TXDP[%u] = %p (%p) lastds=%p depth %d\n",
 				    __func__, txq->axq_qnum,
 				    (caddr_t)bf->bf_daddr, bf->bf_desc,
+				    bf->bf_lastds,
+				    txq->axq_depth);
+				ATH_KTR(sc, ATH_KTR_TX, 5,
+				    "ath_tx_handoff: TXDP[%u] = %p (%p) "
+				    "lastds=%p depth %d",
+				    txq->axq_qnum,
+				    (caddr_t)bf->bf_daddr, bf->bf_desc,
+				    bf->bf_lastds,
 				    txq->axq_depth);
 			} else {
 				txq->axq_flags |= ATH_TXQ_PUTPENDING;
 				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
 				    "%s: Q%u busy, defer enable\n", __func__,
 				    txq->axq_qnum);
+				ATH_KTR(sc, ATH_KTR_TX, 0, "defer enable");
 			}
 		} else {
 			*txq->axq_link = bf->bf_daddr;
@@ -755,6 +768,12 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			    txq->axq_qnum, txq->axq_link,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc,
 			    txq->axq_depth);
+			ATH_KTR(sc, ATH_KTR_TX, 5,
+			    "ath_tx_handoff: link[%u](%p)=%p (%p) lastds=%p",
+			    txq->axq_qnum, txq->axq_link,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    bf->bf_lastds);
+
 			if ((txq->axq_flags & ATH_TXQ_PUTPENDING) && !qbusy) {
 				/*
 				 * The q was busy when we previously tried
@@ -771,10 +790,24 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
 				    "%s: Q%u restarted\n", __func__,
 				    txq->axq_qnum);
+				ATH_KTR(sc, ATH_KTR_TX, 4,
+				  "ath_tx_handoff: txq[%d] restarted, bf=%p "
+				  "daddr=%p ds=%p",
+				    txq->axq_qnum,
+				    bf,
+				    (caddr_t)bf->bf_daddr,
+				    bf->bf_desc);
 			}
 		}
 #else
 		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+		ATH_KTR(sc, ATH_KTR_TX, 4,
+		    "ath_tx_handoff: non-tdma: txq=%u, add bf=%p, qbusy=%d, "
+		    "depth=%d",
+		    txq->axq_qnum,
+		    bf,
+		    qbusy,
+		    txq->axq_depth);
 		if (txq->axq_link == NULL) {
 			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
 			DPRINTF(sc, ATH_DEBUG_XMIT,
@@ -782,6 +815,14 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			    __func__, txq->axq_qnum,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc,
 			    txq->axq_depth);
+			ATH_KTR(sc, ATH_KTR_TX, 5,
+			    "ath_tx_handoff: non-tdma: TXDP[%u] = %p (%p) "
+			    "lastds=%p depth %d",
+			    txq->axq_qnum,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    bf->bf_lastds,
+			    txq->axq_depth);
+
 		} else {
 			*txq->axq_link = bf->bf_daddr;
 			DPRINTF(sc, ATH_DEBUG_XMIT,
@@ -789,12 +830,21 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			    txq->axq_qnum, txq->axq_link,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc,
 			    txq->axq_depth);
+			ATH_KTR(sc, ATH_KTR_TX, 5,
+			    "ath_tx_handoff: non-tdma: link[%u](%p)=%p (%p) "
+			    "lastds=%d",
+			    txq->axq_qnum, txq->axq_link,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    bf->bf_lastds);
+
 		}
 #endif /* IEEE80211_SUPPORT_TDMA */
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth++;
 		ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 		ath_hal_txstart(ah, txq->axq_qnum);
+		ATH_KTR(sc, ATH_KTR_TX, 1,
+		    "ath_tx_handoff: txq=%u, txstart", txq->axq_qnum);
 	}
 }
 
@@ -1875,6 +1925,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
 
+	ATH_KTR(sc, ATH_KTR_TX, 2,
+	     "ath_tx_raw_start: ni=%p, bf=%p, raw", ni, bf);
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: ismcast=%d\n",
 	    __func__, ismcast);
 
@@ -2132,6 +2185,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = ENOBUFS;
 		goto bad;
 	}
+	ATH_KTR(sc, ATH_KTR_TX, 3, "ath_raw_xmit: m=%p, params=%p, bf=%p\n",
+	    m, params,  bf);
 
 	if (params == NULL) {
 		/*
@@ -2162,6 +2217,11 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	return 0;
 bad2:
+	ATH_KTR(sc, ATH_KTR_TX, 3, "ath_raw_xmit: bad2: m=%p, params=%p, "
+	    "bf=%p",
+	    m,
+	    params,
+	    bf);
 	ATH_TXBUF_LOCK(sc);
 	ath_returnbuf_head(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
@@ -2170,6 +2230,8 @@ bad:
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
 bad0:
+	ATH_KTR(sc, ATH_KTR_TX, 2, "ath_raw_xmit: bad0: m=%p, params=%p",
+	    m, params);
 	ifp->if_oerrors++;
 	sc->sc_stats.ast_tx_raw_fail++;
 	ieee80211_free_node(ni);
@@ -2752,6 +2814,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
 			    "%s: ampdu; swq'ing\n",
 			    __func__);
+
 			ath_tx_tid_sched(sc, atid);
 		}
 	} else if (txq->axq_depth < sc->sc_hwq_limit) {
@@ -3240,7 +3303,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 
 static void
 ath_tx_tid_drain_print(struct ath_softc *sc, struct ath_node *an,
-    struct ath_tid *tid, struct ath_buf *bf)
+    const char *pfx, struct ath_tid *tid, struct ath_buf *bf)
 {
 	struct ieee80211_node *ni = &an->an_node;
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
@@ -3249,18 +3312,19 @@ ath_tx_tid_drain_print(struct ath_softc *sc, struct ath_node *an,
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	device_printf(sc->sc_dev,
-	    "%s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
+	    "%s: %s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
 	    "seqno=%d, retry=%d\n",
-	    __func__, ni, bf,
+	    __func__, pfx, ni, bf,
 	    bf->bf_state.bfs_addedbaw,
 	    bf->bf_state.bfs_dobaw,
 	    SEQNO(bf->bf_state.bfs_seqno),
 	    bf->bf_state.bfs_retries);
 	device_printf(sc->sc_dev,
-	    "%s: node %p: bf=%p: txq axq_depth=%d, axq_aggr_depth=%d\n",
+	    "%s: node %p: bf=%p: txq[%d] axq_depth=%d, axq_aggr_depth=%d\n",
 	        __func__, ni, bf,
-		txq->axq_depth,
-		txq->axq_aggr_depth);
+	    txq->axq_qnum,
+	    txq->axq_depth,
+	    txq->axq_aggr_depth);
 
 	device_printf(sc->sc_dev,
 	    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d, bar_wait=%d, isfiltered=%d\n",
@@ -3323,7 +3387,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 		}
 
 		if (t == 0) {
-			ath_tx_tid_drain_print(sc, an, tid, bf);
+			ath_tx_tid_drain_print(sc, an, "norm", tid, bf);
 			t = 1;
 		}
 
@@ -3339,7 +3403,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 			break;
 
 		if (t == 0) {
-			ath_tx_tid_drain_print(sc, an, tid, bf);
+			ath_tx_tid_drain_print(sc, an, "filt", tid, bf);
 			t = 1;
 		}
 
@@ -3396,6 +3460,9 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 	struct ath_buf *bf;
 
 	TAILQ_INIT(&bf_cq);
+
+	ATH_KTR(sc, ATH_KTR_NODE, 1, "ath_tx_node_flush: flush node; ni=%p",
+	    &an->an_node);
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
