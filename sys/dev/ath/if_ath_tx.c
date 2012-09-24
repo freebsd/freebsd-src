@@ -1260,6 +1260,22 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
+ * Update the CLRDMASK bit in the ath_buf if it needs to be set.
+ */
+static void
+ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
+    struct ath_buf *bf)
+{
+
+	ATH_TID_LOCK_ASSERT(sc, tid);
+
+	if (tid->clrdmask == 1) {
+		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+		tid->clrdmask = 0;
+	}
+}
+
+/*
  * Transmit the given frame to the hardware.
  *
  * The frame must already be setup; rate control must already have
@@ -1274,8 +1290,24 @@ static void
 ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
+	struct ath_node *an = ATH_NODE(bf->bf_node);
+	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
+
+	/*
+	 * For now, just enable CLRDMASK. ath_tx_xmit_normal() does
+	 * set a completion handler however it doesn't (yet) properly
+	 * handle the strict ordering requirements needed for normal,
+	 * non-aggregate session frames.
+	 *
+	 * Once this is implemented, only set CLRDMASK like this for
+	 * frames that must go out - eg management/raw frames.
+	 */
+	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+
+	/* See if clrdmask needs to be set */
+	ath_tx_update_clrdmask(sc, tid, bf);
 
 	/* Setup the descriptor before handoff */
 	ath_tx_do_ratelookup(sc, bf);
@@ -1285,8 +1317,11 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
 
-	/* XXX Bump TID HWQ counter */
-	/* XXX Assign a completion handler */
+	/* Track per-TID hardware queue depth correctly */
+	tid->hwq_depth++;
+
+	/* Assign the completion handler */
+	bf->bf_comp = ath_tx_normal_comp;
 
 	/* Hand off to hardware */
 	ath_tx_handoff(sc, txq, bf);
@@ -2485,22 +2520,6 @@ ath_tx_tid_unsched(struct ath_softc *sc, struct ath_tid *tid)
 }
 
 /*
- * Update the CLRDMASK bit in the ath_buf if it needs to be set.
- */
-static void
-ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
-    struct ath_buf *bf)
-{
-
-	ATH_TID_LOCK_ASSERT(sc, tid);
-
-	if (tid->clrdmask == 1) {
-		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
-		tid->clrdmask = 0;
-	}
-}
-
-/*
  * Assign a sequence number manually to the given frame.
  *
  * This should only be called for A-MPDU TX frames.
@@ -2738,7 +2757,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	} else if (txq->axq_depth < sc->sc_hwq_limit) {
 		/* AMPDU not running, attempt direct dispatch */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
-		ath_tx_update_clrdmask(sc, atid, bf);
 		ath_tx_xmit_normal(sc, txq, bf);
 	} else {
 		/* Busy; queue */
@@ -3432,6 +3450,19 @@ ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq)
 
 /*
  * Handle completion of non-aggregate session frames.
+ *
+ * This (currently) doesn't implement software retransmission of
+ * non-aggregate frames!
+ *
+ * Software retransmission of non-aggregate frames needs to obey
+ * the strict sequence number ordering, and drop any frames that
+ * will fail this.
+ *
+ * For now, filtered frames and frame transmission will cause
+ * all kinds of issues.  So we don't support them.
+ *
+ * So anyone queuing frames via ath_tx_normal_xmit() or
+ * ath_tx_hw_queue_norm() must override and set CLRDMASK.
  */
 void
 ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
@@ -3450,10 +3481,23 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 
 	atid->hwq_depth--;
 
+#if 0
+	/*
+	 * If the frame was filtered, stick it on the filter frame
+	 * queue and complain about it.  It shouldn't happen!
+	 */
+	if ((ts->ts_status & HAL_TXERR_FILT) ||
+	    (ts->ts_status != 0 && atid->isfiltered)) {
+		device_printf(sc->sc_dev,
+		    "%s: isfiltered=%d, ts_status=%d: huh?\n",
+		    __func__,
+		    atid->isfiltered,
+		    ts->ts_status);
+		ath_tx_tid_filt_comp_buf(sc, atid, bf);
+	}
+#endif
 	if (atid->isfiltered)
-		device_printf(sc->sc_dev, "%s: isfiltered=1, normal_comp?\n",
-		    __func__);
-
+		device_printf(sc->sc_dev, "%s: filtered?!\n", __func__);
 	if (atid->hwq_depth < 0)
 		device_printf(sc->sc_dev, "%s: hwq_depth < 0: %d\n",
 		    __func__, atid->hwq_depth);
@@ -3471,7 +3515,6 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 */
 	if (atid->isfiltered)
 		ath_tx_tid_filt_comp_complete(sc, atid);
-
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/*
@@ -4765,6 +4808,12 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		}
 		/* Normal completion handler */
 		bf->bf_comp = ath_tx_normal_comp;
+
+		/*
+		 * Override this for now, until the non-aggregate
+		 * completion handler correctly handles software retransmits.
+		 */
+		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 
 		/* Update CLRDMASK just before this frame is queued */
 		ath_tx_update_clrdmask(sc, tid, bf);
