@@ -39,7 +39,7 @@
 .Sh DESCRIPTION
 .Nm
 is a feature of the
-.Nm netmap
+.Xr netmap 4
 module that implements multiple Virtual switches that can
 be used to interconnect netmap clients, including traffic
 sources and sinks, packet forwarders, userspace firewalls,
@@ -52,7 +52,7 @@ second (Mpps) per core with small frames, and about 70 Gbit/s
 with 1500 byte frames.
 .Sh OPERATION
 .Nm
-dynamically creates switches and ports as client connect
+dynamically creates switches and ports as clients connect
 to it using the
 .Xr netmap 4
 API.
@@ -68,7 +68,7 @@ indicates a specific switch (the colon is a separator),
 and
 .Pa port
 indicates a port within the switch.
-Bridge and ports names are arbitrary strings, the only
+Bridge and port names are arbitrary strings, the only
 constraint being that the full name must fit within 16
 characters.
 .Pp
@@ -77,13 +77,14 @@ See
 for details on the API.
 .Ss LIMITS
 .Nm
-currently supports up to 4 switches, 16 ports per switch,
-1024 buffers per port. These hard limits will be
+currently supports up to 4 switches, 16 ports per switch, with
+1024 buffers per port.
+These hard limits will be
 changed to sysctl variables in future releases.
 .Sh SYSCTL VARIABLES
 .Nm
 uses the following sysctl variables to control operation:
-.Bl -tag -width 12
+.Bl -tag -width dev.netmap.verbose
 .It dev.netmap.bridge
 The maximum number of packets processed internally
 in each iteration.
@@ -120,12 +121,12 @@ June 2012, http://info.iet.unipi.it/~luigi/vale/
 .An -nosplit
 The
 .Nm
-switch  has been designed and implemented in 2012 by
+switch was designed and implemented in 2012 by
 .An Luigi Rizzo
 and
 .An Giuseppe Lettieri
 at the Universita` di Pisa.
 .Pp
 .Nm
-has been funded by the European Commission within FP7 Projects
+was funded by the European Commission within FP7 Projects
 CHANGE (257422) and OPENLAB (287581).
