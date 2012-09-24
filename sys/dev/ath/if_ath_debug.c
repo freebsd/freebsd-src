@@ -198,7 +198,7 @@ static void
 ath_printtxbuf_legacy(struct ath_softc *sc, const struct ath_buf *first_bf,
 	u_int qnum, u_int ix, int done)
 {
-	const struct ath_tx_status *ts = &first_bf->bf_last->bf_status.ds_txstat;
+	const struct ath_tx_status *ts = &first_bf->bf_status.ds_txstat;
 	const struct ath_buf *bf = first_bf;
 	struct ath_hal *ah = sc->sc_ah;
 	const struct ath_desc *ds;
@@ -206,16 +206,17 @@ ath_printtxbuf_legacy(struct ath_softc *sc, const struct ath_buf *first_bf,
 
 	printf("Q%u[%3u]", qnum, ix);
 	while (bf != NULL) {
+		printf("    (bf=%p, lastds=%p)\n", bf, first_bf->bf_lastds);
+		printf("        Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
+		    bf->bf_state.bfs_seqno,
+		    bf->bf_state.bfs_retries,
+		    bf->bf_state.bfs_addedbaw,
+		    bf->bf_state.bfs_dobaw);
 		for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
 			printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:%04x%s\n",
 			    ds, (const struct ath_desc *)bf->bf_daddr + i,
 			    ds->ds_link, ds->ds_data, bf->bf_state.bfs_txflags,
 			    !done ? "" : (ts->ts_status == 0) ? " *" : " !");
-			printf("        Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
-			    bf->bf_state.bfs_seqno,
-			    bf->bf_state.bfs_retries,
-			    bf->bf_state.bfs_addedbaw,
-			    bf->bf_state.bfs_dobaw);
 			printf("        %08x %08x %08x %08x %08x %08x\n",
 			    ds->ds_ctl0, ds->ds_ctl1,
 			    ds->ds_hw[0], ds->ds_hw[1],
