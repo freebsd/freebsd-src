@@ -627,7 +627,7 @@ hdaa_sense_init(struct hdaa_devinfo *devinfo)
 			    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0) {
 				device_printf(devinfo->dev,
 				    "No presence detection support at nid %d\n",
-				    as[i].pins[15]);
+				    w->nid);
 			} else {
 				if (w->unsol < 0)
 					poll = 1;
@@ -636,7 +636,7 @@ hdaa_sense_init(struct hdaa_devinfo *devinfo)
 					    "Headphones redirection for "
 					    "association %d nid=%d using %s.\n",
 					    w->bindas, w->nid,
-					    (poll != 0) ? "polling" :
+					    (w->unsol < 0) ? "polling" :
 					    "unsolicited responses");
 				);
 			};
