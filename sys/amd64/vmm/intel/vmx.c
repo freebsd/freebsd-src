@@ -1272,18 +1272,21 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 }
 
 static int
-vmx_run(void *arg, int vcpu, register_t rip, struct vm_exit *vmexit)
+vmx_run(void *arg, int vcpu, register_t rip)
 {
 	int error, vie, rc, handled, astpending;
 	uint32_t exit_reason;
 	struct vmx *vmx;
 	struct vmxctx *vmxctx;
 	struct vmcs *vmcs;
+	struct vm_exit *vmexit;
 	
 	vmx = arg;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
 	vmxctx->launched = 0;
+
+	vmexit = vm_exitinfo(vmx->vm, vcpu);
 
 	/*
 	 * XXX Can we avoid doing this every time we do a vm run?

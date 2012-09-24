@@ -72,6 +72,7 @@ struct vcpu {
 	int		 vcpuid;
 	struct savefpu	*guestfpu;	/* guest fpu state */
 	void		*stats;
+	struct vm_exit	exitinfo;
 };
 #define	VCPU_F_PINNED	0x0001
 #define	VCPU_F_RUNNING	0x0002
@@ -110,8 +111,8 @@ static struct vmm_ops *ops;
 #define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
 
 #define	VMINIT(vm)	(ops != NULL ? (*ops->vminit)(vm): NULL)
-#define	VMRUN(vmi, vcpu, rip, vmexit) \
-	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, vmexit) : ENXIO)
+#define	VMRUN(vmi, vcpu, rip) \
+	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
 #define	VMMMAP(vmi, gpa, hpa, len, attr, prot, spm)	\
     (ops != NULL ? (*ops->vmmmap)(vmi, gpa, hpa, len, attr, prot, spm) : ENXIO)
@@ -162,6 +163,19 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
+}
+
+struct vm_exit *
+vm_exitinfo(struct vm *vm, int cpuid)
+{
+	struct vcpu *vcpu;
+
+	if (cpuid < 0 || cpuid >= VM_MAXCPU)
+		panic("vm_exitinfo: invalid cpuid %d", cpuid);
+
+	vcpu = &vm->vcpu[cpuid];
+
+	return (&vcpu->exitinfo);
 }
 
 static int
@@ -545,11 +559,14 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 
 	restore_guest_msrs(vm, vcpuid);	
 	restore_guest_fpustate(vcpu);
-	error = VMRUN(vm->cookie, vcpuid, vmrun->rip, &vmrun->vm_exit);
+	error = VMRUN(vm->cookie, vcpuid, vmrun->rip);
 	save_guest_fpustate(vcpu);
 	restore_host_msrs(vm, vcpuid);
 
 	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
+
+	/* copy the exit information */
+	bcopy(&vcpu->exitinfo, &vmrun->vm_exit, sizeof(struct vm_exit));
 
 	critical_exit();
 

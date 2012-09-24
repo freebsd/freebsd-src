@@ -43,8 +43,7 @@ struct vlapic;
 typedef int	(*vmm_init_func_t)(void);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm); /* instance specific apis */
-typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct vm_exit *vmexit);
+typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_mmap_func_t)(void *vmi, vm_paddr_t gpa, vm_paddr_t hpa,
 				   size_t length, vm_memattr_t attr,
@@ -112,6 +111,7 @@ int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
 int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 void vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
+struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 
 /*
  * Return 1 if device indicated by bus/slot/func is supposed to be a
