@@ -3468,12 +3468,11 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 		struct ath_tid *atid = &an->an_tid[tid];
 		struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
-		/* Remove this tid from the list of active tids */
 		ATH_TXQ_LOCK(txq);
-		ath_tx_tid_unsched(sc, atid);
-
 		/* Free packets */
 		ath_tx_tid_drain(sc, an, atid, &bf_cq);
+		/* Remove this tid from the list of active tids */
+		ath_tx_tid_unsched(sc, atid);
 		ATH_TXQ_UNLOCK(txq);
 	}
 
