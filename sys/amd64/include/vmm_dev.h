@@ -136,6 +136,11 @@ struct vm_stat_desc {
 	char		desc[128];			/* out */
 };
 
+struct vm_x2apic {
+	int			cpuid;
+	enum x2apic_state	state;
+};
+
 enum {
 	IOCNUM_RUN,
 	IOCNUM_SET_PINNING,
@@ -158,6 +163,8 @@ enum {
 	IOCNUM_INJECT_NMI,
 	IOCNUM_VM_STATS,
 	IOCNUM_VM_STAT_DESC,
+	IOCNUM_SET_X2APIC_STATE,
+	IOCNUM_GET_X2APIC_STATE,
 };
 
 #define	VM_RUN		\
@@ -202,4 +209,8 @@ enum {
 	_IOWR('v', IOCNUM_VM_STATS, struct vm_stats)
 #define	VM_STAT_DESC \
 	_IOWR('v', IOCNUM_VM_STAT_DESC, struct vm_stat_desc)
+#define	VM_SET_X2APIC_STATE \
+	_IOW('v', IOCNUM_SET_X2APIC_STATE, struct vm_x2apic)
+#define	VM_GET_X2APIC_STATE \
+	_IOWR('v', IOCNUM_GET_X2APIC_STATE, struct vm_x2apic)
 #endif

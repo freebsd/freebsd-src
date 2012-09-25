@@ -537,6 +537,35 @@ vm_get_stat_desc(struct vmctx *ctx, int index)
 		return (NULL);
 }
 
+int
+vm_get_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state *state)
+{
+	int error;
+	struct vm_x2apic x2apic;
+
+	bzero(&x2apic, sizeof(x2apic));
+	x2apic.cpuid = vcpu;
+
+	error = ioctl(ctx->fd, VM_GET_X2APIC_STATE, &x2apic);
+	*state = x2apic.state;
+	return (error);
+}
+
+int
+vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state state)
+{
+	int error;
+	struct vm_x2apic x2apic;
+
+	bzero(&x2apic, sizeof(x2apic));
+	x2apic.cpuid = vcpu;
+	x2apic.state = state;
+
+	error = ioctl(ctx->fd, VM_SET_X2APIC_STATE, &x2apic);
+
+	return (error);
+}
+
 /*
  * From Intel Vol 3a:
  * Table 9-1. IA-32 Processor States Following Power-up, Reset or INIT

@@ -30,6 +30,7 @@
 #define	_VMMAPI_H_
 
 struct vmctx;
+enum x2apic_state;
 
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
@@ -89,6 +90,9 @@ int	vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 uint64_t *vm_get_stats(struct vmctx *ctx, int vcpu, struct timeval *ret_tv,
 		       int *ret_entries);
 const char *vm_get_stat_desc(struct vmctx *ctx, int index);
+
+int	vm_get_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state *s);
+int	vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state s);
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);

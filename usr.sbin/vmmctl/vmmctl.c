@@ -185,6 +185,8 @@ usage(void)
 	"       [--get-vmcs-interruptibility]\n"
 	"       [--set-pinning=<host_cpuid>]\n"
 	"       [--get-pinning]\n"
+	"       [--set-x2apic-state=<state>]\n"
+	"       [--get-x2apic-state]\n"
 	"       [--set-lowmem=<memory below 4GB in units of MB>]\n"
 	"       [--get-lowmem]\n"
 	"       [--set-highmem=<memory above 4GB in units of MB>]\n"
@@ -217,6 +219,8 @@ static int set_desc_ldtr, get_desc_ldtr;
 static int set_cs, set_ds, set_es, set_fs, set_gs, set_ss, set_tr, set_ldtr;
 static int get_cs, get_ds, get_es, get_fs, get_gs, get_ss, get_tr, get_ldtr;
 static int set_pinning, get_pinning, pincpu;
+static int set_x2apic_state, get_x2apic_state;
+enum x2apic_state x2apic_state;
 static int run;
 
 /*
@@ -371,6 +375,7 @@ enum {
 	SET_TR,
 	SET_LDTR,
 	SET_PINNING,
+	SET_X2APIC_STATE,
 	SET_VMCS_EXCEPTION_BITMAP,
 	SET_VMCS_ENTRY_INTERRUPTION_INFO,
 	SET_CAP,
@@ -419,6 +424,7 @@ main(int argc, char *argv[])
 		{ "set-tr",	REQ_ARG,	0,	SET_TR },
 		{ "set-ldtr",	REQ_ARG,	0,	SET_LDTR },
 		{ "set-pinning",REQ_ARG,	0,	SET_PINNING },
+		{ "set-x2apic-state",REQ_ARG,	0,	SET_X2APIC_STATE },
 		{ "set-vmcs-exception-bitmap",
 				REQ_ARG,	0, SET_VMCS_EXCEPTION_BITMAP },
 		{ "set-vmcs-entry-interruption-info",
@@ -547,6 +553,7 @@ main(int argc, char *argv[])
 		{ "get-vmcs-interruptibility",
 				NO_ARG, &get_vmcs_interruptibility, 1 },
 		{ "get-pinning",NO_ARG,		&get_pinning,	1 },
+		{ "get-x2apic-state",NO_ARG,	&get_x2apic_state, 1 },
 		{ "get-all",	NO_ARG,		&get_all,	1 },
 		{ "run",	NO_ARG,		&run,		1 },
 		{ "create",	NO_ARG,		&create,	1 },
@@ -655,6 +662,10 @@ main(int argc, char *argv[])
 		case SET_PINNING:
 			pincpu = strtol(optarg, NULL, 0);
 			set_pinning = 1;
+			break;
+		case SET_X2APIC_STATE:
+			x2apic_state = strtol(optarg, NULL, 0);
+			set_x2apic_state = 1;
 			break;
 		case SET_VMCS_EXCEPTION_BITMAP:
 			exception_bitmap = strtoul(optarg, NULL, 0);
@@ -803,6 +814,9 @@ main(int argc, char *argv[])
 
 	if (!error && set_pinning)
 		error = vm_set_pinning(ctx, vcpu, pincpu);
+
+	if (!error && set_x2apic_state)
+		error = vm_set_x2apic_state(ctx, vcpu, x2apic_state);
 
 	if (!error && set_exception_bitmap) {
 		error = vm_set_vmcs_field(ctx, vcpu, VMCS_EXCEPTION_BITMAP,
@@ -1127,6 +1141,12 @@ main(int argc, char *argv[])
 			else
 				printf("pincpu[%d]\t%d\n", vcpu, pincpu);
 		}
+	}
+
+	if (!error && (get_x2apic_state || get_all)) {
+		error = vm_get_x2apic_state(ctx, vcpu, &x2apic_state);
+		if (error == 0)
+			printf("x2apic_state[%d]\t%d\n", vcpu, x2apic_state);
 	}
 
 	if (!error && (get_pinbased_ctls || get_all)) {
