@@ -219,7 +219,6 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t pmap_curmaxkvaddr;
 vm_paddr_t kernel_l1pa;
 
-extern void *end;
 vm_offset_t kernel_vm_end = 0;
 
 struct pmap kernel_pmap_store;
