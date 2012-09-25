@@ -1006,22 +1006,20 @@ flags_to_rights(int flags)
 {
 	cap_rights_t rights = 0;
 
-	switch ((flags & O_ACCMODE)) {
-	case O_RDONLY:
-		rights |= CAP_READ;
-		break;
-
-	case O_RDWR:
-		rights |= CAP_READ;
-		/* fall through */
-
-	case O_WRONLY:
-		rights |= CAP_WRITE;
-		break;
-
-	case O_EXEC:
+	if (flags & O_EXEC) {
 		rights |= CAP_FEXECVE;
-		break;
+	} else {
+		switch ((flags & O_ACCMODE)) {
+		case O_RDONLY:
+			rights |= CAP_READ;
+			break;
+		case O_RDWR:
+			rights |= CAP_READ;
+			/* FALLTHROUGH */
+		case O_WRONLY:
+			rights |= CAP_WRITE;
+			break;
+		}
 	}
 
 	if (flags & O_CREAT)
