@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "xmsr.h"
 #include "instruction_emul.h"
 #include "ioapic.h"
+#include "spinup_ap.h"
 
 #define	DEFAULT_GUEST_HZ	100
 #define	DEFAULT_GUEST_TSLICE	200
@@ -346,6 +347,23 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
+vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+{
+	int newcpu;
+	int retval = VMEXIT_CONTINUE;
+
+	newcpu = spinup_ap(ctx, *pvcpu,
+			   vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
+
+	if (guest_vcpu_mux && *pvcpu != newcpu) {
+		retval = VMEXIT_SWITCH;
+		*pvcpu = newcpu;
+	}
+        
+	return (retval);
+}
+
+static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
@@ -471,7 +489,8 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
-	[VM_EXITCODE_PAGING] = vmexit_paging
+	[VM_EXITCODE_PAGING] = vmexit_paging,
+	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 };
 
 static void

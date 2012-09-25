@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,23 +26,9 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef	_SPINUP_AP_H_
+#define	_SPINUP_AP_H_
 
-#include <sys/types.h>
+int spinup_ap(struct vmctx *ctx, int vcpu, int newcpu, uint64_t rip);
 
-#include <machine/vmm.h>
-#include <vmmapi.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "xmsr.h"
-
-int
-emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val)
-{
-
-	printf("Unknown WRMSR code %x, val %lx, cpu %d\n", code, val, vcpu);
-	exit(1);
-}
+#endif

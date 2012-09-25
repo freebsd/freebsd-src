@@ -1253,6 +1253,14 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vm_exit_update_rip(vmexit);
 		vmexit->rip += vmexit->inst_length;
 		vmexit->inst_length = 0;
+
+		/*
+		 * Special case for spinning up an AP - exit to userspace to
+		 * give the controlling process a chance to intercept and
+		 * spin up a thread for the AP.
+		 */
+		if (vmexit->exitcode == VM_EXITCODE_SPINUP_AP)
+			handled = 0;
 	} else {
 		if (vmexit->exitcode == VM_EXITCODE_BOGUS) {
 			/*
