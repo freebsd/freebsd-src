@@ -1356,9 +1356,6 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	 */
 	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 
-	/* See if clrdmask needs to be set */
-	ath_tx_update_clrdmask(sc, tid, bf);
-
 	/* Setup the descriptor before handoff */
 	ath_tx_do_ratelookup(sc, bf);
 	ath_tx_calc_duration(sc, bf);
@@ -2820,6 +2817,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	} else if (txq->axq_depth < sc->sc_hwq_limit) {
 		/* AMPDU not running, attempt direct dispatch */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
+		/* See if clrdmask needs to be set */
+		ath_tx_update_clrdmask(sc, atid, bf);
 		ath_tx_xmit_normal(sc, txq, bf);
 	} else {
 		/* Busy; queue */
