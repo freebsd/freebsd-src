@@ -105,7 +105,9 @@ enum {
 	DIGEST_RMD160,
 	DIGEST_SHA1,
 	DIGEST_SHA256,
+#ifndef NO_SHA384
 	DIGEST_SHA384,
+#endif
 	DIGEST_SHA512,
 } digesttype = DIGEST_NONE;
 
@@ -134,7 +136,7 @@ static void	metadata_log(const char *, const char *, struct timeval *,
 	    const char *, const char *, off_t);
 static int	parseid(char *, id_t *);
 static void	strip(char *);
-__dead static void	usage(void);
+__dead2 static void	usage(void);
 static char   *xbasename(char *);
 static char   *xdirname(char *);
 
@@ -301,8 +303,10 @@ main(int argc, char *argv[])
 			digesttype = DIGEST_SHA1;
 		} else if (strcmp(digest, "sha256") == 0) {
 			digesttype = DIGEST_SHA256;
+#ifndef NO_SHA384
 		} else if (strcmp(digest, "sha384") == 0) {
 			digesttype = DIGEST_SHA384;
+#endif
 		} else if (strcmp(digest, "sha512") == 0) {
 			digesttype = DIGEST_SHA512;
 		} else {
@@ -529,9 +533,11 @@ makelink(char *from_name, char *to_name)
 				case DIGEST_SHA256:
 					dres = SHA256_File(from_name, NULL);
 					break;
+#ifndef NO_SHA384
 				case DIGEST_SHA384:
 					dres = SHA384_File(from_name, NULL);
 					break;
+#endif
 				case DIGEST_SHA512:
 					dres = SHA512_File(from_name, NULL);
 					break;
@@ -819,7 +825,9 @@ copy(int from_fd, char *from_name, int to_fd, char *to_name, off_t size)
 	RMD160_CTX	ctxRMD160;
 	SHA1_CTX	ctxSHA1;
 	SHA256_CTX	ctxSHA256;
+#ifndef NO_SHA384
 	SHA384_CTX	ctxSHA384;
+#endif
 	SHA512_CTX	ctxSHA512;
 
 	switch (digesttype) {
@@ -835,9 +843,11 @@ copy(int from_fd, char *from_name, int to_fd, char *to_name, off_t size)
 	case DIGEST_SHA256:
 		SHA256_Init(&ctxSHA256);
 		break;
+#ifndef NO_SHA384
 	case DIGEST_SHA384:
 		SHA384_Init(&ctxSHA384);
 		break;
+#endif
 	case DIGEST_SHA512:
 		SHA512_Init(&ctxSHA512);
 		break;
@@ -890,9 +900,11 @@ copy(int from_fd, char *from_name, int to_fd, char *to_name, off_t size)
 			case DIGEST_SHA256:
 				SHA256_Update(&ctxSHA256, p, size);
 				break;
+#ifndef NO_SHA384
 			case DIGEST_SHA384:
 				SHA384_Update(&ctxSHA384, p, size);
 				break;
+#endif
 			case DIGEST_SHA512:
 				SHA512_Update(&ctxSHA512, p, size);
 				break;
@@ -923,9 +935,11 @@ copy(int from_fd, char *from_name, int to_fd, char *to_name, off_t size)
 				case DIGEST_SHA256:
 					SHA256_Update(&ctxSHA256, buf, nr);
 					break;
+#ifndef NO_SHA384
 				case DIGEST_SHA384:
 					SHA384_Update(&ctxSHA384, buf, nr);
 					break;
+#endif
 				case DIGEST_SHA512:
 					SHA512_Update(&ctxSHA512, buf, nr);
 					break;
@@ -949,8 +963,10 @@ copy(int from_fd, char *from_name, int to_fd, char *to_name, off_t size)
 		return SHA1End(&ctxSHA1, NULL);
 	case DIGEST_SHA256:
 		return SHA256_End(&ctxSHA256, NULL);
+#ifndef NO_SHA384
 	case DIGEST_SHA384:
 		return SHA384_End(&ctxSHA384, NULL);
+#endif
 	case DIGEST_SHA512:
 		return SHA512_End(&ctxSHA512, NULL);
 	default:
