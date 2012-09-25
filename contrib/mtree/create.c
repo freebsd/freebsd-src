@@ -167,7 +167,7 @@ statf(int indent, FTSENT *p)
 {
 	u_int32_t len, val;
 	int fd, offset;
-	const char *name;
+	const char *name = NULL;
 #if !defined(NO_MD5) || !defined(NO_RMD160) || !defined(NO_SHA1) || !defined(NO_SHA2)
 	char *digestbuf;
 #endif
@@ -314,7 +314,7 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode,
 	uid_t suid;
 	mode_t smode;
 	u_long sflags = 0;
-	const char *name;
+	const char *name = NULL;
 	gid_t savegid;
 	uid_t saveuid;
 	mode_t savemode;
