@@ -1719,8 +1719,8 @@ kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 	AUDIT_ARG_TEXT(syspath);
 restart:
 	bwillwrite();
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
-	    segflg, path2, fd, td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE |
+	    AUDITVNODE1, segflg, path2, fd, CAP_CREATE, td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	vfslocked = NDHASGIANT(&nd);
