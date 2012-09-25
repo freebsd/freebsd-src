@@ -89,6 +89,12 @@ static MALLOC_DEFINE(M_VLAPIC, "vlapic", "vlapic");
 
 #define	x2apic(vlapic)		((vlapic)->msr_apicbase & APICBASE_X2APIC)
 
+enum boot_state {
+	BS_INIT,
+	BS_SIPI,
+	BS_RUNNING
+};
+
 struct vlapic {
 	struct vm		*vm;
 	int			vcpuid;
@@ -112,6 +118,7 @@ struct vlapic {
 	int			 isrvec_stk_top;
 
 	uint64_t		msr_apicbase;
+	enum boot_state		boot_state;
 };
 
 static void
@@ -168,6 +175,11 @@ vlapic_op_reset(void* dev)
 	memset(lapic, 0, sizeof(*lapic));
 	lapic->apr = vlapic->vcpuid;
 	vlapic_init_ipi(vlapic);
+
+	if (vlapic->vcpuid == 0)
+		vlapic->boot_state = BS_RUNNING;	/* BSP */
+	else
+		vlapic->boot_state = BS_INIT;		/* AP */
 	
 	return 0;
 
@@ -418,6 +430,8 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 	int i;
 	cpuset_t dmask;
 	uint32_t dest, vec, mode;
+	struct vlapic *vlapic2;
+	struct vm_exit *vmexit;
 	
 	dest = icrval >> 32;
 	vec = icrval & APIC_VECTOR_MASK;
@@ -452,11 +466,46 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 		return (0);	/* handled completely in the kernel */
 	}
 
-	/*
-	 * XXX this assumes that the startup IPI always succeeds
-	 */
-	if (mode == APIC_DELMODE_STARTUP)
-		vm_activate_cpu(vlapic->vm, dest);
+	if (mode == APIC_DELMODE_INIT) {
+		if ((icrval & APIC_LEVEL_MASK) == APIC_LEVEL_DEASSERT)
+			return (0);
+
+		if (vlapic->vcpuid == 0 && dest != 0 && dest < VM_MAXCPU) {
+			vlapic2 = vm_lapic(vlapic->vm, dest);
+
+			/* move from INIT to waiting-for-SIPI state */
+			if (vlapic2->boot_state == BS_INIT) {
+				vlapic2->boot_state = BS_SIPI;
+			}
+
+			return (0);
+		}
+	}
+
+	if (mode == APIC_DELMODE_STARTUP) {
+		if (vlapic->vcpuid == 0 && dest != 0 && dest < VM_MAXCPU) {
+			vlapic2 = vm_lapic(vlapic->vm, dest);
+
+			/*
+			 * Ignore SIPIs in any state other than wait-for-SIPI
+			 */
+			if (vlapic2->boot_state != BS_SIPI)
+				return (0);
+
+			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
+			vmexit->u.spinup_ap.vcpu = dest;
+			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
+
+			/*
+			 * XXX this assumes that the startup IPI always succeeds
+			 */
+			vlapic2->boot_state = BS_RUNNING;
+			vm_activate_cpu(vlapic2->vm, dest);
+
+			return (0);
+		}
+	}
 
 	/*
 	 * This will cause a return to userland.

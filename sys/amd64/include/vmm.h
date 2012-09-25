@@ -228,6 +228,7 @@ enum vm_exitcode {
 	VM_EXITCODE_MTRAP,
 	VM_EXITCODE_PAUSE,
 	VM_EXITCODE_PAGING,
+	VM_EXITCODE_SPINUP_AP,
 	VM_EXITCODE_MAX
 };
 
@@ -260,6 +261,10 @@ struct vm_exit {
 			uint32_t	code;		/* ecx value */
 			uint64_t	wval;
 		} msr;
+		struct {
+			int		vcpu;
+			uint64_t	rip;
+		} spinup_ap;
 	} u;
 };
 
