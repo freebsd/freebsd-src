@@ -66,6 +66,7 @@ uint64_t vmcs_read(uint32_t encoding);
 #define	vmcs_exit_reason()		(vmcs_read(VMCS_EXIT_REASON) & 0xffff)
 #define	vmcs_exit_qualification()	vmcs_read(VMCS_EXIT_QUALIFICATION)
 #define	vmcs_guest_cr3()		vmcs_read(VMCS_GUEST_CR3)
+#define	vmcs_gpa()			vmcs_read(VMCS_GUEST_PHYSICAL_ADDRESS)
 
 #endif	/* _KERNEL */
 
@@ -323,5 +324,14 @@ uint64_t vmcs_read(uint32_t encoding);
  * Exit qualification for EXIT_REASON_INVAL_VMCS
  */
 #define	EXIT_QUAL_NMI_WHILE_STI_BLOCKING	3
+
+/*
+ * Exit qualification for EPT violation
+ */
+#define	EPT_VIOLATION_DATA_READ		(1UL << 0)
+#define	EPT_VIOLATION_DATA_WRITE	(1UL << 1)
+#define	EPT_VIOLATION_INST_FETCH	(1UL << 2)
+#define	EPT_VIOLATION_GLA_VALID		(1UL << 7)
+#define	EPT_VIOLATION_XLAT_VALID	(1UL << 8)
 
 #endif

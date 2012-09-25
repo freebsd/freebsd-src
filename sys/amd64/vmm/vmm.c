@@ -160,11 +160,11 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 
 	vcpu->hostcpu = -1;
 	vcpu->vcpuid = vcpu_id;
+	vcpu->x2apic_state = X2APIC_ENABLED;
 	vcpu->vlapic = vlapic_init(vm, vcpu_id);
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
-	vcpu->x2apic_state = X2APIC_ENABLED;
 }
 
 struct vm_exit *

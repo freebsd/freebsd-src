@@ -29,12 +29,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/cpuset.h>
 
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+
+#include <machine/vmm.h>
 
 #include "x86.h"
 
@@ -43,10 +47,12 @@ __FBSDID("$FreeBSD$");
 static const char bhyve_id[12] = "BHyVE BHyVE ";
 
 int
-x86_emulate_cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx,
-	uint32_t vcpu_id)
+x86_emulate_cpuid(struct vm *vm, int vcpu_id,
+		  uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
+	int error;
 	unsigned int 	func, regs[4];
+	enum x2apic_state x2apic_state;
 
 	func = *eax;
 
@@ -91,6 +97,12 @@ x86_emulate_cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx,
 		case CPUID_0000_0001:
 			do_cpuid(1, regs);
 
+			error = vm_get_x2apic_state(vm, vcpu_id, &x2apic_state);
+			if (error) {
+				panic("x86_emulate_cpuid: error %d "
+				      "fetching x2apic state", error);
+			}
+
 			/*
 			 * Override the APIC ID only in ebx
 			 */
@@ -102,7 +114,11 @@ x86_emulate_cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx,
 			 * Advertise x2APIC capability and Hypervisor guest.
 			 */
 			regs[2] &= ~(CPUID2_VMX | CPUID2_EST | CPUID2_TM2);
-			regs[2] |= CPUID2_X2APIC | CPUID2_HV;
+
+			regs[2] |= CPUID2_HV;
+
+			if (x2apic_state != X2APIC_DISABLED)
+				regs[2] |= CPUID2_X2APIC;
 
 			/*
 			 * Hide xsave/osxsave/avx until the FPU save/restore

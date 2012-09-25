@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,44 +26,66 @@
  * $FreeBSD$
  */
 
-#ifndef _VMM_LAPIC_H_
-#define	_VMM_LAPIC_H_
+#ifndef _VMM_INSTRUCTION_EMUL_H_
+#define _VMM_INSTRUCTION_EMUL_H_
+
+enum vie_op_size {
+	VIE_OP_SIZE_32BIT,		/* default */
+	VIE_OP_SIZE_64BIT,
+	VIE_OP_SIZE_8BIT
+};
+
+#define	VIE_INST_SIZE	15
+struct vie {
+	uint8_t		inst[VIE_INST_SIZE];
+
+	uint8_t		rex_w:1,
+			rex_r:1,
+			rex_x:1,
+			rex_b:1;
+
+	uint8_t		mod:2,
+			reg:4,
+			rm:4;
+
+
+	uint8_t		opcode_byte;
+	uint16_t	opcode_flags;
+	uint8_t		disp_bytes;
+	uint8_t		imm_bytes;
+
+	int		num_valid;
+	int		num_processed;
+
+	enum vm_reg_name base_register;
+	enum vm_reg_name index_register;
+	enum vm_reg_name operand_register;
+
+	int		op_size;
+	int64_t		displacement;
+	int64_t		immediate;
+};
+
+#define	VIE_F_HAS_MODRM	(1 << 0)
+#define	VIE_F_FROM_RM	(1 << 1)
+#define	VIE_F_FROM_REG	(1 << 2)
+#define	VIE_F_TO_RM	(1 << 3)
+#define	VIE_F_TO_REG	(1 << 4)
+#define	VIE_F_FROM_IMM	(1 << 5)
+
+#define	VIE_MOD_INDIRECT		0
+#define	VIE_MOD_INDIRECT_DISP8		1
+#define	VIE_MOD_INDIRECT_DISP32		2
+#define	VIE_MOD_DIRECT			3
+
+#define	VIE_RM_SIB			4
+#define	VIE_RM_DISP32			5
 
 struct vm;
 
-boolean_t lapic_msr(u_int num);
-int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval);
-int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval);
+void	vmm_fetch_instruction(struct vm *vm, uint64_t rip, uint64_t cr3,
+			      struct vie *vie);
 
-int	lapic_mmio(struct vm *vm, int cpu, u_int offset, int read,
-		   uint64_t rip, uint64_t cr3);
-
-void	lapic_timer_tick(struct vm *vm, int cpu);
-
-/*
- * Returns a vector between 32 and 255 if an interrupt is pending in the
- * IRR that can be delivered based on the current state of ISR and TPR.
- *
- * Note that the vector does not automatically transition to the ISR as a
- * result of calling this function.
- *
- * Returns -1 if there is no eligible vector that can be delivered to the
- * guest at this time.
- */
-int	lapic_pending_intr(struct vm *vm, int cpu);
-
-/*
- * Transition 'vector' from IRR to ISR. This function is called with the
- * vector returned by 'lapic_pending_intr()' when the guest is able to
- * accept this interrupt (i.e. RFLAGS.IF = 1 and no conditions exist that
- * block interrupt delivery).
- */
-void	lapic_intr_accepted(struct vm *vm, int cpu, int vector);
-
-/*
- * Signals to the LAPIC that an interrupt at 'vector' needs to be generated
- * to the 'cpu', the state is recorded in IRR.
- */
-int	lapic_set_intr(struct vm *vm, int cpu, int vector);
+int	vmm_decode_instruction(struct vie *vie);
 
 #endif
