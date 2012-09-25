@@ -13,6 +13,7 @@ CFLAGS+= -I${.CURDIR}/../../amd64/vmm/intel
 .PATH: ${.CURDIR}/../../amd64/vmm
 SRCS+=	vmm.c		\
 	vmm_dev.c	\
+	vmm_instruction_emul.c	\
 	vmm_ipi.c	\
 	vmm_lapic.c	\
 	vmm_mem.c	\

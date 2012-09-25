@@ -57,7 +57,7 @@
  */
 #define CPUID_0000_0001_FEAT0_VMX	(1<<5)
 
-int x86_emulate_cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
-		      uint32_t *edx, uint32_t vcpu_id);
+int x86_emulate_cpuid(struct vm *vm, int vcpu_id, uint32_t *eax, uint32_t *ebx,
+		      uint32_t *ecx, uint32_t *edx);
 
 #endif

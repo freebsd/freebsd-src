@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/vmparam.h>
 
+#include <x86/apicreg.h>
+
 #include <machine/vmm.h>
 #include "vmm_lapic.h"
 #include "vmm_msr.h"
@@ -60,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "vmx.h"
 #include "x86.h"
 #include "vmx_controls.h"
+#include "vmm_instruction_emul.h"
 
 #define	CR4_VMXE	(1UL << 13)
 
@@ -771,21 +774,17 @@ vmx_vminit(struct vm *vm)
 }
 
 static int
-vmx_handle_cpuid(int vcpu, struct vmxctx *vmxctx)
+vmx_handle_cpuid(struct vm *vm, int vcpu, struct vmxctx *vmxctx)
 {
 	int handled, func;
 	
 	func = vmxctx->guest_rax;
 
-	handled = x86_emulate_cpuid((uint32_t*)(&vmxctx->guest_rax),
-	    (uint32_t*)(&vmxctx->guest_rbx), (uint32_t*)(&vmxctx->guest_rcx),
-	    (uint32_t*)(&vmxctx->guest_rdx), vcpu);
-#if 0
-	printf("%s: func %x rax %lx rbx %lx rcx %lx rdx %lx handled %d\n",
-		__func__, func, vmxctx->guest_rax, vmxctx->guest_rbx,
-		vmxctx->guest_rcx, vmxctx->guest_rdx, handled);
-#endif
-
+	handled = x86_emulate_cpuid(vm, vcpu,
+				    (uint32_t*)(&vmxctx->guest_rax),
+				    (uint32_t*)(&vmxctx->guest_rbx),
+				    (uint32_t*)(&vmxctx->guest_rcx),
+				    (uint32_t*)(&vmxctx->guest_rdx));
 	return (handled);
 }
 
@@ -1146,13 +1145,54 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 }
 
 static int
+vmx_lapic_fault(struct vm *vm, int cpu,
+		uint64_t gpa, uint64_t rip, uint64_t cr3, uint64_t ept_qual)
+{
+	int read, write, handled;
+
+	/*
+	 * For this to be a legitimate access to the local apic:
+	 * - the GPA in the local apic page
+	 * - the GPA must be aligned on a 16 byte boundary
+	 */
+	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE)
+		return (UNHANDLED);
+
+	if ((gpa & 0xF) != 0)
+		return (UNHANDLED);
+
+	/* EPT violation on an instruction fetch doesn't make sense here */
+	if (ept_qual & EPT_VIOLATION_INST_FETCH)
+		return (UNHANDLED);
+
+	/* EPT violation must be a read fault or a write fault but not both */
+	read = ept_qual & EPT_VIOLATION_DATA_READ ? 1 : 0;
+	write = ept_qual & EPT_VIOLATION_DATA_WRITE ? 1 : 0;
+	if ((read ^ write) == 0)
+		return (UNHANDLED);
+
+	/*
+	 * The EPT violation must have been caused by accessing a guest-physical
+	 * address that is a translation of a guest-linear address.
+	 */
+	if ((ept_qual & EPT_VIOLATION_GLA_VALID) == 0 ||
+	    (ept_qual & EPT_VIOLATION_XLAT_VALID) == 0) {
+		return (UNHANDLED);
+	}
+
+	handled = lapic_mmio(vm, cpu, gpa - DEFAULT_APIC_BASE, read, rip, cr3);
+
+	return (handled);
+}
+
+static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
 	int handled;
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx;
-	uint64_t qual;
+	uint64_t qual, gpa, cr3;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1229,11 +1269,17 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
 		break;
 	case EXIT_REASON_CPUID:
-		handled = vmx_handle_cpuid(vcpu, vmxctx);
+		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
 		break;
 	case EXIT_REASON_EPT_FAULT:
-		vmexit->exitcode = VM_EXITCODE_PAGING;
-		vmexit->u.paging.cr3 = vmcs_guest_cr3();
+		gpa = vmcs_gpa();
+		cr3 = vmcs_guest_cr3();
+		handled = vmx_lapic_fault(vmx->vm, vcpu,
+					  gpa, vmexit->rip, cr3, qual);
+		if (!handled) {
+			vmexit->exitcode = VM_EXITCODE_PAGING;
+			vmexit->u.paging.cr3 = cr3;
+		}
 		break;
 	default:
 		break;

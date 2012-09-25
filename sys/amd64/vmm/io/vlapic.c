@@ -87,7 +87,7 @@ static MALLOC_DEFINE(M_VLAPIC, "vlapic", "vlapic");
 #define VLAPIC_VERSION		(16)
 #define VLAPIC_MAXLVT_ENTRIES	(5)
 
-#define	x2apic(vlapic)		((vlapic)->msr_apicbase & APICBASE_X2APIC)
+#define	x2apic(vlapic)	(((vlapic)->msr_apicbase & APICBASE_X2APIC) ? 1 : 0)
 
 enum boot_state {
 	BS_INIT,
@@ -433,7 +433,10 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 	struct vlapic *vlapic2;
 	struct vm_exit *vmexit;
 	
-	dest = icrval >> 32;
+	if (x2apic(vlapic))
+		dest = icrval >> 32;
+	else
+		dest = icrval >> (32 + 24);
 	vec = icrval & APIC_VECTOR_MASK;
 	mode = icrval & APIC_DELMODE_MASK;
 
@@ -703,7 +706,17 @@ vlapic_op_mem_write(void* dev, uint64_t gpa, opsize_t size, uint64_t data)
 			lapic->svr = data;
 			break;
 		case APIC_OFFSET_ICR_LOW: 
+			if (!x2apic(vlapic)) {
+				data &= 0xffffffff;
+				data |= (uint64_t)lapic->icr_hi << 32;
+			}
 			retval = lapic_process_icr(vlapic, data);
+			break;
+		case APIC_OFFSET_ICR_HI:
+			if (!x2apic(vlapic)) {
+				retval = 0;
+				lapic->icr_hi = data;
+			}
 			break;
 		case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
 			reg = vlapic_get_lvt(vlapic, offset);	
@@ -810,18 +823,25 @@ static struct io_region vlapic_mmio[VM_MAXCPU];
 struct vlapic *
 vlapic_init(struct vm *vm, int vcpuid)
 {
+	int err;
+	enum x2apic_state state;
 	struct vlapic 		*vlapic;
+
+	err = vm_get_x2apic_state(vm, vcpuid, &state);
+	if (err)
+		panic("vlapic_set_apicbase: err %d fetching x2apic state", err);
 
 	vlapic = malloc(sizeof(struct vlapic), M_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = vm;
 	vlapic->vcpuid = vcpuid;
 
-	vlapic->msr_apicbase = DEFAULT_APIC_BASE |
-			       APICBASE_ENABLED |
-			       APICBASE_X2APIC;
+	vlapic->msr_apicbase = DEFAULT_APIC_BASE | APICBASE_ENABLED;
 
 	if (vcpuid == 0)
 		vlapic->msr_apicbase |= APICBASE_BSP;
+
+	if (state == X2APIC_ENABLED)
+		vlapic->msr_apicbase |= APICBASE_X2APIC;
 
 	vlapic->ops = &vlapic_dev_ops;
 
@@ -856,6 +876,15 @@ vlapic_get_apicbase(struct vlapic *vlapic)
 void
 vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val)
 {
+	int err;
+	enum x2apic_state state;
+
+	err = vm_get_x2apic_state(vlapic->vm, vlapic->vcpuid, &state);
+	if (err)
+		panic("vlapic_set_apicbase: err %d fetching x2apic state", err);
+
+	if (state == X2APIC_DISABLED)
+		val &= ~APICBASE_X2APIC;
 
 	vlapic->msr_apicbase = val;
 }
