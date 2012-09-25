@@ -73,6 +73,7 @@ struct vcpu {
 	struct savefpu	*guestfpu;	/* guest fpu state */
 	void		*stats;
 	struct vm_exit	exitinfo;
+	enum x2apic_state x2apic_state;
 };
 #define	VCPU_F_PINNED	0x0001
 #define	VCPU_F_RUNNING	0x0002
@@ -163,6 +164,7 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
+	vcpu->x2apic_state = X2APIC_ENABLED;
 }
 
 struct vm_exit *
@@ -744,4 +746,29 @@ vcpu_stats(struct vm *vm, int vcpuid)
 {
 
 	return (vm->vcpu[vcpuid].stats);
+}
+
+int
+vm_get_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state *state)
+{
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	*state = vm->vcpu[vcpuid].x2apic_state;
+
+	return (0);
+}
+
+int
+vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
+{
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	if (state < 0 || state >= X2APIC_STATE_LAST)
+		return (EINVAL);
+
+	vm->vcpu[vcpuid].x2apic_state = state;
+
+	return (0);
 }

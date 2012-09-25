@@ -40,6 +40,8 @@ struct vm_exit;
 struct vm_run;
 struct vlapic;
 
+enum x2apic_state;
+
 typedef int	(*vmm_init_func_t)(void);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm); /* instance specific apis */
@@ -109,6 +111,8 @@ uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
 int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
+int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
+int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 void vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
@@ -203,6 +207,13 @@ enum vm_cap_type {
 	VM_CAP_PAUSE_EXIT,
 	VM_CAP_UNRESTRICTED_GUEST,
 	VM_CAP_MAX
+};
+
+enum x2apic_state {
+	X2APIC_ENABLED,
+	X2APIC_AVAILABLE,
+	X2APIC_DISABLED,
+	X2APIC_STATE_LAST
 };
 
 /*

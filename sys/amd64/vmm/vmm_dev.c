@@ -163,6 +163,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_nmi *vmnmi;
 	struct vm_stats *vmstats;
 	struct vm_stat_desc *statdesc;
+	struct vm_x2apic *x2apic;
 
 	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup2(cdev);
@@ -185,6 +186,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_GET_CAPABILITY:
 	case VM_SET_CAPABILITY:
 	case VM_PPTDEV_MSI:
+	case VM_SET_X2APIC_STATE:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -334,6 +336,16 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_set_capability(sc->vm, vmcap->cpuid,
 					  vmcap->captype,
 					  vmcap->capval);
+		break;
+	case VM_SET_X2APIC_STATE:
+		x2apic = (struct vm_x2apic *)data;
+		error = vm_set_x2apic_state(sc->vm,
+					    x2apic->cpuid, x2apic->state);
+		break;
+	case VM_GET_X2APIC_STATE:
+		x2apic = (struct vm_x2apic *)data;
+		error = vm_get_x2apic_state(sc->vm,
+					    x2apic->cpuid, &x2apic->state);
 		break;
 	default:
 		error = ENOTTY;
