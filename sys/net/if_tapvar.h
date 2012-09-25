@@ -64,7 +64,6 @@ struct tap_softc {
 	SLIST_ENTRY(tap_softc)	tap_next;	/* next device in chain      */
 	struct cdev *tap_dev;
 	struct mtx	 tap_mtx;		/* per-softc mutex */
-	struct cv	 tap_cv;		/* protect ref'd dev destroy */ 
 };
 
 #endif /* !_NET_IF_TAPVAR_H_ */
