@@ -806,10 +806,9 @@ vn_write(fp, uio, active_cred, flags, td)
 		goto unlock;
 
 	advice = get_advice(fp, uio);
- 
-	if ((MNT_SHARED_WRITES(mp) ||
-	    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) &&
-	    (flags & FOF_OFFSET) != 0) {
+
+	if (MNT_SHARED_WRITES(mp) ||
+	    (mp == NULL && MNT_SHARED_WRITES(vp->v_mount))) {
 		lock_flags = LK_SHARED;
 	} else {
 		lock_flags = LK_EXCLUSIVE;
