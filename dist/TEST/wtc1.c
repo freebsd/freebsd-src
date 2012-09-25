@@ -2,6 +2,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <err.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,6 +15,7 @@
 
 static int continuation;
 volatile sig_atomic_t gotsig;
+static const char hfile[] = ".whistory";
 
 static wchar_t *
 prompt(EditLine *el)
@@ -60,7 +62,8 @@ complete(EditLine *el, int ch)
 	char *buf, *bptr;
 	const LineInfoW *lf = el_wline(el);
 	int len, mblen, i;
-	unsigned char res;
+	unsigned char res = 0;
+	wchar_t dir[1024];
 
 	/* Find the last word */
 	for (ptr = lf->cursor -1; !iswspace(*ptr) && ptr > lf->buffer; --ptr)
@@ -70,7 +73,9 @@ complete(EditLine *el, int ch)
 	/* Convert last word to multibyte encoding, so we can compare to it */
 	wctomb(NULL, 0); /* Reset shift state */
 	mblen = MB_LEN_MAX * len + 1;
-	buf = bptr =(char *)malloc(mblen);
+	buf = bptr = malloc(mblen);
+	if (buf == NULL)
+		err(1, "malloc");
 	for (i = 0; i < len; ++i) {
 		/* Note: really should test for -1 return from wctomb */
 		bptr += wctomb(bptr, ptr[i]);
@@ -83,7 +88,9 @@ complete(EditLine *el, int ch)
 		if (mblen > strlen(dp->d_name))
 			continue;
 		if (strncmp(dp->d_name, buf, mblen) == 0) {
-			if (el_insertstr(el, &dp->d_name[mblen]) == -1)
+			mbstowcs(dir, &dp->d_name[mblen],
+			    sizeof(dir) / sizeof(*dir));
+			if (el_winsertstr(el, dir) == -1)
 				res = CC_ERROR;
 			else
 				res = CC_REFRESH;
@@ -119,6 +126,7 @@ main(int argc, char *argv[])
 
 	hist = history_winit();		/* Init built-in history     */
 	history_w(hist, &ev, H_SETSIZE, 100);	/* Remember 100 events	     */
+	history_w(hist, &ev, H_LOAD, hfile);
 
 	tok = tok_winit(NULL);			/* Init the tokenizer	     */
 
@@ -260,6 +268,7 @@ main(int argc, char *argv[])
 
 	el_end(el);
 	tok_wend(tok);
+	history_w(hist, &ev, H_SAVE, hfile);
 	history_wend(hist);
 
 	fprintf(stdout, "\n");

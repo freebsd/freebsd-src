@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.h,v 1.12 2009/12/30 22:37:40 christos Exp $	*/
+/*	$NetBSD: tty.h,v 1.14 2012/05/15 15:59:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -431,7 +431,7 @@
 #define	C_MIN		23
 #define	C_TIME		24
 #define	C_NCC		25
-#define	C_SH(A)		(1 << (A))
+#define	C_SH(A)		((unsigned int)(1 << (A)))
 
 /*
  * Terminal dependend data structures
@@ -469,7 +469,7 @@ protected void	tty_bind_char(EditLine *, int);
 typedef struct {
     ttyperm_t t_t;
     ttychar_t t_c;
-    struct termios t_ex, t_ed, t_ts;
+    struct termios t_or, t_ex, t_ed, t_ts;
     int t_tabs;
     int t_eight;
     speed_t t_speed;

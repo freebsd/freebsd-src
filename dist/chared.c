@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.c,v 1.28 2009/12/30 22:37:40 christos Exp $	*/
+/*	$NetBSD: chared.c,v 1.37 2012/07/18 17:12:39 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)chared.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: chared.c,v 1.28 2009/12/30 22:37:40 christos Exp $");
+__RCSID("$NetBSD: chared.c,v 1.37 2012/07/18 17:12:39 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -63,8 +63,8 @@ cv_undo(EditLine *el)
 	size_t size;
 
 	/* Save entire line for undo */
-	size = el->el_line.lastchar - el->el_line.buffer;
-	vu->len = size;
+	size = (size_t)(el->el_line.lastchar - el->el_line.buffer);
+	vu->len = (ssize_t)size;
 	vu->cursor = (int)(el->el_line.cursor - el->el_line.buffer);
 	(void)memcpy(vu->buf, el->el_line.buffer, size * sizeof(*vu->buf));
 
@@ -84,7 +84,7 @@ cv_yank(EditLine *el, const Char *ptr, int size)
 {
 	c_kill_t *k = &el->el_chared.c_kill;
 
-	(void)memcpy(k->buf, ptr, size * sizeof(*k->buf));
+	(void)memcpy(k->buf, ptr, (size_t)size * sizeof(*k->buf));
 	k->last = k->buf + size;
 }
 
@@ -201,7 +201,7 @@ c_delbefore1(EditLine *el)
 protected int
 ce__isword(Int p)
 {
-	return (Isalnum(p) || Strchr(STR("*?_-.[]~="), p) != NULL);
+	return Isalnum(p) || Strchr(STR("*?_-.[]~="), p) != NULL;
 }
 
 
@@ -225,7 +225,7 @@ cv__isword(Int p)
 protected int
 cv__isWord(Int p)
 {
-	return (!Isspace(p));
+	return !Isspace(p);
 }
 
 
@@ -249,7 +249,7 @@ c__prev_word(Char *p, Char *low, int n, int (*wtest)(Int))
 	if (p < low)
 		p = low;
 	/* cp now points where we want it */
-	return (p);
+	return p;
 }
 
 
@@ -268,7 +268,7 @@ c__next_word(Char *p, Char *high, int n, int (*wtest)(Int))
 	if (p > high)
 		p = high;
 	/* p now points where we want it */
-	return (p);
+	return p;
 }
 
 /* cv_next_word():
@@ -294,9 +294,9 @@ cv_next_word(EditLine *el, Char *p, Char *high, int n, int (*wtest)(Int))
 
 	/* p now points where we want it */
 	if (p > high)
-		return (high);
+		return high;
 	else
-		return (p);
+		return p;
 }
 
 
@@ -320,46 +320,11 @@ cv_prev_word(Char *p, Char *low, int n, int (*wtest)(Int))
 
 	/* p now points where we want it */
 	if (p < low)
-		return (low);
+		return low;
 	else
-		return (p);
+		return p;
 }
 
-
-#ifdef notdef
-/* c__number():
- *	Ignore character p points to, return number appearing after that.
- * 	A '$' by itself means a big number; "$-" is for negative; '^' means 1.
- * 	Return p pointing to last char used.
- */
-protected Char *
-c__number(
-    Char *p,	/* character position */
-    int *num,	/* Return value	*/
-    int dval)	/* dval is the number to subtract from like $-3 */
-{
-	int i;
-	int sign = 1;
-
-	if (*++p == '^') {
-		*num = 1;
-		return (p);
-	}
-	if (*p == '$') {
-		if (*++p != '-') {
-			*num = 0x7fffffff;	/* Handle $ */
-			return (--p);
-		}
-		sign = -1;			/* Handle $- */
-		++p;
-	}
-    /* XXX: this assumes ASCII compatible digits */
-	for (i = 0; Isdigit(*p); i = 10 * i + *p++ - '0')
-		continue;
-	*num = (sign < 0 ? dval - i : i);
-	return (--p);
-}
-#endif
 
 /* cv_delfini():
  *	Finish vi delete action
@@ -399,28 +364,6 @@ cv_delfini(EditLine *el)
 }
 
 
-#ifdef notdef
-/* ce__endword():
- *	Go to the end of this word according to emacs
- */
-protected Char *
-ce__endword(Char *p, Char *high, int n)
-{
-	p++;
-
-	while (n--) {
-		while ((p < high) && Isspace(*p))
-			p++;
-		while ((p < high) && !Isspace(*p))
-			p++;
-	}
-
-	p--;
-	return (p);
-}
-#endif
-
-
 /* cv__endword():
  *	Go to the end of this word according to vi
  */
@@ -440,7 +383,7 @@ cv__endword(Char *p, Char *high, int n, int (*wtest)(Int))
 			p++;
 	}
 	p--;
-	return (p);
+	return p;
 }
 
 /* ch_init():
@@ -454,7 +397,7 @@ ch_init(EditLine *el)
 	el->el_line.buffer		= el_malloc(EL_BUFSIZ *
 	    sizeof(*el->el_line.buffer));
 	if (el->el_line.buffer == NULL)
-		return (-1);
+		return -1;
 
 	(void) memset(el->el_line.buffer, 0, EL_BUFSIZ *
 	    sizeof(*el->el_line.buffer));
@@ -465,7 +408,7 @@ ch_init(EditLine *el)
 	el->el_chared.c_undo.buf	= el_malloc(EL_BUFSIZ *
 	    sizeof(*el->el_chared.c_undo.buf));
 	if (el->el_chared.c_undo.buf == NULL)
-		return (-1);
+		return -1;
 	(void) memset(el->el_chared.c_undo.buf, 0, EL_BUFSIZ *
 	    sizeof(*el->el_chared.c_undo.buf));
 	el->el_chared.c_undo.len	= -1;
@@ -473,7 +416,7 @@ ch_init(EditLine *el)
 	el->el_chared.c_redo.buf	= el_malloc(EL_BUFSIZ *
 	    sizeof(*el->el_chared.c_redo.buf));
 	if (el->el_chared.c_redo.buf == NULL)
-		return (-1);
+		return -1;
 	el->el_chared.c_redo.pos	= el->el_chared.c_redo.buf;
 	el->el_chared.c_redo.lim	= el->el_chared.c_redo.buf + EL_BUFSIZ;
 	el->el_chared.c_redo.cmd	= ED_UNASSIGNED;
@@ -484,11 +427,13 @@ ch_init(EditLine *el)
 	el->el_chared.c_kill.buf	= el_malloc(EL_BUFSIZ *
 	    sizeof(*el->el_chared.c_kill.buf));
 	if (el->el_chared.c_kill.buf == NULL)
-		return (-1);
+		return -1;
 	(void) memset(el->el_chared.c_kill.buf, 0, EL_BUFSIZ *
 	    sizeof(*el->el_chared.c_kill.buf));
 	el->el_chared.c_kill.mark	= el->el_line.buffer;
 	el->el_chared.c_kill.last	= el->el_chared.c_kill.buf;
+	el->el_chared.c_resizefun	= NULL;
+	el->el_chared.c_resizearg	= NULL;
 
 	el->el_map.current		= el->el_map.key;
 
@@ -502,8 +447,8 @@ ch_init(EditLine *el)
 	ma->offset	= 0;
 	ma->macro	= el_malloc(EL_MAXMACRO * sizeof(*ma->macro));
 	if (ma->macro == NULL)
-		return (-1);
-	return (0);
+		return -1;
+	return 0;
 }
 
 /* ch_reset():
@@ -542,7 +487,7 @@ ch__clearmacro(EditLine *el)
 {
 	c_macro_t *ma = &el->el_chared.c_macro;
 	while (ma->level >= 0)
-		el_free((ptr_t)ma->macro[ma->level--]);
+		el_free(ma->macro[ma->level--]);
 }
 
 /* ch_enlargebufs():
@@ -555,7 +500,7 @@ ch_enlargebufs(EditLine *el, size_t addlen)
 	size_t sz, newsz;
 	Char *newbuffer, *oldbuf, *oldkbuf;
 
-	sz = el->el_line.limit - el->el_line.buffer + EL_LEAVE;
+	sz = (size_t)(el->el_line.limit - el->el_line.buffer + EL_LEAVE);
 	newsz = sz * 2;
 	/*
 	 * If newly required length is longer than current buffer, we need
@@ -587,7 +532,8 @@ ch_enlargebufs(EditLine *el, size_t addlen)
 	/*
 	 * Reallocate kill buffer.
 	 */
-	newbuffer = el_realloc(el->el_chared.c_kill.buf, newsz * sizeof(*newbuffer));
+	newbuffer = el_realloc(el->el_chared.c_kill.buf, newsz *
+	    sizeof(*newbuffer));
 	if (!newbuffer)
 		return 0;
 
@@ -629,6 +575,8 @@ ch_enlargebufs(EditLine *el, size_t addlen)
 
 	/* Safe to set enlarged buffer size */
 	el->el_line.limit  = &el->el_line.buffer[newsz - EL_LEAVE];
+	if (el->el_chared.c_resizefun)
+		(*el->el_chared.c_resizefun)(el, el->el_chared.c_resizearg);
 	return 1;
 }
 
@@ -638,20 +586,20 @@ ch_enlargebufs(EditLine *el, size_t addlen)
 protected void
 ch_end(EditLine *el)
 {
-	el_free((ptr_t) el->el_line.buffer);
+	el_free(el->el_line.buffer);
 	el->el_line.buffer = NULL;
 	el->el_line.limit = NULL;
-	el_free((ptr_t) el->el_chared.c_undo.buf);
+	el_free(el->el_chared.c_undo.buf);
 	el->el_chared.c_undo.buf = NULL;
-	el_free((ptr_t) el->el_chared.c_redo.buf);
+	el_free(el->el_chared.c_redo.buf);
 	el->el_chared.c_redo.buf = NULL;
 	el->el_chared.c_redo.pos = NULL;
 	el->el_chared.c_redo.lim = NULL;
 	el->el_chared.c_redo.cmd = ED_UNASSIGNED;
-	el_free((ptr_t) el->el_chared.c_kill.buf);
+	el_free(el->el_chared.c_kill.buf);
 	el->el_chared.c_kill.buf = NULL;
 	ch_reset(el, 1);
-	el_free((ptr_t) el->el_chared.c_macro.macro);
+	el_free(el->el_chared.c_macro.macro);
 	el->el_chared.c_macro.macro = NULL;
 }
 
@@ -664,17 +612,17 @@ FUN(el,insertstr)(EditLine *el, const Char *s)
 {
 	size_t len;
 
-	if ((len = Strlen(s)) == 0)
-		return (-1);
+	if (s == NULL || (len = Strlen(s)) == 0)
+		return -1;
 	if (el->el_line.lastchar + len >= el->el_line.limit) {
 		if (!ch_enlargebufs(el, len))
-			return (-1);
+			return -1;
 	}
 
 	c_insert(el, (int)len);
 	while (*s)
 		*el->el_line.cursor++ = *s++;
-	return (0);
+	return 0;
 }
 
 
@@ -707,8 +655,8 @@ c_gets(EditLine *el, Char *buf, const Char *prompt)
 	Char *cp = el->el_line.buffer;
 
 	if (prompt) {
-		len = Strlen(prompt);
-		(void)memcpy(cp, prompt, len * sizeof(*cp));
+		len = (ssize_t)Strlen(prompt);
+		(void)memcpy(cp, prompt, (size_t)len * sizeof(*cp));
 		cp += len;
 	}
 	len = 0;
@@ -743,8 +691,8 @@ c_gets(EditLine *el, Char *buf, const Char *prompt)
 			break;
 
 		default:
-			if (len >= EL_BUFSIZ - 16)
-				term_beep(el);
+			if (len >= (ssize_t)(EL_BUFSIZ - 16))
+				terminal_beep(el);
 			else {
 				buf[len++] = ch;
 				*cp++ = ch;
@@ -773,7 +721,7 @@ c_hpos(EditLine *el)
 	 * Find how many characters till the beginning of this line.
 	 */
 	if (el->el_line.cursor == el->el_line.buffer)
-		return (0);
+		return 0;
 	else {
 		for (ptr = el->el_line.cursor - 1;
 		     ptr >= el->el_line.buffer && *ptr != '\n';
@@ -781,4 +729,12 @@ c_hpos(EditLine *el)
 			continue;
 		return (int)(el->el_line.cursor - ptr - 1);
 	}
+}
+
+protected int
+ch_resizefun(EditLine *el, el_zfunc_t f, void *a)
+{
+	el->el_chared.c_resizefun = f;
+	el->el_chared.c_resizearg = a;
+	return 0;
 }

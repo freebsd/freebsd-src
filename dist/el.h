@@ -1,4 +1,4 @@
-/*	$NetBSD: el.h,v 1.21 2009/12/31 15:58:26 christos Exp $	*/
+/*	$NetBSD: el.h,v 1.25 2011/07/29 23:44:44 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -51,7 +51,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-#define	EL_BUFSIZ	1024		/* Maximum line size		*/
+#define	EL_BUFSIZ	((size_t)1024)	/* Maximum line size		*/
 
 #define	HANDLE_SIGNALS	0x01
 #define	NO_TTY		0x02
@@ -100,8 +100,8 @@ typedef struct el_state_t {
 
 #include "tty.h"
 #include "prompt.h"
-#include "key.h"
-#include "term.h"
+#include "keymacro.h"
+#include "terminal.h"
 #include "refresh.h"
 #include "chared.h"
 #include "common.h"
@@ -119,6 +119,8 @@ struct editline {
 	FILE		 *el_outfile;	/* Stdio stuff			*/
 	FILE		 *el_errfile;	/* Stdio stuff			*/
 	int		  el_infd;	/* Input file descriptor	*/
+	int		  el_outfd;	/* Output file descriptor	*/
+	int		  el_errfd;	/* Error file descriptor	*/
 	int		  el_flags;	/* Various flags.		*/
 	int		  el_errno;	/* Local copy of errno		*/
 	coord_t		  el_cursor;	/* Cursor location		*/
@@ -127,14 +129,14 @@ struct editline {
 	void		 *el_data;	/* Client data			*/
 	el_line_t	  el_line;	/* The current line information	*/
 	el_state_t	  el_state;	/* Current editor state		*/
-	el_term_t	  el_term;	/* Terminal dependent stuff	*/
+	el_terminal_t	  el_terminal;	/* Terminal dependent stuff	*/
 	el_tty_t	  el_tty;	/* Tty dependent stuff		*/
 	el_refresh_t	  el_refresh;	/* Refresh stuff		*/
 	el_prompt_t	  el_prompt;	/* Prompt stuff			*/
 	el_prompt_t	  el_rprompt;	/* Prompt stuff			*/
 	el_chared_t	  el_chared;	/* Characted editor stuff	*/
 	el_map_t	  el_map;	/* Key mapping stuff		*/
-	el_key_t	  el_key;	/* Key binding stuff		*/
+	el_keymacro_t	  el_keymacro;	/* Key binding stuff		*/
 	el_history_t	  el_history;	/* History stuff		*/
 	el_search_t	  el_search;	/* Search stuff			*/
 	el_signal_t	  el_signal;	/* Signal handling stuff	*/

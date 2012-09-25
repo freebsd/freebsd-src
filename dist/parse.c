@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.23 2009/12/30 22:37:40 christos Exp $	*/
+/*	$NetBSD: parse.c,v 1.26 2011/08/16 16:25:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: parse.c,v 1.23 2009/12/30 22:37:40 christos Exp $");
+__RCSID("$NetBSD: parse.c,v 1.26 2011/08/16 16:25:15 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -62,11 +62,11 @@ private const struct {
 	int (*func)(EditLine *, int, const Char **);
 } cmds[] = {
 	{ STR("bind"),  	map_bind	},
-	{ STR("echotc"),	term_echotc	},
+	{ STR("echotc"),	terminal_echotc	},
 	{ STR("edit"),  	el_editmode	},
 	{ STR("history"),	hist_command	},
-	{ STR("telltc"),	term_telltc	},
-	{ STR("settc"),	        term_settc	},
+	{ STR("telltc"),	terminal_telltc	},
+	{ STR("settc"),	        terminal_settc	},
 	{ STR("setty"),	        tty_stty	},
 	{ NULL,		        NULL		}
 };
@@ -86,7 +86,7 @@ parse_line(EditLine *el, const Char *line)
 	FUN(tok,str)(tok, line, &argc, &argv);
 	argc = FUN(el,parse)(el, argc, argv);
 	FUN(tok,end)(tok);
-	return (argc);
+	return argc;
 }
 
 
@@ -100,34 +100,34 @@ FUN(el,parse)(EditLine *el, int argc, const Char *argv[])
 	int i;
 
 	if (argc < 1)
-		return (-1);
+		return -1;
 	ptr = Strchr(argv[0], ':');
 	if (ptr != NULL) {
 		Char *tprog;
 		size_t l;
 
 		if (ptr == argv[0])
-			return (0);
-		l = ptr - argv[0] - 1;
+			return 0;
+		l = (size_t)(ptr - argv[0] - 1);
 		tprog = el_malloc((l + 1) * sizeof(*tprog));
 		if (tprog == NULL)
-			return (0);
+			return 0;
 		(void) Strncpy(tprog, argv[0], l);
 		tprog[l] = '\0';
 		ptr++;
-		l = el_match(el->el_prog, tprog);
+		l = (size_t)el_match(el->el_prog, tprog);
 		el_free(tprog);
 		if (!l)
-			return (0);
+			return 0;
 	} else
 		ptr = argv[0];
 
 	for (i = 0; cmds[i].name != NULL; i++)
 		if (Strcmp(cmds[i].name, ptr) == 0) {
 			i = (*cmds[i].func) (el, argc, argv);
-			return (-i);
+			return -i;
 		}
-	return (-1);
+	return -1;
 }
 
 
@@ -144,7 +144,7 @@ parse__escape(const Char **ptr)
 	p = *ptr;
 
 	if (p[1] == 0)
-		return (-1);
+		return -1;
 
 	if (*p == '\\') {
 		p++;
@@ -180,12 +180,12 @@ parse__escape(const Char **ptr)
                         const Char *h;
                         ++p;
                         if (*p++ != '+')
-                                return (-1);
+                                return -1;
 			c = 0;
                         for (i = 0; i < 5; ++i) {
                                 h = Strchr(hex, *p++);
                                 if (!h && i < 4)
-                                        return (-1);
+                                        return -1;
                                 else if (h)
                                         c = (c << 4) | ((int)(h - hex));
                                 else
@@ -214,8 +214,8 @@ parse__escape(const Char **ptr)
 				}
 				c = (c << 3) | (ch - '0');
 			}
-			if ((c & 0xffffff00) != 0)
-				return (-1);
+			if ((c & (wint_t)0xffffff00) != (wint_t)0)
+				return -1;
 			--p;
 			break;
 		}
@@ -229,7 +229,7 @@ parse__escape(const Char **ptr)
 	} else
 		c = *p;
 	*ptr = ++p;
-	return (c);
+	return c;
 }
 
 /* parse__string():
@@ -245,12 +245,12 @@ parse__string(Char *out, const Char *in)
 		switch (*in) {
 		case '\0':
 			*out = '\0';
-			return (rv);
+			return rv;
 
 		case '\\':
 		case '^':
 			if ((n = parse__escape(&in)) == -1)
-				return (NULL);
+				return NULL;
 			*out++ = n;
 			break;
 
@@ -280,6 +280,6 @@ parse_cmd(EditLine *el, const Char *cmd)
 
 	for (b = el->el_map.help; b->name != NULL; b++)
 		if (Strcmp(b->name, cmd) == 0)
-			return (b->func);
-	return (-1);
+			return b->func;
+	return -1;
 }
