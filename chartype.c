@@ -1,4 +1,4 @@
-/*	$NetBSD: chartype.c,v 1.4 2010/04/15 00:55:57 christos Exp $	*/
+/*	$NetBSD: chartype.c,v 1.10 2011/08/16 16:25:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -38,12 +38,12 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: chartype.c,v 1.4 2010/04/15 00:55:57 christos Exp $");
+__RCSID("$NetBSD: chartype.c,v 1.10 2011/08/16 16:25:15 christos Exp $");
 #endif /* not lint && not SCCSID */
 #include "el.h"
 #include <stdlib.h>
 
-#define CT_BUFSIZ 1024
+#define CT_BUFSIZ ((size_t)1024)
 
 #ifdef WIDECHAR
 protected void
@@ -52,7 +52,7 @@ ct_conv_buff_resize(ct_buffer_t *conv, size_t mincsize, size_t minwsize)
 	void *p;
 	if (mincsize > conv->csize) {
 		conv->csize = mincsize;
-		p = el_realloc(conv->cbuff, conv->csize);
+		p = el_realloc(conv->cbuff, conv->csize * sizeof(*conv->cbuff));
 		if (p == NULL) {
 			conv->csize = 0;
 			el_free(conv->cbuff);
@@ -63,7 +63,7 @@ ct_conv_buff_resize(ct_buffer_t *conv, size_t mincsize, size_t minwsize)
 
 	if (minwsize > conv->wsize) {
 		conv->wsize = minwsize;
-		p = el_realloc(conv->wbuff, conv->wsize);
+		p = el_realloc(conv->wbuff, conv->wsize * sizeof(*conv->wbuff));
 		if (p == NULL) {
 			conv->wsize = 0;
 			el_free(conv->wbuff);
@@ -83,32 +83,26 @@ ct_encode_string(const Char *s, ct_buffer_t *conv)
 	if (!s)
 		return NULL;
 	if (!conv->cbuff)
-		ct_conv_buff_resize(conv, CT_BUFSIZ, 0);
+		ct_conv_buff_resize(conv, CT_BUFSIZ, (size_t)0);
 	if (!conv->cbuff)
 		return NULL;
 
 	dst = conv->cbuff;
 	while (*s) {
-		used = ct_encode_char(dst, (int)(conv->csize -
-		    (dst - conv->cbuff)), *s);
-		if (used == -1) { /* failed to encode, need more buffer space */
+		used = (ssize_t)(conv->csize - (size_t)(dst - conv->cbuff));
+		if (used < 5) {
 			used = dst - conv->cbuff;
-			ct_conv_buff_resize(conv, conv->csize + CT_BUFSIZ, 0);
+			ct_conv_buff_resize(conv, conv->csize + CT_BUFSIZ,
+			    (size_t)0);
 			if (!conv->cbuff)
 				return NULL;
 			dst = conv->cbuff + used;
-			/* don't increment s here - we want to retry it! */
 		}
-		else
-			++s;
+		used = ct_encode_char(dst, (size_t)5, *s);
+		if (used == -1) /* failed to encode, need more buffer space */
+			abort();
+		++s;
 		dst += used;
-	}
-	if (dst >= (conv->cbuff + conv->csize)) {
-		used = dst - conv->cbuff;
-		ct_conv_buff_resize(conv, conv->csize + 1, 0);
-		if (!conv->cbuff)
-			return NULL;
-		dst = conv->cbuff + used;
 	}
 	*dst = '\0';
 	return conv->cbuff;
@@ -122,13 +116,15 @@ ct_decode_string(const char *s, ct_buffer_t *conv)
 	if (!s)
 		return NULL;
 	if (!conv->wbuff)
-		ct_conv_buff_resize(conv, 0, CT_BUFSIZ);
+		ct_conv_buff_resize(conv, (size_t)0, CT_BUFSIZ);
 	if (!conv->wbuff)
 		return NULL;
 
-	len = ct_mbstowcs(0, s, 0);
+	len = ct_mbstowcs(NULL, s, (size_t)0);
+	if (len == (size_t)-1)
+		return NULL;
 	if (len > conv->wsize)
-		ct_conv_buff_resize(conv, 0, len + 1);
+		ct_conv_buff_resize(conv, (size_t)0, len + 1);
 	if (!conv->wbuff)
 		return NULL;
 	ct_mbstowcs(conv->wbuff, s, conv->wsize);
@@ -149,11 +145,11 @@ ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 	 * the argv strings. */
 	for (i = 0, bufspace = 0; i < argc; ++i)
 		bufspace += argv[i] ? strlen(argv[i]) + 1 : 0;
-	ct_conv_buff_resize(conv, 0, bufspace);
+	ct_conv_buff_resize(conv, (size_t)0, bufspace);
 	if (!conv->wsize)
 		return NULL;
 
-	wargv = el_malloc(argc * sizeof(*wargv));
+	wargv = el_malloc((size_t)argc * sizeof(*wargv));
 
 	for (i = 0, p = conv->wbuff; i < argc; ++i) {
 		if (!argv[i]) {   /* don't pass null pointers to mbstowcs */
@@ -161,14 +157,14 @@ ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 			continue;
 		} else {
 			wargv[i] = p;
-			bytes = mbstowcs(p, argv[i], bufspace);
+			bytes = (ssize_t)mbstowcs(p, argv[i], bufspace);
 		}
 		if (bytes == -1) {
 			el_free(wargv);
 			return NULL;
 		} else
 			bytes++;  /* include '\0' in the count */
-		bufspace -= bytes;
+		bufspace -= (size_t)bytes;
 		p += bytes;
 	}
 
@@ -225,7 +221,7 @@ ct_visual_string(const Char *s)
 	}
 	dst = buff;
 	while (*s) {
-		used = ct_visual_char(dst, buffsize - (dst - buff), *s);
+		used = ct_visual_char(dst, buffsize - (size_t)(dst - buff), *s);
 		if (used == -1) { /* failed to encode, need more buffer space */
 			used = dst - buff;
 			buffsize += CT_BUFSIZ;
@@ -326,7 +322,7 @@ ct_visual_char(Char *dst, size_t len, Char c)
 		*dst++ = tohexdigit(((unsigned int) c >>  8) & 0xf);
 		*dst++ = tohexdigit(((unsigned int) c >>  4) & 0xf);
 		*dst   = tohexdigit(((unsigned int) c      ) & 0xf);
-		return (c > 0xffff) ? 8 : 7;
+		return c > 0xffff ? 8 : 7;
 #else
 		*dst++ = '\\';
 #define tooctaldigit(v) ((v) + '0')

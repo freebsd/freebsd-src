@@ -1,4 +1,4 @@
-/*	$NetBSD: histedit.h,v 1.46 2010/04/15 00:50:03 christos Exp $	*/
+/*	$NetBSD: histedit.h,v 1.49 2012/05/31 13:16:39 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -42,8 +42,6 @@
 
 #define	LIBEDIT_MAJOR 2
 #define	LIBEDIT_MINOR 11
-
-#include <stdint.h>
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -142,7 +140,7 @@ unsigned char	_el_fn_complete(EditLine *, int);
 #define	EL_SETTY	8	/* , const Char *, ..., NULL);        set     */
 #define	EL_ADDFN	9	/* , const Char *, const Char,        set     */
 				/*   el_func_t);		 	      */
-#define	EL_HIST		10	/* , hist_fun_t, const ptr_t);	      set     */
+#define	EL_HIST		10	/* , hist_fun_t, const void *);	      set     */
 #define	EL_EDITMODE	11	/* , int);			      set/get */
 #define	EL_RPROMPT	12	/* , prompt_func);		      set/get */
 #define	EL_GETCFN	13	/* , el_rfunc_t);		      set/get */
@@ -155,6 +153,7 @@ unsigned char	_el_fn_complete(EditLine *, int);
 #define	EL_REFRESH	20	/* , void);			      set     */
 #define	EL_PROMPT_ESC	21	/* , prompt_func, Char);	      set/get */
 #define	EL_RPROMPT_ESC	22	/* , prompt_func, Char);	      set/get */
+#define	EL_RESIZE	23	/* , el_zfunc_t, void *);	      set     */
 
 #define	EL_BUILTIN_GETCFN	(NULL)
 

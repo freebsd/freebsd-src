@@ -1,17 +1,22 @@
-#	$NetBSD: Makefile,v 1.41 2010/02/03 15:34:43 roy Exp $
+#	$NetBSD: Makefile,v 1.51 2012/08/10 12:20:10 joerg Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 USE_SHLIBDIR=	yes
 
 WIDECHAR ?= yes
-WARNS=	4
+WARNS?=	5
 LIB=	edit
 
 LIBDPLIBS+=     terminfo ${.CURDIR}/../libterminfo
 
+.include "bsd.own.mk"
+
+COPTS+=	-Wunused-parameter
+CWARNFLAGS.gcc+=	-Wconversion
+
 OSRCS=	chared.c common.c el.c emacs.c fcns.c filecomplete.c help.c \
-	hist.c key.c map.c chartype.c \
-	parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c
+	hist.c keymacro.c map.c chartype.c \
+	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
 
 MAN=	editline.3 editrc.5
 
@@ -113,10 +118,17 @@ historyn.c: makelist Makefile
 	    mv ${.TARGET}.tmp ${.TARGET}
 
 tc1.o:	${LIBEDITDIR}/TEST/tc1.c
-	
+
 tc1:	libedit.a tc1.o 
 	${_MKTARGET_LINK}
 	${CC} ${LDFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD} -ltermlib
 
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>
+
+# XXX
+.if defined(HAVE_GCC) && ${HAVE_GCC} >= 45
+COPTS.editline.c+=	-Wno-cast-qual
+COPTS.tokenizer.c+=	-Wno-cast-qual
+COPTS.tokenizern.c+=	-Wno-cast-qual
+.endif

@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$NetBSD: makelist,v 1.16 2010/04/18 21:17:05 christos Exp $
+#	$NetBSD: makelist,v 1.18 2012/03/21 05:34:54 matt Exp $
 #
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -55,6 +55,7 @@ case $FLAG in
 #
 -n)
     cat << _EOF
+#include "config.h"
 #undef WIDECHAR
 #define NARROWCHAR
 #include "${FILES}"
@@ -128,7 +129,7 @@ _EOF
 	}
 	END {
 	    printf("};\n");
-	    printf("\nprotected const el_bindings_t* help__get()");
+	    printf("\nprotected const el_bindings_t* help__get(void)");
 	    printf("{ return el_func_help; }\n");
 	}'
 	;;
@@ -194,7 +195,7 @@ _EOF
 	}
 	END {
 	    printf("\n};\n");
-	    printf("\nprotected const el_func_t* func__get() { return el_func; }\n");
+	    printf("\nprotected const el_func_t* func__get(void) { return el_func; }\n");
 	}'
 	;;
 

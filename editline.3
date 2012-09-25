@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.73 2010/01/03 19:05:26 wiz Exp $
+.\"	$NetBSD: editline.3,v 1.77 2012/09/11 20:29:58 christos Exp $
 .\"
 .\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -26,7 +26,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 3, 2010
+.Dd September 11, 2012
 .Dt EDITLINE 3
 .Os
 .Sh NAME
@@ -173,7 +173,7 @@ which is created by
 and freed by
 .Fn el_end .
 .Pp
-The wide character functions behave the same way as their narrow
+The wide-character functions behave the same way as their narrow
 counterparts.
 .Pp
 The following functions are available:
@@ -221,7 +221,10 @@ and must be copied if the data is to be retained.
 Read a character from the tty.
 .Fa ch
 is modified to contain the character read.
-Returns the number of characters read if successful, \-1 otherwise.
+Returns the number of characters read if successful, \-1 otherwise,
+in which case
+.Dv errno
+can be inspected for the cause.
 .It Fn el_push
 Pushes
 .Fa str
@@ -432,6 +435,14 @@ check this
 (using
 .Fn el_get )
 to determine if editing should be enabled or not.
+.It Dv EL_UNBUFFERED , Fa "int flag"
+If
+.Fa flag
+is zero,
+unbuffered mode is disabled (the default).
+In unbuffered mode,
+.Fn el_gets
+will return immediately after processing a single character.
 .It Dv EL_GETCFN , Fa "int (*f)(EditLine *, char *c)"
 Define the character reading function as
 .Fa f ,
@@ -501,7 +512,7 @@ If
 is not
 .Dv NULL ,
 return the start/stop literal prompt character in it.
-.It Dv EL_EDITOR , Fa "const char *"
+.It Dv EL_EDITOR , Fa "const char **"
 Return the name of the editor, which will be one of
 .Dq emacs
 or
@@ -534,10 +545,7 @@ previously registered with the corresponding
 .Fn el_set
 call.
 .It Dv EL_UNBUFFERED , Fa "int"
-Sets or clears unbuffered mode.
-In this mode,
-.Fn el_gets
-will return immediately after processing a single character.
+Return non-zero if unbuffered mode is enabled.
 .It Dv EL_PREP_TERM , Fa "int"
 Sets or clears terminal editing mode.
 .It Dv EL_GETFP , Fa "int fd", Fa "FILE **fp"
@@ -861,7 +869,7 @@ Luke Mewburn wrote this manual and implemented
 and
 .Dv EL_RPROMPT .
 Jaromir Dolecek implemented the readline emulation.
-Johny Mattsson implemented wide character support.
+Johny Mattsson implemented wide-character support.
 .Sh BUGS
 At this time, it is the responsibility of the caller to
 check the result of the
