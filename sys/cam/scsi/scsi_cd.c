@@ -1990,6 +1990,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			 	 || (st > (softc->toc.header.ending_track -
 				     softc->toc.header.starting_track))) {
 					error = EINVAL;
+					cam_periph_unlock(periph);
 					break;
 				}
 				sentry = &softc->toc.entries[st].addr;
