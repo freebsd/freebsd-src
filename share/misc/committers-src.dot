@@ -131,6 +131,7 @@ dg [label="David Greenman\ndg@FreeBSD.org\n1993/06/14"]
 dim [label="Dimitry Andric\ndim@FreeBSD.org\n2010/08/30"]
 dougb [label="Doug Barton\ndougb@FreeBSD.org\n2000/10/26"]
 dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
+eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/01/18"]
 ed [label="Ed Schouten\ned@FreeBSD.org\n2008/05/22"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2007/06/25"]
 eivind [label="Eivind Eklund\neivind@FreeBSD.org\n????/??/??"]
@@ -307,6 +308,7 @@ bz -> syrinx
 
 cognet -> kevlo
 
+cperciva -> eadler
 cperciva -> flz
 cperciva -> randi
 cperciva -> simon
