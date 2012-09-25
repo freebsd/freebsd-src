@@ -235,6 +235,11 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	if (rp == NULL)
 		return (NULL);
 
+	if (weight == 0)
+		rp->red_weight = W_WEIGHT;
+	else
+		rp->red_weight = weight;
+
 	/* allocate weight table */
 	rp->red_wtab = wtab_alloc(rp->red_weight);
 	if (rp->red_wtab == NULL) {
@@ -245,10 +250,6 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	rp->red_avg = 0;
 	rp->red_idle = 1;
 
-	if (weight == 0)
-		rp->red_weight = W_WEIGHT;
-	else
-		rp->red_weight = weight;
 	if (inv_pmax == 0)
 		rp->red_inv_pmax = default_inv_pmax;
 	else
