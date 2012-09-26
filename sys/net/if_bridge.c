@@ -1783,13 +1783,12 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 	short mflags;
 	struct mbuf *m0;
 
-	len = m->m_pkthdr.len;
-	mflags = m->m_flags;
-
 	/* We may be sending a fragment so traverse the mbuf */
 	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = NULL;
+		len = m->m_pkthdr.len;
+		mflags = m->m_flags;
 
 		/*
 		 * If underlying interface can not do VLAN tag insertion itself
@@ -1809,11 +1808,10 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 
 		if ((err = dst_ifp->if_transmit(dst_ifp, m))) {
 			m_freem(m0);
+			sc->sc_ifp->if_oerrors++;
 			break;
 		}
-	}
 
-	if (err == 0) {
 		sc->sc_ifp->if_opackets++;
 		sc->sc_ifp->if_obytes += len;
 		if (mflags & M_MCAST)
@@ -2303,6 +2301,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		if ((iface)->if_type == IFT_BRIDGE) {			\
 			ETHER_BPF_MTAP(iface, m);			\
 			iface->if_ipackets++;				\
+			iface->if_ibytes += m->m_pkthdr.len;		\
 			/* Filter on the physical interface. */		\
 			if (pfil_local_phys &&				\
 			    (PFIL_HOOKED(&V_inet_pfil_hook)		\
