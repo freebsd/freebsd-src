@@ -88,6 +88,8 @@ struct vm;
  */
 #define	ISRVEC_STK_SIZE		(16 + 1)
 
+enum x2apic_state;
+
 struct vlapic *vlapic_init(struct vm *vm, int vcpuid);
 void vlapic_cleanup(struct vlapic *vlapic);
 
@@ -104,5 +106,6 @@ void vlapic_timer_tick(struct vlapic *vlapic);
 
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
 void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
+void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
 
 #endif	/* _VLAPIC_H_ */

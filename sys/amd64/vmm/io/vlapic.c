@@ -823,13 +823,7 @@ static struct io_region vlapic_mmio[VM_MAXCPU];
 struct vlapic *
 vlapic_init(struct vm *vm, int vcpuid)
 {
-	int err;
-	enum x2apic_state state;
 	struct vlapic 		*vlapic;
-
-	err = vm_get_x2apic_state(vm, vcpuid, &state);
-	if (err)
-		panic("vlapic_set_apicbase: err %d fetching x2apic state", err);
 
 	vlapic = malloc(sizeof(struct vlapic), M_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = vm;
@@ -839,9 +833,6 @@ vlapic_init(struct vm *vm, int vcpuid)
 
 	if (vcpuid == 0)
 		vlapic->msr_apicbase |= APICBASE_BSP;
-
-	if (state == X2APIC_ENABLED)
-		vlapic->msr_apicbase |= APICBASE_X2APIC;
 
 	vlapic->ops = &vlapic_dev_ops;
 
@@ -887,4 +878,17 @@ vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val)
 		val &= ~APICBASE_X2APIC;
 
 	vlapic->msr_apicbase = val;
+}
+
+void
+vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
+{
+	struct vlapic *vlapic;
+
+	vlapic = vm_lapic(vm, vcpuid);
+
+	if (state == X2APIC_ENABLED)
+		vlapic->msr_apicbase |= APICBASE_X2APIC;
+	else
+		vlapic->msr_apicbase &= ~APICBASE_X2APIC;
 }
