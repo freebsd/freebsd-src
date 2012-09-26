@@ -73,6 +73,7 @@
 /* Subtypes for KERNEL distribution */
 #define DIST_KERNEL_GENERIC	0x00001
 #define DIST_KERNEL_SMP		0x00002
+#define DIST_KERNEL_DEBUG	0x00004
 #define DIST_KERNEL_ALL		0xFFFFF
 
 /* Canned distribution sets */

@@ -1032,6 +1032,8 @@ DMenu MenuKernelDistributions = {
       { " SMP",		"GENERIC symmetric multiprocessor kernel configuration",
 	dmenuFlagCheck,	dmenuSetFlag,	NULL, &KernelDists, '[', 'X', ']', DIST_KERNEL_SMP },
 #endif
+      { " DEBUG",	"DEBUG kernel configuration",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &KernelDists, '[', 'X', ']', DIST_KERNEL_DEBUG },
       { NULL } },
 };
 

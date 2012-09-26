@@ -102,6 +102,7 @@ static Distribution KernelDistTable[] = {
 #ifdef WITH_SMP
     DTE_TARBALL("SMP", 	    &KernelDists, KERNEL_SMP,	  "/boot"),
 #endif
+    DTE_TARBALL("DEBUG",    &KernelDists, KERNEL_DEBUG,   "/boot"),
     DTE_END,
 };
 
