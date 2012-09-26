@@ -26,7 +26,7 @@
 .\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright 2012 Nexenta Systems, Inc. All Rights Reserved.
 .\"
-.TH ZFS 1M "Aug 16, 2012"
+.TH ZFS 1M "Sep 16, 2012"
 .SH NAME
 zfs \- configures ZFS file systems
 .SH SYNOPSIS
@@ -886,14 +886,14 @@ This property is not inherited.
 .sp
 .ne 2
 .na
-\fB\fBchecksum\fR=\fBon\fR | \fBoff\fR | \fBfletcher2,\fR| \fBfletcher4\fR |
+\fB\fBchecksum\fR=\fBon\fR | \fBoff\fR | \fBfletcher2\fR | \fBfletcher4\fR |
 \fBsha256\fR\fR
 .ad
 .sp .6
 .RS 4n
 Controls the checksum used to verify data integrity. The default value is
 \fBon\fR, which automatically selects an appropriate algorithm (currently,
-\fBfletcher2\fR, but this may change in future releases). The value \fBoff\fR
+\fBfletcher4\fR, but this may change in future releases). The value \fBoff\fR
 disables integrity checking on user data. Disabling checksums is \fBNOT\fR a
 recommended practice.
 .sp
@@ -2733,7 +2733,7 @@ Unshare the specified filesystem. The command can also be given a path to a
 .sp
 .ne 2
 .na
-\fBzfs send\fR [\fB-DnPpRrv\fR] [\fB-\fR[\fBiI\fR] \fIsnapshot\fR] \fIsnapshot\fR
+\fBzfs send\fR [\fB-DnPpRv\fR] [\fB-\fR[\fBiI\fR] \fIsnapshot\fR] \fIsnapshot\fR
 .ad
 .sp .6
 .RS 4n
@@ -2804,18 +2804,6 @@ also support this feature to recieve a deduplicated stream.  This flag can
 be used regardless of the dataset's \fBdedup\fR property, but performance
 will be much better if the filesystem uses a dedup-capable checksum (eg.
 \fBsha256\fR).
-.RE
-
-.sp
-.ne 2
-.na
-\fB\fB-r\fR\fR
-.ad
-.sp .6
-.RS 4n
-Recursively send all descendant snapshots.  This is similar to the \fB-R\fR
-flag, but information about deleted and renamed datasets is not included, and
-property information is only included if the \fB-p\fR flag is specified.
 .RE
 
 .sp

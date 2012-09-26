@@ -252,7 +252,7 @@ get_usage(zfs_help_t idx)
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
 	case HELP_SEND:
-		return (gettext("\tsend [-DnPpRrv] [-[iI] snapshot] "
+		return (gettext("\tsend [-DnPpRv] [-[iI] snapshot] "
 		    "<snapshot>\n"));
 	case HELP_SET:
 		return (gettext("\tset <property=value> "
