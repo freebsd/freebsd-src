@@ -174,7 +174,7 @@
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
 .Cm send
-.Op Fl DnPpRrv
+.Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
@@ -2196,7 +2196,7 @@ file system shared on the system.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRrv
+.Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2269,13 +2269,6 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
-.It Fl r
-Recursively send all descendant snapshots.  This is similar to the
-.Fl R
-flag, but information about deleted and renamed datasets is not included, and
-property information is only included if the
-.Fl p
-flag is specified.
 .It Fl p
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
