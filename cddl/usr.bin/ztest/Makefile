@@ -18,8 +18,8 @@ CFLAGS+= -I${.CURDIR}/../../contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 
 DPADD=	${LIBM} ${LIBNVPAIR} ${LIBUMEM} ${LIBZPOOL} \
-	${LIBPTHREAD} ${LIBZ} ${LIBAVL}
-LDADD=	-lm -lnvpair -lumem -lzpool -lpthread -lz -lavl
+	${LIBPTHREAD} ${LIBAVL}
+LDADD=	-lm -lnvpair -lumem -lzpool -lpthread -lavl
 
 CSTD=	c99
 
