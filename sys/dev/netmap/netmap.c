@@ -1040,6 +1040,7 @@ netmap_detach(struct ifnet *ifp)
 		knlist_destroy(&na->rx_rings[i].si.si_note);
 		mtx_destroy(&na->rx_rings[i].q_lock);
 	}
+	mtx_destroy(&na->core_lock);
 	knlist_destroy(&na->tx_si.si_note);
 	knlist_destroy(&na->rx_si.si_note);
 	bzero(na, sizeof(*na));
