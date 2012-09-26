@@ -344,11 +344,8 @@ initarm(struct arm_boot_params *abp)
 	    &memsize) != 0)
 		while(1);
 
-	if (fdt_immr_addr(LPC_DEV_BASE) != 0)
-		while (1);
-
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
+	pmap_bootstrap_lastaddr = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -482,13 +479,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-#if 0
-	/*
-	 * Initialize GPIO as early as possible.
-	 */
-	if (platform_gpio_init() != 0)
-		while (1);
-#endif
+	initarm_gpio_init();
 
 	cninit();
 
@@ -504,6 +495,8 @@ initarm(struct arm_boot_params *abp)
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
 		    err_devmap);
+
+	initarm_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -560,6 +553,27 @@ initarm(struct arm_boot_params *abp)
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
+}
+
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	if (fdt_immr_addr(LPC_DEV_BASE) != 0)
+		while (1);
+
+	/* Platform-specific initialisation */
+	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
+}
+
+void
+initarm_gpio_init(void)
+{
+}
+
+void
+initarm_late_init(void)
+{
 }
 
 #define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)
