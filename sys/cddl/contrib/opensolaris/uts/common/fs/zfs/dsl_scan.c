@@ -67,7 +67,6 @@ int zfs_resilver_min_time_ms = 3000; /* min millisecs to resilver per txg */
 boolean_t zfs_no_scrub_io = B_FALSE; /* set to disable scrub i/o */
 boolean_t zfs_no_scrub_prefetch = B_FALSE; /* set to disable srub prefetching */
 enum ddt_class zfs_scrub_ddt_class_max = DDT_CLASS_DUPLICATE;
-int dsl_scan_delay_completion = B_FALSE; /* set to delay scan completion */
 
 #define	DSL_SCAN_IS_SCRUB_RESILVER(scn) \
 	((scn)->scn_phys.scn_func == POOL_SCAN_SCRUB || \
