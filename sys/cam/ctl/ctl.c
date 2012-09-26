@@ -2075,6 +2075,11 @@ ctl_copyin_args(int num_be_args, struct ctl_be_arg *be_args,
 		goto bailout;
 
 	for (i = 0; i < num_be_args; i++) {
+		args[i].kname = NULL;
+		args[i].kvalue = NULL;
+	}
+
+	for (i = 0; i < num_be_args; i++) {
 		uint8_t *tmpptr;
 
 		args[i].kname = ctl_copyin_alloc(args[i].name,
