@@ -143,6 +143,13 @@ struct ISCI_INTERRUPT_INFO
 
 };
 
+struct ISCI_LED
+{
+	struct cdev		*cdev;
+	SCI_CONTROLLER_HANDLE_T	handle;
+	int			index;
+};
+
 struct ISCI_CONTROLLER
 {
 	struct isci_softc 	*isci;
@@ -169,6 +176,7 @@ struct ISCI_CONTROLLER
 	uint32_t		queue_depth;
 	uint32_t		sim_queue_depth;
 	SCI_FAST_LIST_T		pending_device_reset_list;
+	struct ISCI_LED		led[SCI_MAX_PHYS];
 
 	SCI_MEMORY_DESCRIPTOR_LIST_HANDLE_T mdl;
 

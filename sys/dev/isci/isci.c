@@ -38,11 +38,14 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam_periph.h>
 
+#include <dev/led/led.h>
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include <dev/isci/scil/scic_logger.h>
 #include <dev/isci/scil/scic_library.h>
+#include <dev/isci/scil/scic_sgpio.h>
 #include <dev/isci/scil/scic_user_callback.h>
 
 #include <dev/isci/scil/scif_controller.h>
@@ -180,7 +183,7 @@ static int
 isci_detach(device_t device)
 {
 	struct isci_softc *isci = DEVICE2SOFTC(device);
-	int i;
+	int i, phy;
 
 	for (i = 0; i < isci->controller_count; i++) {
 		struct ISCI_CONTROLLER *controller = &isci->controllers[i];
@@ -219,6 +222,10 @@ isci_detach(device_t device)
 
 		if (controller->remote_device_memory != NULL)
 			free(controller->remote_device_memory, M_ISCI);
+
+		for (phy = 0; phy < SCI_MAX_PHYS; phy++)
+			if (controller->led[phy].cdev)
+				led_destroy(controller->led[phy].cdev);
 
 		while (1) {
 			sci_pool_get(controller->unmap_buffer_pool, unmap_buffer);
