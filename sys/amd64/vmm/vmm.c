@@ -160,8 +160,8 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 
 	vcpu->hostcpu = -1;
 	vcpu->vcpuid = vcpu_id;
-	vcpu->x2apic_state = X2APIC_ENABLED;
 	vcpu->vlapic = vlapic_init(vm, vcpu_id);
+	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
@@ -769,6 +769,8 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 		return (EINVAL);
 
 	vm->vcpu[vcpuid].x2apic_state = state;
+
+	vlapic_set_x2apic_state(vm, vcpuid, state);
 
 	return (0);
 }

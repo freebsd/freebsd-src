@@ -84,7 +84,7 @@ int guest_ncpus;
 
 static int pincpu = -1;
 static int guest_vcpu_mux;
-static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
+static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
 
 static int foundcpus;
 
@@ -128,8 +128,9 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-ehBHIP][-g <gdb port>][-z <hz>][-s <pci>]"
+                "Usage: %s [-aehBHIP][-g <gdb port>][-z <hz>][-s <pci>]"
 		"[-S <pci>][-p pincpu][-n <pci>][-m lowmem][-M highmem] <vm>\n"
+		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -g: gdb port (default is %d and 0 means don't open)\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
@@ -171,6 +172,13 @@ fbsdrun_add_oemtbl(void *tbl, int tblsz)
 {
 	oem_tbl_start = tbl;
 	oem_tbl_size = tblsz;
+}
+
+int
+fbsdrun_disable_x2apic(void)
+{
+
+	return (disable_x2apic);
 }
 
 int
@@ -553,8 +561,11 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	ioapic = 0;
 
-	while ((c = getopt(argc, argv, "ehBHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
+	while ((c = getopt(argc, argv, "aehBHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
 		switch (c) {
+		case 'a':
+			disable_x2apic = 1;
+			break;
 		case 'B':
 			inject_bkpt = 1;
 			break;
@@ -655,6 +666,16 @@ main(int argc, char *argv[])
 		vm_set_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, 1);
 		handler[VM_EXITCODE_PAUSE] = vmexit_pause;
         }
+
+	if (fbsdrun_disable_x2apic())
+		err = vm_set_x2apic_state(ctx, BSP, X2APIC_DISABLED);
+	else
+		err = vm_set_x2apic_state(ctx, BSP, X2APIC_ENABLED);
+
+	if (err) {
+		printf("Unable to set x2apic state (%d)\n", err);
+		exit(1);
+	}
 
 	if (lomem_sz != 0) {
 		lomem_addr = vm_map_memory(ctx, 0, lomem_sz);

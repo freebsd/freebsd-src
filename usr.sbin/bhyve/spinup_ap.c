@@ -156,6 +156,12 @@ spinup_ap(struct vmctx *ctx, int vcpu, int newcpu, uint64_t rip)
 		assert(error == 0);
 	}
 
+	if (fbsdrun_disable_x2apic())
+		error = vm_set_x2apic_state(ctx, newcpu, X2APIC_DISABLED);
+	else
+		error = vm_set_x2apic_state(ctx, newcpu, X2APIC_ENABLED);
+	assert(error == 0);
+
 	/*
 	 * There are 2 startup modes possible here:
 	 *  - if the CPU supports 'unrestricted guest' mode, the spinup can
