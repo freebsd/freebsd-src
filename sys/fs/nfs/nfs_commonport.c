@@ -60,6 +60,7 @@ struct mount nfsv4root_mnt;
 int newnfs_numnfsd = 0;
 struct nfsstats newnfsstats;
 int nfs_numnfscbd = 0;
+int nfscl_debuglevel = 0;
 char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
 struct callout newnfsd_callout;
 void (*nfsd_call_servertimer)(void) = NULL;
@@ -76,6 +77,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
 SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
     nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
     "NFSv4 callback addr for server to use");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
+    0, "Debug level for new nfs client");
 
 /*
  * Defines for malloc
