@@ -106,6 +106,11 @@ __FBSDID("$FreeBSD$");
  */
 #define	SWMAX_RETRIES		10
 
+/*
+ * What queue to throw the non-QoS TID traffic into
+ */
+#define	ATH_NONQOS_TID_AC	WME_AC_VO
+
 static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
     int tid);
 static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
@@ -191,7 +196,7 @@ ath_tx_getac(struct ath_softc *sc, const struct mbuf *m0)
 	if (IEEE80211_QOS_HAS_SEQ(wh))
 		return pri;
 
-	return WME_AC_BE;
+	return ATH_NONQOS_TID_AC;
 }
 
 void
@@ -2861,7 +2866,7 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		atid->cleanup_inprogress = 0;
 		atid->clrdmask = 1;	/* Always start by setting this bit */
 		if (i == IEEE80211_NONQOS_TID)
-			atid->ac = WME_AC_BE;
+			atid->ac = ATH_NONQOS_TID_AC;
 		else
 			atid->ac = TID_TO_WME_AC(i);
 	}
