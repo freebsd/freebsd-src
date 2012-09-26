@@ -6,8 +6,8 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
 
 LIB=	zfs
-DPADD=	${LIBMD} ${LIBPTHREAD} ${LIBUMEM} ${LIBUTIL}
-LDADD=	-lmd -lpthread -lumem -lutil
+DPADD=	${LIBMD} ${LIBPTHREAD} ${LIBUMEM} ${LIBUTIL} ${LIBM}
+LDADD=	-lmd -lpthread -lumem -lutil -lm
 
 SRCS=	deviceid.c \
 	fsshare.c \
