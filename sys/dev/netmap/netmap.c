@@ -1033,16 +1033,17 @@ netmap_detach(struct ifnet *ifp)
 		return;
 
 	for (i = 0; i < na->num_tx_rings + 1; i++) {
-		knlist_destroy(&na->tx_rings[i].si.si_note);
+		/* knlist_destroy(&na->tx_rings[i].si.si_note); */
 		mtx_destroy(&na->tx_rings[i].q_lock);
 	}
 	for (i = 0; i < na->num_rx_rings + 1; i++) {
-		knlist_destroy(&na->rx_rings[i].si.si_note);
+		/* knlist_destroy(&na->rx_rings[i].si.si_note); */
 		mtx_destroy(&na->rx_rings[i].q_lock);
 	}
 	mtx_destroy(&na->core_lock);
-	knlist_destroy(&na->tx_si.si_note);
-	knlist_destroy(&na->rx_si.si_note);
+	/* XXX kqueue(9) needed; these will mirror knlist_init. */
+	/* knlist_destroy(&na->tx_si.si_note); */
+	/* knlist_destroy(&na->rx_si.si_note); */
 	bzero(na, sizeof(*na));
 	WNA(ifp) = NULL;
 	free(na, M_DEVBUF);
