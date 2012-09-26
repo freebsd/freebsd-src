@@ -129,11 +129,11 @@ extern int *end;
 struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
 
 /* Physical and virtual addresses for some global pages */
-
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
 vm_offset_t physical_pages;
 vm_offset_t pmap_bootstrap_lastaddr;
+vm_paddr_t pmap_pa;
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
 struct pv_addr systempage;
@@ -309,12 +309,15 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize, l2size;
 	void *kmdp;
 	u_int l1pagetable;
-	int i = 0, j = 0;
+	int i = 0, j = 0, err_devmap = 0;
 
 	lastaddr = parse_boot_param(abp);
 	memsize = 0;
 	set_cpufuncs();
 
+	/*
+	 * Find the dtb passed in by the boot loader.
+	 */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
@@ -347,8 +350,7 @@ initarm(struct arm_boot_params *abp)
 	/* Platform-specific initialisation */
 	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
 
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Calculate number of L2 tables needed for mapping vm_page_array */
 	l2size = (memsize / PAGE_SIZE) * sizeof(struct vm_page);
@@ -406,10 +408,10 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE);
-	valloc_pages(abtstack, ABT_STACK_SIZE);
-	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(irqstack, (IRQ_STACK_SIZE * MAXCPU));
+	valloc_pages(abtstack, (ABT_STACK_SIZE * MAXCPU));
+	valloc_pages(undstack, (UND_STACK_SIZE * MAXCPU));
+	valloc_pages(kernelstack, (KSTACK_PAGES * MAXCPU));
 
 	init_param1();
 
@@ -464,12 +466,12 @@ initarm(struct arm_boot_params *abp)
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	/* Map pmap_devmap[] entries */
-	if (platform_devmap_init() != 0)
-		while (1);
+	err_devmap = platform_devmap_init();
 	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
 	    DOMAIN_CLIENT);
+	pmap_pa = kernel_l1pt.pv_pa;
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
@@ -493,11 +495,15 @@ initarm(struct arm_boot_params *abp)
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
-	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
+	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
 	print_kenv();
+
+	if (err_devmap != 0)
+		printf("WARNING: could not fully configure devmap, error=%d\n",
+		    err_devmap);
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
