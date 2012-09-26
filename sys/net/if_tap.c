@@ -929,7 +929,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m;
 
-	TAPDEBUG("%s writting, minor = %#x\n", 
+	TAPDEBUG("%s writing, minor = %#x\n", 
 		ifp->if_xname, dev2unit(dev));
 
 	if (uio->uio_resid == 0)
