@@ -177,25 +177,18 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val)
 }
 
 int
-lapic_mmio(struct vm *vm, int cpu, u_int offset, int read,
-	   uint64_t rip, uint64_t cr3)
+lapic_mmio(struct vm *vm, int cpu, u_int offset, int read, struct vie *vie)
 {
 	int handled, error;
 	uint64_t val;
-	struct vie vie;
 	struct vlapic *vlapic;
 
 	const int UNHANDLED = 0;
 
 	vlapic = vm_lapic(vm, cpu);
 
-	vmm_fetch_instruction(vm, rip, cr3, &vie);
-
-	if (vmm_decode_instruction(&vie) != 0)
-		return (UNHANDLED);
-
 	/* Only 32-bit accesses to local apic */
-	if (vie.op_size != VIE_OP_SIZE_32BIT)
+	if (vie->op_size != VIE_OP_SIZE_32BIT)
 		return (UNHANDLED);
 
 	/*
@@ -207,35 +200,35 @@ lapic_mmio(struct vm *vm, int cpu, u_int offset, int read,
 	 * This is a limitation of the vm_set_register() API
 	 * and can be fixed if necessary.
 	 */
-	if (vie.operand_register == VM_REG_GUEST_RSP)
+	if (vie->operand_register == VM_REG_GUEST_RSP)
 		return (UNHANDLED);
 
 	if (read) {
-		if ((vie.opcode_flags & VIE_F_TO_REG) == 0)
+		if ((vie->opcode_flags & VIE_F_TO_REG) == 0)
 			return (UNHANDLED);
 
-		if (vie.operand_register >= VM_REG_LAST)
+		if (vie->operand_register >= VM_REG_LAST)
 			return (UNHANDLED);
 
 		handled = lapic_read(vlapic, offset, &val);
 		if (handled) {
-			error = vm_set_register(vm, cpu, vie.operand_register,
+			error = vm_set_register(vm, cpu, vie->operand_register,
 						val);
 			if (error)
 				panic("lapic_mmio: error %d setting gpr %d",
-				      error, vie.operand_register);
+				      error, vie->operand_register);
 		}
 	} else {
-		if ((vie.opcode_flags & VIE_F_FROM_REG) &&
-		    (vie.operand_register < VM_REG_LAST)) {
-			error = vm_get_register(vm, cpu, vie.operand_register,
+		if ((vie->opcode_flags & VIE_F_FROM_REG) &&
+		    (vie->operand_register < VM_REG_LAST)) {
+			error = vm_get_register(vm, cpu, vie->operand_register,
 						&val);
 			if (error) {
 				panic("lapic_mmio: error %d getting gpr %d",
-				      error, vie.operand_register);
+				      error, vie->operand_register);
 			}
-		} else if (vie.opcode_flags & VIE_F_FROM_IMM) {
-			val = vie.immediate;
+		} else if (vie->opcode_flags & VIE_F_FROM_IMM) {
+			val = vie->immediate;
 		} else {
 			return (UNHANDLED);
 		}

@@ -83,8 +83,8 @@ struct vie {
 
 struct vm;
 
-void	vmm_fetch_instruction(struct vm *vm, uint64_t rip, uint64_t cr3,
-			      struct vie *vie);
+int	vmm_fetch_instruction(struct vm *vm, uint64_t rip, int inst_length,
+			      uint64_t cr3, struct vie *vie);
 
 int	vmm_decode_instruction(struct vie *vie);
 

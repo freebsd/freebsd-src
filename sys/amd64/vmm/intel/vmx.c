@@ -1146,9 +1146,11 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 
 static int
 vmx_lapic_fault(struct vm *vm, int cpu,
-		uint64_t gpa, uint64_t rip, uint64_t cr3, uint64_t ept_qual)
+		uint64_t gpa, uint64_t rip, int inst_length,
+		uint64_t cr3, uint64_t ept_qual)
 {
 	int read, write, handled;
+	struct vie vie;
 
 	/*
 	 * For this to be a legitimate access to the local apic:
@@ -1180,7 +1182,14 @@ vmx_lapic_fault(struct vm *vm, int cpu,
 		return (UNHANDLED);
 	}
 
-	handled = lapic_mmio(vm, cpu, gpa - DEFAULT_APIC_BASE, read, rip, cr3);
+	/* Fetch, decode and emulate the faulting instruction */
+	if (vmm_fetch_instruction(vm, rip, inst_length, cr3, &vie) != 0)
+		return (UNHANDLED);
+
+	if (vmm_decode_instruction(&vie) != 0)
+		return (UNHANDLED);
+
+	handled = lapic_mmio(vm, cpu, gpa - DEFAULT_APIC_BASE, read, &vie);
 
 	return (handled);
 }
@@ -1275,7 +1284,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		gpa = vmcs_gpa();
 		cr3 = vmcs_guest_cr3();
 		handled = vmx_lapic_fault(vmx->vm, vcpu,
-					  gpa, vmexit->rip, cr3, qual);
+					  gpa, vmexit->rip, vmexit->inst_length,
+					  cr3, qual);
 		if (!handled) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.cr3 = cr3;
