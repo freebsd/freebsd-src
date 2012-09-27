@@ -266,7 +266,7 @@ struct pci_conf_io32 {
 };
 
 #define        PCIOCGETCONF_OLD32      _IOWR('p', 1, struct pci_conf_io32)
-#endif
+#endif	/* COMPAT_FREEBSD32 */
 
 #define	PCIOCGETCONF_OLD	_IOWR('p', 1, struct pci_conf_io)
 #define	PCIOCREAD_OLD		_IOWR('p', 2, struct pci_io_old)
@@ -338,6 +338,7 @@ pci_conf_match_old(struct pci_match_conf_old *matches, int num_matches,
 	return(1);
 }
 
+#ifdef COMPAT_FREEBSD32
 static int
 pci_conf_match_old32(struct pci_match_conf_old32 *matches, int num_matches,
     struct pci_conf *match_buf)
@@ -400,8 +401,8 @@ pci_conf_match_old32(struct pci_match_conf_old32 *matches, int num_matches,
 
        return(1);
 }
-
-#endif
+#endif	/* COMPAT_FREEBSD32 */
+#endif	/* PRE7_COMPAT */
 
 static int
 pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
@@ -410,7 +411,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	void *confdata;
 	const char *name;
 	struct devlist *devlist_head;
-	struct pci_conf_io *cio;
+	struct pci_conf_io *cio = NULL;
 	struct pci_devinfo *dinfo;
 	struct pci_io *io;
 	struct pci_bar_io *bio;
@@ -420,20 +421,16 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	int error, ionum, i, num_patterns;
 #ifdef PRE7_COMPAT
 #ifdef COMPAT_FREEBSD32
-       struct pci_conf_io32 *cio32;
+	struct pci_conf_io32 *cio32 = NULL;
+	struct pci_conf_old32 conf_old32;
+	struct pci_match_conf_old32 *pattern_buf_old32;
 #endif
 	struct pci_conf_old conf_old;
-       struct pci_conf_old32 conf_old32;
 	struct pci_io iodata;
 	struct pci_io_old *io_old;
 	struct pci_match_conf_old *pattern_buf_old;
-       struct pci_match_conf_old32 *pattern_buf_old32;
 
-       cio = NULL;
-       cio32 = NULL;
 	io_old = NULL;
-	pattern_buf_old = NULL;
-       pattern_buf_old32 = NULL;
 
 	if (!(flag & FWRITE) && cmd != PCIOCGETBAR &&
 	    cmd != PCIOCGETCONF && cmd != PCIOCGETCONF_OLD)
@@ -445,6 +442,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 
 	switch(cmd) {
 #ifdef PRE7_COMPAT
+#ifdef COMPAT_FREEBSD32
        case PCIOCGETCONF_OLD32:
                cio32 = (struct pci_conf_io32 *)data;
                cio = malloc(sizeof(struct pci_conf_io), M_TEMP, M_WAITOK);
@@ -458,14 +456,24 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
                cio->generation = cio32->generation;
                cio->status = cio32->status;
                cio32->num_matches = 0;
-               /* FALLTHROUGH */
-
+               break;
+#endif
 	case PCIOCGETCONF_OLD:
-		/* FALLTHROUGH */
 #endif
 	case PCIOCGETCONF:
-               if (cio == NULL)
-                       cio = (struct pci_conf_io *)data;
+		cio = (struct pci_conf_io *)data;
+	}
+
+	switch(cmd) {
+#ifdef PRE7_COMPAT
+#ifdef COMPAT_FREEBSD32
+	case PCIOCGETCONF_OLD32:
+		pattern_buf_old32 = NULL;
+#endif
+	case PCIOCGETCONF_OLD:
+		pattern_buf_old = NULL;
+#endif
+	case PCIOCGETCONF:
 
 		pattern_buf = NULL;
 		num_patterns = 0;
@@ -566,19 +574,21 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			 * Allocate a buffer to hold the patterns.
 			 */
 #ifdef PRE7_COMPAT
+#ifdef COMPAT_FREEBSD32
                        if (cmd == PCIOCGETCONF_OLD32) {
                                pattern_buf_old32 = malloc(cio->pat_buf_len,
                                    M_TEMP, M_WAITOK);
                                error = copyin(cio->patterns,
                                    pattern_buf_old32, cio->pat_buf_len);
                        } else
+#endif /* COMPAT_FREEBSD32 */
 			if (cmd == PCIOCGETCONF_OLD) {
 				pattern_buf_old = malloc(cio->pat_buf_len,
 				    M_TEMP, M_WAITOK);
 				error = copyin(cio->patterns,
 				    pattern_buf_old, cio->pat_buf_len);
 			} else
-#endif
+#endif /* PRE7_COMPAT */
 			{
 				pattern_buf = malloc(cio->pat_buf_len, M_TEMP,
 				    M_WAITOK);
@@ -629,11 +639,14 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			}
 
 #ifdef PRE7_COMPAT
-                       if ((cmd == PCIOCGETCONF_OLD32 &&
-                           (pattern_buf_old32 == NULL ||
-                           pci_conf_match_old32(pattern_buf_old32,
-                           num_patterns, &dinfo->conf) == 0)) ||
-                           (cmd == PCIOCGETCONF_OLD &&
+			if (
+#ifdef COMPAT_FREEBSD32
+			    (cmd == PCIOCGETCONF_OLD32 &&
+			    (pattern_buf_old32 == NULL ||
+			    pci_conf_match_old32(pattern_buf_old32,
+			    num_patterns, &dinfo->conf) == 0)) ||
+#endif
+			    (cmd == PCIOCGETCONF_OLD &&
 			    (pattern_buf_old == NULL ||
 			    pci_conf_match_old(pattern_buf_old, num_patterns,
 			    &dinfo->conf) == 0)) ||
@@ -658,6 +671,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 					break;
 
 #ifdef PRE7_COMPAT
+#ifdef COMPAT_FREEBSD32
                                if (cmd == PCIOCGETCONF_OLD32) {
                                        conf_old32.pc_sel.pc_bus =
                                            dinfo->conf.pc_sel.pc_bus;
@@ -690,6 +704,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
                                            (u_int32_t)dinfo->conf.pd_unit;
                                        confdata = &conf_old32;
                                } else
+#endif /* COMPAT_FREEBSD32 */
 				if (cmd == PCIOCGETCONF_OLD) {
 					conf_old.pc_sel.pc_bus =
 					    dinfo->conf.pc_sel.pc_bus;
@@ -722,7 +737,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 					    dinfo->conf.pd_unit;
 					confdata = &conf_old;
 				} else
-#endif
+#endif /* PRE7_COMPAT */
 					confdata = &dinfo->conf;
 				/* Only if we can copy it out do we count it. */
 				if (!(error = copyout(confdata,
@@ -756,25 +771,23 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			cio->status = PCI_GETCONF_MORE_DEVS;
 
 getconfexit:
+#ifdef PRE7_COMPAT
 #ifdef COMPAT_FREEBSD32
                if (cmd == PCIOCGETCONF_OLD32) {
                        cio32->status = cio->status;
                        cio32->generation = cio->generation;
                        cio32->offset = cio->offset;
                        cio32->num_matches = cio->num_matches;
-                       if (cio != NULL)
-                               free(cio, M_TEMP);
-               }
+			free(cio, M_TEMP);
+		}
+		if (pattern_buf_old32 != NULL)
+			free(pattern_buf_old32, M_TEMP);
 #endif
-
-		if (pattern_buf != NULL)
-			free(pattern_buf, M_TEMP);
-#ifdef PRE7_COMPAT
-               if (pattern_buf_old32 != NULL)
-                       free(pattern_buf_old32, M_TEMP);
 		if (pattern_buf_old != NULL)
 			free(pattern_buf_old, M_TEMP);
 #endif
+		if (pattern_buf != NULL)
+			free(pattern_buf, M_TEMP);
 
 		break;
 
