@@ -874,8 +874,8 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 	 */
 	if (ANI_ENA(ah)) {
 		aniState->cycleCount = AH5416(ah)->ah_cycleCount;
-		aniState->txFrameCount = AH5416(ah)->ah_rxBusy;
-		aniState->rxFrameCount = AH5416(ah)->ah_txBusy;
+		aniState->rxFrameCount = AH5416(ah)->ah_rxBusy;
+		aniState->txFrameCount = AH5416(ah)->ah_txBusy;
 	}
 
 	return listenTime;
