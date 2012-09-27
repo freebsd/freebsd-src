@@ -507,7 +507,6 @@ static uint8_t
 dwc_otg_host_channel_wait(struct dwc_otg_td *td)
 {
 	struct dwc_otg_softc *sc;
-	uint16_t frame;
 	uint8_t x;
 
 	x = td->channel;
@@ -517,32 +516,20 @@ dwc_otg_host_channel_wait(struct dwc_otg_td *td)
 	/* get pointer to softc */
 	sc = DWC_OTG_PC2SC(td->pc);
 
-	if (sc->sc_chan_state[x].hcint & HCINT_HALTED_ONLY) {
+	if (sc->sc_chan_state[x].wait_sof == 0) {
 		dwc_otg_clear_hcint(sc, x);
-		return (1);
+		return (1);	/* done */
 	}
 
 	if (x == 0)
 		return (0);	/* wait */
 
-	frame = DWC_OTG_READ_4(sc, DOTG_HFNUM) & HFNUM_FRNUM_MASK;
-
 	/* find new disabled channel */
 	for (x = 1; x != sc->sc_host_ch_max; x++) {
 
-		uint32_t hcchar;
-
 		if (sc->sc_chan_state[x].allocated)
 			continue;
-
-		/* check if channel is enabled */
-		hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(x));
-		if (hcchar & (HCCHAR_CHENA | HCCHAR_CHDIS)) {
-			DPRINTF("CH=%d is BUSY\n", x);
-			continue;
-		}
-
-		if (sc->sc_chan_state[x].last_frame == frame)
+		if (sc->sc_chan_state[x].wait_sof != 0)
 			continue;
 
 		sc->sc_chan_state[td->channel].allocated = 0;
@@ -556,9 +543,8 @@ dwc_otg_host_channel_wait(struct dwc_otg_td *td)
 		/* clear interrupts */
 		dwc_otg_clear_hcint(sc, x);
 
-		DPRINTF("CH=%d HCCHAR=0x%08x(0x%08x) "
-		    "HCSPLT=0x%08x\n", x, td->hcchar,
-		    hcchar, td->hcsplt);
+		DPRINTF("CH=%d HCCHAR=0x%08x "
+		    "HCSPLT=0x%08x\n", x, td->hcchar, td->hcsplt);
 
 		/* ack any pending messages */
 		if (sc->sc_last_rx_status != 0 &&
@@ -583,7 +569,6 @@ static uint8_t
 dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 {
 	struct dwc_otg_softc *sc;
-	uint16_t frame;
 	uint8_t x;
 	uint8_t max_channel;
 
@@ -601,23 +586,11 @@ dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 		x = 1;
 	}
 
-	frame = DWC_OTG_READ_4(sc, DOTG_HFNUM) & HFNUM_FRNUM_MASK;
-
 	for (; x != max_channel; x++) {
-
-		uint32_t hcchar;
 
 		if (sc->sc_chan_state[x].allocated)
 			continue;
-	  
-		/* check if channel is enabled */
-		hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(x));
-		if (hcchar & (HCCHAR_CHENA | HCCHAR_CHDIS)) {
-			DPRINTF("CH=%d is BUSY\n", x);
-			continue;
-		}
-
-		if (sc->sc_chan_state[x].last_frame == frame)
+		if (sc->sc_chan_state[x].wait_sof != 0)
 			continue;
 
 		sc->sc_chan_state[x].allocated = 1;
@@ -625,9 +598,8 @@ dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 		/* clear interrupts */
 		dwc_otg_clear_hcint(sc, x);
 
-		DPRINTF("CH=%d HCCHAR=0x%08x(0x%08x) "
-		    "HCSPLT=0x%08x\n", x, td->hcchar,
-		    hcchar, td->hcsplt);
+		DPRINTF("CH=%d HCCHAR=0x%08x "
+		    "HCSPLT=0x%08x\n", x, td->hcchar, td->hcsplt);
 
 		/* set active channel */
 		sc->sc_active_rx_ep |= (1 << x);
@@ -644,12 +616,18 @@ static void
 dwc_otg_host_channel_disable(struct dwc_otg_softc *sc, uint8_t x)
 {
 	uint32_t hcchar;
+	if (sc->sc_chan_state[x].wait_sof != 0)
+		return;
 	hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(x));
 	if (hcchar & (HCCHAR_CHENA | HCCHAR_CHDIS)) {
+		/* disable channel */
+		DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(x),
+		    HCCHAR_CHENA | HCCHAR_CHDIS);
 		/* don't re-use channel until next SOF is transmitted */
-		sc->sc_chan_state[x].last_frame =
-		    DWC_OTG_READ_4(sc, DOTG_HFNUM) & HFNUM_FRNUM_MASK;
-		DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(x), HCCHAR_CHENA | HCCHAR_CHDIS);
+		sc->sc_chan_state[x].wait_sof = 2;
+		/* enable SOF interrupt */
+		sc->sc_irq_mask |= GINTMSK_SOFMSK; 
+		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 	}
 }
 
@@ -736,16 +714,9 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 
 	if (hcint & (HCINT_ERRORS | HCINT_RETRY |
 	    HCINT_ACK | HCINT_NYET)) {
-		uint32_t hcchar;
 
 		dwc_otg_host_channel_disable(sc, td->channel);
 
-		hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(td->channel));
-
-		if (!(hcchar & HCCHAR_CHENA)) {
-			hcint |= HCINT_HALTED_ONLY;
-			sc->sc_chan_state[td->channel].hcint = hcint;
-		}
 		if (!(hcint & HCINT_ERRORS))
 			td->errcnt = 0;
 	}
@@ -1020,7 +991,7 @@ dwc_otg_host_rate_check(struct dwc_otg_td *td,
 			td->tmr_val += td->tmr_res;
 	} else if (td->did_nak != 0) {
 		goto busy;
-	}
+	} 
 
 	if (ep_type == UE_ISOCHRONOUS) {
 		td->toggle = 0;
@@ -1088,12 +1059,6 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 
 		dwc_otg_host_channel_disable(sc, td->channel);
 
-		hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(td->channel));
-
-		if (!(hcchar & HCCHAR_CHENA)) {
-			hcint |= HCINT_HALTED_ONLY;
-			sc->sc_chan_state[td->channel].hcint = hcint;
-		}
 		if (!(hcint & HCINT_ERRORS))
 			td->errcnt = 0;
 	}
@@ -1170,6 +1135,8 @@ check_state:
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 
+			td->did_nak = 1;
+
 			if (td->hcsplt != 0)
 				goto receive_spkt;
 			else
@@ -1202,6 +1169,9 @@ check_state:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
+
+			td->did_nak = 1;
+
 			goto receive_spkt;
 		}
 		if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -1447,12 +1417,6 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 
 		dwc_otg_host_channel_disable(sc, td->channel);
 
-		hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(td->channel));
-
-		if (!(hcchar & HCCHAR_CHENA)) {
-			hcint |= HCINT_HALTED_ONLY;
-			sc->sc_chan_state[td->channel].hcint = hcint;
-		}
 		if (!(hcint & HCINT_ERRORS))
 			td->errcnt = 0;
 	}
@@ -1989,8 +1953,7 @@ repeat:
 		temp = DWC_OTG_READ_4(sc, DOTG_HCINT(x));
 		if (temp != 0) {
 			DWC_OTG_WRITE_4(sc, DOTG_HCINT(x), temp);
-			temp &= ~(HCINT_SOFTWARE_ONLY |
-			    HCINT_HALTED_ONLY);
+			temp &= ~HCINT_SOFTWARE_ONLY;
 			sc->sc_chan_state[x].hcint |= temp;
 		}
 	}
@@ -2282,6 +2245,24 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 			if (temp & DIEPMSK_XFERCOMPLMSK) {
 				DWC_OTG_WRITE_4(sc, DOTG_DIEPINT(x),
 				    DIEPMSK_XFERCOMPLMSK);
+			}
+		}
+	}
+
+	/* check for SOF interrupt */
+	if (status & GINTSTS_SOF) {
+		if (sc->sc_irq_mask & GINTMSK_SOFMSK) {
+			uint8_t x;
+			uint8_t y;
+			for (x = y = 0; x != sc->sc_host_ch_max; x++) {
+				if (sc->sc_chan_state[x].wait_sof != 0) {
+					if (--(sc->sc_chan_state[x].wait_sof) != 0)
+						y = 1;
+				}
+			}
+			if (y == 0) {
+				sc->sc_irq_mask &= ~GINTMSK_SOFMSK; 
+				DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 			}
 		}
 	}

@@ -140,7 +140,7 @@ struct dwc_otg_profile {
 
 struct dwc_otg_chan_state {
 	uint32_t hcint;
-	uint16_t last_frame;
+	uint8_t wait_sof;
 	uint8_t allocated;
 	uint8_t suspended;
 };
