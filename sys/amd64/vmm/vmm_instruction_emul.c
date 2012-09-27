@@ -128,9 +128,9 @@ error:
 	return (-1);
 }
 
-void
-vmm_fetch_instruction(struct vm *vm, uint64_t rip, uint64_t cr3,
-		      struct vie *vie)
+int
+vmm_fetch_instruction(struct vm *vm, uint64_t rip, int inst_length,
+		      uint64_t cr3, struct vie *vie)
 {
 	int n, err;
 	uint64_t hpa, gpa, gpaend;
@@ -139,17 +139,18 @@ vmm_fetch_instruction(struct vm *vm, uint64_t rip, uint64_t cr3,
 	 * XXX cache previously fetched instructions using 'rip' as the tag
 	 */
 
+	if (inst_length > VIE_INST_SIZE)
+		panic("vmm_fetch_instruction: invalid length %d", inst_length);
+
 	vie_init(vie);
 
-	/*
-	 * Copy up to 15 bytes of the instruction stream into 'vie'
-	 */
-	while (vie->num_valid < VIE_INST_SIZE) {
+	/* Copy the instruction into 'vie' */
+	while (vie->num_valid < inst_length) {
 		err = gla2gpa(vm, rip, cr3, &gpa, &gpaend);
 		if (err)
 			break;
 
-		n = min(VIE_INST_SIZE - vie->num_valid, gpaend - gpa);
+		n = min(inst_length - vie->num_valid, gpaend - gpa);
 
 		hpa = vm_gpa2hpa(vm, gpa, n);
 		if (hpa == -1)
@@ -160,6 +161,11 @@ vmm_fetch_instruction(struct vm *vm, uint64_t rip, uint64_t cr3,
 		rip += n;
 		vie->num_valid += n;
 	}
+
+	if (vie->num_valid == inst_length)
+		return (0);
+	else
+		return (-1);
 }
 
 static int

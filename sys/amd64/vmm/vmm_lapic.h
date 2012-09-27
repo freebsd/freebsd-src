@@ -30,13 +30,13 @@
 #define	_VMM_LAPIC_H_
 
 struct vm;
+struct vie;
 
 boolean_t lapic_msr(u_int num);
 int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval);
 int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval);
 
-int	lapic_mmio(struct vm *vm, int cpu, u_int offset, int read,
-		   uint64_t rip, uint64_t cr3);
+int	lapic_mmio(struct vm *vm, int cpu, u_int offset, int rd, struct vie *);
 
 void	lapic_timer_tick(struct vm *vm, int cpu);
 
