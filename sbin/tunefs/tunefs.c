@@ -894,7 +894,7 @@ journal_clear(void)
 		warnx("Journal file does not exist");
 		return;
 	}
-	printf("Clearing journal flags from inode %d\n", ino);
+	printf("Clearing journal flags from inode %ju\n", (uintmax_t)ino);
 	if (getino(&disk, &ip, ino, &mode) != 0) {
 		warn("Failed to get journal inode");
 		return;
@@ -970,8 +970,8 @@ journal_alloc(int64_t size)
 		ino = cgialloc(&disk);
 		if (ino <= 0)
 			break;
-		printf("Using inode %d in cg %d for %jd byte journal\n", 
-		    ino, cgp->cg_cgx, size);
+		printf("Using inode %ju in cg %d for %jd byte journal\n",
+		    (uintmax_t)ino, cgp->cg_cgx, size);
 		if (getino(&disk, &ip, ino, &mode) != 0) {
 			warn("Failed to get allocated inode");
 			sbdirty();
