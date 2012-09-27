@@ -99,8 +99,9 @@ pass1(void)
 		if (!rebuildcg && sblock.fs_magic == FS_UFS2_MAGIC) {
 			inosused = cgrp.cg_initediblk;
 			if (inosused > sblock.fs_ipg) {
-				pfatal("%s (%d > %d) %s %d\nReset to %d\n",
-				    "Too many initialized inodes", inosused,
+				pfatal("%s (%ju > %d) %s %d\nReset to %d\n",
+				    "Too many initialized inodes",
+				    (uintmax_t)inosused,
 				    sblock.fs_ipg, "in cylinder group", c,
 				    sblock.fs_ipg);
 				inosused = sblock.fs_ipg;

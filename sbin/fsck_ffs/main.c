@@ -492,7 +492,7 @@ checkfilesys(char *filesys)
 	    n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug) {
 		if (files < 0)
-			printf("%d inodes missing\n", -files);
+			printf("%jd inodes missing\n", (intmax_t)-files);
 		if (blks < 0)
 			printf("%lld blocks missing\n", -(long long)blks);
 		if (duplist != NULL) {
