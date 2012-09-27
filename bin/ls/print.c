@@ -152,7 +152,8 @@ printlong(const DISPLAY *dp)
 			continue;
 		sp = p->fts_statp;
 		if (f_inode)
-			(void)printf("%*lu ", dp->s_inode, (u_long)sp->st_ino);
+			(void)printf("%*ju ",
+			    dp->s_inode, (uintmax_t)sp->st_ino);
 		if (f_size)
 			(void)printf("%*jd ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
@@ -328,7 +329,8 @@ printaname(const FTSENT *p, u_long inodefield, u_long sizefield)
 	sp = p->fts_statp;
 	chcnt = 0;
 	if (f_inode)
-		chcnt += printf("%*lu ", (int)inodefield, (u_long)sp->st_ino);
+		chcnt += printf("%*ju ",
+		    (int)inodefield, (uintmax_t)sp->st_ino);
 	if (f_size)
 		chcnt += printf("%*jd ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
