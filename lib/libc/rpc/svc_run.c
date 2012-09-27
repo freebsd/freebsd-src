@@ -60,13 +60,14 @@ svc_run()
 	fd_set readfds, cleanfds;
 	struct timeval timeout;
 
+	timeout.tv_sec = 30;
+	timeout.tv_usec = 0;
+
 	for (;;) {
 		rwlock_rdlock(&svc_fd_lock);
 		readfds = svc_fdset;
 		cleanfds = svc_fdset;
 		rwlock_unlock(&svc_fd_lock);
-		timeout.tv_sec = 30;
-		timeout.tv_usec = 0;
 		switch (_select(svc_maxfd+1, &readfds, NULL, NULL, &timeout)) {
 		case -1:
 			FD_ZERO(&readfds);
