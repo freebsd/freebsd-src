@@ -145,9 +145,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/msgbuf.h>
+#include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/rwlock.h>
@@ -164,8 +166,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+
 #include <machine/md_var.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -197,6 +198,7 @@ static pv_entry_t pmap_get_pv_entry(void);
 
 static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
     vm_prot_t, boolean_t, int);
+static vm_paddr_t	pmap_extract_locked(pmap_t pmap, vm_offset_t va);
 static void		pmap_fix_cache(struct vm_page *, pmap_t, vm_offset_t);
 static void		pmap_alloc_l1(pmap_t);
 static void		pmap_free_l1(pmap_t);
@@ -2840,6 +2842,13 @@ pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
 	pmap_fault_fixup(pmap_kernel(), va, VM_PROT_READ|VM_PROT_WRITE, 1);
 }
 
+vm_paddr_t
+pmap_kextract(vm_offset_t va)
+{
+
+	return (pmap_extract_locked(kernel_pmap, va));
+}
+
 /*
  * remove a page from the kernel pagetables
  */
@@ -3644,22 +3653,34 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
  *		with the given map/virtual_address pair.
  */
 vm_paddr_t
-pmap_extract(pmap_t pm, vm_offset_t va)
+pmap_extract(pmap_t pmap, vm_offset_t va)
+{
+	vm_paddr_t pa;
+
+	PMAP_LOCK(pmap);
+	pa = pmap_extract_locked(pmap, va);
+	PMAP_UNLOCK(pmap);
+	return (pa);
+}
+
+static vm_paddr_t
+pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 {
 	struct l2_dtable *l2;
 	pd_entry_t l1pd;
 	pt_entry_t *ptep, pte;
 	vm_paddr_t pa;
 	u_int l1idx;
-	l1idx = L1_IDX(va);
 
-	PMAP_LOCK(pm);
-	l1pd = pm->pm_l1->l1_kva[l1idx];
+	if (pmap != kernel_pmap)
+		PMAP_ASSERT_LOCKED(pmap);
+	l1idx = L1_IDX(va);
+	l1pd = pmap->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
 		/*
-		 * These should only happen for pmap_kernel()
+		 * These should only happen for the kernel pmap.
 		 */
-		KASSERT(pm == pmap_kernel(), ("huh"));
+		KASSERT(pmap == kernel_pmap, ("unexpected section"));
 		/* XXX: what to do about the bits > 32 ? */
 		if (l1pd & L1_S_SUPERSEC)
 			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
@@ -3671,34 +3692,22 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 		 * descriptor as an indication that a mapping exists.
 		 * We have to look it up in the L2 dtable.
 		 */
-		l2 = pm->pm_l2[L2_IDX(l1idx)];
-
+		l2 = pmap->pm_l2[L2_IDX(l1idx)];
 		if (l2 == NULL ||
-		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL) {
-			PMAP_UNLOCK(pm);
+		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL)
 			return (0);
-		}
-
-		ptep = &ptep[l2pte_index(va)];
-		pte = *ptep;
-
-		if (pte == 0) {
-			PMAP_UNLOCK(pm);
+		pte = ptep[l2pte_index(va)];
+		if (pte == 0)
 			return (0);
-		}
-
 		switch (pte & L2_TYPE_MASK) {
 		case L2_TYPE_L:
 			pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
 			break;
-
 		default:
 			pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
 			break;
 		}
 	}
-
-	PMAP_UNLOCK(pm);
 	return (pa);
 }
 
