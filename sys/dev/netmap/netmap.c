@@ -186,13 +186,20 @@ netmap_dtor_locked(void *data)
 			lim = na->tx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
 				netmap_free_buf(nifp, ring->slot[j].buf_idx);
+			/* knlist_destroy(&na->tx_rings[i].si.si_note); */
+			mtx_destroy(&na->tx_rings[i].q_lock);
 		}
 		for (i = 0; i < na->num_rx_rings + 1; i++) {
 			struct netmap_ring *ring = na->rx_rings[i].ring;
 			lim = na->rx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
 				netmap_free_buf(nifp, ring->slot[j].buf_idx);
+			/* knlist_destroy(&na->rx_rings[i].si.si_note); */
+			mtx_destroy(&na->rx_rings[i].q_lock);
 		}
+		/* XXX kqueue(9) needed; these will mirror knlist_init. */
+		/* knlist_destroy(&na->tx_si.si_note); */
+		/* knlist_destroy(&na->rx_si.si_note); */
 		NMA_UNLOCK();
 		netmap_free_rings(na);
 		wakeup(na);
@@ -593,6 +600,10 @@ netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
 			/* Otherwise set the card in netmap mode
 			 * and make it use the shared buffers.
 			 */
+			for (i = 0 ; i < na->num_tx_rings + 1; i++)
+				mtx_init(&na->tx_rings[i].q_lock, "nm_txq_lock", NULL, MTX_DEF);
+			for (i = 0 ; i < na->num_rx_rings + 1; i++)
+				mtx_init(&na->rx_rings[i].q_lock, "nm_rxq_lock", NULL, MTX_DEF);
 			error = na->nm_register(ifp, 1); /* mode on */
 			if (error)
 				netmap_dtor_locked(priv);
@@ -970,7 +981,7 @@ netmap_lock_wrapper(struct ifnet *dev, int what, u_int queueid)
 int
 netmap_attach(struct netmap_adapter *na, int num_queues)
 {
-	int i, n, size;
+	int n, size;
 	void *buf;
 	struct ifnet *ifp = na->ifp;
 
@@ -999,13 +1010,14 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 		ifp->if_capabilities |= IFCAP_NETMAP;
 
 		na = buf;
-		if (na->nm_lock == NULL)
-			na->nm_lock = netmap_lock_wrapper;
+		/* Core lock initialized here.  Others are initialized after
+		 * netmap_if_new.
+		 */
 		mtx_init(&na->core_lock, "netmap core lock", NULL, MTX_DEF);
-		for (i = 0 ; i < na->num_tx_rings + 1; i++)
-			mtx_init(&na->tx_rings[i].q_lock, "netmap txq lock", NULL, MTX_DEF);
-		for (i = 0 ; i < na->num_rx_rings + 1; i++)
-			mtx_init(&na->rx_rings[i].q_lock, "netmap rxq lock", NULL, MTX_DEF);
+		if (na->nm_lock == NULL) {
+			ND("using default locks for %s", ifp->if_xname);
+			na->nm_lock = netmap_lock_wrapper;
+		}
 	}
 #ifdef linux
 	D("netdev_ops %p", ifp->netdev_ops);
@@ -1026,24 +1038,13 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 void
 netmap_detach(struct ifnet *ifp)
 {
-	u_int i;
 	struct netmap_adapter *na = NA(ifp);
 
 	if (!na)
 		return;
 
-	for (i = 0; i < na->num_tx_rings + 1; i++) {
-		/* knlist_destroy(&na->tx_rings[i].si.si_note); */
-		mtx_destroy(&na->tx_rings[i].q_lock);
-	}
-	for (i = 0; i < na->num_rx_rings + 1; i++) {
-		/* knlist_destroy(&na->rx_rings[i].si.si_note); */
-		mtx_destroy(&na->rx_rings[i].q_lock);
-	}
 	mtx_destroy(&na->core_lock);
-	/* XXX kqueue(9) needed; these will mirror knlist_init. */
-	/* knlist_destroy(&na->tx_si.si_note); */
-	/* knlist_destroy(&na->rx_si.si_note); */
+
 	bzero(na, sizeof(*na));
 	WNA(ifp) = NULL;
 	free(na, M_DEVBUF);
