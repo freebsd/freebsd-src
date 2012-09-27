@@ -546,7 +546,6 @@
 #define	HCINT_RETRY \
     (HCINT_DATATGLERR | HCINT_FRMOVRUN | HCINT_NAK)
 
-#define	HCINT_HALTED_ONLY		(1<<21)	/* BSD only */
 #define	HCINT_SOFTWARE_ONLY		(1<<20)	/* BSD only */
 #define	HCINT_DATATGLERR		(1<<10)
 #define	HCINT_FRMOVRUN			(1<<9)
