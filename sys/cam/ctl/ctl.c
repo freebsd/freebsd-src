@@ -1520,12 +1520,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 
 		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL,
 							   M_WAITOK);
-		if (ext_sglist == NULL) {
-			ctl_set_internal_failure(ctsio,
-						 /*sks_valid*/ 0,
-						 /*retry_count*/ 0);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		ext_sglist_malloced = 1;
 		if (copyin(ctsio->ext_data_ptr, ext_sglist,
 				   ext_sglen) != 0) {
@@ -2028,11 +2022,6 @@ ctl_copyin_alloc(void *user_addr, int len, char *error_str,
 	void *kptr;
 
 	kptr = malloc(len, M_CTL, M_WAITOK | M_ZERO);
-	if (kptr == NULL) {
-		snprintf(error_str, error_str_len, "Cannot allocate %d bytes",
-			 len);
-		return (NULL);
-	}
 
 	if (copyin(user_addr, kptr, len) != 0) {
 		snprintf(error_str, error_str_len, "Error copying %d bytes "
@@ -2764,12 +2753,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		new_err_desc = malloc(sizeof(*new_err_desc), M_CTL,
 				      M_WAITOK | M_ZERO);
-		if (new_err_desc == NULL) {
-			printf("%s: CTL_ERROR_INJECT: error allocating %zu "
-			       "bytes\n", __func__, sizeof(*new_err_desc));
-			retval = ENOMEM;
-			break;
-		}
 		bcopy(err_desc, new_err_desc, sizeof(*new_err_desc));
 
 		mtx_lock(&softc->ctl_lock);
@@ -4203,11 +4186,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	}
 	if (ctl_lun == NULL) {
 		lun = malloc(sizeof(*lun), M_CTL, M_WAITOK);
-		if (lun == NULL) {
-			be_lun->lun_config_status(lun->be_lun->be_lun,
-						  CTL_LUN_CONFIG_FAILURE);
-			return (-ENOMEM);
-		}
 		lun->flags = CTL_LUN_MALLOCED;
 	} else
 		lun = ctl_lun;
@@ -5061,12 +5039,6 @@ ctl_scsi_release(struct ctl_scsiio *ctsio)
 	if (((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0)
 	 && (length > 0)) {
 		ctsio->kern_data_ptr = malloc(length, M_CTL, M_WAITOK);
-		if (ctsio->kern_data_ptr == NULL) {
-			ctsio->io_hdr.status = CTL_SCSI_ERROR;
-			ctsio->io_hdr.status = SCSI_STATUS_BUSY;
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		ctsio->kern_data_len = length;
 		ctsio->kern_total_len = length;
 		ctsio->kern_data_resid = 0;
@@ -5202,12 +5174,6 @@ ctl_scsi_reserve(struct ctl_scsiio *ctsio)
 	if (((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0)
 	 && (length > 0)) {
 		ctsio->kern_data_ptr = malloc(length, M_CTL, M_WAITOK);
-		if (ctsio->kern_data_ptr == NULL) {
-			ctsio->io_hdr.status = CTL_SCSI_ERROR;
-			ctsio->io_hdr.status = SCSI_STATUS_BUSY;
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		ctsio->kern_data_len = length;
 		ctsio->kern_total_len = length;
 		ctsio->kern_data_resid = 0;
@@ -5573,12 +5539,6 @@ ctl_format(struct ctl_scsiio *ctsio)
 	if (((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0)
 	 && (length > 0)) {
 		ctsio->kern_data_ptr = malloc(length, M_CTL, M_WAITOK);
-		if (ctsio->kern_data_ptr == NULL) {
-			ctsio->io_hdr.status = CTL_SCSI_ERROR;
-			ctsio->io_hdr.status = SCSI_STATUS_BUSY;
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		ctsio->kern_data_len = length;
 		ctsio->kern_total_len = length;
 		ctsio->kern_data_resid = 0;
@@ -6368,11 +6328,6 @@ ctl_mode_select(struct ctl_scsiio *ctsio)
 	 */
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
 		ctsio->kern_data_ptr = malloc(param_len, M_CTL, M_WAITOK);
-		if (ctsio->kern_data_ptr == NULL) {
-			ctl_set_busy(ctsio);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		ctsio->kern_data_len = param_len;
 		ctsio->kern_total_len = param_len;
 		ctsio->kern_data_resid = 0;
@@ -6607,12 +6562,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 #endif
 
 	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	ctsio->kern_sg_entries = 0;
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
@@ -6794,12 +6743,6 @@ ctl_read_capacity(struct ctl_scsiio *ctsio)
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*data), M_CTL, M_WAITOK);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	data = (struct scsi_read_capacity_data *)ctsio->kern_data_ptr;
 	ctsio->residual = 0;
 	ctsio->kern_data_len = sizeof(*data);
@@ -6864,12 +6807,6 @@ ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*data), M_CTL, M_WAITOK);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	data = (struct scsi_read_capacity_data_long *)ctsio->kern_data_ptr;
 
 	if (sizeof(*data) < alloc_len) {
@@ -6977,12 +6914,6 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 	alloc_len = scsi_4btoul(cdb->length);
 
 	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	memset(ctsio->kern_data_ptr, 0, total_len);
 
 	ctsio->kern_sg_entries = 0;
@@ -7138,12 +7069,6 @@ retry:
 	mtx_unlock(&softc->ctl_lock);
 
 	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 
 	if (total_len < alloc_len) {
 		ctsio->residual = alloc_len - total_len;
@@ -7876,11 +7801,6 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
 		ctsio->kern_data_ptr = malloc(param_len, M_CTL, M_WAITOK);
-		if (ctsio->kern_data_ptr == NULL) {
-			ctl_set_busy(ctsio);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		ctsio->kern_data_len = param_len;
 		ctsio->kern_total_len = param_len;
 		ctsio->kern_data_resid = 0;
@@ -8692,13 +8612,6 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 		(num_luns * sizeof(struct scsi_report_luns_lundata));
 
 	ctsio->kern_data_ptr = malloc(lun_datalen, M_CTL, M_WAITOK);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
-
 	lun_data = (struct scsi_report_luns_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
@@ -8821,12 +8734,6 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		sense_format = SSD_TYPE_FIXED;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*sense_ptr), M_CTL, M_WAITOK);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	sense_ptr = (struct scsi_sense_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
