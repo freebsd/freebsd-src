@@ -1694,11 +1694,6 @@ ctlfe_onoffline(void *arg, int online)
 		return;
 	}
 	ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP, M_WAITOK | M_ZERO);
-	if (ccb == NULL) {
-		printf("%s: unable to malloc CCB!\n", __func__);
-		xpt_free_path(path);
-		return;
-	}
 	xpt_setup_ccb(&ccb->ccb_h, path, /*priority*/ 1);
 
 	sim = xpt_path_sim(path);
@@ -1900,12 +1895,6 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 	}
 
 	softc = malloc(sizeof(*softc), M_CTLFE, M_WAITOK | M_ZERO);
-	if (softc == NULL) {
-		printf("%s: could not allocate %zd bytes for softc\n",
-		       __func__, sizeof(*softc));
-		xpt_free_path(path);
-		return (1);
-	}
 	sim = xpt_path_sim(path);
 	mtx_lock(sim->mtx);
 	periph = cam_periph_find(path, "ctl");
