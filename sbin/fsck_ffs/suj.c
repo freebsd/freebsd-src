@@ -1945,7 +1945,7 @@ ino_unlinked(void)
 		if (DIP(ip, di_nlink) == 0) {
 			if (debug)
 				printf("Freeing unlinked ino %ju mode %o\n",
-				    ino, mode);
+				    (uintmax_t)ino, mode);
 			ino_reclaim(ip, ino, mode);
 		} else if (debug)
 			printf("Skipping ino %ju mode %o with link %d\n",
