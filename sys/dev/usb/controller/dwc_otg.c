@@ -3974,9 +3974,34 @@ dwc_otg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 				return;
 			}
 		} else {
-			if (udev->speed != USB_SPEED_LOW &&
-			    udev->speed != USB_SPEED_FULL &&
-			    udev->speed != USB_SPEED_HIGH) {
+			uint16_t mps;
+
+			mps = UGETW(edesc->wMaxPacketSize);
+
+			/* Apply limitations of our USB host driver */
+
+			switch (udev->speed) {
+			case USB_SPEED_HIGH:
+				if (mps > 512) {
+					DPRINTF("wMaxPacketSize=0x%04x"
+					    "is not supported\n", (int)mps);
+					/* not supported */
+					return;
+				}
+				break;
+
+			case USB_SPEED_FULL:
+			case USB_SPEED_LOW:
+				if (mps > 188) {
+					DPRINTF("wMaxPacketSize=0x%04x"
+					    "is not supported\n", (int)mps);
+					/* not supported */
+					return;
+				}
+				break;
+
+			default:
+				DPRINTF("Invalid device speed\n");
 				/* not supported */
 				return;
 			}
