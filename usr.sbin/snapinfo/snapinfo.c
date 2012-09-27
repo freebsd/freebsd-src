@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <ftw.h>
 #include <libufs.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -149,7 +150,7 @@ compare_function(const char *path, const struct stat *st, int flags,
 			printf("\tsnapshot ");
 		printf("%s", path);
 		if (verbose)
-			printf(" (inode %d)", st->st_ino);
+			printf(" (inode %ju)", (uintmax_t)st->st_ino);
 		printf("\n");
 		if (!cont_search)
 			return (EEXIST);
