@@ -92,8 +92,7 @@ enum mem_type {
 
 #ifdef _KERNEL
 
-#define vtophys(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
-#define pmap_kextract(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
+#define vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 #endif
 
@@ -228,6 +227,7 @@ void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
+vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
