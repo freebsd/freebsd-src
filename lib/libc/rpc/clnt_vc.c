@@ -672,10 +672,6 @@ clnt_vc_destroy(cl)
 	if (ct->ct_addr.buf)
 		free(ct->ct_addr.buf);
 	mem_free(ct, sizeof(struct ct_data));
-	if (cl->cl_netid && cl->cl_netid[0])
-		mem_free(cl->cl_netid, strlen(cl->cl_netid) +1);
-	if (cl->cl_tp && cl->cl_tp[0])
-		mem_free(cl->cl_tp, strlen(cl->cl_tp) +1);
 	mem_free(cl, sizeof(CLIENT));
 	mutex_unlock(&clnt_fd_lock);
 	thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
