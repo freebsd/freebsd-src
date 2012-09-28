@@ -49,6 +49,17 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 SUCCESS=0
 FAILURE=1
 
+#
+# Valid characters that can appear in an sh(1) variable name
+#
+# Please note that the character ranges A-Z and a-z should be avoided because
+# these can include accent characters (which are not valid in a variable name).
+# For example, A-Z matches any character that sorts after A but before Z,
+# including A and Z. Although ASCII order would make more sense, that is not
+# how it works.
+#
+VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+
 ############################################################ FUNCTIONS
 
 # f_clean_env [ --except $varname ... ]
@@ -243,14 +254,16 @@ f_sysrc_get_default()
 #
 f_sysrc_find()
 {
-	local varname="$1"
+	local varname="${1%%[!$VALID_VARNAME_CHARS]*}"
 	local regex="^[[:space:]]*$varname="
 	local rc_conf_files="$( f_sysrc_get rc_conf_files )"
 	local conf_files=
 	local file
 
 	# Check parameters
-	[ "$varname" ] || return $FAILURE
+	case "$varname" in
+	""|[0-9]*) return $FAILURE
+	esac
 
 	#
 	# If RC_CONFS is defined, set $rc_conf_files to an explicit
