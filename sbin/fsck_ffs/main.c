@@ -210,12 +210,11 @@ checkfilesys(char *filesys)
 	struct statfs *mntp;
 	struct stat snapdir;
 	struct group *grp;
-	ufs2_daddr_t blks;
 	struct iovec *iov;
 	char errmsg[255];
 	int iovlen;
 	int cylno;
-	ino_t files;
+	intmax_t blks, files;
 	size_t size;
 
 	iov = NULL;
@@ -382,9 +381,9 @@ checkfilesys(char *filesys)
 	clean:
 		pwarn("clean, %ld free ", (long)(sblock.fs_cstotal.cs_nffree +
 		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree));
-		printf("(%lld frags, %lld blocks, %.1f%% fragmentation)\n",
-		    (long long)sblock.fs_cstotal.cs_nffree,
-		    (long long)sblock.fs_cstotal.cs_nbfree,
+		printf("(%jd frags, %jd blocks, %.1f%% fragmentation)\n",
+		    (intmax_t)sblock.fs_cstotal.cs_nffree,
+		    (intmax_t)sblock.fs_cstotal.cs_nbfree,
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
@@ -481,8 +480,8 @@ checkfilesys(char *filesys)
 	blks = maxfsblock - (n_ffree + sblock.fs_frag * n_bfree) - blks;
 	if (bkgrdflag && (files > 0 || blks > 0)) {
 		countdirs = sblock.fs_cstotal.cs_ndir - countdirs;
-		pwarn("Reclaimed: %ld directories, %ld files, %lld fragments\n",
-		    countdirs, (long)files - countdirs, (long long)blks);
+		pwarn("Reclaimed: %ld directories, %jd files, %jd fragments\n",
+		    countdirs, files - countdirs, blks);
 	}
 	pwarn("%ld files, %jd used, %ju free ",
 	    (long)n_files, (intmax_t)n_blks,
@@ -492,13 +491,13 @@ checkfilesys(char *filesys)
 	    n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug) {
 		if (files < 0)
-			printf("%jd inodes missing\n", (intmax_t)-files);
+			printf("%jd inodes missing\n", -files);
 		if (blks < 0)
-			printf("%lld blocks missing\n", -(long long)blks);
+			printf("%jd blocks missing\n", -blks);
 		if (duplist != NULL) {
 			printf("The following duplicate blocks remain:");
 			for (dp = duplist; dp; dp = dp->next)
-				printf(" %lld,", (long long)dp->dup);
+				printf(" %jd,", (intmax_t)dp->dup);
 			printf("\n");
 		}
 	}
