@@ -1401,9 +1401,8 @@ ino_adjust(struct suj_ino *sino)
 	ip = ino_read(ino);
 	mode = DIP(ip, di_mode) & IFMT;
 	if (nlink > LINK_MAX)
-		err_suj("ino %ju %s, new link %d, old link %d\n",
-		    (uintmax_t)ino, "nlink manipulation error", nlink,
-		    DIP(ip, di_nlink));
+		err_suj("ino %ju nlink manipulation error, new %d, old %d\n",
+		    (uintmax_t)ino, nlink, DIP(ip, di_nlink));
 	if (debug)
 		printf("Adjusting ino %ju, nlink %d, old link %d lastmode %o\n",
 		    (uintmax_t)ino, nlink, DIP(ip, di_nlink), sino->si_mode);
