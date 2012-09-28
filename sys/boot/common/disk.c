@@ -179,12 +179,21 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		rc = ptable_getpart(od->table, &part, dev->d_partition);
 		if (rc == 0)
 			dev->d_offset = part.start;
-	} else if (dev->d_slice > 0) {
+	} else if (dev->d_slice >= 0) {
 		/* Try to get information about partition */
-		rc = ptable_getpart(od->table, &part, dev->d_slice);
+		if (dev->d_slice == 0)
+			rc = ptable_getbestpart(od->table, &part);
+		else
+			rc = ptable_getpart(od->table, &part, dev->d_slice);
 		if (rc != 0) /* Partition doesn't exist */
 			goto out;
 		dev->d_offset = part.start;
+		if (dev->d_slice == 0) {
+			/* Save the slice number of best partition to dev */
+			dev->d_slice = part.index;
+			if (ptable_gettype(od->table) == PTABLE_GPT)
+				dev->d_partition = 255;
+		}
 		if (dev->d_partition == 255)
 			goto out; /* Nothing more to do */
 		/*
@@ -217,13 +226,6 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		if (rc != 0)
 			goto out;
 		dev->d_offset += part.start;
-	} else if (dev->d_slice == 0) {
-		rc = ptable_getbestpart(od->table, &part);
-		if (rc != 0)
-			goto out;
-		/* Save the slice number of best partition to dev */
-		dev->d_slice = part.index;
-		dev->d_offset = part.start;
 	}
 out:
 	if (table != NULL)
