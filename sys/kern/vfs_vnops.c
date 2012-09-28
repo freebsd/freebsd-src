@@ -342,7 +342,7 @@ vn_writechk(vp)
 	 * the vnode, try to free it up once.  If
 	 * we fail, we can't allow writing.
 	 */
-	if (vp->v_vflag & VV_TEXT)
+	if (VOP_IS_TEXT(vp))
 		return (ETXTBSY);
 
 	return (0);
