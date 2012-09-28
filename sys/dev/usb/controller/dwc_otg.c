@@ -222,7 +222,7 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 			/* enable interrupts */
 			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(x),
 			    HCINT_STALL | HCINT_BBLERR |
-			    HCINT_XACTERR | HCINT_XFERCOMPL |
+			    HCINT_XACTERR |
 			    HCINT_NAK | HCINT_ACK | HCINT_NYET |
 			    HCINT_CHHLTD | HCINT_FRMOVRUN |
 			    HCINT_DATATGLERR);
@@ -524,6 +524,10 @@ dwc_otg_host_channel_wait(struct dwc_otg_td *td)
 	if (x == 0)
 		return (0);	/* wait */
 
+	/* assume NAK-ing is next */
+	if (sc->sc_chan_state[x].hcint & HCINT_NYET)
+		return (0);	/* wait */
+
 	/* find new disabled channel */
 	for (x = 1; x != sc->sc_host_ch_max; x++) {
 
@@ -701,15 +705,6 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 		}
 	}
 
-	/* treat NYET like NAK, if SPLIT transactions are used */
-	if (hcint & HCINT_NYET) {
-		if (td->hcsplt != 0) {
-			DPRINTF("CH=%d NYET+SPLIT\n", td->channel);
-			hcint &= ~HCINT_NYET;
-			hcint |= HCINT_NAK;
-		}
-	}
-
 	/* channel must be disabled before we can complete the transfer */
 
 	if (hcint & (HCINT_ERRORS | HCINT_RETRY |
@@ -755,13 +750,18 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 		}
 		break;
 	case DWC_CHAN_ST_WAIT_C_ANE:
+		if (hcint & HCINT_NYET) {
+			if (!dwc_otg_host_channel_wait(td))
+				break;
+			goto send_cpkt;
+		}
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
-			goto send_cpkt;
+			goto send_pkt;
 		}
-		if (hcint & (HCINT_ACK | HCINT_NYET)) {
+		if (hcint & HCINT_ACK) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->offset += td->tx_bytes;
@@ -1043,15 +1043,6 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 		}
 	}
 
-	/* treat NYET like NAK, if SPLIT transactions are used */
-	if (hcint & HCINT_NYET) {
-		if (td->hcsplt != 0) {
-			DPRINTF("CH=%d NYET+SPLIT\n", td->channel);
-			hcint &= ~HCINT_NYET;
-			hcint |= HCINT_NAK;
-		}
-	}
-
 	/* channel must be disabled before we can complete the transfer */
 
 	if (hcint & (HCINT_ERRORS | HCINT_RETRY |
@@ -1136,10 +1127,13 @@ check_state:
 				break;
 
 			td->did_nak = 1;
-
 			if (td->hcsplt != 0)
 				goto receive_spkt;
 			else
+				goto receive_pkt;
+		}
+		if (hcint & HCINT_NYET) {
+			if (td->hcsplt != 0)
 				goto receive_pkt;
 		}
 		if (!(hcint & HCINT_SOFTWARE_ONLY))
@@ -1171,7 +1165,6 @@ check_state:
 				break;
 
 			td->did_nak = 1;
-
 			goto receive_spkt;
 		}
 		if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -1401,15 +1394,6 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		}
 	}
 
-	/* treat NYET like NAK, if SPLIT transactions are used */
-	if (hcint & HCINT_NYET) {
-		if (td->hcsplt != 0) {
-			DPRINTF("CH=%d NYET+SPLIT\n", td->channel);
-			hcint &= ~HCINT_NYET;
-			hcint |= HCINT_NAK;
-		}
-	}
-
 	/* channel must be disabled before we can complete the transfer */
 
 	if (hcint & (HCINT_ERRORS | HCINT_RETRY |
@@ -1467,13 +1451,18 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		}
 		break;
 	case DWC_CHAN_ST_WAIT_C_ANE:
+		if (hcint & HCINT_NYET) {
+			if (!dwc_otg_host_channel_wait(td))
+				break;
+			goto send_cpkt;
+		}
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
-			goto send_cpkt;
+			goto send_pkt;
 		}
-		if (hcint & (HCINT_ACK | HCINT_NYET)) {
+		if (hcint & HCINT_ACK) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->offset += td->tx_bytes;
