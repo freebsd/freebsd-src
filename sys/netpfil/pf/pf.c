@@ -282,7 +282,7 @@ static int		 pf_src_connlimit(struct pf_state **);
 static void		 pf_overload_task(void *c, int pending);
 static int		 pf_insert_src_node(struct pf_src_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
-static int		 pf_purge_expired_states(int);
+static u_int		 pf_purge_expired_states(u_int, int);
 static void		 pf_purge_unlinked_rules(void);
 static int		 pf_mtag_init(void *, int, int);
 static void		 pf_mtag_free(struct m_tag *);
@@ -1307,7 +1307,7 @@ pf_intr(void *v)
 void
 pf_purge_thread(void *v)
 {
-	int fullrun;
+	u_int idx = 0;
 
 	CURVNET_SET((struct vnet *)v);
 
@@ -1329,7 +1329,7 @@ pf_purge_thread(void *v)
 			/*
 			 * Now purge everything.
 			 */
-			pf_purge_expired_states(V_pf_hashmask + 1);
+			pf_purge_expired_states(0, V_pf_hashmask);
 			pf_purge_expired_fragments();
 			pf_purge_expired_src_nodes();
 
@@ -1352,11 +1352,11 @@ pf_purge_thread(void *v)
 		PF_RULES_RUNLOCK();
 
 		/* Process 1/interval fraction of the state table every run. */
-		fullrun = pf_purge_expired_states(V_pf_hashmask /
+		idx = pf_purge_expired_states(idx, V_pf_hashmask /
 			    (V_pf_default_rule.timeout[PFTM_INTERVAL] * 10));
 
 		/* Purge other expired types every PFTM_INTERVAL seconds. */
-		if (fullrun) {
+		if (idx == 0) {
 			/*
 			 * Order is important:
 			 * - states and src nodes reference rules
@@ -1533,14 +1533,11 @@ pf_free_state(struct pf_state *cur)
 /*
  * Called only from pf_purge_thread(), thus serialized.
  */
-static int
-pf_purge_expired_states(int maxcheck)
+static u_int
+pf_purge_expired_states(u_int i, int maxcheck)
 {
-	static u_int i = 0;
-
 	struct pf_idhash *ih;
 	struct pf_state *s;
-	int rv = 0;
 
 	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
@@ -1548,12 +1545,6 @@ pf_purge_expired_states(int maxcheck)
 	 * Go through hash and unlink states that expire now.
 	 */
 	while (maxcheck > 0) {
-
-		/* Wrap to start of hash when we hit the end. */
-		if (i > V_pf_hashmask) {
-			i = 0;
-			rv = 1;
-		}
 
 		ih = &V_pf_idhash[i];
 relock:
@@ -1574,13 +1565,19 @@ relock:
 				s->rt_kif->pfik_flags |= PFI_IFLAG_REFS;
 		}
 		PF_HASHROW_UNLOCK(ih);
-		i++;
+
+		/* Return when we hit end of hash. */
+		if (++i > V_pf_hashmask) {
+			V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
+			return (0);
+		}
+
 		maxcheck--;
 	}
 
 	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
-	return (rv);
+	return (i);
 }
 
 static void
