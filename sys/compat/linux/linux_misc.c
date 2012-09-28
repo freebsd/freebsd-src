@@ -386,7 +386,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * XXX: Note that if any of the VM operations fail below we don't
 	 * clear this flag.
 	 */
-	vp->v_vflag |= VV_TEXT;
+	VOP_SET_TEXT(vp);
 
 	/*
 	 * Lock no longer needed

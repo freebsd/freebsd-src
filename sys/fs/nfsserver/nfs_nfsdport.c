@@ -252,7 +252,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		 * the inode, try to free it up once.  If
 		 * we fail, we can't allow writing.
 		 */
-		if ((vp->v_vflag & VV_TEXT) != 0 && error == 0)
+		if (VOP_IS_TEXT(vp) && error == 0)
 			error = ETXTBSY;
 	}
 	if (error != 0) {

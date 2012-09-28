@@ -78,6 +78,10 @@ static int	dirent_exists(struct vnode *vp, const char *dirname,
 
 #define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
 
+static int vop_stdis_text(struct vop_is_text_args *ap);
+static int vop_stdset_text(struct vop_set_text_args *ap);
+static int vop_stdunset_text(struct vop_unset_text_args *ap);
+
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
  * implement a particular VOP.
@@ -126,6 +130,9 @@ struct vop_vector default_vnodeops = {
 	.vop_unp_bind =		vop_stdunp_bind,
 	.vop_unp_connect =	vop_stdunp_connect,
 	.vop_unp_detach =	vop_stdunp_detach,
+	.vop_is_text =		vop_stdis_text,
+	.vop_set_text =		vop_stdset_text,
+	.vop_unset_text =	vop_stdunset_text,
 };
 
 /*
@@ -1070,6 +1077,29 @@ vop_stdunp_detach(struct vop_unp_detach_args *ap)
 {
 
 	ap->a_vp->v_socket = NULL;
+	return (0);
+}
+
+static int
+vop_stdis_text(struct vop_is_text_args *ap)
+{
+
+	return ((ap->a_vp->v_vflag & VV_TEXT) != 0);
+}
+
+static int
+vop_stdset_text(struct vop_set_text_args *ap)
+{
+
+	ap->a_vp->v_vflag |= VV_TEXT;
+	return (0);
+}
+
+static int
+vop_stdunset_text(struct vop_unset_text_args *ap)
+{
+
+	ap->a_vp->v_vflag &= ~VV_TEXT;
 	return (0);
 }
 
