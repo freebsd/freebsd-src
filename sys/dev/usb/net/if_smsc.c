@@ -1042,7 +1042,9 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				}
 			
 				/* Finally enqueue the mbuf on the receive queue */
-				uether_rxmbuf(ue, m, pktlen);
+				/* Remove 4 trailing bytes */
+				if (pktlen >= (4 + ETHER_HDR_LEN))
+					uether_rxmbuf(ue, m, pktlen - 4);
 			}
 
 			/* Update the offset to move to the next potential packet */
