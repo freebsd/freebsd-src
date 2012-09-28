@@ -9557,6 +9557,11 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 		/* The transmit frame was enqueued successfully. */
 		tx_count++;
 
+		/* Update stats */
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
+
 		/* Send a copy of the frame to any BPF listeners. */
 		BPF_MTAP(ifp, next);
 

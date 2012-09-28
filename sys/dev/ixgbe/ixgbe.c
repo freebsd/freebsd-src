@@ -853,7 +853,6 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		}
 		enqueued++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -5335,6 +5334,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	ifp->if_ibytes = adapter->stats.gorc;
 	ifp->if_obytes = adapter->stats.gotc;
 	ifp->if_imcasts = adapter->stats.mprc;
+	ifp->if_omcasts = adapter->stats.mptc;
 	ifp->if_collisions = 0;
 
 	/* Rx Errors */
