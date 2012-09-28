@@ -590,22 +590,10 @@ do {									\
 } while (0)
 
 #ifdef _KERNEL
-static __inline void
-drbr_stats_update(struct ifnet *ifp, int len, int mflags)
-{
-#ifndef NO_SLOW_STATS
-	ifp->if_obytes += len;
-	if (mflags & M_MCAST)
-		ifp->if_omcasts++;
-#endif
-}
-
 static __inline int
 drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 {	
 	int error = 0;
-	int len = m->m_pkthdr.len;
-	int mflags = m->m_flags;
 
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
@@ -613,12 +601,10 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 		return (error);
 	}
 #endif
-	if ((error = buf_ring_enqueue_bytes(br, m, len)) == ENOBUFS) {
-		br->br_drops++;
+	error = buf_ring_enqueue(br, m);
+	if (error)
 		m_freem(m);
-	} else
-		drbr_stats_update(ifp, len, mflags);
-	
+
 	return (error);
 }
 
