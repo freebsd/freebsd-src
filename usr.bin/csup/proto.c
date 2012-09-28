@@ -789,18 +789,24 @@ proto_printf(struct stream *wr, const char *format, ...)
 
 		case '%':
 			n = stream_write(wr, "%", 1);
-			if (n == -1)
+			if (n == -1) {
+				va_end(ap);
 				return (-1);
+			}
 			break;
 		}
-		if (rv == -1)
+		if (rv == -1) {
+			va_end(ap);
 			return (-1);
+		}
 		fmt = cp + 1;
 	}
 	if (*fmt != '\0') {
 		rv = stream_printf(wr, "%s", fmt);
-		if (rv == -1)
+		if (rv == -1) {
+			va_end(ap);
 			return (-1);
+		}
 	}
 done:
 	va_end(ap);
