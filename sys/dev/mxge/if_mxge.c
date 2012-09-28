@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
 
-/* count xmits ourselves, rather than via drbr */
-#define NO_SLOW_STATS
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
