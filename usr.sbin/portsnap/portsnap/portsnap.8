@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2012
+.Dd September 28, 2012
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -180,6 +180,23 @@ can quickly be extracted into
 If your clock is set to UTC, please pick a random time other
 than 3AM, to avoid overly imposing an uneven load on the
 server(s) hosting the snapshots.
+.Pp
+Note that running
+.Nm
+.Cm cron
+or
+.Nm
+.Cm fetch
+does not apply the changes that were received: they only only download
+them.
+To apply the changes, you must follow these commands with
+.Nm
+.Cm update .
+The
+.Nm
+.Cm update
+command is normally run by hand at a time when you are sure that
+no one is manually working in the ports tree.
 .It
 Running
 .Nm
