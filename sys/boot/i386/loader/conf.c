@@ -80,7 +80,9 @@ struct fs_ops *file_system[] = {
 #if defined(LOADER_NANDFS_SUPPORT)
     &nandfs_fsops,
 #endif
+#ifdef LOADER_SPLIT_SUPPORT
     &splitfs_fsops,
+#endif
 #ifdef LOADER_GZIP_SUPPORT
     &gzipfs_fsops,
 #endif
