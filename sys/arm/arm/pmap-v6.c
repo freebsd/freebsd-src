@@ -247,13 +247,6 @@ pt_entry_t	pte_l2_l_cache_mode_pt;
 pt_entry_t	pte_l2_s_cache_mode;
 pt_entry_t	pte_l2_s_cache_mode_pt;
 
-/*
- * Which pmap is currently 'live' in the cache
- *
- * XXXSCW: Fix for SMP ...
- */
-union pmap_cache_state *pmap_cache_state;
-
 struct msgbuf *msgbufp = 0;
 
 /*
@@ -263,8 +256,6 @@ static caddr_t crashdumpmap;
 
 extern void bcopy_page(vm_offset_t, vm_offset_t);
 extern void bzero_page(vm_offset_t);
-
-extern vm_offset_t alloc_firstaddr;
 
 char *_tmppt;
 

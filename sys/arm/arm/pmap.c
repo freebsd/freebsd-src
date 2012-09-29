@@ -256,12 +256,6 @@ pt_entry_t	pte_l2_s_proto;
 
 void		(*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
 void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
-/*
- * Which pmap is currently 'live' in the cache
- *
- * XXXSCW: Fix for SMP ...
- */
-union pmap_cache_state *pmap_cache_state;
 
 struct msgbuf *msgbufp = 0;
 
