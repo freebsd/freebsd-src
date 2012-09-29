@@ -315,20 +315,63 @@ vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 		       VM_PROT_NONE, spok));
 }
 
-int
-vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t *ret_hpa)
+/*
+ * Returns TRUE if 'gpa' is available for allocation and FALSE otherwise
+ */
+static boolean_t
+vm_gpa_available(struct vm *vm, vm_paddr_t gpa)
 {
-	int error;
-	vm_paddr_t hpa;
+	int i;
+	vm_paddr_t gpabase, gpalimit;
+
+	if (gpa & PAGE_MASK)
+		panic("vm_gpa_available: gpa (0x%016lx) not page aligned", gpa);
+
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		gpabase = vm->mem_segs[i].gpa;
+		gpalimit = gpabase + vm->mem_segs[i].len;
+		if (gpa >= gpabase && gpa < gpalimit)
+			return (FALSE);
+	}
+
+	return (TRUE);
+}
+
+int
+vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
+{
+	int error, available, allocated;
+	vm_paddr_t g, hpa;
 
 	const boolean_t spok = TRUE;	/* superpage mappings are ok */
+
+	if ((gpa & PAGE_MASK) || (len & PAGE_MASK) || len == 0)
+		return (EINVAL);
 	
+	available = allocated = 0;
+	g = gpa;
+	while (g < gpa + len) {
+		if (vm_gpa_available(vm, g))
+			available++;
+		else
+			allocated++;
+
+		g += PAGE_SIZE;
+	}
+
 	/*
-	 * find the hpa if already it was already vm_malloc'd.
+	 * If there are some allocated and some available pages in the address
+	 * range then it is an error.
 	 */
-	hpa = vm_gpa2hpa(vm, gpa, len);
-	if (hpa != ((vm_paddr_t)-1))
-		goto out;
+	if (allocated && available)
+		return (EINVAL);
+
+	/*
+	 * If the entire address range being requested has already been
+	 * allocated then there isn't anything more to do.
+	 */
+	if (allocated && available == 0)
+		return (0);
 
 	if (vm->num_mem_segs >= VM_MAX_MEMORY_SEGMENTS)
 		return (E2BIG);
@@ -350,8 +393,7 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t *ret_hpa)
 	vm->mem_segs[vm->num_mem_segs].hpa = hpa;
 	vm->mem_segs[vm->num_mem_segs].len = len;
 	vm->num_mem_segs++;
-out:
-	*ret_hpa = hpa;
+
 	return (0);
 }
 

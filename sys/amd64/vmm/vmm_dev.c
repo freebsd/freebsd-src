@@ -295,7 +295,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;
-		error = vm_malloc(sc->vm, seg->gpa, seg->len, &seg->hpa);
+		error = vm_malloc(sc->vm, seg->gpa, seg->len);
 		break;
 	case VM_GET_MEMORY_SEG:
 		seg = (struct vm_memory_segment *)data;
