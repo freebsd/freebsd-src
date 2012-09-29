@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/disk.h>
+#include <sys/queue.h>
 #include <stand.h>
 #include <stdarg.h>
 #include <bootstrap.h>
@@ -46,6 +47,7 @@ struct open_disk {
 	struct ptable		*table;
 	off_t			mediasize;
 	u_int			sectorsize;
+	int			rcnt;
 };
 
 struct print_args {
@@ -53,6 +55,96 @@ struct print_args {
 	const char		*prefix;
 	int			verbose;
 };
+
+struct dentry {
+	const struct devsw	*d_dev;
+	int			d_unit;
+	int			d_slice;
+	int			d_partition;
+
+	struct open_disk	*od;
+	off_t			d_offset;
+	STAILQ_ENTRY(dentry)	entry;
+#ifdef DISK_DEBUG
+	uint32_t		count;
+#endif
+};
+
+static STAILQ_HEAD(, dentry) opened_disks =
+    STAILQ_HEAD_INITIALIZER(opened_disks);
+
+static int
+disk_lookup(struct disk_devdesc *dev)
+{
+	struct dentry *entry;
+	int rc;
+
+	rc = ENOENT;
+	STAILQ_FOREACH(entry, &opened_disks, entry) {
+		if (entry->d_dev != dev->d_dev ||
+		    entry->d_unit != dev->d_unit)
+			continue;
+		dev->d_opendata = entry->od;
+		if (entry->d_slice == dev->d_slice &&
+		    entry->d_partition == dev->d_partition) {
+			dev->d_offset = entry->d_offset;
+			DEBUG("%s offset %lld", disk_fmtdev(dev),
+			    dev->d_offset);
+#ifdef DISK_DEBUG
+			entry->count++;
+#endif
+			return (0);
+		}
+		rc = EAGAIN;
+	}
+	return (rc);
+}
+
+static void
+disk_insert(struct disk_devdesc *dev)
+{
+	struct dentry *entry;
+
+	entry = (struct dentry *)malloc(sizeof(struct dentry));
+	if (entry == NULL) {
+		DEBUG("no memory");
+		return;
+	}
+	entry->d_dev = dev->d_dev;
+	entry->d_unit = dev->d_unit;
+	entry->d_slice = dev->d_slice;
+	entry->d_partition = dev->d_partition;
+	entry->od = (struct open_disk *)dev->d_opendata;
+	entry->od->rcnt++;
+	entry->d_offset = dev->d_offset;
+#ifdef DISK_DEBUG
+	entry->count = 1;
+#endif
+	STAILQ_INSERT_TAIL(&opened_disks, entry, entry);
+	DEBUG("%s cached", disk_fmtdev(dev));
+}
+
+#ifdef DISK_DEBUG
+COMMAND_SET(dcachestat, "dcachestat", "get disk cache stats",
+    command_dcachestat);
+
+static int
+command_dcachestat(int argc, char *argv[])
+{
+	struct disk_devdesc dev;
+	struct dentry *entry;
+
+	STAILQ_FOREACH(entry, &opened_disks, entry) {
+		dev.d_dev = (struct devsw *)entry->d_dev;
+		dev.d_unit = entry->d_unit;
+		dev.d_slice = entry->d_slice;
+		dev.d_partition = entry->d_partition;
+		printf("%s %d => %p [%d]\n", disk_fmtdev(&dev), entry->count,
+		    entry->od, entry->od->rcnt);
+	}
+	return (CMD_OK);
+}
+#endif /* DISK_DEBUG */
 
 /* Convert size to a human-readable number. */
 static char *
@@ -145,25 +237,43 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 	struct open_disk *od;
 	struct ptable *table;
 	struct ptable_entry part;
-	int rc;
+	int rc, slice, partition;
 
-	od = (struct open_disk *)malloc(sizeof(struct open_disk));
-	if (od == NULL) {
-		DEBUG("no memory");
-		return (ENOMEM);
-	}
+	rc = disk_lookup(dev);
+	if (rc == 0)
+		return (0);
 	/*
 	 * While we are reading disk metadata, make sure we do it relative
 	 * to the start of the disk
 	 */
-	rc = 0;
-	table = NULL;
 	dev->d_offset = 0;
+	table = NULL;
+	slice = dev->d_slice;
+	partition = dev->d_partition;
+	if (rc == EAGAIN) {
+		/*
+		 * This entire disk was already opened and there is no
+		 * need to allocate new open_disk structure and open the
+		 * main partition table.
+		 */
+		od = (struct open_disk *)dev->d_opendata;
+		DEBUG("%s unit %d, slice %d, partition %d => %p (cached)",
+		    disk_fmtdev(dev), dev->d_unit, dev->d_slice,
+		    dev->d_partition, od);
+		goto opened;
+	} else {
+		od = (struct open_disk *)malloc(sizeof(struct open_disk));
+		if (od == NULL) {
+			DEBUG("no memory");
+			return (ENOMEM);
+		}
+	}
 	dev->d_opendata = od;
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
-	DEBUG("%s unit %d, slice %d, partition %d",
-	    disk_fmtdev(dev), dev->d_unit, dev->d_slice, dev->d_partition);
+	od->rcnt = 0;
+	DEBUG("%s unit %d, slice %d, partition %d => %p",
+	    disk_fmtdev(dev), dev->d_unit, dev->d_slice, dev->d_partition, od);
 
 	/* Determine disk layout. */
 	od->table = ptable_open(dev, mediasize / sectorsize, sectorsize,
@@ -173,35 +283,34 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		rc = ENXIO;
 		goto out;
 	}
+opened:
+	rc = 0;
 	if (ptable_gettype(od->table) == PTABLE_BSD &&
-	    dev->d_partition >= 0) {
+	    partition >= 0) {
 		/* It doesn't matter what value has d_slice */
-		rc = ptable_getpart(od->table, &part, dev->d_partition);
+		rc = ptable_getpart(od->table, &part, partition);
 		if (rc == 0)
 			dev->d_offset = part.start;
-	} else if (dev->d_slice >= 0) {
+	} else if (slice >= 0) {
 		/* Try to get information about partition */
-		if (dev->d_slice == 0)
+		if (slice == 0)
 			rc = ptable_getbestpart(od->table, &part);
 		else
-			rc = ptable_getpart(od->table, &part, dev->d_slice);
+			rc = ptable_getpart(od->table, &part, slice);
 		if (rc != 0) /* Partition doesn't exist */
 			goto out;
 		dev->d_offset = part.start;
-		if (dev->d_slice == 0) {
-			/* Save the slice number of best partition to dev */
-			dev->d_slice = part.index;
-			if (ptable_gettype(od->table) == PTABLE_GPT)
-				dev->d_partition = 255;
-		}
-		if (dev->d_partition == 255)
+		slice = part.index;
+		if (ptable_gettype(od->table) == PTABLE_GPT) {
+			partition = 255;
 			goto out; /* Nothing more to do */
+		}
 		/*
 		 * If d_partition < 0 and we are looking at a BSD slice,
 		 * then try to read BSD label, otherwise return the
 		 * whole MBR slice.
 		 */
-		if (dev->d_partition == -1 &&
+		if (partition == -1 &&
 		    part.type != PART_FREEBSD)
 			goto out;
 		/* Try to read BSD label */
@@ -217,12 +326,12 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 		 * assume the 'a' partition. Otherwise just return the
 		 * whole MBR slice, because it can contain ZFS.
 		 */
-		if (dev->d_partition < 0) {
+		if (partition < 0) {
 			if (ptable_gettype(table) != PTABLE_BSD)
 				goto out;
-			dev->d_partition = 0;
+			partition = 0;
 		}
-		rc = ptable_getpart(table, &part, dev->d_partition);
+		rc = ptable_getpart(table, &part, partition);
 		if (rc != 0)
 			goto out;
 		dev->d_offset += part.start;
@@ -232,12 +341,19 @@ out:
 		ptable_close(table);
 
 	if (rc != 0) {
-		if (od->table != NULL)
-			ptable_close(od->table);
-		free(od);
+		if (od->rcnt < 1) {
+			if (od->table != NULL)
+				ptable_close(od->table);
+			free(od);
+		}
 		DEBUG("%s could not open", disk_fmtdev(dev));
 	} else {
-		DEBUG("%s offset %lld", disk_fmtdev(dev), dev->d_offset);
+		disk_insert(dev);
+		/* Save the slice and partition number to the dev */
+		dev->d_slice = slice;
+		dev->d_partition = partition;
+		DEBUG("%s offset %lld => %p", disk_fmtdev(dev),
+		    dev->d_offset, od);
 	}
 	return (rc);
 }
@@ -245,13 +361,41 @@ out:
 int
 disk_close(struct disk_devdesc *dev)
 {
+#if DISK_DEBUG
 	struct open_disk *od;
 
 	od = (struct open_disk *)dev->d_opendata;
-	DEBUG("%s closed", disk_fmtdev(dev));
-	ptable_close(od->table);
-	free(od);
+	DEBUG("%s closed => %p [%d]", disk_fmtdev(dev), od, od->rcnt);
+#endif
 	return (0);
+}
+
+void
+disk_cleanup(const struct devsw *d_dev)
+{
+	struct disk_devdesc dev;
+	struct dentry *entry, *tmp;
+
+	STAILQ_FOREACH_SAFE(entry, &opened_disks, entry, tmp) {
+		if (entry->d_dev != d_dev)
+			continue;
+		entry->od->rcnt--;
+#ifdef DISK_DEBUG
+		dev.d_dev = (struct devsw *)entry->d_dev;
+		dev.d_unit = entry->d_unit;
+		dev.d_slice = entry->d_slice;
+		dev.d_partition = entry->d_partition;
+		STAILQ_REMOVE(&opened_disks, entry, dentry, entry);
+		DEBUG("%s was freed => %p [%d]", disk_fmtdev(&dev),
+		    entry->od, entry->od->rcnt);
+#endif
+		if (entry->od->rcnt < 1) {
+			if (entry->od->table != NULL)
+				ptable_close(entry->od->table);
+			free(entry->od);
+		}
+		free(entry);
+	}
 }
 
 char*
@@ -261,7 +405,7 @@ disk_fmtdev(struct disk_devdesc *dev)
 	char *cp;
 
 	cp = buf + sprintf(buf, "%s%d", dev->d_dev->dv_name, dev->d_unit);
-	if (dev->d_slice > 0) {
+	if (dev->d_slice >= 0) {
 #ifdef LOADER_GPT_SUPPORT
 		if (dev->d_partition == 255) {
 			sprintf(cp, "p%d:", dev->d_slice);

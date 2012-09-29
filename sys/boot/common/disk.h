@@ -95,6 +95,7 @@ struct disk_devdesc
 extern int disk_open(struct disk_devdesc *dev, off_t mediasize,
     u_int sectorsize);
 extern int disk_close(struct disk_devdesc *dev);
+extern void disk_cleanup(const struct devsw *d_dev);
 
 /*
  * Print information about slices on a disk.
