@@ -60,9 +60,9 @@ static volatile const long double tiny = 0x1p-10000L;
 
 static const union IEEEl2bits
 /* log(2**16384 - 0.5) rounded towards zero: */
-o_threshold = LD80C(0xb17217f7d1cf79ab, 13, 0,  11356.5234062941439488L),
+o_threshold = LD80C(0xb17217f7d1cf79ab, 13,  11356.5234062941439488L),
 /* log(2**(-16381-64-1)) rounded towards zero: */
-u_threshold = LD80C(0xb21dfe7f09e2baa9, 13, 1, -11399.4985314888605581L);
+u_threshold = LD80C(0xb21dfe7f09e2baa9, 13, -11399.4985314888605581L);
 
 static const double __aligned(64)
 /*
