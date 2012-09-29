@@ -143,7 +143,7 @@ f_sysrc_get()
 		# Clear the environment of all variables, preventing the
 		# expansion of normals such as `PS1', `TERM', etc.
 		#
-		f_clean_env --except RC_CONFS RC_DEFAULTS
+		f_clean_env --except IFS RC_CONFS RC_DEFAULTS
 
 		. "$RC_DEFAULTS" > /dev/null 2>&1
 
@@ -451,8 +451,7 @@ f_sysrc_set()
 		if [ "${RC_CONFS+set}" ]; then
 			file="${RC_CONFS%%[$IFS]*}"
 		else
-			file=$( f_sysrc_get rc_conf_files )
-			file="${file%%[$IFS]*}"
+			file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
 		fi
 	fi
 
