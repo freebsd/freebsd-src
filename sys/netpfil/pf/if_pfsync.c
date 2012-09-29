@@ -137,16 +137,16 @@ static int (*pfsync_acts[])(struct pfsync_pkt *, struct mbuf *, int, int) = {
 };
 
 struct pfsync_q {
-	int		(*write)(struct pf_state *, struct mbuf *, int);
+	void		(*write)(struct pf_state *, void *);
 	size_t		len;
 	u_int8_t	action;
 };
 
 /* we have one of these for every PFSYNC_S_ */
-static int	pfsync_out_state(struct pf_state *, struct mbuf *, int);
-static int	pfsync_out_iack(struct pf_state *, struct mbuf *, int);
-static int	pfsync_out_upd_c(struct pf_state *, struct mbuf *, int);
-static int	pfsync_out_del(struct pf_state *, struct mbuf *, int);
+static void	pfsync_out_state(struct pf_state *, void *);
+static void	pfsync_out_iack(struct pf_state *, void *);
+static void	pfsync_out_upd_c(struct pf_state *, void *);
+static void	pfsync_out_del(struct pf_state *, void *);
 
 static struct pfsync_q pfsync_qs[] = {
 	{ pfsync_out_state, sizeof(struct pfsync_state),   PFSYNC_ACT_INS },
@@ -1408,32 +1408,27 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (0);
 }
 
-static int
-pfsync_out_state(struct pf_state *st, struct mbuf *m, int offset)
+static void
+pfsync_out_state(struct pf_state *st, void *buf)
 {
-	struct pfsync_state *sp = (struct pfsync_state *)(m->m_data + offset);
+	struct pfsync_state *sp = buf;
 
 	pfsync_state_export(sp, st);
-
-	return (sizeof(*sp));
 }
 
-static int
-pfsync_out_iack(struct pf_state *st, struct mbuf *m, int offset)
+static void
+pfsync_out_iack(struct pf_state *st, void *buf)
 {
-	struct pfsync_ins_ack *iack =
-	    (struct pfsync_ins_ack *)(m->m_data + offset);
+	struct pfsync_ins_ack *iack = buf;
 
 	iack->id = st->id;
 	iack->creatorid = st->creatorid;
-
-	return (sizeof(*iack));
 }
 
-static int
-pfsync_out_upd_c(struct pf_state *st, struct mbuf *m, int offset)
+static void
+pfsync_out_upd_c(struct pf_state *st, void *buf)
 {
-	struct pfsync_upd_c *up = (struct pfsync_upd_c *)(m->m_data + offset);
+	struct pfsync_upd_c *up = buf;
 
 	bzero(up, sizeof(*up));
 	up->id = st->id;
@@ -1441,21 +1436,16 @@ pfsync_out_upd_c(struct pf_state *st, struct mbuf *m, int offset)
 	pf_state_peer_hton(&st->dst, &up->dst);
 	up->creatorid = st->creatorid;
 	up->timeout = st->timeout;
-
-	return (sizeof(*up));
 }
 
-static int
-pfsync_out_del(struct pf_state *st, struct mbuf *m, int offset)
+static void
+pfsync_out_del(struct pf_state *st, void *buf)
 {
-	struct pfsync_del_c *dp = (struct pfsync_del_c *)(m->m_data + offset);
+	struct pfsync_del_c *dp = buf;
 
 	dp->id = st->id;
 	dp->creatorid = st->creatorid;
-
 	st->state_flags |= PFSTATE_NOSYNC;
-
-	return (sizeof(*dp));
 }
 
 static void
@@ -1497,7 +1487,7 @@ pfsync_sendout(int schedswi)
 	struct ip *ip;
 	struct pfsync_header *ph;
 	struct pfsync_subheader *subh;
-	struct pf_state *st, *next;
+	struct pf_state *st;
 	struct pfsync_upd_req_item *ur;
 	int offset;
 	int q, count = 0;
@@ -1547,7 +1537,7 @@ pfsync_sendout(int schedswi)
 		offset += sizeof(*subh);
 
 		count = 0;
-		TAILQ_FOREACH_SAFE(st, &sc->sc_qs[q], sync_list, next) {
+		TAILQ_FOREACH(st, &sc->sc_qs[q], sync_list) {
 			KASSERT(st->sync_state == q,
 				("%s: st->sync_state == q",
 					__func__));
@@ -1555,7 +1545,8 @@ pfsync_sendout(int schedswi)
 			 * XXXGL: some of write methods do unlocked reads
 			 * of state data :(
 			 */
-			offset += pfsync_qs[q].write(st, m, offset);
+			pfsync_qs[q].write(st, m->m_data + offset);
+			offset += pfsync_qs[q].len;
 			st->sync_state = PFSYNC_S_NONE;
 			pf_release_state(st);
 			count++;
