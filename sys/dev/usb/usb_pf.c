@@ -111,6 +111,7 @@ usbpf_uninit(void)
 		if (ubus != NULL && ubus->ifp != NULL)
 			usbpf_clone_destroy(&usbpf_cloner, ubus->ifp);
 	}
+	free(devlp, M_TEMP);
 }
 
 static int
