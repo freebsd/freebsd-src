@@ -303,7 +303,7 @@ srandomdev(void)
 		len = rand_deg * sizeof state[0];
 
 	done = 0;
-	fd = _open("/dev/random", O_RDONLY, 0);
+	fd = _open("/dev/random", O_RDONLY | O_CLOEXEC, 0);
 	if (fd >= 0) {
 		if (_read(fd, (void *) state, len) == (ssize_t) len)
 			done = 1;
