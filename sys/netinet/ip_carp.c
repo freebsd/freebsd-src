@@ -771,10 +771,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		MGETHDR(m, M_NOWAIT, MT_HEADER);
 		if (m == NULL) {
 			CARPSTATS_INC(carps_onomem);
-			/* XXX maybe less ? */
-			callout_reset(&sc->sc_ad_tmo, tvtohz(&tv),
-			    carp_send_ad, sc);
-			return;
+			goto resched;
 		}
 		len = sizeof(*ip) + sizeof(ch);
 		m->m_pkthdr.len = len;
@@ -807,7 +804,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ch_ptr = (struct carp_header *)(&ip[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
 		if (carp_prepare_ad(m, sc, ch_ptr))
-			return;
+			goto resched;
 
 		m->m_data += sizeof(*ip);
 		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip));
@@ -842,10 +839,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		MGETHDR(m, M_NOWAIT, MT_HEADER);
 		if (m == NULL) {
 			CARPSTATS_INC(carps_onomem);
-			/* XXX maybe less ? */
-			callout_reset(&sc->sc_ad_tmo, tvtohz(&tv),
-			    carp_send_ad, sc);
-			return;
+			goto resched;
 		}
 		len = sizeof(*ip6) + sizeof(ch);
 		m->m_pkthdr.len = len;
@@ -877,13 +871,13 @@ carp_send_ad_locked(struct carp_softc *sc)
 		if (in6_setscope(&ip6->ip6_dst, sc->sc_carpdev, NULL) != 0) {
 			m_freem(m);
 			CARP_DEBUG("%s: in6_setscope failed\n", __func__);
-			return;
+			goto resched;
 		}
 
 		ch_ptr = (struct carp_header *)(&ip6[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
 		if (carp_prepare_ad(m, sc, ch_ptr))
-			return;
+			goto resched;
 
 		m->m_data += sizeof(*ip6);
 		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip6));
@@ -913,6 +907,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 	}
 #endif /* INET6 */
 
+resched:
 	callout_reset(&sc->sc_ad_tmo, tvtohz(&tv), carp_send_ad, sc);
 }
 
