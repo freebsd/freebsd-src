@@ -207,12 +207,16 @@ do {								\
   (d) = se_u.e;							\
 } while (0)
 
-/* Long double constants are broken on i386.  This workaround is OK always. */
-#define	LD80C(m, ex, s, v) {					\
-	/* .e = v, */		/* overwritten */		\
-	.xbits.man = __CONCAT(m, ULL),				\
-	.xbits.expsign = (0x3fff + (ex)) | ((s) ? 0x8000 : 0),	\
+#ifdef __i386__
+/* Long double constants are broken on i386. */
+#define	LD80C(m, ex, v) {						\
+	.xbits.man = __CONCAT(m, ULL),					\
+	.xbits.expsign = (0x3fff + (ex)) | ((v) < 0 ? 0x8000 : 0),	\
 }
+#else
+/* The above works on non-i386 too, but we use this to check v. */
+#define	LD80C(m, ex, v)	{ .e = (v), }
+#endif
 
 #ifdef FLT_EVAL_METHOD
 /*
