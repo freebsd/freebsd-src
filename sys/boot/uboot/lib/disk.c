@@ -142,6 +142,7 @@ stor_cleanup(void)
 	for (i = 0; i < stor_info_no; i++)
 		if (stor_info[i].opened > 0)
 			ub_dev_close(stor_info[i].handle);
+	disk_cleanup(&uboot_storage);
 }
 
 static int
