@@ -616,8 +616,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 
 void vector_page_setprot(int);
 
-void pmap_update(pmap_t);
-
 /*
  * This structure is used by machine-dependent code to describe
  * static mappings of devices, created at bootstrap time.
