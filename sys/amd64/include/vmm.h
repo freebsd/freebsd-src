@@ -89,7 +89,7 @@ extern struct vmm_ops vmm_ops_amd;
 struct vm *vm_create(const char *name);
 void vm_destroy(struct vm *vm);
 const char *vm_name(struct vm *vm);
-int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t *ret_hpa);
+int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
 vm_paddr_t vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t size);
