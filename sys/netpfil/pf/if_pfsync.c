@@ -236,6 +236,8 @@ static void	pfsyncintr(void *);
 static int	pfsync_multicast_setup(struct pfsync_softc *, struct ifnet *,
 		    void *);
 static void	pfsync_multicast_cleanup(struct pfsync_softc *);
+static void	pfsync_pointers_init(void);
+static void	pfsync_pointers_uninit(void);
 static int	pfsync_init(void);
 static void	pfsync_uninit(void);
 
@@ -1267,11 +1269,15 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		PFSYNC_LOCK(sc);
-		if (ifp->if_flags & IFF_UP)
+		if (ifp->if_flags & IFF_UP) {
 			ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		else
+			PFSYNC_UNLOCK(sc);
+			pfsync_pointers_init();
+		} else {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		PFSYNC_UNLOCK(sc);
+			PFSYNC_UNLOCK(sc);
+			pfsync_pointers_uninit();
+		}
 		break;
 	case SIOCSIFMTU:
 		if (!sc->sc_sync_if ||
@@ -2266,6 +2272,34 @@ static struct protosw in_pfsync_protosw = {
 };
 #endif
 
+static void
+pfsync_pointers_init()
+{
+
+	PF_RULES_WLOCK();
+	pfsync_state_import_ptr = pfsync_state_import;
+	pfsync_insert_state_ptr = pfsync_insert_state;
+	pfsync_update_state_ptr = pfsync_update_state;
+	pfsync_delete_state_ptr = pfsync_delete_state;
+	pfsync_clear_states_ptr = pfsync_clear_states;
+	pfsync_defer_ptr = pfsync_defer;
+	PF_RULES_WUNLOCK();
+}
+
+static void
+pfsync_pointers_uninit()
+{
+
+	PF_RULES_WLOCK();
+	pfsync_state_import_ptr = NULL;
+	pfsync_insert_state_ptr = NULL;
+	pfsync_update_state_ptr = NULL;
+	pfsync_delete_state_ptr = NULL;
+	pfsync_clear_states_ptr = NULL;
+	pfsync_defer_ptr = NULL;
+	PF_RULES_WUNLOCK();
+}
+
 static int
 pfsync_init()
 {
@@ -2296,14 +2330,7 @@ pfsync_init()
 		goto fail;
 	}
 #endif
-	PF_RULES_WLOCK();
-	pfsync_state_import_ptr = pfsync_state_import;
-	pfsync_insert_state_ptr = pfsync_insert_state;
-	pfsync_update_state_ptr = pfsync_update_state;
-	pfsync_delete_state_ptr = pfsync_delete_state;
-	pfsync_clear_states_ptr = pfsync_clear_states;
-	pfsync_defer_ptr = pfsync_defer;
-	PF_RULES_WUNLOCK();
+	pfsync_pointers_init();
 
 	return (0);
 
@@ -2328,14 +2355,7 @@ pfsync_uninit()
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	PF_RULES_WLOCK();
-	pfsync_state_import_ptr = NULL;
-	pfsync_insert_state_ptr = NULL;
-	pfsync_update_state_ptr = NULL;
-	pfsync_delete_state_ptr = NULL;
-	pfsync_clear_states_ptr = NULL;
-	pfsync_defer_ptr = NULL;
-	PF_RULES_WUNLOCK();
+	pfsync_pointers_uninit();
 
 	ipproto_unregister(IPPROTO_PFSYNC);
 	pf_proto_unregister(PF_INET, IPPROTO_PFSYNC, SOCK_RAW);
