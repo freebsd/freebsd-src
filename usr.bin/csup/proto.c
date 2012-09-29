@@ -727,8 +727,10 @@ proto_printf(struct stream *wr, const char *format, ...)
 	while ((cp = strchr(fmt, '%')) != NULL) {
 		if (cp > fmt) {
 			n = stream_write(wr, fmt, cp - fmt);
-			if (n == -1)
+			if (n == -1) {
+				va_end(ap);
 				return (-1);
+			}
 		}
 		if (*++cp == '\0')
 			goto done;
