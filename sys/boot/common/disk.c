@@ -373,7 +373,9 @@ disk_close(struct disk_devdesc *dev)
 void
 disk_cleanup(const struct devsw *d_dev)
 {
+#ifdef DISK_DEBUG
 	struct disk_devdesc dev;
+#endif
 	struct dentry *entry, *tmp;
 
 	STAILQ_FOREACH_SAFE(entry, &opened_disks, entry, tmp) {
@@ -385,10 +387,10 @@ disk_cleanup(const struct devsw *d_dev)
 		dev.d_unit = entry->d_unit;
 		dev.d_slice = entry->d_slice;
 		dev.d_partition = entry->d_partition;
-		STAILQ_REMOVE(&opened_disks, entry, dentry, entry);
 		DEBUG("%s was freed => %p [%d]", disk_fmtdev(&dev),
 		    entry->od, entry->od->rcnt);
 #endif
+		STAILQ_REMOVE(&opened_disks, entry, dentry, entry);
 		if (entry->od->rcnt < 1) {
 			if (entry->od->table != NULL)
 				ptable_close(entry->od->table);
