@@ -125,6 +125,7 @@ LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND}
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
+CFLAGS+=	-DLOADER_PREFER_AMD64
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif
