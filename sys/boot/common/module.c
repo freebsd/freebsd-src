@@ -271,6 +271,7 @@ command_lsmod(int argc, char *argv[])
 int
 file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 {
+    static int last_file_format = 0;
     struct preloaded_file *fp;
     int error;
     int i;
@@ -279,12 +280,18 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 	dest = archsw.arch_loadaddr(LOAD_RAW, filename, dest);
 
     error = EFTYPE;
-    for (i = 0, fp = NULL; file_formats[i] && fp == NULL; i++) {
+    for (i = last_file_format, fp = NULL;
+	file_formats[i] && fp == NULL; i++) {
 	error = (file_formats[i]->l_load)(filename, dest, &fp);
 	if (error == 0) {
-	    fp->f_loader = i;		/* remember the loader */
+	    fp->f_loader = last_file_format = i; /* remember the loader */
 	    *result = fp;
 	    break;
+	} else if (last_file_format == i && i != 0) {
+		/* Restart from the beginning */
+		last_file_format = i = 0;
+		fp = NULL;
+		continue;
 	}
 	if (error == EFTYPE)
 	    continue;		/* Unknown to this handler? */
