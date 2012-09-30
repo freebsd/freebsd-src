@@ -60,10 +60,10 @@
 struct authunix_parms {
 	u_long	 aup_time;
 	char	*aup_machname;
-	uid_t	 aup_uid;
-	gid_t	 aup_gid;
+	int	 aup_uid;
+	int	 aup_gid;
 	u_int	 aup_len;
-	gid_t	*aup_gids;
+	int	*aup_gids;
 };
 
 #define authsys_parms authunix_parms
