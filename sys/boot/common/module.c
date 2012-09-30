@@ -288,10 +288,10 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 	    *result = fp;
 	    break;
 	} else if (last_file_format == i && i != 0) {
-		/* Restart from the beginning */
-		last_file_format = i = 0;
-		fp = NULL;
-		continue;
+	    /* Restart from the beginning */
+	    last_file_format = i = 0;
+	    fp = NULL;
+	    continue;
 	}
 	if (error == EFTYPE)
 	    continue;		/* Unknown to this handler? */
