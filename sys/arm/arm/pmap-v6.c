@@ -2307,7 +2307,6 @@ pmap_remove_all(vm_page_t m)
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		return;
 	rw_wlock(&pvh_global_lock);
-	pmap_remove_write(m);
 	curpm = vmspace_pmap(curproc->p_vmspace);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		if (flush == FALSE && (pv->pv_pmap == curpm ||
@@ -2318,6 +2317,8 @@ pmap_remove_all(vm_page_t m)
 		l2b = pmap_get_l2_bucket(pv->pv_pmap, pv->pv_va);
 		KASSERT(l2b != NULL, ("No l2 bucket"));
 		ptep = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
+		if (L2_S_WRITABLE(*ptep))
+			vm_page_dirty(m);
 		*ptep = 0;
 		if (pmap_is_current(pv->pv_pmap))
 			PTE_SYNC(ptep);
@@ -2328,6 +2329,7 @@ pmap_remove_all(vm_page_t m)
 		PMAP_UNLOCK(pv->pv_pmap);
 		pmap_free_pv_entry(pv);
 	}
+	m->md.pvh_attrs &= ~(PVF_MOD | PVF_REF);
 
 	if (flush) {
 		if (PV_BEEN_EXECD(flags))
