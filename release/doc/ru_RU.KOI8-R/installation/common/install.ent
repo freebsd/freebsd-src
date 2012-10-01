@@ -13,10 +13,10 @@
 
 <!-- Files to be included -->
 
-<!ENTITY artheader SYSTEM "artheader.sgml">
-<!ENTITY abstract SYSTEM "abstract.sgml">
-<!ENTITY sect.install SYSTEM "install.sgml">
-<!ENTITY sect.layout SYSTEM "layout.sgml">
-<!ENTITY sect.upgrade SYSTEM "upgrade.sgml">
-<!ENTITY sect.trouble SYSTEM "trouble.sgml">
+<!ENTITY artheader SYSTEM "artheader.xml">
+<!ENTITY abstract SYSTEM "abstract.xml">
+<!ENTITY sect.install SYSTEM "install.xml">
+<!ENTITY sect.layout SYSTEM "layout.xml">
+<!ENTITY sect.upgrade SYSTEM "upgrade.xml">
+<!ENTITY sect.trouble SYSTEM "trouble.xml">
 

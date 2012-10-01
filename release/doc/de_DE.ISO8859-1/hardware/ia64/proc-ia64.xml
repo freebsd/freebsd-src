@@ -1,0 +1,108 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/ia64/proc-ia64.xml,v 1.5 2003/05/24 22:16:24 ue Exp $
+  basiert auf: 1.7
+-->
+<sect1 id="proc-ia64">
+  <title>Unterst&uuml;tzte Prozessoren und Mainboards</title>
+
+  <para>Zur Zeit werden die <ulink
+    url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
+    und <ulink
+    url="http://www.intel.com/design/itanium2/index.htm">Itanium
+    2</ulink> Prozessoren unterst&uuml;tzt.  Die folgenden
+    Mainboard-Chips&auml;tze werden unterst&uuml;tzt:</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>HP zx1 (nur auf dem Entwicklungszweig, weitere
+        Informationen finden Sie im <ulink
+        url="http://perforce.freebsd.org/">Perforce
+        repository</ulink>) </para>
+    </listitem>
+
+    <listitem>
+      <para>HP i2000</para>
+    </listitem>
+
+    <listitem>
+      <para>Intel 460GX</para>
+    </listitem>
+
+    <listitem>
+      <para>Intel E8870</para>
+    </listitem>
+  </itemizedlist>
+
+  <para>Zur Zeit wird sowohl an Ein-Prozessor (UP) als auch an
+    Mehr-Prozessor Systemen gearbeitet.  Letztere sind zur Zeit
+    weniger stabil.  Zur Zeit konzentriert sich die Arbeit auf
+    Verbesserungen f&uuml;r UP-Systeme, um deren Stabilit&auml;t zu
+    erh&ouml;hen.</para>
+
+  <sect2>
+    <title>&Uuml;bersicht &uuml;ber die unterst&uuml;tzten
+      Systeme</title>
+
+    <para>Dieser Abschnitt enth&auml;lt zus&auml;tzliche Informationen
+      dar&uuml;ber, welche Ger&auml;te von &os;/&arch;
+      unterst&uuml;tzt werden und welche nicht.</para>
+
+    <para>Mit Ausnahme der in die PC-Chips&auml;tze integrierten
+      Varianten sollten alle &man.ata.4; Kontroller sofort
+      funktionieren.  Wir gehen davon aus, da&szlig; fr&uuml;her oder
+      sp&auml;ter alle &arch;-kompatiblen Kontroller vollst&auml;ndig
+      unterst&uuml;tzt werden.  In den folgenden Abschnitten finden
+      Sie genauere Informationen &uuml;ber die verschiedenen
+      Festplattencontroller und ihren aktuellen Status.</para>
+
+    <para>Ganz generell sollten serielle Schnittstellen nach
+      <quote>PC-Standard</quote> auf Intel-Hardware funktionieren,
+      w&auml;hrend sie auf PA-Hardware nicht funktionieren werden.
+      Der Grund ist, da&szlig; auf HP-Maschinen alle Ger&auml;te in
+      den Speicher eingeblendet werden.  Mit Ausnahme der von PCI
+      verlangten VGA-Unterst&uuml;tzung gibt es
+      <emphasis>keinerlei</emphasis> Unterst&uuml;tzung f&uuml;r
+      ISA-Ger&auml;te.</para>
+
+    <para>Au&szlig;er den schon genannten seriellen Schnittstellen mit
+      &man.sio.4;-Treiber gibt es eine Reihe weiterer Ger&auml;ten,
+      von denen wir wissen, da&szlig; sie auf Nicht-Intel Systemen
+      nicht funktionieren k&ouml;nnen, weil sie sich auf
+      ISA-spezifische Begebenheiten verlassen, die nicht mehr
+      zutreffen.  Diese Ger&auml;te sollten jedoch auf Intel-Hardware
+      funktionieren.</para>
+
+    <informaltable frame="none">
+      <tgroup cols="2">
+        <tbody>
+          <row>
+            <entry>&man.sio.4;</entry>
+
+            <entry>Keine Unterst&uuml;tzung f&uuml;r I/O durch in den
+              Hauptspeicher eingeblendete Bereiche</entry>
+          </row>
+
+          <row>
+            <entry>&man.syscons.4;</entry>
+
+            <entry>Erwartet ein BIOS, VGA-Erkennung, etc.</entry>
+          </row>
+
+          <row>
+            <entry>&man.pcm.4;</entry>
+
+            <entry>Pr&uuml;ft MSS ISA Ports <emphasis>bis zum
+              Erbrechen</emphasis></entry>
+          </row>
+
+          <row>
+            <entry>&man.atkbd.4;, &man.psm.4;</entry>
+
+            <entry>Fest verdrahte ISA-Adressen</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </informaltable>
+  </sect2>
+</sect1>
