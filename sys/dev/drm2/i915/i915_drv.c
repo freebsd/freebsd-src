@@ -486,14 +486,14 @@ __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 
 	count = 0;
 	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK) & 1))
-		DELAY(10000);
+		DELAY(10);
 
 	I915_WRITE_NOTRACE(FORCEWAKE, 1);
 	POSTING_READ(FORCEWAKE);
 
 	count = 0;
 	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK) & 1) == 0)
-		DELAY(10000);
+		DELAY(10);
 }
 
 void
@@ -503,14 +503,14 @@ __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 
 	count = 0;
 	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_MT_ACK) & 1))
-		DELAY(10000);
+		DELAY(10);
 
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, (1<<16) | 1);
 	POSTING_READ(FORCEWAKE_MT);
 
 	count = 0;
 	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_MT_ACK) & 1) == 0)
-		DELAY(10000);
+		DELAY(10);
 }
 
 void
@@ -572,7 +572,7 @@ __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 		int loop = 500;
 		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
 		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
-			DELAY(10000);
+			DELAY(10);
 			fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
 		}
 		if (loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES) {
