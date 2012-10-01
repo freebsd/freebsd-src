@@ -123,7 +123,7 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
-			   , "+r" (address), "+r" (setmask) : : "memory");
+			   , "+r" (address), "+r" (setmask) : : "cc", "memory");
 			     
 }
 
@@ -138,7 +138,7 @@ atomic_set_long(volatile u_long *address, u_long setmask)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
-			   , "+r" (address), "+r" (setmask) : : "memory");
+			   , "+r" (address), "+r" (setmask) : : "cc", "memory");
 			     
 }
 
@@ -153,7 +153,7 @@ atomic_clear_32(volatile uint32_t *address, uint32_t setmask)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
-			   ,"+r" (address), "+r" (setmask) : : "memory");
+			   ,"+r" (address), "+r" (setmask) : : "cc", "memory");
 }
 
 static __inline void
@@ -167,7 +167,7 @@ atomic_clear_long(volatile u_long *address, u_long setmask)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
-			   ,"+r" (address), "+r" (setmask) : : "memory");
+			   ,"+r" (address), "+r" (setmask) : : "cc", "memory");
 }
 
 static __inline u_int32_t
@@ -185,7 +185,8 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 			 "moveq %0, #1\n"
 			 "2:"
 			 : "=&r" (ret)
-			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "memory");
+			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc",
+			 "memory");
 	return (ret);
 }
 
@@ -204,7 +205,8 @@ atomic_cmpset_long(volatile u_long *p, volatile u_long cmpval, volatile u_long n
 			 "moveq %0, #1\n"
 			 "2:"
 			 : "=&r" (ret)
-			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "memory");
+			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc",
+			 "memory");
 	return (ret);
 }
 
@@ -254,7 +256,7 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
-			    ,"+r" (p), "+r" (val) : : "memory");
+			    ,"+r" (p), "+r" (val) : : "cc", "memory");
 }
 
 static __inline void
@@ -268,7 +270,7 @@ atomic_add_long(volatile u_long *p, u_long val)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
-			    ,"+r" (p), "+r" (val) : : "memory");
+			    ,"+r" (p), "+r" (val) : : "cc", "memory");
 }
 
 static __inline void
@@ -282,7 +284,7 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
-			    ,"+r" (p), "+r" (val) : : "memory");
+			    ,"+r" (p), "+r" (val) : : "cc", "memory");
 }
 
 static __inline void
@@ -296,7 +298,7 @@ atomic_subtract_long(volatile u_long *p, u_long val)
 			    "cmp %1, #0\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
-			    ,"+r" (p), "+r" (val) : : "memory");
+			    ,"+r" (p), "+r" (val) : : "cc", "memory");
 }
 
 ATOMIC_ACQ_REL(clear, 32)
@@ -322,7 +324,7 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t val)
 			    "cmp %2, #0\n"
 			    "bne	1b\n"
 			   : "+r" (ret), "=&r" (tmp), "+r" (tmp2)
-			   ,"+r" (p), "+r" (val) : : "memory");
+			   ,"+r" (p), "+r" (val) : : "cc", "memory");
 	return (ret);
 }
 
@@ -337,7 +339,7 @@ atomic_readandclear_32(volatile u_int32_t *p)
 			 "cmp %2, #0\n"
 			 "bne 1b\n"
 			 : "=r" (ret), "=&r" (tmp), "+r" (tmp2)
-			 ,"+r" (p) : : "memory");
+			 ,"+r" (p) : : "cc", "memory");
 	return (ret);
 }
 
@@ -370,7 +372,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long val)
 			    "cmp %2, #0\n"
 			    "bne	1b\n"
 			   : "+r" (ret), "=&r" (tmp), "+r" (tmp2)
-			   ,"+r" (p), "+r" (val) : : "memory");
+			   ,"+r" (p), "+r" (val) : : "cc", "memory");
 	return (ret);
 }
 
@@ -385,7 +387,7 @@ atomic_readandclear_long(volatile u_long *p)
 			 "cmp %2, #0\n"
 			 "bne 1b\n"
 			 : "=r" (ret), "=&r" (tmp), "+r" (tmp2)
-			 ,"+r" (p) : : "memory");
+			 ,"+r" (p) : : "cc", "memory");
 	return (ret);
 }
 
@@ -516,7 +518,7 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	    "moveq	%1, #1\n"
 	    "movne	%1, #0\n"
 	    : "+r" (ras_start), "=r" (done)
-	    ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "memory");
+	    ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc", "memory");
 	return (done);
 }
 
