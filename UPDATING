@@ -24,6 +24,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20120913:
+	The random(4) support for the VIA hardware random number
+	generator (`PADLOCK') is no longer enabled unconditionally.
+	Add the PADLOCK_RNG option in the custom kernel config if
+	needed.  The GENERIC kernels on i386 and amd64 do include the
+	option, so the change only affects the custom kernel
+	configurations.
+
 20120908:
 	The pf(4) packet filter ABI has been changed. pfctl(8) and
 	snmp_pf module need to be recompiled to work with new kernel.
