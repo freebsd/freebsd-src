@@ -81,6 +81,7 @@
 #define	CAP_MKDIR		0x0000000000200000ULL
 #define	CAP_RMDIR		0x0000000000400000ULL
 #define	CAP_MKFIFO		0x0000000000800000ULL
+#define	CAP_MKNOD		0x0080000000000000ULL
 
 /* Lookups - used to constrain *at() calls. */
 #define	CAP_LOOKUP		0x0000000001000000ULL
@@ -137,7 +138,7 @@
 #define	CAP_PDKILL		0x0040000000000000ULL
 
 /* The mask of all valid method rights. */
-#define	CAP_MASK_VALID		0x007fffffffffffffULL
+#define	CAP_MASK_VALID		0x00ffffffffffffffULL
 
 #ifdef _KERNEL
 
