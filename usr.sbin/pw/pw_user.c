@@ -314,7 +314,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		 * know.
 		 */
 		if (mode != M_ADD && pwd == NULL
-		    && strspn(a_name->val, "0123456789") == strlen(a_name->val)) {
+		    && strspn(a_name->val, "0123456789") == strlen(a_name->val)
+		    && *a_name->val) {
 			(a_uid = a_name)->ch = 'u';
 			a_name = NULL;
 		}
