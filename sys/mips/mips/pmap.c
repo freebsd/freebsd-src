@@ -190,10 +190,9 @@ static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t);
 static pt_entry_t init_pte_prot(vm_page_t m, vm_prot_t access, vm_prot_t prot);
 
-#ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
+static void pmap_invalidate_range_action(void *arg);
 static void pmap_update_page_action(void *arg);
-#endif
 
 #ifndef __mips_n64
 /*
@@ -709,6 +708,31 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	arg.pmap = pmap;
 	arg.va = va;
 	pmap_call_on_active_cpus(pmap, pmap_invalidate_page_action, &arg);
+}
+
+struct pmap_invalidate_range_arg {
+	pmap_t pmap;
+	vm_offset_t sva;
+	vm_offset_t eva;
+};
+
+static void
+pmap_invalidate_range_action(void *arg)
+{
+	struct pmap_invalidate_range_arg *p = arg;
+
+	tlb_invalidate_range(p->pmap, p->sva, p->eva);
+}
+
+static void
+pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct pmap_invalidate_range_arg arg;
+
+	arg.pmap = pmap;
+	arg.sva = sva;
+	arg.eva = eva;
+	pmap_call_on_active_cpus(pmap, pmap_invalidate_range_action, &arg);
 }
 
 struct pmap_update_page_arg {
@@ -1737,12 +1761,15 @@ pmap_remove_page(struct pmap *pmap, vm_offset_t va)
  *	rounded to the page size.
  */
 void
-pmap_remove(struct pmap *pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	vm_offset_t va_next;
 	pd_entry_t *pde, *pdpe;
 	pt_entry_t *pte;
+	vm_offset_t va, va_next;
 
+	/*
+	 * Perform an unsynchronized read.  This is, however, safe.
+	 */
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
@@ -1772,17 +1799,36 @@ pmap_remove(struct pmap *pmap, vm_offset_t sva, vm_offset_t eva)
 			va_next = eva;
 
 		pde = pmap_pdpe_to_pde(pdpe, sva);
-		if (*pde == 0)
+		if (*pde == NULL)
 			continue;
+
+		/*
+		 * Limit our scan to either the end of the va represented
+		 * by the current page table page, or to the end of the
+		 * range being removed.
+		 */
 		if (va_next > eva)
 			va_next = eva;
+
+		va = va_next;
 		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
 		    sva += PAGE_SIZE) {
-			if (!pte_test(pte, PTE_V))
+			if (!pte_test(pte, PTE_V)) {
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
 				continue;
-			pmap_remove_pte(pmap, pte, sva, *pde);
-			pmap_invalidate_page(pmap, sva);
+			}
+			if (va == va_next)
+				va = sva;
+			if (pmap_remove_pte(pmap, pte, sva, *pde)) {
+				sva += PAGE_SIZE;
+				break;
+			}
 		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 out:
 	rw_wunlock(&pvh_global_lock);
