@@ -2730,7 +2730,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 			bus_dma_segment_t *req_sg;
 
 			req_sg = (bus_dma_segment_t *)ccb->smpio.smp_request;
-			request = (uint8_t *)req_sg[0].ds_addr;
+			request = (uint8_t *)(uintptr_t)req_sg[0].ds_addr;
 		} else
 			request = ccb->smpio.smp_request;
 
@@ -2738,7 +2738,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 			bus_dma_segment_t *rsp_sg;
 
 			rsp_sg = (bus_dma_segment_t *)ccb->smpio.smp_response;
-			response = (uint8_t *)rsp_sg[0].ds_addr;
+			response = (uint8_t *)(uintptr_t)rsp_sg[0].ds_addr;
 		} else
 			response = ccb->smpio.smp_response;
 	} else {
