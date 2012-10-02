@@ -995,9 +995,9 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	int atomic = sosendallatonce(so) || top;
 #endif
 
-	KASSERT(so->so_type == SOCK_DGRAM, ("sodgram_send: !SOCK_DGRAM"));
+	KASSERT(so->so_type == SOCK_DGRAM, ("sosend_dgram: !SOCK_DGRAM"));
 	KASSERT(so->so_proto->pr_flags & PR_ATOMIC,
-	    ("sodgram_send: !PR_ATOMIC"));
+	    ("sosend_dgram: !PR_ATOMIC"));
 
 	if (uio != NULL)
 		resid = uio->uio_resid;
