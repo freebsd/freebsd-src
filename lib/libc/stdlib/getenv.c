@@ -675,11 +675,13 @@ unsetenv(const char *name)
 
 	/* Deactivate specified variable. */
 	envNdx = envVarsTotal - 1;
-	if (__findenv(name, nameLen, &envNdx, true) != NULL) {
+	/* Remove all occurrences. */
+	while (__findenv(name, nameLen, &envNdx, true) != NULL) {
 		envVars[envNdx].active = false;
 		if (envVars[envNdx].putenv)
 			__remove_putenv(envNdx);
 		__rebuild_environ(envActive - 1);
+		envNdx = envVarsTotal - 1;
 	}
 
 	return (0);
