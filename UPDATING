@@ -24,6 +24,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121001:
+	The net80211(4) ABI has been changed to allow for improved driver
+	PS-POLL and power-save support.  All wireless drivers need to be
+	recompiled to work with the new kernel.
+
 20120913:
 	The random(4) support for the VIA hardware random number
 	generator (`PADLOCK') is no longer enabled unconditionally.
