@@ -103,7 +103,6 @@ struct uhub_softc {
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
-	char	sc_name[32];
 };
 
 #define	UHUB_PROTO(sc) ((sc)->sc_udev->ddesc.bDeviceProtocol)
@@ -926,9 +925,6 @@ uhub_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	mtx_init(&sc->sc_mtx, "USB HUB mutex", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
 
 	device_set_usb_desc(dev);
 
