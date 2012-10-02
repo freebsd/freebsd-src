@@ -179,12 +179,12 @@ enc_modevent(module_t mod, int type, void *data)
 }
 
 static moduledata_t enc_mod = {
-	"enc",
+	"if_enc",
 	enc_modevent,
 	0
 };
 
-DECLARE_MODULE(enc, enc_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 static int
 enc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
