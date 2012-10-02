@@ -8,7 +8,7 @@ SUBDIR+= 	${RELNOTES_LANG}
 .else
 SUBDIR+=	en_US.ISO8859-1
 .endif
-SUBDIR+=	share/sgml
+SUBDIR+=	share/xml
 
 RELN_ROOT?= ${.CURDIR}
 
