@@ -1832,9 +1832,15 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 	PFSYNC_LOCK_ASSERT(sc);
 
 	/*
-	 * This code does nothing to prevent multiple update requests for the
-	 * same state being generated.
+	 * This code does a bit to prevent multiple update requests for the
+	 * same state being generated. It searches current subheader queue,
+	 * but it doesn't lookup into queue of already packed datagrams.
 	 */
+	TAILQ_FOREACH(item, &sc->sc_upd_req_list, ur_entry)
+		if (item->ur_msg.id == id &&
+		    item->ur_msg.creatorid == creatorid)
+			return;
+
 	item = malloc(sizeof(*item), M_PFSYNC, M_NOWAIT);
 	if (item == NULL)
 		return; /* XXX stats */
@@ -1854,8 +1860,6 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 
 	TAILQ_INSERT_TAIL(&sc->sc_upd_req_list, item, ur_entry);
 	sc->sc_len += nlen;
-
-	pfsync_push(sc);
 }
 
 static void
