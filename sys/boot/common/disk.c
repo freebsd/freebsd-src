@@ -192,6 +192,7 @@ disk_readslicetab(struct disk_devdesc *dev,
 	 */
 	if (buf[0x1fe] != 0x55 || buf[0x1ff] != 0xaa) {
 		DEBUG("no slice table/MBR (no magic)");
+		rc = EEXIST;
 		return (rc);
 	}
 

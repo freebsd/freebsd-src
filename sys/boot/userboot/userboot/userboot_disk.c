@@ -103,6 +103,7 @@ userdisk_open(struct open_file *f, ...)
 {
 	va_list			ap;
 	struct disk_devdesc	*dev;
+	int			rc;
 
 	va_start(ap, f);
 	dev = va_arg(ap, struct disk_devdesc *);
@@ -111,7 +112,15 @@ userdisk_open(struct open_file *f, ...)
 	if (dev->d_unit < 0 || dev->d_unit >= userboot_disk_maxunit)
 		return (EIO);
 
-	return (disk_open(dev));
+	rc = disk_open(dev);
+
+	/*
+	 * No MBR/GPT - assume a raw disk image
+	 */
+	if (rc)
+		dev->d_offset = 0;
+
+	return (0);
 }
 
 static int
