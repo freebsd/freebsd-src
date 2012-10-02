@@ -1443,7 +1443,6 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
-		case TCP_KEEPCNT:
 		case TCP_KEEPINIT:
 			INP_WUNLOCK(inp);
 			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
@@ -1476,13 +1475,6 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 					tcp_timer_activate(tp, TT_2MSL,
 					    TP_MAXIDLE(tp));
 				break;
-			case TCP_KEEPCNT:
-				tp->t_keepcnt = ui;
-				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
-				    (TP_MAXIDLE(tp) > 0))
-					tcp_timer_activate(tp, TT_2MSL,
-					    TP_MAXIDLE(tp));
-				break;
 			case TCP_KEEPINIT:
 				tp->t_keepinit = ui;
 				if (tp->t_state == TCPS_SYN_RECEIVED ||
@@ -1491,6 +1483,21 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 					    TP_KEEPINIT(tp));
 				break;
 			}
+			INP_WUNLOCK(inp);
+			break;
+
+		case TCP_KEEPCNT:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
+			if (error)
+				return (error);
+
+			INP_WLOCK_RECHECK(inp);
+			tp->t_keepcnt = ui;
+			if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+			    (TP_MAXIDLE(tp) > 0))
+				tcp_timer_activate(tp, TT_2MSL,
+				    TP_MAXIDLE(tp));
 			INP_WUNLOCK(inp);
 			break;
 
