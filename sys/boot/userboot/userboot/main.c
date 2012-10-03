@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #define	USERBOOT_VERSION	USERBOOT_VERSION_2
 
-struct loader_callbacks_v1 *callbacks;
+struct loader_callbacks *callbacks;
 void *callbacks_arg;
 
 extern char bootprog_name[];
@@ -67,7 +67,7 @@ exit(int v)
 }
 
 void
-loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
+loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 {
 	static char malloc[512*1024];
 	int i;
