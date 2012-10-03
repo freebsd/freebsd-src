@@ -404,6 +404,11 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 vm_paddr_t
 vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
+	vm_paddr_t nextpage;
+
+	nextpage = rounddown(gpa + PAGE_SIZE, PAGE_SIZE);
+	if (len > nextpage - gpa)
+		panic("vm_gpa2hpa: invalid gpa/len: 0x%016lx/%lu", gpa, len);
 
 	return (VMMMAP_GET(vm->cookie, gpa));
 }
