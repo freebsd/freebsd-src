@@ -69,10 +69,10 @@ xdr_authunix_parms(xdrs, p)
 
 	if (xdr_u_long(xdrs, &(p->aup_time)) &&
 	    xdr_string(xdrs, &(p->aup_machname), MAX_MACHINE_NAME) &&
-	    xdr_int(xdrs, (int *) &(p->aup_uid)) &&
-	    xdr_int(xdrs, (int *) &(p->aup_gid)) &&
+	    xdr_u_int(xdrs, &(p->aup_uid)) &&
+	    xdr_u_int(xdrs, &(p->aup_gid)) &&
 	    xdr_array(xdrs, (char **) paup_gids,
-		    &(p->aup_len), NGRPS, sizeof(int), (xdrproc_t)xdr_int) ) {
+	    &(p->aup_len), NGRPS, sizeof(gid_t), (xdrproc_t)xdr_int) ) {
 		return (TRUE);
 	}
 	return (FALSE);
