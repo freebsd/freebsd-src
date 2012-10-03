@@ -29,10 +29,10 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 ############################################################ INCLUDES
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
-. $BSDCFG_SHARE/common.subr || exit 1
+[ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
-f_include_lang $BSDCFG_LIBE/include/messages.subr
+[ ! "$_SYSRC_JAILED" ] && f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 ############################################################ CONFIGURATION
 
