@@ -662,6 +662,7 @@ unsetenv(const char *name)
 {
 	int envNdx;
 	size_t nameLen;
+	int newEnvActive;
 
 	/* Check for malformed name. */
 	if (name == NULL || (nameLen = __strleneq(name)) == 0) {
@@ -674,15 +675,18 @@ unsetenv(const char *name)
 		return (-1);
 
 	/* Deactivate specified variable. */
-	envNdx = envVarsTotal - 1;
 	/* Remove all occurrences. */
+	envNdx = envVarsTotal - 1;
+	newEnvActive = envActive;
 	while (__findenv(name, nameLen, &envNdx, true) != NULL) {
 		envVars[envNdx].active = false;
 		if (envVars[envNdx].putenv)
 			__remove_putenv(envNdx);
-		__rebuild_environ(envActive - 1);
-		envNdx = envVarsTotal - 1;
+		envNdx--;
+		newEnvActive--;
 	}
+	if (newEnvActive != envActive)
+		__rebuild_environ(newEnvActive);
 
 	return (0);
 }
