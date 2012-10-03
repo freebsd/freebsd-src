@@ -47,9 +47,11 @@ typedef int	(*vmm_cleanup_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm); /* instance specific apis */
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
-typedef int	(*vmi_mmap_func_t)(void *vmi, vm_paddr_t gpa, vm_paddr_t hpa,
-				   size_t length, vm_memattr_t attr,
-				   int prot, boolean_t superpages_ok);
+typedef int	(*vmi_mmap_set_func_t)(void *vmi, vm_paddr_t gpa,
+				       vm_paddr_t hpa, size_t length,
+				       vm_memattr_t attr, int prot,
+				       boolean_t superpages_ok);
+typedef vm_paddr_t (*vmi_mmap_get_func_t)(void *vmi, vm_paddr_t gpa);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
 typedef int	(*vmi_set_register_t)(void *vmi, int vcpu, int num,
@@ -72,7 +74,8 @@ struct vmm_ops {
 	vmi_init_func_t		vminit;		/* vm-specific initialization */
 	vmi_run_func_t		vmrun;
 	vmi_cleanup_func_t	vmcleanup;
-	vmi_mmap_func_t		vmmmap;
+	vmi_mmap_set_func_t	vmmmap_set;
+	vmi_mmap_get_func_t	vmmmap_get;
 	vmi_get_register_t	vmgetreg;
 	vmi_set_register_t	vmsetreg;
 	vmi_get_desc_t		vmgetdesc;

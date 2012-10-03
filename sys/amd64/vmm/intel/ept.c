@@ -115,6 +115,40 @@ ept_init(void)
 	return (0);
 }
 
+#if 0
+static void
+ept_dump(uint64_t *ptp, int nlevels)
+{
+	int i, t, tabs;
+	uint64_t *ptpnext, ptpval;
+
+	if (--nlevels < 0)
+		return;
+
+	tabs = 3 - nlevels;
+	for (t = 0; t < tabs; t++)
+		printf("\t");
+	printf("PTP = %p\n", ptp);
+
+	for (i = 0; i < 512; i++) {
+		ptpval = ptp[i];
+
+		if (ptpval == 0)
+			continue;
+		
+		for (t = 0; t < tabs; t++)
+			printf("\t");
+		printf("%3d 0x%016lx\n", i, ptpval);
+
+		if (nlevels != 0 && (ptpval & EPT_PG_SUPERPAGE) == 0) {
+			ptpnext = (uint64_t *)
+				  PHYS_TO_DMAP(ptpval & EPT_ADDR_MASK);
+			ept_dump(ptpnext, nlevels);
+		}
+	}
+}
+#endif
+
 static size_t
 ept_create_mapping(uint64_t *ptp, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
 		   vm_memattr_t attr, vm_prot_t prot, boolean_t spok)
@@ -179,27 +213,62 @@ ept_create_mapping(uint64_t *ptp, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
 		      "mismatch\n", gpa, ptpshift);
 	}
 
-	/* Do the mapping */
-	ptp[ptpindex] = hpa;
+	if (prot != VM_PROT_NONE) {
+		/* Do the mapping */
+		ptp[ptpindex] = hpa;
 
-	/* Apply the access controls */
-	if (prot & VM_PROT_READ)
-		ptp[ptpindex] |= EPT_PG_RD;
-	if (prot & VM_PROT_WRITE)
-		ptp[ptpindex] |= EPT_PG_WR;
-	if (prot & VM_PROT_EXECUTE)
-		ptp[ptpindex] |= EPT_PG_EX;
+		/* Apply the access controls */
+		if (prot & VM_PROT_READ)
+			ptp[ptpindex] |= EPT_PG_RD;
+		if (prot & VM_PROT_WRITE)
+			ptp[ptpindex] |= EPT_PG_WR;
+		if (prot & VM_PROT_EXECUTE)
+			ptp[ptpindex] |= EPT_PG_EX;
 
-	/*
-	 * XXX should we enforce this memory type by setting the ignore PAT
-	 * bit to 1.
-	 */
-	ptp[ptpindex] |= EPT_PG_MEMORY_TYPE(attr);
+		/*
+		 * XXX should we enforce this memory type by setting the
+		 * ignore PAT bit to 1.
+		 */
+		ptp[ptpindex] |= EPT_PG_MEMORY_TYPE(attr);
 
-	if (nlevels > 0)
-		ptp[ptpindex] |= EPT_PG_SUPERPAGE;
+		if (nlevels > 0)
+			ptp[ptpindex] |= EPT_PG_SUPERPAGE;
+	} else {
+		/* Remove the mapping */
+		ptp[ptpindex] = 0;
+	}
 
 	return (1UL << ptpshift);
+}
+
+static vm_paddr_t
+ept_lookup_mapping(uint64_t *ptp, vm_paddr_t gpa)
+{
+	int nlevels, ptpshift, ptpindex;
+	uint64_t ptpval, hpabase, pgmask;
+
+	nlevels = EPT_PWLEVELS;
+	while (--nlevels >= 0) {
+		ptpshift = PAGE_SHIFT + nlevels * 9;
+		ptpindex = (gpa >> ptpshift) & 0x1FF;
+
+		ptpval = ptp[ptpindex];
+
+		/* Cannot make progress beyond this point */
+		if ((ptpval & (EPT_PG_RD | EPT_PG_WR | EPT_PG_EX)) == 0)
+			break;
+
+		if (nlevels == 0 || (ptpval & EPT_PG_SUPERPAGE)) {
+			pgmask = (1UL << ptpshift) - 1;
+			hpabase = ptpval & ~pgmask;
+			return (hpabase | (gpa & pgmask));
+		}
+
+		/* Work our way down to the next level page table page */
+		ptp = (uint64_t *)PHYS_TO_DMAP(ptpval & EPT_ADDR_MASK);
+	}
+
+	return ((vm_paddr_t)-1);
 }
 
 static void
@@ -276,8 +345,8 @@ ept_vmcleanup(struct vmx *vmx)
 }
 
 int
-ept_vmmmap(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t len,
-	   vm_memattr_t attr, int prot, boolean_t spok)
+ept_vmmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t len,
+		vm_memattr_t attr, int prot, boolean_t spok)
 {
 	size_t n;
 	struct vmx *vmx = arg;
@@ -291,6 +360,17 @@ ept_vmmmap(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t len,
 	}
 
 	return (0);
+}
+
+vm_paddr_t
+ept_vmmmap_get(void *arg, vm_paddr_t gpa)
+{
+	vm_paddr_t hpa;
+	struct vmx *vmx;
+
+	vmx = arg;
+	hpa = ept_lookup_mapping(vmx->pml4ept, gpa);
+	return (hpa);
 }
 
 static void
