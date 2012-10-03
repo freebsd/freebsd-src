@@ -111,6 +111,9 @@ __FBSDID("$FreeBSD$");
  */
 #define	ATH_NONQOS_TID_AC	WME_AC_VO
 
+#if 0
+static int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
+#endif
 static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
     int tid);
 static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
@@ -2902,21 +2905,23 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: unpaused = %d\n",
 	    __func__, tid->paused);
 
-	if (tid->paused || tid->axq_depth == 0) {
+	if (tid->paused)
 		return;
-	}
+
+	/*
+	 * Override the clrdmask configuration for the next frame
+	 * from this TID, just to get the ball rolling.
+	 */
+	tid->clrdmask = 1;
+
+	if (tid->axq_depth == 0)
+		return;
 
 	/* XXX isfiltered shouldn't ever be 0 at this point */
 	if (tid->isfiltered == 1) {
 		device_printf(sc->sc_dev, "%s: filtered?!\n", __func__);
 		return;
 	}
-
-	/*
-	 * Override the clrdmask configuration for the next frame,
-	 * just to get the ball rolling.
-	 */
-	tid->clrdmask = 1;
 
 	ath_tx_tid_sched(sc, tid);
 	/* Punt some frames to the hardware if needed */
@@ -3021,6 +3026,7 @@ ath_tx_tid_filt_comp_single(struct ath_softc *sc, struct ath_tid *tid,
 	 * Don't allow a filtered frame to live forever.
 	 */
 	if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
+		sc->sc_stats.ast_tx_swretrymax++;
 		DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 		    "%s: bf=%p, seqno=%d, exceeded retries\n",
 		    __func__,
@@ -3073,6 +3079,7 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		 * Don't allow a filtered frame to live forever.
 		 */
 		if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
+		sc->sc_stats.ast_tx_swretrymax++;
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 			    "%s: bf=%p, seqno=%d, exceeded retries\n",
 			    __func__,
@@ -5280,6 +5287,145 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	ath_tx_tid_resume(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+}
+
+#if 0
+/*
+ * Check if a node is asleep or not.
+ */
+static int
+ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an)
+{
+
+	ATH_NODE_LOCK_ASSERT(an);
+
+	return (an->an_is_powersave);
+}
+#endif
+
+/*
+ * Mark a node as currently "in powersaving."
+ * This suspends all traffic on the node.
+ *
+ * This must be called with the node/tx locks free.
+ *
+ * XXX TODO: the locking silliness below is due to how the node
+ * locking currently works.  Right now, the node lock is grabbed
+ * to do rate control lookups and these are done with the TX
+ * queue lock held.  This means the node lock can't be grabbed
+ * first here or a LOR will occur.
+ *
+ * Eventually (hopefully!) the TX path code will only grab
+ * the TXQ lock when transmitting and the ath_node lock when
+ * doing node/TID operations.  There are other complications -
+ * the sched/unsched operations involve walking the per-txq
+ * 'active tid' list and this requires both locks to be held.
+ */
+void
+ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_tid *atid;
+	struct ath_txq *txq;
+	int tid;
+
+	ATH_NODE_UNLOCK_ASSERT(an);
+
+	/*
+	 * It's possible that a parallel call to ath_tx_node_wakeup()
+	 * will unpause these queues.
+	 *
+	 * The node lock can't just be grabbed here, as there's places
+	 * in the driver where the node lock is grabbed _within_ a
+	 * TXQ lock.
+	 * So, we do this delicately and unwind state if needed.
+	 *
+	 * + Pause all the queues
+	 * + Grab the node lock
+	 * + If the queue is already asleep, unpause and quit
+	 * + else just mark as asleep.
+	 *
+	 * A parallel sleep() call will just pause and then
+	 * find they're already paused, so undo it.
+	 *
+	 * A parallel wakeup() call will check if asleep is 1
+	 * and if it's not (ie, it's 0), it'll treat it as already
+	 * being awake. If it's 1, it'll mark it as 0 and then
+	 * unpause everything.
+	 *
+	 * (Talk about a delicate hack.)
+	 */
+
+	/* Suspend all traffic on the node */
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+		atid = &an->an_tid[tid];
+		txq = sc->sc_ac2q[atid->ac];
+
+		ATH_TXQ_LOCK(txq);
+		ath_tx_tid_pause(sc, atid);
+		ATH_TXQ_UNLOCK(txq);
+	}
+
+	ATH_NODE_LOCK(an);
+
+	/* In case of concurrency races from net80211.. */
+	if (an->an_is_powersave == 1) {
+		ATH_NODE_UNLOCK(an);
+		device_printf(sc->sc_dev,
+		    "%s: an=%p: node was already asleep\n",
+		    __func__, an);
+		for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+			atid = &an->an_tid[tid];
+			txq = sc->sc_ac2q[atid->ac];
+
+			ATH_TXQ_LOCK(txq);
+			ath_tx_tid_resume(sc, atid);
+			ATH_TXQ_UNLOCK(txq);
+		}
+		return;
+	}
+
+	/* Mark node as in powersaving */
+	an->an_is_powersave = 1;
+
+	ATH_NODE_UNLOCK(an);
+}
+
+/*
+ * Mark a node as currently "awake."
+ * This resumes all traffic to the node.
+ */
+void
+ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_tid *atid;
+	struct ath_txq *txq;
+	int tid;
+
+	ATH_NODE_UNLOCK_ASSERT(an);
+	ATH_NODE_LOCK(an);
+
+	/* In case of concurrency races from net80211.. */
+	if (an->an_is_powersave == 0) {
+		ATH_NODE_UNLOCK(an);
+		device_printf(sc->sc_dev,
+		    "%s: an=%p: node was already awake\n",
+		    __func__, an);
+		return;
+	}
+
+	/* Mark node as awake */
+	an->an_is_powersave = 0;
+
+	ATH_NODE_UNLOCK(an);
+
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+		atid = &an->an_tid[tid];
+		txq = sc->sc_ac2q[atid->ac];
+
+		ATH_TXQ_LOCK(txq);
+		ath_tx_tid_resume(sc, atid);
+		ATH_TXQ_UNLOCK(txq);
+	}
 }
 
 static int

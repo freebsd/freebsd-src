@@ -199,6 +199,7 @@ static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 static void	ath_announce(struct ath_softc *);
 
 static void	ath_dfs_tasklet(void *, int);
+static void	ath_node_powersave(struct ieee80211_node *, int);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <dev/ath/if_ath_tdma.h>
@@ -1137,6 +1138,9 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap->iv_newstate = ath_newstate;
 	avp->av_bmiss = vap->iv_bmiss;
 	vap->iv_bmiss = ath_bmiss_vap;
+
+	avp->av_node_ps = vap->iv_node_ps;
+	vap->iv_node_ps = ath_node_powersave;
 
 	/* Set default parameters */
 
@@ -5334,6 +5338,37 @@ ath_dfs_tasklet(void *p, int npending)
 		IEEE80211_UNLOCK(ic);
 	}
 }
+
+/*
+ * Enable/disable power save.  This must be called with
+ * no TX driver locks currently held, so it should only
+ * be called from the RX path (which doesn't hold any
+ * TX driver locks.)
+ */
+static void
+ath_node_powersave(struct ieee80211_node *ni, int enable)
+{
+	struct ath_node *an = ATH_NODE(ni);
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
+
+	ATH_NODE_UNLOCK_ASSERT(an);
+	/* XXX and no TXQ locks should be held here */
+
+	DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE, "%s: ni=%p, enable=%d\n",
+	    __func__, ni, enable);
+
+	/* Suspend or resume software queue handling */
+	if (enable)
+		ath_tx_node_sleep(sc, an);
+	else
+		ath_tx_node_wakeup(sc, an);
+
+	/* Update net80211 state */
+	avp->av_node_ps(ni, enable);
+}
+
 
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
