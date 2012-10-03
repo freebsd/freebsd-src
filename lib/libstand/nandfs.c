@@ -175,7 +175,7 @@ static int
 nandfs_find_super_block(struct nandfs *fs, struct open_file *f)
 {
 	struct nandfs_super_block *sb;
-	int i, j, n;
+	int i, j, n, s;
 	int sectors_to_read, error;
 
 	sb = malloc(fs->nf_sectorsize);
@@ -196,23 +196,22 @@ nandfs_find_super_block(struct nandfs *fs, struct open_file *f)
 			continue;
 		}
 		n = fs->nf_sectorsize / sizeof(struct nandfs_super_block);
+		s = 0;
 		if ((i * fs->nf_sectorsize) % fs->nf_fsdata->f_erasesize == 0) {
 			if (fs->nf_sectorsize == sizeof(struct nandfs_fsdata))
 				continue;
 			else {
-				sb += (sizeof(struct nandfs_fsdata) /
-				    sizeof(struct nandfs_super_block));
-				n -= (sizeof(struct nandfs_fsdata) /
+				s += (sizeof(struct nandfs_fsdata) /
 				    sizeof(struct nandfs_super_block));
 			}
 		}
 
-		for (j = 0; j < n; j++) {
+		for (j = s; j < n; j++) {
 			if (!nandfs_check_superblock_crc(fs->nf_fsdata, &sb[j]))
 				continue;
-			NANDFS_DEBUG("magic %x wtime %jd\n", sb->s_magic,
-			    sb->s_wtime);
-			if (sb[j].s_wtime > fs->nf_sb->s_wtime)
+			NANDFS_DEBUG("magic %x wtime %jd, lastcp 0x%jx\n",
+			    sb[j].s_magic, sb[j].s_wtime, sb[j].s_last_cno);
+			if (sb[j].s_last_cno > fs->nf_sb->s_last_cno)
 				memcpy(fs->nf_sb, &sb[j], sizeof(*fs->nf_sb));
 		}
 	}
