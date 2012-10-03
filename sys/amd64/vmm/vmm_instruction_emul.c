@@ -133,7 +133,7 @@ vmm_fetch_instruction(struct vm *vm, uint64_t rip, int inst_length,
 		      uint64_t cr3, struct vie *vie)
 {
 	int n, err;
-	uint64_t hpa, gpa, gpaend;
+	uint64_t hpa, gpa, gpaend, off;
 
 	/*
 	 * XXX cache previously fetched instructions using 'rip' as the tag
@@ -150,7 +150,8 @@ vmm_fetch_instruction(struct vm *vm, uint64_t rip, int inst_length,
 		if (err)
 			break;
 
-		n = min(inst_length - vie->num_valid, gpaend - gpa);
+		off = gpa & PAGE_MASK;
+		n = min(inst_length - vie->num_valid, PAGE_SIZE - off);
 
 		hpa = vm_gpa2hpa(vm, gpa, n);
 		if (hpa == -1)
