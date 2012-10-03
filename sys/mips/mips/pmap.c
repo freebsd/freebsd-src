@@ -930,15 +930,19 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 void
 pmap_qremove(vm_offset_t va, int count)
 {
-	/*
-	 * No need to wb/inv caches here, 
-	 *   pmap_kremove will do it for us
-	 */
+	pt_entry_t *pte;
+	vm_offset_t origva;
 
-	while (count-- > 0) {
-		pmap_kremove(va);
+	if (count < 1)
+		return;
+	mips_dcache_wbinv_range_index(va, PAGE_SIZE * count);
+	origva = va;
+	do {
+		pte = pmap_pte(kernel_pmap, va);
+		*pte = PTE_G;
 		va += PAGE_SIZE;
-	}
+	} while (--count > 0);
+	pmap_invalidate_range(kernel_pmap, origva, va);
 }
 
 /***************************************************
