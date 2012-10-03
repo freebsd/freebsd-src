@@ -185,17 +185,18 @@ The following standard commands are required by
 .Xr awk 1 ,
 .Xr cat 1 ,
 .Xr chmod 1 ,
-.Xr chown 8 ,
 .Xr env 1 ,
 .Xr grep 1 ,
-.Xr jexec 8 ,
 .Xr jls 1 ,
 .Xr mktemp 1 ,
 .Xr mv 1 ,
 .Xr rm 1 ,
 .Xr sh 1 ,
 .Xr stat 1 ,
-.Xr tail 1
+.Xr tail 1 ,
+.Xr chown 8
+and
+.Xr jexec 8 .
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
 .It Pa /etc/defaults/rc.conf
@@ -271,11 +272,11 @@ collection of system configuration files
 .Pp
 This will be corrected by a future enhancement.
 .Sh SEE ALSO
+.Xr jls 1 ,
+.Xr rc.conf 5 ,
 .Xr jail 8 ,
 .Xr jexec 8 ,
-.Xr jls 1 ,
 .Xr rc 8 ,
-.Xr rc.conf 5 ,
 .Xr sysctl 8
 .Sh HISTORY
 A
