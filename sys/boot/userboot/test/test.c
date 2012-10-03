@@ -364,7 +364,7 @@ test_getmem(void *arg, uint64_t *lowmem, uint64_t *highmem)
         *highmem = 0;
 }
 
-struct loader_callbacks_v1 cb = {
+struct loader_callbacks cb = {
 	.putc = test_putc,
 	.getc = test_getc,
 	.poll = test_poll,
@@ -405,7 +405,7 @@ int
 main(int argc, char** argv)
 {
 	void *h;
-	void (*func)(struct loader_callbacks_v1 *, void *, int, int);
+	void (*func)(struct loader_callbacks *, void *, int, int);
 	int opt;
 	char *disk_image = NULL;
 
