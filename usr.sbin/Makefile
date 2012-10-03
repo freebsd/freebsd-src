@@ -147,6 +147,7 @@ SUBDIR+=	bluetooth
 
 .if ${MK_BSDCONFIG} != "no"
 SUBDIR+=	bsdconfig
+SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"
