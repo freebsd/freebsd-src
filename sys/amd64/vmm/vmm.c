@@ -115,8 +115,12 @@ static struct vmm_ops *ops;
 #define	VMRUN(vmi, vcpu, rip) \
 	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
-#define	VMMMAP(vmi, gpa, hpa, len, attr, prot, spm)	\
-    (ops != NULL ? (*ops->vmmmap)(vmi, gpa, hpa, len, attr, prot, spm) : ENXIO)
+#define	VMMMAP_SET(vmi, gpa, hpa, len, attr, prot, spm)			\
+    	(ops != NULL ? 							\
+    	(*ops->vmmmap_set)(vmi, gpa, hpa, len, attr, prot, spm) :	\
+	ENXIO)
+#define	VMMMAP_GET(vmi, gpa) \
+	(ops != NULL ? (*ops->vmmmap_get)(vmi, gpa) : ENXIO)
 #define	VMGETREG(vmi, vcpu, num, retval)		\
 	(ops != NULL ? (*ops->vmgetreg)(vmi, vcpu, num, retval) : ENXIO)
 #define	VMSETREG(vmi, vcpu, num, val)		\
@@ -302,8 +306,8 @@ vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
 	const boolean_t spok = TRUE;	/* superpage mappings are ok */
 
-	return (VMMMAP(vm->cookie, gpa, hpa, len, VM_MEMATTR_UNCACHEABLE,
-		       VM_PROT_RW, spok));
+	return (VMMMAP_SET(vm->cookie, gpa, hpa, len, VM_MEMATTR_UNCACHEABLE,
+			   VM_PROT_RW, spok));
 }
 
 int
@@ -311,8 +315,8 @@ vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
 	const boolean_t spok = TRUE;	/* superpage mappings are ok */
 
-	return (VMMMAP(vm->cookie, gpa, 0, len, VM_MEMATTR_UNCACHEABLE,
-		       VM_PROT_NONE, spok));
+	return (VMMMAP_SET(vm->cookie, gpa, 0, len, 0,
+			   VM_PROT_NONE, spok));
 }
 
 /*
@@ -380,8 +384,8 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	if (hpa == 0)
 		return (ENOMEM);
 
-	error = VMMMAP(vm->cookie, gpa, hpa, len, VM_MEMATTR_WRITE_BACK,
-		       VM_PROT_ALL, spok);
+	error = VMMMAP_SET(vm->cookie, gpa, hpa, len, VM_MEMATTR_WRITE_BACK,
+			   VM_PROT_ALL, spok);
 	if (error) {
 		vmm_mem_free(hpa, len);
 		return (error);
@@ -400,17 +404,8 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 vm_paddr_t
 vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
-	int i;
-	vm_paddr_t gpabase, gpalimit, hpabase;
 
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		hpabase = vm->mem_segs[i].hpa;
-		gpabase = vm->mem_segs[i].gpa;
-		gpalimit = gpabase + vm->mem_segs[i].len;
-		if (gpa >= gpabase && gpa + len <= gpalimit)
-			return ((gpa - gpabase) + hpabase);
-	}
-	return ((vm_paddr_t)-1);
+	return (VMMMAP_GET(vm->cookie, gpa));
 }
 
 int

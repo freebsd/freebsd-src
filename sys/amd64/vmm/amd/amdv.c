@@ -78,11 +78,19 @@ amdv_vmcleanup(void *arg)
 }
 
 static int
-amdv_vmmmap(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
+amdv_vmmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
 	    vm_memattr_t attr, int prot, boolean_t spok)
 {
 
-	printf("amdv_vmmmap: not implemented\n");
+	printf("amdv_vmmmap_set: not implemented\n");
+	return (EINVAL);
+}
+
+static vm_paddr_t
+amdv_vmmmap_get(void *arg, vm_paddr_t gpa)
+{
+
+	printf("amdv_vmmmap_get: not implemented\n");
 	return (EINVAL);
 }
 
@@ -157,7 +165,8 @@ struct vmm_ops vmm_ops_amd = {
 	amdv_vminit,
 	amdv_vmrun,
 	amdv_vmcleanup,
-	amdv_vmmmap,
+	amdv_vmmmap_set,
+	amdv_vmmmap_get,
 	amdv_getreg,
 	amdv_setreg,
 	amdv_getdesc,

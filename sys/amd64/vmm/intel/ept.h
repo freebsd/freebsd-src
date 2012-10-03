@@ -35,8 +35,9 @@ struct vmx;
 #define	EPTP(pml4)	((pml4) | (EPT_PWLEVELS - 1) << 3 | PAT_WRITE_BACK)
 
 int	ept_init(void);
-int	ept_vmmmap(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
+int	ept_vmmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
 	    vm_memattr_t attr, int prot, boolean_t allow_superpage_mappings);
+vm_paddr_t ept_vmmmap_get(void *arg, vm_paddr_t gpa);
 void	ept_invalidate_mappings(u_long ept_pml4);
 void	ept_vmcleanup(struct vmx *vmx);
 #endif
