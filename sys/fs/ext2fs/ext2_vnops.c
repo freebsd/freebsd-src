@@ -1429,29 +1429,28 @@ ext2_strategy(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip;
 	struct bufobj *bo;
-	int32_t blkno;
 	int error;
 
 	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = ext2_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
-		bp->b_blkno = blkno;
+		error = ext2_bmaparray(vp, bp->b_lblkno, &bp->b_blkno, NULL, NULL);
 		if (error) {
 			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;
 			bufdone(bp);
 			return (0);
 		}
-		if ((long)bp->b_blkno == -1)
+		if (bp->b_blkno == -1)
 			vfs_bio_clrbuf(bp);
 	}
-	if ((long)bp->b_blkno == -1) {
+	if (bp->b_blkno == -1) {
 		bufdone(bp);
 		return (0);
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
+	printf("%s: bp->b_iooffset %lld, bp->b_blkno %lld\n", __func__, (long long) bp->b_iooffset, (long long) bp->b_blkno);
 	bo = VFSTOEXT2(vp->v_mount)->um_bo;
 	BO_STRATEGY(bo, bp);
 	return (0);
@@ -1752,6 +1751,7 @@ ext2_read(ap)
 		if (bytesinfile < xfersize)
 			xfersize = bytesinfile;
 
+		printf("%s: lbn %lld\n", __func__, (long long) lbn);
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0)
