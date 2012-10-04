@@ -84,6 +84,11 @@ static const char rcsid[] _U_ =
 #include "pcap/sll.h"
 #include "pcap/ipnet.h"
 #include "arcnet.h"
+#if defined(PF_PACKET) && defined(SO_ATTACH_FILTER)
+#include <linux/types.h>
+#include <linux/if_packet.h>
+#include <linux/filter.h>
+#endif
 #ifdef HAVE_NET_PFVAR_H
 #include <sys/socket.h>
 #include <net/if.h>
@@ -418,7 +423,7 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 {
 	extern int n_errors;
 	const char * volatile xbuf = buf;
-	int len;
+	u_int len;
 
 	no_optimize = 0;
 	n_errors = 0;
@@ -1393,14 +1398,12 @@ init_linktype(p)
 		off_nl_nosnap = -1;
 		return;
 
-#ifdef DLT_PFSYNC
 	case DLT_PFSYNC:
 		off_linktype = -1;
 		off_macpl = 4;
 		off_nl = 0;
 		off_nl_nosnap = 0;
 		return;
-#endif
 
 	case DLT_AX25_KISS:
 		/*
@@ -3356,10 +3359,8 @@ gen_linktype(proto)
 	case DLT_ERF:
 		bpf_error("ERF link-layer type filtering not implemented");
 
-#ifdef DLT_PFSYNC
 	case DLT_PFSYNC:
 		bpf_error("PFSYNC link-layer type filtering not implemented");
-#endif
 
 	case DLT_LINUX_LAPD:
 		bpf_error("LAPD link-layer type filtering not implemented");
@@ -5819,6 +5820,11 @@ gen_proto(v, proto, dir)
 	int dir;
 {
 	struct block *b0, *b1;
+#ifdef INET6
+#ifndef CHASE_CHAIN
+	struct block *b2;
+#endif
+#endif
 
 	if (dir != Q_DEFAULT)
 		bpf_error("direction applied to 'proto'");
@@ -5987,7 +5993,15 @@ gen_proto(v, proto, dir)
 	case Q_IPV6:
 		b0 = gen_linktype(ETHERTYPE_IPV6);
 #ifndef CHASE_CHAIN
-		b1 = gen_cmp(OR_NET, 6, BPF_B, (bpf_int32)v);
+		/*
+		 * Also check for a fragment header before the final
+		 * header.
+		 */
+		b2 = gen_cmp(OR_NET, 6, BPF_B, IPPROTO_FRAGMENT);
+		b1 = gen_cmp(OR_NET, 40, BPF_B, (bpf_int32)v);
+		gen_and(b2, b1);
+		b2 = gen_cmp(OR_NET, 6, BPF_B, (bpf_int32)v);
+		gen_or(b2, b1);
 #else
 		b1 = gen_protochain(v, Q_IPV6);
 #endif
@@ -7468,9 +7482,13 @@ gen_multicast(proto)
 }
 
 /*
- * generate command for inbound/outbound.  It's here so we can
- * make it link-type specific.  'dir' = 0 implies "inbound",
- * = 1 implies "outbound".
+ * Filter on inbound (dir == 0) or outbound (dir == 1) traffic.
+ * Outbound traffic is sent by this machine, while inbound traffic is
+ * sent by a remote machine (and may include packets destined for a
+ * unicast or multicast link-layer address we are not subscribing to).
+ * These are the same definitions implemented by pcap_setdirection().
+ * Capturing only unicast traffic destined for this host is probably
+ * better accomplished using a higher-layer filter.
  */
 struct block *
 gen_inbound(dir)
@@ -7500,23 +7518,11 @@ gen_inbound(dir)
 		break;
 
 	case DLT_LINUX_SLL:
-		if (dir) {
-			/*
-			 * Match packets sent by this machine.
-			 */
-			b0 = gen_cmp(OR_LINK, 0, BPF_H, LINUX_SLL_OUTGOING);
-		} else {
-			/*
-			 * Match packets sent to this machine.
-			 * (No broadcast or multicast packets, or
-			 * packets sent to some other machine and
-			 * received promiscuously.)
-			 *
-			 * XXX - packets sent to other machines probably
-			 * shouldn't be matched, but what about broadcast
-			 * or multicast packets we received?
-			 */
-			b0 = gen_cmp(OR_LINK, 0, BPF_H, LINUX_SLL_HOST);
+		/* match outgoing packets */
+		b0 = gen_cmp(OR_LINK, 0, BPF_H, LINUX_SLL_OUTGOING);
+		if (!dir) {
+			/* to filter on inbound traffic, invert the match */
+			gen_not(b0);
 		}
 		break;
 
@@ -7572,10 +7578,38 @@ gen_inbound(dir)
 		break;
 
 	default:
+		/*
+		 * If we have packet meta-data indicating a direction,
+		 * check it, otherwise give up as this link-layer type
+		 * has nothing in the packet data.
+		 */
+#if defined(PF_PACKET) && defined(SO_ATTACH_FILTER)
+		/*
+		 * We infer that this is Linux with PF_PACKET support.
+		 * If this is a *live* capture, we can look at
+		 * special meta-data in the filter expression;
+		 * if it's a savefile, we can't.
+		 */
+		if (bpf_pcap->sf.rfile != NULL) {
+			/* We have a FILE *, so this is a savefile */
+			bpf_error("inbound/outbound not supported on linktype %d when reading savefiles",
+			    linktype);
+			b0 = NULL;
+			/* NOTREACHED */
+		}
+		/* match outgoing packets */
+		b0 = gen_cmp(OR_LINK, SKF_AD_OFF + SKF_AD_PKTTYPE, BPF_H,
+		             PACKET_OUTGOING);
+		if (!dir) {
+			/* to filter on inbound traffic, invert the match */
+			gen_not(b0);
+		}
+#else /* defined(PF_PACKET) && defined(SO_ATTACH_FILTER) */
 		bpf_error("inbound/outbound not supported on linktype %d",
 		    linktype);
 		b0 = NULL;
 		/* NOTREACHED */
+#endif /* defined(PF_PACKET) && defined(SO_ATTACH_FILTER) */
 	}
 	return (b0);
 }
