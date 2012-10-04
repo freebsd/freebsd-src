@@ -4,7 +4,7 @@
 LIBSRCS+= fbsd-proc.c fbsd-threads.c gcore.c
 LIBSRCS+= ia64-fbsd-nat.c
 .endif
-LIBSRCS+= solib.c solib-svr4.c
+LIBSRCS+= solib.c solib-svr4.c solib-legacy.c
 LIBSRCS+= ia64-fbsd-tdep.c ia64-tdep.c
 
 nm.h:

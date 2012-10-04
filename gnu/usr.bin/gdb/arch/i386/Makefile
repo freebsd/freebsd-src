@@ -5,7 +5,7 @@ GENSRCS+= xm.h
 LIBSRCS+= fbsd-proc.c fbsd-threads.c gcore.c
 LIBSRCS+= i386-nat.c i386bsd-nat.c i386fbsd-nat.c
 .endif
-LIBSRCS+= solib.c solib-svr4.c
+LIBSRCS+= solib.c solib-svr4.c solib-legacy.c
 LIBSRCS+= i386-tdep.c i386bsd-tdep.c i386fbsd-tdep-fixed.c i387-tdep.c
 
 nm.h:
