@@ -51,7 +51,7 @@ extern char bootprog_rev[];
 #define BF_PARSE 100
 
 /*
- * Default dictionary size, ~4000 cells
+ * FreeBSD loader default dictionary cells
  */
 #ifndef BF_DICTSIZE
 #define BF_DICTSIZE	10000
