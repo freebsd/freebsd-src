@@ -54,7 +54,7 @@ int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
 void	ext2_blkfree(struct inode *, int32_t, long);
 int32_t	ext2_blkpref(struct inode *, int32_t, int, int32_t *, int32_t);
 int	ext2_bmap(struct vop_bmap_args *);
-int	ext2_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
+int	ext2_bmaparray(struct vnode *, int32_t, int32_t *, int *, int *);
 void	ext2_clusteracct(struct m_ext2fs *, char *, int, daddr_t, int);
 void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
 void	ext2_ei2i(struct ext2fs_dinode *, struct inode *);

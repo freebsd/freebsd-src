@@ -45,7 +45,6 @@ CFLAGS+= -I${CNTRB_GDB}/gdb/config
 CFLAGS+= -I${CNTRB_BU}/include
 CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/bfd
-DEBUG_FLAGS=	-g -O0
 
 GENSRCS+= nm.h tm.h
 

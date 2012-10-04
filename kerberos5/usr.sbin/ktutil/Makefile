@@ -18,10 +18,10 @@ SRCS=	add.c \
 CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sl -I.
 DPADD=	${LIBKADM5CLNT} ${LIBKRB5} ${LIBHX509} ${LIBSL} ${LIBROKEN} ${LIBVERS} \
 	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
-	${LIBEDIT} ${LIBNCURSES}
+	${LIBREADLINE} ${LIBNCURSES}
 LDADD=	-lkadm5clnt -lkrb5 -lhx509 ${LIBSL} -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -lcom_err \
-	-ledit -lncurses
+	-lreadline -lncurses
 
 .include <bsd.prog.mk>
 
