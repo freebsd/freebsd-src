@@ -94,7 +94,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 	acl_tag_t tag, tag_new;
 	acl_entry_type_t entry_type, entry_type_new;
 	acl_flagset_t flagset;
-	int entry_id, entry_id_new, have_entry, entry_number = 0;
+	int entry_id, entry_id_new, have_entry, had_entry, entry_number = 0;
 	int acl_brand, prev_acl_brand;
 
 	acl_get_brand_np(acl, &acl_brand);
@@ -116,6 +116,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 	while (acl_get_entry(acl, entry_id, &entry) == 1) {
 		entry_id = ACL_NEXT_ENTRY;
 		have_entry = 0;
+		had_entry = 0;
 
 		/* keep track of existing ACL_MASK entries */
 		if (acl_get_tag_type(entry, &tag) == -1)
@@ -187,7 +188,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 						err(1, "%s: acl_set_flagset_np() failed",
 						    filename);
 				}
-				have_entry = 1;
+				had_entry = have_entry = 1;
 				break;
 			default:
 				/* should never be here */
@@ -197,7 +198,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 		}
 
 		/* if this entry has not been found, it must be new */
-		if (have_entry == 0) {
+		if (had_entry == 0) {
 
 			/*
 			 * NFSv4 ACL entries must be prepended to the ACL.
