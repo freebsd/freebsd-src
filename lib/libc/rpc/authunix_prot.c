@@ -60,7 +60,7 @@ xdr_authunix_parms(xdrs, p)
 	XDR *xdrs;
 	struct authunix_parms *p;
 {
-	gid_t **paup_gids;
+	u_int **paup_gids;
 
 	assert(xdrs != NULL);
 	assert(p != NULL);
@@ -72,7 +72,7 @@ xdr_authunix_parms(xdrs, p)
 	    xdr_u_int(xdrs, &(p->aup_uid)) &&
 	    xdr_u_int(xdrs, &(p->aup_gid)) &&
 	    xdr_array(xdrs, (char **) paup_gids,
-	    &(p->aup_len), NGRPS, sizeof(gid_t), (xdrproc_t)xdr_int) ) {
+	    &(p->aup_len), NGRPS, sizeof(u_int), (xdrproc_t)xdr_u_int) ) {
 		return (TRUE);
 	}
 	return (FALSE);
