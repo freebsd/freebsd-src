@@ -10,7 +10,6 @@ extern initialize_file_ftype _initialize_ppcfbsd_tdep;
 extern initialize_file_ftype _initialize_corelow;
 extern initialize_file_ftype _initialize_solib;
 extern initialize_file_ftype _initialize_svr4_solib;
-extern initialize_file_ftype _initialize_svr4_lm;
 extern initialize_file_ftype _initialize_ser_hardwire;
 extern initialize_file_ftype _initialize_ser_pipe;
 extern initialize_file_ftype _initialize_ser_tcp;
@@ -123,7 +122,6 @@ initialize_all_files (void)
   _initialize_corelow ();
   _initialize_solib ();
   _initialize_svr4_solib ();
-  _initialize_svr4_lm ();
   _initialize_ser_hardwire ();
   _initialize_ser_pipe ();
   _initialize_ser_tcp ();
