@@ -32,7 +32,6 @@
 #	functions used by various rc scripts
 #
 
-: ${rcvar_manpage:='rc.conf(5)'}
 : ${RC_PID:=$$}; export RC_PID
 
 #
@@ -159,7 +158,7 @@ checkyesno()
 		return 1
 		;;
 	*)
-		warn "\$${1} is not set properly - see ${rcvar_manpage}."
+		warn "\$${1} is not set properly - see rc.conf(5)."
 		return 1
 		;;
 	esac
