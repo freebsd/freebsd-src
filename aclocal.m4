@@ -445,7 +445,14 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 	[
 	    AC_MSG_ERROR(
 [Report this to tcpdump-workers@lists.tcpdump.org, and include the
-config.log file in your report])
+config.log file in your report.  If you have downloaded libpcap from
+tcpdump.org, and built it yourself, please also include the config.log
+file from the libpcap source directory, the Makefile from the libpcap
+source directory, and the output of the make process for libpcap, as
+this could be a problem with the libpcap that was built, and we will
+not be able to determine why this is happening, and thus will not be
+able to fix it, without that information, as we have not been able to
+reproduce this problem ourselves.])
 	])
 
     dnl

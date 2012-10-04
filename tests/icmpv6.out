@@ -1,0 +1,13 @@
+IP6 (hlim 255, next-header ICMPv6 (58) payload length: 80) fe80::d498:f9ff:fee7:896 > ff02::1: [icmp6 sum ok] ICMP6, router advertisement, length 80
+	hop limit 64, Flags [home agent], pref medium, router lifetime 15s, reachable time 0s, retrans time 0s
+	  homeagent information option (8), length 8 (1):  preference 50001, lifetime 15
+	    0x0000:  0000 c351 000f
+	  advertisement interval option (7), length 8 (1):  5000ms
+	    0x0000:  0000 0000 1388
+	  prefix info option (3), length 32 (4): 2222:3333:4444:5555:6600::/72, Flags [onlink, auto], valid time 2592000s, pref. time 604800s
+	    0x0000:  48c0 0027 8d00 0009 3a80 0000 0000 2222
+	    0x0010:  3333 4444 5555 6600 0000 0000 0000
+	  source link-address option (1), length 8 (1): d6:98:f9:e7:08:96
+	    0x0000:  d698 f9e7 0896
+	  mtu option (5), length 8 (1):  100
+	    0x0000:  0000 0000 0064
