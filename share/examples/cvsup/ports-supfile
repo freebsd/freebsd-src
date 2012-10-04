@@ -1,15 +1,20 @@
 # $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the
-# FreeBSD-current ports collection.
+# ports collection.
 #
 # csup (CVS Update Protocol) allows you to download the latest CVS
 # tree (or any branch of development therefrom) to your system easily
 # and efficiently
-#
-# To keep your CVS tree up-to-date run:
-#
-#	csup ports-supfile
+#                           _
+# __      ____ _ _ __ _ __ (_)_ __   __ _
+# \ \ /\ / / _` | '__| '_ \| | '_ \ / _` |
+#  \ V  V / (_| | |  | | | | | | | | (_| |
+#   \_/\_/ \__,_|_|  |_| |_|_|_| |_|\__, |
+#                                   |___/
+# cvsup for ports is being phased out as of 28 February 2013 and its
+# use is discouraged. Users are advised to migrate to portsnap
+# or svn directly.
 #
 # Note that this only updates the tree contents and does not
 # update what is actually installed.
@@ -63,11 +68,13 @@ ports-all
 
 # These are the individual collections that make up "ports-all".  If you
 # use these, be sure to comment out "ports-all" above.
-#
+
 # Be sure to ALWAYS cvsup the ports-base collection if you use any of the
 # other individual collections below. ports-base is a mandatory collection
 # for the ports collection, and your ports may not build correctly if it
 # is not kept up to date.
+#
+# Use of individual collections is not a supported configuration.
 #ports-base
 #ports-accessibility
 #ports-arabic
