@@ -275,6 +275,28 @@ vm_create(const char *name)
 	return (vm);
 }
 
+static void
+vm_free_mem_seg(struct vm *vm, struct vm_memory_segment *seg)
+{
+	size_t len;
+	vm_paddr_t hpa;
+
+	len = 0;
+	while (len < seg->len) {
+		hpa = vm_gpa2hpa(vm, seg->gpa + len, PAGE_SIZE);
+		if (hpa == (vm_paddr_t)-1) {
+			panic("vm_free_mem_segs: cannot free hpa "
+			      "associated with gpa 0x%016lx", seg->gpa + len);
+		}
+
+		vmm_mem_free(hpa, PAGE_SIZE);
+
+		len += PAGE_SIZE;
+	}
+
+	bzero(seg, sizeof(struct vm_memory_segment));
+}
+
 void
 vm_destroy(struct vm *vm)
 {
@@ -283,7 +305,9 @@ vm_destroy(struct vm *vm)
 	ppt_unassign_all(vm);
 
 	for (i = 0; i < vm->num_mem_segs; i++)
-		vmm_mem_free(vm->mem_segs[i].hpa, vm->mem_segs[i].len);
+		vm_free_mem_seg(vm, &vm->mem_segs[i]);
+
+	vm->num_mem_segs = 0;
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vcpu_cleanup(&vm->vcpu[i]);
@@ -345,6 +369,7 @@ int
 vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
 	int error, available, allocated;
+	struct vm_memory_segment *seg;
 	vm_paddr_t g, hpa;
 
 	const boolean_t spok = TRUE;	/* superpage mappings are ok */
@@ -380,22 +405,32 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	if (vm->num_mem_segs >= VM_MAX_MEMORY_SEGMENTS)
 		return (E2BIG);
 
-	hpa = vmm_mem_alloc(len);
-	if (hpa == 0)
-		return (ENOMEM);
+	seg = &vm->mem_segs[vm->num_mem_segs];
 
-	error = VMMMAP_SET(vm->cookie, gpa, hpa, len, VM_MEMATTR_WRITE_BACK,
-			   VM_PROT_ALL, spok);
-	if (error) {
-		vmm_mem_free(hpa, len);
+	seg->gpa = gpa;
+	seg->len = 0;
+	while (seg->len < len) {
+		hpa = vmm_mem_alloc(PAGE_SIZE);
+		if (hpa == 0) {
+			error = ENOMEM;
+			break;
+		}
+
+		error = VMMMAP_SET(vm->cookie, gpa + seg->len, hpa, PAGE_SIZE,
+				   VM_MEMATTR_WRITE_BACK, VM_PROT_ALL, spok);
+		if (error)
+			break;
+
+		iommu_create_mapping(vm->iommu, gpa + seg->len, hpa, PAGE_SIZE);
+
+		seg->len += PAGE_SIZE;
+	}
+
+	if (seg->len != len) {
+		vm_free_mem_seg(vm, seg);
 		return (error);
 	}
 
-	iommu_create_mapping(vm->iommu, gpa, hpa, len);
-
-	vm->mem_segs[vm->num_mem_segs].gpa = gpa;
-	vm->mem_segs[vm->num_mem_segs].hpa = hpa;
-	vm->mem_segs[vm->num_mem_segs].len = len;
 	vm->num_mem_segs++;
 
 	return (0);

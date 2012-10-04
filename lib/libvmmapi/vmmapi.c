@@ -111,9 +111,10 @@ vm_destroy(struct vmctx *vm)
 {
 	assert(vm != NULL);
 
-	DESTROY(vm->name);
 	if (vm->fd >= 0)
 		close(vm->fd);
+	DESTROY(vm->name);
+
 	free(vm);
 }
 
@@ -151,7 +152,6 @@ vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa,
 	bzero(&seg, sizeof(seg));
 	seg.gpa = gpa;
 	error = ioctl(ctx->fd, VM_GET_MEMORY_SEG, &seg);
-	*ret_hpa = seg.hpa;
 	*ret_len = seg.len;
 	return (error);
 }

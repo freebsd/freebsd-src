@@ -299,7 +299,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_MEMORY_SEG:
 		seg = (struct vm_memory_segment *)data;
-		seg->hpa = seg->len = 0;
+		seg->len = 0;
 		(void)vm_gpabase2memseg(sc->vm, seg->gpa, seg);
 		error = 0;
 		break;
