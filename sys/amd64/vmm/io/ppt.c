@@ -356,7 +356,6 @@ ppt_map_mmio(struct vm *vm, int bus, int slot, int func,
 				if (error == 0) {
 					seg->gpa = gpa;
 					seg->len = len;
-					seg->hpa = hpa;
 				}
 				return (error);
 			}

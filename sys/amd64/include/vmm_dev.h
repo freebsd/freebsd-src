@@ -35,7 +35,6 @@ void	vmmdev_cleanup(void);
 #endif
 
 struct vm_memory_segment {
-	vm_paddr_t	hpa;	/* out */
 	vm_paddr_t	gpa;	/* in */
 	size_t		len;	/* in */
 };

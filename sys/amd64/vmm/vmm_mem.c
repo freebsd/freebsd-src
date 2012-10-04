@@ -318,9 +318,9 @@ vmm_mem_alloc(size_t size)
 	int i;
 	vm_paddr_t addr;
 
-	if ((size & PDRMASK) != 0) {
+	if ((size & PAGE_MASK) != 0) {
 		panic("vmm_mem_alloc: size 0x%0lx must be "
-		      "aligned on a 0x%0x boundary\n", size, NBPDR);
+		      "aligned on a 0x%0x boundary\n", size, PAGE_SIZE);
 	}
 
 	addr = 0;
@@ -373,9 +373,9 @@ vmm_mem_free(vm_paddr_t base, size_t length)
 {
 	int i;
 
-	if ((base & PDRMASK) != 0 || (length & PDRMASK) != 0) {
+	if ((base & PAGE_MASK) != 0 || (length & PAGE_MASK) != 0) {
 		panic("vmm_mem_free: base 0x%0lx and length 0x%0lx must be "
-		      "aligned on a 0x%0x boundary\n", base, length, NBPDR);
+		      "aligned on a 0x%0x boundary\n", base, length, PAGE_SIZE);
 	}
 
 	mtx_lock(&vmm_mem_mtx);
