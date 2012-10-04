@@ -85,19 +85,22 @@ jail_setv(int flags, ...)
 		(void)va_arg(tap, char *);
 	va_end(tap);
 	jp = alloca(njp * sizeof(struct jailparam));
-	for (njp = 0; (name = va_arg(ap, char *)) != NULL; njp++) {
+	for (njp = 0; (name = va_arg(ap, char *)) != NULL;) {
 		value = va_arg(ap, char *);
-		if (jailparam_init(jp + njp, name) < 0 ||
-		    jailparam_import(jp + njp, value) < 0) {
-			jailparam_free(jp, njp);
-			va_end(ap);
-			return (-1);
-		}
+		if (jailparam_init(jp + njp, name) < 0)
+			goto error;
+		if (jailparam_import(jp + njp++, value) < 0)
+			goto error;
 	}
 	va_end(ap);
 	jid = jailparam_set(jp, njp, flags);
 	jailparam_free(jp, njp);
 	return (jid);
+
+ error:
+	jailparam_free(jp, njp);
+	va_end(ap);
+	return (-1);
 }
 
 /*
@@ -195,7 +198,7 @@ jail_getv(int flags, ...)
 int
 jailparam_all(struct jailparam **jpp)
 {
-	struct jailparam *jp;
+	struct jailparam *jp, *tjp;
 	size_t mlen1, mlen2, buflen;
 	int njp, nlist;
 	int mib1[CTL_MAXNAME], mib2[CTL_MAXNAME - 2];
@@ -242,11 +245,10 @@ jailparam_all(struct jailparam **jpp)
 		/* Add the parameter to the list */
 		if (njp >= nlist) {
 			nlist *= 2;
-			jp = realloc(jp, nlist * sizeof(*jp));
-			if (jp == NULL) {
-				jailparam_free(jp, njp);
-				return (-1);
-			}
+			tjp = realloc(jp, nlist * sizeof(*jp));
+			if (tjp == NULL)
+				goto error;
+			jp = tjp;
 		}
 		if (jailparam_init(jp + njp, buf + sizeof(SJPARAM)) < 0)
 			goto error;
@@ -277,6 +279,8 @@ jailparam_init(struct jailparam *jp, const char *name)
 	}
 	if (jailparam_type(jp) < 0) {
 		jailparam_free(jp, 1);
+		jp->jp_name = NULL;
+		jp->jp_value = NULL;
 		return (-1);
 	}
 	return (0);
