@@ -37,8 +37,7 @@ struct vmctx *vm_open(const char *name);
 void	vm_destroy(struct vmctx *ctx);
 size_t	vmm_get_mem_total(void);
 size_t	vmm_get_mem_free(void);
-int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa,
-			  vm_paddr_t *ret_hpa, size_t *ret_len);
+int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len);
 /*
  * Create a memory segment of 'len' bytes in the guest physical address space
  * at offset 'gpa'.

@@ -387,7 +387,7 @@ main(int argc, char *argv[])
 {
 	char *vmname;
 	int error, ch, vcpu;
-	vm_paddr_t hpa;
+	vm_paddr_t gpa;
 	size_t len;
 	struct vm_exit vmexit;
 	uint64_t ctl, eptp, bm, addr, u64;
@@ -829,15 +829,17 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && (get_lowmem || get_all)) {
-		error = vm_get_memory_seg(ctx, 0, &hpa, &len);
+		gpa = 0;
+		error = vm_get_memory_seg(ctx, gpa, &len);
 		if (error == 0)
-			printf("lowmem\t\t0x%016lx/%ld\n", hpa, len);
+			printf("lowmem\t\t0x%016lx/%ld\n", gpa, len);
 	}
 
 	if (!error && (get_highmem || get_all)) {
-		error = vm_get_memory_seg(ctx, 4 * GB, &hpa, &len);
+		gpa = 4 * GB;
+		error = vm_get_memory_seg(ctx, gpa, &len);
 		if (error == 0)
-			printf("highmem\t\t0x%016lx/%ld\n", hpa, len);
+			printf("highmem\t\t0x%016lx/%ld\n", gpa, len);
 	}
 
 	if (!error && (get_efer || get_all)) {

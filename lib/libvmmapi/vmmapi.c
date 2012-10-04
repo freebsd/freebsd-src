@@ -143,8 +143,7 @@ vmm_get_mem_free(void)
 }
 
 int
-vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa,
-		  vm_paddr_t *ret_hpa, size_t *ret_len)
+vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
 {
 	int error;
 	struct vm_memory_segment seg;
