@@ -5,13 +5,13 @@ bgp_vpn_attrset bgp_vpn_attrset.pcap bgp_vpn_attrset.out -t -v
 eapon1 eapon1.pcap eapon1.out -t 
 
 # ESP tests
-esp0 02-sunrise-sunset-esp.pcap esp0.out -t 
+esp0 02-sunrise-sunset-esp.pcap esp0.out -t -n
 esp1 02-sunrise-sunset-esp.pcap esp1.out -t -E "0x12345678@192.1.2.45 3des-cbc-hmac96:0x4043434545464649494a4a4c4c4f4f515152525454575758" 
 esp2 08-sunrise-sunset-esp2.pcap esp2.out -t -E "0x12345678@192.1.2.45 3des-cbc-hmac96:0x43434545464649494a4a4c4c4f4f51515252545457575840,0xabcdabcd@192.0.1.1 3des-cbc-hmac96:0x434545464649494a4a4c4c4f4f5151525254545757584043"
 esp3 02-sunrise-sunset-esp.pcap esp1.out -t -E "3des-cbc-hmac96:0x4043434545464649494a4a4c4c4f4f515152525454575758"
 esp4 08-sunrise-sunset-esp2.pcap esp2.out -t -E "file esp-secrets.txt"
 esp5 08-sunrise-sunset-aes.pcap esp5.out -t -E "file esp-secrets.txt"
-espudp1 espudp1.pcap espudp1.out -t -E "file esp-secrets.txt"
+espudp1 espudp1.pcap                    espudp1.out -nnnn -t -E "file esp-secrets.txt"
 
 # ISAKMP tests
 isakmp1 isakmp-delete-segfault.pcap isakmp1.out -t 
@@ -60,3 +60,9 @@ sflow1          sflow_multiple_counter_30_pdus.pcap     sflow_multiple_counter_3
 # Babel tests
 babel1          babel.pcap             babel1.out      -t 
 babel1v         babel.pcap             babel1v.out     -t -v
+
+# PPPoE tests
+pppoe           pppoe.pcap             pppoe.out       -t
+
+# ICMPv6
+icmpv6          icmpv6.pcap             icmpv6.out      -t -vv -c1
