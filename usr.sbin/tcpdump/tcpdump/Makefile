@@ -25,6 +25,7 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-lwapp.c print-lwres.c print-mobile.c print-mpls.c print-msdp.c \
 	print-mpcp.c \
 	print-nfs.c print-ntp.c print-null.c print-olsr.c print-ospf.c \
+	print-pfsync.c \
 	print-pgm.c print-pim.c print-ppi.c print-ppp.c print-pppoe.c \
 	print-pptp.c print-radius.c print-raw.c print-rip.c \
 	print-rpki-rtr.c \
