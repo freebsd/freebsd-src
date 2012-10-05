@@ -20,14 +20,22 @@ WARNS?=	2
 CFLAGS+=-DHAVE_STRUCT_STAT_ST_FLAGS=1
 CFLAGS+=-DHAVE_STRUCT_STAT_ST_GEN=1
 
-.PATH:	${.CURDIR}/../mtree
-CFLAGS+=-I${.CURDIR}/../mtree
+.PATH:	${.CURDIR}/../../contrib/mtree
+CFLAGS+=-I${.CURDIR}/../../contrib/mtree
 SRCS+=	misc.c spec.c
+
+.PATH:	${.CURDIR}/../nmtree
+CFLAGS+=-I${.CURDIR}/../nmtree
+SRCS+=	util.c
+
+.PATH:	${.CURDIR}/../../contrib/mknod
+CFLAGS+=-I${.CURDIR}/../../contrib/mknod
+SRCS+=	pack_dev.c
 
 .PATH:	${.CURDIR}/../../sys/ufs/ffs
 SRCS+=	ffs_tables.c
 
 DPADD=  ${LIBSBUF}
-LDADD=  -lsbuf
+LDADD=  -lsbuf -lutil
 
 .include <bsd.prog.mk>
