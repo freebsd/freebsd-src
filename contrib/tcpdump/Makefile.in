@@ -77,7 +77,7 @@ CSRC =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c 
 	print-chdlc.c print-cip.c print-cnfp.c print-dccp.c print-decnet.c \
 	print-domain.c print-dtp.c print-dvmrp.c print-enc.c print-egp.c \
 	print-eap.c print-eigrp.c\
-	print-esp.c print-ether.c print-fddi.c print-fr.c \
+	print-esp.c print-ether.c print-fddi.c print-forces.c print-fr.c \
 	print-gre.c print-hsrp.c print-icmp.c print-igmp.c \
 	print-igrp.c print-ip.c print-ipcomp.c print-ipfc.c print-ipnet.c \
 	print-ipx.c print-isoclns.c print-juniper.c print-krb.c \
@@ -91,8 +91,8 @@ CSRC =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c 
 	print-rx.c print-sctp.c print-sflow.c print-sip.c print-sl.c print-sll.c \
 	print-slow.c print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
 	print-symantec.c print-syslog.c print-tcp.c print-telnet.c print-tftp.c \
-	print-timed.c print-token.c print-udld.c print-udp.c print-usb.c \
-	print-vjc.c print-vqp.c print-vrrp.c print-vtp.c print-forces.c \
+	print-timed.c print-tipc.c print-token.c print-udld.c print-udp.c \
+	print-usb.c print-vjc.c print-vqp.c print-vrrp.c print-vtp.c \
 	print-wb.c print-zephyr.c signature.c setsignal.c tcpdump.c util.c
 
 LIBNETDISSECT_SRC=print-isakmp.c
@@ -304,10 +304,11 @@ EXTRA_DIST = \
 	tests/forces1.pcap \
 	tests/forces1vvv.out \
 	tests/forces1vvvv.out \
-	tests/forces2.out \
 	tests/forces2v.out \
 	tests/forces2vv.out \
 	tests/forces3vvv.out \
+	tests/icmpv6.out  \
+	tests/icmpv6.pcap \
 	tests/ikev2four.out \
 	tests/ikev2four.pcap \
 	tests/ikev2fourv.out \
@@ -335,6 +336,8 @@ EXTRA_DIST = \
 	tests/mpls-traceroute.pcap \
 	tests/ospf-gmpls.out \
 	tests/ospf-gmpls.pcap \
+	tests/pppoe.out \
+	tests/pppoe.pcap \
 	tests/print-A.out \
 	tests/print-AA.out \
 	tests/print-capX.out \
