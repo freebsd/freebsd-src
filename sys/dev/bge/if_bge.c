@@ -896,6 +896,7 @@ bge_miibus_statchg(device_t dev)
 {
 	struct bge_softc *sc;
 	struct mii_data *mii;
+	uint32_t mac_mode, rx_mode, tx_mode;
 
 	sc = device_get_softc(dev);
 	if ((sc->bge_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -925,30 +926,39 @@ bge_miibus_statchg(device_t dev)
 		sc->bge_link = 0;
 	if (sc->bge_link == 0)
 		return;
-	BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_PORTMODE);
+
+	/*
+	 * APE firmware touches these registers to keep the MAC
+	 * connected to the outside world.  Try to keep the
+	 * accesses atomic.
+	 */
+
+	/* Set the port mode (MII/GMII) to match the link speed. */
+	mac_mode = CSR_READ_4(sc, BGE_MAC_MODE) &
+	    ~(BGE_MACMODE_PORTMODE | BGE_MACMODE_HALF_DUPLEX);
+	tx_mode = CSR_READ_4(sc, BGE_TX_MODE);
+	rx_mode = CSR_READ_4(sc, BGE_RX_MODE);
+
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
 	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
-		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_GMII);
+		mac_mode |= BGE_PORTMODE_GMII;
 	else
-		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_MII);
+		mac_mode |= BGE_PORTMODE_MII;
 
+	/* Set MAC flow control behavior to match link flow control settings. */
+	tx_mode &= ~BGE_TXMODE_FLOWCTL_ENABLE;
+	rx_mode &= ~BGE_RXMODE_FLOWCTL_ENABLE;
 	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
-		BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-		if ((IFM_OPTIONS(mii->mii_media_active) &
-		    IFM_ETH_TXPAUSE) != 0)
-			BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
-		else
-			BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
-		if ((IFM_OPTIONS(mii->mii_media_active) &
-		    IFM_ETH_RXPAUSE) != 0)
-			BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
-		else
-			BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
-	} else {
-		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-		BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
-		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
-	}
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
+			tx_mode |= BGE_TXMODE_FLOWCTL_ENABLE;
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
+			rx_mode |= BGE_RXMODE_FLOWCTL_ENABLE;
+	} else
+		mac_mode |= BGE_MACMODE_HALF_DUPLEX;
+
+	CSR_WRITE_4(sc, BGE_MAC_MODE, mac_mode);
+	CSR_WRITE_4(sc, BGE_TX_MODE, tx_mode);
+	CSR_WRITE_4(sc, BGE_RX_MODE, rx_mode);
 }
 
 /*
