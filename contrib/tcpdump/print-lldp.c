@@ -385,9 +385,9 @@ static const struct tok lldp_tia_application_type_values[] = {
     { 0, NULL}
 };
 
-#define LLDP_TIA_NETWORK_POLICY_U_BIT           (1 << 5)
+#define LLDP_TIA_NETWORK_POLICY_X_BIT           (1 << 5)
 #define LLDP_TIA_NETWORK_POLICY_T_BIT           (1 << 6)
-#define LLDP_TIA_NETWORK_POLICY_X_BIT           (1 << 7)
+#define LLDP_TIA_NETWORK_POLICY_U_BIT           (1 << 7)
 
 static const struct tok lldp_tia_network_policy_bits_values[] = {
     { LLDP_TIA_NETWORK_POLICY_U_BIT, "Unknown"},
