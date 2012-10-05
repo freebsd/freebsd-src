@@ -1621,13 +1621,6 @@ retry:
 	return (pv);
 }
 
-/*
- * If it is the first entry on the list, it is actually
- * in the header and we must copy the following entry up
- * to the header.  Otherwise we must search the list for
- * the entry.  In either case we free the now unused entry.
- */
-
 static pv_entry_t
 pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 {
@@ -2938,13 +2931,6 @@ pmap_clear_reference(vm_page_t m)
 
 /*
  * Miscellaneous support routines follow
- */
-
-/*
- * Map a set of physical memory pages into the kernel virtual
- * address space. Return a pointer to where it is mapped. This
- * routine is intended to be used for mapping device memory,
- * NOT real memory.
  */
 
 /*
