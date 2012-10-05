@@ -25,7 +25,6 @@ INCS=	altivec.h \
 	popcntintrin.h \
 	smmintrin.h \
 	tmmintrin.h \
-	unwind.h \
 	wmmintrin.h \
 	x86intrin.h \
 	xmmintrin.h \
