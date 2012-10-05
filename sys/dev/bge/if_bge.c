@@ -896,7 +896,10 @@ bge_miibus_statchg(device_t dev)
 {
 	struct bge_softc *sc;
 	struct mii_data *mii;
+
 	sc = device_get_softc(dev);
+	if ((sc->bge_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 	mii = device_get_softc(sc->bge_miibus);
 
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
@@ -5054,10 +5057,10 @@ bge_init_locked(struct bge_softc *sc)
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
 	}
 
-	bge_ifmedia_upd_locked(ifp);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	bge_ifmedia_upd_locked(ifp);
 
 	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
 }
