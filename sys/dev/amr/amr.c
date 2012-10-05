@@ -533,13 +533,19 @@ shutdown_out:
  * The amr(4) firmware relies on this feature.  In fact, it assumes
  * the buffer is always a power of 2 up to a max of 64k.  There is
  * also at least one case where it assumes a buffer less than 16k is
- * greater than 16k.  Force a minimum buffer size of 32k and round
- * sizes between 32k and 64k up to 64k as a workaround.
+ * greater than 16k.  However, forcing all buffers to a size of 32k
+ * causes stalls in the firmware.  Force each command smaller than
+ * 64k up to the next power of two except that commands between 8k
+ * and 16k are rounded up to 32k instead of 16k.
  */
 static unsigned long
 amr_ioctl_buffer_length(unsigned long len)
 {
 
+    if (len <= 4 * 1024)
+	return (4 * 1024);
+    if (len <= 8 * 1024)
+	return (8 * 1024);
     if (len <= 32 * 1024)
 	return (32 * 1024);
     if (len <= 64 * 1024)
