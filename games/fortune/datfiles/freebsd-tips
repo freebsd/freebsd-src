@@ -272,8 +272,11 @@ will search '/', and all subdirectories, for files with 'GENERIC' in the name.
 %
 To see all of the directories on your FreeBSD system, type
 
-	ls -R / | less
-		-- Dru <genesis@istar.ca>
+	find / -type d | less
+
+All the files?
+
+	find / -type f | less
 %
 To see how long it takes a command to run, type the word "time" before the
 command name.
@@ -315,9 +318,9 @@ and they can be combined as "ls -FG".
 Want to find a specific port, just type the following under /usr/ports
 or one its subdirectories:
 
-	"make search name=<port-name>"
+	make search name=<port-name>
     or
-	"make search key=<keyword>"
+	make search key=<keyword>
 %
 Want to know how many words, lines, or bytes are contained in a file? Type
 "wc filename".
@@ -421,6 +424,8 @@ variable.
 You can press Ctrl-D to quickly exit from a shell, or logout from a
 login shell.
 		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+%
+You can press Ctrl-L while in the shell to clear the screen.
 %
 You can press up-arrow or down-arrow to walk through a list of
 previous commands in tcsh.
