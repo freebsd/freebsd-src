@@ -24,6 +24,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121006:
+	The pfil(9) API/ABI for AF_INET family has been changed. Packet
+	filtering modules: pf(4), ipfw(4), ipfilter(4) need to be recompiled
+	with new kernel.
+
 20121001:
 	The net80211(4) ABI has been changed to allow for improved driver
 	PS-POLL and power-save support.  All wireless drivers need to be
