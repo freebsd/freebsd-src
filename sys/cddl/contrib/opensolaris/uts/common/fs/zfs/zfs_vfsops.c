@@ -1539,6 +1539,25 @@ out:
 }
 #endif	/* OPENSOLARIS_MOUNTROOT */
 
+static int
+getpoolname(const char *osname, char *poolname)
+{
+	char *p;
+
+	p = strchr(osname, '/');
+	if (p == NULL) {
+		if (strlen(osname) >= MAXNAMELEN)
+			return (ENAMETOOLONG);
+		(void) strcpy(poolname, osname);
+	} else {
+		if (p - osname >= MAXNAMELEN)
+			return (ENAMETOOLONG);
+		(void) strncpy(poolname, osname, p - osname);
+		poolname[p - osname] = '\0';
+	}
+	return (0);
+}
+
 /*ARGSUSED*/
 static int
 zfs_mount(vfs_t *vfsp)
@@ -1632,6 +1651,29 @@ zfs_mount(vfs_t *vfsp)
 		goto out;
 	}
 
+	/* Initial root mount: try hard to import the requested root pool. */
+	if ((vfsp->vfs_flag & MNT_ROOTFS) != 0 &&
+	    (vfsp->vfs_flag & MNT_UPDATE) == 0) {
+		char pname[MAXNAMELEN];
+		spa_t *spa;
+		int prefer_cache;
+
+		error = getpoolname(osname, pname);
+		if (error)
+			goto out;
+
+		prefer_cache = 1;
+		TUNABLE_INT_FETCH("vfs.zfs.rootpool.prefer_cached_config",
+		    &prefer_cache);
+		mutex_enter(&spa_namespace_lock);
+		spa = spa_lookup(pname);
+		mutex_exit(&spa_namespace_lock);
+		if (!prefer_cache || spa == NULL) {
+			error = spa_import_rootpool(pname);
+			if (error)
+				goto out;
+		}
+	}
 	DROP_GIANT();
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
