@@ -59,6 +59,7 @@ int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,
 		     const char **path);
 char	*zfs_fmtdev(void *vdev);
 int	zfs_probe_dev(const char *devname, uint64_t *pool_guid);
+int	zfs_list(const char *name);
 
 extern struct devsw zfs_dev;
 extern struct fs_ops zfs_fsops;
