@@ -1387,8 +1387,6 @@ zap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint64
 	return (EIO);
 }
 
-#ifdef BOOT2
-
 /*
  * List a microzap directory. Assumes that the zap scratch buffer contains
  * the directory contents.
@@ -1512,8 +1510,6 @@ zap_list(const spa_t *spa, const dnode_phys_t *dnode)
 	else
 		return fzap_list(spa, dnode);
 }
-
-#endif
 
 static int
 objset_get_dnode(const spa_t *spa, const objset_phys_t *os, uint64_t objnum, dnode_phys_t *dnode)
@@ -1750,6 +1746,38 @@ zfs_lookup_dataset(const spa_t *spa, const char *name, uint64_t *objnum)
 	*objnum = dd->dd_head_dataset_obj;
 	return (0);
 }
+
+#ifndef BOOT2
+static int
+zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
+{
+	uint64_t dir_obj, child_dir_zapobj;
+	dnode_phys_t child_dir_zap, dir, dataset;
+	dsl_dataset_phys_t *ds;
+	dsl_dir_phys_t *dd;
+
+	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
+		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
+		return (EIO);
+	}
+	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
+	dir_obj = ds->ds_dir_obj;
+
+	if (objset_get_dnode(spa, &spa->spa_mos, dir_obj, &dir)) {
+		printf("ZFS: can't find dirobj %ju\n", (uintmax_t)dir_obj);
+		return (EIO);
+	}
+	dd = (dsl_dir_phys_t *)&dir.dn_bonus;
+
+	child_dir_zapobj = dd->dd_child_dir_zapobj;
+	if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap) != 0) {
+		printf("ZFS: can't find child zap %ju\n", (uintmax_t)dir_obj);
+		return (EIO);
+	}
+
+	return (zap_list(spa, &child_dir_zap) != 0);
+}
+#endif
 
 /*
  * Find the object set given the object number of its dataset object
