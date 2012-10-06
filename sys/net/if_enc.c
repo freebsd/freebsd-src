@@ -270,23 +270,8 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	switch (ip->ip_v) {
 #ifdef INET
 		case 4:
-			/*
-			 * before calling the firewall, swap fields the same as
-			 * IP does. here we assume the header is contiguous
-			 */
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
-
 			error = pfil_run_hooks(&V_inet_pfil_hook, mp,
 			    encif, dir, NULL);
-
-			if (*mp == NULL || error != 0)
-				break;
-
-			/* restore byte ordering */
-			ip = mtod(*mp, struct ip *);
-			ip->ip_len = htons(ip->ip_len);
-			ip->ip_off = htons(ip->ip_off);
 			break;
 #endif
 #ifdef INET6
