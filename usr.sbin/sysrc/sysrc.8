@@ -98,7 +98,8 @@ Show only variable values, not their names.
 .It Fl N
 Show only variable names, not their values.
 .It Fl q
-Quiet. Ignore previous
+Quiet.
+Ignore previous
 .Fl v
 and/or
 .Ev SYSRC_VERBOSE .
@@ -108,7 +109,8 @@ Operate within the root directory
 rather than
 .Pq Sq / .
 .It Fl v
-Verbose. Print the pathname of the specific
+Verbose.
+Print the pathname of the specific
 .Xr rc.conf 5
 file where the directive was found.
 .It Fl x
@@ -135,16 +137,20 @@ The list of system configuration files is configured in the file
 .Ql /etc/defaults/rc.conf
 within the variable
 .Ql rc_conf_files ,
-which by-default contains a space-separated list of pathnames. On all FreeBSD
-systems, this defaults to the value "/etc/rc.conf /etc/rc.conf.local". Each
-pathname is sourced in-order upon startup. It is in the same fashion that
+which by-default contains a space-separated list of pathnames.
+On all FreeBSD
+systems, this defaults to the value "/etc/rc.conf /etc/rc.conf.local".
+Each
+pathname is sourced in-order upon startup.
+It is in the same fashion that
 .Nm
 sources the configuration files before returning the value of the given
 variable.
 .Pp
 When supplied a variable name,
 .Nm
-will return the value of the variable. If the variable does not appear in any
+will return the value of the variable.
+If the variable does not appear in any
 of the configured
 .Ql rc_conf_files ,
 an error is printed and error status is returned.
@@ -152,13 +158,16 @@ an error is printed and error status is returned.
 When changing values of a given variable, it does not matter if the variable
 appears in any of the
 .Ql rc_conf_files
-or not. If the variable does not appear in any of the files, it is appended to
+or not.
+If the variable does not appear in any of the files, it is appended to
 the end of the first pathname in the
 .Ql rc_conf_files
-variable. Otherwise,
+variable.
+Otherwise,
 .Nm
 will replace only the last-occurrence in the last-file found to contain the
-variable. This gets the value to take effect next boot without heavily
+variable.
+This gets the value to take effect next boot without heavily
 modifying these integral files (yet taking care not to allow the file to
 grow unwieldy should
 .Nm
@@ -176,7 +185,8 @@ Location of
 .Ql /etc/defaults/rc.conf
 file.
 .It Ev SYSRC_VERBOSE
-Default verbosity. Set to non-NULL to enable.
+Default verbosity.
+Set to non-NULL to enable.
 .El
 .Sh DEPENDENCIES
 The following standard commands are required by
