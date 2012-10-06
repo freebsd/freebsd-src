@@ -187,6 +187,9 @@ static struct td_sched td_sched0;
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
 #define	SCHED_INTERACT_THRESH	(30)
 
+/* Flags kept in td_flags. */
+#define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
+
 /*
  * tickincr:		Converts a stathz tick into a hz domain scaled by
  *			the shift factor.  Without the shift the error rate
@@ -1850,7 +1853,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	struct td_sched *ts;
 	struct mtx *mtx;
 	int srqflag;
-	int cpuid;
+	int cpuid, preempted;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(newtd == NULL, ("sched_switch: Unsupported newtd argument"));
@@ -1862,8 +1865,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	ts->ts_rltick = ticks;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
-	if (!(flags & SW_PREEMPT))
-		td->td_flags &= ~TDF_NEEDRESCHED;
+	preempted = !(td->td_flags & TDF_SLICEEND);
+	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_SLICEEND);
 	td->td_owepreempt = 0;
 	tdq->tdq_switchcnt++;
 	/*
@@ -1875,7 +1878,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		TD_SET_CAN_RUN(td);
 	} else if (TD_IS_RUNNING(td)) {
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
-		srqflag = (flags & SW_PREEMPT) ?
+		srqflag = preempted ?
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 		    SRQ_OURSELF|SRQ_YIELDING;
 #ifdef SMP
@@ -2244,7 +2247,7 @@ sched_clock(struct thread *td)
 	 * We're out of time, force a requeue at userret().
 	 */
 	ts->ts_slice = sched_slice;
-	td->td_flags |= TDF_NEEDRESCHED;
+	td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
 }
 
 /*
