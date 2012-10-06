@@ -706,6 +706,34 @@ spa_find_by_name(const char *name)
 	return (0);
 }
 
+#ifdef BOOT2
+static spa_t *
+spa_get_primary(void)
+{
+
+	return (STAILQ_FIRST(&zfs_pools));
+}
+
+static vdev_t *
+spa_get_primary_vdev(const spa_t *spa)
+{
+	vdev_t *vdev;
+	vdev_t *kid;
+
+	if (spa == NULL)
+		spa = spa_get_primary();
+	if (spa == NULL)
+		return (NULL);
+	vdev = STAILQ_FIRST(&spa->spa_vdevs);
+	if (vdev == NULL)
+		return (NULL);
+	for (kid = STAILQ_FIRST(&vdev->v_children); kid != NULL;
+	     kid = STAILQ_FIRST(&vdev->v_children))
+		vdev = kid;
+	return (vdev);
+}
+#endif
+
 static spa_t *
 spa_create(uint64_t guid)
 {
