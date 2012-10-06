@@ -513,7 +513,10 @@ zfs_dev_open(struct open_file *f, ...)
 	dev = va_arg(args, struct zfs_devdesc *);
 	va_end(args);
 
-	spa = spa_find_by_guid(dev->pool_guid);
+	if (dev->pool_guid == 0)
+		spa = STAILQ_FIRST(&zfs_pools);
+	else
+		spa = spa_find_by_guid(dev->pool_guid);
 	if (!spa)
 		return (ENXIO);
 	rv = zfs_spa_init(spa);
@@ -627,7 +630,10 @@ zfs_fmtdev(void *vdev)
 	if (dev->d_type != DEVT_ZFS)
 		return (buf);
 
-	spa = spa_find_by_guid(dev->pool_guid);
+	if (dev->pool_guid == 0)
+		spa = STAILQ_FIRST(&zfs_pools);
+	else
+		spa = spa_find_by_guid(dev->pool_guid);
 	if (spa == NULL) {
 		printf("ZFS: can't find pool by guid\n");
 		return (buf);
