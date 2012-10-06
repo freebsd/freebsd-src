@@ -553,7 +553,7 @@ main(void)
 	if (parse())
 	    autoboot = 0;
 	if (!OPT_CHECK(RBX_QUIET))
-	    printf("%s: %s", PATH_CONFIG, cmddup);
+	    printf("%s: %s\n", PATH_CONFIG, cmddup);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
@@ -577,13 +577,17 @@ main(void)
 	if (!autoboot || !OPT_CHECK(RBX_QUIET)) {
 	    printf("\nFreeBSD/x86 boot\n");
 	    if (zfs_rlookup(spa, zfsmount.rootobj, rootname) != 0)
-		printf("Default: %s:<0x%llx>:%s\n"
+		printf("Default: %s/<0x%llx>:%s\n"
 		       "boot: ",
 		       spa->spa_name, zfsmount.rootobj, kname);
-	    else
-		printf("Default: %s:%s:%s\n"
+	    else if (rootname[0] != '\0')
+		printf("Default: %s/%s:%s\n"
 		       "boot: ",
 		       spa->spa_name, rootname, kname);
+	    else
+		printf("Default: %s:%s\n"
+		       "boot: ",
+		       spa->spa_name, kname);
 	}
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
@@ -708,12 +712,46 @@ load(void)
 }
 
 static int
+zfs_mount_ds(char *dsname)
+{
+    uint64_t newroot;
+    spa_t *newspa;
+    char *q;
+
+    q = strchr(dsname, '/');
+    if (q)
+	*q++ = '\0';
+    newspa = spa_find_by_name(dsname);
+    if (newspa == NULL) {
+	printf("\nCan't find ZFS pool %s\n", dsname);
+	return -1;
+    }
+
+    if (zfs_spa_init(newspa))
+	return -1;
+
+    newroot = 0;
+    if (q) {
+	if (zfs_lookup_dataset(newspa, q, &newroot)) {
+	    printf("\nCan't find dataset %s in ZFS pool %s\n",
+		    q, newspa->spa_name);
+	    return -1;
+	}
+    }
+    if (zfs_mount(newspa, newroot, &zfsmount)) {
+	printf("\nCan't mount ZFS dataset\n");
+	return -1;
+    }
+    spa = newspa;
+    return (0);
+}
+
+static int
 parse(void)
 {
     char *arg = cmd;
     char *ep, *p, *q;
     const char *cp;
-    //unsigned int drv;
     int c, i, j;
 
     while ((c = *arg++)) {
@@ -773,37 +811,20 @@ parse(void)
 	    }
 
 	    /*
+	     * If there is "zfs:" prefix simply ignore it.
+	     */
+	    if (strncmp(arg, "zfs:", 4) == 0)
+		arg += 4;
+
+	    /*
 	     * If there is a colon, switch pools.
 	     */
-	    q = (char *) strchr(arg, ':');
+	    q = strchr(arg, ':');
 	    if (q) {
-		spa_t *newspa;
-		uint64_t newroot;
-
-		*q++ = 0;
-		newspa = spa_find_by_name(arg);
-		if (newspa) {
-		    arg = q;
-		    spa = newspa;
-		    newroot = 0;
-		    q = (char *) strchr(arg, ':');
-		    if (q) {
-			*q++ = 0;
-			if (zfs_lookup_dataset(spa, arg, &newroot)) {
-			    printf("\nCan't find dataset %s in ZFS pool %s\n",
-			        arg, spa->spa_name);
-			    return -1;
-			}
-			arg = q;
-		    }
-		    if (zfs_mount(spa, newroot, &zfsmount)) {
-			printf("\nCan't mount ZFS dataset\n");
-			return -1;
-		    }
-		} else {
-		    printf("\nCan't find ZFS pool %s\n", arg);
+		*q++ = '\0';
+		if (zfs_mount_ds(arg) != 0)
 		    return -1;
-		}
+		arg = q;
 	    }
 	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(kname))
