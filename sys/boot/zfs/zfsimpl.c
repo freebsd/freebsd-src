@@ -1881,13 +1881,14 @@ static int
 zfs_spa_init(spa_t *spa)
 {
 
-	if (spa->spa_inited)
-		return (0);
 	if (zio_read(spa, &spa->spa_uberblock.ub_rootbp, &spa->spa_mos)) {
 		printf("ZFS: can't read MOS of pool %s\n", spa->spa_name);
 		return (EIO);
 	}
-	spa->spa_inited = 1;
+	if (spa->spa_mos.os_type != DMU_OST_META) {
+		printf("ZFS: corrupted MOS of pool %s\n", spa->spa_name);
+		return (EIO);
+	}
 	return (0);
 }
 
