@@ -322,6 +322,29 @@ command_heap(int argc, char *argv[])
     return(CMD_OK);
 }
 
+#ifdef LOADER_ZFS_SUPPORT
+COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
+    command_lszfs);
+
+static int
+command_lszfs(int argc, char *argv[])
+{
+    int err;
+
+    if (argc != 2) {
+	command_errmsg = "wrong number of arguments";
+	return (CMD_ERROR);
+    }
+
+    err = zfs_list(argv[1]);
+    if (err != 0) {
+	command_errmsg = strerror(err);
+	return (CMD_ERROR);
+    }
+    return (CMD_OK);
+}
+#endif
+
 /* ISA bus access functions for PnP. */
 static int
 isa_inb(int port)
