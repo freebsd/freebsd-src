@@ -658,3 +658,38 @@ zfs_fmtdev(void *vdev)
 		    rootname);
 	return (buf);
 }
+
+int
+zfs_list(const char *name)
+{
+	static char	poolname[ZFS_MAXNAMELEN];
+	uint64_t	objid;
+	spa_t		*spa;
+	const char	*dsname;
+	int		len;
+	int		rv;
+
+	len = strlen(name);
+	dsname = strchr(name, '/');
+	if (dsname != NULL) {
+		len = dsname - name;
+		dsname++;
+	}
+	memcpy(poolname, name, len);
+	poolname[len] = '\0';
+
+	spa = spa_find_by_name(poolname);
+	if (!spa)
+		return (ENXIO);
+	rv = zfs_spa_init(spa);
+	if (rv != 0)
+		return (rv);
+	if (dsname != NULL)
+		rv = zfs_lookup_dataset(spa, dsname, &objid);
+	else
+		rv = zfs_get_root(spa, &objid);
+	if (rv != 0)
+		return (rv);
+	rv = zfs_list_dataset(spa, objid);
+	return (0);
+}
