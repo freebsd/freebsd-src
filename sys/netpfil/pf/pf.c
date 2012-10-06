@@ -5620,13 +5620,6 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (PF_PASS);
 
-	if (m->m_pkthdr.len < (int)sizeof(struct ip)) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_SHORT);
-		log = 1;
-		goto done;
-	}
-
 	pd.pf_mtag = pf_find_mtag(m);
 
 	PF_RULES_RLOCK();
@@ -5991,13 +5984,6 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	}
 	if (kif->pfik_flags & PFI_IFLAG_SKIP)
 		return (PF_PASS);
-
-	if (m->m_pkthdr.len < (int)sizeof(*h)) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_SHORT);
-		log = 1;
-		goto done;
-	}
 
 	PF_RULES_RLOCK();
 
