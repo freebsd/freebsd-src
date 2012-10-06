@@ -370,10 +370,28 @@ vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t size)
 static int
 zfs_dev_init(void)
 {
+	spa_t *spa;
+	spa_t *next;
+	spa_t *prev;
+
 	zfs_init();
 	if (archsw.arch_zfs_probe == NULL)
 		return (ENXIO);
 	archsw.arch_zfs_probe();
+
+	prev = NULL;
+	spa = STAILQ_FIRST(&zfs_pools);
+	while (spa != NULL) {
+		next = STAILQ_NEXT(spa, spa_link);
+		if (zfs_spa_init(spa)) {
+			if (prev == NULL)
+				STAILQ_REMOVE_HEAD(&zfs_pools, spa_link);
+			else
+				STAILQ_REMOVE_AFTER(&zfs_pools, prev, spa_link);
+		} else
+			prev = spa;
+		spa = next;
+	}
 	return (0);
 }
 
@@ -519,9 +537,6 @@ zfs_dev_open(struct open_file *f, ...)
 		spa = spa_find_by_guid(dev->pool_guid);
 	if (!spa)
 		return (ENXIO);
-	rv = zfs_spa_init(spa);
-	if (rv != 0)
-		return (rv);
 	mount = malloc(sizeof(*mount));
 	rv = zfs_mount(spa, dev->root_guid, mount);
 	if (rv != 0) {
@@ -601,9 +616,6 @@ zfs_parsedev(struct zfs_devdesc *dev, const char *devspec, const char **path)
 	spa = spa_find_by_name(poolname);
 	if (!spa)
 		return (ENXIO);
-	rv = zfs_spa_init(spa);
-	if (rv != 0)
-		return (rv);
 	dev->pool_guid = spa->spa_guid;
 	if (rootname[0] != '\0') {
 		rv = zfs_lookup_dataset(spa, rootname, &dev->root_guid);
@@ -636,10 +648,6 @@ zfs_fmtdev(void *vdev)
 		spa = spa_find_by_guid(dev->pool_guid);
 	if (spa == NULL) {
 		printf("ZFS: can't find pool by guid\n");
-		return (buf);
-	}
-	if (zfs_spa_init(spa) != 0) {
-		printf("ZFS: can't init pool\n");
 		return (buf);
 	}
 	if (dev->root_guid == 0 && zfs_get_root(spa, &dev->root_guid)) {
@@ -681,9 +689,6 @@ zfs_list(const char *name)
 	spa = spa_find_by_name(poolname);
 	if (!spa)
 		return (ENXIO);
-	rv = zfs_spa_init(spa);
-	if (rv != 0)
-		return (rv);
 	if (dsname != NULL)
 		rv = zfs_lookup_dataset(spa, dsname, &objid);
 	else
