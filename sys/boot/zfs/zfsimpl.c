@@ -71,6 +71,8 @@ static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
 #define TEMP_SIZE	(1024 * 1024)
 
 static int zio_read(const spa_t *spa, const blkptr_t *bp, void *buf);
+static int zfs_get_root(const spa_t *spa, uint64_t *objid);
+static int zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result);
 
 static void
 zfs_init(void)
@@ -784,11 +786,20 @@ vdev_status(vdev_t *vdev, int indent)
 static void
 spa_status(spa_t *spa)
 {
+	static char bootfs[ZFS_MAXNAMELEN];
+	uint64_t rootid;
 	vdev_t *vdev;
 	int good_kids, bad_kids, degraded_kids;
 	vdev_state_t state;
 
 	pager_printf("  pool: %s\n", spa->spa_name);
+	if (zfs_get_root(spa, &rootid) == 0 &&
+	    zfs_rlookup(spa, rootid, bootfs) == 0) {
+		if (bootfs[0] == '\0')
+			pager_printf("bootfs: %s\n", spa->spa_name);
+		else
+			pager_printf("bootfs: %s/%s\n", spa->spa_name, bootfs);
+	}
 	pager_printf("config:\n\n");
 	pager_printf(STATUS_FORMAT, "NAME", "STATE");
 
