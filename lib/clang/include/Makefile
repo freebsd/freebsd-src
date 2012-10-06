@@ -30,6 +30,4 @@ INCS=	altivec.h \
 	xmmintrin.h \
 	xopintrin.h
 
-.include <bsd.init.mk>
-.include <bsd.incs.mk>
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>
