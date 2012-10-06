@@ -102,8 +102,8 @@ ${_YC} y.tab.h: ${_YSRC}
 CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
-.ORDER: ${_YC} ${_YH}
-${_YC} ${_YH}: ${_YSRC}
+${_YH}: ${_YC}
+${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
 CLEANFILES+= ${_YH}
@@ -122,6 +122,9 @@ ${_YC:R}.o: ${_YC}
 .if !target(depend)
 .if defined(SRCS)
 depend: beforedepend ${DEPENDFILE} afterdepend
+
+# Tell bmake not to look for generated files via .PATH
+.NOPATH: ${DEPENDFILE}
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
