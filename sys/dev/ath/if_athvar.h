@@ -99,7 +99,7 @@ struct ath_buf;
  * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
  */
 struct ath_tid {
-	TAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
+	TAILQ_HEAD(,ath_buf)	tid_q;		/* pending buffers */
 	u_int			axq_depth;	/* SW queue depth */
 	char			axq_name[48];	/* lock name */
 	struct ath_node		*an;		/* pointer to parent */
@@ -108,7 +108,7 @@ struct ath_tid {
 	int			hwq_depth;	/* how many buffers are on HW */
 
 	struct {
-		TAILQ_HEAD(,ath_buf) axq_q;		/* filtered queue */
+		TAILQ_HEAD(,ath_buf)	tid_q;		/* filtered queue */
 		u_int			axq_depth;	/* SW queue depth */
 		char			axq_name[48];	/* lock name */
 	} filtq;
@@ -355,6 +355,9 @@ struct ath_txq {
 #define	ATH_TID_UNLOCK_ASSERT(_sc, _tid)	\
 	    ATH_TXQ_UNLOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
 
+/*
+ * These are for the hardware queue.
+ */
 #define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
 	TAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
@@ -369,6 +372,24 @@ struct ath_txq {
 } while (0)
 #define	ATH_TXQ_FIRST(_tq)		TAILQ_FIRST(&(_tq)->axq_q)
 #define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
+
+/*
+ * These are for the TID software queue and filtered frames queues.
+ */
+#define ATH_TID_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+} while (0)
+#define ATH_TID_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+} while (0)
+#define ATH_TID_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->tid_q, _elm, _field); \
+	(_tq)->axq_depth--; \
+} while (0)
+#define	ATH_TID_FIRST(_tq)		TAILQ_FIRST(&(_tq)->tid_q)
+#define	ATH_TID_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->tid_q, _field)
 
 struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */

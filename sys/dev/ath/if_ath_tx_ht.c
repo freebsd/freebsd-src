@@ -661,7 +661,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 	h_baw = tap->txa_wnd / 2;
 
 	for (;;) {
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf_first == NULL)
 			bf_first = bf;
 		if (bf == NULL) {
@@ -760,7 +760,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		/*
 		 * this packet is part of an aggregate.
 		 */
-		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TID_REMOVE(tid, bf, bf_list);
 
 		/* The TID lock is required for the BAW update */
 		ath_tx_addto_baw(sc, an, tid, bf);
