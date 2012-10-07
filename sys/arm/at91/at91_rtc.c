@@ -29,11 +29,13 @@
  *
  * This driver does not currently support alarms, just date and time.
  *
- * Note that on an rm9200 the RTC is not your typical battery-driven clock that
- * keeps time while the system is powered down.  In fact, it doesn't even
- * survive a chip reset to keep time across a reboot.  About the only thing it
- * might be good for is keeping time while the cpu clock is turned off for power
- * savings.  On later chips, a battery backup feature is available.
+ * The RTC on the AT91RM9200 resets when the core rests, so it is useless as a
+ * source of time (except when the CPU clock is powered down to save power,
+ * which we don't currently do).  On AT91SAM9 chips, the RTC survives chip
+ * reset, and there's provisions for it to keep time via battery backup if the
+ * system loses power.  On those systems, we use it as a RTC.  We tell the two
+ * apart because the century field is 19 on AT91RM9200 on reset, or on AT91SAM9
+ * chips that haven't had their time properly set.
  */
 
 #include <sys/cdefs.h>
@@ -186,10 +188,13 @@ out:
 	return (err);
 }
 
+/*
+ * Cannot support detach, since there's no clock_unregister function.
+ */
 static int
 at91_rtc_detach(device_t dev)
 {
-	return (EBUSY);	/* XXX */
+	return (EBUSY);
 }
 
 static int
