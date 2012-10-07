@@ -256,7 +256,7 @@ static int
 at91_rtc_gettime(device_t dev, struct timespec *ts)
 {
 	struct clocktime ct;
-	uint32_t timr, calr;
+	uint32_t calr, calr2, timr, timr2;
 	struct at91_rtc_softc *sc;
 
 	sc = device_get_softc(dev);
@@ -266,8 +266,19 @@ at91_rtc_gettime(device_t dev, struct timespec *ts)
 	if (RD4(sc, RTC_VER) & (RTC_VER_NVTIM | RTC_VER_NVCAL))
 		return EINVAL;
 
-	timr = RD4(sc, RTC_TIMR);
-	calr = RD4(sc, RTC_CALR);
+	/*
+	 * The RTC hardware can update registers while the CPU is reading them.
+	 * The manual advises reading until you obtain the same values twice.
+	 * Interleaving the reads (rather than timr, timr2, calr, calr2 order)
+	 * also ensures we don't miss a midnight rollover/carry between reads.
+	 */
+	do {
+		timr = RD4(sc, RTC_TIMR);
+		calr = RD4(sc, RTC_CALR);
+		timr2 = RD4(sc, RTC_TIMR);
+		calr2 = RD4(sc, RTC_CALR);
+	} while (timr != timr2 || calr != calr2);
+
 	ct.nsec = 0;
 	ct.sec = RTC_TIMR_SEC(timr);
 	ct.min = RTC_TIMR_MIN(timr);
