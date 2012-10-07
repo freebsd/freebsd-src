@@ -675,6 +675,9 @@ cxgb_controller_attach(device_t dev)
 	for (i = 0; i < NUM_CPL_HANDLERS; i++)
 		sc->cpl_handler[i] = cpl_not_handled;
 #endif
+
+	t3_intr_clear(sc);
+	error = cxgb_setup_interrupts(sc);
 out:
 	if (error)
 		cxgb_free(sc);
@@ -922,6 +925,7 @@ cxgb_setup_interrupts(adapter_t *sc)
 	if (!(intr_flag & USING_MSIX) || err)
 		return (err);
 
+	bus_describe_intr(sc->dev, sc->irq_res, sc->intr_tag, "err");
 	for (i = 0; i < sc->msi_count - 1; i++) {
 		rid = i + 2;
 		res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
@@ -945,6 +949,7 @@ cxgb_setup_interrupts(adapter_t *sc)
 		sc->msix_irq_rid[i] = rid;
 		sc->msix_irq_res[i] = res;
 		sc->msix_intr_tag[i] = tag;
+		bus_describe_intr(sc->dev, res, tag, "qs%d", i);
 	}
 
 	if (err)
@@ -1610,11 +1615,6 @@ cxgb_up(struct adapter *sc)
 
 		alloc_filters(sc);
 		setup_rss(sc);
-
-		t3_intr_clear(sc);
-		err = cxgb_setup_interrupts(sc);
-		if (err)
-			goto out;
 
 		t3_add_configured_sysctls(sc);
 		sc->flags |= FULL_INIT_DONE;
