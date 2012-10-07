@@ -131,6 +131,10 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
+NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
+NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
+	-o ${.TARGET} ${.ALLSRC:M*.fw}
+
 .if defined(CTFCONVERT)
 NORMAL_CTFCONVERT= ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
 .else
@@ -149,7 +153,7 @@ SYSTEM_OBJS+= hack.So
 SYSTEM_CTFMERGE= ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 LD+= -g
 .endif
-SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} \
+SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} --no-warn-mismatch \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
