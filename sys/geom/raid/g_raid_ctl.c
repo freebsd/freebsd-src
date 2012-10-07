@@ -51,7 +51,10 @@ g_raid_find_node(struct g_class *mp, const char *name)
 {
 	struct g_raid_softc *sc;
 	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_raid_volume *vol;
 
+	/* Look for geom with specified name. */
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
@@ -60,6 +63,35 @@ g_raid_find_node(struct g_class *mp, const char *name)
 			continue;
 		if (strcasecmp(sc->sc_name, name) == 0)
 			return (sc);
+	}
+
+	/* Look for provider with specified name. */
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL)
+			continue;
+		if (sc->sc_stopping != 0)
+			continue;
+		LIST_FOREACH(pp, &gp->provider, provider) {
+			if (strcmp(pp->name, name) == 0)
+				return (sc);
+			if (strncmp(pp->name, "raid/", 5) == 0 &&
+			    strcmp(pp->name + 5, name) == 0)
+				return (sc);
+		}
+	}
+
+	/* Look for volume with specified name. */
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL)
+			continue;
+		if (sc->sc_stopping != 0)
+			continue;
+		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+			if (strcmp(vol->v_name, name) == 0)
+				return (sc);
+		}
 	}
 	return (NULL);
 }
