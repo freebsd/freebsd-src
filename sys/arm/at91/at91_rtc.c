@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2012 Ian Lepore.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,6 +24,18 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Driver for the at91 on-chip realtime clock.
+ *
+ * This driver does not currently support alarms, just date and time.
+ *
+ * Note that on an rm9200 the RTC is not your typical battery-driven clock that
+ * keeps time while the system is powered down.  In fact, it doesn't even
+ * survive a chip reset to keep time across a reboot.  About the only thing it
+ * might be good for is keeping time while the cpu clock is turned off for power
+ * savings.  On later chips, a battery backup feature is available.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -39,10 +52,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
+#include <machine/cpu.h>
 
 #include <arm/at91/at91_rtcreg.h>
 
 #include "clock_if.h"
+
+/*
+ * The driver has all the infrastructure to use interrupts but doesn't actually
+ * have any need to do so right now.  There's a non-zero cost for installing the
+ * handler because the RTC shares the system interrupt (IRQ 1), and thus will
+ * get called a lot for no reason at all.
+ */
+#define	AT91_RTC_USE_INTERRUPTS_NOT
 
 struct at91_rtc_softc
 {
@@ -81,11 +103,31 @@ static devclass_t at91_rtc_devclass;
 static int at91_rtc_probe(device_t dev);
 static int at91_rtc_attach(device_t dev);
 static int at91_rtc_detach(device_t dev);
-static int at91_rtc_intr(void *);
 
 /* helper routines */
 static int at91_rtc_activate(device_t dev);
 static void at91_rtc_deactivate(device_t dev);
+
+#ifdef AT91_RTC_USE_INTERRUPTS
+static int
+at91_rtc_intr(void *xsc)
+{
+	struct at91_rtc_softc *sc;
+	uint32_t status;
+
+	sc = xsc;
+	/* Must clear the status bits after reading them to re-arm. */
+	status = RD4(sc, RTC_SR);
+	WR4(sc, RTC_SCCR, status);
+	if (status == 0)
+		return;
+	AT91_RTC_LOCK(sc);
+        /* Do something here */
+	AT91_RTC_UNLOCK(sc);
+	wakeup(sc);
+	return (FILTER_HANDLED);
+}
+#endif
 
 static int
 at91_rtc_probe(device_t dev)
@@ -108,15 +150,35 @@ at91_rtc_attach(device_t dev)
 	AT91_RTC_LOCK_INIT(sc);
 
 	/*
-	 * Activate the interrupt, but disable all interrupts in the hardware
+	 * Disable all interrupts in the hardware.
+	 * Clear all bits in the status register.
+	 * Set 24-hour-clock mode.
 	 */
 	WR4(sc, RTC_IDR, 0xffffffff);
+	WR4(sc, RTC_SCCR, 0x1f);
+	WR4(sc, RTC_MR, 0);
+
+#ifdef AT91_RTC_USE_INTERRUPTS
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
 	    at91_rtc_intr, NULL, sc, &sc->intrhand);
 	if (err) {
 		AT91_RTC_LOCK_DESTROY(sc);
 		goto out;
 	}
+#endif	
+
+	/*
+	 * Read the calendar register.  If the century is 19 then the clock has
+	 * never been set.  Try to store an invalid value into the register,
+	 * which will turn on the error bit in RTC_VER, and our getclock code
+	 * knows to return EINVAL if any error bits are on.
+	 */
+	if (RTC_CALR_CEN(RD4(sc, RTC_CALR)) == 19)
+		WR4(sc, RTC_CALR, 0);
+
+	/*
+	 * Register as a time of day clock with 1-second resolution.
+	 */
 	clock_register(dev, 1000000);
 out:
 	if (err)
@@ -142,11 +204,13 @@ at91_rtc_activate(device_t dev)
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL)
 		goto errout;
+#ifdef AT91_RTC_USE_INTERRUPTS
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq_res == NULL)
 		goto errout;
+#endif	
 	return (0);
 errout:
 	at91_rtc_deactivate(dev);
@@ -159,37 +223,24 @@ at91_rtc_deactivate(device_t dev)
 	struct at91_rtc_softc *sc;
 
 	sc = device_get_softc(dev);
+#ifdef AT91_RTC_USE_INTERRUPTS
+	WR4(sc, RTC_IDR, 0xffffffff);
 	if (sc->intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
 	sc->intrhand = 0;
+#endif
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	sc->mem_res = 0;
+#ifdef AT91_RTC_USE_INTERRUPTS
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    rman_get_rid(sc->irq_res), sc->irq_res);
 	sc->irq_res = 0;
+#endif	
 	return;
-}
-
-static int
-at91_rtc_intr(void *xsc)
-{
-	struct at91_rtc_softc *sc = xsc;
-#if 0
-	uint32_t status;
-
-	/* Reading the status also clears the interrupt */
-	status = RD4(sc, RTC_SR);
-	if (status == 0)
-		return;
-	AT91_RTC_LOCK(sc);
-	AT91_RTC_UNLOCK(sc);
-#endif
-	wakeup(sc);
-	return (FILTER_HANDLED);
 }
 
 /*
@@ -204,6 +255,12 @@ at91_rtc_gettime(device_t dev, struct timespec *ts)
 	struct at91_rtc_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	/* If the error bits are set we can't return useful values. */
+
+	if (RD4(sc, RTC_VER) & (RTC_VER_NVTIM | RTC_VER_NVCAL))
+		return EINVAL;
+
 	timr = RD4(sc, RTC_TIMR);
 	calr = RD4(sc, RTC_CALR);
 	ct.nsec = 0;
@@ -226,11 +283,46 @@ at91_rtc_settime(device_t dev, struct timespec *ts)
 {
 	struct at91_rtc_softc *sc;
 	struct clocktime ct;
+	int rv;
 
 	sc = device_get_softc(dev);
 	clock_ts_to_ct(ts, &ct);
+
+	/*
+	 * Can't set the clock unless a second has elapsed since we last did so.
+	 */
+	while ((RD4(sc, RTC_SR) & RTC_SR_SECEV) == 0)
+		cpu_spinwait();
+
+	/*
+	 * Stop the clocks for an update; wait until hardware is ready.
+	 * Clear the update-ready status after it gets asserted (the manual says
+	 * to do this before updating the value registers).
+	 */
+	WR4(sc, RTC_CR, RTC_CR_UPDCAL | RTC_CR_UPDTIM);
+	while ((RD4(sc, RTC_SR) & RTC_SR_ACKUPD) == 0)
+		cpu_spinwait();
+	WR4(sc, RTC_SCCR, RTC_SR_ACKUPD);
+
+	/*
+	 * Set the values in the hardware, then check whether the hardware was
+	 * happy with them so we can return the correct status.
+	 */
 	WR4(sc, RTC_TIMR, RTC_TIMR_MK(ct.hour, ct.min, ct.sec));
-	WR4(sc, RTC_CALR, RTC_CALR_MK(ct.year, ct.mon, ct.day, ct.dow));
+	WR4(sc, RTC_CALR, RTC_CALR_MK(ct.year, ct.mon, ct.day, ct.dow+1));
+
+	if (RD4(sc, RTC_VER) & (RTC_VER_NVTIM | RTC_VER_NVCAL))
+		rv = EINVAL;
+	else
+		rv = 0;
+
+	/*
+	 * Restart the clocks (turn off the update bits).
+	 * Clear the second-event bit (because the manual says to).
+	 */
+	WR4(sc, RTC_CR, RD4(sc, RTC_CR) & ~(RTC_CR_UPDCAL | RTC_CR_UPDTIM));
+	WR4(sc, RTC_SCCR, RTC_SR_SECEV);
+
 	return (0);
 }
 
@@ -244,7 +336,7 @@ static device_method_t at91_rtc_methods[] = {
         DEVMETHOD(clock_gettime,        at91_rtc_gettime),
         DEVMETHOD(clock_settime,        at91_rtc_settime),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t at91_rtc_driver = {
