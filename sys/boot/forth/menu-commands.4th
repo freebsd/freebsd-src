@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -144,10 +144,6 @@ marker task-menu-commands.4th
 	@                        \ dereference address into value
 	48 +                     \ convert to ASCII numeral
 
-	\ Since we are [in this file] going to override the standard `boot'
-	\ routine with a custom one, you should know that we use $kernel
-	\ when referencing the desired kernel. Set $kernel below.
-
 	s" set kernel=${kernel_prefix}${kernel[N]}${kernel_suffix}"
 	                          \ command to assemble full kernel-path
 	-rot tuck 36 + c! swap    \ replace 'N' with array index value
@@ -167,10 +163,6 @@ marker task-menu-commands.4th
 	evaluate                 \ translate name into address
 	@                        \ dereference address into value
 	48 +                     \ convert to ASCII numeral
-
-	\ Since we are [in this file] going to override the standard `boot'
-	\ routine with a custom one, you should know that we use $root when
-	\ booting. Set $root below.
 
 	s" set root=${root_prefix}${root[N]}${root_prefix}"
 	                          \ command to assemble full kernel-path
