@@ -1913,9 +1913,11 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	pt_entry_t *pte;
+	pt_entry_t pbits, *pte;
 	pd_entry_t *pde, *pdpe;
-	vm_offset_t va_next;
+	vm_offset_t va, va_next;
+	vm_paddr_t pa;
+	vm_page_t m;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
@@ -1927,10 +1929,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
-		pt_entry_t pbits;
-		vm_page_t m;
-		vm_paddr_t pa;
-
 		pdpe = pmap_segmap(pmap, sva);
 #ifdef __mips_n64
 		if (*pdpe == 0) {
@@ -1947,29 +1945,52 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		pde = pmap_pdpe_to_pde(pdpe, sva);
 		if (*pde == NULL)
 			continue;
+
+		/*
+		 * Limit our scan to either the end of the va represented
+		 * by the current page table page, or to the end of the
+		 * range being write protected.
+		 */
 		if (va_next > eva)
 			va_next = eva;
 
+		va = va_next;
 		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
-		     sva += PAGE_SIZE) {
-
-			/* Skip invalid PTEs */
-			if (!pte_test(pte, PTE_V))
-				continue;
+		    sva += PAGE_SIZE) {
 			pbits = *pte;
-			if (pte_test(&pbits, PTE_MANAGED | PTE_D)) {
-				pa = TLBLO_PTE_TO_PA(pbits);
-				m = PHYS_TO_VM_PAGE(pa);
-				vm_page_dirty(m);
+			if (!pte_test(&pbits, PTE_V) || pte_test(&pbits,
+			    PTE_RO)) {
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
+				continue;
 			}
-			pte_clear(&pbits, PTE_D);
 			pte_set(&pbits, PTE_RO);
-			
-			if (pbits != *pte) {
-				*pte = pbits;
-				pmap_update_page(pmap, sva, pbits);
+			if (pte_test(&pbits, PTE_D)) {
+				pte_clear(&pbits, PTE_D);
+				if (pte_test(&pbits, PTE_MANAGED)) {
+					pa = TLBLO_PTE_TO_PA(pbits);
+					m = PHYS_TO_VM_PAGE(pa);
+					vm_page_dirty(m);
+				}
+				if (va == va_next)
+					va = sva;
+			} else {
+				/*
+				 * Unless PTE_D is set, any TLB entries
+				 * mapping "sva" don't allow write access, so
+				 * they needn't be invalidated.
+				 */
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
 			}
+			*pte = pbits;
 		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
