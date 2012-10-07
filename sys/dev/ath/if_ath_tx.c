@@ -2669,7 +2669,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 
 	/* paused? queue */
 	if (tid->paused) {
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 		/* XXX don't sched - we're paused! */
 		return;
 	}
@@ -2678,7 +2678,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_dobaw &&
 	    (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
 	    SEQNO(bf->bf_state.bfs_seqno)))) {
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 		ath_tx_tid_sched(sc, tid);
 		return;
 	}
@@ -2777,11 +2777,11 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	if (atid->paused) {
 		/* TID is paused, queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: paused\n", __func__);
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 	} else if (ath_tx_ampdu_pending(sc, an, tid)) {
 		/* AMPDU pending; queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pending\n", __func__);
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 		/* XXX sched? */
 	} else if (ath_tx_ampdu_running(sc, an, tid)) {
 		/* AMPDU running, attempt direct dispatch if possible */
@@ -2789,7 +2789,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		/*
 		 * Always queue the frame to the tail of the list.
 		 */
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 
 		/*
 		 * If the hardware queue isn't busy, direct dispatch
@@ -2799,8 +2799,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		 * Otherwise, schedule the TID.
 		 */
 		if (txq->axq_depth < sc->sc_hwq_limit) {
-			bf = TAILQ_FIRST(&atid->axq_q);
-			ATH_TXQ_REMOVE(atid, bf, bf_list);
+			bf = ATH_TID_FIRST(atid);
+			ATH_TID_REMOVE(atid, bf, bf_list);
 
 			/*
 			 * Ensure it's definitely treated as a non-AMPDU
@@ -2831,7 +2831,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	} else {
 		/* Busy; queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: swq'ing\n", __func__);
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 		ath_tx_tid_sched(sc, atid);
 	}
 }
@@ -2856,8 +2856,8 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		/* XXX now with this bzer(), is the field 0'ing needed? */
 		bzero(atid, sizeof(*atid));
 
-		TAILQ_INIT(&atid->axq_q);
-		TAILQ_INIT(&atid->filtq.axq_q);
+		TAILQ_INIT(&atid->tid_q);
+		TAILQ_INIT(&atid->filtq.tid_q);
 		atid->tid = i;
 		atid->an = an;
 		for (j = 0; j < ATH_TID_MAX_BUFS; j++)
@@ -2948,7 +2948,7 @@ ath_tx_tid_filt_addbuf(struct ath_softc *sc, struct ath_tid *tid,
 	ath_tx_set_retry(sc, bf);
 	sc->sc_stats.ast_tx_swfiltered++;
 
-	ATH_TXQ_INSERT_TAIL(&tid->filtq, bf, bf_list);
+	ATH_TID_INSERT_TAIL(&tid->filtq, bf, bf_list);
 }
 
 /*
@@ -2997,9 +2997,9 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 	tid->clrdmask = 1;
 
 	/* XXX this is really quite inefficient */
-	while ((bf = TAILQ_LAST(&tid->filtq.axq_q, ath_bufhead_s)) != NULL) {
-		ATH_TXQ_REMOVE(&tid->filtq, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+	while ((bf = ATH_TID_LAST(&tid->filtq, ath_bufhead_s)) != NULL) {
+		ATH_TID_REMOVE(&tid->filtq, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 	}
 
 	ath_tx_tid_resume(sc, tid);
@@ -3392,7 +3392,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 	/* Walk the queue, free frames */
 	t = 0;
 	for (;;) {
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf == NULL) {
 			break;
 		}
@@ -3402,14 +3402,14 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 			t = 1;
 		}
 
-		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TID_REMOVE(tid, bf, bf_list);
 		ath_tx_tid_drain_pkt(sc, an, tid, bf_cq, bf);
 	}
 
 	/* And now, drain the filtered frame queue */
 	t = 0;
 	for (;;) {
-		bf = TAILQ_FIRST(&tid->filtq.axq_q);
+		bf = ATH_TID_FIRST(&tid->filtq);
 		if (bf == NULL)
 			break;
 
@@ -3418,7 +3418,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 			t = 1;
 		}
 
-		ATH_TXQ_REMOVE(&tid->filtq, bf, bf_list);
+		ATH_TID_REMOVE(&tid->filtq, bf, bf_list);
 		ath_tx_tid_drain_pkt(sc, an, tid, bf_cq, bf);
 	}
 
@@ -3668,9 +3668,9 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	 * we run off and discard/process things.
 	 */
 	/* XXX this is really quite inefficient */
-	while ((bf = TAILQ_LAST(&atid->filtq.axq_q, ath_bufhead_s)) != NULL) {
-		ATH_TXQ_REMOVE(&atid->filtq, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+	while ((bf = ATH_TID_LAST(&atid->filtq, ath_bufhead_s)) != NULL) {
+		ATH_TID_REMOVE(&atid->filtq, bf, bf_list);
+		ATH_TID_INSERT_HEAD(atid, bf, bf_list);
 	}
 
 	/*
@@ -3679,11 +3679,11 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	 * + Discard retry frames in the queue
 	 * + Fix the completion function to be non-aggregate
 	 */
-	bf = TAILQ_FIRST(&atid->axq_q);
+	bf = ATH_TID_FIRST(atid);
 	while (bf) {
 		if (bf->bf_state.bfs_isretried) {
 			bf_next = TAILQ_NEXT(bf, bf_list);
-			TAILQ_REMOVE(&atid->axq_q, bf, bf_list);
+			ATH_TID_REMOVE(atid, bf, bf_list);
 			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw) {
 				ath_tx_update_baw(sc, an, atid, bf);
@@ -3888,7 +3888,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 * Insert this at the head of the queue, so it's
 	 * retried before any current/subsequent frames.
 	 */
-	ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+	ATH_TID_INSERT_HEAD(atid, bf, bf_list);
 	ath_tx_tid_sched(sc, atid);
 	/* Send the BAR if there are no other frames waiting */
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
@@ -4017,7 +4017,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	/* Prepend all frames to the beginning of the queue */
 	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
 		TAILQ_REMOVE(&bf_q, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 	}
 
 	/*
@@ -4387,7 +4387,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	/* Prepend all frames to the beginning of the queue */
 	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
 		TAILQ_REMOVE(&bf_q, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(atid, bf, bf_list);
 	}
 
 	/*
@@ -4665,7 +4665,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		if (tid->paused)
 			break;
 
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf == NULL) {
 			break;
 		}
@@ -4678,7 +4678,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: non-baw packet\n",
 			    __func__);
-			ATH_TXQ_REMOVE(tid, bf, bf_list);
+			ATH_TID_REMOVE(tid, bf, bf_list);
 
 			if (bf->bf_state.bfs_nframes > 1)
 				device_printf(sc->sc_dev,
@@ -4868,12 +4868,12 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		if (tid->paused)
 			break;
 
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf == NULL) {
 			break;
 		}
 
-		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TID_REMOVE(tid, bf, bf_list);
 
 		KASSERT(txq == bf->bf_state.bfs_txq, ("txqs not equal!\n"));
 
