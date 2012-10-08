@@ -90,6 +90,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmp} \
 	${_libnandfs} \
 	${_libncp} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \

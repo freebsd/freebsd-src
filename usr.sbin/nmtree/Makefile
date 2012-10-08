@@ -15,9 +15,15 @@ SRCS=   compare.c crc.c create.c excludes.c misc.c mtree.c spec.c specspec.c \
 	verify.c \
         getid.c pack_dev.c
 
-SRCS+=	sha1.h sha2.h util.c util.h
+CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
 
 CFLAGS+=	-I${.CURDIR}/../../contrib/mknod
 .PATH:		${.CURDIR}/../../contrib/mknod
+
+LIBNETBSDDIR=   ${.OBJDIR}/../../lib/libnetbsd
+LIBNETBSD=      ${LIBNETBSDDIR}/libnetbsd.a
+DPADD+=         ${LIBNETBSD}
+LDADD+=         ${LIBNETBSD}
+
 
 .include <bsd.prog.mk>

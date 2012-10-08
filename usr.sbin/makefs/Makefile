@@ -24,10 +24,6 @@ CFLAGS+=-DHAVE_STRUCT_STAT_ST_GEN=1
 CFLAGS+=-I${.CURDIR}/../../contrib/mtree
 SRCS+=	misc.c spec.c
 
-.PATH:	${.CURDIR}/../nmtree
-CFLAGS+=-I${.CURDIR}/../nmtree
-SRCS+=	util.c
-
 .PATH:	${.CURDIR}/../../contrib/mknod
 CFLAGS+=-I${.CURDIR}/../../contrib/mknod
 SRCS+=	pack_dev.c
@@ -35,7 +31,13 @@ SRCS+=	pack_dev.c
 .PATH:	${.CURDIR}/../../sys/ufs/ffs
 SRCS+=	ffs_tables.c
 
+CFLAGS+=-I${.CURDIR}/../../lib/libnetbsd
 DPADD=  ${LIBSBUF}
 LDADD=  -lsbuf -lutil
+
+LIBNETBSDDIR=   ${.OBJDIR}/../../lib/libnetbsd
+LIBNETBSD=      ${LIBNETBSDDIR}/libnetbsd.a
+DPADD+=         ${LIBNETBSD}
+LDADD+=         ${LIBNETBSD}
 
 .include <bsd.prog.mk>
