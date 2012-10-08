@@ -756,18 +756,18 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 		 */
 
 		if (th->th_x2) {
+			uint16_t ip_len = ntohs(ip->ip_len);
+
 			th->th_x2 = 0;
-			ip->ip_len = ntohs(ip->ip_len);
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP +
-			    ip->ip_len - (ip->ip_hl << 2)));
+			    ip_len - (ip->ip_hl << 2)));
 	
 			if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
 				m->m_pkthdr.csum_data = offsetof(struct tcphdr,
 				    th_sum);
 				in_delayed_cksum(m);
 			}
-			ip->ip_len = htons(ip->ip_len);
 		}
 	}
 
