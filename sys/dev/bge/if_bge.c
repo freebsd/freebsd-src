@@ -2875,7 +2875,9 @@ bge_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
 
+	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
+	callout_init_mtx(&sc->bge_stat_ch, &sc->bge_mtx, 0);
 
 	/*
 	 * Map control/status registers.
@@ -3234,8 +3236,6 @@ bge_attach(device_t dev)
 
 	bge_devinfo(sc);
 
-	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
-
 	/* Try to reset the chip. */
 	if (bge_reset(sc)) {
 		device_printf(sc->bge_dev, "chip reset failed\n");
@@ -3439,7 +3439,6 @@ again:
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	callout_init_mtx(&sc->bge_stat_ch, &sc->bge_mtx, 0);
 
 	/* Tell upper layer we support long frames. */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
@@ -3456,7 +3455,7 @@ again:
 		if (sc->bge_tq == NULL) {
 			device_printf(dev, "could not create taskqueue.\n");
 			ether_ifdetach(ifp);
-			error = ENXIO;
+			error = ENOMEM;
 			goto fail;
 		}
 		taskqueue_start_threads(&sc->bge_tq, 1, PI_NET, "%s taskq",
@@ -3464,23 +3463,19 @@ again:
 		error = bus_setup_intr(dev, sc->bge_irq,
 		    INTR_TYPE_NET | INTR_MPSAFE, bge_msi_intr, NULL, sc,
 		    &sc->bge_intrhand);
-		if (error)
-			ether_ifdetach(ifp);
 	} else
 		error = bus_setup_intr(dev, sc->bge_irq,
 		    INTR_TYPE_NET | INTR_MPSAFE, NULL, bge_intr, sc,
 		    &sc->bge_intrhand);
 
 	if (error) {
-		bge_detach(dev);
+		ether_ifdetach(ifp);
 		device_printf(sc->bge_dev, "couldn't set up irq\n");
 	}
 
-	return (0);
-
 fail:
-	bge_release_resources(sc);
-
+	if (error)
+		bge_detach(dev);
 	return (error);
 }
 
@@ -3498,16 +3493,16 @@ bge_detach(device_t dev)
 		ether_poll_deregister(ifp);
 #endif
 
-	BGE_LOCK(sc);
-	bge_stop(sc);
-	bge_reset(sc);
-	BGE_UNLOCK(sc);
-
-	callout_drain(&sc->bge_stat_ch);
+	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
+		BGE_LOCK(sc);
+		bge_stop(sc);
+		BGE_UNLOCK(sc);
+		callout_drain(&sc->bge_stat_ch);
+	}
 
 	if (sc->bge_tq)
 		taskqueue_drain(sc->bge_tq, &sc->bge_intr_task);
-	ether_ifdetach(ifp);
 
 	if (sc->bge_flags & BGE_FLAG_TBI) {
 		ifmedia_removeall(&sc->bge_ifmedia);
