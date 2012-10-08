@@ -2269,6 +2269,9 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				pmap_pte_release(pte);
 				if ((tpte & PG_W) != 0)
 					continue;
+				KASSERT(tpte != 0,
+				    ("pmap_pv_reclaim: pmap %p va %x zero pte",
+				    pmap, va));
 				if ((tpte & PG_G) != 0)
 					pmap_invalidate_page(pmap, va);
 				m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
@@ -2865,6 +2868,8 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpte = pte_load_clear(ptq);
+	KASSERT(oldpte != 0,
+	    ("pmap_remove_pte: pmap %p va %x zero pte", pmap, va));
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
 	/*
@@ -3069,6 +3074,8 @@ small_mappings:
 		    " a 4mpage in page %p's pv list", m));
 		pte = pmap_pte_quick(pmap, pv->pv_va);
 		tpte = pte_load_clear(pte);
+		KASSERT(tpte != 0, ("pmap_remove_all: pmap %p va %x zero pte",
+		    pmap, pv->pv_va));
 		if (tpte & PG_W)
 			pmap->pm_stats.wired_count--;
 		if (tpte & PG_A)
@@ -4368,6 +4375,8 @@ pmap_remove_pages(pmap_t pmap)
 	PMAP_LOCK(pmap);
 	sched_pin();
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
+		KASSERT(pc->pc_pmap == pmap, ("Wrong pmap %p %p", pmap,
+		    pc->pc_pmap));
 		allfree = 1;
 		for (field = 0; field < _NPCM; field++) {
 			inuse = ~pc->pc_map[field] & pc_freemask[field];
