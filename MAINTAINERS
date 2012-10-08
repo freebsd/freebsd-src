@@ -21,7 +21,6 @@ It is not a registry of 'turf' or private property.
 subsystem	login	notes
 -----------------------------
 kqueue		jmg	Pre-commit review requested.
-mergemaster	dougb	Prefers to pre-approve commits
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
