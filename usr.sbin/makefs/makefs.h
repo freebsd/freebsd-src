@@ -282,9 +282,6 @@ void   ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
 /*
  * Declarations for compat routines.
  */
-long long strsuftoll(const char *, const char *, long long, long long);
-long long strsuftollx(const char *, const char *,
-                       long long, long long, char *, size_t);
 
 int setup_getid(const char *dir);
 

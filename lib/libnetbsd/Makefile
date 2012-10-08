@@ -6,7 +6,7 @@ LIB=	netbsd
 
 CFLAGS+=	-I${.CURDIR}
 
-SRCS+=	util.c util.h
+SRCS+=	strsuftoll.c util.c util.h
 
 INTERNALLIB=
 
