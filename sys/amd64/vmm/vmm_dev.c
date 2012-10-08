@@ -471,24 +471,6 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw_vmm, OID_AUTO, create, CTLTYPE_STRING | CTLFLAG_RW,
 	    NULL, 0, sysctl_vmm_create, "A", NULL);
 
-static int
-sysctl_vmm_mem_total(SYSCTL_HANDLER_ARGS)
-{
-	size_t val = vmm_mem_get_mem_total();
-	return sysctl_handle_long(oidp, &val, 0, req);
-}
-SYSCTL_PROC(_hw_vmm, OID_AUTO, mem_total, CTLTYPE_LONG | CTLFLAG_RD,
-		0, 0, sysctl_vmm_mem_total, "LU", "Amount of Total memory");
-
-static int
-sysctl_vmm_mem_free(SYSCTL_HANDLER_ARGS)
-{
-	size_t val = vmm_mem_get_mem_free();
-	return sysctl_handle_long(oidp, &val, 0, req);
-}
-SYSCTL_PROC(_hw_vmm, OID_AUTO, mem_free, CTLTYPE_LONG | CTLFLAG_RD,
-		0, 0, sysctl_vmm_mem_free, "LU", "Amount of Free memory");
-
 void
 vmmdev_init(void)
 {

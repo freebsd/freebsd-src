@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #include "vmm_util.h"
+#include "vmm_mem.h"
 #include "iommu.h"
 
 static boolean_t iommu_avail;
@@ -90,6 +91,16 @@ IOMMU_CREATE_MAPPING(void *domain, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len)
 		return (len);		/* XXX */
 }
 
+static __inline uint64_t
+IOMMU_REMOVE_MAPPING(void *domain, vm_paddr_t gpa, uint64_t len)
+{
+
+	if (ops != NULL && iommu_avail)
+		return ((*ops->remove_mapping)(domain, gpa, len));
+	else
+		return (len);		/* XXX */
+}
+
 static __inline void
 IOMMU_ADD_DEVICE(void *domain, int bus, int slot, int func)
 {
@@ -104,6 +115,14 @@ IOMMU_REMOVE_DEVICE(void *domain, int bus, int slot, int func)
 
 	if (ops != NULL && iommu_avail)
 		(*ops->remove_device)(domain, bus, slot, func);
+}
+
+static __inline void
+IOMMU_INVALIDATE_TLB(void *domain)
+{
+
+	if (ops != NULL && iommu_avail)
+		(*ops->invalidate_tlb)(domain);
 }
 
 static __inline void
@@ -146,13 +165,13 @@ iommu_init(void)
 	/*
 	 * Create a domain for the devices owned by the host
 	 */
-	maxaddr = ptoa(Maxmem);
+	maxaddr = vmm_mem_maxaddr();
 	host_domain = IOMMU_CREATE_DOMAIN(maxaddr);
 	if (host_domain == NULL)
 		panic("iommu_init: unable to create a host domain");
 
 	/*
-	 * Create 1:1 mappings from '0' to 'Maxmem' for devices assigned to
+	 * Create 1:1 mappings from '0' to 'maxaddr' for devices assigned to
 	 * the host
 	 */
 	iommu_create_mapping(host_domain, 0, 0, maxaddr);
@@ -216,6 +235,27 @@ iommu_create_mapping(void *dom, vm_paddr_t gpa, vm_paddr_t hpa, size_t len)
 }
 
 void
+iommu_remove_mapping(void *dom, vm_paddr_t gpa, size_t len)
+{
+	uint64_t unmapped, remaining;
+
+	remaining = len;
+
+	while (remaining > 0) {
+		unmapped = IOMMU_REMOVE_MAPPING(dom, gpa, remaining);
+		gpa += unmapped;
+		remaining -= unmapped;
+	}
+}
+
+void *
+iommu_host_domain(void)
+{
+
+	return (host_domain);
+}
+
+void
 iommu_add_device(void *dom, int bus, int slot, int func)
 {
 
@@ -227,4 +267,11 @@ iommu_remove_device(void *dom, int bus, int slot, int func)
 {
 
 	IOMMU_REMOVE_DEVICE(dom, bus, slot, func);
+}
+
+void
+iommu_invalidate_tlb(void *domain)
+{
+
+	IOMMU_INVALIDATE_TLB(domain);
 }
