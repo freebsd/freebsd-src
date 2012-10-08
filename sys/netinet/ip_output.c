@@ -882,11 +882,12 @@ void
 in_delayed_cksum(struct mbuf *m)
 {
 	struct ip *ip;
-	u_short csum, offset;
+	uint16_t csum, offset, ip_len;
 
 	ip = mtod(m, struct ip *);
 	offset = ip->ip_hl << 2 ;
-	csum = in_cksum_skip(m, ip->ip_len, offset);
+	ip_len = ntohs(ip->ip_len);
+	csum = in_cksum_skip(m, ip_len, offset);
 	if (m->m_pkthdr.csum_flags & CSUM_UDP && csum == 0)
 		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */

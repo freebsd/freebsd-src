@@ -208,10 +208,8 @@ divert_packet(struct mbuf *m, int incoming)
 
 	/* Delayed checksums are currently not compatible with divert. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-		ip->ip_len = ntohs(ip->ip_len);
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-		ip->ip_len = htons(ip->ip_len);
 	}
 #ifdef SCTP
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
