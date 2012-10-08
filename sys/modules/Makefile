@@ -108,7 +108,7 @@ SUBDIR=	\
 	fdc \
 	fdescfs \
 	${_fe} \
-	filemon \
+	${_filemon} \
 	firewire \
 	firmware \
 	${_fxp} \
@@ -363,6 +363,10 @@ SUBDIR=	\
 	xl \
 	${_zfs} \
 	zlib \
+
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_filemon=	filemon
+.endif
 
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_CPUARCH} != "mips"
