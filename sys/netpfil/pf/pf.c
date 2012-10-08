@@ -5149,7 +5149,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	struct pf_addr		 naddr;
 	struct pf_src_node	*sn = NULL;
 	int			 error = 0;
-	int sw_csum;
+	uint16_t		 ip_len, ip_off, sw_csum;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",
@@ -5244,9 +5244,8 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (ifp->if_flags & IFF_LOOPBACK)
 		m0->m_flags |= M_SKIP_FIREWALL;
 
-	/* Back to host byte order. */
-	ip->ip_len = ntohs(ip->ip_len);
-	ip->ip_off = ntohs(ip->ip_off);
+	ip_len = ntohs(ip->ip_len);
+	ip_off = ntohs(ip->ip_off);
 
 	/* Copied from FreeBSD 10.0-CURRENT ip_output. */
 	m0->m_pkthdr.csum_flags |= CSUM_IP;
@@ -5267,11 +5266,9 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
-	if (ip->ip_len <= ifp->if_mtu ||
+	if (ip_len <= ifp->if_mtu ||
 	    (m0->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
-	    ((ip->ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
+	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
 		ip->ip_sum = 0;
 		if (sw_csum & CSUM_DELAY_IP)
 			ip->ip_sum = in_cksum(m0, ip->ip_hl << 2);
@@ -5281,7 +5278,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	}
 
 	/* Balk when DF bit is set or the interface didn't support TSO. */
-	if ((ip->ip_off & IP_DF) || (m0->m_pkthdr.csum_flags & CSUM_TSO)) {
+	if ((ip_off & IP_DF) || (m0->m_pkthdr.csum_flags & CSUM_TSO)) {
 		error = EMSGSIZE;
 		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (r->rt != PF_DUPTO) {

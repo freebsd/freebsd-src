@@ -332,6 +332,9 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 			}
 		}
 
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
+
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
@@ -346,8 +349,6 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 		}
 #endif
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
 
 		/* NB: callee frees mbuf */
 		*error = ipsec4_process_packet(*m, sp->req, *flags, 0);
