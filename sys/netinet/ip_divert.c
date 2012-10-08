@@ -215,10 +215,8 @@ divert_packet(struct mbuf *m, int incoming)
 	}
 #ifdef SCTP
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
-		ip->ip_len = ntohs(ip->ip_len);
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
-		ip->ip_len = htons(ip->ip_len);
 	}
 #endif
 	bzero(&divsrc, sizeof(divsrc));
