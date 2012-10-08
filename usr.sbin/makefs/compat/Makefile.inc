@@ -5,4 +5,4 @@
 
 CFLAGS+=	-I${.CURDIR}/compat
 
-SRCS+=	pwcache.c strsuftoll.c
+SRCS+=	strsuftoll.c
