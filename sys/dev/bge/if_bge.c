@@ -2121,8 +2121,8 @@ bge_blockinit(struct bge_softc *sc)
 		 * Adjust tx margin to prevent TX data corruption and
 		 * fix internal FIFO overflow.
 		 */
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 ||
-		    sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 &&
+		    sc->bge_chipid == BGE_CHIPID_BCM5719_A0) {
 			dmactl &= ~(BGE_RDMA_RSRVCTRL_FIFO_LWM_MASK |
 			    BGE_RDMA_RSRVCTRL_FIFO_HWM_MASK |
 			    BGE_RDMA_RSRVCTRL_TXMRGN_MASK);
