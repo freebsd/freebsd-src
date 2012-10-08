@@ -551,7 +551,7 @@ ale_attach(device_t dev)
 	if (msix_disable == 0 || msi_disable == 0) {
 		if (msix_disable == 0 && msixc == ALE_MSIX_MESSAGES &&
 		    pci_alloc_msix(dev, &msixc) == 0) {
-			if (msic == ALE_MSIX_MESSAGES) {
+			if (msixc == ALE_MSIX_MESSAGES) {
 				device_printf(dev, "Using %d MSIX messages.\n",
 				    msixc);
 				sc->ale_flags |= ALE_FLAG_MSIX;
