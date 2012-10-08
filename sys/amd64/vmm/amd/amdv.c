@@ -230,6 +230,14 @@ amd_iommu_create_mapping(void *domain, vm_paddr_t gpa, vm_paddr_t hpa,
 	return (0);
 }
 
+static uint64_t
+amd_iommu_remove_mapping(void *domain, vm_paddr_t gpa, uint64_t len)
+{
+
+	printf("amd_iommu_remove_mapping: not implemented\n");
+	return (0);
+}
+
 static void
 amd_iommu_add_device(void *domain, int bus, int slot, int func)
 {
@@ -244,6 +252,13 @@ amd_iommu_remove_device(void *domain, int bus, int slot, int func)
 	printf("amd_iommu_remove_device: not implemented\n");
 }
 
+static void
+amd_iommu_invalidate_tlb(void *domain)
+{
+
+	printf("amd_iommu_invalidate_tlb: not implemented\n");
+}
+
 struct iommu_ops iommu_ops_amd = {
 	amd_iommu_init,
 	amd_iommu_cleanup,
@@ -252,6 +267,8 @@ struct iommu_ops iommu_ops_amd = {
 	amd_iommu_create_domain,
 	amd_iommu_destroy_domain,
 	amd_iommu_create_mapping,
+	amd_iommu_remove_mapping,
 	amd_iommu_add_device,
 	amd_iommu_remove_device,
+	amd_iommu_invalidate_tlb,
 };

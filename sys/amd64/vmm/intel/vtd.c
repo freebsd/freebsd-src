@@ -444,8 +444,12 @@ vtd_remove_device(void *arg, int bus, int slot, int func)
 	}
 }
 
+#define	CREATE_MAPPING	0
+#define	REMOVE_MAPPING	1
+
 static uint64_t
-vtd_create_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len)
+vtd_update_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len,
+		   int remove)
 {
 	struct domain *dom;
 	int i, spshift, ptpshift, ptpindex, nlevels;
@@ -513,14 +517,48 @@ vtd_create_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len)
 		panic("gpa 0x%lx and ptpshift %d mismatch", gpa, ptpshift);
 
 	/*
-	 * Create a 'gpa' -> 'hpa' mapping
+	 * Update the 'gpa' -> 'hpa' mapping
 	 */
-	ptp[ptpindex] = hpa | VTD_PTE_RD | VTD_PTE_WR;
+	if (remove) {
+		ptp[ptpindex] = 0;
+	} else {
+		ptp[ptpindex] = hpa | VTD_PTE_RD | VTD_PTE_WR;
 
-	if (nlevels > 0)
-		ptp[ptpindex] |= VTD_PTE_SUPERPAGE;
+		if (nlevels > 0)
+			ptp[ptpindex] |= VTD_PTE_SUPERPAGE;
+	}
 
 	return (1UL << ptpshift);
+}
+
+static uint64_t
+vtd_create_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len)
+{
+
+	return (vtd_update_mapping(arg, gpa, hpa, len, CREATE_MAPPING));
+}
+
+static uint64_t
+vtd_remove_mapping(void *arg, vm_paddr_t gpa, uint64_t len)
+{
+
+	return (vtd_update_mapping(arg, gpa, 0, len, REMOVE_MAPPING));
+}
+
+static void
+vtd_invalidate_tlb(void *dom)
+{
+	int i;
+	struct vtdmap *vtdmap;
+
+	/*
+	 * Invalidate the IOTLB.
+	 * XXX use domain-selective invalidation for IOTLB
+	 */
+	for (i = 0; i < drhd_num; i++) {
+		vtdmap = vtdmaps[i];
+		vtd_iotlb_global_invalidate(vtdmap);
+	}
 }
 
 static void *
@@ -632,6 +670,8 @@ struct iommu_ops iommu_ops_intel = {
 	vtd_create_domain,
 	vtd_destroy_domain,
 	vtd_create_mapping,
+	vtd_remove_mapping,
 	vtd_add_device,
 	vtd_remove_device,
+	vtd_invalidate_tlb,
 };

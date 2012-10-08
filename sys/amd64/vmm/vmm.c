@@ -280,6 +280,9 @@ vm_free_mem_seg(struct vm *vm, struct vm_memory_segment *seg)
 {
 	size_t len;
 	vm_paddr_t hpa;
+	void *host_domain;
+
+	host_domain = iommu_host_domain();
 
 	len = 0;
 	while (len < seg->len) {
@@ -289,10 +292,23 @@ vm_free_mem_seg(struct vm *vm, struct vm_memory_segment *seg)
 			      "associated with gpa 0x%016lx", seg->gpa + len);
 		}
 
+		/*
+		 * Remove the 'gpa' to 'hpa' mapping in VMs domain.
+		 * And resurrect the 1:1 mapping for 'hpa' in 'host_domain'.
+		 */
+		iommu_remove_mapping(vm->iommu, seg->gpa + len, PAGE_SIZE);
+		iommu_create_mapping(host_domain, hpa, hpa, PAGE_SIZE);
+
 		vmm_mem_free(hpa, PAGE_SIZE);
 
 		len += PAGE_SIZE;
 	}
+
+	/*
+	 * Invalidate cached translations associated with 'vm->iommu' since
+	 * we have now moved some pages from it.
+	 */
+	iommu_invalidate_tlb(vm->iommu);
 
 	bzero(seg, sizeof(struct vm_memory_segment));
 }
@@ -371,6 +387,7 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	int error, available, allocated;
 	struct vm_memory_segment *seg;
 	vm_paddr_t g, hpa;
+	void *host_domain;
 
 	const boolean_t spok = TRUE;	/* superpage mappings are ok */
 
@@ -405,8 +422,11 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	if (vm->num_mem_segs >= VM_MAX_MEMORY_SEGMENTS)
 		return (E2BIG);
 
+	host_domain = iommu_host_domain();
+
 	seg = &vm->mem_segs[vm->num_mem_segs];
 
+	error = 0;
 	seg->gpa = gpa;
 	seg->len = 0;
 	while (seg->len < len) {
@@ -421,15 +441,26 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 		if (error)
 			break;
 
+		/*
+		 * Remove the 1:1 mapping for 'hpa' from the 'host_domain'.
+		 * Add mapping for 'gpa + seg->len' to 'hpa' in the VMs domain.
+		 */
+		iommu_remove_mapping(host_domain, hpa, PAGE_SIZE);
 		iommu_create_mapping(vm->iommu, gpa + seg->len, hpa, PAGE_SIZE);
 
 		seg->len += PAGE_SIZE;
 	}
 
-	if (seg->len != len) {
+	if (error) {
 		vm_free_mem_seg(vm, seg);
 		return (error);
 	}
+
+	/*
+	 * Invalidate cached translations associated with 'host_domain' since
+	 * we have now moved some pages from it.
+	 */
+	iommu_invalidate_tlb(host_domain);
 
 	vm->num_mem_segs++;
 
