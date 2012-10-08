@@ -130,7 +130,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     pid_t pid;
     int fd_out, fd_in;
     int queue;
-    char mailbuf[LOGNAMESIZE + 1], fmt[49];
+    char mailbuf[LOGNAMESIZE + 1], fmt[64];
     char *mailname = NULL;
     FILE *stream;
     int send_mail = 0;
