@@ -138,11 +138,8 @@ again:
 	if (tag != NULL) {
 		args.rule = *((struct ipfw_rule_ref *)(tag+1));
 		m_tag_delete(*m0, tag);
-		if (args.rule.info & IPFW_ONEPASS) {
-			if (mtod(*m0, struct ip *)->ip_v == 4)
-				SET_HOST_IPLEN(mtod(*m0, struct ip *));
+		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
-		}
 	}
 
 	args.m = *m0;
