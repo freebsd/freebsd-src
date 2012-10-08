@@ -300,7 +300,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 			ipseclog((LOG_DEBUG,
 			    "%s: we do not support IPv4 over IPv6", __func__));
 			/* XXX: in_delayed_cksum() expects net byte order */
-			ip = mtod(m, struct ip *);
+			ip = mtod(*m, struct ip *);
 			ip->ip_len = htons(ip->ip_len);
 			in_delayed_cksum(*m);
 			ip->ip_len = ntohs(ip->ip_len);
