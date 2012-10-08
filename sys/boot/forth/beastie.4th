@@ -28,7 +28,6 @@
 
 marker task-beastie.4th
 
-include /boot/color.4th
 include /boot/delay.4th
 
 variable logoX

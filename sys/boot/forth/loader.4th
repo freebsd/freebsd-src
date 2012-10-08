@@ -40,6 +40,7 @@ s" arch-i386" environment? [if] [if]
 2048 dictincrease !  \ 2048 additional cells each time
 
 include /boot/support.4th
+include /boot/color.4th
 
 only forth also support-functions also builtins definitions
 
@@ -63,6 +64,12 @@ only forth also support-functions also builtins definitions
 
 : boot
   0= if ( interpreted ) get_arguments then
+
+  loader_color? if
+    ." [37;44mBooting...[0m" cr
+  else
+    ." Booting..." cr
+  then
 
   \ Unload only if a path was passed
   dup if
