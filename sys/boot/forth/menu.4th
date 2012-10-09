@@ -488,7 +488,11 @@ create init_text8 255 allot
 			menurow @ 2 + menurow !
 			menurow @ menuY @ +
 			at-xy
-			." Options:"
+			s" menu_optionstext" getenv dup -1 <> if
+				type
+			else
+				drop ." Options:"
+			then
 		then
 
 		\ If this is the ACPI menu option, act accordingly.
@@ -972,6 +976,7 @@ create init_text8 255 allot
 
 	\ clear the "Options" menu separator flag
 	s" menu_options" unsetenv
+	s" menu_optionstext" unsetenv
 	0 menuoptions !
 
 ;
