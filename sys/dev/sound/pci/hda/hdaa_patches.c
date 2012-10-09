@@ -608,6 +608,8 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		/* Enable Mic Boost Volume controls. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf98, 0x01));
+		/* Fall though */
+	case HDA_CODEC_VT1818S:
 		/* Don't bypass mixer. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf88, 0xc0));
