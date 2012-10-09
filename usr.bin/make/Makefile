@@ -11,7 +11,9 @@ SRCS=	arch.c buf.c cond.c dir.c for.c hash.c hash_tables.c job.c	\
 WARNS?=	6
 NO_SHARED?=	YES
 
-CFLAGS+=-DMAKE_VERSION=\"5200408120\"
+# Version has the RYYYYMMDDX format, where R is from RELENG_<R>
+CFLAGS+=-DMAKE_VERSION=\"7201210080\"
+
 # There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
 
