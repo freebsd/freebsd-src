@@ -82,6 +82,13 @@
 # define __GNUC_VA_LIST_COMPATIBILITY 1
 #endif
 
+/*
+ * Compiler memory barriers, specific to gcc and clang.
+ */
+#if defined(__GNUC__)
+#define	__compiler_membar()	__asm __volatile(" " : : : "memory")
+#endif
+
 #ifndef __INTEL_COMPILER
 # define __GNUCLIKE_BUILTIN_NEXT_ARG 1
 # define __GNUCLIKE_MATH_BUILTIN_RELOPS
