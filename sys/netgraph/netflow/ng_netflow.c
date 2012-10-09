@@ -832,7 +832,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 				goto loopend;
 #endif
 			/*
-			 * Any unknow header (new extension or IPv6/IPv4
+			 * Any unknown header (new extension or IPv6/IPv4
 			 * header for tunnels) ends loop.
 			 */
 			default:
