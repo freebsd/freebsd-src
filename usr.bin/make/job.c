@@ -485,7 +485,7 @@ catch_child(int sig __unused)
 /**
  */
 void
-Proc_Init()
+Proc_Init(void)
 {
 	/*
 	 * Catch SIGCHLD so that we get kicked out of select() when we
