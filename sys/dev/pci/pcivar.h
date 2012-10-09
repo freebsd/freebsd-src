@@ -46,7 +46,14 @@ struct pcicfg_pp {
     uint8_t	pp_pmcsr;	/* config space address of PMCSR reg */
     uint8_t	pp_data;	/* config space address of PCI power data reg */
 };
- 
+
+struct pci_map {
+    pci_addr_t	pm_value;	/* Raw BAR value */
+    pci_addr_t	pm_size;
+    uint8_t	pm_reg;
+    STAILQ_ENTRY(pci_map) pm_link;
+};
+
 struct vpd_readonly {
     char	keyword[2];
     char	*value;
@@ -120,8 +127,7 @@ struct pcicfg_ht {
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
 
-    uint32_t	bar[PCI_MAXMAPS_0]; /* BARs */
-    uint32_t	bios;		/* BIOS mapping */
+    STAILQ_HEAD(, pci_map) maps; /* BARs */
 
     uint16_t	subvendor;	/* card vendor ID */
     uint16_t	subdevice;	/* card device ID, assigned by card vendor */
@@ -479,5 +485,8 @@ STAILQ_HEAD(devlist, pci_devinfo);
 
 extern struct devlist	pci_devq;
 extern uint32_t	pci_generation;
+
+struct pci_map *pci_find_bar(device_t dev, int reg);
+int	pci_bar_enabled(device_t dev, struct pci_map *pm);
 
 #endif /* _PCIVAR_H_ */

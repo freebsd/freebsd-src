@@ -91,6 +91,8 @@ int		pci_release_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 int		pci_activate_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
+int		pci_deactivate_resource(device_t dev, device_t child, int type,
+		    int rid, struct resource *r);
 void		pci_delete_resource(device_t dev, device_t child, 
 		    int type, int rid);
 struct resource_list *pci_get_resource_list (device_t dev, device_t child);
