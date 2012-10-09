@@ -312,10 +312,9 @@ srandomdev(void)
 
 	if (!done) {
 		struct timeval tv;
-		volatile unsigned long junk;
 
 		gettimeofday(&tv, NULL);
-		srandom((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec ^ junk);
+		srandom((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec);
 		return;
 	}
 
