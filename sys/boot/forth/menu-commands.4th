@@ -164,8 +164,8 @@ marker task-menu-commands.4th
 	@                        \ dereference address into value
 	48 +                     \ convert to ASCII numeral
 
-	s" set root=${root_prefix}${root[N]}${root_prefix}"
-	                          \ command to assemble full kernel-path
+	s" set root=${root_prefix}${root[N]}${root_suffix}"
+	                          \ command to assemble root image-path
 	-rot tuck 30 + c! swap    \ replace 'N' with array index value
 	evaluate                  \ sets $kernel to full kernel-path
 
