@@ -290,7 +290,7 @@ iwch_modevent(module_t mod, int cmd, void *arg)
 static moduledata_t iwch_mod_data = {
 	"iw_cxgb",
 	iwch_modevent,
-	0
+	NULL
 };
 
 MODULE_VERSION(iw_cxgb, 1);

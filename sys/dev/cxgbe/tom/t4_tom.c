@@ -768,7 +768,7 @@ t4_tom_modevent(module_t mod, int cmd, void *arg)
 static moduledata_t t4_tom_moddata= {
 	"t4_tom",
 	t4_tom_modevent,
-	0
+	NULL
 };
 
 MODULE_VERSION(t4_tom, 1);

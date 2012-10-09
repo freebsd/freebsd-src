@@ -822,7 +822,7 @@ wlan_modevent(module_t mod, int type, void *unused)
 static moduledata_t wlan_mod = {
 	"wlan",
 	wlan_modevent,
-	0
+	NULL
 };
 DECLARE_MODULE(wlan, wlan_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(wlan, 1);

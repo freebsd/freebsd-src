@@ -39,7 +39,7 @@ mxge_ethp_z8e_fw_modevent(module_t mod, int type, void *unused)
 static moduledata_t mxge_ethp_z8e_fw_mod = {
         "mxge_ethp_z8e_fw",
         mxge_ethp_z8e_fw_modevent,
-        0
+	NULL
 };
 DECLARE_MODULE(mxge_ethp_z8e_fw, mxge_ethp_z8e_fw_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(mxge_ethp_z8e_fw, 1);

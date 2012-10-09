@@ -742,7 +742,7 @@ test_ccmp_modevent(module_t mod, int type, void *unused)
 static moduledata_t test_ccmp_mod = {
 	"test_ccmp",
 	test_ccmp_modevent,
-	0
+	NULL
 };
 DECLARE_MODULE(test_ccmp, test_ccmp_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(test_ccmp, 1);

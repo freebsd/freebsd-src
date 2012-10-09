@@ -269,7 +269,7 @@ virtio_modevent(module_t mod, int type, void *unused)
 static moduledata_t virtio_mod = {
 	"virtio",
 	virtio_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(virtio, virtio_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);

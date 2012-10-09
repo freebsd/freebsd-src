@@ -87,7 +87,7 @@ elink_idseq(u_char p)
 static moduledata_t elink_mod = {
 	"elink",/* module name */
 	NULL,	/* event handler */
-	0	/* extra data */
+	NULL	/* extra data */
 };
 
 DECLARE_MODULE(elink, elink_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

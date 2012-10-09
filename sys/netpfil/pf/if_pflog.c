@@ -281,7 +281,7 @@ pflog_modevent(module_t mod, int type, void *data)
 	return error;
 }
 
-static moduledata_t pflog_mod = { "pflog", pflog_modevent, 0 };
+static moduledata_t pflog_mod = { "pflog", pflog_modevent, NULL };
 
 #define PFLOG_MODVER 1
 

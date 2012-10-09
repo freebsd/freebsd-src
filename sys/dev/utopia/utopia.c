@@ -668,7 +668,7 @@ utopia_mod_init(module_t mod, int what, void *arg)
 static moduledata_t utopia_mod = {
         "utopia",
         utopia_mod_init,
-        0
+	NULL
 };
                 
 DECLARE_MODULE(utopia, utopia_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);

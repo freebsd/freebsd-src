@@ -978,7 +978,7 @@ epair_modevent(module_t mod, int type, void *data)
 static moduledata_t epair_mod = {
 	"if_epair",
 	epair_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(if_epair, epair_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
