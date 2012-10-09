@@ -133,6 +133,6 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 static moduledata_t ibcs2_mod = {
 	"ibcs2",
 	ibcs2_modevent,
-	0
+	NULL
 };
 DECLARE_MODULE_TIED(ibcs2, ibcs2_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

@@ -845,7 +845,7 @@ firewire_modevent(module_t mod, int type, void *data)
 static moduledata_t firewire_mod = {
 	"if_firewire",
 	firewire_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(if_firewire, firewire_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);

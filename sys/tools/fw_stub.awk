@@ -215,7 +215,7 @@ printc("\t\treturn (error);\
 static moduledata_t " modname "_fw_mod = {\
         \"" modname "_fw\",\
         " modname "_fw_modevent,\
-        0\
+        NULL\
 };\
 DECLARE_MODULE(" modname "_fw, " modname "_fw_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);\
 MODULE_VERSION(" modname "_fw, 1);\

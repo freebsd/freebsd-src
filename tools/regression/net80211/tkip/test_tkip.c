@@ -381,7 +381,7 @@ test_tkip_modevent(module_t mod, int type, void *unused)
 static moduledata_t test_tkip_mod = {
 	"test_tkip",
 	test_tkip_modevent,
-	0
+	NULL
 };
 DECLARE_MODULE(test_tkip, test_tkip_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(test_tkip, 1);

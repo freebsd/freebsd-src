@@ -1198,7 +1198,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 static moduledata_t linux_elf_mod = {
 	"linuxelf",
 	linux_elf_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);

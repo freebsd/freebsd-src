@@ -268,7 +268,7 @@ kttcpdev_modevent(module_t mod, int type, void *unused)
 static moduledata_t kttcpdev_mod = {
 	"kttcpdev",
 	kttcpdev_modevent,
-	0
+	NULL
 };
 MODULE_VERSION(kttcpdev, 1);
 DECLARE_MODULE(kttcpdev, kttcpdev_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

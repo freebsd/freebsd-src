@@ -1237,7 +1237,7 @@ ether_modevent(module_t mod, int type, void *data)
 static moduledata_t ether_mod = {
 	"ether",
 	ether_modevent,
-	0
+	NULL
 };
 
 void
