@@ -78,7 +78,7 @@ tdfx_linux_modevent(struct module *mod __unused, int what, void *arg __unused)
 static moduledata_t tdfx_linux_mod = {
 	"tdfx_linux",
 	tdfx_linux_modevent,
-	0
+	NULL
 };
 
 /* As in SYSCALL_MODULE */

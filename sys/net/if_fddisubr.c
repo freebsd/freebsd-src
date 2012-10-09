@@ -792,7 +792,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 static moduledata_t fddi_mod = {
 	"fddi",	/* module name */
 	NULL,	/* event handler */
-	0	/* extra data */
+	NULL	/* extra data */
 };
 
 DECLARE_MODULE(fddi, fddi_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

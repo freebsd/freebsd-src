@@ -171,7 +171,7 @@ streams_modevent(module_t mod, int type, void *unused)
 static moduledata_t streams_mod = {
 	"streams",
 	streams_modevent,
-	0
+	NULL
 };
 DECLARE_MODULE(streams, streams_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(streams, 1);

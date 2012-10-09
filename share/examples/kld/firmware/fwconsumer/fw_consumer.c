@@ -71,7 +71,7 @@ fw_consumer_modevent(module_t mod, int type, void *unused)
 static moduledata_t fw_consumer_mod = {
 	"fw_consumer",
 	fw_consumer_modevent,
-	0
+	NULL
 };
 DECLARE_MODULE(fw_consumer, fw_consumer_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(fw_consumer, 1);

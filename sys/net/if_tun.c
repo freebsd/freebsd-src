@@ -317,7 +317,7 @@ tunmodevent(module_t mod, int type, void *data)
 static moduledata_t tun_mod = {
 	"if_tun",
 	tunmodevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

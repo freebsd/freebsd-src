@@ -323,7 +323,7 @@ wlan_##name##_modevent(module_t mod, int type, void *unused)		\
 static moduledata_t name##_mod = {					\
 	"wlan_" #name,							\
 	wlan_##name##_modevent,						\
-	0								\
+	NULL								\
 };									\
 DECLARE_MODULE(wlan_##name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);\
 MODULE_VERSION(wlan_##name, version);					\

@@ -769,7 +769,7 @@ rdma_core_load(module_t mod, int cmd, void *arg)
 static moduledata_t mod_data = {
 	"rdma_core",
 	rdma_core_load,
-	0
+	NULL
 };
 
 MODULE_VERSION(rdma_core, 1);

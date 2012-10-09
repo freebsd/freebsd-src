@@ -2402,7 +2402,7 @@ pfsync_modevent(module_t mod, int type, void *data)
 static moduledata_t pfsync_mod = {
 	"pfsync",
 	pfsync_modevent,
-	0
+	NULL
 };
 
 #define PFSYNC_MODVER 1

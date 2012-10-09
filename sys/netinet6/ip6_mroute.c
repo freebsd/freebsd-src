@@ -2059,7 +2059,7 @@ ip6_mroute_modevent(module_t mod, int type, void *unused)
 static moduledata_t ip6_mroutemod = {
 	"ip6_mroute",
 	ip6_mroute_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(ip6_mroute, ip6_mroutemod, SI_SUB_PSEUDO, SI_ORDER_ANY);

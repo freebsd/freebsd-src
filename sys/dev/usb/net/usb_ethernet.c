@@ -549,7 +549,7 @@ uether_modevent(module_t mod, int type, void *data)
 static moduledata_t uether_mod = {
 	"uether",
 	uether_modevent,
-	0
+	NULL
 };
 
 struct mbuf *

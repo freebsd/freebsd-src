@@ -762,7 +762,7 @@ vlan_modevent(module_t mod, int type, void *data)
 static moduledata_t vlan_mod = {
 	"if_vlan",
 	vlan_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

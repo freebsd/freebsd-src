@@ -878,7 +878,7 @@ arc_modevent(module_t mod, int type, void *data)
 static moduledata_t arc_mod = {
 	"arcnet",
 	arc_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(arcnet, arc_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);

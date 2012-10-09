@@ -275,7 +275,7 @@ ipf_modunload()
 static moduledata_t ipfiltermod = {
 	"ipfilter",
 	ipfilter_modevent,
-	0
+	NULL
 };
 
 

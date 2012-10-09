@@ -523,7 +523,7 @@ bridge_modevent(module_t mod, int type, void *data)
 static moduledata_t bridge_mod = {
 	"if_bridge",
 	bridge_modevent,
-	0
+	NULL
 };
 
 DECLARE_MODULE(if_bridge, bridge_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
