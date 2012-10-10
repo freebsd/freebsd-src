@@ -1078,7 +1078,7 @@ iw_cm_load(module_t mod, int cmd, void *arg)
 static moduledata_t mod_data = {
 	"rdma_iwcm",
 	iw_cm_load,
-	NULL
+	0
 };
 
 MODULE_VERSION(rdma_iwcm, 1);

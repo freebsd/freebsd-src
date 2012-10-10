@@ -272,7 +272,7 @@ gifmodevent(mod, type, data)
 static moduledata_t gif_mod = {
 	"if_gif",
 	gifmodevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(if_gif, gif_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

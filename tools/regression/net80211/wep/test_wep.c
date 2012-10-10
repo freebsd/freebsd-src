@@ -328,7 +328,7 @@ test_wep_modevent(module_t mod, int type, void *unused)
 static moduledata_t test_wep_mod = {
 	"test_wep",
 	test_wep_modevent,
-	NULL
+	0
 };
 DECLARE_MODULE(test_wep, test_wep_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(test_wep, 1);

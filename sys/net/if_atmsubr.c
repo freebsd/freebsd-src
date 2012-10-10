@@ -496,7 +496,7 @@ atm_modevent(module_t mod, int type, void *data)
 static moduledata_t atm_mod = {
         "atm",
         atm_modevent,
-	NULL
+        0
 };
                 
 DECLARE_MODULE(atm, atm_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);

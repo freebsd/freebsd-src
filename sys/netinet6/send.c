@@ -361,7 +361,7 @@ send_modevent(module_t mod, int type, void *unused)
 static moduledata_t sendmod = {
 	"send",
 	send_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(send, sendmod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);

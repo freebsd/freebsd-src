@@ -193,11 +193,12 @@ kthrdlk_handler(module_t mod, int /*modeventtype_t*/ what,
 }
 
 static moduledata_t mod_data= {
-	"kthrdlk",
-	kthrdlk_handler,
-	NULL
-};
+             "kthrdlk",
+             kthrdlk_handler,
+             0
+     };
 
 MODULE_VERSION(kthrdlk, 1);
 
 DECLARE_MODULE(kthrdlk, mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
+

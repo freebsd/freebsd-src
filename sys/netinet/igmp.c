@@ -3644,6 +3644,6 @@ igmp_modevent(module_t mod, int type, void *unused __unused)
 static moduledata_t igmp_mod = {
     "igmp",
     igmp_modevent,
-    NULL
+    0
 };
 DECLARE_MODULE(igmp, igmp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

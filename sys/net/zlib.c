@@ -5400,7 +5400,7 @@ zlib_modevent(module_t mod, int type, void *unused)
 static moduledata_t zlib_mod = {
 	"zlib",
 	zlib_modevent,
-	NULL
+	0
 };
 DECLARE_MODULE(zlib, zlib_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(zlib, 1);

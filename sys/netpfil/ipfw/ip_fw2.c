@@ -2756,7 +2756,7 @@ ipfw_modevent(module_t mod, int type, void *unused)
 static moduledata_t ipfwmod = {
 	"ipfw",
 	ipfw_modevent,
-	NULL
+	0
 };
 
 /* Define startup order. */

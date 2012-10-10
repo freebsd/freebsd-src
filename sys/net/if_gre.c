@@ -973,7 +973,7 @@ gremodevent(module_t mod, int type, void *data)
 static moduledata_t gre_mod = {
 	"if_gre",
 	gremodevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(if_gre, gre_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

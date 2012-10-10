@@ -181,7 +181,7 @@ enc_modevent(module_t mod, int type, void *data)
 static moduledata_t enc_mod = {
 	"if_enc",
 	enc_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);

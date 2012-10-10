@@ -122,7 +122,7 @@ rc4_modevent(module_t mod, int type, void *unused)
 static moduledata_t rc4_mod = {
 	"rc4",
 	rc4_modevent,
-	NULL
+	0
 };
 DECLARE_MODULE(rc4, rc4_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(rc4, 1);

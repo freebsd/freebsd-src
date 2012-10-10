@@ -93,7 +93,7 @@ static int nvd_modevent(module_t mod, int type, void *arg)
 moduledata_t nvd_mod = {
 	"nvd",
 	(modeventhand_t)nvd_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(nvd, nvd_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
