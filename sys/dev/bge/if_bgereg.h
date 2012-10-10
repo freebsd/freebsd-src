@@ -2792,6 +2792,7 @@ struct bge_softc {
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
 	int			bge_expcap;
+	int			bge_expmrq;
 	int			bge_msicap;
 	int			bge_pcixcap;
 	uint32_t		bge_flags;
@@ -2835,6 +2836,7 @@ struct bge_softc {
 	uint32_t		bge_chiprev;
 	uint8_t			bge_asf_mode;
 	uint8_t			bge_asf_count;
+	uint16_t		bge_mps;
 	struct bge_ring_data	bge_ldata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
 	uint16_t		bge_tx_saved_considx;
