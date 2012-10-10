@@ -349,6 +349,7 @@ static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int read_card_mem(struct adapter *, struct t4_mem_range *);
+static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct port_info *, int);
 #endif
@@ -5170,6 +5171,27 @@ proceed:
 	return (rc);
 }
 
+static int
+read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
+{
+	int rc;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for mbox */
+
+	if (i2cd->len == 0 || i2cd->port_id >= sc->params.nports)
+		return (EINVAL);
+
+	if (i2cd->len > 1) {
+		/* XXX: need fw support for longer reads in one go */
+		return (ENOTSUP);
+	}
+
+	rc = -t4_i2c_rd(sc, sc->mbox, i2cd->port_id, i2cd->dev_addr,
+	    i2cd->offset, &i2cd->data[0]);
+
+	return (rc);
+}
+
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
@@ -5372,6 +5394,11 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	}
 	case CHELSIO_T4_GET_MEM:
 		rc = read_card_mem(sc, (struct t4_mem_range *)data);
+		break;
+	case CHELSIO_T4_GET_I2C:
+		ADAPTER_LOCK(sc);
+		rc = read_i2c(sc, (struct t4_i2c_data *)data);
+		ADAPTER_UNLOCK(sc);
 		break;
 	default:
 		rc = EINVAL;
