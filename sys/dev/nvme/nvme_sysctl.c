@@ -33,6 +33,16 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+/*
+ * CTLTYPE_S64 and sysctl_handle_64 were added in r217616.  Define these
+ *  explicitly here for older kernels that don't include the r217616
+ *  changeset.
+ */
+#ifndef CTLTYPE_S64
+#define CTLTYPE_S64		CTLTYPE_QUAD
+#define sysctl_handle_64	sysctl_handle_quad
+#endif
+
 static void
 nvme_dump_queue(struct nvme_qpair *qpair)
 {
@@ -114,6 +124,66 @@ nvme_sysctl_int_coal_threshold(SYSCTL_HANDLER_ARGS)
 }
 
 static void
+nvme_qpair_reset_stats(struct nvme_qpair *qpair)
+{
+
+	qpair->num_cmds = 0;
+	qpair->num_intr_handler_calls = 0;
+}
+
+static int
+nvme_sysctl_num_cmds(SYSCTL_HANDLER_ARGS)
+{
+	struct nvme_controller 	*ctrlr = arg1;
+	int64_t			num_cmds = 0;
+	int			i;
+
+	num_cmds = ctrlr->adminq.num_cmds;
+
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		num_cmds += ctrlr->ioq[i].num_cmds;
+
+	return (sysctl_handle_64(oidp, &num_cmds, 0, req));
+}
+
+static int
+nvme_sysctl_num_intr_handler_calls(SYSCTL_HANDLER_ARGS)
+{
+	struct nvme_controller 	*ctrlr = arg1;
+	int64_t			num_intr_handler_calls = 0;
+	int			i;
+
+	num_intr_handler_calls = ctrlr->adminq.num_intr_handler_calls;
+
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		num_intr_handler_calls += ctrlr->ioq[i].num_intr_handler_calls;
+
+	return (sysctl_handle_64(oidp, &num_intr_handler_calls, 0, req));
+}
+
+static int
+nvme_sysctl_reset_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct nvme_controller 	*ctrlr = arg1;
+	uint32_t		i, val = 0;
+
+	int error = sysctl_handle_int(oidp, &val, 0, req);
+
+	if (error)
+		return (error);
+
+	if (val != 0) {
+		nvme_qpair_reset_stats(&ctrlr->adminq);
+
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			nvme_qpair_reset_stats(&ctrlr->ioq[i]);
+	}
+
+	return (0);
+}
+
+
+static void
 nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
     struct sysctl_ctx_list *ctrlr_ctx, struct sysctl_oid *que_tree)
 {
@@ -140,6 +210,11 @@ nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
 
 	SYSCTL_ADD_QUAD(ctrlr_ctx, que_list, OID_AUTO, "num_cmds",
 	    CTLFLAG_RD, &qpair->num_cmds, "Number of commands submitted");
+	SYSCTL_ADD_QUAD(ctrlr_ctx, que_list, OID_AUTO, "num_intr_handler_calls",
+	    CTLFLAG_RD, &qpair->num_intr_handler_calls,
+	    "Number of times interrupt handler was invoked (will typically be "
+	    "less than number of actual interrupts generated due to "
+	    "coalescing)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, que_list, OID_AUTO,
 	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW, qpair, 0,
@@ -170,6 +245,22 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 		    "int_coal_threshold", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
 		    nvme_sysctl_int_coal_threshold, "IU",
 		    "Interrupt coalescing threshold");
+
+		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+		    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD,
+		    ctrlr, 0, nvme_sysctl_num_cmds, "IU",
+		    "Number of commands submitted");
+
+		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+		    "num_intr_handler_calls", CTLTYPE_S64 | CTLFLAG_RD,
+		    ctrlr, 0, nvme_sysctl_num_intr_handler_calls, "IU",
+		    "Number of times interrupt handler was invoked (will "
+		    "typically be less than number of actual interrupts "
+		    "generated due to coalescing)");
+
+		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+		    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
+		    nvme_sysctl_reset_stats, "IU", "Reset statistics to zero");
 	}
 
 	que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO, "adminq",

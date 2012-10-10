@@ -134,6 +134,7 @@ struct nvme_qpair {
 	uint32_t		cq_head;
 
 	int64_t			num_cmds;
+	int64_t			num_intr_handler_calls;
 
 	struct nvme_command	*cmd;
 	struct nvme_completion	*cpl;
