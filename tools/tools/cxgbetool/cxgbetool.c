@@ -82,6 +82,7 @@ usage(FILE *fp)
 {
 	fprintf(fp, "Usage: %s <nexus> [operation]\n", progname);
 	fprintf(fp,
+	    "\tclearstats <port>                   clear port statistics\n"
 	    "\tcontext <type> <id>                 show an SGE context\n"
 	    "\tfilter <idx> [<param> <val>] ...    set a filter\n"
 	    "\tfilter <idx> delete|clear           delete a filter\n"
@@ -1578,6 +1579,28 @@ read_i2c(int argc, const char *argv[])
 }
 
 static int
+clearstats(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	uint32_t port;
+
+	if (argc != 1) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	port = l;
+
+	return doit(CHELSIO_T4_CLEAR_STATS, &port);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -1605,6 +1628,8 @@ run_cmd(int argc, const char *argv[])
 		rc = read_tcb(argc, argv);
 	else if (!strcmp(cmd, "i2c"))
 		rc = read_i2c(argc, argv);
+	else if (!strcmp(cmd, "clearstats"))
+		rc = clearstats(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
