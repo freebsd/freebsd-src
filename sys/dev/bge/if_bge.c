@@ -3604,8 +3604,11 @@ bge_reset(struct bge_softc *sc)
 
 	/* XXX: Broadcom Linux driver. */
 	if (sc->bge_flags & BGE_FLAG_PCIE) {
-		if (CSR_READ_4(sc, 0x7E2C) == 0x60)	/* PCIE 1.0 */
-			CSR_WRITE_4(sc, 0x7E2C, 0x20);
+		if (sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
+		    (sc->bge_flags & BGE_FLAG_5717_PLUS) == 0) {
+			if (CSR_READ_4(sc, 0x7E2C) == 0x60)	/* PCIE 1.0 */
+				CSR_WRITE_4(sc, 0x7E2C, 0x20);
+		}
 		if (sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
 			/* Prevent PCIE link training during global reset */
 			CSR_WRITE_4(sc, BGE_MISC_CFG, 1 << 29);
