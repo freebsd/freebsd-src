@@ -3381,7 +3381,7 @@ bge_attach(device_t dev)
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
 	if ((pci_read_config(dev, BGE_PCI_SUBSYS, 4) >> 16) ==
 	    SK_SUBSYSID_9D41 || (hwcfg & BGE_HWCFG_MEDIA) == BGE_MEDIA_FIBER) {
-		if (BGE_IS_5714_FAMILY(sc))
+		if (BGE_IS_5705_PLUS(sc))
 			sc->bge_flags |= BGE_FLAG_MII_SERDES;
 		else
 			sc->bge_flags |= BGE_FLAG_TBI;
