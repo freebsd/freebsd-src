@@ -3898,8 +3898,11 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 
 	status = xpt_compile_path(path, /*periph*/NULL, sim->path_id,
 				  CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-	if (status != CAM_REQ_CMP)
-		printf("xpt_compile_path returned %d\n", status);
+	if (status != CAM_REQ_CMP) {
+		xpt_release_bus(new_bus);
+		free(path, M_CAMXPT);
+		return (CAM_RESRC_UNAVAIL);
+	}
 
 	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
