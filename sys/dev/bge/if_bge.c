@@ -3784,7 +3784,6 @@ bge_reset(struct bge_softc *sc)
 		val = CSR_READ_4(sc, 0x7C00);
 		CSR_WRITE_4(sc, 0x7C00, val | (1 << 25));
 	}
-	DELAY(10000);
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5720)
 		BGE_CLRBIT(sc, BGE_CPMU_CLCK_ORIDE,
