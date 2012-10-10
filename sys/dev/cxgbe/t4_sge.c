@@ -417,22 +417,14 @@ t4_setup_adapter_queues(struct adapter *sc)
 	 * Firmware event queue
 	 */
 	rc = alloc_fwq(sc);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create firmware event queue: %d\n", rc);
+	if (rc != 0)
 		return (rc);
-	}
 
 	/*
 	 * Management queue.  This is just a control queue that uses the fwq as
 	 * its associated iq.
 	 */
 	rc = alloc_mgmtq(sc);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create management queue: %d\n", rc);
-		return (rc);
-	}
 
 	return (rc);
 }
