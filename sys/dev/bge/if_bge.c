@@ -1466,8 +1466,10 @@ bge_chipinit(struct bge_softc *sc)
 	dma_rw_ctl = BGE_PCIDMARWCTL_RD_CMD_SHIFT(6) |
 	    BGE_PCIDMARWCTL_WR_CMD_SHIFT(7);
 	if (sc->bge_flags & BGE_FLAG_PCIE) {
-		/* Read watermark not used, 128 bytes for write. */
-		dma_rw_ctl |= BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
+		if (sc->bge_mps >= 256)
+			dma_rw_ctl |= BGE_PCIDMARWCTL_WR_WAT_SHIFT(7);
+		else
+			dma_rw_ctl |= BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
 	} else if (sc->bge_flags & BGE_FLAG_PCIX) {
 		if (BGE_IS_5714_FAMILY(sc)) {
 			/* 256 bytes for read and write. */
@@ -3161,11 +3163,16 @@ bge_attach(device_t dev)
 		 */
 		sc->bge_flags |= BGE_FLAG_PCIE;
 		sc->bge_expcap = reg;
+		/* Extract supported maximum payload size. */
+		sc->bge_mps = pci_read_config(dev, sc->bge_expcap +
+		    PCIER_DEVICE_CAP, 2);
+		sc->bge_mps = 128 << (sc->bge_mps & PCIEM_CAP_MAX_PAYLOAD);
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5720)
-			pci_set_max_read_req(dev, 2048);
-		else if (pci_get_max_read_req(dev) != 4096)
-			pci_set_max_read_req(dev, 4096);
+			sc->bge_expmrq = 2048;
+		else
+			sc->bge_expmrq = 4096;
+		pci_set_max_read_req(dev, sc->bge_expmrq);
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
@@ -3642,6 +3649,7 @@ bge_reset(struct bge_softc *sc)
 		    PCIEM_CTL_NOSNOOP_ENABLE);
 		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_CTL,
 		    devctl, 2);
+		pci_set_max_read_req(dev, sc->bge_expmrq);
 		/* Clear error status. */
 		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_STA,
 		    PCIEM_STA_CORRECTABLE_ERROR |
