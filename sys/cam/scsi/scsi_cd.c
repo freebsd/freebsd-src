@@ -1741,6 +1741,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 					       * bytes.
 					       */
 		struct	   cd_params *cdp;
+		int error;
 
 		cdp = &softc->params;
 
@@ -1749,28 +1750,26 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		cdp->disksize = scsi_4btoul (rdcap->addr) + 1;
 		cdp->blksize = scsi_4btoul (rdcap->length);
 
-		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		/*
+		 * Retry any UNIT ATTENTION type errors.  They
+		 * are expected at boot.
+		 */
+		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP ||
+		    (error = cderror(done_ccb, CAM_RETRY_SELTO,
+				SF_RETRY_UA | SF_NO_PRINT)) == 0) {
 
 			snprintf(announce_buf, sizeof(announce_buf),
 				"cd present [%lu x %lu byte records]",
 				cdp->disksize, (u_long)cdp->blksize);
 
 		} else {
-			int	error;
-			/*
-			 * Retry any UNIT ATTENTION type errors.  They
-			 * are expected at boot.
-			 */
-			error = cderror(done_ccb, CAM_RETRY_SELTO,
-					SF_RETRY_UA | SF_NO_PRINT);
 			if (error == ERESTART) {
 				/*
 				 * A retry was scheuled, so
 				 * just return.
 				 */
 				return;
-			} else if (error != 0) {
-
+			} else {
 				int asc, ascq;
 				int sense_key, error_code;
 				int have_sense;
