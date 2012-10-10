@@ -5400,6 +5400,15 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = read_i2c(sc, (struct t4_i2c_data *)data);
 		ADAPTER_UNLOCK(sc);
 		break;
+	case CHELSIO_T4_CLEAR_STATS: {
+		u_int port_id = *(uint32_t *)data;
+
+		if (port_id >= sc->params.nports)
+			return (EINVAL);
+
+		t4_clr_port_stats(sc, port_id);
+		break;
+	}
 	default:
 		rc = EINVAL;
 	}

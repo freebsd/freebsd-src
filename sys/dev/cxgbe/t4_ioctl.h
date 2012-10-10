@@ -50,6 +50,7 @@ enum {
 	T4_LOAD_FW,			/* flash firmware */
 	T4_GET_MEM,			/* read memory */
 	T4_GET_I2C,			/* read from i2c addressible device */
+	T4_CLEAR_STATS,			/* clear a port's MAC statistics */
 };
 
 struct t4_reg {
@@ -234,4 +235,5 @@ struct t4_mem_range {
 #define CHELSIO_T4_LOAD_FW	_IOW('f', T4_LOAD_FW, struct t4_data)
 #define CHELSIO_T4_GET_MEM	_IOW('f', T4_GET_MEM, struct t4_mem_range)
 #define CHELSIO_T4_GET_I2C	_IOWR('f', T4_GET_I2C, struct t4_i2c_data)
+#define CHELSIO_T4_CLEAR_STATS	_IOW('f', T4_CLEAR_STATS, uint32_t)
 #endif
