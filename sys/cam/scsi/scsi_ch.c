@@ -324,11 +324,6 @@ chregister(struct cam_periph *periph, void *arg)
 	struct ccb_pathinq cpi;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("chregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("chregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
