@@ -3616,6 +3616,15 @@ bge_reset(struct bge_softc *sc)
 		}
 	}
 
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
+		val = CSR_READ_4(sc, BGE_VCPU_STATUS);
+		CSR_WRITE_4(sc, BGE_VCPU_STATUS,
+		    val | BGE_VCPU_STATUS_DRV_RESET);
+		val = CSR_READ_4(sc, BGE_VCPU_EXT_CTRL);
+		CSR_WRITE_4(sc, BGE_VCPU_EXT_CTRL,
+		    val & ~BGE_VCPU_EXT_CTRL_HALT_CPU);
+	}
+
 	/*
 	 * Set GPHY Power Down Override to leave GPHY
 	 * powered up in D0 uninitialized.
@@ -3626,15 +3635,6 @@ bge_reset(struct bge_softc *sc)
 
 	/* Issue global reset */
 	write_op(sc, BGE_MISC_CFG, reset);
-
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
-		val = CSR_READ_4(sc, BGE_VCPU_STATUS);
-		CSR_WRITE_4(sc, BGE_VCPU_STATUS,
-		    val | BGE_VCPU_STATUS_DRV_RESET);
-		val = CSR_READ_4(sc, BGE_VCPU_EXT_CTRL);
-		CSR_WRITE_4(sc, BGE_VCPU_EXT_CTRL,
-		    val & ~BGE_VCPU_EXT_CTRL_HALT_CPU);
-	}
 
 	DELAY(1000);
 
