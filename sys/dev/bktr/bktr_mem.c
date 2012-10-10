@@ -182,7 +182,7 @@ bktr_retrieve_address(int unit, int type)
 static moduledata_t bktr_mem_mod = {
 	"bktr_mem",
 	bktr_mem_modevent,
-	NULL
+	0
 };
 
 /*

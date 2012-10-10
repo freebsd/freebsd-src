@@ -301,7 +301,7 @@ stfmodevent(mod, type, data)
 static moduledata_t stf_mod = {
 	"if_stf",
 	stfmodevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(if_stf, stf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

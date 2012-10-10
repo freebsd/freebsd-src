@@ -74,7 +74,7 @@ drm_modevent(module_t mod, int type, void *data)
 static moduledata_t drm_mod = {
 	"drmn",
 	drm_modevent,
-	NULL
+	0
 }; 
 DECLARE_MODULE(drmn, drm_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(drmn, 1);

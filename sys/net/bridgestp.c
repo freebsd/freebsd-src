@@ -2124,7 +2124,7 @@ bstp_modevent(module_t mod, int type, void *data)
 static moduledata_t bstp_mod = {
 	"bridgestp",
 	bstp_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(bridgestp, bstp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

@@ -823,7 +823,7 @@ iso88025_modevent(module_t mod, int type, void *data)
 static moduledata_t iso88025_mod = {
 	"iso88025",
 	iso88025_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(iso88025, iso88025_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

@@ -51,7 +51,7 @@ static int ngatm_handler(module_t, int, void *);
 static moduledata_t ngatm_data = {
 	"ngatmbase",
 	ngatm_handler,
-	NULL
+	0
 };
 
 MODULE_VERSION(ngatmbase, NGATMBASE_VERSION);

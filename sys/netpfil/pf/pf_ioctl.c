@@ -3722,7 +3722,7 @@ pf_modevent(module_t mod, int type, void *data)
 static moduledata_t pf_mod = {
 	"pf",
 	pf_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);

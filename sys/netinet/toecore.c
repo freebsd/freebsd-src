@@ -570,7 +570,7 @@ toecore_mod_handler(module_t mod, int cmd, void *arg)
 static moduledata_t mod_data= {
 	"toecore",
 	toecore_mod_handler,
-	NULL
+	0
 };
 
 MODULE_VERSION(toecore, 1);

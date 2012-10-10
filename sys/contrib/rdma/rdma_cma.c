@@ -2990,7 +2990,7 @@ cma_load(module_t mod, int cmd, void *arg)
 static moduledata_t mod_data = {
 	"rdma_cma",
 	cma_load,
-	NULL
+	0
 };
 
 MODULE_VERSION(rdma_cma, 1);

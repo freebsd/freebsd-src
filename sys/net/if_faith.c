@@ -136,7 +136,7 @@ faithmodevent(mod, type, data)
 static moduledata_t faith_mod = {
 	"if_faith",
 	faithmodevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(if_faith, faith_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

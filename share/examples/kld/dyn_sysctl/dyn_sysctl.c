@@ -163,7 +163,7 @@ load(module_t mod, int cmd, void *arg)
 static moduledata_t mod_data = {
 	"dyn_sysctl",
 	load,
-	NULL
+	0
 };
 
 DECLARE_MODULE(dyn_sysctl, mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
