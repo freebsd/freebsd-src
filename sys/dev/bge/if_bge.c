@@ -885,7 +885,7 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	if (i == BGE_TIMEOUT)
 		device_printf(sc->bge_dev,
-		    "PHY write timed out (phy %d, reg %d, val %d)\n",
+		    "PHY write timed out (phy %d, reg %d, val 0x%04x)\n",
 		    phy, reg, val);
 
 	return (0);
@@ -2036,6 +2036,7 @@ bge_blockinit(struct bge_softc *sc)
 	if (!(BGE_IS_5705_PLUS(sc)))
 		CSR_WRITE_4(sc, BGE_RXLS_MODE, BGE_RXLSMODE_ENABLE);
 
+	/* Turn on DMA, clear stats. */
 	val = BGE_MACMODE_TXDMA_ENB | BGE_MACMODE_RXDMA_ENB |
 	    BGE_MACMODE_RX_STATS_CLEAR | BGE_MACMODE_TX_STATS_CLEAR |
 	    BGE_MACMODE_RX_STATS_ENB | BGE_MACMODE_TX_STATS_ENB |
@@ -2048,7 +2049,6 @@ bge_blockinit(struct bge_softc *sc)
 	else
 		val |= BGE_PORTMODE_MII;
 
-	/* Turn on DMA, clear stats */
 	CSR_WRITE_4(sc, BGE_MAC_MODE, val);
 	DELAY(40);
 
@@ -4071,10 +4071,12 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	/* Fetch updates from the status block. */
 	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
 
 	statusword = sc->bge_ldata.bge_status_block->bge_status;
+	/* Clear the status so the next pass only sees the changes. */
 	sc->bge_ldata.bge_status_block->bge_status = 0;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -4142,11 +4144,12 @@ bge_intr_task(void *arg, int pending)
 	    sc->bge_cdata.bge_status_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	/* Save producer/consumer indexess. */
+	/* Save producer/consumer indices. */
 	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
 	status = sc->bge_ldata.bge_status_block->bge_status;
 	status_tag = sc->bge_ldata.bge_status_block->bge_status_tag << 24;
+	/* Dirty the status flag. */
 	sc->bge_ldata.bge_status_block->bge_status = 0;
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
@@ -5686,7 +5689,7 @@ bge_link_upd(struct bge_softc *sc)
 		bge_miibus_statchg(sc->bge_dev);
 	}
 
-	/* Clear the attention. */
+	/* Disable MAC attention when link is up. */
 	CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED |
 	    BGE_MACSTAT_CFG_CHANGED | BGE_MACSTAT_MI_COMPLETE |
 	    BGE_MACSTAT_LINK_CHANGED);
