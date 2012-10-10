@@ -692,10 +692,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("cdregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
 	if (cgd == NULL) {
 		printf("cdregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
