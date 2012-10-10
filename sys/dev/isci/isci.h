@@ -143,11 +143,14 @@ struct ISCI_INTERRUPT_INFO
 
 };
 
-struct ISCI_LED
+struct ISCI_PHY
 {
-	struct cdev		*cdev;
+	struct cdev		*cdev_fault;
+	struct cdev		*cdev_locate;
 	SCI_CONTROLLER_HANDLE_T	handle;
 	int			index;
+	int			led_fault;
+	int			led_locate;
 };
 
 struct ISCI_CONTROLLER
@@ -176,7 +179,7 @@ struct ISCI_CONTROLLER
 	uint32_t		queue_depth;
 	uint32_t		sim_queue_depth;
 	SCI_FAST_LIST_T		pending_device_reset_list;
-	struct ISCI_LED		led[SCI_MAX_PHYS];
+	struct ISCI_PHY		phys[SCI_MAX_PHYS];
 
 	SCI_MEMORY_DESCRIPTOR_LIST_HANDLE_T mdl;
 
