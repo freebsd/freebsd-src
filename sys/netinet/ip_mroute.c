@@ -2944,7 +2944,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 static moduledata_t ip_mroutemod = {
     "ip_mroute",
     ip_mroute_modevent,
-    NULL
+    0
 };
 
 DECLARE_MODULE(ip_mroute, ip_mroutemod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE);

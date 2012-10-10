@@ -3309,6 +3309,6 @@ mld_modevent(module_t mod, int type, void *unused __unused)
 static moduledata_t mld_mod = {
     "mld",
     mld_modevent,
-    NULL
+    0
 };
 DECLARE_MODULE(mld, mld_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

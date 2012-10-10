@@ -494,7 +494,7 @@ sppp_modevent(module_t mod, int type, void *unused)
 static moduledata_t spppmod = {
 	"sppp",
 	sppp_modevent,
-	NULL
+	0
 };
 MODULE_VERSION(sppp, 1);
 DECLARE_MODULE(sppp, spppmod, SI_SUB_DRIVERS, SI_ORDER_ANY);

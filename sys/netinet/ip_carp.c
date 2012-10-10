@@ -2145,7 +2145,7 @@ carp_modevent(module_t mod, int type, void *data)
 static moduledata_t carp_mod = {
 	"carp",
 	carp_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(carp, carp_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);

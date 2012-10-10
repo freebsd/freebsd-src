@@ -834,7 +834,7 @@ div_modevent(module_t mod, int type, void *unused)
 static moduledata_t ipdivertmod = {
         "ipdivert",
         div_modevent,
-	NULL
+        0
 };
 
 DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);

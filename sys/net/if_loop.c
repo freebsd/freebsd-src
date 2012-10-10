@@ -205,7 +205,7 @@ loop_modevent(module_t mod, int type, void *data)
 static moduledata_t loop_mod = {
 	"if_lo",
 	loop_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(if_lo, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);

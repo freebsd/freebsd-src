@@ -651,7 +651,7 @@ ipfw_nat_modevent(module_t mod, int type, void *unused)
 static moduledata_t ipfw_nat_mod = {
 	"ipfw_nat",
 	ipfw_nat_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);

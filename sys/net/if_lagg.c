@@ -211,7 +211,7 @@ lagg_modevent(module_t mod, int type, void *data)
 static moduledata_t lagg_mod = {
 	"if_lagg",
 	lagg_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(if_lagg, lagg_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

@@ -855,9 +855,9 @@ iscsi_modevent(module_t mod, int what, void *arg)
 }
 
 moduledata_t iscsi_mod = {
-	"iscsi",
-	(modeventhand_t) iscsi_modevent,
-	NULL
+         "iscsi",
+         (modeventhand_t) iscsi_modevent,
+         0
 };
 
 #ifdef ISCSI_ROOT

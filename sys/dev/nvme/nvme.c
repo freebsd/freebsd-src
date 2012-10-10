@@ -177,7 +177,7 @@ nvme_modevent(module_t mod, int type, void *arg)
 moduledata_t nvme_mod = {
 	"nvme",
 	(modeventhand_t)nvme_modevent,
-	NULL
+	0
 };
 
 DECLARE_MODULE(nvme, nvme_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
