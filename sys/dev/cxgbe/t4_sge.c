@@ -120,7 +120,7 @@ static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t,
     int *);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
-    int, char *);
+    int);
 static inline void init_fl(struct sge_fl *, int, int, char *);
 static inline void init_eq(struct sge_eq *, int, int, uint8_t, uint16_t,
     char *);
@@ -595,10 +595,8 @@ t4_setup_port_queues(struct port_info *pi)
 	 */
 	for_each_rxq(pi, i, rxq) {
 
-		snprintf(name, sizeof(name), "%s rxq%d-iq",
-		    device_get_nameunit(pi->dev), i);
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
-		    RX_IQ_ESIZE, name);
+		    RX_IQ_ESIZE);
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
@@ -620,10 +618,8 @@ t4_setup_port_queues(struct port_info *pi)
 #ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
-		snprintf(name, sizeof(name), "%s ofld_rxq%d-iq",
-		    device_get_nameunit(pi->dev), i);
 		init_iq(&ofld_rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
-		    pi->qsize_rxq, RX_IQ_ESIZE, name);
+		    pi->qsize_rxq, RX_IQ_ESIZE);
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
@@ -1478,7 +1474,7 @@ can_resume_tx(struct sge_eq *eq)
 
 static inline void
 init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
-    int qsize, int esize, char *name)
+    int qsize, int esize)
 {
 	KASSERT(tmr_idx >= 0 && tmr_idx < SGE_NTIMERS,
 	    ("%s: bad tmr_idx %d", __func__, tmr_idx));
@@ -1495,7 +1491,6 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 	}
 	iq->qsize = roundup(qsize, 16);		/* See FW_IQ_CMD/iqsize */
 	iq->esize = max(esize, 16);		/* See FW_IQ_CMD/iqesize */
-	strlcpy(iq->lockname, name, sizeof(iq->lockname));
 }
 
 static inline void
@@ -1793,12 +1788,10 @@ alloc_fwq(struct adapter *sc)
 {
 	int rc, intr_idx;
 	struct sge_iq *fwq = &sc->sge.fwq;
-	char name[16];
 	struct sysctl_oid *oid = device_get_sysctl_tree(sc->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
-	snprintf(name, sizeof(name), "%s fwq", device_get_nameunit(sc->dev));
-	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE, name);
+	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE);
 	fwq->flags |= IQ_INTR;	/* always */
 	intr_idx = sc->intr_count > 1 ? 1 : 0;
 	rc = alloc_iq_fl(sc->port[0], fwq, NULL, intr_idx, -1);
