@@ -602,7 +602,8 @@ round_freq(struct eventtimer *et, int freq)
 		freq = (et->et_frequency + div / 2) / div;
 	}
 	if (et->et_min_period.sec > 0)
-		freq = 0;
+		panic("Event timer \"%s\" doesn't support sub-second periods!",
+		    et->et_name);
 	else if (et->et_min_period.frac != 0)
 		freq = min(freq, BT2FREQ(&et->et_min_period));
 	if (et->et_max_period.sec == 0 && et->et_max_period.frac != 0)
