@@ -314,7 +314,8 @@ cam_ccbq_resize(struct cam_ccbq *ccbq, int new_size)
 	 * same size once the outstanding entries have been processed.
 	 */
 	if (space_left < 0
-	 || camq_resize(&ccbq->queue, new_size) == CAM_REQ_CMP) {
+	 || camq_resize(&ccbq->queue, new_size + (CAM_RL_VALUES - 1)) ==
+	    CAM_REQ_CMP) {
 		ccbq->devq_openings += delta;
 		ccbq->dev_openings += delta;
 		return (CAM_REQ_CMP);
@@ -327,7 +328,7 @@ int
 cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 {
 	bzero(ccbq, sizeof(*ccbq));
-	if (camq_init(&ccbq->queue, openings) != 0) {
+	if (camq_init(&ccbq->queue, openings + (CAM_RL_VALUES - 1)) != 0) {
 		return (1);
 	}
 	ccbq->devq_openings = openings;
