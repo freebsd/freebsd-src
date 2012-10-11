@@ -94,7 +94,7 @@ int do_l2t_write_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void
 t4_l2t_release(struct l2t_entry *e)
 {
-	struct l2t_data *d = container_of(e, struct l2t_data, l2tab[e->idx]);
+	struct l2t_data *d = member2struct(l2t_data, l2tab[e->idx], e);
 
 	if (atomic_fetchadd_int(&e->refcnt, -1) == 1)
 		atomic_add_int(&d->nfree, 1);
