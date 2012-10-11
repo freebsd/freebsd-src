@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 
 /* Datastructures internal to the xpt layer */
 MALLOC_DEFINE(M_CAMXPT, "CAM XPT", "CAM XPT buffers");
+MALLOC_DEFINE(M_CAMDEV, "CAM DEV", "CAM devices");
+MALLOC_DEFINE(M_CAMCCB, "CAM CCB", "CAM CCBs");
+MALLOC_DEFINE(M_CAMPATH, "CAM path", "CAM paths");
 
 /* Object for defering XPT actions to a taskqueue */
 struct xpt_task {
@@ -3397,7 +3400,7 @@ xpt_create_path(struct cam_path **new_path_ptr, struct cam_periph *perph,
 	struct	   cam_path *path;
 	cam_status status;
 
-	path = (struct cam_path *)malloc(sizeof(*path), M_CAMXPT, M_NOWAIT);
+	path = (struct cam_path *)malloc(sizeof(*path), M_CAMPATH, M_NOWAIT);
 
 	if (path == NULL) {
 		status = CAM_RESRC_UNAVAIL;
@@ -3405,7 +3408,7 @@ xpt_create_path(struct cam_path **new_path_ptr, struct cam_periph *perph,
 	}
 	status = xpt_compile_path(path, perph, path_id, target_id, lun_id);
 	if (status != CAM_REQ_CMP) {
-		free(path, M_CAMXPT);
+		free(path, M_CAMPATH);
 		path = NULL;
 	}
 	*new_path_ptr = path;
@@ -3422,7 +3425,7 @@ xpt_create_path_unlocked(struct cam_path **new_path_ptr,
 	cam_status status;
 	int	   need_unlock = 0;
 
-	path = (struct cam_path *)malloc(sizeof(*path), M_CAMXPT, M_WAITOK);
+	path = (struct cam_path *)malloc(sizeof(*path), M_CAMPATH, M_WAITOK);
 
 	if (path_id != CAM_BUS_WILDCARD) {
 		bus = xpt_find_bus(path_id);
@@ -3437,7 +3440,7 @@ xpt_create_path_unlocked(struct cam_path **new_path_ptr,
 		xpt_release_bus(bus);
 	}
 	if (status != CAM_REQ_CMP) {
-		free(path, M_CAMXPT);
+		free(path, M_CAMPATH);
 		path = NULL;
 	}
 	*new_path_ptr = path;
@@ -3540,7 +3543,7 @@ xpt_free_path(struct cam_path *path)
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_free_path\n"));
 	xpt_release_path(path);
-	free(path, M_CAMXPT);
+	free(path, M_CAMPATH);
 }
 
 void
@@ -4377,7 +4380,7 @@ xpt_alloc_ccb()
 {
 	union ccb *new_ccb;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_ZERO|M_WAITOK);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_WAITOK);
 	return (new_ccb);
 }
 
@@ -4386,14 +4389,14 @@ xpt_alloc_ccb_nowait()
 {
 	union ccb *new_ccb;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMXPT, M_ZERO|M_NOWAIT);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_NOWAIT);
 	return (new_ccb);
 }
 
 void
 xpt_free_ccb(union ccb *free_ccb)
 {
-	free(free_ccb, M_CAMXPT);
+	free(free_ccb, M_CAMCCB);
 }
 
 
@@ -4545,7 +4548,7 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		device = NULL;
 	} else {
 		device = (struct cam_ed *)malloc(sizeof(*device),
-						 M_CAMXPT, M_NOWAIT|M_ZERO);
+						 M_CAMDEV, M_NOWAIT|M_ZERO);
 	}
 
 	if (device != NULL) {
@@ -4558,13 +4561,13 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		device->sim = bus->sim;
 		/* Initialize our queues */
 		if (camq_init(&device->drvq, 0) != 0) {
-			free(device, M_CAMXPT);
+			free(device, M_CAMDEV);
 			return (NULL);
 		}
 		if (cam_ccbq_init(&device->ccbq,
 				  bus->sim->max_dev_openings) != 0) {
 			camq_fini(&device->drvq);
-			free(device, M_CAMXPT);
+			free(device, M_CAMDEV);
 			return (NULL);
 		}
 		SLIST_INIT(&device->asyncs);
@@ -4628,7 +4631,7 @@ xpt_release_device(struct cam_ed *device)
 		free(device->serial_num, M_CAMXPT);
 
 		xpt_release_target(device->target);
-		free(device, M_CAMXPT);
+		free(device, M_CAMDEV);
 	} else
 		device->refcount--;
 }
