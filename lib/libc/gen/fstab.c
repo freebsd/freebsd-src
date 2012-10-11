@@ -76,7 +76,7 @@ setfstab(const char *file)
 }
 
 const char *
-getfstab (void)
+getfstab(void)
 {
 
 	if (fsp_set)
@@ -86,7 +86,7 @@ getfstab (void)
 }
 
 static void
-fixfsfile()
+fixfsfile(void)
 {
 	static char buf[sizeof(_PATH_DEV) + MNAMELEN];
 	struct stat sb;
@@ -108,7 +108,7 @@ fixfsfile()
 }
 
 static int
-fstabscan()
+fstabscan(void)
 {
 	char *cp, *p;
 #define	MAXLINELENGTH	1024
@@ -119,7 +119,7 @@ fstabscan()
 	for (;;) {
 
 		if (!(p = fgets(line, sizeof(line), _fs_fp)))
-			return(0);
+			return (0);
 /* OLD_STYLE_FSTAB */
 		++LineNo;
 		if (*line == '#' || *line == '\n')
@@ -140,7 +140,7 @@ fstabscan()
 					_fs_fstab.fs_freq = atoi(cp);
 					if ((cp = strsep(&p, ":\n")) != NULL) {
 						_fs_fstab.fs_passno = atoi(cp);
-						return(1);
+						return (1);
 					}
 				}
 			}
@@ -206,7 +206,7 @@ fstabscan()
 		if (typexx)
 			continue;
 		if (cp != NULL)
-			return(1);
+			return (1);
 
 bad:		/* no way to distinguish between EOF and syntax error */
 		error(EFTYPE);
@@ -215,44 +215,45 @@ bad:		/* no way to distinguish between EOF and syntax error */
 }
 
 struct fstab *
-getfsent()
+getfsent(void)
 {
+
 	if ((!_fs_fp && !setfsent()) || !fstabscan())
-		return((struct fstab *)NULL);
-	return(&_fs_fstab);
+		return (NULL);
+	return (&_fs_fstab);
 }
 
 struct fstab *
-getfsspec(name)
-	const char *name;
+getfsspec(const char *name)
 {
+
 	if (setfsent())
 		while (fstabscan())
 			if (!strcmp(_fs_fstab.fs_spec, name))
-				return(&_fs_fstab);
-	return((struct fstab *)NULL);
+				return (&_fs_fstab);
+	return (NULL);
 }
 
 struct fstab *
-getfsfile(name)
-	const char *name;
+getfsfile(const char *name)
 {
+
 	if (setfsent())
 		while (fstabscan())
 			if (!strcmp(_fs_fstab.fs_file, name))
-				return(&_fs_fstab);
-	return((struct fstab *)NULL);
+				return (&_fs_fstab);
+	return (NULL);
 }
 
-int 
-setfsent()
+int
+setfsent(void)
 {
 	int fd;
 
 	if (_fs_fp) {
 		rewind(_fs_fp);
 		LineNo = 0;
-		return(1);
+		return (1);
 	}
 	if (fsp_set == 0) {
 		if (issetugid())
@@ -268,16 +269,17 @@ setfsent()
 	_fs_fp = fdopen(fd, "r");
 	if (_fs_fp  != NULL) {
 		LineNo = 0;
-		return(1);
+		return (1);
 	}
 	error(errno);
 	_close(fd);
-	return(0);
+	return (0);
 }
 
 void
-endfsent()
+endfsent(void)
 {
+
 	if (_fs_fp) {
 		(void)fclose(_fs_fp);
 		_fs_fp = NULL;
@@ -287,8 +289,7 @@ endfsent()
 }
 
 static void
-error(err)
-	int err;
+error(int err)
 {
 	char *p;
 	char num[30];
