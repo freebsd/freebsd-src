@@ -49,7 +49,7 @@ int verbose = 0;
         __FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	} while (0)
 
-inline void prefetch (const void *x)
+static inline void prefetch (const void *x)
 {
 	__asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
 }
