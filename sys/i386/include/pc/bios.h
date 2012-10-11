@@ -44,31 +44,6 @@ struct bios32_SDheader
 };
 
 /* 
- * BIOS32 Service Directory entry.  Caller supplies name, bios32_SDlookup
- * fills in the rest of the details.
- */
-struct bios32_SDentry 
-{
-    union 
-    {
-	u_int8_t	name[4];	/* service identifier */
-	u_int32_t	id;		/* as a 32-bit value */
-    } ident;
-    u_int32_t	base;			/* base of service */
-    u_int32_t	len;			/* service length */
-    u_int32_t	entry;			/* entrypoint offset from base */
-    vm_offset_t	ventry;			/* entrypoint in kernel virtual segment */
-};
-
-extern int		bios32_SDlookup(struct bios32_SDentry *ent);
-extern u_int32_t	bios_sigsearch(u_int32_t start, u_char *sig, int siglen, 
-					 int paralen, int sigofs);
-
-#define BIOS_PADDRTOVADDR(x)	((x) + KERNBASE)
-#define BIOS_VADDRTOPADDR(x)	((x) - KERNBASE)
-
-
-/* 
  * PnP BIOS presence structure
  */
 struct PnPBIOS_table 
@@ -88,52 +63,13 @@ struct PnPBIOS_table
     u_int32_t	pmdataseg;		/* protected-mode data segment */
 } __packed;
 
-
-/* 
- * Exported lookup results 
- */
-extern struct bios32_SDentry	PCIbios;
-
-struct segment_info {
-	u_int	base;
-	u_int	limit;
-};
-
-#define BIOSCODE_FLAG	0x01
-#define BIOSDATA_FLAG	0x02
-#define BIOSUTIL_FLAG	0x04
-#define BIOSARGS_FLAG	0x08
-
-struct bios_segments {
-	struct	segment_info code32;		/* 32-bit code (mandatory) */
-	struct	segment_info code16;		/* 16-bit code */
-	struct	segment_info data;		/* 16-bit data */
-	struct	segment_info util;		/* 16-bit utility */
-	struct	segment_info args;		/* 16-bit args */
-};
-
-struct bios_regs {
-	u_int	eax;
-	u_int	ebx;
-	u_int	ecx;
-	u_int	edx;
-	u_int	esi;
-	u_int	edi;
-};
-
-struct bios_args {
-	u_int	entry;				/* entry point of routine */
-	struct	bios_regs r;
-	struct	bios_segments seg;
-};
-
 /*
  * PnP BIOS return codes
  */
 #define PNP_SUCCESS				0x00
 #define PNP_NOT_SET_STATICALLY			0x7f
 #define PNP_UNKNOWN_FUNCTION			0x81
-#define PNP_FUNTION_NOT_SUPPORTED		0x82
+#define PNP_FUNCTION_NOT_SUPPORTED		0x82
 #define PNP_INVALID_HANDLE			0x83
 #define PNP_BAD_PARAMETER			0x84
 #define PNP_SET_FAILED				0x85
@@ -219,11 +155,6 @@ struct bios_args {
 #define PCIBIOS_GET_IRQ_ROUTING		0xb10e
 #define PCIBIOS_ROUTE_INTERRUPT		0xb10f
 
-extern int bios16(struct bios_args *, char *, ...);
-extern int bios16_call(struct bios_regs *, char *);
-extern int bios32(struct bios_regs *, u_int, u_short);
-extern void set_bios_selectors(struct bios_segments *, int);
-
 /*
  * PCI interrupt routing table.
  *
@@ -272,7 +203,6 @@ struct PIR_table
 /*
  * Int 15:E820 'SMAP' structure
  */
-
 #define SMAP_SIG	0x534D4150			/* 'SMAP' */
 
 #define	SMAP_TYPE_MEMORY	1
@@ -291,22 +221,122 @@ struct bios_smap {
     u_int32_t	type;
 } __packed;
 
+/*
+ * System Management BIOS
+ */
+#define	SMBIOS_START	0xf0000
+#define	SMBIOS_STEP	0x10
+#define	SMBIOS_OFF	0
+#define	SMBIOS_LEN	4
+#define	SMBIOS_SIG	"_SM_"
+
+struct smbios_eps {
+	uint8_t		anchor_string[4];		/* '_SM_' */
+	uint8_t		checksum;
+	uint8_t		length;
+	uint8_t		major_version;
+	uint8_t		minor_version;
+	uint16_t	maximum_structure_size;
+	uint8_t		entry_point_revision;
+	uint8_t		formatted_area[5];
+	uint8_t		intermediate_anchor_string[5];	/* '_DMI_' */
+	uint8_t		intermediate_checksum;
+	uint16_t	structure_table_length;
+	uint32_t	structure_table_address;
+	uint16_t	number_structures;
+	uint8_t		BCD_revision;
+};
+
+struct smbios_structure_header {
+	uint8_t		type;
+	uint8_t		length;
+	uint16_t	handle;
+};
+
+#ifdef _KERNEL
+#define BIOS_PADDRTOVADDR(x)	((x) + KERNBASE)
+#define BIOS_VADDRTOPADDR(x)	((x) - KERNBASE)
+
 struct bios_oem_signature {
 	char * anchor;		/* search anchor string in BIOS memory */
 	size_t offset;		/* offset from anchor (may be negative) */
 	size_t totlen;		/* total length of BIOS string to copy */
 } __packed;
+
 struct bios_oem_range {
 	u_int from;		/* shouldn't be below 0xe0000 */
 	u_int to;		/* shouldn't be above 0xfffff */
 } __packed;
+
 struct bios_oem {
 	struct bios_oem_range range;
 	struct bios_oem_signature signature[];
 } __packed;
 
-extern int
-bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen);
+struct segment_info {
+	u_int	base;
+	u_int	limit;
+};
 
+#define BIOSCODE_FLAG	0x01
+#define BIOSDATA_FLAG	0x02
+#define BIOSUTIL_FLAG	0x04
+#define BIOSARGS_FLAG	0x08
+
+struct bios_segments {
+	struct	segment_info code32;		/* 32-bit code (mandatory) */
+	struct	segment_info code16;		/* 16-bit code */
+	struct	segment_info data;		/* 16-bit data */
+	struct	segment_info util;		/* 16-bit utility */
+	struct	segment_info args;		/* 16-bit args */
+};
+
+struct bios_regs {
+	u_int	eax;
+	u_int	ebx;
+	u_int	ecx;
+	u_int	edx;
+	u_int	esi;
+	u_int	edi;
+};
+
+struct bios_args {
+	u_int	entry;				/* entry point of routine */
+	struct	bios_regs r;
+	struct	bios_segments seg;
+};
+
+/* 
+ * BIOS32 Service Directory entry.  Caller supplies name, bios32_SDlookup
+ * fills in the rest of the details.
+ */
+struct bios32_SDentry 
+{
+    union 
+    {
+	u_int8_t	name[4];	/* service identifier */
+	u_int32_t	id;		/* as a 32-bit value */
+    } ident;
+    u_int32_t	base;			/* base of service */
+    u_int32_t	len;			/* service length */
+    u_int32_t	entry;			/* entrypoint offset from base */
+    vm_offset_t	ventry;			/* entrypoint in kernel virtual segment */
+};
+
+/*
+ * Exported lookup results 
+ */
+extern struct bios32_SDentry	PCIbios;
+
+int	bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen);
+uint32_t bios_sigsearch(uint32_t start, u_char *sig, int siglen, int paralen,
+	    int sigofs);
+int	bios16(struct bios_args *, char *, ...);
+int	bios16_call(struct bios_regs *, char *);
+int	bios32(struct bios_regs *, u_int, u_short);
+int	bios32_SDlookup(struct bios32_SDentry *ent);
+void	set_bios_selectors(struct bios_segments *, int);
+
+#endif
 
 #endif /* _MACHINE_PC_BIOS_H_ */

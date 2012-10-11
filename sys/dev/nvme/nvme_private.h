@@ -88,6 +88,10 @@ MALLOC_DECLARE(M_NVME);
 
 #define NVME_TIMEOUT_IN_SEC	(30)
 
+#ifndef CACHE_LINE_SIZE
+#define CACHE_LINE_SIZE		(64)
+#endif
+
 struct nvme_prp_list {
 	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
 	SLIST_ENTRY(nvme_prp_list)	slist;
@@ -130,8 +134,7 @@ struct nvme_qpair {
 	uint32_t		cq_head;
 
 	int64_t			num_cmds;
-
-	struct mtx		lock;
+	int64_t			num_intr_handler_calls;
 
 	struct nvme_command	*cmd;
 	struct nvme_completion	*cpl;
@@ -152,7 +155,10 @@ struct nvme_qpair {
 	struct nvme_tracker	**act_tr;
 
 	SLIST_HEAD(, nvme_prp_list)	free_prp_list;
-};
+
+	struct mtx		lock __aligned(CACHE_LINE_SIZE);
+
+} __aligned(CACHE_LINE_SIZE);
 
 struct nvme_namespace {
 

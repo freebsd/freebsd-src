@@ -90,7 +90,7 @@ size=$( f_dialog_inputbox_size \
         	"$prompt" \
         	"$flags"  \
         	"$hline"  )
-eval $DIALOG \
+dialog_inputbox=$( eval $DIALOG \
 	--title \"\$title\"             \
 	--backtitle \"\$btitle\"        \
 	--hline \"\$hline\"             \
@@ -98,8 +98,10 @@ eval $DIALOG \
 	--cancel-label \"\$msg_cancel\" \
 	--inputbox \"\$prompt\" $size   \
 	\"\$flags\"                     \
-	2> "$DIALOG_TMPDIR/dialog.inputbox.$$"
+	2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+)
 retval=$?
+setvar MENU_INPUTBOX_$$ "$dialog_inputbox"
 flags=$( f_dialog_inputstr )
 
 [ $retval -eq $SUCCESS ] || f_die

@@ -1261,8 +1261,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 		if (newcard) {
 			ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF,
 			    M_WAITOK | M_ZERO);
-			if (!ivar)
-				return;
 			memcpy(ivar->raw_cid, raw_cid, sizeof(raw_cid));
 		}
 		if (mmcbr_get_ro(sc->dev))

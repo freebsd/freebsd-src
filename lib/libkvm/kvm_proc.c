@@ -144,6 +144,8 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 			_kvm_err(kd, kd->program, "can't read proc at %p", p);
 			return (-1);
 		}
+		if (proc.p_state == PRS_NEW)
+			continue;
 		if (proc.p_state != PRS_ZOMBIE) {
 			if (KREAD(kd, (u_long)TAILQ_FIRST(&proc.p_threads),
 			    &mtd)) {
@@ -591,9 +593,15 @@ liveout:
 
 		nprocs = kvm_deadprocs(kd, op, arg, nl[1].n_value,
 				      nl[2].n_value, nprocs);
+		if (nprocs <= 0) {
+			_kvm_freeprocs(kd);
+			nprocs = 0;
+		}
 #ifdef notdef
-		size = nprocs * sizeof(struct kinfo_proc);
-		(void)realloc(kd->procbase, size);
+		else {
+			size = nprocs * sizeof(struct kinfo_proc);
+			kd->procbase = realloc(kd->procbase, size);
+		}
 #endif
 	}
 	*cnt = nprocs;

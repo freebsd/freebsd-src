@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2012
+.Dd September 27, 2012
 .Dt BUF_RING 9
 .Os
 .Sh NAME
@@ -33,7 +33,6 @@
 .Nm buf_ring_alloc ,
 .Nm buf_ring_free ,
 .Nm buf_ring_enqueue ,
-.Nm buf_ring_enqueue_bytes ,
 .Nm buf_ring_dequeue_mc ,
 .Nm buf_ring_dequeue_sc ,
 .Nm buf_ring_count ,
@@ -50,8 +49,6 @@
 .Fn buf_ring_free "struct buf_ring *br" "struct malloc_type *type"
 .Ft int
 .Fn buf_ring_enqueue "struct buf_ring *br" "void *buf"
-.Ft int
-.Fn buf_ring_enqueue_bytes "struct buf_ring *br" "void *buf" "int bytes"
 .Ft void *
 .Fn buf_ring_dequeue_mc "struct buf_ring *br"
 .Ft void *
@@ -91,12 +88,6 @@ The
 function is used to enqueue a buffer to a buf_ring.
 .Pp
 The
-.Fn buf_ring_enqueue_bytes
-function is used to enqueue a buffer to a buf_ring and increment the
-number of bytes enqueued by
-.Fa bytes .
-.Pp
-The
 .Fn buf_ring_dequeue_mc
 function is a multi-consumer safe way of dequeueing elements from a buf_ring.
 .Pp
@@ -134,9 +125,7 @@ otherwise.
 .Sh RETURN VALUES
 The
 .Fn buf_ring_enqueue
-and
-.Fn buf_ring_enqueue_bytes
-functions return
+function return
 .Er ENOBUFS
 if there are no available slots in the buf_ring.
 .Sh HISTORY

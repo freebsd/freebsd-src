@@ -1006,22 +1006,20 @@ flags_to_rights(int flags)
 {
 	cap_rights_t rights = 0;
 
-	switch ((flags & O_ACCMODE)) {
-	case O_RDONLY:
-		rights |= CAP_READ;
-		break;
-
-	case O_RDWR:
-		rights |= CAP_READ;
-		/* fall through */
-
-	case O_WRONLY:
-		rights |= CAP_WRITE;
-		break;
-
-	case O_EXEC:
+	if (flags & O_EXEC) {
 		rights |= CAP_FEXECVE;
-		break;
+	} else {
+		switch ((flags & O_ACCMODE)) {
+		case O_RDONLY:
+			rights |= CAP_READ;
+			break;
+		case O_RDWR:
+			rights |= CAP_READ;
+			/* FALLTHROUGH */
+		case O_WRONLY:
+			rights |= CAP_WRITE;
+			break;
+		}
 	}
 
 	if (flags & O_CREAT)
@@ -1336,7 +1334,7 @@ restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, CREATE,
 	    LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1, pathseg, path, fd,
-	    CAP_MKFIFO, td);
+	    CAP_MKNOD, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -1460,8 +1458,9 @@ kern_mkfifoat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
-	    pathseg, path, fd, td);
+	NDINIT_ATRIGHTS(&nd, CREATE,
+	    LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1, pathseg, path, fd,
+	    CAP_MKFIFO, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -1624,8 +1623,8 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE2,
-	    segflg, path2, fd2, td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE |
+	    AUDITVNODE2, segflg, path2, fd2, CAP_CREATE, td);
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
 		if (nd.ni_vp != NULL) {
@@ -1721,8 +1720,8 @@ kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 	AUDIT_ARG_TEXT(syspath);
 restart:
 	bwillwrite();
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
-	    segflg, path2, fd, td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE |
+	    AUDITVNODE1, segflg, path2, fd, CAP_CREATE, td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	vfslocked = NDHASGIANT(&nd);
@@ -1883,8 +1882,8 @@ kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 restart:
 	bwillwrite();
-	NDINIT_AT(&nd, DELETE, LOCKPARENT | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    pathseg, path, fd, td);
+	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, pathseg, path, fd, CAP_DELETE, td);
 	if ((error = namei(&nd)) != 0)
 		return (error == EINVAL ? EPERM : error);
 	vfslocked = NDHASGIANT(&nd);

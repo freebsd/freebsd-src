@@ -2430,7 +2430,7 @@ DB_SHOW_COMMAND(unpcb, db_show_unpcb)
 	db_printf("unp_socket: %p   unp_vnode: %p\n", unp->unp_socket,
 	    unp->unp_vnode);
 
-	db_printf("unp_ino: %d   unp_conn: %p\n", unp->unp_ino,
+	db_printf("unp_ino: %ju   unp_conn: %p\n", (uintmax_t)unp->unp_ino,
 	    unp->unp_conn);
 
 	db_printf("unp_refs:\n");

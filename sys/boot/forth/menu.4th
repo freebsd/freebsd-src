@@ -1,6 +1,6 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -384,7 +384,7 @@ create init_text8 255 allot
 \ ACPI option is to be presented to the user, otherwise returns -1. Used
 \ internally by menu-create, you need not (nor should you) call this directly.
 \ 
-: acpimenuitem ( -- C-Addr | -1 )
+: acpimenuitem ( -- C-Addr/U | -1 )
 
 	arch-i386? if
 		acpipresent? if
@@ -488,12 +488,16 @@ create init_text8 255 allot
 			menurow @ 2 + menurow !
 			menurow @ menuY @ +
 			at-xy
-			." Options:"
+			s" menu_optionstext" getenv dup -1 <> if
+				type
+			else
+				drop ." Options:"
+			then
 		then
 
 		\ If this is the ACPI menu option, act accordingly.
 		dup menuacpi @ = if
-			acpimenuitem ( -- C-Addr | -1 )
+			acpimenuitem ( -- C-Addr/U | -1 )
 		else
 			loader_color? if
 				s" ansi_caption[x]"
@@ -502,14 +506,14 @@ create init_text8 255 allot
 			then
 		then
 
-		( C-Addr | -1 )
+		( C-Addr/U | -1 )
 		dup -1 <> if
 			\ replace 'x' with current iteration
 			-rot 2dup 13 + c! rot
         
 			\ test for environment variable
 			getenv dup -1 <> if
-				printmenuitem ( C-Addr -- N )
+				printmenuitem ( C-Addr/U -- N )
         
 				s" menukeyN !" \ generate cmd to store result
 				-rot 2dup 7 + c! rot
@@ -931,23 +935,23 @@ create init_text8 255 allot
 
 		s" menu_caption[x][y]"	\ cycle_menuitem caption
 		-rot 2dup 13 + c! rot	\ replace 'x'
-		49 -rot
+		48 -rot
 		begin
 			16 2over rot + c! \ replace 'y'
 			2dup unsetenv
 
-			rot 1+ dup 56 > 2swap rot
+			rot 1+ dup 57 > 2swap rot
 		until
 		2drop drop
 
 		s" ansi_caption[x][y]"	\ cycle_menuitem ANSI caption
 		-rot 2dup 13 + c! rot	\ replace 'x'
-		49 -rot
+		48 -rot
 		begin
 			16 2over rot + c! \ replace 'y'
 			2dup unsetenv
 
-			rot 1+ dup 56 > 2swap rot
+			rot 1+ dup 57 > 2swap rot
 		until
 		2drop drop
 
@@ -972,6 +976,7 @@ create init_text8 255 allot
 
 	\ clear the "Options" menu separator flag
 	s" menu_options" unsetenv
+	s" menu_optionstext" unsetenv
 	0 menuoptions !
 
 ;

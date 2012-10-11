@@ -109,11 +109,6 @@ __FBSDID("$FreeBSD$");
  */
 #define KERNEL_PT_MAX	78
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 extern unsigned char kernbase[];
 extern unsigned char _etext[];
 extern unsigned char _edata[];
@@ -134,11 +129,11 @@ extern int *end;
 struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
 
 /* Physical and virtual addresses for some global pages */
-
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
 vm_offset_t physical_pages;
 vm_offset_t pmap_bootstrap_lastaddr;
+vm_paddr_t pmap_pa;
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
 struct pv_addr systempage;
@@ -287,9 +282,19 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		phys_avail[j] = availmem_regions[i].mr_start;
-		phys_avail[j + 1] = availmem_regions[i].mr_start +
-		    availmem_regions[i].mr_size;
+		/*
+		 * We should not map the page at PA 0x0000000, the VM can't
+		 * handle it, as pmap_extract() == 0 means failure.
+		 */
+		if (availmem_regions[i].mr_start > 0 ||
+		    availmem_regions[i].mr_size > PAGE_SIZE) {
+			phys_avail[j] = availmem_regions[i].mr_start;
+			if (phys_avail[j] == 0)
+				phys_avail[j] += PAGE_SIZE;
+			phys_avail[j + 1] = availmem_regions[i].mr_start +
+			    availmem_regions[i].mr_size;
+		} else
+			j -= 2;
 	}
 	phys_avail[j] = 0;
 	phys_avail[j + 1] = 0;
@@ -304,14 +309,17 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize, l2size;
 	void *kmdp;
 	u_int l1pagetable;
-	int i = 0, j = 0;
+	int i = 0, j = 0, err_devmap = 0;
 
 	lastaddr = parse_boot_param(abp);
 	memsize = 0;
 	set_cpufuncs();
 
+	/*
+	 * Find the dtb passed in by the boot loader.
+	 */
 	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp != NULL) 
+	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	else
 		dtbp = (vm_offset_t)NULL;
@@ -323,7 +331,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	if (dtbp == (vm_offset_t)NULL)
 		dtbp = (vm_offset_t)&fdt_static_dtb;
-
 #endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
@@ -337,14 +344,10 @@ initarm(struct arm_boot_params *abp)
 	    &memsize) != 0)
 		while(1);
 
-	if (fdt_immr_addr(LPC_DEV_BASE) != 0)
-		while (1);
-
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
+	pmap_bootstrap_lastaddr = initarm_lastaddr();
 
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Calculate number of L2 tables needed for mapping vm_page_array */
 	l2size = (memsize / PAGE_SIZE) * sizeof(struct vm_page);
@@ -402,10 +405,10 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE);
-	valloc_pages(abtstack, ABT_STACK_SIZE);
-	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(irqstack, (IRQ_STACK_SIZE * MAXCPU));
+	valloc_pages(abtstack, (ABT_STACK_SIZE * MAXCPU));
+	valloc_pages(undstack, (UND_STACK_SIZE * MAXCPU));
+	valloc_pages(kernelstack, (KSTACK_PAGES * MAXCPU));
 
 	init_param1();
 
@@ -432,7 +435,7 @@ initarm(struct arm_boot_params *abp)
 		    &kernel_pt_table[i]);
 
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
-	
+
 	/* Map kernel code and data */
 	pmap_map_chunk(l1pagetable, KERNVIRTADDR, KERNPHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
@@ -460,12 +463,12 @@ initarm(struct arm_boot_params *abp)
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	/* Map pmap_devmap[] entries */
-	if (platform_devmap_init() != 0)
-		while (1);
+	err_devmap = platform_devmap_init();
 	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
 	    DOMAIN_CLIENT);
+	pmap_pa = kernel_l1pt.pv_pa;
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
@@ -476,24 +479,24 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-#if 0
-	/*
-	 * Initialize GPIO as early as possible.
-	 */
-	if (platform_gpio_init() != 0)
-		while (1);
-#endif
+	initarm_gpio_init();
 
 	cninit();
-	
+
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
-	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
+	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
 	print_kenv();
+
+	if (err_devmap != 0)
+		printf("WARNING: could not fully configure devmap, error=%d\n",
+		    err_devmap);
+
+	initarm_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -504,12 +507,8 @@ initarm(struct arm_boot_params *abp)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....
@@ -532,12 +531,7 @@ initarm(struct arm_boot_params *abp)
 	init_proc0(kernelstack.pv_va);
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-
-	dump_avail[0] = 0;
-	dump_avail[1] = memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
+	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
@@ -556,8 +550,30 @@ initarm(struct arm_boot_params *abp)
 	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
+
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
+}
+
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	if (fdt_immr_addr(LPC_DEV_BASE) != 0)
+		while (1);
+
+	/* Platform-specific initialisation */
+	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
+}
+
+void
+initarm_gpio_init(void)
+{
+}
+
+void
+initarm_late_init(void)
+{
 }
 
 #define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)

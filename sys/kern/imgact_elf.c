@@ -647,7 +647,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 * Also make certain that the interpreter stays the same, so set
 	 * its VV_TEXT flag, too.
 	 */
-	nd->ni_vp->v_vflag |= VV_TEXT;
+	VOP_SET_TEXT(nd->ni_vp);
 
 	imgp->object = nd->ni_vp->v_object;
 

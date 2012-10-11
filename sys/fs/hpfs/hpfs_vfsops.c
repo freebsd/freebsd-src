@@ -512,7 +512,7 @@ hpfs_vget(
 
 	error = bread(hpmp->hpm_devvp, ino, FNODESIZE, NOCRED, &bp);
 	if (error) {
-		printf("hpfs_vget: can't read ino %d\n",ino);
+		printf("hpfs_vget: can't read ino %ju\n", (uintmax_t)ino);
 		vput(vp);
 		return (error);
 	}

@@ -125,6 +125,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	struct nvme_completion	*cpl;
 	boolean_t		retry, error;
 
+	qpair->num_intr_handler_calls++;
+
 	while (1) {
 		cpl = &qpair->cpl[qpair->cq_head];
 
@@ -238,6 +240,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	    NULL, NULL, &qpair->dma_tag);
 
 	qpair->num_cmds = 0;
+	qpair->num_intr_handler_calls = 0;
 	qpair->num_tr = 0;
 	qpair->num_prp_list = 0;
 	qpair->sq_head = qpair->sq_tail = qpair->cq_head = 0;

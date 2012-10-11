@@ -753,11 +753,11 @@ static void arcmsr_report_srb_state(struct AdapterControlBlock *acb, struct Comm
 			}
 			break;
 		default:
-			printf("arcmsr%d: scsi id=%d lun=%d isr got command error done,but got unknow DeviceStatus=0x%x \n"
+			printf("arcmsr%d: scsi id=%d lun=%d isr got command error done,but got unknown DeviceStatus=0x%x \n"
 					, acb->pci_unit, target, lun ,srb->arcmsr_cdb.DeviceStatus);
 			acb->devstate[target][lun]=ARECA_RAID_GONE;
 			srb->pccb->ccb_h.status |= CAM_UNCOR_PARITY;
-			/*unknow error or crc error just for retry*/
+			/*unknown error or crc error just for retry*/
 			arcmsr_srb_complete(srb, 1);
 			break;
 		}
@@ -1789,7 +1789,7 @@ static void arcmsr_interrupt(struct AdapterControlBlock *acb)
 		break;
 	default:
 		printf("arcmsr%d: interrupt service,"
-		" unknow adapter type =%d\n", acb->pci_unit, acb->adapter_type);
+		" unknown adapter type =%d\n", acb->pci_unit, acb->adapter_type);
 		break;
 	}
 }

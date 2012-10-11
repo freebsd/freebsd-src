@@ -611,6 +611,22 @@ zfs_open(libzfs_handle_t *hdl, const char *path, int types)
 		return (NULL);
 	}
 
+	if (zhp == NULL) {
+		char *at = strchr(path, '@');
+
+		if (at != NULL)
+			*at = '\0';
+		errno = 0;
+		if ((zhp = make_dataset_handle(hdl, path)) == NULL) {
+			(void) zfs_standard_error(hdl, errno, errbuf);
+			return (NULL);
+		}
+		if (at != NULL)
+			*at = '@';
+		(void) strlcpy(zhp->zfs_name, path, sizeof (zhp->zfs_name));
+		zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
+	}
+
 	if (!(types & zhp->zfs_type)) {
 		(void) zfs_error(hdl, EZFS_BADTYPE, errbuf);
 		zfs_close(zhp);
@@ -3614,7 +3630,8 @@ zfs_rollback(zfs_handle_t *zhp, zfs_handle_t *snap, boolean_t force)
  * Renames the given dataset.
  */
 int
-zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
+zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
+    renameflags_t flags)
 {
 	int ret;
 	zfs_cmd_t zc = { 0 };
@@ -3633,6 +3650,18 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 
 	(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
 	    "cannot rename to '%s'"), target);
+
+	if (source != NULL) {
+		/*
+		 * This is recursive snapshots rename, put snapshot name
+		 * (that might not exist) into zfs_name.
+		 */
+		assert(flags.recurse);
+
+		(void) strlcat(zhp->zfs_name, "@", sizeof(zhp->zfs_name));
+		(void) strlcat(zhp->zfs_name, source, sizeof(zhp->zfs_name));
+		zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
+	}
 
 	/*
 	 * Make sure the target name is valid

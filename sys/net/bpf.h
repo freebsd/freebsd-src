@@ -1099,7 +1099,43 @@ struct bpf_zbuf_header {
  */
 #define DLT_IPOIB		242
 
-#define DLT_MATCHING_MAX	242	/* highest value in the "matching" range */
+/*
+ * MPEG-2 transport stream (ISO 13818-1/ITU-T H.222.0).
+ *
+ * Requested by Guy Martin <gmsoft@tuxicoman.be>.
+ */
+#define DLT_MPEG_2_TS		243
+
+/*
+ * ng4T GmbH's UMTS Iub/Iur-over-ATM and Iub/Iur-over-IP format as
+ * used by their ng40 protocol tester.
+ *
+ * Requested by Jens Grimmer <jens.grimmer@ng4t.com>.
+ */
+#define DLT_NG40		244
+
+/*
+ * Pseudo-header giving adapter number and flags, followed by an NFC
+ * (Near-Field Communications) Logical Link Control Protocol (LLCP) PDU,
+ * as specified by NFC Forum Logical Link Control Protocol Technical
+ * Specification LLCP 1.1.
+ *
+ * Requested by Mike Wakerly <mikey@google.com>.
+ */
+#define DLT_NFC_LLCP		245
+
+/*
+ * 245 is used as LINKTYPE_PFSYNC; do not use it for any other purpose.
+ *
+ * DLT_PFSYNC has different values on different platforms, and all of
+ * them collide with something used elsewhere.  On platforms that
+ * don't already define it, define it as 245.
+ */
+#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__) && !defined(__DragonFly__) && !defined(__APPLE__)
+#define DLT_PFSYNC		246
+#endif
+
+#define DLT_MATCHING_MAX	246	/* highest value in the "matching" range */
 
 /*
  * DLT and savefile link type values are split into a class and

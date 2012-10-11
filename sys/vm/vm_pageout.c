@@ -1125,9 +1125,9 @@ vm_pageout_scan(int pass)
 			 * Those objects are in a "rundown" state.
 			 */
 			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
+				vm_page_lock_queues();
 				vm_page_unlock(m);
 				VM_OBJECT_UNLOCK(object);
-				vm_page_lock_queues();
 				queues_locked = TRUE;
 				vm_page_requeue(m);
 				goto relock_queues;

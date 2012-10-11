@@ -172,6 +172,15 @@ ata_attach(device_t dev)
     TASK_INIT(&ch->conntask, 0, ata_conn_event, dev);
 #ifdef ATA_CAM
 	for (i = 0; i < 16; i++) {
+		ch->user[i].revision = 0;
+		snprintf(buf, sizeof(buf), "dev%d.sata_rev", i);
+		if (resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), buf, &mode) != 0 &&
+		    resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), "sata_rev", &mode) != 0)
+			mode = -1;
+		if (mode >= 0)
+			ch->user[i].revision = mode;
 		ch->user[i].mode = 0;
 		snprintf(buf, sizeof(buf), "dev%d.mode", i);
 		if (resource_string_value(device_get_name(dev),

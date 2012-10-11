@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2012
+.Dd September 27, 2012
 .Dt DRBR 9
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Nm drbr_flush ,
 .Nm drbr_empty ,
 .Nm drbr_inuse ,
-.Nm drbr_stats_update ,
 .Nd network driver interface to buf_ring
 .Sh SYNOPSIS
 .In sys/param.h
@@ -57,8 +56,6 @@
 .Fn drbr_empty "struct ifnet *ifp" "struct buf_ring *br"
 .Ft int
 .Fn drbr_inuse "struct ifnet *ifp" "struct buf_ring *br"
-.Ft void
-.Fn drbr_stats_update "struct ifnet *ifp" "int len" "int mflags"
 .Sh DESCRIPTION
 The
 .Nm
@@ -122,10 +119,6 @@ there will not be more mbufs when
 .Fn drbr_dequeue
 is actually called.
 Provided the tx queue lock is held there will not be less.
-.Pp
-The
-.Fn drbr_stats_update
-function updates the number of bytes and the number of multicast packets sent.
 .Sh RETURN VALUES
 The
 .Fn drbr_enqueue

@@ -103,7 +103,6 @@ struct uhub_softc {
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
-	char	sc_name[32];
 };
 
 #define	UHUB_PROTO(sc) ((sc)->sc_udev->ddesc.bDeviceProtocol)
@@ -161,7 +160,7 @@ static device_method_t uhub_methods[] = {
 	DEVMETHOD(bus_child_location_str, uhub_child_location_string),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
 	DEVMETHOD(bus_driver_added, uhub_driver_added),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t uhub_driver = {
@@ -518,7 +517,10 @@ repeat:
 	 *
 	 * NOTE: This part is currently FreeBSD specific.
 	 */
-	if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
+	if (udev->parent_hub != NULL) {
+		/* inherit mode from the parent HUB */
+		mode = udev->parent_hub->flags.usb_mode;
+	} else if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
 		mode = USB_MODE_DEVICE;
 	else
 		mode = USB_MODE_HOST;
@@ -923,9 +925,6 @@ uhub_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	mtx_init(&sc->sc_mtx, "USB HUB mutex", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
 
 	device_set_usb_desc(dev);
 

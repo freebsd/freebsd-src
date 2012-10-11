@@ -336,24 +336,40 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av)
 	 * Note d[1] points to struct in6_add r mask6 of cmd
 	 */
 
-       cmd->o.len &= ~F_LEN_MASK;	/* zero len */
+	cmd->o.len &= ~F_LEN_MASK;	/* zero len */
 
-       if (strcmp(av, "any") == 0)
-	       return (1);
+	if (strcmp(av, "any") == 0)
+		return (1);
 
 
-       if (strcmp(av, "me") == 0) {	/* Set the data for "me" opt*/
-	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
-	       return (1);
-       }
+	if (strcmp(av, "me") == 0) {	/* Set the data for "me" opt*/
+		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		return (1);
+	}
 
-       if (strcmp(av, "me6") == 0) {	/* Set the data for "me" opt*/
-	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
-	       return (1);
-       }
+	if (strcmp(av, "me6") == 0) {	/* Set the data for "me" opt*/
+		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		return (1);
+	}
 
-       av = strdup(av);
-       while (av) {
+	if (strncmp(av, "table(", 6) == 0) {
+		char *p = strchr(av + 6, ',');
+		uint32_t *dm = ((ipfw_insn_u32 *)cmd)->d;
+
+		if (p)
+			*p++ = '\0';
+		cmd->o.opcode = O_IP_DST_LOOKUP;
+		cmd->o.arg1 = strtoul(av + 6, NULL, 0);
+		if (p) {
+			cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
+			dm[0] = strtoul(p, NULL, 0);
+		} else
+			cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		return (1);
+	}
+
+	av = strdup(av);
+	while (av) {
 		/*
 		 * After the address we can have '/' indicating a mask,
 		 * or ',' indicating another address follows.
@@ -469,7 +485,11 @@ add_srcip6(ipfw_insn *cmd, char *av)
 {
 
 	fill_ip6((ipfw_insn_ip6 *)cmd, av);
-	if (F_LEN(cmd) == 0) {				/* any */
+	if (cmd->opcode == O_IP_DST_SET)			/* set */
+		cmd->opcode = O_IP_SRC_SET;
+	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
+		cmd->opcode = O_IP_SRC_LOOKUP;
+	else if (F_LEN(cmd) == 0) {				/* any */
 	} else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
 		cmd->opcode = O_IP6_SRC_ME;
 	} else if (F_LEN(cmd) ==
@@ -487,7 +507,11 @@ add_dstip6(ipfw_insn *cmd, char *av)
 {
 
 	fill_ip6((ipfw_insn_ip6 *)cmd, av);
-	if (F_LEN(cmd) == 0) {				/* any */
+	if (cmd->opcode == O_IP_DST_SET)			/* set */
+		;
+	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
+		;
+	else if (F_LEN(cmd) == 0) {				/* any */
 	} else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
 		cmd->opcode = O_IP6_DST_ME;
 	} else if (F_LEN(cmd) ==

@@ -84,14 +84,19 @@ f_dialog_menu_group_list()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\" $size $menu_list       \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 # f_dialog_input_group_name [$group_name]
@@ -121,7 +126,8 @@ f_dialog_input_group_name()
 		        	"$_input"           \
 		        	"$hline"            )
 
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -129,9 +135,11 @@ f_dialog_input_group_name()
 			--cancel-label \"\$msg_cancel\"    \
 			--inputbox \"\$msg\" $size         \
 			\"\$_input\"                       \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_input=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -204,7 +212,8 @@ f_dialog_input_group_password()
 	#
 	local retval _password1 _password2
 	while :; do
-		eval $DIALOG \
+		local dialog_inputbox
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -212,15 +221,17 @@ f_dialog_input_group_password()
 			--cancel-label \"\$msg_cancel\"    \
 			--insecure                         \
 			--passwordbox \"\$msg\" $size      \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_password1=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
 
-		eval $DIALOG \
+		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -228,9 +239,11 @@ f_dialog_input_group_password()
 			--cancel-label \"\$msg_cancel\"    \
 			--insecure                         \
 			--passwordbox \"\$rmsg\" $rsize    \
-			2> $DIALOG_TMPDIR/dialog.inputbox.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 
 		retval=$?
+		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_password2=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -281,7 +294,8 @@ f_dialog_input_group_gid()
 	        	"$_input"           \
 	        	"$hline"            )
 
-	eval $DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -289,9 +303,11 @@ f_dialog_input_group_gid()
 		--cancel-label \"\$msg_cancel\"    \
 		--inputbox \"\$msg\" $size         \
 		\"\$_input\"                       \
-		2> $DIALOG_TMPDIR/dialog.inputbox.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	_input=$( f_dialog_inputstr )
 
 	# Return if user has either pressed ESC or chosen Cancel/No
@@ -327,6 +343,7 @@ f_dialog_input_group_members()
 		'2' '$msg_enter_group_members_manually'
 	" # END-QUOTE
 
+	local dialog_menu
 	while :; do
 		msg="$msg_group_members:"
 		menu_size=$( eval f_dialog_menu_size \
@@ -335,7 +352,7 @@ f_dialog_input_group_members()
 				\"\$msg\"              \
 				\"\$hline\"            \
 				$menu_list             )
-		eval $DIALOG \
+		dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -343,8 +360,10 @@ f_dialog_input_group_members()
 			--cancel-label \"\$msg_cancel\"    \
 			--menu \"\$msg\" $menu_size        \
 			$menu_list                         \
-			2> $DIALOG_TMPDIR/dialog.menu.$$
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 		retval=$?
+		setvar DIALOG_MENU_$$ "$dialog_menu"
 		menu_choice=$( f_dialog_menutag )
 		f_dprintf "retval=$retval menu_choice=[$menu_choice]"
 
@@ -373,7 +392,8 @@ f_dialog_input_group_members()
 			        	\"\"                   \
 			        	\"\$hline\"            \
 			        	$checklist_users       )
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--separate-output                  \
@@ -382,8 +402,10 @@ f_dialog_input_group_members()
 				--cancel-label \"\$msg_cancel\"    \
 				--checklist \"\$msg\" $size        \
 				$checklist_users                   \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			_group_members=$( f_dialog_inputstr | tr '\n' ' ' |
 				sed -e 's/[[:space:]]\{1,\}/,/g;s/^,//;s/,$//' )
 
@@ -405,7 +427,8 @@ f_dialog_input_group_members()
 	        		"$_input"           \
 	        		"$hline"            )
 
-			eval $DIALOG \
+			local dialog_inputbox
+			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -413,9 +436,11 @@ f_dialog_input_group_members()
 				--cancel-label \"\$msg_cancel\"    \
 				--inputbox \"\$msg\" $size         \
 				\"\$_input\"                       \
-				2> $DIALOG_TMPDIR/dialog.inputbox.$$
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 
 			retval=$?
+			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			_group_members=$( f_dialog_inputstr )
 
 			# Return to previous menu if user has either

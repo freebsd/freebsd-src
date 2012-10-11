@@ -1,3 +1,22 @@
+Friday  March 30, 2012.  mcr@sandelman.ca
+Summary for 1.3.0 libpcap release
+        Handle DLT_PFSYNC in {FreeBSD, other *BSD+Mac OS X, other}.
+        Linux: Don't fail if netfilter isn't enabled in the kernel.
+        Add new link-layer type for NFC Forum LLCP.
+        Put the CANUSB stuff into EXTRA_DIST, so it shows up in the release tarball.
+        Add LINKTYPE_NG40/DLT_NG40.
+        Add DLT_MPEG_2_TS/LINKTYPE_MPEG_2_TS for MPEG-2 transport streams.
+        [PATCH] Fix AIX-3.5 crash with read failure during stress
+        AIX fixes.
+        Introduce --disable-shared configure option.
+        Added initial support for canusb devices.
+        Include the pcap(3PCAP) additions as 1.2.1 changes.
+        many updates to documentation: pcap.3pcap.in
+        Improve 'inbound'/'outbound' capture filters under Linux.
+        Note the cleanup of handling of new DLT_/LINKTYPE_ values.
+        On Lion, don't build for PPC.
+        For mac80211 devices we need to clean up monitor mode on exit.
+
 Friday  December 9, 2011.  guy@alum.mit.edu.
 Summary for 1.2.1 libpcap release
 	Update README file.

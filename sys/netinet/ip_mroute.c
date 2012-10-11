@@ -2376,7 +2376,10 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
 
     /* Take care of delayed checksums */
     if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+	/* XXX: in_delayed_cksum() expects net byte order */
+	ip->ip_len = htons(ip->ip_len);
 	in_delayed_cksum(m);
+	ip->ip_len = ntohs(ip->ip_len);
 	m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
     }
 

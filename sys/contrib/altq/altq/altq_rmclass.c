@@ -35,10 +35,9 @@
  *
  * LBL code modified by speer@eng.sun.com, May 1977.
  * For questions and/or comments, please send mail to cbq@ee.lbl.gov
+ *
+ * @(#)rm_class.c  1.48     97/12/05 SMI
  */
-
-#ident "@(#)rm_class.c  1.48     97/12/05 SMI"
-
 #if defined(__FreeBSD__) || defined(__NetBSD__)
 #include "opt_altq.h"
 #include "opt_inet.h"

@@ -209,6 +209,7 @@ extract_currdev(void)
 {
     struct i386_devdesc		new_currdev;
 #ifdef LOADER_ZFS_SUPPORT
+    char			buf[20];
     struct zfs_boot_args	*zargs;
 #endif
     int				biosdev = -1;
@@ -239,10 +240,17 @@ extract_currdev(void)
 	if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0)
 	    zargs = (struct zfs_boot_args *)(kargs + 1);
 
-	if (zargs != NULL && zargs->size >= sizeof(*zargs)) {
+	if (zargs != NULL &&
+	    zargs->size >= offsetof(struct zfs_boot_args, primary_pool)) {
 	    /* sufficient data is provided */
 	    new_currdev.d_kind.zfs.pool_guid = zargs->pool;
 	    new_currdev.d_kind.zfs.root_guid = zargs->root;
+	    if (zargs->size >= sizeof(*zargs) && zargs->primary_vdev != 0) {
+		sprintf(buf, "%llu", zargs->primary_pool);
+		setenv("vfs.zfs.boot.primary_pool", buf, 1);
+		sprintf(buf, "%llu", zargs->primary_vdev);
+		setenv("vfs.zfs.boot.primary_vdev", buf, 1);
+	    }
 	} else {
 	    /* old style zfsboot block */
 	    new_currdev.d_kind.zfs.pool_guid = kargs->zfspool;
@@ -321,6 +329,29 @@ command_heap(int argc, char *argv[])
       sbrk(0), heap_top);
     return(CMD_OK);
 }
+
+#ifdef LOADER_ZFS_SUPPORT
+COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
+    command_lszfs);
+
+static int
+command_lszfs(int argc, char *argv[])
+{
+    int err;
+
+    if (argc != 2) {
+	command_errmsg = "wrong number of arguments";
+	return (CMD_ERROR);
+    }
+
+    err = zfs_list(argv[1]);
+    if (err != 0) {
+	command_errmsg = strerror(err);
+	return (CMD_ERROR);
+    }
+    return (CMD_OK);
+}
+#endif
 
 /* ISA bus access functions for PnP. */
 static int

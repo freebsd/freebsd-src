@@ -270,7 +270,7 @@ static void	bridge_rtflush(struct bridge_softc *, int);
 static int	bridge_rtdaddr(struct bridge_softc *, const uint8_t *,
 		    uint16_t);
 
-static int	bridge_rtable_init(struct bridge_softc *);
+static void	bridge_rtable_init(struct bridge_softc *);
 static void	bridge_rtable_fini(struct bridge_softc *);
 
 static int	bridge_rtnode_addr_cmp(const uint8_t *, const uint8_t *);
@@ -1783,13 +1783,12 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 	short mflags;
 	struct mbuf *m0;
 
-	len = m->m_pkthdr.len;
-	mflags = m->m_flags;
-
 	/* We may be sending a fragment so traverse the mbuf */
 	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = NULL;
+		len = m->m_pkthdr.len;
+		mflags = m->m_flags;
 
 		/*
 		 * If underlying interface can not do VLAN tag insertion itself
@@ -1809,11 +1808,10 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 
 		if ((err = dst_ifp->if_transmit(dst_ifp, m))) {
 			m_freem(m0);
+			sc->sc_ifp->if_oerrors++;
 			break;
 		}
-	}
 
-	if (err == 0) {
 		sc->sc_ifp->if_opackets++;
 		sc->sc_ifp->if_obytes += len;
 		if (mflags & M_MCAST)
@@ -2303,6 +2301,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		if ((iface)->if_type == IFT_BRIDGE) {			\
 			ETHER_BPF_MTAP(iface, m);			\
 			iface->if_ipackets++;				\
+			iface->if_ibytes += m->m_pkthdr.len;		\
 			/* Filter on the physical interface. */		\
 			if (pfil_local_phys &&				\
 			    (PFIL_HOOKED(&V_inet_pfil_hook)		\
@@ -2737,24 +2736,19 @@ bridge_rtdelete(struct bridge_softc *sc, struct ifnet *ifp, int full)
  *
  *	Initialize the route table for this bridge.
  */
-static int
+static void
 bridge_rtable_init(struct bridge_softc *sc)
 {
 	int i;
 
 	sc->sc_rthash = malloc(sizeof(*sc->sc_rthash) * BRIDGE_RTHASH_SIZE,
-	    M_DEVBUF, M_NOWAIT);
-	if (sc->sc_rthash == NULL)
-		return (ENOMEM);
+	    M_DEVBUF, M_WAITOK);
 
 	for (i = 0; i < BRIDGE_RTHASH_SIZE; i++)
 		LIST_INIT(&sc->sc_rthash[i]);
 
 	sc->sc_rthash_key = arc4random();
-
 	LIST_INIT(&sc->sc_rtlist);
-
-	return (0);
 }
 
 /*
@@ -3099,15 +3093,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	switch (ether_type) {
 	case ETHERTYPE_IP:
 		/*
-		 * before calling the firewall, swap fields the same as
-		 * IP does. here we assume the header is contiguous
-		 */
-		ip = mtod(*mp, struct ip *);
-
-		ip->ip_len = ntohs(ip->ip_len);
-		ip->ip_off = ntohs(ip->ip_off);
-
-		/*
 		 * Run pfil on the member interface and the bridge, both can
 		 * be skipped by clearing pfil_member or pfil_bridge.
 		 *
@@ -3145,7 +3130,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			}
 		}
 
-		/* Recalculate the ip checksum and restore byte ordering */
+		/* Recalculate the ip checksum. */
 		ip = mtod(*mp, struct ip *);
 		hlen = ip->ip_hl << 2;
 		if (hlen < sizeof(struct ip))
@@ -3157,8 +3142,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			if (ip == NULL)
 				goto bad;
 		}
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		if (hlen == sizeof(struct ip))
 			ip->ip_sum = in_cksum_hdr(ip);

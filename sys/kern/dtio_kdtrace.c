@@ -56,7 +56,7 @@ static dtrace_pattr_t dtio_attr = {
 { DTRACE_STABILITY_STABLE, DTRACE_STABILITY_STABLE, DTRACE_CLASS_COMMON },
 };
 
-static char    *genunix = "genunix";
+static char    *kernel = "kernel";
 
 /*
  * Name strings.
@@ -113,25 +113,25 @@ dtio_provide(void *arg, dtrace_probedesc_t *desc)
 	if (desc != NULL)
 		return;
 
-	if (dtrace_probe_lookup(dtio_id, genunix, NULL, 
+	if (dtrace_probe_lookup(dtio_id, kernel, NULL, 
 				dtio_start_str) == 0) {
-		dtio_start_id = dtrace_probe_create(dtio_id, genunix, NULL, 
+		dtio_start_id = dtrace_probe_create(dtio_id, kernel, NULL, 
 						   dtio_start_str, 0, NULL);
 	}
-	if (dtrace_probe_lookup(dtio_id, genunix, NULL, dtio_done_str) == 0) {
-		dtio_done_id = dtrace_probe_create(dtio_id, genunix, NULL, 
+	if (dtrace_probe_lookup(dtio_id, kernel, NULL, dtio_done_str) == 0) {
+		dtio_done_id = dtrace_probe_create(dtio_id, kernel, NULL, 
 						   dtio_done_str, 0, NULL);
 	}
-	if (dtrace_probe_lookup(dtio_id, genunix, NULL, 
+	if (dtrace_probe_lookup(dtio_id, kernel, NULL, 
 				dtio_wait_start_str) == 0) {
-		dtio_wait_start_id = dtrace_probe_create(dtio_id, genunix, 
+		dtio_wait_start_id = dtrace_probe_create(dtio_id, kernel, 
 							 NULL, 
 							 dtio_wait_start_str, 
 							 0, NULL);
 	}
-	if (dtrace_probe_lookup(dtio_id, genunix, NULL, 
+	if (dtrace_probe_lookup(dtio_id, kernel, NULL, 
 				dtio_wait_done_str) == 0) {
-		dtio_wait_done_id = dtrace_probe_create(dtio_id, genunix, NULL, 
+		dtio_wait_done_id = dtrace_probe_create(dtio_id, kernel, NULL, 
 						   dtio_wait_done_str, 0, NULL);
 	}
 

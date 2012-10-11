@@ -106,6 +106,7 @@ static int bd_open(struct open_file *f, ...);
 static int bd_close(struct open_file *f);
 static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
 static void bd_print(int verbose);
+static void bd_cleanup(void);
 
 struct devsw biosdisk = {
 	"disk",
@@ -116,7 +117,7 @@ struct devsw biosdisk = {
 	bd_close,
 	bd_ioctl,
 	bd_print,
-	NULL
+	bd_cleanup
 };
 
 /*
@@ -179,6 +180,13 @@ bd_init(void)
 		}
 	}
 	return(0);
+}
+
+static void
+bd_cleanup(void)
+{
+
+	disk_cleanup(&biosdisk);
 }
 
 /*

@@ -25,12 +25,9 @@ INCS=	altivec.h \
 	popcntintrin.h \
 	smmintrin.h \
 	tmmintrin.h \
-	unwind.h \
 	wmmintrin.h \
 	x86intrin.h \
 	xmmintrin.h \
 	xopintrin.h
 
-.include <bsd.init.mk>
-.include <bsd.incs.mk>
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>

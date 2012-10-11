@@ -228,7 +228,7 @@ while :; do
 	        	\"\$hline\"            \
 	        	$menu_items            )
 
-	eval $DIALOG \
+	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -236,9 +236,11 @@ while :; do
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$menu_text\" $size       \
 		$menu_items                        \
-		2> $DIALOG_TMPDIR/dialog.menu.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
 	mtag=$( f_dialog_menutag )
 	f_dprintf "retval=$retval mtag=[$mtag]"
 

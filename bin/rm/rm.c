@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <fts.h>
 #include <grp.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -429,8 +430,8 @@ rm_overwrite(char *file, struct stat *sbp)
 	if (!S_ISREG(sbp->st_mode))
 		return (1);
 	if (sbp->st_nlink > 1 && !fflag) {
-		warnx("%s (inode %u): not overwritten due to multiple links",
-		    file, sbp->st_ino);
+		warnx("%s (inode %ju): not overwritten due to multiple links",
+		    file, (uintmax_t)sbp->st_ino);
 		return (0);
 	}
 	if ((fd = open(file, O_WRONLY|O_NONBLOCK|O_NOFOLLOW, 0)) == -1)
