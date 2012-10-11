@@ -461,14 +461,22 @@ static void bge_miibus_statchg(device_t);
 static int bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
-#define	BGE_RESET_START 1
-#define	BGE_RESET_STOP  2
+#define	BGE_RESET_SHUTDOWN	0
+#define	BGE_RESET_START		1
+#define	BGE_RESET_SUSPEND	2
 static void bge_sig_post_reset(struct bge_softc *, int);
 static void bge_sig_legacy(struct bge_softc *, int);
 static void bge_sig_pre_reset(struct bge_softc *, int);
 static void bge_stop_fw(struct bge_softc *);
 static int bge_reset(struct bge_softc *);
 static void bge_link_upd(struct bge_softc *);
+
+static void bge_ape_lock_init(struct bge_softc *);
+static void bge_ape_read_fw_ver(struct bge_softc *);
+static int bge_ape_lock(struct bge_softc *, int);
+static void bge_ape_unlock(struct bge_softc *, int);
+static void bge_ape_send_event(struct bge_softc *, uint32_t);
+static void bge_ape_driver_state_change(struct bge_softc *, int);
 
 /*
  * The BGE_REGISTER_DEBUG option is only for low-level debugging.  It may
@@ -478,6 +486,7 @@ static void bge_link_upd(struct bge_softc *);
 #ifdef BGE_REGISTER_DEBUG
 static int bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static int bge_sysctl_reg_read(SYSCTL_HANDLER_ARGS);
+static int bge_sysctl_ape_read(SYSCTL_HANDLER_ARGS);
 static int bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS);
 #endif
 static void bge_add_sysctls(struct bge_softc *);
@@ -640,6 +649,318 @@ bge_writembx(struct bge_softc *sc, int off, int val)
 	CSR_WRITE_4(sc, off, val);
 	if ((sc->bge_flags & BGE_FLAG_MBOX_REORDER) != 0)
 		CSR_READ_4(sc, off);
+}
+
+/*
+ * Clear all stale locks and select the lock for this driver instance.
+ */
+static void
+bge_ape_lock_init(struct bge_softc *sc)
+{
+	uint32_t bit, regbase;
+	int i;
+
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5761)
+		regbase = BGE_APE_LOCK_GRANT;
+	else
+		regbase = BGE_APE_PER_LOCK_GRANT;
+
+	/* Clear any stale locks. */
+	for (i = BGE_APE_LOCK_PHY0; i <= BGE_APE_LOCK_GPIO; i++) {
+		switch (i) {
+		case BGE_APE_LOCK_PHY0:
+		case BGE_APE_LOCK_PHY1:
+		case BGE_APE_LOCK_PHY2:
+		case BGE_APE_LOCK_PHY3:
+			bit = BGE_APE_LOCK_GRANT_DRIVER0;
+			break;
+		default:
+			if (sc->bge_func_addr != 0)
+				bit = BGE_APE_LOCK_GRANT_DRIVER0;
+			else
+				bit = (1 << sc->bge_func_addr);
+		}
+		APE_WRITE_4(sc, regbase + 4 * i, bit);
+	}
+
+	/* Select the PHY lock based on the device's function number. */
+	switch (sc->bge_func_addr) {
+	case 0:
+		sc->bge_phy_ape_lock = BGE_APE_LOCK_PHY0;
+		break;
+	case 1:
+		sc->bge_phy_ape_lock = BGE_APE_LOCK_PHY1;
+		break;
+	case 2:
+		sc->bge_phy_ape_lock = BGE_APE_LOCK_PHY2;
+		break;
+	case 3:
+		sc->bge_phy_ape_lock = BGE_APE_LOCK_PHY3;
+		break;
+	default:
+		device_printf(sc->bge_dev,
+		    "PHY lock not supported on this function\n");
+	}
+}
+
+/*
+ * Check for APE firmware, set flags, and print version info.
+ */
+static void
+bge_ape_read_fw_ver(struct bge_softc *sc)
+{
+	const char *fwtype;
+	uint32_t apedata, features;
+
+	/* Check for a valid APE signature in shared memory. */
+	apedata = APE_READ_4(sc, BGE_APE_SEG_SIG);
+	if (apedata != BGE_APE_SEG_SIG_MAGIC) {
+		sc->bge_mfw_flags &= ~ BGE_MFW_ON_APE;
+		return;
+	}
+
+	/* Check if APE firmware is running. */
+	apedata = APE_READ_4(sc, BGE_APE_FW_STATUS);
+	if ((apedata & BGE_APE_FW_STATUS_READY) == 0) {
+		device_printf(sc->bge_dev, "APE signature found "
+		    "but FW status not ready! 0x%08x\n", apedata);
+		return;
+	}
+
+	sc->bge_mfw_flags |= BGE_MFW_ON_APE;
+
+	/* Fetch the APE firwmare type and version. */
+	apedata = APE_READ_4(sc, BGE_APE_FW_VERSION);
+	features = APE_READ_4(sc, BGE_APE_FW_FEATURES);
+	if ((features & BGE_APE_FW_FEATURE_NCSI) != 0) {
+		sc->bge_mfw_flags |= BGE_MFW_TYPE_NCSI;
+		fwtype = "NCSI";
+	} else if ((features & BGE_APE_FW_FEATURE_DASH) != 0) {
+		sc->bge_mfw_flags |= BGE_MFW_TYPE_DASH;
+		fwtype = "DASH";
+	} else
+		fwtype = "UNKN";
+
+	/* Print the APE firmware version. */
+	device_printf(sc->bge_dev, "APE FW version: %s v%d.%d.%d.%d\n",
+	    fwtype,
+	    (apedata & BGE_APE_FW_VERSION_MAJMSK) >> BGE_APE_FW_VERSION_MAJSFT,
+	    (apedata & BGE_APE_FW_VERSION_MINMSK) >> BGE_APE_FW_VERSION_MINSFT,
+	    (apedata & BGE_APE_FW_VERSION_REVMSK) >> BGE_APE_FW_VERSION_REVSFT,
+	    (apedata & BGE_APE_FW_VERSION_BLDMSK));
+}
+
+static int
+bge_ape_lock(struct bge_softc *sc, int locknum)
+{
+	uint32_t bit, gnt, req, status;
+	int i, off;
+
+	if ((sc->bge_mfw_flags & BGE_MFW_ON_APE) == 0)
+		return (0);
+
+	/* Lock request/grant registers have different bases. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5761) {
+		req = BGE_APE_LOCK_REQ;
+		gnt = BGE_APE_LOCK_GRANT;
+	} else {
+		req = BGE_APE_PER_LOCK_REQ;
+		gnt = BGE_APE_PER_LOCK_GRANT;
+	}
+
+	off = 4 * locknum;
+
+	switch (locknum) {
+	case BGE_APE_LOCK_GPIO:
+		/* Lock required when using GPIO. */
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5761)
+			return (0);
+		if (sc->bge_func_addr == 0)
+			bit = BGE_APE_LOCK_REQ_DRIVER0;
+		else
+			bit = (1 << sc->bge_func_addr);
+		break;
+	case BGE_APE_LOCK_GRC:
+		/* Lock required to reset the device. */
+		if (sc->bge_func_addr == 0)
+			bit = BGE_APE_LOCK_REQ_DRIVER0;
+		else
+			bit = (1 << sc->bge_func_addr);
+		break;
+	case BGE_APE_LOCK_MEM:
+		/* Lock required when accessing certain APE memory. */
+		if (sc->bge_func_addr == 0)
+			bit = BGE_APE_LOCK_REQ_DRIVER0;
+		else
+			bit = (1 << sc->bge_func_addr);
+		break;
+	case BGE_APE_LOCK_PHY0:
+	case BGE_APE_LOCK_PHY1:
+	case BGE_APE_LOCK_PHY2:
+	case BGE_APE_LOCK_PHY3:
+		/* Lock required when accessing PHYs. */
+		bit = BGE_APE_LOCK_REQ_DRIVER0;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	/* Request a lock. */
+	APE_WRITE_4(sc, req + off, bit);
+
+	/* Wait up to 1 second to acquire lock. */
+	for (i = 0; i < 20000; i++) {
+		status = APE_READ_4(sc, gnt + off);
+		if (status == bit)
+			break;
+		DELAY(50);
+	}
+
+	/* Handle any errors. */
+	if (status != bit) {
+		device_printf(sc->bge_dev, "APE lock %d request failed! "
+		    "request = 0x%04x[0x%04x], status = 0x%04x[0x%04x]\n",
+		    locknum, req + off, bit & 0xFFFF, gnt + off,
+		    status & 0xFFFF);
+		/* Revoke the lock request. */
+		APE_WRITE_4(sc, gnt + off, bit);
+		return (EBUSY);
+	}
+
+	return (0);
+}
+
+static void
+bge_ape_unlock(struct bge_softc *sc, int locknum)
+{
+	uint32_t bit, gnt;
+	int off;
+
+	if ((sc->bge_mfw_flags & BGE_MFW_ON_APE) == 0)
+		return;
+
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5761)
+		gnt = BGE_APE_LOCK_GRANT;
+	else
+		gnt = BGE_APE_PER_LOCK_GRANT;
+
+	off = 4 * locknum;
+
+	switch (locknum) {
+	case BGE_APE_LOCK_GPIO:
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5761)
+			return;
+		if (sc->bge_func_addr == 0)
+			bit = BGE_APE_LOCK_GRANT_DRIVER0;
+		else
+			bit = (1 << sc->bge_func_addr);
+		break;
+	case BGE_APE_LOCK_GRC:
+		if (sc->bge_func_addr == 0)
+			bit = BGE_APE_LOCK_GRANT_DRIVER0;
+		else
+			bit = (1 << sc->bge_func_addr);
+		break;
+	case BGE_APE_LOCK_MEM:
+		if (sc->bge_func_addr == 0)
+			bit = BGE_APE_LOCK_GRANT_DRIVER0;
+		else
+			bit = (1 << sc->bge_func_addr);
+		break;
+	case BGE_APE_LOCK_PHY0:
+	case BGE_APE_LOCK_PHY1:
+	case BGE_APE_LOCK_PHY2:
+	case BGE_APE_LOCK_PHY3:
+		bit = BGE_APE_LOCK_GRANT_DRIVER0;
+		break;
+	default:
+		return;
+	}
+
+	APE_WRITE_4(sc, gnt + off, bit);
+}
+
+/*
+ * Send an event to the APE firmware.
+ */
+static void
+bge_ape_send_event(struct bge_softc *sc, uint32_t event)
+{
+	uint32_t apedata;
+	int i;
+
+	/* NCSI does not support APE events. */
+	if ((sc->bge_mfw_flags & BGE_MFW_ON_APE) == 0)
+		return;
+
+	/* Wait up to 1ms for APE to service previous event. */
+	for (i = 10; i > 0; i--) {
+		if (bge_ape_lock(sc, BGE_APE_LOCK_MEM) != 0)
+			break;
+		apedata = APE_READ_4(sc, BGE_APE_EVENT_STATUS);
+		if ((apedata & BGE_APE_EVENT_STATUS_EVENT_PENDING) == 0) {
+			APE_WRITE_4(sc, BGE_APE_EVENT_STATUS, event |
+			    BGE_APE_EVENT_STATUS_EVENT_PENDING);
+			bge_ape_unlock(sc, BGE_APE_LOCK_MEM);
+			APE_WRITE_4(sc, BGE_APE_EVENT, BGE_APE_EVENT_1);
+			break;
+		}
+		bge_ape_unlock(sc, BGE_APE_LOCK_MEM);
+		DELAY(100);
+	}
+	if (i == 0)
+		device_printf(sc->bge_dev, "APE event 0x%08x send timed out\n",
+		    event);
+}
+
+static void
+bge_ape_driver_state_change(struct bge_softc *sc, int kind)
+{
+	uint32_t apedata, event;
+
+	if ((sc->bge_mfw_flags & BGE_MFW_ON_APE) == 0)
+		return;
+
+	switch (kind) {
+	case BGE_RESET_START:
+		/* If this is the first load, clear the load counter. */
+		apedata = APE_READ_4(sc, BGE_APE_HOST_SEG_SIG);
+		if (apedata != BGE_APE_HOST_SEG_SIG_MAGIC)
+			APE_WRITE_4(sc, BGE_APE_HOST_INIT_COUNT, 0);
+		else {
+			apedata = APE_READ_4(sc, BGE_APE_HOST_INIT_COUNT);
+			APE_WRITE_4(sc, BGE_APE_HOST_INIT_COUNT, ++apedata);
+		}
+		APE_WRITE_4(sc, BGE_APE_HOST_SEG_SIG,
+		    BGE_APE_HOST_SEG_SIG_MAGIC);
+		APE_WRITE_4(sc, BGE_APE_HOST_SEG_LEN,
+		    BGE_APE_HOST_SEG_LEN_MAGIC);
+
+		/* Add some version info if bge(4) supports it. */
+		APE_WRITE_4(sc, BGE_APE_HOST_DRIVER_ID,
+		    BGE_APE_HOST_DRIVER_ID_MAGIC(1, 0));
+		APE_WRITE_4(sc, BGE_APE_HOST_BEHAVIOR,
+		    BGE_APE_HOST_BEHAV_NO_PHYLOCK);
+		APE_WRITE_4(sc, BGE_APE_HOST_HEARTBEAT_INT_MS,
+		    BGE_APE_HOST_HEARTBEAT_INT_DISABLE);
+		APE_WRITE_4(sc, BGE_APE_HOST_DRVR_STATE,
+		    BGE_APE_HOST_DRVR_STATE_START);
+		event = BGE_APE_EVENT_STATUS_STATE_START;
+		break;
+	case BGE_RESET_SHUTDOWN:
+		APE_WRITE_4(sc, BGE_APE_HOST_DRVR_STATE,
+		    BGE_APE_HOST_DRVR_STATE_UNLOAD);
+		event = BGE_APE_EVENT_STATUS_STATE_UNLOAD;
+		break;
+	case BGE_RESET_SUSPEND:
+		event = BGE_APE_EVENT_STATUS_STATE_SUSPEND;
+		break;
+	default:
+		return;
+	}
+
+	bge_ape_send_event(sc, event | BGE_APE_EVENT_STATUS_DRIVER_EVNT |
+	    BGE_APE_EVENT_STATUS_STATE_CHNGE);
 }
 
 /*
@@ -806,6 +1127,9 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
+	if (bge_ape_lock(sc, sc->bge_phy_ape_lock) != 0)
+		return (0);
+
 	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
 	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
 		CSR_WRITE_4(sc, BGE_MI_MODE,
@@ -840,6 +1164,8 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 		DELAY(80);
 	}
 
+	bge_ape_unlock(sc, sc->bge_phy_ape_lock);
+
 	if (val & BGE_MICOMM_READFAIL)
 		return (0);
 
@@ -856,6 +1182,9 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5906 &&
 	    (reg == BRGPHY_MII_1000CTL || reg == BRGPHY_MII_AUXCTL))
+		return (0);
+
+	if (bge_ape_lock(sc, sc->bge_phy_ape_lock) != 0)
 		return (0);
 
 	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
@@ -882,6 +1211,8 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 		CSR_WRITE_4(sc, BGE_MI_MODE, sc->bge_mi_mode);
 		DELAY(80);
 	}
+
+	bge_ape_unlock(sc, sc->bge_phy_ape_lock);
 
 	if (i == BGE_TIMEOUT)
 		device_printf(sc->bge_dev,
@@ -1335,12 +1666,19 @@ bge_sig_pre_reset(struct bge_softc *sc, int type)
 			bge_writemem_ind(sc, BGE_SRAM_FW_DRV_STATE_MB,
 			    BGE_FW_DRV_STATE_START);
 			break;
-		case BGE_RESET_STOP:
+		case BGE_RESET_SHUTDOWN:
 			bge_writemem_ind(sc, BGE_SRAM_FW_DRV_STATE_MB,
 			    BGE_FW_DRV_STATE_UNLOAD);
 			break;
+		case BGE_RESET_SUSPEND:
+			bge_writemem_ind(sc, BGE_SRAM_FW_DRV_STATE_MB,
+			    BGE_FW_DRV_STATE_SUSPEND);
+			break;
 		}
 	}
+
+	if (type == BGE_RESET_START || type == BGE_RESET_SUSPEND)
+		bge_ape_driver_state_change(sc, type);
 }
 
 static void
@@ -1354,12 +1692,14 @@ bge_sig_post_reset(struct bge_softc *sc, int type)
 			    BGE_FW_DRV_STATE_START_DONE);
 			/* START DONE */
 			break;
-		case BGE_RESET_STOP:
+		case BGE_RESET_SHUTDOWN:
 			bge_writemem_ind(sc, BGE_SRAM_FW_DRV_STATE_MB,
 			    BGE_FW_DRV_STATE_UNLOAD_DONE);
 			break;
 		}
 	}
+	if (type == BGE_RESET_SHUTDOWN)
+		bge_ape_driver_state_change(sc, type);
 }
 
 static void
@@ -1372,7 +1712,7 @@ bge_sig_legacy(struct bge_softc *sc, int type)
 			bge_writemem_ind(sc, BGE_SRAM_FW_DRV_STATE_MB,
 			    BGE_FW_DRV_STATE_START);
 			break;
-		case BGE_RESET_STOP:
+		case BGE_RESET_SHUTDOWN:
 			bge_writemem_ind(sc, BGE_SRAM_FW_DRV_STATE_MB,
 			    BGE_FW_DRV_STATE_UNLOAD);
 			break;
@@ -1409,11 +1749,6 @@ bge_dma_swap_options(struct bge_softc *sc)
 #if BYTE_ORDER == BIG_ENDIAN
 	dma_options |= BGE_MODECTL_BYTESWAP_NONFRAME;
 #endif
-	if ((sc)->bge_asicrev == BGE_ASICREV_BCM5720)
-		dma_options |= BGE_MODECTL_BYTESWAP_B2HRX_DATA |
-		    BGE_MODECTL_WORDSWAP_B2HRX_DATA | BGE_MODECTL_B2HRX_ENABLE |
-		    BGE_MODECTL_HTX2B_ENABLE;
-
 	return (dma_options);
 }
 
@@ -1540,8 +1875,16 @@ bge_chipinit(struct bge_softc *sc)
 	/*
 	 * Set up general mode register.
 	 */
-	mode_ctl = bge_dma_swap_options(sc) | BGE_MODECTL_MAC_ATTN_INTR |
-	    BGE_MODECTL_HOST_SEND_BDS | BGE_MODECTL_TX_NO_PHDR_CSUM;
+	mode_ctl = bge_dma_swap_options(sc);
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+		/* Retain Host-2-BMC settings written by APE firmware. */
+		mode_ctl |= CSR_READ_4(sc, BGE_MODE_CTL) &
+		    (BGE_MODECTL_BYTESWAP_B2HRX_DATA |
+		    BGE_MODECTL_WORDSWAP_B2HRX_DATA |
+		    BGE_MODECTL_B2HRX_ENABLE | BGE_MODECTL_HTX2B_ENABLE);
+	}
+	mode_ctl |= BGE_MODECTL_MAC_ATTN_INTR | BGE_MODECTL_HOST_SEND_BDS |
+	    BGE_MODECTL_TX_NO_PHDR_CSUM;
 
 	/*
 	 * BCM5701 B5 have a bug causing data corruption when using
@@ -2044,6 +2387,10 @@ bge_blockinit(struct bge_softc *sc)
 		val |= BGE_PORTMODE_GMII;
 	else
 		val |= BGE_PORTMODE_MII;
+
+	/* Allow APE to send/receive frames. */
+	if ((sc->bge_mfw_flags & BGE_MFW_ON_APE) != 0)
+		val |= BGE_MACMODE_APE_RX_EN | BGE_MACMODE_APE_TX_EN;
 
 	CSR_WRITE_4(sc, BGE_MAC_MODE, val);
 	DELAY(40);
@@ -2866,9 +3213,9 @@ bge_attach(device_t dev)
 {
 	struct ifnet *ifp;
 	struct bge_softc *sc;
-	uint32_t hwcfg = 0, misccfg;
+	uint32_t hwcfg = 0, misccfg, pcistate;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int capmask, error, f, msicount, phy_addr, reg, rid, trys;
+	int capmask, error, msicount, phy_addr, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2887,12 +3234,13 @@ bge_attach(device_t dev)
 	    RF_ACTIVE);
 
 	if (sc->bge_res == NULL) {
-		device_printf (sc->bge_dev, "couldn't map memory\n");
+		device_printf (sc->bge_dev, "couldn't map BAR0 memory\n");
 		error = ENXIO;
 		goto fail;
 	}
 
 	/* Save various chip information. */
+	sc->bge_func_addr = pci_get_function(dev);
 	sc->bge_chipid =
 	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
 	    BGE_PCIMISCCTL_ASICREV_SHIFT;
@@ -2939,25 +3287,32 @@ bge_attach(device_t dev)
 	  * BCM5719  |   1   |   8   |   2   |   9   |
 	  * BCM5720  |   1   |   8   |   2   |   9   |
 	  *
+	  *          | F2 Cu | F2 Sr | F3 Cu | F3 Sr |
+	  * ---------+-------+-------+-------+-------+
+	  * BCM57XX  |   X   |   X   |   X   |   X   |
+	  * BCM5704  |   X   |   X   |   X   |   X   |
+	  * BCM5717  |   X   |   X   |   X   |   X   |
+	  * BCM5719  |   3   |   10  |   4   |   11  |
+	  * BCM5720  |   X   |   X   |   X   |   X   |
+	  *
 	  * Other addresses may respond but they are not
 	  * IEEE compliant PHYs and should be ignored.
 	  */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5717 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5719 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5720) {
-		f = pci_get_function(dev);
-		if (sc->bge_chipid == BGE_CHIPID_BCM5717_A0) {
+		if (sc->bge_chipid != BGE_CHIPID_BCM5717_A0) {
 			if (CSR_READ_4(sc, BGE_SGDIG_STS) &
 			    BGE_SGDIGSTS_IS_SERDES)
-				phy_addr = f + 8;
+				phy_addr = sc->bge_func_addr + 8;
 			else
-				phy_addr = f + 1;
+				phy_addr = sc->bge_func_addr + 1;
 		} else {
 			if (CSR_READ_4(sc, BGE_CPMU_PHY_STRAP) &
 			    BGE_CPMU_PHY_STRAP_IS_SERDES)
-				phy_addr = f + 8;
+				phy_addr = sc->bge_func_addr + 8;
 			else
-				phy_addr = f + 1;
+				phy_addr = sc->bge_func_addr + 1;
 		}
 	}
 
@@ -3018,6 +3373,39 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
 		break;
+	}
+
+	/* Identify chips with APE processor. */
+	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5717:
+	case BGE_ASICREV_BCM5719:
+	case BGE_ASICREV_BCM5720:
+	case BGE_ASICREV_BCM5761:
+		sc->bge_flags |= BGE_FLAG_APE;
+		break;
+	}
+
+	/* Chips with APE need BAR2 access for APE registers/memory. */
+	if ((sc->bge_flags & BGE_FLAG_APE) != 0) {
+		rid = PCIR_BAR(2);
+		sc->bge_res2 = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+		    RF_ACTIVE);
+		if (sc->bge_res2 == NULL) {
+			device_printf (sc->bge_dev,
+			    "couldn't map BAR2 memory\n");
+			error = ENXIO;
+			goto fail;
+		}
+
+		/* Enable APE register/memory access by host driver. */
+		pcistate = pci_read_config(dev, BGE_PCI_PCISTATE, 4);
+		pcistate |= BGE_PCISTATE_ALLOW_APE_CTLSPC_WR |
+		    BGE_PCISTATE_ALLOW_APE_SHMEM_WR |
+		    BGE_PCISTATE_ALLOW_APE_PSPACE_WR;
+		pci_write_config(dev, BGE_PCI_PCISTATE, pcistate, 4);
+
+		bge_ape_lock_init(sc);
+		bge_ape_read_fw_ver(sc);
 	}
 
 	/* Add SYSCTLs, requires the chipset family to be set. */
@@ -3239,36 +3627,31 @@ bge_attach(device_t dev)
 
 	bge_devinfo(sc);
 
-	/* Try to reset the chip. */
-	if (bge_reset(sc)) {
-		device_printf(sc->bge_dev, "chip reset failed\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	sc->bge_asf_mode = 0;
-	if (bge_allow_asf && (bge_readmem_ind(sc, BGE_SRAM_DATA_SIG) ==
-	    BGE_SRAM_DATA_SIG_MAGIC)) {
-		if (bge_readmem_ind(sc, BGE_SRAM_DATA_CFG)
-		    & BGE_HWCFG_ASF) {
-			sc->bge_asf_mode |= ASF_ENABLE;
-			sc->bge_asf_mode |= ASF_STACKUP;
-			if (BGE_IS_575X_PLUS(sc))
-				sc->bge_asf_mode |= ASF_NEW_HANDSHAKE;
+	/* No ASF if APE present. */
+	if ((sc->bge_flags & BGE_FLAG_APE) == 0) {
+		if (bge_allow_asf && (bge_readmem_ind(sc, BGE_SRAM_DATA_SIG) ==
+		    BGE_SRAM_DATA_SIG_MAGIC)) {
+			if (bge_readmem_ind(sc, BGE_SRAM_DATA_CFG) &
+			    BGE_HWCFG_ASF) {
+				sc->bge_asf_mode |= ASF_ENABLE;
+				sc->bge_asf_mode |= ASF_STACKUP;
+				if (BGE_IS_575X_PLUS(sc))
+					sc->bge_asf_mode |= ASF_NEW_HANDSHAKE;
+			}
 		}
 	}
 
-	/* Try to reset the chip again the nice way. */
 	bge_stop_fw(sc);
-	bge_sig_pre_reset(sc, BGE_RESET_STOP);
+	bge_sig_pre_reset(sc, BGE_RESET_START);
 	if (bge_reset(sc)) {
 		device_printf(sc->bge_dev, "chip reset failed\n");
 		error = ENXIO;
 		goto fail;
 	}
 
-	bge_sig_legacy(sc, BGE_RESET_STOP);
-	bge_sig_post_reset(sc, BGE_RESET_STOP);
+	bge_sig_legacy(sc, BGE_RESET_START);
+	bge_sig_post_reset(sc, BGE_RESET_START);
 
 	if (bge_chipinit(sc)) {
 		device_printf(sc->bge_dev, "chip initialization failed\n");
@@ -3543,6 +3926,10 @@ bge_release_resources(struct bge_softc *sc)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    PCIR_BAR(0), sc->bge_res);
 
+	if (sc->bge_res2 != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    PCIR_BAR(2), sc->bge_res2);
+
 	if (sc->bge_ifp != NULL)
 		if_free(sc->bge_ifp);
 
@@ -3564,6 +3951,8 @@ bge_reset(struct bge_softc *sc)
 	dev = sc->bge_dev;
 
 	mac_mode_mask = BGE_MACMODE_HALF_DUPLEX | BGE_MACMODE_PORTMODE;
+	if ((sc->bge_mfw_flags & BGE_MFW_ON_APE) != 0)
+		mac_mode_mask |= BGE_MACMODE_APE_RX_EN | BGE_MACMODE_APE_TX_EN;
 	mac_mode = CSR_READ_4(sc, BGE_MAC_MODE) & mac_mode_mask;
 
 	if (BGE_IS_575X_PLUS(sc) && !BGE_IS_5714_FAMILY(sc) &&
@@ -3574,6 +3963,9 @@ bge_reset(struct bge_softc *sc)
 			write_op = bge_writemem_ind;
 	} else
 		write_op = bge_writereg_ind;
+
+	/* Take APE lock when performing reset. */
+	bge_ape_lock(sc, BGE_APE_LOCK_GRC);
 
 	/* Save some important PCI state. */
 	cachesize = pci_read_config(dev, BGE_PCI_CACHESZ, 4);
@@ -3669,6 +4061,10 @@ bge_reset(struct bge_softc *sc)
 	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0 &&
 	    (sc->bge_flags & BGE_FLAG_PCIX) != 0)
 		val |= BGE_PCISTATE_RETRY_SAME_DMA;
+	if ((sc->bge_mfw_flags & BGE_MFW_ON_APE) != 0)
+		val |= BGE_PCISTATE_ALLOW_APE_CTLSPC_WR |
+		    BGE_PCISTATE_ALLOW_APE_SHMEM_WR |
+		    BGE_PCISTATE_ALLOW_APE_PSPACE_WR;
 	pci_write_config(dev, BGE_PCI_PCISTATE, val, 4);
 	pci_write_config(dev, BGE_PCI_CACHESZ, cachesize, 4);
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
@@ -3717,6 +4113,8 @@ bge_reset(struct bge_softc *sc)
 	val = (val & ~mac_mode_mask) | mac_mode;
 	CSR_WRITE_4(sc, BGE_MAC_MODE, val);
 	DELAY(40);
+
+	bge_ape_unlock(sc, BGE_APE_LOCK_GRC);
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
 		for (i = 0; i < BGE_TIMEOUT; i++) {
@@ -4289,6 +4687,8 @@ bge_tick(void *xsc)
 		bge_stats_update_regs(sc);
 	else
 		bge_stats_update(sc);
+
+	/* XXX Add APE heartbeat check here? */
 
 	if ((sc->bge_flags & BGE_FLAG_TBI) == 0) {
 		mii = device_get_softc(sc->bge_miibus);
@@ -5033,7 +5433,10 @@ bge_init_locked(struct bge_softc *sc)
 	DELAY(100);
 
 	/* Turn on receiver. */
-	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
+	mode = CSR_READ_4(sc, BGE_RX_MODE);
+	if (BGE_IS_5755_PLUS(sc))
+		mode |= BGE_RXMODE_IPV6_ENABLE;
+	CSR_WRITE_4(sc,BGE_RX_MODE, mode | BGE_RXMODE_ENABLE);
 	DELAY(10);
 
 	/*
@@ -5439,7 +5842,7 @@ bge_stop(struct bge_softc *sc)
 	 * Tell firmware we're shutting down.
 	 */
 	bge_stop_fw(sc);
-	bge_sig_pre_reset(sc, BGE_RESET_STOP);
+	bge_sig_pre_reset(sc, BGE_RESET_SHUTDOWN);
 
 	/*
 	 * Disable all of the receiver blocks.
@@ -5485,8 +5888,8 @@ bge_stop(struct bge_softc *sc)
 		bge_stats_update_regs(sc);
 
 	bge_reset(sc);
-	bge_sig_legacy(sc, BGE_RESET_STOP);
-	bge_sig_post_reset(sc, BGE_RESET_STOP);
+	bge_sig_legacy(sc, BGE_RESET_SHUTDOWN);
+	bge_sig_post_reset(sc, BGE_RESET_SHUTDOWN);
 
 	/*
 	 * Keep the ASF firmware running if up.
@@ -5528,7 +5931,6 @@ bge_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 	BGE_LOCK(sc);
 	bge_stop(sc);
-	bge_reset(sc);
 	BGE_UNLOCK(sc);
 
 	return (0);
@@ -5704,7 +6106,11 @@ bge_add_sysctls(struct bge_softc *sc)
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "reg_read",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, bge_sysctl_reg_read, "I",
-	    "Register Read");
+	    "MAC Register Read");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "ape_read",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, bge_sysctl_ape_read, "I",
+	    "APE Register Read");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "mem_read",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, bge_sysctl_mem_read, "I",
@@ -6096,6 +6502,28 @@ bge_sysctl_reg_read(SYSCTL_HANDLER_ARGS)
 	if (result < 0x8000) {
 		sc = (struct bge_softc *)arg1;
 		val = CSR_READ_4(sc, result);
+		printf("reg 0x%06X = 0x%08X\n", result, val);
+	}
+
+	return (error);
+}
+
+static int
+bge_sysctl_ape_read(SYSCTL_HANDLER_ARGS)
+{
+	struct bge_softc *sc;
+	int error;
+	uint16_t result;
+	uint32_t val;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	if (error || (req->newptr == NULL))
+		return (error);
+
+	if (result < 0x8000) {
+		sc = (struct bge_softc *)arg1;
+		val = APE_READ_4(sc, result);
 		printf("reg 0x%06X = 0x%08X\n", result, val);
 	}
 
