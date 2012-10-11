@@ -71,8 +71,6 @@ static struct pptdev {
 	struct vm_memory_segment mmio[MAX_MMIOSEGS];
 	struct {
 		int	num_msgs;		/* guest state */
-		int	vector;
-		int	vcpu;
 
 		int	startrid;		/* host state */
 		struct resource *res[MAX_MSIMSGS];
@@ -478,8 +476,6 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 		}
 	}
 	
-	ppt->msi.vector = vector;
-	ppt->msi.vcpu = destcpu;
 	ppt->msi.startrid = startrid;
 
 	/*
@@ -497,6 +493,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 
 		ppt->msi.arg[i].pptdev = ppt;
 		ppt->msi.arg[i].vec = vector + i;
+		ppt->msi.arg[i].vcpu = destcpu;
 
 		error = bus_setup_intr(ppt->dev, ppt->msi.res[i],
 				       INTR_TYPE_NET | INTR_MPSAFE,
