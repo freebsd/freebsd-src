@@ -219,10 +219,12 @@ vmm_handler(module_t mod, int what, void *arg)
 		error = vmm_init();
 		break;
 	case MOD_UNLOAD:
-		vmmdev_cleanup();
-		iommu_cleanup();
-		vmm_ipi_cleanup();
-		error = VMM_CLEANUP();
+		error = vmmdev_cleanup();
+		if (error == 0) {
+			iommu_cleanup();
+			vmm_ipi_cleanup();
+			error = VMM_CLEANUP();
+		}
 		break;
 	default:
 		error = 0;

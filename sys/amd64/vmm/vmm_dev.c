@@ -88,18 +88,11 @@ vmmdev_lookup(const char *name)
 static struct vmmdev_softc *
 vmmdev_lookup2(struct cdev *cdev)
 {
-	struct vmmdev_softc *sc;
-
 #ifdef notyet	/* XXX kernel is not compiled with invariants */
 	mtx_assert(&vmmdev_mtx, MA_OWNED);
 #endif
 
-	SLIST_FOREACH(sc, &head, link) {
-		if (sc->cdev == cdev)
-			break;
-	}
-
-	return (sc);
+	return (cdev->si_drv1);
 }
 
 static int
@@ -114,6 +107,8 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	error = 0;
 	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup2(cdev);
+	if (sc == NULL)
+		error = ENXIO;
 
 	while (uio->uio_resid > 0 && error == 0) {
 		gpa = uio->uio_offset;
@@ -380,20 +375,25 @@ vmmdev_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 }
 
 static void
-vmmdev_destroy(struct vmmdev_softc *sc)
+vmmdev_destroy(struct vmmdev_softc *sc, boolean_t unlink)
 {
-
-#ifdef notyet	/* XXX kernel is not compiled with invariants */
-	mtx_assert(&vmmdev_mtx, MA_OWNED);
-#endif
 
 	/*
 	 * XXX must stop virtual machine instances that may be still
 	 * running and cleanup their state.
 	 */
-	SLIST_REMOVE(&head, sc, vmmdev_softc, link);
-	destroy_dev(sc->cdev);
-	vm_destroy(sc->vm);
+	if (sc->cdev)
+		destroy_dev(sc->cdev);
+
+	if (sc->vm)
+		vm_destroy(sc->vm);
+
+	if (unlink) {
+		mtx_lock(&vmmdev_mtx);
+		SLIST_REMOVE(&head, sc, vmmdev_softc, link);
+		mtx_unlock(&vmmdev_mtx);
+	}
+
 	free(sc, M_VMMDEV);
 }
 
@@ -409,14 +409,22 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
+	/*
+	 * XXX TODO if any process has this device open then fail
+	 */
+
 	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup(buf);
 	if (sc == NULL) {
 		mtx_unlock(&vmmdev_mtx);
 		return (EINVAL);
 	}
-	vmmdev_destroy(sc);
+
+	sc->cdev->si_drv1 = NULL;
 	mtx_unlock(&vmmdev_mtx);
+
+	vmmdev_destroy(sc, TRUE);
+
 	return (0);
 }
 SYSCTL_PROC(_hw_vmm, OID_AUTO, destroy, CTLTYPE_STRING | CTLFLAG_RW,
@@ -436,7 +444,7 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	struct vm *vm;
-	struct vmmdev_softc *sc;
+	struct vmmdev_softc *sc, *sc2;
 	char buf[VM_MAX_NAMELEN];
 
 	strlcpy(buf, "beavis", sizeof(buf));
@@ -445,27 +453,37 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	mtx_lock(&vmmdev_mtx);
-
 	sc = vmmdev_lookup(buf);
-	if (sc != NULL) {
-		mtx_unlock(&vmmdev_mtx);
+	mtx_unlock(&vmmdev_mtx);
+	if (sc != NULL)
 		return (EEXIST);
-	}
 
 	vm = vm_create(buf);
-	if (vm == NULL) {
-		mtx_unlock(&vmmdev_mtx);
+	if (vm == NULL)
 		return (EINVAL);
-	}
 
 	sc = malloc(sizeof(struct vmmdev_softc), M_VMMDEV, M_WAITOK | M_ZERO);
 	sc->vm = vm;
+
+	/*
+	 * Lookup the name again just in case somebody sneaked in when we
+	 * dropped the lock.
+	 */
+	mtx_lock(&vmmdev_mtx);
+	sc2 = vmmdev_lookup(buf);
+	if (sc2 == NULL)
+		SLIST_INSERT_HEAD(&head, sc, link);
+	mtx_unlock(&vmmdev_mtx);
+
+	if (sc2 != NULL) {
+		vmmdev_destroy(sc, FALSE);
+		return (EEXIST);
+	}
+
 	sc->cdev = make_dev(&vmmdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 			    "vmm/%s", buf);
 	sc->cdev->si_drv1 = sc;
-	SLIST_INSERT_HEAD(&head, sc, link);
 
-	mtx_unlock(&vmmdev_mtx);
 	return (0);
 }
 SYSCTL_PROC(_hw_vmm, OID_AUTO, create, CTLTYPE_STRING | CTLFLAG_RW,
@@ -477,15 +495,15 @@ vmmdev_init(void)
 	mtx_init(&vmmdev_mtx, "vmm device mutex", NULL, MTX_DEF);
 }
 
-void
+int
 vmmdev_cleanup(void)
 {
-	struct vmmdev_softc *sc, *sc2;
+	int error;
 
-	mtx_lock(&vmmdev_mtx);
+	if (SLIST_EMPTY(&head))
+		error = 0;
+	else
+		error = EBUSY;
 
-	SLIST_FOREACH_SAFE(sc, &head, link, sc2)
-		vmmdev_destroy(sc);
-
-	mtx_unlock(&vmmdev_mtx);
+	return (error);
 }
