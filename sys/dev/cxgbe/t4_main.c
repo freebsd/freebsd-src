@@ -2992,7 +2992,7 @@ cxgbe_vlan_config(void *arg, struct ifnet *ifp, uint16_t vid)
 {
 	struct ifnet *vlan;
 
-	if (arg != ifp)
+	if (arg != ifp || ifp->if_type != IFT_ETHER)
 		return;
 
 	vlan = VLAN_DEVAT(ifp, vid);
