@@ -138,7 +138,6 @@ adv_pci_attach(device_t dev)
 {
 	struct		adv_softc *adv;
 	u_int32_t	id;
-	u_int32_t	command;
 	int		error, rid, irqrid;
 	void		*ih;
 	struct resource	*iores, *irqres;
@@ -146,19 +145,8 @@ adv_pci_attach(device_t dev)
 	/*
 	 * Determine the chip version.
 	 */
-	id = pci_read_config(dev, PCIR_DEVVENDOR, /*bytes*/4);
-	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
-
-	/*
-	 * These cards do not allow memory mapped accesses, so we must
-	 * ensure that I/O accesses are available or we won't be able
-	 * to talk to them.
-	 */
-	if ((command & (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN))
-	 != (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN)) {
-		command |= PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN;
-		pci_write_config(dev, PCIR_COMMAND, command, /*bytes*/1);
-	}
+	id = pci_get_devid(dev);
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Early chips can't handle non-zero latency timer settings.
@@ -174,13 +162,12 @@ adv_pci_attach(device_t dev)
 	if (iores == NULL)
 		return ENXIO;
 
-	if (adv_find_signature(rman_get_bustag(iores),
-			       rman_get_bushandle(iores)) == 0) {
+	if (adv_find_signature(iores) == 0) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, iores);
 		return ENXIO;
 	}
 
-	adv = adv_alloc(dev, rman_get_bustag(iores), rman_get_bushandle(iores));
+	adv = adv_alloc(dev, iores, 0);
 	if (adv == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, iores);
 		return ENXIO;
@@ -199,13 +186,13 @@ adv_pci_attach(device_t dev)
 			/* nsegments	*/ ~0,
 			/* maxsegsz	*/ ADV_PCI_MAX_DMA_COUNT,
 			/* flags	*/ 0,
-			/* lockfunc	*/ busdma_lock_mutex,
-			/* lockarg	*/ &Giant,
+			/* lockfunc	*/ NULL,
+			/* lockarg	*/ NULL,
 			&adv->parent_dmat);
  
 	if (error != 0) {
-		printf("%s: Could not allocate DMA tag - error %d\n",
-		       adv_name(adv), error);
+		device_printf(dev, "Could not allocate DMA tag - error %d\n",
+		    error);
 		adv_free(adv);
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, iores);
 		return ENXIO;
@@ -227,8 +214,8 @@ adv_pci_attach(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&overrun_dmat) != 0) {
 			bus_dma_tag_destroy(adv->parent_dmat);
 			adv_free(adv);
@@ -308,14 +295,22 @@ adv_pci_attach(device_t dev)
 	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irqrid,
 					RF_SHAREABLE | RF_ACTIVE);
 	if (irqres == NULL ||
-	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY, NULL, 
-	        adv_intr, adv, &ih)) {
+	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE,
+	    NULL, adv_intr, adv, &ih) != 0) {
+		if (irqres != NULL)
+			bus_release_resource(dev, SYS_RES_IRQ, irqrid, irqres);
 		adv_free(adv);
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, iores);
 		return ENXIO;
 	}
 
-	adv_attach(adv);
+	if (adv_attach(adv) != 0) {
+		bus_teardown_intr(dev, irqres, ih);
+		bus_release_resource(dev, SYS_RES_IRQ, irqrid, irqres);
+		adv_free(adv);
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, iores);
+		return ENXIO;
+	}
 	return 0;
 }
 
