@@ -1479,14 +1479,27 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && (getcap || get_all)) {
-		int captype, val;
-		captype = vm_capability_name2type(capname);
-		error = vm_get_capability(ctx, vcpu, captype, &val);
-		if (error == 0) {
-			printf("Capability \"%s\" is %s on vcpu %d\n", capname,
-				val ? "set" : "not set", vcpu);
-		} else if (errno == ENOENT) {
-			printf("Capability \"%s\" is not available\n", capname);
+		int captype, val, getcaptype;
+
+		if (getcap && capname)
+			getcaptype = vm_capability_name2type(capname);
+		else
+			getcaptype = -1;
+
+		for (captype = 0; captype < VM_CAP_MAX; captype++) {
+			if (getcaptype >= 0 && captype != getcaptype)
+				continue;
+			error = vm_get_capability(ctx, vcpu, captype, &val);
+			if (error == 0) {
+				printf("Capability \"%s\" is %s on vcpu %d\n",
+					vm_capability_type2name(captype),
+					val ? "set" : "not set", vcpu);
+			} else if (errno == ENOENT) {
+				printf("Capability \"%s\" is not available\n",
+					vm_capability_type2name(captype));
+			} else {
+				break;
+			}
 		}
 	}
 
