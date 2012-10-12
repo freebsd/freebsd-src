@@ -472,7 +472,6 @@ ip_stripoptions(struct mbuf *m)
 		m->m_pkthdr.len -= olen;
 	ip->ip_v = IPVERSION;
 	ip->ip_hl = sizeof(struct ip) >> 2;
-	ip->ip_len -= olen;
 }
 
 /*
