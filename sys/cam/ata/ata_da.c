@@ -914,17 +914,17 @@ adasysctlinit(void *context, int pending)
 static int
 adagetattr(struct bio *bp)
 {
-	int ret = -1;
+	int ret;
 	struct cam_periph *periph;
 
-	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
-		return ENXIO;
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph->path == NULL)
-		return ENXIO;
+	if (periph == NULL)
+		return (ENXIO);
 
+	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
 	    periph->path);
+	cam_periph_unlock(periph);
 	if (ret == 0)
 		bp->bio_completed = bp->bio_length;
 	return ret;
