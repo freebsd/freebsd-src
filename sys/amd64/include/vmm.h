@@ -266,6 +266,8 @@ struct vm_exit {
 		} inout;
 		struct {
 			uint64_t	cr3;
+			uint64_t	gpa;
+			int		rwx;
 		} paging;
 		/*
 		 * VMX specific payload. Used when there is no "better"
