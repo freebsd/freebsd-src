@@ -319,6 +319,12 @@ t4_sge_init(struct adapter *sc)
 		t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5,
 		    V_TIMERVALUE4(us_to_core_ticks(sc, intr_timer[4])) |
 		    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5])));
+
+		if (cong_drop == 0) {
+			t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
+			    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
+			    F_TUNNELCNGDROP3, 0);
+		}
 	}
 
 	v = t4_read_reg(sc, A_SGE_CONTROL);
