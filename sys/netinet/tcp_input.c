@@ -632,7 +632,7 @@ tcp_input(struct mbuf *m, int off0)
 		 * Note: IP leaves IP header in first mbuf.
 		 */
 		if (off0 > sizeof (struct ip)) {
-			ip_stripoptions(m, (struct mbuf *)0);
+			ip_stripoptions(m);
 			off0 = sizeof(struct ip);
 		}
 		if (m->m_len < sizeof (struct tcpiphdr)) {
