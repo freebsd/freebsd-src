@@ -516,8 +516,19 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 
 	while (1) {
 		error = vm_run(ctx, vcpu, rip, &vmexit[vcpu]);
-		if (error != 0)
-			break;
+		if (error != 0) {
+			/*
+			 * It is possible that 'vmmctl' or some other process
+			 * has transitioned the vcpu to CANNOT_RUN state right
+			 * before we tried to transition it to RUNNING.
+			 *
+			 * This is expected to be temporary so just retry.
+			 */
+			if (errno == EBUSY)
+				continue;
+			else
+				break;
+		}
 
 		prevcpu = vcpu;
                 rc = (*handler[vmexit[vcpu].exitcode])(ctx, &vmexit[vcpu],
