@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2012
+.Dd Ocotber 12, 2012
 .Dt IP 4
 .Os
 .Sh NAME
@@ -761,7 +761,11 @@ unless the
 option has been set.
 Incoming packets are received with
 .Tn IP
-header and options intact.
+header and options intact, except for
+.Va ip_len
+and
+.Va ip_off
+fields converted to host byte order.
 .Pp
 .Dv IP_HDRINCL
 indicates the complete IP header is included with the data
