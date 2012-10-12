@@ -971,7 +971,8 @@ vtscsi_sg_append_scsi_buf(struct vtscsi_softc *sc, struct sglist *sg,
 			    csio->data_ptr, csio->dxfer_len);
 		else
 			error = sglist_append_phys(sg,
-			    (vm_paddr_t) csio->data_ptr, csio->dxfer_len);
+			    (vm_paddr_t)(vm_offset_t) csio->data_ptr,
+			    csio->dxfer_len);
 	} else {
 
 		for (i = 0; i < csio->sglist_cnt && error == 0; i++) {
@@ -979,7 +980,8 @@ vtscsi_sg_append_scsi_buf(struct vtscsi_softc *sc, struct sglist *sg,
 
 			if ((ccbh->flags & CAM_SG_LIST_PHYS) == 0)
 				error = sglist_append(sg,
-				    (void *) dseg->ds_addr, dseg->ds_len);
+				    (void *)(vm_offset_t) dseg->ds_addr,
+				    dseg->ds_len);
 			else
 				error = sglist_append_phys(sg,
 				    (vm_paddr_t) dseg->ds_addr, dseg->ds_len);
