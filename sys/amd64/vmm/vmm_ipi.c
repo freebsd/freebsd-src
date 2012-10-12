@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicvar.h>
 #include <machine/segments.h>
 #include <machine/md_var.h>
-#include <machine/smp.h>
 
 #include <machine/vmm.h>
 #include "vmm_ipi.h"
@@ -48,7 +47,7 @@ extern inthand_t IDTVEC(rsvd), IDTVEC(justreturn);
 /*
  * The default is to use the IPI_AST to interrupt a vcpu.
  */
-static int ipinum = IPI_AST;
+int vmm_ipinum = IPI_AST;
 
 CTASSERT(APIC_SPURIOUS_INT == 255);
 
@@ -73,31 +72,22 @@ vmm_ipi_init(void)
 		ip = &idt[idx];
 		func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
 		if (func == (uintptr_t)&IDTVEC(rsvd)) {
-			ipinum = idx;
-			setidt(ipinum, IDTVEC(justreturn), SDT_SYSIGT,
+			vmm_ipinum = idx;
+			setidt(vmm_ipinum, IDTVEC(justreturn), SDT_SYSIGT,
 			       SEL_KPL, 0);
 			break;
 		}
 	}
 	
-	if (ipinum != IPI_AST && bootverbose) {
+	if (vmm_ipinum != IPI_AST && bootverbose) {
 		printf("vmm_ipi_init: installing ipi handler to interrupt "
-		       "vcpus at vector %d\n", ipinum);
+		       "vcpus at vector %d\n", vmm_ipinum);
 	}
 }
 
 void
 vmm_ipi_cleanup(void)
 {
-	if (ipinum != IPI_AST)
-		setidt(ipinum, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
-}
-
-void
-vm_interrupt_hostcpu(struct vm *vm, int vcpu)
-{
-	int hostcpu;
-
-	if (vcpu_is_running(vm, vcpu, &hostcpu) && hostcpu != curcpu)
-		ipi_cpu(hostcpu, ipinum);
+	if (vmm_ipinum != IPI_AST)
+		setidt(vmm_ipinum, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
 }

@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include "iommu.h"
 #include "ppt.h"
 
+/* XXX locking */
+
 #define	MAX_PPTDEVS	(sizeof(pptdevs) / sizeof(pptdevs[0]))
 #define	MAX_MMIOSEGS	(PCIR_MAX_BAR_0 + 1)
 #define	MAX_MSIMSGS	32

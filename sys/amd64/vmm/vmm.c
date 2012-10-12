@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vm.h>
 #include <machine/pcb.h>
+#include <machine/smp.h>
 #include <x86/apicreg.h>
 
 #include <machine/vmm.h>
@@ -65,6 +66,8 @@ struct vlapic;
 
 struct vcpu {
 	int		flags;
+	enum vcpu_state	state;
+	struct mtx	mtx;
 	int		pincpu;		/* host cpuid this vcpu is bound to */
 	int		hostcpu;	/* host cpuid this vcpu last ran on */
 	uint64_t	guest_msrs[VMM_MSR_NUM];
@@ -76,7 +79,6 @@ struct vcpu {
 	enum x2apic_state x2apic_state;
 };
 #define	VCPU_F_PINNED	0x0001
-#define	VCPU_F_RUNNING	0x0002
 
 #define	VCPU_PINCPU(vm, vcpuid)	\
     ((vm->vcpu[vcpuid].flags & VCPU_F_PINNED) ? vm->vcpu[vcpuid].pincpu : -1)
@@ -88,6 +90,10 @@ do {									\
 	vm->vcpu[vcpuid].flags |= VCPU_F_PINNED;			\
 	vm->vcpu[vcpuid].pincpu = host_cpuid;				\
 } while(0)
+
+#define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_DEF)
+#define	vcpu_lock(v)		mtx_lock(&((v)->mtx))
+#define	vcpu_unlock(v)		mtx_unlock(&((v)->mtx))
 
 #define	VM_MAX_MEMORY_SEGMENTS	2
 
@@ -162,7 +168,8 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	
 	vcpu = &vm->vcpu[vcpu_id];
 
-	vcpu->hostcpu = -1;
+	vcpu_lock_init(vcpu);
+	vcpu->hostcpu = NOCPU;
 	vcpu->vcpuid = vcpu_id;
 	vcpu->vlapic = vlapic_init(vm, vcpu_id);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
@@ -667,11 +674,13 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	pcb = PCPU_GET(curpcb);
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
-	vcpu->hostcpu = curcpu;
-
 	restore_guest_msrs(vm, vcpuid);	
 	restore_guest_fpustate(vcpu);
+
+	vcpu->hostcpu = curcpu;
 	error = VMRUN(vm->cookie, vcpuid, vmrun->rip);
+	vcpu->hostcpu = NOCPU;
+
 	save_guest_fpustate(vcpu);
 	restore_host_msrs(vm, vcpuid);
 
@@ -787,9 +796,10 @@ vm_iommu_domain(struct vm *vm)
 	return (vm->iommu);
 }
 
-void
-vm_set_run_state(struct vm *vm, int vcpuid, int state)
+int
+vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state state)
 {
+	int error;
 	struct vcpu *vcpu;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
@@ -797,43 +807,42 @@ vm_set_run_state(struct vm *vm, int vcpuid, int state)
 
 	vcpu = &vm->vcpu[vcpuid];
 
-	if (state == VCPU_RUNNING) {
-		if (vcpu->flags & VCPU_F_RUNNING) {
-			panic("vm_set_run_state: %s[%d] is already running",
-			      vm_name(vm), vcpuid);
-		}
-		vcpu->flags |= VCPU_F_RUNNING;
+	vcpu_lock(vcpu);
+
+	/*
+	 * The following state transitions are allowed:
+	 * IDLE -> RUNNING -> IDLE
+	 * IDLE -> CANNOT_RUN -> IDLE
+	 */
+	if ((vcpu->state == VCPU_IDLE && state != VCPU_IDLE) ||
+	    (vcpu->state != VCPU_IDLE && state == VCPU_IDLE)) {
+		error = 0;
+		vcpu->state = state;
 	} else {
-		if ((vcpu->flags & VCPU_F_RUNNING) == 0) {
-			panic("vm_set_run_state: %s[%d] is already stopped",
-			      vm_name(vm), vcpuid);
-		}
-		vcpu->flags &= ~VCPU_F_RUNNING;
+		error = EBUSY;
 	}
+
+	vcpu_unlock(vcpu);
+
+	return (error);
 }
 
-int
-vm_get_run_state(struct vm *vm, int vcpuid, int *cpuptr)
+enum vcpu_state
+vcpu_get_state(struct vm *vm, int vcpuid)
 {
-	int retval, hostcpu;
 	struct vcpu *vcpu;
+	enum vcpu_state state;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		panic("vm_get_run_state: invalid vcpuid %d", vcpuid);
 
 	vcpu = &vm->vcpu[vcpuid];
-	if (vcpu->flags & VCPU_F_RUNNING) {
-		retval = VCPU_RUNNING;
-		hostcpu = vcpu->hostcpu;
-	} else {
-		retval = VCPU_STOPPED;
-		hostcpu = -1;
-	}
 
-	if (cpuptr)
-		*cpuptr = hostcpu;
+	vcpu_lock(vcpu);
+	state = vcpu->state;
+	vcpu_unlock(vcpu);
 
-	return (retval);
+	return (state);
 }
 
 void
@@ -883,4 +892,26 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	vlapic_set_x2apic_state(vm, vcpuid, state);
 
 	return (0);
+}
+
+void
+vm_interrupt_hostcpu(struct vm *vm, int vcpuid)
+{
+	int hostcpu;
+	struct vcpu *vcpu;
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	/*
+	 * XXX racy but the worst case is that we'll send an unnecessary IPI
+	 * to the 'hostcpu'.
+	 *
+	 * We cannot use vcpu_is_running() here because it acquires vcpu->mtx
+	 * which is not allowed inside a critical section.
+	 */
+	hostcpu = vcpu->hostcpu;
+	if (hostcpu == NOCPU || hostcpu == curcpu)
+		return;
+
+	ipi_cpu(hostcpu, vmm_ipinum);
 }
