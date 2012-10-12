@@ -70,6 +70,7 @@ int	vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 int	vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
+const char *vm_capability_type2name(int type);
 int	vm_get_capability(struct vmctx *ctx, int vcpu, enum vm_cap_type cap,
 			  int *retval);
 int	vm_set_capability(struct vmctx *ctx, int vcpu, enum vm_cap_type cap,
