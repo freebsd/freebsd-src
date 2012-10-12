@@ -1568,7 +1568,7 @@ vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 	 * vmcs_getreg will VMCLEAR the vmcs when it is done which will cause
 	 * the subsequent vmlaunch/vmresume to fail.
 	 */
-	if (vcpu_is_running(vmx->vm, vcpu, NULL))
+	if (vcpu_is_running(vmx->vm, vcpu))
 		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
 
 	return (vmcs_getreg(&vmx->vmcs[vcpu], reg, retval));
@@ -1596,7 +1596,7 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 	 * vmcs_setreg will VMCLEAR the vmcs when it is done which will cause
 	 * the subsequent vmlaunch/vmresume to fail.
 	 */
-	if (vcpu_is_running(vmx->vm, vcpu, NULL))
+	if (vcpu_is_running(vmx->vm, vcpu))
 		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
 
 	error = vmcs_setreg(&vmx->vmcs[vcpu], reg, val);

@@ -88,9 +88,6 @@ vmmdev_lookup(const char *name)
 static struct vmmdev_softc *
 vmmdev_lookup2(struct cdev *cdev)
 {
-#ifdef notyet	/* XXX kernel is not compiled with invariants */
-	mtx_assert(&vmmdev_mtx, MA_OWNED);
-#endif
 
 	return (cdev->si_drv1);
 }
@@ -141,7 +138,8 @@ static int
 vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
 {
-	int error, vcpu;
+	int error, vcpu, state_changed;
+	enum vcpu_state new_state;
 	struct vmmdev_softc *sc;
 	struct vm_memory_segment *seg;
 	struct vm_register *vmreg;
@@ -160,12 +158,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
 
-	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup2(cdev);
-	if (sc == NULL) {
-		mtx_unlock(&vmmdev_mtx);
+	if (sc == NULL)
 		return (ENXIO);
-	}
+
+	vcpu = -1;
+	state_changed = 0;
 
 	/*
 	 * Some VMM ioctls can operate only on vcpus that are not running.
@@ -181,6 +179,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_GET_CAPABILITY:
 	case VM_SET_CAPABILITY:
 	case VM_PPTDEV_MSI:
+	case VM_PPTDEV_MSIX:
 	case VM_SET_X2APIC_STATE:
 		/*
 		 * XXX fragile, handle with care
@@ -192,11 +191,42 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 		}
 
-		if (vcpu_is_running(sc->vm, vcpu, NULL)) {
-			error = EBUSY;
+		if (cmd == VM_RUN)
+			new_state = VCPU_RUNNING;
+		else
+			new_state = VCPU_CANNOT_RUN;
+
+		error = vcpu_set_state(sc->vm, vcpu, new_state);
+		if (error)
+			goto done;
+
+		state_changed = 1;
+		break;
+
+	case VM_MAP_PPTDEV_MMIO:
+	case VM_BIND_PPTDEV:
+	case VM_UNBIND_PPTDEV:
+	case VM_MAP_MEMORY:
+		/*
+		 * ioctls that operate on the entire virtual machine must
+		 * prevent all vcpus from running.
+		 */
+		error = 0;
+		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++) {
+			error = vcpu_set_state(sc->vm, vcpu, VCPU_CANNOT_RUN);
+			if (error)
+				break;
+		}
+
+		if (error) {
+			while (--vcpu >= 0)
+				vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
 			goto done;
 		}
+
+		state_changed = 2;
 		break;
+
 	default:
 		break;
 	}
@@ -204,14 +234,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	switch(cmd) {
 	case VM_RUN:
 		vmrun = (struct vm_run *)data;
-
-		vm_set_run_state(sc->vm, vmrun->cpuid, VCPU_RUNNING);
-		mtx_unlock(&vmmdev_mtx);
-
 		error = vm_run(sc->vm, vmrun);
-
-		mtx_lock(&vmmdev_mtx);
-		vm_set_run_state(sc->vm, vmrun->cpuid, VCPU_STOPPED);
 		break;
 	case VM_STAT_DESC: {
 		const char *desc;
@@ -346,9 +369,15 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = ENOTTY;
 		break;
 	}
-done:
-	mtx_unlock(&vmmdev_mtx);
 
+	if (state_changed == 1) {
+		vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+	} else if (state_changed == 2) {
+		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++)
+			vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+	}
+
+done:
 	return (error);
 }
 

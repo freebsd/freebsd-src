@@ -130,18 +130,23 @@ int vmm_is_pptdev(int bus, int slot, int func);
 
 void *vm_iommu_domain(struct vm *vm);
 
-#define	VCPU_STOPPED	0
-#define	VCPU_RUNNING	1
-void vm_set_run_state(struct vm *vm, int vcpu, int running);
-int vm_get_run_state(struct vm *vm, int vcpu, int *hostcpu);
+enum vcpu_state {
+	VCPU_IDLE,
+	VCPU_RUNNING,
+	VCPU_CANNOT_RUN,
+};
 
-void *vcpu_stats(struct vm *vm, int vcpu);
+int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);
+enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu);
 
 static int __inline
-vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
+vcpu_is_running(struct vm *vm, int vcpu)
 {
-	return (vm_get_run_state(vm, vcpu, hostcpu) == VCPU_RUNNING);
+	return (vcpu_get_state(vm, vcpu) == VCPU_RUNNING);
 }
+
+void *vcpu_stats(struct vm *vm, int vcpu);
+void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
 
 #endif	/* KERNEL */
 

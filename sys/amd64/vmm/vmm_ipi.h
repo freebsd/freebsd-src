@@ -31,8 +31,9 @@
 
 struct vm;
 
+extern int vmm_ipinum;
+
 void	vmm_ipi_init(void);
 void	vmm_ipi_cleanup(void);
-void	vm_interrupt_hostcpu(struct vm *vm, int vcpu);
 
 #endif
