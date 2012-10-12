@@ -1289,6 +1289,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		if (!handled) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.cr3 = cr3;
+			vmexit->u.paging.gpa = gpa;
+			vmexit->u.paging.rwx = qual & 0x7;
 		}
 		break;
 	default:
