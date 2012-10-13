@@ -533,9 +533,9 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			xpt_merge_ccb(&ccb, inccb);
 			ccb.ccb_h.cbfcnp = xptdone;
 			xpt_action(&ccb);
-			CAM_SIM_UNLOCK(bus->sim);
 			bcopy(&ccb, inccb, sizeof(union ccb));
 			xpt_free_path(ccb.ccb_h.path);
+			CAM_SIM_UNLOCK(bus->sim);
 			break;
 
 		}
@@ -2989,34 +2989,42 @@ xpt_action_default(union ccb *start_ccb)
 		break;
 	}
 	case XPT_DEBUG: {
+		struct cam_path *oldpath;
+		struct cam_sim *oldsim;
+
 		/* Check that all request bits are supported. */
 		if (start_ccb->cdbg.flags & ~(CAM_DEBUG_COMPILE)) {
 			start_ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			break;
 		}
 
-		cam_dflags = start_ccb->cdbg.flags;
+		cam_dflags = CAM_DEBUG_NONE;
 		if (cam_dpath != NULL) {
-			xpt_free_path(cam_dpath);
+			/* To release the old path we must hold proper lock. */
+			oldpath = cam_dpath;
 			cam_dpath = NULL;
+			oldsim = xpt_path_sim(oldpath);
+			CAM_SIM_UNLOCK(xpt_path_sim(start_ccb->ccb_h.path));
+			CAM_SIM_LOCK(oldsim);
+			xpt_free_path(oldpath);
+			CAM_SIM_UNLOCK(oldsim);
+			CAM_SIM_LOCK(xpt_path_sim(start_ccb->ccb_h.path));
 		}
-		if (cam_dflags != CAM_DEBUG_NONE) {
+		if (start_ccb->cdbg.flags != CAM_DEBUG_NONE) {
 			if (xpt_create_path(&cam_dpath, xpt_periph,
 					    start_ccb->ccb_h.path_id,
 					    start_ccb->ccb_h.target_id,
 					    start_ccb->ccb_h.target_lun) !=
 					    CAM_REQ_CMP) {
 				start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
-				cam_dflags = CAM_DEBUG_NONE;
 			} else {
+				cam_dflags = start_ccb->cdbg.flags;
 				start_ccb->ccb_h.status = CAM_REQ_CMP;
 				xpt_print(cam_dpath, "debugging flags now %x\n",
 				    cam_dflags);
 			}
-		} else {
-			cam_dpath = NULL;
+		} else
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
-		}
 		break;
 	}
 	case XPT_FREEZE_QUEUE:
