@@ -24,6 +24,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121014:
+	Import the FUSE kernel and userland support into base system.
+
 20121013:
 	The GNU sort(1) program has been removed since the BSD-licensed
 	sort(1) has been the default for quite some time and no serious
