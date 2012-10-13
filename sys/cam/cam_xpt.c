@@ -582,7 +582,9 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			/*
 			 * This is an immediate CCB, we can send it on directly.
 			 */
+			CAM_SIM_LOCK(xpt_path_sim(xpt_periph->path));
 			xpt_action(inccb);
+			CAM_SIM_UNLOCK(xpt_path_sim(xpt_periph->path));
 
 			/*
 			 * Map the buffers back into user space.
@@ -2818,6 +2820,11 @@ xpt_action_default(union ccb *start_ccb)
 				position_type = CAM_DEV_POS_PDRV;
 		}
 
+		/*
+		 * Note that we drop the SIM lock here, because the EDT
+		 * traversal code needs to do its own locking.
+		 */
+		CAM_SIM_UNLOCK(xpt_path_sim(cdm->ccb_h.path));
 		switch(position_type & CAM_DEV_POS_TYPEMASK) {
 		case CAM_DEV_POS_EDT:
 			xptedtmatch(cdm);
@@ -2829,6 +2836,7 @@ xpt_action_default(union ccb *start_ccb)
 			cdm->status = CAM_DEV_MATCH_ERROR;
 			break;
 		}
+		CAM_SIM_LOCK(xpt_path_sim(cdm->ccb_h.path));
 
 		if (cdm->status == CAM_DEV_MATCH_ERROR)
 			start_ccb->ccb_h.status = CAM_REQ_CMP_ERR;
