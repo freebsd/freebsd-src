@@ -59,19 +59,6 @@
  *
  */
 
-/*
- * This code does two things necessary for the enhanced TCP metrics to
- * function in a useful manner:
- *  1) It marks all non-host routes as `cloning', thus ensuring that
- *     every actual reference to such a route actually gets turned
- *     into a reference to a host route to the specific destination
- *     requested.
- *  2) When such routes lose all their references, it arranges for them
- *     to be deleted in some random collection of circumstances, so that
- *     a large quantity of stale routing data is not kept in kernel memory
- *     indefinitely.  See in6_rtqtimo() below for the exact mechanism.
- */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
