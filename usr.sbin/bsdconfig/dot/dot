@@ -229,6 +229,11 @@ done
 # [Optionally] Calculate list of include files
 #
 if [ "$SHOW_INCLUDES" ]; then
+	print_includes_awk='
+		BEGIN { regex = "^f_include \\$BSDCFG_SHARE/" }
+		( $0 ~ regex ) { sub(regex, ""); print }
+	' # END-QUOTE
+
 	#
 	# Build list of files in which to search for includes
 	#
@@ -249,17 +254,8 @@ if [ "$SHOW_INCLUDES" ]; then
 	include_file_list=
 	for file in $file_list; do
 		include_file_list="$include_file_list $(
-			awk -v file="$file" -v item="${file%%/*}" '
-				BEGIN { regex = "^f_include \\$BSDCFG_LIBE/" }
-				( $0 ~ regex "include/" ) {
-					sub(regex, "")
-					print
-				}
-				( $0 ~ regex "\\$APP_DIR/include/" ) {
-					sub(regex "\\$APP_DIR", item)
-					print
-				}
-			' $file
+			awk -v file="$file" -v item="${file%%/*}" \
+				"$print_includes_awk" $file
 		)"
 	done
 
@@ -277,17 +273,8 @@ if [ "$SHOW_INCLUDES" ]; then
 	#
 	for file in $include_file_list; do
 		include_file_list="$include_file_list $(
-			awk -v file="$file" -v item="${file%%/*}" '
-				BEGIN { regex = "^f_include \\$BSDCFG_LIBE/" }
-				( $0 ~ regex "include/" ) {
-					sub(regex, "")
-					print
-				}
-				( $0 ~ regex "\\$APP_DIR/include/" ) {
-					sub(regex "\\$APP_DIR", item)
-					print
-				}
-			' $file
+			awk -v file="$file" -v item="${file%%/*}" \
+				"$print_includes_awk" $BSDCFG_SHARE/$file
 		)"
 	done
 
@@ -431,7 +418,7 @@ if [ "$SHOW_INCLUDES" ]; then
 	printf '\t\tconstraint = false;\n'
 	for include_file in $include_file_list; do
 		print_node "$include_file" \
-		           "label = \"${include_file#*include/}\""
+		           "label = \"${include_file##*/}\""
 	done
 	end_nodelist
 fi
@@ -444,6 +431,7 @@ if [ "$SHOW_INCLUDES" ]; then
 	shape=oval color=black fillcolor=white style=filled edge_color=grey
 	begin_nodelist "$shape" "$color" "$fillcolor" "$style"
 	print_node edge "style = dashed" "color = $edge_color"
+	print_node edge "label = \"\\T\"" "fontsize = 9"
 	file_list=$(
 		for file in \
 			$BSDCONFIG \
@@ -452,6 +440,8 @@ if [ "$SHOW_INCLUDES" ]; then
 			$cmd_program_list \
 			$include_file_list \
 		; do
+			[ -f "$BSDCFG_SHARE/$file" ] &&
+				echo $BSDCFG_SHARE/$file
 			[ -e "$file" ] && echo $file
 		done | sort -u
 	)
@@ -460,31 +450,17 @@ if [ "$SHOW_INCLUDES" ]; then
 		grep -qlI f_include $file || continue
 
 		awk \
-			-v file="$file" \
-			-v item="${file%%/*}" \
+			-v file="${file#$BSDCFG_SHARE/}" \
 			-v bsdconfig="$BSDCONFIG" \
 		'
-			BEGIN { regex = "^f_include \\$BSDCFG_LIBE/" }
-			( $0 ~ regex "include/" ) {
+			BEGIN { regex = "^f_include \\$BSDCFG_SHARE/" }
+			( $0 ~ regex ) {
 				sub(regex, "")
 				if ( file == bsdconfig ) sub(".*/", "", file)
 				printf "\t\t\"%s\" -> \"%s\";\n", $0, file
 			}
-			( $0 ~ regex "\\$APP_DIR/include/" ) {
-				sub(regex "\\$APP_DIR", item)
-				if ( file == bsdconfig ) sub(".*/", "", file)
-				printf "\t\t\"%s\" -> \"%s\";\n", $0, file
-			}
 		' $file
-	done | sort | awk '
-		BEGIN { found = 0 }
-		{
-			# If already found or no-match... just spew
-			if ( found ) { print; next }
-			if ( $0 !~ /^[[:space:]]*"include\// ) { print; next }
-			printf "\t\tedge [ label = \"\\T\", fontsize = 9 ];\n"
-			print; found = 1
-		}'
+	done | sort
 	end_nodelist
 fi
 
@@ -554,14 +530,58 @@ printf '\t\tlabel = "bsdconfig(8)";\n'
 printf '\t\ttooltip = "bsdconfig(8)";\n'
 print_node "bsdconfig"
 if [ "$SHOW_INCLUDES" ]; then
-	printf '\t\tsubgraph "cluster_bsdconfig_includes" {\n'
+	printf '\t\tsubgraph "cluster_includes" {\n'
 	printf '\t\t\tbgcolor = "%s";\n' "$bgcolor_includes"
 	printf '\t\t\tlabel = "%s";\n' "$msg_includes"
+
 	for include_file in $include_file_list; do
-		case "$include_file" in
-		include/*) printf '\t\t\t"%s";\n' "$include_file";;
-		esac
-	done
+		echo $include_file
+	done | awk -v bgcolor="$bgcolor_bsdconfig" '
+	BEGIN { created = 0 }
+	function end_subgraph() { printf "\t\t\t};\n" }
+	( $0 !~ "/" ) {
+		if ( ! created )
+		{
+			printf "\t\t\tsubgraph \"%s\" {\n",
+			       "cluster_bsdconfig_includes"
+			printf "\t\t\t\tbgcolor = \"%s\";\n", bgcolor
+			printf "\t\t\t\tlabel = \"bsdconfig\";\n"
+			created++
+		}
+		printf "\t\t\t\t\"%s\";\n", $1
+	}
+	END { created && end_subgraph() }'
+
+	for include_file in $include_file_list; do
+		echo $include_file
+	done | awk '
+	BEGIN { created = 0 }
+	function end_subgraph() { printf "\t\t\t};\n" }
+	( $0 ~ "/" ) {
+		include_dir_tmp = $1
+		sub("/[^/]*$", "", include_dir_tmp)
+		gsub(/[^[:alnum:]_]/, "_", include_dir_tmp)
+
+		if ( created && include_dir != include_dir_tmp )
+		{
+			end_subgraph()
+			created = 0
+		}
+
+		if ( ! created )
+		{
+			include_dir = include_dir_tmp
+			printf "\t\t\tsubgraph \"cluster_%s_includes\" {\n",
+			       include_dir
+			printf "\t\t\t\tbgcolor = \"white\";\n"
+			printf "\t\t\t\tlabel = \"%s\";\n", include_dir
+			created++
+		}
+
+		printf "\t\t\t\t\"%s\";\n", $1
+	}
+	END { created && end_subgraph() }'
+
 	printf '\t\t};\n'
 fi
 end_nodelist
