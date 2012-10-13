@@ -392,7 +392,6 @@ void vm_page_readahead_finish(vm_page_t m);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
-void vm_page_requeue(vm_page_t m);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
