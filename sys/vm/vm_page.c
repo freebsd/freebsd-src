@@ -736,7 +736,7 @@ vm_page_readahead_finish(vm_page_t m)
 /*
  *	vm_page_sleep:
  *
- *	Sleep and release the page and page queues locks.
+ *	Sleep and release the page lock.
  *
  *	The object containing the given page must be locked.
  */
@@ -745,8 +745,6 @@ vm_page_sleep(vm_page_t m, const char *msg)
 {
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if (mtx_owned(&vm_page_queue_mtx))
-		vm_page_unlock_queues();
 	if (mtx_owned(vm_page_lockptr(m)))
 		vm_page_unlock(m);
 
@@ -2933,7 +2931,6 @@ vm_page_cowfault(vm_page_t m)
 	vm_object_t object;
 	vm_pindex_t pindex;
 
-	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
