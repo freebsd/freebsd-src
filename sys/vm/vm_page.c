@@ -1868,28 +1868,6 @@ vm_waitpfault(void)
 }
 
 /*
- *	vm_page_requeue:
- *
- *	Move the given page to the tail of its present page queue.
- *
- *	The page queues must be locked.
- */
-void
-vm_page_requeue(vm_page_t m)
-{
-	struct vpgqueues *vpq;
-	int queue;
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	queue = m->queue;
-	KASSERT(queue != PQ_NONE,
-	    ("vm_page_requeue: page %p is not queued", m));
-	vpq = &vm_page_queues[queue];
-	TAILQ_REMOVE(&vpq->pl, m, pageq);
-	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
-}
-
-/*
  *	vm_page_queue_remove:
  *
  *	Remove the given page from the specified queue.
