@@ -809,12 +809,11 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 		}
 #else
 		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-		ATH_KTR(sc, ATH_KTR_TX, 4,
-		    "ath_tx_handoff: non-tdma: txq=%u, add bf=%p, qbusy=%d, "
+		ATH_KTR(sc, ATH_KTR_TX, 3,
+		    "ath_tx_handoff: non-tdma: txq=%u, add bf=%p "
 		    "depth=%d",
 		    txq->axq_qnum,
 		    bf,
-		    qbusy,
 		    txq->axq_depth);
 		if (txq->axq_link == NULL) {
 			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
