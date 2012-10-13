@@ -428,7 +428,6 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CLANG_IS_CC \
     CTF \
-    GNU_SORT \
     HESIOD \
     ICONV \
     IDEA \
