@@ -1003,6 +1003,7 @@ options 	NFSCLIENT		#Network File System client
 # The rest are optional:
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
+options 	FUSE			#FUSE support module
 options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
