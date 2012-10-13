@@ -820,7 +820,6 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 	int curgeneration, n, pagerflags;
 	boolean_t clearobjflags, eio, res;
 
-	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0 ||
@@ -906,7 +905,6 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 	vm_page_t ma[vm_pageout_page_count], p_first, tp;
 	int count, i, mreq, runlen;
 
-	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	vm_page_lock_assert(p, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
