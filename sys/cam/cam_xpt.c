@@ -3441,19 +3441,14 @@ xpt_create_path_unlocked(struct cam_path **new_path_ptr,
 	struct	   cam_path *path;
 	struct	   cam_eb *bus = NULL;
 	cam_status status;
-	int	   need_unlock = 0;
 
 	path = (struct cam_path *)malloc(sizeof(*path), M_CAMPATH, M_WAITOK);
 
-	if (path_id != CAM_BUS_WILDCARD) {
-		bus = xpt_find_bus(path_id);
-		if (bus != NULL) {
-			need_unlock = 1;
-			CAM_SIM_LOCK(bus->sim);
-		}
-	}
+	bus = xpt_find_bus(path_id);
+	if (bus != NULL)
+		CAM_SIM_LOCK(bus->sim);
 	status = xpt_compile_path(path, periph, path_id, target_id, lun_id);
-	if (need_unlock) {
+	if (bus != NULL) {
 		CAM_SIM_UNLOCK(bus->sim);
 		xpt_release_bus(bus);
 	}
