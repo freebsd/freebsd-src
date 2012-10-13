@@ -4797,12 +4797,7 @@ xpt_config(void *arg)
 
 	/* Setup debugging path */
 	if (cam_dflags != CAM_DEBUG_NONE) {
-		/*
-		 * Locking is specifically omitted here.  No SIMs have
-		 * registered yet, so xpt_create_path will only be searching
-		 * empty lists of targets and devices.
-		 */
-		if (xpt_create_path(&cam_dpath, xpt_periph,
+		if (xpt_create_path_unlocked(&cam_dpath, xpt_periph,
 				    CAM_DEBUG_BUS, CAM_DEBUG_TARGET,
 				    CAM_DEBUG_LUN) != CAM_REQ_CMP) {
 			printf("xpt_config: xpt_create_path() failed for debug"
