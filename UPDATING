@@ -28,7 +28,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	The GNU sort(1) program has been removed since the BSD-licensed
 	sort(1) has been the default for quite some time and no serious
 	problems have been reported.  The corresponding WITH_GNU_SORT
-	knob has als gone.
+	knob has also gone.
 
 20121006:
 	The pfil(9) API/ABI for AF_INET family has been changed. Packet
