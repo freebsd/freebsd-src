@@ -2,15 +2,7 @@
 
 .include <bsd.own.mk>
 
-.if ${MK_GNU_SORT} != "yes"
 PROG=	sort
-.else
-PROG=	bsdsort
-CLEANFILES+= bsdsort.1
-
-bsdsort.1: sort.1
-	cp ${.ALLSRC} ${.TARGET}
-.endif
 
 SRCS=	bwstring.c coll.c file.c mem.c radixsort.c sort.c vsort.c
 

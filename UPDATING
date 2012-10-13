@@ -24,6 +24,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121013:
+	The GNU sort(1) program has been removed since the BSD-licensed
+	sort(1) has been the default for quite some time and no serious
+	problems have been reported.  The corresponding WITH_GNU_SORT
+	knob has als gone.
+
 20121006:
 	The pfil(9) API/ABI for AF_INET family has been changed. Packet
 	filtering modules: pf(4), ipfw(4), ipfilter(4) need to be recompiled
