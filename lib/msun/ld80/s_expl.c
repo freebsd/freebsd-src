@@ -64,7 +64,7 @@ o_threshold = LD80C(0xb17217f7d1cf79ab, 13,  11356.5234062941439488L),
 /* log(2**(-16381-64-1)) rounded towards zero: */
 u_threshold = LD80C(0xb21dfe7f09e2baa9, 13, -11399.4985314888605581L);
 
-static const double __aligned(64)
+static const double
 /*
  * ln2/INTERVALS = L1+L2 (hi+lo decomposition for multiplication).  L1 must
  * have at least 22 (= log2(|LDBL_MIN_EXP-extras|) + log2(INTERVALS)) lowest
@@ -86,17 +86,18 @@ P6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
 
 /*
  * 2^(i/INTERVALS) for i in [0,INTERVALS] is represented by two values where
- * the first 53 bits of the significand is stored in hi and the next 53
- * bits are in lo.  Tang's paper states that the trailing 6 bits of hi should
+ * the first 53 bits of the significand are stored in hi and the next 53
+ * bits are in lo.  Tang's paper states that the trailing 6 bits of hi must
  * be zero for his algorithm in both single and double precision, because
  * the table is re-used in the implementation of expm1() where a floating
- * point addition involving hi must be exact.  The conversion of a 53-bit
- * double into a 64-bit long double gives 11 trailing bit, which are zero.
+ * point addition involving hi must be exact.  Here hi is double, so
+ * converting it to long double gives 11 trailing zero bits.
  */
 static const struct {
 	double	hi;
 	double	lo;
-} s[INTERVALS] __aligned(16) = {
+/* XXX should rename 's'. */
+} s[INTERVALS] = {
 	0x1p+0, 0x0p+0,
 	0x1.0163da9fb3335p+0, 0x1.b61299ab8cdb7p-54,
 	0x1.02c9a3e778060p+0, 0x1.dcdef95949ef4p-53,
