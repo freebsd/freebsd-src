@@ -1434,8 +1434,8 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				    ("pmap_pv_reclaim: pde"));
 				pte = pmap_pde_to_pte(pde, va);
 				oldpte = *pte;
-				KASSERT(!pte_test(&oldpte, PTE_W),
-				    ("wired pte for unwired page"));
+				if (pte_test(&oldpte, PTE_W))
+					continue;
 				if (is_kernel_pmap(pmap))
 					*pte = PTE_G;
 				else
