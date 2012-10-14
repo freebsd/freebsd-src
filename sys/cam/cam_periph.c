@@ -1250,6 +1250,9 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 	struct timeval delta;
 	struct timeval duration_tv;
 
+	if (!timevalisset(event_time))
+		return;
+
 	microtime(&delta);
 	timevalsub(&delta, event_time);
 	duration_tv.tv_sec = duration_ms / 1000;
