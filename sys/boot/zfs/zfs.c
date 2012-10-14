@@ -452,7 +452,7 @@ zfs_dev_open(struct open_file *f, ...)
 	return (0);
 }
 
-static int 
+static int
 zfs_dev_close(struct open_file *f)
 {
 
@@ -461,7 +461,7 @@ zfs_dev_close(struct open_file *f)
 	return (0);
 }
 
-static int 
+static int
 zfs_dev_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
 
