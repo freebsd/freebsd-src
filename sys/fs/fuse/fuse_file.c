@@ -245,7 +245,7 @@ fuse_filehandle_init(struct vnode *vp,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 
-	DEBUG("id=%jd type=%d\n", (intmax_t)fh_id, fufh_type);
+	FS_DEBUG("id=%jd type=%d\n", (intmax_t)fh_id, fufh_type);
 	fufh = &(fvdat->fufh[fufh_type]);
 	MPASS(!FUFH_IS_VALID(fufh));
 	fufh->fh_id = fh_id;

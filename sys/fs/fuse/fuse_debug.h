@@ -65,11 +65,11 @@
 #define FUSE_DEBUG_VAR		__CONCAT(FUSE_DEBUG_,FUSE_DEBUG_MODULE)
 #endif
 
-#define DEBUG(fmt, ...)         DEBUGX(FUSE_DEBUG_VAR >= 1, fmt, ## __VA_ARGS__)
-#define DEBUG2G(fmt, ...)       DEBUGX(FUSE_DEBUG_VAR >= 2, fmt, ## __VA_ARGS__)
+#define	FS_DEBUG(fmt, ...)	DEBUGX(FUSE_DEBUG_VAR >= 1, fmt, ## __VA_ARGS__)
+#define	FS_DEBUG2G(fmt, ...)	DEBUGX(FUSE_DEBUG_VAR >= 2, fmt, ## __VA_ARGS__)
 
-#define debug_printf(fmt, ...)  DEBUG(fmt, ## __VA_ARGS__)
-#define kdebug_printf(fmt, ...) DEBUG(fmt, ## __VA_ARGS__)
+#define	debug_printf(fmt, ...)	FS_DEBUG(fmt, ## __VA_ARGS__)
+#define	kdebug_printf(fmt, ...)	FS_DEBUG(fmt, ## __VA_ARGS__)
 
 #define fuse_trace_printf(fmt, ...) \
     DEBUGX(FUSE_DEBUG_VAR && FUSE_TRACE, fmt, ## __VA_ARGS__)
