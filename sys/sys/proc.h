@@ -272,6 +272,7 @@ struct thread {
 	struct osd	td_osd;		/* (k) Object specific data. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
+	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
