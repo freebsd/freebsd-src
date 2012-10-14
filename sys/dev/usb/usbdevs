@@ -1588,6 +1588,9 @@ product ELV USBI2C		0xe00f	USB-I2C interface
 /* EMS products */
 product EMS DUAL_SHOOTER	0x0003	PSX gun controller converter
 
+/* Emtec products */
+product EMTEC RUF2PS 		0x2240 Flash Drive
+
 /* Encore products */
 product ENCORE RT3070_1		0x1480	RT3070
 product ENCORE RT3070_2		0x14a1	RT3070
