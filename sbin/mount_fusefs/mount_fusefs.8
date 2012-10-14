@@ -77,7 +77,7 @@ From that on mounting goes as in the simple case. (See
 .Pp
 The
 .Ar special
-argument normally will be treated as the path of the special file to mount.
+argument will normally be treated as the path of the special file to mount.
 .Pp
 However, if
 .Pa auto
@@ -147,7 +147,7 @@ Refuse shared mounting of the daemon. This is the default behaviour,
 to allow sharing, expicitly use
 .Fl o Cm noprivate 
 .It Cm neglect_shares
-Don't refuse unmounting if there are secondary mounts
+Do not refuse unmounting if there are secondary mounts
 .It Cm push_symlinks_in
 Prefix absolute symlinks with the mountpoint
 .El
@@ -170,7 +170,7 @@ By default cached buffers of a given file are flushed at each
 This option disables this behaviour
 .El
 .Sh DAEMON MOUNTS
-Usually users don't need to use
+Usually users do not need to use
 .Nm
 directly, as the Fuse library enables Fuse daemons to invoke
 .Nm .
@@ -274,7 +274,7 @@ Adjust behaviour to the needs of the FUSE library. Currently it effects
 help output.
 .El
 .Pp
-Although the following variables don't have any effect on
+Although the following variables do not have any effect on
 .Nm
 itself, they affect the behaviour of fuse daemons:
 .Bl -tag -width ".Ev FUSE_DEV_NAME"
@@ -286,7 +286,7 @@ is used.
 File desciptor of an opened Fuse device to use. Overrides
 .Ev FUSE_DEV_NAME .
 .It Ev FUSE_NO_MOUNT
-If set, the library won't attempt to mount the filesystem, even
+If set, the library will not attempt to mount the filesystem, even
 if a mountpoint argument is supplied.
 .El
 .Sh FILES
@@ -317,7 +317,7 @@ Doing the same in two steps, using
 .Pp
 A script wrapper for fusexmp which ensures that
 .Nm 
-doesn't call any external utility and also provides a hacky 
+does not call any external utility and also provides a hacky 
 (non race-free) automatic device selection:
 .Pp
 .Dl #!/bin/sh -e
@@ -329,6 +329,10 @@ doesn't call any external utility and also provides a hacky
 .Xr mount 8 ,
 .Xr umount 8 ,
 .Xr sudo 8
+.Sh HISTORY
+.Nm
+appears as the part of the FreeBSD implementation of the Fuse userspace filesystem
+framework (see http://fuse.sourceforge.net). This user interface is FreeBSD specific.
 .Sh CAVEATS
 Secondary mounts should be unmounted via their device name. If an attempt is
 made to be unmount them via their filesystem root path, the unmount request
@@ -344,12 +348,8 @@ options, it will be invoked via
 .Xr system 3 ,
 and the daemon's command line will also have an
 .Dq &
-control operator appended, so that we don't have to wait for its termination.
+control operator appended, so that we do not have to wait for its termination.
 You should use a simple command line when invoking the daemon via these options.
-.Sh HISTORY
-.Nm
-appears as the part of the FreeBSD implementation of the Fuse userspace filesystem
-framework (see http://fuse.sourceforge.net). This user interface is FreeBSD specific.
 .Sh BUGS
 .Ar special
 is treated as a multiplexer if and only if it is literally the same as
