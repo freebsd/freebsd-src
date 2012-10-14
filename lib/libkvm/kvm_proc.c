@@ -144,6 +144,8 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 			_kvm_err(kd, kd->program, "can't read proc at %p", p);
 			return (-1);
 		}
+		if (proc.p_state == PRS_NEW)
+			continue;
 		if (proc.p_state != PRS_ZOMBIE) {
 			if (KREAD(kd, (u_long)TAILQ_FIRST(&proc.p_threads),
 			    &mtd)) {
