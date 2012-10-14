@@ -660,7 +660,7 @@ cpsw_stop_locked(struct cpsw_softc *sc)
 {
 	struct ifnet *ifp;
 
-	CPSW_GLOBAL_LOCK_ASSERT(sc)
+	CPSW_GLOBAL_LOCK_ASSERT(sc);
 
 	ifp = sc->ifp;
 
