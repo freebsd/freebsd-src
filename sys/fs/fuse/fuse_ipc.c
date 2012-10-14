@@ -246,7 +246,7 @@ fticket_init(void *mem, int size, int flags)
 {
 	struct fuse_ticket *ftick = mem;
 
-	DEBUG("ftick=%p\n", ftick);
+	FS_DEBUG("ftick=%p\n", ftick);
 
 	bzero(ftick, sizeof(struct fuse_ticket));
 
@@ -265,7 +265,7 @@ fticket_fini(void *mem, int size)
 {
 	struct fuse_ticket *ftick = mem;
 
-	DEBUG("ftick=%p\n", ftick);
+	FS_DEBUG("ftick=%p\n", ftick);
 
 	fiov_teardown(&ftick->tk_ms_fiov);
 	fiov_teardown(&ftick->tk_aw_fiov);
@@ -433,10 +433,10 @@ fdata_alloc(struct cdev *fdev, struct ucred *cred)
 void
 fdata_trydestroy(struct fuse_data *data)
 {
-	DEBUG("data=%p data.mp=%p data.fdev=%p data.flags=%04x\n",
+	FS_DEBUG("data=%p data.mp=%p data.fdev=%p data.flags=%04x\n",
 	    data, data->mp, data->fdev, data->dataflags);
 
-	DEBUG("destroy: data=%p\n", data);
+	FS_DEBUG("destroy: data=%p\n", data);
 	data->ref--;
 	MPASS(data->ref >= 0);
 	if (data->ref != 0)
