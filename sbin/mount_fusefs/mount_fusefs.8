@@ -135,17 +135,17 @@ by prefixing them with
 .Bl -tag -width indent
 .It Cm default_permissions
 Enable traditional (file mode based) permission checking in kernel
-.It Cm allow_other 
+.It Cm allow_other
 Do not apply
 .Sx STRICT ACCESS POLICY .
 Only root can use this option
 .It Cm max_read Ns = Ns Ar n
 Limit size of read requests to
-.Ar n 
+.Ar n
 .It Cm private
 Refuse shared mounting of the daemon. This is the default behaviour,
 to allow sharing, expicitly use
-.Fl o Cm noprivate 
+.Fl o Cm noprivate
 .It Cm neglect_shares
 Do not refuse unmounting if there are secondary mounts
 .It Cm push_symlinks_in
@@ -158,7 +158,7 @@ Besides the above mount options, there is a set of pseudo-mount options which
 are supported by the Fuse library. One can list these by passing
 .Fl h
 to a Fuse daemon. Most of these options have effect only on the behaviour of
-the daemon (that is, their scope is limited to userspace). However, 
+the daemon (that is, their scope is limited to userspace). However,
 there are some which do require in-kernel support.
 Currently the options supported by the kernel are:
 .Bl -tag -width indent
@@ -240,7 +240,7 @@ and
 .Fl A ) ,
 and command line parsing is done in a flexible way: mixing options and
 non-options is allowed, but processing them stops at the third non-option
-argument (after the first two has been utilized as device and mountpoint). 
+argument (after the first two has been utilized as device and mountpoint).
 The rest of the command line specifies the daemon and its arguments.
 (Alternatively, the daemon, the special and the mount path can be
 specified using the respective options.) Note that
@@ -316,8 +316,8 @@ Doing the same in two steps, using
 .Dl mount_fusefs /dev/fuse /mnt/fuse
 .Pp
 A script wrapper for fusexmp which ensures that
-.Nm 
-does not call any external utility and also provides a hacky 
+.Nm
+does not call any external utility and also provides a hacky
 (non race-free) automatic device selection:
 .Pp
 .Dl #!/bin/sh -e
@@ -360,4 +360,4 @@ Other paths which are equivalent with
 .Pa /dev/fuse
 (eg.,
 .Pa /../dev/fuse )
-are not.   
+are not.
