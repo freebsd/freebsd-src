@@ -126,14 +126,14 @@ fuse_device_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct fuse_data *fdata;
 	int error;
 
-	DEBUG("device %p\n", dev);
+	FS_DEBUG("device %p\n", dev);
 
 	fdata = fdata_alloc(dev, td->td_ucred);
 	error = devfs_set_cdevpriv(fdata, fdata_dtor);
 	if (error != 0)
 		fdata_trydestroy(fdata);
 	else
-		DEBUG("%s: device opened by thread %d.\n", dev->si_name,
+		FS_DEBUG("%s: device opened by thread %d.\n", dev->si_name,
 		    td->td_tid);
 	return (error);
 }
@@ -169,7 +169,7 @@ fuse_device_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	fuse_lck_mtx_unlock(data->aw_mtx);
 	FUSE_UNLOCK();
 
-	DEBUG("%s: device closed by thread %d.\n", dev->si_name, td->td_tid);
+	FS_DEBUG("%s: device closed by thread %d.\n", dev->si_name, td->td_tid);
 	return (0);
 }
 
@@ -213,7 +213,7 @@ fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 	int buflen[3];
 	int i;
 
-	DEBUG("fuse device being read on thread %d\n", uio->uio_td->td_tid);
+	FS_DEBUG("fuse device being read on thread %d\n", uio->uio_td->td_tid);
 
 	err = devfs_get_cdevpriv((void **)&data);
 	if (err != 0)
@@ -222,7 +222,7 @@ fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 	fuse_lck_mtx_lock(data->ms_mtx);
 again:
 	if (fdata_get_dead(data)) {
-		DEBUG2G("we know early on that reader should be kicked so we don't wait for news\n");
+		FS_DEBUG2G("we know early on that reader should be kicked so we don't wait for news\n");
 		fuse_lck_mtx_unlock(data->ms_mtx);
 		return (ENODEV);
 	}
@@ -248,7 +248,7 @@ again:
 		 * -- and some other cases, too, tho not totally clear, when
 		 * (cv_signal/wakeup_one signals the whole process ?)
 		 */
-		DEBUG("no message on thread #%d\n", uio->uio_td->td_tid);
+		FS_DEBUG("no message on thread #%d\n", uio->uio_td->td_tid);
 		goto again;
 	}
 	fuse_lck_mtx_unlock(data->ms_mtx);
@@ -258,16 +258,16 @@ again:
 		 * somebody somewhere -- eg., umount routine --
 		 * wants this liaison finished off
 		 */
-		DEBUG2G("reader is to be sacked\n");
+		FS_DEBUG2G("reader is to be sacked\n");
 		if (tick) {
-			DEBUG2G("weird -- \"kick\" is set tho there is message\n");
+			FS_DEBUG2G("weird -- \"kick\" is set tho there is message\n");
 			FUSE_ASSERT_MS_DONE(tick);
 			fuse_ticket_drop(tick);
 		}
 		return (ENODEV);	/* This should make the daemon get off
 					 * of us */
 	}
-	DEBUG("message got on thread #%d\n", uio->uio_td->td_tid);
+	FS_DEBUG("message got on thread #%d\n", uio->uio_td->td_tid);
 
 	KASSERT(tick->tk_ms_bufdata || tick->tk_ms_bufsize == 0,
 	    ("non-null buf pointer with positive size"));
@@ -301,7 +301,7 @@ again:
 		 */
 		if (uio->uio_resid < buflen[i]) {
 			fdata_set_dead(data);
-			DEBUG2G("daemon is stupid, kick it off...\n");
+			FS_DEBUG2G("daemon is stupid, kick it off...\n");
 			err = ENODEV;
 			break;
 		}
@@ -319,16 +319,16 @@ again:
 static __inline int
 fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 {
-	DEBUG("Out header -- len: %i, error: %i, unique: %llu; iovecs: %d\n",
+	FS_DEBUG("Out header -- len: %i, error: %i, unique: %llu; iovecs: %d\n",
 	    ohead->len, ohead->error, (unsigned long long)ohead->unique,
 	    uio->uio_iovcnt);
 
 	if (uio->uio_resid + sizeof(struct fuse_out_header) != ohead->len) {
-		DEBUG("Format error: body size differs from size claimed by header\n");
+		FS_DEBUG("Format error: body size differs from size claimed by header\n");
 		return (EINVAL);
 	}
 	if (uio->uio_resid && ohead->error) {
-		DEBUG("Format error: non zero error but message had a body\n");
+		FS_DEBUG("Format error: non zero error but message had a body\n");
 		return (EINVAL);
 	}
 	/* Sanitize the linuxism of negative errnos */
@@ -352,7 +352,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct fuse_ticket *tick, *x_tick;
 	int found = 0;
 
-	DEBUG("resid: %zd, iovcnt: %d, thread: %d\n",
+	FS_DEBUG("resid: %zd, iovcnt: %d, thread: %d\n",
 	    uio->uio_resid, uio->uio_iovcnt, uio->uio_td->td_tid);
 
 	err = devfs_get_cdevpriv((void **)&data);
@@ -360,7 +360,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (err);
 
 	if (uio->uio_resid < sizeof(struct fuse_out_header)) {
-		DEBUG("got less than a header!\n");
+		FS_DEBUG("got less than a header!\n");
 		fdata_set_dead(data);
 		return (EINVAL);
 	}
@@ -384,7 +384,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	fuse_lck_mtx_lock(data->aw_mtx);
 	TAILQ_FOREACH_SAFE(tick, &data->aw_head, tk_aw_link,
 	    x_tick) {
-		DEBUG("bumped into callback #%llu\n",
+		FS_DEBUG("bumped into callback #%llu\n",
 		    (unsigned long long)tick->tk_unique);
 		if (tick->tk_unique == ohead.unique) {
 			found = 1;
@@ -404,12 +404,12 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			 * via ticket_drop(), so no manual mucking
 			 * around...)
 			 */
-			DEBUG("pass ticket to a callback\n");
+			FS_DEBUG("pass ticket to a callback\n");
 			memcpy(&tick->tk_aw_ohead, &ohead, sizeof(ohead));
 			err = tick->tk_aw_handler(tick, uio);
 		} else {
 			/* pretender doesn't wanna do anything with answer */
-			DEBUG("stuff devalidated, so we drop it\n");
+			FS_DEBUG("stuff devalidated, so we drop it\n");
 		}
 
 		/*
@@ -420,7 +420,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		fuse_ticket_drop(tick);
 	} else {
 		/* no callback at all! */
-		DEBUG("erhm, no handler for this response\n");
+		FS_DEBUG("erhm, no handler for this response\n");
 		err = EINVAL;
 	}
 

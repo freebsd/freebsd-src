@@ -145,23 +145,23 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	switch (uio->uio_rw) {
 	case UIO_READ:
 		if (directio) {
-			DEBUG("direct read of vnode %ju via file handle %ju\n",
+			FS_DEBUG("direct read of vnode %ju via file handle %ju\n",
 			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
 			err = fuse_read_directbackend(vp, uio, cred, fufh);
 		} else {
-			DEBUG("buffered read of vnode %ju\n", 
+			FS_DEBUG("buffered read of vnode %ju\n", 
 			      (uintmax_t)VTOILLU(vp));
 			err = fuse_read_biobackend(vp, uio, cred, fufh);
 		}
 		break;
 	case UIO_WRITE:
 		if (directio) {
-			DEBUG("direct write of vnode %ju via file handle %ju\n",
+			FS_DEBUG("direct write of vnode %ju via file handle %ju\n",
 			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
 			err = fuse_write_directbackend(vp, uio, cred, fufh);
 			fuse_invalidate_attr(vp);
 		} else {
-			DEBUG("buffered write of vnode %ju\n", 
+			FS_DEBUG("buffered write of vnode %ju\n", 
 			      (uintmax_t)VTOILLU(vp));
 			err = fuse_write_biobackend(vp, uio, cred, fufh);
 		}
@@ -185,7 +185,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 
 	const int biosize = fuse_iosize(vp);
 
-	DEBUG("resid=%zx offset=%jx fsize=%jx\n",
+	FS_DEBUG("resid=%zx offset=%jx fsize=%jx\n",
 	    uio->uio_resid, uio->uio_offset, VTOFUD(vp)->filesize);
 
 	if (uio->uio_resid == 0)
@@ -204,7 +204,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize - 1);
 
-		DEBUG2G("biosize %d, lbn %d, on %d\n", biosize, (int)lbn, on);
+		FS_DEBUG2G("biosize %d, lbn %d, on %d\n", biosize, (int)lbn, on);
 
 		/*
 	         * Obtain the buffer cache block.  Figure out the buffer size
@@ -253,13 +253,13 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 		if (on < bcount)
 			n = MIN((unsigned)(bcount - on), uio->uio_resid);
 		if (n > 0) {
-			DEBUG2G("feeding buffeater with %d bytes of buffer %p,"
+			FS_DEBUG2G("feeding buffeater with %d bytes of buffer %p,"
 				" saying %d was asked for\n",
 				n, bp->b_data + on, n + (int)bp->b_resid);
 			err = uiomove(bp->b_data + on, n, uio);
 		}
 		brelse(bp);
-		DEBUG2G("end of turn, err %d, uio->uio_resid %zd, n %d\n",
+		FS_DEBUG2G("end of turn, err %d, uio->uio_resid %zd, n %d\n",
 		    err, uio->uio_resid, n);
 	} while (err == 0 && uio->uio_resid > 0 && n > 0);
 
@@ -296,14 +296,14 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 		fri->size = MIN(uio->uio_resid,
 		    fuse_get_mpdata(vp->v_mount)->max_read);
 
-		DEBUG2G("fri->fh %ju, fri->offset %ju, fri->size %ju\n",
+		FS_DEBUG2G("fri->fh %ju, fri->offset %ju, fri->size %ju\n",
 			(uintmax_t)fri->fh, (uintmax_t)fri->offset, 
 			(uintmax_t)fri->size);
 
 		if ((err = fdisp_wait_answ(&fdi)))
 			goto out;
 
-		DEBUG2G("complete: got iosize=%d, requested fri.size=%zd; "
+		FS_DEBUG2G("complete: got iosize=%d, requested fri.size=%zd; "
 			"resid=%zd offset=%ju\n",
 			fri->size, fdi.iosize, uio->uio_resid, 
 			(uintmax_t)uio->uio_offset);
@@ -383,7 +383,7 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	const int biosize = fuse_iosize(vp);
 
 	KASSERT(uio->uio_rw == UIO_WRITE, ("ncl_write mode"));
-	DEBUG("resid=%zx offset=%jx fsize=%jx\n",
+	FS_DEBUG("resid=%zx offset=%jx fsize=%jx\n",
 	    uio->uio_resid, uio->uio_offset, fvdat->filesize);
 	if (vp->v_type != VREG)
 		return (EIO);
@@ -409,7 +409,7 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 		on = uio->uio_offset & (biosize - 1);
 		n = MIN((unsigned)(biosize - on), uio->uio_resid);
 
-		DEBUG2G("lbn %ju, on %d, n %d, uio offset %ju, uio resid %zd\n",
+		FS_DEBUG2G("lbn %ju, on %d, n %d, uio offset %ju, uio resid %zd\n",
 			(uintmax_t)lbn, on, n, 
 			(uintmax_t)uio->uio_offset, uio->uio_resid);
 
@@ -426,7 +426,7 @@ again:
 	                 * readers from reading garbage.
 	                 */
 			bcount = on;
-			DEBUG("getting block from OS, bcount %d\n", bcount);
+			FS_DEBUG("getting block from OS, bcount %d\n", bcount);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 
 			if (bp != NULL) {
@@ -456,7 +456,7 @@ again:
 					bcount = fvdat->filesize - 
 					  (off_t)lbn *biosize;
 			}
-			DEBUG("getting block from OS, bcount %d\n", bcount);
+			FS_DEBUG("getting block from OS, bcount %d\n", bcount);
 			bp = getblk(vp, lbn, bcount, PCATCH, 0, 0);
 			if (bp && uio->uio_offset + n > fvdat->filesize) {
 				err = fuse_vnode_setsize(vp, cred, 
@@ -518,7 +518,7 @@ again:
 	         */
 
 		if (bp->b_dirtyend > bcount) {
-			DEBUG("FUSE append race @%lx:%d\n",
+			FS_DEBUG("FUSE append race @%lx:%d\n",
 			    (long)bp->b_blkno * biosize,
 			    bp->b_dirtyend - bcount);
 			bp->b_dirtyend = bcount;
@@ -614,7 +614,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 	MPASS(vp->v_type == VREG);
 	MPASS(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE);
-	DEBUG("inode=%ju offset=%jd resid=%ld\n",
+	FS_DEBUG("inode=%ju offset=%jd resid=%ld\n",
 	    (uintmax_t)VTOI(vp), (intmax_t)(((off_t)bp->b_blkno) * biosize),
 	    bp->b_bcount);
 
@@ -688,7 +688,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	         * If we only need to commit, try to commit
 	         */
 		if (bp->b_flags & B_NEEDCOMMIT) {
-			DEBUG("write: B_NEEDCOMMIT flags set\n");
+			FS_DEBUG("write: B_NEEDCOMMIT flags set\n");
 		}
 		/*
 	         * Setup for actual write

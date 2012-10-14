@@ -285,11 +285,11 @@ fuse_vfsop_mount(struct mount *mp)
 	}
 	subtype = vfs_getopts(opts, "subtype=", &err);
 
-	DEBUG2G("mntopts 0x%jx\n", (uintmax_t)mntopts);
+	FS_DEBUG2G("mntopts 0x%jx\n", (uintmax_t)mntopts);
 
 	err = fget(td, fd, CAP_READ, &fp);
 	if (err != 0) {
-		DEBUG("invalid or not opened device: data=%p\n", data);
+		FS_DEBUG("invalid or not opened device: data=%p\n", data);
 		goto out;
 	}
 	fptmp = td->td_fpop;
@@ -299,14 +299,14 @@ fuse_vfsop_mount(struct mount *mp)
 	fdrop(fp, td);
 	FUSE_LOCK();
 	if (err != 0 || data == NULL || data->mp != NULL) {
-		DEBUG("invalid or not opened device: data=%p data.mp=%p\n",
+		FS_DEBUG("invalid or not opened device: data=%p data.mp=%p\n",
 		    data, data != NULL ? data->mp : NULL);
 		err = ENXIO;
 		FUSE_UNLOCK();
 		goto out;
 	}
 	if (fdata_get_dead(data)) {
-		DEBUG("device is dead during mount: data=%p\n", data);
+		FS_DEBUG("device is dead during mount: data=%p\n", data);
 		err = ENOTCONN;
 		FUSE_UNLOCK();
 		goto out;
@@ -346,7 +346,7 @@ fuse_vfsop_mount(struct mount *mp)
 	}
 	copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &len);
 	bzero(mp->mnt_stat.f_mntfromname + len, MNAMELEN - len);
-	DEBUG2G("mp %p: %s\n", mp, mp->mnt_stat.f_mntfromname);
+	FS_DEBUG2G("mp %p: %s\n", mp, mp->mnt_stat.f_mntfromname);
 
 	/* Now handshaking with daemon */
 	fuse_internal_send_init(data, td);
@@ -359,7 +359,7 @@ out:
 			 * Destroy device only if we acquired reference to
 			 * it
 			 */
-			DEBUG("mount failed, destroy device: data=%p mp=%p"
+			FS_DEBUG("mount failed, destroy device: data=%p mp=%p"
 			      " err=%d\n",
 			    data, mp, err);
 			data->mp = NULL;
@@ -450,12 +450,12 @@ fuse_vfsop_root(struct mount *mp, int lkflags, struct vnode **vpp)
 			FUSE_LOCK();
 			MPASS(data->vroot == NULL || data->vroot == *vpp);
 			if (data->vroot == NULL) {
-				DEBUG("new root vnode\n");
+				FS_DEBUG("new root vnode\n");
 				data->vroot = *vpp;
 				FUSE_UNLOCK();
 				vref(*vpp);
 			} else if (data->vroot != *vpp) {
-				DEBUG("root vnode race\n");
+				FS_DEBUG("root vnode race\n");
 				FUSE_UNLOCK();
 				VOP_UNLOCK(*vpp, 0);
 				vrele(*vpp);
@@ -477,7 +477,7 @@ fuse_vfsop_statfs(struct mount *mp, struct statfs *sbp)
 	struct fuse_statfs_out *fsfo;
 	struct fuse_data *data;
 
-	DEBUG2G("mp %p: %s\n", mp, mp->mnt_stat.f_mntfromname);
+	FS_DEBUG2G("mp %p: %s\n", mp, mp->mnt_stat.f_mntfromname);
 	data = fuse_get_mpdata(mp);
 
 	if (!(data->dataflags & FSESS_INITED))
@@ -508,7 +508,7 @@ fuse_vfsop_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_namemax = fsfo->st.namelen;
 	sbp->f_bsize = fsfo->st.frsize;	/* cast from uint32_t to uint64_t */
 
-	DEBUG("fuse_statfs_out -- blocks: %llu, bfree: %llu, bavail: %llu, "
+	FS_DEBUG("fuse_statfs_out -- blocks: %llu, bfree: %llu, bavail: %llu, "
 	      "fil	es: %llu, ffree: %llu, bsize: %i, namelen: %i\n",
 	      (unsigned long long)fsfo->st.blocks, 
 	      (unsigned long long)fsfo->st.bfree,

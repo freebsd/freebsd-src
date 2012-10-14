@@ -219,7 +219,7 @@ fuse_vnop_access(struct vop_access_args *ap)
 
 	int err;
 
-	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		if (vnode_isvroot(vp)) {
@@ -242,7 +242,7 @@ fuse_vnop_access(struct vop_access_args *ap)
 	bzero(&facp, sizeof(facp));
 
 	err = fuse_internal_access(vp, accmode, &facp, ap->a_td, ap->a_cred);
-	DEBUG2G("err=%d accmode=0x%x\n", err, accmode);
+	FS_DEBUG2G("err=%d accmode=0x%x\n", err, accmode);
 	return err;
 }
 
@@ -478,7 +478,7 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 	int dataflags;
 	struct fuse_dispatcher fdi;
 
-	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	dataflags = fuse_get_mpdata(vnode_mount(vp))->dataflags;
 
@@ -567,7 +567,7 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 
 	int type, need_flush = 1;
 
-	DEBUG("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
 		fufh = &(fvdat->fufh[type]);
@@ -678,7 +678,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	uint64_t nid;
 	struct fuse_access_param facp;
 
-	DEBUG2G("parent_inode=%ju - %*s\n",
+	FS_DEBUG2G("parent_inode=%ju - %*s\n",
 	    (uintmax_t)VTOI(dvp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(dvp)) {
@@ -808,7 +808,7 @@ calldaemon:
 	         */
 #if 0
 		if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE) {
-			DEBUG("inserting NULL into cache\n");
+			FS_DEBUG("inserting NULL into cache\n");
 			cache_enter(dvp, NULL, cnp);
 		}
 #endif
@@ -1058,7 +1058,7 @@ out:
 				}
 				if (err) {
 					if (tmpvtype == VLNK)
-						DEBUG("weird, permission error with a symlink?\n");
+						FS_DEBUG("weird, permission error with a symlink?\n");
 					vput(*vpp);
 					*vpp = NULL;
 				}
@@ -1145,7 +1145,7 @@ fuse_vnop_open(struct vop_open_args *ap)
 
 	int error, isdir = 0;
 
-	DEBUG2G("inode=%ju mode=0x%x\n", (uintmax_t)VTOI(vp), mode);
+	FS_DEBUG2G("inode=%ju mode=0x%x\n", (uintmax_t)VTOI(vp), mode);
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1186,7 +1186,7 @@ fuse_vnop_read(struct vop_read_args *ap)
 	int ioflag = ap->a_ioflag;
 	struct ucred *cred = ap->a_cred;
 
-	DEBUG2G("inode=%ju offset=%jd resid=%zd\n",
+	FS_DEBUG2G("inode=%ju offset=%jd resid=%zd\n",
 	    (uintmax_t)VTOI(vp), uio->uio_offset, uio->uio_resid);
 
 	if (fuse_isdeadfs(vp)) {
@@ -1219,7 +1219,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	int err = 0;
 	int freefufh = 0;
 
-	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1231,7 +1231,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	fvdat = VTOFUD(vp);
 
 	if (!fuse_filehandle_valid(vp, FUFH_RDONLY)) {
-		DEBUG("calling readdir() before open()");
+		FS_DEBUG("calling readdir() before open()");
 		err = fuse_filehandle_open(vp, FUFH_RDONLY, &fufh, NULL, cred);
 		freefufh = 1;
 	} else {
@@ -1269,7 +1269,7 @@ fuse_vnop_readlink(struct vop_readlink_args *ap)
 	struct fuse_dispatcher fdi;
 	int err;
 
-	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1316,7 +1316,7 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 	if (!fvdat) {
 		panic("FUSE: no vnode data during recycling");
 	}
-	DEBUG("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	for (type = 0; type < FUFH_MAXTYPE; type++) {
 		fufh = &(fvdat->fufh[type]);
@@ -1356,7 +1356,7 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 
 	int err;
 
-	DEBUG2G("inode=%ju name=%*s\n",
+	FS_DEBUG2G("inode=%ju name=%*s\n",
 	    (uintmax_t)VTOI(vp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(vp)) {
@@ -1399,7 +1399,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 
 	int err = 0;
 
-	DEBUG2G("from: inode=%ju name=%*s -> to: inode=%ju name=%*s\n",
+	FS_DEBUG2G("from: inode=%ju name=%*s -> to: inode=%ju name=%*s\n",
 	    (uintmax_t)VTOI(fvp), (int)fcnp->cn_namelen, fcnp->cn_nameptr,
 	    (uintmax_t)(tvp == NULL ? -1 : VTOI(tvp)),
 	    (int)tcnp->cn_namelen, tcnp->cn_nameptr);
@@ -1409,7 +1409,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	}
 	if (fvp->v_mount != tdvp->v_mount ||
 	    (tvp && fvp->v_mount != tvp->v_mount)) {
-		DEBUG("cross-device rename: %s -> %s\n",
+		FS_DEBUG("cross-device rename: %s -> %s\n",
 		    fcnp->cn_nameptr, (tcnp != NULL ? tcnp->cn_nameptr : "(NULL)"));
 		err = EXDEV;
 		goto out;
@@ -1474,7 +1474,7 @@ fuse_vnop_rmdir(struct vop_rmdir_args *ap)
 
 	int err;
 
-	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1516,7 +1516,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	int sizechanged = 0;
 	uint64_t newsize = 0;
 
-	DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
+	FS_DEBUG2G("inode=%ju\n", (uintmax_t)VTOI(vp));
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -1693,7 +1693,7 @@ fuse_vnop_symlink(struct vop_symlink_args *ap)
 	int err;
 	size_t len;
 
-	DEBUG2G("inode=%ju name=%*s\n",
+	FS_DEBUG2G("inode=%ju name=%*s\n",
 	    (uintmax_t)VTOI(dvp), (int)cnp->cn_namelen, cnp->cn_nameptr);
 
 	if (fuse_isdeadfs(dvp)) {
@@ -1772,7 +1772,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	struct ucred *cred;
 	vm_page_t *pages;
 
-	DEBUG2G("heh\n");
+	FS_DEBUG2G("heh\n");
 
 	vp = ap->a_vp;
 	KASSERT(vp->v_object, ("objectless vp passed to getpages"));
@@ -1782,7 +1782,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	count = ap->a_count;
 
 	if (!fsess_opt_mmap(vnode_mount(vp))) {
-		DEBUG("called on non-cacheable vnode??\n");
+		FS_DEBUG("called on non-cacheable vnode??\n");
 		return (VM_PAGER_ERROR);
 	}
 	npages = btoc(count);
@@ -1837,7 +1837,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	relpbuf(bp, &fuse_pbuf_freecnt);
 
 	if (error && (uio.uio_resid == count)) {
-		DEBUG("error %d\n", error);
+		FS_DEBUG("error %d\n", error);
 		VM_OBJECT_LOCK(vp->v_object);
 		fuse_vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
@@ -1951,7 +1951,7 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 	vm_page_t *pages;
 	vm_ooffset_t fsize;
 
-	DEBUG2G("heh\n");
+	FS_DEBUG2G("heh\n");
 
 	vp = ap->a_vp;
 	KASSERT(vp->v_object, ("objectless vp passed to putpages"));
@@ -1965,7 +1965,7 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 	offset = IDX_TO_OFF(pages[0]->pindex);
 
 	if (!fsess_opt_mmap(vnode_mount(vp))) {
-		DEBUG("called on non-cacheable vnode??\n");
+		FS_DEBUG("called on non-cacheable vnode??\n");
 	}
 	for (i = 0; i < npages; i++)
 		rtvals[i] = VM_PAGER_AGAIN;

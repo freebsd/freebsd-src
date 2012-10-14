@@ -180,7 +180,7 @@ fuse_vnode_alloc(struct mount *mp,
 	struct vnode *vp2;
 	int err = 0;
 
-	DEBUG("been asked for vno #%ju\n", (uintmax_t)nodeid);
+	FS_DEBUG("been asked for vno #%ju\n", (uintmax_t)nodeid);
 
 	if (vtyp == VNON) {
 		return EINVAL;
@@ -193,7 +193,7 @@ fuse_vnode_alloc(struct mount *mp,
 
 	if (*vpp) {
 		MPASS((*vpp)->v_type == vtyp && (*vpp)->v_data != NULL);
-		DEBUG("vnode taken from hash\n");
+		FS_DEBUG("vnode taken from hash\n");
 		return (0);
 	}
 	fvdat = malloc(sizeof(*fvdat), M_FUSEVN, M_WAITOK | M_ZERO);
@@ -302,7 +302,7 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
 	struct fuse_setattr_in *fsai;
 	int err = 0;
 
-	DEBUG("inode=%ju size=%ju\n", (uintmax_t)VTOI(vp),
+	FS_DEBUG("inode=%ju size=%ju\n", (uintmax_t)VTOI(vp),
 	    (uintmax_t)fvdat->filesize);
 	ASSERT_VOP_ELOCKED(vp, "fuse_io_extend");
 
@@ -355,7 +355,7 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 		return;
 
 	VOP_GETATTR(vp, &va, cred);
-	DEBUG("refreshed file size: %jd\n", (intmax_t)VTOFUD(vp)->filesize);
+	FS_DEBUG("refreshed file size: %jd\n", (intmax_t)VTOFUD(vp)->filesize);
 }
 
 int
@@ -365,7 +365,7 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 	off_t oldsize;
 	int err = 0;
 
-	DEBUG("inode=%ju oldsize=%ju newsize=%ju\n",
+	FS_DEBUG("inode=%ju oldsize=%ju newsize=%ju\n",
 	    (uintmax_t)VTOI(vp), (uintmax_t)fvdat->filesize,
 	    (uintmax_t)newsize);
 	ASSERT_VOP_ELOCKED(vp, "fuse_vnode_setsize");
