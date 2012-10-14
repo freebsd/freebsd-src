@@ -57,6 +57,7 @@ extern struct mount nfsv4root_mnt;
 extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern void (*nfsd_call_servertimer)(void);
 extern SVCPOOL	*nfsrvd_pool;
+extern struct nfsv4lock nfsd_suspend_lock;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct mtx nfs_cache_mutex;
@@ -3095,8 +3096,9 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct nfsd_dumplocks *dumplocks;
 	struct nameidata nd;
 	vnode_t vp;
-	int error = EINVAL;
+	int error = EINVAL, igotlock;
 	struct proc *procp;
+	static int suspend_nfsd = 0;
 
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
@@ -3175,6 +3177,26 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		nfsd_master_start = procp->p_stats->p_start;
 		nfsd_master_proc = procp;
 		PROC_UNLOCK(procp);
+	} else if ((uap->flag & NFSSVC_SUSPENDNFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd == 0) {
+			/* Lock out all nfsd threads */
+			do {
+				igotlock = nfsv4_lock(&nfsd_suspend_lock, 1,
+				    NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
+			} while (igotlock == 0 && suspend_nfsd == 0);
+			suspend_nfsd = 1;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
+	} else if ((uap->flag & NFSSVC_RESUMENFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd != 0) {
+			nfsv4_unlock(&nfsd_suspend_lock, 0);
+			suspend_nfsd = 0;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
 	}
 
 	NFSEXITCODE(error);
