@@ -76,6 +76,16 @@ variable menu_timeout         \ determined configurable delay duration
 variable menu_timeout_x       \ column position of timeout message
 variable menu_timeout_y       \ row position of timeout message
 
+\ Menu initialization status variables
+variable init_state1
+variable init_state2
+variable init_state3
+variable init_state4
+variable init_state5
+variable init_state6
+variable init_state7
+variable init_state8
+
 \ Boolean option status variables
 variable toggle_state1
 variable toggle_state2
@@ -421,6 +431,16 @@ create init_text8 255 allot
 	then
 	24 over 2 / - 9 at-xy type 
 
+	\ If $menu_init is set, evaluate it (allowing for whole menus to be
+	\ constructed dynamically -- as this function could conceivably set
+	\ the remaining environment variables to construct the menu entirely).
+	\ 
+	s" menu_init" getenv dup -1 <> if
+		evaluate
+	else
+		drop
+	then
+
 	\ Print our menu options with respective key/variable associations.
 	\ `printmenuitem' ends by adding the decimal ASCII value for the
 	\ numerical prefix to the stack. We store the value left on the stack
@@ -499,6 +519,24 @@ create init_text8 255 allot
 		dup menuacpi @ = if
 			acpimenuitem ( -- C-Addr/U | -1 )
 		else
+			\ make sure we have not already initialized this item
+			s" init_stateN"
+			-rot 2dup 10 + c! rot \ repace 'N'
+			evaluate dup @ 0= if
+				1 swap !
+
+				\ If this menuitem has an initializer, run it
+				s" menu_init[x]"
+				-rot 2dup 10 + c! rot \ replace 'x'
+				getenv dup -1 <> if
+					evaluate
+				else
+					drop
+				then
+			else
+				drop
+			then
+
 			loader_color? if
 				s" ansi_caption[x]"
 			else
@@ -917,6 +955,10 @@ create init_text8 255 allot
 		-rot 2dup 13 + c! rot	\ replace 'x'
 		unsetenv
 
+		s" menu_init[x]"	\ initializer basename
+		-rot 2dup 10 + c! rot	\ replace 'x'
+		unsetenv
+
 		s" menu_keycode[x]"	\ keycode basename
 		-rot 2dup 13 + c! rot	\ replace 'x'
 		unsetenv
@@ -959,6 +1001,10 @@ create init_text8 255 allot
 		-rot 2dup 9 + c! rot	\ replace 'N' with current iteration
 		evaluate		\ assign zero (0) to key assoc. var
 
+		s" 0 init_stateN !"	\ used by menu-create
+		-rot 2dup 12 + c! rot	\ replace 'N'
+		evaluate
+
 		1+ dup 56 >	\ increment, continue if less than 57
 	until
 	drop \ iterator
@@ -979,6 +1025,8 @@ create init_text8 255 allot
 	s" menu_optionstext" unsetenv
 	0 menuoptions !
 
+	\ clear the menu initializer
+	s" menu_init" unsetenv
 ;
 
 \ This function both unsets menu variables and visually erases the menu area
@@ -993,6 +1041,16 @@ create init_text8 255 allot
 bullet menubllt !
 10 menuY !
 5 menuX !
+
+\ Initialize our menu initialization state variables
+0 init_state1 !
+0 init_state2 !
+0 init_state3 !
+0 init_state4 !
+0 init_state5 !
+0 init_state6 !
+0 init_state7 !
+0 init_state8 !
 
 \ Initialize our boolean state variables
 0 toggle_state1 !

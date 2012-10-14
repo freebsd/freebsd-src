@@ -26,6 +26,9 @@
 
 marker task-menu-commands.4th
 
+variable kernel_state
+variable root_state
+
 : acpi_enable ( -- )
 	s" set acpi_load=YES" evaluate \ XXX deprecated but harmless
 	s" set hint.acpi.0.disabled=0" evaluate
@@ -51,6 +54,13 @@ marker task-menu-commands.4th
 	menu-redraw
 
 	TRUE \ loop menu again
+;
+
+: init_safemode ( N -- N )
+	s" kern.smp.disabled" getenv -1 <> if
+		drop ( n c-addr -- n ) \ unused
+		toggle_menuitem ( n -- n )
+	then
 ;
 
 : toggle_safemode ( N -- N TRUE )
@@ -84,6 +94,13 @@ marker task-menu-commands.4th
 	TRUE \ loop menu again
 ;
 
+: init_singleuser ( N -- N )
+	s" boot_single" getenv -1 <> if
+		drop ( n c-addr -- n ) \ unused
+		toggle_menuitem ( n -- n )
+	then
+;
+
 : toggle_singleuser ( N -- N TRUE )
 	toggle_menuitem
 	menu-redraw
@@ -100,6 +117,13 @@ marker task-menu-commands.4th
 	then
 
 	TRUE \ loop menu again
+;
+
+: init_verbose ( N -- N )
+	s" boot_verbose" getenv -1 <> if
+		drop ( n c-addr -- n ) \ unused
+		toggle_menuitem ( n -- n )
+	then
 ;
 
 : toggle_verbose ( N -- N TRUE )
@@ -132,6 +156,27 @@ marker task-menu-commands.4th
 	FALSE \ exit the menu
 ;
 
+: init_cyclestate ( N K -- N )
+	over                   ( n k -- n k n )
+	s" cycle_stateN"       ( n k n -- n k n c-addr u )
+	-rot tuck 11 + c! swap ( n k n c-addr u -- n k c-addr u )
+	evaluate               ( n k c-addr u -- n k addr )
+	begin
+		tuck @  ( n k addr -- n addr k c )
+		over <> ( n addr k c -- n addr k 0|-1 )
+	while
+		rot ( n addr k -- addr k n )
+		cycle_menuitem
+		swap rot ( addr k n -- n k addr )
+	repeat
+	2drop ( n k addr -- n )
+;
+
+: init_kernel ( N -- N )
+	kernel_state @  ( n -- n k )
+	init_cyclestate ( n k -- n )
+;
+
 : cycle_kernel ( N -- N TRUE )
 	cycle_menuitem
 	menu-redraw
@@ -142,6 +187,7 @@ marker task-menu-commands.4th
 	-rot 2dup 11 + c! rot    \ replace 'N' with ASCII numeral
 	evaluate                 \ translate name into address
 	@                        \ dereference address into value
+	dup kernel_state !       \ save a copy for re-initialization
 	48 +                     \ convert to ASCII numeral
 
 	s" set kernel=${kernel_prefix}${kernel[N]}${kernel_suffix}"
@@ -150,6 +196,11 @@ marker task-menu-commands.4th
 	evaluate                  \ sets $kernel to full kernel-path
 
 	TRUE \ loop menu again
+;
+
+: init_root ( N -- N )
+	root_state @    ( n -- n k )
+	init_cyclestate ( n k -- n )
 ;
 
 : cycle_root ( N -- N TRUE )
@@ -162,6 +213,7 @@ marker task-menu-commands.4th
 	-rot 2dup 11 + c! rot    \ replace 'N' with ASCII numeral
 	evaluate                 \ translate name into address
 	@                        \ dereference address into value
+	dup root_state !         \ save a copy for re-initialization
 	48 +                     \ convert to ASCII numeral
 
 	s" set root=${root_prefix}${root[N]}${root_suffix}"
