@@ -804,9 +804,9 @@ cpsw_intr_rx_locked(void *arg)
 		bus_dmamap_sync(sc->mbuf_dtag, sc->rx_dmamap[i], BUS_DMASYNC_POSTREAD);
 
 		/* Fill mbuf */
-		sc->rx_mbuf[i]->m_hdr.mh_data +=2;
-		sc->rx_mbuf[i]->m_len = bd.pktlen-2;
-		sc->rx_mbuf[i]->m_pkthdr.len = bd.pktlen-2;
+		sc->rx_mbuf[i]->m_hdr.mh_data += bd.bufoff;
+		sc->rx_mbuf[i]->m_hdr.mh_len = bd.pktlen - 4;
+		sc->rx_mbuf[i]->m_pkthdr.len = bd.pktlen - 4;
 		sc->rx_mbuf[i]->m_flags |= M_PKTHDR;
 		sc->rx_mbuf[i]->m_pkthdr.rcvif = ifp;
 
