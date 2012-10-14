@@ -3970,6 +3970,7 @@ product SUNPLUS USBMOUSE	0x0007	USB Optical Mouse
 
 /* Super Top products */
 product	SUPERTOP IDE		0x6600	USB-IDE
+product	SUPERTOP FLASHDRIVE	0x121c	extrememory Snippy
 
 /* Syntech products */
 product SYNTECH CPT8001C	0x0001	CPT-8001C Barcode scanner
