@@ -797,6 +797,8 @@ rx_next:
 	return (is_good);
 }
 
+#define	ATH_RX_MAX		128
+
 static void
 ath_rx_proc(struct ath_softc *sc, int resched)
 {
@@ -832,6 +834,15 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	sc->sc_stats.ast_rx_noise = nf;
 	tsf = ath_hal_gettsf64(ah);
 	do {
+		/*
+		 * Don't process too many packets at a time; give the
+		 * TX thread time to also run - otherwise the TX
+		 * latency can jump by quite a bit, causing throughput
+		 * degredation.
+		 */
+		if (npkts >= ATH_RX_MAX)
+			break;
+
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
 			if_printf(ifp, "%s: no buffer!\n", __func__);
@@ -942,10 +953,21 @@ rx_proc_next:
 	}
 #undef PA2DESC
 
+	/*
+	 * If we hit the maximum number of frames in this round,
+	 * reschedule for another immediate pass.  This gives
+	 * the TX and TX completion routines time to run, which
+	 * will reduce latency.
+	 */
+	if (npkts >= ATH_RX_MAX)
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 }
+
+#undef	ATH_RX_MAX
 
 /*
  * Only run the RX proc if it's not already running.
