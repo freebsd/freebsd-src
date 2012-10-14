@@ -2947,7 +2947,7 @@ ath_tx_tid_filt_addbuf(struct ath_softc *sc, struct ath_tid *tid,
 	ath_tx_set_retry(sc, bf);
 	sc->sc_stats.ast_tx_swfiltered++;
 
-	ATH_TID_INSERT_TAIL(&tid->filtq, bf, bf_list);
+	ATH_TID_FILT_INSERT_TAIL(tid, bf, bf_list);
 }
 
 /*
@@ -2996,8 +2996,8 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 	tid->clrdmask = 1;
 
 	/* XXX this is really quite inefficient */
-	while ((bf = ATH_TID_LAST(&tid->filtq, ath_bufhead_s)) != NULL) {
-		ATH_TID_REMOVE(&tid->filtq, bf, bf_list);
+	while ((bf = ATH_TID_FILT_LAST(tid, ath_bufhead_s)) != NULL) {
+		ATH_TID_FILT_REMOVE(tid, bf, bf_list);
 		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 	}
 
@@ -3408,7 +3408,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 	/* And now, drain the filtered frame queue */
 	t = 0;
 	for (;;) {
-		bf = ATH_TID_FIRST(&tid->filtq);
+		bf = ATH_TID_FILT_FIRST(tid);
 		if (bf == NULL)
 			break;
 
@@ -3417,7 +3417,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 			t = 1;
 		}
 
-		ATH_TID_REMOVE(&tid->filtq, bf, bf_list);
+		ATH_TID_FILT_REMOVE(tid, bf, bf_list);
 		ath_tx_tid_drain_pkt(sc, an, tid, bf_cq, bf);
 	}
 
@@ -3667,8 +3667,8 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	 * we run off and discard/process things.
 	 */
 	/* XXX this is really quite inefficient */
-	while ((bf = ATH_TID_LAST(&atid->filtq, ath_bufhead_s)) != NULL) {
-		ATH_TID_REMOVE(&atid->filtq, bf, bf_list);
+	while ((bf = ATH_TID_FILT_LAST(atid, ath_bufhead_s)) != NULL) {
+		ATH_TID_FILT_REMOVE(atid, bf, bf_list);
 		ATH_TID_INSERT_HEAD(atid, bf, bf_list);
 	}
 
