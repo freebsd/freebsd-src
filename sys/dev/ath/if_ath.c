@@ -142,6 +142,7 @@ static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
+static void	ath_start_queue(struct ifnet *ifp);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
 static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
@@ -420,6 +421,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
 	TASK_INIT(&sc->sc_fataltask,0, ath_fatal_proc, sc);
+	TASK_INIT(&sc->sc_txsndtask, 0, ath_start_task, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -531,7 +533,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-	ifp->if_start = ath_start;
+	ifp->if_start = ath_start_queue;
 	ifp->if_ioctl = ath_ioctl;
 	ifp->if_init = ath_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
@@ -2246,7 +2248,7 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * XXX should this be done by the caller, rather than
 	 * ath_reset() ?
 	 */
-	ath_start(ifp);			/* restart xmit */
+	ath_tx_kick(sc);		/* restart xmit */
 	return 0;
 }
 
@@ -2428,17 +2430,19 @@ ath_getbuf(struct ath_softc *sc, ath_buf_type_t btype)
 	return bf;
 }
 
-void
-ath_start(struct ifnet *ifp)
+static void
+ath_start_queue(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni;
-	struct ath_buf *bf;
-	struct mbuf *m, *next;
-	ath_bufhead frags;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
-		return;
+	ath_tx_kick(sc);
+}
+
+void
+ath_start_task(void *arg, int npending)
+{
+	struct ath_softc *sc = (struct ath_softc *) arg;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	/* XXX is it ok to hold the ATH_LOCK here? */
 	ATH_PCU_LOCK(sc);
@@ -2454,6 +2458,25 @@ ath_start(struct ifnet *ifp)
 	}
 	sc->sc_txstart_cnt++;
 	ATH_PCU_UNLOCK(sc);
+
+	ath_start(sc->sc_ifp);
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txstart_cnt--;
+	ATH_PCU_UNLOCK(sc);
+}
+
+void
+ath_start(struct ifnet *ifp)
+{
+	struct ath_softc *sc = ifp->if_softc;
+	struct ieee80211_node *ni;
+	struct ath_buf *bf;
+	struct mbuf *m, *next;
+	ath_bufhead frags;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
+		return;
 
 	for (;;) {
 		ATH_TXBUF_LOCK(sc);
@@ -2549,10 +2572,6 @@ ath_start(struct ifnet *ifp)
 
 		sc->sc_wd_timer = 5;
 	}
-
-	ATH_PCU_LOCK(sc);
-	sc->sc_txstart_cnt--;
-	ATH_PCU_UNLOCK(sc);
 }
 
 static int

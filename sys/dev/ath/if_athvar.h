@@ -632,6 +632,7 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+	struct task		sc_txsndtask;	/* tx send processing */
 
 	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
 	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
