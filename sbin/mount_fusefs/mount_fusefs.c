@@ -107,7 +107,6 @@ int
 main(int argc, char *argv[])
 {
 	struct iovec *iov;
-	char ch = '\0';
 	int mntflags, iovlen, verbose = 0;
 	char *dev = NULL, *dir = NULL, mntpath[MAXPATHLEN];
 	char *devo = NULL, *diro = NULL;
@@ -115,6 +114,7 @@ main(int argc, char *argv[])
 	int i, done = 0, reject_allow_other = 0, safe_level = 0;
 	int altflags = DEFAULT_MOUNT_FLAGS;
 	int __altflags = DEFAULT_MOUNT_FLAGS;
+	int ch = 0;
 	struct mntopt *mo;
 	struct mntval *mv;
 	static struct option longopts[] = {
