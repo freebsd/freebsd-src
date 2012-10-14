@@ -374,7 +374,7 @@ struct ath_txq {
 #define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
 
 /*
- * These are for the TID software queue and filtered frames queues.
+ * These are for the TID software queue.
  */
 #define ATH_TID_INSERT_HEAD(_tq, _elm, _field) do { \
 	TAILQ_INSERT_HEAD(&(_tq)->tid_q, (_elm), _field); \
@@ -390,6 +390,24 @@ struct ath_txq {
 } while (0)
 #define	ATH_TID_FIRST(_tq)		TAILQ_FIRST(&(_tq)->tid_q)
 #define	ATH_TID_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->tid_q, _field)
+
+/*
+ * These are for the TID filtered frame queue
+ */
+#define ATH_TID_FILT_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->filtq.tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+} while (0)
+#define ATH_TID_FILT_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->filtq.tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+} while (0)
+#define ATH_TID_FILT_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->filtq.tid_q, _elm, _field); \
+	(_tq)->axq_depth--; \
+} while (0)
+#define	ATH_TID_FILT_FIRST(_tq)		TAILQ_FIRST(&(_tq)->filtq.tid_q)
+#define	ATH_TID_FILT_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->filtq.tid_q,_field)
 
 struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
