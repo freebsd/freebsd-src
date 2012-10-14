@@ -93,7 +93,7 @@ static void cpsw_init(void *arg);
 static void cpsw_init_locked(void *arg);
 static void cpsw_start(struct ifnet *ifp);
 static void cpsw_start_locked(struct ifnet *ifp);
-static void cpsw_stop(struct cpsw_softc *sc);
+static void cpsw_stop_locked(struct cpsw_softc *sc);
 static int cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static int cpsw_allocate_dma(struct cpsw_softc *sc);
 static int cpsw_free_dma(struct cpsw_softc *sc);
@@ -397,7 +397,7 @@ cpsw_shutdown(device_t dev)
 
 	CPSW_GLOBAL_LOCK(sc);
 
-	cpsw_stop(sc);
+	cpsw_stop_locked(sc);
 
 	CPSW_GLOBAL_UNLOCK(sc);
 
@@ -656,9 +656,11 @@ cpsw_start_locked(struct ifnet *ifp)
 }
 
 static void
-cpsw_stop(struct cpsw_softc *sc)
+cpsw_stop_locked(struct cpsw_softc *sc)
 {
 	struct ifnet *ifp;
+
+	CPSW_GLOBAL_LOCK_ASSERT(sc)
 
 	ifp = sc->ifp;
 
@@ -708,7 +710,7 @@ cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			cpsw_stop(sc);
+			cpsw_stop_locked(sc);
 
 		sc->cpsw_if_flags = ifp->if_flags;
 		CPSW_GLOBAL_UNLOCK(sc);
@@ -948,7 +950,7 @@ cpsw_watchdog(struct cpsw_softc *sc)
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
-	cpsw_stop(sc);
+	cpsw_stop_locked(sc);
 	cpsw_init_locked(sc);
 
 	CPSW_GLOBAL_UNLOCK(sc);
