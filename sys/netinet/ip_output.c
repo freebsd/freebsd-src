@@ -1313,6 +1313,9 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 	if (copym != NULL && (copym->m_flags & M_EXT || copym->m_len < hlen))
 		copym = m_pullup(copym, hlen);
 	if (copym != NULL) {
+		ip = mtod(copym, struct ip *);
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 		/* If needed, compute the checksum and mark it as valid. */
 		if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			in_delayed_cksum(copym);
@@ -1325,9 +1328,6 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 		 * We don't bother to fragment if the IP length is greater
 		 * than the interface's MTU.  Can this possibly matter?
 		 */
-		ip = mtod(copym, struct ip *);
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		ip->ip_sum = in_cksum(copym, hlen);
 #if 1 /* XXX */
