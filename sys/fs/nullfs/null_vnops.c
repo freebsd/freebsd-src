@@ -665,9 +665,9 @@ null_unlock(struct vop_unlock_args *ap)
 }
 
 /*
- * Do not allow the VOP_INACTIVE to be bypassed to the lower layer,
- * since the reference count on the lower vnode is not related with
- * our.
+ * Do not allow the VOP_INACTIVE to be passed to the lower layer,
+ * since the reference count on the lower vnode is not related to
+ * ours.
  */
 static int
 null_inactive(struct vop_inactive_args *ap __unused)
