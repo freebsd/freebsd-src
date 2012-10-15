@@ -349,6 +349,7 @@ static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int read_card_mem(struct adapter *, struct t4_mem_range *);
+static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct port_info *, int);
 #endif
@@ -526,10 +527,6 @@ t4_attach(device_t dev)
 		t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(0) | V_HPZ1(2) |
 		    V_HPZ2(4) | V_HPZ3(6));
 		t4_set_reg_field(sc, A_ULP_RX_CTL, F_TDDPTAGTCB, F_TDDPTAGTCB);
-		t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
-		    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 | F_TUNNELCNGDROP3,
-		    F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
-		    F_TUNNELCNGDROP3);
 		t4_set_reg_field(sc, A_TP_PARA_REG5,
 		    V_INDICATESIZE(M_INDICATESIZE) |
 		    F_REARMDDPOFFSET | F_RESETDDPOFFSET,
@@ -2995,7 +2992,7 @@ cxgbe_vlan_config(void *arg, struct ifnet *ifp, uint16_t vid)
 {
 	struct ifnet *vlan;
 
-	if (arg != ifp)
+	if (arg != ifp || ifp->if_type != IFT_ETHER)
 		return;
 
 	vlan = VLAN_DEVAT(ifp, vid);
@@ -5170,6 +5167,27 @@ proceed:
 	return (rc);
 }
 
+static int
+read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
+{
+	int rc;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for mbox */
+
+	if (i2cd->len == 0 || i2cd->port_id >= sc->params.nports)
+		return (EINVAL);
+
+	if (i2cd->len > 1) {
+		/* XXX: need fw support for longer reads in one go */
+		return (ENOTSUP);
+	}
+
+	rc = -t4_i2c_rd(sc, sc->mbox, i2cd->port_id, i2cd->dev_addr,
+	    i2cd->offset, &i2cd->data[0]);
+
+	return (rc);
+}
+
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
@@ -5373,6 +5391,20 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	case CHELSIO_T4_GET_MEM:
 		rc = read_card_mem(sc, (struct t4_mem_range *)data);
 		break;
+	case CHELSIO_T4_GET_I2C:
+		ADAPTER_LOCK(sc);
+		rc = read_i2c(sc, (struct t4_i2c_data *)data);
+		ADAPTER_UNLOCK(sc);
+		break;
+	case CHELSIO_T4_CLEAR_STATS: {
+		u_int port_id = *(uint32_t *)data;
+
+		if (port_id >= sc->params.nports)
+			return (EINVAL);
+
+		t4_clr_port_stats(sc, port_id);
+		break;
+	}
 	default:
 		rc = EINVAL;
 	}

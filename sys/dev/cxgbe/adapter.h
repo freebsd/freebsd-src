@@ -282,7 +282,6 @@ struct sge_iq {
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
 	bus_addr_t ba;		/* bus address of descriptor ring */
-	char lockname[16];
 	uint32_t flags;
 	uint16_t abs_id;	/* absolute SGE id for the iq */
 	int8_t   intr_pktc_idx;	/* packet count threshold index */
