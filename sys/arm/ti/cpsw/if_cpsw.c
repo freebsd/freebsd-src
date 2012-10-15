@@ -522,11 +522,6 @@ cpsw_new_rxbuf(struct cpsw_softc *sc, uint32_t i, uint32_t next)
 	int error;
 	int nsegs;
 
-	if (sc->rx_mbuf[i]) {
-		bus_dmamap_sync(sc->mbuf_dtag, sc->rx_dmamap[i], BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->mbuf_dtag, sc->rx_dmamap[i]);
-	}
-
 	sc->rx_mbuf[i] = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (sc->rx_mbuf[i] == NULL)
 		return (ENOBUFS);
@@ -593,6 +588,7 @@ cpsw_encap(struct cpsw_softc *sc, struct mbuf *m0)
 
 	/* Write descriptor */
 	cpsw_cpdma_write_txbd(idx, &bd);
+	sc->tx_mbuf[idx] = m0;
 
 	/* Previous descriptor should point to us */
 	cpsw_cpdma_write_txbd_next(((idx-1<0)?(CPSW_MAX_TX_BUFFERS-1):(idx-1)),
@@ -821,9 +817,15 @@ cpsw_intr_rx_locked(void *arg)
 			}
 		}
 
+		bus_dmamap_sync(sc->mbuf_dtag,
+		    sc->rx_dmamap[i],
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->mbuf_dtag, sc->rx_dmamap[i]);
+
 		/* Handover packet */
 		CPSW_RX_UNLOCK(sc);
 		(*ifp->if_input)(ifp, sc->rx_mbuf[i]);
+		sc->rx_mbuf[i] = NULL;
 		CPSW_RX_LOCK(sc);
 
 		/* Allocate new buffer for current descriptor */
@@ -890,6 +892,7 @@ cpsw_intr_tx_locked(void *arg)
 	    BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->mbuf_dtag, sc->tx_dmamap[sc->txbd_head]);
 	m_freem(sc->tx_mbuf[sc->txbd_head]);
+	sc->tx_mbuf[sc->txbd_head] = NULL;
 
 	cpsw_write_4(CPSW_CPDMA_TX_CP(0), cpsw_cpdma_txbd_paddr(sc->txbd_head));
 
