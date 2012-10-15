@@ -98,6 +98,7 @@ main(argc, argv)
 	char	*argv[];
 {
 	cron_db	database;
+	int runnum;
 
 	ProgramName = argv[0];
 
@@ -149,21 +150,24 @@ main(argc, argv)
 	load_database(&database);
 	run_reboot_jobs(&database);
 	cron_sync();
+	runnum = 0;
 	while (TRUE) {
 # if DEBUGGING
 	    /* if (!(DebugFlags & DTEST)) */
 # endif /*DEBUGGING*/
 			cron_sleep(&database);
 
-		load_database(&database);
+		if (runnum % 60 == 0)
+			load_database(&database);
 
 		/* do this iteration
 		 */
 		cron_tick(&database);
 
-		/* sleep 1 minute
+		/* sleep 1 second
 		 */
-		TargetTime += 60;
+		TargetTime += 1;
+		runnum += 1;
 	}
 }
 
@@ -194,22 +198,23 @@ cron_tick(db)
 	static time_t	diff = 0, /* time difference in seconds from the last offset change */
 		difflimit = 0; /* end point for the time zone correction */
 	struct tm	otztm; /* time in the old time zone */
-	int		otzminute, otzhour, otzdom, otzmonth, otzdow;
+	int		otzsecond, otzminute, otzhour, otzdom, otzmonth, otzdow;
  	register struct tm	*tm = localtime(&TargetTime);
-	register int		minute, hour, dom, month, dow;
+	register int		second, minute, hour, dom, month, dow;
 	register user		*u;
 	register entry		*e;
 
 	/* make 0-based values out of these so we can use them as indicies
 	 */
+	second = tm->tm_sec -FIRST_SECOND;
 	minute = tm->tm_min -FIRST_MINUTE;
 	hour = tm->tm_hour -FIRST_HOUR;
 	dom = tm->tm_mday -FIRST_DOM;
 	month = tm->tm_mon +1 /* 0..11 -> 1..12 */ -FIRST_MONTH;
 	dow = tm->tm_wday -FIRST_DOW;
 
-	Debug(DSCH, ("[%d] tick(%d,%d,%d,%d,%d)\n",
-		getpid(), minute, hour, dom, month, dow))
+	Debug(DSCH, ("[%d] tick(%d,%d,%d,%d,%d,%d)\n",
+		getpid(), second, minute, hour, dom, month, dow))
 
 	if (dst_enabled && last_time != 0 
 	&& TargetTime > last_time /* exclude stepping back */
@@ -262,6 +267,7 @@ cron_tick(db)
 
 			/* make 0-based values out of these so we can use them as indicies
 			 */
+			otzsecond = otztm.tm_sec -FIRST_SECOND;
 			otzminute = otztm.tm_min -FIRST_MINUTE;
 			otzhour = otztm.tm_hour -FIRST_HOUR;
 			otzdom = otztm.tm_mday -FIRST_DOM;
@@ -283,7 +289,8 @@ cron_tick(db)
 					  e->uid, e->gid, e->cmd))
 
 			if ( diff != 0 && (e->flags & (RUN_AT|NOT_UNTIL)) ) {
-				if (bit_test(e->minute, otzminute)
+				if (bit_test(e->second, otzsecond)
+				 && bit_test(e->minute, otzminute)
 				 && bit_test(e->hour, otzhour)
 				 && bit_test(e->month, otzmonth)
 				 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
@@ -302,7 +309,8 @@ cron_tick(db)
 					continue;
 			}
 
-			if (bit_test(e->minute, minute)
+			if (bit_test(e->second, second)
+			 && bit_test(e->minute, minute)
 			 && bit_test(e->hour, hour)
 			 && bit_test(e->month, month)
 			 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
