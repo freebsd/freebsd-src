@@ -387,6 +387,15 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * USB DISK Pro PMAP
+		 * Reported by: jhs
+		 * PR: usb/96381
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, " ", "USB DISK Pro", "PMAP"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Motorola E398 Mobile Phone (TransFlash memory card).
 		 * Reported by: Wojciech A. Koszek <dunstan@FreeBSD.czest.pl>
 		 * PR: usb/89889
