@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20121015: remove incomplete unwind.h
+OLD_FILES+=usr/include/clang/3.1/unwind.h
 # 20120713: auth.conf removed
 OLD_FILES+=etc/auth.conf
 OLD_FILES+=usr/share/examples/etc/auth.conf
