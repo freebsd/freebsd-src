@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2011
+.Dd October 14, 2012
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2delnor
+.Op Fl 2delnorS
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -131,6 +131,19 @@ flag.
 Specify an alternate location
 for the exports file.
 More than one exports file can be specified.
+.It Fl S
+Tell mountd to suspend/resume execution of the nfsd threads whenever
+the exports list is being reloaded.
+This avoids intermittent access
+errors for clients that do NFS RPCs while the exports are being
+reloaded, but introduces a delay in RPC response while the reload
+is in progress.
+If
+.Nm
+crashes while an exports load is in progress,
+.Nm
+must be restarted to get the nfsd threads running again, if this
+option is used.
 .El
 .Pp
 When
