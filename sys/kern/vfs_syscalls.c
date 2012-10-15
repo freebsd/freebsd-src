@@ -3433,10 +3433,10 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 {
 	struct mount *mp;
 	struct vnode *vp;
+	void *rl_cookie;
 	struct vattr vattr;
-	int error;
 	struct nameidata nd;
-	int vfslocked;
+	int error, vfslocked;
 
 	if (length < 0)
 		return(EINVAL);
@@ -3445,7 +3445,9 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
+	rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
+		vn_rangelock_unlock(vp, rl_cookie);
 		vrele(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
@@ -3464,8 +3466,10 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 		vattr.va_size = length;
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
 	}
-	vput(vp);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
+	vn_rangelock_unlock(vp, rl_cookie);
+	vrele(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
