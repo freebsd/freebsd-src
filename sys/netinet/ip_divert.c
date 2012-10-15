@@ -402,8 +402,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				INP_RUNLOCK(inp);
 				goto cantsend;
 			}
-
-			ip6->ip6_plen = ntohs(ip6->ip6_plen);
 			break;
 		    }
 #endif
