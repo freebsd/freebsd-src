@@ -297,6 +297,7 @@ struct aha_ccb {
 	uint32_t		 flags;
 	union ccb		*ccb;
 	bus_dmamap_t		 dmamap;
+	struct callout		 timer;
 	aha_sg_t		*sg_list;
 	uint32_t		 sg_list_phys;
 };
@@ -309,8 +310,6 @@ struct sg_map_node {
 };
 	
 struct aha_softc {
-	bus_space_tag_t		 tag;
-	bus_space_handle_t	 bsh;
 	struct	cam_sim		*sim;
 	struct	cam_path	*path;
 	aha_mbox_out_t		*cur_outbox;
@@ -368,11 +367,12 @@ struct aha_softc {
 	struct resource		*irq;
 	struct resource		*port;
 	struct resource		*drq;
-	int			irqrid;
-	int			portrid;
-	int			drqrid;
+	int			 irqrid;
+	int			 portrid;
+	int			 drqrid;
 	void			**ih;
 	device_t		 dev;
+	struct mtx		 lock;
 };
 
 void aha_alloc(struct aha_softc *, int, bus_space_tag_t, bus_space_handle_t);
@@ -390,10 +390,10 @@ int aha_probe(struct aha_softc *);
 #define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
 
 #define aha_inb(aha, port)				\
-	bus_space_read_1((aha)->tag, (aha)->bsh, port)
+	bus_read_1((aha)->port, port)
 
 #define aha_outb(aha, port, value)			\
-	bus_space_write_1((aha)->tag, (aha)->bsh, port, value)
+	bus_write_1((aha)->port, port, value)
 
 #define ADP0100_PNP		0x00019004	/* ADP0100 */
 #define AHA1540_PNP		0x40159004	/* ADP1540 */
