@@ -84,7 +84,7 @@ src.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
 	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/src.txz --exclude .svn \
-	    --exclude CVS --exclude @ usr/src
+	    --exclude CVS --exclude @ --exclude usr/src/release/dist usr/src
 
 ports.txz:
 	mkdir -p ${DISTDIR}/usr
