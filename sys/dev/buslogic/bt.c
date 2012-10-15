@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
   */
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/systm.h> 
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -140,6 +141,7 @@ static void		btallocccbs(struct bt_softc *bt);
 static bus_dmamap_callback_t btexecuteccb;
 static void		btdone(struct bt_softc *bt, struct bt_ccb *bccb,
 			       bt_mbi_comp_code_t comp_code);
+static void		bt_intr_locked(struct bt_softc *bt);
 
 /* Host adapter command functions */
 static int	btreset(struct bt_softc* bt, int hard_reset);
@@ -161,9 +163,7 @@ static void	btaction(struct cam_sim *sim, union ccb *ccb);
 static void	btpoll(struct cam_sim *sim);
 
 /* Our timeout handler */
-timeout_t bttimeout;
-
-u_long bt_unit = 0;
+static void	bttimeout(void *arg);
 
 /*
  * XXX
@@ -206,12 +206,10 @@ bt_init_softc(device_t dev, struct resource *port,
 	LIST_INIT(&bt->pending_ccbs);
 	SLIST_INIT(&bt->sg_maps);
 	bt->dev = dev;
-	bt->unit = device_get_unit(dev);
 	bt->port = port;
 	bt->irq = irq;
 	bt->drq = drq;
-	bt->tag = rman_get_bustag(port);
-	bt->bsh = rman_get_bushandle(port);
+	mtx_init(&bt->lock, "bt", NULL, MTX_DEF);
 }
 
 void
@@ -270,6 +268,7 @@ bt_free_softc(device_t dev)
 	case 0:
 		break;
 	}
+	mtx_destroy(&bt->lock);
 }
 
 int
@@ -287,9 +286,11 @@ bt_port_probe(device_t dev, struct bt_probe_info *info)
 	 * Determine our IRQ, and DMA settings and
 	 * export them to the configuration system.
 	 */
+	mtx_lock(&bt->lock);
 	error = bt_cmd(bt, BOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
 		       (u_int8_t*)&config_data, sizeof(config_data),
 		       DEFAULT_CMD_TIMEOUT);
+	mtx_unlock(&bt->lock);
 	if (error != 0) {
 		printf("bt_port_probe: Could not determine IRQ or DMA "
 		       "settings for adapter.\n");
@@ -381,7 +382,9 @@ bt_probe(device_t dev)
 	 * adapter and attempt to fetch the extended setup
 	 * information.  This should filter out all 1542 cards.
 	 */
+	mtx_lock(&bt->lock);
 	if ((error = btreset(bt, /*hard_reset*/TRUE)) != 0) {
+		mtx_unlock(&bt->lock);
 		if (bootverbose)
 			device_printf(dev, "Failed Reset\n");
 		return (ENXIO);
@@ -391,6 +394,7 @@ bt_probe(device_t dev)
 	error = bt_cmd(bt, BOP_INQUIRE_ESETUP_INFO, &param, /*parmlen*/1,
 		       (u_int8_t*)&esetup_info, sizeof(esetup_info),
 		       DEFAULT_CMD_TIMEOUT);
+	mtx_unlock(&bt->lock);
 	if (error != 0) {
 		return (ENXIO);
 	}
@@ -412,10 +416,12 @@ bt_fetch_adapter_info(device_t dev)
 	u_int8_t length_param;
 
 	/* First record the firmware version */
+	mtx_lock(&bt->lock);
 	error = bt_cmd(bt, BOP_INQUIRE_BOARD_ID, NULL, /*parmlen*/0,
 		       (u_int8_t*)&board_id, sizeof(board_id),
 		       DEFAULT_CMD_TIMEOUT);
 	if (error != 0) {
+		mtx_unlock(&bt->lock);
 		device_printf(dev, "bt_fetch_adapter_info - Failed Get Board Info\n");
 		return (error);
 	}
@@ -434,6 +440,7 @@ bt_fetch_adapter_info(device_t dev)
 			       (u_int8_t*)&bt->firmware_ver[3], 1,
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
+			mtx_unlock(&bt->lock);
 			device_printf(dev,
 				      "bt_fetch_adapter_info - Failed Get "
 				      "Firmware 3rd Digit\n");
@@ -450,6 +457,7 @@ bt_fetch_adapter_info(device_t dev)
 			       (u_int8_t*)&bt->firmware_ver[4], 1,
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
+			mtx_unlock(&bt->lock);
 			device_printf(dev,
 				      "bt_fetch_adapter_info - Failed Get "
 				      "Firmware 4th Digit\n");
@@ -483,6 +491,7 @@ bt_fetch_adapter_info(device_t dev)
 		       (u_int8_t*)&esetup_info, sizeof(esetup_info),
 		       DEFAULT_CMD_TIMEOUT);
 	if (error != 0) {
+		mtx_unlock(&bt->lock);
 		return (error);
 	}
 	
@@ -514,6 +523,7 @@ bt_fetch_adapter_info(device_t dev)
 			       (u_int8_t*)&model_data, sizeof(model_data),
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
+			mtx_unlock(&bt->lock);
 			device_printf(dev,
 				      "bt_fetch_adapter_info - Failed Inquire "
 				      "Model Number\n");
@@ -600,6 +610,7 @@ bt_fetch_adapter_info(device_t dev)
 			       sizeof(auto_scsi_data), DEFAULT_CMD_TIMEOUT);
 
 		if (error != 0) {
+			mtx_unlock(&bt->lock);
 			device_printf(dev,
 				      "bt_fetch_adapter_info - Failed "
 				      "Get Auto SCSI Info\n");
@@ -635,6 +646,7 @@ bt_fetch_adapter_info(device_t dev)
 			       sizeof(setup_info), DEFAULT_CMD_TIMEOUT);
 
 		if (error != 0) {
+			mtx_unlock(&bt->lock);
 			device_printf(dev,
 				      "bt_fetch_adapter_info - Failed "
 				      "Get Setup Info\n");
@@ -662,6 +674,7 @@ bt_fetch_adapter_info(device_t dev)
 	error = bt_cmd(bt, BOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
 		       (u_int8_t*)&config_data, sizeof(config_data),
 		       DEFAULT_CMD_TIMEOUT);
+	mtx_unlock(&bt->lock);
 	if (error != 0) {
 		device_printf(dev,
 			      "bt_fetch_adapter_info - Failed Get Config\n");
@@ -720,7 +733,7 @@ bt_init(device_t dev)
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
 				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockarg	*/ &bt->lock,
 				&bt->buffer_dmat) != 0) {
 		goto error_exit;
 	}
@@ -740,8 +753,8 @@ bt_init(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&bt->mailbox_dmat) != 0) {
 		goto error_exit;
         }
@@ -767,7 +780,9 @@ bt_init(device_t dev)
 
 	bt->in_boxes = (bt_mbox_in_t *)&bt->out_boxes[bt->num_boxes];
 
+	mtx_lock(&bt->lock);
 	btinitmboxes(bt);
+	mtx_unlock(&bt->lock);
 
 	/* DMA tag for our ccb structures */
 	if (bus_dma_tag_create(	/* parent	*/ bt->parent_dmat,
@@ -782,8 +797,8 @@ bt_init(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&bt->ccb_dmat) != 0) {
 		goto error_exit;
         }
@@ -818,8 +833,8 @@ bt_init(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&bt->sg_dmat) != 0) {
 		goto error_exit;
         }
@@ -837,7 +852,7 @@ bt_init(device_t dev)
 	}
 
 	/*
-	 * Note that we are going and return (to probe)
+	 * Note that we are going and return (to attach)
 	 */
 	return 0;
 
@@ -873,15 +888,17 @@ bt_attach(device_t dev)
 	/*
 	 * Construct our SIM entry
 	 */
-	bt->sim = cam_sim_alloc(btaction, btpoll, "bt", bt, bt->unit,
-				&Giant, 2, tagged_dev_openings, devq);
+	bt->sim = cam_sim_alloc(btaction, btpoll, "bt", bt,
+	    device_get_unit(bt->dev), &bt->lock, 2, tagged_dev_openings, devq);
 	if (bt->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);
 	}
-	
+
+	mtx_lock(&bt->lock);
 	if (xpt_bus_register(bt->sim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(bt->sim, /*free_devq*/TRUE);
+		mtx_unlock(&bt->lock);
 		return (ENXIO);
 	}
 	
@@ -890,14 +907,16 @@ bt_attach(device_t dev)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(bt->sim));
 		cam_sim_free(bt->sim, /*free_devq*/TRUE);
+		mtx_unlock(&bt->lock);
 		return (ENXIO);
 	}
+	mtx_unlock(&bt->lock);
 		
 	/*
 	 * Setup interrupt.
 	 */
-	error = bus_setup_intr(dev, bt->irq, INTR_TYPE_CAM|INTR_ENTROPY, NULL,
-			       bt_intr, bt, &bt->ih);
+	error = bus_setup_intr(dev, bt->irq, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, bt_intr, bt, &bt->ih);
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed: %d\n", error);
 		return (error);
@@ -1024,6 +1043,7 @@ btallocccbs(struct bt_softc *bt)
 		next_ccb->sg_list = segs;
 		next_ccb->sg_list_phys = physaddr;
 		next_ccb->flags = BCCB_FREE;
+		callout_init_mtx(&next_ccb->timer, &bt->lock, 0);
 		error = bus_dmamap_create(bt->buffer_dmat, /*flags*/0,
 					  &next_ccb->dmamap);
 		if (error != 0)
@@ -1051,9 +1071,9 @@ error_exit:
 static __inline void
 btfreeccb(struct bt_softc *bt, struct bt_ccb *bccb)
 {
-	int s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&bt->lock, MA_OWNED);
 	if ((bccb->flags & BCCB_ACTIVE) != 0)
 		LIST_REMOVE(&bccb->ccb->ccb_h, sim_links.le);
 	if (bt->resource_shortage != 0
@@ -1064,16 +1084,15 @@ btfreeccb(struct bt_softc *bt, struct bt_ccb *bccb)
 	bccb->flags = BCCB_FREE;
 	SLIST_INSERT_HEAD(&bt->free_bt_ccbs, bccb, links);
 	bt->active_ccbs--;
-	splx(s);
 }
 
 static __inline struct bt_ccb*
 btgetccb(struct bt_softc *bt)
 {
 	struct	bt_ccb* bccb;
-	int	s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&bt->lock, MA_OWNED);
 	if ((bccb = SLIST_FIRST(&bt->free_bt_ccbs)) != NULL) {
 		SLIST_REMOVE_HEAD(&bt->free_bt_ccbs, links);
 		bt->active_ccbs++;
@@ -1085,7 +1104,6 @@ btgetccb(struct bt_softc *bt)
 			bt->active_ccbs++;
 		}
 	}
-	splx(s);
 
 	return (bccb);
 }
@@ -1098,6 +1116,7 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("btaction\n"));
 	
 	bt = (struct bt_softc *)cam_sim_softc(sim);
+	mtx_assert(&bt->lock, MA_OWNED);
 	
 	switch (ccb->ccb_h.func_code) {
 	/* Common cases first */
@@ -1111,11 +1130,8 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 		 * get a bccb to use.
 		 */
 		if ((bccb = btgetccb(bt)) == NULL) {
-			int s;
 
-			s = splcam();
 			bt->resource_shortage = TRUE;
-			splx(s);
 			xpt_freeze_simq(bt->sim, /*count*/1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
@@ -1197,10 +1213,8 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 					 * to a single buffer.
 					 */
 					if ((ccbh->flags & CAM_DATA_PHYS)==0) {
-						int s;
 						int error;
 
-						s = splsoftvm();
 						error = bus_dmamap_load(
 						    bt->buffer_dmat,
 						    bccb->dmamap,
@@ -1222,7 +1236,6 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 							csio->ccb_h.status |=
 							    CAM_RELEASE_SIMQ;
 						}
-						splx(s);
 					} else {
 						struct bus_dma_segment seg; 
 
@@ -1426,7 +1439,6 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct	 bt_ccb *bccb;
 	union	 ccb *ccb;
 	struct	 bt_softc *bt;
-	int	 s;
 
 	bccb = (struct bt_ccb *)arg;
 	ccb = bccb->ccb;
@@ -1484,8 +1496,6 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		bccb->hccb.data_addr = 0;
 	}
 
-	s = splcam();
-
 	/*
 	 * Last time we need to check if this CCB needs to
 	 * be aborted.
@@ -1495,7 +1505,6 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			bus_dmamap_unload(bt->buffer_dmat, bccb->dmamap);
 		btfreeccb(bt, bccb);
 		xpt_done(ccb);
-		splx(s);
 		return;
 	}
 		
@@ -1503,9 +1512,8 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&bt->pending_ccbs, &ccb->ccb_h, sim_links.le);
 
-	ccb->ccb_h.timeout_ch =
-	    timeout(bttimeout, (caddr_t)bccb,
-		    (ccb->ccb_h.timeout * hz) / 1000);
+	callout_reset(&bccb->timer, (ccb->ccb_h.timeout * hz) / 1000,
+	    bttimeout, bccb);
 
 	/* Tell the adapter about this command */
 	bt->cur_outbox->ccb_addr = btccbvtop(bt, bccb);
@@ -1521,7 +1529,7 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			      "Encountered busy mailbox with %d out of %d "
 			      "commands active!!!\n", bt->active_ccbs,
 			      bt->max_ccbs);
-		untimeout(bttimeout, bccb, ccb->ccb_h.timeout_ch);
+		callout_stop(&bccb->timer);
 		if (nseg != 0)
 			bus_dmamap_unload(bt->buffer_dmat, bccb->dmamap);
 		btfreeccb(bt, bccb);
@@ -1534,16 +1542,24 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bt->cur_outbox->action_code = BMBO_START;	
 	bt_outb(bt, COMMAND_REG, BOP_START_MBOX);
 	btnextoutbox(bt);
-	splx(s);
 }
 
 void
 bt_intr(void *arg)
 {
 	struct	bt_softc *bt;
+
+	bt = arg;
+	mtx_lock(&bt->lock);
+	bt_intr_locked(bt);
+	mtx_unlock(&bt->lock);
+}
+
+void
+bt_intr_locked(struct bt_softc *bt)
+{
 	u_int	intstat;
 
-	bt = (struct bt_softc *)arg;
 	while (((intstat = bt_inb(bt, INTSTAT_REG)) & INTR_PENDING) != 0) {
 
 		if ((intstat & CMD_COMPLETE) != 0) {
@@ -1629,9 +1645,9 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 				btdone(bt, pending_bccb, BMBI_ERROR);
 			} else {
-				ccb_h->timeout_ch =
-				    timeout(bttimeout, (caddr_t)pending_bccb,
-					    (ccb_h->timeout * hz) / 1000);
+				callout_reset(&pending_bccb->timer,
+				    (ccb_h->timeout * hz) / 1000,
+				    bttimeout, pending_bccb);
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 			}
 		}
@@ -1639,7 +1655,7 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 		return;
 	}
 
-	untimeout(bttimeout, bccb, ccb->ccb_h.timeout_ch);
+	callout_stop(&bccb->timer);
 
 	switch (comp_code) {
 	case BMBI_FREE:
@@ -1822,8 +1838,9 @@ btreset(struct bt_softc* bt, int hard_reset)
 	}
 	if (timeout == 0) {
 		if (bootverbose)
-			printf("%s: btreset - Diagnostic Active failed to "
-				"assert. status = 0x%x\n", bt_name(bt), status);
+			device_printf(bt->dev,
+			    "btreset - Diagnostic Active failed to "
+			    "assert. status = 0x%x\n", status);
 		return (ETIMEDOUT);
 	}
 
@@ -1850,20 +1867,22 @@ btreset(struct bt_softc* bt, int hard_reset)
 		DELAY(100);
 	}
 	if (timeout == 0) {
-		printf("%s: btreset - Host adapter failed to come ready. "
-		       "status = 0x%x\n", bt_name(bt), status);
+		device_printf(bt->dev,
+		    "btreset - Host adapter failed to come ready. "
+		    "status = 0x%x\n", status);
 		return (ETIMEDOUT);
 	}
 
 	/* If the diagnostics failed, tell the user */
 	if ((status & DIAG_FAIL) != 0
 	 || (status & HA_READY) == 0) {
-		printf("%s: btreset - Adapter failed diagnostics\n",
-		       bt_name(bt));
+		device_printf(bt->dev,
+		    "btreset - Adapter failed diagnostics\n");
 
 		if ((status & DATAIN_REG_READY) != 0)
-			printf("%s: btreset - Host Adapter Error code = 0x%x\n",
-			       bt_name(bt), bt_inb(bt, DATAIN_REG));
+			device_printf(bt->dev,
+			    "btreset - Host Adapter Error code = 0x%x\n",
+			    bt_inb(bt, DATAIN_REG));
 		return (ENXIO);
 	}
 
@@ -1901,7 +1920,6 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	u_int	saved_status;
 	u_int	intstat;
 	u_int	reply_buf_size;
-	int	s;
 	int	cmd_complete;
 	int	error;
 
@@ -1934,8 +1952,9 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		DELAY(100);
 	}
 	if (timeout == 0) {
-		printf("%s: bt_cmd: Timeout waiting for adapter ready, "
-		       "status = 0x%x\n", bt_name(bt), status);
+		device_printf(bt->dev,
+		    "bt_cmd: Timeout waiting for adapter ready, "
+		    "status = 0x%x\n", status);
 		return (ETIMEDOUT);
 	}
 
@@ -1951,10 +1970,8 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	timeout = 10000;
 	while (param_len && --timeout) {
 		DELAY(100);
-		s = splcam();
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
-		splx(s);
 	
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
 		 == (INTR_PENDING|CMD_COMPLETE)) {
@@ -1976,8 +1993,8 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		}
 	}
 	if (timeout == 0) {
-		printf("%s: bt_cmd: Timeout sending parameters, "
-		       "status = 0x%x\n", bt_name(bt), status);
+		device_printf(bt->dev, "bt_cmd: Timeout sending parameters, "
+		    "status = 0x%x\n", status);
 		cmd_complete = 1;
 		saved_status = status;
 		error = ETIMEDOUT;
@@ -1988,7 +2005,6 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	 */
 	while (cmd_complete == 0 && --cmd_timeout) {
 
-		s = splcam();
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
 		/*
@@ -2000,8 +2016,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		 */
 		if ((intstat & (INTR_PENDING|IMB_LOADED))
 		 == (INTR_PENDING|IMB_LOADED))
-			bt_intr(bt);
-		splx(s);
+			bt_intr_locked(bt);
 
 		if (bt->command_cmp != 0) {
  			/*
@@ -2035,9 +2050,9 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 			if (reply_len < reply_buf_size) {
 				*reply_data++ = data;
 			} else {
-				printf("%s: bt_cmd - Discarded reply data byte "
-				       "for opcode 0x%x\n", bt_name(bt),
-				       opcode);
+				device_printf(bt->dev,
+				    "bt_cmd - Discarded reply data byte "
+				    "for opcode 0x%x\n", opcode);
 			}
 			/*
 			 * Reset timeout to ensure at least a second
@@ -2054,20 +2069,18 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		DELAY(100);
 	}
 	if (cmd_timeout == 0) {
-		printf("%s: bt_cmd: Timeout waiting for command (%x) "
-		       "to complete.\n%s: status = 0x%x, intstat = 0x%x, "
-		       "rlen %d\n", bt_name(bt), opcode,
-		       bt_name(bt), status, intstat, reply_len);
+		device_printf(bt->dev,
+		    "bt_cmd: Timeout waiting for command (%x) "
+		    "to complete.\n", opcode);
+		device_printf(bt->dev, "status = 0x%x, intstat = 0x%x, "
+		    "rlen %d\n", status, intstat, reply_len);
 		error = (ETIMEDOUT);
 	}
 
 	/*
-	 * Clear any pending interrupts.  Block interrupts so our
-	 * interrupt handler is not re-entered.
+	 * Clear any pending interrupts.
 	 */
-	s = splcam();
-	bt_intr(bt);
-	splx(s);
+	bt_intr_locked(bt);
 	
 	if (error != 0)
 		return (error);
@@ -2083,7 +2096,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		 * reset above), perform a soft reset.
       		 */
 		if (bootverbose)
-			printf("%s: Invalid Command 0x%x\n", bt_name(bt), 
+			device_printf(bt->dev, "Invalid Command 0x%x\n",
 				opcode);
 		DELAY(1000);
 		status = bt_inb(bt, STATUS_REG);
@@ -2151,8 +2164,8 @@ btinitmboxes(struct bt_softc *bt) {
 			printf("btinitmboxes: Unable to enable strict RR\n");
 			error = 0;
 		} else if (bootverbose) {
-			printf("%s: Using Strict Round Robin Mailbox Mode\n",
-			       bt_name(bt));
+			device_printf(bt->dev,
+			    "Using Strict Round Robin Mailbox Mode\n");
 		}
 	}
 	
@@ -2199,8 +2212,9 @@ btfetchtransinfo(struct bt_softc *bt, struct ccb_trans_settings *cts)
 		       DEFAULT_CMD_TIMEOUT);
 
 	if (error != 0) {
-		printf("%s: btfetchtransinfo - Inquire Setup Info Failed %x\n",
-		       bt_name(bt), error);
+		device_printf(bt->dev,
+		    "btfetchtransinfo - Inquire Setup Info Failed %x\n",
+		    error);
 		return;
 	}
 
@@ -2254,8 +2268,9 @@ btfetchtransinfo(struct bt_softc *bt, struct ccb_trans_settings *cts)
 			       DEFAULT_CMD_TIMEOUT);
 		
 		if (error != 0) {
-			printf("%s: btfetchtransinfo - Inquire Sync "
-			       "Info Failed 0x%x\n", bt_name(bt), error);
+			device_printf(bt->dev,
+			    "btfetchtransinfo - Inquire Sync "
+			    "Info Failed 0x%x\n", error);
 			return;
 		}
 		sync_period = sync_info.sync_rate[target] * 100;
@@ -2316,7 +2331,7 @@ btmapsgs(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 btpoll(struct cam_sim *sim)
 {
-	bt_intr(cam_sim_softc(sim));
+	bt_intr_locked(cam_sim_softc(sim));
 }
 
 void
@@ -2325,21 +2340,18 @@ bttimeout(void *arg)
 	struct bt_ccb	*bccb;
 	union  ccb	*ccb;
 	struct bt_softc *bt;
-	int		 s;
 
 	bccb = (struct bt_ccb *)arg;
 	ccb = bccb->ccb;
 	bt = (struct bt_softc *)ccb->ccb_h.ccb_bt_ptr;
+	mtx_assert(&bt->lock, MA_OWNED);
 	xpt_print_path(ccb->ccb_h.path);
 	printf("CCB %p - timed out\n", (void *)bccb);
-
-	s = splcam();
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("CCB %p - timed out CCB already completed\n",
 		       (void *)bccb);
-		splx(s);
 		return;
 	}
 
@@ -2366,7 +2378,7 @@ bttimeout(void *arg)
 			struct bt_ccb *pending_bccb;
 
 			pending_bccb = (struct bt_ccb *)ccb_h->ccb_bccb_ptr;
-			untimeout(bttimeout, pending_bccb, ccb_h->timeout_ch);
+			callout_stop(&pending_bccb->timer);
 			ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 		}
 	}
@@ -2389,7 +2401,7 @@ bttimeout(void *arg)
 		 */
 		ccb->ccb_h.status = CAM_CMD_TIMEOUT;
 		btreset(bt, /*hardreset*/TRUE);
-		printf("%s: No longer in timeout\n", bt_name(bt));
+		device_printf(bt->dev, "No longer in timeout\n");
 	} else {
 		/*    
 		 * Send a Bus Device Reset message:
@@ -2403,8 +2415,7 @@ bttimeout(void *arg)
 		 * later which will attempt a bus reset.
 		 */
 		bccb->flags |= BCCB_DEVICE_RESET;
-		ccb->ccb_h.timeout_ch =
-		    timeout(bttimeout, (caddr_t)bccb, 2 * hz);
+		callout_reset(&bccb->timer, 2 * hz, bttimeout, bccb);
 
 		bt->recovery_bccb->hccb.opcode = INITIATOR_BUS_DEV_RESET;
 
@@ -2421,8 +2432,6 @@ bttimeout(void *arg)
 		bt_outb(bt, COMMAND_REG, BOP_START_MBOX);
 		btnextoutbox(bt);
 	}
-
-	splx(s);
 }
 
 MODULE_VERSION(bt, 1);
