@@ -102,6 +102,7 @@ arswitch_probe(device_t dev)
 	if (ar7240_probe(dev) == 0) {
 		chipname = "AR7240";
 		sc->sc_switchtype = AR8X16_SWITCH_AR7240;
+		id = 0;
 		goto done;
 	}
 
