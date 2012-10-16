@@ -31,7 +31,6 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/fs/ntfs/*.[ch] \
 	${SYS}/fs/nullfs/*.[ch] \
 	${SYS}/fs/nwfs/*.[ch] \
-	${SYS}/fs/portalfs/*.[ch] \
 	${SYS}/fs/procfs/*.[ch] \
 	${SYS}/fs/smbfs/*.[ch] \
 	${SYS}/fs/udf/*.[ch] \
@@ -92,7 +91,6 @@ COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/fs/fifofs \
 	${SYS}/fs/msdosfs \
 	${SYS}/fs/nullfs \
-	${SYS}/fs/portalfs \
 	${SYS}/fs/procfs \
 	${SYS}/fs/specfs \
 	${SYS}/fs/unionfs \

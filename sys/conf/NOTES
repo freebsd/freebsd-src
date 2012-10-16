@@ -988,10 +988,7 @@ options 	ZERO_COPY_SOCKETS
 # time.  Some people still prefer to statically compile other
 # filesystems as well.
 #
-# NB: The PORTAL filesystem is known to be buggy, and WILL panic your
-# system if you attempt to do anything with it.  It is included here
-# as an incentive for some enterprising soul to sit down and fix it.
-# The UNION filesystem was known to be buggy in the past.  It is now
+# NB: The UNION filesystem was known to be buggy in the past.  It is now
 # being actively maintained, although there are still some issues being
 # resolved.
 #
@@ -1019,7 +1016,6 @@ options 	NTFS
 options 	NULLFS			#NULL filesystem
 # Broken (depends on NCP):
 #options 	NWFS			#NetWare filesystem
-options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	PSEUDOFS_TRACE		#Debugging support for PSEUDOFS
