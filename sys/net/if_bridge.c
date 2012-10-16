@@ -481,7 +481,8 @@ const int bridge_control_table_size =
 
 LIST_HEAD(, bridge_softc) bridge_list;
 
-IFC_SIMPLE_DECLARE(bridge, 0);
+static struct if_clone *bridge_cloner;
+static const char bridge_name[] = "bridge";
 
 static int
 bridge_modevent(module_t mod, int type, void *data)
@@ -490,7 +491,8 @@ bridge_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&bridge_list_mtx, "if_bridge list", NULL, MTX_DEF);
-		if_clone_attach(&bridge_cloner);
+		bridge_cloner = if_clone_simple(bridge_name,
+		    bridge_clone_create, bridge_clone_destroy, 0);
 		bridge_rtnode_zone = uma_zcreate("bridge_rtnode",
 		    sizeof(struct bridge_rtnode), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
@@ -506,7 +508,7 @@ bridge_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
 		    bridge_detach_cookie);
-		if_clone_detach(&bridge_cloner);
+		if_clone_detach(bridge_cloner);
 		uma_zdestroy(bridge_rtnode_zone);
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
@@ -595,7 +597,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	LIST_INIT(&sc->sc_spanlist);
 
 	ifp->if_softc = sc;
-	if_initname(ifp, ifc->ifc_name, unit);
+	if_initname(ifp, bridge_name, unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bridge_ioctl;
 	ifp->if_transmit = bridge_transmit;

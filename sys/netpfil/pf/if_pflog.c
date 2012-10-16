@@ -88,8 +88,9 @@ static int	pflogioctl(struct ifnet *, u_long, caddr_t);
 static void	pflogstart(struct ifnet *);
 static int	pflog_clone_create(struct if_clone *, int, caddr_t);
 static void	pflog_clone_destroy(struct ifnet *);
+static struct if_clone *pflog_cloner;
 
-IFC_SIMPLE_DECLARE(pflog, 1);
+static const char pflogname[] = "pflog";
 
 struct ifnet	*pflogifs[PFLOGIFS_MAX];	/* for fast access */
 
@@ -99,7 +100,8 @@ pflogattach(int npflog)
 	int	i;
 	for (i = 0; i < PFLOGIFS_MAX; i++)
 		pflogifs[i] = NULL;
-	if_clone_attach(&pflog_cloner);
+	pflog_cloner = if_clone_simple(pflogname, pflog_clone_create,
+	    pflog_clone_destroy, 1);
 }
 
 static int
@@ -114,7 +116,7 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	if (ifp == NULL) {
 		return (ENOSPC);
 	}
-	if_initname(ifp, ifc->ifc_name, unit);
+	if_initname(ifp, pflogname, unit);
 	ifp->if_mtu = PFLOGMTU;
 	ifp->if_ioctl = pflogioctl;
 	ifp->if_output = pflogoutput;
@@ -271,7 +273,7 @@ pflog_modevent(module_t mod, int type, void *data)
 		PF_RULES_WLOCK();
 		pflog_packet_ptr = NULL;
 		PF_RULES_WUNLOCK();
-		if_clone_detach(&pflog_cloner);
+		if_clone_detach(pflog_cloner);
 		break;
 	default:
 		error = EINVAL;
@@ -281,7 +283,7 @@ pflog_modevent(module_t mod, int type, void *data)
 	return error;
 }
 
-static moduledata_t pflog_mod = { "pflog", pflog_modevent, 0 };
+static moduledata_t pflog_mod = { pflogname, pflog_modevent, 0 };
 
 #define PFLOG_MODVER 1
 

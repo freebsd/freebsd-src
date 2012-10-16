@@ -90,8 +90,6 @@
  */
 #define GREMTU	1476
 
-#define GRENAME	"gre"
-
 #define	MTAG_COOKIE_GRE		1307983903
 #define	MTAG_GRE_NESTING	1
 struct mtag_gre_nesting {
@@ -105,17 +103,18 @@ struct mtag_gre_nesting {
  * XXX: gre_softc data not protected yet.
  */
 struct mtx gre_mtx;
-static MALLOC_DEFINE(M_GRE, GRENAME, "Generic Routing Encapsulation");
+static const char grename[] = "gre";
+static MALLOC_DEFINE(M_GRE, grename, "Generic Routing Encapsulation");
 
 struct gre_softc_head gre_softc_list;
 
 static int	gre_clone_create(struct if_clone *, int, caddr_t);
 static void	gre_clone_destroy(struct ifnet *);
+static struct if_clone *gre_cloner;
+
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct route *ro);
-
-IFC_SIMPLE_DECLARE(gre, 0);
 
 static int gre_compute_route(struct gre_softc *sc);
 
@@ -172,7 +171,8 @@ greattach(void)
 
 	mtx_init(&gre_mtx, "gre_mtx", NULL, MTX_DEF);
 	LIST_INIT(&gre_softc_list);
-	if_clone_attach(&gre_cloner);
+	gre_cloner = if_clone_simple(grename, gre_clone_create,
+	    gre_clone_destroy, 0);
 }
 
 static int
@@ -192,7 +192,7 @@ gre_clone_create(ifc, unit, params)
 	}
 
 	GRE2IFP(sc)->if_softc = sc;
-	if_initname(GRE2IFP(sc), ifc->ifc_name, unit);
+	if_initname(GRE2IFP(sc), grename, unit);
 
 	GRE2IFP(sc)->if_snd.ifq_maxlen = ifqmaxlen;
 	GRE2IFP(sc)->if_addrlen = 0;
@@ -961,7 +961,7 @@ gremodevent(module_t mod, int type, void *data)
 		greattach();
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(&gre_cloner);
+		if_clone_detach(gre_cloner);
 		mtx_destroy(&gre_mtx);
 		break;
 	default:

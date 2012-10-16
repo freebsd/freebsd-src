@@ -127,7 +127,6 @@ static int stf_route_cache = 1;
 SYSCTL_INT(_net_link_stf, OID_AUTO, route_cache, CTLFLAG_RW,
     &stf_route_cache, 0, "Caching of IPv4 routes for 6to4 Output");
 
-#define STFNAME		"stf"
 #define STFUNIT		0
 
 #define IN6_IS_ADDR_6TO4(x)	(ntohs((x)->s6_addr16[0]) == 0x2002)
@@ -151,11 +150,13 @@ struct stf_softc {
 };
 #define STF2IFP(sc)	((sc)->sc_ifp)
 
+static const char stfname[] = "stf";
+
 /*
  * Note that mutable fields in the softc are not currently locked.
  * We do lock sc_ro in stf_output though.
  */
-static MALLOC_DEFINE(M_STF, STFNAME, "6to4 Tunnel Interface");
+static MALLOC_DEFINE(M_STF, stfname, "6to4 Tunnel Interface");
 static const int ip_stf_ttl = 40;
 
 extern  struct domain inetdomain;
@@ -188,8 +189,7 @@ static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 static int stf_clone_match(struct if_clone *, const char *);
 static int stf_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int stf_clone_destroy(struct if_clone *, struct ifnet *);
-struct if_clone stf_cloner = IFC_CLONE_INITIALIZER(STFNAME, NULL, 0,
-    NULL, stf_clone_match, stf_clone_create, stf_clone_destroy);
+static struct if_clone *stf_cloner;
 
 static int
 stf_clone_match(struct if_clone *ifc, const char *name)
@@ -236,7 +236,7 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	 * we don't conform to the default naming convention for interfaces.
 	 */
 	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = ifc->ifc_name;
+	ifp->if_dname = stfname;
 	ifp->if_dunit = IF_DUNIT_NONE;
 
 	mtx_init(&(sc)->sc_ro_mtx, "stf ro", NULL, MTX_DEF);
@@ -286,10 +286,11 @@ stfmodevent(mod, type, data)
 
 	switch (type) {
 	case MOD_LOAD:
-		if_clone_attach(&stf_cloner);
+		stf_cloner = if_clone_advanced(stfname, 0, stf_clone_match,
+		    stf_clone_create, stf_clone_destroy);
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(&stf_cloner);
+		if_clone_detach(stf_cloner);
 		break;
 	default:
 		return (EOPNOTSUPP);

@@ -85,6 +85,9 @@ eventhandler_tag	lagg_detach_cookie = NULL;
 
 static int	lagg_clone_create(struct if_clone *, int, caddr_t);
 static void	lagg_clone_destroy(struct ifnet *);
+static struct if_clone *lagg_cloner;
+static const char laggname[] = "lagg";
+
 static void	lagg_lladdr(struct lagg_softc *, uint8_t *);
 static void	lagg_capabilities(struct lagg_softc *);
 static void	lagg_port_lladdr(struct lagg_port *, uint8_t *);
@@ -117,8 +120,6 @@ static void	lagg_media_status(struct ifnet *, struct ifmediareq *);
 static struct lagg_port *lagg_link_active(struct lagg_softc *,
 	    struct lagg_port *);
 static const void *lagg_gethdr(struct mbuf *, u_int, u_int, void *);
-
-IFC_SIMPLE_DECLARE(lagg, 0);
 
 /* Simple round robin */
 static int	lagg_rr_attach(struct lagg_softc *);
@@ -187,7 +188,8 @@ lagg_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		mtx_init(&lagg_list_mtx, "if_lagg list", NULL, MTX_DEF);
 		SLIST_INIT(&lagg_list);
-		if_clone_attach(&lagg_cloner);
+		lagg_cloner = if_clone_simple(laggname, lagg_clone_create,
+		    lagg_clone_destroy, 0);
 		lagg_input_p = lagg_input;
 		lagg_linkstate_p = lagg_port_state;
 		lagg_detach_cookie = EVENTHANDLER_REGISTER(
@@ -197,7 +199,7 @@ lagg_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
 		    lagg_detach_cookie);
-		if_clone_detach(&lagg_cloner);
+		if_clone_detach(lagg_cloner);
 		lagg_input_p = NULL;
 		lagg_linkstate_p = NULL;
 		mtx_destroy(&lagg_list_mtx);
@@ -311,7 +313,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifmedia_add(&sc->sc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->sc_media, IFM_ETHER | IFM_AUTO);
 
-	if_initname(ifp, ifc->ifc_name, unit);
+	if_initname(ifp, laggname, unit);
 	ifp->if_softc = sc;
 	ifp->if_transmit = lagg_transmit;
 	ifp->if_qflush = lagg_qflush;

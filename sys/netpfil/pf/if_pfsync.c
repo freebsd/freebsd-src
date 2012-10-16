@@ -220,7 +220,8 @@ struct pfsync_softc {
 #define	PFSYNC_BUNLOCK(sc)	mtx_unlock(&(sc)->sc_bulk_mtx)
 #define	PFSYNC_BLOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_bulk_mtx, MA_OWNED)
 
-static MALLOC_DEFINE(M_PFSYNC, "pfsync", "pfsync(4) data");
+static const char pfsyncname[] = "pfsync";
+static MALLOC_DEFINE(M_PFSYNC, pfsyncname, "pfsync(4) data");
 static VNET_DEFINE(struct pfsync_softc	*, pfsyncif) = NULL;
 #define	V_pfsyncif		VNET(pfsyncif)
 static VNET_DEFINE(void *, pfsync_swi_cookie) = NULL;
@@ -279,11 +280,8 @@ static void	pfsync_update_net_tdb(struct pfsync_tdb *);
 
 #define PFSYNC_MAX_BULKTRIES	12
 
-VNET_DEFINE(struct ifc_simple_data, pfsync_cloner_data);
-VNET_DEFINE(struct if_clone, pfsync_cloner);
-#define	V_pfsync_cloner_data	VNET(pfsync_cloner_data)
-#define	V_pfsync_cloner		VNET(pfsync_cloner)
-IFC_SIMPLE_DECLARE(pfsync, 1);
+VNET_DEFINE(struct if_clone *, pfsync_cloner);
+#define	V_pfsync_cloner	VNET(pfsync_cloner)
 
 static int
 pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
@@ -312,7 +310,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 		free(sc, M_PFSYNC);
 		return (ENOSPC);
 	}
-	if_initname(ifp, ifc->ifc_name, unit);
+	if_initname(ifp, pfsyncname, unit);
 	ifp->if_softc = sc;
 	ifp->if_ioctl = pfsyncioctl;
 	ifp->if_output = pfsyncoutput;
@@ -320,7 +318,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_hdrlen = sizeof(struct pfsync_header);
 	ifp->if_mtu = ETHERMTU;
-	mtx_init(&sc->sc_mtx, "pfsync", NULL, MTX_DEF);
+	mtx_init(&sc->sc_mtx, pfsyncname, NULL, MTX_DEF);
 	mtx_init(&sc->sc_bulk_mtx, "pfsync bulk", NULL, MTX_DEF);
 	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
 	callout_init_mtx(&sc->sc_bulk_tmo, &sc->sc_bulk_mtx, 0);
@@ -2313,11 +2311,9 @@ pfsync_init()
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		V_pfsync_cloner = pfsync_cloner;
-		V_pfsync_cloner_data = pfsync_cloner_data;
-		V_pfsync_cloner.ifc_data = &V_pfsync_cloner_data;
-		if_clone_attach(&V_pfsync_cloner);
-		error = swi_add(NULL, "pfsync", pfsyncintr, V_pfsyncif,
+		V_pfsync_cloner = if_clone_simple(pfsyncname,
+		    pfsync_clone_create, pfsync_clone_destroy, 1);
+		error = swi_add(NULL, pfsyncname, pfsyncintr, V_pfsyncif,
 		    SWI_NET, INTR_MPSAFE, &V_pfsync_swi_cookie);
 		CURVNET_RESTORE();
 		if (error)
@@ -2345,7 +2341,7 @@ fail_locked:
 		CURVNET_SET(vnet_iter);
 		if (V_pfsync_swi_cookie) {
 			swi_remove(V_pfsync_swi_cookie);
-			if_clone_detach(&V_pfsync_cloner);
+			if_clone_detach(V_pfsync_cloner);
 		}
 		CURVNET_RESTORE();
 	}
@@ -2366,7 +2362,7 @@ pfsync_uninit()
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		if_clone_detach(&V_pfsync_cloner);
+		if_clone_detach(V_pfsync_cloner);
 		swi_remove(V_pfsync_swi_cookie);
 		CURVNET_RESTORE();
 	}
@@ -2400,7 +2396,7 @@ pfsync_modevent(module_t mod, int type, void *data)
 }
 
 static moduledata_t pfsync_mod = {
-	"pfsync",
+	pfsyncname,
 	pfsync_modevent,
 	0
 };
