@@ -61,6 +61,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
@@ -173,8 +175,7 @@ static void	ahatimeout(void *arg);
 
 /* Exported functions */
 void
-aha_alloc(struct aha_softc *aha, int unit, bus_space_tag_t tag,
-  bus_space_handle_t bsh)
+aha_alloc(struct aha_softc *aha)
 {
 
 	SLIST_INIT(&aha->free_aha_ccbs);
@@ -1107,7 +1108,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		device_printf(aha->dev,
 		    "Encountered busy mailbox with %d out of %d "
 		    "commands active!!!", aha->active_ccbs, aha->max_ccbs);
-		callout_stop(&aacb->timer);
+		callout_stop(&accb->timer);
 		if (nseg != 0)
 			bus_dmamap_unload(aha->buffer_dmat, accb->dmamap);
 		ahafreeccb(aha, accb);
@@ -1833,7 +1834,7 @@ ahatimeout(void *arg)
 		 * later which will attempt a bus reset.
 		 */
 		accb->flags |= ACCB_DEVICE_RESET;
-		callout_reset(&aacb->timer, 2 * hz, ahatimeout, accb);
+		callout_reset(&accb->timer, 2 * hz, ahatimeout, accb);
 		aha->recovery_accb->hccb.opcode = INITIATOR_BUS_DEV_RESET;
 
 		/* No Data Transfer */
