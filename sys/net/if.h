@@ -86,7 +86,7 @@ struct if_data {
 	u_char	ifi_hdrlen;		/* media header length */
 	u_char	ifi_link_state;		/* current link state */
 	u_char	ifi_vhid;		/* carp vhid */
-	u_char	ifi_spare_char2;	/* spare byte */
+	u_char	ifi_baudrate_pf;	/* baudrate power factor */
 	u_char	ifi_datalen;		/* length of this data struct */
 	u_long	ifi_mtu;		/* maximum transmission unit */
 	u_long	ifi_metric;		/* routing metric (external only) */
