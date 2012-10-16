@@ -26,7 +26,6 @@ LDIRS=	BSD_daemon \
 	netgraph \
 	nwclient \
 	perfmon \
-	portal \
 	ppi \
 	ppp \
 	printing \
@@ -135,8 +134,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	perfmon/Makefile \
 	perfmon/README \
 	perfmon/perfmon.c \
-	portal/README \
-	portal/portal.conf \
 	ppi/Makefile \
 	ppi/ppilcd.c \
 	ppp/chap-auth \

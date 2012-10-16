@@ -263,7 +263,6 @@ SUBDIR=	\
 	${_pfsync} \
 	plip \
 	${_pmc} \
-	portalfs \
 	ppbus \
 	ppc \
 	ppi \
