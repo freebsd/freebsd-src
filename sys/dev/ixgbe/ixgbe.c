@@ -2597,7 +2597,8 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_baudrate = 1000000000;
+	ifp->if_baudrate = IF_Gbps(1);
+	ifp->if_baudrate_pf = 1;	/* 1Gbps * 10^1 = 10Gbps */
 	ifp->if_init = ixgbe_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
