@@ -838,9 +838,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
 
-# XFS
-XFS
-
 ZFS			opt_dontuse.h
 
 # Interrupt filtering
