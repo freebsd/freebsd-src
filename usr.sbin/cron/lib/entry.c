@@ -222,6 +222,7 @@ load_entry(file, error_func, pw, envp)
 		}
 	} else {
 		Debug(DPARS, ("load_entry()...about to parse numerics\n"))
+		bit_set(e->second, 0);
 
 		ch = get_list(e->minute, FIRST_MINUTE, LAST_MINUTE,
 			      PPC_NULL, ch, file);
