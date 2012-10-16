@@ -67,8 +67,6 @@ SUBDIR=	\
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
-	coda \
-	coda5 \
 	${_coff} \
 	${_coretemp} \
 	${_cp} \

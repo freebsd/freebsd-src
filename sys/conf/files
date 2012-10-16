@@ -2304,12 +2304,6 @@ dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
-fs/coda/coda_fbsd.c		optional vcoda
-fs/coda/coda_psdev.c		optional vcoda
-fs/coda/coda_subr.c		optional vcoda
-fs/coda/coda_venus.c		optional vcoda
-fs/coda/coda_vfsops.c		optional vcoda
-fs/coda/coda_vnops.c		optional vcoda
 fs/deadfs/dead_vnops.c		standard
 fs/devfs/devfs_devs.c		standard
 fs/devfs/devfs_dir.c		standard
