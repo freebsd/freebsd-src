@@ -288,6 +288,9 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"use_flowid", CTLTYPE_INT|CTLFLAG_RW, &sc->use_flowid, sc->use_flowid,
 		"Use flow id for load sharing");
+	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"count", CTLTYPE_INT|CTLFLAG_RO, &sc->sc_count, sc->sc_count,
+		"Total number of ports");
 	/* Hash all layers by default */
 	sc->sc_flags = LAGG_F_HASHL2|LAGG_F_HASHL3|LAGG_F_HASHL4;
 
