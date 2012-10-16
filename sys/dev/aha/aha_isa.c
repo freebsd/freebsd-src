@@ -126,7 +126,7 @@ aha_isa_probe(device_t dev)
 	if (aha->port == NULL)
 		return (ENXIO);
 
-	port_start = rman_get_start(port_res);
+	port_start = rman_get_start(aha->port);
 	aha_alloc(aha);
 
 	/* See if there is really a card present */
@@ -321,9 +321,9 @@ aha_isa_identify(driver_t *driver, device_t parent)
 		 * XXX kldload/kldunload.
 		 */
 		rid = 0;
-		aha->port = bus_alloc_resource(parent, SYS_RES_IOPORT, &rid,
+		aha.port = bus_alloc_resource(parent, SYS_RES_IOPORT, &rid,
 		    ioport, ioport, AHA_NREGS, RF_ACTIVE);
-		if (aha->port == NULL)
+		if (aha.port == NULL)
 			continue;
 		aha_alloc(&aha);
 		/* See if there is really a card present */
@@ -335,8 +335,8 @@ aha_isa_identify(driver_t *driver, device_t parent)
 		 * Could query the board and set IRQ/DRQ, but probe does
 		 * that.
 		 */
-	not_this_one:;
-		bus_release_resource(parent, SYS_RES_IOPORT, rid, aha->port);
+	not_this_one:
+		bus_release_resource(parent, SYS_RES_IOPORT, rid, aha.port);
 		aha_free(&aha);
 	}
 }
