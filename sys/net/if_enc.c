@@ -91,8 +91,8 @@ static int	enc_output(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct route *ro);
 static int	enc_clone_create(struct if_clone *, int, caddr_t);
 static void	enc_clone_destroy(struct ifnet *);
-
-IFC_SIMPLE_DECLARE(enc, 1);
+static struct if_clone *enc_cloner;
+static const char encname[] = "enc";
 
 /*
  * Sysctls.
@@ -143,7 +143,7 @@ enc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		return (ENOSPC);
 	}
 
-	if_initname(ifp, ifc->ifc_name, unit);
+	if_initname(ifp, encname, unit);
 	ifp->if_mtu = ENCMTU;
 	ifp->if_ioctl = enc_ioctl;
 	ifp->if_output = enc_output;
@@ -167,7 +167,8 @@ enc_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&enc_mtx, "enc mtx", NULL, MTX_DEF);
-		if_clone_attach(&enc_cloner);
+		enc_cloner = if_clone_simple(encname, enc_clone_create,
+		    enc_clone_destroy, 0);
 		break;
 	case MOD_UNLOAD:
 		printf("enc module unload - not possible for this module\n");

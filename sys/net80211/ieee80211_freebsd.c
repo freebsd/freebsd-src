@@ -65,6 +65,10 @@ SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 
 static MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
 
+static const char wlanname[] = "wlan";
+
+static struct if_clone *wlan_cloner;
+
 /*
  * Allocate/free com structure in conjunction with ifnet;
  * these routines are registered with if_register_com_alloc
@@ -129,7 +133,7 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		if_printf(ifp, "TDMA not supported\n");
 		return EOPNOTSUPP;
 	}
-	vap = ic->ic_vap_create(ic, ifc->ifc_name, unit,
+	vap = ic->ic_vap_create(ic, wlanname, unit,
 			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
 			    cp.icp_macaddr : (const uint8_t *)IF_LLADDR(ifp));
@@ -144,12 +148,11 @@ wlan_clone_destroy(struct ifnet *ifp)
 
 	ic->ic_vap_delete(vap);
 }
-IFC_SIMPLE_DECLARE(wlan, 0);
 
 void
 ieee80211_vap_destroy(struct ieee80211vap *vap)
 {
-	if_clone_destroyif(&wlan_cloner, vap->iv_ifp);
+	if_clone_destroyif(wlan_cloner, vap->iv_ifp);
 }
 
 int
@@ -806,12 +809,13 @@ wlan_modevent(module_t mod, int type, void *unused)
 			EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
 			return ENOMEM;
 		}
-		if_clone_attach(&wlan_cloner);
+		wlan_cloner = if_clone_simple(wlanname, wlan_clone_create,
+		    wlan_clone_destroy, 0);
 		if_register_com_alloc(IFT_IEEE80211, wlan_alloc, wlan_free);
 		return 0;
 	case MOD_UNLOAD:
 		if_deregister_com_alloc(IFT_IEEE80211);
-		if_clone_detach(&wlan_cloner);
+		if_clone_detach(wlan_cloner);
 		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;
@@ -820,7 +824,7 @@ wlan_modevent(module_t mod, int type, void *unused)
 }
 
 static moduledata_t wlan_mod = {
-	"wlan",
+	wlanname,
 	wlan_modevent,
 	0
 };
