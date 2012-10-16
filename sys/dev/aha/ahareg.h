@@ -370,12 +370,12 @@ struct aha_softc {
 	int			 irqrid;
 	int			 portrid;
 	int			 drqrid;
-	void			**ih;
+	void			 *ih;
 	device_t		 dev;
 	struct mtx		 lock;
 };
 
-void aha_alloc(struct aha_softc *, int, bus_space_tag_t, bus_space_handle_t);
+void aha_alloc(struct aha_softc *);
 int aha_attach(struct aha_softc *);
 int aha_cmd(struct aha_softc *, aha_op_t, uint8_t *, u_int, uint8_t *, u_int,
     u_int);
@@ -389,11 +389,11 @@ int aha_probe(struct aha_softc *);
 
 #define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
 
-#define aha_inb(aha, port)				\
-	bus_read_1((aha)->port, port)
+#define aha_inb(aha, reg)				\
+	bus_read_1((aha)->port, reg)
 
-#define aha_outb(aha, port, value)			\
-	bus_write_1((aha)->port, port, value)
+#define aha_outb(aha, reg, value)			\
+	bus_write_1((aha)->port, reg, value)
 
 #define ADP0100_PNP		0x00019004	/* ADP0100 */
 #define AHA1540_PNP		0x40159004	/* ADP1540 */
