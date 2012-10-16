@@ -290,6 +290,7 @@ SUBDIR=	\
 	scd \
 	${_scsi_low} \
 	sdhci \
+	sdhci_pci \
 	sem \
 	send \
 	${_sf} \

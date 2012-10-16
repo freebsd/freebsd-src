@@ -24,6 +24,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121015:
+	The sdhci driver was split in two parts: sdhci (generic SD Host
+	Controller logic) and sdhci_pci (actual hardware driver).
+	No kernel config modifications are required, but if you
+	load sdhc as a module you must switch to sdhci_pci instead.
+
 20121014:
 	Import the FUSE kernel and userland support into base system.
 
