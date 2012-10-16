@@ -720,11 +720,11 @@ dptexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	union	 ccb *ccb;
 	struct	 dpt_softc *dpt;
 
-	if (!dumping)
-		mtx_assert(&dpt->lock, MA_OWNED);
 	dccb = (struct dpt_ccb *)arg;
 	ccb = dccb->ccb;
 	dpt = (struct dpt_softc *)ccb->ccb_h.ccb_dpt_ptr;
+	if (!dumping)
+		mtx_assert(&dpt->lock, MA_OWNED);
 
 	if (error != 0) {
 		if (error != EFBIG)
