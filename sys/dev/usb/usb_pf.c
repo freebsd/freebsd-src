@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_pf.h>
 #include <dev/usb/usb_transfer.h>
 
-#define	USBUSNAME	"usbus"
-
 static void usbpf_init(void);
 static void usbpf_uninit(void);
 static int usbpf_ioctl(struct ifnet *, u_long, caddr_t);
@@ -74,9 +72,8 @@ static uint32_t usbpf_aggregate_status(struct usb_xfer_flags_int *);
 static int usbpf_xfer_frame_is_read(struct usb_xfer *, uint32_t);
 static uint32_t usbpf_xfer_precompute_size(struct usb_xfer *, int);
 
-static struct if_clone usbpf_cloner = IFC_CLONE_INITIALIZER(
-    USBUSNAME, NULL, IF_MAXUNIT,
-    NULL, usbpf_clone_match, usbpf_clone_create, usbpf_clone_destroy);
+static struct if_clone *usbpf_cloner;
+static const char usbusname[] = "usbus";
 
 SYSINIT(usbpf_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, usbpf_init, NULL);
 SYSUNINIT(usbpf_uninit, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, usbpf_uninit, NULL);
@@ -85,7 +82,8 @@ static void
 usbpf_init(void)
 {
 
-	if_clone_attach(&usbpf_cloner);
+	usbpf_cloner = if_clone_advanced(usbusname, 0, usbpf_clone_match,
+	    usbpf_clone_create, usbpf_clone_destroy);
 }
 
 static void
@@ -98,9 +96,9 @@ usbpf_uninit(void)
 	int error;
 	int i;
 	
-	if_clone_detach(&usbpf_cloner);
+	if_clone_detach(usbpf_cloner);
 
-	dc = devclass_find(USBUSNAME);
+	dc = devclass_find(usbusname);
 	if (dc == NULL)
 		return;
 	error = devclass_get_devices(dc, &devlp, &devlcnt);
@@ -109,7 +107,7 @@ usbpf_uninit(void)
 	for (i = 0; i < devlcnt; i++) {
 		ubus = device_get_softc(devlp[i]);
 		if (ubus != NULL && ubus->ifp != NULL)
-			usbpf_clone_destroy(&usbpf_cloner, ubus->ifp);
+			usbpf_clone_destroy(usbpf_cloner, ubus->ifp);
 	}
 	free(devlp, M_TEMP);
 }
@@ -130,12 +128,12 @@ usbpf_ifname2ubus(const char *ifname)
 	int unit;
 	int error;
 
-	if (strncmp(ifname, USBUSNAME, sizeof(USBUSNAME) - 1) != 0)
+	if (strncmp(ifname, usbusname, sizeof(usbusname) - 1) != 0)
 		return (NULL);
 	error = ifc_name2unit(ifname, &unit);
 	if (error || unit < 0)
 		return (NULL);
-	dc = devclass_find(USBUSNAME);
+	dc = devclass_find(usbusname);
 	if (dc == NULL)
 		return (NULL);
 	dev = devclass_get_device(dc, unit);
@@ -195,7 +193,7 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	}
 	strlcpy(ifp->if_xname, name, sizeof(ifp->if_xname));
 	ifp->if_softc = ubus;
-	ifp->if_dname = ifc->ifc_name;
+	ifp->if_dname = usbusname;
 	ifp->if_dunit = unit;
 	ifp->if_ioctl = usbpf_ioctl;
 	if_attach(ifp);
@@ -242,7 +240,7 @@ usbpf_detach(struct usb_bus *ubus)
 {
 
 	if (ubus->ifp != NULL)
-		usbpf_clone_destroy(&usbpf_cloner, ubus->ifp);
+		usbpf_clone_destroy(usbpf_cloner, ubus->ifp);
 	if (bootverbose)
 		device_printf(ubus->parent, "usbpf: Detached\n");
 }
