@@ -217,7 +217,6 @@ NANDFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 NWFS		opt_dontuse.h
-PORTALFS	opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h

@@ -2387,8 +2387,6 @@ fs/nwfs/nwfs_node.c		optional nwfs
 fs/nwfs/nwfs_subr.c		optional nwfs
 fs/nwfs/nwfs_vfsops.c		optional nwfs
 fs/nwfs/nwfs_vnops.c		optional nwfs
-fs/portalfs/portal_vfsops.c	optional portalfs
-fs/portalfs/portal_vnops.c	optional portalfs
 fs/procfs/procfs.c		optional procfs
 fs/procfs/procfs_ctl.c		optional procfs
 fs/procfs/procfs_dbregs.c	optional procfs
