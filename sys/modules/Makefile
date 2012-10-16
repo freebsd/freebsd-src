@@ -360,7 +360,6 @@ SUBDIR=	\
 	${_wpifw} \
 	${_x86bios} \
 	${_xe} \
-	xfs \
 	xl \
 	${_zfs} \
 	zlib \
