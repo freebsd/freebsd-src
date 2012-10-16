@@ -27,7 +27,6 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/fs/devfs/*.[ch] \
 	${SYS}/fs/fdescfs/*.[ch] \
 	${SYS}/fs/fifofs/*.[ch] \
-	${SYS}/fs/hpfs/*.[ch] \
 	${SYS}/fs/msdosfs/*.[ch] \
 	${SYS}/fs/ntfs/*.[ch] \
 	${SYS}/fs/nullfs/*.[ch] \
