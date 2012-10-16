@@ -844,6 +844,15 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB 2.0", "(HS) Flash Disk",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * LaCie external 250GB Hard drive des by Porsche
+		 * Submitted by: Ben Stuyts <ben@altesco.nl>
+		 * PR: 121474
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HM250JI", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
