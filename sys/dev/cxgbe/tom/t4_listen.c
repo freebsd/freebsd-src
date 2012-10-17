@@ -277,7 +277,7 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	int txqid, rxqid, flowclen;
 	struct sge_wrq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
-	const int nparams = 4;
+	const int nparams = 6;
 	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
 
 	INP_WLOCK_ASSERT(synqe->lctx->inp);
@@ -319,6 +319,10 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	flowc->mnemval[2].val = htobe32(pi->tx_chan);
 	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
 	flowc->mnemval[3].val = htobe32(ofld_rxq->iq.abs_id);
+ 	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
+ 	flowc->mnemval[4].val = htobe32(512);
+ 	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
+ 	flowc->mnemval[5].val = htobe32(512);
 	synqe->flags |= TPF_FLOWC_WR_SENT;
 
 	/* ... then ABORT request */

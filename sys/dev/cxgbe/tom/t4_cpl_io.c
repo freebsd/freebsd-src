@@ -75,7 +75,7 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 {
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
-	unsigned int nparams = ftxp ? 8 : 4, flowclen;
+	unsigned int nparams = ftxp ? 8 : 6, flowclen;
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
 	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
@@ -120,6 +120,11 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		flowc->mnemval[6].val = htobe32(sndbuf);
 		flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[7].val = htobe32(ftxp->mss);
+	} else {
+		flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
+		flowc->mnemval[4].val = htobe32(512);
+		flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
+		flowc->mnemval[5].val = htobe32(512);
 	}
 
 	txsd->tx_credits = howmany(flowclen, 16);
