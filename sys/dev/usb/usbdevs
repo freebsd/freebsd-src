@@ -1673,6 +1673,7 @@ product FALCOM SAMBA		0x0005	FTDI compatible adapter
 /* FEIYA products */
 product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
+product FEIYA ELANGO		0x6200	MicroSDHC Card Reader
 product FEIYA AC110		0x6300	AC-110 Card Reader
 
 /* Festo */
