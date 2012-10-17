@@ -1446,7 +1446,7 @@ zfs_prop_set(zfs_handle_t *zhp, const char *propname, const char *propval)
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	nvlist_t *nvl = NULL, *realprops;
 	zfs_prop_t prop;
-	boolean_t do_prefix;
+	boolean_t do_prefix = B_TRUE;
 	uint64_t idx;
 	int added_resv;
 
