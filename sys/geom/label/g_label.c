@@ -84,7 +84,6 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_msdosfs,
 	&g_label_ext2fs,
 	&g_label_reiserfs,
-	&g_label_ntfs,
 	&g_label_gpt,
 	&g_label_gpt_uuid,
 	NULL
