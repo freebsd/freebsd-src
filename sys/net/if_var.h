@@ -591,6 +591,18 @@ do {									\
 } while (0)
 
 #ifdef _KERNEL
+static __inline void
+if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
+{
+
+	ifp->if_baudrate_pf = 0;
+	while (baud > (u_long)(~0UL)) {
+		baud /= 10;
+		ifp->if_baudrate_pf++;
+	}
+	ifp->if_baudrate = baud;
+}
+
 static __inline int
 drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 {	

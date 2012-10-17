@@ -179,7 +179,7 @@ struct if_data {
  * Some convenience macros used for setting ifi_baudrate.
  * XXX 1000 vs. 1024? --thorpej@netbsd.org
  */
-#define	IF_Kbps(x)	((x) * 1000)		/* kilobits/sec. */
+#define	IF_Kbps(x)	((uintmax_t)(x) * 1000)	/* kilobits/sec. */
 #define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
 #define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
 
