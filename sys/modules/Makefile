@@ -240,8 +240,6 @@ SUBDIR=	\
 	nge \
 	nmdm \
 	${_nsp} \
-	ntfs \
-	ntfs_iconv \
 	nullfs \
 	${_nvd} \
 	${_nve} \

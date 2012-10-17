@@ -52,7 +52,6 @@ SUBDIR=adjkerntz \
 	mount_fusefs \
 	mount_msdosfs \
 	mount_nfs \
-	mount_ntfs \
 	mount_nullfs \
 	mount_udf \
 	mount_unionfs \
