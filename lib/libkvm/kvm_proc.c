@@ -593,9 +593,15 @@ liveout:
 
 		nprocs = kvm_deadprocs(kd, op, arg, nl[1].n_value,
 				      nl[2].n_value, nprocs);
+		if (nprocs <= 0) {
+			_kvm_freeprocs(kd);
+			nprocs = 0;
+		}
 #ifdef notdef
-		size = nprocs * sizeof(struct kinfo_proc);
-		(void)realloc(kd->procbase, size);
+		else {
+			size = nprocs * sizeof(struct kinfo_proc);
+			kd->procbase = realloc(kd->procbase, size);
+		}
 #endif
 	}
 	*cnt = nprocs;
