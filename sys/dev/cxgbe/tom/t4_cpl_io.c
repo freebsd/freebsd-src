@@ -73,8 +73,8 @@ VNET_DECLARE(int, tcp_autorcvbuf_max);
 void
 send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 {
-        struct wrqe *wr;
-        struct fw_flowc_wr *flowc;
+	struct wrqe *wr;
+	struct fw_flowc_wr *flowc;
 	unsigned int nparams = ftxp ? 8 : 4, flowclen;
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
@@ -102,13 +102,13 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	    V_FW_WR_FLOWID(toep->tid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-        flowc->mnemval[0].val = htobe32(pfvf);
-        flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-        flowc->mnemval[1].val = htobe32(pi->tx_chan);
-        flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-        flowc->mnemval[2].val = htobe32(pi->tx_chan);
-        flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
-        flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
+	flowc->mnemval[0].val = htobe32(pfvf);
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
 	if (ftxp) {
 		uint32_t sndbuf = min(ftxp->snd_space, sc->tt.sndbuf);
 

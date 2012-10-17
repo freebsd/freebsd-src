@@ -271,8 +271,8 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct port_info *pi = ifp->if_softc;
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
-        struct wrqe *wr;
-        struct fw_flowc_wr *flowc;
+	struct wrqe *wr;
+	struct fw_flowc_wr *flowc;
 	struct cpl_abort_req *req;
 	int txqid, rxqid, flowclen;
 	struct sge_wrq *ofld_txq;
@@ -312,13 +312,13 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	flowc->flowid_len16 = htonl(V_FW_WR_LEN16(howmany(flowclen, 16)) |
 	    V_FW_WR_FLOWID(synqe->tid));
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-        flowc->mnemval[0].val = htobe32(pfvf);
-        flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-        flowc->mnemval[1].val = htobe32(pi->tx_chan);
-        flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-        flowc->mnemval[2].val = htobe32(pi->tx_chan);
-        flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
-        flowc->mnemval[3].val = htobe32(ofld_rxq->iq.abs_id);
+	flowc->mnemval[0].val = htobe32(pfvf);
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = htobe32(ofld_rxq->iq.abs_id);
 	synqe->flags |= TPF_FLOWC_WR_SENT;
 
 	/* ... then ABORT request */
