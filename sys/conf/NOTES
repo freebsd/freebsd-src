@@ -1006,11 +1006,6 @@ options 	NFSCL			#experimental NFS client with NFSv4
 options 	NFSD			#experimental NFS server with NFSv4
 options 	KGSSAPI			#Kernel GSSAPI implementation
 
-# NT File System. Read-mostly, see mount_ntfs(8) for details.
-# For a full read-write NTFS support consider sysutils/fusefs-ntfs
-# port/package.
-options 	NTFS
-
 options 	NULLFS			#NULL filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
@@ -1116,7 +1111,6 @@ device		ksyms
 # Each option requires their base file system and LIBICONV.
 options 	CD9660_ICONV
 options 	MSDOSFS_ICONV
-options 	NTFS_ICONV
 options 	UDF_ICONV
 
 

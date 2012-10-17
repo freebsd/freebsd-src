@@ -164,8 +164,6 @@
         ..
         nfs
         ..
-        ntfs
-        ..
         nullfs
         ..
         portalfs

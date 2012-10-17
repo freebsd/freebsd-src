@@ -2366,12 +2366,6 @@ fs/nfsserver/nfs_nfsdkrpc.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdserv.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdport.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdcache.c	optional nfsd inet
-fs/ntfs/ntfs_compr.c		optional ntfs
-fs/ntfs/ntfs_iconv.c		optional ntfs_iconv
-fs/ntfs/ntfs_ihash.c		optional ntfs
-fs/ntfs/ntfs_subr.c		optional ntfs
-fs/ntfs/ntfs_vfsops.c		optional ntfs
-fs/ntfs/ntfs_vnops.c		optional ntfs
 fs/nullfs/null_subr.c		optional nullfs
 fs/nullfs/null_vfsops.c		optional nullfs
 fs/nullfs/null_vnops.c		optional nullfs
@@ -2458,7 +2452,6 @@ geom/label/g_label.c		optional geom_label
 geom/label/g_label_ext2fs.c	optional geom_label
 geom/label/g_label_iso9660.c	optional geom_label
 geom/label/g_label_msdosfs.c	optional geom_label
-geom/label/g_label_ntfs.c	optional geom_label
 geom/label/g_label_reiserfs.c	optional geom_label
 geom/label/g_label_ufs.c	optional geom_label
 geom/label/g_label_gpt.c	optional geom_label
