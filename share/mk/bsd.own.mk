@@ -374,7 +374,6 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
-    NCP \
     NDIS \
     NETCAT \
     NETGRAPH \
@@ -548,10 +547,6 @@ MK_KERBEROS:=	no
 .if ${MK_CXX} == "no"
 MK_CLANG:=	no
 MK_GROFF:=	no
-.endif
-
-.if ${MK_IPX} == "no"
-MK_NCP:=	no
 .endif
 
 .if ${MK_MAIL} == "no"

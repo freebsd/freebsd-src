@@ -24,7 +24,6 @@ LDIRS=	BSD_daemon \
 	libvgl \
 	mdoc \
 	netgraph \
-	nwclient \
 	perfmon \
 	ppi \
 	ppp \
@@ -129,8 +128,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	netgraph/udp.tunnel \
 	netgraph/virtual.chain \
 	netgraph/virtual.lan \
-	nwclient/dot.nwfsrc \
-	nwclient/nwfs.sh.sample \
 	perfmon/Makefile \
 	perfmon/README \
 	perfmon/perfmon.c \

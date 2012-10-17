@@ -281,8 +281,6 @@
                 bluetooth
                 ..
             ..
-            nwclient
-            ..
             pc-sysinstall
             ..
             perfmon

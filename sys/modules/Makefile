@@ -247,7 +247,6 @@ SUBDIR=	\
 	${_nve} \
 	${_nvme} \
 	${_nvram} \
-	${_nwfs} \
 	${_nxge} \
 	${_opensolaris} \
 	oce \
@@ -504,15 +503,9 @@ _mlx4ib=	mlx4ib
 _mlxen=		mlxen
 _mthca=		mthca
 .endif
-.if ${MK_NCP} != "no"
-_ncp=		ncp
-.endif
 _ncv=		ncv
 _ndis=		ndis
 _nsp=		nsp
-.if ${MK_NCP} != "no"
-_nwfs=		nwfs
-.endif
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
