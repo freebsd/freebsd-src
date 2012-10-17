@@ -151,7 +151,6 @@ load_entry(file, error_func, pw, envp)
 			e->flags |= WHEN_REBOOT;
 		} else if (!strcmp("yearly", cmd) || !strcmp("annually", cmd)){
 			Debug(DPARS, ("load_entry()...yearly shortcut\n"))
-			bit_set(e->second, 0);
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_set(e->dom, 0);
@@ -160,7 +159,6 @@ load_entry(file, error_func, pw, envp)
 			e->flags |= DOW_STAR;
 		} else if (!strcmp("monthly", cmd)) {
 			Debug(DPARS, ("load_entry()...monthly shortcut\n"))
-			bit_set(e->second, 0);
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_set(e->dom, 0);
@@ -169,7 +167,6 @@ load_entry(file, error_func, pw, envp)
 			e->flags |= DOW_STAR;
 		} else if (!strcmp("weekly", cmd)) {
 			Debug(DPARS, ("load_entry()...weekly shortcut\n"))
-			bit_set(e->second, 0);
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
@@ -178,7 +175,6 @@ load_entry(file, error_func, pw, envp)
 			bit_set(e->dow, 0);
 		} else if (!strcmp("daily", cmd) || !strcmp("midnight", cmd)) {
 			Debug(DPARS, ("load_entry()...daily shortcut\n"))
-			bit_set(e->second, 0);
 			bit_set(e->minute, 0);
 			bit_set(e->hour, 0);
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
@@ -186,27 +182,11 @@ load_entry(file, error_func, pw, envp)
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
 		} else if (!strcmp("hourly", cmd)) {
 			Debug(DPARS, ("load_entry()...hourly shortcut\n"))
-			bit_set(e->second, 0);
 			bit_set(e->minute, 0);
 			bit_nset(e->hour, 0, (LAST_HOUR-FIRST_HOUR+1));
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
-		} else if (!strcmp("every_minute", cmd)) {
-			Debug(DPARS, ("load_entry()...every_minute shortcut\n"))
-			bit_set(e->second, 0);
-			bit_nset(e->minute, 0, (LAST_MINUTE-FIRST_MINUTE+1));
-			bit_nset(e->hour, 0, (LAST_HOUR-FIRST_HOUR+1));
-			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
-			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
-			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
-		} else if (!strcmp("every_second", cmd)) {
-			Debug(DPARS, ("load_entry()...every_second shortcut\n"))
-			bit_nset(e->second, 0, (LAST_SECOND-FIRST_SECOND+1));
-			bit_nset(e->minute, 0, (LAST_MINUTE-FIRST_MINUTE+1));
-			bit_nset(e->hour, 0, (LAST_HOUR-FIRST_HOUR+1));
-			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
-			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
 		} else {
 			ecode = e_timespec;
@@ -222,7 +202,6 @@ load_entry(file, error_func, pw, envp)
 		}
 	} else {
 		Debug(DPARS, ("load_entry()...about to parse numerics\n"))
-		bit_set(e->second, 0);
 
 		ch = get_list(e->minute, FIRST_MINUTE, LAST_MINUTE,
 			      PPC_NULL, ch, file);
