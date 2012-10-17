@@ -34,7 +34,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm ${_netncp} netsmb \
+	netipsec ${_netipx} netnatm netsmb \
 	nfs nfsclient nfsserver \
 	sys vm
 
