@@ -3458,47 +3458,6 @@ OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 # Listing all of them here is overkill.
 #.endif
 
-.if ${MK_NCP} == no
-OLD_FILES+=usr/bin/ncplist
-OLD_FILES+=usr/bin/ncplogin
-OLD_FILES+=usr/bin/ncplogout
-OLD_FILES+=usr/include/fs/nwfs/nwfs.h
-OLD_FILES+=usr/include/fs/nwfs/nwfs_mount.h
-OLD_FILES+=usr/include/fs/nwfs/nwfs_node.h
-OLD_FILES+=usr/include/fs/nwfs/nwfs_subr.h
-#OLD_DIRS+=usr/include/fs/nwfs
-OLD_FILES+=usr/include/netncp/ncp.h
-OLD_FILES+=usr/include/netncp/ncp_cfg.h
-OLD_FILES+=usr/include/netncp/ncp_conn.h
-OLD_FILES+=usr/include/netncp/ncp_file.h
-OLD_FILES+=usr/include/netncp/ncp_lib.h
-OLD_FILES+=usr/include/netncp/ncp_ncp.h
-OLD_FILES+=usr/include/netncp/ncp_nls.h
-OLD_FILES+=usr/include/netncp/ncp_rcfile.h
-OLD_FILES+=usr/include/netncp/ncp_rq.h
-OLD_FILES+=usr/include/netncp/ncp_sock.h
-OLD_FILES+=usr/include/netncp/ncp_subr.h
-OLD_FILES+=usr/include/netncp/ncp_user.h
-OLD_FILES+=usr/include/netncp/ncpio.h
-OLD_FILES+=usr/include/netncp/nwerror.h
-#OLD_DIRS+=usr/include/netncp
-OLD_FILES+=usr/lib/libncp.a
-OLD_FILES+=usr/lib/libncp.so
-OLD_LIBS+=usr/lib/libncp.so.4
-OLD_FILES+=usr/lib/libncp_p.a
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-OLD_FILES+=usr/lib32/libncp.a
-OLD_FILES+=usr/lib32/libncp.so
-OLD_LIBS+=usr/lib32/libncp.so.4
-OLD_FILES+=usr/lib32/libncp_p.a
-.endif
-OLD_FILES+=usr/sbin/mount_nwfs
-OLD_FILES+=usr/share/man/man1/ncplist.1.gz
-OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
-OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
-OLD_FILES+=usr/share/man/man8/mount_nwfs.8.gz
-.endif
-
 .if ${MK_NDIS} == no
 OLD_FILES+=usr/sbin/ndiscvt
 OLD_FILES+=usr/sbin/ndisgen
