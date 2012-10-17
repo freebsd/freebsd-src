@@ -272,7 +272,7 @@ if_clone_destroy(const char *name)
 	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_SET_QUIET(vnet0);
 		LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
-			if (ifc->type == SIMPLE) {
+			if (ifc->ifc_type == SIMPLE) {
 				if (ifc_simple_match(ifc, name))
 					break;
 			} else {
