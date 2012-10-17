@@ -214,7 +214,6 @@ MSDOSFS		opt_dontuse.h
 NANDFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
-NWFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h
@@ -423,7 +422,6 @@ LIBMCHAIN
 MBUF_PROFILING
 MBUF_STRESS_TEST
 MROUTING		opt_mrouting.h
-NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
 PCBGROUP		opt_pcbgroup.h

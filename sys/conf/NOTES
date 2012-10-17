@@ -570,8 +570,6 @@ options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
 options 	IPX			#IPX/SPX communications protocols
 
-options 	NCP			#NetWare Core protocol
-
 options 	NETATALK		#Appletalk communications protocols
 options 	NETATALKDEBUG		#Appletalk debugging
 
@@ -1014,8 +1012,6 @@ options 	KGSSAPI			#Kernel GSSAPI implementation
 options 	NTFS
 
 options 	NULLFS			#NULL filesystem
-# Broken (depends on NCP):
-#options 	NWFS			#NetWare filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	PSEUDOFS_TRACE		#Debugging support for PSEUDOFS

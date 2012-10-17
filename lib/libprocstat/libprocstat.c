@@ -974,9 +974,6 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		FSTYPE(msdosfs),
 		FSTYPE(nfs),
 		FSTYPE(ntfs),
-#ifdef LIBPROCSTAT_NWFS
-		FSTYPE(nwfs), 
-#endif
 		FSTYPE(smbfs),
 		FSTYPE(udf), 
 		FSTYPE(ufs),

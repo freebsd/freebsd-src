@@ -2375,12 +2375,6 @@ fs/ntfs/ntfs_vnops.c		optional ntfs
 fs/nullfs/null_subr.c		optional nullfs
 fs/nullfs/null_vfsops.c		optional nullfs
 fs/nullfs/null_vnops.c		optional nullfs
-fs/nwfs/nwfs_io.c		optional nwfs
-fs/nwfs/nwfs_ioctl.c		optional nwfs
-fs/nwfs/nwfs_node.c		optional nwfs
-fs/nwfs/nwfs_subr.c		optional nwfs
-fs/nwfs/nwfs_vfsops.c		optional nwfs
-fs/nwfs/nwfs_vnops.c		optional nwfs
 fs/procfs/procfs.c		optional procfs
 fs/procfs/procfs_ctl.c		optional procfs
 fs/procfs/procfs_dbregs.c	optional procfs
@@ -3141,15 +3135,6 @@ netipx/spx_usrreq.c		optional ipx
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
-netncp/ncp_conn.c		optional ncp
-netncp/ncp_crypt.c		optional ncp
-netncp/ncp_login.c		optional ncp
-netncp/ncp_mod.c		optional ncp
-netncp/ncp_ncp.c		optional ncp
-netncp/ncp_nls.c		optional ncp
-netncp/ncp_rq.c			optional ncp
-netncp/ncp_sock.c		optional ncp
-netncp/ncp_subr.c		optional ncp
 netpfil/ipfw/dn_heap.c		optional inet dummynet
 netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
 netpfil/ipfw/dn_sched_prio.c	optional inet dummynet

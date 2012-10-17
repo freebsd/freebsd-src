@@ -130,10 +130,6 @@ CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv -lmd -lsbuf -lufs -lz
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
-#.if ${MK_NCP} != "no"
-#CRUNCH_PROGS+= mount_nwfs
-#CRUNCH_LIBS+= -lncp
-#.endif
 #CRUNCH_PROGS+= mount_smbfs
 #CRUNCH_LIBS+= -lsmb
 .endif

@@ -89,7 +89,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmilter} \
 	${_libmp} \
 	${_libnandfs} \
-	${_libncp} \
 	${_libngatm} \
 	libopie \
 	libpam \
@@ -189,9 +188,6 @@ _libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
 _libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc

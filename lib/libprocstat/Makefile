@@ -24,11 +24,6 @@ LDADD=		-lkvm -lutil
 
 MAN=		libprocstat.3
 
-.if ${MK_NCP} != "no"
-CFLAGS+=	-DLIBPROCSTAT_NWFS
-SRCS+=	nwfs.c
-.endif
-
 # XXX This is a hack.
 .if ${MK_CDDL} != "no"
 CFLAGS+=	-DLIBPROCSTAT_ZFS
