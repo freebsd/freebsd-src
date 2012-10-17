@@ -325,7 +325,8 @@ netmap_new_bufs(struct netmap_if *nifp,
 	return;
 
 cleanup:
-	for (i--; i >= 0; i--) {
+	while (i > 0) {
+		i--;
 		netmap_obj_free(nm_mem->nm_buf_pool, slot[i].buf_idx);
 	}
 }
