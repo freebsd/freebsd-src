@@ -44,7 +44,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ofw dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/ntfs fs/nullfs \
-	${_fs_nwfs} fs/procfs fs/smbfs fs/udf fs/unionfs \
+	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
@@ -80,11 +80,6 @@ LSUBSUBDIRS+=	netgraph/bluetooth/include
 #.if ${MK_IPX} != "no"
 _netipx=	netipx
 #.endif
-
-.if ${MK_NCP} != "no"
-_netncp=	netncp
-_fs_nwfs=	fs/nwfs
-.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is

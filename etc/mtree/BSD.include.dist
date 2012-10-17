@@ -168,8 +168,6 @@
         ..
         nullfs
         ..
-        nwfs
-        ..
         portalfs
         ..
         procfs
@@ -286,8 +284,6 @@
         ..
         sig
         ..
-    ..
-    netncp
     ..
     netsmb
     ..
