@@ -890,9 +890,7 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 	long len;
 	ssize_t resid;
 	int error;
-#ifdef ZERO_COPY_SOCKETS
 	int cow_send;
-#endif
 
 	*retmp = top = NULL;
 	mp = &top;
@@ -900,11 +898,8 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 	resid = uio->uio_resid;
 	error = 0;
 	do {
-#ifdef ZERO_COPY_SOCKETS
 		cow_send = 0;
-#endif /* ZERO_COPY_SOCKETS */
 		if (resid >= MINCLSIZE) {
-#ifdef ZERO_COPY_SOCKETS
 			if (top == NULL) {
 				m = m_gethdr(M_WAITOK, MT_DATA);
 				m->m_pkthdr.len = 0;
@@ -924,15 +919,6 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 				m_clget(m, M_WAITOK);
 				len = min(min(MCLBYTES, resid), *space);
 			}
-#else /* ZERO_COPY_SOCKETS */
-			if (top == NULL) {
-				m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
-				m->m_pkthdr.len = 0;
-				m->m_pkthdr.rcvif = NULL;
-			} else
-				m = m_getcl(M_WAIT, MT_DATA, 0);
-			len = min(min(MCLBYTES, resid), *space);
-#endif /* ZERO_COPY_SOCKETS */
 		} else {
 			if (top == NULL) {
 				m = m_gethdr(M_WAIT, MT_DATA);
@@ -957,11 +943,9 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 		}
 
 		*space -= len;
-#ifdef ZERO_COPY_SOCKETS
 		if (cow_send)
 			error = 0;
 		else
-#endif /* ZERO_COPY_SOCKETS */
 		error = uiomove(mtod(m, void *), (int)len, uio);
 		resid = uio->uio_resid;
 		m->m_len = len;
@@ -980,7 +964,7 @@ out:
 	*retmp = top;
 	return (error);
 }
-#endif /*ZERO_COPY_SOCKETS*/
+#endif /* ZERO_COPY_SOCKETS */
 
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
 
