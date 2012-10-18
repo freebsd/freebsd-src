@@ -518,7 +518,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct if_laddrreq *lifr = (struct if_laddrreq *)data;
 	struct in_aliasreq *aifr = (struct in_aliasreq *)data;
 	struct gre_softc *sc = ifp->if_softc;
-	int s;
 	struct sockaddr_in si;
 	struct sockaddr *sa = NULL;
 	int error, adj;
@@ -528,7 +527,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = 0;
 	adj = 0;
 
-	s = splnet();
 	switch (cmd) {
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
@@ -848,7 +846,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	}
 
-	splx(s);
 	return (error);
 }
 

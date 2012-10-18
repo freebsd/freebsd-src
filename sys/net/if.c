@@ -691,12 +691,9 @@ static void
 if_attachdomain(void *dummy)
 {
 	struct ifnet *ifp;
-	int s;
 
-	s = splnet();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		if_attachdomain1(ifp);
-	splx(s);
 }
 SYSINIT(domainifattach, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_SECOND,
     if_attachdomain, NULL);
@@ -705,21 +702,15 @@ static void
 if_attachdomain1(struct ifnet *ifp)
 {
 	struct domain *dp;
-	int s;
-
-	s = splnet();
 
 	/*
 	 * Since dp->dom_ifattach calls malloc() with M_WAITOK, we
 	 * cannot lock ifp->if_afdata initialization, entirely.
 	 */
-	if (IF_AFDATA_TRYLOCK(ifp) == 0) {
-		splx(s);
+	if (IF_AFDATA_TRYLOCK(ifp) == 0)
 		return;
-	}
 	if (ifp->if_afdata_initialized >= domain_init_status) {
 		IF_AFDATA_UNLOCK(ifp);
-		splx(s);
 		printf("if_attachdomain called more than once on %s\n",
 		    ifp->if_xname);
 		return;
@@ -734,8 +725,6 @@ if_attachdomain1(struct ifnet *ifp)
 			ifp->if_afdata[dp->dom_family] =
 			    (*dp->dom_ifattach)(ifp);
 	}
-
-	splx(s);
 }
 
 /*
@@ -1825,7 +1814,6 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 /*
  * Mark an interface down and notify protocols of
  * the transition.
- * NOTE: must be called at splnet or eqivalent.
  */
 static void
 if_unroute(struct ifnet *ifp, int flag, int fam)
@@ -1849,7 +1837,6 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 /*
  * Mark an interface up and notify protocols of
  * the transition.
- * NOTE: must be called at splnet or eqivalent.
  */
 static void
 if_route(struct ifnet *ifp, int flag, int fam)
@@ -1935,7 +1922,6 @@ do_link_state_change(void *arg, int pending)
 /*
  * Mark an interface down and notify protocols of
  * the transition.
- * NOTE: must be called at splnet or eqivalent.
  */
 void
 if_down(struct ifnet *ifp)
@@ -1947,7 +1933,6 @@ if_down(struct ifnet *ifp)
 /*
  * Mark an interface up and notify protocols of
  * the transition.
- * NOTE: must be called at splnet or eqivalent.
  */
 void
 if_up(struct ifnet *ifp)
@@ -2150,14 +2135,10 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			/* Smart drivers twiddle their own routes */
 		} else if (ifp->if_flags & IFF_UP &&
 		    (new_flags & IFF_UP) == 0) {
-			int s = splimp();
 			if_down(ifp);
-			splx(s);
 		} else if (new_flags & IFF_UP &&
 		    (ifp->if_flags & IFF_UP) == 0) {
-			int s = splimp();
 			if_up(ifp);
-			splx(s);
 		}
 		/* See if permanently promiscuous mode bit is about to flip */
 		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
@@ -2605,11 +2586,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
 #ifdef INET6
-		if (ifp->if_flags & IFF_UP) {
-			int s = splimp();
+		if (ifp->if_flags & IFF_UP)
 			in6_if_up(ifp);
-			splx(s);
-		}
 #endif
 	}
 	if_rele(ifp);
