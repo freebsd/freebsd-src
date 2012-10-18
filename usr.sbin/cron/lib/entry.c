@@ -187,7 +187,6 @@ load_entry(file, error_func, pw, envp)
 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
-			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
 		} else {
 			ecode = e_timespec;
 			goto eof;
