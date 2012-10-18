@@ -51,7 +51,7 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	*(uint64_t *)&cmd->cdw10 = lba;
 	cmd->cdw12 = lba_count-1;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
+	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
@@ -81,7 +81,7 @@ nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	*(uint64_t *)&cmd->cdw10 = lba;
 	cmd->cdw12 = lba_count-1;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
+	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
@@ -111,7 +111,7 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 	cmd->cdw10 = num_ranges;
 	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
+	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));

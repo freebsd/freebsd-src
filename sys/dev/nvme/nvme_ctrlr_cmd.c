@@ -49,7 +49,7 @@ nvme_ctrlr_cmd_identify_controller(struct nvme_controller *ctrlr, void *payload,
 	 */
 	cmd->cdw10 = 1;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
+	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
@@ -74,7 +74,7 @@ nvme_ctrlr_cmd_identify_namespace(struct nvme_controller *ctrlr, uint16_t nsid,
 	 */
 	cmd->nsid = nsid;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
+	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
@@ -189,8 +189,8 @@ nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr, uint8_t feature,
 	cmd->cdw11 = cdw11;
 
 	if (payload_size > 0) {
-		err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
-		    payload_size, nvme_payload_map, tr, 0);
+		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
+		    payload, payload_size, nvme_payload_map, tr, 0);
 
 		KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
 	} else
@@ -215,8 +215,8 @@ nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr, uint8_t feature,
 	cmd->cdw11 = cdw11;
 
 	if (payload_size > 0) {
-		err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
-		    payload_size, nvme_payload_map, tr, 0);
+		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
+		    payload, payload_size, nvme_payload_map, tr, 0);
 
 		KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
 	} else
@@ -305,7 +305,7 @@ nvme_ctrlr_cmd_get_health_information_page(struct nvme_controller *ctrlr,
 	cmd->cdw10 = ((sizeof(*payload)/sizeof(uint32_t)) - 1) << 16;
 	cmd->cdw10 |= NVME_LOG_HEALTH_INFORMATION;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->dma_map, payload,
+	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
 	    sizeof(*payload), nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
