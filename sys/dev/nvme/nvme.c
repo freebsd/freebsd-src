@@ -230,14 +230,10 @@ nvme_dump_completion(struct nvme_completion *cpl)
 void
 nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
-	struct nvme_tracker 	*tr;
-	struct nvme_qpair 	*qpair;
+	struct nvme_tracker 	*tr = arg;
 	uint32_t		cur_nseg;
 
 	KASSERT(error == 0, ("nvme_payload_map error != 0\n"));
-
-	tr = (struct nvme_tracker *)arg;
-	qpair = tr->qpair;
 
 	/*
 	 * Note that we specified PAGE_SIZE for alignment and max
@@ -259,7 +255,7 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 		}
 	}
 
-	nvme_qpair_submit_cmd(qpair, tr);
+	nvme_qpair_submit_cmd(tr->qpair, tr);
 }
 
 static int

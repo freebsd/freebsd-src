@@ -101,6 +101,7 @@ struct nvme_request {
 	struct nvme_command		cmd;
 	void				*payload;
 	uint32_t			payload_size;
+	struct uio			*uio;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
 	SLIST_ENTRY(nvme_request)	slist;
@@ -333,6 +334,8 @@ void	nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
 
 void	nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg,
 			 int error);
+void	nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
+			     bus_size_t mapsize, int error);
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 int	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
@@ -386,6 +389,22 @@ nvme_allocate_request(void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn,
 
 	req->payload = payload;
 	req->payload_size = payload_size;
+	req->cb_fn = cb_fn;
+	req->cb_arg = cb_arg;
+
+	return (req);
+}
+
+static __inline struct nvme_request *
+nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
+	if (req == NULL)
+		return (NULL);
+
+	req->uio = uio;
 	req->cb_fn = cb_fn;
 	req->cb_arg = cb_arg;
 
