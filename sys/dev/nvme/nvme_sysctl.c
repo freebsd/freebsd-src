@@ -192,9 +192,9 @@ nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
 	SYSCTL_ADD_UINT(ctrlr_ctx, que_list, OID_AUTO, "num_entries",
 	    CTLFLAG_RD, &qpair->num_entries, 0,
 	    "Number of entries in hardware queue");
-	SYSCTL_ADD_UINT(ctrlr_ctx, que_list, OID_AUTO, "num_tr",
-	    CTLFLAG_RD, &qpair->num_tr, 0,
-	    "Number of trackers allocated");
+	SYSCTL_ADD_UINT(ctrlr_ctx, que_list, OID_AUTO, "num_trackers",
+	    CTLFLAG_RD, &qpair->num_trackers, 0,
+	    "Number of trackers pre-allocated for this queue pair");
 	SYSCTL_ADD_UINT(ctrlr_ctx, que_list, OID_AUTO, "sq_head",
 	    CTLFLAG_RD, &qpair->sq_head, 0,
 	    "Current head of submission queue (as observed by driver)");
