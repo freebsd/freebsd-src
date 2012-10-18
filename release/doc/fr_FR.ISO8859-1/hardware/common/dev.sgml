@@ -833,7 +833,7 @@
 	  <para>Carte RAID ATA Promise SuperTrak SX6000</para>
 	</listitem>
       </itemizedlist>
-    <para>
+    </para>
 
     <para arch="i386,alpha,pc98,sparc64">Cartes LSI Logic Fusion/MP
 	architecture Fiber Channel (gestionnaire mpt)
@@ -857,6 +857,7 @@
         <para>Tekram DC315U</para>
       </listitem>
     </itemizedlist>
+    </para>
 
 
     <para>Sur toutes les cartes SCSI support&eacute;es, le support total
@@ -1375,7 +1376,7 @@
 	<listitem>
 	  <para>NetGear FA310-TX Rev. D1</para>
         </listitem>
-      </itemizedlist
+      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">Cartes Macronix 98713, 98713A, 98715,
@@ -1747,7 +1748,7 @@
 	  <para>ELECOM LD-PCI2T, LD-PCITS (PCI)</para>
 	</listitem>
 	<listitem arch="pc98">
-	  <para>Corega FastEther PCI-TX (PCI)
+	  <para>Corega FastEther PCI-TX (PCI)</para>
 	</listitem>
       </itemizedlist>
     </para>

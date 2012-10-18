@@ -1,3 +1,11 @@
+<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
+<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//DE">
+%entities;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
 <!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -11,19 +19,6 @@
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.39 2003/05/24 13:23:46 ue Exp $
 	basiert auf: 1.38
 -->
-
-<!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-<!ENTITY % translators PUBLIC "-//FreeBSD//ENTITIES DocBook Translator Entities//DE">
-%translators;
-<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
-%mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-]>
 
 <article lang="de">
   <articleinfo>
