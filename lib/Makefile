@@ -100,7 +100,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
-	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
@@ -188,7 +187,6 @@ _libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-_libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
@@ -196,20 +194,11 @@ _librtld_db=	librtld_db
 
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
-_libsmb=	libsmb
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
 _libproc=	libproc
 _librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "powerpc"
-_libsmb=	libsmb
-.endif
-
-.if ${MACHINE_CPUARCH} == "sparc64"
-_libsmb=	libsmb
 .endif
 
 .if ${MK_OPENSSL} != "no"

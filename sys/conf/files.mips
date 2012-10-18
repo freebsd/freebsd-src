@@ -65,7 +65,7 @@ mips/mips/swtch.S		standard
 mips/mips/uio_machdep.c		standard
 mips/mips/uma_machdep.c		standard
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/des/des_enc.c		optional	crypto | ipsec
 geom/geom_bsd.c			optional	geom_bsd
 geom/geom_bsd_enc.c		optional	geom_bsd
 geom/geom_mbr.c			optional	geom_mbr
