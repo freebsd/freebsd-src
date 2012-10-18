@@ -74,42 +74,20 @@ nvme_completion_check_retry(const struct nvme_completion *cpl)
 	}
 }
 
-struct nvme_tracker *
-nvme_qpair_allocate_tracker(struct nvme_qpair *qpair)
+static void
+nvme_qpair_construct_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
+    uint16_t cid)
 {
-	struct nvme_tracker	*tr;
 
-	tr = SLIST_FIRST(&qpair->free_tr);
-	if (tr == NULL) {
-		/* 
-		 * We can't support more trackers than we have entries in
-		 *  our queue, because it would generate invalid indices
-		 *  into the qpair's active tracker array.
-		 */
-		if (qpair->num_tr == qpair->num_entries) {
-			return (NULL);
-		}
+	bus_dmamap_create(qpair->dma_tag, 0, &tr->payload_dma_map);
+	bus_dmamap_create(qpair->dma_tag, 0, &tr->prp_dma_map);
 
-		tr = malloc(sizeof(struct nvme_tracker), M_NVME,
-		    M_ZERO | M_NOWAIT);
+	bus_dmamap_load(qpair->dma_tag, tr->prp_dma_map, tr->prp,
+	    sizeof(tr->prp), nvme_single_map, &tr->prp_bus_addr, 0);
 
-		if (tr == NULL) {
-			return (NULL);
-		}
-
-		bus_dmamap_create(qpair->dma_tag, 0, &tr->payload_dma_map);
-		bus_dmamap_create(qpair->dma_tag, 0, &tr->prp_dma_map);
-
-		bus_dmamap_load(qpair->dma_tag, tr->prp_dma_map, tr->prp,
-		    sizeof(tr->prp), nvme_single_map, &tr->prp_bus_addr, 0);
-
-		callout_init_mtx(&tr->timer, &qpair->lock, 0);
-		tr->cid = qpair->num_tr++;
-		tr->qpair = qpair;
-	} else
-		SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
-
-	return (tr);
+	callout_init_mtx(&tr->timer, &qpair->lock, 0);
+	tr->cid = cid;
+	tr->qpair = qpair;
 }
 
 void
@@ -163,6 +141,10 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 				    tr->payload_dma_map);
 
 			nvme_free_request(req);
+
+			if (SLIST_EMPTY(&qpair->free_tr))
+				wakeup(qpair);
+
 			SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
 		}
 
@@ -188,9 +170,11 @@ nvme_qpair_msix_handler(void *arg)
 
 void
 nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
-    uint16_t vector, uint32_t num_entries, uint32_t max_xfer_size,
-    struct nvme_controller *ctrlr)
+    uint16_t vector, uint32_t num_entries, uint32_t num_trackers,
+    uint32_t max_xfer_size, struct nvme_controller *ctrlr)
 {
+	struct nvme_tracker	*tr;
+	uint32_t		i;
 
 	qpair->id = id;
 	qpair->vector = vector;
@@ -233,7 +217,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
-	qpair->num_tr = 0;
+	qpair->num_trackers = num_trackers;
 	qpair->sq_head = qpair->sq_tail = qpair->cq_head = 0;
 
 	/* TODO: error checking on contigmalloc, bus_dmamap_load calls */
@@ -258,6 +242,18 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->cq_hdbl_off = nvme_mmio_offsetof(doorbell[id].cq_hdbl);
 
 	SLIST_INIT(&qpair->free_tr);
+
+	for (i = 0; i < num_trackers; i++) {
+		tr = malloc(sizeof(*tr), M_NVME, M_ZERO | M_NOWAIT);
+
+		if (tr == NULL) {
+			printf("warning: nvme tracker malloc failed\n");
+			break;
+		}
+
+		nvme_qpair_construct_tracker(qpair, tr, i);
+		SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
+	}
 
 	qpair->act_tr = malloc(sizeof(struct nvme_tracker *) * qpair->num_entries,
 	    M_NVME, M_ZERO | M_NOWAIT);
@@ -379,19 +375,6 @@ nvme_qpair_submit_cmd(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	req->cmd.cid = tr->cid;
 	qpair->act_tr[tr->cid] = tr;
 
-	/*
-	 * TODO: rather than spin until entries free up, put this tracker
-	 *  on a queue, and submit from the interrupt handler when
-	 *  entries free up.
-	 */
-	if ((qpair->sq_tail+1) % qpair->num_entries == qpair->sq_head) {
-		do {
-			mtx_unlock(&qpair->lock);
-			DELAY(5);
-			mtx_lock(&qpair->lock);
-		} while ((qpair->sq_tail+1) % qpair->num_entries == qpair->sq_head);
-	}
-
 	callout_reset(&tr->timer, NVME_TIMEOUT_IN_SEC * hz, nvme_timeout, tr);
 
 	/* Copy the command from the tracker to the submission queue. */
@@ -415,7 +398,15 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 	mtx_lock(&qpair->lock);
 
-	tr = nvme_qpair_allocate_tracker(qpair);
+	tr = SLIST_FIRST(&qpair->free_tr);
+
+	while (tr == NULL) {
+		msleep(qpair, &qpair->lock, PRIBIO, "qpair_tr", 0);
+		printf("msleep\n");
+		tr = SLIST_FIRST(&qpair->free_tr);
+	}
+
+	SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
 	tr->req = req;
 
 	if (req->uio == NULL) {
