@@ -170,8 +170,6 @@
         ..
         procfs
         ..
-        smbfs
-        ..
         udf
         ..
         unionfs

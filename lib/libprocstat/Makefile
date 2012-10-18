@@ -8,7 +8,6 @@ SRCS=	cd9660.c	\
 	common_kvm.c	\
 	libprocstat.c	\
         msdosfs.c	\
-	smbfs.c		\
 	udf.c
 
 VERSION_DEF=	${.CURDIR}/Versions.def

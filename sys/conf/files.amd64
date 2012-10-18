@@ -136,7 +136,7 @@ crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 crypto/aesni/aesni_wrap.c	optional aesni
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/des/des_enc.c		optional	crypto | ipsec
 crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
