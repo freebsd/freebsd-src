@@ -30,7 +30,6 @@
  *
  * Routing table
  */
-/*#include "support.h"*/
 
 #ifdef HAVE_SYS_TREE_H
 #include <sys/tree.h>
