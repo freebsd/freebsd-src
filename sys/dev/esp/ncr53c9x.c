@@ -26,7 +26,7 @@
  *
  */
 
-/*	$NetBSD: ncr53c9x.c,v 1.143 2011/07/31 18:39:00 jakllsch Exp $	*/
+/*	$NetBSD: ncr53c9x.c,v 1.145 2012/06/18 21:23:56 martin Exp $	*/
 
 /*-
  * Copyright (c) 1998, 2002 The NetBSD Foundation, Inc.
@@ -256,7 +256,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 		return (EINVAL);
 	}
 
-	device_printf(sc->sc_dev, "%s, %dMHz, SCSI ID %d\n",
+	device_printf(sc->sc_dev, "%s, %d MHz, SCSI ID %d\n",
 	    ncr53c9x_variant_names[sc->sc_rev], sc->sc_freq, sc->sc_id);
 
 	sc->sc_ntarg = (sc->sc_rev == NCR_VARIANT_FAS366) ? 16 : 8;
@@ -890,11 +890,8 @@ ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		sc->sc_cmdp = cmd;
 		error = NCRDMA_SETUP(sc, &sc->sc_cmdp, &sc->sc_cmdlen, 0,
 		    &dmasize);
-		if (error != 0) {
-			sc->sc_cmdlen = 0;
-			sc->sc_cmdp = NULL;
+		if (error != 0)
 			goto cmd;
-		}
 
 		/* Program the SCSI counter. */
 		NCR_SET_COUNT(sc, dmasize);
@@ -920,6 +917,7 @@ cmd:
 	 */
 
 	/* Now get the command into the FIFO. */
+	sc->sc_cmdlen = 0;
 	ncr53c9x_wrfifo(sc, cmd, clen);
 
 	/* And get the target's attention. */
@@ -1771,7 +1769,7 @@ ncr53c9x_msgin(struct ncr53c9x_softc *sc)
 	struct ncr53c9x_linfo *li;
 	struct ncr53c9x_tinfo *ti;
 	uint8_t *pb;
-	int lun, plen;
+	int len, lun;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1818,15 +1816,15 @@ ncr53c9x_msgin(struct ncr53c9x_softc *sc)
 		 */
 		case NCR_RESELECTED:
 			pb = sc->sc_imess + 1;
-			plen = sc->sc_imlen - 1;
+			len = sc->sc_imlen - 1;
 			break;
 
 		default:
 			pb = sc->sc_imess;
-			plen = sc->sc_imlen;
+			len = sc->sc_imlen;
 		}
 
-		if (__verify_msg_format(pb, plen))
+		if (__verify_msg_format(pb, len))
 			goto gotit;
 	}
 
@@ -1961,6 +1959,29 @@ gotit:
 			NCR_MSGS(("restore datapointer "));
 			sc->sc_dp = ecb->daddr;
 			sc->sc_dleft = ecb->dleft;
+			break;
+
+		case MSG_IGN_WIDE_RESIDUE:
+			NCR_MSGS(("ignore wide residue (%d bytes)",
+			    sc->sc_imess[1]));
+			if (sc->sc_imess[1] != 1) {
+				xpt_print_path(ecb->ccb->ccb_h.path);
+				printf("unexpected MESSAGE IGNORE WIDE "
+				    "RESIDUE (%d bytes); sending REJECT\n",
+				    sc->sc_imess[1]);
+				goto reject;
+			}
+			/*
+			 * If there was a last transfer of an even number of
+			 * bytes, wipe the "done" memory and adjust by one
+			 * byte (sc->sc_imess[1]).
+			 */
+			len = sc->sc_dleft - ecb->dleft;
+			if (len != 0 && (len & 1) == 0) {
+				ecb->flags &= ~ECB_TENTATIVE_DONE;
+				sc->sc_dp = (char *)sc->sc_dp - 1;
+				sc->sc_dleft--;
+			}
 			break;
 
 		case MSG_EXTENDED:
@@ -2272,6 +2293,7 @@ cmd:
 	/*
 	 * XXX FIFO size
 	 */
+	sc->sc_cmdlen = 0;
 	ncr53c9x_flushfifo(sc);
 	ncr53c9x_wrfifo(sc, sc->sc_omp, sc->sc_omlen);
 	NCRCMD(sc, NCRCMD_TRANS);
@@ -2811,9 +2833,10 @@ again:
 				 * (Timing problems?)
 				 */
 				if (sc->sc_features & NCR_F_DMASELECT) {
-					if (sc->sc_cmdlen == 0)
+					if (sc->sc_cmdlen == 0) {
 						/* Hope for the best... */
 						break;
+					}
 				} else if ((NCR_READ_REG(sc, NCR_FFLAG) &
 				    NCRFIFO_FF) == 0) {
 					/* Hope for the best... */
@@ -2986,11 +3009,8 @@ msgin:
 			sc->sc_cmdp = (void *)&ecb->cmd.cmd;
 			error = NCRDMA_SETUP(sc, &sc->sc_cmdp, &sc->sc_cmdlen,
 			    0, &size);
-			if (error != 0) {
-				sc->sc_cmdlen = 0;
-				sc->sc_cmdp = NULL;
+			if (error != 0)
 				goto cmd;
-			}
 
 			/* Program the SCSI counter. */
 			NCR_SET_COUNT(sc, size);
@@ -3005,6 +3025,7 @@ msgin:
 			break;
 		}
 cmd:
+		sc->sc_cmdlen = 0;
 		ncr53c9x_wrfifo(sc, (uint8_t *)&ecb->cmd.cmd, ecb->clen);
 		NCRCMD(sc, NCRCMD_TRANS);
 		sc->sc_prevphase = COMMAND_PHASE;
@@ -3046,7 +3067,7 @@ setup_xfer:
 			goto finish;
 		}
 
-		/* Target returned to data phase: wipe "done" memory */
+		/* Target returned to data phase: wipe "done" memory. */
 		ecb->flags &= ~ECB_TENTATIVE_DONE;
 
 		/* Program the SCSI counter. */
@@ -3105,8 +3126,8 @@ shortcut:
 	 * overhead to pay.  For example, selecting, sending a message
 	 * and command and then doing some work can be done in one "pass".
 	 *
-	 * The delay is a heuristic.  It is 2 when at 20MHz, 2 at 25MHz and 1
-	 * at 40MHz. This needs testing.
+	 * The delay is a heuristic.  It is 2 when at 20 MHz, 2 at 25 MHz and
+	 * 1 at 40 MHz.  This needs testing.
 	 */
 	microtime(&wait);
 	wait.tv_usec += 50 / sc->sc_freq;
@@ -3191,8 +3212,7 @@ ncr53c9x_callout(void *arg)
 		ncr53c9x_abort(sc, ecb);
 
 		/* Disable sync mode if stuck in a data phase. */
-		if (ecb == sc->sc_nexus &&
-		    ti->curr.offset != 0 &&
+		if (ecb == sc->sc_nexus && ti->curr.offset != 0 &&
 		    (sc->sc_phase & (MSGI | CDI)) == 0) {
 			/* XXX ASYNC CALLBACK! */
 			ti->goal.offset = 0;
