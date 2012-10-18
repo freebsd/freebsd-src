@@ -38,6 +38,8 @@
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
+#include <vm/uma.h>
+
 #include <machine/bus.h>
 
 #include "nvme.h"
@@ -92,16 +94,25 @@ MALLOC_DECLARE(M_NVME);
 #define CACHE_LINE_SIZE		(64)
 #endif
 
+extern uma_zone_t nvme_request_zone;
+
+struct nvme_request {
+
+	struct nvme_command		cmd;
+	void				*payload;
+	uint32_t			payload_size;
+	nvme_cb_fn_t			cb_fn;
+	void				*cb_arg;
+	SLIST_ENTRY(nvme_request)	slist;
+};
+
 struct nvme_tracker {
 
 	SLIST_ENTRY(nvme_tracker)	slist;
+	struct nvme_request		*req;
 	struct nvme_qpair		*qpair;
-	struct nvme_command		cmd;
 	struct callout			timer;
 	bus_dmamap_t			payload_dma_map;
-	nvme_cb_fn_t			cb_fn;
-	void				*cb_arg;
-	uint32_t			payload_size;
 	uint16_t			cid;
 
 	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
@@ -322,9 +333,7 @@ void	nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
 
 struct nvme_tracker *	nvme_allocate_tracker(struct nvme_controller *ctrlr,
 					      boolean_t is_admin,
-					      nvme_cb_fn_t cb_fn, void *cb_arg,
-					      uint32_t payload_size,
-					      void *payload);
+					      struct nvme_request *request);
 void	nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg,
 			 int error);
 
@@ -363,5 +372,25 @@ nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 
 	*bus_addr = seg[0].ds_addr;
 }
+
+static __inline struct nvme_request *
+nvme_allocate_request(void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn, 
+		      void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
+	if (req == NULL)
+		return (NULL);
+
+	req->payload = payload;
+	req->payload_size = payload_size;
+	req->cb_fn = cb_fn;
+	req->cb_arg = cb_arg;
+
+	return (req);
+}
+
+#define nvme_free_request(req)	uma_zfree(nvme_request_zone, req)
 
 #endif /* __NVME_PRIVATE_H__ */

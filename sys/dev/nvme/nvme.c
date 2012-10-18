@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/module.h>
 
+#include <vm/uma.h>
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -43,6 +45,8 @@ struct nvme_consumer {
 };
 
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
+
+uma_zone_t nvme_request_zone;
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 
@@ -108,6 +112,23 @@ nvme_probe (device_t device)
 
 	return (ENXIO);
 }
+
+static void
+nvme_init(void)
+{
+	nvme_request_zone = uma_zcreate("nvme_request",
+	    sizeof(struct nvme_request), NULL, NULL, NULL, NULL, 0, 0);
+}
+
+SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
+
+static void
+nvme_uninit(void)
+{
+	uma_zdestroy(nvme_request_zone);
+}
+
+SYSUNINIT(nvme_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_uninit, NULL);
 
 static void
 nvme_load(void)
@@ -224,13 +245,13 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	 *  we can safely just transfer each segment to its
 	 *  associated PRP entry.
 	 */
-	tr->cmd.prp1 = seg[0].ds_addr;
+	tr->req->cmd.prp1 = seg[0].ds_addr;
 
 	if (nseg == 2) {
-		tr->cmd.prp2 = seg[1].ds_addr;
+		tr->req->cmd.prp2 = seg[1].ds_addr;
 	} else if (nseg > 2) {
 		cur_nseg = 1;
-		tr->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
+		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
 		while (cur_nseg < nseg) {
 			tr->prp[cur_nseg-1] =
 			    (uint64_t)seg[cur_nseg].ds_addr;
@@ -243,7 +264,7 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 
 struct nvme_tracker *
 nvme_allocate_tracker(struct nvme_controller *ctrlr, boolean_t is_admin,
-    nvme_cb_fn_t cb_fn, void *cb_arg, uint32_t payload_size, void *payload)
+    struct nvme_request *req)
 {
 	struct nvme_tracker 	*tr;
 	struct nvme_qpair	*qpair;
@@ -262,12 +283,8 @@ nvme_allocate_tracker(struct nvme_controller *ctrlr, boolean_t is_admin,
 	if (tr == NULL)
 		return (NULL);
 
-	memset(&tr->cmd, 0, sizeof(tr->cmd));
-
 	tr->qpair = qpair;
-	tr->cb_fn = cb_fn;
-	tr->cb_arg = cb_arg;
-	tr->payload_size = payload_size;
+	tr->req = req;
 
 	return (tr);
 }
