@@ -37,6 +37,7 @@ f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
+f_include_help $BSDCFG_LIBE/include/bsdconfig.hlp
 
 ############################################################ FUNCTIONS
 
@@ -185,6 +186,8 @@ dialog_menu_main()
 		--item-help                             \
 		--ok-label \"\$msg_ok\"                 \
 		--cancel-label \"\$msg_exit_bsdconfig\" \
+		--help-button                           \
+	${USE_XDIALOG:+--help \"\$( f_include_help )\"} \
 		--menu \"\$prompt\" $size $menu_list    \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -286,8 +289,6 @@ if [ "$1" ]; then
 	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
 fi
 
-[ -f "$HOME/.bsdconfigrc" ] || f_dialog_msgbox "$msg_help_text"
-
 #
 # Launch application main menu
 #
@@ -297,7 +298,13 @@ while :; do
 	mtag=$( f_dialog_menutag )
 	f_dprintf "retval=$retval mtag=[$mtag]"
 
-	[ $retval -eq 0 ] || f_die
+	if [ $retval -eq 2 ]; then
+		# The Help button was pressed
+		f_show_msg "%s" "$( f_include_help )"
+		continue
+	elif [ $retval -ne 0 ]; then
+		f_die
+	fi
 
 	case "$mtag" in
 	X) # Exit
