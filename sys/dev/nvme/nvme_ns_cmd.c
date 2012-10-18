@@ -34,17 +34,12 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
     uint32_t lba_count, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request	*req;
-	struct nvme_tracker	*tr;
 	struct nvme_command	*cmd;
-	int			err;
 
 	req = nvme_allocate_request(payload, lba_count*512, cb_fn, cb_arg);
 
-	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, req);
-
-	if (tr == NULL)
+	if (req == NULL)
 		return (ENOMEM);
-
 	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_READ;
 	cmd->nsid = ns->id;
@@ -53,10 +48,7 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	*(uint64_t *)&cmd->cdw10 = lba;
 	cmd->cdw12 = lba_count-1;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
-	    req->payload_size, nvme_payload_map, tr, 0);
-
-	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
+	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
 
 	return (0);
 }
@@ -66,15 +58,11 @@ nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
     uint32_t lba_count, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request	*req;
-	struct nvme_tracker	*tr;
 	struct nvme_command	*cmd;
-	int 			err;
 
 	req = nvme_allocate_request(payload, lba_count*512, cb_fn, cb_arg);
 
-	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, req);
-
-	if (tr == NULL)
+	if (req == NULL)
 		return (ENOMEM);
 
 	cmd = &req->cmd;
@@ -85,10 +73,7 @@ nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	*(uint64_t *)&cmd->cdw10 = lba;
 	cmd->cdw12 = lba_count-1;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
-	    req->payload_size, nvme_payload_map, tr, 0);
-
-	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
+	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
 
 	return (0);
 }
@@ -98,16 +83,12 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
     uint8_t num_ranges, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request	*req;
-	struct nvme_tracker	*tr;
 	struct nvme_command	*cmd;
-	int 			err;
 
 	req = nvme_allocate_request(payload,
 	    num_ranges * sizeof(struct nvme_dsm_range), cb_fn, cb_arg);
 
-	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, req);
-
-	if (tr == NULL)
+	if (req == NULL)
 		return (ENOMEM);
 
 	cmd = &req->cmd;
@@ -118,10 +99,7 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 	cmd->cdw10 = num_ranges;
 	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
 
-	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
-	    req->payload_size, nvme_payload_map, tr, 0);
-
-	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
+	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
 
 	return (0);
 }
@@ -130,21 +108,18 @@ int
 nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request	*req;
-	struct nvme_tracker	*tr;
 	struct nvme_command	*cmd;
 
 	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, req);
-
-	if (tr == NULL)
+	if (req == NULL)
 		return (ENOMEM);
 
 	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_FLUSH;
 	cmd->nsid = ns->id;
 
-	nvme_qpair_submit_cmd(tr->qpair, tr);
+	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
 
 	return (0);
 }

@@ -331,9 +331,6 @@ void	nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
 						  nvme_cb_fn_t cb_fn,
 						  void *cb_arg);
 
-struct nvme_tracker *	nvme_allocate_tracker(struct nvme_controller *ctrlr,
-					      boolean_t is_admin,
-					      struct nvme_request *request);
 void	nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg,
 			 int error);
 
@@ -341,6 +338,10 @@ int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 int	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void	nvme_ctrlr_start(void *ctrlr_arg);
+void	nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
+					struct nvme_request *req);
+void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
+				     struct nvme_request *req);
 
 void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
