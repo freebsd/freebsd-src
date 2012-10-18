@@ -860,12 +860,6 @@ struct so_zerocopy_stats{
 	int found_ifp;
 };
 struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
-#include <netinet/in.h>
-#include <net/route.h>
-#include <netinet/in_pcb.h>
-#include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_object.h>
 
 /*
  * sosend_copyin() is only used if zero copy sockets are enabled.  Otherwise
@@ -907,9 +901,9 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 			} else
 				m = m_get(M_WAITOK, MT_DATA);
 			if (so_zero_copy_send &&
-			    resid>=PAGE_SIZE &&
-			    *space>=PAGE_SIZE &&
-			    uio->uio_iov->iov_len>=PAGE_SIZE) {
+			    resid >= PAGE_SIZE &&
+			    *space >= PAGE_SIZE &&
+			    uio->uio_iov->iov_len >= PAGE_SIZE) {
 				so_zerocp_stats.size_ok++;
 				so_zerocp_stats.align_ok++;
 				cow_send = socow_setup(m, uio);
@@ -946,7 +940,7 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 		if (cow_send)
 			error = 0;
 		else
-		error = uiomove(mtod(m, void *), (int)len, uio);
+			error = uiomove(mtod(m, void *), (int)len, uio);
 		resid = uio->uio_resid;
 		m->m_len = len;
 		*mp = m;
