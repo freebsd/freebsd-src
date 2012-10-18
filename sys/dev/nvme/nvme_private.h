@@ -55,14 +55,14 @@ MALLOC_DECLARE(M_NVME);
 
 #define IDT_PCI_ID		0x80d0111d
 
-#define NVME_MAX_PRP_LIST_ENTRIES	(128)
+#define NVME_MAX_PRP_LIST_ENTRIES	(32)
 
 /*
  * For commands requiring more than 2 PRP entries, one PRP will be
  *  embedded in the command (prp1), and the rest of the PRP entries
  *  will be in a list pointed to by the command (prp2).  This means
- *  that real max number of PRP entries we support is 128+1, which
- *  results in a max xfer size of 128*PAGE_SIZE.
+ *  that real max number of PRP entries we support is 32+1, which
+ *  results in a max xfer size of 32*PAGE_SIZE.
  */
 #define NVME_MAX_XFER_SIZE	NVME_MAX_PRP_LIST_ENTRIES * PAGE_SIZE
 
@@ -92,25 +92,21 @@ MALLOC_DECLARE(M_NVME);
 #define CACHE_LINE_SIZE		(64)
 #endif
 
-struct nvme_prp_list {
-	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
-	SLIST_ENTRY(nvme_prp_list)	slist;
-	bus_addr_t			bus_addr;
-	bus_dmamap_t			dma_map;
-};
-
 struct nvme_tracker {
 
 	SLIST_ENTRY(nvme_tracker)	slist;
 	struct nvme_qpair		*qpair;
 	struct nvme_command		cmd;
 	struct callout			timer;
-	bus_dmamap_t			dma_map;
+	bus_dmamap_t			payload_dma_map;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
 	uint32_t			payload_size;
-	struct nvme_prp_list		*prp_list;
 	uint16_t			cid;
+
+	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
+	bus_addr_t			prp_bus_addr;
+	bus_dmamap_t			prp_dma_map;
 };
 
 struct nvme_qpair {
@@ -148,13 +144,10 @@ struct nvme_qpair {
 	uint64_t		cpl_bus_addr;
 
 	uint32_t		num_tr;
-	uint32_t		num_prp_list;
 
 	SLIST_HEAD(, nvme_tracker)	free_tr;
 
 	struct nvme_tracker	**act_tr;
-
-	SLIST_HEAD(, nvme_prp_list)	free_prp_list;
 
 	struct mtx		lock __aligned(CACHE_LINE_SIZE);
 
@@ -347,8 +340,7 @@ void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 void	nvme_qpair_submit_cmd(struct nvme_qpair *qpair,
 			      struct nvme_tracker *tr);
 void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
-struct nvme_tracker *	nvme_qpair_allocate_tracker(struct nvme_qpair *qpair,
-						    boolean_t alloc_prp_list);
+struct nvme_tracker *	nvme_qpair_allocate_tracker(struct nvme_qpair *qpair);
 
 void	nvme_admin_qpair_destroy(struct nvme_qpair *qpair);
 

@@ -58,11 +58,7 @@ nvme_allocate_tracker_uio(struct nvme_controller *ctrlr, struct uio *uio)
 	else
 		qpair = &ctrlr->ioq[0];
 
-	/*
-	 * For uio, always allocate a PRP list, rather than walking
-	 *  the iovecs.
-	 */
-	tr = nvme_qpair_allocate_tracker(qpair, TRUE /* alloc_prp_list */);
+	tr = nvme_qpair_allocate_tracker(qpair);
 
 	if (tr == NULL)
 		return (NULL);
@@ -109,7 +105,7 @@ nvme_read_uio(struct nvme_namespace *ns, struct uio *uio)
 
 	cmd->cdw12 = (iosize / nvme_ns_get_sector_size(ns))-1;
 
-	err = bus_dmamap_load_uio(tr->qpair->dma_tag, tr->dma_map, uio,
+	err = bus_dmamap_load_uio(tr->qpair->dma_tag, tr->payload_dma_map, uio,
 	    nvme_payload_map_uio, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load_uio returned non-zero!\n"));
@@ -143,7 +139,7 @@ nvme_write_uio(struct nvme_namespace *ns, struct uio *uio)
 
 	cmd->cdw12 = (iosize / nvme_ns_get_sector_size(ns))-1;
 
-	err = bus_dmamap_load_uio(tr->qpair->dma_tag, tr->dma_map, uio,
+	err = bus_dmamap_load_uio(tr->qpair->dma_tag, tr->payload_dma_map, uio,
 	    nvme_payload_map_uio, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load_uio returned non-zero!\n"));

@@ -211,7 +211,6 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
 	struct nvme_tracker 	*tr;
 	struct nvme_qpair 	*qpair;
-	struct nvme_prp_list	*prp_list;
 	uint32_t		cur_nseg;
 
 	KASSERT(error == 0, ("nvme_payload_map error != 0\n"));
@@ -230,13 +229,10 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	if (nseg == 2) {
 		tr->cmd.prp2 = seg[1].ds_addr;
 	} else if (nseg > 2) {
-		KASSERT(tr->prp_list,
-		    ("prp_list needed but not attached to tracker\n"));
 		cur_nseg = 1;
-		prp_list = tr->prp_list;
-		tr->cmd.prp2 = (uint64_t)prp_list->bus_addr;
+		tr->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
 		while (cur_nseg < nseg) {
-			prp_list->prp[cur_nseg-1] =
+			tr->prp[cur_nseg-1] =
 			    (uint64_t)seg[cur_nseg].ds_addr;
 			cur_nseg++;
 		}
@@ -251,8 +247,6 @@ nvme_allocate_tracker(struct nvme_controller *ctrlr, boolean_t is_admin,
 {
 	struct nvme_tracker 	*tr;
 	struct nvme_qpair	*qpair;
-	uint32_t 		modulo, offset, num_prps;
-	boolean_t		alloc_prp_list = FALSE;
 
 	if (is_admin) {
 		qpair = &ctrlr->adminq;
@@ -263,17 +257,7 @@ nvme_allocate_tracker(struct nvme_controller *ctrlr, boolean_t is_admin,
 			qpair = &ctrlr->ioq[0];
 	}
 
-	num_prps = payload_size / PAGE_SIZE;
-	modulo = payload_size % PAGE_SIZE;
-	offset = (uint32_t)((uintptr_t)payload % PAGE_SIZE);
-
-	if (modulo || offset)
-		num_prps += 1 + (modulo + offset - 1) / PAGE_SIZE;
-
-	if (num_prps > 2)
-		alloc_prp_list = TRUE;
-
-	tr = nvme_qpair_allocate_tracker(qpair, alloc_prp_list);
+	tr = nvme_qpair_allocate_tracker(qpair);
 
 	if (tr == NULL)
 		return (NULL);

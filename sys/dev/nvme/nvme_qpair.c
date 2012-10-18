@@ -75,10 +75,9 @@ nvme_completion_check_retry(const struct nvme_completion *cpl)
 }
 
 struct nvme_tracker *
-nvme_qpair_allocate_tracker(struct nvme_qpair *qpair, boolean_t alloc_prp_list)
+nvme_qpair_allocate_tracker(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
-	struct nvme_prp_list	*prp_list;
 
 	mtx_lock(&qpair->lock);
 
@@ -102,32 +101,16 @@ nvme_qpair_allocate_tracker(struct nvme_qpair *qpair, boolean_t alloc_prp_list)
 			return (NULL);
 		}
 
-		bus_dmamap_create(qpair->dma_tag, 0, &tr->dma_map);
+		bus_dmamap_create(qpair->dma_tag, 0, &tr->payload_dma_map);
+		bus_dmamap_create(qpair->dma_tag, 0, &tr->prp_dma_map);
+
+		bus_dmamap_load(qpair->dma_tag, tr->prp_dma_map, tr->prp,
+		    sizeof(tr->prp), nvme_single_map, &tr->prp_bus_addr, 0);
+
 		callout_init_mtx(&tr->timer, &qpair->lock, 0);
 		tr->cid = qpair->num_tr++;
 	} else
 		SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
-
-	if (alloc_prp_list) {
-		prp_list = SLIST_FIRST(&qpair->free_prp_list);
-
-		if (prp_list == NULL) {
-			prp_list = malloc(sizeof(struct nvme_prp_list),
-			    M_NVME, M_ZERO | M_NOWAIT);
-
-			bus_dmamap_create(qpair->dma_tag, 0, &prp_list->dma_map);
-
-			bus_dmamap_load(qpair->dma_tag, prp_list->dma_map,
-			    prp_list->prp, sizeof(struct nvme_prp_list),
-			    nvme_single_map, &prp_list->bus_addr, 0);
-
-			qpair->num_prp_list++;
-		} else {
-			SLIST_REMOVE_HEAD(&qpair->free_prp_list, slist);
-		}
-
-		tr->prp_list = prp_list;
-	}
 
 	return (tr);
 }
@@ -176,14 +159,9 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			/* nvme_qpair_submit_cmd() will release the lock. */
 			nvme_qpair_submit_cmd(qpair, tr);
 		else {
-			if (tr->prp_list) {
-				SLIST_INSERT_HEAD(&qpair->free_prp_list,
-				    tr->prp_list, slist);
-				tr->prp_list = NULL;
-			}
-
 			if (tr->payload_size > 0)
-				bus_dmamap_unload(qpair->dma_tag, tr->dma_map);
+				bus_dmamap_unload(qpair->dma_tag,
+				    tr->payload_dma_map);
 
 			SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
 
@@ -256,7 +234,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
 	qpair->num_tr = 0;
-	qpair->num_prp_list = 0;
 	qpair->sq_head = qpair->sq_tail = qpair->cq_head = 0;
 
 	/* TODO: error checking on contigmalloc, bus_dmamap_load calls */
@@ -281,7 +258,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->cq_hdbl_off = nvme_mmio_offsetof(doorbell[id].cq_hdbl);
 
 	SLIST_INIT(&qpair->free_tr);
-	SLIST_INIT(&qpair->free_prp_list);
 
 	qpair->act_tr = malloc(sizeof(struct nvme_tracker *) * qpair->num_entries,
 	    M_NVME, M_ZERO | M_NOWAIT);
@@ -291,7 +267,6 @@ static void
 nvme_qpair_destroy(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker *tr;
-	struct nvme_prp_list *prp_list;
 
 	if (qpair->tag)
 		bus_teardown_intr(qpair->ctrlr->dev, qpair->res, qpair->tag);
@@ -309,15 +284,9 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 	while (!SLIST_EMPTY(&qpair->free_tr)) {
 		tr = SLIST_FIRST(&qpair->free_tr);
 		SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
-		bus_dmamap_destroy(qpair->dma_tag, tr->dma_map);
+		bus_dmamap_destroy(qpair->dma_tag, tr->payload_dma_map);
+		bus_dmamap_destroy(qpair->dma_tag, tr->prp_dma_map);
 		free(tr, M_NVME);
-	}
-
-	while (!SLIST_EMPTY(&qpair->free_prp_list)) {
-		prp_list = SLIST_FIRST(&qpair->free_prp_list);
-		SLIST_REMOVE_HEAD(&qpair->free_prp_list, slist);
-		bus_dmamap_destroy(qpair->dma_tag, prp_list->dma_map);
-		free(prp_list, M_NVME);
 	}
 }
 
