@@ -796,28 +796,8 @@ void
 nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
     struct nvme_request *req)
 {
-	struct nvme_qpair       *qpair;
-	struct nvme_tracker     *tr;
-	int                     err;
 
-	qpair = &ctrlr->adminq;
-
-	mtx_lock(&qpair->lock);
-
-	tr = nvme_qpair_allocate_tracker(qpair);
-
-	tr->req = req;
-
-	if (req->payload_size > 0) {
-		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
-				      req->payload, req->payload_size,
-				      nvme_payload_map, tr, 0);
-		if (err != 0)
-			panic("bus_dmamap_load returned non-zero!\n");
-	} else
-		nvme_qpair_submit_cmd(tr->qpair, tr);
-
-	mtx_unlock(&qpair->lock);
+	nvme_qpair_submit_request(&ctrlr->adminq, req);
 }
 
 void
@@ -825,37 +805,11 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
     struct nvme_request *req)
 {
 	struct nvme_qpair       *qpair;
-	struct nvme_tracker     *tr;
-	int                     err;
 
 	if (ctrlr->per_cpu_io_queues)
 		qpair = &ctrlr->ioq[curcpu];
 	else
 		qpair = &ctrlr->ioq[0];
 
-	mtx_lock(&qpair->lock);
-
-	tr = nvme_qpair_allocate_tracker(qpair);
-
-	tr->req = req;
-
-	if (req->uio == NULL) {
-		if (req->payload_size > 0) {
-			err = bus_dmamap_load(tr->qpair->dma_tag,
-					      tr->payload_dma_map, req->payload,
-					      req->payload_size,
-					      nvme_payload_map, tr, 0);
-			if (err != 0)
-				panic("bus_dmamap_load returned non-zero!\n");
-		} else
-			nvme_qpair_submit_cmd(tr->qpair, tr);
-	} else {
-		err = bus_dmamap_load_uio(tr->qpair->dma_tag,
-					  tr->payload_dma_map, req->uio,
-					  nvme_payload_map_uio, tr, 0);
-		if (err != 0)
-			panic("bus_dmamap_load returned non-zero!\n");
-	}
-
-	mtx_unlock(&qpair->lock);
+	nvme_qpair_submit_request(qpair, req);
 }
