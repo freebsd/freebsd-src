@@ -119,6 +119,7 @@ void
 nvme_qpair_process_completions(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
+	struct nvme_request	*req;
 	struct nvme_completion	*cpl;
 	boolean_t		retry, error;
 
@@ -131,6 +132,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			break;
 
 		tr = qpair->act_tr[cpl->cid];
+		req = tr->req;
+
 		KASSERT(tr,
 		    ("completion queue has entries but no active trackers\n"));
 
@@ -139,7 +142,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 
 		if (error) {
 			nvme_dump_completion(cpl);
-			nvme_dump_command(&tr->cmd);
+			nvme_dump_command(&tr->req->cmd);
 		}
 
 		qpair->act_tr[cpl->cid] = NULL;
@@ -147,8 +150,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		KASSERT(cpl->cid == tr->cmd.cid,
 		    ("cpl cid does not match cmd cid\n"));
 
-		if (tr->cb_fn && !retry)
-			tr->cb_fn(tr->cb_arg, cpl);
+		if (req->cb_fn && !retry)
+			req->cb_fn(req->cb_arg, cpl);
 
 		qpair->sq_head = cpl->sqhd;
 
@@ -159,10 +162,11 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			/* nvme_qpair_submit_cmd() will release the lock. */
 			nvme_qpair_submit_cmd(qpair, tr);
 		else {
-			if (tr->payload_size > 0)
+			if (req->payload_size > 0)
 				bus_dmamap_unload(qpair->dma_tag,
 				    tr->payload_dma_map);
 
+			nvme_free_request(req);
 			SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
 
 			mtx_unlock(&qpair->lock);
@@ -373,8 +377,10 @@ nvme_timeout(void *arg)
 void
 nvme_qpair_submit_cmd(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 {
+	struct nvme_request *req;
 
-	tr->cmd.cid = tr->cid;
+	req = tr->req;
+	req->cmd.cid = tr->cid;
 	qpair->act_tr[tr->cid] = tr;
 
 	/*
@@ -393,7 +399,7 @@ nvme_qpair_submit_cmd(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	callout_reset(&tr->timer, NVME_TIMEOUT_IN_SEC * hz, nvme_timeout, tr);
 
 	/* Copy the command from the tracker to the submission queue. */
-	memcpy(&qpair->cmd[qpair->sq_tail], &tr->cmd, sizeof(tr->cmd));
+	memcpy(&qpair->cmd[qpair->sq_tail], &req->cmd, sizeof(req->cmd));
 
 	if (++qpair->sq_tail == qpair->num_entries)
 		qpair->sq_tail = 0;
