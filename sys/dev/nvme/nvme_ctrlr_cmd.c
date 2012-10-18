@@ -33,14 +33,17 @@ void
 nvme_ctrlr_cmd_identify_controller(struct nvme_controller *ctrlr, void *payload,
 	nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 	int err;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg,
-	    sizeof(struct nvme_controller_data), payload);
+	req = nvme_allocate_request(payload,
+	    sizeof(struct nvme_controller_data), cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_IDENTIFY;
 
 	/*
@@ -50,7 +53,7 @@ nvme_ctrlr_cmd_identify_controller(struct nvme_controller *ctrlr, void *payload,
 	cmd->cdw10 = 1;
 
 	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
-	    tr->payload_size, nvme_payload_map, tr, 0);
+	    req->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
 }
@@ -59,14 +62,17 @@ void
 nvme_ctrlr_cmd_identify_namespace(struct nvme_controller *ctrlr, uint16_t nsid,
 	void *payload, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 	int err;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg,
-	    sizeof(struct nvme_namespace_data), payload);
+	req = nvme_allocate_request(payload,
+	    sizeof(struct nvme_namespace_data), cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_IDENTIFY;
 
 	/*
@@ -75,7 +81,7 @@ nvme_ctrlr_cmd_identify_namespace(struct nvme_controller *ctrlr, uint16_t nsid,
 	cmd->nsid = nsid;
 
 	err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map, payload,
-	    tr->payload_size, nvme_payload_map, tr, 0);
+	    req->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
 }
@@ -85,12 +91,15 @@ nvme_ctrlr_cmd_create_io_cq(struct nvme_controller *ctrlr,
     struct nvme_qpair *io_que, uint16_t vector, nvme_cb_fn_t cb_fn,
     void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg, 0, NULL);
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_CREATE_IO_CQ;
 
 	/*
@@ -109,12 +118,15 @@ void
 nvme_ctrlr_cmd_create_io_sq(struct nvme_controller *ctrlr,
     struct nvme_qpair *io_que, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg, 0, NULL);
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_CREATE_IO_SQ;
 
 	/*
@@ -133,12 +145,15 @@ void
 nvme_ctrlr_cmd_delete_io_cq(struct nvme_controller *ctrlr,
     struct nvme_qpair *io_que, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg, 0, NULL);
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_DELETE_IO_CQ;
 
 	/*
@@ -154,12 +169,15 @@ void
 nvme_ctrlr_cmd_delete_io_sq(struct nvme_controller *ctrlr,
     struct nvme_qpair *io_que, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg, 0, NULL);
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_DELETE_IO_SQ;
 
 	/*
@@ -176,14 +194,16 @@ nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr, uint8_t feature,
     uint32_t cdw11, void *payload, uint32_t payload_size,
     nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 	int err;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg,
-	    payload_size, payload);
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_SET_FEATURES;
 	cmd->cdw10 = feature;
 	cmd->cdw11 = cdw11;
@@ -202,14 +222,16 @@ nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr, uint8_t feature,
     uint32_t cdw11, void *payload, uint32_t payload_size,
     nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 	int err;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg,
-	    payload_size, payload);
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_GET_FEATURES;
 	cmd->cdw10 = feature;
 	cmd->cdw11 = cdw11;
@@ -276,12 +298,15 @@ void
 nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
     nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg, 0, NULL);
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_ASYNC_EVENT_REQUEST;
 
 	nvme_qpair_submit_cmd(tr->qpair, tr);
@@ -292,14 +317,16 @@ nvme_ctrlr_cmd_get_health_information_page(struct nvme_controller *ctrlr,
     uint32_t nsid, struct nvme_health_information_page *payload,
     nvme_cb_fn_t cb_fn, void *cb_arg)
 {
+	struct nvme_request *req;
 	struct nvme_tracker *tr;
 	struct nvme_command *cmd;
 	int err;
 
-	tr = nvme_allocate_tracker(ctrlr, TRUE, cb_fn, cb_arg,
-	    sizeof(*payload), payload);
+	req = nvme_allocate_request(payload, sizeof(*payload), cb_fn, cb_arg);
 
-	cmd = &tr->cmd;
+	tr = nvme_allocate_tracker(ctrlr, TRUE, req);
+
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_GET_LOG_PAGE;
 	cmd->nsid = nsid;
 	cmd->cdw10 = ((sizeof(*payload)/sizeof(uint32_t)) - 1) << 16;

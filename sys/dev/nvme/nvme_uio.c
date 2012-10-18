@@ -48,7 +48,8 @@ nvme_uio_done(void *arg, const struct nvme_completion *status)
 }
 
 static struct nvme_tracker *
-nvme_allocate_tracker_uio(struct nvme_controller *ctrlr, struct uio *uio)
+nvme_allocate_tracker_uio(struct nvme_controller *ctrlr, struct uio *uio,
+    struct nvme_request *req)
 {
 	struct nvme_tracker 	*tr;
 	struct nvme_qpair	*qpair;
@@ -63,11 +64,8 @@ nvme_allocate_tracker_uio(struct nvme_controller *ctrlr, struct uio *uio)
 	if (tr == NULL)
 		return (NULL);
 
-	memset(&tr->cmd, 0, sizeof(tr->cmd));
-
 	tr->qpair = qpair;
-	tr->cb_fn = nvme_uio_done;
-	tr->cb_arg = uio;
+	tr->req = req;
 
 	return (tr);
 }
@@ -82,26 +80,29 @@ nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
 static int
 nvme_read_uio(struct nvme_namespace *ns, struct uio *uio)
 {
+	struct nvme_request	*req;
 	struct nvme_tracker	*tr;
 	struct nvme_command	*cmd;
 	int			err, i;
 	uint64_t		lba, iosize = 0;
 
-	tr = nvme_allocate_tracker_uio(ns->ctrlr, uio);
+	for (i = 0; i < uio->uio_iovcnt; i++) {
+		iosize += uio->uio_iov[i].iov_len;
+	}
+
+	req = nvme_allocate_request(NULL, iosize, nvme_uio_done, uio);
+
+	tr = nvme_allocate_tracker_uio(ns->ctrlr, uio, req);
 
 	if (tr == NULL)
 		return (ENOMEM);
 
-	cmd = &tr->cmd;
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_READ;
 	cmd->nsid = ns->id;
 	lba = uio->uio_offset / nvme_ns_get_sector_size(ns);
 
 	*(uint64_t *)&cmd->cdw10 = lba;
-
-	for (i = 0; i < uio->uio_iovcnt; i++) {
-		iosize += uio->uio_iov[i].iov_len;
-	}
 
 	cmd->cdw12 = (iosize / nvme_ns_get_sector_size(ns))-1;
 
@@ -116,26 +117,29 @@ nvme_read_uio(struct nvme_namespace *ns, struct uio *uio)
 static int
 nvme_write_uio(struct nvme_namespace *ns, struct uio *uio)
 {
+	struct nvme_request	*req;
 	struct nvme_tracker	*tr;
 	struct nvme_command	*cmd;
 	int			err, i;
 	uint64_t		lba, iosize = 0;
 
-	tr = nvme_allocate_tracker_uio(ns->ctrlr, uio);
+	for (i = 0; i < uio->uio_iovcnt; i++) {
+		iosize += uio->uio_iov[i].iov_len;
+	}
+
+	req = nvme_allocate_request(NULL, iosize, nvme_uio_done, uio);
+
+	tr = nvme_allocate_tracker_uio(ns->ctrlr, uio, req);
 
 	if (tr == NULL)
 		return (ENOMEM);
 
-	cmd = &tr->cmd;
+	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_WRITE;
 	cmd->nsid = ns->id;
 	lba = uio->uio_offset / nvme_ns_get_sector_size(ns);
 
 	*(uint64_t *)&cmd->cdw10 = lba;
-
-	for (i = 0; i < uio->uio_iovcnt; i++) {
-		iosize += uio->uio_iov[i].iov_len;
-	}
 
 	cmd->cdw12 = (iosize / nvme_ns_get_sector_size(ns))-1;
 
