@@ -16,6 +16,8 @@
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
+#	LOCAL_MTREE="list of mtree files" to process to allow local directories
+#	    to be created before files are installed
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
 #	TARGET="machine" to crossbuild world for a different machine type
@@ -407,6 +409,9 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 .endif
+.for _mtree in ${LOCAL_MTREE}
+	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
+.endfor
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -724,7 +729,8 @@ reinstall:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 hierarchy
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
+	    LOCAL_MTREE=${LOCAL_MTREE} hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"
@@ -1221,6 +1227,10 @@ cross-tools:
 #
 hierarchy hier:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
+.for _mtree in ${LOCAL_MTREE}
+	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/${_mtree} \
+	    -p ${DESTDIR}/
+.endfor
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
