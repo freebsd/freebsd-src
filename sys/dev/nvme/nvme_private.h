@@ -354,6 +354,8 @@ void	nvme_qpair_submit_cmd(struct nvme_qpair *qpair,
 			      struct nvme_tracker *tr);
 void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
 struct nvme_tracker *	nvme_qpair_allocate_tracker(struct nvme_qpair *qpair);
+void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
+				  struct nvme_request *req);
 
 void	nvme_admin_qpair_destroy(struct nvme_qpair *qpair);
 
