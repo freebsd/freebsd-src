@@ -711,8 +711,8 @@ if_attachdomain1(struct ifnet *ifp)
 		return;
 	if (ifp->if_afdata_initialized >= domain_init_status) {
 		IF_AFDATA_UNLOCK(ifp);
-		printf("if_attachdomain called more than once on %s\n",
-		    ifp->if_xname);
+		log(LOG_WARNING, "if_attachdomain called more than once "
+		    "on %s\n", ifp->if_xname);
 		return;
 	}
 	ifp->if_afdata_initialized = domain_init_status;
