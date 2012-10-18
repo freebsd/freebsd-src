@@ -26,7 +26,7 @@ from {alpha,i386}/INSTALL.TXT.
     ausf&uuml;hrlichen, bebilderten Installationsleitung.</para>
 
   <para>Wenn Sie eine &auml;ltere Version von &os; aktualisieren
-    wollen, sollten Sie <xref linkend="upgrading">, Aktualisierung von
+    wollen, sollten Sie <xref linkend="upgrading"/>, Aktualisierung von
     FreeBSD, lesen.</para>
 
   <sect2 id="getting-started">
@@ -60,7 +60,7 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para>Irgend etwas kann immer schiefgehen und wenn Ihnen das
       passiert, sollten Sie einen Blick in <xref
-      linkend="trouble"> werfen, wo Sie hilfreiche Informationen
+      linkend="trouble"/> werfen, wo Sie hilfreiche Informationen
       finden k&ouml;nnen.  Sie sollten ebenfalls einen Blick auf die
       aktuelle Version von <filename>ERRATA.TXT</filename> werfen,
       bevor Sie mit der Installation beginnen, da Sie dort
@@ -76,6 +76,7 @@ from {alpha,i386}/INSTALL.TXT.
         Backup haben, bevor Sie die Installation
         durchf&uuml;hren.</para>
     </important>
+  </sect2>
 
   <sect2>
     <title>Hardware-Anforderungen</title>
@@ -286,7 +287,7 @@ from {alpha,i386}/INSTALL.TXT.
             benutzen, k&ouml;nnen Sie das Script
             <filename>makeflp.bat</filename> verwenden.  Weitere
             Informationen zu diesem Thema finden Sie im Kapitel <xref
-            linkend="floppies">.  Danach m&uuml;ssen Sie nur noch von
+            linkend="floppies"/>.  Danach m&uuml;ssen Sie nur noch von
             der ersten Diskette booten, um die &os;-Installation zu
             starten.</para>
         </listitem>
@@ -306,7 +307,7 @@ from {alpha,i386}/INSTALL.TXT.
 	    benutzen, k&ouml;nnen Sie das Script
 	    <filename>makeflp.bat</filename> verwenden.  Weitere
 	    Informationen zu diesem Thema finden Sie im Kapitel <xref
-	    linkend="floppies">.  Danach m&uuml;ssen Sie nur noch von
+	    linkend="floppies"/>.  Danach m&uuml;ssen Sie nur noch von
 	    der ersten Diskette booten, um die &os;-Installation zu
 	    starten.</para>
 	</listitem>
@@ -320,12 +321,12 @@ from {alpha,i386}/INSTALL.TXT.
       m&uuml;ssen Sie ebenfalls die beiden &os; Bootdisketten aus den
       Dateien <filename>floppies/kern.flp</filename> und
       <filename>floppies/mfsroot.flp</filename> erzeugen, wie in
-      <xref linkend="floppies"> beschrieben.  Booten Sie Ihren
+      <xref linkend="floppies"/> beschrieben.  Booten Sie Ihren
       Rechner von der Diskette mit <filename>kern.flp</filename>; und
       legen Sie die Diskette mit <filename>mfsroot.flp</filename> ein,
       sobald Sie dazu aufgefordert werden.  Weitere Informationen zu
       dieser Art der Installation finden Sie in <xref
-      linkend="ftpnfs">.</para>
+      linkend="ftpnfs"/>.</para>
 
     <para arch="pc98">Wenn Ihr Rechner kein CDROM Laufwerk hat,
       k&ouml;nnen Sie &os;  auch direkt &uuml;ber das Internet
@@ -334,12 +335,12 @@ from {alpha,i386}/INSTALL.TXT.
       Bootdisketten aus den Dateien
       <filename>floppies/kern.flp</filename> und
       <filename>floppies/mfsroot.flp</filename> erzeugen, wie in <xref
-      linkend="floppies"> beschrieben.  Booten Sie Ihren Rechner von
+      linkend="floppies"/> beschrieben.  Booten Sie Ihren Rechner von
       der Diskette mit <filename>kern.flp</filename>;  und legen Sie
       die Diskette mit <filename>mfsroot.flp</filename> ein, sobald
       Sie dazu aufgefordert werden.  Weitere Informationen zu dieser
       Art der Installation finden Sie in <xref
-      linkend="ftpnfs">.</para>
+      linkend="ftpnfs"/>.</para>
 
 <!-- alpha text starts here -->
 
@@ -358,7 +359,7 @@ from {alpha,i386}/INSTALL.TXT.
       Bootdisketten aus den Dateien
       <filename>floppies/kern.flp</filename> und
       <filename>floppies/mfsroot.flp</filename> erzeugen, wie in
-      <xref linkend="floppies"> beschrieben.  Legen Sie die
+      <xref linkend="floppies"/> beschrieben.  Legen Sie die
       Diskette mit dem Inhalt von <filename>kern.flp</filename> ein
       und geben Sie an der Eingabeaufforderung des SRM
       (<literal>&gt;&gt;&gt;</literal>) den folgenden Befehl ein, um
@@ -400,8 +401,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID:  830b92d4.</screen>
 
     <screenco arch="sparc64">
       <areaspec>
-	<area id="prompt-single" coords="1 5">
-	<area id="prompt-smp" coords="2 5">
+	<area id="prompt-single" coords="1 5"/>
+	<area id="prompt-smp" coords="2 5"/>
       </areaspec>
 
       <screen><prompt>ok </prompt>
@@ -506,7 +507,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
       <para>Wenn Sie von einem lokalen CDROM installieren wollen,
         sollten Sie nicht dieses Kapitel lesen, sondern
-        <xref linkend="start-installation">.  Wenn in Ihrem System
+        <xref linkend="start-installation"/>.  Wenn in Ihrem System
         kein CDROM vorhanden ist und Sie eine &os; CD benutzen wollen,
         die in einem CDROM Laufwerk eines anderen Systems liegt und
         Sie dieses System &uuml;ber ein Netzwerk erreichen
@@ -580,10 +581,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         Installation vorbereiten.</para>
 
       <para>Der erste Schritt ist die Erstellung der Bootdisketten,
-        wie in <xref linkend="floppies"> beschrieben.</para>
+        wie in <xref linkend="floppies"/> beschrieben.</para>
 
       <para>Der zweite Schritt ist, einen Blick in <xref
-        linkend="layout"> zu werfen.  Das Kapitel <quote>Distribution
+        linkend="layout"/> zu werfen.  Das Kapitel <quote>Distribution
         Format</quote> ist besonders wichtig, da Sie hier erfahren,
         welche Dateien Sie auf Diskette &uuml;bertragen m&uuml;ssen
         und welche Sie ignorieren k&ouml;nnen.</para>
@@ -733,14 +734,14 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       </note>
 
       <para>Der letzte Schritt ist die Erzeugung der Bootdisketten,
-        siehe <xref linkend="floppies">.</para>
+        siehe <xref linkend="floppies"/>.</para>
     </sect3>
 
     <sect3 id="ftpnfs">
       <title>Netzwerk-Installation mit FTP oder NFS</title>
 
       <para>Wenn Sie die Bootdisketten erzeugt haben, wie in <xref
-        linkend="floppies"> beschrieben, k&ouml;nnen Sie die restliche
+        linkend="floppies"/> beschrieben, k&ouml;nnen Sie die restliche
         Installation &uuml;ber eine Netzwerk-Verbindung
         durchf&uuml;hren, wobei drei Arten von Netzwerkverbindungen
         unterst&uuml;tzt werden: seriell, parallel, oder
@@ -981,7 +982,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           <para>Wenn Sie keine Meldungen auf Ihrer seriellen Konsole
             sehen, m&uuml;ssen Sie die Tastatur wieder einstecken und
             auf ein Tonsignal warten.  Wenn Sie von CD booten, machen
-            Sie bei <xref linkend="hitspace"> weiter, wenn Sie das
+            Sie bei <xref linkend="hitspace"/> weiter, wenn Sie das
             Tonsignal h&ouml;ren..</para>
         </step>
 

@@ -1,22 +1,17 @@
+<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
+<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//DE">
+%entities;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.18 2003/05/11 23:28:35 mheinen Exp $
   basiert auf: 1.26
 -->
-
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
-%mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-<!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
-%misc;
-]>
 
 <article lang="de">
   <articleinfo>
@@ -229,7 +224,7 @@
         wenn Sie an weiteren Informationen zu diesem Thema
         interessiert sind.  Zus&auml;tzliche Informationen zu diesem
         Thema finden Sie im Artikel <ulink
-        URL="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/hubs/">Mirroring
+        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/hubs/">Mirroring
         FreeBSD</ulink>.</para>
 
       <para>Sie finden die f&uuml;r den Start der Installation

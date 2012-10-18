@@ -349,7 +349,7 @@ boot:</screen>
           the machine (turn off and on).  At the
           <literal>Boot:</literal> prompt specify the
           <option>-c</option>.  This will invoke UserConfig (see
-          <xref linkend="repairing"> above).
+          <xref linkend="repairing"/> above).
 	  Use the <literal>disable</literal>
           command to disable the device probes for all devices at
           address 0x300 except the ep0 driver.  On exit, your machine
