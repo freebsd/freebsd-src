@@ -406,3 +406,35 @@ nvme_qpair_submit_cmd(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 
 	qpair->num_cmds++;
 }
+
+void
+nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
+{
+	struct nvme_tracker	*tr;
+	int			err;
+
+	mtx_lock(&qpair->lock);
+
+	tr = nvme_qpair_allocate_tracker(qpair);
+	tr->req = req;
+
+	if (req->uio == NULL) {
+		if (req->payload_size > 0) {
+			err = bus_dmamap_load(tr->qpair->dma_tag,
+					      tr->payload_dma_map, req->payload,
+					      req->payload_size,
+					      nvme_payload_map, tr, 0);
+			if (err != 0)
+				panic("bus_dmamap_load returned non-zero!\n");
+		} else
+			nvme_qpair_submit_cmd(tr->qpair, tr);
+	} else {
+		err = bus_dmamap_load_uio(tr->qpair->dma_tag,
+					  tr->payload_dma_map, req->uio,
+					  nvme_payload_map_uio, tr, 0);
+		if (err != 0)
+			panic("bus_dmamap_load returned non-zero!\n");
+	}
+
+	mtx_unlock(&qpair->lock);
+}
