@@ -115,7 +115,7 @@ struct nvme_request {
 	struct uio			*uio;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
-	SLIST_ENTRY(nvme_request)	slist;
+	STAILQ_ENTRY(nvme_request)	stailq;
 };
 
 struct nvme_tracker {
@@ -168,6 +168,7 @@ struct nvme_qpair {
 	uint64_t		cpl_bus_addr;
 
 	SLIST_HEAD(, nvme_tracker)	free_tr;
+	STAILQ_HEAD(, nvme_request)	queued_req;
 
 	struct nvme_tracker	**act_tr;
 
