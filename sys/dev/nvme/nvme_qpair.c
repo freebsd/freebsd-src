@@ -124,7 +124,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 
 		qpair->act_tr[cpl->cid] = NULL;
 
-		KASSERT(cpl->cid == tr->cmd.cid,
+		KASSERT(cpl->cid == req->cmd.cid,
 		    ("cpl cid does not match cmd cid\n"));
 
 		if (req->cb_fn && !retry)
