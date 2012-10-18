@@ -333,72 +333,36 @@ cron_tick(db)
  */
 static void
 cron_sync() {
-#if 0
  	register struct tm	*tm;
-#endif
 
-	TargetTime = time((time_t*)0) + 1;
-#if 0
+	TargetTime = time((time_t*)0);
 	tm = localtime(&TargetTime);
 	TargetTime += (60 - tm->tm_sec);
-#endif
 }
 
-static int
-timeval_subtract(struct timespec *result, struct timeval *x, struct timeval *y)
-{
-	int nsec;
-
-	/* Perform the carry for the later subtraction by updating y. */
-	if (x->tv_usec < y->tv_usec) {
-		nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
-		y->tv_usec -= 1000000 * nsec;
-		y->tv_sec += nsec;
-	}
-	if (x->tv_usec - y->tv_usec > 1000000) {
-		nsec = (x->tv_usec - y->tv_usec) / 1000000;
-		y->tv_usec += 1000000 * nsec;
-		y->tv_sec -= nsec;
-	}
-     
-	/* tv_nsec is certainly positive. */
-	result->tv_sec = x->tv_sec - y->tv_sec;
-	result->tv_nsec = (x->tv_usec - y->tv_usec) * 1000;
-     
-	/* Return difference in seconds */
-	return (x->tv_sec - y->tv_sec);
-}
 
 static void
 cron_sleep(db)
 	cron_db	*db;
 {
-	int seconds_to_wait;
-	int rval;
-	struct timeval ctime, ttime;
-	struct timespec stime, remtime;
+	int	seconds_to_wait = 0;
 
 	/*
 	 * Loop until we reach the top of the next minute, sleep when possible.
 	 */
 
 	for (;;) {
-		gettimeofday(&ctime, NULL);
-		ttime.tv_sec = TargetTime;
-		ttime.tv_usec = 0;
-		timeval_subtract(&stime, &ttime, &ctime);
+		seconds_to_wait = (int) (TargetTime - time((time_t*)0));
 
 		/*
 		 * If the seconds_to_wait value is insane, jump the cron
 		 */
 
-		if (stime.tv_sec < -600 || stime.tv_sec > 600) {
+		if (seconds_to_wait < -600 || seconds_to_wait > 600) {
 			cron_clean(db);
 			cron_sync();
 			continue;
 		}
-
-		seconds_to_wait = (stime.tv_nsec > 0) ? stime.tv_sec + 1 : stime.tv_sec;
 
 		Debug(DSCH, ("[%d] TargetTime=%ld, sec-to-wait=%d\n",
 			getpid(), (long)TargetTime, seconds_to_wait))
@@ -408,19 +372,13 @@ cron_sleep(db)
 		 * to run, break
 		 */
 
-		if (stime.tv_sec < 0)
+		if (seconds_to_wait <= 0)
 			break;
 		if (job_runqueue() == 0) {
 			Debug(DSCH, ("[%d] sleeping for %d seconds\n",
 				getpid(), seconds_to_wait))
 
-			for (;;) {
-				rval = nanosleep(&stime, &remtime);
-				if (rval == 0 || errno != EINTR)
-					break;
-				stime.tv_sec = remtime.tv_sec;
-				stime.tv_nsec = remtime.tv_nsec;
-			}
+			sleep(seconds_to_wait);
 		}
 	}
 }
