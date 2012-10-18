@@ -163,7 +163,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			/* nvme_qpair_submit_cmd() will release the lock. */
 			nvme_qpair_submit_cmd(qpair, tr);
 		else {
-			if (req->payload_size > 0)
+			if (req->payload_size > 0 || req->uio != NULL)
 				bus_dmamap_unload(qpair->dma_tag,
 				    tr->payload_dma_map);
 
