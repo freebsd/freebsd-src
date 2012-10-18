@@ -1503,8 +1503,6 @@ fire_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return (ENOENT);
 }
 
-#define	VIS_BLOCKSIZE	64
-
 static void
 fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
     bus_dmasync_op_t op)
