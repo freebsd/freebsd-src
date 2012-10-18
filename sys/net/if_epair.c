@@ -823,7 +823,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	sca->if_qflush = ifp->if_qflush;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_transmit = epair_transmit;
-	ifp->if_baudrate = IF_Gbps(10UL);	/* arbitrary maximum */
+	if_initbaudrate(ifp, IF_Gbps(10));	/* arbitrary maximum */
 
 	/* Swap the name and finish initialization of interface <n>b. */
 	*dp = 'b';
@@ -849,7 +849,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	scb->if_qflush = ifp->if_qflush;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_transmit = epair_transmit;
-	ifp->if_baudrate = IF_Gbps(10UL);	/* arbitrary maximum */
+	if_initbaudrate(ifp, IF_Gbps(10));	/* arbitrary maximum */
 
 	/*
 	 * Restore name to <n>a as the ifp for this will go into the
