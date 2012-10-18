@@ -1,0 +1,123 @@
+.Dd $Mdocdate: March 24 2012 $
+.Dt MAN.CGI 7
+.Os
+.Sh NAME
+.Nm man.cgi
+.Nd cgi for manpage query and display
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+script queries and displays manual pages.
+It interfaces with
+.Xr mandocdb 8
+databases cached with
+.Xr catman 8 .
+.Pp
+To use
+.Nm ,
+create a manual cache in
+.Xr catman 8 .
+Assign this directory to the environment variable
+.Ev CACHE_DIR ,
+defaulting to
+.Pa /cache/man.cgi .
+Copy the
+.Pa man.cgi
+script into your CGI directory (see
+.Sx FILES
+for other relevant files).
+.Pp
+Multiple
+.Xr catman 8
+trees may be managed by
+.Nm :
+directories under
+.Ev CACHE_DIR
+containing
+.Pa etc/catman.conf
+are identified as
+.Qq manroots .
+The path of a manroot under
+.Ev CACHE_DIR
+is converted to a name by replacing path separators with spaces.
+.Pp
+Thus, if
+.Ev CACHE_DIR
+is the default
+.Pa /cache/man.cgi ,
+the web-server is jailed to
+.Pa /var/www ,
+and cache subdirectories
+.Pa ./foo/1
+and
+.Pa ./bar/2
+contain
+.Pa etc/catman.conf ,
+.Nm
+will assign these to manroots
+.Qq foo 1
+and
+.Qq bar 2 ,
+respectively.
+These names will appear as choices when searching for manuals.
+.Pp
+If
+.Nm
+finds only one manroot, or none, then the selection box is omitted.
+If no manroot is specified during search, the first manroot is used by
+default.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev CACHE_DIR
+The absolute path of the
+.Xr catman 8
+cache directory.
+This must not have a trailing slash.
+.It Ev CSS_DIR
+Prepended to CSS file links in outputted HTML files.
+This must not have a trailing slash.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa etc/catman.conf
+Built by
+.Xr catman 8
+and must exist at least once under the configuration directory root.
+.It Pa man.css
+Should be visible in the server document root or within
+.Ev CSS_DIR .
+Included in each page after
+.Pa man-cgi.css ,
+ostensibly for
+.Xr mandoc 1
+HTML output styling.
+.It Pa man.cgi.css
+Should be visible in the server document root or within
+.Ev CSS_DIR .
+Included in each page, ostensibly for general
+.Nm
+styling.
+.El
+.Sh COMPATIBILITY
+The
+.Nm
+script is call-compatible with queries from the traditional
+.Pa man.cgi
+script by Wolfram Schneider.
+However, the results may not be quite the same.
+.Sh SEE ALSO
+.Xr catman 8 ,
+.Xr mandocdb 8
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .
+.Sh CAVEATS
+If you're running in a jailed web-server, make sure the
+.Pa /tmp
+directory exists and is writable.
+The databases may need this for scratch space.

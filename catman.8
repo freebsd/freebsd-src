@@ -1,0 +1,111 @@
+.\"	$Id: catman.8,v 1.5 2011/12/25 19:35:44 kristaps Exp $
+.\"
+.\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 25 2011 $
+.Dt CATMAN 8
+.Os
+.Sh NAME
+.Nm catman
+.Nd update a man.cgi manpage cache
+.Sh SYNOPSIS
+.Nm catman
+.Op Fl fv
+.Op Fl C Ar file
+.Op Fl M Ar manpath
+.Op Fl m Ar manpath
+.Op Fl o Ar path
+.Sh DESCRIPTION
+The
+.Nm
+utility updates cached manpages for a jailed
+.Xr man.cgi 7 .
+.Pp
+By default,
+.Nm
+searches for
+.Xr mandocdb 8
+databases in the default paths stipulated by
+.Xr man 1
+and updates the cache in
+.Pa /var/www/cache/man.cgi .
+.Pp
+Its arguments are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Force an update to all files.
+.It Fl v
+Print each file being updated.
+.It Fl C Ar file
+Specify an alternative configuration
+.Ar file
+in
+.Xr man.conf 5
+format.
+.It Fl M Ar manpath
+Use the colon-separated path instead of the default list of paths
+searched for
+.Xr mandocdb 8
+databases.
+Invalid paths, or paths without manual databases, are ignored.
+.It Fl m Ar manpath
+Prepend the colon-separated paths to the list of paths searched
+for
+.Xr mandocdb 8
+databases.
+Invalid paths, or paths without manual databases, are ignored.
+.It Fl o Ar path
+Update into the directory tree under
+.Ar path .
+.El
+.Pp
+Cache updates occur when a
+.Xr mandocdb 8
+database is older than the cached copy unless
+.Fl f
+is specified, in which case files are always considered out of date.
+Cached manual pages are only updated if older than the master copy.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev MANPATH
+Colon-separated paths modifying the default list of paths searched for
+manual databases.
+Invalid paths, or paths without manual databases, are ignored.
+Overridden by
+.Fl M .
+If
+.Ev MANPATH
+begins with a
+.Sq \&: ,
+it is appended to the default list;
+else if it ends with
+.Sq \&: ,
+it is prepended to the default list; else if it contains
+.Sq \&:: ,
+the default list is inserted between the colons.
+If none of these conditions are met, it overrides the default list.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr man.cgi 7 ,
+.Xr mandocdb 8
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .
