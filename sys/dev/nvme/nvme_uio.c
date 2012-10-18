@@ -64,6 +64,9 @@ nvme_allocate_tracker_uio(struct nvme_controller *ctrlr, struct uio *uio)
 	 */
 	tr = nvme_qpair_allocate_tracker(qpair, TRUE /* alloc_prp_list */);
 
+	if (tr == NULL)
+		return (NULL);
+
 	memset(&tr->cmd, 0, sizeof(tr->cmd));
 
 	tr->qpair = qpair;
@@ -80,7 +83,7 @@ nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
 	nvme_payload_map(arg, seg, nseg, error);
 }
 
-static void
+static int
 nvme_read_uio(struct nvme_namespace *ns, struct uio *uio)
 {
 	struct nvme_tracker	*tr;
@@ -89,6 +92,9 @@ nvme_read_uio(struct nvme_namespace *ns, struct uio *uio)
 	uint64_t		lba, iosize = 0;
 
 	tr = nvme_allocate_tracker_uio(ns->ctrlr, uio);
+
+	if (tr == NULL)
+		return (ENOMEM);
 
 	cmd = &tr->cmd;
 	cmd->opc = NVME_OPC_READ;
@@ -107,9 +113,11 @@ nvme_read_uio(struct nvme_namespace *ns, struct uio *uio)
 	    nvme_payload_map_uio, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load_uio returned non-zero!\n"));
+
+	return (0);
 }
 
-static void
+static int
 nvme_write_uio(struct nvme_namespace *ns, struct uio *uio)
 {
 	struct nvme_tracker	*tr;
@@ -118,6 +126,9 @@ nvme_write_uio(struct nvme_namespace *ns, struct uio *uio)
 	uint64_t		lba, iosize = 0;
 
 	tr = nvme_allocate_tracker_uio(ns->ctrlr, uio);
+
+	if (tr == NULL)
+		return (ENOMEM);
 
 	cmd = &tr->cmd;
 	cmd->opc = NVME_OPC_WRITE;
@@ -136,6 +147,8 @@ nvme_write_uio(struct nvme_namespace *ns, struct uio *uio)
 	    nvme_payload_map_uio, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load_uio returned non-zero!\n"));
+
+	return (0);
 }
 
 int
@@ -143,6 +156,7 @@ nvme_ns_physio(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct nvme_namespace	*ns;
 	struct mtx		*mtx;
+	int			err;
 #if __FreeBSD_version > 900017
 	int			ref;
 #endif
@@ -160,11 +174,12 @@ nvme_ns_physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 	mtx_lock(mtx);
 	if (uio->uio_rw == UIO_READ)
-		nvme_read_uio(ns, uio);
+		err = nvme_read_uio(ns, uio);
 	else
-		nvme_write_uio(ns, uio);
+		err = nvme_write_uio(ns, uio);
 
-	msleep(uio, mtx, PRIBIO, "nvme_physio", 0);
+	if (err == 0)
+		msleep(uio, mtx, PRIBIO, "nvme_physio", 0);
 	mtx_unlock(mtx);
 
 #if __FreeBSD_version > 900017
@@ -173,7 +188,8 @@ nvme_ns_physio(struct cdev *dev, struct uio *uio, int ioflag)
 	dev_relthread(dev);
 #endif
 
-	uio->uio_resid = 0;
+	if (err == 0)
+		uio->uio_resid = 0;
 
 	PRELE(curproc);
 	return (0);

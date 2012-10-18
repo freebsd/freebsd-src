@@ -275,6 +275,9 @@ nvme_allocate_tracker(struct nvme_controller *ctrlr, boolean_t is_admin,
 
 	tr = nvme_qpair_allocate_tracker(qpair, alloc_prp_list);
 
+	if (tr == NULL)
+		return (NULL);
+
 	memset(&tr->cmd, 0, sizeof(tr->cmd));
 
 	tr->qpair = qpair;
