@@ -517,8 +517,8 @@ crypto/blowfish/bf_ecb.c	optional ipsec
 crypto/blowfish/bf_skey.c	optional crypto | ipsec 
 crypto/camellia/camellia.c	optional crypto | ipsec 
 crypto/camellia/camellia-api.c	optional crypto | ipsec 
-crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
-crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
+crypto/des/des_ecb.c		optional crypto | ipsec
+crypto/des/des_setkey.c		optional crypto | ipsec
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
 					 ipsec | random | wlan_ccmp
@@ -2386,12 +2386,6 @@ fs/pseudofs/pseudofs.c		optional pseudofs
 fs/pseudofs/pseudofs_fileno.c	optional pseudofs
 fs/pseudofs/pseudofs_vncache.c	optional pseudofs
 fs/pseudofs/pseudofs_vnops.c	optional pseudofs
-fs/smbfs/smbfs_io.c		optional smbfs
-fs/smbfs/smbfs_node.c		optional smbfs
-fs/smbfs/smbfs_smb.c		optional smbfs
-fs/smbfs/smbfs_subr.c		optional smbfs
-fs/smbfs/smbfs_vfsops.c		optional smbfs
-fs/smbfs/smbfs_vnops.c		optional smbfs
 fs/udf/osta.c			optional udf
 fs/udf/udf_iconv.c		optional udf_iconv
 fs/udf/udf_vfsops.c		optional udf
@@ -2626,7 +2620,6 @@ kern/kern_uuid.c		standard
 kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
-kern/md4c.c			optional netsmb
 kern/md5c.c			standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
@@ -3155,15 +3148,6 @@ netpfil/pf/pf_osfp.c		optional pf inet
 netpfil/pf/pf_ruleset.c		optional pf inet
 netpfil/pf/pf_table.c		optional pf inet
 netpfil/pf/in4_cksum.c		optional pf inet
-netsmb/smb_conn.c		optional netsmb
-netsmb/smb_crypt.c		optional netsmb
-netsmb/smb_dev.c		optional netsmb
-netsmb/smb_iod.c		optional netsmb
-netsmb/smb_rq.c			optional netsmb
-netsmb/smb_smb.c		optional netsmb
-netsmb/smb_subr.c		optional netsmb
-netsmb/smb_trantcp.c		optional netsmb
-netsmb/smb_usr.c		optional netsmb
 nfs/bootp_subr.c		optional bootp nfsclient | bootp nfscl
 nfs/krpc_subr.c			optional bootp nfsclient | bootp nfscl
 nfs/nfs_common.c		optional nfsclient | nfsserver
