@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
-void
+int
 nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
     uint32_t lba_count, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
@@ -39,6 +39,9 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
 
 	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, cb_fn, cb_arg,
 	    lba_count*512, payload);
+
+	if (tr == NULL)
+		return (ENOMEM);
 
 	cmd = &tr->cmd;
 	cmd->opc = NVME_OPC_READ;
@@ -52,9 +55,11 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
+
+	return (0);
 }
 
-void
+int
 nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
     uint32_t lba_count, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
@@ -64,6 +69,9 @@ nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
 
 	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, cb_fn, cb_arg,
 	    lba_count*512, payload);
+
+	if (tr == NULL)
+		return (ENOMEM);
 
 	cmd = &tr->cmd;
 	cmd->opc = NVME_OPC_WRITE;
@@ -77,9 +85,11 @@ nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
+
+	return (0);
 }
 
-void
+int
 nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
     uint8_t num_ranges, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
@@ -89,6 +99,9 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 
 	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, cb_fn, cb_arg,
 	    num_ranges * sizeof(struct nvme_dsm_range), payload);
+
+	if (tr == NULL)
+		return (ENOMEM);
 
 	cmd = &tr->cmd;
 	cmd->opc = NVME_OPC_DATASET_MANAGEMENT;
@@ -102,9 +115,11 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 	    tr->payload_size, nvme_payload_map, tr, 0);
 
 	KASSERT(err == 0, ("bus_dmamap_load returned non-zero!\n"));
+
+	return (0);
 }
 
-void
+int
 nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_tracker	*tr;
@@ -112,9 +127,14 @@ nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn, void *cb_arg)
 
 	tr = nvme_allocate_tracker(ns->ctrlr, FALSE, cb_fn, cb_arg, 0, NULL);
 
+	if (tr == NULL)
+		return (ENOMEM);
+
 	cmd = &tr->cmd;
 	cmd->opc = NVME_OPC_FLUSH;
 	cmd->nsid = ns->id;
 
 	nvme_qpair_submit_cmd(tr->qpair, tr);
+
+	return (0);
 }

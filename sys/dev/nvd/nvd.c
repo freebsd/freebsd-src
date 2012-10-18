@@ -214,9 +214,21 @@ nvd_bioq_process(void *arg, int pending)
 
 		err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
 
+		/*
+		 * TODO: remove this loop and rely on GEOM's pacing once
+		 *  nvme(4) returns ENOMEM only for malloc() failures.
+		 *  Currently nvme(4) returns ENOMEM also for cases when
+		 *  the submission queue is completely full, and that case
+		 *  will be handled more elegantly in a future update.
+		 */
+		while (err == ENOMEM) {
+			pause("nvd enomem", 1);
+			err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
+		}
+
 		if (err) {
 			atomic_add_acq_int(&ndisk->cur_depth, -1);
-			bp->bio_error = EIO;
+			bp->bio_error = err;
 			bp->bio_flags |= BIO_ERROR;
 			bp->bio_resid = bp->bio_bcount;
 			biodone(bp);
