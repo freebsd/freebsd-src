@@ -162,8 +162,7 @@ nvd_done(void *arg, const struct nvme_completion *status)
 
 	ndisk = bp->bio_disk->d_drv1;
 
-	if (atomic_fetchadd_int(&ndisk->cur_depth, -1) == NVME_QD)
-		taskqueue_enqueue(ndisk->tq, &ndisk->bioqtask);
+	atomic_add_int(&ndisk->cur_depth, -1);
 
 	/*
 	 * TODO: add more extensive translation of NVMe status codes
@@ -187,9 +186,6 @@ nvd_bioq_process(void *arg, int pending)
 	int err;
 
 	for (;;) {
-		if (atomic_load_acq_int(&ndisk->cur_depth) >= NVME_QD)
-			break;
-
 		mtx_lock(&ndisk->bioqlock);
 		bp = bioq_takefirst(&ndisk->bioq);
 		mtx_unlock(&ndisk->bioqlock);
@@ -210,24 +206,12 @@ nvd_bioq_process(void *arg, int pending)
 #endif
 
 		bp->bio_driver1 = NULL;
-		atomic_add_acq_int(&ndisk->cur_depth, 1);
+		atomic_add_int(&ndisk->cur_depth, 1);
 
 		err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
 
-		/*
-		 * TODO: remove this loop and rely on GEOM's pacing once
-		 *  nvme(4) returns ENOMEM only for malloc() failures.
-		 *  Currently nvme(4) returns ENOMEM also for cases when
-		 *  the submission queue is completely full, and that case
-		 *  will be handled more elegantly in a future update.
-		 */
-		while (err == ENOMEM) {
-			pause("nvd enomem", 1);
-			err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
-		}
-
 		if (err) {
-			atomic_add_acq_int(&ndisk->cur_depth, -1);
+			atomic_add_int(&ndisk->cur_depth, -1);
 			bp->bio_error = err;
 			bp->bio_flags |= BIO_ERROR;
 			bp->bio_resid = bp->bio_bcount;

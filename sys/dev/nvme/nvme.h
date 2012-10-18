@@ -689,9 +689,6 @@ enum nvme_io_test_flags {
 
 struct bio;
 
-/* TODO: reassess this QD variable - its a workaround for Chatham2 issue */
-#define NVME_QD			(200)
-
 struct nvme_namespace;
 struct nvme_consumer;
 
