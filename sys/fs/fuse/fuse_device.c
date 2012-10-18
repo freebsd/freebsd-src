@@ -99,7 +99,6 @@ static struct cdevsw fuse_device_cdevsw = {
 	.d_read = fuse_device_read,
 	.d_write = fuse_device_write,
 	.d_version = D_VERSION,
-	.d_flags = D_NEEDMINOR,
 };
 
 /****************************
