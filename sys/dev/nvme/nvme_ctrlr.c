@@ -802,6 +802,8 @@ nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
 
 	qpair = &ctrlr->adminq;
 
+	mtx_lock(&qpair->lock);
+
 	tr = nvme_qpair_allocate_tracker(qpair);
 
 	tr->req = req;
@@ -814,6 +816,8 @@ nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
 			panic("bus_dmamap_load returned non-zero!\n");
 	} else
 		nvme_qpair_submit_cmd(tr->qpair, tr);
+
+	mtx_unlock(&qpair->lock);
 }
 
 void
@@ -828,6 +832,8 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 		qpair = &ctrlr->ioq[curcpu];
 	else
 		qpair = &ctrlr->ioq[0];
+
+	mtx_lock(&qpair->lock);
 
 	tr = nvme_qpair_allocate_tracker(qpair);
 
@@ -850,4 +856,6 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 		if (err != 0)
 			panic("bus_dmamap_load returned non-zero!\n");
 	}
+
+	mtx_unlock(&qpair->lock);
 }

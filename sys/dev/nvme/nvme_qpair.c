@@ -79,8 +79,6 @@ nvme_qpair_allocate_tracker(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
 
-	mtx_lock(&qpair->lock);
-
 	tr = SLIST_FIRST(&qpair->free_tr);
 	if (tr == NULL) {
 		/* 
@@ -89,7 +87,6 @@ nvme_qpair_allocate_tracker(struct nvme_qpair *qpair)
 		 *  into the qpair's active tracker array.
 		 */
 		if (qpair->num_tr == qpair->num_entries) {
-			mtx_unlock(&qpair->lock);
 			return (NULL);
 		}
 
@@ -97,7 +94,6 @@ nvme_qpair_allocate_tracker(struct nvme_qpair *qpair)
 		    M_ZERO | M_NOWAIT);
 
 		if (tr == NULL) {
-			mtx_unlock(&qpair->lock);
 			return (NULL);
 		}
 
@@ -160,7 +156,6 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		callout_stop(&tr->timer);
 
 		if (retry)
-			/* nvme_qpair_submit_cmd() will release the lock. */
 			nvme_qpair_submit_cmd(qpair, tr);
 		else {
 			if (req->payload_size > 0 || req->uio != NULL)
@@ -169,9 +164,9 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 
 			nvme_free_request(req);
 			SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
-
-			mtx_unlock(&qpair->lock);
 		}
+
+		mtx_unlock(&qpair->lock);
 
 		if (++qpair->cq_head == qpair->num_entries) {
 			qpair->cq_head = 0;
@@ -410,6 +405,4 @@ nvme_qpair_submit_cmd(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	    qpair->sq_tail);
 
 	qpair->num_cmds++;
-
-	mtx_unlock(&qpair->lock);
 }
