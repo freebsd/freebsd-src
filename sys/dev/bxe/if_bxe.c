@@ -2140,7 +2140,7 @@ bxe_attach(device_t dev)
 	ifp->if_capabilities = BXE_IF_CAPABILITIES;
 	/* TPA not enabled by default. */
 	ifp->if_capenable = BXE_IF_CAPABILITIES & ~IFCAP_LRO;
-	ifp->if_baudrate = IF_Gbps(10UL);
+	if_initbaudrate(ifp, IF_Gbps(10));
 
 	ifp->if_snd.ifq_drv_maxlen = sc->tx_ring_size;
 
