@@ -791,3 +791,54 @@ intx:
 
 	return (0);
 }
+
+void
+nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
+    struct nvme_request *req)
+{
+	struct nvme_qpair       *qpair;
+	struct nvme_tracker     *tr;
+	int                     err;
+
+	qpair = &ctrlr->adminq;
+
+	tr = nvme_qpair_allocate_tracker(qpair);
+
+	tr->req = req;
+
+	if (req->payload_size > 0) {
+		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
+				      req->payload, req->payload_size,
+				      nvme_payload_map, tr, 0);
+		if (err != 0)
+			panic("bus_dmamap_load returned non-zero!\n");
+	} else
+		nvme_qpair_submit_cmd(tr->qpair, tr);
+}
+
+void
+nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
+    struct nvme_request *req)
+{
+	struct nvme_qpair       *qpair;
+	struct nvme_tracker     *tr;
+	int                     err;
+
+	if (ctrlr->per_cpu_io_queues)
+		qpair = &ctrlr->ioq[curcpu];
+	else
+		qpair = &ctrlr->ioq[0];
+
+	tr = nvme_qpair_allocate_tracker(qpair);
+
+	tr->req = req;
+
+	if (req->payload_size > 0) {
+		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
+				      req->payload, req->payload_size,
+				      nvme_payload_map, tr, 0);
+		if (err != 0)
+			panic("bus_dmamap_load returned non-zero!\n");
+	} else
+		nvme_qpair_submit_cmd(tr->qpair, tr);
+}
