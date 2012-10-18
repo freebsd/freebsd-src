@@ -274,7 +274,7 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
  * are queues of messages stored on ifqueue structures
  * (defined above).  Entries are added to and deleted from these structures
- * by these macros, which should be called with ipl raised to splimp().
+ * by these macros.
  */
 #define IF_LOCK(ifq)		mtx_lock(&(ifq)->ifq_mtx)
 #define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)

@@ -995,7 +995,6 @@ cleanup:
  * Update parameters of an IPv6 interface address.
  * If necessary, a new entry is created and linked into address chains.
  * This function is separated from in6_control().
- * XXX: should this be performed under splnet()?
  */
 int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
@@ -1522,7 +1521,6 @@ in6_purgeaddr(struct ifaddr *ifa)
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
-	int	s = splnet();
 
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
@@ -1560,7 +1558,6 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 		pfxlist_onlink_check();
 	}
 	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
-	splx(s);
 }
 
 void
@@ -1856,7 +1853,6 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
     struct sockaddr_in6 *sin6, int newhost)
 {
 	int	error = 0, plen, ifacount = 0;
-	int	s = splimp();
 	struct ifaddr *ifa;
 
 	/*
@@ -1876,12 +1872,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 
 	if (ifacount <= 1 && ifp->if_ioctl) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		if (error) {
-			splx(s);
+		if (error)
 			return (error);
-		}
 	}
-	splx(s);
 
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
 

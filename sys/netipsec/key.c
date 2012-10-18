@@ -6912,15 +6912,11 @@ key_freereg(struct socket *so)
 static int
 key_expire(struct secasvar *sav)
 {
-	int s;
 	int satype;
 	struct mbuf *result = NULL, *m;
 	int len;
 	int error = -1;
 	struct sadb_lifetime *lt;
-
-	/* XXX: Why do we lock ? */
-	s = splnet();	/*called from softclock()*/
 
 	IPSEC_ASSERT (sav != NULL, ("null sav"));
 	IPSEC_ASSERT (sav->sah != NULL, ("null sa header"));
@@ -7023,13 +7019,11 @@ key_expire(struct secasvar *sav)
 	mtod(result, struct sadb_msg *)->sadb_msg_len =
 	    PFKEY_UNIT64(result->m_pkthdr.len);
 
-	splx(s);
 	return key_sendup_mbuf(NULL, result, KEY_SENDUP_REGISTERED);
 
  fail:
 	if (result)
 		m_freem(result);
-	splx(s);
 	return error;
 }
 
