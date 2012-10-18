@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 
+#include <dev/pci/pcivar.h>
+
 #include "nvme_private.h"
 
 static boolean_t
@@ -142,10 +144,13 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 
 			nvme_free_request(req);
 
-			if (SLIST_EMPTY(&qpair->free_tr))
-				wakeup(qpair);
-
 			SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
+
+			if (!STAILQ_EMPTY(&qpair->queued_req)) {
+				req = STAILQ_FIRST(&qpair->queued_req);
+				STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
+				nvme_qpair_submit_request(qpair, req);
+			}
 		}
 
 		mtx_unlock(&qpair->lock);
@@ -179,6 +184,16 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->id = id;
 	qpair->vector = vector;
 	qpair->num_entries = num_entries;
+#ifdef CHATHAM2
+	/*
+	 * Chatham prototype board starts having issues at higher queue
+	 *  depths.  So use a conservative estimate here of no more than 64
+	 *  outstanding I/O per queue at any one point.
+	 */
+	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
+		num_trackers = min(num_trackers, 64);
+#endif
+	qpair->num_trackers = num_trackers;
 	qpair->max_xfer_size = max_xfer_size;
 	qpair->ctrlr = ctrlr;
 
@@ -217,7 +232,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
-	qpair->num_trackers = num_trackers;
 	qpair->sq_head = qpair->sq_tail = qpair->cq_head = 0;
 
 	/* TODO: error checking on contigmalloc, bus_dmamap_load calls */
@@ -242,8 +256,9 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->cq_hdbl_off = nvme_mmio_offsetof(doorbell[id].cq_hdbl);
 
 	SLIST_INIT(&qpair->free_tr);
+	STAILQ_INIT(&qpair->queued_req);
 
-	for (i = 0; i < num_trackers; i++) {
+	for (i = 0; i < qpair->num_trackers; i++) {
 		tr = malloc(sizeof(*tr), M_NVME, M_ZERO | M_NOWAIT);
 
 		if (tr == NULL) {
@@ -400,10 +415,14 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 	tr = SLIST_FIRST(&qpair->free_tr);
 
-	while (tr == NULL) {
-		msleep(qpair, &qpair->lock, PRIBIO, "qpair_tr", 0);
-		printf("msleep\n");
-		tr = SLIST_FIRST(&qpair->free_tr);
+	if (tr == NULL) {
+		/*
+		 * No tracker is available.  Put the request on the qpair's
+		 *  request queue to be processed when a tracker frees up
+		 *  via a command completion.
+		 */
+		STAILQ_INSERT_TAIL(&qpair->queued_req, req, stailq);
+		goto ret;
 	}
 
 	SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
@@ -427,5 +446,6 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 			panic("bus_dmamap_load returned non-zero!\n");
 	}
 
+ret:
 	mtx_unlock(&qpair->lock);
 }
