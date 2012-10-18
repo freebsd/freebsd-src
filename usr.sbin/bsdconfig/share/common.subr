@@ -156,7 +156,7 @@ f_include()
 # f_include_lang $file
 #
 # Include a language file. Automatically takes $LANG and $LC_ALL into
-# considerationg when including $file (suffix ".$LC_ALL" or ".$LANG" will
+# consideration when including $file (suffix ".$LC_ALL" or ".$LANG" will
 # automatically by added prior to loading the language file).
 #
 # No error is produced if (a) a language has been requested (by setting either
