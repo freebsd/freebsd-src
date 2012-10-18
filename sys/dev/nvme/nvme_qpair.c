@@ -84,9 +84,23 @@ nvme_qpair_allocate_tracker(struct nvme_qpair *qpair, boolean_t alloc_prp_list)
 
 	tr = SLIST_FIRST(&qpair->free_tr);
 	if (tr == NULL) {
-		/* TODO: fail if malloc returns NULL */
+		/* 
+		 * We can't support more trackers than we have entries in
+		 *  our queue, because it would generate invalid indices
+		 *  into the qpair's active tracker array.
+		 */
+		if (qpair->num_tr == qpair->num_entries) {
+			mtx_unlock(&qpair->lock);
+			return (NULL);
+		}
+
 		tr = malloc(sizeof(struct nvme_tracker), M_NVME,
 		    M_ZERO | M_NOWAIT);
+
+		if (tr == NULL) {
+			mtx_unlock(&qpair->lock);
+			return (NULL);
+		}
 
 		bus_dmamap_create(qpair->dma_tag, 0, &tr->dma_map);
 		callout_init_mtx(&tr->timer, &qpair->lock, 0);

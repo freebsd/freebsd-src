@@ -704,16 +704,16 @@ enum nvme_namespace_flags {
 };
 
 /* NVM I/O functions */
-void	nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload,
+int	nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload,
 			  uint64_t lba, uint32_t lba_count, nvme_cb_fn_t cb_fn,
 			  void *cb_arg);
-void	nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload,
+int	nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload,
 			 uint64_t lba, uint32_t lba_count, nvme_cb_fn_t cb_fn,
 			 void *cb_arg);
-void	nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
+int	nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 			       uint8_t num_ranges, nvme_cb_fn_t cb_fn,
 			       void *cb_arg);
-void	nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn,
+int	nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn,
 			  void *cb_arg);
 
 /* Registration functions */
