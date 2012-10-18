@@ -68,14 +68,25 @@ MALLOC_DECLARE(M_NVME);
  */
 #define NVME_MAX_XFER_SIZE	NVME_MAX_PRP_LIST_ENTRIES * PAGE_SIZE
 
+#define NVME_ADMIN_TRACKERS	(16)
 #define NVME_ADMIN_ENTRIES	(128)
 /* min and max are defined in admin queue attributes section of spec */
 #define NVME_MIN_ADMIN_ENTRIES	(2)
 #define NVME_MAX_ADMIN_ENTRIES	(4096)
 
-#define NVME_IO_ENTRIES		(1024)
-/* min is a reasonable value picked for the nvme(4) driver */
-#define NVME_MIN_IO_ENTRIES	(128)
+/*
+ * NVME_IO_ENTRIES defines the size of an I/O qpair's submission and completion
+ *  queues, while NVME_IO_TRACKERS defines the maximum number of I/O that we
+ *  will allow outstanding on an I/O qpair at any time.  The only advantage in
+ *  having IO_ENTRIES > IO_TRACKERS is for debugging purposes - when dumping
+ *  the contents of the submission and completion queues, it will show a longer
+ *  history of data.
+ */
+#define NVME_IO_ENTRIES		(256)
+#define NVME_IO_TRACKERS	(128)
+#define NVME_MIN_IO_TRACKERS	(16)
+#define NVME_MAX_IO_TRACKERS	(1024)
+
 /*
  * NVME_MAX_IO_ENTRIES is not defined, since it is specified in CC.MQES
  *  for each controller.
@@ -134,6 +145,7 @@ struct nvme_qpair {
 
 	uint32_t		max_xfer_size;
 	uint32_t		num_entries;
+	uint32_t		num_trackers;
 	uint32_t		sq_tdbl_off;
 	uint32_t		cq_hdbl_off;
 
@@ -154,8 +166,6 @@ struct nvme_qpair {
 
 	bus_dmamap_t		cpl_dma_map;
 	uint64_t		cpl_bus_addr;
-
-	uint32_t		num_tr;
 
 	SLIST_HEAD(, nvme_tracker)	free_tr;
 
@@ -348,12 +358,11 @@ void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 
 void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
-			     uint32_t max_xfer_size,
+			     uint32_t num_trackers, uint32_t max_xfer_size,
 			     struct nvme_controller *ctrlr);
 void	nvme_qpair_submit_cmd(struct nvme_qpair *qpair,
 			      struct nvme_tracker *tr);
 void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
-struct nvme_tracker *	nvme_qpair_allocate_tracker(struct nvme_qpair *qpair);
 void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
 				  struct nvme_request *req);
 

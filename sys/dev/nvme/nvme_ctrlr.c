@@ -217,7 +217,13 @@ nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 	 * The admin queue's max xfer size is treated differently than the
 	 *  max I/O xfer size.  16KB is sufficient here - maybe even less?
 	 */
-	nvme_qpair_construct(qpair, 0, 0, num_entries, 16*1024, ctrlr);
+	nvme_qpair_construct(qpair, 
+			     0, /* qpair ID */
+			     0, /* vector */
+			     num_entries,
+			     NVME_ADMIN_TRACKERS,
+			     16*1024, /* max xfer size */
+			     ctrlr);
 }
 
 static int
@@ -225,12 +231,10 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 {
 	struct nvme_qpair	*qpair;
 	union cap_lo_register	cap_lo;
-	int			i, num_entries;
+	int			i, num_entries, num_trackers;
 
 	num_entries = NVME_IO_ENTRIES;
 	TUNABLE_INT_FETCH("hw.nvme.io_entries", &num_entries);
-
-	num_entries = max(num_entries, NVME_MIN_IO_ENTRIES);
 
 	/*
 	 * NVMe spec sets a hard limit of 64K max entries, but
@@ -239,6 +243,18 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 */
 	cap_lo.raw = nvme_mmio_read_4(ctrlr, cap_lo);
 	num_entries = min(num_entries, cap_lo.bits.mqes+1);
+
+	num_trackers = NVME_IO_TRACKERS;
+	TUNABLE_INT_FETCH("hw.nvme.io_trackers", &num_trackers);
+
+	num_trackers = max(num_trackers, NVME_MIN_IO_TRACKERS);
+	num_trackers = min(num_trackers, NVME_MAX_IO_TRACKERS);
+	/*
+	 * No need to have more trackers than entries in the submit queue.
+	 *  Note also that for a queue size of N, we can only have (N-1)
+	 *  commands outstanding, hence the "-1" here.
+	 */
+	num_trackers = min(num_trackers, (num_entries-1));
 
 	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
 	TUNABLE_INT_FETCH("hw.nvme.max_xfer_size", &ctrlr->max_xfer_size);
@@ -270,6 +286,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 				     i+1, /* qpair ID */
 				     ctrlr->msix_enabled ? i+1 : 0, /* vector */
 				     num_entries,
+				     num_trackers,
 				     ctrlr->max_xfer_size,
 				     ctrlr);
 
