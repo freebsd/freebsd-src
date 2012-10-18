@@ -262,33 +262,6 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	nvme_qpair_submit_cmd(qpair, tr);
 }
 
-struct nvme_tracker *
-nvme_allocate_tracker(struct nvme_controller *ctrlr, boolean_t is_admin,
-    struct nvme_request *req)
-{
-	struct nvme_tracker 	*tr;
-	struct nvme_qpair	*qpair;
-
-	if (is_admin) {
-		qpair = &ctrlr->adminq;
-	} else {
-		if (ctrlr->per_cpu_io_queues)
-			qpair = &ctrlr->ioq[curcpu];
-		else
-			qpair = &ctrlr->ioq[0];
-	}
-
-	tr = nvme_qpair_allocate_tracker(qpair);
-
-	if (tr == NULL)
-		return (NULL);
-
-	tr->qpair = qpair;
-	tr->req = req;
-
-	return (tr);
-}
-
 static int
 nvme_attach(device_t dev)
 {

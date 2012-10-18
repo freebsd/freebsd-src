@@ -109,6 +109,7 @@ nvme_qpair_allocate_tracker(struct nvme_qpair *qpair)
 
 		callout_init_mtx(&tr->timer, &qpair->lock, 0);
 		tr->cid = qpair->num_tr++;
+		tr->qpair = qpair;
 	} else
 		SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
 
