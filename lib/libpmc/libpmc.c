@@ -193,6 +193,11 @@ static const struct pmc_event_descr sandybridge_event_table[] =
 	__PMC_EV_ALIAS_SANDYBRIDGE()
 };
 
+static const struct pmc_event_descr sandybridge_xeon_event_table[] = 
+{
+	__PMC_EV_ALIAS_SANDYBRIDGE_XEON()
+};
+
 static const struct pmc_event_descr westmere_event_table[] =
 {
 	__PMC_EV_ALIAS_WESTMERE()
@@ -229,6 +234,7 @@ PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(corei7, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(ivybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(sandybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
+PMC_MDEP_TABLE(sandybridge_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(westmere, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(k7, K7, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k8, K8, PMC_CLASS_SOFT, PMC_CLASS_TSC);
@@ -267,6 +273,7 @@ PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
 PMC_CLASS_TABLE_DESC(ivybridge, IAP, ivybridge, iap);
 PMC_CLASS_TABLE_DESC(sandybridge, IAP, sandybridge, iap);
+PMC_CLASS_TABLE_DESC(sandybridge_xeon, IAP, sandybridge_xeon, iap);
 PMC_CLASS_TABLE_DESC(westmere, IAP, westmere, iap);
 PMC_CLASS_TABLE_DESC(ucf, UCF, ucf, ucf);
 PMC_CLASS_TABLE_DESC(corei7uc, UCP, corei7uc, ucp);
@@ -572,6 +579,8 @@ static struct pmc_event_alias core2_aliases_without_iaf[] = {
 #define ivybridge_aliases_without_iaf	core2_aliases_without_iaf
 #define sandybridge_aliases		core2_aliases
 #define sandybridge_aliases_without_iaf	core2_aliases_without_iaf
+#define sandybridge_xeon_aliases	core2_aliases
+#define sandybridge_xeon_aliases_without_iaf	core2_aliases_without_iaf
 #define westmere_aliases		core2_aliases
 #define westmere_aliases_without_iaf	core2_aliases_without_iaf
 
@@ -691,7 +700,7 @@ static struct pmc_masks iap_rsp_mask_i7_wm[] = {
 	NULLMASK
 };
 
-static struct pmc_masks iap_rsp_mask_sb_ib[] = {
+static struct pmc_masks iap_rsp_mask_sb_sbx_ib[] = {
 	PMCMASK(REQ_DMND_DATA_RD,	(1ULL <<  0)),
 	PMCMASK(REQ_DMND_RFO,		(1ULL <<  1)),
 	PMCMASK(REQ_DMND_IFETCH,	(1ULL <<  2)),
@@ -797,9 +806,10 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 			} else
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE ||
-		    cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE_XEON ||
+			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
-				n = pmc_parse_mask(iap_rsp_mask_sb_ib, p, &rsp);
+				n = pmc_parse_mask(iap_rsp_mask_sb_sbx_ib, p, &rsp);
 			} else
 				return (-1);
 		} else
@@ -2678,6 +2688,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = sandybridge_event_table;
 			count = PMC_EVENT_TABLE_SIZE(sandybridge);
 			break;
+		case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
+			ev = sandybridge_xeon_event_table;
+			count = PMC_EVENT_TABLE_SIZE(sandybridge_xeon);
+			break;
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmere_event_table;
 			count = PMC_EVENT_TABLE_SIZE(westmere);
@@ -2974,6 +2988,9 @@ pmc_init(void)
 		pmc_class_table[n++] = &sandybridgeuc_class_table_descr;
 		PMC_MDEP_INIT_INTEL_V2(sandybridge);
 		break;
+	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
+		PMC_MDEP_INIT_INTEL_V2(sandybridge_xeon);
+		break;
 	case PMC_CPU_INTEL_WESTMERE:
 		pmc_class_table[n++] = &ucf_class_table_descr;
 		pmc_class_table[n++] = &westmereuc_class_table_descr;
@@ -3111,6 +3128,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		case PMC_CPU_INTEL_SANDYBRIDGE:
 			ev = sandybridge_event_table;
 			evfence = sandybridge_event_table + PMC_EVENT_TABLE_SIZE(sandybridge);
+			break;
+		case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
+			ev = sandybridge_xeon_event_table;
+			evfence = sandybridge_xeon_event_table + PMC_EVENT_TABLE_SIZE(sandybridge_xeon);
 			break;
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmere_event_table;
