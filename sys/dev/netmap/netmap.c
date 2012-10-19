@@ -507,8 +507,8 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 {
 	vm_object_t obj;
 
-	D("cdev %p foff %d size %d objp %p prot %d", cdev, *foff,
-		objsize, objp, prot);
+	D("cdev %p foff %jd size %jd objp %p prot %d", cdev,
+	    (intmax_t )*foff, (intmax_t )objsize, objp, prot);
 	obj = vm_pager_allocate(OBJT_DEVICE, cdev, objsize, prot, *foff,
             curthread->td_ucred);
 	ND("returns obj %p", obj);
