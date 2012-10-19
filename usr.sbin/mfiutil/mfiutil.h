@@ -122,6 +122,7 @@ struct mfiutil_command {
 
 extern int mfi_unit;
 extern u_int mfi_opts;
+extern int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
 
 void	mbox_store_ldref(uint8_t *mbox, union mfi_ld_ref *ref);
 void	mbox_store_pdref(uint8_t *mbox, union mfi_pd_ref *ref);

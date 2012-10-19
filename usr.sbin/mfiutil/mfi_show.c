@@ -570,8 +570,6 @@ error:
 }
 MFI_COMMAND(show, drives, show_drives);
 
-int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
-
 static void
 scan_firmware(struct mfi_info_component *comp)
 {

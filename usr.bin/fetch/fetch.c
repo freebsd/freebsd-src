@@ -51,47 +51,47 @@ __FBSDID("$FreeBSD$");
 #define TIMEOUT		120
 
 /* Option flags */
-int	 A_flag;	/*    -A: do not follow 302 redirects */
-int	 a_flag;	/*    -a: auto retry */
-off_t	 B_size;	/*    -B: buffer size */
-int	 b_flag;	/*!   -b: workaround TCP bug */
-char    *c_dirname;	/*    -c: remote directory */
-int	 d_flag;	/*    -d: direct connection */
-int	 F_flag;	/*    -F: restart without checking mtime  */
-char	*f_filename;	/*    -f: file to fetch */
-char	*h_hostname;	/*    -h: host to fetch from */
-int	 i_flag;	/*    -i: specify input file for mtime comparison */
-char	*i_filename;	/*        name of input file */
-int	 l_flag;	/*    -l: link rather than copy file: URLs */
-int	 m_flag;	/* -[Mm]: mirror mode */
-char	*N_filename;	/*    -N: netrc file name */
-int	 n_flag;	/*    -n: do not preserve modification time */
-int	 o_flag;	/*    -o: specify output file */
-int	 o_directory;	/*        output file is a directory */
-char	*o_filename;	/*        name of output file */
-int	 o_stdout;	/*        output file is stdout */
-int	 once_flag;	/*    -1: stop at first successful file */
-int	 p_flag;	/* -[Pp]: use passive FTP */
-int	 R_flag;	/*    -R: don't delete partially transferred files */
-int	 r_flag;	/*    -r: restart previously interrupted transfer */
-off_t	 S_size;        /*    -S: require size to match */
-int	 s_flag;        /*    -s: show size, don't fetch */
-long	 T_secs;	/*    -T: transfer timeout in seconds */
-int	 t_flag;	/*!   -t: workaround TCP bug */
-int	 U_flag;	/*    -U: do not use high ports */
-int	 v_level = 1;	/*    -v: verbosity level */
-int	 v_tty;		/*        stdout is a tty */
-pid_t	 pgrp;		/*        our process group */
-long	 w_secs;	/*    -w: retry delay */
-int	 family = PF_UNSPEC;	/* -[46]: address family to use */
+static int	 A_flag;	/*    -A: do not follow 302 redirects */
+static int	 a_flag;	/*    -a: auto retry */
+static off_t	 B_size;	/*    -B: buffer size */
+static int	 b_flag;	/*!   -b: workaround TCP bug */
+static char    *c_dirname;	/*    -c: remote directory */
+static int	 d_flag;	/*    -d: direct connection */
+static int	 F_flag;	/*    -F: restart without checking mtime  */
+static char	*f_filename;	/*    -f: file to fetch */
+static char	*h_hostname;	/*    -h: host to fetch from */
+static int	 i_flag;	/*    -i: specify file for mtime comparison */
+static char	*i_filename;	/*        name of input file */
+static int	 l_flag;	/*    -l: link rather than copy file: URLs */
+static int	 m_flag;	/* -[Mm]: mirror mode */
+static char	*N_filename;	/*    -N: netrc file name */
+static int	 n_flag;	/*    -n: do not preserve modification time */
+static int	 o_flag;	/*    -o: specify output file */
+static int	 o_directory;	/*        output file is a directory */
+static char	*o_filename;	/*        name of output file */
+static int	 o_stdout;	/*        output file is stdout */
+static int	 once_flag;	/*    -1: stop at first successful file */
+static int	 p_flag;	/* -[Pp]: use passive FTP */
+static int	 R_flag;	/*    -R: don't delete partial files */
+static int	 r_flag;	/*    -r: restart previous transfer */
+static off_t	 S_size;        /*    -S: require size to match */
+static int	 s_flag;        /*    -s: show size, don't fetch */
+static long	 T_secs;	/*    -T: transfer timeout in seconds */
+static int	 t_flag;	/*!   -t: workaround TCP bug */
+static int	 U_flag;	/*    -U: do not use high ports */
+static int	 v_level = 1;	/*    -v: verbosity level */
+static int	 v_tty;		/*        stdout is a tty */
+static pid_t	 pgrp;		/*        our process group */
+static long	 w_secs;	/*    -w: retry delay */
+static int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
-int	 sigalrm;	/* SIGALRM received */
-int	 siginfo;	/* SIGINFO received */
-int	 sigint;	/* SIGINT received */
+static int	 sigalrm;	/* SIGALRM received */
+static int	 siginfo;	/* SIGINFO received */
+static int	 sigint;	/* SIGINT received */
 
-long	 ftp_timeout = TIMEOUT;		/* default timeout for FTP transfers */
-long	 http_timeout = TIMEOUT;	/* default timeout for HTTP transfers */
-char	*buf;		/* transfer buffer */
+static long	 ftp_timeout = TIMEOUT;	/* default timeout for FTP transfers */
+static long	 http_timeout = TIMEOUT;/* default timeout for HTTP transfers */
+static char	*buf;		/* transfer buffer */
 
 
 /*

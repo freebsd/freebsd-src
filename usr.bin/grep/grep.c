@@ -82,14 +82,15 @@ int		 eflags = REG_STARTEND;
 bool		 matchall;
 
 /* Searching patterns */
-unsigned int	 patterns, pattern_sz;
+unsigned int	 patterns;
+static unsigned int pattern_sz;
 struct pat	*pattern;
 regex_t		*r_pattern;
 fastmatch_t	*fg_pattern;
 
 /* Filename exclusion/inclusion patterns */
-unsigned int	 fpatterns, fpattern_sz;
-unsigned int	 dpatterns, dpattern_sz;
+unsigned int	fpatterns, dpatterns;
+static unsigned int fpattern_sz, dpattern_sz;
 struct epat	*dpattern, *fpattern;
 
 /* For regex errors  */

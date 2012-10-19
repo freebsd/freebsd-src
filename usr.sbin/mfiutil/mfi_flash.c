@@ -42,8 +42,6 @@
 
 #define	FLASH_BUF_SIZE	(64 * 1024)
 
-int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
-
 static void
 scan_firmware(struct mfi_info_component *comp)
 {
