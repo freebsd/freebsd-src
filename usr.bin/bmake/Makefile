@@ -81,10 +81,9 @@ SUBDIR=	PSD.doc
 .endif
 .endif
 
+.if defined(.PARSEDIR) 
+# we cannot rely on anything but bmake to parse this correctly.
 .if empty(isBSD44:M${OS})
-# XXX not sure if we still want this given that configure
-# lets us force or not the definition of MACHINE.
-CFLAGS_main.o+= "-DFORCE_MACHINE=\"${MACHINE}\""
 MANTARGET=cat
 INSTALL?=${srcdir}/install-sh
 .if (${MACHINE} == "sun386")
@@ -95,7 +94,7 @@ SRCS+= sigcompat.c
 CFLAGS+= -DSIGNAL_FLAGS=SA_RESTART
 .endif
 .endif
-.if defined(.PARSEDIR)
+
 .if make(obj) || make(clean)
 SUBDIR+= unit-tests
 .endif
