@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: oswindir - Windows directory access interfaces
@@ -248,4 +247,3 @@ AcpiOsCloseDirectory (
     free (SearchInfo->FullWildcardSpec);
     free (DirHandle);
 }
-

@@ -247,5 +247,3 @@ ACPI_RSCONVERT_INFO     AcpiRsSetVendor[7] =
                         sizeof (AML_RESOURCE_LARGE_HEADER),
                         0}
 };
-
-

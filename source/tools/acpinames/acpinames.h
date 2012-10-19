@@ -54,4 +54,3 @@
 #define ACPI_MAX_INIT_TABLES    (32)
 
 #endif
-

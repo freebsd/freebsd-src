@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: osunixdir - Unix directory access interfaces
@@ -60,7 +59,7 @@ typedef struct ExternalFindInfo
 {
     char                        *DirPathname;
     DIR                         *DirPtr;
-    char                        temp_buffer[128];
+    char                        temp_buffer[256];
     char                        *WildcardSpec;
     char                        RequestedFileType;
 
@@ -93,7 +92,7 @@ AcpiOsOpenDirectory (
 
     /* Allocate the info struct that will be returned to the caller */
 
-    ExternalInfo = calloc (sizeof (EXTERNAL_FIND_INFO), 1);
+    ExternalInfo = calloc (1, sizeof (EXTERNAL_FIND_INFO));
     if (!ExternalInfo)
     {
         return (NULL);

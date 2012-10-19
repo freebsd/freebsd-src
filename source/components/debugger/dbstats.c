@@ -314,7 +314,7 @@ AcpiDbClassifyOneObject (
         AcpiGbl_NodeTypeCount [Type]++;
     }
 
-    return AE_OK;
+    return (AE_OK);
 
 
 #ifdef ACPI_FUTURE_IMPLEMENTATION

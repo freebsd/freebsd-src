@@ -674,7 +674,7 @@ AcpiDbGetOutstandingAllocations (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute a control method.  Name is relative to the current
+ * DESCRIPTION: Execute a control method. Name is relative to the current
  *              scope.
  *
  ******************************************************************************/
@@ -862,8 +862,8 @@ AcpiDbDumpPldBuffer (
     {
         AcpiOsPrintf ("Converted _PLD buffer does not compare. New:\n");
 
-        AcpiUtDumpBuffer2 (NewBuffer,
-            BufferDesc->Buffer.Length, DB_BYTE_DISPLAY);
+        AcpiUtDumpBuffer (NewBuffer,
+            BufferDesc->Buffer.Length, DB_BYTE_DISPLAY, 0);
     }
 
     /* First 32-bit dword */
@@ -924,7 +924,7 @@ AcpiDbDumpPldBuffer (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Execute a control method.  Name is relative to the current
+ * DESCRIPTION: Execute a control method. Name is relative to the current
  *              scope.
  *
  ******************************************************************************/
@@ -1058,7 +1058,7 @@ AcpiDbExecute (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Debugger execute thread.  Waits for a command line, then
+ * DESCRIPTION: Debugger execute thread. Waits for a command line, then
  *              simply dispatches it.
  *
  ******************************************************************************/
@@ -1329,5 +1329,3 @@ CleanupAndExit:
 }
 
 #endif /* ACPI_DEBUGGER */
-
-

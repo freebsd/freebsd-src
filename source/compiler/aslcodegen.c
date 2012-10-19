@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcodegen - AML code generation
@@ -89,7 +88,7 @@ CgWriteNode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Generate AML code.  Currently generates the listing file
+ * DESCRIPTION: Generate AML code. Currently generates the listing file
  *              simultaneously.
  *
  ******************************************************************************/
@@ -446,7 +445,7 @@ CgWriteTableHeader (
 
     /* Compiler ID */
 
-    strncpy (TableHeader.AslCompilerId, ASL_CREATOR_ID, 4);
+    ACPI_MOVE_NAME (TableHeader.AslCompilerId, ASL_CREATOR_ID);
 
     /* Compiler version */
 
@@ -589,5 +588,3 @@ CgWriteNode (
         break;
     }
 }
-
-

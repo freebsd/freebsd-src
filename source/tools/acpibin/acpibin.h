@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: acpibinh - Include file for AcpiBin utility
@@ -67,7 +66,7 @@
 #define ACPI_DB_REDIRECTABLE_OUTPUT  0x01
 
 /*
- * Global variables.  Defined in main.c only, externed in all other files
+ * Global variables. Defined in main.c only, externed in all other files
  */
 
 #ifdef _DECLARE_GLOBALS
@@ -110,4 +109,3 @@ AbComputeChecksum (
 void
 AbDisplayHeader (
     char                    *File1Path);
-

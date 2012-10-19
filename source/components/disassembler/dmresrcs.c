@@ -355,4 +355,3 @@ AcpiDmVendorSmallDescriptor (
 }
 
 #endif
-

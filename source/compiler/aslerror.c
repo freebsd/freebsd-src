@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslerror - Error handling and statistics
@@ -95,7 +94,7 @@ AeClearErrorLog (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Add a new error node to the error log.  The error log is
+ * DESCRIPTION: Add a new error node to the error log. The error log is
  *              ordered by the "logical" line number (cumulative line number
  *              including all include files.)
  *
@@ -783,5 +782,5 @@ AslCompilererror (
         Gbl_CurrentColumn, Gbl_Files[ASL_FILE_INPUT].Filename,
         ACPI_CAST_PTR (char, CompilerMessage));
 
-    return 0;
+    return (0);
 }

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asllisting - Listing file generation
@@ -340,7 +339,7 @@ LsAmlListingWalk (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Generate a listing file.  This can be one of the several types
+ * DESCRIPTION: Generate a listing file. This can be one of the several types
  *              of "listings" supported.
  *
  ******************************************************************************/
@@ -421,7 +420,7 @@ LsDoListings (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Push a listing node on the listing/include file stack.  This
+ * DESCRIPTION: Push a listing node on the listing/include file stack. This
  *              stack enables tracking of include files (infinitely nested)
  *              and resumption of the listing of the parent file when the
  *              include file is finished.
@@ -479,7 +478,7 @@ LsPopNode (
     {
         AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, NULL,
             "Could not pop empty listing stack");
-        return Gbl_ListingNode;
+        return (Gbl_ListingNode);
     }
 
     Gbl_ListingNode = Lnode->Next;
@@ -501,8 +500,8 @@ LsPopNode (
  * RETURN:      None
  *
  * DESCRIPTION: Check if there is an exception for this line, and if there is,
- *              put it in the listing immediately.  Handles multiple errors
- *              per line.  Gbl_NextError points to the next error in the
+ *              put it in the listing immediately. Handles multiple errors
+ *              per line. Gbl_NextError points to the next error in the
  *              sorted (by line #) list of compile errors/warnings.
  *
  ******************************************************************************/
@@ -545,7 +544,7 @@ LsCheckException (
  * RETURN:      None
  *
  * DESCRIPTION: Flush out the current contents of the 16-byte hex AML code
- *              buffer.  Usually called at the termination of a single line
+ *              buffer. Usually called at the termination of a single line
  *              of source code or when the buffer is full.
  *
  ******************************************************************************/
@@ -653,7 +652,7 @@ LsFlushListingBuffer (
  * RETURN:      None
  *
  * DESCRIPTION: Write the contents of the AML buffer to the listing file via
- *              the listing buffer.  The listing buffer is flushed every 16
+ *              the listing buffer. The listing buffer is flushed every 16
  *              AML bytes.
  *
  ******************************************************************************/
@@ -807,7 +806,7 @@ LsWriteOneSourceLine (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Cleanup routine for the listing file.  Flush the hex AML
+ * DESCRIPTION: Cleanup routine for the listing file. Flush the hex AML
  *              listing buffer, and flush out any remaining lines in the
  *              source input file.
  *
@@ -868,7 +867,7 @@ LsFinishSourceListing (
  * RETURN:      None
  *
  * DESCRIPTION: Read then write source lines to the listing file until we have
- *              reached the specified logical (cumulative) line number.  This
+ *              reached the specified logical (cumulative) line number. This
  *              automatically echos out comment blocks and other non-AML
  *              generating text until we get to the actual AML-generating line
  *              of ASL code specified by the logical line number.
@@ -937,7 +936,7 @@ LsWriteSourceLines (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Write "a node" to the listing file.  This means to
+ * DESCRIPTION: Write "a node" to the listing file. This means to
  *              1) Write out all of the source text associated with the node
  *              2) Write out all of the AML bytes associated with the node
  *              3) Write any compiler exceptions associated with the node
@@ -1289,7 +1288,7 @@ LsDoHexOutput (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Create the hex output file.  This is the same data as the AML
+ * DESCRIPTION: Create the hex output file. This is the same data as the AML
  *              output file, but formatted into hex/ascii bytes suitable for
  *              inclusion into a C source file.
  *
@@ -1377,7 +1376,7 @@ LsDoHexOutputC (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Create the hex output file.  This is the same data as the AML
+ * DESCRIPTION: Create the hex output file. This is the same data as the AML
  *              output file, but formatted into hex/ascii bytes suitable for
  *              inclusion into a C source file.
  *
@@ -1465,7 +1464,7 @@ LsDoHexOutputAsl (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Create the hex output file.  This is the same data as the AML
+ * DESCRIPTION: Create the hex output file. This is the same data as the AML
  *              output file, but formatted into hex/ascii bytes suitable for
  *              inclusion into a ASM source file.
  *
@@ -1538,5 +1537,3 @@ LsDoHexOutputAsm (
 
     FlPrintFile (ASL_FILE_HEX_OUTPUT, "\n");
 }
-
-

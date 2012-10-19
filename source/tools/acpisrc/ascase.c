@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: ascase - Source conversion - lower/upper case utilities
@@ -57,7 +56,7 @@ AsUppercaseTokens (
  * FUNCTION:    AsLowerCaseString
  *
  * DESCRIPTION: LowerCase all instances of a target string with a replacement
- *              string.  Returns count of the strings replaced.
+ *              string. Returns count of the strings replaced.
  *
  ******************************************************************************/
 
@@ -86,7 +85,7 @@ AsLowerCaseString (
         SubString1 = strstr (SubBuffer, Target);
         if (!SubString1)
         {
-            return LowerCaseCount;
+            return (LowerCaseCount);
         }
 
         /*
@@ -105,7 +104,7 @@ AsLowerCaseString (
             {
                 /* Didn't find terminator */
 
-                return LowerCaseCount;
+                return (LowerCaseCount);
             }
 
             /* Move buffer to end of escape block and continue */
@@ -142,7 +141,7 @@ AsLowerCaseString (
         }
     }
 
-    return LowerCaseCount;
+    return (LowerCaseCount);
 }
 
 
@@ -465,7 +464,7 @@ AsMixedCaseToUnderscores (
  *
  * FUNCTION:    AsLowerCaseIdentifiers
  *
- * DESCRIPTION: Converts mixed case identifiers to lower case.  Leaves comments,
+ * DESCRIPTION: Converts mixed case identifiers to lower case. Leaves comments,
  *              quoted strings, and all-upper-case macros alone.
  *
  ******************************************************************************/

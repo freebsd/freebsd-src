@@ -697,4 +697,3 @@ AcpiDmSerialBusDescriptor (
 }
 
 #endif
-

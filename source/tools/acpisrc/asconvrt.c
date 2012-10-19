@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asconvrt - Source conversion code
@@ -59,6 +58,89 @@ AsCountLines (
 /* Opening signature of the Intel legal header */
 
 char        *HeaderBegin = "/******************************************************************************\n *\n * 1. Copyright Notice";
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AsRemoveExtraLines
+ *
+ * DESCRIPTION: Remove all extra lines at the start and end of the file.
+ *
+ ******************************************************************************/
+
+void
+AsRemoveExtraLines (
+    char                    *FileBuffer,
+    char                    *Filename)
+{
+    char                    *FileEnd;
+    int                     Length;
+
+
+    /* Remove any extra lines at the start of the file */
+
+    while (*FileBuffer == '\n')
+    {
+        printf ("Removing extra line at start of file: %s\n", Filename);
+        AsRemoveData (FileBuffer, FileBuffer + 1);
+    }
+
+    /* Remove any extra lines at the end of the file */
+
+    Length = strlen (FileBuffer);
+    FileEnd = FileBuffer + (Length - 2);
+
+    while (*FileEnd == '\n')
+    {
+        printf ("Removing extra line at end of file: %s\n", Filename);
+        AsRemoveData (FileEnd, FileEnd + 1);
+        FileEnd--;
+    }
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AsRemoveSpacesAfterPeriod
+ *
+ * DESCRIPTION: Remove an extra space after a period.
+ *
+ ******************************************************************************/
+
+void
+AsRemoveSpacesAfterPeriod (
+    char                    *FileBuffer,
+    char                    *Filename)
+{
+    int                     ReplaceCount = 0;
+    char                    *Possible;
+
+
+    Possible = FileBuffer;
+    while (Possible)
+    {
+        Possible = strstr (Possible, ".  ");
+        if (Possible)
+        {
+            if ((*(Possible -1) == '.')  ||
+                (*(Possible -1) == '\"') ||
+                (*(Possible -1) == '\n'))
+            {
+                Possible += 3;
+                continue;
+            }
+
+            Possible = AsReplaceData (Possible, 3, ". ", 2);
+            ReplaceCount++;
+        }
+    }
+
+    if (ReplaceCount)
+    {
+        printf ("Removed %d extra blanks after a period: %s\n",
+            ReplaceCount, Filename);
+    }
+}
 
 
 /******************************************************************************
@@ -146,7 +228,7 @@ AsCheckAndSkipLiterals (
 
         if (!LiteralEnd)
         {
-            return SubBuffer;
+            return (SubBuffer);
         }
 
         while (SubBuffer < LiteralEnd)
@@ -170,7 +252,7 @@ AsCheckAndSkipLiterals (
         LiteralEnd = AsSkipPastChar (SubBuffer, '\"');
         if (!LiteralEnd)
         {
-            return SubBuffer;
+            return (SubBuffer);
         }
     }
 
@@ -178,7 +260,7 @@ AsCheckAndSkipLiterals (
     {
         (*TotalLines) += NewLines;
     }
-    return SubBuffer;
+    return (SubBuffer);
 }
 
 
@@ -278,7 +360,7 @@ AsCheckForBraces (
  *
  * FUNCTION:    AsTrimLines
  *
- * DESCRIPTION: Remove extra blanks from the end of source lines.  Does not
+ * DESCRIPTION: Remove extra blanks from the end of source lines. Does not
  *              check for tabs.
  *
  ******************************************************************************/
@@ -404,7 +486,7 @@ AsReplaceHeader (
  * FUNCTION:    AsReplaceString
  *
  * DESCRIPTION: Replace all instances of a target string with a replacement
- *              string.  Returns count of the strings replaced.
+ *              string. Returns count of the strings replaced.
  *
  ******************************************************************************/
 
@@ -436,7 +518,7 @@ AsReplaceString (
         SubString1 = strstr (SubBuffer, Target);
         if (!SubString1)
         {
-            return ReplaceCount;
+            return (ReplaceCount);
         }
 
         /*
@@ -455,7 +537,7 @@ AsReplaceString (
             {
                 /* Didn't find terminator */
 
-                return ReplaceCount;
+                return (ReplaceCount);
             }
 
             /* Move buffer to end of escape block and continue */
@@ -488,7 +570,7 @@ AsReplaceString (
         }
     }
 
-    return ReplaceCount;
+    return (ReplaceCount);
 }
 
 
@@ -725,7 +807,7 @@ AsBracesOnSameLine (
  *
  * FUNCTION:    AsTabify4
  *
- * DESCRIPTION: Convert the text to tabbed text.  Alignment of text is
+ * DESCRIPTION: Convert the text to tabbed text. Alignment of text is
  *              preserved.
  *
  ******************************************************************************/
@@ -815,7 +897,7 @@ AsTabify4 (
  *
  * FUNCTION:    AsTabify8
  *
- * DESCRIPTION: Convert the text to tabbed text.  Alignment of text is
+ * DESCRIPTION: Convert the text to tabbed text. Alignment of text is
  *              preserved.
  *
  ******************************************************************************/
@@ -863,7 +945,7 @@ AsTabify8 (
 
             /*
              * This mechanism limits the difference in tab counts from
-             * line to line.  It helps avoid the situation where a second
+             * line to line. It helps avoid the situation where a second
              * continuation line (which was indented correctly for tabs=4) would
              * get indented off the screen if we just blindly converted to tabs.
              */
@@ -1015,7 +1097,7 @@ AsTabify8 (
  *
  * FUNCTION:    AsCountLines
  *
- * DESCRIPTION: Count the number of lines in the input buffer.  Also count
+ * DESCRIPTION: Count the number of lines in the input buffer. Also count
  *              the number of long lines (lines longer than 80 chars).
  *
  ******************************************************************************/
@@ -1037,7 +1119,7 @@ AsCountLines (
         if (!EndOfLine)
         {
             Gbl_TotalLines += LineCount;
-            return LineCount;
+            return (LineCount);
         }
 
         if ((EndOfLine - SubBuffer) > 80)
@@ -1057,7 +1139,7 @@ AsCountLines (
     }
 
     Gbl_TotalLines += LineCount;
-    return LineCount;
+    return (LineCount);
 }
 
 
@@ -1100,7 +1182,7 @@ AsCountTabs (
  *
  * FUNCTION:    AsCountNonAnsiComments
  *
- * DESCRIPTION: Count the number of "//" comments.  This type of comment is
+ * DESCRIPTION: Count the number of "//" comments. This type of comment is
  *              non-ANSI C.
  *
  ******************************************************************************/
@@ -1136,7 +1218,7 @@ AsCountNonAnsiComments (
  *
  * FUNCTION:    AsCountSourceLines
  *
- * DESCRIPTION: Count the number of C source lines.  Defined by 1) not a
+ * DESCRIPTION: Count the number of C source lines. Defined by 1) not a
  *              comment, and 2) not a blank line.
  *
  ******************************************************************************/
@@ -1444,5 +1526,3 @@ Exit:
     }
 }
 #endif
-
-

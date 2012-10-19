@@ -45,9 +45,9 @@
  * These procedures are used for tracking memory leaks in the subsystem, and
  * they get compiled out when the ACPI_DBG_TRACK_ALLOCATIONS is not set.
  *
- * Each memory allocation is tracked via a doubly linked list.  Each
+ * Each memory allocation is tracked via a doubly linked list. Each
  * element contains the caller's component, module name, function name, and
- * line number.  AcpiUtAllocate and AcpiUtAllocateZeroed call
+ * line number. AcpiUtAllocate and AcpiUtAllocateZeroed call
  * AcpiUtTrackAllocation to add an element to the list; deletion
  * occurs in the body of AcpiUtFree.
  */
@@ -62,11 +62,12 @@
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("uttrack")
 
+
 /* Local prototypes */
 
 static ACPI_DEBUG_MEM_BLOCK *
 AcpiUtFindAllocation (
-    void                    *Allocation);
+    ACPI_DEBUG_MEM_BLOCK    *Allocation);
 
 static ACPI_STATUS
 AcpiUtTrackAllocation (
@@ -296,29 +297,52 @@ AcpiUtFreeAndTrack (
  *
  * PARAMETERS:  Allocation              - Address of allocated memory
  *
- * RETURN:      A list element if found; NULL otherwise.
+ * RETURN:      Three cases:
+ *              1) List is empty, NULL is returned.
+ *              2) Element was found. Returns Allocation parameter.
+ *              3) Element was not found. Returns position where it should be
+ *                  inserted into the list.
  *
  * DESCRIPTION: Searches for an element in the global allocation tracking list.
+ *              If the element is not found, returns the location within the
+ *              list where the element should be inserted.
+ *
+ *              Note: The list is ordered by larger-to-smaller addresses.
+ *
+ *              This global list is used to detect memory leaks in ACPICA as
+ *              well as other issues such as an attempt to release the same
+ *              internal object more than once. Although expensive as far
+ *              as cpu time, this list is much more helpful for finding these
+ *              types of issues than using memory leak detectors outside of
+ *              the ACPICA code.
  *
  ******************************************************************************/
 
 static ACPI_DEBUG_MEM_BLOCK *
 AcpiUtFindAllocation (
-    void                    *Allocation)
+    ACPI_DEBUG_MEM_BLOCK    *Allocation)
 {
     ACPI_DEBUG_MEM_BLOCK    *Element;
 
 
-    ACPI_FUNCTION_ENTRY ();
-
-
     Element = AcpiGbl_GlobalList->ListHead;
-
-    /* Search for the address. */
-
-    while (Element)
+    if (!Element)
     {
-        if (Element == Allocation)
+        return (NULL);
+    }
+
+    /*
+     * Search for the address.
+     *
+     * Note: List is ordered by larger-to-smaller addresses, on the
+     * assumption that a new allocation usually has a larger address
+     * than previous allocations.
+     */
+    while (Element > Allocation)
+    {
+        /* Check for end-of-list */
+
+        if (!Element->Next)
         {
             return (Element);
         }
@@ -326,7 +350,12 @@ AcpiUtFindAllocation (
         Element = Element->Next;
     }
 
-    return (NULL);
+    if (Element == Allocation)
+    {
+        return (Element);
+    }
+
+    return (Element->Previous);
 }
 
 
@@ -341,7 +370,7 @@ AcpiUtFindAllocation (
  *              Module              - Source file name of caller
  *              Line                - Line number of caller
  *
- * RETURN:      None.
+ * RETURN:      Status
  *
  * DESCRIPTION: Inserts an element into the global allocation tracking list.
  *
@@ -377,23 +406,19 @@ AcpiUtTrackAllocation (
     }
 
     /*
-     * Search list for this address to make sure it is not already on the list.
-     * This will catch several kinds of problems.
+     * Search the global list for this address to make sure it is not
+     * already present. This will catch several kinds of problems.
      */
     Element = AcpiUtFindAllocation (Allocation);
-    if (Element)
+    if (Element == Allocation)
     {
         ACPI_ERROR ((AE_INFO,
-            "UtTrackAllocation: Allocation already present in list! (%p)",
+            "UtTrackAllocation: Allocation (%p) already present in global list!",
             Allocation));
-
-        ACPI_ERROR ((AE_INFO, "Element %p Address %p",
-            Element, Allocation));
-
         goto UnlockAndExit;
     }
 
-    /* Fill in the instance data. */
+    /* Fill in the instance data */
 
     Allocation->Size      = (UINT32) Size;
     Allocation->AllocType = AllocType;
@@ -403,17 +428,34 @@ AcpiUtTrackAllocation (
     ACPI_STRNCPY (Allocation->Module, Module, ACPI_MAX_MODULE_NAME);
     Allocation->Module[ACPI_MAX_MODULE_NAME-1] = 0;
 
-    /* Insert at list head */
-
-    if (MemList->ListHead)
+    if (!Element)
     {
-        ((ACPI_DEBUG_MEM_BLOCK *)(MemList->ListHead))->Previous = Allocation;
+        /* Insert at list head */
+
+        if (MemList->ListHead)
+        {
+            ((ACPI_DEBUG_MEM_BLOCK *)(MemList->ListHead))->Previous = Allocation;
+        }
+
+        Allocation->Next = MemList->ListHead;
+        Allocation->Previous = NULL;
+
+        MemList->ListHead = Allocation;
     }
+    else
+    {
+        /* Insert after element */
 
-    Allocation->Next = MemList->ListHead;
-    Allocation->Previous = NULL;
+        Allocation->Next = Element->Next;
+        Allocation->Previous = Element;
 
-    MemList->ListHead = Allocation;
+        if (Element->Next)
+        {
+            (Element->Next)->Previous = Allocation;
+        }
+
+        Element->Next = Allocation;
+    }
 
 
 UnlockAndExit:
@@ -431,7 +473,7 @@ UnlockAndExit:
  *              Module              - Source file name of caller
  *              Line                - Line number of caller
  *
- * RETURN:
+ * RETURN:      Status
  *
  * DESCRIPTION: Deletes an element from the global allocation tracking list.
  *
@@ -505,7 +547,7 @@ AcpiUtRemoveAllocation (
  *
  * FUNCTION:    AcpiUtDumpAllocationInfo
  *
- * PARAMETERS:
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
@@ -566,7 +608,7 @@ AcpiUtDumpAllocationInfo (
  * FUNCTION:    AcpiUtDumpAllocations
  *
  * PARAMETERS:  Component           - Component(s) to dump info for.
- *              Module              - Module to dump info for.  NULL means all.
+ *              Module              - Module to dump info for. NULL means all.
  *
  * RETURN:      None
  *
@@ -590,7 +632,7 @@ AcpiUtDumpAllocations (
 
     if (AcpiGbl_DisableMemTracking)
     {
-        return;
+        return_VOID;
     }
 
     /*
@@ -598,7 +640,7 @@ AcpiUtDumpAllocations (
      */
     if (ACPI_FAILURE (AcpiUtAcquireMutex (ACPI_MTX_MEMORY)))
     {
-        return;
+        return_VOID;
     }
 
     Element = AcpiGbl_GlobalList->ListHead;
@@ -708,4 +750,3 @@ AcpiUtDumpAllocations (
 }
 
 #endif  /* ACPI_DBG_TRACK_ALLOCATIONS */
-

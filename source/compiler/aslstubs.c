@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslstubs - Stubs used to link to Aml interpreter
@@ -62,7 +61,7 @@ ACPI_PHYSICAL_ADDRESS
 AeLocalGetRootPointer (
     void)
 {
-    return 0;
+    return (0);
 }
 
 void

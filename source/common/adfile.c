@@ -100,7 +100,7 @@ AdGenerateFilename (
 
     FilenameBuf[i] = 0;
     strcat (FilenameBuf, ACPI_TABLE_FILE_SUFFIX);
-    return FilenameBuf;
+    return (FilenameBuf);
 }
 
 
@@ -183,7 +183,7 @@ AdWriteTable (
  * RETURN:      New filename containing the original base + the new suffix
  *
  * DESCRIPTION: Generate a new filename from the ASL source filename and a new
- *              extension.  Used to create the *.LST, *.TXT, etc. files.
+ *              extension. Used to create the *.LST, *.TXT, etc. files.
  *
  ******************************************************************************/
 
@@ -223,7 +223,7 @@ FlGenerateFilename (
         strcat (NewFilename, Suffix);
     }
 
-    return NewFilename;
+    return (NewFilename);
 }
 
 
@@ -332,5 +332,3 @@ FlSplitInputPathname (
     *OutFilename = Filename;
     return (AE_OK);
 }
-
-

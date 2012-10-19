@@ -577,7 +577,7 @@ DtGetNextLine (
                 break;
 
             default:    /* Not a comment */
-                i++;    /* Save the preceeding slash */
+                i++;    /* Save the preceding slash */
                 if (i >= Gbl_LineBufferSize)
                 {
                     UtExpandLineBuffers ();
@@ -1008,7 +1008,7 @@ DtWriteTableToListing (
 
     AcpiOsPrintf ("\n%s: Length %d (0x%X)\n\n",
         ACPI_RAW_TABLE_DATA_HEADER, Gbl_TableLength, Gbl_TableLength);
-    AcpiUtDumpBuffer2 (Buffer, Gbl_TableLength, DB_BYTE_DISPLAY);
+    AcpiUtDumpBuffer (Buffer, Gbl_TableLength, DB_BYTE_DISPLAY, 0);
 
     AcpiOsRedirectOutput (stdout);
 }

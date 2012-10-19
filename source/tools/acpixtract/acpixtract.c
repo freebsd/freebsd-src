@@ -352,7 +352,7 @@ AxCountTableInstances (
         }
 
         AxNormalizeSignature (InstanceBuffer);
-        if (!strncmp (InstanceBuffer, Signature, 4))
+        if (ACPI_COMPARE_NAME (InstanceBuffer, Signature))
         {
             Instances++;
         }
@@ -527,13 +527,13 @@ AxExtractTables (
             }
 
             AxNormalizeSignature (LineBuffer);
-            strncpy (ThisSignature, LineBuffer, 4);
+            ACPI_MOVE_NAME (ThisSignature, LineBuffer);
 
             if (Signature)
             {
                 /* Ignore signatures that don't match */
 
-                if (strncmp (ThisSignature, Signature, 4))
+                if (!ACPI_COMPARE_NAME (ThisSignature, Signature))
                 {
                     continue;
                 }
@@ -716,7 +716,7 @@ AxListTables (
 
         /* FACS has only signature and length */
 
-        if (!strncmp (TableHeader->Signature, "FACS", 4))
+        if (ACPI_COMPARE_NAME (TableHeader->Signature, "FACS"))
         {
             printf ("\n");
             continue;

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslrestype2d - Large DWord address resource descriptors

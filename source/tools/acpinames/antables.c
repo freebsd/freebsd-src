@@ -129,7 +129,7 @@ AeBuildLocalTables (
     }
 
     ACPI_MEMSET (LocalXSDT, 0, XsdtSize);
-    ACPI_STRNCPY (LocalXSDT->Header.Signature, ACPI_SIG_XSDT, 4);
+    ACPI_MOVE_NAME (LocalXSDT->Header.Signature, ACPI_SIG_XSDT);
     LocalXSDT->Header.Length = XsdtSize;
     LocalXSDT->Header.Revision = 1;
 
@@ -222,7 +222,7 @@ AeBuildLocalTables (
          * Build a local FADT so we can test the hardware/event init
          */
         ACPI_MEMSET (&LocalFADT, 0, sizeof (ACPI_TABLE_FADT));
-        ACPI_STRNCPY (LocalFADT.Header.Signature, ACPI_SIG_FADT, 4);
+        ACPI_MOVE_NAME (LocalFADT.Header.Signature, ACPI_SIG_FADT);
 
         /* Setup FADT header and DSDT/FACS addresses */
 
@@ -273,7 +273,7 @@ AeBuildLocalTables (
     /* Build a FACS */
 
     ACPI_MEMSET (&LocalFACS, 0, sizeof (ACPI_TABLE_FACS));
-    ACPI_STRNCPY (LocalFACS.Signature, ACPI_SIG_FACS, 4);
+    ACPI_MOVE_NAME (LocalFACS.Signature, ACPI_SIG_FACS);
 
     LocalFACS.Length = sizeof (ACPI_TABLE_FACS);
     LocalFACS.GlobalLock = 0x11AA0011;

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asfile - Main module for the acpi source processor utility
@@ -159,7 +158,7 @@ AsDoWildcard (
  *
  * FUNCTION:    AsProcessTree
  *
- * DESCRIPTION: Process the directory tree.  Files with the extension ".C" and
+ * DESCRIPTION: Process the directory tree. Files with the extension ".C" and
  *              ".H" are processed as the tree is traversed.
  *
  ******************************************************************************/
@@ -188,7 +187,7 @@ AsProcessTree (
             if (errno != EEXIST)
             {
                 printf ("Could not create target directory\n");
-                return -1;
+                return (-1);
             }
         }
     }
@@ -223,7 +222,7 @@ AsProcessTree (
     AsDoWildcard (ConversionTable, SourcePath, TargetPath, MaxPathLength,
             FILE_TYPE_DIRECTORY, "*");
 
-    return 0;
+    return (0);
 }
 
 
@@ -247,7 +246,7 @@ AsDetectLoneLineFeeds (
 
     if (!Buffer[0])
     {
-        return FALSE;
+        return (FALSE);
     }
 
     while (Buffer[i])
@@ -277,7 +276,7 @@ AsDetectLoneLineFeeds (
         {
             printf ("%s: %u lone linefeeds in file\n", Filename, LfCount);
         }
-        return TRUE;
+        return (TRUE);
     }
 
     return (FALSE);
@@ -339,6 +338,12 @@ AsConvertFile (
     Gbl_Files++;
     VERBOSE_PRINT (("Processing %u bytes\n",
         (unsigned int) strlen (FileBuffer)));
+
+    if (Gbl_Cleanup)
+    {
+        AsRemoveExtraLines (FileBuffer, Filename);
+        AsRemoveSpacesAfterPeriod (FileBuffer, Filename);
+    }
 
     if (ConversionTable->LowerCaseTable)
     {
@@ -514,7 +519,7 @@ AsConvertFile (
  *
  * FUNCTION:    AsProcessOneFile
  *
- * DESCRIPTION: Process one source file.  The file is opened, read entirely
+ * DESCRIPTION: Process one source file. The file is opened, read entirely
  *              into a buffer, converted, then written to a new file.
  *
  ******************************************************************************/
@@ -538,7 +543,7 @@ AsProcessOneFile (
     if (!Pathname)
     {
         printf ("Could not allocate buffer for file pathnames\n");
-        return -1;
+        return (-1);
     }
 
     Gbl_FileType = FileType;
@@ -555,7 +560,7 @@ AsProcessOneFile (
 
     if (AsGetFile (Pathname, &Gbl_FileBuffer, &Gbl_FileSize))
     {
-        return -1;
+        return (-1);
     }
 
     Gbl_HeaderSize = 0;
@@ -597,7 +602,7 @@ AsProcessOneFile (
             if (!OutPathname)
             {
                 printf ("Could not allocate buffer for file pathnames\n");
-                return -1;
+                return (-1);
             }
 
             strcpy (OutPathname, TargetPath);
@@ -618,7 +623,7 @@ AsProcessOneFile (
         free (OutPathname);
     }
 
-    return 0;
+    return (0);
 }
 
 
@@ -626,7 +631,7 @@ AsProcessOneFile (
  *
  * FUNCTION:    AsCheckForDirectory
  *
- * DESCRIPTION: Check if the current file is a valid directory.  If not,
+ * DESCRIPTION: Check if the current file is a valid directory. If not,
  *              construct the full pathname for the source and target paths.
  *              Checks for the dot and dot-dot files (they are ignored)
  *
@@ -647,14 +652,14 @@ AsCheckForDirectory (
     if (!(strcmp (Filename, ".")) ||
         !(strcmp (Filename, "..")))
     {
-        return -1;
+        return (-1);
     }
 
     SrcPath = calloc (strlen (SourceDirPath) + strlen (Filename) + 2, 1);
     if (!SrcPath)
     {
         printf ("Could not allocate buffer for directory source pathname\n");
-        return -1;
+        return (-1);
     }
 
     TgtPath = calloc (strlen (TargetDirPath) + strlen (Filename) + 2, 1);
@@ -662,7 +667,7 @@ AsCheckForDirectory (
     {
         printf ("Could not allocate buffer for directory target pathname\n");
         free (SrcPath);
-        return -1;
+        return (-1);
     }
 
     strcpy (SrcPath, SourceDirPath);
@@ -675,7 +680,7 @@ AsCheckForDirectory (
 
     *SourcePath = SrcPath;
     *TargetPath = TgtPath;
-    return 0;
+    return (0);
 }
 
 
@@ -705,7 +710,7 @@ AsGetFile (
     if (!FileHandle)
     {
         printf ("Could not open %s\n", Filename);
-        return -1;
+        return (-1);
     }
 
     if (fstat (FileHandle, &Gbl_StatBuf))
@@ -745,7 +750,7 @@ AsGetFile (
     Gbl_HasLoneLineFeeds = AsDetectLoneLineFeeds (Filename, Buffer);
 
     /*
-     * Convert all CR/LF pairs to LF only.  We do this locally so that
+     * Convert all CR/LF pairs to LF only. We do this locally so that
      * this code is portable across operating systems.
      */
     AsConvertToLineFeeds (Buffer);
@@ -753,13 +758,13 @@ AsGetFile (
     *FileBuffer = Buffer;
     *FileSize = Size;
 
-    return 0;
+    return (0);
 
 
 ErrorExit:
 
     close (FileHandle);
-    return -1;
+    return (-1);
 }
 
 
@@ -768,7 +773,7 @@ ErrorExit:
  * FUNCTION:    AsPutFile
  *
  * DESCRIPTION: Create a new output file and write the entire contents of the
- *              buffer to the new file.  Buffer must be a zero terminated string
+ *              buffer to the new file. Buffer must be a zero terminated string
  *
  ******************************************************************************/
 
@@ -799,7 +804,7 @@ AsPutFile (
     {
         perror ("Could not create destination file");
         printf ("Could not create destination file \"%s\"\n", Pathname);
-        return -1;
+        return (-1);
     }
 
     /* Write the buffer to the file */
@@ -809,7 +814,5 @@ AsPutFile (
 
     close (DestHandle);
 
-    return 0;
+    return (0);
 }
-
-
