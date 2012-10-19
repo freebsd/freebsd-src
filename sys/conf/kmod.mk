@@ -72,11 +72,6 @@ OBJCOPY?=	objcopy
 .error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
 .endif
 
-# Enable CTF conversion on request.
-.if defined(WITH_CTF)
-.undef NO_CTF
-.endif
-
 .include <bsd.init.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
@@ -206,7 +201,9 @@ ${KMOD}.kld: ${OBJS}
 ${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.if defined(MK_CTF) && ${MK_CTF} != "no"
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
 .if ${EXPORT_SYMS} == NO

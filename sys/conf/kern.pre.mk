@@ -136,8 +136,13 @@ NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
 NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
 	-o ${.TARGET} ${.ALLSRC:M*.fw}
 
-NORMAL_CTFCONVERT= [ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		   ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.if ${MK_CTF} != "no"
+NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+NORMAL_CTFCONVERT=
+.else
+NORMAL_CTFCONVERT=	@:
+.endif
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
@@ -155,7 +160,6 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
-SYSTEM_CTFMERGE= [ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} --no-warn-mismatch \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
