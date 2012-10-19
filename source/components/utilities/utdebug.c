@@ -250,7 +250,7 @@ ACPI_EXPORT_SYMBOL (AcpiDebugPrint)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print message with no headers.  Has same interface as
+ * DESCRIPTION: Print message with no headers. Has same interface as
  *              DebugPrint so that the same macros can be used.
  *
  ******************************************************************************/
@@ -293,7 +293,7 @@ ACPI_EXPORT_SYMBOL (AcpiDebugPrintRaw)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in DebugLevel
  *
  ******************************************************************************/
@@ -329,7 +329,7 @@ ACPI_EXPORT_SYMBOL (AcpiUtTrace)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in DebugLevel
  *
  ******************************************************************************/
@@ -342,6 +342,7 @@ AcpiUtTracePtr (
     UINT32                  ComponentId,
     void                    *Pointer)
 {
+
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
@@ -363,7 +364,7 @@ AcpiUtTracePtr (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in DebugLevel
  *
  ******************************************************************************/
@@ -398,7 +399,7 @@ AcpiUtTraceStr (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in DebugLevel
  *
  ******************************************************************************/
@@ -432,7 +433,7 @@ AcpiUtTraceU32 (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in DebugLevel
  *
  ******************************************************************************/
@@ -467,8 +468,8 @@ ACPI_EXPORT_SYMBOL (AcpiUtExit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
- *              set in DebugLevel.  Prints exit status also.
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
+ *              set in DebugLevel. Prints exit status also.
  *
  ******************************************************************************/
 
@@ -514,8 +515,8 @@ ACPI_EXPORT_SYMBOL (AcpiUtStatusExit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
- *              set in DebugLevel.  Prints exit value also.
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
+ *              set in DebugLevel. Prints exit value also.
  *
  ******************************************************************************/
 
@@ -551,8 +552,8 @@ ACPI_EXPORT_SYMBOL (AcpiUtValueExit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
- *              set in DebugLevel.  Prints exit value also.
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
+ *              set in DebugLevel. Prints exit value also.
  *
  ******************************************************************************/
 
@@ -582,7 +583,7 @@ AcpiUtPtrExit (
  * PARAMETERS:  Buffer              - Buffer to dump
  *              Count               - Amount to dump, in bytes
  *              Display             - BYTE, WORD, DWORD, or QWORD display
- *              ComponentID         - Caller's component ID
+ *              Offset              - Beginning buffer offset (display only)
  *
  * RETURN:      None
  *
@@ -591,10 +592,11 @@ AcpiUtPtrExit (
  ******************************************************************************/
 
 void
-AcpiUtDumpBuffer2 (
+AcpiUtDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
-    UINT32                  Display)
+    UINT32                  Display,
+    UINT32                  BaseOffset)
 {
     UINT32                  i = 0;
     UINT32                  j;
@@ -619,7 +621,7 @@ AcpiUtDumpBuffer2 (
     {
         /* Print current offset */
 
-        AcpiOsPrintf ("%6.4X: ", i);
+        AcpiOsPrintf ("%6.4X: ", (BaseOffset + i));
 
         /* Print 16 hex chars */
 
@@ -706,7 +708,7 @@ AcpiUtDumpBuffer2 (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtDumpBuffer
+ * FUNCTION:    AcpiUtDebugDumpBuffer
  *
  * PARAMETERS:  Buffer              - Buffer to dump
  *              Count               - Amount to dump, in bytes
@@ -720,7 +722,7 @@ AcpiUtDumpBuffer2 (
  ******************************************************************************/
 
 void
-AcpiUtDumpBuffer (
+AcpiUtDebugDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
     UINT32                  Display,
@@ -735,7 +737,5 @@ AcpiUtDumpBuffer (
         return;
     }
 
-    AcpiUtDumpBuffer2 (Buffer, Count, Display);
+    AcpiUtDumpBuffer (Buffer, Count, Display, 0);
 }
-
-

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: amlresrc.h - AML resource descriptors
@@ -576,4 +575,3 @@ typedef union aml_resource
 } AML_RESOURCE;
 
 #endif
-

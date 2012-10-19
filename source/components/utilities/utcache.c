@@ -205,7 +205,7 @@ AcpiOsDeleteCache (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Release an object to the specified cache.  If cache is full,
+ * DESCRIPTION: Release an object to the specified cache. If cache is full,
  *              the object is deleted.
  *
  ******************************************************************************/
@@ -269,9 +269,9 @@ AcpiOsReleaseObject (
  *
  * PARAMETERS:  Cache           - Handle to cache object
  *
- * RETURN:      the acquired object.  NULL on error
+ * RETURN:      the acquired object. NULL on error
  *
- * DESCRIPTION: Get an object from the specified cache.  If cache is empty,
+ * DESCRIPTION: Get an object from the specified cache. If cache is empty,
  *              the object is allocated.
  *
  ******************************************************************************/
@@ -357,5 +357,3 @@ AcpiOsAcquireObject (
     return (Object);
 }
 #endif /* ACPI_USE_LOCAL_CACHE */
-
-

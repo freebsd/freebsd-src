@@ -202,4 +202,3 @@ AcpiUtReleaseWriteLock (
 
     AcpiOsReleaseMutex (Lock->WriterMutex);
 }
-

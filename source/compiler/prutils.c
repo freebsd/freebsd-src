@@ -413,8 +413,8 @@ PrPushInputFileStack (
  * RETURN:      0 if a node was popped, -1 otherwise
  *
  * DESCRIPTION: Pop the top of the input file stack and point the parser to
- *              the saved parse buffer contained in the fnode.  Also, set the
- *              global line counters to the saved values.  This function is
+ *              the saved parse buffer contained in the fnode. Also, set the
+ *              global line counters to the saved values. This function is
  *              called when an include file reaches EOF.
  *
  ******************************************************************************/

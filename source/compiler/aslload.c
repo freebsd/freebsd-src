@@ -113,7 +113,7 @@ LdLoadNamespace (
     WalkState = AcpiDsCreateWalkState (0, NULL, NULL, NULL);
     if (!WalkState)
     {
-        return AE_NO_MEMORY;
+        return (AE_NO_MEMORY);
     }
 
     /* Walk the entire parse tree, first pass */
@@ -129,7 +129,7 @@ LdLoadNamespace (
     /* Dump the namespace if debug is enabled */
 
     AcpiNsDumpTables (ACPI_NS_ALL, ACPI_UINT32_MAX);
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -894,5 +894,3 @@ LdCommonNamespaceEnd (
 
     return (AE_OK);
 }
-
-

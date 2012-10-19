@@ -858,4 +858,3 @@ Cleanup:
     ACPI_FREE (Info);
     return_ACPI_STATUS (Status);
 }
-

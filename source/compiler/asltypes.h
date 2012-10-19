@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asltypes.h - compiler data types and struct definitions

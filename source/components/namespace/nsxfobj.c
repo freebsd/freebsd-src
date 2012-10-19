@@ -202,8 +202,8 @@ ACPI_EXPORT_SYMBOL (AcpiGetParent)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Return the next peer object within the namespace.  If Handle is
- *              valid, Scope is ignored.  Otherwise, the first object within
+ * DESCRIPTION: Return the next peer object within the namespace. If Handle is
+ *              valid, Scope is ignored. Otherwise, the first object within
  *              Scope is returned.
  *
  ******************************************************************************/
@@ -282,4 +282,3 @@ UnlockAndExit:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiGetNextObject)
-

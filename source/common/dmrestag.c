@@ -1050,4 +1050,3 @@ AcpiDmAddResourceToNamespace (
     Node->Length = Length;
     return (AE_OK);
 }
-

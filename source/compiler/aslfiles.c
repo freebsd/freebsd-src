@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslfiles - file I/O suppoert
@@ -63,7 +62,6 @@ FlParseInputPathname (
 #endif
 
 
-
 /*******************************************************************************
  *
  * FUNCTION:    AslAbort
@@ -72,7 +70,7 @@ FlParseInputPathname (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump the error log and abort the compiler.  Used for serious
+ * DESCRIPTION: Dump the error log and abort the compiler. Used for serious
  *              I/O errors
  *
  ******************************************************************************/
@@ -199,7 +197,7 @@ FlGetFileSize (
  *              Buffer              - Where to place the data
  *              Length              - Amount to read
  *
- * RETURN:      Status.  AE_ERROR indicates EOF.
+ * RETURN:      Status. AE_ERROR indicates EOF.
  *
  * DESCRIPTION: Read data from an open file.
  *              NOTE: Aborts compiler on any error.
@@ -347,7 +345,7 @@ FlSeekFile (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Close an open file.  Aborts compiler on error
+ * DESCRIPTION: Close an open file. Aborts compiler on error
  *
  ******************************************************************************/
 
@@ -806,7 +804,7 @@ FlOpenInputFile (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create the output filename (*.AML) and open the file.  The file
+ * DESCRIPTION: Create the output filename (*.AML) and open the file. The file
  *              is created in the same directory as the parent input file.
  *
  ******************************************************************************/
@@ -1147,5 +1145,3 @@ FlParseInputPathname (
     return (AE_OK);
 }
 #endif
-
-

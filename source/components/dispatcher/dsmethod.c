@@ -183,7 +183,7 @@ AcpiDsCreateMethodMutex (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Prepare a method for execution.  Parses the method if necessary,
+ * DESCRIPTION: Prepare a method for execution. Parses the method if necessary,
  *              increments the thread count, and waits at the method semaphore
  *              for clearance to execute.
  *
@@ -480,7 +480,7 @@ Cleanup:
  * RETURN:      Status
  *
  * DESCRIPTION: Restart a method that was preempted by another (nested) method
- *              invocation.  Handle the return value (if any) from the callee.
+ *              invocation. Handle the return value (if any) from the callee.
  *
  ******************************************************************************/
 
@@ -570,7 +570,7 @@ AcpiDsRestartControlMethod (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Terminate a control method.  Delete everything that the method
+ * DESCRIPTION: Terminate a control method. Delete everything that the method
  *              created, delete all locals and arguments, and delete the parse
  *              tree if requested.
  *
@@ -722,5 +722,3 @@ AcpiDsTerminateControlMethod (
 
     return_VOID;
 }
-
-

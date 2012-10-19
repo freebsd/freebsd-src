@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
@@ -278,7 +277,7 @@ AcpiExDoConcatenate (
 
 
     /*
-     * Convert the second operand if necessary.  The first operand
+     * Convert the second operand if necessary. The first operand
      * determines the type of the second operand, (See the Data Types
      * section of the ACPI specification.)  Both object types are
      * guaranteed to be either Integer/String/Buffer by the operand
@@ -630,7 +629,7 @@ AcpiExDoLogicalOp (
 
 
     /*
-     * Convert the second operand if necessary.  The first operand
+     * Convert the second operand if necessary. The first operand
      * determines the type of the second operand, (See the Data Types
      * section of the ACPI 3.0+ specification.)  Both object types are
      * guaranteed to be either Integer/String/Buffer by the operand
@@ -796,5 +795,3 @@ Cleanup:
     *LogicalResult = LocalResult;
     return_ACPI_STATUS (Status);
 }
-
-

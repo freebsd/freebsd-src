@@ -919,5 +919,3 @@ AcpiUtGetResourceEndTag (
 
     return_ACPI_STATUS (Status);
 }
-
-

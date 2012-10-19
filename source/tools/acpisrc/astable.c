@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: astable - Tables used for source conversion
@@ -206,8 +205,6 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_DEBUG_MEM_HEADER",               SRC_TYPE_STRUCT},
     {"ACPI_DEBUG_PRINT_INFO",               SRC_TYPE_STRUCT},
     {"ACPI_DESCRIPTOR",                     SRC_TYPE_UNION},
-    {"ACPI_DEVICE_ID",                      SRC_TYPE_STRUCT},
-    {"ACPI_DEVICE_ID_LIST",                 SRC_TYPE_STRUCT},
     {"ACPI_DEVICE_INFO",                    SRC_TYPE_STRUCT},
     {"ACPI_DEVICE_WALK_INFO",               SRC_TYPE_STRUCT},
     {"ACPI_DMTABLE_DATA",                   SRC_TYPE_STRUCT},
@@ -331,6 +328,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_PKG_INFO",                       SRC_TYPE_STRUCT},
     {"ACPI_PKG_STATE",                      SRC_TYPE_STRUCT},
     {"ACPI_PMTT_HEADER",                    SRC_TYPE_STRUCT},
+    {"ACPI_PNP_DEVICE_ID",                  SRC_TYPE_STRUCT},
+    {"ACPI_PNP_DEVICE_ID_LIST",             SRC_TYPE_STRUCT},
     {"ACPI_POINTER",                        SRC_TYPE_STRUCT},
     {"ACPI_POINTERS",                       SRC_TYPE_UNION},
     {"ACPI_PORT_INFO",                      SRC_TYPE_STRUCT},
@@ -818,10 +817,12 @@ ACPI_CONVERSION_TABLE       LicenseConversionTable = {
 ACPI_STRING_TABLE           CustomReplacements[] = {
 
 
-    {"(c) 1999 - 2012",      "(c) 1999 - 2012",         REPLACE_WHOLE_WORD}, /* Main ACPICA source */
-    {"(c) 2006 - 2012",      "(c) 2006 - 2012",         REPLACE_WHOLE_WORD}, /* Test suites */
-
 #if 0
+    {"SUPPORT, ASSISTANCE", "SUPPORT, ASSISTANCE",     REPLACE_WHOLE_WORD}, /* Fix intel header */
+
+    {"(c) 1999 - 2012",     "(c) 1999 - 2012",         REPLACE_WHOLE_WORD}, /* Main ACPICA source */
+    {"(c) 2006 - 2012",     "(c) 2006 - 2012",         REPLACE_WHOLE_WORD}, /* Test suites */
+
     {"(ACPI_INTEGER)", "(UINT64)",   REPLACE_WHOLE_WORD},
     {"ACPI_INTEGER        ", "UINT64              ",   REPLACE_WHOLE_WORD},
     {"ACPI_INTEGER", "UINT64",   REPLACE_WHOLE_WORD},
@@ -894,4 +895,3 @@ ACPI_CONVERSION_TABLE       CustomConversionTable = {
     (CVT_COUNT_TABS | CVT_COUNT_NON_ANSI_COMMENTS | CVT_COUNT_LINES |
      CVT_TRIM_LINES | CVT_TRIM_WHITESPACE),
 };
-

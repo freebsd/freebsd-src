@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asremove - Source conversion - removal functions
@@ -59,7 +58,7 @@ AsRemoveStatement (
  *
  * DESCRIPTION: Remove all statements that contain the given keyword.
  *              Limitations:  Removes text from the start of the line that
- *              contains the keyword to the next semicolon.  Currently
+ *              contains the keyword to the next semicolon. Currently
  *              doesn't ignore comments.
  *
  ******************************************************************************/
@@ -297,7 +296,7 @@ AsRemoveConditionalCompile (
  *
  * FUNCTION:    AsRemoveMacro
  *
- * DESCRIPTION: Remove every line that contains the keyword.  Does not
+ * DESCRIPTION: Remove every line that contains the keyword. Does not
  *              skip comments.
  *
  ******************************************************************************/
@@ -368,7 +367,7 @@ AsRemoveMacro (
  *
  * FUNCTION:    AsRemoveLine
  *
- * DESCRIPTION: Remove every line that contains the keyword.  Does not
+ * DESCRIPTION: Remove every line that contains the keyword. Does not
  *              skip comments.
  *
  ******************************************************************************/
@@ -459,7 +458,7 @@ AsReduceTypedefs (
             }
             SubString++;
 
-            /* Find the closing brace.  Handles nested braces */
+            /* Find the closing brace. Handles nested braces */
 
             NestLevel = 1;
             while (*SubString)
@@ -505,7 +504,7 @@ AsReduceTypedefs (
  *
  * FUNCTION:    AsRemoveEmptyBlocks
  *
- * DESCRIPTION: Remove any C blocks (e.g., if {}) that contain no code.  This
+ * DESCRIPTION: Remove any C blocks (e.g., if {}) that contain no code. This
  *              can happen as a result of removing lines such as DEBUG_PRINT.
  *
  ******************************************************************************/
@@ -612,5 +611,3 @@ AsRemoveDebugMacros (
     AsReplaceString ("return_acpi_status",  "return", REPLACE_WHOLE_WORD, Buffer);
     AsReplaceString ("return_VALUE",        "return", REPLACE_WHOLE_WORD, Buffer);
 }
-
-

@@ -77,7 +77,7 @@ AcpiUtExecute_STA (
 ACPI_STATUS
 AcpiUtExecute_HID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId)
+    ACPI_PNP_DEVICE_ID      **ReturnId)
 {
     return (AE_NOT_IMPLEMENTED);
 }
@@ -85,7 +85,7 @@ AcpiUtExecute_HID (
 ACPI_STATUS
 AcpiUtExecute_CID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID_LIST     **ReturnCidList)
+    ACPI_PNP_DEVICE_ID_LIST **ReturnCidList)
 {
     return (AE_NOT_IMPLEMENTED);
 }
@@ -93,7 +93,15 @@ AcpiUtExecute_CID (
 ACPI_STATUS
 AcpiUtExecute_UID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId)
+    ACPI_PNP_DEVICE_ID      **ReturnId)
+{
+    return (AE_NOT_IMPLEMENTED);
+}
+
+ACPI_STATUS
+AcpiUtExecute_SUB (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    ACPI_PNP_DEVICE_ID      **ReturnId)
 {
     return (AE_NOT_IMPLEMENTED);
 }
