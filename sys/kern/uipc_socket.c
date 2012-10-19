@@ -173,10 +173,7 @@ static struct filterops sowrite_filtops = {
 	.f_event = filt_sowrite,
 };
 
-uma_zone_t socket_zone;
 so_gen_t	so_gencnt;	/* generation count for sockets */
-
-int	maxsockets;
 
 MALLOC_DEFINE(M_SONAME, "soname", "socket name");
 MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
@@ -230,6 +227,9 @@ SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
  * Initialize the socket subsystem and set up the socket
  * memory allocator.
  */
+uma_zone_t socket_zone;
+int	maxsockets;
+
 static void
 socket_zone_change(void *tag)
 {
@@ -248,6 +248,19 @@ socket_init(void *tag)
                 EVENTHANDLER_PRI_FIRST);
 }
 SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
+
+/*
+ * Initialise maxsockets.  This SYSINIT must be run after
+ * tunable_mbinit().
+ */
+static void
+init_maxsockets(void *ignored)
+{
+
+	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
+	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
+}
+SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
 
 /*
  * Sysctl to get and set the maximum global sockets limit.  Notify protocols
@@ -273,23 +286,9 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-
 SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
     &maxsockets, 0, sysctl_maxsockets, "IU",
     "Maximum number of sockets avaliable");
-
-/*
- * Initialise maxsockets.  This SYSINIT must be run after
- * tunable_mbinit().
- */
-static void
-init_maxsockets(void *ignored)
-{
-
-	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
-	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
-}
-SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
 
 /*
  * Socket operation routines.  These routines are called by the routines in
