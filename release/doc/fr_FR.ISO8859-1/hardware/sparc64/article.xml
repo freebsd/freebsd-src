@@ -12,7 +12,7 @@
 <!ENTITY arch.print "UltraSPARC">
 <!ENTITY unsupported "<emphasis>(non support&eacute;)</emphasis>">
 <!ENTITY perforce "<emphasis>(non encore commiter - dans l'arbre Perforce)</emphasis>">
-<!ENTITY sect.dev.sparc64 SYSTEM "./dev-sparc64.sgml">
+<!ENTITY sect.dev.sparc64 SYSTEM "./dev-sparc64.xml">
 ]>
 
 <!--
