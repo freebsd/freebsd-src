@@ -35,10 +35,10 @@ __FBSDID("$FreeBSD$");
 #include "ed.h"
 
 
-FILE *sfp;				/* scratch file pointer */
-off_t sfseek;				/* scratch file position */
-int seek_write;				/* seek before writing */
-line_t buffer_head;			/* incore buffer */
+static FILE *sfp;			/* scratch file pointer */
+static off_t sfseek;			/* scratch file position */
+static int seek_write;			/* seek before writing */
+static line_t buffer_head;		/* incore buffer */
 
 /* get_sbuf_line: get a line of text from the scratch file; return pointer
    to the text */
@@ -188,7 +188,7 @@ get_addressed_line_node(long n)
 
 extern int newline_added;
 
-char sfn[15] = "";				/* scratch file name */
+static char sfn[15] = "";			/* scratch file name */
 
 /* open_sbuf: open scratch file */
 int
@@ -244,7 +244,7 @@ quit(int n)
 }
 
 
-unsigned char ctab[256];		/* character translation table */
+static unsigned char ctab[256];		/* character translation table */
 
 /* init_buffers: open scratch buffer; initialize line queue */
 void

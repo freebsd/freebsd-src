@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <signal.h>
 #include <getopt.h>
-#include <libgen.h>
 #include <limits.h>
 #include <osreldate.h>
 #include <paths.h>
@@ -61,7 +60,7 @@ void	helpmsg(void);
 void	showversion(void);
 int	init_backgrounded(void);
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	#define ALTF_PRIVATE 0x01
 	{ "private",             0, ALTF_PRIVATE, 1 },
 	{ "neglect_shares",      0, 0x02, 1 },
@@ -93,13 +92,11 @@ struct mntval {
 	int mv_len;
 };
 
-struct mntval mvals[] = {
+static struct mntval mvals[] = {
 	{ ALTF_MAXREAD, NULL, 0 },
 	{ ALTF_SUBTYPE, NULL, 0 },
 	{ 0, NULL, 0 }
 };
-
-char *progname;
 
 #define DEFAULT_MOUNT_FLAGS ALTF_PRIVATE | ALTF_SYNC_UNMOUNT
 
@@ -132,8 +129,6 @@ main(int argc, char *argv[])
 	int fd = -1, fdx;
 	char *ep;
 	char *daemon_str = NULL, *daemon_opts = NULL;
-
-	progname = argv[0];
 
 	/*
 	 * We want a parsing routine which is not sensitive to
@@ -432,7 +427,7 @@ void
 __usage_short(void) {
 	fprintf(stderr,
 	    "usage:\n%s [-A|-S|-v|-V|-h|-D daemon|-O args|-s special|-m node|-o option...] special node [daemon args...]\n\n",
-	    basename(progname));
+	    getprogname());
 }
 
 void
