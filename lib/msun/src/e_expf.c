@@ -21,6 +21,68 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+/* __ieee754_expf
+ * Returns the exponential of x.
+ *
+ * Method
+ *   1. Argument reduction:
+ *      Reduce x to an r so that |r| <= 0.5*ln2 ~ 0.34658.
+ *      Given x, find r and integer k such that
+ *
+ *               x = k*ln2 + r,  |r| <= 0.5*ln2.  
+ *
+ *      Here r will be represented as r = hi-lo for better 
+ *      accuracy.
+ *
+ *   2. Approximation of exp(r) by a special rational function on
+ *      the interval [0,0.34658]:
+ *      Write
+ *          R(r**2) = r*(exp(r)+1)/(exp(r)-1) = 2 + r*r/6 - r**4/360 + ...
+ *      We use a special Remes algorithm on [0,0.34658] to generate 
+ *      a polynomial of degree 2 to approximate R. The maximum error 
+ *      of this polynomial approximation is bounded by 2**-27. In
+ *      other words,
+ *          R(z) ~ 2.0 + P1*z + P2*z*z
+ *      (where z=r*r, and the values of P1 and P2 are listed below)
+ *      and
+ *          |              2          |     -27
+ *          | 2.0+P1*z+P2*z   -  R(z) | <= 2 
+ *          |                         |
+ *      The computation of expf(r) thus becomes
+ *                             2*r
+ *             expf(r) = 1 + -------
+ *                            R - r
+ *                                 r*R1(r)
+ *                     = 1 + r + ----------- (for better accuracy)
+ *                                2 - R1(r)
+ *      where
+ *                               2       4
+ *              R1(r) = r - (P1*r  + P2*r)
+ *      
+ *   3. Scale back to obtain expf(x):
+ *      From step 1, we have
+ *         expf(x) = 2^k * expf(r)
+ *
+ * Special cases:
+ *      expf(INF) is INF, exp(NaN) is NaN;
+ *      expf(-INF) is 0, and
+ *      for finite argument, only exp(0)=1 is exact.
+ *
+ * Accuracy:
+ *      according to an error analysis, the error is always less than
+ *      0.5013 ulp (unit in the last place).
+ *
+ * Misc. info.
+ *      For IEEE float
+ *          if x >  8.8721679688e+01 then exp(x) overflow
+ *          if x < -1.0397208405e+02 then exp(x) underflow
+ *
+ * Constants:
+ * The hexadecimal values are the intended ones for the following 
+ * constants. The decimal values may be used, provided that the 
+ * compiler will convert from decimal to binary accurately enough
+ * to produce the hexadecimal values shown.
+ */
 static const float
 one	= 1.0,
 halF[2]	= {0.5,-0.5,},
