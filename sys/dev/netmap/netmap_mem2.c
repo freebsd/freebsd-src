@@ -595,7 +595,7 @@ netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 #ifdef linux
 	p->lut = vmalloc(n);
 #else
-	p->lut = malloc(n, M_NETMAP, M_WAITOK | M_ZERO);
+	p->lut = malloc(n, M_NETMAP, M_NOWAIT | M_ZERO);
 #endif
 	if (p->lut == NULL) {
 		D("Unable to create lookup table (%d bytes) for '%s'", n, p->name);
@@ -604,7 +604,7 @@ netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 
 	/* Allocate the bitmap */
 	n = (p->objtotal + 31) / 32;
-	p->bitmap = malloc(sizeof(uint32_t) * n, M_NETMAP, M_WAITOK | M_ZERO);
+	p->bitmap = malloc(sizeof(uint32_t) * n, M_NETMAP, M_NOWAIT | M_ZERO);
 	if (p->bitmap == NULL) {
 		D("Unable to create bitmap (%d entries) for allocator '%s'", n,
 		    p->name);
