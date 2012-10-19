@@ -227,6 +227,29 @@ MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
 SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
 
 /*
+ * Initialize the socket subsystem and set up the socket
+ * memory allocator.
+ */
+static void
+socket_zone_change(void *tag)
+{
+
+	uma_zone_set_max(socket_zone, maxsockets);
+}
+
+static void
+socket_init(void *tag)
+{
+
+        socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
+            NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+        uma_zone_set_max(socket_zone, maxsockets);
+        EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
+                EVENTHANDLER_PRI_FIRST);
+}
+SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
+
+/*
  * Sysctl to get and set the maximum global sockets limit.  Notify protocols
  * of the change so that they can update their dependent limits as required.
  */
