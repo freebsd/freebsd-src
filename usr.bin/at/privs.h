@@ -59,15 +59,13 @@
  * to the real userid before calling any of them.
  */
 
-#ifndef MAIN
-extern
-#endif
-uid_t real_uid, effective_uid;
+extern uid_t real_uid, effective_uid;
+extern gid_t real_gid, effective_gid;
 
-#ifndef MAIN 
-extern
-#endif
+#ifdef MAIN
+uid_t real_uid, effective_uid;
 gid_t real_gid, effective_gid;
+#endif
 
 #define RELINQUISH_PRIVS { \
 	real_uid = getuid(); \

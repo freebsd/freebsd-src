@@ -75,22 +75,22 @@ static const char rcsid[] =
 /* Global defs */
 #ifdef DEBUG
 #define	syslog(e, s...)	fprintf(stderr,s)
-int	debug = 1;
+static int	debug = 1;
 #else
-int	debug = 0;
+static int	debug = 0;
 #endif
 
 #define	NFSD_STABLERESTART	"/var/db/nfs-stablerestart"
 #define	NFSD_STABLEBACKUP	"/var/db/nfs-stablerestart.bak"
 #define	MAXNFSDCNT	256
 #define	DEFNFSDCNT	 4
-pid_t	children[MAXNFSDCNT];	/* PIDs of children */
-int	nfsdcnt;		/* number of children */
-int	new_syscall;
-int	run_v4server = 1;	/* Force running of nfsv4 server */
-int	nfssvc_nfsd;		/* Set to correct NFSSVC_xxx flag */
-int	stablefd = -1;		/* Fd for the stable restart file */
-int	backupfd;		/* Fd for the backup stable restart file */
+static pid_t children[MAXNFSDCNT]; /* PIDs of children */
+static int nfsdcnt;		/* number of children */
+static int new_syscall;
+static int run_v4server = 1;	/* Force running of nfsv4 server */
+static int nfssvc_nfsd;		/* Set to correct NFSSVC_xxx flag */
+static int stablefd = -1;	/* Fd for the stable restart file */
+static int backupfd;		/* Fd for the backup stable restart file */
 
 void	cleanup(int);
 void	child_cleanup(int);

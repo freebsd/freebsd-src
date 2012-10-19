@@ -44,8 +44,8 @@ MFI_TABLE(top, stop);
 MFI_TABLE(top, abort);
 
 int mfi_unit;
-
 u_int mfi_opts;
+int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
 
 static void
 usage(void)

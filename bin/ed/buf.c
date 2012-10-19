@@ -185,9 +185,6 @@ get_addressed_line_node(long n)
 	return lp;
 }
 
-
-extern int newline_added;
-
 static char sfn[15] = "";			/* scratch file name */
 
 /* open_sbuf: open scratch file */
