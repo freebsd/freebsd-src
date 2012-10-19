@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "inout.h"
+#include "mem.h"
 #include "instruction_emul.h"
 #include "fbsdrun.h"
 
@@ -67,10 +68,13 @@ struct ioapic {
 
 static struct ioapic ioapics[1];	/* only a single ioapic for now */
 
-static int ioapic_region_read(struct vmctx *vm, int vcpu, uintptr_t paddr,
-				int size, uint64_t *data, void *arg);
-static int ioapic_region_write(struct vmctx *vm, int vcpu, uintptr_t paddr,
-				int size, uint64_t data, void *arg);
+static int ioapic_region_read(struct ioapic *ioapic, uintptr_t paddr,
+				int size, uint64_t *data);
+static int ioapic_region_write(struct ioapic *ioapic, uintptr_t paddr,
+				int size, uint64_t data);
+static int ioapic_region_handler(struct vmctx *vm, int vcpu, int dir,
+				 uintptr_t paddr, int size, uint64_t *val,
+				 void *arg1, long arg2);
 
 static void
 ioapic_set_pinstate(struct vmctx *ctx, int pin, bool newstate)
@@ -139,8 +143,10 @@ ioapic_assert_pin(struct vmctx *ctx, int pin)
 void
 ioapic_init(int which)
 {
-	int i;
+	struct mem_range memp;
 	struct ioapic *ioapic;
+	int error;
+	int i;
 
 	assert(which == 0);
 
@@ -153,14 +159,19 @@ ioapic_init(int which)
 	for (i = 0; i < REDIR_ENTRIES; i++)
 		ioapic->redtbl[i] = 0x0001000000010000UL;
 
-	/* Register emulated memory region */
 	ioapic->paddr = IOAPIC_PADDR;
-	ioapic->region = register_emulated_memory(ioapic->paddr,
-						  sizeof(struct IOAPIC),
-						  ioapic_region_read,
-						  ioapic_region_write,
-						  (void *)(uintptr_t)which);
-	assert(ioapic->region != NULL);
+
+	/* Register emulated memory region */
+	memp.name = "ioapic";
+	memp.flags = MEM_F_RW;
+	memp.handler = ioapic_region_handler;
+	memp.arg1 = ioapic;
+	memp.arg2 = which;
+	memp.base = ioapic->paddr;
+	memp.size = sizeof(struct IOAPIC);
+	error = register_mem(&memp);
+
+	assert (error == 0);
 
 	ioapic->inited = 1;
 }
@@ -237,15 +248,11 @@ ioapic_write(struct ioapic *ioapic, uint32_t addr, uint32_t data)
 }
 
 static int
-ioapic_region_read(struct vmctx *vm, int vcpu, uintptr_t paddr, int size,
-		   uint64_t *data, void *arg)
+ioapic_region_read(struct ioapic *ioapic, uintptr_t paddr, int size,
+		   uint64_t *data)
 {
-	int which, offset;
-	struct ioapic *ioapic;
+	int offset;
 
-	which = (uintptr_t)arg;
-
-	ioapic = &ioapics[which];
 	offset = paddr - ioapic->paddr;
 
 	/*
@@ -255,7 +262,7 @@ ioapic_region_read(struct vmctx *vm, int vcpu, uintptr_t paddr, int size,
 	if (size != 4 || (offset != IOREGSEL && offset != IOWIN)) {
 #if 1
 		printf("invalid access to ioapic%d: size %d, offset %d\n",
-			which, size, offset);
+		       (int)(ioapic - ioapics), size, offset);
 #endif
 		*data = 0;
 		return (0);
@@ -270,15 +277,11 @@ ioapic_region_read(struct vmctx *vm, int vcpu, uintptr_t paddr, int size,
 }
 
 static int
-ioapic_region_write(struct vmctx *vm, int vcpu, uintptr_t paddr, int size,
-		    uint64_t data, void *arg)
+ioapic_region_write(struct ioapic *ioapic, uintptr_t paddr, int size,
+		    uint64_t data)
 {
-	int which, offset;
-	struct ioapic *ioapic;
+	int offset;
 
-	which = (uintptr_t)arg;
-
-	ioapic = &ioapics[which];
 	offset = paddr - ioapic->paddr;
 
 	/*
@@ -288,7 +291,7 @@ ioapic_region_write(struct vmctx *vm, int vcpu, uintptr_t paddr, int size,
 	if (size != 4 || (offset != IOREGSEL && offset != IOWIN)) {
 #if 1
 		printf("invalid access to ioapic%d: size %d, offset %d\n",
-			which, size, offset);
+		       (int)(ioapic - ioapics), size, offset);
 #endif
 		return (0);
 	}
@@ -297,6 +300,26 @@ ioapic_region_write(struct vmctx *vm, int vcpu, uintptr_t paddr, int size,
 		ioapic->ioregsel = data;
 	else
 		ioapic_write(ioapic, ioapic->ioregsel, data);
+
+	return (0);
+}
+
+static int
+ioapic_region_handler(struct vmctx *vm, int vcpu, int dir, uintptr_t paddr,
+		      int size, uint64_t *val, void *arg1, long arg2)
+{
+	struct ioapic *ioapic;
+	int which;
+
+	ioapic = arg1;
+	which = arg2;
+
+	assert(ioapic == &ioapics[which]);
+
+	if (dir == MEM_F_READ)
+		ioapic_region_read(ioapic, paddr, size, val);
+	else
+		ioapic_region_write(ioapic, paddr, size, *val);
 
 	return (0);
 }

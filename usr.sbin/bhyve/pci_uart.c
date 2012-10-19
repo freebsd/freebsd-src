@@ -320,8 +320,8 @@ pci_uart_drain(int fd, enum ev_type ev, void *arg)
 }
 
 static void
-pci_uart_write(struct pci_devinst *pi, int baridx, int offset, int size,
-	       uint32_t value)
+pci_uart_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+	       int baridx, uint64_t offset, int size, uint64_t value)
 {
         struct pci_uart_softc *sc;
 	int fifosz;
@@ -329,6 +329,7 @@ pci_uart_write(struct pci_devinst *pi, int baridx, int offset, int size,
 
 	sc = pi->pi_arg;
 
+	assert(baridx == 0);
 	assert(size == 1);
 
 	/* Open terminal */
@@ -459,15 +460,17 @@ done:
 	pci_uart_toggle_intr(sc);
 }
 
-uint32_t
-pci_uart_read(struct pci_devinst *pi, int baridx, int offset, int size)
+uint64_t
+pci_uart_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+	      int baridx, uint64_t offset, int size)
 {
 	struct pci_uart_softc *sc;
 	uint8_t iir, intr_reason;
-	uint32_t reg;
+	uint64_t reg;
 
 	sc = pi->pi_arg;
 
+	assert(baridx == 0);
 	assert(size == 1);
 
 	/* Open terminal */
@@ -573,11 +576,11 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_SIMPLECOMM);
 	if (pci_is_legacy(pi)) {
 		pci_uart_legacy_res(&bar, &ivec);
+		pci_emul_alloc_pbar(pi, 0, bar, PCIBAR_IO, 8);
 	} else {
-		bar = 0;
 		ivec = -1;
+		pci_emul_alloc_bar(pi, 0, PCIBAR_IO, 8);
 	}
-	pci_emul_alloc_bar(pi, 0, bar, PCIBAR_IO, 8);
 	pci_lintr_request(pi, ivec);
 
 	if (opts != NULL && !strcmp("stdio", opts) && !pci_uart_stdio) {
@@ -591,9 +594,9 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 }
 
 struct pci_devemu pci_de_com = {
-	.pe_emu = "uart",
-	.pe_init = pci_uart_init,
-	.pe_iow = pci_uart_write,
-	.pe_ior = pci_uart_read,
+	.pe_emu =	"uart",
+	.pe_init =	pci_uart_init,
+	.pe_barwrite =	pci_uart_write,
+	.pe_barread =	pci_uart_read
 };
 PCI_EMUL_SET(pci_de_com);

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "fbsdrun.h"
 #include "inout.h"
 #include "dbgport.h"
+#include "mem.h"
 #include "mevent.h"
 #include "pci_emul.h"
 #include "xmsr.h"
@@ -446,11 +447,21 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 static int
 vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
-
+	int err;
 	stats.vmexit_paging++;
 
-	if (emulate_instruction(ctx, *pvcpu, vmexit->rip, vmexit->u.paging.cr3) != 0) {
-		printf("Failed to emulate instruction at 0x%lx\n", vmexit->rip);
+	err = emulate_mem(ctx, *pvcpu, vmexit->u.paging.gpa, vmexit->rip,
+			  vmexit->u.paging.cr3, vmexit->u.paging.rwx);
+
+	if (err) {
+		if (err == EINVAL) {
+			printf("Failed to emulate instruction at 0x%lx\n", 
+			       vmexit->rip);
+		} else if (err == ESRCH) {
+			printf("Unhandled memory access to 0x%lx\n",
+			       vmexit->u.paging.gpa);
+		}
+
 		return (VMEXIT_ABORT);
 	}
 

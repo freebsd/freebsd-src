@@ -574,8 +574,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
-	pci_emul_alloc_bar(pi, 0, 0, PCIBAR_IO, VTNET_REGSZ);
 	pci_emul_add_msicap(pi, 1);
+	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTNET_REGSZ);
 
 	return (0);
 }
@@ -590,14 +590,16 @@ static void (*pci_vtnet_qnotify[VTNET_MAXQ])(struct pci_vtnet_softc *) = {
 };
 
 static void
-pci_vtnet_write(struct pci_devinst *pi, int baridx, int offset, int size,
-		uint32_t value)
+pci_vtnet_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+		int baridx, uint64_t offset, int size, uint64_t value)
 {
 	struct pci_vtnet_softc *sc = pi->pi_arg;
 	void *ptr;
 
+	assert(baridx == 0);
+
 	if (offset + size > VTNET_REGSZ) {
-		DPRINTF(("vtnet_write: 2big, offset %d size %d\n",
+		DPRINTF(("vtnet_write: 2big, offset %ld size %d\n",
 			 offset, size));
 		return;
 	}
@@ -652,10 +654,10 @@ pci_vtnet_write(struct pci_devinst *pi, int baridx, int offset, int size,
 	case VTCFG_R_ISR:
 	case VTNET_R_CFG6:
 	case VTNET_R_CFG7:
-		DPRINTF(("vtnet: write to readonly reg %d\n\r", offset));
+		DPRINTF(("vtnet: write to readonly reg %ld\n\r", offset));
 		break;
 	default:
-		DPRINTF(("vtnet: unknown i/o write offset %d\n\r", offset));
+		DPRINTF(("vtnet: unknown i/o write offset %ld\n\r", offset));
 		value = 0;
 		break;
 	}
@@ -663,15 +665,18 @@ pci_vtnet_write(struct pci_devinst *pi, int baridx, int offset, int size,
 	pthread_mutex_unlock(&sc->vsc_mtx);
 }
 
-uint32_t
-pci_vtnet_read(struct pci_devinst *pi, int baridx, int offset, int size)
+uint64_t
+pci_vtnet_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+	       int baridx, uint64_t offset, int size)
 {
 	struct pci_vtnet_softc *sc = pi->pi_arg;
 	void *ptr;
-	uint32_t value;
+	uint64_t value;
+
+	assert(baridx == 0);
 
 	if (offset + size > VTNET_REGSZ) {
-		DPRINTF(("vtnet_read: 2big, offset %d size %d\n",
+		DPRINTF(("vtnet_read: 2big, offset %ld size %d\n",
 			 offset, size));
 		return (0);
 	}
@@ -737,7 +742,7 @@ pci_vtnet_read(struct pci_devinst *pi, int baridx, int offset, int size)
 		value = 0; /* XXX link status in LSB */
 		break;
 	default:
-		DPRINTF(("vtnet: unknown i/o read offset %d\n\r", offset));
+		DPRINTF(("vtnet: unknown i/o read offset %ld\n\r", offset));
 		value = 0;
 		break;
 	}
@@ -748,9 +753,9 @@ pci_vtnet_read(struct pci_devinst *pi, int baridx, int offset, int size)
 }
 
 struct pci_devemu pci_de_vnet = {
-	.pe_emu = "virtio-net",
-	.pe_init = pci_vtnet_init,
-	.pe_iow = pci_vtnet_write,
-	.pe_ior = pci_vtnet_read,
+	.pe_emu = 	"virtio-net",
+	.pe_init =	pci_vtnet_init,
+	.pe_barwrite =	pci_vtnet_write,
+	.pe_barread =	pci_vtnet_read
 };
 PCI_EMUL_SET(pci_de_vnet);

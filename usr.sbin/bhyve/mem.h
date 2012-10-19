@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Sandvine, Inc.
+ * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,11 +26,33 @@
  * $FreeBSD$
  */
 
-#ifndef _INSTRUCTION_EMUL_H_
-#define _INSTRUCTION_EMUL_H_
+#ifndef _MEM_H_
+#define	_MEM_H_
 
-int emulate_instruction(struct vmctx *vm, int vcpu, uint64_t rip, 
-			uint64_t cr3, uint64_t gpa, int flags,
-			struct mem_range *mr);
+#include <sys/linker_set.h>
 
-#endif
+struct vmctx;
+
+typedef int (*mem_func_t)(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
+			  int size, uint64_t *val, void *arg1, long arg2);
+
+struct mem_range {
+	const char 	*name;
+	int		flags;
+	mem_func_t	handler;
+	void		*arg1;
+	long		arg2;
+	uint64_t  	base;
+	uint64_t  	size;
+};
+#define	MEM_F_READ		0x1
+#define	MEM_F_WRITE		0x2
+#define	MEM_F_RW		0x3
+
+void	init_mem(void);
+int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, uint64_t rip,
+		    uint64_t cr3, int mode);
+		    
+int	register_mem(struct mem_range *memp);
+
+#endif	/* _MEM_H_ */

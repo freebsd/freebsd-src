@@ -48,7 +48,8 @@ struct pci_devemu {
 	char      *pe_emu;		/* Name of device emulation */
 
 	/* instance creation */
-	int       (*pe_init)(struct vmctx *, struct pci_devinst *, char *opts);
+	int       (*pe_init)(struct vmctx *, struct pci_devinst *,
+			     char *opts);
 
 	/* config space read/write callbacks */
 	int	(*pe_cfgwrite)(struct vmctx *ctx, int vcpu,
@@ -58,11 +59,13 @@ struct pci_devemu {
 			      struct pci_devinst *pi, int offset,
 			      int bytes, uint32_t *retval);
 
-	/* I/O space read/write callbacks */
-	void      (*pe_iow)(struct pci_devinst *pi, int baridx,
-			    int offset, int size, uint32_t value);
-	uint32_t  (*pe_ior)(struct pci_devinst *pi, int baridx,
-			    int offset, int size);
+	/* BAR read/write callbacks */
+	void      (*pe_barwrite)(struct vmctx *ctx, int vcpu,
+				 struct pci_devinst *pi, int baridx,
+				 uint64_t offset, int size, uint64_t value);
+	uint64_t  (*pe_barread)(struct vmctx *ctx, int vcpu,
+				struct pci_devinst *pi, int baridx,
+				uint64_t offset, int size);
 };
 #define PCI_EMUL_SET(x)   DATA_SET(pci_devemu_set, x);
 
@@ -74,13 +77,10 @@ enum pcibar_type {
 	PCIBAR_MEMHI64
 };
 
-typedef int (*bar_write_func_t)(struct pci_devinst *pdi, int idx, uint64_t bar);
-
 struct pcibar {
 	enum pcibar_type	type;		/* io or memory */
 	uint64_t		size;
 	uint64_t		addr;
-	bar_write_func_t	handler;
 };
 
 #define PI_NAMESZ	40
@@ -119,11 +119,9 @@ struct pci_devinst {
 		int	table_bar;
 		int	pba_bar;
 		size_t	table_offset;
-		uintptr_t table_gpa;
 		size_t	table_size;
 		int	table_count;
 		size_t	pba_offset;
-		struct memory_region *table_bar_region;
 		struct msix_table_entry table[MAX_MSIX_TABLE_SIZE];
 	} pi_msix;
 
@@ -156,15 +154,19 @@ void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 void	msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	    int bytes, uint32_t val);
 void	pci_callback(void);
-int	pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
+int	pci_emul_alloc_bar(struct pci_devinst *pdi, int idx,
 	    enum pcibar_type type, uint64_t size);
+int	pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx,
+	    uint64_t hostbase, enum pcibar_type type, uint64_t size);
 int	pci_emul_add_msicap(struct pci_devinst *pi, int msgnum);
 int	pci_is_legacy(struct pci_devinst *pi);
 void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
+void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
 void	pci_lintr_assert(struct pci_devinst *pi);
 void	pci_lintr_deassert(struct pci_devinst *pi);
 int	pci_lintr_request(struct pci_devinst *pi, int ivec);
 int	pci_msi_enabled(struct pci_devinst *pi);
+int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
 void	pci_parse_name(char *opt);
 void	pci_parse_slot(char *opt, int legacy);
