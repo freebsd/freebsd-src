@@ -28,10 +28,12 @@
 
 #include <strings.h>
 #include <unistd.h>
+#include <assert.h>
 #include <machine/vmm.h>
 #include <vmmapi.h>
 
 #include "fbsdrun.h"
+#include "mem.h"
 #include "instruction_emul.h"
 
 #define PREFIX_LOCK 		0xF0
@@ -46,6 +48,7 @@
 #define PREFIX_BRANCH_NOT_TAKEN	0x2E
 #define PREFIX_BRANCH_TAKEN	0x3E
 #define PREFIX_OPSIZE		0x66
+#define is_opsz_prefix(x)	((x) == PREFIX_OPSIZE)
 #define PREFIX_ADDRSIZE 	0x67
 
 #define OPCODE_2BYTE_ESCAPE	0x0F
@@ -95,6 +98,11 @@
 #define FROM_REG		(1<<2)
 #define TO_RM			(1<<3)
 #define TO_REG			(1<<4)
+#define ZEXT			(1<<5)
+#define FROM_8			(1<<6)
+#define FROM_16			(1<<7)
+#define TO_8			(1<<8)
+#define TO_16			(1<<9)
 
 #define REX_MASK		0xF0
 #define REX_PREFIX		0x40
@@ -118,16 +126,7 @@
 #define PML4E_OFFSET_MASK	0x0000FF8000000000
 #define PML4E_SHIFT		39
 
-#define MAX_EMULATED_REGIONS 8
-int registered_regions = 0;
-struct memory_region
-{
-	uintptr_t start;
-	uintptr_t end;
-	emulated_read_func_t memread;
-	emulated_write_func_t memwrite;
-	void *arg;
-} emulated_regions[MAX_EMULATED_REGIONS];
+#define INSTR_VERIFY
 
 struct decoded_instruction
 {
@@ -138,11 +137,12 @@ struct decoded_instruction
 	uint8_t  *displacement;
 	uint8_t *immediate;
 
-	uint8_t opcode_flags;
+	uint16_t opcode_flags;
 
 	uint8_t addressing_mode;
 	uint8_t rm;
 	uint8_t reg;
+	uint8_t opsz;
 	uint8_t rex_r;
 	uint8_t rex_w;
 	uint8_t rex_b;
@@ -170,9 +170,15 @@ static enum vm_reg_name vm_reg_name_mappings[] = {
 	[REG_R15] = VM_REG_GUEST_R15
 };
 
-uint8_t one_byte_opcodes[256] = {
-	[0x89]  = HAS_MODRM | FROM_REG | TO_RM,
+uint16_t one_byte_opcodes[256] = {
+	[0x88]  = HAS_MODRM | FROM_REG | TO_RM | TO_8 | FROM_8,
+      	[0x89]  = HAS_MODRM | FROM_REG | TO_RM,
 	[0x8B]	= HAS_MODRM | FROM_RM | TO_REG,
+};
+
+uint16_t two_byte_opcodes[256] = {
+	[0xB6]	= HAS_MODRM | FROM_RM | TO_REG | ZEXT | FROM_8,
+	[0xB7]	= HAS_MODRM | FROM_RM | TO_REG | ZEXT | FROM_16,
 };
 
 static uintptr_t 
@@ -211,7 +217,8 @@ gla2hla(uint64_t gla, uint64_t guest_cr3)
 	uintptr_t gpa;
 
 	gpa = gla2gpa(gla, guest_cr3);
-	return paddr_guest2host(gpa);
+
+	return (paddr_guest2host(gpa));
 }
 
 /*
@@ -232,6 +239,9 @@ decode_prefixes(struct decoded_instruction *decoded)
 		decoded->rex_x = *current_prefix & REX_X_MASK;
 		decoded->rex_b = *current_prefix & REX_B_MASK;
 		current_prefix++;
+	} else if (is_opsz_prefix(*current_prefix)) {
+		decoded->opsz = 1;
+		current_prefix++;
 	} else if (is_prefix(*current_prefix)) {
 		return (-1);
 	}
@@ -248,16 +258,26 @@ decode_prefixes(struct decoded_instruction *decoded)
 static int 
 decode_opcode(struct decoded_instruction *decoded)
 {
-	uint8_t opcode, flags;
+	uint8_t opcode;
+	uint16_t flags;
+	int extra;
 
 	opcode = *decoded->opcode;
-	flags = one_byte_opcodes[opcode];
+	extra = 0;
 
+	if (opcode != 0xf)
+		flags = one_byte_opcodes[opcode];
+	else {
+		opcode = *(decoded->opcode + 1);
+		flags = two_byte_opcodes[opcode];
+		extra = 1;
+	}
+		
 	if (!flags) 
 		return (-1);
 
 	if (flags & HAS_MODRM) {
-		decoded->modrm = decoded->opcode + 1;
+		decoded->modrm = decoded->opcode + 1 + extra;
 	}
 
 	decoded->opcode_flags = flags;
@@ -381,37 +401,70 @@ decode_instruction(void *instr, struct decoded_instruction *decoded)
 	return (0);
 }
 
-static struct memory_region * 
-find_region(uintptr_t addr)
-{
-	int i;
-
-	for (i = 0; i < registered_regions; ++i) {
-		if (emulated_regions[i].start <= addr && 
-		   emulated_regions[i].end >= addr) {
-			return &emulated_regions[i];
-		}
-	}
-
-	return (0);
-}
-
 static enum vm_reg_name
 get_vm_reg_name(uint8_t reg)
 {
-	return vm_reg_name_mappings[reg];
+
+	return (vm_reg_name_mappings[reg]);
+}
+
+static uint64_t
+adjust_operand(const struct decoded_instruction *instruction, uint64_t val,
+	       int size)
+{
+	uint64_t ret;
+
+	if (instruction->opcode_flags & ZEXT) {
+		switch (size) {
+		case 1:
+			ret = val & 0xff;
+			break;
+		case 2:
+			ret = val & 0xffff;
+			break;
+		case 4:
+			ret = val & 0xffffffff;
+			break;
+		case 8:
+			ret = val;
+			break;
+		default:
+			break;
+		}
+	} else {
+		/*
+		 * Extend the sign
+		 */
+		switch (size) {
+		case 1:
+			ret = (int8_t)(val & 0xff);
+			break;
+		case 2:
+			ret = (int16_t)(val & 0xffff);
+			break;
+		case 4:
+			ret = (int32_t)(val & 0xffffffff);
+			break;
+		case 8:
+			ret = val;
+			break;
+		default:
+			break;
+		}
+	}
+	
+	return (ret);
 }
 
 static int 
-get_operand(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
-	    const struct decoded_instruction *instruction, uint64_t *operand)
+get_operand(struct vmctx *vm, int vcpu, uint64_t gpa, uint64_t guest_cr3,
+	    const struct decoded_instruction *instruction, uint64_t *operand,
+	    struct mem_range *mr)
 {
 	enum vm_reg_name regname;
 	uint64_t reg;
-	uintptr_t target;
 	int error;
-	uint8_t rm, addressing_mode;
-	struct memory_region *emulated_memory;
+	uint8_t rm, addressing_mode, size;
 
 	if (instruction->opcode_flags & FROM_RM) {
 		rm = instruction->rm;
@@ -422,6 +475,17 @@ get_operand(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
 	} else 
 		return (-1);
 
+	/*
+	 * Determine size of operand
+	 */
+	size = 4;
+	if (instruction->opcode_flags & FROM_8) {
+		size = 1;
+	} else if (instruction->opcode_flags & FROM_16 ||
+		   instruction->opsz) {
+		size = 2;
+	}
+
 	regname = get_vm_reg_name(rm);
 	error = vm_get_register(vm, vcpu, regname, &reg);
 	if (error) 
@@ -430,33 +494,67 @@ get_operand(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
 	switch (addressing_mode) {
 	case MOD_DIRECT:
 		*operand = reg;
-		return (0);
+		error = 0;
+		break;
 	case MOD_INDIRECT:
 	case MOD_INDIRECT_DISP8:
 	case MOD_INDIRECT_DISP32:
+#ifdef INSTR_VERIFY		
+	{
+		uintptr_t target;
+
 		target = gla2gpa(reg, guest_cr3);
 		target += instruction->disp;
-		emulated_memory = find_region(target);
-		if (emulated_memory) {
-			return emulated_memory->memread(vm, vcpu, target, 
-							4, operand, 
-							emulated_memory->arg);
-		}
-                return (-1);
+		assert(gpa == target);
+	}
+#endif
+		error = (*mr->handler)(vm, vcpu, MEM_F_READ, gpa, size,
+				       operand, mr->arg1, mr->arg2);
+		break;
 	default:
 		return (-1);
 	}
+
+	if (!error)
+		*operand = adjust_operand(instruction, *operand, size);
+
+	return (error);
+}
+
+static uint64_t
+adjust_write(uint64_t reg, uint64_t operand, int size)
+{
+	uint64_t val;
+
+	switch (size) {
+	case 1:
+		val = (reg & ~0xff) | (operand & 0xff);
+		break;
+	case 2:
+		val = (reg & ~0xffff) | (operand & 0xffff);
+		break;
+	case 4:
+		val = (reg & ~0xffffffff) | (operand & 0xffffffff);
+		break;
+	case 8:
+		val = operand;
+	default:
+		break;
+	}
+
+	return (val);
 }
 
 static int 
-perform_write(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
-	      const struct decoded_instruction *instruction, uint64_t operand)
+perform_write(struct vmctx *vm, int vcpu, uint64_t gpa, uint64_t guest_cr3,
+	      const struct decoded_instruction *instruction, uint64_t operand,
+	      struct mem_range *mr)
 {
 	enum vm_reg_name regname;
 	uintptr_t target;
 	int error;
+	int size;
 	uint64_t reg;
-	struct memory_region *emulated_memory;
 	uint8_t addressing_mode;
 
 	if (instruction->opcode_flags & TO_RM) {
@@ -467,83 +565,77 @@ perform_write(struct vmctx *vm, int vcpu, uint64_t guest_cr3,
 		addressing_mode = MOD_DIRECT;
 	} else
 		return (-1);
-
-	regname = get_vm_reg_name(reg);
-	error = vm_get_register(vm, vcpu, regname, &reg);
-	if (error)
-		return (error);
-
+	
+	/*
+	 * Determine the operand size. rex.w has priority
+	 */
+	size = 4;
+	if (instruction->rex_w) {
+		size = 8;
+	} else if (instruction->opcode_flags & TO_8) {
+		size = 1;
+	} else if (instruction->opsz) {
+		size = 2;
+	};
+	
 	switch(addressing_mode) {
 	case MOD_DIRECT:
-		return vm_set_register(vm, vcpu, regname, operand);
+		regname = get_vm_reg_name(reg);
+		error = vm_get_register(vm, vcpu, regname, &reg);
+		if (error)
+			return (error);
+		operand = adjust_write(reg, operand, size);
+
+		return (vm_set_register(vm, vcpu, regname, operand));
 	case MOD_INDIRECT:
 	case MOD_INDIRECT_DISP8:
 	case MOD_INDIRECT_DISP32:
+#ifdef INSTR_VERIFY
+		regname = get_vm_reg_name(reg);
+		error = vm_get_register(vm, vcpu, regname, &reg);
+		assert(!error);
 		target = gla2gpa(reg, guest_cr3);
 		target += instruction->disp;
-		emulated_memory = find_region(target);
-		if (emulated_memory) {
-			return emulated_memory->memwrite(vm, vcpu, target, 
-							 4, operand, 
-							 emulated_memory->arg);
-		}
-		return (-1);
+		assert(gpa == target);
+#endif
+		error = (*mr->handler)(vm, vcpu, MEM_F_WRITE, gpa, size,
+				       &operand, mr->arg1, mr->arg2);
+		return (error);
 	default:
 		return (-1);
 	}
 }
 
 static int 
-emulate_decoded_instruction(struct vmctx *vm, int vcpu, uint64_t cr3,
-			    const struct decoded_instruction *instruction)
+emulate_decoded_instruction(struct vmctx *vm, int vcpu, uint64_t gpa,
+			    uint64_t cr3,
+			    const struct decoded_instruction *instruction,
+			    struct mem_range *mr)
 {
 	uint64_t operand;
 	int error;
 
-	error = get_operand(vm, vcpu, cr3, instruction, &operand);
+	error = get_operand(vm, vcpu, gpa, cr3, instruction, &operand, mr);
 	if (error)
 		return (error);
 
-	return perform_write(vm, vcpu, cr3, instruction, operand);
+	return perform_write(vm, vcpu, gpa, cr3, instruction, operand, mr);
 }
 
-int 
-emulate_instruction(struct vmctx *vm, int vcpu, uint64_t rip, uint64_t cr3)
+int
+emulate_instruction(struct vmctx *vm, int vcpu, uint64_t rip, uint64_t cr3,
+		    uint64_t gpa, int flags, struct mem_range *mr)
 {
 	struct decoded_instruction instr;
 	int error;
-	void *instruction = gla2hla(rip, cr3);
+	void *instruction;
 
-	if ((error = decode_instruction(instruction, &instr)) != 0)
-		return (error);
+	instruction = gla2hla(rip, cr3);
 
-	return emulate_decoded_instruction(vm, vcpu, cr3, &instr);
-}
+	error = decode_instruction(instruction, &instr);
+	if (!error)
+		error = emulate_decoded_instruction(vm, vcpu, gpa, cr3,
+						    &instr, mr);
 
-struct memory_region *
-register_emulated_memory(uintptr_t start, size_t len, emulated_read_func_t memread,
-			 emulated_write_func_t memwrite, void *arg)
-{
-	if (registered_regions >= MAX_EMULATED_REGIONS) 
-		return (NULL);
-
-	struct memory_region *region = &emulated_regions[registered_regions];
-	region->start = start;
-	region->end = start + len;
-	region->memread = memread;
-	region->memwrite = memwrite;
-	region->arg = arg;
-
-	registered_regions++;
-	return (region);
-}
-
-void 
-move_memory_region(struct memory_region *region, uintptr_t start)
-{
-	size_t len;
-
-	len = region->end - region->start;
-	region->start = start;
-	region->end = start + len;
+	return (error);
 }

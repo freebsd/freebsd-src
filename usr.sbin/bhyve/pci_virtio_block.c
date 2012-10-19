@@ -382,20 +382,22 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
-	pci_emul_alloc_bar(pi, 0, 0, PCIBAR_IO, VTBLK_REGSZ);
 	pci_emul_add_msicap(pi, 1);
+	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTBLK_REGSZ);
 
 	return (0);
 }
 
 static void
-pci_vtblk_write(struct pci_devinst *pi, int baridx, int offset, int size,
-		uint32_t value)
+pci_vtblk_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+		int baridx, uint64_t offset, int size, uint64_t value)
 {
 	struct pci_vtblk_softc *sc = pi->pi_arg;
-	
+
+	assert(baridx == 0);
+
 	if (offset + size > VTBLK_REGSZ) {
-		DPRINTF(("vtblk_write: 2big, offset %d size %d\n",
+		DPRINTF(("vtblk_write: 2big, offset %ld size %d\n",
 			 offset, size));
 		return;
 	}
@@ -426,24 +428,27 @@ pci_vtblk_write(struct pci_devinst *pi, int baridx, int offset, int size,
 	case VTCFG_R_QNUM:
 	case VTCFG_R_ISR:
 	case VTBLK_R_CFG ... VTBLK_R_CFG_END:
-		DPRINTF(("vtblk: write to readonly reg %d\n\r", offset));
+		DPRINTF(("vtblk: write to readonly reg %ld\n\r", offset));
 		break;
 	default:
-		DPRINTF(("vtblk: unknown i/o write offset %d\n\r", offset));
+		DPRINTF(("vtblk: unknown i/o write offset %ld\n\r", offset));
 		value = 0;
 		break;
 	}
 }
 
-uint32_t
-pci_vtblk_read(struct pci_devinst *pi, int baridx, int offset, int size)
+uint64_t
+pci_vtblk_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+	       int baridx, uint64_t offset, int size)
 {
 	struct pci_vtblk_softc *sc = pi->pi_arg;
 	void *ptr;
 	uint32_t value;
 
+	assert(baridx == 0);
+
 	if (offset + size > VTBLK_REGSZ) {
-		DPRINTF(("vtblk_read: 2big, offset %d size %d\n",
+		DPRINTF(("vtblk_read: 2big, offset %ld size %d\n",
 			 offset, size));
 		return (0);
 	}
@@ -493,7 +498,7 @@ pci_vtblk_read(struct pci_devinst *pi, int baridx, int offset, int size)
 		}
 		break;
 	default:
-		DPRINTF(("vtblk: unknown i/o read offset %d\n\r", offset));
+		DPRINTF(("vtblk: unknown i/o read offset %ld\n\r", offset));
 		value = 0;
 		break;
 	}
@@ -502,9 +507,9 @@ pci_vtblk_read(struct pci_devinst *pi, int baridx, int offset, int size)
 }
 
 struct pci_devemu pci_de_vblk = {
-	.pe_emu = "virtio-blk",
-	.pe_init = pci_vtblk_init,
-	.pe_iow = pci_vtblk_write,
-	.pe_ior = pci_vtblk_read,
+	.pe_emu =	"virtio-blk",
+	.pe_init =	pci_vtblk_init,
+	.pe_barwrite =	pci_vtblk_write,
+	.pe_barread =	pci_vtblk_read
 };
 PCI_EMUL_SET(pci_de_vblk);
