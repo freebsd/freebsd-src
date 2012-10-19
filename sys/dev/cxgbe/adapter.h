@@ -435,7 +435,7 @@ static inline struct sge_rxq *
 iq_to_rxq(struct sge_iq *iq)
 {
 
-	return (member2struct(sge_rxq, iq, iq));
+	return (__containerof(iq, struct sge_rxq, iq));
 }
 
 
@@ -450,7 +450,7 @@ static inline struct sge_ofld_rxq *
 iq_to_ofld_rxq(struct sge_iq *iq)
 {
 
-	return (member2struct(sge_ofld_rxq, iq, iq));
+	return (__containerof(iq, struct sge_ofld_rxq, iq));
 }
 #endif
 

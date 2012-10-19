@@ -3057,8 +3057,8 @@ t4_register_an_handler(struct adapter *sc, an_handler_t h)
 static int
 fw_msg_not_handled(struct adapter *sc, const __be64 *rpl)
 {
-	__be64 *r = __DECONST(__be64 *, rpl);
-	struct cpl_fw6_msg *cpl = member2struct(cpl_fw6_msg, data, r);
+	const struct cpl_fw6_msg *cpl =
+	    __containerof(rpl, struct cpl_fw6_msg, data[0]);
 
 #ifdef INVARIANTS
 	panic("%s: fw_msg type %d", __func__, cpl->type);
