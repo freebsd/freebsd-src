@@ -522,7 +522,7 @@ cpsw_new_rxbuf(struct cpsw_softc *sc, uint32_t i, uint32_t next)
 	int error;
 	int nsegs;
 
-	sc->rx_mbuf[i] = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	sc->rx_mbuf[i] = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (sc->rx_mbuf[i] == NULL)
 		return (ENOBUFS);
 
@@ -628,7 +628,7 @@ cpsw_start_locked(struct ifnet *ifp)
 		if (m0 == NULL)
 			break;
 
-		mtmp = m_defrag(m0, M_DONTWAIT);
+		mtmp = m_defrag(m0, M_NOWAIT);
 		if (mtmp)
 			m0 = mtmp;
 
