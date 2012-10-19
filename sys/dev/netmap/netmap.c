@@ -98,15 +98,8 @@ MALLOC_DEFINE(M_NETMAP, "netmap", "Network memory map");
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
 
-/*
- * lock and unlock for the netmap memory allocator
- */
-#define NMA_LOCK()	mtx_lock(&nm_mem->nm_mtx);
-#define NMA_UNLOCK()	mtx_unlock(&nm_mem->nm_mtx);
-struct netmap_mem_d;
-static struct netmap_mem_d *nm_mem;	/* Our memory allocator. */
-
 u_int netmap_total_buffers;
+u_int netmap_buf_size;
 char *netmap_buffer_base;	/* address of an invalid buffer */
 
 /* user-controlled variables */
@@ -119,10 +112,6 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, verbose,
     CTLFLAG_RW, &netmap_verbose, 0, "Verbose mode");
 SYSCTL_INT(_dev_netmap, OID_AUTO, no_timestamp,
     CTLFLAG_RW, &netmap_no_timestamp, 0, "no_timestamp");
-u_int netmap_buf_size = 2048;
-TUNABLE_INT("hw.netmap.buf_size", (u_int *)&netmap_buf_size);
-SYSCTL_INT(_dev_netmap, OID_AUTO, buf_size,
-    CTLFLAG_RD, &netmap_buf_size, 0, "Size of packet buffers");
 int netmap_mitigate = 1;
 SYSCTL_INT(_dev_netmap, OID_AUTO, mitigate, CTLFLAG_RW, &netmap_mitigate, 0, "");
 int netmap_no_pendintr = 1;
@@ -294,16 +283,54 @@ nm_find_bridge(const char *name)
 #endif /* !NETMAP_MEM2 */
 /*------------ end of memory allocator ----------*/
 
-/* Structure associated to each thread which registered an interface. */
+
+/* Structure associated to each thread which registered an interface.
+ *
+ * The first 4 fields of this structure are written by NIOCREGIF and
+ * read by poll() and NIOC?XSYNC.
+ * There is low contention among writers (actually, a correct user program
+ * should have no contention among writers) and among writers and readers,
+ * so we use a single global lock to protect the structure initialization.
+ * Since initialization involves the allocation of memory, we reuse the memory
+ * allocator lock.
+ * Read access to the structure is lock free. Readers must check that
+ * np_nifp is not NULL before using the other fields.
+ * If np_nifp is NULL initialization has not been performed, so they should
+ * return an error to userlevel.
+ *
+ * The ref_done field is used to regulate access to the refcount in the
+ * memory allocator. The refcount must be incremented at most once for
+ * each open("/dev/netmap"). The increment is performed by the first
+ * function that calls netmap_get_memory() (currently called by
+ * mmap(), NIOCGINFO and NIOCREGIF).
+ * If the refcount is incremented, it is then decremented when the
+ * private structure is destroyed.
+ */
 struct netmap_priv_d {
-	struct netmap_if *np_nifp;	/* netmap interface descriptor. */
+	struct netmap_if * volatile np_nifp;	/* netmap interface descriptor. */
 
 	struct ifnet	*np_ifp;	/* device for which we hold a reference */
 	int		np_ringid;	/* from the ioctl */
 	u_int		np_qfirst, np_qlast;	/* range of rings to scan */
 	uint16_t	np_txpoll;
+
+	unsigned long	ref_done;	/* use with NMA_LOCK held */
 };
 
+
+static int
+netmap_get_memory(struct netmap_priv_d* p)
+{
+	int error = 0;
+	NMA_LOCK();
+	if (!p->ref_done) {
+		error = netmap_memory_finalize();
+		if (!error)
+			p->ref_done = 1;
+	}
+	NMA_UNLOCK();
+	return error;
+}
 
 /*
  * File descriptor's private data destructor.
@@ -311,6 +338,7 @@ struct netmap_priv_d {
  * Call nm_register(ifp,0) to stop netmap mode on the interface and
  * revert to normal operation. We expect that np_ifp has not gone.
  */
+/* call with NMA_LOCK held */
 static void
 netmap_dtor_locked(void *data)
 {
@@ -350,7 +378,6 @@ netmap_dtor_locked(void *data)
 		selwakeuppri(&na->tx_si, PI_NET);
 		selwakeuppri(&na->rx_si, PI_NET);
 		/* release all buffers */
-		NMA_LOCK();
 		for (i = 0; i < na->num_tx_rings + 1; i++) {
 			struct netmap_ring *ring = na->tx_rings[i].ring;
 			lim = na->tx_rings[i].nkr_num_slots;
@@ -370,7 +397,6 @@ netmap_dtor_locked(void *data)
 		/* XXX kqueue(9) needed; these will mirror knlist_init. */
 		/* knlist_destroy(&na->tx_si.si_note); */
 		/* knlist_destroy(&na->rx_si.si_note); */
-		NMA_UNLOCK();
 		netmap_free_rings(na);
 		wakeup(na);
 	}
@@ -403,7 +429,7 @@ nm_if_rele(struct ifnet *ifp)
 			bzero(ifp, sizeof(*ifp));
 			free(ifp, M_DEVBUF);
 			break;
-		} 
+		}
 		else if (b->bdg_ports[i] != NULL)
 			full = 1;
 	}
@@ -423,16 +449,82 @@ netmap_dtor(void *data)
 {
 	struct netmap_priv_d *priv = data;
 	struct ifnet *ifp = priv->np_ifp;
-	struct netmap_adapter *na = NA(ifp);
+	struct netmap_adapter *na;
 
-	na->nm_lock(ifp, NETMAP_REG_LOCK, 0);
-	netmap_dtor_locked(data);
-	na->nm_lock(ifp, NETMAP_REG_UNLOCK, 0);
+	NMA_LOCK();
+	if (ifp) {
+		na = NA(ifp);
+		na->nm_lock(ifp, NETMAP_REG_LOCK, 0);
+		netmap_dtor_locked(data);
+		na->nm_lock(ifp, NETMAP_REG_UNLOCK, 0);
 
-	nm_if_rele(ifp);
+		nm_if_rele(ifp);
+	}
+	if (priv->ref_done) {
+		netmap_memory_deref();
+	}
+	NMA_UNLOCK();
 	bzero(priv, sizeof(*priv));	/* XXX for safety */
 	free(priv, M_DEVBUF);
 }
+
+#ifdef __FreeBSD__
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/uma.h>
+
+static struct cdev_pager_ops saved_cdev_pager_ops;
+
+static int
+netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t foff, struct ucred *cred, u_short *color)
+{
+	D("first mmap for %p", handle);
+	return saved_cdev_pager_ops.cdev_pg_ctor(handle,
+			size, prot, foff, cred, color);
+}
+
+static void
+netmap_dev_pager_dtor(void *handle)
+{
+	saved_cdev_pager_ops.cdev_pg_dtor(handle);
+	D("ready to release memory for %p", handle);
+}
+
+
+static struct cdev_pager_ops netmap_cdev_pager_ops = {
+        .cdev_pg_ctor = netmap_dev_pager_ctor,
+        .cdev_pg_dtor = netmap_dev_pager_dtor,
+        .cdev_pg_fault = NULL,
+};
+
+static int
+netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
+	vm_size_t objsize,  vm_object_t *objp, int prot)
+{
+	vm_object_t obj;
+
+	D("cdev %p foff %d size %d objp %p prot %d", cdev, *foff,
+		objsize, objp, prot);
+	obj = vm_pager_allocate(OBJT_DEVICE, cdev, objsize, prot, *foff,
+            curthread->td_ucred);
+	ND("returns obj %p", obj);
+	if (obj == NULL)
+		return EINVAL;
+	if (saved_cdev_pager_ops.cdev_pg_fault == NULL) {
+		D("initialize cdev_pager_ops");
+		saved_cdev_pager_ops = *(obj->un_pager.devp.ops);
+		netmap_cdev_pager_ops.cdev_pg_fault =
+			saved_cdev_pager_ops.cdev_pg_fault;
+	};
+	obj->un_pager.devp.ops = &netmap_cdev_pager_ops;
+	*objp = obj;
+	return 0;
+}
+#endif /* __FreeBSD__ */
 
 
 /*
@@ -456,13 +548,50 @@ netmap_mmap(__unused struct cdev *dev,
 #endif
 	)
 {
+	int error = 0;
+	struct netmap_priv_d *priv;
+
 	if (nprot & PROT_EXEC)
 		return (-1);	// XXX -1 or EINVAL ?
+
+	error = devfs_get_cdevpriv((void **)&priv);
+	if (error == EBADF) {	/* called on fault, memory is initialized */
+		ND(5, "handling fault at ofs 0x%x", offset);
+		error = 0;
+	} else if (error == 0)	/* make sure memory is set */
+		error = netmap_get_memory(priv);
+	if (error)
+		return (error);
 
 	ND("request for offset 0x%x", (uint32_t)offset);
 	*paddr = netmap_ofstophys(offset);
 
-	return (0);
+	return (*paddr ? 0 : ENOMEM);
+}
+
+static int
+netmap_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+{
+	D("dev %p fflag 0x%x devtype %d td %p", dev, fflag, devtype, td);
+	return 0;
+}
+
+static int
+netmap_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	struct netmap_priv_d *priv;
+	int error;
+
+	priv = malloc(sizeof(struct netmap_priv_d), M_DEVBUF,
+			      M_NOWAIT | M_ZERO);
+	if (priv == NULL)
+		return ENOMEM;
+
+	error = devfs_set_cdevpriv(priv, netmap_dtor);
+	if (error)
+	        return error;
+
+	return 0;
 }
 #endif /* __FreeBSD__ */
 
@@ -650,7 +779,7 @@ no_port:
 	/* can do this if the capability exists and if_pspare[0]
 	 * points to the netmap descriptor.
 	 */
-	if ((*ifp)->if_capabilities & IFCAP_NETMAP && NA(*ifp))
+	if (NETMAP_CAPABLE(*ifp))
 		return 0;	/* valid pointer, we hold the refcount */
 	nm_if_rele(*ifp);
 	return EINVAL;	// not NETMAP capable
@@ -676,7 +805,7 @@ netmap_ring_reinit(struct netmap_kring *kring)
 	u_int i, lim = kring->nkr_num_slots - 1;
 	int errors = 0;
 
-	D("called for %s", kring->na->ifp->if_xname);
+	RD(10, "called for %s", kring->na->ifp->if_xname);
 	if (ring->cur > lim)
 		errors++;
 	for (i = 0; i <= lim; i++) {
@@ -698,9 +827,9 @@ netmap_ring_reinit(struct netmap_kring *kring)
 		int pos = kring - kring->na->tx_rings;
 		int n = kring->na->num_tx_rings + 1;
 
-		D("total %d errors", errors);
+		RD(10, "total %d errors", errors);
 		errors++;
-		D("%s %s[%d] reinit, cur %d -> %d avail %d -> %d",
+		RD(10, "%s %s[%d] reinit, cur %d -> %d avail %d -> %d",
 			kring->na->ifp->if_xname,
 			pos < n ?  "TX" : "RX", pos < n ? pos : pos - n,
 			ring->cur, kring->nr_hwcur,
@@ -803,20 +932,16 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	CURVNET_SET(TD_TO_VNET(td));
 
 	error = devfs_get_cdevpriv((void **)&priv);
-	if (error != ENOENT && error != 0) {
+	if (error) {
 		CURVNET_RESTORE();
-		return (error);
+		/* XXX ENOENT should be impossible, since the priv
+		 * is now created in the open */
+		return (error == ENOENT ? ENXIO : error);
 	}
 
-	error = 0;	/* Could be ENOENT */
 	nmr->nr_name[sizeof(nmr->nr_name) - 1] = '\0';	/* truncate name */
 	switch (cmd) {
 	case NIOCGINFO:		/* return capabilities etc */
-		/* memsize is always valid */
-		nmr->nr_memsize = nm_mem->nm_totalsize;
-		nmr->nr_offset = 0;
-		nmr->nr_rx_rings = nmr->nr_tx_rings = 0;
-		nmr->nr_rx_slots = nmr->nr_tx_slots = 0;
 		if (nmr->nr_version != NETMAP_API) {
 			D("API mismatch got %d have %d",
 				nmr->nr_version, NETMAP_API);
@@ -824,6 +949,16 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			error = EINVAL;
 			break;
 		}
+		/* update configuration */
+		error = netmap_get_memory(priv);
+		ND("get_memory returned %d", error);
+		if (error)
+			break;
+		/* memsize is always valid */
+		nmr->nr_memsize = nm_mem.nm_totalsize;
+		nmr->nr_offset = 0;
+		nmr->nr_rx_rings = nmr->nr_tx_rings = 0;
+		nmr->nr_rx_slots = nmr->nr_tx_slots = 0;
 		if (nmr->nr_name[0] == '\0')	/* just get memory info */
 			break;
 		error = get_ifp(nmr->nr_name, &ifp); /* get a refcount */
@@ -843,26 +978,26 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			error = EINVAL;
 			break;
 		}
-		if (priv != NULL) {	/* thread already registered */
+		/* ensure allocators are ready */
+		error = netmap_get_memory(priv);
+		ND("get_memory returned %d", error);
+		if (error)
+			break;
+
+		/* protect access to priv from concurrent NIOCREGIF */
+		NMA_LOCK();
+		if (priv->np_ifp != NULL) {	/* thread already registered */
 			error = netmap_set_ringid(priv, nmr->nr_ringid);
+			NMA_UNLOCK();
 			break;
 		}
 		/* find the interface and a reference */
 		error = get_ifp(nmr->nr_name, &ifp); /* keep reference */
-		if (error)
-			break;
-		na = NA(ifp); /* retrieve netmap adapter */
-		/*
-		 * Allocate the private per-thread structure.
-		 * XXX perhaps we can use a blocking malloc ?
-		 */
-		priv = malloc(sizeof(struct netmap_priv_d), M_DEVBUF,
-			      M_NOWAIT | M_ZERO);
-		if (priv == NULL) {
-			error = ENOMEM;
-			nm_if_rele(ifp);   /* return the refcount */
+		if (error) {
+			NMA_UNLOCK();
 			break;
 		}
+		na = NA(ifp); /* retrieve netmap adapter */
 
 		for (i = 10; i > 0; i--) {
 			na->nm_lock(ifp, NETMAP_REG_LOCK, 0);
@@ -874,8 +1009,8 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		if (i == 0) {
 			D("too many NIOCREGIF attempts, give up");
 			error = EINVAL;
-			free(priv, M_DEVBUF);
 			nm_if_rele(ifp);	/* return the refcount */
+			NMA_UNLOCK();
 			break;
 		}
 
@@ -883,7 +1018,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		error = netmap_set_ringid(priv, nmr->nr_ringid);
 		if (error)
 			goto error;
-		priv->np_nifp = nifp = netmap_if_new(nmr->nr_name, na);
+		nifp = netmap_if_new(nmr->nr_name, na);
 		if (nifp == NULL) { /* allocation failed */
 			error = ENOMEM;
 		} else if (ifp->if_capenable & IFCAP_NETMAP) {
@@ -898,57 +1033,66 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 				mtx_init(&na->rx_rings[i].q_lock, "nm_rxq_lock", MTX_NETWORK_LOCK, MTX_DEF);
 			}
 			error = na->nm_register(ifp, 1); /* mode on */
-			if (error)
+			if (error) {
 				netmap_dtor_locked(priv);
+				netmap_if_free(nifp);
+			}
 		}
 
 		if (error) {	/* reg. failed, release priv and ref */
 error:
 			na->nm_lock(ifp, NETMAP_REG_UNLOCK, 0);
 			nm_if_rele(ifp);	/* return the refcount */
-			bzero(priv, sizeof(*priv));
-			free(priv, M_DEVBUF);
+			priv->np_ifp = NULL;
+			priv->np_nifp = NULL;
+			NMA_UNLOCK();
 			break;
 		}
 
 		na->nm_lock(ifp, NETMAP_REG_UNLOCK, 0);
-		error = devfs_set_cdevpriv(priv, netmap_dtor);
 
-		if (error != 0) {
-			/* could not assign the private storage for the
-			 * thread, call the destructor explicitly.
-			 */
-			netmap_dtor(priv);
-			break;
-		}
+		/* the following assignment is a commitment.
+		 * Readers (i.e., poll and *SYNC) check for
+		 * np_nifp != NULL without locking
+		 */
+		wmb(); /* make sure previous writes are visible to all CPUs */
+		priv->np_nifp = nifp;
+		NMA_UNLOCK();
 
 		/* return the offset of the netmap_if object */
 		nmr->nr_rx_rings = na->num_rx_rings;
 		nmr->nr_tx_rings = na->num_tx_rings;
 		nmr->nr_rx_slots = na->num_rx_desc;
 		nmr->nr_tx_slots = na->num_tx_desc;
-		nmr->nr_memsize = nm_mem->nm_totalsize;
+		nmr->nr_memsize = nm_mem.nm_totalsize;
 		nmr->nr_offset = netmap_if_offset(nifp);
 		break;
 
 	case NIOCUNREGIF:
-		if (priv == NULL) {
-			error = ENXIO;
-			break;
-		}
-
-		/* the interface is unregistered inside the
-		   destructor of the private data. */
-		devfs_clear_cdevpriv();
+		// XXX we have no data here ?
+		D("deprecated, data is %p", nmr);
+		error = EINVAL;
 		break;
 
 	case NIOCTXSYNC:
-        case NIOCRXSYNC:
-		if (priv == NULL) {
+	case NIOCRXSYNC:
+		nifp = priv->np_nifp;
+
+		if (nifp == NULL) {
 			error = ENXIO;
 			break;
 		}
+		rmb(); /* make sure following reads are not from cache */
+
+
 		ifp = priv->np_ifp;	/* we have a reference */
+
+		if (ifp == NULL) {
+			D("Internal error: nifp != NULL && ifp == NULL");
+			error = ENXIO;
+			break;
+		}
+
 		na = NA(ifp); /* retrieve netmap adapter */
 		if (priv->np_qfirst == NETMAP_SW_RING) { /* host rings */
 			if (cmd == NIOCTXSYNC)
@@ -1046,6 +1190,12 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 
 	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
 		return POLLERR;
+
+	if (priv->np_nifp == NULL) {
+		D("No if registered");
+		return POLLERR;
+	}
+	rmb(); /* make sure following reads are not from cache */
 
 	ifp = priv->np_ifp;
 	// XXX check for deleting() ?
@@ -1322,7 +1472,7 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 		na->tx_rings = (void *)((char *)buf + sizeof(*na));
 		na->rx_rings = na->tx_rings + na->num_tx_rings + 1;
 		bcopy(na, buf, sizeof(*na));
-		ifp->if_capabilities |= IFCAP_NETMAP;
+		NETMAP_SET_CAPABLE(ifp);
 
 		na = buf;
 		/* Core lock initialized here.  Others are initialized after
@@ -1337,7 +1487,7 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 	}
 #ifdef linux
 	if (ifp->netdev_ops) {
-		D("netdev_ops %p", ifp->netdev_ops);
+		ND("netdev_ops %p", ifp->netdev_ops);
 		/* prepare a clone of the netdev ops */
 		na->nm_ndo = *ifp->netdev_ops;
 	}
@@ -1440,9 +1590,13 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
 		return NULL;	/* nothing to reinitialize */
 
 	if (tx == NR_TX) {
+		if (n >= na->num_tx_rings)
+			return NULL;
 		kring = na->tx_rings + n;
 		new_hwofs = kring->nr_hwcur - new_cur;
 	} else {
+		if (n >= na->num_rx_rings)
+			return NULL;
 		kring = na->rx_rings + n;
 		new_hwofs = kring->nr_hwcur + kring->nr_hwavail - new_cur;
 	}
@@ -1454,7 +1608,7 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
 	kring->nkr_hwofs = new_hwofs;
 	if (tx == NR_TX)
 		kring->nr_hwavail = kring->nkr_num_slots - 1;
-	D("new hwofs %d on %s %s[%d]",
+	ND(10, "new hwofs %d on %s %s[%d]",
 			kring->nkr_hwofs, na->ifp->if_xname,
 			tx == NR_TX ? "TX" : "RX", n);
 
@@ -1501,12 +1655,22 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 
 	if (!(ifp->if_capenable & IFCAP_NETMAP))
 		return 0;
+	ND(5, "received %s queue %d", work_done ? "RX" : "TX" , q);
 	na = NA(ifp);
+	if (na->na_flags & NAF_SKIP_INTR) {
+		ND("use regular interrupt");
+		return 0;
+	}
+
 	if (work_done) { /* RX path */
+		if (q >= na->num_rx_rings)
+			return 0;	// regular queue
 		r = na->rx_rings + q;
 		r->nr_kflags |= NKR_PENDINTR;
 		main_wq = (na->num_rx_rings > 1) ? &na->rx_si : NULL;
 	} else { /* tx path */
+		if (q >= na->num_tx_rings)
+			return 0;	// regular queue
 		r = na->tx_rings + q;
 		main_wq = (na->num_tx_rings > 1) ? &na->tx_si : NULL;
 		work_done = &q; /* dummy */
@@ -1560,38 +1724,65 @@ linux_netmap_mmap(struct file *f, struct vm_area_struct *vma)
 	int lut_skip, i, j;
 	int user_skip = 0;
 	struct lut_entry *l_entry;
-	const struct netmap_obj_pool *p[] = {
-		nm_mem->nm_if_pool,
-		nm_mem->nm_ring_pool,
-		nm_mem->nm_buf_pool };
+	int error = 0;
+	unsigned long off, tomap;
 	/*
 	 * vma->vm_start: start of mapping user address space
 	 * vma->vm_end: end of the mapping user address space
+	 * vma->vm_pfoff: offset of first page in the device
 	 */
 
-	(void)f;	/* UNUSED */
 	// XXX security checks
 
-	for (i = 0; i < 3; i++) {  /* loop through obj_pools */
+	error = netmap_get_memory(f->private_data);
+	ND("get_memory returned %d", error);
+	if (error)
+	    return -error;
+
+	off = vma->vm_pgoff << PAGE_SHIFT; /* offset in bytes */
+	tomap = vma->vm_end - vma->vm_start;
+	for (i = 0; i < NETMAP_POOLS_NR; i++) {  /* loop through obj_pools */
+		const struct netmap_obj_pool *p = &nm_mem.pools[i];
 		/*
 		 * In each pool memory is allocated in clusters
-		 * of size _clustsize , each containing clustentries
+		 * of size _clustsize, each containing clustentries
 		 * entries. For each object k we already store the
-		 * vtophys malling in lut[k] so we use that, scanning
+		 * vtophys mapping in lut[k] so we use that, scanning
 		 * the lut[] array in steps of clustentries,
 		 * and we map each cluster (not individual pages,
 		 * it would be overkill).
 		 */
-		for (lut_skip = 0, j = 0; j < p[i]->_numclusters; j++) {
-			l_entry = &p[i]->lut[lut_skip];
+
+		/*
+		 * We interpret vm_pgoff as an offset into the whole
+		 * netmap memory, as if all clusters where contiguous.
+		 */
+		for (lut_skip = 0, j = 0; j < p->_numclusters; j++, lut_skip += p->clustentries) {
+			unsigned long paddr, mapsize;
+			if (p->_clustsize <= off) {
+				off -= p->_clustsize;
+				continue;
+			}
+			l_entry = &p->lut[lut_skip]; /* first obj in the cluster */
+			paddr = l_entry->paddr + off;
+			mapsize = p->_clustsize - off;
+			off = 0;
+			if (mapsize > tomap)
+				mapsize = tomap;
+			ND("remap_pfn_range(%lx, %lx, %lx)",
+				vma->vm_start + user_skip,
+				paddr >> PAGE_SHIFT, mapsize);
 			if (remap_pfn_range(vma, vma->vm_start + user_skip,
-					l_entry->paddr >> PAGE_SHIFT, p[i]->_clustsize,
+					paddr >> PAGE_SHIFT, mapsize,
 					vma->vm_page_prot))
 				return -EAGAIN; // XXX check return value
-			lut_skip += p[i]->clustentries;
-			user_skip += p[i]->_clustsize;
+			user_skip += mapsize;
+			tomap -= mapsize;
+			if (tomap == 0)
+				goto done;
 		}
 	}
+done:
 
 	return 0;
 }
@@ -1636,8 +1827,24 @@ netmap_release(struct inode *inode, struct file *file)
 	return (0);
 }
 
+static int
+linux_netmap_open(struct inode *inode, struct file *file)
+{
+	struct netmap_priv_d *priv;
+	(void)inode;	/* UNUSED */
+
+	priv = malloc(sizeof(struct netmap_priv_d), M_DEVBUF,
+			      M_NOWAIT | M_ZERO);
+	if (priv == NULL)
+		return -ENOMEM;
+
+	file->private_data = priv;
+
+	return (0);
+}
 
 static struct file_operations netmap_fops = {
+    .open = linux_netmap_open,
     .mmap = linux_netmap_mmap,
     LIN_IOCTL_NAME = linux_netmap_ioctl,
     .poll = linux_netmap_poll,
@@ -1683,9 +1890,12 @@ MODULE_LICENSE("Dual BSD/GPL"); /* the code here is all BSD. */
 static struct cdevsw netmap_cdevsw = {
 	.d_version = D_VERSION,
 	.d_name = "netmap",
+	.d_open = netmap_open,
 	.d_mmap = netmap_mmap,
+	.d_mmap_single = netmap_mmap_single,
 	.d_ioctl = netmap_ioctl,
 	.d_poll = netmap_poll,
+	.d_close = netmap_close,
 };
 #endif /* __FreeBSD__ */
 
@@ -2048,8 +2258,7 @@ netmap_init(void)
 		printf("netmap: unable to initialize the memory allocator.\n");
 		return (error);
 	}
-	printf("netmap: loaded module with %d Mbytes\n",
-		(int)(nm_mem->nm_totalsize >> 20));
+	printf("netmap: loaded module\n");
 	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
 			      "netmap");
 
