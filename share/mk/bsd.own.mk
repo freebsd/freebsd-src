@@ -203,6 +203,7 @@ COMPRESS_EXT?=	.gz
 # regardless of user's setting).
 #
 .for var in \
+    CTF \
     INSTALLLIB \
     MAN \
     PROFILE
@@ -427,6 +428,7 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    CTF \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
@@ -470,6 +472,7 @@ MK_BIND_ETC:=	no
 
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
+MK_CTF:=	no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -563,6 +566,14 @@ MK_${vv:H}:=	no
 MK_${vv:H}:=	${MK_${vv:T}}
 .endif
 .endfor
+
+.if ${MK_CTF} != "no"
+CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+CTFCONVERT_CMD=
+.else
+CTFCONVERT_CMD=	@:
+.endif 
 
 .endif # !_WITHOUT_SRCCONF
 

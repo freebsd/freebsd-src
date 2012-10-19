@@ -133,7 +133,7 @@ CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
 .endif
 
 .if defined(DEBUG) || defined(DEBUG_FLAGS)
-CTFFLAGS+=      -g
+CTFFLAGS+=	-g
 .endif
 
 .if defined(FIRMWS)
@@ -201,7 +201,7 @@ ${KMOD}.kld: ${OBJS}
 ${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
-.if defined(WITH_CTF)
+.if defined(MK_CTF) && ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .if defined(EXPORT_SYMS)

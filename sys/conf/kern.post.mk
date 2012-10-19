@@ -15,6 +15,10 @@ MKMODULESENV+=	DESTDIR="${DESTDIR}"
 SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
 MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
 
+.if defined(WITH_CTF)
+MKMODULESENV+=	WITH_CTF="${WITH_CTF}"
+.endif
+
 .MAIN: all
 
 .for target in all clean cleandepend cleandir clobber depend install \
@@ -117,8 +121,8 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
-.if defined(CTFMERGE)
-	${SYSTEM_CTFMERGE}
+.if ${MK_CTF} != "no"
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 .endif
 .if !defined(DEBUG)
 	${OBJCOPY} --strip-debug ${.TARGET}
@@ -267,9 +271,7 @@ kernel-reinstall:
 
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${NORMAL_CTFCONVERT}
 
 config.ln env.ln hints.ln vers.ln vnode_if.ln:
 	${NORMAL_LINT}

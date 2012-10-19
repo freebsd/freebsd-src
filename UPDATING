@@ -15,6 +15,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20121018:
+	WITH_CTF can now be specified in src.conf (not recommended, there
+	are some problems with static executables), make.conf (would also
+	affect ports which do not use GNU make and do not override the
+	compile targets) or in the kernel config (via "makeoptions
+	WITH_CTF=yes").
+	When WITH_CTF was specified there before this was silently ignored,
+	so make sure that WITH_CTF is not used in places which could lead
+	to unwanted behavior.
+
 20120913:
 	The random(4) support for the VIA hardware random number
 	generator (`PADLOCK') is no longer enabled unconditionally.
