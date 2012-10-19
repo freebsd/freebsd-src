@@ -61,8 +61,8 @@ read_file(char *fn, long n)
 
 extern int des;
 
-char *sbuf;			/* file i/o buffer */
-int sbufsz;			/* file i/o buffer size */
+static char *sbuf;		/* file i/o buffer */
+static int sbufsz;		/* file i/o buffer size */
 int newline_added;		/* if set, newline appended to input file */
 
 /* read_stream: read a stream into the editor buffer; return status */
