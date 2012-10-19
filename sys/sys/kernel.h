@@ -84,12 +84,6 @@ extern int ticks;
  * The SI_SUB_SWAP values represent a value used by
  * the BSD 4.4Lite but not by FreeBSD; it is maintained in dependent
  * order to support porting.
- *
- * The SI_SUB_PROTO_BEGIN and SI_SUB_PROTO_END bracket a range of
- * initializations to take place at splimp().  This is a historical
- * wart that should be removed -- probably running everything at
- * splimp() until the first init that doesn't want it is the correct
- * fix.  They are currently present to ensure historical behavior.
  */
 enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker*/
@@ -147,12 +141,12 @@ enum sysinit_sub_id {
 	SI_SUB_P1003_1B		= 0x6E00000,	/* P1003.1B realtime */
 	SI_SUB_PSEUDO		= 0x7000000,	/* pseudo devices*/
 	SI_SUB_EXEC		= 0x7400000,	/* execve() handlers */
-	SI_SUB_PROTO_BEGIN	= 0x8000000,	/* XXX: set splimp (kludge)*/
+	SI_SUB_PROTO_BEGIN	= 0x8000000,	/* VNET initialization */
 	SI_SUB_PROTO_IF		= 0x8400000,	/* interfaces*/
 	SI_SUB_PROTO_DOMAININIT	= 0x8600000,	/* domain registration system */
 	SI_SUB_PROTO_DOMAIN	= 0x8800000,	/* domains (address families?)*/
 	SI_SUB_PROTO_IFATTACHDOMAIN	= 0x8800001,	/* domain dependent data init*/
-	SI_SUB_PROTO_END	= 0x8ffffff,	/* XXX: set splx (kludge)*/
+	SI_SUB_PROTO_END	= 0x8ffffff,	/* VNET helper functions */
 	SI_SUB_KPROF		= 0x9000000,	/* kernel profiling*/
 	SI_SUB_KICK_SCHEDULER	= 0xa000000,	/* start the timeout events*/
 	SI_SUB_INT_CONFIG_HOOKS	= 0xa800000,	/* Interrupts enabled config */
