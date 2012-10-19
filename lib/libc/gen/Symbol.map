@@ -387,6 +387,10 @@ FBSD_1.3 {
 	 fdlopen;
 	__FreeBSD_libc_enter_restricted_mode;
 	getcontextx;
+	gid_from_group;
+	pwcache_userdb;
+	pwcache_groupdb;
+	uid_from_user;
 };
 
 FBSDprivate_1.0 {
