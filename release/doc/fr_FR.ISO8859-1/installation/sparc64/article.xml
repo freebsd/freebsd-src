@@ -10,7 +10,7 @@
 
 <!ENTITY arch "sparc64">
 <!ENTITY arch.print "UltraSPARC">
-<!ENTITY sect.sparc64.install SYSTEM "./install.sgml">
+<!ENTITY sect.sparc64.install SYSTEM "./install.xml">
 ]>
 
 <!--
