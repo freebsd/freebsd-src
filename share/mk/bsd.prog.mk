@@ -18,7 +18,7 @@ NO_WERROR=
 .if defined(DEBUG_FLAGS)
 CFLAGS+=${DEBUG_FLAGS}
 
-.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
 .endif
@@ -54,13 +54,17 @@ LDADD+=	-lobjc -lpthread
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
+.if target(beforelinking)
+${PROG}: ${OBJS} beforelinking
+.else
 ${PROG}: ${OBJS}
+.endif
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-.if defined(CTFMERGE)
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 
@@ -80,13 +84,17 @@ SRCS=	${PROG}.c
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
 
+.if target(beforelinking)
+${PROG}: ${OBJS} beforelinking
+.else
 ${PROG}: ${OBJS}
+.endif
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-.if defined(CTFMERGE)
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .endif

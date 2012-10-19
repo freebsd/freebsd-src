@@ -36,7 +36,7 @@ NO_WERROR=
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 
-.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
 .endif
@@ -68,15 +68,11 @@ PO_FLAG=-pg
 
 .c.po:
 	${CC} ${PO_FLAG} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -86,58 +82,40 @@ PO_FLAG=-pg
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .m.po:
 	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .s.po .s.So:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .asm.po:
 	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .S.po:
 	${CC} -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .S.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 all: objwarn
 
@@ -193,7 +171,11 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+.if target(beforelinking)
+${SHLIB_NAME}: ${SOBJS} beforelinking
+.else
 ${SHLIB_NAME}: ${SOBJS}
+.endif
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${.TARGET} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
@@ -208,7 +190,7 @@ ${SHLIB_NAME}: ${SOBJS}
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
-.if defined(CTFMERGE)
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
 .endif

@@ -48,8 +48,6 @@ SUBDIR+=games
 .endif
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
-.else
-NO_CTF=1
 .endif
 SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
