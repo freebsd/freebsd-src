@@ -146,7 +146,7 @@ enum
 #define	NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS 6
 static const char mutually_exclusive_flags[NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS] = { 'M', 'n', 'g', 'R', 'h', 'V' };
 
-struct option long_options[] = {
+static struct option long_options[] = {
 				{ "batch-size", required_argument, NULL, BS_OPT },
 				{ "buffer-size", required_argument, NULL, 'S' },
 				{ "check", optional_argument, NULL, 'c' },

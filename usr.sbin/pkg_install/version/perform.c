@@ -27,9 +27,9 @@ __FBSDID("$FreeBSD$");
 #include <fetch.h>
 #include <signal.h>
 
-FILE *IndexFile;
-char IndexPath[PATH_MAX] = "";
-struct index_head Index = SLIST_HEAD_INITIALIZER(Index);
+static FILE *IndexFile;
+static char IndexPath[PATH_MAX] = "";
+static struct index_head Index = SLIST_HEAD_INITIALIZER(Index);
 
 static int pkg_do(char *);
 static void show_version(Package, const char *, const char *);
