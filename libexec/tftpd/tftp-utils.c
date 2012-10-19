@@ -121,7 +121,7 @@ get_field(int peer, char *buffer, ssize_t size)
 /*
  * Logging functions
  */
-int	_tftp_logtostdout = 1;
+static int _tftp_logtostdout = 1;
 
 void
 tftp_openlog(const char *ident, int logopt, int facility)

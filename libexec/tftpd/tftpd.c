@@ -107,9 +107,9 @@ static void	tftp_xmitfile(int peer, const char *mode);
 static int	validate_access(int peer, char **, int);
 static char	peername[NI_MAXHOST];
 
-FILE *file;
+static FILE *file;
 
-struct formats {
+static struct formats {
 	const char	*f_mode;
 	int	f_convert;
 } formats[] = {
