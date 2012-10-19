@@ -442,147 +442,147 @@ Set Cmask = 1 to count cycles.
 .It Li PARTIAL_RAT_STALLS.SLOW_LEA_WINDOW
 .Pq Event 59H , Umask 0FH
 Cycles with at least one slow LEA uop allocated.
-.It Li PARTIAL_RAT_STALLS.MUL_SINGLE_UOP 
+.It Li PARTIAL_RAT_STALLS.MUL_SINGLE_UOP
 .Pq Event 59H , Umask 40H
 Number of Multiply packed/scalar single precision
 uops allocated.
-.It Li RESOURCE_STALLS2.ALL_FL_EMPTY 
+.It Li RESOURCE_STALLS2.ALL_FL_EMPTY
 .Pq Event 5BH , Umask 0CH
-Cycles stalled due to free list empty.  
-.It Li RESOURCE_STALLS2.ALL_PRF_CONTROL 
+Cycles stalled due to free list empty.
+.It Li RESOURCE_STALLS2.ALL_PRF_CONTROL
 .Pq Event 5BH , Umask 0FH
 Cycles stalled due to control structures full for
 physical registers.
-.It Li RESOURCE_STALLS2.BOB_FULL 
+.It Li RESOURCE_STALLS2.BOB_FULL
 .Pq Event 5BH , Umask 40H
-Cycles Allocator is stalled due Branch Order Buffer.  
-.It Li RESOURCE_STALLS2.OOO_RSRC 
+Cycles Allocator is stalled due Branch Order Buffer.
+.It Li RESOURCE_STALLS2.OOO_RSRC
 .Pq Event 5BH , Umask 4FH
-Cycles stalled due to out of order resources full.  
-.It Li CPL_CYCLES.RING0 
+Cycles stalled due to out of order resources full.
+.It Li CPL_CYCLES.RING0
 .Pq Event 5CH , Umask 01H
-Unhalted core cycles when the thread is in ring 0.  
-.It Li CPL_CYCLES.RING123 
+Unhalted core cycles when the thread is in ring 0.
+.It Li CPL_CYCLES.RING123
 .Pq Event 5CH , Umask 02H
 Unhalted core cycles when the thread is not in ring
 0.
 .It Li RS_EVENTS.EMPTY_CYCLES
 .Pq Event 5EH , Umask 01H
-Cycles the RS is empty for the thread.  
-.It Li OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD 
+Cycles the RS is empty for the thread.
+.It Li OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD
 .Pq Event 60H , Umask 01H
 Offcore outstanding Demand Data Read
 transactions in SQ to uncore. Set Cmask=1 to count
 cycles.
-.It Li OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO 
+.It Li OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO
 .Pq Event 60H , Umask 04H
 Offcore outstanding RFO store transactions in SQ to
 uncore. Set Cmask=1 to count cycles.
-.It Li OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD 
+.It Li OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD
 .Pq Event 60H , Umask 08H
 Offcore outstanding cacheable data read
 transactions in SQ to uncore. Set Cmask=1 to count
 cycles.
-.It Li LOCK_CYCLES.SPLIT_LOCK_UC_LOCK_DURATION 
+.It Li LOCK_CYCLES.SPLIT_LOCK_UC_LOCK_DURATION
 .Pq Event 63H , Umask 01H
 Cycles in which the L1D and L2 are locked, due to a
 UC lock or split lock.
-.It Li LOCK_CYCLES.CACHE_LOCK_DURATION 
+.It Li LOCK_CYCLES.CACHE_LOCK_DURATION
 .Pq Event 63H , Umask 02H
-Cycles in which the L1D is locked.  
-.It Li IDQ.EMPTY 
+Cycles in which the L1D is locked.
+.It Li IDQ.EMPTY
 .Pq Event 79H , Umask 02H
 Counts cycles the IDQ is empty.
-.It Li IDQ.MITE_UOPS 
+.It Li IDQ.MITE_UOPS
 .Pq Event 79H , Umask 04H
 Increment each cycle # of uops delivered to IDQ
 from MITE path.
 Set Cmask = 1 to count cycles.
-.It Li IDQ.DSB_UOPS 
+.It Li IDQ.DSB_UOPS
 .Pq Event 79H , Umask 08H
 Increment each cycle. # of uops delivered to IDQ
 from DSB path.
 Set Cmask = 1 to count cycles.
-.It Li IDQ.MS_DSB_UOPS 
+.It Li IDQ.MS_DSB_UOPS
 .Pq Event 79H , Umask 10H
 Increment each cycle # of uops delivered to IDQ
 when MS busy by DSB. Set Cmask = 1 to count
 cycles MS is busy. Set Cmask=1 and Edge =1 to
 count MS activations.
-.It Li IDQ.MS_MITE_UOPS 
+.It Li IDQ.MS_MITE_UOPS
 .Pq Event 79H , Umask 20H
 Increment each cycle # of uops delivered to IDQ
 when MS is busy by MITE. Set Cmask = 1 to count
 cycles.
-.It Li IDQ.MS_UOPS 
+.It Li IDQ.MS_UOPS
 .Pq Event 79H , Umask 30H
 Increment each cycle # of uops delivered to IDQ
 from MS by either DSB or MITE. Set Cmask = 1 to
 count cycles.
-.It Li ICACHE.MISSES 
+.It Li ICACHE.MISSES
 .Pq Event 80H , Umask 02H
 Number of Instruction Cache, Streaming Buffer and
 Victim Cache Misses. Includes UC accesses.
-.It Li ITLB_MISSES.MISS_CAUSES_A_WALK 
+.It Li ITLB_MISSES.MISS_CAUSES_A_WALK
 .Pq Event 85H , Umask 01H
-Misses in all ITLB levels that cause page walks.  
-.It Li ITLB_MISSES.WALK_COMPLETED 
+Misses in all ITLB levels that cause page walks.
+.It Li ITLB_MISSES.WALK_COMPLETED
 .Pq Event 85H , Umask 02H
 Misses in all ITLB levels that cause completed page
 walks.
-.It Li ITLB_MISSES.WALK_DURATION 
+.It Li ITLB_MISSES.WALK_DURATION
 .Pq Event 85H , Umask 04H
-Cycle PMH is busy with a walk.  
-.It Li ITLB_MISSES.STLB_HIT 
+Cycle PMH is busy with a walk.
+.It Li ITLB_MISSES.STLB_HIT
 .Pq Event 85H , Umask 10H
-Number of cache load STLB hits. No page walk.  
-.It Li ILD_STALL.LCP 
+Number of cache load STLB hits. No page walk.
+.It Li ILD_STALL.LCP
 .Pq Event 87H , Umask 01H
 Stalls caused by changing prefix length of the
 instruction.
-.It Li ILD_STALL.IQ_FULL 
+.It Li ILD_STALL.IQ_FULL
 .Pq Event 87H , Umask 04H
-Stall cycles due to IQ is full.  
+Stall cycles due to IQ is full.
 .It Li BR_INST_EXEC.COND
 .Pq Event 88H , Umask 01H
 Qualify conditional near branch instructions
 executed, but not necessarily retired.
-.It Li BR_INST_EXEC.DIRECT_JMP 
+.It Li BR_INST_EXEC.DIRECT_JMP
 .Pq Event 88H , Umask 02H
 Qualify all unconditional near branch instructions
 excluding calls and indirect branches.
-.It Li BR_INST_EXEC.INDIRECT_JMP_NON_CALL_RET 
+.It Li BR_INST_EXEC.INDIRECT_JMP_NON_CALL_RET
 .Pq Event 88H , Umask 04H
 Qualify executed indirect near branch instructions
 that are not calls nor returns.
-.It Li BR_INST_EXEC.RETURN_NEAR 
+.It Li BR_INST_EXEC.RETURN_NEAR
 .Pq Event 88H , Umask 08H
 Qualify indirect near branches that have a return
 mnemonic.
-.It Li BR_INST_EXEC.DIRECT_NEAR_CALL 
+.It Li BR_INST_EXEC.DIRECT_NEAR_CALL
 .Pq Event 88H , Umask 10H
 Qualify unconditional near call branch instructions,
 excluding non call branch, executed.
-.It Li BR_INST_EXEC.INDIRECT_NEAR_CALL 
+.It Li BR_INST_EXEC.INDIRECT_NEAR_CALL
 .Pq Event 88H , Umask 20H
 Qualify indirect near calls, including both register
 and memory indirect, executed.
-.It Li BR_INST_EXEC.NONTAKEN 
+.It Li BR_INST_EXEC.NONTAKEN
 .Pq Event 88H , Umask 40H
-Qualify non-taken near branches executed.  
-.It Li BR_INST_EXEC.TAKEN 
+Qualify non-taken near branches executed.
+.It Li BR_INST_EXEC.TAKEN
 .Pq Event 88H , Umask 80H
 Qualify taken near branches executed. Must
 combine with 01H,02H, 04H, 08H, 10H, 20H.
-.It Li BR_INST_EXE.ALL_BRANCHES 
+.It Li BR_INST_EXE.ALL_BRANCHES
 .Pq Event 88H , Umask FFH
 Counts all near executed branches (not necessarily
 retired).
-.It Li BR_MISP_EXEC.COND 
+.It Li BR_MISP_EXEC.COND
 .Pq Event 89H , Umask 01H
 Qualify conditional near branch instructions
 mispredicted.
-.It Li BR_MISP_EXEC.INDIRECT_JMP_NON_CALL_RET 
+.It Li BR_MISP_EXEC.INDIRECT_JMP_NON_CALL_RET
 .Pq Event 89H , Umask 04H
 Qualify mispredicted indirect near branch
 instructions that are not calls nor returns.
@@ -590,144 +590,144 @@ instructions that are not calls nor returns.
 .Pq Event 89H , Umask 08H
 Qualify mispredicted indirect near branches that
 have a return mnemonic.
-.It Li BR_MISP_EXEC.DIRECT_NEAR_CALL 
+.It Li BR_MISP_EXEC.DIRECT_NEAR_CALL
 .Pq Event 89H , Umask 10H
 Qualify mispredicted unconditional near call branch
 instructions, excluding non call branch, executed.
-.It Li BR_MISP_EXEC.INDIRECT_NEAR_CALL 
+.It Li BR_MISP_EXEC.INDIRECT_NEAR_CALL
 .Pq Event 89H , Umask 20H
 Qualify mispredicted indirect near calls, including
 both register and memory indirect, executed.
-.It Li BR_MISP_EXEC.NONTAKEN 
+.It Li BR_MISP_EXEC.NONTAKEN
 .Pq Event 89H , Umask 40H
 Qualify mispredicted non-taken near branches
 executed,.
-.It Li BR_MISP_EXEC.TAKEN 
+.It Li BR_MISP_EXEC.TAKEN
 .Pq Event 89H , Umask 80H
 Qualify mispredicted taken near branches executed.
 Must combine with 01H,02H, 04H, 08H, 10H, 20H
-.It Li BR_MISP_EXEC.ALL_BRANCHES 
+.It Li BR_MISP_EXEC.ALL_BRANCHES
 .Pq Event 89H , Umask FFH
 Counts all near executed branches (not necessarily
 retired).
-.It Li IDQ_UOPS_NOT_DELIVERED.CORE 
+.It Li IDQ_UOPS_NOT_DELIVERED.CORE
 .Pq Event 9CH , Umask 01H
 Count number of non-delivered uops to RAT per
 thread.
-.It Li UOPS_DISPATCHED_PORT.PORT_0 
+.It Li UOPS_DISPATCHED_PORT.PORT_0
 .Pq Event A1H , Umask 01H
-Cycles which a Uop is dispatched on port 0.  
+Cycles which a Uop is dispatched on port 0.
 .It Li UOPS_DISPATCHED_PORT.PORT_1
 .Pq Event A1H , Umask 02H
-Cycles which a Uop is dispatched on port 1.  
-.It Li UOPS_DISPATCHED_PORT.PORT_2_LD 
+Cycles which a Uop is dispatched on port 1.
+.It Li UOPS_DISPATCHED_PORT.PORT_2_LD
 .Pq Event A1H , Umask 04H
-Cycles which a load uop is dispatched on port 2.  
-.It Li UOPS_DISPATCHED_PORT.PORT_2_STA 
+Cycles which a load uop is dispatched on port 2.
+.It Li UOPS_DISPATCHED_PORT.PORT_2_STA
 .Pq Event A1H , Umask 08H
 Cycles which a store address uop is dispatched on
 port 2.
-.It Li UOPS_DISPATCHED_PORT.PORT_2 
+.It Li UOPS_DISPATCHED_PORT.PORT_2
 .Pq Event A1H , Umask 0CH
-Cycles which a Uop is dispatched on port 2.  
-.It Li UOPS_DISPATCHED_PORT.PORT_3_LD 
+Cycles which a Uop is dispatched on port 2.
+.It Li UOPS_DISPATCHED_PORT.PORT_3_LD
 .Pq Event A1H , Umask 10H
-Cycles which a load uop is dispatched on port 3.  
-.It Li UOPS_DISPATCHED_PORT.PORT_3_STA 
+Cycles which a load uop is dispatched on port 3.
+.It Li UOPS_DISPATCHED_PORT.PORT_3_STA
 .Pq Event A1H , Umask 20H
 Cycles which a store address uop is dispatched on
 port 3.
-.It Li UOPS_DISPATCHED_PORT.PORT_3 
+.It Li UOPS_DISPATCHED_PORT.PORT_3
 .Pq Event A1H , Umask 30H
-Cycles which a Uop is dispatched on port 3.  
+Cycles which a Uop is dispatched on port 3.
 .It Li UOPS_DISPATCHED_PORT.PORT_4
 .Pq Event A1H , Umask 40H
 Cycles which a Uop is dispatched on port 4.
-.It Li UOPS_DISPATCHED_PORT.PORT_5 
+.It Li UOPS_DISPATCHED_PORT.PORT_5
 .Pq Event A1H , Umask 80H
-Cycles which a Uop is dispatched on port 5.  
-.It Li RESOURCE_STALLS.ANY 
+Cycles which a Uop is dispatched on port 5.
+.It Li RESOURCE_STALLS.ANY
 .Pq Event A2H , Umask 01H
 Cycles Allocation is stalled due to Resource Related
 reason.
-.It Li RESOURCE_STALLS.LB 
+.It Li RESOURCE_STALLS.LB
 .Pq Event A2H , Umask 01H
-Counts the cycles of stall due to lack of load buffers.  
-.It Li RESOURCE_STALLS.RS 
+Counts the cycles of stall due to lack of load buffers.
+.It Li RESOURCE_STALLS.RS
 .Pq Event A2H , Umask 04H
-Cycles stalled due to no eligible RS entry available.  
-.It Li RESOURCE_STALLS.SB 
+Cycles stalled due to no eligible RS entry available.
+.It Li RESOURCE_STALLS.SB
 .Pq Event A2H , Umask 08H
 Cycles stalled due to no store buffers available. (not
 including draining form sync).
-.It Li RESOURCE_STALLS.ROB 
+.It Li RESOURCE_STALLS.ROB
 .Pq Event A2H , Umask 10H
-Cycles stalled due to re-order buffer full.  
-.It Li RESOURCE_STALLS.FCSW 
+Cycles stalled due to re-order buffer full.
+.It Li RESOURCE_STALLS.FCSW
 .Pq Event A2H , Umask 20H
-Cycles stalled due to writing the FPU control word.  
-.It Li RESOURCE_STALLS.MXCSR 
+Cycles stalled due to writing the FPU control word.
+.It Li RESOURCE_STALLS.MXCSR
 .Pq Event A2H , Umask 40H
 Cycles stalled due to the MXCSR register rename
 occurring to close to a previous MXCSR rename.
-.It Li RESOURCE_STALLS.OTHER 
+.It Li RESOURCE_STALLS.OTHER
 .Pq Event A2H , Umask 80H
 Cycles stalled while execution was stalled due to
 other resource issues.
-.It Li CYCLE_ACTIVITY.CYCLES_L2_PENDING 
+.It Li CYCLE_ACTIVITY.CYCLES_L2_PENDING
 .Pq Event A3H , Umask 01H
 Cycles with pending L2 miss loads. Set AnyThread
 to count per core.
-.It Li CYCLE_ACTIVITY.CYCLES_L1D_PENDING 
+.It Li CYCLE_ACTIVITY.CYCLES_L1D_PENDING
 .Pq Event A3H , Umask 02H
 Cycles with pending L1 cache miss loads.Set
 AnyThread to count per core.
-.It Li CYCLE_ACTIVITY.CYCLES_NO_DISPATCH  
+.It Li CYCLE_ACTIVITY.CYCLES_NO_DISPATCH
 .Pq Event A3H , Umask 04H
-Cycles of dispatch stalls. Set AnyThread to count per 
+Cycles of dispatch stalls. Set AnyThread to count per
 core.
-.It Li DSB2MITE_SWITCHES.COUNT 
+.It Li DSB2MITE_SWITCHES.COUNT
 .Pq Event ABH , Umask 01H
-Number of DSB to MITE switches.  
-.It Li DSB2MITE_SWITCHES.PENALTY_CYCLES 
+Number of DSB to MITE switches.
+.It Li DSB2MITE_SWITCHES.PENALTY_CYCLES
 .Pq Event ABH , Umask 02H
-Cycles DSB to MITE switches caused delay.  
-.It Li DSB_FILL.OTHER_CANCEL 
+Cycles DSB to MITE switches caused delay.
+.It Li DSB_FILL.OTHER_CANCEL
 .Pq Event ACH , Umask 02H
 Cases of cancelling valid DSB fill not because of
 exceeding way limit.
-.It Li DSB_FILL.EXCEED_DSB_LINES 
+.It Li DSB_FILL.EXCEED_DSB_LINES
 .Pq Event ACH , Umask 08H
-DSB Fill encountered > 3 DSB lines.  
-.It Li DSB_FILL.ALL_CANCEL 
+DSB Fill encountered > 3 DSB lines.
+.It Li DSB_FILL.ALL_CANCEL
 .Pq Event ACH , Umask 0AH
 Cases of cancelling valid Decode Stream Buffer
 (DSB) fill not because of exceeding way limit.
-.It Li ITLB.ITLB_FLUSH 
+.It Li ITLB.ITLB_FLUSH
 .Pq Event AEH , Umask 01H
 Counts the number of ITLB flushes, includes
 4k/2M/4M pages.
-.It Li OFFCORE_REQUESTS.DEMAND_DATA_RD 
+.It Li OFFCORE_REQUESTS.DEMAND_DATA_RD
 .Pq Event B0H , Umask 01H
 Demand data read requests sent to uncore.
-.It Li OFFCORE_REQUESTS.DEMAND_RFO 
+.It Li OFFCORE_REQUESTS.DEMAND_RFO
 .Pq Event B0H , Umask 04H
 Demand RFO read requests sent to uncore, including
 regular RFOs, locks, ItoM.
-.It Li OFFCORE_REQUESTS.ALL_DATA_RD 
+.It Li OFFCORE_REQUESTS.ALL_DATA_RD
 .Pq Event B0H , Umask 08H
 Data read requests sent to uncore (demand and
 prefetch).
-.It Li UOPS_DISPATCHED.THREAD 
+.It Li UOPS_DISPATCHED.THREAD
 .Pq Event B1H , Umask 01H
 Counts total number of uops to be dispatched per-
 thread each cycle. Set Cmask = 1, INV =1 to count
 stall cycles.
-.It Li UOPS_DISPATCHED.CORE 
+.It Li UOPS_DISPATCHED.CORE
 .Pq Event B1H , Umask 02H
 Counts total number of uops to be dispatched per-
 core each cycle.
-.It Li OFFCORE_REQUESTS_BUFFER.SQ_FULL 
+.It Li OFFCORE_REQUESTS_BUFFER.SQ_FULL
 .Pq Event B2H , Umask 01H
 Offcore requests buffer cannot take more entries
 for this thread core.
@@ -738,47 +738,47 @@ following traits: 1. addressing of the format [base +
 offset], 2. the offset is between 1 and 2047, 3. the
 address specified in the base register is in one page
 and the address [base+offset] is in another page.
-.It Li OFF_CORE_RESPONSE_0 
+.It Li OFF_CORE_RESPONSE_0
 .Pq Event B7H , Umask 01H
 (Event B7H, Umask 01H) Off-core Response Performance
 Monitoring; PMC0 only.  Requires programming MSR 01A6H
-.It Li OFF_CORE_RESPONSE_1 
+.It Li OFF_CORE_RESPONSE_1
 .Pq Event BBH , Umask 01H
 (Event BBH, Umask 01H) Off-core Response Performance
 Monitoring; PMC3 only.  Requires programming MSR 01A7H
-.It Li TLB_FLUSH.DTLB_THREAD 
+.It Li TLB_FLUSH.DTLB_THREAD
 .Pq Event BDH , Umask 01H
-DTLB flush attempts of the thread-specific entries.  
-.It Li TLB_FLUSH.STLB_ANY 
+DTLB flush attempts of the thread-specific entries.
+.It Li TLB_FLUSH.STLB_ANY
 .Pq Event BDH , Umask 20H
-Count number of STLB flush attempts.  
-.It Li L1D_BLOCKS.BANK_CONFLICT_CYCLES 
+Count number of STLB flush attempts.
+.It Li L1D_BLOCKS.BANK_CONFLICT_CYCLES
 .Pq Event BFH , Umask 05H
 Cycles when dispatched loads are cancelled due to
 L1D bank conflicts with other load ports.
-.It Li INST_RETIRED.ANY_P 
+.It Li INST_RETIRED.ANY_P
 .Pq Event C0H , Umask 00H
-Number of instructions at retirement.  
-.It Li INST_RETIRED.ALL 
+Number of instructions at retirement.
+.It Li INST_RETIRED.ALL
 .Pq Event C0H , Umask 01H
 Precise instruction retired event with HW to reduce
 effect of PEBS shadow in IP distribution.
 .It Li OTHER_ASSISTS.ITLB_MISS_RETIRED
 .Pq Event C1H , Umask 02H
-Instructions that experienced an ITLB miss.  
-.It Li OTHER_ASSISTS.AVX_STORE 
+Instructions that experienced an ITLB miss.
+.It Li OTHER_ASSISTS.AVX_STORE
 .Pq Event C1H , Umask 08H
 Number of assists associated with 256-bit AVX
 store operations.
-.It Li OTHER_ASSISTS.AVX_TO_SSE 
+.It Li OTHER_ASSISTS.AVX_TO_SSE
 .Pq Event C1H , Umask 10H
 Number of transitions from AVX-256 to legacy SSE
 when penalty applicable.
-.It Li OTHER_ASSISTS.SSE_TO_AVX 
+.It Li OTHER_ASSISTS.SSE_TO_AVX
 .Pq Event C1H , Umask 20H
 Number of transitions from SSE to AVX-256 when
 penalty applicable.
-.It Li UOPS_RETIRED.ALL 
+.It Li UOPS_RETIRED.ALL
 .Pq Event C2H , Umask 01H
 Counts the number of micro-ops retired, Use
 cmask=1 and invert to count active cycles or stalled
@@ -787,7 +787,7 @@ cycles.
 .Pq Event C2H , Umask 02H
 Counts the number of retirement slots used each
 cycle.
-.It Li MACHINE_CLEARS.MEMORY_ORDERING 
+.It Li MACHINE_CLEARS.MEMORY_ORDERING
 .Pq Event C3H , Umask 02H
 Counts the number of machine clears due to
 memory order conflicts.
@@ -795,25 +795,25 @@ memory order conflicts.
 .Pq Event C3H , Umask 04H
 Counts the number of times that a program writes
 to a code section.
-.It Li MACHINE_CLEARS.MASKMOV 
+.It Li MACHINE_CLEARS.MASKMOV
 .Pq Event C3H , Umask 20H
 Counts the number of executed AVX masked load
 operations that refer to an illegal address range
 with the mask bits set to 0.
-.It Li BR_INST_RETIRED.ALL_BRANCH 
+.It Li BR_INST_RETIRED.ALL_BRANCH
 .Pq Event C4H , Umask 00H
-Branch instructions at retirement.  
-.It Li BR_INST_RETIRED.CONDITIONAL 
+Branch instructions at retirement.
+.It Li BR_INST_RETIRED.CONDITIONAL
 .Pq Event C4H , Umask 01H
 Counts the number of conditional branch
 instructions retired.
-.It Li BR_INST_RETIRED.NEAR_CALL 
+.It Li BR_INST_RETIRED.NEAR_CALL
 .Pq Event C4H , Umask 02H
-Direct and indirect near call instructions retired.  
-.It Li BR_INST_RETIRED.ALL_BRANCHES 
+Direct and indirect near call instructions retired.
+.It Li BR_INST_RETIRED.ALL_BRANCHES
 .Pq Event C4H , Umask 04H
-Counts the number of branch instructions retired.  
-.It Li BR_INST_RETIRED.NEAR_RETURN 
+Counts the number of branch instructions retired.
+.It Li BR_INST_RETIRED.NEAR_RETURN
 .Pq Event C4H , Umask 08H
 Counts the number of near return instructions
 retired.
@@ -823,16 +823,16 @@ Counts the number of not taken branch instructions
 retired.
 .It Li BR_INST_RETIRED.NEAR_TAKEN
 .Pq Event C4H , Umask 20H
-Number of near taken branches retired.  
+Number of near taken branches retired.
 .It Li BR_INST_RETIRED.FAR_BRANCH
 .Pq Event C4H , Umask 40H
-Number of far branches retired.  
+Number of far branches retired.
 .It Li BR_MISP_RETIRED.ALL_BRANCHES
 .Pq Event C5H , Umask 00H
-Mispredicted branch instructions at retirement.  
+Mispredicted branch instructions at retirement.
 .It Li BR_MISP_RETIRED.CONDITIONAL
 .Pq Event C5H , Umask 01H
-Mispredicted conditional branch instructions retired.   
+Mispredicted conditional branch instructions retired.
 .It Li BR_MISP_RETIRED.NEAR_CALL
 .Pq Event C5H , Umask 02H
 Direct and indirect mispredicted near call
@@ -842,25 +842,25 @@ instructions retired.
 Mispredicted macro branch instructions retired.
 .It Li BR_MISP_RETIRED.NOT_TAKEN
 .Pq Event C5H , Umask 10H
-Mispredicted not taken branch instructions retired.  
+Mispredicted not taken branch instructions retired.
 .It Li BR_MISP_RETIRED.TAKEN
 .Pq Event C5H , Umask 20H
-Mispredicted taken branch instructions retired.  
+Mispredicted taken branch instructions retired.
 .It Li FP_ASSIST.X87_OUTPUT
 .Pq Event CAH , Umask 02H
-Number of X87 assists due to output value.  
+Number of X87 assists due to output value.
 .It Li FP_ASSIST.X87_INPUT
 .Pq Event CAH , Umask 04H
-Number of X87 assists due to input value.  
+Number of X87 assists due to input value.
 .It Li FP_ASSIST.SIMD_OUTPUT
 .Pq Event CAH , Umask 08H
- Number of SIMD FP assists due to output values. 
+ Number of SIMD FP assists due to output values.
 .It Li FP_ASSIST.SIMD_INPUT
 .Pq Event CAH , Umask 10H
-Number of SIMD FP assists due to input values.  
+Number of SIMD FP assists due to input values.
 .It Li FP_ASSIST.ANY 1EH
 .Pq Event CAH , Umask
-Cycles with any input/output SSE* or FP assists.  
+Cycles with any input/output SSE* or FP assists.
 .It Li ROB_MISC_EVENTS.LBR_INSERTS
 .Pq Event CCH , Umask 20H
 Count cases of saving new LBR records by
@@ -893,27 +893,27 @@ combine with umask 01H, 02H, to produce counts.
 .Pq Event D0H , Umask
 Qualify retired memory uops with line split. Must
 combine with umask 01H, 02H, to produce counts.
-.It Li MEM_UOP_RETIRED_ALL 
+.It Li MEM_UOP_RETIRED_ALL
 .Pq Event D0H , Umask
 Qualify any retired memory uops. Must combine
 with umask 01H, 02H, to produce counts.
-.It Li MEM_LOAD_UOPS_RETIRED.L1_HIT 
+.It Li MEM_LOAD_UOPS_RETIRED.L1_HIT
 .Pq Event D1H , Umask 01H
 Retired load uops with L1 cache hits as data
 sources.
-.It Li MEM_LOAD_UOPS_RETIRED.L2_HIT 
+.It Li MEM_LOAD_UOPS_RETIRED.L2_HIT
 .Pq Event D1H , Umask 02H
 Retired load uops with L2 cache hits as data
 sources.
-.It Li MEM_LOAD_UOPS_RETIRED.LLC_HIT 
+.It Li MEM_LOAD_UOPS_RETIRED.LLC_HIT
 .Pq Event D1H , Umask 04H
-Retired load uops which data sources were data hits 
+Retired load uops which data sources were data hits
 in LLC without snoops required.
 .It Li MEM_LOAD_UOPS_RETIRED.LLC_MISS
 .Pq Event D1H , Umask 20H
 Retired load uops which data sources were data
 missed LLC (excluding unknown data source).
-.It Li MEM_LOAD_UOPS_RETIRED.HIT_LFB 
+.It Li MEM_LOAD_UOPS_RETIRED.HIT_LFB
 .Pq Event D1H , Umask 40H
 Retired load uops which data sources were load
 uops missed L1 but hit FB due to preceding miss to
@@ -930,58 +930,58 @@ correct prediction and this is corrected by other
 branch handling mechanisms at the front end.
 .It Li L2_TRANS.DEMAND_DATA_RD
 .Pq Event F0H , Umask 01H
-Demand Data Read requests that access L2 cache.  
+Demand Data Read requests that access L2 cache.
 .It Li L2_TRANS.RFO
 .Pq Event F0H , Umask 02H
-RFO requests that access L2 cache.  
+RFO requests that access L2 cache.
 .It Li L2_TRANS.CODE_RD
 .Pq Event F0H , Umask 04H
-L2 cache accesses when fetching instructions.  
+L2 cache accesses when fetching instructions.
 .It Li L2_TRANS.ALL_PF
 .Pq Event F0H , Umask 08H
-L2 or LLC HW prefetches that access L2 cache.  
+L2 or LLC HW prefetches that access L2 cache.
 .It Li L2_TRANS.L1D_WB
 .Pq Event F0H , Umask 10H
-L1D writebacks that access L2 cache.  
+L1D writebacks that access L2 cache.
 .It Li L2_TRANS.L2_FILL
 .Pq Event F0H , Umask 20H
-L2 fill requests that access L2 cache.  
+L2 fill requests that access L2 cache.
 .It Li L2_TRANS.L2_WB
 .Pq Event F0H , Umask 40H
-L2 writebacks that access L2 cache.  
+L2 writebacks that access L2 cache.
 .It Li L2_TRANS.ALL_REQUESTS
 .Pq Event F0H , Umask 80H
-Transactions accessing L2 pipe.  
+Transactions accessing L2 pipe.
 .It Li L2_LINES_IN.I
 .Pq Event F1H , Umask 01H
-L2 cache lines in I state filling L2.  
+L2 cache lines in I state filling L2.
 .It Li L2_LINES_IN.S
 .Pq Event F1H , Umask 02H
-L2 cache lines in S state filling L2.  
-.It Li L2_LINES_IN.E 
+L2 cache lines in S state filling L2.
+.It Li L2_LINES_IN.E
 .Pq Event F1H , Umask 04H
-L2 cache lines in E state filling L2.  
+L2 cache lines in E state filling L2.
 .It Li L2_LINES-IN.ALL
 .Pq Event F1H , Umask 07H
-L2 cache lines filling L2.  
+L2 cache lines filling L2.
 .It Li L2_LINES_OUT.DEMAND_CLEAN
 .Pq Event F2H , Umask 01H
-Clean L2 cache lines evicted by demand.  
+Clean L2 cache lines evicted by demand.
 .It Li L2_LINES_OUT.DEMAND_DIRTY
 .Pq Event F2H , Umask 02H
-Dirty L2 cache lines evicted by demand.  
+Dirty L2 cache lines evicted by demand.
 .It Li L2_LINES_OUT.PF_CLEAN
 .Pq Event F2H , Umask 04H
-Clean L2 cache lines evicted by L2 prefetch.  
+Clean L2 cache lines evicted by L2 prefetch.
 .It Li L2_LINES_OUT.PF_DIRTY
 .Pq Event F2H , Umask 08H
-Dirty L2 cache lines evicted by L2 prefetch.  
+Dirty L2 cache lines evicted by L2 prefetch.
 .It Li L2_LINES_OUT.DIRTY_ALL
 .Pq Event F2H , Umask 0AH
-Dirty L2 cache lines filling the L2.  
+Dirty L2 cache lines filling the L2.
 .It Li SQ_MISC.SPLIT_LOCK
 .Pq Event F4H , Umask 10H
-Split locks in SQ.  
+Split locks in SQ.
 .El
 .Sh SEE ALSO
 .Xr pmc 3 ,
