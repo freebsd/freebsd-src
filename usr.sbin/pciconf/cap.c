@@ -660,7 +660,7 @@ list_ecaps(int fd, struct pci_conf *p)
 	if (ecap == 0xffffffff || ecap == 0)
 		return;
 	for (;;) {
-		printf("ecap %04x[%03x] = ", PCI_EXTCAP_ID(ecap), ptr);
+		printf("    ecap %04x[%03x] = ", PCI_EXTCAP_ID(ecap), ptr);
 		switch (PCI_EXTCAP_ID(ecap)) {
 		case PCIZ_AER:
 			ecap_aer(fd, p, ptr, PCI_EXTCAP_VER(ecap));
