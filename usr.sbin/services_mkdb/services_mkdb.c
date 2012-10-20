@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stringlist.h>
 
+#include "extern.h"
+
 static char tname[MAXPATHLEN];
 
 #define	PMASK		0xffff

@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1993, John Brezak
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -26,21 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)extern.h	8.1 (Berkeley) 6/6/93
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
+extern int from_inetd;
 
-extern uint32_t crc_total;
-extern uint32_t crc32_total;
-
-__BEGIN_DECLS
-int	crc(int, uint32_t *, off_t *);
-void	pcrc(char *, uint32_t, off_t);
-void	psum1(char *, uint32_t, off_t);
-void	psum2(char *, uint32_t, off_t);
-int	csum1(int, uint32_t *, off_t *);
-int	csum2(int, uint32_t *, off_t *);
-int	crc32(int, uint32_t *, off_t *);
-__END_DECLS
+void rusers_service(struct svc_req *, SVCXPRT *);
