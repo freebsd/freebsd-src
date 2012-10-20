@@ -3792,8 +3792,16 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	mutex_enter(&arc_reclaim_thr_lock);
 	needfree = 1;
 	cv_signal(&arc_reclaim_thr_cv);
-	while (needfree)
-		msleep(&needfree, &arc_reclaim_thr_lock, 0, "zfs:lowmem", 0);
+
+	/*
+	 * It is unsafe to block here in arbitrary threads, because we can come
+	 * here from ARC itself and may hold ARC locks and thus risk a deadlock
+	 * with ARC reclaim thread.
+	 */
+	if (curproc == pageproc) {
+		while (needfree)
+			msleep(&needfree, &arc_reclaim_thr_lock, 0, "zfs:lowmem", 0);
+	}
 	mutex_exit(&arc_reclaim_thr_lock);
 	mutex_exit(&arc_lowmem_lock);
 }
