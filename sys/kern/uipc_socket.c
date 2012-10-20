@@ -185,6 +185,8 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 /*
  * Limit on the number of connections in the listen queue waiting
  * for accept(2).
+ * NB: The orginal sysctl somaxconn is still available but hidden
+ * to prevent confusion about the actually purpose of this number.
  */
 static int somaxconn = SOMAXCONN;
 
@@ -205,9 +207,13 @@ sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
 	somaxconn = val;
 	return (0);
 }
-SYSCTL_PROC(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, soacceptqueue, CTLTYPE_UINT | CTLFLAG_RW,
     0, sizeof(int), sysctl_somaxconn, "I",
     "Maximum listen socket pending connection accept queue size");
+SYSCTL_PROC(_kern_ipc, KIPC_SOMAXCONN, somaxconn,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_SKIP,
+    0, sizeof(int), sysctl_somaxconn, "I",
+    "Maximum listen socket pending connection accept queue size (compat)");
 
 static int numopensockets;
 SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
