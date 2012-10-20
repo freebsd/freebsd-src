@@ -121,8 +121,8 @@ struct mfiutil_command {
 #define	MFI_DNAME_HONOR_OPTS	0x8000	/* Allow cmd line to override default */
 
 extern int mfi_unit;
+
 extern u_int mfi_opts;
-extern int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
 
 void	mbox_store_ldref(uint8_t *mbox, union mfi_ld_ref *ref);
 void	mbox_store_pdref(uint8_t *mbox, union mfi_pd_ref *ref);
@@ -152,5 +152,8 @@ int	mfi_reconfig_supported(void);
 const char *mfi_status(u_int status_code);
 const char *mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id,
     uint32_t def);
+
+void	scan_firmware(struct mfi_info_component *comp);
+void	display_firmware(struct mfi_info_component *comp, const char *tag);
 
 #endif /* !__MFIUTIL_H__ */
