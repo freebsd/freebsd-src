@@ -85,6 +85,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkiconv \
 	liblzma \
 	libmagic \
+	libmandoc \
 	libmemstat \
 	${_libmilter} \
 	${_libmp} \

@@ -96,6 +96,7 @@ SUBDIR=	alias \
 	m4 \
 	${_makewhatis} \
 	${_man} \
+	mandoc \
 	mesg \
 	minigzip \
 	ministat \
