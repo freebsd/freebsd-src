@@ -121,6 +121,31 @@ struct vlapic {
 	enum boot_state		boot_state;
 };
 
+#define VLAPIC_BUS_FREQ	tsc_freq
+
+static int
+vlapic_timer_divisor(uint32_t dcr)
+{
+	switch (dcr & 0xB) {
+	case APIC_TDCR_2:
+		return (2);
+	case APIC_TDCR_4:
+		return (4);
+	case APIC_TDCR_8:
+		return (8);
+	case APIC_TDCR_16:
+		return (16);
+	case APIC_TDCR_32:
+		return (32);
+	case APIC_TDCR_64:
+		return (64);
+	case APIC_TDCR_128:
+		return (128);
+	default:
+		panic("vlapic_timer_divisor: invalid dcr 0x%08x", dcr);
+	}
+}
+
 static void
 vlapic_mask_lvts(uint32_t *lvts, int num_lvt)
 {
@@ -175,6 +200,7 @@ vlapic_op_reset(void* dev)
 	memset(lapic, 0, sizeof(*lapic));
 	lapic->apr = vlapic->vcpuid;
 	vlapic_init_ipi(vlapic);
+	vlapic->divisor = vlapic_timer_divisor(lapic->dcr_timer);
 
 	if (vlapic->vcpuid == 0)
 		vlapic->boot_state = BS_RUNNING;	/* BSP */
@@ -216,32 +242,6 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector)
 	irrptr = &lapic->irr0;
 	atomic_set_int(&irrptr[idx], 1 << (vector % 32));
 	VLAPIC_CTR_IRR(vlapic, "vlapic_set_intr_ready");
-}
-
-#define VLAPIC_BUS_FREQ	tsc_freq
-#define VLAPIC_DCR(x)	((x->dcr_timer & 0x8) >> 1)|(x->dcr_timer & 0x3)
-
-static int
-vlapic_timer_divisor(uint32_t dcr)
-{
-	switch (dcr & 0xB) {
-	case APIC_TDCR_2:
-		return (2);
-	case APIC_TDCR_4:
-		return (4);
-	case APIC_TDCR_8:
-		return (8);
-	case APIC_TDCR_16:
-		return (16);
-	case APIC_TDCR_32:
-		return (32);
-	case APIC_TDCR_64:
-		return (64);
-	case APIC_TDCR_128:
-		return (128);
-	default:
-		panic("vlapic_timer_divisor: invalid dcr 0x%08x", dcr);
-	}
 }
 
 static void
@@ -755,59 +755,68 @@ vlapic_op_mem_write(void* dev, uint64_t gpa, opsize_t size, uint64_t data)
 	return (retval);
 }
 
-void
+int
 vlapic_timer_tick(struct vlapic *vlapic)
 {
-	int curticks, delta, periodic;
+	int curticks, delta, periodic, fired;
 	uint32_t ccr;
-	uint32_t decrement, remainder;
+	uint32_t decrement, leftover;
 
+restart:
 	curticks = ticks;
-
-	/* Common case */
 	delta = curticks - vlapic->ccr_ticks;
-	if (delta == 0)
-		return;
 
 	/* Local APIC timer is disabled */
 	if (vlapic->apic.icr_timer == 0)
-		return;
+		return (-1);
 
 	/* One-shot mode and timer has already counted down to zero */
 	periodic = vlapic_periodic_timer(vlapic);
 	if (!periodic && vlapic->apic.ccr_timer == 0)
-		return;
+		return (-1);
 	/*
 	 * The 'curticks' and 'ccr_ticks' are out of sync by more than
 	 * 2^31 ticks. We deal with this by restarting the timer.
 	 */
 	if (delta < 0) {
 		vlapic_start_timer(vlapic, 0);
-		return;
+		goto restart;
 	}
 
-	ccr = vlapic->apic.ccr_timer;
+	fired = 0;
 	decrement = (VLAPIC_BUS_FREQ / vlapic->divisor) / hz;
-	while (delta-- > 0) {
-		if (ccr <= decrement) {
-			remainder = decrement - ccr;
-			vlapic_fire_timer(vlapic);
-			if (periodic) {
-				vlapic_start_timer(vlapic, remainder);
-				ccr = vlapic->apic.ccr_timer;
-			} else {
-				/*
-				 * One-shot timer has counted down to zero.
-				 */
-				ccr = 0;
-				break;
-			}
-		} else 
-			ccr -= decrement;
-	}
 
 	vlapic->ccr_ticks = curticks;
+	ccr = vlapic->apic.ccr_timer;
+
+	while (delta-- > 0) {
+		if (ccr > decrement) {
+			ccr -= decrement;
+			continue;
+		}
+
+		/* Trigger the local apic timer interrupt */
+		vlapic_fire_timer(vlapic);
+		if (periodic) {
+			leftover = decrement - ccr;
+			vlapic_start_timer(vlapic, leftover);
+			ccr = vlapic->apic.ccr_timer;
+		} else {
+			/*
+			 * One-shot timer has counted down to zero.
+			 */
+			ccr = 0;
+		}
+		fired = 1;
+		break;
+	}
+
 	vlapic->apic.ccr_timer = ccr;
+
+	if (!fired)
+		return ((ccr / decrement) + 1);
+	else
+		return (0);
 }
 
 struct vdev_ops vlapic_dev_ops = {
