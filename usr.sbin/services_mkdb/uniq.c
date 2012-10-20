@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-void uniq(const char *);
 static int comp(const char *, char **, size_t *);
 
 /*
