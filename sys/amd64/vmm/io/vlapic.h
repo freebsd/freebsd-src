@@ -102,7 +102,7 @@ int vlapic_op_mem_read(void* dev, uint64_t gpa,
 int vlapic_pending_intr(struct vlapic *vlapic);
 void vlapic_intr_accepted(struct vlapic *vlapic, int vector);
 void vlapic_set_intr_ready(struct vlapic *vlapic, int vector);
-void vlapic_timer_tick(struct vlapic *vlapic);
+int vlapic_timer_tick(struct vlapic *vlapic);
 
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
 void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);

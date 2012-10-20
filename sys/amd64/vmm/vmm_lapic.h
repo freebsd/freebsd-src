@@ -38,7 +38,7 @@ int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval);
 
 int	lapic_mmio(struct vm *vm, int cpu, u_int offset, int rd, struct vie *);
 
-void	lapic_timer_tick(struct vm *vm, int cpu);
+int	lapic_timer_tick(struct vm *vm, int cpu);
 
 /*
  * Returns a vector between 32 and 255 if an interrupt is pending in the

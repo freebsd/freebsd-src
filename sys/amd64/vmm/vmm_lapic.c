@@ -106,14 +106,14 @@ lapic_set_intr(struct vm *vm, int cpu, int vector)
 	return (0);
 }
 
-void
+int
 lapic_timer_tick(struct vm *vm, int cpu)
 {
 	struct vlapic *vlapic;
 
 	vlapic = vm_lapic(vm, cpu);
 
-	vlapic_timer_tick(vlapic);
+	return (vlapic_timer_tick(vlapic));
 }
 
 static boolean_t
