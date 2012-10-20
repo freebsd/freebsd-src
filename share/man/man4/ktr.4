@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2005
+.Dd October 19, 2012
 .Dt KTR 4
 .Os
 .Sh NAME
@@ -52,7 +52,6 @@ is
 The
 .Dv KTR_ENTRIES
 option sets the size of the buffer of events.
-It must be a power of two.
 The size of the buffer in the currently running kernel can be found via the
 read-only sysctl
 .Va debug.ktr.entries .
@@ -78,9 +77,7 @@ environment variable.
 It can also be examined and set after booting via the
 .Va debug.ktr.mask
 sysctl.
-By default the run time mask is set to log only
-.Dv KTR_GEN
-events.
+By default the run time mask is set to block any tracing.
 The definitions of the event mask bits can be found in
 .In sys/ktr.h .
 .Pp
