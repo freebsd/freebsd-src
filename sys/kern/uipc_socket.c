@@ -186,7 +186,7 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
  * Limit on the number of connections in the listen queue waiting
  * for accept(2).
  * NB: The orginal sysctl somaxconn is still available but hidden
- * to prevent confusion about the actually purpose of this number.
+ * to prevent confusion about the actual purpose of this number.
  */
 static int somaxconn = SOMAXCONN;
 
