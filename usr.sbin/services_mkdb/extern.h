@@ -30,3 +30,5 @@
  */
 
 extern const HASHINFO hinfo;
+
+void uniq(const char *);
