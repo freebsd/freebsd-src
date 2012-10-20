@@ -405,6 +405,8 @@ tws_detach(device_t dev)
     free(sc->reqs, M_TWS);
     free(sc->sense_bufs, M_TWS);
     free(sc->scan_ccb, M_TWS);
+    if (sc->ioctl_data_mem)
+            bus_dmamem_free(sc->data_tag, sc->ioctl_data_mem, sc->ioctl_data_map);
     free(sc->aen_q.q, M_TWS);
     free(sc->trace_q.q, M_TWS);
     mtx_destroy(&sc->q_lock);
@@ -607,6 +609,11 @@ tws_init(struct tws_softc *sc)
     sc->scan_ccb = malloc(sizeof(union ccb), M_TWS, M_WAITOK | M_ZERO);
     if ( sc->scan_ccb == NULL ) {
         TWS_TRACE_DEBUG(sc, "ccb malloc failed", 0, sc->is64bit);
+        return(ENOMEM);
+    }
+    if (bus_dmamem_alloc(sc->data_tag, (void **)&sc->ioctl_data_mem,
+            (BUS_DMA_NOWAIT | BUS_DMA_ZERO), &sc->ioctl_data_map)) {
+        device_printf(sc->tws_dev, "Cannot allocate ioctl data mem\n");
         return(ENOMEM);
     }
 
