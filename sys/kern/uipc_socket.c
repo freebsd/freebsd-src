@@ -182,15 +182,37 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 	VNET_ASSERT(curvnet != NULL,					\
 	    ("%s:%d curvnet is NULL, so=%p", __func__, __LINE__, (so)));
 
+/*
+ * Limit on the number of connections in the listen queue waiting
+ * for accept(2).
+ */
 static int somaxconn = SOMAXCONN;
-static int sysctl_somaxconn(SYSCTL_HANDLER_ARGS);
-/* XXX: we dont have SYSCTL_USHORT */
+
+static int
+sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int val;
+
+	val = somaxconn;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr )
+		return (error);
+
+	if (val < 1 || val > USHRT_MAX)
+		return (EINVAL);
+
+	somaxconn = val;
+	return (0);
+}
 SYSCTL_PROC(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLTYPE_UINT | CTLFLAG_RW,
-    0, sizeof(int), sysctl_somaxconn, "I", "Maximum pending socket connection "
-    "queue size");
+    0, sizeof(int), sysctl_somaxconn, "I",
+    "Maximum listen socket pending connection accept queue size");
+
 static int numopensockets;
 SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
     &numopensockets, 0, "Number of open sockets");
+
 #ifdef ZERO_COPY_SOCKETS
 /* These aren't static because they're used in other files. */
 int so_zero_copy_send = 1;
@@ -3266,24 +3288,6 @@ socheckuid(struct socket *so, uid_t uid)
 		return (EPERM);
 	if (so->so_cred->cr_uid != uid)
 		return (EPERM);
-	return (0);
-}
-
-static int
-sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	int val;
-
-	val = somaxconn;
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr )
-		return (error);
-
-	if (val < 1 || val > USHRT_MAX)
-		return (EINVAL);
-
-	somaxconn = val;
 	return (0);
 }
 
