@@ -45,7 +45,7 @@ MFI_TABLE(top, abort);
 
 int mfi_unit;
 u_int mfi_opts;
-int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
+static int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
 
 static void
 usage(void)
@@ -143,4 +143,32 @@ main(int ac, char **av)
 	}
 	warnx("Unknown command %s.", av[0]);
 	return (1);
+}
+
+void
+scan_firmware(struct mfi_info_component *comp)
+{
+	int len;
+
+	len = strlen(comp->name);
+	if (fw_name_width < len)
+		fw_name_width = len;
+	len = strlen(comp->version);
+	if (fw_version_width < len)
+		fw_version_width = len;
+	len = strlen(comp->build_date);
+	if (fw_date_width < len)
+		fw_date_width = len;
+	len = strlen(comp->build_time);
+	if (fw_time_width < len)
+		fw_time_width = len;
+}
+
+void
+display_firmware(struct mfi_info_component *comp, const char *tag)
+{
+
+	printf("%-*s  %-*s  %-*s  %-*s  %s\n", fw_name_width, comp->name,
+	    fw_version_width, comp->version, fw_date_width, comp->build_date,
+	    fw_time_width, comp->build_time, tag);
 }
