@@ -2234,7 +2234,7 @@ post_os(POST_ARGS)
 			mdoc_nmsg(mdoc, n, MANDOCERR_MEM);
 			return(0);
 		}
-		if (strncmp(utsname.sysname, "FreeBSD", sizeof("FreeBSD")) == 0)
+		if (0 == strcmp(utsname.sysname, "FreeBSD"))
 			strtok(utsname.release, "-");
 		if (strlcat(buf, utsname.release, BUFSIZ) >= BUFSIZ) {
 			mdoc_nmsg(mdoc, n, MANDOCERR_MEM);
