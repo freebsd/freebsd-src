@@ -106,8 +106,8 @@ static int nfsrpc_fillsa(struct nfsmount *, struct sockaddr_storage *,
     struct nfsclds **, NFSPROC_T *);
 static void nfscl_initsessionslots(struct nfsclsession *);
 static int nfscl_doflayoutio(vnode_t, struct uio *, int *, int *, int *,
-    nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfsclflayout *,
-    uint64_t, uint64_t, struct ucred *, NFSPROC_T *);
+    nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
+    struct nfsclflayout *, uint64_t, uint64_t, struct ucred *, NFSPROC_T *);
 static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
     struct nfsclds *, uint64_t, int, struct nfsfh *, struct ucred *,
     NFSPROC_T *);
@@ -5477,7 +5477,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			if (dip != NULL) {
 				error = nfscl_doflayoutio(vp, uiop, iomode,
 				    must_commit, &eof, &stateid, rwaccess, dip,
-				    rflp, off, xfer, newcred, p);
+				    layp, rflp, off, xfer, newcred, p);
 				nfscl_reldevinfo(dip);
 				lastbyte = off + xfer - 1;
 				if (error == 0) {
@@ -5547,8 +5547,8 @@ nfscl_findlayoutforio(struct nfscllayout *lyp, uint64_t off, uint32_t rwaccess,
 static int
 nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     int *eofp, nfsv4stateid_t *stateidp, int rwflag, struct nfscldevinfo *dp,
-    struct nfsclflayout *flp, uint64_t off, uint64_t len, struct ucred *cred,
-    NFSPROC_T *p)
+    struct nfscllayout *lyp, struct nfsclflayout *flp, uint64_t off,
+    uint64_t len, struct ucred *cred, NFSPROC_T *p)
 {
 	uint64_t io_off, rel_off, stripe_unit_size, transfer, xfer;
 	int commit_thru_mds, error = 0, stripe_index, stripe_pos;
@@ -5604,7 +5604,7 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			    cred, p);
 			if (error == 0) {
 				NFSLOCKCLSTATE();
-				flp->nfsfl_flags |= NFSFL_WRITTEN;
+				lyp->nfsly_flags |= NFSLY_WRITTEN;
 				NFSUNLOCKCLSTATE();
 			}
 		}

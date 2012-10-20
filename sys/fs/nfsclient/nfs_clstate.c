@@ -164,7 +164,7 @@ static int nfscl_seq(uint32_t, uint32_t);
 static void nfscl_layoutreturn(struct nfsmount *, struct nfscllayout *,
     struct ucred *, NFSPROC_T *);
 static void nfscl_dolayoutcommit(struct nfsmount *, struct nfscllayout *,
-    struct nfsclflayout *, struct ucred *, NFSPROC_T *);
+    struct ucred *, NFSPROC_T *);
 
 static short nfscberr_null[] = {
 	0,
@@ -2452,7 +2452,6 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	struct nfscllockownerfh *lfhp, *nlfhp;
 	struct nfscllockownerfhhead lfh;
 	struct nfscllayout *lyp, *nlyp;
-	struct nfsclflayout *flp;
 	struct nfscldevinfo *dip, *ndip;
 	struct nfscllayouthead rlh;
 	struct nfsclrecalllayout *recallp;
@@ -2651,23 +2650,15 @@ tryagain2:
 				TAILQ_INSERT_HEAD(&rlh, lyp, nfsly_list);
 
 				/* Handle any layout commits. */
-				if (!NFSHASNOLAYOUTCOMMIT(clp->nfsc_nmp)) {
-					LIST_FOREACH(flp, &lyp->nfsly_flayrw,
-					    nfsfl_list) {
-						if ((flp->nfsfl_flags &
-						    NFSFL_WRITTEN) != 0) {
-							flp->nfsfl_flags &=
-							    ~NFSFL_WRITTEN;
-							NFSUNLOCKCLSTATE();
-							NFSCL_DEBUG(3,
-							   "do layoutcommit\n");
-							nfscl_dolayoutcommit(
-							    clp->nfsc_nmp, lyp,
-							    flp, cred, p);
-							NFSLOCKCLSTATE();
-							goto tryagain2;
-						}
-					}
+				if (!NFSHASNOLAYOUTCOMMIT(clp->nfsc_nmp) &&
+				    (lyp->nfsly_flags & NFSLY_WRITTEN) != 0) {
+					lyp->nfsly_flags &= ~NFSLY_WRITTEN;
+					NFSUNLOCKCLSTATE();
+					NFSCL_DEBUG(3, "do layoutcommit\n");
+					nfscl_dolayoutcommit(clp->nfsc_nmp, lyp,
+					    cred, p);
+					NFSLOCKCLSTATE();
+					goto tryagain2;
 				}
 			}
 		}
@@ -5154,17 +5145,12 @@ nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
  */
 static void
 nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
-    struct nfsclflayout *flp, struct ucred *cred, NFSPROC_T *p)
+    struct ucred *cred, NFSPROC_T *p)
 {
-	uint64_t len;
 	int error;
 
-	if (flp->nfsfl_end == UINT64_MAX)
-		len = UINT64_MAX;
-	else
-		len = flp->nfsfl_end - flp->nfsfl_off;
 	error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh, lyp->nfsly_fhlen,
-	    0, flp->nfsfl_off, len, lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
+	    0, 0, 0, lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
 	    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
 	if (error == NFSERR_NOTSUPP) {
 		/* If the server doesn't want it, don't bother doing it. */
@@ -5182,7 +5168,6 @@ nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
 {
 	struct nfsclclient *clp;
 	struct nfscllayout *lyp;
-	struct nfsclflayout *flp;
 	struct nfsnode *np = VTONFS(vp);
 	mount_t mp;
 	struct nfsmount *nmp;
@@ -5208,16 +5193,13 @@ nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
 		return (EPERM);
 	}
 tryagain:
-	LIST_FOREACH(flp, &lyp->nfsly_flayrw, nfsfl_list) {
-		if ((flp->nfsfl_flags & NFSFL_WRITTEN) != 0) {
-			flp->nfsfl_flags &= ~NFSFL_WRITTEN;
-			NFSUNLOCKCLSTATE();
-			NFSCL_DEBUG(4, "do layoutcommit2\n");
-			nfscl_dolayoutcommit(clp->nfsc_nmp, lyp, flp,
-			    NFSPROCCRED(p), p);
-			NFSLOCKCLSTATE();
-			goto tryagain;
-		}
+	if ((lyp->nfsly_flags & NFSLY_WRITTEN) != 0) {
+		lyp->nfsly_flags &= ~NFSLY_WRITTEN;
+		NFSUNLOCKCLSTATE();
+		NFSCL_DEBUG(4, "do layoutcommit2\n");
+		nfscl_dolayoutcommit(clp->nfsc_nmp, lyp, NFSPROCCRED(p), p);
+		NFSLOCKCLSTATE();
+		goto tryagain;
 	}
 	nfsv4_relref(&lyp->nfsly_lock);
 	NFSUNLOCKCLSTATE();

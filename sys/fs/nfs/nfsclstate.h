@@ -255,6 +255,7 @@ struct nfscllayout {
 #define	NFSLY_RECALLFSID	0x0020
 #define	NFSLY_RECALLALL		0x0040
 #define	NFSLY_RETONCLOSE	0x0080
+#define	NFSLY_WRITTEN		0x0100	/* Has been used to write to a DS. */
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle list.
@@ -282,7 +283,6 @@ struct nfsclflayout {
  * Flags for nfsfl_flags.
  */
 #define	NFSFL_RECALL	0x0001		/* File layout has been recalled */
-#define	NFSFL_WRITTEN	0x0002		/* Has been used to write to a DS. */
 
 /*
  * Structure that is used to store a LAYOUTRECALL.
