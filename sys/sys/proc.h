@@ -316,6 +316,7 @@ struct thread {
 	struct vm_page	**td_ma;	/* (k) uio pages held */
 	int		td_ma_cnt;	/* (k) size of *td_ma */
 	struct rl_q_entry *td_rlqe;	/* (k) Associated range lock entry. */
+	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
