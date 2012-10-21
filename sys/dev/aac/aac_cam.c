@@ -527,6 +527,53 @@ aac_cam_poll(struct cam_sim *sim)
 }
 
 static void
+aac_cam_fix_inquiry(struct aac_softc *sc, union ccb *ccb)
+{
+	struct scsi_inquiry_data *inq;
+	uint8_t *data;
+	uint8_t device, qual;
+
+	/* If this is an inquiry command, fake things out */
+	if (ccb->ccb_h.flags & CAM_CDB_POINTER)
+		data = ccb->csio.cdb_io.cdb_ptr;
+	else
+		data = ccb->csio.cdb_io.cdb_bytes;
+
+	if (data[0] != INQUIRY)
+		return;
+
+	if (ccb->ccb_h.status == CAM_REQ_CMP) {
+		inq = (struct scsi_inquiry_data *)ccb->csio.data_ptr;
+		device = SID_TYPE(inq);
+		qual = SID_QUAL(inq);
+
+		/*
+		 * We want DASD and PROC devices to only be
+		 * visible through the pass device.
+		 */
+		if (((device == T_DIRECT) ||
+		    (device == T_PROCESSOR) ||
+		    (sc->flags & AAC_FLAGS_CAM_PASSONLY))) {
+			/*
+			 * Some aac(4) adapters will always report that a direct
+			 * access device is offline in response to a INQUIRY
+			 * command that does not retreive vital product data.
+			 * Force the qualifier to connected so that upper layers
+			 * correctly recognize that a disk is present.
+			 */
+			if ((data[1] & SI_EVPD) == 0 && device == T_DIRECT &&
+			    qual == SID_QUAL_LU_OFFLINE)
+				qual = SID_QUAL_LU_CONNECTED;
+			ccb->csio.data_ptr[0] = (qual << 5) | T_NODEVICE;
+		}
+	} else if (ccb->ccb_h.status == CAM_SEL_TIMEOUT &&
+		ccb->ccb_h.target_lun != 0) {
+		/* fix for INQUIRYs on Lun>0 */
+		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+	}
+}
+
+static void
 aac_cam_complete(struct aac_command *cm)
 {
 	union	ccb *ccb;
@@ -551,8 +598,6 @@ aac_cam_complete(struct aac_command *cm)
 
 		/* Take care of SCSI_IO ops. */
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
-			u_int8_t command, device;
-
 			ccb->csio.scsi_status = srbr->scsi_status;
 
 			/* Take care of autosense */
@@ -572,31 +617,7 @@ aac_cam_complete(struct aac_command *cm)
 				// scsi_sense_print(&ccb->csio);
 			}
 
-			/* If this is an inquiry command, fake things out */
-			if (ccb->ccb_h.flags & CAM_CDB_POINTER)
-				command = ccb->csio.cdb_io.cdb_ptr[0];
-			else
-				command = ccb->csio.cdb_io.cdb_bytes[0];
-
-			if (command == INQUIRY) {
-				if (ccb->ccb_h.status == CAM_REQ_CMP) {
-				device = ccb->csio.data_ptr[0] & 0x1f;
-				/*
-				 * We want DASD and PROC devices to only be
-				 * visible through the pass device.
-				 */
-				if ((device == T_DIRECT) ||
-				    (device == T_PROCESSOR) ||
-				    (sc->flags & AAC_FLAGS_CAM_PASSONLY))
-					ccb->csio.data_ptr[0] =
-					    ((ccb->csio.data_ptr[0] & 0xe0) |
-					    T_NODEVICE);
-				} else if (ccb->ccb_h.status == CAM_SEL_TIMEOUT &&
-					ccb->ccb_h.target_lun != 0) {
-					/* fix for INQUIRYs on Lun>0 */
-					ccb->ccb_h.status = CAM_DEV_NOT_THERE;
-				}
-			}
+			aac_cam_fix_inquiry(sc, ccb);
 		}
 	}
 

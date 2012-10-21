@@ -375,7 +375,7 @@ nsmb_getfp(struct filedesc* fdp, int fd, int flag)
 	struct file* fp;
 
 	FILEDESC_SLOCK(fdp);
-	if (((u_int)fd) >= fdp->fd_nfiles ||
+	if (fd < 0 || fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL ||
 	    (fp->f_flag & flag) == 0) {
 		FILEDESC_SUNLOCK(fdp);

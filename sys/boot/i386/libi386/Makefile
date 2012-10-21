@@ -9,6 +9,8 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	elf64_freebsd.c \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
+.PATH:	${.CURDIR}/../../zfs
+SRCS+=	devicename_stubs.c
 
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
@@ -35,10 +37,6 @@ CFLAGS+= -DSMBIOS_SERIAL_NUMBERS
 # Use little-endian UUID format as defined in SMBIOS 2.6.
 CFLAGS+= -DSMBIOS_LITTLE_ENDIAN_UUID
 .endif
-.endif
-
-.if !defined(LOADER_NO_GPT_SUPPORT)
-CFLAGS+=	-DLOADER_GPT_SUPPORT
 .endif
 
 # Include simple terminal emulation (cons25-compatible)

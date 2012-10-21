@@ -130,10 +130,21 @@ static const struct arm32_insn arm32_i[] = {
     { 0x0c500000, 0x04100000, "ldr",	"daW" },
     { 0x0c500000, 0x04400000, "strb",	"daW" },
     { 0x0c500000, 0x04500000, "ldrb",	"daW" },
+#ifdef	__FreeBSD_ARCH_armv6__
+    { 0xffffffff, 0xf57ff01f, "clrex",	"c" },
+    { 0x0ff00ff0, 0x01800f90, "strex",	"dmo" },
+    { 0x0ff00fff, 0x01900f9f, "ldrex",	"do" },
+    { 0x0ff00ff0, 0x01a00f90, "strexd",	"dmo" },
+    { 0x0ff00fff, 0x01b00f9f, "ldrexd",	"do" },
+    { 0x0ff00ff0, 0x01c00f90, "strexb",	"dmo" },
+    { 0x0ff00fff, 0x01d00f9f, "ldrexb",	"do" },
+    { 0x0ff00ff0, 0x01e00f90, "strexh",	"dmo" },
+    { 0x0ff00fff, 0x01f00f9f, "ldrexh",	"do" },
+#endif
     { 0x0e1f0000, 0x080d0000, "stm",	"YnWl" },/* separate out r13 base */
-    { 0x0e1f0000, 0x081d0000, "ldm",	"YnWl" },/* separate out r13 base */    
+    { 0x0e1f0000, 0x081d0000, "ldm",	"YnWl" },/* separate out r13 base */
     { 0x0e100000, 0x08000000, "stm",	"XnWl" },
-    { 0x0e100000, 0x08100000, "ldm",	"XnWl" },    
+    { 0x0e100000, 0x08100000, "ldm",	"XnWl" },
     { 0x0e1000f0, 0x00100090, "ldrb",	"de" },
     { 0x0e1000f0, 0x00000090, "strb",	"de" },
     { 0x0e1000f0, 0x001000d0, "ldrsb",	"de" },
@@ -329,7 +340,7 @@ disasm(const disasm_interface_t *di, vm_offset_t loc, int altfmt)
 				di->di_printf("#0x%08x",
 					      (insn & 0xff) << (32 - rotate) |
 					      (insn & 0xff) >> rotate);
-			} else {  
+			} else {
 				disasm_register_shift(di, insn);
 			}
 			break;

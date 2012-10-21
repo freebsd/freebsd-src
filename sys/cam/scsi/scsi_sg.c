@@ -61,9 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ioctl.h>
 
 typedef enum {
-	SG_FLAG_OPEN		= 0x01,
-	SG_FLAG_LOCKED		= 0x02,
-	SG_FLAG_INVALID		= 0x04
+	SG_FLAG_LOCKED		= 0x01,
+	SG_FLAG_INVALID		= 0x02
 } sg_flags;
 
 typedef enum {
@@ -141,7 +140,7 @@ PERIPHDRIVER_DECLARE(sg, sgdriver);
 
 static struct cdevsw sg_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT | D_TRACKCLOSE,
 	.d_open =	sgopen,
 	.d_close =	sgclose,
 	.d_ioctl =	sgioctl,
@@ -262,11 +261,6 @@ sgregister(struct cam_periph *periph, void *arg)
 	int no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("sgregister: periph was NULL!!\n");
-		return (CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("sgregister: no getdev CCB, can't register device\n");
 		return (CAM_REQ_CMP_ERR);
@@ -415,19 +409,12 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	softc = (struct sg_softc *)periph->softc;
 	if (softc->flags & SG_FLAG_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return (ENXIO);
 	}
 
-	if ((softc->flags & SG_FLAG_OPEN) == 0) {
-		softc->flags |= SG_FLAG_OPEN;
-		cam_periph_unlock(periph);
-	} else {
-		/* Device closes aren't symmetrical, fix up the refcount. */
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-	}
+	cam_periph_unlock(periph);
 
 	return (error);
 }
@@ -436,18 +423,11 @@ static int
 sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
-	struct sg_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
-	cam_periph_lock(periph);
-
-	softc = (struct sg_softc *)periph->softc;
-	softc->flags &= ~SG_FLAG_OPEN;
-
-	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 
 	return (0);

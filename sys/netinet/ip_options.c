@@ -453,14 +453,10 @@ ip_srcroute(struct mbuf *m0)
 }
 
 /*
- * Strip out IP options, at higher level protocol in the kernel.  Second
- * argument is buffer to which options will be moved, and return value is
- * their length.
- *
- * XXX should be deleted; last arg currently ignored.
+ * Strip out IP options, at higher level protocol in the kernel.
  */
 void
-ip_stripoptions(struct mbuf *m, struct mbuf *mopt)
+ip_stripoptions(struct mbuf *m)
 {
 	int i;
 	struct ip *ip = mtod(m, struct ip *);

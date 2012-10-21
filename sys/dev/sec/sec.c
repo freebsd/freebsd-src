@@ -227,6 +227,10 @@ sec_probe(device_t dev)
 		device_set_desc(dev, "Freescale Security Engine 3.0");
 		sc->sc_version = 3;
 		break;
+	case SEC_31_ID:
+		device_set_desc(dev, "Freescale Security Engine 3.1");
+		sc->sc_version = 3;
+		break;
 	default:
 		device_printf(dev, "unknown SEC ID 0x%016llx!\n", id);
 		return (ENXIO);

@@ -241,12 +241,10 @@ g_aes_orphan(struct g_consumer *cp)
 
 	g_trace(G_T_TOPOLOGY, "g_aes_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
-	KASSERT(cp->provider->error != 0,
-		("g_aes_orphan with error == 0"));
 
 	gp = cp->geom;
 	sc = gp->softc;
-	g_wither_geom(gp, cp->provider->error);
+	g_wither_geom(gp, ENXIO);
 	bzero(sc, sizeof(struct g_aes_softc));	/* destroy evidence */
 	g_free(sc);
 	return;

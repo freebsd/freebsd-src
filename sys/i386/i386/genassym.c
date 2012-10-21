@@ -121,7 +121,10 @@ ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(KERNLOAD, KERNLOAD);
 ASSYM(MCLBYTES, MCLBYTES);
+ASSYM(PCB_CR0, offsetof(struct pcb, pcb_cr0));
+ASSYM(PCB_CR2, offsetof(struct pcb, pcb_cr2));
 ASSYM(PCB_CR3, offsetof(struct pcb, pcb_cr3));
+ASSYM(PCB_CR4, offsetof(struct pcb, pcb_cr4));
 ASSYM(PCB_EDI, offsetof(struct pcb, pcb_edi));
 ASSYM(PCB_ESI, offsetof(struct pcb, pcb_esi));
 ASSYM(PCB_EBP, offsetof(struct pcb, pcb_ebp));
@@ -130,7 +133,11 @@ ASSYM(PCB_EBX, offsetof(struct pcb, pcb_ebx));
 ASSYM(PCB_EIP, offsetof(struct pcb, pcb_eip));
 ASSYM(TSS_ESP0, offsetof(struct i386tss, tss_esp0));
 
+ASSYM(PCB_DS, offsetof(struct pcb, pcb_ds));
+ASSYM(PCB_ES, offsetof(struct pcb, pcb_es));
+ASSYM(PCB_FS, offsetof(struct pcb, pcb_fs));
 ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
+ASSYM(PCB_SS, offsetof(struct pcb, pcb_ss));
 ASSYM(PCB_DR0, offsetof(struct pcb, pcb_dr0));
 ASSYM(PCB_DR1, offsetof(struct pcb, pcb_dr1));
 ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
@@ -143,6 +150,7 @@ ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
 
 ASSYM(PCB_FSD, offsetof(struct pcb, pcb_fsd));
+ASSYM(PCB_GSD, offsetof(struct pcb, pcb_gsd));
 ASSYM(PCB_VM86, offsetof(struct pcb, pcb_vm86));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
@@ -151,6 +159,11 @@ ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_VM86CALL, PCB_VM86CALL);
+
+ASSYM(PCB_GDT, offsetof(struct pcb, pcb_gdt));
+ASSYM(PCB_IDT, offsetof(struct pcb, pcb_idt));
+ASSYM(PCB_LDT, offsetof(struct pcb, pcb_ldt));
+ASSYM(PCB_TR, offsetof(struct pcb, pcb_tr));
 
 ASSYM(TF_TRAPNO, offsetof(struct trapframe, tf_trapno));
 ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));

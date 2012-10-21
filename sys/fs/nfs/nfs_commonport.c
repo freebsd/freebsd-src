@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
-#include <vm/uma_int.h>
 
 extern int nfscl_ticks;
 extern int nfsrv_nfsuserd;
@@ -79,7 +78,7 @@ SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
     nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
     "NFSv4 callback addr for server to use");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
-    0, "Debug level for newnfs client");
+    0, "Debug level for new nfs client");
 
 /*
  * Defines for malloc

@@ -122,7 +122,7 @@ static uint32_t	encode_timeval(struct timeval);
 static uint32_t	encode_long(long);
 static void	acctwatch(void);
 static void	acct_thread(void *);
-static int	acct_disable(struct thread *);
+static int	acct_disable(struct thread *, int);
 
 /*
  * Accounting vnode pointer, saved vnode pointer, and flags for each.
@@ -196,7 +196,7 @@ int
 sys_acct(struct thread *td, struct acct_args *uap)
 {
 	struct nameidata nd;
-	int error, flags, vfslocked;
+	int error, flags, vfslocked, replacing;
 
 	error = priv_check(td, PRIV_ACCT);
 	if (error)
@@ -246,6 +246,13 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	sx_xlock(&acct_sx);
 
 	/*
+	 * Don't log spurious disable/enable messages if we are
+	 * switching from one accounting file to another due to log
+	 * rotation.
+	 */
+	replacing = (acct_vp != NULL && uap->path != NULL);
+
+	/*
 	 * If accounting was previously enabled, kill the old space-watcher,
 	 * close the file, and (if no new file was specified, leave).  Reset
 	 * the suspended state regardless of whether accounting remains
@@ -254,7 +261,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	acct_suspended = 0;
 	if (acct_vp != NULL) {
 		vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
-		error = acct_disable(td);
+		error = acct_disable(td, !replacing);
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (uap->path == NULL) {
@@ -299,7 +306,8 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	}
 	acct_configured = 1;
 	sx_xunlock(&acct_sx);
-	log(LOG_NOTICE, "Accounting enabled\n");
+	if (!replacing)
+		log(LOG_NOTICE, "Accounting enabled\n");
 	return (error);
 }
 
@@ -308,7 +316,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
  * our reference to the credential, and clearing the vnode's flags.
  */
 static int
-acct_disable(struct thread *td)
+acct_disable(struct thread *td, int logging)
 {
 	int error;
 
@@ -319,7 +327,8 @@ acct_disable(struct thread *td)
 	acct_vp = NULL;
 	acct_cred = NULL;
 	acct_flags = 0;
-	log(LOG_NOTICE, "Accounting disabled\n");
+	if (logging)
+		log(LOG_NOTICE, "Accounting disabled\n");
 	return (error);
 }
 
@@ -574,7 +583,7 @@ acctwatch(void)
 	 */
 	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
 	if (acct_vp->v_type == VBAD) {
-		(void) acct_disable(NULL);
+		(void) acct_disable(NULL, 1);
 		VFS_UNLOCK_GIANT(vfslocked);
 		acct_state |= ACCT_EXITREQ;
 		return;

@@ -61,17 +61,17 @@ struct llentry {
 	struct llentries	 *lle_head;
 	void			(*lle_free)(struct lltable *, struct llentry *);
 	struct mbuf		 *la_hold;
-	int     		 la_numheld;  /* # of packets currently held */
+	int			 la_numheld;  /* # of packets currently held */
 	time_t			 la_expire;
-	uint16_t		 la_flags;    
+	uint16_t		 la_flags;
 	uint16_t		 la_asked;
 	uint16_t		 la_preempt;
 	uint16_t		 ln_byhint;
 	int16_t			 ln_state;	/* IPv6 has ND6_LLINFO_NOSTATE == -2 */
-	uint16_t		 ln_router; 
+	uint16_t		 ln_router;
 	time_t			 ln_ntick;
 	int			 lle_refcnt;
-				 
+
 	union {
 		uint64_t	mac_aligned;
 		uint16_t	mac16[3];
@@ -103,25 +103,28 @@ struct llentry {
 #define	LLE_ADDREF(lle) do {					\
 	LLE_WLOCK_ASSERT(lle);					\
 	KASSERT((lle)->lle_refcnt >= 0,				\
-		("negative refcnt %d", (lle)->lle_refcnt));	\
+	    ("negative refcnt %d on lle %p",			\
+	    (lle)->lle_refcnt, (lle)));				\
 	(lle)->lle_refcnt++;					\
 } while (0)
+
 #define	LLE_REMREF(lle)	do {					\
 	LLE_WLOCK_ASSERT(lle);					\
-	KASSERT((lle)->lle_refcnt > 1,				\
-		("bogus refcnt %d", (lle)->lle_refcnt));	\
+	KASSERT((lle)->lle_refcnt > 0,				\
+	    ("bogus refcnt %d on lle %p",			\
+	    (lle)->lle_refcnt, (lle)));				\
 	(lle)->lle_refcnt--;					\
 } while (0)
 
 #define	LLE_FREE_LOCKED(lle) do {				\
-	if ((lle)->lle_refcnt <= 1)				\
-		(lle)->lle_free((lle)->lle_tbl, (lle));\
+	if ((lle)->lle_refcnt == 1)				\
+		(lle)->lle_free((lle)->lle_tbl, (lle));		\
 	else {							\
-		(lle)->lle_refcnt--;				\
+		LLE_REMREF(lle);				\
 		LLE_WUNLOCK(lle);				\
 	}							\
 	/* guard against invalid refs */			\
-	lle = NULL;						\
+	(lle) = NULL;						\
 } while (0)
 
 #define	LLE_FREE(lle) do {					\
@@ -158,7 +161,7 @@ struct lltable {
 	struct llentry *	(*llt_lookup)(struct lltable *, u_int flags,
 				    const struct sockaddr *l3addr);
 	int			(*llt_dump)(struct lltable *,
-				     struct sysctl_req *);
+				    struct sysctl_req *);
 };
 MALLOC_DECLARE(M_LLTABLE);
 
@@ -171,25 +174,26 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_VALID	0x0008	/* ll_addr is valid */
 #define	LLE_PROXY	0x0010	/* proxy entry ??? */
 #define	LLE_PUB		0x0020	/* publish entry ??? */
+#define	LLE_LINKED	0x0040	/* linked to lookup structure */
+#define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
 #define	LLE_DELETE	0x4000	/* delete on a lookup - match LLE_IFADDR */
 #define	LLE_CREATE	0x8000	/* create on a lookup miss */
-#define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
 
 #define LLATBL_HASH(key, mask) \
 	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)
 
 struct lltable *lltable_init(struct ifnet *, int);
 void		lltable_free(struct lltable *);
-void		lltable_prefix_free(int, struct sockaddr *, 
-                       struct sockaddr *, u_int);
+void		lltable_prefix_free(int, struct sockaddr *,
+		    struct sockaddr *, u_int);
 #if 0
 void		lltable_drain(int);
 #endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
 size_t		llentry_free(struct llentry *);
-int		llentry_update(struct llentry **, struct lltable *,
-                       struct sockaddr_storage *, struct ifnet *);
+struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
+		    struct sockaddr_storage *);
 
 /*
  * Generic link layer address lookup function.

@@ -870,8 +870,10 @@ _db_show_mesh(const struct ieee80211_mesh_state *ms)
 	TAILQ_FOREACH(rt, &ms->ms_routes, rt_next) {
 		db_printf("entry %d:\tdest: %6D nexthop: %6D metric: %u", i,
 		    rt->rt_dest, ":", rt->rt_nexthop, ":", rt->rt_metric);
+
 		db_printf("\tlifetime: %u lastseq: %u priv: %p\n",
-		    rt->rt_lifetime, rt->rt_lastmseq, rt->rt_priv);
+		    ieee80211_mesh_rt_update(rt, 0),
+		    rt->rt_lastmseq, rt->rt_priv);
 		i++;
 	}
 }

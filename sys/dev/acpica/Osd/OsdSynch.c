@@ -208,7 +208,7 @@ AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout)
 			tmo -= slptick;
 		}
 	}
-	if (status == AE_OK)
+	if (ACPI_SUCCESS(status))
 		as->as_units -= Units;
 
 	mtx_unlock(&as->as_lock);
@@ -402,7 +402,7 @@ AcpiOsAcquireMutex(ACPI_MUTEX Handle, UINT16 Timeout)
 			tmo -= slptick;
 		}
 	}
-	if (status == AE_OK)
+	if (ACPI_SUCCESS(status))
 		am->am_owner = curthread;
 
 	mtx_unlock(&am->am_lock);

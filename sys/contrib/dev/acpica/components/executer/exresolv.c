@@ -165,7 +165,7 @@ AcpiExResolveObjectToValue (
 
     StackDesc = *StackPtr;
 
-    /* This is an ACPI_OPERAND_OBJECT  */
+    /* This is an object of type ACPI_OPERAND_OBJECT */
 
     switch (StackDesc->Common.Type)
     {

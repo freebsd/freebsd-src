@@ -53,84 +53,41 @@
         ACPI_MODULE_NAME    ("utmisc")
 
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtValidateException
+ * FUNCTION:    UtConvertBackslashes
  *
- * PARAMETERS:  Status       - The ACPI_STATUS code to be formatted
+ * PARAMETERS:  Pathname        - File pathname string to be converted
  *
- * RETURN:      A string containing the exception text. NULL if exception is
- *              not valid.
+ * RETURN:      Modifies the input Pathname
  *
- * DESCRIPTION: This function validates and translates an ACPI exception into
- *              an ASCII string.
+ * DESCRIPTION: Convert all backslashes (0x5C) to forward slashes (0x2F) within
+ *              the entire input file pathname string.
  *
  ******************************************************************************/
 
-const char *
-AcpiUtValidateException (
-    ACPI_STATUS             Status)
+void
+UtConvertBackslashes (
+    char                    *Pathname)
 {
-    UINT32                  SubStatus;
-    const char              *Exception = NULL;
 
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /*
-     * Status is composed of two parts, a "type" and an actual code
-     */
-    SubStatus = (Status & ~AE_CODE_MASK);
-
-    switch (Status & AE_CODE_MASK)
+    if (!Pathname)
     {
-    case AE_CODE_ENVIRONMENTAL:
-
-        if (SubStatus <= AE_CODE_ENV_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Env [SubStatus];
-        }
-        break;
-
-    case AE_CODE_PROGRAMMER:
-
-        if (SubStatus <= AE_CODE_PGM_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Pgm [SubStatus];
-        }
-        break;
-
-    case AE_CODE_ACPI_TABLES:
-
-        if (SubStatus <= AE_CODE_TBL_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Tbl [SubStatus];
-        }
-        break;
-
-    case AE_CODE_AML:
-
-        if (SubStatus <= AE_CODE_AML_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Aml [SubStatus];
-        }
-        break;
-
-    case AE_CODE_CONTROL:
-
-        if (SubStatus <= AE_CODE_CTRL_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Ctrl [SubStatus];
-        }
-        break;
-
-    default:
-        break;
+        return;
     }
 
-    return (ACPI_CAST_PTR (const char, Exception));
+    while (*Pathname)
+    {
+        if (*Pathname == '\\')
+        {
+            *Pathname = '/';
+        }
+
+        Pathname++;
+    }
 }
+#endif
 
 
 /*******************************************************************************
@@ -1295,5 +1252,3 @@ AcpiUtWalkPackageTree (
 
     return_ACPI_STATUS (AE_AML_INTERNAL);
 }
-
-

@@ -146,7 +146,7 @@ static usb_proc_callback_t ucom_cfg_param;
 static int	ucom_unit_alloc(void);
 static void	ucom_unit_free(int);
 static int	ucom_attach_tty(struct ucom_super_softc *, struct ucom_softc *);
-static void	ucom_detach_tty(struct ucom_softc *);
+static void	ucom_detach_tty(struct ucom_super_softc *, struct ucom_softc *);
 static void	ucom_queue_command(struct ucom_softc *,
 		    usb_proc_callback_t *, struct termios *pt,
 		    struct usb_proc_msg *t0, struct usb_proc_msg *t1);
@@ -178,13 +178,37 @@ static struct ttydevsw ucom_class = {
 MODULE_DEPEND(ucom, usb, 1, 1, 1);
 MODULE_VERSION(ucom, 1);
 
-#define	UCOM_UNIT_MAX 		128	/* limits size of ucom_bitmap */
+#define	UCOM_UNIT_MAX 		128	/* maximum number of units */
+#define	UCOM_TTY_PREFIX		"U"
 
-static uint8_t ucom_bitmap[(UCOM_UNIT_MAX + 7) / 8];
-static struct mtx ucom_bitmap_mtx;
-MTX_SYSINIT(ucom_bitmap_mtx, &ucom_bitmap_mtx, "ucom bitmap", MTX_DEF);
+static struct unrhdr *ucom_unrhdr;
+static struct mtx ucom_mtx;
+static int ucom_close_refs;
 
-#define UCOM_TTY_PREFIX		"U"
+static void
+ucom_init(void *arg)
+{
+	DPRINTF("\n");
+	ucom_unrhdr = new_unrhdr(0, UCOM_UNIT_MAX - 1, NULL);
+	mtx_init(&ucom_mtx, "UCOM MTX", NULL, MTX_DEF);
+}
+SYSINIT(ucom_init, SI_SUB_KLD - 1, SI_ORDER_ANY, ucom_init, NULL);
+
+static void
+ucom_uninit(void *arg)
+{
+	struct unrhdr *hdr;
+	hdr = ucom_unrhdr;
+	ucom_unrhdr = NULL;
+
+	DPRINTF("\n");
+
+	if (hdr != NULL)
+		delete_unrhdr(hdr);
+
+	mtx_destroy(&ucom_mtx);
+}
+SYSUNINIT(ucom_uninit, SI_SUB_KLD - 2, SI_ORDER_ANY, ucom_uninit, NULL);
 
 /*
  * Mark a unit number (the X in cuaUX) as in use.
@@ -197,21 +221,14 @@ ucom_unit_alloc(void)
 {
 	int unit;
 
-	mtx_lock(&ucom_bitmap_mtx);
-
-	for (unit = 0; unit < UCOM_UNIT_MAX; unit++) {
-		if ((ucom_bitmap[unit / 8] & (1 << (unit % 8))) == 0) {
-			ucom_bitmap[unit / 8] |= (1 << (unit % 8));
-			break;
-		}
+	/* sanity checks */
+	if (ucom_unrhdr == NULL) {
+		DPRINTF("ucom_unrhdr is NULL\n");
+		return (-1);
 	}
-
-	mtx_unlock(&ucom_bitmap_mtx);
-
-	if (unit == UCOM_UNIT_MAX)
-		return -1;
-	else
-		return unit;
+	unit = alloc_unr(ucom_unrhdr);
+	DPRINTF("unit %d is allocated\n", unit);
+	return (unit);
 }
 
 /*
@@ -220,11 +237,13 @@ ucom_unit_alloc(void)
 static void
 ucom_unit_free(int unit)
 {
-	mtx_lock(&ucom_bitmap_mtx);
-
-	ucom_bitmap[unit / 8] &= ~(1 << (unit % 8));
-
-	mtx_unlock(&ucom_bitmap_mtx);
+	/* sanity checks */
+	if (unit < 0 || unit >= UCOM_UNIT_MAX || ucom_unrhdr == NULL) {
+		DPRINTF("cannot free unit number\n");
+		return;
+	}
+	DPRINTF("unit %d is freed\n", unit);
+	free_unr(ucom_unrhdr, unit);
 }
 
 /*
@@ -244,7 +263,8 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 
 	if ((sc == NULL) ||
 	    (subunits <= 0) ||
-	    (callback == NULL)) {
+	    (callback == NULL) ||
+	    (mtx == NULL)) {
 		return (EINVAL);
 	}
 
@@ -264,6 +284,14 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 		return (error);
 	}
 	ssc->sc_subunits = subunits;
+	ssc->sc_flag = UCOM_FLAG_ATTACHED |
+	    UCOM_FLAG_FREE_UNIT;
+
+	if (callback->ucom_free == NULL)
+		ssc->sc_flag |= UCOM_FLAG_WAIT_REFS;
+
+	/* increment reference count */
+	ucom_ref(ssc);
 
 	for (subunit = 0; subunit < ssc->sc_subunits; subunit++) {
 		sc[subunit].sc_subunit = subunit;
@@ -277,6 +305,10 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 			ucom_detach(ssc, &sc[0]);
 			return (error);
 		}
+		/* increment reference count */
+		ucom_ref(ssc);
+
+		/* set subunit attached */
 		sc[subunit].sc_flag |= UCOM_FLAG_ATTACHED;
 	}
 
@@ -287,15 +319,15 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 }
 
 /*
- * NOTE: the following function will do nothing if
- * the structure pointed to by "ssc" and "sc" is zero.
+ * The following function will do nothing if the structure pointed to
+ * by "ssc" and "sc" is zero or has already been detached.
  */
 void
 ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
 	int subunit;
 
-	if (ssc->sc_subunits == 0)
+	if (!(ssc->sc_flag & UCOM_FLAG_ATTACHED))
 		return;		/* not initialized */
 
 	if (ssc->sc_sysctl_ttyname != NULL) {
@@ -313,14 +345,44 @@ ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	for (subunit = 0; subunit < ssc->sc_subunits; subunit++) {
 		if (sc[subunit].sc_flag & UCOM_FLAG_ATTACHED) {
 
-			ucom_detach_tty(&sc[subunit]);
+			ucom_detach_tty(ssc, &sc[subunit]);
 
 			/* avoid duplicate detach */
 			sc[subunit].sc_flag &= ~UCOM_FLAG_ATTACHED;
 		}
 	}
-	ucom_unit_free(ssc->sc_unit);
 	usb_proc_free(&ssc->sc_tq);
+
+	ucom_unref(ssc);
+
+	if (ssc->sc_flag & UCOM_FLAG_WAIT_REFS)
+		ucom_drain(ssc);
+
+	/* make sure we don't detach twice */
+	ssc->sc_flag &= ~UCOM_FLAG_ATTACHED;
+}
+
+void
+ucom_drain(struct ucom_super_softc *ssc)
+{
+	mtx_lock(&ucom_mtx);
+	while (ssc->sc_refs > 0) {
+		printf("ucom: Waiting for a TTY device to close.\n");
+		usb_pause_mtx(&ucom_mtx, hz);
+	}
+	mtx_unlock(&ucom_mtx);
+}
+
+void
+ucom_drain_all(void *arg)
+{
+	mtx_lock(&ucom_mtx);
+	while (ucom_close_refs > 0) {
+		printf("ucom: Waiting for all detached TTY "
+		    "devices to have open fds closed.\n");
+		usb_pause_mtx(&ucom_mtx, hz);
+	}
+	mtx_unlock(&ucom_mtx);
 }
 
 static int
@@ -356,7 +418,6 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	sc->sc_tty = tp;
 
 	DPRINTF("ttycreate: %s\n", buf);
-	cv_init(&sc->sc_cv, "ucom");
 
 	/* Check if this device should be a console */
 	if ((ucom_cons_softc == NULL) && 
@@ -373,7 +434,7 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 		t.c_ospeed = t.c_ispeed;
 		t.c_cflag = CS8;
 
-		mtx_lock(ucom_cons_softc->sc_mtx);
+		UCOM_MTX_LOCK(ucom_cons_softc);
 		ucom_cons_rx_low = 0;
 		ucom_cons_rx_high = 0;
 		ucom_cons_tx_low = 0;
@@ -381,56 +442,55 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 		sc->sc_flag |= UCOM_FLAG_CONSOLE;
 		ucom_open(ucom_cons_softc->sc_tty);
 		ucom_param(ucom_cons_softc->sc_tty, &t);
-		mtx_unlock(ucom_cons_softc->sc_mtx);
+		UCOM_MTX_UNLOCK(ucom_cons_softc);
 	}
 
 	return (0);
 }
 
 static void
-ucom_detach_tty(struct ucom_softc *sc)
+ucom_detach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
 	struct tty *tp = sc->sc_tty;
 
 	DPRINTF("sc = %p, tp = %p\n", sc, sc->sc_tty);
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
-		mtx_lock(ucom_cons_softc->sc_mtx);
+		UCOM_MTX_LOCK(ucom_cons_softc);
 		ucom_close(ucom_cons_softc->sc_tty);
 		sc->sc_flag &= ~UCOM_FLAG_CONSOLE;
-		mtx_unlock(ucom_cons_softc->sc_mtx);
+		UCOM_MTX_UNLOCK(ucom_cons_softc);
 		ucom_cons_softc = NULL;
 	}
 
 	/* the config thread has been stopped when we get here */
 
-	mtx_lock(sc->sc_mtx);
+	UCOM_MTX_LOCK(sc);
 	sc->sc_flag |= UCOM_FLAG_GONE;
 	sc->sc_flag &= ~(UCOM_FLAG_HL_READY | UCOM_FLAG_LL_READY);
-	mtx_unlock(sc->sc_mtx);
+	UCOM_MTX_UNLOCK(sc);
+
 	if (tp) {
+		mtx_lock(&ucom_mtx);
+		ucom_close_refs++;
+		mtx_unlock(&ucom_mtx);
+
 		tty_lock(tp);
 
 		ucom_close(tp);	/* close, if any */
 
 		tty_rel_gone(tp);
 
-		mtx_lock(sc->sc_mtx);
-		/* Wait for the callback after the TTY is torn down */
-		while (sc->sc_ttyfreed == 0)
-			cv_wait(&sc->sc_cv, sc->sc_mtx);
+		UCOM_MTX_LOCK(sc);
 		/*
 		 * make sure that read and write transfers are stopped
 		 */
-		if (sc->sc_callback->ucom_stop_read) {
+		if (sc->sc_callback->ucom_stop_read)
 			(sc->sc_callback->ucom_stop_read) (sc);
-		}
-		if (sc->sc_callback->ucom_stop_write) {
+		if (sc->sc_callback->ucom_stop_write)
 			(sc->sc_callback->ucom_stop_write) (sc);
-		}
-		mtx_unlock(sc->sc_mtx);
+		UCOM_MTX_UNLOCK(sc);
 	}
-	cv_destroy(&sc->sc_cv);
 }
 
 void
@@ -476,7 +536,7 @@ ucom_queue_command(struct ucom_softc *sc,
 	struct ucom_super_softc *ssc = sc->sc_super;
 	struct ucom_param_task *task;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (usb_proc_is_gone(&ssc->sc_tq)) {
 		DPRINTF("proc is gone\n");
@@ -520,7 +580,7 @@ ucom_shutdown(struct ucom_softc *sc)
 {
 	struct tty *tp = sc->sc_tty;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	DPRINTF("\n");
 
@@ -621,7 +681,7 @@ ucom_open(struct tty *tp)
 	struct ucom_softc *sc = tty_softc(tp);
 	int error;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (sc->sc_flag & UCOM_FLAG_GONE) {
 		return (ENXIO);
@@ -699,7 +759,7 @@ ucom_close(struct tty *tp)
 {
 	struct ucom_softc *sc = tty_softc(tp);
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	DPRINTF("tp=%p\n", tp);
 
@@ -726,7 +786,7 @@ ucom_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	struct ucom_softc *sc = tty_softc(tp);
 	int error;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (!(sc->sc_flag & UCOM_FLAG_HL_READY)) {
 		return (EIO);
@@ -770,7 +830,7 @@ ucom_modem(struct tty *tp, int sigon, int sigoff)
 	struct ucom_softc *sc = tty_softc(tp);
 	uint8_t onoff;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (!(sc->sc_flag & UCOM_FLAG_HL_READY)) {
 		return (0);
@@ -889,7 +949,7 @@ static void
 ucom_line_state(struct ucom_softc *sc,
     uint8_t set_bits, uint8_t clear_bits)
 {
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (!(sc->sc_flag & UCOM_FLAG_HL_READY)) {
 		return;
@@ -967,7 +1027,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 
 	tp = sc->sc_tty;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (!(sc->sc_flag & UCOM_FLAG_LL_READY)) {
 		return;
@@ -1029,7 +1089,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 void
 ucom_status_change(struct ucom_softc *sc)
 {
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE)
 		return;		/* not supported */
@@ -1071,7 +1131,7 @@ ucom_param(struct tty *tp, struct termios *t)
 	uint8_t opened;
 	int error;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	opened = 0;
 	error = 0;
@@ -1138,7 +1198,7 @@ ucom_outwakeup(struct tty *tp)
 {
 	struct ucom_softc *sc = tty_softc(tp);
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	DPRINTF("sc = %p\n", sc);
 
@@ -1165,7 +1225,7 @@ ucom_get_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 	uint32_t cnt;
 	uint32_t offset_orig;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
 		unsigned int temp;
@@ -1244,7 +1304,7 @@ ucom_put_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 	char *buf;
 	uint32_t cnt;
 
-	mtx_assert(sc->sc_mtx, MA_OWNED);
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
 		unsigned int temp;
@@ -1325,10 +1385,14 @@ ucom_free(void *xsc)
 {
 	struct ucom_softc *sc = xsc;
 
-	mtx_lock(sc->sc_mtx);
-	sc->sc_ttyfreed = 1;
-	cv_signal(&sc->sc_cv);
-	mtx_unlock(sc->sc_mtx);
+	if (sc->sc_callback->ucom_free != NULL)
+		sc->sc_callback->ucom_free(sc);
+	else
+		ucom_unref(sc->sc_super);
+
+	mtx_lock(&ucom_mtx);
+	ucom_close_refs--;
+	mtx_unlock(&ucom_mtx);
 }
 
 static cn_probe_t ucom_cnprobe;
@@ -1381,7 +1445,7 @@ ucom_cngetc(struct consdev *cd)
 	if (sc == NULL)
 		return (-1);
 
-	mtx_lock(sc->sc_mtx);
+	UCOM_MTX_LOCK(sc);
 
 	if (ucom_cons_rx_low != ucom_cons_rx_high) {
 		c = ucom_cons_rx_buf[ucom_cons_rx_low];
@@ -1394,7 +1458,7 @@ ucom_cngetc(struct consdev *cd)
 	/* start USB transfers */
 	ucom_outwakeup(sc->sc_tty);
 
-	mtx_unlock(sc->sc_mtx);
+	UCOM_MTX_UNLOCK(sc);
 
 	/* poll if necessary */
 	if (kdb_active && sc->sc_callback->ucom_poll)
@@ -1414,7 +1478,7 @@ ucom_cnputc(struct consdev *cd, int c)
 
  repeat:
 
-	mtx_lock(sc->sc_mtx);
+	UCOM_MTX_LOCK(sc);
 
 	/* compute maximum TX length */
 
@@ -1430,7 +1494,7 @@ ucom_cnputc(struct consdev *cd, int c)
 	/* start USB transfers */
 	ucom_outwakeup(sc->sc_tty);
 
-	mtx_unlock(sc->sc_mtx);
+	UCOM_MTX_UNLOCK(sc);
 
 	/* poll if necessary */
 	if (kdb_active && sc->sc_callback->ucom_poll) {
@@ -1439,6 +1503,62 @@ ucom_cnputc(struct consdev *cd, int c)
 		if (temp == 0)
 			goto repeat;
 	}
+}
+
+/*------------------------------------------------------------------------*
+ *	ucom_ref
+ *
+ * This function will increment the super UCOM reference count.
+ *------------------------------------------------------------------------*/
+void
+ucom_ref(struct ucom_super_softc *ssc)
+{
+	mtx_lock(&ucom_mtx);
+	ssc->sc_refs++;
+	mtx_unlock(&ucom_mtx);
+}
+
+/*------------------------------------------------------------------------*
+ *	ucom_free_unit
+ *
+ * This function will free the super UCOM's allocated unit
+ * number. This function can be called on a zero-initialized
+ * structure. This function can be called multiple times.
+ *------------------------------------------------------------------------*/
+static void
+ucom_free_unit(struct ucom_super_softc *ssc)
+{
+	if (!(ssc->sc_flag & UCOM_FLAG_FREE_UNIT))
+		return;
+
+	ucom_unit_free(ssc->sc_unit);
+
+	ssc->sc_flag &= ~UCOM_FLAG_FREE_UNIT;
+}
+
+/*------------------------------------------------------------------------*
+ *	ucom_unref
+ *
+ * This function will decrement the super UCOM reference count.
+ *
+ * Return values:
+ * 0: UCOM structures are still referenced.
+ * Else: UCOM structures are no longer referenced.
+ *------------------------------------------------------------------------*/
+int
+ucom_unref(struct ucom_super_softc *ssc)
+{
+	int retval;
+
+	mtx_lock(&ucom_mtx);
+	retval = (ssc->sc_refs < 2);
+	ssc->sc_refs--;
+	mtx_unlock(&ucom_mtx);
+
+	if (retval)
+		ucom_free_unit(ssc);
+
+	return (retval);
 }
 
 #if defined(GDB)

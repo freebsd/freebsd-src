@@ -84,13 +84,12 @@
 #include <geom/geom.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
-
-#include <machine/vmparam.h>
 
 #define MD_MODVER 1
 
@@ -725,12 +724,6 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;
 		offs = 0;
-#if 0
-if (bootverbose || bp->bio_offset / PAGE_SIZE < 17)
-printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
-    m->wire_count, m->busy,
-    m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, i);
-#endif
 	}
 	vm_object_pip_subtract(sc->object, 1);
 	VM_OBJECT_UNLOCK(sc->object);
@@ -1081,6 +1074,64 @@ mddestroy(struct md_s *sc, struct thread *td)
 }
 
 static int
+mdresize(struct md_s *sc, struct md_ioctl *mdio)
+{
+	int error, res;
+	vm_pindex_t oldpages, newpages;
+
+	switch (sc->type) {
+	case MD_VNODE:
+		break;
+	case MD_SWAP:
+		if (mdio->md_mediasize <= 0 ||
+		    (mdio->md_mediasize % PAGE_SIZE) != 0)
+			return (EDOM);
+		oldpages = OFF_TO_IDX(round_page(sc->mediasize));
+		newpages = OFF_TO_IDX(round_page(mdio->md_mediasize));
+		if (newpages < oldpages) {
+			VM_OBJECT_LOCK(sc->object);
+			vm_object_page_remove(sc->object, newpages, 0, 0);
+			swap_pager_freespace(sc->object, newpages,
+			    oldpages - newpages);
+			swap_release_by_cred(IDX_TO_OFF(oldpages -
+			    newpages), sc->cred);
+			sc->object->charge = IDX_TO_OFF(newpages);
+			sc->object->size = newpages;
+			VM_OBJECT_UNLOCK(sc->object);
+		} else if (newpages > oldpages) {
+			res = swap_reserve_by_cred(IDX_TO_OFF(newpages -
+			    oldpages), sc->cred);
+			if (!res)
+				return (ENOMEM);
+			if ((mdio->md_options & MD_RESERVE) ||
+			    (sc->flags & MD_RESERVE)) {
+				error = swap_pager_reserve(sc->object,
+				    oldpages, newpages - oldpages);
+				if (error < 0) {
+					swap_release_by_cred(
+					    IDX_TO_OFF(newpages - oldpages),
+					    sc->cred);
+					return (EDOM);
+				}
+			}
+			VM_OBJECT_LOCK(sc->object);
+			sc->object->charge = IDX_TO_OFF(newpages);
+			sc->object->size = newpages;
+			VM_OBJECT_UNLOCK(sc->object);
+		}
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	sc->mediasize = mdio->md_mediasize;
+	g_topology_lock();
+	g_resize_provider(sc->pp, sc->mediasize);
+	g_topology_unlock();
+	return (0);
+}
+
+static int
 mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
 	vm_ooffset_t npage;
@@ -1090,7 +1141,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * Range check.  Disallow negative sizes or any size less then the
 	 * size of a page.  Then round to a page.
 	 */
-	if (sc->mediasize == 0 || (sc->mediasize % PAGE_SIZE) != 0)
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
 		return (EDOM);
 
 	/*
@@ -1108,7 +1159,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	    VM_PROT_DEFAULT, 0, td->td_ucred);
 	if (sc->object == NULL)
 		return (ENOMEM);
-	sc->flags = mdio->md_options & MD_FORCE;
+	sc->flags = mdio->md_options & (MD_FORCE | MD_RESERVE);
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
 			error = EDOM;
@@ -1131,6 +1182,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 	struct md_ioctl *mdio;
 	struct md_s *sc;
 	int error, i;
+	unsigned sectsize;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1159,6 +1211,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		default:
 			return (EINVAL);
 		}
+		if (mdio->md_sectorsize == 0)
+			sectsize = DEV_BSIZE;
+		else
+			sectsize = mdio->md_sectorsize;
+		if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
+			return (EINVAL);
 		if (mdio->md_options & MD_AUTOUNIT)
 			sc = mdnew(-1, &error, mdio->md_type);
 		else {
@@ -1171,10 +1229,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
 		sc->mediasize = mdio->md_mediasize;
-		if (mdio->md_sectorsize == 0)
-			sc->sectorsize = DEV_BSIZE;
-		else
-			sc->sectorsize = mdio->md_sectorsize;
+		sc->sectorsize = sectsize;
 		error = EDOOFUS;
 		switch (sc->type) {
 		case MD_MALLOC:
@@ -1217,6 +1272,20 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		    !(mdio->md_options & MD_FORCE))
 			return (EBUSY);
 		return (mddestroy(sc, td));
+	case MDIOCRESIZE:
+		if ((mdio->md_options & ~(MD_FORCE | MD_RESERVE)) != 0)
+			return (EINVAL);
+
+		sc = mdfind(mdio->md_unit);
+		if (sc == NULL)
+			return (ENOENT);
+		if (mdio->md_mediasize < sc->sectorsize)
+			return (EINVAL);
+		if (mdio->md_mediasize < sc->mediasize &&
+		    !(sc->flags & MD_FORCE) &&
+		    !(mdio->md_options & MD_FORCE))
+			return (EBUSY);
+		return (mdresize(sc, mdio));
 	case MDIOCQUERY:
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)

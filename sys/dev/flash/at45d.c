@@ -1,5 +1,8 @@
 /*-
- * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2006 M. Warner Losh
+ * Copyright (c) 2011-2012 Ian Lepore
+ * Copyright (c) 2012 Marius Strobl <marius@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,44 +45,82 @@ __FBSDID("$FreeBSD$");
 #include <dev/spibus/spi.h>
 #include "spibus_if.h"
 
-struct at45d_softc 
+struct at45d_flash_ident
 {
-	struct intr_config_hook config_intrhook;
-	device_t dev;
-	struct mtx sc_mtx;
-	struct disk *disk;
-	struct proc *p;
-	struct bio_queue_head bio_queue;
+	const char	*name;
+	uint32_t	jedec;
+	uint16_t	pagecount;
+	uint16_t	pageoffset;
+	uint16_t	pagesize;
+	uint16_t	pagesize2n;
 };
 
-#define AT45D_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+struct at45d_softc
+{
+	struct bio_queue_head	bio_queue;
+	struct mtx		sc_mtx;
+	struct disk		*disk;
+	struct proc		*p;
+	struct intr_config_hook	config_intrhook;
+	device_t		dev;
+	uint16_t		pagecount;
+	uint16_t		pageoffset;
+	uint16_t		pagesize;
+};
+
+#define	AT45D_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define	AT45D_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define AT45D_LOCK_INIT(_sc) \
+#define	AT45D_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    "at45d", MTX_DEF)
-#define AT45D_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define AT45D_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define AT45D_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define	AT45D_LOCK_DESTROY(_sc)		mtx_destroy(&_sc->sc_mtx);
+#define	AT45D_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define	AT45D_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
-static void at45d_delayed_attach(void *xsc);
+/* bus entry points */
+static device_attach_t at45d_attach;
+static device_detach_t at45d_detach;
+static device_probe_t at45d_probe;
 
 /* disk routines */
-static int at45d_open(struct disk *dp);
 static int at45d_close(struct disk *dp);
+static int at45d_open(struct disk *dp);
 static void at45d_strategy(struct bio *bp);
 static void at45d_task(void *arg);
 
-#define CONTINUOUS_ARRAY_READ		0xE8
-#define CONTINUOUS_ARRAY_READ_HF	0x0B
-#define CONTINUOUS_ARRAY_READ_LF	0x03
-#define STATUS_REGISTER_READ		0xD7
-#define PROGRAM_THROUGH_BUFFER		0x82
-#define MANUFACTURER_ID			0x9F
+/* helper routines */
+static void at45d_delayed_attach(void *xsc);
+static int at45d_get_mfg_info(device_t dev, uint8_t *resp);
+static int at45d_get_status(device_t dev, uint8_t *status);
+static int at45d_wait_ready(device_t dev, uint8_t *status);
 
-static uint8_t
-at45d_get_status(device_t dev)
+#define	BUFFER_TRANSFER			0x53
+#define	BUFFER_COMPARE			0x60
+#define	PROGRAM_THROUGH_BUFFER		0x82
+#define	MANUFACTURER_ID			0x9f
+#define	STATUS_REGISTER_READ		0xd7
+#define	CONTINUOUS_ARRAY_READ		0xe8
+
+/*
+ * A sectorsize2n != 0 is used to indicate that a device optionally supports
+ * 2^N byte pages.  If support for the latter is enabled, the sector offset
+ * has to be reduced by one.
+ */
+static const struct at45d_flash_ident const at45d_flash_devices[] = {
+	{ "AT45DB011B", 0x1f2200, 512, 9, 264, 256 },
+	{ "AT45DB021B", 0x1f2300, 1024, 9, 264, 256 },
+	{ "AT45DB041x", 0x1f2400, 2028, 9, 264, 256 },
+	{ "AT45DB081B", 0x1f2500, 4096, 9, 264, 256 },
+	{ "AT45DB161x", 0x1f2600, 4096, 10, 528, 512 },
+	{ "AT45DB321x", 0x1f2700, 8192, 10, 528, 0 },
+	{ "AT45DB321x", 0x1f2701, 8192, 10, 528, 512 },
+	{ "AT45DB642x", 0x1f2800, 8192, 11, 1056, 1024 }
+};
+
+static int
+at45d_get_status(device_t dev, uint8_t *status)
 {
-	uint8_t txBuf[8], rxBuf[8];
+	uint8_t rxBuf[8], txBuf[8];
 	struct spi_command cmd;
 	int err;
 
@@ -90,23 +131,16 @@ at45d_get_status(device_t dev)
 	txBuf[0] = STATUS_REGISTER_READ;
 	cmd.tx_cmd = txBuf;
 	cmd.rx_cmd = rxBuf;
-	cmd.rx_cmd_sz = 2;
-	cmd.tx_cmd_sz = 2;
+	cmd.rx_cmd_sz = cmd.tx_cmd_sz = 2;
 	err = SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
-	return (rxBuf[1]);
-}
-
-static void
-at45d_wait_for_device_ready(device_t dev)
-{
-	while (!(at45d_get_status(dev) & 0x80))
-		continue;
+	*status = rxBuf[1];
+	return (err);
 }
 
 static int
 at45d_get_mfg_info(device_t dev, uint8_t *resp)
 {
-	uint8_t txBuf[8], rxBuf[8];
+	uint8_t rxBuf[8], txBuf[8];
 	struct spi_command cmd;
 	int err;
 
@@ -117,22 +151,37 @@ at45d_get_mfg_info(device_t dev, uint8_t *resp)
 	txBuf[0] = MANUFACTURER_ID;
 	cmd.tx_cmd = &txBuf;
 	cmd.rx_cmd = &rxBuf;
-	cmd.tx_cmd_sz = 5;
-	cmd.rx_cmd_sz = 5;
+	cmd.tx_cmd_sz = cmd.rx_cmd_sz = 5;
 	err = SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
 	if (err)
 		return (err);
 	memcpy(resp, rxBuf + 1, 4);
-	// XXX We really should 'decode' the reply into some kind of
-	// XXX structure.  To be generic (and not just for atmel parts)
-	// XXX we'd have to loop until we got a full reply.
 	return (0);
+}
+
+static int
+at45d_wait_ready(device_t dev, uint8_t *status)
+{
+	struct timeval now, tout;
+	int err;
+
+	getmicrouptime(&tout);
+	tout.tv_sec += 3;
+	do {
+		getmicrouptime(&now);
+		if (now.tv_sec > tout.tv_sec)
+			err = ETIMEDOUT;
+		else
+			err = at45d_get_status(dev, status);
+	} while (err == 0 && (*status & 0x80) == 0);
+	return (err);
 }
 
 static int
 at45d_probe(device_t dev)
 {
-	device_set_desc(dev, "AT45 Flash Family");
+
+	device_set_desc(dev, "AT45D Flash Family");
 	return (0);
 }
 
@@ -156,31 +205,66 @@ at45d_attach(device_t dev)
 static int
 at45d_detach(device_t dev)
 {
-	return EIO;
+
+	return (EBUSY) /* XXX */;
 }
 
 static void
 at45d_delayed_attach(void *xsc)
 {
-	struct at45d_softc *sc = xsc;
-	uint8_t buf[4];
-	
-	at45d_get_mfg_info(sc->dev, buf);
-	at45d_wait_for_device_ready(sc->dev);
+	struct at45d_softc *sc;
+	const struct at45d_flash_ident *ident;
+	u_int i;
+	uint32_t jedec;
+	uint16_t pagesize;
+	uint8_t buf[4], status;
 
-	sc->disk = disk_alloc();
-	sc->disk->d_open = at45d_open;
-	sc->disk->d_close = at45d_close;
-	sc->disk->d_strategy = at45d_strategy;
-	sc->disk->d_name = "flash/spi";
-	sc->disk->d_drv1 = sc;
-	sc->disk->d_maxsize = DFLTPHYS;
-	sc->disk->d_sectorsize = 1056;		/* XXX */
-	sc->disk->d_mediasize = 8192 * 1056;	/* XXX */
-	sc->disk->d_unit = device_get_unit(sc->dev);
-	disk_create(sc->disk, DISK_VERSION);
-	bioq_init(&sc->bio_queue);
-	kproc_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
+	sc = xsc;
+	ident = NULL;
+	jedec = 0;
+
+	if (at45d_wait_ready(sc->dev, &status) != 0)
+		device_printf(sc->dev, "Error waiting for device-ready.\n");
+	else if (at45d_get_mfg_info(sc->dev, buf) != 0)
+		device_printf(sc->dev, "Failed to get ID.\n");
+	else {
+		jedec = buf[0] << 16 | buf[1] << 8 | buf[2];
+		for (i = 0; i < nitems(at45d_flash_devices); i++) {
+			if (at45d_flash_devices[i].jedec == jedec) {
+				ident = &at45d_flash_devices[i];
+				break;
+			}
+		}
+	}
+	if (ident == NULL)
+		device_printf(sc->dev, "JEDEC 0x%x not in list.\n", jedec);
+	else {
+		sc->pagecount = ident->pagecount;
+		sc->pageoffset = ident->pageoffset;
+		if (ident->pagesize2n != 0 && (status & 0x01) != 0) {
+			sc->pageoffset -= 1;
+			pagesize = ident->pagesize2n;
+		} else
+			pagesize = ident->pagesize;
+		sc->pagesize = pagesize;
+
+		sc->disk = disk_alloc();
+		sc->disk->d_open = at45d_open;
+		sc->disk->d_close = at45d_close;
+		sc->disk->d_strategy = at45d_strategy;
+		sc->disk->d_name = "flash/spi";
+		sc->disk->d_drv1 = sc;
+		sc->disk->d_maxsize = DFLTPHYS;
+		sc->disk->d_sectorsize = pagesize;
+		sc->disk->d_mediasize = pagesize * ident->pagecount;
+		sc->disk->d_unit = device_get_unit(sc->dev);
+		disk_create(sc->disk, DISK_VERSION);
+		bioq_init(&sc->bio_queue);
+		kproc_create(&at45d_task, sc, &sc->p, 0, 0,
+		    "task: at45d flash");
+		device_printf(sc->dev, "%s, %d bytes per page, %d pages\n",
+		    ident->name, pagesize, ident->pagecount);
+	}
 
 	config_intrhook_disestablish(&sc->config_intrhook);
 }
@@ -188,13 +272,15 @@ at45d_delayed_attach(void *xsc)
 static int
 at45d_open(struct disk *dp)
 {
-	return 0;
+
+	return (0);
 }
 
 static int
 at45d_close(struct disk *dp)
 {
-	return 0;
+
+	return (0);
 }
 
 static void
@@ -212,53 +298,132 @@ at45d_strategy(struct bio *bp)
 static void
 at45d_task(void *arg)
 {
-	struct at45d_softc *sc = (struct at45d_softc*)arg;
+	uint8_t rxBuf[8], txBuf[8];
+	struct at45d_softc *sc;
 	struct bio *bp;
-	uint8_t txBuf[8], rxBuf[8];
 	struct spi_command cmd;
-	int sz;
-	daddr_t block, end;
 	device_t dev, pdev;
-	int err;
+	caddr_t buf;
+	u_long len, resid;
+	u_int addr, berr, err, offset, page;
+	uint8_t status;
+
+	sc = (struct at45d_softc*)arg;
+	dev = sc->dev;
+	pdev = device_get_parent(dev);
+	memset(&cmd, 0, sizeof(cmd));
+	memset(txBuf, 0, sizeof(txBuf));
+	memset(rxBuf, 0, sizeof(rxBuf));
+	cmd.tx_cmd = txBuf;
+	cmd.rx_cmd = rxBuf;
 
 	for (;;) {
-		dev = sc->dev;
-		pdev = device_get_parent(dev);
 		AT45D_LOCK(sc);
 		do {
-			bp = bioq_first(&sc->bio_queue);
+			bp = bioq_takefirst(&sc->bio_queue);
 			if (bp == NULL)
 				msleep(sc, &sc->sc_mtx, PRIBIO, "jobqueue", 0);
 		} while (bp == NULL);
-		bioq_remove(&sc->bio_queue, bp);
 		AT45D_UNLOCK(sc);
-		sz = sc->disk->d_sectorsize;
-		end = bp->bio_pblkno + (bp->bio_bcount / sz);
-		for (block = bp->bio_pblkno; block < end; block++) {
-			char *vaddr = bp->bio_data + (block - bp->bio_pblkno) * sz;
-			if (bp->bio_cmd == BIO_READ) {
-				txBuf[0] = CONTINUOUS_ARRAY_READ_HF;
-				cmd.tx_cmd_sz = 5;
-				cmd.rx_cmd_sz = 5;
-			} else {
-				txBuf[0] = PROGRAM_THROUGH_BUFFER;
-				cmd.tx_cmd_sz = 4;
-				cmd.rx_cmd_sz = 4;
-			}
-			// XXX only works on certain devices...  Fixme
-			txBuf[1] = ((block >> 5) & 0xFF);
-			txBuf[2] = ((block << 3) & 0xF8);
-			txBuf[3] = 0;
-			txBuf[4] = 0;
-			cmd.tx_cmd = txBuf;
-			cmd.rx_cmd = rxBuf;
-			cmd.tx_data = vaddr;
-			cmd.tx_data_sz = sz;
-			cmd.rx_data = vaddr;
-			cmd.rx_data_sz = sz;
-			err = SPIBUS_TRANSFER(pdev, dev, &cmd);
-			// XXX err check?
+
+		berr = 0;
+		buf = bp->bio_data;
+		len = resid = bp->bio_bcount;
+		page = bp->bio_offset / sc->pagesize;
+		offset = bp->bio_offset % sc->pagesize;
+
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+			txBuf[0] = CONTINUOUS_ARRAY_READ;
+			cmd.tx_cmd_sz = cmd.rx_cmd_sz = 8;
+			cmd.tx_data = cmd.rx_data = buf;
+			break;
+		case BIO_WRITE:
+			cmd.tx_cmd_sz = cmd.rx_cmd_sz = 4;
+			cmd.tx_data = cmd.rx_data = buf;
+			if (resid + offset > sc->pagesize)
+				len = sc->pagesize - offset;
+			break;
+		default:
+			berr = EINVAL;
+			goto out;
 		}
+
+		/*
+		 * NB: for BIO_READ, this loop is only traversed once.
+		 */
+		while (resid > 0) {
+			if (page > sc->pagecount) {
+				berr = EINVAL;
+				goto out;
+			}
+			addr = page << sc->pageoffset;
+			if (bp->bio_cmd == BIO_WRITE) {
+				if (len != sc->pagesize) {
+					txBuf[0] = BUFFER_TRANSFER;
+					txBuf[1] = ((addr >> 16) & 0xff);
+					txBuf[2] = ((addr >> 8) & 0xff);
+					txBuf[3] = 0;
+					cmd.tx_data_sz = cmd.rx_data_sz = 0;
+					err = SPIBUS_TRANSFER(pdev, dev,
+					    &cmd);
+					if (err == 0)
+						err = at45d_wait_ready(dev,
+						    &status);
+					if (err != 0) {
+						berr = EIO;
+						goto out;
+					}
+				}
+				txBuf[0] = PROGRAM_THROUGH_BUFFER;
+			}
+
+			addr += offset;
+			txBuf[1] = ((addr >> 16) & 0xff);
+			txBuf[2] = ((addr >> 8) & 0xff);
+			txBuf[3] = (addr & 0xff);
+			cmd.tx_data_sz = cmd.rx_data_sz = len;
+			err = SPIBUS_TRANSFER(pdev, dev, &cmd);
+			if (err == 0 && bp->bio_cmd != BIO_READ)
+				err = at45d_wait_ready(dev, &status);
+			if (err != 0) {
+				berr = EIO;
+				goto out;
+			}
+			if (bp->bio_cmd == BIO_WRITE) {
+				addr = page << sc->pageoffset;
+				txBuf[0] = BUFFER_COMPARE;
+				txBuf[1] = ((addr >> 16) & 0xff);
+				txBuf[2] = ((addr >> 8) & 0xff);
+				txBuf[3] = 0;
+				cmd.tx_data_sz = cmd.rx_data_sz = 0;
+				err = SPIBUS_TRANSFER(pdev, dev, &cmd);
+				if (err == 0)
+					err = at45d_wait_ready(dev, &status);
+				if (err != 0 || (status & 0x40) != 0) {
+					device_printf(dev, "comparing page "
+					    "%d failed (status=0x%x)\n", addr,
+					    status);
+					berr = EIO;
+					goto out;
+				}
+			}
+			page++;
+			buf += len;
+			offset = 0;
+			resid -= len;
+			if (resid > sc->pagesize)
+				len = sc->pagesize;
+			else
+				len = resid;
+			cmd.tx_data = cmd.rx_data = buf;
+		}
+ out:
+		if (berr != 0) {
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_error = berr;
+		}
+		bp->bio_resid = resid;
 		biodone(bp);
 	}
 }
@@ -271,7 +436,7 @@ static device_method_t at45d_methods[] = {
 	DEVMETHOD(device_attach,	at45d_attach),
 	DEVMETHOD(device_detach,	at45d_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t at45d_driver = {
@@ -280,4 +445,4 @@ static driver_t at45d_driver = {
 	sizeof(struct at45d_softc),
 };
 
-DRIVER_MODULE(at45d, spibus, at45d_driver, at45d_devclass, 0, 0);
+DRIVER_MODULE(at45d, spibus, at45d_driver, at45d_devclass, NULL, NULL);

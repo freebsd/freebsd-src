@@ -88,20 +88,33 @@ struct mmcsd_softc {
 	int suspend;
 };
 
+static const char *errmsg[] =
+{
+	"None",
+	"Timeout",
+	"Bad CRC",
+	"Fifo",
+	"Failed",
+	"Invalid",
+	"NO MEMORY"
+};
+
 /* bus entry points */
-static int mmcsd_probe(device_t dev);
 static int mmcsd_attach(device_t dev);
 static int mmcsd_detach(device_t dev);
+static int mmcsd_probe(device_t dev);
 
 /* disk routines */
-static int mmcsd_open(struct disk *dp);
 static int mmcsd_close(struct disk *dp);
-static void mmcsd_strategy(struct bio *bp);
 static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
 	off_t offset, size_t length);
+static int mmcsd_open(struct disk *dp);
+static void mmcsd_strategy(struct bio *bp);
 static void mmcsd_task(void *arg);
 
 static int mmcsd_bus_bit_width(device_t dev);
+static daddr_t mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp);
+static daddr_t mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp);
 
 #define MMCSD_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMCSD_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
@@ -167,13 +180,10 @@ mmcsd_attach(device_t dev)
 	/*
 	 * Report the clock speed of the underlying hardware, which might be
 	 * different than what the card reports due to hardware limitations.
-	 * Report how many blocks the hardware transfers at once, but clip the
-	 * number to MAXPHYS since the system won't initiate larger transfers.
+	 * Report how many blocks the hardware transfers at once.
 	 */
 	speed = mmcbr_get_clock(device_get_parent(dev));
 	maxblocks = mmc_get_max_data(dev);
-	if (maxblocks > MAXPHYS)
-		maxblocks = MAXPHYS;
 	device_printf(dev, "%ju%cB <%s>%s at %s %d.%01dMHz/%dbit/%d-block\n",
 	    mb, unit, mmc_get_card_id_string(dev),
 	    mmc_get_read_only(dev) ? " (read-only)" : "",
@@ -256,12 +266,14 @@ mmcsd_resume(device_t dev)
 static int
 mmcsd_open(struct disk *dp)
 {
+
 	return (0);
 }
 
 static int
 mmcsd_close(struct disk *dp)
 {
+
 	return (0);
 }
 
@@ -280,6 +292,14 @@ mmcsd_strategy(struct bio *bp)
 		MMCSD_UNLOCK(sc);
 		biofinish(bp, NULL, ENXIO);
 	}
+}
+
+static const char *
+mmcsd_errmsg(int e)
+{
+	if (e < 0 || e > MMC_ERR_MAX)
+		return "Bad error code";
+	return errmsg[e];
 }
 
 static daddr_t
@@ -333,12 +353,13 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 			stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 			req.stop = &stop;
 		}
-//		printf("Len %d  %lld-%lld flags %#x sz %d\n",
-//		    (int)data.len, (long long)block, (long long)end, data.flags, sz);
 		MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
 		    &req);
-		if (req.cmd->error != MMC_ERR_NONE)
+		if (req.cmd->error != MMC_ERR_NONE) {
+			device_printf(dev, "Error indicated: %d %s\n",
+			    req.cmd->error, mmcsd_errmsg(req.cmd->error));
 			break;
+		}
 		block += numblocks;
 	}
 	return (block);
@@ -521,6 +542,7 @@ out:
 static int
 mmcsd_bus_bit_width(device_t dev)
 {
+
 	if (mmc_get_bus_width(dev) == bus_width_1)
 		return (1);
 	if (mmc_get_bus_width(dev) == bus_width_4)

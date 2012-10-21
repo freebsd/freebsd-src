@@ -52,6 +52,10 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
+int g_raid_enable = 1;
+TUNABLE_INT("kern.geom.raid.enable", &g_raid_enable);
+SYSCTL_INT(_kern_geom_raid, OID_AUTO, enable, CTLFLAG_RW,
+    &g_raid_enable, 0, "Enable on-disk metadata taste");
 u_int g_raid_aggressive_spare = 0;
 TUNABLE_INT("kern.geom.raid.aggressive_spare", &g_raid_aggressive_spare);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RW,
@@ -218,6 +222,8 @@ g_raid_subdisk_event2str(int event)
 	switch (event) {
 	case G_RAID_SUBDISK_E_NEW:
 		return ("NEW");
+	case G_RAID_SUBDISK_E_FAILED:
+		return ("FAILED");
 	case G_RAID_SUBDISK_E_DISCONNECTED:
 		return ("DISCONNECTED");
 	default:
@@ -376,17 +382,17 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 	else if (strcasecmp(str, "RAID3-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
 		*qual = G_RAID_VOLUME_RLQ_R3P0;
-	} else if (strcasecmp(str, "RAID3-PN") == 0 &&
+	} else if (strcasecmp(str, "RAID3-PN") == 0 ||
 		   strcasecmp(str, "RAID3") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
-		*qual = G_RAID_VOLUME_RLQ_R3P0;
+		*qual = G_RAID_VOLUME_RLQ_R3PN;
 	} else if (strcasecmp(str, "RAID4-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
 		*qual = G_RAID_VOLUME_RLQ_R4P0;
-	} else if (strcasecmp(str, "RAID4-PN") == 0 &&
+	} else if (strcasecmp(str, "RAID4-PN") == 0 ||
 		   strcasecmp(str, "RAID4") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
-		*qual = G_RAID_VOLUME_RLQ_R4P0;
+		*qual = G_RAID_VOLUME_RLQ_R4PN;
 	} else if (strcasecmp(str, "RAID5-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5;
 		*qual = G_RAID_VOLUME_RLQ_R5RA;
@@ -1823,8 +1829,8 @@ g_raid_create_node(struct g_class *mp,
 	sc->sc_flags = 0;
 	TAILQ_INIT(&sc->sc_volumes);
 	TAILQ_INIT(&sc->sc_disks);
-	sx_init(&sc->sc_lock, "gmirror:lock");
-	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
+	sx_init(&sc->sc_lock, "graid:lock");
+	mtx_init(&sc->sc_queue_mtx, "graid:queue", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_events);
 	bioq_init(&sc->sc_queue);
 	gp->softc = sc;
@@ -1856,6 +1862,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name, int id)
 	vol->v_state = G_RAID_VOLUME_S_STARTING;
 	vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_UNKNOWN;
+	vol->v_rotate_parity = 1;
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);
@@ -1919,6 +1926,8 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 
 	G_RAID_DEBUG1(2, vol->v_softc, "Starting volume %s.", vol->v_name);
 	LIST_FOREACH(class, &g_raid_tr_classes, trc_list) {
+		if (!class->trc_enable)
+			continue;
 		G_RAID_DEBUG1(2, vol->v_softc,
 		    "Tasting volume %s for %s transformation.",
 		    vol->v_name, class->name);
@@ -2141,9 +2150,11 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
+	if (!g_raid_enable)
+		return (NULL);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
-	gp = g_new_geomf(mp, "mirror:taste");
+	gp = g_new_geomf(mp, "raid:taste");
 	/*
 	 * This orphan function should be never called.
 	 */
@@ -2153,6 +2164,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	geom = NULL;
 	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
+		if (!class->mdc_enable)
+			continue;
 		G_RAID_DEBUG(2, "Tasting provider %s for %s metadata.",
 		    pp->name, class->name);
 		obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
@@ -2173,7 +2186,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 int
-g_raid_create_node_format(const char *format, struct g_geom **gp)
+g_raid_create_node_format(const char *format, struct gctl_req *req,
+    struct g_geom **gp)
 {
 	struct g_raid_md_class *class;
 	struct g_raid_md_object *obj;
@@ -2191,7 +2205,7 @@ g_raid_create_node_format(const char *format, struct g_geom **gp)
 	obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
 	    M_WAITOK);
 	obj->mdo_class = class;
-	status = G_RAID_MD_CREATE(obj, &g_raid_class, gp);
+	status = G_RAID_MD_CREATE_REQ(obj, &g_raid_class, req, gp);
 	if (status != G_RAID_MD_TASTE_NEW)
 		kobj_delete((kobj_t)obj, M_RAID);
 	return (status);

@@ -267,26 +267,40 @@
 #define		AR91XX_REV_ID_REVISION_MASK	0x3
 #define		AR91XX_REV_ID_REVISION_SHIFT	2
 
+typedef enum {
+	AR71XX_MII_MODE_NONE = 0,
+	AR71XX_MII_MODE_GMII,
+	AR71XX_MII_MODE_MII,
+	AR71XX_MII_MODE_RGMII,
+	AR71XX_MII_MODE_RMII,
+} ar71xx_mii_mode;
+
 /*
  * AR71xx MII control region
  */
 #define	AR71XX_MII0_CTRL	0x18070000
-#define	AR71XX_MII1_CTRL	0x18070004
 #define			MII_CTRL_SPEED_SHIFT	4
 #define			MII_CTRL_SPEED_MASK	3
-#define			MII_CTRL_SPEED_10	0
-#define			MII_CTRL_SPEED_100	1
-#define			MII_CTRL_SPEED_1000	2
+#define				MII_CTRL_SPEED_10	0
+#define				MII_CTRL_SPEED_100	1
+#define				MII_CTRL_SPEED_1000	2
+#define			MII_CTRL_IF_MASK	3
+#define			MII_CTRL_IF_SHIFT	0
+#define				MII0_CTRL_IF_GMII	0
+#define				MII0_CTRL_IF_MII	1
+#define				MII0_CTRL_IF_RGMII	2
+#define				MII0_CTRL_IF_RMII	3
+
+#define	AR71XX_MII1_CTRL	0x18070004
+
+#define				MII1_CTRL_IF_RGMII	0
+#define				MII1_CTRL_IF_RMII	1
 
 /*
  * GigE adapters region
  */
 #define AR71XX_MAC0_BASE	0x19000000
 #define AR71XX_MAC1_BASE	0x1A000000
-/*
- * All 5 PHYs accessible only through MAC0 register space
- */
-#define AR71XX_MII_BASE		0x19000000
 
 #define		AR71XX_MAC_CFG1			0x00
 #define			MAC_CFG1_SOFT_RESET		(1 << 31)

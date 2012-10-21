@@ -2,8 +2,8 @@
  * Copyright (c) 1994 Jan-Simon Pendry
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2005, 2006 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
- * Copyright (c) 2006 Daichi Goto <daichi@freebsd.org>
+ * Copyright (c) 2005, 2006, 2012 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
+ * Copyright (c) 2006, 2012 Daichi Goto <daichi@freebsd.org>
  *
  * This code is derived from software contributed to Berkeley by
  * Jan-Simon Pendry.
@@ -350,18 +350,21 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	uvp = unp->un_uppervp;
 	dvp = unp->un_dvp;
 	unp->un_lowervp = unp->un_uppervp = NULLVP;
-
 	vp->v_vnlock = &(vp->v_lock);
 	vp->v_data = NULL;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));
-	if (lvp != NULLVP)
-		VOP_UNLOCK(lvp, 0);
-	if (uvp != NULLVP)
-		VOP_UNLOCK(uvp, 0);
 	vp->v_object = NULL;
+	VI_UNLOCK(vp);
+
+	if (lvp != NULLVP)
+		VOP_UNLOCK(lvp, LK_RELEASE);
+	if (uvp != NULLVP)
+		VOP_UNLOCK(uvp, LK_RELEASE);
 
 	if (dvp != NULLVP && unp->un_hash.le_prev != NULL)
 		unionfs_rem_cached_vnode(unp, dvp);
+
+	if (lockmgr(vp->v_vnlock, LK_EXCLUSIVE, VI_MTX(vp)) != 0)
+		panic("the lock for deletion is unacquirable.");
 
 	if (lvp != NULLVP) {
 		vfslocked = VFS_LOCK_GIANT(lvp->v_mount);
@@ -550,7 +553,7 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 		cn->cn_flags |= (cnp->cn_flags & SAVESTART);
 
 	vref(dvp);
-	VOP_UNLOCK(dvp, 0);
+	VOP_UNLOCK(dvp, LK_RELEASE);
 
 	if ((error = relookup(dvp, vpp, cn))) {
 		uma_zfree(namei_zone, cn->cn_pnbuf);
@@ -957,7 +960,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	*vpp = vp;
 
 unionfs_vn_create_on_upper_free_out1:
-	VOP_UNLOCK(udvp, 0);
+	VOP_UNLOCK(udvp, LK_RELEASE);
 
 unionfs_vn_create_on_upper_free_out2:
 	if (cn.cn_flags & HASBUF) {
@@ -1181,7 +1184,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 		edp = (struct dirent*)&buf[sizeof(buf) - uio.uio_resid];
 		for (dp = (struct dirent*)buf; !error && dp < edp;
 		     dp = (struct dirent*)((caddr_t)dp + dp->d_reclen)) {
-			if (dp->d_type == DT_WHT ||
+			if (dp->d_type == DT_WHT || dp->d_fileno == 0 ||
 			    (dp->d_namlen == 1 && dp->d_name[0] == '.') ||
 			    (dp->d_namlen == 2 && !bcmp(dp->d_name, "..", 2)))
 				continue;

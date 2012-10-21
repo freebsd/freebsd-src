@@ -67,15 +67,10 @@
 #define ARGE_CLEAR_BITS(sc, reg, bits)	\
 	ARGE_WRITE(sc, reg, ARGE_READ(sc, (reg)) & ~(bits))
 
-/*
- * MII registers access macros
- */
-#define ARGE_MII_READ(reg) \
-        *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((AR71XX_MII_BASE + reg)))
-
-#define ARGE_MII_WRITE(reg, val) \
-        *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((AR71XX_MII_BASE + reg))) = (val)
-
+#define ARGE_MDIO_WRITE(_sc, _reg, _val)	\
+	ARGE_WRITE((_sc), (_reg), (_val))
+#define ARGE_MDIO_READ(_sc, _reg)	\
+	ARGE_READ((_sc), (_reg))
 
 #define ARGE_DESC_EMPTY		(1 << 31)
 #define ARGE_DESC_MORE		(1 << 24)
@@ -123,6 +118,15 @@ struct arge_ring_data {
 	bus_addr_t		arge_tx_ring_paddr;
 };
 
+/*
+ * Allow PLL values to be overridden.
+ */
+struct arge_pll_data {
+	uint32_t pll_10;
+	uint32_t pll_100;
+	uint32_t pll_1000;
+};
+
 struct arge_softc {
 	struct ifnet		*arge_ifp;	/* interface info */
 	device_t		arge_dev;
@@ -132,11 +136,16 @@ struct arge_softc {
 	 */
 	uint32_t		arge_media_type;
 	uint32_t		arge_duplex_mode;
+	uint32_t		arge_phymask;
+	uint8_t			arge_eaddr[ETHER_ADDR_LEN];
 	struct resource		*arge_res;
 	int			arge_rid;
 	struct resource		*arge_irq;
 	void			*arge_intrhand;
 	device_t		arge_miibus;
+	device_t		arge_miiproxy;
+	ar71xx_mii_mode		arge_miicfg;
+	struct arge_pll_data	arge_pllcfg;
 	bus_dma_tag_t		arge_parent_tag;
 	bus_dma_tag_t		arge_tag;
 	struct mtx		arge_mtx;
@@ -148,7 +157,6 @@ struct arge_softc {
 	int			arge_detach;
 	uint32_t		arge_intr_status;
 	int			arge_mac_unit;
-	int			arge_phymask;
 	int			arge_if_flags;
 	uint32_t		arge_debug;
 	struct {

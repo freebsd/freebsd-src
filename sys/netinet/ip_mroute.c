@@ -924,7 +924,6 @@ add_vif(struct vifctl *vifcp)
     vifp->v_pkt_out   = 0;
     vifp->v_bytes_in  = 0;
     vifp->v_bytes_out = 0;
-    bzero(&vifp->v_route, sizeof(vifp->v_route));
 
     /* Adjust numvifs up if the vifi is higher than numvifs */
     if (V_numvifs <= vifcp->vifc_vifi)
@@ -1702,7 +1701,7 @@ send_packet(struct vif *vifp, struct mbuf *m)
 	 * should get rejected because they appear to come from
 	 * the loopback interface, thus preventing looping.
 	 */
-	error = ip_output(m, NULL, &vifp->v_route, IP_FORWARDING, &imo, NULL);
+	error = ip_output(m, NULL, NULL, IP_FORWARDING, &imo, NULL);
 	CTR3(KTR_IPMF, "%s: vif %td err %d", __func__,
 	    (ptrdiff_t)(vifp - V_viftable), error);
 }
@@ -2377,7 +2376,10 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
 
     /* Take care of delayed checksums */
     if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+	/* XXX: in_delayed_cksum() expects net byte order */
+	ip->ip_len = htons(ip->ip_len);
 	in_delayed_cksum(m);
+	ip->ip_len = ntohs(ip->ip_len);
 	m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
     }
 

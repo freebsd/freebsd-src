@@ -140,6 +140,7 @@ static struct g_raid_md_class g_raid_md_sii_class = {
 	"SiI",
 	g_raid_md_sii_methods,
 	sizeof(struct g_raid_md_sii_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -1149,7 +1150,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			return (-3);
 		}
 		if (strcasecmp(levelname, "RAID5") == 0)
-			levelname = "RAID5LS";
+			levelname = "RAID5-LS";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1688,4 +1689,4 @@ g_raid_md_free_sii(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_sii);
+G_RAID_MD_DECLARE(sii, "SiI");

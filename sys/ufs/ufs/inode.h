@@ -167,7 +167,6 @@ struct inode {
 struct indir {
 	ufs2_daddr_t in_lbn;		/* Logical block number. */
 	int	in_off;			/* Offset in buffer. */
-	int	in_exists;		/* Flag if the block exists. */
 };
 
 /* Convert between inode pointers and vnode pointers. */
@@ -184,7 +183,7 @@ struct indir {
 struct ufid {
 	u_int16_t ufid_len;	/* Length of structure. */
 	u_int16_t ufid_pad;	/* Force 32-bit alignment. */
-	ino_t	  ufid_ino;	/* File number (ino). */
+	uint32_t  ufid_ino;	/* File number (ino). */
 	int32_t	  ufid_gen;	/* Generation number. */
 };
 #endif /* _KERNEL */

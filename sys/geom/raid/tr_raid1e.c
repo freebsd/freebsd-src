@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #define N	2
 
-SYSCTL_DECL(_kern_geom_raid);
-static SYSCTL_NODE(_kern_geom_raid, OID_AUTO, raid1e, CTLFLAG_RW, 0,
-    "RAID1E parameters");
+SYSCTL_DECL(_kern_geom_raid_raid1e);
 
 #define RAID1E_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
 static int g_raid1e_rebuild_slab = RAID1E_REBUILD_SLAB;
@@ -135,6 +133,7 @@ static struct g_raid_tr_class g_raid_tr_raid1e_class = {
 	"RAID1E",
 	g_raid_tr_raid1e_methods,
 	sizeof(struct g_raid_tr_raid1e_object),
+	.trc_enable = 1,
 	.trc_priority = 200
 };
 
@@ -338,6 +337,9 @@ static void
 g_raid_tr_raid1e_fail_disk(struct g_raid_softc *sc, struct g_raid_subdisk *sd,
     struct g_raid_disk *disk)
 {
+	struct g_raid_volume *vol;
+
+	vol = sd->sd_volume;
 	/*
 	 * We don't fail the last disk in the pack, since it still has decent
 	 * data on it and that's better than failing the disk if it is the root
@@ -347,8 +349,12 @@ g_raid_tr_raid1e_fail_disk(struct g_raid_softc *sc, struct g_raid_subdisk *sd,
 	 * the volume that has / on it.  I can't think of a case where we'd
 	 * want the volume to go away on this kind of event.
 	 */
-	if (g_raid_nsubdisks(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE) == 1 &&
-	    g_raid_get_subdisk(sd->sd_volume, G_RAID_SUBDISK_S_ACTIVE) == sd)
+	if ((g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE) +
+	     g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_RESYNC) +
+	     g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_STALE) +
+	     g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_UNINITIALIZED) <
+	     vol->v_disks_count) &&
+	    (sd->sd_state >= G_RAID_SUBDISK_S_UNINITIALIZED))
 		return;
 	g_raid_fail_disk(sc, sd, disk);
 }
@@ -1113,7 +1119,16 @@ rebuild_round_done:
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
 		g_raid_unlock_range(sd->sd_volume, virtual, bp->bio_length);
 	}
-	error = bp->bio_error;
+	if (pbp->bio_cmd != BIO_READ) {
+		if (pbp->bio_inbed == 1 || pbp->bio_error != 0)
+			pbp->bio_error = bp->bio_error;
+		if (bp->bio_error != 0) {
+			G_RAID_LOGREQ(0, bp, "Write failed: failing subdisk.");
+			g_raid_tr_raid1e_fail_disk(sd->sd_softc, sd, sd->sd_disk);
+		}
+		error = pbp->bio_error;
+	} else
+		error = bp->bio_error;
 	g_destroy_bio(bp);
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
@@ -1220,4 +1235,4 @@ g_raid_tr_free_raid1e(struct g_raid_tr_object *tr)
 	return (0);
 }
 
-G_RAID_TR_DECLARE(g_raid_tr_raid1e);
+G_RAID_TR_DECLARE(raid1e, "RAID1E");

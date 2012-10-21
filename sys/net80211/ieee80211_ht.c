@@ -2166,6 +2166,9 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	}
 }
 
+/* XXX */
+static void bar_start_timer(struct ieee80211_tx_ampdu *tap);
+
 static void
 bar_timeout(void *arg)
 {
@@ -2184,11 +2187,34 @@ bar_timeout(void *arg)
 		return;
 	/* XXX ? */
 	if (tap->txa_attempts >= ieee80211_bar_maxtries) {
+		struct ieee80211com *ic = ni->ni_ic;
+
 		ni->ni_vap->iv_stats.is_ampdu_bar_tx_fail++;
+		/*
+		 * If (at least) the last BAR TX timeout was due to
+		 * an ieee80211_send_bar() failures, then we need
+		 * to make sure we notify the driver that a BAR
+		 * TX did occur and fail.  This gives the driver
+		 * a chance to undo any queue pause that may
+		 * have occured.
+		 */
+		ic->ic_bar_response(ni, tap, 1);
 		ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT);
 	} else {
 		ni->ni_vap->iv_stats.is_ampdu_bar_tx_retry++;
-		ieee80211_send_bar(ni, tap, tap->txa_seqpending);
+		if (ieee80211_send_bar(ni, tap, tap->txa_seqpending) != 0) {
+			/*
+			 * If ieee80211_send_bar() fails here, the
+			 * timer may have stopped and/or the pending
+			 * flag may be clear.  Because of this,
+			 * fake the BARPEND and reset the timer.
+			 * A retransmission attempt will then occur
+			 * during the next timeout.
+			 */
+			/* XXX locking */
+			tap->txa_flags |= IEEE80211_AGGR_BARPEND;
+			bar_start_timer(tap);
+		}
 	}
 }
 

@@ -272,10 +272,7 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 static void
 bucket_enable(void)
 {
-	if (cnt.v_free_count < cnt.v_free_min)
-		bucketdisable = 1;
-	else
-		bucketdisable = 0;
+	bucketdisable = vm_page_count_min();
 }
 
 /*
@@ -1130,7 +1127,9 @@ keg_small_init(uma_keg_t keg)
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = 1;
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
+	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
+		shsize = 0;
+	} else if (keg->uk_flags & UMA_ZONE_REFCNT) {
 		rsize += UMA_FRITMREF_SZ;	/* linkage & refcnt */
 		shsize = sizeof(struct uma_slab_refcnt);
 	} else {
@@ -1241,7 +1240,7 @@ keg_cachespread_init(uma_keg_t keg)
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
 	KASSERT(keg->uk_ipers <= uma_max_ipers,
-	    ("keg_small_init: keg->uk_ipers too high(%d) increase max_ipers",
+	    ("%s: keg->uk_ipers too high(%d) increase max_ipers", __func__,
 	    keg->uk_ipers));
 }
 
@@ -2196,6 +2195,7 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int flags)
 				zone->uz_flags |= UMA_ZFLAG_FULL;
 			if (flags & M_NOWAIT)
 				break;
+			zone->uz_sleeps++;
 			msleep(keg, &keg->uk_lock, PVM, "keglimit", 0);
 			continue;
 		}
@@ -3384,6 +3384,8 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 			    (uintmax_t)kz->uk_size,
 			    (intmax_t)(allocs - frees), cachefree,
 			    (uintmax_t)allocs, sleeps);
+			if (db_pager_quit)
+				return;
 		}
 	}
 }

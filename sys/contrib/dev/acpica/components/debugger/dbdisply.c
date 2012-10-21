@@ -792,10 +792,12 @@ AcpiDbDisplayGpes (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
     char                    *GpeType;
+    ACPI_GPE_NOTIFY_INFO    *Notify;
     UINT32                  GpeIndex;
     UINT32                  Block = 0;
     UINT32                  i;
     UINT32                  j;
+    UINT32                  Count;
     char                    Buffer[80];
     ACPI_BUFFER             RetBuf;
     ACPI_STATUS             Status;
@@ -916,7 +918,14 @@ AcpiDbDisplayGpes (
                         AcpiOsPrintf ("Handler");
                         break;
                     case ACPI_GPE_DISPATCH_NOTIFY:
-                        AcpiOsPrintf ("Notify");
+                        Count = 0;
+                        Notify = GpeEventInfo->Dispatch.NotifyList;
+                        while (Notify)
+                        {
+                            Count++;
+                            Notify = Notify->Next;
+                        }
+                        AcpiOsPrintf ("Implicit Notify on %u devices", Count);
                         break;
                     default:
                         AcpiOsPrintf ("UNKNOWN: %X",

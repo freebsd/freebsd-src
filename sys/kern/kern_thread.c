@@ -27,6 +27,7 @@
  */
 
 #include "opt_witness.h"
+#include "opt_kdtrace.h"
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/cdefs.h>
@@ -38,7 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rangelock.h>
 #include <sys/resourcevar.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
@@ -58,6 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 #include <sys/eventhandler.h>
+
+SDT_PROVIDER_DECLARE(proc);
+SDT_PROBE_DEFINE(proc, , , lwp_exit, lwp-exit);
+
 
 /*
  * thread related storage.
@@ -95,8 +102,8 @@ tid_alloc(void)
 		mtx_unlock(&tid_lock);
 		return (-1);
 	}
-	tid = tid_buffer[tid_head++];
-	tid_head %= TID_BUFFER_SIZE;
+	tid = tid_buffer[tid_head];
+	tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
 	mtx_unlock(&tid_lock);
 	return (tid);
 }
@@ -108,11 +115,11 @@ tid_free(lwpid_t tid)
 
 	mtx_lock(&tid_lock);
 	if ((tid_tail + 1) % TID_BUFFER_SIZE == tid_head) {
-		tmp_tid = tid_buffer[tid_head++];
+		tmp_tid = tid_buffer[tid_head];
 		tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
 	}
-	tid_buffer[tid_tail++] = tid;
-	tid_tail %= TID_BUFFER_SIZE;
+	tid_buffer[tid_tail] = tid;
+	tid_tail = (tid_tail + 1) % TID_BUFFER_SIZE;
 	mtx_unlock(&tid_lock);
 	if (tmp_tid != -1)
 		free_unr(tid_unrhdr, tmp_tid);
@@ -199,6 +206,7 @@ thread_init(void *mem, int size, int flags)
 
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
+	td->td_rlqe = NULL;
 	EVENTHANDLER_INVOKE(thread_init, td);
 	td->td_sched = (struct td_sched *)&td[1];
 	umtx_thread_init(td);
@@ -216,6 +224,7 @@ thread_fini(void *mem, int size)
 
 	td = (struct thread *)mem;
 	EVENTHANDLER_INVOKE(thread_fini, td);
+	rlqentry_free(td->td_rlqe);
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
 	umtx_thread_fini(td);
@@ -260,7 +269,11 @@ threadinit(void)
 {
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
-	/* leave one number for thread0 */
+
+	/*
+	 * pid_max cannot be greater than PID_MAX.
+	 * leave one number for thread0.
+	 */
 	tid_unrhdr = new_unrhdr(PID_MAX + 2, INT_MAX, &tid_lock);
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
@@ -609,7 +622,6 @@ thread_single(int mode)
 	p = td->td_proc;
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT((td != NULL), ("curthread is NULL"));
 
 	if ((p->p_flag & P_HADTHREADS) == 0)
 		return (0);
@@ -705,7 +717,7 @@ stopme:
 		/*
 		 * We have gotten rid of all the other threads and we
 		 * are about to either exit or exec. In either case,
-		 * we try our utmost  to revert to being a non-threaded
+		 * we try our utmost to revert to being a non-threaded
 		 * process.
 		 */
 		p->p_singlethread = NULL;

@@ -1358,6 +1358,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* clock_getcpuclockid2 */
+	case 247: {
+		struct clock_getcpuclockid2_args *p = params;
+		iarg[0] = p->id; /* id_t */
+		iarg[1] = p->which; /* int */
+		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
+		*n_args = 3;
+		break;
+	}
 	/* ntp_gettime */
 	case 248: {
 		struct ntp_gettime_args *p = params;
@@ -3121,7 +3130,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 514: {
 		struct cap_new_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* u_int64_t */
+		uarg[1] = p->rights; /* uint64_t */
 		*n_args = 2;
 		break;
 	}
@@ -3129,7 +3138,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 515: {
 		struct cap_getrights_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->rightsp; /* u_int64_t * */
+		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
 		*n_args = 2;
 		break;
 	}
@@ -5427,6 +5436,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
+		switch(ndx) {
+		case 0:
+			p = "id_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "clockid_t *";
 			break;
 		default:
 			break;
@@ -8434,7 +8459,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int64_t";
+			p = "uint64_t";
 			break;
 		default:
 			break;
@@ -8447,7 +8472,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int64_t *";
+			p = "uint64_t *";
 			break;
 		default:
 			break;
@@ -9461,6 +9486,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ffclock_getestimate */
 	case 243:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
 
@@ -48,8 +50,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
+#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_emul.h>
+
+/* DTrace init */
+LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
+
+/* Linuxulator-global DTrace probes */
+LIN_SDT_PROBE_DECLARE(locks, emul_lock, locked);
+LIN_SDT_PROBE_DECLARE(locks, emul_lock, unlock);
 
 
 int

@@ -190,7 +190,7 @@ udf_mount(struct mount *mp)
 {
 	struct vnode *devvp;	/* vnode of the mount device */
 	struct thread *td;
-	struct udf_mnt *imp = 0;
+	struct udf_mnt *imp = NULL;
 	struct vfsoptlist *opts;
 	char *fspec, *cs_disk, *cs_local;
 	int error, len, *udf_flags;

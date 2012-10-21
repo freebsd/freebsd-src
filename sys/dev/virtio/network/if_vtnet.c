@@ -748,11 +748,9 @@ vtnet_is_link_up(struct vtnet_softc *sc)
 static void
 vtnet_update_link_status(struct vtnet_softc *sc)
 {
-	device_t dev;
 	struct ifnet *ifp;
 	int link;
 
-	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
 	link = vtnet_is_link_up(sc);

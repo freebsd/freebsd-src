@@ -148,8 +148,8 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	cam_periph_lock(periph);
 	if (softc->flags & PT_FLAG_DEVICE_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(ENXIO);
 	}
 
@@ -182,8 +182,8 @@ ptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	cam_periph_lock(periph);
 
 	softc->flags &= ~PT_FLAG_OPEN;
+	cam_periph_release_locked(periph);
 	cam_periph_unlock(periph);
-	cam_periph_release(periph);
 	return (0);
 }
 
@@ -425,12 +425,14 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct pt_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("ptstart\n"));
+
 	/*
 	 * See if there is a buf with work for us to do..
 	 */
 	bp = bioq_first(&softc->bio_queue);
 	if (periph->immediate_priority <= periph->pinfo.priority) {
-		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
 				("queuing for immediate ccb\n"));
 		start_ccb->ccb_h.ccb_state = PT_CCB_WAITING;
 		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
@@ -483,6 +485,9 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_scsiio *csio;
 
 	softc = (struct pt_softc *)periph->softc;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("ptdone\n"));
+
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state) {
 	case PT_CCB_BUFFER_IO:

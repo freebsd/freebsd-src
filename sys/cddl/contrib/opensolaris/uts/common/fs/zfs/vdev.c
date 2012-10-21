@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -42,6 +42,7 @@
 #include <sys/arc.h>
 #include <sys/zil.h>
 #include <sys/dsl_scan.h>
+#include <sys/trim_map.h>
 
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
@@ -67,12 +68,6 @@ static vdev_ops_t *vdev_ops_table[] = {
 	NULL
 };
 
-/* maximum scrub/resilver I/O queue per leaf vdev */
-int zfs_scrub_limit = 10;
-
-TUNABLE_INT("vfs.zfs.scrub_limit", &zfs_scrub_limit);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, scrub_limit, CTLFLAG_RDTUN, &zfs_scrub_limit, 0,
-    "Maximum scrub/resilver I/O queue");
 
 /*
  * Given a vdev type, return the appropriate ops vector.
@@ -119,7 +114,7 @@ vdev_get_min_asize(vdev_t *vd)
 	vdev_t *pvd = vd->vdev_parent;
 
 	/*
-	 * The our parent is NULL (inactive spare or cache) or is the root,
+	 * If our parent is NULL (inactive spare or cache) or is the root,
 	 * just return our own asize.
 	 */
 	if (pvd == NULL)
@@ -603,9 +598,9 @@ vdev_free(vdev_t *vd)
 		metaslab_group_destroy(vd->vdev_mg);
 	}
 
-	ASSERT3U(vd->vdev_stat.vs_space, ==, 0);
-	ASSERT3U(vd->vdev_stat.vs_dspace, ==, 0);
-	ASSERT3U(vd->vdev_stat.vs_alloc, ==, 0);
+	ASSERT0(vd->vdev_stat.vs_space);
+	ASSERT0(vd->vdev_stat.vs_dspace);
+	ASSERT0(vd->vdev_stat.vs_alloc);
 
 	/*
 	 * Remove this vdev from its parent's child list.
@@ -748,6 +743,7 @@ vdev_add_parent(vdev_t *cvd, vdev_ops_t *ops)
 
 	mvd->vdev_asize = cvd->vdev_asize;
 	mvd->vdev_min_asize = cvd->vdev_min_asize;
+	mvd->vdev_max_asize = cvd->vdev_max_asize;
 	mvd->vdev_ashift = cvd->vdev_ashift;
 	mvd->vdev_state = cvd->vdev_state;
 	mvd->vdev_crtxg = cvd->vdev_crtxg;
@@ -1119,7 +1115,8 @@ vdev_open(vdev_t *vd)
 	spa_t *spa = vd->vdev_spa;
 	int error;
 	uint64_t osize = 0;
-	uint64_t asize, psize;
+	uint64_t max_osize = 0;
+	uint64_t asize, max_asize, psize;
 	uint64_t ashift = 0;
 
 	ASSERT(vd->vdev_open_thread == curthread ||
@@ -1150,7 +1147,7 @@ vdev_open(vdev_t *vd)
 		return (ENXIO);
 	}
 
-	error = vd->vdev_ops->vdev_op_open(vd, &osize, &ashift);
+	error = vd->vdev_ops->vdev_op_open(vd, &osize, &max_osize, &ashift);
 
 	/*
 	 * Reset the vdev_reopening flag so that we actually close
@@ -1199,6 +1196,11 @@ vdev_open(vdev_t *vd)
 	if (vd->vdev_ishole || vd->vdev_ops == &vdev_missing_ops)
 		return (0);
 
+	if (vd->vdev_ops->vdev_op_leaf) {
+		vd->vdev_notrim = B_FALSE;
+		trim_map_create(vd);
+	}
+
 	for (int c = 0; c < vd->vdev_children; c++) {
 		if (vd->vdev_child[c]->vdev_state != VDEV_STATE_HEALTHY) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_DEGRADED,
@@ -1208,6 +1210,7 @@ vdev_open(vdev_t *vd)
 	}
 
 	osize = P2ALIGN(osize, (uint64_t)sizeof (vdev_label_t));
+	max_osize = P2ALIGN(max_osize, (uint64_t)sizeof (vdev_label_t));
 
 	if (vd->vdev_children == 0) {
 		if (osize < SPA_MINDEVSIZE) {
@@ -1217,6 +1220,8 @@ vdev_open(vdev_t *vd)
 		}
 		psize = osize;
 		asize = osize - (VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE);
+		max_asize = max_osize - (VDEV_LABEL_START_SIZE +
+		    VDEV_LABEL_END_SIZE);
 	} else {
 		if (vd->vdev_parent != NULL && osize < SPA_MINDEVSIZE -
 		    (VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE)) {
@@ -1226,6 +1231,7 @@ vdev_open(vdev_t *vd)
 		}
 		psize = 0;
 		asize = osize;
+		max_asize = max_osize;
 	}
 
 	vd->vdev_psize = psize;
@@ -1245,6 +1251,7 @@ vdev_open(vdev_t *vd)
 		 * For testing purposes, a higher ashift can be requested.
 		 */
 		vd->vdev_asize = asize;
+		vd->vdev_max_asize = max_asize;
 		vd->vdev_ashift = MAX(ashift, vd->vdev_ashift);
 	} else {
 		/*
@@ -1255,6 +1262,7 @@ vdev_open(vdev_t *vd)
 			    VDEV_AUX_BAD_LABEL);
 			return (EINVAL);
 		}
+		vd->vdev_max_asize = max_asize;
 	}
 
 	/*
@@ -1326,8 +1334,9 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 	if (vd->vdev_ops->vdev_op_leaf && vdev_readable(vd)) {
 		uint64_t aux_guid = 0;
 		nvlist_t *nvl;
+		uint64_t txg = strict ? spa->spa_config_txg : -1ULL;
 
-		if ((label = vdev_label_read_config(vd)) == NULL) {
+		if ((label = vdev_label_read_config(vd, txg)) == NULL) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_BAD_LABEL);
 			return (0);
@@ -1436,6 +1445,9 @@ vdev_close(vdev_t *vd)
 
 	vdev_cache_purge(vd);
 
+	if (vd->vdev_ops->vdev_op_leaf)
+		trim_map_destroy(vd);
+
 	/*
 	 * We record the previous state before we close it, so that if we are
 	 * doing a reopen(), we don't generate FMA ereports if we notice that
@@ -1509,7 +1521,7 @@ vdev_reopen(vdev_t *vd)
 		    !l2arc_vdev_present(vd))
 			l2arc_add_vdev(spa, vd);
 	} else {
-		(void) vdev_validate(vd, B_TRUE);
+		(void) vdev_validate(vd, spa_last_synced_txg(spa));
 	}
 
 	/*
@@ -1803,7 +1815,7 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 	if (vd->vdev_detached) {
 		if (smo->smo_object != 0) {
 			int err = dmu_object_free(mos, smo->smo_object, tx);
-			ASSERT3U(err, ==, 0);
+			ASSERT0(err);
 			smo->smo_object = 0;
 		}
 		dmu_tx_commit(tx);
@@ -1968,14 +1980,14 @@ vdev_validate_aux(vdev_t *vd)
 	if (!vdev_readable(vd))
 		return (0);
 
-	if ((label = vdev_label_read_config(vd)) == NULL) {
+	if ((label = vdev_label_read_config(vd, -1ULL)) == NULL) {
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_CORRUPT_DATA);
 		return (-1);
 	}
 
 	if (nvlist_lookup_uint64(label, ZPOOL_CONFIG_VERSION, &version) != 0 ||
-	    version > SPA_VERSION ||
+	    !SPA_VERSION_IS_SUPPORTED(version) ||
 	    nvlist_lookup_uint64(label, ZPOOL_CONFIG_GUID, &guid) != 0 ||
 	    guid != vd->vdev_guid ||
 	    nvlist_lookup_uint64(label, ZPOOL_CONFIG_POOL_STATE, &state) != 0) {
@@ -2003,7 +2015,7 @@ vdev_remove(vdev_t *vd, uint64_t txg)
 	tx = dmu_tx_create_assigned(spa_get_dsl(spa), txg);
 
 	if (vd->vdev_dtl_smo.smo_object) {
-		ASSERT3U(vd->vdev_dtl_smo.smo_alloc, ==, 0);
+		ASSERT0(vd->vdev_dtl_smo.smo_alloc);
 		(void) dmu_object_free(mos, vd->vdev_dtl_smo.smo_object, tx);
 		vd->vdev_dtl_smo.smo_object = 0;
 	}
@@ -2015,7 +2027,7 @@ vdev_remove(vdev_t *vd, uint64_t txg)
 			if (msp == NULL || msp->ms_smo.smo_object == 0)
 				continue;
 
-			ASSERT3U(msp->ms_smo.smo_alloc, ==, 0);
+			ASSERT0(msp->ms_smo.smo_alloc);
 			(void) dmu_object_free(mos, msp->ms_smo.smo_object, tx);
 			msp->ms_smo.smo_object = 0;
 		}
@@ -2293,7 +2305,7 @@ top:
 				(void) spa_vdev_state_exit(spa, vd, 0);
 				goto top;
 			}
-			ASSERT3U(tvd->vdev_stat.vs_alloc, ==, 0);
+			ASSERT0(tvd->vdev_stat.vs_alloc);
 		}
 
 		/*
@@ -2478,6 +2490,7 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	vs->vs_rsize = vdev_get_min_asize(vd);
 	if (vd->vdev_ops->vdev_op_leaf)
 		vs->vs_rsize += VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
+	vs->vs_esize = vd->vdev_max_asize - vd->vdev_asize;
 	mutex_exit(&vd->vdev_stat_lock);
 
 	/*

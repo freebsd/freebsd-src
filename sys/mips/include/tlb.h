@@ -53,6 +53,7 @@ void tlb_insert_wired(unsigned, vm_offset_t, pt_entry_t, pt_entry_t);
 void tlb_invalidate_address(struct pmap *, vm_offset_t);
 void tlb_invalidate_all(void);
 void tlb_invalidate_all_user(struct pmap *);
+void tlb_invalidate_range(struct pmap *, vm_offset_t, vm_offset_t);
 void tlb_save(void);
 void tlb_update(struct pmap *, vm_offset_t, pt_entry_t);
 

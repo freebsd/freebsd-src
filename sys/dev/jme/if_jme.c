@@ -778,7 +778,7 @@ jme_attach(device_t dev)
 	/* Set max allowable DMA size. */
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
 		sc->jme_flags |= JME_FLAG_PCIE;
-		burst = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
+		burst = pci_read_config(dev, i + PCIER_DEVICE_CTL, 2);
 		if (bootverbose) {
 			device_printf(dev, "Read request size : %d bytes.\n",
 			    128 << ((burst >> 12) & 0x07));
@@ -1661,7 +1661,7 @@ jme_resume(device_t dev)
 	sc = device_get_softc(dev);
 
 	JME_LOCK(sc);
-	if (pci_find_cap(sc->jme_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->jme_dev, PCIY_PMG, &pmc) == 0) {
 		pmstat = pci_read_config(sc->jme_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
 		/* Disable PME clear PME status. */

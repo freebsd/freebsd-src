@@ -223,7 +223,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 	    (struct ISCI_REQUEST *)isci_request);
 
 	if (complete_ccb) {
-		if (ccb->ccb_h.status != CAM_REQ_CMP) {
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			/* ccb will be completed with some type of non-success
 			 *  status.  So temporarily freeze the queue until the
 			 *  upper layers can act on the status.  The
@@ -232,6 +232,26 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 			 */
 			ccb->ccb_h.status |= CAM_DEV_QFRZN;
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
+		}
+
+		if (ccb->ccb_h.status & CAM_SIM_QUEUED) {
+
+			KASSERT(ccb == isci_remote_device->queued_ccb_in_progress,
+			    ("multiple internally queued ccbs in flight"));
+
+			TAILQ_REMOVE(&isci_remote_device->queued_ccbs,
+			    &ccb->ccb_h, sim_links.tqe);
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+
+			/*
+			 * This CCB that was in the queue was completed, so
+			 *  set the in_progress pointer to NULL denoting that
+			 *  we can retry another CCB from the queue.  We only
+			 *  allow one CCB at a time from the queue to be
+			 *  in progress so that we can effectively maintain
+			 *  ordering.
+			 */
+			isci_remote_device->queued_ccb_in_progress = NULL;
 		}
 
 		if (isci_remote_device->frozen_lun_mask != 0) {
@@ -248,11 +268,30 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_remote_device_freeze_lun_queue(isci_remote_device,
 		    ccb->ccb_h.target_lun);
 
-		isci_log_message(1, "ISCI", "queue %p %x\n", ccb,
-		    ccb->csio.cdb_io.cdb_bytes[0]);
-		ccb->ccb_h.status |= CAM_SIM_QUEUED;
-		TAILQ_INSERT_TAIL(&isci_remote_device->queued_ccbs,
-		    &ccb->ccb_h, sim_links.tqe);
+		if (ccb->ccb_h.status & CAM_SIM_QUEUED) {
+
+			KASSERT(ccb == isci_remote_device->queued_ccb_in_progress,
+			    ("multiple internally queued ccbs in flight"));
+
+			/*
+			 *  Do nothing, CCB is already on the device's queue.
+			 *   We leave it on the queue, to be retried again
+			 *   next time a CCB on this device completes, or we
+			 *   get a ready notification for this device.
+			 */
+			isci_log_message(1, "ISCI", "already queued %p %x\n",
+			    ccb, ccb->csio.cdb_io.cdb_bytes[0]);
+
+			isci_remote_device->queued_ccb_in_progress = NULL;
+
+		} else {
+			isci_log_message(1, "ISCI", "queue %p %x\n", ccb,
+			    ccb->csio.cdb_io.cdb_bytes[0]);
+			ccb->ccb_h.status |= CAM_SIM_QUEUED;
+
+			TAILQ_INSERT_TAIL(&isci_remote_device->queued_ccbs,
+			    &ccb->ccb_h, sim_links.tqe);
+		}
 	}
 }
 

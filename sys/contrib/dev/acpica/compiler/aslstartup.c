@@ -227,7 +227,7 @@ AslDetectSourceFileType (
 
     /* Check for 100% ASCII source file (comments are ignored) */
 
-    Status = FlCheckForAscii (Info);
+    Status = FlCheckForAscii (Info->Handle, Info->Filename, TRUE);
     if (ACPI_FAILURE (Status))
     {
         printf ("Non-ascii input file - %s\n", Info->Filename);
@@ -239,7 +239,7 @@ AslDetectSourceFileType (
      * File is ASCII. Determine if this is an ASL file or an ACPI data
      * table file.
      */
-    while (fgets (Gbl_CurrentLineBuffer, ASL_LINE_BUFFER_SIZE, Info->Handle))
+    while (fgets (Gbl_CurrentLineBuffer, Gbl_LineBufferSize, Info->Handle))
     {
         /* Uppercase the buffer for caseless compare */
 

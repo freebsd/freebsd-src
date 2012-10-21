@@ -63,6 +63,41 @@
 #endif
 
 
+#ifdef _DECLARE_GLOBALS
+UINT32                              Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
+char                                AslHexLookup[] =
+{
+    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
+};
+
+
+/* Table below must match ASL_FILE_TYPES in asltypes.h */
+
+ASL_FILE_INFO                       Gbl_Files [ASL_NUM_FILES] =
+{
+    {NULL, NULL, "stdout:       ", "Standard Output"},
+    {NULL, NULL, "stderr:       ", "Standard Error"},
+    {NULL, NULL, "Table Input:  ", "Source Input"},
+    {NULL, NULL, "Binary Output:", "AML Output"},
+    {NULL, NULL, "Source Output:", "Source Output"},
+    {NULL, NULL, "Preprocessor: ", "Preprocessor Output"},
+    {NULL, NULL, "Listing File: ", "Listing Output"},
+    {NULL, NULL, "Hex Dump:     ", "Hex Table Output"},
+    {NULL, NULL, "Namespace:    ", "Namespace Output"},
+    {NULL, NULL, "Debug File:   ", "Debug Output"},
+    {NULL, NULL, "ASM Source:   ", "Assembly Code Output"},
+    {NULL, NULL, "C Source:     ", "C Code Output"},
+    {NULL, NULL, "ASM Include:  ", "Assembly Header Output"},
+    {NULL, NULL, "C Include:    ", "C Header Output"}
+};
+
+#else
+extern UINT32                       Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
+extern char                         AslHexLookup[];
+extern ASL_FILE_INFO                Gbl_Files [ASL_NUM_FILES];
+#endif
+
+
 /*
  * Parser and other externals
  */
@@ -74,21 +109,22 @@ extern int                          PrParserdebug;
 extern const ASL_MAPPING_ENTRY      AslKeywordMapping[];
 extern char                         *AslCompilertext;
 
-#define ASL_LINE_BUFFER_SIZE        (4096 * 4) /* 16K */
-#define ASL_MSG_BUFFER_SIZE         4096
-#define HEX_TABLE_LINE_SIZE         8
-#define HEX_LISTING_LINE_SIZE       8
+#define ASL_DEFAULT_LINE_BUFFER_SIZE    (1024 * 32) /* 32K */
+#define ASL_MSG_BUFFER_SIZE             4096
+#define HEX_TABLE_LINE_SIZE             8
+#define HEX_LISTING_LINE_SIZE           8
 
 
 /* Source code buffers and pointers for error reporting */
 
-ASL_EXTERN char                     Gbl_CurrentLineBuffer[ASL_LINE_BUFFER_SIZE];
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_CurrentLineBuffer, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_LineBufPtr, NULL);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_LineBufferSize, ASL_DEFAULT_LINE_BUFFER_SIZE);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentColumn, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_PreviousLineNumber, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLineNumber, 1);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_LogicalLineNumber, 1);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLineOffset, 0);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_LineBufPtr, Gbl_CurrentLineBuffer);
 
 /* Exception reporting */
 
@@ -135,17 +171,15 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoTemplates, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_CompileGeneric, FALSE);
 
 
-#define HEX_OUTPUT_NONE         0
-#define HEX_OUTPUT_C            1
-#define HEX_OUTPUT_ASM          2
-#define HEX_OUTPUT_ASL          3
+#define HEX_OUTPUT_NONE             0
+#define HEX_OUTPUT_C                1
+#define HEX_OUTPUT_ASM              2
+#define HEX_OUTPUT_ASL              3
 
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_HexOutputFlag, HEX_OUTPUT_NONE);
 
 
 /* Files */
-
-ASL_EXTERN ASL_FILE_INFO            Gbl_Files [ASL_NUM_FILES];
 
 ASL_EXTERN char                     *Gbl_DirectoryPath;
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_IncludeFilename, NULL);
@@ -203,7 +237,6 @@ ASL_EXTERN FILE                     *AcpiGbl_DebugFile; /* Placeholder for oswin
 
 ASL_EXTERN ASL_ANALYSIS_WALK_INFO   AnalysisWalkInfo;
 ASL_EXTERN ACPI_TABLE_HEADER        TableHeader;
-extern char                         AslHexLookup[];
 
 /* Event timing */
 
@@ -219,12 +252,6 @@ ASL_EXTERN char                     MsgBuffer[ASL_MSG_BUFFER_SIZE];
 ASL_EXTERN char                     StringBuffer[ASL_MSG_BUFFER_SIZE];
 ASL_EXTERN char                     StringBuffer2[ASL_MSG_BUFFER_SIZE];
 
-
-#ifdef _DECLARE_GLOBALS
-UINT32                              Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
-#else
-extern UINT32                       Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
-#endif
 
 #endif /* __ASLGLOBAL_H */
 

@@ -726,6 +726,8 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	    (sc->sc_flags & G_ELI_FLAG_AUTH) != 0) {
 		sc->sc_flags |= G_ELI_FLAG_FIRST_KEY;
 	}
+	if (md->md_version < G_ELI_VERSION_07)
+		sc->sc_flags |= G_ELI_FLAG_ENC_IVKEY;
 	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
 

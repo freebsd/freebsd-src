@@ -357,15 +357,16 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		return (EBADF);
 	}
 
+	off = foffset_lock(fp, 0);
 	vp = fp->f_vnode;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
 		VFS_UNLOCK_GIANT(vfslocked);
+		foffset_unlock(fp, off, 0);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
 
-	off = fp->f_offset;
 
 	buflen = max(LINUX_DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
@@ -382,11 +383,6 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	auio.uio_td = td;
 	auio.uio_resid = buflen;
 	auio.uio_offset = off;
-
-	if (cookies) {
-		free(cookies, M_TEMP);
-		cookies = NULL;
-	}
 
 #ifdef MAC
 	/*
@@ -514,7 +510,6 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		goto eof;
 	}
 
-	fp->f_offset = off;
 	if (justone)
 		nbytes = resid + linuxreclen;
 
@@ -527,6 +522,7 @@ out:
 
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
+	foffset_unlock(fp, off, 0);
 	fdrop(fp, td);
 	free(buf, M_TEMP);
 	free(lbuf, M_TEMP);

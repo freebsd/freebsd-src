@@ -88,6 +88,9 @@ law_enable(int trgt, u_long addr, u_long size)
 	uint32_t bar, sr;
 	int i, law_max;
 
+	if (size == 0)
+		return (0);
+
 	law_max = law_getmax();
 	bar = _LAW_BAR(addr);
 	sr = _LAW_SR(trgt, size);
@@ -168,7 +171,10 @@ law_pci_target(struct resource *res, int *trgt_mem, int *trgt_io)
 	default:
 		rv = ENXIO;
 	}
-	*trgt_mem = *trgt_io = trgt;
+	if (rv == 0) {
+		*trgt_mem = trgt;
+		*trgt_io = trgt;
+	}
 	return (rv);
 }
 

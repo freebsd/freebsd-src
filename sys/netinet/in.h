@@ -241,6 +241,7 @@ __END_DECLS
 #define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
 #define	IPPROTO_CARP		112		/* CARP */
 #define	IPPROTO_PGM		113		/* PGM */
+#define	IPPROTO_MPLS		137		/* MPLS-in-IP */
 #define	IPPROTO_PFSYNC		240		/* PFSYNC */
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion, no longer used */
@@ -461,6 +462,7 @@ __END_DECLS
 #define	IP_RECVTTL		65   /* bool; receive IP TTL w/dgram */
 #define	IP_MINTTL		66   /* minimum TTL for packet or drop */
 #define	IP_DONTFRAG		67   /* don't fragment packet */
+#define	IP_RECVTOS		68   /* bool; receive IP TOS w/dgram */
 
 /* IPv4 Source Filter Multicast API [RFC3678] */
 #define	IP_ADD_SOURCE_MEMBERSHIP	70   /* join a source-specific group */

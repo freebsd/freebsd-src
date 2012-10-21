@@ -113,10 +113,12 @@ void
 usb_dump_queue(struct usb_endpoint *ep)
 {
 	struct usb_xfer *xfer;
+	usb_stream_t x;
 
 	printf("usb_dump_queue: endpoint=%p xfer: ", ep);
-	TAILQ_FOREACH(xfer, &ep->endpoint_q.head, wait_entry) {
-		printf(" %p", xfer);
+	for (x = 0; x != USB_MAX_EP_STREAMS; x++) {
+		TAILQ_FOREACH(xfer, &ep->endpoint_q[x].head, wait_entry)
+			printf(" %p", xfer);
 	}
 	printf("\n");
 }

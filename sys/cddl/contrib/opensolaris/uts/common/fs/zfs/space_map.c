@@ -22,6 +22,9 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
@@ -80,7 +83,7 @@ void
 space_map_destroy(space_map_t *sm)
 {
 	ASSERT(!sm->sm_loaded && !sm->sm_loading);
-	VERIFY3U(sm->sm_space, ==, 0);
+	VERIFY0(sm->sm_space);
 	avl_destroy(&sm->sm_root);
 	cv_destroy(&sm->sm_load_cv);
 }
@@ -173,7 +176,6 @@ again:
 void
 space_map_remove(space_map_t *sm, uint64_t start, uint64_t size)
 {
-	avl_index_t where;
 	space_seg_t ssearch, *ss, *newseg;
 	uint64_t end = start + size;
 	int left_over, right_over;
@@ -185,7 +187,7 @@ space_map_remove(space_map_t *sm, uint64_t start, uint64_t size)
 
 	ssearch.ss_start = start;
 	ssearch.ss_end = end;
-	ss = avl_find(&sm->sm_root, &ssearch, &where);
+	ss = avl_find(&sm->sm_root, &ssearch, NULL);
 
 	/* Make sure we completely overlap with someone */
 	if (ss == NULL) {
@@ -196,7 +198,7 @@ space_map_remove(space_map_t *sm, uint64_t start, uint64_t size)
 	}
 	VERIFY3U(ss->ss_start, <=, start);
 	VERIFY3U(ss->ss_end, >=, end);
-	VERIFY(sm->sm_space - size <= sm->sm_size);
+	VERIFY(sm->sm_space - size < sm->sm_size);
 
 	left_over = (ss->ss_start != start);
 	right_over = (ss->ss_end != end);
@@ -310,7 +312,7 @@ space_map_load(space_map_t *sm, space_map_ops_t *ops, uint8_t maptype,
 	space = smo->smo_alloc;
 
 	ASSERT(sm->sm_ops == NULL);
-	VERIFY3U(sm->sm_space, ==, 0);
+	VERIFY0(sm->sm_space);
 
 	if (maptype == SM_FREE) {
 		space_map_add(sm, sm->sm_start, sm->sm_size);
@@ -499,7 +501,7 @@ space_map_sync(space_map_t *sm, uint8_t maptype,
 
 	zio_buf_free(entry_map, bufsize);
 
-	VERIFY3U(sm->sm_space, ==, 0);
+	VERIFY0(sm->sm_space);
 }
 
 void

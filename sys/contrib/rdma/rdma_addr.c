@@ -117,7 +117,8 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 		     const unsigned char *dst_dev_addr)
 {
 	dev_addr->dev_type = RDMA_NODE_RNIC;
-	memcpy(dev_addr->src_dev_addr, IF_LLADDR(dev), MAX_ADDR_LEN);
+	memset(dev_addr->src_dev_addr, 0, MAX_ADDR_LEN);
+	memcpy(dev_addr->src_dev_addr, IF_LLADDR(dev), dev->if_addrlen);
 	memcpy(dev_addr->broadcast, dev->if_broadcastaddr, MAX_ADDR_LEN);
 	if (dst_dev_addr)
 		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
@@ -172,7 +173,7 @@ static void addr_send_arp(struct sockaddr_in *dst_in)
 	*dst = *dst_in;
 
 	rtalloc(&iproute);
-	if (iproute.ro_rt == NULL);
+	if (iproute.ro_rt == NULL)
 		return;
 
 	arpresolve(iproute.ro_rt->rt_ifp, iproute.ro_rt, NULL, 
@@ -207,7 +208,7 @@ static int addr_resolve_remote(struct sockaddr_in *src_in,
 		goto put;
 	}
  	ret = arpresolve(iproute.ro_rt->rt_ifp, iproute.ro_rt, NULL, 
-		rt_key(iproute.ro_rt), dmac, &lle);
+		(struct sockaddr *)dst_in, dmac, &lle);
 	if (ret) {
 		goto put;
 	}

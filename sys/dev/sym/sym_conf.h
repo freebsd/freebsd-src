@@ -83,11 +83,19 @@
 #define SYM_CONF_MAX_TAG_ORDER	(6)
 
 /*
- *  Max number of scatter/gather entries for en IO.
- *  Each entry costs 8 bytes in the internal CCB data structure.
- *  For now 65 should suffice given the BSD O/Ses capabilities.
+ *  DMA boundary
+ *  We need to ensure 16 MB boundaries not to be crossed during DMA of
+ *  each segment, due to some chips being flawed.
  */
-#define SYM_CONF_MAX_SG		(33)
+#define SYM_CONF_DMA_BOUNDARY	(1UL << 24)
+
+/*
+ *  Max number of scatter/gather entries for an I/O.
+ *  Each entry costs 8 bytes in the internal CCB data structure.
+ *  We use at most 33 segments but also no more than required for handling
+ *  MAXPHYS.
+ */
+#define	SYM_CONF_MAX_SG		(MIN(33, (MAXPHYS / PAGE_SIZE) + 1))
 
 /*
  *  Max number of targets.

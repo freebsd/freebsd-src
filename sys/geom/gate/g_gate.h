@@ -41,7 +41,7 @@
 #define	G_GATE_MOD_NAME		"ggate"
 #define	G_GATE_CTL_NAME		"ggctl"
 
-#define G_GATE_VERSION		2
+#define G_GATE_VERSION		3
 
 /*
  * Maximum number of request that can be stored in
@@ -64,10 +64,11 @@
 #define	G_GATE_NAME_GIVEN	(-2)
 
 #define G_GATE_CMD_CREATE	_IOWR('m', 0, struct g_gate_ctl_create)
-#define G_GATE_CMD_DESTROY	_IOWR('m', 1, struct g_gate_ctl_destroy)
-#define G_GATE_CMD_CANCEL	_IOWR('m', 2, struct g_gate_ctl_cancel)
-#define G_GATE_CMD_START	_IOWR('m', 3, struct g_gate_ctl_io)
-#define G_GATE_CMD_DONE		_IOWR('m', 4, struct g_gate_ctl_io)
+#define G_GATE_CMD_MODIFY	_IOWR('m', 1, struct g_gate_ctl_modify)
+#define G_GATE_CMD_DESTROY	_IOWR('m', 2, struct g_gate_ctl_destroy)
+#define G_GATE_CMD_CANCEL	_IOWR('m', 3, struct g_gate_ctl_cancel)
+#define G_GATE_CMD_START	_IOWR('m', 4, struct g_gate_ctl_io)
+#define G_GATE_CMD_DONE		_IOWR('m', 5, struct g_gate_ctl_io)
 
 #define	G_GATE_INFOSIZE		2048
 
@@ -88,6 +89,8 @@ struct g_gate_softc {
 	uint32_t		 sc_queue_count;	/* P: sc_queue_mtx */
 	uint32_t		 sc_queue_size;		/* P: (read-only) */
 	u_int			 sc_timeout;		/* P: (read-only) */
+	struct g_consumer	*sc_readcons;		/* P: XXX */
+	off_t			 sc_readoffset;		/* P: XXX */
 	struct callout		 sc_callout;		/* P: (modified only
 							       from callout
 							       thread) */
@@ -131,7 +134,23 @@ struct g_gate_ctl_create {
 	u_int	gctl_timeout;
 	char	gctl_name[NAME_MAX];
 	char	gctl_info[G_GATE_INFOSIZE];
+	char	gctl_readprov[NAME_MAX];
+	off_t	gctl_readoffset;
 	int	gctl_unit;	/* in/out */
+};
+
+#define	GG_MODIFY_MEDIASIZE	0x01
+#define	GG_MODIFY_INFO		0x02
+#define	GG_MODIFY_READPROV	0x04
+#define	GG_MODIFY_READOFFSET	0x08
+struct g_gate_ctl_modify {
+	u_int		gctl_version;
+	int		gctl_unit;
+	uint32_t	gctl_modify;
+	off_t		gctl_mediasize;
+	char		gctl_info[G_GATE_INFOSIZE];
+	char		gctl_readprov[NAME_MAX];
+	off_t		gctl_readoffset;
 };
 
 struct g_gate_ctl_destroy {

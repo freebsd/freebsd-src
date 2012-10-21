@@ -597,6 +597,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		if (ron->ro_rt == NULL) {
 			in6_rtalloc(ron, fibnum); /* multi path case? */
 			if (ron->ro_rt == NULL) {
+				/* XXX-BZ WT.? */
 				if (ron->ro_rt) {
 					RTFREE(ron->ro_rt);
 					ron->ro_rt = NULL;
@@ -873,8 +874,7 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 			RTFREE(ro6.ro_rt);
 			if (lifp)
 				return (ND_IFINFO(lifp)->chlim);
-		} else
-			return (V_ip6_defhlim);
+		}
 	}
 	return (V_ip6_defhlim);
 }

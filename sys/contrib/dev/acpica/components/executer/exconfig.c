@@ -179,7 +179,7 @@ AcpiExLoadTableOp (
     ACPI_FUNCTION_TRACE (ExLoadTableOp);
 
 
-    /* Validate lengths for the SignatureString, OEMIDString, OEMTableID */
+    /* Validate lengths for the Signature, OemId, and OemTableId strings */
 
     if ((Operand[0]->String.Length > ACPI_NAME_SIZE) ||
         (Operand[1]->String.Length > ACPI_OEM_ID_SIZE) ||

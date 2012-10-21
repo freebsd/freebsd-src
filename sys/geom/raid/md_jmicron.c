@@ -132,6 +132,7 @@ static struct g_raid_md_class g_raid_md_jmicron_class = {
 	"JMicron",
 	g_raid_md_jmicron_methods,
 	sizeof(struct g_raid_md_jmicron_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -1062,7 +1063,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			return (-3);
 		}
 		if (strcasecmp(levelname, "RAID5") == 0)
-			levelname = "RAID5LA";
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1581,4 +1582,4 @@ g_raid_md_free_jmicron(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_jmicron);
+G_RAID_MD_DECLARE(jmicron, "JMicron");

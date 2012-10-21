@@ -103,10 +103,12 @@ struct uipaq_softc {
 static device_probe_t uipaq_probe;
 static device_attach_t uipaq_attach;
 static device_detach_t uipaq_detach;
+static void uipaq_free_softc(struct uipaq_softc *);
 
 static usb_callback_t uipaq_write_callback;
 static usb_callback_t uipaq_read_callback;
 
+static void	uipaq_free(struct ucom_softc *);
 static void	uipaq_start_read(struct ucom_softc *);
 static void	uipaq_stop_read(struct ucom_softc *);
 static void	uipaq_start_write(struct ucom_softc *);
@@ -146,6 +148,7 @@ static const struct ucom_callback uipaq_callback = {
 	.ucom_start_write = &uipaq_start_write,
 	.ucom_stop_write = &uipaq_stop_write,
 	.ucom_poll = &uipaq_poll,
+	.ucom_free = &uipaq_free,
 };
 
 /*
@@ -1070,7 +1073,7 @@ static device_method_t uipaq_methods[] = {
 	DEVMETHOD(device_probe, uipaq_probe),
 	DEVMETHOD(device_attach, uipaq_attach),
 	DEVMETHOD(device_detach, uipaq_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t uipaq_devclass;
@@ -1121,6 +1124,7 @@ uipaq_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uipaq", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	/*
 	 * Send magic bytes, cribbed from Linux ipaq driver that
@@ -1176,9 +1180,29 @@ uipaq_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uipaq_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uipaq);
+
+static void
+uipaq_free_softc(struct uipaq_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uipaq_free(struct ucom_softc *ucom)
+{
+	uipaq_free_softc(ucom->sc_parent);
 }
 
 static void

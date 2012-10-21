@@ -69,25 +69,23 @@
 		reg = <0x0 0x20000000>;		// 512M at 0x0
 	};
 
-	localbus@f1000000 {
+	localbus@0 {
 		#address-cells = <2>;
 		#size-cells = <1>;
 		compatible = "mrvl,lbc";
-		win-count = <14>;
+		bank-count = <5>;
 
 		/* This reflects CPU decode windows setup. */
-		ranges = <0x0 0x0f 0xf9300000 0x00100000
-			  0x1 0x1e 0xfa000000 0x00100000
-			  0x2 0x1d 0xfa100000 0x02000000
-			  0x3 0x1b 0xfc100000 0x00000400>;
+		ranges = <0x0 0x2f 0xf9300000 0x00100000
+			  0x1 0x3e 0xf9400000 0x00100000
+			  0x2 0x3d 0xf9500000 0x02000000
+			  0x3 0x3b 0xfb500000 0x00100000>;
 
 		nor@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
 			reg = <0x0 0x0 0x00100000>;
-			bank-width = <2>;
-			device-width = <1>;
 		};
 
 		led@1,0 {
@@ -102,16 +100,13 @@
 			#size-cells = <1>;
 			compatible = "cfi-flash";
 			reg = <0x2 0x0 0x02000000>;
-			bank-width = <2>;
-			device-width = <1>;
 		};
 
 		nand@3,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
+			compatible = "mrvl,nfc";
 			reg = <0x3 0x0 0x00100000>;
-			bank-width = <2>;
-			device-width = <1>;
 		};
 	};
 

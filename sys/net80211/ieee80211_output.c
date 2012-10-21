@@ -254,7 +254,7 @@ ieee80211_start(struct ifnet *ifp)
 				if (!ieee80211_mesh_isproxyena(vap)) {
 					IEEE80211_DISCARD_MAC(vap,
 					    IEEE80211_MSG_OUTPUT |
-						IEEE80211_MSG_MESH,
+					    IEEE80211_MSG_MESH,
 					    eh->ether_dhost, NULL,
 					    "%s", "proxy not enabled");
 					vap->iv_stats.is_mesh_notproxy++;
@@ -363,7 +363,6 @@ ieee80211_start(struct ifnet *ifp)
 				continue;
 			}
 		}
-
 		error = parent->if_transmit(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
@@ -556,7 +555,6 @@ ieee80211_send_setup(
 			break;
 		case IEEE80211_M_MBSS:
 #ifdef IEEE80211_SUPPORT_MESH
-			/* XXX add support for proxied addresses */
 			if (IEEE80211_IS_MULTICAST(da)) {
 				wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
 				/* XXX next hop */
@@ -1016,10 +1014,13 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
     struct mbuf *m)
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)(wh))
+#define MC01(mc)	((struct ieee80211_meshcntl_ae01 *)mc)
 	struct ieee80211com *ic = ni->ni_ic;
 #ifdef IEEE80211_SUPPORT_MESH
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_meshcntl_ae10 *mc;
+	struct ieee80211_mesh_route *rt = NULL;
+	int dir = -1;
 #endif
 	struct ether_header eh;
 	struct ieee80211_frame *wh;
@@ -1100,21 +1101,40 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 *   w/ 4-address format and address extension mode 10
 		 */
 		is4addr = 0;		/* NB: don't use, disable */
-		if (!IEEE80211_IS_MULTICAST(eh.ether_dhost))
-			hdrsize += IEEE80211_ADDR_LEN;	/* unicast are 4-addr */
-		meshhdrsize = sizeof(struct ieee80211_meshcntl);
-		/* XXX defines for AE modes */
-		if (IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr)) {
-			if (!IEEE80211_IS_MULTICAST(eh.ether_dhost))
-				meshae = 0;
-			else
-				meshae = 4;		/* NB: pseudo */
-		} else if (IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
-			meshae = 1;
-			meshhdrsize += 1*IEEE80211_ADDR_LEN;
+		if (!IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
+			rt = ieee80211_mesh_rt_find(vap, eh.ether_dhost);
+			KASSERT(rt != NULL, ("route is NULL"));
+			dir = IEEE80211_FC1_DIR_DSTODS;
+			hdrsize += IEEE80211_ADDR_LEN;
+			if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY) {
+				if (IEEE80211_ADDR_EQ(rt->rt_mesh_gate,
+				    vap->iv_myaddr)) {
+					IEEE80211_NOTE_MAC(vap,
+					    IEEE80211_MSG_MESH,
+					    eh.ether_dhost,
+					    "%s", "trying to send to ourself");
+					goto bad;
+				}
+				meshae = IEEE80211_MESH_AE_10;
+				meshhdrsize =
+				    sizeof(struct ieee80211_meshcntl_ae10);
+			} else {
+				meshae = IEEE80211_MESH_AE_00;
+				meshhdrsize =
+				    sizeof(struct ieee80211_meshcntl);
+			}
 		} else {
-			meshae = 2;
-			meshhdrsize += 2*IEEE80211_ADDR_LEN;
+			dir = IEEE80211_FC1_DIR_FROMDS;
+			if (!IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr)) {
+				/* proxy group */
+				meshae = IEEE80211_MESH_AE_01;
+				meshhdrsize =
+				    sizeof(struct ieee80211_meshcntl_ae01);
+			} else {
+				/* group */
+				meshae = IEEE80211_MESH_AE_00;
+				meshhdrsize = sizeof(struct ieee80211_meshcntl);
+			}
 		}
 	} else {
 #endif
@@ -1215,44 +1235,52 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		/* NB: offset by hdrspace to deal with DATAPAD */
 		mc = (struct ieee80211_meshcntl_ae10 *)
 		     (mtod(m, uint8_t *) + hdrspace);
+		wh->i_fc[1] = dir;
 		switch (meshae) {
-		case 0:			/* ucast, no proxy */
-			wh->i_fc[1] = IEEE80211_FC1_DIR_DSTODS;
-			IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
-			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
-			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_dhost);
-			IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, eh.ether_shost);
+		case IEEE80211_MESH_AE_00:	/* no proxy */
 			mc->mc_flags = 0;
-			qos = ((struct ieee80211_qosframe_addr4 *) wh)->i_qos;
+			if (dir == IEEE80211_FC1_DIR_DSTODS) { /* ucast */
+				IEEE80211_ADDR_COPY(wh->i_addr1,
+				    ni->ni_macaddr);
+				IEEE80211_ADDR_COPY(wh->i_addr2,
+				    vap->iv_myaddr);
+				IEEE80211_ADDR_COPY(wh->i_addr3,
+				    eh.ether_dhost);
+				IEEE80211_ADDR_COPY(WH4(wh)->i_addr4,
+				    eh.ether_shost);
+				qos =((struct ieee80211_qosframe_addr4 *)
+				    wh)->i_qos;
+			} else if (dir == IEEE80211_FC1_DIR_FROMDS) {
+				 /* mcast */
+				IEEE80211_ADDR_COPY(wh->i_addr1,
+				    eh.ether_dhost);
+				IEEE80211_ADDR_COPY(wh->i_addr2,
+				    vap->iv_myaddr);
+				IEEE80211_ADDR_COPY(wh->i_addr3,
+				    eh.ether_shost);
+				qos = ((struct ieee80211_qosframe *)
+				    wh)->i_qos;
+			}
 			break;
-		case 4:			/* mcast, no proxy */
-			wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
-			IEEE80211_ADDR_COPY(wh->i_addr1, eh.ether_dhost);
-			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
-			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_shost);
-			mc->mc_flags = 0;		/* NB: AE is really 0 */
-			qos = ((struct ieee80211_qosframe *) wh)->i_qos;
-			break;
-		case 1:			/* mcast, proxy */
+		case IEEE80211_MESH_AE_01:	/* mcast, proxy */
 			wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
 			IEEE80211_ADDR_COPY(wh->i_addr1, eh.ether_dhost);
 			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
 			IEEE80211_ADDR_COPY(wh->i_addr3, vap->iv_myaddr);
 			mc->mc_flags = 1;
-			IEEE80211_ADDR_COPY(mc->mc_addr4, eh.ether_shost);
+			IEEE80211_ADDR_COPY(MC01(mc)->mc_addr4,
+			    eh.ether_shost);
 			qos = ((struct ieee80211_qosframe *) wh)->i_qos;
 			break;
-		case 2:			/* ucast, proxy */
-			wh->i_fc[1] = IEEE80211_FC1_DIR_DSTODS;
-			IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
+		case IEEE80211_MESH_AE_10:	/* ucast, proxy */
+			KASSERT(rt != NULL, ("route is NULL"));
+			IEEE80211_ADDR_COPY(wh->i_addr1, rt->rt_nexthop);
 			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
-			/* XXX not right, need MeshDA */
-			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_dhost);
-			/* XXX assume are MeshSA */
+			IEEE80211_ADDR_COPY(wh->i_addr3, rt->rt_mesh_gate);
 			IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, vap->iv_myaddr);
-			mc->mc_flags = 2;
-			IEEE80211_ADDR_COPY(mc->mc_addr4, eh.ether_dhost);
-			IEEE80211_ADDR_COPY(mc->mc_addr5, eh.ether_shost);
+			mc->mc_flags = IEEE80211_MESH_AE_10;
+			IEEE80211_ADDR_COPY(mc->mc_addr5, eh.ether_dhost);
+			IEEE80211_ADDR_COPY(mc->mc_addr6, eh.ether_shost);
 			qos = ((struct ieee80211_qosframe_addr4 *) wh)->i_qos;
 			break;
 		default:
@@ -1285,9 +1313,9 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[ac].wmep_noackPolicy)
 			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
 #ifdef IEEE80211_SUPPORT_MESH
-		if (vap->iv_opmode == IEEE80211_M_MBSS) {
-			qos[1] |= IEEE80211_QOS_MC;
-		} else
+		if (vap->iv_opmode == IEEE80211_M_MBSS)
+			qos[1] = IEEE80211_QOS_MC;
+		else
 #endif
 			qos[1] = 0;
 		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;
@@ -1363,6 +1391,7 @@ bad:
 		m_freem(m);
 	return NULL;
 #undef WH4
+#undef MC01
 }
 
 /*

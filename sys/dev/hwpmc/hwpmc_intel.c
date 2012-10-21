@@ -143,9 +143,16 @@ pmc_intel_initialize(void)
 			nclasses = 5;
 			break;
 		case 0x2A:	/* Per Intel document 253669-039US 05/2011. */
-		case 0x2D:	/* Per Intel document 253669-041US 12/2011. */	
 			cputype = PMC_CPU_INTEL_SANDYBRIDGE;
 			nclasses = 5;
+			break;
+		case 0x2D:	/* Per Intel document 253669-044US 08/2012. */
+			cputype = PMC_CPU_INTEL_SANDYBRIDGE_XEON;
+			nclasses = 3;
+			break;
+		case 0x3A:	/* Per Intel document 253669-043US 05/2012. */
+			cputype = PMC_CPU_INTEL_IVYBRIDGE;
+			nclasses = 3;
 			break;
 		}
 		break;
@@ -185,8 +192,10 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_IVYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
+	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 		error = pmc_core_initialize(pmc_mdep, ncpus);
 		break;
 
@@ -196,10 +205,6 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_PIV:
 		error = pmc_p4_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P4_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -214,10 +219,6 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PIII:
 	case PMC_CPU_INTEL_PM:
 		error = pmc_p6_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P6_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 
 		/*
@@ -226,10 +227,6 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_P5:
 		error = pmc_p5_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -279,8 +276,10 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_IVYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
+	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 		pmc_core_finalize(md);
 		break;
 

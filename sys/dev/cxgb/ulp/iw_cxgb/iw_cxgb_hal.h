@@ -45,7 +45,11 @@ $FreeBSD$
 #define T3_MAX_NUM_PD (1<<15)
 #define T3_MAX_PBL_SIZE 256
 #define T3_MAX_RQ_SIZE 1024
+#define T3_MAX_QP_DEPTH (T3_MAX_RQ_SIZE-1)
+#define T3_MAX_CQ_DEPTH 65536
 #define T3_MAX_NUM_STAG (1<<15)
+#define T3_MAX_MR_SIZE 0x100000000ULL
+#define T3_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 
 #define T3_STAG_UNSET 0xffffffff
 
@@ -55,12 +59,9 @@ struct cxio_hal_ctrl_qp {
 	u32 wptr;
 	u32 rptr;
 	struct mtx lock;	/* for the wtpr, can sleep */
-#ifdef notyet
-	DECLARE_PCI_UNMAP_ADDR(mapping)
-#endif	
 	union t3_wr *workq;	/* the work request queue */
 	bus_addr_t dma_addr;	/* pci bus address of the workq */
-	void /* __iomem */ *doorbell;
+	void *doorbell;
 };
 
 struct cxio_hal_resource {
@@ -85,13 +86,10 @@ struct cxio_ucontext {
 };
 
 struct cxio_rdev {
-	char dev_name[T3_MAX_DEV_NAME_LEN];
-	struct t3cdev *t3cdev_p;
+	struct adapter *adap;
 	struct rdma_info rnic_info;
-	struct adap_ports port_info;
 	struct cxio_hal_resource *rscp;
 	struct cxio_hal_ctrl_qp ctrl_qp;
-	void *ulp;
 	unsigned long qpshift;
 	u32 qpnr;
 	u32 qpmask;
@@ -139,9 +137,8 @@ int cxio_rdev_open(struct cxio_rdev *rdev);
 void cxio_rdev_close(struct cxio_rdev *rdev);
 int cxio_hal_cq_op(struct cxio_rdev *rdev, struct t3_cq *cq,
 		   enum t3_cq_opcode op, u32 credit);
-int cxio_create_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
+int cxio_create_cq(struct cxio_rdev *rdev, struct t3_cq *cq, int kernel);
 int cxio_destroy_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
-int cxio_resize_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
 void cxio_release_ucontext(struct cxio_rdev *rdev, struct cxio_ucontext *uctx);
 void cxio_init_ucontext(struct cxio_rdev *rdev, struct cxio_ucontext *uctx);
 int cxio_create_qp(struct cxio_rdev *rdev, u32 kernel_domain, struct t3_wq *wq,
@@ -149,27 +146,27 @@ int cxio_create_qp(struct cxio_rdev *rdev, u32 kernel_domain, struct t3_wq *wq,
 int cxio_destroy_qp(struct cxio_rdev *rdev, struct t3_wq *wq,
 		    struct cxio_ucontext *uctx);
 int cxio_peek_cq(struct t3_wq *wr, struct t3_cq *cq, int opcode);
+int cxio_write_pbl(struct cxio_rdev *rdev_p, __be64 *pbl,
+		   u32 pbl_addr, u32 pbl_size);
 int cxio_register_phys_mem(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
 			   enum tpt_mem_perm perm, u32 zbva, u64 to, u32 len,
-			   u8 page_size, __be64 *pbl, u32 *pbl_size,
-			   u32 *pbl_addr);
+			   u8 page_size, u32 pbl_size, u32 pbl_addr);
 int cxio_reregister_phys_mem(struct cxio_rdev *rdev, u32 * stag, u32 pdid,
 			   enum tpt_mem_perm perm, u32 zbva, u64 to, u32 len,
-			   u8 page_size, __be64 *pbl, u32 *pbl_size,
-			   u32 *pbl_addr);
+			   u8 page_size, u32 pbl_size, u32 pbl_addr);
 int cxio_dereg_mem(struct cxio_rdev *rdev, u32 stag, u32 pbl_size,
 		   u32 pbl_addr);
 int cxio_allocate_window(struct cxio_rdev *rdev, u32 * stag, u32 pdid);
 int cxio_deallocate_window(struct cxio_rdev *rdev, u32 stag);
-int cxio_rdma_init(struct cxio_rdev *rdev, struct t3_rdma_init_attr *attr);
-void cxio_register_ev_cb(cxio_hal_ev_callback_func_t ev_cb);
-void cxio_unregister_ev_cb(cxio_hal_ev_callback_func_t ev_cb);
+int cxio_rdma_init(struct cxio_rdev *rdev, struct t3_rdma_init_attr *attr,
+    struct socket *so);
 u32 cxio_hal_get_pdid(struct cxio_hal_resource *rscp);
 void cxio_hal_put_pdid(struct cxio_hal_resource *rscp, u32 pdid);
-int cxio_hal_init(void);
+int cxio_hal_init(struct adapter *);
+void cxio_hal_uninit(struct adapter *);
 void cxio_hal_exit(void);
-void cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count);
-void cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count);
+int cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count);
+int cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count);
 void cxio_count_rcqes(struct t3_cq *cq, struct t3_wq *wq, int *count);
 void cxio_count_scqes(struct t3_cq *cq, struct t3_wq *wq, int *count);
 void cxio_flush_hw_cq(struct t3_cq *cq);
@@ -178,7 +175,7 @@ int cxio_poll_cq(struct t3_wq *wq, struct t3_cq *cq, struct t3_cqe *cqe,
 
 #define MOD "iw_cxgb: "
 
-#ifdef DEBUG
+#ifdef INVARIANTS
 void cxio_dump_tpt(struct cxio_rdev *rev, u32 stag);
 void cxio_dump_pbl(struct cxio_rdev *rev, u32 pbl_addr, uint32_t len, u8 shift);
 void cxio_dump_wqe(union t3_wr *wqe);
@@ -187,60 +184,7 @@ void cxio_dump_rqt(struct cxio_rdev *rdev, u32 hwtid, int nents);
 void cxio_dump_tcb(struct cxio_rdev *rdev, u32 hwtid);
 #endif
 
-
- static unsigned char hiBitSetTab[] = {
-    0, 1, 2, 2, 3, 3, 3, 3,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7
-
-};
-
-
-static __inline
-int ilog2(unsigned long val)
-{
-    unsigned long   tmp;
-
-    tmp = val >> 24;
-    if (tmp) {
-        return hiBitSetTab[tmp] + 23;
-    }
-    tmp = (val >> 16) & 0xff;
-    if (tmp) {
-        return hiBitSetTab[tmp] + 15;
-    }
-    tmp = (val >> 8) & 0xff;
-    if (tmp) {
-        return hiBitSetTab[tmp] + 7;
-
-    }
-    return hiBitSetTab[val & 0xff] - 1;
-} 
-
 #define cxfree(a) free((a), M_DEVBUF);
-#define kmalloc(a, b) malloc((a), M_DEVBUF, (b))
-#define kzalloc(a, b) malloc((a), M_DEVBUF, (b)|M_ZERO)
-
-static __inline __attribute__((const))
-unsigned long roundup_pow_of_two(unsigned long n)
-{
-	return 1UL << flsl(n - 1);
-}
-
-#define PAGE_ALIGN(x) roundup2((x), PAGE_SIZE)
 
 #include <sys/blist.h>
 struct gen_pool {
@@ -259,6 +203,7 @@ gen_pool_create(daddr_t base, u_int chunk_shift, u_int len)
 	if (gp == NULL)
 		return (NULL);
 	
+	memset(gp, 0, sizeof(struct gen_pool));
 	gp->gen_list = blist_create(len >> chunk_shift, M_NOWAIT);
 	if (gp->gen_list == NULL) {
 		free(gp, M_DEVBUF);
@@ -323,8 +268,7 @@ gen_pool_destroy(struct gen_pool *gp)
 	mtx_unlock(lockp); \
 	__ret; \
 }) 
-extern struct cxio_rdev *cxio_hal_find_rdev_by_t3cdev(struct t3cdev *tdev);
 
-#define KTR_IW_CXGB KTR_SPARE4
+#define KTR_IW_CXGB KTR_SPARE3
 
 #endif

@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -71,6 +72,7 @@
 #include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
+#include <vm/vm_param.h>
 #include <vm/vm_pageout.h>
 
 /*
@@ -836,6 +838,12 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		 * so that we can re-write the block safely.
 		 */
 		rl = zfs_range_lock(zp, woff, n, RL_WRITER);
+	}
+
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td)) {
+		zfs_range_unlock(rl);
+		ZFS_EXIT(zfsvfs);
+		return (EFBIG);
 	}
 
 	if (woff >= limit) {
@@ -1843,7 +1851,7 @@ top:
 	    &xattr_obj, sizeof (xattr_obj));
 	if (error == 0 && xattr_obj) {
 		error = zfs_zget(zfsvfs, xattr_obj, &xzp);
-		ASSERT3U(error, ==, 0);
+		ASSERT0(error);
 		dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_TRUE);
 		dmu_tx_hold_sa(tx, xzp->z_sa_hdl, B_FALSE);
 	}
@@ -1921,11 +1929,11 @@ top:
 				error = sa_update(zp->z_sa_hdl,
 				    SA_ZPL_XATTR(zfsvfs), &null_xattr,
 				    sizeof (uint64_t), tx);
-			ASSERT3U(error, ==, 0);
+			ASSERT0(error);
 		}
 		VI_LOCK(vp);
 		vp->v_count--;
-		ASSERT3U(vp->v_count, ==, 0);
+		ASSERT0(vp->v_count);
 		VI_UNLOCK(vp);
 		mutex_exit(&zp->z_lock);
 		zfs_znode_delete(zp, tx);
@@ -3361,7 +3369,7 @@ top:
 		zp->z_mode = new_mode;
 		ASSERT3U((uintptr_t)aclp, !=, 0);
 		err = zfs_aclset_common(zp, aclp, cr, tx);
-		ASSERT3U(err, ==, 0);
+		ASSERT0(err);
 		if (zp->z_acl_cached)
 			zfs_acl_free(zp->z_acl_cached);
 		zp->z_acl_cached = aclp;
@@ -3889,7 +3897,7 @@ top:
 
 			error = sa_update(szp->z_sa_hdl, SA_ZPL_FLAGS(zfsvfs),
 			    (void *)&szp->z_pflags, sizeof (uint64_t), tx);
-			ASSERT3U(error, ==, 0);
+			ASSERT0(error);
 
 			error = zfs_link_destroy(sdl, szp, tx, ZRENAMING, NULL);
 			if (error == 0) {
@@ -3923,6 +3931,9 @@ top:
 		if (error == 0) {
 			cache_purge(sdvp);
 			cache_purge(tdvp);
+			cache_purge(ZTOV(szp));
+			if (tzp)
+				cache_purge(ZTOV(tzp));
 		}
 #endif
 	}
@@ -5695,9 +5706,6 @@ zfs_freebsd_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-
-	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
-		return (EFBIG);
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
 	    ap->a_cred, NULL));

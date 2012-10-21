@@ -514,6 +514,7 @@ nfs_open(struct vop_open_args *ap)
 	struct vattr vattr;
 	int error;
 	int fmode = ap->a_mode;
+	struct ucred *cred;
 
 	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		return (EOPNOTSUPP);
@@ -609,8 +610,23 @@ nfs_open(struct vop_open_args *ap)
 	/* If opened for writing via NFSv4.1 or later, mark that for pNFS. */
 	if (NFSHASPNFS(VFSTONFS(vp->v_mount)) && (fmode & FWRITE) != 0)
 		np->n_flag |= NWRITEOPENED;
+
+	/*
+	 * If this is an open for writing, capture a reference to the
+	 * credentials, so they can be used by ncl_putpages(). Using
+	 * these write credentials is preferable to the credentials of
+	 * whatever thread happens to be doing the VOP_PUTPAGES() since
+	 * the write RPCs are less likely to fail with EACCES.
+	 */
+	if ((fmode & FWRITE) != 0) {
+		cred = np->n_writecred;
+		np->n_writecred = crhold(ap->a_cred);
+	} else
+		cred = NULL;
 	mtx_unlock(&np->n_mtx);
 
+	if (cred != NULL)
+		crfree(cred);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
@@ -1571,7 +1587,10 @@ again:
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (!error) {
 		newvp = NFSTOV(np);
-		if (attrflag)
+		if (attrflag == 0)
+			error = nfsrpc_getattr(newvp, cnp->cn_cred,
+			    cnp->cn_thread, &nfsva, NULL);
+		if (error == 0)
 			error = nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
 	}

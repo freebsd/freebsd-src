@@ -306,6 +306,7 @@ static struct protosw localsw[] = {
 	.pr_type =		SOCK_DGRAM,
 	.pr_domain =		&localdomain,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
+	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_dgram
 },
 {
@@ -1872,7 +1873,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			FILEDESC_SLOCK(fdescp);
 			for (i = 0; i < oldfds; i++) {
 				fd = *fdp++;
-				if ((unsigned)fd >= fdescp->fd_nfiles ||
+				if (fd < 0 || fd >= fdescp->fd_nfiles ||
 				    fdescp->fd_ofiles[fd] == NULL) {
 					FILEDESC_SUNLOCK(fdescp);
 					error = EBADF;
@@ -2429,7 +2430,7 @@ DB_SHOW_COMMAND(unpcb, db_show_unpcb)
 	db_printf("unp_socket: %p   unp_vnode: %p\n", unp->unp_socket,
 	    unp->unp_vnode);
 
-	db_printf("unp_ino: %d   unp_conn: %p\n", unp->unp_ino,
+	db_printf("unp_ino: %ju   unp_conn: %p\n", (uintmax_t)unp->unp_ino,
 	    unp->unp_conn);
 
 	db_printf("unp_refs:\n");

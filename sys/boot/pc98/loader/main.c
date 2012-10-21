@@ -33,29 +33,26 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
+#include <stddef.h>
 #include <string.h>
 #include <machine/bootinfo.h>
+#include <machine/cpufunc.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
 
 #include "bootstrap.h"
+#include "common/bootargs.h"
 #include "libi386/libi386.h"
 #include "libpc98/libpc98.h"
 #include "btxv86.h"
 
-#define	KARGS_FLAGS_CD		0x1
-#define	KARGS_FLAGS_PXE		0x2
+CTASSERT(sizeof(struct bootargs) == BOOTARGS_SIZE);
+CTASSERT(offsetof(struct bootargs, bootinfo) == BA_BOOTINFO);
+CTASSERT(offsetof(struct bootargs, bootflags) == BA_BOOTFLAGS);
+CTASSERT(offsetof(struct bootinfo, bi_size) == BI_SIZE);
 
 /* Arguments passed in from the boot1/boot2 loader */
-static struct 
-{
-    u_int32_t	howto;
-    u_int32_t	bootdev;
-    u_int32_t	bootflags;
-    u_int32_t	pxeinfo;
-    u_int32_t	res2;
-    u_int32_t	bootinfo;
-} *kargs;
+static struct bootargs *kargs;
 
 static u_int32_t	initial_howto;
 static u_int32_t	initial_bootdev;
@@ -211,9 +208,9 @@ main(void)
 static void
 extract_currdev(void)
 {
-    struct i386_devdesc	new_currdev;
-    int			major;
-    int			biosdev = -1;
+    struct i386_devdesc		new_currdev;
+    int				major;
+    int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;
@@ -259,7 +256,7 @@ extract_currdev(void)
 	}
     }
     new_currdev.d_type = new_currdev.d_dev->dv_type;
-    
+
     /*
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
@@ -270,6 +267,7 @@ extract_currdev(void)
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
 	new_currdev.d_unit = 0;
     }
+
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
@@ -310,33 +308,17 @@ command_heap(int argc, char *argv[])
     return(CMD_OK);
 }
 
-/* ISA bus access functions for PnP, derived from <machine/cpufunc.h> */
-static int		
+/* ISA bus access functions for PnP. */
+static int
 isa_inb(int port)
 {
-    u_char	data;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
-    } else {
-	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
-    }
-    return(data);
+
+    return (inb(port));
 }
 
 static void
 isa_outb(int port, int value)
 {
-    u_char	al = value;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("outb %0,%1" : : "a" (al), "id" ((u_short)(port)));
-    } else {
-        __asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
-    }
-}
 
+    outb(port, value);
+}

@@ -78,6 +78,10 @@ static int	dirent_exists(struct vnode *vp, const char *dirname,
 
 #define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
 
+static int vop_stdis_text(struct vop_is_text_args *ap);
+static int vop_stdset_text(struct vop_set_text_args *ap);
+static int vop_stdunset_text(struct vop_unset_text_args *ap);
+
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
  * implement a particular VOP.
@@ -126,6 +130,9 @@ struct vop_vector default_vnodeops = {
 	.vop_unp_bind =		vop_stdunp_bind,
 	.vop_unp_connect =	vop_stdunp_connect,
 	.vop_unp_detach =	vop_stdunp_detach,
+	.vop_is_text =		vop_stdis_text,
+	.vop_set_text =		vop_stdset_text,
+	.vop_unset_text =	vop_stdunset_text,
 };
 
 /*
@@ -343,8 +350,8 @@ dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
 		if (error)
 			goto out;
 
-		if ((dp->d_type != DT_WHT) &&
-		    !strcmp(dp->d_name, dirname)) {
+		if (dp->d_type != DT_WHT && dp->d_fileno != 0 &&
+		    strcmp(dp->d_name, dirname) == 0) {
 			found = 1;
 			goto out;
 		}
@@ -646,8 +653,17 @@ loop2:
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
-			continue;
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
+			if (ap->a_waitfor != MNT_WAIT)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_INTERLOCK | LK_SLEEPFAIL,
+			    BO_MTX(bo)) != 0) {
+				BO_LOCK(bo);
+				goto loop1;
+			}
+			BO_LOCK(bo);
+		}
 		BO_UNLOCK(bo);
 		KASSERT(bp->b_bufobj == bo,
 		    ("bp %p wrong b_bufobj %p should be %p",
@@ -1061,6 +1077,29 @@ vop_stdunp_detach(struct vop_unp_detach_args *ap)
 {
 
 	ap->a_vp->v_socket = NULL;
+	return (0);
+}
+
+static int
+vop_stdis_text(struct vop_is_text_args *ap)
+{
+
+	return ((ap->a_vp->v_vflag & VV_TEXT) != 0);
+}
+
+static int
+vop_stdset_text(struct vop_set_text_args *ap)
+{
+
+	ap->a_vp->v_vflag |= VV_TEXT;
+	return (0);
+}
+
+static int
+vop_stdunset_text(struct vop_unset_text_args *ap)
+{
+
+	ap->a_vp->v_vflag &= ~VV_TEXT;
 	return (0);
 }
 

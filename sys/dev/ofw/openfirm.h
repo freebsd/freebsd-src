@@ -105,6 +105,7 @@ phandle_t	OF_parent(phandle_t node);
 ssize_t		OF_getproplen(phandle_t node, const char *propname);
 ssize_t		OF_getprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
+int		OF_hasprop(phandle_t node, const char *propname);
 ssize_t		OF_searchprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
 ssize_t		OF_getprop_alloc(phandle_t node, const char *propname,

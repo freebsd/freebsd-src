@@ -34,8 +34,6 @@
 #define _NETINET_TCP_SYNCACHE_H_
 #ifdef _KERNEL
 
-struct toeopt;
-
 void	 syncache_init(void);
 #ifdef VIMAGE
 void	syncache_destroy(void);
@@ -43,14 +41,9 @@ void	syncache_destroy(void);
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
-int	 tcp_offload_syncache_expand(struct in_conninfo *inc, struct toeopt *toeo,
-             struct tcphdr *th, struct socket **lsop, struct mbuf *m);
 void	 syncache_add(struct in_conninfo *, struct tcpopt *,
-	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
-void	 tcp_offload_syncache_add(struct in_conninfo *, struct toeopt *,
-             struct tcphdr *, struct inpcb *, struct socket **,
-             struct toe_usrreqs *tu, void *toepcb);
-
+	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *,
+	     void *, void *);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
 void	 syncache_badack(struct in_conninfo *);
 int	 syncache_pcbcount(void);
@@ -75,10 +68,10 @@ struct syncache {
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
 	u_int16_t	sc_flags;
-#ifndef TCP_OFFLOAD_DISABLE
-	struct toe_usrreqs *sc_tu;		/* TOE operations */
-	void		*sc_toepcb;		/* TOE protocol block */
-#endif			
+#if defined(TCP_OFFLOAD) || !defined(TCP_OFFLOAD_DISABLE)
+	struct toedev	*sc_tod;		/* entry added by this TOE */
+	void		*sc_todctx;		/* TOE driver context */
+#endif
 	struct label	*sc_label;		/* MAC label reference */
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
 

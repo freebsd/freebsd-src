@@ -507,13 +507,13 @@ xlp_pcib_hardware_swap_enable(int node, int link)
 	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_MEM_BASE, bar);
 
 	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEMEM_LIMIT0 + link);
-	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_MEM_LIM, bar);
+	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_MEM_LIM, bar | 0xFFF);
 
 	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEIO_BASE0 + link);
 	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_IO_BASE, bar);
 
 	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEIO_LIMIT0 + link);
-	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_IO_LIM, bar);
+	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_IO_LIM, bar | 0xFFF);
 }
 
 static int 

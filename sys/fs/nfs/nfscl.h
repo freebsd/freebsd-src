@@ -70,8 +70,8 @@ struct nfsv4node {
 
 /* Use this macro for debug printfs. */
 #define	NFSCL_DEBUG(level, ...)	do {					\
-	if (nfscl_debuglevel >= (level))				\
-		printf(__VA_ARGS__);					\
+		if (nfscl_debuglevel >= (level))			\
+			printf(__VA_ARGS__);				\
 	} while (0)
 
 #endif	/* _NFS_NFSCL_H */

@@ -33,7 +33,7 @@ struct usb_fs_privdata;
 
 #define	USB_CTRL_XFER_MAX 2
 
-/* "usb_parse_config()" commands */
+/* "usb_config_parse()" commands */
 
 #define	USB_CFG_ALLOC 0
 #define	USB_CFG_FREE 1
