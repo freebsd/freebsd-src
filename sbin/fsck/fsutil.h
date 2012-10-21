@@ -47,4 +47,4 @@ char *estrdup(const char *);
 
 struct fstab;
 int checkfstab(int, int (*)(struct fstab *), 
-    int (*) (const char *, const char *, const char *, char *, pid_t *));
+    int (*) (const char *, const char *, const char *, const char *, pid_t *));

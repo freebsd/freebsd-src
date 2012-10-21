@@ -320,7 +320,7 @@ readfat(int fs, struct bootblock *boot, u_int no, struct fatEntry **fp)
 /*
  * Get type of reserved cluster
  */
-char *
+const char *
 rsrvdcltype(cl_t cl)
 {
 	if (cl == CLUST_FREE)
