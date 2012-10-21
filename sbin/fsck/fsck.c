@@ -1,4 +1,4 @@
-/*	$NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $	*/
+/*	$NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $	*/
 
 /*
  * Copyright (c) 1996 Christos Zoulas. All rights reserved.
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,7 +31,7 @@
  *
  * From: @(#)mount.c	8.19 (Berkeley) 4/19/94
  * From: $NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp 
- * $NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $
+ * $NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $
  */
 
 #include <sys/cdefs.h>
@@ -315,7 +311,7 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	 */
 	vfstype = strdup(pvfstype);
 	if (vfstype == NULL)
-		perror("strdup(pvfstype)"); 
+		perr("strdup(pvfstype)");
 	for (i = 0; i < strlen(vfstype); i++) {
 		vfstype[i] = tolower(vfstype[i]);
 		if (vfstype[i] == ' ')
@@ -502,7 +498,7 @@ catopt(char **sp, const char *o)
 
 
 static void
-mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
+mangle(char *opts, int *argcp, const char ***argvp, int *maxargcp)
 {
 	char *p, *s;
 	int argc, maxargc;
@@ -512,7 +508,7 @@ mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
 	argv = *argvp;
 	maxargc = *maxargcp;
 
-	for (s = options; (p = strsep(&s, ",")) != NULL;) {
+	for (s = opts; (p = strsep(&s, ",")) != NULL;) {
 		/* Always leave space for one more argument and the NULL. */
 		if (argc >= maxargc - 3) {
 			maxargc <<= 1;
