@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: check.c,v 1.10 2000/04/25 23:02:51 jdolecek Exp $");
+__RCSID("$NetBSD: check.c,v 1.14 2006/06/05 16:51:18 christos Exp $");
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
@@ -67,7 +67,7 @@ checkfilesys(const char *fname)
 		printf("\n");
 
 	if (dosfs < 0) {
-		perror("Can't open");
+		perr("Can't open `%s'", fname);
 		return 8;
 	}
 
