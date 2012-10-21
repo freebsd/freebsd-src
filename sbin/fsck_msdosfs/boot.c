@@ -48,7 +48,7 @@ readboot(int dosfs, struct bootblock *boot)
 	int ret = FSOK;
 	int i;
 	
-	if (read(dosfs, block, sizeof block) != sizeof block) {
+	if ((size_t)read(dosfs, block, sizeof block) != sizeof block) {
 		perr("could not read boot block");
 		return FSFATAL;
 	}

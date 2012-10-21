@@ -73,14 +73,14 @@ static char *options = NULL;
 static int flags = 0;
 static int forceflag = 0;
 
-static int checkfs(const char *, const char *, const char *, char *, pid_t *);
+static int checkfs(const char *, const char *, const char *, const char *, pid_t *);
 static int selected(const char *);
 static void addoption(char *);
 static const char *getoptions(const char *);
 static void addentry(struct fstypelist *, const char *, const char *);
 static void maketypelist(char *);
 static void catopt(char **, const char *);
-static void mangle(char *, int *, const char ***, int *);
+static void mangle(char *, int *, const char ** volatile *, int *);
 static const char *getfslab(const char *);
 static void usage(void) __dead2;
 static int isok(struct fstab *);
@@ -187,6 +187,7 @@ main(int argc, char *argv[])
 		char device[MAXPATHLEN];
 		struct statfs *mntp;
 
+		mntpt = NULL;
 		spec = *argv;
 		cp = strrchr(spec, '/');
 		if (cp == 0) {
@@ -285,9 +286,9 @@ isok(struct fstab *fs)
 
 static int
 checkfs(const char *pvfstype, const char *spec, const char *mntpt,
-    char *auxopt, pid_t *pidp)
+    const char *auxopt, pid_t *pidp)
 {
-	const char **argv;
+	const char ** volatile argv;
 	pid_t pid;
 	int argc, i, status, maxargc;
 	char *optbuf, execbase[MAXPATHLEN];
@@ -312,7 +313,7 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	vfstype = strdup(pvfstype);
 	if (vfstype == NULL)
 		perr("strdup(pvfstype)");
-	for (i = 0; i < strlen(vfstype); i++) {
+	for (i = 0; i < (int)strlen(vfstype); i++) {
 		vfstype[i] = tolower(vfstype[i]);
 		if (vfstype[i] == ' ')
 			vfstype[i] = '_';
@@ -361,7 +362,7 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 			_exit(0);
 
 		/* Go find an executable. */
-		execvP(execbase, _PATH_SYSPATH, (char * const *)argv);
+		execvP(execbase, _PATH_SYSPATH, __DECONST(char * const *, argv));
 		if (spec)
 			warn("exec %s for %s in %s", execbase, spec, _PATH_SYSPATH);
 		else
@@ -498,7 +499,7 @@ catopt(char **sp, const char *o)
 
 
 static void
-mangle(char *opts, int *argcp, const char ***argvp, int *maxargcp)
+mangle(char *opts, int *argcp, const char ** volatile *argvp, int *maxargcp)
 {
 	char *p, *s;
 	int argc, maxargc;
@@ -535,7 +536,7 @@ mangle(char *opts, int *argcp, const char ***argvp, int *maxargcp)
 }
 
 
-const static char *
+static const char *
 getfslab(const char *str)
 {
 	struct disklabel dl;

@@ -78,12 +78,12 @@ static int nrun = 0, ndisks = 0;
 static struct diskentry *finddisk(const char *);
 static void addpart(const char *, const char *, const char *);
 static int startdisk(struct diskentry *, 
-    int (*)(const char *, const char *, const char *, char *, pid_t *));
+    int (*)(const char *, const char *, const char *, const char *, pid_t *));
 static void printpart(void);
 
 int
 checkfstab(int flags, int (*docheck)(struct fstab *), 
-    int (*checkit)(const char *, const char *, const char *, char *, pid_t *))
+    int (*checkit)(const char *, const char *, const char *, const char *, pid_t *))
 {
 	struct fstab *fs;
 	struct diskentry *d, *nextdisk;
@@ -317,7 +317,7 @@ addpart(const char *type, const char *dev, const char *mntpt)
 
 static int
 startdisk(struct diskentry *d, int (*checkit)(const char *, const char *,
-    const char *, char *, pid_t *))
+    const char *, const char *, pid_t *))
 {
 	struct partentry *p = TAILQ_FIRST(&d->d_part);
 	int rv;
