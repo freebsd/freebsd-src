@@ -47,6 +47,7 @@ struct open_disk {
 	struct ptable		*table;
 	off_t			mediasize;
 	u_int			sectorsize;
+	u_int			flags;
 	int			rcnt;
 };
 
@@ -232,16 +233,20 @@ disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
 }
 
 int
-disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
+disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize,
+    u_int flags)
 {
 	struct open_disk *od;
 	struct ptable *table;
 	struct ptable_entry part;
 	int rc, slice, partition;
 
-	rc = disk_lookup(dev);
-	if (rc == 0)
-		return (0);
+	rc = 0;
+	if ((flags & DISK_F_NOCACHE) == 0) {
+		rc = disk_lookup(dev);
+		if (rc == 0)
+			return (0);
+	}
 	/*
 	 * While we are reading disk metadata, make sure we do it relative
 	 * to the start of the disk
@@ -267,11 +272,12 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize)
 			DEBUG("no memory");
 			return (ENOMEM);
 		}
+		dev->d_opendata = od;
+		od->rcnt = 0;
 	}
-	dev->d_opendata = od;
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
-	od->rcnt = 0;
+	od->flags = flags;
 	DEBUG("%s unit %d, slice %d, partition %d => %p",
 	    disk_fmtdev(dev), dev->d_unit, dev->d_slice, dev->d_partition, od);
 
@@ -348,7 +354,8 @@ out:
 		}
 		DEBUG("%s could not open", disk_fmtdev(dev));
 	} else {
-		disk_insert(dev);
+		if ((flags & DISK_F_NOCACHE) == 0)
+			disk_insert(dev);
 		/* Save the slice and partition number to the dev */
 		dev->d_slice = slice;
 		dev->d_partition = partition;
@@ -361,12 +368,14 @@ out:
 int
 disk_close(struct disk_devdesc *dev)
 {
-#if DISK_DEBUG
 	struct open_disk *od;
 
 	od = (struct open_disk *)dev->d_opendata;
 	DEBUG("%s closed => %p [%d]", disk_fmtdev(dev), od, od->rcnt);
-#endif
+	if (od->flags & DISK_F_NOCACHE) {
+		ptable_close(od->table);
+		free(od);
+	}
 	return (0);
 }
 
