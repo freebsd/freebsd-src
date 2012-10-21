@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: inputmenu3,v 1.10 2010/01/13 10:32:51 tom Exp $
+# $Id: inputmenu3,v 1.11 2012/07/01 01:00:34 tom Exp $
 #
 # "inputmenu1" with defaultitem, help-button and item-help.
 
@@ -75,7 +75,7 @@ exec 3>&-
 		;;
 	$DIALOG_EXTRA)
 		tag=`echo "$value" |sed -e 's/^RENAMED //' -e 's/:.*/:/'`
-		item=`echo "$value" |sed -e 's/^.*:[ ]*//' -e 's/[ ]*$//'`
+		item=`echo "$value" |sed -e 's/^[^:]*:[ ]*//' -e 's/[ ]*$//'`
 
 		case "$tag" in
 		Username:)
