@@ -232,7 +232,7 @@ powerpc/wii/platform_wii.c	optional	wii
 powerpc/wii/wii_bus.c		optional	wii
 powerpc/wii/wii_pic.c		optional	wii
 powerpc/wii/wii_fb.c		optional	wii
-powerpc/wii/wii_gpio.c		optional	wii
+powerpc/wii/wii_gpio.c		optional	wiigpio
 powerpc/wii/wii_ipc.c		optional	wii
 
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
