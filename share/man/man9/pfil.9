@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2012
+.Dd October 22, 2012
 .Dt PFIL 9
 .Os
 .Sh NAME
@@ -39,7 +39,11 @@
 .Nm pfil_hook_get ,
 .Nm pfil_add_hook ,
 .Nm pfil_remove_hook ,
-.Nm pfil_run_hooks
+.Nm pfil_run_hooks ,
+.Nm pfil_rlock ,
+.Nm pfil_runlock ,
+.Nm pfil_wlock ,
+.Nm pfil_wunlock
 .Nd packet filter interface
 .Sh SYNOPSIS
 .In sys/param.h
@@ -62,6 +66,14 @@
 .Fn (*func) "void *arg" "struct mbuf **mp" "struct ifnet *" "int dir" "struct inpcb *"
 .Ft int
 .Fn pfil_run_hooks "struct pfil_head *head" "struct mbuf **mp" "struct ifnet *" "int dir" "struct inpcb *"
+.Ft void
+.Fn pfil_rlock "struct pfil_head *" "struct rm_priotracker *"
+.Ft void
+.Fn pfil_runlock "struct pfil_head *" "struct rm_priotracker *"
+.Ft void
+.Fn pfil_wlock "struct pfil_head *"
+.Ft void
+.Fn pfil_wunlock "struct pfil_head *"
 .Sh DESCRIPTION
 The
 .Nm
@@ -86,6 +98,16 @@ The data link type is a
 .Xr bpf 4
 DLT constant indicating what kind of header is present on the packet
 at the filtering point.
+Each filtering point uses common per-VNET rmlock by default.
+This can be changed by specifying
+.Vt PFIL_FLAG_PRIVATE_LOCK
+as
+.Vt "flags"
+field in the
+.Vt pfil_head
+structure.
+Note that specifying private lock can break filters sharing the same
+ruleset and/or state between different data link types.
 Filtering points may be unregistered with the
 .Fn pfil_head_unregister
 function.
@@ -122,6 +144,31 @@ The filter returns an error (errno) if the packet processing is to stop, or 0
 if the processing is to continue.
 If the packet processing is to stop, it is the responsibility of the
 filter to free the packet.
+.Pp
+Every filter hook is called with
+.Nm
+read lock held.
+All heads uses the same lock within the same VNET instance.
+Packet filter can use this lock instead of own locking model to
+improve performance.
+Since
+.Nm
+uses
+.Xr rmlock 9
+.Fn pfil_rlock
+and
+.Fn pfil_runlock
+require
+.Va struct rm_priotracker
+to be passed as argument.
+Filter can acquire and release writer lock via
+.Fn pfil_wlock
+and
+.Fn pfil_wunlock
+functions.
+See
+.Xr rmlock 9
+for more details.
 .Sh FILTERING POINTS
 Currently, filtering points are implemented for the following link types:
 .Pp
@@ -157,6 +204,7 @@ might sleep!
 .Sh SEE ALSO
 .Xr bpf 4 ,
 .Xr if_bridge 4
+.Xr rmlock 4
 .Sh HISTORY
 The
 .Nm
@@ -192,6 +240,9 @@ as well as be less IP-centric.
 .Pp
 Fine-grained locking was added in
 .Fx 5.2 .
+.Nm
+lock export was added in
+.Fx 10.0 .
 .Sh BUGS
 The
 .Fn pfil_hook_get
