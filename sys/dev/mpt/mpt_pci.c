@@ -268,11 +268,6 @@ mpt_set_options(struct mpt_softc *mpt)
 
 	tval = 0;
 	if (resource_int_value(device_get_name(mpt->dev),
-	    device_get_unit(mpt->dev), "disable", &tval) == 0 && tval != 0) {
-		mpt->disabled = 1;
-	}
-	tval = 0;
-	if (resource_int_value(device_get_name(mpt->dev),
 	    device_get_unit(mpt->dev), "debug", &tval) == 0 && tval != 0) {
 		mpt->verbose = tval;
 	}
