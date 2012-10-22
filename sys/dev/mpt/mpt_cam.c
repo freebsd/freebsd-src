@@ -105,11 +105,10 @@ __FBSDID("$FreeBSD$");
 #include "dev/mpt/mpilib/mpi_targ.h"
 #include "dev/mpt/mpilib/mpi_fc.h"
 #include "dev/mpt/mpilib/mpi_sas.h"
-#if __FreeBSD_version >= 500000
-#include <sys/sysctl.h>
-#endif
+
 #include <sys/callout.h>
 #include <sys/kthread.h>
+#include <sys/sysctl.h>
 
 #if __FreeBSD_version >= 700025
 #ifndef	CAM_NEW_TRAN_CODE
@@ -125,7 +124,6 @@ mpt_get_spi_settings(struct mpt_softc *, struct ccb_trans_settings *);
 static void mpt_setwidth(struct mpt_softc *, int, int);
 static void mpt_setsync(struct mpt_softc *, int, int, int);
 static int mpt_update_spi_config(struct mpt_softc *, int);
-static void mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 
 static mpt_reply_handler_t mpt_scsi_reply_handler;
 static mpt_reply_handler_t mpt_scsi_tmf_reply_handler;
@@ -416,6 +414,8 @@ cleanup:
 static int
 mpt_read_config_info_fc(struct mpt_softc *mpt)
 {
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
 	char *topology = NULL;
 	int rv;
 
@@ -473,33 +473,27 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	    mpt->mpt_fcport_page0.WWPN.High,
 	    mpt->mpt_fcport_page0.WWPN.Low,
 	    mpt->mpt_fcport_speed);
-#if __FreeBSD_version >= 500000
 	MPT_UNLOCK(mpt);
-	{
-		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
-		struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
+	ctx = device_get_sysctl_ctx(mpt->dev);
+	tree = device_get_sysctl_tree(mpt->dev);
 
-		snprintf(mpt->scinfo.fc.wwnn,
-		    sizeof (mpt->scinfo.fc.wwnn), "0x%08x%08x",
-		    mpt->mpt_fcport_page0.WWNN.High,
-		    mpt->mpt_fcport_page0.WWNN.Low);
+	snprintf(mpt->scinfo.fc.wwnn, sizeof (mpt->scinfo.fc.wwnn),
+	    "0x%08x%08x", mpt->mpt_fcport_page0.WWNN.High,
+	    mpt->mpt_fcport_page0.WWNN.Low);
 
-		snprintf(mpt->scinfo.fc.wwpn,
-		    sizeof (mpt->scinfo.fc.wwpn), "0x%08x%08x",
-		    mpt->mpt_fcport_page0.WWPN.High,
-		    mpt->mpt_fcport_page0.WWPN.Low);
+	snprintf(mpt->scinfo.fc.wwpn, sizeof (mpt->scinfo.fc.wwpn),
+	    "0x%08x%08x", mpt->mpt_fcport_page0.WWPN.High,
+	    mpt->mpt_fcport_page0.WWPN.Low);
 
-		SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		       "wwnn", CTLFLAG_RD, mpt->scinfo.fc.wwnn, 0,
-		       "World Wide Node Name");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "wwnn", CTLFLAG_RD, mpt->scinfo.fc.wwnn, 0,
+	    "World Wide Node Name");
 
-		SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		       "wwpn", CTLFLAG_RD, mpt->scinfo.fc.wwpn, 0,
-		       "World Wide Port Name");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	     "wwpn", CTLFLAG_RD, mpt->scinfo.fc.wwpn, 0,
+	     "World Wide Port Name");
 
-	}
 	MPT_LOCK(mpt);
-#endif
 	return (0);
 }
 
@@ -1246,9 +1240,6 @@ mpt_timeout(void *arg)
 	ccb = (union ccb *)arg;
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 
-#if __FreeBSD_version < 500000
-	MPT_LOCK(mpt);
-#endif
 	MPT_LOCK_ASSERT(mpt);
 	req = ccb->ccb_h.ccb_req_ptr;
 	mpt_prt(mpt, "request %p:%u timed out for ccb %p (req->ccb %p)\n", req,
@@ -1260,9 +1251,6 @@ mpt_timeout(void *arg)
 		req->state |= REQ_STATE_TIMEDOUT;
 		mpt_wakeup_recovery_thread(mpt);
 	}
-#if __FreeBSD_version < 500000
-	MPT_UNLOCK(mpt);
-#endif
 }
 
 /*
@@ -3660,7 +3648,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			break;
 		}
-		mpt_calc_geometry(ccg, /*extended*/1);
+		cam_calc_geometry(ccg, /* extended */ 1);
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		break;
 	}
@@ -4020,33 +4008,6 @@ mpt_update_spi_config(struct mpt_softc *mpt, int tgt)
 		return (-1);
 	}
 	return (0);
-}
-
-static void
-mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
-{
-#if __FreeBSD_version >= 500000
-	cam_calc_geometry(ccg, extended);
-#else
-	uint32_t size_mb;
-	uint32_t secs_per_cylinder;
-
-	if (ccg->block_size == 0) {
-		ccg->ccb_h.status = CAM_REQ_INVALID;
-		return;
-	}
-	size_mb = ccg->volume_size / ((1024L * 1024L) / ccg->block_size);
-	if (size_mb > 1024 && extended) {
-		ccg->heads = 255;
-		ccg->secs_per_track = 63;
-	} else {
-		ccg->heads = 64;
-		ccg->secs_per_track = 32;
-	}
-	secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-	ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-	ccg->ccb_h.status = CAM_REQ_CMP;
-#endif
 }
 
 /****************************** Timeout Recovery ******************************/
