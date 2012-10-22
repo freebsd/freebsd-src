@@ -590,7 +590,7 @@ main(int argc, char **argv)
 				if ((tcpsock = socket(AF_INET, SOCK_STREAM,
 				    0)) < 0) {
 					syslog(LOG_ERR,
-					    "can't create tpc socket");
+					    "can't create tcp socket");
 					nfsd_exit(1);
 				}
 				if (setsockopt(tcpsock, SOL_SOCKET,
