@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -90,7 +91,7 @@ static const char  *head1 = "Total Size\n";
 
 static void	alarmhandler(int _signo);
 static void	filtered_write(char *_obuffer, int _wlen, FILE *_wstream);
-static void	warn(const struct printer *_pp);
+static void	daemonwarn(const struct printer *_pp);
 
 /*
  * Display the current state of the queue. Format = 1 if long format.
@@ -119,24 +120,24 @@ displayq(struct printer *pp, int format)
 	 * Print out local queue
 	 * Find all the control files in the spooling directory
 	 */
-	seteuid(euid);
+	PRIV_START
 	if (chdir(pp->spool_dir) < 0)
 		fatal(pp, "cannot chdir to spooling directory: %s",
 		      strerror(errno));
-	seteuid(uid);
+	PRIV_END
 	if ((nitems = getq(pp, &queue)) < 0)
 		fatal(pp, "cannot examine spooling area\n");
-	seteuid(euid);
+	PRIV_START
 	ret = stat(pp->lock_file, &statb);
-	seteuid(uid);
+	PRIV_END
 	if (ret >= 0) {
 		if (statb.st_mode & LFM_PRINT_DIS) {
 			if (pp->remote)
 				printf("%s: ", local_host);
 			printf("Warning: %s is down: ", pp->printer);
-			seteuid(euid);
+			PRIV_START
 			fd = open(pp->status_file, O_RDONLY|O_SHLOCK);
-			seteuid(uid);
+			PRIV_END
 			if (fd >= 0) {
 				while ((i = read(fd, line, sizeof(line))) > 0)
 					(void) fwrite(line, 1, i, stdout);
@@ -153,11 +154,11 @@ displayq(struct printer *pp, int format)
 	}
 
 	if (nitems) {
-		seteuid(euid);
+		PRIV_START
 		fp = fopen(pp->lock_file, "r");
-		seteuid(uid);
+		PRIV_END
 		if (fp == NULL)
-			warn(pp);
+			daemonwarn(pp);
 		else {
 			/* get daemon pid */
 			cp = current;
@@ -171,12 +172,12 @@ displayq(struct printer *pp, int format)
 			if (i <= 0) {
 				ret = -1;
 			} else {
-				seteuid(euid);
+				PRIV_START
 				ret = kill(i, 0);
-				seteuid(uid);
+				PRIV_END
 			}
 			if (ret < 0) {
-				warn(pp);
+				daemonwarn(pp);
 			} else {
 				/* read current file name */
 				cp = current;
@@ -191,9 +192,9 @@ displayq(struct printer *pp, int format)
 				 */
 				if (pp->remote)
 					printf("%s: ", local_host);
-				seteuid(euid);
+				PRIV_START
 				fd = open(pp->status_file, O_RDONLY|O_SHLOCK);
-				seteuid(uid);
+				PRIV_END
 				if (fd >= 0) {
 					while ((i = read(fd, line,
 							 sizeof(line))) > 0)
@@ -360,7 +361,7 @@ check_next:
  * Print a warning message if there is no daemon present.
  */
 static void
-warn(const struct printer *pp)
+daemonwarn(const struct printer *pp)
 {
 	if (pp->remote)
 		printf("%s: ", local_host);
@@ -391,10 +392,10 @@ inform(const struct printer *pp, char *cf)
 	 * There's a chance the control file has gone away
 	 * in the meantime; if this is the case just keep going
 	 */
-	seteuid(euid);
+	PRIV_START
 	if ((cfp = fopen(cf, "r")) == NULL)
 		return;
-	seteuid(uid);
+	PRIV_END
 
 	if (rank < 0)
 		rank = 0;
@@ -578,10 +579,10 @@ dump(const char *nfile, const char *datafile, int copies)
 	}
 	first = 0;
 
-	seteuid(euid);
+	PRIV_START
 	if (*datafile && !stat(datafile, &lbuf))
 		totsize += copies * lbuf.st_size;
-	seteuid(uid);
+	PRIV_END
 }
 
 /*

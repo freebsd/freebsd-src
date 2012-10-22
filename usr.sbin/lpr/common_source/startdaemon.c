@@ -74,9 +74,9 @@ startdaemon(const struct printer *pp)
 #ifndef SUN_LEN
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
 #endif
-	seteuid(euid);
+	PRIV_START
 	connectres = connect(s, (struct sockaddr *)&un, SUN_LEN(&un));
-	seteuid(uid);
+	PRIV_END
 	if (connectres < 0) {
 		warn("Unable to connect to %s", _PATH_SOCKETNAME);
 		warnx("Check to see if the master 'lpd' process is running.");
