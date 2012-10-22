@@ -356,7 +356,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			 * RFC2004 specifies that fragmented diagrams shouldn't
 			 * be encapsulated.
 			 */
-			if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
+			if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
 				_IF_DROP(&ifp->if_snd);
 				m_freem(m);
 				error = EINVAL;    /* is there better errno? */
@@ -410,7 +410,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			}
 			ip = mtod(m, struct ip *);
 			memcpy((caddr_t)(ip + 1), &mob_h, (unsigned)msiz);
-			ip->ip_len = ntohs(ip->ip_len) + msiz;
+			ip->ip_len = htons(ntohs(ip->ip_len) + msiz);
 		} else {  /* AF_INET */
 			_IF_DROP(&ifp->if_snd);
 			m_freem(m);
@@ -493,7 +493,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		((struct ip*)gh)->ip_ttl = GRE_TTL;
 		((struct ip*)gh)->ip_tos = gre_ip_tos;
 		((struct ip*)gh)->ip_id = gre_ip_id;
-		gh->gi_len = m->m_pkthdr.len;
+		gh->gi_len = htons(m->m_pkthdr.len);
 	}
 
 	ifp->if_opackets++;

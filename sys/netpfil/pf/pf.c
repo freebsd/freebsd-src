@@ -2252,8 +2252,8 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 		h->ip_v = 4;
 		h->ip_hl = sizeof(*h) >> 2;
 		h->ip_tos = IPTOS_LOWDELAY;
-		h->ip_off = V_path_mtu_discovery ? IP_DF : 0;
-		h->ip_len = len;
+		h->ip_off = htons(V_path_mtu_discovery ? IP_DF : 0);
+		h->ip_len = htons(len);
 		h->ip_ttl = ttl ? ttl : V_ip_defttl;
 		h->ip_sum = 0;
 
@@ -2316,17 +2316,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-	    {
-		struct ip *ip;
-
-		/* icmp_error() expects host byte ordering */
-		ip = mtod(m0, struct ip *);
-		NTOHS(ip->ip_len);
-		NTOHS(ip->ip_off);
-
 		pfse->pfse_type = PFSE_ICMP;
 		break;
-	    }
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:

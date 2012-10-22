@@ -180,7 +180,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	totsz = ip->ip_len;
+	totsz = ntohs(ip->ip_len);
 
 	nxtsz = ntohs(icmph->icmp_nextmtu);
 	if (nxtsz == 0) {

@@ -102,7 +102,6 @@ extern	struct protosw inetsw[];
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
- * ip_len and ip_off are in host format.
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
  * If route ro is present and has ro_rt initialized, route lookup would be
@@ -175,6 +174,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 			hlen = len; /* ip->ip_hl is updated above */
 	}
 	ip = mtod(m, struct ip *);
+	ip_len = ntohs(ip->ip_len);
+	ip_off = ntohs(ip->ip_off);
 
 	/*
 	 * Fill in IP header.  If we are not allowing fragmentation,
@@ -442,7 +443,7 @@ again:
 	 * packet or packet fragments, unless ALTQ is enabled on the given
 	 * interface in which case packetdrop should be done by queueing.
 	 */
-	n = ip->ip_len / mtu + 1; /* how many fragments ? */
+	n = ip_len / mtu + 1; /* how many fragments ? */
 	if (
 #ifdef ALTQ
 	    (!ALTQ_IS_ENABLED(&ifp->if_snd)) &&
@@ -469,7 +470,7 @@ again:
 			goto bad;
 		}
 		/* don't allow broadcast messages to be fragmented */
-		if (ip->ip_len > mtu) {
+		if (ip_len > mtu) {
 			error = EMSGSIZE;
 			goto bad;
 		}
@@ -501,12 +502,6 @@ sendit:
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
 #endif /* IPSEC */
-
-	/*
-	 * To network byte order. pfil(9) hooks and ip_fragment() expect this.
-	 */
-	ip->ip_len = htons(ip->ip_len);
-	ip->ip_off = htons(ip->ip_off);
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (!PFIL_HOOKED(&V_inet_pfil_hook))
@@ -544,8 +539,6 @@ sendit:
 		} else {
 			if (ia != NULL)
 				ifa_free(&ia->ia_ifa);
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
 			goto again;	/* Redo the routing table lookup. */
 		}
 	}
@@ -579,16 +572,11 @@ sendit:
 		m_tag_delete(m, fwd_tag);
 		if (ia != NULL)
 			ifa_free(&ia->ia_ifa);
-		ip->ip_len = ntohs(ip->ip_len);
-		ip->ip_off = ntohs(ip->ip_off);
 		goto again;
 	}
 #endif /* IPFIREWALL_FORWARD */
 
 passout:
-	ip_len = ntohs(ip->ip_len);
-	ip_off = ntohs(ip->ip_off);
-
 	/* 127/8 must not appear on wire - RFC1122. */
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
@@ -1295,8 +1283,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
  * calls the output routine of the loopback "driver", but with an interface
  * pointer that might NOT be a loopback interface -- evil, but easier than
  * replicating that code here.
- *
- * IP header in host byte order.
  */
 static void
 ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
@@ -1313,9 +1299,6 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 	if (copym != NULL && (copym->m_flags & M_EXT || copym->m_len < hlen))
 		copym = m_pullup(copym, hlen);
 	if (copym != NULL) {
-		ip = mtod(copym, struct ip *);
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
 		/* If needed, compute the checksum and mark it as valid. */
 		if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			in_delayed_cksum(copym);
@@ -1328,6 +1311,7 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 		 * We don't bother to fragment if the IP length is greater
 		 * than the interface's MTU.  Can this possibly matter?
 		 */
+		ip = mtod(copym, struct ip *);
 		ip->ip_sum = 0;
 		ip->ip_sum = in_cksum(copym, hlen);
 #if 1 /* XXX */
