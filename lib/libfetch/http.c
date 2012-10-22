@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_SEE_OTHER		303
 #define HTTP_NOT_MODIFIED	304
 #define HTTP_TEMP_REDIRECT	307
+#define HTTP_PERM_REDIRECT	308
 #define HTTP_NEED_AUTH		401
 #define HTTP_NEED_PROXY_AUTH	407
 #define HTTP_BAD_RANGE		416
@@ -1524,8 +1525,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	/* try the provided URL first */
 	url = URL;
 
-	/* if the A flag is set, we only get one try */
-	n = noredirect ? 1 : MAX_REDIRECT;
+	n = MAX_REDIRECT;
 	i = 0;
 
 	e = HTTP_PROTOCOL_ERROR;
@@ -1772,6 +1772,16 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			case hdr_location:
 				if (!HTTP_REDIRECT(conn->err))
 					break;
+				/*
+				 * if the A flag is set, we don't follow
+				 * temporary redirects.
+				 */
+				if (noredirect &&
+				    conn->err != HTTP_MOVED_PERM &&
+				    conn->err != HTTP_PERM_REDIRECT) {
+					n = 1;
+					break;
+                                }
 				if (new)
 					free(new);
 				if (verbose)
