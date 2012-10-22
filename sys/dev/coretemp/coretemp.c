@@ -138,6 +138,8 @@ coretemp_identify(driver_t *driver, device_t parent)
 static int
 coretemp_probe(device_t dev)
 {
+	if (resource_disabled("coretemp", 0))
+		return (ENXIO);
 
 	device_set_desc(dev, "CPU On-Die Thermal Sensors");
 

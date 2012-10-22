@@ -167,6 +167,9 @@ static int
 acpi_throttle_probe(device_t dev)
 {
 
+	if (resource_disabled("acpi_throttle", 0))
+		return (ENXIO);
+
 	/*
 	 * On i386 platforms at least, ACPI throttling is accomplished by
 	 * the chipset modulating the STPCLK# pin based on the duty cycle.

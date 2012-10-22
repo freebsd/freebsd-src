@@ -3050,6 +3050,11 @@ emu_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
+	if (resource_disabled("emu10kx", unit)) {
+		device_printf(dev, "disabled by kernel hints\n");
+		return (ENXIO); /* XXX to avoid unit reuse */
+	}
+
 	/* Get configuration */
 
 	sc->ctx = device_get_sysctl_ctx(dev);

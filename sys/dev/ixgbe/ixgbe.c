@@ -401,6 +401,11 @@ ixgbe_attach(device_t dev)
 
 	INIT_DEBUGOUT("ixgbe_attach: begin");
 
+	if (resource_disabled("ixgbe", device_get_unit(dev))) {
+		device_printf(dev, "Disabled by device hint\n");
+		return (ENXIO);
+	}
+
 	/* Allocate, clear, and link in our adapter structure */
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
