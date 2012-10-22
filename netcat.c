@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.105 2012/02/09 06:25:35 lum Exp $ */
+/* $OpenBSD: netcat.c,v 1.109 2012/07/07 15:33:02 haesbaert Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -67,7 +67,6 @@
 /* Command Line Options */
 int	dflag;					/* detached, no stdin */
 unsigned int iflag;				/* Interval Flag */
-int	jflag;					/* use jumbo frames if we can */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
@@ -107,6 +106,7 @@ int	unix_connect(char *);
 int	unix_listen(char *);
 void	set_common_sockopts(int);
 int	map_tos(char *, int *);
+void	report_connect(const struct sockaddr *, socklen_t);
 void	usage(int);
 
 int
@@ -131,7 +131,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46DdhI:i:jklnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
+	    "46DdhI:i:klnO:P:p:rSs:tT:UuV:vw:X:x:z")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -162,9 +162,6 @@ main(int argc, char *argv[])
 			iflag = strtonum(optarg, 0, UINT_MAX, &errstr);
 			if (errstr)
 				errx(1, "interval %s: %s", errstr, optarg);
-			break;
-		case 'j':
-			jflag = 1;
 			break;
 		case 'k':
 			kflag = 1;
@@ -348,17 +345,23 @@ main(int argc, char *argv[])
 			if (s < 0)
 				err(1, NULL);
 			/*
-			 * For UDP, we will use recvfrom() initially
-			 * to wait for a caller, then use the regular
-			 * functions to talk to the caller.
+			 * For UDP and -k, don't connect the socket, let it
+			 * receive datagrams from multiple socket pairs.
 			 */
-			if (uflag) {
+			if (uflag && kflag)
+				readwrite(s);
+			/*
+			 * For UDP and not -k, we will use recvfrom() initially
+			 * to wait for a caller, then use the regular functions
+			 * to talk to the caller.
+			 */
+			else if (uflag && !kflag) {
 				int rv, plen;
 				char buf[16384];
 				struct sockaddr_storage z;
 
 				len = sizeof(z);
-				plen = jflag ? 16384 : 2048;
+				plen = 2048;
 				rv = recvfrom(s, buf, plen, MSG_PEEK,
 				    (struct sockaddr *)&z, &len);
 				if (rv < 0)
@@ -368,11 +371,20 @@ main(int argc, char *argv[])
 				if (rv < 0)
 					err(1, "connect");
 
+				if (vflag)
+					report_connect((struct sockaddr *)&z, len);
+
 				readwrite(s);
 			} else {
 				len = sizeof(cliaddr);
 				connfd = accept(s, (struct sockaddr *)&cliaddr,
 				    &len);
+				if (connfd == -1)
+					err(1, "accept");
+
+				if (vflag)
+					report_connect((struct sockaddr *)&cliaddr, len);
+
 				readwrite(connfd);
 				close(connfd);
 			}
@@ -717,7 +729,7 @@ readwrite(int nfd)
 	int lfd = fileno(stdout);
 	int plen;
 
-	plen = jflag ? 16384 : 2048;
+	plen = 2048;
 
 	/* Setup Network FD */
 	pfd[0].fd = nfd;
@@ -896,11 +908,6 @@ set_common_sockopts(int s)
 			&x, sizeof(x)) == -1)
 			err(1, NULL);
 	}
-	if (jflag) {
-		if (setsockopt(s, SOL_SOCKET, SO_JUMBO,
-			&x, sizeof(x)) == -1)
-			err(1, NULL);
-	}
 	if (Tflag != -1) {
 		if (setsockopt(s, IPPROTO_IP, IP_TOS,
 		    &Tflag, sizeof(Tflag)) == -1)
@@ -964,6 +971,32 @@ map_tos(char *s, int *val)
 	}
 
 	return (0);
+}
+
+void
+report_connect(const struct sockaddr *sa, socklen_t salen)
+{
+	char remote_host[NI_MAXHOST];
+	char remote_port[NI_MAXSERV];
+	int herr;
+	int flags = NI_NUMERICSERV;
+	
+	if (nflag)
+		flags |= NI_NUMERICHOST;
+	
+	if ((herr = getnameinfo(sa, salen,
+	    remote_host, sizeof(remote_host),
+	    remote_port, sizeof(remote_port),
+	    flags)) != 0) {
+		if (herr == EAI_SYSTEM)
+			err(1, "getnameinfo");
+		else
+			errx(1, "getnameinfo: %s", gai_strerror(herr));
+	}
+	
+	fprintf(stderr,
+	    "Connection from %s %s "
+	    "received!\n", remote_host, remote_port);
 }
 
 void
