@@ -37,7 +37,8 @@ f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
-f_include_help $BSDCFG_LIBE/include/bsdconfig.hlp
+f_include_help BSDCONFIG $BSDCFG_LIBE/include/bsdconfig.hlp
+f_include_help USAGE     $BSDCFG_LIBE/include/usage.hlp
 
 ############################################################ FUNCTIONS
 
@@ -141,12 +142,13 @@ dialog_menu_main()
 	local menu_list size
 
 	menu_list="
-		'X' '$msg_exit' '$msg_exit_bsdconfig'
+		'X' '$msg_exit'  '$msg_exit_bsdconfig'
+		'1' '$msg_usage' '$msg_quick_start_how_to_use_this_menu_system'
 	" # END-QUOTE
 
 	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
 
-	local menuitem menu_title menu_help menu_selection index=1
+	local menuitem menu_title menu_help menu_selection index=2
 	for menuitem in $( ls -d [0-9][0-9][0-9].* ); do
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
 		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
@@ -187,7 +189,7 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"                 \
 		--cancel-label \"\$msg_exit_bsdconfig\" \
 		--help-button                           \
-	${USE_XDIALOG:+--help \"\$( f_include_help )\"} \
+		${USE_XDIALOG:+--help \"\$( f_include_help BSDCONFIG )\"} \
 		--menu \"\$prompt\" $size $menu_list    \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -300,7 +302,7 @@ while :; do
 
 	if [ $retval -eq 2 ]; then
 		# The Help button was pressed
-		f_show_msg "%s" "$( f_include_help )"
+		f_show_msg "%s" "$( f_include_help BSDCONFIG )"
 		continue
 	elif [ $retval -ne 0 ]; then
 		f_die
@@ -309,6 +311,11 @@ while :; do
 	case "$mtag" in
 	X) # Exit
 	   break
+	   ;;
+
+	1) # Usage
+	   f_show_msg "%s" "$( f_include_help USAGE )"
+	   continue
 	   ;;
 
 	*) # Dynamically loaded menuitem
