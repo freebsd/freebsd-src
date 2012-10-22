@@ -788,7 +788,6 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 }
 
 /***************************** Locking Primitives *****************************/
-#if 1
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #define	MPT_LOCK_SETUP(mpt)						\
 		mtx_init(&mpt->mpt_lock, "mpt", NULL, MTX_DEF);		\
@@ -803,8 +802,6 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 #define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
 #define	MPT_OWNED(mpt)		mtx_owned(&(mpt)->mpt_lock)
 #define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&(mpt)->mpt_lock, MA_OWNED)
-#define	MPTLOCK_2_CAMLOCK(mpt)
-#define	CAMLOCK_2_MPTLOCK(mpt)
 #define mpt_sleep(mpt, ident, priority, wmesg, timo) \
 	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
 #define mpt_req_timeout(req, ticks, func, arg) \
@@ -815,38 +812,6 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 	callout_init_mtx(c, &(mpt)->mpt_lock, 0)
 #define mpt_callout_drain(mpt, c) \
 	callout_drain(c)
-
-#else
-
-#define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY
-#define	MPT_LOCK_SETUP(mpt)	do { } while (0)
-#define	MPT_LOCK_DESTROY(mpt)	do { } while (0)
-#define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&Giant, MA_OWNED)
-#define	MPT_LOCK(mpt)		mtx_lock(&Giant)
-#define	MPT_UNLOCK(mpt)		mtx_unlock(&Giant)
-#define	MPTLOCK_2_CAMLOCK(mpt)
-#define	CAMLOCK_2_MPTLOCK(mpt)
-
-#define mpt_req_timeout(req, ticks, func, arg) \
-	callout_reset(&(req)->callout, (ticks), (func), (arg))
-#define mpt_req_untimeout(req, func, arg) \
-	callout_stop(&(req)->callout)
-#define mpt_callout_init(mpt, c) \
-	callout_init(c, 0)
-#define mpt_callout_drain(mpt, c) \
-	callout_drain(c)
-
-static __inline int
-mpt_sleep(struct mpt_softc *, void *, int, const char *, int);
-
-static __inline int
-mpt_sleep(struct mpt_softc *mpt, void *i, int p, const char *w, int t)
-{
-	int r;
-	r = tsleep(i, p, w, t);
-	return (r);
-}
-#endif
 
 /******************************* Register Access ******************************/
 static __inline void mpt_write(struct mpt_softc *, size_t, uint32_t);
