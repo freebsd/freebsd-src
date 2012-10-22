@@ -185,6 +185,9 @@ amdtemp_probe(device_t dev)
 {
 	uint32_t family, model;
 
+	if (resource_disabled("amdtemp", 0))
+		return (ENXIO);
+
 	family = CPUID_TO_FAMILY(cpu_id);
 	model = CPUID_TO_MODEL(cpu_id);
 

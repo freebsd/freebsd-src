@@ -84,6 +84,8 @@ elcr_probe(void)
 				printf("  E");
 		printf("\n");
 	}
+	if (resource_disabled("elcr", 0))
+		return (ENXIO);
 	elcr_found = 1;
 	return (0);
 }

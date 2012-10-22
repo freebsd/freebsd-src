@@ -377,6 +377,10 @@ acpi_identify(void)
     if (!cold)
 	return (ENXIO);
 
+    /* Check that we haven't been disabled with a hint. */
+    if (resource_disabled("acpi", 0))
+	return (ENXIO);
+
     /* Check for other PM systems. */
     if (power_pm_get_type() != POWER_PM_TYPE_NONE &&
 	power_pm_get_type() != POWER_PM_TYPE_ACPI) {

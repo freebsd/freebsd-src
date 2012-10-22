@@ -860,6 +860,8 @@ agp_i810_probe(device_t dev)
 	const struct agp_i810_match *match;
 	int err;
 
+	if (resource_disabled("agp", device_get_unit(dev)))
+		return (ENXIO);
 	match = agp_i810_match(dev);
 	if (match == NULL)
 		return (ENXIO);
