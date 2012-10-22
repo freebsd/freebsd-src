@@ -602,6 +602,10 @@ void* align(size_t alignment, size_t size, void*& ptr, size_t& space);
     #include <cassert>
 #endif
 
+#if __has_feature(cxx_atomic)
+#  include <atomic>
+#endif
+
 #include <__undef_min_max>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
@@ -2467,7 +2471,11 @@ struct __same_or_less_cv_qualified<_Ptr1, _Ptr2, true>
 template <class _Tp>
 struct _LIBCPP_VISIBLE default_delete
 {
-    _LIBCPP_INLINE_VISIBILITY default_delete() _NOEXCEPT {}
+#ifndef _LIBCPP_HAS_NO_DEFAULTED_FUNCTIONS
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR default_delete() _NOEXCEPT = default;
+#else
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR default_delete() _NOEXCEPT {}
+#endif
     template <class _Up>
         _LIBCPP_INLINE_VISIBILITY default_delete(const default_delete<_Up>&,
              typename enable_if<is_convertible<_Up*, _Tp*>::value>::type* = 0) _NOEXCEPT {}
@@ -2482,7 +2490,11 @@ template <class _Tp>
 struct _LIBCPP_VISIBLE default_delete<_Tp[]>
 {
 public:
-    _LIBCPP_INLINE_VISIBILITY default_delete() _NOEXCEPT {}
+#ifndef _LIBCPP_HAS_NO_DEFAULTED_FUNCTIONS
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR default_delete() _NOEXCEPT = default;
+#else
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR default_delete() _NOEXCEPT {}
+#endif
     template <class _Up>
         _LIBCPP_INLINE_VISIBILITY default_delete(const default_delete<_Up[]>&,
              typename enable_if<__same_or_less_cv_qualified<_Up*, _Tp*>::value>::type* = 0) _NOEXCEPT {}
@@ -2520,13 +2532,13 @@ private:
     typedef       typename remove_reference<deleter_type>::type& _Dp_reference;
     typedef const typename remove_reference<deleter_type>::type& _Dp_const_reference;
 public:
-    _LIBCPP_INLINE_VISIBILITY unique_ptr() _NOEXCEPT
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR unique_ptr() _NOEXCEPT
         : __ptr_(pointer())
         {
             static_assert(!is_pointer<deleter_type>::value,
                 "unique_ptr constructed with null function pointer deleter");
         }
-    _LIBCPP_INLINE_VISIBILITY unique_ptr(nullptr_t) _NOEXCEPT
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR unique_ptr(nullptr_t) _NOEXCEPT
         : __ptr_(pointer())
         {
             static_assert(!is_pointer<deleter_type>::value,
@@ -2699,13 +2711,13 @@ private:
     typedef       typename remove_reference<deleter_type>::type& _Dp_reference;
     typedef const typename remove_reference<deleter_type>::type& _Dp_const_reference;
 public:
-    _LIBCPP_INLINE_VISIBILITY unique_ptr() _NOEXCEPT
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR unique_ptr() _NOEXCEPT
         : __ptr_(pointer())
         {
             static_assert(!is_pointer<deleter_type>::value,
                 "unique_ptr constructed with null function pointer deleter");
         }
-    _LIBCPP_INLINE_VISIBILITY unique_ptr(nullptr_t) _NOEXCEPT
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR unique_ptr(nullptr_t) _NOEXCEPT
         : __ptr_(pointer())
         {
             static_assert(!is_pointer<deleter_type>::value,
@@ -2955,7 +2967,7 @@ operator>=(const unique_ptr<_T1, _D1>& __x, const unique_ptr<_T2, _D2>& __y) {re
 template <class _T1, class _D1>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
-operator==(const unique_ptr<_T1, _D1>& __x, nullptr_t)
+operator==(const unique_ptr<_T1, _D1>& __x, nullptr_t) _NOEXCEPT
 {
     return !__x;
 }
@@ -2963,7 +2975,7 @@ operator==(const unique_ptr<_T1, _D1>& __x, nullptr_t)
 template <class _T1, class _D1>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
-operator==(nullptr_t, const unique_ptr<_T1, _D1>& __x)
+operator==(nullptr_t, const unique_ptr<_T1, _D1>& __x) _NOEXCEPT
 {
     return !__x;
 }
@@ -2971,7 +2983,7 @@ operator==(nullptr_t, const unique_ptr<_T1, _D1>& __x)
 template <class _T1, class _D1>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
-operator!=(const unique_ptr<_T1, _D1>& __x, nullptr_t)
+operator!=(const unique_ptr<_T1, _D1>& __x, nullptr_t) _NOEXCEPT
 {
     return static_cast<bool>(__x);
 }
@@ -2979,7 +2991,7 @@ operator!=(const unique_ptr<_T1, _D1>& __x, nullptr_t)
 template <class _T1, class _D1>
 inline _LIBCPP_INLINE_VISIBILITY
 bool
-operator!=(nullptr_t, const unique_ptr<_T1, _D1>& __x)
+operator!=(nullptr_t, const unique_ptr<_T1, _D1>& __x) _NOEXCEPT
 {
     return static_cast<bool>(__x);
 }
@@ -3379,8 +3391,19 @@ struct __scalar_hash<_Tp, 4>
 
 template<class _Tp>
 struct _LIBCPP_VISIBLE hash<_Tp*>
-    : public __scalar_hash<_Tp*>
+    : public unary_function<_Tp*, size_t>
 {
+    _LIBCPP_INLINE_VISIBILITY
+    size_t operator()(_Tp* __v) const _NOEXCEPT
+    {
+        union
+        {
+            _Tp* __t;
+            size_t __a;
+        } __u;
+        __u.__t = __v;
+        return __murmur2_or_cityhash<size_t>()(&__u, sizeof(__u));
+    }
 };
 
 template <class _Tp, class _Dp>
@@ -3557,7 +3580,7 @@ public:
     virtual const char* what() const  _NOEXCEPT;
 };
 
-template<class _Tp> class weak_ptr;
+template<class _Tp> class _LIBCPP_VISIBLE weak_ptr;
 
 class __shared_count
 {
@@ -3603,6 +3626,9 @@ public:
     long use_count() const _NOEXCEPT {return __shared_count::use_count();}
     __shared_weak_count* lock() _NOEXCEPT;
 
+    // purposefully not protected with #ifndef _LIBCPP_NO_RTTI because doing so
+    //  breaks ABI for those clients who need to compile their projects with
+    //    -fno-rtti and yet link against a libc++.dylib compiled without -fno-rtti.
     virtual const void* __get_deleter(const type_info&) const _NOEXCEPT;
 private:
     virtual void __on_zero_shared_weak() _NOEXCEPT = 0;
@@ -3720,7 +3746,7 @@ __shared_ptr_emplace<_Tp, _Alloc>::__on_zero_shared_weak() _NOEXCEPT
     __a.deallocate(this, 1);
 }
 
-template<class _Tp> class enable_shared_from_this;
+template<class _Tp> class _LIBCPP_VISIBLE enable_shared_from_this;
 
 template<class _Tp>
 class _LIBCPP_VISIBLE shared_ptr
@@ -3733,8 +3759,8 @@ private:
 
     struct __nat {int __for_bool_;};
 public:
-    shared_ptr() _NOEXCEPT;
-    shared_ptr(nullptr_t) _NOEXCEPT;
+    _LIBCPP_CONSTEXPR shared_ptr() _NOEXCEPT;
+    _LIBCPP_CONSTEXPR shared_ptr(nullptr_t) _NOEXCEPT;
     template<class _Yp,
              class = typename enable_if
                      <
@@ -3923,6 +3949,10 @@ public:
         _LIBCPP_INLINE_VISIBILITY
         bool owner_before(weak_ptr<_Up> const& __p) const
         {return __cntrl_ < __p.__cntrl_;}
+    _LIBCPP_INLINE_VISIBILITY
+    bool
+    __owner_equivalent(const shared_ptr& __p) const
+        {return __cntrl_ == __p.__cntrl_;}
 
 #ifndef _LIBCPP_NO_RTTI
     template <class _Dp>
@@ -3994,6 +4024,7 @@ private:
 
 template<class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR
 shared_ptr<_Tp>::shared_ptr() _NOEXCEPT
     : __ptr_(0),
       __cntrl_(0)
@@ -4002,6 +4033,7 @@ shared_ptr<_Tp>::shared_ptr() _NOEXCEPT
 
 template<class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR
 shared_ptr<_Tp>::shared_ptr(nullptr_t) _NOEXCEPT
     : __ptr_(0),
       __cntrl_(0)
@@ -4892,7 +4924,7 @@ private:
     __shared_weak_count* __cntrl_;
 
 public:
-    weak_ptr() _NOEXCEPT;
+    _LIBCPP_CONSTEXPR weak_ptr() _NOEXCEPT;
     template<class _Yp> weak_ptr(shared_ptr<_Yp> const& __r,
                    typename enable_if<is_convertible<_Yp*, _Tp*>::value, __nat*>::type = 0)
                         _NOEXCEPT;
@@ -4964,6 +4996,7 @@ public:
 
 template<class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
+_LIBCPP_CONSTEXPR
 weak_ptr<_Tp>::weak_ptr() _NOEXCEPT
     : __ptr_(0),
       __cntrl_(0)
@@ -5194,7 +5227,7 @@ class _LIBCPP_VISIBLE enable_shared_from_this
 {
     mutable weak_ptr<_Tp> __weak_this_;
 protected:
-    _LIBCPP_INLINE_VISIBILITY
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR
     enable_shared_from_this() _NOEXCEPT {}
     _LIBCPP_INLINE_VISIBILITY
     enable_shared_from_this(enable_shared_from_this const&) _NOEXCEPT {}
@@ -5230,6 +5263,134 @@ template<class _CharT, class _Traits, class _Yp>
 inline _LIBCPP_INLINE_VISIBILITY
 basic_ostream<_CharT, _Traits>&
 operator<<(basic_ostream<_CharT, _Traits>& __os, shared_ptr<_Yp> const& __p);
+
+#if __has_feature(cxx_atomic)
+
+class __sp_mut
+{
+    void* _;
+public:
+    void lock() _NOEXCEPT;
+    void unlock() _NOEXCEPT;
+
+private:
+    _LIBCPP_CONSTEXPR __sp_mut(void*) _NOEXCEPT;
+    __sp_mut(const __sp_mut&);
+    __sp_mut& operator=(const __sp_mut&);
+
+    friend _LIBCPP_VISIBLE __sp_mut& __get_sp_mut(const void*);
+};
+
+_LIBCPP_VISIBLE __sp_mut& __get_sp_mut(const void*);
+
+template <class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+atomic_is_lock_free(const shared_ptr<_Tp>*)
+{
+    return false;
+}
+
+template <class _Tp>
+shared_ptr<_Tp>
+atomic_load(const shared_ptr<_Tp>* __p)
+{
+    __sp_mut& __m = __get_sp_mut(__p);
+    __m.lock();
+    shared_ptr<_Tp> __q = *__p;
+    __m.unlock();
+    return __q;
+}
+  
+template <class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+shared_ptr<_Tp>
+atomic_load_explicit(const shared_ptr<_Tp>* __p, memory_order)
+{
+    return atomic_load(__p);
+}
+
+template <class _Tp>
+void
+atomic_store(shared_ptr<_Tp>* __p, shared_ptr<_Tp> __r)
+{
+    __sp_mut& __m = __get_sp_mut(__p);
+    __m.lock();
+    __p->swap(__r);
+    __m.unlock();
+}
+
+template <class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+void
+atomic_store_explicit(shared_ptr<_Tp>* __p, shared_ptr<_Tp> __r, memory_order)
+{
+    atomic_store(__p, __r);
+}
+
+template <class _Tp>
+shared_ptr<_Tp>
+atomic_exchange(shared_ptr<_Tp>* __p, shared_ptr<_Tp> __r)
+{
+    __sp_mut& __m = __get_sp_mut(__p);
+    __m.lock();
+    __p->swap(__r);
+    __m.unlock();
+    return __r;
+}
+  
+template <class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+shared_ptr<_Tp>
+atomic_exchange_explicit(shared_ptr<_Tp>* __p, shared_ptr<_Tp> __r, memory_order)
+{
+    return atomic_exchange(__p, __r);
+}
+
+template <class _Tp>
+bool
+atomic_compare_exchange_strong(shared_ptr<_Tp>* __p, shared_ptr<_Tp>* __v, shared_ptr<_Tp> __w)
+{
+    __sp_mut& __m = __get_sp_mut(__p);
+    __m.lock();
+    if (__p->__owner_equivalent(*__v))
+    {
+        *__p = __w;
+        __m.unlock();
+        return true;
+    }
+    *__v = *__p;
+    __m.unlock();
+    return false;
+}
+
+template <class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+atomic_compare_exchange_weak(shared_ptr<_Tp>* __p, shared_ptr<_Tp>* __v, shared_ptr<_Tp> __w)
+{
+    return atomic_compare_exchange_strong(__p, __v, __w);
+}
+
+template <class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+atomic_compare_exchange_strong_explicit(shared_ptr<_Tp>* __p, shared_ptr<_Tp>* __v,
+                                        shared_ptr<_Tp> __w, memory_order, memory_order)
+{
+    return atomic_compare_exchange_strong(__p, __v, __w);
+}
+
+template <class _Tp>
+inline _LIBCPP_INLINE_VISIBILITY
+bool
+atomic_compare_exchange_weak_explicit(shared_ptr<_Tp>* __p, shared_ptr<_Tp>* __v,
+                                      shared_ptr<_Tp> __w, memory_order, memory_order)
+{
+    return atomic_compare_exchange_weak(__p, __v, __w);
+}
+
+#endif  // __has_feature(cxx_atomic)
 
 //enum class
 struct _LIBCPP_VISIBLE pointer_safety
