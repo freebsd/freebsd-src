@@ -154,9 +154,7 @@ MAN=	aac.4 \
 	gpib.4 \
 	gre.4 \
 	h_ertt.4 \
-	harp.4 \
 	hatm.4 \
-	hfa.4 \
 	hifn.4 \
 	hme.4 \
 	hpet.4 \
@@ -170,7 +168,6 @@ MAN=	aac.4 \
 	icmp.4 \
 	icmp6.4 \
 	ida.4 \
-	idt.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
