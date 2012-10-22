@@ -202,6 +202,13 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 	}
 }
 
+/*
+ * ipfw_nat - perform mbuf header translation.
+ *
+ * Note V_layer3_chain has to be locked while calling ipfw_nat() in
+ * 'global' operation mode (t == NULL).
+ *
+ */
 static int
 ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 {
@@ -269,7 +276,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 
 		found = 0;
 		chain = &V_layer3_chain;
-		IPFW_RLOCK(chain);
 		/* Check every nat entry... */
 		LIST_FOREACH(t, &chain->nat, _next) {
 			if ((t->mode & PKT_ALIAS_SKIP_GLOBAL) != 0)
@@ -282,7 +288,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 				break;
 			}
 		}
-		IPFW_RUNLOCK(chain);
 		if (found != 1) {
 			/* No instance found, return ignore */
 			args->m = mcl;
