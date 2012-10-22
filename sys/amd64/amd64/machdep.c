@@ -1532,6 +1532,8 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			if (memtest == 0)
 				goto skip_memtest;
 
+			printf("testing memory...\n");
+
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
 			 */
