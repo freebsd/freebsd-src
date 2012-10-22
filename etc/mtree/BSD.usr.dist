@@ -58,6 +58,8 @@
     sbin
     ..
     share
+        atf
+        ..
         calendar
             de_DE.ISO8859-1
             ..
@@ -76,6 +78,8 @@
         ..
         doc
             IPv6
+            ..
+            atf
             ..
             atm
             ..
@@ -210,6 +214,8 @@
             FreeBSD_version
             ..
             IPv6
+            ..
+            atf
             ..
             bootforth
             ..
@@ -1324,6 +1330,14 @@
             catalog
             ..
         ..
+        xml
+            atf
+            ..
+        ..
+        xsl
+            atf
+            ..
+        ..
         zoneinfo
             Africa
             ..
@@ -1360,5 +1374,7 @@
         ..
     ..
     src             nochange
+    ..
+    tests
     ..
 ..

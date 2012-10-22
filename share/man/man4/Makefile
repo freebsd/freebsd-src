@@ -60,6 +60,7 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
+	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
 	audit.4 \
@@ -803,6 +804,12 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_ATF} != "no"
+ATF=            ${.CURDIR}/../../../contrib/atf
+.PATH:          ${ATF}/doc
+_atf_test_case.4=	atf-test-case.4
 .endif
 
 .if ${MK_PF} != "no"

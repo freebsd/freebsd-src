@@ -198,6 +198,9 @@ distribution:
 .endif
 	pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
 	    ${DESTDIR}/etc/master.passwd
+.if ${MK_ATF} != "no"
+	${_+_}cd ${.CURDIR}/atf; ${MAKE} install
+.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
