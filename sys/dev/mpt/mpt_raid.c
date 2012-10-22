@@ -51,14 +51,9 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_periph.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-
-#if __FreeBSD_version < 500000
-#include <sys/devicestat.h>
-#define	GIANT_REQUIRED
-#endif
-#include <cam/cam_periph.h>
 
 #include <sys/callout.h>
 #include <sys/kthread.h>
@@ -118,11 +113,7 @@ static void mpt_enable_vol(struct mpt_softc *mpt,
 static void mpt_verify_mwce(struct mpt_softc *, struct mpt_raid_volume *);
 static void mpt_adjust_queue_depth(struct mpt_softc *, struct mpt_raid_volume *,
     struct cam_path *);
-#if __FreeBSD_version < 500000
-#define	mpt_raid_sysctl_attach(x)	do { } while (0)
-#else
 static void mpt_raid_sysctl_attach(struct mpt_softc *);
-#endif
 
 static const char *mpt_vol_type(struct mpt_raid_volume *vol);
 static const char *mpt_vol_state(struct mpt_raid_volume *vol);
@@ -1520,15 +1511,9 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 			mpt_vol_prt(mpt, mpt_vol, "%s Priority Re-Sync\n",
 			    prio ? "High" : "Low");
 		}
-#if __FreeBSD_version >= 500000
 		mpt_vol_prt(mpt, mpt_vol, "%ju of %ju "
 			    "blocks remaining\n", (uintmax_t)left,
 			    (uintmax_t)total);
-#else
-		mpt_vol_prt(mpt, mpt_vol, "%llu of %llu "
-			    "blocks remaining\n", (uint64_t)left,
-			    (uint64_t)total);
-#endif
 
 		/* Periodically report on sync progress. */
 		mpt_schedule_raid_refresh(mpt);
@@ -1593,14 +1578,8 @@ mpt_raid_timer(void *arg)
 	struct mpt_softc *mpt;
 
 	mpt = (struct mpt_softc *)arg;
-#if __FreeBSD_version < 500000
-	MPT_LOCK(mpt);
-#endif
 	MPT_LOCK_ASSERT(mpt);
 	mpt_raid_wakeup(mpt);
-#if __FreeBSD_version < 500000
-	MPT_UNLOCK(mpt);
-#endif
 }
 
 static void
@@ -1644,7 +1623,6 @@ mpt_raid_free_mem(struct mpt_softc *mpt)
 	mpt->raid_max_disks =  0;
 }
 
-#if __FreeBSD_version >= 500000
 static int
 mpt_raid_set_vol_resync_rate(struct mpt_softc *mpt, u_int rate)
 {
@@ -1869,4 +1847,3 @@ mpt_raid_sysctl_attach(struct mpt_softc *mpt)
 			&mpt->raid_nonopt_volumes, 0,
 			"number of nonoptimal volumes");
 }
-#endif
