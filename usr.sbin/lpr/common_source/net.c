@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 
 #include <dirent.h>		/* required for lp.h, not used here */
+#include <err.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -91,7 +92,7 @@ getport(const struct printer *pp, const char *rhost, int rport)
 {
 	struct addrinfo hints, *res, *ai;
 	int s, timo = 1, lport = IPPORT_RESERVED - 1;
-	int err, refused = 0;
+	int error, refused = 0;
 
 	/*
 	 * Get the host address and port number to connect to.
@@ -102,10 +103,10 @@ getport(const struct printer *pp, const char *rhost, int rport)
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
-	err = getaddrinfo(rhost, (rport == 0 ? "printer" : NULL),
+	error = getaddrinfo(rhost, (rport == 0 ? "printer" : NULL),
 			  &hints, &res);
-	if (err)
-		fatal(pp, "%s\n", gai_strerror(err));
+	if (error)
+		fatal(pp, "%s\n", gai_strerror(error));
 	if (rport != 0)
 		((struct sockaddr_in *) res->ai_addr)->sin_port = htons(rport);
 
@@ -114,9 +115,9 @@ getport(const struct printer *pp, const char *rhost, int rport)
 	 */
 	ai = res;
 retry:
-	seteuid(euid);
+	PRIV_START
 	s = rresvport_af(&lport, ai->ai_family);
-	seteuid(uid);
+	PRIV_END
 	if (s < 0) {
 		if (errno != EAGAIN) {
 			if (ai->ai_next) {
@@ -135,9 +136,9 @@ retry:
 		return(-1);
 	}
 	if (connect(s, ai->ai_addr, ai->ai_addrlen) < 0) {
-		err = errno;
+		error = errno;
 		(void) close(s);
-		errno = err;
+		errno = error;
 		/*
 		 * This used to decrement lport, but the current semantics
 		 * of rresvport do not provide such a function (in fact,
@@ -184,8 +185,8 @@ checkremote(struct printer *pp)
 {
 	char lclhost[MAXHOSTNAMELEN];
 	struct addrinfo hints, *local_res, *remote_res, *lr, *rr;
-	char *err;
-	int ncommonaddrs, error;
+	char *error;
+	int ncommonaddrs, errno;
 	char h1[NI_MAXHOST], h2[NI_MAXHOST];
 
 	if (!pp->rp_matches_local) { /* Remote printer doesn't match local */
@@ -205,11 +206,11 @@ checkremote(struct printer *pp)
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	if ((error = getaddrinfo(lclhost, NULL, &hints, &local_res)) != 0) {
-		asprintf(&err, "unable to get official name "
+	if ((errno = getaddrinfo(lclhost, NULL, &hints, &local_res)) != 0) {
+		asprintf(&error, "unable to get official name "
 			 "for local machine %s: %s",
-			 lclhost, gai_strerror(error));
-		return err;
+			 lclhost, gai_strerror(errno));
+		return error;
 	}
 
 	/* get the official name of RM */
@@ -217,13 +218,13 @@ checkremote(struct printer *pp)
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	if ((error = getaddrinfo(pp->remote_host, NULL,
+	if ((errno = getaddrinfo(pp->remote_host, NULL,
 				 &hints, &remote_res)) != 0) {
-		asprintf(&err, "unable to get address list for "
+		asprintf(&error, "unable to get address list for "
 			 "remote machine %s: %s",
-			 pp->remote_host, gai_strerror(error));
+			 pp->remote_host, gai_strerror(errno));
 		freeaddrinfo(local_res);
-		return err;
+		return error;
 	}
 
 	ncommonaddrs = 0;
