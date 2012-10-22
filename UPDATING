@@ -24,6 +24,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121022:
+	Support for non-MPSAFE filesystems was removed from VFS. The
+	VFS_VERSION was bumped, all filesystem modules shall be
+	recompiled.
+
 20121018:
 	All the non-MPSAFE filesystems have been disconnected from
 	the build. The full list includes: codafs, hpfs, ntfs, nwfs,
