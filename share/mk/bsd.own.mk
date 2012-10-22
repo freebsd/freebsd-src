@@ -306,6 +306,7 @@ __DEFAULT_YES_OPTIONS = \
     APM \
     ASSERT_DEBUG \
     AT \
+    ATF \
     ATM \
     AUDIT \
     AUTHPF \
