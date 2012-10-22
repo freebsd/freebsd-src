@@ -1179,7 +1179,7 @@ static void
 smsc_tick(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
-	struct mii_data *mii = uether_getmii(&sc->sc_ue);;
+	struct mii_data *mii = uether_getmii(&sc->sc_ue);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 

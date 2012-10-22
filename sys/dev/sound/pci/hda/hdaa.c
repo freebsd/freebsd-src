@@ -1148,7 +1148,7 @@ hdaa_widget_parse(struct hdaa_widget *w)
 		    w->wclass.pin.config = hda_command(dev,
 			HDA_CMD_GET_CONFIGURATION_DEFAULT(0, w->nid));
 		w->wclass.pin.cap = hda_command(dev,
-		    HDA_CMD_GET_PARAMETER(0, w->nid, HDA_PARAM_PIN_CAP));;
+		    HDA_CMD_GET_PARAMETER(0, w->nid, HDA_PARAM_PIN_CAP));
 		w->wclass.pin.ctrl = hda_command(dev,
 		    HDA_CMD_GET_PIN_WIDGET_CTRL(0, nid));
 		if (HDA_PARAM_PIN_CAP_EAPD_CAP(w->wclass.pin.cap)) {

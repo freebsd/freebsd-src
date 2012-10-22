@@ -87,7 +87,7 @@ ahci_em_attach(device_t dev)
 	if (!(enc->r_memc = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE)))
 		return (ENXIO);
-	enc->capsem = ATA_INL(enc->r_memc, 0);;
+	enc->capsem = ATA_INL(enc->r_memc, 0);
 	rid = 1;
 	if (!(enc->r_memt = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE))) {
