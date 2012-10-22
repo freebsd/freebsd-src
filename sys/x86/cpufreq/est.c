@@ -991,9 +991,6 @@ est_probe(device_t dev)
 	uint64_t msr;
 	int error, type;
 
-	if (resource_disabled("est", 0))
-		return (ENXIO);
-
 	/*
 	 * If the ACPI perf driver has attached and is not just offering
 	 * info, let it manage things.

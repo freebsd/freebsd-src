@@ -267,8 +267,6 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	device_t		child;
 	device_t		smb_dev;
 
-	if (resource_disabled("amdsbwd", 0))
-		return;
 	if (device_find_child(parent, "amdsbwd", -1) != NULL)
 		return;
 
