@@ -310,6 +310,13 @@ opened:
 		if (ptable_gettype(od->table) == PTABLE_GPT) {
 			partition = 255;
 			goto out; /* Nothing more to do */
+		} else if (partition == 255) {
+			/*
+			 * When we try to open GPT partition, but partition
+			 * table isn't GPT, reset d_partition value to -1
+			 * and try to autodetect appropriate value.
+			 */
+			partition = -1;
 		}
 		/*
 		 * If d_partition < 0 and we are looking at a BSD slice,
