@@ -1509,7 +1509,7 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 
 	case LogIpfwDenied:
-		logIpfwDenied = yesNoValue;;
+		logIpfwDenied = yesNoValue;
 		break;
 
 	case PidFile:

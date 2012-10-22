@@ -1323,7 +1323,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 	buf = *bufp;
-	err = -1;;
+	err = -1;
 
 	if (error != 0) {
 		err = error;

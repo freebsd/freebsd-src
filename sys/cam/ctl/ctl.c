@@ -480,7 +480,7 @@ ctl_isc_handler_finish_xfer(struct ctl_softc *ctl_softc,
 	memcpy(&ctsio->sense_data, &msg_info->scsi.sense_data,
 	       sizeof(ctsio->sense_data));
 	memcpy(&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       &msg_info->scsi.lbalen, sizeof(msg_info->scsi.lbalen));;
+	       &msg_info->scsi.lbalen, sizeof(msg_info->scsi.lbalen));
 	STAILQ_INSERT_TAIL(&ctl_softc->isc_queue, &ctsio->io_hdr, links);
 	ctl_wakeup_thread();
 }
@@ -12593,7 +12593,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 		 */
 		memcpy(&msg.scsi.lbalen,
 		       &io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-		       sizeof(msg.scsi.lbalen));;
+		       sizeof(msg.scsi.lbalen));
 
 		if (ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg,
 				sizeof(msg), 0) > CTL_HA_STATUS_SUCCESS) {
