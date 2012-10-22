@@ -289,15 +289,9 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		 */
 #ifdef INET
 		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			struct ip *ip;
-
 			ipseclog((LOG_DEBUG,
 			    "%s: we do not support IPv4 over IPv6", __func__));
-			/* XXX: in_delayed_cksum() expects net byte order */
-			ip = mtod(*m, struct ip *);
-			ip->ip_len = htons(ip->ip_len);
 			in_delayed_cksum(*m);
-			ip->ip_len = ntohs(ip->ip_len);
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
 #endif
