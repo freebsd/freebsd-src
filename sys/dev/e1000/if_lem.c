@@ -3425,7 +3425,7 @@ lem_free_receive_structures(struct adapter *adapter)
 static bool
 lem_rxeof(struct adapter *adapter, int count, int *done)
 {
-	struct ifnet	*ifp = adapter->ifp;;
+	struct ifnet	*ifp = adapter->ifp;
 	struct mbuf	*mp;
 	u8		status = 0, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;

@@ -202,7 +202,7 @@ static struct td_sched td_sched0;
  */
 static int sched_interact = SCHED_INTERACT_THRESH;
 static int realstathz = 127;
-static int tickincr = 8 << SCHED_TICK_SHIFT;;
+static int tickincr = 8 << SCHED_TICK_SHIFT;
 static int sched_slice = 12;
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
