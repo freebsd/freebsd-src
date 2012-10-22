@@ -4507,10 +4507,9 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	struct mount *mp;
 	struct vnode *vp;
 	off_t olen, ooffset;
-	int error, vfslocked;
+	int error;
 
 	fp = NULL;
-	vfslocked = 0;
 	error = fget(td, fd, CAP_WRITE, &fp);
 	if (error != 0)
 		goto out;
