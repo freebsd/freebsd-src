@@ -878,9 +878,6 @@ apm_identify(driver_t *driver, device_t parent)
 		return;
 	}
 
-	if (resource_disabled("apm", 0))
-		return;
-
 	child = BUS_ADD_CHILD(parent, 0, "apm", 0);
 	if (child == NULL)
 		panic("apm_identify");

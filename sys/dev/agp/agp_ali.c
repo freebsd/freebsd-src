@@ -81,8 +81,6 @@ agp_ali_probe(device_t dev)
 {
 	const char *desc;
 
-	if (resource_disabled("agp", device_get_unit(dev)))
-		return (ENXIO);
 	desc = agp_ali_match(dev);
 	if (desc) {
 		device_set_desc(dev, desc);

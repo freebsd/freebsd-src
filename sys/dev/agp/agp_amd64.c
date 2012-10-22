@@ -152,8 +152,6 @@ agp_amd64_probe(device_t dev)
 {
 	const char *desc;
 
-	if (resource_disabled("agp", device_get_unit(dev)))
-		return (ENXIO);
 	if ((desc = agp_amd64_match(dev))) {
 		device_set_desc(dev, desc);
 		return (BUS_PROBE_DEFAULT);
