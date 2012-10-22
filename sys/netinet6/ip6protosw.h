@@ -118,26 +118,26 @@ struct ip6protosw {
 
 /* protocol-protocol hooks */
 	int	(*pr_input)		/* input to protocol (from below) */
-			__P((struct mbuf **, int *, int));
+			(struct mbuf **, int *, int);
 	int	(*pr_output)		/* output to protocol (from above) */
-			__P((struct mbuf *, ...));
+			(struct mbuf *, ...);
 	void	(*pr_ctlinput)		/* control input (from below) */
-			__P((int, struct sockaddr *, void *));
+			(int, struct sockaddr *, void *);
 	int	(*pr_ctloutput)		/* control output (from above) */
-			__P((struct socket *, struct sockopt *));
+			(struct socket *, struct sockopt *);
 
 /* utility hooks */
 	void	(*pr_init)		/* initialization hook */
-			__P((void));
+			(void);
 	void	(*pr_destroy)		/* cleanup hook */
-			__P((void));
+			(void);
 
 	void	(*pr_fasttimo)		/* fast timeout (200ms) */
-			__P((void));
+			(void);
 	void	(*pr_slowtimo)		/* slow timeout (500ms) */
-			__P((void));
+			(void);
 	void	(*pr_drain)		/* flush any excess space possible */
-			__P((void));
+			(void);
 	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
 };
 
