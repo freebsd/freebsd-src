@@ -146,6 +146,7 @@ SUBDIR=	alias \
 	sockstat \
 	sort \
 	split \
+	ssh-copy-id \
 	stat \
 	stdbuf \
 	su \
