@@ -118,6 +118,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libwrap \
 	liby \
 	libz \
+	${_atf} \
 	${_bind} \
 	${_clang}
 
@@ -132,6 +133,10 @@ _csu=csu
 .endif
 
 # NB: keep these sorted by MK_* knobs
+
+.if ${MK_ATF} != "no"
+_atf=		atf
+.endif
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
