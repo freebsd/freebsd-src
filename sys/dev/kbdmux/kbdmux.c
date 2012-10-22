@@ -378,8 +378,6 @@ kbdmux_configure(int flags)
 static int
 kbdmux_probe(int unit, void *arg, int flags)
 {
-	if (resource_disabled(KEYBOARD_NAME, unit))
-		return (ENXIO);
 
 	return (0);
 }
