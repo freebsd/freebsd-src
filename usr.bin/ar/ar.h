@@ -111,7 +111,7 @@ struct bsdar {
 };
 
 void	bsdar_errc(struct bsdar *, int _eval, int _code,
-	    const char *fmt, ...);
+	    const char *fmt, ...) __dead2;
 void	bsdar_warnc(struct bsdar *, int _code, const char *fmt, ...);
 void	ar_mode_d(struct bsdar *bsdar);
 void	ar_mode_m(struct bsdar *bsdar);
