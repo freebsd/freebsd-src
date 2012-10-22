@@ -216,7 +216,7 @@ struct buf {
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_00800000	0x00800000	/* Available flag. */
 #define	B_NOCOPY	0x01000000	/* Don't copy-on-write this buf. */
-#define	B_NEEDSGIANT	0x02000000	/* Buffer's vnode needs giant. */
+#define	B_02000000	0x02000000	/* Available flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
 #define B_MANAGED	0x08000000	/* Managed by FS. */
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */

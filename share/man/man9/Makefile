@@ -280,7 +280,6 @@ MAN=	accept_filter.9 \
 	vfs_getnewfsid.9 \
 	vfs_getopt.9 \
 	vfs_getvfs.9 \
-	VFS_LOCK_GIANT.9 \
 	VFS_MOUNT.9 \
 	vfs_mount.9 \
 	vfs_mountedfrom.9 \
@@ -1413,7 +1412,6 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_setopt.9 \
 	vfs_getopt.9 vfs_setopt_part.9 \
 	vfs_getopt.9 vfs_setopts.9
-MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vhold.9 vdrop.9 \
 	vhold.9 vdropl.9 \
 	vhold.9 vholdl.9

@@ -1092,14 +1092,12 @@ zfs_get_done(zgd_t *zgd, int error)
 {
 	znode_t *zp = zgd->zgd_private;
 	objset_t *os = zp->z_zfsvfs->z_os;
-	int vfslocked;
 
 	if (zgd->zgd_db)
 		dmu_buf_rele(zgd->zgd_db, zgd);
 
 	zfs_range_unlock(zgd->zgd_rl);
 
-	vfslocked = VFS_LOCK_GIANT(zp->z_zfsvfs->z_vfs);
 	/*
 	 * Release the vnode asynchronously as we currently have the
 	 * txg stopped from syncing.
@@ -1110,7 +1108,6 @@ zfs_get_done(zgd_t *zgd, int error)
 		zil_add_block(zgd->zgd_zilog, zgd->zgd_bp);
 
 	kmem_free(zgd, sizeof (zgd_t));
-	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 #ifdef DEBUG
@@ -6337,7 +6334,7 @@ vop_getextattr {
 	}
 
 	flags = FREAD;
-	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, attrname,
+	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, attrname,
 	    xvp, td);
 	error = vn_open_cred(&nd, &flags, 0, 0, ap->a_cred, NULL);
 	vp = nd.ni_vp;
@@ -6405,7 +6402,7 @@ vop_deleteextattr {
 		return (error);
 	}
 
-	NDINIT_ATVP(&nd, DELETE, NOFOLLOW | LOCKPARENT | LOCKLEAF | MPSAFE,
+	NDINIT_ATVP(&nd, DELETE, NOFOLLOW | LOCKPARENT | LOCKLEAF,
 	    UIO_SYSSPACE, attrname, xvp, td);
 	error = namei(&nd);
 	vp = nd.ni_vp;
@@ -6472,7 +6469,7 @@ vop_setextattr {
 	}
 
 	flags = FFLAGS(O_WRONLY | O_CREAT);
-	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, attrname,
+	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, attrname,
 	    xvp, td);
 	error = vn_open_cred(&nd, &flags, 0600, 0, ap->a_cred, NULL);
 	vp = nd.ni_vp;
@@ -6553,7 +6550,7 @@ vop_listextattr {
 		return (error);
 	}
 
-	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKSHARED | MPSAFE,
+	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKSHARED,
 	    UIO_SYSSPACE, ".", xvp, td);
 	error = namei(&nd);
 	vp = nd.ni_vp;

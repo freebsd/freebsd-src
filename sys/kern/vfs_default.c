@@ -1009,7 +1009,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 {
 	struct vnode *vp;
 	off_t start, end;
-	int error, vfslocked;
+	int error;
 
 	vp = ap->a_vp;
 	switch (ap->a_advice) {
@@ -1030,11 +1030,9 @@ vop_stdadvise(struct vop_advise_args *ap)
 		 * requested range.
 		 */
 		error = 0;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
 			VOP_UNLOCK(vp, 0);
-			VFS_UNLOCK_GIANT(vfslocked);
 			break;
 		}
 		vinvalbuf(vp, V_CLEANONLY, 0, 0);
@@ -1047,7 +1045,6 @@ vop_stdadvise(struct vop_advise_args *ap)
 			VM_OBJECT_UNLOCK(vp->v_object);
 		}
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 	default:
 		error = EINVAL;

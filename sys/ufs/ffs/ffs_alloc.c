@@ -2465,7 +2465,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	long blkcnt, blksize;
 	struct filedesc *fdp;
 	struct file *fp, *vfp;
-	int vfslocked, filetype, error;
+	int filetype, error;
 	static struct fileops *origops, bufferedops;
 
 	if (req->newlen > sizeof cmd)
@@ -2670,23 +2670,18 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 #endif /* DEBUG */
 		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_SHARED, &vp)))
 			break;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		AUDIT_ARG_VNODE1(vp);
 		if ((error = change_dir(vp, td)) != 0) {
 			vput(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			break;
 		}
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		fdp = td->td_proc->p_fd;
 		FILEDESC_XLOCK(fdp);
 		vpold = fdp->fd_cdir;
 		fdp->fd_cdir = vp;
 		FILEDESC_XUNLOCK(fdp);
-		vfslocked = VFS_LOCK_GIANT(vpold->v_mount);
 		vrele(vpold);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 
 	case FFS_SET_DOTDOT:
@@ -2759,7 +2754,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 #endif /* DEBUG */
 		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		AUDIT_ARG_VNODE1(vp);
 		ip = VTOI(vp);
 		if (ip->i_ump->um_fstype == UFS1)
@@ -2770,13 +2764,11 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    sizeof(struct ufs2_dinode));
 		if (error) {
 			vput(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			break;
 		}
 		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
 		error = ffs_update(vp, 1);
 		vput(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 
 	case FFS_SET_BUFOUTPUT:
@@ -2853,7 +2845,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
-	int error, vfslocked;
+	int error;
 	daddr_t lbn;
 
 	/*
@@ -2868,7 +2860,6 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	fs = ip->i_fs;
 	foffset_lock_uio(fp, uio, flags);
-	vfslocked = VFS_LOCK_GIANT(ip->i_vnode->v_mount);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef DEBUG
 	if (fsckcmds) {
@@ -2896,7 +2887,6 @@ buffered_write(fp, uio, active_cred, flags, td)
 	error = bwrite(bp);
 out:
 	VOP_UNLOCK(devvp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	foffset_unlock_uio(fp, uio, flags | FOF_NEXTOFF);
 	return (error);
 }

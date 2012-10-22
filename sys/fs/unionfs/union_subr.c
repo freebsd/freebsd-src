@@ -331,7 +331,6 @@ unionfs_nodeget_out:
 void
 unionfs_noderem(struct vnode *vp, struct thread *td)
 {
-	int		vfslocked;
 	int		count;
 	struct unionfs_node *unp, *unp_t1, *unp_t2;
 	struct unionfs_node_hashhead *hd;
@@ -366,20 +365,12 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	if (lockmgr(vp->v_vnlock, LK_EXCLUSIVE, VI_MTX(vp)) != 0)
 		panic("the lock for deletion is unacquirable.");
 
-	if (lvp != NULLVP) {
-		vfslocked = VFS_LOCK_GIANT(lvp->v_mount);
+	if (lvp != NULLVP)
 		vrele(lvp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
-	if (uvp != NULLVP) {
-		vfslocked = VFS_LOCK_GIANT(uvp->v_mount);
+	if (uvp != NULLVP)
 		vrele(uvp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (dvp != NULLVP) {
-		vfslocked = VFS_LOCK_GIANT(dvp->v_mount);
 		vrele(dvp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		unp->un_dvp = NULLVP;
 	}
 	if (unp->un_path != NULL) {

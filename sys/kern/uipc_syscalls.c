@@ -1834,7 +1834,6 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	struct vm_page *pg;
 	off_t off, xfsize, fsbytes = 0, sbytes = 0, rem = 0;
 	int error, hdrlen = 0, mnw = 0;
-	int vfslocked;
 	struct sendfile_sync *sfs = NULL;
 
 	/*
@@ -1846,7 +1845,6 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	AUDIT_ARG_FD(uap->fd);
 	if ((error = fgetvp_read(td, uap->fd, CAP_READ, &vp)) != 0)
 		goto out;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (vp->v_type == VREG) {
 		obj = vp->v_object;
@@ -1868,7 +1866,6 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		}
 	}
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (obj == NULL) {
 		error = EINVAL;
 		goto out;
@@ -2098,7 +2095,6 @@ retry_space:
 				/*
 				 * Get the page from backing store.
 				 */
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				error = vn_lock(vp, LK_SHARED);
 				if (error != 0)
 					goto after_read;
@@ -2116,7 +2112,6 @@ retry_space:
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
 			after_read:
-				VFS_UNLOCK_GIANT(vfslocked);
 				VM_OBJECT_LOCK(obj);
 				vm_page_io_finish(pg);
 				if (!error)
@@ -2270,11 +2265,8 @@ out:
 	}
 	if (obj != NULL)
 		vm_object_deallocate(obj);
-	if (vp != NULL) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (vp != NULL)
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (so)
 		fdrop(sock_fp, td);
 	if (m)
