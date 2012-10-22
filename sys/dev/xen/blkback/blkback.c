@@ -2250,7 +2250,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	void                **p_vaddr;
 	int                   saved_uio_iovcnt;
 #endif /* XBB_USE_BOUNCE_BUFFERS */
-	int                   vfs_is_locked;
 	int                   error;
 
 	file_data = &xbb->backend.file;
@@ -2271,8 +2270,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		SDT_PROBE1(xbb, kernel, xbb_dispatch_file, flush,
 			   device_get_unit(xbb->dev));
 
-		vfs_is_locked = VFS_LOCK_GIANT(xbb->vn->v_mount);
-
 		(void) vn_start_write(xbb->vn, &mountpoint, V_WAIT);
 
 		vn_lock(xbb->vn, LK_EXCLUSIVE | LK_RETRY);
@@ -2280,8 +2277,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		VOP_UNLOCK(xbb->vn, 0);
 
 		vn_finished_write(mountpoint);
-
-		VFS_UNLOCK_GIANT(vfs_is_locked);
 
 		goto bailout_send_response;
 		/* NOTREACHED */
@@ -2366,7 +2361,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	}
 #endif /* XBB_USE_BOUNCE_BUFFERS */
 
-	vfs_is_locked = VFS_LOCK_GIANT(xbb->vn->v_mount);
 	switch (operation) {
 	case BIO_READ:
 
@@ -2442,7 +2436,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		panic("invalid operation %d", operation);
 		/* NOTREACHED */
 	}
-	VFS_UNLOCK_GIANT(vfs_is_locked);
 
 #ifdef XBB_USE_BOUNCE_BUFFERS
 	/* We only need to copy here for read operations */
@@ -2489,7 +2482,6 @@ xbb_close_backend(struct xbb_softc *xbb)
 	DPRINTF("closing dev=%s\n", xbb->dev_name);
 	if (xbb->vn) {
 		int flags = FREAD;
-		int vfs_is_locked = 0;
 
 		if ((xbb->flags & XBBF_READ_ONLY) == 0)
 			flags |= FWRITE;
@@ -2504,7 +2496,6 @@ xbb_close_backend(struct xbb_softc *xbb)
 			}
 			break;
 		case XBB_TYPE_FILE:
-			vfs_is_locked = VFS_LOCK_GIANT(xbb->vn->v_mount);
 			break;
 		case XBB_TYPE_NONE:
 		default:
@@ -2519,7 +2510,6 @@ xbb_close_backend(struct xbb_softc *xbb)
 		case XBB_TYPE_DISK:
 			break;
 		case XBB_TYPE_FILE:
-			VFS_UNLOCK_GIANT(vfs_is_locked);
 			if (xbb->backend.file.cred != NULL) {
 				crfree(xbb->backend.file.cred);
 				xbb->backend.file.cred = NULL;
@@ -2684,7 +2674,6 @@ xbb_open_backend(struct xbb_softc *xbb)
 	struct nameidata nd;
 	int		 flags;
 	int		 error;
-	int		 vfs_is_locked;
 
 	flags = FREAD;
 	error = 0;
@@ -2744,8 +2733,6 @@ xbb_open_backend(struct xbb_softc *xbb)
 		return (error);
 	}
 
-	vfs_is_locked = NDHASGIANT(&nd);
-
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 		
 	xbb->vn = nd.ni_vp;
@@ -2761,7 +2748,6 @@ xbb_open_backend(struct xbb_softc *xbb)
 				 "or file", xbb->dev_name);
 	}
 	VOP_UNLOCK(xbb->vn, 0);
-	VFS_UNLOCK_GIANT(vfs_is_locked);
 
 	if (error != 0) {
 		xbb_close_backend(xbb);

@@ -298,7 +298,6 @@ vnode_pager_haspage(object, pindex, before, after)
 	int poff;
 	int bsize;
 	int pagesperblock, blocksperpage;
-	int vfslocked;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
@@ -324,9 +323,7 @@ vnode_pager_haspage(object, pindex, before, after)
 		reqblock = pindex * blocksperpage;
 	}
 	VM_OBJECT_UNLOCK(object);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	err = VOP_BMAP(vp, reqblock, NULL, &bn, after, before);
-	VFS_UNLOCK_GIANT(vfslocked);
 	VM_OBJECT_LOCK(object);
 	if (err)
 		return TRUE;
@@ -670,15 +667,12 @@ vnode_pager_getpages(object, m, count, reqpage)
 	int rtval;
 	struct vnode *vp;
 	int bytes = count * PAGE_SIZE;
-	int vfslocked;
 
 	vp = object->handle;
 	VM_OBJECT_UNLOCK(object);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	rtval = VOP_GETPAGES(vp, m, bytes, reqpage, 0);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
-	VFS_UNLOCK_GIANT(vfslocked);
 	VM_OBJECT_LOCK(object);
 	return rtval;
 }
@@ -1237,7 +1231,6 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	struct vnode *vp;
 	struct mount *mp;
 	vm_offset_t inc;
-	int vfslocked;
 
 	VM_OBJECT_LOCK(object);
 
@@ -1264,7 +1257,6 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	vp = object->handle;
 	vhold(vp);
 	VM_OBJECT_UNLOCK(object);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	mp = NULL;
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -1280,5 +1272,4 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	vdrop(vp);
 	if (mp != NULL)
 		vn_finished_write(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
 }

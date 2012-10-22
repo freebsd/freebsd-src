@@ -594,13 +594,11 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 {
 	union ctl_io *io;
 	struct mount *mountpoint;
-	int vfs_is_locked, error, lock_flags;
+	int error, lock_flags;
 
 	DPRINTF("entered\n");
 
 	io = beio->io;
-
-	vfs_is_locked = VFS_LOCK_GIANT(be_lun->vn->v_mount);
 
        	(void) vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
 
@@ -620,8 +618,6 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	VOP_UNLOCK(be_lun->vn, 0);
 
 	vn_finished_write(mountpoint);
-
-	VFS_UNLOCK_GIANT(vfs_is_locked);
 
 	if (error == 0)
 		ctl_set_success(&io->scsiio);
@@ -648,7 +644,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	union ctl_io *io;
 	struct uio xuio;
 	struct iovec *xiovec;
-	int vfs_is_locked, flags;
+	int flags;
 	int error, i;
 
 	DPRINTF("entered\n");
@@ -681,7 +677,6 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		xiovec->iov_len = beio->sg_segs[i].len;
 	}
 
-	vfs_is_locked = VFS_LOCK_GIANT(be_lun->vn->v_mount);
 	if (beio->bio_cmd == BIO_READ) {
 		vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 
@@ -754,7 +749,6 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 		vn_finished_write(mountpoint);
         }
-        VFS_UNLOCK_GIANT(vfs_is_locked);
 
 	/*
 	 * If we got an error, set the sense data to "MEDIUM ERROR" and
@@ -1478,7 +1472,6 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 	DROP_GIANT();
 	if (be_lun->vn) {
 		int flags = FREAD | FWRITE;
-		int vfs_is_locked = 0;
 
 		switch (be_lun->dev_type) {
 		case CTL_BE_BLOCK_DEV:
@@ -1490,7 +1483,6 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 			}
 			break;
 		case CTL_BE_BLOCK_FILE:
-			vfs_is_locked = VFS_LOCK_GIANT(be_lun->vn->v_mount);
 			break;
 		case CTL_BE_BLOCK_NONE:
 		default:
@@ -1505,7 +1497,6 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 		case CTL_BE_BLOCK_DEV:
 			break;
 		case CTL_BE_BLOCK_FILE:
-			VFS_UNLOCK_GIANT(vfs_is_locked);
 			if (be_lun->backend.file.cred != NULL) {
 				crfree(be_lun->backend.file.cred);
 				be_lun->backend.file.cred = NULL;
@@ -1529,7 +1520,6 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 	struct nameidata nd;
 	int		 flags;
 	int		 error;
-	int		 vfs_is_locked;
 
 	/*
 	 * XXX KDM allow a read-only option?
@@ -1587,8 +1577,6 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 		return (error);
 	}
 
-	vfs_is_locked = NDHASGIANT(&nd);
-
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 		
 	be_lun->vn = nd.ni_vp;
@@ -1604,7 +1592,6 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 			 "%s is not a disk or file", be_lun->dev_path);
 	}
 	VOP_UNLOCK(be_lun->vn, 0);
-	VFS_UNLOCK_GIANT(vfs_is_locked);
 
 	if (error != 0) {
 		ctl_be_block_close(be_lun);
@@ -2090,7 +2077,7 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_modify_params *params;
 	struct ctl_be_block_lun *be_lun;
-	int vfs_is_locked, error;
+	int error;
 
 	params = &req->reqdata.modify;
 
@@ -2120,7 +2107,6 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		}
 	}
 
-	vfs_is_locked = VFS_LOCK_GIANT(be_lun->vn->v_mount);
 	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 
 	if (be_lun->vn->v_type == VREG)
@@ -2129,7 +2115,6 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		error = ctl_be_block_modify_dev(be_lun, req);
 
 	VOP_UNLOCK(be_lun->vn, 0);
-	VFS_UNLOCK_GIANT(vfs_is_locked);
 
 	if (error != 0)
 		goto bailout_error;
