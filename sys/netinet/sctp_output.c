@@ -3980,15 +3980,15 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				tos_value |= sctp_get_ect(stcb);
 			}
 			if ((nofragment_flag) && (port == 0)) {
-				ip->ip_off = IP_DF;
+				ip->ip_off = htons(IP_DF);
 			} else
-				ip->ip_off = 0;
+				ip->ip_off = htons(0);
 
 			/* FreeBSD has a function for ip_id's */
 			ip->ip_id = ip_newid();
 
 			ip->ip_ttl = inp->ip_inp.inp.inp_ip_ttl;
-			ip->ip_len = packet_length;
+			ip->ip_len = htons(packet_length);
 			ip->ip_tos = tos_value;
 			if (port) {
 				ip->ip_p = IPPROTO_UDP;
@@ -10991,7 +10991,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 				udp->uh_sum = 0;
 			}
 		}
-		ip->ip_len = len;
+		ip->ip_len = htons(len);
 		if (port) {
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);

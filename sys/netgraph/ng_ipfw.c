@@ -265,7 +265,6 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 		switch (ip->ip_v) {
 #ifdef INET
 		case IPVERSION:
-			SET_HOST_IPLEN(ip);
 			return (ip_output(m, NULL, NULL, IP_FORWARDING,
 			    NULL, NULL));
 #endif

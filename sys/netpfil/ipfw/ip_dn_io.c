@@ -658,13 +658,10 @@ dummynet_send(struct mbuf *m)
 
 		switch (dst) {
 		case DIR_OUT:
-			SET_HOST_IPLEN(mtod(m, struct ip *));
 			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 			break ;
 
 		case DIR_IN :
-			/* put header in network format for ip_input() */
-			//SET_NET_IPLEN(mtod(m, struct ip *));
 			netisr_dispatch(NETISR_IP, m);
 			break;
 

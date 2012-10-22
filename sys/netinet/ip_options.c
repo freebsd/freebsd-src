@@ -490,7 +490,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	unsigned optlen;
 
 	optlen = opt->m_len - sizeof(p->ipopt_dst);
-	if (optlen + ip->ip_len > IP_MAXPACKET) {
+	if (optlen + ntohs(ip->ip_len) > IP_MAXPACKET) {
 		*phlen = 0;
 		return (m);		/* XXX should fail */
 	}
@@ -523,7 +523,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	*phlen = sizeof(struct ip) + optlen;
 	ip->ip_v = IPVERSION;
 	ip->ip_hl = *phlen >> 2;
-	ip->ip_len += optlen;
+	ip->ip_len = htons(ntohs(ip->ip_len) + optlen);
 	return (m);
 }
 

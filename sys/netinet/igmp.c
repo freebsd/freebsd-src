@@ -1442,7 +1442,7 @@ igmp_input(struct mbuf *m, int off)
 
 	ip = mtod(m, struct ip *);
 	iphlen = off;
-	igmplen = ip->ip_len;
+	igmplen = ntohs(ip->ip_len);
 
 	/*
 	 * Validate lengths.
@@ -2225,7 +2225,7 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 
 	ip = mtod(m, struct ip *);
 	ip->ip_tos = 0;
-	ip->ip_len = sizeof(struct ip) + sizeof(struct igmp);
+	ip->ip_len = htons(sizeof(struct ip) + sizeof(struct igmp));
 	ip->ip_off = 0;
 	ip->ip_p = IPPROTO_IGMP;
 	ip->ip_src.s_addr = INADDR_ANY;
@@ -3522,8 +3522,8 @@ igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 
 	ip = mtod(m, struct ip *);
 	ip->ip_tos = IPTOS_PREC_INTERNETCONTROL;
-	ip->ip_len = hdrlen + igmpreclen;
-	ip->ip_off = IP_DF;
+	ip->ip_len = htons(hdrlen + igmpreclen);
+	ip->ip_off = htons(IP_DF);
 	ip->ip_p = IPPROTO_IGMP;
 	ip->ip_sum = 0;
 

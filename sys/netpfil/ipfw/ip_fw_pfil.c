@@ -431,7 +431,6 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		int hlen;
 		struct mbuf *reass;
 
-		SET_HOST_IPLEN(ip); /* ip_reass wants host order */
 		reass = ip_reass(clone); /* Reassemble packet. */
 		if (reass == NULL)
 			return 0; /* not an error */
@@ -442,7 +441,6 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		 */
 		ip = mtod(reass, struct ip *);
 		hlen = ip->ip_hl << 2;
-		SET_NET_IPLEN(ip);
 		ip->ip_sum = 0;
 		if (hlen == sizeof(struct ip))
 			ip->ip_sum = in_cksum_hdr(ip);

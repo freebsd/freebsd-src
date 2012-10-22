@@ -24,6 +24,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121023:
+	The IPv4 network stack has been converted to network byte
+	order. The following modules need to be recompiled together
+	with kernel: carp(4), divert(4), gif(4), siftr(4), gre(4),
+	pf(4), ipfw(4), ng_ipfw(4), stf(4).
+
 20121022:
 	Support for non-MPSAFE filesystems was removed from VFS. The
 	VFS_VERSION was bumped, all filesystem modules shall be
