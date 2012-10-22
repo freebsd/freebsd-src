@@ -122,5 +122,5 @@ sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
 isci(4)		jimharris	Pre-commit review requested.
 3dfx		cokane		Pre-commit review preferred.
 cmx		daniel@roe.ch	Pre-commit review preferred.
-fileman		obrien		Pre-commit review preferred.
+filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.
