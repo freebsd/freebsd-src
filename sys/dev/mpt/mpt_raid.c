@@ -692,9 +692,7 @@ mpt_raid_thread(void *arg)
 		 */
 		if (firstrun) {
 			firstrun = 0;
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_release_simq(mpt->phydisk_sim, TRUE);
-			CAMLOCK_2_MPTLOCK(mpt);
 		}
 
 		if (mpt->raid_rescan != 0) {
@@ -1664,19 +1662,16 @@ mpt_raid_set_vol_queue_depth(struct mpt_softc *mpt, u_int vol_queue_depth)
 
 		mpt->raid_rescan = 0;
 
-		MPTLOCK_2_CAMLOCK(mpt);
 		error = xpt_create_path(&path, xpt_periph,
 					cam_sim_path(mpt->sim),
 					mpt_vol->config_page->VolumeID,
 					/*lun*/0);
 		if (error != CAM_REQ_CMP) {
-			CAMLOCK_2_MPTLOCK(mpt);
 			mpt_vol_prt(mpt, mpt_vol, "Unable to allocate path!\n");
 			continue;
 		}
 		mpt_adjust_queue_depth(mpt, mpt_vol, path);
 		xpt_free_path(path);
-		CAMLOCK_2_MPTLOCK(mpt);
 	}
 	MPT_UNLOCK(mpt);
 	return (0);
