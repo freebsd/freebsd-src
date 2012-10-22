@@ -71,6 +71,9 @@ static int
 agp_apple_probe(device_t dev)
 {
 
+	if (resource_disabled("agp", device_get_unit(dev)))
+		return (ENXIO);
+
 	if (pci_get_class(dev) != PCIC_BRIDGE
 	    || pci_get_subclass(dev) != PCIS_BRIDGE_HOST)
 		return (ENXIO);

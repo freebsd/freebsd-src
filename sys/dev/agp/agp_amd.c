@@ -203,6 +203,8 @@ agp_amd_probe(device_t dev)
 {
 	const char *desc;
 
+	if (resource_disabled("agp", device_get_unit(dev)))
+		return (ENXIO);
 	desc = agp_amd_match(dev);
 	if (desc) {
 		device_set_desc(dev, desc);

@@ -390,6 +390,11 @@ lem_attach(device_t dev)
 
 	INIT_DEBUGOUT("lem_attach: begin");
 
+	if (resource_disabled("lem", device_get_unit(dev))) {
+		device_printf(dev, "Disabled by device hint\n");
+		return (ENXIO);
+	}
+
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
 	EM_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));

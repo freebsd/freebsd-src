@@ -298,6 +298,9 @@ static int
 glxiic_probe(device_t dev)
 {
 
+	if (resource_disabled("glxiic", device_get_unit(dev)))
+		return (ENXIO);
+
 	device_set_desc(dev, "AMD Geode CS5536 SMBus controller");
 
 	return (BUS_PROBE_DEFAULT);

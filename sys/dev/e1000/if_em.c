@@ -472,6 +472,11 @@ em_attach(device_t dev)
 
 	INIT_DEBUGOUT("em_attach: begin");
 
+	if (resource_disabled("em", device_get_unit(dev))) {
+		device_printf(dev, "Disabled by device hint\n");
+		return (ENXIO);
+	}
+
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
 	hw = &adapter->hw;

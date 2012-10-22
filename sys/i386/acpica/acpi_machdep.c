@@ -268,6 +268,9 @@ acpi_find_table(const char *sig)
 	vm_paddr_t addr;
 	int i, count;
 
+	if (resource_disabled("acpi", 0))
+		return (0);
+
 	/*
 	 * Map in the RSDP.  Since ACPI uses AcpiOsMapMemory() which in turn
 	 * calls pmap_mapbios() to find the RSDP, we assume that we can use
