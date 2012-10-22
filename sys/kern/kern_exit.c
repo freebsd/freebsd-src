@@ -135,7 +135,6 @@ exit1(struct thread *td, int rv)
 	struct vnode *vtmp;
 	struct vnode *ttyvp = NULL;
 	struct plimit *plim;
-	int locked;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 
@@ -383,9 +382,7 @@ exit1(struct thread *td, int rv)
 	 */
 	if ((vtmp = p->p_textvp) != NULL) {
 		p->p_textvp = NULL;
-		locked = VFS_LOCK_GIANT(vtmp->v_mount);
 		vrele(vtmp);
-		VFS_UNLOCK_GIANT(locked);
 	}
 
 	/*

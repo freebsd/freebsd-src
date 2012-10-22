@@ -247,7 +247,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	char *library;
 	ssize_t aresid;
 	int error;
-	int locked, vfslocked;
+	int locked;
 
 	LCONVPATHEXIST(td, args->library, &library);
 
@@ -257,11 +257,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 #endif
 
 	a_out = NULL;
-	vfslocked = 0;
 	locked = 0;
 	vp = NULL;
 
-	NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_SYSSPACE, library, td);
 	error = namei(&ni);
 	LFREEPATH(library);
@@ -269,7 +268,6 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		goto cleanup;
 
 	vp = ni.ni_vp;
-	vfslocked = NDHASGIANT(&ni);
 	NDFREE(&ni, NDF_ONLY_PNBUF);
 
 	/*
@@ -393,7 +391,6 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 */
 	locked = 0;
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	/*
 	 * Check if file_offset page aligned. Currently we cannot handle
@@ -463,10 +460,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 cleanup:
 	/* Unlock vnode if needed */
-	if (locked) {
+	if (locked)
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 
 	/* Release the temporary mapping. */
 	if (a_out)

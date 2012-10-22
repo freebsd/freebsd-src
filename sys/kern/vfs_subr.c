@@ -93,9 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-#define	WI_MPSAFEQ	0
-#define	WI_GIANTQ	1
-
 static void	delmntque(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
@@ -217,7 +214,7 @@ static uma_zone_t vnodepoll_zone;
 static int syncer_delayno;
 static long syncer_mask;
 LIST_HEAD(synclist, bufobj);
-static struct synclist *syncer_workitem_pending[2];
+static struct synclist *syncer_workitem_pending;
 /*
  * The sync_mtx protects:
  *	bo->bo_synclist
@@ -329,9 +326,7 @@ vntblinit(void *dummy __unused)
 	/*
 	 * Initialize the filesystem syncer.
 	 */
-	syncer_workitem_pending[WI_MPSAFEQ] = hashinit(syncer_maxdelay, M_VNODE,
-	    &syncer_mask);
-	syncer_workitem_pending[WI_GIANTQ] = hashinit(syncer_maxdelay, M_VNODE,
+	syncer_workitem_pending = hashinit(syncer_maxdelay, M_VNODE,
 	    &syncer_mask);
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
@@ -761,7 +756,6 @@ static void
 vnlru_free(int count)
 {
 	struct vnode *vp;
-	int vfslocked;
 
 	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
 	for (; count > 0; count--) {
@@ -793,9 +787,7 @@ vnlru_free(int count)
 		vholdl(vp);
 		mtx_unlock(&vnode_free_list_mtx);
 		VI_UNLOCK(vp);
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vtryrecycle(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		/*
 		 * If the recycled succeeded this vdrop will actually free
 		 * the vnode.  If not it will simply place it back on
@@ -817,7 +809,7 @@ static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
-	int done, vfslocked;
+	int done;
 	struct proc *p = vnlruproc;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
@@ -843,9 +835,7 @@ vnlru_proc(void)
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
-			vfslocked = VFS_LOCK_GIANT(mp);
 			done += vlrureclaim(mp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp);
@@ -1141,11 +1131,8 @@ insmntque1(struct vnode *vp, struct mount *mp,
 	KASSERT(vp->v_mount == NULL,
 		("insmntque: vnode already on per mount vnode list"));
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
-#ifdef DEBUG_VFS_LOCKS
-	if (!VFS_NEEDSGIANT(mp))
-		ASSERT_VOP_ELOCKED(vp,
-		    "insmntque: mp-safe fs and non-locked vp");
-#endif
+	ASSERT_VOP_ELOCKED(vp, "insmntque: non-locked vp");
+
 	/*
 	 * We acquire the vnode interlock early to ensure that the
 	 * vnode cannot be recycled by another process releasing a
@@ -1679,8 +1666,6 @@ bgetvp(struct vnode *vp, struct buf *bp)
 	    ("bgetvp: bp already attached! %p", bp));
 
 	vhold(vp);
-	if (VFS_NEEDSGIANT(vp->v_mount) || bo->bo_flag & BO_NEEDSGIANT)
-		bp->b_flags |= B_NEEDSGIANT;
 	bp->b_vp = vp;
 	bp->b_bufobj = bo;
 	/*
@@ -1718,7 +1703,6 @@ brelvp(struct buf *bp)
 		syncer_worklist_len--;
 		mtx_unlock(&sync_mtx);
 	}
-	bp->b_flags &= ~B_NEEDSGIANT;
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
 	BO_UNLOCK(bo);
@@ -1731,7 +1715,7 @@ brelvp(struct buf *bp)
 static void
 vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 {
-	int queue, slot;
+	int slot;
 
 	ASSERT_BO_LOCKED(bo);
 
@@ -1747,10 +1731,7 @@ vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 		delay = syncer_maxdelay - 2;
 	slot = (syncer_delayno + delay) & syncer_mask;
 
-	queue = VFS_NEEDSGIANT(bo->__bo_vnode->v_mount) ? WI_GIANTQ :
-	    WI_MPSAFEQ;
-	LIST_INSERT_HEAD(&syncer_workitem_pending[queue][slot], bo,
-	    bo_synclist);
+	LIST_INSERT_HEAD(&syncer_workitem_pending[slot], bo, bo_synclist);
 	mtx_unlock(&sync_mtx);
 }
 
@@ -1830,8 +1811,7 @@ sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 static void
 sched_sync(void)
 {
-	struct synclist *gnext, *next;
-	struct synclist *gslp, *slp;
+	struct synclist *next, *slp;
 	struct bufobj *bo;
 	long starttime;
 	struct thread *td = curthread;
@@ -1877,13 +1857,11 @@ sched_sync(void)
 		 * Skip over empty worklist slots when shutting down.
 		 */
 		do {
-			slp = &syncer_workitem_pending[WI_MPSAFEQ][syncer_delayno];
-			gslp = &syncer_workitem_pending[WI_GIANTQ][syncer_delayno];
+			slp = &syncer_workitem_pending[syncer_delayno];
 			syncer_delayno += 1;
 			if (syncer_delayno == syncer_maxdelay)
 				syncer_delayno = 0;
-			next = &syncer_workitem_pending[WI_MPSAFEQ][syncer_delayno];
-			gnext = &syncer_workitem_pending[WI_GIANTQ][syncer_delayno];
+			next = &syncer_workitem_pending[syncer_delayno];
 			/*
 			 * If the worklist has wrapped since the
 			 * it was emptied of all but syncer vnodes,
@@ -1897,7 +1875,7 @@ sched_sync(void)
 				syncer_final_iter = SYNCER_SHUTDOWN_SPEEDUP;
 			}
 		} while (syncer_state != SYNCER_RUNNING && LIST_EMPTY(slp) &&
-		    LIST_EMPTY(gslp) && syncer_worklist_len > 0);
+		    syncer_worklist_len > 0);
 
 		/*
 		 * Keep track of the last time there was anything
@@ -1920,21 +1898,6 @@ sched_sync(void)
 			if (first_printf == 0)
 				wdog_kern_pat(WD_LASTVAL);
 
-		}
-		if (!LIST_EMPTY(gslp)) {
-			mtx_unlock(&sync_mtx);
-			mtx_lock(&Giant);
-			mtx_lock(&sync_mtx);
-			while (!LIST_EMPTY(gslp)) {
-				error = sync_vnode(gslp, &bo, td);
-				if (error == 1) {
-					LIST_REMOVE(bo, bo_synclist);
-					LIST_INSERT_HEAD(gnext, bo,
-					    bo_synclist);
-					continue;
-				}
-			}
-			mtx_unlock(&Giant);
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;
@@ -2196,7 +2159,6 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	int error;
 
 	error = 0;
-	VFS_ASSERT_GIANT(vp->v_mount);
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
 	    ("vget: invalid lock operation"));
 	CTR3(KTR_VFS, "%s: vp %p with flags %d", __func__, vp, flags);
@@ -2281,7 +2243,6 @@ vputx(struct vnode *vp, int func)
 		ASSERT_VOP_LOCKED(vp, "vput");
 	else
 		KASSERT(func == VPUTX_VRELE, ("vputx: wrong func"));
-	VFS_ASSERT_GIANT(vp->v_mount);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	VI_LOCK(vp);
 
@@ -4631,7 +4592,6 @@ vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 	struct mount *mp;
 
 	mp = vp->v_mount;
-	VFS_ASSERT_GIANT(mp);
 	ASSERT_VOP_LOCKED(vp, "vfs_mark_atime");
 	if (mp != NULL && (mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		(void)VOP_MARKATIME(vp);

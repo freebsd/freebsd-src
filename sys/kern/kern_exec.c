@@ -341,7 +341,6 @@ do_execve(td, args, mac_p)
 #endif
 	struct vnode *textvp = NULL, *binvp = NULL;
 	int credential_changing;
-	int vfslocked;
 	int textset;
 #ifdef MAC
 	struct label *interpvplabel = NULL;
@@ -352,7 +351,6 @@ do_execve(td, args, mac_p)
 #endif
 	static const char fexecv_proc_title[] = "(fexecv)";
 
-	vfslocked = 0;
 	imgp = &image_params;
 
 	/*
@@ -412,7 +410,7 @@ do_execve(td, args, mac_p)
 	 */
 	if (args->fname != NULL) {
 		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
-		    | MPSAFE | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
+		    | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 	}
 
 	SDT_PROBE(proc, kernel, , exec, args->fname, 0, 0, 0, 0 );
@@ -435,7 +433,6 @@ interpret:
 		if (error)
 			goto exec_fail;
 
-		vfslocked = NDHASGIANT(&nd);
 		binvp  = nd.ni_vp;
 		imgp->vp = binvp;
 	} else {
@@ -449,7 +446,6 @@ interpret:
 		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
 		if (error)
 			goto exec_fail;
-		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
 		AUDIT_ARG_VNODE1(binvp);
 		imgp->vp = binvp;
@@ -538,10 +534,8 @@ interpret:
 		vput(binvp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = 0;
 		/* set new name to that of the interpreter */
-		NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
+		NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		args->fname = imgp->interpreter_name;
 		goto interpret;
@@ -844,23 +838,13 @@ done1:
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */
-	if (textvp != NULL) {
-		int tvfslocked;
-
-		tvfslocked = VFS_LOCK_GIANT(textvp->v_mount);
+	if (textvp != NULL)
 		vrele(textvp);
-		VFS_UNLOCK_GIANT(tvfslocked);
-	}
 	if (binvp && error != 0)
 		vrele(binvp);
 #ifdef KTRACE
-	if (tracevp != NULL) {
-		int tvfslocked;
-
-		tvfslocked = VFS_LOCK_GIANT(tracevp->v_mount);
+	if (tracevp != NULL)
 		vrele(tracevp);
-		VFS_UNLOCK_GIANT(tvfslocked);
-	}
 	if (tracecred != NULL)
 		crfree(tracecred);
 #endif
@@ -917,7 +901,6 @@ done2:
 	mac_execve_exit(imgp);
 	mac_execve_interpreter_exit(interpvplabel);
 #endif
-	VFS_UNLOCK_GIANT(vfslocked);
 	exec_free_args(args);
 
 	if (error && imgp->vmspace_destroyed) {

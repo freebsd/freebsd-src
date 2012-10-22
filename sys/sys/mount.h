@@ -682,41 +682,6 @@ vfs_statfs_t	__vfs_statfs;
 	({if (*(MP)->mnt_op->vfs_reclaim_lowervp != NULL)	\
 		(*(MP)->mnt_op->vfs_reclaim_lowervp)((MP), (VP)); })
 
-#define	VFS_NEEDSGIANT_(MP)						\
-    ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0)
-
-#define	VFS_NEEDSGIANT(MP) __extension__				\
-({									\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	VFS_NEEDSGIANT_(_mp);						\
-})
-
-#define	VFS_LOCK_GIANT(MP) __extension__				\
-({									\
-	int _locked;							\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	if (VFS_NEEDSGIANT_(_mp)) {					\
-		mtx_lock(&Giant);					\
-		_locked = 1;						\
-	} else								\
-		_locked = 0;						\
-	_locked;							\
-})
-#define	VFS_UNLOCK_GIANT(locked) do					\
-{									\
-	if ((locked))							\
-		mtx_unlock(&Giant);					\
-} while (0)
-#define	VFS_ASSERT_GIANT(MP) do						\
-{									\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	if (VFS_NEEDSGIANT_(_mp))					\
-		mtx_assert(&Giant, MA_OWNED);				\
-} while (0)
-
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
@@ -735,7 +700,8 @@ vfs_statfs_t	__vfs_statfs;
  * Version numbers.
  */
 #define VFS_VERSION_00	0x19660120
-#define VFS_VERSION	VFS_VERSION_00
+#define VFS_VERSION_01	0x20121030
+#define VFS_VERSION	VFS_VERSION_01
 
 #define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf fsname ## _vfsconf = {		\

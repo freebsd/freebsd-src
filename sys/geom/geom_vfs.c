@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>	/* XXX Temporary for VFS_LOCK_GIANT */
+#include <sys/mount.h>
 
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
@@ -94,7 +94,7 @@ g_vfs_done(struct bio *bip)
 	struct g_consumer *cp;
 	struct g_vfs_softc *sc;
 	struct buf *bp;
-	int vfslocked, destroy;
+	int destroy;
 	struct mount *mp;
 	struct vnode *vp;
 	struct cdev *cdevp;
@@ -158,9 +158,7 @@ g_vfs_done(struct bio *bip)
 	if (destroy)
 		g_post_event(g_vfs_destroy, cp, M_WAITOK, NULL);
 
-	vfslocked = VFS_LOCK_GIANT(((struct mount *)NULL));
 	bufdone(bp);
-	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 void
@@ -169,7 +167,6 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	struct g_vfs_softc *sc;
 	struct g_consumer *cp;
 	struct bio *bip;
-	int vfslocked;
 
 	cp = bo->bo_private;
 	sc = cp->geom->softc;
@@ -182,9 +179,7 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 		mtx_unlock(&sc->sc_mtx);
 		bp->b_error = ENXIO;
 		bp->b_ioflags |= BIO_ERROR;
-		vfslocked = VFS_LOCK_GIANT(((struct mount *)NULL));
 		bufdone(bp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return;
 	}
 	sc->sc_active++;
@@ -234,7 +229,6 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 	struct g_consumer *cp;
 	struct g_vfs_softc *sc;
 	struct bufobj *bo;
-	int vfslocked;
 	int error;
 
 	g_topology_assert();
@@ -259,9 +253,7 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 		g_wither_geom(gp, ENXIO);
 		return (error);
 	}
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vnode_create_vobject(vp, pp->mediasize, curthread);
-	VFS_UNLOCK_GIANT(vfslocked);
 	*cpp = cp;
 	cp->private = vp;
 	bo->bo_ops = g_vfs_bufops;

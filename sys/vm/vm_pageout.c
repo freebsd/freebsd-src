@@ -569,7 +569,6 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 	vm_object_t object;
 	vm_paddr_t pa;
 	vm_page_t m, m_tmp, next;
-	int vfslocked;
 
 	vm_page_lock_queues();
 	TAILQ_FOREACH_SAFE(m, &vm_page_queues[queue].pl, pageq, next) {
@@ -609,13 +608,11 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 				vm_object_reference_locked(object);
 				VM_OBJECT_UNLOCK(object);
 				(void)vn_start_write(vp, &mp, V_WAIT);
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				VM_OBJECT_LOCK(object);
 				vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 				VM_OBJECT_UNLOCK(object);
 				VOP_UNLOCK(vp, 0);
-				VFS_UNLOCK_GIANT(vfslocked);
 				vm_object_deallocate(object);
 				vn_finished_write(mp);
 				return (TRUE);
@@ -1127,7 +1124,7 @@ vm_pageout_scan(int pass)
 			 * pressure where there are insufficient clean pages
 			 * on the inactive queue, we may have to go all out.
 			 */
-			int swap_pageouts_ok, vfslocked = 0;
+			int swap_pageouts_ok;
 			struct vnode *vp = NULL;
 			struct mount *mp = NULL;
 
@@ -1191,7 +1188,6 @@ vm_pageout_scan(int pass)
 				    ("vp %p with NULL v_mount", vp));
 				vm_object_reference_locked(object);
 				VM_OBJECT_UNLOCK(object);
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				if (vget(vp, LK_EXCLUSIVE | LK_TIMELOCK,
 				    curthread)) {
 					VM_OBJECT_LOCK(object);
@@ -1270,7 +1266,6 @@ unlock_and_continue:
 				}
 				if (vp != NULL)
 					vput(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 				vm_object_deallocate(object);
 				vn_finished_write(mp);
 			}

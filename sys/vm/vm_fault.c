@@ -102,8 +102,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-#include <sys/mount.h>	/* XXX Temporary for VFS_LOCK_GIANT() */
-
 #define PFBAK 4
 #define PFFOR 4
 #define PAGEORDER_SIZE (PFBAK+PFFOR)
@@ -135,7 +133,6 @@ struct faultstate {
 	vm_map_entry_t entry;
 	int lookup_still_valid;
 	struct vnode *vp;
-	int vfslocked;
 };
 
 static void vm_fault_cache_behind(const struct faultstate *fs, int distance);
@@ -182,8 +179,6 @@ unlock_and_deallocate(struct faultstate *fs)
 		vput(fs->vp);
 		fs->vp = NULL;
 	}
-	VFS_UNLOCK_GIANT(fs->vfslocked);
-	fs->vfslocked = 0;
 }
 
 /*
@@ -255,7 +250,6 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
-	fs.vfslocked = 0;
 	faultcount = reqpage = 0;
 
 RetryFault:;
@@ -513,7 +507,6 @@ readrest:
 			 */
 			unlock_map(&fs);
 
-vnode_lock:
 			if (fs.object->type == OBJT_VNODE) {
 				vp = fs.object->handle;
 				if (vp == fs.vp)
@@ -524,25 +517,12 @@ vnode_lock:
 				}
 				locked = VOP_ISLOCKED(vp);
 
-				if (VFS_NEEDSGIANT(vp->v_mount) && !fs.vfslocked) {
-					fs.vfslocked = 1;
-					if (!mtx_trylock(&Giant)) {
-						VM_OBJECT_UNLOCK(fs.object);
-						mtx_lock(&Giant);
-						VM_OBJECT_LOCK(fs.object);
-						goto vnode_lock;
-					}
-				}
 				if (locked != LK_EXCLUSIVE)
 					locked = LK_SHARED;
 				/* Do not sleep for vnode lock while fs.m is busy */
 				error = vget(vp, locked | LK_CANRECURSE |
 				    LK_NOWAIT, curthread);
 				if (error != 0) {
-					int vfslocked;
-
-					vfslocked = fs.vfslocked;
-					fs.vfslocked = 0; /* Keep Giant */
 					vhold(vp);
 					release_page(&fs);
 					unlock_and_deallocate(&fs);
@@ -550,7 +530,6 @@ vnode_lock:
 					    LK_CANRECURSE, curthread);
 					vdrop(vp);
 					fs.vp = vp;
-					fs.vfslocked = vfslocked;
 					KASSERT(error == 0,
 					    ("vm_fault: vget failed"));
 					goto RetryFault;

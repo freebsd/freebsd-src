@@ -512,7 +512,7 @@ mdstart_preload(struct md_s *sc, struct bio *bp)
 static int
 mdstart_vnode(struct md_s *sc, struct bio *bp)
 {
-	int error, vfslocked;
+	int error;
 	struct uio auio;
 	struct iovec aiov;
 	struct mount *mp;
@@ -542,13 +542,11 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 */
 
 	if (bp->bio_cmd == BIO_FLUSH) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 
@@ -570,7 +568,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		auio.uio_rw = UIO_WRITE;
 		auio.uio_td = td;
 		end = bp->bio_offset + bp->bio_length;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = 0;
@@ -588,7 +585,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 		bp->bio_resid = end - auio.uio_offset;
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 
@@ -610,7 +606,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 * When reading set IO_DIRECT to try to avoid double-caching
 	 * the data.  When writing IO_DIRECT is not optimal.
 	 */
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (bp->bio_cmd == BIO_READ) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
@@ -623,7 +618,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	bp->bio_resid = auio.uio_resid;
 	return (error);
 }
@@ -957,7 +951,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	struct vattr vattr;
 	struct nameidata nd;
 	char *fname;
-	int error, flags, vfslocked;
+	int error, flags;
 
 	/*
 	 * Kernel-originated requests must have the filename appended
@@ -976,11 +970,10 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * set the FWRITE mask before trying to open the backing store.
 	 */
 	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE);
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, sc->file, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG) {
 		error = EINVAL;
@@ -1016,19 +1009,16 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		nd.ni_vp->v_vflag &= ~VV_MD;
 		goto bad;
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 bad:
 	VOP_UNLOCK(nd.ni_vp, 0);
 	(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
-	int vfslocked;
 
 	if (sc->gp) {
 		sc->gp->softc = NULL;
@@ -1050,13 +1040,11 @@ mddestroy(struct md_s *sc, struct thread *td)
 	mtx_unlock(&sc->queue_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL) {
-		vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		sc->vnode->v_vflag &= ~VV_MD;
 		VOP_UNLOCK(sc->vnode, 0);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (sc->cred != NULL)
 		crfree(sc->cred);
