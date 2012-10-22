@@ -1347,9 +1347,7 @@ bad:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -1583,9 +1581,7 @@ bad:
 		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
 			request_t *nrq;
 
-			CAMLOCK_2_MPTLOCK(mpt);
 			nrq = mpt_get_request(mpt, FALSE);
-			MPTLOCK_2_CAMLOCK(mpt);
 
 			if (nrq == NULL) {
 				error = ENOMEM;
@@ -1633,9 +1629,7 @@ out:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -1667,9 +1661,7 @@ out:
 		tgt->state = TGT_STATE_MOVING_DATA;
 #endif
 	}
-	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_send_cmd(mpt, req);
-	MPTLOCK_2_CAMLOCK(mpt);
 }
 
 static void
@@ -1758,9 +1750,7 @@ bad:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -1978,9 +1968,7 @@ bad:
 		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
 			request_t *nrq;
 
-			CAMLOCK_2_MPTLOCK(mpt);
 			nrq = mpt_get_request(mpt, FALSE);
-			MPTLOCK_2_CAMLOCK(mpt);
 
 			if (nrq == NULL) {
 				error = ENOMEM;
@@ -2028,9 +2016,7 @@ out:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -2062,9 +2048,7 @@ out:
 		tgt->state = TGT_STATE_MOVING_DATA;
 #endif
 	}
-	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_send_cmd(mpt, req);
-	MPTLOCK_2_CAMLOCK(mpt);
 }
 
 static void
@@ -2083,7 +2067,6 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 	raid_passthru = (sim == mpt->phydisk_sim);
 
-	CAMLOCK_2_MPTLOCK(mpt);
 	if ((req = mpt_get_request(mpt, FALSE)) == NULL) {
 		if (mpt->outofbeer == 0) {
 			mpt->outofbeer = 1;
@@ -2092,14 +2075,12 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
 		return;
 	}
 #ifdef	INVARIANTS
 	mpt_req_not_spcl(mpt, req, "mpt_start", __LINE__);
 #endif
-	MPTLOCK_2_CAMLOCK(mpt);
 
 	if (sizeof (bus_addr_t) > 4) {
 		cb = mpt_execute_req_a64;
@@ -2121,15 +2102,12 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt_req->Function = MPI_FUNCTION_SCSI_IO_REQUEST;
 	if (raid_passthru) {
 		mpt_req->Function = MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			xpt_done(ccb);
 			return;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		mpt_req->Bus = 0;	/* we never set bus here */
 	} else {
 		tgt = ccb->ccb_h.target_id;
@@ -2424,7 +2402,6 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		} else {
 			pathid = cam_sim_path(mpt->sim);
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		/*
 		 * Allocate a CCB, create a wildcard path for this bus,
 		 * and schedule a rescan.
@@ -2432,19 +2409,16 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		ccb = xpt_alloc_ccb_nowait();
 		if (ccb == NULL) {
 			mpt_prt(mpt, "unable to alloc CCB for rescan\n");
-			CAMLOCK_2_MPTLOCK(mpt);
 			break;
 		}
 
 		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, pathid,
 		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-			CAMLOCK_2_MPTLOCK(mpt);
 			mpt_prt(mpt, "unable to create path for rescan\n");
 			xpt_free_ccb(ccb);
 			break;
 		}
 		xpt_rescan(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
 #else
@@ -2541,13 +2515,11 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		} else {
 			sim = mpt->sim;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		for (lun_id = 0; lun_id < MPT_MAX_LUNS; lun_id++) {
 			if (xpt_create_path(&tmppath, NULL, cam_sim_path(sim),
 			    pqf->TargetID, lun_id) != CAM_REQ_CMP) {
 				mpt_prt(mpt, "unable to create a path to send "
 				    "XPT_REL_SIMQ");
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			xpt_setup_ccb(&crs.ccb_h, tmppath, 5);
@@ -2561,7 +2533,6 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			}
 			xpt_free_path(tmppath);
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
 	case MPI_EVENT_IR_RESYNC_UPDATE:
@@ -2583,39 +2554,32 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			sim = mpt->sim;
 		switch(psdsc->ReasonCode) {
 		case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
-			MPTLOCK_2_CAMLOCK(mpt);
 			ccb = xpt_alloc_ccb_nowait();
 			if (ccb == NULL) {
 				mpt_prt(mpt,
 				    "unable to alloc CCB for rescan\n");
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
 			    cam_sim_path(sim), psdsc->TargetID,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-				CAMLOCK_2_MPTLOCK(mpt);
 				mpt_prt(mpt,
 				    "unable to create path for rescan\n");
 				xpt_free_ccb(ccb);
 				break;
 			}
 			xpt_rescan(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
-			MPTLOCK_2_CAMLOCK(mpt);
 			if (xpt_create_path(&tmppath, NULL, cam_sim_path(sim),
 			    psdsc->TargetID, CAM_LUN_WILDCARD) !=
 			    CAM_REQ_CMP) {
 				mpt_prt(mpt,
 				    "unable to create path for async event");
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
 			xpt_free_path(tmppath);
-			CAMLOCK_2_MPTLOCK(mpt);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_INTERNAL_DEV_RESET:
 		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_TASK_ABORT_INTERNAL:
@@ -2735,9 +2699,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		    req, req->serno);
 	}
 	KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
-	CAMLOCK_2_MPTLOCK(mpt);
 	if ((req->state & REQ_STATE_TIMEDOUT) == 0) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	} else {
@@ -3323,15 +3285,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	    ccb->ccb_h.func_code != XPT_PATH_INQ &&
 	    ccb->ccb_h.func_code != XPT_RESET_BUS &&
 	    ccb->ccb_h.func_code != XPT_RESET_DEV) {
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			xpt_done(ccb);
 			return;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 	}
 	ccb->ccb_h.ccb_mpt_ptr = mpt;
 
@@ -3380,9 +3339,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			xpt_print(ccb->ccb_h.path, "reset device\n");
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 		(void) mpt_bus_reset(mpt, tgt, lun, FALSE);
-		MPTLOCK_2_CAMLOCK(mpt);
 
 		/*
 		 * mpt_bus_reset is always successful in that it
@@ -3396,7 +3353,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_ABORT:
 	{
 		union ccb *accb = ccb->cab.abort_ccb;
-		CAMLOCK_2_MPTLOCK(mpt);
 		switch (accb->ccb_h.func_code) {
 		case XPT_ACCEPT_TARGET_IO:
 		case XPT_IMMEDIATE_NOTIFY:
@@ -3413,7 +3369,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			break;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		break;
 	}
 
@@ -3553,7 +3508,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	    		period >>= MPI_SCSIDEVPAGE1_RP_SHIFT_MIN_SYNC_PERIOD;
 		}
 #endif
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (dval & DP_DISC_ENABLE) {
 			mpt->mpt_disc_enable |= (1 << tgt);
 		} else if (dval & DP_DISC_DISABL) {
@@ -3571,7 +3525,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_setsync(mpt, tgt, period, offset);
 		}
 		if (dval == 0) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
 		}
@@ -3583,7 +3536,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -3758,14 +3710,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		int result;
 
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (ccb->cel.enable)
 			result = mpt_enable_lun(mpt,
 			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 		else
 			result = mpt_disable_lun(mpt,
 			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
-		MPTLOCK_2_CAMLOCK(mpt);
 		if (result == 0) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		} else {
@@ -3795,7 +3745,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			trtp = &mpt->trt[lun];
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG1,
 			    "Put FREE ATIO %p lun %d\n", ccb, lun);
@@ -3810,13 +3759,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_lprt(mpt, MPT_PRT_ALWAYS, "Got Notify ACK\n");
 		}
 		mpt_set_ccb_status(ccb, CAM_REQ_INPROG);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 	case XPT_CONT_TARGET_IO:
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_target_start_io(mpt, ccb);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 
 	default:
@@ -3860,18 +3806,15 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		CONFIG_PAGE_SCSI_DEVICE_0 tmp;
 		dval = 0;
 
-		CAMLOCK_2_MPTLOCK(mpt);
 		tmp = mpt->mpt_dev_page0[tgt];
 		rv = mpt_read_cur_cfg_page(mpt, tgt, &tmp.Header,
 		    sizeof(tmp), FALSE, 5000);
 		if (rv) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			mpt_prt(mpt, "can't get tgt %d config page 0\n", tgt);
 			return (rv);
 		}
 		mpt2host_config_page_scsi_device_0(&tmp);
 		
-		MPTLOCK_2_CAMLOCK(mpt);
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "mpt_get_spi_settings[%d]: current NP %x Info %x\n", tgt,
 		    tmp.NegotiatedParameters, tmp.Information);
@@ -4500,18 +4443,14 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		xpt_freeze_simq(mpt->sim, 1);
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		tgt->ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		return;
 	default:
 		mpt_prt(mpt, "ccb %p flags 0x%x tag 0x%08x had bad request "
 		    "starting I/O\n", ccb, csio->ccb_h.flags, csio->tag_id);
 		mpt_tgt_dump_req_state(mpt, cmd_req);
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		return;
 	}
 
@@ -4531,9 +4470,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 			}
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 			return;
 		}
 		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
@@ -4607,7 +4544,6 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		    "nxtstate=%d\n", csio, csio->tag_id, csio->dxfer_len,
 		    tgt->resid, ccb->ccb_h.flags, req, req->serno, tgt->state);
 
-		MPTLOCK_2_CAMLOCK(mpt);
 		if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
 			if ((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0) {
 				int error;
@@ -4647,7 +4583,6 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 				(*cb)(req, sgs, csio->sglist_cnt, 0);
 			}
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 	} else {
 		uint8_t *sp = NULL, sense[MPT_SENSE_SIZE];
 
@@ -4664,9 +4599,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 			    ccb->ccb_h.status, tgt->resid, tgt->bytes_xfered);
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 			return;
 		}
 		if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
@@ -4872,9 +4805,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 		if (ccb) {
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 		} else {
 			mpt_prt(mpt,
 			    "could not allocate status request- dropping\n");
@@ -5049,9 +4980,7 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 	 */
 	tgt->ccb = (union ccb *) inot;
 	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done((union ccb *)inot);
-	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 static void
@@ -5321,9 +5250,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	    	    itag, atiop->tag_id, tgt->reply_desc, tgt->resid);
 	}
 	
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done((union ccb *)atiop);
-	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 static void
@@ -5432,9 +5359,7 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 					mpt->outofbeer = 0;
 					mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
 				}
-				MPTLOCK_2_CAMLOCK(mpt);
 				xpt_done(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			/*
@@ -5517,9 +5442,7 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 					mpt->outofbeer = 0;
 					mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
 				}
-				MPTLOCK_2_CAMLOCK(mpt);
 				xpt_done(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
 			}
 			break;
 		}
