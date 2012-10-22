@@ -26,7 +26,7 @@ ATOMIC_SRCS=	opensolaris_atomic.c
 
 LIB=		zpool
 
-ZFS_COMMON_SRCS= ${ZFS_COMMON_OBJS:C/.o$/.c/} vdev_file.c
+ZFS_COMMON_SRCS= ${ZFS_COMMON_OBJS:C/.o$/.c/} vdev_file.c trim_map.c
 ZFS_SHARED_SRCS= ${ZFS_SHARED_OBJS:C/.o$/.c/}
 KERNEL_SRCS=	kernel.c taskq.c util.c
 LIST_SRCS=	list.c

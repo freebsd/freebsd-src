@@ -419,6 +419,8 @@ marshal(const char *name)
 	/* -i is dumb */
 	if (fs->fs_flags & FS_SUJ)
 		printf("-j ");
+	if (fs->fs_flags & FS_GJOURNAL)
+		printf("-J ");
 	/* -k..l unimplemented */
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */

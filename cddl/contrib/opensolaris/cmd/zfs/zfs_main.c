@@ -267,7 +267,7 @@ get_usage(zfs_help_t idx)
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
 	case HELP_SEND:
-		return (gettext("\tsend [-DnPpRrv] "
+		return (gettext("\tsend [-DnPpRv] "
 		    "[-i snapshot | -I snapshot] <snapshot>\n"));
 	case HELP_SET:
 		return (gettext("\tset <property=value> "
@@ -3081,6 +3081,7 @@ zfs_do_rename(int argc, char **argv)
 	int ret = 0;
 	int types;
 	boolean_t parents = B_FALSE;
+	char *snapshot = NULL;
 
 	/* check options */
 	while ((c = getopt(argc, argv, "fpru")) != -1) {
@@ -3149,6 +3150,19 @@ zfs_do_rename(int argc, char **argv)
 	else
 		types = ZFS_TYPE_DATASET;
 
+	if (flags.recurse) {
+		/*
+		 * When we do recursive rename we are fine when the given
+		 * snapshot for the given dataset doesn't exist - it can
+		 * still exists below.
+		 */
+
+		snapshot = strchr(argv[0], '@');
+		assert(snapshot != NULL);
+		*snapshot = '\0';
+		snapshot++;
+	}
+
 	if ((zhp = zfs_open(g_zfs, argv[0], types)) == NULL)
 		return (1);
 
@@ -3159,7 +3173,7 @@ zfs_do_rename(int argc, char **argv)
 		return (1);
 	}
 
-	ret = (zfs_rename(zhp, argv[1], flags) != 0);
+	ret = (zfs_rename(zhp, snapshot, argv[1], flags) != 0);
 
 	zfs_close(zhp);
 	return (ret);

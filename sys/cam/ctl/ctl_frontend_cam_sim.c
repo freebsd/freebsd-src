@@ -175,8 +175,8 @@ cfcs_init(void)
 	if (retval != 0) {
 		printf("%s: ctl_frontend_register() failed with error %d!\n",
 		       __func__, retval);
-		retval = 1;
-		goto bailout;
+		mtx_destroy(&softc->lock);
+		return (1);
 	}
 
 	/*
@@ -207,7 +207,7 @@ cfcs_init(void)
 		softc->wwpn = fe->wwpn;
 	}
 
-
+	mtx_lock(&softc->lock);
 	softc->devq = cam_simq_alloc(fe->num_requested_ctl_io);
 	if (softc->devq == NULL) {
 		printf("%s: error allocating devq\n", __func__);
@@ -224,9 +224,7 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	mtx_lock(&softc->lock);
 	if (xpt_bus_register(softc->sim, NULL, 0) != CAM_SUCCESS) {
-		mtx_unlock(&softc->lock);
 		printf("%s: error registering SIM\n", __func__);
 		retval = ENOMEM;
 		goto bailout;
@@ -236,14 +234,11 @@ cfcs_init(void)
 			    cam_sim_path(softc->sim),
 			    CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		mtx_unlock(&softc->lock);
 		printf("%s: error creating path\n", __func__);
 		xpt_bus_deregister(cam_sim_path(softc->sim));
 		retval = 1;
 		goto bailout;
 	}
-
-	mtx_unlock(&softc->lock);
 
 	xpt_setup_ccb(&csa.ccb_h, softc->path, /*priority*/ 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
@@ -252,6 +247,8 @@ cfcs_init(void)
         csa.callback_arg = softc->sim;
         xpt_action((union ccb *)&csa);
 
+	mtx_unlock(&softc->lock);
+
 	return (retval);
 
 bailout:
@@ -259,6 +256,8 @@ bailout:
 		cam_sim_free(softc->sim, /*free_devq*/ TRUE);
 	else if (softc->devq)
 		cam_simq_free(softc->devq);
+	mtx_unlock(&softc->lock);
+	mtx_destroy(&softc->lock);
 
 	return (retval);
 }

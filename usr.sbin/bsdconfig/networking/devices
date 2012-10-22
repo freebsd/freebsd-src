@@ -112,7 +112,7 @@ while :; do
 			# configuration
 			#
 			dhcp=
-			eval "$( exec 2>&-
+			eval "$( exec 2> /dev/null
 			         set -- $_ifconfig
 			         while [ $# -gt 0 ]; do
 			         	case "$1" in

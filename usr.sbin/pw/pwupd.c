@@ -102,6 +102,7 @@ pwdb(char *arg,...)
 		if (WEXITSTATUS(i))
 			i = EIO;
 	}
+	va_end(ap);
 	return i;
 }
 

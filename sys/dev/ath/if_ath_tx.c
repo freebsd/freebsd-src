@@ -106,6 +106,14 @@ __FBSDID("$FreeBSD$");
  */
 #define	SWMAX_RETRIES		10
 
+/*
+ * What queue to throw the non-QoS TID traffic into
+ */
+#define	ATH_NONQOS_TID_AC	WME_AC_VO
+
+#if 0
+static int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
+#endif
 static int ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an,
     int tid);
 static int ath_tx_ampdu_running(struct ath_softc *sc, struct ath_node *an,
@@ -191,7 +199,7 @@ ath_tx_getac(struct ath_softc *sc, const struct mbuf *m0)
 	if (IEEE80211_QOS_HAS_SEQ(wh))
 		return pri;
 
-	return WME_AC_BE;
+	return ATH_NONQOS_TID_AC;
 }
 
 void
@@ -722,6 +730,10 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 
 		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 		qbusy = ath_hal_txqenabled(ah, txq->axq_qnum);
+
+		ATH_KTR(sc, ATH_KTR_TX, 4,
+		    "ath_tx_handoff: txq=%u, add bf=%p, qbusy=%d, depth=%d",
+		    txq->axq_qnum, bf, qbusy, txq->axq_depth);
 		if (txq->axq_link == NULL) {
 			/*
 			 * Be careful writing the address to TXDP.  If
@@ -738,15 +750,24 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 				    bf->bf_daddr);
 				txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
 				DPRINTF(sc, ATH_DEBUG_XMIT,
-				    "%s: TXDP[%u] = %p (%p) depth %d\n",
+				    "%s: TXDP[%u] = %p (%p) lastds=%p depth %d\n",
 				    __func__, txq->axq_qnum,
 				    (caddr_t)bf->bf_daddr, bf->bf_desc,
+				    bf->bf_lastds,
+				    txq->axq_depth);
+				ATH_KTR(sc, ATH_KTR_TX, 5,
+				    "ath_tx_handoff: TXDP[%u] = %p (%p) "
+				    "lastds=%p depth %d",
+				    txq->axq_qnum,
+				    (caddr_t)bf->bf_daddr, bf->bf_desc,
+				    bf->bf_lastds,
 				    txq->axq_depth);
 			} else {
 				txq->axq_flags |= ATH_TXQ_PUTPENDING;
 				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
 				    "%s: Q%u busy, defer enable\n", __func__,
 				    txq->axq_qnum);
+				ATH_KTR(sc, ATH_KTR_TX, 0, "defer enable");
 			}
 		} else {
 			*txq->axq_link = bf->bf_daddr;
@@ -755,6 +776,12 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			    txq->axq_qnum, txq->axq_link,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc,
 			    txq->axq_depth);
+			ATH_KTR(sc, ATH_KTR_TX, 5,
+			    "ath_tx_handoff: link[%u](%p)=%p (%p) lastds=%p",
+			    txq->axq_qnum, txq->axq_link,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    bf->bf_lastds);
+
 			if ((txq->axq_flags & ATH_TXQ_PUTPENDING) && !qbusy) {
 				/*
 				 * The q was busy when we previously tried
@@ -771,10 +798,23 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
 				    "%s: Q%u restarted\n", __func__,
 				    txq->axq_qnum);
+				ATH_KTR(sc, ATH_KTR_TX, 4,
+				  "ath_tx_handoff: txq[%d] restarted, bf=%p "
+				  "daddr=%p ds=%p",
+				    txq->axq_qnum,
+				    bf,
+				    (caddr_t)bf->bf_daddr,
+				    bf->bf_desc);
 			}
 		}
 #else
 		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+		ATH_KTR(sc, ATH_KTR_TX, 3,
+		    "ath_tx_handoff: non-tdma: txq=%u, add bf=%p "
+		    "depth=%d",
+		    txq->axq_qnum,
+		    bf,
+		    txq->axq_depth);
 		if (txq->axq_link == NULL) {
 			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
 			DPRINTF(sc, ATH_DEBUG_XMIT,
@@ -782,6 +822,14 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			    __func__, txq->axq_qnum,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc,
 			    txq->axq_depth);
+			ATH_KTR(sc, ATH_KTR_TX, 5,
+			    "ath_tx_handoff: non-tdma: TXDP[%u] = %p (%p) "
+			    "lastds=%p depth %d",
+			    txq->axq_qnum,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    bf->bf_lastds,
+			    txq->axq_depth);
+
 		} else {
 			*txq->axq_link = bf->bf_daddr;
 			DPRINTF(sc, ATH_DEBUG_XMIT,
@@ -789,12 +837,21 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			    txq->axq_qnum, txq->axq_link,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc,
 			    txq->axq_depth);
+			ATH_KTR(sc, ATH_KTR_TX, 5,
+			    "ath_tx_handoff: non-tdma: link[%u](%p)=%p (%p) "
+			    "lastds=%d",
+			    txq->axq_qnum, txq->axq_link,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    bf->bf_lastds);
+
 		}
 #endif /* IEEE80211_SUPPORT_TDMA */
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth++;
 		ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 		ath_hal_txstart(ah, txq->axq_qnum);
+		ATH_KTR(sc, ATH_KTR_TX, 1,
+		    "ath_tx_handoff: txq=%u, txstart", txq->axq_qnum);
 	}
 }
 
@@ -1260,6 +1317,22 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
+ * Update the CLRDMASK bit in the ath_buf if it needs to be set.
+ */
+static void
+ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
+    struct ath_buf *bf)
+{
+
+	ATH_TID_LOCK_ASSERT(sc, tid);
+
+	if (tid->clrdmask == 1) {
+		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+		tid->clrdmask = 0;
+	}
+}
+
+/*
  * Transmit the given frame to the hardware.
  *
  * The frame must already be setup; rate control must already have
@@ -1274,8 +1347,21 @@ static void
 ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
+	struct ath_node *an = ATH_NODE(bf->bf_node);
+	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
 
 	ATH_TXQ_LOCK_ASSERT(txq);
+
+	/*
+	 * For now, just enable CLRDMASK. ath_tx_xmit_normal() does
+	 * set a completion handler however it doesn't (yet) properly
+	 * handle the strict ordering requirements needed for normal,
+	 * non-aggregate session frames.
+	 *
+	 * Once this is implemented, only set CLRDMASK like this for
+	 * frames that must go out - eg management/raw frames.
+	 */
+	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 
 	/* Setup the descriptor before handoff */
 	ath_tx_do_ratelookup(sc, bf);
@@ -1285,8 +1371,11 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
 
-	/* XXX Bump TID HWQ counter */
-	/* XXX Assign a completion handler */
+	/* Track per-TID hardware queue depth correctly */
+	tid->hwq_depth++;
+
+	/* Assign the completion handler */
+	bf->bf_comp = ath_tx_normal_comp;
 
 	/* Hand off to hardware */
 	ath_tx_handoff(sc, txq, bf);
@@ -1840,6 +1929,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
 
+	ATH_KTR(sc, ATH_KTR_TX, 2,
+	     "ath_tx_raw_start: ni=%p, bf=%p, raw", ni, bf);
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: ismcast=%d\n",
 	    __func__, ismcast);
 
@@ -2012,6 +2104,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: dooverride=%d\n",
 	    __func__, do_override);
 
+#if 1
 	if (do_override) {
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
@@ -2019,6 +2112,11 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		/* Queue to software queue */
 		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
 	}
+#else
+	/* Direct-dispatch to the hardware */
+	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+	ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
+#endif
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[pri]);
 
 	return 0;
@@ -2091,6 +2189,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = ENOBUFS;
 		goto bad;
 	}
+	ATH_KTR(sc, ATH_KTR_TX, 3, "ath_raw_xmit: m=%p, params=%p, bf=%p\n",
+	    m, params,  bf);
 
 	if (params == NULL) {
 		/*
@@ -2121,6 +2221,11 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	return 0;
 bad2:
+	ATH_KTR(sc, ATH_KTR_TX, 3, "ath_raw_xmit: bad2: m=%p, params=%p, "
+	    "bf=%p",
+	    m,
+	    params,
+	    bf);
 	ATH_TXBUF_LOCK(sc);
 	ath_returnbuf_head(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
@@ -2129,6 +2234,8 @@ bad:
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
 bad0:
+	ATH_KTR(sc, ATH_KTR_TX, 2, "ath_raw_xmit: bad0: m=%p, params=%p",
+	    m, params);
 	ifp->if_oerrors++;
 	sc->sc_stats.ast_tx_raw_fail++;
 	ieee80211_free_node(ni);
@@ -2479,22 +2586,6 @@ ath_tx_tid_unsched(struct ath_softc *sc, struct ath_tid *tid)
 }
 
 /*
- * Update the CLRDMASK bit in the ath_buf if it needs to be set.
- */
-static void
-ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
-    struct ath_buf *bf)
-{
-
-	ATH_TID_LOCK_ASSERT(sc, tid);
-
-	if (tid->clrdmask == 1) {
-		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
-		tid->clrdmask = 0;
-	}
-}
-
-/*
  * Assign a sequence number manually to the given frame.
  *
  * This should only be called for A-MPDU TX frames.
@@ -2577,7 +2668,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 
 	/* paused? queue */
 	if (tid->paused) {
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 		/* XXX don't sched - we're paused! */
 		return;
 	}
@@ -2586,7 +2677,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_dobaw &&
 	    (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
 	    SEQNO(bf->bf_state.bfs_seqno)))) {
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 		ath_tx_tid_sched(sc, tid);
 		return;
 	}
@@ -2685,11 +2776,11 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	if (atid->paused) {
 		/* TID is paused, queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: paused\n", __func__);
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 	} else if (ath_tx_ampdu_pending(sc, an, tid)) {
 		/* AMPDU pending; queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pending\n", __func__);
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 		/* XXX sched? */
 	} else if (ath_tx_ampdu_running(sc, an, tid)) {
 		/* AMPDU running, attempt direct dispatch if possible */
@@ -2697,7 +2788,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		/*
 		 * Always queue the frame to the tail of the list.
 		 */
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 
 		/*
 		 * If the hardware queue isn't busy, direct dispatch
@@ -2707,8 +2798,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		 * Otherwise, schedule the TID.
 		 */
 		if (txq->axq_depth < sc->sc_hwq_limit) {
-			bf = TAILQ_FIRST(&atid->axq_q);
-			ATH_TXQ_REMOVE(atid, bf, bf_list);
+			bf = ATH_TID_FIRST(atid);
+			ATH_TID_REMOVE(atid, bf, bf_list);
 
 			/*
 			 * Ensure it's definitely treated as a non-AMPDU
@@ -2727,17 +2818,19 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
 			    "%s: ampdu; swq'ing\n",
 			    __func__);
+
 			ath_tx_tid_sched(sc, atid);
 		}
 	} else if (txq->axq_depth < sc->sc_hwq_limit) {
 		/* AMPDU not running, attempt direct dispatch */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
+		/* See if clrdmask needs to be set */
 		ath_tx_update_clrdmask(sc, atid, bf);
 		ath_tx_xmit_normal(sc, txq, bf);
 	} else {
 		/* Busy; queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: swq'ing\n", __func__);
-		ATH_TXQ_INSERT_TAIL(atid, bf, bf_list);
+		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 		ath_tx_tid_sched(sc, atid);
 	}
 }
@@ -2762,8 +2855,8 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		/* XXX now with this bzer(), is the field 0'ing needed? */
 		bzero(atid, sizeof(*atid));
 
-		TAILQ_INIT(&atid->axq_q);
-		TAILQ_INIT(&atid->filtq.axq_q);
+		TAILQ_INIT(&atid->tid_q);
+		TAILQ_INIT(&atid->filtq.tid_q);
 		atid->tid = i;
 		atid->an = an;
 		for (j = 0; j < ATH_TID_MAX_BUFS; j++)
@@ -2775,7 +2868,7 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		atid->cleanup_inprogress = 0;
 		atid->clrdmask = 1;	/* Always start by setting this bit */
 		if (i == IEEE80211_NONQOS_TID)
-			atid->ac = WME_AC_BE;
+			atid->ac = ATH_NONQOS_TID_AC;
 		else
 			atid->ac = TID_TO_WME_AC(i);
 	}
@@ -2811,21 +2904,23 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: unpaused = %d\n",
 	    __func__, tid->paused);
 
-	if (tid->paused || tid->axq_depth == 0) {
+	if (tid->paused)
 		return;
-	}
+
+	/*
+	 * Override the clrdmask configuration for the next frame
+	 * from this TID, just to get the ball rolling.
+	 */
+	tid->clrdmask = 1;
+
+	if (tid->axq_depth == 0)
+		return;
 
 	/* XXX isfiltered shouldn't ever be 0 at this point */
 	if (tid->isfiltered == 1) {
 		device_printf(sc->sc_dev, "%s: filtered?!\n", __func__);
 		return;
 	}
-
-	/*
-	 * Override the clrdmask configuration for the next frame,
-	 * just to get the ball rolling.
-	 */
-	tid->clrdmask = 1;
 
 	ath_tx_tid_sched(sc, tid);
 	/* Punt some frames to the hardware if needed */
@@ -2852,7 +2947,7 @@ ath_tx_tid_filt_addbuf(struct ath_softc *sc, struct ath_tid *tid,
 	ath_tx_set_retry(sc, bf);
 	sc->sc_stats.ast_tx_swfiltered++;
 
-	ATH_TXQ_INSERT_TAIL(&tid->filtq, bf, bf_list);
+	ATH_TID_FILT_INSERT_TAIL(tid, bf, bf_list);
 }
 
 /*
@@ -2901,9 +2996,9 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 	tid->clrdmask = 1;
 
 	/* XXX this is really quite inefficient */
-	while ((bf = TAILQ_LAST(&tid->filtq.axq_q, ath_bufhead_s)) != NULL) {
-		ATH_TXQ_REMOVE(&tid->filtq, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+	while ((bf = ATH_TID_FILT_LAST(tid, ath_bufhead_s)) != NULL) {
+		ATH_TID_FILT_REMOVE(tid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 	}
 
 	ath_tx_tid_resume(sc, tid);
@@ -2930,6 +3025,7 @@ ath_tx_tid_filt_comp_single(struct ath_softc *sc, struct ath_tid *tid,
 	 * Don't allow a filtered frame to live forever.
 	 */
 	if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
+		sc->sc_stats.ast_tx_swretrymax++;
 		DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 		    "%s: bf=%p, seqno=%d, exceeded retries\n",
 		    __func__,
@@ -2982,6 +3078,7 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		 * Don't allow a filtered frame to live forever.
 		 */
 		if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
+		sc->sc_stats.ast_tx_swretrymax++;
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 			    "%s: bf=%p, seqno=%d, exceeded retries\n",
 			    __func__,
@@ -3216,7 +3313,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 
 static void
 ath_tx_tid_drain_print(struct ath_softc *sc, struct ath_node *an,
-    struct ath_tid *tid, struct ath_buf *bf)
+    const char *pfx, struct ath_tid *tid, struct ath_buf *bf)
 {
 	struct ieee80211_node *ni = &an->an_node;
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
@@ -3225,18 +3322,19 @@ ath_tx_tid_drain_print(struct ath_softc *sc, struct ath_node *an,
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	device_printf(sc->sc_dev,
-	    "%s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
+	    "%s: %s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
 	    "seqno=%d, retry=%d\n",
-	    __func__, ni, bf,
+	    __func__, pfx, ni, bf,
 	    bf->bf_state.bfs_addedbaw,
 	    bf->bf_state.bfs_dobaw,
 	    SEQNO(bf->bf_state.bfs_seqno),
 	    bf->bf_state.bfs_retries);
 	device_printf(sc->sc_dev,
-	    "%s: node %p: bf=%p: txq axq_depth=%d, axq_aggr_depth=%d\n",
+	    "%s: node %p: bf=%p: txq[%d] axq_depth=%d, axq_aggr_depth=%d\n",
 	        __func__, ni, bf,
-		txq->axq_depth,
-		txq->axq_aggr_depth);
+	    txq->axq_qnum,
+	    txq->axq_depth,
+	    txq->axq_aggr_depth);
 
 	device_printf(sc->sc_dev,
 	    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d, bar_wait=%d, isfiltered=%d\n",
@@ -3293,33 +3391,33 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 	/* Walk the queue, free frames */
 	t = 0;
 	for (;;) {
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf == NULL) {
 			break;
 		}
 
 		if (t == 0) {
-			ath_tx_tid_drain_print(sc, an, tid, bf);
+			ath_tx_tid_drain_print(sc, an, "norm", tid, bf);
 			t = 1;
 		}
 
-		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TID_REMOVE(tid, bf, bf_list);
 		ath_tx_tid_drain_pkt(sc, an, tid, bf_cq, bf);
 	}
 
 	/* And now, drain the filtered frame queue */
 	t = 0;
 	for (;;) {
-		bf = TAILQ_FIRST(&tid->filtq.axq_q);
+		bf = ATH_TID_FILT_FIRST(tid);
 		if (bf == NULL)
 			break;
 
 		if (t == 0) {
-			ath_tx_tid_drain_print(sc, an, tid, bf);
+			ath_tx_tid_drain_print(sc, an, "filt", tid, bf);
 			t = 1;
 		}
 
-		ATH_TXQ_REMOVE(&tid->filtq, bf, bf_list);
+		ATH_TID_FILT_REMOVE(tid, bf, bf_list);
 		ath_tx_tid_drain_pkt(sc, an, tid, bf_cq, bf);
 	}
 
@@ -3373,16 +3471,18 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 
 	TAILQ_INIT(&bf_cq);
 
+	ATH_KTR(sc, ATH_KTR_NODE, 1, "ath_tx_node_flush: flush node; ni=%p",
+	    &an->an_node);
+
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
 		struct ath_txq *txq = sc->sc_ac2q[atid->ac];
 
-		/* Remove this tid from the list of active tids */
 		ATH_TXQ_LOCK(txq);
-		ath_tx_tid_unsched(sc, atid);
-
 		/* Free packets */
 		ath_tx_tid_drain(sc, an, atid, &bf_cq);
+		/* Remove this tid from the list of active tids */
+		ath_tx_tid_unsched(sc, atid);
 		ATH_TXQ_UNLOCK(txq);
 	}
 
@@ -3426,6 +3526,19 @@ ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq)
 
 /*
  * Handle completion of non-aggregate session frames.
+ *
+ * This (currently) doesn't implement software retransmission of
+ * non-aggregate frames!
+ *
+ * Software retransmission of non-aggregate frames needs to obey
+ * the strict sequence number ordering, and drop any frames that
+ * will fail this.
+ *
+ * For now, filtered frames and frame transmission will cause
+ * all kinds of issues.  So we don't support them.
+ *
+ * So anyone queuing frames via ath_tx_normal_xmit() or
+ * ath_tx_hw_queue_norm() must override and set CLRDMASK.
  */
 void
 ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
@@ -3444,10 +3557,23 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 
 	atid->hwq_depth--;
 
+#if 0
+	/*
+	 * If the frame was filtered, stick it on the filter frame
+	 * queue and complain about it.  It shouldn't happen!
+	 */
+	if ((ts->ts_status & HAL_TXERR_FILT) ||
+	    (ts->ts_status != 0 && atid->isfiltered)) {
+		device_printf(sc->sc_dev,
+		    "%s: isfiltered=%d, ts_status=%d: huh?\n",
+		    __func__,
+		    atid->isfiltered,
+		    ts->ts_status);
+		ath_tx_tid_filt_comp_buf(sc, atid, bf);
+	}
+#endif
 	if (atid->isfiltered)
-		device_printf(sc->sc_dev, "%s: isfiltered=1, normal_comp?\n",
-		    __func__);
-
+		device_printf(sc->sc_dev, "%s: filtered?!\n", __func__);
 	if (atid->hwq_depth < 0)
 		device_printf(sc->sc_dev, "%s: hwq_depth < 0: %d\n",
 		    __func__, atid->hwq_depth);
@@ -3465,7 +3591,6 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 */
 	if (atid->isfiltered)
 		ath_tx_tid_filt_comp_complete(sc, atid);
-
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/*
@@ -3542,9 +3667,9 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	 * we run off and discard/process things.
 	 */
 	/* XXX this is really quite inefficient */
-	while ((bf = TAILQ_LAST(&atid->filtq.axq_q, ath_bufhead_s)) != NULL) {
-		ATH_TXQ_REMOVE(&atid->filtq, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+	while ((bf = ATH_TID_FILT_LAST(atid, ath_bufhead_s)) != NULL) {
+		ATH_TID_FILT_REMOVE(atid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(atid, bf, bf_list);
 	}
 
 	/*
@@ -3553,11 +3678,11 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	 * + Discard retry frames in the queue
 	 * + Fix the completion function to be non-aggregate
 	 */
-	bf = TAILQ_FIRST(&atid->axq_q);
+	bf = ATH_TID_FIRST(atid);
 	while (bf) {
 		if (bf->bf_state.bfs_isretried) {
 			bf_next = TAILQ_NEXT(bf, bf_list);
-			TAILQ_REMOVE(&atid->axq_q, bf, bf_list);
+			ATH_TID_REMOVE(atid, bf, bf_list);
 			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw) {
 				ath_tx_update_baw(sc, an, atid, bf);
@@ -3762,7 +3887,7 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 * Insert this at the head of the queue, so it's
 	 * retried before any current/subsequent frames.
 	 */
-	ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+	ATH_TID_INSERT_HEAD(atid, bf, bf_list);
 	ath_tx_tid_sched(sc, atid);
 	/* Send the BAR if there are no other frames waiting */
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
@@ -3891,7 +4016,7 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	/* Prepend all frames to the beginning of the queue */
 	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
 		TAILQ_REMOVE(&bf_q, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 	}
 
 	/*
@@ -4261,7 +4386,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	/* Prepend all frames to the beginning of the queue */
 	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
 		TAILQ_REMOVE(&bf_q, bf, bf_list);
-		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
+		ATH_TID_INSERT_HEAD(atid, bf, bf_list);
 	}
 
 	/*
@@ -4539,7 +4664,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		if (tid->paused)
 			break;
 
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf == NULL) {
 			break;
 		}
@@ -4552,7 +4677,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: non-baw packet\n",
 			    __func__);
-			ATH_TXQ_REMOVE(tid, bf, bf_list);
+			ATH_TID_REMOVE(tid, bf, bf_list);
 
 			if (bf->bf_state.bfs_nframes > 1)
 				device_printf(sc->sc_dev,
@@ -4742,12 +4867,12 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		if (tid->paused)
 			break;
 
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf == NULL) {
 			break;
 		}
 
-		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TID_REMOVE(tid, bf, bf_list);
 
 		KASSERT(txq == bf->bf_state.bfs_txq, ("txqs not equal!\n"));
 
@@ -4759,6 +4884,12 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		}
 		/* Normal completion handler */
 		bf->bf_comp = ath_tx_normal_comp;
+
+		/*
+		 * Override this for now, until the non-aggregate
+		 * completion handler correctly handles software retransmits.
+		 */
+		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 
 		/* Update CLRDMASK just before this frame is queued */
 		ath_tx_update_clrdmask(sc, tid, bf);
@@ -5155,6 +5286,145 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	ath_tx_tid_resume(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
+}
+
+#if 0
+/*
+ * Check if a node is asleep or not.
+ */
+static int
+ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an)
+{
+
+	ATH_NODE_LOCK_ASSERT(an);
+
+	return (an->an_is_powersave);
+}
+#endif
+
+/*
+ * Mark a node as currently "in powersaving."
+ * This suspends all traffic on the node.
+ *
+ * This must be called with the node/tx locks free.
+ *
+ * XXX TODO: the locking silliness below is due to how the node
+ * locking currently works.  Right now, the node lock is grabbed
+ * to do rate control lookups and these are done with the TX
+ * queue lock held.  This means the node lock can't be grabbed
+ * first here or a LOR will occur.
+ *
+ * Eventually (hopefully!) the TX path code will only grab
+ * the TXQ lock when transmitting and the ath_node lock when
+ * doing node/TID operations.  There are other complications -
+ * the sched/unsched operations involve walking the per-txq
+ * 'active tid' list and this requires both locks to be held.
+ */
+void
+ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_tid *atid;
+	struct ath_txq *txq;
+	int tid;
+
+	ATH_NODE_UNLOCK_ASSERT(an);
+
+	/*
+	 * It's possible that a parallel call to ath_tx_node_wakeup()
+	 * will unpause these queues.
+	 *
+	 * The node lock can't just be grabbed here, as there's places
+	 * in the driver where the node lock is grabbed _within_ a
+	 * TXQ lock.
+	 * So, we do this delicately and unwind state if needed.
+	 *
+	 * + Pause all the queues
+	 * + Grab the node lock
+	 * + If the queue is already asleep, unpause and quit
+	 * + else just mark as asleep.
+	 *
+	 * A parallel sleep() call will just pause and then
+	 * find they're already paused, so undo it.
+	 *
+	 * A parallel wakeup() call will check if asleep is 1
+	 * and if it's not (ie, it's 0), it'll treat it as already
+	 * being awake. If it's 1, it'll mark it as 0 and then
+	 * unpause everything.
+	 *
+	 * (Talk about a delicate hack.)
+	 */
+
+	/* Suspend all traffic on the node */
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+		atid = &an->an_tid[tid];
+		txq = sc->sc_ac2q[atid->ac];
+
+		ATH_TXQ_LOCK(txq);
+		ath_tx_tid_pause(sc, atid);
+		ATH_TXQ_UNLOCK(txq);
+	}
+
+	ATH_NODE_LOCK(an);
+
+	/* In case of concurrency races from net80211.. */
+	if (an->an_is_powersave == 1) {
+		ATH_NODE_UNLOCK(an);
+		device_printf(sc->sc_dev,
+		    "%s: an=%p: node was already asleep\n",
+		    __func__, an);
+		for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+			atid = &an->an_tid[tid];
+			txq = sc->sc_ac2q[atid->ac];
+
+			ATH_TXQ_LOCK(txq);
+			ath_tx_tid_resume(sc, atid);
+			ATH_TXQ_UNLOCK(txq);
+		}
+		return;
+	}
+
+	/* Mark node as in powersaving */
+	an->an_is_powersave = 1;
+
+	ATH_NODE_UNLOCK(an);
+}
+
+/*
+ * Mark a node as currently "awake."
+ * This resumes all traffic to the node.
+ */
+void
+ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_tid *atid;
+	struct ath_txq *txq;
+	int tid;
+
+	ATH_NODE_UNLOCK_ASSERT(an);
+	ATH_NODE_LOCK(an);
+
+	/* In case of concurrency races from net80211.. */
+	if (an->an_is_powersave == 0) {
+		ATH_NODE_UNLOCK(an);
+		device_printf(sc->sc_dev,
+		    "%s: an=%p: node was already awake\n",
+		    __func__, an);
+		return;
+	}
+
+	/* Mark node as awake */
+	an->an_is_powersave = 0;
+
+	ATH_NODE_UNLOCK(an);
+
+	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
+		atid = &an->an_tid[tid];
+		txq = sc->sc_ac2q[atid->ac];
+
+		ATH_TXQ_LOCK(txq);
+		ath_tx_tid_resume(sc, atid);
+		ATH_TXQ_UNLOCK(txq);
+	}
 }
 
 static int

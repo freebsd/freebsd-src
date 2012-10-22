@@ -1599,8 +1599,10 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 {
 	struct proc *p;
 	struct pgrp *pgrp;
-	int nfound = 0;
+	int err;
+	int ret;
 
+	ret = ESRCH;
 	if (all) {
 		/*
 		 * broadcast
@@ -1613,11 +1615,14 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig) == 0) {
-				nfound++;
+			err = p_cansignal(td, p, sig);
+			if (err == 0) {
 				if (sig)
 					pksignal(p, sig, ksi);
+				ret = err;
 			}
+			else if (ret == ESRCH)
+				ret = err;
 			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
@@ -1644,16 +1649,19 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig) == 0) {
-				nfound++;
+			err = p_cansignal(td, p, sig);
+			if (err == 0) {
 				if (sig)
 					pksignal(p, sig, ksi);
+				ret = err;
 			}
+			else if (ret == ESRCH)
+				ret = err;
 			PROC_UNLOCK(p);
 		}
 		PGRP_UNLOCK(pgrp);
 	}
-	return (nfound ? 0 : ESRCH);
+	return (ret);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -3115,11 +3123,10 @@ nomem:
 		int error, n;
 		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
 		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-		int vfslocked;
 
 		for (n = 0; n < num_cores; n++) {
 			temp[indexpos] = '0' + n;
-			NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE,
+			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
 			    temp, td); 
 			error = vn_open(&nd, &flags, cmode, NULL);
 			if (error) {
@@ -3133,11 +3140,9 @@ nomem:
 				free(temp, M_TEMP);
 				return (NULL);
 			}
-			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			VOP_UNLOCK(nd.ni_vp, 0);
 			error = vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			if (error) {
 				log(LOG_ERR,
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
@@ -3174,7 +3179,6 @@ coredump(struct thread *td)
 	struct mount *mp;
 	char *name;			/* name of corefile */
 	off_t limit;
-	int vfslocked;
 	int compress;
 
 #ifdef COMPRESS_USER_CORES
@@ -3224,7 +3228,7 @@ coredump(struct thread *td)
 	PROC_UNLOCK(p);
 
 restart:
-	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
 	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR, VN_OPEN_NOAUDIT,
 	    cred, NULL);
@@ -3235,7 +3239,6 @@ restart:
 		free(name, M_TEMP);
 		return (error);
 	}
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
@@ -3262,7 +3265,6 @@ restart:
 			goto out;
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
 			goto out;
-		VFS_UNLOCK_GIANT(vfslocked);
 		goto restart;
 	}
 
@@ -3295,7 +3297,6 @@ out:
 	audit_proc_coredump(td, name, error);
 #endif
 	free(name, M_TEMP);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 

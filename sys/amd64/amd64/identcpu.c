@@ -213,8 +213,8 @@ printcpuinfo(void)
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-		printf("  Family = %x", CPUID_TO_FAMILY(cpu_id));
-		printf("  Model = %x", CPUID_TO_MODEL(cpu_id));
+		printf("  Family = 0x%x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model = 0x%x", CPUID_TO_MODEL(cpu_id));
 		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
 
 		/*

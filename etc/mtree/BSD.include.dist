@@ -9,6 +9,10 @@
     ..
     arpa
     ..
+    atf-c
+    ..
+    atf-c++
+    ..
     bsm
     ..
     bsnmp
@@ -164,17 +168,11 @@
         ..
         nfs
         ..
-        ntfs
-        ..
         nullfs
-        ..
-        nwfs
         ..
         portalfs
         ..
         procfs
-        ..
-        smbfs
         ..
         udf
         ..
@@ -286,8 +284,6 @@
         ..
         sig
         ..
-    ..
-    netncp
     ..
     netsmb
     ..

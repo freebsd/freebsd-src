@@ -387,6 +387,15 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * USB DISK Pro PMAP
+		 * Reported by: jhs
+		 * PR: usb/96381
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, " ", "USB DISK Pro", "PMAP"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Motorola E398 Mobile Phone (TransFlash memory card).
 		 * Reported by: Wojciech A. Koszek <dunstan@FreeBSD.czest.pl>
 		 * PR: usb/89889
@@ -835,6 +844,15 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB 2.0", "(HS) Flash Disk",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * LaCie external 250GB Hard drive des by Porsche
+		 * Submitted by: Ben Stuyts <ben@altesco.nl>
+		 * PR: 121474
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HM250JI", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -1211,17 +1229,17 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 static int
 dagetattr(struct bio *bp)
 {
-	int ret = -1;
+	int ret;
 	struct cam_periph *periph;
 
-	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
-		return ENXIO;
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph->path == NULL)
-		return ENXIO;
+	if (periph == NULL)
+		return (ENXIO);
 
+	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
 	    periph->path);
+	cam_periph_unlock(periph);
 	if (ret == 0)
 		bp->bio_completed = bp->bio_length;
 	return ret;
@@ -1583,11 +1601,6 @@ daregister(struct cam_periph *periph, void *arg)
 	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("daregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("daregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);

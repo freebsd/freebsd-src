@@ -1,0 +1,369 @@
+comment testing start
+this is foo
+This is how a comment looks: # comment
+comment testing done
+make: "cond1" line 75: warning: extra else
+make: "cond1" line 85: warning: extra else
+2 is  prime
+A='other' B='unknown' C='clever' o='no,no'
+Passed:
+ var
+ ("var")
+ (var != var)
+ var != var
+ !((var != var) && defined(name))
+ var == quoted
+
+1 is not prime
+2 is  prime
+3 is  prime
+4 is not prime
+5 is  prime
+
+make: warning: String comparison operator should be either == or !=
+make: Bad conditional expression `"0" > 0' in "0" > 0?OK:No
+
+OK
+make: "error" line 3: just FYI
+make: "error" line 4: warning: this could be serious
+make: "error" line 5: this is fatal
+UT_DOLLAR=This is $UT_FU
+UT_FOO=foobar is fubar
+UT_FU=fubar
+UT_TEST=export
+UT_ZOO=hoopie
+UT_ALL=even this gets exported
+UT_BADDIR=unit-tests
+UT_DOLLAR=This is $UT_FU
+UT_F=fine
+UT_FOO=foobar is fubar
+UT_FU=fubar
+UT_NO=all
+UT_OK=good
+UT_OKDIR=unit-tests
+UT_TEST=export-all
+UT_ZOO=hoopie
+At first, I am
+happy
+and now: sad
+.ERROR: Looks like 'sad' is upset.
+*** Error code 1
+
+Stop.
+make: stopped in unit-tests
+simple.1
+simple.1
+simple.2
+simple.2
+recursive.1.1.*
+recursive.1.1.*
+recursive.1.1.*
+recursive.1.1.*
+recursive.1.99
+recursive.1.99
+recursive.2.1.*
+recursive.2.1.*
+recursive.2.1.*
+recursive.2.1.*
+recursive.2.99
+recursive.2.99
+shared.0
+shared.0
+shared.1.99
+shared.1.99
+shared.2.1
+shared.2.1
+shared.2.99
+shared.2.99
+make: Graph cycles through `cycle.2.99'
+make: Graph cycles through `cycle.2.98'
+make: Graph cycles through `cycle.2.97'
+cycle.1.99
+cycle.1.99
+x=one
+x="two and three"
+x=four
+x="five"
+x=-I/this
+x=-I"This or that"
+x=-Ithat
+x="-DTHIS=\"this and that\""
+cfl=-I/this -I"This or that" -Ithat "-DTHIS=\"this and that\""
+a=one b="two and three"
+a=four b="five"
+a=ONE b="TWO AND THREE"
+a=FOUR b="FIVE"
+We expect an error next:
+make: "forloop" line 38: Wrong number of words (9) in .for substitution list with 2 vars
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+OK
+.for with :S;... OK
+b2af338b
+3360ac65
+7747f046
+9ca87054
+880fe816
+208fcbd3
+d5d376eb
+de41416c
+Expect: Unknown modifier 'Z'
+make: Unknown modifier 'Z'
+VAR:Z=
+Expect: Unknown modifier 'Z'
+make: Unknown modifier 'Z'
+VAR:Z=
+Expect: Unclosed variable specification for VAR
+make: Unclosed variable specification (expecting '}') for "VAR" (value "Thevariable") modifier S
+VAR:S,V,v,=Thevariable
+Expect: Unclosed variable specification for VAR
+make: Unclosed variable specification after complex modifier (expecting '}') for VAR
+VAR:S,V,v,=Thevariable
+Expect: Unclosed substitution for VAR (, missing)
+make: Unclosed substitution for VAR (, missing)
+VAR:S,V,v=
+LIB=a X_LIBS:M${LIB${LIB:tu}} is "/tmp/liba.a"
+LIB=a X_LIBS:M*/lib${LIB}.a is "/tmp/liba.a"
+LIB=a X_LIBS:M*/lib${LIB}.a:tu is "/TMP/LIBA.A"
+LIB=b X_LIBS:M${LIB${LIB:tu}} is ""
+LIB=b X_LIBS:M*/lib${LIB}.a is ""
+LIB=b X_LIBS:M*/lib${LIB}.a:tu is ""
+LIB=c X_LIBS:M${LIB${LIB:tu}} is ""
+LIB=c X_LIBS:M*/lib${LIB}.a is ""
+LIB=c X_LIBS:M*/lib${LIB}.a:tu is ""
+LIB=d X_LIBS:M${LIB${LIB:tu}} is "/tmp/libd.a"
+LIB=d X_LIBS:M*/lib${LIB}.a is "/tmp/libd.a"
+LIB=d X_LIBS:M*/lib${LIB}.a:tu is "/TMP/LIBD.A"
+LIB=e X_LIBS:M${LIB${LIB:tu}} is "/tmp/libe.a"
+LIB=e X_LIBS:M*/lib${LIB}.a is "/tmp/libe.a"
+LIB=e X_LIBS:M*/lib${LIB}.a:tu is "/TMP/LIBE.A"
+Mscanner=OK
+path=':/bin:/tmp::/:.:/no/such/dir:.'
+path='/bin:/tmp:/:/no/such/dir'
+path='/bin:/tmp:/:/no/such/dir'
+path='/bin':'/tmp':'/':'/no/such/dir'
+path='/bin':'/tmp':'/':'/no/such/dir'
+path_/usr/xbin=/opt/xbin/
+paths=/bin /tmp / /no/such/dir /opt/xbin
+PATHS=/BIN /TMP / /NO/SUCH/DIR /OPT/XBIN
+The answer is 42
+LIST      = one two three four five six seven eight nine ten
+LIST:O    = eight five four nine one seven six ten three two
+LIST:Ox   = Ok
+LIST:O:Ox = Ok
+LISTX     = Ok
+LISTSX    = Ok
+make: Bad modifier `:OX' for LIST
+BADMOD 1  = }
+make: Bad modifier `:OxXX' for LIST
+BADMOD 2  = XX}
+LIST="one two three four five six"
+LIST:ts,="one,two,three,four,five,six"
+LIST:ts/:tu="ONE/TWO/THREE/FOUR/FIVE/SIX"
+LIST:ts::tu="ONE:TWO:THREE:FOUR:FIVE:SIX"
+LIST:ts:tu="ONETWOTHREEFOURFIVESIX"
+LIST:tu:ts/="ONE/TWO/THREE/FOUR/FIVE/SIX"
+LIST:ts:="one:two:three:four:five:six"
+LIST:ts="onetwothreefourfivesix"
+LIST:ts:S/two/2/="one2threefourfivesix"
+LIST:S/two/2/:ts="one2threefourfivesix"
+LIST:ts/:S/two/2/="one/2/three/four/five/six"
+Pretend the '/' in '/n' etc. below are back-slashes.
+LIST:ts/n="one
+two
+three
+four
+five
+six"
+LIST:ts/t="one	two	three	four	five	six"
+LIST:ts/012:tu="ONE
+TWO
+THREE
+FOUR
+FIVE
+SIX"
+make: Bad modifier `:tx' for LIST
+LIST:tx="}"
+make: Bad modifier `:ts\x' for LIST
+LIST:ts/x:tu="\x:tu}"
+FU_mod-ts="a/b/cool"
+FU_mod-ts:ts:T="cool" == cool?
+B.${AAA:ts}="Baaa" == Baaa?
+make: Bad modifier `:[]' for LIST
+LIST:[]="" is an error
+LIST:[0]="one two three four five six"
+LIST:[0x0]="one two three four five six"
+LIST:[000]="one two three four five six"
+LIST:[*]="one two three four five six"
+LIST:[@]="one two three four five six"
+LIST:[0]:C/ /,/="one,two three four five six"
+LIST:[0]:C/ /,/g="one,two,three,four,five,six"
+LIST:[0]:C/ /,/1g="one,two,three,four,five,six"
+LIST:[*]:C/ /,/="one,two three four five six"
+LIST:[*]:C/ /,/g="one,two,three,four,five,six"
+LIST:[*]:C/ /,/1g="one,two,three,four,five,six"
+LIST:[@]:C/ /,/="one two three four five six"
+LIST:[@]:C/ /,/g="one two three four five six"
+LIST:[@]:C/ /,/1g="one two three four five six"
+LIST:[@]:[0]:C/ /,/="one,two three four five six"
+LIST:[0]:[@]:C/ /,/="one two three four five six"
+LIST:[@]:[*]:C/ /,/="one,two three four five six"
+LIST:[*]:[@]:C/ /,/="one two three four five six"
+EMPTY=""
+EMPTY:[#]="1" == 1 ?
+ESCAPEDSPACE="\ "
+ESCAPEDSPACE:[#]="1" == 1 ?
+REALLYSPACE=" "
+REALLYSPACE:[#]="1" == 1 ?
+LIST:[#]="6"
+LIST:[0]:[#]="1" == 1 ?
+LIST:[*]:[#]="1" == 1 ?
+LIST:[@]:[#]="6"
+LIST:[1]:[#]="1"
+LIST:[1..3]:[#]="3"
+EMPTY:[1]=""
+ESCAPEDSPACE="\ "
+ESCAPEDSPACE:[1]="\ "
+REALLYSPACE=" "
+REALLYSPACE:[1]="" == "" ?
+REALLYSPACE:[*]:[1]=" " == " " ?
+LIST:[1]="one"
+make: Bad modifier `:[1.]' for LIST
+LIST:[1.]="" is an error
+make: Bad modifier `:[1].' for LIST
+LIST:[1].="}" is an error
+LIST:[2]="two"
+LIST:[6]="six"
+LIST:[7]=""
+LIST:[999]=""
+make: Bad modifier `:[-]' for LIST
+LIST:[-]="" is an error
+make: Bad modifier `:[--]' for LIST
+LIST:[--]="" is an error
+LIST:[-1]="six"
+LIST:[-2]="five"
+LIST:[-6]="one"
+LIST:[-7]=""
+LIST:[-999]=""
+LONGLIST:[17]="17"
+LONGLIST:[0x11]="17"
+LONGLIST:[021]="17"
+LIST:[0]:[1]="one two three four five six"
+LIST:[*]:[1]="one two three four five six"
+LIST:[@]:[1]="one"
+LIST:[0]:[2]=""
+LIST:[*]:[2]=""
+LIST:[@]:[2]="two"
+LIST:[*]:C/ /,/:[2]=""
+LIST:[*]:C/ /,/:[*]:[2]=""
+LIST:[*]:C/ /,/:[@]:[2]="three"
+make: Bad modifier `:[1.]' for LIST
+LIST:[1.]="" is an error
+make: Bad modifier `:[1..]' for LIST
+LIST:[1..]="" is an error
+LIST:[1..1]="one"
+make: Bad modifier `:[1..1.]' for LIST
+LIST:[1..1.]="" is an error
+LIST:[1..2]="one two"
+LIST:[2..1]="two one"
+LIST:[3..-2]="three four five"
+LIST:[-4..4]="three four"
+make: Bad modifier `:[0..1]' for LIST
+LIST:[0..1]="" is an error
+make: Bad modifier `:[-1..0]' for LIST
+LIST:[-1..0]="" is an error
+LIST:[-1..1]="six five four three two one"
+LIST:[0..0]="one two three four five six"
+LIST:[3..99]="three four five six"
+LIST:[-3..-99]="four three two one"
+LIST:[-99..-3]="one two three four"
+HASH="#" == "#" ?
+LIST:[${HASH}]="6"
+LIST:[${ZERO}]="one two three four five six"
+LIST:[${ZERO}x${ONE}]="one"
+LIST:[${ONE}]="one"
+LIST:[${MINUSONE}]="six"
+LIST:[${STAR}]="one two three four five six"
+LIST:[${AT}]="one two three four five six"
+make: Bad modifier `:[${EMPTY' for LIST
+LIST:[${EMPTY}]="" is an error
+LIST:[${LONGLIST:[21]:S/2//}]="one"
+LIST:[${LIST:[#]}]="six"
+LIST:[${LIST:[${HASH}]}]="six"
+LIST:S/ /,/="one two three four five six"
+LIST:S/ /,/W="one,two three four five six"
+LIST:S/ /,/gW="one,two,three,four,five,six"
+EMPTY:S/^/,/=","
+EMPTY:S/^/,/W=","
+LIST:C/ /,/="one two three four five six"
+LIST:C/ /,/W="one,two three four five six"
+LIST:C/ /,/gW="one,two,three,four,five,six"
+EMPTY:C/^/,/=","
+EMPTY:C/^/,/W=","
+LIST:tW="one two three four five six"
+LIST:tw="one two three four five six"
+LIST:tW:C/ /,/="one,two three four five six"
+LIST:tW:C/ /,/g="one,two,three,four,five,six"
+LIST:tW:C/ /,/1g="one,two,three,four,five,six"
+LIST:tw:C/ /,/="one two three four five six"
+LIST:tw:C/ /,/g="one two three four five six"
+LIST:tw:C/ /,/1g="one two three four five six"
+LIST:tw:tW:C/ /,/="one,two three four five six"
+LIST:tW:tw:C/ /,/="one two three four five six"
+.TARGET="phony" .PREFIX="phony" .IMPSRC=""
+.TARGET="all" .PREFIX="all" .IMPSRC=""
+.TARGET="ok" .PREFIX="ok" .IMPSRC=""
+.TARGET="also.ok" .PREFIX="also.ok" .IMPSRC=""
+.TARGET="bug" .PREFIX="bug" .IMPSRC=""
+Posix says we should execute the command as if run by system(3)
+Expect 'Hello,' and 'World!'
+Hello,
+World!
+a command
+a command prefixed by '+' executes even with -n
+another command
+make -n
+echo a command
+echo "a command prefixed by '+' executes even with -n"
+a command prefixed by '+' executes even with -n
+echo another command
+make -n -j1
+{ echo a command 
+} || exit $?
+echo "a command prefixed by '+' executes even with -n"
+a command prefixed by '+' executes even with -n
+{ echo another command 
+} || exit $?
+Now we expect an error...
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+V.i386 ?= OK
+FOOBAR =
+FOOBAR = foobar fubar
+fun
+fun
+fun
+In the Sun
+The answer is unknown
+The answer is unknown
+The answer is empty
+The answer is known
+The answer is 
+The answer is empty
+The answer is known
+The answer is 42
+The answer is 42
+UT_DOLLAR=This is $UT_FU
+UT_FU=fubar
+UT_TEST=unexport
+UT_TEST=unexport-env
+default FU=<v>fu</v> FOO=<v>foo</v> VAR=<v></v>
+two FU=<v>bar</v> FOO=<v>goo</v> VAR=<v></v>
+three FU=<v>bar</v> FOO=<v>goo</v> VAR=<v></v>
+four FU=<v>bar</v> FOO=<v>goo</v> VAR=<v>Internal</v>
+five FU=<v>bar</v> FOO=<v>goo</v> VAR=<v>Internal</v>
+five v=is x k=is x
+six v=is y k=is y
+show-v v=override k=override
+*** Error code 1 (ignored)
+*** Error code 1 (ignored)

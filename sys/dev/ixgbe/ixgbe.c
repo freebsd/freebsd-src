@@ -104,13 +104,15 @@ static int      ixgbe_probe(device_t);
 static int      ixgbe_attach(device_t);
 static int      ixgbe_detach(device_t);
 static int      ixgbe_shutdown(device_t);
-static void     ixgbe_start(struct ifnet *);
-static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
 #if __FreeBSD_version >= 800000
 static int	ixgbe_mq_start(struct ifnet *, struct mbuf *);
 static int	ixgbe_mq_start_locked(struct ifnet *,
                     struct tx_ring *, struct mbuf *);
 static void	ixgbe_qflush(struct ifnet *);
+static void	ixgbe_deferred_mq_start(void *, int);
+#else
+static void     ixgbe_start(struct ifnet *);
+static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
 #endif
 static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixgbe_init(void *);
@@ -631,6 +633,7 @@ ixgbe_detach(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
 	struct ix_queue *que = adapter->queues;
+	struct tx_ring *txr = adapter->tx_rings;
 	u32	ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_detach: begin");
@@ -645,8 +648,11 @@ ixgbe_detach(device_t dev)
 	ixgbe_stop(adapter);
 	IXGBE_CORE_UNLOCK(adapter);
 
-	for (int i = 0; i < adapter->num_queues; i++, que++) {
+	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
 		if (que->tq) {
+#if __FreeBSD_version >= 800000
+			taskqueue_drain(que->tq, &txr->txq_task);
+#endif
 			taskqueue_drain(que->tq, &que->que_task);
 			taskqueue_free(que->tq);
 		}
@@ -708,6 +714,7 @@ ixgbe_shutdown(device_t dev)
 }
 
 
+#if __FreeBSD_version < 800000
 /*********************************************************************
  *  Transmit entry point
  *
@@ -779,7 +786,7 @@ ixgbe_start(struct ifnet *ifp)
 	return;
 }
 
-#if __FreeBSD_version >= 800000
+#else
 /*
 ** Multiqueue Transmit driver
 **
@@ -807,7 +814,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 		IXGBE_TX_UNLOCK(txr);
 	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
-		taskqueue_enqueue(que->tq, &que->que_task);
+		taskqueue_enqueue(que->tq, &txr->txq_task);
 	}
 
 	return (err);
@@ -846,7 +853,6 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		}
 		enqueued++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -870,6 +876,22 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ixgbe_txeof(txr);
 
 	return (err);
+}
+
+/*
+ * Called from a taskqueue to drain queued transmit packets.
+ */
+static void
+ixgbe_deferred_mq_start(void *arg, int pending)
+{
+	struct tx_ring *txr = arg;
+	struct adapter *adapter = txr->adapter;
+	struct ifnet *ifp = adapter->ifp;
+
+	IXGBE_TX_LOCK(txr);
+	if (!drbr_empty(ifp, txr->br))
+		ixgbe_mq_start_locked(ifp, txr, NULL);
+	IXGBE_TX_UNLOCK(txr);
 }
 
 /*
@@ -2230,6 +2252,9 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
 	struct		ix_queue *que = adapter->queues;
+#if __FreeBSD_version >= 800000
+	struct tx_ring		*txr = adapter->tx_rings;
+#endif
 	int error, rid = 0;
 
 	/* MSI RID at 1 */
@@ -2249,6 +2274,9 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.
 	 */
+#if __FreeBSD_version >= 800000
+	TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
+#endif
 	TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
 	que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
             taskqueue_thread_enqueue, &que->tq);
@@ -2295,9 +2323,10 @@ ixgbe_allocate_msix(struct adapter *adapter)
 {
 	device_t        dev = adapter->dev;
 	struct 		ix_queue *que = adapter->queues;
+	struct  	tx_ring *txr = adapter->tx_rings;
 	int 		error, rid, vector = 0;
 
-	for (int i = 0; i < adapter->num_queues; i++, vector++, que++) {
+	for (int i = 0; i < adapter->num_queues; i++, vector++, que++, txr++) {
 		rid = vector + 1;
 		que->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
@@ -2327,6 +2356,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		if (adapter->num_queues > 1)
 			bus_bind_intr(dev, que->res, i);
 
+#if __FreeBSD_version >= 800000
+		TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
+#endif
 		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
 		que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
@@ -2565,17 +2597,18 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_baudrate = 1000000000;
+	if_initbaudrate(ifp, IF_Gbps(10));
 	ifp->if_init = ixgbe_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgbe_ioctl;
-	ifp->if_start = ixgbe_start;
 #if __FreeBSD_version >= 800000
 	ifp->if_transmit = ixgbe_mq_start;
 	ifp->if_qflush = ixgbe_qflush;
+#else
+	ifp->if_start = ixgbe_start;
+	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 2);
 #endif
-	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 2;
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
 
@@ -5301,6 +5334,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	ifp->if_ibytes = adapter->stats.gorc;
 	ifp->if_obytes = adapter->stats.gotc;
 	ifp->if_imcasts = adapter->stats.mprc;
+	ifp->if_omcasts = adapter->stats.mptc;
 	ifp->if_collisions = 0;
 
 	/* Rx Errors */

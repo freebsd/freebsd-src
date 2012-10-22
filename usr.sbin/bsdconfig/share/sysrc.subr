@@ -17,7 +17,7 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -29,10 +29,10 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 ############################################################ INCLUDES
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
-. $BSDCFG_SHARE/common.subr || exit 1
+[ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
-f_include_lang $BSDCFG_LIBE/include/messages.subr
+[ ! "$_SYSRC_JAILED" ] && f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 ############################################################ CONFIGURATION
 
@@ -48,6 +48,17 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 #
 SUCCESS=0
 FAILURE=1
+
+#
+# Valid characters that can appear in an sh(1) variable name
+#
+# Please note that the character ranges A-Z and a-z should be avoided because
+# these can include accent characters (which are not valid in a variable name).
+# For example, A-Z matches any character that sorts after A but before Z,
+# including A and Z. Although ASCII order would make more sense, that is not
+# how it works.
+#
+VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 
 ############################################################ FUNCTIONS
 
@@ -132,9 +143,9 @@ f_sysrc_get()
 		# Clear the environment of all variables, preventing the
 		# expansion of normals such as `PS1', `TERM', etc.
 		#
-		f_clean_env --except RC_CONFS RC_DEFAULTS SUCCESS
+		f_clean_env --except IFS RC_CONFS RC_DEFAULTS
 
-		. "$RC_DEFAULTS" >&- 2>&-
+		. "$RC_DEFAULTS" > /dev/null 2>&1
 
 		unset RC_DEFAULTS
 			# no longer needed
@@ -153,20 +164,16 @@ f_sysrc_get()
 		# If RC_CONFS is defined, set $rc_conf_files to an explicit
 		# value, modifying the default behavior of source_rc_confs().
 		#
-		( : ${RC_CONFS?} ) >&- 2>&-
-		if [ $? -eq ${SUCCESS:-0} ]; then
+		if [ "${RC_CONFS+set}" ]; then
 			rc_conf_files="$RC_CONFS"
 			_rc_confs_set=1
 		fi
 
-		unset SUCCESS
-			# no longer needed
-
-		source_rc_confs >&- 2>&-
+		source_rc_confs > /dev/null 2>&1
 
 		#
 		# If the query was for `rc_conf_files' AND after calling
-		# source_rc_confs the vaue has not changed, then we should
+		# source_rc_confs the value has not changed, then we should
 		# restore the value to the one inherited from RC_DEFAULTS
 		# before performing the final query (preventing us from
 		# returning what was set via RC_CONFS when the intent was
@@ -190,7 +197,7 @@ f_sysrc_get()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2>&-
+		eval echo '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
@@ -221,7 +228,7 @@ f_sysrc_get_default()
 		#
 		f_clean_env --except RC_DEFAULTS
 
-		. "$RC_DEFAULTS" >&- 2>&-
+		. "$RC_DEFAULTS" > /dev/null 2>&1
 
 		unset RC_DEFAULTS
 			# no longer needed
@@ -232,7 +239,7 @@ f_sysrc_get_default()
 		# such as "${varname?}" and "${varname:?}" (see "Parameter
 		# Expansion" in sh(1) for more information).
 		#
-		eval echo '"${'"$1"'}"' 2>&-
+		eval echo '"${'"$1"'}"' 2> /dev/null
 	)
 }
 
@@ -247,20 +254,22 @@ f_sysrc_get_default()
 #
 f_sysrc_find()
 {
-	local varname="$1"
+	local varname="${1%%[!$VALID_VARNAME_CHARS]*}"
 	local regex="^[[:space:]]*$varname="
 	local rc_conf_files="$( f_sysrc_get rc_conf_files )"
 	local conf_files=
 	local file
 
 	# Check parameters
-	[ "$varname" ] || return $FAILURE
+	case "$varname" in
+	""|[0-9]*) return $FAILURE
+	esac
 
 	#
 	# If RC_CONFS is defined, set $rc_conf_files to an explicit
 	# value, modifying the default behavior of source_rc_confs().
 	#
-	[ "$RC_CONFS" ] && rc_conf_files="$RC_CONFS"
+	[ "${RC_CONFS+set}" ] && rc_conf_files="$RC_CONFS"
 
 	#
 	# Reverse the order of files in rc_conf_files (the boot process sources
@@ -439,11 +448,10 @@ f_sysrc_set()
 		# If RC_CONFS is defined, use $RC_CONFS
 		# rather than $rc_conf_files.
 		#
-		if [ "$RC_CONFS" ]; then
+		if [ "${RC_CONFS+set}" ]; then
 			file="${RC_CONFS%%[$IFS]*}"
 		else
-			file=$( f_sysrc_get rc_conf_files )
-			file="${file%%[$IFS]*}"
+			file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
 		fi
 	fi
 
@@ -477,7 +485,7 @@ f_sysrc_set()
 	# permissions from the temporary file).
 	#
 	local mode
-	mode=$( stat -f '%#Lp' "$file" 2>&- )
+	mode=$( stat -f '%#Lp' "$file" 2> /dev/null )
 	f_quietly chmod "${mode:-0644}" "$tmpfile"
 
 	#
@@ -486,14 +494,14 @@ f_sysrc_set()
 	# permissions (so we throw stderr into the bit-bucket).
 	#
 	local owner
-	owner=$( stat -f '%u:%g' "$file" 2>&- )
+	owner=$( stat -f '%u:%g' "$file" 2> /dev/null )
 	f_quietly chown "${owner:-root:wheel}" "$tmpfile"
 
 	#
 	# Operate on the matching file, replacing only the last occurrence.
 	#
 	local new_contents retval
-	new_contents=$( tail -r $file 2>&- )
+	new_contents=$( tail -r $file 2> /dev/null )
 	new_contents=$( echo "$new_contents" | awk -v varname="$varname" \
 		-v new_value="$new_value" "$f_sysrc_set_awk" )
 	retval=$?
@@ -558,7 +566,7 @@ f_sysrc_delete()
 	#
 	# Operate on each of the specified files
 	#
-	for file in ${RC_CONFS:-$( f_sysrc_get rc_conf_files )}; do
+	for file in ${RC_CONFS-$( f_sysrc_get rc_conf_files )}; do
 		[ -e "$file" ] || continue
 
 		#
@@ -572,8 +580,8 @@ f_sysrc_delete()
 		# permissions) to instead match the destination file.
 		#
 		local mode owner
-		mode=$( stat -f '%#Lp' "$file" 2>&- )
-		owner=$( stat -f '%u:%g' "$file" 2>&- )
+		mode=$( stat -f '%#Lp' "$file" 2> /dev/null )
+		owner=$( stat -f '%u:%g' "$file" 2> /dev/null )
 		f_quietly chmod "${mode:-0644}" "$tmpfile"
 		f_quietly chown "${owner:-root:wheel}" "$tmpfile"
 

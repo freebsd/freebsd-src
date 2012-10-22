@@ -24,6 +24,56 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121022:
+	Support for non-MPSAFE filesystems was removed from VFS. The
+	VFS_VERSION was bumped, all filesystem modules shall be
+	recompiled.
+
+20121018:
+	All the non-MPSAFE filesystems have been disconnected from
+	the build. The full list includes: codafs, hpfs, ntfs, nwfs,
+	portalfs, smbfs, xfs.
+
+20121016:
+	The interface cloning API and ABI has changed. The following
+	modules need to be recompiled together with kernel:
+	ipfw(4), pfsync(4), pflog(4), usb(4), wlan(4), stf(4),
+	vlan(4), disc(4), edsc(4), if_bridge(4), gif(4), tap(4),
+	faith(4), epair(4), enc(4), tun(4), if_lagg(4), gre(4).
+
+20121015:
+	The sdhci driver was split in two parts: sdhci (generic SD Host
+	Controller logic) and sdhci_pci (actual hardware driver).
+	No kernel config modifications are required, but if you
+	load sdhc as a module you must switch to sdhci_pci instead.
+
+20121014:
+	Import the FUSE kernel and userland support into base system.
+
+20121013:
+	The GNU sort(1) program has been removed since the BSD-licensed
+	sort(1) has been the default for quite some time and no serious
+	problems have been reported.  The corresponding WITH_GNU_SORT
+	knob has also gone.
+
+20121006:
+	The pfil(9) API/ABI for AF_INET family has been changed. Packet
+	filtering modules: pf(4), ipfw(4), ipfilter(4) need to be recompiled
+	with new kernel.
+
+20121001:
+	The net80211(4) ABI has been changed to allow for improved driver
+	PS-POLL and power-save support.  All wireless drivers need to be
+	recompiled to work with the new kernel.
+
+20120913:
+	The random(4) support for the VIA hardware random number
+	generator (`PADLOCK') is no longer enabled unconditionally.
+	Add the PADLOCK_RNG option in the custom kernel config if
+	needed.  The GENERIC kernels on i386 and amd64 do include the
+	option, so the change only affects the custom kernel
+	configurations.
+
 20120908:
 	The pf(4) packet filter ABI has been changed. pfctl(8) and
 	snmp_pf module need to be recompiled to work with new kernel.

@@ -280,12 +280,14 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
+.if !defined(.PARSEDIR)
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
 	    (cd ${.CURDIR} && ${MAKE} make); \
 	fi
+.endif
 
 #
 # Upgrade make(1) to the current version using the installed

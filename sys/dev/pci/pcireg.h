@@ -132,25 +132,35 @@
 /* Extended Capability Identification Numbers */
 
 #define	PCIZ_AER	0x0001	/* Advanced Error Reporting */
-#define	PCIZ_VC		0x0002	/* Virtual Channel */
+#define	PCIZ_VC		0x0002	/* Virtual Channel if MFVC Ext Cap not set */
 #define	PCIZ_SERNUM	0x0003	/* Device Serial Number */
 #define	PCIZ_PWRBDGT	0x0004	/* Power Budgeting */
 #define	PCIZ_RCLINK_DCL	0x0005	/* Root Complex Link Declaration */
 #define	PCIZ_RCLINK_CTL	0x0006	/* Root Complex Internal Link Control */
 #define	PCIZ_RCEC_ASSOC	0x0007	/* Root Complex Event Collector Association */
 #define	PCIZ_MFVC	0x0008	/* Multi-Function Virtual Channel */
+#define	PCIZ_VC2	0x0009	/* Virtual Channel if MFVC Ext Cap set */
 #define	PCIZ_RCRB	0x000a	/* RCRB Header */
 #define	PCIZ_VENDOR	0x000b	/* Vendor Unique */
+#define	PCIZ_CAC	0x000c	/* Configuration Access Correction -- obsolete */
 #define	PCIZ_ACS	0x000d	/* Access Control Services */
 #define	PCIZ_ARI	0x000e	/* Alternative Routing-ID Interpretation */
 #define	PCIZ_ATS	0x000f	/* Address Translation Services */
 #define	PCIZ_SRIOV	0x0010	/* Single Root IO Virtualization */
+#define	PCIZ_MRIOV	0x0011	/* Multiple Root IO Virtualization */
 #define	PCIZ_MULTICAST	0x0012	/* Multicast */
+#define	PCIZ_PAGE_REQ	0x0013	/* Page Request */
+#define	PCIZ_AMD	0x0014	/* Reserved for AMD */
 #define	PCIZ_RESIZE_BAR	0x0015	/* Resizable BAR */
 #define	PCIZ_DPA	0x0016	/* Dynamic Power Allocation */
 #define	PCIZ_TPH_REQ	0x0017	/* TPH Requester */
 #define	PCIZ_LTR	0x0018	/* Latency Tolerance Reporting */
 #define	PCIZ_SEC_PCIE	0x0019	/* Secondary PCI Express */
+#define	PCIZ_PMUX	0x001a	/* Protocol Multiplexing */
+#define	PCIZ_PASID	0x001b	/* Process Address Space ID */
+#define	PCIZ_LN_REQ	0x001c	/* LN Requester */
+#define	PCIZ_DPC	0x001d	/* Downstream Porto Containment */
+#define	PCIZ_L1PM	0x001e	/* L1 PM Substates */
 
 /* config registers for header type 0 devices */
 
@@ -183,7 +193,7 @@
 #define	PCIM_CIS_ASI_ROM	7
 #define	PCIM_CIS_ADDR_MASK	0x0ffffff8
 #define	PCIM_CIS_ROM_MASK	0xf0000000
-#define PCIM_CIS_CONFIG_MASK	0xff
+#define	PCIM_CIS_CONFIG_MASK	0xff
 #define	PCIR_SUBVEND_0	0x2c
 #define	PCIR_SUBDEV_0	0x2e
 #define	PCIR_BIOS	0x30

@@ -72,7 +72,7 @@ f_device_desc()
 		devname="${device%%$d*}"
 		devunit="${device#$devname}"
 		devunit="${devunit%%[a-zA-Z_]*}"
-		sysctl -n "dev.$devname.$devunit.%desc" 2>&- &&
+		sysctl -n "dev.$devname.$devunit.%desc" 2> /dev/null &&
 			return $SUCCESS
 	fi
 

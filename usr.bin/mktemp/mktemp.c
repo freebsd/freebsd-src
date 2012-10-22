@@ -87,6 +87,11 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (!tflag && argc < 1) {
+		tflag = 1;
+		prefix = "tmp";
+	}
+
 	if (tflag) {
 		tmpdir = getenv("TMPDIR");
 		if (tmpdir == NULL)
@@ -100,8 +105,6 @@ main(int argc, char **argv)
 			else
 				errx(1, "cannot generate template");
 		}
-	} else if (argc < 1) {
-		usage();
 	}
 		
 	/* generate all requested files */

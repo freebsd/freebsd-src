@@ -83,6 +83,10 @@ boolean_t zfs_nocacheflush = B_FALSE;
 TUNABLE_INT("vfs.zfs.cache_flush_disable", &zfs_nocacheflush);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, cache_flush_disable, CTLFLAG_RDTUN,
     &zfs_nocacheflush, 0, "Disable cache flush");
+boolean_t zfs_notrim = B_TRUE;
+TUNABLE_INT("vfs.zfs.trim_disable", &zfs_notrim);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, trim_disable, CTLFLAG_RDTUN, &zfs_notrim, 0,
+    "Disable trim");
 
 static kmem_cache_t *zil_lwb_cache;
 

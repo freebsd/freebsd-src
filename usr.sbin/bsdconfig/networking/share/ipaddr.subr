@@ -47,7 +47,7 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 f_ifconfig_inet()
 {
 	local interface="$1"
-	ifconfig "$interface" 2>&- | awk \
+	ifconfig "$interface" 2> /dev/null | awk \
 	'
 		BEGIN { found = 0 }
 		( $1 == "inet" ) \

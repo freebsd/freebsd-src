@@ -608,7 +608,6 @@ static int
 ng_source_store_output_ifp(sc_p sc, char *ifname)
 {
 	struct ifnet *ifp;
-	int s;
 
 	ifp = ifunit(ifname);
 
@@ -624,13 +623,11 @@ ng_source_store_output_ifp(sc_p sc, char *ifname)
 	 * interface with small packets.
 	 * XXX we should restore the original value at stop or disconnect
 	 */
-	s = splimp();		/* XXX is this required? */
 	if (ifp->if_snd.ifq_maxlen < NG_SOURCE_DRIVER_IFQ_MAXLEN) {
 		printf("ng_source: changing ifq_maxlen from %d to %d\n",
 		    ifp->if_snd.ifq_maxlen, NG_SOURCE_DRIVER_IFQ_MAXLEN);
 		ifp->if_snd.ifq_maxlen = NG_SOURCE_DRIVER_IFQ_MAXLEN;
 	}
-	splx(s);
 #endif
 	return (0);
 }

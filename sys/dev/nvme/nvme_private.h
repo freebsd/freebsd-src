@@ -38,6 +38,8 @@
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
+#include <vm/uma.h>
+
 #include <machine/bus.h>
 
 #include "nvme.h"
@@ -55,25 +57,36 @@ MALLOC_DECLARE(M_NVME);
 
 #define IDT_PCI_ID		0x80d0111d
 
-#define NVME_MAX_PRP_LIST_ENTRIES	(128)
+#define NVME_MAX_PRP_LIST_ENTRIES	(32)
 
 /*
  * For commands requiring more than 2 PRP entries, one PRP will be
  *  embedded in the command (prp1), and the rest of the PRP entries
  *  will be in a list pointed to by the command (prp2).  This means
- *  that real max number of PRP entries we support is 128+1, which
- *  results in a max xfer size of 128*PAGE_SIZE.
+ *  that real max number of PRP entries we support is 32+1, which
+ *  results in a max xfer size of 32*PAGE_SIZE.
  */
 #define NVME_MAX_XFER_SIZE	NVME_MAX_PRP_LIST_ENTRIES * PAGE_SIZE
 
+#define NVME_ADMIN_TRACKERS	(16)
 #define NVME_ADMIN_ENTRIES	(128)
 /* min and max are defined in admin queue attributes section of spec */
 #define NVME_MIN_ADMIN_ENTRIES	(2)
 #define NVME_MAX_ADMIN_ENTRIES	(4096)
 
-#define NVME_IO_ENTRIES		(1024)
-/* min is a reasonable value picked for the nvme(4) driver */
-#define NVME_MIN_IO_ENTRIES	(128)
+/*
+ * NVME_IO_ENTRIES defines the size of an I/O qpair's submission and completion
+ *  queues, while NVME_IO_TRACKERS defines the maximum number of I/O that we
+ *  will allow outstanding on an I/O qpair at any time.  The only advantage in
+ *  having IO_ENTRIES > IO_TRACKERS is for debugging purposes - when dumping
+ *  the contents of the submission and completion queues, it will show a longer
+ *  history of data.
+ */
+#define NVME_IO_ENTRIES		(256)
+#define NVME_IO_TRACKERS	(128)
+#define NVME_MIN_IO_TRACKERS	(16)
+#define NVME_MAX_IO_TRACKERS	(1024)
+
 /*
  * NVME_MAX_IO_ENTRIES is not defined, since it is specified in CC.MQES
  *  for each controller.
@@ -88,25 +101,35 @@ MALLOC_DECLARE(M_NVME);
 
 #define NVME_TIMEOUT_IN_SEC	(30)
 
-struct nvme_prp_list {
-	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
-	SLIST_ENTRY(nvme_prp_list)	slist;
-	bus_addr_t			bus_addr;
-	bus_dmamap_t			dma_map;
+#ifndef CACHE_LINE_SIZE
+#define CACHE_LINE_SIZE		(64)
+#endif
+
+extern uma_zone_t nvme_request_zone;
+
+struct nvme_request {
+
+	struct nvme_command		cmd;
+	void				*payload;
+	uint32_t			payload_size;
+	struct uio			*uio;
+	nvme_cb_fn_t			cb_fn;
+	void				*cb_arg;
+	STAILQ_ENTRY(nvme_request)	stailq;
 };
 
 struct nvme_tracker {
 
 	SLIST_ENTRY(nvme_tracker)	slist;
+	struct nvme_request		*req;
 	struct nvme_qpair		*qpair;
-	struct nvme_command		cmd;
 	struct callout			timer;
-	bus_dmamap_t			dma_map;
-	nvme_cb_fn_t			cb_fn;
-	void				*cb_arg;
-	uint32_t			payload_size;
-	struct nvme_prp_list		*prp_list;
+	bus_dmamap_t			payload_dma_map;
 	uint16_t			cid;
+
+	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
+	bus_addr_t			prp_bus_addr;
+	bus_dmamap_t			prp_dma_map;
 };
 
 struct nvme_qpair {
@@ -122,6 +145,7 @@ struct nvme_qpair {
 
 	uint32_t		max_xfer_size;
 	uint32_t		num_entries;
+	uint32_t		num_trackers;
 	uint32_t		sq_tdbl_off;
 	uint32_t		cq_hdbl_off;
 
@@ -130,8 +154,7 @@ struct nvme_qpair {
 	uint32_t		cq_head;
 
 	int64_t			num_cmds;
-
-	struct mtx		lock;
+	int64_t			num_intr_handler_calls;
 
 	struct nvme_command	*cmd;
 	struct nvme_completion	*cpl;
@@ -144,15 +167,14 @@ struct nvme_qpair {
 	bus_dmamap_t		cpl_dma_map;
 	uint64_t		cpl_bus_addr;
 
-	uint32_t		num_tr;
-	uint32_t		num_prp_list;
-
 	SLIST_HEAD(, nvme_tracker)	free_tr;
+	STAILQ_HEAD(, nvme_request)	queued_req;
 
 	struct nvme_tracker	**act_tr;
 
-	SLIST_HEAD(, nvme_prp_list)	free_prp_list;
-};
+	struct mtx		lock __aligned(CACHE_LINE_SIZE);
+
+} __aligned(CACHE_LINE_SIZE);
 
 struct nvme_namespace {
 
@@ -321,28 +343,29 @@ void	nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
 						  nvme_cb_fn_t cb_fn,
 						  void *cb_arg);
 
-struct nvme_tracker *	nvme_allocate_tracker(struct nvme_controller *ctrlr,
-					      boolean_t is_admin,
-					      nvme_cb_fn_t cb_fn, void *cb_arg,
-					      uint32_t payload_size,
-					      void *payload);
 void	nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg,
 			 int error);
+void	nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
+			     bus_size_t mapsize, int error);
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 int	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void	nvme_ctrlr_start(void *ctrlr_arg);
+void	nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
+					struct nvme_request *req);
+void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
+				     struct nvme_request *req);
 
 void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
-			     uint32_t max_xfer_size,
+			     uint32_t num_trackers, uint32_t max_xfer_size,
 			     struct nvme_controller *ctrlr);
 void	nvme_qpair_submit_cmd(struct nvme_qpair *qpair,
 			      struct nvme_tracker *tr);
 void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
-struct nvme_tracker *	nvme_qpair_allocate_tracker(struct nvme_qpair *qpair,
-						    boolean_t alloc_prp_list);
+void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
+				  struct nvme_request *req);
 
 void	nvme_admin_qpair_destroy(struct nvme_qpair *qpair);
 
@@ -365,5 +388,41 @@ nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 
 	*bus_addr = seg[0].ds_addr;
 }
+
+static __inline struct nvme_request *
+nvme_allocate_request(void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn, 
+		      void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
+	if (req == NULL)
+		return (NULL);
+
+	req->payload = payload;
+	req->payload_size = payload_size;
+	req->cb_fn = cb_fn;
+	req->cb_arg = cb_arg;
+
+	return (req);
+}
+
+static __inline struct nvme_request *
+nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
+	if (req == NULL)
+		return (NULL);
+
+	req->uio = uio;
+	req->cb_fn = cb_fn;
+	req->cb_arg = cb_arg;
+
+	return (req);
+}
+
+#define nvme_free_request(req)	uma_zfree(nvme_request_zone, req)
 
 #endif /* __NVME_PRIVATE_H__ */

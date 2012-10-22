@@ -732,7 +732,7 @@ if test $ac_cv_func_pcap_findalldevs = "yes" ; then
 dnl Check for Mac OS X, which may ship pcap.h from 0.6 but libpcap may
 dnl be 0.8; this means that lib has pcap_findalldevs but header doesn't
 dnl have pcap_if_t.
-    savedppflags="$CPPLAGS"
+    savedcppflags="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $V_INCLS"
     AC_CHECK_TYPES(pcap_if_t, , , [#include <pcap.h>])
     CPPFLAGS="$savedcppflags"
@@ -1067,7 +1067,7 @@ if test "$want_libcrypto" != "no"; then
 		fi
 		AC_CHECK_LIB(crypto, DES_cbc_encrypt)
 
-		savedppflags="$CPPLAGS"
+		savedcppflags="$CPPFLAGS"
 		CPPFLAGS="$CPPFLAGS $V_INCLS"
 		AC_CHECK_HEADERS(openssl/evp.h)
 		CPPFLAGS="$savedcppflags"

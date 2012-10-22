@@ -92,10 +92,6 @@ __FBSDID("$FreeBSD$");
 
 
 #define KERNEL_PT_MAX	78
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-#define FIQ_STACK_SIZE	1
 
 #define debugf(fmt, args...) printf(fmt, ##args)
 
@@ -140,12 +136,10 @@ vm_paddr_t pmap_pa;
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
-static struct pv_addr irqstack;
-static struct pv_addr undstack;
-static struct pv_addr abtstack;
+struct pv_addr irqstack;
+struct pv_addr undstack;
+struct pv_addr abtstack;
 static struct pv_addr kernelstack;
-
-static void set_stackptrs(int cpu);
 
 static int platform_devmap_init(void);
 
@@ -279,9 +273,19 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		phys_avail[j] = availmem_regions[i].mr_start;
-		phys_avail[j + 1] = availmem_regions[i].mr_start +
-		    availmem_regions[i].mr_size;
+		/*
+		 * We should not map the page at PA 0x0000000, the VM can't
+		 * handle it, as pmap_extract() == 0 means failure.
+		 */
+		if (availmem_regions[i].mr_start > 0 ||
+		    availmem_regions[i].mr_size > PAGE_SIZE) {
+			phys_avail[j] = availmem_regions[i].mr_start;
+			if (phys_avail[j] == 0)
+				phys_avail[j] += PAGE_SIZE;
+			phys_avail[j + 1] = availmem_regions[i].mr_start +
+			    availmem_regions[i].mr_size;
+		} else
+			j -= 2;
 	}
 	phys_avail[j] = 0;
 	phys_avail[j + 1] = 0;
@@ -350,6 +354,9 @@ initarm(struct arm_boot_params *abp)
 	memsize = 0;
 	set_cpufuncs();
 
+	/*
+	 * Find the dtb passed in by the boot loader.
+	 */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
@@ -376,10 +383,8 @@ initarm(struct arm_boot_params *abp)
 	    &memsize) != 0)
 		while(1);
 
-	if (fdt_immr_addr(TEGRA2_BASE) != 0)				/* FIXME ???? */
-		while (1);
-
-	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
+	/* Platform-specific initialisation */
+	pmap_bootstrap_lastaddr = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -513,6 +518,8 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
+	initarm_gpio_init();
+
 	cninit();
 
 	physmem = memsize / PAGE_SIZE;
@@ -526,7 +533,9 @@ initarm(struct arm_boot_params *abp)
 
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
-			err_devmap);
+		    err_devmap);
+
+	initarm_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -559,8 +568,8 @@ initarm(struct arm_boot_params *abp)
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
-	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
+	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
@@ -580,18 +589,25 @@ initarm(struct arm_boot_params *abp)
 	    sizeof(struct pcb)));
 }
 
-static void
-set_stackptrs(int cpu)
+vm_offset_t
+initarm_lastaddr(void)
 {
 
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + ((IRQ_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ((ABT_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+	if (fdt_immr_addr(TEGRA2_BASE) != 0)				/* FIXME ???? */
+		while (1);
+
+	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
 }
 
+void
+initarm_gpio_init(void)
+{
+}
+
+void
+initarm_late_init(void)
+{
+}
 
 #define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)	/* FIXME */
 static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {

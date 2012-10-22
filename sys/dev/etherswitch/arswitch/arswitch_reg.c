@@ -148,7 +148,7 @@ int
 arswitch_writereg_msb(device_t dev, int addr, int data)
 {
 
-	return (arswitch_writereg16(dev, addr + 2, data >> 16));
+	return (arswitch_writereg16(dev, addr + 2, (data >> 16) & 0xffff));
 }
 
 int

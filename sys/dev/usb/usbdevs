@@ -1078,6 +1078,7 @@ product APPLE IPOD_TOUCH	0x1291	iPod Touch
 product APPLE IPHONE_3G		0x1292	iPhone 3G
 product APPLE IPHONE_3GS	0x1294	iPhone 3GS
 product APPLE IPHONE_4		0x1297	iPhone 4
+product APPLE IPHONE_5		0x12a8  iPhone 5
 product APPLE IPAD		0x129a	iPad
 product APPLE ETHERNET		0x1402	Ethernet A1277
 
@@ -1588,6 +1589,9 @@ product ELV USBI2C		0xe00f	USB-I2C interface
 /* EMS products */
 product EMS DUAL_SHOOTER	0x0003	PSX gun controller converter
 
+/* Emtec products */
+product EMTEC RUF2PS 		0x2240 Flash Drive
+
 /* Encore products */
 product ENCORE RT3070_1		0x1480	RT3070
 product ENCORE RT3070_2		0x14a1	RT3070
@@ -1670,6 +1674,7 @@ product FALCOM SAMBA		0x0005	FTDI compatible adapter
 /* FEIYA products */
 product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
+product FEIYA ELANGO		0x6200	MicroSDHC Card Reader
 product FEIYA AC110		0x6300	AC-110 Card Reader
 
 /* Festo */
@@ -3966,6 +3971,7 @@ product SUNPLUS USBMOUSE	0x0007	USB Optical Mouse
 
 /* Super Top products */
 product	SUPERTOP IDE		0x6600	USB-IDE
+product	SUPERTOP FLASHDRIVE	0x121c	extrememory Snippy
 
 /* Syntech products */
 product SYNTECH CPT8001C	0x0001	CPT-8001C Barcode scanner

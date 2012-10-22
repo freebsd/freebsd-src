@@ -124,6 +124,12 @@ extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap);
 
 /*
+ * AP mode power save handling (of stations)
+ */
+extern	void ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an);
+extern	void ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an);
+
+/*
  * Setup path
  */
 #define	ath_txdma_setup(_sc)			\

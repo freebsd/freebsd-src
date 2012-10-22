@@ -570,16 +570,8 @@ options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
 options 	IPX			#IPX/SPX communications protocols
 
-options 	NCP			#NetWare Core protocol
-
 options 	NETATALK		#Appletalk communications protocols
 options 	NETATALKDEBUG		#Appletalk debugging
-
-#
-# SMB/CIFS requester
-# NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
-# options.
-options 	NETSMB			#SMB/CIFS requester
 
 # mchain library. It can be either loaded as KLD or compiled into kernel
 options 	LIBMCHAIN
@@ -988,10 +980,7 @@ options 	ZERO_COPY_SOCKETS
 # time.  Some people still prefer to statically compile other
 # filesystems as well.
 #
-# NB: The PORTAL filesystem is known to be buggy, and WILL panic your
-# system if you attempt to do anything with it.  It is included here
-# as an incentive for some enterprising soul to sit down and fix it.
-# The UNION filesystem was known to be buggy in the past.  It is now
+# NB: The UNION filesystem was known to be buggy in the past.  It is now
 # being actively maintained, although there are still some issues being
 # resolved.
 #
@@ -1003,7 +992,7 @@ options 	NFSCLIENT		#Network File System client
 # The rest are optional:
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
-options 	HPFS			#OS/2 File system
+options 	FUSE			#FUSE support module
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
@@ -1011,19 +1000,10 @@ options 	NFSCL			#experimental NFS client with NFSv4
 options 	NFSD			#experimental NFS server with NFSv4
 options 	KGSSAPI			#Kernel GSSAPI implementation
 
-# NT File System. Read-mostly, see mount_ntfs(8) for details.
-# For a full read-write NTFS support consider sysutils/fusefs-ntfs
-# port/package.
-options 	NTFS
-
 options 	NULLFS			#NULL filesystem
-# Broken (depends on NCP):
-#options 	NWFS			#NetWare filesystem
-options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	PSEUDOFS_TRACE		#Debugging support for PSEUDOFS
-options 	SMBFS			#SMB/CIFS filesystem
 options 	TMPFS			#Efficient memory filesystem
 options 	UDF			#Universal Disk Format
 options 	UNIONFS			#Union filesystem
@@ -1089,13 +1069,6 @@ options 	NFS_GATHERDELAY=10	# Default write gather delay (msec)
 options 	NFS_WDELAYHASHSIZ=16	# and with this
 options 	NFS_DEBUG		# Enable NFS Debugging
 
-# Coda stuff:
-options 	CODA			#CODA filesystem.
-device		vcoda			#coda minicache <-> venus comm.
-# Use the old Coda 5.x venus<->kernel interface instead of the new
-# realms-aware 6.x protocol.
-#options 	CODA_COMPAT_5
-
 #
 # Add support for the EXT2FS filesystem of Linux fame.  Be a bit
 # careful with this - the ext2fs code has a tendency to lag behind
@@ -1110,19 +1083,10 @@ options 	EXT2FS
 #
 options 	REISERFS
 
-#
-# Add support for the SGI XFS filesystem. Currently,
-# this is limited to read-only access.
-#
-options 	XFS
-
 # Use real implementations of the aio_* system calls.  There are numerous
 # stability and security issues in the current aio code that make it
 # unsuitable for inclusion on machines with untrusted local users.
 options 	VFS_AIO
-
-# Enable mounting of non-MPSAFE filesystems.
-options 	VFS_ALLOW_NONMPSAFE
 
 # Cryptographically secure random number generator; /dev/random
 device		random
@@ -1137,7 +1101,6 @@ device		ksyms
 # Each option requires their base file system and LIBICONV.
 options 	CD9660_ICONV
 options 	MSDOSFS_ICONV
-options 	NTFS_ICONV
 options 	UDF_ICONV
 
 

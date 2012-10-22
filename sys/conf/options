@@ -68,7 +68,6 @@ ALQ
 AUDIT		opt_global.h
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
-CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_43TTY	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
@@ -189,7 +188,6 @@ SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 VFS_AIO
-VFS_ALLOW_NONMPSAFE
 VERBOSE_SYSINIT	opt_global.h
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
@@ -207,21 +205,16 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
 CD9660		opt_dontuse.h
-CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
-HPFS		opt_dontuse.h
+FUSE		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NANDFS		opt_dontuse.h
-NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
-NWFS		opt_dontuse.h
-PORTALFS	opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h
-SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
@@ -250,7 +243,6 @@ NFSD		opt_nfs.h
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
 MSDOSFS_ICONV	opt_dontuse.h
-NTFS_ICONV	opt_dontuse.h
 UDF_ICONV	opt_dontuse.h
 
 # If you are following the conditions in the copyright,
@@ -287,9 +279,6 @@ UFS_GJOURNAL	opt_ufs.h
 # allows these options to be present in config files already (though
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
-
-# SMB/CIFS requester
-NETSMB		opt_netsmb.h
 
 # Options used only in subr_param.c.
 HZ		opt_param.h
@@ -426,7 +415,6 @@ LIBMCHAIN
 MBUF_PROFILING
 MBUF_STRESS_TEST
 MROUTING		opt_mrouting.h
-NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
 PCBGROUP		opt_pcbgroup.h
@@ -838,9 +826,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
-
-# XFS
-XFS
 
 ZFS			opt_dontuse.h
 

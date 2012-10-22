@@ -117,8 +117,8 @@ ttys_set_type()
 	# with 0600 permissions -- change the permissions and ownership to
 	# match ttys(5) before we write it out and mv(1) it into place).
 	#
-	local mode="$( stat -f '%#Lp' "$ETC_TTYS" 2>&- )"
-	local owner="$( stat -f '%u:%g' "$ETC_TTYS" 2>&- )"
+	local mode="$( stat -f '%#Lp' "$ETC_TTYS" 2> /dev/null )"
+	local owner="$( stat -f '%u:%g' "$ETC_TTYS" 2> /dev/null )"
 	f_quietly chmod "${mode:-0644}" "$tmpfile"
 	f_quietly chown "${owner:-root:wheel}" "$tmpfile"
 

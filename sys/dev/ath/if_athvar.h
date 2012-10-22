@@ -35,6 +35,8 @@
 #ifndef _DEV_ATH_ATHVAR_H
 #define _DEV_ATH_ATHVAR_H
 
+#include <machine/atomic.h>
+
 #include <dev/ath/ath_hal/ah.h>
 #include <dev/ath/ath_hal/ah_desc.h>
 #include <net80211/ieee80211_radiotap.h>
@@ -99,7 +101,7 @@ struct ath_buf;
  * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
  */
 struct ath_tid {
-	TAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
+	TAILQ_HEAD(,ath_buf)	tid_q;		/* pending buffers */
 	u_int			axq_depth;	/* SW queue depth */
 	char			axq_name[48];	/* lock name */
 	struct ath_node		*an;		/* pointer to parent */
@@ -108,7 +110,7 @@ struct ath_tid {
 	int			hwq_depth;	/* how many buffers are on HW */
 
 	struct {
-		TAILQ_HEAD(,ath_buf) axq_q;		/* filtered queue */
+		TAILQ_HEAD(,ath_buf)	tid_q;		/* filtered queue */
 		u_int			axq_depth;	/* SW queue depth */
 		char			axq_name[48];	/* lock name */
 	} filtq;
@@ -170,10 +172,13 @@ struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
 	u_int8_t	an_mgmtrix;	/* min h/w rate index */
 	u_int8_t	an_mcastrix;	/* mcast h/w rate index */
+	uint32_t	an_is_powersave;	/* node is sleeping */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
 	char		an_name[32];	/* eg "wlan0_a1" */
 	struct mtx	an_mtx;		/* protecting the ath_node state */
+	uint32_t	an_swq_depth;	/* how many SWQ packets for this
+					   node */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -332,6 +337,8 @@ struct ath_txq {
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
 #define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
 #define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)
+#define	ATH_NODE_UNLOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx,	\
+					    MA_NOTOWNED)
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
 	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
@@ -352,6 +359,9 @@ struct ath_txq {
 #define	ATH_TID_UNLOCK_ASSERT(_sc, _tid)	\
 	    ATH_TXQ_UNLOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
 
+/*
+ * These are for the hardware queue.
+ */
 #define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
 	TAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
@@ -367,6 +377,48 @@ struct ath_txq {
 #define	ATH_TXQ_FIRST(_tq)		TAILQ_FIRST(&(_tq)->axq_q)
 #define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
 
+/*
+ * These are for the TID software queue.
+ */
+#define ATH_TID_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->tid_q, _elm, _field); \
+	(_tq)->axq_depth--; \
+	atomic_subtract_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define	ATH_TID_FIRST(_tq)		TAILQ_FIRST(&(_tq)->tid_q)
+#define	ATH_TID_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->tid_q, _field)
+
+/*
+ * These are for the TID filtered frame queue
+ */
+#define ATH_TID_FILT_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->filtq.tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_FILT_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->filtq.tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_FILT_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->filtq.tid_q, _elm, _field); \
+	(_tq)->axq_depth--; \
+	atomic_subtract_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define	ATH_TID_FILT_FIRST(_tq)		TAILQ_FIRST(&(_tq)->filtq.tid_q)
+#define	ATH_TID_FILT_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->filtq.tid_q,_field)
+
 struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
 	int		av_bslot;	/* beacon slot index */
@@ -379,6 +431,7 @@ struct ath_vap {
 	int		(*av_newstate)(struct ieee80211vap *,
 				enum ieee80211_state, int);
 	void		(*av_bmiss)(struct ieee80211vap *);
+	void		(*av_node_ps)(struct ieee80211_node *, int);
 };
 #define	ATH_VAP(vap)	((struct ath_vap *)(vap))
 
@@ -445,6 +498,7 @@ struct ath_softc {
 	struct ath_tx_aggr_stats	sc_aggr_stats;
 	struct ath_intr_stats	sc_intr_stats;
 	uint64_t		sc_debug;
+	uint64_t		sc_ktrdebug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
 	int			sc_nmeshvaps;	/* # mbss vaps */
@@ -606,6 +660,7 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+	struct task		sc_txsndtask;	/* tx send processing */
 
 	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
 	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */

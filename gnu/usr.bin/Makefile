@@ -17,7 +17,6 @@ SUBDIR= ${_binutils} \
 	${_rcs} \
 	sdiff \
 	send-pr \
-	sort \
 	${_texinfo}
 
 .if ${MK_CXX} != "no"

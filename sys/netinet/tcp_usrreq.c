@@ -1473,7 +1473,6 @@ unlock_and_done:
 
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
-		case TCP_KEEPCNT:
 		case TCP_KEEPINIT:
 			INP_WUNLOCK(inp);
 			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
@@ -1506,13 +1505,6 @@ unlock_and_done:
 					tcp_timer_activate(tp, TT_2MSL,
 					    TP_MAXIDLE(tp));
 				break;
-			case TCP_KEEPCNT:
-				tp->t_keepcnt = ui;
-				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
-				    (TP_MAXIDLE(tp) > 0))
-					tcp_timer_activate(tp, TT_2MSL,
-					    TP_MAXIDLE(tp));
-				break;
 			case TCP_KEEPINIT:
 				tp->t_keepinit = ui;
 				if (tp->t_state == TCPS_SYN_RECEIVED ||
@@ -1521,6 +1513,20 @@ unlock_and_done:
 					    TP_KEEPINIT(tp));
 				break;
 			}
+			goto unlock_and_done;
+
+		case TCP_KEEPCNT:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
+			if (error)
+				return (error);
+
+			INP_WLOCK_RECHECK(inp);
+			tp->t_keepcnt = ui;
+			if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+			    (TP_MAXIDLE(tp) > 0))
+				tcp_timer_activate(tp, TT_2MSL,
+				    TP_MAXIDLE(tp));
 			goto unlock_and_done;
 
 		default:

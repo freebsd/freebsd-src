@@ -63,20 +63,20 @@ f_dprintf()
 #
 f_err()
 {
-	printf "$@" >&2 
+	printf "$@" >&2
 }
 
 # f_quietly $command [ $arguments ... ]
 #
-# run a command quietly (quell any output to stdout or stderr)
+# Run a command quietly (quell any output to stdout or stderr)
 #
 f_quietly()
 {
-	"$@" >&- 2>&-
+	"$@" > /dev/null 2>&1
 }
 
 # f_have $anything ...
-# 
+#
 # A wrapper to the `type' built-in. Returns true if argument is a valid shell
 # built-in, keyword, or externally-tracked binary, otherwise false.
 #
@@ -156,7 +156,7 @@ f_include()
 # f_include_lang $file
 #
 # Include a language file. Automatically takes $LANG and $LC_ALL into
-# considerationg when including $file (suffix ".$LC_ALL" or ".$LANG" will
+# consideration when including $file (suffix ".$LC_ALL" or ".$LANG" will
 # automatically by added prior to loading the language file).
 #
 # No error is produced if (a) a language has been requested (by setting either
@@ -176,6 +176,40 @@ f_include_lang()
 		. "$file.$lang" || exit $?
 	else
 		. "$file" || exit $?
+	fi
+}
+
+# f_include_help NAME [$file]
+#
+# When given both arguments, cache the contents of a language help-file to
+# later be retrieved by executing again with only the first argument.
+#
+# Automatically takes $LANG and $LC_ALL into consideration when reading $file
+# (suffix ".$LC_ALL" or ".$LANG" will automatically be added prior to loading
+# the language help-file).
+#
+# If a language has been requested by setting either $LANG or $LC_ALL in the
+# environment and the language-specific help-file does not exist we will fall
+# back to $file without-suffix.
+#
+# If the language help-file does not exist, an error is cached in place of the
+# help-file contents.
+#
+f_include_help()
+{
+	local name="$1" file="$2"
+
+	if [ "$file" ]; then
+		local lang="${LANG:-$LC_ALL}"
+
+		f_dprintf "name=[$name] lang=[$lang]"
+		if [ -f "$file.$lang" ]; then
+			setvar HELP_${name}_$$ "$( cat "$file.$lang" 2>&1 )"
+		else
+			setvar HELP_${name}_$$ "$( cat "$file" 2>&1 )"
+		fi
+	else
+		eval echo \"\$HELP_${name}_$$\"
 	fi
 }
 

@@ -125,10 +125,6 @@ ipfw_check_packet(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	int ipfw;
 	int ret;
 
-	/* all the processing now uses ip_len in net format */
-	if (mtod(*m0, struct ip *)->ip_v == 4)
-		SET_NET_IPLEN(mtod(*m0, struct ip *));
-
 	/* convert dir to IPFW values */
 	dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
 	bzero(&args, sizeof(args));
@@ -142,11 +138,8 @@ again:
 	if (tag != NULL) {
 		args.rule = *((struct ipfw_rule_ref *)(tag+1));
 		m_tag_delete(*m0, tag);
-		if (args.rule.info & IPFW_ONEPASS) {
-			if (mtod(*m0, struct ip *)->ip_v == 4)
-				SET_HOST_IPLEN(mtod(*m0, struct ip *));
+		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
-		}
 	}
 
 	args.m = *m0;
@@ -288,8 +281,7 @@ again:
 			FREE_PKT(*m0);
 		*m0 = NULL;
 	}
-	if (*m0 && mtod(*m0, struct ip *)->ip_v == 4)
-		SET_HOST_IPLEN(mtod(*m0, struct ip *));
+
 	return ret;
 }
 

@@ -51,16 +51,20 @@ struct pidfh *pfh;
 
 static void
 usage() {
+#if DEBUGGING
     char **dflags;
+#endif
 
 	fprintf(stderr, "usage: cron [-j jitter] [-J rootjitter] "
 			"[-m mailto] [-s] [-o] [-x debugflag[,...]]\n");
+#if DEBUGGING
 	fprintf(stderr, "\ndebugflags: ");
 
         for(dflags = DebugFlagNames; *dflags; dflags++) {
 		fprintf(stderr, "%s ", *dflags);
 	}
         fprintf(stderr, "\n");
+#endif
 
 	exit(ERROR_EXIT);
 }

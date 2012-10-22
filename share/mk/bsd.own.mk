@@ -306,6 +306,7 @@ __DEFAULT_YES_OPTIONS = \
     APM \
     ASSERT_DEBUG \
     AT \
+    ATF \
     ATM \
     AUDIT \
     AUTHPF \
@@ -374,7 +375,6 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
-    NCP \
     NDIS \
     NETCAT \
     NETGRAPH \
@@ -417,6 +417,7 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    BMAKE \
     BSD_GREP \
     BIND_IDN \
     BIND_LARGE_FILE \
@@ -427,12 +428,10 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CLANG_IS_CC \
     CTF \
-    GNU_SORT \
     HESIOD \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
-    LIBCPLUSPLUS \
     NAND \
     OFED \
     SHARED_TOOLCHAIN
@@ -551,10 +550,6 @@ MK_CLANG:=	no
 MK_GROFF:=	no
 .endif
 
-.if ${MK_IPX} == "no"
-MK_NCP:=	no
-.endif
-
 .if ${MK_MAIL} == "no"
 MK_MAILWRAPPER:= no
 MK_SENDMAIL:=	no
@@ -639,6 +634,33 @@ MK_${vv:H}:=	yes
 MK_${vv:H}:=	no
 .else
 MK_${vv:H}:=	${MK_${vv:T}}
+.endif
+.endfor
+
+#
+# MK_* options that default to "yes" if the compiler is a C++11 compiler.
+#
+.include <bsd.compiler.mk>
+.for var in \
+    LIBCPLUSPLUS
+.if defined(WITH_${var}) && defined(WITHOUT_${var})
+.error WITH_${var} and WITHOUT_${var} can't both be set.
+.endif
+.if defined(MK_${var})
+.error MK_${var} can't be set by a user.
+.endif
+.if ${COMPILER_FEATURES:Mc++11}
+.if defined(WITHOUT_${var})
+MK_${var}:=	no
+.else
+MK_${var}:=	yes
+.endif
+.else
+.if defined(WITH_${var})
+MK_${var}:=	yes
+.else
+MK_${var}:=	no
+.endif
 .endif
 .endfor
 

@@ -660,6 +660,24 @@ vop_unp_detach {
 	IN struct vnode *vp;
 };
 
+%% is_text	vp	L L L
+
+vop_is_text {
+	IN struct vnode *vp;
+};
+
+%% set_text	vp	E E E
+
+vop_set_text {
+	IN struct vnode *vp;
+};
+
+%% vop_unset_text	vp	E E E
+
+vop_unset_text {
+	IN struct vnode *vp;
+};
+
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should
 # be added above these spares.  When merging a new VOP to a stable branch,

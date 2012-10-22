@@ -19,3 +19,9 @@ COMPILER_TYPE:=	clang
 .  undef _COMPILER_VERSION
 . endif
 .endif
+
+.if ${COMPILER_TYPE} == "clang"
+COMPILER_FEATURES=	c++11
+.else
+COMPILER_FEATURES=
+.endif

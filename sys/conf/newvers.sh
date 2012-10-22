@@ -140,10 +140,10 @@ if [ -n "$p4_cmd" ] ; then
 	case "$p4version" in
 	[0-9]*)
 		p4version=" ${p4version}"
-		p4opened=`$p4_cmd opened 2>&1`
+		p4opened=`cd ${SYSDIR} && $p4_cmd opened ./... 2>&1`
 		case "$p4opened" in
 		File*) ;;
-		*)	p4version="${p4version}+pending" ;;
+		//*)	p4version="${p4version}+edit" ;;
 		esac
 		;;
 	*)	unset p4version ;;

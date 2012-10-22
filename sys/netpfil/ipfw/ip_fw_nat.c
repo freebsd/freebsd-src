@@ -202,6 +202,13 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 	}
 }
 
+/*
+ * ipfw_nat - perform mbuf header translation.
+ *
+ * Note V_layer3_chain has to be locked while calling ipfw_nat() in
+ * 'global' operation mode (t == NULL).
+ *
+ */
 static int
 ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 {
@@ -269,7 +276,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 
 		found = 0;
 		chain = &V_layer3_chain;
-		IPFW_RLOCK(chain);
 		/* Check every nat entry... */
 		LIST_FOREACH(t, &chain->nat, _next) {
 			if ((t->mode & PKT_ALIAS_SKIP_GLOBAL) != 0)
@@ -282,7 +288,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 				break;
 			}
 		}
-		IPFW_RUNLOCK(chain);
 		if (found != 1) {
 			/* No instance found, return ignore */
 			args->m = mcl;
@@ -336,11 +341,11 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	if (ldt) {
 		struct tcphdr 	*th;
 		struct udphdr 	*uh;
-		u_short cksum;
+		uint16_t ip_len, cksum;
 
-		ip->ip_len = ntohs(ip->ip_len);
+		ip_len = ntohs(ip->ip_len);
 		cksum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-		    htons(ip->ip_p + ip->ip_len - (ip->ip_hl << 2)));
+		    htons(ip->ip_p + ip_len - (ip->ip_hl << 2)));
 
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -366,7 +371,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 			in_delayed_cksum(mcl);
 			mcl->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
-		ip->ip_len = htons(ip->ip_len);
 	}
 	args->m = mcl;
 	return (IP_FW_NAT);

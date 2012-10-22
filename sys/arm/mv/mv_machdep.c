@@ -104,11 +104,6 @@ __FBSDID("$FreeBSD$");
  */
 #define KERNEL_PT_MAX	78
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 extern unsigned char kernbase[];
 extern unsigned char _etext[];
 extern unsigned char _edata[];
@@ -136,8 +131,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-
-void set_stackptrs(int cpu);
 
 static struct mem_region availmem_regions[FDT_MEM_REGIONS];
 static int availmem_regions_sz;
@@ -308,19 +301,18 @@ initarm(struct arm_boot_params *abp)
 	u_int l1pagetable;
 	int i = 0, j = 0, err_devmap = 0;
 
-        lastaddr = parse_boot_param(abp);
+	lastaddr = parse_boot_param(abp);
 	memsize = 0;
 	set_cpufuncs();
 
 	/*
 	 * Find the dtb passed in by the boot loader.
 	 */
-        kmdp = preload_search_by_type("elf kernel");
-        if (kmdp != NULL)
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	else
 		dtbp = (vm_offset_t)NULL;
-		
 
 #if defined(FDT_DTB_STATIC)
 	/*
@@ -342,11 +334,8 @@ initarm(struct arm_boot_params *abp)
 	    &memsize) != 0)
 		while(1);
 
-	if (fdt_immr_addr(MV_BASE) != 0)
-		while (1);
-
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
+	pmap_bootstrap_lastaddr = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -436,7 +425,7 @@ initarm(struct arm_boot_params *abp)
 		    &kernel_pt_table[i]);
 
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
-	
+
 	/* Map kernel code and data */
 	pmap_map_chunk(l1pagetable, KERNVIRTADDR, KERNPHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
@@ -480,12 +469,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-	/*
-	 * Re-initialise MPP. It is important to call this prior to using
-	 * console as the physical connection can be routed via MPP.
-	 */
-	if (platform_mpp_init() != 0)
-		while (1);
+	initarm_gpio_init();
 
 	cninit();
 
@@ -500,19 +484,9 @@ initarm(struct arm_boot_params *abp)
 
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
-                    err_devmap);
+		    err_devmap);
 
-	/*
-	 * Re-initialise decode windows
-	 */
-#if !defined(SOC_MV_FREY)
-	if (soc_decode_win() != 0)
-		printf("WARNING: could not re-initialise decode windows! "
-		    "Running with existing settings...\n");
-#else
-	/* Disable watchdog and timers */
-	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
-#endif
+	initarm_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -561,20 +535,9 @@ initarm(struct arm_boot_params *abp)
 	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
+
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
-}
-
-void
-set_stackptrs(int cpu)
-{
-
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + ((IRQ_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ((ABT_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
 }
 
 #define MPP_PIN_MAX		68
@@ -709,6 +672,45 @@ moveon:
 	}
 
 	return (0);
+}
+
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	if (fdt_immr_addr(MV_BASE) != 0)
+		while (1);
+
+	/* Platform-specific initialisation */
+	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
+}
+
+void
+initarm_gpio_init(void)
+{
+
+	/*
+	 * Re-initialise MPP. It is important to call this prior to using
+	 * console as the physical connection can be routed via MPP.
+	 */
+	if (platform_mpp_init() != 0)
+		while (1);
+}
+
+void
+initarm_late_init(void)
+{
+	/*
+	 * Re-initialise decode windows
+	 */
+#if !defined(SOC_MV_FREY)
+	if (soc_decode_win() != 0)
+		printf("WARNING: could not re-initialise decode windows! "
+		    "Running with existing settings...\n");
+#else
+	/* Disable watchdog and timers */
+	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
+#endif
 }
 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)

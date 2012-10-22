@@ -208,17 +208,13 @@ divert_packet(struct mbuf *m, int incoming)
 
 	/* Delayed checksums are currently not compatible with divert. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-		ip->ip_len = ntohs(ip->ip_len);
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-		ip->ip_len = htons(ip->ip_len);
 	}
 #ifdef SCTP
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
-		ip->ip_len = ntohs(ip->ip_len);
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
-		ip->ip_len = htons(ip->ip_len);
 	}
 #endif
 	bzero(&divsrc, sizeof(divsrc));
@@ -406,8 +402,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				INP_RUNLOCK(inp);
 				goto cantsend;
 			}
-
-			ip6->ip6_plen = ntohs(ip6->ip6_plen);
 			break;
 		    }
 #endif

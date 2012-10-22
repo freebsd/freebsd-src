@@ -115,12 +115,13 @@ extern	int ath_stoptxdma(struct ath_softc *sc);
  * we can kill this.
  */
 extern void ath_start(struct ifnet *ifp);
+extern	void ath_start_task(void *arg, int npending);
 
 static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
-	ath_start(sc->sc_ifp);
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_txsndtask);
 }
 
 #endif

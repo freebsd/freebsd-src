@@ -855,11 +855,9 @@ event_loop(void)
 	timeval tv;
 	fd_set fds;
 
-	fd = open(PATH_DEVCTL, O_RDONLY);
+	fd = open(PATH_DEVCTL, O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
 		err(1, "Can't open devctl device %s", PATH_DEVCTL);
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0)
-		err(1, "Can't set close-on-exec flag on devctl");
 	server_fd = create_socket(PIPE);
 	max_fd = max(fd, server_fd) + 1;
 	while (1) {

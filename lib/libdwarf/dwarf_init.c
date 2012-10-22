@@ -551,7 +551,7 @@ dwarf_init_info(Dwarf_Debug dbg, Dwarf_Error *error)
 			Dwarf_Attribute at;
 			Dwarf_Die die;
 			uint64_t abnum;
-			uint64_t die_offset = offset;;
+			uint64_t die_offset = offset;
 
 			abnum = dwarf_read_uleb128(&d, &offset);
 
