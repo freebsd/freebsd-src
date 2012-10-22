@@ -800,6 +800,7 @@ cpsw_intr_rx_locked(void *arg)
 		cpsw_write_4(CPSW_CPDMA_RX_CP(0), cpsw_cpdma_rxbd_paddr(i));
 
 		bus_dmamap_sync(sc->mbuf_dtag, sc->rx_dmamap[i], BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->mbuf_dtag, sc->rx_dmamap[i]);
 
 		/* Fill mbuf */
 		sc->rx_mbuf[i]->m_hdr.mh_data += bd.bufoff;
@@ -816,11 +817,6 @@ cpsw_intr_rx_locked(void *arg)
 				sc->rx_mbuf[i]->m_pkthdr.csum_data = 0xffff;
 			}
 		}
-
-		bus_dmamap_sync(sc->mbuf_dtag,
-		    sc->rx_dmamap[i],
-		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->mbuf_dtag, sc->rx_dmamap[i]);
 
 		/* Handover packet */
 		CPSW_RX_UNLOCK(sc);
