@@ -157,6 +157,7 @@ const char	*make_playpen(char *, off_t);
 char		*where_playpen(void);
 int		leave_playpen(void);
 off_t		min_free(const char *);
+void		warnpkgng(void);
 
 /* String */
 char 		*get_dash_string(char **);
