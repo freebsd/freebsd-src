@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #include "httperr.h"
 
 /* Maximum number of redirects to follow */
-#define MAX_REDIRECT 5
+#define MAX_REDIRECT 20
 
 /* Symbolic names for reply codes we care about */
 #define HTTP_OK			200
