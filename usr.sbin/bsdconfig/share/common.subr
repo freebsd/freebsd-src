@@ -179,41 +179,37 @@ f_include_lang()
 	fi
 }
 
-# f_include_help [$file]
+# f_include_help NAME [$file]
 #
-# When given an argument, cache the contents of a language help-file (to later
-# be retrieved by executing again without arguments).
+# When given both arguments, cache the contents of a language help-file to
+# later be retrieved by executing again with only the first argument.
 #
 # Automatically takes $LANG and $LC_ALL into consideration when reading $file
 # (suffix ".$LC_ALL" or ".$LANG" will automatically be added prior to loading
 # the language help-file).
 #
-# No error is produced if (a) a language has been requested (by setting either
-# $LANG or $LC_ALL in the environment) and (b) the language help-file does not
-# exist -- in which case we will fall back to loading $file without-suffix.
+# If a language has been requested by setting either $LANG or $LC_ALL in the
+# environment and the language-specific help-file does not exist we will fall
+# back to $file without-suffix.
 #
 # If the language help-file does not exist, an error is cached in place of the
 # help-file contents.
 #
-# When called without arguments, the cached value (if any) is produced. Each
-# time this function is called, the cache is overwritten with the newly loaded
-# contents.
-#
 f_include_help()
 {
-	local file="$1"
+	local name="$1" file="$2"
 
 	if [ "$file" ]; then
 		local lang="${LANG:-$LC_ALL}"
 
-		f_dprintf "lang=[$lang]"
+		f_dprintf "name=[$name] lang=[$lang]"
 		if [ -f "$file.$lang" ]; then
-			setvar HELP_$$ "$( cat "$file.$lang" 2>&1 )"
+			setvar HELP_${name}_$$ "$( cat "$file.$lang" 2>&1 )"
 		else
-			setvar HELP_$$ "$( cat "$file" 2>&1 )"
+			setvar HELP_${name}_$$ "$( cat "$file" 2>&1 )"
 		fi
 	else
-		eval echo \"\$HELP_$$\"
+		eval echo \"\$HELP_${name}_$$\"
 	fi
 }
 
