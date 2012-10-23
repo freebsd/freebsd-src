@@ -25,6 +25,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20121023:
+	The ZERO_COPY_SOCKET kernel option has been removed and
+	split into SOCKET_SEND_COW and SOCKET_RECV_PFLIP.
+	NB: SOCKET_SEND_COW uses the VM page based copy-on-write
+	mechanism which is not safe and may result in kernel crashes.
+	NB: The SOCKET_RECV_PFLIP mechanism is useless as no current
+	driver supports disposeable external page sized mbuf storage.
+	Proper replacements for both zero-copy mechanisms are under
+	consideration and will eventually lead to complete removal
+	of the two kernel options.
+
+20121023:
 	The IPv4 network stack has been converted to network byte
 	order. The following modules need to be recompiled together
 	with kernel: carp(4), divert(4), gif(4), siftr(4), gre(4),
