@@ -287,12 +287,9 @@ rip_input(struct mbuf *m, int off)
 
 	ifp = m->m_pkthdr.rcvif;
 	/*
-	 * Add back the IP header length which was
-	 * removed by ip_input().  Raw sockets do
-	 * not modify the packet except for some
-	 * byte order swaps.
+	 * Applications on raw sockets expect host byte order.
 	 */
-	ip->ip_len = ntohs(ip->ip_len) + off;
+	ip->ip_len = ntohs(ip->ip_len);
 	ip->ip_off = ntohs(ip->ip_off);
 
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
@@ -506,7 +503,8 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			ip->ip_id = ip_newid();
 
 		/*
-		 * Applications on raw sockets expect host byte order.
+		 * Applications on raw sockets pass us packets
+		 * in host byte order.
 		 */
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
