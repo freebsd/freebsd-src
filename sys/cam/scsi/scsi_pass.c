@@ -212,27 +212,26 @@ pass_add_physpath(void *context, int pending)
 	 */
 	periph = context;
 	softc = periph->softc;
+	physpath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
 	cam_periph_lock(periph);
 	if (periph->flags & CAM_PERIPH_INVALID) {
 		cam_periph_unlock(periph);
-		return;
+		goto out;
 	}
-	cam_periph_unlock(periph);
-	physpath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
 	if (xpt_getattr(physpath, MAXPATHLEN,
 			"GEOM::physpath", periph->path) == 0
 	 && strlen(physpath) != 0) {
 
+		cam_periph_unlock(periph);
 		make_dev_physpath_alias(MAKEDEV_WAITOK, &softc->alias_dev,
 					softc->dev, softc->alias_dev, physpath);
+		cam_periph_lock(periph);
 	}
-	free(physpath, M_DEVBUF);
 
 	/*
 	 * Now that we've made our alias, we no longer have to have a
 	 * reference to the device.
 	 */
-	cam_periph_lock(periph);
 	if ((softc->flags & PASS_FLAG_INITIAL_PHYSPATH) == 0) {
 		softc->flags |= PASS_FLAG_INITIAL_PHYSPATH;
 		cam_periph_unlock(periph);
@@ -240,6 +239,9 @@ pass_add_physpath(void *context, int pending)
 	}
 	else
 		cam_periph_unlock(periph);
+
+out:
+	free(physpath, M_DEVBUF);
 }
 
 static void
