@@ -470,7 +470,7 @@ ip_stripoptions(struct mbuf *m)
 	m->m_len -= olen;
 	if (m->m_flags & M_PKTHDR)
 		m->m_pkthdr.len -= olen;
-	ip->ip_v = IPVERSION;
+	ip->ip_len = htons(ntohs(ip->ip_len) - olen);
 	ip->ip_hl = sizeof(struct ip) >> 2;
 }
 

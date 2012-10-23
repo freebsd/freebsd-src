@@ -359,7 +359,7 @@ icmp_input(struct mbuf *m, int off)
 	struct ip *ip = mtod(m, struct ip *);
 	struct sockaddr_in icmpsrc, icmpdst, icmpgw;
 	int hlen = off;
-	int icmplen = ntohs(ip->ip_len);
+	int icmplen = ntohs(ip->ip_len) - off;
 	int i, code;
 	void (*ctlfunc)(int, struct sockaddr *, void *);
 	int fibnum;
@@ -592,8 +592,6 @@ icmp_input(struct mbuf *m, int off)
 		}
 		ifa_free(&ia->ia_ifa);
 reflect:
-		/* Since ip_input() deducts this. */
-		ip->ip_len = htons(ntohs(ip->ip_len) + hlen);
 		ICMPSTAT_INC(icps_reflect);
 		ICMPSTAT_INC(icps_outhist[icp->icmp_type]);
 		icmp_reflect(m);
