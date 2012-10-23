@@ -38,8 +38,9 @@
 _GLIBCXX_BEGIN_NAMESPACE(std)
 
   /// @brief  Base class for ctype.
-  struct ctype_base
+  class ctype_base
   {
+  public:
     // Non-standard typedefs.
     typedef const int* 		__to_type;
 
