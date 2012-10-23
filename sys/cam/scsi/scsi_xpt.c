@@ -615,11 +615,6 @@ proberegister(struct cam_periph *periph, void *arg)
 	probe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
-	if (periph == NULL) {
-		printf("proberegister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (request_ccb == NULL) {
 		printf("proberegister: no probe CCB, "
 		       "can't register device\n");

@@ -312,11 +312,6 @@ passregister(struct cam_periph *periph, void *arg)
 	int    no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("%s: periph was NULL!!\n", __func__);
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("%s: no getdev CCB, can't register device\n", __func__);
 		return(CAM_REQ_CMP_ERR);

@@ -943,11 +943,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	int legacy_id, quirks;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("adaregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("adaregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
