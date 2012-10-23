@@ -464,7 +464,7 @@
 #define ACPI_DUMP_OPERANDS(a, b ,c)     AcpiExDumpOperands(a, b, c)
 #define ACPI_DUMP_ENTRY(a, b)           AcpiNsDumpEntry (a, b)
 #define ACPI_DUMP_PATHNAME(a, b, c, d)  AcpiNsDumpPathname(a, b, c, d)
-#define ACPI_DUMP_BUFFER(a, b)          AcpiUtDumpBuffer((UINT8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
+#define ACPI_DUMP_BUFFER(a, b)          AcpiUtDebugDumpBuffer((UINT8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
 
 #else
 /*

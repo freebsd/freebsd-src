@@ -44,9 +44,9 @@
 
 /*
  * Parse the AML and build an operation tree as most interpreters,
- * like Perl, do.  Parsing is done by hand rather than with a YACC
+ * like Perl, do. Parsing is done by hand rather than with a YACC
  * generated parser to tightly constrain stack and dynamic memory
- * usage.  At the same time, parsing is kept flexible and the code
+ * usage. At the same time, parsing is kept flexible and the code
  * fairly compact by parsing based on a list of AML opcode
  * templates in AmlOpInfo[]
  */
@@ -196,7 +196,7 @@ AcpiPsCompleteThisOp (
         case AML_CLASS_CREATE:
 
             /*
-             * These opcodes contain TermArg operands.  The current
+             * These opcodes contain TermArg operands. The current
              * op must be replaced by a placeholder return op
              */
             ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
@@ -209,7 +209,7 @@ AcpiPsCompleteThisOp (
         case AML_CLASS_NAMED_OBJECT:
 
             /*
-             * These opcodes contain TermArg operands.  The current
+             * These opcodes contain TermArg operands. The current
              * op must be replaced by a placeholder return op
              */
             if ((Op->Common.Parent->Common.AmlOpcode == AML_REGION_OP)       ||
@@ -394,7 +394,7 @@ AcpiPsNextParseState (
     case AE_CTRL_FALSE:
         /*
          * Either an IF/WHILE Predicate was false or we encountered a BREAK
-         * opcode.  In both cases, we do not execute the rest of the
+         * opcode. In both cases, we do not execute the rest of the
          * package;  We simply close out the parent (finishing the walk of
          * this branch of the tree) and continue execution at the parent
          * level.
@@ -508,7 +508,7 @@ AcpiPsParseAml (
     AcpiGbl_CurrentWalkList = Thread;
 
     /*
-     * Execute the walk loop as long as there is a valid Walk State.  This
+     * Execute the walk loop as long as there is a valid Walk State. This
      * handles nested control method invocations without recursion.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "State=%p\n", WalkState));
@@ -707,5 +707,3 @@ AcpiPsParseAml (
     AcpiGbl_CurrentWalkList = PrevWalkList;
     return_ACPI_STATUS (Status);
 }
-
-

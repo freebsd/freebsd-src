@@ -371,7 +371,7 @@ AcpiDmResourceTemplate (
  * RETURN:      Status. AE_OK if valid template
  *
  * DESCRIPTION: Walk a byte list to determine if it consists of a valid set
- *              of resource descriptors.  Nothing is output.
+ *              of resource descriptors. Nothing is output.
  *
  ******************************************************************************/
 

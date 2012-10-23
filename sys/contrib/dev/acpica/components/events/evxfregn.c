@@ -310,4 +310,3 @@ UnlockAndExit:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiRemoveAddressSpaceHandler)
-

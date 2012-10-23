@@ -482,6 +482,16 @@ AcpiRsGetListLength (
              * Get the number of vendor data bytes
              */
             ExtraStructBytes = ResourceLength;
+
+            /*
+             * There is already one byte included in the minimum
+             * descriptor size. If there are extra struct bytes,
+             * subtract one from the count.
+             */
+            if (ExtraStructBytes)
+            {
+                ExtraStructBytes--;
+            }
             break;
 
 
@@ -626,7 +636,7 @@ AcpiRsGetPciRoutingTableLength (
     /*
      * Calculate the size of the return buffer.
      * The base size is the number of elements * the sizes of the
-     * structures.  Additional space for the strings is added below.
+     * structures. Additional space for the strings is added below.
      * The minus one is to subtract the size of the UINT8 Source[1]
      * member because it is added below.
      *
