@@ -138,7 +138,7 @@ NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
 
 .if ${MK_CTF} != "no"
 NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif ${MAKE_VERSION} >= 5201111300
+.elif ${MAKE_VERSION} >= 9201210220
 NORMAL_CTFCONVERT=
 .else
 NORMAL_CTFCONVERT=	@:
