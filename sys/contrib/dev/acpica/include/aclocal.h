@@ -305,7 +305,7 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 
 
 /*
- * Bitmapped ACPI types.  Used internally only
+ * Bitmapped ACPI types. Used internally only
  */
 #define ACPI_BTYPE_ANY                  0x00000000
 #define ACPI_BTYPE_INTEGER              0x00000001
@@ -689,7 +689,7 @@ typedef struct acpi_pscope_state
 
 
 /*
- * Thread state - one per thread across multiple walk states.  Multiple walk
+ * Thread state - one per thread across multiple walk states. Multiple walk
  * states are created when there are nested control methods executing.
  */
 typedef struct acpi_thread_state

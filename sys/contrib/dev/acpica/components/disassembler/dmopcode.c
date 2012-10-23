@@ -46,7 +46,6 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
-#include <contrib/dev/acpica/include/acnamesp.h>
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -633,7 +632,7 @@ AcpiDmDisassembleOneOp (
     case AML_BUFFER_OP:
 
         /*
-         * Determine the type of buffer.  We can have one of the following:
+         * Determine the type of buffer. We can have one of the following:
          *
          * 1) ResourceTemplate containing Resource Descriptors.
          * 2) Unicode String buffer
