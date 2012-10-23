@@ -3857,12 +3857,6 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		/* Couldn't satisfy request */
 		return (CAM_RESRC_UNAVAIL);
 	}
-	path = (struct cam_path *)malloc(sizeof(*path), M_CAMXPT, M_NOWAIT);
-	if (path == NULL) {
-		free(new_bus, M_CAMXPT);
-		return (CAM_RESRC_UNAVAIL);
-	}
-
 	if (strcmp(sim->sim_name, "xpt") != 0) {
 		sim->path_id =
 		    xptpathid(sim->sim_name, sim->unit_number, sim->bus_id);
@@ -3896,7 +3890,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	 */
 	new_bus->xport = &xport_default;
 
-	status = xpt_compile_path(path, /*periph*/NULL, sim->path_id,
+	status = xpt_create_path(&path, /*periph*/NULL, sim->path_id,
 				  CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		xpt_release_bus(new_bus);
