@@ -290,6 +290,8 @@ vmx_setjmp_rc2str(int rc)
 		return "vmresume";
 	case VMX_RETURN_VMLAUNCH:
 		return "vmlaunch";
+	case VMX_RETURN_AST:
+		return "ast";
 	default:
 		return "unknown";
 	}
@@ -798,15 +800,20 @@ vmx_run_trace(struct vmx *vmx, int vcpu)
 
 static __inline void
 vmx_exit_trace(struct vmx *vmx, int vcpu, uint64_t rip, uint32_t exit_reason,
-	       int handled, int astpending)
+	       int handled)
 {
 #ifdef KTR
 	VMM_CTR3(vmx->vm, vcpu, "%s %s vmexit at 0x%0lx",
 		 handled ? "handled" : "unhandled",
 		 exit_reason_to_str(exit_reason), rip);
+#endif
+}
 
-	if (astpending)
-		VMM_CTR0(vmx->vm, vcpu, "astpending");
+static __inline void
+vmx_astpending_trace(struct vmx *vmx, int vcpu, uint64_t rip)
+{
+#ifdef KTR
+	VMM_CTR1(vmx->vm, vcpu, "astpending vmexit at 0x%0lx", rip);
 #endif
 }
 
@@ -981,19 +988,19 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu)
 	const int HWINTR_BLOCKED = VMCS_INTERRUPTIBILITY_STI_BLOCKING |
 				   VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING;
 
-#if 1
 	/*
-	 * XXX
-	 * If an event is being injected from userland then just return.
-	 * For e.g. we may inject a breakpoint exception to cause the
-	 * guest to enter the debugger so we can inspect its state.
+	 * If there is already an interrupt pending then just return.
+	 *
+	 * This could happen if an interrupt was injected on a prior
+	 * VM entry but the actual entry into guest mode was aborted
+	 * because of a pending AST.
 	 */
 	error = vmread(VMCS_ENTRY_INTR_INFO, &info);
 	if (error)
 		panic("vmx_inject_interrupts: vmread(intrinfo) %d", error);
 	if (info & VMCS_INTERRUPTION_INFO_VALID)
 		return;
-#endif
+
 	/*
 	 * NMI injection has priority so deal with those first
 	 */
@@ -1301,7 +1308,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		/*
 		 * It is possible that control is returned to userland
 		 * even though we were able to handle the VM exit in the
-		 * kernel (for e.g. 'astpending' is set in the run loop).
+		 * kernel.
 		 *
 		 * In such a case we want to make sure that the userland
 		 * restarts guest execution at the instruction *after*
@@ -1352,6 +1359,7 @@ vmx_run(void *arg, int vcpu, register_t rip)
 	vmxctx = &vmx->ctx[vcpu];
 	vmxctx->launched = 0;
 
+	astpending = 0;
 	vmexit = vm_exitinfo(vmx->vm, vcpu);
 
 	/*
@@ -1395,6 +1403,9 @@ vmx_run(void *arg, int vcpu, register_t rip)
 			break;
 		case VMX_RETURN_LONGJMP:
 			break;			/* vm exit */
+		case VMX_RETURN_AST:
+			astpending = 1;
+			break;
 		case VMX_RETURN_VMRESUME:
 			vie = vmcs_instruction_error();
 			if (vmxctx->launch_error == VM_FAIL_INVALID ||
@@ -1417,14 +1428,6 @@ vmx_run(void *arg, int vcpu, register_t rip)
 			panic("vmx_setjmp returned %d", rc);
 		}
 		
-		/*
-		 * XXX locking?
-		 * See comments in exception.S about checking for ASTs
-		 * atomically while interrupts are disabled. But it is
-		 * not clear that they apply in our case.
-		 */
-		astpending = curthread->td_flags & TDF_ASTPENDING;
-
 		/* enable interrupts */
 		enable_intr();
 
@@ -1434,11 +1437,18 @@ vmx_run(void *arg, int vcpu, register_t rip)
 		vmexit->u.vmx.exit_reason = exit_reason = vmcs_exit_reason();
 		vmexit->u.vmx.exit_qualification = vmcs_exit_qualification();
 
-		handled = vmx_exit_process(vmx, vcpu, vmexit);
+		if (astpending) {
+			handled = 1;
+			vmexit->inst_length = 0;
+			vmexit->exitcode = VM_EXITCODE_BOGUS;
+			vmx_astpending_trace(vmx, vcpu, rip);
+			break;
+		}
 
-		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled,
-			       astpending);
-	} while (handled && !astpending);
+		handled = vmx_exit_process(vmx, vcpu, vmexit);
+		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled);
+
+	} while (handled);
 
 	/*
 	 * If a VM exit has been handled then the exitcode must be BOGUS
@@ -1646,7 +1656,7 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	   int code_valid)
 {
 	int error;
-	uint32_t info;
+	uint64_t info;
 	struct vmx *vmx = arg;
 	struct vmcs *vmcs = &vmx->vmcs[vcpu];
 
@@ -1659,6 +1669,17 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 		0x5,		/* VM_PRIV_SW_EXCEPTION */
 		0x6,		/* VM_SW_EXCEPTION */
 	};
+
+	/*
+	 * If there is already an exception pending to be delivered to the
+	 * vcpu then just return.
+	 */
+	error = vmcs_getreg(vmcs, VMCS_ENTRY_INTR_INFO, &info);
+	if (error)
+		return (error);
+
+	if (info & VMCS_INTERRUPTION_INFO_VALID)
+		return (EAGAIN);
 
 	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
 	info |= VMCS_INTERRUPTION_INFO_VALID;

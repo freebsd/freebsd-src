@@ -101,12 +101,14 @@ CTASSERT((offsetof(struct vmx, guest_msrs) & 15) == 0);
 #define	VMX_RETURN_LONGJMP	1
 #define	VMX_RETURN_VMRESUME	2
 #define	VMX_RETURN_VMLAUNCH	3
+#define	VMX_RETURN_AST		4
 /*
  * vmx_setjmp() returns:
  * - 0 when it returns directly
  * - 1 when it returns from vmx_longjmp
  * - 2 when it returns from vmx_resume (which would only be in the error case)
  * - 3 when it returns from vmx_launch (which would only be in the error case)
+ * - 4 when it returns from vmx_resume or vmx_launch because of AST pending
  */
 int	vmx_setjmp(struct vmxctx *ctx);
 void	vmx_longjmp(void);			/* returns via vmx_setjmp */
