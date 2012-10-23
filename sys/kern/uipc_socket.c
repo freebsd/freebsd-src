@@ -219,17 +219,20 @@ static int numopensockets;
 SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
     &numopensockets, 0, "Number of open sockets");
 
-#ifdef ZERO_COPY_SOCKETS
-/* These aren't static because they're used in other files. */
-int so_zero_copy_send = 1;
-int so_zero_copy_receive = 1;
+#if defined(SOCKET_SEND_COW) || defined(SOCKET_RECV_PFLIP)
 SYSCTL_NODE(_kern_ipc, OID_AUTO, zero_copy, CTLFLAG_RD, 0,
     "Zero copy controls");
+#ifdef SOCKET_RECV_PFLIP
+int so_zero_copy_receive = 1;
 SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, receive, CTLFLAG_RW,
     &so_zero_copy_receive, 0, "Enable zero copy receive");
+#endif
+#ifdef SOCKET_SEND_COW
+int so_zero_copy_send = 1;
 SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, send, CTLFLAG_RW,
     &so_zero_copy_send, 0, "Enable zero copy send");
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_SEND_COW */
+#endif /* SOCKET_SEND_COW || SOCKET_RECV_PFLIP */
 
 /*
  * accept_mtx locks down per-socket fields relating to accept queues.  See
@@ -903,7 +906,7 @@ sodisconnect(struct socket *so)
 	return (error);
 }
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_SEND_COW
 struct so_zerocopy_stats{
 	int size_ok;
 	int align_ok;
@@ -1008,7 +1011,7 @@ out:
 	*retmp = top;
 	return (error);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_SEND_COW */
 
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
 
@@ -1019,7 +1022,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	long space;
 	ssize_t resid;
 	int clen = 0, error, dontroute;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_SEND_COW
 	int atomic = sosendallatonce(so) || top;
 #endif
 
@@ -1104,7 +1107,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		if (flags & MSG_EOR)
 			top->m_flags |= M_EOR;
 	} else {
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_SEND_COW
 		error = sosend_copyin(uio, &top, atomic, &space, flags);
 		if (error)
 			goto out;
@@ -1121,7 +1124,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 			goto out;
 		}
 		space -= resid - uio->uio_resid;
-#endif
+#endif /* SOCKET_SEND_COW */
 		resid = uio->uio_resid;
 	}
 	KASSERT(resid == 0, ("sosend_dgram: resid != 0"));
@@ -1293,7 +1296,7 @@ restart:
 				if (flags & MSG_EOR)
 					top->m_flags |= M_EOR;
 			} else {
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_SEND_COW
 				error = sosend_copyin(uio, &top, atomic,
 				    &space, flags);
 				if (error != 0)
@@ -1313,7 +1316,7 @@ restart:
 					goto release;
 				}
 				space -= resid - uio->uio_resid;
-#endif
+#endif /* SOCKET_SEND_COW */
 				resid = uio->uio_resid;
 			}
 			if (dontroute) {
@@ -1405,7 +1408,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 	if (error)
 		goto bad;
 	do {
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_RECV_PFLIP
 		if (so_zero_copy_receive) {
 			int disposable;
 
@@ -1419,7 +1422,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 					  min(uio->uio_resid, m->m_len),
 					  uio, disposable);
 		} else
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_RECV_PFLIP */
 		error = uiomove(mtod(m, void *),
 		    (int) min(uio->uio_resid, m->m_len), uio);
 		m = m_free(m);
@@ -1743,7 +1746,7 @@ dontblock:
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
 			SOCKBUF_UNLOCK(&so->so_rcv);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_RECV_PFLIP
 			if (so_zero_copy_receive) {
 				int disposable;
 
@@ -1757,7 +1760,7 @@ dontblock:
 						  (int)len, uio,
 						  disposable);
 			} else
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_RECV_PFLIP */
 			error = uiomove(mtod(m, char *) + moff, (int)len, uio);
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (error) {
