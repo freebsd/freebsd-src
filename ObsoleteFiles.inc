@@ -40,6 +40,7 @@
 
 # 20121022: VFS_LOCK_GIANT elimination
 OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
+OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz
 # 20121004: remove incomplete unwind.h
 OLD_FILES+=usr/include/clang/3.2/unwind.h
 # 20120908: pf cleanup
