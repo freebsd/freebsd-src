@@ -121,11 +121,9 @@ camq_resize(struct camq *queue, int new_size)
 {
 	cam_pinfo **new_array;
 
-#ifdef DIAGNOSTIC
-	if (new_size < queue->entries)
-		panic("camq_resize: New queue size can't accomodate "
-		      "queued entries.");
-#endif
+	KASSERT(new_size >= queue->entries, ("camq_resize: "
+	    "New queue size can't accomodate queued entries (%d < %d).",
+	    new_size, queue->entries));
 	new_array = (cam_pinfo **)malloc(new_size * sizeof(cam_pinfo *),
 					 M_CAMQ, M_NOWAIT);
 	if (new_array == NULL) {
@@ -156,10 +154,10 @@ camq_resize(struct camq *queue, int new_size)
 void
 camq_insert(struct camq *queue, cam_pinfo *new_entry)
 {
-#ifdef DIAGNOSTIC
-	if (queue->entries >= queue->array_size)
-		panic("camq_insert: Attempt to insert into a full queue");
-#endif
+
+	KASSERT(queue->entries < queue->array_size,
+	    ("camq_insert: Attempt to insert into a full queue (%d >= %d)",
+	    queue->entries, queue->array_size));
 	queue->entries++;
 	queue->queue_array[queue->entries] = new_entry;
 	new_entry->index = queue->entries;
