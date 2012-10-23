@@ -1442,7 +1442,7 @@ igmp_input(struct mbuf *m, int off)
 
 	ip = mtod(m, struct ip *);
 	iphlen = off;
-	igmplen = ntohs(ip->ip_len);
+	igmplen = ntohs(ip->ip_len) - off;
 
 	/*
 	 * Validate lengths.

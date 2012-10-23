@@ -305,9 +305,6 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 		ip->ip_ttl = 0;
 		ip->ip_sum = 0;
 
-		if (!out)
-			ip->ip_len = htons(ntohs(ip->ip_len) + skip);
-
 		if (alg == CRYPTO_MD5_KPDK || alg == CRYPTO_SHA1_KPDK)
 			ip->ip_off &= htons(IP_DF);
 		else

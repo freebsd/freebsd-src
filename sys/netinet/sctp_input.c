@@ -6038,7 +6038,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	dst.sin_len = sizeof(struct sockaddr_in);
 	dst.sin_port = sh->dest_port;
 	dst.sin_addr = ip->ip_dst;
-	length = ntohs(ip->ip_len) + iphlen;
+	length = ntohs(ip->ip_len);
 	/* Validate mbuf chain length with IP payload length. */
 	if (SCTP_HEADER_LEN(m) != length) {
 		SCTPDBG(SCTP_DEBUG_INPUT1,

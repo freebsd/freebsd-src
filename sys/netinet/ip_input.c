@@ -731,12 +731,6 @@ ours:
 		ip_len = ntohs(ip->ip_len);
 	}
 
-	/*
-	 * Further protocols expect the packet length to be w/o the
-	 * IP header.
-	 */
-	ip->ip_len = htons(ip_len - hlen);
-
 #ifdef IPSEC
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.

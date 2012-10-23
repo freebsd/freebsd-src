@@ -392,7 +392,7 @@ udp_input(struct mbuf *m, int off)
 	 * reflect UDP length, drop.
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
-	ip_len = ntohs(ip->ip_len);
+	ip_len = ntohs(ip->ip_len) - iphlen;
 	if (ip_len != len) {
 		if (len > ip_len || len < sizeof(struct udphdr)) {
 			UDPSTAT_INC(udps_badlen);
@@ -601,7 +601,6 @@ udp_input(struct mbuf *m, int off)
 		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
 			goto badunlocked;
 		*ip = save_ip;
-		ip->ip_len = htons(ip_len + iphlen);
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
