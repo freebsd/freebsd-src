@@ -296,7 +296,7 @@ AdAmlDisassemble (
         Status = AcpiDbGetTableFromFile (Filename, &Table);
         if (ACPI_FAILURE (Status))
         {
-            return Status;
+            return (Status);
         }
 
         /*
@@ -311,14 +311,13 @@ AdAmlDisassemble (
                 /* Next external file */
 
                 ExternalFileList = ExternalFileList->Next;
-
                 continue;
             }
 
             Status = AcpiDbGetTableFromFile (ExternalFilename, &ExternalTable);
             if (ACPI_FAILURE (Status))
             {
-                return Status;
+                return (Status);
             }
 
             /* Load external table for symbol resolution */
@@ -330,7 +329,7 @@ AdAmlDisassemble (
                 {
                     AcpiOsPrintf ("Could not parse external ACPI tables, %s\n",
                         AcpiFormatException (Status));
-                    return Status;
+                    return (Status);
                 }
 
                 /*
@@ -361,12 +360,12 @@ AdAmlDisassemble (
         {
             AcpiOsPrintf ("Could not get ACPI tables, %s\n",
                 AcpiFormatException (Status));
-            return Status;
+            return (Status);
         }
 
         if (!AcpiGbl_DbOpt_disasm)
         {
-            return AE_OK;
+            return (AE_OK);
         }
 
         /* Obtained the local tables, just disassemble the DSDT */
@@ -376,7 +375,7 @@ AdAmlDisassemble (
         {
             AcpiOsPrintf ("Could not get DSDT, %s\n",
                 AcpiFormatException (Status));
-            return Status;
+            return (Status);
         }
 
         AcpiOsPrintf ("\nDisassembly of DSDT\n");
@@ -531,7 +530,14 @@ AdAmlDisassemble (
 
         if (AcpiGbl_DbOpt_disasm)
         {
+            /* This is the real disassembly */
+
             AdDisplayTables (Filename, Table);
+
+            /* Dump hex table if requested (-vt) */
+
+            AcpiDmDumpDataTable (Table);
+
             fprintf (stderr, "Disassembly completed\n");
             fprintf (stderr, "ASL Output:    %s - %u bytes\n",
                 DisasmFilename, AdGetFileSize (File));
@@ -720,7 +726,7 @@ AdDisplayTables (
 
     if (!AcpiGbl_ParseOpRoot)
     {
-        return AE_NOT_EXIST;
+        return (AE_NOT_EXIST);
     }
 
     if (!AcpiGbl_DbOpt_verbose)
@@ -733,15 +739,15 @@ AdDisplayTables (
     if (AcpiGbl_DbOpt_verbose)
     {
         AcpiOsPrintf ("\n\nTable Header:\n");
-        AcpiUtDumpBuffer ((UINT8 *) Table, sizeof (ACPI_TABLE_HEADER),
+        AcpiUtDebugDumpBuffer ((UINT8 *) Table, sizeof (ACPI_TABLE_HEADER),
             DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 
         AcpiOsPrintf ("Table Body (Length 0x%X)\n", Table->Length);
-        AcpiUtDumpBuffer (((UINT8 *) Table + sizeof (ACPI_TABLE_HEADER)), Table->Length,
-            DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
+        AcpiUtDebugDumpBuffer (((UINT8 *) Table + sizeof (ACPI_TABLE_HEADER)),
+            Table->Length, DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
     }
 
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -808,8 +814,8 @@ AdDeferredParse (
 
     /*
      * We need to update all of the Aml offsets, since the parser thought
-     * that the method began at offset zero.  In reality, it began somewhere
-     * within the ACPI table, at the BaseAmlOffset.  Walk the entire tree that
+     * that the method began at offset zero. In reality, it began somewhere
+     * within the ACPI table, at the BaseAmlOffset. Walk the entire tree that
      * was just created and update the AmlOffset in each Op
      */
     BaseAmlOffset = (Op->Common.Value.Arg)->Common.AmlOffset + 1;
@@ -914,7 +920,7 @@ AdParseDeferredOps (
             Status = AdDeferredParse (Op, Op->Named.Data, Op->Named.Length);
             if (ACPI_FAILURE (Status))
             {
-                return_ACPI_STATUS (Status);
+                return (Status);
             }
             break;
 
@@ -942,7 +948,7 @@ AdParseDeferredOps (
     }
 
     fprintf (stderr, "\n");
-    return Status;
+    return (Status);
 }
 
 
@@ -979,7 +985,7 @@ AdGetLocalTables (
         if (!NewTable)
         {
             fprintf (stderr, "Could not obtain RSDT\n");
-            return AE_NO_ACPI_TABLES;
+            return (AE_NO_ACPI_TABLES);
         }
         else
         {
@@ -999,7 +1005,7 @@ AdGetLocalTables (
         /*
          * Determine the number of tables pointed to by the RSDT/XSDT.
          * This is defined by the ACPI Specification to be the number of
-         * pointers contained within the RSDT/XSDT.  The size of the pointers
+         * pointers contained within the RSDT/XSDT. The size of the pointers
          * is architecture-dependent.
          */
         NumTables = (NewTable->Length - sizeof (ACPI_TABLE_HEADER)) / PointerSize;
@@ -1036,13 +1042,13 @@ AdGetLocalTables (
         if (ACPI_FAILURE (Status))
         {
             fprintf (stderr, "Could not store DSDT\n");
-            return AE_NO_ACPI_TABLES;
+            return (AE_NO_ACPI_TABLES);
         }
     }
     else
     {
         fprintf (stderr, "Could not obtain DSDT\n");
-        return AE_NO_ACPI_TABLES;
+        return (AE_NO_ACPI_TABLES);
     }
 
 #if 0
@@ -1061,7 +1067,7 @@ AdGetLocalTables (
     } while (NewTable);
 #endif
 
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -1096,7 +1102,7 @@ AdParseTable (
 
     if (!Table)
     {
-        return AE_NOT_EXIST;
+        return (AE_NOT_EXIST);
     }
 
     /* Pass 1:  Parse everything except control method bodies */
@@ -1111,7 +1117,7 @@ AdParseTable (
     AcpiGbl_ParseOpRoot = AcpiPsCreateScopeOp ();
     if (!AcpiGbl_ParseOpRoot)
     {
-        return AE_NO_MEMORY;
+        return (AE_NO_MEMORY);
     }
 
     /* Create and initialize a new walk state */
@@ -1136,7 +1142,7 @@ AdParseTable (
     Status = AcpiPsParseAml (WalkState);
     if (ACPI_FAILURE (Status))
     {
-        return Status;
+        return (Status);
     }
 
     /* If LoadTable is FALSE, we are parsing the last loaded table */
@@ -1151,19 +1157,19 @@ AdParseTable (
                     Table->Length, ACPI_TABLE_ORIGIN_ALLOCATED, &TableIndex);
         if (ACPI_FAILURE (Status))
         {
-            return Status;
+            return (Status);
         }
         Status = AcpiTbAllocateOwnerId (TableIndex);
         if (ACPI_FAILURE (Status))
         {
-            return Status;
+            return (Status);
         }
         if (OwnerId)
         {
             Status = AcpiTbGetOwnerId (TableIndex, OwnerId);
             if (ACPI_FAILURE (Status))
             {
-                return Status;
+                return (Status);
             }
         }
     }
@@ -1180,7 +1186,7 @@ AdParseTable (
 
     if (External)
     {
-        return AE_OK;
+        return (AE_OK);
     }
 
     /* Pass 3: Parse control methods and link their parse trees into the main parse tree */
@@ -1192,7 +1198,5 @@ AdParseTable (
     AcpiDmFindResources (AcpiGbl_ParseOpRoot);
 
     fprintf (stderr, "Parsing completed\n");
-    return AE_OK;
+    return (AE_OK);
 }
-
-

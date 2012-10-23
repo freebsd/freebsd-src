@@ -127,7 +127,7 @@
 
 
 /*
- * AML exceptions.  These are caused by problems with
+ * AML exceptions. These are caused by problems with
  * the actual AML byte stream
  */
 #define AE_AML_BAD_OPCODE               (ACPI_STATUS) (0x0001 | AE_CODE_AML)

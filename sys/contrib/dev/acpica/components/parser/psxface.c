@@ -438,5 +438,3 @@ AcpiPsUpdateParameterList (
         }
     }
 }
-
-

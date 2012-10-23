@@ -425,17 +425,18 @@ AcpiUtPtrExit (
     UINT8                   *Ptr);
 
 void
-AcpiUtDumpBuffer (
+AcpiUtDebugDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
     UINT32                  Display,
     UINT32                  ComponentId);
 
 void
-AcpiUtDumpBuffer2 (
+AcpiUtDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
-    UINT32                  Display);
+    UINT32                  Display,
+    UINT32                  Offset);
 
 void
 AcpiUtReportError (
@@ -511,17 +512,22 @@ AcpiUtExecutePowerMethods (
 ACPI_STATUS
 AcpiUtExecute_HID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId);
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 ACPI_STATUS
 AcpiUtExecute_UID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId);
+    ACPI_PNP_DEVICE_ID      **ReturnId);
+
+ACPI_STATUS
+AcpiUtExecute_SUB (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 ACPI_STATUS
 AcpiUtExecute_CID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID_LIST     **ReturnCidList);
+    ACPI_PNP_DEVICE_ID_LIST **ReturnCidList);
 
 
 /*

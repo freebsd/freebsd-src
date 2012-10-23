@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asloperands - AML operand processing
@@ -263,7 +262,7 @@ OpnDoFieldCommon (
     UpdateRule = (UINT8) Next->Asl.Value.Integer;
 
     /*
-     * Generate the flags byte.  The various fields are already
+     * Generate the flags byte. The various fields are already
      * in the right bit position via translation from the
      * keywords by the parser.
      */
@@ -326,7 +325,7 @@ OpnDoFieldCommon (
             {
                 /*
                  * Offset is redundant; we don't need to output an
-                 * offset opcode.  Just set these nodes to default
+                 * offset opcode. Just set these nodes to default
                  */
                 Next->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
                 PkgLengthNode->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
@@ -502,7 +501,7 @@ OpnDoBankField (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Tries to get the length of the region.  Can only do this at
+ * DESCRIPTION: Tries to get the length of the region. Can only do this at
  *              compile time if the length is a constant.
  *
  ******************************************************************************/
@@ -549,7 +548,7 @@ OpnDoRegion (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Construct the AML operands for the BUFFER ASL keyword.  We
+ * DESCRIPTION: Construct the AML operands for the BUFFER ASL keyword. We
  *              build a single raw byte buffer from the initialization nodes,
  *              each parse node contains a buffer byte.
  *
@@ -615,7 +614,7 @@ OpnDoBuffer (
     case PARSEOP_STRING_LITERAL:
 
         /*
-         * Only one initializer, the string.  Buffer must be big enough to hold
+         * Only one initializer, the string. Buffer must be big enough to hold
          * the string plus the null termination byte
          */
         BufferLength = strlen (InitializerOp->Asl.Value.String) + 1;
@@ -682,7 +681,7 @@ OpnDoBuffer (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Construct the AML operands for the PACKAGE ASL keyword.  NOTE:
+ * DESCRIPTION: Construct the AML operands for the PACKAGE ASL keyword. NOTE:
  *              can only be called after constants have been folded, to ensure
  *              that the PackageLength operand has been fully reduced.
  *
@@ -898,7 +897,7 @@ OpnDoDefinitionBlock (
 
 
     /*
-     * These nodes get stuffed into the table header.  They are special
+     * These nodes get stuffed into the table header. They are special
      * cased when the table is written to the output file.
      *
      * Mark all of these nodes as non-usable so they won't get output
@@ -998,7 +997,7 @@ OpnDoDefinitionBlock (
  * PARAMETERS:  Op              - Get an argument for this op
  *              Argn            - Nth argument to get
  *
- * RETURN:      The argument (as an Op object).  NULL if argument does not exist
+ * RETURN:      The argument (as an Op object). NULL if argument does not exist
  *
  * DESCRIPTION: Get the specified op's argument (peer)
  *
@@ -1111,7 +1110,7 @@ OpnAttachNameToNode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Prepare nodes to be output as AML data and operands.  The more
+ * DESCRIPTION: Prepare nodes to be output as AML data and operands. The more
  *              complex AML opcodes require processing of the child nodes
  *              (arguments/operands).
  *
@@ -1184,5 +1183,3 @@ OpnGenerateAmlOperands (
 
     OpnAttachNameToNode (Op);
 }
-
-
