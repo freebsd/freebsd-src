@@ -31,6 +31,32 @@
 #include "vmx_assym.s"
 
 /*
+ * Disable interrupts before updating %rsp in VMX_CHECK_AST or
+ * VMX_GUEST_RESTORE.
+ *
+ * The location that %rsp points to is a 'vmxctx' and not a
+ * real stack so we don't want an interrupt handler to trash it
+ */
+#define	VMX_DISABLE_INTERRUPTS		cli
+
+/*
+ * If the thread hosting the vcpu has an ast pending then take care of it
+ * by returning from vmx_setjmp() with a return value of VMX_RETURN_AST.
+ *
+ * Assumes that %rdi holds a pointer to the 'vmxctx' and that interrupts
+ * are disabled.
+ */
+#define	VMX_CHECK_AST							\
+	movq	PCPU(CURTHREAD),%rax;					\
+	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax);	\
+	je	9f;							\
+	movq	$VMX_RETURN_AST,%rsi;					\
+	movq	%rdi,%rsp;						\
+	addq	$VMXCTX_TMPSTKTOP,%rsp;					\
+	callq	vmx_return;						\
+9:
+
+/*
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
  *
  * On "return" all registers are updated to reflect guest state. The two
@@ -41,12 +67,6 @@
  * host context in case of an error with 'vmlaunch' or 'vmresume'.
  */
 #define	VMX_GUEST_RESTORE						\
-	/*								\
-	 * Disable interrupts before updating %rsp. The location that	\
-	 * %rsp points to is a 'vmxctx' and not a real stack so we	\
-	 * don't want an interrupt handler to trash it.			\
-	 */								\
-	cli;								\
 	movq	%rdi,%rsp;						\
 	movq	VMXCTX_GUEST_CR2(%rdi),%rsi;				\
 	movq	%rsi,%cr2;						\
@@ -169,6 +189,10 @@ END(vmx_longjmp)
  * through vmx_setjmp() with a return value of 2.
  */
 ENTRY(vmx_resume)
+	VMX_DISABLE_INTERRUPTS
+
+	VMX_CHECK_AST
+
 	/*
 	 * Restore guest state that is not automatically loaded from the vmcs.
 	 */
@@ -197,6 +221,10 @@ END(vmx_resume)
  * through vmx_setjmp() with a return value of 3.
  */
 ENTRY(vmx_launch)
+	VMX_DISABLE_INTERRUPTS
+
+	VMX_CHECK_AST
+
 	/*
 	 * Restore guest state that is not automatically loaded from the vmcs.
 	 */

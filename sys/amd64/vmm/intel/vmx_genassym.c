@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/assym.h>
 
 #include <vm/vm.h>
@@ -80,3 +81,9 @@ ASSYM(VMX_RETURN_DIRECT,	VMX_RETURN_DIRECT);
 ASSYM(VMX_RETURN_LONGJMP,	VMX_RETURN_LONGJMP);
 ASSYM(VMX_RETURN_VMRESUME,	VMX_RETURN_VMRESUME);
 ASSYM(VMX_RETURN_VMLAUNCH,	VMX_RETURN_VMLAUNCH);
+ASSYM(VMX_RETURN_AST,		VMX_RETURN_AST);
+
+ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
+ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
+ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
+ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
