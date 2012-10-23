@@ -1111,6 +1111,8 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 	int ret = -1;
 	struct ccb_dev_advinfo cdai;
 
+	mtx_assert(path->bus->sim->mtx, MA_OWNED);
+
 	memset(&cdai, 0, sizeof(cdai));
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
