@@ -72,6 +72,15 @@ compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
 kern/imgact_elf32.c			optional	compat_freebsd32
 mips/mips/freebsd32_machdep.c		optional	compat_freebsd32
 
+# cfe support
 dev/cfe/cfe_api.c			optional	cfe
 dev/cfe/cfe_console.c			optional	cfe_console
 dev/cfe/cfe_env.c			optional	cfe_env
+
+# syscons support
+dev/fb/fb.c				optional	sc
+dev/kbd/kbd.c				optional	sc
+dev/syscons/scgfbrndr.c			optional	sc
+dev/syscons/scterm-teken.c		optional	sc
+dev/syscons/scvtb.c			optional	sc
+mips/mips/sc_machdep.c			optional	sc
