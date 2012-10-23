@@ -60,6 +60,7 @@ libkern/ffsl.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
 libkern/lshrdi3.c			standard
+libkern/memchr.c			optional	fdt
 libkern/memmove.c			standard
 
 # Compat32 stuff
@@ -82,3 +83,12 @@ dev/syscons/scgfbrndr.c			optional	sc
 dev/syscons/scterm-teken.c		optional	sc
 dev/syscons/scvtb.c			optional	sc
 mips/mips/sc_machdep.c			optional	sc
+
+# FDT support
+dev/ofw/openfirm.c			optional	fdt
+dev/ofw/openfirmio.c			optional	fdt
+dev/ofw/ofw_bus_if.m			optional	fdt
+dev/ofw/ofw_if.m			optional	fdt   
+dev/ofw/ofw_bus_subr.c			optional	fdt
+dev/ofw/ofw_fdt.c			optional	fdt
+dev/fdt/fdt_mips.c			optional	fdt
