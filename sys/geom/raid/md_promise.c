@@ -544,7 +544,7 @@ g_raid_md_promise_purge_disks(struct g_raid_softc *sc)
 			free(pd->pd_meta[i], M_MD_PROMISE);
 			for (j = i; j < pd->pd_subdisks - 1; j++)
 				pd->pd_meta[j] = pd->pd_meta[j + 1];
-			pd->pd_meta[PROMISE_MAX_SUBDISKS - 1] = NULL;
+			pd->pd_meta[pd->pd_subdisks - 1] = NULL;
 			pd->pd_subdisks--;
 			pd->pd_updated = 1;
 		}
@@ -650,7 +650,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 			free(pd->pd_meta[sdn], M_MD_PROMISE);
 			for (i = sdn; i < pd->pd_subdisks - 1; i++)
 				pd->pd_meta[i] = pd->pd_meta[i + 1];
-			pd->pd_meta[PROMISE_MAX_SUBDISKS - 1] = NULL;
+			pd->pd_meta[pd->pd_subdisks - 1] = NULL;
 			pd->pd_subdisks--;
 		}
 		/* If we are in the start process, that's all for now. */
@@ -1094,7 +1094,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 		free(metaarr[i], M_MD_PROMISE);
 		for (j = i; j < subdisks - 1; j++)
 			metaarr[i] = metaarr[j + 1];
-		metaarr[PROMISE_MAX_SUBDISKS - 1] = NULL;
+		metaarr[subdisks - 1] = NULL;
 		subdisks--;
 	}
 
