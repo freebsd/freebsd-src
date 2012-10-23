@@ -879,11 +879,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	char *tname;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("enc_ctor: periph was NULL!!\n");
-		goto out;
-	}
-
 	if (cgd == NULL) {
 		printf("enc_ctor: no getdev CCB, can't register device\n");
 		goto out;
