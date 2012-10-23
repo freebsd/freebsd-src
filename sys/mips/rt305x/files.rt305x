@@ -12,4 +12,3 @@ mips/rt305x/uart_dev_rt305x.c	optional uart
 mips/mips/intr_machdep.c        standard
 mips/mips/tick.c		standard
 dev/rt/if_rt.c			optional rt
-dev/nvram2env/nvram2env.c	optional nvram2env
