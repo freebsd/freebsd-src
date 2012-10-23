@@ -96,3 +96,6 @@ dev/fdt/fdt_mips.c			optional	fdt
 # crypto support -- use generic
 crypto/blowfish/bf_enc.c		optional	crypto | ipsec 
 crypto/des/des_enc.c			optional	crypto | ipsec
+
+# AP common nvram interface
+dev/nvram2env/nvram2env.c		optional	nvram2env
