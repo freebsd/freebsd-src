@@ -964,12 +964,20 @@ options 	TCP_SIGNATURE		#include support for RFC 2385
 # a smooth scheduling of the traffic.
 options 	DUMMYNET
 
-# Zero copy sockets support.  This enables "zero copy" for sending and
-# receiving data via a socket.  The send side works for any type of NIC,
-# the receive side only works for NICs that support MTUs greater than the
-# page size of your architecture and that support header splitting.  See
-# zero_copy(9) for more details.
-options 	ZERO_COPY_SOCKETS
+# "Zero copy" sockets support is split into the send and receive path
+# which operate very differently.
+# For the send path the VM page with the data is wired into the kernel
+# and marked as COW (copy-on-write).  If the application touches the
+# data while it is still in the send socket buffer the page is copied
+# and divorced from its kernel wiring (no longer zero copy).
+# The receive side requires explicit NIC driver support to create
+# disposable pages which are flipped from kernel to user-space VM.
+# See zero_copy(9) for more details.
+# XXX: The COW based send mechanism is not safe and may result in
+# kernel crashes.
+# XXX: None of the current NIC drivers support disposeable pages.
+options		SOCKET_SEND_COW
+options		SOCKET_RECV_PFLIP
 
 #####################################################################
 # FILESYSTEM OPTIONS
