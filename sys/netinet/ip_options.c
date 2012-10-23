@@ -458,20 +458,18 @@ ip_srcroute(struct mbuf *m0)
 void
 ip_stripoptions(struct mbuf *m)
 {
-	int i;
 	struct ip *ip = mtod(m, struct ip *);
-	caddr_t opts;
 	int olen;
 
-	olen = (ip->ip_hl << 2) - sizeof (struct ip);
-	opts = (caddr_t)(ip + 1);
-	i = m->m_len - (sizeof (struct ip) + olen);
-	bcopy(opts + olen, opts, (unsigned)i);
+	olen = (ip->ip_hl << 2) - sizeof(struct ip);
 	m->m_len -= olen;
 	if (m->m_flags & M_PKTHDR)
 		m->m_pkthdr.len -= olen;
 	ip->ip_len = htons(ntohs(ip->ip_len) - olen);
 	ip->ip_hl = sizeof(struct ip) >> 2;
+
+	bcopy((char *)ip + sizeof(struct ip) + olen, (ip + 1),
+	    (size_t )(m->m_len - sizeof(struct ip)));
 }
 
 /*
