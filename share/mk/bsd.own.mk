@@ -569,8 +569,6 @@ MK_${vv:H}:=	${MK_${vv:T}}
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif ${MAKE_VERSION} >= 5201111300
-CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
