@@ -1054,13 +1054,20 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			sed.v1 = NULL;
 		}
 
-		if ((acdp == NULL) &&
-		    (desc->bDescriptorType == UDESC_CS_INTERFACE) &&
-		    (desc->bDescriptorSubtype == AS_GENERAL) &&
-		    (desc->bDescriptorSubtype == UDESCSUB_AC_HEADER) &&
-		    (desc->bLength >= sizeof(*acdp))) {
-			acdp = (void *)desc;
-			audio_rev = UGETW(acdp->bcdADC);
+		if (audio_if == 0) {
+			if ((acdp == NULL) &&
+			    (desc->bDescriptorType == UDESC_CS_INTERFACE) &&
+			    (desc->bDescriptorSubtype == UDESCSUB_AC_HEADER) &&
+			    (desc->bLength >= sizeof(*acdp))) {
+				acdp = (void *)desc;
+				audio_rev = UGETW(acdp->bcdADC);
+			}
+
+			/*
+			 * Don't collect any USB audio descriptors if
+			 * this is not an USB audio stream interface.
+			 */
+			continue;
 		}
 
 		if ((acdp != NULL) &&
@@ -1132,9 +1139,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 					sed.v1 = (void *)desc;
 			}
 		}
-		if (audio_if == 0 || asid.v1 == NULL ||
-		    asf1d.v1 == NULL || ed1 == NULL ||
-		    sed.v1 == NULL) {
+		if (asid.v1 == NULL || asf1d.v1 == NULL ||
+		    ed1 == NULL || sed.v1 == NULL) {
 			/* need more descriptors */
 			continue;
 		}
@@ -1349,7 +1355,7 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 			 * disable surround setups on FULL-speed USB
 			 * by default
 			 */
-			channels = 2;
+			channels = 4;
 			break;
 		default:
 			channels = 16;
