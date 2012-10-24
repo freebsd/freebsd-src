@@ -2393,7 +2393,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index)
 	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
 
 	usb_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
+	    USB_MS_TO_TICKS(usb_port_root_reset_delay));
 
 	DPRINTFN(4, "uhci port %d reset, status0 = 0x%04x\n",
 	    index, UREAD2(sc, port));
@@ -2421,7 +2421,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index)
 	for (lim = 0; lim < 12; lim++) {
 
 		usb_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
+		    USB_MS_TO_TICKS(usb_port_reset_delay));
 
 		x = UREAD2(sc, port);
 

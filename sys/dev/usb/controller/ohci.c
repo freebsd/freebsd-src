@@ -2345,7 +2345,7 @@ ohci_roothub_exec(struct usb_device *udev,
 			for (v = 0;; v++) {
 				if (v < 12) {
 					usb_pause_mtx(&sc->sc_bus.bus_mtx,
-					    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
+					    USB_MS_TO_TICKS(usb_port_root_reset_delay));
 
 					if ((OREAD4(sc, port) & UPS_RESET) == 0) {
 						break;
