@@ -3460,6 +3460,7 @@ bge_attach(device_t dev)
 	    sc->bge_asicrev == BGE_ASICREV_BCM5906) {
 		/* These chips are 10/100 only. */
 		capmask &= ~BMSR_EXTSTAT;
+		sc->bge_phy_flags |= BGE_PHY_NO_WIRESPEED;
 	}
 
 	/*
@@ -3757,14 +3758,13 @@ bge_attach(device_t dev)
 	}
 
 	/*
-	 * Don't enable Ethernet@WireSpeed for the 5700, 5906, or the
+	 * Don't enable Ethernet@WireSpeed for the 5700 or the
 	 * 5705 A0 and A1 chips.
 	 */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
 	    (sc->bge_asicrev == BGE_ASICREV_BCM5705 &&
 	    (sc->bge_chipid != BGE_CHIPID_BCM5705_A0 &&
-	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)) ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5906)
+	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)))
 		sc->bge_phy_flags |= BGE_PHY_NO_WIRESPEED;
 
 	if (sc->bge_flags & BGE_FLAG_TBI) {
