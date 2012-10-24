@@ -85,12 +85,6 @@ dev/syscons/scvtb.c			optional	sc
 mips/mips/sc_machdep.c			optional	sc
 
 # FDT support
-dev/ofw/openfirm.c			optional	fdt
-dev/ofw/openfirmio.c			optional	fdt
-dev/ofw/ofw_bus_if.m			optional	fdt
-dev/ofw/ofw_if.m			optional	fdt   
-dev/ofw/ofw_bus_subr.c			optional	fdt
-dev/ofw/ofw_fdt.c			optional	fdt
 dev/fdt/fdt_mips.c			optional	fdt
 
 # crypto support -- use generic
