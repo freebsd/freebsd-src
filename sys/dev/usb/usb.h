@@ -93,31 +93,29 @@ MALLOC_DECLARE(M_USBHC);
 #define	USB_POWER_MODE_SUSPEND 3	/* force suspend */
 #define	USB_POWER_MODE_RESUME 4		/* force resume */
 
-#if 0
 /* These are the values from the USB specification. */
-#define	USB_PORT_RESET_DELAY	10	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY 50	/* ms */
-#define	USB_PORT_RESET_RECOVERY	10	/* ms */
-#define	USB_PORT_POWERUP_DELAY	100	/* ms */
-#define	USB_PORT_RESUME_DELAY	20	/* ms */
-#define	USB_SET_ADDRESS_SETTLE	2	/* ms */
-#define	USB_RESUME_DELAY	(20*5)	/* ms */
-#define	USB_RESUME_WAIT		10	/* ms */
-#define	USB_RESUME_RECOVERY	10	/* ms */
-#define	USB_EXTRA_POWER_UP_TIME	0	/* ms */
-#else
+#define	USB_PORT_RESET_DELAY_SPEC	10	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY_SPEC	50	/* ms */
+#define	USB_PORT_RESET_RECOVERY_SPEC	10	/* ms */
+#define	USB_PORT_POWERUP_DELAY_SPEC	100	/* ms */
+#define	USB_PORT_RESUME_DELAY_SPEC	20	/* ms */
+#define	USB_SET_ADDRESS_SETTLE_SPEC	2	/* ms */
+#define	USB_RESUME_DELAY_SPEC		(20*5)	/* ms */
+#define	USB_RESUME_WAIT_SPEC		10	/* ms */
+#define	USB_RESUME_RECOVERY_SPEC	10	/* ms */
+#define	USB_EXTRA_POWER_UP_TIME_SPEC	0	/* ms */
+
 /* Allow for marginal and non-conforming devices. */
-#define	USB_PORT_RESET_DELAY	50	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY 250	/* ms */
-#define	USB_PORT_RESET_RECOVERY	250	/* ms */
-#define	USB_PORT_POWERUP_DELAY	300	/* ms */
-#define	USB_PORT_RESUME_DELAY	(20*2)	/* ms */
-#define	USB_SET_ADDRESS_SETTLE	10	/* ms */
-#define	USB_RESUME_DELAY	(50*5)	/* ms */
-#define	USB_RESUME_WAIT		50	/* ms */
-#define	USB_RESUME_RECOVERY	50	/* ms */
-#define	USB_EXTRA_POWER_UP_TIME	20	/* ms */
-#endif
+#define	USB_PORT_RESET_DELAY		50	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY	250	/* ms */
+#define	USB_PORT_RESET_RECOVERY		250	/* ms */
+#define	USB_PORT_POWERUP_DELAY		300	/* ms */
+#define	USB_PORT_RESUME_DELAY		(20*2)	/* ms */
+#define	USB_SET_ADDRESS_SETTLE		10	/* ms */
+#define	USB_RESUME_DELAY		(50*5)	/* ms */
+#define	USB_RESUME_WAIT			50	/* ms */
+#define	USB_RESUME_RECOVERY		50	/* ms */
+#define	USB_EXTRA_POWER_UP_TIME		20	/* ms */
 
 #define	USB_MIN_POWER		100	/* mA */
 #define	USB_MAX_POWER		500	/* mA */

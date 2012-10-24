@@ -3369,7 +3369,7 @@ ehci_roothub_exec(struct usb_device *udev,
 
 			/* Wait for reset to complete. */
 			usb_pause_mtx(&sc->sc_bus.bus_mtx,
-			    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
+			    USB_MS_TO_TICKS(usb_port_root_reset_delay));
 
 			/* Terminate reset sequence. */
 			if (!(sc->sc_flags & EHCI_SCFLG_NORESTERM))
