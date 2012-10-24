@@ -751,7 +751,6 @@ vmx_vminit(struct vm *vm)
 		vmx->cap[i].set = 0;
 		vmx->cap[i].proc_ctls = procbased_ctls;
 
-		vmx->state[i].request_nmi = 0;
 		vmx->state[i].lastcpu = -1;
 		vmx->state[i].vpid = vpid;
 
@@ -940,7 +939,7 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 	uint64_t info, interruptibility;
 
 	/* Bail out if no NMI requested */
-	if (vmx->state[vcpu].request_nmi == 0)
+	if (!vm_nmi_pending(vmx->vm, vcpu))
 		return (0);
 
 	error = vmread(VMCS_GUEST_INTERRUPTIBILITY, &interruptibility);
@@ -965,7 +964,7 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 	VMM_CTR0(vmx->vm, vcpu, "Injecting vNMI");
 
 	/* Clear the request */
-	vmx->state[vcpu].request_nmi = 0;
+	vm_nmi_clear(vmx->vm, vcpu);
 	return (1);
 
 nmiblocked:
@@ -1696,16 +1695,6 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 }
 
 static int
-vmx_nmi(void *arg, int vcpu)
-{
-	struct vmx *vmx = arg;
-
-	atomic_set_int(&vmx->state[vcpu].request_nmi, 1);
-
-	return (0);
-}
-
-static int
 vmx_getcap(void *arg, int vcpu, int type, int *retval)
 {
 	struct vmx *vmx = arg;
@@ -1843,7 +1832,6 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_getdesc,
 	vmx_setdesc,
 	vmx_inject,
-	vmx_nmi,
 	vmx_getcap,
 	vmx_setcap
 };

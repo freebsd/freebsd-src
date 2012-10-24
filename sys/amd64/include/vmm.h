@@ -63,7 +63,6 @@ typedef int	(*vmi_set_desc_t)(void *vmi, int vcpu, int num,
 typedef int	(*vmi_inject_event_t)(void *vmi, int vcpu,
 				      int type, int vector,
 				      uint32_t code, int code_valid);
-typedef	int	(*vmi_inject_nmi_t)(void *vmi, int vcpu);
 typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
 
@@ -81,7 +80,6 @@ struct vmm_ops {
 	vmi_get_desc_t		vmgetdesc;
 	vmi_set_desc_t		vmsetdesc;
 	vmi_inject_event_t	vminject;
-	vmi_inject_nmi_t	vmnmi;
 	vmi_get_cap_t		vmgetcap;
 	vmi_set_cap_t		vmsetcap;
 };
@@ -110,6 +108,8 @@ int vm_run(struct vm *vm, struct vm_run *vmrun);
 int vm_inject_event(struct vm *vm, int vcpu, int type,
 		    int vector, uint32_t error_code, int error_code_valid);
 int vm_inject_nmi(struct vm *vm, int vcpu);
+int vm_nmi_pending(struct vm *vm, int vcpuid);
+void vm_nmi_clear(struct vm *vm, int vcpuid);
 uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);

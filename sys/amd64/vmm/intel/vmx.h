@@ -76,7 +76,6 @@ struct vmxcap {
 };
 
 struct vmxstate {
-	int	request_nmi;	
 	int	lastcpu;	/* host cpu that this 'vcpu' last ran on */
 	uint16_t vpid;
 };
