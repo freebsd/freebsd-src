@@ -2974,6 +2974,7 @@ struct bge_softc {
 #define	BGE_MFW_TYPE_DASH	0x00000008
 	int			bge_phy_ape_lock;
 	int			bge_func_addr;
+	int			bge_phy_addr;
 	uint32_t		bge_phy_flags;
 #define	BGE_PHY_NO_WIRESPEED	0x00000001
 #define	BGE_PHY_ADC_BUG		0x00000002
