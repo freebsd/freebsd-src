@@ -247,6 +247,7 @@ scottl [label="Scott Long\nscottl@FreeBSD.org\n2000/09/28"]
 sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
+sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
 sos [label="Soren Schmidt\nsos@FreeBSD.org\n????/??/??"]
 sson [label="Stacey Son\nsson@FreeBSD.org\n2008/07/08"]
@@ -496,6 +497,7 @@ marcel -> art
 marcel -> arun
 marcel -> marius
 marcel -> nwhitehorn
+marcel -> sjg
 
 markm -> jasone
 markm -> sheldonh
