@@ -3215,7 +3215,7 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg, pcistate;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int capmask, error, msicount, phy_addr, reg, rid, trys;
+	int capmask, error, msicount, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -3275,7 +3275,7 @@ bge_attach(device_t dev)
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
 	/* Set default PHY address. */
-	phy_addr = 1;
+	sc->bge_phy_addr = 1;
 	 /*
 	  * PHY address mapping for various devices.
 	  *
@@ -3304,15 +3304,15 @@ bge_attach(device_t dev)
 		if (sc->bge_chipid != BGE_CHIPID_BCM5717_A0) {
 			if (CSR_READ_4(sc, BGE_SGDIG_STS) &
 			    BGE_SGDIGSTS_IS_SERDES)
-				phy_addr = sc->bge_func_addr + 8;
+				sc->bge_phy_addr = sc->bge_func_addr + 8;
 			else
-				phy_addr = sc->bge_func_addr + 1;
+				sc->bge_phy_addr = sc->bge_func_addr + 1;
 		} else {
 			if (CSR_READ_4(sc, BGE_CPMU_PHY_STRAP) &
 			    BGE_CPMU_PHY_STRAP_IS_SERDES)
-				phy_addr = sc->bge_func_addr + 8;
+				sc->bge_phy_addr = sc->bge_func_addr + 8;
 			else
-				phy_addr = sc->bge_func_addr + 1;
+				sc->bge_phy_addr = sc->bge_func_addr + 1;
 		}
 	}
 
@@ -3789,13 +3789,13 @@ again:
 		bge_asf_driver_up(sc);
 
 		error = mii_attach(dev, &sc->bge_miibus, ifp, bge_ifmedia_upd,
-		    bge_ifmedia_sts, capmask, phy_addr, MII_OFFSET_ANY,
+		    bge_ifmedia_sts, capmask, sc->bge_phy_addr, MII_OFFSET_ANY,
 		    MIIF_DOPAUSE);
 		if (error != 0) {
 			if (trys++ < 4) {
 				device_printf(sc->bge_dev, "Try again\n");
-				bge_miibus_writereg(sc->bge_dev, 1, MII_BMCR,
-				    BMCR_RESET);
+				bge_miibus_writereg(sc->bge_dev,
+				    sc->bge_phy_addr, MII_BMCR, BMCR_RESET);
 				goto again;
 			}
 			device_printf(sc->bge_dev, "attaching PHYs failed\n");
@@ -6017,9 +6017,10 @@ bge_link_upd(struct bge_softc *sc)
 			/* Clear the interrupt. */
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
 			    BGE_EVTENB_MI_INTERRUPT);
-			bge_miibus_readreg(sc->bge_dev, 1, BRGPHY_MII_ISR);
-			bge_miibus_writereg(sc->bge_dev, 1, BRGPHY_MII_IMR,
-			    BRGPHY_INTRS);
+			bge_miibus_readreg(sc->bge_dev, sc->bge_phy_addr,
+			    BRGPHY_MII_ISR);
+			bge_miibus_writereg(sc->bge_dev, sc->bge_phy_addr,
+			    BRGPHY_MII_IMR, BRGPHY_INTRS);
 		}
 		return;
 	}
