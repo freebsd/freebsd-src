@@ -476,8 +476,8 @@ cxgb_controller_attach(device_t dev)
 	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		uint16_t lnk;
 
-		lnk = pci_read_config(dev, reg + PCIR_EXPRESS_LINK_STA, 2);
-		sc->link_width = (lnk & PCIM_LINK_STA_WIDTH) >> 4;
+		lnk = pci_read_config(dev, reg + PCIER_LINK_STA, 2);
+		sc->link_width = (lnk & PCIEM_LINK_STA_WIDTH) >> 4;
 		if (sc->link_width < 8 &&
 		    (ai->caps & SUPPORTED_10000baseT_Full)) {
 			device_printf(sc->dev,
