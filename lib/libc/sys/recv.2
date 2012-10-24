@@ -28,7 +28,7 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2006
+.Dd September 12, 2012
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -252,8 +252,21 @@ struct cmsgcred {
 };
 .Ed
 .Pp
-The kernel will fill in the credential information of the sending process
-and deliver it to the receiver.
+If a sender supplies ancillary data with enough space for the above struct
+tagged as
+.Dv SCM_CREDS
+control message type to the
+.Fn sendmsg
+system call, then kernel will fill in the credential information of the
+sending process and deliver it to the receiver.
+Since receiver usually has no control over a sender, this method of retrieving
+credential information isn't reliable.
+For reliable retrieval of remote side credentials it is advised to use the
+.Dv LOCAL_CREDS
+socket option on the receiving socket.
+See
+.Xr unix 4
+for details.
 .Pp
 The
 .Fa msg_flags
@@ -322,7 +335,8 @@ address space.
 .Xr getsockopt 2 ,
 .Xr read 2 ,
 .Xr select 2 ,
-.Xr socket 2
+.Xr socket 2 ,
+.Xr unix 4
 .Sh HISTORY
 The
 .Fn recv
