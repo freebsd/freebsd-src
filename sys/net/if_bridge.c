@@ -1988,20 +1988,19 @@ static int
 bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc;
+	struct ether_header *eh;
+	struct ifnet *dst_if;
 	int error = 0;
 
 	sc = ifp->if_softc;
 
 	ETHER_BPF_MTAP(ifp, m);
 
+	eh = mtod(m, struct ether_header *);
 
 	BRIDGE_LOCK(sc);
-	if ((m->m_flags & (M_BCAST|M_MCAST)) == 0) {
-		struct ether_header *eh;
-		struct ifnet *dst_if;
-
-		eh = mtod(m, struct ether_header *);
-		dst_if = bridge_rtlookup(sc, eh->ether_dhost, 1);
+	if (((m->m_flags & (M_BCAST|M_MCAST)) == 0) &&
+	    (dst_if = bridge_rtlookup(sc, eh->ether_dhost, 1)) != NULL) {
 		BRIDGE_UNLOCK(sc);
 		error = bridge_enqueue(sc, dst_if, m);
 	} else
