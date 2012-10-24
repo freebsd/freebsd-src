@@ -3316,17 +3316,6 @@ bge_attach(device_t dev)
 		}
 	}
 
-	/*
-	 * Don't enable Ethernet@WireSpeed for the 5700, 5906, or the
-	 * 5705 A0 and A1 chips.
-	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
-	    (sc->bge_asicrev == BGE_ASICREV_BCM5705 &&
-	    (sc->bge_chipid != BGE_CHIPID_BCM5705_A0 &&
-	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)) ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5906)
-		sc->bge_phy_flags |= BGE_PHY_NO_WIRESPEED;
-
 	if (bge_has_eaddr(sc))
 		sc->bge_flags |= BGE_FLAG_EADDR;
 
@@ -3410,38 +3399,6 @@ bge_attach(device_t dev)
 
 	/* Add SYSCTLs, requires the chipset family to be set. */
 	bge_add_sysctls(sc);
-
-	/* Set various PHY bug flags. */
-	if (sc->bge_chipid == BGE_CHIPID_BCM5701_A0 ||
-	    sc->bge_chipid == BGE_CHIPID_BCM5701_B0)
-		sc->bge_phy_flags |= BGE_PHY_CRC_BUG;
-	if (sc->bge_chiprev == BGE_CHIPREV_5703_AX ||
-	    sc->bge_chiprev == BGE_CHIPREV_5704_AX)
-		sc->bge_phy_flags |= BGE_PHY_ADC_BUG;
-	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
-		sc->bge_phy_flags |= BGE_PHY_5704_A0_BUG;
-	if (pci_get_subvendor(dev) == DELL_VENDORID)
-		sc->bge_phy_flags |= BGE_PHY_NO_3LED;
-	if ((BGE_IS_5705_PLUS(sc)) &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5719 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5720 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM57765 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
-		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
-		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
-		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
-			if (pci_get_device(dev) != BCOM_DEVICEID_BCM5722 &&
-			    pci_get_device(dev) != BCOM_DEVICEID_BCM5756)
-				sc->bge_phy_flags |= BGE_PHY_JITTER_BUG;
-			if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
-				sc->bge_phy_flags |= BGE_PHY_ADJUST_TRIM;
-		} else
-			sc->bge_phy_flags |= BGE_PHY_BER_BUG;
-	}
 
 	/* Identify the chips that use an CPMU. */
 	if (BGE_IS_5717_PLUS(sc) ||
@@ -3760,11 +3717,55 @@ bge_attach(device_t dev)
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
 	if ((pci_read_config(dev, BGE_PCI_SUBSYS, 4) >> 16) ==
 	    SK_SUBSYSID_9D41 || (hwcfg & BGE_HWCFG_MEDIA) == BGE_MEDIA_FIBER) {
-		if (BGE_IS_5705_PLUS(sc))
+		if (BGE_IS_5705_PLUS(sc)) {
 			sc->bge_flags |= BGE_FLAG_MII_SERDES;
-		else
+			sc->bge_phy_flags |= BGE_PHY_NO_WIRESPEED;
+		} else
 			sc->bge_flags |= BGE_FLAG_TBI;
 	}
+
+	/* Set various PHY bug flags. */
+	if (sc->bge_chipid == BGE_CHIPID_BCM5701_A0 ||
+	    sc->bge_chipid == BGE_CHIPID_BCM5701_B0)
+		sc->bge_phy_flags |= BGE_PHY_CRC_BUG;
+	if (sc->bge_chiprev == BGE_CHIPREV_5703_AX ||
+	    sc->bge_chiprev == BGE_CHIPREV_5704_AX)
+		sc->bge_phy_flags |= BGE_PHY_ADC_BUG;
+	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
+		sc->bge_phy_flags |= BGE_PHY_5704_A0_BUG;
+	if (pci_get_subvendor(dev) == DELL_VENDORID)
+		sc->bge_phy_flags |= BGE_PHY_NO_3LED;
+	if ((BGE_IS_5705_PLUS(sc)) &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5719 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5720 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM57765 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
+			if (pci_get_device(dev) != BCOM_DEVICEID_BCM5722 &&
+			    pci_get_device(dev) != BCOM_DEVICEID_BCM5756)
+				sc->bge_phy_flags |= BGE_PHY_JITTER_BUG;
+			if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
+				sc->bge_phy_flags |= BGE_PHY_ADJUST_TRIM;
+		} else
+			sc->bge_phy_flags |= BGE_PHY_BER_BUG;
+	}
+
+	/*
+	 * Don't enable Ethernet@WireSpeed for the 5700, 5906, or the
+	 * 5705 A0 and A1 chips.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+	    (sc->bge_asicrev == BGE_ASICREV_BCM5705 &&
+	    (sc->bge_chipid != BGE_CHIPID_BCM5705_A0 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)) ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5906)
+		sc->bge_phy_flags |= BGE_PHY_NO_WIRESPEED;
 
 	if (sc->bge_flags & BGE_FLAG_TBI) {
 		ifmedia_init(&sc->bge_ifmedia, IFM_IMASK, bge_ifmedia_upd,
