@@ -136,14 +136,6 @@ amdv_inject_event(void *vmi, int vcpu, int type, int vector,
 }
 
 static int
-amdv_nmi(void *arg, int vcpu)
-{
-
-	printf("amdv_nmi: not implemented\n");	
-        return (EINVAL);
-}
-
-static int
 amdv_getcap(void *arg, int vcpu, int type, int *retval)
 {
 
@@ -172,7 +164,6 @@ struct vmm_ops vmm_ops_amd = {
 	amdv_getdesc,
 	amdv_setdesc,
 	amdv_inject_event,
-	amdv_nmi,
 	amdv_getcap,
 	amdv_setcap
 };
