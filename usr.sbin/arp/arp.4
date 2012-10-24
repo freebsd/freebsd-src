@@ -120,6 +120,12 @@ of the
 .Xr sysctl 3
 MIB.
 .Bl -tag -width "log_arp_permanent_modify"
+.It Va allow_multicast
+Should the kernel install ARP entries with multicast bit set in
+the hardware address.
+Installing such entries is RFC 1812 violation, but some prorietary
+load balancing techniques require routers on network to do so.
+Turned off by default.
 .It Va log_arp_movements
 Should the kernel log movements of IP addresses from one hardware
 address to an other.
@@ -203,6 +209,11 @@ entry in the local ARP table.
 This error will only be logged if the sysctl
 .Va net.link.ether.inet.log_arp_permanent_modify
 is set to 1, which is the system's default behaviour.
+.It "arp: %x:%x:%x:%x:%x:%x is multicast"
+Kernel refused to install an entry with multicast hardware address.
+If you really want such addresses being installed, set the sysctl
+.Va net.link.ether.inet.allow_multicast
+to a positive value.
 .El
 .Sh SEE ALSO
 .Xr inet 4 ,
