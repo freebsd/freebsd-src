@@ -159,6 +159,8 @@ static int cap_monitor_trap;
 /* statistics */
 static VMM_STAT_DEFINE(VCPU_MIGRATIONS, "vcpu migration across host cpus");
 static VMM_STAT_DEFINE(VMEXIT_EXTINT, "vm exits due to external interrupt");
+static VMM_STAT_DEFINE(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
+static VMM_STAT_DEFINE(VMEXIT_HLT, "number of times hlt was intercepted");
 
 #ifdef KTR
 static const char *
@@ -1203,11 +1205,11 @@ vmx_lapic_fault(struct vm *vm, int cpu,
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
-	int handled;
+	int error, handled;
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx;
-	uint64_t qual, gpa, cr3;
+	uint64_t qual, gpa, cr3, intr_info;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1240,7 +1242,20 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		}
 		break;
 	case EXIT_REASON_HLT:
-		vmexit->exitcode = VM_EXITCODE_HLT;
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
+		/*
+		 * If there is an event waiting to be injected then there is
+		 * no need to 'hlt'.
+		 */
+		error = vmread(VMCS_ENTRY_INTR_INFO, &intr_info);
+		if (error)
+			panic("vmx_exit_process: vmread(intrinfo) %d", error);
+
+		if (intr_info & VMCS_INTERRUPTION_INFO_VALID) {
+			handled = 1;
+			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT_IGNORED, 1);
+		} else
+			vmexit->exitcode = VM_EXITCODE_HLT;
 		break;
 	case EXIT_REASON_MTF:
 		vmexit->exitcode = VM_EXITCODE_MTRAP;
