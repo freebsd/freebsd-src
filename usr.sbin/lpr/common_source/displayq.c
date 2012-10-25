@@ -75,8 +75,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Stuff for handling job specifications
  */
-extern uid_t	uid, euid;
-
 static int	col;		/* column on screen */
 static char	current[MAXNAMLEN+1];	/* current file being printed */
 static char	file[MAXNAMLEN+1];	/* print file name */
