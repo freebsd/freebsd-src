@@ -62,6 +62,7 @@ libkern/flsl.c				standard
 libkern/lshrdi3.c			standard
 libkern/memchr.c			optional	fdt
 libkern/memmove.c			standard
+libkern/ucmpdi2.c			standard
 
 # Compat32 stuff
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
