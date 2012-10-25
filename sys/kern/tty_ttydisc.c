@@ -126,6 +126,10 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 	breakc[n] = '\0';
 
 	do {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		/*
 		 * Quite a tricky case: unlike the old TTY
 		 * implementation, this implementation copies data back
@@ -192,6 +196,10 @@ ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 	 */
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -229,6 +237,10 @@ ttydisc_read_raw_read_timer(struct tty *tp, struct uio *uio, int ioflag,
 	timevaladd(&end, &now);
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -278,6 +290,10 @@ ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 	 */
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)

@@ -361,7 +361,7 @@ tty_is_ctty(struct tty *tp, struct proc *p)
 	return (p->p_session == tp->t_session && p->p_flag & P_CONTROLT);
 }
 
-static int
+int
 tty_wait_background(struct tty *tp, struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
@@ -433,13 +433,6 @@ ttydev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	error = ttydev_enter(tp);
 	if (error)
 		goto done;
-
-	error = tty_wait_background(tp, curthread, SIGTTIN);
-	if (error) {
-		tty_unlock(tp);
-		goto done;
-	}
-
 	error = ttydisc_read(tp, uio, ioflag);
 	tty_unlock(tp);
 
