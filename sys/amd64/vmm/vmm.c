@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_msr.h"
 #include "vmm_ipi.h"
 #include "vmm_stat.h"
+#include "vmm_lapic.h"
 
 #include "io/ppt.h"
 #include "io/iommu.h"
@@ -92,9 +93,9 @@ do {									\
 	vm->vcpu[vcpuid].pincpu = host_cpuid;				\
 } while(0)
 
-#define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_DEF)
-#define	vcpu_lock(v)		mtx_lock(&((v)->mtx))
-#define	vcpu_unlock(v)		mtx_unlock(&((v)->mtx))
+#define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
+#define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
+#define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
 
 #define	VM_MAX_MEMORY_SEGMENTS	2
 
@@ -651,13 +652,16 @@ save_guest_fpustate(struct vcpu *vcpu)
 	fpu_start_emulating();
 }
 
+static VMM_STAT_DEFINE(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
+
 int
 vm_run(struct vm *vm, struct vm_run *vmrun)
 {
-	int error, vcpuid;
+	int error, vcpuid, sleepticks, t;
 	struct vcpu *vcpu;
 	struct pcb *pcb;
-	uint64_t tscval;
+	uint64_t tscval, rip;
+	struct vm_exit *vme;
 
 	vcpuid = vmrun->cpuid;
 
@@ -665,7 +669,9 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 		return (EINVAL);
 
 	vcpu = &vm->vcpu[vcpuid];
-
+	vme = &vmrun->vm_exit;
+	rip = vmrun->rip;
+restart:
 	critical_enter();
 
 	tscval = rdtsc();
@@ -677,7 +683,7 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	restore_guest_fpustate(vcpu);
 
 	vcpu->hostcpu = curcpu;
-	error = VMRUN(vm->cookie, vcpuid, vmrun->rip);
+	error = VMRUN(vm->cookie, vcpuid, rip);
 	vcpu->hostcpu = NOCPU;
 
 	save_guest_fpustate(vcpu);
@@ -686,9 +692,51 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
 
 	/* copy the exit information */
-	bcopy(&vcpu->exitinfo, &vmrun->vm_exit, sizeof(struct vm_exit));
+	bcopy(&vcpu->exitinfo, vme, sizeof(struct vm_exit));
 
 	critical_exit();
+
+	/*
+	 * Oblige the guest's desire to 'hlt' by sleeping until the vcpu
+	 * is ready to run.
+	 */
+	if (error == 0 && vme->exitcode == VM_EXITCODE_HLT) {
+		vcpu_lock(vcpu);
+
+		/*
+		 * Figure out the number of host ticks until the next apic
+		 * timer interrupt in the guest.
+		 */
+		sleepticks = lapic_timer_tick(vm, vcpuid);
+
+		/*
+		 * If the guest local apic timer is disabled then sleep for
+		 * a long time but not forever.
+		 */
+		if (sleepticks < 0)
+			sleepticks = hz;
+
+		/*
+		 * Do a final check for pending NMI or interrupts before
+		 * really putting this thread to sleep.
+		 *
+		 * These interrupts could have happened any time after we
+		 * returned from VMRUN() and before we grabbed the vcpu lock.
+		 */
+		if (!vm_nmi_pending(vm, vcpuid) &&
+		    lapic_pending_intr(vm, vcpuid) < 0) {
+			if (sleepticks <= 0)
+				panic("invalid sleepticks %d", sleepticks);
+			t = ticks;
+			msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
+			vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
+		}
+
+		vcpu_unlock(vcpu);
+
+		rip = vme->rip + vme->inst_length;
+		goto restart;
+	}
 
 	return (error);
 }
@@ -709,7 +757,7 @@ vm_inject_event(struct vm *vm, int vcpuid, int type,
 	return (VMINJECT(vm->cookie, vcpuid, type, vector, code, code_valid));
 }
 
-VMM_STAT_DEFINE(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
+static VMM_STAT_DEFINE(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
 
 int
 vm_inject_nmi(struct vm *vm, int vcpuid)
@@ -935,16 +983,25 @@ vm_interrupt_hostcpu(struct vm *vm, int vcpuid)
 
 	vcpu = &vm->vcpu[vcpuid];
 
-	/*
-	 * XXX racy but the worst case is that we'll send an unnecessary IPI
-	 * to the 'hostcpu'.
-	 *
-	 * We cannot use vcpu_is_running() here because it acquires vcpu->mtx
-	 * which is not allowed inside a critical section.
-	 */
+	vcpu_lock(vcpu);
 	hostcpu = vcpu->hostcpu;
-	if (hostcpu == NOCPU || hostcpu == curcpu)
-		return;
-
-	ipi_cpu(hostcpu, vmm_ipinum);
+	if (hostcpu == NOCPU) {
+		/*
+		 * If the vcpu is 'RUNNING' but without a valid 'hostcpu' then
+		 * the host thread must be sleeping waiting for an event to
+		 * kick the vcpu out of 'hlt'.
+		 *
+		 * XXX this is racy because the condition exists right before
+		 * and after calling VMRUN() in vm_run(). The wakeup() is
+		 * benign in this case.
+		 */
+		if (vcpu->state == VCPU_RUNNING)
+			wakeup_one(vcpu);
+	} else {
+		if (vcpu->state != VCPU_RUNNING)
+			panic("invalid vcpu state %d", vcpu->state);
+		if (hostcpu != curcpu)
+			ipi_cpu(hostcpu, vmm_ipinum);
+	}
+	vcpu_unlock(vcpu);
 }
