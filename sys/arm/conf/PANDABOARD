@@ -127,7 +127,7 @@ device		da		# Direct Access (disks)
 device		miibus
 #device		axe		# ASIX Electronics USB Ethernet
 device		smsc		# SMSC LAN95xx USB Ethernet
-
+device		bpf
 
 # OMAP-specific devices
 device		ti_sdma
