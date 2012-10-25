@@ -128,6 +128,12 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 				     CPUID2_AVX);
 
 			/*
+			 * Hide monitor/mwait until we know how to deal with
+			 * these instructions.
+			 */
+			regs[2] &= ~CPUID2_MON;
+
+			/*
 			 * Hide thermal monitoring
 			 */
 			regs[3] &= ~(CPUID_ACPI | CPUID_TM);
