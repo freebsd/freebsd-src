@@ -1404,7 +1404,7 @@ main(int argc, char *argv[])
 	if (!error && (get_host_rsp || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_HOST_RSP, &rsp);
 		if (error == 0)
-			printf("host_rip[%d]\t\t0x%016lx\n", vcpu, rsp);
+			printf("host_rsp[%d]\t\t0x%016lx\n", vcpu, rsp);
 	}
 
 	if (!error && (get_guest_sysenter || get_all)) {
