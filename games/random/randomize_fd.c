@@ -207,6 +207,8 @@ randomize_fd(int fd, int type, int unique, double denom)
 		goto make_token;
 	}
 
+	free(buf);
+
 	for (i = numnode; i > 0; i--) {
 		selected = random() % numnode;
 
