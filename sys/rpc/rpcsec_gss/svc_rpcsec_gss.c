@@ -1025,12 +1025,9 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 		rpc_gss_log_status("gss_verify_mic", client->cl_mech,
 		    maj_stat, min_stat);
 		/*
-		 * Attila Bogar and Herbert Poeckl reported similar problems
-		 * w.r.t. a Linux NFS client doing a krb5 NFS mount against the
-		 * FreeBSD server. We determined this was a Linux bug:
-		 * http://www.spinics.net/lists/linux-nfs/msg32466.html, where
-		 * the mount failed to work because a Destroy operation with a
-		 * bogus encrypted checksum destroyed the authenticator handle.
+		 * A bug in some versions of the Linux client generates a
+		 * Destroy operation with a bogus encrypted checksum. Deleting
+		 * the credential handle for that case causes the mount to fail.
 		 * Since the checksum is bogus (gss_verify_mic() failed), it
 		 * doesn't make sense to destroy the handle and not doing so
 		 * fixes the Linux mount.
