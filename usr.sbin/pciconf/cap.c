@@ -363,6 +363,22 @@ cap_subvendor(int fd, struct pci_conf *p, uint8_t ptr)
 
 #define	MAX_PAYLOAD(field)		(128 << (field))
 
+static const char *
+link_speed_string(uint8_t speed)
+{
+
+	switch (speed) {
+	case 1:
+		return ("2.5");
+	case 2:
+		return ("5.0");
+	case 3:
+		return ("8.0");
+	default:
+		return ("undef");
+	}
+}
+
 static void
 cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 {
@@ -418,6 +434,16 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 	flags = read_config(fd, &p->pc_sel, ptr+ PCIER_LINK_STA, 2);
 	printf(" link x%d(x%d)", (flags & PCIEM_LINK_STA_WIDTH) >> 4,
 	    (val & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
+	/*
+	 * Only print link speed info if the link's max width is
+	 * greater than 0.
+	 */ 
+	if ((val & PCIEM_LINK_CAP_MAX_WIDTH) != 0) {
+		printf("\n                 speed");
+		printf(" %s(%s)", (flags & PCIEM_LINK_STA_WIDTH) == 0 ?
+		    "0.0" : link_speed_string(flags & PCIEM_LINK_STA_SPEED),
+	    	    link_speed_string(val & PCIEM_LINK_CAP_MAX_SPEED));
+	}
 }
 
 static void
